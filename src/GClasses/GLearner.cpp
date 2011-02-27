@@ -1,0 +1,1092 @@
+/*
+	Copyright (C) 2006, Mike Gashler
+
+	This library is free software; you can redistribute it and/or
+	modify it under the terms of the GNU Lesser General Public
+	License as published by the Free Software Foundation; either
+	version 2.1 of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/lesser.html
+*/
+
+#include "GLearner.h"
+#include <stdlib.h>
+#include <string.h>
+#include "GError.h"
+#include "GVec.h"
+#include "GHeap.h"
+#include "GTwt.h"
+#include "GImage.h"
+#include "GNeuralNet.h"
+#include "GKNN.h"
+#include "GDecisionTree.h"
+#include "GNaiveInstance.h"
+#include "GLinear.h"
+#include "GNaiveBayes.h"
+#include "GEnsemble.h"
+#include "GPolynomial.h"
+#include "GTransform.h"
+#include "GRand.h"
+#include "GPlot.h"
+#include "GDistribution.h"
+#include <cmath>
+#include <iostream>
+
+using std::vector;
+
+namespace GClasses {
+
+GPrediction::~GPrediction()
+{
+	delete(m_pDistribution);
+}
+
+bool GPrediction::isContinuous()
+{
+	return m_pDistribution->type() == GUnivariateDistribution::normal;
+}
+
+// static
+void GPrediction::predictionArrayToVector(size_t nOutputCount, GPrediction* pOutputs, double* pVector)
+{
+	for(size_t i = 0; i < nOutputCount; i++)
+		pVector[i] = pOutputs[i].mode();
+}
+
+// static
+void GPrediction::vectorToPredictionArray(GRelation* pRelation, size_t nOutputCount, double* pVector, GPrediction* pOutputs)
+{
+	size_t nInputs = pRelation->size() - nOutputCount;
+	for(size_t i = 0; i < nOutputCount; i++)
+	{
+		size_t nValueCount = pRelation->valueCount(nInputs + i);
+		if(nValueCount == 0)
+			pOutputs[i].makeNormal()->setMeanAndVariance(pVector[i], 1);
+		else
+			pOutputs[i].makeCategorical()->setSpike(nValueCount, (size_t)pVector[i], 1);
+	}
+}
+
+double GPrediction::mode()
+{
+	return m_pDistribution->mode();
+}
+
+GCategoricalDistribution* GPrediction::makeCategorical()
+{
+	if(!m_pDistribution || m_pDistribution->type() != GUnivariateDistribution::categorical)
+	{
+		delete(m_pDistribution);
+		m_pDistribution = new GCategoricalDistribution();
+	}
+	return (GCategoricalDistribution*)m_pDistribution;
+}
+
+GNormalDistribution* GPrediction::makeNormal()
+{
+	if(!m_pDistribution || m_pDistribution->type() != GUnivariateDistribution::normal)
+	{
+		delete(m_pDistribution);
+		m_pDistribution = new GNormalDistribution();
+	}
+	return (GNormalDistribution*)m_pDistribution;
+}
+
+GCategoricalDistribution* GPrediction::asCategorical()
+{
+	if(!m_pDistribution || m_pDistribution->type() != GUnivariateDistribution::categorical)
+		ThrowError("The current distribution is not a categorical distribution");
+	return (GCategoricalDistribution*)m_pDistribution;
+}
+
+GNormalDistribution* GPrediction::asNormal()
+{
+	if(!m_pDistribution || m_pDistribution->type() != GUnivariateDistribution::normal)
+		ThrowError("The current distribution is not a normal distribution");
+	return (GNormalDistribution*)m_pDistribution;
+}
+
+// ---------------------------------------------------------------
+
+GTransducer::GTransducer()
+{
+}
+
+GTransducer::~GTransducer()
+{
+}
+
+class GTransducerTrainAndTestCleanUpper
+{
+protected:
+	GMatrix* m_pData;
+	size_t m_nTestSize;
+
+public:
+	GTransducerTrainAndTestCleanUpper(GMatrix* pData, size_t nTestSize)
+	: m_pData(pData), m_nTestSize(nTestSize)
+	{
+	}
+
+	~GTransducerTrainAndTestCleanUpper()
+	{
+		while(m_pData->rows() > m_nTestSize)
+			m_pData->releaseRow(m_pData->rows() - 1);
+	}
+};
+
+// virtual
+void GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults)
+{
+	// Check assumptions
+	if(testFeatures.rows() != testLabels.rows())
+		ThrowError("Expected the test features to have the same number of rows as the test labels");
+	if(trainFeatures.cols() != testFeatures.cols())
+		ThrowError("Expected the training features and test features to have the same number of columns");
+
+	// Transduce
+	GMatrix* pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
+	Holder<GMatrix> hPredictedLabels(pPredictedLabels);
+
+	// Evaluate the results
+	size_t labelDims = trainLabels.cols();
+	GVec::setAll(pOutResults, 0.0, labelDims);
+	for(size_t i = 0; i < labelDims; i++)
+	{
+		*pOutResults = testLabels.columnSumSquaredDifference(*pPredictedLabels, i);
+		if(testLabels.relation()->valueCount(i) > 0)
+			*pOutResults = 1.0 - (*pOutResults / testLabels.rows());
+		pOutResults++;
+	}
+}
+
+double GTransducer::heuristicValidate(GMatrix& features, GMatrix& labels, GRand* pRand)
+{
+	// Check assumptions
+	if(features.rows() != labels.rows())
+		ThrowError("Expected the features and labels to have the same number of rows");
+
+	// Randomly divide into two datasets
+	GMatrix featuresA(features.relation());
+	GReleaseDataHolder hFeaturesA(&featuresA);
+	featuresA.reserve(features.rows());
+	GMatrix featuresB(features.relation());
+	GReleaseDataHolder hFeaturesB(&featuresB);
+	featuresB.reserve(features.rows());
+	GMatrix labelsA(labels.relation());
+	GReleaseDataHolder hLabelsA(&labelsA);
+	labelsA.reserve(labels.rows());
+	GMatrix labelsB(labels.relation());
+	GReleaseDataHolder hLabelsB(&labelsB);
+	labelsB.reserve(labels.rows());
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		if(pRand->next() & 1)
+		{
+			featuresA.takeRow(features[i]);
+			labelsA.takeRow(labels[i]);
+		}
+		else
+		{
+			featuresB.takeRow(features[i]);
+			labelsB.takeRow(labels[i]);
+		}
+	}
+
+	// Evaluate
+	GTEMPBUF(double, pResults1, 2 * labels.cols());
+	double* pResults2 = pResults1 + labels.cols();
+	trainAndTest(featuresA, labelsA, featuresB, labelsB, pResults1);
+	trainAndTest(featuresB, labelsB, featuresA, labelsA, pResults2);
+	double err = 0;
+	for(size_t i = 0; i < labels.cols(); i++)
+	{
+		if(labels.relation()->valueCount(i) == 0)
+		{
+			err += pResults1[i];
+			err += pResults2[i];
+		}
+		else
+		{
+			double d = 1.000001 - pResults1[i];
+			err += (d * d);
+			d = 1.000001 - pResults2[i];
+			err += (d * d);
+		}
+	}
+	return err;
+}
+
+GMatrix* GTransducer::crossValidate(GMatrix& features, GMatrix& labels, size_t folds, RepValidateCallback pCB, size_t nRep, void* pThis)
+{
+	if(features.rows() != labels.rows())
+		ThrowError("Expected the features and labels to have the same number of rows");
+
+	// Make a place to store the results
+	GMatrix* pResults = new GMatrix(0, labels.cols());
+	pResults->reserve(folds);
+	Holder<GMatrix> hResults(pResults);
+
+	// Do cross-validation
+	GMatrix trainFeatures(features.relation(), features.heap());
+	trainFeatures.reserve(features.rows());
+	GMatrix testFeatures(features.relation(), features.heap());
+	testFeatures.reserve(features.rows() / folds + 1);
+	GMatrix trainLabels(labels.relation(), labels.heap());
+	trainLabels.reserve(labels.rows());
+	GMatrix testLabels(labels.relation(), labels.heap());
+	testLabels.reserve(labels.rows() / folds + 1);
+	for(size_t i = 0; i < folds; i++)
+	{
+		// Divide into a training set and a test set
+		GReleaseDataHolder hTrainFeatures(&trainFeatures);
+		GReleaseDataHolder hTestFeatures(&testFeatures);
+		GReleaseDataHolder hTrainLabels(&trainLabels);
+		GReleaseDataHolder hTestLabels(&testLabels);
+		size_t foldStart = i * features.rows() / folds;
+		size_t foldEnd = (i + 1) * features.rows() / folds;
+		for(size_t j = 0; j < foldStart; j++)
+		{
+			trainFeatures.takeRow(features[j]);
+			trainLabels.takeRow(labels[j]);
+		}
+		for(size_t j = foldStart; j < foldEnd; j++)
+		{
+			testFeatures.takeRow(features[j]);
+			testLabels.takeRow(labels[j]);
+		}
+		for(size_t j = foldEnd; j < features.rows(); j++)
+		{
+			trainFeatures.takeRow(features[j]);
+			trainLabels.takeRow(labels[j]);
+		}
+
+		// Evaluate
+		double* pFoldResults = pResults->newRow();
+		trainAndTest(trainFeatures, trainLabels, testFeatures, testLabels, pFoldResults);
+		if(pCB)
+			pCB(pThis, nRep, i, labels.cols(), pFoldResults);
+	}
+	return hResults.release();
+}
+
+GMatrix* GTransducer::repValidate(GMatrix& features, GMatrix& labels, size_t reps, size_t folds, GRand* pRand, RepValidateCallback pCB, void* pThis)
+{
+	GMatrix* pResults = new GMatrix(0, labels.cols());
+	pResults->reserve(reps * folds);
+	Holder<GMatrix> hResults(pResults);
+	for(size_t i = 0; i < reps; i++)
+	{
+		features.shuffle(pRand, &labels);
+		GMatrix* pRepResults = crossValidate(features, labels, folds, pCB, i, pThis);
+		pResults->mergeVert(pRepResults);
+		delete(pRepResults);
+	}
+	return hResults.release();
+}
+
+// ---------------------------------------------------------------
+
+GSupervisedLearner::GSupervisedLearner()
+: GTransducer(), m_pFeatureFilter(NULL), m_pLabelFilter(NULL), m_featureDims((size_t)-1), m_labelDims((size_t)-1)
+{
+}
+
+GSupervisedLearner::GSupervisedLearner(GTwtNode* pNode, GRand& rand)
+: GTransducer(), m_pFeatureFilter(NULL), m_pLabelFilter(NULL)
+{
+	GLearnerLoader ll;
+	GTwtNode* pFeatureFilter = pNode->fieldIfExists("ff");
+	if(pFeatureFilter)
+		m_pFeatureFilter = ll.loadTwoWayIncrementalTransform(pFeatureFilter, &rand);
+	GTwtNode* pLabelFilter = pNode->fieldIfExists("lf");
+	if(pLabelFilter)
+		m_pLabelFilter = ll.loadTwoWayIncrementalTransform(pLabelFilter, &rand);
+	m_featureDims = pNode->field("fd")->asInt();
+	m_labelDims = pNode->field("ld")->asInt();
+}
+
+GSupervisedLearner::~GSupervisedLearner()
+{
+	delete(m_pFeatureFilter);
+	delete(m_pLabelFilter);
+}
+
+GTwtNode* GSupervisedLearner::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
+{
+	GTwtNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
+	if(m_pFeatureFilter)
+		pNode->addField(pDoc, "ff", m_pFeatureFilter->toTwt(pDoc));
+	if(m_pLabelFilter)
+		pNode->addField(pDoc, "lf", m_pLabelFilter->toTwt(pDoc));
+	pNode->addField(pDoc, "fd", pDoc->newInt(m_featureDims));
+	pNode->addField(pDoc, "ld", pDoc->newInt(m_labelDims));
+	return pNode;
+}
+
+void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
+{
+	// Discard any existing filters
+	delete(m_pFeatureFilter);
+	m_pFeatureFilter = NULL;
+	delete(m_pLabelFilter);
+	m_pLabelFilter = NULL;
+
+	// Automatically instantiate any necessary filters for the features
+	bool hasNominalFeatures = false;
+	bool hasContinuousFeatures = false;
+	GRelation* pFeatureRel = features.relation().get();
+	for(size_t i = 0; i < pFeatureRel->size(); i++)
+	{
+		if(pFeatureRel->valueCount(i) == 0)
+		{
+			hasContinuousFeatures = true;
+			if(hasNominalFeatures)
+				break;
+		}
+		else
+		{
+			hasNominalFeatures = true;
+			if(hasContinuousFeatures)
+				break;
+		}
+	}
+	if(hasNominalFeatures)
+	{
+		if(!canImplicitlyHandleNominalFeatures())
+		{
+			if(!canImplicitlyHandleContinuousFeatures())
+				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of feature");
+			if(m_pFeatureFilter)
+				ThrowError("The logic for picking filters has failed");
+			m_pFeatureFilter = new GNominalToCat(16);
+		}
+	}
+	if(hasContinuousFeatures)
+	{
+		if(canImplicitlyHandleContinuousFeatures())
+		{
+			double supportedMin, supportedMax;
+			if(!supportedFeatureRange(&supportedMin, &supportedMax))
+			{
+				bool normalizationIsNeeded = false;
+				for(size_t i = 0; i < pFeatureRel->size(); i++)
+				{
+					if(pFeatureRel->valueCount(i) != 0)
+						continue;
+					double m, r;
+					features.minAndRange(i, &m, &r);
+					if(m < supportedMin || m + r > supportedMax)
+					{
+						normalizationIsNeeded = true;
+						break;
+					}
+					if(r >= 1e-12 && r * 4 < supportedMax - supportedMin)
+					{
+						normalizationIsNeeded = true;
+						break;
+					}
+				}
+				if(normalizationIsNeeded)
+				{
+					if(m_pFeatureFilter)
+						m_pFeatureFilter = new GTwoWayTransformChainer(new GNormalize(supportedMin, supportedMax), m_pFeatureFilter);
+					else
+						m_pFeatureFilter = new GNormalize(supportedMin, supportedMax);
+				}
+			}
+		}
+		else
+		{
+			if(!canImplicitlyHandleNominalFeatures())
+				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of feature");
+			if(m_pFeatureFilter)
+				ThrowError("The logic for picking filters has failed");
+			m_pFeatureFilter = new GDiscretize();
+		}
+	}
+
+	// Automatically instantiate any necessary filters for the labels
+	bool hasNominalLabels = false;
+	bool hasContinuousLabels = false;
+	GRelation* pLabelRel = labels.relation().get();
+	for(size_t i = 0; i < pLabelRel->size(); i++)
+	{
+		if(pLabelRel->valueCount(i) == 0)
+		{
+			hasContinuousLabels = true;
+			if(hasNominalLabels)
+				break;
+		}
+		else
+		{
+			hasNominalLabels = true;
+			if(hasContinuousLabels)
+				break;
+		}
+	}
+	if(hasNominalLabels)
+	{
+		if(!canImplicitlyHandleNominalLabels())
+		{
+			if(!canImplicitlyHandleContinuousLabels())
+				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of label");
+			if(m_pLabelFilter)
+				ThrowError("The logic for picking filters has failed");
+			m_pLabelFilter = new GNominalToCat(16);
+		}
+	}
+	if(hasContinuousLabels)
+	{
+		if(canImplicitlyHandleContinuousLabels())
+		{
+			double supportedMin, supportedMax;
+			if(!supportedLabelRange(&supportedMin, &supportedMax))
+			{
+				bool normalizationIsNeeded = false;
+				for(size_t i = 0; i < pLabelRel->size(); i++)
+				{
+					if(pLabelRel->valueCount(i) != 0)
+						continue;
+					double m, r;
+					labels.minAndRange(i, &m, &r);
+					if(m < supportedMin || m + r > supportedMax)
+					{
+						normalizationIsNeeded = true;
+						break;
+					}
+					if(r >= 1e-12 && r * 4 < supportedMax - supportedMin)
+					{
+						normalizationIsNeeded = true;
+						break;
+					}
+				}
+				if(normalizationIsNeeded)
+				{
+					if(m_pLabelFilter)
+						m_pLabelFilter = new GTwoWayTransformChainer(new GNormalize(supportedMin, supportedMax), m_pLabelFilter);
+					else
+						m_pLabelFilter = new GNormalize(supportedMin, supportedMax);
+				}
+			}
+		}
+		else
+		{
+			if(!canImplicitlyHandleNominalLabels())
+				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of label");
+			if(m_pLabelFilter)
+				ThrowError("The logic for picking filters has failed");
+			m_pLabelFilter = new GDiscretize();
+		}
+	}
+
+	// Train the filters
+	if(m_pFeatureFilter)
+		m_pFeatureFilter->train(&features);
+	if(m_pLabelFilter)
+		m_pLabelFilter->train(&labels);
+}
+
+void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
+{
+	// Check assumptions
+	if(features.rows() != labels.rows())
+		ThrowError("Expected features and labels to have the same number of rows");
+	if(labels.cols() == 0)
+		ThrowError("Expected at least one label dimension");
+	m_featureDims = features.cols();
+	m_labelDims = labels.cols();
+
+	// Filter the data (if necessary) and train the model
+	setupFilters(features, labels);
+	if(m_pFeatureFilter)
+	{
+		GMatrix* pFilteredFeatures = m_pFeatureFilter->transformBatch(&features);
+		Holder<GMatrix> hFilteredFeatures(pFilteredFeatures);
+		if(m_pLabelFilter)
+		{
+			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(&labels);
+			Holder<GMatrix> hFilteredLabels(pFilteredLabels);
+			trainInner(*pFilteredFeatures, *pFilteredLabels);
+		}
+		else
+			trainInner(*pFilteredFeatures, labels);
+	}
+	else
+	{
+		if(m_pLabelFilter)
+		{
+			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(&labels);
+			Holder<GMatrix> hFilteredLabels(pFilteredLabels);
+			trainInner(features, *pFilteredLabels);
+		}
+		else
+			trainInner(features, labels);
+	}
+}
+
+void GSupervisedLearner::predict(const double* pIn, double* pOut)
+{
+	if(m_pFeatureFilter)
+	{
+		double* pInnerFeatures = m_pFeatureFilter->innerBuf();
+		m_pFeatureFilter->transform(pIn, pInnerFeatures);
+		if(m_pLabelFilter)
+		{
+			double* pInnerLabels = m_pLabelFilter->innerBuf();
+			predictInner(pInnerFeatures, pInnerLabels);
+			m_pLabelFilter->untransform(pInnerLabels, pOut);
+		}
+		else
+			predictInner(pInnerFeatures, pOut);
+	}
+	else
+	{
+		if(m_pLabelFilter)
+		{
+			double* pInnerLabels = m_pLabelFilter->innerBuf();
+			predictInner(pIn, pInnerLabels);
+			m_pLabelFilter->untransform(pInnerLabels, pOut);
+		}
+		else
+			predictInner(pIn, pOut);
+	}
+}
+
+void GSupervisedLearner::predictDistribution(const double* pIn, GPrediction* pOut)
+{
+	if(m_pLabelFilter)
+		ThrowError("Sorry, the filter used to enable this model to support this type (nominal or continuous) of label does not support transforming a distribution.");
+	if(m_pFeatureFilter)
+	{
+		double* pInnerFeatures = m_pFeatureFilter->innerBuf();
+		m_pFeatureFilter->transform(pIn, pInnerFeatures);
+		predictDistributionInner(pInnerFeatures, pOut);
+	}
+	else
+		predictDistributionInner(pIn, pOut);
+}
+
+
+void GSupervisedLearner::accuracy(GMatrix& features, GMatrix& labels, double* pOutResults)
+{
+	if(features.rows() != labels.rows())
+		ThrowError("Expected the features and rows to have the same number of rows");
+	size_t labelDims = labels.cols();
+	GTEMPBUF(double, prediction, labelDims);
+	GVec::setAll(pOutResults, 0.0, labels.cols());
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		predict(features[i], prediction);
+		double w = 1.0 / (i + 1);
+		double* target = labels[i];
+		for(size_t j = 0; j < labelDims; j++)
+		{
+			double d;
+			if(labels.relation()->valueCount(j) == 0)
+			{
+				// Squared error
+				d = target[j] - prediction[j];
+				d *= d;
+			}
+			else
+			{
+				// Predictive accuracy
+				if((int)target[j] == (int)prediction[j])
+					d = 1.0;
+				else
+					d = 0.0;
+			}
+			pOutResults[j] *= (1.0 - w);
+			pOutResults[j] += w * d;
+		}
+	}
+}
+
+// virtual
+GMatrix* GSupervisedLearner::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+{
+	// Train
+	train(features1, labels1);
+
+	// Predict
+	GMatrix* pOut = new GMatrix(labels1.relation());
+	pOut->newRows(features2.rows());
+	for(size_t i = 0; i < features2.rows(); i++)
+		predict(features2.row(i), pOut->row(i));
+	return pOut;
+}
+
+// virtual
+void GSupervisedLearner::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults)
+{
+	train(trainFeatures, trainLabels);
+	accuracy(testFeatures, testLabels, pOutResults);
+}
+
+size_t GSupervisedLearner::precisionRecallContinuous(GPrediction* pOutput, double* pFunc, GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, size_t label)
+{
+	// Predict the variance for each pattern
+	train(trainFeatures, trainLabels);
+	GMatrix stats(testFeatures.rows(), 2);
+	for(size_t i = 0; i < testFeatures.rows(); i++)
+	{
+		predictDistribution(testFeatures[i], pOutput);
+		double* pResultsVec = stats.row(i);
+		pResultsVec[0] = testLabels[i][label];
+		if(pResultsVec[0] < 0.0 || pResultsVec[0] > 1.0)
+			ThrowError("Expected continuous labels to range from 0 to 1");
+		GNormalDistribution* pDist = pOutput[label].asNormal();
+		pResultsVec[1] = pDist->mean();
+	}
+
+	// Make the precision/recall data
+	stats.sort(1); // biggest mean last
+	stats.reverseRows(); // biggest mean first
+	double sumRelevantRetrieved = 0.0;
+	for(size_t i = 0; i < stats.rows(); i++)
+	{
+		double* pVecIn = stats.row(i);
+		sumRelevantRetrieved += pVecIn[0];
+		pFunc[i] = sumRelevantRetrieved / (i + 1);
+	}
+	return stats.rows();
+}
+
+size_t GSupervisedLearner::precisionRecallNominal(GPrediction* pOutput, double* pFunc, GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, size_t label, int value)
+{
+	// Predict the likelihood that each pattern is relevant
+	train(trainFeatures, trainLabels);
+	GMatrix stats(testFeatures.rows(), 2);
+	size_t nActualRelevant = 0;
+	for(size_t i = 0; i < testFeatures.rows(); i++)
+	{
+		predictDistribution(testFeatures[i], pOutput);
+		double* pStatsVec = stats.row(i);
+		pStatsVec[0] = testLabels[i][label];
+		if((int)pStatsVec[0] == value)
+			nActualRelevant++;
+		GCategoricalDistribution* pDist = pOutput[label].asCategorical();
+		pStatsVec[1] = pDist->likelihood((double)value); // predicted confidence that it is relevant
+	}
+
+	// Make the precision/recall data
+	stats.sort(1); // most confident last
+	size_t nFoundRelevant = 0;
+	size_t nFoundTotal = 0;
+	for(size_t i = stats.rows() - 1; i < stats.rows(); i--)
+	{
+		double* pVecIn = stats.row(i);
+		nFoundTotal++;
+		if((int)pVecIn[0] == value) // if actually relevant
+		{
+			nFoundRelevant++;
+			if(nFoundTotal <= 1)
+				pFunc[nFoundRelevant - 1] = 1.0;
+			else
+				pFunc[nFoundRelevant - 1] = (double)(nFoundRelevant - 1) / (nFoundTotal - 1);
+		}
+	}
+	GAssert(nFoundRelevant == nActualRelevant);
+	return nActualRelevant;
+}
+
+void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps, GRand* pRand)
+{
+	if(features.rows() != labels.rows())
+		ThrowError("Expected the features and labels to have the same number of rows");
+	size_t nFuncs = std::max((size_t)1, labels.relation()->valueCount(label));
+	GVec::setAll(pOutPrecision, 0.0, nFuncs * nPrecisionSize);
+	double* pFunc = new double[features.rows()];
+	ArrayHolder<double> hFunc(pFunc);
+#ifdef WINDOWS
+	GPrediction* out = new GPrediction[labels.cols()];
+	ArrayHolder<GPrediction> hOut(out);
+#else
+	GPrediction out[labels.cols()];
+#endif
+	GMatrix otherFeatures(features.relation(), features.heap());
+	GMatrix otherLabels(labels.relation(), labels.heap());
+	size_t valueCount = labels.relation()->valueCount(label);
+	for(size_t nRep = 0; nRep < nReps; nRep++)
+	{
+		// Split the data
+		GMergeDataHolder hFeatures(features, otherFeatures);
+		GMergeDataHolder hLabels(labels, otherLabels);
+		features.shuffle(pRand, &labels);
+		size_t otherSize = features.rows() / 2;
+		features.splitBySize(&otherFeatures, otherSize);
+		labels.splitBySize(&otherLabels, otherSize);
+
+		// Measure precision/recall and merge with the data we've gotten so far
+		if(valueCount == 0)
+		{
+			size_t relevant = precisionRecallContinuous(out, pFunc, features, labels, otherFeatures, otherLabels, label);
+			GVec::addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
+			relevant = precisionRecallContinuous(out, pFunc, otherFeatures, otherLabels, features, labels, label);
+			GVec::addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
+		}
+		else
+		{
+			for(int i = 0; i < (int)valueCount; i++)
+			{
+				size_t relevant = precisionRecallNominal(out, pFunc, features, labels, otherFeatures, otherLabels, label, i);
+				GVec::addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
+				relevant = precisionRecallNominal(out, pFunc, otherFeatures, otherLabels, features, labels, label, i);
+				GVec::addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
+			}
+		}
+	}
+	GVec::multiply(pOutPrecision, 1.0 / (2 * nReps), nFuncs * nPrecisionSize);
+}
+
+#ifndef NO_TEST_CODE
+void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& features, GMatrix& labels, GMatrix& testFeatures, GMatrix& testLabels, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
+{
+	// Train the model
+	pLearner->train(features, labels);
+
+	// free up some memory, just because we can
+	features.flush();
+	labels.flush();
+
+	// Test the accuracy
+	double resultsBefore;
+	pLearner->accuracy(testFeatures, testLabels, &resultsBefore);
+	if(printAccuracy){
+	  std::cerr << "AccBeforeSerial: " << resultsBefore;
+	}
+	if(resultsBefore < minAccuracy)
+		ThrowError("accuracy has regressed");
+	if(resultsBefore >= minAccuracy + 0.03)
+		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
+
+	// Roundtrip the model through serialization
+	GTwtDoc doc;
+	doc.setRoot(pLearner->toTwt(&doc));
+	pLearner->clear(); // free up some memory, just because we can
+	GLearnerLoader ll;
+	GSupervisedLearner* pModel = ll.loadModeler(doc.root(), pRand);
+	Holder<GSupervisedLearner> hModel(pModel);
+
+	// Test the accuracy again
+	double resultsAfter;
+	pModel->accuracy(testFeatures, testLabels, &resultsAfter);
+	if(printAccuracy){
+	  std::cerr << "  AccAfterSerial: " << resultsAfter << std::endl;
+	}
+	if(std::abs(resultsAfter - resultsBefore) > deviation)
+		ThrowError("serialization shouldn't influence accuracy this much");
+}
+
+void GSupervisedLearner_basicTest1(GSupervisedLearner* pLearner, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
+{
+	GMatrix features(0, 2);
+	vector<size_t> vals;
+	vals.push_back(3);
+	GMatrix labels(vals);
+	for(size_t i = 0; i < 2000; i++)
+	{
+		int c = (int)pRand->next(3);
+		double* pF = features.newRow();
+		pF[0] = pRand->normal() + (c == 1 ? 2.0 : 0.0);
+		pF[1] = pRand->normal() + (c == 2 ? 2.0 : 0.0);
+		double* pL = labels.newRow();
+		pL[0] = (double)c;
+	}
+	size_t testSize = features.rows() / 2;
+	GMatrix testFeatures(features.relation());
+	features.splitBySize(&testFeatures, testSize);
+	GMatrix testLabels(labels.relation());
+	labels.splitBySize(&testLabels, testSize);
+	GSupervisedLearner_basicTestEngine(pLearner, features, labels, testFeatures, testLabels, minAccuracy, pRand, deviation, printAccuracy);
+}
+
+void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
+{
+	vector<size_t> featureVals;
+	featureVals.push_back(3);
+	featureVals.push_back(3);
+	featureVals.push_back(3);
+	GMatrix features(featureVals);
+	vector<size_t> labelVals;
+	labelVals.push_back(3);
+	GMatrix labels(labelVals);
+	for(size_t i = 0; i < 1000; i++)
+	{
+		int c = (int)pRand->next(3);
+		double* pF = features.newRow();
+		for(size_t j = 0; j < 3; j++)
+		{
+			if(pRand->next(2) == 0)
+				*pF = (double)c;
+			else
+				*pF = (double)pRand->next(3);
+			pF++;
+		}
+		double* pL = labels.newRow();
+		pL[0] = (double)c;
+	}
+	size_t testSize = features.rows() / 2;
+	GMatrix testFeatures(features.relation());
+	features.splitBySize(&testFeatures, testSize);
+	GMatrix testLabels(labels.relation());
+	labels.splitBySize(&testLabels, testSize);
+	GSupervisedLearner_basicTestEngine(pLearner, features, labels, testFeatures, testLabels, minAccuracy, pRand, deviation, printAccuracy);
+}
+
+void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, GRand* pRand, double deviation, bool printAccuracy)
+{
+	GSupervisedLearner_basicTest1(this, minAccuracy1, pRand, deviation, printAccuracy);
+	GSupervisedLearner_basicTest2(this, minAccuracy2, pRand, deviation, printAccuracy);
+}
+#endif
+
+// ---------------------------------------------------------------
+
+// virtual
+GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GTwtNode* pNode, GRand* pRand)
+{
+	const char* szClass = pNode->field("class")->asString();
+	if(szClass[0] == 'G')
+	{
+		if(szClass[1] < 'P')
+		{
+			if(strcmp(szClass, "GAttributeSelector") == 0)
+				return new GAttributeSelector(pNode, pRand);
+			else if(strcmp(szClass, "GNoiseGenerator") == 0)
+				return new GNoiseGenerator(pNode, pRand);
+		}
+		else
+		{
+			if(strcmp(szClass, "GPairProduct") == 0)
+				return new GPairProduct(pNode);
+			else if(strcmp(szClass, "GPCA") == 0)
+				return new GPCA(pNode, pRand);
+		}
+	}
+	return loadTwoWayIncrementalTransform(pNode, pRand);
+}
+
+// virtual
+GTwoWayIncrementalTransform* GLearnerLoader::loadTwoWayIncrementalTransform(GTwtNode* pNode, GRand* pRand)
+{
+	const char* szClass = pNode->field("class")->asString();
+	if(szClass[0] == 'G')
+	{
+		if(strcmp(szClass, "GNominalToCat") == 0)
+			return new GNominalToCat(pNode);
+		else if(strcmp(szClass, "GDiscretize") == 0)
+			return new GDiscretize(pNode);
+		else if(strcmp(szClass, "GNormalize") == 0)
+			return new GNormalize(pNode);
+	}
+	if(m_throwIfClassNotFound)
+		ThrowError("Unrecognized class: ", szClass);
+	return NULL;
+}
+
+// virtual
+GSupervisedLearner* GLearnerLoader::loadModeler(GTwtNode* pNode, GRand* pRand)
+{
+	const char* szClass = pNode->field("class")->asString();
+	if(szClass[0] == 'G')
+	{
+		if(szClass[1] < 'J')
+		{
+			if(szClass[1] < 'C')
+			{
+				if(strcmp(szClass, "GBag") == 0)
+					return new GBag(pNode, pRand, this);
+				else if(strcmp(szClass, "GBaselineLearner") == 0)
+					return new GBaselineLearner(pNode, *pRand);
+				else if(strcmp(szClass, "GBucket") == 0)
+					return new GBucket(pNode, pRand, this);
+			}
+			else
+			{
+				if(strcmp(szClass, "GDecisionTree") == 0)
+					return new GDecisionTree(pNode, pRand);
+				else if(strcmp(szClass, "GIdentityFunction") == 0)
+					return new GIdentityFunction(pNode, *pRand);
+			}
+		}
+		else
+		{
+			if(szClass[1] < 'N')
+			{
+				if(strcmp(szClass, "GLinearRegressor") == 0)
+					return new GLinearRegressor(pNode, pRand);
+				else if(strcmp(szClass, "GMeanMarginsTree") == 0)
+					return new GMeanMarginsTree(pNode, pRand);
+			}
+			else
+			{
+				if(strcmp(szClass, "GNaiveMLE") == 0)
+					return new GNaiveMLE(pNode, *pRand);
+				else if(strcmp(szClass, "GPolynomial") == 0)
+					return new GPolynomial(pNode, *pRand);
+			}
+		}
+	}
+	return loadIncrementalLearner(pNode, pRand);
+}
+
+// virtual
+GIncrementalLearner* GLearnerLoader::loadIncrementalLearner(GTwtNode* pNode, GRand* pRand)
+{
+	const char* szClass = pNode->field("class")->asString();
+	if(szClass[0] == 'G')
+	{
+		if(strcmp(szClass, "GKNN") == 0)
+			return new GKNN(pNode, pRand);
+		else if(strcmp(szClass, "GNaiveBayes") == 0)
+			return new GNaiveBayes(pNode, pRand);
+		else if(strcmp(szClass, "GNaiveInstance") == 0)
+			return new GNaiveInstance(pNode, *pRand);
+		else if(strcmp(szClass, "GNeuralNet") == 0)
+			return new GNeuralNet(pNode, pRand);
+	}
+	if(m_throwIfClassNotFound)
+		ThrowError("Unrecognized class: ", szClass);
+	return NULL;
+}
+
+// ---------------------------------------------------------------
+
+GBaselineLearner::GBaselineLearner()
+: GSupervisedLearner(), m_featureDims(0)
+{
+}
+
+GBaselineLearner::GBaselineLearner(GTwtNode* pNode, GRand& rand)
+: GSupervisedLearner(pNode, rand)
+{
+	m_featureDims = (size_t)pNode->field("featureDims")->asInt();
+	m_prediction.clear();
+	GTwtNode* pPred = pNode->field("pred");
+	m_prediction.reserve(pPred->itemCount());
+	for(size_t i = 0; i < pPred->itemCount(); i++)
+		m_prediction.push_back(pPred->item(i)->asDouble());
+}
+
+// virtual
+GBaselineLearner::~GBaselineLearner()
+{
+	clear();
+}
+
+// virtual
+void GBaselineLearner::clear()
+{
+	m_prediction.clear();
+	m_featureDims = 0;
+}
+
+// virtual
+GTwtNode* GBaselineLearner::toTwt(GTwtDoc* pDoc)
+{
+	GTwtNode* pNode = baseTwtNode(pDoc, "GBaselineLearner");
+	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
+	GTwtNode* pPred = pNode->addField(pDoc, "pred", pDoc->newList(m_prediction.size()));
+	for(size_t i = 0; i < m_prediction.size(); i++)
+		pPred->setItem(i, pDoc->newDouble(m_prediction[i]));
+	return pNode;
+}
+
+// virtual
+void GBaselineLearner::trainInner(GMatrix& features, GMatrix& labels)
+{
+	clear();
+	m_featureDims = features.cols();
+	size_t labelDims = labels.cols();
+	m_prediction.reserve(labelDims);
+	for(size_t i = 0; i < labelDims; i++)
+		m_prediction.push_back(labels.baselineValue(i));
+}
+
+// virtual
+void GBaselineLearner::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	ThrowError("Sorry, this learner cannot predict a distribution");
+}
+
+// virtual
+void GBaselineLearner::predictInner(const double* pIn, double* pOut)
+{
+	for(vector<double>::iterator it = m_prediction.begin(); it != m_prediction.end(); it++)
+		*(pOut++) = *it;
+}
+
+#ifndef NO_TEST_CODE
+// static
+void GBaselineLearner::test()
+{
+	GRand prng(0);
+	GBaselineLearner bl;
+	bl.basicTest(0.32, 0.32, &prng);
+}
+#endif
+
+// ---------------------------------------------------------------
+
+GIdentityFunction::GIdentityFunction()
+: GSupervisedLearner(), m_labelDims(0), m_featureDims(0)
+{
+}
+
+GIdentityFunction::GIdentityFunction(GTwtNode* pNode, GRand& rand)
+: GSupervisedLearner(pNode, rand)
+{
+	m_labelDims = (size_t)pNode->field("labels")->asInt();
+	m_featureDims = (size_t)pNode->field("features")->asInt();
+}
+
+// virtual
+GIdentityFunction::~GIdentityFunction()
+{
+}
+
+// virtual
+void GIdentityFunction::clear()
+{
+	m_labelDims = 0;
+	m_featureDims = 0;
+}
+
+// virtual
+GTwtNode* GIdentityFunction::toTwt(GTwtDoc* pDoc)
+{
+	GTwtNode* pNode = baseTwtNode(pDoc, "GIdentityFunction");
+	pNode->addField(pDoc, "labels", pDoc->newInt(m_labelDims));
+	pNode->addField(pDoc, "features", pDoc->newInt(m_featureDims));
+	return pNode;
+}
+
+// virtual
+void GIdentityFunction::trainInner(GMatrix& features, GMatrix& labels)
+{
+	m_labelDims = labels.cols();
+	m_featureDims = features.cols();
+}
+
+// virtual
+void GIdentityFunction::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	ThrowError("Sorry, not implemented yet");
+}
+
+// virtual
+void GIdentityFunction::predictInner(const double* pIn, double* pOut)
+{
+	if(m_labelDims <= m_featureDims)
+		GVec::copy(pOut, pIn, m_labelDims);
+	else
+	{
+		GVec::copy(pOut, pIn, m_featureDims);
+		GVec::setAll(pOut + m_featureDims, 0.0, m_labelDims - m_featureDims);
+	}
+}
+
+} // namespace GClasses

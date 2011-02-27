@@ -1,0 +1,133 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="demos.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="supervised.html">Next</a>
+
+
+
+
+
+
+
+<h2>Representing your data</h2>
+
+<p>The GMatrix class is a container for a two-dimensional array of values. These values can be continuous (real-valued) or nominal (categorical). This class provides many useful operations for matrices, tables, datasets, ordered sets of vectors, etc.</p>
+
+<p>If you are going to work with the GMatrix class, you need to include GMatrix.h. For reasons we will describe below, it is also a good idea to include GHolders.h:</p>
+<pre>
+	#include &lt;GClasses/GMatrix.h&gt;
+	#include &lt;GClasses/GHolders.h&gt;
+</pre>
+
+<p>Then, you can load a GMatrix from <a href="http://www.cs.waikato.ac.nz/~ml/weka/arff.html">ARFF</a> format as follows:</p>
+<pre>
+	GMatrix* pM = GMatrix::loadArff("mydata.arff");
+</pre>
+
+<p>You can also load from a text file of comma-separated values (a CSV file):</p>
+<pre>
+	GMatrix* pM = GMatrix::loadCsv("mydata.csv", ',', false, false);
+</pre>
+
+<p>or tab-separated values:</p>
+<pre>
+	GMatrix* pM = GMatrix::loadCsv("mydata.csv", '\t', false, false);
+</pre>
+
+<p>or space-separated values:</p>
+<pre>
+	GMatrix* pM = GMatrix::loadCsv("mydata.csv", ' ', false, false);
+</pre>
+
+<p>When you are done with the matrix, it needs to be deleted. You might be tempted to do it like this:</p>
+<pre>
+	delete(pM);         *** BAD PRACTICE ***
+</pre>
+
+<p>A better way is to use a holder:</p>
+<pre>
+	Holder&lt;GMatrix&gt; hM(pM);
+</pre>
+
+<p>A holder is a class that "holds" the pointer that you pass to its constructor. When the holder is deleted, its destructor will delete the pointer. Holders are a better way to go because they are exception-safe. If an exception is thrown, the holder will still delete the pointer. Also, they are convenient because you can return from anywhere you want inside your methods without having to remember to clean anything up--the holder will remember for you. Our library uses exceptions all over the place. It is generally a good practice to never call "delete", except in a destructor.</p>
+
+<p>You can also construct an uninitialized GMatrix of continuous values by specifying the number of rows and columns:</p>
+<pre>
+	GMatrix M(5, 7); // 5 rows, 7 columns
+</pre>
+
+<p>The "row" method returns a row vector of the matrix as a pointer to an array of doubles:</p>
+<pre>
+	double* pRow = M.row(3);
+</pre>
+
+<p>You can also use array notation. The following line does exactly the same thing:</p>
+<pre>
+	double* pRow = M[3];
+</pre>
+
+<p>This will set element 3,5 to 3.14159, and element 0,2 to 3.34159:</p>
+<pre>
+	M[3][5] = 3.14159;
+	M[0][2] = M[3][5] + 0.2;
+</pre>
+
+<p>You can also manually construct a matrix where some columns (or attributes) have nominal (categorical) values. This is done using a vector that specifies how many values are supported in each column. (Use 0 for continuous values.) This example will create a matrix with two rows and three columns. The first column is continuous. The second column is binary, and the third column supports three class values:</p>
+<pre>
+	vector&lt;size_t&gt; vals;
+	vals.push_back(0);
+	vals.push_back(2);
+	vals.push_back(3);
+	GMatrix mydata(vals);
+	double* pRow0 = mydata.newRow();
+	double* pRow1 = mydata.newRow();
+</pre>
+
+<p>Nominal elements contain an integer value that specifies the index of its class or category. For example, a nominal attribute with 4 possible class values supports the values 0, 1, 2, and 3. (These values are stored internally as doubles, but most operations will cast them to integers, thus dropping the decimal, when working with nominal values.)
+
+<p>Now, to tie it all together, here is a simple example program that will load some data, mess with it a little bit, and then print the results to stdout.</p>
+
+<pre>
+	#include &lt;GClasses/GMatrix.h&gt;
+	#include &lt;GClasses/GHolders.h&gt;
+	#include &lt;GClasses/GRand.h&gt;
+	#include &lt;iostream&gt;
+
+	using namespace GClasses;
+	using std::cout;
+
+	int main(int argc, char *argv[])
+	{
+		GMatrix* pM = GMatrix::loadArff("mydata.arff"); // load some data
+		Holder<GMatrix> hM(pM); // make sure it will be cleaned up later
+		GMatrix&amp; M = *pM; // I prefer to work with refs instead of pointers
+		GRand rand(0); // construct a random number generator with seed 0
+		M.shuffle(&amp;rand); // shuffle the row order
+		M.sort(2); // sort rows by column 2 in ascending order
+		M.reverseRows(); // reverse the row order
+		M.swapColumns(2, 4); // swap columns 2 and 4
+		M[0][0] = M.median(3); // set element 0,0 to the median of column 3
+		M[1][0] = M.entropy(5); // compute the entropy in column 5
+		M.deleteRow(7); // delete a row
+		M.print(cout); // print M to stdout
+		return 0;
+	}
+</pre>
+
+
+
+
+
+
+
+<br>
+<a href="demos.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="supervised.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

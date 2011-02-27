@@ -1,0 +1,105 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="../command/recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="dimred.html">Next</a>
+
+
+
+
+
+
+
+<h2>Examples of supervised learning</h2>
+<p>This document shows examples of using supervised learning algorithms.</p>
+
+<h3>Train a decision tree</h3>
+<p>First, let's train a decision tree model using the zoo dataset. (You can get zoo.arff and many other datasets at <a href="mldata.org">MLData.org</a>.) With this dataset, attribute 0 contains enough information to fully solve the problem. That's no fun, so we will ignore attribute 0 during training.</p>
+<pre>
+	waffles_learn train zoo.arff -ignore 0 decisiontree > dt.twt
+</pre>
+<p>Now, let's take a look at the decision tree that it has built.</p>
+<pre>
+	waffles_plot printdecisiontree dt.twt zoo.arff -ignore 0
+</pre>
+It will output the following:
+<pre>
+	What is the value of milk?
+	  false -> What is the value of feathers?
+	    false -> What is the value of backbone?
+	      false -> What is the value of airborne?
+	        false -> What is the value of predator?
+	          false -> Is legs &lt; 3?
+	            Yes -> type=invertebrate
+	            No -> type=insect
+	          true -> type=invertebrate
+	        true -> type=insect
+	      true -> What is the value of fins?
+	        false -> What is the value of aquatic?
+	          false -> type=reptile
+	          true -> What is the value of eggs?
+	            false -> type=reptile
+	            true -> type=amphibian
+	        true -> type=fish
+	    true -> type=bird
+	  true -> type=mammal
+</pre>
+
+<h3>Cross validation</h3>
+
+<p>Now, let's test some supervised learning algorithms. We'll use 50x2 cross-validation to test
+the predictive accuracy of various models on the iris dataset. We'll do it with
+baseline (which always predicts the most common class), a decision tree,
+an ensemble of 30 decision trees, a 3-NN instance learner, a 5-NN instance learner,
+naive bayes, a perceptron, and a neural network with one hidden layer of 4 nodes.
+(Some other models are available that are not demonstrated here. Some of our models are
+better than others for certain tasks, but all of them can be used for classification
+or regression, and all of them will support nominal and/or continuous values automatically.)</p>
+
+<pre>
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff baseline
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff decisiontree
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff bag 30 decisiontree end
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff knn 3
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff knn 5
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff naivebayes
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff neuralnet
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff neuralnet -addlayer 4
+</pre>
+
+<p>As an example, the output with the 5-nn model is:</p>
+<pre>
+	Rep: 0, Fold: 0, Accuracy: 0.97333333333333
+	Rep: 0, Fold: 1, Accuracy: 0.89333333333333
+	Rep: 1, Fold: 0, Accuracy: 0.98666666666667
+	Rep: 1, Fold: 1, Accuracy: 0.96
+	Rep: 2, Fold: 0, Accuracy: 0.96
+	Rep: 2, Fold: 1, Accuracy: 0.94666666666667
+
+	...
+
+	Rep: 47, Fold: 0, Accuracy: 0.94666666666667
+	Rep: 47, Fold: 1, Accuracy: 0.96
+	Rep: 48, Fold: 0, Accuracy: 0.98666666666667
+	Rep: 48, Fold: 1, Accuracy: 0.96
+	Rep: 49, Fold: 0, Accuracy: 0.98666666666667
+	Rep: 49, Fold: 1, Accuracy: 0.98666666666667
+	-----
+	Attr: 4, Mean predictive accuracy: 0.96226666666667, Deviation: 0.019238476224803
+</pre>
+
+
+
+
+
+
+<br>
+<a href="../command/recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="dimred.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

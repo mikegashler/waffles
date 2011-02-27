@@ -1,0 +1,12 @@
+body,center {
+	font-family: verdana, tahoma, geneva, sans-serif;
+	font-size: 32px;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}

@@ -1,0 +1,24 @@
+<h1>How to set up this journal</h1>
+
+<p>This document is for the journal organizers. It describes how to set up a partially-automated system to run the journal.</p>
+
+<h2>Setting up the virtual box</h2>
+
+<p>The automated system should run inside a virtual box. This makes it trivial to back up and restore the entire system. It also partially protects you from malicious submissions.</p>
+
+<ol>
+	<li>Pick a server and install a recent version of Linux on it. (I think Ubuntu is a good choice.)</li>
+	<li><code>sudo aptitude install virtualbox-ose</code></li>
+	<li><code>virtualbox</code></li>
+	<li>Use the wizard to make a new virtual box with a new virtual hard drive.</li>
+	<li>Put a Linux install disk (or an iso image of a Linux install disk) in the virtual CD drive of the virtual box, and start the virtual box.</li>
+	<li>After you have installed Linux on the virtual box, install this web daemon.</li>
+</ol>
+
+<h2>Setting up a payment system</h2>
+
+<p>A nominal fee should be required to submit code to your journal. (You may want to skip this step until after your journal gains some degree of notoriety.) Most malicious users are not willing to pay a nominal fee, and the virtual box should, in theory, protect your system from the few frustrated individuals that are actually willing to pay money just to be annoying. Unfortunately, I don't provide any ready-to-go mechanism for collecting the fee. There are plenty of e-commerce sites out there that are anxious to provide this service for a cut of your revenue. In my opinion, it's not worth the complexity of doing this yourself. I recommend that you pick one of these services, and integrate with it. If they don't make it easy, pick another one.</p>
+
+<h2>To Do:</h2>
+
+<p>finish this document</p>

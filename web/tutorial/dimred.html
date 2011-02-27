@@ -1,0 +1,92 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="supervised_examples.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="charts.html">Next</a>
+
+
+
+
+
+
+
+<h2>Examples of dimensionality reduction</h2>
+<p>This document shows examples of using dimensionality reduction techniques.</p>
+
+<h3>Attribute selection</h3>
+
+<p>Attribute selection is one of the simplest dimensionality reduction techniques. It involves deciding which attributes (or columns) are the least salient, and throwing them out. In this example, we'll use the hepatitis dataset (which can be obtained at <a href="http://MLData.org">MLData.org</a>). Here is a simple command that will generate an ordered list of attributes:
+<pre>
+	waffles_transform attributeselector hepatitis.arff
+</pre>
+The output of this command is:
+<pre>
+	Attribute rankings from most salient to least salient. (Attributes are zero-indexed.)
+	16 ALBUMIN
+	13 BILIRUBIN
+	17 PROTIME
+	1 SEX
+	6 ANOREXIA
+	15 SGOT
+	5 MALAISE
+	9 SPLEEN_PALPABLE
+	3 ANTIVIRALS
+	11 ASCITES
+	4 FATIGUE
+	8 LIVER_FIRM
+	18 HISTOLOGY
+	12 VARICES
+	14 ALK_PHOSPHATE
+	0 AGE
+	7 LIVER_BIG
+	2 STEROID
+	10 SPIDERS
+</pre>
+This tool works by normalizing all the values, and then training a logistic regression model to predict the label. The attribute that is assigned the smallest weight, which in this case was column 10 (SPIDERS), is dropped from the data, and the process is repeated.</p>
+
+<p>Now, let's generate a dataset containing only the three most salient features.</p>
+<pre>
+	waffles_transform attributeselector hepatitis.arff -out 3 hep.arff
+</pre>
+<p>Let's verify that the new dataset now only contains three feature attributes.</p>
+<pre>
+	waffles_plot stats hep.arff
+</pre>
+<p>The output of this command is:
+<pre>
+	Filename: hep.arff
+	Patterns: 155
+	Attributes: 4 (Continuous:3, Nominal:1)
+	  0) ALBUMIN, Type: Continuous, Mean:3.8172662, Dev:0.65152308, Median:4, Min:2.1, Max:6.4, Missing:16
+	  1) BILIRUBIN, Type: Continuous, Mean:1.4275168, Dev:1.212149, Median:1, Min:0.3, Max:8, Missing:6
+	  2) PROTIME, Type: Continuous, Mean:61.852273, Dev:22.875244, Median:61, Min:0, Max:100, Missing:67
+	  3) Class, Type: Nominal, Values:2, Most Common:LIVE (79.354839%), Entropy: 0.73464515, Missing:0
+	     20.645161% DIE
+	     79.354839% LIVE
+</pre>
+Yep, it only has 3 features. Okay, let's see how well we can predict whether the person will live or die using just these three features, and we'll compare it with the original dataset. We'll also specify a seed for the random number generator, so our results can be reproduced.</p>
+<pre>
+	waffles_learn crossvalidate -seed 0 hepatitis.arff bag 50 decisiontree end
+	waffles_learn crossvalidate -seed 0 hep.arff bag 50 decisiontree end
+</pre>
+<p>With the original dataset, we get 79.1 percent accuracy. With the smaller dataset, we get 79.5 percent accuracy. Not too shabby! (Often, the accuracy goes down just a little bit, and we claim success just because we can achieve similar accuracy using fewer features, and therefore less computation.)</p>
+
+<h3>Principal component analysis</h3>
+
+todo: write me
+
+<h3>Non-linear dimensionality reductions</h3>
+
+todo: write me
+
+
+<br>
+<a href="supervised_examples.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="charts.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>
