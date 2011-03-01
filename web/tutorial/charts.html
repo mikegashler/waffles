@@ -27,7 +27,8 @@
 <pre>
 	waffles_plot scatter nb.arff -lines
 </pre>
-It looks like this:<img src="nb1.png"></p>
+It looks like this:<br>
+<center><img src="nb1.png"></center></p>
 
 <p>Why are there two lines? What do they mean? Let's examine the meta-data:
 <pre>
@@ -60,7 +61,9 @@ Since the recall values in both datasets are the same, we can merge them into a 
 	waffles_transform dropcolumns dt.arff 0-1 > dt2.arff
 	waffles_transform mergehoriz nb2.arff dt2.arff > compare.arff
 </pre>
-And let's take a look at our comparison chart. <img src="compare1.png"> The ensemble of decision trees is apparently better-suited for this task.</p>
+And let's take a look at our comparison chart.<br>
+<center><img src="compare1.png"></center><br>
+The ensemble of decision trees is apparently better-suited for this task.</p>
 
 <p>Now, let's redo the comparison chart with a few extra parameters to make it pretty. We'll specify a range that we like better than the one it automatically picked. (Note that our new range starts with x=0.1, thus clipping off the far-left side of the chart. This is common practice with precision/recall plots because the far-left side is excessively volatile. If we were really going to publish this, we might use more reps to mitigate this volatility.) We'll also conrol the size of the points, and use some more muted colors:
 <pre>
@@ -72,7 +75,8 @@ And let's take a look at our comparison chart. <img src="compare1.png"> The ense
 	waffles_plot equation -range 0.1 0 1 1 -out eq.png "f1(x)=sqrt(0.6-0.45*x^2)"
 	waffles_plot overlay compare.png eq.png -out compare2.png
 </pre>
-It looks like this:<img src="compare2.png"></p>
+It looks like this:<br>
+<center><img src="compare2.png"></center></p>
 
 <p>To help direct the reader's attention to the important part of the chart, we'll make another chart showing a zoomed-in portion of the image:
 <pre>

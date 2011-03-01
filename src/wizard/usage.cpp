@@ -337,6 +337,8 @@ UsageNode* makeAlgorithmUsageTree()
 			pAct->add("algebraic", "An algebraic sigmoid function.");
 			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
 			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
+			pAct->add("gaussian", "A gaussian activation function");
+			pAct->add("sinc", "A sinc wavelet activation function");
 		}
 	}
 
@@ -896,7 +898,7 @@ UsageNode* makeRecommendUsageTree()
 	{
 		UsageNode* pOpts = pFMV->add("<options>");
 		pOpts->add("-seed [value]", "Specify a seed for the random number generator.");
-		pOpts->add("[data]", "The filename of a dataset in ARFF format.");
+		pFMV->add("[data]", "The filename of a dataset in ARFF format.");
 	}
 	UsageNode* pPR = pRoot->add("precisionrecall <options> [sparse-data] [collab-filter]", "Compute precision-recall data");
 	{
@@ -953,6 +955,8 @@ UsageNode* makeCollaborativeFilterUsageTree()
 			pAct->add("algebraic", "An algebraic sigmoid function.");
 			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
 			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
+			pAct->add("gaussian", "A gaussian activation function");
+			pAct->add("sinc", "A sinc wavelet activation function");
 		}
  	}
 	return pRoot;

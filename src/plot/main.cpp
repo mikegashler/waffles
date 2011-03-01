@@ -14,6 +14,7 @@
 #include "../GClasses/GDecisionTree.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GFile.h"
+#include "../GClasses/GHistogram.h"
 #include "../GClasses/GImage.h"
 #include "../GClasses/GOptimizer.h"
 #include "../GClasses/GHillClimber.h"
@@ -692,47 +693,20 @@ void makeHistogram(GArgReader& args)
 	image.clear(0xffffffff);
 	if(pData->relation()->valueCount(attr) == 0)
 	{
-		// Make the histogram
-		double mean = pData->mean(attr);
-		double median = pData->median(attr);
-		double dev = sqrt(pData->variance(attr, mean));
-		double min = (xmin == UNKNOWN_REAL_VALUE ? median - 4 * dev : xmin);
-		double range = (xmax == UNKNOWN_REAL_VALUE ? 8 * dev : xmax - xmin);
-		double height = (ymax == UNKNOWN_REAL_VALUE ? 0.6 : ymax);
-
-		size_t buckets = std::min((size_t)image.width(), (size_t)floor(sqrt((double)pData->rows())));
-		size_t* hist = new size_t[buckets];
-		ArrayHolder<size_t> hHist(hist);
-		for(size_t i = 0; i < buckets; i++)
-			hist[i] = 0;
-		for(size_t i = 0; i < pData->rows(); i++)
-		{
-			double d = pData->row(i)[attr];
-			size_t index = (size_t)floor((d - min) / range * buckets);
-			if(index < buckets)
-				hist[index]++;
-		}
-
-		// Plot it
-		size_t max = 0;
-		for(size_t i = 1; i < buckets; i++)
-		{
-			if(hist[i] > hist[max])
-				max = i;
-		}
+		GHistogram hist(*pData, attr, xmin, xmax, (size_t)image.width());
+		double height = (ymax == UNKNOWN_REAL_VALUE ? hist.binLikelihood(hist.modeBin()) * 1.5 : ymax);
+		GPlotWindow pw(&image, hist.xmin(), 0.0, hist.xmax(), height);
 		for(int i = 0; i < (int)image.width(); i++)
 		{
-			double d = (double)i * buckets / wid;
-			int b1 = std::max(0, (int)floor(d));
-			int b2 = std::min((int)buckets - 1, b1 + 1);
-			d -= floor(d);
-			d = GMath::softStep(d, 2.0);
-			int h = (int)(((1.0 - d) * hist[b1] + d * hist[b2]) * image.height() / (height * pData->rows() * range / buckets));
-			image.line(i, image.height(), i, image.height() - h, 0xff00a080);
+			double x, y;
+			pw.viewToWindow(i, 0, &x, &y);
+			size_t bin = hist.xToBin(x);
+			double likelihood = hist.binLikelihood(bin);
+			if(likelihood > 0.0)
+				pw.line(x, 0.0, x, likelihood, 0xff000080);
 		}
 
 		// Draw the grid
-		GPlotWindow pw(&image, min, 0, min + range, height);
 		pw.gridLines(40, 40, 0xff808080);
 
 		// Draw the labels
@@ -777,36 +751,18 @@ void MakeAttributeSummaryGraph(GRelation* pRelation, GMatrix* pData, GImage* pIm
 {
 	if(pRelation->valueCount(attr) == 0)
 	{
-		int buckets = std::max(2, (int)floor(sqrt((double)pData->rows()) + 0.5));
-		GTEMPBUF(double, hist, buckets);
-		GVec::setAll(hist, 0.0, buckets);
-		double min, range;
-		pData->minAndRange(attr, &min, &range);
-		for(size_t i = 0; i < pData->rows(); i++)
-		{
-			double val = pData->row(i)[attr];
-			int b = (int)floor((val - min) * buckets / range);
-			if(b >= 0 && b < buckets)
-				hist[b]++;
-		}
-
-		// Plot it
 		pImage->clear(0xffffffff);
-		int max = 0;
-		for(int i = 1; i < buckets; i++)
-		{
-			if(hist[i] > hist[max])
-				max = i;
-		}
+		GHistogram hist(*pData, attr, UNKNOWN_REAL_VALUE, UNKNOWN_REAL_VALUE, (size_t)pImage->width());
+		double height = hist.binLikelihood(hist.modeBin());
+		GPlotWindow pw(pImage, hist.xmin(), 0.0, hist.xmax(), height);
 		for(int i = 0; i < (int)pImage->width(); i++)
 		{
-			double d = (double)i * buckets / pImage->width();
-			int b1 = std::max(0, (int)floor(d));
-			int b2 = std::min(buckets - 1, b1 + 1);
-			d -= floor(d);
-			d = GMath::softStep(d, 2.0);
-			int h = (int)(((1.0 - d) * hist[b1] + d * hist[b2]) * pImage->height() / hist[max]);
-			pImage->line(i, pImage->height(), i, pImage->height() - h, 0xff000080);
+			double x, y;
+			pw.viewToWindow(i, 0, &x, &y);
+			size_t bin = hist.xToBin(x);
+			double likelihood = hist.binLikelihood(bin);
+			if(likelihood > 0.0)
+				pw.line(x, 0.0, x, likelihood, 0xff000080);
 		}
 	}
 	else
@@ -894,10 +850,10 @@ void MakeCorrelationGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, 
 	else
 	{
 		GPlotWindow pw(pImage, xmin, ymin, xmax, ymax);
-		int step = std::max(1, (int)(pData->rows() / (pImage->width() * pImage->height())));
-		for(size_t i = 0; i < pData->rows(); i += step)
+		size_t samples = 2048;
+		for(size_t i = 0; i < samples; i++)
 		{
-			double* pPat = pData->row(i);
+			double* pPat = pData->row(i * pData->rows() / samples);
 			pw.point(pPat[attrx] + pRand->normal() * jitter * (xmax - xmin), pPat[attry] + pRand->normal() * jitter * (ymax - ymin), 0xff000080);
 		}
 	}

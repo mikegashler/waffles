@@ -647,7 +647,23 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 
 	// Handle enclosing parens
 	if(tokens[start].compare("(") == 0 && tokens[start + count - 1].compare(")") == 0)
-		return parseFunctionBody(variables, tokens, start + 1, count - 2, depth + 1);
+	{
+		int depth = 1;
+		int i;
+		for(i = 1; i < count - 1; i++)
+		{
+			if(tokens[start + i].compare("(") == 0)
+				depth++;
+			else if(tokens[start + i].compare(")") == 0)
+			{
+				depth--;
+				if(depth == 0)
+					break;
+			}
+		}
+		if(i >= count - 1)
+			return parseFunctionBody(variables, tokens, start + 1, count - 2, depth + 1);
+	}
 
 	// Generate a node
 	if(count == 1)
@@ -685,7 +701,12 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 		{
 			// We've got a named function (like log(x), sin(y), or max(x,y))
 			if(count < 3 || tokens[start + 1].compare("(") != 0 || tokens[start + count - 1].compare(")") != 0)
-				ThrowError("Cannot parse expression. (Note that implicit multiplication is not supported. You must use a '*' for multiplication.)");
+			{
+				string s;
+				for(int i = 0; i < count; i++)
+					s += tokens[start + i];
+				ThrowError("Cannot parse this portion of the expression: ", s.c_str());
+			}
 			GFunctionCall* pFunc = makeStubbedOperator(tokens[start].c_str());
 			Holder<GFunctionCall> hFunc(pFunc);
 			parseCommaSeparatedChildren(variables, pFunc, tokens, start + 2, count - 3, depth + 1);

@@ -165,6 +165,10 @@ GNeuralRecommender* InstantiateNeuralRecommender(GRand* pRand, GArgReader& args)
 				pSF = new GActivationBiDir();
 			else if(strcmp(szSF, "piecewise") == 0)
 				pSF = new GActivationPiecewise();
+			else if(strcmp(szSF, "gaussian") == 0)
+				pSF = new GActivationGaussian();
+			else if(strcmp(szSF, "sinc") == 0)
+				pSF = new GActivationSinc();
 			else
 				ThrowError("Unrecognized activation function: ", szSF);
 			pModel->model()->setActivationFunction(pSF, true);
@@ -406,6 +410,7 @@ void fillMissingValues(GArgReader& args)
 		{
 			if(*pRow == UNKNOWN_REAL_VALUE)
 				*pRow = pModel->predict(i, j);
+			GAssert(*pRow != UNKNOWN_REAL_VALUE);
 			pRow++;
 		}
 	}

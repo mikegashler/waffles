@@ -430,7 +430,6 @@ void attributeSelector(GArgReader& args)
 	size_t labelDims;
 	GMatrix* pData = loadDataWithSwitches(args, &labelDims);
 	Holder<GMatrix> hData(pData);
-GArffRelation* pRel2 = (GArffRelation*)pData->relation().get();
 
 	// Parse the options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);

@@ -945,6 +945,7 @@ void GNominalToCat::untransform(const double* pIn, double* pOut)
 				}
 				pIn++;
 			}
+			pOut++;
 		}
 	}
 }

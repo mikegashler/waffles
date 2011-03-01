@@ -310,7 +310,7 @@ double GBaselineRecommender::predict(size_t user, size_t item)
 
 
 GInstanceRecommender::GInstanceRecommender(size_t neighbors)
-: GCollaborativeFilter(), m_neighbors(neighbors), m_ownMetric(true), m_pData(NULL)
+: GCollaborativeFilter(), m_neighbors(neighbors), m_ownMetric(true), m_pData(NULL), m_pBaseline(NULL)
 {
 	m_pMetric = new GCosineSimilarity();
 }

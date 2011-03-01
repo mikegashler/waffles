@@ -339,6 +339,10 @@ GModerateNet* InstantiateModerateNet(GRand* pRand, GArgReader& args)
 				pSF = new GActivationAlgebraic();
 			else if(strcmp(szSF, "identity") == 0)
 				pSF = new GActivationIdentity();
+			else if(strcmp(szSF, "gaussian") == 0)
+				pSF = new GActivationGaussian();
+			else if(strcmp(szSF, "sinc") == 0)
+				pSF = new GActivationSinc();
 			else if(strcmp(szSF, "bend") == 0)
 				pSF = new GActivationBend();
 			else if(strcmp(szSF, "bidir") == 0)
@@ -433,6 +437,10 @@ GNeuralNet* InstantiateNeuralNet(GRand* pRand, GArgReader& args)
 				pSF = new GActivationAlgebraic();
 			else if(strcmp(szSF, "identity") == 0)
 				pSF = new GActivationIdentity();
+			else if(strcmp(szSF, "gaussian") == 0)
+				pSF = new GActivationGaussian();
+			else if(strcmp(szSF, "sinc") == 0)
+				pSF = new GActivationSinc();
 			else if(strcmp(szSF, "bend") == 0)
 				pSF = new GActivationBend();
 			else if(strcmp(szSF, "bidir") == 0)
@@ -545,7 +553,8 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 	catch(const std::exception& e)
 	{
 		args.set_pos(argPos);
-		showInstantiateAlgorithmError(e.what(), args);
+		if(strcmp(e.what(), "nevermind") != 0) // if an error message was not already displayed...
+			showInstantiateAlgorithmError(e.what(), args);
 		ThrowError("nevermind"); // this means "don't display another error message"
 	}
 	return NULL;
