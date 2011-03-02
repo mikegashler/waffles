@@ -736,7 +736,7 @@ void GDecisionTree::test()
 	{
 		GRand prng(0);
 		GDecisionTree tree(&prng);
-		tree.basicTest(0.67, 0.76, &prng);
+		tree.basicTest(0.67, 0.75, &prng);
 	}
 	{
 		GRand prng(0);

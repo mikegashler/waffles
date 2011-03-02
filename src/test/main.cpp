@@ -142,6 +142,65 @@ void test_transform_mergevert()
 		ThrowError("failed");
 }
 
+void test_recommend_fillmissingvalues()
+{
+	// Make some input files
+	TempFileMaker tempFile1("a.arff",
+		"@RELATION test\n"
+		"@ATTRIBUTE a1 { a, b, c }\n"
+		"@ATTRIBUTE a2 continuous\n"
+		"@ATTRIBUTE a3 { d, e, f }\n"
+		"@ATTRIBUTE a4 { g, h, i }\n"
+		"@DATA\n"
+		"a, ?, f, i\n"
+		"?, 2, ?, i\n"
+		"b, ?, d, ?\n"
+		"?, 4, ?, ?\n"
+		"?, ?, e, g\n"
+		"?, ?, e, ?\n"
+		"a, ?, ?, h\n"
+		"\n"
+		);
+
+	// Execute the command
+	GPipeHolder hStdOut;
+#ifdef WINDOWS
+	GApp::systemExecute("waffles_recommend.exe fillmissingvalues a.arff baseline", true, &hStdOut);
+#else
+	GApp::systemExecute("waffles_recommend fillmissingvalues a.arff baseline", true, &hStdOut);
+#endif
+	char buf[512];
+	size_t len = hStdOut.read(buf, 512);
+	if(len == 512)
+		ThrowError("need a bigger buffer");
+	buf[len] = '\0';
+
+	// Check the results
+	GMatrix* pOutput = GMatrix::parseArff(buf, strlen(buf));
+	Holder<GMatrix> hOutput(pOutput);
+	GMatrix& M = *pOutput;
+	if(M.rows() != 7 || M.cols() != 4)
+		ThrowError("failed");
+	if(M[0][0] != 0)
+		ThrowError("failed");
+	if(M[0][1] != 3)
+		ThrowError("failed");
+	if(M[1][1] != 2)
+		ThrowError("failed");
+	if(M[2][1] != 3)
+		ThrowError("failed");
+	if(M[3][3] != 2)
+		ThrowError("failed");
+	if(M[4][0] != 0)
+		ThrowError("failed");
+	if(M[5][1] != 3)
+		ThrowError("failed");
+	if(M[6][2] != 1)
+		ThrowError("failed");
+	if(M[6][3] != 1)
+		ThrowError("failed");
+}
+
 
 
 
@@ -228,7 +287,7 @@ void RunAllTests()
 
 	// Command-line tests
 	runTest("waffles_transform mergevert", test_transform_mergevert);
-
+	runTest("waffles_recommend_fillmissingvalues", test_recommend_fillmissingvalues);
 	printf("Done.\n");
 }
 

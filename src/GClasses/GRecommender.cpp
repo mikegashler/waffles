@@ -289,8 +289,9 @@ void GBaselineRecommender::trainBatch(GSparseMatrix* pData)
 	{
 		for(GSparseMatrix::Iter rating = pData->rowBegin(y); rating != pData->rowEnd(y); rating++) // for each item that this user has rated...
 		{
-			m_pRatings[rating->first] *= (pCounts[rating->first] / (pCounts[rating->first] + 1));
+			m_pRatings[rating->first] *= ((double)pCounts[rating->first] / (pCounts[rating->first] + 1));
 			m_pRatings[rating->first] += (rating->second / (pCounts[rating->first] + 1));
+			pCounts[rating->first]++;
 		}
 	}
 }
@@ -351,8 +352,9 @@ void GInstanceRecommender::trainBatch(GSparseMatrix* pData)
 	{
 		for(GSparseMatrix::Iter rating = pData->rowBegin(y); rating != pData->rowEnd(y); rating++) // for each item that this user has rated...
 		{
-			m_pBaseline[rating->first] *= (pCounts[rating->first] / (pCounts[rating->first] + 1));
+			m_pBaseline[rating->first] *= ((double)pCounts[rating->first] / (pCounts[rating->first] + 1));
 			m_pBaseline[rating->first] += (rating->second / (pCounts[rating->first] + 1));
+			pCounts[rating->first]++;
 		}
 	}
 
@@ -466,7 +468,7 @@ void GClusterRecommender::trainBatch(GSparseMatrix* pData)
 		for(GSparseMatrix::Iter it = pData->rowBegin(i); it != pData->rowEnd(i); it++)
 		{
 			pRow[it->first] *= ((double)pRowCounts[it->first] / (pRowCounts[it->first] + 1));
-			pRow[it->first] += (1.0 / (pRowCounts[it->first] + 1)) * it->second;
+			pRow[it->first] += (it->second / (pRowCounts[it->first] + 1));
 			pRowCounts[it->first]++;
 		}
 	}
