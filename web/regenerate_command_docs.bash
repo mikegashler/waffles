@@ -155,7 +155,7 @@ cat <<ENDTXT > command/recommend.html
 <a href="../docs.html">Back to the docs page</a><br>
 
 <br>
-<a href="generate.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/visualize.html">Next</a>
+<a href="generate.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
 
 
 
@@ -174,7 +174,7 @@ cat <<ENDTXT >> command/recommend.html
 
 
 <br>
-<a href="generate.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/visualize.html">Next</a>
+<a href="generate.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
 
 <br><br><a href="../docs.html">Back to the docs page</a>
 </td></tr><tr><td background="../images/bar.png"><br>

@@ -997,6 +997,7 @@ GMatrix* GGraphCutTransducer::transduce(GMatrix& features1, GMatrix& labels1, GM
 	// Use max-flow/min-cut graph-cut to separate out each label value
 	GMatrix* pOut = new GMatrix(labels1.relation());
 	Holder<GMatrix> hOut(pOut);
+	pOut->newRows(features2.rows());
 	pOut->setAll(0);
 	int valueCount = (int)labels1.relation()->valueCount(0);
 	for(int val = 1; val < valueCount; val++)

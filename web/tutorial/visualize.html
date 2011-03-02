@@ -5,7 +5,7 @@
 <a href="../docs.html">Back to the docs page</a><br>
 
 <br>
-<a href="../command/recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="supervised_examples.html">Next</a>
+<a href="formats.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="supervised_examples.html">Next</a>
 
 
 
@@ -16,6 +16,7 @@
 <h2>Visualizing data</h2>
 <p>One of the first tasks when working with some new data is to try to understand what's in the data, and how it is structured.</p>
 
+<h3>Stats</h3>
 <p>Perhaps the most commom way of visualizing some data is to list some basic stats about each of its attributes. For example, let's take a look at the iris dataset (which you can download from <a href="http://MLData.org">MLData.org</a>).
 <pre>
 	waffles_plot stats iris.arff
@@ -37,6 +38,8 @@ This is one command that you should probably memorize, because you will use it f
 As you can see, it shows some very basic information about each attribute in the dataset.
 </p>
 
+<h3>Overview</h3>
+
 <p>Another common way to look at data is to plot the correlations between various attributes. The following command will generate such a plot for every pair of attributes.
 <pre>
 	waffles_plot overview iris.arff
@@ -53,10 +56,78 @@ Several trends can be immediately observed in these plots. For example, it looks
 
 <p>Anyway, the point is, you can tell a lot about a dataset just by examining the overview plots.</p>
 
+<h3>Histograms</h3>
+
+<p>Histograms are a good way to look at the distribution of some data. The following command will draw a million random values from a gamma distribution, and then plot a histogram of it.
+<pre>
+	waffles_generate noise 1000000 -seed 0 -dist gamma 9 2 > gamma.arff
+	waffles_plot histogram gamma.arff
+</pre>
+Here is the output of that command:<br>
+<center><img src="gamma.png"></center></p>
+
+<h3>Model space</h3>
+
+<p>If you have a model that has been trained on some dataset, you might want to visualize that dataset with the trained model. This example will train a neural network (with no hidden layers) on the iris dataset, and will then create a visualization of that model.
+<pre>
+	waffles_learn train -seed 0 iris.arff neuralnet > nn.twt
+	waffles_plot model nn.twt iris.arff 2 3
+</pre>
+<center><img src="../plots/iris_nn.png"></center></p>
+
+<h3>Equations</h3>
+
+<p>You can visualize equations too.
+<pre>
+	waffles_plot equation -range -6 0 6 1 "f1(x) = 1/(1+e^(-x))"
+</pre>
+<center><img src="logistic.png"></center></p>
+
+<p>You can plot multiple equations together. Also, our tools let you define helper functions that you can use within your equations. Example:
+<pre>
+	waffles_plot equation -range -10 0 10 10 "f1(x)=log(x^2+1)+2;f2(x)=\
+	   x^2/g(x)+2;g(m)=10*(cos(m)+pi);f3(x)=sqrt(49-x^2);f4(x)=abs(x)-1"
+</pre></p>
+
+<h3>3D</h3>
+
+<p>You can also plot in 3D:
+<pre>
+	waffles_generate manifold 3000 -seed 1234 "y1(x1, x2) = sin(2 * t(x1));\
+	                      y2(x1, x2) = -2 * cos(t(x1)); y3(x1,x2) = 2 * x2;\
+			      t(x) = 3 * pi * x / 2 + pi / 4" > in.arff
+	waffles_plot 3d in.arff
+</pre>
+<center><img src="intersecting_manifold.png"></center></p>
+
+<h3>Scatter plots</h3>
+
+<p>Of all visualization methods, however, scatter plots may be the most useful of them all.</p>
+<pre>
+	waffles_plot scatter mydata.arff
+</pre>
+This tool assumes that attribute 0 specifies a position on the horizontal axis. All other attributes specify points that should be plotted. By default, each attribute will be plotted with a unique color. You can also specify the "-lines" option to turn it into a line-graph.</p>
+
+<p>If your data lacks an attribute that specifies position on the horizontal axis, you can add one, and then plot it.
+<pre>
+	waffles_transform addindexcolumn mydata.arff > ready_for_scatter_plot.arff
+	waffles_plot scatter mydata.arff -lines
+</pre></p>
+
+<p>This tool can handle logarithmic scales, and a plethora of other useful options. To see all available options, take a look at the usage information.
+<pre>
+	waffles_plot usage
+</pre></p>
+
+<h3>etc.</h3>
+
+<p>There are a few other visualization techniques available. For a complete list, see the usage information for the waffles_plot tool.</p>
+
+
 
 
 <br>
-<a href="../command/recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="supervised_examples.html">Next</a>
+<a href="formats.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="supervised_examples.html">Next</a>
 
 <br><br><a href="../docs.html">Back to the docs page</a>
 </td></tr><tr><td background="../images/bar.png"><br>

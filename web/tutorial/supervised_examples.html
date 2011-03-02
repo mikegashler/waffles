@@ -194,11 +194,63 @@ What does the "-asdf" flag do? Nothing. It is an error. I added a bogus flag to 
 <pre>
 	waffles_learn crossvalidate -seed 0 lungCancer.arff bag 64 decisiontree -random 1 end
 </pre>
-It gets 0.338. It looks like the neural net actually did pretty well after all.</p>
+It gets 0.338. It looks like the neural net actually did pretty well after all. In the hands of an expert, neural networks can be extremely powerful models. Unfortunately, they have a lot of parameters. In the hands of a novice, ensembles of decision trees are often a very good choice.</p>
 
+<p>So, now that we've found a pretty good set of parameters, let's train a generalizing model.
+<pre>
+	waffles_learn train lungCancer.arff neuralnet -activation arctan -addlayer 100 -learningrate 0.2\
+	              -momentum 0.8 -minwindowimprovement 0.00001 -windowepochs 500 > model.twt
+</pre></p>
 
+<h3>Transduction</h3>
 
+<p>Some learning algorithms do not have a model. Such algorithms cannot be trained, but they can still be used to transduce. That is, they follow the patterns established by a labeled set to predict suitable labels for an unlabeled set. Let's take a look at some of these algorithms. In this example, we'll use the sonar dataset, which you can download from the <a href="http://MLData.org">usual place</a>.</p>
 
+<p>First, let's shuffle the data, and then split it into two parts:
+<pre>
+	waffles_transform shuffle sonar.arff > s_shuffled.arff
+	waffles_transform split s_shuffled.arff 100 s1.arff s2.arff
+</pre></p>
+
+<p>Next, we'll test the transductive accuracy using three different transduction algorithms. (Transduction can also be done with regular supervised learning models, so we'll throw in a couple of those at the end too.)
+<pre>
+	waffles_learn transacc -seed 0 s1.arff s2.arff agglomerativetransducer
+	waffles_learn transacc -seed 0 s1.arff s2.arff graphcuttransducer 5
+	waffles_learn transacc -seed 0 s1.arff s2.arff neighbortransducer 5
+	waffles_learn transacc -seed 0 s1.arff s2.arff decisiontree
+	waffles_learn transacc -seed 0 s1.arff s2.arff knn 5
+</pre>
+The first three algorithms transduce directly from s1.arff to predict labels for s2.arff without ever creating a model. The "decisiontree" and "knn 5" models just train on s1.arff, then test with s2.arff, and then throw away their models.
+</p>
+
+<p>The accuracies that I get are 0.741, 0.75, 0.75, 0.667, and 0.722 respectively. It looks like "graphcuttransducer 5" and "neighbortranducer 5" are tied for the most accurate algorithm. The latter was somewhat faster, however, so I think that makes it the winner. So now let's do transduction to predict labels using that algorithm.
+<pre>
+	waffles_learn transduce s1.arff s2.arff neighbortransducer 5
+</pre></p>
+
+<h3>Ensembles</h3>
+
+<p>One of the most popular ensemble methods is bagging. Here is an example of using a bagging ensemble with 100 decision trees that use random divisions:
+<pre>
+	waffles_learn crossvalidate iris.arff bag 100 decisiontree -random 1 end
+</pre></p>
+
+<p>Of course, you can also put other things in the bag besides decision trees:
+<pre>
+	waffles_learn crossvalidate iris.arff bag 1 decisiontree 1 naivebayes 1 knn 5 1 knn 3 end
+</pre></p>
+
+<p>Another popular ensemble is a bucket. Buckets uses cross-validation to select the best model in the bucket for the specified task.
+<pre>
+	crossvalidate iris.arff bucket decisiontree meanmarginstree naivebayes knn 3 knn 5 naiveinstance 32 end
+</pre>
+If you've got computing cycles to burn, you might as well throw lots of models in the bucket, and you're sure to get high accuracy on every problem.</p>
+
+<p>You can even put bags in your buckets, and vice versa. The following model seems to be quite powerful.
+<pre>
+	waffles_learn crossvalidate iris.arff bucket bag 64 decisiontree end\
+	    bag 64 decisiontree -random 1 end bag 64 meanmarginstree end end
+</pre></p>
 
 <br>
 <a href="visualize.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="dimred.html">Next</a>

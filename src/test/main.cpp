@@ -287,7 +287,7 @@ void RunAllTests()
 
 	// Command-line tests
 	runTest("waffles_transform mergevert", test_transform_mergevert);
-	runTest("waffles_recommend_fillmissingvalues", test_recommend_fillmissingvalues);
+	runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
 	printf("Done.\n");
 }
 
