@@ -77,7 +77,7 @@ GVocabulary::GVocabulary(bool stemWords)
 	else
 		m_pStemmer = NULL;
 	m_pStopWords = new GConstStringHashTable(113, false);
-	m_pVocabulary = new GConstStringToIntsHashTable(3571, false);
+	m_pVocabulary = new GConstStringToIndexHashTable(3571, false);
 	m_pHeap = new GHeap(1024);
 	m_docNumber = 0;
 	m_pWordStats = NULL;
@@ -96,7 +96,7 @@ void GVocabulary::addStopWord(const char* szWord)
 {
 	const char* pWord = szWord;
 	if(m_pStemmer)
-		pWord = m_pStemmer->getStem(szWord, (int)strlen(szWord));
+		pWord = m_pStemmer->getStem(szWord, strlen(szWord));
 	m_pStopWords->add(m_pHeap->add(pWord), NULL);
 }
 
@@ -114,7 +114,7 @@ void GVocabulary::addWord(const char* szWord, size_t nLen)
 	// Find the stem
 	const char* szStem;
 	if(m_pStemmer)
-		szStem = m_pStemmer->getStem(szWord, (int)nLen);
+		szStem = m_pStemmer->getStem(szWord, nLen);
 	else
 	{
 		nLen = std::min((size_t)63, nLen);
@@ -129,7 +129,7 @@ void GVocabulary::addWord(const char* szWord, size_t nLen)
 		return; // it's a stop word
 
 	// Check for existing words
-	int nIndex;
+	size_t nIndex;
 	if(m_pVocabulary->get(szStem, &nIndex))
 	{
 		// Track word stats
@@ -188,7 +188,7 @@ size_t GVocabulary::wordIndex(const char* szWord, size_t len)
 	// Find the stem
 	const char* szStem;
 	if(m_pStemmer)
-		szStem = m_pStemmer->getStem(szWord, (int)len);
+		szStem = m_pStemmer->getStem(szWord, len);
 	else
 	{
 		len = std::min((size_t)63, len);
@@ -198,9 +198,9 @@ size_t GVocabulary::wordIndex(const char* szWord, size_t len)
 	}
 
 	// Look up the stem
-	int val;
+	size_t val;
 	if(!m_pVocabulary->get(szStem, &val))
-		return (size_t)-1;
+		return INVALID_INDEX;
 	return val;
 }
 

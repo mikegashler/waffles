@@ -64,7 +64,7 @@ struct GNaiveBayesInputAttr
 			GAssert(inputValue == UNKNOWN_DISCRETE_VALUE);
 	}
 
-	int eval(const int inputValue)
+	size_t eval(const int inputValue)
 	{
 		if(inputValue >= 0 && (size_t)inputValue < m_nValues)
 			return m_pValueCounts[inputValue];
@@ -489,7 +489,7 @@ void GNaiveMLE::trainInner(GMatrix& features, GMatrix& labels)
 		nPrediction = 0;
 		for(size_t j = 0; j < m_pFeatureRel->size(); j++)
 		{
-			size_t valCount = m_pFeatureRel->valueCount(j);
+			int valCount = (int)m_pFeatureRel->valueCount(j);
 			valIn = (int)features[i][j];
 			valOut = (int)labels[i][0];
 			if(valIn >= 0 && valIn < (int)valCount && valOut >= 0 && valOut < (int)nOutputValues)
@@ -534,7 +534,7 @@ void GNaiveMLE::predictDistributionInner(const double* pIn, GPrediction* pOut)
 			pCatIn = &m_pPredictions[nPrediction + val];
 			for(size_t j = 0; j < nOutputValues; j++)
 			{
-				x = pCatIn->likelihood(j);
+				x = pCatIn->likelihood((int)j);
 				pValuesOut[j] += (1.0 - m_dLimboValue) * x + m_dLimboValue * log(x);
 			}
 		}

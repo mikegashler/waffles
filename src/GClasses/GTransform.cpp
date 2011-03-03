@@ -352,20 +352,20 @@ GMatrix* GPCARotateOnly::ReleaseOutputData()
 	return pData;
 }
 */
-GMatrix* GPCARotateOnly::transform(int nDims, int nOutputs, GMatrix* pData, int nComponents, GRand* pRand)
+GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, GMatrix* pData, size_t nComponents, GRand* pRand)
 {
 	// Init the basis vectors
-	int nElements = nDims * nDims;
+	size_t nElements = nDims * nDims;
 	double* pBasisVectors = new double[nElements + nDims * 4];
 	ArrayHolder<double> hBasisVectors(pBasisVectors);
 	double* pComponent = &pBasisVectors[nElements];
 	double* pA = &pBasisVectors[nElements + nDims];
 	double* pB = &pBasisVectors[nElements + 2 * nDims];
 	double* pMean = &pBasisVectors[nElements + 3 * nDims];
-	int j;
-	for(int i = 0; i < nElements; i++)
+	size_t j;
+	for(size_t i = 0; i < nElements; i++)
 		pBasisVectors[i] = 0;
-	for(int i = 0; i < nDims; i++)
+	for(size_t i = 0; i < nDims; i++)
 		pBasisVectors[nDims * i + i] = 1;
 
 	// Compute the mean
@@ -379,7 +379,7 @@ GMatrix* GPCARotateOnly::transform(int nDims, int nOutputs, GMatrix* pData, int 
 
 	// Rotate the basis vectors
 	double dDotProd;
-	for(int i = 0; i < nComponents; i++)
+	for(size_t i = 0; i < nComponents; i++)
 	{
 		// Compute the next principle component
 		pOutData->principalComponent(pComponent, nDims, pMean, pRand);

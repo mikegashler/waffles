@@ -32,25 +32,25 @@ GDiff::~GDiff()
 }
 
 // static
-int GDiff::measureLineLength(const char* pLine)
+size_t GDiff::measureLineLength(const char* pLine)
 {
-	int i;
+	size_t i;
 	for(i = 0; pLine[i] != '\0' && pLine[i] != '\n' && pLine[i] != '\r'; i++)
 	{
 	}
 	return i;
 }
 
-int GDiff::findNextMatchingLine(int* pPos1, int* pPos2)
+size_t GDiff::findNextMatchingLine(size_t* pPos1, size_t* pPos2)
 {
-	int pos1 = m_nPos1;
-	int pos2 = m_nPos2;
-	GConstStringToIntsHashTable ht1(53, true);
-	GConstStringToIntsHashTable ht2(53, true);
+	size_t pos1 = m_nPos1;
+	size_t pos2 = m_nPos2;
+	GConstStringToIndexHashTable ht1(53, true);
+	GConstStringToIndexHashTable ht2(53, true);
 	GHeap heap(2000);
-	int nMatch;
-	int len1 = 0;
-	int len2 = 0;
+	size_t nMatch;
+	size_t len1 = 0;
+	size_t len2 = 0;
 	const char* szLine1 = NULL;
 	const char* szLine2 = NULL;
 	while(true)
@@ -104,7 +104,7 @@ int GDiff::findNextMatchingLine(int* pPos1, int* pPos2)
 		{
 			*pPos1 = pos1;
 			*pPos2 = pos2;
-			return -1;
+			return INVALID_INDEX;
 		}
 	}
 }
@@ -115,7 +115,7 @@ bool GDiff::nextLine(struct GDiffLine* pDiffLine)
 	if(m_nPos1 < m_nNextMatch1)
 	{
 		pDiffLine->nLineNumber1 = m_nLine1++;
-		pDiffLine->nLineNumber2 = -1;
+		pDiffLine->nLineNumber2 = INVALID_INDEX;
 		pDiffLine->pLine = &m_pFile1[m_nPos1];
 		pDiffLine->nLength = measureLineLength(pDiffLine->pLine);
 		m_nPos1 += pDiffLine->nLength;
@@ -127,7 +127,7 @@ bool GDiff::nextLine(struct GDiffLine* pDiffLine)
 	}
 	if(m_nPos2 < m_nNextMatch2)
 	{
-		pDiffLine->nLineNumber1 = -1;
+		pDiffLine->nLineNumber1 = INVALID_INDEX;
 		pDiffLine->nLineNumber2 = m_nLine2++;
 		pDiffLine->pLine = &m_pFile2[m_nPos2];
 		pDiffLine->nLength = measureLineLength(pDiffLine->pLine);
@@ -176,7 +176,7 @@ void GDiff::test()
 		ThrowError("failed");
 	if(dl.nLength != 5)
 		ThrowError("wrong");
-	if(dl.nLineNumber1 != 1 || dl.nLineNumber2 > 0)
+	if(dl.nLineNumber1 != 1 || dl.nLineNumber2 != INVALID_INDEX)
 		ThrowError("wrong");
 
 	// wham
@@ -184,7 +184,7 @@ void GDiff::test()
 		ThrowError("failed");
 	if(dl.nLength != 4)
 		ThrowError("wrong");
-	if(dl.nLineNumber1 > 0 || dl.nLineNumber2 != 1)
+	if(dl.nLineNumber1 != INVALID_INDEX || dl.nLineNumber2 != 1)
 		ThrowError("wrong");
 
 	// meenie

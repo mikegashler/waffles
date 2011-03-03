@@ -188,12 +188,12 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 	GManifoldLearner* pML;
 	if(m_useIsomap)
 	{
-		pML = new GIsomap(neighbors, m_contextDims, m_pRand);
+		pML = new GIsomap(neighbors, (int)m_contextDims, m_pRand);
 		((GIsomap*)pML)->setNeighborFinder(&nf);
 	}
 	else
 	{
-		pML = new GBreadthFirstUnfolding(1/*reps*/, neighbors, m_contextDims, m_pRand);
+		pML = new GBreadthFirstUnfolding(1/*reps*/, neighbors, (int)m_contextDims, m_pRand);
 		((GBreadthFirstUnfolding*)pML)->setNeighborFinder(&nf);
 	}
 	Holder<GManifoldLearner> hML(pML);
@@ -1436,15 +1436,15 @@ GImage* GRecurrentModel::frames(GMatrix* pDataAction, GMatrix* pDataObs, bool ca
 	double prediction[3];
 	if(pDataObs && (size_t)pDataObs->cols() != m_pParamRanges[0] * m_pParamRanges[1] * m_channels)
 		ThrowError("observation cols don't match specified parameters");
-	unsigned int frameHeight = frameWidth / m_pParamRanges[0] * m_pParamRanges[1];
-	unsigned int imageHeight = frameHeight * ((pDataAction->rows() - 1) / stepsPerImage);
+	unsigned int frameHeight = (unsigned int)(frameWidth / m_pParamRanges[0] * m_pParamRanges[1]);
+	unsigned int imageHeight = (unsigned int)(frameHeight * ((pDataAction->rows() - 1) / stepsPerImage));
 	GImage* pImage = new GImage();
 	Holder<GImage> hImage(pImage);
 	pImage->setSize(frameWidth * 2, imageHeight);
 
 	// Walk the sequence
 	m_multiplier = scalePredictions;
-	int scale = frameWidth / m_pParamRanges[0];
+	size_t scale = frameWidth / m_pParamRanges[0];
 	GVec::setAll(m_pContext, 0.0, m_contextDims);
 	int top = 0;
 	for(size_t i = 0; i + 1 < pDataAction->rows(); i++)
@@ -1459,11 +1459,11 @@ GImage* GRecurrentModel::frames(GMatrix* pDataAction, GMatrix* pDataObs, bool ca
 				double* pTarget = pDataObs->row(i);
 				for(unsigned int y = 0; y < frameHeight; y++)
 				{
-					int rowStart = m_pParamRanges[0] * m_channels * (y * m_pParamRanges[1] / frameHeight);
+					size_t rowStart = m_pParamRanges[0] * m_channels * (y * m_pParamRanges[1] / frameHeight);
 					unsigned int* pPix = pImage->pixelRef(0, top + y);
 					for(unsigned int x = 0; x < frameWidth; x++)
 					{
-						int col = x * m_pParamRanges[0] / frameWidth;
+						size_t col = x * m_pParamRanges[0] / frameWidth;
 						int r = ClipChan((int)pTarget[rowStart + m_channels * col]);
 						int g = ClipChan((int)pTarget[rowStart + m_channels * col + 1]);
 						int b = ClipChan((int)pTarget[rowStart + m_channels * col + 2]);

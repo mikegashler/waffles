@@ -40,7 +40,7 @@ public:
 	void addSample(double x, double weight = 1.0);
 
 	/// Returns the number of bins in the histogram
-	int binCount();
+	size_t binCount();
 
 	/// Returns the center (median) x-value represented by the specified binsum value in the specified bin
 	double binToX(size_t n);

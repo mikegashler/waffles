@@ -299,9 +299,9 @@ double GMath::incompleteBeta(double x, double a, double b, int steps)
 }
 
 // static
-double GMath::tTestAlphaValue(int v, double t)
+double GMath::tTestAlphaValue(size_t v, double t)
 {
-	double dv = v;
+	double dv = (double)v;
 
 	double alpha = GMath::incompleteBeta(dv / (dv + t * t), dv / 2, 0.5, 200000);
 	alpha /= GMath::incompleteBeta(1, dv / 2, 0.5, 200000);

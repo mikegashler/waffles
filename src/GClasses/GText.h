@@ -6,7 +6,7 @@
 namespace GClasses {
 
 class GConstStringHashTable;
-class GConstStringToIntsHashTable;
+class GConstStringToIndexHashTable;
 class GStemmer;
 class GHeap;
 
@@ -54,7 +54,7 @@ protected:
 	size_t m_minWordSize;
 	size_t m_vocabSize;
 	GConstStringHashTable* m_pStopWords;
-	GConstStringToIntsHashTable* m_pVocabulary;
+	GConstStringToIndexHashTable* m_pVocabulary;
 	GHeap* m_pHeap;
 	char wordBuf[64];
 	size_t m_docNumber;

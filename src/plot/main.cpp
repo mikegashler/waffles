@@ -348,8 +348,8 @@ void PlotBar(GArgReader& args)
 
 	// Make the chart
 	GRand prng(0);
-	int minIndex = GVec::indexOfMin(values, pData->rows(), &prng);
-	int maxIndex = GVec::indexOfMax(values, pData->rows(), &prng);
+	size_t minIndex = GVec::indexOfMin(values, pData->rows(), &prng);
+	size_t maxIndex = GVec::indexOfMax(values, pData->rows(), &prng);
 	double dMin = values[minIndex];
 	double dMax = std::max(1e-12, values[maxIndex]);
 	if(dMin > 0 && !bLog && (dMax - dMin) / dMax > 0.05)
@@ -359,14 +359,14 @@ void PlotBar(GArgReader& args)
 	image.clear(0xffffffff);
 	double xmin = -0.5;
 	double ymin = bLog ? log(dMin * 0.7) : dMin - 0.1 * (dMax - dMin);
-	double xmax = pData->rows();
+	double xmax = (double)pData->rows();
 	double ymax = bLog ? log(dMax + 0.5 * (dMax - dMin)) : dMax + 0.1 * (dMax - dMin);
 	GPlotWindow pw(&image, xmin, ymin, xmax, ymax);
 	pw.gridLines(0, (bLog ? -1 : 30), 0xff808080);
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		int x1, y1, x2, y2;
-			pw.windowToView(i, 0, &x1, &y1);
+			pw.windowToView((double)i, 0, &x1, &y1);
 		if(bLog)
 		{
 			pw.windowToView(0.5 + i, log(values[i]), &x2, &y2);
@@ -390,7 +390,7 @@ class BigOCritic : public GTargetFunction
 {
 protected:
 	GMatrix* m_pData;
-	int m_attr;
+	size_t m_attr;
 
 public:
 	BigOCritic(GMatrix* pData, int attr)

@@ -961,11 +961,11 @@ bool GCoordVectorIterator::advanceSampling()
 		for( ; j < m_dims; j++)
 		{
 			m_pCoords[j] += ((size_t)1 << m_sampleShift);
-			m_sampleMask ^= (1u << j);
+			m_sampleMask ^= ((size_t)1 << j);
 			if(m_pCoords[j] < m_pRanges[j])
 				break;
 			m_pCoords[j] = 0;
-			m_sampleMask &= ~(1u << j);
+			m_sampleMask &= ~((size_t)1 << j);
 		}
 		if(j >= m_dims)
 		{

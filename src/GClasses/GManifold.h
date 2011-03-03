@@ -32,25 +32,25 @@ class GManifold
 {
 public:
 	/// Computes a set of weights for each neighbor to linearly approximate this point
-	static void computeNeighborWeights(GMatrix* pData, size_t point, int k, const size_t* pNeighbors, double* pOutWeights);
+	static void computeNeighborWeights(GMatrix* pData, size_t point, size_t k, const size_t* pNeighbors, double* pOutWeights);
 
 	/// Aligns and averages two local neighborhoods together. The results will be
 	/// centered around the neighborhood mean. The first point will be
 	/// the index point, and the rest will be neighborhood points with
 	/// an index that is not INVALID_INDEX.
-	static GMatrix* blendNeighborhoods(size_t index, GMatrix* pA, double ratio, GMatrix* pB, int neighborCount, size_t* pHood);
+	static GMatrix* blendNeighborhoods(size_t index, GMatrix* pA, double ratio, GMatrix* pB, size_t neighborCount, size_t* pHood);
 
 	/// Combines two embeddings to form an "average" embedding. pRatios is an array that specifies how much to weight the
 	/// neighborhoods around each point. If the ratio for a point is close to zero, pA will be emphasized more. If
 	/// the ratio for the point is close to 1, pB will be emphasized more. "seed" specifies a starting point. It will
 	/// blend outward in a breadth-first manner.
-	static GMatrix* blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, int neighborCount, size_t* pNeighborTable, size_t seed);
+	static GMatrix* blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, size_t neighborCount, size_t* pNeighborTable, size_t seed);
 
 	/// Performs classic MDS. pDistances must be a square matrix, but only the upper-triangle is used.
 	/// Each row in the results is one of the result points.
 	/// If useSquaredDistances is true, then the values in pDistances are assumed to be squared
 	/// distances, rather than normal Euclidean distances.
-	static GMatrix* multiDimensionalScaling(GMatrix* pDistances, int targetDims, GRand* pRand, bool useSquaredDistances);
+	static GMatrix* multiDimensionalScaling(GMatrix* pDistances, size_t targetDims, GRand* pRand, bool useSquaredDistances);
 
 #ifndef NO_TEST_CODE
 	static void test();
@@ -80,13 +80,13 @@ public:
 class GManifoldSculpting : public GManifoldLearner
 {
 protected:
-	int m_nDimensions;
-	int m_nNeighbors;
-	int m_nStuffIndex;
-	int m_nRecordSize;
-	int m_nCurrentDimension;
-	int m_nTargetDims;
-	int m_nPass;
+	size_t m_nDimensions;
+	size_t m_nNeighbors;
+	size_t m_nStuffIndex;
+	size_t m_nRecordSize;
+	size_t m_nCurrentDimension;
+	size_t m_nTargetDims;
+	size_t m_nPass;
 	double m_scale;
 	double m_dAveNeighborDist;
 	double m_dSquishingRate;
@@ -100,7 +100,7 @@ protected:
 	GNeighborFinder* m_pNF;
 
 public:
-	GManifoldSculpting(int nNeighbors, int targetDims, GRand* pRand);
+	GManifoldSculpting(size_t nNeighbors, size_t targetDims, GRand* pRand);
 	virtual ~GManifoldSculpting();
 
 	/// Perform NLDR.
@@ -132,7 +132,7 @@ public:
 	/// to find neighbors with indexes close to their own, this can serve
 	/// to identify when parts of the manifold are too close to other
 	/// parts for so many neighbors to be used.)
-	int countShortcuts(int nThreshold);
+	size_t countShortcuts(size_t nThreshold);
 
 	/// This will takes ownership of pData. (It will modify pData too.)
 	/// Specifies reduced dimensionality data created by another
@@ -149,7 +149,7 @@ public:
 	}
 
 	/// Partially supervise the specified point.
-	void clampPoint(int n);
+	void clampPoint(size_t n);
 
 	/// Specifies to use the neighborhoods determined by the specified neighbor-finder instead of the nearest
 	/// Euclidean-distance neighbors. If this method is called, pNF should have the same number of
@@ -157,25 +157,25 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF) { m_pNF = pNF; }
 
 protected:
-	inline struct GManifoldSculptingStuff* stuff(int n)
+	inline struct GManifoldSculptingStuff* stuff(size_t n)
 	{
 		return (struct GManifoldSculptingStuff*)&m_pMetaData[n * m_nRecordSize + m_nStuffIndex];
 	}
 
-	inline struct GManifoldSculptingNeighbor* record(int n)
+	inline struct GManifoldSculptingNeighbor* record(size_t n)
 	{
 		return (struct GManifoldSculptingNeighbor*)&m_pMetaData[n * m_nRecordSize];
 	}
 
 	/// You can overload this to add some intelligent supervision to the heuristic
-	virtual double supervisedError(int nPoint) { return 0; }
+	virtual double supervisedError(size_t nPoint) { return 0; }
 
 	void calculateMetadata(GMatrix* pData);
 	double vectorCorrelation(double* pdA, double* pdV, double* pdB);
-	double vectorCorrelation2(double squaredScale, int a, int vertex, struct GManifoldSculptingNeighbor* pNeighborRec);
-	double computeError(int nPoint);
-	int adjustDataPoint(int nPoint, double* pError);
-	double averageNeighborDistance(int nDims);
+	double vectorCorrelation2(double squaredScale, size_t a, size_t vertex, struct GManifoldSculptingNeighbor* pNeighborRec);
+	double computeError(size_t nPoint);
+	size_t adjustDataPoint(size_t nPoint, double* pError);
+	double averageNeighborDistance(size_t nDims);
 	void plotData(float radius);
 	void moveMeanToOrigin();
 };
@@ -190,7 +190,7 @@ protected:
 	bool m_alignConsequences;
 
 public:
-	GManifoldSculptingForControl(int nNeighbors, int nTargetDims, GRand* pRand, GMatrix* pControlData, double lambda)
+	GManifoldSculptingForControl(size_t nNeighbors, size_t nTargetDims, GRand* pRand, GMatrix* pControlData, double lambda)
 	: GManifoldSculpting(nNeighbors, nTargetDims, pRand), m_pControlData(pControlData), m_squaredLambda(lambda * lambda)
 	{
 	}
@@ -200,7 +200,7 @@ public:
 	}
 
 protected:
-	virtual double supervisedError(int nPoint);
+	virtual double supervisedError(size_t nPoint);
 };
 */
 
@@ -208,14 +208,14 @@ protected:
 class GIsomap : public GManifoldLearner
 {
 protected:
-	int m_neighborCount;
-	int m_targetDims;
+	size_t m_neighborCount;
+	size_t m_targetDims;
 	GNeighborFinder* m_pNF;
 	GRand* m_pRand;
 	bool m_dropDisconnectedPoints;
 
 public:
-	GIsomap(int neighborCount, int targetDims, GRand* pRand);
+	GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand);
 	GIsomap(GTwtNode* pNode);
 	virtual ~GIsomap();
 
@@ -242,13 +242,13 @@ public:
 class GLLE : public GManifoldLearner
 {
 protected:
-	int m_neighborCount;
-	int m_targetDims;
+	size_t m_neighborCount;
+	size_t m_targetDims;
 	GNeighborFinder* m_pNF;
 	GRand* m_pRand;
 
 public:
-	GLLE(int neighborCount, int targetDims, GRand* pRand);
+	GLLE(size_t neighborCount, size_t targetDims, GRand* pRand);
 	GLLE(GTwtNode* pNode);
 	virtual ~GLLE();
 	
@@ -270,13 +270,13 @@ public:
 class GManifoldUnfolder : public GManifoldLearner
 {
 protected:
-	int m_neighborCount;
-	int m_targetDims;
+	size_t m_neighborCount;
+	size_t m_targetDims;
 	GNeighborFinder* m_pNF;
 	GRand* m_pRand;
 
 public:
-	GManifoldUnfolder(int neighborCount, int targetDims, GRand* pRand);
+	GManifoldUnfolder(size_t neighborCount, size_t targetDims, GRand* pRand);
 	GManifoldUnfolder(GTwtNode* pNode);
 	virtual ~GManifoldUnfolder();
 	GTwtNode* toTwt(GTwtDoc* pDoc);
@@ -286,7 +286,7 @@ public:
 	virtual GMatrix* doit(GMatrix* pIn);
 
 protected:
-	GMatrix* unfold(GNeighborFinder* pNF, int targetDims, GRand* pRand);
+	GMatrix* unfold(GNeighborFinder* pNF, size_t targetDims, GRand* pRand);
 };
 */
 
@@ -297,9 +297,9 @@ protected:
 class GBreadthFirstUnfolding : public GManifoldLearner
 {
 protected:
-	int m_reps;
-	int m_neighborCount;
-	int m_targetDims;
+	size_t m_reps;
+	size_t m_neighborCount;
+	size_t m_targetDims;
 	GNeighborFinder* m_pNF;
 	bool m_useMds;
 	GRand* m_pRand;
@@ -307,7 +307,7 @@ protected:
 public:
 	/// reps specifies the number of times to compute the embedding, and blend the
 	/// results together. If you just want fast results, use reps=1.
-	GBreadthFirstUnfolding(int reps, int neighborCount, int targetDims, GRand* pRand);
+	GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims, GRand* pRand);
 	GBreadthFirstUnfolding(GTwtNode* pNode, GRand* pRand);
 	virtual ~GBreadthFirstUnfolding();
 
@@ -349,7 +349,7 @@ protected:
 	bool m_updateBias;
 
 public:
-	GNeuroPCA(int targetDims, GRand* pRand);
+	GNeuroPCA(size_t targetDims, GRand* pRand);
 
 	virtual ~GNeuroPCA();
 

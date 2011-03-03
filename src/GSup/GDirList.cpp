@@ -540,7 +540,7 @@ char* GFolderSerializer::next(size_t* pOutSize)
 				{
 					// Compress whatever is left
 					delete[] m_pCompressedBuf;
-					m_pCompressedBuf = GCompressor::compress((unsigned char*)m_pUncompressedBuf, m_uncompressedPos, &m_compressedSize);
+					m_pCompressedBuf = GCompressor::compress((unsigned char*)m_pUncompressedBuf, (unsigned int)m_uncompressedPos, &m_compressedSize);
 					m_compressedBufReady = true;
 					*pOutSize = sizeof(unsigned int);
 					m_bytesOut += sizeof(unsigned int);
@@ -563,7 +563,7 @@ char* GFolderSerializer::next(size_t* pOutSize)
 
 void GFolderSerializer::addName(const char* szName)
 {
-	unsigned int len = strlen(szName);
+	unsigned int len = (unsigned int)strlen(szName);
 	memcpy(m_pPos, &len, sizeof(unsigned int));
 	m_pPos += sizeof(unsigned int);
 	m_size -= sizeof(unsigned int);

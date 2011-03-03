@@ -347,14 +347,14 @@ void AddIndexAttribute(GArgReader& args)
 {
 	// Parse args
 	const char* filename = args.pop_string();
-	int nStartValue = 0;
-	int nIncrement = 1;
+	double nStartValue = 0.0;
+	double nIncrement = 1.0;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-start"))
-			nStartValue = args.pop_uint();
+			nStartValue = args.pop_double();
 		else if(args.if_pop("-increment"))
-			nIncrement = args.pop_uint();
+			nIncrement = args.pop_double();
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
@@ -472,14 +472,14 @@ void autoCorrelation(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	size_t lag = std::min((size_t)256, pData->rows() / 2);
-	int dims = pData->cols();
+	size_t dims = pData->cols();
 	GTEMPBUF(double, mean, dims);
 	pData->centroid(mean);
 	GMatrix ac(0, dims + 1);
 	for(size_t i = 1; i <= lag; i++)
 	{
 		double* pRow = ac.newRow();
-		*(pRow++) = i;
+		*(pRow++) = (double)i;
 		for(int j = 0; j < dims; j++)
 		{
 			*pRow = 0;
@@ -581,7 +581,7 @@ void center(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	unsigned int r = args.pop_uint();
-	int cols = pData->cols();
+	size_t cols = pData->cols();
 	double* pRow = pData->row(r);
 	for(size_t i = 0; i < r; r++)
 		GVec::subtract(pData->row(i), pRow, cols);
@@ -693,7 +693,7 @@ void Discretize(GArgReader& args)
 		for(size_t j = 0; j < pData->rows(); j++)
 		{
 			double* pPat = pData->row(j);
-			pPat[i] = std::max((size_t)0, std::min(nBuckets - 1, (size_t)floor(((pPat[i] - min) * nBuckets) / range)));
+			pPat[i] = (double)std::max((size_t)0, std::min(nBuckets - 1, (size_t)floor(((pPat[i] - min) * nBuckets) / range)));
 		}
 		((GArffRelation*)pData->relation().get())->setAttrValueCount(i, nBuckets);
 	}
@@ -707,7 +707,7 @@ void dropColumns(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	vector<size_t> colList;
-	int attrCount = pData->cols();
+	size_t attrCount = pData->cols();
 	parseAttributeList(colList, args, attrCount);
 	std::sort(colList.begin(), colList.end());
 	std::reverse(colList.begin(), colList.end());
@@ -721,7 +721,7 @@ void DropMissingValues(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	GRelation* pRelation = pData->relation().get();
-	int dims = pRelation->size();
+	size_t dims = pRelation->size();
 	for(size_t i = pData->rows() - 1; i < pData->rows(); i--)
 	{
 		double* pPat = pData->row(i);
@@ -1088,7 +1088,7 @@ void manifoldUnfolder(GArgReader& args)
 	pDataAfter->print(cout);
 }
 */
-void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, int dims, double* pResults)
+void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, double* pResults)
 {
 	GVec::setAll(pResults, 0.0, dims);
 	for(size_t i = 0; i < pData1->rows(); i++)
@@ -1111,13 +1111,13 @@ class FitDataCritic : public GTargetFunction
 protected:
 	GMatrix* m_pData1;
 	GMatrix* m_pData2;
-	int m_attrs;
+	size_t m_attrs;
 	GMatrix m_transformed;
 	GMatrix m_transform;
 	double* m_pResults;
 
 public:
-	FitDataCritic(GMatrix* pData1, GMatrix* pData2, int attrs)
+	FitDataCritic(GMatrix* pData1, GMatrix* pData2, size_t attrs)
 	: GTargetFunction(attrs + attrs * attrs), m_pData1(pData1), m_pData2(pData2), m_attrs(attrs), m_transformed(pData1->rows(), attrs), m_transform(attrs, attrs)
 	{
 		m_transform.makeIdentity();
@@ -1196,7 +1196,7 @@ void MeasureMeanSquaredError(GArgReader& args)
 			ThrowError("Invalid option: ", args.peek());
 	}
 
-	int dims = pData1->relation()->size();
+	size_t dims = pData1->relation()->size();
 	if(fit)
 	{
 		FitDataCritic critic(pData1, pData2, dims);
@@ -1783,8 +1783,8 @@ void sparseSplit(GArgReader& args)
 	doc.load(args.pop_string());
 	GSparseMatrix* pData = new GSparseMatrix(doc.root());
 	Holder<GSparseMatrix> hData(pData);
-	int pats1 = args.pop_uint();
-	int pats2 = (int)pData->rows() - pats1;
+	size_t pats1 = args.pop_uint();
+	size_t pats2 = pData->rows() - pats1;
 	if(pats2 < 0)
 		ThrowError("out of range. The data only has ", to_str(pData->rows()), " rows.");
 	const char* szFilename1 = args.pop_string();
@@ -1997,8 +1997,8 @@ void transition(GArgReader& args)
 	}
 
 	// Make the output data
-	int actionDims = pActions->cols();
-	int stateDims = pState->cols();
+	size_t actionDims = pActions->cols();
+	size_t stateDims = pState->cols();
 	GMixedRelation* pRelation = new GMixedRelation();
 	sp_relation pRel = pRelation;
 	pRelation->addAttrs(pActions->relation().get());

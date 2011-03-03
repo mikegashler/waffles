@@ -400,14 +400,13 @@ GStemmer::~GStemmer()
 	free_stemmer(m_pPorterStemmer);
 }
 
-const char* GStemmer::getStem(const char* szWord, int nLen)
+const char* GStemmer::getStem(const char* szWord, size_t nLen)
 {
 	if(nLen > GSTEMMER_MAX_WORD_SIZE)
 		nLen = GSTEMMER_MAX_WORD_SIZE;
-	int n;
-	for(n = 0; n < nLen; n++)
+	for(size_t n = 0; n < nLen; n++)
 		m_szBuf[n] = tolower(szWord[n]);
-	int nStemLen = stem(m_pPorterStemmer, m_szBuf, nLen - 1) + 1;
+	int nStemLen = stem(m_pPorterStemmer, m_szBuf, (int)nLen - 1) + 1;
 	m_szBuf[nStemLen] = '\0';
 	return m_szBuf;
 }

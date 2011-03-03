@@ -64,7 +64,7 @@ void GHistogram::addSample(double x, double weight)
 	m_sum += weight;
 }
 
-int GHistogram::binCount()
+size_t GHistogram::binCount()
 {
 	return m_binCount;
 }

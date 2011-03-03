@@ -18,9 +18,9 @@ namespace GClasses {
 struct GDiffLine
 {
 	const char* pLine;
-	int nLength;
-	int nLineNumber1;
-	int nLineNumber2;
+	size_t nLength;
+	size_t nLineNumber1;
+	size_t nLineNumber2;
 };
 
 
@@ -33,9 +33,9 @@ class GDiff
 protected:
 	const char* m_pFile1;
 	const char* m_pFile2;
-	int m_nPos1, m_nPos2;
-	int m_nNextMatch1, m_nNextMatch2, m_nNextMatchLen;
-	int m_nLine1, m_nLine2;
+	size_t m_nPos1, m_nPos2;
+	size_t m_nNextMatch1, m_nNextMatch2, m_nNextMatchLen;
+	size_t m_nLine1, m_nLine2;
 
 public:
 	GDiff(const char* szFile1, const char* szFile2);
@@ -45,12 +45,12 @@ public:
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
 #endif // !NO_TEST_CODE
-	
+
 	bool nextLine(struct GDiffLine* pLine);
 
 protected:
-	static int measureLineLength(const char* pLine);
-	int findNextMatchingLine(int* pPos1, int* pPos2);
+	static size_t measureLineLength(const char* pLine);
+	size_t findNextMatchingLine(size_t* pPos1, size_t* pPos2);
 };
 
 

@@ -16,7 +16,7 @@ public:
 	/// returns true iff the specified string is a valid floating point number.
 	/// For example, it would return true for this string "-1.2e-14", but would
 	/// return false for these: "e2", "2e", "-.", "2..3", "3-2", "2e3.5", "--1", etc.
-	static bool isValidFloat(const char* pString, int len);
+	static bool isValidFloat(const char* pString, size_t len);
 
 	/// Returns -1 if a < b, 0 if a = b, and 1 if a > b.
 	static inline int compareInts(int a, int b)

@@ -44,7 +44,7 @@ public:
 	/// Pass in a word (you don't need to lowercase or null-terminate it) and this
 	/// will return its stem. The buffer it returns is only valid until the next time
 	/// you call GetStem.
-	const char* getStem(const char* szWord, int nLen);
+	const char* getStem(const char* szWord, size_t nLen);
 };
 
 } // namespace GClasses

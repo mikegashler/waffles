@@ -33,7 +33,7 @@ GBigInt::GBigInt()
 
 GBigInt::GBigInt(GTwtNode* pNode)
 {
-	m_nUInts = pNode->itemCount();
+	m_nUInts = (unsigned int)pNode->itemCount();
 	m_pBits = new unsigned int[m_nUInts - 1];
 	if(pNode->item(0)->asInt() >= 0)
 		m_bSign = true;

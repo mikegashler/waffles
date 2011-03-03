@@ -58,7 +58,7 @@ bool GDiscreteActionIterator::nextAction(double* pOutAction)
 GPolicyLearner::GPolicyLearner(sp_relation& pRelation, int actionDims)
 : m_pRelation(pRelation)
 {
-	m_senseDims = pRelation->size() - actionDims;
+	m_senseDims = (int)pRelation->size() - actionDims;
 	if(m_senseDims < 0)
 		ThrowError("more action dims than relation dims");
 	m_actionDims = actionDims;
@@ -70,7 +70,7 @@ GPolicyLearner::GPolicyLearner(GTwtNode* pAgent)
 {
 	m_pRelation = GRelation::fromTwt(pAgent->field("relation"));
 	m_actionDims = (int)pAgent->field("actionDims")->asInt();
-	m_senseDims = m_pRelation->size() - m_actionDims;
+	m_senseDims = (int)m_pRelation->size() - m_actionDims;
 	m_teleported = true;
 }
 

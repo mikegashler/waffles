@@ -797,7 +797,7 @@ const char* GArffRelation::attrName(size_t nAttr)
 
 int GArffRelation::addAttrValue(size_t nAttr, const char* szValue)
 {
-	int val = m_valueCounts[nAttr]++;
+	int val = (int)m_valueCounts[nAttr]++;
 	GAssert(m_attrs[nAttr].m_values.size() == (size_t)val);
 	m_attrs[nAttr].m_values.push_back(szValue);
 	return val;
@@ -1920,7 +1920,7 @@ void GMatrix::fixNans()
 void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, GMatrix** ppV, bool throwIfNoConverge, size_t maxIters)
 {
 	int m = (int)rows();
-	int n = cols();
+	int n = (int)cols();
 	if(m < n)
 		ThrowError("Expected at least as many rows as columns");
 	int i, j, k;
@@ -3119,9 +3119,9 @@ double GMatrix::baselineValue(size_t nAttribute)
 {
 	if(m_pRelation->valueCount(nAttribute) == 0)
 		return mean(nAttribute);
-	size_t j;
+	int j;
 	int val;
-	size_t nValues = m_pRelation->valueCount(nAttribute);
+	int nValues = (int)m_pRelation->valueCount(nAttribute);
 	GTEMPBUF(size_t, counts, nValues + 1);
 	memset(counts, '\0', sizeof(size_t) * (nValues + 1));
 	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)

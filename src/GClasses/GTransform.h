@@ -216,7 +216,7 @@ class GPCARotateOnly
 public:
 	/// This rotates the data to align the first nComponents axes with the same
 	/// number of principle components.
-	static GMatrix* transform(int nDims, int nOutputs, GMatrix* pData, int nComponents, GRand* pRand);
+	static GMatrix* transform(size_t nDims, size_t nOutputs, GMatrix* pData, size_t nComponents, GRand* pRand);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.

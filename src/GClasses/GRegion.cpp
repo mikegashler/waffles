@@ -165,11 +165,11 @@ G2DRegionGraph::~G2DRegionGraph()
 	delete(m_pRegionMask);
 }
 
-void G2DRegionGraph::setMaskPixel(int x, int y, unsigned int c, int nRegion)
+void G2DRegionGraph::setMaskPixel(int x, int y, unsigned int c, size_t nRegion)
 {
 	GAssert(x >= 0 && x < (int)m_pRegionMask->width() && y >= 0 && y < (int)m_pRegionMask->height()); // out of range
 	GAssert(m_pRegionMask->pixel(x, y) == 0xffffffff); // This pixel is already set
-	m_pRegionMask->setPixel(x, y, nRegion);
+	m_pRegionMask->setPixel(x, y, (unsigned int)nRegion);
 	struct GRegion* pRegion = m_regions[nRegion];
 	pRegion->m_nSumRed += gRed(c);
 	pRegion->m_nSumGreen += gGreen(c);
@@ -323,7 +323,7 @@ void G2DRegionGraph::makeCoarserRegions(G2DRegionGraph* pFineRegions)
 			if(d < dBestDiff)
 			{
 				dBestDiff = d;
-				nBestNeighbor = j;
+				nBestNeighbor = (int)j;
 			}
 		}
 		GAssert(nBestNeighbor != -1 || pFineRegions->regionCount() == 1); // failed to find a neighbor
@@ -351,7 +351,7 @@ void G2DRegionGraph::makeCoarserRegions(G2DRegionGraph* pFineRegions)
 		j = i;
 		while(pNewRegionMap[j] == -2)
 		{
-			pNewRegionMap[j] = nNewRegion;
+			pNewRegionMap[j] = (int)nNewRegion;
 			j = pBestNeighborMap[j];
 		}
 	}

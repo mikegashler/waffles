@@ -159,7 +159,7 @@ GActionPath::~GActionPath()
 void GActionPath::doAction(size_t nAction)
 {
         GAction* pPrevAction = m_pLastAction;
-        m_pLastAction = new GAction(nAction, pPrevAction);
+        m_pLastAction = new GAction((int)nAction, pPrevAction);
         m_pLastAction->AddRef(); // referenced by m_pLastAction
         if(pPrevAction)
                 pPrevAction->Release(); // no longer referenced by m_pLastAction

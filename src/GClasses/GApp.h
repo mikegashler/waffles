@@ -23,7 +23,9 @@
 #	include <termios.h>
 #endif
 
-#ifndef WINDOWS
+#ifdef WINDOWS
+#	define INVALID_HANDLE (HANDLE)-1
+#else
 #	ifndef HANDLE
 #		define HANDLE int
 #		define INVALID_HANDLE -1

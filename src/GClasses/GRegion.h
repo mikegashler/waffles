@@ -85,7 +85,7 @@ public:
 	/// Specifies which region the given pixel belongs to. The color
 	/// of the pixel is also specified so it can keep track of the
 	/// average color of each region
-	void setMaskPixel(int x, int y, unsigned int c, int nRegion);
+	void setMaskPixel(int x, int y, unsigned int c, size_t nRegion);
 };
 /*
 /// A 3D region adjacency graph

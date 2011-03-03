@@ -33,42 +33,42 @@ friend class GHashTableEnumerator;
 protected:
 	struct HashBucket* m_pBuckets;
 	struct HashBucket* m_pFirstEmpty;
-	int m_nBucketCount;
-	int m_nCount;
-	int m_nModCount;
+	size_t m_nBucketCount;
+	size_t m_nCount;
+	size_t m_nModCount;
 
-	GHashTableBase(int nInitialBucketCount);
+	GHashTableBase(size_t nInitialBucketCount);
 
 public:
 	virtual ~GHashTableBase();
 
 	/// Returns the number of items in this hash table
-	int size() { return m_nCount; }
+	size_t size() { return m_nCount; }
 
 	/// Returns a number that changes when the contents of this table are modified
 	/// (This is useful for detecting invalidated iterators)
-	int revisionNumber() { return m_nModCount; }
+	size_t revisionNumber() { return m_nModCount; }
 
 protected:
 	/// Returns a hash of the key
-	virtual unsigned int hash(const char* pKey, int nBucketCount) = 0;
+	virtual size_t hash(const char* pKey, size_t nBucketCount) = 0;
 
 	/// Returns true iff the keys compare equal
 	virtual bool areKeysEqual(const char* pKey1, const char* pKey2) = 0;
-	void _Resize(int nNewSize);
+	void _Resize(size_t nNewSize);
 
 	/// Adds a key/value pair to the hash table
 	void _Add(const char* pKey, const void* pValue);
 
 	/// Returns true and the first occurrence of a value with the specified key if one exists
-        template<class T>
+	template<class T>
 	bool _Get(const char* pKey, T** pOutValue);
 
 	/// Removes the first found occurrence of the specified key
 	void _Remove(const char* pKey);
 
 	/// Returns the number of values with the specified key
-	int _Count(const char* pKey);
+	size_t _Count(const char* pKey);
 };
 
 
@@ -81,8 +81,8 @@ class GHashTableEnumerator
 {
 protected:
 	GHashTableBase* m_pHashTable;
-	int m_nPos;
-	int m_nModCount;
+	size_t m_nPos;
+	size_t m_nModCount;
 
 public:
 	GHashTableEnumerator(GHashTableBase* pHashTable)
@@ -110,7 +110,7 @@ public:
 class GHashTable : public GHashTableBase
 {
 public:
-	GHashTable(int nInitialBucketCount)
+	GHashTable(size_t nInitialBucketCount)
 		: GHashTableBase(nInitialBucketCount)
 	{
 	}
@@ -125,9 +125,9 @@ public:
 #endif // !NO_TEST_CODE
 
 	/// Computes a hash of the key
-	virtual unsigned int hash(const char* pKey, int nBucketCount)
+	virtual size_t hash(const char* pKey, size_t nBucketCount)
 	{
-		return (unsigned int)(((uintptr_t)pKey) % nBucketCount);
+		return (size_t)(((uintptr_t)pKey) % nBucketCount);
 	}
 
 	/// Returns true iff the two keys are equal
@@ -168,7 +168,7 @@ protected:
 	bool m_bCaseSensitive;
 
 public:
-	GConstStringHashTable(int nInitialBucketCount, bool bCaseSensitive)
+	GConstStringHashTable(size_t nInitialBucketCount, bool bCaseSensitive)
 		: GHashTableBase(nInitialBucketCount)
 	{
 		m_bCaseSensitive = bCaseSensitive;
@@ -179,9 +179,9 @@ public:
 	}
 
 	/// Computes a hash of the key
-	virtual unsigned int hash(const char* pKey, int nBucketCount)
+	virtual size_t hash(const char* pKey, size_t nBucketCount)
 	{
-		unsigned int n = 0;
+		size_t n = 0;
 		if(m_bCaseSensitive)
 		{
 			while(*pKey != '\0')
@@ -227,7 +227,7 @@ public:
 	}
 
 	/// Gets the value for the specified key
-	bool get(const char* pKey, int nLen, void** ppOutValue);
+	bool get(const char* pKey, size_t nLen, void** ppOutValue);
 
 	/// Removes an entry from the hash table
 	void remove(const char* pKey)
@@ -241,26 +241,26 @@ public:
 /// Hash table based on keys of constant strings (or at least strings
 /// that won't change during the lifetime of the hash table).  It's a
 /// good idea to use a GHeap in connection with this class.
-class GConstStringToIntsHashTable : public GHashTableBase
+class GConstStringToIndexHashTable : public GHashTableBase
 {
 protected:
 	bool m_bCaseSensitive;
 
 public:
-	GConstStringToIntsHashTable(int nInitialBucketCount, bool bCaseSensitive)
+	GConstStringToIndexHashTable(size_t nInitialBucketCount, bool bCaseSensitive)
 		: GHashTableBase(nInitialBucketCount)
 	{
 		m_bCaseSensitive = bCaseSensitive;
 	}
 
-	virtual ~GConstStringToIntsHashTable()
+	virtual ~GConstStringToIndexHashTable()
 	{
 	}
 
 	/// Computes a hash of the key
-	virtual unsigned int hash(const char* pKey, int nBucketCount)
+	virtual size_t hash(const char* pKey, size_t nBucketCount)
 	{
-		unsigned int n = 0;
+		size_t n = 0;
 		if(m_bCaseSensitive)
 		{
 			while(*pKey != '\0')
@@ -293,23 +293,23 @@ public:
 	/// string (or at least a string that won't change over the lifetime of the
 	/// hash table).  The GHeap class provides a good place to store such a
 	/// string.
-	void add(const char* pKey, int nValue)
+	void add(const char* pKey, size_t nValue)
 	{
 		uintptr_t tmp = nValue;
 		_Add(pKey, (const void*)tmp);
 	}
 
 	/// Gets the value for the specified key
-	bool get(const char* pKey, int* pValue)
+	bool get(const char* pKey, size_t* pValue)
 	{
-	  void* tmp = NULL;
-	  bool bRet = _Get(pKey, &tmp);
-	  *pValue = (int)reinterpret_cast<uintptr_t>(tmp);
-	  return bRet;
+		void* tmp = NULL;
+		bool bRet = _Get(pKey, &tmp);
+		*pValue = (size_t)reinterpret_cast<uintptr_t>(tmp);
+		return bRet;
 	}
 
 	/// Gets the value for the specified key
-	bool get(const char* pKey, int nLen, int* pValue);
+	bool get(const char* pKey, size_t nLen, size_t* pValue);
 
 	/// Removes an entry from the hash table
 	void remove(const char* pKey)
@@ -331,8 +331,8 @@ template<class T>
 bool GHashTableBase::_Get(const char* pKey, T** pOutValue)
 {
 	GAssert(pKey != NULL);
-	unsigned int nPos = hash(pKey, m_nBucketCount);
-	GAssert(nPos < (unsigned int)m_nBucketCount); // Out of range
+	size_t nPos = hash(pKey, m_nBucketCount);
+	GAssert(nPos < m_nBucketCount); // Out of range
 	if(!m_pBuckets[nPos].pKey || m_pBuckets[nPos].pPrev)
 		return false;
 	struct HashBucket* pBucket;
@@ -340,7 +340,7 @@ bool GHashTableBase::_Get(const char* pKey, T** pOutValue)
 	{
 		if(areKeysEqual(pBucket->pKey, pKey))
 		{
-		  *pOutValue = const_cast<T*>(reinterpret_cast<const T*>(pBucket->pValue));
+			*pOutValue = const_cast<T*>(reinterpret_cast<const T*>(pBucket->pValue));
 			return true;
 		}
 	}
@@ -348,84 +348,6 @@ bool GHashTableBase::_Get(const char* pKey, T** pOutValue)
 }
 
 
-
-/*
-/// Hash table based on keys of constant strings (or at least strings
-/// that won't change during the lifetime of the hash table).  It's a
-/// good idea to use a GHeap in connection with this class.
-class GConstUnicodeHashTable : public GHashTableBase
-{
-protected:
-	bool m_bCaseSensitive;
-
-public:
-	GConstUnicodeHashTable(int nInitialBucketCount, bool bCaseSensitive)
-		: GHashTableBase(nInitialBucketCount)
-	{
-		m_bCaseSensitive = bCaseSensitive;
-	}
-
-	virtual ~GConstUnicodeHashTable()
-	{
-	}
-
-
-	virtual unsigned int hash(const char* pKey, int nBucketCount)
-	{
-		const wchar_t* wszKey = (const wchar_t*)pKey;
-		unsigned int n = 0;
-		if(m_bCaseSensitive)
-		{
-			while(*wszKey != L'\0')
-			{
-				n += (*wszKey);
-				wszKey++;
-			}
-		}
-		else
-		{
-			while(*wszKey != L'\0')
-			{
-				if(*wszKey <= L'Z' && *wszKey >= L'A') // todo: use a better func
-					n += *wszKey + 32;
-				else
-					n += *wszKey;
-				wszKey++;
-			}
-		}
-		return n % nBucketCount;
-	}
-
-	virtual bool areKeysEqual(const char* pKey1, const char* pKey2)
-	{
-		if(m_bCaseSensitive)
-			return(wcscmp((const wchar_t*)pKey1, (const wchar_t*)pKey2) == 0);
-		else
-			return(wcsicmp((const wchar_t*)pKey1, (const wchar_t*)pKey2) == 0);
-	}
-
-	/// Adds a key and value pair to the hash table.  The key should be a constant
-	/// string (or at least a string that won't change over the lifetime of the
-	/// hash table).  The GHeap class provides a good place to store such a
-	/// string.
-	void add(const wchar_t* pKey, const void* pValue)
-	{
-		_Add((const char*)pKey, pValue);
-	}
-
-	/// Gets the value for the specified key
-	bool get(const wchar_t* pKey, void** ppOutValue)
-	{
-		return _Get((const char*)pKey, ppOutValue);
-	}
-
-	/// Removes an entry from the hash table
-	void remove(const wchar_t* pKey)
-	{
-		_Remove((const char*)pKey);
-	}
-};
-*/
 
 
 /// Objects used with GNodeHashTable should inherit from this class. They
@@ -437,7 +359,7 @@ public:
 	virtual ~HashTableNode() {}
 
 	/// Returns a hash value for this node
-	virtual unsigned int hash(int nBucketCount) = 0;
+	virtual size_t hash(size_t nBucketCount) = 0;
 
 	/// Returns true iff this compares equal to pThat
 	virtual bool equals(HashTableNode* pThat) = 0;
@@ -453,11 +375,11 @@ protected:
 	std::vector<HashTableNode*>* m_pNodes;
 
 public:
-	GNodeHashTable(bool bOwnNodes, int nInitialBucketCount);
+	GNodeHashTable(bool bOwnNodes, size_t nInitialBucketCount);
 	virtual ~GNodeHashTable();
 
 	/// Computes a hash of the key
-	virtual unsigned int hash(const char* pKey, int nBucketCount)
+	virtual size_t hash(const char* pKey, size_t nBucketCount)
 	{
 		HashTableNode* pRec = (HashTableNode*)pKey;
 		return pRec->hash(nBucketCount);

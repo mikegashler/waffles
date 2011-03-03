@@ -3,9 +3,9 @@
 using namespace GClasses;
 
 //static
-bool GBits::isValidFloat(const char* pString, int len)
+bool GBits::isValidFloat(const char* pString, size_t len)
 {
-	if(len <= 0)
+	if(len == 0)
 		return false;
 	if(*pString == '-' || *pString == '+')
 	{

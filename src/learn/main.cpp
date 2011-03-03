@@ -680,9 +680,9 @@ void predictOnePattern(GArgReader& args)
 	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
 
 	// Parse the pattern
-	int featureDims = pModeler->featureDims();
+	size_t featureDims = pModeler->featureDims();
 	GTEMPBUF(double, pattern, featureDims);
-	for(int i = 0; i < featureDims; i++)
+	for(size_t i = 0; i < featureDims; i++)
 		pattern[i] = pRel->parseValue(i, args.pop_string());
 
 	// Predict
@@ -725,7 +725,7 @@ void predictOnePattern(GArgReader& args)
 				if(j > 0)
 					cout << ", ";
 				string s;
-				pRel->attrValue(&s, featureDims + i, j);
+				pRel->attrValue(&s, featureDims + i, (int)j);
 				cout << s << "=" << pValues[j];
 			}
 			cout << "}\n";
@@ -889,7 +889,7 @@ void SplitTest(GArgReader& args)
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	double trainRatio = 0.5;
-	int reps = 1;
+	size_t reps = 1;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
@@ -925,12 +925,12 @@ void SplitTest(GArgReader& args)
 		ThrowError("Superfluous argument: ", args.peek());
 
 	// Do the reps
-	int trainingPatterns = std::max((size_t)1, std::min(pFeatures->rows() - 1, (size_t)floor(pFeatures->rows() * trainRatio + 0.5)));
-	int testPatterns = pFeatures->rows() - trainingPatterns;
+	size_t trainingPatterns = std::max((size_t)1, std::min(pFeatures->rows() - 1, (size_t)floor(pFeatures->rows() * trainRatio + 0.5)));
+	size_t testPatterns = pFeatures->rows() - trainingPatterns;
 	GTEMPBUF(double, results, 2 * labelDims);
 	double* repResults = results + labelDims;
 	GVec::setAll(results, 0, labelDims);
-	for(int i = 0; i < reps; i++)
+	for(size_t i = 0; i < reps; i++)
 	{
 		// Shuffle and split the data
 		pFeatures->shuffle(&prng, pLabels);
@@ -1201,8 +1201,8 @@ void PrecisionRecall(GArgReader& args)
 	pRel->addAttribute("recall", 0, NULL);
 	for(size_t i = 0; i < labelDims; i++)
 	{
-		int valCount = std::max((size_t)1, pLabels->relation()->valueCount(i));
-		for(int val = 0; val < valCount; val++)
+		size_t valCount = std::max((size_t)1, pLabels->relation()->valueCount(i));
+		for(int val = 0; val < (int)valCount; val++)
 		{
 			string s = "precision_";
 			if(pLabels->relation()->type() == GRelation::ARFF)
@@ -1210,7 +1210,7 @@ void PrecisionRecall(GArgReader& args)
 			else
 			{
 				s += "attr";
-				s += i;
+				s += to_str(i);
 			}
 			if(valCount > 1)
 			{
@@ -1249,7 +1249,7 @@ protected:
 	double m_dStart;
 
 public:
-	MyRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, int actionDims, int contextDims, int obsDims, GRand* pRand, std::vector<size_t>* pParamDims, const char* stateFilename, double validateInterval)
+	MyRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, size_t actionDims, size_t contextDims, size_t obsDims, GRand* pRand, std::vector<size_t>* pParamDims, const char* stateFilename, double validateInterval)
 	: GRecurrentModel(pTransition, pObservation, actionDims, contextDims, obsDims, pRand, pParamDims), m_stateFilename(stateFilename), m_validateInterval(validateInterval)
 	{
 		m_dStart = GTime::seconds();

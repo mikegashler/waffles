@@ -1377,7 +1377,7 @@ public:
 			if(!it.next(&pWord, &wordLen))
 				break;
 			size_t col = m_pVocab->wordIndex(pWord, wordLen);
-			if(col != (size_t)-1)
+			if(col != INVALID_INDEX)
 			{
 				if(m_binary)
 					m_pSM->set(m_row, col, 1.0);
@@ -1439,7 +1439,7 @@ void makeTextFileVector(GSparseMatrix* pSM, int clss, int row, GVocabulary* pVoc
 		if(!it.next(&pWord, &wordLen))
 			break;
 		size_t col = pVocab->wordIndex(pWord, wordLen);
-		if(col != (size_t)-1)
+		if(col != INVALID_INDEX)
 		{
 			if(binary)
 				pSM->set(row, col, 1.0);

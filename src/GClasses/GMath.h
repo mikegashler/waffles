@@ -202,7 +202,7 @@ public:
 
 	/// Computes the p-value from the degrees of freedom, and the
 	/// t-value obtained from a T-test.
-	static double tTestAlphaValue(int v, double t);
+	static double tTestAlphaValue(size_t v, double t);
 
 	/// This computes the Wilcoxon alpha value assuming n is large
 	/// enough that the Normal approximation will suffice.

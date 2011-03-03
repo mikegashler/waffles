@@ -17,7 +17,7 @@
 
 using namespace GClasses;
 
-GHashTableBase::GHashTableBase(int nInitialBucketCount)
+GHashTableBase::GHashTableBase(size_t nInitialBucketCount)
 {
 	m_nBucketCount = 0;
 	m_pBuckets = NULL;
@@ -31,7 +31,7 @@ GHashTableBase::~GHashTableBase()
 	delete[] m_pBuckets;
 }
 
-inline bool IsObviousNonPrime(int n)
+inline bool IsObviousNonPrime(size_t n)
 {
 	if((n % 3) == 0)
 		return true;
@@ -48,7 +48,7 @@ inline bool IsObviousNonPrime(int n)
 	return false;
 }
 
-void GHashTableBase::_Resize(int nNewSize)
+void GHashTableBase::_Resize(size_t nNewSize)
 {
 	// Find a good size
 	if(nNewSize < m_nCount * 3)
@@ -63,7 +63,7 @@ void GHashTableBase::_Resize(int nNewSize)
 	// Allocate the new buckets
 	struct HashBucket* pOldBuckets = m_pBuckets;
 	m_pBuckets = new struct HashBucket[nNewSize];
-	int nOldCount = m_nBucketCount;
+	size_t nOldCount = m_nBucketCount;
 	m_nBucketCount = nNewSize;
 	m_nCount = 0;
 
@@ -71,8 +71,8 @@ void GHashTableBase::_Resize(int nNewSize)
 	m_pBuckets[0].pPrev = NULL;
 	m_pBuckets[0].pNext = &m_pBuckets[1];
 	m_pBuckets[0].pKey = NULL;
-	int n;
-	int nNewSizeMinusOne = nNewSize - 1;
+	size_t n;
+	size_t nNewSizeMinusOne = nNewSize - 1;
 	for(n = 1; n < nNewSizeMinusOne; n++)
 	{
 		m_pBuckets[n].pPrev = &m_pBuckets[n - 1];
@@ -108,8 +108,8 @@ void GHashTableBase::_Add(const char* pKey, const void* pValue)
 		m_nModCount++;
 
 	// Determine which bucket
-	unsigned int nPos = hash(pKey, m_nBucketCount);
-	GAssert(nPos < (unsigned int)m_nBucketCount); // Out of range
+	size_t nPos = hash(pKey, m_nBucketCount);
+	GAssert(nPos < m_nBucketCount); // Out of range
 
 	// Insert it
 	m_nCount++;
@@ -169,14 +169,14 @@ void GHashTableBase::_Add(const char* pKey, const void* pValue)
 }
 
 
-int GHashTableBase::_Count(const char* pKey)
+size_t GHashTableBase::_Count(const char* pKey)
 {
 	GAssert(pKey != NULL);
-	unsigned int nPos = hash(pKey, m_nBucketCount);
-	GAssert(nPos < (unsigned int)m_nBucketCount); // Out of range
+	size_t nPos = hash(pKey, m_nBucketCount);
+	GAssert(nPos < m_nBucketCount); // Out of range
 	if(!m_pBuckets[nPos].pKey || m_pBuckets[nPos].pPrev)
 		return 0;
-	int nCount = 0;
+	size_t nCount = 0;
 	struct HashBucket* pBucket;
 	for(pBucket = &m_pBuckets[nPos]; pBucket; pBucket = pBucket->pNext)
 	{
@@ -189,8 +189,8 @@ int GHashTableBase::_Count(const char* pKey)
 void GHashTableBase::_Remove(const char* pKey)
 {
 	GAssert(pKey != NULL);
-	unsigned int nPos = hash(pKey, m_nBucketCount);
-	GAssert(nPos < (unsigned int)m_nBucketCount); // Out of range
+	size_t nPos = hash(pKey, m_nBucketCount);
+	GAssert(nPos < m_nBucketCount); // Out of range
 	if(!m_pBuckets[nPos].pKey || m_pBuckets[nPos].pPrev)
 		return;
 	struct HashBucket* pBucket;
@@ -257,7 +257,7 @@ bool VerifyBucketCount(GHashTableBase* pHT)
 {
 	GHashTableEnumerator hte(pHT);
 	void* pValue;
-	int n = 0;
+	size_t n = 0;
 	while(hte.next(&pValue))
 		n++;
 	if(n != pHT->size())
@@ -268,11 +268,11 @@ bool VerifyBucketCount(GHashTableBase* pHT)
 // static
 void GHashTable::test()
 {
-	int nElements = TEST_HASH_TABLE_ELEMENTS;
+	size_t nElements = TEST_HASH_TABLE_ELEMENTS;
 	GHashTable ht(13);
-	int* pNothing = new int[nElements];
-	ArrayHolder<int> hNothing(pNothing);
-	int n;
+	size_t* pNothing = new size_t[nElements];
+	ArrayHolder<size_t> hNothing(pNothing);
+	size_t n;
 	for(n = 0; n < nElements; n++)
 		ht.add(&pNothing[n], (const void*)&pNothing[n]);
 	for(n = 0; n < nElements; n += 7)
@@ -327,7 +327,7 @@ void* GHashTableEnumerator::currentValue()
 
 // ------------------------------------------------------------------------------
 
-bool GConstStringHashTable::get(const char* pKey, int nLen, void** ppOutValue)
+bool GConstStringHashTable::get(const char* pKey, size_t nLen, void** ppOutValue)
 {
 	GTEMPBUF(char, szKey, nLen + 1);
 	memcpy(szKey, pKey, nLen);
@@ -335,7 +335,7 @@ bool GConstStringHashTable::get(const char* pKey, int nLen, void** ppOutValue)
 	return get(szKey, ppOutValue);
 }
 
-bool GConstStringToIntsHashTable::get(const char* pKey, int nLen, int* pValue)
+bool GConstStringToIndexHashTable::get(const char* pKey, size_t nLen, size_t* pValue)
 {
 	GTEMPBUF(char, szKey, nLen + 1);
 	memcpy(szKey, pKey, nLen);
@@ -345,8 +345,8 @@ bool GConstStringToIntsHashTable::get(const char* pKey, int nLen, int* pValue)
 
 // ------------------------------------------------------------------------------
 
-GNodeHashTable::GNodeHashTable(bool bOwnNodes, int nInitialBucketCount)
- : GHashTableBase(nInitialBucketCount)
+GNodeHashTable::GNodeHashTable(bool bOwnNodes, size_t nInitialBucketCount)
+: GHashTableBase(nInitialBucketCount)
 {
 	if(bOwnNodes)
 		m_pNodes = new std::vector<HashTableNode*>();
