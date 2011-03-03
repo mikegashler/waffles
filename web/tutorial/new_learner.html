@@ -17,15 +17,11 @@
 
 <p>Suppose you want to develop a new learning algorithm. This page will describe how this is done.</p>
 
-<p>First, you need to make a class that inherits from one of: GTransducer, GSupervisedLearner, or GIncrementalLearner. GTransducer is the most general base class. If your new algorithm makes predictions as a batch without producing an internal model, then GTransducer is the appropriate base class to use. If your algorithm has a model that enables it to generalize for previously unseen feature vectors (which is usually the case, unless you know otherwise), then GSupervisedLearner is a better choice for a base class. Finally, if your algorithm has a model that can be trained in an incremental manner, then GIncrementalLearner is the best choice for the base class. Algorithms that inherit from GIncrementalLearner are suitable for use with a wider set of problems, but they must implement the most specific functionality.</p>
+<p>Making a new learning algorithm requires three steps:</p>
 
-<p>To complete your algorithm, you must simply implement all of the pure virtual methods. The GTransducer class requires just one method to be implemented:</p>
-<pre>
-	virtual GMatrix* transduce(GMatrix&amp; features1, GMatrix&amp; labels1, GMatrix&amp; features2) = 0;
-</pre>
-<p>This method evaluates the three matrices that are passed in, and returns a matrix of labels that corresponds with features2. (Theoretically, transduction algorithms can achieve the best accuracy because they operate using the most information. That is, they can see the features of the test set, features2, while they are learning. By contrast, supervised learning algorithms do not get to see the test features until after their model is trained. Supervised learners, however, are suitable for a larger set of problems because they can generalize for feature vectors that were not available at training time.)</p>
+<p>The <b>first step</b> is to make a class that inherits from one of: GTransducer, GSupervisedLearner, or GIncrementalLearner. GTransducer is the most general base class. If your new algorithm makes predictions as a batch without producing an internal model, then GTransducer is the appropriate base class to use. If your algorithm has a model that enables it to generalize for previously unseen feature vectors (which is usually the case, unless you know otherwise), then GSupervisedLearner is a better choice for a base class. Finally, if your algorithm has a model that can be trained in an incremental manner, then GIncrementalLearner is the best choice for the base class. Algorithms that inherit from GIncrementalLearner are suitable for use with the widest set of problems, but they must implement the most specific functionality.</p>
 
-<p>If you wish to inherit from GSupervised learner, there is a little bit more work to be done. First, you need to specify the capabilities of your algorithm. The following virtual methods are implemented by default:</p>
+<p>The <b>second step</b> is to specify the capabilities of your algorithm. The following virtual methods are implemented by default:</p>
 <pre>
 	virtual bool canImplicitlyHandleNominalFeatures() { return true; }
 	virtual bool canImplicitlyHandleContinuousFeatures() { return true; }
@@ -34,11 +30,11 @@
 	virtual bool canImplicitlyHandleContinuousLabels() { return true; }
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) { return true; }
 </pre>
-<p>These methods basically say that your algorithm can handle both nominal and continuous features, it can handle both nominal and continuous labels (both classification and regression), and that it can handle any range for continuous values. If this is all correct, then you don't need to do anything with these methods. If, it is not correct, then you need to make it right by overloading the appropriate methods. For example, if your algorithm can do classification, but not regression, then you would add this method to your class:</p>
+<p>These methods basically say that your algorithm can handle both nominal and continuous features, both nominal and continuous labels (both classification and regression), and that it can handle any range for continuous values. If this is all correct, then you don't need to do anything in this step. If, however, your algorithm cannot implicitly handle one or more of these cases, then you need to specify this by overloading the appropriate methods. For example, if your algorithm can do classification, but not regression, then you would add this method to your class:</p>
 <pre>
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 </pre>
-<p>and if your algorithm can only handle continuous features that fall in the range from 0 and 1, then you would add this method to your class:</p>
+<p>and if your algorithm can only handle continuous features (inputs) that fall in the range from 0 and 1, then you would add this method to your class:</p>
 <pre>
 	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax)
 	{
@@ -46,15 +42,25 @@
 		*pOutMax = 1.0;
 		return false;
 	}
+</pre></p>
+
+<p>In the next step, when you implement your algorithm, you only need to implement functionality to support the types of data that you specified it could handle. If some other type of data is passed to your algorithm, it will be automatically converted to a type that your algorithm can handle before your algorithm ever receives it.</p>
+
+<p>The <b>third step</b> to complete your algorithm is to implement all of the pure virtual methods required by your base class. If you selected GTransducer for your base class, then you only need to implement one pure virtual method:</p>
+<pre>
+	virtual GMatrix* transduceInner(GMatrix&amp; features1, GMatrix&amp; labels1, GMatrix&amp; features2) = 0;
 </pre>
-<p>After you have specified the capabilities of your algorithm, you also need to implement the following pure virtual methods:</p>
+<p>This method evaluates the three matrices that are passed in, and returns a matrix of labels that corresponds with features2. (Theoretically, transduction algorithms can achieve the best accuracy because they operate using the most information. That is, they can see the features of the test set, features2, while they are learning. By contrast, supervised learning algorithms do not get to see the test features until after their model is trained. Supervised learners, however, are suitable for a larger set of problems because they can generalize for feature vectors that were not available at training time.)</p>
+
+<p>If you selected GSupervisedLearner for your base class (which is the most common case), then you need to implement the following pure virtual methods:</p>
 <pre>
 	virtual void trainInner(GMatrix&amp; features, GMatrix&amp; labels) = 0;
 	virtual void predictInner(const double* pIn, double* pOut) = 0;
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut) = 0;
 	virtual void clear() = 0;
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
-</pre>
+</pre></p>
+
 <p>The trainInner method is responsible to train the model using the matrices that are passed to it. (The user will actually call a method named "train", which will automatically take care of converting the data to a form that your algorithm can handle, and will then call "trainInner".) Thus, your trainInner method can assume that only data of the type (nominal or continuous, etc.) supported by your algorithm will ever be passed to it. (This tends to greatly simplify implementation.)</p>
 
 <p>The "predictInner" method is responsible to make a prediction. (It should operate on a vector of the same size as one of the rows in the features matrix passed to trainInner, and it should predict a label vector of the same size as one of the rows in the labels matrix.)</p>
@@ -67,7 +73,7 @@
 	}
 </pre>
 
-<p>The "clear" method should reset the internal model, as though train had not yet been called. This should generally be trivial to implement.</p>
+<p>The "clear" method should reset the internal model, as though train had not yet been called. If your model occupies a lot of memory, this memory should be freed. This method should generally be trivial to implement.</p>
 
 <p>The "toTwt" method is for serializing the model. If you do not plan to serialize your models, then you can simply implement it like this:</p>
 <pre>
@@ -78,7 +84,9 @@
 </pre>
 <p>If you do plan to serialize your model, then you need to use the GTwtDoc and GTwtNode classes (see the <a href="../apidoc/html/index.html">API documentation</a>) to build a DOM tree that represents your model.</p>
 
-<p>If your algorithm inherits from GIncrementalLearner, then it must implement three additional methods (in addition to all of the methods required for GSupervisedLearner):</p>
+<p>The GSupervisedLearner class implements the "transduceInner" method for you, so you do not need to implement it. (This implementation first calls "train", then calls predict for each row in the unlabeled set.)</p>
+
+<p>If you selected GIncrementalLearner for your base class, then it must implement three additional methods (in addition to all of the methods required by GSupervisedLearner):</p>
 <pre>
 	virtual void enableIncrementalLearning(sp_relation&amp; pFeatureRel, sp_relation&amp; pLabelRel) = 0;
 	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
@@ -94,6 +102,12 @@
 		ThrowError("Sorry, this method is not yet implemented");
 	}
 </pre>
+
+<h3>Testing it</h3>
+
+<p>To test your new algorithm, you might find the GSupervisedLearner::basicTest method to be helpful. It will exercise your algorithm with a few very simple synthetic datasets. Of course, your own testing is likely to be better-suited for the strengths and capabilities of your algorithm.</p>
+
+<p>If you think you have developed a useful algorithm, I would strongly encourage you to contribute it back into the Waffles project.</p>
 
 
 

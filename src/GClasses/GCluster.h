@@ -142,9 +142,13 @@ public:
 	/// If own is true, then this object will take care to delete pMetric.
 	void setMetric(GDissimilarityMetric* pMetric, bool own);
 
+protected:
 	/// See the comment for GTransducer::transduce.
 	/// Throws if labels1 has more than one column.
-	virtual GMatrix* transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+
+	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 };
 
 
@@ -273,32 +277,16 @@ public:
 	GGraphCutTransducer(size_t neighborCount, GRand* pRand);
 	virtual ~GGraphCutTransducer();
 
+protected:
 	/// See the comment for GTransducer::transduce.
 	/// Only supports one-dimensional labels.
-	virtual GMatrix* transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+
+	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 };
 
 
-/*
-class GNeuralTransducer : public GTransducer
-{
-protected:
-	GRand* m_pRand;
-	GNeuralNet* m_pNN;
-	std::vector<size_t> m_paramRanges;
-
-public:
-	GNeuralTransducer(GRand* pRand);
-	virtual ~GNeuralTransducer();
-	GNeuralNet* neuralNet() { return m_pNN; }
-
-	void setParams(std::vector<size_t>& ranges);
-
-	/// See the comment for GTransducer::transduce.
-	/// labelDims must be 1
-	virtual void transduce(GMatrix* pDataLabeled, GMatrix* pDataUnlabeled, size_t labelDims);
-};
-*/
 } // namespace GClasses
 
 #endif // __GCLUSTER_H__

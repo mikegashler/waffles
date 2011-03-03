@@ -106,7 +106,7 @@ public:
 
 	/// Predicts a set of labels to correspond with features2, such that these
 	/// labels will be consistent with the patterns exhibited by features1 and labels1.
-	virtual GMatrix* transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2) = 0;
+	GMatrix* transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
 
 	/// Trains and tests this learner. pOutResults should have
 	/// an element for each label dim.
@@ -136,6 +136,42 @@ public:
 	/// represents the results of all labels combined. (This is
 	/// for heuristic optimization, not for reporting accuracy.)
 	double heuristicValidate(GMatrix& features, GMatrix& labels, GRand* pRand);
+
+protected:
+	/// This is the algorithm's implementation of transduction. (It is called by the transduce method.)
+	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2) = 0;
+
+	/// Returns true iff this algorithm can implicitly handle nominal features. If it
+	/// cannot, then the GNominalToCat transform will be used to convert nominal
+	/// features to continuous values before passing them to it.
+	virtual bool canImplicitlyHandleNominalFeatures() { return true; }
+
+	/// Returns true iff this algorithm can implicitly handle continuous features. If it
+	/// cannot, then the GDiscretize transform will be used to convert continuous
+	/// features to nominal values before passing them to it.
+	virtual bool canImplicitlyHandleContinuousFeatures() { return true; }
+
+	/// Returns true if this algorithm supports any feature value, or if it does not
+	/// implicitly handle continuous features. If a limited range of continuous values is
+	/// supported, returns false and sets pOutMin and pOutMax to specify the range.
+	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax) { return true; }
+
+	/// Returns true iff this algorithm can implicitly handle nominal labels (a.k.a.
+	/// classification). If it cannot, then the GNominalToCat transform will be
+	/// used during training to convert nominal labels to continuous values, and
+	/// to convert categorical predictions back to nominal labels.
+	virtual bool canImplicitlyHandleNominalLabels() { return true; }
+
+	/// Returns true iff this algorithm can implicitly handle continuous labels (a.k.a.
+	/// regression). If it cannot, then the GDiscretize transform will be
+	/// used during training to convert nominal labels to continuous values, and
+	/// to convert nominal predictions back to continuous labels.
+	virtual bool canImplicitlyHandleContinuousLabels() { return true; }
+
+	/// Returns true if this algorithm supports any label value, or if it does not
+	/// implicitly handle continuous labels. If a limited range of continuous values is
+	/// supported, returns false and sets pOutMin and pOutMax to specify the range.
+	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) { return true; }
 };
 
 
@@ -211,9 +247,6 @@ public:
 	/// If bLocal is true, it computes the local precision instead of the global precision.
 	void precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps, GRand* pRand);
 
-	/// See GSemiSupervisedLearner::transduce
-	virtual GMatrix* transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
-
 	/// Trains and tests this learner
 	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults);
 
@@ -222,38 +255,6 @@ public:
 	void basicTest(double minAccuracy1, double minAccuracy2, GRand* pRand, double deviation = 1e-6, bool printAccuracy = false);
 #endif
 protected:
-	/// Returns true iff the learner can implicitly handle nominal features. If it
-	/// cannot, then the GNominalToCat transform will be used to convert nominal
-	/// features to continuous values before passing them to the model.
-	virtual bool canImplicitlyHandleNominalFeatures() { return true; }
-
-	/// Returns true iff the learner can implicitly handle continuous features. If it
-	/// cannot, then the GDiscretize transform will be used to convert continuous
-	/// features to nominal values before passing them to the model.
-	virtual bool canImplicitlyHandleContinuousFeatures() { return true; }
-
-	/// Returns true if the learner supports any feature value, or if it does not
-	/// implicitly handle continuous features. If a limited range of continuous values is
-	/// supported, returns false and sets pOutMin and pOutMax to specify the range.
-	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax) { return true; }
-
-	/// Returns true iff the learner can implicitly handle nominal labels (a.k.a.
-	/// classification). If it cannot, then the GNominalToCat transform will be
-	/// used during training to convert nominal labels to continuous values, and
-	/// to convert categorical predictions back to nominal labels.
-	virtual bool canImplicitlyHandleNominalLabels() { return true; }
-
-	/// Returns true iff the learner can implicitly handle continuous labels (a.k.a.
-	/// regression). If it cannot, then the GDiscretize transform will be
-	/// used during training to convert nominal labels to continuous values, and
-	/// to convert nominal predictions back to continuous labels.
-	virtual bool canImplicitlyHandleContinuousLabels() { return true; }
-
-	/// Returns true if the learner supports any label value, or if it does not
-	/// implicitly handle continuous labels. If a limited range of continuous values is
-	/// supported, returns false and sets pOutMin and pOutMax to specify the range.
-	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) { return true; }
-
 	/// This is the implementation of the model's training algorithm. (This method is called by train).
 	virtual void trainInner(GMatrix& features, GMatrix& labels) = 0;
 
@@ -262,6 +263,9 @@ protected:
 
 	/// This is the implementation of the model's prediction algorithm. (This method is called by predictDistribution).
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut) = 0;
+
+	/// See GTransducer::transduce
+	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
 
 	/// This method determines which data filters (normalize, discretize,
 	/// and/or nominal-to-cat) are needed and trains them.

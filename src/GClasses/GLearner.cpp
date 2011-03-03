@@ -136,6 +136,131 @@ public:
 };
 
 // virtual
+GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+{
+	if(features1.rows() != labels1.rows())
+		ThrowError("Expected features1 and labels1 to have the same number of rows");
+	if(features1.cols() != features2.cols())
+		ThrowError("Expected both feature matrices to have the same number of cols");
+
+	// Convert the features to a form that this algorithm can handle
+	GMatrix& f1 = features1;
+	GMatrix& f2 = features2;
+	Holder<GMatrix> hF1(NULL);
+	Holder<GMatrix> hF2(NULL);
+	if(!canImplicitlyHandleNominalFeatures())
+	{
+		if(!canImplicitlyHandleContinuousFeatures())
+			ThrowError("Can't handle nominal or continuous features");
+
+		// Convert nominal features to continuous
+ 		if(!features1.relation()->areContinuous(0, features1.relation()->size()))
+ 		{
+			GNominalToCat ntc;
+			ntc.train(&f1);
+			GMatrix* pF1 = ntc.transformBatch(&f1);
+			hF1.reset(pF1);
+			f1 = *pF1;
+			GMatrix* pF2 = ntc.transformBatch(&f2);
+			hF2.reset(pF2);
+			f2 = *pF2;
+		}
+	}
+	if(!canImplicitlyHandleContinuousFeatures())
+	{
+		if(!canImplicitlyHandleNominalFeatures())
+			ThrowError("Can't handle nominal or continuous features");
+
+		// Convert continuous features to nominal
+		if(!features1.relation()->areNominal(0, features1.relation()->size()))
+		{
+			GDiscretize disc;
+			disc.train(&f1); // todo: should really use both feature sets here
+			GMatrix* pF1 = disc.transformBatch(&features1);
+			hF1.reset(pF1);
+			f1 = *pF1;
+			GMatrix* pF2 = disc.transformBatch(&features2);
+			hF2.reset(pF2);
+			f2 = *pF2;
+		}
+	}
+	if(canImplicitlyHandleContinuousFeatures())
+	{
+		// Normalize feature values to fall within a supported range
+		double fmin, fmax;
+		if(!supportedFeatureRange(&fmin, &fmax))
+		{
+			GNormalize norm(fmin, fmax);
+			norm.train(&f1); // todo: should really use both feature sets here
+			GMatrix* pF1 = norm.transformBatch(&f1);
+			hF1.reset(pF1);
+			f1 = *pF1;
+			GMatrix* pF2 = norm.transformBatch(&f2);
+			hF2.reset(pF2);
+			f2 = *pF2;
+		}
+	}
+
+	// Take care of the labels
+	if(!canImplicitlyHandleContinuousLabels())
+	{
+		if(!canImplicitlyHandleNominalLabels())
+			ThrowError("This algorithm says it cannot handle nominal or continuous labels");
+		if(labels1.relation()->areNominal(0, labels1.relation()->size()))
+			return transduceInner(f1, labels1, f2);
+		else
+		{
+			GDiscretize disc;
+			disc.train(&labels1);
+			GMatrix* pL1 = disc.transformBatch(&labels1);
+			Holder<GMatrix> hL1(pL1);
+			GMatrix* pL2 = transduceInner(f1, *pL1, f2);
+			Holder<GMatrix> hL2(pL2);
+			return disc.untransformBatch(pL2);
+		}
+	}
+	else
+	{
+		if(canImplicitlyHandleNominalLabels() || labels1.relation()->areContinuous(0, labels1.relation()->size()))
+		{
+			double lmin, lmax;
+			if(supportedLabelRange(&lmin, &lmax))
+				return transduceInner(f1, labels1, f2);
+			else
+			{
+				GNormalize norm(lmin, lmax);
+				norm.train(&labels1);
+				GMatrix* pL1 = norm.transformBatch(&labels1);
+				Holder<GMatrix> hL1(pL1);
+				GMatrix* pL2 = transduceInner(f1, *pL1, f2);
+				Holder<GMatrix> hL2(pL2);
+				return norm.untransformBatch(pL2);
+			}
+		}
+		else
+		{
+			double lmin, lmax;
+			if(supportedLabelRange(&lmin, &lmax))
+			{
+				GNominalToCat ntc;
+				ntc.train(&labels1);
+				GMatrix* pL1 = ntc.transformBatch(&labels1);
+				Holder<GMatrix> hL1(pL1);
+				GMatrix* pL2 = transduceInner(f1, *pL1, f2);
+				Holder<GMatrix> hL2(pL2);
+				return ntc.untransformBatch(pL2);
+			}
+			else
+			{
+				// todo: both nominalToCat and normalization filters are necessary in this case
+				ThrowError("case not yet supported");
+				return NULL;
+			}
+		}
+	}
+}
+
+// virtual
 void GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults)
 {
 	// Check assumptions
@@ -391,7 +516,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				if(normalizationIsNeeded)
 				{
 					if(m_pFeatureFilter)
-						m_pFeatureFilter = new GTwoWayTransformChainer(new GNormalize(supportedMin, supportedMax), m_pFeatureFilter);
+						m_pFeatureFilter = new GTwoWayTransformChainer(m_pFeatureFilter, new GNormalize(supportedMin, supportedMax));
 					else
 						m_pFeatureFilter = new GNormalize(supportedMin, supportedMax);
 				}
@@ -465,7 +590,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				if(normalizationIsNeeded)
 				{
 					if(m_pLabelFilter)
-						m_pLabelFilter = new GTwoWayTransformChainer(new GNormalize(supportedMin, supportedMax), m_pLabelFilter);
+						m_pLabelFilter = new GTwoWayTransformChainer(m_pLabelFilter, new GNormalize(supportedMin, supportedMax));
 					else
 						m_pLabelFilter = new GNormalize(supportedMin, supportedMax);
 				}
@@ -605,7 +730,7 @@ void GSupervisedLearner::accuracy(GMatrix& features, GMatrix& labels, double* pO
 }
 
 // virtual
-GMatrix* GSupervisedLearner::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GSupervisedLearner::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
 	// Train
 	train(features1, labels1);

@@ -173,8 +173,15 @@ protected:
 public:
 	GNeighborTransducer(size_t neighborCount, GRand* pRand);
 	
+protected:
 	/// See the comment for GTransducer::transduce
-	virtual GMatrix* transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+
+	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
+	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
+
+	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 };
 
 
@@ -220,7 +227,7 @@ protected:
 	/// See the comment for GSupervisedLearner::predictDistributionInner
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
+	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
 };
 

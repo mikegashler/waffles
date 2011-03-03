@@ -527,19 +527,11 @@ GNeighborTransducer::GNeighborTransducer(size_t neighborCount, GRand* pRand)
 }
 
 // virtual
-GMatrix* GNeighborTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GNeighborTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
 	// Check assumptions
 	if(labels1.cols() != 1)
-		ThrowError("Only 1 nominal label is supported");
-	if(!labels1.relation()->areNominal(0, 1))
-		ThrowError("Only nominal labels are supported");
-	if(!features1.relation()->areContinuous(0, features1.cols()))
-		ThrowError("Only continuous features are supported");
-	if(features1.cols() != features2.cols())
-		ThrowError("Expected both feature sets to have the same number of columns");
-	if(features1.rows() != labels1.rows())
-		ThrowError("Expected features1 and labels1 to have the same number of rows");
+		ThrowError("Only 1 label dimension is supported");
 
 	// Make a dataset containing all rows
 	GMatrix featuresAll(features1.relation());

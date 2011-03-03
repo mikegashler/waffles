@@ -60,10 +60,10 @@ protected:
 	/// See the comment for GSupervisedLearner::predictDistributionInner
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
+	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
 
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalLabels
+	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
 	virtual bool canImplicitlyHandleNominalLabels() { return false; }
 };
 

@@ -75,10 +75,10 @@ protected:
 	/// See the comment for GSupervisedLearner::predictDistributionInner
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleContinuousFeatures
+	/// See the comment for GTransducer::canImplicitlyHandleContinuousFeatures
 	virtual bool canImplicitlyHandleContinuousFeatures() { return false; }
 
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleContinuousLabels
+	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 };
 
@@ -131,10 +131,10 @@ protected:
 	/// See the comment for GSupervisedLearner::predictDistributionInner
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleContinuousFeatures
+	/// See the comment for GTransducer::canImplicitlyHandleContinuousFeatures
 	virtual bool canImplicitlyHandleContinuousFeatures() { return false; }
 
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleContinuousLabels
+	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 };
 

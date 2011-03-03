@@ -310,15 +310,11 @@ void GAgglomerativeTransducer::setMetric(GDissimilarityMetric* pMetric, bool own
 }
 
 // virtual
-GMatrix* GAgglomerativeTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
 	// Check assumptions
-	if(labels1.cols() != 1 || !labels1.relation()->areNominal(0, 1))
-		ThrowError("Only one nominal label dimension is supported");
-	if(features1.cols() != features2.cols())
-		ThrowError("Expected both feature matrices to have the same number of cols");
-	if(features1.rows() != labels1.rows())
-		ThrowError("Expected features1 to have the same number of rows as labels1");
+	if(labels1.cols() != 1)
+		ThrowError("Only one label dimension is supported");
 
 	// Init the metric
 	if(!m_pMetric)
@@ -971,7 +967,7 @@ GGraphCutTransducer::~GGraphCutTransducer()
 }
 
 // virtual
-GMatrix* GGraphCutTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GGraphCutTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
 	if(labels1.cols() != 1)
 		ThrowError("Only 1 nominal label dim is supported");
@@ -1066,7 +1062,7 @@ void GNeuralTransducer::setParams(std::vector<size_t>& ranges)
 }
 
 // virtual
-void GNeuralTransducer::transduce(GMatrix* pDataLabeled, GMatrix* pDataUnlabeled, size_t labelDims)
+void GNeuralTransducer::transduceInner(GMatrix* pDataLabeled, GMatrix* pDataUnlabeled, size_t labelDims)
 {
 	if(labelDims != 1)
 		ThrowError("Sorry, only one label dim is currently supported");
