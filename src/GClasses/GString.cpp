@@ -17,12 +17,12 @@
 
 namespace GClasses {
 
-int safe_strcpy(char* szDest, const char* szSrc, int nMaxSize)
+size_t safe_strcpy(char* szDest, const char* szSrc, size_t nMaxSize)
 {
-	nMaxSize--;
-	if(nMaxSize < 0)
+	if(nMaxSize == 0)
 		return 0;
-	int n;
+	nMaxSize--;
+	size_t n;
 	for(n = 0; szSrc[n] != '\0' && n < nMaxSize; n++)
 		szDest[n] = szSrc[n];
 	szDest[n] = '\0';
@@ -31,18 +31,18 @@ int safe_strcpy(char* szDest, const char* szSrc, int nMaxSize)
 
 // ----------------------------------------------------------------------------------
 
-GStringChopper::GStringChopper(const char* szString, int nMinLength, int nMaxLength, bool bDropLeadingWhitespace)
+GStringChopper::GStringChopper(const char* szString, size_t nMinLength, size_t nMaxLength, bool bDropLeadingWhitespace)
 {
 	GAssert(nMinLength > 0 && nMaxLength >= nMinLength); // lengths out of range
 	m_bDropLeadingWhitespace = bDropLeadingWhitespace;
-	if(nMinLength <= 0)
+	if(nMinLength < 1)
 		nMinLength = 1;
 	if(nMaxLength < nMinLength)
 		nMaxLength = nMinLength;
 	m_nMinLen = nMinLength;
 	m_nMaxLen = nMaxLength;
 	m_szString = szString;
-	m_nLen = (int)strlen(szString);
+	m_nLen = strlen(szString);
 	if(m_nLen > nMaxLength)
 		m_pBuf = new char[nMaxLength + 1];
 	else
@@ -57,7 +57,7 @@ GStringChopper::~GStringChopper()
 void GStringChopper::reset(const char* szString)
 {
 	m_szString = szString;
-	m_nLen = (int)strlen(szString);
+	m_nLen = strlen(szString);
 	if(!m_pBuf && m_nLen > m_nMaxLen)
 		m_pBuf = new char[m_nMaxLen + 1];
 }
@@ -71,7 +71,7 @@ const char* GStringChopper::next()
 		m_nLen = 0;
 		return m_szString;
 	}
-	int i;
+	size_t i;
 	for(i = m_nMaxLen; i >= m_nMinLen && m_szString[i] > ' '; i--)
 	{
 	}

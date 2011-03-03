@@ -15,7 +15,7 @@
 
 <h2>Writing a New Learning Algorithm</h2>
 
-<p>Suppose you want to develop a new learning algorithm. This page will describe how this is done.</p>
+<p>Suppose you want to develop a new learning algorithm. This page will describe how this is done. Our interfaces are carefully designed to be friendly to developers, and we expect that you will find it a pleasure to develop with our framework.</p>
 
 <p>Making a new learning algorithm requires three steps:</p>
 
@@ -34,7 +34,7 @@
 <pre>
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 </pre>
-<p>and if your algorithm can only handle continuous features (inputs) that fall in the range from 0 and 1, then you would add this method to your class:</p>
+<p>and if your algorithm can only handle continuous features (inputs) that fall in the range from 0 to 1, then you would add this method to your class:</p>
 <pre>
 	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax)
 	{
@@ -44,7 +44,7 @@
 	}
 </pre></p>
 
-<p>In the next step, when you implement your algorithm, you only need to implement functionality to support the types of data that you specified it could handle. If some other type of data is passed to your algorithm, it will be automatically converted to a type that your algorithm can handle before your algorithm ever receives it.</p>
+<p>In the next step, when you implement your algorithm, you only need to implement functionality to support the types of data that you specified it could handle. If some other type of data is passed to your algorithm, it will be automatically converted to a type that your algorithm can handle before your code ever receives it.</p>
 
 <p>The <b>third step</b> to complete your algorithm is to implement all of the pure virtual methods required by your base class. If you selected GTransducer for your base class, then you only need to implement one pure virtual method:</p>
 <pre>

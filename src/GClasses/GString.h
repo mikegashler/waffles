@@ -19,7 +19,7 @@ namespace GClasses {
 // This is similar to strncpy, but it always makes sure that
 // there is a null-terminating '\0' at the end of the new string.
 // Returns the length of the new string.
-int safe_strcpy(char* szDest, const char* szSrc, int nDestBufferSize);
+size_t safe_strcpy(char* szDest, const char* szSrc, size_t nDestBufferSize);
 
 
 /// This class chops a big string at word breaks so you can display it intelligently
@@ -28,14 +28,14 @@ class GStringChopper
 {
 protected:
 	const char* m_szString;
-	int m_nLen;
-	int m_nMaxLen;
-	int m_nMinLen;
+	size_t m_nLen;
+	size_t m_nMaxLen;
+	size_t m_nMinLen;
 	char* m_pBuf;
 	bool m_bDropLeadingWhitespace;
 
 public:
-	GStringChopper(const char* szString, int nMinLength, int nMaxLength, bool bDropLeadingWhitespace);
+	GStringChopper(const char* szString, size_t nMinLength, size_t nMaxLength, bool bDropLeadingWhitespace);
 	~GStringChopper();
 
 	/// Starts over with szString

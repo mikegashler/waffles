@@ -234,8 +234,8 @@ protected:
 	size_t m_dims;
 	size_t* m_pCoords;
 	size_t* m_pRanges;
-	unsigned int m_sampleShift;
-	unsigned int m_sampleMask;
+	size_t m_sampleShift;
+	size_t m_sampleMask;
 
 public:
 	/// Makes an internal copy of pRanges. If pRanges is NULL, then it sets
