@@ -169,6 +169,38 @@ double GMinkowskiDistance::dissimilarity(const double* pA, const double* pB)
 
 // --------------------------------------------------------------------
 
+// static
+GSparseSimilarity* GSparseSimilarity::fromTwt(GTwtNode* pNode)
+{
+	const char* szClass = pNode->field("class")->asString();
+	GSparseSimilarity* pObj = NULL;
+	if(strcmp(szClass, "GCosineSimilarity") == 0)
+		return new GCosineSimilarity(pNode);
+	else if(strcmp(szClass, "GPearsonCorrelation") == 0)
+		return new GPearsonCorrelation(pNode);
+	else
+		ThrowError("Unrecognized class: ", szClass);
+	pObj->m_regularizer = pNode->field("reg")->asDouble();
+	return pObj;
+}
+
+GTwtNode* GSparseSimilarity::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
+{
+	GTwtNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
+	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
+	return pNode;
+}
+
+// --------------------------------------------------------------------
+
+// virtual
+GTwtNode* GCosineSimilarity::toTwt(GTwtDoc* pDoc)
+{
+	GTwtNode* pNode = baseTwtNode(pDoc, "GCosineSimilarity");
+	return pNode;
+}
+
 // virtual
 double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b)
 {
@@ -235,6 +267,13 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const double* 
 }
 
 // --------------------------------------------------------------------
+
+// virtual
+GTwtNode* GPearsonCorrelation::toTwt(GTwtDoc* pDoc)
+{
+	GTwtNode* pNode = baseTwtNode(pDoc, "GPearsonCorrelation");
+	return pNode;
+}
 
 // virtual
 double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<size_t,double>& b)

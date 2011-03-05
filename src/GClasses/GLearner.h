@@ -316,11 +316,12 @@ public:
 	/// incrementally train this model
 	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
 
-	/// Train using a sparse matrix. (Typically, implementations of this
-	/// method will iterate over the rows in pData, and for each row it
-	/// will convert the sparse row to a full row, call trainIncremental,
-	/// and then discard the full row.)
-	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims) = 0;
+	/// Train using a sparse feature matrix. (A Typical implementation of this
+	/// method will first call enableIncrementalLearning, then it will
+	/// iterate over all of the feature rows, and for each row it
+	/// will convert the sparse row to a dense row, call trainIncremental
+	/// using the dense row, then discard the dense row and proceed to the next row.)
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels) = 0;
 };
 
 

@@ -480,7 +480,7 @@ void autoCorrelation(GArgReader& args)
 	{
 		double* pRow = ac.newRow();
 		*(pRow++) = (double)i;
-		for(int j = 0; j < dims; j++)
+		for(size_t j = 0; j < dims; j++)
 		{
 			*pRow = 0;
 			size_t k;
@@ -726,7 +726,7 @@ void DropMissingValues(GArgReader& args)
 	{
 		double* pPat = pData->row(i);
 		bool drop = false;
-		for(int j = 0; j < dims; j++)
+		for(size_t j = 0; j < dims; j++)
 		{
 			if(pRelation->valueCount(j) == 0)
 			{
@@ -1095,7 +1095,7 @@ void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, doub
 	{
 		double* pPat1 = pData1->row(i);
 		double* pPat2 = pData2->row(i);
-		for(int j = 0; j < dims; j++)
+		for(size_t j = 0; j < dims; j++)
 		{
 			double d = (*pPat1 - *pPat2);
 			pResults[j] += (d * d);

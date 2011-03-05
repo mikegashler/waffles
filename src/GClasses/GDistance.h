@@ -158,11 +158,21 @@ public:
 	/// Set a regularizing term to add to the denominator
 	void setRegularizer(double d) { m_regularizer = d; }
 
+	/// Serialize this metric to a text-based format
+	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+
 	/// Computes the similarity between two sparse vectors
 	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b) = 0;
 
 	/// Computes the similarity between a sparse and a dense vector
 	virtual double similarity(const std::map<size_t,double>& a, const double* pB) = 0;
+
+	/// Deserialize from a text-based format
+	static GSparseSimilarity* fromTwt(GTwtNode* pNode);
+
+protected:
+	/// A helper method used internally
+	GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
 };
 
 
@@ -171,7 +181,11 @@ class GCosineSimilarity : public GSparseSimilarity
 {
 public:
 	GCosineSimilarity() : GSparseSimilarity() {}
+	GCosineSimilarity(GTwtNode* pNode) : GSparseSimilarity() {}
 	virtual ~GCosineSimilarity() {}
+
+	/// See the comment for GSparseSimilarity::toTwt
+	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// Computes the similarity between two sparse vectors
 	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
@@ -186,7 +200,11 @@ class GPearsonCorrelation : public GSparseSimilarity
 {
 public:
 	GPearsonCorrelation() : GSparseSimilarity() {}
+	GPearsonCorrelation(GTwtNode* pNode) : GSparseSimilarity() {}
 	virtual ~GPearsonCorrelation() {}
+
+	/// See the comment for GSparseSimilarity::toTwt
+	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// Computes the similarity between two sparse vectors
 	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);

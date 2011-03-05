@@ -295,17 +295,18 @@ void GNaiveBayes::trainInner(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-void GNaiveBayes::trainSparse(GSparseMatrix* pData, size_t labelDims)
+void GNaiveBayes::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
-	sp_relation pFeatureRel = new GUniformRelation(pData->cols() - labelDims, 2);
-	sp_relation pLabelRel = new GUniformRelation(labelDims, 2);
-	enableIncrementalLearning(pFeatureRel, pLabelRel);
-	double* pFullRow = new double[pData->cols()];
+	if(features.rows() != labels.rows())
+		ThrowError("Expected the features and labels to have the same number of rows");
+	sp_relation pFeatureRel = new GUniformRelation(features.cols(), 2);
+	enableIncrementalLearning(pFeatureRel, labels.relation());
+	double* pFullRow = new double[features.cols()];
 	ArrayHolder<double> hFullRow(pFullRow);
-	for(size_t n = 0; n < pData->rows(); n++)
+	for(size_t n = 0; n < features.rows(); n++)
 	{
-		pData->fullRow(pFullRow, n);
-		trainIncremental(pFullRow, pFullRow + pFeatureRel->size());
+		features.fullRow(pFullRow, n);
+		trainIncremental(pFullRow, labels[n]);
 	}
 }
 

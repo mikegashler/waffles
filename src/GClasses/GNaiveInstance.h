@@ -67,7 +67,7 @@ public:
 	virtual void trainIncremental(const double* pIn, const double* pOut);
 
 	/// See the comment for GIncrementalLearner::trainSparse
-	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims);
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

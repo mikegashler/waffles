@@ -18,12 +18,10 @@ namespace GClasses {
 
 class GNeighborFinderGeneralizing;
 class GRand;
-class GAutoScaleInstance;
-class GAgglomerativeClusterer;
-class GFuzzyKarnaughHyperRect;
 class GKnnScaleFactorCritic;
 class GOptimizer;
 class GRowDistanceScaled;
+class GSparseSimilarity;
 
 
 /// The k-Nearest Neighbor learning algorithm
@@ -38,11 +36,10 @@ public:
 	};
 
 protected:
-	/// Settings
+	// Settings
 	GRand* m_pRand;
-	sp_relation m_pFeatureRel;
-	sp_relation m_pLabelRel;
 	GMatrix* m_pFeatures;
+	GSparseMatrix* m_pSparseFeatures;
 	GMatrix* m_pLabels;
 	size_t m_nNeighbors;
 	InterpolationMethod m_eInterpolationMethod;
@@ -50,27 +47,28 @@ protected:
 	bool m_bOwnLearner;
 	double m_dElbowRoom;
 
-	/// Scale Factor Optimization
+	// Scale Factor Optimization
 	bool m_optimizeScaleFactors;
 	GRowDistanceScaled* m_pDistanceMetric;
+	GSparseSimilarity* m_pSparseMetric;
+	bool m_ownMetric;
 	GKnnScaleFactorCritic* m_pCritic;
 	GOptimizer* m_pScaleFactorOptimizer;
 
-	/// Working Buffers
+	// Working Buffers
 	size_t* m_pEvalNeighbors;
 	double* m_pEvalDistances;
 	double* m_pValueCounts;
 
-	/// Neighbor Finding
+	// Neighbor Finding
 	GNeighborFinderGeneralizing* m_pNeighborFinder; // used for evaluation
 	GNeighborFinderGeneralizing* m_pNeighborFinder2; // used for incremental training
 
 public:
-	/// nOutputCout specifies the number of attribute dimensions.
-	/// nNeighbors specifies the number of neighbors to use for evaluation.
+	/// nNeighbors specifies the number of neighbors to evaluate in order to make a prediction.
 	GKNN(size_t nNeighbors, GRand* pRand);
 
-	/// Load from a text-based format
+	/// Load from a text-based format.
 	GKNN(GTwtNode* pNode, GRand* pRand);
 
 	virtual ~GKNN();
@@ -84,10 +82,18 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// See the comment for GIncrementalLearner::trainSparse
-	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims);
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
 	/// Discard any training (but not any settings) so it can be trained again
 	virtual void clear();
+
+	/// Sets the distance metric to use for finding neighbors. If own is true, then
+	/// this object will delete pMetric when it is done with it.
+	void setMetric(GRowDistanceScaled* pMetric, bool own);
+
+	/// Sets the sparse similarity metric to use for finding neighbors. If own is true, then
+	/// this object will delete pMetric when it is done with it.
+	void setMetric(GSparseSimilarity* pMetric, bool own);
 
 	/// Sets the technique for interpolation. (If you want to use the "Learner" method,
 	/// you should call SetInterpolationLearner instead of this method.)
@@ -132,6 +138,9 @@ public:
 
 	/// Returns the internal feature set
 	GMatrix* features() { return m_pFeatures; }
+
+	/// Returns the internal set of sparse features
+	GSparseMatrix* sparseFeatures() { return m_pSparseFeatures; }
 
 	/// Returns the internal label set
 	GMatrix* labels() { return m_pLabels; }
@@ -206,7 +215,7 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// See the comment for GIncrementalLearner::trainSparse
-	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims);
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
 	/// Clears the internal model
 	virtual void clear();

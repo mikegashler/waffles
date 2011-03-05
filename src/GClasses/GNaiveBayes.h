@@ -54,7 +54,7 @@ public:
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	/// This method assumes that the values in pData are all binary values (0 or 1).
-	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims);
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
 	/// To ensure that unsampled values don't dominate the joint
 	/// distribution by multiplying by a zero, each value is given

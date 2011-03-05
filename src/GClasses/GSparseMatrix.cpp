@@ -73,7 +73,7 @@ GTwtNode* GSparseMatrix::toTwt(GTwtDoc* pDoc)
 
 void GSparseMatrix::fullRow(double* pOutFullRow, size_t row)
 {
-	GVec::setAll(pOutFullRow, 0.0, m_cols);
+	GVec::setAll(pOutFullRow, m_defaultValue, m_cols);
 	Iter end = rowEnd(row);
 	for(Iter it = rowBegin(row); it != end; it++)
 		pOutFullRow[it->first] = it->second;

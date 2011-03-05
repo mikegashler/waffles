@@ -1045,31 +1045,27 @@ void trainSparse(GArgReader& args)
 {
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	int labelDims = 1;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
-		else if(args.if_pop("-labeldims"))
-			labelDims = args.pop_uint();
 		else
 			ThrowError("Invalid trainsparse option: ", args.peek());
 	}
 
 	// Load the data
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-
-	GSparseMatrix* pData;
-	Holder<GSparseMatrix> hData(NULL);
+		ThrowError("Expected a filename of a sparse matrix.");
+	GSparseMatrix* pSparseFeatures;
+	Holder<GSparseMatrix> hSparseFeatures(NULL);
 	{
 		GTwtDoc doc;
 		doc.load(args.pop_string());
-		pData = new GSparseMatrix(doc.root());
-		hData.reset(pData);
+		pSparseFeatures = new GSparseMatrix(doc.root());
+		hSparseFeatures.reset(pSparseFeatures);
 	}
-	if(labelDims < 1 || (labelDims > (int)pData->cols()))
-		ThrowError("labelDims out of range");
+	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
+	Holder<GMatrix> hLabels(pLabels);
 
 	// Instantiate the modeler
 	GRand prng(seed);
@@ -1078,11 +1074,11 @@ void trainSparse(GArgReader& args)
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
 	if(!pSupLearner->canTrainIncrementally())
-		ThrowError("This algorithm cannot be trained with a sparse matrix. Only incremental learners (such as naivebayes or neuralnet) support this functionality.");
+		ThrowError("This algorithm cannot be trained with a sparse matrix. Only incremental learners (such as naivebayes, knn, and neuralnet) support this functionality.");
 	GIncrementalLearner* pModel = (GIncrementalLearner*)pSupLearner;
 
 	// Train the modeler
-	pModel->trainSparse(pData, labelDims);
+	pModel->trainSparse(*pSparseFeatures, *pLabels);
 
 	// Output the trained model
 	GTwtDoc doc;

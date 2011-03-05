@@ -181,7 +181,7 @@ void GNaiveInstance::trainInner(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-void GNaiveInstance::trainSparse(GSparseMatrix* pData, size_t labelDims)
+void GNaiveInstance::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
 	ThrowError("Sorry, trainSparse is not implemented yet in GNaiveInstance");
 }

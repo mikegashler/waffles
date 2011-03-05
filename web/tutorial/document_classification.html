@@ -42,9 +42,9 @@ This creates a file named "docs.sparse", which is a sparse matrix representing a
 	waffles_transform sparsesplit shuffled.sparse 250 train.sparse test.sparse
 </pre></p>
 
-<p>Now, it's time to train a classifier.</p>
+<p>Now, it's time to train a classifier. First, you need to select a classification algorithm that can be trained with a sparse matrix. These are the algorithms that inherit from GIncrementalLearner. To see the full list of choices, go the the <a href="../apidoc/html/index.html">API docs</a>, open up the "class hierarchy", then navigate to GTransducer->GSupervisedLearner->GIncrementalLearner. The classes that inherit from GIncrementalLearner are the ones that can train on a sparse matrix. GKNN and GNaiveBayes are probably the most common choices for this task.</p>
 
-todo: finish this document
+
 
 <br>
 <a href="collaborative_filtering.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="start_coding.html">Next</a>

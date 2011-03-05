@@ -294,7 +294,7 @@ public:
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	/// Assumes all attributes are continuous.
-	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims);
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
 	/// See the comment for GIncrementalLearner::enableIncrementalLearning
 	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
@@ -455,7 +455,7 @@ public:
 	virtual void clear();
 	virtual void enableIncrementalLearning(sp_relation& pRelation, size_t labelDims, double* pMins, double* pRanges);
 	virtual void trainIncremental(const double* pIn, const double* pOut);
-	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims);
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 };
 */
 } // namespace GClasses

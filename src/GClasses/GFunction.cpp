@@ -634,7 +634,6 @@ GFunctionCall* GFunctionParser::makeStubbedOperator(const char* szName)
 	GFunctionStub* pStub = new GFunctionStub(szName);
 	m_stubs.push_back(pStub);
 	return new GFunctionCall(pStub);
-
 }
 
 GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& variables, vector<string>& tokens, int start, int count, int depth)

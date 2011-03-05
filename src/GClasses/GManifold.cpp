@@ -646,7 +646,7 @@ size_t GManifoldSculpting::countShortcuts(size_t nThreshold)
 		struct GManifoldSculptingNeighbor* pPoint = record(n);
 		for(size_t i = 0; i < m_nNeighbors; i++)
 		{
-			if(pPoint[i].m_nNeighbor < m_pData->rows() && std::abs((int)(pPoint[i].m_nNeighbor - n)) >= nThreshold)
+			if(pPoint[i].m_nNeighbor < m_pData->rows() && std::abs((int)(pPoint[i].m_nNeighbor - n)) >= (int)nThreshold)
 			{
 				cout << "shortcut: " << n << "," << pPoint[i].m_nNeighbor << "\n";
 				nShortcuts++;

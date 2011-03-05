@@ -23,6 +23,13 @@
 #include "GCluster.h"
 #include "GBitTable.h"
 #include "GDistance.h"
+#include "GSparseMatrix.h"
+#include <map>
+
+using std::multimap;
+using std::map;
+using std::pair;
+
 
 namespace GClasses {
 
@@ -77,17 +84,20 @@ GKNN::GKNN(size_t nNeighbors, GRand* pRand)
 	m_bOwnLearner = false;
 	m_nNeighbors = nNeighbors;
 	m_pFeatures = NULL;
+	m_pSparseFeatures = NULL;
 	m_pLabels = NULL;
 	m_pNeighborFinder = NULL;
 	m_pNeighborFinder2 = NULL;
 	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
 	m_pEvalDistances = new double[m_nNeighbors + 1];
 	m_optimizeScaleFactors = false;
-	m_pDistanceMetric = new GRowDistanceScaled();
+	m_pDistanceMetric = NULL;
+	m_pSparseMetric = NULL;
+	m_ownMetric = false;
 	m_pValueCounts = NULL;
 	m_pCritic = NULL;
 	m_pScaleFactorOptimizer = NULL;
-	m_dElbowRoom = 0.01;
+	m_dElbowRoom = UNKNOWN_REAL_VALUE;
 }
 
 GKNN::GKNN(GTwtNode* pNode, GRand* pRand)
@@ -100,52 +110,83 @@ GKNN::GKNN(GTwtNode* pNode, GRand* pRand)
 	m_pLearner = NULL;
 	m_pValueCounts = NULL;
 	m_bOwnLearner = false;
-	m_eInterpolationMethod = (InterpolationMethod)pNode->field("interpMethod")->asInt();
-	m_dElbowRoom = pNode->field("elbowRoom")->asDouble();
-	m_optimizeScaleFactors = pNode->field("optimize")->asBool();
-	sp_relation pFeatureRel = GRelation::fromTwt(pNode->field("featurerel"));
-	sp_relation pLabelRel = GRelation::fromTwt(pNode->field("labelrel"));
 	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
-	m_pDistanceMetric = new GRowDistanceScaled(pNode->field("metric"));
+	m_eInterpolationMethod = (InterpolationMethod)pNode->field("interpMethod")->asInt();
+	m_optimizeScaleFactors = pNode->field("optimize")->asBool();
+	m_dElbowRoom = pNode->field("elbowRoom")->asDouble();
+	GMatrix* pFeatures = NULL;
+	GSparseMatrix* pSparseFeatures = NULL;
+	GTwtNode* pFeaturesNode = pNode->fieldIfExists("features");
+	if(pFeaturesNode)
+		pFeatures = new GMatrix(pFeaturesNode);
+	else
+		pSparseFeatures = new GSparseMatrix(pNode->field("sparseFeatures"));
+	GMatrix* pLabels = new GMatrix(pNode->field("labels"));
+	GTwtNode* pMetricNode = pNode->fieldIfExists("metric");
+	m_pDistanceMetric = NULL;
+	m_pSparseMetric = NULL;
+	if(pMetricNode)
+		m_pDistanceMetric = new GRowDistanceScaled(pNode->field("metric"));
+	else
+		m_pSparseMetric = GSparseSimilarity::fromTwt(pNode->field("sparseMetric"));
+	m_ownMetric = true;
 	m_pFeatures = NULL;
+	m_pSparseFeatures = NULL;
 	m_pLabels = NULL;
 	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
 	m_pEvalDistances = new double[m_nNeighbors + 1];
-	enableIncrementalLearning(pFeatureRel, pLabelRel);
+	if(pFeatures)
+		enableIncrementalLearning(pFeatures->relation(), pLabels->relation());
+	else
+	{
+		sp_relation pRel = new GUniformRelation(pSparseFeatures->cols(), 0);
+		enableIncrementalLearning(pRel, pLabels->relation());
+	}
 	delete(m_pFeatures);
+	delete(m_pSparseFeatures);
 	delete(m_pLabels);
-	m_pFeatures = new GMatrix(pNode->field("features"));
-	m_pLabels = new GMatrix(pNode->field("labels"));
+	m_pFeatures = pFeatures;
+	m_pSparseFeatures = pSparseFeatures;
+	m_pLabels = pLabels;
 }
 
 GKNN::~GKNN()
 {
 	delete(m_pNeighborFinder);
 	delete(m_pFeatures);
+	delete(m_pSparseFeatures);
 	delete(m_pLabels);
 	delete[] m_pEvalNeighbors;
 	delete[] m_pEvalDistances;
 	delete[] m_pValueCounts;
 	delete(m_pScaleFactorOptimizer);
 	delete(m_pCritic);
-	delete(m_pDistanceMetric);
+	if(m_ownMetric)
+	{
+		delete(m_pDistanceMetric);
+		delete(m_pSparseMetric);
+	}
 }
 
 // virtual
 GTwtNode* GKNN::toTwt(GTwtDoc* pDoc)
 {
 	GTwtNode* pNode = baseTwtNode(pDoc, "GKNN");
-	pNode->addField(pDoc, "featurerel", m_pFeatureRel->toTwt(pDoc));
-	pNode->addField(pDoc, "labelrel", m_pLabelRel->toTwt(pDoc));
 	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_nNeighbors));
 	if(m_eInterpolationMethod == Learner)
 		ThrowError("Sorry, toTwt is not supported for the \"Learner\" interpolation method");
 	pNode->addField(pDoc, "interpMethod", pDoc->newInt(m_eInterpolationMethod));
 	pNode->addField(pDoc, "optimize", pDoc->newBool(m_optimizeScaleFactors));
 	pNode->addField(pDoc, "elbowRoom", pDoc->newDouble(m_dElbowRoom));
-	pNode->addField(pDoc, "metric", m_pDistanceMetric->toTwt(pDoc));
-	pNode->addField(pDoc, "features", m_pFeatures->toTwt(pDoc));
+	if(m_pFeatures)
+		pNode->addField(pDoc, "features", m_pFeatures->toTwt(pDoc));
+	else
+		pNode->addField(pDoc, "sparseFeatures", m_pSparseFeatures->toTwt(pDoc));
 	pNode->addField(pDoc, "labels", m_pLabels->toTwt(pDoc));
+	if(m_pDistanceMetric)
+		pNode->addField(pDoc, "metric", m_pDistanceMetric->toTwt(pDoc));
+	else
+		pNode->addField(pDoc, "sparseMetric", m_pSparseMetric->toTwt(pDoc));
 	return pNode;
 }
 
@@ -187,67 +228,103 @@ void GKNN::setOptimizeScaleFactors(bool b)
 	m_optimizeScaleFactors = b;
 }
 
+void GKNN::setMetric(GRowDistanceScaled* pMetric, bool own)
+{
+	if(m_ownMetric)
+	{
+		delete(m_pDistanceMetric);
+		delete(m_pSparseMetric);
+	}
+	m_pDistanceMetric = pMetric;
+	m_pSparseMetric = NULL;
+	m_ownMetric = own;
+}
+
+void GKNN::setMetric(GSparseSimilarity* pMetric, bool own)
+{
+	if(m_ownMetric)
+	{
+		delete(m_pDistanceMetric);
+		delete(m_pSparseMetric);
+	}
+	m_pDistanceMetric = NULL;
+	m_pSparseMetric = pMetric;
+	m_ownMetric = own;
+}
+
 // virtual
 void GKNN::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	clear();
-	m_pFeatureRel = pFeatureRel;
-	m_pLabelRel = pLabelRel;
 	m_featureDims = pFeatureRel->size();
 	m_labelDims = pLabelRel->size();
-	m_pFeatures = new GMatrix(m_pFeatureRel);
-	m_pLabels = new GMatrix(m_pLabelRel);
-	m_pDistanceMetric->init(m_pFeatureRel);
-
-	// Allocate some other buffers
-	size_t maxOutputValueCount = 0;
-	for(size_t n = 0; n < pLabelRel->size(); n++)
-		maxOutputValueCount = std::max(maxOutputValueCount, pLabelRel->valueCount(n));
-	m_pValueCounts = new double[maxOutputValueCount];
-
-	// Scale factor optimization
-	if(m_optimizeScaleFactors)
+	if(!m_pDistanceMetric && !m_pSparseMetric)
+		setMetric(new GRowDistanceScaled(), true);
+	if(m_pDistanceMetric)
 	{
-		m_pCritic = new GKnnScaleFactorCritic(this, m_pFeatureRel->size(), m_pLabelRel->size());
-		m_pScaleFactorOptimizer = new GMomentumGreedySearch(m_pCritic);
+		m_pFeatures = new GMatrix(pFeatureRel);
+		m_pDistanceMetric->init(pFeatureRel);
+
+		// Allocate a buffer for counting values
+		size_t maxOutputValueCount = 0;
+		for(size_t n = 0; n < pLabelRel->size(); n++)
+			maxOutputValueCount = std::max(maxOutputValueCount, pLabelRel->valueCount(n));
+		m_pValueCounts = new double[maxOutputValueCount];
+
+		// Scale factor optimization
+		if(m_optimizeScaleFactors)
+		{
+			m_pCritic = new GKnnScaleFactorCritic(this, pFeatureRel->size(), pLabelRel->size());
+			m_pScaleFactorOptimizer = new GMomentumGreedySearch(m_pCritic);
+		}
+	}
+	else if(m_pSparseMetric)
+	{
+		if(!pFeatureRel->areContinuous(0, pFeatureRel->size()))
+			ThrowError("Sorry, nominal features cannot be used in conjunction with sparse metrics");
+		m_pSparseFeatures = new GSparseMatrix(0, pFeatureRel->size(), UNKNOWN_REAL_VALUE);
 	}
 	else
-	{
-		m_pCritic = NULL;
-		m_pScaleFactorOptimizer = NULL;
-	}
+		ThrowError("Some sort of distance or similarity metric is required");
+	m_pLabels = new GMatrix(pLabelRel);
 }
 
 // virtual
 void GKNN::trainIncremental(const double* pIn, const double* pOut)
 {
 	// Make a copy of the vector
+	GAssert(m_pDistanceMetric);
 	size_t index = addVector(pIn, pOut);
 
 	// Delete the closest neighbor if the (k+1)th neighbor is closer than the specified threshold
-	if(!m_pNeighborFinder2)
+	if(m_dElbowRoom != UNKNOWN_REAL_VALUE)
 	{
-		m_pNeighborFinder2 = new GKdTree(m_pFeatures, m_nNeighbors + 1, m_pDistanceMetric, false);
-		return;
-	}
-	m_pNeighborFinder2->neighbors(m_pEvalNeighbors, m_pEvalDistances, index);
-	m_pNeighborFinder2->sortNeighbors(m_pEvalNeighbors, m_pEvalDistances);
-	if(m_pEvalNeighbors[m_nNeighbors] >= 0 && m_pEvalDistances[m_nNeighbors] < m_dElbowRoom)
-	{
-		double* pClosest = m_pNeighborFinder->releaseVector(m_pEvalNeighbors[0]);
-		delete[] pClosest;
+		if(!m_pNeighborFinder2)
+		{
+			m_pNeighborFinder2 = new GKdTree(m_pFeatures, m_nNeighbors + 1, m_pDistanceMetric, false);
+			return;
+		}
+		m_pNeighborFinder2->neighbors(m_pEvalNeighbors, m_pEvalDistances, index);
+		m_pNeighborFinder2->sortNeighbors(m_pEvalNeighbors, m_pEvalDistances);
+		if(m_pEvalNeighbors[m_nNeighbors] >= 0 && m_pEvalDistances[m_nNeighbors] < m_dElbowRoom)
+		{
+			double* pClosest = m_pNeighborFinder->releaseVector(m_pEvalNeighbors[0]);
+			delete[] pClosest;
+		}
 	}
 
 	// Learn how to scale the attributes
 	if(m_pScaleFactorOptimizer && m_pFeatures->rows() > 50)
 	{
 		m_pScaleFactorOptimizer->iterate();
-		GVec::copy(m_pDistanceMetric->scaleFactors(), m_pScaleFactorOptimizer->currentVector(), m_pFeatureRel->size());
+		GVec::copy(m_pDistanceMetric->scaleFactors(), m_pScaleFactorOptimizer->currentVector(), m_pFeatures->cols());
 	}
 }
 
 void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 {
+	if(m_pSparseMetric)
+		ThrowError("This method is not compatible with sparse similarity metrics. You should either use trainSparse instead, or use a dense dissimilarity metric.");
 	enableIncrementalLearning(features.relation(), labels.relation());
 	m_pFeatures->reserve(features.rows());
 	m_pLabels->reserve(features.rows());
@@ -258,7 +335,7 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 	double* pScaleFactors = m_pDistanceMetric->scaleFactors();
 	for(size_t i = 0; i < features.cols(); i++)
 	{
-		if(m_pFeatureRel->valueCount(i) == 0)
+		if(m_pFeatures->relation()->valueCount(i) == 0)
 		{
 			double m = m_pFeatures->mean(i);
 			double d = sqrt(m_pFeatures->variance(i, m));
@@ -289,23 +366,70 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-void GKNN::trainSparse(GSparseMatrix* pData, size_t labelDims)
+void GKNN::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
-	ThrowError("Sorry, trainSparse is not implemented yet in GKNN");
+	if(features.rows() != labels.rows())
+		ThrowError("Expected the features and labels to have the same number of rows");
+	if(m_pDistanceMetric)
+		ThrowError("This method is not compatible with dense dissimilarity metrics. You should either use the train method instead, or use a sparse similarity metric.");
+	if(!m_pSparseMetric)
+		setMetric(new GCosineSimilarity(), true);
+	sp_relation pFeatureRel = new GUniformRelation(features.cols(), 0);
+	enableIncrementalLearning(pFeatureRel, labels.relation());
+
+	// Copy the training data
+	m_pSparseFeatures->copyFrom(&features);
+	m_pLabels->copy(&labels);
 }
 
 void GKNN::findNeighbors(const double* pVector)
 {
-	if(!m_pNeighborFinder)
-		m_pNeighborFinder = new GKdTree(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
-	m_pNeighborFinder->neighbors(m_pEvalNeighbors, m_pEvalDistances, pVector);
+	if(m_pDistanceMetric)
+	{
+		if(!m_pNeighborFinder)
+			m_pNeighborFinder = new GKdTree(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
+		m_pNeighborFinder->neighbors(m_pEvalNeighbors, m_pEvalDistances, pVector);
+	}
+	else
+	{
+		if(!m_pSparseMetric)
+			ThrowError("train, trainSparse, or enableIncrementalLearning must be called before this method");
+		multimap<double,size_t> priority_queue;
+		for(size_t i = 0; i < m_pSparseFeatures->rows(); i++)
+		{
+			map<size_t,double>& row = m_pSparseFeatures->row(i);
+			double similarity = m_pSparseMetric->similarity(row, pVector);
+			priority_queue.insert(pair<double,size_t>(similarity, i));
+			if(priority_queue.size() > m_nNeighbors)
+				priority_queue.erase(priority_queue.begin());
+		}
+		size_t pos = 0;
+		size_t* pNeigh = m_pEvalNeighbors;
+		double* pDist = m_pEvalDistances;
+		for(multimap<double,size_t>::iterator it = priority_queue.begin(); it != priority_queue.end(); it++)
+		{
+			*pNeigh = it->second;
+			*pDist = 1.0;
+			pos++;
+			pNeigh++;
+			pDist++;
+		}
+		while(pos < m_nNeighbors)
+		{
+			*pNeigh = INVALID_INDEX;
+			*pDist = UNKNOWN_REAL_VALUE;
+			pos++;
+			pNeigh++;
+			pDist++;
+		}
+	}
 }
 
 void GKNN::interpolateMean(const double* pIn, GPrediction* pOut, double* pOut2)
 {
-	for(size_t i = 0; i < m_pLabelRel->size(); i++)
+	for(size_t i = 0; i < m_pLabels->cols(); i++)
 	{
-		if(m_pLabelRel->valueCount(i) == 0)
+		if(m_pLabels->relation()->valueCount(i) == 0)
 		{
 			// Continuous label
 			double dSum = 0;
@@ -343,7 +467,7 @@ void GKNN::interpolateMean(const double* pIn, GPrediction* pOut, double* pOut2)
 		else
 		{
 			// Nominal label
-			size_t nValueCount = m_pLabelRel->valueCount(i);
+			size_t nValueCount = m_pLabels->relation()->valueCount(i);
 			GVec::setAll(m_pValueCounts, 0.0, nValueCount);
 			for(size_t j = 0; j < m_nNeighbors; j++)
 			{
@@ -367,9 +491,9 @@ void GKNN::interpolateMean(const double* pIn, GPrediction* pOut, double* pOut2)
 
 void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2)
 {
-	for(size_t i = 0; i < m_pLabelRel->size(); i++)
+	for(size_t i = 0; i < m_pLabels->cols(); i++)
 	{
-		if(m_pLabelRel->valueCount(i) == 0)
+		if(m_pLabels->relation()->valueCount(i) == 0)
 		{
 			// Continuous label
 			double dSum = 0;
@@ -412,7 +536,7 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 		else
 		{
 			// Nominal label
-			int nValueCount = (int)m_pLabelRel->valueCount(i);
+			int nValueCount = (int)m_pLabels->relation()->valueCount(i);
 			GVec::setAll(m_pValueCounts, 0.0, nValueCount);
 			double dSumWeight = 0;
 			for(size_t j = 0; j < m_nNeighbors; j++)
@@ -441,10 +565,10 @@ void GKNN::interpolateLearner(const double* pIn, GPrediction* pOut, double* pOut
 {
 	GAssert(m_pLearner); // no learner is set
 	GHeap heap(1000);
-	GMatrix dataFeatures(m_pFeatureRel, &heap);
+	GMatrix dataFeatures(m_pFeatures->relation(), &heap);
 	GReleaseDataHolder hDataFeatures(&dataFeatures);
 	dataFeatures.reserve(m_nNeighbors);
-	GMatrix dataLabels(m_pLabelRel, &heap);
+	GMatrix dataLabels(m_pLabels->relation(), &heap);
 	GReleaseDataHolder hDataLabels(&dataLabels);
 	dataLabels.reserve(m_nNeighbors);
 	for(size_t i = 0; i < m_nNeighbors; i++)
@@ -496,16 +620,13 @@ void GKNN::predictInner(const double* pIn, double* pOut)
 // virtual
 void GKNN::clear()
 {
-	delete(m_pNeighborFinder);
-	m_pNeighborFinder = NULL;
-	delete(m_pFeatures);
-	m_pFeatures = NULL;
-	delete(m_pLabels);
-	m_pLabels = NULL;
-	delete(m_pScaleFactorOptimizer);
-	m_pScaleFactorOptimizer = NULL;
-	delete(m_pCritic);
-	m_pCritic = NULL;
+	delete(m_pNeighborFinder); m_pNeighborFinder = NULL;
+	delete(m_pFeatures); m_pFeatures = NULL;
+	delete(m_pSparseFeatures); m_pSparseFeatures = NULL;
+	delete(m_pLabels); m_pLabels = NULL;
+	delete(m_pScaleFactorOptimizer); m_pScaleFactorOptimizer = NULL;
+	delete(m_pCritic); m_pCritic = NULL;
+	delete(m_pValueCounts); m_pValueCounts = NULL;
 }
 
 #ifndef NO_TEST_CODE
@@ -670,7 +791,7 @@ GTwtNode* GInstanceTable::toTwt(GTwtDoc* pDoc)
 }
 
 // virtual
-void GInstanceTable::trainSparse(GSparseMatrix* pData, size_t labelDims)
+void GInstanceTable::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
 	ThrowError("Sorry, trainSparse is not implemented yet in GInstanceTable");
 }

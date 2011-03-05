@@ -63,7 +63,7 @@ or
 	model.addLayer(16);
 	model.train(*pFeatures, *pLabels);
 </pre>
-etc. For a full list of all of our supervised learning algorithms, take a look in the <a href="../apidoc/html/index.html">API docs</a> at the classes that inherit from GSupervisedLearner.</p>
+etc. For a full list of all of our supervised learning algorithms, take a look in the <a href="../apidoc/html/index.html">API docs</a> at the class hierarchy. Expand GTransducer to show all the classes that inherit from it. Then, expand GSupervisedLearner (which inherits from GTransducer) to show all the classes that inherit from it. Also, expand GIncrementalLearner.</p>
 
 <p>To make a prediction using a trained model, just pass one row of features in to the predict method, and the predicted label vector will come out. (pOut must point to an array of doubles big enough to hold the label vector.) Example:</p>
 <pre>

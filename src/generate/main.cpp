@@ -1402,19 +1402,19 @@ void addWordsToVocabFromHtmlFile(GVocabulary* pVocab, const char* szFilename)
 	}
 }
 
-void makeHtmlFileVector(GSparseMatrix* pSM, int clss, int row, GVocabulary* pVocab, const char* szFilename, bool binary)
+void makeHtmlFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, int row, GVocabulary* pVocab, const char* szFilename, bool binary)
 {
 	size_t len;
 	char* pFile = GFile::loadFile(szFilename, &len);
 	ArrayHolder<char> hFile(pFile);
-	MyHtmlParser2 parser(pFile, len, pSM, row, pVocab, binary);
+	MyHtmlParser2 parser(pFile, len, pFeatures, row, pVocab, binary);
 	while(true)
 	{
 		if(!parser.parseSomeMore())
 			break;
 	}
 	if(clss > 0)
-		pSM->set(row, pSM->cols() - 1, (double)clss);
+		pLabels->row(row)[0] = (double)clss;
 }
 
 void addWordsToVocabFromTextFile(GVocabulary* pVocab, const char* szFilename)
@@ -1426,7 +1426,7 @@ void addWordsToVocabFromTextFile(GVocabulary* pVocab, const char* szFilename)
 	pVocab->addWordsFromTextBlock(pFile, len);
 }
 
-void makeTextFileVector(GSparseMatrix* pSM, int clss, int row, GVocabulary* pVocab, const char* szFilename, bool binary)
+void makeTextFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, int row, GVocabulary* pVocab, const char* szFilename, bool binary)
 {
 	size_t len;
 	char* pFile = GFile::loadFile(szFilename, &len);
@@ -1442,13 +1442,13 @@ void makeTextFileVector(GSparseMatrix* pSM, int clss, int row, GVocabulary* pVoc
 		if(col != INVALID_INDEX)
 		{
 			if(binary)
-				pSM->set(row, col, 1.0);
+				pFeatures->set(row, col, 1.0);
 			else
-				pSM->set(row, col, pSM->get(row, col) + pVocab->weight(col));
+				pFeatures->set(row, col, pFeatures->get(row, col) + pVocab->weight(col));
 		}
 	}
-	if(clss > 0)
-		pSM->set(row, pSM->cols() - 1, (double)clss);
+	if(pLabels)
+		pLabels->row(row)[0] = (double)clss;
 }
 
 void docsToSparseMatrix(GArgReader& args)
@@ -1456,7 +1456,8 @@ void docsToSparseMatrix(GArgReader& args)
 	// Parse options
 	bool useStemmer = true;
 	bool binary = false;
-	string outFilename = "docs.sparse";
+	string featuresFilename = "features.sparse";
+	string labelsFilename = "labels.arff";
 	string vocabFile = "";
 	while(args.next_is_flag())
 	{
@@ -1464,8 +1465,10 @@ void docsToSparseMatrix(GArgReader& args)
 			useStemmer = false;
 		else if(args.if_pop("-binary"))
 			binary = true;
-		else if(args.if_pop("-outfile"))
-			outFilename = args.pop_string();
+		else if(args.if_pop("-featuresfile"))
+			featuresFilename = args.pop_string();
+		else if(args.if_pop("-labelsfile"))
+			labelsFilename = args.pop_string();
 		else if(args.if_pop("-vocabfile"))
 			vocabFile = args.pop_string();
 		else
@@ -1505,11 +1508,17 @@ void docsToSparseMatrix(GArgReader& args)
 	}
 	printf("-----\n");
 
-	// Make the sparse matrix
-	int colCount = vocab.wordCount();
+	// Make the sparse feature matrix and the label matrix
+	GSparseMatrix sparseFeatures(vocab.docCount(), vocab.wordCount());
+	GMatrix* pLabels = NULL;
 	if(folders.size() > 1)
-		colCount++; // add a column for the class label
-	GSparseMatrix sm(vocab.docCount(), colCount);
+	{
+		vector<size_t> classes;
+		classes.push_back(folders.size());
+		pLabels = new GMatrix(classes);
+		pLabels->newRows(vocab.docCount());
+	}
+	Holder<GMatrix> hLabels(pLabels);
 	size_t row = 0;
 	for(int clss = 0; clss < (int)folders.size(); clss++)
 	{
@@ -1530,19 +1539,19 @@ void docsToSparseMatrix(GArgReader& args)
 			if(_stricmp(filename + pd.extStart, ".txt") == 0)
 			{
 				printf("%d) %s\n", (int)row, filename);
-				makeTextFileVector(&sm, clss, row++, &vocab, filename, binary);
+				makeTextFileVector(&sparseFeatures, pLabels, clss, row++, &vocab, filename, binary);
 			}
 			else if(_stricmp(filename + pd.extStart, ".html") == 0 || _stricmp(filename + pd.extStart, ".htm") == 0)
 			{
 				printf("%d) %s\n", (int)row, filename);
-				makeHtmlFileVector(&sm, clss, row++, &vocab, filename, binary);
+				makeHtmlFileVector(&sparseFeatures, pLabels, clss, row++, &vocab, filename, binary);
 			}
 		}
 		if(chdir(cwd) != 0)
 			ThrowError("Failed to change dir");
 	}
 
-	// Save the vocab file
+	// Save the files
 	if(vocabFile.length() > 0)
 	{
 		FILE* pFile = fopen(vocabFile.c_str(), "w");
@@ -1550,13 +1559,13 @@ void docsToSparseMatrix(GArgReader& args)
 		for(size_t i = 0; i < vocab.wordCount(); i++)
 		{
 			const char* szWord = vocab.stats(i).m_szWord;
-			fprintf(pFile, "%d) %s\n", (int)i, szWord);
+			fprintf(pFile, "%s\n", szWord);
 		}
 	}
-
 	GTwtDoc doc;
-	doc.setRoot(sm.toTwt(&doc));
-	doc.save(outFilename.c_str());
+	doc.setRoot(sparseFeatures.toTwt(&doc));
+	doc.save(featuresFilename.c_str());
+	pLabels->saveArff(labelsFilename.c_str());
 }
 
 void vectorToImage(GImage* pImage, const double* pVec, int wid, int hgt)

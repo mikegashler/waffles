@@ -781,7 +781,12 @@ void GNeuralNet::forwardProp(const double* pRow)
 		net = *(j++); // (the first weight is the bias)
 		const double* pR = pRow;
 		while(j != i->m_weights.end())
-			net += *(j++) * *(pR++);
+		{
+			if(*pR != UNKNOWN_REAL_VALUE)
+				net += *j * *pR;
+			j++;
+			pR++;
+		}
 		i->m_net = net;
 		i->m_activation = pLayer->m_pActivationFunction->squash(net);
 	}
@@ -945,23 +950,24 @@ void GNeuralNet::trainInner(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-void GNeuralNet::trainSparse(GSparseMatrix* pData, size_t labelDims)
+void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
-	sp_relation pFeatureRel = new GUniformRelation(pData->cols() - labelDims);
-	sp_relation pLabelRel = new GUniformRelation(labelDims);
-	enableIncrementalLearning(pFeatureRel, pLabelRel);
+	if(features.rows() != labels.rows())
+		ThrowError("Expected the features and labels to have the same number of rows");
+	sp_relation pFeatureRel = new GUniformRelation(features.cols());
+	enableIncrementalLearning(pFeatureRel, labels.relation());
 
-	GTEMPBUF(size_t, indexes, pData->rows());
-	GIndexVec::makeIndexVec(indexes, pData->rows());
-	GTEMPBUF(double, pFullRow, pData->cols());
-	for(int epochs = 0; epochs < 50; epochs++) // todo: need a better stopping criterion
+	GTEMPBUF(size_t, indexes, features.rows());
+	GIndexVec::makeIndexVec(indexes, features.rows());
+	GTEMPBUF(double, pFullRow, features.cols());
+	for(size_t epochs = 0; epochs < 100; epochs++) // todo: need a better stopping criterion
 	{
-		GIndexVec::shuffle(indexes, pData->rows(), m_pRand);
-		for(unsigned int i = 0; i < pData->rows(); i++)
+		GIndexVec::shuffle(indexes, features.rows(), m_pRand);
+		for(size_t i = 0; i < features.rows(); i++)
 		{
-			pData->fullRow(pFullRow, indexes[i]);
+			features.fullRow(pFullRow, indexes[i]);
 			forwardProp(pFullRow);
-			setErrorOnOutputLayer(pFullRow + pData->cols() - labelDims, m_backPropTargetFunction);
+			setErrorOnOutputLayer(labels.row(indexes[i]), m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
 			m_pBackProp->descendGradient(pFullRow, m_learningRate, m_momentum);
 		}
@@ -1633,7 +1639,7 @@ void GModerateNet::clear()
 }
 
 // virtual
-void GModerateNet::trainIncremental(const double* pIn, const double* pOut)
+void GModerateNet::trainIncremental(GSparseMatrix& features, GMatrix& labels)
 {
 	ThrowError("Not implemented yet");
 }
