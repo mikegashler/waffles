@@ -57,8 +57,11 @@ protected:
 
 
 
-/// This uses Euclidean distance for continuous attributes, and
-/// Hamming distance for nominal attributes.
+/// This uses a combination of Euclidean distance for continuous
+/// attributes, and Hamming distance for nominal attributes.  In
+/// particular, for each attribute, it calculates pA[i]-pB[i], squares
+/// it and takes the square root of that sum.  For nominal attributes
+/// pA[i]-pB[i] is 0 if they are the same and 1 if they are different.
 class GRowDistance : public GDissimilarityMetric
 {
 public:
@@ -84,8 +87,10 @@ public:
 
 
 
-/// This uses Euclidean distance for continuous attributes, and
-/// Hamming distance for nominal attributes.
+/// This uses a combination of Euclidean distance for continuous
+/// attributes, and Hamming distance for nominal attributes.  This
+/// version honors scale factors given by the user.  See comments on
+/// GRowDistance.
 class GRowDistanceScaled : public GDissimilarityMetric
 {
 protected:
@@ -116,9 +121,9 @@ public:
 
 
 
-/// Interpolates between manhattan distance (norm=1), Euclidean distance (norm=2),
-/// and Chebyshev distance (norm=infinity). Throws an exception if any of the
-/// attributes are nominal.
+/// Interpolates between manhattan distance (norm=1), Euclidean
+/// distance (norm=2), and Chebyshev distance (norm=infinity). Throws
+/// an exception if any of the attributes are nominal.
 class GMinkowskiDistance : public GDissimilarityMetric
 {
 protected:
