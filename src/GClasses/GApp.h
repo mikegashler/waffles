@@ -38,17 +38,17 @@ typedef void (*DaemonMainFunc)(void* pArg);
 
 
 /// This class wraps the handle of a pipe. It closes the pipe when it is destroyed.
-/// This class is useful in conjunction with GApp::systemExecute for reading from
-/// or writing to the standard i/o streams of a child process.
-class GPipeHolder
+/// This class is useful in conjunction with GApp::systemExecute for reading from,
+/// or writing to, the standard i/o streams of a child process.
+class GPipe
 {
 protected:
 	HANDLE m_handle;
 
 public:
 	/// Construct an empty pipe holder
-	GPipeHolder();
-	~GPipeHolder();
+	GPipe();
+	~GPipe();
 
 	/// Set the handle of the pipe
 	void set(HANDLE h);
@@ -62,6 +62,10 @@ public:
 
 	/// Write to the pipe.
 	void write(const char* buf, size_t bufSize);
+
+	/// Reads from the pipe and writes to the specified file, until
+	/// there is nothing left to read.
+	void toFile(const char* szFilename);
 };
 
 
@@ -101,7 +105,7 @@ public:
 	/// the stdout output of the called process. Likewise with pStdErr.
 	/// If pStdIn is non-NULL, then it should point to the read end of
 	/// a pipe, and it will be used for stdin with the called process.
-	static int systemExecute(const char* szCommand, bool wait, GPipeHolder* pStdOut = NULL, GPipeHolder* pStdErr = NULL, GPipeHolder* pStdIn = NULL);
+	static int systemExecute(const char* szCommand, bool wait, GPipe* pStdOut = NULL, GPipe* pStdErr = NULL, GPipe* pStdIn = NULL);
 
 	/// If you're having trouble with bogus floating point values
 	/// (like NAN or INF), this method will cause an exception to

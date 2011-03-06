@@ -1506,6 +1506,8 @@ void docsToSparseMatrix(GArgReader& args)
 		if(chdir(cwd) != 0)
 			ThrowError("failed to change dir");
 	}
+	if(folders.size() == 0)
+		ThrowError("At least one folder name must be specified");
 	printf("-----\n");
 
 	// Make the sparse feature matrix and the label matrix
@@ -1565,7 +1567,8 @@ void docsToSparseMatrix(GArgReader& args)
 	GTwtDoc doc;
 	doc.setRoot(sparseFeatures.toTwt(&doc));
 	doc.save(featuresFilename.c_str());
-	pLabels->saveArff(labelsFilename.c_str());
+	if(pLabels)
+		pLabels->saveArff(labelsFilename.c_str());
 }
 
 void vectorToImage(GImage* pImage, const double* pVec, int wid, int hgt)

@@ -22,9 +22,9 @@
 namespace GClasses {
 
 GSparseMatrix::GSparseMatrix(size_t rows, size_t cols, double defaultValue)
-: m_rows(rows), m_cols(cols), m_defaultValue(defaultValue)
+: m_cols(cols), m_defaultValue(defaultValue)
 {
-	m_pRows = new Map[rows];
+	m_rows.resize(rows);
 }
 
 GSparseMatrix::GSparseMatrix(GTwtNode* pNode)
@@ -32,9 +32,9 @@ GSparseMatrix::GSparseMatrix(GTwtNode* pNode)
 	m_defaultValue = pNode->field("def")->asDouble();
 	m_cols = (size_t)pNode->field("cols")->asInt();
 	GTwtNode* pRows = pNode->field("rows");
-	m_rows = pRows->itemCount();
-	m_pRows = new Map[m_rows];
-	for(size_t i = 0; i < m_rows; i++)
+	size_t rows = pRows->itemCount();
+	m_rows.resize(rows);
+	for(size_t i = 0; i < rows; i++)
 	{
 		GTwtNode* pElements = pRows->item(i);
 		for(size_t j = 0; j < pElements->itemCount(); j++)
@@ -49,7 +49,6 @@ GSparseMatrix::GSparseMatrix(GTwtNode* pNode)
 
 GSparseMatrix::~GSparseMatrix()
 {
-	delete[] m_pRows;
 }
 
 GTwtNode* GSparseMatrix::toTwt(GTwtDoc* pDoc)
@@ -57,8 +56,8 @@ GTwtNode* GSparseMatrix::toTwt(GTwtDoc* pDoc)
 	GTwtNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "def", pDoc->newDouble(m_defaultValue));
 	pNode->addField(pDoc, "cols", pDoc->newInt(m_cols));
-	GTwtNode* pRows = pNode->addField(pDoc, "rows", pDoc->newList(m_rows));
-	for(size_t i = 0; i < m_rows; i++)
+	GTwtNode* pRows = pNode->addField(pDoc, "rows", pDoc->newList(m_rows.size()));
+	for(size_t i = 0; i < m_rows.size(); i++)
 	{
 		GTwtNode* pElements = pRows->setItem(i, pDoc->newList(2 * rowNonDefValues(i)));
 		size_t pos = 0;
@@ -81,37 +80,37 @@ void GSparseMatrix::fullRow(double* pOutFullRow, size_t row)
 
 double GSparseMatrix::get(size_t row, size_t col)
 {
-	GAssert(row < m_rows && col < m_cols); // out of range
-	Map::iterator it = m_pRows[row].find(col);
-	if(it == m_pRows[row].end())
+	GAssert(row < m_rows.size() && col < m_cols); // out of range
+	Map::iterator it = m_rows[row].find(col);
+	if(it == m_rows[row].end())
 		return m_defaultValue;
 	return it->second;
 }
 
 void GSparseMatrix::set(size_t row, size_t col, double val)
 {
-	GAssert(row < m_rows && col < m_cols); // out of range
+	GAssert(row < m_rows.size() && col < m_cols); // out of range
 	if(val == m_defaultValue)
-		m_pRows[row].erase(col);
+		m_rows[row].erase(col);
 	else
-		m_pRows[row][col] = val;
+		m_rows[row][col] = val;
 }
 
 void GSparseMatrix::multiply(double scalar)
 {
 	if(m_defaultValue != 0.0)
 		ThrowError("This method assumes the default value is 0");
-	for(size_t r = 0; r < m_rows; r++)
+	for(size_t r = 0; r < m_rows.size(); r++)
 	{
-		Map::iterator end = m_pRows[r].end();
-		for(Map::iterator it = m_pRows[r].begin(); it != end; it++)
+		Map::iterator end = m_rows[r].end();
+		for(Map::iterator it = m_rows[r].begin(); it != end; it++)
 			it->second *= scalar;
 	}
 }
 
 void GSparseMatrix::copyFrom(GSparseMatrix* that)
 {
-	size_t rows = std::min(m_rows, that->rows());
+	size_t rows = std::min(m_rows.size(), that->rows());
 	for(size_t r = 0; r < rows; r++)
 	{
 		Iter end = that->rowEnd(r);
@@ -126,7 +125,7 @@ void GSparseMatrix::copyFrom(GSparseMatrix* that)
 
 void GSparseMatrix::copyFrom(GMatrix* that)
 {
-	size_t rows = std::min(m_rows, that->rows());
+	size_t rows = std::min(m_rows.size(), that->rows());
 	size_t cols = std::min(m_cols, (size_t)that->cols());
 	for(size_t r = 0; r < rows; r++)
 	{
@@ -139,10 +138,23 @@ void GSparseMatrix::copyFrom(GMatrix* that)
 	}
 }
 
+void GSparseMatrix::newRow()
+{
+	m_rows.resize(m_rows.size() + 1);
+}
+
+void GSparseMatrix::copyRow(Map& row)
+{
+	size_t n = m_rows.size();
+	newRow();
+	Map& m = m_rows[n];
+	m = row;
+}
+
 GMatrix* GSparseMatrix::toFullMatrix()
 {
-	GMatrix* pData = new GMatrix(m_rows, m_cols);
-	for(size_t r = 0; r < m_rows; r++)
+	GMatrix* pData = new GMatrix(m_rows.size(), m_cols);
+	for(size_t r = 0; r < m_rows.size(); r++)
 	{
 		double* pRow = pData->row(r);
 		GVec::setAll(pRow, 0.0, m_cols);
@@ -155,7 +167,7 @@ GMatrix* GSparseMatrix::toFullMatrix()
 
 void GSparseMatrix::swapColumns(size_t a, size_t b)
 {
-	for(size_t r = 0; r < m_rows; r++)
+	for(size_t r = 0; r < m_rows.size(); r++)
 	{
 		double aa = get(r, a);
 		double bb = get(r, b);
@@ -166,23 +178,35 @@ void GSparseMatrix::swapColumns(size_t a, size_t b)
 
 void GSparseMatrix::swapRows(size_t a, size_t b)
 {
-	std::swap(m_pRows[a], m_pRows[b]);
+	std::swap(m_rows[a], m_rows[b]);
 }
 
-void GSparseMatrix::shuffle(GRand* pRand)
+void GSparseMatrix::shuffle(GRand* pRand, GMatrix* pLabels)
 {
-	for(size_t n = m_rows; n > 0; n--)
-		swapRows((size_t)pRand->next(n), n - 1);
+	if(pLabels)
+	{
+		for(size_t n = m_rows.size(); n > 0; n--)
+		{
+			size_t r = (size_t)pRand->next(n);
+			swapRows(r, n - 1);
+			pLabels->swapRows(r, n - 1);
+		}
+	}
+	else
+	{
+		for(size_t n = m_rows.size(); n > 0; n--)
+			swapRows((size_t)pRand->next(n), n - 1);
+	}
 }
 
-GSparseMatrix* GSparseMatrix::subMatrix(int row, int col, int height, int width)
+GSparseMatrix* GSparseMatrix::subMatrix(size_t row, size_t col, size_t height, size_t width)
 {
-	if(row < 0 || col < 0 || row + height >= (int)m_rows || col + width >= (int)m_cols || height < 0 || width < 0)
+	if(row + height >= m_rows.size() || col + width >= m_cols)
 		ThrowError("out of range");
 	GSparseMatrix* pSub = new GSparseMatrix(height, width, m_defaultValue);
-	for(int y = 0; y < height; y++)
+	for(size_t y = 0; y < height; y++)
 	{
-		for(int x = 0; x < width; x++)
+		for(size_t x = 0; x < width; x++)
 			pSub->set(y, x, get(row + y, col + x));
 	}
 	return pSub;

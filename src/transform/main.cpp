@@ -1760,20 +1760,36 @@ void sparseShuffle(GArgReader& args)
 
 	// Parse options
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	string labelsIn;
+	string labelsOut;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
 			nSeed = args.pop_uint();
+		else if(args.if_pop("-labels"))
+		{
+			labelsIn = args.pop_string();
+			labelsOut = args.pop_string();
+		}
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
 
 	// Shuffle and print
 	GRand prng(nSeed);
-	pData->shuffle(&prng);
+	GMatrix* pLabels = NULL;
+	Holder<GMatrix> hLabels(NULL);
+	if(labelsIn.length() > 0)
+	{
+		pLabels = loadData(labelsIn.c_str());
+		hLabels.reset(pLabels);
+	}
+	pData->shuffle(&prng, pLabels);
 	GTwtDoc doc2;
 	doc2.setRoot(pData->toTwt(&doc2));
 	doc2.write(cout);
+	if(pLabels)
+		pLabels->saveArff(labelsOut.c_str());
 }
 
 void sparseSplit(GArgReader& args)
@@ -1801,6 +1817,49 @@ void sparseSplit(GArgReader& args)
 	doc.save(szFilename2);
 }
 
+void sparseSplitFold(GArgReader& args)
+{
+	// Load
+	GTwtDoc doc;
+	doc.load(args.pop_string());
+	GSparseMatrix* pData = new GSparseMatrix(doc.root());
+	Holder<GSparseMatrix> hData(pData);
+	size_t fold = args.pop_uint();
+	size_t folds = args.pop_uint();
+	if(fold >= folds)
+		ThrowError("fold index out of range. It must be less than the total number of folds.");
+
+	// Options
+	string filenameTrain = "train.sparse";
+	string filenameTest = "test.sparse";
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-out"))
+		{
+			filenameTrain = args.pop_string();
+			filenameTest = args.pop_string();
+		}
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Copy relevant portions of the data
+	GSparseMatrix train(0, pData->cols());
+	GSparseMatrix test(0, pData->cols());
+	size_t begin = pData->rows() * fold / folds;
+	size_t end = pData->rows() * (fold + 1) / folds;
+	for(size_t i = 0; i < begin; i++)
+		train.copyRow(pData->row(i));
+	for(size_t i = begin; i < end; i++)
+		test.copyRow(pData->row(i));
+	for(size_t i = end; i < pData->rows(); i++)
+		train.copyRow(pData->row(i));
+	doc.setRoot(train.toTwt(&doc));
+	doc.save(filenameTrain.c_str());
+	doc.setRoot(test.toTwt(&doc));
+	doc.save(filenameTest.c_str());
+}
+
 void split(GArgReader& args)
 {
 	// Load
@@ -1817,6 +1876,45 @@ void split(GArgReader& args)
 	pData->splitBySize(&other, pats);
 	pData->saveArff(szFilename1);
 	other.saveArff(szFilename2);
+}
+
+void splitFold(GArgReader& args)
+{
+	// Load
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	size_t fold = args.pop_uint();
+	size_t folds = args.pop_uint();
+	if(fold >= folds)
+		ThrowError("fold index out of range. It must be less than the total number of folds.");
+
+	// Options
+	string filenameTrain = "train.arff";
+	string filenameTest = "test.arff";
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-out"))
+		{
+			filenameTrain = args.pop_string();
+			filenameTest = args.pop_string();
+		}
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Copy relevant portions of the data
+	GMatrix train(pData->relation());
+	GMatrix test(pData->relation());
+	size_t begin = pData->rows() * fold / folds;
+	size_t end = pData->rows() * (fold + 1) / folds;
+	for(size_t i = 0; i < begin; i++)
+		train.copyRow(pData->row(i));
+	for(size_t i = begin; i < end; i++)
+		test.copyRow(pData->row(i));
+	for(size_t i = end; i < pData->rows(); i++)
+		train.copyRow(pData->row(i));
+	train.saveArff(filenameTrain.c_str());
+	test.saveArff(filenameTest.c_str());
 }
 
 void squaredDistance(GArgReader& args)
@@ -2162,8 +2260,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("kmedoids")) kmedoids(args);
 		else if(args.if_pop("lle")) lle(args);
 		else if(args.if_pop("manifoldsculpting")) ManifoldSculpting(args);
-//		else if(args.if_pop("msfc")) manifoldSculptingForControl(args);
-//		else if(args.if_pop("manifoldunfolder")) manifoldUnfolder(args);
 		else if(args.if_pop("measuremeansquarederror")) MeasureMeanSquaredError(args);
 		else if(args.if_pop("mergehoriz")) mergeHoriz(args);
 		else if(args.if_pop("mergevert")) mergeVert(args);
@@ -2188,7 +2284,9 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("sortcolumn")) SortByAttribute(args);
 		else if(args.if_pop("sparseshuffle")) sparseShuffle(args);
 		else if(args.if_pop("sparsesplit")) sparseSplit(args);
+		else if(args.if_pop("sparsesplitfold")) sparseSplitFold(args);
 		else if(args.if_pop("split")) split(args);
+		else if(args.if_pop("splitfold")) splitFold(args);
 		else if(args.if_pop("squaredDistance")) squaredDistance(args);
 		else if(args.if_pop("svd")) singularValueDecomposition(args);
 		else if(args.if_pop("swapcolumns")) SwapAttributes(args);

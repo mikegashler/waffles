@@ -13,6 +13,7 @@
 #define __GSPARSEMATRIX_H__
 
 #include <map>
+#include <vector>
 #include <iostream>
 
 namespace GClasses {
@@ -28,8 +29,8 @@ class GSparseMatrix
 {
 protected:
 	typedef std::map<size_t,double> Map;
-	size_t m_rows, m_cols;
-	Map* m_pRows;
+	size_t m_cols;
+	std::vector<Map> m_rows;
 	double m_defaultValue;
 
 public:
@@ -57,7 +58,7 @@ public:
 	double defaultValue() { return m_defaultValue; }
 
 	/// Returns the number of rows (as if this matrix were dense)
-	size_t rows() { return m_rows; }
+	size_t rows() { return m_rows.size(); }
 
 	/// Returns the number of columns (as if this matrix were dense)
 	size_t cols() { return m_cols; }
@@ -67,17 +68,17 @@ public:
 
 	/// Returns a const_iterator to the beginning of a row. The iterator
 	/// references a pair, such that first is the column, and second is the value.
-	Iter rowBegin(size_t i) { return m_pRows[i].begin(); }
+	Iter rowBegin(size_t i) { return m_rows[i].begin(); }
 
 	/// Returns a const_iterator to the end of a row. The iterator
 	/// references a pair, such that first is the column, and second is the value.
-	Iter rowEnd(size_t i) { return m_pRows[i].end(); }
+	Iter rowEnd(size_t i) { return m_rows[i].end(); }
 
 	/// Returns the specified sparse row.
-	std::map<size_t,double>& row(size_t i) { return m_pRows[i]; }
+	Map& row(size_t i) { return m_rows[i]; }
 
 	/// Returns the number of non-default-valued elements in the specified row.
-	size_t rowNonDefValues(size_t i) { return m_pRows[i].size(); }
+	size_t rowNonDefValues(size_t i) { return m_rows[i].size(); }
 
 	/// Returns the value at the specified position in the matrix. Returns the
 	/// default value if no element is stored at that position.
@@ -98,6 +99,12 @@ public:
 	/// sizes, any non-overlapping elements will be left at the default value.
 	void copyFrom(GMatrix* that);
 
+	/// Adds a new empty row to this matrix
+	void newRow();
+
+	/// Adds a new row to this matrix by copying the parameter row
+	void copyRow(Map& row);
+
 	/// Converts to a full matrix
 	GMatrix* toFullMatrix();
 
@@ -110,11 +117,12 @@ public:
 	/// Swaps the two specified rows. (This method is a lot faster than swapColumns.)
 	void swapRows(size_t a, size_t b);
 
-	/// Shuffles the rows in this matrix
-	void shuffle(GRand* pRand);
+	/// Shuffles the rows in this matrix. If pLabels is non-NULL, then it
+	/// will be shuffled in a manner that preserves corresponding rows with this sparse matrix.
+	void shuffle(GRand* pRand, GMatrix* pLabels = NULL);
 
 	/// Returns a sub-matrix of this matrix
-	GSparseMatrix* subMatrix(int row, int col, int height, int width);
+	GSparseMatrix* subMatrix(size_t row, size_t col, size_t height, size_t width);
 };
 
 } // namespace GClasses

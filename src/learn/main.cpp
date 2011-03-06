@@ -1053,7 +1053,7 @@ void trainSparse(GArgReader& args)
 			ThrowError("Invalid trainsparse option: ", args.peek());
 	}
 
-	// Load the data
+	// Load the sparse features
 	if(args.size() < 1)
 		ThrowError("Expected a filename of a sparse matrix.");
 	GSparseMatrix* pSparseFeatures;
@@ -1064,6 +1064,8 @@ void trainSparse(GArgReader& args)
 		pSparseFeatures = new GSparseMatrix(doc.root());
 		hSparseFeatures.reset(pSparseFeatures);
 	}
+
+	// Load the dense labels
 	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
 	Holder<GMatrix> hLabels(pLabels);
 
@@ -1109,7 +1111,7 @@ void predictSparse(GArgReader& args)
 	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
-	// Load the data
+	// Load the sparse features
 	if(args.size() < 1)
 		ThrowError("No dataset specified.");
 	GSparseMatrix* pData;
@@ -1122,17 +1124,84 @@ void predictSparse(GArgReader& args)
 	}
 
 	// Test
+	GMatrix labels(pData->rows(), pModeler->labelDims());
 	double* pFullRow = new double[pData->cols()];
-	double* pLabels = pFullRow + pData->cols() - pModeler->labelDims();
 	ArrayHolder<double> hFullRow(pFullRow);
 	for(unsigned int i = 0; i < pData->rows(); i++)
 	{
 		pData->fullRow(pFullRow, i);
-		pModeler->predict(pFullRow, pLabels);
-		cout << i << ") ";
-		GVec::print(cout, 7, pLabels, pModeler->labelDims());
-		cout << "\n";
+		pModeler->predict(pFullRow, labels[i]);
 	}
+	labels.print(cout);
+}
+
+void testSparse(GArgReader& args)
+{
+	// Parse options
+	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-seed"))
+			seed = args.pop_uint();
+		else
+			ThrowError("Invalid predictsparse option: ", args.peek());
+	}
+
+	// Load the model
+	GRand prng(seed);
+	GTwtDoc doc;
+	if(args.size() < 1)
+		ThrowError("Model not specified.");
+	doc.load(args.pop_string());
+	GLearnerLoader ll(true);
+	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
+	Holder<GSupervisedLearner> hModeler(pModeler);
+
+	// Load the sparse features
+	if(args.size() < 1)
+		ThrowError("No dataset specified.");
+	GSparseMatrix* pData;
+	Holder<GSparseMatrix> hData(NULL);
+	{
+		GTwtDoc doc;
+		doc.load(args.pop_string());
+		pData = new GSparseMatrix(doc.root());
+		hData.reset(pData);
+	}
+
+	// Load the dense labels
+	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
+	Holder<GMatrix> hLabels(pLabels);
+	if(pLabels->cols() != pModeler->labelDims())
+		ThrowError("The model was trained to predict a different number of label dims");
+
+	// Test
+	GTEMPBUF(double, prediction, pLabels->cols());
+	double* pFullRow = new double[pData->cols()];
+	ArrayHolder<double> hFullRow(pFullRow);
+	GTEMPBUF(double, results, pLabels->cols());
+	GVec::setAll(results, 0.0, pLabels->cols());
+	for(size_t i = 0; i < pData->rows(); i++)
+	{
+		pData->fullRow(pFullRow, i);
+		pModeler->predict(pFullRow, prediction);
+		double* pTarget = pLabels->row(i);
+		for(size_t j = 0; j < pLabels->cols(); j++)
+		{
+			if(pLabels->relation()->valueCount(j) == 0)
+			{
+				double d = pTarget[j] - prediction[j];
+				results[j] += (d * d);
+			}
+			else
+			{
+				if((int)prediction[j] == (int)pTarget[j])
+					results[j]++;
+			}
+		}
+	}
+	GVec::multiply(results, 1.0 / pData->rows(), pLabels->cols());
+	GVec::print(cout, 14, results, pLabels->cols());
 }
 
 void vette(string& s)
@@ -1520,6 +1589,8 @@ int main(int argc, char *argv[])
 				trainSparse(args);
 			else if(args.if_pop("predictsparse"))
 				predictSparse(args);
+			else if(args.if_pop("testsparse"))
+				testSparse(args);
 			else if(args.if_pop("trainrecurrent"))
 				trainRecurrent(args);
 			else

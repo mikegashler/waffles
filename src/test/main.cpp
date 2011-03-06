@@ -13,6 +13,7 @@
 #include <math.h>
 #include <wchar.h>
 #include <string>
+#include <vector>
 #include "../GClasses/GApp.h"
 #include "../GSup/GBezier.h"
 #include "../GClasses/GBitTable.h"
@@ -58,9 +59,21 @@
 using namespace GClasses;
 using std::cerr;
 using std::string;
+using std::vector;
 
 typedef void (*TestFunc)();
 
+
+void sysExec(const char* szAppName, const char* szArgs, GPipe* pStdOut = NULL, GPipe* pStdErr = NULL, GPipe* pStdIn = NULL)
+{
+	string s = szAppName;
+#ifdef WINDOWS
+	s += ".exe";
+#endif
+	s += " ";
+	s += szArgs;
+	GApp::systemExecute(s.c_str(), true, pStdOut, pStdErr, pStdIn);
+}
 
 class TempFileMaker
 {
@@ -71,7 +84,8 @@ public:
 	TempFileMaker(const char* szFilename, const char* szContents)
 	: m_szFilename(szFilename)
 	{
-		GFile::saveFile(szContents, strlen(szContents), szFilename);
+		if(szContents)
+			GFile::saveFile(szContents, strlen(szContents), szFilename);
 	}
 
 	~TempFileMaker()
@@ -104,14 +118,10 @@ void test_transform_mergevert()
 		);
 
 	// Execute the command
-	GPipeHolder hStdOut;
-#ifdef WINDOWS
-	GApp::systemExecute("waffles_transform.exe mergevert a.arff b.arff", true, &hStdOut);
-#else
-	GApp::systemExecute("waffles_transform mergevert a.arff b.arff", true, &hStdOut);
-#endif
+	GPipe pipeStdOut;
+	sysExec("waffles_transform", "mergevert a.arff b.arff", &pipeStdOut);
 	char buf[512];
-	size_t len = hStdOut.read(buf, 512);
+	size_t len = pipeStdOut.read(buf, 512);
 	if(len == 512)
 		ThrowError("need a bigger buffer");
 	buf[len] = '\0';
@@ -163,14 +173,10 @@ void test_recommend_fillmissingvalues()
 		);
 
 	// Execute the command
-	GPipeHolder hStdOut;
-#ifdef WINDOWS
-	GApp::systemExecute("waffles_recommend.exe fillmissingvalues a.arff baseline", true, &hStdOut);
-#else
-	GApp::systemExecute("waffles_recommend fillmissingvalues a.arff baseline", true, &hStdOut);
-#endif
+	GPipe pipeStdOut;
+	sysExec("waffles_recommend", "fillmissingvalues a.arff baseline", &pipeStdOut);
 	char buf[512];
-	size_t len = hStdOut.read(buf, 512);
+	size_t len = pipeStdOut.read(buf, 512);
 	if(len == 512)
 		ThrowError("need a bigger buffer");
 	buf[len] = '\0';
@@ -201,6 +207,106 @@ void test_recommend_fillmissingvalues()
 		ThrowError("failed");
 }
 
+void test_document_classification()
+{
+	{
+		GFile::makeDir("class_spam");
+		TempFileMaker tempFile1("class_spam/a.txt", "Buy now! Cheap Viagara. All of your problems are solved. For a limited time, Act now. Click here to for a free sample. You might already be a winner! Hurry, supplies are limited.");
+		TempFileMaker tempFile2("class_spam/b.txt", "Congratulations, the Prince of Nigeria has selected you to be the benefactor of the sum of one million dollars! If you act now, he will immediately transfer this amount to your bank account.");
+		TempFileMaker tempFile3("class_spam/c.txt", "Winner winner winner! You are the winner of the one million dollar sweepstakes. To collect one million dollars, click here now! Hurry, or it will be given to the runner up.");
+		TempFileMaker tempFile4("class_spam/d.txt", "Dear bank customer, we regret to inform you that your account has been compromised. Please confirm your identity so that we may restore the one million dollars that has erroneously been stolen from your account.");
+		TempFileMaker tempFile5("class_spam/e.txt", "Buy now! Just one dollar! Lap top computers. Cheap deals! Hurry. Supplies are limited. Mention this add and receive a free laptop with lifetime subscription.");
+		TempFileMaker tempFile6("class_spam/f.txt", "Free samples! Great deals! discounts! coupons! Winner! Free money! One million dollars in prizes! Viagara! Hurry! Cheap!");
+
+		GFile::makeDir("class_auto");
+		TempFileMaker tempFile7("class_auto/a.txt", "Thank you for registering with our site. To confirm you identity, please follow this link.");
+		TempFileMaker tempFile8("class_auto/b.txt", "Thank you for signing up for an account at foo.com. Your automatically generated password is ax58c90s3.");
+		TempFileMaker tempFile9("class_auto/c.txt", "You, or someone claiming to be you has signed up for an account at yomamma.com. Please confirm your identity by clicking on the following link.");
+		TempFileMaker tempFile10("class_auto/d.txt", "You are now registered with newssite.com. You may begin posting comments using your user name and password. Thank you for visiting us.");
+		TempFileMaker tempFile11("class_auto/e.txt", "This is an automatically generated email. You have registered with somesite.com. Your new user name and password is found below. Thank you, and have a nice day.");
+		TempFileMaker tempFile12("class_auto/f.txt", "A password has automatically been generated for you. To log in, please click on the link found below. Your password is asdfjkl");
+
+		GFile::makeDir("class_ham");
+		TempFileMaker tempFile13("class_ham/a.txt", "Dear Dr. Johnson, I am writing to inquire whether you will be attending the conference on document classification. I am seeking an opportunity to meet with you. Sincerely, Me.");
+		TempFileMaker tempFile14("class_ham/b.txt", "Dear Bob, Are you there? I have been looking for you all over. I am on the fourth floor of the computer building. Didn't we agree to meet at 2:30pm?");
+		TempFileMaker tempFile15("class_ham/c.txt", "Dear Susan, Thank you for baking me those delicions cinnamon rolls. I have never eaten anything so delicious in my entire life. You should become a professional chef. Sincerely, Me.");
+		TempFileMaker tempFile16("class_ham/d.txt", "Bob, I cannot tell you how dissapointed I am that you have chosen to attend Dr. Johnson's conference. He is a poser, and I think you should talk to Susan about it first.");
+		TempFileMaker tempFile17("class_ham/e.txt", "What do you mean? Of course I like cinnamon rolls. Everybody likes them! Unfortunately, my diet does not permit me to indulge in such frivoloties at this time. I sincerely hope you will make more when I am done with this.");
+		TempFileMaker tempFile18("class_ham/f.txt", "Of course. How else would a slinky become lodged in the center of a giant cube of Jello? Meet me in the computer building five minutes before it starts, and we'll attend the conference together. See you then. --Bob");
+
+		// Generate a sparse feature matrix and a corresponding dense label matrix
+		{
+			GPipe pipeIgnoreMe;
+			sysExec("waffles_generate", "docstosparsematrix class_ham class_auto class_spam", &pipeIgnoreMe);
+		}
+		TempFileMaker tempFileFeatures("features.sparse", NULL);
+		TempFileMaker tempFileLabels("labels.arff", NULL);
+
+		// Shuffle the data
+		GPipe pipeStdOut;
+		sysExec("waffles_transform", "sparseshuffle features.sparse -labels labels.arff l2.arff", &pipeStdOut);
+		pipeStdOut.toFile("f2.sparse");
+		TempFileMaker tempF2("f2.sparse", NULL);
+		TempFileMaker tempL2("l2.arff", NULL);
+
+		// Make a set of models
+		vector<string> models;
+		models.push_back("naivebayes");
+		models.push_back("knn 3");
+		//models.push_back("neuralnet");
+
+		// Do cross-validation
+		TempFileMaker tempFileTrainFeatures("train.sparse", NULL);
+		TempFileMaker tempFileTestFeatures("test.sparse", NULL);
+		TempFileMaker tempFileTrainLabels("train.arff", NULL);
+		TempFileMaker tempFileTestLabels("test.arff", NULL);
+		TempFileMaker tempFileModel("model.twt", NULL);
+		char buf[256];
+		GMatrix results(18, models.size());
+		for(size_t i = 0; i < 18; i++)
+		{
+			// Separate the test fold from the rest of the data
+			string sArgs1 = "sparsesplitfold f2.sparse ";
+			sArgs1 += to_str(i);
+			sArgs1 += " 18";
+			sysExec("waffles_transform", sArgs1.c_str());
+			string sArgs2 = "splitfold l2.arff ";
+			sArgs2 += to_str(i);
+			sArgs2 += " 18";
+			sysExec("waffles_transform", sArgs2.c_str());
+
+			// Train and test each model
+			for(size_t j = 0; j < models.size(); j++)
+			{
+				// Train the model
+				string sArgs = "trainsparse -seed 0 train.sparse train.arff ";
+				sArgs += models[j];
+				GPipe pipeStdOut2;
+				sysExec("waffles_learn", sArgs.c_str(), &pipeStdOut2);
+				pipeStdOut2.toFile("model.twt");
+
+				// Test the model
+				GPipe pipeStdOut3;
+				sysExec("waffles_learn", "testsparse model.twt test.sparse test.arff", &pipeStdOut3);
+				size_t len = pipeStdOut3.read(buf, 256);
+				if(len >= 256)
+					ThrowError("Need a bigger buffer");
+				buf[len] = '\0';
+				double accuracy = atof(buf);
+				results[i][j] = accuracy;
+			}
+		}
+		double resultsNaiveBayes = results.mean(0);
+		double resultsKnn = results.mean(1);
+		if(resultsNaiveBayes < 0.4)
+			ThrowError("failed");
+		if(resultsKnn < 0.3)
+			ThrowError("failed");
+	}
+	rmdir("class_ham");
+	rmdir("class_auto");
+	rmdir("class_spam");
+}
 
 
 
@@ -234,6 +340,8 @@ bool runTest(const char* szTestName, TestFunc pTest)
 
 void RunAllTests()
 {
+	runTest("waffles_transform mergevert", test_transform_mergevert);
+
 	// Class tests
 	runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 	runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
@@ -288,6 +396,7 @@ void RunAllTests()
 	// Command-line tests
 	runTest("waffles_transform mergevert", test_transform_mergevert);
 	runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
+	runTest("document classification", test_document_classification);
 	printf("Done.\n");
 }
 

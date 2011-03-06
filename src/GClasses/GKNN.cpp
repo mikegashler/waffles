@@ -265,12 +265,6 @@ void GKNN::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLab
 		m_pFeatures = new GMatrix(pFeatureRel);
 		m_pDistanceMetric->init(pFeatureRel);
 
-		// Allocate a buffer for counting values
-		size_t maxOutputValueCount = 0;
-		for(size_t n = 0; n < pLabelRel->size(); n++)
-			maxOutputValueCount = std::max(maxOutputValueCount, pLabelRel->valueCount(n));
-		m_pValueCounts = new double[maxOutputValueCount];
-
 		// Scale factor optimization
 		if(m_optimizeScaleFactors)
 		{
@@ -286,7 +280,14 @@ void GKNN::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLab
 	}
 	else
 		ThrowError("Some sort of distance or similarity metric is required");
+
 	m_pLabels = new GMatrix(pLabelRel);
+
+	// Allocate a buffer for counting values
+	size_t maxOutputValueCount = 0;
+	for(size_t n = 0; n < pLabelRel->size(); n++)
+		maxOutputValueCount = std::max(maxOutputValueCount, pLabelRel->valueCount(n));
+	m_pValueCounts = new double[maxOutputValueCount];
 }
 
 // virtual

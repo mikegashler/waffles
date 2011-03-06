@@ -36,17 +36,18 @@
 #include <string>
 #include <string.h>
 #include <sstream>
+#include <fstream>
 
 using namespace GClasses;
 using std::cout;
 using std::string;
 
-GPipeHolder::GPipeHolder()
+GPipe::GPipe()
 : m_handle(INVALID_HANDLE)
 {
 }
 
-GPipeHolder::~GPipeHolder()
+GPipe::~GPipe()
 {
 	if(m_handle != INVALID_HANDLE)
 	{
@@ -58,7 +59,7 @@ GPipeHolder::~GPipeHolder()
 	}
 }
 
-void GPipeHolder::set(HANDLE h)
+void GPipe::set(HANDLE h)
 {
 	if(m_handle != INVALID_HANDLE)
 	{
@@ -80,7 +81,7 @@ void GPipeHolder::set(HANDLE h)
 	}
 }
 
-ssize_t GPipeHolder::read(char* buf, size_t bufSize)
+ssize_t GPipe::read(char* buf, size_t bufSize)
 {
 #ifdef WINDOWS
 	DWORD dwRead;
@@ -91,7 +92,7 @@ ssize_t GPipeHolder::read(char* buf, size_t bufSize)
 #endif
 }
 
-void GPipeHolder::write(const char* buf, size_t bufSize)
+void GPipe::write(const char* buf, size_t bufSize)
 {
 #ifdef WINDOWS
 	if(!WriteFile(m_handle, buf, (DWORD)bufSize, NULL, NULL))
@@ -102,6 +103,27 @@ void GPipeHolder::write(const char* buf, size_t bufSize)
 #endif
 }
 
+void GPipe::toFile(const char* szFilename)
+{
+	std::ofstream s;
+	s.exceptions(std::ios::failbit|std::ios::badbit);
+	try
+	{
+		s.open(szFilename, std::ios::binary);
+	}
+	catch(const std::exception&)
+	{
+		ThrowError("Error creating file: ", szFilename);
+	}
+	char buf[256];
+	while(true)
+	{
+		size_t bytes = read(buf, 256);
+		s.write(buf, bytes);
+		if(bytes < 256)
+			break;
+	}
+}
 
 
 
@@ -333,7 +355,7 @@ int GApp::systemCall(const char* szCommand, bool wait, bool show)
 #endif
 }
 
-int GApp::systemExecute(const char* szCommand, bool wait, GPipeHolder* pStdOut, GPipeHolder* pStdErr, GPipeHolder* pStdIn)
+int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe* pStdErr, GPipe* pStdIn)
 {
 #ifdef WINDOWS
 	// Initialize a STARTUPINFO structure
