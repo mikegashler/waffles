@@ -14,6 +14,7 @@
 
 #include "GMatrix.h"
 #include <map>
+#include <vector>
 
 namespace GClasses {
 
@@ -23,36 +24,63 @@ namespace GClasses {
 /// this concept may simply ignore any scale factors.
 /// Typically, classes that use this should be able to assume that the triangle
 /// inequality will hold, but do not necessarily enforce the parallelogram law.
-class GDissimilarityMetric
+  class GDissimilarityMetric
 {
 protected:
-	sp_relation m_pRelation;
+        sp_relation m_pRelation;
 
 public:
-	GDissimilarityMetric() {}
-	GDissimilarityMetric(GTwtNode* pNode);
-	virtual ~GDissimilarityMetric() {}
+        GDissimilarityMetric() {}
+        GDissimilarityMetric(GTwtNode* pNode);
+        virtual ~GDissimilarityMetric() {}
 
-	/// Serialize this metric to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+        /// Serialize this metric to a text-based format
+        virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
 
-	/// This must be called before dissimilarity can be called
-	virtual void init(sp_relation& pRelation) = 0;
+        /// This must be called before dissimilarity can be called
+        virtual void init(sp_relation& pRelation) = 0;
 
-	/// Computes the dissimilarity between the two specified vectors
-	virtual double dissimilarity(const double* pA, const double* pB) = 0;
+        /// Return the dissimilarity between the two specified vectors.
+        /// It is assumed that a and b are vectors of the same
+        /// dimension - and that that dimension is compatible with the
+        /// relation given in init.  By default uses
+        /// dissimilarity(const double*, const double*) so subclassers
+        /// only need to change that method.
+        virtual double dissimilarity(const std::vector<double> & a,
+                                     const std::vector<double> & b);
+        
 
-	/// Returns the relation that specifies the meaning of the vector elements
-	sp_relation& relation() { return m_pRelation; }
+        /// Computes the dissimilarity between the two specified vectors
+        virtual double dissimilarity(const double* pA, const double* pB) = 0;
 
-	/// Deserializes a dissimilarity metric
-	static GDissimilarityMetric* fromTwt(GTwtNode* pNode);
+        /// Return dissimilarity(a,b).  Allowss dissimilarity metrics
+        /// to be used as function objects.  Do not override.
+        /// Override dissimilarity(a,b) instead.  See GDissimilarityMetric::dissimilarity(const std::vector<double>&, const std::vector<double>&)
+        inline double operator()(const std::vector<double> & a,
+			  const std::vector<double> & b){
+	  return dissimilarity(a,b);
+	}
 
-	/// Returns a pointer to the vector of scale factors
-	virtual double* scaleFactors() { return NULL; }
+        /// Return dissimilarity(pA,pB).  Allows dissimilarity metrics to
+        /// be used as function objects.  Do not override.  Override
+        /// dissimilarity(pA,pB) instead.  See GDissimilarityMetric::dissimilarity(const double*, const double*)
+        inline double operator()(const double* pA,
+			  const double* pB){
+	  return dissimilarity(pA,pB);
+	}
+
+        /// Returns the relation that specifies the meaning of the vector elements
+        sp_relation& relation() { return m_pRelation; }
+
+        /// Deserializes a dissimilarity metric
+        static GDissimilarityMetric* fromTwt(GTwtNode* pNode);
+
+        /// Returns a pointer to the vector of scale factors.  This
+        /// may be NULL if the metric does not use scale factors.
+        virtual double* scaleFactors() { return NULL; }
 
 protected:
-	GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
+        GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
 };
 
 
@@ -65,23 +93,23 @@ protected:
 class GRowDistance : public GDissimilarityMetric
 {
 public:
-	GRowDistance()
-	: GDissimilarityMetric()
-	{
-	}
+        GRowDistance()
+        : GDissimilarityMetric()
+        {
+        }
 
-	GRowDistance(GTwtNode* pNode);
+        GRowDistance(GTwtNode* pNode);
 
-	virtual ~GRowDistance() {}
+        virtual ~GRowDistance() {}
 
-	/// See the comment for GDissimilarityMetric::toTwt
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GDissimilarityMetric::toTwt
+        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-	/// See the comment for GDissimilarityMetric::init
-	virtual void init(sp_relation& pRelation);
+        /// See the comment for GDissimilarityMetric::init
+        virtual void init(sp_relation& pRelation);
 
-	/// Returns the distance between pA and pB
-	virtual double dissimilarity(const double* pA, const double* pB);
+        /// Returns the distance between pA and pB
+        virtual double dissimilarity(const double* pA, const double* pB);
 };
 
 
@@ -94,28 +122,28 @@ public:
 class GRowDistanceScaled : public GDissimilarityMetric
 {
 protected:
-	double* m_pScaleFactors;
+        double* m_pScaleFactors;
 
 public:
-	GRowDistanceScaled() : m_pScaleFactors(NULL) {}
-	GRowDistanceScaled(GTwtNode* pNode);
+        GRowDistanceScaled() : m_pScaleFactors(NULL) {}
+        GRowDistanceScaled(GTwtNode* pNode);
 
-	virtual ~GRowDistanceScaled()
-	{
-		delete[] m_pScaleFactors;
-	}
+        virtual ~GRowDistanceScaled()
+        {
+                delete[] m_pScaleFactors;
+        }
 
-	/// See the comment for GDissimilarityMetric::toTwt
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GDissimilarityMetric::toTwt
+        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-	/// See the comment for GDissimilarityMetric::init
-	virtual void init(sp_relation& pRelation);
+        /// See the comment for GDissimilarityMetric::init
+        virtual void init(sp_relation& pRelation);
 
-	/// Returns the scaled distance between pA and pB
-	virtual double dissimilarity(const double* pA, const double* pB);
+        /// Returns the scaled distance between pA and pB
+        virtual double dissimilarity(const double* pA, const double* pB);
 
-	/// Returns the vector of scalar values associated with each dimension
-	virtual double* scaleFactors() { return m_pScaleFactors; }
+        /// Returns the vector of scalar values associated with each dimension
+        virtual double* scaleFactors() { return m_pScaleFactors; }
 };
 
 
@@ -127,24 +155,24 @@ public:
 class GMinkowskiDistance : public GDissimilarityMetric
 {
 protected:
-	double m_norm;
+        double m_norm;
 
 public:
-	GMinkowskiDistance(double norm)
-	: GDissimilarityMetric(), m_norm(norm)
-	{
-	}
+        GMinkowskiDistance(double norm)
+        : GDissimilarityMetric(), m_norm(norm)
+        {
+        }
 
-	GMinkowskiDistance(GTwtNode* pNode);
+        GMinkowskiDistance(GTwtNode* pNode);
 
-	/// See the comment for GDissimilarityMetric::toTwt
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GDissimilarityMetric::toTwt
+        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-	/// See the comment for GDissimilarityMetric::init
-	virtual void init(sp_relation& pRelation);
+        /// See the comment for GDissimilarityMetric::init
+        virtual void init(sp_relation& pRelation);
 
-	/// Returns the distance (using the norm passed to the constructor) between pA and pB
-	virtual double dissimilarity(const double* pA, const double* pB);
+        /// Returns the distance (using the norm passed to the constructor) between pA and pB
+        virtual double dissimilarity(const double* pA, const double* pB);
 };
 
 
@@ -154,30 +182,30 @@ public:
 class GSparseSimilarity
 {
 protected:
-	double m_regularizer;
+        double m_regularizer;
 
 public:
-	GSparseSimilarity() : m_regularizer(0.0) {}
-	virtual ~GSparseSimilarity() {}
+        GSparseSimilarity() : m_regularizer(0.0) {}
+        virtual ~GSparseSimilarity() {}
 
-	/// Set a regularizing term to add to the denominator
-	void setRegularizer(double d) { m_regularizer = d; }
+        /// Set a regularizing term to add to the denominator
+        void setRegularizer(double d) { m_regularizer = d; }
 
-	/// Serialize this metric to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+        /// Serialize this metric to a text-based format
+        virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
 
-	/// Computes the similarity between two sparse vectors
-	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b) = 0;
+        /// Computes the similarity between two sparse vectors
+        virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b) = 0;
 
-	/// Computes the similarity between a sparse and a dense vector
-	virtual double similarity(const std::map<size_t,double>& a, const double* pB) = 0;
+        /// Computes the similarity between a sparse and a dense vector
+        virtual double similarity(const std::map<size_t,double>& a, const double* pB) = 0;
 
-	/// Deserialize from a text-based format
-	static GSparseSimilarity* fromTwt(GTwtNode* pNode);
+        /// Deserialize from a text-based format
+        static GSparseSimilarity* fromTwt(GTwtNode* pNode);
 
 protected:
-	/// A helper method used internally
-	GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
+        /// A helper method used internally
+        GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
 };
 
 
@@ -185,18 +213,18 @@ protected:
 class GCosineSimilarity : public GSparseSimilarity
 {
 public:
-	GCosineSimilarity() : GSparseSimilarity() {}
-	GCosineSimilarity(GTwtNode* pNode) : GSparseSimilarity() {}
-	virtual ~GCosineSimilarity() {}
+        GCosineSimilarity() : GSparseSimilarity() {}
+        GCosineSimilarity(GTwtNode* pNode) : GSparseSimilarity() {}
+        virtual ~GCosineSimilarity() {}
 
-	/// See the comment for GSparseSimilarity::toTwt
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GSparseSimilarity::toTwt
+        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-	/// Computes the similarity between two sparse vectors
-	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
+        /// Computes the similarity between two sparse vectors
+        virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
 
-	/// Computes the similarity between a sparse and a dense vector
-	virtual double similarity(const std::map<size_t,double>& a, const double* pB);
+        /// Computes the similarity between a sparse and a dense vector
+        virtual double similarity(const std::map<size_t,double>& a, const double* pB);
 };
 
 
@@ -204,18 +232,18 @@ public:
 class GPearsonCorrelation : public GSparseSimilarity
 {
 public:
-	GPearsonCorrelation() : GSparseSimilarity() {}
-	GPearsonCorrelation(GTwtNode* pNode) : GSparseSimilarity() {}
-	virtual ~GPearsonCorrelation() {}
+        GPearsonCorrelation() : GSparseSimilarity() {}
+        GPearsonCorrelation(GTwtNode* pNode) : GSparseSimilarity() {}
+        virtual ~GPearsonCorrelation() {}
 
-	/// See the comment for GSparseSimilarity::toTwt
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GSparseSimilarity::toTwt
+        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-	/// Computes the similarity between two sparse vectors
-	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
+        /// Computes the similarity between two sparse vectors
+        virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
 
-	/// Computes the similarity between a sparse and a dense vector
-	virtual double similarity(const std::map<size_t,double>& a, const double* pB);
+        /// Computes the similarity between a sparse and a dense vector
+        virtual double similarity(const std::map<size_t,double>& a, const double* pB);
 };
 
 

@@ -13,6 +13,7 @@
 #include "GTwt.h"
 #include "GVec.h"
 #include <math.h>
+#include <cassert>
 
 using std::map;
 
@@ -22,6 +23,16 @@ GDissimilarityMetric::GDissimilarityMetric(GTwtNode* pNode)
 {
 	m_pRelation = GRelation::fromTwt(pNode->field("relation"));
 }
+
+double GDissimilarityMetric::dissimilarity(const std::vector<double> & x,
+					   const std::vector<double> & y){
+  assert(x.size() == y.size());
+  const std::size_t numDim = x.size();
+  const double* firstX = numDim==0?0:&(x.front());
+  const double* firstY = numDim==0?0:&(y.front());
+  return dissimilarity(firstX, firstY);
+}
+
 
 GTwtNode* GDissimilarityMetric::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
 {
