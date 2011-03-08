@@ -73,10 +73,13 @@ public:
 class GApp
 {
 public:
-	/// returns the process ID of the daemon to the parent process.
-	/// The daemon process will exit (rather than return) when it finishes.
-	/// Note: this doesn't freopen stdout or stderr. You should do that.
-	static int launchDaemon(DaemonMainFunc pDaemonMain, void* pArg);
+	/// Launches a daemon process that calls pDaemonMain, and then exits.
+	/// Throws an exception if any error occurs while launching the daemon.
+	/// if stdoutFilename and/or stderrFilename is non-NULL, then the corresponding
+	/// stream will be redirected to append to the specified file.
+	/// (On Windows, this method just calls pDaemonMain normally, and does
+	/// not fork off a separate process.)
+	static void launchDaemon(DaemonMainFunc pDaemonMain, void* pArg, const char* stdoutFilename = NULL, const char* stderrFilename = NULL);
 
 	/// Returns the full name (including path) of the executing application.
 	/// Returns the length of the returned string, or -1 if it failed.
@@ -112,6 +115,11 @@ public:
 	/// be thrown when overflow, divide-by-zero, or a NAN condition
 	/// occurs.
 	static void enableFloatingPointExceptions();
+
+	/// Opens the specified URL in the default web browser. Returns true
+	/// if successful, and false if not.
+	static bool openUrlInBrowser(const char* szUrl);
+
 };
 
 typedef void (*sighandler_t)(int);

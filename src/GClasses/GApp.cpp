@@ -130,14 +130,11 @@ void GPipe::toFile(const char* szFilename)
 
 
 
-/*static*/ int GApp::launchDaemon(DaemonMainFunc pDaemonMain, void* pArg)
+/*static*/ void GApp::launchDaemon(DaemonMainFunc pDaemonMain, void* pArg, const char* stdoutFilename, const char* stderrFilename)
 {
 #ifdef WINDOWS
-	// Windows isn't POSIX compliant and it has its own process system that
-	// isn't really friendly to launching daemons.  You're supposed to create
-	// a "service", but I don't know how to do that (and I'm too lazy to learn
-	// something that can't generalize off a proprietary platform) so let's
-	// just launch it like a normal app and be happy with that.
+	// This method isn't implemented on Windows yet, so we'll just
+	// call straight through for now.
 	pDaemonMain(pArg);
 	return 0;
 #else
@@ -145,16 +142,51 @@ void GPipe::toFile(const char* szFilename)
 	// Fork the first time
 	int firstPid = fork();
 	if(firstPid < 0)
-		throw "Error forking (the first time) in GApp::LaunchDaemon";
-	if(firstPid)
-		return firstPid;
+		throw "Error forking off the child process in GApp::LaunchDaemon";
+	if(firstPid) // If I am the parent process...
+	{
+		int status;
+		waitpid(firstPid, &status, 0); // Wait for the child process to return the pid of the grand-child daemon
+		if(WIFEXITED(status)) // If the child process terminated properly
+		{
+			int childExitStatus = WEXITSTATUS(status);
+			switch(childExitStatus)
+			{
+				case 0: return; // Everything was successfully
+				case 1: ThrowError("Failed to redirect stdout to append to ", stdoutFilename);
+				case 2: ThrowError("Failed to redirect stderr to append to ", stderrFilename);
+				case 3: ThrowError("Failed to fork off the grand-child daemon process");
+				default: ThrowError("Internal error. Unknown exit code");
+			}
+		}
+		else
+			ThrowError("The child process failed to fork off the grand-child daemon");
+	}
+
+	// If it gets to here, I am the child process
+
+	// Redirect standard output stream to a file
+	if(stdoutFilename)
+	{
+		if(!freopen(stdoutFilename, "a", stdout))
+			exit(1);
+	}
+
+	// Redirect standard error stream to a file
+	if(stderrFilename)
+	{
+		if(!freopen(stderrFilename, "a", stderr))
+			exit(2);
+	}
 
 	// Fork the second time
 	int secondPid = fork();
 	if(secondPid < 0)
-		throw "Error forking (the second time) in GApp::LaunchDaemon";
-	if(secondPid)
-		return secondPid;
+		exit(3); // error forking off the grand-child process
+	if(secondPid) // If I am the child process...
+		exit(0); // Everything worked!
+
+	// If it gets to here, I am the grand-child daemon
 
 	// Drop my process group leader and become my own process group leader
 	// (so the process isn't terminated when the group leader is killed)
@@ -547,6 +579,40 @@ void GApp::enableFloatingPointExceptions()
 #endif
 }
 
+// static
+bool GApp::openUrlInBrowser(const char* szUrl)
+{
+#ifdef WINDOWS
+	// Windows
+	int nRet = (int)ShellExecute(NULL, NULL, szUrl, NULL, NULL, SW_SHOW);
+	return nRet > 32;
+#else
+#	ifdef DARWIN
+	// Mac
+	GTEMPBUF(char, pBuf, 32 + strlen(szUrl));
+	strcpy(pBuf, "open ");
+	strcat(pBuf, szUrl);
+	strcat(pBuf, " &");
+	return system(pBuf) == 0;
+#	else // DARWIN
+	GTEMPBUF(char, pBuf, 32 + strlen(szUrl));
+
+	// Gnome
+	strcpy(pBuf, "gnome-open ");
+	strcat(pBuf, szUrl);
+	if(system(pBuf) != 0)
+	{
+		// KDE
+		//strcpy(pBuf, "kfmclient exec ");
+		strcpy(pBuf, "konqueror ");
+		strcat(pBuf, szUrl);
+		strcat(pBuf, " &");
+		return system(pBuf) == 0;
+	}
+#	endif // !DARWIN
+#endif // !WINDOWS
+	return true;
+}
 
 
 

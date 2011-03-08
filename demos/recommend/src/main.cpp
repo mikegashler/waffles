@@ -1692,45 +1692,16 @@ void Server::deserializeState(GTwtNode* pNode)
 
 
 
-void OpenUrl(const char* szUrl)
-{
-#ifdef WINDOWS
-	// Windows
-	ShellExecute(NULL, NULL, szUrl, NULL, NULL, SW_SHOW);
-#else
-#ifdef DARWIN
-	// Mac
-	GTEMPBUF(char, pBuf, 32 + strlen(szUrl));
-	strcpy(pBuf, "open ");
-	strcat(pBuf, szUrl);
-	strcat(pBuf, " &");
-	system(pBuf);
-#else // DARWIN
-	GTEMPBUF(char, pBuf, 32 + strlen(szUrl));
-
-	// Gnome
-	strcpy(pBuf, "gnome-open ");
-	strcat(pBuf, szUrl);
-	if(system(pBuf) != 0)
-	{
-		// KDE
-		//strcpy(pBuf, "kfmclient exec ");
-		strcpy(pBuf, "konqueror ");
-		strcat(pBuf, szUrl);
-		strcat(pBuf, " &");
-		if(system(pBuf) != 0)
-			cout << "Failed to open " << szUrl << ". Please open it manually.\n";
-	}
-#endif // !DARWIN
-#endif // !WINDOWS
-}
-
 void LaunchBrowser(const char* szAddress, GRand* pRand)
 {
 	string s = szAddress;
 	s += "/rec?nc=";
 	s += to_str((size_t)pRand->next());
-	OpenUrl(s.c_str());
+	if(!GApp::openUrlInBrowser(s.c_str()))
+	{
+		cout << "Failed to open the URL: " << s.c_str() << "\nPlease open this URL manually.\n";
+		cout.flush();
+	}
 }
 
 void redirectStandardStreams(const char* pPath)
@@ -1753,10 +1724,6 @@ void redirectStandardStreams(const char* pPath)
 	}
 }
 
-#ifndef _DEBUG
-#	define RUN_AS_DAEMON
-#endif
-
 void doit(void* pArg)
 {
 	{
@@ -1767,13 +1734,8 @@ void doit(void* pArg)
 #endif
 		size_t seed = getpid() * (size_t)time(NULL);
 		GRand prng(seed);
-#ifdef RUN_AS_DAEMON
-		redirectStandardStreams((const char*)pArg);
-		Server server(port, &prng);
-#else
 		Server server(port, &prng);
 		LaunchBrowser(server.myAddress(), &prng);
-#endif
 		server.go();
 	}
 	cout << "Goodbye.\n";
@@ -1787,8 +1749,8 @@ void doItAsDaemon()
 	s1 += "stdout.log";
 	string s2 = path;
 	s2 += "stderr.log";
-	int pid = GApp::launchDaemon(doit, path);
-	cout << "Daemon running.\n	pid=" << pid << "\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
+	GApp::launchDaemon(doit, path, s1.c_str(), s2.c_str());
+	cout << "Daemon running.\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
 }
 
 int main(int nArgs, char* pArgs[])
@@ -1796,11 +1758,8 @@ int main(int nArgs, char* pArgs[])
 	int nRet = 1;
 	try
 	{
-#ifdef RUN_AS_DAEMON
-		doItAsDaemon();
-#else
 		doit(NULL);
-#endif
+		//doItAsDaemon();
 	}
 	catch(std::exception& e)
 	{

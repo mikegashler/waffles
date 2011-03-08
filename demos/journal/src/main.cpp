@@ -925,44 +925,21 @@ void LaunchBrowser(const char* szAddress)
 	GTEMPBUF(char, szUrl, addrLen + 20);
 	strcpy(szUrl, szAddress);
 	strcpy(szUrl + addrLen, "/main.hbody");
-	OpenUrl(szUrl);
-}
-
-void redirectStandardStreams(const char* pPath)
-{
-	string s1(pPath);
-	s1 += "stdout.log";
-	if(!freopen(s1.c_str(), "a", stdout))
+	if(!GApp::openUrlInBrowser(szUrl))
 	{
-		cout << "Error redirecting stdout\n";
-		cerr << "Error redirecting stdout\n";
-		ThrowError("Error redirecting stdout");
-	}
-	string s2(pPath);
-	s2 += "stderr.log";
-	if(!freopen(s2.c_str(), "a", stderr))
-	{
-		cout << "Error redirecting stderr\n";
-		cerr << "Error redirecting stderr\n";
-		ThrowError("Error redirecting stderr");
+		cout << "Failed to open the URL: " << szUrl << "\nPlease open this URL manually.\n";
+		cout.flush();
 	}
 }
-
-// ********* Uncomment the following line to run as a daemon **********
-//#define RUN_AS_DAEMON
 
 void doit(void* pArg)
 {
 	int port = 8989;
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	GRand prng(seed);
-#ifdef RUN_AS_DAEMON
-	redirectStandardStreams((const char*)pArg);
-	Server server(port, &prng);
-#else
 	Server server(port, &prng);
 	LaunchBrowser(server.myAddress());
-#endif
+
 	// Pump incoming HTTP requests (this is the main loop)
 	server.go();
 	cout << "Goodbye.\n";
@@ -976,8 +953,8 @@ void doItAsDaemon()
 	s1 += "stdout.log";
 	string s2 = path;
 	s2 += "stderr.log";
-	int pid = GApp::launchDaemon(doit, path);
-	cout << "Daemon running.\n	pid=" << pid << "\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
+	GApp::launchDaemon(doit, path, s1.c_str(), s2.c_str());
+	cout << "Daemon running.\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
 }
 
 int main(int nArgs, char* pArgs[])
@@ -985,11 +962,8 @@ int main(int nArgs, char* pArgs[])
 	int nRet = 1;
 	try
 	{
-#ifdef RUN_AS_DAEMON
-		doItAsDaemon();
-#else
 		doit(NULL);
-#endif
+		//doItAsDaemon();
 	}
 	catch(std::exception& e)
 	{
