@@ -140,7 +140,12 @@ void GSparseMatrix::copyFrom(GMatrix* that)
 
 void GSparseMatrix::newRow()
 {
-	m_rows.resize(m_rows.size() + 1);
+	newRows(1);
+}
+
+void GSparseMatrix::newRows(size_t n)
+{
+	m_rows.resize(m_rows.size() + n);
 }
 
 void GSparseMatrix::copyRow(Map& row)

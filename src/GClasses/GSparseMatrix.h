@@ -102,6 +102,9 @@ public:
 	/// Adds a new empty row to this matrix
 	void newRow();
 
+	/// Adds n new empty rows to this matrix
+	void newRows(size_t n);
+
 	/// Adds a new row to this matrix by copying the parameter row
 	void copyRow(Map& row);
 

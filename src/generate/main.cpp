@@ -1465,10 +1465,11 @@ void docsToSparseMatrix(GArgReader& args)
 			useStemmer = false;
 		else if(args.if_pop("-binary"))
 			binary = true;
-		else if(args.if_pop("-featuresfile"))
+		else if(args.if_pop("-out"))
+		{
 			featuresFilename = args.pop_string();
-		else if(args.if_pop("-labelsfile"))
 			labelsFilename = args.pop_string();
+		}
 		else if(args.if_pop("-vocabfile"))
 			vocabFile = args.pop_string();
 		else

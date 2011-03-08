@@ -242,7 +242,13 @@ public:
 					if(!pChoice)
 						pChoice = globalUsageNode(arg.c_str());
 					response << "	<tr><td valign=top>" << pChoice->tok() << "</td>";
-					response << "<td valign=top><input type=\"text\" name=\"" << index << "\" /></td>";
+					response << "<td valign=top><input type=\"text\" name=\"" << index << "\" ";
+					string s = pChoice->default_value();
+					if(s.length() == 0)
+						s = m_pNode->default_value();
+					if(s.length() > 0)
+						response << "value=\"" << s << "\"";
+					response << "/></td>";
 					response << "<td>" << pChoice->descr() << "<br><br></td></tr><br>\n";
 					index++;
 				}
@@ -696,6 +702,7 @@ void LaunchBrowser(const char* szAddress)
 	GTEMPBUF(char, szUrl, addrLen + 20);
 	strcpy(szUrl, szAddress);
 	strcpy(szUrl + addrLen, "/wizard");
+	cout << "Opening browser to: " << szUrl << "\n";
 	if(!GApp::openUrlInBrowser(szUrl))
 	{
 		cout << "Failed to open the URL: " << szUrl << "\nPlease open this URL manually.\n";

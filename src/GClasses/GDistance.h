@@ -46,9 +46,7 @@ public:
         /// relation given in init.  By default uses
         /// dissimilarity(const double*, const double*) so subclassers
         /// only need to change that method.
-        virtual double dissimilarity(const std::vector<double> & a,
-                                     const std::vector<double> & b);
-        
+        virtual double dissimilarity(const std::vector<double> & a, const std::vector<double> & b);
 
         /// Computes the dissimilarity between the two specified vectors
         virtual double dissimilarity(const double* pA, const double* pB) = 0;
@@ -56,17 +54,17 @@ public:
         /// Return dissimilarity(a,b).  Allowss dissimilarity metrics
         /// to be used as function objects.  Do not override.
         /// Override dissimilarity(a,b) instead.  See GDissimilarityMetric::dissimilarity(const std::vector<double>&, const std::vector<double>&)
-        inline double operator()(const std::vector<double> & a,
-			  const std::vector<double> & b){
-	  return dissimilarity(a,b);
+        inline double operator()(const std::vector<double> & a, const std::vector<double> & b)
+	{
+		return dissimilarity(a,b);
 	}
 
-        /// Return dissimilarity(pA,pB).  Allows dissimilarity metrics to
+        /// Return dissimilarity(pA, pB).  Allows dissimilarity metrics to
         /// be used as function objects.  Do not override.  Override
         /// dissimilarity(pA,pB) instead.  See GDissimilarityMetric::dissimilarity(const double*, const double*)
-        inline double operator()(const double* pA,
-			  const double* pB){
-	  return dissimilarity(pA,pB);
+        inline double operator()(const double* pA, const double* pB)
+	{
+		return dissimilarity(pA,pB);
 	}
 
         /// Returns the relation that specifies the meaning of the vector elements

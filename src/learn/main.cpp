@@ -13,6 +13,7 @@
 #include "../GClasses/GMatrix.h"
 #include "../GClasses/GCluster.h"
 #include "../GClasses/GDecisionTree.h"
+#include "../GClasses/GDistance.h"
 #include "../GClasses/GDistribution.h"
 #include "../GClasses/GEnsemble.h"
 #include "../GClasses/GFile.h"
@@ -296,6 +297,10 @@ GKNN* InstantiateKNN(GRand* pRand, GArgReader& args)
 			pModel->setInterpolationMethod(GKNN::Mean);
 		else if(args.if_pop("-scalefeatures"))
 			pModel->setOptimizeScaleFactors(true);
+		else if(args.if_pop("-cosine"))
+			pModel->setMetric(new GCosineSimilarity(), true);
+		else if(args.if_pop("-pearson"))
+			pModel->setMetric(new GPearsonCorrelation(), true);
 		else
 			ThrowError("Invalid knn option: ", args.peek());
 	}

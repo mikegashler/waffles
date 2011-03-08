@@ -229,7 +229,7 @@ void test_document_classification()
 		GFile::makeDir("class_ham");
 		TempFileMaker tempFile13("class_ham/a.txt", "Dear Dr. Johnson, I am writing to inquire whether you will be attending the conference on document classification. I am seeking an opportunity to meet with you. Sincerely, Me.");
 		TempFileMaker tempFile14("class_ham/b.txt", "Dear Bob, Are you there? I have been looking for you all over. I am on the fourth floor of the computer building. Didn't we agree to meet at 2:30pm?");
-		TempFileMaker tempFile15("class_ham/c.txt", "Dear Susan, Thank you for baking me those delicions cinnamon rolls. I have never eaten anything so delicious in my entire life. You should become a professional chef. Sincerely, Me.");
+		TempFileMaker tempFile15("class_ham/c.txt", "Dear Susan, Thank you for baking me those delicious cinnamon rolls. I have never eaten anything so delicious in my entire life. You should become a professional chef. Sincerely, Me.");
 		TempFileMaker tempFile16("class_ham/d.txt", "Bob, I cannot tell you how dissapointed I am that you have chosen to attend Dr. Johnson's conference. He is a poser, and I think you should talk to Susan about it first.");
 		TempFileMaker tempFile17("class_ham/e.txt", "What do you mean? Of course I like cinnamon rolls. Everybody likes them! Unfortunately, my diet does not permit me to indulge in such frivoloties at this time. I sincerely hope you will make more when I am done with this.");
 		TempFileMaker tempFile18("class_ham/f.txt", "Of course. How else would a slinky become lodged in the center of a giant cube of Jello? Meet me in the computer building five minutes before it starts, and we'll attend the conference together. See you then. --Bob");
@@ -244,7 +244,7 @@ void test_document_classification()
 
 		// Shuffle the data
 		GPipe pipeStdOut;
-		sysExec("waffles_transform", "sparseshuffle features.sparse -labels labels.arff l2.arff", &pipeStdOut);
+		sysExec("waffles_transform", "sparseshuffle features.sparse -seed 0 -labels labels.arff l2.arff", &pipeStdOut);
 		pipeStdOut.toFile("f2.sparse");
 		TempFileMaker tempF2("f2.sparse", NULL);
 		TempFileMaker tempL2("l2.arff", NULL);
@@ -252,7 +252,8 @@ void test_document_classification()
 		// Make a set of models
 		vector<string> models;
 		models.push_back("naivebayes");
-		models.push_back("knn 3");
+		models.push_back("knn 3 -cosine");
+		models.push_back("knn 3 -pearson");
 		//models.push_back("neuralnet");
 
 		// Do cross-validation
@@ -287,7 +288,7 @@ void test_document_classification()
 
 				// Test the model
 				GPipe pipeStdOut3;
-				sysExec("waffles_learn", "testsparse model.twt test.sparse test.arff", &pipeStdOut3);
+				sysExec("waffles_learn", "testsparse -seed 0 model.twt test.sparse test.arff", &pipeStdOut3);
 				size_t len = pipeStdOut3.read(buf, 256);
 				if(len >= 256)
 					ThrowError("Need a bigger buffer");
@@ -297,10 +298,13 @@ void test_document_classification()
 			}
 		}
 		double resultsNaiveBayes = results.mean(0);
-		double resultsKnn = results.mean(1);
-		if(resultsNaiveBayes < 0.4)
+		double resultsKnnCosine = results.mean(1);
+		double resultsKnnPearson = results.mean(2);
+		if(resultsNaiveBayes < 0.40)
 			ThrowError("failed");
-		if(resultsKnn < 0.3)
+		if(resultsKnnCosine < 0.83)
+			ThrowError("failed");
+		if(resultsKnnPearson < 0.50)
 			ThrowError("failed");
 	}
 	rmdir("class_ham");
@@ -340,8 +344,6 @@ bool runTest(const char* szTestName, TestFunc pTest)
 
 void RunAllTests()
 {
-	runTest("waffles_transform mergevert", test_transform_mergevert);
-
 	// Class tests
 	runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 	runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);

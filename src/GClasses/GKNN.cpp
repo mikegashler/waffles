@@ -379,6 +379,7 @@ void GKNN::trainSparse(GSparseMatrix& features, GMatrix& labels)
 	enableIncrementalLearning(pFeatureRel, labels.relation());
 
 	// Copy the training data
+	m_pSparseFeatures->newRows(features.rows());
 	m_pSparseFeatures->copyFrom(&features);
 	m_pLabels->copy(&labels);
 }

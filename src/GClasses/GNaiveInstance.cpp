@@ -88,7 +88,7 @@ GNaiveInstance::GNaiveInstance(GTwtNode* pNode, GRand& rand)
 {
 	m_pAttrs = NULL;
 	m_pValueSums = NULL;
-	m_nNeighbors = (int)pNode->field("neighbors")->asInt();
+	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
 	m_internalFeatureDims = (size_t)pNode->field("ifd")->asInt();
 	m_internalLabelDims = (size_t)pNode->field("ild")->asInt();
 	sp_relation pFeatureRel = new GUniformRelation(m_internalFeatureDims);

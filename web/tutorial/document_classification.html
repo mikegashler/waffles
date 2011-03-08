@@ -27,22 +27,42 @@
 <pre>
 	waffles_generate docstosparsematrix ham spam auto_responses
 </pre>
-This creates a file named "docs.sparse", which is a sparse matrix representing all of the word counts in all of the documents in those three folders.</p>
+This creates two files, named "features.sparse" and "labels.arff". features.sparse is a sparse feature matrix, where each row represents a document, and each element represents the occurrence of each word in the document. labels.arff is a single-column matrix that specifies the class of each document.</p>
 
-</p>The values in each element of the matrix are computed as a*log(b/c)/d, where 'a' is the number of times the word occurs in this document, 'b' is the total number of documents, 'c' is the number of documents that contain this word, and 'd' is the max number of times this word occurs in any document.</p>
+</p>The values in each element of the matrix are computed as a/b*log(c/d), where 'a' is the number of times the word occurs in this document, 'b' is the max number of times this word occurs in any document, 'c' is the total number of documents, and 'd' is the number of documents that contain the word.</p>
 
-<p>If you are planning to use naive Bayes to classify your documents, a common choice, then you need discrete values, instead of real values, in your matrix. You can use the "-binary" flag to tell it to just use a 0 or a 1, depending on whether the word occurs at all in each document. Also, by default, the words are stemmed using the Porter stemming algorithm. If you're not using English, this will probably just make a mess of your words. You can suppress this feature with the "-nostem" flag. Also, you can specify the output filename. Here's an example:
+<p>By default, the words are stemmed using the Porter stemming algorithm. If you're not using English, this might just make a mess of your words. You can suppress this feature with the "-nostem" flag.:
 <pre>
-	waffles_generate docstosparsematrix -outfile mydocs.sparse -binary -nostem ham spam auto_responses
+	waffles_generate docstosparsematrix -nostem ham spam auto_responses
 </pre></p>
 
-<p>Now that you've got your data into a sparse matrix, you might want to shuffle the rows, and perhaps divide the data into a training and test set.
+<p>Now that you've got your data into a sparse matrix, you might want to shuffle the rows. This command will shuffle features.arff and labels.arff in a manner that preserves corresponding rows:
 <pre>
-	waffles_transform sparseshuffle mydocs.sparse > shuffled.sparse
-	waffles_transform sparsesplit shuffled.sparse 250 train.sparse test.sparse
+	waffles_transform sparseshuffle features.sparse -labels labels.arff l_shuffled.arff > f_shuffled.sparse
 </pre></p>
+
+<p>Next, let's use cross-validation to decide which model is the best. The following commands will divide f_shuffled.sparse into two files named train.sparse and test.sparse, and will divide l_shuffled.arff into two files named train.arff and test.arff:
+<pre>
+	sparsesplitfold f_shuffled.sparse 0 10
+	splitfold l_shuffled.arff 0 10
+</pre>
+This example shows how to divide the data for fold 0. To do ten-fold cross-validation, we would repeat these commands for each fold from 0 to 9.</p>
 
 <p>Now, it's time to train a classifier. First, you need to select a classification algorithm that can be trained with a sparse matrix. These are the algorithms that inherit from GIncrementalLearner. To see the full list of choices, go the the <a href="../apidoc/html/index.html">API docs</a>, open up the "class hierarchy", then navigate to GTransducer->GSupervisedLearner->GIncrementalLearner. The classes that inherit from GIncrementalLearner are the ones that can train on a sparse matrix. GKNN and GNaiveBayes are probably the most common choices for this task.</p>
+
+<p>Let's train a 7-nn instance learner that uses the cosine method to evaluate the similarity between sparse vectors:
+<pre>
+	waffles_learn trainsparse train.sparse train.arff knn 7 -cosine > model.twt
+</pre></p>
+
+<p>And finally, let's test our trained model to see how well it classifies the documents in the test portion of our data:
+<pre>
+	waffles_learn testsparse model.twt test.sparse test.arff
+</pre>
+This will print a predictive accuracy score to stdout.<p>
+
+
+
 
 
 
