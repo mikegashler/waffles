@@ -817,12 +817,16 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-out [filename]=hist.png", "Specify the name of the output file. (If not specified, the default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
 		pOpts->add("-range [xmin] [xmax] [ymax]", "Specify the range of the histogram plot");
 	}
-	UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y]", "Plot the model space of a trained supervised learning algorithm.");
+	UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
 	{
 		pModel->add("[model-file]=model.twt", "The filename of the trained model. (You can use \"waffles_learn train\" to make a model file.)");
 		pModel->add("[dataset]=train.arff", "The filename of a dataset in arff format to be plotted. It can be the training set that was used to train the model, or a test set that it hasn't yet seen.");
 		pModel->add("[attr-x]=0", "The zero-based index of a continuous feature attributes for the horizontal axis.");
 		pModel->add("[attr-y]=1", "The zero-based index of a continuous feature attributes for the vertical axis.");
+		UsageNode* pOpts = pModel->add("<options>");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-size [width] [height]", "Specify the size of the image.");
+		pOpts->add("-pointradius [size]=3.0", "Specify the size of the dots used to represent each instance.");
 	}
 	UsageNode* pOL = pRoot->add("overlay [png1] [png2] <options>", "Make an image comprised of [png1] with [png2] on top of it. The two images must be the same size.");
 	{

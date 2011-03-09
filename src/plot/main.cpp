@@ -1418,6 +1418,21 @@ void model(GArgReader& args)
 	int labelDim = 0;
 	float dotRadius = 3.0f;
 	string filename = "plot.png";
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-size"))
+		{
+			width = args.pop_uint();
+			height = args.pop_uint();
+		}
+		else if(args.if_pop("-pointradius"))
+			dotRadius = (float)args.pop_double();
+		else if(args.if_pop("-out"))
+			filename = args.pop_string();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
 
 	// Compute label range
 	double labelMin = 0.0;
@@ -1435,6 +1450,7 @@ void model(GArgReader& args)
 	GTEMPBUF(double, features, pData->cols());
 	double* labels = features + featureDims;
 	unsigned int* pPix = image.pixels();
+	size_t step = std::max((size_t)1, pData->rows() / 100);
 	double xx, yy;
 	for(int y = 0; y < height; y++)
 	{
@@ -1446,7 +1462,8 @@ void model(GArgReader& args)
 			size_t r = 0;
 			size_t g = 0;
 			size_t b = 0;
-			for(size_t i = 0; i < pData->rows(); i++)
+			size_t count = 0;
+			for(size_t i = 0; i < pData->rows(); i += step)
 			{
 				GVec::copy(features, pData->row(i), featureDims);
 				features[attrx] = xx;
@@ -1456,10 +1473,11 @@ void model(GArgReader& args)
 				r += gRed(hue);
 				g += gGreen(hue);
 				b += gBlue(hue);
+				count++;
 			}
-			r /= pData->rows();
-			g /= pData->rows();
-			b /= pData->rows();
+			r /= count;
+			g /= count;
+			b /= count;
 			*pPix = gARGB(0xff, ClipChan(r), ClipChan(g), ClipChan(b));
 			pPix++;
 		}

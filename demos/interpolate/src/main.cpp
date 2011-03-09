@@ -68,8 +68,11 @@ protected:
 	GMatrix* m_pTrainingLabels;
 	GNeuralNet* m_pNN;
 	GNeuralNet* m_pNN2;
+	GSupervisedLearner* m_pTrainedModel;
 	GSpinLock m_weightsLock;
-	size_t m_workerMode; // 0 = exit, 1 = hybernate, 2 = yield, 3 = train
+	volatile size_t m_workerMode; // 0 = exit, 1 = hybernate, 2 = yield, 3 = train
+	bool m_testing;
+	GCoordVectorIterator* m_pCvi;
 
 public:
 	InterpolateDialog(InterpolateController* pController, int w, int h)
@@ -95,6 +98,7 @@ public:
 		m_pModels->setRowHeight(36);
 		m_pModels->setColumnWidth(0, 30);
 		m_pModels->setColumnWidth(1, 242);
+		m_pTrainedModel = NULL;
 		m_pNN = NULL;
 		m_pNN2 = NULL;
 
@@ -121,6 +125,11 @@ public:
 			pPix++;
 		}
 
+		ranges[0] = m_pImageBig->width();
+		ranges[1] = m_pImageBig->height();
+		m_pCvi = new GCoordVectorIterator(2, ranges);
+		m_testing = false;
+
 		// Launch the worker thread
 		m_workerMode = 1; // hybernate
 		/*HANDLE threadHandle = */GThread::spawnThread(launchworkerThread, this);
@@ -137,8 +146,10 @@ public:
 		delete(m_pImageSmall);
 		delete(m_pImageBig);
 		delete(m_pRand);
+		delete(m_pTrainedModel);
 		delete(m_pNN);
 		delete(m_pNN2);
+		delete(m_pCvi);
 	}
 
 	virtual void onCheckBulletHole(GWidgetBulletHole* pBullet)
@@ -162,6 +173,7 @@ public:
 
 	void addModel(const char* descr)
 	{
+		m_workerMode = 1; // hybernate
 		int index = m_pModels->rowCount();
 		m_pModels->setWidget(0, index, new GWidgetBulletHole(m_pModels, 0, 0, 20, 20));
 		GWidgetTextLabel* pDescription = new GWidgetTextLabel(m_pModels, 0, 0, 242, 36, descr);
@@ -169,7 +181,18 @@ public:
 		m_pModels->setWidget(1, index, pDescription);
 	}
 
-	void doModel(GTransducer* pModel)
+	void doSupervisedLearner(GSupervisedLearner* pModel)
+	{
+		m_pImageBig->clear(0x003060);
+		m_workerMode = 1; // hybernate
+		delete(m_pTrainedModel);
+		m_pTrainedModel = pModel;
+		pModel->train(*m_pTrainingFeatures, *m_pTrainingLabels);
+		m_pCvi->reset();
+		m_testing = true;
+	}
+
+	void doTransducer(GTransducer* pModel)
 	{
 		// Make the unlabeled data
 		GMatrix dataUnlabeled(m_pImageBig->width() * m_pImageBig->height(), 2);
@@ -204,6 +227,7 @@ public:
 			pPix++;
 		}
 		m_pCanvasBig->setImage(m_pImageBig);
+		delete(pModel);
 	}
 
 	// takes ownership of pNN
@@ -230,7 +254,7 @@ public:
 		addModel("8-nn, equal weighting"); // 5
 		addModel("8-nn, linear weighting"); // 6
 		addModel("Naive Bayes"); // 7
-		addModel("Decision tree"); // 8
+		addModel("Decision tree with random divisions"); // 8
 		addModel("MeanMargins tree"); // 9
 		addModel("Bag of 30 Decision trees"); // 10
 		addModel("Bag of 30 MeanMargins trees"); // 11
@@ -246,86 +270,87 @@ public:
 		m_workerMode = 1;
 		if(index == 0)
 		{
-			GKNN model(1, m_pRand);
-			doModel(&model);
+			GKNN* pModel = new GKNN(1, m_pRand);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 1)
 		{
-			GKNN model(2, m_pRand);
-			model.setInterpolationMethod(GKNN::Mean);
-			doModel(&model);
+			GKNN* pModel = new GKNN(2, m_pRand);
+			pModel->setInterpolationMethod(GKNN::Mean);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 2)
 		{
-			GKNN model(2, m_pRand);
-			model.setInterpolationMethod(GKNN::Linear);
-			doModel(&model);
+			GKNN* pModel = new GKNN(2, m_pRand);
+			pModel->setInterpolationMethod(GKNN::Linear);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 3)
 		{
-			GKNN model(4, m_pRand);
-			model.setInterpolationMethod(GKNN::Mean);
-			doModel(&model);
+			GKNN* pModel = new GKNN(4, m_pRand);
+			pModel->setInterpolationMethod(GKNN::Mean);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 4)
 		{
-			GKNN model(4, m_pRand);
-			model.setInterpolationMethod(GKNN::Linear);
-			doModel(&model);
+			GKNN* pModel = new GKNN(4, m_pRand);
+			pModel->setInterpolationMethod(GKNN::Linear);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 5)
 		{
-			GKNN model(8, m_pRand);
-			model.setInterpolationMethod(GKNN::Mean);
-			doModel(&model);
+			GKNN* pModel = new GKNN(8, m_pRand);
+			pModel->setInterpolationMethod(GKNN::Mean);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 6)
 		{
-			GKNN model(8, m_pRand);
-			model.setInterpolationMethod(GKNN::Linear);
-			doModel(&model);
+			GKNN* pModel = new GKNN(8, m_pRand);
+			pModel->setInterpolationMethod(GKNN::Linear);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 7)
 		{
-			GNaiveBayes model(m_pRand);
-			doModel(&model);
+			GNaiveBayes* pModel = new GNaiveBayes(m_pRand);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 8)
 		{
-			GDecisionTree model(m_pRand);
-			doModel(&model);
+			GDecisionTree* pModel = new GDecisionTree(m_pRand);
+			pModel->useRandomDivisions(1);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 9)
 		{
-			GMeanMarginsTree model(m_pRand);
-			doModel(&model);
+			GMeanMarginsTree* pModel = new GMeanMarginsTree(m_pRand);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 10)
 		{
-			GBag bag(m_pRand);
+			GBag* pBag = new GBag(m_pRand);
 			for(int i = 0; i < 30; i++)
 			{
 				GDecisionTree* pTree = new GDecisionTree(m_pRand);
 				pTree->useRandomDivisions();
-				bag.addLearner(pTree);
+				pBag->addLearner(pTree);
 			}
-			doModel(&bag);
+			doSupervisedLearner(pBag);
 		}
 		else if(index == 11)
 		{
-			GBag bag(m_pRand);
+			GBag* pBag = new GBag(m_pRand);
 			for(int i = 0; i < 30; i++)
 			{
 				GMeanMarginsTree* pTree = new GMeanMarginsTree(m_pRand);
-				bag.addLearner(pTree);
+				pBag->addLearner(pTree);
 			}
-			doModel(&bag);
+			doSupervisedLearner(pBag);
 		}
 		else if(index == 12)
 		{
-			GNeuralNet model(m_pRand);
-			model.setActivationFunction(new GActivationIdentity(), true);
-			doModel(&model);
+			GNeuralNet* pModel = new GNeuralNet(m_pRand);
+			pModel->setActivationFunction(new GActivationIdentity(), true);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 13)
 		{
@@ -336,13 +361,13 @@ public:
 		}
 		else if(index == 14)
 		{
-			GNaiveInstance model(20);
-			doModel(&model);
+			GNaiveInstance* pModel = new GNaiveInstance(20);
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 15)
 		{
-			GBaselineLearner model;
-			doModel(&model);
+			GBaselineLearner* pModel = new GBaselineLearner();
+			doSupervisedLearner(pModel);
 		}
 		else if(index == 16)
 		{
@@ -360,7 +385,9 @@ public:
 	{
 		while(m_workerMode > 0)
 		{
-			if(m_workerMode == 3) // train
+			if(m_workerMode == 2) // yield
+				GThread::sleep(0);
+			else if(m_workerMode == 3) // train
 			{
 				GSpinLockHolder hLock(&m_weightsLock, "training the network");
 				for(size_t i = 0; i < 100; i++)
@@ -369,8 +396,6 @@ public:
 					m_pNN->trainIncremental(m_pTrainingFeatures->row(r), m_pTrainingLabels->row(r));
 				}
 			}
-			else if(m_workerMode == 2) // yield
-				GThread::sleep(0);
 			else
 				GThread::sleep(200); // hybernate
 		}
@@ -399,17 +424,17 @@ public:
 			size_t ranges[2];
 			ranges[0] = m_pImageBig->width();
 			ranges[1] = m_pImageBig->height();
-			GCoordVectorIterator cvi(2, ranges);
+			m_pCvi->reset();
 			unsigned int* pPix = m_pImageBig->pixels();
-			for(size_t i = 0; true; i++)
+			while(true)
 			{
-				cvi.currentNormalized(row);
+				m_pCvi->currentNormalized(row);
 				m_pNN2->predict(row, row + 2);
 				int r = ClipChan((int)(row[2] * 255.0));
 				int g = ClipChan((int)(row[3] * 255.0));
 				int b = ClipChan((int)(row[4] * 255.0));
 				*pPix = gARGB(0xff, r, g, b);			
-				if(!cvi.advance())
+				if(!m_pCvi->advance())
 					break;
 				pPix++;
 			}
@@ -417,6 +442,33 @@ public:
 
 			// Slow down the display thread a little bit
 			GThread::sleep(100);
+		}
+		else if(m_testing)
+		{
+			double startTime = GTime::seconds();
+
+			// Display the image
+			GTEMPBUF(double, row, 5);
+			while(true)
+			{
+				for(size_t i = 0; i < 100; i++)
+				{
+					m_pCvi->currentNormalized(row);
+					m_pTrainedModel->predict(row, row + 2);
+					int r = ClipChan((int)(row[2] * 255.0));
+					int g = ClipChan((int)(row[3] * 255.0));
+					int b = ClipChan((int)(row[4] * 255.0));
+					m_pImageBig->setPixel(m_pCvi->current()[0], m_pCvi->current()[1], gARGB(0xff, r, g, b));
+					if(!m_pCvi->advance())
+					{
+						m_testing = false;
+						break;
+					}
+				}
+				if(GTime::seconds() - startTime >= 0.25)
+					break;
+			}
+			m_pCanvasBig->setImage(m_pImageBig);
 		}
 	}
 };
