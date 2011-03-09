@@ -92,7 +92,7 @@ GIncrementalLearnerQAgent::GIncrementalLearnerQAgent(sp_relation& pObsControlRel
 	pQTable->enableIncrementalLearning(pObsControlRelation, pQRelation);
 
 	// Init other stuff
-	m_pBuf = new double[pQRelation->size()];
+	m_pBuf = new double[m_senseDims + m_actionDims];
 	m_softMaxThresh = softMaxThresh;
 	m_pActionIterator = pActionIterator;
 	pActionIterator->reset(pInitialState);
