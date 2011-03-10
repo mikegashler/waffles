@@ -326,7 +326,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-cosine", "Use the cosine method to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
 	}
 	pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (A powerful model can be created using a bagging ensemble of buckets, that each contain one decision tree and one mean margins tree. This combination has been shown to do better than even much larger ensembles of random trees.)");
-	UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm. Supports only discrete features and labels, so it is common to wrap it with a discretizing filter.");
+	UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm.");
 	{
 		UsageNode* pOpts = pNB->add("<options>");
 		pOpts->add("-ess [value]=0.2", "Specifies an equivalent sample size to prevent unsampled values from dominating the joint distribution. Good values typically range between 0 and 1.5.");
@@ -338,7 +338,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-friends [intrinsic-dims] [thresh]", "Use the manifold-friend-finding algorithm instead of the nearest Euclidean neighbors.");
 		pOpts->add("-prune", "Prune shortcuts. (Only effective if used with the -friends option.)");
 	}
-	UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network. It is trained with online backpropagation. Only continuous values are supported, so it is common to wrap it in a nominaltocat filter so it can handle discrete attributes too. It is also common to wrap that in a normalizing filter, to ensure that any continuous inputs are within a reasonable range.");
+	UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network. It is trained with online backpropagation.");
 	{
 		UsageNode* pOpts = pNN->add("<options>");
 		pOpts->add("-addlayer [size]=16", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
@@ -523,7 +523,7 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pNorm->add("<options>");
 		pOpts->add("-range [min] [max]", "Specify the output min and max values. (The default is 0 1.)");
 	}
-	UsageNode* pNomToCat = pRoot->add("nominaltocat [dataset] <options>", "Convert the dataset to a categorical distribution of all real values. Columns with only two nominal values are converted to 0 or 1. If there are three or more possible values, a column is created for each value. The column corresponding to the value is set to 1, and the others are set to 0. (This is similar to Weka's NominalToBinaryFilter.)");
+	UsageNode* pNomToCat = pRoot->add("nominaltocat [dataset] <options>", "Convert all nominal attributes in the data to vectors of real values by representing them as a categorical distribution. Columns with only two nominal values are converted to 0 or 1. If there are three or more possible values, a column is created for each value. The column corresponding to the value is set to 1, and the others are set to 0. (This is similar to Weka's NominalToBinaryFilter.)");
 	{
 		UsageNode* pOpts = pNomToCat->add("<options>");
 		pOpts->add("-maxvalues [cap]=8", "Specify the maximum number of nominal values for which to create new columns. If not specified, the default is 12.");

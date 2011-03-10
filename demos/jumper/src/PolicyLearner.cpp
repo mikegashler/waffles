@@ -78,18 +78,18 @@ void manualPolicy(const double* pIn, double* pOut)
 		GVec::copy(pOut, g_tuck, LABEL_DIMS);
 }
 
-void GenerateSeedTrainingSet(GMatrix* pData, GRand* pRand)
+void GenerateSeedTrainingSet(GMatrix* pFeatures, GMatrix* pLabels, GRand* pRand)
 {
 	GAssert(FEATURE_DIMS == 3);
 	double* pPat;
 	double d;
 	for(d = 0.0; d < 1.2; d += 0.0001)
 	{
-		pPat = pData->newRow();
+		pPat = pFeatures->newRow();
 		pPat[0] = d;
 		pPat[1] = pRand->normal();
 		pPat[2] = pRand->normal();
-		manualPolicy(pPat, pPat + FEATURE_DIMS);
+		manualPolicy(pPat, pLabels->newRow());
 	}
 }
 
@@ -97,18 +97,14 @@ void Train()
 {
 	printf("Learning the seed policy...\n");
 	GRand prng(0);
-	GMixedRelation* pRel = new GMixedRelation;
-	sp_relation pRelation = pRel;
-	int i;
-	for(i = 0; i < LABEL_DIMS + FEATURE_DIMS; i++)
-		pRel->addAttr(0);
-	GMatrix data(pRelation);
-	GenerateSeedTrainingSet(&data, &prng);
+	GMatrix features(0, FEATURE_DIMS);
+	GMatrix labels(0, LABEL_DIMS);
+	GenerateSeedTrainingSet(&features, &labels, &prng);
 	GNeuralNet nn(&prng);
 	nn.addLayer(8);
 	nn.setActivationFunction(new GActivationBiDir(), true);
-	nn.train(&data, LABEL_DIMS);
-	nn.clipWeights(36.0); // ensure that network is still somewhat malleable
+	nn.train(features, labels);
+	nn.clipWeights(36.0); // ensure that the network is still somewhat malleable
 	int weightCount = nn.countWeights();
 	GTEMPBUF(double, hintVec, weightCount);
 	nn.weights(hintVec);
@@ -123,7 +119,7 @@ void Train()
 	char szBuf[64];
 	char szTime[64];
 	double err;
-	for(i = 0; i <= 25000; i++)
+	for(int i = 0; i <= 25000; i++)
 	{
 		err = search.iterate();
 		if(i % 250 == 0)
@@ -148,18 +144,14 @@ GNeuralNet* LoadPolicy(const char* szFilename, GRand* pRand)
 GNeuralNet* TrainPolicy()
 {
 	GRand* pRand = new GRand(1);
-	GMixedRelation* pRel = new GMixedRelation;
-	sp_relation pRelation = pRel;
-	int i;
-	for(i = 0; i < FEATURE_DIMS + LABEL_DIMS; i++)
-		pRel->addAttr(0);
-	GMatrix data(pRelation);
-	GenerateSeedTrainingSet(&data, pRand);
+	GMatrix features(0, FEATURE_DIMS);
+	GMatrix labels(0, LABEL_DIMS);
+	GenerateSeedTrainingSet(&features, &labels, pRand);
 	GNeuralNet* pNN = new GNeuralNet(pRand);
 	//pNN->SetMinImprovement(0.01);
 	//pNN->SetIterationsPerValidationCheck(600);
 	pNN->addLayer(4);
-	pNN->train(&data, LABEL_DIMS);
+	pNN->train(features, labels);
 	return pNN;
 }
 

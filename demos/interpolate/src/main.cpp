@@ -66,11 +66,12 @@ protected:
 	bool m_animate;
 	GMatrix* m_pTrainingFeatures;
 	GMatrix* m_pTrainingLabels;
-	GNeuralNet* m_pNN;
-	GNeuralNet* m_pNN2;
+	volatile GNeuralNet* m_pNNForTraining;
+	GNeuralNet* m_pNNCopyForVisualizing;
 	GSupervisedLearner* m_pTrainedModel;
 	GSpinLock m_weightsLock;
 	volatile size_t m_workerMode; // 0 = exit, 1 = hybernate, 2 = yield, 3 = train
+	volatile bool m_workerWorking;
 	bool m_testing;
 	GCoordVectorIterator* m_pCvi;
 
@@ -99,8 +100,8 @@ public:
 		m_pModels->setColumnWidth(0, 30);
 		m_pModels->setColumnWidth(1, 242);
 		m_pTrainedModel = NULL;
-		m_pNN = NULL;
-		m_pNN2 = NULL;
+		m_pNNForTraining = NULL;
+		m_pNNCopyForVisualizing = NULL;
 
 		// Make the training data
 		m_pTrainingFeatures = new GMatrix(m_pImageSmall->width() * m_pImageSmall->height(), 2);
@@ -132,6 +133,7 @@ public:
 
 		// Launch the worker thread
 		m_workerMode = 1; // hybernate
+		m_workerWorking = true;
 		/*HANDLE threadHandle = */GThread::spawnThread(launchworkerThread, this);
 
 		addModels();
@@ -140,15 +142,16 @@ public:
 	virtual ~InterpolateDialog()
 	{
 		m_workerMode = 0; // tell the worker thread to exit
-		GThread::sleep(2000); // todo: implement a better way to wait for the worker thread to exit
+		while(m_workerWorking)
+			GThread::sleep(0);
 		delete(m_pTrainingFeatures);
 		delete(m_pTrainingLabels);
 		delete(m_pImageSmall);
 		delete(m_pImageBig);
 		delete(m_pRand);
 		delete(m_pTrainedModel);
-		delete(m_pNN);
-		delete(m_pNN2);
+		delete(m_pNNForTraining);
+		delete(m_pNNCopyForVisualizing);
 		delete(m_pCvi);
 	}
 
@@ -233,14 +236,18 @@ public:
 	// takes ownership of pNN
 	void doBackProp(GNeuralNet* pNN)
 	{
-		delete(m_pNN);
-		m_pNN = pNN;
+		m_workerMode = 2; // yield
 		sp_relation pFeatureRel = new GUniformRelation(2);
 		sp_relation pLabelRel = new GUniformRelation(3);
-		m_pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
-		delete(m_pNN2);
-		m_pNN2 = new GNeuralNet(m_pRand);
-		m_pNN2->copyStructure(m_pNN);
+		{
+			GSpinLockHolder hLock(&m_weightsLock, "replacing the network");
+			delete(m_pNNForTraining);
+			m_pNNForTraining = pNN;
+			pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
+			delete(m_pNNCopyForVisualizing);
+			m_pNNCopyForVisualizing = new GNeuralNet(m_pRand);
+			m_pNNCopyForVisualizing->copyStructure(pNN);
+		}
 		m_workerMode = 3; // train
 	}
 
@@ -383,6 +390,7 @@ public:
 
 	void workerThread()
 	{
+		GAssert(m_workerWorking);
 		while(m_workerMode > 0)
 		{
 			if(m_workerMode == 2) // yield
@@ -390,15 +398,17 @@ public:
 			else if(m_workerMode == 3) // train
 			{
 				GSpinLockHolder hLock(&m_weightsLock, "training the network");
+				GNeuralNet* pNN = (GNeuralNet*)m_pNNForTraining;
 				for(size_t i = 0; i < 100; i++)
 				{
 					size_t r = (size_t)m_pRand->next(m_pTrainingFeatures->rows());
-					m_pNN->trainIncremental(m_pTrainingFeatures->row(r), m_pTrainingLabels->row(r));
+					pNN->trainIncremental(m_pTrainingFeatures->row(r), m_pTrainingLabels->row(r));
 				}
 			}
 			else
 				GThread::sleep(200); // hybernate
 		}
+		m_workerWorking = false;
 	}
 
 	static unsigned int launchworkerThread(void* pThis)
@@ -415,7 +425,8 @@ public:
 			m_workerMode = 2; // yield
 			{
 				GSpinLockHolder hLock(&m_weightsLock, "updating display");
-				m_pNN2->copyWeights(m_pNN);
+				GNeuralNet* pNN = (GNeuralNet*)m_pNNForTraining;
+				m_pNNCopyForVisualizing->copyWeights(pNN);
 			}
 			m_workerMode = 3; // train
 
@@ -429,7 +440,7 @@ public:
 			while(true)
 			{
 				m_pCvi->currentNormalized(row);
-				m_pNN2->predict(row, row + 2);
+				m_pNNCopyForVisualizing->predict(row, row + 2);
 				int r = ClipChan((int)(row[2] * 255.0));
 				int g = ClipChan((int)(row[3] * 255.0));
 				int b = ClipChan((int)(row[4] * 255.0));
