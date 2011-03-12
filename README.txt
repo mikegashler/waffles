@@ -4,7 +4,8 @@ Build Instructions:
 			g++
 			make
 			libpng3-dev
-			libsdl1.2-dev (needed only for the demos)
+			libsdl1.2-dev (needed only for some demo apps)
+			freeglut-dev (needed only for some demo apps)
 		2- cd src
 		3- sudo make install
 
