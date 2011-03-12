@@ -3193,46 +3193,50 @@ bool GMatrix::isHomogenous()
 	return true;
 }
 
-void GMatrix::randomlyReplaceMissingValues(size_t nAttr, GRand* pRand)
+void GMatrix::replaceMissingValuesWithBaseline(size_t nAttr)
 {
-	// Just return if there are no missing attributes
-	double dOk = m_pRelation->valueCount(nAttr) == 0 ? -1e200 : 0;
-	double* pRow;
-	size_t n, i, nStart;
-	size_t nCount = rows();
-	for(i = 0; i < nCount; i++)
+	double bl = baselineValue(nAttr);
+	size_t count = rows();
+	if(m_pRelation->valueCount(nAttr) == 0)
 	{
-		pRow = row(i);
-		if(pRow[nAttr] < dOk)
-			break;
-	}
-	if(i >= nCount)
-		return;
-
-	// Sort (which will put all missing attributes at the front)
-	sort(nAttr);
-
-	// Find where the missing values end
-	for(nStart = 0; nStart < nCount; nStart++)
-	{
-		pRow = row(nStart);
-		if(pRow[nAttr] >= dOk)
-			break;
-	}
-
-	// Replace with randomly selected good values
-	if(nStart >= nCount)
-	{
-		for(i = 0; i < nStart; i++)
-			row(i)[nAttr] = 0;
+		for(size_t i = 0; i < count; i++)
+		{
+			if(row(i)[nAttr] == UNKNOWN_REAL_VALUE)
+				row(i)[nAttr] = bl;
+		}
 	}
 	else
 	{
-		for(i = 0; i < nStart; i++)
+		for(size_t i = 0; i < count; i++)
 		{
-			n = (size_t)pRand->next(nCount - nStart) + nStart;
-			row(i)[nAttr] = row(n)[nAttr];
+			if(row(i)[nAttr] == UNKNOWN_DISCRETE_VALUE)
+				row(i)[nAttr] = bl;
 		}
+	}
+}
+
+void GMatrix::replaceMissingValuesRandomly(size_t nAttr, GRand* pRand)
+{
+	GTEMPBUF(size_t, indexes, rows());
+
+	// Find the rows that are not missing values in this attribute
+	size_t* pCur = indexes;
+	double dOk = m_pRelation->valueCount(nAttr) == 0 ? -1e300 : 0;
+	for(size_t i = 0; i < rows(); i++)
+	{
+		if(row(i)[nAttr] >= dOk)
+		{
+			*pCur = i;
+			pCur++;
+		}
+	}
+
+	// Replace missing values
+	size_t nonMissing = pCur - indexes;
+	for(size_t i = 0; i < rows(); i++)
+	{
+		if(row(i)[nAttr] < dOk)
+			row(i)[nAttr] = row(indexes[(size_t)pRand->next(nonMissing)])[nAttr];
 	}
 }
 
@@ -3627,6 +3631,13 @@ void GMatrix::sort(size_t dim)
 {
 	Row_Binary_Predicate_Functor comparer(dim);
 	std::sort(m_rows.begin(), m_rows.end(), comparer);
+}
+
+void GMatrix::sortPartial(size_t row, size_t col)
+{
+	Row_Binary_Predicate_Functor comparer(col);
+	vector<double*>::iterator targ = m_rows.begin() + row;
+	std::nth_element(m_rows.begin(), targ, m_rows.end(), comparer);
 }
 
 void GMatrix::reverseRows()

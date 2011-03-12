@@ -58,14 +58,13 @@ protected:
 	size_t m_nAttribute;
 	double m_dPivot;
 	size_t m_nChildren;
+	size_t m_defaultChild;
 	GDecisionTreeNode** m_ppChildren;
 
 public:
-	GDecisionTreeInteriorNode(size_t nAttribute, double dPivot, size_t children) : GDecisionTreeNode()
+	GDecisionTreeInteriorNode(size_t nAttribute, double dPivot, size_t children, size_t defaultChild)
+	: GDecisionTreeNode(), m_nAttribute(nAttribute), m_dPivot(dPivot), m_nChildren(children), m_defaultChild(defaultChild)
 	{
-		m_nAttribute = nAttribute;
-		m_dPivot = dPivot;
-		m_nChildren = children;
 		m_ppChildren = new GDecisionTreeNode*[children];
 		memset(m_ppChildren, '\0', sizeof(GDecisionTreeNode*) * children);
 	}
@@ -79,6 +78,7 @@ public:
 		m_ppChildren = new GDecisionTreeNode*[m_nChildren];
 		for(size_t i = 0; i < m_nChildren; i++)
 			m_ppChildren[i] = GDecisionTreeNode::fromTwt(pChildren->item(i));
+		m_defaultChild = (size_t)pNode->field("def")->asInt();
 	}
 
 	virtual ~GDecisionTreeInteriorNode()
@@ -100,6 +100,7 @@ public:
 		pNode->addField(pDoc, "children", pChildren);
 		for(size_t i = 0; i < m_nChildren; i++)
 			pChildren->setItem(i, m_ppChildren[i]->toTwt(pDoc, outputCount));
+		pNode->addField(pDoc, "def", pDoc->newInt(m_defaultChild));
 		return pNode;
 	}
 
@@ -116,7 +117,7 @@ public:
 
 	virtual GDecisionTreeNode* DeepCopy(size_t nOutputCount, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy)
 	{
-		GDecisionTreeInteriorNode* pNewNode = new GDecisionTreeInteriorNode(m_nAttribute, m_dPivot, m_nChildren);
+		GDecisionTreeInteriorNode* pNewNode = new GDecisionTreeInteriorNode(m_nAttribute, m_dPivot, m_nChildren, m_defaultChild);
 		for(size_t n = 0; n < m_nChildren; n++)
 			pNewNode->m_ppChildren[n] = m_ppChildren[n]->DeepCopy(nOutputCount, pInterestingNode, ppOutInterestingCopy);
 		if(this == pInterestingNode)
@@ -587,7 +588,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	size_t attr = attrPool[bestIndex];
 
 	// Make sure there aren't any missing values in the decision attribute
-	features.randomlyReplaceMissingValues(attr, m_pRand);
+	features.replaceMissingValuesWithBaseline(attr);
 
 	// Split the data
 	GMatrixArray featureParts(m_pFeatureRel);
@@ -642,8 +643,9 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	}
 
 	// Make an interior node
-	GDecisionTreeInteriorNode* pNode = new GDecisionTreeInteriorNode(attr, pivot, featureParts.sets().size() + 1);
+	GDecisionTreeInteriorNode* pNode = new GDecisionTreeInteriorNode(attr, pivot, featureParts.sets().size() + 1, 0);
 	Holder<GDecisionTreeInteriorNode> hNode(pNode);
+	size_t biggest = features.rows();
 	if(features.rows() > 0){
 		pNode->m_ppChildren[0] = buildBranch(features, labels, attrPool, nDepth + 1, tolerance);
 	}else{
@@ -652,7 +654,14 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	for(size_t i = 0; i < featureParts.sets().size(); i++)
 	{
 		if(featureParts.sets()[i]->rows() > 0)
+		{
 			pNode->m_ppChildren[i + 1] = buildBranch(*featureParts.sets()[i], *labelParts.sets()[i], attrPool, nDepth + 1, tolerance);
+			if(featureParts.sets()[i]->rows() > biggest)
+			{
+				biggest = featureParts.sets()[i]->rows();
+				pNode->m_defaultChild = i + 1;
+			}
+		}
 		else
 			pNode->m_ppChildren[i + 1] = new GDecisionTreeLeafNode(GDecisionTreeNode_labelVec(labels, labelParts), 0);
 	}
@@ -673,7 +682,7 @@ GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth
 		if(m_pFeatureRel->valueCount(pInterior->m_nAttribute) == 0)
 		{
 			if(pIn[pInterior->m_nAttribute] == UNKNOWN_REAL_VALUE)
-				pNode = pInterior->m_ppChildren[m_pRand->next(2)]; // todo: we could pick in proportion to the number of training patterns that took each side
+				pNode = pInterior->m_ppChildren[pInterior->m_defaultChild];
 			else if(pIn[pInterior->m_nAttribute] < pInterior->m_dPivot)
 				pNode = pInterior->m_ppChildren[0];
 			else
@@ -685,7 +694,7 @@ GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth
 			if(nVal < 0)
 			{
 				GAssert(nVal == UNKNOWN_DISCRETE_VALUE); // out of range
-				nVal = (int)m_pRand->next(m_pFeatureRel->valueCount(pInterior->m_nAttribute));
+				nVal = (int)pInterior->m_defaultChild;
 			}
 			GAssert((size_t)nVal < m_pFeatureRel->valueCount(pInterior->m_nAttribute)); // value out of range
 			pNode = pInterior->m_ppChildren[nVal];

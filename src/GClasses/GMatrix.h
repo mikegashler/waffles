@@ -644,6 +644,16 @@ public:
 	/// Sorts the data from smallest to largest in the specified dimension
 	void sort(size_t nDimension);
 
+	/// This partially sorts the specified column, such that the specified row
+	/// will contain the same row as if it were fully sorted, and previous
+	/// rows will contain a value <= to it in that column, and later rows
+	/// will contain a value >= to it in that column. Unlike sort, which
+	/// has O(m*log(m)) complexity, this method has O(m) complexity. This might
+	/// be useful, for example, for efficiently finding the row with a median
+	/// value in some attribute, or for separating data by a threshold in
+	/// some value.
+	void sortPartial(size_t row, size_t col);
+
 	/// Reverses the row order
 	void reverseRows();
 
@@ -710,10 +720,12 @@ public:
 	/// Returns true iff each of the last labelDims columns in the data are homogenous
 	bool isHomogenous();
 
-	/// Replaces all missing values by copying a randomly selected non-missing value in the same attribute
-	/// (This messes up the order of the rows because it uses sorting to find the missing values, so
-	///  you should probably call shuffle() when you're done calling this method.)
-	void randomlyReplaceMissingValues(size_t nAttr, GRand* pRand);
+	/// If the specified attribute is continuous, replaces all missing values in that attribute with the mean.
+	/// If the specified attribute is nominal, replaces all missing values in that attribute with the most common value.
+	void replaceMissingValuesWithBaseline(size_t nAttr);
+
+	/// Replaces all missing values by copying a randomly selected non-missing value in the same attribute.
+	void replaceMissingValuesRandomly(size_t nAttr, GRand* pRand);
 
 	/// This is an efficient algorithm for iteratively computing the principal component vector
 	/// (the eigenvector of the covariance matrix) of the data. See "EM Algorithms for PCA and SPCA"

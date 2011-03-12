@@ -456,6 +456,12 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-space", "Separate with spaces instead of commas.");
 	}
 	pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");
+	UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");
+	{
+		UsageNode* pOpts = pFMS->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-random", "Replace each missing value with a randomly chosen non-missing value from the same attribute. (The default is to use the baseline value. That is, the mean for continuous attributes, and the most-common value for nominal attributes.)");
+	}
 	UsageNode* pIm = pRoot->add("import [dataset] <options>", "Convert a text file of comma separated (or otherwise separated) values to a .arff file. The meta-data is automatically determined. The .arff file is printed to stdout. This makes it easy to operate on structured data from a spreadsheet, database, or pretty-much any other source.");
 	{
 		UsageNode* pOpts = pIm->add("<options>");
@@ -544,11 +550,6 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-aboutorigin", "Compute the principal components about the origin. (The default is to compute them relative to the centroid.)");
 	}
 	pRoot->add("pseudoinverse [dataset]=m.arff", "Compute the Moore-Penrose pseudo-inverse of the specified matrix of real values.");
-	UsageNode* pRMS = pRoot->add("replacemissingvalues [dataset] <options>", "Replace any missing values with another randomly chosen value from the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it is intelligent instead of random, and it generally does a better job.)");
-	{
-		UsageNode* pOpts = pRMS->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-	}
 	pRoot->add("reducedrowechelonform [dataset]=m.arff", "Convert a matrix to reduced row echelon form. Results are printed to stdout.");
 	UsageNode* pRotate = pRoot->add("rotate [dataset] [col_x] [col_y] [angle_degrees]","Rotate angle degrees around the origin in in the col_x,col_y plane.  Only affects the values in col_x and col_y.");
 	{

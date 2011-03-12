@@ -1929,7 +1929,7 @@ void squaredDistance(GArgReader& args)
 	cout << "Root mean squared distance: " << sqrt(d / pA->rows()) << "\n";
 }
 
-void ReplaceMissingValues(GArgReader& args)
+void fillMissingValues(GArgReader& args)
 {
 	// Load
 	GMatrix* pData = loadData(args.pop_string());
@@ -1937,19 +1937,29 @@ void ReplaceMissingValues(GArgReader& args)
 
 	// Parse options
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	bool random = false;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
 			nSeed = args.pop_uint();
+		else if(args.if_pop("-random"))
+			random = true;
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
 
 	// Replace missing values and print
 	GRand prng(nSeed);
-	for(size_t i = 0; i < pData->relation()->size(); i++)
-		pData->randomlyReplaceMissingValues(i, &prng);
-	pData->shuffle(&prng);
+	if(random)
+	{
+		for(size_t i = 0; i < pData->relation()->size(); i++)
+			pData->replaceMissingValuesRandomly(i, &prng);
+	}
+	else
+	{
+		for(size_t i = 0; i < pData->relation()->size(); i++)
+			pData->replaceMissingValuesWithBaseline(i);
+	}
 	pData->print(cout);
 }
 
@@ -2254,6 +2264,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("droprows")) dropRows(args);
 		else if(args.if_pop("enumeratevalues")) enumerateValues(args);
 		else if(args.if_pop("export")) Export(args);
+		else if(args.if_pop("fillmissingvalues")) fillMissingValues(args);
 		else if(args.if_pop("import")) Import(args);
 		else if(args.if_pop("isomap")) isomap(args);
 		else if(args.if_pop("kmeans")) kmeans(args);
@@ -2272,7 +2283,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("pca")) principalComponentAnalysis(args);
 		else if(args.if_pop("powercolumns")) powerColumns(args);
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
-		else if(args.if_pop("replacemissingvalues")) ReplaceMissingValues(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
 		else if(args.if_pop("rotate")) rotate(args);
 		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
