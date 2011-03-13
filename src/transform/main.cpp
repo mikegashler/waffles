@@ -576,6 +576,7 @@ void breadthFirstUnfolding(GArgReader& args)
 	pDataAfter->print(cout);
 }
 
+///TODO: this command should be documented
 void center(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -583,9 +584,9 @@ void center(GArgReader& args)
 	unsigned int r = args.pop_uint();
 	size_t cols = pData->cols();
 	double* pRow = pData->row(r);
-	for(size_t i = 0; i < r; r++)
+	for(size_t i = 0; i < r; ++i)
 		GVec::subtract(pData->row(i), pRow, cols);
-	for(size_t i = r + 1; i < pData->rows(); i++)
+	for(size_t i = r + 1; i < pData->rows(); ++i)
 		GVec::subtract(pData->row(i), pRow, cols);
 	GVec::setAll(pRow, 0.0, cols);
 	pData->print(cout);
