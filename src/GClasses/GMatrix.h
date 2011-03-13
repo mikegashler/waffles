@@ -1,4 +1,4 @@
-/*
+/*                                                            -*- mode: c++; -*-
 	Copyright (C) 2006, Mike Gashler
 
 	This library is free software; you can redistribute it and/or
@@ -690,7 +690,9 @@ public:
 	/// Estimates the actual min and range based on a random sample
 	void minAndRangeUnbiased(size_t nAttribute, double* pMin, double* pRange);
 
-	/// Shifts the data such that the mean occurs at the origin
+	/// Shifts the data such that the mean occurs at the origin.
+	/// Only continuous values are affected.  Nominal values are
+	/// left unchanged.
 	void centerMeanAtOrigin();
 
 	/// Computes the arithmetic mean of the values in the specified column

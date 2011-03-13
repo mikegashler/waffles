@@ -3427,11 +3427,19 @@ void GMatrix::removeComponentAboutOrigin(const double* pComponent, size_t dims)
 
 void GMatrix::centerMeanAtOrigin()
 {
+	//Calculate mean
 	size_t dims = cols();
 	GTEMPBUF(double, mean, dims);
 	centroid(mean);
-	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
-		GVec::subtract(*it, mean, dims);
+	//Skip non-continuous rows by setting their mean to 0
+	for(unsigned i = 0; i < dims; ++i){
+	  if(relation()->valueCount(i) != 0){ mean[i] = 0; }
+	}
+	//Subtract the new mean from all rows
+	for(vector<double*>::iterator it = m_rows.begin(); 
+	    it != m_rows.end(); it++){
+	  GVec::subtract(*it, mean, dims);
+	}
 }
 
 size_t GMatrix::countPrincipalComponents(double d, GRand* pRand)
