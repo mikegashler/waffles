@@ -638,6 +638,9 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-delta", "Predict the delta of the state transition instead of the new state.");
 	}
 	pRoot->add("transpose [dataset]=m.arff", "Transpose the data such that columns become rows and rows become columns.");
+	pRoot->add("zeroMean [dataset]","Subtracts the mean from all values "
+		   "of all continuous attributes, so that their means in the "
+		   "result are zero.  Leaves nominal attributes untouched.");
 
 	return pRoot;
 }

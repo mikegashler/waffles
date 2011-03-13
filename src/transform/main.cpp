@@ -1314,6 +1314,15 @@ void multiplyScalar(GArgReader& args)
 	pA->print(cout);
 }
 
+void zeroMean(GArgReader& args)
+{
+	GMatrix* pA = loadData(args.pop_string());
+	Holder<GMatrix> hA(pA);
+	pA->centerMeanAtOrigin();
+	pA->print(cout);
+}
+
+
 void normalize(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -2303,6 +2312,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("swapcolumns")) SwapAttributes(args);
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
+		else if(args.if_pop("zeroMean")) zeroMean(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
