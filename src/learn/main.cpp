@@ -21,6 +21,7 @@
 #include "../GClasses/GImage.h"
 #include "../GClasses/GKernelTrick.h"
 #include "../GClasses/GKNN.h"
+#include "../GClasses/GLinear.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GManifold.h"
 #include "../GClasses/GNaiveBayes.h"
@@ -308,6 +309,12 @@ GKNN* InstantiateKNN(GRand* pRand, GArgReader& args)
 	return pModel;
 }
 
+GLinearRegressor* InstantiateLinearRegressor(GRand* pRand, GArgReader& args)
+{
+	GLinearRegressor* pModel = new GLinearRegressor(pRand);
+	return pModel;
+}
+
 GMeanMarginsTree* InstantiateMeanMarginsTree(GRand* pRand, GArgReader& args)
 {
 	GMeanMarginsTree* pModel = new GMeanMarginsTree(pRand);
@@ -540,6 +547,8 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 			return InstantiateGraphCutTransducer(pRand, args);
 		else if(args.if_pop("knn"))
 			return InstantiateKNN(pRand, args);
+		else if(args.if_pop("linear"))
+			return InstantiateLinearRegressor(pRand, args);
 		else if(args.if_pop("meanmarginstree"))
 			return InstantiateMeanMarginsTree(pRand, args);
 //		else if(args.if_pop("moderatenet"))

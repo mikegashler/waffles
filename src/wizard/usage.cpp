@@ -207,7 +207,7 @@ UsageNode* makeLearnUsageTree()
 		pDO2->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
 		pDO2->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
 	}
-	UsageNode* pTransAcc = pRoot->add("transacc <options> [training-set] <data_opts1> [test-set] <data_opts2> [algorithm]", "Measure the transductive accuracy of [algorithm] with respect to the specified training and test sets. Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal label dimensions, and mean-squared-error is reported for continuous label dimensions.");
+	UsageNode* pTransAcc = pRoot->add("transacc <options> [training-set] <data_opts1> [test-set] <data_opts2> [algorithm]", "Measure the transductive accuracy of [algorithm] with respect to the specified training and test sets. Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal labels, and mean-squared-error is reported for continuous labels.");
 	{
 		UsageNode* pOpts = pTransAcc->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
@@ -220,7 +220,7 @@ UsageNode* makeLearnUsageTree()
 		pDO2->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
 		pDO2->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
 	}
-	UsageNode* pSplitTest = pRoot->add("splittest <options> [dataset] <data_opts> [algorithm]", "This shuffles the data, then splits it into two parts, trains with one part, and tests with the other. (This also works with model-free algorithms.) Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal label dimensions, and mean-squared-error is reported for continuous label dimensions.");
+	UsageNode* pSplitTest = pRoot->add("splittest <options> [dataset] <data_opts> [algorithm]", "This shuffles the data, then splits it into two parts, trains with one part, and tests with the other. (This also works with model-free algorithms.) Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal labels, and mean-squared-error is reported for continuous labels.");
 	{
 		UsageNode* pOpts = pSplitTest->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
@@ -330,6 +330,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-pearson", "Use Pearson's correlation coefficient to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
 		pOpts->add("-cosine", "Use the cosine method to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
 	}
+	pRoot->add("linear", "A linear regression model");
 	pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (A powerful model can be created using a bagging ensemble of buckets, that each contain one decision tree and one mean margins tree. This combination has been shown to do better than even much larger ensembles of random trees.)");
 	UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm.");
 	{
@@ -748,6 +749,13 @@ UsageNode* makeGenerateUsageTree()
 		pDist->add("uniform [a] [b]");
 		pDist->add("weibull [gamma]");
 	}
+	UsageNode* pRS = pRoot->add("randomsequence [length] <options>", "Generates a sequential list of integer values, shuffles them randomly, and then prints the shuffled list to stdout.");
+	{
+		pRS->add("[length]=10", "The number of values in the random sequence.");
+		UsageNode* pOpts = pRS->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-start [value]=0", "Specify the smallest value in the sequence.");
+	}
 	UsageNode* pScalRot = pRoot->add("scalerotate [png-file] <options>", "Generate a dataset where each row represents an image that has been scaled and rotated by various amounts. Thus, these images form an open-cylinder (although somewhat cone-shaped) manifold.");
 	{
 		UsageNode* pOpts = pScalRot->add("<options>");
@@ -952,7 +960,7 @@ UsageNode* makeNeighborUsageTree()
 UsageNode* makeRecommendUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("waffles_recommend [command]", "Predict missing values in data, and test collaborative-filtering recommendation systems.");
-	UsageNode* pCV = pRoot->add("crossvalidate <options> [sparse-data] [collab-filter]", "Measure accuracy using cross-validation");
+	UsageNode* pCV = pRoot->add("crossvalidate <options> [sparse-data] [collab-filter]", "Measure accuracy using cross-validation. For nominal labels, predictive accuracy is reported. For continuous labels, mean-squared-error is reported.");
 	{
 		UsageNode* pOpts = pCV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");

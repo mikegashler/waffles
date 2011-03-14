@@ -652,10 +652,6 @@ GNeighborTransducer::GNeighborTransducer(size_t neighborCount, GRand* pRand)
 // virtual
 GMatrix* GNeighborTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
-	// Check assumptions
-	if(labels1.cols() != 1)
-		ThrowError("Only 1 label dimension is supported");
-
 	// Make a dataset containing all rows
 	GMatrix featuresAll(features1.relation());
 	featuresAll.reserve(features1.rows() + features2.rows());
@@ -672,81 +668,87 @@ GMatrix* GNeighborTransducer::transduceInner(GMatrix& features1, GMatrix& labels
 	GNeighborFinder* pNF = new GNeighborFinderCacheWrapper(new GKdTree(&featuresAll, m_friendCount, NULL, true), true);
 	Holder<GNeighborFinder> hNF(pNF);
 	GTEMPBUF(size_t, neighbors, m_friendCount);
-	size_t labelValues = labels1.relation()->valueCount(0);
-	GTEMPBUF(double, tallys, labelValues);
 
-	// Label the unlabeled patterns
-	GBitTable labeled(features2.rows());
-	GMatrix labelList(features2.rows(), 3); // pattern index, most likely label, confidence
-	for(size_t i = 0; i < features2.rows(); i++)
-		labelList[i][0] = (double)i;
-	while(labelList.rows() > 0)
+	// Transduce
+	for(size_t lab = 0; lab < labels1.cols(); lab++)
 	{
-		// Compute the most likely label and the confidence for each pattern
-		for(size_t i = 0; i < labelList.rows(); i++)
-		{
-			// Find the most common label
-			double* pRow = labelList.row(i);
-			size_t index = (size_t)pRow[0];
-			pNF->neighbors(neighbors, index);
-			GVec::setAll(tallys, 0.0, labelValues);
-			for(size_t j = 0; j < m_friendCount; j++)
-			{
-				if(neighbors[j] >= featuresAll.rows())
-					continue;
-				if(neighbors[j] >= features2.rows())
-				{
-					int label = (int)labels1[neighbors[j] - features2.rows()][0];
-					if(label >= 0 && label < (int)labelValues)
-						tallys[label]++;
-				}
-				else if(labeled.bit(neighbors[j]))
-				{
-					int label = (int)pOut->row(neighbors[j])[0];
-					if(label >= 0 && label < (int)labelValues)
-						tallys[label] += 0.6;
-				}
-			}
-			int label = (int)GVec::indexOfMax(tallys, labelValues, m_pRand);
-			double conf = tallys[label];
+		size_t labelValues = labels1.relation()->valueCount(lab);
+		double* tallys = new double[labelValues];
+		ArrayHolder<double> hTallys(tallys);
 
-			// Penalize for dissenting votes
-			for(size_t j = 0; j < m_friendCount; j++)
-			{
-				if(neighbors[j] >= featuresAll.rows())
-					continue;
-				if(neighbors[j] >= features2.rows())
-				{
-					int lab = (int)labels1[neighbors[j] - features2.rows()][0];
-					if(lab != label)
-						conf *= 0.5;
-				}
-				else if(labeled.bit(neighbors[j]))
-				{
-					int lab = (int)pOut->row(neighbors[j])[0];
-					if(lab != label)
-						conf *= 0.8;
-				}
-			}
-			pRow[1] = label;
-			pRow[2] = conf;
-		}
-		labelList.sort(2);
-
-		// Assign the labels to the patterns we are most confident about
-		size_t maxCount = std::max((size_t)4, features1.rows() / 8);
-		size_t count = 0;
-		for(size_t i = labelList.rows() - 1; i < labelList.rows(); i--)
+		// Label the unlabeled patterns
+		GBitTable labeled(features2.rows());
+		GMatrix labelList(features2.rows(), 3); // pattern index, most likely label, confidence
+		for(size_t i = 0; i < features2.rows(); i++)
+			labelList[i][0] = (double)i;
+		while(labelList.rows() > 0)
 		{
-			double* pRow = labelList.row(i);
-			size_t index = (size_t)pRow[0];
-			int label = (int)pRow[1];
-			pOut->row(index)[0] = label;
-			labeled.set(index);
-			labelList.deleteRow(i);
-			if(count >= maxCount)
-				break;
-			count++;
+			// Compute the most likely label and the confidence for each pattern
+			for(size_t i = 0; i < labelList.rows(); i++)
+			{
+				// Find the most common label
+				double* pRow = labelList.row(i);
+				size_t index = (size_t)pRow[0];
+				pNF->neighbors(neighbors, index);
+				GVec::setAll(tallys, 0.0, labelValues);
+				for(size_t j = 0; j < m_friendCount; j++)
+				{
+					if(neighbors[j] >= featuresAll.rows())
+						continue;
+					if(neighbors[j] >= features2.rows())
+					{
+						int label = (int)labels1[neighbors[j] - features2.rows()][lab];
+						if(label >= 0 && label < (int)labelValues)
+							tallys[label]++;
+					}
+					else if(labeled.bit(neighbors[j]))
+					{
+						int label = (int)pOut->row(neighbors[j])[lab];
+						if(label >= 0 && label < (int)labelValues)
+							tallys[label] += 0.6;
+					}
+				}
+				int label = (int)GVec::indexOfMax(tallys, labelValues, m_pRand);
+				double conf = tallys[label];
+
+				// Penalize for dissenting votes
+				for(size_t j = 0; j < m_friendCount; j++)
+				{
+					if(neighbors[j] >= featuresAll.rows())
+						continue;
+					if(neighbors[j] >= features2.rows())
+					{
+						int l2 = (int)labels1[neighbors[j] - features2.rows()][lab];
+						if(l2 != label)
+							conf *= 0.5;
+					}
+					else if(labeled.bit(neighbors[j]))
+					{
+						int l2 = (int)pOut->row(neighbors[j])[lab];
+						if(l2 != label)
+							conf *= 0.8;
+					}
+				}
+				pRow[1] = label;
+				pRow[2] = conf;
+			}
+			labelList.sort(2);
+	
+			// Assign the labels to the patterns we are most confident about
+			size_t maxCount = std::max((size_t)4, features1.rows() / 8);
+			size_t count = 0;
+			for(size_t i = labelList.rows() - 1; i < labelList.rows(); i--)
+			{
+				double* pRow = labelList.row(i);
+				size_t index = (size_t)pRow[0];
+				int label = (int)pRow[1];
+				pOut->row(index)[lab] = label;
+				labeled.set(index);
+				labelList.deleteRow(i);
+				if(count >= maxCount)
+					break;
+				count++;
+			}
 		}
 	}
 	return hOut.release();
@@ -773,7 +775,7 @@ GInstanceTable::GInstanceTable(size_t dims, size_t* pDims, GRand* pRand)
 		m_product *= pDims[i];
 		m_pDims[i] = pDims[i];
 	}
-	m_pTable = new double[m_product];
+	m_pTable = NULL;
 	clear();
 }
 
@@ -782,7 +784,7 @@ GInstanceTable::~GInstanceTable()
 {
 	delete[] m_pDims;
 	delete[] m_pScales;
-	delete[] m_pTable;
+	clear();
 }
 
 // virtual
@@ -823,22 +825,29 @@ void GInstanceTable::predictInner(const double* pIn, double* pOut)
 			ThrowError("dim=", to_str(i), ", index=", to_str(pIn[i]), ", out of range. Expected >= 0 and < ", to_str(m_pDims[i]));
 		pos += n * m_pScales[i];
 	}
-	*pOut = m_pTable[pos];
+	GVec::copy(pOut, m_pTable + pos * m_labelDims, m_labelDims);
 }
 
 // virtual
 void GInstanceTable::clear()
 {
-	double* p = m_pTable;
-	for(size_t i = 0; i < m_product; i++)
-		*(p++) = m_pRand->uniform() * 0.1;
+	delete[] m_pTable;
+	m_pTable = NULL;
 }
 
 // virtual
 void GInstanceTable::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
-	if(pLabelRel->size() != 1)
-		ThrowError("only 1 label dim is supported");
+	// Allocate the table
+	clear();
+	size_t total = m_product * pLabelRel->size();
+	m_pTable = new double[total];
+
+	// Initialize with small random values
+	double* p = m_pTable;
+	for(size_t i = 0; i < total; i++)
+		*(p++) = m_pRand->uniform() * 0.1;
+
 	m_featureDims = pFeatureRel->size();
 	m_labelDims = pLabelRel->size();
 	m_dims = pFeatureRel->size();
@@ -855,7 +864,7 @@ void GInstanceTable::trainIncremental(const double* pIn, const double* pOut)
 			ThrowError("dim=", to_str(i), ", index=", to_str(pIn[i]), ", out of range. Expected >= 0 and < ", to_str(m_pDims[i]));
 		pos += n * m_pScales[i];
 	}
-	m_pTable[pos] = *pOut;
+	GVec::copy(m_pTable + pos * m_labelDims, pOut, m_labelDims);
 }
 
 }

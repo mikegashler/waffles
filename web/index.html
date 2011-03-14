@@ -131,46 +131,7 @@
 
 <p>...but you will never get "locked-in" to this GUI, because it prints out the command that will perform the desired task. You can paste this command into a shell to do the job immediately, or you can paste it into a script that will automate your processes. When you're ready to turn your scripted process into a high-performance application, all of the functionality is also available through our class library. Your apps need not be chained to any virtual machine.</p>
 
-<p>To see if <b><i>Waffles</i></b> provides the functionality you need, just take a look at the <a href="docs.html">documentation</a>.</p>
-
-<br><br><br><br><br><br><br><br><br><br>
-
-<br><b>To do: move these examples into the docs:</b><br><br>
-
-<table width="800px" border=1 cellpadding=3 align="center">
-
-<tr><td>
-<b><i>Task</i></b>
-</td><td>
-<b><i>Results</i></b>
-</td></tr>
-
-
-<tr><td>
-Matrix operations are also supported. For example, let's compute C=A<sup>T</sup>B<sup>&#8224;</sup>.
-<br><br><b><i>Command:</i></b><br>
-<pre>
-waffles_transform transpose a.arff > a_trans.arff
-waffles_transform pseudoinverse b.arff > b_inv.arff
-waffles_transform multiply a_trans.arff b_inv.arff > c.arff
-</pre>
-</td><td>
-</td></tr>
-
-<tr><td>
-Let's cluster some data. First, we'll use a nominaltocat filter to convert it to continuous values,
-then we'll cluster with three different algorithms. We'll use 3 clusters in each case.
-<br><br><b><i>Command:</i></b><br>
-<pre>
-waffles_transform nominaltocat mydata.arff > real.arff
-waffles_transform agglomerative real.arff 3 > agglomerative.arff
-waffles_transform kmeans real.arff 3 > kmeans.arff
-waffles_transform kmedoids real.arff 3 > kmedoids.arff
-</pre>
-</td><td>
-</td></tr>
-
-</table>
+<p>If you want to know whether <b><i>Waffles</i></b> provides the functionality you need, the next step is to take a look at the <a href="docs.html">documentation</a>.</p>
 
 
 	</td>

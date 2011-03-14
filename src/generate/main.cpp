@@ -1185,6 +1185,35 @@ void threeCranePath(GArgReader& args)
 	data.print(cout);
 }
 
+void randomSequence(GArgReader& args)
+{
+	size_t len = args.pop_uint();
+
+	// Parse options
+	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	size_t start = 0;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-seed"))
+			nSeed = args.pop_uint();
+		else if(args.if_pop("-start"))
+			start = args.pop_uint();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Make the sequence
+	GRand prng(nSeed);
+	size_t* seq = new size_t[len];
+	ArrayHolder<size_t> hSeq(seq);
+	GIndexVec::makeIndexVec(seq, len);
+	GIndexVec::shuffle(seq, len, &prng);
+
+	// Print it
+	for(size_t i = 0; i < len; i++)
+		cout << (seq[i] + start) << "\n";
+}
+
 void ScaleAndRotate(GArgReader& args)
 {
 	// Load the image
@@ -2117,6 +2146,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("manifold")) manifold(args);
 		else if(args.if_pop("mechanicalrabbit")) mechanicalRabbit(args);
 		else if(args.if_pop("noise")) Noise(args);
+		else if(args.if_pop("randomsequence")) randomSequence(args);
 		else if(args.if_pop("scalerotate")) ScaleAndRotate(args);
 		else if(args.if_pop("scenerobotsimulationgrid")) sceneRobotSimulationGrid(args);
 		else if(args.if_pop("scenerobotsimulationpath")) sceneRobotSimulationPath(args);

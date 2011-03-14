@@ -278,9 +278,9 @@ void GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMa
 	GVec::setAll(pOutResults, 0.0, labelDims);
 	for(size_t i = 0; i < labelDims; i++)
 	{
-		*pOutResults = testLabels.columnSumSquaredDifference(*pPredictedLabels, i);
+		*pOutResults = testLabels.columnSumSquaredDifference(*pPredictedLabels, i) / testLabels.rows();
 		if(testLabels.relation()->valueCount(i) > 0)
-			*pOutResults = 1.0 - (*pOutResults / testLabels.rows());
+			*pOutResults = 1.0 - *pOutResults;
 		pOutResults++;
 	}
 }
