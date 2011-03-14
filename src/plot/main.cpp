@@ -867,6 +867,7 @@ void MakeCorrelationLabel(GArffRelation* pRelation, GMatrix* pData, GImage* pIma
 		pImage->text(pRelation->attrName(attr), 0, 0, 1.0f, 0xff400000);
 		double min, max;
 		pData->minAndRange(attr, &min, &max);
+		max += min;
 
 		for(int i = 0; i < 2; i++)
 		{
