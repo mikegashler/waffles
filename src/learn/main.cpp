@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <fstream>
 #include "../GClasses/GActivation.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GMatrix.h"
@@ -895,16 +896,20 @@ void SplitTest(GArgReader& args)
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	double trainRatio = 0.5;
 	size_t reps = 1;
+	string lastModelFile="";
 	while(args.next_is_flag())
 	{
-		if(args.if_pop("-seed"))
+		if(args.if_pop("-seed")){
 			seed = args.pop_uint();
-		else if(args.if_pop("-trainratio"))
+		}else if(args.if_pop("-trainratio")){
 			trainRatio = args.pop_double();
-		else if(args.if_pop("-reps"))
+		}else if(args.if_pop("-reps")){
 			reps = args.pop_uint();
-		else
+		}else if(args.if_pop("-writeLastModel")){
+			lastModelFile = args.pop_string();
+		}else{
 			ThrowError("Invalid splittest option: ", args.peek());
+		}
 	}
 	if(trainRatio < 0 || trainRatio > 1)
 		ThrowError("trainratio must be between 0 and 1");
@@ -929,6 +934,13 @@ void SplitTest(GArgReader& args)
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
 
+	// Ensure that can write if we are required to
+	if(!pSupLearner->canGeneralize() && lastModelFile != ""){
+	  ThrowError("The learner specified does not have an internal model "
+		     "and thus cannot be saved to a file.  Remove the "
+		     "-lastModelFile argument.");
+	}
+
 	// Do the reps
 	size_t trainingPatterns = std::max((size_t)1, std::min(pFeatures->rows() - 1, (size_t)floor(pFeatures->rows() * trainRatio + 0.5)));
 	size_t testPatterns = pFeatures->rows() - trainingPatterns;
@@ -951,6 +963,20 @@ void SplitTest(GArgReader& args)
 
 			// Test and print results
 			pSupLearner->trainAndTest(*pFeatures, *pLabels, testFeatures, testLabels, repResults);
+			
+			// Write trained model file on last repetition
+			if(lastModelFile != "" && i+1 == reps){
+				GSupervisedLearner* pSup = 
+				  dynamic_cast<GSupervisedLearner*>
+				  (pSupLearner);
+				GTwtDoc doc;
+				GTwtNode* pRoot = pSup->toTwt(&doc);
+				doc.setRoot(pRoot);
+				std::ofstream out(lastModelFile.c_str());
+				if(out){
+					doc.write(out);
+				}
+			}
 			cout << "rep " << i << ") ";
 			GVec::print(cout, 14, repResults, labelDims);
 			cout << "\n";
