@@ -642,6 +642,10 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pTransition->add("<options>");
 		pOpts->add("-delta", "Predict the delta of the state transition instead of the new state.");
 	}
+	pRoot->add("threshold [dataset] [column] [threshold]",
+		   "Outputs a copy of dataset such that any value v in the "
+		   "given column becomes 0 if v <= threshold and 1 otherwise."
+		   "  Only works on continuous attributes.");
 	pRoot->add("transpose [dataset]=m.arff", "Transpose the data such that columns become rows and rows become columns.");
 	pRoot->add("zeroMean [dataset]","Subtracts the mean from all values "
 		   "of all continuous attributes, so that their means in the "

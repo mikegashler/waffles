@@ -6,6 +6,7 @@
 // (http://www.opensource.org/licenses).
 // -------------------------------------------------------------
 
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include "../GClasses/GActivation.h"
@@ -2085,6 +2086,36 @@ void SwapAttributes(GArgReader& args)
 	pData->print(cout);
 }
 
+void threshold(GArgReader& args){
+  GMatrix* pData = loadData(args.pop_string());
+  Holder<GMatrix> hData(pData);
+  unsigned column=args.pop_uint();
+  if(column >= hData->cols()){
+    std::stringstream msg;
+    if(hData->cols() >= 1){
+      msg << "The column to threshold is too large.   It should be in "
+	  << "the range [0.." << (hData->cols()-1) << "].";
+    }else{
+      msg << "This data has no columns to threshold.";
+    }
+    ThrowError(msg.str());
+  }
+  if(hData->relation()->valueCount(column) != 0){
+    ThrowError("Can only use threshold on continuous attributes.");
+  }
+  double value = args.pop_double();
+
+  //Do the actual thresholding
+  for(size_t i = 0; i < hData->rows(); ++i){
+    double& v = hData->row(i)[column];
+    if(v <= value){ v = 0;
+    }else { v = 1; }
+  }
+
+  //Print the data
+  hData->print(cout);
+}
+
 void Transpose(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -2310,6 +2341,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("squaredDistance")) squaredDistance(args);
 		else if(args.if_pop("svd")) singularValueDecomposition(args);
 		else if(args.if_pop("swapcolumns")) SwapAttributes(args);
+		else if(args.if_pop("threshold")) threshold(args);
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
 		else if(args.if_pop("zeroMean")) zeroMean(args);
