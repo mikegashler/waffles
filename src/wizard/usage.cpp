@@ -613,10 +613,17 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pSSplitFold->add("<options>");
 		pOpts->add("-out [train_filename] [test_filename]", "Specify the filenames for the training and test portions of the data. The default values are train.sparse and test.sparse.");
 	}
-	UsageNode* pSplit = pRoot->add("split [dataset] [rows] [filename1] [filename2]", "Split a dataset into two datasets. (Nothing is printed to stdout.)");
+	UsageNode* pSplit = pRoot->add("split [dataset] [rows] [filename1] [filename2] <options>", "Split a dataset into two datasets. (Nothing is printed to stdout.)");
 	{
 		pSplit->add("[dataset]=data.arff", "The filename of a datset.");
 		pSplit->add("[rows]=200", "The number of rows to go into the first file. The rest go in the second file.");
+		UsageNode* pOpts = pSplit->add("<options>");
+		{
+		  pOpts->add("-seed [value]", "Specify a seed for the "
+			     "random number generator.");
+		  pOpts->add("-shuffle","Shuffle the input data before "
+			     "splitting it.");
+		}
 	}
 	UsageNode* pSplitFold = pRoot->add("splitfold [dataset] [i] [n] <options>", "Divides a dataset into [n] parts of approximately equal size, then puts part [i] into one file, and the other [n]-1 parts in another file. (This tool may be useful, for example, to implement n-fold cross validation.)");
 	{

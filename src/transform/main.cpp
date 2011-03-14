@@ -1817,6 +1817,9 @@ void sparseSplit(GArgReader& args)
 	const char* szFilename1 = args.pop_string();
 	const char* szFilename2 = args.pop_string();
 
+	bool shouldShuffle = false;
+	
+
 	// Split
 	GSparseMatrix* pPart1 = pData->subMatrix(0, 0, pData->cols(), pats1);
 	Holder<GSparseMatrix> hPart1(pPart1);
@@ -1881,6 +1884,23 @@ void split(GArgReader& args)
 		ThrowError("out of range. The data only has ", to_str(pData->rows()), " rows.");
 	const char* szFilename1 = args.pop_string();
 	const char* szFilename2 = args.pop_string();
+
+	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	bool shouldShuffle = false;
+	while(args.size() > 0){
+		if(args.if_pop("-shuffle")){
+			shouldShuffle = true;
+		}else if(args.if_pop("-seed")){
+			nSeed = args.pop_uint();
+		}else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Shuffle if necessary
+	GRand rng(nSeed);
+	if(shouldShuffle){
+	  pData->shuffle(&rng);
+	}
 
 	// Split
 	GMatrix other(pData->relation());
