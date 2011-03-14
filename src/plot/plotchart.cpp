@@ -52,7 +52,7 @@ PlotChartMaker::PlotChartMaker(sp_relation& pRelation, GMatrix* pData, GRand& ra
 : m_rand(rand)
 {
 	m_pRelation = pRelation;
-	m_nOutputCount = pRelation->size() - 1;
+	m_nOutputCount = (int)pRelation->size() - 1;
 	m_pData = pData;
 	m_bCustomRange = false;
 	m_logx = false;
@@ -231,7 +231,7 @@ GImage* PlotChartMaker::MakeChart()
 				{
 					if(prevx != UNKNOWN_REAL_VALUE && prevy != UNKNOWN_REAL_VALUE)
 					{
-						pw.fatLine(xval(prevx), yval(prevy), xval(pPat[0]), yval(pPat[attr]), m_fLineThickness, GetLineColor(attr - 1, pat));
+						pw.fatLine(xval(prevx), yval(prevy), xval(pPat[0]), yval(pPat[attr]), m_fLineThickness, GetLineColor((int)attr - 1, (int)pat));
 					}
 					prevx = pPat[0];
 					prevy = pPat[attr];
@@ -247,8 +247,8 @@ GImage* PlotChartMaker::MakeChart()
 		{
 			for(size_t pat = 0; pat < m_pData->rows(); pat++)
 			{
-				int x = pat % m_meshSize;
-				int y = pat / m_meshSize;
+				int x = (int)pat % m_meshSize;
+				int y = (int)pat / m_meshSize;
 				double* pPat = m_pData->row(pat);
 				if(pPat[0] != UNKNOWN_REAL_VALUE && pPat[attr] != UNKNOWN_REAL_VALUE)
 				{
@@ -256,25 +256,25 @@ GImage* PlotChartMaker::MakeChart()
 					{
 						double* pPatNeighbor = m_pData->row(pat - 1);
 						if(pPatNeighbor[0] != UNKNOWN_REAL_VALUE && pPatNeighbor[attr] != UNKNOWN_REAL_VALUE)
-							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor(attr - 1, pat));
+							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor((int)attr - 1, (int)pat));
 					}
 					if(x < m_meshSize - 1)
 					{
 						double* pPatNeighbor = m_pData->row(pat + 1);
 						if(pPatNeighbor[0] != UNKNOWN_REAL_VALUE && pPatNeighbor[attr] != UNKNOWN_REAL_VALUE)
-							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor(attr - 1, pat));
+							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor((int)attr - 1, (int)pat));
 					}
 					if(y > 0)
 					{
 						double* pPatNeighbor = m_pData->row(pat - m_meshSize);
 						if(pPatNeighbor[0] != UNKNOWN_REAL_VALUE && pPatNeighbor[attr] != UNKNOWN_REAL_VALUE)
-							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor(attr - 1, pat));
+							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor((int)attr - 1, (int)pat));
 					}
 					if(y < m_meshSize - 1)
 					{
 						double* pPatNeighbor = m_pData->row(pat + m_meshSize);
 						if(pPatNeighbor[0] != UNKNOWN_REAL_VALUE && pPatNeighbor[attr] != UNKNOWN_REAL_VALUE)
-							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor(attr - 1, pat));
+							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor((int)attr - 1, (int)pat));
 					}
 				}
 			}
@@ -299,7 +299,7 @@ GImage* PlotChartMaker::MakeChart()
 							continue;
 						double* pOther = m_pData->row(hood[j]);
 						if(pOther[0] != UNKNOWN_REAL_VALUE && pOther[attr] != UNKNOWN_REAL_VALUE)
-							pw.line(xval(pPat[0]), yval(pPat[attr]), xval(pOther[0]), yval(pOther[attr]), GetLineColor(attr - 1, pat));
+							pw.line(xval(pPat[0]), yval(pPat[attr]), xval(pOther[0]), yval(pOther[attr]), GetLineColor((int)attr - 1, (int)pat));
 					}
 				}
 			}
@@ -319,7 +319,7 @@ GImage* PlotChartMaker::MakeChart()
 			{
 				double* pPat = m_pData->row(pIndexes[pat]);
 				if(pPat[0] != UNKNOWN_REAL_VALUE && pPat[attr] != UNKNOWN_REAL_VALUE)
-					pw.dot(xval(pPat[0]), yval(pPat[attr]), m_fPointRadius, GetLineColor(attr - 1, pIndexes[pat]), m_cBackground);
+					pw.dot(xval(pPat[0]), yval(pPat[attr]), m_fPointRadius, GetLineColor((int)attr - 1, pIndexes[pat]), m_cBackground);
 			}
 		}
 		else
@@ -328,7 +328,7 @@ GImage* PlotChartMaker::MakeChart()
 			{
 				double* pPat = m_pData->row(pat);
 				if(pPat[0] != UNKNOWN_REAL_VALUE && pPat[attr] != UNKNOWN_REAL_VALUE)
-					pw.dot(xval(pPat[0]), yval(pPat[attr]), m_fPointRadius, GetLineColor(attr - 1, pat), m_cBackground);
+					pw.dot(xval(pPat[0]), yval(pPat[attr]), m_fPointRadius, GetLineColor((int)attr - 1, (int)pat), m_cBackground);
 			}
 		}
 	}

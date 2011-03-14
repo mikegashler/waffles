@@ -394,7 +394,7 @@ protected:
 	size_t m_attr;
 
 public:
-	BigOCritic(GMatrix* pData, int attr)
+	BigOCritic(GMatrix* pData, size_t attr)
 	: GTargetFunction(3), m_pData(pData), m_attr(attr)
 	{
 	}
@@ -546,7 +546,7 @@ void PlotEquation(GArgReader& args)
 		}
 	}
 
-	GImage* pLabeledImage = pw.labelAxes(30, 30, 5/*precision*/, textSize/*size*/, 0xff000000/*color*/, 45.0 * (M_PI / 180)/*angle*/);
+	GImage* pLabeledImage = pw.labelAxes(30, 30, 5/*precision*/, (float)textSize/*size*/, 0xff000000/*color*/, 45.0 * (M_PI / 180)/*angle*/);
 	Holder<GImage> hLabeledImage(pLabeledImage);
 	pLabeledImage->savePng(filename.c_str());
 	cout << "Plot saved to " << filename.c_str() << ".\n";
@@ -720,7 +720,7 @@ void makeHistogram(GArgReader& args)
 	}
 	else
 	{
-		int buckets = pData->relation()->valueCount(attr);
+		size_t buckets = pData->relation()->valueCount(attr);
 		GTEMPBUF(double, hist, buckets);
 		GVec::setAll(hist, 0.0, buckets);
 		for(size_t i = 0; i < pData->rows(); i++)
@@ -739,7 +739,7 @@ void makeHistogram(GArgReader& args)
 		}
 		for(int i = 0; i < (int)image.width(); i++)
 		{
-			int b = i * buckets / image.width();
+			size_t b = i * buckets / image.width();
 			int h = (int)(hist[b] * image.height() / hist[max]);
 			image.line(i, image.height(), i, image.height() - h, (((b & 1) == 0) ? 0xff400000 : 0xff008040));
 		}
@@ -768,7 +768,7 @@ void MakeAttributeSummaryGraph(GRelation* pRelation, GMatrix* pData, GImage* pIm
 	}
 	else
 	{
-		int buckets = pRelation->valueCount(attr);
+		size_t buckets = pRelation->valueCount(attr);
 		GTEMPBUF(double, hist, buckets);
 		GVec::setAll(hist, 0.0, buckets);
 		for(size_t i = 0; i < pData->rows(); i++)
@@ -788,7 +788,7 @@ void MakeAttributeSummaryGraph(GRelation* pRelation, GMatrix* pData, GImage* pIm
 		}
 		for(int i = 0; i < (int)pImage->width(); i++)
 		{
-			int b = i * buckets / pImage->width();
+			size_t b = i * buckets / pImage->width();
 			int h = (int)(hist[b] * pImage->height() / hist[max]);
 			pImage->line(i, pImage->height(), i, pImage->height() - h, (((b & 1) == 0) ? 0xff400000 : 0xff008040));
 		}
@@ -831,13 +831,13 @@ void MakeCorrelationGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, 
 		for(size_t i = 0; i < pRelation->valueCount(attrx); i++)
 		{
 			GMatrix tmp(pData->relation());
-			pData->splitByNominalValue(&tmp, attrx, i);
+			pData->splitByNominalValue(&tmp, attrx, (int)i);
 			right += (double)tmp.rows() / tot;
 			double bot = 0.0;
 			double top = 0.0;
 			for(size_t j = 0; j < pRelation->valueCount(attry); j++)
 			{
-				top += (double)tmp.countValue(attry, j) / tmp.rows();
+				top += (double)tmp.countValue(attry, (double)j) / tmp.rows();
 				int l, b, r, t;
 				pw.windowToView(left, bot, &l, &b);
 				pw.windowToView(right, top, &r, &t);
@@ -895,7 +895,7 @@ void MakeCorrelationLabel(GArffRelation* pRelation, GMatrix* pData, GImage* pIma
 		image2.clear(0);
 		GRect r2(0, 0, pImage->width() - 16, 16);
 
-		int valueCount = pRelation->valueCount(attr);
+		int valueCount = (int)pRelation->valueCount(attr);
 		for(int i = 0; i < valueCount; i++)
 		{
 			GImage image2;
@@ -949,7 +949,7 @@ void PlotCorrelations(GArgReader& args)
 
 	// Make the chart
 	GImage imageBig;
-	int wid = (std::min(maxAttrs, pRel->size()) + 1) * (cellsize + bordersize);
+	int wid = (int)(std::min(maxAttrs, pRel->size()) + 1) * (cellsize + bordersize);
 	imageBig.setSize(wid, wid);
 	imageBig.clear(bgCol);
 	GRand prng(getpid() * (unsigned int)time(NULL));
@@ -958,22 +958,22 @@ void PlotCorrelations(GArgReader& args)
 	imageCell.setSize(cellsize, cellsize);
 	for(size_t i = 0; i < pRel->size() && i < maxAttrs; i++)
 	{
-		MakeCorrelationLabel(pRel, pData, &imageCell, i, bgCol);
+		MakeCorrelationLabel(pRel, pData, &imageCell, (int)i, bgCol);
 		GRect r(0, 0, cellsize, cellsize);
-		imageBig.blit((i + 1) * (cellsize + bordersize), 0, &imageCell, &r);
+		imageBig.blit(((int)i + 1) * (cellsize + bordersize), 0, &imageCell, &r);
 		imageCell2.rotateCounterClockwise90(&imageCell);
-		imageBig.blit(0, (i + 1) * (cellsize + bordersize), &imageCell2, &r);
+		imageBig.blit(0, ((int)i + 1) * (cellsize + bordersize), &imageCell2, &r);
 	}
 	for(size_t y = 0; y < pRel->size() && y < maxAttrs; y++)
 	{
 		for(size_t x = 0; x < pRel->size() && x < maxAttrs; x++)
 		{
 			if(x == y)
-				MakeAttributeSummaryGraph(pRel, pData, &imageCell, x);
+				MakeAttributeSummaryGraph(pRel, pData, &imageCell, (int)x);
 			else
-				MakeCorrelationGraph(pRel, pData, &imageCell, x, y, jitter, &prng);
+				MakeCorrelationGraph(pRel, pData, &imageCell, (int)x, (int)y, jitter, &prng);
 			GRect r(0, 0, cellsize, cellsize);
-			imageBig.blit((x + 1) * (cellsize + bordersize), (y + 1) * (cellsize + bordersize), &imageCell, &r);
+			imageBig.blit(((int)x + 1) * (cellsize + bordersize), ((int)y + 1) * (cellsize + bordersize), &imageCell, &r);
 		}
 	}
 	imageBig.savePng(filename.c_str());
@@ -1136,7 +1136,7 @@ void Plot3d(GImage* pImage, GMatrix* pData, unsigned int bgCol, float pointRadiu
 	GMatrix copy(pData->rows(), 4);
 	copy.copyColumns(0, pData, 0, 3);
 	for(size_t i = 0; i < copy.rows(); i++)
-		copy.row(i)[3] = i;
+		copy.row(i)[3] = (double)i;
 	copy.sort(comparator);
 	for(size_t i = 0; i < copy.rows(); i++)
 	{
@@ -1263,7 +1263,7 @@ void PrintStats(GArgReader& args)
 			continuousAttrs++;
 	}
 	cout << "Attributes: " << pRel->size() << " (Continuous:" << continuousAttrs << ", Nominal:" << pRel->size() - continuousAttrs << ")\n";
-	int stepSize = pRel->size() / 20;
+	size_t stepSize = pRel->size() / 20;
 	if(stepSize < 4)
 		stepSize = 1;
 	else
@@ -1288,7 +1288,7 @@ void PrintStats(GArgReader& args)
 			cout << "Type: Nominal, ";
 			cout << "Values:" << pRel->valueCount(i) << ", ";
 			int nMostCommonVal = (int)pData->baselineValue(i);
-			int mostCommonOccurrences = pData->countValue(i, nMostCommonVal);
+			size_t mostCommonOccurrences = pData->countValue(i, nMostCommonVal);
 			string s;
 			pRel->attrValue(&s, i, nMostCommonVal);
 			cout << "Most Common:" << s << " (" << ((double)mostCommonOccurrences * 100.0 / pData->rows()) << "%), ";
@@ -1299,8 +1299,8 @@ void PrintStats(GArgReader& args)
 				for(size_t j = 0; j < pRel->valueCount(i); j++)
 				{
 					s.clear();
-					pRel->attrValue(&s, i, j);
-					cout << "     " << ((double)pData->countValue(i, j) * 100.0 / pData->rows()) << "% " << s << "\n";
+					pRel->attrValue(&s, i, (double)j);
+					cout << "     " << ((double)pData->countValue(i, (double)j) * 100.0 / (double)pData->rows()) << "% " << s << "\n";
 				}
 			}
 		}
@@ -1367,11 +1367,11 @@ void percentSame(GArgReader& args){
     ThrowError("The files have no rows.  Cannot calculate the percentage of "
 	       "identical values for empty files.");
   }
-  for(unsigned i = 0; i < cols; ++i){
+  for(size_t i = 0; i < cols; ++i){
     if(hData1->relation()->valueCount(i) != 
        hData2->relation()->valueCount(i)){
-      unsigned v1 = hData1->relation()->valueCount(i);
-      unsigned v2 = hData2->relation()->valueCount(i);
+      size_t v1 = hData1->relation()->valueCount(i);
+      size_t v2 = hData2->relation()->valueCount(i);
       std::stringstream msg;
       msg << "The two files have different attribute types at "
 	  << "attribute index " << i << ".  The first file has ";
@@ -1401,9 +1401,10 @@ void percentSame(GArgReader& args){
   }
 
   //Convert to percents
-  vector<double> pctSame(numSame.begin(), numSame.end());
+  vector<double> pctSame;
+  pctSame.resize(numSame.size());
   for(size_t col = 0; col < cols; ++col){
-    pctSame[col] = 100*pctSame[col]/rows;
+    pctSame[col] = 100.0 * (double)numSame[col] / rows;
   }
   
   //Print
@@ -1473,7 +1474,7 @@ void model(GArgReader& args)
 	unsigned int attry = args.pop_uint();
 	if(pData->relation()->valueCount(attry) != 0)
 		ThrowError("Sorry, currently only continuous attributes can be plotted");
-	int featureDims = pModeler->featureDims();
+	size_t featureDims = pModeler->featureDims();
 	if(attrx >= (unsigned int)featureDims || attry >= (unsigned int)featureDims)
 		ThrowError("feature attribute out of range");
 
@@ -1543,7 +1544,7 @@ void model(GArgReader& args)
 			r /= count;
 			g /= count;
 			b /= count;
-			*pPix = gARGB(0xff, ClipChan(r), ClipChan(g), ClipChan(b));
+			*pPix = gARGB(0xff, ClipChan((int)r), ClipChan((int)g), ClipChan((int)b));
 			pPix++;
 		}
 	}
@@ -1574,11 +1575,11 @@ void rowToImage(GArgReader& args)
 	int channels = 3;
 	double range = 255.0;
 
-	int cols = pData->cols();
+	size_t cols = pData->cols();
 	if((cols % (channels * width)) != 0)
 		ThrowError("The row has ", to_str(cols), " dims, which is not a multiple of ", to_str(channels), " channels times ", to_str(width), " pixels wide");
 	double* pRow = pData->row(r);
-	unsigned int height = cols / (channels * width);
+	unsigned int height = (unsigned int)cols / (unsigned int)(channels * width);
 	GImage image;
 	GVec::toImage(pRow, &image, width, height, channels, range);
 	image.savePng(filename.c_str());

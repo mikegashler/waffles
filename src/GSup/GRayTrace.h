@@ -566,49 +566,48 @@ class GRayTraceTriMesh
 {
 protected:
 	GRayTraceMaterial* m_pMaterial;
-	int m_nPoints;
+	size_t m_nPoints;
 	G3DVector* m_pPoints;
-	int m_nTriangles;
-	int* m_pTriangles;
+	size_t m_nTriangles;
+	size_t* m_pTriangles;
 	G3DVector* m_pNormals;
 	G3DReal* m_pTextureCoords;
 	bool m_bCulling;
 
 public:
-	GRayTraceTriMesh(GRayTraceMaterial* pMaterial, int nPoints, int nTriangles, int nNormals, int nTextureCoords);
+	GRayTraceTriMesh(GRayTraceMaterial* pMaterial, size_t nPoints, size_t nTriangles, size_t nNormals, size_t nTextureCoords);
 	GRayTraceTriMesh(GTwtNode* pNode, GRayTraceScene* pScene);
 	~GRayTraceTriMesh();
 
 	GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene);
 
-	static GRayTraceTriMesh* makeCylinder(GRayTraceMaterial* pMaterial, G3DVector* pCenter1, G3DVector* pCenter2, G3DReal radius, int nSides, bool bEndCaps);
+	static GRayTraceTriMesh* makeCylinder(GRayTraceMaterial* pMaterial, G3DVector* pCenter1, G3DVector* pCenter2, G3DReal radius, size_t nSides, bool bEndCaps);
 
 	/// The vertices must go around the surface. Don't cut across corners.
 	static GRayTraceTriMesh* makeQuadSurface(GRayTraceMaterial* pMaterial, G3DVector* p1, G3DVector* p2, G3DVector* p3, G3DVector* p4);
 
 	static GRayTraceTriMesh* makeSingleTriangle(GRayTraceMaterial* pMaterial, G3DVector* p1, G3DVector* p2, G3DVector* p3);
 
-	G3DReal rayDistanceToTriangle(int nTriangle, G3DVector* pRayOrigin, G3DVector* pRayDirection);
-	void normalVector(GRayTraceRay* pRay, int nIndex);
+	G3DReal rayDistanceToTriangle(size_t nTriangle, G3DVector* pRayOrigin, G3DVector* pRayDirection);
+	void normalVector(GRayTraceRay* pRay, size_t nIndex);
 	bool isCulled() { return m_bCulling || m_pNormals; }
 	void activateCulling() { m_bCulling = true; }
-	void setPoint(int nIndex, const G3DVector* pPoint);
-	void setTriangle(int nIndex, int v1, int v2, int v3);
-	void setNormal(int nIndex, G3DVector* pNormal);
-	void setTextureCoord(int nIndex, G3DReal x, G3DReal y);
-	void center(G3DVector* pOutPoint, int nIndex);
-	int triangleCount() { return m_nTriangles; }
-	void triangle(int index, int* v1, int* v2, int* v3);
+	void setPoint(size_t nIndex, const G3DVector* pPoint);
+	void setTriangle(size_t nIndex, size_t v1, size_t v2, size_t v3);
+	void setNormal(size_t nIndex, G3DVector* pNormal);
+	void setTextureCoord(size_t nIndex, G3DReal x, G3DReal y);
+	void center(G3DVector* pOutPoint, size_t nIndex);
+	size_t triangleCount() { return m_nTriangles; }
+	void triangle(size_t index, size_t* v1, size_t* v2, size_t* v3);
 	GRayTraceMaterial* material() { return m_pMaterial; }
-	void adjustBoundingBox(int nIndex, G3DVector* pMin, G3DVector* pMax);
-	G3DVector* vertex(int nIndex, int nVertex);
+	void adjustBoundingBox(size_t nIndex, G3DVector* pMin, G3DVector* pMax);
+	G3DVector* vertex(size_t nIndex, size_t nVertex);
 
 	/// Automatically compute phong normals at the vertices to make the object appear smooth
 	void computePhongNormals();
 
 protected:
-	bool isPointWithinPlanarPolygon(G3DVector* pPoint, G3DVector** ppVertices, int nVertices);
-	//void ComputeTriangleNeighborSides(GIntQueue* pQ, GNodeHashTable* pEdges, int* pFaces, int i);
+	bool isPointWithinPlanarPolygon(G3DVector* pPoint, G3DVector** ppVertices, size_t nVertices);
 };
 
 
@@ -688,10 +687,10 @@ class GRayTraceTriangle : public GRayTraceObject
 {
 protected:
 	GRayTraceTriMesh* m_pMesh;
-	int m_nIndex;
+	size_t m_nIndex;
 
 public:
-	GRayTraceTriangle(GRayTraceTriMesh* pMesh, int nIndex)
+	GRayTraceTriangle(GRayTraceTriMesh* pMesh, size_t nIndex)
 	: GRayTraceObject(), m_pMesh(pMesh), m_nIndex(nIndex)
 	{
 	}

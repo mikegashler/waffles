@@ -3,7 +3,7 @@
 
 using namespace GClasses;
 
-GHtml::GHtml(const char* pDoc, int nSize)
+GHtml::GHtml(const char* pDoc, size_t nSize)
 {
 	m_pDoc = pDoc;
 	m_nSize = nSize;
@@ -20,10 +20,10 @@ void GHtml::parseTag()
 	m_nPos++;
 	while(m_pDoc[m_nPos] <= ' ' && m_nPos < m_nSize)
 		m_nPos++;
-	int nTagStart = m_nPos;
+	size_t nTagStart = m_nPos;
 	while(m_pDoc[m_nPos] > ' ' && m_pDoc[m_nPos] != '>' && m_nPos < m_nSize)
 		m_nPos++;
-	int nTagNameLen = m_nPos - nTagStart;
+	size_t nTagNameLen = m_nPos - nTagStart;
 
 	// Handle comment tags
 	if(nTagNameLen >= 3 && strncmp(m_pDoc + nTagStart, "!--", 3) == 0)
@@ -53,7 +53,7 @@ void GHtml::parseTag()
 		m_nPos++;
 
 	// Handle the params
-	int nParamStart, nParamLen, nValueStart, nValueLen;
+	size_t nParamStart, nParamLen, nValueStart, nValueLen;
 	while(m_pDoc[m_nPos] != '>' && m_nPos < m_nSize)
 	{
 		// Find the equals
@@ -118,7 +118,7 @@ bool GHtml::parseSomeMore()
 		parseTag();
 	else
 	{
-		int nChunkStart = m_nPos;
+		size_t nChunkStart = m_nPos;
 		m_nPos++;
 		while(m_nPos < m_nSize && m_pDoc[m_nPos] != '<')
 			m_nPos++;

@@ -14,6 +14,9 @@
 #include <wchar.h>
 #include <string>
 #include <vector>
+#ifdef WINDOWS
+#	include <direct.h>
+#endif
 #include "../GClasses/GApp.h"
 #include "../GSup/GBezier.h"
 #include "../GClasses/GBitTable.h"
@@ -307,9 +310,9 @@ void test_document_classification()
 		if(resultsKnnPearson < 0.50)
 			ThrowError("failed");
 	}
-	rmdir("class_ham");
-	rmdir("class_auto");
-	rmdir("class_spam");
+	_rmdir("class_ham");
+	_rmdir("class_auto");
+	_rmdir("class_spam");
 }
 
 

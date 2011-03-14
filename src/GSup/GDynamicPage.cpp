@@ -251,7 +251,7 @@ GDynamicPageSession* GDynamicPageServer::establishSession(const char* szCookie)
 }
 
 // virtual
-void GDynamicPageServer::doGet(const char* szUrl, const char* szParams, int nParamsLen, const char* szCookie, ostream& response)
+void GDynamicPageServer::doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, ostream& response)
 {
 	// Set up the session
 	GDynamicPageSession* pSession = establishSession(szCookie);
@@ -259,11 +259,11 @@ void GDynamicPageServer::doGet(const char* szUrl, const char* szParams, int nPar
 
 	// Handle the request
 	setContentType("text/html");
-	handleRequest(szUrl, szParams, nParamsLen, pSession, response);
+	handleRequest(szUrl, szParams, (int)nParamsLen, pSession, response);
 }
 
 // virtual
-void GDynamicPageServer::doPost(const char* szUrl, unsigned char* pData, int nDataSize, const char* szCookie, ostream& pResponse)
+void GDynamicPageServer::doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, ostream& pResponse)
 {
 	doGet(szUrl, (const char*)pData, nDataSize, szCookie, pResponse);
 	delete[] pData;

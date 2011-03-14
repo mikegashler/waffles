@@ -23,7 +23,7 @@ GBlobIncoming::GBlobIncoming()
 	m_bDeleteBuffer = false;
 }
 
-GBlobIncoming::GBlobIncoming(unsigned char* pBuffer, int nSize, bool bDeleteBuffer)
+GBlobIncoming::GBlobIncoming(unsigned char* pBuffer, size_t nSize, bool bDeleteBuffer)
 {
 	m_bDeleteBuffer = false;
 	setBlob(pBuffer, nSize, bDeleteBuffer);
@@ -35,7 +35,7 @@ GBlobIncoming::~GBlobIncoming()
 		delete[] m_pBuffer;
 }
 
-void GBlobIncoming::setBlob(unsigned char* pBuffer, int nSize, bool bDeleteBuffer)
+void GBlobIncoming::setBlob(unsigned char* pBuffer, size_t nSize, bool bDeleteBuffer)
 {
 	if(m_bDeleteBuffer)
 	{
@@ -48,7 +48,7 @@ void GBlobIncoming::setBlob(unsigned char* pBuffer, int nSize, bool bDeleteBuffe
 	m_bDeleteBuffer = bDeleteBuffer;
 }
 
-void GBlobIncoming::get(unsigned char* pData, int nSize)
+void GBlobIncoming::get(unsigned char* pData, size_t nSize)
 {
 	if(m_nBufferSize - m_nBufferPos < nSize)
 		ThrowError("GBlobIncoming blob is too small to contain the expected data");
@@ -110,7 +110,7 @@ void GBlobIncoming::get(double* pd)
 
 void GBlobIncoming::get(string* pString)
 {
-	int nLen;
+	size_t nLen;
 	get(&nLen);
 	if(m_nBufferSize - m_nBufferPos < nLen)
 		ThrowError("GBlobIncoming blob is too small to contain the expected data");
@@ -118,16 +118,16 @@ void GBlobIncoming::get(string* pString)
 	m_nBufferPos += nLen;
 }
 
-void GBlobIncoming::peek(int nIndex, unsigned char* pData, int nSize)
+void GBlobIncoming::peek(size_t nIndex, unsigned char* pData, size_t nSize)
 {
-	if(nSize < 0 || nIndex < 0 || nIndex + nSize > m_nBufferSize)
+	if(nIndex + nSize > m_nBufferSize)
 		ThrowError("GBlobIncoming peek out of range");
 	memcpy(pData, &m_pBuffer[nIndex], nSize);
 }
 
 // ----------------------------------------------------------------------
 
-GBlobOutgoing::GBlobOutgoing(int nBufferSize, bool bOkToResizeBuffer)
+GBlobOutgoing::GBlobOutgoing(size_t nBufferSize, bool bOkToResizeBuffer)
 {
 	if(nBufferSize > 0)
 		m_pBuffer = new unsigned char[nBufferSize];
@@ -143,11 +143,11 @@ GBlobOutgoing::~GBlobOutgoing()
 	delete[] m_pBuffer;
 }
 
-void GBlobOutgoing::resizeBuffer(int nRequiredSize)
+void GBlobOutgoing::resizeBuffer(size_t nRequiredSize)
 {
 	if(m_bOkToResizeBuffer)
 	{
-		int nNewSize = std::max(3 * m_nBufferSize, std::max(1024, nRequiredSize));
+		size_t nNewSize = std::max((size_t)3 * m_nBufferSize, std::max((size_t)1024, nRequiredSize));
 		unsigned char* pNewBuffer = new unsigned char[nNewSize];
 		memcpy(pNewBuffer, m_pBuffer, m_nBufferPos);
 		delete[] m_pBuffer;
@@ -158,7 +158,7 @@ void GBlobOutgoing::resizeBuffer(int nRequiredSize)
 		ThrowError("GBlobOutgoing buffer too small to hold blob");
 }
 
-void GBlobOutgoing::add(const unsigned char* pData, int nSize)
+void GBlobOutgoing::add(const unsigned char* pData, size_t nSize)
 {
 	if(m_nBufferSize - m_nBufferPos < nSize)
 		resizeBuffer(m_nBufferPos + nSize);
@@ -221,19 +221,19 @@ void GBlobOutgoing::add(const double d)
 
 void GBlobOutgoing::add(const char* szString)
 {
-	int nLen = (int)strlen(szString);
+	size_t nLen = strlen(szString);
 	add(nLen);
 	add((const unsigned char*)szString, nLen);
 }
 
-void GBlobOutgoing::poke(int nIndex, const unsigned char* pData, int nSize)
+void GBlobOutgoing::poke(size_t nIndex, const unsigned char* pData, size_t nSize)
 {
-	if(nSize < 0 || nIndex < 0 || nIndex + nSize > m_nBufferPos)
+	if(nIndex + nSize > m_nBufferPos)
 		ThrowError("GBlobOutgoing poke out of range");
 	memcpy(&m_pBuffer[nIndex], pData, nSize);
 }
 
-void GBlobOutgoing::poke(int nIndex, const int n)
+void GBlobOutgoing::poke(size_t nIndex, const int n)
 {
 	int tmp = GBits::n32ToLittleEndian(n);
 	poke(nIndex, (const unsigned char*)&tmp, sizeof(int));

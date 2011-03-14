@@ -55,7 +55,7 @@ protected:
 	GDynamicPageSessionExtension* m_pExtension;
 	const char* m_szUrl;
 	const char* m_szParams;
-	int m_paramsLen;
+	size_t m_paramsLen;
 
 public:
 	GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long id);
@@ -81,7 +81,7 @@ public:
 	/// session by a call to setExtension.
 	GDynamicPageSessionExtension* extension() { return m_pExtension; }
 
-	void setCurrentUrl(const char* szUrl, const char* szParams, int paramsLen)
+	void setCurrentUrl(const char* szUrl, const char* szParams, size_t paramsLen)
 	{
 		m_szUrl = szUrl;
 		m_szParams = szParams;
@@ -90,7 +90,7 @@ public:
 
 	const char* url() { return m_szUrl; }
 	const char* params() { return m_szParams; }
-	int paramsLen() { return m_paramsLen; }
+	size_t paramsLen() { return m_paramsLen; }
 };
 
 
@@ -134,8 +134,8 @@ public:
 	void redirect(std::ostream& response, const char* szUrl);
 
 protected:
-	virtual void doGet(const char* szUrl, const char* szParams, int nParamsLen, const char* szCookie, std::ostream& response);
-	virtual void doPost(const char* szUrl, unsigned char* pData, int nDataSize, const char* szCookie, std::ostream& response);
+	virtual void doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, std::ostream& response);
+	virtual void doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, std::ostream& response);
 	virtual bool hasBeenModifiedSince(const char* szUrl, const char* szDate);
 	virtual void setHeaders(const char* szUrl, const char* szParams);
 

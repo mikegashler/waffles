@@ -110,7 +110,7 @@ GHttpClient::Status GHttpClient::status(float* pfProgress)
 		if(m_pSocket->GetMessageCount() <= 0)
 			break;
 		m_dLastReceiveTime = GTime::seconds();
-		int nSize;
+		size_t nSize;
 		const unsigned char* szChunk = m_pSocket->GetNextMessage(&nSize);
 		onReceiveData(szChunk, nSize);
 		if(m_bPastHeader)
@@ -222,7 +222,7 @@ bool GHttpClient::get(const char* szUrl, bool actuallyGetData) // actuallyGetDat
 	return true;
 }
 
-void GHttpClient::processHeader(const unsigned char* szData, int nSize)
+void GHttpClient::processHeader(const unsigned char* szData, size_t nSize)
 {
 	while(nSize > 0)
 	{
@@ -307,7 +307,7 @@ void GHttpClient::processHeader(const unsigned char* szData, int nSize)
 	}
 }
 
-void GHttpClient::processBody(const unsigned char* szData, int nSize)
+void GHttpClient::processBody(const unsigned char* szData, size_t nSize)
 {
 	if(m_bChunked)
 		processChunkBody(szData, nSize);
@@ -360,7 +360,7 @@ void GHttpClient::onLoseConnection()
 	m_aborted = true;
 }
 
-void GHttpClient::processChunkBody(const unsigned char* szData, int nSize)
+void GHttpClient::processChunkBody(const unsigned char* szData, size_t nSize)
 {
 	while(nSize > 0)
 	{
@@ -424,7 +424,7 @@ void GHttpClient::processChunkBody(const unsigned char* szData, int nSize)
 		}
 		else
 		{
-			int nChunkSize = std::min(m_nContentSize, nSize);
+			size_t nChunkSize = std::min(m_nContentSize, nSize);
 			m_chunkBuf.write((const char*)szData, nChunkSize);
 			szData += nChunkSize;
 			nSize -= nChunkSize;
@@ -484,7 +484,7 @@ void GHttpClient::gimmeWhatYouGot()
 	}
 }
 
-unsigned char* GHttpClient::getData(int* pnSize)
+unsigned char* GHttpClient::getData(size_t* pnSize)
 {
 	if(m_status != Done)
 	{
@@ -506,7 +506,7 @@ unsigned char* GHttpClient::getData(int* pnSize)
 	return m_pData;
 }
 
-unsigned char* GHttpClient::releaseData(int* pnSize)
+unsigned char* GHttpClient::releaseData(size_t* pnSize)
 {
 	unsigned char* pData = getData(pnSize);
 	if(!pData)
@@ -530,7 +530,7 @@ public:
 		Post,
 	};
 
-	int m_nPos;
+	size_t m_nPos;
 	char m_szLine[MAX_SERVER_LINE_SIZE];
 	char m_szUrl[MAX_SERVER_LINE_SIZE];
 	char m_szParams[MAX_SERVER_LINE_SIZE];
@@ -538,7 +538,7 @@ public:
 	char m_szCookie[MAX_COOKIE_SIZE];
 	unsigned char* m_pPostBuffer;
 	RequestType m_eRequestType;
-	int m_nContentLength;
+	size_t m_nContentLength;
 
 	GHttpServerBuffer()
 	{
@@ -585,7 +585,7 @@ GHttpServer::~GHttpServer()
 
 bool GHttpServer::process()
 {
-	int nMessageSize;
+	size_t nMessageSize;
 	int nConnection;
 	unsigned char* pMessage;
 	unsigned char* pIn;
@@ -671,7 +671,7 @@ void GHttpServer::onReceiveFullPostRequest(GHttpServerBuffer* pClient, int nConn
 	sendResponse(pClient, nConnection);
 }
 
-void GHttpServer::processPostData(int nConnection, GHttpServerBuffer* pClient, const unsigned char* pData, int nDataSize)
+void GHttpServer::processPostData(int nConnection, GHttpServerBuffer* pClient, const unsigned char* pData, size_t nDataSize)
 {
 	if(nDataSize > pClient->m_nContentLength - pClient->m_nPos)
 		nDataSize = pClient->m_nContentLength - pClient->m_nPos;
@@ -915,7 +915,7 @@ void GHttpServer::sendNotModifiedResponse(GHttpServerBuffer* pClient, int nConne
 	m_pSocket->Send(s.c_str(), s.length(), nConnection);
 }
 
-/*static*/ void GHttpServer::unescapeUrl(char* szOut, const char* szIn, int nInLen)
+/*static*/ void GHttpServer::unescapeUrl(char* szOut, const char* szIn, size_t nInLen)
 {
 	int c1, c2, n1, n2;
 	while(nInLen > 0 && *szIn != '\0')
@@ -960,7 +960,7 @@ void GHttpServer::sendNotModifiedResponse(GHttpServerBuffer* pClient, int nConne
 }
 
 // static
-bool GHttpServer::parseFileParam(const char* pParams, int nParamsLen, const char** ppFilename, int* pFilenameLen, const unsigned char** ppFile, int* pFileLen)
+bool GHttpServer::parseFileParam(const char* pParams, size_t nParamsLen, const char** ppFilename, size_t* pFilenameLen, const unsigned char** ppFile, size_t* pFileLen)
 {
 	// Measure the length of the unique divider string
 	int dividerLen;
@@ -1097,7 +1097,7 @@ const char* GHttpParamParser::find(const char* szName)
 
 
 
-GHttpMultipartParser::GHttpMultipartParser(const char* pRawData, int len)
+GHttpMultipartParser::GHttpMultipartParser(const char* pRawData, size_t len)
 {
 	m_pRawData = pRawData;
 	m_len = len;
@@ -1114,10 +1114,10 @@ GHttpMultipartParser::~GHttpMultipartParser()
 {
 }
 
-bool GHttpMultipartParser::next(int* pNameStart, int* pNameLen, int* pValueStart, int* pValueLen, int* pFilenameStart, int* pFilenameLen)
+bool GHttpMultipartParser::next(size_t* pNameStart, size_t* pNameLen, size_t* pValueStart, size_t* pValueLen, size_t* pFilenameStart, size_t* pFilenameLen)
 {
 	// Find the terminating sentinel
-	int start = m_pos;
+	size_t start = m_pos;
 	for( ; m_pos < m_len && strncmp(m_pRawData, m_pRawData + m_pos, m_sentinelLen) != 0; m_pos++)
 	{
 		if(m_pRawData[m_pos + m_repeatLen] != m_pRawData[0])
@@ -1125,7 +1125,7 @@ bool GHttpMultipartParser::next(int* pNameStart, int* pNameLen, int* pValueStart
 	}
 	if(m_pos >= m_len)
 		return false;
-	int valueEnd = m_pos;
+	size_t valueEnd = m_pos;
 	if(valueEnd > start && m_pRawData[valueEnd - 1] == '\n')
 		valueEnd--;
 	if(valueEnd > start && m_pRawData[valueEnd - 1] == '\r')
@@ -1138,7 +1138,7 @@ bool GHttpMultipartParser::next(int* pNameStart, int* pNameLen, int* pValueStart
 	int filenameStart = -1;
 	int filenameEnd = -1;
 	int valueStart;
-	for(valueStart = start; valueStart < m_len && strncmp(m_pRawData + valueStart, "\r\n\r\n", 4) != 0; valueStart++)
+	for(valueStart = (int)start; valueStart < m_len && strncmp(m_pRawData + valueStart, "\r\n\r\n", 4) != 0; valueStart++)
 	{
 		if(strncmp(m_pRawData + valueStart, "name=\"", 6) == 0)
 			nameStart = valueStart + 6;

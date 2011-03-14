@@ -40,7 +40,7 @@ GLoadBalanceSlave::~GLoadBalanceSlave()
 	delete(m_pSocket);
 }
 
-unsigned char* GLoadBalanceSlave::requestTask(int* pBlobSize, bool stayConnected, int timeoutSeconds, bool* timedOut, bool* allDone)
+unsigned char* GLoadBalanceSlave::requestTask(size_t* pBlobSize, bool stayConnected, int timeoutSeconds, bool* timedOut, bool* allDone)
 {
 	*pBlobSize = 0;
 	*timedOut = false;
@@ -60,7 +60,7 @@ unsigned char* GLoadBalanceSlave::requestTask(int* pBlobSize, bool stayConnected
 	{
 		if(m_pSocket->GetMessageCount() > 0)
 		{
-			int blobSize;
+			size_t blobSize;
 			pBlob = m_pSocket->GetNextMessage(&blobSize);
 			ArrayHolder<unsigned char> hBlob(pBlob);
 			if(blobSize < (int)sizeof(unsigned int))
@@ -98,7 +98,7 @@ unsigned char* GLoadBalanceSlave::requestTask(int* pBlobSize, bool stayConnected
 	return pBlob;
 }
 
-void GLoadBalanceSlave::reportResults(unsigned char* pBlob, int blobSize, bool stayConnected)
+void GLoadBalanceSlave::reportResults(unsigned char* pBlob, size_t blobSize, bool stayConnected)
 {
 	if(!m_pSocket)
 	{
@@ -124,7 +124,7 @@ int GLoadBalanceSlave::go(void* pThis)
 	{
 		bool timedOut;
 		bool allDone;
-		int blobSize;
+		size_t blobSize;
 		unsigned char* pBlob = requestTask(&blobSize, m_stayConnected, m_timeOutSecs, &timedOut, &allDone);
 		if(pBlob)
 		{
@@ -168,7 +168,8 @@ GLoadBalanceMaster::~GLoadBalanceMaster()
 
 bool GLoadBalanceMaster::results(GBlobIncoming* pBlobIn)
 {
-	int blobSize, connection;
+	size_t blobSize;
+	int connection;
 	while(true)
 	{
 		if(m_pSocket->GetMessageCount() <= 0)

@@ -30,7 +30,7 @@ void GSmtp::send()
 	m_pSocket = new GSocketClient(false, 0);
 	if(!m_pSocket->Connect(m_szSMPTServer, 25))
 		ThrowError("Failed to connect to ", m_szSMPTServer, " on port ", to_str(25));
-	int nMessageSize;
+	size_t nMessageSize;
 	unsigned char* pMessage;
 	time_t tStart, t;
 	time(&tStart);
@@ -57,7 +57,7 @@ void GSmtp::send()
 }
 
 // SMTP is a line-based protocol, so receive until we have a full line
-void GSmtp::receive(const char* pBuff, int nLen)
+void GSmtp::receive(const char* pBuff, size_t nLen)
 {
 	int n;
 	int i = -1;

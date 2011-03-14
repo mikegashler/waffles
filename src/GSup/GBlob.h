@@ -25,24 +25,24 @@ namespace GClasses {
 class GBlobIncoming
 {
 protected:
-	int m_nBufferSize;
-	int m_nBufferPos;
+	size_t m_nBufferSize;
+	size_t m_nBufferPos;
 	unsigned char* m_pBuffer;
 	bool m_bDeleteBuffer;
 
 public:
 	GBlobIncoming();
-	GBlobIncoming(unsigned char* pBuffer, int nSize, bool bDeleteBuffer);
+	GBlobIncoming(unsigned char* pBuffer, size_t nSize, bool bDeleteBuffer);
 	~GBlobIncoming();
 
 	unsigned char* getBlob() { return m_pBuffer; }
-	int getPos() { return m_nBufferPos; }
-	void setPos(int pos) { m_nBufferPos = pos; }
-	int getBlobSize() { return m_nBufferSize; }
-	void setBlob(unsigned char* pBuffer, int nSize, bool bDeleteBuffer);
+	size_t getPos() { return m_nBufferPos; }
+	void setPos(size_t pos) { m_nBufferPos = pos; }
+	size_t getBlobSize() { return m_nBufferSize; }
+	void setBlob(unsigned char* pBuffer, size_t nSize, bool bDeleteBuffer);
 
 	/// Pops a blob from the buffer (throws if buffer is too small)
-	void get(unsigned char* pData, int nSize);
+	void get(unsigned char* pData, size_t nSize);
 
 	/// Pops a single wide char from the buffer (throws if buffer is too small)
 	void get(wchar_t* pwc);
@@ -72,28 +72,28 @@ public:
 	void get(std::string* pOutString);
 
 	/// Retrieves bytes from within the buffer
-	void peek(int nIndex, unsigned char* pData, int nSize);
+	void peek(size_t nIndex, unsigned char* pData, size_t nSize);
 };
 
 /// This class is for serializing objects. It is the complement to GBlobIncoming.
 class GBlobOutgoing
 {
 protected:
-	int m_nBufferSize;
-	int m_nBufferPos;
+	size_t m_nBufferSize;
+	size_t m_nBufferPos;
 	unsigned char* m_pBuffer;
 	bool m_bOkToResizeBuffer;
 
 public:
-	GBlobOutgoing(int nBufferSize, bool bOkToResizeBuffer);
+	GBlobOutgoing(size_t nBufferSize, bool bOkToResizeBuffer);
 	~GBlobOutgoing();
 
-	void setPos(int pos) { m_nBufferPos = pos; }
+	void setPos(size_t pos) { m_nBufferPos = pos; }
 	unsigned char* getBlob() { return m_pBuffer; }
-	int getBlobSize() { return m_nBufferPos; }
+	size_t getBlobSize() { return m_nBufferPos; }
 
 	/// Pushes a blob into the blob
-	void add(const unsigned char* pData, int nSize);
+	void add(const unsigned char* pData, size_t nSize);
 
 	/// Pushes a wide char into the blob
 	void add(const wchar_t wc);
@@ -124,13 +124,13 @@ public:
 
 
 	/// Puts bytes into the buffer (overwriting existing data)
-	void poke(int nIndex, const unsigned char* pData, int nSize);
+	void poke(size_t nIndex, const unsigned char* pData, size_t nSize);
 
 	/// Puts an int into the buffer (overwriting existing data)
-	void poke(int nIndex, const int n);
+	void poke(size_t nIndex, const int n);
 
 protected:
-	void resizeBuffer(int nRequiredSize);
+	void resizeBuffer(size_t nRequiredSize);
 };
 
 

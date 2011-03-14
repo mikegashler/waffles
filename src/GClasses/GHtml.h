@@ -13,11 +13,11 @@ class GHtml
 {
 protected:
 	const char* m_pDoc;
-	int m_nSize;
-	int m_nPos;
+	size_t m_nSize;
+	size_t m_nPos;
 
 public:
-	GHtml(const char* pDoc, int nSize);
+	GHtml(const char* pDoc, size_t nSize);
 	virtual ~GHtml();
 
 	/// You should call this method in a loop until it returns false. It parses a
@@ -27,16 +27,16 @@ public:
 	bool parseSomeMore();
 
 	/// This method will be called whenever the parser finds a section of display text
-	virtual void onTextChunk(const char* pChunk, int chunkSize) {}
+	virtual void onTextChunk(const char* pChunk, size_t chunkSize) {}
 
 	/// This method is called whenever a new tag is found
-	virtual void onTag(const char* pTagName, int tagNameLen) {}
+	virtual void onTag(const char* pTagName, size_t tagNameLen) {}
 
 	/// This method is called for each parameter in the tag
-	virtual void onTagParam(const char* pTagName, int tagNameLen, const char* pParamName, int paramNameLen, const char* pValue, int valueLen) {}
+	virtual void onTagParam(const char* pTagName, size_t tagNameLen, const char* pParamName, size_t paramNameLen, const char* pValue, size_t valueLen) {}
 
 	/// This method is called when an HTML comment (<!--comment-->) is found
-	virtual void onComment(const char* pComment, int len) {}
+	virtual void onComment(const char* pComment, size_t len) {}
 
 protected:
 	void parseTag();

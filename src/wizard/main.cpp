@@ -326,7 +326,7 @@ public:
 		}
 	}
 
-	part_type partType(UsageNode* pNode, int part)
+	part_type partType(UsageNode* pNode, size_t part)
 	{
 		const char* name = pNode->parts()[part].c_str();
 		if(name[0] == '<')
@@ -698,7 +698,7 @@ void OpenUrl(const char* szUrl)
 
 void LaunchBrowser(const char* szAddress)
 {
-	int addrLen = strlen(szAddress);
+	size_t addrLen = strlen(szAddress);
 	GTEMPBUF(char, szUrl, addrLen + 20);
 	strcpy(szUrl, szAddress);
 	strcpy(szUrl + addrLen, "/wizard");

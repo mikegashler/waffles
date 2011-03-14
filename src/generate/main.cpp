@@ -246,7 +246,7 @@ void Noise(GArgReader& args)
 	else if(dist.compare("categorical") == 0)
 	{
 		for(int i = 0; i < pats; i++)
-			data.newRow()[0] = prng.categorical(probs);
+			data.newRow()[0] = (double)prng.categorical(probs);
 	}
 	else if(dist.compare("cauchy") == 0)
 	{
@@ -1367,14 +1367,14 @@ protected:
 	GVocabulary* m_pVocab;
 
 public:
-	MyHtmlParser1(GVocabulary* pVocab, const char* pDoc, int nSize)
+	MyHtmlParser1(GVocabulary* pVocab, const char* pDoc, size_t nSize)
 	: GHtml(pDoc, nSize), m_pVocab(pVocab)
 	{
 	}
 
 	virtual ~MyHtmlParser1() {}
 
-	virtual void onTextChunk(const char* pChunk, int chunkSize)
+	virtual void onTextChunk(const char* pChunk, size_t chunkSize)
 	{
 		m_pVocab->addWordsFromTextBlock(pChunk, chunkSize);
 	}
@@ -1384,19 +1384,19 @@ class MyHtmlParser2 : public GHtml
 {
 protected:
 	GSparseMatrix* m_pSM;
-	int m_row;
+	size_t m_row;
 	GVocabulary* m_pVocab;
 	bool m_binary;
 
 public:
-	MyHtmlParser2(const char* pDoc, int nSize, GSparseMatrix* pSM, int row, GVocabulary* pVocab, bool binary)
+	MyHtmlParser2(const char* pDoc, size_t nSize, GSparseMatrix* pSM, size_t row, GVocabulary* pVocab, bool binary)
 	: GHtml(pDoc, nSize), m_pSM(pSM), m_row(row), m_pVocab(pVocab), m_binary(binary)
 	{
 	}
 
 	virtual ~MyHtmlParser2() {}
 
-	virtual void onTextChunk(const char* pChunk, int chunkSize)
+	virtual void onTextChunk(const char* pChunk, size_t chunkSize)
 	{
 		GWordIterator it(pChunk, chunkSize);
 		const char* pWord;
@@ -1431,7 +1431,7 @@ void addWordsToVocabFromHtmlFile(GVocabulary* pVocab, const char* szFilename)
 	}
 }
 
-void makeHtmlFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, int row, GVocabulary* pVocab, const char* szFilename, bool binary)
+void makeHtmlFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, size_t row, GVocabulary* pVocab, const char* szFilename, bool binary)
 {
 	size_t len;
 	char* pFile = GFile::loadFile(szFilename, &len);
@@ -1455,7 +1455,7 @@ void addWordsToVocabFromTextFile(GVocabulary* pVocab, const char* szFilename)
 	pVocab->addWordsFromTextBlock(pFile, len);
 }
 
-void makeTextFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, int row, GVocabulary* pVocab, const char* szFilename, bool binary)
+void makeTextFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, size_t row, GVocabulary* pVocab, const char* szFilename, bool binary)
 {
 	size_t len;
 	char* pFile = GFile::loadFile(szFilename, &len);
@@ -1632,7 +1632,7 @@ void vectorToImage(GArgReader& args)
 		ThrowError("Invalid dimensions");
 	double* pVec = pData->row(r);
 	GImage image;
-	vectorToImage(&image, pVec, wid, hgt);
+	vectorToImage(&image, pVec, (int)wid, (int)hgt);
 	image.savePng("image.png");
 }
 
@@ -1647,12 +1647,12 @@ void dataToFrames(GArgReader& args)
 		ThrowError("Invalid dimensions");
 	GImage image;
 	GImage master;
-	master.setSize(wid, hgt * pData->rows());
+	master.setSize((unsigned int)wid, (unsigned int)(hgt * pData->rows()));
 	for(unsigned int i = 0; i < pData->rows(); i++)
 	{
-		vectorToImage(&image, pData->row(i), wid, hgt);
-		GRect r(0, 0, wid, hgt);
-		master.blit(0, i * hgt, &image, &r);
+		vectorToImage(&image, pData->row(i), (int)wid, (int)hgt);
+		GRect r(0, 0, (int)wid, (int)hgt);
+		master.blit(0, i * (int)hgt, &image, &r);
 	}
 	master.savePng("frames.png");
 }

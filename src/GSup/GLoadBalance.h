@@ -69,10 +69,10 @@ protected:
 	/// for a response from the server before setting "timedOut" to true and
 	/// returning NULL.) The first uint in the blob will be the value 102,
 	/// followed by the task blob.
-	unsigned char* requestTask(int* pBlobSize, bool stayConnected, int timeoutSeconds, bool* timedOut, bool* allDone);
+	unsigned char* requestTask(size_t* pBlobSize, bool stayConnected, int timeoutSeconds, bool* timedOut, bool* allDone);
 
 	/// Call this to send results back to the server
-	void reportResults(unsigned char* pBlob, int blobSize, bool stayConnected);
+	void reportResults(unsigned char* pBlob, size_t blobSize, bool stayConnected);
 };
 
 

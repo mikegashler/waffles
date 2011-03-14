@@ -136,7 +136,7 @@ void GPipe::toFile(const char* szFilename)
 	// This method isn't implemented on Windows yet, so we'll just
 	// call straight through for now.
 	pDaemonMain(pArg);
-	return 0;
+	return;
 #else
 
 	// Fork the first time

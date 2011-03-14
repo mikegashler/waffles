@@ -579,12 +579,12 @@ void GSocketClientBase::Disconnect()
 	}
 }
 
-bool GSocketClientBase::Send(const unsigned char *pBuff, int len)
+bool GSocketClientBase::Send(const unsigned char *pBuff, size_t len)
 {
 	int nBytesSent;
 	do
 	{
-		nBytesSent = send(m_s, (const char*)pBuff, len, 0);
+		nBytesSent = send(m_s, (const char*)pBuff, (int)len, 0);
 		if(nBytesSent < 0)
 		{
 #ifdef WINDOWS
@@ -641,7 +641,7 @@ in_addr GSocketClientBase::myIPAddr()
 	return pInfo->sin_addr;
 }
 
-char* GSocketClientBase::myIPAddr(char* szBuff, int nBuffSize)
+char* GSocketClientBase::myIPAddr(char* szBuff, size_t nBuffSize)
 {
 	safe_strcpy(szBuff, inet_ntoa(myIPAddr()), nBuffSize);
 	return szBuff;
@@ -662,7 +662,7 @@ u_short GSocketClientBase::myPort()
 	return htons(pInfo->sin_port);
 }
 
-char* GSocketClientBase::myName(char* szBuff, int nBuffSize)
+char* GSocketClientBase::myName(char* szBuff, size_t nBuffSize)
 {
 	SOCKADDR sAddr;
 	socklen_t l;
@@ -696,7 +696,7 @@ in_addr GSocketClientBase::otherIPAddr()
 	return pInfo->sin_addr;
 }
 
-char* GSocketClientBase::otherIPAddr(char* szBuff, int nBuffSize)
+char* GSocketClientBase::otherIPAddr(char* szBuff, size_t nBuffSize)
 {
 	safe_strcpy(szBuff, inet_ntoa(otherIPAddr()), nBuffSize);
 	return szBuff;
@@ -715,7 +715,7 @@ u_short GSocketClientBase::otherPort()
 	return htons(pInfo->sin_port);
 }
 
-char* GSocketClientBase::otherName(char* szBuff, int nBuffSize)
+char* GSocketClientBase::otherName(char* szBuff, size_t nBuffSize)
 {
 	SOCKADDR sAddr;
 	socklen_t l;
@@ -1066,7 +1066,7 @@ void GSocketServerBase::Disconnect(int nConnectionNumber)
 	}
 }
 
-bool GSocketServerBase::Send(const unsigned char *pBuff, int len, int nConnectionNumber)
+bool GSocketServerBase::Send(const unsigned char *pBuff, size_t len, int nConnectionNumber)
 {
 	SOCKET s;
 	{
@@ -1081,7 +1081,7 @@ bool GSocketServerBase::Send(const unsigned char *pBuff, int len, int nConnectio
 	int nBytesSent;
 	do
 	{
-		nBytesSent = send(s, (const char*)pBuff, len, 0);
+		nBytesSent = send(s, (const char*)pBuff, (int)len, 0);
 		if(nBytesSent < 0)
 		{
 #ifdef WINDOWS
@@ -1216,7 +1216,7 @@ in_addr GSocketServerBase::GetIPAddr(int nConnectionNumber)
 	}
 }
 
-char* GSocketServerBase::GetIPAddr(char* szBuff, int nBuffSize, int nConnectionNumber)
+char* GSocketServerBase::GetIPAddr(char* szBuff, size_t nBuffSize, int nConnectionNumber)
 {
 	safe_strcpy(szBuff, inet_ntoa(GetIPAddr(nConnectionNumber)), nBuffSize);
 	return szBuff;
@@ -1243,7 +1243,7 @@ u_short GSocketServerBase::GetPort(int nConnectionNumber)
 	return htons(pInfo->sin_port);
 }
 
-char* GSocketServerBase::GetName(char* szBuff, int nBuffSize, int nConnectionNumber)
+char* GSocketServerBase::GetName(char* szBuff, size_t nBuffSize, int nConnectionNumber)
 {
 	SOCKADDR sAddr;
 	socklen_t l;
@@ -1276,9 +1276,9 @@ class GSocketServerBuffer
 {
 public:
 	unsigned char* m_pBuffer;
-	int m_nBufferPos;
+	size_t m_nBufferPos;
 
-	GSocketServerBuffer(int nMaxPacketSize)
+	GSocketServerBuffer(size_t nMaxPacketSize)
 	{
 		m_pBuffer = new unsigned char[nMaxPacketSize + sizeof(struct GEZSocketPacketHeader)];
 		m_nBufferPos = 0;
@@ -1290,7 +1290,7 @@ public:
 	}
 };
 
-GSocketServer::GSocketServer(bool bUDP, int nMaxPacketSize, int nPort, int nMaxConnections) : GSocketServerBase(bUDP, nPort, nMaxConnections)
+GSocketServer::GSocketServer(bool bUDP, size_t nMaxPacketSize, int nPort, int nMaxConnections) : GSocketServerBase(bUDP, nPort, nMaxConnections)
 {
 	GAssert(sizeof(struct GEZSocketPacketHeader) == 8); // packing issue
 	m_nMaxPacketSize = nMaxPacketSize;
@@ -1324,19 +1324,19 @@ GSocketServer::~GSocketServer()
 	delete(m_pMessageQueueLock);
 }
 
-void GSocketServer::QueueMessage(unsigned char* pBuf, int nLen, int nConnectionNumber)
+void GSocketServer::QueueMessage(unsigned char* pBuf, size_t nLen, int nConnectionNumber)
 {
 	GSpinLockHolder hLock(m_pMessageQueueLock, "GSocketServer::QueueMessage");
 	GSocketMessage* pNewMessage = new GSocketMessage(pBuf, nLen, nConnectionNumber);
 	m_messageQueue.push_back(pNewMessage);
 }
 
-int GSocketServer::GetMessageCount()
+size_t GSocketServer::GetMessageCount()
 {
-	return (int)m_messageQueue.size();
+	return m_messageQueue.size();
 }
 
-unsigned char* GSocketServer::GetNextMessage(int* pnSize, int* pnOutConnectionNumber)
+unsigned char* GSocketServer::GetNextMessage(size_t* pnSize, int* pnOutConnectionNumber)
 {
 	GSocketMessage* pMessage;
 	{
@@ -1356,7 +1356,7 @@ unsigned char* GSocketServer::GetNextMessage(int* pnSize, int* pnOutConnectionNu
 	return pBuf;
 }
 
-bool GSocketServer::Receive(unsigned char *pBuf, int nLen, int nConnectionNumber)
+bool GSocketServer::Receive(unsigned char *pBuf, size_t nLen, int nConnectionNumber)
 {
 	if(m_nMaxPacketSize == 0)
 	{
@@ -1370,8 +1370,8 @@ bool GSocketServer::Receive(unsigned char *pBuf, int nLen, int nConnectionNumber
 		while(nLen > 0)
 		{
 			if(pBuffer->m_nBufferPos == 0 &&
-				nLen >= (int)sizeof(struct GEZSocketPacketHeader) &&
-				nLen >= (int)sizeof(struct GEZSocketPacketHeader) + GBits::littleEndianToN32(((struct GEZSocketPacketHeader*)pBuf)->nPayloadSize))
+				nLen >= sizeof(struct GEZSocketPacketHeader) &&
+				nLen >= sizeof(struct GEZSocketPacketHeader) + GBits::littleEndianToN32(((struct GEZSocketPacketHeader*)pBuf)->nPayloadSize))
 			{
 				// We've got a whole packet, so just queue it up
 				GAssert(*(unsigned int*)pBuf == *(unsigned int*)GSocketTag); // Bad Packet
@@ -1391,9 +1391,10 @@ bool GSocketServer::Receive(unsigned char *pBuf, int nLen, int nConnectionNumber
 					if(pBuffer->m_nBufferPos < 4 && *pBuf != GSocketTag[pBuffer->m_nBufferPos])
 					{
 						GAssert(false); // bad packet
-						pBuffer->m_nBufferPos = -1;
+						pBuffer->m_nBufferPos = 0;
 					}
-					pBuffer->m_nBufferPos++;
+					else
+						pBuffer->m_nBufferPos++;
 					pBuf++;
 					nLen--;
 				}
@@ -1404,7 +1405,7 @@ bool GSocketServer::Receive(unsigned char *pBuf, int nLen, int nConnectionNumber
 				if(nSize > m_nMaxPacketSize)
 				{
 					GAssert(false); // Received a packet that was too big
-					pHeader->nPayloadSize = m_nMaxPacketSize;
+					pHeader->nPayloadSize = (unsigned int)m_nMaxPacketSize;
 				}
 				while(pBuffer->m_nBufferPos < (int)sizeof(struct GEZSocketPacketHeader) + nSize && nLen > 0)
 				{
@@ -1423,7 +1424,7 @@ bool GSocketServer::Receive(unsigned char *pBuf, int nLen, int nConnectionNumber
 	return true;
 }
 
-bool GSocketServer::Send(const void* pBuf, int nLen, int nConnectionNumber)
+bool GSocketServer::Send(const void* pBuf, size_t nLen, int nConnectionNumber)
 {
 	if(m_nMaxPacketSize > 0)
 	{
@@ -1433,7 +1434,7 @@ bool GSocketServer::Send(const void* pBuf, int nLen, int nConnectionNumber)
 		header.tag[1] = GSocketTag[1];
 		header.tag[2] = GSocketTag[2];
 		header.tag[3] = GSocketTag[3];
-		header.nPayloadSize = GBits::n32ToLittleEndian(nLen);
+		header.nPayloadSize = GBits::n32ToLittleEndian((unsigned int)nLen);
 		if(!GSocketServerBase::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader), nConnectionNumber))
 			return false;
 	}
@@ -1441,7 +1442,7 @@ bool GSocketServer::Send(const void* pBuf, int nLen, int nConnectionNumber)
 	return bRet;
 }
 
-bool GSocketServer::Send2(const void* pBuf1, int nLen1, const void* pBuf2, int nLen2, int nConnectionNumber)
+bool GSocketServer::Send2(const void* pBuf1, size_t nLen1, const void* pBuf2, size_t nLen2, int nConnectionNumber)
 {
 	if(m_nMaxPacketSize > 0)
 	{
@@ -1451,7 +1452,7 @@ bool GSocketServer::Send2(const void* pBuf1, int nLen1, const void* pBuf2, int n
 		header.tag[1] = GSocketTag[1];
 		header.tag[2] = GSocketTag[2];
 		header.tag[3] = GSocketTag[3];
-		header.nPayloadSize = GBits::n32ToLittleEndian(nLen1 + nLen2);
+		header.nPayloadSize = GBits::n32ToLittleEndian((unsigned int)(nLen1 + nLen2));
 		if(!GSocketServerBase::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader), nConnectionNumber))
 			return false;
 	}
@@ -1463,7 +1464,7 @@ bool GSocketServer::Send2(const void* pBuf1, int nLen1, const void* pBuf2, int n
 
 // --------------------------------------------------------------------------
 
-GSocketClient::GSocketClient(bool bUDP, int nMaxPacketSize) : GSocketClientBase(bUDP)
+GSocketClient::GSocketClient(bool bUDP, size_t nMaxPacketSize) : GSocketClientBase(bUDP)
 {
 	m_nMaxPacketSize = nMaxPacketSize;
 	if(nMaxPacketSize > 0)
@@ -1490,18 +1491,18 @@ GSocketClient::~GSocketClient()
 	delete(m_pMessageQueueLock);
 }
 
-void GSocketClient::QueueMessage(unsigned char* pBuf, int nLen)
+void GSocketClient::QueueMessage(unsigned char* pBuf, size_t nLen)
 {
 	GSpinLockHolder hLock(m_pMessageQueueLock, "GSocketClient::QueueMessage");
 	m_messageQueue.push_back(new GSocketMessage(pBuf, nLen, 0));
 }
 
-int GSocketClient::GetMessageCount()
+size_t GSocketClient::GetMessageCount()
 {
-	return (int)m_messageQueue.size();
+	return m_messageQueue.size();
 }
 
-unsigned char* GSocketClient::GetNextMessage(int* pnSize)
+unsigned char* GSocketClient::GetNextMessage(size_t* pnSize)
 {
 	if(m_messageQueue.size() == 0)
 	{
@@ -1520,7 +1521,7 @@ unsigned char* GSocketClient::GetNextMessage(int* pnSize)
 	return pBuf;
 }
 
-bool GSocketClient::Receive(unsigned char *pBuf, int nLen)
+bool GSocketClient::Receive(unsigned char *pBuf, size_t nLen)
 {
 	if(m_nMaxPacketSize == 0)
 		QueueMessage(pBuf, nLen);
@@ -1560,7 +1561,7 @@ bool GSocketClient::Receive(unsigned char *pBuf, int nLen)
 				if(nSize > m_nMaxPacketSize)
 				{
 					GAssert(false); // Received a packet that was too big
-					pHeader->nPayloadSize = m_nMaxPacketSize;
+					pHeader->nPayloadSize = (unsigned int)m_nMaxPacketSize;
 				}
 				while(m_nBufferPos < (int)sizeof(struct GEZSocketPacketHeader) + nSize && nLen > 0)
 				{
@@ -1579,7 +1580,7 @@ bool GSocketClient::Receive(unsigned char *pBuf, int nLen)
 	return true;
 }
 
-bool GSocketClient::Send(const void* pBuf, int nLen)
+bool GSocketClient::Send(const void* pBuf, size_t nLen)
 {
 	if(m_nMaxPacketSize > 0)
 	{
@@ -1589,14 +1590,14 @@ bool GSocketClient::Send(const void* pBuf, int nLen)
 		header.tag[1] = GSocketTag[1];
 		header.tag[2] = GSocketTag[2];
 		header.tag[3] = GSocketTag[3];
-		header.nPayloadSize = GBits::n32ToLittleEndian(nLen);
+		header.nPayloadSize = GBits::n32ToLittleEndian((unsigned int)nLen);
 		if(!GSocketClientBase::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader)))
 			return false;
 	}
 	return GSocketClientBase::Send((const unsigned char*)pBuf, nLen);
 }
 
-bool GSocketClient::Send2(const void* pBuf1, int nLen1, const void* pBuf2, int nLen2)
+bool GSocketClient::Send2(const void* pBuf1, size_t nLen1, const void* pBuf2, size_t nLen2)
 {
 	if(m_nMaxPacketSize > 0)
 	{
@@ -1606,7 +1607,7 @@ bool GSocketClient::Send2(const void* pBuf1, int nLen1, const void* pBuf2, int n
 		header.tag[1] = GSocketTag[1];
 		header.tag[2] = GSocketTag[2];
 		header.tag[3] = GSocketTag[3];
-		header.nPayloadSize = GBits::n32ToLittleEndian(nLen1 + nLen2);
+		header.nPayloadSize = GBits::n32ToLittleEndian((unsigned int)(nLen1 + nLen2));
 		if(!GSocketClientBase::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader)))
 			return false;
 	}
@@ -1666,7 +1667,8 @@ void TestGSocketSerial(bool bGash, const char* szAddr, int port)
 		ThrowError("failed");
 
 	// Check the data and send some of it back to the client
-	int nSize, nConnection;
+	size_t nSize;
+	int nConnection;
 	{
 		ArrayHolder<unsigned char> hData(pServer->GetNextMessage(&nSize, &nConnection));
 		unsigned char* pData = hData.get();
@@ -1761,7 +1763,8 @@ void TestGSocketParallel()
 	GThread::spawnThread(TestGSocketParallelClientThread, &sData);
 	GThread::spawnThread(TestGSocketParallelClientThread, &sData);
 	int i;
-	int nSize, nConnection;
+	size_t nSize;
+	int nConnection;
 	for(i = 0; i < 500; i++)
 	{
 		ArrayHolder<unsigned char> hData(pServer->GetNextMessage(&nSize, &nConnection));

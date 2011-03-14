@@ -481,7 +481,7 @@ GTwtNode* GRayTraceScene::toTwt(GTwtDoc* pDoc)
 		pLightsNode->setItem(i, m_lights[i]->toTwt(pDoc, this));
 	pSceneNode->addField(pDoc, "camera", m_pCamera->toTwt(pDoc));
 	pSceneNode->addField(pDoc, "tone", pDoc->newDouble(m_toneMappingConstant));
-	pSceneNode->addField(pDoc, "mode", pDoc->newInt((int)m_eMode));
+	pSceneNode->addField(pDoc, "mode", pDoc->newInt(m_eMode));
 	return pSceneNode;
 }
 
@@ -589,9 +589,8 @@ size_t GRayTraceScene::objectIndex(GRayTraceObject* pObj)
 void GRayTraceScene::addMesh(GRayTraceTriMesh* pMesh)
 {
 	m_meshes.push_back(pMesh);
-	int nCount = pMesh->triangleCount();
-	int i;
-	for(i = 0; i < nCount; i++)
+	size_t nCount = pMesh->triangleCount();
+	for(size_t i = 0; i < nCount; i++)
 		addObject(new GRayTraceTriangle(pMesh, i));
 }
 
@@ -895,7 +894,7 @@ GTwtNode* GRayTraceLight::baseTwtNode(GTwtDoc* pDoc)
 {
 	GTwtNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "color", m_color.toTwt(pDoc));
-	pNode->addField(pDoc, "type", pDoc->newInt((int)lightType()));
+	pNode->addField(pDoc, "type", pDoc->newInt(lightType()));
 	return pNode;
 }
 
@@ -1061,7 +1060,7 @@ GRayTraceAreaLight::GRayTraceAreaLight(GTwtNode* pNode, GRayTraceScene* pScene)
 GTwtNode* GRayTraceAreaLight::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
 {
 	GTwtNode* pNode = baseTwtNode(pDoc);
-	pNode->addField(pDoc, "obj", pDoc->newInt((int)pScene->objectIndex(m_pObject)));
+	pNode->addField(pDoc, "obj", pDoc->newInt(pScene->objectIndex(m_pObject)));
 	return pNode;
 }
 
@@ -1240,7 +1239,7 @@ GRayTracePhysicalMaterial::~GRayTracePhysicalMaterial()
 GTwtNode* GRayTracePhysicalMaterial::toTwt(GTwtDoc* pDoc)
 {
 	GTwtNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "type", pDoc->newInt((int)materialType()));
+	pNode->addField(pDoc, "type", pDoc->newInt(materialType()));
 	GTwtNode* pColors = pNode->addField(pDoc, "colors", pDoc->newList(Color_Type_Count));
 	for(int i = 0; i < Color_Type_Count; i++)
 		pColors->setItem(i, m_colors[i].toTwt(pDoc));
@@ -1338,7 +1337,7 @@ GRayTraceImageTexture::~GRayTraceImageTexture()
 GTwtNode* GRayTraceImageTexture::toTwt(GTwtDoc* pDoc)
 {
 	GTwtNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "type", pDoc->newInt((int)materialType()));
+	pNode->addField(pDoc, "type", pDoc->newInt(materialType()));
 	ThrowError("Sorry, serializing images not yet supported");
 	return pNode;
 }
@@ -1608,13 +1607,13 @@ GRayTraceObject* GRayTraceBoundingBoxLeaf::closestIntersection(G3DVector* pRayOr
 
 // -----------------------------------------------------------------------------
 
-GRayTraceTriMesh::GRayTraceTriMesh(GRayTraceMaterial* pMaterial, int nPoints, int nTriangles, int nNormals, int nTextureCoords)
+GRayTraceTriMesh::GRayTraceTriMesh(GRayTraceMaterial* pMaterial, size_t nPoints, size_t nTriangles, size_t nNormals, size_t nTextureCoords)
 {
 	m_pMaterial = pMaterial;
 	m_nPoints = nPoints;
 	m_pPoints = new G3DVector[nPoints];
 	m_nTriangles = nTriangles;
-	m_pTriangles = new int[3 * nTriangles];
+	m_pTriangles = new size_t[3 * nTriangles];
 	if(nNormals > 0)
 	{
 		if(nNormals != nPoints)
@@ -1641,16 +1640,16 @@ GRayTraceTriMesh::GRayTraceTriMesh(GTwtNode* pNode, GRayTraceScene* pScene)
 	GTwtNode* pTrianglesNode = pNode->field("triangles");
 	GTwtNode* pNormalsNode = pNode->fieldIfExists("normals");
 	GTwtNode* pCoordsNode = pNode->fieldIfExists("coords");
-	m_nPoints = (int)pPointsNode->itemCount();
+	m_nPoints = (size_t)pPointsNode->itemCount();
 	m_pPoints = new G3DVector[m_nPoints];
 	for(size_t i = 0; i < pPointsNode->itemCount(); i++)
 		m_pPoints[i].fromTwt(pPointsNode->item(i));
 	if(pTrianglesNode->itemCount() % 3 != 0)
 		ThrowError("triangle points are not a multiple of 3");
-	m_nTriangles = (int)pTrianglesNode->itemCount() / 3;
-	m_pTriangles = new int[pTrianglesNode->itemCount()];
+	m_nTriangles = pTrianglesNode->itemCount() / 3;
+	m_pTriangles = new size_t[pTrianglesNode->itemCount()];
 	for(size_t i = 0; i < pTrianglesNode->itemCount(); i++)
-		m_pTriangles[i] = (int)pTrianglesNode->item(i)->asInt();
+		m_pTriangles[i] = (size_t)pTrianglesNode->item(i)->asInt();
 	if(pNormalsNode)
 	{
 		if(pNormalsNode->itemCount() != (size_t)m_nPoints)
@@ -1685,7 +1684,7 @@ GRayTraceTriMesh::GRayTraceTriMesh(GTwtNode* pNode, GRayTraceScene* pScene)
 GTwtNode* GRayTraceTriMesh::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
 {
 	GTwtNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "material", pDoc->newInt((int)pScene->materialIndex(m_pMaterial)));
+	pNode->addField(pDoc, "material", pDoc->newInt(pScene->materialIndex(m_pMaterial)));
 	GTwtNode* pPointsNode = pNode->addField(pDoc, "points", pDoc->newList(m_nPoints));
 	for(int i = 0; i < m_nPoints; i++)
 		pPointsNode->setItem(i, m_pPoints[i].toTwt(pDoc));
@@ -1716,24 +1715,24 @@ GTwtNode* GRayTraceTriMesh::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
 	return pNode;
 }
 
-void GRayTraceTriMesh::setPoint(int nIndex, const G3DVector* pPoint)
+void GRayTraceTriMesh::setPoint(size_t nIndex, const G3DVector* pPoint)
 {
-	GAssert(nIndex >= 0 && nIndex < m_nPoints); // out of range
+	GAssert(nIndex < m_nPoints); // out of range
 	m_pPoints[nIndex] = *pPoint;
 }
 
-void GRayTraceTriMesh::setTriangle(int nIndex, int v1, int v2, int v3)
+void GRayTraceTriMesh::setTriangle(size_t nIndex, size_t v1, size_t v2, size_t v3)
 {
-	GAssert(nIndex >= 0 && nIndex < m_nTriangles); // out of range
-	int* pTri = &m_pTriangles[3 * nIndex];
+	GAssert(nIndex < m_nTriangles); // out of range
+	size_t* pTri = &m_pTriangles[3 * nIndex];
 	pTri[0] = v1;
 	pTri[1] = v2;
 	pTri[2] = v3;
 }
 
-void GRayTraceTriMesh::setNormal(int nIndex, G3DVector* pNormal)
+void GRayTraceTriMesh::setNormal(size_t nIndex, G3DVector* pNormal)
 {
-	GAssert(nIndex >= 0 && nIndex < m_nPoints); // out of range
+	GAssert(nIndex < m_nPoints); // out of range
 	m_pNormals[nIndex] = *pNormal;
 }
 
@@ -1871,15 +1870,15 @@ void GRayTraceTriMesh::computePhongNormals()
 	}
 }
 
-void GRayTraceTriMesh::setTextureCoord(int nIndex, G3DReal x, G3DReal y)
+void GRayTraceTriMesh::setTextureCoord(size_t nIndex, G3DReal x, G3DReal y)
 {
-	GAssert(nIndex >= 0 && nIndex < m_nPoints); // out of range
+	GAssert(nIndex < m_nPoints); // out of range
 	nIndex *= 2;
 	m_pTextureCoords[nIndex] = x;
 	m_pTextureCoords[nIndex + 1] = y;
 }
 
-bool GRayTraceTriMesh::isPointWithinPlanarPolygon(G3DVector* pPoint, G3DVector** ppVertices, int nVertices)
+bool GRayTraceTriMesh::isPointWithinPlanarPolygon(G3DVector* pPoint, G3DVector** ppVertices, size_t nVertices)
 {
 	// Find the two dimensions with the most significant component (which
 	// are the dimensions with the smallest component in the normal vector)
@@ -1940,10 +1939,10 @@ bool GRayTraceTriMesh::isPointWithinPlanarPolygon(G3DVector* pPoint, G3DVector**
 		return false;
 }
 
-G3DReal GRayTraceTriMesh::rayDistanceToTriangle(int nTriangle, G3DVector* pRayOrigin, G3DVector* pRayDirection)
+G3DReal GRayTraceTriMesh::rayDistanceToTriangle(size_t nTriangle, G3DVector* pRayOrigin, G3DVector* pRayDirection)
 {
 	// Compute the plane equasion Ax + By + Cz + D = 0
-	int* pTriangle = &m_pTriangles[3 * nTriangle];
+	size_t* pTriangle = &m_pTriangles[3 * nTriangle];
 	G3DVector plane; // The plane normal is the vector (A, B, C)
 	G3DReal d;
 	plane.planeEquation(&m_pPoints[pTriangle[0]], &m_pPoints[pTriangle[1]], &m_pPoints[pTriangle[2]], &d);
@@ -1981,9 +1980,9 @@ G3DReal GRayTraceTriMesh::rayDistanceToTriangle(int nTriangle, G3DVector* pRayOr
 	return distance;
 }
 
-void GRayTraceTriMesh::normalVector(GRayTraceRay* pRay, int nIndex)
+void GRayTraceTriMesh::normalVector(GRayTraceRay* pRay, size_t nIndex)
 {
-	int* pTriangle = &m_pTriangles[3 * nIndex];
+	size_t* pTriangle = &m_pTriangles[3 * nIndex];
 	pRay->m_normalVector.triangleNormal(&m_pPoints[pTriangle[0]], &m_pPoints[pTriangle[1]], &m_pPoints[pTriangle[2]]);
 	if(!m_pNormals && !m_pTextureCoords)
 		return;
@@ -2057,24 +2056,24 @@ void GRayTraceTriMesh::normalVector(GRayTraceRay* pRay, int nIndex)
 	}
 }
 
-void GRayTraceTriMesh::center(G3DVector* pOutPoint, int nIndex)
+void GRayTraceTriMesh::center(G3DVector* pOutPoint, size_t nIndex)
 {
-	int* pTriangle = &m_pTriangles[3 * nIndex];
+	size_t* pTriangle = &m_pTriangles[3 * nIndex];
 	pOutPoint->copy(&m_pPoints[pTriangle[0]]);
 	pOutPoint->add(&m_pPoints[pTriangle[1]]);
 	pOutPoint->add(&m_pPoints[pTriangle[2]]);
 	pOutPoint->multiply((G3DReal)1.0 / (G3DReal)3.0);
 }
 
-G3DVector* GRayTraceTriMesh::vertex(int nIndex, int nVertex)
+G3DVector* GRayTraceTriMesh::vertex(size_t nIndex, size_t nVertex)
 {
-	int* pTriangle = &m_pTriangles[3 * nIndex];
+	size_t* pTriangle = &m_pTriangles[3 * nIndex];
 	return &m_pPoints[pTriangle[nVertex]];
 }
 
-void GRayTraceTriMesh::adjustBoundingBox(int nIndex, G3DVector* pMin, G3DVector* pMax)
+void GRayTraceTriMesh::adjustBoundingBox(size_t nIndex, G3DVector* pMin, G3DVector* pMax)
 {
-	int* pTriangle = &m_pTriangles[3 * nIndex];
+	size_t* pTriangle = &m_pTriangles[3 * nIndex];
 
 	// Vertex 0
 	pMin->m_vals[0] = std::min(pMin->m_vals[0], m_pPoints[pTriangle[0]].m_vals[0]);
@@ -2143,7 +2142,7 @@ GRayTraceTriMesh* GRayTraceTriMesh::makeSingleTriangle(GRayTraceMaterial* pMater
 }
 
 // static
-GRayTraceTriMesh* GRayTraceTriMesh::makeCylinder(GRayTraceMaterial* pMaterial, G3DVector* pCenter1, G3DVector* pCenter2, G3DReal radius, int nSides, bool bEndCaps)
+GRayTraceTriMesh* GRayTraceTriMesh::makeCylinder(GRayTraceMaterial* pMaterial, G3DVector* pCenter1, G3DVector* pCenter2, G3DReal radius, size_t nSides, bool bEndCaps)
 {
 	// Compute t, u, and v as the three component vectors of the MakeCylinder. w is just any
 	// vector that is not parallel to t
@@ -2163,8 +2162,8 @@ GRayTraceTriMesh* GRayTraceTriMesh::makeCylinder(GRayTraceMaterial* pMaterial, G
 	v.multiply(radius);
 
 	// Make the mesh
-	int nVertices = nSides * 2 + (bEndCaps ? 2 : 0);
-	int nTriangles = nSides * (bEndCaps ? 4 : 2);
+	size_t nVertices = nSides * 2 + (bEndCaps ? 2 : 0);
+	size_t nTriangles = nSides * (bEndCaps ? 4 : 2);
 	bool imageTexture = (pMaterial->materialType() == GRayTraceMaterial::Image);
 	GImage* pImage = imageTexture ? ((GRayTraceImageTexture*)pMaterial)->textureImage() : NULL;
 	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(pMaterial, nVertices, nTriangles, 0, (pImage ? nVertices : 0));
@@ -2175,8 +2174,8 @@ GRayTraceTriMesh* GRayTraceTriMesh::makeCylinder(GRayTraceMaterial* pMaterial, G
 	G3DVector p3, p4;
 	double dRads;
 	double dStep = 2 * M_PI / nSides;
-	int nVertex = 0;
-	int nTriangle = 0;
+	size_t nVertex = 0;
+	size_t nTriangle = 0;
 	if(bEndCaps)
 	{
 		pMesh->setPoint(nVertex++, pCenter1);
@@ -2187,7 +2186,7 @@ GRayTraceTriMesh* GRayTraceTriMesh::makeCylinder(GRayTraceMaterial* pMaterial, G
 			pMesh->setTextureCoord(nVertex - 1, (G3DReal)pImage->width() / 2, (G3DReal)pImage->height() / 2);
 		}
 	}
-	int nPrevVertexPos = nVertices;
+	size_t nPrevVertexPos = nVertices;
 	for(dRads = 2 * M_PI - .000000001; dRads > 0; ) // the small constant is to ensure that rounding error doesn't cause an extra side to be added
 	{
 		// Move forward
@@ -2262,8 +2261,8 @@ GRayTraceSphere::GRayTraceSphere(GTwtNode* pNode, GRayTraceScene* pScene)
 GTwtNode* GRayTraceSphere::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
 {
 	GTwtNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "type", pDoc->newInt((int)type()));
-	pNode->addField(pDoc, "material", pDoc->newInt((int)pScene->materialIndex(m_pMaterial)));
+	pNode->addField(pDoc, "type", pDoc->newInt(type()));
+	pNode->addField(pDoc, "material", pDoc->newInt(pScene->materialIndex(m_pMaterial)));
 	pNode->addField(pDoc, "center", m_center.toTwt(pDoc));
 	pNode->addField(pDoc, "radius", pDoc->newDouble(m_radius));
 	return pNode;
@@ -2343,7 +2342,7 @@ GRayTraceTriangle::GRayTraceTriangle(GTwtNode* pNode, GRayTraceScene* pScene)
 : GRayTraceObject()
 {
 	m_pMesh = pScene->mesh((size_t)pNode->field("mesh")->asInt());
-	m_nIndex = (int)pNode->field("index")->asInt();
+	m_nIndex = (size_t)pNode->field("index")->asInt();
 	if(m_nIndex < 0 || m_nIndex >= m_pMesh->triangleCount())
 		ThrowError("out of range");
 }
@@ -2352,8 +2351,8 @@ GRayTraceTriangle::GRayTraceTriangle(GTwtNode* pNode, GRayTraceScene* pScene)
 GTwtNode* GRayTraceTriangle::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
 {
 	GTwtNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "type", pDoc->newInt((int)type()));
-	pNode->addField(pDoc, "mesh", pDoc->newInt((int)pScene->meshIndex(m_pMesh)));
+	pNode->addField(pDoc, "type", pDoc->newInt(type()));
+	pNode->addField(pDoc, "mesh", pDoc->newInt(pScene->meshIndex(m_pMesh)));
 	pNode->addField(pDoc, "index", pDoc->newInt(m_nIndex));
 	return pNode;
 }

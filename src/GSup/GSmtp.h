@@ -41,7 +41,7 @@ public:
 	void send();
 
 protected:
-	void receive(const char* pBuff, int nLen);
+	void receive(const char* pBuff, size_t nLen);
 	void receiveLine(const char* szLine);
 };
 

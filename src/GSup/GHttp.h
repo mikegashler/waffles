@@ -44,12 +44,12 @@ protected:
 	char m_szHeaderBuf[258];
 	char m_szServer[256];
 	char m_szClientName[32];
-	int m_nHeaderPos;
-	int m_nContentSize;
+	size_t m_nHeaderPos;
+	size_t m_nContentSize;
 	bool m_bChunked;
 	bool m_aborted;
 	unsigned char* m_pData;
-	int m_nDataPos;
+	size_t m_nDataPos;
 	GHttpClientSocket* m_pSocket;
 	Status m_status;
 	std::ostringstream m_chunkBuf;
@@ -62,7 +62,7 @@ public:
 	GHttpClient();
 	virtual ~GHttpClient();
 
-	virtual void onReceiveData(const unsigned char* pData, int nLen) {}
+	virtual void onReceiveData(const unsigned char* pData, size_t nLen) {}
 
 	/// Send a request to get a file.  Returns immediately (before the file
 	/// is downloaded).
@@ -78,11 +78,11 @@ public:
 	/// Don't call this until the status is "Done".  It returns a pointer to the
 	/// file that was downloaded.  The buffer will be deleted when this object is
 	/// deleted, so if you want to retain the buffer, call releaseData instead.
-	unsigned char* getData(int* pnSize);
+	unsigned char* getData(size_t* pnSize);
 
 	/// Just like getData except it forgets about the buffer so you'll have to
 	/// delete it yourself.
-	unsigned char* releaseData(int* pnSize);
+	unsigned char* releaseData(size_t* pnSize);
 
 	/// This is called when the connection is lost
 	void onLoseConnection();
@@ -93,9 +93,9 @@ public:
 
 protected:
 
-	void processHeader(const unsigned char* szData, int nSize);
-	void processBody(const unsigned char* szData, int nSize);
-	void processChunkBody(const unsigned char* szData, int nSize);
+	void processHeader(const unsigned char* szData, size_t nSize);
+	void processBody(const unsigned char* szData, size_t nSize);
+	void processChunkBody(const unsigned char* szData, size_t nSize);
 	void gimmeWhatYouGot();
 
 };
@@ -133,10 +133,10 @@ public:
 	/// will stop when it hits the null-terminator in szIn or when nInLen characters
 	/// have been parsed. So if szIn is null-terminated, you can safely pass in a
 	/// huge arbitrary value for nInLen.
-	static void unescapeUrl(char* szOut, const char* szIn, int nInLen);
+	static void unescapeUrl(char* szOut, const char* szIn, size_t nInLen);
 
 	/// This is a rather hacky method that parses the parameters of a specific upload-file form
-	static bool parseFileParam(const char* pParams, int nParamsLen, const char** ppFilename, int* pFilenameLen, const unsigned char** ppFile, int* pFileLen);
+	static bool parseFileParam(const char* pParams, size_t nParamsLen, const char** ppFilename, size_t* pFilenameLen, const unsigned char** ppFile, size_t* pFileLen);
 
 	/// Specifies the content-type of the response
 	void setContentType(const char* szContentType);
@@ -152,7 +152,7 @@ public:
 
 protected:
 	virtual void onProcessLine(int nConnection, const char* szLine) {}
-	void processPostData(int nConnection, GHttpServerBuffer* pClient, const unsigned char* pData, int nDataSize);
+	void processPostData(int nConnection, GHttpServerBuffer* pClient, const unsigned char* pData, size_t nDataSize);
 	void processHeaderLine(int nConnection, GHttpServerBuffer* pClient, const char* szLine);
 	void beginRequest(GHttpServerBuffer* pClient, int eType, const char* szIn);
 	void sendResponse(GHttpServerBuffer* pClient, int nConnection);
@@ -165,13 +165,13 @@ protected:
 
 	/// The primary purpose of this method is to push a response into pResponse.
 	/// Typically this method will call SetHeaders.
-	virtual void doGet(const char* szUrl, const char* szParams, int nParamsLen, const char* szCookie, std::ostream& response) = 0;
+	virtual void doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, std::ostream& response) = 0;
 
 	/// This method takes ownership of pData. Don't forget to delete it. When the POST is
 	/// caused by an HTML form, it's common for this method to just call DoGet (passing
 	/// pData for szParams) and then delete pData. (For convenience, a '\0' is already appended
 	/// at the end of pData.)
-	virtual void doPost(const char* szUrl, unsigned char* pData, int nDataSize, const char* szCookie, std::ostream& response) = 0;
+	virtual void doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, std::ostream& response) = 0;
 
 	/// This is called when the client does a conditional GET. It should return true
 	/// if you wish to re-send the file, and DoGet will be called.
@@ -215,16 +215,16 @@ class GHttpMultipartParser
 {
 protected:
 	const char* m_pRawData;
-	int m_sentinelLen;
-	int m_repeatLen;
-	int m_pos;
-	int m_len;
+	size_t m_sentinelLen;
+	size_t m_repeatLen;
+	size_t m_pos;
+	size_t m_len;
 
 public:
-	GHttpMultipartParser(const char* pRawData, int len);
+	GHttpMultipartParser(const char* pRawData, size_t len);
 	~GHttpMultipartParser();
 
-	bool next(int* pNameStart, int* pNameLen, int* pValueStart, int* pValueLen, int* pFilenameStart, int* pFilenameLen);
+	bool next(size_t* pNameStart, size_t* pNameLen, size_t* pValueStart, size_t* pValueLen, size_t* pFilenameStart, size_t* pFilenameLen);
 };
 
 } // namespace GClasses

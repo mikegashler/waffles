@@ -75,21 +75,21 @@ public:
 	bool Connect(const char* szHost, unsigned short nPort, int nTimeout = 10);
 	void Disconnect();
 
-	bool Send(const unsigned char *pBuf, int nLen);
+	bool Send(const unsigned char *pBuf, size_t nLen);
 
 	/// This method is abstract because you need to implement something here
-	virtual bool Receive(unsigned char *pBuf, int nLen) = 0; // Override me
+	virtual bool Receive(unsigned char *pBuf, size_t nLen) = 0; // Override me
 
 
 	u_short myPort();
 	struct in_addr myIPAddr();
 	bool isConnected();
-	char* myIPAddr(char* szBuff, int nBuffSize);
-	char* myName(char* szBuff, int nBuffSize);
+	char* myIPAddr(char* szBuff, size_t nBuffSize);
+	char* myName(char* szBuff, size_t nBuffSize);
 	u_short otherPort();
 	struct in_addr otherIPAddr();
-	char* otherIPAddr(char* szBuff, int nBuffSize);
-	char* otherName(char* szBuff, int nBuffSize);
+	char* otherIPAddr(char* szBuff, size_t nBuffSize);
+	char* otherName(char* szBuff, size_t nBuffSize);
 
 	void listen(); // Don't call this method directly
 
@@ -144,10 +144,10 @@ public:
 
 	void Disconnect(int nConnectionNumber);
 
-	bool Send(const unsigned char *pBuf, int nLen, int nConnectionNumber);
+	bool Send(const unsigned char *pBuf, size_t nLen, int nConnectionNumber);
 
 	/// This method is abstract because you need to implement something here
-	virtual bool Receive(unsigned char *pBuf, int nLen, int nConnectionNumber) = 0; // Override me
+	virtual bool Receive(unsigned char *pBuf, size_t nLen, int nConnectionNumber) = 0; // Override me
 
 	bool IsConnected(int nConnectionNumber);
 
@@ -155,7 +155,7 @@ public:
 	void DontAcceptAnyMoreConnections();
 
 	/// If nConnectionNumber is less than 0, returns the address of the server
-	char* GetIPAddr(char* szBuff, int nBuffSize, int nConnectionNumber);
+	char* GetIPAddr(char* szBuff, size_t nBuffSize, int nConnectionNumber);
 
 	/// If nConnectionNumber is less than 0, returns the address of the server
 	struct in_addr GetIPAddr(int nConnectionNumber);
@@ -164,7 +164,7 @@ public:
 	u_short GetPort(int nConnectionNumber);
 
 	/// If nConnectionNumber is less than 0, returns the name of the server
-	char* GetName(char* szBuff, int nBuffSize, int nConnectionNumber);
+	char* GetName(char* szBuff, size_t nBuffSize, int nConnectionNumber);
 
 	void ServerWorker(); // Don't call this method directly
 
@@ -195,7 +195,7 @@ protected:
 struct GEZSocketPacketHeader
 {
 	char tag[4];
-	int nPayloadSize;
+	unsigned int nPayloadSize;
 };
 
 
@@ -203,11 +203,11 @@ class GSocketMessage
 {
 protected:
 	unsigned char* m_pMessage;
-	int m_nMessageSize;
+	size_t m_nMessageSize;
 	int m_nConnection;
 
 public:
-	GSocketMessage(unsigned char* pMessage, int nMessageSize, int nConnection)
+	GSocketMessage(unsigned char* pMessage, size_t nMessageSize, int nConnection)
 	{
 		m_pMessage = new unsigned char[nMessageSize];
 		memcpy(m_pMessage, pMessage, nMessageSize);
@@ -221,7 +221,7 @@ public:
 	}
 
 	const unsigned char* GetTheMessage() { return m_pMessage; }
-	int GetMessageSize() { return m_nMessageSize; }
+	size_t GetMessageSize() { return m_nMessageSize; }
 	int GetConnection() { return m_nConnection; }
 
 	/// you must delete the buffer this returns
@@ -242,32 +242,32 @@ class GSocketServer : public GSocketServerBase
 {
 protected:
 	std::vector<GSocketServerBuffer*>* m_pBuffers;
-	int m_nMaxPacketSize;
+	size_t m_nMaxPacketSize;
 	std::deque<GSocketMessage*> m_messageQueue;
 	GSpinLock* m_pMessageQueueLock;
 
-	virtual bool Receive(unsigned char *pBuf, int len, int nConnectionNumber);
-	void QueueMessage(unsigned char* pBuf, int nLen, int nConnectionNumber);
+	virtual bool Receive(unsigned char *pBuf, size_t len, int nConnectionNumber);
+	void QueueMessage(unsigned char* pBuf, size_t nLen, int nConnectionNumber);
 
 public:
 	/// if nMaxPacketSize = 0, the socket will speak raw UDP or TCP.
 	/// if nMaxPacketSize > 0, it will speak GSKT over TCP. (GSKT guarantees
 	///          same-size delivery of packets, but has a maximum packet size.)
-	GSocketServer(bool bUDP, int nMaxPacketSize, int nPort, int nMaxConnections);
+	GSocketServer(bool bUDP, size_t nMaxPacketSize, int nPort, int nMaxConnections);
 
 	virtual ~GSocketServer();
 
 	/// Send some data
-	bool Send(const void* pBuf, int nLen, int nConnectionNumber);
+	bool Send(const void* pBuf, size_t nLen, int nConnectionNumber);
 
 	/// Concat two blobs and send as one packet
-	bool Send2(const void* pBuf1, int nLen1, const void* pBuf2, int nLen2, int nConnectionNumber);
+	bool Send2(const void* pBuf1, size_t nLen1, const void* pBuf2, size_t nLen2, int nConnectionNumber);
 
 	/// Returns the number of messages waiting to be received
-	int GetMessageCount();
+	size_t GetMessageCount();
 
 	/// Receive the next message. (You are responsible to delete the buffer this returns)
-	unsigned char* GetNextMessage(int* pnSize, int* pnOutConnectionNumber);
+	unsigned char* GetNextMessage(size_t* pnSize, int* pnOutConnectionNumber);
 };
 
 // --------------------------------------------------------------------------
@@ -277,8 +277,8 @@ class GSocketClient : public GSocketClientBase
 {
 protected:
 	unsigned char* m_pBuffer;
-	int m_nBufferPos;
-	int m_nMaxPacketSize;
+	size_t m_nBufferPos;
+	size_t m_nMaxPacketSize;
 	std::deque<GSocketMessage*> m_messageQueue;
 	GSpinLock* m_pMessageQueueLock;
 
@@ -286,7 +286,7 @@ public:
 	/// if nMaxPacketSize = 0, the socket will speak raw UDP or TCP.
 	/// if nMaxPacketSize > 0, it will speak GSKT over TCP. (GSKT guarantees
 	///          same-size delivery of packets, but has a maximum packet size.)
-	GSocketClient(bool bUDP, int nMaxPacketSize);
+	GSocketClient(bool bUDP, size_t nMaxPacketSize);
 
 	virtual ~GSocketClient();
 
@@ -296,20 +296,20 @@ public:
 #endif // !NO_TEST_CODE
 
 	/// Send some data
-	bool Send(const void* pBuf, int nLen);
+	bool Send(const void* pBuf, size_t nLen);
 	
 	/// Concat two blobs and send as one packet
-	bool Send2(const void* pBuf1, int nLen1, const void* pBuf2, int nLen2);
+	bool Send2(const void* pBuf1, size_t nLen1, const void* pBuf2, size_t nLen2);
 
 	/// Returns the number of messages waiting to be received
-	int GetMessageCount();
+	size_t GetMessageCount();
 
 	/// Receive the next message. (You are responsible to delete the buffer this returns)
-	unsigned char* GetNextMessage(int* pnSize);
+	unsigned char* GetNextMessage(size_t* pnSize);
 
 protected:
-	virtual bool Receive(unsigned char *pBuf, int len);
-	void QueueMessage(unsigned char* pBuf, int nLen);
+	virtual bool Receive(unsigned char *pBuf, size_t len);
+	void QueueMessage(unsigned char* pBuf, size_t nLen);
 };
 
 
