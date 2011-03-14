@@ -905,7 +905,7 @@ void SplitTest(GArgReader& args)
 			trainRatio = args.pop_double();
 		}else if(args.if_pop("-reps")){
 			reps = args.pop_uint();
-		}else if(args.if_pop("-writeLastModel")){
+		}else if(args.if_pop("-writelastmodel")){
 			lastModelFile = args.pop_string();
 		}else{
 			ThrowError("Invalid splittest option: ", args.peek());

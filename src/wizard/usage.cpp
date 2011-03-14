@@ -226,7 +226,7 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pOpts->add("-trainratio [value]=0.5", "Specify the amount of the data (between 0 and 1) to use for training. The rest will be used for testing.");
 		pOpts->add("-reps [value]=10", "Specify the number of repetitions to perform. If not specified, the default is 1.");
-		pOpts->add("-writeLastModel [filename]", 
+		pOpts->add("-writelastmodel [filename]", 
 			   "Write the model generated on the last repetion "
 			   "to the given filename.  Note that this only works "
 			   "when the learner being used has an internal "
