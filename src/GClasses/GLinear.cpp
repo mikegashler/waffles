@@ -47,8 +47,6 @@ GTwtNode* GLinearRegressor::toTwt(GTwtDoc* pDoc)
 // virtual
 void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 {
-	if(labels.cols() != 1)
-		ThrowError("GLinearRegressor only supports 1 label dim");
 	clear();
 	GMatrix* pAll = GMatrix::mergeHoriz(&features, &labels);
 	Holder<GMatrix> hAll(pAll);
@@ -59,20 +57,25 @@ void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 // virtual
 void GLinearRegressor::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, predictDistribution is not implemented for this class. Use \"predict\" instead.");
+	ThrowError("Sorry, this model cannot predict a distribution.");
 }
 
 // virtual
 void GLinearRegressor::predictInner(const double* pIn, double* pOut)
 {
 	size_t inputs = featureDims();
-	*pOut = m_pPCA->mean()[inputs];
+	size_t outputs = labelDims();
+	GVec::copy(pOut, m_pPCA->mean() + inputs, outputs);
 	for(size_t i = 0; i < inputs; i++)
 	{
 		double dp = GVec::dotProduct(m_pPCA->mean(), pIn, m_pPCA->basis(i), inputs);
 		double mag = GVec::squaredMagnitude(m_pPCA->basis(i), inputs);
-		if(mag > 1e-12)
-			*pOut += (dp / mag) * m_pPCA->basis(i)[inputs];
+		if(mag > 1e-10)
+		{
+			dp /= mag;
+			for(size_t j = 0; j < outputs; j++)
+				pOut[j] += dp * m_pPCA->basis(i)[inputs + j];
+		}
 	}
 }
 

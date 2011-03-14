@@ -312,10 +312,6 @@ void GAgglomerativeTransducer::setMetric(GDissimilarityMetric* pMetric, bool own
 // virtual
 GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
-	// Check assumptions
-	if(labels1.cols() != 1)
-		ThrowError("Only one label dimension is supported");
-
 	// Init the metric
 	if(!m_pMetric)
 		setMetric(new GRowDistance(), true);
@@ -371,52 +367,56 @@ GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& l
 	}
 	std::sort(distNeighs.begin(), it);
 
-	// Assign each row to its own cluster
+	// Transduce
 	GMatrix* pOut = new GMatrix(labels1.relation());
 	Holder<GMatrix> hOut(pOut);
 	pOut->newRows(features2.rows());
 	pOut->setAll(-1);
 	size_t* pSiblings = new size_t[featuresAll.rows()]; // a cyclical linked list of each row in the cluster
 	ArrayHolder<size_t> hSiblings(pSiblings);
-	GIndexVec::makeIndexVec(pSiblings, featuresAll.rows()); // init such that each row is in a cluster of 1
-	size_t missingLabels = features2.rows();
-
-	// Merge until we have the desired number of clusters
-	pRows = pNF->cache();
-	for(vector< std::pair<double,size_t> >::iterator dn = distNeighs.begin(); dn != it; dn++)
+	for(size_t lab = 0; lab < labels1.cols(); lab++)
 	{
-		// Get the next two closest points
-		size_t a = dn->second / neighbors;
-		size_t b = pRows[dn->second];
-		GAssert(a != b && a < featuresAll.rows() && b < featuresAll.rows());
-		int labelA = (a < features1.rows() ? (int)labels1[a][0] : (int)pOut->row(a - features1.rows())[0]);
-		int labelB = (b < features1.rows() ? (int)labels1[b][0] : (int)pOut->row(b - features1.rows())[0]);
+		// Assign each row to its own cluster
+		GIndexVec::makeIndexVec(pSiblings, featuresAll.rows()); // init such that each row is in a cluster of 1
+		size_t missingLabels = features2.rows();
+	
+		// Merge until we have the desired number of clusters
+		pRows = pNF->cache();
+		for(vector< std::pair<double,size_t> >::iterator dn = distNeighs.begin(); dn != it; dn++)
+		{
+			// Get the next two closest points
+			size_t a = dn->second / neighbors;
+			size_t b = pRows[dn->second];
+			GAssert(a != b && a < featuresAll.rows() && b < featuresAll.rows());
+			int labelA = (a < features1.rows() ? (int)labels1[a][lab] : (int)pOut->row(a - features1.rows())[lab]);
+			int labelB = (b < features1.rows() ? (int)labels1[b][lab] : (int)pOut->row(b - features1.rows())[lab]);
 
-		// Merge the clusters
-		if(labelA >= 0 && labelB >= 0)
-			continue; // Both points are already labeled, so there is no point in merging their clusters
-		if(labelA < 0 && labelB >= 0) // Make sure that if one of them has a valid label, it is point a
-		{
-			std::swap(a, b);
-			std::swap(labelA, labelB);
-		}
-		if(labelA >= 0)
-		{
-			for(size_t i = pSiblings[b]; true; i = pSiblings[i]) // Label every row in cluster b
+			// Merge the clusters
+			if(labelA >= 0 && labelB >= 0)
+				continue; // Both points are already labeled, so there is no point in merging their clusters
+			if(labelA < 0 && labelB >= 0) // Make sure that if one of them has a valid label, it is point a
 			{
-				GAssert(i >= features1.rows());
-				GAssert(pOut->row(i - features1.rows())[0] == (double)-1);
-				pOut->row(i - features1.rows())[0] = labelA;
-				if(--missingLabels == 0)
-					return hOut.release();
-				if(i == b)
+				std::swap(a, b);
+				std::swap(labelA, labelB);
+			}
+			if(labelA >= 0)
+			{
+				for(size_t i = pSiblings[b]; true; i = pSiblings[i]) // Label every row in cluster b
+				{
+					GAssert(i >= features1.rows());
+					GAssert(pOut->row(i - features1.rows())[lab] == (double)-1);
+					pOut->row(i - features1.rows())[lab] = labelA;
+					missingLabels--;
+					if(i == b)
+						break;
+				}
+				if(missingLabels <= 0)
 					break;
 			}
+			std::swap(pSiblings[a], pSiblings[b]); // This line joins the cyclical linked lists into one big cycle
 		}
-		std::swap(pSiblings[a], pSiblings[b]); // This line joins the cyclical linked lists into one big cycle
 	}
-	ThrowError("internal error--should have finished before now");
-	return NULL;
+	return hOut.release();
 }
 
 
@@ -969,12 +969,9 @@ GGraphCutTransducer::~GGraphCutTransducer()
 // virtual
 GMatrix* GGraphCutTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
-	if(labels1.cols() != 1)
-		ThrowError("Only 1 nominal label dim is supported");
-
 	// Use k-NN to compute a distance metric with good scale factors for prediction
 	GKNN knn(m_neighborCount, m_pRand);
-	knn.setOptimizeScaleFactors(true);
+	//knn.setOptimizeScaleFactors(true);
 	knn.train(features1, labels1);
 	GRowDistanceScaled* pMetric = knn.metric();
 
@@ -990,194 +987,51 @@ GMatrix* GGraphCutTransducer::transduceInner(GMatrix& features1, GMatrix& labels
 	GKdTree neighborFinder(&both, m_neighborCount, &metric2, false);
 	GVec::copy(metric2.scaleFactors(), pMetric->scaleFactors(), features1.cols());
 
-	// Use max-flow/min-cut graph-cut to separate out each label value
+	// Transduce
 	GMatrix* pOut = new GMatrix(labels1.relation());
 	Holder<GMatrix> hOut(pOut);
 	pOut->newRows(features2.rows());
 	pOut->setAll(0);
-	int valueCount = (int)labels1.relation()->valueCount(0);
-	for(int val = 1; val < valueCount; val++)
+	for(size_t lab = 0; lab < labels1.cols(); lab++)
 	{
-		// Add neighborhood edges
-		GGraphCut gc(features1.rows() + features2.rows() + 2);
-		for(size_t i = 0; i < both.rows(); i++)
+		// Use max-flow/min-cut graph-cut to separate out each label value
+		int valueCount = (int)labels1.relation()->valueCount(lab);
+		for(int val = 1; val < valueCount; val++)
 		{
-			neighborFinder.neighbors(m_pNeighbors, m_pDistances, i);
-			for(size_t j = 0; j < m_neighborCount; j++)
+			// Add neighborhood edges
+			GGraphCut gc(features1.rows() + features2.rows() + 2);
+			for(size_t i = 0; i < both.rows(); i++)
 			{
-				if(m_pNeighbors[j] >= both.rows())
-					continue;
-				gc.addEdge(2 + i, 2 + m_pNeighbors[j], (float)(1.0 / std::max(sqrt(m_pDistances[j]), 1e-9))); // connect neighbors
+				neighborFinder.neighbors(m_pNeighbors, m_pDistances, i);
+				for(size_t j = 0; j < m_neighborCount; j++)
+				{
+					if(m_pNeighbors[j] >= both.rows())
+						continue;
+					gc.addEdge(2 + i, 2 + m_pNeighbors[j], (float)(1.0 / std::max(sqrt(m_pDistances[j]), 1e-9))); // connect neighbors
+				}
 			}
-		}
 
-		// Add source and sink edges
-		for(size_t i = 0; i < features1.rows(); i++)
-		{
-			if((int)labels1[i][0] == val)
-				gc.addEdge(0, 2 + (int)i, 1e12f); // connect to source
-			else
-				gc.addEdge(1, 2 + (int)i, 1e12f); // connect to sink
-		}
+			// Add source and sink edges
+			for(size_t i = 0; i < features1.rows(); i++)
+			{
+				if((int)labels1[i][0] == val)
+					gc.addEdge(0, 2 + (int)i, 1e12f); // connect to source
+				else
+					gc.addEdge(1, 2 + (int)i, 1e12f); // connect to sink
+			}
 
-		// Cut
-		gc.cut(0, 1);
+			// Cut
+			gc.cut(0, 1);
 
-		// Label the unlabeled rows
-		for(size_t i = 0; i < features2.rows(); i++)
-		{
-			if(gc.isSource(2 + features1.rows() + i))
-				pOut->row(i)[0] = (double)val;
+			// Label the unlabeled rows
+			for(size_t i = 0; i < features2.rows(); i++)
+			{
+				if(gc.isSource(2 + features1.rows() + i))
+					pOut->row(i)[lab] = (double)val;
+			}
 		}
 	}
 	return hOut.release();
 }
 
 
-
-
-
-
-/*
-GNeuralTransducer::GNeuralTransducer(GRand* pRand)
-: m_pRand(pRand)
-{
-	m_pNN = new GNeuralNet(m_pRand);
-	m_pNN->setLearningRate(0.005);
-}
-
-// virtual
-GNeuralTransducer::~GNeuralTransducer()
-{
-	delete(m_pNN);
-}
-
-void GNeuralTransducer::setParams(std::vector<size_t>& ranges)
-{
-	m_paramRanges.resize(ranges.size());
-	vector<size_t>::iterator itSrc = ranges.begin();
-	vector<size_t>::iterator itDst = m_paramRanges.begin();
-	while(itSrc != ranges.end())
-		*(itDst++) = *(itSrc++);
-}
-
-// virtual
-void GNeuralTransducer::transduceInner(GMatrix* pDataLabeled, GMatrix* pDataUnlabeled, size_t labelDims)
-{
-	if(labelDims != 1)
-		ThrowError("Sorry, only one label dim is currently supported");
-	if(pDataLabeled->cols() != pDataUnlabeled->cols())
-		ThrowError("mismatching number of columns");
-	size_t featureDims = pDataLabeled->cols() - 1;
-	int labelValues = pDataLabeled->relation()->valueCount(featureDims);
-	if(labelValues < 1)
-		ThrowError("expected the labels to be nominal");
-
-	// Compute the number of pixels and channels
-	size_t pixels = 1;
-	for(size_t i = 0; i < m_paramRanges.size(); i++)
-		pixels *= m_paramRanges[i];
-	size_t channels = featureDims / pixels;
-	if((channels * pixels) != featureDims)
-		ThrowError("params don't align with the number of feature dims");
-	size_t paramDims = m_paramRanges.size();
-
-	// Make the initial cluster data
-	GMatrix outData(paramDims + labelValues);
-	size_t totalRows = pDataLabeled->rows() + pDataUnlabeled->rows();
-	outData.newRows(pDataLabeled->rows() + pDataUnlabeled->rows());
-	for(size_t i = 0; i < pDataLabeled->rows(); i++)
-	{
-		double* pVec = outData.row(i);
-		int label = (int)pDataLabeled->row(i)[featureDims];
-		if(label >= 0 && label < labelValues)
-		{
-			GVec::setAll(pVec, 0.0, labelValues);
-			pVec[label] = 1.0;
-		}
-		else
-			GVec::setAll(pVec, 1.0 / labelValues, labelValues);
-	}
-	{
-		double dist;
-		size_t neigh;
-		GKdTree neighborFinder(pDataLabeled, 1, 1, NULL, false);
-		for(size_t i = 0; i < pDataUnlabeled->rows(); i++)
-		{
-			double* pVec = outData.row(pDataLabeled->rows() + i);
-			neighborFinder.neighbors(&neigh, &dist, pDataUnlabeled->row(i));
-			int label = (int)pDataLabeled->row(neigh)[featureDims];
-			if(label >= 0 && label < labelValues)
-			{
-				GVec::setAll(pVec, 0.0, labelValues);
-				pVec[label] = 1.0;
-			}
-			else
-				GVec::setAll(pVec, 1.0 / labelValues, labelValues);
-		}
-	}
-
-	// Prepare for incremental learning
-	sp_relation pRel = new GUniformRelation(paramDims + labelValues + channels);
-	m_pNN->enableIncrementalLearning(pRel, channels, NULL, NULL);
-
-	// Iterate
-	GBackProp* pBP = m_pNN->backProp();
-	GBackPropLayer& bpLayer = pBP->layer(0);
-	GNeuralNetLayer& nnLayer = m_pNN->getLayer(0);
-	GCoordVectorIterator cvi(m_paramRanges);
-	double startTime = GTime::seconds();
-	while(true)
-	{
-		size_t index = (size_t)m_pRand->next(totalRows);
-		if(index == 0 && GTime::seconds() - startTime > 18 * 60 * 60)
-			break;
-		double* pRow = index < pDataLabeled->rows() ? pDataLabeled->row(index) : pDataUnlabeled->row(index - pDataLabeled->rows());
-		double* pVec = outData.row(index);
-		cvi.setRandom(m_pRand);
-		cvi.currentNormalized(pVec);
-
-		// Train the weights
-		m_pNN->trainIncremental(pVec, pRow + channels * cvi.currentIndex());
-
-		// Train the contexts
-		for(size_t i = 0; i < labelValues; i++)
-		{
-			for(size_t j = 0; j < nnLayer.m_neurons.size(); j++)
-				pVec[paramDims + i] += m_pNN->learningRate() * bpLayer.m_neurons[j].m_error * nnLayer.m_neurons[j].m_weights[1 + i];
-		}
-
-		// Use semi-supervision with the labeled contexts
-		if(index < pDataLabeled->rows())
-		{
-			size_t mi = GVec::indexOfMax(pVec + paramDims, labelValues, m_pRand);
-			int ti = (int)pRow[featureDims];
-			if(ti != mi)
-			{
-				for(size_t i = 0; i < labelValues; i++)
-				{
-					if(i == ti)
-						pVec[paramDims + i] += m_pNN->learningRate() * (1.0 - pVec[paramDims + i]);
-					else
-						pVec[paramDims + i] += m_pNN->learningRate() * (0.0 - pVec[paramDims + i]);
-				}
-			}
-		}
-
-		// Regularize the weights
-		m_pNN->decayWeights(0.001);
-	}
-
-GTwtDoc doc;
-doc.setRoot(m_pNN->toTwt(&doc));
-doc.save("cluster_model.twt");
-
-	// Deterimine the most likely label for each row
-	for(size_t i = 0; i < pDataUnlabeled->rows(); i++)
-	{
-		double* pVec = outData.row(pDataLabeled->rows() + i);
-		size_t mi = GVec::indexOfMax(pVec + paramDims, labelValues, m_pRand);
-		pDataUnlabeled->row(i)[featureDims] = (double)mi;
-	}
-}
-*/

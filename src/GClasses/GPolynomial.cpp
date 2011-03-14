@@ -20,7 +20,98 @@
 #include "GHillClimber.h"
 #include "GTwt.h"
 
+using std::vector;
+
 namespace GClasses {
+
+/// This is an internal helper-class used by GPolynomial
+class GPolynomialSingleLabel
+{
+protected:
+	size_t m_featureDims;
+	size_t m_nControlPoints;
+	size_t m_nCoefficients;
+	double* m_pCoefficients;
+
+public:
+	/// It will have the same number of control points in every dimension
+	GPolynomialSingleLabel(size_t nControlPoints);
+
+	/// Load from a text-based format
+	GPolynomialSingleLabel(GTwtNode* pNode, GRand& rand);
+
+	virtual ~GPolynomialSingleLabel();
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests for this class. Throws an exception if there is a failure.
+	static void test();
+#endif // NO_TEST_CODE
+
+	/// Save to a text-based format
+	GTwtNode* toTwt(GTwtDoc* pDoc);
+
+	/// Specify the number of input and output features
+	void init(size_t featureDims);
+
+	/// Returns the number of feature dims
+	size_t featureDims() { return m_featureDims; }
+
+	/// Returns the total number of coefficients in this polynomial
+	size_t coefficientCount() { return m_nCoefficients; }
+
+	/// Returns the number of control points (per dimension)
+	size_t controlPointCount() { return m_nControlPoints; }
+
+	/// Returns the coefficient at the specified coordinates. pCoords should
+	/// be an array of size m_nDimensions, and each value should be from 0 to m_nControlPoints - 1
+	double coefficient(size_t* pCoords);
+
+	/// Returns the full array of coefficients
+	double* coefficientArray() { return m_pCoefficients; }
+
+	/// Sets the coefficient at the specified coordinates. pCoords should
+	/// be an array of size m_nDimensions, and each value should be from 0 to m_nControlPoints - 1
+	void setCoefficient(size_t* pCoords, double dVal);
+
+	/// Copies pOther into this polynomial. Both polynomials must have the
+	/// same dimensionality, and this polynomial must have >= 
+	void copy(GPolynomialSingleLabel* pOther);
+
+	/// See the comment for GSupervisedLearner::clear
+	void clear();
+
+	/// Sets all the coefficients. pVector must be of size GetCoefficientCount()
+	void setCoefficients(const double* pVector);
+
+	/// Converts to a multi-dimensional Bezier curve
+	void toBezierCoefficients();
+
+	/// Converts from a multi-dimensional Bezier curve
+	void fromBezierCoefficients();
+
+	/// Differentiates the polynomial with respect to every dimension
+	void differentiate();
+
+	/// Integrates the polynomial in every dimension. This assumes the
+	/// constant of integration is always zero. It also assumes that all
+	/// of the highest-order coefficients are zero. If that isn't true,
+	/// this polynomial won't be big enough to hold the answer, and the
+	/// highest-order coefficients will be dropped. The best way to ensure
+	/// that doesn't happen is to copy into a bigger (one more control point)
+	/// polynomial before integrating.
+	void integrate();
+
+	void train(GMatrix& features, GMatrix& labels);
+
+	double predict(const double* pIn);
+
+protected:
+	/// This converts from control-point-lattice coordinates to an array index.
+	/// The array is stored with lattice position (0, 0, 0, ...) (the constant coefficient)
+	/// in array position 0, and lattice position (1, 0, 0, ...) in position 1, etc.
+	size_t calcIndex(size_t* pDegrees);
+};
+
 
 class GPolynomialLatticeIterator
 {
@@ -74,14 +165,13 @@ public:
 
 // ---------------------------------------------------------------------------
 
-GPolynomial::GPolynomial(size_t nControlPoints)
-: GSupervisedLearner(), m_featureDims(0), m_nControlPoints(nControlPoints), m_nCoefficients(0), m_pCoefficients(NULL)
+GPolynomialSingleLabel::GPolynomialSingleLabel(size_t nControlPoints)
+: m_featureDims(0), m_nControlPoints(nControlPoints), m_nCoefficients(0), m_pCoefficients(NULL)
 {
 	GAssert(nControlPoints > 0);
 }
 
-GPolynomial::GPolynomial(GTwtNode* pNode, GRand& rand)
- : GSupervisedLearner(pNode, rand)
+GPolynomialSingleLabel::GPolynomialSingleLabel(GTwtNode* pNode, GRand& rand)
 {
 	m_nControlPoints = (int)pNode->field("controlPoints")->asInt();
 	m_nCoefficients = 1;
@@ -96,24 +186,24 @@ GPolynomial::GPolynomial(GTwtNode* pNode, GRand& rand)
 	GVec::fromTwt(m_pCoefficients, m_nCoefficients, pNode->field("coefficients"));
 }
 
-GPolynomial::~GPolynomial()
+GPolynomialSingleLabel::~GPolynomialSingleLabel()
 {
 	clear();
 }
 
 // virtual
-GTwtNode* GPolynomial::toTwt(GTwtDoc* pDoc)
+GTwtNode* GPolynomialSingleLabel::toTwt(GTwtDoc* pDoc)
 {
 	if(m_featureDims == 0)
 		ThrowError("train has not been called");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GPolynomial");
+	GTwtNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
 	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_nControlPoints));
 	pNode->addField(pDoc, "coefficients", GVec::toTwt(pDoc, m_pCoefficients, m_nCoefficients));
 	return pNode;
 }
 
-size_t GPolynomial::calcIndex(size_t* pCoords)
+size_t GPolynomialSingleLabel::calcIndex(size_t* pCoords)
 {
 	size_t nIndex = 0;
 	for(size_t n = m_featureDims - 1; n < m_featureDims; n--)
@@ -125,14 +215,14 @@ size_t GPolynomial::calcIndex(size_t* pCoords)
 	return nIndex;
 }
 
-double GPolynomial::coefficient(size_t* pCoords)
+double GPolynomialSingleLabel::coefficient(size_t* pCoords)
 {
 	if(m_featureDims == 0)
 		ThrowError("init has not been called");
 	return m_pCoefficients[calcIndex(pCoords)];
 }
 
-void GPolynomial::setCoefficient(size_t* pCoords, double dVal)
+void GPolynomialSingleLabel::setCoefficient(size_t* pCoords, double dVal)
 {
 	if(m_featureDims == 0)
 		ThrowError("init has not been called");
@@ -142,12 +232,12 @@ void GPolynomial::setCoefficient(size_t* pCoords, double dVal)
 class GPolynomialRegressCritic : public GTargetFunction
 {
 protected:
-	GPolynomial* m_pPolynomial;
+	GPolynomialSingleLabel* m_pPolynomial;
 	GMatrix& m_features;
 	GMatrix& m_labels;
 
 public:
-	GPolynomialRegressCritic(GPolynomial* pPolynomial, GMatrix& features, GMatrix& labels)
+	GPolynomialRegressCritic(GPolynomialSingleLabel* pPolynomial, GMatrix& features, GMatrix& labels)
 	: GTargetFunction(pPolynomial->coefficientCount()), m_features(features), m_labels(labels)
 	{
 		m_pPolynomial = pPolynomial;
@@ -170,47 +260,33 @@ protected:
 	{
 		m_pPolynomial->setCoefficients(pVector);
 		m_pPolynomial->fromBezierCoefficients();
-		GPrediction out;
 		double d;
 		double dSumSquaredError = 0;
-		size_t nInputCount = m_pPolynomial->featureDims();
 		for(size_t i = 0; i < m_features.rows(); i++)
 		{
 			double* pVec = m_features[i];
-			m_pPolynomial->predictDistribution(pVec, &out);
-			if(out.isContinuous())
-			{
-				if(pVec[nInputCount] != UNKNOWN_REAL_VALUE)
-				{
-					d = out.asNormal()->mean() - pVec[nInputCount];
-					dSumSquaredError += (d * d);
-				}
-			}
-			else
-			{
-				if((int)pVec[nInputCount] >= 0 && (int)out.asCategorical()->mode() != (int)pVec[nInputCount])
-					dSumSquaredError += 1;
-			}
+			double prediction = m_pPolynomial->predict(pVec);
+			d = m_labels[i][0] - prediction;
+			dSumSquaredError += (d * d);
 		}
 		return dSumSquaredError / m_features.rows();
 	}
 };
 
-void GPolynomial::setCoefficients(const double* pVector)
+void GPolynomialSingleLabel::setCoefficients(const double* pVector)
 {
 	if(m_featureDims == 0)
 		ThrowError("init has not been called");
 	GVec::copy(m_pCoefficients, pVector, m_nCoefficients);
 }
 
-// virtual
-void GPolynomial::clear()
+void GPolynomialSingleLabel::clear()
 {
 	delete[] m_pCoefficients;
 	m_pCoefficients = NULL;
 }
 
-void GPolynomial::init(size_t featureDims)
+void GPolynomialSingleLabel::init(size_t featureDims)
 {
 	m_featureDims = featureDims;
 	m_nCoefficients = 1;
@@ -224,11 +300,9 @@ void GPolynomial::init(size_t featureDims)
 	GVec::setAll(m_pCoefficients, 0.0, m_nCoefficients);
 }
 
-// virtual
-void GPolynomial::trainInner(GMatrix& features, GMatrix& labels)
+void GPolynomialSingleLabel::train(GMatrix& features, GMatrix& labels)
 {
-	if(labels.cols() != 1)
-		ThrowError("Sorry, only 1 label dim is supported");
+	GAssert(labels.cols() == 1);
 	init(features.cols());
 	GPolynomialRegressCritic critic(this, features, labels);
 	//GStochasticGreedySearch search(&critic);
@@ -240,8 +314,7 @@ void GPolynomial::trainInner(GMatrix& features, GMatrix& labels)
 
 // (Warning: this method relies on the order in which GPolynomialLatticeIterator
 // visits coefficients in the lattice)
-// virtual
-void GPolynomial::predictDistributionInner(const double* pIn, GPrediction* pOut)
+double GPolynomialSingleLabel::predict(const double* pIn)
 {
 	if(m_featureDims == 0)
 		ThrowError("init has not been called");
@@ -261,18 +334,10 @@ void GPolynomial::predictDistributionInner(const double* pIn, GPrediction* pOut)
 		dSum += dVar;
 		iter.Advance();
 	}
-	pOut->makeNormal()->setMeanAndVariance(dSum, 1);
+	return dSum;
 }
 
-// virtual
-void GPolynomial::predictInner(const double* pIn, double* pOut)
-{
-	GPrediction out;
-	predictDistribution(pIn, &out);
-	GPrediction::predictionArrayToVector(1, &out, pOut);
-}
-
-void GPolynomial::toBezierCoefficients()
+void GPolynomialSingleLabel::toBezierCoefficients()
 {
 	if(m_featureDims == 0)
 		ThrowError("init has not been called");
@@ -327,7 +392,7 @@ void GPolynomial::toBezierCoefficients()
 	}
 }
 
-void GPolynomial::fromBezierCoefficients()
+void GPolynomialSingleLabel::fromBezierCoefficients()
 {
 	if(m_featureDims == 0)
 		ThrowError("init has not been called");
@@ -380,7 +445,7 @@ void GPolynomial::fromBezierCoefficients()
 	}
 }
 
-void GPolynomial::differentiate()
+void GPolynomialSingleLabel::differentiate()
 {
 	if(m_featureDims == 0)
 		ThrowError("init has not been called");
@@ -408,7 +473,7 @@ void GPolynomial::differentiate()
 	}
 }
 
-void GPolynomial::integrate()
+void GPolynomialSingleLabel::integrate()
 {
 	if(m_featureDims == 0)
 		ThrowError("init has not been called");
@@ -438,7 +503,7 @@ void GPolynomial::integrate()
 	}
 }
 
-void GPolynomial::copy(GPolynomial* pOther)
+void GPolynomialSingleLabel::copy(GPolynomialSingleLabel* pOther)
 {
 	m_featureDims = pOther->m_featureDims;
 	if(controlPointCount() >= pOther->controlPointCount())
@@ -457,12 +522,12 @@ void GPolynomial::copy(GPolynomial* pOther)
 
 #ifndef NO_TEST_CODE
 // static
-void GPolynomial::test()
+void GPolynomialSingleLabel::test()
 {
 	// This test involves a two-dimensional polynomial with three controll points in each dimension.
 	// In other words, there is a 3x3 lattice of control points, so there are 9 total control points.
 	// In this case, we arbitrarily use {1,2,3,4,5,6,7,8,9} for the coefficients.
-	GPolynomial gp(3);
+	GPolynomialSingleLabel gp(3);
 	gp.init(2);
 	size_t degrees[2];
 	degrees[0] = 0;
@@ -495,16 +560,110 @@ void GPolynomial::test()
 	double vars[2];
 	vars[0] = 7;
 	vars[1] = 11;
-	GPrediction val;
-	gp.predictDistribution(vars, &val);
+	double prediction = gp.predict(vars);
 	// 1 + 2 * (7) + 3 * (7 * 7) +
 	// 4 * (11) + 5 * (11 * 7) + 6 * (11 * 7 * 7) +
 	// 7 * (11 * 11) + 8 * (11 * 11 * 7) + 9 * (11 * 11 * 7 * 7)
 	// = 64809
-	if(val.asNormal()->mean() != 64809)
+	if(prediction != 64809)
 		throw "wrong answer";
 }
 #endif // NO_TEST_CODE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GPolynomial::GPolynomial(size_t nControlPoints)
+: m_controlPoints(nControlPoints)
+{
+}
+
+GPolynomial::GPolynomial(GTwtNode* pNode, GRand& rand)
+: GSupervisedLearner(pNode, rand)
+{
+	m_controlPoints = (size_t)pNode->field("controlPoints")->asInt();
+	GTwtNode* pPolys = pNode->field("polys");
+	for(size_t i = 0; i < pPolys->itemCount(); i++)
+		m_polys.push_back(new GPolynomialSingleLabel(pPolys->item(i), rand));
+}
+
+// virtual
+GPolynomial::~GPolynomial()
+{
+	clear();
+}
+
+// virtual
+GTwtNode* GPolynomial::toTwt(GTwtDoc* pDoc)
+{
+	GTwtNode* pNode = baseTwtNode(pDoc, "GPolynomial");
+	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_controlPoints));
+	GTwtNode* pPolys = pNode->addField(pDoc, "polys", pDoc->newList(m_polys.size()));
+	for(size_t i = 0; i < m_polys.size(); i++)
+		pPolys->setItem(i, m_polys[i]->toTwt(pDoc));
+	return pNode;
+}
+
+// virtual
+void GPolynomial::clear()
+{
+	for(vector<GPolynomialSingleLabel*>::iterator it = m_polys.begin(); it != m_polys.end(); it++)
+		delete(*it);
+	m_polys.clear();
+}
+
+// virtual
+void GPolynomial::trainInner(GMatrix& features, GMatrix& labels)
+{
+	GMatrix labelCol(labels.rows(), 1);
+	clear();
+	for(size_t i = 0; i < labels.cols(); i++)
+	{
+		GPolynomialSingleLabel* pPSL = new GPolynomialSingleLabel(m_controlPoints);
+		m_polys.push_back(pPSL);
+		labelCol.copyColumns(0, &labels, i, 1);
+		pPSL->train(features, labelCol);
+	}
+}
+
+// virtual
+void GPolynomial::predictInner(const double* pIn, double* pOut)
+{
+	for(size_t i = 0; i < m_polys.size(); i++)
+		pOut[i] = m_polys[i]->predict(pIn);
+}
+
+// virtual
+void GPolynomial::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	ThrowError("Sorry, this model cannot predict a distribution");
+}
+
+#ifndef NO_TEST_CODE
+// static
+void GPolynomial::test()
+{
+	GPolynomialSingleLabel::test();
+	GPolynomial poly(3);
+	GRand prng(0);
+	poly.basicTest(0.78, -1.0/*skip it*/, &prng);
+}
+#endif // NO_TEST_CODE
+
 
 } // namespace GClasses
 

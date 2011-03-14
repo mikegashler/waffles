@@ -930,6 +930,8 @@ void GSupervisedLearner_basicTest1(GSupervisedLearner* pLearner, double minAccur
 
 void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
 {
+	if(minAccuracy == -1.0)
+		return; // skip this test
 	vector<size_t> featureVals;
 	featureVals.push_back(3);
 	featureVals.push_back(3);
@@ -1048,9 +1050,7 @@ GSupervisedLearner* GLearnerLoader::loadModeler(GTwtNode* pNode, GRand* pRand)
 			}
 			else
 			{
-				if(strcmp(szClass, "GNaiveMLE") == 0)
-					return new GNaiveMLE(pNode, *pRand);
-				else if(strcmp(szClass, "GPolynomial") == 0)
+				if(strcmp(szClass, "GPolynomial") == 0)
 					return new GPolynomial(pNode, *pRand);
 			}
 		}
