@@ -1,6 +1,8 @@
 #ifndef __GHTML_H__
 #define __GHTML_H__
 
+#include "GError.h"
+
 namespace GClasses {
 
 class GConstStringHashTable;

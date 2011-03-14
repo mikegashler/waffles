@@ -110,7 +110,7 @@ void GBlobIncoming::get(double* pd)
 
 void GBlobIncoming::get(string* pString)
 {
-	size_t nLen;
+	unsigned int nLen;
 	get(&nLen);
 	if(m_nBufferSize - m_nBufferPos < nLen)
 		ThrowError("GBlobIncoming blob is too small to contain the expected data");
@@ -222,7 +222,7 @@ void GBlobOutgoing::add(const double d)
 void GBlobOutgoing::add(const char* szString)
 {
 	size_t nLen = strlen(szString);
-	add(nLen);
+	add((unsigned int)nLen);
 	add((const unsigned char*)szString, nLen);
 }
 

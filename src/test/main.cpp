@@ -310,9 +310,15 @@ void test_document_classification()
 		if(resultsKnnPearson < 0.50)
 			ThrowError("failed");
 	}
+#ifdef WINDOWS
 	_rmdir("class_ham");
 	_rmdir("class_auto");
 	_rmdir("class_spam");
+#else
+	rmdir("class_ham");
+	rmdir("class_auto");
+	rmdir("class_spam");
+#endif
 }
 
 
