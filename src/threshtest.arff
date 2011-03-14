@@ -1,0 +1,11 @@
+@RELATION ThresholdTest
+
+@ATTRIBUTE a1 real
+@ATTRIBUTE nom {a,b}
+@ATTRIBUTE a2 real
+
+@DATA
+0,a,0.5
+-0.5,b, 1
+-0.75,b, -1e-06
+5,a, -1e-06

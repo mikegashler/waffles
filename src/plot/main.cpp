@@ -6,6 +6,7 @@
 // (http://www.opensource.org/licenses).
 // -------------------------------------------------------------
 
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include "../GClasses/GApp.h"
@@ -1349,6 +1350,69 @@ void overlay(GArgReader& args)
 	c.savePng(filename.c_str());
 }
 
+void percentSame(GArgReader& args){
+  Holder<GMatrix> hData1(loadData(args.pop_string()));
+  Holder<GMatrix> hData2(loadData(args.pop_string()));
+  const size_t cols = hData1->cols();
+  const size_t rows = hData1->rows();
+  if(hData1->cols() != hData2->cols()){
+    ThrowError("The two files have different numbers of attributes.  Cannot "
+	       "compare entries when the number of columns is different");
+  }
+  if(hData1->rows() != hData2->rows()){
+    ThrowError("The two files have different numbers of tuples.  Cannot "
+	       "compare entries when the number of rows is different");
+  }
+  if(rows == 0){
+    ThrowError("The files have no rows.  Cannot calculate the percentage of "
+	       "identical values for empty files.");
+  }
+  for(unsigned i = 0; i < cols; ++i){
+    if(hData1->relation()->valueCount(i) != 
+       hData2->relation()->valueCount(i)){
+      unsigned v1 = hData1->relation()->valueCount(i);
+      unsigned v2 = hData2->relation()->valueCount(i);
+      std::stringstream msg;
+      msg << "The two files have different attribute types at "
+	  << "attribute index " << i << ".  The first file has ";
+      if(v1 == 0){ 
+	msg << "a continuous attribute.  ";
+      }else{
+	msg << "a nominal attribute with " << v1 << " values.  ";
+      }
+      
+      msg << "The second file has ";
+      if(v2 == 0){ 
+	msg << "a continuous attribute.";
+      }else{
+	msg << "a nominal attribute with " << v2 << " values.";
+      }
+      ThrowError(msg.str());
+    }
+  }
+  //Count the same values
+  vector<size_t> numSame(cols, 0);
+  for(size_t row = 0; row < rows; ++row){
+    const double *r1 = hData1->row(row);
+    const double *r2 = hData2->row(row);
+    for(size_t col = 0; col < cols; ++col){
+      if(r1[col] == r2[col]){ ++numSame[col]; }
+    }
+  }
+
+  //Convert to percents
+  vector<double> pctSame(numSame.begin(), numSame.end());
+  for(size_t col = 0; col < cols; ++col){
+    pctSame[col] = 100*pctSame[col]/rows;
+  }
+  
+  //Print
+  for(size_t col = 0; col < cols; ++col){
+    cout << pctSame[col] << " %  ";
+  }
+  cout << std::endl;
+}
+
 void printDecisionTree(GArgReader& args)
 {
 	// Load the model
@@ -1635,6 +1699,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("overview")) PlotCorrelations(args);
 		else if(args.if_pop("rowtoimage")) rowToImage(args);
 		else if(args.if_pop("overlay")) overlay(args);
+		else if(args.if_pop("percentsame")) percentSame(args);
 		else if(args.if_pop("printdecisiontree")) printDecisionTree(args);
 		else if(args.if_pop("scatter")) PlotScatter(args);
 		else if(args.if_pop("stats")) PrintStats(args);

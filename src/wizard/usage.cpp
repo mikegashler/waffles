@@ -890,6 +890,12 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
 		pOpts->add("-neighbors [neighbor-finder]", "Draw lines connecting each point with its neighbors as determined by the specified neighbor finding algorithm.");
 	}
+	pRoot->add("percentsame [dataset1] [dataset2]", "Given two arff "
+		   "data files, counts the number of identical values in the "
+		   "same place in each dataset.  Prints as a percent for "
+		   "each column.  The data files must have the same "
+		   "number and type of attributes as well as the same number "
+		   "of rows.");
 	UsageNode* pStats = pRoot->add("stats [dataset]", "Prints some basic stats about the dataset to stdout.");
 	{
 		pStats->add("[dataset]=data.arff", "The filename of an arff file.");
