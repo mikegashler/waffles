@@ -427,8 +427,8 @@ GSupervisedLearner::GSupervisedLearner(GTwtNode* pNode, GRand& rand)
 	GTwtNode* pLabelFilter = pNode->fieldIfExists("lf");
 	if(pLabelFilter)
 		m_pLabelFilter = ll.loadTwoWayIncrementalTransform(pLabelFilter, &rand);
-	m_featureDims = pNode->field("fd")->asInt();
-	m_labelDims = pNode->field("ld")->asInt();
+	m_featureDims = (size_t)pNode->field("fd")->asInt();
+	m_labelDims = (size_t)pNode->field("ld")->asInt();
 }
 
 GSupervisedLearner::~GSupervisedLearner()

@@ -1402,19 +1402,19 @@ bool GSocketServer::Receive(unsigned char *pBuf, size_t nLen, int nConnectionNum
 					return true;
 				struct GEZSocketPacketHeader* pHeader = (struct GEZSocketPacketHeader*)pBuffer->m_pBuffer;
 				int nSize = GBits::littleEndianToN32(pHeader->nPayloadSize);
-				if(nSize > m_nMaxPacketSize)
+				if((size_t)nSize > m_nMaxPacketSize)
 				{
 					GAssert(false); // Received a packet that was too big
 					pHeader->nPayloadSize = (unsigned int)m_nMaxPacketSize;
 				}
-				while(pBuffer->m_nBufferPos < (int)sizeof(struct GEZSocketPacketHeader) + nSize && nLen > 0)
+				while(pBuffer->m_nBufferPos < sizeof(struct GEZSocketPacketHeader) + nSize && nLen > 0)
 				{
 					pBuffer->m_pBuffer[pBuffer->m_nBufferPos] = *pBuf;
 					pBuffer->m_nBufferPos++;
 					pBuf++;
 					nLen--;
 				}
-				if(pBuffer->m_nBufferPos < (int)sizeof(struct GEZSocketPacketHeader) + nSize)
+				if(pBuffer->m_nBufferPos < sizeof(struct GEZSocketPacketHeader) + nSize)
 					return true;
 				QueueMessage(pBuffer->m_pBuffer + sizeof(struct GEZSocketPacketHeader), nSize, nConnectionNumber);
 				pBuffer->m_nBufferPos = 0;
@@ -1558,19 +1558,19 @@ bool GSocketClient::Receive(unsigned char *pBuf, size_t nLen)
 					return true;
 				struct GEZSocketPacketHeader* pHeader = (struct GEZSocketPacketHeader*)m_pBuffer;
 				int nSize = GBits::littleEndianToN32(pHeader->nPayloadSize);
-				if(nSize > m_nMaxPacketSize)
+				if((size_t)nSize > m_nMaxPacketSize)
 				{
 					GAssert(false); // Received a packet that was too big
 					pHeader->nPayloadSize = (unsigned int)m_nMaxPacketSize;
 				}
-				while(m_nBufferPos < (int)sizeof(struct GEZSocketPacketHeader) + nSize && nLen > 0)
+				while(m_nBufferPos < sizeof(struct GEZSocketPacketHeader) + nSize && nLen > 0)
 				{
 					m_pBuffer[m_nBufferPos] = *pBuf;
 					m_nBufferPos++;
 					pBuf++;
 					nLen--;
 				}
-				if(m_nBufferPos < (int)sizeof(struct GEZSocketPacketHeader) + nSize)
+				if(m_nBufferPos < sizeof(struct GEZSocketPacketHeader) + nSize)
 					return true;
 				QueueMessage(m_pBuffer + sizeof(struct GEZSocketPacketHeader), nSize);
 				m_nBufferPos = 0;

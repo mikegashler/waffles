@@ -59,16 +59,15 @@ void GSmtp::send()
 // SMTP is a line-based protocol, so receive until we have a full line
 void GSmtp::receive(const char* pBuff, size_t nLen)
 {
-	int n;
 	int i = -1;
-	for(n = 0; n < nLen; n++)
+	for(size_t n = 0; n < nLen; n++)
 	{
 		if(pBuff[n] == '\n')
-			i = n;
+			i = (int)n;
 	}
 	if(i >= 0)
 	{
-		for(n = 0; n <= i; n++)
+		for(int n = 0; n <= i; n++)
 			m_receiveBuffer << pBuff[n];
 		string s = m_receiveBuffer.str();
 		m_receiveBuffer.str("");
@@ -78,7 +77,7 @@ void GSmtp::receive(const char* pBuff, size_t nLen)
 	}
 	else
 	{
-		for(n = 0; n < nLen; n++)
+		for(size_t n = 0; n < nLen; n++)
 			m_receiveBuffer << pBuff[n];
 	}
 }

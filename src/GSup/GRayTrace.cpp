@@ -1686,11 +1686,11 @@ GTwtNode* GRayTraceTriMesh::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
 	GTwtNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "material", pDoc->newInt(pScene->materialIndex(m_pMaterial)));
 	GTwtNode* pPointsNode = pNode->addField(pDoc, "points", pDoc->newList(m_nPoints));
-	for(int i = 0; i < m_nPoints; i++)
+	for(size_t i = 0; i < m_nPoints; i++)
 		pPointsNode->setItem(i, m_pPoints[i].toTwt(pDoc));
 	GTwtNode* pTrianglesNode = pNode->addField(pDoc, "triangles", pDoc->newList(3 * m_nTriangles));
 	int j = 0;
-	for(int i = 0; i < m_nTriangles; i++)
+	for(size_t i = 0; i < m_nTriangles; i++)
 	{
 		pTrianglesNode->setItem(j, pDoc->newInt(m_pTriangles[j]));
 		j++;
@@ -1702,13 +1702,13 @@ GTwtNode* GRayTraceTriMesh::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
 	if(m_pNormals)
 	{
 		GTwtNode* pNormalsNode = pNode->addField(pDoc, "normals", pDoc->newList(m_nPoints));
-		for(int i = 0; i < m_nPoints; i++)
+		for(size_t i = 0; i < m_nPoints; i++)
 			pNormalsNode->setItem(i, m_pNormals[i].toTwt(pDoc));
 	}
 	if(m_pTextureCoords)
 	{
 		GTwtNode* pCoordsNode = pNode->addField(pDoc, "coords", pDoc->newList(2 * m_nPoints));
-		for(int i = 0; i < 2 * m_nPoints; i++)
+		for(size_t i = 0; i < 2 * m_nPoints; i++)
 			pCoordsNode->setItem(i, pDoc->newDouble(m_pTextureCoords[i]));
 	}
 	pNode->addField(pDoc, "culling", pDoc->newBool(m_bCulling));
@@ -1832,7 +1832,7 @@ void GRayTraceTriMesh::ComputeTriangleNeighborSides(GIntQueue* pQ, GNodeHashTabl
 class GTriangleIndexArray
 {
 public:
-	vector<int> m_triangles;
+	vector<size_t> m_triangles;
 };
 
 void GRayTraceTriMesh::computePhongNormals()
@@ -1840,18 +1840,18 @@ void GRayTraceTriMesh::computePhongNormals()
 	// Make lists of all the triangles that touch each vertex
 	vector<GTriangleIndexArray> arrVertexTriangles;
 	arrVertexTriangles.resize(m_nPoints);
-	for(int i = 0; i < m_nTriangles; i++)
+	for(size_t i = 0; i < m_nTriangles; i++)
 	{
-		for(int j = 0; j < 3; j++)
+		for(size_t j = 0; j < 3; j++)
 			arrVertexTriangles[m_pTriangles[3 * i + j]].m_triangles.push_back(i);
 	}
 
 	// Make the vertex normals
-	int nTri;
+	size_t nTri;
 	delete[] m_pNormals;
 	m_pNormals = new G3DVector[m_nPoints];
 	G3DVector triNorm;
-	for(int i = 0; i < m_nPoints; i++)
+	for(size_t i = 0; i < m_nPoints; i++)
 	{
 		m_pNormals[i].set(0, 0, 0);
 		for(size_t j = 0; j < arrVertexTriangles[i].m_triangles.size(); j++)
@@ -1913,9 +1913,9 @@ bool GRayTraceTriMesh::isPointWithinPlanarPolygon(G3DVector* pPoint, G3DVector**
 		signHolder = -1;
 	else
 		signHolder = 1;
-	int nVertex, nNextVertex;
+	size_t nNextVertex;
 	G3DReal u0, u1, v0, v1;
-	for(nVertex = 0; nVertex < nVertices; nVertex++)
+	for(size_t nVertex = 0; nVertex < nVertices; nVertex++)
 	{
 		nNextVertex = (nVertex + 1) % nVertices;
 		v1 = ppVertices[nNextVertex]->m_vals[d2] - pPoint->m_vals[d2];

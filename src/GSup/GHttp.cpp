@@ -367,7 +367,7 @@ void GHttpClient::processChunkBody(const unsigned char* szData, size_t nSize)
 		if(m_nContentSize == 0)
 		{
 			// Read the chunk size
-			int n;
+			size_t n;
 			for(n = 0; (szData[n] < '0' || szData[n] > 'f') && n < nSize; n++)
 			{
 			}
@@ -963,7 +963,7 @@ void GHttpServer::sendNotModifiedResponse(GHttpServerBuffer* pClient, int nConne
 bool GHttpServer::parseFileParam(const char* pParams, size_t nParamsLen, const char** ppFilename, size_t* pFilenameLen, const unsigned char** ppFile, size_t* pFileLen)
 {
 	// Measure the length of the unique divider string
-	int dividerLen;
+	size_t dividerLen;
 	for(dividerLen = 0; dividerLen < nParamsLen && pParams[dividerLen] != '\r'; dividerLen++)
 	{
 	}
@@ -972,7 +972,7 @@ bool GHttpServer::parseFileParam(const char* pParams, size_t nParamsLen, const c
 	GAssert(dividerLen > 5 && dividerLen < 150); // divider length doesn't seem right
 
 	// Move to the next line of data
-	int pos = dividerLen + 1;
+	size_t pos = dividerLen + 1;
 	while(pos < nParamsLen && pParams[pos] <= ' ')
 		pos++;
 	if(pos >= nParamsLen)
@@ -1137,8 +1137,8 @@ bool GHttpMultipartParser::next(size_t* pNameStart, size_t* pNameLen, size_t* pV
 	int nameEnd = -1;
 	int filenameStart = -1;
 	int filenameEnd = -1;
-	int valueStart;
-	for(valueStart = (int)start; valueStart < m_len && strncmp(m_pRawData + valueStart, "\r\n\r\n", 4) != 0; valueStart++)
+	size_t valueStart;
+	for(valueStart = start; valueStart < m_len && strncmp(m_pRawData + valueStart, "\r\n\r\n", 4) != 0; valueStart++)
 	{
 		if(strncmp(m_pRawData + valueStart, "name=\"", 6) == 0)
 			nameStart = valueStart + 6;
@@ -1152,13 +1152,13 @@ bool GHttpMultipartParser::next(size_t* pNameStart, size_t* pNameLen, size_t* pV
 	// Find ends
 	if(nameStart >= 0)
 	{
-		for(nameEnd = nameStart; nameEnd < valueStart && m_pRawData[nameEnd] != '"'; nameEnd++)
+		for(nameEnd = nameStart; (size_t)nameEnd < valueStart && m_pRawData[nameEnd] != '"'; nameEnd++)
 		{
 		}
 	}
 	if(filenameStart >= 0)
 	{
-		for(filenameEnd = filenameStart; filenameEnd < valueStart && m_pRawData[filenameEnd] != '"'; filenameEnd++)
+		for(filenameEnd = filenameStart; (size_t)filenameEnd < valueStart && m_pRawData[filenameEnd] != '"'; filenameEnd++)
 		{
 		}
 	}

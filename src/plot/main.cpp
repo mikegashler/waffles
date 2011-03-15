@@ -726,13 +726,13 @@ void makeHistogram(GArgReader& args)
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
 			int b = (int)pData->row(i)[attr];
-			if(b >= 0 && b < buckets)
+			if(b >= 0 && (size_t)b < buckets)
 				hist[b]++;
 		}
 
 		// Plot it
-		int max = 0;
-		for(int i = 1; i < buckets; i++)
+		size_t max = 0;
+		for(size_t i = 1; i < buckets; i++)
 		{
 			if(hist[i] > hist[max])
 				max = i;
@@ -774,14 +774,14 @@ void MakeAttributeSummaryGraph(GRelation* pRelation, GMatrix* pData, GImage* pIm
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
 			int b = (int)pData->row(i)[attr];
-			if(b >= 0 && b < buckets)
+			if(b >= 0 && (size_t)b < buckets)
 				hist[b]++;
 		}
 
 		// Plot it
 		pImage->clear(0xffffffff);
-		int max = 0;
-		for(int i = 1; i < buckets; i++)
+		size_t max = 0;
+		for(size_t i = 1; i < buckets; i++)
 		{
 			if(hist[i] > hist[max])
 				max = i;
