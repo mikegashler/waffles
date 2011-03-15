@@ -582,7 +582,7 @@ void GFolderSerializer::startFile(const char* szFilename)
 
 	// The file size
 	m_pInStream = new std::ifstream();
-	unsigned long long size;
+	unsigned long long size = 0;
 	try
 	{
 		m_pInStream->exceptions(std::ios::failbit|std::ios::badbit);

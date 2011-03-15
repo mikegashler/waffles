@@ -64,7 +64,7 @@ void GBag::clear()
 		(*it)->clear();
 	m_pLabelRel.reset();
 	m_featureDims = 0;
-	delete(m_pAccumulator);
+	delete[] m_pAccumulator;
 	m_pAccumulator = NULL;
 	m_nAccumulatorDims = 0;
 }
@@ -442,6 +442,6 @@ void GBucket::test()
 	GBucket bucket(&prng);
 	bucket.addLearner(new GBaselineLearner());
 	bucket.addLearner(new GDecisionTree(&prng));
-	bucket.basicTest(0.68, 0.75, &prng);
+	bucket.basicTest(0.69, 0.76, &prng);
 }
 #endif

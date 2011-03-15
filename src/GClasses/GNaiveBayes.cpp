@@ -299,13 +299,23 @@ void GNaiveBayes::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
 	if(features.rows() != labels.rows())
 		ThrowError("Expected the features and labels to have the same number of rows");
-	sp_relation pFeatureRel = new GUniformRelation(features.cols(), 2);
+	size_t featureDims = features.cols();
+	sp_relation pFeatureRel = new GUniformRelation(featureDims, 2);
 	enableIncrementalLearning(pFeatureRel, labels.relation());
-	double* pFullRow = new double[features.cols()];
+	double* pFullRow = new double[featureDims];
 	ArrayHolder<double> hFullRow(pFullRow);
 	for(size_t n = 0; n < features.rows(); n++)
 	{
 		features.fullRow(pFullRow, n);
+		double* pEl = pFullRow;
+		for(size_t i = 0; i < featureDims; i++)
+		{
+			if(*pEl < 1e-6)
+				*pEl = 0.0;
+			else
+				*pEl = 1.0;
+			pEl++;
+		}
 		trainIncremental(pFullRow, labels[n]);
 	}
 }

@@ -61,6 +61,7 @@
 
 using namespace GClasses;
 using std::cerr;
+using std::cout;
 using std::string;
 using std::vector;
 
@@ -70,9 +71,9 @@ typedef void (*TestFunc)();
 void sysExec(const char* szAppName, const char* szArgs, GPipe* pStdOut = NULL, GPipe* pStdErr = NULL, GPipe* pStdIn = NULL)
 {
 	string s = szAppName;
-#ifdef _DEBUG
-	s += "dbg";
-#endif
+//#ifdef _DEBUG
+//	s += "dbg";
+//#endif
 #ifdef WINDOWS
 	s += ".exe";
 #endif
@@ -259,7 +260,7 @@ void test_document_classification()
 		vector<string> models;
 		models.push_back("naivebayes");
 		models.push_back("knn 3 -cosine");
-		models.push_back("knn 3 -pearson");
+		//models.push_back("knn 3 -pearson");
 		//models.push_back("neuralnet");
 
 		// Do cross-validation
@@ -305,13 +306,13 @@ void test_document_classification()
 		}
 		double resultsNaiveBayes = results.mean(0);
 		double resultsKnnCosine = results.mean(1);
-		double resultsKnnPearson = results.mean(2);
-		if(resultsNaiveBayes < 0.40)
+		//double resultsKnnPearson = results.mean(2);
+		if(resultsNaiveBayes < 0.83)
 			ThrowError("failed");
-		if(resultsKnnCosine < 0.83)
+		if(resultsKnnCosine < 0.88)
 			ThrowError("failed");
-		if(resultsKnnPearson < 0.50)
-			ThrowError("failed");
+		//if(resultsKnnPearson < 0.50)
+		//	ThrowError("failed");
 	}
 #ifdef WINDOWS
 	_rmdir("class_ham");
@@ -332,11 +333,11 @@ void test_document_classification()
 
 bool runTest(const char* szTestName, TestFunc pTest)
 {
-	printf("%s", szTestName);
+	cout << szTestName;
 	size_t nSpaces = (size_t)70 - strlen(szTestName);
 	for( ; nSpaces > 0; nSpaces--)
-		printf(" ");
-	fflush(stdout);
+		cout << " ";
+	cout.flush();
 	bool bPass = false;
 	try
 	{
@@ -347,18 +348,15 @@ bool runTest(const char* szTestName, TestFunc pTest)
 	{
 	}
 	if(bPass)
-		printf("Passed\n");
+		cout << "Passed\n";
 	else
-		printf("FAILED!!!\n");
+		cout << "FAILED!!!\n";
 
 	return bPass;
 }
 
 void RunAllTests()
 {
-	runTest("document classification", test_document_classification);
-
-
 	// Class tests
 	runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 	runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
@@ -410,11 +408,21 @@ void RunAllTests()
 	runTest("GTwt", GTwtDoc::test);
 	runTest("GVec", GVec::test);
 
-	// Command-line tests
-	runTest("waffles_transform mergevert", test_transform_mergevert);
-	runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
-	runTest("document classification", test_document_classification);
-	printf("Done.\n");
+	string s = "waffles_learn";
+#ifdef WIN32
+	s += ".exe";
+#endif
+	if(GFile::doesFileExist(s.c_str()))
+	{
+		// Command-line tests
+		runTest("waffles_transform mergevert", test_transform_mergevert);
+		runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
+		runTest("document classification", test_document_classification);
+	}
+	else
+		cout << "Skipping the command-line tool tests because the optimized command-line tools have not yet been built.\n";
+	cout << "Done.\n";
+	cout.flush();
 }
 
 int main(int argc, char *argv[])

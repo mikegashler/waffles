@@ -1817,9 +1817,6 @@ void sparseSplit(GArgReader& args)
 	const char* szFilename1 = args.pop_string();
 	const char* szFilename2 = args.pop_string();
 
-	bool shouldShuffle = false;
-	
-
 	// Split
 	GSparseMatrix* pPart1 = pData->subMatrix(0, 0, pData->cols(), pats1);
 	Holder<GSparseMatrix> hPart1(pPart1);

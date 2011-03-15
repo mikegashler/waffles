@@ -1633,7 +1633,7 @@ void TestGSocketSerial(bool bGash, const char* szAddr, int port)
 		throw "failed to make the client";
 
 	// Send a bunch of data
-	int i;
+	size_t i;
 	char szBuf[5000];
 	for(i = 0; i < 5000; i++)
 		szBuf[i] = (char)i;
