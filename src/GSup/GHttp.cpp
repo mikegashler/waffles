@@ -371,7 +371,7 @@ void GHttpClient::processChunkBody(const unsigned char* szData, size_t nSize)
 			for(n = 0; (szData[n] < '0' || szData[n] > 'f') && n < nSize; n++)
 			{
 			}
-			int nHexStart = n;
+			int nHexStart = (int)n;
 			for( ; szData[n] >= '0' && szData[n] <= 'f' && n < nSize; n++)
 			{
 			}
@@ -382,7 +382,7 @@ void GHttpClient::processChunkBody(const unsigned char* szData, size_t nSize)
 			int nPow = 1;
 			int nDig;
 			int i;
-			for(i = n - 1; i >= nHexStart; i--)
+			for(i = (int)n - 1; i >= nHexStart; i--)
 			{
 				if(szData[i] >= '0' && szData[i] <= '9')
 					nDig = szData[i] - '0';
@@ -1141,9 +1141,9 @@ bool GHttpMultipartParser::next(size_t* pNameStart, size_t* pNameLen, size_t* pV
 	for(valueStart = start; valueStart < m_len && strncmp(m_pRawData + valueStart, "\r\n\r\n", 4) != 0; valueStart++)
 	{
 		if(strncmp(m_pRawData + valueStart, "name=\"", 6) == 0)
-			nameStart = valueStart + 6;
+			nameStart = (int)valueStart + 6;
 		if(strncmp(m_pRawData + valueStart, "filename=\"", 10) == 0)
-			filenameStart = valueStart + 10;
+			filenameStart = (int)valueStart + 10;
 	}
 	if(valueStart >= m_len)
 		return false;
