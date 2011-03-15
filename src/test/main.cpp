@@ -412,17 +412,30 @@ void RunAllTests()
 #ifdef WIN32
 	s += ".exe";
 #endif
-	if(GFile::doesFileExist(s.c_str()))
-	{
-		// Command-line tests
-		runTest("waffles_transform mergevert", test_transform_mergevert);
-		runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
-#ifndef WINDOWS
-		runTest("document classification", test_document_classification);
+
+#ifdef WINDOWS
+	bool runCommandLineTests = true;
+#else
+#	ifdef __linux__
+	bool runCommandLineTests = true;
+#	else
+	bool runCommandLineTests = false; // I don't have the test-harness for the command-line apps working on OSX yet
+#	endif
 #endif
+	if(runCommandLineTests)
+	{
+		if(GFile::doesFileExist(s.c_str()))
+		{
+			// Command-line tests
+			runTest("waffles_transform mergevert", test_transform_mergevert);
+			runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
+#ifndef WINDOWS
+			runTest("document classification", test_document_classification);
+#endif
+		}
+		else
+			cout << "Skipping the command-line tool tests because the optimized command-line tools have not yet been built.\n";
 	}
-	else
-		cout << "Skipping the command-line tool tests because the optimized command-line tools have not yet been built.\n";
 	cout << "Done.\n";
 	cout.flush();
 }
