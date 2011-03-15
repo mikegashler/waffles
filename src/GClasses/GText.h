@@ -31,10 +31,10 @@ public:
 class GWordStats
 {
 public:
-	size_t m_curDocFreq;
-	size_t m_maxWordFreq;
-	size_t m_docsContainingWord;
-	size_t m_lastDocContainingWord;
+	size_t m_curDocFreq; // the number of times the word has been found in the current document
+	size_t m_maxWordFreq; // the max number of times the word is known to occur in any one document
+	size_t m_docsContainingWord; // the number of documents that contain this word at all
+	size_t m_lastDocContainingWord; // the most recent document id in which this word has been found
 	const char* m_szWord;
 
 	GWordStats()

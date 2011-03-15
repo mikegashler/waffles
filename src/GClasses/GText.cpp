@@ -135,6 +135,7 @@ void GVocabulary::addWord(const char* szWord, size_t nLen)
 		// Track word stats
 		if(m_pWordStats)
 		{
+			GAssert(nIndex < m_pWordStats->size());
 			GWordStats& wordStats = (*m_pWordStats)[nIndex];
 			if(wordStats.m_lastDocContainingWord != m_docNumber)
 			{
@@ -212,11 +213,9 @@ void GVocabulary::newDoc()
 			ThrowError("If you call newDoc, then you must call it before the first word is added");
 		m_pWordStats = new vector<GWordStats>();
 		m_docNumber = 0;
-		m_pWordStats->resize(m_docNumber + 1);
 		return;
 	}
 	m_docNumber++;
-	m_pWordStats->resize(m_docNumber + 1);
 }
 
 double GVocabulary::weight(size_t word)

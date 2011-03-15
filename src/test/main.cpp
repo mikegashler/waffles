@@ -70,6 +70,9 @@ typedef void (*TestFunc)();
 void sysExec(const char* szAppName, const char* szArgs, GPipe* pStdOut = NULL, GPipe* pStdErr = NULL, GPipe* pStdIn = NULL)
 {
 	string s = szAppName;
+#ifdef _DEBUG
+	s += "dbg";
+#endif
 #ifdef WINDOWS
 	s += ".exe";
 #endif
@@ -353,6 +356,9 @@ bool runTest(const char* szTestName, TestFunc pTest)
 
 void RunAllTests()
 {
+	runTest("document classification", test_document_classification);
+
+
 	// Class tests
 	runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 	runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
@@ -417,6 +423,11 @@ int main(int argc, char *argv[])
 	int nRet = 0;
 	try
 	{
+		char buf[256];
+		if(GApp::appPath(buf, 256, true) == -1)
+			ThrowError("Failed to retrieve app path");
+		if(chdir(buf) != 0)
+			ThrowError("Failed to change the dir to the app folder");
 		RunAllTests();
 	}
 	catch(const std::exception& e)

@@ -447,7 +447,19 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 		NULL, // NULL means use parent's current working directory
 		&siStartInfo, // STARTUPINFO pointer
 		&piProcInfo)) // receives PROCESS_INFORMATION
-		ThrowError("Failed to create process");
+	{
+		DWORD dwErr = GetLastError();
+		char buf[256];
+		if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, dwErr, 0, buf, 256, NULL) == 0)
+		{
+			DWORD dwErrErr = GetLastError();
+			GAssert(false);
+			buf[0] = '\0';
+		}
+		char buf2[256];
+		getcwd(buf2, 256);
+		ThrowError("Failed to create process: ", buf, "(cwd=", buf2, ")");
+	}
 
 	// Close the child processes' stdin pipe, since we don't really need it
 	if(pStdOut)
@@ -459,7 +471,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 	DWORD ret = 0;
 	if(wait)
 	{
-		WaitForSingleObject(piProcInfo.hProcess, INFINITE);
+		WaitForSingleObject(piProcInfo.hProcess, 10000/*INFINITE*/);
 		if(!GetExitCodeProcess(piProcInfo.hProcess, &ret))
 		{
 			CloseHandle(piProcInfo.hProcess);

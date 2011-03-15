@@ -1518,20 +1518,22 @@ void docsToSparseMatrix(GArgReader& args)
 			ThrowError("Failed to get cwd");
 		if(chdir(szFolder) != 0)
 			ThrowError("Failed to change directory to: ", szFolder, ", from: ", cwd);
-		GDirList dl(false/*recurseSubDirs*/, true/*reportFiles*/, false/*reportDirs*/, false/*reportPaths*/);
-		while(true)
 		{
-			const char* filename = dl.GetNext();
-			if(!filename)
-				break;
-			PathData pd;
-			GFile::parsePath(filename, &pd);
-			if(_stricmp(filename + pd.extStart, ".txt") == 0)
-				addWordsToVocabFromTextFile(&vocab, filename);
-			else if(_stricmp(filename + pd.extStart, ".html") == 0 || _stricmp(filename + pd.extStart, ".htm") == 0)
-				addWordsToVocabFromHtmlFile(&vocab, filename);
-			else
-				printf("Skipping file: %s. (Only .txt and .html is supported.)\n", filename);
+			GDirList dl(false/*recurseSubDirs*/, true/*reportFiles*/, false/*reportDirs*/, false/*reportPaths*/);
+			while(true)
+			{
+				const char* filename = dl.GetNext();
+				if(!filename)
+					break;
+				PathData pd;
+				GFile::parsePath(filename, &pd);
+				if(_stricmp(filename + pd.extStart, ".txt") == 0)
+					addWordsToVocabFromTextFile(&vocab, filename);
+				else if(_stricmp(filename + pd.extStart, ".html") == 0 || _stricmp(filename + pd.extStart, ".htm") == 0)
+					addWordsToVocabFromHtmlFile(&vocab, filename);
+				else
+					printf("Skipping file: %s. (Only .txt and .html is supported.)\n", filename);
+			}
 		}
 		if(chdir(cwd) != 0)
 			ThrowError("failed to change dir");
@@ -1560,23 +1562,25 @@ void docsToSparseMatrix(GArgReader& args)
 			ThrowError("Failed to get cwd");
 		if(chdir(szFolder) != 0)
 			ThrowError("Failed to change directory to: ", szFolder, ", from: ", cwd);
-		GDirList dl(false/*recurseSubDirs*/, true/*reportFiles*/, false/*reportDirs*/, false/*reportPaths*/);
-		while(true)
 		{
-			const char* filename = dl.GetNext();
-			if(!filename)
-				break;
-			PathData pd;
-			GFile::parsePath(filename, &pd);
-			if(_stricmp(filename + pd.extStart, ".txt") == 0)
+			GDirList dl(false/*recurseSubDirs*/, true/*reportFiles*/, false/*reportDirs*/, false/*reportPaths*/);
+			while(true)
 			{
-				printf("%d) %s\n", (int)row, filename);
-				makeTextFileVector(&sparseFeatures, pLabels, clss, row++, &vocab, filename, binary);
-			}
-			else if(_stricmp(filename + pd.extStart, ".html") == 0 || _stricmp(filename + pd.extStart, ".htm") == 0)
-			{
-				printf("%d) %s\n", (int)row, filename);
-				makeHtmlFileVector(&sparseFeatures, pLabels, clss, row++, &vocab, filename, binary);
+				const char* filename = dl.GetNext();
+				if(!filename)
+					break;
+				PathData pd;
+				GFile::parsePath(filename, &pd);
+				if(_stricmp(filename + pd.extStart, ".txt") == 0)
+				{
+					printf("%d) %s\n", (int)row, filename);
+					makeTextFileVector(&sparseFeatures, pLabels, clss, row++, &vocab, filename, binary);
+				}
+				else if(_stricmp(filename + pd.extStart, ".html") == 0 || _stricmp(filename + pd.extStart, ".htm") == 0)
+				{
+					printf("%d) %s\n", (int)row, filename);
+					makeHtmlFileVector(&sparseFeatures, pLabels, clss, row++, &vocab, filename, binary);
+				}
 			}
 		}
 		if(chdir(cwd) != 0)
