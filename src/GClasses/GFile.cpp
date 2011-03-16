@@ -198,7 +198,7 @@ bool GFile::localStorageDirectory(char *toHere)
 	{
 		s.open(szFilename, std::ios::binary);
 		s.seekg(0, std::ios::end);
-		*pnSize = s.tellg();
+		*pnSize = (size_t)s.tellg();
 		s.seekg(0, std::ios::beg);
 	}
 	catch(const std::exception&)

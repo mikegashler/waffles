@@ -20,14 +20,10 @@
 #include <sstream>
 
 #ifdef WINDOWS
-// This lovely hack works around Microsoft's decision to use some
-// non-standard names in their implementation of the C++ standard
-// because the standard name conflicted with a macro in windows.h.
+// Throw out the min and max macros supplied by Microsoft that collide with std::min and std::max
 #	define NOMINMAX
 #	undef min
 #	undef max
-#	define max _cpp_max
-#	define min _cpp_min
 #endif
 
 namespace GClasses {
