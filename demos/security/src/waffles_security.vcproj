@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="security"
+	Name="waffles_security"
 	ProjectGUID="{CBEE00FD-5CE6-4887-A747-2CC067A9A912}"
 	TargetFrameworkVersion="131072"
 	>
@@ -16,8 +16,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\../obj/security/dbg"
-			IntermediateDirectory=".\../obj/security/dbg"
+			OutputDirectory="../bin"
+			IntermediateDirectory="../obj/dbg"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -38,8 +38,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/security/dbg/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -49,10 +47,6 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\../../obj/security/dbg/main.pch"
-				AssemblerListingLocation=".\../obj/security/dbg/"
-				ObjectFile=".\../obj/security/dbg/"
-				ProgramDataBaseFileName=".\../obj/security/dbg/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
@@ -70,14 +64,13 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib dinput.lib dxguid.lib"
-				OutputFile="../bin/waffles_securitydbg.exe"
+				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib dinput.lib dxguid.lib GSup_DebugVersion.lib GClasses_DebugVersion.lib"
+				OutputFile="$(OutDir)/$(ProjectName)dbg.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../../lib"
 				IgnoreDefaultLibraryNames="libcmt.lib"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\../../obj/security/dbg/securitydbg.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -95,7 +88,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/security/dbg/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -109,8 +101,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\../obj/security/rel"
-			IntermediateDirectory=".\../obj/security/rel"
+			OutputDirectory="../bin"
+			IntermediateDirectory="../obj/rel"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -131,8 +123,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/security/rel/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -143,10 +133,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\../../obj/security/rel/main.pch"
-				AssemblerListingLocation=".\../obj/security/rel/"
-				ObjectFile=".\../obj/security/rel/"
-				ProgramDataBaseFileName=".\../obj/security/rel/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -163,12 +149,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib dinput.lib dxguid.lib"
-				OutputFile="../bin/waffles_security.exe"
+				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib dinput.lib dxguid.lib GSup.lib GClasses.lib"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../../lib"
-				ProgramDatabaseFile=".\../../obj/security/rel/security.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -186,7 +171,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/security/rel/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -200,8 +184,8 @@
 		</Configuration>
 		<Configuration
 			Name="ReleaseNoConsole|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="../bin"
+			IntermediateDirectory="../obj/nc"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -222,8 +206,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/security/nc/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -234,10 +216,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\../../obj/security/nc/main.pch"
-				AssemblerListingLocation=".\../obj/security/nc/"
-				ObjectFile=".\../obj/security/nc/"
-				ProgramDataBaseFileName=".\../obj/security/nc/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -254,12 +232,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib dinput.lib dxguid.lib"
-				OutputFile="../bin/waffles_security_nc.exe"
+				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib dinput.lib dxguid.lib GSup.lib GClasses.lib"
+				OutputFile="$(OutDir)/$(ProjectName)nc.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../../lib"
-				ProgramDatabaseFile=".\../../obj/security/nc/security.pdb"
 				SubSystem="2"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -277,7 +254,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/security/nc/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"

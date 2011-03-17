@@ -16,8 +16,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\../obj/dbg"
-			IntermediateDirectory=".\../obj/dbg"
+			OutputDirectory="../bin"
+			IntermediateDirectory="../obj/dbg"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -38,8 +38,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../obj/dbg/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -49,10 +47,6 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\../obj/dbg/main.pch"
-				AssemblerListingLocation=".\../obj/dbg/"
-				ObjectFile=".\../obj/dbg/"
-				ProgramDataBaseFileName=".\../obj/dbg/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
@@ -70,14 +64,13 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib glut32.lib libpng.lib zlib.lib GClasses_DebugVersion.lib"
-				OutputFile="../bin/jumperdbg.exe"
+				AdditionalDependencies="shell32.lib user32.lib glut32.lib libpng.lib zlib.lib GSup_DebugVersion.lib GClasses_DebugVersion.lib"
+				OutputFile="$(OutDir)/$(ProjectName)dbg.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../../lib"
 				IgnoreDefaultLibraryNames="libcmt.lib"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\../obj/dbg/jumperdbg.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -95,7 +88,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../obj/dbg/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -109,8 +101,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\../obj/rel"
-			IntermediateDirectory=".\../obj/rel"
+			OutputDirectory="../bin"
+			IntermediateDirectory="../obj/rel"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -131,8 +123,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../obj/rel/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -143,10 +133,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\../obj/rel/main.pch"
-				AssemblerListingLocation=".\../obj/rel/"
-				ObjectFile=".\../obj/rel/"
-				ProgramDataBaseFileName=".\../obj/rel/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -164,11 +150,10 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib GClasses.lib ../../bullet-2.77/lib/bullet.lib glut32.lib"
-				OutputFile="../bin/jumper.exe"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../../lib"
-				ProgramDatabaseFile=".\../obj/rel/jumper.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -186,7 +171,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../obj/rel/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -200,8 +184,8 @@
 		</Configuration>
 		<Configuration
 			Name="ReleaseNoConsole|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="../bin"
+			IntermediateDirectory="../obj/nc"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -222,8 +206,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../obj/rel/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -234,10 +216,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\../obj/rel/main.pch"
-				AssemblerListingLocation=".\../obj/rel/"
-				ObjectFile=".\../obj/rel/"
-				ProgramDataBaseFileName=".\../obj/rel/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -254,12 +232,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib SDL.lib sdlmain.lib GClasses.lib"
-				OutputFile="../bin/jumper.exe"
+				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib SDL.lib sdlmain.lib GSup.lib GClasses.lib"
+				OutputFile="$(OutDir)/$(ProjectName)nc.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../../lib"
-				ProgramDatabaseFile=".\../obj/rel/jumper.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -277,7 +254,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../obj/rel/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
