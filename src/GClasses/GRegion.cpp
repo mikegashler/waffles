@@ -1134,14 +1134,14 @@ void GSubImageFinder2::findSubImage(int* pOutX, int* pOutY, GImage* pNeedle, GRe
 		}
 
 		// Kill off candidates that have been in the worst half for too long
-		for(vector<GSIFStats*>::iterator it = median; it != cands.end(); it++)
+		for(size_t i = median - cands.begin(); i < cands.size(); i++)
 		{
-			if(iters - (*it)->m_lastPassIter >= 32)
+			if(iters - cands[i]->m_lastPassIter >= 32)
 			{
 				size_t last = cands.size() - 1;
-				std::swap(*it, cands[last]);
+				std::swap(cands[i], cands[last]);
 				cands.erase(cands.begin() + last);
-				it--;
+				i--;
 			}
 		}
 
