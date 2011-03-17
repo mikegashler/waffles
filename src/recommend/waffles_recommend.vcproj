@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="recommend"
+	Name="waffles_recommend"
 	ProjectGUID="{6D38F08E-E036-438E-8B8F-218001C6CA38}"
 	TargetFrameworkVersion="131072"
 	>

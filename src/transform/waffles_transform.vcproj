@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="transform"
+	Name="waffles_transform"
 	ProjectGUID="{CBEE00FD-5CE6-4887-A747-2CC067A9A912}"
 	TargetFrameworkVersion="131072"
 	>

@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="plot"
+	Name="waffles_plot"
 	ProjectGUID="{B3067217-E136-4CCE-AC8F-893C96D64EAE}"
 	TargetFrameworkVersion="131072"
 	>
