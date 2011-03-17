@@ -311,7 +311,7 @@ bool Satellite::Process()
 	while(m_pSocket && m_pSocket->GetMessageCount() > 0)
 	{
 		gotPacket = true;
-		int size;
+		size_t size;
 		unsigned char* pPacket = m_pSocket->GetNextMessage(&size);
 		m_blobIn.setBlob(pPacket, size, true);
 		try
@@ -867,7 +867,8 @@ public:
 			while(m_pSocket->GetMessageCount() > 0)
 			{
 				gotPacket = true;
-				int size, connection;
+				size_t size;
+				int connection;
 				unsigned char* pPacket = m_pSocket->GetNextMessage(&size, &connection);
 				m_blobIn.setBlob(pPacket, size, true);
 				m_bytesReceived += (size + 8);

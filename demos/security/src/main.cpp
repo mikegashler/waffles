@@ -420,7 +420,7 @@ int doBandwidthClient(GArgReader& args)
 			dLatency += (dFinish - dStart);
 	
 		// Proces the message
-		int nSize;
+		size_t nSize;
 		unsigned char* pMessage = socket.GetNextMessage(&nSize);
 		delete(pMessage);
 	}
@@ -446,7 +446,7 @@ int doBandwidthClient(GArgReader& args)
 	dFinish = GTime::seconds();
 
 	// Check the message
-	int nSize;
+	size_t nSize;
 	unsigned char* pMessage = socket.GetNextMessage(&nSize);
 	if(nSize != MESSAGESIZE)
 		ThrowError("The reply is the wrong size--something's wrong\n");
@@ -482,7 +482,7 @@ int doBandwidthServer(GArgReader& args)
 		{
 			// Get the message
 			int nConnectionNumber;
-			int nSize;
+			size_t nSize;
 			unsigned char* pMessage = socket.GetNextMessage(&nSize, &nConnectionNumber);
 			printf("Got a message.  Sending it back...\n");
 			if(socket.Send(pMessage, nSize, nConnectionNumber))
@@ -774,7 +774,7 @@ public:
 
 
 
-unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, int* pOutSize)
+unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutSize)
 {
 	GHttpClient client;
 	if(!client.get(szAddr, true))
@@ -796,7 +796,7 @@ int wget(GArgReader& args)
 {
 	const char* url = args.pop_string();
 	const char* filename = args.pop_string();
-	int size;
+	size_t size;
 	char* pFile = (char*)downloadFromWeb(url, 20, &size);
 	ArrayHolder<char> hFile(pFile);
 	GFile::saveFile(pFile, size, filename);

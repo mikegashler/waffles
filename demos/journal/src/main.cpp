@@ -328,7 +328,7 @@ public:
 			meta += "\ntimestamp=";
 			meta += timestamp;
 			meta += "\n";
-			int nameStart, nameLen, valueStart, valueLen, filenameStart, filenameLen;
+			size_t nameStart, nameLen, valueStart, valueLen, filenameStart, filenameLen;
 			GHttpMultipartParser parser(pSession->params(), pSession->paramsLen());
 			while(parser.next(&nameStart, &nameLen, &valueStart, &valueLen, &filenameStart, &filenameLen))
 			{
