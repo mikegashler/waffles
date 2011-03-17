@@ -16,8 +16,8 @@
 	<Configurations>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\..\..\Obj\GClasses\Release"
-			IntermediateDirectory=".\..\..\Obj\GClasses\Release"
+			OutputDirectory="..\..\lib"
+			IntermediateDirectory="..\..\Obj\GClasses\Release"
 			ConfigurationType="4"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -48,10 +48,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\..\..\Obj\GClasses\Release/GClasses.pch"
-				AssemblerListingLocation=".\..\..\Obj\GClasses\Release/"
-				ObjectFile=".\..\..\Obj\GClasses\Release/"
-				ProgramDataBaseFileName=".\..\..\Obj\GClasses\Release/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -68,7 +64,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\..\lib\GClasses.lib"
+				OutputFile="$(OutDir)\GClasses.lib"
 				SuppressStartupBanner="true"
 			/>
 			<Tool
@@ -80,7 +76,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\..\..\Obj\GClasses\Release/GClasses.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -91,8 +86,8 @@
 		</Configuration>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\..\..\Obj\GClasses\Debug"
-			IntermediateDirectory=".\..\..\Obj\GClasses\Debug"
+			OutputDirectory="..\..\lib"
+			IntermediateDirectory="..\..\Obj\GClasses\Debug"
 			ConfigurationType="4"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -122,10 +117,6 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\..\..\Obj\GClasses\Debug/GClasses.pch"
-				AssemblerListingLocation=".\..\..\Obj\GClasses\Debug/"
-				ObjectFile=".\..\..\Obj\GClasses\Debug/"
-				ProgramDataBaseFileName=".\..\..\Obj\GClasses\Debug/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
@@ -144,7 +135,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\..\lib\GClasses_DebugVersion.lib"
+				OutputFile="$(OutDir)\GClasses_DebugVersion.lib"
 				SuppressStartupBanner="true"
 			/>
 			<Tool
@@ -156,7 +147,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\..\..\Obj\GClasses\Debug/GClasses.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -167,8 +157,8 @@
 		</Configuration>
 		<Configuration
 			Name="ReleaseNoConsole|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="..\..\lib"
+			IntermediateDirectory="..\..\Obj\GClasses\nc"
 			ConfigurationType="4"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -199,10 +189,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\..\..\Obj\GClasses\Release/GClasses.pch"
-				AssemblerListingLocation=".\..\..\Obj\GClasses\Release/"
-				ObjectFile=".\..\..\Obj\GClasses\Release/"
-				ProgramDataBaseFileName=".\..\..\Obj\GClasses\Release/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -219,7 +205,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\..\lib\GClasses.lib"
+				OutputFile="$(OutDir)\GClasses_nc.lib"
 				SuppressStartupBanner="true"
 			/>
 			<Tool
@@ -231,7 +217,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\..\..\Obj\GClasses\Release/GClasses.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"

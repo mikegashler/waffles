@@ -16,8 +16,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\../../obj/test/dbg"
-			IntermediateDirectory=".\../../obj/test/dbg"
+			OutputDirectory="../../bin/dbg"
+			IntermediateDirectory="../../obj/test/dbg"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -38,8 +38,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/hello/dbg/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -49,10 +47,6 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\../../obj/test/dbg/main.pch"
-				AssemblerListingLocation=".\../../obj/test/dbg/"
-				ObjectFile=".\../../obj/test/dbg/"
-				ProgramDataBaseFileName=".\../../obj/test/dbg/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
@@ -70,13 +64,13 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib ../../lib/libpng.lib ../../lib/zlib.lib"
-				OutputFile="../../bin/testdbg.exe"
+				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
+				AdditionalLibraryDirectories="../../lib/"
 				IgnoreDefaultLibraryNames="libcmt.lib"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\../../obj/test/dbg/testdbg.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -94,7 +88,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/test/dbg/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -108,8 +101,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\../../obj/test/rel"
-			IntermediateDirectory=".\../../obj/test/rel"
+			OutputDirectory="../../bin"
+			IntermediateDirectory="../../obj/test/rel"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -130,8 +123,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/hello/rel/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -142,10 +133,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\../../obj/test/rel/main.pch"
-				AssemblerListingLocation=".\../../obj/test/rel/"
-				ObjectFile=".\../../obj/test/rel/"
-				ProgramDataBaseFileName=".\../../obj/test/rel/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -162,11 +149,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib ../../lib/libpng.lib ../../lib/zlib.lib"
-				OutputFile="../../bin/test.exe"
+				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				ProgramDatabaseFile=".\../../obj/test/rel/test.pdb"
+				AdditionalLibraryDirectories="../../lib/"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -184,7 +171,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/test/rel/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"

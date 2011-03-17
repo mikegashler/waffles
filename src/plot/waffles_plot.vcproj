@@ -2,8 +2,8 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="recommend"
-	ProjectGUID="{6D38F08E-E036-438E-8B8F-218001C6CA38}"
+	Name="plot"
+	ProjectGUID="{B3067217-E136-4CCE-AC8F-893C96D64EAE}"
 	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
@@ -16,8 +16,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\../../obj/recommend/dbg"
-			IntermediateDirectory=".\../../obj/recommend/dbg"
+			OutputDirectory="../../bin/dbg"
+			IntermediateDirectory="../../obj/plot/dbg"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -38,8 +38,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/recommend/dbg/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -49,10 +47,6 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\../../obj/recommend/dbg/main.pch"
-				AssemblerListingLocation=".\../../obj/recommend/dbg/"
-				ObjectFile=".\../../obj/recommend/dbg/"
-				ProgramDataBaseFileName=".\../../obj/recommend/dbg/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
@@ -70,13 +64,13 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib ../../lib/libpng.lib ../../lib/zlib.lib ../../lib/GClasses_DebugVersion.lib"
-				OutputFile="../../bin/waffles_recommenddbg.exe"
+				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib GClasses_DebugVersion.lib GSup_DebugVersion.lib"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
+				AdditionalLibraryDirectories="../../lib/"
 				IgnoreDefaultLibraryNames="libcmt.lib"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\../../obj/recommend/dbg/recommenddbg.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -94,7 +88,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/recommend/dbg/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -108,8 +101,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\../../obj/recommend/rel"
-			IntermediateDirectory=".\../../obj/recommend/rel"
+			OutputDirectory="../../bin"
+			IntermediateDirectory="../../obj/plot/rel"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -130,8 +123,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/recommend/rel/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -142,10 +133,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\../../obj/recommend/rel/main.pch"
-				AssemblerListingLocation=".\../../obj/recommend/rel/"
-				ObjectFile=".\../../obj/recommend/rel/"
-				ProgramDataBaseFileName=".\../../obj/recommend/rel/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -162,11 +149,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib ../../lib/libpng.lib ../../lib/zlib.lib"
-				OutputFile="../../bin/waffles_recommend.exe"
+				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib GClasses.lib GSup.lib"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				ProgramDatabaseFile=".\../../obj/recommend/rel/recommend.pdb"
+				AdditionalLibraryDirectories="../../lib/"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -184,7 +171,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/recommend/rel/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -219,6 +205,14 @@
 					PreprocessorDefinitions=""
 				/>
 			</FileConfiguration>
+		</File>
+		<File
+			RelativePath=".\plotchart.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\plotchart.h"
+			>
 		</File>
 		<File
 			RelativePath="..\wizard\usage.cpp"

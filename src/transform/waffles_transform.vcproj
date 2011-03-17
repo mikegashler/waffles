@@ -2,8 +2,8 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="wizard"
-	ProjectGUID="{BA50901A-8EFA-4078-8FA2-633C4E4FA8AD}"
+	Name="transform"
+	ProjectGUID="{CBEE00FD-5CE6-4887-A747-2CC067A9A912}"
 	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
@@ -16,8 +16,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\../../obj/wizard/dbg"
-			IntermediateDirectory=".\../../obj/wizard/dbg"
+			OutputDirectory="../../bin/dbg"
+			IntermediateDirectory="../../obj/transform/dbg"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -38,21 +38,15 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/wizard/dbg/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../../demos"
+				AdditionalIncludeDirectories=".."
 				PreprocessorDefinitions="WINDOWS;WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\../../obj/wizard/dbg/main.pch"
-				AssemblerListingLocation=".\../../obj/wizard/dbg/"
-				ObjectFile=".\../../obj/wizard/dbg/"
-				ProgramDataBaseFileName=".\../../obj/wizard/dbg/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
@@ -70,13 +64,13 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib ../../lib/libpng.lib ../../lib/zlib.lib ../../lib/GClasses_DebugVersion.lib"
-				OutputFile="../../bin/wizarddbg.exe"
+				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib GClasses_DebugVersion.lib"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
+				AdditionalLibraryDirectories="../../lib/"
 				IgnoreDefaultLibraryNames="libcmt.lib"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\../../obj/wizard/dbg/wizarddbg.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -94,7 +88,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/wizard/dbg/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -108,8 +101,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\../../obj/wizard/rel"
-			IntermediateDirectory=".\../../obj/wizard/rel"
+			OutputDirectory="../../bin"
+			IntermediateDirectory="../../obj/transform/rel"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
@@ -130,22 +123,16 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\../../obj/wizard/rel/main.tlb"
-				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="../../demos"
+				AdditionalIncludeDirectories=".."
 				PreprocessorDefinitions="WINDOWS;WIN32;NDEBUG;_CONSOLE"
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile=".\../../obj/wizard/rel/main.pch"
-				AssemblerListingLocation=".\../../obj/wizard/rel/"
-				ObjectFile=".\../../obj/wizard/rel/"
-				ProgramDataBaseFileName=".\../../obj/wizard/rel/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -162,11 +149,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib ../../lib/libpng.lib ../../lib/zlib.lib"
-				OutputFile="../../bin/wizard.exe"
+				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				ProgramDatabaseFile=".\../../obj/wizard/rel/wizard.pdb"
+				AdditionalLibraryDirectories="../../lib/"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -184,7 +171,6 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\../../obj/wizard/rel/main.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -221,11 +207,11 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath=".\usage.cpp"
+			RelativePath="..\wizard\usage.cpp"
 			>
 		</File>
 		<File
-			RelativePath=".\usage.h"
+			RelativePath="..\wizard\usage.h"
 			>
 		</File>
 	</Files>
