@@ -67,7 +67,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib SDL.lib sdlmain.lib GSup_DebugVersion.lib GClasses_DebugVersion.lib"
-				OutputFile="$(OutDir)/$(ProjectName)dbg.exe"
+				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="../../../lib"
