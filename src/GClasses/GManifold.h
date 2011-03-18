@@ -394,6 +394,7 @@ protected:
 	size_t* m_pParamRanges;
 	GCoordVectorIterator m_cvi;
 	double m_rate;
+	bool m_updateWeights;
 
 public:
 	GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand);
@@ -404,6 +405,9 @@ public:
 	/// is used to add layers to the neural network, or set the learning rate (etc.) before
 	/// calling doit.
 	GNeuralNet* neuralNet() { return m_pNN; }
+
+	/// Takes ownership of pNN. Replaces the internal neural net with the one specified.
+	void setNeuralNet(GNeuralNet* pNN);
 
 	/// An experimental feature that allows one to parameterize the output values.
 	void setParams(std::vector<size_t>& paramRanges);
@@ -417,9 +421,16 @@ public:
 	/// low-dimensional space to high-dimensional space.)
 	virtual GMatrix* doit(GMatrix* pIn);
 
+	/// Peform NLDR using a sparse matrix as input
+	GMatrix* doitSparse(GSparseMatrix* pData);
+
 	/// Projects an intrinsic low-dimensional vector to the corresponding high-dimensional
 	/// observation vector.
 	void lowToHigh(const double* pIntrinsic, double* pObs);
+
+	/// Specify whether or not to update the weights. The default is to update the weights.
+	/// Either way, the intrinsic features will still be updated.
+	void setUpdateWeights(bool b) { m_updateWeights = b; }
 };
 
 

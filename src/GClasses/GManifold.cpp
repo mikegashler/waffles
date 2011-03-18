@@ -1980,7 +1980,7 @@ GMatrix* GNeuroPCA::doit(GMatrix* pIn)
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_paramDims(0), m_pParamRanges(NULL), m_cvi(0, NULL), m_rate(0.2)
+: m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_paramDims(0), m_pParamRanges(NULL), m_cvi(0, NULL), m_rate(0.2), m_updateWeights(true)
 {
 	m_pNN = new GNeuralNet(m_pRand);
 	//m_pNN->setActivationFunction(new GActivationIdentity(), true);
@@ -1998,6 +1998,12 @@ GUnsupervisedBackProp::~GUnsupervisedBackProp()
 {
 	delete(m_pNN);
 	delete[] m_pParamRanges;
+}
+
+void GUnsupervisedBackProp::setNeuralNet(GNeuralNet* pNN)
+{
+	delete(m_pNN);
+	m_pNN = pNN;
 }
 
 void GUnsupervisedBackProp::setParams(vector<size_t>& paramRanges)
@@ -2144,8 +2150,89 @@ doc.save("ubp.twt");
 	return hOut.release();
 }
 
+class SparseElement
+{
+public:
+	size_t m_row;
+	size_t m_col;
+	double m_val;
+};
 
+GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
+{
+	if(pData->defaultValue() != UNKNOWN_REAL_VALUE)
+		ThrowError("Expected the default value to be UNKNOWN_REAL_VALUE");
 
+	// Initialize the user preference vectors
+	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
+	GMatrix* pIntrinsic = new GMatrix(pData->rows(), m_intrinsicDims);
+	Holder<GMatrix> hIntrinsic(pIntrinsic);
+	pIntrinsic->setAll(pAF->center());
+
+	// Prep the model for incremental training
+	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
+	sp_relation pLabelRel = new GUniformRelation(pData->cols());
+	m_pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
+
+	// Make a single list of all the elements
+	GHeap heap(2048);
+	vector<SparseElement*> elements;
+	for(size_t i = 0; i < pData->rows(); i++)
+	{
+		for(GSparseMatrix::Iter it = pData->rowBegin(i); it != pData->rowEnd(i); it++)
+		{
+			SparseElement* pEl = (SparseElement*)heap.allocAligned(sizeof(SparseElement));
+			pEl->m_row = i;
+			pEl->m_col = it->first;
+			pEl->m_val = it->second;
+			elements.push_back(pEl);
+		}
+	}
+
+	// Train
+	double baseRsse = 1e300;
+	size_t window = 0;
+	double floor = pAF->center() - pAF->halfRange();
+	double cap = pAF->center() + pAF->halfRange();
+	while(true)
+	{
+		// Shuffle the elements
+		for(size_t n = elements.size(); n > 0; n--)
+			std::swap(elements[(size_t)m_pRand->next(n)], elements[n - 1]);
+
+		// Do an epoch of training
+		double sse = 0;
+		for(vector<SparseElement*>::iterator it = elements.begin(); it != elements.end(); it++)
+		{
+			SparseElement* pEl = *it;
+			double* pInt = pIntrinsic->row(pEl->m_row);
+			double prediction = m_pNN->forwardPropSingleOutput(pInt, pEl->m_col);
+			double d = pEl->m_val - prediction;
+			sse += (d * d);
+			m_pNN->setErrorSingleOutput(pEl->m_val, pEl->m_col);
+			m_pNN->backProp()->backpropagateSingleOutput(pEl->m_col);
+			if(m_updateWeights)
+				m_pNN->backProp()->descendGradientSingleOutput(pEl->m_col, pInt, m_pNN->learningRate(), m_pNN->momentum());
+			m_pNN->backProp()->adjustFeaturesSingleOutput(pEl->m_col, pInt, m_pNN->learningRate());
+			GVec::floorValues(pInt, floor, m_intrinsicDims);
+			GVec::capValues(pInt, cap, m_intrinsicDims);
+		}
+
+		// Terminate when the root-sum-squared-error does not improve by 0.01% within a window of 10 epochs
+		double rsse = sqrt(sse);
+		if(1.0 - (rsse / baseRsse) >= 0.0001)
+		{
+			window = 0;
+			baseRsse = rsse;
+		}
+		else
+		{
+			if(++window >= 10)
+				break;
+		}
+	}
+	return hIntrinsic.release();
+}
 
 
 } // namespace GClasses

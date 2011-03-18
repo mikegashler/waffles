@@ -28,9 +28,9 @@
 <h3>Troubleshooting</h3>
 
 <span style="font-weight: bold;">
-	I get an error about std::_cpp_min and std::_cpp_max not being defined.
+	When I switch between Debug and Release mode, it doesn't rebuild everything like it should.
 </span><br><div style="margin-left: 40px;">
-	Are you using Visual Studio 2010? Microsoft made a breaking change related to this api in order to be more standards compliant (finally). We are not yet ready to drop support for Visual Studio 2008, however, so we have not yet ported to Visual Studio 2010. You can work around this by commenting out the macro related to _cpp_min and _cpp_max in GError.h.
+	Due to a series of unfortunate design decisions by Microsoft, we have been forced to make both Debug and Release modes target the same filename. Hence, whenever you switch between the two, you must do a clean build, or else it will see the one it already built and think it does not need to build anything. Why don't we just put them in different folders, as is the default in VC++? Because several of our apps rely on external files--imagine that. Why not just duplicate those external files? Because keeping the size of our archive small is important to us. Further, redundant files is bad practice because it propagates bugs. Why not just use a symbolic link? Not all versions of Windows support those. Why not just require everyone to have the latest version of Windows? Because Windows is not free, and I will not be evil. Why not use different names for the Debug and Release versions? That's how we used to do it, but it turns out that the tool that converts VC++ 2008 project files to VC++ 2010 project files makes the assumption that your target file has the same name as the project, and the project has the same name in both Debug and Release mode.
 </div><br><br>
 
 <span style="font-weight: bold;">

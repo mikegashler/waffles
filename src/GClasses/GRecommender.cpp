@@ -521,7 +521,8 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 	// Initialize the user preference vectors
 	m_pUsers->flush();
 	m_pUsers->newRows(pData->rows());
-	m_pUsers->setAll(0.5);
+	GActivationFunction* pAF = m_pModel->layer(0).m_pActivationFunction;
+	m_pUsers->setAll(pAF->center());
 
 	// Prep the model for incremental training
 	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
@@ -545,7 +546,6 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 
 	double baseRsse = 1e300;
 	size_t window = 0;
-	GActivationFunction* pAF = m_pModel->layer(0).m_pActivationFunction;
 	double floor = pAF->center() - pAF->halfRange();
 	double cap = pAF->center() + pAF->halfRange();
 	while(true)

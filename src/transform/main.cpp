@@ -2183,6 +2183,94 @@ void transition(GArgReader& args)
 	pTransition->print(cout);
 }
 
+void ubpSparse(GArgReader& args)
+{
+	// Load the sparse matrix
+	GTwtDoc doc;
+	doc.load(args.pop_string());
+	GSparseMatrix* pData = new GSparseMatrix(doc.root());
+	Holder<GSparseMatrix> hData(pData);
+
+	// Target dims
+	int targetDims = args.pop_uint();
+
+	// Parse Options
+	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	GRand prng(nSeed);
+	GUnsupervisedBackProp ubp(targetDims, &prng);
+	string modelIn;
+	string modelOut;
+	bool updateWeights = true;
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-seed"))
+			prng.setSeed(args.pop_uint());
+		else if(args.if_pop("-addlayer"))
+			ubp.neuralNet()->addLayer(args.pop_uint());
+		else if(args.if_pop("-learningrate"))
+			ubp.neuralNet()->setLearningRate(args.pop_double());
+		else if(args.if_pop("-activation"))
+		{
+			const char* szSF = args.pop_string();
+			GActivationFunction* pSF = NULL;
+			if(strcmp(szSF, "logistic") == 0)
+				pSF = new GActivationLogistic();
+			else if(strcmp(szSF, "arctan") == 0)
+				pSF = new GActivationArcTan();
+			else if(strcmp(szSF, "tanh") == 0)
+				pSF = new GActivationTanH();
+			else if(strcmp(szSF, "algebraic") == 0)
+				pSF = new GActivationAlgebraic();
+			else if(strcmp(szSF, "identity") == 0)
+				pSF = new GActivationIdentity();
+			else if(strcmp(szSF, "gaussian") == 0)
+				pSF = new GActivationGaussian();
+			else if(strcmp(szSF, "sinc") == 0)
+				pSF = new GActivationSinc();
+			else if(strcmp(szSF, "bend") == 0)
+				pSF = new GActivationBend();
+			else if(strcmp(szSF, "bidir") == 0)
+				pSF = new GActivationBiDir();
+			else if(strcmp(szSF, "piecewise") == 0)
+				pSF = new GActivationPiecewise();
+			else
+				ThrowError("Unrecognized activation function: ", szSF);
+			ubp.neuralNet()->setActivationFunction(pSF, true);
+		}
+		else if(args.if_pop("-modelin"))
+			modelIn = args.pop_string();
+		else if(args.if_pop("-modelout"))
+			modelOut = args.pop_string();
+		else if(args.if_pop("-noupdateweights"))
+			updateWeights = false;
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Load the model
+	if(modelIn.length() > 0)
+	{
+		GTwtDoc doc;
+		doc.load(modelIn.c_str());
+		GNeuralNet* pNN = new GNeuralNet(doc.root(), &prng);
+		ubp.setNeuralNet(pNN);
+	}
+	ubp.setUpdateWeights(updateWeights);
+
+	// Transform the data
+	GMatrix* pDataAfter = ubp.doitSparse(pData);
+	Holder<GMatrix> hDataAfter(pDataAfter);
+	pDataAfter->print(cout);
+
+	// Save the model
+	if(modelOut.length() > 0)
+	{
+		GTwtDoc doc;
+		doc.setRoot(ubp.neuralNet()->toTwt(&doc));
+		doc.save(modelOut.c_str());
+	}
+}
+
 void unsupervisedBackProp(GArgReader& args)
 {
 	// Load the file and params
@@ -2343,7 +2431,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
 		else if(args.if_pop("rotate")) rotate(args);
-		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
 		else if(args.if_pop("scalecolumns")) scaleColumns(args);
 		else if(args.if_pop("shiftcolumns")) shiftColumns(args);
 		else if(args.if_pop("shuffle")) Shuffle(args);
@@ -2361,6 +2448,8 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("threshold")) threshold(args);
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
+		else if(args.if_pop("ubpsparse")) ubpSparse(args);
+		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
 		else if(args.if_pop("zeroMean")) zeroMean(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}
