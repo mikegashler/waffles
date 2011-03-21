@@ -2161,15 +2161,15 @@ public:
 GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 {
 	// Initialize the user preference vectors
-	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
 	GMatrix* pIntrinsic = new GMatrix(pData->rows(), m_intrinsicDims);
 	Holder<GMatrix> hIntrinsic(pIntrinsic);
-	pIntrinsic->setAll(pAF->center());
 
 	// Prep the model for incremental training
 	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
 	sp_relation pLabelRel = new GUniformRelation(pData->cols());
 	m_pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
+	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
+	pIntrinsic->setAll(pAF->center());
 
 	// Make a single list of all the elements
 	GHeap heap(2048);
