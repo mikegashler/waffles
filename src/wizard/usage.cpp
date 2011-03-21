@@ -705,7 +705,7 @@ UsageNode* makeGenerateUsageTree()
 		UsageNode* pOpts = pDocsToSparse->add("<options>");
 		pOpts->add("-nostem", "Specifies not to stem the words. (The default is to use the Porter stemming algorithm.)");
 		pOpts->add("-binary", "Just use the value 1 if the word occurs in a document, or a 0 if it does not occur. The default behavior is to compute the somewhat more meaningful value: a/b*log(c/d), where a=the number of times the word occurs in this document, b=the max number of times this word occurs in any document, c=total number of documents, and d=number of documents that contain this word.");
-		pOpts->add("-outfile [filename]=docs.sparse", "Specify the filename for the sparse matrix. The default is \"docs.sparse\".");
+		pOpts->add("-out [features-filename] [labels-filename]", "Specify the filenames for the sparse feature matrix and the dense labels matrix.");
 		pOpts->add("-vocabfile [filename]=vocab.txt", "Save the vocabulary of words to the specified file. The default is to not save the list of words. Note that the words will be stemmed (unless -nostem was specified), so it is normal for many of them to appear misspelled.");
 	}
 	UsageNode* pES = pRoot->add("entwinedspirals [points] <options>", "Generates points that lie on an entwined spirals manifold.");
