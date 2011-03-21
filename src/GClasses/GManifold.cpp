@@ -2160,9 +2160,6 @@ public:
 
 GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 {
-	if(pData->defaultValue() != UNKNOWN_REAL_VALUE)
-		ThrowError("Expected the default value to be UNKNOWN_REAL_VALUE");
-
 	// Initialize the user preference vectors
 	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
 	GMatrix* pIntrinsic = new GMatrix(pData->rows(), m_intrinsicDims);
