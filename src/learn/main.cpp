@@ -433,9 +433,9 @@ GNeuralNet* InstantiateNeuralNet(GRand* pRand, GArgReader& args)
 		else if(args.if_pop("-momentum"))
 			pModel->setMomentum(args.pop_double());
 		else if(args.if_pop("-windowepochs"))
-			pModel->setIterationsPerValidationCheck(args.pop_uint());
+			pModel->setWindowSize(args.pop_uint());
 		else if(args.if_pop("-minwindowimprovement"))
-			pModel->setMinImprovement(args.pop_double());
+			pModel->setImprovementThresh(args.pop_double());
 		else if(args.if_pop("-activation"))
 		{
 			const char* szSF = args.pop_string();

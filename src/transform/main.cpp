@@ -2243,6 +2243,12 @@ void ubpSparse(GArgReader& args)
 			modelOut = args.pop_string();
 		else if(args.if_pop("-noupdateweights"))
 			updateWeights = false;
+		else if(args.if_pop("-windowsize"))
+			ubp.neuralNet()->setWindowSize(args.pop_uint());
+		else if(args.if_pop("-improvementthresh"))
+			ubp.neuralNet()->setImprovementThresh(args.pop_double());
+		else if(args.if_pop("-normalize"))
+			ubp.normalize(true);
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}

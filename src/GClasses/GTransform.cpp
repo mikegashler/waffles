@@ -675,8 +675,8 @@ void GAttributeSelector::train(GMatrix* pData)
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn(m_pRand);
-		nn.setIterationsPerValidationCheck(20);
-		nn.setMinImprovement(0.002);
+		nn.setWindowSize(30);
+		nn.setImprovementThresh(0.002);
 		nn.train(*pFeatures2, *pLabels);
 		vector<size_t> rmap;
 		ntc.reverseAttrMap(rmap);

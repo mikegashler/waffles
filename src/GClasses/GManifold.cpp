@@ -1980,7 +1980,7 @@ GMatrix* GNeuroPCA::doit(GMatrix* pIn)
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_paramDims(0), m_pParamRanges(NULL), m_cvi(0, NULL), m_rate(0.2), m_updateWeights(true)
+: m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_paramDims(0), m_pParamRanges(NULL), m_cvi(0, NULL), m_rate(0.2), m_updateWeights(true), m_normalize(false)
 {
 	m_pNN = new GNeuralNet(m_pRand);
 	//m_pNN->setActivationFunction(new GActivationIdentity(), true);
@@ -2176,12 +2176,21 @@ GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 	vector<SparseElement*> elements;
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
+		double scale = 1.0;
+		if(m_normalize)
+		{
+			double d = 0.0;
+			for(GSparseMatrix::Iter it = pData->rowBegin(i); it != pData->rowEnd(i); it++)
+				d += (it->second * it->second);
+			if(d >= 1e-12)
+				scale = 1.0 / sqrt(d);
+		}
 		for(GSparseMatrix::Iter it = pData->rowBegin(i); it != pData->rowEnd(i); it++)
 		{
 			SparseElement* pEl = (SparseElement*)heap.allocAligned(sizeof(SparseElement));
 			pEl->m_row = i;
 			pEl->m_col = it->first;
-			pEl->m_val = it->second;
+			pEl->m_val = scale * it->second;
 			elements.push_back(pEl);
 		}
 	}
@@ -2217,14 +2226,14 @@ GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 
 		// Terminate when the root-sum-squared-error does not improve by 0.01% within a window of 10 epochs
 		double rsse = sqrt(sse);
-		if(1.0 - (rsse / baseRsse) >= 0.0001)
+		if(1.0 - (rsse / baseRsse) >= m_pNN->improvementThresh())
 		{
 			window = 0;
 			baseRsse = rsse;
 		}
 		else
 		{
-			if(++window >= 10)
+			if(++window >= m_pNN->windowSize())
 				break;
 		}
 	}

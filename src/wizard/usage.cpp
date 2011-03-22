@@ -677,6 +677,9 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-modelin [filename]=model.twt", "Specify a filename from which to load the neural net model. (Note that this will replace any model you construct using the -addlayer option, so it would not make much sense to use these switches together.)");
 		pOpts->add("-modelout [filename]=model.twt", "Specify a filename to save the neural net model to after it has been trained.");
 		pOpts->add("-noupdateweights", "Do not update the weights during training. If this switch is specified, then only the intrinsic values will be updated. (This might be useful, for example, to generalize. That is, it can be used to determine the low-dimensional dense vectors that correspond to high-dimensional sparse vectors that were not available at training time, without changing the model further.)");
+		pOpts->add("-normalize", "Normalize all of the input vectors to have a Euclidean magnitude of 1 prior to training with them.");
+		pOpts->add("-windowsize [n]=200", "Specify the number of epochs over which a certain amount of improvement is expected, or else training will terminate.");
+		pOpts->add("-improvementthresh [t]=0.002", "Specify the ratio of improvement that must be obtained over the window of epoches, or else training will terminate.");
 	}
 	pRoot->add("zeroMean [dataset]","Subtracts the mean from all values "
 		   "of all continuous attributes, so that their means in the "

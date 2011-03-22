@@ -273,20 +273,27 @@ public:
 	/// the gradient descent algorithm move past some local minimums
 	void setMomentum(double d) { m_momentum = d; }
 
-	/// Specifies the minimum improvement (as a ratio) that must be
-	/// made since the last validation check for trainingn to continue.
+	/// Returns the threshold ratio for improvement. 
+	double improvementThresh() { return m_minImprovement; }
+
+	/// Specifies the threshold ratio for improvement that must be
+	/// made since the last validation check for training to continue.
 	/// (For example, if the mean squared error at the previous validation check
 	/// was 50, and the mean squared error at the current validation check
 	/// is 49, then training will stop if d is > 0.02.)
-	void setMinImprovement(double d) { m_minImprovement = d; }
+	void setImprovementThresh(double d) { m_minImprovement = d; }
 
-	/// Sets the number of iterations that will be performed before
+	/// Returns the number of epochs to perform before the validation data
+	/// is evaluated to see if training should stop.
+	size_t windowSize() { return m_epochsPerValidationCheck; }
+
+	/// Sets the number of epochs that will be performed before
 	/// each time the network is tested again with the validation set
 	/// to determine if we have a better best-set of weights, and
 	/// whether or not it's achieved the termination condition yet.
-	/// (An iteration is defined as a single pass through all rows in
+	/// (An epochs is defined as a single pass through all rows in
 	/// the training set.)
-	void setIterationsPerValidationCheck(size_t n) { m_epochsPerValidationCheck = n; }
+	void setWindowSize(size_t n) { m_epochsPerValidationCheck = n; }
 
 	/// Specify the target function to use for back-propagation. The default is squared_error.
 	/// cross_entropy tends to be faster, and is well-suited for classification tasks.

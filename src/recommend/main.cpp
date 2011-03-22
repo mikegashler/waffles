@@ -142,9 +142,9 @@ GNeuralRecommender* InstantiateNeuralRecommender(GRand* pRand, GArgReader& args)
 		else if(args.if_pop("-momentum"))
 			pModel->model()->setMomentum(args.pop_double());
 		else if(args.if_pop("-windowepochs"))
-			pModel->model()->setIterationsPerValidationCheck(args.pop_uint());
+			pModel->model()->setWindowSize(args.pop_uint());
 		else if(args.if_pop("-minwindowimprovement"))
-			pModel->model()->setMinImprovement(args.pop_double());
+			pModel->model()->setImprovementThresh(args.pop_double());
 		else if(args.if_pop("-activation"))
 		{
 			const char* szSF = args.pop_string();

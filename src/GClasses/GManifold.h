@@ -395,6 +395,7 @@ protected:
 	GCoordVectorIterator m_cvi;
 	double m_rate;
 	bool m_updateWeights;
+	bool m_normalize;
 
 public:
 	GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand);
@@ -431,6 +432,9 @@ public:
 	/// Specify whether or not to update the weights. The default is to update the weights.
 	/// Either way, the intrinsic features will still be updated.
 	void setUpdateWeights(bool b) { m_updateWeights = b; }
+
+	/// Specify whether or not to normalize the input vectors. (The default is false.)
+	void normalize(bool b) { m_normalize = b; }
 };
 
 
