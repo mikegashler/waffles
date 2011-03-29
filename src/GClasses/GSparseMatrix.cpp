@@ -18,6 +18,10 @@
 #include "GRand.h"
 #include <fstream>
 #include "GTwt.h"
+#include <cmath>
+#include <set>
+
+using std::cout;
 
 namespace GClasses {
 
@@ -216,11 +220,28 @@ GSparseMatrix* GSparseMatrix::subMatrix(size_t row, size_t col, size_t height, s
 	}
 	return pSub;
 }
-/*
+
+GSparseMatrix* GSparseMatrix::transpose()
+{
+	GSparseMatrix* pThat = new GSparseMatrix(cols(), rows(), m_defaultValue);
+	for(size_t i = 0; i < rows(); i++)
+	{
+		Iter end = rowEnd(i);
+		for(Iter it = rowBegin(i); it != end; it++)
+			pThat->set(it->first, i, it->second);
+	}
+	return pThat;
+}
+
+
+
+
+
+
 double GSparseMatrix_pythag(double a, double b)
 {
-	double at = ABS(a);
-	double bt = ABS(b);
+	double at = std::abs(a);
+	double bt = std::abs(b);
 	if(at > bt)
 	{
 		double ct = bt / at;
@@ -237,49 +258,63 @@ double GSparseMatrix_pythag(double a, double b)
 
 double GSparseMatrix_takeSign(double a, double b)
 {
-	return (b >= 0.0 ? ABS(a) : -ABS(a));
+	return (b >= 0.0 ? std::abs(a) : -std::abs(a));
 }
 
-void GSparseMatrix::singularValueDecomposition(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, int maxIters)
+void GSparseMatrix::singularValueDecomposition(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters)
 {
 	if(rows() >= cols())
-		singularValueDecompositionHelper(ppU, ppDiag, ppV, maxIters);
+		singularValueDecompositionHelper(ppU, ppDiag, ppV, throwIfNoConverge, maxIters);
 	else
 	{
-		transpose();
-		singularValueDecompositionHelper(ppV, ppDiag, ppU, maxIters);
-		transpose();
-		(*ppV)->transpose();
-		(*ppU)->transpose();
+		GSparseMatrix* pTemp = transpose();
+		Holder<GSparseMatrix> hTemp(pTemp);
+		pTemp->singularValueDecompositionHelper(ppV, ppDiag, ppU, throwIfNoConverge, maxIters);
+		GSparseMatrix* pOldV = *ppV;
+		*ppV = pOldV->transpose();
+		delete(pOldV);
+		GSparseMatrix* pOldU = *ppU;
+		*ppU = pOldU->transpose();
+		delete(pOldU);
 	}
 }
 
-void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, int maxIters)
+double GSparseMatrix_safeDivide(double n, double d)
 {
-	if(m_defaultValue != 0.0)
-		ThrowError("This method assumes the default value is 0");
-	int m = rows();
-	int n = cols();
+	if(d == 0.0 && n == 0.0)
+		return 0.0;
+	else
+	{
+		double t = n / d;
+		//GAssert(t > -1e200, "prob");
+		return t;
+	}
+}
+
+void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters)
+{
+	int m = (int)rows();
+	int n = (int)cols();
 	if(m < n)
 		ThrowError("Expected at least as many rows as columns");
-	int i, j, k;
+	int i, j, k, q;
 	int l = 0;
-	int q, iter;
 	double c, f, h, s, x, y, z;
 	double norm = 0.0;
 	double g = 0.0;
 	double scale = 0.0;
-	GSparseMatrix* pU = new GSparseMatrix(m, m, 0.0);
+	GSparseMatrix* pU = new GSparseMatrix(m, m);
 	Holder<GSparseMatrix> hU(pU);
 	pU->copyFrom(this);
 	double* pSigma = new double[n];
 	ArrayHolder<double> hSigma(pSigma);
-	GSparseMatrix* pV = new GSparseMatrix(n, n, 0.0);
+	GSparseMatrix* pV = new GSparseMatrix(n, n);
 	Holder<GSparseMatrix> hV(pV);
-	GTEMPBUF(double, temp, n + m);
-	double* temp2 = temp + n;
+	GTEMPBUF(double, temp, n);
 
 	// Householder reduction to bidiagonal form
+	GSparseMatrix* pUT = pU->transpose();
+	Holder<GSparseMatrix> hUT(pUT);
 	for(int i = 0; i < n; i++)
 	{
 		// Left-hand reduction
@@ -290,49 +325,63 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 		scale = 0.0;
 		if(i < m)
 		{
-			Iter kend = pU->colEnd(i);
-			for(Iter kk = pU->colBegin(i); kk != kend; kk++)
-			{
-				if(kk->first >= (unsigned int)i)
-					scale += ABS(kk->second);
-			}
+			Map::iterator end = pUT->m_rows[i].end();
+			Map::iterator it, it2, end2;
+			for(it = pUT->m_rows[i].begin(); it != end && it->first < (size_t)i; it++) {}
+			for(; it != end; it++)
+				scale += std::abs(it->second);
 			if(scale != 0.0)
 			{
-				for(Iter kk = pU->colBegin(i); kk != kend; kk++)
+				for(it = pUT->m_rows[i].begin(); it != end && it->first < (size_t)i; it++) {}
+				for(; it != end; it++)
 				{
-					if(kk->first >= (unsigned int)i)
-					{
-						double t = kk->second / scale;
-						pU->set(kk->first, i, t);
-						s += (t * t);
-					}
+					double t = GSparseMatrix_safeDivide(it->second, scale);
+					it->second = t;
+					pU->row(it->first)[i] = t;
+					s += t * t;
 				}
-				f = pU->get(i, i);
+				f = pU->row(i)[i];
 				g = -GSparseMatrix_takeSign(sqrt(s), f);
 				h = f * g - s;
-				pU->set(i, i, f - g);
+				pU->row(i)[i] = f - g;
+				pUT->row(i)[i] = f - g;
 				if(i != n - 1)
 				{
 					for(j = l; j < n; j++)
 					{
 						s = 0.0;
-						for(Iter kk = pU->colBegin(i); kk != kend; kk++)
+						end2 = pUT->m_rows[j].end();
+						for(it = pUT->m_rows[i].begin(); it != end && it->first < (size_t)i; it++) {}
+						for(it2 = pUT->m_rows[j].begin(); it2 != end2 && it2->first < (size_t)i; it2++) {}
+						while(it != end && it2 != end2)
 						{
-							if(kk->first >= (unsigned int)i)
-								s += kk->second * pU->get(kk->first, j);
+							if(it->first < it2->first)
+								it++;
+							else if(it2->first < it->first)
+								it2++;
+							else
+							{
+								s += it->second * it2->second;
+								it++;
+								it2++;
+							}
 						}
-						f = s / h;
-						for(Iter kk = pU->colBegin(i); kk != kend; kk++)
+						f = GSparseMatrix_safeDivide(s, h);
+						for(it = pUT->m_rows[i].begin(); it != end && it->first < (size_t)i; it++) {}
+						for(; it != end; it++)
 						{
-							if(kk->first >= (unsigned int)i)
-								pU->set(kk->first, j, pU->get(kk->first, j) + f * kk->second);
+							double t = pU->row(it->first)[j] + f * it->second;
+							pU->row(it->first)[j] = t;
+							pUT->row(j)[it->first] = t;
 						}
 					}
 				}
-				for(Iter kk = pU->colBegin(i); kk != kend; kk++)
+				for(it = pUT->m_rows[i].begin(); it != end && it->first < (size_t)i; it++) {}
+				for(; it != end; it++)
 				{
-					if(kk->first >= (unsigned int)i)
-						pU->set(kk->first, i, pU->get(kk->first, i) * scale);
+					double t = it->second * scale;
+					it->second = t;
+					pU->row(it->first)[i] = t;
 				}
 			}
 		}
@@ -342,67 +391,71 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 		g = 0.0;
 		s = 0.0;
 		scale = 0.0;
-		if(i < m && i != n - 1) 
+		if(i < m && i != n - 1)
 		{
-			Iter kend = pU->rowEnd(i);
-			for(Iter kk = pU->rowBegin(i); kk != kend; kk++)
+			Map::iterator end = pU->m_rows[i].end();
+			Map::iterator it, it2, end2;
+			for(it = pU->m_rows[i].begin(); it != end && it->first < (size_t)l; it++) {}
+			for(; it != end; it++)
+				scale += std::abs(it->second);
+			if(scale != 0.0)
 			{
-				if(kk->first >= (unsigned int)n)
-					break;
-				if(kk->first >= (unsigned int)l)
-					scale += ABS(kk->second);
-			}
-			if(scale != 0.0) 
-			{
-				for(Iter kk = pU->rowBegin(i); kk != kend; kk++)
+				for(it = pU->m_rows[i].begin(); it != end && it->first < (size_t)l; it++) {}
+				for(; it != end; it++)
 				{
-					if(kk->first >= (unsigned int)n)
-						break;
-					if(kk->first >= (unsigned int)l)
-					{
-						double t = kk->second / scale;
-						pU->set(i, kk->first, t);
-						s += (t * t);
-					}
+					double t = GSparseMatrix_safeDivide(it->second, scale);
+					it->second = t;
+					pUT->row(it->first)[i] = t;
+					s += t * t;
 				}
-				f = pU->get(i, l);
+				f = pU->row(i)[l];
 				g = -GSparseMatrix_takeSign(sqrt(s), f);
 				h = f * g - s;
-				pU->set(i, l, f - g);
-				for(k = l; k < n; k++)
-					temp[k] = pU->get(i, k) / h;
-				if(i != m - 1) 
+				pU->row(i)[l] = f - g;
+				pUT->row(l)[i] = f - g;
+				for(it = pU->m_rows[i].begin(); it != end && it->first < (size_t)l; it++) {}
+				for(; it != end; it++)
+					temp[it->first] = GSparseMatrix_safeDivide(it->second, h);
+				if(i != m - 1)
 				{
-					for(j = l; j < m; j++) 
+					for(j = l; j < m; j++)
 					{
 						s = 0.0;
-						for(Iter kk = pU->rowBegin(i); kk != kend; kk++)
+						end2 = pU->m_rows[j].end();
+						for(it = pU->m_rows[i].begin(); it != end && it->first < (size_t)l; it++) {}
+						for(it2 = pU->m_rows[j].begin(); it2 != end2 && it2->first < (size_t)l; it2++) {}
+						while(it != end && it2 != end2)
 						{
-							if(kk->first >= (unsigned int)n)
-								break;
-							if(kk->first >= (unsigned int)l)
-								s += pU->get(j, kk->first) * kk->second;
+							if(it->first < it2->first)
+								it++;
+							else if(it2->first < it->first)
+								it2++;
+							else
+							{
+								s += it->second * it2->second;
+								it++;
+								it2++;
+							}
 						}
-						Iter kend2 = pU->rowEnd(j);
-						for(Iter kk = pU->rowBegin(j); kk != kend2; kk++)
+						for(it = pU->m_rows[i].begin(); it != end && it->first < (size_t)l; it++) {}
+						for(; it != end; it++)
 						{
-							if(kk->first >= (unsigned int)n)
-								break;
-							if(kk->first >= (unsigned int)l)
-								pU->set(j, kk->first, pU->get(j, kk->first) + s * temp[kk->first]);
+							double t = pU->get(j, it->first) + s * temp[it->first];
+							pU->set(j, it->first, t);
+							pUT->set(it->first, j, t);
 						}
 					}
 				}
-				for(Iter kk = pU->rowBegin(i); kk != kend; kk++)
+				for(it = pU->m_rows[i].begin(); it != end && it->first < (size_t)l; it++) {}
+				for(; it != end; it++)
 				{
-					if(kk->first >= (unsigned int)n)
-						break;
-					if(kk->first >= (unsigned int)l)
-						pU->set(i, kk->first, kk->second * scale);
+					double t = it->second * scale;
+					it->second = t;
+					pUT->set(it->first, i, t);
 				}
 			}
 		}
-		norm = MAX(norm, ABS(pSigma[i]) + ABS(temp[i]));
+		norm = std::max(norm, std::abs(pSigma[i]) + std::abs(temp[i]));
 	}
 
 	// Accumulate right-hand transform
@@ -412,42 +465,42 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 		{
 			if(g != 0.0)
 			{
-				Iter jend = pU->rowEnd(i);
-				for(Iter jj = pU->rowBegin(i); jj != jend; jj++)
-				{
-					if(jj->first >= (unsigned int)n)
-						break;
-					if(jj->first >= (unsigned int)l)
-						pV->set(i, jj->first, (jj->second / pU->get(i, l)) / g); // (double-division to avoid underflow)
-				}
+				for(j = l; j < n; j++)
+					pV->row(i)[j] = GSparseMatrix_safeDivide(GSparseMatrix_safeDivide(pU->row(i)[j], pU->row(i)[l]), g); // (double-division to avoid underflow)
 				for(j = l; j < n; j++)
 				{
 					s = 0.0;
-					Iter kend = pU->rowEnd(i);
-					for(Iter kk = pU->rowBegin(i); kk != kend; kk++)
+					Map::iterator endU = pU->m_rows[i].end();
+					Map::iterator endV = pV->m_rows[j].end();
+					Map::iterator itU, itV;
+					for(itU = pU->m_rows[i].begin(); itU != endU && itU->first < (size_t)l; itU++) {}
+					for(itV = pV->m_rows[j].begin(); itV != endV && itV->first < (size_t)l; itV++) {}
+					while(itU != endU && itV != endV)
 					{
-						if(kk->first >= (unsigned int)n)
-							break;
-						if(kk->first >= (unsigned int)l)
-							s += kk->second * pV->get(j, kk->first);
+						if(itU->first < itV->first)
+							itU++;
+						else if(itV->first < itU->first)
+							itV++;
+						else
+						{
+							s += itU->second * itV->second;
+							itU++;
+							itV++;
+						}
 					}
-					kend = pV->rowEnd(i);
-					for(Iter kk = pV->rowBegin(i); kk != kend; kk++)
-					{
-						if(kk->first >= (unsigned int)n)
-							break;
-						if(kk->first >= (unsigned int)l)
-							pV->set(j, kk->first, pV->get(j, kk->first) + s * kk->second);
-					}
+					endV = pV->m_rows[i].end();
+					for(itV = pV->m_rows[i].begin(); itV != endV && itV->first < (size_t)l; itV++) {}
+					for(; itV != endV; itV++)
+						pV->set(j, itV->first, pV->get(j, itV->first) + s * itV->second);
 				}
 			}
 			for(j = l; j < n; j++)
 			{
-				pV->set(i, j, 0.0);
-				pV->set(j, i, 0.0);
+				pV->row(i)[j] = 0.0;
+				pV->row(j)[i] = 0.0;
 			}
 		}
-		pV->set(i, i, 1.0);
+		pV->row(i)[i] = 1.0;
 		g = temp[i];
 		l = i;
 	}
@@ -460,60 +513,81 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 		if(i < n - 1)
 		{
 			for(j = l; j < n; j++)
-				pU->set(i, j, 0.0);
+			{
+				pU->row(i)[j] = 0.0;
+				pUT->row(j)[i] = 0.0;
+			}
 		}
 		if(g != 0.0)
 		{
-			g = 1.0 / g;
+			g = GSparseMatrix_safeDivide(1.0, g);
 			if(i != n - 1)
 			{
 				for(j = l; j < n; j++)
 				{
 					s = 0.0;
-					Iter kend = pU->colEnd(i);
-					for(Iter kk = pU->colBegin(i); kk != kend; kk++)
+					Map::iterator end = pUT->m_rows[i].end();
+					Map::iterator it1, it2;
+					for(it1 = pUT->m_rows[i].begin(); it1 != end && it1->first < (size_t)l; it1++) {}
+					for(it2 = pUT->m_rows[j].begin(); it2 != end && it2->first < (size_t)l; it2++) {}
+					while(it1 != end && it2 != end)
 					{
-						if(kk->first >= (unsigned int)l)
-							s += kk->second * pU->get(kk->first, j);
-					}
-					f = (s / pU->get(i, i)) * g;
-					if(f != 0.0)
-					{
-						for(Iter kk = pU->colBegin(i); kk != kend; kk++)
+						if(it1->first < it2->first)
+							it1++;
+						else if(it2->first < it1->first)
+							it2++;
+						else
 						{
-							if(kk->first >= (unsigned int)i)
-								pU->set(kk->first, j, pU->get(kk->first, j) + f * kk->second);
+							s += it1->second * it2->second;
+							it1++;
+							it2++;
 						}
+					}
+					f = GSparseMatrix_safeDivide(s, pU->row(i)[i]) * g;
+					for(it1 = pUT->m_rows[i].begin(); it1 != end && it1->first < (size_t)i; it1++) {}
+					for(; it1 != end; it1++)
+					{
+						double t = f * it1->second;
+						pU->row(it1->first)[j] += t;
+						pUT->row(j)[it1->first] += t;
 					}
 				}
 			}
 			for(j = i; j < m; j++)
-				pU->set(j, i, pU->get(j, i) * g);
-		} 
-		else 
+			{
+				pU->row(j)[i] *= g;
+				pUT->row(i)[j] *= g;
+			}
+		}
+		else
 		{
 			for(j = i; j < m; j++)
-				pU->set(j, i, 0.0);
+			{
+				pU->row(j)[i] = 0.0;
+				pUT->row(i)[j] = 0.0;
+			}
 		}
-		pU->set(i, i, pU->get(i, i) + 1.0);
+		pU->row(i)[i] += 1.0;
+		pUT->row(i)[i] += 1.0;
 	}
 
 	// Diagonalize the bidiagonal matrix
+	std::set<size_t> indexes;
 	for(k = n - 1; k >= 0; k--) // For each singular value
 	{
-		for(iter = 1; iter <= maxIters; iter++)
+		for(size_t iter = 1; iter <= maxIters; iter++)
 		{
 			// Test for splitting
 			bool flag = true;
 			for(l = k; l >= 0; l--)
 			{
 				q = l - 1;
-				if(ABS(temp[l]) + norm == norm)
+				if(std::abs(temp[l]) + norm == norm)
 				{
 					flag = false;
 					break;
 				}
-				if(ABS(pSigma[q]) + norm == norm)
+				if(std::abs(pSigma[q]) + norm == norm)
 					break;
 			}
 
@@ -525,40 +599,29 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 				{
 					f = s * temp[i];
 					temp[i] *= c;
-					if(ABS(f) + norm == norm)
+					if(std::abs(f) + norm == norm)
 						break;
 					g = pSigma[i];
 					h = GSparseMatrix_pythag(f, g);
 					pSigma[i] = h;
-					h = 1.0 / h;
+					h = GSparseMatrix_safeDivide(1.0, h);
 					c = g * h;
 					s = -f * h;
-					Iter jendi = pU->colEnd(i);
-					Iter jendq = pU->colEnd(q);
-					Iter jji = pU->colBegin(i);
-					Iter jjq = pU->colBegin(q);
-					int tpos;
-					for(tpos = 0; jji != jendi || jjq != jendq; tpos++)
+					indexes.clear();
+					Map::iterator end = pUT->m_rows[i].end();
+					for(Map::iterator it = pUT->m_rows[i].begin(); it != end; it++)
+						indexes.insert(it->first);
+					end = pUT->m_rows[q].end();
+					for(Map::iterator it = pUT->m_rows[q].begin(); it != end; it++)
+						indexes.insert(it->first);
+					for(std::set<size_t>::iterator it = indexes.begin(); it != indexes.end(); it++)
 					{
-						if(jjq == jendq || (jji != jendi && jji->first < jjq->first))
-						{
-							temp2[tpos] = jji->first;
-							jji++;
-						}
-						else
-						{
-							temp2[tpos] = jjq->first;
-							if(jji != jendi && jjq->first == jji->first)
-								jji++;
-							jjq++;
-						}
-					}
-					for(int tpos2 = 0; tpos2 < tpos; tpos2++)
-					{
-						y = pU->get((unsigned int)temp2[tpos2], q);
-						z = pU->get((unsigned int)temp2[tpos2], i);
-						pU->set((unsigned int)temp2[tpos2], q, y * c + z * s);
-						pU->set((unsigned int)temp2[tpos2], i, z * c - y * s);
+						y = pU->row(*it)[q];
+						z = pU->row(*it)[i];
+						pU->row(*it)[q] = y * c + z * s;
+						pUT->row(q)[*it] = y * c + z * s;
+						pU->row(*it)[i] = z * c - y * s;
+						pUT->row(i)[*it] = z * c - y * s;
 					}
 				}
 			}
@@ -572,11 +635,11 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 					// Singular value should be positive
 					pSigma[k] = -z;
 					for(j = 0; j < n; j++)
-						pV->set(k, j, pV->get(k, j) * -1.0);
+						pV->row(k)[j] *= -1.0;
 				}
 				break;
 			}
-			if(iter >= maxIters)
+			if(throwIfNoConverge && iter >= maxIters)
 				ThrowError("failed to converge");
 
 			// Shift from bottom 2x2 minor
@@ -585,9 +648,9 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 			y = pSigma[q];
 			g = temp[q];
 			h = temp[k];
-			f = ((y - z) * (y + z) + (g - h) * (g + h)) / (2.0 * h * y);
+			f = GSparseMatrix_safeDivide(((y - z) * (y + z) + (g - h) * (g + h)), (2.0 * h * y));
 			g = GSparseMatrix_pythag(f, 1.0);
-			f = ((x - z) * (x + z) + h * ((y / (f + GSparseMatrix_takeSign(g, f))) - h)) / x;
+			f = GSparseMatrix_safeDivide(((x - z) * (x + z) + h * (GSparseMatrix_safeDivide(y, (f + GSparseMatrix_takeSign(g, f))) - h)), x);
 
 			// QR transform
 			c = 1.0;
@@ -601,74 +664,51 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 				g = c * g;
 				z = GSparseMatrix_pythag(f, h);
 				temp[j] = z;
-				c = f / z;
-				s = h / z;
+				c = GSparseMatrix_safeDivide(f, z);
+				s = GSparseMatrix_safeDivide(h, z);
 				f = x * c + g * s;
 				g = g * c - x * s;
 				h = y * s;
 				y = y * c;
-				Iter pendi = pV->rowEnd(i);
-				Iter pendj = pV->rowEnd(j);
-				Iter ppi = pV->rowBegin(i);
-				Iter ppj = pV->rowBegin(j);
-				int tpos;
-				for(tpos = 0; ppi != pendi || ppj != pendj; tpos++)
+				indexes.clear();
+				Map::iterator end = pV->m_rows[i].end();
+				for(Map::iterator it = pV->m_rows[i].begin(); it != end; it++)
+					indexes.insert(it->first);
+				end = pV->m_rows[j].end();
+				for(Map::iterator it = pV->m_rows[j].begin(); it != end; it++)
+					indexes.insert(it->first);
+				for(std::set<size_t>::iterator it = indexes.begin(); it != indexes.end(); it++)
 				{
-					if(ppj == pendj || (ppi != pendi && ppi->first < ppj->first))
-					{
-						temp2[tpos] = ppi->first;
-						ppi++;
-					}
-					else
-					{
-						temp2[tpos] = ppj->first;
-						if(ppi != pendi && ppj->first == ppi->first)
-							ppi++;
-						ppj++;
-					}
-				}
-				for(int tpos2 = 0; tpos2 < tpos; tpos2++)
-				{
-					x = pV->get(j, (unsigned int)temp2[tpos2]);
-					z = pV->get(i, (unsigned int)temp2[tpos2]);
-					pV->set(j, (unsigned int)temp2[tpos2], x * c + z * s);
-					pV->set(i, (unsigned int)temp2[tpos2], z * c - x * s);
+					x = pV->row(j)[*it];
+					z = pV->row(i)[*it];
+					pV->row(j)[*it] = x * c + z * s;
+					pV->row(i)[*it] = z * c - x * s;
 				}
 				z = GSparseMatrix_pythag(f, h);
 				pSigma[j] = z;
 				if(z != 0.0)
 				{
-					z = 1.0 / z;
+					z = GSparseMatrix_safeDivide(1.0, z);
 					c = f * z;
 					s = h * z;
 				}
 				f = c * g + s * y;
 				x = c * y - s * g;
-				pendi = pU->colEnd(i);
-				pendj = pU->colEnd(j);
-				ppi = pU->colBegin(i);
-				ppj = pU->colBegin(j);
-				for(tpos = 0; ppi != pendi || ppj != pendj; tpos++)
+				indexes.clear();
+				end = pUT->m_rows[i].end();
+				for(Map::iterator it = pUT->m_rows[i].begin(); it != end; it++)
+					indexes.insert(it->first);
+				end = pUT->m_rows[j].end();
+				for(Map::iterator it = pUT->m_rows[j].begin(); it != end; it++)
+					indexes.insert(it->first);
+				for(std::set<size_t>::iterator it = indexes.begin(); it != indexes.end(); it++)
 				{
-					if(ppj == pendj || (ppi != pendi && ppi->first < ppj->first))
-					{
-						temp2[tpos] = ppi->first;
-						ppi++;
-					}
-					else
-					{
-						temp2[tpos] = ppj->first;
-						if(ppi != pendi && ppj->first == ppi->first)
-							ppi++;
-						ppj++;
-					}
-				}
-				for(int tpos2 = 0; tpos2 < tpos; tpos2++)
-				{
-					y = pU->get((unsigned int)temp2[tpos2], j);
-					z = pU->get((unsigned int)temp2[tpos2], i);
-					pU->set((unsigned int)temp2[tpos2], j, y * c + z * s);
-					pU->set((unsigned int)temp2[tpos2], i, z * c - y * s);
+					y = pU->row(*it)[j];
+					z = pU->row(*it)[i];
+					pU->row(*it)[j] = y * c + z * s;
+					pUT->row(j)[*it] = y * c + z * s;
+					pU->row(*it)[i] = z * c - y * s;
+					pUT->row(i)[*it] = z * c - y * s;
 				}
 			}
 			temp[l] = 0.0;
@@ -691,22 +731,16 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	}
 
 	// Return results
+//	pU->fixNans();
+//	pV->fixNans();
 	*ppU = hU.release();
 	*ppDiag = hSigma.release();
 	*ppV = hV.release();
 }
-*/
+
 #ifndef NO_TEST_CODE
-// static
-void GSparseMatrix::test()
+void GSparseMatrix_testHelper(GSparseMatrix& sm)
 {
-/*
-	// Make the data
-	GSparseMatrix sm(4, 4);
-	sm.set(0, 0, 2.0); sm.set(0, 2, 3.0);
-	sm.set(1, 0, 1.0); sm.set(2, 3, -2.0);
-	sm.set(2, 2, 5.0);
-	sm.set(3, 1, -3.0); sm.set(3, 3, -1.0);
 	GMatrix* fm = sm.toFullMatrix();
 	Holder<GMatrix> hFM(fm);
 
@@ -734,7 +768,21 @@ void GSparseMatrix::test()
 	double err = pV2->sumSquaredDifference(*pV, false);
 	if(err > 1e-6)
 		ThrowError("Failed");
-*/
+}
+
+// static
+void GSparseMatrix::test()
+{
+	GRand prng(0);
+	for(size_t i = 0; i < 100; i++)
+	{
+		size_t w = prng.next(20) + 1;
+		size_t h = prng.next(20) + 1;
+		GSparseMatrix m(h, w);
+		for(size_t j = 0; j < 60; j++)
+			m.set(prng.next(h), prng.next(w), prng.normal());
+		GSparseMatrix_testHelper(m);
+	}
 }
 #endif
 

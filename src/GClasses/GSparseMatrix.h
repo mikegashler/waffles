@@ -126,6 +126,16 @@ public:
 
 	/// Returns a sub-matrix of this matrix
 	GSparseMatrix* subMatrix(size_t row, size_t col, size_t height, size_t width);
+
+	/// Returns the transpose of this matrix
+	GSparseMatrix* transpose();
+
+	/// Performs singular value decomposition. (Takes advantage of sparsity to
+	/// perform the decomposition efficiently.)
+	void singularValueDecomposition(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge = false, size_t maxIters = 80);
+
+protected:
+	void singularValueDecompositionHelper(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters);
 };
 
 } // namespace GClasses

@@ -436,6 +436,7 @@ void RunAllTests()
 		else
 			cout << "Skipping the command-line tool tests because the optimized command-line tools have not yet been built.\n";
 	}
+
 	cout << "Done.\n";
 	cout.flush();
 }

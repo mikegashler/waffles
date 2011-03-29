@@ -16,9 +16,12 @@
 
 using namespace GClasses;
 
+#define BLOCK_BITS (sizeof(size_t) * 8)
+
+
 GBitTable::GBitTable(size_t bitCount)
 {
-	m_size = (bitCount + sizeof(size_t) * 8 - 1) / (sizeof(size_t) * 8);
+	m_size = (bitCount + BLOCK_BITS - 1) / BLOCK_BITS;
 	m_pBits = new size_t[m_size];
 	memset(m_pBits, '\0', sizeof(size_t) * m_size);
 }
@@ -40,31 +43,31 @@ void GBitTable::setAll()
 
 bool GBitTable::bit(size_t index)
 {
-	GAssert(index < m_size * sizeof(size_t) * 8); // out of range
-	size_t n = m_pBits[index / (sizeof(size_t) * 8)];
-	size_t m = index & (sizeof(size_t) * 8 - 1);
+	GAssert(index < m_size * BLOCK_BITS); // out of range
+	size_t n = m_pBits[index / BLOCK_BITS];
+	size_t m = index & (BLOCK_BITS - 1);
 	return ((n & ((size_t)1 << m)) ? true : false);
 }
 
 void GBitTable::set(size_t index)
 {
-	GAssert(index < m_size * sizeof(size_t) * 8); // out of range
-	size_t m = index & (sizeof(size_t) * 8 - 1);
-	m_pBits[index / (sizeof(size_t) * 8)] |= ((size_t)1 << m);
+	GAssert(index < m_size * BLOCK_BITS); // out of range
+	size_t m = index & (BLOCK_BITS - 1);
+	m_pBits[index / BLOCK_BITS] |= ((size_t)1 << m);
 }
 
 void GBitTable::unset(size_t index)
 {
-	GAssert(index < m_size * sizeof(size_t) * 8); // out of range
-	size_t m = index & (sizeof(size_t) * 8 - 1);
-	m_pBits[index / (sizeof(size_t) * 8)] &= (~((size_t)1 << m));
+	GAssert(index < m_size * BLOCK_BITS); // out of range
+	size_t m = index & (BLOCK_BITS - 1);
+	m_pBits[index / BLOCK_BITS] &= (~((size_t)1 << m));
 }
 
 void GBitTable::toggle(size_t index)
 {
-	GAssert(index < m_size * sizeof(size_t) * 8); // out of range
-	size_t m = index & (sizeof(size_t) * 8 - 1);
-	m_pBits[index / (sizeof(size_t) * 8)] ^= ((size_t)1 << m);
+	GAssert(index < m_size * BLOCK_BITS); // out of range
+	size_t m = index & (BLOCK_BITS - 1);
+	m_pBits[index / BLOCK_BITS] ^= ((size_t)1 << m);
 }
 
 bool GBitTable::equals(GBitTable* that)
@@ -81,8 +84,8 @@ bool GBitTable::equals(GBitTable* that)
 
 bool GBitTable::areAllSet(size_t count)
 {
-	size_t head = count / (sizeof(size_t) * 8);
-	size_t tail = count % (sizeof(size_t) * 8);
+	size_t head = count / BLOCK_BITS;
+	size_t tail = count % BLOCK_BITS;
 	size_t* pBits = m_pBits;
 	for(size_t i = 0; i < head; i++)
 	{
@@ -99,8 +102,8 @@ bool GBitTable::areAllSet(size_t count)
 
 bool GBitTable::areAllClear(size_t count)
 {
-	size_t head = count / (sizeof(size_t) * 8);
-	size_t tail = count % (sizeof(size_t) * 8);
+	size_t head = count / BLOCK_BITS;
+	size_t tail = count % BLOCK_BITS;
 	size_t* pBits = m_pBits;
 	for(size_t i = 0; i < head; i++)
 	{

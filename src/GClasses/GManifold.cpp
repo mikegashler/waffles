@@ -1044,7 +1044,7 @@ GMatrix* GIsomap::doit(GMatrix* pIn)
 
 
 
-//#define SPARSE
+#define SPARSE
 
 // Locally Linear Embedding
 class GLLEHelper
@@ -1177,7 +1177,7 @@ void GLLEHelper::computeEmbedding()
 
 	// Compute the smallest (m_nTargetDims+1) eigenvectors of (A^T)A, where A is m_pWeights
 #ifdef SPARSE
-	// The sparse matrix SVD way (not yet working)
+	// The sparse matrix SVD way
 	GSparseMatrix* pU;
 	double* diag;
 	GSparseMatrix* pV;
@@ -1185,12 +1185,11 @@ void GLLEHelper::computeEmbedding()
 	Holder<GSparseMatrix> hU(pU);
 	ArrayHolder<double> hDiag(diag);
 	Holder<GSparseMatrix> hV(pV);
-	GMatrix* pEigVecs = new GMatrix(pV->cols());
+	GMatrix* pEigVecs = new GMatrix(m_nTargetDims + 1, pV->cols());
 	Holder<GMatrix> hEigVecs(pEigVecs);
-	pEigVecs->newRows(m_nTargetDims + 1);
 	for(size_t i = 1; i <= m_nTargetDims; i++)
 	{
-		unsigned size_t rowIn = pV->rows() - 1 - i;
+		size_t rowIn = pV->rows() - 1 - i;
 		double* pRow = pEigVecs->row(i);
 		for(size_t j = 0; j < pV->cols(); j++)
 			pRow[j] = pV->get(rowIn, j);
@@ -1969,6 +1968,96 @@ GMatrix* GNeuroPCA::doit(GMatrix* pIn)
 
 
 
+
+
+
+
+/*
+GDynamicSystemStateAligner::GDynamicSystemStateAligner(GMatrix& actions, GRand& rand)
+: GTransform(), m_actions(actions), m_rand(rand)
+{
+	if(!actions.relation()->areContinuous(0, actions.cols()))
+		ThrowError("Only continuous attributes are supported");
+}
+
+// virtual
+GDynamicSystemStateAligner::~GDynamicSystemStateAligner()
+{
+}
+
+// virtual
+GMatrix* GDynamicSystemStateAligner::doit(GMatrix* pIn)
+{
+	// Make a delta matrix
+	if(!pIn->relation()->areContinuous(0, pIn->cols()))
+		ThrowError("Only continuous attributes are supported");
+	if(pIn->rows() != m_actions.rows())
+		ThrowError("Expected pIn to have the same number of rows as pActions");
+	GMatrix delta(pIn->relation());
+	delta.newRows(pIn->rows() - 1);
+	for(size_t i = 1; i < pIn->rows(); i++)
+	{
+		GVec::copy(delta[i - 1], pIn->row(i), pIn->cols());
+		GVec::subtract(delta[i - 1], pIn->row(i - 1), pIn->cols());
+	}
+
+	// Arbitrarily assign half to each cluster
+	GBitTable bt(delta.rows());
+	size_t half = delta.rows() / 2;
+	for(size_t i = 0; i < half; i++)
+		bt.set(i);
+
+	// Cluster
+	GNeuralNet nnA(&m_rand);
+	GNeuralNet nnB(&m_rand);
+	GMatrix a(delta.relation());
+	GMatrix b(delta.relation());
+	GTEMPBUF(double, prediction, pIn->cols());
+	double prevSse = 1e308;
+	while(true)
+	{
+		// Split into two datasets
+		GReleaseDataHolder hA(&a);
+		GReleaseDataHolder hB(&b);
+		for(size_t i = 0; i < delta.rows(); i++)
+		if(bt.bit(i))
+			b.takeRow(delta.row(i));
+		else
+			a.takeRow(delta.row(i));
+
+		// Train the two perceptrons
+		nnA.train(m_actions, a);
+		nnB.train(m_actions, b);
+
+		// Regroup the clusters
+		double sse = 0.0;
+		for(size_t i = 0; i < delta.rows(); i++)
+		{
+			nnA.predict(m_actions[i], prediction);
+			double errA = GVec::squaredDistance(delta[i], prediction, delta.cols());
+			nnB.predict(m_actions[i], prediction);
+			double errB = GVec::squaredDistance(delta[i], prediction, delta.cols());
+			if(errA < errB)
+			{
+				bt.unset(i);
+				sse += errA;
+			}
+			else
+			{
+				bt.set(i);
+				sse += errB;
+			}
+		}
+
+		// Detect convergence
+		if(sse >= prevSse)
+			break;
+		prevSse = sse;
+	}
+
+	// Align the clusters
+}
+*/
 
 
 

@@ -381,6 +381,24 @@ protected:
 };
 
 
+/*
+/// This uses a k-means-like approach to divide the state vectors
+/// into two clusters such that the actions have a linear mapping to
+/// change-in-state. It then aligns the two clusters such that the
+/// linear mappings become one.
+class GDynamicSystemStateAligner : public GTransform
+{
+protected:
+	GMatrix& m_actions;
+	GRand& m_rand;
+
+public:
+	GDynamicSystemStateAligner(GMatrix& actions, GRand& rand);
+	virtual ~GDynamicSystemStateAligner();
+	virtual GMatrix* doit(GMatrix* pIn);
+};
+*/
+
 
 /// A manifold learning algorithm that uses back-propagation to train a neural net model
 /// to map from low-dimensional space to high-dimensional space.
