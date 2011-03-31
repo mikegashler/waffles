@@ -52,7 +52,7 @@ using std::cerr;
 using std::string;
 using std::vector;
 using std::set;
-
+using std::ostringstream;
 
 GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args);
 
@@ -714,11 +714,7 @@ void predictOnePattern(GArgReader& args)
 		if(pRel->valueCount(featureDims + i) == 0)
 			cout << out[i].mode();
 		else
-		{
-			string s;
-			pRel->attrValue(&s, featureDims + i, (int)out[i].mode());
-			cout << s.c_str();
-		}
+			pRel->printAttrValue(cout, featureDims + i, (int)out[i].mode());
 	}
 	cout << "\n\n";
 
@@ -739,12 +735,81 @@ void predictOnePattern(GArgReader& args)
 			{
 				if(j > 0)
 					cout << ", ";
-				string s;
-				pRel->attrValue(&s, featureDims + i, (int)j);
-				cout << s << "=" << pValues[j];
+				pRel->printAttrValue(cout, featureDims + i, (int)j);
+				cout << "=" << pValues[j];
 			}
 			cout << "}\n";
 		}
+	}
+}
+
+void leftJustifiedString(const char* pIn, char* pOut, size_t outLen)
+{
+	size_t inLen = std::min(outLen, strlen(pIn));
+	memcpy(pOut, pIn, inLen);
+	memset(pOut + inLen, ' ', outLen - inLen);
+	pOut[outLen] = '\0';
+}
+
+void rightJustifiedString(const char* pIn, char* pOut, size_t outLen)
+{
+	size_t inLen = strlen(pIn);
+	size_t spaces = std::max(outLen, inLen) - inLen;
+	memset(pOut, ' ', spaces);
+	memcpy(pOut + spaces, pIn, outLen - spaces);
+	pOut[outLen] = '\0';
+}
+
+void printConfusionMatrices(GRelation* pRelation, vector<GMatrix*>& matrixArray)
+{
+	cout << "\n(Rows=expected values, Cols=predicted values, Elements=number of occurrences)\n\n";
+	char buf[41];
+	ostringstream oss;
+	for(size_t i = 0; i < matrixArray.size(); i++)
+	{
+		if(matrixArray[i] == NULL)
+			continue;
+		GMatrix& cm = *matrixArray[i];
+
+		// Print attribute name
+		oss.precision(9);
+		oss.str("");
+		oss << "Confusion matrix for ";
+		pRelation->printAttrName(oss, i);
+		string s = oss.str();
+		leftJustifiedString(s.c_str(), buf, 40);
+		cout << buf;
+
+		// Print column numbers
+		for(size_t j = 0; j < cm.cols(); j++)
+		{
+			oss.str("");
+			pRelation->printAttrValue(oss, i, (double)j);
+			s = oss.str();
+			rightJustifiedString(s.c_str(), buf, 12);
+			cout << buf;
+		}
+		cout << "\n";
+
+		// Print the confusion matrix values
+		for(size_t k = 0; k < cm.rows(); k++)
+		{
+			oss.str("");
+			pRelation->printAttrValue(oss, i, (double)k);
+			s = oss.str();
+			rightJustifiedString(s.c_str(), buf, 40);
+			cout << buf;
+			for(size_t j = 0; j < cm.cols(); j++)
+			{
+				oss.str("");
+				oss << cm[k][j];
+				s = oss.str();
+				rightJustifiedString(s.c_str(), buf, 12);
+				cout << buf;
+			}
+			cout << "\n";
+		}
+		cout << "\n";
 	}
 }
 
@@ -752,10 +817,13 @@ void Test(GArgReader& args)
 {
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	bool confusion = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
+		if(args.if_pop("-confusion"))
+			confusion = true;
 		else
 			ThrowError("Invalid test option: ", args.peek());
 	}
@@ -787,9 +855,14 @@ void Test(GArgReader& args)
 
 	// Test
 	GTEMPBUF(double, results, pModeler->labelDims());
-	pModeler->accuracy(*pFeatures, *pLabels, results);
+	vector<GMatrix*> confusionMatrices;
+	pModeler->accuracy(*pFeatures, *pLabels, results, confusion ? &confusionMatrices : NULL);
 	GVec::print(cout, 14, results, pModeler->labelDims());
 	cout << "\n";
+
+	// Print the confusion matrix
+	if(confusion)
+		printConfusionMatrices(pLabels->relation().get(), confusionMatrices);
 }
 
 void Transduce(GArgReader& args)
@@ -848,10 +921,13 @@ void TransductiveAccuracy(GArgReader& args)
 {
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	bool confusion = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
+		else if(args.if_pop("-confusion"))
+			confusion = true;
 		else
 			ThrowError("Invalid transacc option: ", args.peek());
 	}
@@ -892,11 +968,16 @@ void TransductiveAccuracy(GArgReader& args)
 
 	// Transduce and measure accuracy
 	GTEMPBUF(double, results, labelDims1);
-	pSupLearner->trainAndTest(*pTrainFeatures, *pTrainLabels, *pTestFeatures, *pTestLabels, results);
+	vector<GMatrix*> confusionMatrices;
+	pSupLearner->trainAndTest(*pTrainFeatures, *pTrainLabels, *pTestFeatures, *pTestLabels, results, confusion ? &confusionMatrices : NULL);
 
 	// Print results
 	GVec::print(cout, 14, results, labelDims1);
 	cout << "\n";
+
+	// Print the confusion matrix
+	if(confusion)
+		printConfusionMatrices(pTestLabels->relation().get(), confusionMatrices);
 }
 
 void SplitTest(GArgReader& args)
@@ -906,6 +987,7 @@ void SplitTest(GArgReader& args)
 	double trainRatio = 0.5;
 	size_t reps = 1;
 	string lastModelFile="";
+	bool confusion = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed")){
@@ -916,6 +998,8 @@ void SplitTest(GArgReader& args)
 			reps = args.pop_uint();
 		}else if(args.if_pop("-writelastmodel")){
 			lastModelFile = args.pop_string();
+		}else if(args.if_pop("-confusion")){
+			confusion = true;
 		}else{
 			ThrowError("Invalid splittest option: ", args.peek());
 		}
@@ -971,8 +1055,9 @@ void SplitTest(GArgReader& args)
 			pLabels->splitBySize(&testLabels, testPatterns);
 
 			// Test and print results
-			pSupLearner->trainAndTest(*pFeatures, *pLabels, testFeatures, testLabels, repResults);
-			
+			vector<GMatrix*> confusionMatrices;
+			pSupLearner->trainAndTest(*pFeatures, *pLabels, testFeatures, testLabels, repResults, confusion ? &confusionMatrices : NULL);
+
 			// Write trained model file on last repetition
 			if(lastModelFile != "" && i+1 == reps){
 				GSupervisedLearner* pSup = 
@@ -992,6 +1077,10 @@ void SplitTest(GArgReader& args)
 			double weight = 1.0 / (i + 1);
 			GVec::multiply(results, 1.0 - weight, labelDims);
 			GVec::addScaled(results, weight, repResults, labelDims);
+
+			// Print the confusion matrix (if specified)
+			if(confusion)
+				printConfusionMatrices(pLabels->relation().get(), confusionMatrices);
 		}
 	}
 	cout << "-----\n";
@@ -1081,169 +1170,6 @@ void CrossValidate(GArgReader& args)
 	cout << "\n";
 }
 
-void trainSparse(GArgReader& args)
-{
-	// Parse options
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else
-			ThrowError("Invalid trainsparse option: ", args.peek());
-	}
-
-	// Load the sparse features
-	if(args.size() < 1)
-		ThrowError("Expected a filename of a sparse matrix.");
-	GSparseMatrix* pSparseFeatures;
-	Holder<GSparseMatrix> hSparseFeatures(NULL);
-	{
-		GTwtDoc doc;
-		doc.load(args.pop_string());
-		pSparseFeatures = new GSparseMatrix(doc.root());
-		hSparseFeatures.reset(pSparseFeatures);
-	}
-
-	// Load the dense labels
-	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
-	Holder<GMatrix> hLabels(pLabels);
-
-	// Instantiate the modeler
-	GRand prng(seed);
-	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args);
-	Holder<GTransducer> hModel(pSupLearner);
-	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
-	if(!pSupLearner->canTrainIncrementally())
-		ThrowError("This algorithm cannot be trained with a sparse matrix. Only incremental learners (such as naivebayes, knn, and neuralnet) support this functionality.");
-	GIncrementalLearner* pModel = (GIncrementalLearner*)pSupLearner;
-
-	// Train the modeler
-	pModel->trainSparse(*pSparseFeatures, *pLabels);
-
-	// Output the trained model
-	GTwtDoc doc;
-	GTwtNode* pRoot = pModel->toTwt(&doc);
-	doc.setRoot(pRoot);
-	doc.write(cout);
-}
-
-void predictSparse(GArgReader& args)
-{
-	// Parse options
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else
-			ThrowError("Invalid predictsparse option: ", args.peek());
-	}
-
-	// Load the model
-	GRand prng(seed);
-	GTwtDoc doc;
-	if(args.size() < 1)
-		ThrowError("Model not specified.");
-	doc.load(args.pop_string());
-	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
-	Holder<GSupervisedLearner> hModeler(pModeler);
-
-	// Load the sparse features
-	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-	GSparseMatrix* pData;
-	Holder<GSparseMatrix> hData(NULL);
-	{
-		GTwtDoc doc;
-		doc.load(args.pop_string());
-		pData = new GSparseMatrix(doc.root());
-		hData.reset(pData);
-	}
-
-	// Test
-	GMatrix labels(pData->rows(), pModeler->labelDims());
-	double* pFullRow = new double[pData->cols()];
-	ArrayHolder<double> hFullRow(pFullRow);
-	for(unsigned int i = 0; i < pData->rows(); i++)
-	{
-		pData->fullRow(pFullRow, i);
-		pModeler->predict(pFullRow, labels[i]);
-	}
-	labels.print(cout);
-}
-
-void testSparse(GArgReader& args)
-{
-	// Parse options
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else
-			ThrowError("Invalid predictsparse option: ", args.peek());
-	}
-
-	// Load the model
-	GRand prng(seed);
-	GTwtDoc doc;
-	if(args.size() < 1)
-		ThrowError("Model not specified.");
-	doc.load(args.pop_string());
-	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
-	Holder<GSupervisedLearner> hModeler(pModeler);
-
-	// Load the sparse features
-	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-	GSparseMatrix* pData;
-	Holder<GSparseMatrix> hData(NULL);
-	{
-		GTwtDoc doc;
-		doc.load(args.pop_string());
-		pData = new GSparseMatrix(doc.root());
-		hData.reset(pData);
-	}
-
-	// Load the dense labels
-	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
-	Holder<GMatrix> hLabels(pLabels);
-	if(pLabels->cols() != pModeler->labelDims())
-		ThrowError("The model was trained to predict a different number of label dims");
-
-	// Test
-	GTEMPBUF(double, prediction, pLabels->cols());
-	double* pFullRow = new double[pData->cols()];
-	ArrayHolder<double> hFullRow(pFullRow);
-	GTEMPBUF(double, results, pLabels->cols());
-	GVec::setAll(results, 0.0, pLabels->cols());
-	for(size_t i = 0; i < pData->rows(); i++)
-	{
-		pData->fullRow(pFullRow, i);
-		pModeler->predict(pFullRow, prediction);
-		double* pTarget = pLabels->row(i);
-		for(size_t j = 0; j < pLabels->cols(); j++)
-		{
-			if(pLabels->relation()->valueCount(j) == 0)
-			{
-				double d = pTarget[j] - prediction[j];
-				results[j] += (d * d);
-			}
-			else
-			{
-				if((int)prediction[j] == (int)pTarget[j])
-					results[j]++;
-			}
-		}
-	}
-	GVec::multiply(results, 1.0 / pData->rows(), pLabels->cols());
-	GVec::print(cout, 14, results, pLabels->cols());
-}
-
 void vette(string& s)
 {
 	for(size_t i = 0; i < s.length(); i++)
@@ -1320,7 +1246,9 @@ void PrecisionRecall(GArgReader& args)
 			if(valCount > 1)
 			{
 				s += "_";
-				pLabels->relation()->attrValue(&s, i, val);
+				ostringstream oss;
+				pLabels->relation()->printAttrValue(oss, i, val);
+				s += oss.str();
 			}
 			vette(s);
 			pRel->addAttribute(s.c_str(), 0, NULL);
@@ -1383,7 +1311,6 @@ public:
 			cout.flush();
 		}
 	}
-
 };
 
 void trainRecurrent(GArgReader& args)
@@ -1625,12 +1552,6 @@ int main(int argc, char *argv[])
 				CrossValidate(args);
 			else if(args.if_pop("precisionrecall"))
 				PrecisionRecall(args);
-			else if(args.if_pop("trainsparse"))
-				trainSparse(args);
-			else if(args.if_pop("predictsparse"))
-				predictSparse(args);
-			else if(args.if_pop("testsparse"))
-				testSparse(args);
 			else if(args.if_pop("trainrecurrent"))
 				trainRecurrent(args);
 			else

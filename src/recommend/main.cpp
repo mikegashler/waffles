@@ -53,9 +53,9 @@ GSparseMatrix* loadSparseData(const char* szFilename)
 		double m0, r0, m1, r1;
 		pData->minAndRange(0, &m0, &r0);
 		pData->minAndRange(1, &m1, &r1);
-		if(m0 < 0 || m0 > 1000 || r0 < 2 || r0 > 1e10)
+		if(m0 < 0 || m0 > 1e10 || r0 < 2 || r0 > 1e10)
 			ThrowError("Invalid row indexes");
-		if(m1 < 0 || m1 > 1000 || r1 < 2 || r1 > 1e10)
+		if(m1 < 0 || m1 > 1e10 || r1 < 2 || r1 > 1e10)
 			ThrowError("Invalid col indexes");
 		GSparseMatrix* pMatrix = new GSparseMatrix(size_t(m0 + r0) + 1, size_t(m1 + r1) + 1, UNKNOWN_REAL_VALUE);
 		Holder<GSparseMatrix> hMatrix(pMatrix);
@@ -276,8 +276,8 @@ void crossValidate(GArgReader& args)
 
 	// Do cross-validation
 	double mae;
-	double rmse = pModel->crossValidate(pData, folds, &prng, maxRecommendationsPerUser, &mae);
-	cout << "RMSE=" << rmse << ", MAE=" << mae << "\n";
+	double mse = pModel->crossValidate(pData, folds, &prng, maxRecommendationsPerUser, &mae);
+	cout << "MSE=" << mse << ", MAE=" << mae << "\n";
 }
 
 void precisionRecall(GArgReader& args)
@@ -351,6 +351,41 @@ void ROC(GArgReader& args)
 	pResults->swapColumns(0, 1);
 	cout << "% Area Under the Curve = " << auc << "\n";
 	pResults->print(cout);
+}
+
+void transacc(GArgReader& args)
+{
+	// Parse options
+	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-seed"))
+			seed = args.pop_uint();
+		else
+			ThrowError("Invalid crossvalidate option: ", args.peek());
+	}
+
+	// Load the data
+	if(args.size() < 1)
+		ThrowError("No training set specified.");
+	GSparseMatrix* pTrain = loadSparseData(args.pop_string());
+	Holder<GSparseMatrix> hTrain(pTrain);
+	if(args.size() < 1)
+		ThrowError("No test set specified.");
+	GSparseMatrix* pTest = loadSparseData(args.pop_string());
+	Holder<GSparseMatrix> hTest(pTest);
+
+	// Instantiate the recommender
+	GRand prng(seed);
+	GCollaborativeFilter* pModel = InstantiateAlgorithm(&prng, args);
+	Holder<GCollaborativeFilter> hModel(pModel);
+	if(args.size() > 0)
+		ThrowError("Superfluous argument: ", args.peek());
+
+	// Do cross-validation
+	double mae;
+	double mse = pModel->transduce(*pTrain, *pTest, &mae);
+	cout << "MSE=" << mse << ", MAE=" << mae << "\n";
 }
 
 void fillMissingValues(GArgReader& args)
@@ -500,6 +535,8 @@ int main(int argc, char *argv[])
 				precisionRecall(args);
 			else if(args.if_pop("roc"))
 				ROC(args);
+			else if(args.if_pop("transacc"))
+				transacc(args);
 			else
 			{
 				nRet = 1;

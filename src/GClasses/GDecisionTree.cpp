@@ -26,6 +26,7 @@ using namespace GClasses;
 using std::cout;
 using std::string;
 using std::ostream;
+using std::ostringstream;
 using std::vector;
 
 namespace GClasses {
@@ -133,8 +134,9 @@ public:
 			stream << parentValue << " -> ";
 		if(pFeatureRel->valueCount(m_nAttribute) == 0)
 		{
-			string s;
-			pFeatureRel->attrValue(&s, m_nAttribute, m_dPivot);
+			ostringstream oss;
+			pFeatureRel->printAttrValue(oss, m_nAttribute, m_dPivot);
+			string s = oss.str();
 			if(pFeatureRel->type() == GRelation::ARFF)
 				stream << "Is " << ((GArffRelation*)pFeatureRel)->attrName(m_nAttribute) << " < " << s.c_str() << "?\n";
 			else
@@ -152,8 +154,9 @@ public:
 				stream << "What is the value of attr " << m_nAttribute << "?\n";
 			for(size_t n = 0; n < m_nChildren; n++)
 			{
-				string s;
-				pFeatureRel->attrValue(&s, m_nAttribute, (double)n);
+				ostringstream oss;
+				pFeatureRel->printAttrValue(oss, m_nAttribute, (double)n);
+				string s = oss.str();
 				m_ppChildren[n]->print(pFeatureRel, pLabelRel, stream, depth + 1, s.c_str());
 			}
 		}
@@ -242,8 +245,9 @@ public:
 		{
 			if(n > 0)
 				stream << ", ";
-			string s;
-			pLabelRel->attrValue(&s, n, m_pOutputValues[n]);
+			ostringstream oss;
+			pLabelRel->printAttrValue(oss, n, m_pOutputValues[n]);
+			string s = oss.str();
 			if(pLabelRel->type() == GRelation::ARFF)
 				stream << ((GArffRelation*)pLabelRel)->attrName(n) << "=" << s.c_str();
 			else

@@ -142,7 +142,7 @@ Note that we specified a random seed, so that our results will be reproduceable.
 	waffles_plot 3d sr.arff -blast -pointradius 300
 </pre>
 The "-blast" flag says to visualize this data from several different random points of view. It is useful when you don't know the best point from which to view your data.<br>
-<center><img src="../plots/swissrolls.png"></center></p>
+<center><img src="swissrolls.png"></center></p>
 
 <p>Then, we'll use a few different algorithms to reduce this data into two dimensions.</p>
 
@@ -150,31 +150,31 @@ The "-blast" flag says to visualize this data from several different random poin
 	waffles_transform pca sr.arff 2 > pca.arff
 	waffles_plot scatter pca.arff -spectrum -aspect -out pca.png
 </pre>
-<center><img src="../plots/pca.png"></center>
+<center><img src="pca.png"></center>
 
 <pre>
 	waffles_transform isomap sr.arff kdtree 14 2 > isomap.arff
 	waffles_plot scatter isomap.arff -spectrum -aspect -out isomap.png
 </pre>
-<center><img src="../plots/isomap.png"></center>
+<center><img src="isomap.png"></center>
 
 <pre>
 	waffles_transform lle sr.arff kdtree 14 2 > lle.arff
 	waffles_plot scatter lle.arff -spectrum -aspect -out lle.png
 </pre>
-<center><img src="../plots/lle.png"></center>
+<center><img src="lle.png"></center>
 
 <pre>
 	waffles_transform breadthfirstunfolding sr.arff kdtree 14 2 -reps 20 > bfu.arff
 	waffles_plot scatter bfu.arff -spectrum -aspect -out bfu.png
 </pre>
-<center><img src="../plots/bfu.png"></center>
+<center><img src="bfu.png"></center>
 
 <pre>
 	waffles_transform manifoldsculpting sr.arff kdtree 14 2 > ms.arff
 	waffles_plot scatter ms.arff -spectrum -aspect -out ms.png
 </pre>
-<center><img src="../plots/ms.png"></center>
+<center><img src="ms.png"></center>
 
 <p>Of our NLDR algorithms, Manifold Sculpting tends to give the best results with most problems, although with many problems it is necessary to use a slower scaling rate than the default in order to get good results. Breadth First Unfolding tends to be the fastest NLDR algorith, often by a large amount, and it usually gives decent results.</p>
 

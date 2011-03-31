@@ -84,18 +84,18 @@ public:
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2) = 0;
 
 	/// Prints as an ARFF file to the specified stream. (pData can be NULL if data is not available)
-	virtual void print(std::ostream& stream, GMatrix* pData, size_t precision);
+	void print(std::ostream& stream, GMatrix* pData, size_t precision);
 
-	/// Prints the specified value
-	virtual void printValue(std::ostream& stream, double value, size_t column);
+	/// Prints the specified attribute name to a stream
+	virtual void printAttrName(std::ostream& stream, size_t column);
+
+	/// Prints the specified value to a stream
+	virtual void printAttrValue(std::ostream& stream, size_t column, double value);
 
 	/// Returns true iff this and that have the same number of values for each attribute
 	virtual bool isCompatible(GRelation& that);
 
-	/// Appends a textual representation of the specified value of the specified attribute to pOutString
-	void attrValue(std::string* pOutString, size_t attr, double value);
-
-	/// Print a single row in ARFF format
+	/// Print a single row of data in ARFF format
 	void printRow(std::ostream& stream, double* pRow, const char* separator);
 
 	/// Counts the size of the corresponding real-space vector
@@ -292,11 +292,11 @@ public:
 	/// Deletes all the attributes
 	virtual void flush();
 
-	/// Prints as an ARFF file to the specified stream. (pData can be NULL if data is not available)
-	virtual void print(std::ostream& stream, GMatrix* pData, size_t precision);
+	/// Prints the specified attribute name to a stream
+	virtual void printAttrName(std::ostream& stream, size_t column);
 
-	/// Prints the specified value
-	virtual void printValue(std::ostream& stream, double value, size_t column);
+	/// Prints the specified value to a stream
+	virtual void printAttrValue(std::ostream& stream, size_t column, double value);
 
 	/// Returns true iff the attributes in both relations have the same names, the same number
 	/// of values, and the names of those values all match. (Empty strings are considered to match

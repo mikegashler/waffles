@@ -13,14 +13,14 @@ ifeq ($(UNAME),Darwin)
 CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -no-cpp-precomp
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a
-OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a
+DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/dbg/usage.o ../../lib/GSupDbg.a ../../lib/GClassesDbg.a
+OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/opt/usage.o ../../lib/GSup.a ../../lib/GClasses.a
 else
 CFLAGS = -Wall $(shell sdl-config --cflags)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a -lpng
-OPT_LFLAGS = ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a -lpng
+DBG_LFLAGS = ../../obj/waffles_wizard/dbg/usage.o ../../lib/GSupDbg.a ../../lib/GClassesDbg.a -lpng
+OPT_LFLAGS = ../../obj/waffles_wizard/opt/usage.o ../../lib/GSup.a ../../lib/GClasses.a -lpng
 endif
 
 ################
@@ -82,12 +82,18 @@ usage:
 ../../lib/GClasses.a :
 	$(MAKE) -C ../GClasses opt
 
+../../lib/GSupDbg.a :
+	$(MAKE) -C ../GSup dbg
+
+../../lib/GSup.a :
+	$(MAKE) -C ../GSup opt
+
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waffles_wizard/opt/usage.o ../../lib/GClassesDbg.a
+$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waffles_wizard/opt/usage.o ../../lib/GSupDbg.a ../../lib/GClassesDbg.a
 	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
 
 # This rule makes the debug binary by using g++ with the debug ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClasses.a
+$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../obj/waffles_wizard/dbg/usage.o ../../lib/GSup.a ../../lib/GClasses.a
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 
 # This includes all of the ".d" files. Each ".d" file contains a

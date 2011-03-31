@@ -39,11 +39,13 @@
 using namespace GClasses;
 using std::string;
 
+// static
 bool GFile::doesFileExist(const char *szFilename)
 {
 	return(access(szFilename, 0) == 0);
 }
 
+// static
 bool GFile::doesDirExist(const char *szDir)
 {
 	char szBuff[256];
@@ -64,6 +66,17 @@ bool GFile::deleteFile(const char* szFilename)
 #endif
 }
 
+// static
+bool GFile::removeDir(const char* szDir)
+{
+#ifdef WINDOWS
+	return _rmdir(szDir) == 0;
+#else
+	return rmdir(szDir) == 0;
+#endif
+}
+
+// static
 bool GFile::makeDir(const char* szPath)
 {
 	char szDir[256];

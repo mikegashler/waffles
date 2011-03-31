@@ -23,9 +23,9 @@
 
 <p>As you might predict, this is going to be a humongous table! Fortunately, it is going to be very sparse. That is, most elements in the table are going to have a value of 0. If we re</p>
 
-</p>The "waffles_generate" application contains a tool that will convert a bunch of documents to a sparse matrix in this manner:
+</p>The "waffles_sparse" application contains a tool that will convert a bunch of documents to a sparse matrix in this manner:
 <pre>
-	waffles_generate docstosparsematrix ham spam auto_responses
+	waffles_sparse docstosparsematrix ham spam auto_responses
 </pre>
 This creates two files, named "features.sparse" and "labels.arff". features.sparse is a sparse feature matrix, where each row represents a document, and each element represents the occurrence of each word in the document. labels.arff is a single-column matrix that specifies the class of each document.</p>
 
@@ -33,7 +33,7 @@ This creates two files, named "features.sparse" and "labels.arff". features.spar
 
 <p>By default, the words are stemmed using the Porter stemming algorithm. If you're not using English, this might just make a mess of your words. You can suppress this feature with the "-nostem" flag.:
 <pre>
-	waffles_generate docstosparsematrix -nostem ham spam auto_responses
+	waffles_sparse docstosparsematrix -nostem ham spam auto_responses
 </pre></p>
 
 <p>Now that you've got your data into a sparse matrix, you might want to shuffle the rows. This command will shuffle features.arff and labels.arff in a manner that preserves corresponding rows:
@@ -52,12 +52,12 @@ This example shows how to divide the data for fold 0. To do ten-fold cross-valid
 
 <p>Let's train a 7-nn instance learner that uses the cosine method to evaluate the similarity between sparse vectors:
 <pre>
-	waffles_learn trainsparse train.sparse train.arff knn 7 -cosine > model.twt
+	waffles_sparse train train.sparse train.arff knn 7 -cosine > model.twt
 </pre></p>
 
 <p>And finally, let's test our trained model to see how well it classifies the documents in the test portion of our data:
 <pre>
-	waffles_learn testsparse model.twt test.sparse test.arff
+	waffles_sparse test model.twt test.sparse test.arff
 </pre>
 This will print a predictive accuracy score to stdout.<p>
 

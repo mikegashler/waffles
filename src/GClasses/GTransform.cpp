@@ -28,6 +28,7 @@ namespace GClasses {
 
 using std::string;
 using std::vector;
+using std::ostringstream;
 
 GTransform::GTransform()
 {
@@ -805,10 +806,10 @@ void GNominalToCat::init(sp_relation& pRelation)
 				sName += "_";
 				for(size_t j = 0; j < nValues; j++)
 				{
-					string s;
-					m_pRelationBefore->attrValue(&s, i, (double)j);
-					sName += s;
-					((GArffRelation*)m_pRelationAfter.get())->addAttribute(s.c_str(), 0, NULL);
+					ostringstream oss;
+					m_pRelationBefore->printAttrValue(oss, i, (double)j);
+					sName += oss.str();
+					((GArffRelation*)m_pRelationAfter.get())->addAttribute(sName.c_str(), 0, NULL);
 				}
 			}
 			else

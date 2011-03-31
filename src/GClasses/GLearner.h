@@ -110,7 +110,7 @@ public:
 
 	/// Trains and tests this learner. pOutResults should have
 	/// an element for each label dim.
-	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults);
+	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
 
 	/// Perform n-fold cross validation on pData. Uses trainAndTest
 	/// for each fold. pCB is an optional callback method for reporting
@@ -237,7 +237,16 @@ public:
 	/// This method assumes that this learner has already been trained.
 	/// It computes the predictive accuracy for nominal labels and mean-squared error
 	/// for continuous labels. pOutResults should be the size of the number of columns in labels.
-	void accuracy(GMatrix& features, GMatrix& labels, double* pOutResults);
+	/// If pNominalLabelStats is non-NULL, then it will be filled with confusion-matrix statistics about
+	/// predictions for nominal labels. pNominalLabelStats should point to an empty vector when
+	/// it is passed in. It will be resized to the number of columns in labels. Elements corresponding
+	/// with continuous label attributes will be set to NULL. Elements corresponding to nominal label
+	/// attributes will be set to contain an n x n matrix, where n is the number of possible values
+	/// in that label column. Each row refers to the expected value, each column refers to the
+	/// predicted value, and each element contains the count of the number of times that each
+	/// expected/predicted value occurred over the test set. The caller is responsible to delete each
+	/// element in pNominalLabelStats.
+	void accuracy(GMatrix& features, GMatrix& labels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
 
 	/// label specifies which output to measure. (It should be 0 if there is only one label dimension.)
 	/// The measurement will be performed "nReps" times and results averaged together
@@ -248,7 +257,7 @@ public:
 	void precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps, GRand* pRand);
 
 	/// Trains and tests this learner
-	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults);
+	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
 
 #ifndef NO_TEST_CODE
 	/// This is a helper method used by the unit tests of several model learners

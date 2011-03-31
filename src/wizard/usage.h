@@ -53,6 +53,7 @@ UsageNode* makeGenerateUsageTree();
 UsageNode* makePlotUsageTree();
 UsageNode* makeTransformUsageTree();
 UsageNode* makeRecommendUsageTree();
+UsageNode* makeSparseUsageTree();
 
 // Global nodes
 UsageNode* makeAlgorithmUsageTree();

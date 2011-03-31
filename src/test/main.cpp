@@ -147,7 +147,7 @@ void test_transform_mergevert()
 		ThrowError("failed");
 	std::ostringstream oss;
 	GArffRelation* pRel = (GArffRelation*)M.relation().get();
-	pRel->printValue(oss, 2.0, 1);
+	pRel->printAttrValue(oss, 1, 2.0);
 	string s = oss.str();
 	if(strcmp(s.c_str(), "charlie") != 0)
 		ThrowError("failed");
@@ -244,7 +244,7 @@ void test_document_classification()
 		// Generate a sparse feature matrix and a corresponding dense label matrix
 		{
 			GPipe pipeIgnoreMe;
-			sysExec("waffles_generate", "docstosparsematrix class_ham class_auto class_spam", &pipeIgnoreMe);
+			sysExec("waffles_sparse", "docstosparsematrix class_ham class_auto class_spam", &pipeIgnoreMe);
 		}
 		TempFileMaker tempFileFeatures("features.sparse", NULL);
 		TempFileMaker tempFileLabels("labels.arff", NULL);
@@ -287,15 +287,15 @@ void test_document_classification()
 			for(size_t j = 0; j < models.size(); j++)
 			{
 				// Train the model
-				string sArgs = "trainsparse -seed 0 train.sparse train.arff ";
+				string sArgs = "train -seed 0 train.sparse train.arff ";
 				sArgs += models[j];
 				GPipe pipeStdOut2;
-				sysExec("waffles_learn", sArgs.c_str(), &pipeStdOut2);
+				sysExec("waffles_sparse", sArgs.c_str(), &pipeStdOut2);
 				pipeStdOut2.toFile("model.twt");
 
 				// Test the model
 				GPipe pipeStdOut3;
-				sysExec("waffles_learn", "testsparse -seed 0 model.twt test.sparse test.arff", &pipeStdOut3);
+				sysExec("waffles_sparse", "test -seed 0 model.twt test.sparse test.arff", &pipeStdOut3);
 				size_t len = pipeStdOut3.read(buf, 256);
 				if(len >= 256)
 					ThrowError("Need a bigger buffer");
@@ -314,15 +314,9 @@ void test_document_classification()
 		//if(resultsKnnPearson < 0.50)
 		//	ThrowError("failed");
 	}
-#ifdef WINDOWS
-	_rmdir("class_ham");
-	_rmdir("class_auto");
-	_rmdir("class_spam");
-#else
-	rmdir("class_ham");
-	rmdir("class_auto");
-	rmdir("class_spam");
-#endif
+	GFile::removeDir("class_ham");
+	GFile::removeDir("class_auto");
+	GFile::removeDir("class_spam");
 }
 
 

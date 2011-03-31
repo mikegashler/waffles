@@ -41,6 +41,10 @@ public:
 	/// Deletes the specified file. Returns true iff successful.
 	static bool deleteFile(const char* szFilename);
 
+	/// Removes the specified directory. Fails if it is not empty.
+	/// Returns true iff successful.
+	static bool removeDir(const char* szDir);
+
 	/// This finds the last slash in szBuff and returns a
 	/// pointer to the char past that.  (If there are no
 	/// slashes or back-slashes, it returns szBuff)

@@ -46,13 +46,17 @@ public:
 	/// This randomly assignes each rating to one of the folds. Then,
 	/// for each fold, it calls trainBatch with a dataset that contains
 	/// everything except for the ratings in that fold. It predicts
-	/// values for the items in the fold, and returns the root-mean-squared
+	/// values for the items in the fold, and returns the mean-squared
 	/// difference between the predictions and the actual ratings.
 	/// If there are more than maxRecommendationsPerRow ratings in the current
 	/// fold in a particular row, then only the maxRecommendationsPerRow ratings
 	/// with the higest predicted value will be included in the results for that row.
 	/// If pOutMAE is non-NULL, it will be set to the mean-absolute error.
 	double crossValidate(GSparseMatrix* pData, size_t folds, GRand* pRand, size_t maxRecommendationsPerRow = 1000000, double* pOutMAE = NULL);
+
+	/// This trains on the training set, and then tests on the test set.
+	/// Returns the mean-squared difference between actual and target predictions.
+	double transduce(GSparseMatrix& train, GSparseMatrix& test, double* pOutMAE = NULL);
 
 	/// This divides the data into two equal-size parts. It trains on one part, and
 	/// then measures the precision/recall using the other part. It returns a
@@ -162,6 +166,7 @@ class GNeuralRecommender : public GCollaborativeFilter
 {
 protected:
 	size_t m_intrinsicDims;
+	double m_min, m_max;
 	GRand* m_pRand;
 	GNeuralNet* m_pModel;
 	GMatrix* m_pUsers;

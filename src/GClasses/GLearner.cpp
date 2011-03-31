@@ -261,7 +261,7 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 }
 
 // virtual
-void GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults)
+void GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats)
 {
 	// Check assumptions
 	if(testFeatures.rows() != testLabels.rows())
@@ -282,6 +282,34 @@ void GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMa
 		if(testLabels.relation()->valueCount(i) > 0)
 			*pOutResults = 1.0 - *pOutResults;
 		pOutResults++;
+	}
+	if(pNominalLabelStats)
+	{
+		pNominalLabelStats->resize(labelDims);
+		for(size_t j = 0; j < labelDims; j++)
+		{
+			size_t vals = testLabels.relation()->valueCount(j);
+			if(vals > 0)
+			{
+				(*pNominalLabelStats)[j] = new GMatrix(vals, vals);
+				(*pNominalLabelStats)[j]->setAll(0.0);
+			}
+		}
+		for(size_t i = 0; i < pPredictedLabels->rows(); i++)
+		{
+			double* pTarget = testLabels[i];
+			double* pPred = pPredictedLabels->row(i);
+			for(size_t j = 0; j < labelDims; j++)
+			{
+				if((*pNominalLabelStats)[j])
+				{
+					if((int)*pTarget >= 0 && (int)*pPred >= 0)
+						((*pNominalLabelStats)[j])->row((int)*pTarget)[(int)*pPred]++;
+				}
+				pTarget++;
+				pPred++;
+			}
+		}
 	}
 }
 
@@ -694,11 +722,24 @@ void GSupervisedLearner::predictDistribution(const double* pIn, GPrediction* pOu
 }
 
 
-void GSupervisedLearner::accuracy(GMatrix& features, GMatrix& labels, double* pOutResults)
+void GSupervisedLearner::accuracy(GMatrix& features, GMatrix& labels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats)
 {
 	if(features.rows() != labels.rows())
 		ThrowError("Expected the features and rows to have the same number of rows");
 	size_t labelDims = labels.cols();
+	if(pNominalLabelStats)
+	{
+		pNominalLabelStats->resize(labelDims);
+		for(size_t j = 0; j < labelDims; j++)
+		{
+			size_t vals = labels.relation()->valueCount(j);
+			if(vals > 0)
+			{
+				(*pNominalLabelStats)[j] = new GMatrix(vals, vals);
+				(*pNominalLabelStats)[j]->setAll(0.0);
+			}
+		}
+	}
 	GTEMPBUF(double, prediction, labelDims);
 	GVec::setAll(pOutResults, 0.0, labels.cols());
 	for(size_t i = 0; i < features.rows(); i++)
@@ -722,6 +763,11 @@ void GSupervisedLearner::accuracy(GMatrix& features, GMatrix& labels, double* pO
 					d = 1.0;
 				else
 					d = 0.0;
+				if(pNominalLabelStats)
+				{
+					if((int)target[j] >= 0 && (int)prediction[j] >= 0)
+						((*pNominalLabelStats)[j])->row((int)target[j])[(int)prediction[j]]++;
+				}
 			}
 			pOutResults[j] *= (1.0 - w);
 			pOutResults[j] += w * d;
@@ -744,10 +790,10 @@ GMatrix* GSupervisedLearner::transduceInner(GMatrix& features1, GMatrix& labels1
 }
 
 // virtual
-void GSupervisedLearner::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults)
+void GSupervisedLearner::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats)
 {
 	train(trainFeatures, trainLabels);
-	accuracy(testFeatures, testLabels, pOutResults);
+	accuracy(testFeatures, testLabels, pOutResults, pNominalLabelStats);
 }
 
 size_t GSupervisedLearner::precisionRecallContinuous(GPrediction* pOutput, double* pFunc, GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, size_t label)

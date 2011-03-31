@@ -45,6 +45,7 @@ using std::string;
 using std::cout;
 using std::vector;
 using std::set;
+using std::ostringstream;
 
 void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount)
 {
@@ -902,8 +903,9 @@ void MakeCorrelationLabel(GArffRelation* pRelation, GMatrix* pData, GImage* pIma
 			image2.setSize(pImage->width() - 16, 16);
 			image2.clear(0);
 			int xx = 0;
-			string sValue;
-			pRelation->attrValue(&sValue, attr, i);
+			ostringstream oss;
+			pRelation->printAttrValue(oss, attr, i);
+			string sValue = oss.str();
 			int eatspace = pImage->width() - 16 - GImage::measureTextWidth(sValue.c_str(), 1.0f);
 			xx += eatspace;
 			image2.text(sValue.c_str(), xx, 0, 1.0f, 0xff000040);
@@ -1289,18 +1291,18 @@ void PrintStats(GArgReader& args)
 			cout << "Values:" << pRel->valueCount(i) << ", ";
 			int nMostCommonVal = (int)pData->baselineValue(i);
 			size_t mostCommonOccurrences = pData->countValue(i, nMostCommonVal);
-			string s;
-			pRel->attrValue(&s, i, nMostCommonVal);
-			cout << "Most Common:" << s << " (" << ((double)mostCommonOccurrences * 100.0 / pData->rows()) << "%), ";
+			cout << "Most Common:";
+			pRel->printAttrValue(cout, i, nMostCommonVal);
+			cout << " (" << ((double)mostCommonOccurrences * 100.0 / pData->rows()) << "%), ";
 			cout << "Entropy: " << pData->entropy(i) << ", ";
 			cout << "Missing:" << pData->countValue(i, UNKNOWN_DISCRETE_VALUE) << "\n";
 			if(pRel->valueCount(i) < 9)
 			{
 				for(size_t j = 0; j < pRel->valueCount(i); j++)
 				{
-					s.clear();
-					pRel->attrValue(&s, i, (double)j);
-					cout << "     " << ((double)pData->countValue(i, (double)j) * 100.0 / (double)pData->rows()) << "% " << s << "\n";
+					cout << "     " << ((double)pData->countValue(i, (double)j) * 100.0 / (double)pData->rows()) << "% ";
+					pRel->printAttrValue(cout, i, (double)j);
+					cout << "\n";
 				}
 			}
 		}

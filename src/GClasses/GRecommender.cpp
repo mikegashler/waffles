@@ -106,7 +106,39 @@ double GCollaborativeFilter::crossValidate(GSparseMatrix* pData, size_t folds, G
 
 	if(pOutMAE)
 		*pOutMAE = se / hits;
-	return sqrt(sse / hits);
+	return sse / hits;
+}
+
+double GCollaborativeFilter::transduce(GSparseMatrix& train, GSparseMatrix& test, double* pOutMAE)
+{
+	if(train.defaultValue() != UNKNOWN_REAL_VALUE)
+		ThrowError("Expected the default value to be UNKNOWN_REAL_VALUE");
+	if(test.defaultValue() != UNKNOWN_REAL_VALUE)
+		ThrowError("Expected the default value to be UNKNOWN_REAL_VALUE");
+	if(train.rows() < test.rows())
+		train.newRows(test.rows() - train.rows());
+
+	// Train it
+	trainBatch(&train);
+
+	// Predict the ratings in the current fold
+	double sse = 0.0;
+	double se = 0.0;
+	size_t hits = 0;
+	for(size_t y = 0; y < test.rows(); y++)
+	{
+		for(GSparseMatrix::Iter rating = test.rowBegin(y); rating != test.rowEnd(y); rating++)
+		{
+			double err = rating->second - predict(y, rating->first); // error = target - prediction
+			se += std::abs(err);
+			sse += (err * err);
+			hits++;
+		}
+	}
+
+	if(pOutMAE)
+		*pOutMAE = se / hits;
+	return sse / hits;
 }
 
 class TarPredComparator
@@ -521,15 +553,17 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 	// Initialize the user preference vectors
 	m_pUsers->flush();
 	m_pUsers->newRows(pData->rows());
-	GActivationFunction* pAF = m_pModel->layer(0).m_pActivationFunction;
-	m_pUsers->setAll(pAF->center());
 
 	// Prep the model for incremental training
 	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
 	sp_relation pLabelRel = new GUniformRelation(pData->cols());
 	m_pModel->enableIncrementalLearning(pFeatureRel, pLabelRel);
+	GActivationFunction* pAF = m_pModel->layer(0).m_pActivationFunction;
+	m_pUsers->setAll(pAF->center());
 
 	// Make a single list of all the ratings
+	m_min = 1e200;
+	m_max = -1e200;
 	GHeap heap(2048);
 	vector<Rating*> ratings;
 	for(size_t user = 0; user < pData->rows(); user++)
@@ -540,14 +574,19 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 			pRating->m_user = user;
 			pRating->m_item = it->first;
 			pRating->m_rating = it->second;
+			m_min = std::min(m_min, it->second);
+			m_max = std::max(m_max, it->second);
 			ratings.push_back(pRating);
 		}
 	}
+	double scale = 1.0 / (m_max - m_min);
+	for(vector<Rating*>::iterator it = ratings.begin(); it != ratings.end(); it++)
+		(*it)->m_rating = ((*it)->m_rating - m_min) * scale;
 
 	double baseRsse = 1e300;
 	size_t window = 0;
-	double floor = pAF->center() - pAF->halfRange();
-	double cap = pAF->center() + pAF->halfRange();
+	double floor = std::max(-50.0, pAF->center() - pAF->halfRange());
+	double cap = std::min(50.0, pAF->center() + pAF->halfRange());
 	while(true)
 	{
 		// Shuffle the ratings
@@ -589,7 +628,7 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 // virtual
 double GNeuralRecommender::predict(size_t user, size_t item)
 {
-	return m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item);
+	return (m_max - m_min) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_min;
 }
 
 

@@ -50,7 +50,6 @@ smart_ptr<GRelation> GRelation::fromTwt(GTwtNode* pNode)
 	}
 }
 
-// virtual
 void GRelation::print(ostream& stream, GMatrix* pData, size_t precision)
 {
 	stream.precision(precision);
@@ -61,7 +60,9 @@ void GRelation::print(ostream& stream, GMatrix* pData, size_t precision)
 	// Write the attributes
 	for(size_t i = 0; i < size(); i++)
 	{
-		stream << "@ATTRIBUTE Attr" << i << "\t";
+		stream << "@ATTRIBUTE";
+		printAttrName(stream, i);
+		stream << "\t";
 		if(valueCount(i) == 0)
 			stream << "real";
 		else
@@ -71,7 +72,7 @@ void GRelation::print(ostream& stream, GMatrix* pData, size_t precision)
 			{
 				if(j > 0)
 					stream << ",";
-				printValue(stream, (double)j, i);
+				printAttrValue(stream, i, (double)j);
 			}
 			stream << "}";
 		}
@@ -87,15 +88,13 @@ void GRelation::print(ostream& stream, GMatrix* pData, size_t precision)
 }
 
 // virtual
-void GRelation::attrValue(string* pOutString, size_t attr, double value)
+void GRelation::printAttrName(std::ostream& stream, size_t column)
 {
-	std::ostringstream os;
-	printValue(os, value, attr);
-	*pOutString += os.str();
+	stream << "attr_" << column;
 }
 
 // virtual
-void GRelation::printValue(ostream& stream, double value, size_t column)
+void GRelation::printAttrValue(ostream& stream, size_t column, double value)
 {
 	size_t valCount = valueCount(column);
 	if(valCount == 0)
@@ -141,11 +140,18 @@ bool GRelation::isCompatible(GRelation& that)
 
 void GRelation::printRow(ostream& stream, double* pRow, const char* separator)
 {
-	for(size_t j = 0; j < size(); j++)
+	size_t j = 0;
+	if(j < size())
 	{
-		if(j > 0)
-			stream << separator;
-		printValue(stream, pRow[j], j);
+		printAttrValue(stream, j, *pRow);
+		pRow++;
+		j++;
+	}
+	for(; j < size(); j++)
+	{
+		stream << separator;
+		printAttrValue(stream, j, *pRow);
+		pRow++;
 	}
 	stream << "\n";
 }
@@ -658,47 +664,13 @@ void GArffRelation::parseAttribute(const char* szFile, size_t nLen, size_t nLine
 }
 
 // virtual
-void GArffRelation::print(ostream& stream, GMatrix* pData, size_t precision)
+void GArffRelation::printAttrName(std::ostream& stream, size_t column)
 {
-	// Write the relation title
-	stream.precision(precision);
-	stream << "@RELATION ";
-	const char* szName = name();
-	if(!szName)
-		szName = "Untitled";
-	stream << szName << "\n\n";
-
-	// Write the attributes
-	for(size_t i = 0; i < size(); i++)
-	{
-		stream << "@ATTRIBUTE ";
-		stream << attrName(i) << "\t";
-		if(valueCount(i) == 0)
-			stream << "real";
-		else
-		{
-			stream << "{";
-			for(size_t j = 0; j < valueCount(i); j++)
-			{
-				if(j > 0)
-					stream << ",";
-				printValue(stream, (double)j, i);
-			}
-			stream << "}";
-		}
-		stream << "\n";
-	}
-
-	// Write the data
-	stream << "\n@DATA\n";
-	if(!pData)
-		return;
-	for(size_t i = 0; i < pData->rows(); i++)
-		printRow(stream, pData->row(i), ",");
+	stream << attrName(column);
 }
 
 // virtual
-void GArffRelation::printValue(ostream& stream, double value, size_t column)
+void GArffRelation::printAttrValue(ostream& stream, size_t column, double value)
 {
 	size_t valCount = valueCount(column);
 	if(valCount == 0)

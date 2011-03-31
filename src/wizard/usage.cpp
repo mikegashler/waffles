@@ -188,6 +188,7 @@ UsageNode* makeLearnUsageTree()
 	{
 		UsageNode* pOpts = pTest->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pOpts->add("-confusion", "Additionally print a confusion matrix for each nominal label attribute");
 		pTest->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pTest->add("[dataset]=test.arff", "The filename of a test dataset in \".arff\" format. (This dataset must have the same number of columns as the dataset with which the model was trained.)");
 		UsageNode* pDO = pTest->add("<data_opts>");
@@ -211,6 +212,7 @@ UsageNode* makeLearnUsageTree()
 	{
 		UsageNode* pOpts = pTransAcc->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pOpts->add("-confusion", "Additionally print a confusion matrix for each nominal label attribute");
 		pTransAcc->add("[training-set]=train.arff", "The filename of a dataset in \".arff\" format. The labels in this dataset are used to infer labels for the unlabeled set.");
 		pTransAcc->add("[test-set]=test.arff", "The filename of a dataset in \".arff\" format. This dataset must have placeholder labels. The placeholder labels will be replaced in the output with the new predicted labels.");
 		UsageNode* pDO1 = pTransAcc->add("<data_opts1>");
@@ -231,6 +233,7 @@ UsageNode* makeLearnUsageTree()
 			   "to the given filename.  Note that this only works "
 			   "when the learner being used has an internal "
 			   "model.");
+		pOpts->add("-confusion", "Additionally print a confusion matrix for each nominal label attribute after each repetition.");
 		UsageNode* pDO = pSplitTest->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
@@ -259,20 +262,6 @@ UsageNode* makeLearnUsageTree()
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
 	}
-	UsageNode* pTS = pRoot->add("trainsparse <options> [sparse-features] [dense-labels] [algorithm]", "Train the specified algorithm with the sparse matrix. Only incremental learners (such as naivebayes or neuralnet) support this functionality. It will print the trained model-file to stdout.");
-	{
-		UsageNode* pOpts = pTS->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pTS->add("[sparse-features]=features.sparse", "The filename of a sparse matrix representing the training features. (This matrix should not contain labels.)");
-		pTS->add("[dense-labels]=labels.arff", "The filename of a dense matrix representing the training labels that correspond with the training features. (The label matrix must have the same number of rows as the feature matrix.)");
-	}
-	UsageNode* pPS = pRoot->add("predictsparse <options> [model-file] [sparse-matrix]", "Predict labels for all of the rows in [sparse-matrix]. Label predictions for each row are printed to stdout. (The features are not printed with the predictions.)");
-	{
-		UsageNode* pOpts = pPS->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pPS->add("[sparse-matrix]=features.sparse", "The filename of a sparse matrix of features for which labels should be predicted. (The feature matrix should not contain labels.)");
-		pTest->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
-	}
 	UsageNode* pTR = pRoot->add("trainrecurrent <options> [method] [obs-data] [action-data] [context-dims] [algorithm] [algorithm]", "Train a recurrent model of a dynamical system with the specified training [method]. The training data is specified by [obs-data], which specifies the sequence of observations, and [action-data], which specifies the sequence of actions. [context-dims] specifies the number of dimensions in the state-space of the system. The two algorithms specify the two functions of a model of a dynamical system. The first [algorithm] models the transition function. The second [algorithm] models the observation function.");
 	{
 		UsageNode* pOpts = pTR->add("<options>");
@@ -291,6 +280,42 @@ UsageNode* makeLearnUsageTree()
 		pMeth->add("evolutionary", "Train with evoluationary optimization");
 		pMeth->add("hillclimber", "Train with a hill-climbing algorithm.");
 		pMeth->add("annealing [deviation] [decay] [window]", "Train with simulated annealing. Good values might be 2.0 0.5 300");
+	}
+	return pRoot;
+}
+
+UsageNode* makeSparseUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("waffles_sparse [command]", "Sparse learning, document classification, information retrieval, etc.");
+	UsageNode* pDocsToSparse = pRoot->add("docstosparsematrix <options> [folder1] [folder2] ...", "Converts a set of documents to a sparse feature matrix, and a dense label matrix. [folder1] should contain all of the documents in class1. [folder2] should contain all the documents in class2, and so forth. The words are filtered against a common set of stop words. Also, words less than 4 letters are ignored. Currently, only .txt and .html documents are supported. Other file types are ignored. Each row in the sparse matrix represents one of the documents. Subdirectories are not followed. The feature vector is saved to a sparse matrix in compressed-column format. If more than one folder is specified, then a dense label matrix will also be generated. A mapping from row number to document filename is printed to stdout.");
+	{
+		UsageNode* pOpts = pDocsToSparse->add("<options>");
+		pOpts->add("-nostem", "Specifies not to stem the words. (The default is to use the Porter stemming algorithm.)");
+		pOpts->add("-binary", "Just use the value 1 if the word occurs in a document, or a 0 if it does not occur. The default behavior is to compute the somewhat more meaningful value: a/b*log(c/d), where a=the number of times the word occurs in this document, b=the max number of times this word occurs in any document, c=total number of documents, and d=number of documents that contain this word.");
+		pOpts->add("-out [features-filename] [labels-filename]", "Specify the filenames for the sparse feature matrix and the dense labels matrix. Note that if only one folder of documents is provided, then [labels-filename] will be ignored (since all documents come from the same folder/class), but a bogus filename must be provided for it anyway.");
+		pOpts->add("-vocabfile [filename]=vocab.txt", "Save the vocabulary of words to the specified file. The default is to not save the list of words. Note that the words will be stemmed (unless -nostem was specified), so it is normal for many of them to appear misspelled.");
+	}
+	UsageNode* pTrain = pRoot->add("train <options> [sparse-features] [dense-labels] [algorithm]", "Train the specified algorithm with the sparse matrix. Only incremental learners (such as naivebayes or neuralnet) support this functionality. It will print the trained model-file to stdout.");
+	{
+		UsageNode* pOpts = pTrain->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pTrain->add("[sparse-features]=features.sparse", "The filename of a sparse matrix representing the training features. (This matrix should not contain labels.)");
+		pTrain->add("[dense-labels]=labels.arff", "The filename of a dense matrix representing the training labels that correspond with the training features. (The label matrix must have the same number of rows as the feature matrix.)");
+	}
+	UsageNode* pPredict = pRoot->add("predict <options> [model-file] [sparse-matrix]", "Predict labels for all of the rows in [sparse-matrix]. Label predictions for each row are printed to stdout. (The features are not printed with the predictions.)");
+	{
+		UsageNode* pOpts = pPredict->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pPredict->add("[sparse-matrix]=features.sparse", "The filename of a sparse matrix of features for which labels should be predicted. (The feature matrix should not contain labels.)");
+		pPredict->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
+	}
+	UsageNode* pTest = pRoot->add("test <options> [model-file] [sparse-features] [labels]", "Evaluates predictive accuracy for nominal labels, and mean-squared-error for continuous labels. Prints the score to stdout.");
+	{
+		UsageNode* pOpts = pTest->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pTest->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
+		pTest->add("[sparse-features]=features.sparse", "The filename of a sparse matrix of features for which labels should be predicted. (The feature matrix should not contain labels.)");
+		pTest->add("[labels]=labels.arff", "The filename of a dense matrix of labels in .arff format. (This matrix should have the same number of rows as [sparse-features], since they correspond with each other.");
 	}
 	return pRoot;
 }
@@ -703,14 +728,6 @@ UsageNode* makeGenerateUsageTree()
 		pOpts->add("-gray", "Use a single grayscale value for every pixel instead of three (red, green, blue) channel values.");
 	}
 	pRoot->add("cube [n]", "returns data evenly distributed on the surface of a unit cube. Each side is sampled with [n]x[n] points. The total number of points in the dataset will be 6*[n]*[n]-12*[n]+8.");
-	UsageNode* pDocsToSparse = pRoot->add("docstosparsematrix <options> [folder1] [folder2] ...", "Converts a set of documents to a sparse feature matrix, and a dense label matrix. [folder1] should contain all of the documents in class1. [folder2] should contain all the documents in class2, and so forth. The words are filtered against a common set of stop words. Also, words less than 4 letters are ignored. Currently, only .txt and .html documents are supported. Other file types are ignored. Each row in the sparse matrix represents one of the documents. Subdirectories are not followed. Results are saved to a sparse matrix in compressed-column format. A mapping from row number to document filename is printed to stdout.");
-	{
-		UsageNode* pOpts = pDocsToSparse->add("<options>");
-		pOpts->add("-nostem", "Specifies not to stem the words. (The default is to use the Porter stemming algorithm.)");
-		pOpts->add("-binary", "Just use the value 1 if the word occurs in a document, or a 0 if it does not occur. The default behavior is to compute the somewhat more meaningful value: a/b*log(c/d), where a=the number of times the word occurs in this document, b=the max number of times this word occurs in any document, c=total number of documents, and d=number of documents that contain this word.");
-		pOpts->add("-out [features-filename] [labels-filename]", "Specify the filenames for the sparse feature matrix and the dense labels matrix.");
-		pOpts->add("-vocabfile [filename]=vocab.txt", "Save the vocabulary of words to the specified file. The default is to not save the list of words. Note that the words will be stemmed (unless -nostem was specified), so it is normal for many of them to appear misspelled.");
-	}
 	UsageNode* pES = pRoot->add("entwinedspirals [points] <options>", "Generates points that lie on an entwined spirals manifold.");
 	{
 		pES->add("[points]=1000", "The number of points with which to sample the manifold.");
@@ -986,7 +1003,7 @@ UsageNode* makeNeighborUsageTree()
 UsageNode* makeRecommendUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("waffles_recommend [command]", "Predict missing values in data, and test collaborative-filtering recommendation systems.");
-	UsageNode* pCV = pRoot->add("crossvalidate <options> [sparse-data] [collab-filter]", "Measure accuracy using cross-validation. For nominal labels, predictive accuracy is reported. For continuous labels, mean-squared-error is reported.");
+	UsageNode* pCV = pRoot->add("crossvalidate <options> [sparse-data] [collab-filter]", "Measure accuracy using cross-validation. Prints MSE and MAE to stdout.");
 	{
 		UsageNode* pOpts = pCV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -1013,6 +1030,13 @@ UsageNode* makeRecommendUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
 		pROC->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+	}
+	UsageNode* pTransacc = pRoot->add("transacc <options> [train] [test] [collab-filter]", "Train using [train], then test using [test]. Prints MSE and MAE to stdout.");
+	{
+		UsageNode* pOpts = pTransacc->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pTransacc->add("[train]=train.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+		pTransacc->add("[test]=test.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
 	}
 	return pRoot;
 }
@@ -1056,6 +1080,6 @@ UsageNode* makeCollaborativeFilterUsageTree()
 			pAct->add("gaussian", "A gaussian activation function");
 			pAct->add("sinc", "A sinc wavelet activation function");
 		}
- 	}
+	}
 	return pRoot;
 }
