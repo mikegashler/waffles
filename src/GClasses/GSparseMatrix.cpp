@@ -776,11 +776,11 @@ void GSparseMatrix::test()
 	GRand prng(0);
 	for(size_t i = 0; i < 100; i++)
 	{
-		size_t w = prng.next(20) + 1;
-		size_t h = prng.next(20) + 1;
+		size_t w = (size_t)prng.next(20) + 1;
+		size_t h = (size_t)prng.next(20) + 1;
 		GSparseMatrix m(h, w);
 		for(size_t j = 0; j < 60; j++)
-			m.set(prng.next(h), prng.next(w), prng.normal());
+			m.set((size_t)prng.next(h), (size_t)prng.next(w), prng.normal());
 		GSparseMatrix_testHelper(m);
 	}
 }
