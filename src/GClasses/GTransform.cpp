@@ -756,6 +756,7 @@ void GAttributeSelector::test()
 		ThrowError("failed");
 }
 #endif // NO_TEST_CODE
+
 // --------------------------------------------------------------------------
 
 GNominalToCat::GNominalToCat(size_t nValueCap)

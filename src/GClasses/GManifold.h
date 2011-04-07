@@ -381,23 +381,37 @@ protected:
 };
 
 
-/*
-/// This uses a k-means-like approach to divide the state vectors
-/// into two clusters such that the actions have a linear mapping to
-/// change-in-state. It then aligns the two clusters such that the
-/// linear mappings become one.
+
+/// This uses graph-cut to divide the data into two clusters.
+/// It then trains a linear regression model for each cluster
+/// to map from inputs to change-in-state. It then aligns
+/// the smaller cluster with the larger one such that the linear
+/// models are in agreement (as much as possible).
 class GDynamicSystemStateAligner : public GTransform
 {
 protected:
-	GMatrix& m_actions;
+	size_t m_neighbors;
+	size_t m_seedA, m_seedB;
+	size_t* m_pNeighbors;
+	double* m_pDistances;
+	GMatrix& m_inputs;
 	GRand& m_rand;
 
 public:
-	GDynamicSystemStateAligner(GMatrix& actions, GRand& rand);
+	GDynamicSystemStateAligner(size_t neighbors, GMatrix& inputs, GRand& rand);
 	virtual ~GDynamicSystemStateAligner();
+
+	/// Perform the transformation
 	virtual GMatrix* doit(GMatrix* pIn);
+
+	/// Specify the source and sink points for dividing the data into two clusters
+	void setSeeds(size_t a, size_t b);
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
 };
-*/
+
 
 
 /// A manifold learning algorithm that uses back-propagation to train a neural net model

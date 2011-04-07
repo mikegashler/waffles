@@ -20,6 +20,7 @@
 #include "GHeap.h"
 #include "GImage.h"
 #include "GKNN.h"
+#include "GLinear.h"
 #include "GMath.h"
 #include "GNeighborFinder.h"
 #include "GNeuralNet.h"
@@ -1972,94 +1973,279 @@ GMatrix* GNeuroPCA::doit(GMatrix* pIn)
 
 
 
-/*
-GDynamicSystemStateAligner::GDynamicSystemStateAligner(GMatrix& actions, GRand& rand)
-: GTransform(), m_actions(actions), m_rand(rand)
+
+GDynamicSystemStateAligner::GDynamicSystemStateAligner(size_t neighbors, GMatrix& inputs, GRand& rand)
+: GTransform(), m_neighbors(neighbors), m_inputs(inputs), m_rand(rand)
 {
-	if(!actions.relation()->areContinuous(0, actions.cols()))
+	if(!inputs.relation()->areContinuous(0, inputs.cols()))
 		ThrowError("Only continuous attributes are supported");
+	m_seedA = (size_t)m_rand.next(inputs.rows());
+	m_seedB = (size_t)m_rand.next(inputs.rows() - 1);
+	if(m_seedB >= m_seedA)
+		m_seedB++;
+	m_pNeighbors = new size_t[neighbors];
+	m_pDistances = new double[neighbors];
 }
 
 // virtual
 GDynamicSystemStateAligner::~GDynamicSystemStateAligner()
 {
+	delete[] m_pNeighbors;
+	delete[] m_pDistances;
+}
+
+void GDynamicSystemStateAligner::setSeeds(size_t a, size_t b)
+{
+	m_seedA = a;
+	m_seedB = b;
 }
 
 // virtual
 GMatrix* GDynamicSystemStateAligner::doit(GMatrix* pIn)
 {
-	// Make a delta matrix
 	if(!pIn->relation()->areContinuous(0, pIn->cols()))
 		ThrowError("Only continuous attributes are supported");
-	if(pIn->rows() != m_actions.rows())
-		ThrowError("Expected pIn to have the same number of rows as pActions");
-	GMatrix delta(pIn->relation());
-	delta.newRows(pIn->rows() - 1);
-	for(size_t i = 1; i < pIn->rows(); i++)
+	if(pIn->rows() != m_inputs.rows())
+		ThrowError("Expected pIn to have the same number of rows as the inputs");
+	if(pIn->rows() < 6)
+		return pIn->clone();
+
+	// Make a graph of local neighborhoods
+	GKdTree neighborFinder(pIn, m_neighbors, NULL, false);
+	GGraphCut gc(pIn->rows() + 2);
+	for(size_t i = 0; i < pIn->rows(); i++)
 	{
-		GVec::copy(delta[i - 1], pIn->row(i), pIn->cols());
-		GVec::subtract(delta[i - 1], pIn->row(i - 1), pIn->cols());
+		neighborFinder.neighbors(m_pNeighbors, m_pDistances, i);
+		size_t* pNeigh = m_pNeighbors;
+		double* pDist = m_pDistances;
+		for(size_t j = 0; j < m_neighbors; j++)
+		{
+			if(*pNeigh >= pIn->rows())
+				continue;
+			gc.addEdge(i, *pNeigh, (float)(1.0 / std::max(sqrt(*pDist), 1e-9))); // connect neighbors
+			pNeigh++;
+			pDist++;
+		}
 	}
 
-	// Arbitrarily assign half to each cluster
-	GBitTable bt(delta.rows());
-	size_t half = delta.rows() / 2;
-	for(size_t i = 0; i < half; i++)
-		bt.set(i);
+	// Divide into two clusters
+	gc.cut(m_seedA, m_seedB);
 
-	// Cluster
-	GNeuralNet nnA(&m_rand);
-	GNeuralNet nnB(&m_rand);
-	GMatrix a(delta.relation());
-	GMatrix b(delta.relation());
-	GTEMPBUF(double, prediction, pIn->cols());
-	double prevSse = 1e308;
-	while(true)
+	// Create training data for the linear regressors
+	GMatrix aFeatures(m_inputs.relation());
+	GReleaseDataHolder hAFeatures(&aFeatures);
+	GMatrix bFeatures(m_inputs.relation());
+	GReleaseDataHolder hBFeatures(&bFeatures);
+	GMatrix aLabels(pIn->relation()); // Transitions within cluster A
+	GMatrix bLabels(pIn->relation()); // Transitions within cluster B
+	GMatrix cLabels(pIn->relation()); // Transitions between clusters
+	for(size_t i = 0; i < pIn->rows() - 1; i++)
 	{
-		// Split into two datasets
-		GReleaseDataHolder hA(&a);
-		GReleaseDataHolder hB(&b);
-		for(size_t i = 0; i < delta.rows(); i++)
-		if(bt.bit(i))
-			b.takeRow(delta.row(i));
-		else
-			a.takeRow(delta.row(i));
-
-		// Train the two perceptrons
-		nnA.train(m_actions, a);
-		nnB.train(m_actions, b);
-
-		// Regroup the clusters
-		double sse = 0.0;
-		for(size_t i = 0; i < delta.rows(); i++)
+		double* pLabel;
+		if(gc.isSource(i))
 		{
-			nnA.predict(m_actions[i], prediction);
-			double errA = GVec::squaredDistance(delta[i], prediction, delta.cols());
-			nnB.predict(m_actions[i], prediction);
-			double errB = GVec::squaredDistance(delta[i], prediction, delta.cols());
-			if(errA < errB)
+			if(gc.isSource(i + 1))
 			{
-				bt.unset(i);
-				sse += errA;
+				pLabel = aLabels.newRow();
+				aFeatures.takeRow(m_inputs[i]);
 			}
 			else
+				pLabel = cLabels.newRow();
+		}
+		else
+		{
+			if(gc.isSource(i + 1))
+				pLabel = cLabels.newRow();
+			else
 			{
-				bt.set(i);
-				sse += errB;
+				pLabel = bLabels.newRow();
+				bFeatures.takeRow(m_inputs[i]);
 			}
 		}
-
-		// Detect convergence
-		if(sse >= prevSse)
-			break;
-		prevSse = sse;
+		GVec::copy(pLabel, pIn->row(i + 1), pIn->cols());
+		GVec::subtract(pLabel, pIn->row(i), pIn->cols());
 	}
 
-	// Align the clusters
+	// Make the output data
+	GMatrix* pOut = pIn->clone();
+	Holder<GMatrix> hOut(pOut);
+	if(aFeatures.rows() < pIn->cols() || bFeatures.rows() < pIn->cols() || cLabels.rows() < 1)
+	{
+		// There are not enough points to avoid being arbitrary, so we will simply not change anything
+		return hOut.release();
+	}
+
+	// Train the linear regression models
+	GLinearRegressor lrA(&m_rand);
+	GLinearRegressor lrB(&m_rand);
+	lrA.train(aFeatures, aLabels);
+	lrB.train(bFeatures, bLabels);
+
+	// Align the perceptrons
+	bool alignCluster = true;
+	GLinearRegressor* pLrAlign = &lrA;
+	GLinearRegressor* pLrBase = &lrB;
+	if(bFeatures.rows() < aFeatures.rows())
+	{
+		std::swap(pLrAlign, pLrBase);
+		alignCluster = false;
+	}
+
+	GMatrix* pAInv = pLrAlign->beta()->pseudoInverse();
+	Holder<GMatrix> hAInv(pAInv);
+	GMatrix* pAlign = GMatrix::multiply(*pLrBase->beta(), *pAInv, false, false);
+	Holder<GMatrix> hAlign(pAlign);
+	GAssert(pAlign->rows() == pAlign->cols());
+	GTEMPBUF(double, shift, 2 * pIn->cols());
+	double* pBuf = shift + pIn->cols();
+	GVec::setAll(shift, 0.0, pIn->cols());
+	size_t crossCount = 0;
+	for(size_t i = 0; i < pIn->rows(); i++)
+	{
+		if(gc.isSource(i) == alignCluster)
+		{
+			pAlign->multiply(pIn->row(i), pOut->row(i));
+			if(i > 0 && gc.isSource(i - 1) != alignCluster)
+			{
+				pLrBase->predict(m_inputs[i - 1], pBuf);
+				GVec::add(pBuf, pIn->row(i - 1), pIn->cols());
+				GVec::subtract(pBuf, pOut->row(i), pIn->cols());
+				GVec::add(shift, pBuf, pIn->cols());
+				crossCount++;
+			}
+			if(i < pIn->rows() - 1 && gc.isSource(i + 1) != alignCluster)
+			{
+				pLrBase->predict(m_inputs[i], pBuf);
+				GVec::multiply(pBuf, -1.0, pIn->cols());
+				GVec::add(pBuf, pIn->row(i + 1), pIn->cols());
+				GVec::subtract(pBuf, pOut->row(i), pIn->cols());
+				GVec::add(shift, pBuf, pIn->cols());
+				crossCount++;
+			}
+		}
+	}
+	GVec::multiply(shift, 1.0 / crossCount, pIn->cols());
+	for(size_t i = 0; i < pIn->rows(); i++)
+	{
+		if(gc.isSource(i) == alignCluster)
+			GVec::add(pOut->row(i), shift, pIn->cols());
+	}
+
+	// Pick new seeds, in case this method is called again
+	m_seedA = (size_t)m_rand.next(m_inputs.rows());
+	m_seedB = (size_t)m_rand.next(m_inputs.rows() - 1);
+	if(m_seedB >= m_seedA)
+		m_seedB++;
+
+	return hOut.release();
 }
-*/
 
+#ifndef NO_TEST_CODE
+// static
+void GDynamicSystemStateAligner::test()
+{
+	// Make some data suitable for testing it
+	GRand prng(0);
+	GMatrix inputs(500, 4);
+	inputs.setAll(0.0);
+	GMatrix state(500, 2);
+	bool alt = false;
+	double a2 = 0.7;
+	double ca2 = cos(a2);
+	double sa2 = sin(a2);
+	double x1 = 0.0;
+	double y1 = 0.0;
+	double x2 = 20.0;
+	double y2 = 0.0;
+	size_t seedA = 0;
+	size_t seedB = 0;
+	for(size_t i = 0; i < 500; i++)
+	{
+		if(alt)
+		{
+			state[i][0] = x2;
+			state[i][1] = y2;
+			seedB = i;
+		}
+		else
+		{
+			state[i][0] = x1;
+			state[i][1] = y1;
+			seedA = i;
+		}
+		while(true)
+		{
+			double dx = 0;
+			double dy = 0;
+			size_t action = (size_t)prng.next(4);
+			if(action == 0 && x1 < 5)
+				dx = 1;
+			else if(action == 1 && x1 > -5)
+				dx = -1;
+			else if(action == 2 && y1 < 5)
+				dy = 1;
+			else if(action == 3 && y1 > -5)
+				dy = -1;
+			else
+				continue;
+			x1 += dx;
+			y1 += dy;
+			x2 += ca2 * dx - sa2 * dy;
+			y2 += ca2 * dy + sa2 * dx;
+			GVec::setAll(inputs[i], 0.0, 4);
+			inputs[i][action] = 1.0;
+			break;
+		}
+		if((size_t)prng.next(6) == 0)
+			alt = !alt;
+	}
 
+	// Do the transformation it
+	GDynamicSystemStateAligner dssa(16, inputs, prng);
+	dssa.setSeeds(seedA, seedB);
+	GMatrix* pStateOut = dssa.doit(&state);
+	Holder<GMatrix> hStateOut(pStateOut);
+
+	// Check results
+	alt = pStateOut->row(0)[0] < 10 ? false : true;
+	x1 = 0.0;
+	y1 = 0.0;
+	x2 = 20.0;
+	y2 = 0.0;
+	for(size_t i = 0; i < 500; i++)
+	{
+		if(alt)
+		{
+			if(std::abs(pStateOut->row(i)[0] - x2) > 0.4)
+				ThrowError("failed");
+			if(std::abs(pStateOut->row(i)[1] - y2) > 0.4)
+				ThrowError("failed");
+		}
+		else
+		{
+			if(std::abs(pStateOut->row(i)[0] - x1) > 0.4)
+				ThrowError("failed");
+			if(std::abs(pStateOut->row(i)[1] - y1) > 0.4)
+				ThrowError("failed");
+		}
+		size_t action = GVec::indexOfMax(inputs[i], 4, &prng);
+		double dx = 0;
+		double dy = 0;
+		if(action == 0)
+			dx = 1;
+		else if(action == 1)
+			dx = -1;
+		else if(action == 2)
+			dy = 1;
+		else
+			dy = -1;
+		x1 += dx;
+		y1 += dy;
+		x2 += ca2 * dx - sa2 * dy;
+		y2 += ca2 * dy + sa2 * dx;
+	}
+}
+#endif // NO_TEST_CODE
 
 
 

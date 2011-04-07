@@ -369,6 +369,7 @@ void RunAllTests()
 	runTest("GDecisionTree", GDecisionTree::test);
 	runTest("GDiff", GDiff::test);
 	runTest("GDijkstra", GDijkstra::test);
+	runTest("GDynamicSystemStateAligner", GDynamicSystemStateAligner::test);
 	runTest("GFloydWarshall", GFloydWarshall::test);
 	runTest("GFourier", GFourier::test);
 	runTest("GGraphCut", GGraphCut::test);

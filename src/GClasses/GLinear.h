@@ -19,12 +19,18 @@ namespace GClasses {
 
 class GPCA;
 
-/// A linear regression algorithm. Only supports 1 label dim.
+/// A linear regression model. Let f be a feature vector of real values, and let l be a label vector of real values,
+/// then this model estimates l=Bf+e, where B is a matrix of real values, and e is a
+/// vector of real values. (In the Wikipedia article on linear regression, B is called
+/// "beta", and e is called "epsilon". The approach used by this model to compute
+/// beta and epsilon, however, is much more efficient than the approach currently
+/// described in that article.)
 class GLinearRegressor : public GSupervisedLearner
 {
 protected:
 	GRand* m_pRand;
-	GPCA* m_pPCA;
+	GMatrix* m_pBeta;
+	double* m_pEpsilon;
 
 public:
 	GLinearRegressor(GRand* pRand);
@@ -49,6 +55,15 @@ public:
 
 	/// Returns the random number generator associated with this learner
 	GRand* getRand() { return m_pRand; }
+
+	/// Returns the matrix that represents the linear transformation.
+	GMatrix* beta() { return m_pBeta; }
+
+	/// Returns the vector that is added to the results after the linear transformation is applied.
+	double* epsilon() { return m_pEpsilon; }
+
+	/// Performs on-line gradient descent to refine the model
+	void refine(GMatrix& features, GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

@@ -133,9 +133,11 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 	}
 }
 
-GMatrix* loadData(GArgReader& args, size_t* pLabelDims)
+void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& hLabelsOut)
 {
 	// Load the dataset by extension
+	if(args.size() < 1)
+		ThrowError("Expected the filename of a datset. (Found end of arguments.)");
 	const char* szFilename = args.pop_string();
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
@@ -180,11 +182,11 @@ GMatrix* loadData(GArgReader& args, size_t* pLabelDims)
 	}
 
 	// Swap label columns to the end
-	*pLabelDims = std::max((size_t)1, labels.size());
+	size_t labelDims = std::max((size_t)1, labels.size());
 	for(size_t i = 0; i < labels.size(); i++)
 	{
 		size_t src = labels[i];
-		size_t dst = pData->cols() - *pLabelDims + i;
+		size_t dst = pData->cols() - labelDims + i;
 		if(src != dst)
 		{
 			pData->swapColumns(src, dst);
@@ -199,7 +201,11 @@ GMatrix* loadData(GArgReader& args, size_t* pLabelDims)
 		}
 	}
 
-	return hData.release();
+	// Split pData into a feature matrix and a label matrix
+	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - labelDims);
+	hFeaturesOut.reset(pFeatures);
+	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - labelDims, pData->rows(), labelDims);
+	hLabelsOut.reset(pLabels);
 }
 
 GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GRand* pRand, GArgReader& args)
@@ -575,6 +581,44 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 	return NULL;
 }
 
+void autoParamNeuralNet(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	cout << "Warning: Because neural nets take a long time to train, it could take hours to train with enough parameter variations to determine with confidence which parameters are best. (If possible, I would strongly advise running this as a background process while you do something else, rather than sit around waiting for it to finish.)";
+	cout.flush();
+	GNeuralNet* pNN = GNeuralNet::autoParams(features, labels, rand);
+	const char* szCurrent = "logistic";
+	cout << "neuralnet";
+	for(size_t i = 0; i < pNN->layerCount(); i++)
+	{
+		const char* szActivationName = pNN->layer(i).m_pActivationFunction->name();
+		if(strcmp(szActivationName, szCurrent) != 0)
+			cout << " -activation " << szActivationName;
+		if(i < pNN->layerCount() - 1)
+			cout << " -addlayer " << pNN->layer(i).m_neurons.size();
+	}
+	if(pNN->momentum() > 0.0)
+		cout << " -momentum " << pNN->momentum();
+	delete(pNN);
+	cout << "\n";
+}
+
+void autoParams(GArgReader& args)
+{
+	// Load the data
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
+
+	// Load the model name
+	GRand rand(0);
+	const char* szModel = args.pop_string();
+	if(strcmp(szModel, "neuralnet") == 0)
+		autoParamNeuralNet(*pFeatures, *pLabels, rand);
+	else
+		ThrowError("Sorry, autoparams does not currently support a model named ", szModel, ".");
+}
+
 void Train(GArgReader& args)
 {
 	// Parse options
@@ -589,17 +633,10 @@ void Train(GArgReader& args)
 
 	// Load the data
 	GRand prng(seed);
-	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-	size_t labelDims;
-	GMatrix* pData = loadData(args, &labelDims);
-	Holder<GMatrix> hData(pData);
-	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - labelDims);
-	Holder<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - labelDims, pData->rows(), labelDims);
-	Holder<GMatrix> hLabels(pLabels);
-	hData.release();
-	pData = NULL;
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args);
@@ -643,23 +680,24 @@ void predict(GArgReader& args)
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the data
-	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-	size_t labelDims;
-	GMatrix* pData = loadData(args, &labelDims);
-	Holder<GMatrix> hData(pData);
-	if(labelDims != (size_t)pModeler->labelDims())
-		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(labelDims));
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
+	if(pLabels->cols() != pModeler->labelDims())
+		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
+	pLabels->setAll(0.0); // Wipe out the existing labels, just to be absolutely certain that we don't somehow accidentally let them influence the predictions
 
 	// Test
-	for(size_t i = 0; i < pData->rows(); i++)
+	for(size_t i = 0; i < pFeatures->rows(); i++)
 	{
-		double* pPat = pData->row(i);
-		pModeler->predict(pPat, pPat + pData->cols() - pModeler->labelDims());
+		double* pFeatureVec = pFeatures->row(i);
+		double* pLabelVec = pLabels->row(i);
+		pModeler->predict(pFeatureVec, pLabelVec);
 	}
 
 	// Print results
-	pData->print(cout);
+	pLabels->print(cout);
 }
 
 void predictOnePattern(GArgReader& args)
@@ -685,20 +723,22 @@ void predictOnePattern(GArgReader& args)
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the dataset
-	size_t labelDims;
-	GMatrix* pData = loadData(args, &labelDims);
-	Holder<GMatrix> hData(pData);
-	if(labelDims != (size_t)pModeler->labelDims())
-		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(labelDims));
-	if(pData->relation()->type() != GRelation::ARFF)
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
+	if(pLabels->cols() != (size_t)pModeler->labelDims())
+		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
+	if(pFeatures->relation()->type() != GRelation::ARFF || pLabels->relation()->type() != GRelation::ARFF)
 		ThrowError("Expected a dataset with ARFF metadata");
-	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+	GArffRelation* pFeatureRel = (GArffRelation*)pFeatures->relation().get();
+	GArffRelation* pLabelRel = (GArffRelation*)pLabels->relation().get();
 
 	// Parse the pattern
 	size_t featureDims = pModeler->featureDims();
 	GTEMPBUF(double, pattern, featureDims);
 	for(size_t i = 0; i < featureDims; i++)
-		pattern[i] = pRel->parseValue(i, args.pop_string());
+		pattern[i] = pFeatureRel->parseValue(i, args.pop_string());
 
 	// Predict
 	GPrediction* out = new GPrediction[pModeler->labelDims()];
@@ -707,14 +747,14 @@ void predictOnePattern(GArgReader& args)
 
 	// Display the prediction
 	cout.precision(8);
-	for(size_t i = 0; i < pModeler->labelDims(); i++)
+	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
 		if(i > 0)
 			cout << ", ";
-		if(pRel->valueCount(featureDims + i) == 0)
+		if(pLabelRel->valueCount(i) == 0)
 			cout << out[i].mode();
 		else
-			pRel->printAttrValue(cout, featureDims + i, (int)out[i].mode());
+			pLabelRel->printAttrValue(cout, i, (int)out[i].mode());
 	}
 	cout << "\n\n";
 
@@ -724,18 +764,18 @@ void predictOnePattern(GArgReader& args)
 		if(out[i].isContinuous())
 		{
 			GNormalDistribution* pNorm = out[i].asNormal();
-			cout << pRel->attrName(featureDims + i) << ") Normal: predicted mean=" << pNorm->mean() << " predicted variance=" << pNorm->variance() << "\n";
+			cout << pLabelRel->attrName(i) << ") Normal: predicted mean=" << pNorm->mean() << " predicted variance=" << pNorm->variance() << "\n";
 		}
 		else
 		{
 			GCategoricalDistribution* pCat = out[i].asCategorical();
-			cout << pRel->attrName(featureDims + i) << ") Categorical Confidences: {";
+			cout << pLabelRel->attrName(i) << ") Categorical Confidences: {";
 			double* pValues = pCat->values(pCat->valueCount());
 			for(size_t j = 0; j < pCat->valueCount(); j++)
 			{
 				if(j > 0)
 					cout << ", ";
-				pRel->printAttrValue(cout, featureDims + i, (int)j);
+				pLabelRel->printAttrValue(cout, i, (int)j);
 				cout << "=" << pValues[j];
 			}
 			cout << "}\n";
@@ -839,25 +879,18 @@ void Test(GArgReader& args)
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the data
-	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-	size_t labelDims;
-	GMatrix* pData = loadData(args, &labelDims);
-	Holder<GMatrix> hData(pData);
-	if(labelDims != (size_t)pModeler->labelDims())
-		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(labelDims));
-	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - labelDims);
-	Holder<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - labelDims, pData->rows(), labelDims);
-	Holder<GMatrix> hLabels(pLabels);
-	hData.release();
-	pData = NULL;
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
+	if(pLabels->cols() != pModeler->labelDims())
+		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
 
 	// Test
-	GTEMPBUF(double, results, pModeler->labelDims());
+	GTEMPBUF(double, results, pLabels->cols());
 	vector<GMatrix*> confusionMatrices;
 	pModeler->accuracy(*pFeatures, *pLabels, results, confusion ? &confusionMatrices : NULL);
-	GVec::print(cout, 14, results, pModeler->labelDims());
+	GVec::print(cout, 14, results, pLabels->cols());
 	cout << "\n";
 
 	// Print the confusion matrix
@@ -881,27 +914,17 @@ void Transduce(GArgReader& args)
 	GRand prng(seed);
 	if(args.size() < 1)
 		ThrowError("No labeled set specified.");
-	size_t labelDims1, labelDims2;
-	GMatrix* pDataLabeled = loadData(args, &labelDims1);
-	Holder<GMatrix> hDataLabeled(pDataLabeled);
-	GMatrix* pDataUnlabeled = loadData(args, &labelDims2);
-	Holder<GMatrix> hDataUnlabeled(pDataUnlabeled);
-	if(pDataLabeled->cols() != pDataUnlabeled->cols())
-		ThrowError("The labeled and unlabeled datasets must have the same number of columns. (The labels in the unlabeled set are just place-holders, and will be overwritten.)");
-	if(labelDims1 != labelDims2)
-		ThrowError("The labeled and unlabeled datasets must have the same number of label dims. (The labels in the unlabeled set are just place-holders, and will be overwritten.)");
 
-	// Split up the features and labels
-	GMatrix* pFeatures1 = pDataLabeled->cloneSub(0, 0, pDataLabeled->rows(), pDataLabeled->cols() - labelDims1);
-	Holder<GMatrix> hFeatures1(pFeatures1);
-	GMatrix* pLabels1 = pDataLabeled->cloneSub(0, pDataLabeled->cols() - labelDims1, pDataLabeled->rows(), labelDims1);
-	Holder<GMatrix> hLabels1(pLabels1);
-	GMatrix* pFeatures2 = pDataUnlabeled->cloneSub(0, 0, pDataUnlabeled->rows(), pDataLabeled->cols() - labelDims1);
-	Holder<GMatrix> hFeatures2(pFeatures2);
-	hDataLabeled.release();
-	pDataLabeled = NULL;
-	hDataUnlabeled.release();
-	pDataUnlabeled = NULL;
+	// Load the labeled and unlabeled sets
+	Holder<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
+	loadData(args, hFeatures1, hLabels1);
+	loadData(args, hFeatures2, hLabels2);
+	GMatrix* pFeatures1 = hFeatures1.get();
+	GMatrix* pLabels1 = hLabels1.get();
+	GMatrix* pFeatures2 = hFeatures2.get();
+	GMatrix* pLabels2 = hLabels2.get();
+	if(pFeatures1->cols() != pFeatures2->cols() || pLabels1->cols() != pLabels2->cols())
+		ThrowError("The labeled and unlabeled datasets must have the same number of columns. (The labels in the unlabeled set are just place-holders, and will be overwritten.)");
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args);
@@ -910,11 +933,11 @@ void Transduce(GArgReader& args)
 		ThrowError("Superfluous argument: ", args.peek());
 
 	// Transduce
-	GMatrix* pLabels2 = pSupLearner->transduce(*pFeatures1, *pLabels1, *pFeatures2);
-	Holder<GMatrix> hLabels2(pLabels2);
+	GMatrix* pLabels3 = pSupLearner->transduce(*pFeatures1, *pLabels1, *pFeatures2);
+	Holder<GMatrix> hLabels3(pLabels3);
 
 	// Print results
-	pLabels2->print(cout);
+	pLabels3->print(cout);
 }
 
 void TransductiveAccuracy(GArgReader& args)
@@ -934,31 +957,15 @@ void TransductiveAccuracy(GArgReader& args)
 
 	// Load the data sets
 	GRand prng(seed);
-	size_t labelDims1, labelDims2;
-	GMatrix* pDataTrain = loadData(args, &labelDims1);
-	Holder<GMatrix> hDataTrain(pDataTrain);
-	GMatrix* pDataTest = loadData(args, &labelDims2);
-	Holder<GMatrix> hDataTest(pDataTest);
-	if(pDataTrain->cols() != pDataTest->cols())
-		ThrowError("The train and test datasets must have the same number of columns. (The labels in the test set are just place-holders, and will be overwritten.)");
-	if(labelDims1 != labelDims2)
-		ThrowError("The train and test datasets must have the same number of label dims. (The labels in the test set are just place-holders, and will be overwritten.)");
-
-	// Split the training set into features and labels
-	GMatrix* pTrainFeatures = pDataTrain->cloneSub(0, 0, pDataTrain->rows(), pDataTrain->cols() - labelDims1);
-	Holder<GMatrix> hTrainFeatures(pTrainFeatures);
-	GMatrix* pTrainLabels = pDataTrain->cloneSub(0, pDataTrain->cols() - labelDims1, pDataTrain->rows(), labelDims1);
-	Holder<GMatrix> hTrainLabels(pTrainLabels);
-	hDataTrain.release();
-	pDataTrain = NULL;
-
-	// Split the test set into features and labels
-	GMatrix* pTestFeatures = pDataTest->cloneSub(0, 0, pDataTest->rows(), pDataTest->cols() - labelDims2);
-	Holder<GMatrix> hTestFeatures(pTestFeatures);
-	GMatrix* pTestLabels = pDataTest->cloneSub(0, pDataTest->cols() - labelDims2, pDataTest->rows(), labelDims2);
-	Holder<GMatrix> hTestLabels(pTestLabels);
-	hDataTest.release();
-	pDataTest = NULL;
+	Holder<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
+	loadData(args, hFeatures1, hLabels1);
+	loadData(args, hFeatures2, hLabels2);
+	GMatrix* pFeatures1 = hFeatures1.get();
+	GMatrix* pLabels1 = hLabels1.get();
+	GMatrix* pFeatures2 = hFeatures2.get();
+	GMatrix* pLabels2 = hLabels2.get();
+	if(pFeatures1->cols() != pFeatures2->cols() || pLabels1->cols() != pLabels2->cols())
+		ThrowError("The training and test datasets must have the same number of columns.");
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args);
@@ -967,17 +974,17 @@ void TransductiveAccuracy(GArgReader& args)
 		ThrowError("Superfluous argument: ", args.peek());
 
 	// Transduce and measure accuracy
-	GTEMPBUF(double, results, labelDims1);
+	GTEMPBUF(double, results, pLabels1->cols());
 	vector<GMatrix*> confusionMatrices;
-	pSupLearner->trainAndTest(*pTrainFeatures, *pTrainLabels, *pTestFeatures, *pTestLabels, results, confusion ? &confusionMatrices : NULL);
+	pSupLearner->trainAndTest(*pFeatures1, *pLabels1, *pFeatures2, *pLabels2, results, confusion ? &confusionMatrices : NULL);
 
 	// Print results
-	GVec::print(cout, 14, results, labelDims1);
+	GVec::print(cout, 14, results, pLabels1->cols());
 	cout << "\n";
 
 	// Print the confusion matrix
 	if(confusion)
-		printConfusionMatrices(pTestLabels->relation().get(), confusionMatrices);
+		printConfusionMatrices(pLabels2->relation().get(), confusionMatrices);
 }
 
 void SplitTest(GArgReader& args)
@@ -1009,17 +1016,10 @@ void SplitTest(GArgReader& args)
 
 	// Load the data
 	GRand prng(seed);
-	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-	size_t labelDims;
-	GMatrix* pData = loadData(args, &labelDims);
-	Holder<GMatrix> hData(pData);
-	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - labelDims);
-	Holder<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - labelDims, pData->rows(), labelDims);
-	Holder<GMatrix> hLabels(pLabels);
-	hData.release();
-	pData = NULL;
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args);
@@ -1037,9 +1037,9 @@ void SplitTest(GArgReader& args)
 	// Do the reps
 	size_t trainingPatterns = std::max((size_t)1, std::min(pFeatures->rows() - 1, (size_t)floor(pFeatures->rows() * trainRatio + 0.5)));
 	size_t testPatterns = pFeatures->rows() - trainingPatterns;
-	GTEMPBUF(double, results, 2 * labelDims);
-	double* repResults = results + labelDims;
-	GVec::setAll(results, 0, labelDims);
+	GTEMPBUF(double, results, 2 * pLabels->cols());
+	double* repResults = results + pLabels->cols();
+	GVec::setAll(results, 0, pLabels->cols());
 	for(size_t i = 0; i < reps; i++)
 	{
 		// Shuffle and split the data
@@ -1072,11 +1072,11 @@ void SplitTest(GArgReader& args)
 				}
 			}
 			cout << "rep " << i << ") ";
-			GVec::print(cout, 14, repResults, labelDims);
+			GVec::print(cout, 14, repResults, pLabels->cols());
 			cout << "\n";
 			double weight = 1.0 / (i + 1);
-			GVec::multiply(results, 1.0 - weight, labelDims);
-			GVec::addScaled(results, weight, repResults, labelDims);
+			GVec::multiply(results, 1.0 - weight, pLabels->cols());
+			GVec::addScaled(results, weight, repResults, pLabels->cols());
 
 			// Print the confusion matrix (if specified)
 			if(confusion)
@@ -1084,7 +1084,7 @@ void SplitTest(GArgReader& args)
 		}
 	}
 	cout << "-----\n";
-	GVec::print(cout, 14, results, labelDims);
+	GVec::print(cout, 14, results, pLabels->cols());
 	cout << "\n";
 }
 
@@ -1121,17 +1121,10 @@ void CrossValidate(GArgReader& args)
 		ThrowError("There must be at least 2 folds.");
 
 	// Load the data
-	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-	size_t labelDims;
-	GMatrix* pData = loadData(args, &labelDims);
-	Holder<GMatrix> hData(pData);
-	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - labelDims);
-	Holder<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - labelDims, pData->rows(), labelDims);
-	Holder<GMatrix> hLabels(pLabels);
-	hData.release();
-	pData = NULL;
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
 	GRand prng(seed);
@@ -1146,7 +1139,7 @@ void CrossValidate(GArgReader& args)
 	Holder<GMatrix> hResults(pResults);
 	if(!succinct)
 		cout << "-----\n";
-	for(size_t i = 0; i < labelDims; i++)
+	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
 		double mean = pResults->mean(i);
 		double variance = pResults->variance(i, mean);
@@ -1161,7 +1154,7 @@ void CrossValidate(GArgReader& args)
 		cout << mean;
 		if(succinct)
 		{
-			if(i + 1 < labelDims)
+			if(i + 1 < pLabels->cols())
 				cout << ", ";
 		}
 		else
@@ -1202,17 +1195,10 @@ void PrecisionRecall(GArgReader& args)
 		ThrowError("There must be at least 2 samples.");
 
 	// Load the data
-	if(args.size() < 1)
-		ThrowError("No dataset specified.");
-	size_t labelDims;
-	GMatrix* pData = loadData(args, &labelDims);
-	Holder<GMatrix> hData(pData);
-	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - labelDims);
-	Holder<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - labelDims, pData->rows(), labelDims);
-	Holder<GMatrix> hLabels(pLabels);
-	hData.release();
-	pData = NULL;
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
 	GRand prng(seed);
@@ -1230,7 +1216,7 @@ void PrecisionRecall(GArgReader& args)
 	((GArffRelation*)pRelation.get())->setName("untitled");
 	GArffRelation* pRel = (GArffRelation*)pRelation.get();
 	pRel->addAttribute("recall", 0, NULL);
-	for(size_t i = 0; i < labelDims; i++)
+	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
 		size_t valCount = std::max((size_t)1, pLabels->relation()->valueCount(i));
 		for(int val = 0; val < (int)valCount; val++)
@@ -1261,7 +1247,7 @@ void PrecisionRecall(GArgReader& args)
 	for(int i = 0; i < samples; i++)
 		results.row(i)[0] = (double)i / samples;
 	size_t pos = 1;
-	for(size_t i = 0; i < labelDims; i++)
+	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
 		size_t valCount = std::max((size_t)1, pLabels->relation()->valueCount(i));
 		double* precision = new double[valCount * samples];
@@ -1534,6 +1520,8 @@ int main(int argc, char *argv[])
 		{
 			if(args.if_pop("usage"))
 				ShowUsage(appName);
+			else if(args.if_pop("autoparams"))
+				autoParams(args);
 			else if(args.if_pop("train"))
 				Train(args);
 			else if(args.if_pop("test"))

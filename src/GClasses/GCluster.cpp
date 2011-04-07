@@ -1015,9 +1015,9 @@ GMatrix* GGraphCutTransducer::transduceInner(GMatrix& features1, GMatrix& labels
 			for(size_t i = 0; i < features1.rows(); i++)
 			{
 				if((int)labels1[i][0] == val)
-					gc.addEdge(0, 2 + (int)i, 1e12f); // connect to source
+					gc.addEdge(0, 2 + i, 1e12f); // connect to source
 				else
-					gc.addEdge(1, 2 + (int)i, 1e12f); // connect to sink
+					gc.addEdge(1, 2 + i, 1e12f); // connect to sink
 			}
 
 			// Cut

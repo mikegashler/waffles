@@ -2456,7 +2456,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("transpose")) Transpose(args);
 		else if(args.if_pop("ubpsparse")) ubpSparse(args);
 		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
-		else if(args.if_pop("zeroMean")) zeroMean(args);
+		else if(args.if_pop("zeromean")) zeroMean(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)

@@ -60,7 +60,7 @@ void GRelation::print(ostream& stream, GMatrix* pData, size_t precision)
 	// Write the attributes
 	for(size_t i = 0; i < size(); i++)
 	{
-		stream << "@ATTRIBUTE";
+		stream << "@ATTRIBUTE ";
 		printAttrName(stream, i);
 		stream << "\t";
 		if(valueCount(i) == 0)

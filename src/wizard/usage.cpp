@@ -188,7 +188,7 @@ UsageNode* makeLearnUsageTree()
 	{
 		UsageNode* pOpts = pTest->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pOpts->add("-confusion", "Additionally print a confusion matrix for each nominal label attribute");
+		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
 		pTest->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pTest->add("[dataset]=test.arff", "The filename of a test dataset in \".arff\" format. (This dataset must have the same number of columns as the dataset with which the model was trained.)");
 		UsageNode* pDO = pTest->add("<data_opts>");
@@ -212,7 +212,7 @@ UsageNode* makeLearnUsageTree()
 	{
 		UsageNode* pOpts = pTransAcc->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pOpts->add("-confusion", "Additionally print a confusion matrix for each nominal label attribute");
+		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
 		pTransAcc->add("[training-set]=train.arff", "The filename of a dataset in \".arff\" format. The labels in this dataset are used to infer labels for the unlabeled set.");
 		pTransAcc->add("[test-set]=test.arff", "The filename of a dataset in \".arff\" format. This dataset must have placeholder labels. The placeholder labels will be replaced in the output with the new predicted labels.");
 		UsageNode* pDO1 = pTransAcc->add("<data_opts1>");
@@ -233,7 +233,7 @@ UsageNode* makeLearnUsageTree()
 			   "to the given filename.  Note that this only works "
 			   "when the learner being used has an internal "
 			   "model.");
-		pOpts->add("-confusion", "Additionally print a confusion matrix for each nominal label attribute after each repetition.");
+		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute after each repetition.");
 		UsageNode* pDO = pSplitTest->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
@@ -706,7 +706,7 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-windowsize [n]=200", "Specify the number of epochs over which a certain amount of improvement is expected, or else training will terminate.");
 		pOpts->add("-improvementthresh [t]=0.002", "Specify the ratio of improvement that must be obtained over the window of epoches, or else training will terminate.");
 	}
-	pRoot->add("zeroMean [dataset]","Subtracts the mean from all values "
+	pRoot->add("zeromean [dataset]","Subtracts the mean from all values "
 		   "of all continuous attributes, so that their means in the "
 		   "result are zero.  Leaves nominal attributes untouched.");
 

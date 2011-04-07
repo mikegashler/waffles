@@ -20,38 +20,99 @@
 using namespace GClasses;
 
 GLinearRegressor::GLinearRegressor(GRand* pRand)
-: m_pRand(pRand), m_pPCA(NULL)
+: m_pRand(pRand), m_pBeta(NULL), m_pEpsilon(NULL)
 {
 }
 
 GLinearRegressor::GLinearRegressor(GTwtNode* pNode, GRand* pRand)
-: m_pRand(pRand)
+: GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
 {
-	m_pPCA = new GPCA(pNode->field("pca"), pRand);
+	m_pBeta = new GMatrix(pNode->field("beta"));
+	m_pEpsilon = new double[m_pBeta->rows()];
+	GVec::fromTwt(m_pEpsilon, m_pBeta->rows(), pNode->field("epsilon"));
 }
 
 // virtual
 GLinearRegressor::~GLinearRegressor()
 {
-	delete(m_pPCA);
+	delete(m_pBeta);
+	delete[] m_pEpsilon;
 }
 
 // virtual
 GTwtNode* GLinearRegressor::toTwt(GTwtDoc* pDoc)
 {
 	GTwtNode* pNode = baseTwtNode(pDoc, "GLinearRegressor");
-	pNode->addField(pDoc, "pca", m_pPCA->toTwt(pDoc));
+	pNode->addField(pDoc, "beta", m_pBeta->toTwt(pDoc));
+	pNode->addField(pDoc, "epsilon", GVec::toTwt(pDoc, m_pEpsilon, m_pBeta->rows()));
 	return pNode;
+}
+
+void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor)
+{
+	size_t fDims = features.cols();
+	size_t lDims = labels.cols();
+	size_t* pIndexes = new size_t[features.rows()];
+	GIndexVec::makeIndexVec(pIndexes, features.rows());
+	for(size_t i = 0; i < epochs; i++)
+	{
+		GIndexVec::shuffle(pIndexes, features.rows(), m_pRand);
+		size_t* pIndex = pIndexes;
+		for(size_t j = 0; j < features.rows(); j++)
+		{
+			double* pFeat = features[*pIndex];
+			double* pLab = labels[*pIndex];
+			double* pBias = m_pEpsilon;
+			for(size_t k = 0; k < lDims; k++)
+			{
+				double err = *pLab - (GVec::dotProduct(pFeat, m_pBeta->row(k), fDims) + *pBias);
+				double* pF = pFeat;
+				double* pW = m_pBeta->row(k);
+				for(size_t l = 0; l < fDims; l++)
+				{
+					*pW += *pF * learningRate * err;
+					pF++;
+					pW++;
+				}
+				*pBias += learningRate * err;
+				pLab++;
+				pBias++;
+			}
+			pIndex++;
+		}
+		learningRate *= learningRateDecayFactor;
+	}
 }
 
 // virtual
 void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 {
+	// Use a fast, but not-very-numerically-stable technique to compute an initial approximation for beta and epsilon
 	clear();
 	GMatrix* pAll = GMatrix::mergeHoriz(&features, &labels);
 	Holder<GMatrix> hAll(pAll);
-	m_pPCA = new GPCA(features.cols(), m_pRand);
-	m_pPCA->train(pAll);
+	GPCA pca(features.cols(), m_pRand);
+	pca.train(pAll);
+	size_t inputs = features.cols();
+	size_t outputs = labels.cols();
+	GMatrix f(inputs, inputs);
+	GMatrix l(inputs, outputs);
+	for(size_t i = 0; i < inputs; i++)
+	{
+		GVec::copy(f[i], pca.basis(i), inputs);
+		double sqmag = GVec::squaredMagnitude(f[i], inputs);
+		if(sqmag > 1e-10)
+			GVec::multiply(f[i], 1.0 / sqmag, inputs);
+		GVec::copy(l[i], pca.basis(i) + inputs, outputs);
+	}
+	m_pBeta = GMatrix::multiply(l, f, true, false);
+	m_pEpsilon = new double[outputs];
+	m_pBeta->multiply(pca.mean(), m_pEpsilon, false);
+	GVec::multiply(m_pEpsilon, -1.0, outputs);
+	GVec::add(m_pEpsilon, pca.mean() + inputs, outputs);
+
+	// Refine the results using gradient descent
+	refine(features, labels, 0.15, 8, 0.75);
 }
 
 // virtual
@@ -63,35 +124,21 @@ void GLinearRegressor::predictDistributionInner(const double* pIn, GPrediction* 
 // virtual
 void GLinearRegressor::predictInner(const double* pIn, double* pOut)
 {
-	size_t inputs = featureDims();
-	size_t outputs = labelDims();
-	GVec::copy(pOut, m_pPCA->mean() + inputs, outputs);
-	for(size_t i = 0; i < inputs; i++)
-	{
-		double dp = GVec::dotProduct(m_pPCA->mean(), pIn, m_pPCA->basis(i), inputs);
-		double mag = GVec::squaredMagnitude(m_pPCA->basis(i), inputs);
-		if(mag > 1e-10)
-		{
-			dp /= mag;
-			for(size_t j = 0; j < outputs; j++)
-				pOut[j] += dp * m_pPCA->basis(i)[inputs + j];
-		}
-	}
+	m_pBeta->multiply(pIn, pOut, false);
+	GVec::add(pOut, m_pEpsilon, m_pBeta->rows());
 }
 
 // virtual
 void GLinearRegressor::clear()
 {
-	delete(m_pPCA);
-	m_pPCA = NULL;
+	delete(m_pBeta);
+	m_pBeta = NULL;
 }
 
 #ifndef NO_TEST_CODE
-// static
-void GLinearRegressor::test()
+void GLinearRegressor_linear_test(GRand& prng)
 {
 	// Train
-	GRand prng(0);
 	GMatrix features1(0, 3);
 	GMatrix labels1(0, 1);
 	for(size_t i = 0; i < 1000; i++)
@@ -100,10 +147,22 @@ void GLinearRegressor::test()
 		pVec[0] = prng.uniform();
 		pVec[1] = prng.uniform(); // irrelevant attribute
 		pVec[2] = prng.uniform();
-		labels1.newRow()[0] = 7.0 * pVec[0] + 3.0 * pVec[2] + 5.0;
+		labels1.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
 	}
 	GLinearRegressor lr(&prng);
 	lr.train(features1, labels1);
+
+	// Check some values
+	if(lr.beta()->rows() != 1 || lr.beta()->cols() != 3)
+		ThrowError("failed");
+	if(std::abs(lr.beta()->row(0)[0] - 0.3) > 1e-6)
+		ThrowError("failed");
+	if(std::abs(lr.beta()->row(0)[1] - 0.0) > 1e-6)
+		ThrowError("failed");
+	if(std::abs(lr.beta()->row(0)[2] - 2.0) > 1e-6)
+		ThrowError("failed");
+	if(std::abs(lr.epsilon()[0] - 5.0) > 1e-6)
+		ThrowError("failed");
 
 	// Test
 	GMatrix features2(0, 3);
@@ -114,12 +173,21 @@ void GLinearRegressor::test()
 		pVec[0] = prng.uniform();
 		pVec[1] = prng.uniform(); // irrelevant attribute
 		pVec[2] = prng.uniform();
-		labels2.newRow()[0] = 7.0 * pVec[0] + 3.0 * pVec[2] + 5.0;
+		labels2.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
 	}
 	double results;
 	lr.accuracy(features2, labels2, &results);
-	if(results > 0.01)
+	if(results > 0.0005)
 		ThrowError("failed");
+}
+
+// static
+void GLinearRegressor::test()
+{
+	GRand prng(0);
+	GLinearRegressor_linear_test(prng);
+	GLinearRegressor lr(&prng);
+	lr.basicTest(0.77, 0.73, &prng);
 }
 #endif
 

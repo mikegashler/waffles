@@ -215,7 +215,8 @@ public:
 
 	/// Returns the number of layers in this neural network. (Every network has
 	/// at least one output layer, plus all of the hidden layers that you add by calling
-	/// addLayer.)
+	/// addLayer. The input vector does not count as a layer, even though it may be
+	/// common to visualize it as a layer.)
 	size_t layerCount() { return m_layers.size(); }
 
 	/// Returns a reference to the specified layer.
@@ -373,6 +374,10 @@ public:
 	/// This is teh same as setErrorOnOutputLayer, except that it only sets
 	/// the error on a single output node.
 	void setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction = squared_error);
+
+	/// Uses cross-validation to find a set of parameters that works well with
+	/// the provided data, and returns a neural net instantiated with those parameters.
+	static GNeuralNet* autoParams(GMatrix& features, GMatrix& labels, GRand& rand);
 
 protected:
 	/// Measures the sum squared error against the specified dataset

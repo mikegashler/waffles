@@ -356,15 +356,15 @@ double GTransducer::heuristicValidate(GMatrix& features, GMatrix& labels, GRand*
 	{
 		if(labels.relation()->valueCount(i) == 0)
 		{
-			err += pResults1[i];
-			err += pResults2[i];
+			err += 0.5 * pResults1[i];
+			err += 0.5 * pResults2[i];
 		}
 		else
 		{
-			double d = 1.000001 - pResults1[i];
-			err += (d * d);
-			d = 1.000001 - pResults2[i];
-			err += (d * d);
+			double d = 1.0 - pResults1[i];
+			err += 0.5 * d;
+			d = 1.0 - pResults2[i];
+			err += 0.5 * d;
 		}
 	}
 	return err;
@@ -934,12 +934,15 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
 
 	// Roundtrip the model through serialization
+	size_t labelDimsBefore = pLearner->labelDims();
 	GTwtDoc doc;
 	doc.setRoot(pLearner->toTwt(&doc));
 	pLearner->clear(); // free up some memory, just because we can
 	GLearnerLoader ll;
 	GSupervisedLearner* pModel = ll.loadModeler(doc.root(), pRand);
 	Holder<GSupervisedLearner> hModel(pModel);
+	if(pModel->labelDims() != labelDimsBefore)
+		ThrowError("label dims failed to round-trip. Did your deserializing constructor call the base class constructor?");
 
 	// Test the accuracy again
 	double resultsAfter;
