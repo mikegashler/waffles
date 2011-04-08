@@ -822,6 +822,22 @@ size_t GIndexVec::maxValue(size_t* pVec, size_t size)
 	return m;
 }
 
+// static
+size_t GIndexVec::indexOfMax(size_t* pVec, size_t size)
+{
+	size_t index = 0;
+	size_t m = *(pVec++);
+	size--;
+	while(size > 0)
+	{
+		if(*pVec > m)
+			m = *pVec;
+		pVec++;
+		size--;
+	}
+	return index;
+}
+
 
 
 

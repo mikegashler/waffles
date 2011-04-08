@@ -422,149 +422,168 @@ GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& l
 
 // -----------------------------------------------------------------------------------------
 
-GKMeans::GKMeans(size_t nClusters, GRand* pRand)
-: GClusterer(nClusters)
+GKMeans::GKMeans(size_t clusters, GRand* pRand)
+: GClusterer(clusters), m_pCentroids(NULL), m_pMetric(NULL), m_pData(NULL), m_pClusters(NULL), m_pRand(pRand)
 {
-	m_pRand = pRand;
-	m_nClusters = nClusters;
-	m_pClusters = NULL;
 }
 
 GKMeans::~GKMeans()
 {
-	delete[] m_pClusters;
+	delete(m_pCentroids);
+	delete(m_pMetric);
+	delete(m_pClusters);
 }
 
-bool GKMeans::selectSeeds(GMatrix* pSeeds)
+void GKMeans::setMetric(GDissimilarityMetric* pMetric)
 {
-	// Randomly select the seed points
-	size_t i, j, k, index;
-	double* pVector;
-	for(i = 0; i < m_nClusters; i++)
-	{
-		for(j = 0; j < m_nClusters; j++)
-		{
-			// Pick a point
-			index = (size_t)m_pRand->next(m_pData->rows());
-			pVector = m_pData->row(index);
+	delete(m_pMetric);
+	m_pMetric = pMetric;
+}
 
-			// Make sure we didn't pick the same point already
-			bool bOK = true;
+void GKMeans::init(GMatrix* pData)
+{
+	m_pData = pData;
+	if(!m_pMetric)
+		setMetric(new GRowDistance());
+	m_pMetric->init(pData->relation());
+	if(pData->rows() < (size_t)m_clusterCount)
+		ThrowError("Fewer data point than clusters");
+
+	// Initialize the centroids
+	delete(m_pCentroids);
+	m_pCentroids = new GMatrix(pData->relation());
+	m_pCentroids->newRows(m_clusterCount);
+	for(size_t i = 0; i < m_clusterCount; i++)
+	{
+		size_t j;
+		for(j = 0; j < 100; j++)
+		{
+			// Pick a random row to be a centroid
+			size_t index = m_pRand->next(m_clusterCount);
+
+			// Check if this row is already in use
+			size_t k;
 			for(k = 0; k < i; k++)
 			{
-				if(GVec::squaredDistance(pVector, pSeeds->row(k), m_nDims) <= 0)
-				{
-					bOK = false;
+				if(m_pMetric->dissimilarity(pData->row(index), m_pCentroids->row(k)) > 0)
 					break;
-				}
 			}
-
-			// Accept this seed point
-			if(bOK)
+			if(k == i) // If a unique instance was found...
 			{
-				pSeeds->copyRow(pVector);
+				GVec::copy(m_pCentroids->row(i), pData->row(index), pData->cols());
 				break;
 			}
 		}
-		if(j >= m_nClusters)
-			return false; // failed to find "m_nClusters" unique seed points
+		if(j >= 100)
+			ThrowError("A unique instance could not be found for a centroid in 100 random tries.");
 	}
-	return true;
+
+	// Initialize the clusters
+	delete(m_pClusters);
+	m_pClusters = new size_t[pData->rows()];
 }
 
-bool GKMeans::clusterAttempt(size_t nMaxIterations)
+double GKMeans::iterate()
 {
-	// Pick the seeds
-	GHeap heap(1000);
-	GMatrix means(0, m_nDims, &heap);
-	means.reserve(m_nClusters);
-	if(!selectSeeds(&means))
-		return false;
-	GAssert(means.rows() == m_nClusters);
-
-	// Do the clustering
-	GTEMPBUF(size_t, pCounts, means.rows());
-	double d, dBestDist;
-	double* pVector;
-	bool bChanged;
-	size_t i;
-	for(i = 0; i < (size_t)nMaxIterations; i++)
+	// Assign each row to a cluster
+	double sse = 0.0;
+	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
-		// Assign new cluster to each point
-		bChanged = false;
-		for(size_t j = 0; j < m_pData->rows(); j++)
+		double best = 1e308;
+		size_t clust = 0;
+		for(size_t j = 0; j < m_clusterCount; j++)
 		{
-			pVector = m_pData->row(j);
-			dBestDist = 1e200;
-			size_t nCluster = 0;
-			for(size_t k = 0; k < m_nClusters; k++)
+			double d = m_pMetric->dissimilarity(m_pData->row(i), m_pCentroids->row(j));
+			if(d < best)
 			{
-				d = GVec::squaredDistance(pVector, means.row(k), m_nDims);
-				if(d < dBestDist)
-				{
-					dBestDist = d;
-					nCluster = k;
-				}
+				clust = i;
+				best = d;
 			}
-			if(m_pClusters[j] != nCluster)
-				bChanged = true;
-			m_pClusters[j] = nCluster;
 		}
-		if(!bChanged)
-			break;
-
-		// Update the seeds
-		for(size_t j = 0; j < means.rows(); j++)
-			GVec::setAll(means.row(j), 0.0, m_nDims);
-		memset(pCounts, '\0', sizeof(size_t) * means.rows());
-		for(size_t j = 0; j < m_pData->rows(); j++)
-		{
-			GVec::add(means.row(m_pClusters[j]), m_pData->row(j), m_nDims);
-			pCounts[m_pClusters[j]]++;
-		}
-		for(size_t j = 0; j < means.rows(); j++)
-			GVec::multiply(means.row(j), 1.0 / pCounts[j], m_nDims);
+		sse += best;
+		m_pClusters[i] = clust;
 	}
-	return (i < (size_t)nMaxIterations);
+
+	// Recompute the centroids
+	for(size_t i = 0; i < m_clusterCount; i++)
+	{
+		for(size_t j = 0; j < m_pData->cols(); j++)
+		{
+			size_t vals = m_pData->relation()->valueCount(j);
+			if(vals == 0)
+			{
+				double sum = 0.0;
+				size_t count = 0;
+				for(size_t k = 0; k < m_pData->rows(); k++)
+				{
+					if(m_pClusters[k] == i)
+					{
+						double d = m_pData->row(k)[j];
+						if(d != UNKNOWN_REAL_VALUE)
+						{
+							sum += d;
+							count++;
+						}
+					}
+				}
+				if(count > 0)
+					m_pCentroids->row(i)[j] = sum / count;
+				else
+					m_pCentroids->row(i)[j] = UNKNOWN_REAL_VALUE;
+			}
+			else
+			{
+				size_t* pFreq = new size_t[vals];
+				ArrayHolder<size_t> hFreq(pFreq);
+				memset(pFreq, 0, sizeof(size_t) * vals);
+				for(size_t k = 0; k < m_pData->rows(); k++)
+				{
+					if(m_pClusters[k] == i)
+					{
+						int v = (int)m_pData->row(k)[j];
+						if(v >= 0 && (size_t)v < vals)
+							pFreq[v]++;
+					}
+				}
+				size_t index = GIndexVec::indexOfMax(pFreq, vals);
+				if(pFreq[index] == 0)
+					m_pCentroids->row(i)[j] = 0;//UNKNOWN_DISCRETE_VALUE;
+				else
+					m_pCentroids->row(i)[j] = (double)index;
+			}
+		}
+	}
+	return sse;
 }
 
 // virtual
 void GKMeans::cluster(GMatrix* pData)
 {
-	if(!pData->relation()->areContinuous(0, pData->cols()))
-		ThrowError("GKMeans doesn't support nominal attributes. You should filter with the NominalToCat transform to convert nominal values to reals.");
-	m_nDims = pData->relation()->size();
-	if(pData->rows() < m_nClusters)
-		throw "The number of clusters must be less than the number of data points";
-	delete[] m_pClusters;
-	m_pData = pData;
-	m_pClusters = new size_t[pData->rows()];
-	memset(m_pClusters, 0xff, sizeof(size_t) * pData->rows());
-	size_t i;
-	for(i = 0; i < 5; i++)
+	init(pData);
+	double sse = 1e308;
+	while(true)
 	{
-		if(clusterAttempt(m_nDims * pData->rows()))
+		double d = iterate();
+		if(d >= sse)
 			break;
+		sse = d;
 	}
-	GAssert(i < 5);
 }
 
 // virtual
-size_t GKMeans::whichCluster(size_t nVector)
+size_t GKMeans::whichCluster(size_t index)
 {
-	GAssert(nVector < m_pData->rows());
-	return m_pClusters[nVector];
+	GAssert(index < m_pData->rows());
+	return m_pClusters[index];
 }
 
 
 // -----------------------------------------------------------------------------------------
 
 GKMedoids::GKMedoids(size_t clusters)
-: GClusterer(clusters)
+: GClusterer(clusters), m_pMetric(NULL), m_pData(NULL)
 {
 	m_pMedoids = new size_t[clusters];
-	m_pMetric = NULL;
-	m_pData = NULL;
 }
 
 // virtual

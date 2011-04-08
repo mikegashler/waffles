@@ -369,11 +369,22 @@ void GRand_testRange()
 		ThrowError("poor max");
 }
 
+void GRand_test_determinism()
+{
+	static unsigned int expected[] = { 1917992778u, 1993289697u, 632158740u, 2429171905u, 22912061u, 2753716493u, 316743267u, 3124664097u, 382509932u, 191925157u, 2298038407u, 246378453u, 1806533664u, 2162141831u, 2260504017u, 3155449906u };
+	GRand rand(12345678);
+	for(size_t i = 0; i < 16; i++)
+	{
+		if((unsigned int)rand.next() != expected[i])
+			ThrowError("failed");
+	}
+}
+
 // static
 void GRand::test()
 {
 	GRand_testBitHistogram();
-	
+
 	// Test cycle length
 	int n;
 	uint64 rnd;
@@ -395,6 +406,7 @@ void GRand::test()
 	}
 
 	GRand_testRange();
+	GRand_test_determinism();
 	//GRand_testSpeed();
 	// todo: add a test for correlations
 }

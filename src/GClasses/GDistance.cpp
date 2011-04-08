@@ -58,15 +58,22 @@ GDissimilarityMetric* GDissimilarityMetric::fromTwt(GTwtNode* pNode)
 
 // --------------------------------------------------------------------
 
+GRowDistance::GRowDistance()
+: GDissimilarityMetric(), m_diffWithUnknown(1.0)
+{
+}
+
 GRowDistance::GRowDistance(GTwtNode* pNode)
 : GDissimilarityMetric(pNode)
 {
+	m_diffWithUnknown = pNode->field("dwu")->asDouble();
 }
 
 // virtual
 GTwtNode* GRowDistance::toTwt(GTwtDoc* pDoc)
 {
 	GTwtNode* pNode = baseTwtNode(pDoc, "GRowDistance");
+	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
 	return pNode;
 }
 
@@ -79,15 +86,26 @@ void GRowDistance::init(sp_relation& pRelation)
 // virtual
 double GRowDistance::dissimilarity(const double* pA, const double* pB)
 {
+	GRelation* pRel = m_pRelation.get();
 	double sum = 0;
-	size_t count = m_pRelation->size();
+	size_t count = pRel->size();
 	double d;
 	for(size_t i = 0; i < count; i++)
 	{
-		if(m_pRelation->valueCount(i) == 0)
-			d = *pB - *pA;
+		if(pRel->valueCount(i) == 0)
+		{
+			if(*pA == UNKNOWN_REAL_VALUE || *pB == UNKNOWN_REAL_VALUE)
+				d = m_diffWithUnknown;
+			else
+				d = *pB - *pA;
+		}
 		else
-			d = ((int)*pB == (int)*pA ? 0 : 1);
+		{
+			if((int)*pA == UNKNOWN_DISCRETE_VALUE || (int)*pB == UNKNOWN_DISCRETE_VALUE)
+				d = 1;
+			else
+				d = ((int)*pB == (int)*pA ? 0 : 1);
+		}
 		pA++;
 		pB++;
 		sum += (d * d);

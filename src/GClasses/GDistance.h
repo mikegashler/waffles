@@ -90,24 +90,29 @@ protected:
 /// pA[i]-pB[i] is 0 if they are the same and 1 if they are different.
 class GRowDistance : public GDissimilarityMetric
 {
+protected:
+	double m_diffWithUnknown;
+
 public:
-        GRowDistance()
-        : GDissimilarityMetric()
-        {
-        }
+	GRowDistance();
+	GRowDistance(GTwtNode* pNode);
 
-        GRowDistance(GTwtNode* pNode);
+	virtual ~GRowDistance() {}
 
-        virtual ~GRowDistance() {}
+	/// See the comment for GDissimilarityMetric::toTwt
+	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-        /// See the comment for GDissimilarityMetric::toTwt
-        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// See the comment for GDissimilarityMetric::init
+	virtual void init(sp_relation& pRelation);
 
-        /// See the comment for GDissimilarityMetric::init
-        virtual void init(sp_relation& pRelation);
+	/// Returns the distance between pA and pB
+	virtual double dissimilarity(const double* pA, const double* pB);
 
-        /// Returns the distance between pA and pB
-        virtual double dissimilarity(const double* pA, const double* pB);
+	/// Specify the difference to use when one or more of the values is unknown.
+	/// (If your data contains unknown values, you may want to normalize the
+	/// known values to fall within some pre-determined range, so that it will
+	/// be possible to select a reasonable value for this purpose.)
+	void setDiffWithUnknown(double d) { m_diffWithUnknown = d; }
 };
 
 

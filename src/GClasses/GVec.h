@@ -220,6 +220,10 @@ public:
 
 	/// Returns the max value
 	static size_t maxValue(size_t* pVec, size_t size);
+
+	/// Returns the index of the max value. In the event of a tie, the
+	/// smallest index of one of the max values is returned.
+	static size_t indexOfMax(size_t* pVec, size_t size);
 };
 
 

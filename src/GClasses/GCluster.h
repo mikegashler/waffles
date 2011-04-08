@@ -156,9 +156,10 @@ protected:
 class GKMeans : public GClusterer
 {
 protected:
-	size_t m_nDims;
+	GMatrix* m_pCentroids;
+	GDissimilarityMetric* m_pMetric;
+	bool m_ownMetric;
 	GMatrix* m_pData;
-	size_t m_nClusters;
 	size_t* m_pClusters;
 	GRand* m_pRand;
 
@@ -166,11 +167,22 @@ public:
 	GKMeans(size_t nClusters, GRand* pRand);
 	~GKMeans();
 
+	/// Takes ownership of pMetric
+	void setMetric(GDissimilarityMetric* pMetric);
+
 	/// Performs clustering
 	virtual void cluster(GMatrix* pData);
 
 	/// Identifies the cluster of the specified row
 	virtual size_t whichCluster(size_t nVector);
+
+	/// Selects random centroids and initializes internal data structures
+	void init(GMatrix* pData);
+
+	/// Assigns each row to the cluster of the nearest centroid as measured
+	/// with the dissimilarity metric, then computes new centroids for each cluster.
+	/// Returns the sum-squared-distance of each row with its centroid.
+	double iterate();
 
 protected:
 	bool clusterAttempt(size_t nMaxIterations);
