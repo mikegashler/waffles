@@ -180,9 +180,14 @@ public:
 	void init(GMatrix* pData);
 
 	/// Assigns each row to the cluster of the nearest centroid as measured
-	/// with the dissimilarity metric, then computes new centroids for each cluster.
-	/// Returns the sum-squared-distance of each row with its centroid.
-	double iterate();
+	/// with the dissimilarity metric. Returns the sum-squared-distance of each row with its centroid.
+	double assignClusters();
+
+	/// Computes new centroids for each cluster.
+	void recomputeCentroids();
+
+	/// Returns a k x d matrix, where each row is one of the k centroids.
+	GMatrix* centroids() { return m_pCentroids; }
 
 protected:
 	bool clusterAttempt(size_t nMaxIterations);

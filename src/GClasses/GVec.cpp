@@ -828,12 +828,17 @@ size_t GIndexVec::indexOfMax(size_t* pVec, size_t size)
 	size_t index = 0;
 	size_t m = *(pVec++);
 	size--;
+	size_t i = 1;
 	while(size > 0)
 	{
 		if(*pVec > m)
+		{
 			m = *pVec;
+			index = i;
+		}
 		pVec++;
 		size--;
+		i++;
 	}
 	return index;
 }

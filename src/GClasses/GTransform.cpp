@@ -1036,7 +1036,7 @@ void GNormalize::train(GMatrix* pData)
 	{
 		if(m_pRelationBefore->valueCount(i) == 0)
 		{
-			pData->minAndRangeUnbiased(i, &m_pMins[i], &m_pRanges[i]);
+			pData->minAndRange(i, &m_pMins[i], &m_pRanges[i]);
 			if(m_pRanges[i] < 1e-12)
 				m_pRanges[i] = 1.0;
 		}

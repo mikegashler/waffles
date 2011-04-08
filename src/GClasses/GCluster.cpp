@@ -465,7 +465,7 @@ void GKMeans::init(GMatrix* pData)
 			size_t k;
 			for(k = 0; k < i; k++)
 			{
-				if(m_pMetric->dissimilarity(pData->row(index), m_pCentroids->row(k)) > 0)
+				if(m_pMetric->dissimilarity(pData->row(index), m_pCentroids->row(k)) == 0)
 					break;
 			}
 			if(k == i) // If a unique instance was found...
@@ -483,7 +483,7 @@ void GKMeans::init(GMatrix* pData)
 	m_pClusters = new size_t[pData->rows()];
 }
 
-double GKMeans::iterate()
+double GKMeans::assignClusters()
 {
 	// Assign each row to a cluster
 	double sse = 0.0;
@@ -496,14 +496,18 @@ double GKMeans::iterate()
 			double d = m_pMetric->dissimilarity(m_pData->row(i), m_pCentroids->row(j));
 			if(d < best)
 			{
-				clust = i;
+				clust = j;
 				best = d;
 			}
 		}
 		sse += best;
 		m_pClusters[i] = clust;
 	}
+	return sse;
+}
 
+void GKMeans::recomputeCentroids()
+{
 	// Recompute the centroids
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
@@ -547,13 +551,12 @@ double GKMeans::iterate()
 				}
 				size_t index = GIndexVec::indexOfMax(pFreq, vals);
 				if(pFreq[index] == 0)
-					m_pCentroids->row(i)[j] = 0;//UNKNOWN_DISCRETE_VALUE;
+					m_pCentroids->row(i)[j] = UNKNOWN_DISCRETE_VALUE;
 				else
 					m_pCentroids->row(i)[j] = (double)index;
 			}
 		}
 	}
-	return sse;
 }
 
 // virtual
@@ -561,11 +564,12 @@ void GKMeans::cluster(GMatrix* pData)
 {
 	init(pData);
 	double sse = 1e308;
-	while(true)
+	for(size_t iters = 0; true; iters++)
 	{
-		double d = iterate();
-		if(d >= sse)
+		double d = assignClusters();
+		if(d >= sse && iters > 2)
 			break;
+		recomputeCentroids();
 		sse = d;
 	}
 }
