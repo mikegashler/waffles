@@ -131,7 +131,8 @@ public:
 	GSparseMatrix* transpose();
 
 	/// Performs singular value decomposition. (Takes advantage of sparsity to
-	/// perform the decomposition efficiently.)
+	/// perform the decomposition efficiently.) Throws an exception if the default
+	/// value is not 0.0.
 	void singularValueDecomposition(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge = false, size_t maxIters = 80);
 
 protected:

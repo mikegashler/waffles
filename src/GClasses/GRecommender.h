@@ -159,9 +159,39 @@ public:
 
 
 
-/// This class makes recommendations by using an unsupervised form of
-/// back-propagation to train a neural network model to predict the ratings
-/// of each user from a latent preference vector which is also learned.
+/// This factors the sparse matrix of ratings, M, such that M = QP^T
+/// where each row in Q gives the principal preferences for the corresponding
+/// user, and each row in P gives the linear combination of those preferences
+/// that map to a rating for an item. (Actually, P also contains an extra column
+/// added for a bias.)
+class GMatrixFactorization : public GCollaborativeFilter
+{
+protected:
+	size_t m_intrinsicDims;
+	size_t m_regularizer;
+	GMatrix* m_pP;
+	GMatrix* m_pQ;
+	GRand& m_rand;
+
+public:
+	GMatrixFactorization(size_t intrinsicDims, GRand& rand);
+	virtual ~GMatrixFactorization();
+
+	/// Set the regularization value
+	void setRegularizer(double d) { m_regularizer = d; }
+
+	/// See the comment for GRecommender::trainBatch
+	virtual void trainBatch(GSparseMatrix* pData);
+
+	/// See the comment for GRecommender::predict
+	virtual double predict(size_t user, size_t item);
+};
+
+
+
+/// This class trains a generative neural network to fit the sparse matrix
+/// of ratings. This may be seen as a non-linear generalization of matrix
+/// factorization.
 class GNeuralRecommender : public GCollaborativeFilter
 {
 protected:

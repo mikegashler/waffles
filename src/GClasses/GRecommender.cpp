@@ -519,6 +519,135 @@ double GClusterRecommender::predict(size_t user, size_t item)
 
 
 
+class Rating
+{
+public:
+	size_t m_user;
+	size_t m_item;
+	double m_rating;
+};
+
+GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims, GRand& rand)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.0001), m_pP(NULL), m_pQ(NULL), m_rand(rand)
+{
+}
+
+// virtual
+GMatrixFactorization::~GMatrixFactorization()
+{
+	delete(m_pP);
+	delete(m_pQ);
+}
+
+// virtual
+void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
+{
+	// Make a single list of all the ratings
+	GHeap heap(2048);
+	vector<Rating*> ratings;
+	for(size_t user = 0; user < pData->rows(); user++)
+	{
+		for(GSparseMatrix::Iter it = pData->rowBegin(user); it != pData->rowEnd(user); it++)
+		{
+			Rating* pRating = (Rating*)heap.allocAligned(sizeof(Rating));
+			pRating->m_user = user;
+			pRating->m_item = it->first;
+			pRating->m_rating = it->second;
+			ratings.push_back(pRating);
+		}
+	}
+
+	// Initialize P with small random values, and Q with zeros
+	delete(m_pP);
+	delete(m_pQ);
+	m_pP = new GMatrix(pData->rows(), 1 + m_intrinsicDims);
+	for(size_t i = 0; i < m_pP->rows(); i++)
+	{
+		double* pVec = m_pP->row(i);
+		for(size_t j = 0; j <= m_intrinsicDims; j++)
+			*(pVec++) = 0.1 * m_rand.normal();
+	}
+	m_pQ = new GMatrix(pData->cols(), m_intrinsicDims);
+	m_pQ->setAll(0.0);
+
+	// Train
+	double prevErr = 1e308;
+	double learningRate = 0.2;
+	GTEMPBUF(double, temp_weights, m_intrinsicDims);
+	while(learningRate >= 0.01)
+	{
+		// Shuffle the ratings
+		for(size_t n = ratings.size(); n > 0; n--)
+			std::swap(ratings[(size_t)m_rand.next(n)], ratings[n - 1]);
+
+		// Do an epoch of training
+		double sse = 0;
+		for(vector<Rating*>::iterator it = ratings.begin(); it != ratings.end(); it++)
+		{
+			Rating* pRating = *it;
+
+			// Estimate the prediction
+			double* pVec = m_pP->row(pRating->m_item);
+			double* pPref = m_pQ->row(pRating->m_user);
+			double pred = *(pVec++);
+			for(size_t i = 0; i < m_intrinsicDims; i++)
+				pred += *(pPref++) * (*pVec++);
+
+			// Update P
+			double err = pRating->m_rating - pred;
+			sse += (err * err);
+			pVec = m_pP->row(pRating->m_item);
+			pPref = m_pQ->row(pRating->m_user);
+			*pVec += learningRate * err;
+			pVec++;
+			double* pT = temp_weights;
+			for(size_t i = 0; i < m_intrinsicDims; i++)
+			{
+				*(pT++) = *pVec;
+				*pVec += learningRate * err * *pPref;
+				pPref++;
+				pVec++;
+			}
+
+			// Update Q
+			pVec = temp_weights;
+			pPref = m_pQ->row(pRating->m_user);
+			pVec++;
+			for(size_t i = 0; i < m_intrinsicDims; i++)
+			{
+				*pPref += learningRate * err * *pVec;
+				pVec++;
+				pPref++;
+			}
+
+			// Regularize
+			GVec::multiply(m_pP->row(pRating->m_item) + 1, 1.0 - m_regularizer, m_intrinsicDims);
+			GVec::multiply(m_pQ->row(pRating->m_user), 1.0 - m_regularizer, m_intrinsicDims);
+		}
+
+		// Stopping criteria
+		double rsse = sqrt(sse);
+		if(1.0 - (rsse / prevErr) < 0.0001) // If the amount of improvement is less than 0.01%
+			learningRate *= 0.8; // decay the learning rate
+		prevErr = sse;
+	}
+}
+
+// virtual
+double GMatrixFactorization::predict(size_t user, size_t item)
+{
+	double* pVec = m_pP->row(item);
+	double* pPref = m_pQ->row(user);
+	double pred = *(pVec++);
+	for(size_t i = 0; i < m_intrinsicDims; i++)
+		pred += *(pPref++) * (*pVec++);
+	return pred;
+}
+
+
+
+
+
 
 
 
@@ -535,14 +664,6 @@ GNeuralRecommender::~GNeuralRecommender()
 	delete(m_pModel);
 	delete(m_pUsers);
 }
-
-class Rating
-{
-public:
-	size_t m_user;
-	size_t m_item;
-	double m_rating;
-};
 
 // virtual
 void GNeuralRecommender::trainBatch(GSparseMatrix* pData)

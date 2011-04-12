@@ -1058,9 +1058,15 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
 		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
 	}
-	UsageNode* pNeural = pRoot->add("neural [intrinsic] <options>", "A neural-network-based collaborative-filtering recommendation algorithm.");
+	UsageNode* pMF = pRoot->add("matrixfactorization [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm.");
 	{
-		pInst->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
+		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
+		UsageNode* pOpts = pMF->add("<options>");
+		pOpts->add("-regularize [value]=0.0001", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small values in the matrix factors.");
+	}
+	UsageNode* pNeural = pRoot->add("neural [intrinsic] <options>", "A neural-network-based collaborative-filtering algorithm.");
+	{
+		pNeural->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
 		UsageNode* pOpts = pNeural->add("<options>");
 		pOpts->add("-addlayer [size]=8", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
 		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");

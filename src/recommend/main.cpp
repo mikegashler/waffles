@@ -127,6 +127,22 @@ GClusterRecommender* InstantiateClusterRecommender(GRand* pRand, GArgReader& arg
 	return pModel;
 }
 
+GMatrixFactorization* InstantiateMatrixFactorization(GRand* pRand, GArgReader& args)
+{
+	if(args.size() < 1)
+		ThrowError("The number of intrinsic dims must be specified for this algorithm");
+	size_t intrinsicDims = args.pop_uint();
+	GMatrixFactorization* pModel = new GMatrixFactorization(intrinsicDims, *pRand);
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-regularize"))
+			pModel->setRegularizer(args.pop_double());
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+	return pModel;
+}
+
 GNeuralRecommender* InstantiateNeuralRecommender(GRand* pRand, GArgReader& args)
 {
 	if(args.size() < 1)

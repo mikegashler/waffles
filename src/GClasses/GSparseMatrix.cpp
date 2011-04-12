@@ -263,6 +263,8 @@ double GSparseMatrix_takeSign(double a, double b)
 
 void GSparseMatrix::singularValueDecomposition(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters)
 {
+	if(m_defaultValue != 0.0)
+		ThrowError("Expected the default value to be 0");
 	if(rows() >= cols())
 		singularValueDecompositionHelper(ppU, ppDiag, ppV, throwIfNoConverge, maxIters);
 	else
