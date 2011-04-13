@@ -309,6 +309,25 @@ UsageNode* makeSparseUsageTree()
 		pPredict->add("[sparse-matrix]=features.sparse", "The filename of a sparse matrix of features for which labels should be predicted. (The feature matrix should not contain labels.)");
 		pPredict->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
 	}
+	UsageNode* pShuffle = pRoot->add("shuffle [sparse-matrix] <options>", "Shuffles the row order of a sparse matrix.");
+	{
+		pShuffle->add("[sparse-matrix]=features.arff", "The filename of a sparse matrix (not an ARFF file).");
+		UsageNode* pOpts = pShuffle->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+	}
+	UsageNode* pSplit = pRoot->add("split [sparse-matrix] [rows] [filename1] [filename2]", "Splits a sparse matrix into two datasets. Nothing is printed to stdout.");
+	{
+		pSplit->add("[sparse-matrix]=features.arff", "The filename of a sparse matrix.");
+		pSplit->add("[rows]=200", "The number of rows to put in the first file. The rest go in the second file.");
+	}
+	UsageNode* pSplitFold = pRoot->add("splitfold [dataset] [i] [n] <options>", "Divides a sparse dataset into [n] parts of approximately equal size, then puts part [i] into one file, and the other [n]-1 parts in another file. (This tool may be useful, for example, to implement n-fold cross validation.)");
+	{
+		pSplitFold->add("[dataset]=features.arff", "The filename of a sparse datset.");
+		pSplitFold->add("[i]=0", "The (zero-based) index of the fold, or the part to put into the training set. [i] must be less than [n].");
+		pSplitFold->add("[n]=10", "The number of folds.");
+		UsageNode* pOpts = pSplitFold->add("<options>");
+		pOpts->add("-out [train_filename] [test_filename]", "Specify the filenames for the training and test portions of the data. The default values are train.sparse and test.sparse.");
+	}
 	UsageNode* pTest = pRoot->add("test <options> [model-file] [sparse-features] [labels]", "Evaluates predictive accuracy for nominal labels, and mean-squared-error for continuous labels. Prints the score to stdout.");
 	{
 		UsageNode* pOpts = pTest->add("<options>");
@@ -619,25 +638,6 @@ UsageNode* makeTransformUsageTree()
 		pSortCol->add("[col]=0", "The zero-indexed column number in which to sort");
 		UsageNode* pOpts = pSortCol->add("<options>");
 		pOpts->add("-descending", "Sort in descending order instead of ascending order.");
-	}
-	UsageNode* pSS = pRoot->add("sparsehuffle [sparse-matrix] <options>", "Shuffles the row order or a sparse matrix.");
-	{
-		pSS->add("[sparse-matrix]=features.arff", "The filename of a sparse matrix (not an ARFF file).");
-		UsageNode* pOpts = pSS->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-	}
-	UsageNode* pSSplit = pRoot->add("sparsesplit [sparse-matrix] [rows] [filename1] [filename2]", "Splits a sparse matrix into two datasets. Nothing is printed to stdout.");
-	{
-		pSSplit->add("[sparse-matrix]=features.arff", "The filename of a sparse matrix.");
-		pSSplit->add("[rows]=200", "The number of rows to put in the first file. The rest go in the second file.");
-	}
-	UsageNode* pSSplitFold = pRoot->add("sparsesplitfold [dataset] [i] [n] <options>", "Divides a sparse dataset into [n] parts of approximately equal size, then puts part [i] into one file, and the other [n]-1 parts in another file. (This tool may be useful, for example, to implement n-fold cross validation.)");
-	{
-		pSSplitFold->add("[dataset]=features.arff", "The filename of a sparse datset.");
-		pSSplitFold->add("[i]=0", "The (zero-based) index of the fold, or the part to put into the training set. [i] must be less than [n].");
-		pSSplitFold->add("[n]=10", "The number of folds.");
-		UsageNode* pOpts = pSSplitFold->add("<options>");
-		pOpts->add("-out [train_filename] [test_filename]", "Specify the filenames for the training and test portions of the data. The default values are train.sparse and test.sparse.");
 	}
 	UsageNode* pSplit = pRoot->add("split [dataset] [rows] [filename1] [filename2] <options>", "Split a dataset into two datasets. (Nothing is printed to stdout.)");
 	{

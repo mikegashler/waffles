@@ -1761,116 +1761,6 @@ void selfOrganizingMap(GArgReader& args){
   out->print(cout);
 }
 
-void sparseShuffle(GArgReader& args)
-{
-	// Load
-	GTwtDoc doc;
-	doc.load(args.pop_string());
-	GSparseMatrix* pData = new GSparseMatrix(doc.root());
-	Holder<GSparseMatrix> hData(pData);
-
-	// Parse options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	string labelsIn;
-	string labelsOut;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			nSeed = args.pop_uint();
-		else if(args.if_pop("-labels"))
-		{
-			labelsIn = args.pop_string();
-			labelsOut = args.pop_string();
-		}
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Shuffle and print
-	GRand prng(nSeed);
-	GMatrix* pLabels = NULL;
-	Holder<GMatrix> hLabels(NULL);
-	if(labelsIn.length() > 0)
-	{
-		pLabels = loadData(labelsIn.c_str());
-		hLabels.reset(pLabels);
-	}
-	pData->shuffle(&prng, pLabels);
-	GTwtDoc doc2;
-	doc2.setRoot(pData->toTwt(&doc2));
-	doc2.write(cout);
-	if(pLabels)
-		pLabels->saveArff(labelsOut.c_str());
-}
-
-void sparseSplit(GArgReader& args)
-{
-	// Load
-	GTwtDoc doc;
-	doc.load(args.pop_string());
-	GSparseMatrix* pData = new GSparseMatrix(doc.root());
-	Holder<GSparseMatrix> hData(pData);
-	size_t pats1 = args.pop_uint();
-	size_t pats2 = pData->rows() - pats1;
-	if(pats2 < 0)
-		ThrowError("out of range. The data only has ", to_str(pData->rows()), " rows.");
-	const char* szFilename1 = args.pop_string();
-	const char* szFilename2 = args.pop_string();
-
-	// Split
-	GSparseMatrix* pPart1 = pData->subMatrix(0, 0, pData->cols(), pats1);
-	Holder<GSparseMatrix> hPart1(pPart1);
-	GSparseMatrix* pPart2 = pData->subMatrix(0, pats1, pData->cols(), pats2);
-	Holder<GSparseMatrix> hPart2(pPart2);
-	doc.setRoot(pPart1->toTwt(&doc));
-	doc.save(szFilename1);
-	doc.setRoot(pPart2->toTwt(&doc));
-	doc.save(szFilename2);
-}
-
-void sparseSplitFold(GArgReader& args)
-{
-	// Load
-	GTwtDoc doc;
-	doc.load(args.pop_string());
-	GSparseMatrix* pData = new GSparseMatrix(doc.root());
-	Holder<GSparseMatrix> hData(pData);
-	size_t fold = args.pop_uint();
-	size_t folds = args.pop_uint();
-	if(fold >= folds)
-		ThrowError("fold index out of range. It must be less than the total number of folds.");
-
-	// Options
-	string filenameTrain = "train.sparse";
-	string filenameTest = "test.sparse";
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-out"))
-		{
-			filenameTrain = args.pop_string();
-			filenameTest = args.pop_string();
-		}
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Copy relevant portions of the data
-	GSparseMatrix train(0, pData->cols());
-	GSparseMatrix test(0, pData->cols());
-	size_t begin = pData->rows() * fold / folds;
-	size_t end = pData->rows() * (fold + 1) / folds;
-	for(size_t i = 0; i < begin; i++)
-		train.copyRow(pData->row(i));
-	for(size_t i = begin; i < end; i++)
-		test.copyRow(pData->row(i));
-	for(size_t i = end; i < pData->rows(); i++)
-		train.copyRow(pData->row(i));
-	doc.setRoot(train.toTwt(&doc));
-	doc.save(filenameTrain.c_str());
-	doc.setRoot(test.toTwt(&doc));
-	doc.save(filenameTest.c_str());
-}
-
 void split(GArgReader& args)
 {
 	// Load
@@ -2277,6 +2167,74 @@ void ubpSparse(GArgReader& args)
 	}
 }
 
+void ubpSystem(GArgReader& args)
+{
+	// Load the observations and actions
+	GMatrix* pObs = loadData(args.pop_string());
+	Holder<GMatrix> hObs(pObs);
+	GMatrix* pActions = loadData(args.pop_string());
+	Holder<GMatrix> hActions(pActions);
+
+	// Target dims
+	int targetDims = args.pop_uint();
+
+	// Parse Options
+	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	GRand prng(nSeed);
+	GUnsupervisedBackProp ubp(targetDims, &prng);
+	vector<size_t> paramRanges;
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-seed"))
+			prng.setSeed(args.pop_uint());
+		else if(args.if_pop("-params"))
+		{
+			size_t paramDims = args.pop_uint();
+			for(size_t i = 0; i < paramDims; i++)
+				paramRanges.push_back(args.pop_uint());
+		}
+		else if(args.if_pop("-addlayer"))
+			ubp.neuralNet()->addLayer(args.pop_uint());
+		else if(args.if_pop("-learningrate"))
+			ubp.neuralNet()->setLearningRate(args.pop_double());
+		else if(args.if_pop("-activation"))
+		{
+			const char* szSF = args.pop_string();
+			GActivationFunction* pSF = NULL;
+			if(strcmp(szSF, "logistic") == 0)
+				pSF = new GActivationLogistic();
+			else if(strcmp(szSF, "arctan") == 0)
+				pSF = new GActivationArcTan();
+			else if(strcmp(szSF, "tanh") == 0)
+				pSF = new GActivationTanH();
+			else if(strcmp(szSF, "algebraic") == 0)
+				pSF = new GActivationAlgebraic();
+			else if(strcmp(szSF, "identity") == 0)
+				pSF = new GActivationIdentity();
+			else if(strcmp(szSF, "gaussian") == 0)
+				pSF = new GActivationGaussian();
+			else if(strcmp(szSF, "sinc") == 0)
+				pSF = new GActivationSinc();
+			else if(strcmp(szSF, "bend") == 0)
+				pSF = new GActivationBend();
+			else if(strcmp(szSF, "bidir") == 0)
+				pSF = new GActivationBiDir();
+			else if(strcmp(szSF, "piecewise") == 0)
+				pSF = new GActivationPiecewise();
+			else
+				ThrowError("Unrecognized activation function: ", szSF);
+			ubp.neuralNet()->setActivationFunction(pSF, true);
+		}
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Transform the data
+	GMatrix* pDataAfter = ubp.doitCameraSystem(paramRanges, pObs, pActions);
+	Holder<GMatrix> hDataAfter(pDataAfter);
+	pDataAfter->print(cout);
+}
+
 void unsupervisedBackProp(GArgReader& args)
 {
 	// Load the file and params
@@ -2443,9 +2401,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("significance")) significance(args);
 		else if(args.if_pop("som")) selfOrganizingMap(args);
 		else if(args.if_pop("sortcolumn")) SortByAttribute(args);
-		else if(args.if_pop("sparseshuffle")) sparseShuffle(args);
-		else if(args.if_pop("sparsesplit")) sparseSplit(args);
-		else if(args.if_pop("sparsesplitfold")) sparseSplitFold(args);
 		else if(args.if_pop("split")) split(args);
 		else if(args.if_pop("splitfold")) splitFold(args);
 		else if(args.if_pop("squaredDistance")) squaredDistance(args);
@@ -2455,6 +2410,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
 		else if(args.if_pop("ubpsparse")) ubpSparse(args);
+		else if(args.if_pop("ubpsystem")) ubpSystem(args);
 		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
 		else if(args.if_pop("zeromean")) zeroMean(args);
 		else ThrowError("Unrecognized command: ", args.peek());

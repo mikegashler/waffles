@@ -32,7 +32,7 @@
 		vector&lt;string&gt; m_friends;
 	};
 </pre>
-, and you would like to write a method that will convert it to a twt DOM. Here is how you would do it:
+, and you would like to write a method that will serialize your object by converting it to a twt DOM. Here is how you would do it:
 <pre>
 	GTwtNode* MyClass::toTwt(GTwtDoc* pDoc)
 	{
@@ -49,8 +49,9 @@
 </pre>
 This code will create a DOM with the following structure:<br>
 <center><img src="dom.png"></center></p>
+<p>By design, each node in the twt DOM may have child nodes, or it may contain a value, but not both. This forms a natural separation between data (in the leaf nodes) and meta-data (represented by the interior nodes). Since it is bad practice to stuff data values into interior nodes in a DOM anyway, this is a good limitation.</p>
 
-<p>Next, let's write some code that will construct your object using the DOM
+<p>Next, let's write some code that will deserialize your object by constructing it from the DOM
 <pre>
 	void MyClass::MyClass(GTwtNode* pNode)
 	{

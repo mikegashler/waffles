@@ -53,6 +53,22 @@ using std::string;
 using std::vector;
 using std::set;
 
+GMatrix* loadData(const char* szFilename)
+{
+	// Load the dataset by extension
+	PathData pd;
+	GFile::parsePath(szFilename, &pd);
+	GMatrix* pData = NULL;
+	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
+		pData = GMatrix::loadArff(szFilename);
+	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
+		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
+		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+	else
+		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+	return pData;
+}
 
 GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args);
 
@@ -655,6 +671,116 @@ void docsToSparseMatrix(GArgReader& args)
 		pLabels->saveArff(labelsFilename.c_str());
 }
 
+void shuffle(GArgReader& args)
+{
+	// Load
+	GTwtDoc doc;
+	doc.load(args.pop_string());
+	GSparseMatrix* pData = new GSparseMatrix(doc.root());
+	Holder<GSparseMatrix> hData(pData);
+
+	// Parse options
+	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	string labelsIn;
+	string labelsOut;
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-seed"))
+			nSeed = args.pop_uint();
+		else if(args.if_pop("-labels"))
+		{
+			labelsIn = args.pop_string();
+			labelsOut = args.pop_string();
+		}
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Shuffle and print
+	GRand prng(nSeed);
+	GMatrix* pLabels = NULL;
+	Holder<GMatrix> hLabels(NULL);
+	if(labelsIn.length() > 0)
+	{
+		pLabels = loadData(labelsIn.c_str());
+		hLabels.reset(pLabels);
+	}
+	pData->shuffle(&prng, pLabels);
+	GTwtDoc doc2;
+	doc2.setRoot(pData->toTwt(&doc2));
+	doc2.write(cout);
+	if(pLabels)
+		pLabels->saveArff(labelsOut.c_str());
+}
+
+void split(GArgReader& args)
+{
+	// Load
+	GTwtDoc doc;
+	doc.load(args.pop_string());
+	GSparseMatrix* pData = new GSparseMatrix(doc.root());
+	Holder<GSparseMatrix> hData(pData);
+	size_t pats1 = args.pop_uint();
+	size_t pats2 = pData->rows() - pats1;
+	if(pats2 < 0)
+		ThrowError("out of range. The data only has ", to_str(pData->rows()), " rows.");
+	const char* szFilename1 = args.pop_string();
+	const char* szFilename2 = args.pop_string();
+
+	// Split
+	GSparseMatrix* pPart1 = pData->subMatrix(0, 0, pData->cols(), pats1);
+	Holder<GSparseMatrix> hPart1(pPart1);
+	GSparseMatrix* pPart2 = pData->subMatrix(0, pats1, pData->cols(), pats2);
+	Holder<GSparseMatrix> hPart2(pPart2);
+	doc.setRoot(pPart1->toTwt(&doc));
+	doc.save(szFilename1);
+	doc.setRoot(pPart2->toTwt(&doc));
+	doc.save(szFilename2);
+}
+
+void splitFold(GArgReader& args)
+{
+	// Load
+	GTwtDoc doc;
+	doc.load(args.pop_string());
+	GSparseMatrix* pData = new GSparseMatrix(doc.root());
+	Holder<GSparseMatrix> hData(pData);
+	size_t fold = args.pop_uint();
+	size_t folds = args.pop_uint();
+	if(fold >= folds)
+		ThrowError("fold index out of range. It must be less than the total number of folds.");
+
+	// Options
+	string filenameTrain = "train.sparse";
+	string filenameTest = "test.sparse";
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-out"))
+		{
+			filenameTrain = args.pop_string();
+			filenameTest = args.pop_string();
+		}
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Copy relevant portions of the data
+	GSparseMatrix train(0, pData->cols());
+	GSparseMatrix test(0, pData->cols());
+	size_t begin = pData->rows() * fold / folds;
+	size_t end = pData->rows() * (fold + 1) / folds;
+	for(size_t i = 0; i < begin; i++)
+		train.copyRow(pData->row(i));
+	for(size_t i = begin; i < end; i++)
+		test.copyRow(pData->row(i));
+	for(size_t i = end; i < pData->rows(); i++)
+		train.copyRow(pData->row(i));
+	doc.setRoot(train.toTwt(&doc));
+	doc.save(filenameTrain.c_str());
+	doc.setRoot(test.toTwt(&doc));
+	doc.save(filenameTest.c_str());
+}
+
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -729,6 +855,9 @@ int main(int argc, char *argv[])
 			else if(args.if_pop("docstosparsematrix")) docsToSparseMatrix(args);
 			else if(args.if_pop("train")) train(args);
 			else if(args.if_pop("predict")) predict(args);
+			else if(args.if_pop("shuffle")) shuffle(args);
+			else if(args.if_pop("split")) split(args);
+			else if(args.if_pop("splitfold")) splitFold(args);
 			else if(args.if_pop("test")) test(args);
 			else
 			{

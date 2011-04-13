@@ -86,6 +86,7 @@ UsageNode* makeCryptoUsageTree()
 		pOpts->add("-startlen [n]", "Specify the starting password length. That is, don't try any passwords smaller than [n] characters.");
 		pOpts->add("-part [n]", "Start on the specified part of the possible combinations of passwords. [n] should be a number from 0 to c-1, where c is the number of characters in the character set.");
 		pOpts->add("-onepartonly", "Only do one part, and then exit. This option is useful for doing it in parallel, such that each parallel process does a different part.");
+		pOpts->add("-stoponcollision", "Terminate when the first collision is found.");
 	}
 	UsageNode* pCC = pRoot->add("commandcenter <options>", "Run an inter-active command-center program that enables you to direct your satellites.");
 	{
@@ -524,7 +525,7 @@ void nthash(const char* password, unsigned char* hash)
 #endif
 }
 
-void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* charSet, size_t part, bool onePartOnly)
+void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* charSet, size_t part, bool onePartOnly, bool stopOnCollision)
 {
 	unsigned char candHash[16];
 	if(passwordLen == 0)
@@ -532,10 +533,11 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 		nthash("", candHash);
 		if(*(size_t*)candHash == *(size_t*)hash && memcmp(candHash, hash, 16) == 0)
 		{
-			cout << "\r                \rFound a collision: <empty password>\n";
+			cout << "\r                        \rFound a collision: <empty password>\n";
 			cout.flush();
 		}
-		return;
+		if(stopOnCollision)
+			return;
 	}
 	cout.precision(8);
 	GTEMPBUF(const char*, pChars, passwordLen);
@@ -561,8 +563,10 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 		nthash(cand, candHash);
 		if(*(size_t*)candHash == *(size_t*)hash && memcmp(candHash, hash, 16) == 0)
 		{
-			cout << "\r                \rFound a collision: " << cand << "\n";
+			cout << "\r                        \rFound a collision: " << cand << "\n";
 			cout.flush();
+			if(stopOnCollision)
+				return;
 		}
 
 		// Advance
@@ -575,7 +579,7 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 				pChars[i] = charSet;
 				if(i == termLen)
 				{
-					cout << "\r                \r";
+					cout << "\r                        \r";
 					return; // All done
 				}
 			}
@@ -598,7 +602,7 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 				num *= charSetLen;
 			}
 			double prog = (double)num * 100 / den; // convert to a percentage
-			cout << "\r                          \r" << prog << "% (part " << (pChars[passwordLen - 1] - charSet) << "/" << charSetLen << ")";
+			cout << "\r                                    \r" << prog << "% (part " << (pChars[passwordLen - 1] - charSet) << "/" << charSetLen << ")";
 			cout.flush();
 		}
 	}
@@ -615,6 +619,7 @@ void bruteForceNTPassword(GArgReader& args)
 	size_t startLen = 0;
 	size_t part = 0;
 	bool onePartOnly = false;
+	bool stopOnCollision = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-charset"))
@@ -637,6 +642,8 @@ void bruteForceNTPassword(GArgReader& args)
 			part = args.pop_uint();
 		else if(args.if_pop("-onepartonly"))
 			onePartOnly = true;
+		else if(args.if_pop("-stoponcollision"))
+			stopOnCollision = true;
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
@@ -657,7 +664,7 @@ void bruteForceNTPassword(GArgReader& args)
 
 	cout << "Character set: " << charset << "\n";
 	if(onePartOnly)
-		bruteForceNTPassword(startLen, hash, charset.c_str(), part, onePartOnly);
+		bruteForceNTPassword(startLen, hash, charset.c_str(), part, onePartOnly, stopOnCollision);
 	else
 	{
 		size_t len = startLen;
@@ -665,7 +672,7 @@ void bruteForceNTPassword(GArgReader& args)
 		{
 			cout << "Trying passwords of length " << len << ":\n";
 			cout.flush();
-			bruteForceNTPassword(len++, hash, charset.c_str(), part, onePartOnly);
+			bruteForceNTPassword(len++, hash, charset.c_str(), part, onePartOnly, stopOnCollision);
 		}
 	}
 }

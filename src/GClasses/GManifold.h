@@ -449,13 +449,16 @@ public:
 	/// values will take longer, but may yield better results. Larger values will go faster,
 	/// but suffer moew from local optima problems.
 	void setRate(double d) { m_rate = d; }
-	
+
 	/// Perform NLDR. (This also trains the internal neural network to map from
 	/// low-dimensional space to high-dimensional space.)
 	virtual GMatrix* doit(GMatrix* pIn);
 
 	/// Peform NLDR using a sparse matrix as input
 	GMatrix* doitSparse(GSparseMatrix* pData);
+
+	/// Learn intrinsic values for a dynamical system that uses a camera for observations
+	GMatrix* doitCameraSystem(std::vector<size_t>& paramRanges, GMatrix* pObservations, GMatrix* pActions);
 
 	/// Projects an intrinsic low-dimensional vector to the corresponding high-dimensional
 	/// observation vector.

@@ -38,13 +38,13 @@ This creates two files, named "features.sparse" and "labels.arff". features.spar
 
 <p>Now that you've got your data into a sparse matrix, you might want to shuffle the rows. This command will shuffle features.arff and labels.arff in a manner that preserves corresponding rows:
 <pre>
-	waffles_transform sparseshuffle features.sparse -labels labels.arff l_shuffled.arff > f_shuffled.sparse
+	waffles_sparse shuffle features.sparse -labels labels.arff l_shuffled.arff > f_shuffled.sparse
 </pre></p>
 
 <p>Next, let's use cross-validation to decide which model is the best. The following commands will divide f_shuffled.sparse into two files named train.sparse and test.sparse, and will divide l_shuffled.arff into two files named train.arff and test.arff:
 <pre>
-	sparsesplitfold f_shuffled.sparse 0 10
-	splitfold l_shuffled.arff 0 10
+	waffles_sparse splitfold f_shuffled.sparse 0 10
+	waffles_transform splitfold l_shuffled.arff 0 10
 </pre>
 This example shows how to divide the data for fold 0. To do ten-fold cross-validation, we would repeat these commands for each fold from 0 to 9.</p>
 

@@ -2435,7 +2435,7 @@ public:
 
 GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 {
-	// Initialize the user preference vectors
+	// Initialize the intrinsic vectors
 	GMatrix* pIntrinsic = new GMatrix(pData->rows(), m_intrinsicDims);
 	Holder<GMatrix> hIntrinsic(pIntrinsic);
 
@@ -2499,7 +2499,7 @@ GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 			GVec::capValues(pInt, cap, m_intrinsicDims);
 		}
 
-		// Terminate when the root-sum-squared-error does not improve by 0.01% within a window of 10 epochs
+		// Terminate when the root-sum-squared-error does not improve by some amount within a window of epochs
 		double rsse = sqrt(sse);
 		if(1.0 - (rsse / baseRsse) >= m_pNN->improvementThresh())
 		{
@@ -2515,5 +2515,73 @@ GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 	return hIntrinsic.release();
 }
 
+GMatrix* GUnsupervisedBackProp::doitCameraSystem(vector<size_t>& paramRanges, GMatrix* pObservations, GMatrix* pActions)
+{
+	// Check assumptions
+	if(pObservations->rows() != pActions->rows())
+		ThrowError("Expected pObservations and pActions to have the same number of rows");
+	if(!pObservations->relation()->areContinuous(0, pObservations->cols()))
+		ThrowError("Expected continuous observations");
+	if(!pActions->relation()->areContinuous(0, pActions->cols()))
+		ThrowError("Expected continuous actions");
+
+	// Initialize the state vectors
+	GMatrix* pIntrinsic = new GMatrix(pObservations->rows(), m_intrinsicDims);
+	Holder<GMatrix> hIntrinsic(pIntrinsic);
+
+	// Compute the number of channels
+	GCoordVectorIterator cvi(paramRanges);
+	size_t paramDims = paramRanges.size();
+	size_t pixels = cvi.coordCount();
+	size_t channels = pObservations->cols() / pixels;
+	if(pixels < 1 || channels < 1 || pixels * channels != pObservations->cols())
+		ThrowError("The provided paramRanges are not compatible with the number of observation dims");
+
+	// Prep the model for incremental training
+	sp_relation pFeatureRel = new GUniformRelation(paramDims + m_intrinsicDims);
+	sp_relation pLabelRel = new GUniformRelation(channels);
+	m_pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
+	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
+	pIntrinsic->setAll(pAF->center());
+
+	// Train
+	double floor = pAF->center() - pAF->halfRange();
+	double cap = pAF->center() + pAF->halfRange();
+	GTEMPBUF(double, feat, paramDims + m_intrinsicDims);
+	GMatrix inputs(pIntrinsic->rows(), pActions->cols() + m_intrinsicDims);
+	inputs.copyColumns(0, pActions, 0, pActions->cols());
+double startTime = GTime::seconds();
+	while(GTime::seconds() - startTime < 7200) // 2 hours
+	{
+		// Do some training
+		for(size_t i = 0; i < 100000; i++)
+		{
+			cvi.setRandom(m_pRand);
+			cvi.currentNormalized(feat);
+			size_t index = m_pRand->next(pIntrinsic->rows());
+			double* pInt = pIntrinsic->row(index);
+			GVec::copy(feat + paramDims, pInt, m_intrinsicDims);
+			m_pNN->forwardProp(feat);
+			m_pNN->setErrorOnOutputLayer(pObservations->row(index) + channels * cvi.currentIndex());
+			m_pNN->backProp()->backpropagate();
+			m_pNN->backProp()->descendGradient(feat, m_pNN->learningRate(), m_pNN->momentum());
+			m_pNN->backProp()->adjustFeatures(pInt, m_pNN->learningRate(), paramDims);
+			GVec::floorValues(pInt, floor, m_intrinsicDims);
+			GVec::capValues(pInt, cap, m_intrinsicDims);
+		}
+
+std::cout << ".";
+std::cout.flush();
+
+		// Align intrinsic state
+		inputs.copyColumns(pActions->cols(), pIntrinsic, 0, m_intrinsicDims);
+		GDynamicSystemStateAligner dsa(12, inputs, *m_pRand);
+		pIntrinsic = dsa.doit(pIntrinsic);
+		hIntrinsic.reset(pIntrinsic);
+std::cout << "'";
+std::cout.flush();
+	}
+	return hIntrinsic.release();
+}
 
 } // namespace GClasses

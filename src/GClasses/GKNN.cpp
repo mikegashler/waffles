@@ -389,7 +389,10 @@ void GKNN::findNeighbors(const double* pVector)
 	if(m_pDistanceMetric)
 	{
 		if(!m_pNeighborFinder)
+		{
+			//m_pNeighborFinder = new GBruteForceNeighborFinder(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
 			m_pNeighborFinder = new GKdTree(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
+		}
 		m_pNeighborFinder->neighbors(m_pEvalNeighbors, m_pEvalDistances, pVector);
 	}
 	else
