@@ -344,10 +344,9 @@ GBucket::~GBucket()
 GTwtNode* GBucket::toTwt(GTwtDoc* pDoc)
 {
 	GTwtNode* pNode = baseTwtNode(pDoc, "GBucket");
-	GTwtNode* pModels = pNode->addField(pDoc, "models", pDoc->newList(m_models.size()));
-	for(size_t i = 0; i < m_models.size(); i++)
-		pModels->setItem(i, m_models[i]->toTwt(pDoc));
-	pNode->addField(pDoc, "best", pDoc->newInt(m_nBestLearner));
+	GTwtNode* pModels = pNode->addField(pDoc, "models", pDoc->newList(1));
+	pModels->setItem(0, m_models[m_nBestLearner]->toTwt(pDoc));
+	pNode->addField(pDoc, "best", pDoc->newInt(0));
 	return pNode;
 }
 
@@ -442,6 +441,7 @@ void GBucket::test()
 	GBucket bucket(&prng);
 	bucket.addLearner(new GBaselineLearner());
 	bucket.addLearner(new GDecisionTree(&prng));
+	bucket.addLearner(new GMeanMarginsTree(&prng));
 	bucket.basicTest(0.69, 0.76, &prng);
 }
 #endif

@@ -1163,6 +1163,8 @@ GTwtNode* GBaselineLearner::toTwt(GTwtDoc* pDoc)
 {
 	GTwtNode* pNode = baseTwtNode(pDoc, "GBaselineLearner");
 	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
+	if(m_prediction.size() == 0)
+		ThrowError("Attempted to serialize a model that has not been trained");
 	GTwtNode* pPred = pNode->addField(pDoc, "pred", pDoc->newList(m_prediction.size()));
 	for(size_t i = 0; i < m_prediction.size(); i++)
 		pPred->setItem(i, pDoc->newDouble(m_prediction[i]));

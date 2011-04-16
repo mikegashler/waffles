@@ -251,7 +251,7 @@ void test_document_classification()
 
 		// Shuffle the data
 		GPipe pipeStdOut;
-		sysExec("waffles_transform", "sparseshuffle features.sparse -seed 0 -labels labels.arff l2.arff", &pipeStdOut);
+		sysExec("waffles_sparse", "shuffle features.sparse -seed 0 -labels labels.arff l2.arff", &pipeStdOut);
 		pipeStdOut.toFile("f2.sparse");
 		TempFileMaker tempF2("f2.sparse", NULL);
 		TempFileMaker tempL2("l2.arff", NULL);
@@ -274,10 +274,10 @@ void test_document_classification()
 		for(size_t i = 0; i < 18; i++)
 		{
 			// Separate the test fold from the rest of the data
-			string sArgs1 = "sparsesplitfold f2.sparse ";
+			string sArgs1 = "splitfold f2.sparse ";
 			sArgs1 += to_str(i);
 			sArgs1 += " 18";
-			sysExec("waffles_transform", sArgs1.c_str());
+			sysExec("waffles_sparse", sArgs1.c_str());
 			string sArgs2 = "splitfold l2.arff ";
 			sArgs2 += to_str(i);
 			sArgs2 += " 18";

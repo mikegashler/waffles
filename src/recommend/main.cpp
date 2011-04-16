@@ -201,8 +201,8 @@ GNeuralRecommender* InstantiateNeuralRecommender(GRand* pRand, GArgReader& args)
 
 void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 {
-	cout << "_________________________________\n";
-	cout << szMessage << "\n\n";
+	cerr << "_________________________________\n";
+	cerr << szMessage << "\n\n";
 	const char* szAlgName = args.peek();
 	UsageNode* pAlgTree = makeCollaborativeFilterUsageTree();
 	Holder<UsageNode> hAlgTree(pAlgTree);
@@ -211,23 +211,23 @@ void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 		UsageNode* pUsageAlg = pAlgTree->choice(szAlgName);
 		if(pUsageAlg)
 		{
-			cout << "Partial Usage Information:\n\n";
-			pUsageAlg->print(0, 3, 76, 1000, true);
+			cerr << "Partial Usage Information:\n\n";
+			pUsageAlg->print(cerr, 0, 3, 76, 1000, true);
 		}
 		else
 		{
-			cout << "\"" << szAlgName << "\" is not a recognized algorithm. Try one of these:\n\n";
-			pAlgTree->print(0, 3, 76, 1, false);
+			cerr << "\"" << szAlgName << "\" is not a recognized algorithm. Try one of these:\n\n";
+			pAlgTree->print(cerr, 0, 3, 76, 1, false);
 		}
 	}
 	else
 	{
-		cout << "Expected an algorithm. Here are some choices:\n";
-		pAlgTree->print(0, 3, 76, 1, false);
+		cerr << "Expected an algorithm. Here are some choices:\n";
+		pAlgTree->print(cerr, 0, 3, 76, 1, false);
 	}
-	cout << "\nTo see full usage information, run:\n	waffles_learn usage\n\n";
-	cout << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
-	cout.flush();
+	cerr << "\nTo see full usage information, run:\n	waffles_learn usage\n\n";
+	cerr << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
+	cerr.flush();
 }
 
 GCollaborativeFilter* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
@@ -480,17 +480,17 @@ void ShowUsage(const char* appName)
 	cout << "\n";
 	UsageNode* pUsageTree = makeRecommendUsageTree();
 	Holder<UsageNode> hUsageTree(pUsageTree);
-	pUsageTree->print(0, 3, 76, 1000, true);
+	pUsageTree->print(cout, 0, 3, 76, 1000, true);
 	UsageNode* pUsageTree2 = makeCollaborativeFilterUsageTree();
 	Holder<UsageNode> hUsageTree2(pUsageTree2);
-	pUsageTree2->print(0, 3, 76, 1000, true);
+	pUsageTree2->print(cout, 0, 3, 76, 1000, true);
 	cout.flush();
 }
 
 void showError(GArgReader& args, const char* szAppName, const char* szMessage)
 {
-	cout << "_________________________________\n";
-	cout << szMessage << "\n\n";
+	cerr << "_________________________________\n";
+	cerr << szMessage << "\n\n";
 	args.set_pos(1);
 	const char* szCommand = args.peek();
 	UsageNode* pUsageTree = makeRecommendUsageTree();
@@ -500,30 +500,30 @@ void showError(GArgReader& args, const char* szAppName, const char* szMessage)
 		UsageNode* pUsageCommand = pUsageTree->choice(szCommand);
 		if(pUsageCommand)
 		{
-			cout << "Brief Usage Information:\n\n";
-			cout << szAppName << " ";
-			pUsageCommand->print(0, 3, 76, 1000, true);
+			cerr << "Brief Usage Information:\n\n";
+			cerr << szAppName << " ";
+			pUsageCommand->print(cerr, 0, 3, 76, 1000, true);
 			if(pUsageCommand->findPart("[collab-filter]") >= 0)
 			{
 				UsageNode* pAlgTree = makeCollaborativeFilterUsageTree();
 				Holder<UsageNode> hAlgTree(pAlgTree);
-				pAlgTree->print(1, 3, 76, 2, false);
+				pAlgTree->print(cerr, 1, 3, 76, 2, false);
 			}
 		}
 		else
 		{
-			cout << "Brief Usage Information:\n\n";
-			pUsageTree->print(0, 3, 76, 1, false);
+			cerr << "Brief Usage Information:\n\n";
+			pUsageTree->print(cerr, 0, 3, 76, 1, false);
 		}
 	}
 	else
 	{
-		pUsageTree->print(0, 3, 76, 1, false);
-		cout << "\nFor more specific usage information, enter as much of the command as you know.\n";
+		pUsageTree->print(cerr, 0, 3, 76, 1, false);
+		cerr << "\nFor more specific usage information, enter as much of the command as you know.\n";
 	}
-	cout << "\nTo see full usage information, run:\n	" << szAppName << " usage\n\n";
-	cout << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
-	cout.flush();
+	cerr << "\nTo see full usage information, run:\n	" << szAppName << " usage\n\n";
+	cerr << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
+	cerr.flush();
 }
 
 int main(int argc, char *argv[])

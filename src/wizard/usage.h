@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <stdlib.h>
+#include <iostream>
 #include "../GClasses/GError.h"
 
 //#define DEBUG_HELPERS
@@ -26,7 +27,7 @@ public:
 	UsageNode(const char* templ, const char* descr);
 	~UsageNode();
 	UsageNode* add(const char* templ, const char* descr = "");
-	void print(int depth, int tabSize, int maxWidth, int maxDepth, bool descriptions);
+	void print(std::ostream& stream, int depth, int tabSize, int maxWidth, int maxDepth, bool descriptions);
 
 	const char* tok() { return m_parts[0].c_str(); }
 	void setTok(const char* tok)

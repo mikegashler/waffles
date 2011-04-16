@@ -317,7 +317,7 @@ GDecisionTree::~GDecisionTree()
 GTwtNode* GDecisionTree::toTwt(GTwtDoc* pDoc)
 {
 	if(!m_pRoot)
-		ThrowError("not trained yet");
+		ThrowError("Attempted to serialize a model that has not been trained");
 	GTwtNode* pNode = baseTwtNode(pDoc, "GDecisionTree");
 	pNode->addField(pDoc, "frel", m_pFeatureRel->toTwt(pDoc));
 	pNode->addField(pDoc, "lrel", m_pLabelRel->toTwt(pDoc));
@@ -947,6 +947,8 @@ GTwtNode* GMeanMarginsTree::toTwt(GTwtDoc* pDoc)
 	GTwtNode* pNode = baseTwtNode(pDoc, "GMeanMarginsTree");
 	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
 	pNode->addField(pDoc, "ild", pDoc->newInt(m_internalLabelDims));
+	if(!m_pRoot)
+		ThrowError("Attempted to serialize a model that has not been trained");
 	pNode->addField(pDoc, "root", m_pRoot->toTwt(pDoc, m_internalFeatureDims, m_internalLabelDims));
 	return pNode;
 }

@@ -1,13 +1,11 @@
 #include "usage.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GString.h"
-#include <iostream>
 #include <cstring>
 
 using namespace GClasses;
 using std::string;
 using std::vector;
-using std::cout;
 
 UsageNode::UsageNode(const char* templ, const char* descr)
 {
@@ -100,20 +98,20 @@ void UsageNode::sig(string* pS)
 	}
 }
 
-void UsageNode::print(int depth, int tabSize, int maxWidth, int maxDepth, bool descriptions)
+void UsageNode::print(std::ostream& stream, int depth, int tabSize, int maxWidth, int maxDepth, bool descriptions)
 {
 	// Print the token and args
 	for(int i = 0; i < depth; i++)
 		for(int j = 0; j < tabSize; j++)
-			cout << " ";
+			stream << " ";
 	vector<string>::iterator it = m_parts.begin();
-	cout << (*it);
+	stream << (*it);
 	for(it++; it != m_parts.end(); it++)
 	{
-		cout << " ";
-		cout << (*it);
+		stream << " ";
+		stream << (*it);
 	}
-	cout << "\n";
+	stream << "\n";
 
 	// Print the description
 	if(descriptions)
@@ -126,9 +124,9 @@ void UsageNode::print(int depth, int tabSize, int maxWidth, int maxDepth, bool d
 				break;
 			for(int i = 0; i <= depth; i++)
 				for(int j = 0; j < tabSize; j++)
-					cout << " ";
-			cout << szLine;
-			cout << "\n";
+					stream << " ";
+			stream << szLine;
+			stream << "\n";
 		}
 	}
 
@@ -136,7 +134,7 @@ void UsageNode::print(int depth, int tabSize, int maxWidth, int maxDepth, bool d
 	if(depth < maxDepth)
 	{
 		for(vector<UsageNode*>::iterator it = m_choices.begin(); it != m_choices.end(); it++)
-			(*it)->print(depth + 1, tabSize, maxWidth, maxDepth, descriptions);
+			(*it)->print(stream, depth + 1, tabSize, maxWidth, maxDepth, descriptions);
 	}
 }
 
