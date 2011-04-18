@@ -116,18 +116,14 @@ void GAssertFailed()
 {
 	cerr << "Debug Assert Failed!\n";
 	cerr.flush();
-#	ifdef WIN32
-	__asm int 3
-#	else
 	__debugbreak();
-#	endif
 }
 #else
 void GAssertFailed()
 {
 	cerr << "Debug Assert Failed!\n";
 	cerr.flush();
-	kill(getpid(), SIGINT);
+	raise(SIGINT);
 }
 
 int _stricmp(const char* szA, const char* szB)

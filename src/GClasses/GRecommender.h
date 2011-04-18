@@ -168,7 +168,7 @@ class GMatrixFactorization : public GCollaborativeFilter
 {
 protected:
 	size_t m_intrinsicDims;
-	size_t m_regularizer;
+	double m_regularizer;
 	GMatrix* m_pP;
 	GMatrix* m_pQ;
 	GRand& m_rand;

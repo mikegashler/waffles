@@ -2558,7 +2558,7 @@ double startTime = GTime::seconds();
 		{
 			cvi.setRandom(m_pRand);
 			cvi.currentNormalized(feat);
-			size_t index = m_pRand->next(pIntrinsic->rows());
+			size_t index = (size_t)m_pRand->next(pIntrinsic->rows());
 			double* pInt = pIntrinsic->row(index);
 			GVec::copy(feat + paramDims, pInt, m_intrinsicDims);
 			m_pNN->forwardProp(feat);

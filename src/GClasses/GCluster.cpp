@@ -459,7 +459,7 @@ void GKMeans::init(GMatrix* pData)
 		for(j = 0; j < 100; j++)
 		{
 			// Pick a random row to be a centroid
-			size_t index = m_pRand->next(m_clusterCount);
+			size_t index = (size_t)m_pRand->next(m_clusterCount);
 
 			// Check if this row is already in use
 			size_t k;
