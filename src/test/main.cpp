@@ -438,7 +438,6 @@ void RunAllTests()
 
 int main(int argc, char *argv[])
 {
-GAssert(false);
 	GApp::enableFloatingPointExceptions();
 	int nRet = 0;
 	try

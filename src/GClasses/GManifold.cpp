@@ -2550,11 +2550,16 @@ GMatrix* GUnsupervisedBackProp::doitCameraSystem(vector<size_t>& paramRanges, GM
 	GTEMPBUF(double, feat, paramDims + m_intrinsicDims);
 	GMatrix inputs(pIntrinsic->rows(), pActions->cols() + m_intrinsicDims);
 	inputs.copyColumns(0, pActions, 0, pActions->cols());
-double startTime = GTime::seconds();
-	while(GTime::seconds() - startTime < 7200) // 2 hours
+	double elbowRoom = 0.01;
+	double startTime = GTime::seconds();
+	while(true)
 	{
+		double prog = (GTime::seconds() - startTime) / 1800; // 30 minutes
+		if(prog >= 1.0)
+			break;
+
 		// Do some training
-		for(size_t i = 0; i < 100000; i++)
+//		for(size_t i = 0; i < 100000; i++)
 		{
 			cvi.setRandom(m_pRand);
 			cvi.currentNormalized(feat);
@@ -2568,18 +2573,33 @@ double startTime = GTime::seconds();
 			m_pNN->backProp()->adjustFeatures(pInt, m_pNN->learningRate(), paramDims);
 			GVec::floorValues(pInt, floor, m_intrinsicDims);
 			GVec::capValues(pInt, cap, m_intrinsicDims);
+
+			// Pull the previous and next instances toward the right separation
+			if(index > 0)
+			{
+				GVec::copy(feat, pIntrinsic->row(index - 1), m_intrinsicDims);
+				GVec::subtract(feat, pIntrinsic->row(index), m_intrinsicDims);
+				double d = sqrt(GVec::squaredMagnitude(feat, m_intrinsicDims));
+				if(d > 1e-10)
+					GVec::addScaled(pIntrinsic->row(index - 1), 0.1 * (1.0 - prog) * (elbowRoom - d) / d, feat, m_intrinsicDims);
+			}
+			if(index + 1 < pIntrinsic->rows())
+			{
+				GVec::copy(feat, pIntrinsic->row(index + 1), m_intrinsicDims);
+				GVec::subtract(feat, pIntrinsic->row(index), m_intrinsicDims);
+				double d = sqrt(GVec::squaredMagnitude(feat, m_intrinsicDims));
+				if(d > 1e-10)
+					GVec::addScaled(pIntrinsic->row(index + 1), 0.1 * (1.0 - prog) * (elbowRoom - d) / d, feat, m_intrinsicDims);
+			}
 		}
 
-std::cout << ".";
-std::cout.flush();
-
+/*
 		// Align intrinsic state
 		inputs.copyColumns(pActions->cols(), pIntrinsic, 0, m_intrinsicDims);
 		GDynamicSystemStateAligner dsa(12, inputs, *m_pRand);
 		pIntrinsic = dsa.doit(pIntrinsic);
 		hIntrinsic.reset(pIntrinsic);
-std::cout << "'";
-std::cout.flush();
+*/
 	}
 	return hIntrinsic.release();
 }

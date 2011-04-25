@@ -341,7 +341,7 @@ UsageNode* makeAlgorithmUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("[algorithm]", "A supervised learning algorithm, or a transductive algorithm.");
 	pRoot->add("agglomerativetransducer", "A model-free transduction algorithm based on agglomerative clustering. Unlabeled patterns take the label of the cluster with which they are joined. It never joins clusters with different labels.");
-	UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of many learning algorithms through voting. \"end\" marks the end of the ensemble contents.");
+	UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of many learning algorithms through voting. \"end\" marks the end of the ensemble contents. Each algorithm instance is trained using a training set created by drawing (with replacement) from the original data until the training set has the same number of instances as the original data.");
 	{
 		UsageNode* pContents = pBag->add("<contents>");
 		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the bagging ensemble.");
@@ -1042,6 +1042,11 @@ UsageNode* makeRecommendUsageTree()
 UsageNode* makeCollaborativeFilterUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("[collab-filter]", "A collaborative-filtering recommendation algorithm.");
+	UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of collaborative filtering algorithms through voting. \"end\" marks the end of the ensemble contents. Each collaborative filtering algorithm instance is trained on a subset of the original data, where each expressed element is given a probability of 0.5 of occurring in the training set.");
+	{
+		UsageNode* pContents = pBag->add("<contents>");
+		pContents->add("[instance_count] [collab-filter]", "Specify the number of instances of a collaborative filtering algorithm to add to the bagging ensemble.");
+	}
 	pRoot->add("baseline", "A very simple recommendation algorithm. It always predicts the average rating for each item. This algorithm is useful as a baseline algorithm for comparison.");
 	UsageNode* pClust = pRoot->add("cluster [n] <options>", "An collaborative-filtering algorithm that clusters users, and then makes uniform recommendations within the cluster.");
 	{
@@ -1056,7 +1061,7 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
 		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
 	}
-	UsageNode* pMF = pRoot->add("matrixfactorization [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm.");
+	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm.");
 	{
 		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
 		UsageNode* pOpts = pMF->add("<options>");

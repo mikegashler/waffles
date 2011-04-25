@@ -13,6 +13,7 @@
 #define __GRECOMMENDER_H__
 
 #include "GError.h"
+#include <vector>
 
 namespace GClasses {
 
@@ -89,10 +90,10 @@ public:
 	GBaselineRecommender();
 	virtual ~GBaselineRecommender();
 
-	/// See the comment for GRecommender::trainBatch
+	/// See the comment for GCollaborativeFilter::trainBatch
 	virtual void trainBatch(GSparseMatrix* pData);
 
-	/// See the comment for GRecommender::predict
+	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
 };
 
@@ -121,10 +122,10 @@ public:
 	/// want to modify the regularization value.)
 	GSparseSimilarity* metric() { return m_pMetric; }
 
-	/// See the comment for GRecommender::trainBatch
+	/// See the comment for GCollaborativeFilter::trainBatch
 	virtual void trainBatch(GSparseMatrix* pData);
 
-	/// See the comment for GRecommender::predict
+	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
 };
 
@@ -150,10 +151,10 @@ public:
 	/// Set the clustering algorithm to use
 	void setClusterer(GSparseClusterer* pClusterer, bool own);
 
-	/// See the comment for GRecommender::trainBatch
+	/// See the comment for GCollaborativeFilter::trainBatch
 	virtual void trainBatch(GSparseMatrix* pData);
 
-	/// See the comment for GRecommender::predict
+	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
 };
 
@@ -180,10 +181,10 @@ public:
 	/// Set the regularization value
 	void setRegularizer(double d) { m_regularizer = d; }
 
-	/// See the comment for GRecommender::trainBatch
+	/// See the comment for GCollaborativeFilter::trainBatch
 	virtual void trainBatch(GSparseMatrix* pData);
 
-	/// See the comment for GRecommender::predict
+	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
 };
 
@@ -210,11 +211,40 @@ public:
 	/// activation functions before the model is trained.
 	GNeuralNet* model() { return m_pModel; }
 
-	/// See the comment for GRecommender::trainBatch
+	/// See the comment for GCollaborativeFilter::trainBatch
 	virtual void trainBatch(GSparseMatrix* pData);
 
-	/// See the comment for GRecommender::predict
+	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
+};
+
+
+
+/// This class performs bootstrap aggregation with collaborative filtering algorithms.
+class GBagOfRecommenders : public GCollaborativeFilter
+{
+protected:
+	std::vector<GCollaborativeFilter*> m_filters;
+	GRand& m_rand;
+
+public:
+	GBagOfRecommenders(GRand& rand);
+	virtual ~GBagOfRecommenders();
+
+	/// Returns the vector of filters
+	std::vector<GCollaborativeFilter*>& filters() { return m_filters; }
+
+	/// Add a filter to the bag
+	void addRecommender(GCollaborativeFilter* pRecommender);
+
+	/// See the comment for GCollaborativeFilter::trainBatch
+	virtual void trainBatch(GSparseMatrix* pData);
+
+	/// See the comment for GCollaborativeFilter::predict
+	virtual double predict(size_t user, size_t item);
+
+	/// Delete all of the filters
+	void clear();
 };
 
 

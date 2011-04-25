@@ -560,14 +560,14 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 	// Initialize P with small random values, and Q with zeros
 	delete(m_pP);
 	delete(m_pQ);
-	m_pP = new GMatrix(pData->rows(), 1 + m_intrinsicDims);
+	m_pP = new GMatrix(pData->cols(), 1 + m_intrinsicDims);
 	for(size_t i = 0; i < m_pP->rows(); i++)
 	{
 		double* pVec = m_pP->row(i);
 		for(size_t j = 0; j <= m_intrinsicDims; j++)
 			*(pVec++) = 0.1 * m_rand.normal();
 	}
-	m_pQ = new GMatrix(pData->cols(), m_intrinsicDims);
+	m_pQ = new GMatrix(pData->rows(), m_intrinsicDims);
 	m_pQ->setAll(0.0);
 
 	// Train
@@ -629,7 +629,7 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 		double rsse = sqrt(sse);
 		if(1.0 - (rsse / prevErr) < 0.0001) // If the amount of improvement is less than 0.01%
 			learningRate *= 0.8; // decay the learning rate
-		prevErr = sse;
+		prevErr = rsse;
 	}
 }
 
@@ -751,6 +751,72 @@ double GNeuralRecommender::predict(size_t user, size_t item)
 {
 	return (m_max - m_min) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_min;
 }
+
+
+
+
+
+
+
+
+
+
+GBagOfRecommenders::GBagOfRecommenders(GRand& rand)
+: GCollaborativeFilter(), m_rand(rand)
+{
+}
+
+GBagOfRecommenders::~GBagOfRecommenders()
+{
+	clear();
+}
+
+void GBagOfRecommenders::clear()
+{
+	for(vector<GCollaborativeFilter*>::iterator it = m_filters.begin(); it != m_filters.end(); it++)
+		delete(*it);
+	m_filters.clear();
+}
+
+void GBagOfRecommenders::addRecommender(GCollaborativeFilter* pRecommender)
+{
+	m_filters.push_back(pRecommender);
+}
+
+// virtual
+void GBagOfRecommenders::trainBatch(GSparseMatrix* pData)
+{
+	for(vector<GCollaborativeFilter*>::iterator it = m_filters.begin(); it != m_filters.end(); it++)
+	{
+		// Make a matrix that randomly samples about half of the elements in pData
+		GSparseMatrix tmp(pData->rows(), pData->cols());
+		for(size_t i = 0; i < pData->rows(); i++)
+		{
+			GSparseMatrix::Iter end2 = pData->rowEnd(i);
+			for(GSparseMatrix::Iter it2 = pData->rowBegin(i); it2 != end2; it2++)
+			{
+				if(m_rand.next(2) == 0)
+					tmp.set(i, it2->first, it2->second);
+			}
+		}
+
+		// Train with it
+		(*it)->trainBatch(&tmp);
+	}
+}
+
+// virtual
+double GBagOfRecommenders::predict(size_t user, size_t item)
+{
+	double sum = 0.0;
+	for(vector<GCollaborativeFilter*>::iterator it = m_filters.begin(); it != m_filters.end(); it++)
+		sum += (*it)->predict(user, item);
+	return sum / m_filters.size();
+}
+
+
+
+
 
 
 

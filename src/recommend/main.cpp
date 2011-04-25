@@ -39,6 +39,8 @@ using std::string;
 using std::vector;
 using std::set;
 
+GCollaborativeFilter* InstantiateAlgorithm(GRand* pRand, GArgReader& args);
+
 GSparseMatrix* loadSparseData(const char* szFilename)
 {
 	// Load the dataset by extension
@@ -79,6 +81,25 @@ GSparseMatrix* loadSparseData(const char* szFilename)
 GBaselineRecommender* InstantiateBaselineRecommender(GRand* pRand, GArgReader& args)
 {
 	return new GBaselineRecommender();
+}
+
+GBagOfRecommenders* InstantiateBagOfRecommenders(GRand* pRand, GArgReader& args)
+{
+	GBagOfRecommenders* pEnsemble = new GBagOfRecommenders(*pRand);
+	while(args.size() > 0)
+	{
+		if(args.if_pop("end"))
+			break;
+		int instance_count = args.pop_uint();
+		int arg_pos = args.get_pos();
+		for(int i = 0; i < instance_count; i++)
+		{
+			args.set_pos(arg_pos);
+			GCollaborativeFilter* pRecommender = InstantiateAlgorithm(pRand, args);
+			pEnsemble->addRecommender(pRecommender);
+		}
+	}
+	return pEnsemble;
 }
 
 GInstanceRecommender* InstantiateInstanceRecommender(GRand* pRand, GArgReader& args)
@@ -239,10 +260,14 @@ GCollaborativeFilter* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 	{
 		if(args.if_pop("baseline"))
 			return InstantiateBaselineRecommender(pRand, args);
+		else if(args.if_pop("bag"))
+			return InstantiateBagOfRecommenders(pRand, args);
 		else if(args.if_pop("instance"))
 			return InstantiateInstanceRecommender(pRand, args);
 		else if(args.if_pop("cluster"))
 			return InstantiateClusterRecommender(pRand, args);
+		else if(args.if_pop("matrix"))
+			return InstantiateMatrixFactorization(pRand, args);
 		else if(args.if_pop("neural"))
 			return InstantiateNeuralRecommender(pRand, args);
 		else
