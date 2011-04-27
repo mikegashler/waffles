@@ -87,6 +87,7 @@ UsageNode* makeCryptoUsageTree()
 		pOpts->add("-part [n]", "Start on the specified part of the possible combinations of passwords. [n] should be a number from 0 to c-1, where c is the number of characters in the character set.");
 		pOpts->add("-onepartonly", "Only do one part, and then exit. This option is useful for doing it in parallel, such that each parallel process does a different part.");
 		pOpts->add("-stoponcollision", "Terminate when the first collision is found.");
+		pOpts->add("-noprogress", "Do not display progress percentage. (It might be preferable not to display progress, for example, if you are going to pipe the output to a file.)");
 	}
 	UsageNode* pCC = pRoot->add("commandcenter <options>", "Run an inter-active command-center program that enables you to direct your satellites.");
 	{
@@ -96,12 +97,10 @@ UsageNode* makeCryptoUsageTree()
 	UsageNode* pDecrypt = pRoot->add("decrypt [filename]", "Decrypt the specified file. (It will prompt you to enter the passphrase.)");
 	{
 		pDecrypt->add("[filename]", "The name of a file that was encrypted using the encrypt command.");
-		pDecrypt->add("[passphrase]", "The passphrase. (If it contains spaces, be sure to wrap it in quotes.)");
 	}
 	UsageNode* pEncrypt = pRoot->add("encrypt [path] <options>", "Encrypt [path] to create a single encrypted archive file. (It will prompt you to enter a passphrase.)");
 	{
 		pEncrypt->add("[path]", "A file name or a folder name. If it is a folder, then all of the contents recursively will be included.");
-		pEncrypt->add("[passphrase]", "The passphrase. If it contains spaces, be sure to wrap it in quotes. Note that the passphrase is almost certainly the weakest link in your encrypted file, so choose your passphrase accordingly.");
 		UsageNode* pOpts = pEncrypt->add("<options>");
 		pOpts->add("-out [filename]", "Specify the name of the output file. (The default is to use the name of the path with the extension changed to .encrypted.)");
 		pOpts->add("-compress", "Take a lot longer, but produce a smaller encrypted archive file. (This feature really isn't very usable yet.)");
@@ -111,7 +110,7 @@ UsageNode* makeCryptoUsageTree()
 		UsageNode* pOpts = pLogKeys->add("<options>");
 		pOpts->add("-daemon", "Launch as a daemon. (Forks off a daemon that keeps running in the background and immediately exits.)");
 	}
-	pRoot->add("makegarbage", "Generates a bunch of 2GB files named garb#.tmp full of random garbage. It will keep generating them until you stop the program, or the hard drive is full and it crashes. The purpose of this tool is to fill the available areas of your hard drive so that previously deleted files will be more difficult to recover. When it is done, you can delete all the garb#.tmp files. This would also be useful for wiping a hard drive prior to discarding it.");
+	pRoot->add("makegarbage", "Generates a bunch of 2GB files named garb#.tmp full of random garbage. It will keep generating them until you stop the program, or it crashes (perhaps due to the hard drive being full). The purpose of this tool is to fill the available areas of your hard drive so that previously deleted files will be more difficult to recover. When it is done, you can delete all the garb#.tmp files. This might also be useful for wiping a hard drive prior to discarding it.");
 	pRoot->add("nthash [password]", "Computes the NT hash of [password]. (This feature does not yet build on Windows because I used libssl to supply the MD4 algorithm, and I have not yet bothered to find a Windows version of the libssl library. It would not take much effort to get it working on Windows, I just have not done it yet.)");
 	pRoot->add("open [filename]", "A convenient interactive version of decrypt that prompts you to shred the files after you are done with them.");
 	UsageNode* pSatellite = pRoot->add("satellite <options>", "Run a satellite program that periodically phones home to receive directions.");
@@ -314,7 +313,7 @@ void InstallOnWindowsAndLaunch()
 			exit(0);
 	}
 	if(!GFile::copyFile(szAppPath, newPath))
-		printf("The application failed to start\n");
+		cout << "The application failed to start\n";
 	
 	// Install in the registry
 	strcat(newPath + len, " q9f24m3");
@@ -388,16 +387,16 @@ int doBandwidthClient(GArgReader& args)
 		*(pU++) = (unsigned int)r.next();
 
 	// Make a ClientSocket
-	printf("Connecting to server...\n");
+	cout << "Connecting to server...\n";
 	GSocketClient socket(false, MESSAGESIZE);
 	double dStart = GTime::seconds();
 	if(!socket.Connect(szUrl, port))
 		ThrowError("Failed to connect");
 	double dFinish = GTime::seconds();
-	printf("Connecting time = %lg\n", dFinish - dStart);
+	cout << "Connecting time = " << dFinish - dStart << "\n";
 
 	// Measure latency
-	printf("Measuring latency...\n");
+	cout << "Measuring latency...\n";
 	double dLatency = 0;
 	for(int i = 0; i < 9; i++)
 	{
@@ -407,7 +406,7 @@ int doBandwidthClient(GArgReader& args)
 			ThrowError("error sending the small message\n");
 
 		// Wait for a reply
-		printf("Waiting for the reply...\n");
+		cout << "Waiting for the reply...\n";
 		while(socket.GetMessageCount() < 1)
 		{
 			// Let Windows have a chance to pump messages through
@@ -426,16 +425,16 @@ int doBandwidthClient(GArgReader& args)
 		delete(pMessage);
 	}
 	dLatency /= 16;
-	printf("Latency: %lgs\n", dLatency);
+	cout << "Latency: " << dLatency << "\n";
 
 	// Send a big message
-	printf("Sending an 8MB message (to measure bandwidth)...\n");
+	cout << "Sending an 8MB message (to measure bandwidth)...\n";
 	dStart = GTime::seconds();
 	if(!socket.Send(pBuf, MESSAGESIZE))
 		ThrowError("error sending the big message\n");
 
 	// Wait for a reply
-	printf("Waiting for the server to send it back...\n");
+	cout << "Waiting for the server to send it back...\n";
 	while(socket.GetMessageCount() < 1)
 	{
 		// Let Windows have a chance to pump messages through
@@ -452,13 +451,13 @@ int doBandwidthClient(GArgReader& args)
 	if(nSize != MESSAGESIZE)
 		ThrowError("The reply is the wrong size--something's wrong\n");
 	if(memcmp(pMessage, pBuf, MESSAGESIZE))
-		printf("!!!The message differs from the original--something's wrong!!!\n");
+		cout << "!!!The message differs from the original--something's wrong!!!\n";
 	delete(pMessage);
 
-	printf("Roundtrip time: %lg\n", dFinish - dStart);
-	printf("Bandwidth: %lf Mb/s\n", (((double)MESSAGESIZE * 8 * 2) / ((dFinish - dStart) - 2.0 * dLatency)) / 1000000);
-	printf("Bandwidth: %lf MB/s\n", (((double)MESSAGESIZE * 2) / ((dFinish - dStart) - 2.0 * dLatency)) / 1000000);
-	printf("Bandwidth: %lf MiB/s\n", (((double)MESSAGESIZE * 2) / ((dFinish - dStart) - 2.0 * dLatency)) / (1024 * 1024));
+	cout << "Roundtrip time: " << dFinish - dStart << "\n";
+	cout << "Bandwidth: " << (((double)MESSAGESIZE * 8 * 2) / ((dFinish - dStart) - 2.0 * dLatency)) / 1000000 << "\n";
+	cout << "Bandwidth: " << (((double)MESSAGESIZE * 2) / ((dFinish - dStart) - 2.0 * dLatency)) / 1000000 << "\n";
+	cout << "Bandwidth: " << (((double)MESSAGESIZE * 2) / ((dFinish - dStart) - 2.0 * dLatency)) / (1024 * 1024) << "\n";
 	return 0;
 }
 
@@ -476,7 +475,7 @@ int doBandwidthServer(GArgReader& args)
 
 	// Repeat messages
 	GSocketServer socket(false, MESSAGESIZE, port, 1);
-	printf("waiting for a client program to connect...\n");
+	cout << "waiting for a client program to connect...\n";
 	while(true)
 	{
 		if(socket.GetMessageCount() > 0)
@@ -485,13 +484,13 @@ int doBandwidthServer(GArgReader& args)
 			int nConnectionNumber;
 			size_t nSize;
 			unsigned char* pMessage = socket.GetNextMessage(&nSize, &nConnectionNumber);
-			printf("Got a message.  Sending it back...\n");
+			cout << "Got a message.  Sending it back...\n";
 			if(socket.Send(pMessage, nSize, nConnectionNumber))
-				printf("Message sent.\n");
+				cout << "Message sent.\n";
 			else
-				printf("Error sending reply\n");
+				cout << "Error sending reply\n";
 			delete(pMessage);
-			printf("Waiting for another client to connect...\n");
+			cout << "Waiting for another client to connect...\n";
 		}
 
                 // Let Windows have a chance to pump messages through
@@ -525,7 +524,7 @@ void nthash(const char* password, unsigned char* hash)
 #endif
 }
 
-void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* charSet, size_t part, bool onePartOnly, bool stopOnCollision)
+void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* charSet, size_t part, bool onePartOnly, bool stopOnCollision, bool showProgress)
 {
 	unsigned char candHash[16];
 	if(passwordLen == 0)
@@ -588,7 +587,7 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 		}
 
 		// Display progress
-		if(--n == 0)
+		if(showProgress && --n == 0)
 		{
 			n = 2000000; // how frequently to display progress
 			size_t den = charSetLen;
@@ -620,6 +619,7 @@ void bruteForceNTPassword(GArgReader& args)
 	size_t part = 0;
 	bool onePartOnly = false;
 	bool stopOnCollision = false;
+	bool showProgress = true;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-charset"))
@@ -644,6 +644,8 @@ void bruteForceNTPassword(GArgReader& args)
 			onePartOnly = true;
 		else if(args.if_pop("-stoponcollision"))
 			stopOnCollision = true;
+		else if(args.if_pop("-noprogress"))
+			showProgress = false;
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
@@ -664,7 +666,7 @@ void bruteForceNTPassword(GArgReader& args)
 
 	cout << "Character set: " << charset << "\n";
 	if(onePartOnly)
-		bruteForceNTPassword(startLen, hash, charset.c_str(), part, onePartOnly, stopOnCollision);
+		bruteForceNTPassword(startLen, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress);
 	else
 	{
 		size_t len = startLen;
@@ -672,7 +674,7 @@ void bruteForceNTPassword(GArgReader& args)
 		{
 			cout << "Trying passwords of length " << len << ":\n";
 			cout.flush();
-			bruteForceNTPassword(len++, hash, charset.c_str(), part, onePartOnly, stopOnCollision);
+			bruteForceNTPassword(len++, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress);
 		}
 	}
 }
@@ -1216,14 +1218,14 @@ void ShowUsage()
 	cout << "\n";
 	UsageNode* pUsageTree = makeCryptoUsageTree();
 	Holder<UsageNode> hUsageTree(pUsageTree);
-	pUsageTree->print(0, 3, 76, 1000, true);
+	pUsageTree->print(cout, 0, 3, 76, 1000, true);
 	cout.flush();
 }
 
 void showError(GArgReader& args, const char* szMessage)
 {
-	cout << "_________________________________\n";
-	cout << szMessage << "\n\n";
+	cerr << "_________________________________\n";
+	cerr << szMessage << "\n\n";
 	args.set_pos(1);
 	const char* szCommand = args.peek();
 	UsageNode* pUsageTree = makeCryptoUsageTree();
@@ -1233,24 +1235,24 @@ void showError(GArgReader& args, const char* szMessage)
 		UsageNode* pUsageCommand = pUsageTree->choice(szCommand);
 		if(pUsageCommand)
 		{
-			cout << "Brief Usage Information:\n\n";
-			cout << "waffles_security ";
-			pUsageCommand->print(0, 3, 76, 1000, true);
+			cerr << "Brief Usage Information:\n\n";
+			cerr << "waffles_security ";
+			pUsageCommand->print(cerr, 0, 3, 76, 1000, true);
 		}
 		else
 		{
-			cout << "Brief Usage Information:\n\n";
-			pUsageTree->print(0, 3, 76, 1, false);
+			cerr << "Brief Usage Information:\n\n";
+			pUsageTree->print(cerr, 0, 3, 76, 1, false);
 		}
 	}
 	else
 	{
-		pUsageTree->print(0, 3, 76, 1, false);
-		cout << "\nFor more specific usage information, enter as much of the command as you know.\n";
+		pUsageTree->print(cerr, 0, 3, 76, 1, false);
+		cerr << "\nFor more specific usage information, enter as much of the command as you know.\n";
 	}
-	cout << "\nTo see full usage information, run:\n	waffles_security usage\n\n";
-//	cout << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
-	cout.flush();
+	cerr << "\nTo see full usage information, run:\n	waffles_security usage\n\n";
+//	cerr << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
+	cerr.flush();
 }
 
 void doit(GArgReader& args)
