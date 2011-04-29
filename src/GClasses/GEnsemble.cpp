@@ -442,6 +442,6 @@ void GBucket::test()
 	bucket.addLearner(new GBaselineLearner());
 	bucket.addLearner(new GDecisionTree(&prng));
 	bucket.addLearner(new GMeanMarginsTree(&prng));
-	bucket.basicTest(0.69, 0.74, &prng);
+	bucket.basicTest(0.69, 0.76, &prng);
 }
 #endif

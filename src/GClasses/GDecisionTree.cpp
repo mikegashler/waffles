@@ -19,6 +19,7 @@
 #include "GRand.h"
 #include "GTwt.h"
 #include "GTransform.h"
+#include "GEnsemble.h"
 #include <string>
 #include <iostream>
 
@@ -1117,5 +1118,81 @@ void GMeanMarginsTree::test()
 	GRand prng(0);
 	GMeanMarginsTree mm(&prng);
 	mm.basicTest(0.68, 0.77, &prng);
+}
+#endif
+
+
+
+
+
+
+
+
+
+
+GRandomForest::GRandomForest(GRand& rand, size_t trees, size_t samples)
+: GSupervisedLearner()
+{
+	m_pEnsemble = new GBag(&rand);
+	for(size_t i = 0; i < trees; i++)
+	{
+		GDecisionTree* pTree = new GDecisionTree(&rand);
+		pTree->useRandomDivisions(samples);
+		m_pEnsemble->addLearner(pTree);
+	}
+}
+
+GRandomForest::GRandomForest(GTwtNode* pNode, GRand& rand)
+: GSupervisedLearner(pNode, rand)
+{
+	GLearnerLoader ll(true);
+	m_pEnsemble = new GBag(pNode->field("bag"), &rand, &ll);
+}
+
+// virtual
+GRandomForest::~GRandomForest()
+{
+	delete(m_pEnsemble);
+}
+
+// virtual
+GTwtNode* GRandomForest::toTwt(GTwtDoc* pDoc)
+{
+	GTwtNode* pNode = baseTwtNode(pDoc, "GRandomForest");
+	pNode->addField(pDoc, "bag", m_pEnsemble->toTwt(pDoc));
+	return pNode;
+}
+
+// virtual
+void GRandomForest::clear()
+{
+	m_pEnsemble->clear();
+}
+
+// virtual
+void GRandomForest::trainInner(GMatrix& features, GMatrix& labels)
+{
+	m_pEnsemble->train(features, labels);
+}
+
+// virtual
+void GRandomForest::predictInner(const double* pIn, double* pOut)
+{
+	m_pEnsemble->predict(pIn, pOut);
+}
+
+// virtual
+void GRandomForest::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	m_pEnsemble->predictDistribution(pIn, pOut);
+}
+
+#ifndef NO_TEST_CODE
+// static
+void GRandomForest::test()
+{
+	GRand rand(0);
+	GRandomForest rf(rand, 30);
+	rf.basicTest(0.77, 0.78, &rand, 0.01);
 }
 #endif

@@ -1101,6 +1101,8 @@ GSupervisedLearner* GLearnerLoader::loadModeler(GTwtNode* pNode, GRand* pRand)
 			{
 				if(strcmp(szClass, "GPolynomial") == 0)
 					return new GPolynomial(pNode, *pRand);
+				else if(strcmp(szClass, "GRandomForest") == 0)
+					return new GRandomForest(pNode, *pRand);
 			}
 		}
 	}

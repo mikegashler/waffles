@@ -22,6 +22,7 @@ class GRegressionTreeNode;
 class GRand;
 class GMeanMarginsTreeNode;
 class GDecisionTreeLeafNode;
+class GBag;
 
 
 /// This is an efficient learning algorithm. It divides
@@ -163,6 +164,7 @@ public:
 	/// Save to a text-based format
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
+	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
 
 protected:
@@ -184,6 +186,38 @@ protected:
 	virtual bool canImplicitlyHandleNominalLabels() { return false; }
 };
 
+
+
+class GRandomForest : public GSupervisedLearner
+{
+protected:
+	GBag* m_pEnsemble;
+
+public:
+	GRandomForest(GRand& rand, size_t trees, size_t samples = 1);
+	GRandomForest(GTwtNode* pNode, GRand& rand);
+	virtual ~GRandomForest();
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
+
+	/// Saves to a text-based format
+	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+
+	/// See the comment for GSupervisedLearner::clear
+	virtual void clear();
+
+protected:
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(GMatrix& features, GMatrix& labels);
+
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predictInner(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+};
 
 } // namespace GClasses
 

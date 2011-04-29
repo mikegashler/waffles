@@ -394,6 +394,7 @@ void RunAllTests()
 	runTest("GPriorityQueue", GPriorityQueue::test);
 	runTest("GProbeSearch", GProbeSearch::test);
 	runTest("GRand", GRand::test);
+	runTest("GRandomForest", GRandomForest::test);
 	runTest("GShortcutPruner", GShortcutPruner::test);
 	runTest("GSocket", GSocketClient::test);
 	runTest("GSparseMatrix", GSparseMatrix::test);
