@@ -352,6 +352,7 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pContents = pBucket->add("<contents>");
 		pContents->add("[algorithm]", "Add an algorithm to the bucket");
 	}
+	UsageNode* pCvdt = pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm was shown to often outperform random forest in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008).");
 	UsageNode* pDT = pRoot->add("decisiontree <options>", "A decision tree.");
 	{
 		UsageNode* pOpts = pDT->add("<options>");
@@ -407,6 +408,12 @@ UsageNode* makeAlgorithmUsageTree()
 			pAct->add("gaussian", "A gaussian activation function");
 			pAct->add("sinc", "A sinc wavelet activation function");
 		}
+	}
+	UsageNode* pRF = pRoot->add("randomforest [trees] <options>", "A baggging ensemble of decision trees that use random division boundaries.");
+	{
+		pRF->add("[trees]=50", "Specify the number of trees in the random forest");
+		UsageNode* pOpts = pRF->add("<options>");
+		pOpts->add("-samples [n]=1", "Specify the number of randomly-drawn attributes to evaluate. The one that maximizes information gain will be chosen for the decision boundary. If [n] is 1, then the divisions are completely random. Larger values will decrease the randomness.");
 	}
 
 	return pRoot;

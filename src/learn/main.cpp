@@ -266,20 +266,35 @@ GBaselineLearner* InstantiateBaseline(GRand* pRand, GArgReader& args)
 	return pModel;
 }
 
+GBucket* InstantiateCvdt(GRand* pRand, GArgReader& args)
+{
+	size_t trees = args.pop_uint();
+	GBucket* pBucket = new GBucket(pRand);
+	GBag* pBag1 = new GBag(pRand);
+	pBucket->addLearner(pBag1);
+	for(size_t i = 0; i < trees; i++)
+		pBag1->addLearner(new GDecisionTree(pRand));
+	GBag* pBag2 = new GBag(pRand);
+	pBucket->addLearner(pBag2);
+	for(size_t i = 0; i < trees; i++)
+		pBag2->addLearner(new GMeanMarginsTree(pRand));
+	return pBucket;
+}
+
 GDecisionTree* InstantiateDecisionTree(GRand* pRand, GArgReader& args)
 {
 	GDecisionTree* pModel = new GDecisionTree(pRand);
 	while(args.next_is_flag())
 	{
-	  if(args.if_pop("-random")){
-	    pModel->useRandomDivisions(args.pop_uint());
-	  }else if(args.if_pop("-leafthresh")){
-	    pModel->setLeafThresh(args.pop_uint());
-	  }else if(args.if_pop("-maxlevels")){
-	    pModel->setMaxLevels(args.pop_uint());
-	  }else{
-	    ThrowError("Invalid decisiontree option: ", args.peek());
-	  }
+		if(args.if_pop("-random")){
+			pModel->useRandomDivisions(args.pop_uint());
+		}else if(args.if_pop("-leafthresh")){
+			pModel->setLeafThresh(args.pop_uint());
+		}else if(args.if_pop("-maxlevels")){
+			pModel->setMaxLevels(args.pop_uint());
+		}else{
+			ThrowError("Invalid decisiontree option: ", args.peek());
+		}
 	}
 	return pModel;
 }
@@ -501,6 +516,20 @@ GNeuralTransducer* InstantiateNeuralTransducer(GRand* pRand, GArgReader& args)
 	return pTransducer;
 }
 */
+GRandomForest* InstantiateRandomForest(GRand* pRand, GArgReader& args)
+{
+	size_t trees = args.pop_uint();
+	size_t samples = 1;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-samples"))
+			samples = args.pop_uint();
+		else
+			ThrowError("Invalid random forest option: ", args.peek());
+	}
+	return new GRandomForest(*pRand, trees, samples);
+}
+
 void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 {
 	cerr << "_________________________________\n";
@@ -547,6 +576,8 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 			return InstantiateBaseline(pRand, args);
 		else if(args.if_pop("bucket"))
 			return InstantiateBucket(pRand, args);
+		else if(args.if_pop("cvdt"))
+			return InstantiateCvdt(pRand, args);
 		else if(args.if_pop("decisiontree"))
 			return InstantiateDecisionTree(pRand, args);
 		else if(args.if_pop("graphcuttransducer"))
@@ -569,6 +600,8 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 			return InstantiateNeuralNet(pRand, args);
 //		else if(args.if_pop("neuraltransducer"))
 //			return InstantiateNeuralTransducer(pRand, args);
+		else if(args.if_pop("randomforest"))
+			return InstantiateRandomForest(pRand, args);
 		ThrowError("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
