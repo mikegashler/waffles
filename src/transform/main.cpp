@@ -339,7 +339,7 @@ void agglomerativeclusterer(GArgReader& args)
 
 	// Do the clustering
 	GAgglomerativeClusterer clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(pData);
+	GMatrix* pOut = clusterer.doit(*pData);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -454,14 +454,14 @@ void attributeSelector(GArgReader& args)
 	GAttributeSelector as(labelDims, targetFeatures, &prng);
 	if(outFilename.length() > 0)
 	{
-		as.train(pData);
-		GMatrix* pDataOut = as.transformBatch(pData);
+		as.train(*pData);
+		GMatrix* pDataOut = as.transformBatch(*pData);
 		Holder<GMatrix> hDataOut(pDataOut);
 		cout << "Reduced data saved to " << outFilename.c_str() << ".\n";
 		pDataOut->saveArff(outFilename.c_str());
 	}
 	else
-		as.train(pData);
+		as.train(*pData);
 	cout << "\nAttribute rankings from most salient to least salient. (Attributes are zero-indexed.)\n";
 	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
 	for(size_t i = 0; i < as.ranks().size(); i++)
@@ -572,7 +572,7 @@ void breadthFirstUnfolding(GArgReader& args)
 	// Transform the data
 	GBreadthFirstUnfolding transform(reps, pNF->neighborCount(), targetDims, &prng);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pData);
+	GMatrix* pDataAfter = transform.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -883,7 +883,7 @@ void isomap(GArgReader& args)
 	transform.setNeighborFinder(pNF);
 	if(tolerant)
 		transform.dropDisconnectedPoints();
-	GMatrix* pDataAfter = transform.doit(pData);
+	GMatrix* pDataAfter = transform.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -908,7 +908,7 @@ void kmeans(GArgReader& args)
 	// Do the clustering
 	GRand prng(nSeed);
 	GKMeans clusterer(clusters, &prng);
-	GMatrix* pOut = clusterer.doit(pData);
+	GMatrix* pOut = clusterer.doit(*pData);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -922,7 +922,7 @@ void kmedoids(GArgReader& args)
 
 	// Do the clustering
 	GKMedoids clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(pData);
+	GMatrix* pOut = clusterer.doit(*pData);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -950,7 +950,7 @@ void lle(GArgReader& args)
 	// Transform the data
 	GLLE transform(pNF->neighborCount(), targetDims, &prng);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pData);
+	GMatrix* pDataAfter = transform.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -1000,7 +1000,7 @@ void ManifoldSculpting(GArgReader& args)
 	if(pDataHint)
 		transform.setPreprocessedData(hDataHint.release());
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pData);
+	GMatrix* pDataAfter = transform.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -1343,8 +1343,8 @@ void normalize(GArgReader& args)
 	}
 
 	GNormalize transform(min, max);
-	transform.train(pData);
-	GMatrix* pOut = transform.transformBatch(pData);
+	transform.train(*pData);
+	GMatrix* pOut = transform.transformBatch(*pData);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -1411,7 +1411,7 @@ void neuroPCA(GArgReader& args)
 		transform.setActivation(new GActivationIdentity());
 	if(eigenvalues.length() > 0)
 		transform.computeEigVals();
-	GMatrix* pDataAfter = transform.doit(pData);
+	GMatrix* pDataAfter = transform.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 
 	// Save the eigenvalues
@@ -1462,8 +1462,8 @@ void nominalToCat(GArgReader& args)
 
 	// Transform the data
 	GNominalToCat transform(maxValues);
-	transform.train(pData);
-	GMatrix* pDataNew = transform.transformBatch(pData);
+	transform.train(*pData);
+	GMatrix* pDataNew = transform.transformBatch(*pData);
 	Holder<GMatrix> hDataNew(pDataNew);
 
 	// Print results
@@ -1522,8 +1522,8 @@ void principalComponentAnalysis(GArgReader& args)
 		transform.aboutOrigin();
 	if(eigenvalues.length() > 0)
 		transform.computeEigVals();
-	transform.train(pData);
-	GMatrix* pDataAfter = transform.transformBatch(pData);
+	transform.train(*pData);
+	GMatrix* pDataAfter = transform.transformBatch(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 
 	// Save the eigenvalues
@@ -2272,7 +2272,7 @@ void unsupervisedBackProp(GArgReader& args)
 	ubp.setParams(paramRanges);
 
 	// Transform the data
-	GMatrix* pDataAfter = ubp.doit(pData);
+	GMatrix* pDataAfter = ubp.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 
 	// Make round-trip data

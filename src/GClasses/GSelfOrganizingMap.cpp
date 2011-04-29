@@ -163,15 +163,15 @@ GSelfOrganizingMap::~GSelfOrganizingMap()
 
   return pMap;
 }
-  
-GMatrix* GSelfOrganizingMap::doit(GMatrix* pIn)
-{
-  // Make the map
-  GMatrix* pMap = makeMap(pIn);
-  Holder<GMatrix> hMap(pMap);
 
-  //Pass it to the more general function
-  return doit(pIn, pMap);
+GMatrix* GSelfOrganizingMap::doit(GMatrix& in)
+{
+	// Make the map
+	GMatrix* pMap = makeMap(&in);
+	Holder<GMatrix> hMap(pMap);
+	
+	//Pass it to the more general function
+	return doit(&in, pMap);
 }
 
 

@@ -175,8 +175,8 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 	// Estimate the state
 	int neighbors = 256;
 	GPCA pca(12, m_pRand);
-	pca.train(pObservations);
-	GMatrix* pReducedObs = pca.transformBatch(pObservations);
+	pca.train(*pObservations);
+	GMatrix* pReducedObs = pca.transformBatch(*pObservations);
 	Holder<GMatrix> hReducedObs(pReducedObs);
 	GDynamicSystemNeighborFinder nf(pReducedObs, pActions, false, neighbors, m_pRand);
 //	GTemporalNeighborFinder nf(pReducedObs, neighbors, m_pRand);
@@ -197,7 +197,7 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 		((GBreadthFirstUnfolding*)pML)->setNeighborFinder(&nf);
 	}
 	Holder<GManifoldLearner> hML(pML);
-	GMatrix* pEstState = pML->doit(pObservations);
+	GMatrix* pEstState = pML->doit(*pObservations);
 
 	// Center the first state estimate at the origin
 	double* pRow = pEstState->row(0);
@@ -238,7 +238,7 @@ GMatrix* GRecurrentModel::joshuaEstimateState(GMatrix* pActions, GMatrix* pObser
 ThrowError("out of order");/*
 	// Convert actions to a categorical distribution
 	GNominalToCat cat;
-	GMatrix* pActionsCat = cat.doit(pActions);
+	GMatrix* pActionsCat = cat.doit(*pActions);
 	Holder<GMatrix> hActionsCat(pActionsCat);
 
 	// Use PCA to reduce the data
@@ -266,7 +266,7 @@ ThrowError("out of order");/*
 		doc.setRoot(pPCA->toTwt(&doc));
 		doc.save("joshua_pca.twt");
 	}
-	GMatrix* pReducedObs = pPCA->transformBatch(pObservations);
+	GMatrix* pReducedObs = pPCA->transformBatch(*pObservations);
 	Holder<GMatrix> hReducedObs(pReducedObs);
 //cout << "% eigvals: ";
 //double* pEigVals = pca.eigVals();

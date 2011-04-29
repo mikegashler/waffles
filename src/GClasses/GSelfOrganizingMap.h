@@ -55,7 +55,7 @@ public:
         void focusFactor(double newFactor){ m_dFocusFactor = newFactor; }
 
 	/// Transforms pIn
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 
 	/// Transforms pIn using the given map
         virtual GMatrix* doit(GMatrix* pIn, GMatrix* map);

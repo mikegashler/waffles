@@ -450,9 +450,9 @@ void GManifoldSculpting::setPreprocessedData(GMatrix* pData)
 }
 
 // virtual
-GMatrix* GManifoldSculpting::doit(GMatrix* pIn)
+GMatrix* GManifoldSculpting::doit(GMatrix& in)
 {
-	beginTransform(pIn);
+	beginTransform(&in);
 
 	// Do burn-in iterations
 	while(m_scale > 0.01)
@@ -509,8 +509,8 @@ void GManifoldSculpting::beginTransform(GMatrix* pRealSpaceData)
 			preserveDims = std::max((size_t)30, preserveDims);
 			preserveDims = std::min(pRealSpaceData->relation()->size(), preserveDims);
 			GPCA pca(preserveDims, m_pRand);
-			pca.train(pRealSpaceData);
-			m_pData = pca.transformBatch(pRealSpaceData);
+			pca.train(*pRealSpaceData);
+			m_pData = pca.transformBatch(*pRealSpaceData);
 		}
 	}
 
@@ -967,26 +967,26 @@ void GIsomap::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GIsomap::doit(GMatrix* pIn)
+GMatrix* GIsomap::doit(GMatrix& in)
 {
 	GNeighborFinder* pNF = m_pNF;
 	Holder<GNeighborFinder> hNF(NULL);
 	if(!pNF)
 	{
-		pNF = new GKdTree(pIn, m_neighborCount, NULL, true);
+		pNF = new GKdTree(&in, m_neighborCount, NULL, true);
 		hNF.reset(pNF);
 	}
 
 	// Compute the distance matrix using the Floyd Warshall algorithm
 	GTEMPBUF(size_t, hood, pNF->neighborCount());
 	GTEMPBUF(double, squaredDists, pNF->neighborCount());
-	GFloydWarshall graph(pIn->rows());
-	for(size_t i = 0; i < pIn->rows(); i++)
+	GFloydWarshall graph(in.rows());
+	for(size_t i = 0; i < in.rows(); i++)
 	{
 		pNF->neighbors(hood, squaredDists, i);
 		for(size_t j = 0; j < pNF->neighborCount(); j++)
 		{
-			if(hood[j] >= pIn->rows())
+			if(hood[j] >= in.rows())
 				continue;
 			double d = sqrt(squaredDists[j]);
 			graph.addDirectedEdge(i, hood[j], d);
@@ -1275,13 +1275,13 @@ void GLLE::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GLLE::doit(GMatrix* pIn)
+GMatrix* GLLE::doit(GMatrix& in)
 {
 	GNeighborFinder* pNF = m_pNF;
 	Holder<GNeighborFinder> hNF(NULL);
 	if(!pNF)
 	{
-		pNF = new GKdTree(pIn, m_neighborCount, NULL, true);
+		pNF = new GKdTree(&in, m_neighborCount, NULL, true);
 		hNF.reset(pNF);
 	}
 	return GLLEHelper::doLLE(pNF, m_targetDims, m_pRand);
@@ -1326,13 +1326,13 @@ void GManifoldUnfolder::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GManifoldUnfolder::doit(GMatrix* pIn)
+GMatrix* GManifoldUnfolder::doit(GMatrix& in)
 {
 	GNeighborFinder* pNF = m_pNF;
 	Holder<GNeighborFinder> hNF(NULL);
 	if(!pNF)
 	{
-		pNF = new GKdTree(pIn, 0, m_neighborCount, NULL, true);
+		pNF = new GKdTree(&in, 0, m_neighborCount, NULL, true);
 		hNF.reset(pNF);
 	}
 	return unfold(pNF, m_targetDims, m_pRand);
@@ -1424,7 +1424,7 @@ GMatrix* GManifoldUnfolder::unfold(GNeighborFinder* pNF, size_t targetDims, GRan
 	pUnfolded->fromVector(optimizer.currentVector(), rows);
 	GPCA pca(targetDims, m_pRand);
 	pca.train(pUnfolded);
-	return pca.transformBatch(pUnfolded);
+	return pca.transformBatch(*pUnfolded);
 }
 */
 
@@ -1477,14 +1477,14 @@ void GBreadthFirstUnfolding::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GBreadthFirstUnfolding::doit(GMatrix* pIn)
+GMatrix* GBreadthFirstUnfolding::doit(GMatrix& in)
 {
 	// Obtain the neighbor finder
 	GNeighborFinder* pNF = m_pNF;
 	Holder<GNeighborFinder> hNF(NULL);
 	if(!pNF)
 	{
-		pNF = new GKdTree(pIn, m_neighborCount, NULL, true);
+		pNF = new GKdTree(&in, m_neighborCount, NULL, true);
 		hNF.reset(pNF);
 	}
 
@@ -1503,18 +1503,18 @@ GMatrix* GBreadthFirstUnfolding::doit(GMatrix* pIn)
 	GMatrix* pData = pNF->data();
 
 	// Learn the manifold
-	double* pGlobalWeights = new double[pIn->rows() * 2];
+	double* pGlobalWeights = new double[in.rows() * 2];
 	ArrayHolder<double> hGlobalWeights(pGlobalWeights);
-	double* pLocalWeights = pGlobalWeights + pIn->rows();
-	GVec::setAll(pGlobalWeights, 0.0, pIn->rows());
+	double* pLocalWeights = pGlobalWeights + in.rows();
+	GVec::setAll(pGlobalWeights, 0.0, in.rows());
 	Holder<GMatrix> hFinal(NULL);
 	for(size_t i = 0; i < m_reps; i++)
 	{
 		GMatrix* pRep = unfold(pData, pNeighborTable, pSquaredDistances, (size_t)m_pRand->next(pData->rows()), pLocalWeights);
 		if(hFinal.get())
 		{
-			GVec::add(pGlobalWeights, pLocalWeights, pIn->rows());
-			GVec::pairwiseDivide(pLocalWeights, pGlobalWeights, pIn->rows());
+			GVec::add(pGlobalWeights, pLocalWeights, in.rows());
+			GVec::pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
 			Holder<GMatrix> hRep(pRep);
 			hFinal.reset(GManifold::blendEmbeddings(pRep, pLocalWeights, hFinal.get(), m_neighborCount, pNeighborTable, (size_t)m_pRand->next(pData->rows())));
 		}
@@ -1665,8 +1665,8 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(GMatrix* pIn, size_t index, 
 
 		// Use PCA to reduce the neighborhood
 		GPCA pca(m_targetDims, m_pRand);
-		pca.train(&local);
-		pReducedNeighborhood = pca.transformBatch(&local);
+		pca.train(local);
+		pReducedNeighborhood = pca.transformBatch(local);
 	}
 
 	return pReducedNeighborhood;
@@ -1919,21 +1919,21 @@ double GNeuroPCA::computeSumSquaredErr(GMatrix* pIn, GMatrix* pOut, size_t cols)
 }
 
 // virtual
-GMatrix* GNeuroPCA::doit(GMatrix* pIn)
+GMatrix* GNeuroPCA::doit(GMatrix& in)
 {
-	if(!pIn->relation()->areContinuous(0, pIn->cols()))
+	if(!in.relation()->areContinuous(0, in.cols()))
 		ThrowError("GNeuroPCA doesn't support nominal values. You should filter with nominaltocat to make them real.");
 	delete(m_pWeights);
-	m_pWeights = new GMatrix(pIn->relation());
+	m_pWeights = new GMatrix(in.relation());
 	m_pWeights->newRows(1 + m_targetDims); // the first row holds the biases
 
 	// Initialize the biases
-	size_t dims = (size_t)pIn->cols();
+	size_t dims = (size_t)in.cols();
 	{
 		double* pBiases = m_pWeights->row(0);
 		for(size_t i = 0; i < dims; i++)
 		{
-			double mean = pIn->mean(i);
+			double mean = in.mean(i);
 			if((mean < m_pActivation->center() - m_pActivation->halfRange()) || (mean > m_pActivation->center() + m_pActivation->halfRange()))
 				ThrowError("The data is expected to fall within the range of the activation function");
 			*(pBiases++) = m_pActivation->inverse(mean);
@@ -1941,23 +1941,23 @@ GMatrix* GNeuroPCA::doit(GMatrix* pIn)
 	}
 
 	// Make space for the output data
-	GMatrix* pOut = new GMatrix(pIn->rows(), m_targetDims);
+	GMatrix* pOut = new GMatrix(in.rows(), m_targetDims);
 	Holder<GMatrix> hOut(pOut);
 
 	// Make a buffer for preprocessed info
-	GMatrix preprocess(pIn->relation());
-	preprocess.newRows(pIn->rows());
+	GMatrix preprocess(in.relation());
+	preprocess.newRows(in.rows());
 
 	// Compute the principle components
 	double sse = 0;
 	if(m_pEigVals)
-		sse = computeSumSquaredErr(pIn, pOut, 0);
+		sse = computeSumSquaredErr(&in, pOut, 0);
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
-		computeComponent(pIn, pOut, i, &preprocess);
+		computeComponent(&in, pOut, i, &preprocess);
 		if(m_pEigVals)
 		{
-			double t = computeSumSquaredErr(pIn, pOut, i + 1);
+			double t = computeSumSquaredErr(&in, pOut, i + 1);
 			m_pEigVals[i] = (sse - t) / dims;
 			sse = t;
 		}
@@ -2001,26 +2001,26 @@ void GDynamicSystemStateAligner::setSeeds(size_t a, size_t b)
 }
 
 // virtual
-GMatrix* GDynamicSystemStateAligner::doit(GMatrix* pIn)
+GMatrix* GDynamicSystemStateAligner::doit(GMatrix& in)
 {
-	if(!pIn->relation()->areContinuous(0, pIn->cols()))
+	if(!in.relation()->areContinuous(0, in.cols()))
 		ThrowError("Only continuous attributes are supported");
-	if(pIn->rows() != m_inputs.rows())
+	if(in.rows() != m_inputs.rows())
 		ThrowError("Expected pIn to have the same number of rows as the inputs");
-	if(pIn->rows() < 6)
-		return pIn->clone();
+	if(in.rows() < 6)
+		return in.clone();
 
 	// Make a graph of local neighborhoods
-	GKdTree neighborFinder(pIn, m_neighbors, NULL, false);
-	GGraphCut gc(pIn->rows() + 2);
-	for(size_t i = 0; i < pIn->rows(); i++)
+	GKdTree neighborFinder(&in, m_neighbors, NULL, false);
+	GGraphCut gc(in.rows() + 2);
+	for(size_t i = 0; i < in.rows(); i++)
 	{
 		neighborFinder.neighbors(m_pNeighbors, m_pDistances, i);
 		size_t* pNeigh = m_pNeighbors;
 		double* pDist = m_pDistances;
 		for(size_t j = 0; j < m_neighbors; j++)
 		{
-			if(*pNeigh >= pIn->rows())
+			if(*pNeigh >= in.rows())
 				continue;
 			gc.addEdge(i, *pNeigh, (float)(1.0 / std::max(sqrt(*pDist), 1e-9))); // connect neighbors
 			pNeigh++;
@@ -2036,10 +2036,10 @@ GMatrix* GDynamicSystemStateAligner::doit(GMatrix* pIn)
 	GReleaseDataHolder hAFeatures(&aFeatures);
 	GMatrix bFeatures(m_inputs.relation());
 	GReleaseDataHolder hBFeatures(&bFeatures);
-	GMatrix aLabels(pIn->relation()); // Transitions within cluster A
-	GMatrix bLabels(pIn->relation()); // Transitions within cluster B
-	GMatrix cLabels(pIn->relation()); // Transitions between clusters
-	for(size_t i = 0; i < pIn->rows() - 1; i++)
+	GMatrix aLabels(in.relation()); // Transitions within cluster A
+	GMatrix bLabels(in.relation()); // Transitions within cluster B
+	GMatrix cLabels(in.relation()); // Transitions between clusters
+	for(size_t i = 0; i < in.rows() - 1; i++)
 	{
 		double* pLabel;
 		if(gc.isSource(i))
@@ -2062,14 +2062,14 @@ GMatrix* GDynamicSystemStateAligner::doit(GMatrix* pIn)
 				bFeatures.takeRow(m_inputs[i]);
 			}
 		}
-		GVec::copy(pLabel, pIn->row(i + 1), pIn->cols());
-		GVec::subtract(pLabel, pIn->row(i), pIn->cols());
+		GVec::copy(pLabel, in.row(i + 1), in.cols());
+		GVec::subtract(pLabel, in.row(i), in.cols());
 	}
 
 	// Make the output data
-	GMatrix* pOut = pIn->clone();
+	GMatrix* pOut = in.clone();
 	Holder<GMatrix> hOut(pOut);
-	if(aFeatures.rows() < pIn->cols() || bFeatures.rows() < pIn->cols() || cLabels.rows() < 1)
+	if(aFeatures.rows() < in.cols() || bFeatures.rows() < in.cols() || cLabels.rows() < 1)
 	{
 		// There are not enough points to avoid being arbitrary, so we will simply not change anything
 		return hOut.release();
@@ -2096,39 +2096,39 @@ GMatrix* GDynamicSystemStateAligner::doit(GMatrix* pIn)
 	GMatrix* pAlign = GMatrix::multiply(*pLrBase->beta(), *pAInv, false, false);
 	Holder<GMatrix> hAlign(pAlign);
 	GAssert(pAlign->rows() == pAlign->cols());
-	GTEMPBUF(double, shift, 2 * pIn->cols());
-	double* pBuf = shift + pIn->cols();
-	GVec::setAll(shift, 0.0, pIn->cols());
+	GTEMPBUF(double, shift, 2 * in.cols());
+	double* pBuf = shift + in.cols();
+	GVec::setAll(shift, 0.0, in.cols());
 	size_t crossCount = 0;
-	for(size_t i = 0; i < pIn->rows(); i++)
+	for(size_t i = 0; i < in.rows(); i++)
 	{
 		if(gc.isSource(i) == alignCluster)
 		{
-			pAlign->multiply(pIn->row(i), pOut->row(i));
+			pAlign->multiply(in.row(i), pOut->row(i));
 			if(i > 0 && gc.isSource(i - 1) != alignCluster)
 			{
 				pLrBase->predict(m_inputs[i - 1], pBuf);
-				GVec::add(pBuf, pIn->row(i - 1), pIn->cols());
-				GVec::subtract(pBuf, pOut->row(i), pIn->cols());
-				GVec::add(shift, pBuf, pIn->cols());
+				GVec::add(pBuf, in.row(i - 1), in.cols());
+				GVec::subtract(pBuf, pOut->row(i), in.cols());
+				GVec::add(shift, pBuf, in.cols());
 				crossCount++;
 			}
-			if(i < pIn->rows() - 1 && gc.isSource(i + 1) != alignCluster)
+			if(i < in.rows() - 1 && gc.isSource(i + 1) != alignCluster)
 			{
 				pLrBase->predict(m_inputs[i], pBuf);
-				GVec::multiply(pBuf, -1.0, pIn->cols());
-				GVec::add(pBuf, pIn->row(i + 1), pIn->cols());
-				GVec::subtract(pBuf, pOut->row(i), pIn->cols());
-				GVec::add(shift, pBuf, pIn->cols());
+				GVec::multiply(pBuf, -1.0, in.cols());
+				GVec::add(pBuf, in.row(i + 1), in.cols());
+				GVec::subtract(pBuf, pOut->row(i), in.cols());
+				GVec::add(shift, pBuf, in.cols());
 				crossCount++;
 			}
 		}
 	}
-	GVec::multiply(shift, 1.0 / crossCount, pIn->cols());
-	for(size_t i = 0; i < pIn->rows(); i++)
+	GVec::multiply(shift, 1.0 / crossCount, in.cols());
+	for(size_t i = 0; i < in.rows(); i++)
 	{
 		if(gc.isSource(i) == alignCluster)
-			GVec::add(pOut->row(i), shift, pIn->cols());
+			GVec::add(pOut->row(i), shift, in.cols());
 	}
 
 	// Pick new seeds, in case this method is called again
@@ -2203,7 +2203,7 @@ void GDynamicSystemStateAligner::test()
 	// Do the transformation it
 	GDynamicSystemStateAligner dssa(16, inputs, prng);
 	dssa.setSeeds(seedA, seedB);
-	GMatrix* pStateOut = dssa.doit(&state);
+	GMatrix* pStateOut = dssa.doit(state);
 	Holder<GMatrix> hStateOut(pStateOut);
 
 	// Check results
@@ -2322,14 +2322,14 @@ double GUnsupervisedBackProp::measureError(double* pIntrinsic, double* pImage, s
 }
 */
 // virtual
-GMatrix* GUnsupervisedBackProp::doit(GMatrix* pIn)
+GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 {
 	// Compute values
 	size_t pixels = 1;
 	for(size_t i = 0; i < m_paramDims; i++)
 		pixels *= m_pParamRanges[i];
-	size_t channels = pIn->cols() / pixels;
-	if((pixels * channels) != (size_t)pIn->cols())
+	size_t channels = in.cols() / pixels;
+	if((pixels * channels) != (size_t)in.cols())
 		ThrowError("params don't line up");
 
 	// Init
@@ -2338,7 +2338,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix* pIn)
 		sp_relation pLabelRel = new GUniformRelation(channels);
 		m_pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
 	}
-	GMatrix* pOut = new GMatrix(pIn->rows(), m_intrinsicDims);
+	GMatrix* pOut = new GMatrix(in.rows(), m_intrinsicDims);
 	Holder<GMatrix> hOut(pOut);
 	pOut->setAll(0.5);
 
@@ -2349,14 +2349,14 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix* pIn)
 	// Learn
 	double* pBuf = new double[m_paramDims + m_intrinsicDims];
 	ArrayHolder<double> hBuf(pBuf);
-	size_t* pIndexes = new size_t[pIn->rows()];
+	size_t* pIndexes = new size_t[in.rows()];
 	ArrayHolder<size_t> hIndexes(pIndexes);
-	GIndexVec::makeIndexVec(pIndexes, pIn->rows());
+	GIndexVec::makeIndexVec(pIndexes, in.rows());
 	size_t nextSpotlight = 0;
-	for(double targetActive = 0.0; targetActive < pIn->rows() * 2; targetActive += m_rate)
+	for(double targetActive = 0.0; targetActive < in.rows() * 2; targetActive += m_rate)
 	{
 		// Refine
-		double* pSpotlightTarget = pIn->row(nextSpotlight);
+		double* pSpotlightTarget = in.row(nextSpotlight);
 		double* pSpotlightContext = pOut->row(nextSpotlight);
 		double spotlightErr = 0.0;
 		if(m_paramDims == 0)
@@ -2368,12 +2368,12 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix* pIn)
 		double minAboveThresh = 1e308;
 		size_t activeCount = 0;
 		double cumErr = 0.0;
-		GIndexVec::shuffle(pIndexes, pIn->rows(), m_pRand);
+		GIndexVec::shuffle(pIndexes, in.rows(), m_pRand);
 		size_t* pInd = pIndexes;
-		for(size_t i = 0; i < pIn->rows(); i++)
+		for(size_t i = 0; i < in.rows(); i++)
 		{
 			size_t index = *(pInd++);
-			double* pObs = pIn->row(index);
+			double* pObs = in.row(index);
 			double* pContext = pOut->row(index);
 			m_cvi.setRandom(m_pRand);
 			m_cvi.currentNormalized(pBuf);
@@ -2597,7 +2597,7 @@ GMatrix* GUnsupervisedBackProp::doitCameraSystem(vector<size_t>& paramRanges, GM
 		// Align intrinsic state
 		inputs.copyColumns(pActions->cols(), pIntrinsic, 0, m_intrinsicDims);
 		GDynamicSystemStateAligner dsa(12, inputs, *m_pRand);
-		pIntrinsic = dsa.doit(pIntrinsic);
+		pIntrinsic = dsa.doit(*pIntrinsic);
 		hIntrinsic.reset(pIntrinsic);
 */
 	}

@@ -212,6 +212,8 @@ GNeuralRecommender* InstantiateNeuralRecommender(GRand* pRand, GArgReader& args)
 		}
 		else if(args.if_pop("-crossentropy"))
 			pModel->model()->setBackPropTargetFunction(GNeuralNet::cross_entropy);
+		else if(args.if_pop("-sign"))
+			pModel->model()->setBackPropTargetFunction(GNeuralNet::sign);
 		else if(args.if_pop("-physical"))
 			pModel->model()->setBackPropTargetFunction(GNeuralNet::physical);
 		else
@@ -318,7 +320,7 @@ void crossValidate(GArgReader& args)
 	// Do cross-validation
 	double mae;
 	double mse = pModel->crossValidate(pData, folds, &prng, maxRecommendationsPerUser, &mae);
-	cout << "MSE=" << mse << ", MAE=" << mae << "\n";
+	cout << "RMSE=" << sqrt(mse) << ", MSE=" << mse << ", MAE=" << mae << "\n";
 }
 
 void precisionRecall(GArgReader& args)
@@ -454,8 +456,8 @@ void fillMissingValues(GArgReader& args)
 	GNominalToCat* pNtc = new GNominalToCat();
 	GTwoWayTransformChainer filter(new GNormalize(), pNtc);
 	pNtc->preserveUnknowns();
-	filter.train(pDataOrig);
-	GMatrix* pData = filter.transformBatch(pDataOrig);
+	filter.train(*pDataOrig);
+	GMatrix* pData = filter.transformBatch(*pDataOrig);
 	Holder<GMatrix> hData(pData);
 	hDataOrig.release();
 	pDataOrig = NULL;
@@ -492,7 +494,7 @@ void fillMissingValues(GArgReader& args)
 	}
 
 	// Convert the data back to its original form
-	GMatrix* pOut = filter.untransformBatch(pData);
+	GMatrix* pOut = filter.untransformBatch(*pData);
 	pOut->setRelation(pOrigRel);
 	pOut->print(cout);
 }

@@ -104,7 +104,7 @@ public:
 	virtual ~GManifoldSculpting();
 
 	/// Perform NLDR.
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 
 	virtual sp_relation& relationAfter() { return m_pRelationAfter; }
 
@@ -234,7 +234,7 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Performs NLDR
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 };
 
 
@@ -262,7 +262,7 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Performs NLDR
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 };
 
 /*
@@ -283,7 +283,7 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Performs NLDR
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 
 protected:
 	GMatrix* unfold(GNeighborFinder* pNF, size_t targetDims, GRand* pRand);
@@ -318,7 +318,7 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Perform NLDR
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 
 	/// Specify to use multi-dimensional scaling instead of PCA to reduce in local patches.
 	void useMds(bool b) { m_useMds = b; }
@@ -373,7 +373,7 @@ public:
 	void setActivation(GActivationFunction* pActivation);
 
 	/// See the comment for GTransform::doIt
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 
 protected:
 	void computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess);
@@ -402,7 +402,7 @@ public:
 	virtual ~GDynamicSystemStateAligner();
 
 	/// Perform the transformation
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 
 	/// Specify the source and sink points for dividing the data into two clusters
 	void setSeeds(size_t a, size_t b);
@@ -452,7 +452,7 @@ public:
 
 	/// Perform NLDR. (This also trains the internal neural network to map from
 	/// low-dimensional space to high-dimensional space.)
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 
 	/// Peform NLDR using a sparse matrix as input
 	GMatrix* doitSparse(GSparseMatrix* pData);

@@ -528,15 +528,15 @@ public:
 };
 
 GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims, GRand& rand)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.0001), m_pP(NULL), m_pQ(NULL), m_rand(rand)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_rand(rand)
 {
 }
 
 // virtual
 GMatrixFactorization::~GMatrixFactorization()
 {
-	delete(m_pP);
 	delete(m_pQ);
+	delete(m_pP);
 }
 
 // virtual
@@ -559,22 +559,27 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 
 	// Initialize P with small random values, and Q with zeros
 	delete(m_pP);
-	delete(m_pQ);
-	m_pP = new GMatrix(pData->cols(), 1 + m_intrinsicDims);
+	m_pP = new GMatrix(pData->rows(),  1 + m_intrinsicDims);
 	for(size_t i = 0; i < m_pP->rows(); i++)
 	{
 		double* pVec = m_pP->row(i);
 		for(size_t j = 0; j <= m_intrinsicDims; j++)
-			*(pVec++) = 0.1 * m_rand.normal();
+			*(pVec++) = 0.02 * m_rand.normal();
 	}
-	m_pQ = new GMatrix(pData->rows(), m_intrinsicDims);
-	m_pQ->setAll(0.0);
+	delete(m_pQ);
+	m_pQ = new GMatrix(pData->cols(), 1 + m_intrinsicDims);
+	for(size_t i = 0; i < m_pQ->rows(); i++)
+	{
+		double* pVec = m_pQ->row(i);
+		for(size_t j = 0; j <= m_intrinsicDims; j++)
+			*(pVec++) = 0.02 * m_rand.normal();
+	}
 
 	// Train
 	double prevErr = 1e308;
-	double learningRate = 0.2;
+	double learningRate = 0.01;
 	GTEMPBUF(double, temp_weights, m_intrinsicDims);
-	while(learningRate >= 0.01)
+	while(learningRate >= 0.001)
 	{
 		// Shuffle the ratings
 		for(size_t n = ratings.size(); n > 0; n--)
@@ -587,47 +592,44 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 			Rating* pRating = *it;
 
 			// Estimate the prediction
-			double* pVec = m_pP->row(pRating->m_item);
-			double* pPref = m_pQ->row(pRating->m_user);
-			double pred = *(pVec++);
+			double* pPref = m_pP->row(pRating->m_user);
+			double* pVec = m_pQ->row(pRating->m_item);
+			double pred = *(pVec++) + *(pPref++);
 			for(size_t i = 0; i < m_intrinsicDims; i++)
 				pred += *(pPref++) * (*pVec++);
 
-			// Update P
+			// Update Q
 			double err = pRating->m_rating - pred;
 			sse += (err * err);
-			pVec = m_pP->row(pRating->m_item);
-			pPref = m_pQ->row(pRating->m_user);
+			pPref = m_pP->row(pRating->m_user) + 1;
+			double* pT = temp_weights;
+			pVec = m_pQ->row(pRating->m_item);
 			*pVec += learningRate * err;
 			pVec++;
-			double* pT = temp_weights;
 			for(size_t i = 0; i < m_intrinsicDims; i++)
 			{
 				*(pT++) = *pVec;
-				*pVec += learningRate * err * *pPref;
+				*pVec += learningRate * (err * (*pPref) - m_regularizer * (*pVec));
 				pPref++;
 				pVec++;
 			}
 
-			// Update Q
+			// Update P
 			pVec = temp_weights;
-			pPref = m_pQ->row(pRating->m_user);
-			pVec++;
+			pPref = m_pP->row(pRating->m_user);
+			*pPref += learningRate * err;
+			pPref++;
 			for(size_t i = 0; i < m_intrinsicDims; i++)
 			{
-				*pPref += learningRate * err * *pVec;
+				*pPref += learningRate * (err * (*pVec) - m_regularizer * (*pPref));
 				pVec++;
 				pPref++;
 			}
-
-			// Regularize
-			GVec::multiply(m_pP->row(pRating->m_item) + 1, 1.0 - m_regularizer, m_intrinsicDims);
-			GVec::multiply(m_pQ->row(pRating->m_user), 1.0 - m_regularizer, m_intrinsicDims);
 		}
 
 		// Stopping criteria
 		double rsse = sqrt(sse);
-		if(1.0 - (rsse / prevErr) < 0.0001) // If the amount of improvement is less than 0.01%
+		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.001) // If the amount of improvement is less than 0.01%
 			learningRate *= 0.8; // decay the learning rate
 		prevErr = rsse;
 	}
@@ -636,11 +638,12 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 // virtual
 double GMatrixFactorization::predict(size_t user, size_t item)
 {
-	double* pVec = m_pP->row(item);
-	double* pPref = m_pQ->row(user);
-	double pred = *(pVec++);
+	double* pVec = m_pQ->row(item);
+	double* pPref = m_pP->row(user);
+	double pred = *(pVec++) + *(pPref++);
 	for(size_t i = 0; i < m_intrinsicDims; i++)
 		pred += *(pPref++) * (*pVec++);
+//pred = std::max(1.0, std::min(5.0, floor(pred + 0.5))); // todo: formalize this
 	return pred;
 }
 
@@ -704,17 +707,18 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 	for(vector<Rating*>::iterator it = ratings.begin(); it != ratings.end(); it++)
 		(*it)->m_rating = ((*it)->m_rating - m_min) * scale;
 
-	double baseRsse = 1e300;
-	size_t window = 0;
+	double prevErr = 1e308;
 	double floor = std::max(-50.0, pAF->center() - pAF->halfRange());
 	double cap = std::min(50.0, pAF->center() + pAF->halfRange());
-	while(true)
+	double learningRate = 0.2;
+	while(learningRate >= 0.01)
 	{
 		// Shuffle the ratings
 		for(size_t n = ratings.size(); n > 0; n--)
 			std::swap(ratings[(size_t)m_pRand->next(n)], ratings[n - 1]);
 
 		// Do an epoch of training
+		m_pModel->setLearningRate(learningRate);
 		double sse = 0;
 		for(vector<Rating*>::iterator it = ratings.begin(); it != ratings.end(); it++)
 		{
@@ -723,26 +727,19 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 			double predictedRating = m_pModel->forwardPropSingleOutput(pUserPreferenceVector, pRating->m_item);
 			double d = pRating->m_rating - predictedRating;
 			sse += (d * d);
-			m_pModel->setErrorSingleOutput(pRating->m_rating, pRating->m_item);
+			m_pModel->setErrorSingleOutput(pRating->m_rating, pRating->m_item, m_pModel->backPropTargetFunction());
 			m_pModel->backProp()->backpropagateSingleOutput(pRating->m_item);
-			m_pModel->backProp()->descendGradientSingleOutput(pRating->m_item, pUserPreferenceVector, m_pModel->learningRate(), m_pModel->momentum());
-			m_pModel->backProp()->adjustFeaturesSingleOutput(pRating->m_item, pUserPreferenceVector, m_pModel->learningRate());
+			m_pModel->backProp()->descendGradientSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->momentum());
+			m_pModel->backProp()->adjustFeaturesSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate);
 			GVec::floorValues(pUserPreferenceVector, floor, m_intrinsicDims);
 			GVec::capValues(pUserPreferenceVector, cap, m_intrinsicDims);
 		}
 
-		// Terminate when the root-sum-squared-error does not improve by 0.01% within a window of 10 epochs
+		// Stopping criteria
 		double rsse = sqrt(sse);
-		if(1.0 - (rsse / baseRsse) >= 0.0001)
-		{
-			window = 0;
-			baseRsse = rsse;
-		}
-		else
-		{
-			if(++window >= 10)
-				break;
-		}
+		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.0001) // If the amount of improvement is less than 0.01%
+			learningRate *= 0.8; // decay the learning rate
+		prevErr = rsse;
 	}
 }
 
@@ -789,7 +786,7 @@ void GBagOfRecommenders::trainBatch(GSparseMatrix* pData)
 	for(vector<GCollaborativeFilter*>::iterator it = m_filters.begin(); it != m_filters.end(); it++)
 	{
 		// Make a matrix that randomly samples about half of the elements in pData
-		GSparseMatrix tmp(pData->rows(), pData->cols());
+		GSparseMatrix tmp(pData->rows(), pData->cols(), pData->defaultValue());
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
 			GSparseMatrix::Iter end2 = pData->rowEnd(i);

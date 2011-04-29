@@ -770,6 +770,27 @@ void GNeuralNet::decayWeights(double lambda, double gamma)
 	}
 }
 
+void GNeuralNet::decayWeightsSingleOutput(size_t output, double lambda, double gamma)
+{
+	if(m_internalLabelDims == 0)
+		ThrowError("enableIncrementalLearning must be called before this method");
+	vector<GNeuralNetLayer>::iterator layer;
+	for(layer = m_layers.begin(); layer + 1 != m_layers.end(); layer++)
+	{
+		double d = (1.0 - lambda * m_learningRate);
+		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
+		{
+			for(vector<double>::iterator weight = neuron->m_weights.begin() + 1; weight != neuron->m_weights.end(); weight++)
+				*weight *= d;
+		}
+		lambda *= gamma;
+	}
+	double d = (1.0 - lambda * m_learningRate);
+	vector<GNeuron>::iterator neuron = layer->m_neurons.begin() + output;
+	for(vector<double>::iterator weight = neuron->m_weights.begin() + 1; weight != neuron->m_weights.end(); weight++)
+		*weight *= d;
+}
+
 void GNeuralNet::forwardProp(const double* pRow)
 {
 	// Propagate from the feature vector to the first layer
@@ -1136,6 +1157,22 @@ void GNeuralNet::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTa
 			}
 			break;
 
+		case sign:
+			{
+				vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin();
+				vector<GBackPropNeuron>::iterator itBP = bpOutputLayer.m_neurons.begin();
+				while(itNN != nnOutputLayer.m_neurons.end())
+				{
+					if(*pTarget == UNKNOWN_REAL_VALUE)
+						itBP->m_error = 0.0;
+					else
+						itBP->m_error = nnOutputLayer.m_pActivationFunction->derivativeOfNet(itNN->m_net, itNN->m_activation) * (*pTarget >= itNN->m_activation ? 0.1 : -0.1);
+					pTarget++;
+					itNN++;
+					itBP++;
+				}
+			}
+
 		case physical:
 			{
 				double force = 0.0;
@@ -1183,6 +1220,9 @@ void GNeuralNet::setErrorSingleOutput(double target, size_t output, TargetFuncti
 		case cross_entropy:
 			bpNeuron.m_error = target - nnNeuron.m_activation;
 			break;
+
+		case sign:
+			bpNeuron.m_error = nnOutputLayer.m_pActivationFunction->derivativeOfNet(nnNeuron.m_net, nnNeuron.m_activation) * (target >= nnNeuron.m_activation ? 0.1 : -0.1);
 
 		case physical:
 			// Note: Physical error requires knowing all the outputs, but this hack sort of approximates it without knowing them.
@@ -1724,7 +1764,7 @@ GTwtNode* GModerateNet::toTwt(GTwtDoc* pDoc)
 }
 
 // virtual
-void GModerateNet::train(GMatrix* pData, int labelDims)
+void GModerateNet::train(GMatrix& data, int labelDims)
 {
 	// Split into a training and test set
 	GMatrix dataTrain(pData->relation());

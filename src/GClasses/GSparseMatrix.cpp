@@ -733,8 +733,6 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	}
 
 	// Return results
-//	pU->fixNans();
-//	pV->fixNans();
 	*ppU = hU.release();
 	*ppDiag = hSigma.release();
 	*ppV = hV.release();

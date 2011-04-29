@@ -157,11 +157,11 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
  		if(!features1.relation()->areContinuous(0, features1.relation()->size()))
  		{
 			GNominalToCat ntc;
-			ntc.train(&f1);
-			GMatrix* pF1 = ntc.transformBatch(&f1);
+			ntc.train(f1);
+			GMatrix* pF1 = ntc.transformBatch(f1);
 			hF1.reset(pF1);
 			f1 = *pF1;
-			GMatrix* pF2 = ntc.transformBatch(&f2);
+			GMatrix* pF2 = ntc.transformBatch(f2);
 			hF2.reset(pF2);
 			f2 = *pF2;
 		}
@@ -175,11 +175,11 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 		if(!features1.relation()->areNominal(0, features1.relation()->size()))
 		{
 			GDiscretize disc;
-			disc.train(&f1); // todo: should really use both feature sets here
-			GMatrix* pF1 = disc.transformBatch(&features1);
+			disc.train(f1); // todo: should really use both feature sets here
+			GMatrix* pF1 = disc.transformBatch(features1);
 			hF1.reset(pF1);
 			f1 = *pF1;
-			GMatrix* pF2 = disc.transformBatch(&features2);
+			GMatrix* pF2 = disc.transformBatch(features2);
 			hF2.reset(pF2);
 			f2 = *pF2;
 		}
@@ -191,11 +191,11 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 		if(!supportedFeatureRange(&fmin, &fmax))
 		{
 			GNormalize norm(fmin, fmax);
-			norm.train(&f1); // todo: should really use both feature sets here
-			GMatrix* pF1 = norm.transformBatch(&f1);
+			norm.train(f1); // todo: should really use both feature sets here
+			GMatrix* pF1 = norm.transformBatch(f1);
 			hF1.reset(pF1);
 			f1 = *pF1;
-			GMatrix* pF2 = norm.transformBatch(&f2);
+			GMatrix* pF2 = norm.transformBatch(f2);
 			hF2.reset(pF2);
 			f2 = *pF2;
 		}
@@ -211,12 +211,12 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 		else
 		{
 			GDiscretize disc;
-			disc.train(&labels1);
-			GMatrix* pL1 = disc.transformBatch(&labels1);
+			disc.train(labels1);
+			GMatrix* pL1 = disc.transformBatch(labels1);
 			Holder<GMatrix> hL1(pL1);
 			GMatrix* pL2 = transduceInner(f1, *pL1, f2);
 			Holder<GMatrix> hL2(pL2);
-			return disc.untransformBatch(pL2);
+			return disc.untransformBatch(*pL2);
 		}
 	}
 	else
@@ -229,12 +229,12 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 			else
 			{
 				GNormalize norm(lmin, lmax);
-				norm.train(&labels1);
-				GMatrix* pL1 = norm.transformBatch(&labels1);
+				norm.train(labels1);
+				GMatrix* pL1 = norm.transformBatch(labels1);
 				Holder<GMatrix> hL1(pL1);
 				GMatrix* pL2 = transduceInner(f1, *pL1, f2);
 				Holder<GMatrix> hL2(pL2);
-				return norm.untransformBatch(pL2);
+				return norm.untransformBatch(*pL2);
 			}
 		}
 		else
@@ -243,12 +243,12 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 			if(supportedLabelRange(&lmin, &lmax))
 			{
 				GNominalToCat ntc;
-				ntc.train(&labels1);
-				GMatrix* pL1 = ntc.transformBatch(&labels1);
+				ntc.train(labels1);
+				GMatrix* pL1 = ntc.transformBatch(labels1);
 				Holder<GMatrix> hL1(pL1);
 				GMatrix* pL2 = transduceInner(f1, *pL1, f2);
 				Holder<GMatrix> hL2(pL2);
-				return ntc.untransformBatch(pL2);
+				return ntc.untransformBatch(*pL2);
 			}
 			else
 			{
@@ -636,9 +636,9 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 
 	// Train the filters
 	if(m_pFeatureFilter)
-		m_pFeatureFilter->train(&features);
+		m_pFeatureFilter->train(features);
 	if(m_pLabelFilter)
-		m_pLabelFilter->train(&labels);
+		m_pLabelFilter->train(labels);
 }
 
 void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
@@ -655,11 +655,11 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 	setupFilters(features, labels);
 	if(m_pFeatureFilter)
 	{
-		GMatrix* pFilteredFeatures = m_pFeatureFilter->transformBatch(&features);
+		GMatrix* pFilteredFeatures = m_pFeatureFilter->transformBatch(features);
 		Holder<GMatrix> hFilteredFeatures(pFilteredFeatures);
 		if(m_pLabelFilter)
 		{
-			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(&labels);
+			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(labels);
 			Holder<GMatrix> hFilteredLabels(pFilteredLabels);
 			trainInner(*pFilteredFeatures, *pFilteredLabels);
 		}
@@ -670,7 +670,7 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 	{
 		if(m_pLabelFilter)
 		{
-			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(&labels);
+			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(labels);
 			Holder<GMatrix> hFilteredLabels(pFilteredLabels);
 			trainInner(features, *pFilteredLabels);
 		}

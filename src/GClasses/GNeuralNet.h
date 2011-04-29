@@ -163,6 +163,7 @@ public:
 	{
 		squared_error, /// (default) best for regression
 		cross_entropy, /// best for classification
+		sign, /// uses the sign of the error, as in the perceptron training rule
 		physical, /// squared error scaled by the inverse square of the distance
 	};
 
@@ -261,6 +262,10 @@ public:
 	/// decaying the weights after each application of back-prop.
 	void decayWeights(double lambda, double gamma = 1.0);
 
+	/// Just like decayWeights, except it only decays the weights in one of
+	/// the output units.
+	void decayWeightsSingleOutput(size_t output, double lambda, double gamma = 1.0);
+
 	/// Returns the current learning rate
 	double learningRate() { return m_learningRate; }
 
@@ -299,6 +304,9 @@ public:
 	/// Specify the target function to use for back-propagation. The default is squared_error.
 	/// cross_entropy tends to be faster, and is well-suited for classification tasks.
 	void setBackPropTargetFunction(TargetFunction eTF) { m_backPropTargetFunction = eTF; }
+
+	/// Returns the enumeration of the target function used for backpropagation
+	TargetFunction backPropTargetFunction() { return m_backPropTargetFunction; }
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	/// Assumes all attributes are continuous.
@@ -462,7 +470,7 @@ public:
 	double lambda() { return m_lambda; }
 	void setLambda(double d) { m_lambda = d; }
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
-	virtual void train(GMatrix* pData, int labelDims);
+	virtual void train(GMatrix& data, int labelDims);
 	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 	virtual void clear();
 	virtual void enableIncrementalLearning(sp_relation& pRelation, size_t labelDims, double* pMins, double* pRanges);

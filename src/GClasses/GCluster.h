@@ -43,12 +43,12 @@ public:
 
 	/// Clusters pIn and outputs a dataset with one column that specifies
 	/// the cluster number for each row.
-	virtual GMatrix* doit(GMatrix* pIn)
+	virtual GMatrix* doit(GMatrix& in)
 	{
-		cluster(pIn);
+		cluster(&in);
 		sp_relation pRel = new GUniformRelation(1, m_clusterCount);
 		GMatrix* pOut = new GMatrix(pRel);
-		size_t nCount = pIn->rows();
+		size_t nCount = in.rows();
 		pOut->newRows(nCount);
 		for(size_t i = 0; i < nCount; i++)
 			pOut->row(i)[0] = (double)whichCluster(i);

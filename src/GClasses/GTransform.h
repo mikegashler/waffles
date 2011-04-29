@@ -30,7 +30,7 @@ public:
 	/// transformations with an internal model (including all transforms
 	/// that inherit from GIncrementalTransform), this is equivalent to calling
 	/// train, and then calling transformBatch.
-	virtual GMatrix* doit(GMatrix* pIn) = 0;
+	virtual GMatrix* doit(GMatrix& in) = 0;
 
 protected:
 	/// Child classes should use this in their implementation of toTwt
@@ -60,7 +60,7 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
 
 	/// sets m_pRelationBefore and m_pRelationAfter, and trains the transform.
-	virtual void train(GMatrix* pData) = 0;
+	virtual void train(GMatrix& data) = 0;
 
 	/// Prepares the transform to be used with incremental training
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges) = 0;
@@ -84,10 +84,10 @@ public:
 	virtual void transform(const double* pIn, double* pOut) = 0;
 
 	/// This calls Train with pIn, then transforms pIn and returns the results.
-	virtual GMatrix* doit(GMatrix* pIn);
+	virtual GMatrix* doit(GMatrix& in);
 
 	/// This assumes that train has already been called, and transforms all the rows in pIn.
-	virtual GMatrix* transformBatch(GMatrix* pIn);
+	virtual GMatrix* transformBatch(GMatrix& in);
 
 	/// Returns a buffer of sufficient size to store an inner (transformed) vector
 	double* innerBuf();
@@ -111,7 +111,7 @@ public:
 	virtual void untransform(const double* pIn, double* pOut) = 0;
 
 	/// This assumes train was previously called, and untransforms all the rows in pIn and returns the results.
-	virtual GMatrix* untransformBatch(GMatrix* pIn);
+	virtual GMatrix* untransformBatch(GMatrix& in);
 };
 
 
@@ -132,7 +132,7 @@ public:
 
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
 
@@ -194,7 +194,7 @@ public:
 	GMatrix* components() { return m_pBasisVectors; }
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::enableIncrementalTraining
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
@@ -244,7 +244,7 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::enableIncrementalTraining
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
@@ -277,7 +277,7 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 	
 	/// See the comment for GIncrementalTransform::enableIncrementalTraining
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
@@ -318,7 +318,7 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 	
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 	
 	/// See the comment for GIncrementalTransform::enableIncrementalTraining
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
@@ -362,7 +362,7 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 	
 	/// See the comment for GIncrementalTransform::enableIncrementalTraining
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
@@ -409,7 +409,7 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 	
 	/// See the comment for GIncrementalTransform::enableIncrementalTraining
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
@@ -449,7 +449,7 @@ public:
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 	
 	/// See the comment for GIncrementalTransform::enableIncrementalTraining
 	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);

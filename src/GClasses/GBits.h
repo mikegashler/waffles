@@ -57,17 +57,30 @@ public:
 	}
 
 	/// Returns the number of 1's in the binary representation of n
-	static inline int countOnes(unsigned int n)
+	static inline unsigned int countOnes(unsigned int n)
 	{
-		int count = 0;
-		int i;
-		for(i = 0; i < 32; i++)
+		unsigned int count = 0;
+		for(unsigned int i = 0; i < 32; i++)
 		{
 			if(n & 1)
 				count++;
 			n = n >> 1;
 		}
 		return count;
+	}
+
+	/// Returns the number of trailing zeros in the binary representation of n.
+	/// For example, if n=712 (binary 1011001000), it will return 3.
+	/// If n=0, it will return (size_t)-1 to represent inf.
+	static inline size_t countTrailingZeros(size_t n)
+	{
+		if(n & 1)
+			return 0;
+		if(n & 2)
+			return 1;
+		if(n & 4)
+			return 2;
+		return boundingShift((n ^ (n - 1)) + 1) - 1;
 	}
 
 	/// Returns true if a number is a power of two
@@ -457,6 +470,10 @@ public:
 		((unsigned char*)&out)[7] = ((unsigned char*)&in)[0];
 		return out;
 	}
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
 };
 
 } // namespace GClasses

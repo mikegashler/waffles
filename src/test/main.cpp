@@ -19,6 +19,7 @@
 #endif
 #include "../GClasses/GApp.h"
 #include "../GSup/GBezier.h"
+#include "../GClasses/GBits.h"
 #include "../GClasses/GBitTable.h"
 #include "../GClasses/GCluster.h"
 #include "../GSup/GCrypto.h"
@@ -358,6 +359,7 @@ void RunAllTests()
 	runTest("GBag", GBag::test);
 	runTest("GBaselineLearner", GBaselineLearner::test);
 	runTest("GBezier", GBezier::test);
+	runTest("GBits", GBits::test);
 	runTest("GBitTable", GBitTable::test);
 	runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);
 	runTest("GBucket", GBucket::test);

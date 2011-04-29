@@ -101,7 +101,7 @@ public:
 	GBayesianNetwork(GRelation* pRelation, int nOutputCount);
 	virtual ~GBayesianNetwork();
 
-	virtual void train(GMatrix* pData);
+	virtual void train(GMatrix& data);
 	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 };
 */

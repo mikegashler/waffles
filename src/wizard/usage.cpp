@@ -352,7 +352,7 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pContents = pBucket->add("<contents>");
 		pContents->add("[algorithm]", "Add an algorithm to the bucket");
 	}
-	UsageNode* pCvdt = pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm was shown to often outperform random forest in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008).");
+	UsageNode* pCvdt = pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
 	UsageNode* pDT = pRoot->add("decisiontree <options>", "A decision tree.");
 	{
 		UsageNode* pOpts = pDT->add("<options>");
@@ -374,7 +374,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-cosine", "Use the cosine method to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
 	}
 	pRoot->add("linear", "A linear regression model");
-	pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (A powerful model can be created using a bagging ensemble of buckets, that each contain one decision tree and one mean margins tree. This combination has been shown to do better than even much larger ensembles of random trees.)");
+	pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
 	UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm.");
 	{
 		UsageNode* pOpts = pNB->add("<options>");
@@ -387,7 +387,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-friends [intrinsic-dims] [thresh]", "Use the manifold-friend-finding algorithm instead of the nearest Euclidean neighbors.");
 		pOpts->add("-prune", "Prune shortcuts. (Only effective if used with the -friends option.)");
 	}
-	UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network. It is trained with online backpropagation.");
+	UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network. It is trained with online backpropagation. (Rumelhart, D.E., Hinton, G.E., and Williams, R.J. Learning representations by back-propagating errors. Nature, 323:9, 1986.)");
 	{
 		UsageNode* pOpts = pNN->add("<options>");
 		pOpts->add("-addlayer [size]=16", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
@@ -409,7 +409,7 @@ UsageNode* makeAlgorithmUsageTree()
 			pAct->add("sinc", "A sinc wavelet activation function");
 		}
 	}
-	UsageNode* pRF = pRoot->add("randomforest [trees] <options>", "A baggging ensemble of decision trees that use random division boundaries.");
+	UsageNode* pRF = pRoot->add("randomforest [trees] <options>", "A baggging ensemble of decision trees that use random division boundaries. (This algorithm is described in Breiman, Leo (2001). Random Forests. Machine Learning 45 (1): 5–32. doi:10.1023/A:1010933404324.)");
 	{
 		pRF->add("[trees]=50", "Specify the number of trees in the random forest");
 		UsageNode* pOpts = pRF->add("<options>");
@@ -545,7 +545,7 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pLLE->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
-	UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality.");
+	UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513–520, MIT Press, Cambridge, MA, 2008.)");
 	{
 		UsageNode* pOpts = pMS->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -1068,7 +1068,7 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
 		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
 	}
-	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm.");
+	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623–656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria, I don't regularize the bias weights, and I don't store the superfluous ones in the matrices.)");
 	{
 		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
 		UsageNode* pOpts = pMF->add("<options>");

@@ -85,13 +85,13 @@ GTwtNode* GTwoWayTransformChainer::toTwt(GTwtDoc* pDoc)
 }
 
 // virtual
-void GTwoWayTransformChainer::train(GMatrix* pData)
+void GTwoWayTransformChainer::train(GMatrix& data)
 {
-	m_pFirst->train(pData);
+	m_pFirst->train(data);
 	m_pRelationBefore = m_pFirst->before();
-	GMatrix* pData2 = m_pFirst->transformBatch(pData); // todo: often this step is computation overkill since m_pSecond may not even use it during training. Is there a way to avoid doing it?
+	GMatrix* pData2 = m_pFirst->transformBatch(data); // todo: often this step is computation overkill since m_pSecond may not even use it during training. Is there a way to avoid doing it?
 	Holder<GMatrix> hData2(pData2);
-	m_pSecond->train(pData2);
+	m_pSecond->train(*pData2);
 	m_pRelationAfter = m_pSecond->after();
 }
 
@@ -120,23 +120,23 @@ void GTwoWayTransformChainer::untransform(const double* pIn, double* pOut)
 // ---------------------------------------------------------------
 
 // virtual
-GMatrix* GIncrementalTransform::doit(GMatrix* pIn)
+GMatrix* GIncrementalTransform::doit(GMatrix& in)
 {
-	train(pIn);
-	return transformBatch(pIn);
+	train(in);
+	return transformBatch(in);
 }
 
 // virtual
-GMatrix* GIncrementalTransform::transformBatch(GMatrix* pIn)
+GMatrix* GIncrementalTransform::transformBatch(GMatrix& in)
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("neither train nor enableIncrementalTraining has been called");
-	size_t nRows = pIn->rows();
+	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(after());
 	Holder<GMatrix> hOut(pOut);
 	pOut->newRows(nRows);
 	for(size_t i = 0; i < nRows; i++)
-		transform(pIn->row(i), pOut->row(i));
+		transform(in.row(i), pOut->row(i));
 	return hOut.release();
 }
 
@@ -150,16 +150,16 @@ double* GIncrementalTransform::innerBuf()
 // ---------------------------------------------------------------
 
 // virtual
-GMatrix* GTwoWayIncrementalTransform::untransformBatch(GMatrix* pIn)
+GMatrix* GTwoWayIncrementalTransform::untransformBatch(GMatrix& in)
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("neither train nor enableIncrementalTraining has been called");
-	size_t nRows = pIn->rows();
+	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(before());
 	pOut->newRows(nRows);
 	Holder<GMatrix> hOut(pOut);
 	for(size_t i = 0; i < nRows; i++)
-		untransform(pIn->row(i), pOut->row(i));
+		untransform(in.row(i), pOut->row(i));
 	return hOut.release();
 }
 
@@ -206,9 +206,9 @@ void GPCA::computeEigVals()
 }
 
 // virtual
-void GPCA::train(GMatrix* pData)
+void GPCA::train(GMatrix& data)
 {
-	m_pRelationBefore = pData->relation();
+	m_pRelationBefore = data.relation();
 	if(!m_pRelationBefore->areContinuous(0, m_pRelationBefore->size()))
 		ThrowError("GPCA doesn't support nominal values. (You could filter with nominaltocat to make them real.)");
 	delete(m_pBasisVectors);
@@ -222,11 +222,11 @@ void GPCA::train(GMatrix* pData)
 	if(m_aboutOrigin)
 		GVec::setAll(pMean, 0.0, nInputDims);
 	else
-		pData->centroid(pMean);
+		data.centroid(pMean);
 
 	// Make a copy of the data
-	GMatrix tmpData(pData->relation(), pData->heap());
-	tmpData.copy(pData);
+	GMatrix tmpData(data.relation(), data.heap());
+	tmpData.copy(&data);
 
 	// Compute the principle components
 	double sse = 0;
@@ -488,9 +488,9 @@ GTwtNode* GNoiseGenerator::toTwt(GTwtDoc* pDoc)
 }
 
 // virtual
-void GNoiseGenerator::train(GMatrix* pData)
+void GNoiseGenerator::train(GMatrix& data)
 {
-	m_pRelationBefore = pData->relation();
+	m_pRelationBefore = data.relation();
 	m_pRelationAfter = m_pRelationBefore;
 }
 
@@ -554,9 +554,9 @@ GTwtNode* GPairProduct::toTwt(GTwtDoc* pDoc)
 }
 
 // virtual
-void GPairProduct::train(GMatrix* pData)
+void GPairProduct::train(GMatrix& data)
 {
-	m_pRelationBefore = pData->relation();
+	m_pRelationBefore = data.relation();
 	size_t nAttrsIn = m_pRelationBefore->size();
 	size_t nAttrsOut = std::min(m_maxDims, nAttrsIn * (nAttrsIn - 1) / 2);
 	m_pRelationAfter = new GUniformRelation(nAttrsOut, 0);
@@ -650,16 +650,16 @@ void GAttributeSelector::setTargetFeatures(size_t n)
 }
 
 // virtual
-void GAttributeSelector::train(GMatrix* pData)
+void GAttributeSelector::train(GMatrix& data)
 {
-	m_pRelationBefore = pData->relation();
-	if(m_labelDims > pData->cols())
+	m_pRelationBefore = data.relation();
+	if(m_labelDims > data.cols())
 		ThrowError("label dims is greater than the number of columns in the data");
-	size_t curDims = pData->cols() - m_labelDims;
+	size_t curDims = data.cols() - m_labelDims;
 	m_ranks.resize(curDims);
-	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - m_labelDims);
+	GMatrix* pFeatures = data.cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
 	Holder<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - m_labelDims, pData->rows(), m_labelDims);
+	GMatrix* pLabels = data.cloneSub(0, data.cols() - m_labelDims, data.rows(), m_labelDims);
 	Holder<GMatrix> hLabels(pLabels);
 	vector<size_t> indexMap;
 	for(size_t i = 0; i < curDims; i++)
@@ -670,8 +670,8 @@ void GAttributeSelector::train(GMatrix* pData)
 	{
 		// Convert nominal attributes to a categorical distribution
 		GNominalToCat ntc;
-		ntc.train(pFeatures);
-		GMatrix* pFeatures2 = ntc.transformBatch(pFeatures);
+		ntc.train(*pFeatures);
+		GMatrix* pFeatures2 = ntc.transformBatch(*pFeatures);
 		Holder<GMatrix> hFeatures2(pFeatures2);
 
 		// Train a single-layer neural network with the normalized remaining data
@@ -744,7 +744,7 @@ void GAttributeSelector::test()
 		pVec[20] = 0.2 * pVec[3] * pVec[3] * - 7.0 * pVec[3] * pVec[13] + pVec[17];
 	}
 	GAttributeSelector as(1, 3, &prng);
-	as.train(&data);
+	as.train(data);
 	std::vector<size_t>& r = as.ranks();
 	if(r[1] == r[0] || r[2] == r[0] || r[2] == r[1])
 		ThrowError("bogus rankings");
@@ -828,9 +828,9 @@ GNominalToCat::~GNominalToCat()
 }
 
 // virtual
-void GNominalToCat::train(GMatrix* pData)
+void GNominalToCat::train(GMatrix& data)
 {
-	init(pData->relation());
+	init(data.relation());
 }
 
 // virtual
@@ -1024,9 +1024,9 @@ void GNormalize::setMinsAndRanges(sp_relation& pRel, const double* pMins, const 
 }
 
 // virtual
-void GNormalize::train(GMatrix* pData)
+void GNormalize::train(GMatrix& data)
 {
-	m_pRelationBefore = pData->relation();
+	m_pRelationBefore = data.relation();
 	m_pRelationAfter = m_pRelationBefore;
 	size_t nAttrCount = m_pRelationBefore->size();
 	delete[] m_pMins;
@@ -1036,7 +1036,7 @@ void GNormalize::train(GMatrix* pData)
 	{
 		if(m_pRelationBefore->valueCount(i) == 0)
 		{
-			pData->minAndRange(i, &m_pMins[i], &m_pRanges[i]);
+			data.minAndRange(i, &m_pMins[i], &m_pRanges[i]);
 			if(m_pRanges[i] < 1e-12)
 				m_pRanges[i] = 1.0;
 		}
@@ -1170,13 +1170,13 @@ GTwtNode* GDiscretize::toTwt(GTwtDoc* pDoc)
 }
 
 // virtual
-void GDiscretize::train(GMatrix* pData)
+void GDiscretize::train(GMatrix& data)
 {
 	// Make the relations
-	m_pRelationBefore = pData->relation();
+	m_pRelationBefore = data.relation();
 	m_bucketsOut = m_bucketsIn;
-	if(m_bucketsOut > pData->rows())
-		m_bucketsOut = std::max((size_t)2, (size_t)sqrt((double)pData->rows()));
+	if(m_bucketsOut > data.rows())
+		m_bucketsOut = std::max((size_t)2, (size_t)sqrt((double)data.rows()));
 	size_t nAttrCount = m_pRelationBefore->size();
 	GMixedRelation* pRelationAfter = new GMixedRelation();
 	m_pRelationAfter = pRelationAfter;
@@ -1202,7 +1202,7 @@ void GDiscretize::train(GMatrix* pData)
 			m_pRanges[i] = 0;
 		}
 		else
-			pData->minAndRangeUnbiased(i, &m_pMins[i], &m_pRanges[i]);
+			data.minAndRangeUnbiased(i, &m_pMins[i], &m_pRanges[i]);
 	}
 }
 

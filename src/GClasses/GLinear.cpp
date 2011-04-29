@@ -92,7 +92,7 @@ void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 	GMatrix* pAll = GMatrix::mergeHoriz(&features, &labels);
 	Holder<GMatrix> hAll(pAll);
 	GPCA pca(features.cols(), m_pRand);
-	pca.train(pAll);
+	pca.train(*pAll);
 	size_t inputs = features.cols();
 	size_t outputs = labels.cols();
 	GMatrix f(inputs, inputs);
