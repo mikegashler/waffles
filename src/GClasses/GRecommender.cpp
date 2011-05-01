@@ -681,6 +681,7 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 	// Prep the model for incremental training
 	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
 	sp_relation pLabelRel = new GUniformRelation(pData->cols());
+	m_pModel->setUseInputBias(true);
 	m_pModel->enableIncrementalLearning(pFeatureRel, pLabelRel);
 	GActivationFunction* pAF = m_pModel->layer(0).m_pActivationFunction;
 	m_pUsers->setAll(pAF->center());
@@ -729,8 +730,8 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 			sse += (d * d);
 			m_pModel->setErrorSingleOutput(pRating->m_rating, pRating->m_item, m_pModel->backPropTargetFunction());
 			m_pModel->backProp()->backpropagateSingleOutput(pRating->m_item);
-			m_pModel->backProp()->descendGradientSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->momentum());
-			m_pModel->backProp()->adjustFeaturesSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate);
+			m_pModel->backProp()->descendGradientSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->momentum(), m_pModel->useInputBias());
+			m_pModel->backProp()->adjustFeaturesSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->useInputBias());
 			GVec::floorValues(pUserPreferenceVector, floor, m_intrinsicDims);
 			GVec::capValues(pUserPreferenceVector, cap, m_intrinsicDims);
 		}

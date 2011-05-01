@@ -2388,8 +2388,8 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			if(err < errorThresh)
 			{
 				pBP->backpropagate();
-				pBP->descendGradient(pContext, m_pNN->learningRate(), 0.0);
-				pBP->adjustFeatures(pContext, m_pNN->learningRate(), m_paramDims);
+				pBP->descendGradient(pContext, m_pNN->learningRate(), 0.0, false);
+				pBP->adjustFeatures(pContext, m_pNN->learningRate(), m_paramDims, false);
 				activeCount++;
 				maxBelowThresh = std::max(maxBelowThresh, err);
 
@@ -2493,8 +2493,8 @@ GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 			m_pNN->setErrorSingleOutput(pEl->m_val, pEl->m_col);
 			m_pNN->backProp()->backpropagateSingleOutput(pEl->m_col);
 			if(m_updateWeights)
-				m_pNN->backProp()->descendGradientSingleOutput(pEl->m_col, pInt, m_pNN->learningRate(), m_pNN->momentum());
-			m_pNN->backProp()->adjustFeaturesSingleOutput(pEl->m_col, pInt, m_pNN->learningRate());
+				m_pNN->backProp()->descendGradientSingleOutput(pEl->m_col, pInt, m_pNN->learningRate(), m_pNN->momentum(), false);
+			m_pNN->backProp()->adjustFeaturesSingleOutput(pEl->m_col, pInt, m_pNN->learningRate(), false);
 			GVec::floorValues(pInt, floor, m_intrinsicDims);
 			GVec::capValues(pInt, cap, m_intrinsicDims);
 		}
@@ -2569,8 +2569,8 @@ GMatrix* GUnsupervisedBackProp::doitCameraSystem(vector<size_t>& paramRanges, GM
 			m_pNN->forwardProp(feat);
 			m_pNN->setErrorOnOutputLayer(pObservations->row(index) + channels * cvi.currentIndex());
 			m_pNN->backProp()->backpropagate();
-			m_pNN->backProp()->descendGradient(feat, m_pNN->learningRate(), m_pNN->momentum());
-			m_pNN->backProp()->adjustFeatures(pInt, m_pNN->learningRate(), paramDims);
+			m_pNN->backProp()->descendGradient(feat, m_pNN->learningRate(), m_pNN->momentum(), false);
+			m_pNN->backProp()->adjustFeatures(pInt, m_pNN->learningRate(), paramDims, false);
 			GVec::floorValues(pInt, floor, m_intrinsicDims);
 			GVec::capValues(pInt, cap, m_intrinsicDims);
 

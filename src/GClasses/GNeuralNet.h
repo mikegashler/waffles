@@ -119,13 +119,13 @@ public:
 
 	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
 	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
-	static void adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
+	static void adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, bool useInputBias, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
 
 	/// Adjust the weights of a single neuron that follows a hidden layer. (Assumes the error of this neuron has already been computed).
 	void adjustWeightsSingleNeuron(GNeuron& nnFrom, GNeuralNetLayer* pNNToLayer, GBackPropNeuron& bpFrom, double learningRate, double momentum);
 
 	/// Adjust the weights of a single neuron when there are no hidden layers. (Assumes the error of this neuron has already been computed).
-	void adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatures, GBackPropNeuron& bpFrom, double learningRate, double momentum);
+	void adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatures, bool useInputBias, GBackPropNeuron& bpFrom, double learningRate, double momentum);
 
 	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
@@ -137,19 +137,19 @@ public:
 
 	/// This method assumes that the error term is already set for every network unit. It adjusts weights to descend the
 	/// gradient of the error surface with respect to the weights.
-	void descendGradient(const double* pFeatures, double learningRate, double momentum);
+	void descendGradient(const double* pFeatures, double learningRate, double momentum, bool useInputBias);
 
 	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
 	/// it transitively. It adjusts weights to descend the gradient of the error surface with respect to the weights.
-	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum);
+	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum, bool useInputBias);
 
 	/// This method assumes that the error term is already set for every network unit. It descends the gradient
 	/// by adjusting the features (not the weights).
-	void adjustFeatures(double* pFeatures, double learningRate, size_t skip = 0);
+	void adjustFeatures(double* pFeatures, double learningRate, size_t skip, bool useInputBias);
 
 	/// This adjusts the features (not the weights) to descend the gradient, assuming that the error is computed
 	/// from only one of the output units of the network.
-	void adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeatures, double learningRate);
+	void adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeatures, double learningRate, bool useInputBias);
 };
 
 
@@ -180,6 +180,7 @@ protected:
 	double m_minImprovement;
 	size_t m_epochsPerValidationCheck;
 	TargetFunction m_backPropTargetFunction;
+	bool m_useInputBias;
 
 public:
 	GNeuralNet(GRand* pRand);
@@ -386,6 +387,13 @@ public:
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data, and returns a neural net instantiated with those parameters.
 	static GNeuralNet* autoParams(GMatrix& features, GMatrix& labels, GRand& rand);
+
+	/// Specify whether to use an input bias. (The default is false.) This feature is
+	/// used with generative-backpropagation, which adjusts inputs to create latent features.
+	void setUseInputBias(bool b) { m_useInputBias = b; }
+
+	/// Returns whether this neural network utilizes an input bias.
+	bool useInputBias() { return m_useInputBias; }
 
 protected:
 	/// Measures the sum squared error against the specified dataset

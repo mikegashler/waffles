@@ -213,7 +213,7 @@ void GBackProp::adjustWeights(GNeuralNetLayer* pNNFromLayer, GNeuralNetLayer* pN
 	}
 }
 
-void GBackProp::adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, GBackPropLayer* pBPFromLayer, double learningRate, double momentum)
+void GBackProp::adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, bool useInputBias, GBackPropLayer* pBPFromLayer, double learningRate, double momentum)
 {
 	vector<GNeuron>::iterator nnFrom = pNNFromLayer->m_neurons.begin();
 	vector<GBackPropNeuron>::iterator bpFrom = pBPFromLayer->m_neurons.begin();
@@ -226,7 +226,10 @@ void GBackProp::adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeat
 		*nn_w = std::max(-1e12, std::min(1e12, *nn_w + bp_w->m_delta));
 		bp_w++;
 		nn_w++;
-		for(const double* k = pFeatures; nn_w != nnFrom->m_weights.end(); k++)
+		const double* k = pFeatures;
+		if(useInputBias)
+			k++;
+		for( ; nn_w != nnFrom->m_weights.end(); k++)
 		{
 			if(*k != UNKNOWN_REAL_VALUE)
 			{
@@ -261,7 +264,7 @@ void GBackProp::adjustWeightsSingleNeuron(GNeuron& nnFrom, GNeuralNetLayer* pNNT
 	}
 }
 
-void GBackProp::adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatures, GBackPropNeuron& bpFrom, double learningRate, double momentum)
+void GBackProp::adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatures, bool useInputBias, GBackPropNeuron& bpFrom, double learningRate, double momentum)
 {
 	vector<GBackPropWeight>::iterator bp_w = bpFrom.m_weights.begin();
 	vector<double>::iterator nn_w = nnFrom.m_weights.begin();
@@ -270,7 +273,10 @@ void GBackProp::adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatur
 	*nn_w = std::max(-1e12, std::min(1e12, *nn_w + bp_w->m_delta));
 	bp_w++;
 	nn_w++;
-	for(const double* k = pFeatures; nn_w != nnFrom.m_weights.end(); k++)
+	const double* k = pFeatures;
+	if(useInputBias)
+		k++;
+	for( ; nn_w != nnFrom.m_weights.end(); k++)
 	{
 		if(*k != UNKNOWN_REAL_VALUE)
 		{
@@ -321,7 +327,7 @@ void GBackProp::backpropagateSingleOutput(size_t outputNode)
 	}
 }
 
-void GBackProp::descendGradient(const double* pFeatures, double learningRate, double momentum)
+void GBackProp::descendGradient(const double* pFeatures, double learningRate, double momentum, bool useInputBias)
 {
 	size_t i = m_layers.size() - 1;
 	GNeuralNetLayer* pNNPrevLayer = &m_pNN->m_layers[i];
@@ -336,16 +342,16 @@ void GBackProp::descendGradient(const double* pFeatures, double learningRate, do
 	}
 
 	// adjust the weights on the last hidden layer
-	adjustWeights(pNNPrevLayer, pFeatures, pBPPrevLayer, m_pNN->learningRate(), m_pNN->momentum());
+	adjustWeights(pNNPrevLayer, pFeatures, useInputBias, pBPPrevLayer, m_pNN->learningRate(), m_pNN->momentum());
 }
 
-void GBackProp::descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum)
+void GBackProp::descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum, bool useInputBias)
 {
 	size_t i = m_layers.size() - 1;
 	GNeuralNetLayer* pNNPrevLayer = &m_pNN->m_layers[i];
 	GBackPropLayer* pBPPrevLayer = &m_layers[i];
 	if(i == 0)
-		adjustWeightsSingleNeuron(pNNPrevLayer->m_neurons[outputNeuron], pFeatures, pBPPrevLayer->m_neurons[outputNeuron], learningRate, momentum);
+		adjustWeightsSingleNeuron(pNNPrevLayer->m_neurons[outputNeuron], pFeatures, useInputBias, pBPPrevLayer->m_neurons[outputNeuron], learningRate, momentum);
 	else
 	{
 		i--;
@@ -362,13 +368,13 @@ void GBackProp::descendGradientSingleOutput(size_t outputNeuron, const double* p
 			pNNPrevLayer = pNNCurLayer;
 			pBPPrevLayer = pBPCurLayer;
 		}
-	
+
 		// adjust the weights on the last hidden layer
-		adjustWeights(pNNPrevLayer, pFeatures, pBPPrevLayer, m_pNN->learningRate(), m_pNN->momentum());
+		adjustWeights(pNNPrevLayer, pFeatures, useInputBias, pBPPrevLayer, m_pNN->learningRate(), m_pNN->momentum());
 	}
 }
 
-void GBackProp::adjustFeatures(double* pFeatures, double learningRate, size_t skip)
+void GBackProp::adjustFeatures(double* pFeatures, double learningRate, size_t skip, bool useInputBias)
 {
 	GNeuralNetLayer& nnLayer = m_pNN->m_layers[0];
 	GBackPropLayer& bpLayer = m_layers[0];
@@ -377,6 +383,8 @@ void GBackProp::adjustFeatures(double* pFeatures, double learningRate, size_t sk
 	while(nn != nnLayer.m_neurons.end())
 	{
 		double* pF = pFeatures;
+		if(useInputBias)
+			*(pF++) += learningRate * bp->m_error;
 		for(vector<double>::iterator w = nn->m_weights.begin() + 1 + skip; w != nn->m_weights.end(); w++)
 			*(pF++) += learningRate * bp->m_error * (*w);
 		nn++;
@@ -384,14 +392,19 @@ void GBackProp::adjustFeatures(double* pFeatures, double learningRate, size_t sk
 	}
 }
 
-void GBackProp::adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeatures, double learningRate)
+void GBackProp::adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeatures, double learningRate, bool useInputBias)
 {
 	if(m_layers.size() != 1)
-		return adjustFeatures(pFeatures, learningRate, 0);
+	{
+		adjustFeatures(pFeatures, learningRate, 0, useInputBias);
+		return;
+	}
 	GAssert(outputNeuron < m_pNN->m_layers[0].m_neurons.size()); // out of range
 	GNeuron& nn = m_pNN->m_layers[0].m_neurons[outputNeuron];
 	GBackPropNeuron& bp = m_layers[0].m_neurons[outputNeuron];
 	double* pOut = pFeatures;
+	if(useInputBias)
+		*(pOut++) += learningRate * bp.m_error;
 	for(vector<double>::iterator w = nn.m_weights.begin() + 1; w != nn.m_weights.end(); w++)
 		*(pOut++) += learningRate * bp.m_error * (*w);
 }
@@ -400,18 +413,8 @@ void GBackProp::adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeature
 // ----------------------------------------------------------------------
 
 GNeuralNet::GNeuralNet(GRand* pRand)
-: GIncrementalLearner(), m_pRand(pRand)
+: GIncrementalLearner(), m_pRand(pRand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0), m_minImprovement(0.002), m_epochsPerValidationCheck(200), m_backPropTargetFunction(squared_error), m_useInputBias(false)
 {
-	m_internalFeatureDims = 0;
-	m_internalLabelDims = 0;
-	m_pBackProp = NULL;
-	m_learningRate = 0.1;
-	m_momentum = 0.0;
-	m_minImprovement = 0.002;
-	m_epochsPerValidationCheck = 200;
-	m_validationPortion = 0;
-	m_backPropTargetFunction = squared_error;
-	m_pActivationFunction = NULL;
 	m_layers.resize(1);
 }
 
@@ -446,6 +449,7 @@ GNeuralNet::GNeuralNet(GTwtNode* pNode, GRand* pRand)
 	// Enable training
 	sp_relation pFeatureRel = new GUniformRelation(m_internalFeatureDims);
 	sp_relation pLabelRel = new GUniformRelation(m_internalLabelDims);
+	m_useInputBias = pNode->field("ib")->asBool();
 	enableIncrementalLearning(pFeatureRel, pLabelRel);
 
 	// Set other settings
@@ -498,6 +502,7 @@ GTwtNode* GNeuralNet::toTwt(GTwtDoc* pDoc)
 	pNode->addField(pDoc, "learningRate", pDoc->newDouble(m_learningRate));
 	pNode->addField(pDoc, "momentum", pDoc->newDouble(m_momentum));
 	pNode->addField(pDoc, "target", pDoc->newInt(m_backPropTargetFunction));
+	pNode->addField(pDoc, "ib", pDoc->newBool(m_useInputBias));
 
 	// Add the weights
 	{
@@ -801,10 +806,12 @@ void GNeuralNet::forwardProp(const double* pRow)
 		vector<double>::iterator j = i->m_weights.begin();
 		net = *(j++); // (the first weight is the bias)
 		const double* pR = pRow;
+		if(m_useInputBias)
+			net += *(pR++);
 		while(j != i->m_weights.end())
 		{
 			if(*pR != UNKNOWN_REAL_VALUE)
-				net += *j * *pR;
+				net += (*j) * (*pR);
 			j++;
 			pR++;
 		}
@@ -842,6 +849,8 @@ double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 		GNeuron& neuron = pLayer->m_neurons[output];
 		vector<double>::iterator j = neuron.m_weights.begin();
 		double net = *(j++); // (the first weight is the bias)
+		if(m_useInputBias)
+			net += *(pRow++);
 		while(j != neuron.m_weights.end())
 			net += *(j++) * *(pRow++);
 		neuron.m_net = net;
@@ -857,6 +866,8 @@ double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 			vector<double>::iterator j = i->m_weights.begin();
 			net = *(j++); // (the first weight is the bias)
 			const double* pR = pRow;
+			if(m_useInputBias)
+				net += *(pR++);
 			while(j != i->m_weights.end())
 				net += *(j++) * *(pR++);
 			i->m_net = net;
@@ -990,7 +1001,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 			forwardProp(pFullRow);
 			setErrorOnOutputLayer(labels.row(indexes[i]), m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
-			m_pBackProp->descendGradient(pFullRow, m_learningRate, m_momentum);
+			m_pBackProp->descendGradient(pFullRow, m_learningRate, m_momentum, m_useInputBias);
 		}
 	}
 }
@@ -1040,7 +1051,7 @@ size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLab
 			forwardProp(pFeatures);
 			setErrorOnOutputLayer(trainLabels[*pIndex], m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
-			m_pBackProp->descendGradient(pFeatures, m_learningRate, m_momentum);
+			m_pBackProp->descendGradient(pFeatures, m_learningRate, m_momentum, m_useInputBias);
 			pIndex++;
 		}
 
@@ -1068,13 +1079,12 @@ void GNeuralNet::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation
 	if(pLabelRel->size() < 1)
 		ThrowError("The label relation must have at least 1 attribute");
 	if(!pFeatureRel->areContinuous(0, pFeatureRel->size()) || !pLabelRel->areContinuous(0, pLabelRel->size()))
-		ThrowError("Only continuous values are supported. (Using GFilter with the GNominalToCat transform may be a good solution to this problem.)");
+		ThrowError("Only continuous values are supported. (Using the GNominalToCat transform may be a good solution to this problem.)");
 
 	// Adjust the size of the output layer
 	m_internalFeatureDims = pFeatureRel->size();
 	m_internalLabelDims = pLabelRel->size();
 	GNeuralNetLayer& layerOut = m_layers[m_layers.size() - 1];
-	
 	layerOut.m_neurons.resize(m_internalLabelDims);
 	if(!m_pActivationFunction)
 		setActivationFunction(new GActivationLogistic(), true);
@@ -1090,7 +1100,7 @@ void GNeuralNet::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation
 	// Establish the number of weights on the first layer
 	GNeuralNetLayer& layerIn = m_layers[0];
 	for(size_t i = 0; i < layerIn.m_neurons.size(); i++)
-		layerIn.m_neurons[i].m_weights.resize(1 + m_internalFeatureDims);
+		layerIn.m_neurons[i].m_weights.resize(1 + m_internalFeatureDims - (m_useInputBias ? 1 : 0));
 
 	// Initialize the weights with small random values
 	double inputCenter = 0.5; // Assume inputs have a range from 0 to 1. If this not correct, learning may be slightly slower.
@@ -1113,7 +1123,7 @@ void GNeuralNet::trainIncremental(const double* pIn, const double* pOut)
 	forwardProp(pIn);
 	setErrorOnOutputLayer(pOut, m_backPropTargetFunction);
 	m_pBackProp->backpropagate();
-	m_pBackProp->descendGradient(pIn, m_learningRate, m_momentum);
+	m_pBackProp->descendGradient(pIn, m_learningRate, m_momentum, m_useInputBias);
 }
 
 void GNeuralNet::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTargetFunction)
@@ -1552,7 +1562,7 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 		nn.setErrorOnOutputLayer(pTarget);
 		nn.backProp()->backpropagate();
 		GVec::copy(pFeatureGradient, pFeatures, 5);
-		nn.backProp()->adjustFeatures(pFeatureGradient, 1.0);
+		nn.backProp()->adjustFeatures(pFeatureGradient, 1.0, 0, false);
 		GVec::subtract(pFeatureGradient, pFeatures, 5);
 		GVec::multiply(pFeatureGradient, -2.0, 5);
 
