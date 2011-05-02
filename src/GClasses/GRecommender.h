@@ -41,8 +41,20 @@ public:
 	virtual void trainBatch(GSparseMatrix* pData) = 0;
 
 	/// This returns a prediction for how much the specified user
-	/// will like the specified item.
+	/// will like the specified item. (The model must be trained before
+	/// this method is called. Also, some values for that user and
+	/// item should have been included in the training set, or else
+	/// this method will have no basis to make a good prediction.)
 	virtual double predict(size_t user, size_t item) = 0;
+
+	/// pVec should be a vector of n real values, where n is the number of
+	/// items/attributes/columns in the data that was used to train the model.
+	/// to UNKNOWN_REAL_VALUE. This method will evaluate the known elements
+	/// and impute (predict) values for the unknown elements. (The model should
+	/// be trained before this method is called. Unlike the predict method,
+	/// this method can operate on row-vectors that were not part of the training
+	/// data.)
+	virtual void impute(double* pVec) = 0;
 
 	/// This randomly assignes each rating to one of the folds. Then,
 	/// for each fold, it calls trainBatch with a dataset that contains
@@ -85,6 +97,7 @@ class GBaselineRecommender : public GCollaborativeFilter
 {
 protected:
 	double* m_pRatings;
+	size_t m_items;
 
 public:
 	GBaselineRecommender();
@@ -95,6 +108,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec);
 };
 
 
@@ -127,6 +143,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec);
 };
 
 
@@ -156,15 +175,23 @@ public:
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec);
 };
 
 
 
-/// This factors the sparse matrix of ratings, M, such that M = QP^T
-/// where each row in Q gives the principal preferences for the corresponding
-/// user, and each row in P gives the linear combination of those preferences
-/// that map to a rating for an item. (Actually, P also contains an extra column
-/// added for a bias.)
+/// This factors the sparse matrix of ratings, M, such that M = PQ^T
+/// where each row in P gives the principal preferences for the corresponding
+/// user, and each row in Q gives the linear combination of those preferences
+/// that map to a rating for an item. (Actually, P and Q also contain an extra column
+/// added for a bias.) This class is implemented according to the specification on
+/// page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative
+/// filtering approaches for large recommender systems. The Journal of Machine Learning
+/// Research, 10:623–656, 2009. ISSN 1532-4435., except with the addition of learning-rate
+/// decay and a different stopping criteria, I don't regularize the bias weights, and I
+/// don't store the superfluous 1's in the matrices.
 class GMatrixFactorization : public GCollaborativeFilter
 {
 protected:
@@ -186,6 +213,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec);
 };
 
 
@@ -197,7 +227,8 @@ class GNeuralRecommender : public GCollaborativeFilter
 {
 protected:
 	size_t m_intrinsicDims;
-	double m_min, m_max;
+	double* m_pMins;
+	double* m_pMaxs;
 	GRand* m_pRand;
 	GNeuralNet* m_pModel;
 	GMatrix* m_pUsers;
@@ -216,6 +247,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec);
 };
 
 
@@ -225,6 +259,7 @@ class GBagOfRecommenders : public GCollaborativeFilter
 {
 protected:
 	std::vector<GCollaborativeFilter*> m_filters;
+	size_t m_itemCount;
 	GRand& m_rand;
 
 public:
@@ -242,6 +277,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec);
 
 	/// Delete all of the filters
 	void clear();

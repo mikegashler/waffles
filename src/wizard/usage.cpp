@@ -352,7 +352,7 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pContents = pBucket->add("<contents>");
 		pContents->add("[algorithm]", "Add an algorithm to the bucket");
 	}
-	UsageNode* pCvdt = pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
+	pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
 	UsageNode* pDT = pRoot->add("decisiontree <options>", "A decision tree.");
 	{
 		UsageNode* pOpts = pDT->add("<options>");
@@ -1068,7 +1068,7 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
 		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
 	}
-	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623–656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria, I don't regularize the bias weights, and I don't store the superfluous ones in the matrices.)");
+	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623–656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria, I don't regularize the bias weights, and I don't store the superfluous 1's in the matrices.)");
 	{
 		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
 		UsageNode* pOpts = pMF->add("<options>");

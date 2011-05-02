@@ -130,8 +130,12 @@ protected:
 
 
 
-/// A GMeanMarginsTree is similar a DecisionTree, except it divides
-/// as follows:
+/// A GMeanMarginsTree is an oblique decision tree specified in
+/// Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony.
+/// Decision Tree Ensemble: Small Heterogeneous Is Better Than Large
+/// Homogeneous. In The Seventh International Conference on Machine
+/// Learning and Applications, Pages 900 - 905, ICMLA '08. 2008.
+/// It divides features as follows:
 /// It finds the mean and principle component of the output vectors.
 /// It divides all the vectors into two groups, one that has a
 /// positive dot-product with the principle component (after subtracting
@@ -140,7 +144,7 @@ protected:
 /// average input vector for each of the two groups. Then it finds
 /// the mean and principle component of those two vectors. The dividing
 /// criteria for this node is to subtract the mean and then see whether
-/// the dot-product with the principle component is positive or negative
+/// the dot-product with the principle component is positive or negative.
 class GMeanMarginsTree : public GSupervisedLearner
 {
 protected:
