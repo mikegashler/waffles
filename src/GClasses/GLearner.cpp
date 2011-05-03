@@ -930,7 +930,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	}
 	if(resultsBefore < minAccuracy)
 		ThrowError("accuracy has regressed");
-	if(resultsBefore >= minAccuracy + 0.03)
+	if(resultsBefore >= minAccuracy + 0.02)
 		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
 
 	// Roundtrip the model through serialization
@@ -1203,7 +1203,7 @@ void GBaselineLearner::test()
 {
 	GRand prng(0);
 	GBaselineLearner bl;
-	bl.basicTest(0.32, 0.32, &prng);
+	bl.basicTest(0.33, 0.33, &prng);
 }
 #endif
 

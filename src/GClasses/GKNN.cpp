@@ -640,7 +640,7 @@ void GKNN::test()
 {
 	GRand prng(0);
 	GKNN knn(3, &prng);
-	knn.basicTest(0.70, 0.75, &prng);
+	knn.basicTest(0.72, 0.75, &prng);
 }
 #endif
 

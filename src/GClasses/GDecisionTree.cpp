@@ -750,7 +750,7 @@ void GDecisionTree::test()
 	{
 		GRand prng(0);
 		GDecisionTree tree(&prng);
-		tree.basicTest(0.67, 0.75, &prng);
+		tree.basicTest(0.69, 0.75, &prng);
 	}
 	{
 		GRand prng(0);
@@ -1117,7 +1117,7 @@ void GMeanMarginsTree::test()
 {
 	GRand prng(0);
 	GMeanMarginsTree mm(&prng);
-	mm.basicTest(0.68, 0.77, &prng);
+	mm.basicTest(0.70, 0.77, &prng);
 }
 #endif
 

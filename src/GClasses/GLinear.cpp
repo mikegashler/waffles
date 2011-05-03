@@ -112,7 +112,7 @@ void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 	GVec::add(m_pEpsilon, pca.mean() + inputs, outputs);
 
 	// Refine the results using gradient descent
-	refine(features, labels, 0.15, 8, 0.75);
+	refine(features, labels, 0.06, 10, 0.75);
 }
 
 // virtual
@@ -187,7 +187,7 @@ void GLinearRegressor::test()
 	GRand prng(0);
 	GLinearRegressor_linear_test(prng);
 	GLinearRegressor lr(&prng);
-	lr.basicTest(0.77, 0.73, &prng);
+	lr.basicTest(0.77, 0.79, &prng);
 }
 #endif
 

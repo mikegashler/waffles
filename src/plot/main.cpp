@@ -1277,34 +1277,46 @@ void PrintStats(GArgReader& args)
 		if(pRel->valueCount(i) == 0)
 		{
 			cout << "Type: Continuous, ";
-			double d1, d2, d3;
-			d1 = pData->mean(i);
-			d2 = pData->variance(i, d1);
-			d3 = pData->median(i);
-			cout << "Mean:" << d1 << ", Dev:" << sqrt(d2) << ", Median:" << d3 << ", ";
-			pData->minAndRange(i, &d1, &d2);
-			cout << "Min:" << d1 << ", Max:" << d1 + d2 << ", ";
+			try
+			{
+				double d1, d2, d3;
+				d1 = pData->mean(i);
+				d2 = pData->variance(i, d1);
+				d3 = pData->median(i);
+				cout << "Mean:" << d1 << ", Dev:" << sqrt(d2) << ", Median:" << d3 << ", ";
+				pData->minAndRange(i, &d1, &d2);
+				cout << "Min:" << d1 << ", Max:" << d1 + d2 << ", ";
+			}
+			catch(...)
+			{
+				// If it gets to here, all values are probably missing
+			}
 			cout << "Missing:" << pData->countValue(i, UNKNOWN_REAL_VALUE) << "\n";
 		}
 		else
 		{
 			cout << "Type: Nominal, ";
 			cout << "Values:" << pRel->valueCount(i) << ", ";
-			int nMostCommonVal = (int)pData->baselineValue(i);
-			size_t mostCommonOccurrences = pData->countValue(i, nMostCommonVal);
-			cout << "Most Common:";
-			pRel->printAttrValue(cout, i, nMostCommonVal);
-			cout << " (" << ((double)mostCommonOccurrences * 100.0 / pData->rows()) << "%), ";
 			cout << "Entropy: " << pData->entropy(i) << ", ";
-			cout << "Missing:" << pData->countValue(i, UNKNOWN_DISCRETE_VALUE) << "\n";
+			cout << "Missing:" << pData->countValue(i, UNKNOWN_DISCRETE_VALUE);
 			if(pRel->valueCount(i) < 9)
 			{
+				cout << "\n";
 				for(size_t j = 0; j < pRel->valueCount(i); j++)
 				{
 					cout << "     " << ((double)pData->countValue(i, (double)j) * 100.0 / (double)pData->rows()) << "% ";
 					pRel->printAttrValue(cout, i, (double)j);
 					cout << "\n";
 				}
+			}
+			else
+			{
+				cout << ", ";
+				int nMostCommonVal = (int)pData->baselineValue(i);
+				size_t mostCommonOccurrences = pData->countValue(i, nMostCommonVal);
+				cout << "Most Common:";
+				pRel->printAttrValue(cout, i, nMostCommonVal);
+				cout << " (" << ((double)mostCommonOccurrences * 100.0 / pData->rows()) << "%)\n";
 			}
 		}
 	}

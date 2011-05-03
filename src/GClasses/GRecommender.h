@@ -23,6 +23,7 @@ class GSparseSimilarity;
 class GRand;
 class GNeuralNet;
 class GMatrix;
+class Rating;
 
 
 /// The base class for collaborative filtering recommender systems.
@@ -216,6 +217,10 @@ public:
 
 	/// See the comment for GCollaborativeFilter::impute
 	virtual void impute(double* pVec);
+
+protected:
+	/// Returns the sum-squared error for the specified set of ratings
+	double validate(std::vector<Rating*>& data);
 };
 
 
@@ -250,6 +255,10 @@ public:
 
 	/// See the comment for GCollaborativeFilter::impute
 	virtual void impute(double* pVec);
+
+protected:
+	/// Returns the sum-squared error for the specified set of ratings
+	double validate(std::vector<Rating*>& data);
 };
 
 

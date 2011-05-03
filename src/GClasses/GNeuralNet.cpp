@@ -1622,7 +1622,7 @@ void GNeuralNet::test()
 	{
 		GNeuralNet nn(&prng);
 		nn.addLayer(3);
-		nn.basicTest(0.77, 0.76, &prng);
+		nn.basicTest(0.78, 0.76, &prng);
 	}
 
 	GNeuralNet_testInputGradient(&prng);
