@@ -397,7 +397,7 @@ double GDecisionTree_pickPivotToReduceInfo(GMatrix& features, GMatrix& labels, G
 		pRow2 = features.row((size_t)pRand->next(nRows));
 		double pivot = 0.5 * (pRow1[attr] + pRow2[attr]);
 		double info = GDecisionTree_measureRealSplitInfo(features, labels, tmpFeatures, tmpLabels, attr, pivot);
-		if(info < bestInfo)
+		if(info + 1e-14 < bestInfo) // the small value makes it deterministic across hardware
 		{
 			bestInfo = info;
 			bestPivot = pivot;
@@ -444,7 +444,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 				info = GDecisionTree_pickPivotToReduceInfo(features, labels, tmpFeatures, tmpLabels, &pivot, *it, m_pRand);
 			else
 				info = GDecisionTree_measureNominalSplitInfo(features, labels, tmpFeatures, tmpLabels, *it);
-			if(info < bestInfo)
+			if(info + 1e-14 < bestInfo) // the small value makes it deterministic across hardware
 			{
 				bestInfo = info;
 				bestIndex = index;
@@ -488,7 +488,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 				else
 					info = 0.0;
 			}
-			if(info < bestInfo)
+			if(info + 1e-14 < bestInfo) // the small value makes it deterministic across hardware
 			{
 				bestInfo = info;
 				bestIndex = index;
