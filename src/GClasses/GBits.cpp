@@ -75,7 +75,7 @@ void test_boundingShift()
 	GRand rand(0);
 	for(size_t i = 0; i < 1000; i++)
 	{
-		size_t bits = rand.next(31);
+		size_t bits = (size_t)rand.next(31);
 		int n = 1 << bits;
 		if(GBits::boundingShift(n) != bits)
 			ThrowError("failed");
