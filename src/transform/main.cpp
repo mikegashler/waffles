@@ -1099,10 +1099,13 @@ void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, doub
 		double* pPat2 = pData2->row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
-			double d = (*pPat1 - *pPat2);
-			pResults[j] += (d * d);
-			pPat1++;
-			pPat2++;
+			if(*pPat1 != UNKNOWN_REAL_VALUE && *pPat2 != UNKNOWN_REAL_VALUE)
+			{
+				double d = (*pPat1 - *pPat2);
+				pResults[j] += (d * d);
+				pPat1++;
+				pPat2++;
+			}
 		}
 	}
 	GVec::multiply(pResults, 1.0 / pData1->rows(), dims);
@@ -1160,13 +1163,15 @@ public:
 		return sum;
 	}
 
-	void ShowResults(const double* pVector)
+	void ShowResults(const double* pVector, bool sumOverAttributes)
 	{
 		TransformData(pVector);
 		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_pResults);
-		//GVec::print(stdout, m_pResults, m_attrs);
 		cout.precision(14);
-		cout << GVec::sumElements(m_pResults, m_attrs) << "\n";
+		if(sumOverAttributes)
+			cout << GVec::sumElements(m_pResults, m_attrs);
+		else
+			GVec::print(cout, 14, m_pResults, m_attrs);
 	}
 
 	const double* GetResults() { return m_pResults; }
@@ -1190,10 +1195,13 @@ void MeasureMeanSquaredError(GArgReader& args)
 
 	// Parse Options
 	bool fit = false;
+	bool sumOverAttributes = false;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-fit"))
 			fit = true;
+		else if(args.if_pop("-sum"))
+			sumOverAttributes = true;
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
@@ -1220,14 +1228,18 @@ void MeasureMeanSquaredError(GArgReader& args)
 			if((dPrevError - dError) / dPrevError < 1e-10)
 				break;
 		}
-		critic.ShowResults(search.currentVector());
+		critic.ShowResults(search.currentVector(), sumOverAttributes);
 	}
 	else
 	{
 		// Compute mean squared error
 		GTEMPBUF(double, results, dims);
 		ComputeMeanSquaredError(pData1, pData2, dims, results);
-		GVec::print(cout, 14, results, dims);
+		cout.precision(14);
+		if(sumOverAttributes)
+			cout << GVec::sumElements(results, dims);
+		else
+			GVec::print(cout, 14, results, dims);
 	}
 	cout << "\n";
 }

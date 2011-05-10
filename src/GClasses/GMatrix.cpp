@@ -895,6 +895,141 @@ GMatrix* GMatrix::loadArff(const char* szFilename)
 	return parseArff(szFile, nLen);
 }
 
+GMatrix* GMatrix_parseArff(GTokenizer& tok)
+{
+	// Parse the meta data
+	GArffRelation* pRelation = new GArffRelation();
+	sp_relation sp_rel = pRelation;
+	while(true)
+	{
+		tok.skip(); // Skip Whitespace
+		if(tok.remaining() == 0)
+			ThrowError("ARFF file contains no data");
+
+		// Check for comments
+		char c = tok.peek();
+		if(c == '%')
+		{
+			tok.skipTo("\n");
+			continue;
+		}
+		else if(c == '@')
+		{
+		}
+		else
+			ThrowError("Expected a '%' or a '@' at line ", to_str(tok.line()));
+}
+/*
+		// Parse Relation
+		if(nLen - nPos < 9 || _strnicmp(&szFile[nPos], "@RELATION", 9) != 0)
+			ThrowError("Expected @RELATION at line ", to_str(nLine));
+		nPos += 9;
+
+		// Skip Whitespace
+		while(szFile[nPos] <= ' ' && nPos < nLen)
+		{
+			if(szFile[nPos] == '\n')
+				nLine++;
+			nPos++;
+			break;
+		}
+		if(nPos >= nLen)
+			ThrowError("Expected relation name at line ", to_str(nLine));
+
+		// Parse Name
+		size_t nNameStart = nPos;
+		while(szFile[nPos] > ' ' && nPos < nLen)
+			nPos++;
+		string s;
+		s.assign(szFile + nNameStart, nPos - nNameStart);
+		pRelation->setName(s.c_str());
+		break;
+	}
+
+	// Parse the attribute section
+	while(true)
+	{
+		// Skip Whitespace
+		while(nPos < nLen && szFile[nPos] <= ' ')
+		{
+			if(szFile[nPos] == '\n')
+				nLine++;
+			nPos++;
+		}
+		if(nPos >= nLen)
+			ThrowError("Expected @ATTRIBUTE or @DATA at line ", to_str(nLine));
+
+		// Check for comments
+		if(szFile[nPos] == '%')
+		{
+			for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
+			{
+			}
+			continue;
+		}
+
+		// Check for @DATA
+		if(nLen - nPos < 5) // 10 = strlen("@DATA")
+			ThrowError("Expected @DATA at line ", to_str(nLine));
+		if(_strnicmp(&szFile[nPos], "@DATA", 5) == 0)
+		{
+			nPos += 5;
+			break;
+		}
+
+		// Parse @ATTRIBUTE
+		if(nLen - nPos < 10) // 10 = strlen("@ATTRIBUTE")
+			ThrowError("Expected @ATTRIBUTE at line ", to_str(nLine));
+		if(_strnicmp(&szFile[nPos], "@ATTRIBUTE", 10) != 0)
+			ThrowError("Expected @ATTRIBUTE or @DATA at line ", to_str(nLine));
+		nPos += 10;
+		pRelation->parseAttribute(&szFile[nPos], nLen - nPos, nLine);
+
+		// Move to next line
+		for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
+		{
+		}
+	}
+
+	// Parse the data section
+	GMatrix* pData = new GMatrix(sp_rel);
+	Holder<GMatrix> hData(pData);
+	while(true)
+	{
+		// Skip Whitespace
+		while(nPos < nLen && szFile[nPos] <= ' ')
+		{
+			if(szFile[nPos] == '\n')
+				nLine++;
+			nPos++;
+		}
+		if(nPos >= nLen)
+			break;
+
+		// Check for comments
+		if(szFile[nPos] == '%')
+		{
+			for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
+			{
+			}
+			continue;
+		}
+
+
+		// Parse the data line
+		parseDataRow(pRelation, pData, &szFile[nPos], nLen - nPos, nLine);
+
+		// Move to next line
+		for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
+		{
+		}
+		continue;
+	}
+
+	return hData.release();
+*/return NULL;
+}
+
 // static
 GMatrix* GMatrix::loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, bool tolerant)
 {

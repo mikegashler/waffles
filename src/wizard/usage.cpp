@@ -556,6 +556,7 @@ UsageNode* makeTransformUsageTree()
 	{
 		UsageNode* pOpts = pMSE->add("<options>");
 		pOpts->add("-fit", "Use a hill-climber to find an affine transformation to make dataset2 fit as closely as possible to dataset1. Report results after each iteration.");
+		pOpts->add("-sum", "Sum the mean-squared error over each attribute and only report this sum. (The default is to report the mean-squared error in each attribute.)");
 	}
 	pRoot->add("mergehoriz [dataset1] [dataset2]", "Merge two (or more) datasets horizontally. All datasets must already have the same number of rows. The resulting dataset will have all the columns of both datasets.");
 	pRoot->add("mergevert [dataset1] [dataset2]", "Merge two datasets vertically. Both datasets must already have the same number of columns. The resulting dataset will have all the rows of both datasets.");

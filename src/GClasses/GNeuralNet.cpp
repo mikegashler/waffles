@@ -775,25 +775,14 @@ void GNeuralNet::decayWeights(double lambda, double gamma)
 	}
 }
 
-void GNeuralNet::decayWeightsSingleOutput(size_t output, double lambda, double gamma)
+void GNeuralNet::decayWeightsSingleOutput(size_t output, double lambda)
 {
 	if(m_internalLabelDims == 0)
 		ThrowError("enableIncrementalLearning must be called before this method");
-	vector<GNeuralNetLayer>::iterator layer;
-	for(layer = m_layers.begin(); layer + 1 != m_layers.end(); layer++)
-	{
-		double d = (1.0 - lambda * m_learningRate);
-		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
-		{
-			for(vector<double>::iterator weight = neuron->m_weights.begin() + 1; weight != neuron->m_weights.end(); weight++)
-				*weight *= d;
-		}
-		lambda *= gamma;
-	}
 	double d = (1.0 - lambda * m_learningRate);
-	vector<GNeuron>::iterator neuron = layer->m_neurons.begin() + output;
-	for(vector<double>::iterator weight = neuron->m_weights.begin() + 1; weight != neuron->m_weights.end(); weight++)
-		*weight *= d;
+	GNeuron& neuron = layer(m_layers.size() - 1).m_neurons[output];
+	for(vector<double>::iterator weight = neuron.m_weights.begin(); weight != neuron.m_weights.end(); weight++)
+		(*weight) *= d;
 }
 
 void GNeuralNet::forwardProp(const double* pRow)

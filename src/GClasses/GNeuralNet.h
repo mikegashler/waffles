@@ -265,7 +265,7 @@ public:
 
 	/// Just like decayWeights, except it only decays the weights in one of
 	/// the output units.
-	void decayWeightsSingleOutput(size_t output, double lambda, double gamma = 1.0);
+	void decayWeightsSingleOutput(size_t output, double lambda);
 
 	/// Returns the current learning rate
 	double learningRate() { return m_learningRate; }

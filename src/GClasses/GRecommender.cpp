@@ -926,6 +926,7 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 	}
 
 	// Train
+double regularizer = 0.0015;
 	GMatrix* pBestUsers = NULL;
 	double* pBestWeights = NULL;
 	size_t weightCount = m_pModel->countWeights();
@@ -949,10 +950,12 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 			m_pModel->forwardPropSingleOutput(pUserPreferenceVector, pRating->m_item);
 			m_pModel->setErrorSingleOutput(pRating->m_rating, pRating->m_item, m_pModel->backPropTargetFunction());
 			m_pModel->backProp()->backpropagateSingleOutput(pRating->m_item);
+m_pModel->decayWeightsSingleOutput(pRating->m_item, regularizer);
 			m_pModel->backProp()->descendGradientSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->momentum(), m_pModel->useInputBias());
+GVec::multiply(pUserPreferenceVector, 1.0 - learningRate * regularizer, m_intrinsicDims);
 			m_pModel->backProp()->adjustFeaturesSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->useInputBias());
-			GVec::floorValues(pUserPreferenceVector, floor, m_intrinsicDims);
-			GVec::capValues(pUserPreferenceVector, cap, m_intrinsicDims);
+//			GVec::floorValues(pUserPreferenceVector, floor, m_intrinsicDims);
+//			GVec::capValues(pUserPreferenceVector, cap, m_intrinsicDims);
 		}
 
 		// Stopping criteria
@@ -966,7 +969,7 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 			pBestWeights = new double[weightCount];
 			m_pModel->weights(pBestWeights);
 		}
-		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.0001) // If the amount of improvement is less than 0.01%
+		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.001) // If the amount of improvement is less than 0.1%
 			learningRate *= 0.7; // decay the learning rate
 		prevErr = rsse;
 	}
