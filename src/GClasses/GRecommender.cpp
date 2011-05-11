@@ -934,8 +934,8 @@ double regularizer = 0.0015;
 	double bestErr = 1e308;
 	double floor = std::max(-50.0, pAF->center() - pAF->halfRange());
 	double cap = std::min(50.0, pAF->center() + pAF->halfRange());
-	double learningRate = 0.02;
-	while(learningRate >= 0.001)
+	double learningRate = 0.05;
+	while(learningRate >= 0.0005)
 	{
 		// Shuffle the ratings
 		for(size_t n = ratings.size(); n > 0; n--)
@@ -969,7 +969,7 @@ GVec::multiply(pUserPreferenceVector, 1.0 - learningRate * regularizer, m_intrin
 			pBestWeights = new double[weightCount];
 			m_pModel->weights(pBestWeights);
 		}
-		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.001) // If the amount of improvement is less than 0.1%
+		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.00001) // If the amount of improvement is less than 0.01%
 			learningRate *= 0.7; // decay the learning rate
 		prevErr = rsse;
 	}

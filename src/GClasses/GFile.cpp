@@ -970,27 +970,27 @@ const char* GTokenizer::nextArg()
 	char c = m_pStream->peek();
 	if(c == '"')
 	{
-		skip(1);
+		advance(1);
 		next("\"\n");
 		if(peek() != '"')
 			ThrowError("Expected matching double-quotes on line ", to_str(m_line), ", col ", to_str(col()));
-		skip(1);
+		advance(1);
 		return m_pBufStart;
 	}
 	else if(c == '\'')
 	{
-		skip(1);
+		advance(1);
 		next("'\n");
 		if(peek() != '\'')
 			ThrowError("Expected a matching single-quote on line ", to_str(m_line), ", col ", to_str(col()));
-		skip(1);
+		advance(1);
 		return m_pBufStart;
 	}
 	else
 		return next(" \t\n{\r");
 }
 
-void GTokenizer::skip(size_t n)
+void GTokenizer::advance(size_t n)
 {
 	while(n > 0 && m_len > 0)
 	{

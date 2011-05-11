@@ -545,7 +545,7 @@ void GKMeans::recomputeCentroids()
 					if(m_pClusters[k] == i)
 					{
 						int v = (int)m_pData->row(k)[j];
-						if(v >= 0 && (size_t)v < vals)
+						if(v != UNKNOWN_DISCRETE_VALUE && (size_t)v < vals)
 							pFreq[v]++;
 					}
 				}
@@ -579,6 +579,155 @@ size_t GKMeans::whichCluster(size_t index)
 {
 	GAssert(index < m_pData->rows());
 	return m_pClusters[index];
+}
+
+
+// -----------------------------------------------------------------------------------------
+
+GFuzzyKMeans::GFuzzyKMeans(size_t clusters, GRand* pRand)
+: GClusterer(clusters), m_pCentroids(NULL), m_pMetric(NULL), m_pData(NULL), m_pWeights(NULL), m_fuzzifier(1.0), m_pRand(pRand)
+{
+}
+
+GFuzzyKMeans::~GFuzzyKMeans()
+{
+	delete(m_pCentroids);
+	delete(m_pMetric);
+	delete(m_pWeights);
+}
+
+void GFuzzyKMeans::setMetric(GDissimilarityMetric* pMetric)
+{
+	delete(m_pMetric);
+	m_pMetric = pMetric;
+}
+
+void GFuzzyKMeans::init(GMatrix* pData)
+{
+	m_pData = pData;
+	if(!m_pMetric)
+		setMetric(new GRowDistance());
+	m_pMetric->init(pData->relation());
+	if(pData->rows() < (size_t)m_clusterCount)
+		ThrowError("Fewer data point than clusters");
+
+	// Initialize the centroids
+	delete(m_pCentroids);
+	m_pCentroids = new GMatrix(pData->relation());
+	m_pCentroids->newRows(m_clusterCount);
+	for(size_t i = 0; i < m_clusterCount; i++)
+	{
+		size_t j;
+		for(j = 0; j < 100; j++)
+		{
+			// Pick a random row to be a centroid
+			size_t index = (size_t)m_pRand->next(m_clusterCount);
+
+			// Check if this row is already in use
+			size_t k;
+			for(k = 0; k < i; k++)
+			{
+				if(m_pMetric->dissimilarity(pData->row(index), m_pCentroids->row(k)) == 0)
+					break;
+			}
+			if(k == i) // If a unique instance was found...
+			{
+				GVec::copy(m_pCentroids->row(i), pData->row(index), pData->cols());
+				break;
+			}
+		}
+		if(j >= 100)
+			ThrowError("A unique instance could not be found for a centroid in 100 random tries.");
+	}
+
+	// Initialize the weights
+	delete(m_pWeights);
+	m_pWeights = new GMatrix(pData->rows(), m_clusterCount);
+}
+
+double GFuzzyKMeans::recomputeWeights()
+{
+	double sumError = 0.0;
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		double* pWeights = m_pWeights->row(i);
+		double* pW = pWeights;
+		for(size_t j = 0; j < m_clusterCount; j++)
+			*(pW++) = pow(sqrt(m_pMetric->dissimilarity(m_pData->row(i), m_pCentroids->row(j))), -2.0 / (m_fuzzifier - 1.0));
+		double scale = 1.0 / GVec::sumElements(pWeights, m_clusterCount);
+		sumError += scale;
+		GVec::multiply(pWeights, scale, m_clusterCount);
+	}
+	return sumError;
+}
+
+void GFuzzyKMeans::recomputeCentroids()
+{
+	for(size_t i = 0; i < m_clusterCount; i++)
+	{
+		for(size_t j = 0; j < m_pData->cols(); j++)
+		{
+			size_t vals = m_pData->relation()->valueCount(j);
+			if(vals == 0)
+			{
+				double sum = 0.0;
+				double sumWeight = 0.0;
+				for(size_t k = 0; k < m_pData->rows(); k++)
+				{
+					double d = m_pData->row(k)[j];
+					if(d != UNKNOWN_REAL_VALUE)
+					{
+						double weight = m_pWeights->row(k)[i];
+						sumWeight += weight;
+						sum += weight * d;
+					}
+				}
+				if(sumWeight > 0.0)
+					m_pCentroids->row(i)[j] = sum / sumWeight;
+				else
+					m_pCentroids->row(i)[j] = UNKNOWN_REAL_VALUE;
+			}
+			else
+			{
+				double* pFreq = new double[vals];
+				ArrayHolder<double> hFreq(pFreq);
+				GVec::setAll(pFreq, 0.0, vals);
+				for(size_t k = 0; k < m_pData->rows(); k++)
+				{
+					int v = (int)m_pData->row(k)[j];
+					if(v != UNKNOWN_DISCRETE_VALUE && (size_t)v < vals)
+						pFreq[v] += m_pWeights->row(k)[i];
+				}
+				size_t index = GVec::indexOfMax(pFreq, vals, m_pRand);
+				if(pFreq[index] > 0.0)
+					m_pCentroids->row(i)[j] = (double)index;
+				else
+					m_pCentroids->row(i)[j] = UNKNOWN_DISCRETE_VALUE;
+			}
+		}
+	}
+}
+
+// virtual
+void GFuzzyKMeans::cluster(GMatrix* pData)
+{
+	init(pData);
+	double prevErr = 1e308;
+	for(size_t iters = 0; true; iters++)
+	{
+		double d = recomputeWeights();
+		if(iters > 2 && 1.0 - (d / prevErr) < 0.000001) // If it improved by less than 0.0001%
+			break;
+		recomputeCentroids();
+		prevErr = d;
+	}
+}
+
+// virtual
+size_t GFuzzyKMeans::whichCluster(size_t index)
+{
+	GAssert(index < m_pData->rows());
+	return GVec::indexOfMax(m_pWeights->row(index), m_clusterCount, m_pRand);
 }
 
 

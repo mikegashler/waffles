@@ -188,8 +188,8 @@ public:
 	/// to be delimeters.
 	void skip(const char* szDelimeters = NULL);
 
-	/// Skips the next 'n' characters. (Stops if the end-of-file is reached.)
-	void skip(size_t n);
+	/// Advances past the next 'n' characters. (Stops if the end-of-file is reached.)
+	void advance(size_t n);
 
 	/// Skip until the next character is one of the delimeters.
 	/// (This method is the same as next, except that it does not buffer what it reads.)

@@ -562,7 +562,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 	char c = tok.peek();
 	if(c == '{')
 	{
-		tok.skip(1);
+		tok.advance(1);
 		GAssert(m_attrs.size() == m_valueCounts.size());
 		size_t index = m_valueCounts.size();
 		m_attrs.resize(index + 1);
@@ -575,7 +575,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 			m_attrs[index].m_values.push_back(szVal);
 			char c = tok.peek();
 			if(c == ',')
-				tok.skip(1);
+				tok.advance(1);
 			else if(c == '}')
 				break;
 			else if(c == '\n')
@@ -608,7 +608,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 			ThrowError("Unsupported attribute type: ", szType, ", at line ", to_str(tok.line()));
 	}
 	tok.skipTo("\n");
-	tok.skip(1);
+	tok.advance(1);
 }
 
 // virtual
@@ -697,17 +697,6 @@ int GArffRelation::findEnumeratedValue(size_t nAttr, const char* szValue)
 			return (int)i;
 	}
 	return UNKNOWN_DISCRETE_VALUE;
-}
-
-inline bool IsRealValue(const char* szValue)
-{
-	if(*szValue == '-')
-		szValue++;
-	if(*szValue == '.')
-		szValue++;
-	if(*szValue >= '0' && *szValue <= '9')
-		return true;
-	return false;
 }
 
 const char* GArffRelation::attrName(size_t nAttr)
@@ -834,6 +823,47 @@ void GMatrix::flush()
 	m_rows.clear();
 }
 
+inline bool IsRealValue(const char* szValue)
+{
+	if(*szValue == '-')
+		szValue++;
+	if(*szValue == '.')
+		szValue++;
+	if(*szValue >= '0' && *szValue <= '9')
+		return true;
+	return false;
+}
+
+double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVal, GTokenizer& tok)
+{
+	size_t vals = pRelation->valueCount(col);
+	if(vals == 0)
+	{
+		// Continuous attribute
+		if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
+			return UNKNOWN_REAL_VALUE;
+		else
+		{
+			if(!IsRealValue(szVal))
+				ThrowError("Expected a numeric value at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			return atof(szVal);
+		}
+	}
+	else
+	{
+		// Nominal attribute
+		if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
+			return UNKNOWN_DISCRETE_VALUE;
+		else
+		{
+			int nVal = pRelation->findEnumeratedValue(col, szVal);
+			if(nVal == UNKNOWN_DISCRETE_VALUE)
+				ThrowError("Unrecognized enumeration value for attribute ", to_str(col), " at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			return (double)nVal;
+		}
+	}
+}
+
 GMatrix* GMatrix_parseArff(GTokenizer& tok)
 {
 	// Parse the meta data
@@ -847,12 +877,12 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			ThrowError("ARFF file contains no data");
 		else if(c == '%')
 		{
-			tok.skip(1);
+			tok.advance(1);
 			tok.skipTo("\n");
 		}
 		else if(c == '@')
 		{
-			tok.skip(1);
+			tok.advance(1);
 			const char* szTok = tok.next();
 			if(_stricmp(szTok, "ATTRIBUTE") == 0)
 				pRelation->parseAttribute(tok);
@@ -860,12 +890,12 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			{
 				tok.skip(" \t");
 				pRelation->setName(tok.next("\n"));
-				tok.skip(1);
+				tok.advance(1);
 			}
 			else if(_stricmp(szTok, "DATA") == 0)
 			{
 				tok.skipTo("\n");
-				tok.skip(1);
+				tok.advance(1);
 				break;
 			}
 		}
@@ -885,12 +915,42 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			break;
 		else if(c == '%')
 		{
-			tok.skip(1);
+			tok.advance(1);
 			tok.skipTo("\n");
 		}
 		else if(c == '{')
 		{
-			ThrowError("Sorry, sparse data rows not implemented yet");
+			tok.advance(1);
+			double* pRow = pData->newRow();
+			GVec::setAll(pRow, 0.0, cols);
+			while(true)
+			{
+				tok.skip(" ");
+				char c = tok.peek();
+				if(c >= '0' && c <= '9')
+				{
+					const char* szTok = tok.next(" ,\t}\n");
+					size_t col = strtoull(szTok, (char**)NULL, 10);
+					if(col >= cols)
+						ThrowError("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+					tok.skip(" \t");
+					const char* szVal = tok.next(", \t}\n");
+					pRow[col] = GMatrix_parseValue(pRelation, col, szVal, tok);
+					tok.skipTo(",}\t\n");
+					c = tok.peek();
+					if(c == ',' || c == '\t')
+						tok.advance(1);
+				}
+				else if(c == '}')
+				{
+					tok.advance(1);
+					break;
+				}
+				else if(c == '\n' || c == '\0')
+					ThrowError("Expected a matching '}' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				else
+					ThrowError("Unexpected token at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			}
 		}
 		else
 		{
@@ -902,38 +962,12 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 					ThrowError("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 				tok.next(",\n\t");
 				const char* szVal = tok.trim();
-				size_t vals = pRelation->valueCount(col);
-				if(vals == 0)
-				{
-					// Continuous attribute
-					if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
-						*pRow = UNKNOWN_REAL_VALUE;
-					else
-					{
-						if(!IsRealValue(szVal))
-							ThrowError("Expected a numeric value at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-						*pRow = atof(szVal);
-					}
-				}
-				else
-				{
-					// Nominal attribute
-					if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
-						*pRow = UNKNOWN_DISCRETE_VALUE;
-					else
-					{
-						int nVal = pRelation->findEnumeratedValue(col, szVal);
-						if(nVal == UNKNOWN_DISCRETE_VALUE)
-							ThrowError("Unrecognized enumeration value for attribute ", to_str(col), " at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-						*pRow = (double)nVal;
-					}
-				}
-
+				*pRow = GMatrix_parseValue(pRelation, col, szVal, tok);
 				pRow++;
 				col++;
 				char c = tok.peek();
 				if(c == ',' || c == '\t')
-					tok.skip(1);
+					tok.advance(1);
 				else if(c == '\n' || c == '\0')
 					break;
 				else

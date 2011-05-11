@@ -195,6 +195,50 @@ protected:
 };
 
 
+/// A K-means clustering algorithm where every point has partial membership in each cluster
+class GFuzzyKMeans : public GClusterer
+{
+protected:
+	GMatrix* m_pCentroids;
+	GDissimilarityMetric* m_pMetric;
+	bool m_ownMetric;
+	GMatrix* m_pData;
+	GMatrix* m_pWeights;
+	double m_fuzzifier;
+	GRand* m_pRand;
+
+public:
+	GFuzzyKMeans(size_t nClusters, GRand* pRand);
+	~GFuzzyKMeans();
+
+	/// Takes ownership of pMetric
+	void setMetric(GDissimilarityMetric* pMetric);
+
+	/// Performs clustering
+	virtual void cluster(GMatrix* pData);
+
+	/// Identifies the cluster of the specified row
+	virtual size_t whichCluster(size_t nVector);
+
+	/// Selects random centroids and initializes internal data structures
+	void init(GMatrix* pData);
+
+	/// Assigns each row to partial membership in each cluster, as measured
+	/// with the dissimilarity metric. Returns the weighted-sum-distance of each row with the centroids.
+	double recomputeWeights();
+
+	/// Computes new centroids for each cluster.
+	void recomputeCentroids();
+
+	/// Returns a k x d matrix, where each row is one of the k centroids.
+	GMatrix* centroids() { return m_pCentroids; }
+
+protected:
+	bool clusterAttempt(size_t nMaxIterations);
+	bool selectSeeds(GMatrix* pSeeds);
+};
+
+
 /// An implementation of the K-medoids clustering algorithm
 class GKMedoids : public GClusterer
 {
