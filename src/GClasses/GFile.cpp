@@ -806,6 +806,7 @@ GTokenizer::GTokenizer(const char* szFilename)
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
+	m_lineStart = m_len;
 	m_line = 1;
 }
 
@@ -825,6 +826,7 @@ GTokenizer::GTokenizer(const char* pFile, size_t len)
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
+	m_lineStart = m_len;
 	m_line = 1;
 }
 
@@ -873,7 +875,10 @@ const char* GTokenizer::next(const char* szDelimeters)
 		c = m_pStream->get();
 		m_len--;
 		if(c == '\n')
+		{
 			m_line++;
+			m_lineStart = m_len;
+		}
 		if(m_pBufPos == m_pBufEnd)
 			growBuf();
 		*m_pBufPos = c;
@@ -913,7 +918,10 @@ void GTokenizer::skip(const char* szDelimeters)
 		c = m_pStream->get();
 		m_len--;
 		if(c == '\n')
+		{
 			m_line++;
+			m_lineStart = m_len;
+		}
 	}
 }
 
@@ -944,7 +952,10 @@ void GTokenizer::skipTo(const char* szDelimeters)
 		c = m_pStream->get();
 		m_len--;
 		if(c == '\n')
+		{
 			m_line++;
+			m_lineStart = m_len;
+		}
 	}
 }
 
@@ -954,6 +965,31 @@ const char* GTokenizer::nextTok(const char* szDelimeters)
 	return next(szDelimeters);
 }
 
+const char* GTokenizer::nextArg()
+{
+	char c = m_pStream->peek();
+	if(c == '"')
+	{
+		skip(1);
+		next("\"\n");
+		if(peek() != '"')
+			ThrowError("Expected matching double-quotes on line ", to_str(m_line), ", col ", to_str(col()));
+		skip(1);
+		return m_pBufStart;
+	}
+	else if(c == '\'')
+	{
+		skip(1);
+		next("'\n");
+		if(peek() != '\'')
+			ThrowError("Expected a matching single-quote on line ", to_str(m_line), ", col ", to_str(col()));
+		skip(1);
+		return m_pBufStart;
+	}
+	else
+		return next(" \t\n{\r");
+}
+
 void GTokenizer::skip(size_t n)
 {
 	while(n > 0 && m_len > 0)
@@ -961,7 +997,10 @@ void GTokenizer::skip(size_t n)
 		char c = m_pStream->get();
 		m_len--;
 		if(c == '\n')
+		{
 			m_line++;
+			m_lineStart = m_len;
+		}
 		n--;
 	}
 }
@@ -991,9 +1030,32 @@ void GTokenizer::expect(const char* szString)
 		char c = m_pStream->get();
 		m_len--;
 		if(c == '\n')
+		{
 			m_line++;
+			m_lineStart = m_len;
+		}
 		if(c != *szString)
-			ThrowError("Expected \"", szString, "\" at line ", to_str(m_line));
+			ThrowError("Expected \"", szString, "\" on line ", to_str(m_line), ", col ", to_str(col()));
 		szString++;
 	}
+}
+
+size_t GTokenizer::tokenLength()
+{
+	return m_pBufPos - m_pBufStart;
+}
+
+const char* GTokenizer::trim()
+{
+	const char* pStart = m_pBufStart;
+	while(pStart < m_pBufPos && *pStart <= ' ')
+		pStart++;
+	for(char* pEnd = m_pBufPos - 1; pEnd >= pStart && *pEnd <= ' '; pEnd--)
+		*pEnd = '\0';
+	return pStart;
+}
+
+size_t GTokenizer::col()
+{
+	return m_lineStart - m_len + 1;
 }

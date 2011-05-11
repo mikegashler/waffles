@@ -508,41 +508,6 @@ void GArffRelation::addAttributeInternal(const char* pName, size_t nameLen, size
 	m_attrs[index].m_name.append(pName, nameLen);
 }
 
-void GArffRelation::addAttributeInternal(const char* pName, size_t nameLen, const char* pValues, size_t valuesLen)
-{
-	// Count the commas and add the attribute
-	size_t valueCount = 0;
-	for(size_t n = 0; n < valuesLen; n++)
-	{
-		if(pValues[n] == ',')
-			valueCount++;
-	}
-	valueCount++;
-	addAttributeInternal(pName, nameLen, valueCount);
-
-	// Parse the values
-	size_t index = m_valueCounts.size() - 1; // - 1 b/c the previous line already added it w/o the values
-	size_t start = 0;
-	size_t count = 0;
-	for(size_t n = 0; n <= valuesLen; n++)
-	{
-		if(pValues[n] == ',' || pValues[n] == '}')
-		{
-			size_t nStart = start;
-			size_t nEnd = n;
-			while(nStart < nEnd && pValues[nStart] <= ' ')
-				nStart++;
-			while(nStart < nEnd && pValues[nEnd - 1] <= ' ')
-				nEnd--;
-			string s;
-			s.assign(pValues + nStart, nEnd - nStart);
-			m_attrs[index].m_values.push_back(s);
-			count++;
-			start = n + 1;
-		}
-	}
-}
-
 void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<const char*>* pValues)
 {
 	GAssert(m_attrs.size() == m_valueCounts.size());
@@ -589,78 +554,61 @@ void GArffRelation::setName(const char* szName)
 	m_name = szName;
 }
 
-void GArffRelation::parseAttribute(const char* szFile, size_t nLen, size_t nLine)
+void GArffRelation::parseAttribute(GTokenizer& tok)
 {
-	// Eat whitespace
-	while(nLen > 0 && *szFile <= ' ')
+	tok.skip(" \t");
+	string name = tok.nextArg();
+	tok.skip(" \t");
+	char c = tok.peek();
+	if(c == '{')
 	{
-		if(*szFile == '\n')
-			ThrowError("Unexpected end of file at line ", to_str(nLine));
-		szFile++;
-		nLen--;
+		tok.skip(1);
+		GAssert(m_attrs.size() == m_valueCounts.size());
+		size_t index = m_valueCounts.size();
+		m_attrs.resize(index + 1);
+		while(true)
+		{
+			tok.next(",}\n");
+			const char* szVal = tok.trim();
+			if(*szVal == '\0')
+				ThrowError("Empty value specified on line ", to_str(tok.line()));
+			m_attrs[index].m_values.push_back(szVal);
+			char c = tok.peek();
+			if(c == ',')
+				tok.skip(1);
+			else if(c == '}')
+				break;
+			else if(c == '\n')
+				ThrowError("Expected a '}' on line ", to_str(tok.line()));
+			else
+				ThrowError("inconsistency");
+		}
+		m_valueCounts.push_back(m_attrs[index].m_values.size());
+		if(name.length() > 0)
+			m_attrs[index].m_name = name;
+		else
+		{
+			m_attrs[index].m_name = "attr_";
+			std::ostringstream oss;
+			oss << index;
+			m_attrs[index].m_name += oss.str();
+		}
 	}
-	if(nLen == 0)
-		ThrowError("Unexpected end of file at line ", to_str(nLine));
-
-	// Parse the name
-	size_t nQuotes = 0;
-	if(szFile[0] == '\'' || szFile[0] == '"')
-		nQuotes = 1;
-	size_t nPos = 1;
-	for( ; nPos < nLen && (((unsigned char)szFile[nPos] > (unsigned char)' ' && szFile[nPos] != '{') || nQuotes > 0); nPos++)
+	else
 	{
-		if(szFile[nPos] == '\'' || szFile[nPos] == '"')
-			nQuotes--;
+		const char* szType = tok.next();
+		if(	_stricmp(szType, "CONTINUOUS") == 0 ||
+			_stricmp(szType, "REAL") == 0 ||
+			_stricmp(szType, "NUMERIC") == 0 ||
+			_stricmp(szType, "INTEGER") == 0)
+		{
+			addAttribute(name.c_str(), 0, NULL);
+		}
+		else
+			ThrowError("Unsupported attribute type: ", szType, ", at line ", to_str(tok.line()));
 	}
-	const char* pName = szFile;
-	size_t nNameLen = nPos;
-
-	// Eat whitespace
-	while(nPos < nLen && szFile[nPos] <= ' ')
-	{
-		if(szFile[nPos] == '\n')
-			ThrowError("Expected a value type at line ", to_str(nLine));
-		nPos++;
-	}
-	if(nPos >= nLen)
-		ThrowError("Expected a value type at line ", to_str(nLine));
-
-	// Check for CONTINUOUS
-	if(nLen - nPos >= 10 && _strnicmp(&szFile[nPos], "CONTINUOUS", 10) == 0)
-	{
-		addAttributeInternal(pName, nNameLen, 0);
-		return;
-	}
-	if(nLen - nPos >= 7 && _strnicmp(&szFile[nPos], "INTEGER", 7) == 0)
-	{
-		addAttributeInternal(pName, nNameLen, 0);
-		return;
-	}
-	if(nLen - nPos >= 7 && _strnicmp(&szFile[nPos], "NUMERIC", 7) == 0)
-	{
-		addAttributeInternal(pName, nNameLen, 0);
-		return;
-	}
-	if(nLen - nPos >= 4 && _strnicmp(&szFile[nPos], "REAL", 4) == 0)
-	{
-		addAttributeInternal(pName, nNameLen, 0);
-		return;
-	}
-
-	// Parse the values
-	if(nPos >= nLen || szFile[nPos] != '{')
-		ThrowError("Unrecognized value type at line ", to_str(nLine));
-	nPos++;
-
-	// Find the end of the values
-	size_t n;
-	for(n = nPos; n < nLen && szFile[n] != '}' && szFile[n] != '\n'; n++)
-	{
-	}
-	if(n >= nLen || szFile[n] != '}')
-		ThrowError("Expected a '}' at line ", to_str(nLine));
-
-	addAttributeInternal(pName, nNameLen, szFile + nPos, (n - nPos));
+	tok.skipTo("\n");
+	tok.skip(1);
 }
 
 // virtual
@@ -886,15 +834,6 @@ void GMatrix::flush()
 	m_rows.clear();
 }
 
-// static
-GMatrix* GMatrix::loadArff(const char* szFilename)
-{
-	size_t nLen;
-	char* szFile = GFile::loadFile(szFilename, &nLen);
-	ArrayHolder<char> hFile(szFile);
-	return parseArff(szFile, nLen);
-}
-
 GMatrix* GMatrix_parseArff(GTokenizer& tok)
 {
 	// Parse the meta data
@@ -903,131 +842,115 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 	while(true)
 	{
 		tok.skip(); // Skip Whitespace
-		if(tok.remaining() == 0)
-			ThrowError("ARFF file contains no data");
-
-		// Check for comments
 		char c = tok.peek();
-		if(c == '%')
+		if(c == '\0')
+			ThrowError("ARFF file contains no data");
+		else if(c == '%')
 		{
+			tok.skip(1);
 			tok.skipTo("\n");
-			continue;
 		}
 		else if(c == '@')
 		{
+			tok.skip(1);
+			const char* szTok = tok.next();
+			if(_stricmp(szTok, "ATTRIBUTE") == 0)
+				pRelation->parseAttribute(tok);
+			else if(_stricmp(szTok, "RELATION") == 0)
+			{
+				tok.skip(" \t");
+				pRelation->setName(tok.next("\n"));
+				tok.skip(1);
+			}
+			else if(_stricmp(szTok, "DATA") == 0)
+			{
+				tok.skipTo("\n");
+				tok.skip(1);
+				break;
+			}
 		}
 		else
-			ThrowError("Expected a '%' or a '@' at line ", to_str(tok.line()));
-}
-/*
-		// Parse Relation
-		if(nLen - nPos < 9 || _strnicmp(&szFile[nPos], "@RELATION", 9) != 0)
-			ThrowError("Expected @RELATION at line ", to_str(nLine));
-		nPos += 9;
-
-		// Skip Whitespace
-		while(szFile[nPos] <= ' ' && nPos < nLen)
-		{
-			if(szFile[nPos] == '\n')
-				nLine++;
-			nPos++;
-			break;
-		}
-		if(nPos >= nLen)
-			ThrowError("Expected relation name at line ", to_str(nLine));
-
-		// Parse Name
-		size_t nNameStart = nPos;
-		while(szFile[nPos] > ' ' && nPos < nLen)
-			nPos++;
-		string s;
-		s.assign(szFile + nNameStart, nPos - nNameStart);
-		pRelation->setName(s.c_str());
-		break;
-	}
-
-	// Parse the attribute section
-	while(true)
-	{
-		// Skip Whitespace
-		while(nPos < nLen && szFile[nPos] <= ' ')
-		{
-			if(szFile[nPos] == '\n')
-				nLine++;
-			nPos++;
-		}
-		if(nPos >= nLen)
-			ThrowError("Expected @ATTRIBUTE or @DATA at line ", to_str(nLine));
-
-		// Check for comments
-		if(szFile[nPos] == '%')
-		{
-			for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
-			{
-			}
-			continue;
-		}
-
-		// Check for @DATA
-		if(nLen - nPos < 5) // 10 = strlen("@DATA")
-			ThrowError("Expected @DATA at line ", to_str(nLine));
-		if(_strnicmp(&szFile[nPos], "@DATA", 5) == 0)
-		{
-			nPos += 5;
-			break;
-		}
-
-		// Parse @ATTRIBUTE
-		if(nLen - nPos < 10) // 10 = strlen("@ATTRIBUTE")
-			ThrowError("Expected @ATTRIBUTE at line ", to_str(nLine));
-		if(_strnicmp(&szFile[nPos], "@ATTRIBUTE", 10) != 0)
-			ThrowError("Expected @ATTRIBUTE or @DATA at line ", to_str(nLine));
-		nPos += 10;
-		pRelation->parseAttribute(&szFile[nPos], nLen - nPos, nLine);
-
-		// Move to next line
-		for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
-		{
-		}
+			ThrowError("Expected a '%' or a '@' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 	}
 
 	// Parse the data section
 	GMatrix* pData = new GMatrix(sp_rel);
 	Holder<GMatrix> hData(pData);
+	size_t cols = pRelation->size();
 	while(true)
 	{
-		// Skip Whitespace
-		while(nPos < nLen && szFile[nPos] <= ' ')
-		{
-			if(szFile[nPos] == '\n')
-				nLine++;
-			nPos++;
-		}
-		if(nPos >= nLen)
+		tok.skip();
+		char c = tok.peek();
+		if(c == '\0')
 			break;
-
-		// Check for comments
-		if(szFile[nPos] == '%')
+		else if(c == '%')
 		{
-			for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
+			tok.skip(1);
+			tok.skipTo("\n");
+		}
+		else if(c == '{')
+		{
+			ThrowError("Sorry, sparse data rows not implemented yet");
+		}
+		else
+		{
+			double* pRow = pData->newRow();
+			size_t col = 0;
+			while(true)
 			{
+				if(col >= cols)
+					ThrowError("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				tok.next(",\n\t");
+				const char* szVal = tok.trim();
+				size_t vals = pRelation->valueCount(col);
+				if(vals == 0)
+				{
+					// Continuous attribute
+					if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
+						*pRow = UNKNOWN_REAL_VALUE;
+					else
+					{
+						if(!IsRealValue(szVal))
+							ThrowError("Expected a numeric value at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+						*pRow = atof(szVal);
+					}
+				}
+				else
+				{
+					// Nominal attribute
+					if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
+						*pRow = UNKNOWN_DISCRETE_VALUE;
+					else
+					{
+						int nVal = pRelation->findEnumeratedValue(col, szVal);
+						if(nVal == UNKNOWN_DISCRETE_VALUE)
+							ThrowError("Unrecognized enumeration value for attribute ", to_str(col), " at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+						*pRow = (double)nVal;
+					}
+				}
+
+				pRow++;
+				col++;
+				char c = tok.peek();
+				if(c == ',' || c == '\t')
+					tok.skip(1);
+				else if(c == '\n' || c == '\0')
+					break;
+				else
+					ThrowError("inconsistency");
 			}
-			continue;
+			if(col < cols)
+				ThrowError("Not enough values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		}
-
-
-		// Parse the data line
-		parseDataRow(pRelation, pData, &szFile[nPos], nLen - nPos, nLine);
-
-		// Move to next line
-		for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
-		{
-		}
-		continue;
 	}
-
 	return hData.release();
-*/return NULL;
+}
+
+// static
+GMatrix* GMatrix::loadArff(const char* szFilename)
+{
+	GTokenizer tok(szFilename);
+	return GMatrix_parseArff(tok);
 }
 
 // static
@@ -1045,218 +968,10 @@ void GMatrix::saveArff(const char* szFilename)
 }
 
 // static
-void GMatrix::parseDataRow(GArffRelation* pRelation, GMatrix* pDataSet, const char* szFile, size_t nLen, size_t nLine)
-{
-	char szBuf[512];
-	size_t nAttributeCount = pRelation->size();
-	double* pData = new double[nAttributeCount];
-	pDataSet->m_rows.push_back(pData);
-	size_t col = 0;
-	for(size_t n = 0; n < nAttributeCount; n++)
-	{
-		// Eat whitespace
-		while(nLen > 0 && *szFile <= ' ')
-		{
-			if(*szFile == '\n')
-				break;
-			szFile++;
-			nLen--;
-		}
-
-		// Parse the next value
-		size_t nPos;
-		for(nPos = 0; nPos < nLen; nPos++)
-		{
-			if(szFile[nPos] == ',' || szFile[nPos] == '\t' || szFile[nPos] == '\n')
-				break;
-		}
-		if(szFile[nPos] == ',' && n >= nAttributeCount - 1)
-			ThrowError("Too many values on line ", to_str(nLine));
-		if(szFile[nPos] == '\n' && n < nAttributeCount - 1)
-			ThrowError("Expected more values on line ", to_str(nLine));
-		size_t nEnd;
-		for(nEnd = nPos; nEnd > 0 && szFile[nEnd - 1] <= ' '; nEnd--)
-		{
-		}
-		memcpy(szBuf, szFile, nEnd);
-		szBuf[nEnd] = '\0';
-		if(pRelation->valueCount(n) == 0)
-		{
-			if(nEnd == 0 || (nEnd == 1 && szBuf[0] == '?'))
-				pData[col++] = UNKNOWN_REAL_VALUE;
-			else
-			{
-				// Parse a continuous value
-				if(IsRealValue(szBuf))
-					pData[col++] = atof(szBuf);
-				else
-					ThrowError("Expected a numeric value at line ", to_str(nLine), " attribute ", to_str(n + 1));
-			}
-		}
-		else
-		{
-			if(nEnd == 0 || (nEnd == 1 && szBuf[0] == '?'))
-				pData[col++] = UNKNOWN_DISCRETE_VALUE;
-			else
-			{
-				// Parse an enumerated value
-				int nVal = pRelation->findEnumeratedValue(n, szBuf);
-				if(nVal < 0)
-					ThrowError("Unrecognized enumeration value at line ", to_str(nLine), " attribute ", to_str(n + 1));
-				pData[col++] = nVal;
-			}
-		}
-
-		// Advance past the attribute
-		if(nPos < nLen)
-			nPos++;
-		while(nPos > 0)
-		{
-			szFile++;
-			nPos--;
-			nLen--;
-		}
-	}
-	GAssert(col == nAttributeCount); // something got off count
-}
-
-// static
 GMatrix* GMatrix::parseArff(const char* szFile, size_t nLen)
 {
-	// Parse the relation name
-	size_t nPos = 0;
-	size_t nLine = 1;
-	GArffRelation* pRelation = new GArffRelation();
-	sp_relation sp_rel;
-	sp_rel = pRelation;
-	while(true)
-	{
-		// Skip Whitespace
-		while(nPos < nLen && szFile[nPos] <= ' ')
-		{
-			if(szFile[nPos] == '\n')
-				nLine++;
-			nPos++;
-		}
-		if(nPos >= nLen)
-			ThrowError("Expected @RELATION at line ", to_str(nLine));
-
-		// Check for comments
-		if(szFile[nPos] == '%')
-		{
-			for(nPos++; nPos < nLen && szFile[nPos] != '\n'; nPos++)
-			{
-			}
-			continue;
-		}
-
-		// Parse Relation
-		if(nLen - nPos < 9 || _strnicmp(&szFile[nPos], "@RELATION", 9) != 0)
-			ThrowError("Expected @RELATION at line ", to_str(nLine));
-		nPos += 9;
-
-		// Skip Whitespace
-		while(szFile[nPos] <= ' ' && nPos < nLen)
-		{
-			if(szFile[nPos] == '\n')
-				nLine++;
-			nPos++;
-			break;
-		}
-		if(nPos >= nLen)
-			ThrowError("Expected relation name at line ", to_str(nLine));
-
-		// Parse Name
-		size_t nNameStart = nPos;
-		while(szFile[nPos] > ' ' && nPos < nLen)
-			nPos++;
-		string s;
-		s.assign(szFile + nNameStart, nPos - nNameStart);
-		pRelation->setName(s.c_str());
-		break;
-	}
-
-	// Parse the attribute section
-	while(true)
-	{
-		// Skip Whitespace
-		while(nPos < nLen && szFile[nPos] <= ' ')
-		{
-			if(szFile[nPos] == '\n')
-				nLine++;
-			nPos++;
-		}
-		if(nPos >= nLen)
-			ThrowError("Expected @ATTRIBUTE or @DATA at line ", to_str(nLine));
-
-		// Check for comments
-		if(szFile[nPos] == '%')
-		{
-			for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
-			{
-			}
-			continue;
-		}
-
-		// Check for @DATA
-		if(nLen - nPos < 5) // 10 = strlen("@DATA")
-			ThrowError("Expected @DATA at line ", to_str(nLine));
-		if(_strnicmp(&szFile[nPos], "@DATA", 5) == 0)
-		{
-			nPos += 5;
-			break;
-		}
-
-		// Parse @ATTRIBUTE
-		if(nLen - nPos < 10) // 10 = strlen("@ATTRIBUTE")
-			ThrowError("Expected @ATTRIBUTE at line ", to_str(nLine));
-		if(_strnicmp(&szFile[nPos], "@ATTRIBUTE", 10) != 0)
-			ThrowError("Expected @ATTRIBUTE or @DATA at line ", to_str(nLine));
-		nPos += 10;
-		pRelation->parseAttribute(&szFile[nPos], nLen - nPos, nLine);
-
-		// Move to next line
-		for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
-		{
-		}
-	}
-
-	// Parse the data section
-	GMatrix* pData = new GMatrix(sp_rel);
-	Holder<GMatrix> hData(pData);
-	while(true)
-	{
-		// Skip Whitespace
-		while(nPos < nLen && szFile[nPos] <= ' ')
-		{
-			if(szFile[nPos] == '\n')
-				nLine++;
-			nPos++;
-		}
-		if(nPos >= nLen)
-			break;
-
-		// Check for comments
-		if(szFile[nPos] == '%')
-		{
-			for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
-			{
-			}
-			continue;
-		}
-
-
-		// Parse the data line
-		parseDataRow(pRelation, pData, &szFile[nPos], nLen - nPos, nLine);
-
-		// Move to next line
-		for(nPos++; szFile[nPos] != '\n' && nPos < nLen; nPos++)
-		{
-		}
-		continue;
-	}
-
-	return hData.release();
+	GTokenizer tok(szFile, nLen);
+	return GMatrix_parseArff(tok);
 }
 
 class ImportRow

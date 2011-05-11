@@ -133,6 +133,7 @@ protected:
 	char* m_pBufPos;
 	char* m_pBufEnd;
 	std::istream* m_pStream;
+	size_t m_lineStart;
 	size_t m_len;
 	size_t m_line;
 
@@ -173,6 +174,15 @@ public:
 	/// This method returns NULL if there are no more tokens in the file.
 	const char* next(const char* szDelimeters = NULL);
 
+	/// Returns the next token delimited by whitespace or a '{' character.
+	/// If the next token begins
+	/// with single or double quotes, then the token will be delimited by
+	/// the quotes instead. If a newline character or the end-of-file is
+	/// encountered before the matching quote, then an exception is thrown.
+	/// The quotation marks are not included in the token, but they are
+	/// consumed by the operation.
+	const char* nextArg();
+
 	/// Reads past any characters specified in the list of delimeters.
 	/// If szDelimeters is NULL, then any characters <= ' ' are considered
 	/// to be delimeters.
@@ -195,8 +205,21 @@ public:
 	/// line number.)
 	size_t line();
 
+	/// Returns the current column index, which is the number of characters that have
+	/// been read since the last newline character, plus 1.
+	size_t col();
+
 	/// Returns the number of remaining bytes to be read from the file.
 	size_t remaining();
+
+	/// Returns the length of the last token that was returned.
+	size_t tokenLength();
+
+	/// Returns the previously-returned token, except with whitespace trimmed
+	/// off of both the beginning and end of the token. For example, if the last
+	/// token that was returned was "  tok  ", then this will return "tok".
+	/// (Calling this method will not change the value returned by tokenLength.)
+	const char* trim();
 
 protected:
 	void growBuf();

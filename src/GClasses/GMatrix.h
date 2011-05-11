@@ -1,4 +1,4 @@
-/*                                                            -*- mode: c++; -*-
+/*
 	Copyright (C) 2006, Mike Gashler
 
 	This library is free software; you can redistribute it and/or
@@ -35,6 +35,8 @@ class GRand;
 class GHeap;
 class GTwtDoc;
 class GTwtNode;
+class GTokenizer;
+
 
 /// Holds the metadata for a dataset, including which attributes
 /// are continuous or nominal, and how many values each nominal
@@ -336,12 +338,12 @@ public:
 	/// Parses a value
 	double parseValue(size_t attr, const char* val);
 
+	/// Parses the meta-data for an attribute
+	void parseAttribute(GTokenizer& tok);
+
 protected:
 	/// takes ownership of ppValues
 	void addAttributeInternal(const char* pName, size_t nameLen, size_t valueCount);
-	void addAttributeInternal(const char* pName, size_t nameLen, const char* pValues, size_t valuesLen);
-
-	void parseAttribute(const char* szFile, size_t nLen, size_t nLine);
 };
 
 
@@ -840,7 +842,6 @@ public:
 	static void test();
 #endif // !NO_TEST_CODE
 protected:
-	static void parseDataRow(GArffRelation* pRelation, GMatrix* pData, const char* szFile, size_t nLen, size_t nLine);
 	double determinantHelper(size_t nEndRow, size_t* pColumnList);
 	void inPlaceSquareTranspose();
 	void singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, GMatrix** ppV, bool throwIfNoConverge, size_t maxIters);
