@@ -125,7 +125,48 @@ GInstanceRecommender* InstantiateInstanceRecommender(GRand* pRand, GArgReader& a
 	return pModel;
 }
 
-GClusterRecommender* InstantiateClusterRecommender(GRand* pRand, GArgReader& args)
+GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand* pRand, GArgReader& args)
+{
+	if(args.size() < 1)
+		ThrowError("The number of clusters must be specified for this algorithm");
+	size_t clusterCount = args.pop_uint();
+	double missingPenalty = 1.0;
+	double norm = 2.0;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-norm"))
+			norm = args.pop_double();
+		else if(args.if_pop("-missingpenalty"))
+			missingPenalty = args.pop_double();
+		else
+			ThrowError("Invalid option: ", args.peek());
+		// todo: allow the user to specify the clustering algorithm. (Currently, it uses k-means, but k-medoids and agglomerativeclusterer should also be an option)
+	}
+	GDenseClusterRecommender* pModel = new GDenseClusterRecommender(clusterCount, pRand);
+	if(norm == 2.0)
+	{
+		if(missingPenalty != 1.0)
+		{
+			GKMeans* pClusterer = new GKMeans(clusterCount, pRand);
+			pModel->setClusterer(pClusterer, true);
+			GRowDistance* pMetric = new GRowDistance();
+			pClusterer->setMetric(pMetric, true);
+			pMetric->setDiffWithUnknown(missingPenalty);
+		}
+	}
+	else
+	{
+		GKMeans* pClusterer = new GKMeans(clusterCount, pRand);
+		pModel->setClusterer(pClusterer, true);
+		GLNormDistance* pMetric = new GLNormDistance(norm);
+		pClusterer->setMetric(pMetric, true);
+		if(missingPenalty != 1.0)
+			pMetric->setDiffWithUnknown(missingPenalty);
+	}
+	return pModel;
+}
+
+GSparseClusterRecommender* InstantiateSparseClusterRecommender(GRand* pRand, GArgReader& args)
 {
 	if(args.size() < 1)
 		ThrowError("The number of clusters must be specified for this algorithm");
@@ -137,11 +178,12 @@ GClusterRecommender* InstantiateClusterRecommender(GRand* pRand, GArgReader& arg
 			pearson = true;
 		else
 			ThrowError("Invalid option: ", args.peek());
+		// todo: allow the user to specify the clustering algorithm. (Currently, it uses k-means, but k-medoids should also be an option)
 	}
-	GClusterRecommender* pModel = new GClusterRecommender(clusterCount, pRand);
+	GSparseClusterRecommender* pModel = new GSparseClusterRecommender(clusterCount, pRand);
 	if(pearson)
 	{
-		GKMedoidsSparse* pClusterer = new GKMedoidsSparse(clusterCount);
+		GKMeansSparse* pClusterer = new GKMeansSparse(clusterCount, pRand);
 		pClusterer->setMetric(new GPearsonCorrelation(), true);
 		pModel->setClusterer(pClusterer, true);
 	}
@@ -266,8 +308,10 @@ GCollaborativeFilter* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 			return InstantiateBagOfRecommenders(pRand, args);
 		else if(args.if_pop("instance"))
 			return InstantiateInstanceRecommender(pRand, args);
-		else if(args.if_pop("cluster"))
-			return InstantiateClusterRecommender(pRand, args);
+		else if(args.if_pop("clusterdense"))
+			return InstantiateDenseClusterRecommender(pRand, args);
+		else if(args.if_pop("clustersparse"))
+			return InstantiateSparseClusterRecommender(pRand, args);
 		else if(args.if_pop("matrix"))
 			return InstantiateMatrixFactorization(pRand, args);
 		else if(args.if_pop("neural"))

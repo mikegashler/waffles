@@ -24,6 +24,7 @@ class GRand;
 class GNeuralNet;
 class GMatrix;
 class Rating;
+class GClusterer;
 
 
 /// The base class for collaborative filtering recommender systems.
@@ -150,9 +151,9 @@ public:
 };
 
 
-/// This class makes recommendations by clustering similar users, and then assuming
-/// that users in the same cluster have similar preferences.
-class GClusterRecommender : public GCollaborativeFilter
+/// This class clusters the rows according to a sparse similarity metric,
+/// then uses the baseline vector in each cluster to make predictions.
+class GSparseClusterRecommender : public GCollaborativeFilter
 {
 protected:
 	size_t m_clusters;
@@ -162,14 +163,47 @@ protected:
 	GRand* m_pRand;
 
 public:
-	GClusterRecommender(size_t clusters, GRand* pRand);
-	virtual ~GClusterRecommender();
+	GSparseClusterRecommender(size_t clusters, GRand* pRand);
+	virtual ~GSparseClusterRecommender();
 
 	/// Returns the number of clusters
 	size_t clusterCount() { return m_clusters; }
 
 	/// Set the clustering algorithm to use
 	void setClusterer(GSparseClusterer* pClusterer, bool own);
+
+	/// See the comment for GCollaborativeFilter::trainBatch
+	virtual void trainBatch(GSparseMatrix* pData);
+
+	/// See the comment for GCollaborativeFilter::predict
+	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec);
+};
+
+
+
+/// This class clusters the rows according to a dense distance metric,
+/// then uses the baseline vector in each cluster to make predictions.
+class GDenseClusterRecommender : public GCollaborativeFilter
+{
+protected:
+	size_t m_clusters;
+	GMatrix* m_pPredictions;
+	GClusterer* m_pClusterer;
+	bool m_ownClusterer;
+	GRand* m_pRand;
+
+public:
+	GDenseClusterRecommender(size_t clusters, GRand* pRand);
+	virtual ~GDenseClusterRecommender();
+
+	/// Returns the number of clusters
+	size_t clusterCount() { return m_clusters; }
+
+	/// Set the clustering algorithm to use
+	void setClusterer(GClusterer* pClusterer, bool own);
 
 	/// See the comment for GCollaborativeFilter::trainBatch
 	virtual void trainBatch(GSparseMatrix* pData);

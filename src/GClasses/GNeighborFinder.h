@@ -23,7 +23,7 @@ class GRelation;
 class GRand;
 class GKdNode;
 class GBitTable;
-class GDissimilarityMetric;
+class GDistanceMetric;
 class GSupervisedLearner;
 
 
@@ -122,7 +122,7 @@ public:
 	void patchMissingSpots(GRand* pRand);
 
 	/// (Re)computes all neighbor distances using the specified metric.
-	void fillDistances(GDissimilarityMetric* pMetric);
+	void fillDistances(GDistanceMetric* pMetric);
 
 	/// Normalizes all the neighborhoods so that all neighbor distances are approximately 1.
 	void normalizeDistances();
@@ -139,11 +139,11 @@ public:
 class GNeighborFinderGeneralizing : public GNeighborFinder
 {
 protected:
-	GDissimilarityMetric* m_pMetric;
+	GDistanceMetric* m_pMetric;
 	bool m_ownMetric;
 
 public:
-	GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDissimilarityMetric* pMetric, bool ownMetric);
+	GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric);
 
 	virtual ~GNeighborFinderGeneralizing();
 
@@ -178,7 +178,7 @@ public:
 class GBruteForceNeighborFinder : public GNeighborFinderGeneralizing
 {
 public:
-	GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDissimilarityMetric* pMetric, bool ownMetric);
+	GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric);
 	virtual ~GBruteForceNeighborFinder();
 
 	/// Add a point-vector
@@ -212,7 +212,7 @@ protected:
 	GKdNode* m_pRoot;
 
 public:
-	GKdTree(GMatrix* pData, size_t neighborCount, GDissimilarityMetric* pMetric, bool ownMetric);
+	GKdTree(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric);
 	virtual ~GKdTree();
 
 #ifndef NO_TEST_CODE

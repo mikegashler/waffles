@@ -814,6 +814,35 @@ void Export(GArgReader& args)
 		pData->relation()->printRow(cout, pData->row(i), separator);
 }
 
+void fuzzykmeans(GArgReader& args)
+{
+	// Load the file and params
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	int clusters = args.pop_uint();
+
+	// Parse Options
+	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	double fuzzifier = 1.3;
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-seed"))
+			nSeed = args.pop_uint();
+		else if(args.if_pop("-fuzzifier"))
+			fuzzifier = args.pop_double();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Do the clustering
+	GRand prng(nSeed);
+	GFuzzyKMeans clusterer(clusters, &prng);
+	clusterer.setFuzzifier(fuzzifier);
+	GMatrix* pOut = clusterer.doit(*pData);
+	Holder<GMatrix> hOut(pOut);
+	pOut->print(cout);
+}
+
 void Import(GArgReader& args)
 {
 	// Load the file
@@ -2387,6 +2416,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("enumeratevalues")) enumerateValues(args);
 		else if(args.if_pop("export")) Export(args);
 		else if(args.if_pop("fillmissingvalues")) fillMissingValues(args);
+		else if(args.if_pop("fuzzykmeans")) fuzzykmeans(args);
 		else if(args.if_pop("import")) Import(args);
 		else if(args.if_pop("isomap")) isomap(args);
 		else if(args.if_pop("kmeans")) kmeans(args);

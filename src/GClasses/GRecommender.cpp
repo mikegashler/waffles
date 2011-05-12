@@ -502,20 +502,20 @@ void GInstanceRecommender::impute(double* pVec)
 
 
 
-GClusterRecommender::GClusterRecommender(size_t clusters, GRand* pRand)
+GSparseClusterRecommender::GSparseClusterRecommender(size_t clusters, GRand* pRand)
 : GCollaborativeFilter(), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_pRand(pRand)
 {
 }
 
 // virtual
-GClusterRecommender::~GClusterRecommender()
+GSparseClusterRecommender::~GSparseClusterRecommender()
 {
 	if(m_ownClusterer)
 		delete(m_pClusterer);
 	delete(m_pPredictions);
 }
 
-void GClusterRecommender::setClusterer(GSparseClusterer* pClusterer, bool own)
+void GSparseClusterRecommender::setClusterer(GSparseClusterer* pClusterer, bool own)
 {
 	if(pClusterer->clusterCount() != m_clusters)
 		ThrowError("Mismatching number of clusters");
@@ -526,7 +526,7 @@ void GClusterRecommender::setClusterer(GSparseClusterer* pClusterer, bool own)
 }
 
 // virtual
-void GClusterRecommender::trainBatch(GSparseMatrix* pData)
+void GSparseClusterRecommender::trainBatch(GSparseMatrix* pData)
 {
 	if(!m_pClusterer)
 		setClusterer(new GKMeansSparse(m_clusters, m_pRand), true);
@@ -556,7 +556,7 @@ void GClusterRecommender::trainBatch(GSparseMatrix* pData)
 }
 
 // virtual
-double GClusterRecommender::predict(size_t user, size_t item)
+double GSparseClusterRecommender::predict(size_t user, size_t item)
 {
 	size_t clust = m_pClusterer->whichCluster(user);
 	double* pRow = m_pPredictions->row(clust);
@@ -564,9 +564,85 @@ double GClusterRecommender::predict(size_t user, size_t item)
 }
 
 // virtual
-void GClusterRecommender::impute(double* pVec)
+void GSparseClusterRecommender::impute(double* pVec)
 {
-	ThrowError("Sorry, GClusterRecommender::impute is not yet implemented");
+	ThrowError("Sorry, GSparseClusterRecommender::impute is not yet implemented");
+	// todo: Find the closest centroid, and use it to impute all values
+}
+
+
+
+
+
+GDenseClusterRecommender::GDenseClusterRecommender(size_t clusters, GRand* pRand)
+: GCollaborativeFilter(), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_pRand(pRand)
+{
+}
+
+// virtual
+GDenseClusterRecommender::~GDenseClusterRecommender()
+{
+	if(m_ownClusterer)
+		delete(m_pClusterer);
+	delete(m_pPredictions);
+}
+
+void GDenseClusterRecommender::setClusterer(GClusterer* pClusterer, bool own)
+{
+	if(pClusterer->clusterCount() != m_clusters)
+		ThrowError("Mismatching number of clusters");
+	if(m_ownClusterer)
+		delete(m_pClusterer);
+	m_pClusterer = pClusterer;
+	m_ownClusterer = own;
+}
+
+// virtual
+void GDenseClusterRecommender::trainBatch(GSparseMatrix* pData)
+{
+	if(!m_pClusterer)
+		setClusterer(new GFuzzyKMeans(m_clusters, m_pRand), true);
+
+	// Cluster the data
+	{
+		GMatrix* pDenseMatrix = pData->toFullMatrix();
+		Holder<GMatrix> hDenseMatrix(pDenseMatrix);
+		m_pClusterer->cluster(pDenseMatrix);
+	}
+
+	// Gather the mean predictions in each cluster
+	delete(m_pPredictions);
+	m_pPredictions = new GMatrix(m_clusters, pData->cols());
+	m_pPredictions->setAll(0.0);
+	size_t* pCounts = new size_t[pData->cols() * m_clusters];
+	ArrayHolder<size_t> hCounts(pCounts);
+	memset(pCounts, '\0', sizeof(size_t) * pData->cols() * m_clusters);
+	for(size_t i = 0; i < pData->rows(); i++)
+	{
+		size_t clust = m_pClusterer->whichCluster(i);
+		double* pRow = m_pPredictions->row(clust);
+		size_t* pRowCounts = pCounts + (pData->cols() * clust);
+		for(GSparseMatrix::Iter it = pData->rowBegin(i); it != pData->rowEnd(i); it++)
+		{
+			pRow[it->first] *= ((double)pRowCounts[it->first] / (pRowCounts[it->first] + 1));
+			pRow[it->first] += (it->second / (pRowCounts[it->first] + 1));
+			pRowCounts[it->first]++;
+		}
+	}
+}
+
+// virtual
+double GDenseClusterRecommender::predict(size_t user, size_t item)
+{
+	size_t clust = m_pClusterer->whichCluster(user);
+	double* pRow = m_pPredictions->row(clust);
+	return pRow[item];
+}
+
+// virtual
+void GDenseClusterRecommender::impute(double* pVec)
+{
+	ThrowError("Sorry, GDenseClusterRecommender::impute is not yet implemented");
 	// todo: Find the closest centroid, and use it to impute all values
 }
 

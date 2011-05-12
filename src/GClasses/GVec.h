@@ -58,8 +58,8 @@ public:
 	/// Computes the squared magnitude of the vector
 	static double squaredMagnitude(const double* pVector, size_t nSize);
 
-	/// Computes the magnitude in Minkowski distances (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static double minkowskiMagnitude(double norm, const double* pVector, size_t nSize);
+	/// Computes the magnitude in L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
+	static double lNormMagnitude(double norm, const double* pVector, size_t nSize);
 
 	/// Normalizes this vector to a magnitude of 1. Throws an exception if the magnitude is zero.
 	static void normalize(double* pVector, size_t nSize);
@@ -70,8 +70,8 @@ public:
 	/// Scale the vector so that the elements sum to 1
 	static void sumToOne(double* pVector, size_t size);
 
-	/// Normalizes with Minkowski distances (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static void minkowskiNormalize(double norm, double* pVector, size_t nSize);
+	/// Normalizes with L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
+	static void lNormNormalize(double norm, double* pVector, size_t nSize);
 
 	/// Computes the squared distance between two vectors
 	static double squaredDistance(const double* pA, const double* pB, size_t nDims);
@@ -82,8 +82,8 @@ public:
 	/// 1e50.
 	static double estimateSquaredDistanceWithUnknowns(const double* pA, const double* pB, size_t nDims);
 
-	/// Computes Minkowski distances (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static double minkowskiDistance(double norm, const double* pA, const double* pB, size_t dims);
+	/// Computes L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
+	static double lNormDistance(double norm, const double* pA, const double* pB, size_t dims);
 
 	/// Computes the cosine of the angle between two vectors (the origin is the vertex)
 	static double correlation(const double* pA, const double* pB, size_t nDims);

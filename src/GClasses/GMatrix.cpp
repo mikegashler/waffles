@@ -874,7 +874,7 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 		tok.skip(); // Skip Whitespace
 		char c = tok.peek();
 		if(c == '\0')
-			ThrowError("ARFF file contains no data");
+			ThrowError("Invalid ARFF file--contains no data");
 		else if(c == '%')
 		{
 			tok.advance(1);

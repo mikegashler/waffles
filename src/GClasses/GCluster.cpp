@@ -34,25 +34,65 @@ using std::cout;
 using std::vector;
 using std::map;
 
-
-GAgglomerativeClusterer::GAgglomerativeClusterer(size_t clusters)
-: GClusterer(clusters), m_pMetric(NULL), m_ownMetric(false), m_pClusters(NULL)
+GClusterer::GClusterer(size_t nClusterCount)
+: GTransform(), m_clusterCount(nClusterCount), m_pMetric(NULL), m_ownMetric(false)
 {
 }
 
-GAgglomerativeClusterer::~GAgglomerativeClusterer()
+// virtual
+GClusterer::~GClusterer()
 {
 	if(m_ownMetric)
 		delete(m_pMetric);
-	delete[] m_pClusters;
 }
 
-void GAgglomerativeClusterer::setMetric(GDissimilarityMetric* pMetric, bool own)
+void GClusterer::setMetric(GDistanceMetric* pMetric, bool own)
 {
 	if(m_ownMetric)
 		delete(m_pMetric);
 	m_pMetric = pMetric;
 	m_ownMetric = own;
+}
+
+
+
+
+
+
+GSparseClusterer::GSparseClusterer(size_t clusterCount)
+: m_clusterCount(clusterCount)
+{
+	m_pMetric = NULL;
+	m_ownMetric = false;
+}
+
+// virtual
+GSparseClusterer::~GSparseClusterer()
+{
+	if(m_ownMetric)
+		delete(m_pMetric);
+}
+
+void GSparseClusterer::setMetric(GSparseSimilarity* pMetric, bool own)
+{
+	if(m_ownMetric)
+		delete(m_pMetric);
+	m_pMetric = pMetric;
+	m_ownMetric = own;
+}
+
+
+
+
+
+GAgglomerativeClusterer::GAgglomerativeClusterer(size_t clusters)
+: GClusterer(clusters), m_pClusters(NULL)
+{
+}
+
+GAgglomerativeClusterer::~GAgglomerativeClusterer()
+{
+	delete[] m_pClusters;
 }
 
 // virtual
@@ -301,7 +341,7 @@ GAgglomerativeTransducer::~GAgglomerativeTransducer()
 {
 }
 
-void GAgglomerativeTransducer::setMetric(GDissimilarityMetric* pMetric, bool own)
+void GAgglomerativeTransducer::setMetric(GDistanceMetric* pMetric, bool own)
 {
 	if(m_ownMetric)
 		delete(m_pMetric);
@@ -423,59 +463,33 @@ GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& l
 // -----------------------------------------------------------------------------------------
 
 GKMeans::GKMeans(size_t clusters, GRand* pRand)
-: GClusterer(clusters), m_pCentroids(NULL), m_pMetric(NULL), m_pData(NULL), m_pClusters(NULL), m_pRand(pRand)
+: GClusterer(clusters), m_pCentroids(NULL), m_pData(NULL), m_pClusters(NULL), m_pRand(pRand)
 {
 }
 
 GKMeans::~GKMeans()
 {
 	delete(m_pCentroids);
-	delete(m_pMetric);
 	delete(m_pClusters);
-}
-
-void GKMeans::setMetric(GDissimilarityMetric* pMetric)
-{
-	delete(m_pMetric);
-	m_pMetric = pMetric;
 }
 
 void GKMeans::init(GMatrix* pData)
 {
 	m_pData = pData;
 	if(!m_pMetric)
-		setMetric(new GRowDistance());
+		setMetric(new GRowDistance(), true);
 	m_pMetric->init(pData->relation());
 	if(pData->rows() < (size_t)m_clusterCount)
 		ThrowError("Fewer data point than clusters");
 
-	// Initialize the centroids
+	// Initialize the centroids with random rows. (Note that it is okay if two centroids happen to be initialized with the same row here, because the assignClusters method randomly picks among the best centroids in the event of a tie.)
 	delete(m_pCentroids);
 	m_pCentroids = new GMatrix(pData->relation());
 	m_pCentroids->newRows(m_clusterCount);
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
-		size_t j;
-		for(j = 0; j < 100; j++)
-		{
-			// Pick a random row to be a centroid
-			size_t index = (size_t)m_pRand->next(m_clusterCount);
-
-			// Check if this row is already in use
-			size_t k;
-			for(k = 0; k < i; k++)
-			{
-				if(m_pMetric->dissimilarity(pData->row(index), m_pCentroids->row(k)) == 0)
-					break;
-			}
-			if(k == i) // If a unique instance was found...
-			{
-				GVec::copy(m_pCentroids->row(i), pData->row(index), pData->cols());
-				break;
-			}
-		}
-		if(j >= 100)
-			ThrowError("A unique instance could not be found for a centroid in 100 random tries.");
+		size_t index = (size_t)m_pRand->next(m_clusterCount);
+		GVec::copy(m_pCentroids->row(i), pData->row(index), pData->cols());
 	}
 
 	// Initialize the clusters
@@ -491,13 +505,22 @@ double GKMeans::assignClusters()
 	{
 		double best = 1e308;
 		size_t clust = 0;
+		size_t ties = 1;
 		for(size_t j = 0; j < m_clusterCount; j++)
 		{
-			double d = m_pMetric->dissimilarity(m_pData->row(i), m_pCentroids->row(j));
+			double d = m_pMetric->squaredDistance(m_pData->row(i), m_pCentroids->row(j));
 			if(d < best)
 			{
 				clust = j;
 				best = d;
+				ties = 1;
+			}
+			else if(d == best)
+			{
+				// Give an equal likelihood to each centroid that ties for the closest
+				ties++;
+				if(m_pRand->next(ties) == 0)
+					clust = j;
 			}
 		}
 		sse += best;
@@ -585,28 +608,21 @@ size_t GKMeans::whichCluster(size_t index)
 // -----------------------------------------------------------------------------------------
 
 GFuzzyKMeans::GFuzzyKMeans(size_t clusters, GRand* pRand)
-: GClusterer(clusters), m_pCentroids(NULL), m_pMetric(NULL), m_pData(NULL), m_pWeights(NULL), m_fuzzifier(1.0), m_pRand(pRand)
+: GClusterer(clusters), m_pCentroids(NULL), m_pWeights(NULL), m_fuzzifier(1.3), m_pRand(pRand)
 {
 }
 
 GFuzzyKMeans::~GFuzzyKMeans()
 {
 	delete(m_pCentroids);
-	delete(m_pMetric);
 	delete(m_pWeights);
-}
-
-void GFuzzyKMeans::setMetric(GDissimilarityMetric* pMetric)
-{
-	delete(m_pMetric);
-	m_pMetric = pMetric;
 }
 
 void GFuzzyKMeans::init(GMatrix* pData)
 {
 	m_pData = pData;
 	if(!m_pMetric)
-		setMetric(new GRowDistance());
+		setMetric(new GRowDistance(), true);
 	m_pMetric->init(pData->relation());
 	if(pData->rows() < (size_t)m_clusterCount)
 		ThrowError("Fewer data point than clusters");
@@ -615,29 +631,32 @@ void GFuzzyKMeans::init(GMatrix* pData)
 	delete(m_pCentroids);
 	m_pCentroids = new GMatrix(pData->relation());
 	m_pCentroids->newRows(m_clusterCount);
-	for(size_t i = 0; i < m_clusterCount; i++)
+	for(size_t j = 0; j < 10; j++) // Try up to ten times to find a unique set of initial centroids
 	{
-		size_t j;
-		for(j = 0; j < 100; j++)
+		// Pick random rows to be the initial centroids
+		for(size_t i = 0; i < m_clusterCount; i++)
 		{
-			// Pick a random row to be a centroid
 			size_t index = (size_t)m_pRand->next(m_clusterCount);
+			GVec::copy(m_pCentroids->row(i), pData->row(index), pData->cols());
+		}
 
+		// Test whether the centroids are all unique
+		bool unique = true;
+		for(size_t i = 1; i < m_clusterCount && unique; i++)
+		{
 			// Check if this row is already in use
 			size_t k;
 			for(k = 0; k < i; k++)
 			{
-				if(m_pMetric->dissimilarity(pData->row(index), m_pCentroids->row(k)) == 0)
+				if(GVec::squaredDistance(m_pCentroids->row(i), m_pCentroids->row(k), pData->cols()) == 0)
+				{
+					unique = false;
 					break;
-			}
-			if(k == i) // If a unique instance was found...
-			{
-				GVec::copy(m_pCentroids->row(i), pData->row(index), pData->cols());
-				break;
+				}
 			}
 		}
-		if(j >= 100)
-			ThrowError("A unique instance could not be found for a centroid in 100 random tries.");
+		if(unique)
+			break;
 	}
 
 	// Initialize the weights
@@ -653,7 +672,7 @@ double GFuzzyKMeans::recomputeWeights()
 		double* pWeights = m_pWeights->row(i);
 		double* pW = pWeights;
 		for(size_t j = 0; j < m_clusterCount; j++)
-			*(pW++) = pow(sqrt(m_pMetric->dissimilarity(m_pData->row(i), m_pCentroids->row(j))), -2.0 / (m_fuzzifier - 1.0));
+			*(pW++) = pow(sqrt(m_pMetric->squaredDistance(m_pData->row(i), m_pCentroids->row(j))), -2.0 / (m_fuzzifier - 1.0));
 		double scale = 1.0 / GVec::sumElements(pWeights, m_clusterCount);
 		sumError += scale;
 		GVec::multiply(pWeights, scale, m_clusterCount);
@@ -734,7 +753,7 @@ size_t GFuzzyKMeans::whichCluster(size_t index)
 // -----------------------------------------------------------------------------------------
 
 GKMedoids::GKMedoids(size_t clusters)
-: GClusterer(clusters), m_pMetric(NULL), m_pData(NULL)
+: GClusterer(clusters), m_pData(NULL)
 {
 	m_pMedoids = new size_t[clusters];
 }
@@ -743,13 +762,6 @@ GKMedoids::GKMedoids(size_t clusters)
 GKMedoids::~GKMedoids()
 {
 	delete[] m_pMedoids;
-	delete(m_pMetric);
-}
-
-void GKMedoids::setMetric(GDissimilarityMetric* pMetric)
-{
-	delete(m_pMetric);
-	m_pMetric = pMetric;
 }
 
 double GKMedoids::curErr()
@@ -768,7 +780,7 @@ void GKMedoids::cluster(GMatrix* pData)
 {
 	m_pData = pData;
 	if(!m_pMetric)
-		setMetric(new GRowDistance());
+		setMetric(new GRowDistance(), true);
 	m_pMetric->init(pData->relation());
 	if(pData->rows() < (size_t)m_clusterCount)
 		ThrowError("Fewer data point than clusters");
@@ -816,10 +828,10 @@ size_t GKMedoids::whichCluster(size_t nVector)
 {
 	double* pVec = m_pData->row(nVector);
 	size_t cluster = 0;
-	m_d = m_pMetric->dissimilarity(pVec, m_pData->row(m_pMedoids[0]));
+	m_d = m_pMetric->squaredDistance(pVec, m_pData->row(m_pMedoids[0]));
 	for(size_t i = 1; i < m_clusterCount; i++)
 	{
-		double d = m_pMetric->dissimilarity(pVec, m_pData->row(m_pMedoids[i]));
+		double d = m_pMetric->squaredDistance(pVec, m_pData->row(m_pMedoids[i]));
 		if(d < m_d)
 		{
 			m_d = d;
@@ -836,8 +848,6 @@ GKMedoidsSparse::GKMedoidsSparse(size_t clusters)
 : GSparseClusterer(clusters)
 {
 	m_pMedoids = new size_t[clusters];
-	m_pMetric = NULL;
-	m_ownMetric = false;
 	m_pData = NULL;
 }
 
@@ -845,15 +855,6 @@ GKMedoidsSparse::GKMedoidsSparse(size_t clusters)
 GKMedoidsSparse::~GKMedoidsSparse()
 {
 	delete[] m_pMedoids;
-	delete(m_pMetric);
-}
-
-void GKMedoidsSparse::setMetric(GSparseSimilarity* pMetric, bool own)
-{
-	if(m_ownMetric)
-		delete(m_pMetric);
-	m_pMetric = pMetric;
-	m_ownMetric = own;
 }
 
 double GKMedoidsSparse::curGoodness()
@@ -941,23 +942,11 @@ GKMeansSparse::GKMeansSparse(size_t nClusters, GRand* pRand)
 	m_pRand = pRand;
 	m_nClusters = nClusters;
 	m_pClusters = NULL;
-	m_pMetric = NULL;
-	m_ownMetric = false;
 }
 
 GKMeansSparse::~GKMeansSparse()
 {
 	delete[] m_pClusters;
-	if(m_ownMetric)
-		delete(m_pMetric);
-}
-
-void GKMeansSparse::setMetric(GSparseSimilarity* pMetric, bool own)
-{
-	if(m_ownMetric)
-		delete(m_pMetric);
-	m_pMetric = pMetric;
-	m_ownMetric = own;
 }
 
 // virtual

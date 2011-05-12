@@ -340,7 +340,7 @@ UsageNode* makeSparseUsageTree()
 UsageNode* makeAlgorithmUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("[algorithm]", "A supervised learning algorithm, or a transductive algorithm.");
-	pRoot->add("agglomerativetransducer", "A model-free transduction algorithm based on agglomerative clustering. Unlabeled patterns take the label of the cluster with which they are joined. It never joins clusters with different labels.");
+	pRoot->add("agglomerativetransducer", "A model-free transduction algorithm based on single-link agglomerative clustering. Unlabeled patterns take the label of the cluster with which they are joined. It never joins clusters with different labels.");
 	UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of many learning algorithms through voting. \"end\" marks the end of the ensemble contents. Each algorithm instance is trained using a training set created by drawing (with replacement) from the original data until the training set has the same number of instances as the original data.");
 	{
 		UsageNode* pContents = pBag->add("<contents>");
@@ -442,7 +442,7 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-excludelast [n]=1", "Do not add noise to the last [n] columns.");
 	}
-	pRoot->add("agglomerative [dataset] [clusters]", "Performs agglomerative clustering. Outputs the cluster id for each row.");
+	pRoot->add("agglomerative [dataset] [clusters]", "Performs single-link agglomerative clustering. Outputs the cluster id for each row.");
 	UsageNode* pAlign = pRoot->add("align [a] [b]", "Translates and rotates dataset [b] to minimize mean squared difference with dataset [a]. (Uses the Kabsch algorithm.)");
 	{
 		pAlign->add("[a]=base.arff", "The filename of a dataset in ARFF format");
@@ -511,6 +511,12 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-space", "Separate with spaces instead of commas.");
 	}
 	pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");
+	UsageNode* pFKM = pRoot->add("fuzzykmeans [dataset] [clusters]", "Performs fuzzy k-means clustering. Outputs the cluster id for each row. This algorithm is specified in Li, D. and Deogun, J. and Spaulding, W. and Shuart, B., Towards missing data imputation: A study of fuzzy K-means clustering method, In Rough Sets and Current Trends in Computing, Springer, pages 573--579, 2004.");
+	{
+		UsageNode* pOpts = pFKM->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-fuzzifier [value]=1.3", "Specify the fuzzifier parameter, which should be greater than 1.");
+	}
 	UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");
 	{
 		UsageNode* pOpts = pFMS->add("<options>");
@@ -1056,10 +1062,17 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pContents->add("[instance_count] [collab-filter]", "Specify the number of instances of a collaborative filtering algorithm to add to the bagging ensemble.");
 	}
 	pRoot->add("baseline", "A very simple recommendation algorithm. It always predicts the average rating for each item. This algorithm is useful as a baseline algorithm for comparison.");
-	UsageNode* pClust = pRoot->add("cluster [n] <options>", "An collaborative-filtering algorithm that clusters users, and then makes uniform recommendations within the cluster.");
+	UsageNode* pClustDense = pRoot->add("clusterdense [n] <options>", "A collaborative-filtering algorithm that clusters users based on a dense distance metric with k-means, and then makes uniform recommendations within each cluster.");
 	{
-		pClust->add("[n]=8", "The number of clusters to use.");
-		UsageNode* pOpts = pClust->add("<options>");
+		pClustDense->add("[n]=8", "The number of clusters to use.");
+		UsageNode* pOpts = pClustDense->add("<options>");
+		pOpts->add("-norm [l]=2.0", "Specify the norm for the L-norm distance metric to use.");
+		pOpts->add("-missingpenalty [d]=1.0", "Specify the difference to use in the distance computation when a value is missing from one or both of the vectors.");
+	}
+	UsageNode* pClustSparse = pRoot->add("clustersparse [n] <options>", "A collaborative-filtering algorithm that clusters users based on a sparse similarity metric with k-means, and then makes uniform recommendations within each cluster.");
+	{
+		pClustSparse->add("[n]=8", "The number of clusters to use.");
+		UsageNode* pOpts = pClustSparse->add("<options>");
 		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
 	}
 	UsageNode* pInst = pRoot->add("instance [k] <options>", "An instance-based collaborative-filtering algorithm that makes recommendations based on the k-nearest neighbors of a user.");

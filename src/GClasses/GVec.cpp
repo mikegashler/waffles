@@ -148,7 +148,7 @@ double GVec::squaredMagnitude(const double* pVector, size_t nSize)
 }
 
 // static
-double GVec::minkowskiMagnitude(double norm, const double* pVector, size_t nSize)
+double GVec::lNormMagnitude(double norm, const double* pVector, size_t nSize)
 {
 	double dMag = 0;
 	for(size_t i = 0; i < nSize; i++)
@@ -157,7 +157,7 @@ double GVec::minkowskiMagnitude(double norm, const double* pVector, size_t nSize
 }
 
 // static
-double GVec::minkowskiDistance(double norm, const double* pA, const double* pB, size_t dims)
+double GVec::lNormDistance(double norm, const double* pA, const double* pB, size_t dims)
 {
 	double dist = 0;
 	for(size_t i = 0; i < dims; i++)
@@ -170,9 +170,9 @@ double GVec::minkowskiDistance(double norm, const double* pA, const double* pB, 
 }
 
 // static
-void GVec::minkowskiNormalize(double norm, double* pVector, size_t nSize)
+void GVec::lNormNormalize(double norm, double* pVector, size_t nSize)
 {
-	double dMag = minkowskiMagnitude(norm, pVector, nSize);
+	double dMag = lNormMagnitude(norm, pVector, nSize);
 	for(size_t i = 0; i < nSize; i++)
 		pVector[i] /= dMag;
 }

@@ -207,7 +207,7 @@ void GNeighborFinderCacheWrapper::fillCache()
 	}
 }
 
-void GNeighborFinderCacheWrapper::fillDistances(GDissimilarityMetric* pMetric)
+void GNeighborFinderCacheWrapper::fillDistances(GDistanceMetric* pMetric)
 {
 	pMetric->init(m_pData->relation());
 	double* pDissim = m_pDissims;
@@ -218,7 +218,7 @@ void GNeighborFinderCacheWrapper::fillDistances(GDissimilarityMetric* pMetric)
 		for(size_t j = 0; j < m_neighborCount; j++)
 		{
 			double* pB = m_pData->row(pHood[j]);
-			*pDissim = pMetric->dissimilarity(pA, pB);
+			*pDissim = pMetric->squaredDistance(pA, pB);
 			pDissim++;
 		}
 		pHood += m_neighborCount;
@@ -471,7 +471,7 @@ public:
 
 // --------------------------------------------------------------------------------
 
-GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDissimilarityMetric* pMetric, bool ownMetric)
+GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
 : GNeighborFinder(pData, neighborCount), m_pMetric(pMetric), m_ownMetric(ownMetric)
 {
 	if(!m_pMetric)
@@ -491,7 +491,7 @@ GNeighborFinderGeneralizing::~GNeighborFinderGeneralizing()
 
 // --------------------------------------------------------------------------------
 
-GBruteForceNeighborFinder::GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDissimilarityMetric* pMetric, bool ownMetric)
+GBruteForceNeighborFinder::GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
 : GNeighborFinderGeneralizing(pData, neighborCount, pMetric, ownMetric)
 {
 }
@@ -536,7 +536,7 @@ void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDis
 		if(i == index)
 			continue;
 		pCand = m_pData->row(i);
-		dist = m_pMetric->dissimilarity(pInputVector, pCand);
+		dist = m_pMetric->squaredDistance(pInputVector, pCand);
 		helper.TryPoint(i, dist);
 	}
 }
@@ -550,7 +550,7 @@ void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDis
 	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
 		pCand = m_pData->row(i);
-		dist = m_pMetric->dissimilarity(pInputVector, pCand);
+		dist = m_pMetric->squaredDistance(pInputVector, pCand);
 		helper.TryPoint(i, dist);
 	}
 }
@@ -799,7 +799,7 @@ public:
 
 // --------------------------------------------------------------------------------------------------------
 
-GKdTree::GKdTree(GMatrix* pData, size_t neighborCount, GDissimilarityMetric* pMetric, bool ownMetric)
+GKdTree::GKdTree(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
 : GNeighborFinderGeneralizing(pData, neighborCount, pMetric, ownMetric)
 {
 	m_maxLeafSize = 6;
@@ -1066,7 +1066,7 @@ void GKdTree::findNeighbors(size_t* pOutNeighbors, double* pOutSquaredDistances,
 				if(index == nExclude)
 					continue;
 				pCand = m_pData->row(index);
-				squaredDist = m_pMetric->dissimilarity(pInputVector, pCand);
+				squaredDist = m_pMetric->squaredDistance(pInputVector, pCand);
 				helper.TryPoint(index, squaredDist);
 			}
 		}
@@ -1230,13 +1230,13 @@ void DrawKdNode(GPlotWindow* pw, GKdNode* pNode, GMatrix* pData)
 	}
 }
 
-class GDontGoFarMetric : public GDissimilarityMetric
+class GDontGoFarMetric : public GDistanceMetric
 {
 public:
 	double m_squaredMaxDist;
 
 	GDontGoFarMetric(double maxDist)
-	: GDissimilarityMetric(), m_squaredMaxDist(maxDist * maxDist)
+	: GDistanceMetric(), m_squaredMaxDist(maxDist * maxDist)
 	{
 	}
 
@@ -1255,7 +1255,7 @@ public:
 		m_pRelation = pRelation;
 	}
 
-	virtual double dissimilarity(const double* pA, const double* pB)
+	virtual double squaredDistance(const double* pA, const double* pB)
 	{
 		double squaredDist = GVec::squaredDistance(pA, pB, m_pRelation->size());
 		if(squaredDist > m_squaredMaxDist)
@@ -1974,7 +1974,7 @@ GManifoldNeighborFinder::GManifoldNeighborFinder(GMatrix* pData, size_t medianCa
 		double goodness = 0.0;
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
-			// Compute the dissimilarity with each neighbor
+			// Compute the squaredDistance with each neighbor
 			double* pMe = pData->row(i);
 			GMatrix* pMyTan = tanSpaces.sets()[i];
 			for(size_t j = 0; j < maxCandidates; j++)

@@ -18,7 +18,7 @@
 
 namespace GClasses {
 
-class GDissimilarityMetric;
+class GDistanceMetric;
 class GNeuralNet;
 class GSparseSimilarity;
 
@@ -30,16 +30,18 @@ class GClusterer : public GTransform
 {
 protected:
 	size_t m_clusterCount;
+	GDistanceMetric* m_pMetric;
+	bool m_ownMetric;
 
 public:
-	GClusterer(size_t nClusterCount)
-	: GTransform(), m_clusterCount(nClusterCount)
-	{
-	}
+	GClusterer(size_t nClusterCount);
+	virtual ~GClusterer();
 
-	virtual ~GClusterer()
-	{
-	}
+	/// If own is true, then this object will delete pMetric when it is destroyed.
+	void setMetric(GDistanceMetric* pMetric, bool own);
+
+	/// Return the number of clusters
+	size_t clusterCount() { return m_clusterCount; }
 
 	/// Clusters pIn and outputs a dataset with one column that specifies
 	/// the cluster number for each row.
@@ -69,16 +71,12 @@ class GSparseClusterer
 {
 protected:
 	size_t m_clusterCount;
+	GSparseSimilarity* m_pMetric;
+	bool m_ownMetric;
 
 public:
-	GSparseClusterer(size_t clusterCount)
-	: m_clusterCount(clusterCount)
-	{
-	}
-
-	virtual ~GSparseClusterer()
-	{
-	}
+	GSparseClusterer(size_t clusterCount);
+	virtual ~GSparseClusterer();
 
 	/// Return the number of clusters
 	size_t clusterCount() { return m_clusterCount; }
@@ -88,6 +86,9 @@ public:
 
 	/// Report which cluster the specified row is a member of.
 	virtual size_t whichCluster(size_t nVector) = 0;
+
+	/// If own is true, then this takes ownership of pMetric
+	void setMetric(GSparseSimilarity* pMetric, bool own);
 };
 
 
@@ -100,8 +101,6 @@ public:
 class GAgglomerativeClusterer : public GClusterer
 {
 protected:
-	GDissimilarityMetric* m_pMetric;
-	bool m_ownMetric;
 	size_t* m_pClusters;
 
 public:
@@ -118,10 +117,6 @@ public:
 
 	/// Identifies the cluster of the specified row
 	virtual size_t whichCluster(size_t nVector);
-
-	/// Specify the metric to use to determine the distance between points.
-	/// If own is true, then this object will take care to delete pMetric.
-	void setMetric(GDissimilarityMetric* pMetric, bool own);
 };
 
 
@@ -131,7 +126,7 @@ public:
 class GAgglomerativeTransducer : public GTransducer
 {
 protected:
-	GDissimilarityMetric* m_pMetric;
+	GDistanceMetric* m_pMetric;
 	bool m_ownMetric;
 
 public:
@@ -140,7 +135,7 @@ public:
 
 	/// Specify the metric to use to determine the distance between points.
 	/// If own is true, then this object will take care to delete pMetric.
-	void setMetric(GDissimilarityMetric* pMetric, bool own);
+	void setMetric(GDistanceMetric* pMetric, bool own);
 
 protected:
 	/// See the comment for GTransducer::transduce.
@@ -157,8 +152,6 @@ class GKMeans : public GClusterer
 {
 protected:
 	GMatrix* m_pCentroids;
-	GDissimilarityMetric* m_pMetric;
-	bool m_ownMetric;
 	GMatrix* m_pData;
 	size_t* m_pClusters;
 	GRand* m_pRand;
@@ -166,9 +159,6 @@ protected:
 public:
 	GKMeans(size_t nClusters, GRand* pRand);
 	~GKMeans();
-
-	/// Takes ownership of pMetric
-	void setMetric(GDissimilarityMetric* pMetric);
 
 	/// Performs clustering
 	virtual void cluster(GMatrix* pData);
@@ -195,13 +185,14 @@ protected:
 };
 
 
-/// A K-means clustering algorithm where every point has partial membership in each cluster
+/// A K-means clustering algorithm where every point has partial membership in each cluster.
+/// This algorithm is specified in Li, D. and Deogun, J. and Spaulding, W. and Shuart, B.,
+/// Towards missing data imputation: A study of fuzzy K-means clustering method, In Rough Sets
+/// and Current Trends in Computing, Springer, pages 573--579, 2004.
 class GFuzzyKMeans : public GClusterer
 {
 protected:
 	GMatrix* m_pCentroids;
-	GDissimilarityMetric* m_pMetric;
-	bool m_ownMetric;
 	GMatrix* m_pData;
 	GMatrix* m_pWeights;
 	double m_fuzzifier;
@@ -210,9 +201,6 @@ protected:
 public:
 	GFuzzyKMeans(size_t nClusters, GRand* pRand);
 	~GFuzzyKMeans();
-
-	/// Takes ownership of pMetric
-	void setMetric(GDissimilarityMetric* pMetric);
 
 	/// Performs clustering
 	virtual void cluster(GMatrix* pData);
@@ -233,6 +221,10 @@ public:
 	/// Returns a k x d matrix, where each row is one of the k centroids.
 	GMatrix* centroids() { return m_pCentroids; }
 
+	/// Specifies how fuzzy the membership in each cluster should be. d should be
+	/// greater than 1, and is typically less about 1.3.
+	void setFuzzifier(double d) { m_fuzzifier = d; }
+
 protected:
 	bool clusterAttempt(size_t nMaxIterations);
 	bool selectSeeds(GMatrix* pSeeds);
@@ -244,16 +236,12 @@ class GKMedoids : public GClusterer
 {
 protected:
 	size_t* m_pMedoids;
-	GDissimilarityMetric* m_pMetric;
 	GMatrix* m_pData;
 	double m_d;
 
 public:
 	GKMedoids(size_t clusters);
 	virtual ~GKMedoids();
-
-	/// Takes ownership of pMetric
-	void setMetric(GDissimilarityMetric* pMetric);
 
 	/// Performs clustering
 	virtual void cluster(GMatrix* pData);
@@ -272,17 +260,12 @@ class GKMedoidsSparse : public GSparseClusterer
 {
 protected:
 	size_t* m_pMedoids;
-	GSparseSimilarity* m_pMetric;
-	bool m_ownMetric;
 	GSparseMatrix* m_pData;
 	double m_d;
 
 public:
 	GKMedoidsSparse(size_t clusters);
 	virtual ~GKMedoidsSparse();
-
-	/// If own is true, then this takes ownership of pMetric
-	void setMetric(GSparseSimilarity* pMetric, bool own);
 
 	/// Performs clustering
 	virtual void cluster(GSparseMatrix* pData);
@@ -304,15 +287,10 @@ protected:
 	size_t m_nClusters;
 	size_t* m_pClusters;
 	GRand* m_pRand;
-	GSparseSimilarity* m_pMetric;
-	bool m_ownMetric;
 
 public:
 	GKMeansSparse(size_t nClusters, GRand* pRand);
 	~GKMeansSparse();
-
-	/// If own is true, then this takes ownership of pMetric
-	void setMetric(GSparseSimilarity* pMetric, bool own);
 
 	/// Performs clustering
 	virtual void cluster(GSparseMatrix* pData);

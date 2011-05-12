@@ -18,60 +18,60 @@
 
 namespace GClasses {
 
-/// This class enables you to define dissimilarity (distance) metrics between two vectors.
+/// This class enables you to define a distance (or dissimilarity) metric between two vectors.
 /// pScaleFactors is an optional parameter (it can be NULL) that lets the calling class
 /// scale the significance of each dimension. Distance metrics that do not mix with
 /// this concept may simply ignore any scale factors.
 /// Typically, classes that use this should be able to assume that the triangle
 /// inequality will hold, but do not necessarily enforce the parallelogram law.
-  class GDissimilarityMetric
+class GDistanceMetric
 {
 protected:
         sp_relation m_pRelation;
 
 public:
-        GDissimilarityMetric() {}
-        GDissimilarityMetric(GTwtNode* pNode);
-        virtual ~GDissimilarityMetric() {}
+        GDistanceMetric() {}
+        GDistanceMetric(GTwtNode* pNode);
+        virtual ~GDistanceMetric() {}
 
         /// Serialize this metric to a text-based format
         virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
 
-        /// This must be called before dissimilarity can be called
+        /// This must be called before squaredDistance can be called
         virtual void init(sp_relation& pRelation) = 0;
 
-        /// Return the dissimilarity between the two specified vectors.
+        /// Return the squared distance (or squared dissimilarity) between the two specified vectors.
         /// It is assumed that a and b are vectors of the same
         /// dimension - and that that dimension is compatible with the
         /// relation given in init.  By default uses
-        /// dissimilarity(const double*, const double*) so subclassers
+        /// squaredDistance(const double*, const double*) so subclassers
         /// only need to change that method.
-        virtual double dissimilarity(const std::vector<double> & a, const std::vector<double> & b);
+        virtual double squaredDistance(const std::vector<double> & a, const std::vector<double> & b);
 
-        /// Computes the dissimilarity between the two specified vectors
-        virtual double dissimilarity(const double* pA, const double* pB) = 0;
+        /// Computes the squared distance (or squared dissimilarity) between the two specified vectors
+        virtual double squaredDistance(const double* pA, const double* pB) = 0;
 
-        /// Return dissimilarity(a,b).  Allowss dissimilarity metrics
+        /// Return squaredDistance(a,b).  Allows dissimilarity metrics
         /// to be used as function objects.  Do not override.
-        /// Override dissimilarity(a,b) instead.  See GDissimilarityMetric::dissimilarity(const std::vector<double>&, const std::vector<double>&)
+        /// Override squaredDistance(a,b) instead.  See GDistanceMetric::squaredDistance(const std::vector<double>&, const std::vector<double>&)
         inline double operator()(const std::vector<double> & a, const std::vector<double> & b)
 	{
-		return dissimilarity(a,b);
+		return squaredDistance(a,b);
 	}
 
-        /// Return dissimilarity(pA, pB).  Allows dissimilarity metrics to
+        /// Return squaredDistance(pA, pB).  Allows dissimilarity metrics to
         /// be used as function objects.  Do not override.  Override
-        /// dissimilarity(pA,pB) instead.  See GDissimilarityMetric::dissimilarity(const double*, const double*)
+        /// squaredDistance(pA,pB) instead.  See GDistanceMetric::squaredDistance(const double*, const double*)
         inline double operator()(const double* pA, const double* pB)
 	{
-		return dissimilarity(pA,pB);
+		return squaredDistance(pA,pB);
 	}
 
         /// Returns the relation that specifies the meaning of the vector elements
         sp_relation& relation() { return m_pRelation; }
 
-        /// Deserializes a dissimilarity metric
-        static GDissimilarityMetric* fromTwt(GTwtNode* pNode);
+        /// Deserializes a distance metric
+        static GDistanceMetric* fromTwt(GTwtNode* pNode);
 
         /// Returns a pointer to the vector of scale factors.  This
         /// may be NULL if the metric does not use scale factors.
@@ -88,7 +88,7 @@ protected:
 /// particular, for each attribute, it calculates pA[i]-pB[i], squares
 /// it and takes the square root of that sum.  For nominal attributes
 /// pA[i]-pB[i] is 0 if they are the same and 1 if they are different.
-class GRowDistance : public GDissimilarityMetric
+class GRowDistance : public GDistanceMetric
 {
 protected:
 	double m_diffWithUnknown;
@@ -99,14 +99,14 @@ public:
 
 	virtual ~GRowDistance() {}
 
-	/// See the comment for GDissimilarityMetric::toTwt
+	/// See the comment for GDistanceMetric::toTwt
 	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-	/// See the comment for GDissimilarityMetric::init
+	/// See the comment for GDistanceMetric::init
 	virtual void init(sp_relation& pRelation);
 
 	/// Returns the distance between pA and pB
-	virtual double dissimilarity(const double* pA, const double* pB);
+	virtual double squaredDistance(const double* pA, const double* pB);
 
 	/// Specify the difference to use when one or more of the values is unknown.
 	/// (If your data contains unknown values, you may want to normalize the
@@ -122,7 +122,7 @@ public:
 /// attributes, and Hamming distance for nominal attributes.  This
 /// version honors scale factors given by the user.  See comments on
 /// GRowDistance.
-class GRowDistanceScaled : public GDissimilarityMetric
+class GRowDistanceScaled : public GDistanceMetric
 {
 protected:
         double* m_pScaleFactors;
@@ -136,14 +136,14 @@ public:
                 delete[] m_pScaleFactors;
         }
 
-        /// See the comment for GDissimilarityMetric::toTwt
+        /// See the comment for GDistanceMetric::toTwt
         virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-        /// See the comment for GDissimilarityMetric::init
+        /// See the comment for GDistanceMetric::init
         virtual void init(sp_relation& pRelation);
 
         /// Returns the scaled distance between pA and pB
-        virtual double dissimilarity(const double* pA, const double* pB);
+        virtual double squaredDistance(const double* pA, const double* pB);
 
         /// Returns the vector of scalar values associated with each dimension
         virtual double* scaleFactors() { return m_pScaleFactors; }
@@ -153,35 +153,38 @@ public:
 
 
 /// Interpolates between manhattan distance (norm=1), Euclidean
-/// distance (norm=2), and Chebyshev distance (norm=infinity). Throws
-/// an exception if any of the attributes are nominal.
-class GMinkowskiDistance : public GDissimilarityMetric
+/// distance (norm=2), and Chebyshev distance (norm=infinity). For
+/// nominal attributes, Hamming distance is used.
+class GLNormDistance : public GDistanceMetric
 {
 protected:
         double m_norm;
+	double m_diffWithUnknown;
 
 public:
-        GMinkowskiDistance(double norm)
-        : GDissimilarityMetric(), m_norm(norm)
-        {
-        }
+        GLNormDistance(double norm);
+        GLNormDistance(GTwtNode* pNode);
 
-        GMinkowskiDistance(GTwtNode* pNode);
-
-        /// See the comment for GDissimilarityMetric::toTwt
+        /// See the comment for GDistanceMetric::toTwt
         virtual GTwtNode* toTwt(GTwtDoc* pDoc);
 
-        /// See the comment for GDissimilarityMetric::init
+        /// See the comment for GDistanceMetric::init
         virtual void init(sp_relation& pRelation);
 
         /// Returns the distance (using the norm passed to the constructor) between pA and pB
-        virtual double dissimilarity(const double* pA, const double* pB);
+        virtual double squaredDistance(const double* pA, const double* pB);
+
+	/// Specify the difference to use when one or more of the values is unknown.
+	/// (If your data contains unknown values, you may want to normalize the
+	/// known values to fall within some pre-determined range, so that it will
+	/// be possible to select a reasonable value for this purpose.)
+	void setDiffWithUnknown(double d) { m_diffWithUnknown = d; }
 };
 
 
 
 
-/// The base class for similarity metrics that operate on sparse vectors
+/// The base class for similarity metrics that operate on sparse vectors.
 class GSparseSimilarity
 {
 protected:

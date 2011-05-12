@@ -19,22 +19,21 @@ using std::map;
 
 namespace GClasses {
 
-GDissimilarityMetric::GDissimilarityMetric(GTwtNode* pNode)
+GDistanceMetric::GDistanceMetric(GTwtNode* pNode)
 {
 	m_pRelation = GRelation::fromTwt(pNode->field("relation"));
 }
 
-double GDissimilarityMetric::dissimilarity(const std::vector<double> & x,
-					   const std::vector<double> & y){
-  assert(x.size() == y.size());
-  const std::size_t numDim = x.size();
-  const double* firstX = numDim==0?0:&(x.front());
-  const double* firstY = numDim==0?0:&(y.front());
-  return dissimilarity(firstX, firstY);
+double GDistanceMetric::squaredDistance(const std::vector<double> & x, const std::vector<double> & y){
+	assert(x.size() == y.size());
+	const std::size_t numDim = x.size();
+	const double* firstX = numDim==0?0:&(x.front());
+	const double* firstY = numDim==0?0:&(y.front());
+	return squaredDistance(firstX, firstY);
 }
 
 
-GTwtNode* GDissimilarityMetric::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
+GTwtNode* GDistanceMetric::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
 {
 	GTwtNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
@@ -43,15 +42,15 @@ GTwtNode* GDissimilarityMetric::baseTwtNode(GTwtDoc* pDoc, const char* szClassNa
 }
 
 // static
-GDissimilarityMetric* GDissimilarityMetric::fromTwt(GTwtNode* pNode)
+GDistanceMetric* GDistanceMetric::fromTwt(GTwtNode* pNode)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(strcmp(szClass, "GRowDistanceScaled") == 0)
 		return new GRowDistanceScaled(pNode);
 	if(strcmp(szClass, "GRowDistance") == 0)
 		return new GRowDistance(pNode);
-	if(strcmp(szClass, "GMinkowskiDistance") == 0)
-		return new GMinkowskiDistance(pNode);
+	if(strcmp(szClass, "GLNormDistance") == 0)
+		return new GLNormDistance(pNode);
 	ThrowError("Unrecognized class: ", szClass);
 	return NULL;
 }
@@ -59,12 +58,12 @@ GDissimilarityMetric* GDissimilarityMetric::fromTwt(GTwtNode* pNode)
 // --------------------------------------------------------------------
 
 GRowDistance::GRowDistance()
-: GDissimilarityMetric(), m_diffWithUnknown(1.0)
+: GDistanceMetric(), m_diffWithUnknown(1.0)
 {
 }
 
 GRowDistance::GRowDistance(GTwtNode* pNode)
-: GDissimilarityMetric(pNode)
+: GDistanceMetric(pNode)
 {
 	m_diffWithUnknown = pNode->field("dwu")->asDouble();
 }
@@ -84,7 +83,7 @@ void GRowDistance::init(sp_relation& pRelation)
 }
 
 // virtual
-double GRowDistance::dissimilarity(const double* pA, const double* pB)
+double GRowDistance::squaredDistance(const double* pA, const double* pB)
 {
 	GRelation* pRel = m_pRelation.get();
 	double sum = 0;
@@ -116,7 +115,7 @@ double GRowDistance::dissimilarity(const double* pA, const double* pB)
 // --------------------------------------------------------------------
 
 GRowDistanceScaled::GRowDistanceScaled(GTwtNode* pNode)
-: GDissimilarityMetric(pNode)
+: GDistanceMetric(pNode)
 {
 	GTwtNode* pScaleFactors = pNode->field("scaleFactors");
 	size_t dims = m_pRelation->size();
@@ -148,7 +147,7 @@ void GRowDistanceScaled::init(sp_relation& pRelation)
 }
 
 // virtual
-double GRowDistanceScaled::dissimilarity(const double* pA, const double* pB)
+double GRowDistanceScaled::squaredDistance(const double* pA, const double* pB)
 {
 	double sum = 0;
 	size_t count = m_pRelation->size();
@@ -170,30 +169,60 @@ double GRowDistanceScaled::dissimilarity(const double* pA, const double* pB)
 
 // --------------------------------------------------------------------
 
-GMinkowskiDistance::GMinkowskiDistance(GTwtNode* pNode)
-: GDissimilarityMetric(pNode)
+GLNormDistance::GLNormDistance(double norm)
+: GDistanceMetric(), m_norm(norm), m_diffWithUnknown(1.0)
+{
+}
+
+GLNormDistance::GLNormDistance(GTwtNode* pNode)
+: GDistanceMetric(pNode), m_norm(pNode->field("norm")->asDouble()), m_diffWithUnknown(pNode->field("dwu")->asDouble())
 {
 }
 
 // virtual
-GTwtNode* GMinkowskiDistance::toTwt(GTwtDoc* pDoc)
+GTwtNode* GLNormDistance::toTwt(GTwtDoc* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GMinkowskiDistance");
+	GTwtNode* pNode = baseTwtNode(pDoc, "GLNormDistance");
+	pNode->addField(pDoc, "norm", pDoc->newDouble(m_norm));
+	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
 	return pNode;
 }
 
 // virtual
-void GMinkowskiDistance::init(sp_relation& pRelation)
+void GLNormDistance::init(sp_relation& pRelation)
 {
-	if(!pRelation->areContinuous(0, pRelation->size()))
-		ThrowError("Only continuous attributes are supported");
 	m_pRelation = pRelation;
 }
 
 // virtual
-double GMinkowskiDistance::dissimilarity(const double* pA, const double* pB)
+double GLNormDistance::squaredDistance(const double* pA, const double* pB)
 {
-	return GVec::minkowskiDistance(m_norm, pA, pB, m_pRelation->size());
+	GRelation* pRel = m_pRelation.get();
+	double sum = 0;
+	size_t count = pRel->size();
+	double d;
+	for(size_t i = 0; i < count; i++)
+	{
+		if(pRel->valueCount(i) == 0)
+		{
+			if(*pA == UNKNOWN_REAL_VALUE || *pB == UNKNOWN_REAL_VALUE)
+				d = m_diffWithUnknown;
+			else
+				d = *pB - *pA;
+		}
+		else
+		{
+			if((int)*pA == UNKNOWN_DISCRETE_VALUE || (int)*pB == UNKNOWN_DISCRETE_VALUE)
+				d = 1;
+			else
+				d = ((int)*pB == (int)*pA ? 0 : 1);
+		}
+		pA++;
+		pB++;
+		sum += pow(d, m_norm);
+	}
+	d = pow(sum, 1.0 / m_norm);
+	return (d * d);
 }
 
 // --------------------------------------------------------------------
