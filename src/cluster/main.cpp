@@ -92,12 +92,15 @@ void fuzzykmeans(GArgReader& args)
 	// Parse Options
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
 	double fuzzifier = 1.3;
+	size_t reps = 1;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
 			nSeed = args.pop_uint();
 		else if(args.if_pop("-fuzzifier"))
 			fuzzifier = args.pop_double();
+		else if(args.if_pop("-reps"))
+			reps = args.pop_uint();
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
@@ -106,6 +109,7 @@ void fuzzykmeans(GArgReader& args)
 	GRand prng(nSeed);
 	GFuzzyKMeans clusterer(clusters, &prng);
 	clusterer.setFuzzifier(fuzzifier);
+	clusterer.setReps(reps);
 	GMatrix* pOut = clusterer.doit(*pData);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
@@ -120,10 +124,13 @@ void kmeans(GArgReader& args)
 
 	// Parse Options
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	size_t reps = 1;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
 			nSeed = args.pop_uint();
+		else if(args.if_pop("-reps"))
+			reps = args.pop_uint();
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
@@ -131,6 +138,7 @@ void kmeans(GArgReader& args)
 	// Do the clustering
 	GRand prng(nSeed);
 	GKMeans clusterer(clusters, &prng);
+	clusterer.setReps(reps);
 	GMatrix* pOut = clusterer.doit(*pData);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);

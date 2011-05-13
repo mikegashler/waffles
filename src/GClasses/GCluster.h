@@ -154,6 +154,7 @@ protected:
 	GMatrix* m_pCentroids;
 	GMatrix* m_pData;
 	size_t* m_pClusters;
+	size_t m_reps;
 	GRand* m_pRand;
 
 public:
@@ -179,6 +180,10 @@ public:
 	/// Returns a k x d matrix, where each row is one of the k centroids.
 	GMatrix* centroids() { return m_pCentroids; }
 
+	/// Specify the number of times to cluster the data. The best clustering (as measured
+	/// by the sum-squared-difference between each point and its cluster-centroid) will be kept.
+	void setReps(size_t r) { m_reps = r; }
+
 protected:
 	bool clusterAttempt(size_t nMaxIterations);
 	bool selectSeeds(GMatrix* pSeeds);
@@ -196,6 +201,7 @@ protected:
 	GMatrix* m_pData;
 	GMatrix* m_pWeights;
 	double m_fuzzifier;
+	size_t m_reps;
 	GRand* m_pRand;
 
 public:
@@ -222,8 +228,12 @@ public:
 	GMatrix* centroids() { return m_pCentroids; }
 
 	/// Specifies how fuzzy the membership in each cluster should be. d should be
-	/// greater than 1, and is typically less about 1.3.
+	/// greater than 1, and is typically about 1.3.
 	void setFuzzifier(double d) { m_fuzzifier = d; }
+
+	/// Specify the number of times to cluster the data. The best clustering (as measured
+	/// by the weighted-sum-difference between each point with the centroids) will be kept.
+	void setReps(size_t r) { m_reps = r; }
 
 protected:
 	bool clusterAttempt(size_t nMaxIterations);

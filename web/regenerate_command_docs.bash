@@ -182,7 +182,7 @@ cat <<ENDTXT > command/recommend.html
 <a href="../docs.html">Back to the docs page</a><br>
 
 <br>
-<a href="plot.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="transform.html">Next</a>
+<a href="plot.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="sparse.html">Next</a>
 
 <h2>waffles_recommend</h2>
 <p>
@@ -196,7 +196,43 @@ cat <<ENDTXT >> command/recommend.html
 </pre>
 
 <br>
-<a href="plot.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="transform.html">Next</a>
+<a href="plot.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="sparse.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>
+ENDTXT
+
+
+
+
+
+
+# Generate the waffles_sparse doc
+cat <<ENDTXT > command/sparse.html
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="transform.html">Next</a>
+
+<h2>waffles_sparse</h2>
+<p>
+	A command-line tool for learning from and operating on sparse data, as are typically
+	used to represent text-documents, etc.
+	Here's the usage information:</p>
+<pre>
+ENDTXT
+waffles_recommend usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/sparse.html
+cat <<ENDTXT >> command/sparse.html
+</pre>
+
+<br>
+<a href="recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="transform.html">Next</a>
 
 <br><br><a href="../docs.html">Back to the docs page</a>
 </td></tr><tr><td background="../images/bar.png"><br>
@@ -218,7 +254,7 @@ cat <<ENDTXT > command/transform.html
 <a href="../docs.html">Back to the docs page</a><br>
 
 <br>
-<a href="recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
+<a href="sparse.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
 
 <h2>waffles_transform</h2>
 <p>
@@ -232,7 +268,7 @@ cat <<ENDTXT >> command/transform.html
 </pre>
 
 <br>
-<a href="recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
+<a href="sparse.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
 
 <br><br><a href="../docs.html">Back to the docs page</a>
 </td></tr><tr><td background="../images/bar.png"><br>

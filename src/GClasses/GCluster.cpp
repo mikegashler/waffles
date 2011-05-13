@@ -463,7 +463,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& l
 // -----------------------------------------------------------------------------------------
 
 GKMeans::GKMeans(size_t clusters, GRand* pRand)
-: GClusterer(clusters), m_pCentroids(NULL), m_pData(NULL), m_pClusters(NULL), m_pRand(pRand)
+: GClusterer(clusters), m_pCentroids(NULL), m_pData(NULL), m_pClusters(NULL), m_reps(1), m_pRand(pRand)
 {
 }
 
@@ -585,15 +585,32 @@ void GKMeans::recomputeCentroids()
 // virtual
 void GKMeans::cluster(GMatrix* pData)
 {
-	init(pData);
-	double sse = 1e308;
-	for(size_t iters = 0; true; iters++)
+	size_t* pBest = NULL;
+	double bestErr = 1e308;
+	for(size_t i = 0; i < m_reps; i++)
 	{
-		double d = assignClusters();
-		if(d >= sse && iters > 2)
-			break;
-		recomputeCentroids();
-		sse = d;
+		init(pData);
+		double d = 1e308;
+		double sse = 1e308;
+		for(size_t iters = 0; true; iters++)
+		{
+			d = assignClusters();
+			if(d >= sse && iters > 2)
+				break;
+			recomputeCentroids();
+			sse = d;
+		}
+		if(d < bestErr)
+		{
+			bestErr = d;
+			pBest = m_pClusters;
+			m_pClusters = NULL;
+		}
+	}
+	if(pBest)
+	{
+		delete[] m_pClusters;
+		m_pClusters = pBest;
 	}
 }
 
@@ -608,7 +625,7 @@ size_t GKMeans::whichCluster(size_t index)
 // -----------------------------------------------------------------------------------------
 
 GFuzzyKMeans::GFuzzyKMeans(size_t clusters, GRand* pRand)
-: GClusterer(clusters), m_pCentroids(NULL), m_pWeights(NULL), m_fuzzifier(1.3), m_pRand(pRand)
+: GClusterer(clusters), m_pCentroids(NULL), m_pWeights(NULL), m_fuzzifier(1.3), m_reps(1), m_pRand(pRand)
 {
 }
 
@@ -730,15 +747,32 @@ void GFuzzyKMeans::recomputeCentroids()
 // virtual
 void GFuzzyKMeans::cluster(GMatrix* pData)
 {
-	init(pData);
-	double prevErr = 1e308;
-	for(size_t iters = 0; true; iters++)
+	GMatrix* pBest = NULL;
+	double bestErr = 1e308;
+	for(size_t i = 0; i < m_reps; i++)
 	{
-		double d = recomputeWeights();
-		if(iters > 2 && 1.0 - (d / prevErr) < 0.000001) // If it improved by less than 0.0001%
-			break;
-		recomputeCentroids();
-		prevErr = d;
+		init(pData);
+		double d = 1e308;
+		double prevErr = 1e308;
+		for(size_t iters = 0; true; iters++)
+		{
+			d = recomputeWeights();
+			if(iters > 2 && 1.0 - (d / prevErr) < 0.000001) // If it improved by less than 0.0001%
+				break;
+			recomputeCentroids();
+			prevErr = d;
+		}
+		if(d < bestErr)
+		{
+			bestErr = d;
+			pBest = m_pWeights;
+			m_pWeights = NULL;
+		}
+	}
+	if(pBest)
+	{
+		delete[] m_pWeights;
+		m_pWeights = pBest;
 	}
 }
 

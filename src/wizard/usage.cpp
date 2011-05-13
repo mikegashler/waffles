@@ -141,11 +141,14 @@ void UsageNode::print(std::ostream& stream, int depth, int tabSize, int maxWidth
 UsageNode* makeMasterUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("[app]", "Welcome to the Waffles Wizard. This wizard will help you build a Waffles command.");
+	pRoot->choices().push_back(makeClusterUsageTree());
+	pRoot->choices().push_back(makeDimRedUsageTree());
+	pRoot->choices().push_back(makeGenerateUsageTree());
 	pRoot->choices().push_back(makeLearnUsageTree());
 	pRoot->choices().push_back(makePlotUsageTree());
-	pRoot->choices().push_back(makeTransformUsageTree());
-	pRoot->choices().push_back(makeGenerateUsageTree());
 	pRoot->choices().push_back(makeRecommendUsageTree());
+	pRoot->choices().push_back(makeSparseUsageTree());
+	pRoot->choices().push_back(makeTransformUsageTree());
 	return pRoot;
 };
 
@@ -226,7 +229,7 @@ UsageNode* makeAlgorithmUsageTree()
 			pAct->add("sinc", "A sinc wavelet activation function");
 		}
 	}
-	UsageNode* pRF = pRoot->add("randomforest [trees] <options>", "A baggging ensemble of decision trees that use random division boundaries. (This algorithm is described in Breiman, Leo (2001). Random Forests. Machine Learning 45 (1): 5–32. doi:10.1023/A:1010933404324.)");
+	UsageNode* pRF = pRoot->add("randomforest [trees] <options>", "A baggging ensemble of decision trees that use random division boundaries. (This algorithm is described in Breiman, Leo (2001). Random Forests. Machine Learning 45 (1): 5-32. doi:10.1023/A:1010933404324.)");
 	{
 		pRF->add("[trees]=50", "Specify the number of trees in the random forest");
 		UsageNode* pOpts = pRF->add("<options>");
@@ -296,7 +299,7 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
 		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
 	}
-	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623–656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria, I don't regularize the bias weights, and I don't store the superfluous 1's in the matrices.)");
+	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623-656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria, I don't regularize the bias weights, and I don't store the superfluous 1's in the matrices.)");
 	{
 		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
 		UsageNode* pOpts = pMF->add("<options>");
@@ -374,7 +377,7 @@ UsageNode* makeDimRedUsageTree()
 		UsageNode* pOpts = pLLE->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
-	UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513–520, MIT Press, Cambridge, MA, 2008.)");
+	UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513-520, MIT Press, Cambridge, MA, 2008.)");
 	{
 		UsageNode* pOpts = pMS->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -1115,7 +1118,7 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pLLE->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
-	UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513–520, MIT Press, Cambridge, MA, 2008.)");
+	UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513-520, MIT Press, Cambridge, MA, 2008.)");
 	{
 		UsageNode* pOpts = pMS->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");

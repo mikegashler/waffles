@@ -600,6 +600,7 @@ Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
 
 	m_globals.push_back(makeAlgorithmUsageTree());
 	m_globals.push_back(makeNeighborUsageTree());
+	m_globals.push_back(makeCollaborativeFilterUsageTree());
 }
 
 // virtual
