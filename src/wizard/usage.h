@@ -49,17 +49,18 @@ public:
 
 // Master tree
 UsageNode* makeMasterUsageTree();
-UsageNode* makeLearnUsageTree();
+
+UsageNode* makeAlgorithmUsageTree();
+UsageNode* makeClusterUsageTree();
+UsageNode* makeDimRedUsageTree();
+UsageNode* makeCollaborativeFilterUsageTree();
 UsageNode* makeGenerateUsageTree();
+UsageNode* makeLearnUsageTree();
+UsageNode* makeNeighborUsageTree();
 UsageNode* makePlotUsageTree();
-UsageNode* makeTransformUsageTree();
 UsageNode* makeRecommendUsageTree();
 UsageNode* makeSparseUsageTree();
-
-// Global nodes
-UsageNode* makeAlgorithmUsageTree();
-UsageNode* makeNeighborUsageTree();
-UsageNode* makeCollaborativeFilterUsageTree();
+UsageNode* makeTransformUsageTree();
 
 
 #endif // _USAGE_H_

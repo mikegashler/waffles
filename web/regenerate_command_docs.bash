@@ -2,8 +2,8 @@
 set -u -e
 
 
-# Generate the waffles_learn doc
-cat <<ENDTXT > command/learn.html
+# Generate the waffles_cluster doc
+cat <<ENDTXT > command/cluster.html
 <html><body>
 <table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
 <tr><td background="../images/bar.png"><br>
@@ -11,24 +11,20 @@ cat <<ENDTXT > command/learn.html
 <a href="../docs.html">Back to the docs page</a><br>
 
 <br>
-<a href="../tutorial/wizard.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="transform.html">Next</a>
+<a href="../tutorial/wizard.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="dimred.html">Next</a>
 
-
-
-<h2>waffles_learn</h2>
+<h2>waffles_cluster</h2>
 <p>
-	A command-line tool that wraps supervised and semi-supervised learning algorithms.
+	A command-line tool for clustering data.
 	Here's the usage information:</p>
 <pre>
 ENDTXT
-waffles_learn usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/learn.html
-cat <<ENDTXT >> command/learn.html
+waffles_cluster usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/cluster.html
+cat <<ENDTXT >> command/cluster.html
 </pre>
 
-
-
 <br>
-<a href="../tutorial/wizard.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="transform.html">Next</a>
+<a href="../docs.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="dimred.html">Next</a>
 
 <br><br><a href="../docs.html">Back to the docs page</a>
 </td></tr><tr><td background="../images/bar.png"><br>
@@ -38,8 +34,10 @@ ENDTXT
 
 
 
-# Generate the waffles_transform doc
-cat <<ENDTXT > command/transform.html
+
+
+# Generate the waffles_dimred doc
+cat <<ENDTXT > command/dimred.html
 <html><body>
 <table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
 <tr><td background="../images/bar.png"><br>
@@ -47,25 +45,20 @@ cat <<ENDTXT > command/transform.html
 <a href="../docs.html">Back to the docs page</a><br>
 
 <br>
-<a href="learn.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="plot.html">Next</a>
+<a href="cluster.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="generate.html">Next</a>
 
-
-
-<h2>waffles_transform</h2>
+<h2>waffles_dimred</h2>
 <p>
-	A command-line tool for transforming datasets. It contains import/export functionality,
-	unsupervised algorithms, and other useful transforms that you may wish to perform on a dataset.
+	A command-line tool for dimensionality reduction, manifold learning, attribute selection, and tools related to NLDR.
 	Here's the usage information:</p>
 <pre>
 ENDTXT
-waffles_transform usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/transform.html
-cat <<ENDTXT >> command/transform.html
+waffles_dimred usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/dimred.html
+cat <<ENDTXT >> command/dimred.html
 </pre>
 
-
-
 <br>
-<a href="learn.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="plot.html">Next</a>
+<a href="cluster.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="generate.html">Next</a>
 
 <br><br><a href="../docs.html">Back to the docs page</a>
 </td></tr><tr><td background="../images/bar.png"><br>
@@ -74,39 +67,7 @@ cat <<ENDTXT >> command/transform.html
 ENDTXT
 
 
-# Generate the waffles_plot doc
-cat <<ENDTXT > command/plot.html
-<html><body>
-<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
-<tr><td background="../images/bar.png"><br>
-</td></tr><tr><td>
-<a href="../docs.html">Back to the docs page</a><br>
 
-<br>
-<a href="transform.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="generate.html">Next</a>
-
-
-
-<h2>waffles_plot</h2>
-<p>
-	A command-line tool for plotting and visualizing datasets.
-	Here's the usage information:</p>
-<pre>
-ENDTXT
-waffles_plot usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/plot.html
-cat <<ENDTXT >> command/plot.html
-</pre>
-
-
-
-<br>
-<a href="transform.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="generate.html">Next</a>
-
-<br><br><a href="../docs.html">Back to the docs page</a>
-</td></tr><tr><td background="../images/bar.png"><br>
-</td></tr></table>
-</body></html>
-ENDTXT
 
 
 # Generate the waffles_generate doc
@@ -118,10 +79,7 @@ cat <<ENDTXT > command/generate.html
 <a href="../docs.html">Back to the docs page</a><br>
 
 <br>
-<a href="plot.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="recommend.html">Next</a>
-
-
-
+<a href="dimred.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="learn.html">Next</a>
 
 <h2>waffles_generate</h2>
 <p>
@@ -134,16 +92,85 @@ waffles_generate usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/genera
 cat <<ENDTXT >> command/generate.html
 </pre>
 
-
-
 <br>
-<a href="plot.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="recommend.html">Next</a>
+<a href="dimred.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="learn.html">Next</a>
 
 <br><br><a href="../docs.html">Back to the docs page</a>
 </td></tr><tr><td background="../images/bar.png"><br>
 </td></tr></table>
 </body></html>
 ENDTXT
+
+
+
+
+
+# Generate the waffles_learn doc
+cat <<ENDTXT > command/learn.html
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="generate.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="plot.html">Next</a>
+
+<h2>waffles_learn</h2>
+<p>
+	A command-line tool that wraps supervised and semi-supervised learning algorithms.
+	Here's the usage information:</p>
+<pre>
+ENDTXT
+waffles_learn usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/learn.html
+cat <<ENDTXT >> command/learn.html
+</pre>
+
+<br>
+<a href="generate.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="plot.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>
+ENDTXT
+
+
+
+
+
+# Generate the waffles_plot doc
+cat <<ENDTXT > command/plot.html
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="learn.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="recommend.html">Next</a>
+
+<h2>waffles_plot</h2>
+<p>
+	A command-line tool for plotting and visualizing datasets.
+	Here's the usage information:</p>
+<pre>
+ENDTXT
+waffles_plot usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/plot.html
+cat <<ENDTXT >> command/plot.html
+</pre>
+
+<br>
+<a href="learn.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="recommend.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>
+ENDTXT
+
+
+
 
 
 # Generate the waffles_recommend doc
@@ -155,9 +182,7 @@ cat <<ENDTXT > command/recommend.html
 <a href="../docs.html">Back to the docs page</a><br>
 
 <br>
-<a href="generate.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
-
-
+<a href="plot.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="transform.html">Next</a>
 
 <h2>waffles_recommend</h2>
 <p>
@@ -170,17 +195,51 @@ waffles_recommend usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/recom
 cat <<ENDTXT >> command/recommend.html
 </pre>
 
-
-
-
 <br>
-<a href="generate.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
+<a href="plot.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="transform.html">Next</a>
 
 <br><br><a href="../docs.html">Back to the docs page</a>
 </td></tr><tr><td background="../images/bar.png"><br>
 </td></tr></table>
 </body></html>
 ENDTXT
+
+
+
+
+
+
+# Generate the waffles_transform doc
+cat <<ENDTXT > command/transform.html
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
+
+<h2>waffles_transform</h2>
+<p>
+	A command-line tool for transforming datasets. It contains import/export functionality,
+	unsupervised algorithms, and other useful transforms that you may wish to perform on a dataset.
+	Here's the usage information:</p>
+<pre>
+ENDTXT
+waffles_transform usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/transform.html
+cat <<ENDTXT >> command/transform.html
+</pre>
+
+<br>
+<a href="recommend.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="../tutorial/formats.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>
+ENDTXT
+
 
 
 

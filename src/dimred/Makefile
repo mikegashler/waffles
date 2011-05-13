@@ -2,89 +2,33 @@
 # Paths and Flags
 ################
 SHELL = /bin/bash
-TARGET_PATH = ../../lib
-TARGET_NAME_OPT = GClasses.a
-TARGET_NAME_DBG = GClassesDbg.a
-OBJ_PATH = ../../obj/GClasses
-INSTALL_LOCATION_LIB ?= /usr/local/lib
-INSTALL_LOCATION_INCLUDE ?= /usr/local/include
+TARGET_PATH = ../../bin
+TARGET_NAME_OPT = waffles_dimred
+TARGET_NAME_DBG = $(TARGET_NAME_OPT)dbg
+OBJ_PATH = ../../obj/$(TARGET_NAME_OPT)
+INSTALL_LOCATION_BIN ?= /usr/local/bin
 UNAME = $(shell uname -s)
 ifeq ($(UNAME),Darwin)
-#CFLAGS = -D_THREAD_SAFE -DDARWIN -I/sw/include -DBYTE_ORDER_BIG_ENDIAN -no-cpp-precomp
-CFLAGS = -D_THREAD_SAFE -DDARWIN -I/sw/include -no-cpp-precomp
-else
-CFLAGS = -Wall
-endif
+#CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -DBYTE_ORDER_BIG_ENDIAN -no-cpp-precomp
+CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -no-cpp-precomp
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
+DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a
+OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a
+else
+CFLAGS = -Wall $(shell sdl-config --cflags)
+DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
+OPT_CFLAGS = $(CFLAGS) -O3
+DBG_LFLAGS = ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a -lpng
+OPT_LFLAGS = ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a -lpng
+endif
 
 ################
 # Source
 ################
 
-CPP_FILES = \
-	GActivation.cpp\
-	GApp.cpp\
-	GBayesianNetwork.cpp\
-	GBits.cpp\
-	GBitTable.cpp\
-	GCluster.cpp\
-	GDecisionTree.cpp\
-	GDistance.cpp\
-	GDistribution.cpp\
-	GEnsemble.cpp\
-	GError.cpp\
-	GEvolutionary.cpp\
-	GFile.cpp\
-	GFourier.cpp\
-	GFunction.cpp\
-	GGraph.cpp\
-	GHashTable.cpp\
-	GHeap.cpp\
-	GHiddenMarkovModel.cpp\
-	GHillClimber.cpp\
-	GHistogram.cpp\
-	GHolders.cpp\
-	GHtml.cpp\
-	GImage.cpp\
-	GKalman.cpp\
-	GKernelTrick.cpp\
-	GKNN.cpp\
-	GLearner.cpp\
-	GLinear.cpp\
-	GManifold.cpp\
-	GMath.cpp\
-	GMatrix.cpp\
-	GMixtureOfGaussians.cpp\
-	GNaiveBayes.cpp\
-	GNaiveInstance.cpp\
-	GNeighborFinder.cpp\
-	GNeuralNet.cpp\
-	GOptimizer.cpp\
-	GParticleSwarm.cpp\
-	GPlot.cpp\
-	GPolicyLearner.cpp\
-	GPolynomial.cpp\
-	GPriorityQueue.cpp\
-	GRect.cpp\
-	GRand.cpp\
-	GRecommender.cpp\
-	GRegion.cpp\
-	GReinforcement.cpp\
-	GSelfOrganizingMap.cpp\
-	GSparseMatrix.cpp\
-	GSpinLock.cpp\
-	GStabSearch.cpp\
-	GStemmer.cpp\
-	GString.cpp\
-	GSystemLearner.cpp\
-	GText.cpp\
-	GThread.cpp\
-	GTime.cpp\
-	GTokenizer.cpp\
-	GTransform.cpp\
-	GTwt.cpp\
-	GVec.cpp\
+CPP_FILES =\
+	main.cpp\
 
 ################
 # Lists
@@ -126,13 +70,25 @@ usage:
 	#  make opt     (to build an optimized version)
 	#
 
-# This rule makes the optimized ".a" file by using the "ar" tool with all of the optimized ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT)
-	ar -cr $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT)
+../../obj/waffles_wizard/dbg/usage.o :
+	$(MAKE) -C ../wizard dbg
 
-# This rule makes the debug ".a" file by using the "ar" tool with all of the debug ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
-	ar -cr $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG)
+../../obj/waffles_wizard/opt/usage.o :
+	$(MAKE) -C ../wizard opt
+
+../../lib/GClassesDbg.a :
+	$(MAKE) -C ../GClasses dbg
+
+../../lib/GClasses.a :
+	$(MAKE) -C ../GClasses opt
+
+# This rule makes the optimized binary by using g++ with the optimized ".o" files
+$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waffles_wizard/opt/usage.o ../../lib/GClassesDbg.a
+	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
+
+# This rule makes the debug binary by using g++ with the debug ".o" files
+$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClasses.a
+	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 
 # This includes all of the ".d" files. Each ".d" file contains a
 # generated rule that tells it how to make .o files. (The reason these are generated is so that
@@ -175,19 +131,11 @@ clean : partialcleandbg partialcleanopt
 	rm -f $(DEPS_OPT)
 	rm -f $(DEPS_DBG)
 
-install: $(TARGET_PATH)/$(TARGET_NAME_OPT) $(TARGET_PATH)/$(TARGET_NAME_DBG)
-	mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
-	mkdir -m 0755 -p $(INSTALL_LOCATION_INCLUDE)/GClasses
-	install $(TARGET_PATH)/GClasses.a $(INSTALL_LOCATION_LIB)/libGClasses.a
-	install $(TARGET_PATH)/GClassesDbg.a $(INSTALL_LOCATION_LIB)/libGClassesDbg.a
-	install *.h $(INSTALL_LOCATION_INCLUDE)/GClasses
+install : $(TARGET_PATH)/$(TARGET_NAME_OPT)
+	rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
+	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_BIN)
 
 uninstall:
-	rm -f $(INSTALL_LOCATION_LIB)/libGClasses.a
-	rm -f $(INSTALL_LOCATION_LIB)/libGClassesDbg.a
-	rm -rf $(INSTALL_LOCATION_INCLUDE)/GClasses
-
-yo:
-	echo "yo mamma" > $(TEST_VARS)
+	rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
 
 .PHONY: clean partialcleandbg partialcleanopt install uninstall dbg opt

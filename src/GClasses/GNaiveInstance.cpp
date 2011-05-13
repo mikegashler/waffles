@@ -294,7 +294,7 @@ void GNaiveInstance::test()
 {
 	GRand prng(0);
 	GNaiveInstance ni(8);
-	ni.basicTest(0.71, 0.55, &prng, 0.02);
+	ni.basicTest(0.72, 0.55, &prng, 0.02);
 }
 #endif
 

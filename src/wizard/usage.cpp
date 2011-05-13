@@ -149,6 +149,428 @@ UsageNode* makeMasterUsageTree()
 	return pRoot;
 };
 
+
+
+
+
+
+UsageNode* makeAlgorithmUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("[algorithm]", "A supervised learning algorithm, or a transductive algorithm.");
+	pRoot->add("agglomerativetransducer", "A model-free transduction algorithm based on single-link agglomerative clustering. Unlabeled patterns take the label of the cluster with which they are joined. It never joins clusters with different labels.");
+	UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of many learning algorithms through voting. \"end\" marks the end of the ensemble contents. Each algorithm instance is trained using a training set created by drawing (with replacement) from the original data until the training set has the same number of instances as the original data.");
+	{
+		UsageNode* pContents = pBag->add("<contents>");
+		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the bagging ensemble.");
+	}
+	pRoot->add("baseline", "This is one of the simplest of all supervised algorithms. It ignores all features. For nominal labels, it always predicts the most common class in the training set. For continuous labels, it always predicts the mean label in the training set. An effective learning algorithm should never do worse than baseline--hence the name \"baseline\".");
+	UsageNode* pBucket = pRoot->add("bucket <contents> end", "This uses cross-validation with the training set to select the best model from a bucket of models. When accuracy is measured across multiple datasets, it will usually do better than the best model in the bucket could do. \"end\" marks the end of the contents of the bucket.");
+	{
+		UsageNode* pContents = pBucket->add("<contents>");
+		pContents->add("[algorithm]", "Add an algorithm to the bucket");
+	}
+	pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
+	UsageNode* pDT = pRoot->add("decisiontree <options>", "A decision tree.");
+	{
+		UsageNode* pOpts = pDT->add("<options>");
+		pOpts->add("-random [draws]=1", "Use random divisions (instead of divisions that reduce entropy). Random divisions make the algorithm train faster, and also increase model variance, so it is better suited for ensembles, but random divisions also make the decision tree more vulnerable to problems with irrelevant features. [draws] is typically 1, but if you specify a larger value, it will pick the best out of the specified number of random draws.");
+		pOpts->add("-leafthresh [n]=1", "When building the tree, if the number of samples is <= this value, it will stop trying to divide the data and will create a leaf node. The default value is 1. For noisy data, larger values may be advantageous.");
+		pOpts->add("-maxlevels [n]=5", "When building the tree, if the depth (the length of the path from the root to the node currently being formed, including the root and the currently forming node) is [n], it will stop trying to divide the data and will create a leaf node.  This means that there will be at most [n]-1 splits before a decision is made.  This crudely limits overfitting, and so can be helpful on small data sets.  It can also make the resulting trees easier to interpret.  If set to 0, then there is no maximum (which is the default).");
+	}
+	UsageNode* pGCT = pRoot->add("graphcuttransducer [neighbors]", "This is a model-free transduction algorithm. It uses a min-cut/max-flow graph-cut algorithm to separate each label from all of the others.");
+	{
+		pGCT->add("[neighbors]=12", "The number of neighbors to connect with each point in order to form the graph.");
+	}
+	UsageNode* pKNN = pRoot->add("knn [k] <options>", "The k-Nearest-Neighbor instance-based learning algorithm. It uses Euclidean distance for continuous features and Hamming distance for nominal features.");
+	{
+		pKNN->add("[k]=7", "The number of neighbors to use");
+		UsageNode* pOpts = pKNN->add("<options>");
+		pOpts->add("-equalweight", "Give equal weight to every neighbor. (The default is to use linear weighting for continuous features, and sqared linear weighting for nominal features.");
+		pOpts->add("-scalefeatures", "Use a hill-climbing algorithm on the training set to scale the feature dimensions in order to give more accurate results. This increases training time, but also improves accuracy and robustness to irrelevant features.");
+		pOpts->add("-pearson", "Use Pearson's correlation coefficient to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
+		pOpts->add("-cosine", "Use the cosine method to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
+	}
+	pRoot->add("linear", "A linear regression model");
+	pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
+	UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm.");
+	{
+		UsageNode* pOpts = pNB->add("<options>");
+		pOpts->add("-ess [value]=0.2", "Specifies an equivalent sample size to prevent unsampled values from dominating the joint distribution. Good values typically range between 0 and 1.5.");
+	}
+	pRoot->add("naiveinstance [neighbors]=12", "This is an instance learner that assumes each dimension is conditionally independant from other dimensions. It lacks the accuracy of knn in low dimensional feature space, but scales much better to high dimensionality.");
+	UsageNode* pNT = pRoot->add("neighbortransducer [neighbors] <options>", "This is a model-free transduction algorithm. It is an instance learner that propagates labels where the neighbors are most in agreement. This algorithm does well when classes sample a manifold (such as with text recognition).");
+	{
+		UsageNode* pOpts = pNT->add("<options>");
+		pOpts->add("-friends [intrinsic-dims] [thresh]", "Use the manifold-friend-finding algorithm instead of the nearest Euclidean neighbors.");
+		pOpts->add("-prune", "Prune shortcuts. (Only effective if used with the -friends option.)");
+	}
+	UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network. It is trained with online backpropagation. (Rumelhart, D.E., Hinton, G.E., and Williams, R.J. Learning representations by back-propagating errors. Nature, 323:9, 1986.)");
+	{
+		UsageNode* pOpts = pNN->add("<options>");
+		pOpts->add("-addlayer [size]=16", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
+		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
+		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
+		pOpts->add("-windowepochs [value]=200", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
+		pOpts->add("-minwindowimprovement [value]=0.002", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
+		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
+		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
+		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
+		{
+			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
+			pAct->add("arctan", "The arctan sigmoid function.");
+			pAct->add("tanh", "The hyperbolic tangeant sigmoid function.");
+			pAct->add("algebraic", "An algebraic sigmoid function.");
+			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
+			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
+			pAct->add("gaussian", "A gaussian activation function");
+			pAct->add("sinc", "A sinc wavelet activation function");
+		}
+	}
+	UsageNode* pRF = pRoot->add("randomforest [trees] <options>", "A baggging ensemble of decision trees that use random division boundaries. (This algorithm is described in Breiman, Leo (2001). Random Forests. Machine Learning 45 (1): 5–32. doi:10.1023/A:1010933404324.)");
+	{
+		pRF->add("[trees]=50", "Specify the number of trees in the random forest");
+		UsageNode* pOpts = pRF->add("<options>");
+		pOpts->add("-samples [n]=1", "Specify the number of randomly-drawn attributes to evaluate. The one that maximizes information gain will be chosen for the decision boundary. If [n] is 1, then the divisions are completely random. Larger values will decrease the randomness.");
+	}
+
+	return pRoot;
+}
+
+
+
+
+
+
+
+
+UsageNode* makeClusterUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("waffles_cluster [command]", "Cluster data.");
+	pRoot->add("agglomerative [dataset] [clusters]", "Performs single-link agglomerative clustering. Outputs the cluster id for each row.");
+	UsageNode* pFKM = pRoot->add("fuzzykmeans [dataset] [clusters]", "Performs fuzzy k-means clustering. Outputs the cluster id for each row. This algorithm is specified in Li, D. and Deogun, J. and Spaulding, W. and Shuart, B., Towards missing data imputation: A study of fuzzy K-means clustering method, In Rough Sets and Current Trends in Computing, Springer, pages 573--579, 2004.");
+	{
+		UsageNode* pOpts = pFKM->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-fuzzifier [value]=1.3", "Specify the fuzzifier parameter, which should be greater than 1.");
+	}
+	UsageNode* pKM = pRoot->add("kmeans [dataset] [clusters]", "Performs k-means clustering. Outputs the cluster id for each row.");
+	{
+		UsageNode* pOpts = pKM->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+	}
+	pRoot->add("kmedoids [dataset] [clusters]", "Performs k-medoids clustering. Outputs the cluster id for each row.");
+	return pRoot;
+}
+
+
+
+
+
+
+UsageNode* makeCollaborativeFilterUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("[collab-filter]", "A collaborative-filtering recommendation algorithm.");
+	UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of collaborative filtering algorithms through voting. \"end\" marks the end of the ensemble contents. Each collaborative filtering algorithm instance is trained on a subset of the original data, where each expressed element is given a probability of 0.5 of occurring in the training set.");
+	{
+		UsageNode* pContents = pBag->add("<contents>");
+		pContents->add("[instance_count] [collab-filter]", "Specify the number of instances of a collaborative filtering algorithm to add to the bagging ensemble.");
+	}
+	pRoot->add("baseline", "A very simple recommendation algorithm. It always predicts the average rating for each item. This algorithm is useful as a baseline algorithm for comparison.");
+	UsageNode* pClustDense = pRoot->add("clusterdense [n] <options>", "A collaborative-filtering algorithm that clusters users based on a dense distance metric with k-means, and then makes uniform recommendations within each cluster.");
+	{
+		pClustDense->add("[n]=8", "The number of clusters to use.");
+		UsageNode* pOpts = pClustDense->add("<options>");
+		pOpts->add("-norm [l]=2.0", "Specify the norm for the L-norm distance metric to use.");
+		pOpts->add("-missingpenalty [d]=1.0", "Specify the difference to use in the distance computation when a value is missing from one or both of the vectors.");
+	}
+	UsageNode* pClustSparse = pRoot->add("clustersparse [n] <options>", "A collaborative-filtering algorithm that clusters users based on a sparse similarity metric with k-means, and then makes uniform recommendations within each cluster.");
+	{
+		pClustSparse->add("[n]=8", "The number of clusters to use.");
+		UsageNode* pOpts = pClustSparse->add("<options>");
+		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
+	}
+	UsageNode* pInst = pRoot->add("instance [k] <options>", "An instance-based collaborative-filtering algorithm that makes recommendations based on the k-nearest neighbors of a user.");
+	{
+		pInst->add("[k]=256", "The number of neighbors to use.");
+		UsageNode* pOpts = pInst->add("<options>");
+		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
+		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
+	}
+	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623–656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria, I don't regularize the bias weights, and I don't store the superfluous 1's in the matrices.)");
+	{
+		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
+		UsageNode* pOpts = pMF->add("<options>");
+		pOpts->add("-regularize [value]=0.0001", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small values in the matrix factors.");
+	}
+	UsageNode* pNeural = pRoot->add("neural [intrinsic] <options>", "A neural-network-based collaborative-filtering algorithm.");
+	{
+		pNeural->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
+		UsageNode* pOpts = pNeural->add("<options>");
+		pOpts->add("-addlayer [size]=8", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
+		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
+		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
+		pOpts->add("-windowepochs [value]=10", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
+		pOpts->add("-minwindowimprovement [value]=0.0001", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
+		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
+		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
+		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
+		{
+			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
+			pAct->add("arctan", "The arctan sigmoid function.");
+			pAct->add("tanh", "The hyperbolic tangeant sigmoid function.");
+			pAct->add("algebraic", "An algebraic sigmoid function.");
+			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
+			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
+			pAct->add("gaussian", "A gaussian activation function");
+			pAct->add("sinc", "A sinc wavelet activation function");
+		}
+	}
+	return pRoot;
+}
+
+
+
+
+
+
+
+
+UsageNode* makeDimRedUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("waffles_dimred [command]", "Reduce dimensionality, attribute selection, operations related to manifold learning, NLDR, etc.");
+	UsageNode* pAS = pRoot->add("attributeselector [dataset] <data_opts> <options>", "Make a ranked list of attributes from most to least salient. The ranked list is printed to stdout. Attributes are zero-indexed.");
+	{
+		pAS->add("[dataset]=data.arff", "The filename of a dataset in ARFF format");
+		UsageNode* pDO = pAS->add("<data_opts>");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		UsageNode* pOpts = pAS->add("<options>");
+		pOpts->add("-out [n] [filename]", "Save a dataset containing only the [n]-most salient features to [filename].");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-labeldims [n]=1", "Specify the number of dimensions in the label (output) vector. The default is 1. (Don't confuse this with the number of class labels. It only takes one dimension to specify a class label, even if there are k possible labels.)");
+	}
+	UsageNode* pBE = pRoot->add("blendembeddings [data-orig] [neighbor-finder] [data-a] [data-b] <options>", "Compute a blended \"average\" embedding from two reduced-dimensionality embeddings of some data.");
+	{
+		pBE->add("[data-orig]=orig.arff", "The filename of the original high-dimensional data in ARFF format.");
+		pBE->add("[data-a]=a.arff", "The first reduced dimensional embedding of [data-orig]");
+		pBE->add("[data-b]=b.arff", "The second reduced dimensional embedding of [data-orig]");
+		UsageNode* pOpts = pBE->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+	}
+	UsageNode* pBFU = pRoot->add("breadthfirstunfolding [dataset] [neighbor-finder] [target_dims] <options>", "A manifold learning algorithm.");
+	{
+		UsageNode* pOpts = pBFU->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-reps [n]=10", "The number of times to compute the embedding and blend the results together. If not specified, the default is 1.");
+	}
+	UsageNode* pIsomap = pRoot->add("isomap [dataset] [neighbor-finder] [target_dims] <options>", "Use the Isomap algorithm to reduce dimensionality.");
+	{
+		UsageNode* pOpts = pIsomap->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-tolerant", "If there are points that are disconnected from the rest of the graph, just drop them from the data. (This may cause the results to contain fewer rows than the input.)");
+	}
+	UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
+	{
+		UsageNode* pOpts = pLLE->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+	}
+	UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513–520, MIT Press, Cambridge, MA, 2008.)");
+	{
+		UsageNode* pOpts = pMS->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-continue [dataset]=prev.arff", "Continue refining the specified reduced-dimensional results. (This feature enables Manifold Sculpting to improve upon its own results, or to refine the results from another dimensionality reduction algorithm.)");
+		pOpts->add("-scalerate [value]=0.9999", "Specify the scaling rate. If not specified, the default is 0.999. A value close to 1 will give better results, but will cause the algorithm to take longer.");
+	}
+	UsageNode* pMDS = pRoot->add("multidimensionalscaling [distance-matrix] [target-dims]", "Perform MDS on the specified [distance-matrix].");
+	{
+		pMDS->add("[distance-matrix]=distances.arff", "The filename of an arff file that contains the pair-wise distances (or dissimilarities) between every pair of points. It must be a square matrix of real values. Only the upper-triangle of this matrix is actually used. The lower-triangle and diagonal is ignored.");
+		UsageNode* pOpts = pMDS->add("<options>");
+		pOpts->add("-squareddistances", "The distances in the distance matrix are squared distances, instead of just distances.");
+	}
+	UsageNode* pNeuroPCA = pRoot->add("neuropca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with principle component analysis. (Prints results to stdout. The input file is not modified.)");
+	{
+		UsageNode* pOpts = pNeuroPCA->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-clampbias", "Do not let the bias drift from the centroid. (Leaving the bias unclamped typically gives better results with non-linear activation functions. Clamping them to the centroid is necessary if you want results equivalent with PCA.)");
+		pOpts->add("-linear", "Use a linear activation function instead of the default logistic activation function. (The logistic activation function typically gives better results with most problems, but the linear activation function may be used to obtain results equivalent to PCA.)");
+	}
+	UsageNode* pPCA = pRoot->add("pca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with principle component analysis. (Prints results to stdout. The input file is not modified.)");
+	{
+		UsageNode* pOpts = pPCA->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-roundtrip [filename]=roundtrip.arff", "Do a lossy round-trip of the data and save the results to the specified file.");
+		pOpts->add("-eigenvalues [filename]=eigenvalues.arff", "Save the eigenvalues to the specified file.");
+		pOpts->add("-components [filename]=eigenvectors.arff", "Save the centroid and principal component vectors (in order of decreasing corresponding eigenvalue) to the specified file.");
+		pOpts->add("-aboutorigin", "Compute the principal components about the origin. (The default is to compute them relative to the centroid.)");
+	}
+	UsageNode* pUS = pRoot->add("ubpsparse [sparse-data] [intrinsic-dims] <options>", "Applies Unsupervised Back-propagation to reduce the specified sparse matrix to a dense matrix with the specified number of dimensions. The dense reduced-dimensional data is printed to stdout in ARFF format.");
+	{
+		pUS->add("[sparse-data]=features.sparse", "The filename of a sparse matrix saved in .twt format. (For example, each row might represent a document, and each element might represent the frequency that a particular word occurs in the document.)");
+		pUS->add("[intrinsic-dims]=2", "The number of dimensions into which to reduce the data. The default value is 2.");
+		UsageNode* pOpts = pUS->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pOpts->add("-addlayer [size]=8", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
+		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
+		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
+		{
+			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
+			pAct->add("arctan", "The arctan sigmoid function.");
+			pAct->add("tanh", "The hyperbolic tangeant sigmoid function.");
+			pAct->add("algebraic", "An algebraic sigmoid function.");
+			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
+			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
+			pAct->add("gaussian", "A gaussian activation function");
+			pAct->add("sinc", "A sinc wavelet activation function");
+		}
+		pOpts->add("-modelin [filename]=model.twt", "Specify a filename from which to load the neural net model. (Note that this will replace any model you construct using the -addlayer option, so it would not make much sense to use these switches together.)");
+		pOpts->add("-modelout [filename]=model.twt", "Specify a filename to save the neural net model to after it has been trained.");
+		pOpts->add("-noupdateweights", "Do not update the weights during training. If this switch is specified, then only the intrinsic values will be updated. (This might be useful, for example, to generalize. That is, it can be used to determine the low-dimensional dense vectors that correspond to high-dimensional sparse vectors that were not available at training time, without changing the model further.)");
+		pOpts->add("-normalize", "Normalize all of the input vectors to have a Euclidean magnitude of 1 prior to training with them.");
+		pOpts->add("-windowsize [n]=200", "Specify the number of epochs over which a certain amount of improvement is expected, or else training will terminate.");
+		pOpts->add("-improvementthresh [t]=0.002", "Specify the ratio of improvement that must be obtained over the window of epoches, or else training will terminate.");
+	}
+	return pRoot;
+}
+
+
+
+
+
+
+
+
+UsageNode* makeGenerateUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("waffles_generate [command]", "Generate certain useful datasets");
+	UsageNode* pCrane = pRoot->add("crane <options>", "Generate a dataset where each row represents a ray-traced image of a crane with a ball.");
+	{
+		UsageNode* pOpts = pCrane->add("<options>");
+		pOpts->add("-saveimage [filename]=frames.png", "Save an image showing all the frames.");
+		pOpts->add("-ballradius [size]=0.3", "Specify the size of the ball. The default is 0.3.");
+		pOpts->add("-frames [horiz] [vert]", "Specify the number of frames to render.");
+		pOpts->add("-size [wid] [hgt]", "Specify the size of each frame.");
+		pOpts->add("-blur [radius]=5.0", "Blurs the images. A good starting value might be 5.0.");
+		pOpts->add("-gray", "Use a single grayscale value for every pixel instead of three (red, green, blue) channel values.");
+	}
+	pRoot->add("cube [n]", "returns data evenly distributed on the surface of a unit cube. Each side is sampled with [n]x[n] points. The total number of points in the dataset will be 6*[n]*[n]-12*[n]+8.");
+	UsageNode* pES = pRoot->add("entwinedspirals [points] <options>", "Generates points that lie on an entwined spirals manifold.");
+	{
+		pES->add("[points]=1000", "The number of points with which to sample the manifold.");
+		UsageNode* pOpts = pES->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
+	}
+	UsageNode* pFishBowl = pRoot->add("fishbowl [n] <option>", "Generate samples on the surface of a fish-bowl manifold.");
+	{
+		UsageNode* pOpts = pFishBowl->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-opening [size]=0.25", "the size of the opening. (0.0 = no opening. 0.25 = default. 1.0 = half of the sphere.)");
+	}
+	UsageNode* pGRW = pRoot->add("gridrandomwalk [arff-file] [width] [samples] <options>", "Generate a sequence of action-observation pairs by randomly walking around on a grid of observation vectors. Assumes there are four possible actions consisting of up, down, left, right.");
+	{
+		pGRW->add("[arff-file]=grid.arff", "The filename of an arff file containing observation vectors arranged in a grid.");
+		pGRW->add("[width]=20", "The width of the grid.");
+		pGRW->add("[samples]=4000", "The number of samples to take. In other words, the length of the random walk.");
+		UsageNode* pOpts = pGRW->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-start [x] [y]", "Specifies the starting state. The default is to start in the center of the grid.");
+		pOpts->add("-obsfile [filename]=observations.arff", "Specify the filename for the observation sequence data. The default is observations.arff.");
+		pOpts->add("-actionfile [filename]=actions.arff", "Specify the filename for the actions data. The default is actions.arff.");
+	}
+	UsageNode* pITON = pRoot->add("imagetranslatedovernoise [png-file] <options>", "Sample a manifold by translating an image over a background of noise.");
+	{
+		pITON->add("[png-file]=in.png", "The filename of a png image.");
+		UsageNode* pOpts = pITON->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
+	}
+	UsageNode* pManifold = pRoot->add("manifold [samples] <options> [equations]", "Generate sample points randomly distributed on the surface of a manifold.");
+	{
+		pManifold->add("[samples]=2000", "The number of points with which to sample the manifold");
+		UsageNode* pOpts = pManifold->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pManifold->add("[equations]=\"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"", "A set of equations that define the manifold. The equations that define the manifold must be named y1, y2, ..., but helper equations may be included. The manifold-defining equations must all have the same number of parameters. The parameters will be drawn from a standard normal distribution (from 0 to 1). Usually it is a good idea to wrap the equations in quotes. Example: \"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"");
+	}
+	UsageNode* pNoise = pRoot->add("noise [rows] <options>", "Generate random data by sampling from a distribution.");
+	{
+		pNoise->add("[rows]=1000", "The number of patterns to generate.");
+		UsageNode* pOpts = pNoise->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		UsageNode* pDist = pOpts->add("-dist [distribution]", "Specify the distribution. The default is normal 0 1");
+		pDist->add("beta [alpha] [beta]");
+		pDist->add("binomial [n] [p]");
+		pDist->add("categorical 3 [p0] [p1] [p2]", "A categorical distribution with 3 classes. [p0], [p1], and [p2] specify the probabilities of each of the 3 classes. (This is just an example. Other values besides 3 may be used for the number of classes.)");
+		pDist->add("cauchy [median] [scale]");
+		pDist->add("chisquare [t]");
+		pDist->add("exponential [beta]");
+		pDist->add("f [t] [u]");
+		pDist->add("gamma [alpha] [beta]");
+		pDist->add("gaussian [mean] [deviation]");
+		pDist->add("geometric [p]");
+		pDist->add("logistic [mu] [s]");
+		pDist->add("lognormal [mu] [sigma]");
+		pDist->add("normal [mean] [deviation]");
+		pDist->add("poisson [mu]");
+		pDist->add("softimpulse [s]");
+		pDist->add("spherical [dims] [radius]");
+		pDist->add("student [t]");
+		pDist->add("uniform [a] [b]");
+		pDist->add("weibull [gamma]");
+	}
+	UsageNode* pRS = pRoot->add("randomsequence [length] <options>", "Generates a sequential list of integer values, shuffles them randomly, and then prints the shuffled list to stdout.");
+	{
+		pRS->add("[length]=10", "The number of values in the random sequence.");
+		UsageNode* pOpts = pRS->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-start [value]=0", "Specify the smallest value in the sequence.");
+	}
+	UsageNode* pScalRot = pRoot->add("scalerotate [png-file] <options>", "Generate a dataset where each row represents an image that has been scaled and rotated by various amounts. Thus, these images form an open-cylinder (although somewhat cone-shaped) manifold.");
+	{
+		UsageNode* pOpts = pScalRot->add("<options>");
+		pOpts->add("-saveimage [filename]=frames.png", "Save a composite image showing all the frames in a grid.");
+		pOpts->add("-frames [rotate-frames] [scale-frames]", "Specify the number of frames. The default is 40 15.");
+		pOpts->add("-arc [radians]=1.570796", "Specify the rotation amount. If not specified, the default is 6.2831853... (2*PI).");
+	}
+	UsageNode* pSCurve = pRoot->add("scurve [points] <options>", "Generate points that lie on an s-curve manifold.");
+	{
+		pSCurve->add("[points]=2000", "The number of points with which to sample the manifold");
+		UsageNode* pOpts = pSCurve->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
+	}
+	UsageNode* pSIR = pRoot->add("selfintersectingribbon [points] <options>", "Generate points that lie on a self-intersecting ribbon manifold.");
+	{
+		pSIR->add("[points]=2000", "The number of points with which to sample the manifold.");
+		UsageNode* pOpts = pSIR->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+	}
+	UsageNode* pSR = pRoot->add("swissroll [points] <options>", "Generate points that lie on a swiss roll manifold.");
+	{
+		pSR->add("[points]=2000", "The number of points with which to sample the manifold.");
+		UsageNode* pOpts = pSR->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
+		pOpts->add("-cutoutstar", "Don't sample within a star-shaped region on the manifold.");
+	}
+	UsageNode* pWI = pRoot->add("windowedimage [png-file] <options>", "Sample a manifold by translating a window over an image. Each pattern represents the windowed portion of the image.");
+	{
+		pWI->add("[png-file]=in.png", "The filename of the png image from which to generate the data.");
+		UsageNode* pOpts = pWI->add("<options>");
+		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
+		pOpts->add("-stepsizes [horiz] [vert]", "Specify the horizontal and vertical step sizes. (how many pixels to move the window between samples.)");
+		pOpts->add("-windowsize [width] [height]", "Specify the size of the window. The default is half the width and height of [png-file].");
+	}
+
+	return pRoot;
+}
+
+
+
+
+
+
+
+
 UsageNode* makeLearnUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("waffles_learn [command]", "Supervised learning, transduction, cross-validation, etc.");
@@ -282,6 +704,238 @@ UsageNode* makeLearnUsageTree()
 	return pRoot;
 }
 
+
+
+
+
+
+
+UsageNode* makeNeighborUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("[neighbor-finder]", "A neighbor-finding algorithm.");
+	UsageNode* pBF = pRoot->add("bruteforce <options> [k]", "The slow way to find the neareast Euclidean-distance neighbors.");
+	{
+		UsageNode* pOpts = pBF->add("<options>");
+		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
+		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
+		pOpts->add("-normalize", "Normalize distances in local neighborhoods so that all neighborhoood have a uniform amount of total distance.");
+		pBF->add("[k]=12", "The number of neighbors.");
+	}
+	UsageNode* pKD = pRoot->add("kdtree <options> [k]", "A faster way to find the neareast Euclidean-distance neighbors.");
+	{
+		UsageNode* pOpts = pKD->add("<options>");
+		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
+		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
+		pKD->add("[k]=12", "The number of neighbors.");
+	}
+	UsageNode* pMan = pRoot->add("manifold <options> [cands] [k] [t] [thresh]", "An intelligent neighbor-finder that finds neighborhoods with aligned tangent hyperplanes.");
+	{
+		UsageNode* pOpts = pMan->add("<options>");
+		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
+		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
+		pMan->add("[cands]=32", "The median number of neighbors to use as candidates.");
+		pMan->add("[k]=8", "The number of neighbors to find for each point.");
+		pMan->add("[t]=2", "The number of dimensions in the tangent hyperplanes.");
+		pMan->add("[thresh]=0.9", "A threshold above which all sqared-correlation values are considered to be equal.");
+	}
+	UsageNode* pSys = pRoot->add("system <options> [action-data] [k]", "A neighbor-finder designed for modeling dynamical systems.");
+	{
+		UsageNode* pOpts = pSys->add("<options>");
+		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
+		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
+		pSys->add("[action-data]=actions.arff", "The filename of an arff file for the sequence of actions given to the system.");
+		pSys->add("[k]=12", "The number of neighbors.");
+	}
+	return pRoot;
+}
+
+
+
+
+
+
+
+
+UsageNode* makePlotUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("waffles_plot [command]", "Visualize data, plot functions, make charts, etc.");
+	UsageNode* p3d = pRoot->add("3d [dataset] <options>", "Make a 3d scatter plot. Points are colored with a spectrum according to their order in the dataset.");
+	{
+		p3d->add("[dataset]=data.arff", "The filename of an arff file containing the data to plot. It must have exactly 3 continuous attributes.");
+		UsageNode* pOpts = p3d->add("<options>");
+		pOpts->add("-blast", "Produce a 5-by-5 grid of renderings, each time using a random point of view. It will print the random camera directions that it selects to stdout.");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-size [width] [height]", "Sets the size of the image. The default is 1000 1000.");
+		pOpts->add("-pointradius [radius]=40.0", "Set the size of the points. The default is 40.0.");
+		pOpts->add("-bgcolor [color]=ddeeff", "Set the background color. If not specified, the default is ffffff.");
+		pOpts->add("-cameradistance [dist]=3.5", "Set the distance between the camera and the mean of the data. This value is specified as a factor, which is multiplied by the distance between the min and max corners of the data. If not specified, the default is 1.5. (If the camera is too close to the data, make this value bigger.)");
+		pOpts->add("-cameradirection [dx] [dy] [dz]", "Specifies the direction from the camera to the mean of the data. (The camera always looks at the mean.) The default is 0.6 -0.3 -0.8.");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-nolabels", "Don't put axis labels on the bounding box.");
+		pOpts->add("-nobox", "Don't draw a bounding box around the plot.");
+	}
+	UsageNode* pBar = pRoot->add("bar [dataset] <options>", "Make a bar chart.");
+	{
+		pBar->add("[dataset]=data.arff", "The filename of an arff file containing the data for the bar chart. The dataset must contain exactly one continuous attribute. Each data row specifies the height of a bar.");
+		UsageNode* pOpts = pBar->add("<options>");
+		pOpts->add("-log", "Use a logarithmic scale.");
+		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+	}
+	pRoot->add("bigo [dataset]=results.arff", "Estimate the Big-O runtime of algorithms based on empirical results. Regresses the formula t=a*(n^b+c) to fit the data, where n is the value in attribute 0 (representing the size of the data), and t (representing time) in the other attributes for each algorithm. The values of a, b, and c are reported for each attribute > 0.");
+	UsageNode* pEquat = pRoot->add("equation <options> [equations]", "Plot an equation (or multiple equations) in 2D");
+	{
+		UsageNode* pOpts = pEquat->add("<options>");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
+		pOpts->add("-range [xmin] [ymin] [xmax] [ymax]", "Set the range. (The default is: -10 -10 10 10.)");
+		pOpts->add("-textsize [size]=1.0", "Sets the label font size. If not specified, the default is 2.0.");
+		pOpts->add("-nogrid", "Do not draw any grid lines.");
+		pEquat->add("[equations]=\"f1(x)=sin(x)/x\"", "A set of equations separated by semicolons. Since '^' is a special character for many shells, it's usually a good idea to put your equations inside quotation marks. Here are some examples:\n"
+		"\"f1(x)=3*x+2\"\n"
+		"\"f1(x)=(g(x)+1)/g(x); g(x)=sqrt(x)+pi\"\n"
+		"\"h(bob)=bob^2;f1(x)=3+bar(x,5)*h(x)-(x/foo);bar(a,b)=a*b-b;foo=3.2\"\n"
+		"Only functions that begin with 'f' followed by a number will be plotted, starting with 'f1', and it will stop when the next number in ascending order is not defined. You may define any number of helper functions or constants with any name you like. Built in constants include: e, and pi. Built in functions include: +, -, *, /, %, ^, abs, acos, acosh, asin, asinh, atan, atanh, ceil, cos, cosh, erf, floor, gamma, lgamma, log, max, min, sin, sinh, sqrt, tan, and tanh. These generally have the same meaning as in C, except '^' means exponent, \"gamma\" is the gamma function, and max and min can support any number (>=1) of parameters. (Some of these functions may not not be available on Windows, but most of them are.) You can override any built in constants or functions with your own variables or functions, so you don't need to worry too much about name collisions. Variables must begin with an alphabet character or an underscore. Multiplication is never implicit, so you must use a '*' character to multiply. Whitespace is ignored.");
+	}
+	UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram.");
+	{
+		pHist->add("[dataset]=samples.arff", "The filename of an arff file containing the data for the histogram.");
+		UsageNode* pOpts = pHist->add("<options>");
+		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
+		pOpts->add("-attr [index]=0", "Specify which attribute is charted. (The default is 0.)");
+		pOpts->add("-out [filename]=hist.png", "Specify the name of the output file. (If not specified, the default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-range [xmin] [xmax] [ymax]", "Specify the range of the histogram plot");
+	}
+	UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
+	{
+		pModel->add("[model-file]=model.twt", "The filename of the trained model. (You can use \"waffles_learn train\" to make a model file.)");
+		pModel->add("[dataset]=train.arff", "The filename of a dataset in arff format to be plotted. It can be the training set that was used to train the model, or a test set that it hasn't yet seen.");
+		pModel->add("[attr-x]=0", "The zero-based index of a continuous feature attributes for the horizontal axis.");
+		pModel->add("[attr-y]=1", "The zero-based index of a continuous feature attributes for the vertical axis.");
+		UsageNode* pOpts = pModel->add("<options>");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-size [width] [height]", "Specify the size of the image.");
+		pOpts->add("-pointradius [size]=3.0", "Specify the size of the dots used to represent each instance.");
+	}
+	UsageNode* pOL = pRoot->add("overlay [png1] [png2] <options>", "Make an image comprised of [png1] with [png2] on top of it. The two images must be the same size.");
+	{
+		pOL->add("[png1]=below.png", "The filename of an image in png format.");
+		pOL->add("[png2]=above.png", "The filename of an image in png format.");
+		UsageNode* pOpts = pOL->add("<options>");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-backcolor [hex]=00ff00", "Specify the six-digit hexadecimal representation of the background color. (This color will be treated as being transparent in [png2]. If not specified, the default is ffffff (white).");
+		pOpts->add("-tolerance [n]=12", "Specify the tolerance (an integer). If not specified, the default is 0. If a larger value is specified, then pixels in [png2] that are close to the background color will also be treated as being transparent.");
+	}
+	UsageNode* pOver = pRoot->add("overview [dataset]", "Generate a matrix of plots of attribute distributions and correlations. This is a useful chart for becoming acquainted with a dataset.");
+	{
+		pOver->add("[dataset]=data.arff", "The filename of a dataset in arff format to be charted.");
+		UsageNode* pOpts = pOver->add("<options>");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-cellsize [value]=100", "Change the size of each cell. The default is 100.");
+		pOpts->add("-jitter [value]=0.03", "Specify how much to jitter the plotted points. The default is 0.03.");
+		pOpts->add("-maxattrs [value]=20", "Specifies the maximum number of attributes to plot. The default is 20.");
+	}
+	UsageNode* pPDT = pRoot->add("printdecisiontree [model-file] <dataset> <data_opts>", "Print a textual representation of a decision tree to stdout.");
+	{
+		pPDT->add("[model-file]=model.twt", "The filename of a trained decision tree model. (You can make one with the command \"waffles_learn train [dataset] decisiontree > [filename]\".)");
+		pPDT->add("<dataset>", "An optional filename of the arff file that was used to train the decision tree. The data in this file is ignored, but the meta-data will be used to make the printed model richer.");
+		UsageNode* pDO = pPDT->add("<data_opts>");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+	}
+	UsageNode* pScat = pRoot->add("scatter [dataset] <options>", "Makes a scatter plot or line graph.");
+	{
+		pScat->add("[dataset]=data.arff", "The filename of a dataset in arff format to be plotted. The first attribute specifies the values on the horizontal axis. All other attributes specify the values on the vertical axis for a certain color.");
+		UsageNode* pOpts = pScat->add("<options>");
+		pOpts->add("-lines", "Draw lines connecting sequential point in the data. (In other words, make a line graph instead of a scatter plot.)");
+		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
+		pOpts->add("-logx", "Show the horizontal axis on a logarithmic scale");
+		pOpts->add("-logy", "Show the vertical axis on a logarithmic scale");
+		pOpts->add("-nogrid", "Do not draw any grid lines.");
+		pOpts->add("-novgrid", "Do not draw any vertical grid lines. (This is the same as doing both -novgrid and -nohgrid.)");
+		pOpts->add("-nohgrid", "Do not draw any horizontal grid lines.");
+		pOpts->add("-textsize [size]=1.0", "Sets the label font size. If not specified, the default is 2.0.");
+		pOpts->add("-pointradius [radius]=7.0", "Set the size of the point dots. If not specified, the default is 7.0.");
+		pOpts->add("-linethickness [value]=3.0", "Specify the line thickness. (The default is 3.0.)");
+		pOpts->add("-range [xmin] [ymin] [xmax] [ymax]", "Sets the range. (The default is to determine the range automatically.)");
+		pOpts->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
+		pOpts->add("-chartcolors [background] [text] [grid]", "Sets colors for the specified areas. (The default is ffffff 000000 808080.)");
+		pOpts->add("-linecolors [c1] [c2] [c3] [c4]", "Sets the colors for the first four attributes. The default is 0000a0 a00000 008000 504010 (blue, red, green, brown). (If there are more than four lines, it will just distribute them evenly over the color spectrum.)");
+		pOpts->add("-spectrum", "Instead of giving each line a unique color, this will use the color spectrum to indicate the position of each point within the data.");
+		pOpts->add("-specmod [cycle]=20", "Like -spectrum, except it repeats the spectrum with the specified cycle size.");
+		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-neighbors [neighbor-finder]", "Draw lines connecting each point with its neighbors as determined by the specified neighbor finding algorithm.");
+	}
+	pRoot->add("percentsame [dataset1] [dataset2]", "Given two arff "
+		   "data files, counts the number of identical values in the "
+		   "same place in each dataset.  Prints as a percent for "
+		   "each column.  The data files must have the same "
+		   "number and type of attributes as well as the same number "
+		   "of rows.");
+	UsageNode* pStats = pRoot->add("stats [dataset]", "Prints some basic stats about the dataset to stdout.");
+	{
+		pStats->add("[dataset]=data.arff", "The filename of an arff file.");
+	}
+	return pRoot;
+}
+
+
+
+
+
+
+
+
+UsageNode* makeRecommendUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("waffles_recommend [command]", "Predict missing values in data, and test collaborative-filtering recommendation systems.");
+	UsageNode* pCV = pRoot->add("crossvalidate <options> [sparse-data] [collab-filter]", "Measure accuracy using cross-validation. Prints MSE and MAE to stdout.");
+	{
+		UsageNode* pOpts = pCV->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-folds [n]=2", "Specify the number of folds. If not specified, the default is 2.");
+		pOpts->add("-maxrecs [n]=10", "Evaluate only the [n] recommendations for each user with the highest predicted rating. If not specified, the default is 1000000.");
+		pCV->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+	}
+	UsageNode* pFMV = pRoot->add("fillmissingvalues <options> [data] [collab-filter]", "Fill in the missing values in an ARFF file with predicted values and print the resulting full dataset to stdout.");
+	{
+		UsageNode* pOpts = pFMV->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pFMV->add("[data]=data.arff", "The filename of a dataset in ARFF format.");
+	}
+	UsageNode* pPR = pRoot->add("precisionrecall <options> [sparse-data] [collab-filter]", "Compute precision-recall data");
+	{
+		UsageNode* pOpts = pPR->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
+		pPR->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+	}
+	UsageNode* pROC = pRoot->add("roc <options> [sparse-data] [collab-filter]", "Compute data for an ROC curve. (The area under the curve will appear in the comments at the top of the data.)");
+	{
+		UsageNode* pOpts = pROC->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
+		pROC->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+	}
+	UsageNode* pTransacc = pRoot->add("transacc <options> [train] [test] [collab-filter]", "Train using [train], then test using [test]. Prints MSE and MAE to stdout.");
+	{
+		UsageNode* pOpts = pTransacc->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pTransacc->add("[train]=train.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+		pTransacc->add("[test]=test.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+	}
+	return pRoot;
+}
+
+
+
+
+
+
+
+
+
+
+
 UsageNode* makeSparseUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("waffles_sparse [command]", "Sparse learning, document classification, information retrieval, etc.");
@@ -337,91 +991,14 @@ UsageNode* makeSparseUsageTree()
 	return pRoot;
 }
 
-UsageNode* makeAlgorithmUsageTree()
-{
-	UsageNode* pRoot = new UsageNode("[algorithm]", "A supervised learning algorithm, or a transductive algorithm.");
-	pRoot->add("agglomerativetransducer", "A model-free transduction algorithm based on single-link agglomerative clustering. Unlabeled patterns take the label of the cluster with which they are joined. It never joins clusters with different labels.");
-	UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of many learning algorithms through voting. \"end\" marks the end of the ensemble contents. Each algorithm instance is trained using a training set created by drawing (with replacement) from the original data until the training set has the same number of instances as the original data.");
-	{
-		UsageNode* pContents = pBag->add("<contents>");
-		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the bagging ensemble.");
-	}
-	pRoot->add("baseline", "This is one of the simplest of all supervised algorithms. It ignores all features. For nominal labels, it always predicts the most common class in the training set. For continuous labels, it always predicts the mean label in the training set. An effective learning algorithm should never do worse than baseline--hence the name \"baseline\".");
-	UsageNode* pBucket = pRoot->add("bucket <contents> end", "This uses cross-validation with the training set to select the best model from a bucket of models. When accuracy is measured across multiple datasets, it will usually do better than the best model in the bucket could do. \"end\" marks the end of the contents of the bucket.");
-	{
-		UsageNode* pContents = pBucket->add("<contents>");
-		pContents->add("[algorithm]", "Add an algorithm to the bucket");
-	}
-	pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
-	UsageNode* pDT = pRoot->add("decisiontree <options>", "A decision tree.");
-	{
-		UsageNode* pOpts = pDT->add("<options>");
-		pOpts->add("-random [draws]=1", "Use random divisions (instead of divisions that reduce entropy). Random divisions make the algorithm train faster, and also increase model variance, so it is better suited for ensembles, but random divisions also make the decision tree more vulnerable to problems with irrelevant features. [draws] is typically 1, but if you specify a larger value, it will pick the best out of the specified number of random draws.");
-		pOpts->add("-leafthresh [n]=1", "When building the tree, if the number of samples is <= this value, it will stop trying to divide the data and will create a leaf node. The default value is 1. For noisy data, larger values may be advantageous.");
-		pOpts->add("-maxlevels [n]=5", "When building the tree, if the depth (the length of the path from the root to the node currently being formed, including the root and the currently forming node) is [n], it will stop trying to divide the data and will create a leaf node.  This means that there will be at most [n]-1 splits before a decision is made.  This crudely limits overfitting, and so can be helpful on small data sets.  It can also make the resulting trees easier to interpret.  If set to 0, then there is no maximum (which is the default).");
-	}
-	UsageNode* pGCT = pRoot->add("graphcuttransducer [neighbors]", "This is a model-free transduction algorithm. It uses a min-cut/max-flow graph-cut algorithm to separate each label from all of the others.");
-	{
-		pGCT->add("[neighbors]=12", "The number of neighbors to connect with each point in order to form the graph.");
-	}
-	UsageNode* pKNN = pRoot->add("knn [k] <options>", "The k-Nearest-Neighbor instance-based learning algorithm. It uses Euclidean distance for continuous features and Hamming distance for nominal features.");
-	{
-		pKNN->add("[k]=7", "The number of neighbors to use");
-		UsageNode* pOpts = pKNN->add("<options>");
-		pOpts->add("-equalweight", "Give equal weight to every neighbor. (The default is to use linear weighting for continuous features, and sqared linear weighting for nominal features.");
-		pOpts->add("-scalefeatures", "Use a hill-climbing algorithm on the training set to scale the feature dimensions in order to give more accurate results. This increases training time, but also improves accuracy and robustness to irrelevant features.");
-		pOpts->add("-pearson", "Use Pearson's correlation coefficient to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
-		pOpts->add("-cosine", "Use the cosine method to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
-	}
-	pRoot->add("linear", "A linear regression model");
-	pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
-	UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm.");
-	{
-		UsageNode* pOpts = pNB->add("<options>");
-		pOpts->add("-ess [value]=0.2", "Specifies an equivalent sample size to prevent unsampled values from dominating the joint distribution. Good values typically range between 0 and 1.5.");
-	}
-	pRoot->add("naiveinstance [neighbors]=12", "This is an instance learner that assumes each dimension is conditionally independant from other dimensions. It lacks the accuracy of knn in low dimensional feature space, but scales much better to high dimensionality.");
-	UsageNode* pNT = pRoot->add("neighbortransducer [neighbors] <options>", "This is a model-free transduction algorithm. It is an instance learner that propagates labels where the neighbors are most in agreement. This algorithm does well when classes sample a manifold (such as with text recognition).");
-	{
-		UsageNode* pOpts = pNT->add("<options>");
-		pOpts->add("-friends [intrinsic-dims] [thresh]", "Use the manifold-friend-finding algorithm instead of the nearest Euclidean neighbors.");
-		pOpts->add("-prune", "Prune shortcuts. (Only effective if used with the -friends option.)");
-	}
-	UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network. It is trained with online backpropagation. (Rumelhart, D.E., Hinton, G.E., and Williams, R.J. Learning representations by back-propagating errors. Nature, 323:9, 1986.)");
-	{
-		UsageNode* pOpts = pNN->add("<options>");
-		pOpts->add("-addlayer [size]=16", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
-		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
-		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
-		pOpts->add("-windowepochs [value]=200", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
-		pOpts->add("-minwindowimprovement [value]=0.002", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
-		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
-		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
-		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
-		{
-			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
-			pAct->add("arctan", "The arctan sigmoid function.");
-			pAct->add("tanh", "The hyperbolic tangeant sigmoid function.");
-			pAct->add("algebraic", "An algebraic sigmoid function.");
-			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
-			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
-			pAct->add("gaussian", "A gaussian activation function");
-			pAct->add("sinc", "A sinc wavelet activation function");
-		}
-	}
-	UsageNode* pRF = pRoot->add("randomforest [trees] <options>", "A baggging ensemble of decision trees that use random division boundaries. (This algorithm is described in Breiman, Leo (2001). Random Forests. Machine Learning 45 (1): 5–32. doi:10.1023/A:1010933404324.)");
-	{
-		pRF->add("[trees]=50", "Specify the number of trees in the random forest");
-		UsageNode* pOpts = pRF->add("<options>");
-		pOpts->add("-samples [n]=1", "Specify the number of randomly-drawn attributes to evaluate. The one that maximizes information gain will be chosen for the decision boundary. If [n] is 1, then the divisions are completely random. Larger values will decrease the randomness.");
-	}
 
-	return pRoot;
-}
+
+
+
 
 UsageNode* makeTransformUsageTree()
 {
-	UsageNode* pRoot = new UsageNode("waffles_transform [command]", "Transform data, reduce dimensionality, cluster, shuffle rows, swap columns, matrix operations, etc.");
+	UsageNode* pRoot = new UsageNode("waffles_transform [command]", "Transform data, shuffle rows, swap columns, matrix operations, etc.");
 	UsageNode* pAdd = pRoot->add("add [dataset1] [dataset2]", "Adds two matrices together element-wise. Results are printed to stdout.");
 	{
 		pAdd->add("[dataset1]=a.arff", "The filename of the first matrix in ARFF format.");
@@ -442,7 +1019,6 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-excludelast [n]=1", "Do not add noise to the last [n] columns.");
 	}
-	pRoot->add("agglomerative [dataset] [clusters]", "Performs single-link agglomerative clustering. Outputs the cluster id for each row.");
 	UsageNode* pAlign = pRoot->add("align [a] [b]", "Translates and rotates dataset [b] to minimize mean squared difference with dataset [a]. (Uses the Kabsch algorithm.)");
 	{
 		pAlign->add("[a]=base.arff", "The filename of a dataset in ARFF format");
@@ -511,12 +1087,6 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-space", "Separate with spaces instead of commas.");
 	}
 	pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");
-	UsageNode* pFKM = pRoot->add("fuzzykmeans [dataset] [clusters]", "Performs fuzzy k-means clustering. Outputs the cluster id for each row. This algorithm is specified in Li, D. and Deogun, J. and Spaulding, W. and Shuart, B., Towards missing data imputation: A study of fuzzy K-means clustering method, In Rough Sets and Current Trends in Computing, Springer, pages 573--579, 2004.");
-	{
-		UsageNode* pOpts = pFKM->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-fuzzifier [value]=1.3", "Specify the fuzzifier parameter, which should be greater than 1.");
-	}
 	UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");
 	{
 		UsageNode* pOpts = pFMS->add("<options>");
@@ -540,12 +1110,6 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-tolerant", "If there are points that are disconnected from the rest of the graph, just drop the from the data. (This may cause the results to contain fewer rows than the input.)");
 	}
-	UsageNode* pKM = pRoot->add("kmeans [dataset] [clusters]", "Performs k-means clustering. Outputs the cluster id for each row.");
-	{
-		UsageNode* pOpts = pKM->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-	}
-	pRoot->add("kmedoids [dataset] [clusters]", "Performs k-medoids clustering. Outputs the cluster id for each row.");
 	UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
 	{
 		UsageNode* pOpts = pLLE->add("<options>");
@@ -726,390 +1290,3 @@ UsageNode* makeTransformUsageTree()
 }
 
 
-UsageNode* makeGenerateUsageTree()
-{
-	UsageNode* pRoot = new UsageNode("waffles_generate [command]", "Generate certain useful datasets");
-	UsageNode* pCrane = pRoot->add("crane <options>", "Generate a dataset where each row represents a ray-traced image of a crane with a ball.");
-	{
-		UsageNode* pOpts = pCrane->add("<options>");
-		pOpts->add("-saveimage [filename]=frames.png", "Save an image showing all the frames.");
-		pOpts->add("-ballradius [size]=0.3", "Specify the size of the ball. The default is 0.3.");
-		pOpts->add("-frames [horiz] [vert]", "Specify the number of frames to render.");
-		pOpts->add("-size [wid] [hgt]", "Specify the size of each frame.");
-		pOpts->add("-blur [radius]=5.0", "Blurs the images. A good starting value might be 5.0.");
-		pOpts->add("-gray", "Use a single grayscale value for every pixel instead of three (red, green, blue) channel values.");
-	}
-	pRoot->add("cube [n]", "returns data evenly distributed on the surface of a unit cube. Each side is sampled with [n]x[n] points. The total number of points in the dataset will be 6*[n]*[n]-12*[n]+8.");
-	UsageNode* pES = pRoot->add("entwinedspirals [points] <options>", "Generates points that lie on an entwined spirals manifold.");
-	{
-		pES->add("[points]=1000", "The number of points with which to sample the manifold.");
-		UsageNode* pOpts = pES->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
-	}
-	UsageNode* pFishBowl = pRoot->add("fishbowl [n] <option>", "Generate samples on the surface of a fish-bowl manifold.");
-	{
-		UsageNode* pOpts = pFishBowl->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-opening [size]=0.25", "the size of the opening. (0.0 = no opening. 0.25 = default. 1.0 = half of the sphere.)");
-	}
-	UsageNode* pGRW = pRoot->add("gridrandomwalk [arff-file] [width] [samples] <options>", "Generate a sequence of action-observation pairs by randomly walking around on a grid of observation vectors. Assumes there are four possible actions consisting of up, down, left, right.");
-	{
-		pGRW->add("[arff-file]=grid.arff", "The filename of an arff file containing observation vectors arranged in a grid.");
-		pGRW->add("[width]=20", "The width of the grid.");
-		pGRW->add("[samples]=4000", "The number of samples to take. In other words, the length of the random walk.");
-		UsageNode* pOpts = pGRW->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-start [x] [y]", "Specifies the starting state. The default is to start in the center of the grid.");
-		pOpts->add("-obsfile [filename]=observations.arff", "Specify the filename for the observation sequence data. The default is observations.arff.");
-		pOpts->add("-actionfile [filename]=actions.arff", "Specify the filename for the actions data. The default is actions.arff.");
-	}
-	UsageNode* pITON = pRoot->add("imagetranslatedovernoise [png-file] <options>", "Sample a manifold by translating an image over a background of noise.");
-	{
-		pITON->add("[png-file]=in.png", "The filename of a png image.");
-		UsageNode* pOpts = pITON->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
-	}
-	UsageNode* pManifold = pRoot->add("manifold [samples] <options> [equations]", "Generate sample points randomly distributed on the surface of a manifold.");
-	{
-		pManifold->add("[samples]=2000", "The number of points with which to sample the manifold");
-		UsageNode* pOpts = pManifold->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pManifold->add("[equations]=\"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"", "A set of equations that define the manifold. The equations that define the manifold must be named y1, y2, ..., but helper equations may be included. The manifold-defining equations must all have the same number of parameters. The parameters will be drawn from a standard normal distribution (from 0 to 1). Usually it is a good idea to wrap the equations in quotes. Example: \"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"");
-	}
-	UsageNode* pNoise = pRoot->add("noise [rows] <options>", "Generate random data by sampling from a distribution.");
-	{
-		pNoise->add("[rows]=1000", "The number of patterns to generate.");
-		UsageNode* pOpts = pNoise->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		UsageNode* pDist = pOpts->add("-dist [distribution]", "Specify the distribution. The default is normal 0 1");
-		pDist->add("beta [alpha] [beta]");
-		pDist->add("binomial [n] [p]");
-		pDist->add("categorical 3 [p0] [p1] [p2]", "A categorical distribution with 3 classes. [p0], [p1], and [p2] specify the probabilities of each of the 3 classes. (This is just an example. Other values besides 3 may be used for the number of classes.)");
-		pDist->add("cauchy [median] [scale]");
-		pDist->add("chisquare [t]");
-		pDist->add("exponential [beta]");
-		pDist->add("f [t] [u]");
-		pDist->add("gamma [alpha] [beta]");
-		pDist->add("gaussian [mean] [deviation]");
-		pDist->add("geometric [p]");
-		pDist->add("logistic [mu] [s]");
-		pDist->add("lognormal [mu] [sigma]");
-		pDist->add("normal [mean] [deviation]");
-		pDist->add("poisson [mu]");
-		pDist->add("softimpulse [s]");
-		pDist->add("spherical [dims] [radius]");
-		pDist->add("student [t]");
-		pDist->add("uniform [a] [b]");
-		pDist->add("weibull [gamma]");
-	}
-	UsageNode* pRS = pRoot->add("randomsequence [length] <options>", "Generates a sequential list of integer values, shuffles them randomly, and then prints the shuffled list to stdout.");
-	{
-		pRS->add("[length]=10", "The number of values in the random sequence.");
-		UsageNode* pOpts = pRS->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-start [value]=0", "Specify the smallest value in the sequence.");
-	}
-	UsageNode* pScalRot = pRoot->add("scalerotate [png-file] <options>", "Generate a dataset where each row represents an image that has been scaled and rotated by various amounts. Thus, these images form an open-cylinder (although somewhat cone-shaped) manifold.");
-	{
-		UsageNode* pOpts = pScalRot->add("<options>");
-		pOpts->add("-saveimage [filename]=frames.png", "Save a composite image showing all the frames in a grid.");
-		pOpts->add("-frames [rotate-frames] [scale-frames]", "Specify the number of frames. The default is 40 15.");
-		pOpts->add("-arc [radians]=1.570796", "Specify the rotation amount. If not specified, the default is 6.2831853... (2*PI).");
-	}
-	UsageNode* pSCurve = pRoot->add("scurve [points] <options>", "Generate points that lie on an s-curve manifold.");
-	{
-		pSCurve->add("[points]=2000", "The number of points with which to sample the manifold");
-		UsageNode* pOpts = pSCurve->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
-	}
-	UsageNode* pSIR = pRoot->add("selfintersectingribbon [points] <options>", "Generate points that lie on a self-intersecting ribbon manifold.");
-	{
-		pSIR->add("[points]=2000", "The number of points with which to sample the manifold.");
-		UsageNode* pOpts = pSIR->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-	}
-	UsageNode* pSR = pRoot->add("swissroll [points] <options>", "Generate points that lie on a swiss roll manifold.");
-	{
-		pSR->add("[points]=2000", "The number of points with which to sample the manifold.");
-		UsageNode* pOpts = pSR->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
-		pOpts->add("-cutoutstar", "Don't sample within a star-shaped region on the manifold.");
-	}
-	UsageNode* pWI = pRoot->add("windowedimage [png-file] <options>", "Sample a manifold by translating a window over an image. Each pattern represents the windowed portion of the image.");
-	{
-		pWI->add("[png-file]=in.png", "The filename of the png image from which to generate the data.");
-		UsageNode* pOpts = pWI->add("<options>");
-		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
-		pOpts->add("-stepsizes [horiz] [vert]", "Specify the horizontal and vertical step sizes. (how many pixels to move the window between samples.)");
-		pOpts->add("-windowsize [width] [height]", "Specify the size of the window. The default is half the width and height of [png-file].");
-	}
-
-	return pRoot;
-}
-
-UsageNode* makePlotUsageTree()
-{
-	UsageNode* pRoot = new UsageNode("waffles_plot [command]", "Visualize data, plot functions, make charts, etc.");
-	UsageNode* p3d = pRoot->add("3d [dataset] <options>", "Make a 3d scatter plot. Points are colored with a spectrum according to their order in the dataset.");
-	{
-		p3d->add("[dataset]=data.arff", "The filename of an arff file containing the data to plot. It must have exactly 3 continuous attributes.");
-		UsageNode* pOpts = p3d->add("<options>");
-		pOpts->add("-blast", "Produce a 5-by-5 grid of renderings, each time using a random point of view. It will print the random camera directions that it selects to stdout.");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-size [width] [height]", "Sets the size of the image. The default is 1000 1000.");
-		pOpts->add("-pointradius [radius]=40.0", "Set the size of the points. The default is 40.0.");
-		pOpts->add("-bgcolor [color]=ddeeff", "Set the background color. If not specified, the default is ffffff.");
-		pOpts->add("-cameradistance [dist]=3.5", "Set the distance between the camera and the mean of the data. This value is specified as a factor, which is multiplied by the distance between the min and max corners of the data. If not specified, the default is 1.5. (If the camera is too close to the data, make this value bigger.)");
-		pOpts->add("-cameradirection [dx] [dy] [dz]", "Specifies the direction from the camera to the mean of the data. (The camera always looks at the mean.) The default is 0.6 -0.3 -0.8.");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-nolabels", "Don't put axis labels on the bounding box.");
-		pOpts->add("-nobox", "Don't draw a bounding box around the plot.");
-	}
-	UsageNode* pBar = pRoot->add("bar [dataset] <options>", "Make a bar chart.");
-	{
-		pBar->add("[dataset]=data.arff", "The filename of an arff file containing the data for the bar chart. The dataset must contain exactly one continuous attribute. Each data row specifies the height of a bar.");
-		UsageNode* pOpts = pBar->add("<options>");
-		pOpts->add("-log", "Use a logarithmic scale.");
-		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-	}
-	pRoot->add("bigo [dataset]=results.arff", "Estimate the Big-O runtime of algorithms based on empirical results. Regresses the formula t=a*(n^b+c) to fit the data, where n is the value in attribute 0 (representing the size of the data), and t (representing time) in the other attributes for each algorithm. The values of a, b, and c are reported for each attribute > 0.");
-	UsageNode* pEquat = pRoot->add("equation <options> [equations]", "Plot an equation (or multiple equations) in 2D");
-	{
-		UsageNode* pOpts = pEquat->add("<options>");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
-		pOpts->add("-range [xmin] [ymin] [xmax] [ymax]", "Set the range. (The default is: -10 -10 10 10.)");
-		pOpts->add("-textsize [size]=1.0", "Sets the label font size. If not specified, the default is 2.0.");
-		pOpts->add("-nogrid", "Do not draw any grid lines.");
-		pEquat->add("[equations]=\"f1(x)=sin(x)/x\"", "A set of equations separated by semicolons. Since '^' is a special character for many shells, it's usually a good idea to put your equations inside quotation marks. Here are some examples:\n"
-		"\"f1(x)=3*x+2\"\n"
-		"\"f1(x)=(g(x)+1)/g(x); g(x)=sqrt(x)+pi\"\n"
-		"\"h(bob)=bob^2;f1(x)=3+bar(x,5)*h(x)-(x/foo);bar(a,b)=a*b-b;foo=3.2\"\n"
-		"Only functions that begin with 'f' followed by a number will be plotted, starting with 'f1', and it will stop when the next number in ascending order is not defined. You may define any number of helper functions or constants with any name you like. Built in constants include: e, and pi. Built in functions include: +, -, *, /, %, ^, abs, acos, acosh, asin, asinh, atan, atanh, ceil, cos, cosh, erf, floor, gamma, lgamma, log, max, min, sin, sinh, sqrt, tan, and tanh. These generally have the same meaning as in C, except '^' means exponent, \"gamma\" is the gamma function, and max and min can support any number (>=1) of parameters. (Some of these functions may not not be available on Windows, but most of them are.) You can override any built in constants or functions with your own variables or functions, so you don't need to worry too much about name collisions. Variables must begin with an alphabet character or an underscore. Multiplication is never implicit, so you must use a '*' character to multiply. Whitespace is ignored.");
-	}
-	UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram.");
-	{
-		pHist->add("[dataset]=samples.arff", "The filename of an arff file containing the data for the histogram.");
-		UsageNode* pOpts = pHist->add("<options>");
-		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
-		pOpts->add("-attr [index]=0", "Specify which attribute is charted. (The default is 0.)");
-		pOpts->add("-out [filename]=hist.png", "Specify the name of the output file. (If not specified, the default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-range [xmin] [xmax] [ymax]", "Specify the range of the histogram plot");
-	}
-	UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
-	{
-		pModel->add("[model-file]=model.twt", "The filename of the trained model. (You can use \"waffles_learn train\" to make a model file.)");
-		pModel->add("[dataset]=train.arff", "The filename of a dataset in arff format to be plotted. It can be the training set that was used to train the model, or a test set that it hasn't yet seen.");
-		pModel->add("[attr-x]=0", "The zero-based index of a continuous feature attributes for the horizontal axis.");
-		pModel->add("[attr-y]=1", "The zero-based index of a continuous feature attributes for the vertical axis.");
-		UsageNode* pOpts = pModel->add("<options>");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-size [width] [height]", "Specify the size of the image.");
-		pOpts->add("-pointradius [size]=3.0", "Specify the size of the dots used to represent each instance.");
-	}
-	UsageNode* pOL = pRoot->add("overlay [png1] [png2] <options>", "Make an image comprised of [png1] with [png2] on top of it. The two images must be the same size.");
-	{
-		pOL->add("[png1]=below.png", "The filename of an image in png format.");
-		pOL->add("[png2]=above.png", "The filename of an image in png format.");
-		UsageNode* pOpts = pOL->add("<options>");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-backcolor [hex]=00ff00", "Specify the six-digit hexadecimal representation of the background color. (This color will be treated as being transparent in [png2]. If not specified, the default is ffffff (white).");
-		pOpts->add("-tolerance [n]=12", "Specify the tolerance (an integer). If not specified, the default is 0. If a larger value is specified, then pixels in [png2] that are close to the background color will also be treated as being transparent.");
-	}
-	UsageNode* pOver = pRoot->add("overview [dataset]", "Generate a matrix of plots of attribute distributions and correlations. This is a useful chart for becoming acquainted with a dataset.");
-	{
-		pOver->add("[dataset]=data.arff", "The filename of a dataset in arff format to be charted.");
-		UsageNode* pOpts = pOver->add("<options>");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-cellsize [value]=100", "Change the size of each cell. The default is 100.");
-		pOpts->add("-jitter [value]=0.03", "Specify how much to jitter the plotted points. The default is 0.03.");
-		pOpts->add("-maxattrs [value]=20", "Specifies the maximum number of attributes to plot. The default is 20.");
-	}
-	UsageNode* pPDT = pRoot->add("printdecisiontree [model-file] <dataset> <data_opts>", "Print a textual representation of a decision tree to stdout.");
-	{
-		pPDT->add("[model-file]=model.twt", "The filename of a trained decision tree model. (You can make one with the command \"waffles_learn train [dataset] decisiontree > [filename]\".)");
-		pPDT->add("<dataset>", "An optional filename of the arff file that was used to train the decision tree. The data in this file is ignored, but the meta-data will be used to make the printed model richer.");
-		UsageNode* pDO = pPDT->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-	}
-	UsageNode* pScat = pRoot->add("scatter [dataset] <options>", "Makes a scatter plot or line graph.");
-	{
-		pScat->add("[dataset]=data.arff", "The filename of a dataset in arff format to be plotted. The first attribute specifies the values on the horizontal axis. All other attributes specify the values on the vertical axis for a certain color.");
-		UsageNode* pOpts = pScat->add("<options>");
-		pOpts->add("-lines", "Draw lines connecting sequential point in the data. (In other words, make a line graph instead of a scatter plot.)");
-		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
-		pOpts->add("-logx", "Show the horizontal axis on a logarithmic scale");
-		pOpts->add("-logy", "Show the vertical axis on a logarithmic scale");
-		pOpts->add("-nogrid", "Do not draw any grid lines.");
-		pOpts->add("-novgrid", "Do not draw any vertical grid lines. (This is the same as doing both -novgrid and -nohgrid.)");
-		pOpts->add("-nohgrid", "Do not draw any horizontal grid lines.");
-		pOpts->add("-textsize [size]=1.0", "Sets the label font size. If not specified, the default is 2.0.");
-		pOpts->add("-pointradius [radius]=7.0", "Set the size of the point dots. If not specified, the default is 7.0.");
-		pOpts->add("-linethickness [value]=3.0", "Specify the line thickness. (The default is 3.0.)");
-		pOpts->add("-range [xmin] [ymin] [xmax] [ymax]", "Sets the range. (The default is to determine the range automatically.)");
-		pOpts->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
-		pOpts->add("-chartcolors [background] [text] [grid]", "Sets colors for the specified areas. (The default is ffffff 000000 808080.)");
-		pOpts->add("-linecolors [c1] [c2] [c3] [c4]", "Sets the colors for the first four attributes. The default is 0000a0 a00000 008000 504010 (blue, red, green, brown). (If there are more than four lines, it will just distribute them evenly over the color spectrum.)");
-		pOpts->add("-spectrum", "Instead of giving each line a unique color, this will use the color spectrum to indicate the position of each point within the data.");
-		pOpts->add("-specmod [cycle]=20", "Like -spectrum, except it repeats the spectrum with the specified cycle size.");
-		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-neighbors [neighbor-finder]", "Draw lines connecting each point with its neighbors as determined by the specified neighbor finding algorithm.");
-	}
-	pRoot->add("percentsame [dataset1] [dataset2]", "Given two arff "
-		   "data files, counts the number of identical values in the "
-		   "same place in each dataset.  Prints as a percent for "
-		   "each column.  The data files must have the same "
-		   "number and type of attributes as well as the same number "
-		   "of rows.");
-	UsageNode* pStats = pRoot->add("stats [dataset]", "Prints some basic stats about the dataset to stdout.");
-	{
-		pStats->add("[dataset]=data.arff", "The filename of an arff file.");
-	}
-	return pRoot;
-}
-
-UsageNode* makeNeighborUsageTree()
-{
-	UsageNode* pRoot = new UsageNode("[neighbor-finder]", "A neighbor-finding algorithm.");
-	UsageNode* pBF = pRoot->add("bruteforce <options> [k]", "The slow way to find the neareast Euclidean-distance neighbors.");
-	{
-		UsageNode* pOpts = pBF->add("<options>");
-		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
-		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pOpts->add("-normalize", "Normalize distances in local neighborhoods so that all neighborhoood have a uniform amount of total distance.");
-		pBF->add("[k]=12", "The number of neighbors.");
-	}
-	UsageNode* pKD = pRoot->add("kdtree <options> [k]", "A faster way to find the neareast Euclidean-distance neighbors.");
-	{
-		UsageNode* pOpts = pKD->add("<options>");
-		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
-		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pKD->add("[k]=12", "The number of neighbors.");
-	}
-	UsageNode* pMan = pRoot->add("manifold <options> [cands] [k] [t] [thresh]", "An intelligent neighbor-finder that finds neighborhoods with aligned tangent hyperplanes.");
-	{
-		UsageNode* pOpts = pMan->add("<options>");
-		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
-		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pMan->add("[cands]=32", "The median number of neighbors to use as candidates.");
-		pMan->add("[k]=8", "The number of neighbors to find for each point.");
-		pMan->add("[t]=2", "The number of dimensions in the tangent hyperplanes.");
-		pMan->add("[thresh]=0.9", "A threshold above which all sqared-correlation values are considered to be equal.");
-	}
-	UsageNode* pSys = pRoot->add("system <options> [action-data] [k]", "A neighbor-finder designed for modeling dynamical systems.");
-	{
-		UsageNode* pOpts = pSys->add("<options>");
-		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
-		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pSys->add("[action-data]=actions.arff", "The filename of an arff file for the sequence of actions given to the system.");
-		pSys->add("[k]=12", "The number of neighbors.");
-	}
-	return pRoot;
-}
-
-UsageNode* makeRecommendUsageTree()
-{
-	UsageNode* pRoot = new UsageNode("waffles_recommend [command]", "Predict missing values in data, and test collaborative-filtering recommendation systems.");
-	UsageNode* pCV = pRoot->add("crossvalidate <options> [sparse-data] [collab-filter]", "Measure accuracy using cross-validation. Prints MSE and MAE to stdout.");
-	{
-		UsageNode* pOpts = pCV->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-folds [n]=2", "Specify the number of folds. If not specified, the default is 2.");
-		pOpts->add("-maxrecs [n]=10", "Evaluate only the [n] recommendations for each user with the highest predicted rating. If not specified, the default is 1000000.");
-		pCV->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
-	}
-	UsageNode* pFMV = pRoot->add("fillmissingvalues <options> [data] [collab-filter]", "Fill in the missing values in an ARFF file with predicted values and print the resulting full dataset to stdout.");
-	{
-		UsageNode* pOpts = pFMV->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pFMV->add("[data]=data.arff", "The filename of a dataset in ARFF format.");
-	}
-	UsageNode* pPR = pRoot->add("precisionrecall <options> [sparse-data] [collab-filter]", "Compute precision-recall data");
-	{
-		UsageNode* pOpts = pPR->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
-		pPR->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
-	}
-	UsageNode* pROC = pRoot->add("roc <options> [sparse-data] [collab-filter]", "Compute data for an ROC curve. (The area under the curve will appear in the comments at the top of the data.)");
-	{
-		UsageNode* pOpts = pROC->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
-		pROC->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
-	}
-	UsageNode* pTransacc = pRoot->add("transacc <options> [train] [test] [collab-filter]", "Train using [train], then test using [test]. Prints MSE and MAE to stdout.");
-	{
-		UsageNode* pOpts = pTransacc->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pTransacc->add("[train]=train.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
-		pTransacc->add("[test]=test.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
-	}
-	return pRoot;
-}
-
-UsageNode* makeCollaborativeFilterUsageTree()
-{
-	UsageNode* pRoot = new UsageNode("[collab-filter]", "A collaborative-filtering recommendation algorithm.");
-	UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of collaborative filtering algorithms through voting. \"end\" marks the end of the ensemble contents. Each collaborative filtering algorithm instance is trained on a subset of the original data, where each expressed element is given a probability of 0.5 of occurring in the training set.");
-	{
-		UsageNode* pContents = pBag->add("<contents>");
-		pContents->add("[instance_count] [collab-filter]", "Specify the number of instances of a collaborative filtering algorithm to add to the bagging ensemble.");
-	}
-	pRoot->add("baseline", "A very simple recommendation algorithm. It always predicts the average rating for each item. This algorithm is useful as a baseline algorithm for comparison.");
-	UsageNode* pClustDense = pRoot->add("clusterdense [n] <options>", "A collaborative-filtering algorithm that clusters users based on a dense distance metric with k-means, and then makes uniform recommendations within each cluster.");
-	{
-		pClustDense->add("[n]=8", "The number of clusters to use.");
-		UsageNode* pOpts = pClustDense->add("<options>");
-		pOpts->add("-norm [l]=2.0", "Specify the norm for the L-norm distance metric to use.");
-		pOpts->add("-missingpenalty [d]=1.0", "Specify the difference to use in the distance computation when a value is missing from one or both of the vectors.");
-	}
-	UsageNode* pClustSparse = pRoot->add("clustersparse [n] <options>", "A collaborative-filtering algorithm that clusters users based on a sparse similarity metric with k-means, and then makes uniform recommendations within each cluster.");
-	{
-		pClustSparse->add("[n]=8", "The number of clusters to use.");
-		UsageNode* pOpts = pClustSparse->add("<options>");
-		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
-	}
-	UsageNode* pInst = pRoot->add("instance [k] <options>", "An instance-based collaborative-filtering algorithm that makes recommendations based on the k-nearest neighbors of a user.");
-	{
-		pInst->add("[k]=256", "The number of neighbors to use.");
-		UsageNode* pOpts = pInst->add("<options>");
-		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
-		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
-	}
-	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623–656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria, I don't regularize the bias weights, and I don't store the superfluous 1's in the matrices.)");
-	{
-		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
-		UsageNode* pOpts = pMF->add("<options>");
-		pOpts->add("-regularize [value]=0.0001", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small values in the matrix factors.");
-	}
-	UsageNode* pNeural = pRoot->add("neural [intrinsic] <options>", "A neural-network-based collaborative-filtering algorithm.");
-	{
-		pNeural->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
-		UsageNode* pOpts = pNeural->add("<options>");
-		pOpts->add("-addlayer [size]=8", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
-		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
-		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
-		pOpts->add("-windowepochs [value]=10", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
-		pOpts->add("-minwindowimprovement [value]=0.0001", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
-		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
-		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
-		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
-		{
-			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
-			pAct->add("arctan", "The arctan sigmoid function.");
-			pAct->add("tanh", "The hyperbolic tangeant sigmoid function.");
-			pAct->add("algebraic", "An algebraic sigmoid function.");
-			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
-			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
-			pAct->add("gaussian", "A gaussian activation function");
-			pAct->add("sinc", "A sinc wavelet activation function");
-		}
-	}
-	return pRoot;
-}

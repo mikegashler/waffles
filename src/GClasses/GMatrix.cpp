@@ -22,6 +22,7 @@
 #include "GBits.h"
 #include "GLearner.h"
 #include "GRand.h"
+#include "GTokenizer.h"
 #include <algorithm>
 #include <fstream>
 #include <sstream>
