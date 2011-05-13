@@ -330,20 +330,6 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 	return pNF;
 }
 
-void agglomerativeclusterer(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	int clusters = args.pop_uint();
-
-	// Do the clustering
-	GAgglomerativeClusterer clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(*pData);
-	Holder<GMatrix> hOut(pOut);
-	pOut->print(cout);
-}
-
 void AddIndexAttribute(GArgReader& args)
 {
 	// Parse args
@@ -425,49 +411,6 @@ void align(GArgReader& args)
 	pC->print(cout);
 }
 
-void attributeSelector(GArgReader& args)
-{
-	// Load the data
-	size_t labelDims;
-	GMatrix* pData = loadDataWithSwitches(args, &labelDims);
-	Holder<GMatrix> hData(pData);
-
-	// Parse the options
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	int targetFeatures = 1;
-	string outFilename = "";
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else if(args.if_pop("-out"))
-		{
-			targetFeatures = args.pop_uint();
-			outFilename = args.pop_string();
-		}
-		else
-			ThrowError("Invalid neighbor finder option: ", args.peek());
-	}
-
-	// Do the attribute selection
-	GRand prng(seed);
-	GAttributeSelector as(labelDims, targetFeatures, &prng);
-	if(outFilename.length() > 0)
-	{
-		as.train(*pData);
-		GMatrix* pDataOut = as.transformBatch(*pData);
-		Holder<GMatrix> hDataOut(pDataOut);
-		cout << "Reduced data saved to " << outFilename.c_str() << ".\n";
-		pDataOut->saveArff(outFilename.c_str());
-	}
-	else
-		as.train(*pData);
-	cout << "\nAttribute rankings from most salient to least salient. (Attributes are zero-indexed.)\n";
-	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
-	for(size_t i = 0; i < as.ranks().size(); i++)
-		cout << as.ranks()[i] << " " << pRel->attrName(as.ranks()[i]) << "\n";
-}
-
 void autoCorrelation(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -496,85 +439,6 @@ void autoCorrelation(GArgReader& args)
 		}
 	}
 	ac.print(cout);
-}
-
-void blendEmbeddings(GArgReader& args)
-{
-	// Load the files and params
-	GMatrix* pDataOrig = loadData(args.pop_string());
-	Holder<GMatrix> hDataOrig(pDataOrig);
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	GRand prng(seed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pDataOrig, &prng, args);
-	Holder<GNeighborFinder> hNF(pNF);
-	GMatrix* pDataA = loadData(args.pop_string());
-	Holder<GMatrix> hDataA(pDataA);
-	GMatrix* pDataB = loadData(args.pop_string());
-	Holder<GMatrix> hDataB(pDataB);
-	if(pDataA->rows() != pDataOrig->rows() || pDataB->rows() != pDataOrig->rows())
-		ThrowError("mismatching number of rows");
-	if(pDataA->cols() != pDataB->cols())
-		ThrowError("mismatching number of cols");
-
-	// Parse Options
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Get a neighbor table
-	if(!pNF->isCached())
-	{
-		GNeighborFinderCacheWrapper* pNF2 = new GNeighborFinderCacheWrapper(hNF.release(), true);
-		hNF.reset(pNF2);
-		pNF = pNF2;
-	}
-	((GNeighborFinderCacheWrapper*)pNF)->fillCache();
-	size_t* pNeighborTable = ((GNeighborFinderCacheWrapper*)pNF)->cache();
-
-	// Do the blending
-	size_t startPoint = (size_t)prng.next(pDataA->rows());
-	double* pRatios = new double[pDataA->rows()];
-	ArrayHolder<double> hRatios(pRatios);
-	GVec::setAll(pRatios, 0.5, pDataA->rows());
-	GMatrix* pDataC = GManifold::blendEmbeddings(pDataA, pRatios, pDataB, pNF->neighborCount(), pNeighborTable, startPoint);
-	Holder<GMatrix> hDataC(pDataC);
-	pDataC->print(cout);
-}
-
-void breadthFirstUnfolding(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
-	Holder<GNeighborFinder> hNF(pNF);
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	int reps = 1;
-	Holder<GMatrix> hControlData(NULL);
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else if(args.if_pop("-reps"))
-			reps = args.pop_uint();
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GBreadthFirstUnfolding transform(reps, pNF->neighborCount(), targetDims, &prng);
-	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
 }
 
 ///TODO: this command should be documented
@@ -814,35 +678,6 @@ void Export(GArgReader& args)
 		pData->relation()->printRow(cout, pData->row(i), separator);
 }
 
-void fuzzykmeans(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	int clusters = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	double fuzzifier = 1.3;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			nSeed = args.pop_uint();
-		else if(args.if_pop("-fuzzifier"))
-			fuzzifier = args.pop_double();
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Do the clustering
-	GRand prng(nSeed);
-	GFuzzyKMeans clusterer(clusters, &prng);
-	clusterer.setFuzzifier(fuzzifier);
-	GMatrix* pOut = clusterer.doit(*pData);
-	Holder<GMatrix> hOut(pOut);
-	pOut->print(cout);
-}
-
 void Import(GArgReader& args)
 {
 	// Load the file
@@ -884,241 +719,6 @@ void Import(GArgReader& args)
 	pData->print(cout);
 }
 
-void isomap(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
-	Holder<GNeighborFinder> hNF(pNF);
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	bool tolerant = false;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else if(args.if_pop("-tolerant"))
-			tolerant = true;
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GIsomap transform(pNF->neighborCount(), targetDims, &prng);
-	transform.setNeighborFinder(pNF);
-	if(tolerant)
-		transform.dropDisconnectedPoints();
-	GMatrix* pDataAfter = transform.doit(*pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-
-void kmeans(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	int clusters = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			nSeed = args.pop_uint();
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Do the clustering
-	GRand prng(nSeed);
-	GKMeans clusterer(clusters, &prng);
-	GMatrix* pOut = clusterer.doit(*pData);
-	Holder<GMatrix> hOut(pOut);
-	pOut->print(cout);
-}
-
-void kmedoids(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	int clusters = args.pop_uint();
-
-	// Do the clustering
-	GKMedoids clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(*pData);
-	Holder<GMatrix> hOut(pOut);
-	pOut->print(cout);
-}
-
-void lle(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
-	Holder<GNeighborFinder> hNF(pNF);
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GLLE transform(pNF->neighborCount(), targetDims, &prng);
-	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-
-void ManifoldSculpting(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
-	Holder<GNeighborFinder> hNF(pNF);
-	size_t targetDims = args.pop_uint();
-
-	// Parse Options
-	const char* szPreprocessedData = NULL;
-	double scaleRate = 0.999;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else if(args.if_pop("-continue"))
-			szPreprocessedData = args.pop_string();
-		else if(args.if_pop("-scalerate"))
-			scaleRate = args.pop_double();
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Load the hint data
-	GMatrix* pDataHint = NULL;
-	Holder<GMatrix> hDataHint(NULL);
-	if(szPreprocessedData)
-	{
-		pDataHint = loadData(szPreprocessedData);
-		hDataHint.reset(pDataHint);
-		if(pDataHint->relation()->size() != targetDims)
-			ThrowError("Wrong number of dims in the hint data");
-		if(pDataHint->rows() != pData->rows())
-			ThrowError("Wrong number of patterns in the hint data");
-	}
-
-	// Transform the data
-	GManifoldSculpting transform(pNF->neighborCount(), targetDims, &prng);
-	transform.setSquishingRate(scaleRate);
-	if(pDataHint)
-		transform.setPreprocessedData(hDataHint.release());
-	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-/*
-void manifoldSculptingForControl(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pDataObs = loadData(args.pop_string());
-	Holder<GMatrix> hDataObs(pDataObs);
-	GMatrix* pDataControl = loadData(args.pop_string());
-	Holder<GMatrix> hDataControl(pDataControl);
-	int neighbors = args.pop_uint();
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	const char* szPreprocessedData = NULL;
-	double scaleRate = 0.999;
-	double lambda = 0;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			nSeed = args.pop_uint();
-		else if(args.if_pop("-continue"))
-			szPreprocessedData = args.pop_string();
-		else if(args.if_pop("-scalerate"))
-			scaleRate = args.pop_double();
-		else if(args.if_pop("-alignconsequences"))
-			lambda = args.pop_double();
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Load the hint data
-	GMatrix* pDataHint = NULL;
-	Holder<GMatrix> hDataHint(NULL);
-	if(szPreprocessedData)
-	{
-		pDataHint = loadData(szPreprocessedData);
-		hDataHint.reset(pDataHint);
-		if(pDataHint->relation()->size() != targetDims)
-			ThrowError("Wrong number of dims in the hint data");
-		if(pDataHint->rows() != pDataObs->rows())
-			ThrowError("Wrong number of patterns in the hint data");
-	}
-
-	// Transform the data
-	GRand prng(nSeed);
-	GManifoldSculptingForControl transform(neighbors, targetDims, &prng, pDataControl, lambda);
-	transform.setSquishingRate(scaleRate);
-	if(pDataHint)
-		transform.setPreprocessedData(hDataHint.release());
-
-	GNeighborFinder* pNF = new GDynamicSystemNeighborFinder(pDataObs, pDataControl, false, neighbors, &prng);
-	Holder<GNeighborFinder> hNF(pNF);
-	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pDataObs);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-
-void manifoldUnfolder(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
-	Holder<GNeighborFinder> hNF(pNF);
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GManifoldUnfolder transform(pNF->neighborCount(), targetDims, &prng);
-	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-*/
 void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, double* pResults)
 {
 	GVec::setAll(pResults, 0.0, dims);
@@ -1301,27 +901,6 @@ void mergeVert(GArgReader& args)
 	pData1->print(cout);
 }
 
-void multiDimensionalScaling(GArgReader& args)
-{
-	GRand prng(0);
-	GMatrix* pDistances = loadData(args.pop_string());
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	bool useSquaredDistances = false;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-squareddistances"))
-			useSquaredDistances = true;
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	GMatrix* pResults = GManifold::multiDimensionalScaling(pDistances, targetDims, &prng, useSquaredDistances);
-	Holder<GMatrix> hResults(pResults);
-	pResults->print(cout);
-}
-
 void multiplyMatrices(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -1416,75 +995,6 @@ void neighbors(GArgReader& args)
 	cout << "average neighbor distance = " << (sumAll / (pData->rows() * neighborCount)) << "\n";
 }
 
-void neuroPCA(GArgReader& args)
-{
-	// Load the file
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	int nTargetDims = args.pop_uint();
-
-	// Parse options
-	string roundTrip;
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	bool trainBias = true;
-	bool linear = false;
-	string eigenvalues = "";
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else if(args.if_pop("-clampbias"))
-			trainBias = false;
-		else if(args.if_pop("-linear"))
-			linear = true;
-		else if(args.if_pop("-eigenvalues"))
-			eigenvalues = args.pop_string();
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GRand prng(seed);
-	GNeuroPCA transform(nTargetDims, &prng);
-	if(!trainBias)
-		transform.clampBias();
-	if(linear)
-		transform.setActivation(new GActivationIdentity());
-	if(eigenvalues.length() > 0)
-		transform.computeEigVals();
-	GMatrix* pDataAfter = transform.doit(*pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-
-	// Save the eigenvalues
-	if(eigenvalues.length() > 0)
-	{
-		GArffRelation* pRelation = new GArffRelation();
-		pRelation->addAttribute("eigenvalues", 0, NULL);
-		sp_relation pRel = pRelation;
-		GMatrix dataEigenvalues(pRel);
-		dataEigenvalues.newRows(nTargetDims);
-		double* pEigVals = transform.eigVals();
-		for(int i = 0; i < nTargetDims; i++)
-			dataEigenvalues[i][0] = pEigVals[i];
-		dataEigenvalues.saveArff(eigenvalues.c_str());
-	}
-
-	// In linear mode, people usually expect normalized eigenvectors, so let's normalize them now
-	if(linear)
-	{
-		GMatrix* pWeights = transform.weights();
-		GAssert(pWeights->cols() == pData->cols());
-		for(int i = 0; i < nTargetDims; i++)
-		{
-			double scal = sqrt(GVec::squaredMagnitude(pWeights->row(i + 1), pWeights->cols()));
-			for(size_t j = 0; j < pDataAfter->rows(); j++)
-				pDataAfter->row(j)[i] *= scal;
-		}
-	}
-
-	pDataAfter->print(cout);
-}
-
 void nominalToCat(GArgReader& args)
 {
 	// Load the file
@@ -1525,76 +1035,6 @@ void powerColumns(GArgReader& args)
 			pRow[*it] = pow(pRow[*it], exponent);
 	}
 	pA->print(cout);
-}
-
-void principalComponentAnalysis(GArgReader& args)
-{
-	// Load the file
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	int nTargetDims = args.pop_uint();
-
-	// Parse options
-	string roundTrip;
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	string eigenvalues = "";
-	string components = "";
-	bool aboutOrigin = false;
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else if(args.if_pop("-roundtrip"))
-			roundTrip = args.pop_string();
-		else if(args.if_pop("-eigenvalues"))
-			eigenvalues = args.pop_string();
-		else if(args.if_pop("-components"))
-			components = args.pop_string();
-		else if(args.if_pop("-aboutorigin"))
-			aboutOrigin = true;
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GRand prng(seed);
-	GPCA transform(nTargetDims, &prng);
-	if(aboutOrigin)
-		transform.aboutOrigin();
-	if(eigenvalues.length() > 0)
-		transform.computeEigVals();
-	transform.train(*pData);
-	GMatrix* pDataAfter = transform.transformBatch(*pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-
-	// Save the eigenvalues
-	if(eigenvalues.length() > 0)
-	{
-		GArffRelation* pRelation = new GArffRelation();
-		pRelation->addAttribute("eigenvalues", 0, NULL);
-		sp_relation pRel = pRelation;
-		GMatrix dataEigenvalues(pRel);
-		dataEigenvalues.newRows(nTargetDims);
-		double* pEigVals = transform.eigVals();
-		for(int i = 0; i < nTargetDims; i++)
-			dataEigenvalues[i][0] = pEigVals[i];
-		dataEigenvalues.saveArff(eigenvalues.c_str());
-	}
-
-	// Save the components
-	if(components.length() > 0)
-		transform.components()->saveArff(components.c_str());
-
-	// Do the round-trip
-	if(roundTrip.size() > 0)
-	{
-		GMatrix roundTripped(pData->rows(), pData->cols());
-		for(size_t i = 0; i < pData->rows(); i++)
-			transform.untransform(pDataAfter->row(i), roundTripped.row(i));
-		roundTripped.saveArff(roundTrip.c_str());
-	}
-	
-	pDataAfter->print(cout);
 }
 
 void pseudoInverse(GArgReader& args)
@@ -1749,58 +1189,6 @@ void significance(GArgReader& args)
 	cout << "\n";
 }
 
-
-void selfOrganizingMap(GArgReader& args){
-  // Load the file
-  GMatrix* pData = loadData(args.pop_string());
-  Holder<GMatrix> hData(pData);
-
-  // Parse arguments
-  unsigned nDims = args.pop_uint();
-  unsigned nodesPerDim = args.pop_uint();
-
-  unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-  string toFile=""; //Write the resulting map to the given file
-  string fromFile=""; //Read the map from the given file rather than training
-  bool printProgress=false;//If true, write progress to stderr
-  double focusFactor = 1.0 - (1e-4);
-  double learningRate = 1e-2;
-  while(args.next_is_flag()){
-    if(args.if_pop("-tofile")){
-      toFile = args.pop_string();
-      ThrowError("Writing maps to a file is not implemented yet, sorry");
-    }else if(args.if_pop("-fromfile")){
-      fromFile = args.pop_string();
-      ThrowError("Reading maps from a file is not implemented yet, sorry");
-    }else if(args.if_pop("-seed")){
-      nSeed = args.pop_uint();
-    }else if(args.if_pop("-focusfactor")){
-      focusFactor = args.pop_double();
-    }else if(args.if_pop("-learningRate")){
-      learningRate = args.pop_double();
-    }else if(args.if_pop("-printprogress")){
-      printProgress = true;
-    }else{
-      ThrowError("Invalid option: ", args.peek());
-    }
-  }
-
-  GRand prng(nSeed);
-  GSelfOrganizingMap* som = new GSelfOrganizingMap(nDims, nodesPerDim, &prng);
-  som->learningRate(learningRate);
-  som->focusFactor(focusFactor);
-
-  //Train the map
-  GMatrix* map = som->makeMap(pData,0,printProgress);
-  Holder<GMatrix> hMap(map);
-
-  //Transform the data in place
-  GMatrix* out = som->doit(pData, map);
-  Holder<GMatrix> hOut(out);
-
-  //Print the result
-  out->print(cout);
-}
 
 void split(GArgReader& args)
 {
@@ -2114,220 +1502,6 @@ void transition(GArgReader& args)
 	pTransition->print(cout);
 }
 
-void ubpSparse(GArgReader& args)
-{
-	// Load the sparse matrix
-	GTwtDoc doc;
-	doc.load(args.pop_string());
-	GSparseMatrix* pData = new GSparseMatrix(doc.root());
-	Holder<GSparseMatrix> hData(pData);
-
-	// Target dims
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GUnsupervisedBackProp ubp(targetDims, &prng);
-	string modelIn;
-	string modelOut;
-	bool updateWeights = true;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else if(args.if_pop("-addlayer"))
-			ubp.neuralNet()->addLayer(args.pop_uint());
-		else if(args.if_pop("-learningrate"))
-			ubp.neuralNet()->setLearningRate(args.pop_double());
-		else if(args.if_pop("-activation"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else
-				ThrowError("Unrecognized activation function: ", szSF);
-			ubp.neuralNet()->setActivationFunction(pSF, true);
-		}
-		else if(args.if_pop("-modelin"))
-			modelIn = args.pop_string();
-		else if(args.if_pop("-modelout"))
-			modelOut = args.pop_string();
-		else if(args.if_pop("-noupdateweights"))
-			updateWeights = false;
-		else if(args.if_pop("-windowsize"))
-			ubp.neuralNet()->setWindowSize(args.pop_uint());
-		else if(args.if_pop("-improvementthresh"))
-			ubp.neuralNet()->setImprovementThresh(args.pop_double());
-		else if(args.if_pop("-normalize"))
-			ubp.normalize(true);
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Load the model
-	if(modelIn.length() > 0)
-	{
-		GTwtDoc doc;
-		doc.load(modelIn.c_str());
-		GNeuralNet* pNN = new GNeuralNet(doc.root(), &prng);
-		ubp.setNeuralNet(pNN);
-	}
-	ubp.setUpdateWeights(updateWeights);
-
-	// Transform the data
-	GMatrix* pDataAfter = ubp.doitSparse(pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-
-	// Save the model
-	if(modelOut.length() > 0)
-	{
-		GTwtDoc doc;
-		doc.setRoot(ubp.neuralNet()->toTwt(&doc));
-		doc.save(modelOut.c_str());
-	}
-}
-
-void ubpSystem(GArgReader& args)
-{
-	// Load the observations and actions
-	GMatrix* pObs = loadData(args.pop_string());
-	Holder<GMatrix> hObs(pObs);
-	GMatrix* pActions = loadData(args.pop_string());
-	Holder<GMatrix> hActions(pActions);
-
-	// Target dims
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GUnsupervisedBackProp ubp(targetDims, &prng);
-	vector<size_t> paramRanges;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else if(args.if_pop("-params"))
-		{
-			size_t paramDims = args.pop_uint();
-			for(size_t i = 0; i < paramDims; i++)
-				paramRanges.push_back(args.pop_uint());
-		}
-		else if(args.if_pop("-addlayer"))
-			ubp.neuralNet()->addLayer(args.pop_uint());
-		else if(args.if_pop("-learningrate"))
-			ubp.neuralNet()->setLearningRate(args.pop_double());
-		else if(args.if_pop("-activation"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else
-				ThrowError("Unrecognized activation function: ", szSF);
-			ubp.neuralNet()->setActivationFunction(pSF, true);
-		}
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GMatrix* pDataAfter = ubp.doitCameraSystem(paramRanges, pObs, pActions);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-
-void unsupervisedBackProp(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GUnsupervisedBackProp ubp(targetDims, &prng);
-	vector<size_t> paramRanges;
-	string roundTrip;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else if(args.if_pop("-addlayer"))
-			ubp.neuralNet()->addLayer(args.pop_uint());
-		else if(args.if_pop("-learningrate"))
-			ubp.neuralNet()->setLearningRate(args.pop_double());
-		else if(args.if_pop("-rate"))
-			ubp.setRate(args.pop_double());
-		else if(args.if_pop("-params"))
-		{
-			size_t paramDims = args.pop_uint();
-			for(size_t i = 0; i < paramDims; i++)
-				paramRanges.push_back(args.pop_uint());
-		}
-		else if(args.if_pop("-roundtrip"))
-			roundTrip = args.pop_string();
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-	ubp.setParams(paramRanges);
-
-	// Transform the data
-	GMatrix* pDataAfter = ubp.doit(*pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-
-	// Make round-trip data
-	if(roundTrip.size() > 0)
-	{
-		GMatrix high(pData->rows(), pData->cols());
-		for(size_t i = 0; i < pData->rows(); i++)
-			ubp.lowToHigh(pDataAfter->row(i), high.row(i));
-		high.saveArff(roundTrip.c_str());
-	}
-
-	pDataAfter->print(cout);
-}
-
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -2397,12 +1571,8 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("add")) addMatrices(args);
 		else if(args.if_pop("addindexcolumn")) AddIndexAttribute(args);
 		else if(args.if_pop("addnoise")) addNoise(args);
-		else if(args.if_pop("agglomerative")) agglomerativeclusterer(args);
 		else if(args.if_pop("align")) align(args);
-		else if(args.if_pop("attributeselector")) attributeSelector(args);
 		else if(args.if_pop("autocorrelation")) autoCorrelation(args);
-		else if(args.if_pop("blendembeddings")) blendEmbeddings(args);
-		else if(args.if_pop("breadthfirstunfolding")) breadthFirstUnfolding(args);
 		else if(args.if_pop("nominaltocat")) nominalToCat(args);
 		else if(args.if_pop("center")) center(args);
 		else if(args.if_pop("cholesky")) cholesky(args);
@@ -2416,23 +1586,14 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("enumeratevalues")) enumerateValues(args);
 		else if(args.if_pop("export")) Export(args);
 		else if(args.if_pop("fillmissingvalues")) fillMissingValues(args);
-		else if(args.if_pop("fuzzykmeans")) fuzzykmeans(args);
 		else if(args.if_pop("import")) Import(args);
-		else if(args.if_pop("isomap")) isomap(args);
-		else if(args.if_pop("kmeans")) kmeans(args);
-		else if(args.if_pop("kmedoids")) kmedoids(args);
-		else if(args.if_pop("lle")) lle(args);
-		else if(args.if_pop("manifoldsculpting")) ManifoldSculpting(args);
 		else if(args.if_pop("measuremeansquarederror")) MeasureMeanSquaredError(args);
 		else if(args.if_pop("mergehoriz")) mergeHoriz(args);
 		else if(args.if_pop("mergevert")) mergeVert(args);
-		else if(args.if_pop("multidimensionalscaling")) multiDimensionalScaling(args);
 		else if(args.if_pop("multiply")) multiplyMatrices(args);
 		else if(args.if_pop("multiplyscalar")) multiplyScalar(args);
 		else if(args.if_pop("normalize")) normalize(args);
 		else if(args.if_pop("neighbors")) neighbors(args);
-		else if(args.if_pop("neuropca")) neuroPCA(args);
-		else if(args.if_pop("pca")) principalComponentAnalysis(args);
 		else if(args.if_pop("powercolumns")) powerColumns(args);
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
@@ -2441,7 +1602,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("shiftcolumns")) shiftColumns(args);
 		else if(args.if_pop("shuffle")) Shuffle(args);
 		else if(args.if_pop("significance")) significance(args);
-		else if(args.if_pop("som")) selfOrganizingMap(args);
 		else if(args.if_pop("sortcolumn")) SortByAttribute(args);
 		else if(args.if_pop("split")) split(args);
 		else if(args.if_pop("splitfold")) splitFold(args);
@@ -2451,9 +1611,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("threshold")) threshold(args);
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
-		else if(args.if_pop("ubpsparse")) ubpSparse(args);
-		else if(args.if_pop("ubpsystem")) ubpSystem(args);
-		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
 		else if(args.if_pop("zeromean")) zeroMean(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}

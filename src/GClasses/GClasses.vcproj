@@ -1434,6 +1434,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GTokenizer.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GTokenizer.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GTransform.cpp"
 			>
 		</File>

@@ -931,7 +931,11 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 				if(c >= '0' && c <= '9')
 				{
 					const char* szTok = tok.next(" ,\t}\n");
+#ifdef WIN32
+					size_t col = (size_t)_strtoui64(szTok, (char**)NULL, 10);
+#else
 					size_t col = strtoull(szTok, (char**)NULL, 10);
+#endif
 					if(col >= cols)
 						ThrowError("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 					tok.skip(" \t");

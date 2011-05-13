@@ -3,7 +3,7 @@
 	ProjectType="Visual C++"
 	Version="9.00"
 	Name="waffles_cluster"
-	ProjectGUID="{CBEE00FD-5CE6-4887-A747-2CC067A9A912}"
+	ProjectGUID="{78AC57EA-2E80-46D6-B6A0-70782121B688}"
 	TargetFrameworkVersion="131072"
 	>
 	<Platforms>

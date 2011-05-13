@@ -52,6 +52,18 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_sparse", "sparse\wa
 		{E9F67748-E716-4F28-B096-44343A8E28B3} = {E9F67748-E716-4F28-B096-44343A8E28B3}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_cluster", "cluster\waffles_cluster.vcproj", "{78AC57EA-2E80-46D6-B6A0-70782121B688}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E6D35C32-5186-46DA-AF85-6CACA5A57AE1} = {E6D35C32-5186-46DA-AF85-6CACA5A57AE1}
+		{E9F67748-E716-4F28-B096-44343A8E28B3} = {E9F67748-E716-4F28-B096-44343A8E28B3}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_dimred", "dimred\waffles_dimred.vcproj", "{79ED338B-3091-4AD6-87F6-B62FC8DD7C29}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E6D35C32-5186-46DA-AF85-6CACA5A57AE1} = {E6D35C32-5186-46DA-AF85-6CACA5A57AE1}
+		{E9F67748-E716-4F28-B096-44343A8E28B3} = {E9F67748-E716-4F28-B096-44343A8E28B3}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -98,6 +110,14 @@ Global
 		{29C0BCC7-5A48-4643-A8E1-628380C46A05}.Debug|Win32.Build.0 = Debug|Win32
 		{29C0BCC7-5A48-4643-A8E1-628380C46A05}.Release|Win32.ActiveCfg = Release|Win32
 		{29C0BCC7-5A48-4643-A8E1-628380C46A05}.Release|Win32.Build.0 = Release|Win32
+		{78AC57EA-2E80-46D6-B6A0-70782121B688}.Debug|Win32.ActiveCfg = Debug|Win32
+		{78AC57EA-2E80-46D6-B6A0-70782121B688}.Debug|Win32.Build.0 = Debug|Win32
+		{78AC57EA-2E80-46D6-B6A0-70782121B688}.Release|Win32.ActiveCfg = Release|Win32
+		{78AC57EA-2E80-46D6-B6A0-70782121B688}.Release|Win32.Build.0 = Release|Win32
+		{79ED338B-3091-4AD6-87F6-B62FC8DD7C29}.Debug|Win32.ActiveCfg = Debug|Win32
+		{79ED338B-3091-4AD6-87F6-B62FC8DD7C29}.Debug|Win32.Build.0 = Debug|Win32
+		{79ED338B-3091-4AD6-87F6-B62FC8DD7C29}.Release|Win32.ActiveCfg = Release|Win32
+		{79ED338B-3091-4AD6-87F6-B62FC8DD7C29}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
