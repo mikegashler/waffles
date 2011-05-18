@@ -252,6 +252,12 @@ public:
 	/// See the comment for GCollaborativeFilter::impute
 	virtual void impute(double* pVec);
 
+	/// Returns the matrix of user preference vectors
+	GMatrix* getP() { return m_pP; }
+
+	/// Returns the matrix of item weight vectors
+	GMatrix* getQ() { return m_pQ; }
+
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
 	double validate(std::vector<Rating*>& data);
@@ -259,7 +265,7 @@ protected:
 
 
 
-/// This class trains a generative neural network to fit the sparse matrix
+/// This class trains a neural network to fit the sparse matrix
 /// of ratings. This may be seen as a non-linear generalization of matrix
 /// factorization.
 class GNeuralRecommender : public GCollaborativeFilter

@@ -569,7 +569,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 		m_attrs.resize(index + 1);
 		while(true)
 		{
-			tok.next(",}\n");
+			tok.nextUntil(",}\n");
 			const char* szVal = tok.trim();
 			if(*szVal == '\0')
 				ThrowError("Empty value specified on line ", to_str(tok.line()));
@@ -597,7 +597,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 	}
 	else
 	{
-		const char* szType = tok.next();
+		const char* szType = tok.nextUntil();
 		if(	_stricmp(szType, "CONTINUOUS") == 0 ||
 			_stricmp(szType, "REAL") == 0 ||
 			_stricmp(szType, "NUMERIC") == 0 ||
@@ -884,13 +884,13 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 		else if(c == '@')
 		{
 			tok.advance(1);
-			const char* szTok = tok.next();
+			const char* szTok = tok.nextUntil();
 			if(_stricmp(szTok, "ATTRIBUTE") == 0)
 				pRelation->parseAttribute(tok);
 			else if(_stricmp(szTok, "RELATION") == 0)
 			{
 				tok.skip(" \t");
-				pRelation->setName(tok.next("\n"));
+				pRelation->setName(tok.nextUntil("\n", 0));
 				tok.advance(1);
 			}
 			else if(_stricmp(szTok, "DATA") == 0)
@@ -930,7 +930,7 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 				char c = tok.peek();
 				if(c >= '0' && c <= '9')
 				{
-					const char* szTok = tok.next(" ,\t}\n");
+					const char* szTok = tok.nextUntil(" ,\t}\n");
 #ifdef WIN32
 					size_t col = (size_t)_strtoui64(szTok, (char**)NULL, 10);
 #else
@@ -939,7 +939,7 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 					if(col >= cols)
 						ThrowError("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 					tok.skip(" \t");
-					const char* szVal = tok.next(", \t}\n");
+					const char* szVal = tok.nextUntil(", \t}\n");
 					pRow[col] = GMatrix_parseValue(pRelation, col, szVal, tok);
 					tok.skipTo(",}\t\n");
 					c = tok.peek();
@@ -965,7 +965,7 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			{
 				if(col >= cols)
 					ThrowError("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-				tok.next(",\n\t");
+				tok.nextUntil(",\n\t", 0);
 				const char* szVal = tok.trim();
 				*pRow = GMatrix_parseValue(pRelation, col, szVal, tok);
 				pRow++;

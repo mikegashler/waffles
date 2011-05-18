@@ -108,6 +108,47 @@ void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6
 	ThrowError(s);
 }
 
+void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6, string s7, string s8)
+{
+	string s = s1;
+	s += s2;
+	s += s3;
+	s += s4;
+	s += s5;
+	s += s6;
+	s += s7;
+	s += s8;
+	ThrowError(s);
+}
+
+void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6, string s7, string s8, string s9)
+{
+	string s = s1;
+	s += s2;
+	s += s3;
+	s += s4;
+	s += s5;
+	s += s6;
+	s += s7;
+	s += s8;
+	s += s9;
+	ThrowError(s);
+}
+
+void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6, string s7, string s8, string s9, string s10)
+{
+	string s = s1;
+	s += s2;
+	s += s3;
+	s += s4;
+	s += s5;
+	s += s6;
+	s += s7;
+	s += s8;
+	s += s9;
+	s += s10;
+	ThrowError(s);
+}
 
 
 

@@ -66,6 +66,9 @@ void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4);
 void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5);
 void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6);
 void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6, std::string s7);
+void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6, std::string s7, std::string s8);
+void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6, std::string s7, std::string s8, std::string s9);
+void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6, std::string s7, std::string s8, std::string s9, std::string s10);
 
 
 

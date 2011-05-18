@@ -13,13 +13,29 @@
 #define __GTOKENIZER_H__
 
 #include <istream>
+#include <map>
 
 namespace GClasses {
 
+class GCharGroup;
+
 /// This is a simple tokenizer that reads a file, one token at-a-time.
+/// Several of the methods in this class require a string of
+/// characters to be supplied as a parameter. These are simply an un-ordered
+/// set of characters (with no separator between them). The only special
+/// character is '-', which is used to indicate a range of characters if it
+/// is not the first character in the string. (So, if you want '-' in your
+/// set of characters, it should come first.) For example, this
+/// string includes all letters: "a-zA-Z", and this string includes all
+/// characters that might appear in a floating-point number: "-.,0-9e".
+/// (There is no way to include '\0' as a delimeter, since that character
+/// indicates the end of the string, but that is okay since '\0' should
+/// not occur in text files anyway, and this class is designed for parsing
+/// text files.)
 class GTokenizer
 {
 protected:
+	std::map<std::string,GCharGroup*> m_charGroups;
 	char* m_pBufStart;
 	char* m_pBufPos;
 	char* m_pBufEnd;
@@ -44,26 +60,18 @@ public:
 	/// occur in a text file.)
 	char peek();
 
-	/// This method skips past any characters in the string szDelimeters, then it
-	/// reads a token until the next character would be a delimeter. If szDelimeters
-	/// is NULL, then any characters <= ' ' are considered to be delimeters.
-	/// A pointer to the buffered and null-terminated token is returned. NULL is
-	/// returned if the end-of-file is reached. (Calling this method is
-	/// the same as a call to skip, followed by a call to next, passing szDelimeters
-	/// to both calls.)
-	const char* nextTok(const char* szDelimeters = NULL);
-
-	/// Reads until the next character is one of the specified delimeters.
-	/// If szDelimeters is NULL, then any characters <= ' ' are considered
-	/// to be delimeters. (The delimeter character is not read. Hence, it is typical
-	/// to call skip before or after calling this method to advance past the delimeter.
-	/// Repeatedly calling next will just stay in the same place and return
-	/// empty tokens because it will never move past the delimeter. The nextTok
-	/// method is provided for convenience to call both of these methods.)
+	/// Reads until the next character would be one of the specified delimeters.
+	/// The delimeter character is not read. Throws an exception if fewer than
+	/// minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	/// This method returns NULL if there are no more tokens in the file.
-	const char* next(const char* szDelimeters = NULL);
+	const char* nextUntil(const char* szDelimeters = "\t\n\r ", size_t minLen = 1);
+
+	/// Reads while the character is one of the specified characters. Throws an
+	/// exception if fewer than minLen characters are read.
+	/// The token returned by this method will have been copied into an
+	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
+	const char* nextWhile(const char* szSet = "-_a-zA-Z0-9", size_t minLen = 1);
 
 	/// Returns the next token delimited by whitespace or a '{' character.
 	/// If the next token begins
@@ -76,20 +84,27 @@ public:
 
 	/// Reads past any characters specified in the list of delimeters.
 	/// If szDelimeters is NULL, then any characters <= ' ' are considered
-	/// to be delimeters.
-	void skip(const char* szDelimeters = NULL);
+	/// to be delimeters. (This method is similar to nextWhile, except that
+	/// it does not buffer the characters it reads.)
+	void skip(const char* szDelimeters = "\t\n\r ");
+
+	/// Skip until the next character is one of the delimeters.
+	/// (This method is the same as nextUntil, except that it does not buffer what it reads.)
+	void skipTo(const char* szDelimeters = "\t\n\r ");
 
 	/// Advances past the next 'n' characters. (Stops if the end-of-file is reached.)
 	void advance(size_t n);
-
-	/// Skip until the next character is one of the delimeters.
-	/// (This method is the same as next, except that it does not buffer what it reads.)
-	void skipTo(const char* szDelimeters = NULL);
 
 	/// Reads past the specified string of characters. If the characters
 	/// that are read from the file do not exactly match those in the string,
 	/// an exception is thrown.
 	void expect(const char* szString);
+
+	/// Returns the previously-returned token, except with any of the specified characters
+	/// trimmed off of both the beginning and end of the token. For example, if the last
+	/// token that was returned was "  tok  ", then this will return "tok".
+	/// (Calling this method will not change the value returned by tokenLength.)
+	const char* trim(const char* szSet = "\t\n\r ");
 
 	/// Returns the current line number. (Begins at 1. Each time a '\n' is encountered,
 	/// the line number is incremented. Mac line-endings do not increment the
@@ -106,14 +121,11 @@ public:
 	/// Returns the length of the last token that was returned.
 	size_t tokenLength();
 
-	/// Returns the previously-returned token, except with whitespace trimmed
-	/// off of both the beginning and end of the token. For example, if the last
-	/// token that was returned was "  tok  ", then this will return "tok".
-	/// (Calling this method will not change the value returned by tokenLength.)
-	const char* trim();
-
 protected:
+	GCharGroup* getCharGroup(const char* szChars);
 	void growBuf();
+	char get();
+	void bufferChar(char c);
 };
 
 } // namespace GClasses

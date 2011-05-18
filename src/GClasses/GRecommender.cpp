@@ -955,6 +955,143 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 	if(pData->defaultValue() != UNKNOWN_REAL_VALUE)
 		ThrowError("Expected the default value to be UNKNOWN_REAL_VALUE");
 
+	// Use Matrix-factorization to compute the user preference vectors
+	GMatrixFactorization mf(m_intrinsicDims - 1, *m_pRand);
+	mf.trainBatch(pData);
+	m_pUsers = mf.getP()->clone();
+
+	// Prep the model for incremental training
+	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
+	sp_relation pLabelRel = new GUniformRelation(pData->cols());
+	m_pModel->setUseInputBias(true);
+	m_pModel->enableIncrementalLearning(pFeatureRel, pLabelRel);
+
+	// Make a single list of all the ratings
+	GHeap heap(2048);
+	vector<Rating*> ratings;
+	GMatrixFactorization_sparseMatrixToRatings(*pData, heap, ratings, *m_pRand);
+
+	// Normalize the ratings
+	m_pMins = new double[pData->cols()];
+	m_pMaxs = new double[pData->cols()];
+	GVec::setAll(m_pMins, 1e200, pData->cols());
+	GVec::setAll(m_pMaxs, -1e200, pData->cols());
+	for(vector<Rating*>::iterator it = ratings.begin(); it != ratings.end(); it++)
+	{
+		Rating* pRating = *it;
+		m_pMins[pRating->m_item] = std::min(m_pMins[pRating->m_item], pRating->m_rating);
+		m_pMaxs[pRating->m_item] = std::max(m_pMaxs[pRating->m_item], pRating->m_rating);
+	}
+	for(size_t i = 0; i < pData->cols(); i++)
+	{
+		if(m_pMins[i] >= 1e200)
+			m_pMins[i] = 0.0;
+		if(m_pMaxs[i] < m_pMins[i] + 1e-12)
+			m_pMaxs[i] = m_pMins[i] + 1.0;
+	}
+	for(vector<Rating*>::iterator it = ratings.begin(); it != ratings.end(); it++)
+	{
+		Rating* pRating = *it;
+		pRating->m_rating = (pRating->m_rating - m_pMins[pRating->m_item]) / (m_pMaxs[pRating->m_item] - m_pMins[pRating->m_item]);
+	}
+
+	// Train
+double regularizer = 0.0015;
+	double* pBestWeights = NULL;
+	size_t weightCount = m_pModel->countWeights();
+	double prevErr = 1e308;
+	double bestErr = 1e308;
+	double learningRate = 0.1;
+	while(learningRate >= 0.001)
+	{
+		// Shuffle the ratings
+		for(size_t n = ratings.size(); n > 0; n--)
+			std::swap(ratings[(size_t)m_pRand->next(n)], ratings[n - 1]);
+
+		// Do an epoch of training
+		m_pModel->setLearningRate(learningRate);
+		for(vector<Rating*>::iterator it = ratings.begin(); it != ratings.end(); it++)
+		{
+			Rating* pRating = *it;
+			double* pUserPreferenceVector = m_pUsers->row(pRating->m_user);
+			m_pModel->forwardPropSingleOutput(pUserPreferenceVector, pRating->m_item);
+			m_pModel->setErrorSingleOutput(pRating->m_rating, pRating->m_item, m_pModel->backPropTargetFunction());
+			m_pModel->backProp()->backpropagateSingleOutput(pRating->m_item);
+m_pModel->decayWeightsSingleOutput(pRating->m_item, regularizer);
+			m_pModel->backProp()->descendGradientSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->momentum(), m_pModel->useInputBias());
+		}
+
+		// Stopping criteria
+		double rsse = sqrt(validate(ratings));
+		if(rsse < bestErr)
+		{
+			bestErr = rsse;
+			if(!pBestWeights);
+				pBestWeights = new double[weightCount];
+			m_pModel->weights(pBestWeights);
+		}
+		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.00001) // If the amount of improvement is less than 0.001%
+			learningRate *= 0.7; // decay the learning rate
+		prevErr = rsse;
+	}
+
+	// Now refine both item weights and user preferences
+	GMatrix* pBestUsers = m_pUsers->clone();
+	learningRate = 0.01;
+	while(learningRate >= 0.0005)
+	{
+		// Shuffle the ratings
+		for(size_t n = ratings.size(); n > 0; n--)
+			std::swap(ratings[(size_t)m_pRand->next(n)], ratings[n - 1]);
+
+		// Do an epoch of training
+		m_pModel->setLearningRate(learningRate);
+		for(vector<Rating*>::iterator it = ratings.begin(); it != ratings.end(); it++)
+		{
+			Rating* pRating = *it;
+			double* pUserPreferenceVector = m_pUsers->row(pRating->m_user);
+			m_pModel->forwardPropSingleOutput(pUserPreferenceVector, pRating->m_item);
+			m_pModel->setErrorSingleOutput(pRating->m_rating, pRating->m_item, m_pModel->backPropTargetFunction());
+			m_pModel->backProp()->backpropagateSingleOutput(pRating->m_item);
+m_pModel->decayWeightsSingleOutput(pRating->m_item, regularizer);
+			m_pModel->backProp()->descendGradientSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->momentum(), m_pModel->useInputBias());
+GVec::multiply(pUserPreferenceVector, 1.0 - learningRate * regularizer, m_intrinsicDims);
+			m_pModel->backProp()->adjustFeaturesSingleOutput(pRating->m_item, pUserPreferenceVector, learningRate, m_pModel->useInputBias());
+//			GVec::floorValues(pUserPreferenceVector, floor, m_intrinsicDims);
+//			GVec::capValues(pUserPreferenceVector, cap, m_intrinsicDims);
+		}
+
+		// Stopping criteria
+		double rsse = sqrt(validate(ratings));
+		if(rsse < bestErr)
+		{
+			bestErr = rsse;
+			delete(pBestUsers);
+			pBestUsers = m_pUsers->clone();
+			if(!pBestWeights)
+				pBestWeights = new double[weightCount];
+			m_pModel->weights(pBestWeights);
+		}
+		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.00001) // If the amount of improvement is less than 0.01%
+			learningRate *= 0.7; // decay the learning rate
+		prevErr = rsse;
+	}
+
+	if(pBestWeights)
+	{
+		m_pModel->setWeights(pBestWeights);
+		delete[] pBestWeights;
+		delete(m_pUsers);
+		m_pUsers = pBestUsers;
+	}
+}
+/*
+// virtual
+void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
+{
+	if(pData->defaultValue() != UNKNOWN_REAL_VALUE)
+		ThrowError("Expected the default value to be UNKNOWN_REAL_VALUE");
+
 	// Initialize the user preference vectors
 	m_pUsers->flush();
 	m_pUsers->newRows(pData->rows());
@@ -1040,9 +1177,9 @@ GVec::multiply(pUserPreferenceVector, 1.0 - learningRate * regularizer, m_intrin
 		{
 			bestErr = rsse;
 			delete(pBestUsers);
-			delete[] pBestWeights;
 			pBestUsers = m_pUsers->clone();
-			pBestWeights = new double[weightCount];
+			if(!pBestWeights)
+				pBestWeights = new double[weightCount];
 			m_pModel->weights(pBestWeights);
 		}
 		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.00001) // If the amount of improvement is less than 0.01%
@@ -1057,7 +1194,7 @@ GVec::multiply(pUserPreferenceVector, 1.0 - learningRate * regularizer, m_intrin
 		delete[] pBestWeights;
 	}
 }
-
+*/
 // virtual
 double GNeuralRecommender::predict(size_t user, size_t item)
 {

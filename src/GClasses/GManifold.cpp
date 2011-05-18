@@ -1838,7 +1838,7 @@ void GNeuroPCA::computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatri
 		pWeights[i] = 0.1 * m_pRand->normal();
 	size_t* pIndexes = new size_t[pOut->rows()];
 	GIndexVec::makeIndexVec(pIndexes, pOut->rows());
-	double learningRate = 0.1;
+	double learningRate = 0.05;
 	double prevRsse = 1e100;
 //char buf[64];
 	while(true)
@@ -1889,7 +1889,7 @@ void GNeuroPCA::computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatri
 //cout << "learningRate=" << learningRate << ", rsse=" << rsse << ", time=" << GTime::asciiTime(buf, 64) << "\n";
 		if((prevRsse - rsse) / prevRsse < 0.0001)
 		{
-			if(learningRate < 0.0001)
+			if(learningRate < 0.00005)
 				break;
 			learningRate *= 0.5;
 		}

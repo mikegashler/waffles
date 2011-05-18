@@ -14,13 +14,56 @@
 #include "GHolders.h"
 #include "GFile.h"
 #include "GString.h"
+#include "GBitTable.h"
 #include <stdio.h>
 #include <string.h>
 #include <fstream>
 
 using std::string;
+using std::map;
+using std::string;
 
 namespace GClasses {
+
+
+class GCharGroup
+{
+protected:
+	GBitTable m_bt;
+
+public:
+	GCharGroup(const char* szChars)
+	: m_bt(256)
+	{
+		char c = '\0';
+		while(*szChars != '\0')
+		{
+			if(*szChars == '-')
+			{
+				if(c == '\0')
+					m_bt.set(*szChars);
+				else
+				{
+					char d = szChars[1];
+					if(d <= c)
+						ThrowError("invalid character range");
+					for(c++; c <= d && c != 0; c++)
+						m_bt.set(c);
+					szChars++;
+				}
+			}
+			else
+				m_bt.set(*szChars);
+			c = *szChars;
+			szChars++;
+		}
+	}
+
+	bool find(char c)
+	{
+		return m_bt.bit(c);
+	}
+};
 
 
 GTokenizer::GTokenizer(const char* szFilename)
@@ -75,6 +118,19 @@ GTokenizer::~GTokenizer()
 	delete(m_pStream);
 }
 
+GCharGroup* GTokenizer::getCharGroup(const char* szChars)
+{
+	map<string,GCharGroup*>::iterator it = m_charGroups.find(szChars);
+	if(it == m_charGroups.end())
+	{
+		GCharGroup* pCharGroup = new GCharGroup(szChars);
+		m_charGroups.insert(std::pair<string,GCharGroup*>(szChars, pCharGroup));
+		return pCharGroup;
+	}
+	else
+		return it->second;
+}
+
 void GTokenizer::growBuf()
 {
 	size_t len = m_pBufEnd - m_pBufStart;
@@ -86,122 +142,88 @@ void GTokenizer::growBuf()
 	m_pBufStart = pNewBuf;
 }
 
-const char* GTokenizer::next(const char* szDelimeters)
+char GTokenizer::get()
 {
+	char c = m_pStream->get();
+	m_len--;
+	if(c == '\n')
+	{
+		m_line++;
+		m_lineStart = m_len;
+	}
+	return c;
+}
+
+void GTokenizer::bufferChar(char c)
+{
+	if(m_pBufPos == m_pBufEnd)
+		growBuf();
+	*m_pBufPos = c;
+	m_pBufPos++;
+}
+
+const char* GTokenizer::nextUntil(const char* szDelimeters, size_t minLen)
+{
+	GCharGroup* pCG = getCharGroup(szDelimeters);
 	m_pBufPos = m_pBufStart;
 	while(m_len > 0)
 	{
 		char c = m_pStream->peek();
-		bool isDelimeter = false;
-		if(szDelimeters)
-		{
-			for(const char* pDel = szDelimeters; *pDel != '\0'; pDel++)
-			{
-				if(c == *pDel)
-				{
-					isDelimeter = true;
-					break;
-				}
-			}
-		}
-		else
-		{
-			if(c <= ' ')
-				isDelimeter = true;
-		}
-		if(isDelimeter)
+		if(pCG->find(c))
 			break;
-		c = m_pStream->get();
-		m_len--;
-		if(c == '\n')
-		{
-			m_line++;
-			m_lineStart = m_len;
-		}
-		if(m_pBufPos == m_pBufEnd)
-			growBuf();
-		*m_pBufPos = c;
-		m_pBufPos++;
+		c = get();
+		bufferChar(c);
 	}
+	if((size_t)(m_pBufPos - m_pBufStart) < minLen)
+		ThrowError("Expected at least ", to_str(minLen), " character", minLen == 1 ? "" : "s", " in the set \"", szDelimeters, "\" at line ", to_str(m_line), ", col ", to_str(col()));
 	if(m_pBufPos == m_pBufEnd)
 		growBuf();
-	GAssert(m_pBufPos != m_pBufStart); // Empty token! Did you forget to skip past the delimeter after the previous call to next?
+	*m_pBufPos = '\0';
+	return m_pBufStart;
+}
+
+const char* GTokenizer::nextWhile(const char* szSet, size_t minLen)
+{
+	GCharGroup* pCG = getCharGroup(szSet);
+	m_pBufPos = m_pBufStart;
+	while(m_len > 0)
+	{
+		char c = m_pStream->peek();
+		if(!pCG->find(c))
+			break;
+		c = get();
+		bufferChar(c);
+	}
+	if((size_t)(m_pBufPos - m_pBufStart) < minLen)
+		ThrowError("Expected at least ", to_str(minLen), " character", minLen == 1 ? "" : "s", " in the set \"", szSet, "\" at line ", to_str(m_line), ", col ", to_str(col()));
+	if(m_pBufPos == m_pBufEnd)
+		growBuf();
 	*m_pBufPos = '\0';
 	return m_pBufStart;
 }
 
 void GTokenizer::skip(const char* szDelimeters)
 {
+	GCharGroup* pCG = getCharGroup(szDelimeters);
 	while(m_len > 0)
 	{
 		char c = m_pStream->peek();
-		bool isDelimeter = false;
-		if(szDelimeters)
-		{
-			for(const char* pDel = szDelimeters; *pDel != '\0'; pDel++)
-			{
-				if(c == *pDel)
-				{
-					isDelimeter = true;
-					break;
-				}
-			}
-		}
-		else
-		{
-			if(c <= ' ')
-				isDelimeter = true;
-		}
-		if(!isDelimeter)
+		if(!pCG->find(c))
 			break;
-		c = m_pStream->get();
-		m_len--;
-		if(c == '\n')
-		{
-			m_line++;
-			m_lineStart = m_len;
-		}
+		c = get();
 	}
 }
 
 void GTokenizer::skipTo(const char* szDelimeters)
 {
+	GCharGroup* pCG = getCharGroup(szDelimeters);
 	while(m_len > 0)
 	{
 		char c = m_pStream->peek();
-		bool isDelimeter = false;
-		if(szDelimeters)
-		{
-			for(const char* pDel = szDelimeters; *pDel != '\0'; pDel++)
-			{
-				if(c == *pDel)
-				{
-					isDelimeter = true;
-					break;
-				}
-			}
-		}
-		else
-		{
-			if(c <= ' ')
-				isDelimeter = true;
-		}
-		if(isDelimeter)
+		if(pCG->find(c))
 			break;
-		c = m_pStream->get();
-		m_len--;
-		if(c == '\n')
-		{
-			m_line++;
-			m_lineStart = m_len;
-		}
+		c = get();
 	}
-}
-
-const char* GTokenizer::nextTok(const char* szDelimeters)
-{
-	skip(szDelimeters);
-	return next(szDelimeters);
 }
 
 const char* GTokenizer::nextArg()
@@ -210,7 +232,7 @@ const char* GTokenizer::nextArg()
 	if(c == '"')
 	{
 		advance(1);
-		next("\"\n");
+		nextUntil("\"\n");
 		if(peek() != '"')
 			ThrowError("Expected matching double-quotes on line ", to_str(m_line), ", col ", to_str(col()));
 		advance(1);
@@ -219,27 +241,21 @@ const char* GTokenizer::nextArg()
 	else if(c == '\'')
 	{
 		advance(1);
-		next("'\n");
+		nextUntil("'\n");
 		if(peek() != '\'')
 			ThrowError("Expected a matching single-quote on line ", to_str(m_line), ", col ", to_str(col()));
 		advance(1);
 		return m_pBufStart;
 	}
 	else
-		return next(" \t\n{\r");
+		return nextUntil(" \t\n{\r");
 }
 
 void GTokenizer::advance(size_t n)
 {
 	while(n > 0 && m_len > 0)
 	{
-		char c = m_pStream->get();
-		m_len--;
-		if(c == '\n')
-		{
-			m_line++;
-			m_lineStart = m_len;
-		}
+		get();
 		n--;
 	}
 }
@@ -266,13 +282,7 @@ void GTokenizer::expect(const char* szString)
 {
 	while(*szString != '\0' && m_len > 0)
 	{
-		char c = m_pStream->get();
-		m_len--;
-		if(c == '\n')
-		{
-			m_line++;
-			m_lineStart = m_len;
-		}
+		char c = get();
 		if(c != *szString)
 			ThrowError("Expected \"", szString, "\" on line ", to_str(m_line), ", col ", to_str(col()));
 		szString++;
@@ -284,12 +294,13 @@ size_t GTokenizer::tokenLength()
 	return m_pBufPos - m_pBufStart;
 }
 
-const char* GTokenizer::trim()
+const char* GTokenizer::trim(const char* szSet)
 {
+	GCharGroup* pCG = getCharGroup(szSet);
 	const char* pStart = m_pBufStart;
-	while(pStart < m_pBufPos && *pStart <= ' ')
+	while(pStart < m_pBufPos && pCG->find(*pStart))
 		pStart++;
-	for(char* pEnd = m_pBufPos - 1; pEnd >= pStart && *pEnd <= ' '; pEnd--)
+	for(char* pEnd = m_pBufPos - 1; pEnd >= pStart && pCG->find(*pEnd); pEnd--)
 		*pEnd = '\0';
 	return pStart;
 }
