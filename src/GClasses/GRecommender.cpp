@@ -1026,7 +1026,7 @@ m_pModel->decayWeightsSingleOutput(pRating->m_item, regularizer);
 		if(rsse < bestErr)
 		{
 			bestErr = rsse;
-			if(!pBestWeights);
+			if(!pBestWeights)
 				pBestWeights = new double[weightCount];
 			m_pModel->weights(pBestWeights);
 		}

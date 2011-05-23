@@ -437,6 +437,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GDom.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GDom.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GEnsemble.cpp"
 			>
 		</File>
@@ -1447,14 +1455,6 @@
 		</File>
 		<File
 			RelativePath=".\GTransform.h"
-			>
-		</File>
-		<File
-			RelativePath=".\GTwt.cpp"
-			>
-		</File>
-		<File
-			RelativePath=".\GTwt.h"
 			>
 		</File>
 		<File
