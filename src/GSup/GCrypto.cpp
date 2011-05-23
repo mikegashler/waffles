@@ -115,7 +115,7 @@ public:
 	void shuffleBytes(unsigned char* pBuf, size_t len)
 	{
 		for(size_t i = len; i > 1; i--)
-			std::swap(pBuf[(size_t)m_rand.next() % i], pBuf[i - 1]);
+			std::swap(pBuf[(size_t)m_rand.next(i)], pBuf[i - 1]);
 	}
 
 	void wipe(unsigned char* pBuf, size_t len)
