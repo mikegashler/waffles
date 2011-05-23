@@ -15,7 +15,7 @@
 #include "GError.h"
 #include "GVec.h"
 #include "GHeap.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GImage.h"
 #include "GNeuralNet.h"
 #include "GKNN.h"
@@ -445,14 +445,14 @@ GSupervisedLearner::GSupervisedLearner()
 {
 }
 
-GSupervisedLearner::GSupervisedLearner(GTwtNode* pNode, GRand& rand)
+GSupervisedLearner::GSupervisedLearner(GDomNode* pNode, GRand& rand)
 : GTransducer(), m_pFeatureFilter(NULL), m_pLabelFilter(NULL)
 {
 	GLearnerLoader ll;
-	GTwtNode* pFeatureFilter = pNode->fieldIfExists("ff");
+	GDomNode* pFeatureFilter = pNode->fieldIfExists("ff");
 	if(pFeatureFilter)
 		m_pFeatureFilter = ll.loadTwoWayIncrementalTransform(pFeatureFilter, &rand);
-	GTwtNode* pLabelFilter = pNode->fieldIfExists("lf");
+	GDomNode* pLabelFilter = pNode->fieldIfExists("lf");
 	if(pLabelFilter)
 		m_pLabelFilter = ll.loadTwoWayIncrementalTransform(pLabelFilter, &rand);
 	m_featureDims = (size_t)pNode->field("fd")->asInt();
@@ -465,14 +465,14 @@ GSupervisedLearner::~GSupervisedLearner()
 	delete(m_pLabelFilter);
 }
 
-GTwtNode* GSupervisedLearner::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
+GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
 	if(m_pFeatureFilter)
-		pNode->addField(pDoc, "ff", m_pFeatureFilter->toTwt(pDoc));
+		pNode->addField(pDoc, "ff", m_pFeatureFilter->serialize(pDoc));
 	if(m_pLabelFilter)
-		pNode->addField(pDoc, "lf", m_pLabelFilter->toTwt(pDoc));
+		pNode->addField(pDoc, "lf", m_pLabelFilter->serialize(pDoc));
 	pNode->addField(pDoc, "fd", pDoc->newInt(m_featureDims));
 	pNode->addField(pDoc, "ld", pDoc->newInt(m_labelDims));
 	return pNode;
@@ -935,8 +935,8 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 
 	// Roundtrip the model through serialization
 	size_t labelDimsBefore = pLearner->labelDims();
-	GTwtDoc doc;
-	doc.setRoot(pLearner->toTwt(&doc));
+	GDom doc;
+	doc.setRoot(pLearner->serialize(&doc));
 	pLearner->clear(); // free up some memory, just because we can
 	GLearnerLoader ll;
 	GSupervisedLearner* pModel = ll.loadModeler(doc.root(), pRand);
@@ -1022,7 +1022,7 @@ void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, GRa
 // ---------------------------------------------------------------
 
 // virtual
-GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GTwtNode* pNode, GRand* pRand)
+GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode, GRand* pRand)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(szClass[0] == 'G')
@@ -1046,7 +1046,7 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GTwtNode* pNode,
 }
 
 // virtual
-GTwoWayIncrementalTransform* GLearnerLoader::loadTwoWayIncrementalTransform(GTwtNode* pNode, GRand* pRand)
+GTwoWayIncrementalTransform* GLearnerLoader::loadTwoWayIncrementalTransform(GDomNode* pNode, GRand* pRand)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(szClass[0] == 'G')
@@ -1064,7 +1064,7 @@ GTwoWayIncrementalTransform* GLearnerLoader::loadTwoWayIncrementalTransform(GTwt
 }
 
 // virtual
-GSupervisedLearner* GLearnerLoader::loadModeler(GTwtNode* pNode, GRand* pRand)
+GSupervisedLearner* GLearnerLoader::loadModeler(GDomNode* pNode, GRand* pRand)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(szClass[0] == 'G')
@@ -1110,7 +1110,7 @@ GSupervisedLearner* GLearnerLoader::loadModeler(GTwtNode* pNode, GRand* pRand)
 }
 
 // virtual
-GIncrementalLearner* GLearnerLoader::loadIncrementalLearner(GTwtNode* pNode, GRand* pRand)
+GIncrementalLearner* GLearnerLoader::loadIncrementalLearner(GDomNode* pNode, GRand* pRand)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(szClass[0] == 'G')
@@ -1136,15 +1136,19 @@ GBaselineLearner::GBaselineLearner()
 {
 }
 
-GBaselineLearner::GBaselineLearner(GTwtNode* pNode, GRand& rand)
+GBaselineLearner::GBaselineLearner(GDomNode* pNode, GRand& rand)
 : GSupervisedLearner(pNode, rand)
 {
 	m_featureDims = (size_t)pNode->field("featureDims")->asInt();
 	m_prediction.clear();
-	GTwtNode* pPred = pNode->field("pred");
-	m_prediction.reserve(pPred->itemCount());
-	for(size_t i = 0; i < pPred->itemCount(); i++)
-		m_prediction.push_back(pPred->item(i)->asDouble());
+	GDomNode* pPred = pNode->field("pred");
+	GDomListIterator it(pPred);
+	m_prediction.reserve(it.remaining());
+	for(size_t i = 0; it.current(); i++)
+	{
+		m_prediction.push_back(it.current()->asDouble());
+		it.advance();
+	}
 }
 
 // virtual
@@ -1161,15 +1165,15 @@ void GBaselineLearner::clear()
 }
 
 // virtual
-GTwtNode* GBaselineLearner::toTwt(GTwtDoc* pDoc)
+GDomNode* GBaselineLearner::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GBaselineLearner");
+	GDomNode* pNode = baseDomNode(pDoc, "GBaselineLearner");
 	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
 	if(m_prediction.size() == 0)
 		ThrowError("Attempted to serialize a model that has not been trained");
-	GTwtNode* pPred = pNode->addField(pDoc, "pred", pDoc->newList(m_prediction.size()));
+	GDomNode* pPred = pNode->addField(pDoc, "pred", pDoc->newList());
 	for(size_t i = 0; i < m_prediction.size(); i++)
-		pPred->setItem(i, pDoc->newDouble(m_prediction[i]));
+		pPred->addItem(pDoc, pDoc->newDouble(m_prediction[i]));
 	return pNode;
 }
 
@@ -1214,7 +1218,7 @@ GIdentityFunction::GIdentityFunction()
 {
 }
 
-GIdentityFunction::GIdentityFunction(GTwtNode* pNode, GRand& rand)
+GIdentityFunction::GIdentityFunction(GDomNode* pNode, GRand& rand)
 : GSupervisedLearner(pNode, rand)
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();
@@ -1234,9 +1238,9 @@ void GIdentityFunction::clear()
 }
 
 // virtual
-GTwtNode* GIdentityFunction::toTwt(GTwtDoc* pDoc)
+GDomNode* GIdentityFunction::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GIdentityFunction");
+	GDomNode* pNode = baseDomNode(pDoc, "GIdentityFunction");
 	pNode->addField(pDoc, "labels", pDoc->newInt(m_labelDims));
 	pNode->addField(pDoc, "features", pDoc->newInt(m_featureDims));
 	return pNode;

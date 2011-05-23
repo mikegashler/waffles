@@ -16,8 +16,8 @@
 
 namespace GClasses {
 
-class GTwtDoc;
-class GTwtNode;
+class GDom;
+class GDomNode;
 class GDistribution;
 class GCategoricalDistribution;
 class GNormalDistribution;
@@ -188,12 +188,12 @@ protected:
 
 public:
 	GSupervisedLearner();
-	GSupervisedLearner(GTwtNode* pLearner, GRand& rand);
+	GSupervisedLearner(GDomNode* pLearner, GRand& rand);
 	virtual ~GSupervisedLearner();
 
-	/// Save to a text-based format. Implementations of this method should
-	/// use MakeBaseTwtNode
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+	/// Marshal this object into a DOM that can be converted to a variety
+	/// of formats. (Implementations of this method should use baseDomNode.)
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
 	/// Returns true because fully supervised learners have an internal
 	/// model that allows them to generalize previously unseen rows.
@@ -286,8 +286,8 @@ protected:
 	/// This is a helper method used by precisionRecall.
 	size_t precisionRecallContinuous(GPrediction* pOutput, double* pFunc, GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, size_t label);
 
-	/// Child classes should use this in their implementation of toTwt
-	GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
+	/// Child classes should use this in their implementation of serialize
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
 };
 
 
@@ -303,7 +303,7 @@ public:
 	{
 	}
 
-	GIncrementalLearner(GTwtNode* pLearner, GRand& rand)
+	GIncrementalLearner(GDomNode* pLearner, GRand& rand)
 	: GSupervisedLearner(pLearner, rand)
 	{
 	}
@@ -335,8 +335,8 @@ public:
 
 
 
-/// This class is for loading various learning algorithms from a Twt node. When any
-/// learning algorithm is saved, it calls MakeBaseTwtNode, which creates (among other
+/// This class is for loading various learning algorithms from a DOM. When any
+/// learning algorithm is saved, it calls baseDomNode, which creates (among other
 /// things) a field named "class" which specifies the class name of the algorithm.
 /// This class contains methods that will recognize any of the classes in this library
 /// and load them. If it doesn't recognize a class, it will either return NULL or throw
@@ -353,10 +353,10 @@ public:
 	GLearnerLoader(bool throwIfClassNotFound = true) { m_throwIfClassNotFound = throwIfClassNotFound; }
 	virtual ~GLearnerLoader() {}
 
-	virtual GIncrementalTransform* loadIncrementalTransform(GTwtNode* pNode, GRand* pRand);
-	virtual GTwoWayIncrementalTransform* loadTwoWayIncrementalTransform(GTwtNode* pNode, GRand* pRand);
-	virtual GSupervisedLearner* loadModeler(GTwtNode* pNode, GRand* pRand);
-	virtual GIncrementalLearner* loadIncrementalLearner(GTwtNode* pNode, GRand* pRand);
+	virtual GIncrementalTransform* loadIncrementalTransform(GDomNode* pNode, GRand* pRand);
+	virtual GTwoWayIncrementalTransform* loadTwoWayIncrementalTransform(GDomNode* pNode, GRand* pRand);
+	virtual GSupervisedLearner* loadModeler(GDomNode* pNode, GRand* pRand);
+	virtual GIncrementalLearner* loadIncrementalLearner(GDomNode* pNode, GRand* pRand);
 };
 
 
@@ -372,8 +372,8 @@ protected:
 public:
 	GBaselineLearner();
 
-	/// Load from a text-based format
-	GBaselineLearner(GTwtNode* pNode, GRand& rand);
+	/// Load from a DOM.
+	GBaselineLearner(GDomNode* pNode, GRand& rand);
 
 	virtual ~GBaselineLearner();
 
@@ -381,8 +381,8 @@ public:
 	static void test();
 #endif
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
@@ -411,13 +411,13 @@ protected:
 public:
 	GIdentityFunction();
 
-	/// Load from a text-based format
-	GIdentityFunction(GTwtNode* pNode, GRand& rand);
+	/// Load from a DOM.
+	GIdentityFunction(GDomNode* pNode, GRand& rand);
 
 	virtual ~GIdentityFunction();
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

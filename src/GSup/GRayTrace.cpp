@@ -12,7 +12,7 @@
 #include "GRayTrace.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GHashTable.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include <algorithm>
 #include "../GClasses/GImage.h"
 #include "../GClasses/GMath.h"
@@ -22,9 +22,9 @@ namespace GClasses {
 
 using std::vector;
 
-GTwtNode* GRayTraceColor::toTwt(GTwtDoc* pDoc)
+GDomNode* GRayTraceColor::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "a", pDoc->newDouble(a));
 	pNode->addField(pDoc, "r", pDoc->newDouble(r));
 	pNode->addField(pDoc, "g", pDoc->newDouble(g));
@@ -32,7 +32,7 @@ GTwtNode* GRayTraceColor::toTwt(GTwtDoc* pDoc)
 	return pNode;
 }
 
-void GRayTraceColor::fromTwt(GTwtNode* pNode)
+void GRayTraceColor::deserialize(GDomNode* pNode)
 {
 	a = (G3DReal)pNode->field("a")->asDouble();
 	r = (G3DReal)pNode->field("r")->asDouble();
@@ -86,7 +86,7 @@ void GRayTraceColor::makeSliderColor(float f, GRayTraceColor* pDiffuseColor)
 
 // -----------------------------------------------------------------------------
 
-GRayTraceCamera::GRayTraceCamera(GTwtNode* pNode)
+GRayTraceCamera::GRayTraceCamera(GDomNode* pNode)
 : GCamera(pNode)
 {
 	m_focalDistance = pNode->field("focal")->asDouble();
@@ -95,9 +95,9 @@ GRayTraceCamera::GRayTraceCamera(GTwtNode* pNode)
 }
 
 // virtual
-GTwtNode* GRayTraceCamera::toTwt(GTwtDoc* pDoc)
+GDomNode* GRayTraceCamera::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = GCamera::toTwt(pDoc);
+	GDomNode* pNode = GCamera::serialize(pDoc);
 	pNode->addField(pDoc, "focal", pDoc->newDouble(m_focalDistance));
 	pNode->addField(pDoc, "lens", pDoc->newDouble(m_lensDiameter));
 	pNode->addField(pDoc, "depth", pDoc->newInt(m_maxDepth));
@@ -430,23 +430,20 @@ GRayTraceScene::GRayTraceScene(GRand* pRand)
 	m_eMode = FAST_RAY_TRACE;
 }
 
-GRayTraceScene::GRayTraceScene(GTwtNode* pNode, GRand* pRand)
+GRayTraceScene::GRayTraceScene(GDomNode* pNode, GRand* pRand)
 : m_pRand(pRand)
 {
-	m_backgroundColor.fromTwt(pNode->field("bgcol"));
-	m_ambientLight.fromTwt(pNode->field("ambient"));
-	GTwtNode* pMaterialsNode = pNode->field("materials");
-	for(size_t i = 0; i < pMaterialsNode->itemCount(); i++)
-		m_materials.push_back(GRayTraceMaterial::fromTwt(pMaterialsNode->item(i)));
-	GTwtNode* pMeshesNode = pNode->field("meshes");
-	for(size_t i = 0; i < pMeshesNode->itemCount(); i++)
-		m_meshes.push_back(new GRayTraceTriMesh(pMaterialsNode->item(i), this));
-	GTwtNode* pObjectsNode = pNode->field("objects");
-	for(size_t i = 0; i < pObjectsNode->itemCount(); i++)
-		m_objects.push_back(GRayTraceObject::fromTwt(pObjectsNode->item(i), this));
-	GTwtNode* pLightsNode = pNode->field("lights");
-	for(size_t i = 0; i < pLightsNode->itemCount(); i++)
-		m_lights.push_back(GRayTraceLight::fromTwt(pObjectsNode->item(i), this));
+	m_backgroundColor.deserialize(pNode->field("bgcol"));
+	m_ambientLight.deserialize(pNode->field("ambient"));
+	for(GDomListIterator it1(pNode->field("materials")); it1.current(); it1.advance())
+		m_materials.push_back(GRayTraceMaterial::deserialize(it1.current()));
+	for(GDomListIterator it2(pNode->field("meshes")); it2.current(); it2.advance())
+		m_meshes.push_back(new GRayTraceTriMesh(it2.current(), this));
+	for(GDomListIterator it3(pNode->field("objects")); it3.current(); it3.advance())
+		m_objects.push_back(GRayTraceObject::deserialize(it3.current(), this));
+	;
+	for(GDomListIterator it4(pNode->field("lights")); it4.current(); it4.advance())
+		m_lights.push_back(GRayTraceLight::deserialize(it4.current(), this));
 	m_pCamera = new GRayTraceCamera(pNode->field("camera"));
 	m_toneMappingConstant = pNode->field("tone")->asDouble();
 	m_eMode = (RenderMode)pNode->field("mode")->asInt();
@@ -462,24 +459,24 @@ GRayTraceScene::~GRayTraceScene()
 	delete(m_pDistanceMap);
 }
 
-GTwtNode* GRayTraceScene::toTwt(GTwtDoc* pDoc)
+GDomNode* GRayTraceScene::serialize(GDom* pDoc)
 {
-	GTwtNode* pSceneNode = pDoc->newObj();
-	pSceneNode->addField(pDoc, "bgcol", m_backgroundColor.toTwt(pDoc));
-	pSceneNode->addField(pDoc, "ambient", m_ambientLight.toTwt(pDoc));
-	GTwtNode* pMaterialsNode = pSceneNode->addField(pDoc, "materials", pDoc->newList(m_materials.size()));
+	GDomNode* pSceneNode = pDoc->newObj();
+	pSceneNode->addField(pDoc, "bgcol", m_backgroundColor.serialize(pDoc));
+	pSceneNode->addField(pDoc, "ambient", m_ambientLight.serialize(pDoc));
+	GDomNode* pMaterialsNode = pSceneNode->addField(pDoc, "materials", pDoc->newList());
 	for(size_t i = 0; i < m_materials.size(); i++)
-		pMaterialsNode->setItem(i, m_materials[i]->toTwt(pDoc));
-	GTwtNode* pMeshesNode = pSceneNode->addField(pDoc, "meshes", pDoc->newList(m_meshes.size()));
+		pMaterialsNode->addItem(pDoc, m_materials[i]->serialize(pDoc));
+	GDomNode* pMeshesNode = pSceneNode->addField(pDoc, "meshes", pDoc->newList());
 	for(size_t i = 0; i < m_meshes.size(); i++)
-		pMeshesNode->setItem(i, m_meshes[i]->toTwt(pDoc, this));
-	GTwtNode* pObjectsNode = pSceneNode->addField(pDoc, "objects", pDoc->newList(m_objects.size()));
+		pMeshesNode->addItem(pDoc, m_meshes[i]->serialize(pDoc, this));
+	GDomNode* pObjectsNode = pSceneNode->addField(pDoc, "objects", pDoc->newList());
 	for(size_t i = 0; i < m_objects.size(); i++)
-		pObjectsNode->setItem(i, m_objects[i]->toTwt(pDoc, this));
-	GTwtNode* pLightsNode = pSceneNode->addField(pDoc, "lights", pDoc->newList(m_lights.size()));
+		pObjectsNode->addItem(pDoc, m_objects[i]->serialize(pDoc, this));
+	GDomNode* pLightsNode = pSceneNode->addField(pDoc, "lights", pDoc->newList());
 	for(size_t i = 0; i < m_lights.size(); i++)
-		pLightsNode->setItem(i, m_lights[i]->toTwt(pDoc, this));
-	pSceneNode->addField(pDoc, "camera", m_pCamera->toTwt(pDoc));
+		pLightsNode->addItem(pDoc, m_lights[i]->serialize(pDoc, this));
+	pSceneNode->addField(pDoc, "camera", m_pCamera->serialize(pDoc));
 	pSceneNode->addField(pDoc, "tone", pDoc->newDouble(m_toneMappingConstant));
 	pSceneNode->addField(pDoc, "mode", pDoc->newInt(m_eMode));
 	return pSceneNode;
@@ -881,25 +878,25 @@ GRayTraceLight::GRayTraceLight(G3DReal r, G3DReal g, G3DReal b)
 {
 }
 
-GRayTraceLight::GRayTraceLight(GTwtNode* pNode)
+GRayTraceLight::GRayTraceLight(GDomNode* pNode)
 {
-	m_color.fromTwt(pNode->field("color"));
+	m_color.deserialize(pNode->field("color"));
 }
 
 /*virtual*/ GRayTraceLight::~GRayTraceLight()
 {
 }
 
-GTwtNode* GRayTraceLight::baseTwtNode(GTwtDoc* pDoc)
+GDomNode* GRayTraceLight::baseDomNode(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "color", m_color.toTwt(pDoc));
+	GDomNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "color", m_color.serialize(pDoc));
 	pNode->addField(pDoc, "type", pDoc->newInt(lightType()));
 	return pNode;
 }
 
 // static
-GRayTraceLight* GRayTraceLight::fromTwt(GTwtNode* pNode, GRayTraceScene* pScene)
+GRayTraceLight* GRayTraceLight::deserialize(GDomNode* pNode, GRayTraceScene* pScene)
 {
 	switch((LightType)pNode->field("type")->asInt())
 	{
@@ -921,10 +918,10 @@ GRayTraceDirectionalLight::GRayTraceDirectionalLight(G3DReal dx, G3DReal dy, G3D
 {
 }
 
-GRayTraceDirectionalLight::GRayTraceDirectionalLight(GTwtNode* pNode)
+GRayTraceDirectionalLight::GRayTraceDirectionalLight(GDomNode* pNode)
 : GRayTraceLight(pNode)
 {
-	m_direction.fromTwt(pNode->field("dir"));
+	m_direction.deserialize(pNode->field("dir"));
 	m_jitter = pNode->field("jit")->asDouble();
 }
 
@@ -933,10 +930,10 @@ GRayTraceDirectionalLight::GRayTraceDirectionalLight(GTwtNode* pNode)
 }
 
 // virtual
-GTwtNode* GRayTraceDirectionalLight::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceDirectionalLight::serialize(GDom* pDoc, GRayTraceScene* pScene)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc);
-	pNode->addField(pDoc, "dir", m_direction.toTwt(pDoc));
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "dir", m_direction.serialize(pDoc));
 	pNode->addField(pDoc, "jit", pDoc->newDouble(m_jitter));
 	return pNode;
 }
@@ -978,10 +975,10 @@ GRayTracePointLight::GRayTracePointLight(G3DReal x, G3DReal y, G3DReal z, G3DRea
 {
 }
 
-GRayTracePointLight::GRayTracePointLight(GTwtNode* pNode)
+GRayTracePointLight::GRayTracePointLight(GDomNode* pNode)
 : GRayTraceLight(pNode)
 {
-	m_position.fromTwt(pNode->field("pos"));
+	m_position.deserialize(pNode->field("pos"));
 	m_jitter = pNode->field("jit")->asDouble();
 }
 
@@ -990,10 +987,10 @@ GRayTracePointLight::GRayTracePointLight(GTwtNode* pNode)
 }
 
 // virtual
-GTwtNode* GRayTracePointLight::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTracePointLight::serialize(GDom* pDoc, GRayTraceScene* pScene)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc);
-	pNode->addField(pDoc, "pos", m_position.toTwt(pDoc));
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "pos", m_position.serialize(pDoc));
 	pNode->addField(pDoc, "jit", pDoc->newDouble(m_jitter));
 	return pNode;
 }
@@ -1046,7 +1043,7 @@ GRayTraceAreaLight::GRayTraceAreaLight(GRayTraceObject* pObject, G3DReal r, G3DR
 {
 }
 
-GRayTraceAreaLight::GRayTraceAreaLight(GTwtNode* pNode, GRayTraceScene* pScene)
+GRayTraceAreaLight::GRayTraceAreaLight(GDomNode* pNode, GRayTraceScene* pScene)
 : GRayTraceLight(pNode)
 {
 	m_pObject = pScene->object((size_t)pNode->field("obj")->asInt());
@@ -1057,9 +1054,9 @@ GRayTraceAreaLight::GRayTraceAreaLight(GTwtNode* pNode, GRayTraceScene* pScene)
 }
 
 // virtual
-GTwtNode* GRayTraceAreaLight::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceAreaLight::serialize(GDom* pDoc, GRayTraceScene* pScene)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc);
+	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "obj", pDoc->newInt(pScene->objectIndex(m_pObject)));
 	return pNode;
 }
@@ -1173,7 +1170,7 @@ GRayTraceMaterial::~GRayTraceMaterial()
 }
 
 // static
-GRayTraceMaterial* GRayTraceMaterial::fromTwt(GTwtNode* pNode)
+GRayTraceMaterial* GRayTraceMaterial::deserialize(GDomNode* pNode)
 {
 	switch((MaterialType)pNode->field("type")->asInt())
 	{
@@ -1219,11 +1216,14 @@ GRayTracePhysicalMaterial::GRayTracePhysicalMaterial()
 	m_cloudiness = 0;
 }
 
-GRayTracePhysicalMaterial::GRayTracePhysicalMaterial(GTwtNode* pNode)
+GRayTracePhysicalMaterial::GRayTracePhysicalMaterial(GDomNode* pNode)
 {
-	GTwtNode* pColors = pNode->field("colors");
-	for(int i = 0; i < Color_Type_Count; i++)
-		m_colors[i].fromTwt(pColors->item(i));
+	GDomListIterator it(pNode->field("colors"));
+	for(int i = 0; i < Color_Type_Count && it.current(); i++)
+	{
+		m_colors[i].deserialize(it.current());
+		it.advance();
+	}
 	m_indexOfRefraction = pNode->field("iof")->asDouble();
 	m_specularExponent = pNode->field("se")->asDouble();
 	m_glossiness = pNode->field("glossiness")->asDouble();
@@ -1236,13 +1236,13 @@ GRayTracePhysicalMaterial::~GRayTracePhysicalMaterial()
 }
 
 // virtual
-GTwtNode* GRayTracePhysicalMaterial::toTwt(GTwtDoc* pDoc)
+GDomNode* GRayTracePhysicalMaterial::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(materialType()));
-	GTwtNode* pColors = pNode->addField(pDoc, "colors", pDoc->newList(Color_Type_Count));
+	GDomNode* pColors = pNode->addField(pDoc, "colors", pDoc->newList());
 	for(int i = 0; i < Color_Type_Count; i++)
-		pColors->setItem(i, m_colors[i].toTwt(pDoc));
+		pColors->addItem(pDoc, m_colors[i].serialize(pDoc));
 	pNode->addField(pDoc, "iof", pDoc->newDouble(m_indexOfRefraction));
 	pNode->addField(pDoc, "se", pDoc->newDouble(m_specularExponent));
 	pNode->addField(pDoc, "glossiness", pDoc->newDouble(m_glossiness));
@@ -1321,7 +1321,7 @@ GRayTraceImageTexture::GRayTraceImageTexture()
 	m_bDeleteTextureImage = false;
 }
 
-GRayTraceImageTexture::GRayTraceImageTexture(GTwtNode* pNode)
+GRayTraceImageTexture::GRayTraceImageTexture(GDomNode* pNode)
 {
 	ThrowError("Sorry, deserializing images not yet supported");
 }
@@ -1334,9 +1334,9 @@ GRayTraceImageTexture::~GRayTraceImageTexture()
 }
 
 // virtual
-GTwtNode* GRayTraceImageTexture::toTwt(GTwtDoc* pDoc)
+GDomNode* GRayTraceImageTexture::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(materialType()));
 	ThrowError("Sorry, serializing images not yet supported");
 	return pNode;
@@ -1633,40 +1633,56 @@ GRayTraceTriMesh::GRayTraceTriMesh(GRayTraceMaterial* pMaterial, size_t nPoints,
 	m_bCulling = false;
 }
 
-GRayTraceTriMesh::GRayTraceTriMesh(GTwtNode* pNode, GRayTraceScene* pScene)
+GRayTraceTriMesh::GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene)
 {
 	m_pMaterial = pScene->material((size_t)pNode->field("material")->asInt());
-	GTwtNode* pPointsNode = pNode->field("points");
-	GTwtNode* pTrianglesNode = pNode->field("triangles");
-	GTwtNode* pNormalsNode = pNode->fieldIfExists("normals");
-	GTwtNode* pCoordsNode = pNode->fieldIfExists("coords");
-	m_nPoints = (size_t)pPointsNode->itemCount();
+	GDomNode* pPointsNode = pNode->field("points");
+	GDomNode* pTrianglesNode = pNode->field("triangles");
+	GDomNode* pNormalsNode = pNode->fieldIfExists("normals");
+	GDomNode* pCoordsNode = pNode->fieldIfExists("coords");
+	GDomListIterator it1(pPointsNode);
+	m_nPoints = it1.remaining();
 	m_pPoints = new G3DVector[m_nPoints];
-	for(size_t i = 0; i < pPointsNode->itemCount(); i++)
-		m_pPoints[i].fromTwt(pPointsNode->item(i));
-	if(pTrianglesNode->itemCount() % 3 != 0)
+	for(size_t i = 0; it1.current(); i++)
+	{
+		m_pPoints[i].deserialize(it1.current());
+		it1.advance();
+	}
+	GDomListIterator it2(pTrianglesNode);
+	if(it2.remaining() % 3 != 0)
 		ThrowError("triangle points are not a multiple of 3");
-	m_nTriangles = pTrianglesNode->itemCount() / 3;
-	m_pTriangles = new size_t[pTrianglesNode->itemCount()];
-	for(size_t i = 0; i < pTrianglesNode->itemCount(); i++)
-		m_pTriangles[i] = (size_t)pTrianglesNode->item(i)->asInt();
+	m_nTriangles = it2.remaining() / 3;
+	m_pTriangles = new size_t[it2.remaining()];
+	for(size_t i = 0; it2.current(); i++)
+	{
+		m_pTriangles[i] = (size_t)it2.current()->asInt();
+		it2.advance();
+	}
 	if(pNormalsNode)
 	{
-		if(pNormalsNode->itemCount() != (size_t)m_nPoints)
+		GDomListIterator it3(pNormalsNode);
+		if(it3.remaining() != (size_t)m_nPoints)
 			ThrowError("The number of normals must match the number of vertexes");
 		m_pNormals = new G3DVector[m_nPoints];
-		for(size_t i = 0; i < pNormalsNode->itemCount(); i++)
-			m_pNormals[i].fromTwt(pNormalsNode->item(i));
+		for(size_t i = 0; it3.current(); i++)
+		{
+			m_pNormals[i].deserialize(it3.current());
+			it3.advance();
+		}
 	}
 	else
 		m_pNormals = NULL;
 	if(pCoordsNode)
 	{
-		if(pCoordsNode->itemCount() != 2 * (size_t)m_nPoints)
+		GDomListIterator it4(pCoordsNode);
+		if(it4.remaining() != 2 * (size_t)m_nPoints)
 			ThrowError("The number of texture coords must be double the number of vertexes");
 		m_pTextureCoords = new G3DReal[2 * m_nPoints];
-		for(size_t i = 0; i < 2 * (size_t)m_nPoints; i++)
-			m_pTextureCoords[i] = pCoordsNode->item(i)->asDouble();
+		for(size_t i = 0; it4.current(); i++)
+		{
+			m_pTextureCoords[i] = it4.current()->asDouble();
+			it4.advance();
+		}
 	}
 	else
 		m_pTextureCoords = NULL;
@@ -1681,35 +1697,35 @@ GRayTraceTriMesh::GRayTraceTriMesh(GTwtNode* pNode, GRayTraceScene* pScene)
 	delete[] m_pTextureCoords;
 }
 
-GTwtNode* GRayTraceTriMesh::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceTriMesh::serialize(GDom* pDoc, GRayTraceScene* pScene)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "material", pDoc->newInt(pScene->materialIndex(m_pMaterial)));
-	GTwtNode* pPointsNode = pNode->addField(pDoc, "points", pDoc->newList(m_nPoints));
+	GDomNode* pPointsNode = pNode->addField(pDoc, "points", pDoc->newList());
 	for(size_t i = 0; i < m_nPoints; i++)
-		pPointsNode->setItem(i, m_pPoints[i].toTwt(pDoc));
-	GTwtNode* pTrianglesNode = pNode->addField(pDoc, "triangles", pDoc->newList(3 * m_nTriangles));
+		pPointsNode->addItem(pDoc, m_pPoints[i].serialize(pDoc));
+	GDomNode* pTrianglesNode = pNode->addField(pDoc, "triangles", pDoc->newList());
 	int j = 0;
 	for(size_t i = 0; i < m_nTriangles; i++)
 	{
-		pTrianglesNode->setItem(j, pDoc->newInt(m_pTriangles[j]));
+		pTrianglesNode->addItem(pDoc, pDoc->newInt(m_pTriangles[j]));
 		j++;
-		pTrianglesNode->setItem(j, pDoc->newInt(m_pTriangles[j]));
+		pTrianglesNode->addItem(pDoc, pDoc->newInt(m_pTriangles[j]));
 		j++;
-		pTrianglesNode->setItem(j, pDoc->newInt(m_pTriangles[j]));
+		pTrianglesNode->addItem(pDoc, pDoc->newInt(m_pTriangles[j]));
 		j++;
 	}
 	if(m_pNormals)
 	{
-		GTwtNode* pNormalsNode = pNode->addField(pDoc, "normals", pDoc->newList(m_nPoints));
+		GDomNode* pNormalsNode = pNode->addField(pDoc, "normals", pDoc->newList());
 		for(size_t i = 0; i < m_nPoints; i++)
-			pNormalsNode->setItem(i, m_pNormals[i].toTwt(pDoc));
+			pNormalsNode->addItem(pDoc, m_pNormals[i].serialize(pDoc));
 	}
 	if(m_pTextureCoords)
 	{
-		GTwtNode* pCoordsNode = pNode->addField(pDoc, "coords", pDoc->newList(2 * m_nPoints));
+		GDomNode* pCoordsNode = pNode->addField(pDoc, "coords", pDoc->newList());
 		for(size_t i = 0; i < 2 * m_nPoints; i++)
-			pCoordsNode->setItem(i, pDoc->newDouble(m_pTextureCoords[i]));
+			pCoordsNode->addItem(pDoc, pDoc->newDouble(m_pTextureCoords[i]));
 	}
 	pNode->addField(pDoc, "culling", pDoc->newBool(m_bCulling));
 	return pNode;
@@ -2234,7 +2250,7 @@ GRayTraceTriMesh* GRayTraceTriMesh::makeCylinder(GRayTraceMaterial* pMaterial, G
 // -----------------------------------------------------------------------------
 
 // static
-GRayTraceObject* GRayTraceObject::fromTwt(GTwtNode* pNode, GRayTraceScene* pScene)
+GRayTraceObject* GRayTraceObject::deserialize(GDomNode* pNode, GRayTraceScene* pScene)
 {
 	switch((ObjectType)pNode->field("type")->asInt())
 	{
@@ -2249,21 +2265,21 @@ GRayTraceObject* GRayTraceObject::fromTwt(GTwtNode* pNode, GRayTraceScene* pScen
 
 // -----------------------------------------------------------------------------
 
-GRayTraceSphere::GRayTraceSphere(GTwtNode* pNode, GRayTraceScene* pScene)
+GRayTraceSphere::GRayTraceSphere(GDomNode* pNode, GRayTraceScene* pScene)
 : GRayTraceObject()
 {
 	m_pMaterial = pScene->material((size_t)pNode->field("material")->asInt());
-	m_center.fromTwt(pNode->field("center"));
+	m_center.deserialize(pNode->field("center"));
 	m_radius = pNode->field("radius")->asDouble();
 }
 
 // virtual
-GTwtNode* GRayTraceSphere::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceSphere::serialize(GDom* pDoc, GRayTraceScene* pScene)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(type()));
 	pNode->addField(pDoc, "material", pDoc->newInt(pScene->materialIndex(m_pMaterial)));
-	pNode->addField(pDoc, "center", m_center.toTwt(pDoc));
+	pNode->addField(pDoc, "center", m_center.serialize(pDoc));
 	pNode->addField(pDoc, "radius", pDoc->newDouble(m_radius));
 	return pNode;
 }
@@ -2338,7 +2354,7 @@ void GRayTraceSphere::center(G3DVector* pOutPoint)
 
 // -----------------------------------------------------------------------------
 
-GRayTraceTriangle::GRayTraceTriangle(GTwtNode* pNode, GRayTraceScene* pScene)
+GRayTraceTriangle::GRayTraceTriangle(GDomNode* pNode, GRayTraceScene* pScene)
 : GRayTraceObject()
 {
 	m_pMesh = pScene->mesh((size_t)pNode->field("mesh")->asInt());
@@ -2348,9 +2364,9 @@ GRayTraceTriangle::GRayTraceTriangle(GTwtNode* pNode, GRayTraceScene* pScene)
 }
 
 // virtual
-GTwtNode* GRayTraceTriangle::toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceTriangle::serialize(GDom* pDoc, GRayTraceScene* pScene)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(type()));
 	pNode->addField(pDoc, "mesh", pDoc->newInt(pScene->meshIndex(m_pMesh)));
 	pNode->addField(pDoc, "index", pDoc->newInt(m_nIndex));

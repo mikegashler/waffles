@@ -21,7 +21,7 @@
 //#include "GImage.h"
 #include "GHeap.h"
 #include "GHillClimber.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include <deque>
 #include <math.h>
 
@@ -66,19 +66,19 @@ GPolicyLearner::GPolicyLearner(sp_relation& pRelation, int actionDims)
 	m_explore = true;
 }
 
-GPolicyLearner::GPolicyLearner(GTwtNode* pAgent)
+GPolicyLearner::GPolicyLearner(GDomNode* pAgent)
 {
-	m_pRelation = GRelation::fromTwt(pAgent->field("relation"));
+	m_pRelation = GRelation::deserialize(pAgent->field("relation"));
 	m_actionDims = (int)pAgent->field("actionDims")->asInt();
 	m_senseDims = (int)m_pRelation->size() - m_actionDims;
 	m_teleported = true;
 }
 
-GTwtNode* GPolicyLearner::baseTwtNode(GTwtDoc* pDoc)
+GDomNode* GPolicyLearner::baseDomNode(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "actionDims", pDoc->newInt(m_actionDims));
-	pNode->addField(pDoc, "relation", m_pRelation->toTwt(pDoc));
+	pNode->addField(pDoc, "relation", m_pRelation->serialize(pDoc));
 	return pNode;
 }
 

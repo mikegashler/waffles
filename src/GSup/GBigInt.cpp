@@ -16,7 +16,7 @@
 #include "../GClasses/GError.h"
 #include "../GClasses/GHolders.h"
 #include "GKeyPair.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #ifndef WINDOWS
 #include <sys/types.h>
 typedef int64_t __int64;
@@ -31,16 +31,21 @@ GBigInt::GBigInt()
 	m_bSign = true;
 }
 
-GBigInt::GBigInt(GTwtNode* pNode)
+GBigInt::GBigInt(GDomNode* pNode)
 {
-	m_nUInts = (unsigned int)pNode->itemCount();
+	GDomListIterator it(pNode);
+	m_nUInts = (unsigned int)it.remaining();
 	m_pBits = new unsigned int[m_nUInts - 1];
-	if(pNode->item(0)->asInt() >= 0)
+	if(it.current()->asInt() >= 0)
 		m_bSign = true;
 	else
 		m_bSign = false;
+	it.advance();
 	for(unsigned int i = 0; i < m_nUInts; i++)
-		m_pBits[i] = (unsigned int)pNode->item(i + 1)->asInt();
+	{
+		m_pBits[i] = (unsigned int)it.current()->asInt();
+		it.advance();
+	}
 }
 
 GBigInt::~GBigInt()
@@ -48,12 +53,12 @@ GBigInt::~GBigInt()
 	delete [] m_pBits;
 }
 
-GTwtNode* GBigInt::toTwt(GTwtDoc* pDoc)
+GDomNode* GBigInt::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newList(m_nUInts + 1);
-	pNode->setItem(0, pDoc->newInt(m_bSign ? 1 : -1));
+	GDomNode* pNode = pDoc->newList();
+	pNode->addItem(pDoc, pDoc->newInt(m_bSign ? 1 : -1));
 	for(unsigned int i = 0; i < m_nUInts; i++)
-		pNode->setItem(i + 1, pDoc->newInt((int)m_pBits[i]));
+		pNode->addItem(pDoc, pDoc->newInt((int)m_pBits[i]));
 	return pNode;
 }
 

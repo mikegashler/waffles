@@ -23,7 +23,7 @@
 #include "GHeap.h"
 #include "GImage.h"
 #include "GOptimizer.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GTime.h"
 #include "GEvolutionary.h"
 #include "GApp.h"
@@ -41,9 +41,9 @@ using std::cout;
 using std::cerr;
 using std::vector;
 
-GTwtNode* GSystemLearner::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
+GDomNode* GSystemLearner::baseDomNode(GDom* pDoc, const char* szClassName)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
 	return pNode;
 }
@@ -82,7 +82,7 @@ GRecurrentModel::GRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLea
 	m_multiplier = 1.0;
 }
 
-GRecurrentModel::GRecurrentModel(GTwtNode* pNode, GRand* pRand)
+GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 : GSystemLearner(pNode),
 	m_pRand(pRand)
 {
@@ -92,17 +92,22 @@ GRecurrentModel::GRecurrentModel(GTwtNode* pNode, GRand* pRand)
 	m_pObservationFunc = ll.loadModeler(pNode->field("obs"), pRand);
 
 	// Load the param ranges
-	GTwtNode* pContext = pNode->field("context");
-	m_contextDims = pContext->itemCount();
+	GDomNode* pContext = pNode->field("context");
+	GDomListIterator it1(pContext);
+	m_contextDims = it1.remaining();
 	if(m_contextDims != m_pTransitionFunc->labelDims())
 		ThrowError("invalid model");
-	GTwtNode* pParamRanges = pNode->field("params");
-	m_paramDims = pParamRanges->itemCount();
+	GDomNode* pParamRanges = pNode->field("params");
+	GDomListIterator it2(pParamRanges);
+	m_paramDims = it2.remaining();
 	if(m_paramDims != (size_t)(m_pObservationFunc->featureDims() - m_contextDims))
 		ThrowError("invalid model");
 	m_pParamRanges = new size_t[m_paramDims];
 	for(size_t i = 0; i < m_paramDims; i++)
-		m_pParamRanges[i] = (size_t)pParamRanges->item(i)->asInt();
+	{
+		m_pParamRanges[i] = (size_t)it2.current()->asInt();
+		it2.advance();
+	}
 
 	// Infer other stuff
 	m_actionDims = m_pTransitionFunc->featureDims() - m_contextDims;
@@ -122,7 +127,10 @@ GRecurrentModel::GRecurrentModel(GTwtNode* pNode, GRand* pRand)
 	m_pContext = m_pParams + m_paramDims;
 	m_pBuf = m_pContext + m_contextDims;
 	for(size_t i = 0; i < m_contextDims; i++)
-		m_pContext[i] = pContext->item(i)->asDouble();
+	{
+		m_pContext[i] = it1.current()->asDouble();
+		it1.advance();
+	}
 	m_validationInterval = 0;
 	m_pValidationData = NULL;
 	m_multiplier = 1.0;
@@ -138,20 +146,20 @@ GRecurrentModel::~GRecurrentModel()
 }
 
 // virtual
-GTwtNode* GRecurrentModel::toTwt(GTwtDoc* pDoc)
+GDomNode* GRecurrentModel::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GRecurrentModel");
-	pNode->addField(pDoc, "trans", m_pTransitionFunc->toTwt(pDoc));
-	pNode->addField(pDoc, "obs", m_pObservationFunc->toTwt(pDoc));
+	GDomNode* pNode = baseDomNode(pDoc, "GRecurrentModel");
+	pNode->addField(pDoc, "trans", m_pTransitionFunc->serialize(pDoc));
+	pNode->addField(pDoc, "obs", m_pObservationFunc->serialize(pDoc));
 	pNode->addField(pDoc, "delta", pDoc->newBool(m_transitionDelta));
 	pNode->addField(pDoc, "isomap", pDoc->newBool(m_useIsomap));
 	pNode->addField(pDoc, "trainSecs", pDoc->newDouble(m_trainingSeconds));
-	GTwtNode* pParamRanges = pNode->addField(pDoc, "params", pDoc->newList(m_paramDims));
+	GDomNode* pParamRanges = pNode->addField(pDoc, "params", pDoc->newList());
 	for(size_t i = 0; i < m_paramDims; i++)
-		pParamRanges->setItem(i, pDoc->newInt(m_pParamRanges[i]));
-	GTwtNode* pContext = pNode->addField(pDoc, "context", pDoc->newList(m_contextDims));
+		pParamRanges->addItem(pDoc, pDoc->newInt(m_pParamRanges[i]));
+	GDomNode* pContext = pNode->addField(pDoc, "context", pDoc->newList());
 	for(size_t i = 0; i < m_contextDims; i++)
-		pContext->setItem(i, pDoc->newDouble(m_pContext[i]));
+		pContext->addItem(pDoc, pDoc->newDouble(m_pContext[i]));
 	return pNode;
 }
 
@@ -245,10 +253,10 @@ ThrowError("out of order");/*
 	size_t prinComps = 64;//pObservations->countPrincipalComponents(0.01, m_pRand);
 	GPCA* pPCA = NULL;
 	Holder<GPCA> hPCA(pPCA);
-	if(GFile::doesFileExist("joshua_pca.twt"))
+	if(GFile::doesFileExist("joshua_pca.json"))
 	{
-		GTwtDoc doc;
-		doc.load("joshua_pca.twt");
+		GDom doc;
+		doc.load("joshua_pca.json");
 		pPCA = new GPCA(doc.root(), m_pRand);
 		hPCA.reset(pPCA);
 	}
@@ -262,9 +270,9 @@ ThrowError("out of order");/*
 		for(size_t i = 0; i < pObservations->rows(); i += step)
 			clone.takeRow(pObservations->row(i));
 		pPCA->train(&clone);
-		GTwtDoc doc;
-		doc.setRoot(pPCA->toTwt(&doc));
-		doc.save("joshua_pca.twt");
+		GDom doc;
+		doc.setRoot(pPCA->serialize(&doc));
+		doc.save("joshua_pca.json");
 	}
 	GMatrix* pReducedObs = pPCA->transformBatch(*pObservations);
 	Holder<GMatrix> hReducedObs(pReducedObs);

@@ -15,7 +15,7 @@
 #include "../GClasses/GError.h"
 #include "GXML.h"
 #include "../GClasses/GRand.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include <time.h>
 
 namespace GClasses {
@@ -27,11 +27,11 @@ GKeyPair::GKeyPair()
 	m_pN = NULL;
 }
 
-GKeyPair::GKeyPair(GTwtNode* pNode)
+GKeyPair::GKeyPair(GDomNode* pNode)
 {
 	m_pN = new GBigInt(pNode->field("n"));
 	m_pPublicKey = new GBigInt(pNode->field("public"));
-	GTwtNode* pPrivate = pNode->fieldIfExists("private");
+	GDomNode* pPrivate = pNode->fieldIfExists("private");
 	if(pPrivate)
 		m_pPrivateKey = new GBigInt(pPrivate);
 	else
@@ -156,17 +156,17 @@ void GKeyPair::generateKeyPair(unsigned int uintCount, const unsigned int* pRawC
 	setN(pOutN);
 }
 
-GTwtNode* GKeyPair::toTwt(GTwtDoc* pDoc, bool bIncludePrivateKey)
+GDomNode* GKeyPair::serialize(GDom* pDoc, bool bIncludePrivateKey)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	if(!n() || !publicKey())
 		ThrowError("No key has been made yet");
 	if(bIncludePrivateKey && !privateKey())
 		ThrowError("This key-pair doesn't include the private key");
-	pNode->addField(pDoc, "n", n()->toTwt(pDoc));
-	pNode->addField(pDoc, "public", publicKey()->toTwt(pDoc));
+	pNode->addField(pDoc, "n", n()->serialize(pDoc));
+	pNode->addField(pDoc, "public", publicKey()->serialize(pDoc));
 	if(bIncludePrivateKey)
-		pNode->addField(pDoc, "private", privateKey()->toTwt(pDoc));
+		pNode->addField(pDoc, "private", privateKey()->serialize(pDoc));
 	return pNode;
 }
 

@@ -10,7 +10,7 @@
 */
 
 #include "GTransform.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GVec.h"
 #include "GRand.h"
 #include "GManifold.h"
@@ -34,7 +34,7 @@ GTransform::GTransform()
 {
 }
 
-GTransform::GTransform(GTwtNode* pNode)
+GTransform::GTransform(GDomNode* pNode)
 {
 }
 
@@ -44,9 +44,9 @@ GTransform::~GTransform()
 }
 
 // virtual
-GTwtNode* GTransform::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
+GDomNode* GTransform::baseDomNode(GDom* pDoc, const char* szClassName)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
 	return pNode;
 }
@@ -58,7 +58,7 @@ GTwoWayTransformChainer::GTwoWayTransformChainer(GTwoWayIncrementalTransform* pF
 {
 }
 
-GTwoWayTransformChainer::GTwoWayTransformChainer(GTwtNode* pNode, GRand& rand)
+GTwoWayTransformChainer::GTwoWayTransformChainer(GDomNode* pNode, GRand& rand)
 : GTwoWayIncrementalTransform(pNode)
 {
 	GLearnerLoader ll;
@@ -74,13 +74,13 @@ GTwoWayTransformChainer::~GTwoWayTransformChainer()
 }
 
 // virtual
-GTwtNode* GTwoWayTransformChainer::toTwt(GTwtDoc* pDoc)
+GDomNode* GTwoWayTransformChainer::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before toTwt");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GTwoWayTransformChainer");
-	pNode->addField(pDoc, "first", m_pFirst->toTwt(pDoc));
-	pNode->addField(pDoc, "second", m_pSecond->toTwt(pDoc));
+		ThrowError("train or enableIncrementalTraining must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GTwoWayTransformChainer");
+	pNode->addField(pDoc, "first", m_pFirst->serialize(pDoc));
+	pNode->addField(pDoc, "second", m_pSecond->serialize(pDoc));
 	return pNode;
 }
 
@@ -170,7 +170,7 @@ GPCA::GPCA(size_t targetDims, GRand* pRand)
 {
 }
 
-GPCA::GPCA(GTwtNode* pNode, GRand* pRand)
+GPCA::GPCA(GDomNode* pNode, GRand* pRand)
 : GTwoWayIncrementalTransform(pNode), m_pEigVals(NULL), m_pRand(pRand)
 {
 	m_targetDims = (size_t)pNode->field("dims")->asInt();
@@ -188,13 +188,13 @@ GPCA::~GPCA()
 }
 
 // virtual
-GTwtNode* GPCA::toTwt(GTwtDoc* pDoc)
+GDomNode* GPCA::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before toTwt");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GPCA");
+		ThrowError("train or enableIncrementalTraining must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GPCA");
 	pNode->addField(pDoc, "dims", pDoc->newInt(m_targetDims));
-	pNode->addField(pDoc, "basis", m_pBasisVectors->toTwt(pDoc));
+	pNode->addField(pDoc, "basis", m_pBasisVectors->serialize(pDoc));
 	pNode->addField(pDoc, "aboutOrigin", pDoc->newBool(m_aboutOrigin));
 	return pNode;
 }
@@ -462,12 +462,12 @@ GNoiseGenerator::GNoiseGenerator(GRand* pRand)
 {
 }
 
-GNoiseGenerator::GNoiseGenerator(GTwtNode* pNode, GRand* pRand)
+GNoiseGenerator::GNoiseGenerator(GDomNode* pNode, GRand* pRand)
 : GIncrementalTransform(pNode), m_pRand(pRand)
 {
 	m_mean = pNode->field("mean")->asDouble();
 	m_deviation = pNode->field("dev")->asDouble();
-	m_pRelationBefore = GRelation::fromTwt(pNode->field("relation"));
+	m_pRelationBefore = GRelation::deserialize(pNode->field("relation"));
 	m_pRelationAfter = m_pRelationBefore;
 }
 
@@ -476,14 +476,14 @@ GNoiseGenerator::~GNoiseGenerator()
 }
 
 // virtual
-GTwtNode* GNoiseGenerator::toTwt(GTwtDoc* pDoc)
+GDomNode* GNoiseGenerator::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before toTwt");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GNoiseGenerator");
+		ThrowError("train or enableIncrementalTraining must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GNoiseGenerator");
 	pNode->addField(pDoc, "mean", pDoc->newDouble(m_mean));
 	pNode->addField(pDoc, "dev", pDoc->newDouble(m_deviation));
-	pNode->addField(pDoc, "relation", m_pRelationBefore->toTwt(pDoc));
+	pNode->addField(pDoc, "relation", m_pRelationBefore->serialize(pDoc));
 	return pNode;
 }
 
@@ -528,13 +528,13 @@ GPairProduct::GPairProduct(size_t nMaxDims)
 {
 }
 
-GPairProduct::GPairProduct(GTwtNode* pNode)
+GPairProduct::GPairProduct(GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
 	m_maxDims = (size_t)pNode->field("maxDims")->asInt();
 	size_t nAttrsOut = (size_t)pNode->field("attrs")->asInt();
 	m_pRelationAfter = new GUniformRelation(nAttrsOut, 0);
-	m_pRelationBefore = GRelation::fromTwt(pNode->field("before"));
+	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
 }
 
 GPairProduct::~GPairProduct()
@@ -542,12 +542,12 @@ GPairProduct::~GPairProduct()
 }
 
 // virtual
-GTwtNode* GPairProduct::toTwt(GTwtDoc* pDoc)
+GDomNode* GPairProduct::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before toTwt");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GPairProduct");
-	pNode->addField(pDoc, "before", m_pRelationBefore->toTwt(pDoc));
+		ThrowError("train or enableIncrementalTraining must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GPairProduct");
+	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
 	pNode->addField(pDoc, "attrs", pDoc->newInt(m_pRelationAfter->size()));
 	pNode->addField(pDoc, "maxDims", pDoc->newInt(m_maxDims));
 	return pNode;
@@ -601,15 +601,16 @@ void GPairProduct::transform(const double* pIn, double* pOut)
 
 // --------------------------------------------------------------------------
 
-GAttributeSelector::GAttributeSelector(GTwtNode* pNode, GRand* pRand)
+GAttributeSelector::GAttributeSelector(GDomNode* pNode, GRand* pRand)
 : GIncrementalTransform(pNode), m_pRand(pRand)
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();
 	m_targetFeatures = (size_t)pNode->field("target")->asInt();
-	GTwtNode* pRanksNode = pNode->field("ranks");
-	m_ranks.reserve(pRanksNode->itemCount());
-	for(size_t i = 0; i < pRanksNode->itemCount(); i++)
-		m_ranks.push_back((size_t)pRanksNode->item(i)->asInt());
+	GDomNode* pRanksNode = pNode->field("ranks");
+	GDomListIterator it(pRanksNode);
+	m_ranks.reserve(it.remaining());
+	for( ; it.current(); it.advance())
+		m_ranks.push_back((size_t)it.current()->asInt());
 	if(m_ranks.size() + (size_t)m_labelDims != (size_t)m_pRelationBefore->size())
 		ThrowError("invalid attribute selector");
 	if(m_targetFeatures > m_ranks.size())
@@ -617,16 +618,16 @@ GAttributeSelector::GAttributeSelector(GTwtNode* pNode, GRand* pRand)
 }
 
 // virtual
-GTwtNode* GAttributeSelector::toTwt(GTwtDoc* pDoc)
+GDomNode* GAttributeSelector::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before toTwt");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GAttributeSelector");
+		ThrowError("train or enableIncrementalTraining must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GAttributeSelector");
 	pNode->addField(pDoc, "labels", pDoc->newInt(m_labelDims));
 	pNode->addField(pDoc, "target", pDoc->newInt(m_targetFeatures));
-	GTwtNode* pRanksNode = pNode->addField(pDoc, "ranks", pDoc->newList(m_ranks.size()));
+	GDomNode* pRanksNode = pNode->addField(pDoc, "ranks", pDoc->newList());
 	for(size_t i = 0; i < m_ranks.size(); i++)
-		pRanksNode->setItem(i, pDoc->newInt(m_ranks[i]));
+		pRanksNode->addItem(pDoc, pDoc->newInt(m_ranks[i]));
 	return pNode;
 }
 
@@ -764,11 +765,11 @@ GNominalToCat::GNominalToCat(size_t nValueCap)
 {
 }
 
-GNominalToCat::GNominalToCat(GTwtNode* pNode)
+GNominalToCat::GNominalToCat(GDomNode* pNode)
 : GTwoWayIncrementalTransform(pNode)
 {
 	m_valueCap = (size_t)pNode->field("valueCap")->asInt();
-	m_pRelationBefore = GRelation::fromTwt(pNode->field("before"));
+	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
 	m_preserveUnknowns = pNode->field("pu")->asBool();
 	init(m_pRelationBefore);
 }
@@ -863,13 +864,13 @@ void GNominalToCat::enableIncrementalTraining(sp_relation& pRelation, double* pM
 }
 
 // virtual
-GTwtNode* GNominalToCat::toTwt(GTwtDoc* pDoc)
+GDomNode* GNominalToCat::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before toTwt");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GNominalToCat");
+		ThrowError("train or enableIncrementalTraining must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GNominalToCat");
 	pNode->addField(pDoc, "valueCap", pDoc->newInt(m_valueCap));
-	pNode->addField(pDoc, "before", m_pRelationBefore->toTwt(pDoc));
+	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
 	pNode->addField(pDoc, "pu", pDoc->newBool(m_preserveUnknowns));
 	return pNode;
 }
@@ -976,18 +977,20 @@ GNormalize::GNormalize(double min, double max)
 {
 }
 
-GNormalize::GNormalize(GTwtNode* pNode)
+GNormalize::GNormalize(GDomNode* pNode)
 : GTwoWayIncrementalTransform(pNode)
 {
-	m_pRelationBefore = GRelation::fromTwt(pNode->field("relation"));
+	m_pRelationBefore = GRelation::deserialize(pNode->field("relation"));
 	m_pRelationAfter = m_pRelationBefore;
 	m_min = pNode->field("min")->asDouble();
 	m_max = pNode->field("max")->asDouble();
 	size_t nAttrCount = m_pRelationBefore->size();
 	m_pMins = new double[2 * nAttrCount];
 	m_pRanges = &m_pMins[nAttrCount];
-	GVec::fromTwt(m_pMins, nAttrCount, pNode->field("mins"));
-	GVec::fromTwt(m_pRanges, nAttrCount, pNode->field("ranges"));
+	GDomListIterator it1(pNode->field("mins"));
+	GVec::deserialize(m_pMins, nAttrCount, it1);
+	GDomListIterator it2(pNode->field("ranges"));
+	GVec::deserialize(m_pRanges, nAttrCount, it2);
 }
 
 // virtual
@@ -997,17 +1000,17 @@ GNormalize::~GNormalize()
 }
 
 // virtual
-GTwtNode* GNormalize::toTwt(GTwtDoc* pDoc)
+GDomNode* GNormalize::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before toTwt");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GNormalize");
-	pNode->addField(pDoc, "relation", m_pRelationBefore->toTwt(pDoc));
+		ThrowError("train or enableIncrementalTraining must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GNormalize");
+	pNode->addField(pDoc, "relation", m_pRelationBefore->serialize(pDoc));
 	pNode->addField(pDoc, "min", pDoc->newDouble(m_min));
 	pNode->addField(pDoc, "max", pDoc->newDouble(m_max));
 	size_t nAttrCount = m_pRelationBefore->size();
-	pNode->addField(pDoc, "mins", GVec::toTwt(pDoc, m_pMins, nAttrCount));
-	pNode->addField(pDoc, "ranges", GVec::toTwt(pDoc, m_pRanges, nAttrCount));
+	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, nAttrCount));
+	pNode->addField(pDoc, "ranges", GVec::serialize(pDoc, m_pRanges, nAttrCount));
 	return pNode;
 }
 
@@ -1133,18 +1136,20 @@ GDiscretize::GDiscretize(size_t buckets)
 	m_pRanges = NULL;
 }
 
-GDiscretize::GDiscretize(GTwtNode* pNode)
+GDiscretize::GDiscretize(GDomNode* pNode)
 : GTwoWayIncrementalTransform(pNode)
 {
 	m_bucketsIn = (size_t)pNode->field("bucketsIn")->asInt();
 	m_bucketsOut = (size_t)pNode->field("bucketsOut")->asInt();
-	m_pRelationBefore = GRelation::fromTwt(pNode->field("before"));
-	m_pRelationAfter = GRelation::fromTwt(pNode->field("after"));
+	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
+	m_pRelationAfter = GRelation::deserialize(pNode->field("after"));
 	size_t nAttrCount = m_pRelationBefore->size();
 	m_pMins = new double[2 * nAttrCount];
 	m_pRanges = &m_pMins[nAttrCount];
-	GVec::fromTwt(m_pMins, nAttrCount, pNode->field("mins"));
-	GVec::fromTwt(m_pRanges, nAttrCount, pNode->field("ranges"));
+	GDomListIterator it1(pNode->field("mins"));
+	GVec::deserialize(m_pMins, nAttrCount, it1);
+	GDomListIterator it2(pNode->field("ranges"));
+	GVec::deserialize(m_pRanges, nAttrCount, it2);
 }
 
 // virtual
@@ -1154,18 +1159,18 @@ GDiscretize::~GDiscretize()
 }
 
 // virtual
-GTwtNode* GDiscretize::toTwt(GTwtDoc* pDoc)
+GDomNode* GDiscretize::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before toTwt");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GDiscretize");
-	pNode->addField(pDoc, "before", m_pRelationBefore->toTwt(pDoc));
-	pNode->addField(pDoc, "after", m_pRelationAfter->toTwt(pDoc));
+		ThrowError("train or enableIncrementalTraining must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GDiscretize");
+	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
+	pNode->addField(pDoc, "after", m_pRelationAfter->serialize(pDoc));
 	pNode->addField(pDoc, "bucketsIn", pDoc->newInt(m_bucketsIn));
 	pNode->addField(pDoc, "bucketsOut", pDoc->newInt(m_bucketsOut));
 	size_t nAttrCount = m_pRelationBefore->size();
-	pNode->addField(pDoc, "mins", GVec::toTwt(pDoc, m_pMins, nAttrCount));
-	pNode->addField(pDoc, "ranges", GVec::toTwt(pDoc, m_pRanges, nAttrCount));
+	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, nAttrCount));
+	pNode->addField(pDoc, "ranges", GVec::serialize(pDoc, m_pRanges, nAttrCount));
 	return pNode;
 }
 

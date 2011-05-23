@@ -13,7 +13,7 @@
 #include "../GClasses/GApp.h"
 #include "../GClasses/GBits.h"
 #include "../GClasses/GHashTable.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GHeap.h"
 #include "../GClasses/GImage.h"
 #include "../GClasses/GHolders.h"

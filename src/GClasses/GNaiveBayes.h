@@ -33,8 +33,8 @@ protected:
 public:
 	GNaiveBayes(GRand* pRand);
 
-	/// Load from a text-based format
-	GNaiveBayes(GTwtNode* pNode, GRand* pRand);
+	/// Load from a DOM.
+	GNaiveBayes(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GNaiveBayes();
 
@@ -43,8 +43,8 @@ public:
 	static void test();
 #endif
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalLearner::enableIncrementalLearning
 	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);

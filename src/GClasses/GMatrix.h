@@ -33,8 +33,8 @@ class GMatrix;
 class GPrediction;
 class GRand;
 class GHeap;
-class GTwtDoc;
-class GTwtNode;
+class GDom;
+class GDomNode;
 class GTokenizer;
 
 
@@ -57,8 +57,8 @@ public:
 	/// Returns the type of relation
 	virtual RelationType type() = 0;
 
-	/// Saves this relation to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
 	/// Returns the number of attributes (columns)
 	virtual size_t size() = 0;
@@ -115,8 +115,8 @@ public:
 	/// nFirstAttr and nAttrCount refer to the prediction indexes
 	void fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount);
 
-	/// Loads from a text-based format
-	static smart_ptr<GRelation> fromTwt(GTwtNode* pNode);
+	/// Load from a DOM.
+	static smart_ptr<GRelation> deserialize(GDomNode* pNode);
 
 	/// Saves to a file
 	void save(GMatrix* pData, const char* szFilename, size_t precision);
@@ -140,12 +140,12 @@ public:
 	{
 	}
 
-	GUniformRelation(GTwtNode* pNode);
+	GUniformRelation(GDomNode* pNode);
 
 	virtual RelationType type() { return UNIFORM; }
 	
 	/// Serializes this object
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 	
 	/// Returns the number of attributes (columns)
 	virtual size_t size() { return m_attrCount; }
@@ -191,8 +191,8 @@ public:
 	/// attributes.
 	GMixedRelation(std::vector<size_t>& attrValues);
 
-	/// Loads from a text file in ".twt" format
-	GMixedRelation(GTwtNode* pNode);
+	/// Loads from a DOM.
+	GMixedRelation(GDomNode* pNode);
 
 	/// Makes a copy of pCopyMe
 	GMixedRelation(GRelation* pCopyMe);
@@ -204,8 +204,8 @@ public:
 
 	virtual RelationType type() { return MIXED; }
 
-	/// Writes to a text file in ".twt" format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshalls this object to a DOM, which can be saved to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Makes a deep copy of this relation
 	virtual GRelation* clone();
@@ -374,8 +374,8 @@ public:
 	/// Initially, this matrix will have 0 rows, but you can add more rows by calling newRow or newRows.
 	GMatrix(sp_relation& pRelation, GHeap* pHeap = NULL);
 
-	/// Loads a matrix from a text-based format
-	GMatrix(GTwtNode* pNode, GHeap* pHeap = NULL);
+	/// Load from a DOM.
+	GMatrix(GDomNode* pNode, GHeap* pHeap = NULL);
 
 	~GMatrix();
 
@@ -573,8 +573,8 @@ public:
 	/// big enough to hold rows() x cols() doubles.
 	void toVector(double* pVector);
 
-	/// Writes data to a text file in ".twt" format
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshalls this object to a DOM, which may be saved to a variety of serial formats.
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Returns the sum of the diagonal elements
 	double trace();

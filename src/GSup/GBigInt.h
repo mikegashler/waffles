@@ -16,8 +16,8 @@ namespace GClasses {
 
 class GKeyPair;
 class GRandCrypto;
-class GTwtNode;
-class GTwtDoc;
+class GDomNode;
+class GDom;
 
 // Represents an integer of arbitrary size, and provides basic
 // arithmetic functionality. Also contains functionality for
@@ -36,10 +36,10 @@ protected:
 
 public:
 	GBigInt();
-	GBigInt(GTwtNode* pNode);
+	GBigInt(GDomNode* pNode);
 	virtual ~GBigInt();
 
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 
 	// Returns true if the number is positive and false if it is negative
 	bool getSign() { return m_bSign; }

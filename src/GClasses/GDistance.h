@@ -31,11 +31,11 @@ protected:
 
 public:
         GDistanceMetric() {}
-        GDistanceMetric(GTwtNode* pNode);
+        GDistanceMetric(GDomNode* pNode);
         virtual ~GDistanceMetric() {}
 
-        /// Serialize this metric to a text-based format
-        virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+        virtual GDomNode* serialize(GDom* pDoc) = 0;
 
         /// This must be called before squaredDistance can be called
         virtual void init(sp_relation& pRelation) = 0;
@@ -71,14 +71,14 @@ public:
         sp_relation& relation() { return m_pRelation; }
 
         /// Deserializes a distance metric
-        static GDistanceMetric* fromTwt(GTwtNode* pNode);
+        static GDistanceMetric* deserialize(GDomNode* pNode);
 
         /// Returns a pointer to the vector of scale factors.  This
         /// may be NULL if the metric does not use scale factors.
         virtual double* scaleFactors() { return NULL; }
 
 protected:
-        GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
+        GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
 };
 
 
@@ -95,12 +95,12 @@ protected:
 
 public:
 	GRowDistance();
-	GRowDistance(GTwtNode* pNode);
+	GRowDistance(GDomNode* pNode);
 
 	virtual ~GRowDistance() {}
 
-	/// See the comment for GDistanceMetric::toTwt
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// See the comment for GDistanceMetric::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GDistanceMetric::init
 	virtual void init(sp_relation& pRelation);
@@ -129,15 +129,15 @@ protected:
 
 public:
         GRowDistanceScaled() : m_pScaleFactors(NULL) {}
-        GRowDistanceScaled(GTwtNode* pNode);
+        GRowDistanceScaled(GDomNode* pNode);
 
         virtual ~GRowDistanceScaled()
         {
                 delete[] m_pScaleFactors;
         }
 
-        /// See the comment for GDistanceMetric::toTwt
-        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GDistanceMetric::serialize
+        virtual GDomNode* serialize(GDom* pDoc);
 
         /// See the comment for GDistanceMetric::init
         virtual void init(sp_relation& pRelation);
@@ -163,10 +163,10 @@ protected:
 
 public:
         GLNormDistance(double norm);
-        GLNormDistance(GTwtNode* pNode);
+        GLNormDistance(GDomNode* pNode);
 
-        /// See the comment for GDistanceMetric::toTwt
-        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GDistanceMetric::serialize
+        virtual GDomNode* serialize(GDom* pDoc);
 
         /// See the comment for GDistanceMetric::init
         virtual void init(sp_relation& pRelation);
@@ -197,8 +197,8 @@ public:
         /// Set a regularizing term to add to the denominator
         void setRegularizer(double d) { m_regularizer = d; }
 
-        /// Serialize this metric to a text-based format
-        virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+        virtual GDomNode* serialize(GDom* pDoc) = 0;
 
         /// Computes the similarity between two sparse vectors
         virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b) = 0;
@@ -206,12 +206,12 @@ public:
         /// Computes the similarity between a sparse and a dense vector
         virtual double similarity(const std::map<size_t,double>& a, const double* pB) = 0;
 
-        /// Deserialize from a text-based format
-        static GSparseSimilarity* fromTwt(GTwtNode* pNode);
+	/// Load from a DOM.
+        static GSparseSimilarity* deserialize(GDomNode* pNode);
 
 protected:
         /// A helper method used internally
-        GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
+        GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
 };
 
 
@@ -220,11 +220,11 @@ class GCosineSimilarity : public GSparseSimilarity
 {
 public:
         GCosineSimilarity() : GSparseSimilarity() {}
-        GCosineSimilarity(GTwtNode* pNode) : GSparseSimilarity() {}
+        GCosineSimilarity(GDomNode* pNode) : GSparseSimilarity() {}
         virtual ~GCosineSimilarity() {}
 
-        /// See the comment for GSparseSimilarity::toTwt
-        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GSparseSimilarity::serialize
+        virtual GDomNode* serialize(GDom* pDoc);
 
         /// Computes the similarity between two sparse vectors
         virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
@@ -239,11 +239,11 @@ class GPearsonCorrelation : public GSparseSimilarity
 {
 public:
         GPearsonCorrelation() : GSparseSimilarity() {}
-        GPearsonCorrelation(GTwtNode* pNode) : GSparseSimilarity() {}
+        GPearsonCorrelation(GDomNode* pNode) : GSparseSimilarity() {}
         virtual ~GPearsonCorrelation() {}
 
-        /// See the comment for GSparseSimilarity::toTwt
-        virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+        /// See the comment for GSparseSimilarity::serialize
+        virtual GDomNode* serialize(GDom* pDoc);
 
         /// Computes the similarity between two sparse vectors
         virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);

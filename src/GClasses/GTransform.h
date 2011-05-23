@@ -23,7 +23,7 @@ class GTransform
 {
 public:
 	GTransform();
-	GTransform(GTwtNode* pNode);
+	GTransform(GDomNode* pNode);
 	virtual ~GTransform();
 
 	/// Applies the transformation to pIn and returns the results. For
@@ -33,8 +33,8 @@ public:
 	virtual GMatrix* doit(GMatrix& in) = 0;
 
 protected:
-	/// Child classes should use this in their implementation of toTwt
-	GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
+	/// Child classes should use this in their implementation of serialize
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
 };
 
 
@@ -53,11 +53,11 @@ protected:
 
 public:
 	GIncrementalTransform() : GTransform(), m_pAfterMins(NULL), m_pAfterRanges(NULL), m_pInnerBuf(NULL) {}
-	GIncrementalTransform(GTwtNode* pNode) : GTransform(pNode), m_pAfterMins(NULL), m_pAfterRanges(NULL), m_pInnerBuf(NULL) {}
+	GIncrementalTransform(GDomNode* pNode) : GTransform(pNode), m_pAfterMins(NULL), m_pAfterRanges(NULL), m_pInnerBuf(NULL) {}
 	virtual ~GIncrementalTransform() { delete[] m_pAfterMins; }
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
 	/// sets m_pRelationBefore and m_pRelationAfter, and trains the transform.
 	virtual void train(GMatrix& data) = 0;
@@ -103,7 +103,7 @@ class GTwoWayIncrementalTransform : public GIncrementalTransform
 {
 public:
 	GTwoWayIncrementalTransform() : GIncrementalTransform() {}
-	GTwoWayIncrementalTransform(GTwtNode* pNode) : GIncrementalTransform(pNode) {}
+	GTwoWayIncrementalTransform(GDomNode* pNode) : GIncrementalTransform(pNode) {}
 	virtual ~GTwoWayIncrementalTransform() {}
 
 	/// pIn is a previously transformed row, and pOut is a buffer that will hold the untransformed row.
@@ -127,10 +127,10 @@ protected:
 
 public:
 	GTwoWayTransformChainer(GTwoWayIncrementalTransform* pFirst, GTwoWayIncrementalTransform* pSecond);
-	GTwoWayTransformChainer(GTwtNode* pNode, GRand& rand);
+	GTwoWayTransformChainer(GDomNode* pNode, GRand& rand);
 	virtual ~GTwoWayTransformChainer();
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	virtual void train(GMatrix& data);
 
@@ -161,13 +161,13 @@ protected:
 public:
 	GPCA(size_t targetDims, GRand* pRand);
 
-	/// Load from a text-based format
-	GPCA(GTwtNode* pNode, GRand* pRand);
+	/// Load from a DOM.
+	GPCA(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GPCA();
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Specify to compute the eigenvalues during training. This
 	/// method must be called before train is called.
@@ -235,13 +235,13 @@ protected:
 public:
 	GNoiseGenerator(GRand* pRand);
 
-	/// Load from a text-based format
-	GNoiseGenerator(GTwtNode* pNode, GRand* pRand);
+	/// Load from a DOM.
+	GNoiseGenerator(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GNoiseGenerator();
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -268,13 +268,13 @@ protected:
 public:
 	GPairProduct(size_t nMaxDims);
 
-	/// Load from a text-based format
-	GPairProduct(GTwtNode* pNode);
+	/// Load from a DOM.
+	GPairProduct(GDomNode* pNode);
 
 	virtual ~GPairProduct();
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -305,7 +305,7 @@ public:
 	{
 	}
 
-	GAttributeSelector(GTwtNode* pNode, GRand* pRand);
+	GAttributeSelector(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GAttributeSelector()
 	{
@@ -315,7 +315,7 @@ public:
 	static void test();
 #endif
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 	
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -353,13 +353,13 @@ protected:
 public:
 	GNominalToCat(size_t valueCap = 12);
 
-	/// Load from a text-based format
-	GNominalToCat(GTwtNode* pNode);
+	/// Load from a DOM.
+	GNominalToCat(GDomNode* pNode);
 
 	virtual ~GNominalToCat();
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -400,13 +400,13 @@ public:
 	/// automatically when train is called.)
 	GNormalize(double min = 0.0, double max = 1.0);
 
-	/// Load from a text-based format
-	GNormalize(GTwtNode* pNode);
+	/// Load from a DOM.
+	GNormalize(GDomNode* pNode);
 
 	virtual ~GNormalize();
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -440,13 +440,13 @@ public:
 	/// if buckets is less than 0, then it will use the floor of the square root of the number of rows in the data
 	GDiscretize(size_t buckets = (size_t)-1);
 
-	/// Load from a text-based format
-	GDiscretize(GTwtNode* pNode);
+	/// Load from a DOM.
+	GDiscretize(GDomNode* pNode);
 
 	virtual ~GDiscretize();
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);

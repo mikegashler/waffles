@@ -28,7 +28,7 @@
 #include "GSparseMatrix.h"
 #include "GTime.h"
 #include "GTransform.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GVec.h"
 #include <deque>
 #include <set>
@@ -943,7 +943,7 @@ GIsomap::GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand) : GManif
 {
 }
 
-GIsomap::GIsomap(GTwtNode* pNode)
+GIsomap::GIsomap(GDomNode* pNode)
 : GManifoldLearner(pNode)
 {
 	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
@@ -954,9 +954,9 @@ GIsomap::~GIsomap()
 {
 }
 
-GTwtNode* GIsomap::toTwt(GTwtDoc* pDoc)
+GDomNode* GIsomap::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GIsomap");
+	GDomNode* pNode = baseDomNode(pDoc, "GIsomap");
 	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
 	return pNode;
 }
@@ -1251,7 +1251,7 @@ GLLE::GLLE(size_t neighborCount, size_t targetDims, GRand* pRand) : GManifoldLea
 {
 }
 
-GLLE::GLLE(GTwtNode* pNode)
+GLLE::GLLE(GDomNode* pNode)
 : GManifoldLearner(pNode)
 {
 	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
@@ -1262,9 +1262,9 @@ GLLE::~GLLE()
 {
 }
 
-GTwtNode* GLLE::toTwt(GTwtDoc* pDoc)
+GDomNode* GLLE::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GLLE");
+	GDomNode* pNode = baseDomNode(pDoc, "GLLE");
 	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
 	return pNode;
 }
@@ -1304,7 +1304,7 @@ GManifoldUnfolder::GManifoldUnfolder(size_t neighborCount, size_t targetDims, GR
 {
 }
 
-GManifoldUnfolder::GManifoldUnfolder(GTwtNode* pNode)
+GManifoldUnfolder::GManifoldUnfolder(GDomNode* pNode)
 {
 	ThrowError("Not implemented yet");
 }
@@ -1314,7 +1314,7 @@ GManifoldUnfolder::~GManifoldUnfolder()
 {
 }
 
-GTwtNode* GManifoldUnfolder::toTwt(GTwtDoc* pDoc)
+GDomNode* GManifoldUnfolder::serialize(GDom* pDoc)
 {
 	ThrowError("Not implemented yet");
 	return NULL;
@@ -1449,7 +1449,7 @@ GBreadthFirstUnfolding::GBreadthFirstUnfolding(size_t reps, size_t neighborCount
 {
 }
 
-GBreadthFirstUnfolding::GBreadthFirstUnfolding(GTwtNode* pNode, GRand* pRand)
+GBreadthFirstUnfolding::GBreadthFirstUnfolding(GDomNode* pNode, GRand* pRand)
 : m_reps((size_t)pNode->field("reps")->asInt()), m_neighborCount((size_t)pNode->field("neighbors")->asInt()), m_targetDims((size_t)pNode->field("targetDims")->asInt()), m_pNF(NULL), m_useMds(pNode->field("useMds")->asBool()), m_pRand(pRand)
 {
 }
@@ -1459,9 +1459,9 @@ GBreadthFirstUnfolding::~GBreadthFirstUnfolding()
 {
 }
 
-GTwtNode* GBreadthFirstUnfolding::toTwt(GTwtDoc* pDoc)
+GDomNode* GBreadthFirstUnfolding::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "reps", pDoc->newInt(m_reps));
 	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_neighborCount));
 	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
@@ -2216,16 +2216,16 @@ void GDynamicSystemStateAligner::test()
 	{
 		if(alt)
 		{
-			if(std::abs(pStateOut->row(i)[0] - x2) > 0.4)
+			if(std::abs(pStateOut->row(i)[0] - x2) > 0.6)
 				ThrowError("failed");
-			if(std::abs(pStateOut->row(i)[1] - y2) > 0.4)
+			if(std::abs(pStateOut->row(i)[1] - y2) > 0.6)
 				ThrowError("failed");
 		}
 		else
 		{
-			if(std::abs(pStateOut->row(i)[0] - x1) > 0.4)
+			if(std::abs(pStateOut->row(i)[0] - x1) > 0.6)
 				ThrowError("failed");
-			if(std::abs(pStateOut->row(i)[1] - y1) > 0.4)
+			if(std::abs(pStateOut->row(i)[1] - y1) > 0.6)
 				ThrowError("failed");
 		}
 		size_t action = GVec::indexOfMax(inputs[i], 4, &prng);
@@ -2262,7 +2262,7 @@ GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
 	//m_pNN->setLearningRate(0.03);
 }
 
-GUnsupervisedBackProp::GUnsupervisedBackProp(GTwtNode* pNode, GRand* pRand)
+GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GRand* pRand)
 : m_pRand(pRand), m_cvi(0, NULL)
 {
 	ThrowError("not implemented yet");
@@ -2419,9 +2419,9 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		else
 			errorThresh = maxBelowThresh;
 	}
-GTwtDoc doc;
-doc.setRoot(m_pNN->toTwt(&doc));
-doc.save("ubp.twt");
+GDom doc;
+doc.setRoot(m_pNN->serialize(&doc));
+doc.saveJson("ubp.json");
 	return hOut.release();
 }
 

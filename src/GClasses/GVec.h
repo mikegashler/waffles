@@ -19,9 +19,10 @@
 namespace GClasses {
 
 class GRand;
-class GTwtDoc;
-class GTwtNode;
+class GDom;
+class GDomNode;
 class GImage;
+class GDomListIterator;
 
 /// Contains some useful functions for operating on vectors
 class GVec
@@ -145,11 +146,11 @@ public:
 	static void addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals);
 
 	/// Write the vector to a text format
-	static GTwtNode* toTwt(GTwtDoc* pDoc, const double* pVec, size_t dims);
+	static GDomNode* serialize(GDom* pDoc, const double* pVec, size_t dims);
 
 	/// Load the vector from a text format. Throws if it contains
 	/// an unexpected number of dims
-	static void fromTwt(double* pVec, size_t dims, GTwtNode* pNode);
+	static void deserialize(double* pVec, size_t dims, GDomListIterator& it);
 
 	/// Prints the values in the vector separated by ", ".
 	/// precision specifies the number of digits to print

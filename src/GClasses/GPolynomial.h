@@ -31,8 +31,8 @@ public:
 	/// It will have the same number of control points in every feature dimension
 	GPolynomial(size_t nControlPoints);
 
-	/// Load from a text-based format
-	GPolynomial(GTwtNode* pNode, GRand& rand);
+	/// Load from a DOM.
+	GPolynomial(GDomNode* pNode, GRand& rand);
 
 	virtual ~GPolynomial();
 
@@ -41,8 +41,8 @@ public:
 	static void test();
 #endif // NO_TEST_CODE
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

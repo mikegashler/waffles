@@ -13,7 +13,7 @@
 #include "GVec.h"
 #include <stdlib.h>
 #include "GDistribution.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GRand.h"
 
 using namespace GClasses;
@@ -24,18 +24,22 @@ GBag::GBag(GRand* pRand)
 {
 }
 
-GBag::GBag(GTwtNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
+GBag::GBag(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
 : GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
 {
-	m_pLabelRel = GRelation::fromTwt(pNode->field("labelrel"));
+	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	m_nAccumulatorDims = (size_t)pNode->field("accum")->asInt();
 	m_pAccumulator = new double[m_nAccumulatorDims];
 	m_pCB = NULL;
 	m_pThis = NULL;
-	GTwtNode* pModels = pNode->field("models");
-	size_t modelCount = pModels->itemCount();
+	GDomNode* pModels = pNode->field("models");
+	GDomListIterator it(pModels);
+	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
-		m_models.push_back(pLoader->loadModeler(pModels->item(i), pRand));
+	{
+		m_models.push_back(pLoader->loadModeler(it.current(), pRand));
+		it.advance();
+	}
 }
 
 GBag::~GBag()
@@ -46,15 +50,15 @@ GBag::~GBag()
 }
 
 // virtual
-GTwtNode* GBag::toTwt(GTwtDoc* pDoc)
+GDomNode* GBag::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GBag");
+	GDomNode* pNode = baseDomNode(pDoc, "GBag");
 	pNode->addField(pDoc, "featuredims", pDoc->newInt(m_featureDims));
-	pNode->addField(pDoc, "labelrel", m_pLabelRel->toTwt(pDoc));
+	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
 	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
-	GTwtNode* pModels = pNode->addField(pDoc, "models", pDoc->newList(m_models.size()));
+	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
 	for(size_t i = 0; i < m_models.size(); i++)
-		pModels->setItem(i, m_models[i]->toTwt(pDoc));
+		pModels->addItem(pDoc, m_models[i]->serialize(pDoc));
 	return pNode;
 }
 
@@ -324,13 +328,17 @@ GBucket::GBucket(GRand* pRand)
 	m_pRand = pRand;
 }
 
-GBucket::GBucket(GTwtNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
+GBucket::GBucket(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
 : GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
 {
-	GTwtNode* pModels = pNode->field("models");
-	size_t modelCount = pModels->itemCount();
+	GDomNode* pModels = pNode->field("models");
+	GDomListIterator it(pModels);
+	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
-		m_models.push_back(pLoader->loadModeler(pModels->item(i), pRand));
+	{
+		m_models.push_back(pLoader->loadModeler(it.current(), pRand));
+		it.advance();
+	}
 	m_nBestLearner = (size_t)pNode->field("best")->asInt();
 }
 
@@ -341,11 +349,11 @@ GBucket::~GBucket()
 }
 
 // virtual
-GTwtNode* GBucket::toTwt(GTwtDoc* pDoc)
+GDomNode* GBucket::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GBucket");
-	GTwtNode* pModels = pNode->addField(pDoc, "models", pDoc->newList(1));
-	pModels->setItem(0, m_models[m_nBestLearner]->toTwt(pDoc));
+	GDomNode* pNode = baseDomNode(pDoc, "GBucket");
+	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
+	pModels->addItem(pDoc, m_models[m_nBestLearner]->serialize(pDoc));
 	pNode->addField(pDoc, "best", pDoc->newInt(0));
 	return pNode;
 }

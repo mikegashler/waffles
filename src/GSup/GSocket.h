@@ -57,7 +57,7 @@ class GSocketServerBuffer;
 class GSocketClientBase
 {
 protected:
-	bool m_bKeepListening;
+	volatile bool m_bKeepListening;
 	SOCKET m_s;
 	THREAD_HANDLE m_hListenThread;
 	bool m_bUDP;
@@ -129,7 +129,7 @@ protected:
 	GSpinLock* m_pConnectionsLock;
 	fd_set m_socketSet; // structure used by select()
 	THREAD_HANDLE m_hWorkerThread;
-	bool m_bKeepWorking;
+	volatile bool m_bKeepWorking;
 	SOCKADDR_IN m_sHostAddrIn;
 	bool m_bUDP;
 	int m_nMaxConnections;

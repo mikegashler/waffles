@@ -65,13 +65,19 @@ public:
 	/// minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	const char* nextUntil(const char* szDelimeters = "\t\n\r ", size_t minLen = 1);
+	char* nextUntil(const char* szDelimeters = "\t\n\r ", size_t minLen = 1);
+
+	/// Reads until the next character would be one of the specified delimeters,
+	/// and the current character is not escapeChar. 
+	/// The token returned by this method will have been copied into an
+	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
+	char* nextUntilNotEscaped(char escapeChar, const char* szDelimeters);
 
 	/// Reads while the character is one of the specified characters. Throws an
 	/// exception if fewer than minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	const char* nextWhile(const char* szSet = "-_a-zA-Z0-9", size_t minLen = 1);
+	char* nextWhile(const char* szSet = "-_a-zA-Z0-9", size_t minLen = 1);
 
 	/// Returns the next token delimited by whitespace or a '{' character.
 	/// If the next token begins
@@ -80,7 +86,7 @@ public:
 	/// encountered before the matching quote, then an exception is thrown.
 	/// The quotation marks are not included in the token, but they are
 	/// consumed by the operation.
-	const char* nextArg();
+	char* nextArg();
 
 	/// Reads past any characters specified in the list of delimeters.
 	/// If szDelimeters is NULL, then any characters <= ' ' are considered
@@ -104,7 +110,7 @@ public:
 	/// trimmed off of both the beginning and end of the token. For example, if the last
 	/// token that was returned was "  tok  ", then this will return "tok".
 	/// (Calling this method will not change the value returned by tokenLength.)
-	const char* trim(const char* szSet = "\t\n\r ");
+	char* trim(const char* szSet = "\t\n\r ");
 
 	/// Returns the current line number. (Begins at 1. Each time a '\n' is encountered,
 	/// the line number is incremented. Mac line-endings do not increment the

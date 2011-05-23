@@ -59,11 +59,11 @@ public:
 		set(alpha, red, green, blue);
 	}
 
-	/// Save to a text-based format
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	GDomNode* serialize(GDom* pDoc);
 
-	/// Load from a text-based format
-	void fromTwt(GTwtNode* pNode);
+	/// Load this object from a DOM.
+	void deserialize(GDomNode* pNode);
 
 	bool isBlack()
 	{
@@ -145,13 +145,13 @@ public:
 		m_maxDepth = 4;
 	}
 
-	GRayTraceCamera(GTwtNode* pNode);
+	GRayTraceCamera(GDomNode* pNode);
 
 	virtual ~GRayTraceCamera()
 	{
 	}
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 	void setMaxDepth(int val) { m_maxDepth = val; }
 	void setFocalDistance(G3DReal val) { m_focalDistance = val; }
 	void setLensDiameter(G3DReal val) { m_lensDiameter = val; }
@@ -196,11 +196,11 @@ protected:
 
 public:
 	GRayTraceScene(GRand* pRand);
-	GRayTraceScene(GTwtNode* pNode, GRand* pRand);
+	GRayTraceScene(GDomNode* pNode, GRand* pRand);
 	~GRayTraceScene();
 
-	/// Save to a text-based format
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Deletes all the materials and objects. (Leaves the lights
 	/// and camera as they are.)
@@ -310,16 +310,16 @@ protected:
 
 public:
 	GRayTraceLight(G3DReal r, G3DReal g, G3DReal b);
-	GRayTraceLight(GTwtNode* pNode);
+	GRayTraceLight(GDomNode* pNode);
 	virtual ~GRayTraceLight();
 
-	static GRayTraceLight* fromTwt(GTwtNode* pNode, GRayTraceScene* pScene);
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene) = 0;
+	static GRayTraceLight* deserialize(GDomNode* pNode, GRayTraceScene* pScene);
+	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene) = 0;
 	virtual LightType lightType() = 0;
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular) = 0;
 
 protected:
-	GTwtNode* baseTwtNode(GTwtDoc* pDoc);
+	GDomNode* baseDomNode(GDom* pDoc);
 };
 
 
@@ -335,10 +335,10 @@ protected:
 public:
 	/// Specify the direction to the light, not the direction the light travels
 	GRayTraceDirectionalLight(G3DReal dx, G3DReal dy, G3DReal dz, G3DReal r, G3DReal g, G3DReal b, G3DReal jitter);
-	GRayTraceDirectionalLight(GTwtNode* pNode);
+	GRayTraceDirectionalLight(GDomNode* pNode);
 	virtual ~GRayTraceDirectionalLight();
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene);
+	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
 	virtual LightType lightType() { return Directional; }
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular);
 };
@@ -354,10 +354,10 @@ protected:
 
 public:
 	GRayTracePointLight(G3DReal x, G3DReal y, G3DReal z, G3DReal r, G3DReal g, G3DReal b, G3DReal jitter);
-	GRayTracePointLight(GTwtNode* pNode);
+	GRayTracePointLight(GDomNode* pNode);
 	virtual ~GRayTracePointLight();
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene);
+	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
 	virtual LightType lightType() { return Point; }
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular);
 };
@@ -372,10 +372,10 @@ protected:
 
 public:
 	GRayTraceAreaLight(GRayTraceObject* pObject, G3DReal r, G3DReal g, G3DReal b);
-	GRayTraceAreaLight(GTwtNode* pNode, GRayTraceScene* pScene);
+	GRayTraceAreaLight(GDomNode* pNode, GRayTraceScene* pScene);
 	virtual ~GRayTraceAreaLight();
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene);
+	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
 	virtual LightType lightType() { return Area; }
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular);
 };
@@ -406,9 +406,9 @@ public:
 	GRayTraceMaterial();
 	virtual ~GRayTraceMaterial();
 
-	static GRayTraceMaterial* fromTwt(GTwtNode* pNode);
+	static GRayTraceMaterial* deserialize(GDomNode* pNode);
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 	virtual MaterialType materialType() = 0;
 	virtual GRayTraceColor* color(ColorType eType, GRayTraceRay* pRay) = 0;
 	virtual G3DReal indexOfRefraction() = 0;
@@ -434,10 +434,10 @@ protected:
 
 public:
 	GRayTracePhysicalMaterial();
-	GRayTracePhysicalMaterial(GTwtNode* pNode);
+	GRayTracePhysicalMaterial(GDomNode* pNode);
 	virtual ~GRayTracePhysicalMaterial();
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 	virtual MaterialType materialType() { return Physical; }
 
 	/// Ignores pRay and returns the color of the specified type. (pRay is
@@ -469,10 +469,10 @@ protected:
 
 public:
 	GRayTraceImageTexture();
-	GRayTraceImageTexture(GTwtNode* pNode);
+	GRayTraceImageTexture(GDomNode* pNode);
 	virtual ~GRayTraceImageTexture();
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 	virtual MaterialType materialType() { return Image; }
 	virtual GRayTraceColor* color(ColorType eType, GRayTraceRay* pRay);
 	virtual G3DReal indexOfRefraction() { return 1; }
@@ -576,10 +576,10 @@ protected:
 
 public:
 	GRayTraceTriMesh(GRayTraceMaterial* pMaterial, size_t nPoints, size_t nTriangles, size_t nNormals, size_t nTextureCoords);
-	GRayTraceTriMesh(GTwtNode* pNode, GRayTraceScene* pScene);
+	GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene);
 	~GRayTraceTriMesh();
 
-	GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene);
+	GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
 
 	static GRayTraceTriMesh* makeCylinder(GRayTraceMaterial* pMaterial, G3DVector* pCenter1, G3DVector* pCenter2, G3DReal radius, size_t nSides, bool bEndCaps);
 
@@ -631,8 +631,8 @@ public:
 	{
 	}
 
-	static GRayTraceObject* fromTwt(GTwtNode* pNode, GRayTraceScene* pScene);
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene) = 0;
+	static GRayTraceObject* deserialize(GDomNode* pNode, GRayTraceScene* pScene);
+	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene) = 0;
 	virtual ObjectType type() = 0;
 	virtual GRayTraceMaterial* material() = 0;
 	virtual G3DReal rayDistance(G3DVector* pRayOrigin, G3DVector* pRayDirection) = 0;
@@ -659,13 +659,13 @@ public:
 	{
 	}
 
-	GRayTraceSphere(GTwtNode* pNode, GRayTraceScene* pScene);
+	GRayTraceSphere(GDomNode* pNode, GRayTraceScene* pScene);
 
 	virtual ~GRayTraceSphere()
 	{
 	}
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene);
+	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
 	virtual ObjectType type() { return Sphere; }
 	virtual GRayTraceMaterial* material() { return m_pMaterial; }
 	virtual G3DReal rayDistance(G3DVector* pRayOrigin, G3DVector* pRayDirection);
@@ -695,13 +695,13 @@ public:
 	{
 	}
 
-	GRayTraceTriangle(GTwtNode* pNode, GRayTraceScene* pScene);
+	GRayTraceTriangle(GDomNode* pNode, GRayTraceScene* pScene);
 
 	virtual ~GRayTraceTriangle()
 	{
 	}
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, GRayTraceScene* pScene);
+	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
 	virtual ObjectType type() { return Triangle; }
 	virtual G3DReal rayDistance(G3DVector* pRayOrigin, G3DVector* pRayDirection);
 	virtual void normalVector(GRayTraceRay* pRay);

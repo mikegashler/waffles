@@ -20,8 +20,8 @@ namespace GClasses {
 
 typedef double G3DReal;
 class G3DMatrix;
-class GTwtNode;
-class GTwtDoc;
+class GDomNode;
+class GDom;
 class GRand;
 class GImage;
 class GBBAugmented;
@@ -53,11 +53,11 @@ public:
 		m_vals[2] = z;
 	}
 
-	/// Serializes to a text-based format
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	GDomNode* serialize(GDom* pDoc);
 
-	/// Loads from a text-based format
-	void fromTwt(GTwtNode* pNode);
+	/// Load this object from a DOM.
+	void deserialize(GDomNode* pNode);
 
 	/// Returns true iff all three elements are equal.
 	bool isEqual(const G3DVector& that) const
@@ -205,10 +205,10 @@ public:
 	G3DVector m_rows[3];
 
 	/// serializes this matrix
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 
 	/// deserializes this matrix
-	void fromTwt(GTwtNode* pNode);
+	void deserialize(GDomNode* pNode);
 
 	/// sets this to the identity matrix
 	inline void setToIdentity()
@@ -302,14 +302,14 @@ public:
 	}
 
 	/// deserializing constructor
-	GCamera(GTwtNode* pNode);
+	GCamera(GDomNode* pNode);
 
 	virtual ~GCamera()
 	{
 	}
 
 	/// serializes this object
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Specifies the size of the 2-D image this camera will produce
 	void setImageSize(int width, int height) { m_nWidth = width; m_nHeight = height; }

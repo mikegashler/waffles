@@ -21,7 +21,7 @@
 #include "../GClasses/GHillClimber.h"
 #include "../GSup/G3D.h"
 #include "../GClasses/GVec.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GPlot.h"
 #include "../GClasses/GFunction.h"
 #include "../GClasses/GLearner.h"
@@ -1432,10 +1432,10 @@ void percentSame(GArgReader& args){
 void printDecisionTree(GArgReader& args)
 {
 	// Load the model
-	GTwtDoc doc;
+	GDom doc;
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
-	doc.load(args.pop_string());
+	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	if(_stricmp(doc.root()->field("class")->asString(), "GDecisionTree") != 0)
 		ThrowError("That model is not a decision tree");
@@ -1465,10 +1465,10 @@ void printDecisionTree(GArgReader& args)
 void model(GArgReader& args)
 {
 	// Load the model
-	GTwtDoc doc;
+	GDom doc;
 	if(args.size() < 1)
 		ThrowError("Model not specified");
-	doc.load(args.pop_string());
+	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GRand prng(0);
 	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
@@ -1603,8 +1603,8 @@ void rowToImage(GArgReader& args)
 
 void systemFrames(GArgReader& args)
 {
-	GTwtDoc doc;
-	doc.load(args.pop_string());
+	GDom doc;
+	doc.loadJson(args.pop_string());
 	GMatrix* pActions = loadData(args.pop_string());
 	Holder<GMatrix> hActions(pActions);
 	GMatrix* pObs = NULL;

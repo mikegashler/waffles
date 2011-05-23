@@ -68,8 +68,8 @@ public:
 	/// nNeighbors specifies the number of neighbors to evaluate in order to make a prediction.
 	GKNN(size_t nNeighbors, GRand* pRand);
 
-	/// Load from a text-based format.
-	GKNN(GTwtNode* pNode, GRand* pRand);
+	/// Load from a DOM.
+	GKNN(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GKNN();
 
@@ -78,8 +78,8 @@ public:
 	static void test();
 #endif
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
@@ -212,7 +212,7 @@ public:
 	virtual ~GInstanceTable();
 
 	/// Serialize this table
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);

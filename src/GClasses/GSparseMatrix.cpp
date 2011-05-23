@@ -17,7 +17,7 @@
 #include "GFile.h"
 #include "GRand.h"
 #include <fstream>
-#include "GTwt.h"
+#include "GDom.h"
 #include <cmath>
 #include <set>
 
@@ -31,23 +31,27 @@ GSparseMatrix::GSparseMatrix(size_t rows, size_t cols, double defaultValue)
 	m_rows.resize(rows);
 }
 
-GSparseMatrix::GSparseMatrix(GTwtNode* pNode)
+GSparseMatrix::GSparseMatrix(GDomNode* pNode)
 {
 	m_defaultValue = pNode->field("def")->asDouble();
 	m_cols = (size_t)pNode->field("cols")->asInt();
-	GTwtNode* pRows = pNode->field("rows");
-	size_t rows = pRows->itemCount();
+	GDomNode* pRows = pNode->field("rows");
+	GDomListIterator it1(pRows);
+	size_t rows = it1.remaining();
 	m_rows.resize(rows);
 	for(size_t i = 0; i < rows; i++)
 	{
-		GTwtNode* pElements = pRows->item(i);
-		for(size_t j = 0; j < pElements->itemCount(); j++)
+		GDomNode* pElements = it1.current();
+		for(GDomListIterator it2(pElements); it2.current(); it2.advance())
 		{
-			size_t col = (size_t)pElements->item(j)->asInt();
-			j++;
-			double val = pElements->item(j)->asDouble();
+			size_t col = (size_t)it2.current()->asInt();
+			it2.advance();
+			if(!it2.current())
+				ThrowError("Expected an even number of items in the list");
+			double val = it2.current()->asDouble();
 			set(i, col, val);
 		}
+		it1.advance();
 	}
 }
 
@@ -55,20 +59,19 @@ GSparseMatrix::~GSparseMatrix()
 {
 }
 
-GTwtNode* GSparseMatrix::toTwt(GTwtDoc* pDoc)
+GDomNode* GSparseMatrix::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "def", pDoc->newDouble(m_defaultValue));
 	pNode->addField(pDoc, "cols", pDoc->newInt(m_cols));
-	GTwtNode* pRows = pNode->addField(pDoc, "rows", pDoc->newList(m_rows.size()));
+	GDomNode* pRows = pNode->addField(pDoc, "rows", pDoc->newList());
 	for(size_t i = 0; i < m_rows.size(); i++)
 	{
-		GTwtNode* pElements = pRows->setItem(i, pDoc->newList(2 * rowNonDefValues(i)));
-		size_t pos = 0;
+		GDomNode* pElements = pRows->addItem(pDoc, pDoc->newList());
 		for(Iter it = rowBegin(i); it != rowEnd(i); it++)
 		{
-			pElements->setItem(pos++, pDoc->newInt(it->first));
-			pElements->setItem(pos++, pDoc->newDouble(it->second));
+			pElements->addItem(pDoc, pDoc->newInt(it->first));
+			pElements->addItem(pDoc, pDoc->newDouble(it->second));
 		}
 	}
 	return pNode;
@@ -788,7 +791,7 @@ void GSparseMatrix::test()
 	}
 	size_t tolerance = 0;
 	if(sizeof(size_t) == 4)
-		tolerance += 4; // on 32-bit machines there seem to be a small number of failures due to rounding error (I think)
+		tolerance += 6; // on 32-bit machines there seem to be a small number of failures due to rounding error (I think)
 	if(failures > tolerance)
 		ThrowError("failed");
 }

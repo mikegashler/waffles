@@ -186,7 +186,7 @@ public:
 	GNeuralNet(GRand* pRand);
 
 	/// Load from a text-format
-	GNeuralNet(GTwtNode* pNode, GRand* pRand);
+	GNeuralNet(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GNeuralNet();
 
@@ -198,7 +198,7 @@ public:
 	/// Saves the model to a text file. (This doesn't save the short-term
 	/// memory used for incremental learning, so if you're doing "incremental"
 	/// learning, it will wake up with amnesia when you load it again.)
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Sets the activation function to use with all subsequently added
 	/// layers. (Note that the activation function for the output layer is
@@ -477,7 +477,7 @@ public:
 	virtual ~GModerateNet();
 	double lambda() { return m_lambda; }
 	void setLambda(double d) { m_lambda = d; }
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 	virtual void train(GMatrix& data, int labelDims);
 	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 	virtual void clear();

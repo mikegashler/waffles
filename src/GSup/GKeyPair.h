@@ -16,8 +16,8 @@ namespace GClasses {
 
 class GBigInt;
 class GRandCrypto;
-class GTwtNode;
-class GTwtDoc;
+class GDomNode;
+class GDom;
 
 // This is my home-made (so don't trust it) implementation of symmetric key cryptography.
 class GKeyPair
@@ -29,7 +29,7 @@ private:
 
 public:
 	GKeyPair();
-	GKeyPair(GTwtNode* pNode);
+	GKeyPair(GDomNode* pNode);
 	virtual ~GKeyPair();
 
 #ifndef NO_TEST_CODE
@@ -37,7 +37,7 @@ public:
 #endif // !NO_TEST_CODE
 
 	// Serialize the key pair
-	GTwtNode* toTwt(GTwtDoc* pDoc, bool bIncludePrivateKey);
+	GDomNode* serialize(GDom* pDoc, bool bIncludePrivateKey);
 
 	// Generates a key-pair using the 3 buffers of cryptographic uint values you pass in.
 	// (Typically, you will generate the values in these buffers by using a one-way hash

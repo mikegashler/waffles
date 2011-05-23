@@ -24,8 +24,7 @@ class GConstStringHashTable;
 class GDynamicPageServer;
 class GDynamicPageSession;
 class GRand;
-class GTwtNode;
-class GTwtDoc;
+class GDom;
 
 
 

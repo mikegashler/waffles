@@ -17,7 +17,7 @@
 #include "GHillClimber.h"
 #include "GDistribution.h"
 #include "GRand.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GTransform.h"
 #include "GEnsemble.h"
 #include <string>
@@ -49,8 +49,8 @@ public:
 	virtual void print(GRelation* pFeatureRel, GRelation* pLabelRel, ostream& stream, size_t depth, const char* parentValue) = 0;
 	virtual void CountValues(size_t nOutput, size_t* pnCounts) = 0;
 	virtual double FindSumOutputValue(size_t nOutput) = 0;
-	static GDecisionTreeNode* fromTwt(GTwtNode* pNode);
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, size_t outputCount) = 0;
+	static GDecisionTreeNode* deserialize(GDomNode* pNode);
+	virtual GDomNode* serialize(GDom* pDoc, size_t outputCount) = 0;
 };
 
 class GDecisionTreeInteriorNode : public GDecisionTreeNode
@@ -71,15 +71,19 @@ public:
 		memset(m_ppChildren, '\0', sizeof(GDecisionTreeNode*) * children);
 	}
 
-	GDecisionTreeInteriorNode(GTwtNode* pNode) : GDecisionTreeNode()
+	GDecisionTreeInteriorNode(GDomNode* pNode) : GDecisionTreeNode()
 	{
 		m_nAttribute = (size_t)pNode->field("attr")->asInt();
 		m_dPivot = pNode->field("pivot")->asDouble();
-		GTwtNode* pChildren = pNode->field("children");
-		m_nChildren = (size_t)pChildren->itemCount();
+		GDomNode* pChildren = pNode->field("children");
+		GDomListIterator it(pChildren);
+		m_nChildren = it.remaining();
 		m_ppChildren = new GDecisionTreeNode*[m_nChildren];
-		for(size_t i = 0; i < m_nChildren; i++)
-			m_ppChildren[i] = GDecisionTreeNode::fromTwt(pChildren->item(i));
+		for(size_t i = 0 ; it.current(); i++)
+		{
+			m_ppChildren[i] = GDecisionTreeNode::deserialize(it.current());
+			it.advance();
+		}
 		m_defaultChild = (size_t)pNode->field("def")->asInt();
 	}
 
@@ -93,15 +97,15 @@ public:
 		}
 	}
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, size_t outputCount)
+	virtual GDomNode* serialize(GDom* pDoc, size_t outputCount)
 	{
-		GTwtNode* pNode = pDoc->newObj();
+		GDomNode* pNode = pDoc->newObj();
 		pNode->addField(pDoc, "attr", pDoc->newInt(m_nAttribute));
 		pNode->addField(pDoc, "pivot", pDoc->newDouble(m_dPivot));
-		GTwtNode* pChildren = pDoc->newList(m_nChildren);
+		GDomNode* pChildren = pDoc->newList();
 		pNode->addField(pDoc, "children", pChildren);
 		for(size_t i = 0; i < m_nChildren; i++)
-			pChildren->setItem(i, m_ppChildren[i]->toTwt(pDoc, outputCount));
+			pChildren->addItem(pDoc, m_ppChildren[i]->serialize(pDoc, outputCount));
 		pNode->addField(pDoc, "def", pDoc->newInt(m_defaultChild));
 		return pNode;
 	}
@@ -193,14 +197,18 @@ public:
 		m_nSampleSize = nSampleSize;
 	}
 
-	GDecisionTreeLeafNode(GTwtNode* pNode) : GDecisionTreeNode()
+	GDecisionTreeLeafNode(GDomNode* pNode) : GDecisionTreeNode()
 	{
 		m_nSampleSize = (size_t)pNode->field("size")->asInt();
-		GTwtNode* pOut = pNode->field("out");
-		size_t count = pOut->itemCount();
+		GDomNode* pOut = pNode->field("out");
+		GDomListIterator it(pOut);
+		size_t count = it.remaining();
 		m_pOutputValues = new double[count];
-		for(size_t i = 0; i < count; i++)
-			m_pOutputValues[i] = pOut->item(i)->asDouble();
+		for(size_t i = 0; it.current(); i++)
+		{
+			m_pOutputValues[i] = it.current()->asDouble();
+			it.advance();
+		}
 	}
 
 	virtual ~GDecisionTreeLeafNode()
@@ -208,14 +216,14 @@ public:
 		delete[] m_pOutputValues;
 	}
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, size_t outputCount)
+	virtual GDomNode* serialize(GDom* pDoc, size_t outputCount)
 	{
-		GTwtNode* pNode = pDoc->newObj();
+		GDomNode* pNode = pDoc->newObj();
 		pNode->addField(pDoc, "size", pDoc->newInt(m_nSampleSize));
-		GTwtNode* pOut = pDoc->newList(outputCount);
+		GDomNode* pOut = pDoc->newList();
 		pNode->addField(pDoc, "out", pOut);
 		for(size_t i = 0; i < outputCount; i++)
-			pOut->setItem(i, pDoc->newDouble(m_pOutputValues[i]));
+			pOut->addItem(pDoc, pDoc->newDouble(m_pOutputValues[i]));
 		return pNode;
 	}
 
@@ -272,7 +280,7 @@ public:
 }
 
 // static
-GDecisionTreeNode* GDecisionTreeNode::fromTwt(GTwtNode* pNode)
+GDecisionTreeNode* GDecisionTreeNode::deserialize(GDomNode* pNode)
 {
 	if(pNode->fieldIfExists("children"))
 		return new GDecisionTreeInteriorNode(pNode);
@@ -298,14 +306,14 @@ GDecisionTree::GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInteresti
 	m_pRoot = pThat->m_pRoot->DeepCopy(pThat->m_labelDims, pInterestingNode, ppOutInterestingCopy);
 }
 */
-GDecisionTree::GDecisionTree(GTwtNode* pNode, GRand* pRand)
+GDecisionTree::GDecisionTree(GDomNode* pNode, GRand* pRand)
   : GSupervisedLearner(pNode, *pRand), m_pRand(pRand), m_leafThresh(1), 
     m_maxLevels(0)
 {
-	m_pFeatureRel = GRelation::fromTwt(pNode->field("frel"));
-	m_pLabelRel = GRelation::fromTwt(pNode->field("lrel"));
+	m_pFeatureRel = GRelation::deserialize(pNode->field("frel"));
+	m_pLabelRel = GRelation::deserialize(pNode->field("lrel"));
 	m_eAlg = (DivisionAlgorithm)pNode->field("alg")->asInt();
-	m_pRoot = GDecisionTreeNode::fromTwt(pNode->field("root"));
+	m_pRoot = GDecisionTreeNode::deserialize(pNode->field("root"));
 }
 
 // virtual
@@ -315,15 +323,15 @@ GDecisionTree::~GDecisionTree()
 }
 
 // virtual
-GTwtNode* GDecisionTree::toTwt(GTwtDoc* pDoc)
+GDomNode* GDecisionTree::serialize(GDom* pDoc)
 {
 	if(!m_pRoot)
 		ThrowError("Attempted to serialize a model that has not been trained");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GDecisionTree");
-	pNode->addField(pDoc, "frel", m_pFeatureRel->toTwt(pDoc));
-	pNode->addField(pDoc, "lrel", m_pLabelRel->toTwt(pDoc));
+	GDomNode* pNode = baseDomNode(pDoc, "GDecisionTree");
+	pNode->addField(pDoc, "frel", m_pFeatureRel->serialize(pDoc));
+	pNode->addField(pDoc, "lrel", m_pLabelRel->serialize(pDoc));
 	pNode->addField(pDoc, "alg", pDoc->newInt(m_eAlg));
-	pNode->addField(pDoc, "root", m_pRoot->toTwt(pDoc, m_pLabelRel->size()));
+	pNode->addField(pDoc, "root", m_pRoot->serialize(pDoc, m_pLabelRel->size()));
 	return pNode;
 }
 
@@ -782,9 +790,9 @@ public:
 	}
 
 	virtual bool IsLeaf() = 0;
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, size_t nInputs, size_t nOutputs) = 0;
+	virtual GDomNode* serialize(GDom* pDoc, size_t nInputs, size_t nOutputs) = 0;
 
-	static GMeanMarginsTreeNode* fromTwt(GTwtNode* pNode);
+	static GMeanMarginsTreeNode* deserialize(GDomNode* pNode);
 };
 
 
@@ -808,17 +816,19 @@ public:
 		m_pRight = NULL;
 	}
 
-	GMeanMarginsTreeInteriorNode(GTwtNode* pNode)
+	GMeanMarginsTreeInteriorNode(GDomNode* pNode)
 	: GMeanMarginsTreeNode()
 	{
-		GTwtNode* pCenter = pNode->field("center");
-		size_t dims = (size_t)pCenter->itemCount();
+		GDomNode* pCenter = pNode->field("center");
+		GDomListIterator it(pCenter);
+		size_t dims = it.remaining();
 		m_pCenter = new double[dims];
-		GVec::fromTwt(m_pCenter, dims, pCenter);
+		GVec::deserialize(m_pCenter, dims, it);
 		m_pNormal = new double[dims];
-		GVec::fromTwt(m_pNormal, dims, pNode->field("normal"));
-		m_pLeft = GMeanMarginsTreeNode::fromTwt(pNode->field("left"));
-		m_pRight = GMeanMarginsTreeNode::fromTwt(pNode->field("right"));
+		GDomListIterator it2(pNode->field("normal"));
+		GVec::deserialize(m_pNormal, dims, it2);
+		m_pLeft = GMeanMarginsTreeNode::deserialize(pNode->field("left"));
+		m_pRight = GMeanMarginsTreeNode::deserialize(pNode->field("right"));
 	}
 
 	virtual ~GMeanMarginsTreeInteriorNode()
@@ -829,13 +839,13 @@ public:
 		delete(m_pRight);
 	}
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, size_t nInputs, size_t nOutputs)
+	virtual GDomNode* serialize(GDom* pDoc, size_t nInputs, size_t nOutputs)
 	{
-		GTwtNode* pNode = pDoc->newObj();
-		pNode->addField(pDoc, "center", GVec::toTwt(pDoc, m_pCenter, nInputs));
-		pNode->addField(pDoc, "normal", GVec::toTwt(pDoc, m_pNormal, nInputs));
-		pNode->addField(pDoc, "left", m_pLeft->toTwt(pDoc, nInputs, nOutputs));
-		pNode->addField(pDoc, "right", m_pRight->toTwt(pDoc, nInputs, nOutputs));
+		GDomNode* pNode = pDoc->newObj();
+		pNode->addField(pDoc, "center", GVec::serialize(pDoc, m_pCenter, nInputs));
+		pNode->addField(pDoc, "normal", GVec::serialize(pDoc, m_pNormal, nInputs));
+		pNode->addField(pDoc, "left", m_pLeft->serialize(pDoc, nInputs, nOutputs));
+		pNode->addField(pDoc, "right", m_pRight->serialize(pDoc, nInputs, nOutputs));
 		return pNode;
 	}
 
@@ -883,12 +893,13 @@ public:
 		GVec::copy(m_pOutputs, pOutputs, nOutputCount);
 	}
 
-	GMeanMarginsTreeLeafNode(GTwtNode* pNode)
+	GMeanMarginsTreeLeafNode(GDomNode* pNode)
 	: GMeanMarginsTreeNode()
 	{
-		size_t dims = (size_t)pNode->itemCount();
+		GDomListIterator it(pNode);
+		size_t dims = it.remaining();
 		m_pOutputs = new double[dims];
-		GVec::fromTwt(m_pOutputs, dims, pNode);
+		GVec::deserialize(m_pOutputs, dims, it);
 	}
 
 	virtual ~GMeanMarginsTreeLeafNode()
@@ -896,9 +907,9 @@ public:
 		delete[] m_pOutputs;
 	}
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc, size_t nInputs, size_t nOutputs)
+	virtual GDomNode* serialize(GDom* pDoc, size_t nInputs, size_t nOutputs)
 	{
-		return GVec::toTwt(pDoc, m_pOutputs, nOutputs);
+		return GVec::serialize(pDoc, m_pOutputs, nOutputs);
 	}
 
 	virtual bool IsLeaf()
@@ -914,9 +925,9 @@ public:
 }
 
 // static
-GMeanMarginsTreeNode* GMeanMarginsTreeNode::fromTwt(GTwtNode* pNode)
+GMeanMarginsTreeNode* GMeanMarginsTreeNode::deserialize(GDomNode* pNode)
 {
-	if(pNode->type() == GTwtNode::type_list)
+	if(pNode->type() == GDomNode::type_list)
 		return new GMeanMarginsTreeLeafNode(pNode);
 	else
 		return new GMeanMarginsTreeInteriorNode(pNode);
@@ -929,10 +940,10 @@ GMeanMarginsTree::GMeanMarginsTree(GRand* pRand)
 {
 }
 
-GMeanMarginsTree::GMeanMarginsTree(GTwtNode* pNode, GRand* pRand)
+GMeanMarginsTree::GMeanMarginsTree(GDomNode* pNode, GRand* pRand)
 : GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
 {
-	m_pRoot = GMeanMarginsTreeNode::fromTwt(pNode->field("root"));
+	m_pRoot = GMeanMarginsTreeNode::deserialize(pNode->field("root"));
 	m_internalFeatureDims = (size_t)pNode->field("ifd")->asInt();
 	m_internalLabelDims = (size_t)pNode->field("ild")->asInt();
 }
@@ -943,14 +954,14 @@ GMeanMarginsTree::~GMeanMarginsTree()
 }
 
 // virtual
-GTwtNode* GMeanMarginsTree::toTwt(GTwtDoc* pDoc)
+GDomNode* GMeanMarginsTree::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GMeanMarginsTree");
+	GDomNode* pNode = baseDomNode(pDoc, "GMeanMarginsTree");
 	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
 	pNode->addField(pDoc, "ild", pDoc->newInt(m_internalLabelDims));
 	if(!m_pRoot)
 		ThrowError("Attempted to serialize a model that has not been trained");
-	pNode->addField(pDoc, "root", m_pRoot->toTwt(pDoc, m_internalFeatureDims, m_internalLabelDims));
+	pNode->addField(pDoc, "root", m_pRoot->serialize(pDoc, m_internalFeatureDims, m_internalLabelDims));
 	return pNode;
 }
 
@@ -1142,7 +1153,7 @@ GRandomForest::GRandomForest(GRand& rand, size_t trees, size_t samples)
 	}
 }
 
-GRandomForest::GRandomForest(GTwtNode* pNode, GRand& rand)
+GRandomForest::GRandomForest(GDomNode* pNode, GRand& rand)
 : GSupervisedLearner(pNode, rand)
 {
 	GLearnerLoader ll(true);
@@ -1156,10 +1167,10 @@ GRandomForest::~GRandomForest()
 }
 
 // virtual
-GTwtNode* GRandomForest::toTwt(GTwtDoc* pDoc)
+GDomNode* GRandomForest::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GRandomForest");
-	pNode->addField(pDoc, "bag", m_pEnsemble->toTwt(pDoc));
+	GDomNode* pNode = baseDomNode(pDoc, "GRandomForest");
+	pNode->addField(pDoc, "bag", m_pEnsemble->serialize(pDoc));
 	return pNode;
 }
 

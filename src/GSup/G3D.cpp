@@ -11,7 +11,7 @@
 
 #include "G3D.h"
 #include "../GClasses/GRand.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GMath.h"
 #include "../GClasses/GImage.h"
 #include "../GClasses/GVec.h"
@@ -21,16 +21,16 @@ using std::vector;
 
 namespace GClasses {
 
-GTwtNode* G3DVector::toTwt(GTwtDoc* pDoc)
+GDomNode* G3DVector::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "x", pDoc->newDouble(m_vals[0]));
 	pNode->addField(pDoc, "y", pDoc->newDouble(m_vals[1]));
 	pNode->addField(pDoc, "z", pDoc->newDouble(m_vals[2]));
 	return pNode;
 }
 
-void G3DVector::fromTwt(GTwtNode* pNode)
+void G3DVector::deserialize(GDomNode* pNode)
 {
 	m_vals[0] = pNode->field("x")->asDouble();
 	m_vals[1] = pNode->field("y")->asDouble();
@@ -69,22 +69,26 @@ void G3DVector::yawAndPitch(G3DReal* pYaw, G3DReal* pPitch) const
 
 // -----------------------------------------
 
-GTwtNode* G3DMatrix::toTwt(GTwtDoc* pDoc)
+GDomNode* G3DMatrix::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newList(9);
-	int i = 0;
+	GDomNode* pNode = pDoc->newList();
 	for(int r = 0; r < 3; r++)
 		for(int c = 0; c < 3; c++)
-			pNode->setItem(i++, pDoc->newDouble(m_rows[r].m_vals[c]));
+			pNode->addItem(pDoc, pDoc->newDouble(m_rows[r].m_vals[c]));
 	return pNode;
 }
 
-void G3DMatrix::fromTwt(GTwtNode* pNode)
+void G3DMatrix::deserialize(GDomNode* pNode)
 {
-	int i = 0;
+	GDomListIterator it(pNode);
 	for(int r = 0; r < 3; r++)
+	{
 		for(int c = 0; c < 3; c++)
-			m_rows[r].m_vals[c] = pNode->item(i++)->asDouble();
+		{
+			m_rows[r].m_vals[c] = it.current()->asDouble();
+			it.advance();
+		}
+	}
 }
 
 void G3DMatrix::makeRandom(GRand* pRand)
@@ -123,11 +127,11 @@ void G3DMatrix::makeAxisRotationMatrix(int axis, double radians)
 
 // -----------------------------------------
 
-GCamera::GCamera(GTwtNode* pNode)
+GCamera::GCamera(GDomNode* pNode)
 {
-	m_lookFromPoint.fromTwt(pNode->field("from"));
-	m_lookDirection.fromTwt(pNode->field("dir"));
-	m_viewUpVector.fromTwt(pNode->field("up"));
+	m_lookFromPoint.deserialize(pNode->field("from"));
+	m_lookDirection.deserialize(pNode->field("dir"));
+	m_viewUpVector.deserialize(pNode->field("up"));
 	setDirection(&m_lookDirection, &m_viewUpVector);
 	m_halfViewHeight = pNode->field("hvh")->asDouble();
 	m_nWidth = (int)pNode->field("width")->asInt();
@@ -135,12 +139,12 @@ GCamera::GCamera(GTwtNode* pNode)
 }
 
 // virtual
-GTwtNode* GCamera::toTwt(GTwtDoc* pDoc)
+GDomNode* GCamera::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "from", m_lookFromPoint.toTwt(pDoc));
-	pNode->addField(pDoc, "dir", m_lookDirection.toTwt(pDoc));
-	pNode->addField(pDoc, "up", m_viewUpVector.toTwt(pDoc));
+	GDomNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "from", m_lookFromPoint.serialize(pDoc));
+	pNode->addField(pDoc, "dir", m_lookDirection.serialize(pDoc));
+	pNode->addField(pDoc, "up", m_viewUpVector.serialize(pDoc));
 	pNode->addField(pDoc, "hvh", pDoc->newDouble(m_halfViewHeight));
 	pNode->addField(pDoc, "width", pDoc->newInt(m_nWidth));
 	pNode->addField(pDoc, "height", pDoc->newInt(m_nHeight));

@@ -10,7 +10,7 @@
 */
 
 #include "GDistance.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GVec.h"
 #include <math.h>
 #include <cassert>
@@ -19,9 +19,9 @@ using std::map;
 
 namespace GClasses {
 
-GDistanceMetric::GDistanceMetric(GTwtNode* pNode)
+GDistanceMetric::GDistanceMetric(GDomNode* pNode)
 {
-	m_pRelation = GRelation::fromTwt(pNode->field("relation"));
+	m_pRelation = GRelation::deserialize(pNode->field("relation"));
 }
 
 double GDistanceMetric::squaredDistance(const std::vector<double> & x, const std::vector<double> & y){
@@ -33,16 +33,16 @@ double GDistanceMetric::squaredDistance(const std::vector<double> & x, const std
 }
 
 
-GTwtNode* GDistanceMetric::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
+GDomNode* GDistanceMetric::baseDomNode(GDom* pDoc, const char* szClassName)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
-	pNode->addField(pDoc, "relation", m_pRelation->toTwt(pDoc));
+	pNode->addField(pDoc, "relation", m_pRelation->serialize(pDoc));
 	return pNode;
 }
 
 // static
-GDistanceMetric* GDistanceMetric::fromTwt(GTwtNode* pNode)
+GDistanceMetric* GDistanceMetric::deserialize(GDomNode* pNode)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(strcmp(szClass, "GRowDistanceScaled") == 0)
@@ -62,16 +62,16 @@ GRowDistance::GRowDistance()
 {
 }
 
-GRowDistance::GRowDistance(GTwtNode* pNode)
+GRowDistance::GRowDistance(GDomNode* pNode)
 : GDistanceMetric(pNode)
 {
 	m_diffWithUnknown = pNode->field("dwu")->asDouble();
 }
 
 // virtual
-GTwtNode* GRowDistance::toTwt(GTwtDoc* pDoc)
+GDomNode* GRowDistance::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GRowDistance");
+	GDomNode* pNode = baseDomNode(pDoc, "GRowDistance");
 	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
 	return pNode;
 }
@@ -114,26 +114,30 @@ double GRowDistance::squaredDistance(const double* pA, const double* pB)
 
 // --------------------------------------------------------------------
 
-GRowDistanceScaled::GRowDistanceScaled(GTwtNode* pNode)
+GRowDistanceScaled::GRowDistanceScaled(GDomNode* pNode)
 : GDistanceMetric(pNode)
 {
-	GTwtNode* pScaleFactors = pNode->field("scaleFactors");
+	GDomNode* pScaleFactors = pNode->field("scaleFactors");
+	GDomListIterator it(pScaleFactors);
 	size_t dims = m_pRelation->size();
-	if(pScaleFactors->itemCount() != dims)
+	if(it.remaining() != dims)
 		ThrowError("wrong number of scale factors");
 	m_pScaleFactors = new double[dims];
 	for(size_t i = 0; i < dims; i++)
-		m_pScaleFactors[i] = pScaleFactors->item(i)->asDouble();
+	{
+		m_pScaleFactors[i] = it.current()->asDouble();
+		it.advance();
+	}
 }
 
 // virtual
-GTwtNode* GRowDistanceScaled::toTwt(GTwtDoc* pDoc)
+GDomNode* GRowDistanceScaled::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GRowDistance");
+	GDomNode* pNode = baseDomNode(pDoc, "GRowDistance");
 	size_t dims = m_pRelation->size();
-	GTwtNode* pScaleFactors = pNode->addField(pDoc, "scaleFactors", pDoc->newList(dims));
+	GDomNode* pScaleFactors = pNode->addField(pDoc, "scaleFactors", pDoc->newList());
 	for(size_t i = 0; i < dims; i++)
-		pScaleFactors->setItem(i, pDoc->newDouble(m_pScaleFactors[i]));
+		pScaleFactors->addItem(pDoc, pDoc->newDouble(m_pScaleFactors[i]));
 	return pNode;
 }
 
@@ -174,15 +178,15 @@ GLNormDistance::GLNormDistance(double norm)
 {
 }
 
-GLNormDistance::GLNormDistance(GTwtNode* pNode)
+GLNormDistance::GLNormDistance(GDomNode* pNode)
 : GDistanceMetric(pNode), m_norm(pNode->field("norm")->asDouble()), m_diffWithUnknown(pNode->field("dwu")->asDouble())
 {
 }
 
 // virtual
-GTwtNode* GLNormDistance::toTwt(GTwtDoc* pDoc)
+GDomNode* GLNormDistance::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GLNormDistance");
+	GDomNode* pNode = baseDomNode(pDoc, "GLNormDistance");
 	pNode->addField(pDoc, "norm", pDoc->newDouble(m_norm));
 	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
 	return pNode;
@@ -228,7 +232,7 @@ double GLNormDistance::squaredDistance(const double* pA, const double* pB)
 // --------------------------------------------------------------------
 
 // static
-GSparseSimilarity* GSparseSimilarity::fromTwt(GTwtNode* pNode)
+GSparseSimilarity* GSparseSimilarity::deserialize(GDomNode* pNode)
 {
 	const char* szClass = pNode->field("class")->asString();
 	GSparseSimilarity* pObj = NULL;
@@ -242,9 +246,9 @@ GSparseSimilarity* GSparseSimilarity::fromTwt(GTwtNode* pNode)
 	return pObj;
 }
 
-GTwtNode* GSparseSimilarity::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
+GDomNode* GSparseSimilarity::baseDomNode(GDom* pDoc, const char* szClassName)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
 	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
 	return pNode;
@@ -253,9 +257,9 @@ GTwtNode* GSparseSimilarity::baseTwtNode(GTwtDoc* pDoc, const char* szClassName)
 // --------------------------------------------------------------------
 
 // virtual
-GTwtNode* GCosineSimilarity::toTwt(GTwtDoc* pDoc)
+GDomNode* GCosineSimilarity::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GCosineSimilarity");
+	GDomNode* pNode = baseDomNode(pDoc, "GCosineSimilarity");
 	return pNode;
 }
 
@@ -327,9 +331,9 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const double* 
 // --------------------------------------------------------------------
 
 // virtual
-GTwtNode* GPearsonCorrelation::toTwt(GTwtDoc* pDoc)
+GDomNode* GPearsonCorrelation::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GPearsonCorrelation");
+	GDomNode* pNode = baseDomNode(pDoc, "GPearsonCorrelation");
 	return pNode;
 }
 

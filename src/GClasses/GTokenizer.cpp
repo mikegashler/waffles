@@ -162,7 +162,7 @@ void GTokenizer::bufferChar(char c)
 	m_pBufPos++;
 }
 
-const char* GTokenizer::nextUntil(const char* szDelimeters, size_t minLen)
+char* GTokenizer::nextUntil(const char* szDelimeters, size_t minLen)
 {
 	GCharGroup* pCG = getCharGroup(szDelimeters);
 	m_pBufPos = m_pBufStart;
@@ -182,7 +182,27 @@ const char* GTokenizer::nextUntil(const char* szDelimeters, size_t minLen)
 	return m_pBufStart;
 }
 
-const char* GTokenizer::nextWhile(const char* szSet, size_t minLen)
+char* GTokenizer::nextUntilNotEscaped(char escapeChar, const char* szDelimeters)
+{
+	GCharGroup* pCG = getCharGroup(szDelimeters);
+	m_pBufPos = m_pBufStart;
+	char cCur = '\0';
+	while(m_len > 0)
+	{
+		char c = m_pStream->peek();
+		if(pCG->find(c) && cCur != escapeChar)
+			break;
+		c = get();
+		bufferChar(c);
+		cCur = c;
+	}
+	if(m_pBufPos == m_pBufEnd)
+		growBuf();
+	*m_pBufPos = '\0';
+	return m_pBufStart;
+}
+
+char* GTokenizer::nextWhile(const char* szSet, size_t minLen)
 {
 	GCharGroup* pCG = getCharGroup(szSet);
 	m_pBufPos = m_pBufStart;
@@ -226,7 +246,7 @@ void GTokenizer::skipTo(const char* szDelimeters)
 	}
 }
 
-const char* GTokenizer::nextArg()
+char* GTokenizer::nextArg()
 {
 	char c = m_pStream->peek();
 	if(c == '"')
@@ -287,6 +307,8 @@ void GTokenizer::expect(const char* szString)
 			ThrowError("Expected \"", szString, "\" on line ", to_str(m_line), ", col ", to_str(col()));
 		szString++;
 	}
+	if(*szString != '\0')
+		ThrowError("Expected \", szString, \". Reached end-of-file instead.");
 }
 
 size_t GTokenizer::tokenLength()
@@ -294,10 +316,10 @@ size_t GTokenizer::tokenLength()
 	return m_pBufPos - m_pBufStart;
 }
 
-const char* GTokenizer::trim(const char* szSet)
+char* GTokenizer::trim(const char* szSet)
 {
 	GCharGroup* pCG = getCharGroup(szSet);
-	const char* pStart = m_pBufStart;
+	char* pStart = m_pBufStart;
 	while(pStart < m_pBufPos && pCG->find(*pStart))
 		pStart++;
 	for(char* pEnd = m_pBufPos - 1; pEnd >= pStart && pCG->find(*pEnd); pEnd--)

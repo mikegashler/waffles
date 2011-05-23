@@ -20,8 +20,8 @@ namespace GClasses {
 
 class GMatrix;
 class GRand;
-class GTwtNode;
-class GTwtDoc;
+class GDomNode;
+class GDom;
 
 /// This class stores a row-compressed sparse matrix. That is,
 /// each row consists of a map from a column-index to a value.
@@ -41,7 +41,7 @@ public:
 	GSparseMatrix(size_t rows, size_t cols, double defaultValue = 0.0);
 
 	/// Deserializes a sparse matrix
-	GSparseMatrix(GTwtNode* pNode);
+	GSparseMatrix(GDomNode* pNode);
 
 	~GSparseMatrix();
 
@@ -52,7 +52,7 @@ public:
 	typedef Map::const_iterator Iter;
 
 	/// Serializes this object
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Returns the default value--the common value that is not stored.
 	double defaultValue() { return m_defaultValue; }

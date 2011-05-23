@@ -27,7 +27,7 @@
 #include "../GSup/GRayTrace.h"
 #include "../GClasses/GRect.h"
 #include "../GClasses/GSystemLearner.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../wizard/usage.h"
 #include <time.h>
 #include <iostream>
@@ -1593,8 +1593,8 @@ void sceneRobotSimulationPath(GArgReader& args)
 void mechanicalRabbit(GArgReader& args)
 {
 	const char* sceneFilename = args.pop_string();
-	GTwtDoc doc;
-	doc.load(args.pop_string());
+	GDom doc;
+	doc.loadJson(args.pop_string());
 	GMatrix* pActions = loadData(args.pop_string());
 	Holder<GMatrix> hActions(pActions);
 

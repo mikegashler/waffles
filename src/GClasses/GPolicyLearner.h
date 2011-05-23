@@ -115,7 +115,7 @@ public:
 	/// are continuous or discrete). The first attributes refer to the senses, and the last actionDims
 	/// attributes refer to the actions.
 	GPolicyLearner(sp_relation& pRelation, int actionDims);
-	GPolicyLearner(GTwtNode* pNode);
+	GPolicyLearner(GDomNode* pNode);
 
 	virtual ~GPolicyLearner()
 	{
@@ -144,9 +144,9 @@ public:
 	}
 
 protected:
-	/// If a child class has a toTwt method for serialization, it
+	/// If a child class has a serialize method, it
 	/// should use this method to serialize the base-class stuff.
-	GTwtNode* baseTwtNode(GTwtDoc* pDoc);
+	GDomNode* baseDomNode(GDom* pDoc);
 };
 
 

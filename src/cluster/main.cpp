@@ -29,7 +29,7 @@
 #include "../GClasses/GRect.h"
 #include "../GClasses/GSparseMatrix.h"
 #include "../GClasses/GMath.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GSelfOrganizingMap.h"
 #include <time.h>
 #include <iostream>

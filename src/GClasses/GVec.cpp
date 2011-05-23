@@ -17,7 +17,7 @@
 #include "GError.h"
 #include "GMatrix.h"
 #include "GBits.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GMath.h"
 #include "GImage.h"
 #include "GBitTable.h"
@@ -472,21 +472,24 @@ void GVec::addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, s
 }
 
 // static
-GTwtNode* GVec::toTwt(GTwtDoc* pDoc, const double* pVec, size_t dims)
+GDomNode* GVec::serialize(GDom* pDoc, const double* pVec, size_t dims)
 {
-	GTwtNode* pNode = pDoc->newList(dims);
+	GDomNode* pNode = pDoc->newList();
 	for(size_t i = 0; i < dims; i++)
-		pNode->setItem(i, pDoc->newDouble(pVec[i]));
+		pNode->addItem(pDoc, pDoc->newDouble(pVec[i]));
 	return pNode;
 }
 
 // static
-void GVec::fromTwt(double* pVec, size_t dims, GTwtNode* pNode)
+void GVec::deserialize(double* pVec, size_t dims, GDomListIterator& it)
 {
-	if(dims != pNode->itemCount())
-		ThrowError("Expected ", to_str(dims), " dims, but the twt node specified ", to_str(pNode->itemCount()), " dims");
+	if(dims != it.remaining())
+		ThrowError("Expected ", to_str(dims), " dims, but the DOM node specified ", to_str(it.remaining()), " dims");
 	for(size_t i = 0; i < dims; i++)
-		pVec[i] = pNode->item(i)->asDouble();
+	{
+		pVec[i] = it.current()->asDouble();
+		it.advance();
+	}
 }
 
 // static

@@ -18,7 +18,7 @@
 #include "GDistribution.h"
 #include "GMath.h"
 #include "GHillClimber.h"
-#include "GTwt.h"
+#include "GDom.h"
 
 using std::vector;
 
@@ -37,8 +37,8 @@ public:
 	/// It will have the same number of control points in every dimension
 	GPolynomialSingleLabel(size_t nControlPoints);
 
-	/// Load from a text-based format
-	GPolynomialSingleLabel(GTwtNode* pNode, GRand& rand);
+	/// Load from a DOM.
+	GPolynomialSingleLabel(GDomNode* pNode, GRand& rand);
 
 	virtual ~GPolynomialSingleLabel();
 
@@ -47,8 +47,8 @@ public:
 	static void test();
 #endif // NO_TEST_CODE
 
-	/// Save to a text-based format
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Specify the number of input and output features
 	void init(size_t featureDims);
@@ -171,7 +171,7 @@ GPolynomialSingleLabel::GPolynomialSingleLabel(size_t nControlPoints)
 	GAssert(nControlPoints > 0);
 }
 
-GPolynomialSingleLabel::GPolynomialSingleLabel(GTwtNode* pNode, GRand& rand)
+GPolynomialSingleLabel::GPolynomialSingleLabel(GDomNode* pNode, GRand& rand)
 {
 	m_nControlPoints = (int)pNode->field("controlPoints")->asInt();
 	m_nCoefficients = 1;
@@ -183,7 +183,8 @@ GPolynomialSingleLabel::GPolynomialSingleLabel(GTwtNode* pNode, GRand& rand)
 		i--;
 	}
 	m_pCoefficients = new double[m_nCoefficients];
-	GVec::fromTwt(m_pCoefficients, m_nCoefficients, pNode->field("coefficients"));
+	GDomListIterator it(pNode->field("coefficients"));
+	GVec::deserialize(m_pCoefficients, m_nCoefficients, it);
 }
 
 GPolynomialSingleLabel::~GPolynomialSingleLabel()
@@ -192,14 +193,14 @@ GPolynomialSingleLabel::~GPolynomialSingleLabel()
 }
 
 // virtual
-GTwtNode* GPolynomialSingleLabel::toTwt(GTwtDoc* pDoc)
+GDomNode* GPolynomialSingleLabel::serialize(GDom* pDoc)
 {
 	if(m_featureDims == 0)
 		ThrowError("train has not been called");
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
 	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_nControlPoints));
-	pNode->addField(pDoc, "coefficients", GVec::toTwt(pDoc, m_pCoefficients, m_nCoefficients));
+	pNode->addField(pDoc, "coefficients", GVec::serialize(pDoc, m_pCoefficients, m_nCoefficients));
 	return pNode;
 }
 
@@ -592,13 +593,13 @@ GPolynomial::GPolynomial(size_t nControlPoints)
 {
 }
 
-GPolynomial::GPolynomial(GTwtNode* pNode, GRand& rand)
+GPolynomial::GPolynomial(GDomNode* pNode, GRand& rand)
 : GSupervisedLearner(pNode, rand)
 {
 	m_controlPoints = (size_t)pNode->field("controlPoints")->asInt();
-	GTwtNode* pPolys = pNode->field("polys");
-	for(size_t i = 0; i < pPolys->itemCount(); i++)
-		m_polys.push_back(new GPolynomialSingleLabel(pPolys->item(i), rand));
+	GDomNode* pPolys = pNode->field("polys");
+	for(GDomListIterator it(pPolys); it.current(); it.advance())
+		m_polys.push_back(new GPolynomialSingleLabel(it.current(), rand));
 }
 
 // virtual
@@ -608,13 +609,13 @@ GPolynomial::~GPolynomial()
 }
 
 // virtual
-GTwtNode* GPolynomial::toTwt(GTwtDoc* pDoc)
+GDomNode* GPolynomial::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GPolynomial");
+	GDomNode* pNode = baseDomNode(pDoc, "GPolynomial");
 	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_controlPoints));
-	GTwtNode* pPolys = pNode->addField(pDoc, "polys", pDoc->newList(m_polys.size()));
+	GDomNode* pPolys = pNode->addField(pDoc, "polys", pDoc->newList());
 	for(size_t i = 0; i < m_polys.size(); i++)
-		pPolys->setItem(i, m_polys[i]->toTwt(pDoc));
+		pPolys->addItem(pDoc, m_polys[i]->serialize(pDoc));
 	return pNode;
 }
 

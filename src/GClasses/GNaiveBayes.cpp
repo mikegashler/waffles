@@ -14,7 +14,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include "GVec.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GDistribution.h"
 #include "GRand.h"
 #include "GTransform.h"
@@ -35,12 +35,16 @@ struct GNaiveBayesInputAttr
 		memset(m_pValueCounts, '\0', sizeof(size_t) * m_nValues);
 	}
 
-	GNaiveBayesInputAttr(GTwtNode* pNode)
+	GNaiveBayesInputAttr(GDomNode* pNode)
 	{
-		m_nValues = pNode->itemCount();
+		GDomListIterator it(pNode);
+		m_nValues = it.remaining();
 		m_pValueCounts = new size_t[m_nValues];
 		for(size_t i = 0; i < m_nValues; i++)
-			m_pValueCounts[i] = (size_t)pNode->item(i)->asInt();
+		{
+			m_pValueCounts[i] = (size_t)it.current()->asInt();
+			it.advance();
+		}
 	}
 
 	~GNaiveBayesInputAttr()
@@ -48,11 +52,11 @@ struct GNaiveBayesInputAttr
 		delete[] m_pValueCounts;
 	}
 
-	GTwtNode* toTwt(GTwtDoc* pDoc)
+	GDomNode* serialize(GDom* pDoc)
 	{
-		GTwtNode* pNode = pDoc->newList(m_nValues);
+		GDomNode* pNode = pDoc->newList();
 		for(size_t i = 0; i < m_nValues; i++)
-			pNode->setItem(i, pDoc->newInt(m_pValueCounts[i]));
+			pNode->addItem(pDoc, pDoc->newInt(m_pValueCounts[i]));
 		return pNode;
 	}
 
@@ -90,15 +94,20 @@ struct GNaiveBayesOutputValue
 			m_pInputs[n] = new struct GNaiveBayesInputAttr(pFeatureRel->valueCount(n));
 	}
 
-	GNaiveBayesOutputValue(GTwtNode* pNode, size_t nInputCount)
+	GNaiveBayesOutputValue(GDomNode* pNode, size_t nInputCount)
 	{
-		if(pNode->itemCount() != nInputCount + 1)
+		GDomListIterator it(pNode);
+		if(it.remaining() != nInputCount + 1)
 			ThrowError("Unexpected number of inputs");
-		m_nCount = (size_t)pNode->item(0)->asInt();
+		m_nCount = (size_t)it.current()->asInt();
+		it.advance();
 		m_featureDims = nInputCount;
 		m_pInputs = new struct GNaiveBayesInputAttr*[m_featureDims];
 		for(size_t n = 0; n < m_featureDims; n++)
-			m_pInputs[n] = new struct GNaiveBayesInputAttr(pNode->item(n + 1));
+		{
+			m_pInputs[n] = new struct GNaiveBayesInputAttr(it.current());
+			it.advance();
+		}
 	}
 
 	~GNaiveBayesOutputValue()
@@ -108,12 +117,12 @@ struct GNaiveBayesOutputValue
 		delete[] m_pInputs;
 	}
 
-	GTwtNode* toTwt(GTwtDoc* pDoc)
+	GDomNode* serialize(GDom* pDoc)
 	{
-		GTwtNode* pNode = pDoc->newList(m_featureDims + 1);
-		pNode->setItem(0, pDoc->newInt(m_nCount));
+		GDomNode* pNode = pDoc->newList();
+		pNode->addItem(pDoc, pDoc->newInt(m_nCount));
 		for(size_t i = 0; i < m_featureDims; i++)
-			pNode->setItem(i + 1, m_pInputs[i]->toTwt(pDoc));
+			pNode->addItem(pDoc, m_pInputs[i]->serialize(pDoc));
 		return pNode;
 	}
 
@@ -159,14 +168,18 @@ struct GNaiveBayesOutputAttr
 			m_pValues[n] = new struct GNaiveBayesOutputValue(pFeatureRel, nInputCount);
 	}
 
-	GNaiveBayesOutputAttr(GTwtNode* pNode, size_t nInputCount, size_t nValueCount)
+	GNaiveBayesOutputAttr(GDomNode* pNode, size_t nInputCount, size_t nValueCount)
 	{
-		if(pNode->itemCount() != nValueCount)
+		GDomListIterator it(pNode);
+		if(it.remaining() != nValueCount)
 			ThrowError("Unexpected number of values");
 		m_nValueCount = nValueCount;
 		m_pValues = new struct GNaiveBayesOutputValue*[m_nValueCount];
 		for(size_t n = 0; n < m_nValueCount; n++)
-			m_pValues[n] = new struct GNaiveBayesOutputValue(pNode->item(n), nInputCount);
+		{
+			m_pValues[n] = new struct GNaiveBayesOutputValue(it.current(), nInputCount);
+			it.advance();
+		}
 	}
 
 	~GNaiveBayesOutputAttr()
@@ -176,11 +189,11 @@ struct GNaiveBayesOutputAttr
 		delete[] m_pValues;
 	}
 
-	GTwtNode* toTwt(GTwtDoc* pDoc)
+	GDomNode* serialize(GDom* pDoc)
 	{
-		GTwtNode* pNode = pDoc->newList(m_nValueCount);
+		GDomNode* pNode = pDoc->newList();
 		for(size_t i = 0; i < m_nValueCount; i++)
-			pNode->setItem(i, m_pValues[i]->toTwt(pDoc));
+			pNode->addItem(pDoc, m_pValues[i]->serialize(pDoc));
 		return pNode;
 	}
 
@@ -218,19 +231,23 @@ GNaiveBayes::GNaiveBayes(GRand* pRand)
 	m_nSampleCount = 0;
 }
 
-GNaiveBayes::GNaiveBayes(GTwtNode* pNode, GRand* pRand)
+GNaiveBayes::GNaiveBayes(GDomNode* pNode, GRand* pRand)
 : GIncrementalLearner(pNode, *pRand), m_pRand(pRand)
 {
-	m_pFeatureRel = GRelation::fromTwt(pNode->field("featurerel"));
-	m_pLabelRel = GRelation::fromTwt(pNode->field("labelrel"));
+	m_pFeatureRel = GRelation::deserialize(pNode->field("featurerel"));
+	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	m_nSampleCount = (size_t)pNode->field("sampleCount")->asInt();
 	m_equivalentSampleSize = pNode->field("ess")->asDouble();
-	GTwtNode* pOutputs = pNode->field("outputs");
-	if(pOutputs->itemCount() != m_pLabelRel->size())
+	GDomNode* pOutputs = pNode->field("outputs");
+	GDomListIterator it(pOutputs);
+	if(it.remaining() != m_pLabelRel->size())
 		ThrowError("Wrong number of outputs");
 	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pLabelRel->size()];
 	for(size_t i = 0; i < m_pLabelRel->size(); i++)
-		m_pOutputs[i] = new struct GNaiveBayesOutputAttr(pOutputs->item(i), m_pFeatureRel->size(), m_pLabelRel->valueCount(i));
+	{
+		m_pOutputs[i] = new struct GNaiveBayesOutputAttr(it.current(), m_pFeatureRel->size(), m_pLabelRel->valueCount(i));
+		it.advance();
+	}
 }
 
 GNaiveBayes::~GNaiveBayes()
@@ -239,16 +256,16 @@ GNaiveBayes::~GNaiveBayes()
 }
 
 // virtual
-GTwtNode* GNaiveBayes::toTwt(GTwtDoc* pDoc)
+GDomNode* GNaiveBayes::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GNaiveBayes");
-	pNode->addField(pDoc, "featurerel", m_pFeatureRel->toTwt(pDoc));
-	pNode->addField(pDoc, "labelrel", m_pLabelRel->toTwt(pDoc));
+	GDomNode* pNode = baseDomNode(pDoc, "GNaiveBayes");
+	pNode->addField(pDoc, "featurerel", m_pFeatureRel->serialize(pDoc));
+	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
 	pNode->addField(pDoc, "sampleCount", pDoc->newInt(m_nSampleCount));
 	pNode->addField(pDoc, "ess", pDoc->newDouble(m_equivalentSampleSize));
-	GTwtNode* pOutputs = pNode->addField(pDoc, "outputs", pDoc->newList(m_pLabelRel->size()));
+	GDomNode* pOutputs = pNode->addField(pDoc, "outputs", pDoc->newList());
 	for(size_t i = 0; i < m_pLabelRel->size(); i++)
-		pOutputs->setItem(i, m_pOutputs[i]->toTwt(pDoc));
+		pOutputs->addItem(pDoc, m_pOutputs[i]->serialize(pDoc));
 	return pNode;
 }
 

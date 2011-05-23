@@ -32,7 +32,7 @@
 #include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GTime.h"
 #include "../GClasses/GTransform.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GVec.h"
 #include "../wizard/usage.h"
 #include <time.h>
@@ -686,10 +686,10 @@ void Train(GArgReader& args)
 	pModel->train(*pFeatures, *pLabels);
 
 	// Output the trained model
-	GTwtDoc doc;
-	GTwtNode* pRoot = pModel->toTwt(&doc);
+	GDom doc;
+	GDomNode* pRoot = pModel->serialize(&doc);
 	doc.setRoot(pRoot);
-	doc.write(cout);
+	doc.writeJson(cout);
 }
 
 void predict(GArgReader& args)
@@ -706,10 +706,10 @@ void predict(GArgReader& args)
 
 	// Load the model
 	GRand prng(seed);
-	GTwtDoc doc;
+	GDom doc;
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
-	doc.load(args.pop_string());
+	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
@@ -749,10 +749,10 @@ void predictOnePattern(GArgReader& args)
 
 	// Load the model
 	GRand prng(seed);
-	GTwtDoc doc;
+	GDom doc;
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
-	doc.load(args.pop_string());
+	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
@@ -905,10 +905,10 @@ void Test(GArgReader& args)
 
 	// Load the model
 	GRand prng(seed);
-	GTwtDoc doc;
+	GDom doc;
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
-	doc.load(args.pop_string());
+	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
@@ -1098,12 +1098,12 @@ void SplitTest(GArgReader& args)
 				GSupervisedLearner* pSup = 
 				  dynamic_cast<GSupervisedLearner*>
 				  (pSupLearner);
-				GTwtDoc doc;
-				GTwtNode* pRoot = pSup->toTwt(&doc);
+				GDom doc;
+				GDomNode* pRoot = pSup->serialize(&doc);
 				doc.setRoot(pRoot);
 				std::ofstream out(lastModelFile.c_str());
 				if(out){
-					doc.write(out);
+					doc.writeJson(out);
 				}
 			}
 			cout << "rep " << i << ") ";
@@ -1479,9 +1479,9 @@ void trainRecurrent(GArgReader& args)
 		model.trainHillClimber(pDataAction, pDataObs, 0.0, 0.0, 0.0, true, false);
 	else if(strcmp(alg, "annealing") == 0)
 		model.trainHillClimber(pDataAction, pDataObs, annealDeviation, annealDecay, annealTimeWindow, false, true);
-	GTwtDoc doc;
-	doc.setRoot(model.toTwt(&doc));
-	doc.save(outFilename);
+	GDom doc;
+	doc.setRoot(model.serialize(&doc));
+	doc.saveJson(outFilename);
 }
 
 void ShowUsage(const char* appName)

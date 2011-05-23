@@ -55,8 +55,8 @@ public:
 	/// a copy of pInterestingNode
 	GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy);
 #endif
-	/// Loads the model from a text file in ".twt" format
-	GDecisionTree(GTwtNode* pNode, GRand* pRand);
+	/// Loads from a DOM.
+	GDecisionTree(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GDecisionTree();
 
@@ -65,8 +65,8 @@ public:
 	static void test();
 #endif
 
-	/// Saves to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Specifies for this decision tree to use random divisions (instead of
 	/// divisions that reduce entropy). Random divisions make the algorithm
@@ -156,8 +156,8 @@ public:
 	/// nOutputs specifies the number of output dimensions
 	GMeanMarginsTree(GRand* pRand);
 
-	/// Load from a text-based format
-	GMeanMarginsTree(GTwtNode* pNode, GRand* pRand);
+	/// Load from a DOM.
+	GMeanMarginsTree(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GMeanMarginsTree();
 
@@ -165,8 +165,8 @@ public:
 	static void test();
 #endif
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
@@ -199,15 +199,15 @@ protected:
 
 public:
 	GRandomForest(GRand& rand, size_t trees, size_t samples = 1);
-	GRandomForest(GTwtNode* pNode, GRand& rand);
+	GRandomForest(GDomNode* pNode, GRand& rand);
 	virtual ~GRandomForest();
 
 #ifndef NO_TEST_CODE
 	static void test();
 #endif
 
-	/// Saves to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

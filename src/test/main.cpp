@@ -57,7 +57,7 @@
 #include "../GClasses/GThread.h"
 #include "../GClasses/GTime.h"
 #include "../GClasses/GTransform.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GVec.h"
 
 using namespace GClasses;
@@ -69,7 +69,7 @@ using std::vector;
 typedef void (*TestFunc)();
 
 
-void sysExec(const char* szAppName, const char* szArgs, GPipe* pStdOut = NULL, GPipe* pStdErr = NULL, GPipe* pStdIn = NULL)
+int sysExec(const char* szAppName, const char* szArgs, GPipe* pStdOut = NULL, GPipe* pStdErr = NULL, GPipe* pStdIn = NULL)
 {
 	string s = szAppName;
 //#ifdef _DEBUG
@@ -80,7 +80,7 @@ void sysExec(const char* szAppName, const char* szArgs, GPipe* pStdOut = NULL, G
 #endif
 	s += " ";
 	s += szArgs;
-	GApp::systemExecute(s.c_str(), true, pStdOut, pStdErr, pStdIn);
+	return GApp::systemExecute(s.c_str(), true, pStdOut, pStdErr, pStdIn);
 }
 
 class TempFileMaker
@@ -127,7 +127,8 @@ void test_transform_mergevert()
 
 	// Execute the command
 	GPipe pipeStdOut;
-	sysExec("waffles_transform", "mergevert a.arff b.arff", &pipeStdOut);
+	if(sysExec("waffles_transform", "mergevert a.arff b.arff", &pipeStdOut) != 0)
+		ThrowError("exit status indicates failure");
 	char buf[512];
 	size_t len = pipeStdOut.read(buf, 512);
 	if(len == 512)
@@ -182,7 +183,8 @@ void test_recommend_fillmissingvalues()
 
 	// Execute the command
 	GPipe pipeStdOut;
-	sysExec("waffles_recommend", "fillmissingvalues a.arff baseline", &pipeStdOut);
+	if(sysExec("waffles_recommend", "fillmissingvalues a.arff baseline", &pipeStdOut) != 0)
+		ThrowError("exit status indicates failure");
 	char buf[512];
 	size_t len = pipeStdOut.read(buf, 512);
 	if(len == 512)
@@ -245,14 +247,16 @@ void test_document_classification()
 		// Generate a sparse feature matrix and a corresponding dense label matrix
 		{
 			GPipe pipeIgnoreMe;
-			sysExec("waffles_sparse", "docstosparsematrix class_ham class_auto class_spam", &pipeIgnoreMe);
+			if(sysExec("waffles_sparse", "docstosparsematrix class_ham class_auto class_spam", &pipeIgnoreMe) != 0)
+				ThrowError("exit status indicates failure");
 		}
 		TempFileMaker tempFileFeatures("features.sparse", NULL);
 		TempFileMaker tempFileLabels("labels.arff", NULL);
 
 		// Shuffle the data
 		GPipe pipeStdOut;
-		sysExec("waffles_sparse", "shuffle features.sparse -seed 0 -labels labels.arff l2.arff", &pipeStdOut);
+		if(sysExec("waffles_sparse", "shuffle features.sparse -seed 0 -labels labels.arff l2.arff", &pipeStdOut) != 0)
+			ThrowError("exit status indicates failure");
 		pipeStdOut.toFile("f2.sparse");
 		TempFileMaker tempF2("f2.sparse", NULL);
 		TempFileMaker tempL2("l2.arff", NULL);
@@ -278,11 +282,13 @@ void test_document_classification()
 			string sArgs1 = "splitfold f2.sparse ";
 			sArgs1 += to_str(i);
 			sArgs1 += " 18";
-			sysExec("waffles_sparse", sArgs1.c_str());
+			if(sysExec("waffles_sparse", sArgs1.c_str()) != 0)
+				ThrowError("exit status indicates failure");
 			string sArgs2 = "splitfold l2.arff ";
 			sArgs2 += to_str(i);
 			sArgs2 += " 18";
-			sysExec("waffles_transform", sArgs2.c_str());
+			if(sysExec("waffles_transform", sArgs2.c_str()) != 0)
+				ThrowError("exit status indicates failure");
 
 			// Train and test each model
 			for(size_t j = 0; j < models.size(); j++)
@@ -291,12 +297,14 @@ void test_document_classification()
 				string sArgs = "train -seed 0 train.sparse train.arff ";
 				sArgs += models[j];
 				GPipe pipeStdOut2;
-				sysExec("waffles_sparse", sArgs.c_str(), &pipeStdOut2);
+				if(sysExec("waffles_sparse", sArgs.c_str(), &pipeStdOut2) != 0)
+					ThrowError("exit status indicates failure");
 				pipeStdOut2.toFile("model.twt");
 
 				// Test the model
 				GPipe pipeStdOut3;
-				sysExec("waffles_sparse", "test -seed 0 model.twt test.sparse test.arff", &pipeStdOut3);
+				if(sysExec("waffles_sparse", "test -seed 0 model.twt test.sparse test.arff", &pipeStdOut3) != 0)
+					ThrowError("exit status indicates failure");
 				size_t len = pipeStdOut3.read(buf, 256);
 				if(len >= 256)
 					ThrowError("Need a bigger buffer");
@@ -371,6 +379,7 @@ void RunAllTests()
 	runTest("GDecisionTree", GDecisionTree::test);
 	runTest("GDiff", GDiff::test);
 	runTest("GDijkstra", GDijkstra::test);
+	runTest("GDom", GDom::test);
 	runTest("GDynamicSystemStateAligner", GDynamicSystemStateAligner::test);
 	runTest("GFloydWarshall", GFloydWarshall::test);
 	runTest("GFourier", GFourier::test);
@@ -403,7 +412,6 @@ void RunAllTests()
 	runTest("GSpinLock", GSpinLock::test);
 	runTest("GSubImageFinder", GSubImageFinder::test);
 	runTest("GSubImageFinder2", GSubImageFinder2::test);
-	runTest("GTwt", GTwtDoc::test);
 	runTest("GVec", GVec::test);
 
 	string s = "waffles_learn";

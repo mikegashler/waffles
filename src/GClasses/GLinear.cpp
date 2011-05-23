@@ -10,7 +10,7 @@
 */
 
 #include "GLinear.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GTransform.h"
 #include "GRand.h"
 #include "GVec.h"
@@ -24,12 +24,13 @@ GLinearRegressor::GLinearRegressor(GRand* pRand)
 {
 }
 
-GLinearRegressor::GLinearRegressor(GTwtNode* pNode, GRand* pRand)
+GLinearRegressor::GLinearRegressor(GDomNode* pNode, GRand* pRand)
 : GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
 {
 	m_pBeta = new GMatrix(pNode->field("beta"));
 	m_pEpsilon = new double[m_pBeta->rows()];
-	GVec::fromTwt(m_pEpsilon, m_pBeta->rows(), pNode->field("epsilon"));
+	GDomListIterator it(pNode->field("epsilon"));
+	GVec::deserialize(m_pEpsilon, m_pBeta->rows(), it);
 }
 
 // virtual
@@ -40,11 +41,11 @@ GLinearRegressor::~GLinearRegressor()
 }
 
 // virtual
-GTwtNode* GLinearRegressor::toTwt(GTwtDoc* pDoc)
+GDomNode* GLinearRegressor::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GLinearRegressor");
-	pNode->addField(pDoc, "beta", m_pBeta->toTwt(pDoc));
-	pNode->addField(pDoc, "epsilon", GVec::toTwt(pDoc, m_pEpsilon, m_pBeta->rows()));
+	GDomNode* pNode = baseDomNode(pDoc, "GLinearRegressor");
+	pNode->addField(pDoc, "beta", m_pBeta->serialize(pDoc));
+	pNode->addField(pDoc, "epsilon", GVec::serialize(pDoc, m_pEpsilon, m_pBeta->rows()));
 	return pNode;
 }
 

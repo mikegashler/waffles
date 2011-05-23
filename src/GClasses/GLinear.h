@@ -36,7 +36,7 @@ public:
 	GLinearRegressor(GRand* pRand);
 
 	/// Load from a text-format
-	GLinearRegressor(GTwtNode* pNode, GRand* pRand);
+	GLinearRegressor(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GLinearRegressor();
 
@@ -48,7 +48,7 @@ public:
 	/// Saves the model to a text file. (This doesn't save the short-term
 	/// memory used for incremental learning, so if you're doing "incremental"
 	/// learning, it will wake up with amnesia when you load it again.)
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

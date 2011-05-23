@@ -32,7 +32,7 @@
 #include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GTime.h"
 #include "../GClasses/GTransform.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GVec.h"
 #include "../wizard/usage.h"
 #include <time.h>
@@ -282,8 +282,8 @@ void train(GArgReader& args)
 	GSparseMatrix* pSparseFeatures;
 	Holder<GSparseMatrix> hSparseFeatures(NULL);
 	{
-		GTwtDoc doc;
-		doc.load(args.pop_string());
+		GDom doc;
+		doc.loadJson(args.pop_string());
 		pSparseFeatures = new GSparseMatrix(doc.root());
 		hSparseFeatures.reset(pSparseFeatures);
 	}
@@ -306,10 +306,10 @@ void train(GArgReader& args)
 	pModel->trainSparse(*pSparseFeatures, *pLabels);
 
 	// Output the trained model
-	GTwtDoc doc;
-	GTwtNode* pRoot = pModel->toTwt(&doc);
+	GDom doc;
+	GDomNode* pRoot = pModel->serialize(&doc);
 	doc.setRoot(pRoot);
-	doc.write(cout);
+	doc.writeJson(cout);
 }
 
 void predict(GArgReader& args)
@@ -326,10 +326,10 @@ void predict(GArgReader& args)
 
 	// Load the model
 	GRand prng(seed);
-	GTwtDoc doc;
+	GDom doc;
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
-	doc.load(args.pop_string());
+	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
@@ -340,8 +340,8 @@ void predict(GArgReader& args)
 	GSparseMatrix* pData;
 	Holder<GSparseMatrix> hData(NULL);
 	{
-		GTwtDoc doc;
-		doc.load(args.pop_string());
+		GDom doc;
+		doc.loadJson(args.pop_string());
 		pData = new GSparseMatrix(doc.root());
 		hData.reset(pData);
 	}
@@ -372,10 +372,10 @@ void test(GArgReader& args)
 
 	// Load the model
 	GRand prng(seed);
-	GTwtDoc doc;
+	GDom doc;
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
-	doc.load(args.pop_string());
+	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
@@ -386,8 +386,8 @@ void test(GArgReader& args)
 	GSparseMatrix* pData;
 	Holder<GSparseMatrix> hData(NULL);
 	{
-		GTwtDoc doc;
-		doc.load(args.pop_string());
+		GDom doc;
+		doc.loadJson(args.pop_string());
 		pData = new GSparseMatrix(doc.root());
 		hData.reset(pData);
 	}
@@ -664,9 +664,9 @@ void docsToSparseMatrix(GArgReader& args)
 			fprintf(pFile, "%s\n", szWord);
 		}
 	}
-	GTwtDoc doc;
-	doc.setRoot(sparseFeatures.toTwt(&doc));
-	doc.save(featuresFilename.c_str());
+	GDom doc;
+	doc.setRoot(sparseFeatures.serialize(&doc));
+	doc.saveJson(featuresFilename.c_str());
 	if(pLabels)
 		pLabels->saveArff(labelsFilename.c_str());
 }
@@ -674,8 +674,8 @@ void docsToSparseMatrix(GArgReader& args)
 void shuffle(GArgReader& args)
 {
 	// Load
-	GTwtDoc doc;
-	doc.load(args.pop_string());
+	GDom doc;
+	doc.loadJson(args.pop_string());
 	GSparseMatrix* pData = new GSparseMatrix(doc.root());
 	Holder<GSparseMatrix> hData(pData);
 
@@ -706,9 +706,9 @@ void shuffle(GArgReader& args)
 		hLabels.reset(pLabels);
 	}
 	pData->shuffle(&prng, pLabels);
-	GTwtDoc doc2;
-	doc2.setRoot(pData->toTwt(&doc2));
-	doc2.write(cout);
+	GDom doc2;
+	doc2.setRoot(pData->serialize(&doc2));
+	doc2.writeJson(cout);
 	if(pLabels)
 		pLabels->saveArff(labelsOut.c_str());
 }
@@ -716,8 +716,8 @@ void shuffle(GArgReader& args)
 void split(GArgReader& args)
 {
 	// Load
-	GTwtDoc doc;
-	doc.load(args.pop_string());
+	GDom doc;
+	doc.loadJson(args.pop_string());
 	GSparseMatrix* pData = new GSparseMatrix(doc.root());
 	Holder<GSparseMatrix> hData(pData);
 	size_t pats1 = args.pop_uint();
@@ -732,17 +732,17 @@ void split(GArgReader& args)
 	Holder<GSparseMatrix> hPart1(pPart1);
 	GSparseMatrix* pPart2 = pData->subMatrix(0, pats1, pData->cols(), pats2);
 	Holder<GSparseMatrix> hPart2(pPart2);
-	doc.setRoot(pPart1->toTwt(&doc));
-	doc.save(szFilename1);
-	doc.setRoot(pPart2->toTwt(&doc));
-	doc.save(szFilename2);
+	doc.setRoot(pPart1->serialize(&doc));
+	doc.saveJson(szFilename1);
+	doc.setRoot(pPart2->serialize(&doc));
+	doc.saveJson(szFilename2);
 }
 
 void splitFold(GArgReader& args)
 {
 	// Load
-	GTwtDoc doc;
-	doc.load(args.pop_string());
+	GDom doc;
+	doc.loadJson(args.pop_string());
 	GSparseMatrix* pData = new GSparseMatrix(doc.root());
 	Holder<GSparseMatrix> hData(pData);
 	size_t fold = args.pop_uint();
@@ -775,10 +775,10 @@ void splitFold(GArgReader& args)
 		test.copyRow(pData->row(i));
 	for(size_t i = end; i < pData->rows(); i++)
 		train.copyRow(pData->row(i));
-	doc.setRoot(train.toTwt(&doc));
-	doc.save(filenameTrain.c_str());
-	doc.setRoot(test.toTwt(&doc));
-	doc.save(filenameTest.c_str());
+	doc.setRoot(train.serialize(&doc));
+	doc.saveJson(filenameTrain.c_str());
+	doc.setRoot(test.serialize(&doc));
+	doc.saveJson(filenameTest.c_str());
 }
 
 void ShowUsage(const char* appName)

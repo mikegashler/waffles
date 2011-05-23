@@ -65,7 +65,7 @@ class GManifoldLearner : public GTransform
 {
 public:
 	GManifoldLearner() : GTransform() {}
-	GManifoldLearner(GTwtNode* pNode) : GTransform(pNode) {}
+	GManifoldLearner(GDomNode* pNode) : GTransform(pNode) {}
 	virtual ~GManifoldLearner() {}
 };
 
@@ -216,11 +216,11 @@ protected:
 
 public:
 	GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GIsomap(GTwtNode* pNode);
+	GIsomap(GDomNode* pNode);
 	virtual ~GIsomap();
 
 	/// Serializes this object
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 
 	/// If there are any points that are not connected to the main group, just drop them instead of
 	/// throwing an exception. (Note that this may cause the results to contain a different number
@@ -249,11 +249,11 @@ protected:
 
 public:
 	GLLE(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GLLE(GTwtNode* pNode);
+	GLLE(GDomNode* pNode);
 	virtual ~GLLE();
 	
 	/// Serialize this object
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Specifies to use the neighborhoods determined by the specified neighbor-finder instead of the nearest
 	/// Euclidean-distance neighbors to establish local linearity. If this method is called, it will also
@@ -277,9 +277,9 @@ protected:
 
 public:
 	GManifoldUnfolder(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GManifoldUnfolder(GTwtNode* pNode);
+	GManifoldUnfolder(GDomNode* pNode);
 	virtual ~GManifoldUnfolder();
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Performs NLDR
@@ -308,11 +308,11 @@ public:
 	/// reps specifies the number of times to compute the embedding, and blend the
 	/// results together. If you just want fast results, use reps=1.
 	GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims, GRand* pRand);
-	GBreadthFirstUnfolding(GTwtNode* pNode, GRand* pRand);
+	GBreadthFirstUnfolding(GDomNode* pNode, GRand* pRand);
 	virtual ~GBreadthFirstUnfolding();
 
 	/// Serialize this object
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Specify the neighbor finder to use to pick neighbors for this algorithm
 	void setNeighborFinder(GNeighborFinder* pNF);
@@ -431,7 +431,7 @@ protected:
 
 public:
 	GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand);
-	GUnsupervisedBackProp(GTwtNode* pNode, GRand* pRand);
+	GUnsupervisedBackProp(GDomNode* pNode, GRand* pRand);
 	virtual ~GUnsupervisedBackProp();
 
 	/// Returns a pointer to the neural network used to model the manifold. Typically, this

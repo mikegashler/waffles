@@ -32,7 +32,7 @@ protected:
 
 public:
 	GSystemLearner() {}
-	GSystemLearner(GTwtNode* pNode) {}
+	GSystemLearner(GDomNode* pNode) {}
 	virtual ~GSystemLearner() {}
 
 	/// Simulates performing the specified action
@@ -45,8 +45,8 @@ public:
 	virtual void calibrate(const double* pObs) = 0;
 
 protected:
-	/// Child classes should use this in their implementation of toTwt
-	GTwtNode* baseTwtNode(GTwtDoc* pDoc, const char* szClassName);
+	/// Child classes should use this in their implementation of serialize
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
 };
 
 
@@ -79,13 +79,13 @@ public:
 	/// Takes ownership of pTransition and pObservation
 	GRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, size_t actionDims, size_t contextDims, size_t obsDims, GRand* pRand, std::vector<size_t>* pParamDims = NULL);
 
-	/// Load from a text-based format
-	GRecurrentModel(GTwtNode* pNode, GRand* pRand);
+	/// Load from a DOM.
+	GRecurrentModel(GDomNode* pNode, GRand* pRand);
 
 	virtual ~GRecurrentModel();
 
-	/// See the comment for GSystemLearner::toTwt
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// See the comment for GSystemLearner::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Returns the transition function
 	GSupervisedLearner* transitionFunc() { return m_pTransitionFunc; }

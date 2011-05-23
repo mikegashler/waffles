@@ -18,8 +18,8 @@
 
 namespace GClasses {
 
-class GTwtNode;
-class GTwtDoc;
+class GDomNode;
+class GDom;
 
 
 /// The base class for activation functions. Typically, this are
@@ -56,10 +56,10 @@ public:
 	virtual double derivativeOfNet(double net, double activation) { return derivative(net); }
 
 	/// Serialize this object
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Deserialize this object
-	static GActivationFunction* fromTwt(GTwtNode* pNode);
+	static GActivationFunction* deserialize(GDomNode* pNode);
 };
 
 /// The logistic activation function

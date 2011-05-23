@@ -32,6 +32,7 @@ CPP_FILES = \
 	GDecisionTree.cpp\
 	GDistance.cpp\
 	GDistribution.cpp\
+	GDom.cpp\
 	GEnsemble.cpp\
 	GError.cpp\
 	GEvolutionary.cpp\
@@ -83,7 +84,6 @@ CPP_FILES = \
 	GTime.cpp\
 	GTokenizer.cpp\
 	GTransform.cpp\
-	GTwt.cpp\
 	GVec.cpp\
 
 ################

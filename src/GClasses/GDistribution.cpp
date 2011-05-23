@@ -10,7 +10,7 @@
 */
 
 #include "GDistribution.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GVec.h"
 #include "GRand.h"
 #include "GMath.h"
@@ -18,25 +18,27 @@
 
 using namespace GClasses;
 
-void GCategoricalDistribution::fromTwt(GTwtNode* pNode)
+void GCategoricalDistribution::deserialize(GDomNode* pNode)
 {
-	m_nValueCount = pNode->itemCount();
+	GDomListIterator it(pNode);
+	m_nValueCount = it.remaining();
 	delete[] m_pValues;
 	m_pValues = new double[m_nValueCount];
 	m_nMode = 0;
 	for(size_t i = 0; i < m_nValueCount; i++)
 	{
-		m_pValues[i] = pNode->item(i)->asDouble();
+		m_pValues[i] = it.current()->asDouble();
 		if(m_pValues[i] > m_pValues[m_nMode])
 			m_nMode = i;
+		it.advance();
 	}
 }
 
-GTwtNode* GCategoricalDistribution::toTwt(GTwtDoc* pDoc)
+GDomNode* GCategoricalDistribution::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newList(m_nValueCount);
+	GDomNode* pNode = pDoc->newList();
 	for(size_t i = 0; i < m_nValueCount; i++)
-		pNode->setItem(i, pDoc->newDouble(m_pValues[i]));
+		pNode->addItem(pDoc, pDoc->newDouble(m_pValues[i]));
 	return pNode;
 }
 

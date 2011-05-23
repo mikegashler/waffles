@@ -46,8 +46,8 @@ public:
 	/// models will go in the ensemble.
 	GBag(GRand* pRand);
 
-	/// Load from a text-based format
-	GBag(GTwtNode* pNode, GRand* pRand, GLearnerLoader* pLoader);
+	/// Load from a DOM.
+	GBag(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader);
 
 	virtual ~GBag();
 
@@ -55,8 +55,8 @@ public:
 	static void test();
 #endif
 
-	/// Saves to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
@@ -108,8 +108,8 @@ public:
 	/// models will go in the ensemble.
 	GBucket(GRand* pRand);
 
-	/// Load from a text-based format
-	GBucket(GTwtNode* pNode, GRand* pRand, GLearnerLoader* pLoader);
+	/// Load from a DOM.
+	GBucket(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader);
 
 	virtual ~GBucket();
 
@@ -117,8 +117,8 @@ public:
 	static void test();
 #endif
 
-	/// Saves to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

@@ -19,7 +19,7 @@
 #include "../GClasses/GRand.h"
 #include "../GClasses/GRecommender.h"
 #include "../GClasses/GSparseMatrix.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../wizard/usage.h"
 #include <time.h>
 #include <iostream>
@@ -70,8 +70,8 @@ GSparseMatrix* loadSparseData(const char* szFilename)
 	}
 	else if(_stricmp(szFilename + pd.extStart, ".sparse") == 0)
 	{
-		GTwtDoc doc;
-		doc.load(szFilename);
+		GDom doc;
+		doc.loadJson(szFilename);
 		return new GSparseMatrix(doc.root());
 	}
 	ThrowError("Unsupported file format: ", szFilename + pd.extStart);

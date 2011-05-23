@@ -29,7 +29,7 @@
 #include "../GClasses/GRect.h"
 #include "../GClasses/GSparseMatrix.h"
 #include "../GClasses/GMath.h"
-#include "../GClasses/GTwt.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GSelfOrganizingMap.h"
 #include <time.h>
 #include <iostream>
@@ -864,8 +864,8 @@ void selfOrganizingMap(GArgReader& args){
 void ubpSparse(GArgReader& args)
 {
 	// Load the sparse matrix
-	GTwtDoc doc;
-	doc.load(args.pop_string());
+	GDom doc;
+	doc.loadJson(args.pop_string());
 	GSparseMatrix* pData = new GSparseMatrix(doc.root());
 	Holder<GSparseMatrix> hData(pData);
 
@@ -934,8 +934,8 @@ void ubpSparse(GArgReader& args)
 	// Load the model
 	if(modelIn.length() > 0)
 	{
-		GTwtDoc doc;
-		doc.load(modelIn.c_str());
+		GDom doc;
+		doc.loadJson(modelIn.c_str());
 		GNeuralNet* pNN = new GNeuralNet(doc.root(), &prng);
 		ubp.setNeuralNet(pNN);
 	}
@@ -949,9 +949,9 @@ void ubpSparse(GArgReader& args)
 	// Save the model
 	if(modelOut.length() > 0)
 	{
-		GTwtDoc doc;
-		doc.setRoot(ubp.neuralNet()->toTwt(&doc));
-		doc.save(modelOut.c_str());
+		GDom doc;
+		doc.setRoot(ubp.neuralNet()->serialize(&doc));
+		doc.saveJson(modelOut.c_str());
 	}
 }
 

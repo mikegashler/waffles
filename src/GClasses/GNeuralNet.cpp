@@ -16,7 +16,7 @@
 #include "GError.h"
 #include "GRand.h"
 #include "GVec.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GHillClimber.h"
 #include "GTransform.h"
 #include "GSparseMatrix.h"
@@ -418,7 +418,7 @@ GNeuralNet::GNeuralNet(GRand* pRand)
 	m_layers.resize(1);
 }
 
-GNeuralNet::GNeuralNet(GTwtNode* pNode, GRand* pRand)
+GNeuralNet::GNeuralNet(GDomNode* pNode, GRand* pRand)
 : GIncrementalLearner(pNode, *pRand), m_pRand(pRand)
 {
 	// Create the layers
@@ -428,23 +428,25 @@ GNeuralNet::GNeuralNet(GTwtNode* pNode, GRand* pRand)
 	m_layers.resize(1);
 	m_pBackProp = NULL;
 	m_internalFeatureDims = (size_t)pNode->field("ifd")->asInt();
-	GTwtNode* pLayerList = pNode->field("layers");
-	size_t layerCount = pLayerList->itemCount();
+	GDomNode* pLayerList = pNode->field("layers");
+	GDomListIterator it1(pLayerList);
+	size_t layerCount = it1.remaining();
 	for(size_t i = 0; i < layerCount - 1; i++)
 	{
-		GTwtNode* pActivation = pLayerList->item(i)->fieldIfExists("af");
+		GDomNode* pActivation = it1.current()->fieldIfExists("af");
 		if(pActivation)
-			setActivationFunction(GActivationFunction::fromTwt(pActivation), true);
+			setActivationFunction(GActivationFunction::deserialize(pActivation), true);
 		else if(i == 0)
 			ThrowError("The first layer is expected to specify an activation function");
-		addLayer((int)pLayerList->item(i)->field("nodes")->asInt());
+		addLayer((size_t)it1.current()->field("nodes")->asInt());
+		it1.advance();
 	}
-	GTwtNode* pActivation = pLayerList->item(layerCount - 1)->fieldIfExists("af");
+	GDomNode* pActivation = it1.current()->fieldIfExists("af");
 	if(pActivation)
-		setActivationFunction(GActivationFunction::fromTwt(pActivation), true);
+		setActivationFunction(GActivationFunction::deserialize(pActivation), true);
 	else if(layerCount == 1)
 		ThrowError("The first layer is expected to specify an activation function");
-	m_internalLabelDims = (size_t)pLayerList->item(layerCount - 1)->field("nodes")->asInt();
+	m_internalLabelDims = (size_t)it1.current()->field("nodes")->asInt();
 
 	// Enable training
 	sp_relation pFeatureRel = new GUniformRelation(m_internalFeatureDims);
@@ -458,13 +460,16 @@ GNeuralNet::GNeuralNet(GTwtNode* pNode, GRand* pRand)
 	m_backPropTargetFunction = (TargetFunction)pNode->field("target")->asInt();
 
 	// Set the weights
-	GTwtNode* pWeightList = pNode->field("weights");
-	size_t wc = pWeightList->itemCount();
-	if(wc != countWeights())
-		ThrowError("Weights don't line up. (expected ", to_str(countWeights()), ", got ", to_str(wc), ".)");
-	GTEMPBUF(double, pWeights, wc);
-	for(size_t i = 0; i < wc; i++)
-		pWeights[i] = pWeightList->item(i)->asDouble();
+	GDomNode* pWeightList = pNode->field("weights");
+	GDomListIterator it2(pWeightList);
+	if(it2.remaining() != countWeights())
+		ThrowError("Weights don't line up. (expected ", to_str(countWeights()), ", got ", to_str(it2.remaining()), ".)");
+	GTEMPBUF(double, pWeights, it2.remaining());
+	for(size_t i = 0; it2.current(); i++)
+	{
+		pWeights[i] = it2.current()->asDouble();
+		it2.advance();
+	}
 	setWeights(pWeights);
 }
 
@@ -476,25 +481,25 @@ GNeuralNet::~GNeuralNet()
 }
 
 // virtual
-GTwtNode* GNeuralNet::toTwt(GTwtDoc* pDoc)
+GDomNode* GNeuralNet::serialize(GDom* pDoc)
 {
 	if(m_internalLabelDims == 0)
 		ThrowError("The network has not been trained");
-	GTwtNode* pNode = baseTwtNode(pDoc, "GNeuralNet");
+	GDomNode* pNode = baseDomNode(pDoc, "GNeuralNet");
 
 	// Add the layer sizes
 	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
-	GTwtNode* pLayerList = pNode->addField(pDoc, "layers", pDoc->newList(m_layers.size()));
+	GDomNode* pLayerList = pNode->addField(pDoc, "layers", pDoc->newList());
 	GActivationFunction* pPrevSF = NULL;
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
-		GTwtNode* pLayerObj = pLayerList->setItem(i, pDoc->newObj());
+		GDomNode* pLayerObj = pLayerList->addItem(pDoc, pDoc->newObj());
 		pLayerObj->addField(pDoc, "nodes", pDoc->newInt(m_layers[i].m_neurons.size()));
 		GAssert(i != m_layers.size() - 1 || m_layers[i].m_neurons.size() == m_internalLabelDims);
 		if(m_layers[i].m_pActivationFunction != pPrevSF)
 		{
 			pPrevSF = m_layers[i].m_pActivationFunction;
-			pLayerObj->addField(pDoc, "af", m_layers[i].m_pActivationFunction->toTwt(pDoc));
+			pLayerObj->addField(pDoc, "af", m_layers[i].m_pActivationFunction->serialize(pDoc));
 		}
 	}
 
@@ -509,9 +514,9 @@ GTwtNode* GNeuralNet::toTwt(GTwtDoc* pDoc)
 		size_t wc = countWeights();
 		GTEMPBUF(double, pWeights, wc);
 		weights(pWeights);
-		GTwtNode* pWeightList = pNode->addField(pDoc, "weights", pDoc->newList(wc));
+		GDomNode* pWeightList = pNode->addField(pDoc, "weights", pDoc->newList());
 		for(size_t i = 0; i < wc; i++)
-			pWeightList->setItem(i, pDoc->newDouble(pWeights[i]));
+			pWeightList->addItem(pDoc, pDoc->newDouble(pWeights[i]));
 	}
 
 	return pNode;
@@ -1756,7 +1761,7 @@ GModerateNet::~GModerateNet()
 }
 
 // virtual
-GTwtNode* GModerateNet::toTwt(GTwtDoc* pDoc)
+GDomNode* GModerateNet::serialize(GDom* pDoc)
 {
 	ThrowError("Not implemented yet");
 	return NULL;

@@ -49,7 +49,7 @@ public:
 	GNaiveInstance(size_t nNeighbors);
 
 	/// Deserializing constructor
-	GNaiveInstance(GTwtNode* pNode, GRand& rand);
+	GNaiveInstance(GDomNode* pNode, GRand& rand);
 	virtual ~GNaiveInstance();
 
 #ifndef NO_TEST_CODE
@@ -57,8 +57,8 @@ public:
 	static void test();
 #endif
 
-	/// Save to a text-based format
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc);
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// See the comment for GIncrementalLearner::enableIncrementalLearning
 	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);

@@ -18,8 +18,8 @@
 
 namespace GClasses {
 
-class GTwtNode;
-class GTwtDoc;
+class GDomNode;
+class GDom;
 class GRand;
 class GMatrix;
 
@@ -89,10 +89,10 @@ public:
 	}
 
 	/// Load values from a text format
-	void fromTwt(GTwtNode* pNode);
+	void deserialize(GDomNode* pNode);
 
 	/// Save values to a text format
-	GTwtNode* toTwt(GTwtDoc* pDoc);
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Returns categorical
 	virtual Type type() const

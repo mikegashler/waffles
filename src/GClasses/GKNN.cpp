@@ -13,7 +13,7 @@
 #include <math.h>
 #include "GError.h"
 #include <stdlib.h>
-#include "GTwt.h"
+#include "GDom.h"
 #include "GDistribution.h"
 #include "GRand.h"
 #include "GHeap.h"
@@ -100,7 +100,7 @@ GKNN::GKNN(size_t nNeighbors, GRand* pRand)
 	m_dElbowRoom = UNKNOWN_REAL_VALUE;
 }
 
-GKNN::GKNN(GTwtNode* pNode, GRand* pRand)
+GKNN::GKNN(GDomNode* pNode, GRand* pRand)
 : GIncrementalLearner(pNode, *pRand), m_pRand(pRand)
 {
 	m_pNeighborFinder = NULL;
@@ -116,19 +116,19 @@ GKNN::GKNN(GTwtNode* pNode, GRand* pRand)
 	m_dElbowRoom = pNode->field("elbowRoom")->asDouble();
 	GMatrix* pFeatures = NULL;
 	GSparseMatrix* pSparseFeatures = NULL;
-	GTwtNode* pFeaturesNode = pNode->fieldIfExists("features");
+	GDomNode* pFeaturesNode = pNode->fieldIfExists("features");
 	if(pFeaturesNode)
 		pFeatures = new GMatrix(pFeaturesNode);
 	else
 		pSparseFeatures = new GSparseMatrix(pNode->field("sparseFeatures"));
 	GMatrix* pLabels = new GMatrix(pNode->field("labels"));
-	GTwtNode* pMetricNode = pNode->fieldIfExists("metric");
+	GDomNode* pMetricNode = pNode->fieldIfExists("metric");
 	m_pDistanceMetric = NULL;
 	m_pSparseMetric = NULL;
 	if(pMetricNode)
 		m_pDistanceMetric = new GRowDistanceScaled(pNode->field("metric"));
 	else
-		m_pSparseMetric = GSparseSimilarity::fromTwt(pNode->field("sparseMetric"));
+		m_pSparseMetric = GSparseSimilarity::deserialize(pNode->field("sparseMetric"));
 	m_ownMetric = true;
 	m_pFeatures = NULL;
 	m_pSparseFeatures = NULL;
@@ -169,24 +169,24 @@ GKNN::~GKNN()
 }
 
 // virtual
-GTwtNode* GKNN::toTwt(GTwtDoc* pDoc)
+GDomNode* GKNN::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GKNN");
+	GDomNode* pNode = baseDomNode(pDoc, "GKNN");
 	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_nNeighbors));
 	if(m_eInterpolationMethod == Learner)
-		ThrowError("Sorry, toTwt is not supported for the \"Learner\" interpolation method");
+		ThrowError("Sorry, serialize is not supported for the \"Learner\" interpolation method");
 	pNode->addField(pDoc, "interpMethod", pDoc->newInt(m_eInterpolationMethod));
 	pNode->addField(pDoc, "optimize", pDoc->newBool(m_optimizeScaleFactors));
 	pNode->addField(pDoc, "elbowRoom", pDoc->newDouble(m_dElbowRoom));
 	if(m_pFeatures)
-		pNode->addField(pDoc, "features", m_pFeatures->toTwt(pDoc));
+		pNode->addField(pDoc, "features", m_pFeatures->serialize(pDoc));
 	else
-		pNode->addField(pDoc, "sparseFeatures", m_pSparseFeatures->toTwt(pDoc));
-	pNode->addField(pDoc, "labels", m_pLabels->toTwt(pDoc));
+		pNode->addField(pDoc, "sparseFeatures", m_pSparseFeatures->serialize(pDoc));
+	pNode->addField(pDoc, "labels", m_pLabels->serialize(pDoc));
 	if(m_pDistanceMetric)
-		pNode->addField(pDoc, "metric", m_pDistanceMetric->toTwt(pDoc));
+		pNode->addField(pDoc, "metric", m_pDistanceMetric->serialize(pDoc));
 	else
-		pNode->addField(pDoc, "sparseMetric", m_pSparseMetric->toTwt(pDoc));
+		pNode->addField(pDoc, "sparseMetric", m_pSparseMetric->serialize(pDoc));
 	return pNode;
 }
 
@@ -791,7 +791,7 @@ GInstanceTable::~GInstanceTable()
 }
 
 // virtual
-GTwtNode* GInstanceTable::toTwt(GTwtDoc* pDoc)
+GDomNode* GInstanceTable::serialize(GDom* pDoc)
 {
 	ThrowError("not implemented yet");
 	return NULL;

@@ -23,7 +23,7 @@
 #include "GGraph.h"
 #include "GBitTable.h"
 #include <deque>
-#include "GTwt.h"
+#include "GDom.h"
 #include "GKNN.h"
 #include "GTransform.h"
 #include <sstream>
@@ -1244,7 +1244,7 @@ public:
 	{
 	}
 
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc)
+	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		ThrowError("not implemented");
 		return NULL;

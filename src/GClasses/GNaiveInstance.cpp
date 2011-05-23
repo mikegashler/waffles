@@ -11,7 +11,7 @@
 
 #include "GNaiveInstance.h"
 #include "GVec.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GDistribution.h"
 #include "GRand.h"
 #include "GTransform.h"
@@ -30,19 +30,23 @@ protected:
 public:
 	GNaiveInstanceAttr() {}
 
-	GNaiveInstanceAttr(GTwtNode* pAttr, size_t labelDims, GHeap* pHeap)
+	GNaiveInstanceAttr(GDomNode* pAttr, size_t labelDims, GHeap* pHeap)
 	{
-		size_t count = pAttr->itemCount() / (1 + labelDims);
-		if(count * (1 + labelDims) != pAttr->itemCount())
+		GDomListIterator it(pAttr);
+		size_t count = it.remaining() / (1 + labelDims);
+		if(count * (1 + labelDims) != it.remaining())
 			ThrowError("invalid list size");
-		size_t pos = 0;
 		for(size_t i = 0; i < count; i++)
 		{
-			double d = pAttr->item(pos++)->asDouble();
+			double d = it.current()->asDouble();
+			it.advance();
 			double* pLabel = (double*)pHeap->allocAligned(sizeof(double) * labelDims);
 			m_instances.insert(make_pair(d, pLabel));
 			for(size_t j = 0; j < labelDims; j++)
-				*(pLabel++) = pAttr->item(pos++)->asDouble();
+			{
+				*(pLabel++) = it.current()->asDouble();
+				it.advance();
+			}
 		}
 	}
 
@@ -52,15 +56,14 @@ public:
 
 	multimap<double,const double*>& instances() { return m_instances; }
 
-	GTwtNode* toTwt(GTwtDoc* pDoc, size_t labelDims)
+	GDomNode* serialize(GDom* pDoc, size_t labelDims)
 	{
-		GTwtNode* pList = pDoc->newList((1 + labelDims) * m_instances.size());
-		size_t pos = 0;
+		GDomNode* pList = pDoc->newList();
 		for(multimap<double,const double*>::iterator it = m_instances.begin(); it != m_instances.end(); it++)
 		{
-			pList->setItem(pos++, pDoc->newDouble(it->first));
+			pList->addItem(pDoc, pDoc->newDouble(it->first));
 			for(size_t i = 0; i < labelDims; i++)
-				pList->setItem(pos++, pDoc->newDouble(it->second[i]));
+				pList->addItem(pDoc, pDoc->newDouble(it->second[i]));
 		}
 		return pList;
 	}
@@ -83,7 +86,7 @@ GNaiveInstance::GNaiveInstance(size_t nNeighbors)
 	m_pValueSums = NULL;
 }
 
-GNaiveInstance::GNaiveInstance(GTwtNode* pNode, GRand& rand)
+GNaiveInstance::GNaiveInstance(GDomNode* pNode, GRand& rand)
 : GIncrementalLearner(pNode, rand), m_pHeap(NULL)
 {
 	m_pAttrs = NULL;
@@ -94,14 +97,16 @@ GNaiveInstance::GNaiveInstance(GTwtNode* pNode, GRand& rand)
 	sp_relation pFeatureRel = new GUniformRelation(m_internalFeatureDims);
 	sp_relation pLabelRel = new GUniformRelation(m_internalLabelDims);
 	enableIncrementalLearning(pFeatureRel, pLabelRel);
-	GTwtNode* pAttrs = pNode->field("attrs");
-	if(pAttrs->itemCount() != m_internalFeatureDims)
-		ThrowError("Expected ", to_str(m_internalFeatureDims), " attrs, got ", to_str(pAttrs->itemCount()), " attrs");
+	GDomNode* pAttrs = pNode->field("attrs");
+	GDomListIterator it(pAttrs);
+	if(it.remaining() != m_internalFeatureDims)
+		ThrowError("Expected ", to_str(m_internalFeatureDims), " attrs, got ", to_str(it.remaining()), " attrs");
 	m_pHeap = new GHeap(1024);
 	for(size_t i = 0; i < m_internalFeatureDims; i++)
 	{
 		delete(m_pAttrs[i]);
-		m_pAttrs[i] = new GNaiveInstanceAttr(pAttrs->item(i), m_internalLabelDims, m_pHeap);
+		m_pAttrs[i] = new GNaiveInstanceAttr(it.current(), m_internalLabelDims, m_pHeap);
+		it.advance();
 	}
 }
 
@@ -129,15 +134,15 @@ void GNaiveInstance::clear()
 }
 
 // virtual
-GTwtNode* GNaiveInstance::toTwt(GTwtDoc* pDoc)
+GDomNode* GNaiveInstance::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = baseTwtNode(pDoc, "GNaiveInstance");
+	GDomNode* pNode = baseDomNode(pDoc, "GNaiveInstance");
 	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
 	pNode->addField(pDoc, "ild", pDoc->newInt(m_internalLabelDims));
 	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_nNeighbors));
-	GTwtNode* pAttrs = pNode->addField(pDoc, "attrs", pDoc->newList(m_internalFeatureDims));
+	GDomNode* pAttrs = pNode->addField(pDoc, "attrs", pDoc->newList());
 	for(size_t i = 0; i < m_internalFeatureDims; i++)
-		pAttrs->setItem(i, m_pAttrs[i]->toTwt(pDoc, m_internalLabelDims));
+		pAttrs->addItem(pDoc, m_pAttrs[i]->serialize(pDoc, m_internalLabelDims));
 	return pNode;
 }
 

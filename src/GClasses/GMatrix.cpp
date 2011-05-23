@@ -16,7 +16,7 @@
 #include "GVec.h"
 #include "GFile.h"
 #include "GHeap.h"
-#include "GTwt.h"
+#include "GDom.h"
 #include "GHashTable.h"
 #include <math.h>
 #include "GBits.h"
@@ -35,7 +35,7 @@ using std::ostream;
 using std::ostringstream;
 
 // static
-smart_ptr<GRelation> GRelation::fromTwt(GTwtNode* pNode)
+smart_ptr<GRelation> GRelation::deserialize(GDomNode* pNode)
 {
 	if(pNode->fieldIfExists("attrs"))
 	{
@@ -267,15 +267,15 @@ void GRelation::save(GMatrix* pData, const char* szFilename, size_t precision)
 
 
 
-GUniformRelation::GUniformRelation(GTwtNode* pNode)
+GUniformRelation::GUniformRelation(GDomNode* pNode)
 {
 	m_attrCount = (size_t)pNode->field("attrs")->asInt();
 	m_valueCount = (size_t)pNode->field("vals")->asInt();
 }
 
-GTwtNode* GUniformRelation::toTwt(GTwtDoc* pDoc)
+GDomNode* GUniformRelation::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "attrs", pDoc->newInt(m_attrCount));
 	pNode->addField(pDoc, "vals", pDoc->newInt(m_valueCount));
 	return pNode;
@@ -317,13 +317,14 @@ GMixedRelation::GMixedRelation(vector<size_t>& attrValues)
 		addAttr(*it);
 }
 
-GMixedRelation::GMixedRelation(GTwtNode* pNode)
+GMixedRelation::GMixedRelation(GDomNode* pNode)
 {
 	m_valueCounts.clear();
-	GTwtNode* pValueCounts = pNode->field("valueCounts");
-	size_t itemCount = pValueCounts->itemCount();
-	for(size_t i = 0; i < itemCount; i++)
-		m_valueCounts.push_back((size_t)pValueCounts->item(i)->asInt());
+	GDomNode* pValueCounts = pNode->field("valueCounts");
+	GDomListIterator it(pValueCounts);
+	m_valueCounts.reserve(it.remaining());
+	for( ; it.current(); it.advance())
+		m_valueCounts.push_back((size_t)it.current()->asInt());
 }
 
 GMixedRelation::GMixedRelation(GRelation* pCopyMe)
@@ -341,12 +342,12 @@ GMixedRelation::~GMixedRelation()
 {
 }
 
-GTwtNode* GMixedRelation::toTwt(GTwtDoc* pDoc)
+GDomNode* GMixedRelation::serialize(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
- 	GTwtNode* pValueCounts = pNode->addField(pDoc, "valueCounts", pDoc->newList(m_valueCounts.size()));
+	GDomNode* pNode = pDoc->newObj();
+	GDomNode* pValueCounts = pNode->addField(pDoc, "valueCounts", pDoc->newList());
 	for(size_t i = 0; i < m_valueCounts.size(); i++)
-		pValueCounts->setItem(i, pDoc->newInt(m_valueCounts[i]));
+		pValueCounts->addItem(pDoc, pDoc->newInt(m_valueCounts[i]));
 	return pNode;
 }
 
@@ -786,26 +787,28 @@ GMatrix::GMatrix(vector<size_t>& attrValues, GHeap* pHeap)
 	m_pRelation = new GMixedRelation(attrValues);
 }
 
-GMatrix::GMatrix(GTwtNode* pNode, GHeap* pHeap)
+GMatrix::GMatrix(GDomNode* pNode, GHeap* pHeap)
 : m_pHeap(pHeap)
 {
-	m_pRelation = GRelation::fromTwt(pNode->field("rel"));
-	GTwtNode* pPats = pNode->field("pats");
-	size_t size = pPats->itemCount();
-	reserve(size);
+	m_pRelation = GRelation::deserialize(pNode->field("rel"));
+	GDomNode* pRows = pNode->field("pats");
+	GDomListIterator it(pRows);
+	reserve(it.remaining());
 	size_t dims = (size_t)m_pRelation->size();
 	double* pPat;
-	for(size_t i = 0; i < size; i++)
+	for(size_t i = 0; it.current(); it.advance())
 	{
-		GTwtNode* pRow = pPats->item(i);
-		if(pRow->itemCount() != dims)
+		GDomNode* pRow = it.current();
+		GDomListIterator it2(pRow);
+		if(it2.remaining() != dims)
 			ThrowError("Row ", to_str(i), " has an unexpected number of values");
 		pPat = newRow();
-		for(size_t j = 0; j < dims; j++)
+		for( ; it2.current(); it2.advance())
 		{
-			*pPat = pRow->item(j)->asDouble();
+			*pPat = it2.current()->asDouble();
 			pPat++;
 		}
+		i++;
 	}
 }
 
@@ -1234,20 +1237,20 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 	return hData.release();
 }
 
-GTwtNode* GMatrix::toTwt(GTwtDoc* pDoc)
+GDomNode* GMatrix::serialize(GDom* pDoc)
 {
-	GTwtNode* pData = pDoc->newObj();
+	GDomNode* pData = pDoc->newObj();
 	size_t attrCount = m_pRelation->size();
-	pData->addField(pDoc, "rel", m_pRelation->toTwt(pDoc));
-	GTwtNode* pPats = pData->addField(pDoc, "pats", pDoc->newList(rows()));
-	GTwtNode* pRow;
+	pData->addField(pDoc, "rel", m_pRelation->serialize(pDoc));
+	GDomNode* pPats = pData->addField(pDoc, "pats", pDoc->newList());
+	GDomNode* pRow;
 	double* pPat;
 	for(size_t i = 0; i < rows(); i++)
 	{
 		pPat = row(i);
-		pRow = pPats->setItem(i, pDoc->newList(attrCount));
+		pRow = pPats->addItem(pDoc, pDoc->newList());
 		for(size_t j = 0; j < attrCount; j++)
-			pRow->setItem(j, pDoc->newDouble(pPat[j]));
+			pRow->addItem(pDoc, pDoc->newDouble(pPat[j]));
 	}
 	return pData;
 }
