@@ -15,13 +15,11 @@
 
 <h2>Serialization</h2>
 
-<p>In order to write code that will serialize and deserialize your models, you will use the GTwtDoc and GTwtNode classes (see the <a href="../apidoc/html/index.html">API documentation</a>). These classes enable you to build a document object model (DOM) that can be serialized and deserialized.</p>
+<p>In order to write code that will serialize and deserialize your models, you will use the GDom and GDomNode classes (see the <a href="../apidoc/html/index.html">API documentation</a>). These classes enable you to build a document object model (DOM) that can be serialized to a variety of formats, such as <a href="http://json.org">JSON</a>, <a href="http://en.wikipedia.org/wiki/XML">XML</a>, or <a href="http://en.wikipedia.org/wiki/Binary_large_object">BLOb</a>.</p>
 
-<p>Why not just serialize/deserialize your model directly? There are several advantages to using a DOM. Most significantly, it is very easy to build a DOM, and to use one. So, this reduces the burden on the developer. Another advantage is that you can serialize to a variety of formats. For example, the DOM can be saved as an XML file. Unfortunately, XML has several drawbacks. Most significantly, it is bloated and unnecessarily complex. (Yes, I know that the original point of XML was to be simple, but as tends to happen with standards designed in committees, it has become a hairy mess.) Fortunately, the DOM can also be serialized to simpler formats. I like to use the "twt" format. Like XML, it is text-based. Unlike XML, it is very compact, and it is almost trivial to fully-implement a parser. Anyway, the best thing about using a DOM is that you (the developer) don't need to worry about the underlying format right now. You can decide which format to use to serialize the DOM later. All you need to do right now is write a method that will convert your model to a twt DOM, and one that will convert the twt DOM to your model.</p>
+<p>Why not just serialize/deserialize your model directly? There are several advantages to using a DOM. Most significantly, it is very easy to build a DOM, and to use one. So, this reduces the burden on the developer. Another advantage is that you can serialize to the format of your choice without having to write special code for it. So, all you need to do is write a method that will convert your model to the DOM, and you can decide later what format to use for serialization.</p>
 
-<p>The twt DOM was designed to make serializing C++ objects easy. Each GTwtNode is a node in a tree. Each node can be thought of as an "object", a "list", or a "value". Objects have named children. Lists have enumerated children. Values are things like bools, ints, doubles, and strings.</p>
-
-<p>For example, suppose you have a class like this,
+<p>For example, suppose you have a class like this:
 <pre>
 	class MyClass
 	{
@@ -32,36 +30,35 @@
 		vector&lt;string&gt; m_friends;
 	};
 </pre>
-, and you would like to write a method that will serialize your object by converting it to a twt DOM. Here is how you would do it:
+Here is some code that will marshall this object into a DOM:
 <pre>
-	GTwtNode* MyClass::toTwt(GTwtDoc* pDoc)
+	GDomNode* MyClass::serialize(GDom* pDoc)
 	{
-		GTwtNode* pNode = pDoc->newObj();
+		GDomNode* pNode = pDoc->newObj();
 		pNode->addField(pDoc, "name", pDoc->newString(m_name.c_str()));
 		pNode->addField(pDoc, "age", pDoc->newInt(m_age));
 		pNode->addField(pDoc, "height", pDoc->newDouble(m_height));
 		pNode->addField(pDoc, "admin", pDoc->newBool(m_admin));
-		GTwtNode* pFriends = pNode->addField(pDoc, "friends", pDoc->newList(m_friends.size()));
+		GDomNode* pFriends = pNode->addField(pDoc, "friends", pDoc->newList());
 		for(size_t i = 0; i &lt; m_friends.size(); i++)
-			pFriends->setItem(i, pDoc->newString(m_friends[i].c_str()));
+			pFriends->addItem(pDoc, pDoc->newString(m_friends[i].c_str()));
 		return pNode;
 	}
 </pre>
-This code will create a DOM with the following structure:<br>
+This code will create a DOM with a structure like this:<br>
 <center><img src="dom.png"></center></p>
-<p>By design, each node in the twt DOM may have child nodes, or it may contain a value, but not both. This forms a natural separation between data (in the leaf nodes) and meta-data (represented by the interior nodes). Since it is bad practice to stuff data values into interior nodes in a DOM anyway, this is a good limitation.</p>
+<p>By design, each node in the DOM may have child nodes, or it may contain a value, but not both. This forms a natural separation between data (in the leaf nodes) and meta-data (represented by the interior nodes). Since it is bad practice to stuff data values into interior nodes in a DOM anyway, this is a good limitation.</p>
 
-<p>Next, let's write some code that will deserialize your object by constructing it from the DOM
+<p>Next, let's write some code that will unmarshall the object from the DOM
 <pre>
-	void MyClass::MyClass(GTwtNode* pNode)
+	void MyClass::MyClass(GDomNode* pNode)
 	{
 		m_name = pNode->field("name")->asString();
 		m_age = pNode->field("age")->asInt();
 		m_height = pNode->field("height")->asDouble();
 		m_admin = pNode->field("admin")->asBool();
-		GTwtNode* pFriends = pNode->field("friends");
-		for(size_t i = 0; i &lt; pFriends->itemCount(); i++)
-			m_friends.push_back(pFriends->item(i)->asString());
+		for(GDomListIterator li(pNode->field("friends")); li.current(); li.advance())
+			m_friends.push_back(li.current()->asString());
 	}
 </pre>
 
