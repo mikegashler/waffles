@@ -88,9 +88,10 @@ GDomNode* GDomNode::fieldIfExists(const char* szName)
 	return NULL;
 }
 
-void GDomNode::reverseFieldOrder()
+size_t GDomNode::reverseFieldOrder()
 {
 	GAssert(m_type == type_obj);
+	size_t count = 0;
 	GDomObjField* pNewHead = NULL;
 	while(m_value.m_pLastField)
 	{
@@ -98,8 +99,10 @@ void GDomNode::reverseFieldOrder()
 		m_value.m_pLastField = pTemp->m_pPrev;
 		pTemp->m_pPrev = pNewHead;
 		pNewHead = pTemp;
+		count++;
 	}
 	m_value.m_pLastField = pNewHead;
+	return count;
 }
 
 size_t GDomNode::reverseItemOrder()
@@ -214,6 +217,115 @@ void GDomNode::writeJson(std::ostream& stream)
 			break;
 		case type_null:
 			stream << "null";
+			break;
+		default:
+			ThrowError("Unrecognized node type");
+	}
+}
+
+bool isXmlInlineType(int type)
+{
+	if(type == GDomNode::type_string ||
+		type == GDomNode::type_int ||
+		type == GDomNode::type_double ||
+		type == GDomNode::type_bool ||
+		type == GDomNode::type_null)
+		return true;
+	else
+		return false;
+}
+
+void GDomNode::writeXmlInlineValue(std::ostream& stream)
+{
+	switch(m_type)
+	{
+		case type_string:
+			stream << m_value.m_string; // todo: escape the string as necessary
+			break;
+		case type_int:
+			stream << m_value.m_int;
+			break;
+		case type_double:
+			stream << m_value.m_double;
+			break;
+		case type_bool:
+			stream << (m_value.m_bool ? "true" : "false");
+			break;
+		case type_null:
+			stream << "null";
+			break;
+		default:
+			ThrowError("Type cannot be inlined");
+	}
+}
+
+void GDomNode::writeXml(std::ostream& stream, const char* szLabel)
+{
+	switch(m_type)
+	{
+		case type_obj:
+			{
+			stream << "<" << szLabel;
+			reverseFieldOrder();
+			size_t nonInlinedChildren = 0;
+			for(GDomObjField* pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
+			{
+				if(isXmlInlineType(pField->m_pValue->m_type))
+				{
+					stream << " " << pField->m_pName << "=\"";
+					pField->m_pValue->writeXmlInlineValue(stream);
+					stream << "\"";
+				}
+				else
+					nonInlinedChildren++;
+			}
+			if(nonInlinedChildren == 0)
+				stream << " />";
+			else
+			{
+				stream << ">";
+				for(GDomObjField* pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
+				{
+					if(!isXmlInlineType(pField->m_pValue->m_type))
+						pField->m_pValue->writeXml(stream, pField->m_pName);
+				}
+				stream << "</" << szLabel << ">";
+			}
+			reverseFieldOrder();
+			}
+			return;
+		case type_list:
+			stream << "<" << szLabel << ">";
+			reverseItemOrder();
+			for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
+				pItem->m_pValue->writeXml(stream, "i");
+			reverseItemOrder();
+			stream << "</" << szLabel << ">";
+			return;
+		case type_bool:
+			stream << "<" << szLabel << ">";
+			stream << (m_value.m_bool ? "true" : "false");
+			stream << "</" << szLabel << ">";
+			break;
+		case type_int:
+			stream << "<" << szLabel << ">";
+			stream << m_value.m_int;
+			stream << "</" << szLabel << ">";
+			break;
+		case type_double:
+			stream << "<" << szLabel << ">";
+			stream << m_value.m_double;
+			stream << "</" << szLabel << ">";
+			break;
+		case type_string:
+			stream << "<" << szLabel << ">";
+			stream << m_value.m_string; // todo: escape the string as necessary
+			stream << "</" << szLabel << ">";
+			break;
+		case type_null:
+			stream << "<" << szLabel << ">";
+			stream << "null";
+			stream << "</" << szLabel << ">";
 			break;
 		default:
 			ThrowError("Unrecognized node type");
@@ -511,6 +623,15 @@ void GDom::saveJson(const char* szFilename)
 		ThrowError("Error creating file: ", szFilename);
 	}
 	writeJson(os);
+}
+
+void GDom::writeXml(std::ostream& stream)
+{
+	if(!m_pRoot)
+		ThrowError("No root node has been set");
+	stream.precision(14);
+	stream << "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>";
+	m_pRoot->writeXml(stream, "root");
 }
 
 #ifndef NO_TEST_CODE

@@ -27,6 +27,7 @@ class GUnivariateDistribution;
 class GIncrementalTransform;
 class GTwoWayIncrementalTransform;
 class GSparseMatrix;
+class GCollaborativeFilter;
 
 
 /// This class is used to represent the predicted distribution made by a supervised learning algorithm.
@@ -187,8 +188,13 @@ protected:
 	size_t m_labelDims;
 
 public:
+	/// General-purpose constructor
 	GSupervisedLearner();
+
+	/// Deserialization constructor
 	GSupervisedLearner(GDomNode* pLearner, GRand& rand);
+
+	/// Destructor
 	virtual ~GSupervisedLearner();
 
 	/// Marshal this object into a DOM that can be converted to a variety
@@ -298,16 +304,19 @@ protected:
 class GIncrementalLearner : public GSupervisedLearner
 {
 public:
+	/// General-purpose constructor
 	GIncrementalLearner()
 	: GSupervisedLearner()
 	{
 	}
 
+	/// Deserialization constructor
 	GIncrementalLearner(GDomNode* pLearner, GRand& rand)
 	: GSupervisedLearner(pLearner, rand)
 	{
 	}
 
+	/// Destructor
 	virtual ~GIncrementalLearner()
 	{
 	}
@@ -350,13 +359,27 @@ protected:
 	bool m_throwIfClassNotFound;
 
 public:
+	/// Constructor. If throwIfClassNotFound is true, then all of the methods in this
+	/// class will throw an exception of the DOM refers to an unrecognized class.
+	/// If throwIfClassNotFound is false, then NULL will be returned if the class
+	/// is not recognized.
 	GLearnerLoader(bool throwIfClassNotFound = true) { m_throwIfClassNotFound = throwIfClassNotFound; }
 	virtual ~GLearnerLoader() {}
 
+	/// Loads an incremental transform (or a two-way incremental transform) from a DOM.
 	virtual GIncrementalTransform* loadIncrementalTransform(GDomNode* pNode, GRand* pRand);
+
+	/// Loads a two-way transform from a DOM.
 	virtual GTwoWayIncrementalTransform* loadTwoWayIncrementalTransform(GDomNode* pNode, GRand* pRand);
-	virtual GSupervisedLearner* loadModeler(GDomNode* pNode, GRand* pRand);
+
+	/// Loads a supervised learning algorithm (or an incremental learner) from a DOM.
+	virtual GSupervisedLearner* loadSupervisedLearner(GDomNode* pNode, GRand* pRand);
+
+	/// Loads an incremental learner from a DOM.
 	virtual GIncrementalLearner* loadIncrementalLearner(GDomNode* pNode, GRand* pRand);
+
+	/// Loads a collaborative filtering algorithm from a DOM.
+	virtual GCollaborativeFilter* loadCollaborativeFilter(GDomNode* pNode, GRand& rand);
 };
 
 
@@ -370,11 +393,13 @@ protected:
 	std::vector<double> m_prediction;
 
 public:
+	/// General-purpose constructor
 	GBaselineLearner();
 
-	/// Load from a DOM.
+	/// Deserialization constructor
 	GBaselineLearner(GDomNode* pNode, GRand& rand);
 
+	/// Destructor
 	virtual ~GBaselineLearner();
 
 #ifndef NO_TEST_CODE
@@ -409,11 +434,13 @@ protected:
 	size_t m_featureDims;
 
 public:
+	/// General-purpose constructor
 	GIdentityFunction();
 
-	/// Load from a DOM.
+	/// Deserialization constructor
 	GIdentityFunction(GDomNode* pNode, GRand& rand);
 
+	/// Destructor
 	virtual ~GIdentityFunction();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.

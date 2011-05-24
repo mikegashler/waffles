@@ -301,7 +301,7 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
 		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
 	}
-	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623-656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria, I don't regularize the bias weights, and I don't store the superfluous 1's in the matrices.)");
+	UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623-656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria.)");
 	{
 		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
 		UsageNode* pOpts = pMF->add("<options>");
@@ -347,8 +347,8 @@ UsageNode* makeDimRedUsageTree()
 	{
 		pAS->add("[dataset]=data.arff", "The filename of a dataset in ARFF format");
 		UsageNode* pDO = pAS->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 		UsageNode* pOpts = pAS->add("<options>");
 		pOpts->add("-out [n] [filename]", "Save a dataset containing only the [n]-most salient features to [filename].");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -585,8 +585,8 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pTrain->add("[dataset]=train.arff", "The filename of a dataset in \".arff\" format.");
 		UsageNode* pDO = pTrain->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pPredict = pRoot->add("predict <options> [model-file] [dataset] <data_opts>", "Predict labels for all of the patterns in [dataset]. Results are printed in the form of a \".arff\" file (including both features and predictions) to stdout.");
 	{
@@ -595,8 +595,8 @@ UsageNode* makeLearnUsageTree()
 		pPredict->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pPredict->add("[dataset]=test.arff", "The filename of a dataset in \".arff\" format. (There should already be placeholder labels in this dataset. The placeholder labels will be replaced in the output by the labels that the model predicts.)");
 		UsageNode* pDO = pPredict->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pPOP = pRoot->add("predictonepattern <options> [model-file] [data-set] <data_opts> [pattern]", "Predict labels for a single pattern and print the prediction to stdout. Confidence levels are also reported.");
 	{
@@ -606,8 +606,8 @@ UsageNode* makeLearnUsageTree()
 		pPOP->add("[data-set]=train.arff", "The filename of a \".arff\" file from which to obtain meta-data. This can be the training set or the test set. It doesn't matter which, because the data is ignored. Only the meta-data, such as the string names of attribute values, are obtained from this dataset.");
 		pPOP->add("[pattern]", "A list of feature values separated by spaces. (A \"?\" may be used for unknown feature values if the model supports using unknown feature values.)");
 		UsageNode* pDO = pPOP->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pTest = pRoot->add("test <options> [model-file] [dataset] <data_opts>", "Test a trained model using some test data. Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal label dimensions, and mean-squared-error is reported for continuous label dimensions.");
 	{
@@ -617,8 +617,8 @@ UsageNode* makeLearnUsageTree()
 		pTest->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pTest->add("[dataset]=test.arff", "The filename of a test dataset in \".arff\" format. (This dataset must have the same number of columns as the dataset with which the model was trained.)");
 		UsageNode* pDO = pTest->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pTransduce = pRoot->add("transduce <options> [labeled-set] <data_opts1> [unlabeled-set] <data_opts2> [algorithm]", "Predict labels for [unlabeled-set] based on the examples in [labeled-set]. For most algorithms, this is the same as training on [labeled-set] and then predicting labels for [unlabeled-set]. Some algorithms, however, have no models. These can transduce, even though they cannot be trained. The predicted labels are printed to stdout as a \".arff\" file.");
 	{
@@ -627,11 +627,11 @@ UsageNode* makeLearnUsageTree()
 		pTransduce->add("[labeled-set]=train.arff", "The filename of a dataset in \".arff\" format. The labels in this dataset are used to infer labels for the unlabeled set.");
 		pTransduce->add("[unlabeled-set]=test.arff", "The filename of a dataset in \".arff\" format. This dataset must have placeholder labels, but these will be ignored when predicting new labels.");
 		UsageNode* pDO1 = pTransduce->add("<data_opts1>");
-		pDO1->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO1->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO1->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO1->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 		UsageNode* pDO2 = pTransduce->add("<data_opts2>");
-		pDO2->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO2->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO2->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO2->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pTransAcc = pRoot->add("transacc <options> [training-set] <data_opts1> [test-set] <data_opts2> [algorithm]", "Measure the transductive accuracy of [algorithm] with respect to the specified training and test sets. Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal labels, and mean-squared-error is reported for continuous labels.");
 	{
@@ -641,11 +641,11 @@ UsageNode* makeLearnUsageTree()
 		pTransAcc->add("[training-set]=train.arff", "The filename of a dataset in \".arff\" format. The labels in this dataset are used to infer labels for the unlabeled set.");
 		pTransAcc->add("[test-set]=test.arff", "The filename of a dataset in \".arff\" format. This dataset must have placeholder labels. The placeholder labels will be replaced in the output with the new predicted labels.");
 		UsageNode* pDO1 = pTransAcc->add("<data_opts1>");
-		pDO1->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO1->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO1->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO1->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 		UsageNode* pDO2 = pTransAcc->add("<data_opts1>");
-		pDO2->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO2->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO2->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO2->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pSplitTest = pRoot->add("splittest <options> [dataset] <data_opts> [algorithm]", "This shuffles the data, then splits it into two parts, trains with one part, and tests with the other. (This also works with model-free algorithms.) Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal labels, and mean-squared-error is reported for continuous labels.");
 	{
@@ -660,8 +660,8 @@ UsageNode* makeLearnUsageTree()
 			   "model.");
 		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute after each repetition.");
 		UsageNode* pDO = pSplitTest->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pCV = pRoot->add("crossvalidate <options> [dataset] <data_opts> [algorithm]", "Perform cross-validation with the specified dataset and algorithm. Results are printed to stdout. (Supports model-free algorithms too.)");
 	{
@@ -672,8 +672,8 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-succinct", "Just report the average accuracy. Do not report deviation, or results at each fold.");
 		pCV->add("[dataset]=data.arff", "The filename of a dataset in \".arff\" format.");
 		UsageNode* pDO = pCV->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pPR = pRoot->add("precisionrecall <options> [dataset] <data_opts> [algorithm]", "Compute the precision/recall for a dataset and algorithm");
 	{
@@ -684,8 +684,8 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-samples [n]=100", "Specify the granularity at which to measure recall. If not specified, the default is 100.");
 		pPR->add("[dataset]=data.arff", "The filename of a dataset in \".arff\" format.");
 		UsageNode* pDO = pPR->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pTR = pRoot->add("trainrecurrent <options> [method] [obs-data] [action-data] [context-dims] [algorithm] [algorithm]", "Train a recurrent model of a dynamical system with the specified training [method]. The training data is specified by [obs-data], which specifies the sequence of observations, and [action-data], which specifies the sequence of actions. [context-dims] specifies the number of dimensions in the state-space of the system. The two algorithms specify the two functions of a model of a dynamical system. The first [algorithm] models the transition function. The second [algorithm] models the observation function.");
 	{
@@ -844,8 +844,8 @@ UsageNode* makePlotUsageTree()
 		pPDT->add("[model-file]=model.twt", "The filename of a trained decision tree model. (You can make one with the command \"waffles_learn train [dataset] decisiontree > [filename]\".)");
 		pPDT->add("<dataset>", "An optional filename of the arff file that was used to train the decision tree. The data in this file is ignored, but the meta-data will be used to make the printed model richer.");
 		UsageNode* pDO = pPDT->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	UsageNode* pScat = pRoot->add("scatter [dataset] <options>", "Makes a scatter plot or line graph.");
 	{
@@ -1033,8 +1033,8 @@ UsageNode* makeTransformUsageTree()
 	{
 		pAS->add("[dataset]=data.arff", "The filename of a dataset in ARFF format");
 		UsageNode* pDO = pAS->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed attributes. A hyphen may be used to specify a range of values. Example: 0,2-5,7");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 		UsageNode* pOpts = pAS->add("<options>");
 		pOpts->add("-out [n] [filename]", "Save a dataset containing only the [n]-most salient features to [filename].");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -1082,7 +1082,7 @@ UsageNode* makeTransformUsageTree()
 	}
 	UsageNode* pDropCols = pRoot->add("dropcolumns [dataset] [column-list]", "Remove one or more columns from a dataset and prints the results to stdout. (The input file is not modified.)");
 	{
-		pDropCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to drop. A hypen may be used to specify a range of columns. Example: 0,2-5,7");
+		pDropCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to drop. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
 	}
 	pRoot->add("dropmissingvalues [dataset]=data.arff", "Remove all rows that contain missing values.");
 	UsageNode* pEx = pRoot->add("export [dataset] <options>", "Print the data as a list of comma separated values without any meta-data.");

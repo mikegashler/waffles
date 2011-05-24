@@ -23,12 +23,23 @@
 #include <map>
 #include <vector>
 #include <cmath>
+#include "GDom.h"
 
 using std::multimap;
 using std::vector;
 
 namespace GClasses {
 
+GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode)
+{
+}
+
+GDomNode* GCollaborativeFilter::baseDomNode(GDom* pDoc, const char* szClassName)
+{
+	GDomNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
+	return pNode;
+}
 
 double GCollaborativeFilter::crossValidate(GSparseMatrix* pData, size_t folds, GRand* pRand, size_t maxRecommendationsPerRow, double* pOutMAE)
 {
@@ -297,6 +308,15 @@ GBaselineRecommender::GBaselineRecommender()
 {
 }
 
+GBaselineRecommender::GBaselineRecommender(GDomNode* pNode)
+: GCollaborativeFilter(pNode)
+{
+	GDomListIterator it(pNode->field("ratings"));
+	m_items = it.remaining();
+	m_pRatings = new double[m_items];
+	GVec::deserialize(m_pRatings, m_items, it);
+}
+
 // virtual
 GBaselineRecommender::~GBaselineRecommender()
 {
@@ -344,6 +364,14 @@ void GBaselineRecommender::impute(double* pVec)
 		if(pVec[i] == UNKNOWN_REAL_VALUE)
 			pVec[i] = m_pRatings[i];
 	}
+}
+
+// virtual
+GDomNode* GBaselineRecommender::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GBaselineRecommender");
+	pNode->addField(pDoc, "ratings", GVec::serialize(pDoc, m_pRatings, m_items));
+	return pNode;
 }
 
 
@@ -496,6 +524,13 @@ void GInstanceRecommender::impute(double* pVec)
 	}
 }
 
+// virtual
+GDomNode* GInstanceRecommender::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GInstanceRecommender");
+	ThrowError("Sorry, this method has not been implemented yet");
+	return pNode;
+}
 
 
 
@@ -570,6 +605,13 @@ void GSparseClusterRecommender::impute(double* pVec)
 	// todo: Find the closest centroid, and use it to impute all values
 }
 
+// virtual
+GDomNode* GSparseClusterRecommender::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GSparseClusterRecommender");
+	ThrowError("Sorry, this method has not been implemented yet");
+	return pNode;
+}
 
 
 
@@ -646,6 +688,13 @@ void GDenseClusterRecommender::impute(double* pVec)
 	// todo: Find the closest centroid, and use it to impute all values
 }
 
+// virtual
+GDomNode* GDenseClusterRecommender::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GDenseClusterRecommender");
+	ThrowError("Sorry, this method has not been implemented yet");
+	return pNode;
+}
 
 
 
@@ -661,6 +710,17 @@ public:
 GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims, GRand& rand)
 : GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_rand(rand)
 {
+}
+
+GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GRand& rand)
+: GCollaborativeFilter(pNode), m_rand(rand)
+{
+	m_regularizer = pNode->field("reg")->asDouble();
+	m_pP = new GMatrix(pNode->field("p"));
+	m_pQ = new GMatrix(pNode->field("q"));
+	if(m_pP->cols() != m_pQ->cols())
+		ThrowError("Mismatching matrix sizes");
+	m_intrinsicDims = m_pP->cols() - 1;
 }
 
 // virtual
@@ -914,6 +974,15 @@ void GMatrixFactorization::impute(double* pVec)
 	}
 }
 
+// virtual
+GDomNode* GMatrixFactorization::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GMatrixFactorization");
+	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
+	pNode->addField(pDoc, "p", m_pP->serialize(pDoc));
+	pNode->addField(pDoc, "q", m_pQ->serialize(pDoc));
+	return pNode;
+}
 
 
 
@@ -924,6 +993,21 @@ GNeuralRecommender::GNeuralRecommender(size_t intrinsicDims, GRand* pRand)
 {
 	m_pModel = new GNeuralNet(m_pRand);
 	m_pUsers = new GMatrix(0, intrinsicDims);
+}
+
+GNeuralRecommender::GNeuralRecommender(GDomNode* pNode, GRand& rand)
+: GCollaborativeFilter(pNode), m_pRand(&rand)
+{
+	m_pUsers = new GMatrix(pNode->field("users"));
+	m_pModel = new GNeuralNet(pNode->field("model"), m_pRand);
+	size_t itemCount = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
+	m_pMins = new double[itemCount];
+	GDomListIterator it1(pNode->field("mins"));
+	GVec::deserialize(m_pMins, itemCount, it1);
+	m_pMaxs = new double[itemCount];
+	GDomListIterator it2(pNode->field("maxs"));
+	GVec::deserialize(m_pMaxs, itemCount, it2);
+	m_intrinsicDims = m_pModel->layer(0).m_neurons.size();
 }
 
 // virtual
@@ -1259,6 +1343,17 @@ void GNeuralRecommender::impute(double* pVec)
 	}
 }
 
+// virtual
+GDomNode* GNeuralRecommender::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GNeuralRecommender");
+	pNode->addField(pDoc, "users", m_pUsers->serialize(pDoc));
+	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
+	size_t itemCount = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
+	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, itemCount));
+	pNode->addField(pDoc, "maxs", GVec::serialize(pDoc, m_pMaxs, itemCount));
+	return pNode;
+}
 
 
 
@@ -1269,6 +1364,15 @@ void GNeuralRecommender::impute(double* pVec)
 GBagOfRecommenders::GBagOfRecommenders(GRand& rand)
 : GCollaborativeFilter(), m_itemCount(0), m_rand(rand)
 {
+}
+
+GBagOfRecommenders::GBagOfRecommenders(GDomNode* pNode, GRand& rand)
+: GCollaborativeFilter(pNode), m_rand(rand)
+{
+	m_itemCount = pNode->field("ic")->asInt();
+	GLearnerLoader ll;
+	for(GDomListIterator it(pNode->field("filters")); it.current(); it.advance())
+		m_filters.push_back(ll.loadCollaborativeFilter(it.current(), rand));
 }
 
 GBagOfRecommenders::~GBagOfRecommenders()
@@ -1338,6 +1442,16 @@ void GBagOfRecommenders::impute(double* pVec)
 	GVec::copy(pVec, pBuf2, m_itemCount);
 }
 
+// virtual
+GDomNode* GBagOfRecommenders::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GBagOfRecommenders");
+	pNode->addField(pDoc, "ic", pDoc->newInt(m_itemCount));
+	GDomNode* pFilters = pNode->addField(pDoc, "filters", pDoc->newList());
+	for(vector<GCollaborativeFilter*>::iterator it = m_filters.begin(); it != m_filters.end(); it++)
+		pFilters->addItem(pDoc, (*it)->serialize(pDoc));
+	return pNode;
+}
 
 
 

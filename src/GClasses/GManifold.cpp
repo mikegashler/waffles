@@ -1876,6 +1876,9 @@ void GNeuroPCA::computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatri
 	
 						// Adjust x
 						*pX += err * w;
+
+						// Clip x
+//						*pX = std::max(0.0, std::min(1.0, *pX));
 					}
 	
 					pBias++;

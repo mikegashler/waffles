@@ -88,8 +88,8 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 {
 	// Load the models
 	GLearnerLoader ll;
-	m_pTransitionFunc = ll.loadModeler(pNode->field("trans"), pRand);
-	m_pObservationFunc = ll.loadModeler(pNode->field("obs"), pRand);
+	m_pTransitionFunc = ll.loadSupervisedLearner(pNode->field("trans"), pRand);
+	m_pObservationFunc = ll.loadSupervisedLearner(pNode->field("obs"), pRand);
 
 	// Load the param ranges
 	GDomNode* pContext = pNode->field("context");

@@ -29,6 +29,7 @@
 #include "GRand.h"
 #include "GPlot.h"
 #include "GDistribution.h"
+#include "GRecommender.h"
 #include <cmath>
 #include <iostream>
 
@@ -939,7 +940,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	doc.setRoot(pLearner->serialize(&doc));
 	pLearner->clear(); // free up some memory, just because we can
 	GLearnerLoader ll;
-	GSupervisedLearner* pModel = ll.loadModeler(doc.root(), pRand);
+	GSupervisedLearner* pModel = ll.loadSupervisedLearner(doc.root(), pRand);
 	Holder<GSupervisedLearner> hModel(pModel);
 	if(pModel->labelDims() != labelDimsBefore)
 		ThrowError("label dims failed to round-trip. Did your deserializing constructor call the base class constructor?");
@@ -1064,7 +1065,7 @@ GTwoWayIncrementalTransform* GLearnerLoader::loadTwoWayIncrementalTransform(GDom
 }
 
 // virtual
-GSupervisedLearner* GLearnerLoader::loadModeler(GDomNode* pNode, GRand* pRand)
+GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode, GRand* pRand)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(szClass[0] == 'G')
@@ -1123,6 +1124,26 @@ GIncrementalLearner* GLearnerLoader::loadIncrementalLearner(GDomNode* pNode, GRa
 			return new GNaiveInstance(pNode, *pRand);
 		else if(strcmp(szClass, "GNeuralNet") == 0)
 			return new GNeuralNet(pNode, pRand);
+	}
+	if(m_throwIfClassNotFound)
+		ThrowError("Unrecognized class: ", szClass);
+	return NULL;
+}
+
+// virtual
+GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode, GRand& rand)
+{
+	const char* szClass = pNode->field("class")->asString();
+	if(szClass[0] == 'G')
+	{
+		if(strcmp(szClass, "GBagOfRecommenders") == 0)
+			return new GBagOfRecommenders(pNode, rand);
+		else if(strcmp(szClass, "GBaselineRecommender") == 0)
+			return new GBaselineRecommender(pNode);
+		else if(strcmp(szClass, "GMatrixFactorization") == 0)
+			return new GMatrixFactorization(pNode, rand);
+		else if(strcmp(szClass, "GNeuralRecommender") == 0)
+			return new GNeuralRecommender(pNode, rand);
 	}
 	if(m_throwIfClassNotFound)
 		ThrowError("Unrecognized class: ", szClass);

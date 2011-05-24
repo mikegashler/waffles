@@ -151,9 +151,11 @@ public:
 	GDomNode* addItem(GDom* pDoc, GDomNode* pNode);
 
 protected:
-	void reverseFieldOrder();
+	size_t reverseFieldOrder();
 	size_t reverseItemOrder();
 	void writeJson(std::ostream& stream);
+	void writeXmlInlineValue(std::ostream& stream);
+	void writeXml(std::ostream& stream, const char* szLabel);
 };
 #ifdef WINDOWS
 //	reset packing to the default
@@ -203,6 +205,9 @@ public:
 	/// Writes this doc to the specified stream in JSON format. (See http://json.org.)
 	/// (If you want to write to a memory buffer, you can use open_memstream.)
 	void writeJson(std::ostream& stream);
+
+	/// Write as XML to the specified stream.
+	void writeXml(std::ostream& stream);
 
 	/// Gets the root document node
 	GDomNode* root() { return m_pRoot; }

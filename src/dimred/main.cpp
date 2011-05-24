@@ -51,6 +51,26 @@ using std::string;
 using std::set;
 using std::map;
 
+size_t getAttrVal(const char* szString, size_t attrCount)
+{
+	bool fromRight = false;
+	if(*szString == '!')
+	{
+		fromRight = true;
+		szString++;
+	}
+	if(*szString < '0' || *szString > '9')
+		ThrowError("Expected a digit while parsing attribute list");
+#ifdef WIN32
+	size_t val = (size_t)_strtoui64(szString, (char**)NULL, 10);
+#else
+	size_t val = strtoull(szString, (char**)NULL, 10);
+#endif
+	if(fromRight)
+		val = attrCount - 1 - val;
+	return val;
+}
+
 void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount)
 {
 	const char* szList = args.pop_string();
@@ -76,17 +96,11 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 		}
 
 		// Add the attributes to the list
-		if(i > 0)
+		if(i > 0) // If there is more...
 		{
-			if(*szList < '0' || *szList > '9')
-				ThrowError("Expected a number");
-			if(j < 0)
+			if(j < 0) // If there is no "-" character in the next value...
 			{
-#ifdef WIN32
-				size_t val = (size_t)_strtoui64(szList, (char**)NULL, 10);
-#else
-				size_t val = strtoull(szList, (char**)NULL, 10);
-#endif
+				size_t val = getAttrVal(szList, attrCount);
 				if(val >= attrCount)
 					ThrowError("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				if(attrSet.find(val) != attrSet.end())
@@ -96,17 +110,10 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			}
 			else
 			{
-				if(szList[j + 1] < '0' || szList[j + 1] > '9')
-					ThrowError("Expected a number");
-#ifdef WIN32
-				size_t beg = (size_t)_strtoui64(szList, (char**)NULL, 10);
-				size_t end = (size_t)_strtoui64(szList + j + 1, (char**)NULL, 10);
-#else
-				size_t beg = strtoull(szList, (char**)NULL, 10);
-				size_t end = strtoull(szList + j + 1, (char**)NULL, 10);
-#endif
+				size_t beg = getAttrVal(szList, attrCount);
 				if(beg >= attrCount)
 					ThrowError("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+				size_t end = getAttrVal(szList + j + 1, attrCount);
 				if(end >= attrCount)
 					ThrowError("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				int step = 1;
@@ -432,7 +439,7 @@ void breadthFirstUnfolding(GArgReader& args)
 	int targetDims = args.pop_uint();
 
 	// Parse Options
-	int reps = 1;
+	size_t reps = 1;
 	Holder<GMatrix> hControlData(NULL);
 	while(args.size() > 0)
 	{
@@ -450,6 +457,71 @@ void breadthFirstUnfolding(GArgReader& args)
 	GMatrix* pDataAfter = transform.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
+}
+
+void curviness1(GArgReader& args)
+{
+	
+}
+
+void curviness2(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	GNormalize norm;
+	GMatrix* pDataNormalized = norm.doit(*pData);
+	Holder<GMatrix> hDataNormalized(pDataNormalized);
+	hData.reset();
+	pData = NULL;
+
+	// Parse Options
+	size_t maxEigs = 10;
+	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	Holder<GMatrix> hControlData(NULL);
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-seed"))
+			seed = args.pop_uint();
+		else if(args.if_pop("-maxeigs"))
+			maxEigs = args.pop_uint();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	GRand rand(seed);
+	size_t targetDims = std::min(maxEigs, pDataNormalized->cols());
+
+	// Do linear PCA
+	GNeuroPCA np1(targetDims, &rand);
+	np1.setActivation(new GActivationIdentity());
+	np1.computeEigVals();
+	GMatrix* pResults1 = np1.doit(*pDataNormalized);
+	Holder<GMatrix> hResults1(pResults1);
+	double* pEigVals1 = np1.eigVals();
+	for(size_t i = 0; i + 1 < targetDims; i++)
+		pEigVals1[i] = sqrt(pEigVals1[i]) - sqrt(pEigVals1[i + 1]);
+	size_t max1 = GVec::indexOfMax(pEigVals1, targetDims - 1, &rand);
+	double v1 = (double)max1;
+	if(max1 > 0 && max1 + 2 < targetDims)
+		v1 += (pEigVals1[max1 - 1] - pEigVals1[max1 + 1]) / (2.0 * (pEigVals1[max1 - 1] + pEigVals1[max1 + 1] - 2.0 * pEigVals1[max1]));
+
+	// Do non-linear PCA
+	GNeuroPCA np2(targetDims, &rand);
+	np1.setActivation(new GActivationLogistic());
+	np2.computeEigVals();
+	GMatrix* pResults2 = np2.doit(*pDataNormalized);
+	Holder<GMatrix> hResults2(pResults2);
+	double* pEigVals2 = np2.eigVals();
+	for(size_t i = 0; i + 1 < targetDims; i++)
+		pEigVals2[i] = sqrt(pEigVals2[i]) - sqrt(pEigVals2[i + 1]);
+	size_t max2 = GVec::indexOfMax(pEigVals2, targetDims - 1, &rand);
+	double v2 = (double)max2;
+	if(max2 > 0 && max2 + 2 < targetDims)
+		v2 += (pEigVals2[max2 - 1] - pEigVals2[max2 + 1]) / (2.0 * (pEigVals2[max2 - 1] + pEigVals2[max2 + 1] - 2.0 * pEigVals2[max2]));
+
+	// Compute the difference in where the eigenvalues fall
+	cout.precision(14);
+	cout << (v1 - v2) << "\n";
 }
 
 void isomap(GArgReader& args)
@@ -809,56 +881,57 @@ void principalComponentAnalysis(GArgReader& args)
 	pDataAfter->print(cout);
 }
 
-void selfOrganizingMap(GArgReader& args){
-  // Load the file
-  GMatrix* pData = loadData(args.pop_string());
-  Holder<GMatrix> hData(pData);
-
-  // Parse arguments
-  unsigned nDims = args.pop_uint();
-  unsigned nodesPerDim = args.pop_uint();
-
-  unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-  string toFile=""; //Write the resulting map to the given file
-  string fromFile=""; //Read the map from the given file rather than training
-  bool printProgress=false;//If true, write progress to stderr
-  double focusFactor = 1.0 - (1e-4);
-  double learningRate = 1e-2;
-  while(args.next_is_flag()){
-    if(args.if_pop("-tofile")){
-      toFile = args.pop_string();
-      ThrowError("Writing maps to a file is not implemented yet, sorry");
-    }else if(args.if_pop("-fromfile")){
-      fromFile = args.pop_string();
-      ThrowError("Reading maps from a file is not implemented yet, sorry");
-    }else if(args.if_pop("-seed")){
-      nSeed = args.pop_uint();
-    }else if(args.if_pop("-focusfactor")){
-      focusFactor = args.pop_double();
-    }else if(args.if_pop("-learningRate")){
-      learningRate = args.pop_double();
-    }else if(args.if_pop("-printprogress")){
-      printProgress = true;
-    }else{
-      ThrowError("Invalid option: ", args.peek());
-    }
-  }
-
-  GRand prng(nSeed);
-  GSelfOrganizingMap* som = new GSelfOrganizingMap(nDims, nodesPerDim, &prng);
-  som->learningRate(learningRate);
-  som->focusFactor(focusFactor);
-
-  //Train the map
-  GMatrix* map = som->makeMap(pData,0,printProgress);
-  Holder<GMatrix> hMap(map);
-
-  //Transform the data in place
-  GMatrix* out = som->doit(pData, map);
-  Holder<GMatrix> hOut(out);
-
-  //Print the result
-  out->print(cout);
+void selfOrganizingMap(GArgReader& args)
+{
+	// Load the file
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	
+	// Parse arguments
+	unsigned nDims = args.pop_uint();
+	unsigned nodesPerDim = args.pop_uint();
+	
+	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	string toFile=""; //Write the resulting map to the given file
+	string fromFile=""; //Read the map from the given file rather than training
+	bool printProgress=false;//If true, write progress to stderr
+	double focusFactor = 1.0 - (1e-4);
+	double learningRate = 1e-2;
+	while(args.next_is_flag()){
+		if(args.if_pop("-tofile")){
+			toFile = args.pop_string();
+			ThrowError("Writing maps to a file is not implemented yet, sorry");
+		}else if(args.if_pop("-fromfile")){
+			fromFile = args.pop_string();
+			ThrowError("Reading maps from a file is not implemented yet, sorry");
+		}else if(args.if_pop("-seed")){
+			nSeed = args.pop_uint();
+		}else if(args.if_pop("-focusfactor")){
+			focusFactor = args.pop_double();
+		}else if(args.if_pop("-learningRate")){
+			learningRate = args.pop_double();
+		}else if(args.if_pop("-printprogress")){
+			printProgress = true;
+		}else{
+			ThrowError("Invalid option: ", args.peek());
+		}
+	}
+	
+	GRand prng(nSeed);
+	GSelfOrganizingMap* som = new GSelfOrganizingMap(nDims, nodesPerDim, &prng);
+	som->learningRate(learningRate);
+	som->focusFactor(focusFactor);
+	
+	//Train the map
+	GMatrix* map = som->makeMap(pData,0,printProgress);
+	Holder<GMatrix> hMap(map);
+	
+	//Transform the data in place
+	GMatrix* out = som->doit(pData, map);
+	Holder<GMatrix> hOut(out);
+	
+	//Print the result
+	out->print(cout);
 }
 
 void ubpSparse(GArgReader& args)
@@ -1144,6 +1217,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("attributeselector")) attributeSelector(args);
 		else if(args.if_pop("blendembeddings")) blendEmbeddings(args);
 		else if(args.if_pop("breadthfirstunfolding")) breadthFirstUnfolding(args);
+		else if(args.if_pop("curviness2")) curviness2(args);
 		else if(args.if_pop("isomap")) isomap(args);
 		else if(args.if_pop("lle")) lle(args);
 		else if(args.if_pop("manifoldsculpting")) ManifoldSculpting(args);

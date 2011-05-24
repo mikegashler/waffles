@@ -884,11 +884,19 @@ void GNominalToCat::transform(const double* pIn, double* pOut)
 		size_t nValues = m_pRelationBefore->valueCount(i);
 		if(nValues < 3 || nValues >= m_valueCap)
 		{
-			if(nValues == 0)
+			if(nValues == 0 || nValues >= m_valueCap)
 				*(pOut++) = *(pIn++);
+			else if(nValues == 1)
+			{
+				if(*pIn == UNKNOWN_DISCRETE_VALUE)
+					*(pOut++) = UNKNOWN_REAL_VALUE;
+				else
+					*(pOut++) = 0;
+				pIn++;
+			}
 			else
 			{
-				if(*pIn < 0)
+				if(*pIn == UNKNOWN_DISCRETE_VALUE)
 				{
 					if(m_preserveUnknowns)
 						*(pOut++) = UNKNOWN_REAL_VALUE;
@@ -930,10 +938,26 @@ void GNominalToCat::untransform(const double* pIn, double* pOut)
 		size_t nValues = m_pRelationBefore->valueCount(i);
 		if(nValues < 3 || nValues >= m_valueCap)
 		{
-			if(nValues == 0)
+			if(nValues == 0 || nValues >= m_valueCap)
 				*(pOut++) = *(pIn++);
+			else if(nValues == 1)
+			{
+				if(*pIn == UNKNOWN_REAL_VALUE)
+					*(pOut++) = UNKNOWN_DISCRETE_VALUE;
+				else
+					*(pOut++) = 0;
+				pIn++;
+			}
 			else
-				*(pOut++) = (*(pIn++) < 0.5 ? 0 : 1);
+			{
+				if(*pIn == UNKNOWN_REAL_VALUE)
+				{
+					*(pOut++) = UNKNOWN_DISCRETE_VALUE;
+					pIn++;
+				}
+				else
+					*(pOut++) = (*(pIn++) < 0.5 ? 0 : 1);
+			}
 		}
 		else
 		{

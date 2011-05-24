@@ -331,7 +331,7 @@ void predict(GArgReader& args)
 		ThrowError("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the sparse features
@@ -377,7 +377,7 @@ void test(GArgReader& args)
 		ThrowError("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the sparse features

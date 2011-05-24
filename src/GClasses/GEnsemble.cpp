@@ -37,7 +37,7 @@ GBag::GBag(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
 	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
 	{
-		m_models.push_back(pLoader->loadModeler(it.current(), pRand));
+		m_models.push_back(pLoader->loadSupervisedLearner(it.current(), pRand));
 		it.advance();
 	}
 }
@@ -336,7 +336,7 @@ GBucket::GBucket(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
 	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
 	{
-		m_models.push_back(pLoader->loadModeler(it.current(), pRand));
+		m_models.push_back(pLoader->loadSupervisedLearner(it.current(), pRand));
 		it.advance();
 	}
 	m_nBestLearner = (size_t)pNode->field("best")->asInt();

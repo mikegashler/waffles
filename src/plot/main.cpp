@@ -48,6 +48,26 @@ using std::vector;
 using std::set;
 using std::ostringstream;
 
+size_t getAttrVal(const char* szString, size_t attrCount)
+{
+	bool fromRight = false;
+	if(*szString == '!')
+	{
+		fromRight = true;
+		szString++;
+	}
+	if(*szString < '0' || *szString > '9')
+		ThrowError("Expected a digit while parsing attribute list");
+#ifdef WIN32
+	size_t val = (size_t)_strtoui64(szString, (char**)NULL, 10);
+#else
+	size_t val = strtoull(szString, (char**)NULL, 10);
+#endif
+	if(fromRight)
+		val = attrCount - 1 - val;
+	return val;
+}
+
 void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount)
 {
 	const char* szList = args.pop_string();
@@ -73,42 +93,33 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 		}
 
 		// Add the attributes to the list
-		if(i > 0)
+		if(i > 0) // If there is more...
 		{
-			if(*szList < '0' || *szList > '9')
-				ThrowError("Expected a number");
-			if(j < 0)
+			if(j < 0) // If there is no "-" character in the next value...
 			{
-#ifdef WIN32
-				size_t val = (size_t)_strtoui64(szList, (char**)NULL, 10);
-#else
-				size_t val = strtoull(szList, (char**)NULL, 10);
-#endif
+				size_t val = getAttrVal(szList, attrCount);
 				if(val >= attrCount)
-					ThrowError("Invalid attribute index: ", to_str(val), ". (Attributes are zero-indexed.) Valid values are from 0 to ", to_str(attrCount - 1));
+					ThrowError("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				if(attrSet.find(val) != attrSet.end())
-					ThrowError("Attribute ", to_str(val), " is listed multiple times");
+					ThrowError("Columns ", to_str(val), " is listed multiple times");
 				attrSet.insert(val);
 				list.push_back(val);
 			}
 			else
 			{
-				if(szList[j + 1] < '0' || szList[j + 1] > '9')
-					ThrowError("Expected a number");
-#ifdef WIN32
-				size_t beg = (size_t)_strtoui64(szList, (char**)NULL, 10);
-				size_t end = (size_t)_strtoui64(szList + j + 1, (char**)NULL, 10);
-#else
-				size_t beg = strtoull(szList, (char**)NULL, 10);
-				size_t end = strtoull(szList + j + 1, (char**)NULL, 10);
-#endif
+				size_t beg = getAttrVal(szList, attrCount);
+				if(beg >= attrCount)
+					ThrowError("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+				size_t end = getAttrVal(szList + j + 1, attrCount);
+				if(end >= attrCount)
+					ThrowError("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				int step = 1;
 				if(end < beg)
 					step = -1;
 				for(size_t val = beg; true; val += step)
 				{
 					if(attrSet.find(val) != attrSet.end())
-						ThrowError("Attribute ", to_str(val), " is listed multiple times");
+						ThrowError("Column ", to_str(val), " is listed multiple times");
 					attrSet.insert(val);
 						list.push_back(val);
 					if(val == end)
@@ -1440,7 +1451,7 @@ void printDecisionTree(GArgReader& args)
 	if(_stricmp(doc.root()->field("class")->asString(), "GDecisionTree") != 0)
 		ThrowError("That model is not a decision tree");
 	GRand prng(0);
-	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	GMatrix* pData = NULL;
@@ -1471,7 +1482,7 @@ void model(GArgReader& args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GRand prng(0);
-	GSupervisedLearner* pModeler = ll.loadModeler(doc.root(), &prng);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the data

@@ -25,6 +25,8 @@ class GNeuralNet;
 class GMatrix;
 class Rating;
 class GClusterer;
+class GDom;
+class GDomNode;
 
 
 /// The base class for collaborative filtering recommender systems.
@@ -32,6 +34,7 @@ class GCollaborativeFilter
 {
 public:
 	GCollaborativeFilter() {}
+	GCollaborativeFilter(GDomNode* pNode);
 	virtual ~GCollaborativeFilter() {}
 
 	/// Trains this recommender system in batch mode. The columns
@@ -57,6 +60,10 @@ public:
 	/// this method can operate on row-vectors that were not part of the training
 	/// data.)
 	virtual void impute(double* pVec) = 0;
+
+	/// Marshal this object into a DOM that can be converted to a variety
+	/// of formats. (Implementations of this method should use baseDomNode.)
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
 	/// This randomly assignes each rating to one of the folds. Then,
 	/// for each fold, it calls trainBatch with a dataset that contains
@@ -89,6 +96,10 @@ public:
 	/// Pass in the data returned by the precisionRecall function (unmodified), and
 	/// this will compute the area under the ROC curve.
 	static double areaUnderCurve(GMatrix* pData);
+
+protected:
+	/// Child classes should use this in their implementation of serialize
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
 };
 
 
@@ -102,7 +113,13 @@ protected:
 	size_t m_items;
 
 public:
+	/// General-purpose constructor
 	GBaselineRecommender();
+
+	/// Deserialization constructor
+	GBaselineRecommender(GDomNode* pNode);
+
+	/// Destructor
 	virtual ~GBaselineRecommender();
 
 	/// See the comment for GCollaborativeFilter::trainBatch
@@ -113,6 +130,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::impute
 	virtual void impute(double* pVec);
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 };
 
 
@@ -148,6 +168,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::impute
 	virtual void impute(double* pVec);
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 };
 
 
@@ -180,6 +203,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::impute
 	virtual void impute(double* pVec);
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 };
 
 
@@ -213,6 +239,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::impute
 	virtual void impute(double* pVec);
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 };
 
 
@@ -225,8 +254,7 @@ public:
 /// page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative
 /// filtering approaches for large recommender systems. The Journal of Machine Learning
 /// Research, 10:623–656, 2009. ISSN 1532-4435., except with the addition of learning-rate
-/// decay and a different stopping criteria, I don't regularize the bias weights, and I
-/// don't store the superfluous 1's in the matrices.
+/// decay and a different stopping criteria.
 class GMatrixFactorization : public GCollaborativeFilter
 {
 protected:
@@ -237,7 +265,13 @@ protected:
 	GRand& m_rand;
 
 public:
+	/// General-purpose constructor
 	GMatrixFactorization(size_t intrinsicDims, GRand& rand);
+
+	/// Deserialization constructor
+	GMatrixFactorization(GDomNode* pNode, GRand& rand);
+
+	/// Destructor
 	virtual ~GMatrixFactorization();
 
 	/// Set the regularization value
@@ -258,9 +292,13 @@ public:
 	/// Returns the matrix of item weight vectors
 	GMatrix* getQ() { return m_pQ; }
 
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
+
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
 	double validate(std::vector<Rating*>& data);
+
 };
 
 
@@ -279,7 +317,13 @@ protected:
 	GMatrix* m_pUsers;
 
 public:
+	/// General-purpose constructor
 	GNeuralRecommender(size_t intrinsicDims, GRand* pRand);
+
+	/// Deserialization constructor
+	GNeuralRecommender(GDomNode* pNode, GRand& rand);
+
+	/// Destructor
 	virtual ~GNeuralRecommender();
 
 	/// Returns a pointer to the neural net that is used to model the recommendation space.
@@ -295,6 +339,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::impute
 	virtual void impute(double* pVec);
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
@@ -312,7 +359,13 @@ protected:
 	GRand& m_rand;
 
 public:
+	/// General-purpose constructor
 	GBagOfRecommenders(GRand& rand);
+
+	/// Deserialization constructor
+	GBagOfRecommenders(GDomNode* pNode, GRand& rand);
+
+	/// Destructor
 	virtual ~GBagOfRecommenders();
 
 	/// Returns the vector of filters
@@ -332,6 +385,9 @@ public:
 
 	/// Delete all of the filters
 	void clear();
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 };
 
 

@@ -50,6 +50,26 @@ using std::string;
 using std::set;
 using std::map;
 
+size_t getAttrVal(const char* szString, size_t attrCount)
+{
+	bool fromRight = false;
+	if(*szString == '!')
+	{
+		fromRight = true;
+		szString++;
+	}
+	if(*szString < '0' || *szString > '9')
+		ThrowError("Expected a digit while parsing attribute list");
+#ifdef WIN32
+	size_t val = (size_t)_strtoui64(szString, (char**)NULL, 10);
+#else
+	size_t val = strtoull(szString, (char**)NULL, 10);
+#endif
+	if(fromRight)
+		val = attrCount - 1 - val;
+	return val;
+}
+
 void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount)
 {
 	const char* szList = args.pop_string();
@@ -75,17 +95,11 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 		}
 
 		// Add the attributes to the list
-		if(i > 0)
+		if(i > 0) // If there is more...
 		{
-			if(*szList < '0' || *szList > '9')
-				ThrowError("Expected a number");
-			if(j < 0)
+			if(j < 0) // If there is no "-" character in the next value...
 			{
-#ifdef WIN32
-				size_t val = (size_t)_strtoui64(szList, (char**)NULL, 10);
-#else
-				size_t val = strtoull(szList, (char**)NULL, 10);
-#endif
+				size_t val = getAttrVal(szList, attrCount);
 				if(val >= attrCount)
 					ThrowError("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				if(attrSet.find(val) != attrSet.end())
@@ -95,17 +109,10 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			}
 			else
 			{
-				if(szList[j + 1] < '0' || szList[j + 1] > '9')
-					ThrowError("Expected a number");
-#ifdef WIN32
-				size_t beg = (size_t)_strtoui64(szList, (char**)NULL, 10);
-				size_t end = (size_t)_strtoui64(szList + j + 1, (char**)NULL, 10);
-#else
-				size_t beg = strtoull(szList, (char**)NULL, 10);
-				size_t end = strtoull(szList + j + 1, (char**)NULL, 10);
-#endif
+				size_t beg = getAttrVal(szList, attrCount);
 				if(beg >= attrCount)
 					ThrowError("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+				size_t end = getAttrVal(szList + j + 1, attrCount);
 				if(end >= attrCount)
 					ThrowError("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				int step = 1;
