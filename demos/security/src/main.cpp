@@ -856,8 +856,9 @@ int doLogin(GArgReader& args)
 */
 
 #define MAX_PASSPHRASE_LEN 1024
+#define SALT_LEN 32
 
-void readInPassphrase(char* pBuf, size_t len)
+void readInPassphrase(char* pBuf, size_t len, char* pSalt = NULL)
 {
 	cout << "Please enter the passphrase: ";
 	cout.flush();
@@ -876,16 +877,49 @@ void readInPassphrase(char* pBuf, size_t len)
 				len--;
 			}
 		}
-		GThread::sleep(10);
+		else
+			GThread::sleep(10);
 	}
 	*pBuf = '\0';
 	cout << "\r                                                   \r";
 	cout.flush();
+
+	// Read the salt
+	if(pSalt)
+	{
+		size_t remaining = SALT_LEN;
+		cout << "\rPlease enter " << remaining << " chars of salt";
+		cout.flush();
+		GPassiveConsole pc(false);
+		while(remaining > 0)
+		{
+			char c = pc.getChar();
+			if(c != '\0')
+			{
+				remaining--;
+				pSalt[remaining] = c;
+				cout << "\rPlease enter " << remaining << " chars of throw-away salt";
+				cout.flush();
+			}
+			else
+				GThread::sleep(10);
+		}
+		cout << "\r                                                   \r";
+		cout.flush();
+	}
+}
+
+void appendSalt(char* passphrase, const char* salt)
+{
+	size_t len = strlen(passphrase);
+	size_t sl = std::min((unsigned int)(MAX_PASSPHRASE_LEN - 1 - len), (unsigned int)SALT_LEN);
+	memcpy(passphrase + len, salt, sl);
+	passphrase[len + sl] = '\0';
 }
 
 #define DECRYPT_BLOCK_SIZE 2048
 
-void decryptFile(const char* source, const char* passphrase, std::string* pBaseName)
+void decryptFile(const char* source, char* passphrase, char* outSalt, std::string* pBaseName)
 {
 	// Open the file and measure its length
 	std::ifstream ifs;
@@ -894,6 +928,11 @@ void decryptFile(const char* source, const char* passphrase, std::string* pBaseN
 	ifs.seekg(0, std::ios::end);
 	size_t len = ifs.tellg();
 	ifs.seekg(0, std::ios::beg);
+
+	// Read the salt
+	ifs.read(outSalt, SALT_LEN);
+	len -= SALT_LEN;
+	appendSalt(passphrase, outSalt);
 
 	// Decrypt it
 	size_t origLen = len;
@@ -943,10 +982,11 @@ void decrypt(GArgReader& args)
 	char passphrase[MAX_PASSPHRASE_LEN];
 	readInPassphrase(passphrase, MAX_PASSPHRASE_LEN);
 	PassphraseWiper pw(passphrase);
-	decryptFile(filename, passphrase, NULL);
+	char salt[SALT_LEN];
+	decryptFile(filename, passphrase, salt, NULL);
 }
 
-void encryptPath(const char* pathName, const char* passphrase, const char* targetName, bool compress)
+void encryptPath(const char* pathName, char* passphrase, const char* targetName, bool compress)
 {
 	// Encrypt the path
 	GFolderSerializer fs(pathName, compress);
@@ -954,6 +994,10 @@ void encryptPath(const char* pathName, const char* passphrase, const char* targe
 	std::ofstream ofs;
 	ofs.exceptions(std::ios::failbit|std::ios::badbit);
 	ofs.open(targetName, std::ios::binary);
+	
+	// Write the salt
+	ofs.write(passphrase + strlen(passphrase) - SALT_LEN, SALT_LEN);
+
 	size_t prevProg = 0;
 	while(true)
 	{
@@ -1005,8 +1049,10 @@ void encrypt(GArgReader& args)
 			ThrowError("Invalid option: ", args.peek());
 	}
 	char passphrase[MAX_PASSPHRASE_LEN];
-	readInPassphrase(passphrase, MAX_PASSPHRASE_LEN);
+	char salt[SALT_LEN];
+	readInPassphrase(passphrase, MAX_PASSPHRASE_LEN, salt);
 	PassphraseWiper pw(passphrase);
+	appendSalt(passphrase, salt);
 	encryptPath(pathName, passphrase, sTarget.c_str(), compress);
 }
 
@@ -1155,7 +1201,8 @@ void open(GArgReader& args)
 	readInPassphrase(passphrase, MAX_PASSPHRASE_LEN);
 	PassphraseWiper pw(passphrase);
 	string basename;
-	decryptFile(filename, passphrase, &basename);
+	char salt[SALT_LEN];
+	decryptFile(filename, passphrase, salt, &basename);
 	OpenFile(basename.c_str());
 	while(true)
 	{
@@ -1348,7 +1395,7 @@ int main(int argc, char *argv[])
 	{
 		showError(args, e.what());
 	}
-	
+
 	return nRet;
 }
 #endif // !USE_WINMAIN
