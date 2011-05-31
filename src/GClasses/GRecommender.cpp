@@ -848,7 +848,7 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 			GAssert(std::abs(err) < 50);
 
 			// Update Q
-			pPref = m_pP->row(pRating->m_user) + (m_useInputBias ? 0 : 1);
+			pPref = m_pP->row(pRating->m_user) + (m_useInputBias ? 1 : 0);
 			double* pT = temp_weights;
 			pWeights = m_pQ->row(pRating->m_item);
 			*pWeights += learningRate * (err - m_regularizer * (*pWeights));
