@@ -109,20 +109,6 @@ public:
 	/// Sets the value for elbow room. (This value is only used with incremental training.)
 	void setElbowRoom(double d) { m_dElbowRoom = d * d; }
 
-	/// See the comment for GIncrementalLearner::enableIncrementalLearning
-	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
-
-	/// Adds a vector to the internal set. Also, if the (k+1)th nearest
-	/// neighbor of that vector is less than "elbow room" from it, then
-	/// the closest neighbor is deleted from the internal set. (You might
-	/// be wondering why the decision to delete the closest neighbor is
-	/// determined by the distance of the (k+1)th neigbor. This enables a
-	/// clump of k points to form in the most frequently sampled locations.
-	/// Also, If you make this decision based on a closer neighbor, then big
-	/// holes may form in the model if points are sampled in a poor order.)
-	/// Call SetElbowRoom to specify the elbow room distance.
-	virtual void trainIncremental(const double* pIn, const double* pOut);
-
 	/// Returns the number of neighbors
 	size_t neighborCount() { return m_nNeighbors; }
 
@@ -154,6 +140,20 @@ protected:
 
 	/// See the comment for GSupervisedLearner::predictDistributionInner
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+
+	/// Adds a vector to the internal set. Also, if the (k+1)th nearest
+	/// neighbor of that vector is less than "elbow room" from it, then
+	/// the closest neighbor is deleted from the internal set. (You might
+	/// be wondering why the decision to delete the closest neighbor is
+	/// determined by the distance of the (k+1)th neigbor. This enables a
+	/// clump of k points to form in the most frequently sampled locations.
+	/// Also, If you make this decision based on a closer neighbor, then big
+	/// holes may form in the model if points are sampled in a poor order.)
+	/// Call SetElbowRoom to specify the elbow room distance.
+	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 
 	/// Finds the nearest neighbors of pVector
 	void findNeighbors(const double* pVector);
@@ -220,12 +220,6 @@ public:
 	/// Clears the internal model
 	virtual void clear();
 
-	/// See the comment for GIncrementalLearner::enableIncrementalLearning
-	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
-
-	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const double* pIn, const double* pOut);
-
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(GMatrix& features, GMatrix& labels);
@@ -238,6 +232,12 @@ protected:
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+
+	/// See the comment for GIncrementalLearner::trainIncrementalInner
+	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 };
 
 } // namespace GClasses

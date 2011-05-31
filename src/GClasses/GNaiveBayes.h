@@ -46,12 +46,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc);
 
-	/// See the comment for GIncrementalLearner::enableIncrementalLearning
-	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
-
-	/// Adds a single training sample to the collection
-	virtual void trainIncremental(const double* pIn, const double* pOut);
-
 	/// See the comment for GIncrementalLearner::trainSparse
 	/// This method assumes that the values in pData are all binary values (0 or 1).
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
@@ -80,6 +74,12 @@ protected:
 
 	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+
+	/// Adds a single training sample to the collection
+	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 };
 
 } // namespace GClasses

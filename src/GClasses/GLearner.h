@@ -211,6 +211,22 @@ public:
 	/// Returns the number of label dims.
 	size_t labelDims() { return m_labelDims; }
 
+	/// Returns the current feature filter (or NULL if none has been set).
+	GTwoWayIncrementalTransform* featureFilter() { return m_pFeatureFilter; }
+
+	/// Returns the current label filter (or NULL if none has been set).
+	GTwoWayIncrementalTransform* labelFilter() { return m_pLabelFilter; }
+
+	/// Sets the filter for features. (Note that the "train" method automatically
+	/// sets the filters, replacing any filters that you have set, so this method is
+	/// really only useful in conjunction with incremental learning.)
+	void setFeatureFilter(GTwoWayIncrementalTransform* pFilter);
+
+	/// Sets the filter for labels. (Note that the "train" method automatically
+	/// sets the filters, replacing any filters that you have set, so this method is
+	/// really only useful in conjunction with incremental learning.)
+	void setLabelFilter(GTwoWayIncrementalTransform* pFilter);
+
 	/// Call this method to train the model. It automatically determines which
 	/// filters are needed to convert the training features and labels into
 	/// a form that the model's training algorithm can handle, and then calls
@@ -327,19 +343,30 @@ public:
 	/// Returns true
 	virtual bool canTrainIncrementally() { return true; }
 
-	/// You must call this method before you call trainIncremental
-	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel) = 0;
+	/// You must call this method before you call trainIncremental.
+	/// Unlike "train", this method does not automatically set up any filters. Rather,
+	/// it assumes that you have already set up any filters that you wish to use.
+	/// Behavior is undefined if you change the filters (by calling setFeatureFilter
+	/// or setLabelFilter, or by changing the filters) after this method is called.
+	void beginIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
 
 	/// Pass a single input row and the corresponding label to
 	/// incrementally train this model
-	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
+	void trainIncremental(const double* pIn, const double* pOut);
 
 	/// Train using a sparse feature matrix. (A Typical implementation of this
-	/// method will first call enableIncrementalLearning, then it will
+	/// method will first call beginIncrementalLearning, then it will
 	/// iterate over all of the feature rows, and for each row it
 	/// will convert the sparse row to a dense row, call trainIncremental
 	/// using the dense row, then discard the dense row and proceed to the next row.)
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels) = 0;
+
+protected:
+	/// Prepare the model for incremental learning.
+	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel) = 0;
+
+	/// Refine the model with the specified pattern.
+	virtual void trainIncrementalInner(const double* pIn, const double* pOut) = 0;
 };
 
 

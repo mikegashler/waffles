@@ -263,6 +263,7 @@ protected:
 	GMatrix* m_pP;
 	GMatrix* m_pQ;
 	GRand& m_rand;
+	bool m_useInputBias;
 
 public:
 	/// General-purpose constructor
@@ -295,6 +296,9 @@ public:
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
 
+	/// Specify to use no bias value with the inputs
+	void noInputBias() { m_useInputBias = false; }
+
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
 	double validate(std::vector<Rating*>& data);
@@ -315,6 +319,7 @@ protected:
 	GRand* m_pRand;
 	GNeuralNet* m_pModel;
 	GMatrix* m_pUsers;
+	bool m_useInputBias;
 
 public:
 	/// General-purpose constructor
@@ -331,6 +336,9 @@ public:
 	/// activation functions before the model is trained.
 	GNeuralNet* model() { return m_pModel; }
 
+	/// Returns a pointer to the matrix of user preference vectors.
+	GMatrix* users() { return m_pUsers; }
+
 	/// See the comment for GCollaborativeFilter::trainBatch
 	virtual void trainBatch(GSparseMatrix* pData);
 
@@ -342,6 +350,9 @@ public:
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Specify to use no bias value with the inputs
+	void noInputBias() { m_useInputBias = false; }
 
 protected:
 	/// Returns the sum-squared error for the specified set of ratings

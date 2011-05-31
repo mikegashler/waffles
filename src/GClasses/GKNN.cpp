@@ -69,7 +69,7 @@ protected:
 		GMatrix* pFeatures = m_pLearner->features();
 		GMatrix* pLabels = m_pLearner->labels();
 		GKNN temp(m_pLearner->neighborCount(), m_pLearner->getRand());
-		temp.enableIncrementalLearning(pFeatures->relation(), pLabels->relation());
+		temp.beginIncrementalLearning(pFeatures->relation(), pLabels->relation());
 		GVec::copy(temp.metric()->scaleFactors(), pVector, relation()->size());
 		return temp.heuristicValidate(*pFeatures, *pLabels, m_pLearner->getRand());
 	}
@@ -136,11 +136,11 @@ GKNN::GKNN(GDomNode* pNode, GRand* pRand)
 	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
 	m_pEvalDistances = new double[m_nNeighbors + 1];
 	if(pFeatures)
-		enableIncrementalLearning(pFeatures->relation(), pLabels->relation());
+		beginIncrementalLearningInner(pFeatures->relation(), pLabels->relation());
 	else
 	{
 		sp_relation pRel = new GUniformRelation(pSparseFeatures->cols(), 0);
-		enableIncrementalLearning(pRel, pLabels->relation());
+		beginIncrementalLearningInner(pRel, pLabels->relation());
 	}
 	delete(m_pFeatures);
 	delete(m_pSparseFeatures);
@@ -253,11 +253,9 @@ void GKNN::setMetric(GSparseSimilarity* pMetric, bool own)
 }
 
 // virtual
-void GKNN::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GKNN::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	clear();
-	m_featureDims = pFeatureRel->size();
-	m_labelDims = pLabelRel->size();
 	if(!m_pDistanceMetric && !m_pSparseMetric)
 		setMetric(new GRowDistanceScaled(), true);
 	if(m_pDistanceMetric)
@@ -291,7 +289,7 @@ void GKNN::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLab
 }
 
 // virtual
-void GKNN::trainIncremental(const double* pIn, const double* pOut)
+void GKNN::trainIncrementalInner(const double* pIn, const double* pOut)
 {
 	// Make a copy of the vector
 	GAssert(m_pDistanceMetric);
@@ -326,7 +324,7 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 {
 	if(m_pSparseMetric)
 		ThrowError("This method is not compatible with sparse similarity metrics. You should either use trainSparse instead, or use a dense dissimilarity metric.");
-	enableIncrementalLearning(features.relation(), labels.relation());
+	beginIncrementalLearningInner(features.relation(), labels.relation());
 	m_pFeatures->reserve(features.rows());
 	m_pLabels->reserve(features.rows());
 	for(size_t i = 0; i < features.rows(); i++)
@@ -376,7 +374,7 @@ void GKNN::trainSparse(GSparseMatrix& features, GMatrix& labels)
 	if(!m_pSparseMetric)
 		setMetric(new GCosineSimilarity(), true);
 	sp_relation pFeatureRel = new GUniformRelation(features.cols(), 0);
-	enableIncrementalLearning(pFeatureRel, labels.relation());
+	beginIncrementalLearning(pFeatureRel, labels.relation());
 
 	// Copy the training data
 	m_pSparseFeatures->newRows(features.rows());
@@ -398,7 +396,7 @@ void GKNN::findNeighbors(const double* pVector)
 	else
 	{
 		if(!m_pSparseMetric)
-			ThrowError("train, trainSparse, or enableIncrementalLearning must be called before this method");
+			ThrowError("train, trainSparse, or beginIncrementalLearning must be called before this method");
 		multimap<double,size_t> priority_queue;
 		for(size_t i = 0; i < m_pSparseFeatures->rows(); i++)
 		{
@@ -806,9 +804,9 @@ void GInstanceTable::trainSparse(GSparseMatrix& features, GMatrix& labels)
 // virtual
 void GInstanceTable::trainInner(GMatrix& features, GMatrix& labels)
 {
-	enableIncrementalLearning(features.relation(), labels.relation());
+	beginIncrementalLearningInner(features.relation(), labels.relation());
 	for(size_t i = 0; i < features.rows(); i++)
-		trainIncremental(features[i], labels[i]);
+		trainIncrementalInner(features[i], labels[i]);
 }
 
 // virtual
@@ -839,7 +837,7 @@ void GInstanceTable::clear()
 }
 
 // virtual
-void GInstanceTable::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GInstanceTable::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	// Allocate the table
 	clear();
@@ -857,7 +855,7 @@ void GInstanceTable::enableIncrementalLearning(sp_relation& pFeatureRel, sp_rela
 }
 
 // virtual
-void GInstanceTable::trainIncremental(const double* pIn, const double* pOut)
+void GInstanceTable::trainIncrementalInner(const double* pIn, const double* pOut)
 {
 	size_t pos = 0;
 	for(size_t i = 0; i < m_dims; i++)

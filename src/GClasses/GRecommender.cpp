@@ -24,6 +24,7 @@
 #include <vector>
 #include <cmath>
 #include "GDom.h"
+#include "GTime.h"
 
 using std::multimap;
 using std::vector;
@@ -708,7 +709,7 @@ public:
 };
 
 GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims, GRand& rand)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_rand(rand)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_rand(rand), m_useInputBias(true)
 {
 }
 
@@ -716,6 +717,7 @@ GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GRand& rand)
 : GCollaborativeFilter(pNode), m_rand(rand)
 {
 	m_regularizer = pNode->field("reg")->asDouble();
+	m_useInputBias = pNode->field("uib")->asBool();
 	m_pP = new GMatrix(pNode->field("p"));
 	m_pQ = new GMatrix(pNode->field("q"));
 	if(m_pP->cols() != m_pQ->cols())
@@ -728,6 +730,17 @@ GMatrixFactorization::~GMatrixFactorization()
 {
 	delete(m_pQ);
 	delete(m_pP);
+}
+
+// virtual
+GDomNode* GMatrixFactorization::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GMatrixFactorization");
+	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
+	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
+	pNode->addField(pDoc, "p", m_pP->serialize(pDoc));
+	pNode->addField(pDoc, "q", m_pQ->serialize(pDoc));
+	return pNode;
 }
 
 double GMatrixFactorization::validate(vector<Rating*>& data)
@@ -787,11 +800,12 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 
 	// Initialize P with small random values, and Q with zeros
 	delete(m_pP);
-	m_pP = new GMatrix(pData->rows(),  1 + m_intrinsicDims);
+	size_t colsP = (m_useInputBias ? 1 : 0) + m_intrinsicDims;
+	m_pP = new GMatrix(pData->rows(),  colsP);
 	for(size_t i = 0; i < m_pP->rows(); i++)
 	{
 		double* pVec = m_pP->row(i);
-		for(size_t j = 0; j <= m_intrinsicDims; j++)
+		for(size_t j = 0; j < colsP; j++)
 			*(pVec++) = 0.02 * m_rand.normal();
 	}
 	delete(m_pQ);
@@ -825,14 +839,16 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 			// Compute the error for this rating
 			double* pPref = m_pP->row(pRating->m_user);
 			double* pWeights = m_pQ->row(pRating->m_item);
-			double pred = *(pWeights++) + *(pPref++);
+			double pred = *(pWeights++);
+			if(m_useInputBias)
+				pred += *(pPref++);
 			for(size_t i = 0; i < m_intrinsicDims; i++)
 				pred += *(pPref++) * (*pWeights++);
 			double err = pRating->m_rating - pred;
 			GAssert(std::abs(err) < 50);
 
 			// Update Q
-			pPref = m_pP->row(pRating->m_user) + 1;
+			pPref = m_pP->row(pRating->m_user) + (m_useInputBias ? 0 : 1);
 			double* pT = temp_weights;
 			pWeights = m_pQ->row(pRating->m_item);
 			*pWeights += learningRate * (err - m_regularizer * (*pWeights));
@@ -848,8 +864,11 @@ void GMatrixFactorization::trainBatch(GSparseMatrix* pData)
 			// Update P
 			pWeights = temp_weights;
 			pPref = m_pP->row(pRating->m_user);
-			*pPref += learningRate * (err - m_regularizer * (*pPref));
-			pPref++;
+			if(m_useInputBias)
+			{
+				*pPref += learningRate * (err - m_regularizer * (*pPref));
+				pPref++;
+			}
 			for(size_t i = 0; i < m_intrinsicDims; i++)
 			{
 				*pPref += learningRate * (err * (*pWeights) - m_regularizer * (*pPref));
@@ -893,7 +912,9 @@ double GMatrixFactorization::predict(size_t user, size_t item)
 		ThrowError("Not trained yet");
 	double* pWeights = m_pQ->row(item);
 	double* pPref = m_pP->row(user);
-	double pred = *(pWeights++) + *(pPref++);
+	double pred = *(pWeights++);
+	if(m_useInputBias)
+		pred += *(pPref++);
 	for(size_t i = 0; i < m_intrinsicDims; i++)
 		pred += *(pPref++) * (*pWeights++);
 	return pred;
@@ -933,17 +954,22 @@ void GMatrixFactorization::impute(double* pVec)
 			// Compute the error for this rating
 			double* pPref = pPrefVec;
 			double* pWeights = m_pQ->row(pRating->m_item);
-			double pred = *(pWeights++) + *(pPref++);
+			double pred = *(pWeights++);
+			if(m_useInputBias)
+				pred += *(pPref++);
 			for(size_t i = 0; i < m_intrinsicDims; i++)
 				pred += *(pPref++) * (*pWeights++);
 			double err = pRating->m_rating - pred;
 			sse += (err * err);
 
 			// Update the preference vec
-			pWeights = m_pQ->row(pRating->m_item);
+			pWeights = m_pQ->row(pRating->m_item) + 1;
 			pPref = pPrefVec;
-			*pPref += learningRate * err; // regularization is intentionally not used here
-			pPref++;
+			if(m_useInputBias)
+			{
+				*pPref += learningRate * err; // regularization is intentionally not used here
+				pPref++;
+			}
 			for(size_t i = 0; i < m_intrinsicDims; i++)
 			{
 				*pPref += learningRate * err * (*pWeights); // regularization is intentionally not used here
@@ -966,7 +992,9 @@ void GMatrixFactorization::impute(double* pVec)
 		{
 			double* pWeights = m_pQ->row(i);
 			double* pPref = pPrefVec;
-			double pred = *(pWeights++) + *(pPref++);
+			double pred = *(pWeights++);
+			if(m_useInputBias)
+				pred += *(pPref++);
 			for(size_t j = 0; j < m_intrinsicDims; j++)
 				pred += *(pPref++) * (*pWeights++);
 			pVec[i] = pred;
@@ -974,30 +1002,22 @@ void GMatrixFactorization::impute(double* pVec)
 	}
 }
 
-// virtual
-GDomNode* GMatrixFactorization::serialize(GDom* pDoc)
-{
-	GDomNode* pNode = baseDomNode(pDoc, "GMatrixFactorization");
-	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
-	pNode->addField(pDoc, "p", m_pP->serialize(pDoc));
-	pNode->addField(pDoc, "q", m_pQ->serialize(pDoc));
-	return pNode;
-}
 
 
 
 
 
 GNeuralRecommender::GNeuralRecommender(size_t intrinsicDims, GRand* pRand)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_pMins(NULL), m_pMaxs(NULL), m_pRand(pRand)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_pMins(NULL), m_pMaxs(NULL), m_pRand(pRand), m_useInputBias(true)
 {
 	m_pModel = new GNeuralNet(m_pRand);
-	m_pUsers = new GMatrix(0, intrinsicDims);
+	m_pUsers = NULL;
 }
 
 GNeuralRecommender::GNeuralRecommender(GDomNode* pNode, GRand& rand)
 : GCollaborativeFilter(pNode), m_pRand(&rand)
 {
+	m_useInputBias = pNode->field("uib")->asBool();
 	m_pUsers = new GMatrix(pNode->field("users"));
 	m_pModel = new GNeuralNet(pNode->field("model"), m_pRand);
 	size_t itemCount = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
@@ -1017,6 +1037,19 @@ GNeuralRecommender::~GNeuralRecommender()
 	delete[] m_pMaxs;
 	delete(m_pModel);
 	delete(m_pUsers);
+}
+
+// virtual
+GDomNode* GNeuralRecommender::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GNeuralRecommender");
+	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
+	pNode->addField(pDoc, "users", m_pUsers->serialize(pDoc));
+	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
+	size_t itemCount = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
+	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, itemCount));
+	pNode->addField(pDoc, "maxs", GVec::serialize(pDoc, m_pMaxs, itemCount));
+	return pNode;
 }
 
 double GNeuralRecommender::validate(vector<Rating*>& data)
@@ -1040,15 +1073,18 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 		ThrowError("Expected the default value to be UNKNOWN_REAL_VALUE");
 
 	// Use Matrix-factorization to compute the user preference vectors
-	GMatrixFactorization mf(m_intrinsicDims - 1, *m_pRand);
+	GMatrixFactorization mf(m_intrinsicDims - (m_useInputBias ? 1 : 0), *m_pRand);
+	if(!m_useInputBias)
+		mf.noInputBias();
 	mf.trainBatch(pData);
+	delete(m_pUsers);
 	m_pUsers = mf.getP()->clone();
 
 	// Prep the model for incremental training
 	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
 	sp_relation pLabelRel = new GUniformRelation(pData->cols());
-	m_pModel->setUseInputBias(true);
-	m_pModel->enableIncrementalLearning(pFeatureRel, pLabelRel);
+	m_pModel->setUseInputBias(m_useInputBias);
+	m_pModel->beginIncrementalLearning(pFeatureRel, pLabelRel);
 
 	// Make a single list of all the ratings
 	GHeap heap(2048);
@@ -1079,7 +1115,7 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 		pRating->m_rating = (pRating->m_rating - m_pMins[pRating->m_item]) / (m_pMaxs[pRating->m_item] - m_pMins[pRating->m_item]);
 	}
 
-	// Train
+	// Train just the weights
 double regularizer = 0.0015;
 	double* pBestWeights = NULL;
 	size_t weightCount = m_pModel->countWeights();
@@ -1118,9 +1154,9 @@ m_pModel->decayWeightsSingleOutput(pRating->m_item, regularizer);
 			learningRate *= 0.7; // decay the learning rate
 		prevErr = rsse;
 	}
+	GMatrix* pBestUsers = m_pUsers->clone();
 
 	// Now refine both item weights and user preferences
-	GMatrix* pBestUsers = m_pUsers->clone();
 	learningRate = 0.01;
 	while(learningRate >= 0.0005)
 	{
@@ -1169,6 +1205,7 @@ GVec::multiply(pUserPreferenceVector, 1.0 - learningRate * regularizer, m_intrin
 		m_pUsers = pBestUsers;
 	}
 }
+
 /*
 // virtual
 void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
@@ -1177,14 +1214,14 @@ void GNeuralRecommender::trainBatch(GSparseMatrix* pData)
 		ThrowError("Expected the default value to be UNKNOWN_REAL_VALUE");
 
 	// Initialize the user preference vectors
-	m_pUsers->flush();
-	m_pUsers->newRows(pData->rows());
+	delete(m_pUsers);
+	m_pUsers = new GMatrix(pData->rows(), m_intrinsicDims);
 
 	// Prep the model for incremental training
 	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
 	sp_relation pLabelRel = new GUniformRelation(pData->cols());
 	m_pModel->setUseInputBias(true);
-	m_pModel->enableIncrementalLearning(pFeatureRel, pLabelRel);
+	m_pModel->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	GActivationFunction* pAF = m_pModel->layer(0).m_pActivationFunction;
 	for(size_t i = 0; i < m_pUsers->rows(); i++)
 	{
@@ -1343,17 +1380,6 @@ void GNeuralRecommender::impute(double* pVec)
 	}
 }
 
-// virtual
-GDomNode* GNeuralRecommender::serialize(GDom* pDoc)
-{
-	GDomNode* pNode = baseDomNode(pDoc, "GNeuralRecommender");
-	pNode->addField(pDoc, "users", m_pUsers->serialize(pDoc));
-	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
-	size_t itemCount = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
-	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, itemCount));
-	pNode->addField(pDoc, "maxs", GVec::serialize(pDoc, m_pMaxs, itemCount));
-	return pNode;
-}
 
 
 

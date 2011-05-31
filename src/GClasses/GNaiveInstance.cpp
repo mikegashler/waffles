@@ -96,7 +96,7 @@ GNaiveInstance::GNaiveInstance(GDomNode* pNode, GRand& rand)
 	m_internalLabelDims = (size_t)pNode->field("ild")->asInt();
 	sp_relation pFeatureRel = new GUniformRelation(m_internalFeatureDims);
 	sp_relation pLabelRel = new GUniformRelation(m_internalLabelDims);
-	enableIncrementalLearning(pFeatureRel, pLabelRel);
+	beginIncrementalLearningInner(pFeatureRel, pLabelRel);
 	GDomNode* pAttrs = pNode->field("attrs");
 	GDomListIterator it(pAttrs);
 	if(it.remaining() != m_internalFeatureDims)
@@ -147,7 +147,7 @@ GDomNode* GNaiveInstance::serialize(GDom* pDoc)
 }
 
 // virtual
-void GNaiveInstance::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GNaiveInstance::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	if(!pFeatureRel->areContinuous(0, pFeatureRel->size()) || !pLabelRel->areContinuous(0, pLabelRel->size()))
 		ThrowError("Only continuous attributes are supported.");
@@ -164,7 +164,7 @@ void GNaiveInstance::enableIncrementalLearning(sp_relation& pFeatureRel, sp_rela
 }
 
 // virtual
-void GNaiveInstance::trainIncremental(const double* pIn, const double* pOut)
+void GNaiveInstance::trainIncrementalInner(const double* pIn, const double* pOut)
 {
 	if(!m_pHeap)
 		m_pHeap = new GHeap(1024);
@@ -180,9 +180,9 @@ void GNaiveInstance::trainIncremental(const double* pIn, const double* pOut)
 // virtual
 void GNaiveInstance::trainInner(GMatrix& features, GMatrix& labels)
 {
-	enableIncrementalLearning(features.relation(), labels.relation());
+	beginIncrementalLearningInner(features.relation(), labels.relation());
 	for(size_t i = 0; i < features.rows(); i++)
-		trainIncremental(features[i], labels[i]);
+		trainIncrementalInner(features[i], labels[i]);
 }
 
 // virtual

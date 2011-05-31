@@ -202,7 +202,7 @@ public:
 
 	/// Sets the activation function to use with all subsequently added
 	/// layers. (Note that the activation function for the output layer is
-	/// set when train or enableIncrementalLearning is called, so if you
+	/// set when train or beginIncrementalLearning is called, so if you
 	/// only wish to set the squshing function for the output layer, call
 	/// this method after all hidden layers have been added, but before you call train.)
 	/// If hold is true, then the neural network will hold on to this instance
@@ -313,12 +313,6 @@ public:
 	/// Assumes all attributes are continuous.
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
-	/// See the comment for GIncrementalLearner::enableIncrementalLearning
-	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
-
-	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const double* pIn, const double* pOut);
-
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear() {}
 
@@ -346,7 +340,7 @@ public:
 	void copyWeights(GNeuralNet* pOther);
 
 	/// Copies the layers, nodes, and settings from pOther (but not the
-	/// weights). enableIncrementalLearning must have been called on pOther
+	/// weights). beginIncrementalLearning must have been called on pOther
 	/// so that it has a complete structure.
 	void copyStructure(GNeuralNet* pOther);
 
@@ -419,6 +413,12 @@ protected:
 
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+
+	/// See the comment for GIncrementalLearner::trainIncrementalInner
+	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 };
 
 

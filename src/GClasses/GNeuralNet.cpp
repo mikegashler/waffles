@@ -452,7 +452,7 @@ GNeuralNet::GNeuralNet(GDomNode* pNode, GRand* pRand)
 	sp_relation pFeatureRel = new GUniformRelation(m_internalFeatureDims);
 	sp_relation pLabelRel = new GUniformRelation(m_internalLabelDims);
 	m_useInputBias = pNode->field("ib")->asBool();
-	enableIncrementalLearning(pFeatureRel, pLabelRel);
+	beginIncrementalLearningInner(pFeatureRel, pLabelRel);
 
 	// Set other settings
 	m_learningRate = pNode->field("learningRate")->asDouble();
@@ -639,7 +639,7 @@ void GNeuralNet::dropNode(size_t layer, size_t node)
 size_t GNeuralNet::countWeights()
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	size_t wc = 0;
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 		wc += layer->m_neurons.size() * layer->m_neurons.begin()->m_weights.size(); // We assume that every node in a layer has the same number of weights
@@ -649,7 +649,7 @@ size_t GNeuralNet::countWeights()
 void GNeuralNet::weights(double* pOutWeights)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
@@ -666,7 +666,7 @@ void GNeuralNet::weights(double* pOutWeights)
 void GNeuralNet::setWeights(const double* pWeights)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
@@ -683,7 +683,7 @@ void GNeuralNet::setWeights(const double* pWeights)
 void GNeuralNet::copyWeights(GNeuralNet* pOther)
 {
 	if(m_internalLabelDims == 0 || pOther->m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called on both networks before this method");
+		ThrowError("train or beginIncrementalLearning must be called on both networks before this method");
 	GAssert(m_layers.size() == pOther->m_layers.size());
 	vector<GNeuralNetLayer>::iterator layerOther = pOther->m_layers.begin();
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
@@ -705,7 +705,7 @@ void GNeuralNet::copyWeights(GNeuralNet* pOther)
 void GNeuralNet::copyStructure(GNeuralNet* pOther)
 {
 	if(pOther->m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	releaseTrainingJunk();
 	for(vector<GActivationFunction*>::iterator it = m_activationFunctions.begin(); it != m_activationFunctions.end(); it++)
 		delete(*it);
@@ -741,7 +741,7 @@ void GNeuralNet::copyStructure(GNeuralNet* pOther)
 void GNeuralNet::perturbAllWeights(double deviation)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
@@ -753,7 +753,7 @@ void GNeuralNet::perturbAllWeights(double deviation)
 void GNeuralNet::clipWeights(double max)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
@@ -767,7 +767,7 @@ void GNeuralNet::clipWeights(double max)
 void GNeuralNet::decayWeights(double lambda, double gamma)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		double d = (1.0 - lambda * m_learningRate);
@@ -783,7 +783,7 @@ void GNeuralNet::decayWeights(double lambda, double gamma)
 void GNeuralNet::decayWeightsSingleOutput(size_t output, double lambda)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	double d = (1.0 - lambda * m_learningRate);
 	GNeuron& neuron = layer(m_layers.size() - 1).m_neurons[output];
 	for(vector<double>::iterator weight = neuron.m_weights.begin(); weight != neuron.m_weights.end(); weight++)
@@ -912,7 +912,7 @@ double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 void GNeuralNet::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 
 	// Do the evaluation
 	forwardProp(pIn);
@@ -950,7 +950,7 @@ double GNeuralNet::sumSquaredPredictionError(const double* pTarget)
 void GNeuralNet::predictInner(const double* pIn, double* pOut)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	forwardProp(pIn);
 	copyPrediction(pOut);
 }
@@ -981,7 +981,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 	if(features.rows() != labels.rows())
 		ThrowError("Expected the features and labels to have the same number of rows");
 	sp_relation pFeatureRel = new GUniformRelation(features.cols());
-	enableIncrementalLearning(pFeatureRel, labels.relation());
+	beginIncrementalLearning(pFeatureRel, labels.relation());
 
 	GTEMPBUF(size_t, indexes, features.rows());
 	GIndexVec::makeIndexVec(indexes, features.rows());
@@ -1022,7 +1022,7 @@ size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLab
 {
 	if(trainFeatures.rows() != trainLabels.rows() || validateFeatures.rows() != validateLabels.rows())
 		ThrowError("Expected the features and labels to have the same number of rows");
-	enableIncrementalLearning(trainFeatures.relation(), trainLabels.relation());
+	beginIncrementalLearningInner(trainFeatures.relation(), trainLabels.relation());
 
 	// Make a random ordering
 	size_t rowCount = trainFeatures.rows();
@@ -1068,7 +1068,7 @@ size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLab
 }
 
 // virtual
-void GNeuralNet::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GNeuralNet::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	if(pLabelRel->size() < 1)
 		ThrowError("The label relation must have at least 1 attribute");
@@ -1110,10 +1110,10 @@ void GNeuralNet::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation
 }
 
 // virtual
-void GNeuralNet::trainIncremental(const double* pIn, const double* pOut)
+void GNeuralNet::trainIncrementalInner(const double* pIn, const double* pOut)
 {
 	if(m_internalLabelDims == 0)
-		ThrowError("enableIncrementalLearning must be called before this method");
+		ThrowError("train or beginIncrementalLearning must be called before this method");
 	forwardProp(pIn);
 	setErrorOnOutputLayer(pOut, m_backPropTargetFunction);
 	m_pBackProp->backpropagate();
@@ -1417,7 +1417,7 @@ void GNeuralNet_testMath()
 	nn.setLearningRate(0.175);
 	nn.setMomentum(0.9);
 	nn.addLayer(3);
-	nn.enableIncrementalLearning(features.relation(), labels.relation());
+	nn.beginIncrementalLearning(features.relation(), labels.relation());
 	if(nn.countWeights() != 13)
 		ThrowError("Wrong number of weights");
 	GNeuralNetLayer& layerOut = nn.layer(1);
@@ -1526,7 +1526,7 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 //		nn.addLayer(10);
 		sp_relation pFeatureRel = new GUniformRelation(5);
 		sp_relation pLabelRel = new GUniformRelation(10);
-		nn.enableIncrementalLearning(pFeatureRel, pLabelRel);
+		nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
 
 		// Init with random weights
 		size_t weightCount = nn.countWeights();
@@ -1716,7 +1716,7 @@ void GNeuralNetPseudoInverse::test()
 	nn.addLayer(7);
 	sp_relation pFeatureRel = new GUniformRelation(3);
 	sp_relation pLabelRel = new GUniformRelation(12);
-	nn.enableIncrementalLearning(pFeatureRel, pLabelRel);
+	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
 	nn.decayWeights(-9.0 * nn.learningRate()); // multiply all non-bias weights by 10
 	GNeuralNetPseudoInverse nni(&nn, 0.001);
 	double labels[12];

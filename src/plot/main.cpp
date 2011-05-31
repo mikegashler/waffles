@@ -20,6 +20,7 @@
 #include "../GClasses/GOptimizer.h"
 #include "../GClasses/GHillClimber.h"
 #include "../GSup/G3D.h"
+#include "../GSup/GRayTrace.h"
 #include "../GClasses/GVec.h"
 #include "../GClasses/GDom.h"
 #include "../GClasses/GPlot.h"
@@ -1588,6 +1589,167 @@ void model(GArgReader& args)
 	cout << "Output saved to " << filename.c_str() << ".\n";
 }
 
+void rayTraceManifoldModel(GArgReader& args)
+{
+	// Load the model
+	GDom doc;
+	if(args.size() < 1)
+		ThrowError("Model not specified");
+	doc.loadJson(args.pop_string());
+	GLearnerLoader ll(true);
+	GRand prng(0);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	Holder<GSupervisedLearner> hModeler(pModeler);
+	if(pModeler->featureDims() != 2 || pModeler->labelDims() != 3)
+		ThrowError("The model has ", to_str(pModeler->featureDims()), " inputs and ", to_str(pModeler->labelDims()), " outputs. 2 real inputs and 3 real outputs are expected");
+
+	// Parse options
+	int width = 400;
+	int height = 400;
+	double amin = 0.0;
+	double amax = 1.0;
+	double bmin = 0.0;
+	double bmax = 1.0;
+	double xmin = 0.0;
+	double xmax = 1.0;
+	double ymin = 0.0;
+	double ymax = 1.0;
+	double zmin = 0.0;
+	double zmax = 1.0;
+	size_t granularity = 50;
+	string filename = "plot.png";
+	double pointRadius = 0.02;
+	GMatrix* pPoints = NULL;
+	Holder<GMatrix> hPoints;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-size"))
+		{
+			width = args.pop_uint();
+			height = args.pop_uint();
+		}
+		else if(args.if_pop("-out"))
+			filename = args.pop_string();
+		else if(args.if_pop("-domain"))
+		{
+			amin = args.pop_double();
+			amax = args.pop_double();
+			bmin = args.pop_double();
+			bmax = args.pop_double();
+		}
+		else if(args.if_pop("-range"))
+		{
+			xmin = args.pop_double();
+			xmax = args.pop_double();
+			ymin = args.pop_double();
+			ymax = args.pop_double();
+			zmin = args.pop_double();
+			zmax = args.pop_double();
+		}
+		else if(args.if_pop("-points"))
+		{
+			delete(pPoints);
+			pPoints = GMatrix::loadArff(args.pop_string());
+			hPoints.reset(pPoints);
+			if(pPoints->cols() != 3)
+				ThrowError("Expected 3-dimensional points");
+		}
+		else if(args.if_pop("-pointradius"))
+			pointRadius = args.pop_double();
+		else if(args.if_pop("-granularity"))
+			granularity = args.pop_uint();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Set up the scene
+	GRayTraceScene scene(&prng);
+	scene.setBackgroundColor(1.0, 0.0, 0.0, 0.0);
+	scene.setAmbientLight(0.9, 0.9, 0.9);
+	scene.addLight(new GRayTraceDirectionalLight(0.1, 0.2, 0.3, // direction
+							0.8, 0.8, 1.0, // color
+							0.0)); // jitter
+	scene.addLight(new GRayTraceDirectionalLight(-0.1, -0.2, 0.3, // direction
+							0.8, 1.0, 0.8, // color
+							0.0)); // jitter
+	scene.addLight(new GRayTraceDirectionalLight(-0.1, 0.9, -0.1, // direction
+							0.3, 0.2, 0.2, // color
+							0.0)); // jitter
+	GRayTraceCamera* pCamera = scene.camera();
+	pCamera->setImageSize(width, height);
+	pCamera->setViewAngle(M_PI / 3);
+	G3DVector mean;
+	mean.set(0, 0, 0);
+	
+	
+	G3DVector cameraDirection(-.35, -0.15, -0.5);
+//	G3DVector cameraDirection(0.1, -0.25, -0.85);
+	G3DReal dist = 2.0;
+	G3DVector* pCameraPos = pCamera->lookFromPoint();
+	pCameraPos->copy(&cameraDirection);
+	pCameraPos->multiply(-1);
+	pCameraPos->normalize();
+	pCameraPos->multiply(dist);
+	pCameraPos->add(&mean);
+	pCamera->setDirection(&cameraDirection, 0.0);
+
+	// Make bluish material
+	GRayTracePhysicalMaterial* pMat1 = new GRayTracePhysicalMaterial();
+	scene.addMaterial(pMat1);
+	pMat1->setColor(GRayTraceMaterial::Diffuse, 0.3, 0.4, 0.6);
+	pMat1->setColor(GRayTraceMaterial::Specular, 0.4, 0.4, 0.6);
+	pMat1->setColor(GRayTraceMaterial::Reflective, 0.2, 0.2, 0.3);
+	pMat1->setColor(GRayTraceMaterial::Transmissive, 0.7, 0.7, 0.8);
+
+	// Make yellowish material
+	GRayTracePhysicalMaterial* pMat2 = new GRayTracePhysicalMaterial();
+	scene.addMaterial(pMat2);
+	pMat2->setColor(GRayTraceMaterial::Diffuse, 0.4, 0.4, 0.05);
+	pMat2->setColor(GRayTraceMaterial::Specular, 1.0, 1.0, 0.8);
+	pMat2->setColor(GRayTraceMaterial::Reflective, 0.5, 0.5, 0.3);
+
+	// Make the surface
+	double in[2];
+	double astep = (amax - amin) / (std::max((size_t)2, granularity) - 1);
+	double bstep = (bmax - bmin) / (std::max((size_t)2, granularity) - 1);
+	for(in[1] = bmin; in[1] + bstep <= bmax; in[1] += bstep)
+	{
+		for(in[0] = amin; in[0] + astep <= amax; )
+		{
+			// Predict the 4 corners
+			G3DVector v1, v2, v3, v4;
+			pModeler->predict(in, v1.vals());
+			in[1] += bstep;
+			pModeler->predict(in, v3.vals());
+			in[0] += astep;
+			pModeler->predict(in, v4.vals());
+			in[1] -= bstep;
+			pModeler->predict(in, v2.vals());
+
+			// Add a quad surface
+			scene.addMesh(GRayTraceTriMesh::makeQuadSurface(pMat1, &v1, &v3, &v4, &v2));
+		}
+	}
+
+	// Make the points
+	if(pPoints)
+	{
+		for(size_t i = 0; i < pPoints->rows(); i++)
+		{
+			double* pVec = pPoints->row(i);
+			scene.addObject(new GRayTraceSphere(pMat2, pVec[0], pVec[1], pVec[2], pointRadius));
+		}
+	}
+
+//	scene.addObject(new GRayTraceSphere(pMat2, .5,.5,.5, 0.02)); // xyzr
+
+	// Ray-trace the scene
+	scene.render();
+	GImage* pImage = scene.image();
+	pImage->savePng(filename.c_str());
+	cout << "Output saved to " << filename.c_str() << ".\n";
+}
+
 void rowToImage(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -1728,6 +1890,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("overlay")) overlay(args);
 		else if(args.if_pop("percentsame")) percentSame(args);
 		else if(args.if_pop("printdecisiontree")) printDecisionTree(args);
+		else if(args.if_pop("raytracesurface")) rayTraceManifoldModel(args);
 		else if(args.if_pop("scatter")) PlotScatter(args);
 		else if(args.if_pop("stats")) PrintStats(args);
 		else if(args.if_pop("systemframes")) systemFrames(args);

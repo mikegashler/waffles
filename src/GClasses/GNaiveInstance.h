@@ -60,12 +60,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc);
 
-	/// See the comment for GIncrementalLearner::enableIncrementalLearning
-	virtual void enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
-
-	/// Incrementally train with a single instance
-	virtual void trainIncremental(const double* pIn, const double* pOut);
-
 	/// See the comment for GIncrementalLearner::trainSparse
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
@@ -89,6 +83,12 @@ protected:
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
 	virtual bool canImplicitlyHandleNominalLabels() { return false; }
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+
+	/// Incrementally train with a single instance
+	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 };
 
 } // namespace GClasses

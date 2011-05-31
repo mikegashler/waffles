@@ -468,6 +468,8 @@ GSupervisedLearner::~GSupervisedLearner()
 
 GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName)
 {
+	if(m_featureDims == (size_t)-1 || m_labelDims == (size_t)-1)
+		ThrowError("The model must be trained before it is serialized.");
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
 	if(m_pFeatureFilter)
@@ -479,13 +481,23 @@ GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName)
 	return pNode;
 }
 
+void GSupervisedLearner::setFeatureFilter(GTwoWayIncrementalTransform* pFilter)
+{
+	delete(m_pFeatureFilter);
+	m_pFeatureFilter = pFilter;
+}
+
+void GSupervisedLearner::setLabelFilter(GTwoWayIncrementalTransform* pFilter)
+{
+	delete(m_pLabelFilter);
+	m_pLabelFilter = pFilter;
+}
+
 void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 {
 	// Discard any existing filters
-	delete(m_pFeatureFilter);
-	m_pFeatureFilter = NULL;
-	delete(m_pLabelFilter);
-	m_pLabelFilter = NULL;
+	setFeatureFilter(NULL);
+	setLabelFilter(NULL);
 
 	// Automatically instantiate any necessary filters for the features
 	bool hasNominalFeatures = false;
@@ -514,7 +526,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of feature");
 			if(m_pFeatureFilter)
 				ThrowError("The logic for picking filters has failed");
-			m_pFeatureFilter = new GNominalToCat(16);
+			setFeatureFilter(new GNominalToCat(16));
 		}
 	}
 	if(hasContinuousFeatures)
@@ -545,9 +557,9 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				if(normalizationIsNeeded)
 				{
 					if(m_pFeatureFilter)
-						m_pFeatureFilter = new GTwoWayTransformChainer(m_pFeatureFilter, new GNormalize(supportedMin, supportedMax));
+						setFeatureFilter(new GTwoWayTransformChainer(m_pFeatureFilter, new GNormalize(supportedMin, supportedMax)));
 					else
-						m_pFeatureFilter = new GNormalize(supportedMin, supportedMax);
+						setFeatureFilter(new GNormalize(supportedMin, supportedMax));
 				}
 			}
 		}
@@ -557,7 +569,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of feature");
 			if(m_pFeatureFilter)
 				ThrowError("The logic for picking filters has failed");
-			m_pFeatureFilter = new GDiscretize();
+			setFeatureFilter(new GDiscretize());
 		}
 	}
 
@@ -588,7 +600,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of label");
 			if(m_pLabelFilter)
 				ThrowError("The logic for picking filters has failed");
-			m_pLabelFilter = new GNominalToCat(16);
+			setLabelFilter(new GNominalToCat(16));
 		}
 	}
 	if(hasContinuousLabels)
@@ -619,9 +631,9 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				if(normalizationIsNeeded)
 				{
 					if(m_pLabelFilter)
-						m_pLabelFilter = new GTwoWayTransformChainer(m_pLabelFilter, new GNormalize(supportedMin, supportedMax));
+						setLabelFilter(new GTwoWayTransformChainer(m_pLabelFilter, new GNormalize(supportedMin, supportedMax)));
 					else
-						m_pLabelFilter = new GNormalize(supportedMin, supportedMax);
+						setLabelFilter(new GNormalize(supportedMin, supportedMax));
 				}
 			}
 		}
@@ -631,7 +643,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of label");
 			if(m_pLabelFilter)
 				ThrowError("The logic for picking filters has failed");
-			m_pLabelFilter = new GDiscretize();
+			setLabelFilter(new GDiscretize());
 		}
 	}
 
@@ -1019,6 +1031,42 @@ void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, GRa
 	GSupervisedLearner_basicTest2(this, minAccuracy2, pRand, deviation, printAccuracy);
 }
 #endif
+
+// ---------------------------------------------------------------
+
+void GIncrementalLearner::beginIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+{
+	if(m_pFeatureFilter)
+		m_featureDims = m_pFeatureFilter->before()->size();
+	else
+		m_featureDims = pFeatureRel->size();
+	if(m_pLabelFilter)
+		m_labelDims = m_pLabelFilter->before()->size();
+	else
+		m_labelDims = pLabelRel->size();
+	beginIncrementalLearningInner(pFeatureRel, pLabelRel);
+}
+
+void GIncrementalLearner::trainIncremental(const double* pIn, const double* pOut)
+{
+	const double* pInInner;
+	const double* pOutInner;
+	if(m_pFeatureFilter)
+	{
+		pInInner = m_pFeatureFilter->innerBuf();
+		m_pFeatureFilter->transform(pIn, m_pFeatureFilter->innerBuf());
+	}
+	else
+		pInInner = pIn;
+	if(m_pLabelFilter)
+	{
+		pOutInner = m_pLabelFilter->innerBuf();
+		m_pLabelFilter->transform(pOut, m_pLabelFilter->innerBuf());
+	}
+	else
+		pOutInner = pOut;
+	trainIncrementalInner(pInInner, pOutInner);
+}
 
 // ---------------------------------------------------------------
 

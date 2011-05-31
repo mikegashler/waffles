@@ -283,20 +283,18 @@ void GNaiveBayes::clear()
 }
 
 // virtual
-void GNaiveBayes::enableIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GNaiveBayes::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	clear();
 	m_pFeatureRel = pFeatureRel;
 	m_pLabelRel = pLabelRel;
-	m_featureDims = pFeatureRel->size();
-	m_labelDims = pLabelRel->size();
 	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pLabelRel->size()];
 	for(size_t n = 0; n < m_pLabelRel->size(); n++)
 		m_pOutputs[n] = new struct GNaiveBayesOutputAttr(m_pFeatureRel.get(), m_pFeatureRel->size(), m_pLabelRel->valueCount(n));
 }
 
 // virtual
-void GNaiveBayes::trainIncremental(const double* pIn, const double* pOut)
+void GNaiveBayes::trainIncrementalInner(const double* pIn, const double* pOut)
 {
 	for(size_t n = 0; n < m_pLabelRel->size(); n++)
 		m_pOutputs[n]->AddTrainingSample(pIn, (int)pOut[n]);
@@ -306,9 +304,9 @@ void GNaiveBayes::trainIncremental(const double* pIn, const double* pOut)
 // virtual
 void GNaiveBayes::trainInner(GMatrix& features, GMatrix& labels)
 {
-	enableIncrementalLearning(features.relation(), labels.relation());
+	beginIncrementalLearningInner(features.relation(), labels.relation());
 	for(size_t n = 0; n < features.rows(); n++)
-		trainIncremental(features[n], labels[n]);
+		trainIncrementalInner(features[n], labels[n]);
 }
 
 // virtual
@@ -318,7 +316,7 @@ void GNaiveBayes::trainSparse(GSparseMatrix& features, GMatrix& labels)
 		ThrowError("Expected the features and labels to have the same number of rows");
 	size_t featureDims = features.cols();
 	sp_relation pFeatureRel = new GUniformRelation(featureDims, 2);
-	enableIncrementalLearning(pFeatureRel, labels.relation());
+	beginIncrementalLearning(pFeatureRel, labels.relation());
 	double* pFullRow = new double[featureDims];
 	ArrayHolder<double> hFullRow(pFullRow);
 	for(size_t n = 0; n < features.rows(); n++)

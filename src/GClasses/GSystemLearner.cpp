@@ -525,7 +525,7 @@ void GRecurrentModel::trainObservationFunctionIteratively(double dStart, GMatrix
 		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_contextDims);
 		sp_relation pLabelRel = new GUniformRelation(m_channels);
 ThrowError("todo: do something about the mins and ranges");
-		pObsLearner->enableIncrementalLearning(pFeatureRel, pLabelRel);
+		pObsLearner->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 
 	// Do training
@@ -959,7 +959,7 @@ void GRecurrentModel::prepareForOptimization(GMatrix* pActions, GMatrix* pObserv
 		GVec::setAll(pMins, 0.0, pActions->cols() + m_contextDims + m_contextDims);
 		GVec::setAll(pRanges, 1.0, pActions->cols() + m_contextDims + m_contextDims);
 ThrowError("todo: do something about the mins and ranges");
-		((GIncrementalLearner*)m_pTransitionFunc)->enableIncrementalLearning(pFeatureRel, pLabelRel);
+		((GIncrementalLearner*)m_pTransitionFunc)->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 
 	if(!m_pObservationFunc->canTrainIncrementally())
@@ -999,7 +999,7 @@ ThrowError("todo: do something about the mins and ranges");
 		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_contextDims);
 		sp_relation pLabelRel = new GUniformRelation(m_channels);
 ThrowError("todo: do something about the mins and ranges");
-		pObsLearner->enableIncrementalLearning(pFeatureRel, pLabelRel);
+		pObsLearner->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 }
 

@@ -2339,7 +2339,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	{
 		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_intrinsicDims);
 		sp_relation pLabelRel = new GUniformRelation(channels);
-		m_pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
+		m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 	GMatrix* pOut = new GMatrix(in.rows(), m_intrinsicDims);
 	Holder<GMatrix> hOut(pOut);
@@ -2445,7 +2445,7 @@ GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
 	// Prep the model for incremental training
 	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
 	sp_relation pLabelRel = new GUniformRelation(pData->cols());
-	m_pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
+	m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
 	pIntrinsic->setAll(pAF->center());
 
@@ -2543,7 +2543,7 @@ GMatrix* GUnsupervisedBackProp::doitCameraSystem(vector<size_t>& paramRanges, GM
 	// Prep the model for incremental training
 	sp_relation pFeatureRel = new GUniformRelation(paramDims + m_intrinsicDims);
 	sp_relation pLabelRel = new GUniformRelation(channels);
-	m_pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
+	m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
 	pIntrinsic->setAll(pAF->center());
 

@@ -53,6 +53,9 @@ public:
 		m_vals[2] = z;
 	}
 
+	/// Returns the vector as an array of reals
+	G3DReal* vals() { return m_vals; }
+
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	GDomNode* serialize(GDom* pDoc);
 
@@ -123,6 +126,13 @@ public:
 		m_vals[0] += mag * pThat->m_vals[0];
 		m_vals[1] += mag * pThat->m_vals[1];
 		m_vals[2] += mag * pThat->m_vals[2];
+	}
+
+	inline void add(G3DReal dx, G3DReal dy, G3DReal dz)
+	{
+		m_vals[0] += dx;
+		m_vals[1] += dy;
+		m_vals[2] += dz;
 	}
 
 	/// subtracts pThat from this
