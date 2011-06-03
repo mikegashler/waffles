@@ -148,8 +148,8 @@ public:
 				pBP->backpropagate();
 				activeCount++;
 				maxBelowThresh = std::max(maxBelowThresh, err);
-				pBP->descendGradient(pContext, m_nn.learningRate(), 0.0);
-				pBP->adjustFeatures(pContext, m_nn.learningRate());
+				pBP->descendGradient(pContext, m_nn.learningRate(), 0.0, false);
+				pBP->adjustFeatures(pContext, m_nn.learningRate(), 0, false);
 //				GVec::capValues(pContext, 1.0, 2);
 //				GVec::floorValues(pContext, 0.0, 2);
 
