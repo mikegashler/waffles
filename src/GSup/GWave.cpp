@@ -47,12 +47,13 @@ struct WaveHeader
 
 
 GWave::GWave()
+: m_sampleCount(0),
+m_channels(0),
+m_sampleRate(0),
+m_bitsPerSample(0),
+m_type(wt_signed),
+m_pData(NULL)
 {
-	m_sampleCount = 0;
-	m_channels = 0;
-	m_sampleRate = 0;
-	m_bitsPerSample = 0;
-	m_pData = NULL;
 }
 
 GWave::~GWave()
@@ -66,12 +67,13 @@ void GWave::setMetaData(int channels, int sampleRate)
 	m_sampleRate = sampleRate;
 }
 
-void GWave::setData(unsigned char* pData, int bitsPerSample, int sampleCount)
+void GWave::setData(unsigned char* pData, int bitsPerSample, int sampleCount, WaveType type)
 {
 	delete[] m_pData;
 	m_pData = pData;
 	m_sampleCount = sampleCount;
 	m_bitsPerSample = bitsPerSample;
+	m_type = type;
 }
 
 void GWave::load(const char* szFilename)
@@ -146,6 +148,88 @@ void GWave::save(const char* szFilename)
 	}
 	os.write((const char*)&waveHeader, sizeof(struct WaveHeader));
 	os.write((const char*)m_pData, size);
+}
+
+
+
+
+GWaveIterator::GWaveIterator(GWave& wave)
+: m_wave(wave)
+{
+	m_pPos = wave.data();
+	m_remaining = wave.sampleCount();
+	m_pSamples = new double[wave.channels()];
+}
+
+GWaveIterator::~GWaveIterator()
+{
+	delete[] m_pSamples;
+}
+
+size_t GWaveIterator::remaining()
+{
+	return m_remaining;
+}
+
+bool GWaveIterator::advance()
+{
+	if(m_remaining == 0)
+		return false;
+	m_pPos += m_wave.channels() * m_wave.bitsPerSample() / 8;
+	m_remaining--;
+	return true;
+}
+
+double* GWaveIterator::current()
+{
+	unsigned char* pX = m_pPos;
+	double* pY = m_pSamples;
+	for(unsigned short i = 0; i < m_wave.channels(); i++)
+	{
+		switch(m_wave.bitsPerSample())
+		{
+		case 8:
+			switch(m_wave.type())
+			{
+			case GWave::wt_signed: *pY = double(*(char*)pX) / 0x80; break;
+			case GWave::wt_unsigned: *pY = (double(*(unsigned char*)pX) - 0x80) / 0x80; break;
+			case GWave::wt_float: ThrowError("invalid format"); break;
+			default: ThrowError("Unrecognized type");
+			}
+			break;
+		case 16:
+			switch(m_wave.type())
+			{
+			case GWave::wt_signed: *pY = double(*(short*)pX) / 0x8000; break;
+			case GWave::wt_unsigned: *pY = (double(*(unsigned short*)pX) - 0x8000) / 0x8000; break;
+			case GWave::wt_float: ThrowError("invalid format"); break;
+			default: ThrowError("Unrecognized type");
+			}
+			break;
+		case 32:
+			switch(m_wave.type())
+			{
+			case GWave::wt_signed: *pY = double(*(int*)pX) / 0x80000000; break;
+			case GWave::wt_unsigned: *pY = (double(*(unsigned int*)pX) - 0x80000000) / 0x80000000; break;
+			case GWave::wt_float: *pY = double(*(float*)pX); break;
+			default: ThrowError("Unrecognized type");
+			}
+			break;
+		case 64:
+			switch(m_wave.type())
+			{
+			case GWave::wt_signed: *pY = double(*(long long int*)pX) / 0x8000000000000000ull; break;
+			case GWave::wt_unsigned: *pY = (double(*(unsigned long long int*)pX) - 0x8000000000000000ull) / 0x8000000000000000ull; break;
+			case GWave::wt_float: *pY = *(double*)pX; break;
+			default: ThrowError("Unrecognized type");
+			}
+			break;
+		default: ThrowError("Unsupported number of bits-per-sample: ", to_str(m_wave.bitsPerSample()));
+		}
+		pX += m_wave.bitsPerSample() / 8;
+		pY++;
+	}
+	return m_pSamples;
 }
 
 } // namespace GClasses

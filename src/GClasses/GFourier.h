@@ -12,6 +12,8 @@
 #ifndef __GFOURIER_H__
 #define __GFOURIER_H__
 
+#include "GError.h"
+
 namespace GClasses {
 
 class GImage;
@@ -28,6 +30,11 @@ struct ComplexNumber
 		imag = real * pOther->imag + imag * pOther->real;
 		real = t;
 	}
+
+	double squaredMagnitude()
+	{
+		return real * real + imag * imag;
+	}
 };
 
 
@@ -35,13 +42,13 @@ struct ComplexNumber
 class GFourier
 {
 public:
-	/// This will do a Fast Forier Transform.  nArraySize must be a power of 2. If bForward is
+	/// This will do a Fast Forier Transform. arraySize must be a power of 2. If bForward is
 	/// false, it will perform the reverse transform
-	static bool fft(int nArraySize, struct ComplexNumber* pComplexNumberArray, bool bForward);
+	static void fft(size_t arraySize, struct ComplexNumber* pComplexNumberArray, bool bForward);
 
 	/// 2D Fast Forier Transform.  nArrayWidth must be a power of 2. nArrayHeight must be a power of 2. If bForward
 	/// is false, it will perform the reverse transform.
-	static bool fft2d(int nArrayWidth, int nArrayHeight, struct ComplexNumber* p2DComplexNumberArray, bool bForward);
+	static void fft2d(size_t arrayWidth, size_t arrayHeight, struct ComplexNumber* p2DComplexNumberArray, bool bForward);
 
 	/// pArrayWidth returns the width of the array and pOneThirdHeight returns one third the height of the array
 	/// (in other words, the height used by each of the three RGB channels)
