@@ -177,9 +177,9 @@ public:
 
 	void makeBody(std::ostream& response)
 	{
+		bool shutdown = false;
 		response << "<h2>Waffles Command-building Wizard</h2>\n";
 		response << "<table border=\"1\" width=\"1000\"><tr><td>\n";
-		response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 
 		if(m_mode == mode_goodbye)
 		{
@@ -189,29 +189,30 @@ public:
 				response << "	" << m_structData[i] << "\n";
 			response << "</pre><br>\n\n";
 			response << "To execute this command, just paste it into a console window. To use it in a script, just paste it into the script. (You may close this window now.)";
-			m_pController->shutDown();
-			return;
+			shutdown = true;
 		}
 		else if(m_mode == mode_choose_one)
 		{
+			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Please choose a value for <i>" << m_pNode->tok() << "</i><br>\n";
 			response << m_pNode->descr() << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table><br>\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td></tr></table><br>\n";
 			response << "<table>\n";
 			for(size_t i = 0; i < m_pNode->choices().size(); i++)
 			{
 				UsageNode* pChoice = m_pNode->choices()[i];
-				response << "	<tr><td valign=top><input type=\"radio\" name=\"choice\" value=\"" << i << "\"";
-				if(i == 0)
-					response << " checked";
-				response << "></td>";
-				response << "<td valign=top>" << pChoice->tok() << "</td>";
+				response << "	<tr><td valign=top><input type=\"submit\" name=\"btn\" value=\"" << pChoice->tok() << "\"></td>";
 				response << "<td>" << pChoice->descr() << "<br><br></td></tr>\n";
 			}
 			response << "</table>\n";
+			response << "<br><br>\n\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td></tr></table>\n";
+			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
+			response << "</form>\n";
 		}
 		else if(m_mode == mode_options)
 		{
+			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Check the options you want for <i>" << m_pNode->tok() << "</i><br><br>\n\n";
 			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table><br>\n";
 			response << "<table>\n";
@@ -225,9 +226,14 @@ public:
 				response << "<td>" << pChoice->descr() << "<br><br></td><tr>\n";
 			}
 			response << "</table>\n";
+			response << "<br><br>\n\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table>\n";
+			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
+			response << "</form>\n";
 		}
 		else if(m_mode == mode_struct)
 		{
+			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Please provide values for <i>" << m_pNode->tok() << "</i><br>\n";
 			response << m_pNode->descr() << "<br><br>\n\n";
 			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table><br>\n";
@@ -254,23 +260,35 @@ public:
 				}
 			}
 			response << "</table>\n";
+			response << "<br><br>\n\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table>\n";
+			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
+			response << "</form>\n";
 		}
 
-		response << "<br><br>\n\n";
-		response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table>\n";
-		response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
-		response << "</form>\n";
 		response << "</td></tr></table>\n";
+		if(shutdown)
+			m_pController->shutDown();
 	}
 
 	void setChoices(GHttpParamParser& pp)
 	{
 		if(m_mode == mode_choose_one)
 		{
-			const char* pChoice = pp.find("choice");
-			if(!pChoice)
-				ThrowError("Expected a \"choice\" parameter value");
-			m_selection = atoi(pChoice);
+			const char* pBtn = pp.find("btn");
+			if(!pBtn)
+				ThrowError("Expected a \"btn\" parameter value");
+			m_selection = -1;
+			for(size_t i = 0; i < m_pNode->choices().size(); i++)
+			{
+				if(strcmp(m_pNode->choices()[i]->tok(), pBtn) == 0)
+				{
+					m_selection = i;
+					break;
+				}
+			}
+			if(m_selection < 0)
+				ThrowError("Unrecognized choice: ", pBtn);
 		}
 		else if(m_mode == mode_options)
 		{

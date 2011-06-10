@@ -57,7 +57,8 @@ uint64 GRand::next(uint64 range)
 
 double GRand::uniform()
 {
-	// use 52 random bits for the mantissa
+	// use 52 random bits for the mantissa (as specified in IEEE 754. See
+	// http://en.wikipedia.org/wiki/Double_precision_floating-point_format)
 	return (double)(next() & 0xfffffffffffffull) / 4503599627370496.0;
 }
 

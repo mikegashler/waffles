@@ -425,9 +425,12 @@ protected:
 	size_t m_paramDims;
 	size_t* m_pParamRanges;
 	GCoordVectorIterator m_cvi;
-	double m_rate;
 	bool m_updateWeights;
-	bool m_normalize;
+	bool m_updateIntrinsic;
+	GMatrix* m_pLabels;
+	GMatrix* m_pIntrinsic;
+	double* m_pMins;
+	double* m_pRanges;
 
 public:
 	GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand);
@@ -442,13 +445,16 @@ public:
 	/// Takes ownership of pNN. Replaces the internal neural net with the one specified.
 	void setNeuralNet(GNeuralNet* pNN);
 
-	/// An experimental feature that allows one to parameterize the output values.
+	/// Parameterize the output values. This feature is typically used when the output is an image,
+	/// and the width and height are specified for the paramRanges.
 	void setParams(std::vector<size_t>& paramRanges);
 
-	/// Sets the rate at which the threshold is grown. A typical value is 0.1. Smaller
-	/// values will take longer, but may yield better results. Larger values will go faster,
-	/// but suffer moew from local optima problems.
-	void setRate(double d) { m_rate = d; }
+	/// Provide a partial set of labels to correspons with the output features.
+	/// This method assumes that pLabels will remain valid for the duration of this object.
+	void setLabels(GMatrix* pLabels) { m_pLabels = pLabels; }
+
+	/// Specify initial values for the intrinsic variables. This method takes ownership of pIntrinsic.
+	void setIntrinsic(GMatrix* pIntrinsic);
 
 	/// Perform NLDR. (This also trains the internal neural network to map from
 	/// low-dimensional space to high-dimensional space.)
@@ -465,11 +471,10 @@ public:
 	void lowToHigh(const double* pIntrinsic, double* pObs);
 
 	/// Specify whether or not to update the weights. The default is to update the weights.
-	/// Either way, the intrinsic features will still be updated.
 	void setUpdateWeights(bool b) { m_updateWeights = b; }
 
-	/// Specify whether or not to normalize the input vectors. (The default is false.)
-	void normalize(bool b) { m_normalize = b; }
+	/// Specify whether or not to update the intrinsic values. The default is to update them.
+	void setUpdateIntrinsic(bool b) { m_updateIntrinsic = b; }
 };
 
 

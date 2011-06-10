@@ -243,7 +243,7 @@ public:
 			GSpinLockHolder hLock(&m_weightsLock, "replacing the network");
 			delete(m_pNNForTraining);
 			m_pNNForTraining = pNN;
-			pNN->enableIncrementalLearning(pFeatureRel, pLabelRel);
+			pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
 			delete(m_pNNCopyForVisualizing);
 			m_pNNCopyForVisualizing = new GNeuralNet(m_pRand);
 			m_pNNCopyForVisualizing->copyStructure(pNN);
@@ -269,7 +269,9 @@ public:
 		addModel("Neural Net, 2-15-60-3, logistic, online back-prop"); // 13
 		addModel("Naive Instance 20"); // 14
 		addModel("Mean label (a.k.a. baseline)"); // 15
-		addModel("NeuralNet 2-16-60-3, gaussian activation"); // 16
+		addModel("NeuralNet 2-15-60-3, gaussian activation"); // 16
+		addModel("NeuralNet 2-15-60-3, sinc activation"); // 17
+		addModel("NeuralNet 2-15-60-3, bend activation"); // 18
 	}
 
 	void onChoice(int index)
@@ -379,9 +381,23 @@ public:
 		else if(index == 16)
 		{
 			GNeuralNet* pNN = new GNeuralNet(m_pRand);
-//			pNN->setActivationFunction(new GActivationPiecewise(), true);
-//			pNN->setActivationFunction(new GActivationSinc(), true);
 			pNN->setActivationFunction(new GActivationGaussian(), true);
+			pNN->addLayer(15);
+			pNN->addLayer(60);
+			doBackProp(pNN);
+		}
+		else if(index == 17)
+		{
+			GNeuralNet* pNN = new GNeuralNet(m_pRand);
+			pNN->setActivationFunction(new GActivationSinc(), true);
+			pNN->addLayer(15);
+			pNN->addLayer(60);
+			doBackProp(pNN);
+		}
+		else if(index == 18)
+		{
+			GNeuralNet* pNN = new GNeuralNet(m_pRand);
+			pNN->setActivationFunction(new GActivationBend(), true);
 			pNN->addLayer(15);
 			pNN->addLayer(60);
 			doBackProp(pNN);

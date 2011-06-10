@@ -8,20 +8,27 @@ TARGET_NAME_DBG = $(TARGET_NAME_OPT)dbg
 OBJ_PATH = ../../obj/$(TARGET_NAME_OPT)
 INSTALL_LOCATION_BIN ?= /usr/local/bin
 UNAME = $(shell uname -s)
-ifeq ($(UNAME),Darwin)
-#CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -DBYTE_ORDER_BIG_ENDIAN -no-cpp-precomp
-CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -no-cpp-precomp
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
-OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../lib/GSupDbg.a ../../lib/GClassesDbg.a
-OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../lib/GSup.a ../../lib/GClasses.a
+
+# If colorgcc is installed, use it, otherwise use g++
+ifeq ($(wildcard /usr/bin/colorgcc),)
+	COMPILER=g++
 else
-CFLAGS = -Wall $(shell sdl-config --cflags)
+	COMPILER=colorgcc
+endif
+
+# Set platform-specific compiler and linker flags
+ifeq ($(UNAME),Darwin)
+	CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -no-cpp-precomp
+	DBG_LFLAGS = /sw/lib/libpng.dylib -lz -framework AppKit ../../lib/GSupDbg.a ../../lib/GClassesDbg.a
+	OPT_LFLAGS = /sw/lib/libpng.dylib -lz -framework AppKit ../../lib/GSup.a ../../lib/GClasses.a
+else
+	CFLAGS = -Wall
+	DBG_LFLAGS = ../../lib/GSupDbg.a ../../lib/GClassesDbg.a -lpng -lpthread
+	OPT_LFLAGS = ../../lib/GSup.a ../../lib/GClasses.a -lpng -lpthread
+endif
+
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = ../../lib/GSupDbg.a ../../lib/GClassesDbg.a -lpng -lpthread
-OPT_LFLAGS = ../../lib/GSup.a ../../lib/GClasses.a -lpng -lpthread
-endif
 
 ################
 # Source
@@ -106,8 +113,8 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
 	@umask 0;echo -en "$$(dirname $@)/" > $@
-	@g++ $(OPT_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;g++ $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
+	@echo -e "	umask 0;$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 # This rule makes the debug ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
@@ -117,8 +124,8 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
 	@umask 0;echo -en "$$(dirname $@)/" > $@
-	@g++ $(DBG_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;g++ $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
+	@echo -e "	umask 0;$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleandbg :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)

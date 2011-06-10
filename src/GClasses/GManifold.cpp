@@ -2258,7 +2258,7 @@ void GDynamicSystemStateAligner::test()
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_paramDims(0), m_pParamRanges(NULL), m_cvi(0, NULL), m_rate(0.2), m_updateWeights(true), m_normalize(false)
+: m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_paramDims(0), m_pParamRanges(NULL), m_cvi(0, NULL), m_updateWeights(true), m_updateIntrinsic(true), m_pLabels(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL)
 {
 	m_pNN = new GNeuralNet(m_pRand);
 	//m_pNN->setActivationFunction(new GActivationIdentity(), true);
@@ -2276,6 +2276,9 @@ GUnsupervisedBackProp::~GUnsupervisedBackProp()
 {
 	delete(m_pNN);
 	delete[] m_pParamRanges;
+	delete[] m_pIntrinsic;
+	delete[] m_pMins;
+	delete[] m_pRanges;
 }
 
 void GUnsupervisedBackProp::setNeuralNet(GNeuralNet* pNN)
@@ -2291,6 +2294,14 @@ void GUnsupervisedBackProp::setParams(vector<size_t>& paramRanges)
 	for(size_t i = 0; i < m_paramDims; i++)
 		m_pParamRanges[i] = paramRanges[i];
 	m_cvi.reset(m_paramDims, m_pParamRanges);
+}
+
+void GUnsupervisedBackProp::setIntrinsic(GMatrix* pIntrinsic)
+{
+	if(pIntrinsic->cols() != m_intrinsicDims)
+		ThrowError("Expected ", to_str(m_intrinsicDims), " cols. Got ", to_str(pIntrinsic->cols()));
+	delete(m_pIntrinsic);
+	m_pIntrinsic = pIntrinsic;
 }
 
 void GUnsupervisedBackProp::lowToHigh(const double* pIntrinsic, double* pObs)
@@ -2324,6 +2335,15 @@ double GUnsupervisedBackProp::measureError(double* pIntrinsic, double* pImage, s
 	return err;
 }
 */
+
+class SparseElement
+{
+public:
+	size_t m_row;
+	size_t m_col;
+	double m_val;
+};
+
 // virtual
 GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 {
@@ -2336,275 +2356,84 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		ThrowError("params don't line up");
 
 	// Init
+	size_t labelDims = 0;
+	if(m_pLabels)
 	{
-		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_intrinsicDims);
+		labelDims = m_pLabels->cols();
+		if(m_pLabels->rows() != in.rows())
+			ThrowError("Expected the same number of label rows as observation rows");
+	}
+	{
+		m_pNN->setUseInputBias(true);
+		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + labelDims + m_intrinsicDims);
 		sp_relation pLabelRel = new GUniformRelation(channels);
 		m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
-	GMatrix* pOut = new GMatrix(in.rows(), m_intrinsicDims);
-	Holder<GMatrix> hOut(pOut);
-	pOut->setAll(0.5);
-
-	GBackProp* pBP = m_pNN->backProp();
-	GBackPropLayer& bpLayer = pBP->layer(m_pNN->layerCount() - 1);
-	double errorThresh = 0.0;
-
-	// Learn
-	double* pBuf = new double[m_paramDims + m_intrinsicDims];
-	ArrayHolder<double> hBuf(pBuf);
-	size_t* pIndexes = new size_t[in.rows()];
-	ArrayHolder<size_t> hIndexes(pIndexes);
-	GIndexVec::makeIndexVec(pIndexes, in.rows());
-	size_t nextSpotlight = 0;
-	for(double targetActive = 0.0; targetActive < in.rows() * 2; targetActive += m_rate)
+	if(!m_pIntrinsic)
 	{
-		// Refine
-		double* pSpotlightTarget = in.row(nextSpotlight);
-		double* pSpotlightContext = pOut->row(nextSpotlight);
-		double spotlightErr = 0.0;
-		if(m_paramDims == 0)
-		{
-			m_pNN->forwardProp(pSpotlightContext);
-			spotlightErr = m_pNN->sumSquaredPredictionError(pSpotlightTarget);
-		}
-		double maxBelowThresh = 0.0;
-		double minAboveThresh = 1e308;
-		size_t activeCount = 0;
-		double cumErr = 0.0;
-		GIndexVec::shuffle(pIndexes, in.rows(), m_pRand);
-		size_t* pInd = pIndexes;
+		m_pIntrinsic = new GMatrix(in.rows(), m_intrinsicDims);
 		for(size_t i = 0; i < in.rows(); i++)
 		{
-			size_t index = *(pInd++);
-			double* pObs = in.row(index);
-			double* pContext = pOut->row(index);
-			m_cvi.setRandom(m_pRand);
-			m_cvi.currentNormalized(pBuf);
-			GVec::copy(pBuf + m_paramDims, pContext, m_intrinsicDims);
-			m_pNN->forwardProp(pBuf);
-			m_pNN->setErrorOnOutputLayer(pObs + channels * m_cvi.currentIndex());
-
-			double err = 0.0;
-			for(vector<GBackPropNeuron>::iterator it = bpLayer.m_neurons.begin(); it != bpLayer.m_neurons.end(); it++)
-				err += it->m_error * it->m_error;
-
-			if(err < errorThresh)
-			{
-				pBP->backpropagate();
-				pBP->descendGradient(pContext, m_pNN->learningRate(), 0.0, false);
-				pBP->adjustFeatures(pContext, m_pNN->learningRate(), m_paramDims, false);
-				activeCount++;
-				maxBelowThresh = std::max(maxBelowThresh, err);
-
-				// See if we can improve the spotlight point
-				if(m_paramDims == 0)
-				{
-					double sse = m_pNN->sumSquaredPredictionError(pObs);
-					cumErr += sse;
-					if(m_pRand->uniform() * cumErr < sse)
-						nextSpotlight = index;
-					double err2 = m_pNN->sumSquaredPredictionError(pSpotlightTarget);
-					if(err2 < spotlightErr)
-					{
-						spotlightErr = err2;
-						GVec::copy(pSpotlightContext, pContext, m_intrinsicDims);
-					}
-				}
-			}
-			else
-			{
-				minAboveThresh = std::min(minAboveThresh, err);
-				GVec::copy(pContext, pOut->row((size_t)m_pRand->next(pOut->rows())), m_intrinsicDims);
-			}
+			double* pVec = m_pIntrinsic->row(i);
+			for(size_t j = 0; j < m_intrinsicDims; j++)
+				*(pVec++) = 0.05 * m_pRand->normal();
 		}
-		if(activeCount <= (size_t)floor(targetActive))
-			errorThresh = minAboveThresh + 1e-9;
-		else
-			errorThresh = maxBelowThresh;
 	}
-GDom doc;
-doc.setRoot(m_pNN->serialize(&doc));
-doc.saveJson("ubp.json");
-	return hOut.release();
-}
+	else if(m_pIntrinsic->rows() != in.rows())
+		ThrowError("Expected the initial intrinsic data to have the same number of rows as the observed data");
 
-class SparseElement
-{
-public:
-	size_t m_row;
-	size_t m_col;
-	double m_val;
-};
-
-GMatrix* GUnsupervisedBackProp::doitSparse(GSparseMatrix* pData)
-{
-	// Initialize the intrinsic vectors
-	GMatrix* pIntrinsic = new GMatrix(pData->rows(), m_intrinsicDims);
-	Holder<GMatrix> hIntrinsic(pIntrinsic);
-
-	// Prep the model for incremental training
-	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
-	sp_relation pLabelRel = new GUniformRelation(pData->cols());
-	m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
-	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
-	pIntrinsic->setAll(pAF->center());
-
-	// Make a single list of all the elements
-	GHeap heap(2048);
-	vector<SparseElement*> elements;
-	for(size_t i = 0; i < pData->rows(); i++)
+	// Compute the mins and ranges
+	delete[] m_pMins;
+	delete[] m_pRanges;
+	m_pMins = new double[in.cols()];
+	m_pRanges = new double[in.cols()];
+	for(size_t i = 0; i < in.cols(); i++)
 	{
-		double scale = 1.0;
-		if(m_normalize)
-		{
-			double d = 0.0;
-			for(GSparseMatrix::Iter it = pData->rowBegin(i); it != pData->rowEnd(i); it++)
-				d += (it->second * it->second);
-			if(d >= 1e-12)
-				scale = 1.0 / sqrt(d);
-		}
-		for(GSparseMatrix::Iter it = pData->rowBegin(i); it != pData->rowEnd(i); it++)
-		{
-			SparseElement* pEl = (SparseElement*)heap.allocAligned(sizeof(SparseElement));
-			pEl->m_row = i;
-			pEl->m_col = it->first;
-			pEl->m_val = scale * it->second;
-			elements.push_back(pEl);
-		}
+		in.minAndRange(i, &m_pMins[i], &m_pRanges[i]);
+		if(m_pMins[i] == UNKNOWN_REAL_VALUE)
+			m_pMins[i] = 0.0;
+		if(m_pRanges[i] == UNKNOWN_REAL_VALUE || m_pRanges[i] < 1e-12)
+			m_pRanges[i] = 1.0;
 	}
 
 	// Train
-	double baseRsse = 1e300;
-	size_t window = 0;
-	double floor = pAF->center() - pAF->halfRange();
-	double cap = pAF->center() + pAF->halfRange();
-	while(true)
+	double* pParams = new double[m_paramDims + labelDims + m_intrinsicDims];
+	ArrayHolder<double> hParams(pParams);
+	double* pLabels = pParams + m_paramDims;
+	double* pIntrinsic = pLabels + m_intrinsicDims;
+	for(double learningRate = 0.5; learningRate > 0.0001; learningRate *= 0.5)
 	{
-		// Shuffle the elements
-		for(size_t n = elements.size(); n > 0; n--)
-			std::swap(elements[(size_t)m_pRand->next(n)], elements[n - 1]);
-
-		// Do an epoch of training
 		double sse = 0;
-		for(vector<SparseElement*>::iterator it = elements.begin(); it != elements.end(); it++)
+		for(size_t i = 0; i < 10000000; i++)
 		{
-			SparseElement* pEl = *it;
-			double* pInt = pIntrinsic->row(pEl->m_row);
-			double prediction = m_pNN->forwardPropSingleOutput(pInt, pEl->m_col);
-			double d = pEl->m_val - prediction;
-			sse += (d * d);
-			m_pNN->setErrorSingleOutput(pEl->m_val, pEl->m_col);
-			m_pNN->backProp()->backpropagateSingleOutput(pEl->m_col);
+			m_cvi.setRandom(m_pRand);
+			size_t c = m_cvi.currentIndex();
+			GAssert(c * channels < in.cols());
+			m_cvi.currentNormalized(pParams);
+			size_t r = m_pRand->next(in.rows());
+			if(m_pLabels)
+				GVec::copy(pLabels, m_pLabels->row(r), labelDims);
+			GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);
+			double prediction = m_pNN->forwardPropSingleOutput(pParams, c);
+			double target = in[r][c];
+			double err = target - prediction;
+			sse += (err * err);
+			m_pNN->setErrorSingleOutput(target, c);
+			m_pNN->backProp()->backpropagateSingleOutput(c);
 			if(m_updateWeights)
-				m_pNN->backProp()->descendGradientSingleOutput(pEl->m_col, pInt, m_pNN->learningRate(), m_pNN->momentum(), false);
-			m_pNN->backProp()->adjustFeaturesSingleOutput(pEl->m_col, pInt, m_pNN->learningRate(), false);
-			GVec::floorValues(pInt, floor, m_intrinsicDims);
-			GVec::capValues(pInt, cap, m_intrinsicDims);
-		}
-
-		// Terminate when the root-sum-squared-error does not improve by some amount within a window of epochs
-		double rsse = sqrt(sse);
-		if(1.0 - (rsse / baseRsse) >= m_pNN->improvementThresh())
-		{
-			window = 0;
-			baseRsse = rsse;
-		}
-		else
-		{
-			if(++window >= m_pNN->windowSize())
-				break;
+				m_pNN->backProp()->descendGradientSingleOutput(c, pParams, m_pNN->learningRate(), m_pNN->momentum(), m_pNN->useInputBias());
+			if(m_updateIntrinsic)
+			{
+				m_pNN->backProp()->adjustFeaturesSingleOutput(c, pParams, m_pNN->learningRate(), true);
+				GVec::copy(m_pIntrinsic->row(r), pIntrinsic, m_intrinsicDims);
+			}
+			GVec::floorValues(pIntrinsic, 0.0, m_intrinsicDims);
+			GVec::capValues(pIntrinsic, 1.0, m_intrinsicDims);
 		}
 	}
-	return hIntrinsic.release();
-}
-
-GMatrix* GUnsupervisedBackProp::doitCameraSystem(vector<size_t>& paramRanges, GMatrix* pObservations, GMatrix* pActions)
-{
-	// Check assumptions
-	if(pObservations->rows() != pActions->rows())
-		ThrowError("Expected pObservations and pActions to have the same number of rows");
-	if(!pObservations->relation()->areContinuous(0, pObservations->cols()))
-		ThrowError("Expected continuous observations");
-	if(!pActions->relation()->areContinuous(0, pActions->cols()))
-		ThrowError("Expected continuous actions");
-
-	// Initialize the state vectors
-	GMatrix* pIntrinsic = new GMatrix(pObservations->rows(), m_intrinsicDims);
-	Holder<GMatrix> hIntrinsic(pIntrinsic);
-
-	// Compute the number of channels
-	GCoordVectorIterator cvi(paramRanges);
-	size_t paramDims = paramRanges.size();
-	size_t pixels = cvi.coordCount();
-	size_t channels = pObservations->cols() / pixels;
-	if(pixels < 1 || channels < 1 || pixels * channels != pObservations->cols())
-		ThrowError("The provided paramRanges are not compatible with the number of observation dims");
-
-	// Prep the model for incremental training
-	sp_relation pFeatureRel = new GUniformRelation(paramDims + m_intrinsicDims);
-	sp_relation pLabelRel = new GUniformRelation(channels);
-	m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
-	GActivationFunction* pAF = m_pNN->layer(0).m_pActivationFunction;
-	pIntrinsic->setAll(pAF->center());
-
-	// Train
-	double floor = pAF->center() - pAF->halfRange();
-	double cap = pAF->center() + pAF->halfRange();
-	GTEMPBUF(double, feat, paramDims + m_intrinsicDims);
-	GMatrix inputs(pIntrinsic->rows(), pActions->cols() + m_intrinsicDims);
-	inputs.copyColumns(0, pActions, 0, pActions->cols());
-	double elbowRoom = 0.01;
-	double startTime = GTime::seconds();
-	while(true)
-	{
-		double prog = (GTime::seconds() - startTime) / 1800; // 30 minutes
-		if(prog >= 1.0)
-			break;
-
-		// Do some training
-//		for(size_t i = 0; i < 100000; i++)
-		{
-			cvi.setRandom(m_pRand);
-			cvi.currentNormalized(feat);
-			size_t index = (size_t)m_pRand->next(pIntrinsic->rows());
-			double* pInt = pIntrinsic->row(index);
-			GVec::copy(feat + paramDims, pInt, m_intrinsicDims);
-			m_pNN->forwardProp(feat);
-			m_pNN->setErrorOnOutputLayer(pObservations->row(index) + channels * cvi.currentIndex());
-			m_pNN->backProp()->backpropagate();
-			m_pNN->backProp()->descendGradient(feat, m_pNN->learningRate(), m_pNN->momentum(), false);
-			m_pNN->backProp()->adjustFeatures(pInt, m_pNN->learningRate(), paramDims, false);
-			GVec::floorValues(pInt, floor, m_intrinsicDims);
-			GVec::capValues(pInt, cap, m_intrinsicDims);
-
-			// Pull the previous and next instances toward the right separation
-			if(index > 0)
-			{
-				GVec::copy(feat, pIntrinsic->row(index - 1), m_intrinsicDims);
-				GVec::subtract(feat, pIntrinsic->row(index), m_intrinsicDims);
-				double d = sqrt(GVec::squaredMagnitude(feat, m_intrinsicDims));
-				if(d > 1e-10)
-					GVec::addScaled(pIntrinsic->row(index - 1), 0.1 * (1.0 - prog) * (elbowRoom - d) / d, feat, m_intrinsicDims);
-			}
-			if(index + 1 < pIntrinsic->rows())
-			{
-				GVec::copy(feat, pIntrinsic->row(index + 1), m_intrinsicDims);
-				GVec::subtract(feat, pIntrinsic->row(index), m_intrinsicDims);
-				double d = sqrt(GVec::squaredMagnitude(feat, m_intrinsicDims));
-				if(d > 1e-10)
-					GVec::addScaled(pIntrinsic->row(index + 1), 0.1 * (1.0 - prog) * (elbowRoom - d) / d, feat, m_intrinsicDims);
-			}
-		}
-
-/*
-		// Align intrinsic state
-		inputs.copyColumns(pActions->cols(), pIntrinsic, 0, m_intrinsicDims);
-		GDynamicSystemStateAligner dsa(12, inputs, *m_pRand);
-		pIntrinsic = dsa.doit(*pIntrinsic);
-		hIntrinsic.reset(pIntrinsic);
-*/
-	}
-	return hIntrinsic.release();
+	GMatrix* pOut = m_pIntrinsic;
+	m_pIntrinsic = NULL;
+	return pOut;
 }
 
 } // namespace GClasses

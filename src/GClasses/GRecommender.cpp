@@ -1121,7 +1121,7 @@ double regularizer = 0.0015;
 	size_t weightCount = m_pModel->countWeights();
 	double prevErr = 1e308;
 	double bestErr = 1e308;
-	double learningRate = 0.1;
+	double learningRate = 0.05;
 	while(learningRate >= 0.001)
 	{
 		// Shuffle the ratings
@@ -1157,8 +1157,8 @@ m_pModel->decayWeightsSingleOutput(pRating->m_item, regularizer);
 	GMatrix* pBestUsers = m_pUsers->clone();
 
 	// Now refine both item weights and user preferences
-	learningRate = 0.01;
-	while(learningRate >= 0.0005)
+	learningRate = 0.05;
+	while(learningRate >= 0.001)
 	{
 		// Shuffle the ratings
 		for(size_t n = ratings.size(); n > 0; n--)

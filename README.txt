@@ -3,9 +3,9 @@ Build Instructions:
 		1- Install the following dependency packages:
 			g++
 			make
-			libpng3-dev
+			libpng12-dev
 			libsdl1.2-dev (needed only for some demo apps)
-			freeglut-dev (needed only for some demo apps)
+			freeglut3-dev (needed only for some demo apps)
 		2- cd src
 		3- sudo make install
 

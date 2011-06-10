@@ -235,34 +235,26 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() { return "bend"; }
 
-	/// Returns x+log(exp(x)+1.0)
+	/// Returns the bend function of x
 	virtual double squash(double x)
 	{
-		if(x >= 700.0) // Don't trigger a floating point exception
-			return x + x;
-		if(x < -700.0) // Don't trigger a floating point exception
-			return x;
-		return x + log(exp(x) + 1.0);
+		double d = sqrt(x * x + 1);
+		return sqrt(0.5 * (d + x)) - (0.25 * (d - x) * (d - x));
 	}
 
-	/// Returns the logistic function of x, plus 1
+	/// Returns the derivative of the bend function
 	virtual double derivative(double x)
 	{
-		if(x >= 700.0) // Don't trigger a floating point exception
-			return 2.0;
-		if(x < -700.0) // Don't trigger a floating point exception
-			return 1.0;
-		return 1.0 / (exp(-x) + 1.0) + 1.0;
+		double d = sqrt(x * x + 1);
+		double t = x / d;
+		return 0.5 * (M_SQRT1_2 * (t + 1) / sqrt(d + x) - (t - 1) * (d - x));
 	}
 
-	/// Returns log(0.5*(sqrt(4.0*exp(y)+1.0)-1.0))
+	/// Throws an exception
 	virtual double inverse(double y)
 	{
-		if(y >= 1000.0)
-			return 0.5 * y;
-		if(y < -500.0)
-			return y;
-		return log(0.5 * (sqrt(4.0 * exp(y) + 1.0) - 1.0));
+		ThrowError("inverse unknown");
+		return 0;
 	}
 
 	/// Returns 0.0

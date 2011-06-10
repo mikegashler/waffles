@@ -1029,32 +1029,7 @@ UsageNode* makeTransformUsageTree()
 		pAlign->add("[a]=base.arff", "The filename of a dataset in ARFF format");
 		pAlign->add("[b]=alignme.arff", "The filename of a dataset in ARFF format");
 	}
-	UsageNode* pAS = pRoot->add("attributeselector [dataset] <data_opts> <options>", "Make a ranked list of attributes from most to least salient. The ranked list is printed to stdout. Attributes are zero-indexed.");
-	{
-		pAS->add("[dataset]=data.arff", "The filename of a dataset in ARFF format");
-		UsageNode* pDO = pAS->add("<data_opts>");
-		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
-		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '!' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"!0\" refers to the last column. \"0-!1\" refers to all but the last column.");
-		UsageNode* pOpts = pAS->add("<options>");
-		pOpts->add("-out [n] [filename]", "Save a dataset containing only the [n]-most salient features to [filename].");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-labeldims [n]=1", "Specify the number of dimensions in the label (output) vector. The default is 1. (Don't confuse this with the number of class labels. It only takes one dimension to specify a class label, even if there are k possible labels.)");
-	}
 	pRoot->add("autocorrelation [dataset]=data.arff", "Compute the autocorrelation of the specified time-series data.");
-	UsageNode* pBE = pRoot->add("blendembeddings [data-orig] [neighbor-finder] [data-a] [data-b] <options>", "Compute a blended \"average\" embedding from two reduced-dimensionality embeddings of some data.");
-	{
-		pBE->add("[data-orig]=orig.arff", "The filename of the original high-dimensional data in ARFF format.");
-		pBE->add("[data-a]=a.arff", "The first reduced dimensional embedding of [data-orig]");
-		pBE->add("[data-b]=b.arff", "The second reduced dimensional embedding of [data-orig]");
-		UsageNode* pOpts = pBE->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-	}
-	UsageNode* pBFU = pRoot->add("breadthfirstunfolding [dataset] [neighbor-finder] [target_dims] <options>", "A manifold learning algorithm.");
-	{
-		UsageNode* pOpts = pBFU->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-reps [n]=10", "The number of times to compute the embedding and blend the results together. If not specified, the default is 1.");
-	}
 	pRoot->add("cholesky [dataset]=in.arff", "Compute the cholesky decomposition of the specified matrix.");
 	UsageNode* pCorr = pRoot->add("correlation [dataset] [attr1] [attr2] <options>", "Compute the linear correlation coefficient of the two specified attributes.");
 	{
@@ -1109,24 +1084,6 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-columnnames", "Use the first row of data for column names.");
 	}
 	pRoot->add("enumeratevalues [dataset] [col]", "Enumerates all of the unique values in the specified column, and replaces each value with its enumeration. (For example, if you have a column that contains the social-security-number of each user, this will change them to numbers from 0 to n-1, where n is the number of unique users.)");
-	UsageNode* pIsomap = pRoot->add("isomap [dataset] [neighbor-finder] [target_dims] <options>", "Use the Isomap algorithm to reduce dimensionality.");
-	{
-		UsageNode* pOpts = pIsomap->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-tolerant", "If there are points that are disconnected from the rest of the graph, just drop the from the data. (This may cause the results to contain fewer rows than the input.)");
-	}
-	UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
-	{
-		UsageNode* pOpts = pLLE->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-	}
-	UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513-520, MIT Press, Cambridge, MA, 2008.)");
-	{
-		UsageNode* pOpts = pMS->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-continue [dataset]=prev.arff", "Continue refining the specified reduced-dimensional results. (This feature enables Manifold Sculpting to improve upon its own results, or to refine the results from another dimensionality reduction algorithm.)");
-		pOpts->add("-scalerate [value]=0.9999", "Specify the scaling rate. If not specified, the default is 0.999. A value close to 1 will give better results, but will cause the algorithm to take longer.");
-	}
 	UsageNode* pMSE = pRoot->add("measuremeansquarederror [dataset1] [dataset2] <options>", "Print the mean squared error between two datasets. (Both datasets must be the same size.)");
 	{
 		UsageNode* pOpts = pMSE->add("<options>");
@@ -1135,12 +1092,6 @@ UsageNode* makeTransformUsageTree()
 	}
 	pRoot->add("mergehoriz [dataset1] [dataset2]", "Merge two (or more) datasets horizontally. All datasets must already have the same number of rows. The resulting dataset will have all the columns of both datasets.");
 	pRoot->add("mergevert [dataset1] [dataset2]", "Merge two datasets vertically. Both datasets must already have the same number of columns. The resulting dataset will have all the rows of both datasets.");
-	UsageNode* pMDS = pRoot->add("multidimensionalscaling [distance-matrix] [target-dims]", "Perform MDS on the specified [distance-matrix].");
-	{
-		pMDS->add("[distance-matrix]=distances.arff", "The filename of an arff file that contains the pair-wise distances (or dissimilarities) between every pair of points. It must be a square matrix of real values. Only the upper-triangle of this matrix is actually used. The lower-triangle and diagonal is ignored.");
-		UsageNode* pOpts = pMDS->add("<options>");
-		pOpts->add("-squareddistances", "The distances in the distance matrix are squared distances, instead of just distances.");
-	}
 	UsageNode* pMult1 = pRoot->add("multiply [a] [b] <options>", "Matrix multiply [a] x [b]. Both arguments are the filenames of .arff files. Results are printed to stdout.");
 	{
 		UsageNode* pOpts = pMult1->add("<options>");
@@ -1148,13 +1099,6 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-transposeb", "Transpose [b] before multiplying.");
 	}
 	pRoot->add("multiplyscalar [dataset1] [scalar]", "Multiply all elements in [dataset1] by the specified scalar. Results are printed to stdout.");
-	UsageNode* pNeuroPCA = pRoot->add("neuropca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with principle component analysis. (Prints results to stdout. The input file is not modified.)");
-	{
-		UsageNode* pOpts = pNeuroPCA->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-clampbias", "Do not let the bias drift from the centroid. (Leaving the bias unclamped typically gives better results with non-linear activation functions. Clamping them to the centroid is necessary if you want results equivalent with PCA.)");
-		pOpts->add("-linear", "Use a linear activation function instead of the default logistic activation function. (The logistic activation function typically gives better results with most problems, but the linear activation function may be used to obtain results equivalent to PCA.)");
-	}
 	UsageNode* pNorm = pRoot->add("normalize [dataset] <options>", "Normalize all continuous attributes to fall within the specified range. (Nominal columns are left unchanged.)");
 	{
 		UsageNode* pOpts = pNorm->add("<options>");
@@ -1170,15 +1114,6 @@ UsageNode* makeTransformUsageTree()
 		pPowerCols->add("[dataset]=data.arff", "The filename of a dataset in ARFF format.");
 		pPowerCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");
 		pPowerCols->add("[exponent]=0.5", "An exponent value, such as 0.5, 2, etc.");
-	}
-	UsageNode* pPCA = pRoot->add("pca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with principle component analysis. (Prints results to stdout. The input file is not modified.)");
-	{
-		UsageNode* pOpts = pPCA->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-roundtrip [filename]=roundtrip.arff", "Do a lossy round-trip of the data and save the results to the specified file.");
-		pOpts->add("-eigenvalues [filename]=eigenvalues.arff", "Save the eigenvalues to the specified file.");
-		pOpts->add("-components [filename]=eigenvectors.arff", "Save the centroid and principal component vectors (in order of decreasing corresponding eigenvalue) to the specified file.");
-		pOpts->add("-aboutorigin", "Compute the principal components about the origin. (The default is to compute them relative to the centroid.)");
 	}
 	pRoot->add("pseudoinverse [dataset]=m.arff", "Compute the Moore-Penrose pseudo-inverse of the specified matrix of real values.");
 	pRoot->add("reducedrowechelonform [dataset]=m.arff", "Convert a matrix to reduced row echelon form. Results are printed to stdout.");
@@ -1261,32 +1196,6 @@ UsageNode* makeTransformUsageTree()
 		   "given column becomes 0 if v <= threshold and 1 otherwise."
 		   "  Only works on continuous attributes.");
 	pRoot->add("transpose [dataset]=m.arff", "Transpose the data such that columns become rows and rows become columns.");
-	UsageNode* pUS = pRoot->add("ubpsparse [sparse-data] [intrinsic-dims] <options>", "Applies Unsupervised Back-propagation to reduce the specified sparse matrix to a dense matrix with the specified number of dimensions. The dense reduced-dimensional data is printed to stdout in ARFF format.");
-	{
-		pUS->add("[sparse-data]=features.sparse", "The filename of a sparse matrix saved in .twt format. (For example, each row might represent a document, and each element might represent the frequency that a particular word occurs in the document.)");
-		pUS->add("[intrinsic-dims]=2", "The number of dimensions into which to reduce the data. The default value is 2.");
-		UsageNode* pOpts = pUS->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pOpts->add("-addlayer [size]=8", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
-		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
-		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
-		{
-			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
-			pAct->add("arctan", "The arctan sigmoid function.");
-			pAct->add("tanh", "The hyperbolic tangeant sigmoid function.");
-			pAct->add("algebraic", "An algebraic sigmoid function.");
-			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
-			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
-			pAct->add("gaussian", "A gaussian activation function");
-			pAct->add("sinc", "A sinc wavelet activation function");
-		}
-		pOpts->add("-modelin [filename]=model.twt", "Specify a filename from which to load the neural net model. (Note that this will replace any model you construct using the -addlayer option, so it would not make much sense to use these switches together.)");
-		pOpts->add("-modelout [filename]=model.twt", "Specify a filename to save the neural net model to after it has been trained.");
-		pOpts->add("-noupdateweights", "Do not update the weights during training. If this switch is specified, then only the intrinsic values will be updated. (This might be useful, for example, to generalize. That is, it can be used to determine the low-dimensional dense vectors that correspond to high-dimensional sparse vectors that were not available at training time, without changing the model further.)");
-		pOpts->add("-normalize", "Normalize all of the input vectors to have a Euclidean magnitude of 1 prior to training with them.");
-		pOpts->add("-windowsize [n]=200", "Specify the number of epochs over which a certain amount of improvement is expected, or else training will terminate.");
-		pOpts->add("-improvementthresh [t]=0.002", "Specify the ratio of improvement that must be obtained over the window of epoches, or else training will terminate.");
-	}
 	pRoot->add("zeromean [dataset]","Subtracts the mean from all values "
 		   "of all continuous attributes, so that their means in the "
 		   "result are zero.  Leaves nominal attributes untouched.");

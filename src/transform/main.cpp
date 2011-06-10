@@ -22,7 +22,6 @@
 #include "../GClasses/GVec.h"
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GHillClimber.h"
-#include "../GClasses/GManifold.h"
 #include "../GClasses/GNeighborFinder.h"
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GHeap.h"

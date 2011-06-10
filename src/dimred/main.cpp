@@ -934,168 +934,6 @@ void selfOrganizingMap(GArgReader& args)
 	out->print(cout);
 }
 
-void ubpSparse(GArgReader& args)
-{
-	// Load the sparse matrix
-	GDom doc;
-	doc.loadJson(args.pop_string());
-	GSparseMatrix* pData = new GSparseMatrix(doc.root());
-	Holder<GSparseMatrix> hData(pData);
-
-	// Target dims
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GUnsupervisedBackProp ubp(targetDims, &prng);
-	string modelIn;
-	string modelOut;
-	bool updateWeights = true;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else if(args.if_pop("-addlayer"))
-			ubp.neuralNet()->addLayer(args.pop_uint());
-		else if(args.if_pop("-learningrate"))
-			ubp.neuralNet()->setLearningRate(args.pop_double());
-		else if(args.if_pop("-activation"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else
-				ThrowError("Unrecognized activation function: ", szSF);
-			ubp.neuralNet()->setActivationFunction(pSF, true);
-		}
-		else if(args.if_pop("-modelin"))
-			modelIn = args.pop_string();
-		else if(args.if_pop("-modelout"))
-			modelOut = args.pop_string();
-		else if(args.if_pop("-noupdateweights"))
-			updateWeights = false;
-		else if(args.if_pop("-windowsize"))
-			ubp.neuralNet()->setWindowSize(args.pop_uint());
-		else if(args.if_pop("-improvementthresh"))
-			ubp.neuralNet()->setImprovementThresh(args.pop_double());
-		else if(args.if_pop("-normalize"))
-			ubp.normalize(true);
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Load the model
-	if(modelIn.length() > 0)
-	{
-		GDom doc;
-		doc.loadJson(modelIn.c_str());
-		GNeuralNet* pNN = new GNeuralNet(doc.root(), &prng);
-		ubp.setNeuralNet(pNN);
-	}
-	ubp.setUpdateWeights(updateWeights);
-
-	// Transform the data
-	GMatrix* pDataAfter = ubp.doitSparse(pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-
-	// Save the model
-	if(modelOut.length() > 0)
-	{
-		GDom doc;
-		doc.setRoot(ubp.neuralNet()->serialize(&doc));
-		doc.saveJson(modelOut.c_str());
-	}
-}
-
-void ubpSystem(GArgReader& args)
-{
-	// Load the observations and actions
-	GMatrix* pObs = loadData(args.pop_string());
-	Holder<GMatrix> hObs(pObs);
-	GMatrix* pActions = loadData(args.pop_string());
-	Holder<GMatrix> hActions(pActions);
-
-	// Target dims
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GUnsupervisedBackProp ubp(targetDims, &prng);
-	vector<size_t> paramRanges;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else if(args.if_pop("-params"))
-		{
-			size_t paramDims = args.pop_uint();
-			for(size_t i = 0; i < paramDims; i++)
-				paramRanges.push_back(args.pop_uint());
-		}
-		else if(args.if_pop("-addlayer"))
-			ubp.neuralNet()->addLayer(args.pop_uint());
-		else if(args.if_pop("-learningrate"))
-			ubp.neuralNet()->setLearningRate(args.pop_double());
-		else if(args.if_pop("-activation"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else
-				ThrowError("Unrecognized activation function: ", szSF);
-			ubp.neuralNet()->setActivationFunction(pSF, true);
-		}
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GMatrix* pDataAfter = ubp.doitCameraSystem(paramRanges, pObs, pActions);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-
 void unsupervisedBackProp(GArgReader& args)
 {
 	// Load the file and params
@@ -1117,8 +955,6 @@ void unsupervisedBackProp(GArgReader& args)
 			ubp.neuralNet()->addLayer(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			ubp.neuralNet()->setLearningRate(args.pop_double());
-		else if(args.if_pop("-rate"))
-			ubp.setRate(args.pop_double());
 		else if(args.if_pop("-params"))
 		{
 			size_t paramDims = args.pop_uint();
@@ -1225,8 +1061,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("neuropca")) neuroPCA(args);
 		else if(args.if_pop("pca")) principalComponentAnalysis(args);
 		else if(args.if_pop("som")) selfOrganizingMap(args);
-		else if(args.if_pop("ubpsparse")) ubpSparse(args);
-		else if(args.if_pop("ubpsystem")) ubpSystem(args);
 		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}
