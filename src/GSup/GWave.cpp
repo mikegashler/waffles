@@ -13,6 +13,7 @@
 #include "../GClasses/GError.h"
 #include <fstream>
 #include "math.h"
+#include "../GClasses/GFourier.h"
 
 #ifdef WINDOWS
 #	pragma pack(1)
@@ -175,6 +176,13 @@ bool GWaveIterator::advance()
 	return true;
 }
 
+void GWaveIterator::copy(GWaveIterator& other)
+{
+	GAssert(m_wave.data() == other.m_wave.data());
+	m_pPos = other.m_pPos;
+	m_remaining = other.m_remaining;
+}
+
 double* GWaveIterator::current()
 {
 	unsigned char* pX = m_pPos;
@@ -209,6 +217,187 @@ void GWaveIterator::set(double* pSamples)
 		pY++;
 	}
 }
+
+
+
+
+
+
+
+GFourierWaveProcessor::GFourierWaveProcessor(size_t blockSize)
+: m_blockSize(blockSize)
+{
+	m_pBufA = new struct ComplexNumber[m_blockSize];
+	m_pBufB = new struct ComplexNumber[m_blockSize];
+	m_pBufC = new struct ComplexNumber[m_blockSize];
+	m_pBufD = new struct ComplexNumber[m_blockSize];
+	m_pBufE = new struct ComplexNumber[m_blockSize];
+	m_pBufFinal = new struct ComplexNumber[m_blockSize];
+}
+
+// virtual
+GFourierWaveProcessor::~GFourierWaveProcessor()
+{
+	delete[] m_pBufA;
+	delete[] m_pBufB;
+	delete[] m_pBufC;
+	delete[] m_pBufD;
+	delete[] m_pBufE;
+	delete[] m_pBufFinal;
+}
+
+void GFourierWaveProcessor::doit(GWave& signal)
+{
+	for(unsigned short chan = 0; chan < signal.channels(); chan++)
+	{
+		// Denoise the signal. Here is an ascii-art representation of how the blocks align.
+		// Suppose the signal is 4 blocks long (n=4). i will iterate from 0 to 4.
+		//                 _________ _________ _________ _________
+		//  0   A    B    C    D    E
+		//  1             A    B    C    D    E
+		//  2                       A    B    C    D    E
+		//  3                                 A    B    C    D    E
+		//  4                                           A    B    C    D    E
+		GWaveIterator itSignalIn(signal);
+		GWaveIterator itSignalOut(signal);
+		size_t n = itSignalIn.remaining() / m_blockSize;
+		if((m_blockSize * n) < itSignalIn.remaining())
+			n++;
+		for(size_t i = 0; i <= n; i++)
+		{
+			// Encode block D (which also covers the latter-half of C and the first-half of E)
+			if(i != n)
+			{
+				encodeBlock(itSignalIn, m_pBufD, chan);
+				struct ComplexNumber* pSrc = m_pBufD;
+				struct ComplexNumber* pDest = m_pBufC + m_blockSize / 2;
+				for(size_t j = 0; j < m_blockSize / 2; j++)
+					*(pDest++) = *(pSrc++);
+				pDest = m_pBufE;
+				for(size_t j = 0; j < m_blockSize / 2; j++)
+					*(pDest++) = *(pSrc++);
+
+				// Blocks C and D are fully-encoded, so we can bring them to the Fourier domain now
+				if(i != 0)
+					GFourier::fft(m_blockSize, m_pBufC, true);
+				GFourier::fft(m_blockSize, m_pBufD, true);
+			}
+
+			// Process the blocks that are ready-to-go
+			if(i != 0)
+			{
+				// Denoise blocks B and C
+				process(m_pBufB);
+				GFourier::fft(m_blockSize, m_pBufB, false);
+				if(i != n)
+				{
+					process(m_pBufC);
+					GFourier::fft(m_blockSize, m_pBufC, false);
+				}
+
+				// Interpolate A, B, and C to produce the final B
+				interpolate(i == 1 ? NULL : m_pBufA, m_pBufB, i == n ? NULL : m_pBufC, m_blockSize / 2);
+				decodeBlock(itSignalOut, chan);
+			}
+
+			// Shift A<-C, B<-D, C<-E
+			struct ComplexNumber* pTemp = m_pBufA;
+			m_pBufA = m_pBufC;
+			m_pBufC = m_pBufE;
+			m_pBufE = pTemp;
+			pTemp = m_pBufB;
+			m_pBufB = m_pBufD;
+			m_pBufD = pTemp;
+		}
+		GAssert(itSignalOut.remaining() == 0);
+	}
+}
+
+void GFourierWaveProcessor::encodeBlock(GWaveIterator& it, struct ComplexNumber* pBuf, unsigned short chan)
+{
+	struct ComplexNumber* pCN = pBuf;
+	for(size_t i = 0; i < m_blockSize; i++)
+	{
+		if(it.remaining() > 0)
+		{
+			pCN->real = it.current()[chan];
+			it.advance();
+		}
+		else
+			pCN->real = 0.0;
+		pCN->imag = 0.0;
+		pCN++;
+	}
+}
+
+void GFourierWaveProcessor::decodeBlock(GWaveIterator& it, unsigned short chan)
+{
+	struct ComplexNumber* pCN = m_pBufFinal;
+	for(size_t i = 0; i < m_blockSize; i++)
+	{
+		if(it.remaining() > 0)
+		{
+			double* pSamples = it.current();
+			pSamples[chan] = pCN->real;
+			it.set(pSamples);
+			it.advance();
+		}
+		else
+			return;
+		pCN++;
+	}
+}
+
+void GFourierWaveProcessor::interpolate(struct ComplexNumber* pPre, struct ComplexNumber* pCur, struct ComplexNumber* pPost, size_t graftSamples)
+{
+	size_t graftBegin = (m_blockSize / 2 - graftSamples) / 2;
+	size_t graftEnd = (m_blockSize / 2 + graftSamples) / 2;
+	struct ComplexNumber* pOut = m_pBufFinal;
+	if(pPre)
+	{
+		pPre += m_blockSize / 2;
+		for(size_t i = 0; i < m_blockSize / 2; i++)
+		{
+			double w = i < graftBegin ? 1.0 : i > graftEnd ? 0.0 : 0.5 * (cos((double)(i - graftBegin) * M_PI / graftSamples) + 1);
+			pOut->real = (1.0 - w) * pCur->real + w * pPre->real;
+			pOut++;
+			pPre++;
+			pCur++;
+		}
+	}
+	else
+	{
+		for(size_t i = 0; i < m_blockSize / 2; i++)
+		{
+			pOut->real = pCur->real;
+			pOut++;
+			pCur++;
+		}
+	}
+	graftBegin += m_blockSize / 2;
+	graftEnd += m_blockSize / 2;
+	if(pPost)
+	{
+		for(size_t i = m_blockSize / 2; i < m_blockSize; i++)
+		{
+			double w = i < graftBegin ? 1.0 : i > graftEnd ? 0.0 : 0.5 * (cos((double)(i - graftBegin) * M_PI / graftSamples) + 1);
+			pOut->real = (1.0 - w) * pPost->real + w * pCur->real;
+			pOut++;
+			pPost++;
+			pCur++;
+		}
+	}
+	else
+	{
+		for(size_t i = m_blockSize / 2; i < m_blockSize; i++)
+		{
+			pOut->real = pCur->real;
+			pOut++;
+			pCur++;
+		}
+	}
+}
+
 
 } // namespace GClasses
 

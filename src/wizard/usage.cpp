@@ -278,6 +278,14 @@ UsageNode* makeAudioUsageTree()
 		pOpts->add("-blocksize [n]=2048", "Specify the size of the blocks in which the audio is processed. [n] must be a power of 2.");
 		pOpts->add("-deviations [d]=2.5", "Specify the number of standard deviations from the noise mean to count as noise. Larger values will make it more aggressive at reducing noise, with more potential to disrupt the signal. Smaller (or negative) values can be used to make it less aggressive.");
 	}
+	{
+		UsageNode* pSan = pRoot->add("sanitize [in] [out] <options>", "Finds segments of quiet in the input wave file, and replaces them with complete silence.");
+		pSan->add("[in]=in.wav", "The filename of an audio track in wav format.");
+		pSan->add("[out]=out.wav", "The filename to which to save the results.");
+		UsageNode* pOpts = pSan->add("<options>");
+		pOpts->add("-seconds [s]=0.1", "The length of time in seconds over which to decay the volume until it reaches zero. Only segments of at least twice this length will be sanitized (because there must be enough time to fade out, and then fade back in).");
+		pOpts->add("-thresh [t]=0.15", "The volumne threshold (from 0 to 1). Segments that stay below this threshold for a sufficient length of time will be replaced with silence.");
+	}
 	return pRoot;
 }
 

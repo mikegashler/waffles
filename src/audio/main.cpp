@@ -24,200 +24,7 @@ using namespace GClasses;
 using std::cerr;
 using std::cout;
 
-// This is an abstract class that processes a wave file in blocks. Specifically, it
-// divides the wave file up into overlapping blocks, converts them into Fourier space,
-// calls the abstract "process" method with each block, converts back from Fourier space,
-// and then interpolates to create the wave output.
-class FourierWaveProcessor
-{
-protected:
-	size_t m_blockSize;
-	struct ComplexNumber* m_pBufA;
-	struct ComplexNumber* m_pBufB;
-	struct ComplexNumber* m_pBufC;
-	struct ComplexNumber* m_pBufD;
-	struct ComplexNumber* m_pBufE;
-	struct ComplexNumber* m_pBufFinal;
-
-public:
-	FourierWaveProcessor(size_t blockSize)
-	: m_blockSize(blockSize)
-	{
-		m_pBufA = new struct ComplexNumber[m_blockSize];
-		m_pBufB = new struct ComplexNumber[m_blockSize];
-		m_pBufC = new struct ComplexNumber[m_blockSize];
-		m_pBufD = new struct ComplexNumber[m_blockSize];
-		m_pBufE = new struct ComplexNumber[m_blockSize];
-		m_pBufFinal = new struct ComplexNumber[m_blockSize];
-	}
-
-	~FourierWaveProcessor()
-	{
-		delete[] m_pBufA;
-		delete[] m_pBufB;
-		delete[] m_pBufC;
-		delete[] m_pBufD;
-		delete[] m_pBufE;
-		delete[] m_pBufFinal;
-	}
-
-	void doit(GWave& signal)
-	{
-		for(unsigned short chan = 0; chan < signal.channels(); chan++)
-		{
-			// Denoise the signal. Here is an ascii-art representation of how the blocks align.
-			// Suppose the signal is 4 blocks long (n=4). i will iterate from 0 to 4.
-			//                 _________ _________ _________ _________
-			//  0   A    B    C    D    E
-			//  1             A    B    C    D    E
-			//  2                       A    B    C    D    E
-			//  3                                 A    B    C    D    E
-			//  4                                           A    B    C    D    E
-			GWaveIterator itSignalIn(signal);
-			GWaveIterator itSignalOut(signal);
-			size_t n = itSignalIn.remaining() / m_blockSize;
-			if((m_blockSize * n) < itSignalIn.remaining())
-				n++;
-			for(size_t i = 0; i <= n; i++)
-			{
-				// Encode block D (which also covers the latter-half of C and the first-half of E)
-				if(i != n)
-				{
-					encodeBlock(itSignalIn, m_pBufD, chan);
-					struct ComplexNumber* pSrc = m_pBufD;
-					struct ComplexNumber* pDest = m_pBufC + m_blockSize / 2;
-					for(size_t j = 0; j < m_blockSize / 2; j++)
-						*(pDest++) = *(pSrc++);
-					pDest = m_pBufE;
-					for(size_t j = 0; j < m_blockSize / 2; j++)
-						*(pDest++) = *(pSrc++);
-
-					// Blocks C and D are fully-encoded, so we can bring them to the Fourier domain now
-					if(i != 0)
-						GFourier::fft(m_blockSize, m_pBufC, true);
-					GFourier::fft(m_blockSize, m_pBufD, true);
-				}
-
-				// Process the blocks that are ready-to-go
-				if(i != 0)
-				{
-					// Denoise blocks B and C
-					process(m_pBufB);
-					GFourier::fft(m_blockSize, m_pBufB, false);
-					if(i != n)
-					{
-						process(m_pBufC);
-						GFourier::fft(m_blockSize, m_pBufC, false);
-					}
-
-					// Interpolate A, B, and C to produce the final B
-					interpolate(i == 1 ? NULL : m_pBufA, m_pBufB, i == n ? NULL : m_pBufC, m_blockSize / 2);
-					decodeBlock(itSignalOut, chan);
-				}
-	
-				// Shift A<-C, B<-D, C<-E
-				struct ComplexNumber* pTemp = m_pBufA;
-				m_pBufA = m_pBufC;
-				m_pBufC = m_pBufE;
-				m_pBufE = pTemp;
-				pTemp = m_pBufB;
-				m_pBufB = m_pBufD;
-				m_pBufD = pTemp;
-			}
-			GAssert(itSignalOut.remaining() == 0);
-		}
-	}
-
-protected:
-	void encodeBlock(GWaveIterator& it, struct ComplexNumber* pBuf, unsigned short chan)
-	{
-		struct ComplexNumber* pCN = pBuf;
-		for(size_t i = 0; i < m_blockSize; i++)
-		{
-			if(it.remaining() > 0)
-			{
-				pCN->real = it.current()[chan];
-				it.advance();
-			}
-			else
-				pCN->real = 0.0;
-			pCN->imag = 0.0;
-			pCN++;
-		}
-	}
-
-	void decodeBlock(GWaveIterator& it, unsigned short chan)
-	{
-		struct ComplexNumber* pCN = m_pBufFinal;
-		for(size_t i = 0; i < m_blockSize; i++)
-		{
-			if(it.remaining() > 0)
-			{
-				double* pSamples = it.current();
-				pSamples[chan] = pCN->real;
-				it.set(pSamples);
-				it.advance();
-			}
-			else
-				return;
-			pCN++;
-		}
-	}
-
-	void interpolate(struct ComplexNumber* pPre, struct ComplexNumber* pCur, struct ComplexNumber* pPost, size_t graftSamples)
-	{
-		size_t graftBegin = (m_blockSize / 2 - graftSamples) / 2;
-		size_t graftEnd = (m_blockSize / 2 + graftSamples) / 2;
-		struct ComplexNumber* pOut = m_pBufFinal;
-		if(pPre)
-		{
-			pPre += m_blockSize / 2;
-			for(size_t i = 0; i < m_blockSize / 2; i++)
-			{
-				double w = i < graftBegin ? 1.0 : i > graftEnd ? 0.0 : 0.5 * (cos((i - graftBegin) * M_PI / graftSamples) + 1);
-				pOut->real = (1.0 - w) * pCur->real + w * pPre->real;
-				pOut++;
-				pPre++;
-				pCur++;
-			}
-		}
-		else
-		{
-			for(size_t i = 0; i < m_blockSize / 2; i++)
-			{
-				pOut->real = pCur->real;
-				pOut++;
-				pCur++;
-			}
-		}
-		graftBegin += m_blockSize / 2;
-		graftEnd += m_blockSize / 2;
-		if(pPost)
-		{
-			for(size_t i = m_blockSize / 2; i < m_blockSize; i++)
-			{
-				double w = i < graftBegin ? 1.0 : i > graftEnd ? 0.0 : 0.5 * (cos((i - graftBegin) * M_PI / graftSamples) + 1);
-				pOut->real = (1.0 - w) * pPost->real + w * pCur->real;
-				pOut++;
-				pPost++;
-				pCur++;
-			}
-		}
-		else
-		{
-			for(size_t i = m_blockSize / 2; i < m_blockSize; i++)
-			{
-				pOut->real = pCur->real;
-				pOut++;
-				pCur++;
-			}
-		}
-	}
-
-	virtual void process(struct ComplexNumber* pBuf) = 0;
-};
-
-class AmbientNoiseReducer : public FourierWaveProcessor
+class AmbientNoiseReducer : public GFourierWaveProcessor
 {
 protected:
 	double m_deviations;
@@ -226,7 +33,7 @@ protected:
 
 public:
 	AmbientNoiseReducer(GWave& noise, size_t blockSize, double deviations)
-	: FourierWaveProcessor(blockSize), m_deviations(deviations)
+	: GFourierWaveProcessor(blockSize), m_deviations(deviations)
 	{
 		if(noise.channels() != 1)
 			ThrowError("Sorry, ", to_str(noise.channels()), "-channel ambient noise files are not yet supported");
@@ -346,7 +153,7 @@ void makeSilence(GArgReader& args)
 		else if(args.if_pop("-samplerate"))
 			sampleRate = args.pop_uint();
 		else
-			break;
+			ThrowError("Unrecognized option: ", args.pop_string());
 	}
 	if(bitsPerSample % 8 != 0)
 		ThrowError("The number of bits-per-sample must be a multiple of 8");
@@ -438,7 +245,7 @@ void reduceAmbientNoise(GArgReader& args)
 		else if(args.if_pop("-deviations"))
 			deviations = args.pop_double();
 		else
-			break;
+			ThrowError("Unrecognized option: ", args.pop_string());
 	}
 	if(!GBits::isPowerOfTwo(blockSize))
 		ThrowError("the block size must be a power of 2");
@@ -450,6 +257,72 @@ void reduceAmbientNoise(GArgReader& args)
 	AmbientNoiseReducer denoiser(wNoise, blockSize, deviations);
 	denoiser.doit(wSignal);
 	wSignal.save(outputFilename);
+}
+
+void sanitize(GArgReader& args)
+{
+	const char* inFilename = args.pop_string();
+	const char* outFilename = args.pop_string();
+
+	// Parse params
+	double seconds = 0.1;
+	double thresh = 0.15;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-seconds"))
+			seconds = args.pop_double();
+		else if(args.if_pop("-thresh"))
+			thresh = args.pop_double();
+		else
+			ThrowError("Unrecognized option: ", args.pop_string());
+	}
+
+	// Sanitize
+	GWave w;
+	w.load(inFilename);
+	size_t samps = (size_t)(seconds * w.sampleRate());
+	for(unsigned short chan = 0; chan < w.channels(); chan++)
+	{
+		GWaveIterator itHead(w);
+		GWaveIterator itTail(w);
+		while(true)
+		{
+			if(itHead.remaining() > 0 && std::abs(itHead.current()[chan]) < thresh)
+				itHead.advance();
+			else
+			{
+				if(itTail.remaining() - itHead.remaining() >= 2 * samps)
+				{
+					for(size_t i = 0; i < samps; i++)
+					{
+						double* pSamp = itTail.current();
+						pSamp[chan] *= 0.5 * (1.0 + cos((double)i * M_PI / samps));
+						itTail.set(pSamp);
+						itTail.advance();
+					}
+					while(itTail.remaining() - itHead.remaining() > samps)
+					{
+						double* pSamp = itTail.current();
+						pSamp[chan] = 0.0;
+						itTail.set(pSamp);
+						itTail.advance();
+					}
+					for(size_t i = 0; i < samps; i++)
+					{
+						double* pSamp = itTail.current();
+						pSamp[chan] *= 0.5 * (1.0 - cos((double)i * M_PI / samps));
+						itTail.set(pSamp);
+						itTail.advance();
+					}
+				}
+				if(itHead.remaining() == 0)
+					break;
+				itHead.advance();
+				itTail.copy(itHead);
+			}
+		}
+	}
+	w.save(outFilename);
 }
 
 void ShowUsage(const char* appName)
@@ -516,6 +389,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("makesilence")) makeSilence(args);
 		else if(args.if_pop("mix")) mix(args);
 		else if(args.if_pop("reduceambientnoise")) reduceAmbientNoise(args);
+		else if(args.if_pop("sanitize")) sanitize(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
