@@ -12,6 +12,7 @@
 #include "GWave.h"
 #include "../GClasses/GError.h"
 #include <fstream>
+#include "math.h"
 
 #ifdef WINDOWS
 #	pragma pack(1)
@@ -51,7 +52,6 @@ GWave::GWave()
 m_channels(0),
 m_sampleRate(0),
 m_bitsPerSample(0),
-m_type(wt_signed),
 m_pData(NULL)
 {
 }
@@ -61,19 +61,14 @@ GWave::~GWave()
 	delete[] m_pData;
 }
 
-void GWave::setMetaData(int channels, int sampleRate)
-{
-	m_channels = channels;
-	m_sampleRate = sampleRate;
-}
-
-void GWave::setData(unsigned char* pData, int bitsPerSample, int sampleCount, WaveType type)
+void GWave::setData(unsigned char* pData, int bitsPerSample, int sampleCount, int channels, int sampleRate)
 {
 	delete[] m_pData;
 	m_pData = pData;
 	m_sampleCount = sampleCount;
 	m_bitsPerSample = bitsPerSample;
-	m_type = type;
+	m_channels = channels;
+	m_sampleRate = sampleRate;
 }
 
 void GWave::load(const char* szFilename)
@@ -188,48 +183,31 @@ double* GWaveIterator::current()
 	{
 		switch(m_wave.bitsPerSample())
 		{
-		case 8:
-			switch(m_wave.type())
-			{
-			case GWave::wt_signed: *pY = double(*(char*)pX) / 0x80; break;
-			case GWave::wt_unsigned: *pY = (double(*(unsigned char*)pX) - 0x80) / 0x80; break;
-			case GWave::wt_float: ThrowError("invalid format"); break;
-			default: ThrowError("Unrecognized type");
-			}
-			break;
-		case 16:
-			switch(m_wave.type())
-			{
-			case GWave::wt_signed: *pY = double(*(short*)pX) / 0x8000; break;
-			case GWave::wt_unsigned: *pY = (double(*(unsigned short*)pX) - 0x8000) / 0x8000; break;
-			case GWave::wt_float: ThrowError("invalid format"); break;
-			default: ThrowError("Unrecognized type");
-			}
-			break;
-		case 32:
-			switch(m_wave.type())
-			{
-			case GWave::wt_signed: *pY = double(*(int*)pX) / 0x80000000; break;
-			case GWave::wt_unsigned: *pY = (double(*(unsigned int*)pX) - 0x80000000) / 0x80000000; break;
-			case GWave::wt_float: *pY = double(*(float*)pX); break;
-			default: ThrowError("Unrecognized type");
-			}
-			break;
-		case 64:
-			switch(m_wave.type())
-			{
-			case GWave::wt_signed: *pY = double(*(long long int*)pX) / 0x8000000000000000ull; break;
-			case GWave::wt_unsigned: *pY = (double(*(unsigned long long int*)pX) - 0x8000000000000000ull) / 0x8000000000000000ull; break;
-			case GWave::wt_float: *pY = *(double*)pX; break;
-			default: ThrowError("Unrecognized type");
-			}
-			break;
-		default: ThrowError("Unsupported number of bits-per-sample: ", to_str(m_wave.bitsPerSample()));
+			case 8: *pY = (double(*pX) - 0x80) / 0x80; break; // 8-bit is unsigned
+			case 16: *pY = double(*(short*)pX) / 0x8000; break; // 16-bit is signed
+			case 32: *pY = double(*(int*)pX) / 0x80000000; break; // 32-bit is signed
 		}
 		pX += m_wave.bitsPerSample() / 8;
 		pY++;
 	}
 	return m_pSamples;
+}
+
+void GWaveIterator::set(double* pSamples)
+{
+	unsigned char* pX = m_pPos;
+	double* pY = pSamples;
+	for(unsigned short i = 0; i < m_wave.channels(); i++)
+	{
+		switch(m_wave.bitsPerSample())
+		{
+			case 8: *pX = (unsigned char)std::max(0.0, std::min(255.0, floor((*pY + 1) * 0x80 + 0.5))); break;
+			case 16: *(short*)pX = (short)std::max(-32768.0, std::min(32767.0, floor(*pY * 0x8000 + 0.5))); break;
+			case 32: *(int*)pX = (int)std::max(-2147483648.0, std::min(2147483647.0, floor(*pY * 0x80000000 + 0.5))); break;
+		}
+		pX += m_wave.bitsPerSample() / 8;
+		pY++;
+	}
 }
 
 } // namespace GClasses

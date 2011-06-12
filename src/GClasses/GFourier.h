@@ -31,10 +31,15 @@ struct ComplexNumber
 		real = t;
 	}
 
+	/// Returns the squared magnitude of this value
 	double squaredMagnitude()
 	{
 		return real * real + imag * imag;
 	}
+
+	/// Performs polar interpolation. If w is close to zero, most
+	/// weight will be given to a. If w is close to 1, most weight will be given to b.
+	void interpolate(ComplexNumber& a, double w, ComplexNumber& b);
 };
 
 

@@ -19,37 +19,46 @@ namespace GClasses {
 /// Currently only supports PCM wave format
 class GWave
 {
-public:
-	enum WaveType
-	{
-		wt_signed = 0,
-		wt_unsigned,
-		wt_float,
-	};
-
 protected:
 	unsigned int m_size;
 	unsigned int m_sampleCount;
 	unsigned short m_channels;
 	unsigned int m_sampleRate;
 	unsigned short m_bitsPerSample;
-	WaveType m_type;
 	unsigned char* m_pData;
 
 public:
 	GWave();
 	~GWave();
 
+	/// Loads from a file in WAV format
 	void load(const char* szFilename);
+
+	/// Saves to a file in WAV format
 	void save(const char* szFilename);
+
+	/// Returns a pointer to the raw sample bytes
 	unsigned char* data() { return m_pData; }
-	void setMetaData(int channels, int sampleRate);
-	void setData(unsigned char* pData, int bitsPerSample, int sampleCount, WaveType type);
+
+	/// pData is a pointer to a buffer of raw data.
+	/// bitsPerSample should be 8, 16, or 32. If it is 8, sample values are
+	/// unsigned (0-255). If it is 16 or 32, sample values are signed.
+	/// channels is typically 1 or 2, but it can be larger.
+	/// sampleRate is typically one of 8000, 16000, 22050, 44100, 48000, or 96000, but
+	/// other sample rates could be used as well.
+	void setData(unsigned char* pData, int bitsPerSample, int sampleCount, int channels, int sampleRate);
+
+	/// Returns the number of samples
 	int sampleCount() { return m_sampleCount; }
+
+	/// Returns the number of bits-per-sample
 	int bitsPerSample() { return m_bitsPerSample; }
+
+	/// Returns the sample rate
 	int sampleRate() { return m_sampleRate; }
+
+	/// Returns the number of channels
 	unsigned short channels() { return m_channels; }
-	WaveType type() { return m_type; }
 };
 
 
@@ -79,6 +88,11 @@ public:
 	/// where c is the number of channels. Each element is
 	/// one of the sample values for a channel from -1 to 1.
 	double* current();
+
+	/// pSamples should be an array of doubles, one for each channel,
+	/// where each value ranges from -1 to 1. Sets the values in the
+	/// format specified by the wave object.
+	void set(double* pSamples);
 };
 
 } // namespace GClasses

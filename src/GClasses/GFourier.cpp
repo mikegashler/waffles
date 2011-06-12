@@ -21,6 +21,41 @@
 
 using namespace GClasses;
 
+void ComplexNumber::interpolate(ComplexNumber& a, double w, ComplexNumber& b)
+{
+/*
+	// The trigonometric way
+	double ta = atan2(a.imag, a.real);
+	double tb = atan2(b.imag, b.real);
+	if(ta - tb >= M_PI)
+		tb += 2 * M_PI;
+	else if(tb - ta >= M_PI)
+		ta += 2 * M_PI;
+	double t = w * tb + (1.0 - w) * ta;
+	double ra = sqrt(a.squaredMagnitude());
+	double rb = sqrt(b.squaredMagnitude());
+	double r = w * rb + (1.0 - w) * ra;
+	real = r * cos(t);
+	imag = r * sin(t);
+*/
+
+	// The algebraic way
+	double ma = sqrt(a.squaredMagnitude());
+	if(ma < 1e-15)
+		ma = 1.0;
+	double mb = sqrt(b.squaredMagnitude());
+	if(mb < 1e-15)
+		mb = 1.0;
+	real = w * b.real / mb + (1.0 - w) * a.real / ma;
+	imag = w * b.imag / mb + (1.0 - w) * a.imag / ma;
+	double m = sqrt(squaredMagnitude());
+	double s = m > 1e-15 ? (w * mb + (1.0 - w) * ma) / m : 0.0;
+	real *= s;
+	imag *= s;
+
+}
+
+
 inline size_t ReverseBits(size_t nValue, size_t nBits)
 {
 	size_t n;

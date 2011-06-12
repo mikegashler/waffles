@@ -51,6 +51,7 @@ public:
 UsageNode* makeMasterUsageTree();
 
 UsageNode* makeAlgorithmUsageTree();
+UsageNode* makeAudioUsageTree();
 UsageNode* makeClusterUsageTree();
 UsageNode* makeDimRedUsageTree();
 UsageNode* makeCollaborativeFilterUsageTree();
