@@ -389,6 +389,9 @@ public:
 	/// Returns whether this neural network utilizes an input bias.
 	bool useInputBias() { return m_useInputBias; }
 
+	/// Returns true iff train or beginIncrementalTraining has been called.
+	bool hasTrainingBegun() { return m_internalLabelDims > 0; }
+
 protected:
 	/// Measures the sum squared error against the specified dataset
 	double validationSquaredError(GMatrix& features, GMatrix& labels);

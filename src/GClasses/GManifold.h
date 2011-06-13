@@ -419,14 +419,16 @@ public:
 class GUnsupervisedBackProp : public GManifoldLearner
 {
 protected:
+	size_t m_paramDims;
+	size_t* m_pParamRanges;
+	size_t m_labelDims;
 	size_t m_intrinsicDims;
 	GNeuralNet* m_pNN;
 	GRand* m_pRand;
-	size_t m_paramDims;
-	size_t* m_pParamRanges;
 	GCoordVectorIterator m_cvi;
 	bool m_updateWeights;
 	bool m_updateIntrinsic;
+	bool m_useInputBias;
 	GMatrix* m_pLabels;
 	GMatrix* m_pIntrinsic;
 	double* m_pMins;
@@ -443,6 +445,10 @@ public:
 	GNeuralNet* neuralNet() { return m_pNN; }
 
 	/// Takes ownership of pNN. Replaces the internal neural net with the one specified.
+	/// This method assumes that pNN has already been trained. If m_updateWeights is true,
+	/// then it will further-refinde this model when doit is called.
+	/// (You can pass NULL to this method to discard the current model, so that a new model
+	/// will be trained next time doit is called.)
 	void setNeuralNet(GNeuralNet* pNN);
 
 	/// Parameterize the output values. This feature is typically used when the output is an image,
@@ -454,21 +460,14 @@ public:
 	void setLabels(GMatrix* pLabels) { m_pLabels = pLabels; }
 
 	/// Specify initial values for the intrinsic variables. This method takes ownership of pIntrinsic.
+	/// If this method is not called prior to "doit", then the intrinsic variables will be initialized
+	/// with small random values.
 	void setIntrinsic(GMatrix* pIntrinsic);
 
 	/// Perform NLDR. (This also trains the internal neural network to map from
-	/// low-dimensional space to high-dimensional space.)
+	/// low-dimensional space to high-dimensional space.) Returns a pointer to
+	/// the intrinsic values (which you are responsible to delete).
 	virtual GMatrix* doit(GMatrix& in);
-
-	/// Peform NLDR using a sparse matrix as input
-	GMatrix* doitSparse(GSparseMatrix* pData);
-
-	/// Learn intrinsic values for a dynamical system that uses a camera for observations
-	GMatrix* doitCameraSystem(std::vector<size_t>& paramRanges, GMatrix* pObservations, GMatrix* pActions);
-
-	/// Projects an intrinsic low-dimensional vector to the corresponding high-dimensional
-	/// observation vector.
-	void lowToHigh(const double* pIntrinsic, double* pObs);
 
 	/// Specify whether or not to update the weights. The default is to update the weights.
 	void setUpdateWeights(bool b) { m_updateWeights = b; }

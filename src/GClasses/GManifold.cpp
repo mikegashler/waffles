@@ -2258,11 +2258,9 @@ void GDynamicSystemStateAligner::test()
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_paramDims(0), m_pParamRanges(NULL), m_cvi(0, NULL), m_updateWeights(true), m_updateIntrinsic(true), m_pLabels(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL)
+: m_paramDims(0), m_pParamRanges(NULL), m_labelDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_updateWeights(true), m_updateIntrinsic(true), m_useInputBias(true), m_pLabels(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL)
 {
 	m_pNN = new GNeuralNet(m_pRand);
-	//m_pNN->setActivationFunction(new GActivationIdentity(), true);
-	//m_pNN->setLearningRate(0.03);
 }
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GRand* pRand)
@@ -2290,6 +2288,7 @@ void GUnsupervisedBackProp::setNeuralNet(GNeuralNet* pNN)
 void GUnsupervisedBackProp::setParams(vector<size_t>& paramRanges)
 {
 	m_paramDims = paramRanges.size();
+	delete[] m_pParamRanges;
 	m_pParamRanges = new size_t[m_paramDims];
 	for(size_t i = 0; i < m_paramDims; i++)
 		m_pParamRanges[i] = paramRanges[i];
@@ -2303,38 +2302,6 @@ void GUnsupervisedBackProp::setIntrinsic(GMatrix* pIntrinsic)
 	delete(m_pIntrinsic);
 	m_pIntrinsic = pIntrinsic;
 }
-
-void GUnsupervisedBackProp::lowToHigh(const double* pIntrinsic, double* pObs)
-{
-	m_cvi.reset();
-	while(true)
-	{
-		m_pNN->predict(pIntrinsic, pObs);
-		if(!m_cvi.advance())
-			break;
-		pObs += m_pNN->labelDims();
-	}
-}
-
-/*
-double GUnsupervisedBackProp::measureError(double* pIntrinsic, double* pImage, size_t channels)
-{
-	double err = 0;
-	GVec::copy(m_pBuf + m_paramDims, pIntrinsic, m_intrinsicDims);
-	double* pPrediction = m_pBuf + m_paramDims + m_intrinsicDims;
-	m_cvi.reset();
-	while(true)
-	{
-		m_cvi.currentNormalized(m_pBuf);
-		m_pNN->predict(m_pBuf, pPrediction);
-		err += GVec::squaredDistance(pImage, pPrediction, channels);
-		pImage += channels;
-		if(!m_cvi.advance())
-			break;
-	}
-	return err;
-}
-*/
 
 class SparseElement
 {
@@ -2356,18 +2323,26 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		ThrowError("params don't line up");
 
 	// Init
-	size_t labelDims = 0;
+	m_labelDims = 0;
 	if(m_pLabels)
 	{
-		labelDims = m_pLabels->cols();
+		m_labelDims = m_pLabels->cols();
 		if(m_pLabels->rows() != in.rows())
 			ThrowError("Expected the same number of label rows as observation rows");
 	}
+	if(!m_pNN->hasTrainingBegun())
 	{
-		m_pNN->setUseInputBias(true);
-		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + labelDims + m_intrinsicDims);
+		m_pNN->setUseInputBias(m_useInputBias);
+		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_labelDims + m_intrinsicDims);
 		sp_relation pLabelRel = new GUniformRelation(channels);
 		m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
+	}
+	else
+	{
+		if(m_pNN->featureDims() != m_paramDims + m_labelDims + m_intrinsicDims)
+			ThrowError("Incorrect number of inputs Expected ", to_str(m_paramDims + m_labelDims + m_intrinsicDims), ", got ", to_str(m_pNN->featureDims()));
+		if(m_pNN->labelDims() != channels)
+			ThrowError("Incorrect number of outputs. Expected ", to_str(channels), ", got ", to_str(m_pNN->labelDims()));
 	}
 	if(!m_pIntrinsic)
 	{
@@ -2397,25 +2372,26 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	}
 
 	// Train
-	double* pParams = new double[m_paramDims + labelDims + m_intrinsicDims];
+	double* pParams = new double[m_paramDims + m_labelDims + m_intrinsicDims];
 	ArrayHolder<double> hParams(pParams);
 	double* pLabels = pParams + m_paramDims;
 	double* pIntrinsic = pLabels + m_intrinsicDims;
 	for(double learningRate = 0.5; learningRate > 0.0001; learningRate *= 0.5)
 	{
 		double sse = 0;
-		for(size_t i = 0; i < 10000000; i++)
+		for(size_t i = 0; i < 1000000; i++)
 		{
 			m_cvi.setRandom(m_pRand);
-			size_t c = m_cvi.currentIndex();
-			GAssert(c * channels < in.cols());
+			size_t index = m_cvi.currentIndex();
+			size_t c = m_pRand->next(channels);
+			GAssert(index * channels + c < in.cols());
 			m_cvi.currentNormalized(pParams);
 			size_t r = m_pRand->next(in.rows());
 			if(m_pLabels)
-				GVec::copy(pLabels, m_pLabels->row(r), labelDims);
+				GVec::copy(pLabels, m_pLabels->row(r), m_labelDims);
 			GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);
 			double prediction = m_pNN->forwardPropSingleOutput(pParams, c);
-			double target = in[r][c];
+			double target = in[r][index * channels + c];
 			double err = target - prediction;
 			sse += (err * err);
 			m_pNN->setErrorSingleOutput(target, c);
@@ -2426,9 +2402,9 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			{
 				m_pNN->backProp()->adjustFeaturesSingleOutput(c, pParams, m_pNN->learningRate(), true);
 				GVec::copy(m_pIntrinsic->row(r), pIntrinsic, m_intrinsicDims);
+				GVec::floorValues(pIntrinsic, 0.0, m_intrinsicDims);
+				GVec::capValues(pIntrinsic, 1.0, m_intrinsicDims);
 			}
-			GVec::floorValues(pIntrinsic, 0.0, m_intrinsicDims);
-			GVec::capValues(pIntrinsic, 1.0, m_intrinsicDims);
 		}
 	}
 	GMatrix* pOut = m_pIntrinsic;

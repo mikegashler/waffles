@@ -946,23 +946,29 @@ void unsupervisedBackProp(GArgReader& args)
 	GRand prng(nSeed);
 	GUnsupervisedBackProp ubp(targetDims, &prng);
 	vector<size_t> paramRanges;
-	string roundTrip;
+	string sModelOut;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
 			prng.setSeed(args.pop_uint());
 		else if(args.if_pop("-addlayer"))
 			ubp.neuralNet()->addLayer(args.pop_uint());
-		else if(args.if_pop("-learningrate"))
-			ubp.neuralNet()->setLearningRate(args.pop_double());
 		else if(args.if_pop("-params"))
 		{
 			size_t paramDims = args.pop_uint();
 			for(size_t i = 0; i < paramDims; i++)
 				paramRanges.push_back(args.pop_uint());
 		}
-		else if(args.if_pop("-roundtrip"))
-			roundTrip = args.pop_string();
+		else if(args.if_pop("-modelin"))
+		{
+			GDom doc;
+			doc.loadJson(args.pop_string());
+			ubp.setNeuralNet(new GNeuralNet(doc.root(), &prng));
+		}
+		else if(args.if_pop("-modelout"))
+			sModelOut = args.pop_string();
+		else if(args.if_pop("-intrinsicin"))
+			ubp.setIntrinsic(GMatrix::loadArff(args.pop_string()));
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
@@ -971,17 +977,15 @@ void unsupervisedBackProp(GArgReader& args)
 	// Transform the data
 	GMatrix* pDataAfter = ubp.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
-
-	// Make round-trip data
-	if(roundTrip.size() > 0)
-	{
-		GMatrix high(pData->rows(), pData->cols());
-		for(size_t i = 0; i < pData->rows(); i++)
-			ubp.lowToHigh(pDataAfter->row(i), high.row(i));
-		high.saveArff(roundTrip.c_str());
-	}
-
 	pDataAfter->print(cout);
+
+	// Save the model (if requested)
+	if(sModelOut.length() > 0)
+	{
+		GDom doc;
+		doc.setRoot(ubp.neuralNet()->serialize(&doc));
+		doc.saveJson(sModelOut.c_str());
+	}
 }
 
 void ShowUsage(const char* appName)
