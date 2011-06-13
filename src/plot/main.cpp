@@ -52,7 +52,7 @@ using std::ostringstream;
 size_t getAttrVal(const char* szString, size_t attrCount)
 {
 	bool fromRight = false;
-	if(*szString == '!')
+	if(*szString == '*')
 	{
 		fromRight = true;
 		szString++;
@@ -1278,12 +1278,10 @@ void PrintStats(GArgReader& args)
 			continuousAttrs++;
 	}
 	cout << "Attributes: " << pRel->size() << " (Continuous:" << continuousAttrs << ", Nominal:" << pRel->size() - continuousAttrs << ")\n";
-	size_t stepSize = pRel->size() / 20;
+	size_t stepSize = pRel->size() / 10;
 	if(stepSize < 4)
 		stepSize = 1;
-	else
-		cout << "Displaying every " << stepSize << "th attribute...\n";
-	for(size_t i = 0; i < pRel->size(); i += stepSize)
+	for(size_t i = 0; i < pRel->size();)
 	{
 		cout << "  " << i << ") " << pRel->attrName(i) << ", ";
 		if(pRel->valueCount(i) == 0)
@@ -1331,6 +1329,12 @@ void PrintStats(GArgReader& args)
 				cout << " (" << ((double)mostCommonOccurrences * 100.0 / pData->rows()) << "%)\n";
 			}
 		}
+		if(i < 2)
+			i++;
+		else if(i + stepSize >= pRel->size() - 3)
+			i += std::max(1, (int)pRel->size() - 3 - (int)i);
+		else
+			i += stepSize;
 	}
 }
 

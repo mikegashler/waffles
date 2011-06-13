@@ -54,7 +54,7 @@ using std::map;
 size_t getAttrVal(const char* szString, size_t attrCount)
 {
 	bool fromRight = false;
-	if(*szString == '!')
+	if(*szString == '*')
 	{
 		fromRight = true;
 		szString++;
@@ -947,6 +947,8 @@ void unsupervisedBackProp(GArgReader& args)
 	GUnsupervisedBackProp ubp(targetDims, &prng);
 	vector<size_t> paramRanges;
 	string sModelOut;
+	bool trainWeights = true;
+	bool trainIntrinsic = true;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
@@ -969,10 +971,18 @@ void unsupervisedBackProp(GArgReader& args)
 			sModelOut = args.pop_string();
 		else if(args.if_pop("-intrinsicin"))
 			ubp.setIntrinsic(GMatrix::loadArff(args.pop_string()));
+		else if(args.if_pop("-labels"))
+			ubp.setLabels(GMatrix::loadArff(args.pop_string()));
+		else if(args.if_pop("-clampweights"))
+			trainWeights = false;
+		else if(args.if_pop("-clampintrinsic"))
+			trainIntrinsic = false;
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
 	ubp.setParams(paramRanges);
+	ubp.setUpdateWeights(trainWeights);
+	ubp.setUpdateIntrinsic(trainIntrinsic);
 
 	// Transform the data
 	GMatrix* pDataAfter = ubp.doit(*pData);

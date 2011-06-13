@@ -729,7 +729,7 @@ void LaunchBrowser(const char* szAddress)
 	}
 }
 
-void doit(void* pArg)
+void do_wizard()
 {
 	int port = 8421;
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
@@ -742,16 +742,71 @@ void doit(void* pArg)
 	cout << "Goodbye.\n";
 }
 
+void tool_bash_completion(UsageNode* pNode)
+{
+	cout << "			COMPREPLY=( ls -1 * )\n";
+	// todo: 
+}
+
+void do_bash_completion()
+{
+	UsageNode* pRoot = makeMasterUsageTree();
+	Holder<UsageNode> hRoot(pRoot);
+	vector<UsageNode*>& choices = pRoot->choices();
+	for(vector<UsageNode*>::iterator it = choices.begin(); it != choices.end(); it++)
+	{
+		UsageNode* pNode = *it;
+		cout << "_" << pNode->tok() << "()\n{\n";
+		cout << "	if [ $COMP_CWORD -eq 1 ]\n";
+		cout << "	then\n";
+		cout << "		COMPREPLY=( $(compgen -W \"";
+		vector<UsageNode*>& choices2 = pNode->choices();
+		bool first = true;
+		for(vector<UsageNode*>::iterator it2 = choices2.begin(); it2 != choices2.end(); it2++)
+		{
+			if(first)
+				first = false;
+			else
+				cout << " ";
+			cout << (*it2)->tok();
+		}
+		cout << "\" -- ${COMP_WORDS[COMP_CWORD]}) )\n";
+		cout << "	else\n";
+		first = true;
+		for(vector<UsageNode*>::iterator it2 = choices2.begin(); it2 != choices2.end(); it2++)
+		{
+			cout << "		";
+			if(first)
+				first = false;
+			else
+				cout << "el";
+			cout << "if [ ${COMP_WORDS[1]} == \"" << (*it2)->tok() << "\" ]\n";
+			cout << "		then\n";
+			tool_bash_completion(*it2);
+		}
+		cout << "		fi\n";
+		cout << "";
+		cout << "	fi\n";
+		cout << "}\ncomplete -F _" << pNode->tok() << " " << pNode->tok() << "\n\n";
+	}
+}
+
 int main(int nArgs, char* pArgs[])
 {
-	int nRet = 1;
+	int ret = 1;
 	try
 	{
-		doit(NULL);
+		if(nArgs < 2)
+			do_wizard();
+		else if(strcmp(pArgs[1], "complete") == 0)
+			do_bash_completion();
+		else
+			ThrowError("Unrecognized command: ", pArgs[1]);
+		ret = 0;
 	}
 	catch(std::exception& e)
 	{
 		cerr << e.what() << "\n";
 	}
-	return nRet;
+	return ret;
 }

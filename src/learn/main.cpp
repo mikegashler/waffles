@@ -59,7 +59,7 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args);
 size_t getAttrVal(const char* szString, size_t attrCount)
 {
 	bool fromRight = false;
-	if(*szString == '!')
+	if(*szString == '*')
 	{
 		fromRight = true;
 		szString++;

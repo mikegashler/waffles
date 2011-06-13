@@ -142,8 +142,10 @@ clean : partialcleandbg partialcleanopt
 install : $(TARGET_PATH)/$(TARGET_NAME_OPT)
 	rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
 	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_BIN)
+	$(TARGET_PATH)/$(TARGET_NAME_OPT) complete > /etc/bash_completion.d/waffles
 
 uninstall:
 	rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
+	rm -f /etc/bash_completion.d/waffles
 
 .PHONY: clean partialcleandbg partialcleanopt install uninstall dbg opt
