@@ -142,7 +142,7 @@ clean : partialcleandbg partialcleanopt
 install : $(TARGET_PATH)/$(TARGET_NAME_OPT)
 	rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
 	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_BIN)
-	$(TARGET_PATH)/$(TARGET_NAME_OPT) complete > /etc/bash_completion.d/waffles
+	if [ -d /etc/bash_completion.d ];then $(TARGET_PATH)/$(TARGET_NAME_OPT) make_bash_completion_file > /etc/bash_completion.d/waffles;fi
 
 uninstall:
 	rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)

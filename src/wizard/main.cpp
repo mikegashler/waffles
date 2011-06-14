@@ -748,7 +748,7 @@ void tool_bash_completion(UsageNode* pNode)
 	// todo: 
 }
 
-void do_bash_completion()
+void make_bash_completion_file()
 {
 	UsageNode* pRoot = makeMasterUsageTree();
 	Holder<UsageNode> hRoot(pRoot);
@@ -757,37 +757,81 @@ void do_bash_completion()
 	{
 		UsageNode* pNode = *it;
 		cout << "_" << pNode->tok() << "()\n{\n";
-		cout << "	if [ $COMP_CWORD -eq 1 ]\n";
-		cout << "	then\n";
-		cout << "		COMPREPLY=( $(compgen -W \"";
-		vector<UsageNode*>& choices2 = pNode->choices();
-		bool first = true;
-		for(vector<UsageNode*>::iterator it2 = choices2.begin(); it2 != choices2.end(); it2++)
-		{
-			if(first)
-				first = false;
-			else
-				cout << " ";
-			cout << (*it2)->tok();
-		}
-		cout << "\" -- ${COMP_WORDS[COMP_CWORD]}) )\n";
-		cout << "	else\n";
-		first = true;
-		for(vector<UsageNode*>::iterator it2 = choices2.begin(); it2 != choices2.end(); it2++)
-		{
-			cout << "		";
-			if(first)
-				first = false;
-			else
-				cout << "el";
-			cout << "if [ ${COMP_WORDS[1]} == \"" << (*it2)->tok() << "\" ]\n";
-			cout << "		then\n";
-			tool_bash_completion(*it2);
-		}
-		cout << "		fi\n";
-		cout << "";
-		cout << "	fi\n";
+		cout << "	COMPREPLY=( $(waffles_wizard complete ${COMP_CWORD} ${COMP_WORDS[@]}) )\n";
 		cout << "}\ncomplete -F _" << pNode->tok() << " " << pNode->tok() << "\n\n";
+	}
+}
+
+bool doesMatch(const char* full, const char* part)
+{
+	while(*part != '\0')
+	{
+		if(*(full++) != *(part++))
+			return false;
+	}
+	return true;
+}
+
+void doCompletion(GArgReader& args, UsageNode* pNode, size_t index)
+{
+	const char* arg = args.size() > 0 ? args.pop_string() : "";
+	vector<UsageNode*>& choices = pNode->choices();
+	if(index == 0) // If this is the arg to complete
+	{
+		for(vector<UsageNode*>::iterator it = choices.begin(); it != choices.end(); it++)
+		{
+			UsageNode* pChild = *it;
+			if(doesMatch(pChild->tok(), arg))
+				cout << pChild->tok() << "\n";
+		}
+	}
+	else
+	{
+		bool gotIt = false;
+		for(vector<UsageNode*>::iterator it = choices.begin(); it != choices.end(); it++)
+		{
+			UsageNode* pChild = *it;
+			if(strcmp(pChild->tok(), arg) == 0)
+			{
+				doCompletion(args, pChild, index - 1);
+				gotIt = true;
+				break;
+			}
+		}
+		if(!gotIt)
+		{
+			cout << "error_parsing_command";
+			return;
+		}
+	}
+}
+
+void complete_command(GArgReader& args)
+{
+	try
+	{
+		args.pop_string(); // waffles_wizard
+		args.pop_string(); // complete
+		size_t index = args.pop_uint(); // the current arg number
+		if(index < 1)
+		{
+			cout << "err_index_less_than_1\n";
+			return;
+		}
+		const char* szApp = args.pop_string();
+		if(doesMatch(szApp, "waffles_learn"))
+		{
+			UsageNode* pNode = makeLearnUsageTree();
+			Holder<UsageNode> hNode(pNode);
+			doCompletion(args, pNode, index - 1);
+		}
+		else
+			cout << "err_unrecognized_app\n";
+	}
+	catch(std::exception& e)
+	{
+		cerr << e.what() << "\n";
+		cout << "err_exception\n";
 	}
 }
 
@@ -798,8 +842,13 @@ int main(int nArgs, char* pArgs[])
 	{
 		if(nArgs < 2)
 			do_wizard();
+		else if(strcmp(pArgs[1], "make_bash_completion_file") == 0)
+			make_bash_completion_file();
 		else if(strcmp(pArgs[1], "complete") == 0)
-			do_bash_completion();
+		{
+			GArgReader args(nArgs, pArgs);
+			complete_command(args);
+		}
 		else
 			ThrowError("Unrecognized command: ", pArgs[1]);
 		ret = 0;
