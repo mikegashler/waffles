@@ -25,6 +25,7 @@
 #include "../GClasses/GRand.h"
 #include "../GClasses/GHashTable.h"
 #include "../GSup/sha1.h"
+#include "../GSup/GDirList.h"
 #include <wchar.h>
 #include <string>
 #include <exception>
@@ -742,12 +743,6 @@ void do_wizard()
 	cout << "Goodbye.\n";
 }
 
-void tool_bash_completion(UsageNode* pNode)
-{
-	cout << "			COMPREPLY=( ls -1 * )\n";
-	// todo: 
-}
-
 void make_bash_completion_file()
 {
 	UsageNode* pRoot = makeMasterUsageTree();
@@ -772,66 +767,146 @@ bool doesMatch(const char* full, const char* part)
 	return true;
 }
 
-void doCompletion(GArgReader& args, UsageNode* pNode, size_t index)
+class CommandCompleter
 {
-	const char* arg = args.size() > 0 ? args.pop_string() : "";
-	vector<UsageNode*>& choices = pNode->choices();
-	if(index == 0) // If this is the arg to complete
-	{
-		for(vector<UsageNode*>::iterator it = choices.begin(); it != choices.end(); it++)
-		{
-			UsageNode* pChild = *it;
-			if(doesMatch(pChild->tok(), arg))
-				cout << pChild->tok() << "\n";
-		}
-	}
-	else
-	{
-		bool gotIt = false;
-		for(vector<UsageNode*>::iterator it = choices.begin(); it != choices.end(); it++)
-		{
-			UsageNode* pChild = *it;
-			if(strcmp(pChild->tok(), arg) == 0)
-			{
-				doCompletion(args, pChild, index - 1);
-				gotIt = true;
-				break;
-			}
-		}
-		if(!gotIt)
-		{
-			cout << "error_parsing_command";
-			return;
-		}
-	}
-}
+protected:
+	UsageNode* m_pAlgs;
 
-void complete_command(GArgReader& args)
+public:
+	CommandCompleter()
+	: m_pAlgs(NULL)
+	{
+	}
+
+	~CommandCompleter()
+	{
+		delete(m_pAlgs);
+	}
+
+	UsageNode* trySpecial(const char* tok)
+	{
+		if(strcmp(tok, "[algorithm]") == 0)
+		{
+			if(!m_pAlgs)
+				m_pAlgs = makeAlgorithmUsageTree();
+			return m_pAlgs;
+		}
+		return NULL;
+	}
+
+	void doCompletion(GArgReader& args, UsageNode* pNode, size_t nodePos)
+	{
+		vector<string>& parts = pNode->parts();
+		while(nodePos < parts.size())
+		{
+			const char* part = parts[nodePos].c_str();
+			const char* tok = args.peek();
+			if(args.size() <= 1) // If this is the arg to complete
+			{
+				if(part[0] != '[' && part[0] != '<' && doesMatch(part, tok))
+				{
+					cout << part << "\n";
+					return;
+				}
+				else
+				{
+					UsageNode* pExpanded = pNode->choice(part);
+					if(!pExpanded)
+						pExpanded = trySpecial(part);
+					if(pExpanded)
+						doCompletion(args, pExpanded, 0);
+					else
+					{
+						vector<UsageNode*>& choices = pNode->choices();
+						if(choices.size() > 0)
+						{
+							// Complete with matching choices
+							for(vector<UsageNode*>::iterator it = choices.begin(); it != choices.end(); it++)
+							{
+								if(doesMatch((*it)->tok(), tok))
+									cout << (*it)->tok() << "\n";
+							}
+						}
+						else
+						{
+							// Complete with matching filenames
+							GDirList dl(false, true, false, false);
+							while(true)
+							{
+								const char* fn = dl.GetNext();
+								if(!fn)
+									break;
+								if(doesMatch(fn, tok))
+									cout << fn << "\n";
+							}
+						}
+						return;
+					}
+				}
+			}
+			else
+			{
+				if(strcmp(part, tok) == 0)
+					args.pop_string();
+				else
+				{
+					UsageNode* pExpanded = pNode->choice(part);
+					if(!pExpanded)
+						pExpanded = pNode->choice(tok);
+					if(!pExpanded)
+						pExpanded = trySpecial(part);
+					if(pExpanded)
+						doCompletion(args, pExpanded, 0);
+					else
+						ThrowError("Unexpected token, ", tok, ", in arg ", to_str(args.get_pos() - 3));
+				}
+			}
+			nodePos++;
+		}
+	}
+};
+
+void complete_command(int nArgs, char* pArgs[])
 {
 	try
 	{
+		if(nArgs < 3)
+			ThrowError("Expected more args");
+		size_t cur = atoi(pArgs[2]);
+		ArrayHolder<char*> hArgs;
+		if((int)cur >= nArgs - 3)
+		{
+			// Append an empty-string to the args
+			if((int)cur > nArgs - 3)
+				ThrowError("Out of range");
+			char** pArgsNew = new char*[nArgs + 1];
+			hArgs.reset(pArgsNew);
+			for(size_t i = 0; i < (size_t)nArgs; i++)
+				pArgsNew[i] = (char*)pArgs[i];
+			pArgsNew[nArgs] = (char*)"";
+			pArgs = pArgsNew;
+			nArgs++;
+		}
+		GArgReader args(nArgs, pArgs);
 		args.pop_string(); // waffles_wizard
 		args.pop_string(); // complete
-		size_t index = args.pop_uint(); // the current arg number
-		if(index < 1)
-		{
-			cout << "err_index_less_than_1\n";
-			return;
-		}
+		args.pop_string(); // the current arg number
+		if(cur < 1)
+			ThrowError("expected cur to be >= 1");
 		const char* szApp = args.pop_string();
 		if(doesMatch(szApp, "waffles_learn"))
 		{
 			UsageNode* pNode = makeLearnUsageTree();
 			Holder<UsageNode> hNode(pNode);
-			doCompletion(args, pNode, index - 1);
+			CommandCompleter cc;
+			cc.doCompletion(args, pNode, 1);
 		}
 		else
-			cout << "err_unrecognized_app\n";
+			ThrowError("unrecognized app");
 	}
 	catch(std::exception& e)
 	{
-		cerr << e.what() << "\n";
-		cout << "err_exception\n";
+		cout << "\"Error: " << e.what() << "\"";
 	}
 }
 
@@ -845,10 +920,7 @@ int main(int nArgs, char* pArgs[])
 		else if(strcmp(pArgs[1], "make_bash_completion_file") == 0)
 			make_bash_completion_file();
 		else if(strcmp(pArgs[1], "complete") == 0)
-		{
-			GArgReader args(nArgs, pArgs);
-			complete_command(args);
-		}
+			complete_command(nArgs, pArgs);
 		else
 			ThrowError("Unrecognized command: ", pArgs[1]);
 		ret = 0;

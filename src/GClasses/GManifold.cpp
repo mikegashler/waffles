@@ -2375,11 +2375,11 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	double* pParams = new double[m_paramDims + m_labelDims + m_intrinsicDims];
 	ArrayHolder<double> hParams(pParams);
 	double* pLabels = pParams + m_paramDims;
-	double* pIntrinsic = pLabels + m_intrinsicDims;
+	double* pIntrinsic = pLabels + m_labelDims;
 	for(double learningRate = 0.5; learningRate > 0.0001; learningRate *= 0.5)
 	{
 		double sse = 0;
-		for(size_t i = 0; i < 1000000; i++)
+		for(size_t i = 0; i < 1000000000; i++)
 		{
 			m_cvi.setRandom(m_pRand);
 			size_t index = m_cvi.currentIndex();
