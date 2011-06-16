@@ -770,11 +770,14 @@ bool doesMatch(const char* full, const char* part)
 class CommandCompleter
 {
 protected:
+	bool m_done;
 	UsageNode* m_pAlgs;
+	UsageNode* m_pCF;
+	UsageNode* m_pNF;
 
 public:
 	CommandCompleter()
-	: m_pAlgs(NULL)
+	: m_done(false), m_pAlgs(NULL), m_pCF(NULL), m_pNF(NULL)
 	{
 	}
 
@@ -791,10 +794,22 @@ public:
 				m_pAlgs = makeAlgorithmUsageTree();
 			return m_pAlgs;
 		}
+		else if(strcmp(tok, "[collab-filter]") == 0)
+		{
+			if(!m_pCF)
+				m_pCF = makeCollaborativeFilterUsageTree();
+			return m_pCF;
+		}
+		else if(strcmp(tok, "[neighbor-finder]") == 0)
+		{
+			if(!m_pNF)
+				m_pNF = makeNeighborUsageTree();
+			return m_pNF;
+		}
 		return NULL;
 	}
 
-	void doCompletion(GArgReader& args, UsageNode* pNode, size_t nodePos)
+	bool doCompletion(GArgReader& args, UsageNode* pNode, size_t nodePos)
 	{
 		vector<string>& parts = pNode->parts();
 		while(nodePos < parts.size())
@@ -806,12 +821,13 @@ public:
 				if(part[0] != '[' && part[0] != '<' && doesMatch(part, tok))
 				{
 					cout << part << "\n";
-					return;
+					m_done = true;
+					return true;
 				}
 				else
 				{
 					UsageNode* pExpanded = pNode->choice(part);
-					if(!pExpanded)
+					if(!pExpanded && nodePos > 0)
 						pExpanded = trySpecial(part);
 					if(pExpanded)
 						doCompletion(args, pExpanded, 0);
@@ -840,7 +856,9 @@ public:
 									cout << fn << "\n";
 							}
 						}
-						return;
+						if(part[0] != '<')
+							m_done = true;
+						return true;
 					}
 				}
 			}
@@ -853,16 +871,33 @@ public:
 					UsageNode* pExpanded = pNode->choice(part);
 					if(!pExpanded)
 						pExpanded = pNode->choice(tok);
-					if(!pExpanded)
+					if(!pExpanded && nodePos > 0)
 						pExpanded = trySpecial(part);
 					if(pExpanded)
-						doCompletion(args, pExpanded, 0);
+					{
+						if(doCompletion(args, pExpanded, 0) && part[0] == '<')
+							nodePos--; // Allow for another option
+					}
 					else
-						ThrowError("Unexpected token, ", tok, ", in arg ", to_str(args.get_pos() - 3));
+					{
+						vector<UsageNode*>& choices = pNode->choices();
+						if(choices.size() == 0)
+							args.pop_string(); // it's a free-form value, so accept anything
+						else
+						{
+							if(part[0] != '<')
+								ThrowError("Unexpected token, ", tok, ", in arg ", to_str(args.get_pos() - 3));
+							GAssert(nodePos + 1 >= parts.size());
+							return false;
+						}
+					}
 				}
 			}
+			if(m_done)
+				return true;
 			nodePos++;
 		}
+		return true;
 	}
 };
 
@@ -894,19 +929,41 @@ void complete_command(int nArgs, char* pArgs[])
 		if(cur < 1)
 			ThrowError("expected cur to be >= 1");
 		const char* szApp = args.pop_string();
+		UsageNode* pNode;
 		if(doesMatch(szApp, "waffles_learn"))
-		{
-			UsageNode* pNode = makeLearnUsageTree();
-			Holder<UsageNode> hNode(pNode);
-			CommandCompleter cc;
-			cc.doCompletion(args, pNode, 1);
-		}
+			pNode = makeLearnUsageTree();
+		else if(doesMatch(szApp, "waffles_transform"))
+			pNode = makeTransformUsageTree();
+		else if(doesMatch(szApp, "waffles_recommend"))
+			pNode = makeRecommendUsageTree();
+		else if(doesMatch(szApp, "waffles_plot"))
+			pNode = makePlotUsageTree();
+		else if(doesMatch(szApp, "waffles_dimred"))
+			pNode = makeDimRedUsageTree();
+		else if(doesMatch(szApp, "waffles_cluster"))
+			pNode = makeClusterUsageTree();
+		else if(doesMatch(szApp, "waffles_generate"))
+			pNode = makeGenerateUsageTree();
+		else if(doesMatch(szApp, "waffles_audio"))
+			pNode = makeAudioUsageTree();
+		else if(doesMatch(szApp, "waffles_sparse"))
+			pNode = makeSparseUsageTree();
 		else
 			ThrowError("unrecognized app");
+		Holder<UsageNode> hNode(pNode);
+		CommandCompleter cc;
+		cc.doCompletion(args, pNode, 1);
 	}
 	catch(std::exception& e)
 	{
-		cout << "\"Error: " << e.what() << "\"";
+		string s = "Error: ";
+		s += e.what();
+		for(int i = s.length() - 1; i >= 0; i--)
+		{
+			if(s[i] == ' ')
+				s[i] = '_';
+		}
+		cout << s << "\n";
 	}
 }
 
