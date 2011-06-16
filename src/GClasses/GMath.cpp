@@ -286,6 +286,8 @@ double GMath::integrate(MathFunc pFunc, double dStart, double dEnd, int nSteps, 
 double GMath_IncompleteBetaFunc(void* pThis, double x)
 {
 	double* params = (double*)pThis;
+	if(x <= 0 || x >= 1)
+		return 0;
 	return pow(x, params[0] - 1) * pow(1.0 - x, params[1] - 1);
 }
 

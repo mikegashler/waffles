@@ -930,8 +930,6 @@ void MakeCorrelationLabel(GArffRelation* pRelation, GMatrix* pData, GImage* pIma
 			pImage->blitAlpha(start + span * i, 16, &image3, &r3);
 		}
 	}
-
-
 }
 
 void PlotCorrelations(GArgReader& args)
@@ -1826,6 +1824,61 @@ void systemFrames(GArgReader& args)
 	cout << "Frames saved to " << outFilename.c_str() << ".\n";
 }
 
+void ubpFrames(GArgReader& args)
+{
+	const char* szModelFilename = args.pop_string();
+	size_t imageWid = args.pop_uint();
+	size_t imageHgt = args.pop_uint();
+	size_t label = args.pop_uint();
+	size_t framesHoriz = args.pop_uint();
+	size_t framesVert = args.pop_uint();
+	const char* outFilename = args.pop_string();
+
+	GDom doc;
+	doc.loadJson(szModelFilename);
+	GLearnerLoader ll;
+	GRand rand(0);
+	GSupervisedLearner* pLearner = ll.loadSupervisedLearner(doc.root(), &rand);
+	size_t labelDims = pLearner->featureDims() - 4;
+
+	GTEMPBUF(double, pFeatures, pLearner->featureDims() + pLearner->labelDims());
+	if(pLearner->labelDims() != 1)
+			ThrowError("Unexpected number of label dims");
+	double* pLabels = pFeatures + pLearner->featureDims();
+	GVec::setAll(pFeatures + 2, 0.0, labelDims);
+	pFeatures[2 + label] = 1.0;
+	GImage image;
+	image.setSize(imageWid * framesHoriz, imageHgt * framesVert);
+	size_t yy = 0;
+	for(size_t vFrame = 0; vFrame < framesVert; vFrame++)
+	{
+		size_t xx = 0;
+		for(size_t hFrame = 0; hFrame < framesHoriz; hFrame++)
+		{
+			pFeatures[2 + labelDims] = (double)hFrame / (framesHoriz - 1);
+			pFeatures[3 + labelDims] = (double)vFrame / (framesVert - 1);
+			size_t ranges[2];
+			ranges[0] = imageWid;
+			ranges[1] = imageHgt;
+			GCoordVectorIterator cvi(2, ranges);
+			for(size_t y = 0; y < imageHgt; y++)
+			{
+				for(size_t x = 0; x < imageWid; x++)
+				{
+					cvi.currentNormalized(pFeatures);
+					pLearner->predict(pFeatures, pLabels);
+					int pix = std::max(0, std::min(255, int(floor(*pLabels * 256))));
+					image.setPixel(xx + x, yy + y, gARGB(0xff, pix, pix, pix));
+					cvi.advance();
+				}
+			}
+			xx += imageWid;
+		}
+		yy += imageHgt;
+	}
+	image.savePng(outFilename);
+}
+
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -1898,6 +1951,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("scatter")) PlotScatter(args);
 		else if(args.if_pop("stats")) PrintStats(args);
 		else if(args.if_pop("systemframes")) systemFrames(args);
+		else if(args.if_pop("ubpframes")) ubpFrames(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)

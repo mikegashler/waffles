@@ -784,6 +784,8 @@ public:
 	~CommandCompleter()
 	{
 		delete(m_pAlgs);
+		delete(m_pCF);
+		delete(m_pNF);
 	}
 
 	UsageNode* trySpecial(const char* tok)
@@ -812,6 +814,12 @@ public:
 	bool doCompletion(GArgReader& args, UsageNode* pNode, size_t nodePos)
 	{
 		vector<string>& parts = pNode->parts();
+		size_t flex = 0;
+		for(size_t i = 0; i < parts.size(); i++)
+		{
+			if(parts[i][0] == '[' || parts[i][0] == '<')
+				flex++;
+		}
 		while(nodePos < parts.size())
 		{
 			const char* part = parts[nodePos].c_str();
@@ -834,7 +842,7 @@ public:
 					else
 					{
 						vector<UsageNode*>& choices = pNode->choices();
-						if(choices.size() > 0)
+						if(flex == 1 && choices.size() > 0)
 						{
 							// Complete with matching choices
 							for(vector<UsageNode*>::iterator it = choices.begin(); it != choices.end(); it++)
@@ -881,7 +889,7 @@ public:
 					else
 					{
 						vector<UsageNode*>& choices = pNode->choices();
-						if(choices.size() == 0)
+						if(choices.size() == 0 || flex != 1)
 							args.pop_string(); // it's a free-form value, so accept anything
 						else
 						{
@@ -929,7 +937,7 @@ void complete_command(int nArgs, char* pArgs[])
 		if(cur < 1)
 			ThrowError("expected cur to be >= 1");
 		const char* szApp = args.pop_string();
-		UsageNode* pNode;
+		UsageNode* pNode = NULL;
 		if(doesMatch(szApp, "waffles_learn"))
 			pNode = makeLearnUsageTree();
 		else if(doesMatch(szApp, "waffles_transform"))

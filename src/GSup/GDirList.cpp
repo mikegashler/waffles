@@ -288,6 +288,18 @@ const char* GDirList::GetNext()
 	pDirent = readdir(m_pCurDir);
 	if(pDirent != NULL)
 	{
+		if(pDirent->d_type == DT_UNKNOWN)
+		{
+			// With some filesystems, the d_type field is not reliable. In these cases,
+			// we need to use lstat to determine reliably if it is a dir or a regular file
+			struct stat st;
+			if(lstat(pDirent->d_name, &st) != 0)
+				ThrowError("Failed to lstat file: ", pDirent->d_name);
+			if(st.st_mode & S_IFDIR)
+				pDirent->d_type = DT_DIR;
+			else
+				pDirent->d_type = DT_REG;
+		}
 		if(pDirent->d_type == DT_DIR)
 		{
 			//skip the . and .. directories

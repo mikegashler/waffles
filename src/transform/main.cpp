@@ -1185,7 +1185,7 @@ void significance(GArgReader& args)
 			else
 				more++;
 		}
-		cout << ((double)less / pData->rows()) << "%% less, " << ((double)eq / pData->rows()) << "%% same, " << ((double)more / pData->rows()) << "%% greater\n";
+		cout << ((double)less / pData->rows()) << "% less, " << ((double)eq / pData->rows()) << "% same, " << ((double)more / pData->rows()) << "% greater\n";
 		double t = pData->wilcoxonSignedRanksTest(attr1, attr2, tolerance);
 		int n = (int)pData->rows();
 		double a = GMath::wilcoxonAlphaValue(n, t);

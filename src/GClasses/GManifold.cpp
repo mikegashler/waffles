@@ -2360,15 +2360,30 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	// Compute the mins and ranges
 	delete[] m_pMins;
 	delete[] m_pRanges;
-	m_pMins = new double[in.cols()];
-	m_pRanges = new double[in.cols()];
-	for(size_t i = 0; i < in.cols(); i++)
+	m_pMins = new double[channels];
+	m_pRanges = new double[channels];
+	GVec::setAll(m_pMins, 1e308, channels);
+	GVec::setAll(m_pRanges, -1e308, channels);
+	for(size_t j = 0; j < pixels; j++)
 	{
-		in.minAndRange(i, &m_pMins[i], &m_pRanges[i]);
-		if(m_pMins[i] == UNKNOWN_REAL_VALUE)
+		for(size_t i = 0; i < channels; i++)
+		{
+			double m, r;
+			in.minAndRange(channels * j + i, &m, &r);
+			if(m != UNKNOWN_REAL_VALUE && r != UNKNOWN_REAL_VALUE)
+			{
+				m_pMins[i] = std::min(m_pMins[i], m);
+				m_pRanges[i] = std::max(m_pRanges[i], m + r);
+			}
+		}
+	}
+	for(size_t i = 0; i < channels; i++)
+	{
+		if(m_pMins[i] > 1e200)
 			m_pMins[i] = 0.0;
-		if(m_pRanges[i] == UNKNOWN_REAL_VALUE || m_pRanges[i] < 1e-12)
-			m_pRanges[i] = 1.0;
+		if(m_pRanges[i] <= m_pMins[i])
+			m_pRanges[i] = m_pMins[i] + 1.0;
+		m_pRanges[i] -= m_pMins[i];
 	}
 
 	// Train
@@ -2379,7 +2394,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	for(double learningRate = 0.5; learningRate > 0.0001; learningRate *= 0.5)
 	{
 		double sse = 0;
-		for(size_t i = 0; i < 1000000000; i++)
+		for(size_t i = 0; i < 100000000; i++)
 		{
 			m_cvi.setRandom(m_pRand);
 			size_t index = m_cvi.currentIndex();
@@ -2391,7 +2406,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 				GVec::copy(pLabels, m_pLabels->row(r), m_labelDims);
 			GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);
 			double prediction = m_pNN->forwardPropSingleOutput(pParams, c);
-			double target = in[r][index * channels + c];
+			double target = (in[r][index * channels + c] - m_pMins[c]) / m_pRanges[c];
 			double err = target - prediction;
 			sse += (err * err);
 			m_pNN->setErrorSingleOutput(target, c);
