@@ -397,7 +397,7 @@ UsageNode* makeDimRedUsageTree()
 	UsageNode* pRoot = new UsageNode("waffles_dimred [command]", "Reduce dimensionality, attribute selection, operations related to manifold learning, NLDR, etc.");
 	{
 		UsageNode* pAS = pRoot->add("attributeselector [dataset] <data_opts> <options>", "Make a ranked list of attributes from most to least salient. The ranked list is printed to stdout. Attributes are zero-indexed.");
-		pAS->add("[dataset]=data.arff", "The filename of a dataset in ARFF format");
+		pAS->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pDO = pAS->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -408,7 +408,7 @@ UsageNode* makeDimRedUsageTree()
 	}
 	{
 		UsageNode* pBE = pRoot->add("blendembeddings [data-orig] [neighbor-finder] [data-a] [data-b] <options>", "Compute a blended \"average\" embedding from two reduced-dimensionality embeddings of some data.");
-		pBE->add("[data-orig]=orig.arff", "The filename of the original high-dimensional data in ARFF format.");
+		pBE->add("[data-orig]=orig.arff", "The filename of the original high-dimensional data.");
 		pBE->add("[data-a]=a.arff", "The first reduced dimensional embedding of [data-orig]");
 		pBE->add("[data-b]=b.arff", "The second reduced dimensional embedding of [data-orig]");
 		UsageNode* pOpts = pBE->add("<options>");
@@ -461,7 +461,7 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-aboutorigin", "Compute the principal components about the origin. (The default is to compute them relative to the centroid.)");
 	}
 	{
-		UsageNode* pUS = pRoot->add("ubpsparse [sparse-data] [intrinsic-dims] <options>", "Applies Unsupervised Back-propagation to reduce the specified sparse matrix to a dense matrix with the specified number of dimensions. The dense reduced-dimensional data is printed to stdout in ARFF format.");
+		UsageNode* pUS = pRoot->add("ubpsparse [sparse-data] [intrinsic-dims] <options>", "Applies Unsupervised Back-propagation to reduce the specified sparse matrix to a dense matrix with the specified number of dimensions. The dense reduced-dimensional data is printed to stdout.");
 		pUS->add("[sparse-data]=features.sparse", "The filename of a sparse matrix saved in .twt format. (For example, each row might represent a document, and each element might represent the frequency that a particular word occurs in the document.)");
 		pUS->add("[intrinsic-dims]=2", "The number of dimensions into which to reduce the data. The default value is 2.");
 		UsageNode* pOpts = pUS->add("<options>");
@@ -865,7 +865,7 @@ UsageNode* makePlotUsageTree()
 	{
 		UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
 		pModel->add("[model-file]=model.twt", "The filename of the trained model. (You can use \"waffles_learn train\" to make a model file.)");
-		pModel->add("[dataset]=train.arff", "The filename of a dataset in arff format to be plotted. It can be the training set that was used to train the model, or a test set that it hasn't yet seen.");
+		pModel->add("[dataset]=train.arff", "The filename of a dataset to be plotted. It can be the training set that was used to train the model, or a test set that it hasn't yet seen.");
 		pModel->add("[attr-x]=0", "The zero-based index of a continuous feature attributes for the horizontal axis.");
 		pModel->add("[attr-y]=1", "The zero-based index of a continuous feature attributes for the vertical axis.");
 		UsageNode* pOpts = pModel->add("<options>");
@@ -884,7 +884,7 @@ UsageNode* makePlotUsageTree()
 	}
 	{
 		UsageNode* pOver = pRoot->add("overview [dataset]", "Generate a matrix of plots of attribute distributions and correlations. This is a useful chart for becoming acquainted with a dataset.");
-		pOver->add("[dataset]=data.arff", "The filename of a dataset in arff format to be charted.");
+		pOver->add("[dataset]=data.arff", "The filename of a dataset to be charted.");
 		UsageNode* pOpts = pOver->add("<options>");
 		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
 		pOpts->add("-cellsize [value]=100", "Change the size of each cell. The default is 100.");
@@ -901,7 +901,7 @@ UsageNode* makePlotUsageTree()
 	}
 	{
 		UsageNode* pScat = pRoot->add("scatter [dataset] <options>", "Makes a scatter plot or line graph.");
-		pScat->add("[dataset]=data.arff", "The filename of a dataset in arff format to be plotted. The first attribute specifies the values on the horizontal axis. All other attributes specify the values on the vertical axis for a certain color.");
+		pScat->add("[dataset]=data.arff", "The filename of a dataset to be plotted. The first attribute specifies the values on the horizontal axis. All other attributes specify the values on the vertical axis for a certain color.");
 		UsageNode* pOpts = pScat->add("<options>");
 		pOpts->add("-lines", "Draw lines connecting sequential point in the data. (In other words, make a line graph instead of a scatter plot.)");
 		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
@@ -957,7 +957,7 @@ UsageNode* makeRecommendUsageTree()
 		UsageNode* pFMV = pRoot->add("fillmissingvalues <options> [data] [collab-filter]", "Fill in the missing values in an ARFF file with predicted values and print the resulting full dataset to stdout.");
 		UsageNode* pOpts = pFMV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pFMV->add("[data]=data.arff", "The filename of a dataset in ARFF format.");
+		pFMV->add("[data]=data.arff", "The filename of a dataset.");
 	}
 	{
 		UsageNode* pPR = pRoot->add("precisionrecall <options> [sparse-data] [collab-filter]", "Compute precision-recall data");
@@ -1020,7 +1020,7 @@ UsageNode* makeSparseUsageTree()
 	}
 	{
 		UsageNode* pShuffle = pRoot->add("shuffle [sparse-matrix] <options>", "Shuffles the row order of a sparse matrix.");
-		pShuffle->add("[sparse-matrix]=features.arff", "The filename of a sparse matrix (not an ARFF file).");
+		pShuffle->add("[sparse-matrix]=features.arff", "The filename of a sparse matrix.");
 		UsageNode* pOpts = pShuffle->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
@@ -1058,19 +1058,19 @@ UsageNode* makeTransformUsageTree()
 	UsageNode* pRoot = new UsageNode("waffles_transform [command]", "Transform data, shuffle rows, swap columns, matrix operations, etc.");
 	{
 		UsageNode* pAdd = pRoot->add("add [dataset1] [dataset2]", "Adds two matrices together element-wise. Results are printed to stdout.");
-		pAdd->add("[dataset1]=a.arff", "The filename of the first matrix in ARFF format.");
-		pAdd->add("[dataset2]=b.arff", "The filename of the second matrix in ARFF format.");
+		pAdd->add("[dataset1]=a.arff", "The filename of the first matrix.");
+		pAdd->add("[dataset2]=b.arff", "The filename of the second matrix.");
 	}
 	{
 		UsageNode* pAIC = pRoot->add("addindexcolumn [dataset] <options>", "Add a column that Specify the index of each row. This column will be inserted as column 0. (For example, suppose you would like to plot the values in each column of your data against the row index. Most plotting tools expect one of the columns to supply the position on the horizontal axis. This feature will create such a column for you.)");
-		pAIC->add("[dataset]=data.arff", "The filename of a dataset in ARFF format");
+		pAIC->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pOpts = pAIC->add("<options>");
 		pOpts->add("-start [value]=0.0", "Specify the initial index. (the default is 0.0).");
 		pOpts->add("-increment [value]=1.0", "Specify the increment amount. (the default is 1.0).");
 	}
 	{
 		UsageNode* pAN = pRoot->add("addnoise [dataset] [dev] <options>", "Add Gaussian noise with the specified deviation to all the elements in the dataset. (Assumes that the values are all continuous.)");
-		pAN->add("[dataset]=data.arff", "The filename of a dataset in ARFF format");
+		pAN->add("[dataset]=data.arff", "The filename of a dataset.");
 		pAN->add("[dev]=1.0", "The deviation of the Gaussian noise");
 		UsageNode* pOpts = pAN->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -1078,14 +1078,14 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pAlign = pRoot->add("align [a] [b]", "Translates and rotates dataset [b] to minimize mean squared difference with dataset [a]. (Uses the Kabsch algorithm.)");
-		pAlign->add("[a]=base.arff", "The filename of a dataset in ARFF format");
-		pAlign->add("[b]=alignme.arff", "The filename of a dataset in ARFF format");
+		pAlign->add("[a]=base.arff", "The filename of a dataset.");
+		pAlign->add("[b]=alignme.arff", "The filename of a dataset.");
 	}
 	pRoot->add("autocorrelation [dataset]=data.arff", "Compute the autocorrelation of the specified time-series data.");
 	pRoot->add("cholesky [dataset]=in.arff", "Compute the cholesky decomposition of the specified matrix.");
 	{
 		UsageNode* pCorr = pRoot->add("correlation [dataset] [attr1] [attr2] <options>", "Compute the linear correlation coefficient of the two specified attributes.");
-		pCorr->add("[dataset]=data.arff", "The filename of a dataset in ARFF format.");
+		pCorr->add("[dataset]=data.arff", "The filename of a dataset.");
 		pCorr->add("[attr1]=0", "A zero-indexed attribute number.");
 		pCorr->add("[attr2]=1", "A zero-indexed attribute number.");
 		UsageNode* pOpts = pCorr->add("<options>");
@@ -1093,16 +1093,16 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pCumCols = pRoot->add("cumulativecolumns [dataset] [column-list]", "Accumulates the values in the specified columns. For example, a column that contains the values 2,1,3,2 would be changed to 2,3,6,8. This might be useful for converting a histogram of some distribution into a histogram of the cumulative disribution.");
-		pCumCols->add("[dataset]=data.arff", "The filename of a dataset in ARFF format.");
+		pCumCols->add("[dataset]=data.arff", "The filename of a dataset.");
 		pCumCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");
 	}
 	{
 		UsageNode* pDet = pRoot->add("determinant [dataset]", "Compute the determinant of the specified matrix.");
-		pDet->add("[dataset]=m.arff", "The filename of a dataset in ARFF format.");
+		pDet->add("[dataset]=m.arff", "The filename of a dataset.");
 	}
 	{
 		UsageNode* pDisc = pRoot->add("discretize [dataset] <options>", "Discretizes the continuous attributes in the specified dataset.");
-		pDisc->add("[dataset]=in.arff", "The filename of a dataset in ARFF format.");
+		pDisc->add("[dataset]=in.arff", "The filename of a dataset.");
 		UsageNode* pOpts = pDisc->add("<options>");
 		pOpts->add("-buckets [count]=10", "Specify the number of buckets to use. If not specified, the default is to use the square root of the number of rows in the dataset.");
 		pOpts->add("-colrange [first] [last]", "Specify a range of columns. Only continuous columns in the specified range will be modified. (Columns are zero-indexed.)");
@@ -1163,7 +1163,7 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pPowerCols = pRoot->add("powercolumns [dataset] [column-list] [exponent]", "Raises the values in the specified columns to some power (or exponent).");
-		pPowerCols->add("[dataset]=data.arff", "The filename of a dataset in ARFF format.");
+		pPowerCols->add("[dataset]=data.arff", "The filename of a dataset.");
 		pPowerCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");
 		pPowerCols->add("[exponent]=0.5", "An exponent value, such as 0.5, 2, etc.");
 	}
@@ -1171,20 +1171,20 @@ UsageNode* makeTransformUsageTree()
 	pRoot->add("reducedrowechelonform [dataset]=m.arff", "Convert a matrix to reduced row echelon form. Results are printed to stdout.");
 	{
 		UsageNode* pRotate = pRoot->add("rotate [dataset] [col_x] [col_y] [angle_degrees]","Rotate angle degrees around the origin in in the col_x,col_y plane.  Only affects the values in col_x and col_y.");
-	  pRotate->add("[dataset]=in.arff", "The filename of a dataset in ARFF format.");
+	  pRotate->add("[dataset]=in.arff", "The filename of a dataset.");
 	  pRotate->add("[col_x]=0", "The zero-based index of an attribute to serve as the x coordinate in the plane of rotation.  Rotation from x to y will be 90 degrees. col_x must be a real-valued attribute.");
 	  pRotate->add("[col_y]=1", "The zero-based index of an attribute to serve as the y coordinate in the plane of rotation.  Rotation from y to x will be 270 degrees. col_y must be a real-valued attribute.");
 	  pRotate->add("[angle_degrees]=90.0","The angle in degrees to rotate around the origin in the col_x,col_y plane.");
 	}
 	{
 		UsageNode* pScaleCols = pRoot->add("scalecolumns [dataset] [column-list] [scalar]", "Multiply the values in the specified columns by a scalar.");
-		pScaleCols->add("[dataset]=data.arff", "The filename of a dataset in ARFF format.");
+		pScaleCols->add("[dataset]=data.arff", "The filename of a dataset.");
 		pScaleCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");
 		pScaleCols->add("[scalar]=0.5", "A scalar value.");
 	}
 	{
 		UsageNode* pShiftCols = pRoot->add("shiftcolumns [dataset] [column-list] [offset]", "Add [offset] to all of the values in the specified columns.");
-		pShiftCols->add("[dataset]=data.arff", "The filename of a dataset in ARFF format.");
+		pShiftCols->add("[dataset]=data.arff", "The filename of a dataset.");
 		pShiftCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");
 		pShiftCols->add("[offset]=1.0", "A positive or negative value to add to the values in the specified columns.");
 	}
@@ -1202,7 +1202,7 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pSortCol = pRoot->add("sortcolumn [dataset] [col] <options>", "Sort the rows in [dataset] such that the values in the specified column are in ascending order and print the results to to stdout. (The input file is not modified.)");
-		pSortCol->add("[dataset]=data.arff", "The filename of a dataset in ARFF format.");
+		pSortCol->add("[dataset]=data.arff", "The filename of a dataset.");
 		pSortCol->add("[col]=0", "The zero-indexed column number in which to sort");
 		UsageNode* pOpts = pSortCol->add("<options>");
 		pOpts->add("-descending", "Sort in descending order instead of ascending order.");
@@ -1218,6 +1218,13 @@ UsageNode* makeTransformUsageTree()
 		  pOpts->add("-shuffle","Shuffle the input data before "
 			     "splitting it.");
 		}
+	}
+	{
+		UsageNode* pSplitClass = pRoot->add("splitclass [data] [attr] <options>", "Splits a dataset by a class attribute. All rows with a class label of [value] will be saved in a file named \"[data]_[value]\".");
+		pSplitClass->add("[data]=data.arff", "The filename of a dataset.");
+		pSplitClass->add("[attr]=0", "The zero-indexed column number of the class attribute.");
+		UsageNode* pOpts = pSplitClass->add("<options>");
+		pOpts->add("-dropclass", "Drop the class attribute after splitting the data. (The default is to include the class attribute in each of the output datasets.)");
 	}
 	{
 		UsageNode* pSplitFold = pRoot->add("splitfold [dataset] [i] [n] <options>", "Divides a dataset into [n] parts of approximately equal size, then puts part [i] into one file, and the other [n]-1 parts in another file. (This tool may be useful, for example, to implement n-fold cross validation.)");

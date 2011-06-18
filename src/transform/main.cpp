@@ -1269,6 +1269,41 @@ void splitFold(GArgReader& args)
 	test.saveArff(filenameTest.c_str());
 }
 
+void splitClass(GArgReader& args)
+{
+	const char* filename = args.pop_string();
+	GMatrix* pData = loadData(filename);
+	Holder<GMatrix> hData(pData);
+	size_t classAttr = args.pop_uint();
+	
+	bool dropClass = false;
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-dropclass"))
+			dropClass = true;
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	for(size_t i = 0; i < pData->relation()->valueCount(classAttr); i++)
+	{
+		GMatrix tmp(pData->relation(), pData->heap());
+		pData->splitByNominalValue(&tmp, classAttr, i);
+		std::ostringstream oss;
+		PathData pd;
+		GFile::parsePath(filename, &pd);
+		string fn;
+		fn.assign(filename + pd.fileStart, pd.extStart - pd.fileStart);
+		oss << fn << "_";
+		pData->relation()->printAttrValue(oss, classAttr, (double)i);
+		oss << ".arff";
+		string s = oss.str();
+		if(dropClass)
+			tmp.deleteColumn(classAttr);
+		tmp.saveArff(s.c_str());
+	}
+}
+
 void squaredDistance(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -1609,6 +1644,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("significance")) significance(args);
 		else if(args.if_pop("sortcolumn")) SortByAttribute(args);
 		else if(args.if_pop("split")) split(args);
+		else if(args.if_pop("splitclass")) splitClass(args);
 		else if(args.if_pop("splitfold")) splitFold(args);
 		else if(args.if_pop("squaredDistance")) squaredDistance(args);
 		else if(args.if_pop("svd")) singularValueDecomposition(args);
