@@ -11,6 +11,7 @@
 
 #include "GWave.h"
 #include "../GClasses/GError.h"
+#include "../GClasses/GMath.h"
 #include <fstream>
 #include "math.h"
 #include "../GClasses/GFourier.h"

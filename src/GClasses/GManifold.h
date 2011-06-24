@@ -474,6 +474,9 @@ public:
 
 	/// Specify whether or not to update the intrinsic values. The default is to update them.
 	void setUpdateIntrinsic(bool b) { m_updateIntrinsic = b; }
+
+	/// Specify whether to use one of the input values as a bias
+	void setUseInputBias(bool b) { m_useInputBias = b; }
 };
 
 

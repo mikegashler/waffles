@@ -949,6 +949,7 @@ void unsupervisedBackProp(GArgReader& args)
 	string sModelOut;
 	bool trainWeights = true;
 	bool trainIntrinsic = true;
+	bool inputBias = true;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
@@ -977,12 +978,15 @@ void unsupervisedBackProp(GArgReader& args)
 			trainWeights = false;
 		else if(args.if_pop("-clampintrinsic"))
 			trainIntrinsic = false;
+		else if(args.if_pop("-noinputbias"))
+			inputBias = false;
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
 	ubp.setParams(paramRanges);
 	ubp.setUpdateWeights(trainWeights);
 	ubp.setUpdateIntrinsic(trainIntrinsic);
+	ubp.setUseInputBias(inputBias);
 
 	// Transform the data
 	GMatrix* pDataAfter = ubp.doit(*pData);

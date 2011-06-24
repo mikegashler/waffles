@@ -15,6 +15,7 @@
 #include <cmath>
 #include <math.h>
 #include "GError.h"
+#include "GMath.h"
 
 namespace GClasses {
 

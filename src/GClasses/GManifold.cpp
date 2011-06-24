@@ -2398,10 +2398,10 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		{
 			m_cvi.setRandom(m_pRand);
 			size_t index = m_cvi.currentIndex();
-			size_t c = m_pRand->next(channels);
+			size_t c = (size_t)m_pRand->next(channels);
 			GAssert(index * channels + c < in.cols());
 			m_cvi.currentNormalized(pParams);
-			size_t r = m_pRand->next(in.rows());
+			size_t r = (size_t)m_pRand->next(in.rows());
 			if(m_pLabels)
 				GVec::copy(pLabels, m_pLabels->row(r), m_labelDims);
 			GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);

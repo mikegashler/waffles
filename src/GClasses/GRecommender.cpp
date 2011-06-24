@@ -1395,7 +1395,7 @@ GBagOfRecommenders::GBagOfRecommenders(GRand& rand)
 GBagOfRecommenders::GBagOfRecommenders(GDomNode* pNode, GRand& rand)
 : GCollaborativeFilter(pNode), m_rand(rand)
 {
-	m_itemCount = pNode->field("ic")->asInt();
+	m_itemCount = (size_t)pNode->field("ic")->asInt();
 	GLearnerLoader ll;
 	for(GDomListIterator it(pNode->field("filters")); it.current(); it.advance())
 		m_filters.push_back(ll.loadCollaborativeFilter(it.current(), rand));
