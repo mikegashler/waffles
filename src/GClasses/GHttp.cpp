@@ -9,16 +9,16 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
-#include "../GClasses/GFile.h"
+#include "GFile.h"
 #include "GHttp.h"
 #include "GSocket.h"
-#include "../GClasses/GString.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GHolders.h"
-#include "../GClasses/GTime.h"
-#include "../GClasses/GThread.h" // Sleep
-#include "../GClasses/GHashTable.h"
-#include "../GClasses/GHeap.h"
+#include "GString.h"
+#include "GError.h"
+#include "GHolders.h"
+#include "GTime.h"
+#include "GThread.h" // Sleep
+#include "GHashTable.h"
+#include "GHeap.h"
 #include <time.h>
 #include <string>
 #include <sstream>

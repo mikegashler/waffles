@@ -3557,73 +3557,75 @@ void GMatrix::pairedTTest(size_t* pOutV, double* pOutT, size_t attr1, size_t att
 	*pOutT = std::abs(bmean - amean) / grand;
 }
 
-double GMatrix::wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance)
+void GMatrix::wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance, int* pNum, double* pWMinus, double* pWPlus)
 {
 	// Make sorted list of differences
 	GHeap heap(1024);
-	size_t rowCount = rows();
-	GMatrix tmp(0, 2, &heap);
-	tmp.reserve(rowCount);
-	double* pPat;
-	double* pPat2;
-	for(size_t i = 0; i < rowCount; i++)
+	GMatrix tmp(0, 2, &heap); // col 0 holds the absolute difference. col 1 holds the sign.
+	for(size_t i = 0; i < rows(); i++)
 	{
-		pPat = row(i);
-		pPat2 = tmp.newRow();
-		pPat2[0] = std::abs(pPat[attr2] - pPat[attr1]);
-		if(pPat2[0] < tolerance)
-			pPat2[1] = 0;
-		else if(pPat[attr1] < pPat[attr2])
-			pPat2[1] = -1;
-		else
-			pPat2[1] = 1;
+		double* pPat = row(i);
+		double absdiff = std::abs(pPat[attr2] - pPat[attr1]);
+		if(absdiff >= tolerance)
+		{
+			double* pStat = tmp.newRow();
+			pStat[0] = absdiff;
+			if(pStat[0] < tolerance)
+				pStat[1] = 0;
+			else if(pPat[attr1] < pPat[attr2])
+				pStat[1] = -1;
+			else
+				pStat[1] = 1;
+		}
 	}
-	tmp.sort(0);
 
-	// Convert to ranks
+	// Convert column 0 to ranks
+	tmp.sort(0);
 	double prev = UNKNOWN_REAL_VALUE;
 	size_t index = 0;
 	size_t j;
 	double ave;
-	for(size_t i = 0; i < rowCount; i++)
+	for(size_t i = 0; i < tmp.rows(); i++)
 	{
-		pPat = tmp[i];
+		double* pPat = tmp[i];
 		if(std::abs(pPat[0] - prev) >= tolerance)
 		{
 			ave = (double)(index + 1 + i) / 2;
 			for(j = index; j < i; j++)
 			{
-				pPat2 = tmp[j];
-				pPat2[0] = ave;
+				double* pStat = tmp[j];
+				pStat[0] = ave;
 			}
 			prev = pPat[0];
 			index = i;
 		}
 	}
-	ave = (double)(index + 1 + rowCount) / 2;
-	for(j = index; j < rowCount; j++)
+	ave = (double)(index + 1 + tmp.rows()) / 2;
+	for(j = index; j < tmp.rows(); j++)
 	{
-		pPat2 = tmp[j];
-		pPat2[0] = ave;
+		double* pStat = tmp[j];
+		pStat[0] = ave;
 	}
 
 	// Sum up the scores
 	double a = 0;
 	double b = 0;
-	for(size_t i = 0; i < rowCount; i++)
+	for(size_t i = 0; i < tmp.rows(); i++)
 	{
-		pPat = tmp[i];
-		if(pPat[1] > 0)
-			a += pPat[0];
-		else if(pPat[1] < 0)
-			b += pPat[0];
+		double* pStat = tmp[i];
+		if(pStat[1] > 0)
+			a += pStat[0];
+		else if(pStat[1] < 0)
+			b += pStat[0];
 		else
 		{
-			a += pPat[0] / 2;
-			b += pPat[0] / 2;
+			a += 0.5 * pStat[0];
+			b += 0.5 * pStat[0];
 		}
 	}
-	return std::min(a, b);
+	*pNum = tmp.rows();
+	*pWMinus = b;
+	*pWPlus = a;
 }
 
 size_t GMatrix::countValue(size_t attribute, double value)

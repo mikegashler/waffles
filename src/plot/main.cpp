@@ -19,8 +19,8 @@
 #include "../GClasses/GImage.h"
 #include "../GClasses/GOptimizer.h"
 #include "../GClasses/GHillClimber.h"
-#include "../GSup/G3D.h"
-#include "../GSup/GRayTrace.h"
+#include "../GClasses/G3D.h"
+#include "../GClasses/GRayTrace.h"
 #include "../GClasses/GVec.h"
 #include "../GClasses/GDom.h"
 #include "../GClasses/GPlot.h"
@@ -1842,8 +1842,6 @@ void ubpFrames(GArgReader& args)
 	size_t labelDims = pLearner->featureDims() - 4;
 
 	GTEMPBUF(double, pFeatures, pLearner->featureDims() + pLearner->labelDims());
-	if(pLearner->labelDims() != 1)
-			ThrowError("Unexpected number of label dims");
 	double* pLabels = pFeatures + pLearner->featureDims();
 	GVec::setAll(pFeatures + 2, 0.0, labelDims);
 	pFeatures[2 + label] = 1.0;
@@ -1867,8 +1865,22 @@ void ubpFrames(GArgReader& args)
 				{
 					cvi.currentNormalized(pFeatures);
 					pLearner->predict(pFeatures, pLabels);
-					int pix = std::max(0, std::min(255, int(floor(*pLabels * 256))));
-					image.setPixel(xx + x, yy + y, gARGB(0xff, pix, pix, pix));
+					unsigned int col = 0;
+					if(pLearner->labelDims() == 1)
+					{
+						int pix = std::max(0, std::min(255, int(floor(*pLabels * 256))));
+						col = gARGB(0xff, pix, pix, pix);
+					}
+					else if(pLearner->labelDims() == 3)
+					{
+						int r = std::max(0, std::min(255, int(floor(pLabels[0] * 256))));
+						int g = std::max(0, std::min(255, int(floor(pLabels[1] * 256))));
+						int b = std::max(0, std::min(255, int(floor(pLabels[2] * 256))));
+						col = gARGB(0xff, r, g, b);
+					}
+					else
+						ThrowError("Unexpected number of label dims");
+					image.setPixel(xx + x, yy + y, col);
 					cvi.advance();
 				}
 			}

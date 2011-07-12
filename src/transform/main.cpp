@@ -936,6 +936,8 @@ void multiplyScalar(GArgReader& args)
 	GMatrix* pA = loadData(args.pop_string());
 	Holder<GMatrix> hA(pA);
 	double scale = args.pop_double();
+	if(args.size() > 0)
+		ThrowError("Superfluous arg: ", args.pop_string());
 	pA->multiply(scale);
 	pA->print(cout);
 }
@@ -944,6 +946,8 @@ void zeroMean(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
 	Holder<GMatrix> hA(pA);
+	if(args.size() > 0)
+		ThrowError("Superfluous arg: ", args.pop_string());
 	pA->centerMeanAtOrigin();
 	pA->print(cout);
 }
@@ -1152,26 +1156,17 @@ void significance(GArgReader& args)
 			ThrowError("Invalid option: ", args.peek());
 	}
 
-	// Perform the significance tests
+	// Print some basic stats
 	cout.precision(8);
-	cout << "\n";
 	{
-		cout << "Means=" << pData->mean(attr1) << ", " << pData->mean(attr2) << "\n";
-		size_t v;
-		double t;
-		pData->pairedTTest(&v, &t, attr1, attr2, false);
-		double p = GMath::tTestAlphaValue(v, t);
-		cout << "Paired T Test: v=" << v << ", t=" << t << ", p=" << p << "\n";
-	}
-	{
-		size_t v;
-		double t;
-		pData->pairedTTest(&v, &t, attr1, attr2, true);
-		double p = GMath::tTestAlphaValue(v, t);
-		cout << "Paired T Test with normalized values: v=" << v << ", t=" << t << ", p=" << p << "\n";
-	}
-	cout << "\n";
-	{
+		cout << "### Some basic stats\n";
+		cout << "Medians = " << pData->median(attr1) << ", " << pData->median(attr2) << "\n";
+		double mean1 = pData->mean(attr1);
+		double mean2 = pData->mean(attr2);
+		cout << "Means = " << mean1 << ", " << mean2 << "\n";
+		double var1 = pData->variance(attr1, mean1);
+		double var2 = pData->variance(attr2, mean2);
+		cout << "Standard deviations = " << sqrt(var1) << ", " << sqrt(var2) << "\n";
 		int less = 0;
 		int eq = 0;
 		int more = 0;
@@ -1185,13 +1180,48 @@ void significance(GArgReader& args)
 			else
 				more++;
 		}
-		cout << ((double)less / pData->rows()) << "% less, " << ((double)eq / pData->rows()) << "% same, " << ((double)more / pData->rows()) << "% greater\n";
-		double t = pData->wilcoxonSignedRanksTest(attr1, attr2, tolerance);
-		int n = (int)pData->rows();
-		double a = GMath::wilcoxonAlphaValue(n, t);
-		cout << "Wilcoxon Signed Ranks Test: n=" << n << ", t=" << t << ", alpha=" << a << "\n";
+		cout << less << " less, " << eq << " same, " << more << " greater\n";
 	}
-	cout << "\n";
+
+	// Perform the significance tests
+	{
+		cout << "\n### Paired T-test\n";
+		size_t v;
+		double t;
+		pData->pairedTTest(&v, &t, attr1, attr2, false);
+		double p = GMath::tTestAlphaValue(v, t);
+		cout << "v=" << v << ", t=" << t << ", p=" << p << "\n";
+	}
+	{
+		cout << "\n### Paired T-test with normalized values\n";
+		size_t v;
+		double t;
+		pData->pairedTTest(&v, &t, attr1, attr2, true);
+		double p = GMath::tTestAlphaValue(v, t);
+		cout << "v=" << v << ", t=" << t << ", p=" << p << "\n";
+	}
+	{
+		cout << "\n### Wilcoxon Signed Ranks Test";
+		int num;
+		double wMinus, wPlus;
+		pData->wilcoxonSignedRanksTest(attr1, attr2, tolerance, &num, &wMinus, &wPlus);
+		cout << "Number of signed ranks: " << num << "\n";
+		double w_min = std::min(wMinus, wPlus);
+		double w_sum = wPlus - wMinus;
+		cout << "W- = " << wMinus << ", W+ = " << wPlus << ", W_min = " << w_min << ", W_sum = " << w_sum << "\n";
+
+		double p_min = 0.5 * GMath::wilcoxonPValue(num, w_min);
+		if(num < 10)
+			cout << "Because the number of signed ranks is small, you should use a lookup table, rather than rely on the normal approximation for the P-value.\n";
+		cout << "One-tailed P-value (for directional comparisons) computed with a normal approximation using W_min = " << 0.5 * p_min << "\n";
+		cout << "Two-tailed P-value (for non-directional comparisons) computed with a normal approximation using W_min = " << p_min << "\n";
+		cout << "To show that something is \"better\" than something else, use the one-tailed P-value.\n";
+		cout << "Commonly, a P-value less that 0.05 is considered to be significant.\n";
+/*
+			double p_sum = GMath::wilcoxonPValue(num, w_sum);
+			cout << "Directional (one-tailed) P-value computed with W_sum = " << p_sum << "\n";
+*/
+	}
 }
 
 
@@ -1542,6 +1572,14 @@ void transition(GArgReader& args)
 	pTransition->print(cout);
 }
 
+void wilcoxon(GArgReader& args)
+{
+	size_t n = args.pop_uint();
+	double w = args.pop_double();
+	double p = GMath::wilcoxonPValue(n, w);
+	cout << p << "\n";
+}
+
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -1652,6 +1690,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("threshold")) threshold(args);
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
+		else if(args.if_pop("wilcoxon")) wilcoxon(args);
 		else if(args.if_pop("zeromean")) zeroMean(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}

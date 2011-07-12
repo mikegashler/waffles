@@ -10,9 +10,9 @@
 */
 
 #include "GCrypto.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GHolders.h"
-#include "../GClasses/GRand.h"
+#include "GError.h"
+#include "GHolders.h"
+#include "GRand.h"
 #include "sha1.h"
 #include "sha2.h"
 #include <algorithm>

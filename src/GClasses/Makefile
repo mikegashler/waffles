@@ -32,16 +32,22 @@ OPT_CFLAGS = $(CFLAGS) -O3
 ################
 
 CPP_FILES = \
+	G3D.cpp\
 	GActivation.cpp\
 	GApp.cpp\
 	GBayesianNetwork.cpp\
+	GBezier.cpp\
 	GBits.cpp\
 	GBitTable.cpp\
+	GBlob.cpp\
 	GCluster.cpp\
+	GCrypto.cpp\
 	GDecisionTree.cpp\
+	GDirList.cpp\
 	GDistance.cpp\
 	GDistribution.cpp\
 	GDom.cpp\
+	GDynamicPage.cpp\
 	GEnsemble.cpp\
 	GError.cpp\
 	GEvolutionary.cpp\
@@ -56,12 +62,14 @@ CPP_FILES = \
 	GHistogram.cpp\
 	GHolders.cpp\
 	GHtml.cpp\
+	GHttp.cpp\
 	GImage.cpp\
 	GKalman.cpp\
 	GKernelTrick.cpp\
 	GKNN.cpp\
 	GLearner.cpp\
 	GLinear.cpp\
+	GLoadBalance.cpp\
 	GManifold.cpp\
 	GMath.cpp\
 	GMatrix.cpp\
@@ -76,12 +84,15 @@ CPP_FILES = \
 	GPolicyLearner.cpp\
 	GPolynomial.cpp\
 	GPriorityQueue.cpp\
+	GRayTrace.cpp\
 	GRect.cpp\
 	GRand.cpp\
 	GRecommender.cpp\
 	GRegion.cpp\
 	GReinforcement.cpp\
 	GSelfOrganizingMap.cpp\
+	GSmtp.cpp\
+	GSocket.cpp\
 	GSparseMatrix.cpp\
 	GSpinLock.cpp\
 	GStabSearch.cpp\
@@ -94,6 +105,11 @@ CPP_FILES = \
 	GTokenizer.cpp\
 	GTransform.cpp\
 	GVec.cpp\
+	GWave.cpp\
+	GWidgets.cpp\
+	GWindows.cpp\
+	sha1.cpp\
+	sha2.cpp\
 
 ################
 # Lists

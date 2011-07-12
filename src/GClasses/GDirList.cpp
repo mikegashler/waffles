@@ -21,9 +21,9 @@
 // ----------------------
 
 #include "GDirList.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GFile.h"
-#include "../GClasses/GHolders.h"
+#include "GError.h"
+#include "GFile.h"
+#include "GHolders.h"
 #include <winsock2.h>
 #include <fstream>
 #include <direct.h>
@@ -241,9 +241,9 @@ const char* GDirList::GetNext()
 
 #include <unistd.h>
 #include "GDirList.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GFile.h"
-#include "../GClasses/GHolders.h"
+#include "GError.h"
+#include "GFile.h"
+#include "GHolders.h"
 #include <string.h>
 #include <fstream>
 #include "GBlob.h"

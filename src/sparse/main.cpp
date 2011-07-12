@@ -28,7 +28,7 @@
 #include "../GClasses/GSparseMatrix.h"
 #include "../GClasses/GHtml.h"
 #include "../GClasses/GText.h"
-#include "../GSup/GDirList.h"
+#include "../GClasses/GDirList.h"
 #include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GTime.h"
 #include "../GClasses/GTransform.h"

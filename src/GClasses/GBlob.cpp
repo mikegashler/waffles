@@ -10,7 +10,7 @@
 */
 
 #include "GBlob.h"
-#include "../GClasses/GBits.h"
+#include "GBits.h"
 
 using namespace GClasses;
 using std::string;

@@ -10,13 +10,13 @@
 */
 
 #include "GLoadBalance.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GHolders.h"
+#include "GError.h"
+#include "GHolders.h"
 #include "GSocket.h"
 #include "GBlob.h"
-#include "../GClasses/GThread.h"
-#include "../GClasses/GBits.h"
-#include "../GClasses/GTime.h"
+#include "GThread.h"
+#include "GBits.h"
+#include "GTime.h"
 #include <time.h>
 #include <string>
 

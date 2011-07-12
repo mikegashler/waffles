@@ -12,7 +12,7 @@
 #ifndef __CRYPTO_H__
 #define __CRYPTO_H__
 
-#include "../GClasses/GError.h"
+#include "GError.h"
 
 namespace GClasses {
 
@@ -37,9 +37,11 @@ private:
 	size_t m_blockPos;
 
 public:
+	/// General-purpose constructor
 	GCrypto(const char* pPassphrase, size_t nPassphraseSize);
 	~GCrypto();
 
+	/// Encrypt or decrypt the specified chunk of data
 	void doChunk(char* pData, size_t nDataSize);
 
 #ifndef NO_TEST_CODE

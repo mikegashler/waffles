@@ -10,11 +10,11 @@
 */
 
 #include "GWave.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GMath.h"
+#include "GError.h"
+#include "GMath.h"
 #include <fstream>
 #include "math.h"
-#include "../GClasses/GFourier.h"
+#include "GFourier.h"
 
 #ifdef WINDOWS
 #	pragma pack(1)

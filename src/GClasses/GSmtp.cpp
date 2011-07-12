@@ -1,7 +1,7 @@
 #include "GSmtp.h"
-#include "../GClasses/GError.h"
+#include "GError.h"
 #include "GSocket.h"
-#include "../GClasses/GThread.h"
+#include "GThread.h"
 #include <time.h>
 #include <string>
 

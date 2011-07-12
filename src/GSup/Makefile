@@ -32,29 +32,14 @@ OPT_CFLAGS = $(CFLAGS) -O3
 ################
 
 CPP_FILES = \
-	G3D.cpp\
-	GBezier.cpp\
 	GBigInt.cpp\
-	GBlob.cpp\
 	GChess.cpp\
-	GCrypto.cpp\
 	GDate.cpp\
 	GDiff.cpp\
-	GDirList.cpp\
-	GDynamicPage.cpp\
-	GHttp.cpp\
 	GKeyPair.cpp\
-	GLoadBalance.cpp\
-	GRayTrace.cpp\
 	GSDL.cpp\
-	GSmtp.cpp\
-	GSocket.cpp\
 	GVideo.cpp\
-	GWave.cpp\
-	GWidgets.cpp\
 	GXML.cpp\
-	sha1.cpp\
-	sha2.cpp\
 
 ################
 # Lists

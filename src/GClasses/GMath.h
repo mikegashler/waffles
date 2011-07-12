@@ -204,9 +204,9 @@ public:
 	/// t-value obtained from a T-test.
 	static double tTestAlphaValue(size_t v, double t);
 
-	/// This computes the Wilcoxon alpha value assuming n is large
+	/// This computes the Wilcoxon P-value assuming n is large
 	/// enough that the Normal approximation will suffice.
-	static double wilcoxonAlphaValue(int n, double t);
+	static double wilcoxonPValue(int n, double t);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.

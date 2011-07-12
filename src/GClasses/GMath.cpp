@@ -317,14 +317,14 @@ double GMath::tTestAlphaValue(size_t v, double t)
 }
 
 // static
-double GMath::wilcoxonAlphaValue(int n, double t)
+double GMath::wilcoxonPValue(int n, double t)
 {
 	GAssert(n >= 12); // n is too small for this approximation to be any good
 	double z = (t - n * (n + 1) / 4) / sqrt((double)(n * (n + 1) * (n + n + 1)) / 24);
 	double alpha;
 #ifdef WINDOWS
 	alpha = 0;
-	ThrowError("Sorry, GMath::ComputeWilcoxonAlphaValue is not implemented for Windows yet");
+	ThrowError("Sorry, GMath::ComputeWilcoxonPValue is not implemented for Windows yet");
 #else
 	alpha = 1.0 - erf(-z * M_SQRT1_2);
 #endif

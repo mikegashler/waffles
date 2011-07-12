@@ -10,12 +10,12 @@
 */
 
 #include "GRayTrace.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GHashTable.h"
-#include "../GClasses/GDom.h"
+#include "GError.h"
+#include "GHashTable.h"
+#include "GDom.h"
 #include <algorithm>
-#include "../GClasses/GImage.h"
-#include "../GClasses/GMath.h"
+#include "GImage.h"
+#include "GMath.h"
 #include <cmath>
 
 namespace GClasses {

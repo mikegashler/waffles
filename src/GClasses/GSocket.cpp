@@ -11,12 +11,12 @@
 
 #include "GSocket.h"
 #include <time.h>
-#include "../GClasses/GSpinLock.h"
-#include "../GClasses/GHolders.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GThread.h"
-#include "../GClasses/GString.h"
-#include "../GClasses/GBits.h"
+#include "GSpinLock.h"
+#include "GHolders.h"
+#include "GError.h"
+#include "GThread.h"
+#include "GString.h"
+#include "GBits.h"
 #include <wchar.h>
 #include <sstream>
 #include <iostream>

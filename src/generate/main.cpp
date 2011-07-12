@@ -24,7 +24,7 @@
 #include "../GClasses/GManifold.h"
 #include "../GClasses/GMath.h"
 #include "../GClasses/GHeap.h"
-#include "../GSup/GRayTrace.h"
+#include "../GClasses/GRayTrace.h"
 #include "../GClasses/GRect.h"
 #include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GDom.h"

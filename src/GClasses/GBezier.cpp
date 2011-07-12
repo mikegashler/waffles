@@ -11,9 +11,9 @@
 
 #include "GBezier.h"
 //#include "G3D.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GHolders.h"
-#include "../GClasses/GRand.h"
+#include "GError.h"
+#include "GHolders.h"
+#include "GRand.h"
 #include <stdlib.h>
 
 using namespace GClasses;

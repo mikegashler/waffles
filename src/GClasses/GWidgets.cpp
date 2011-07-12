@@ -9,20 +9,20 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
-#include "../GClasses/GHolders.h"
+#include "GHolders.h"
 #include "GWidgets.h"
-#include "../GClasses/GImage.h"
+#include "GImage.h"
 #include "GDirList.h"
 #ifdef WINDOWS
 #	include <direct.h>
 #else
 #	include <unistd.h>
 #endif
-#include "../GClasses/GFile.h"
-#include "../GClasses/GHeap.h"
+#include "GFile.h"
+#include "GHeap.h"
 #include <math.h>
-#include "../GClasses/GTime.h"
-#include "../GClasses/GBits.h"
+#include "GTime.h"
+#include "GBits.h"
 #include "GWave.h"
 #include <algorithm>
 #include <sstream>

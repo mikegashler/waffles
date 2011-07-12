@@ -2391,7 +2391,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	ArrayHolder<double> hParams(pParams);
 	double* pLabels = pParams + m_paramDims;
 	double* pIntrinsic = pLabels + m_labelDims;
-	for(double learningRate = 0.5; learningRate > 0.0001; learningRate *= 0.5)
+	for(double learningRate = 0.01; learningRate > 0.0001; learningRate *= 0.5)
 	{
 		double sse = 0;
 		for(size_t i = 0; i < 100000000; i++)

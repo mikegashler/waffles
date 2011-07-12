@@ -799,10 +799,9 @@ public:
 	/// You can use GMath::tTestAlphaValue to convert these to a P-value.
 	void pairedTTest(size_t* pOutV, double* pOutT, size_t attr1, size_t attr2, bool normalize);
 
-	/// Performs the Wilcoxon signed ranks test from the two specified attributes
-	/// and returns the T-value. If two values are closer than tolerance, they are
-	/// considered to be equal.
-	double wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance);
+	/// Performs the Wilcoxon signed ranks test from the two specified attributes.
+	/// If two values are closer than tolerance, they are considered to be equal.
+	void wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance, int* pNum, double* pWMinus, double* pWPlus);
 
 	/// Prints the data to the specified stream
 	void print(std::ostream& stream);

@@ -13,7 +13,7 @@
 #define __GBLOB_H__
 
 #include <string.h>
-#include "../GClasses/GError.h"
+#include "GError.h"
 #include <string>
 
 namespace GClasses {
@@ -31,14 +31,26 @@ protected:
 	bool m_bDeleteBuffer;
 
 public:
+	/// General-purpose constructor
 	GBlobIncoming();
+
+	/// Constructor to take over an exising buffer of incoming bytes
 	GBlobIncoming(unsigned char* pBuffer, size_t nSize, bool bDeleteBuffer);
 	~GBlobIncoming();
 
+	/// Returns the current buffer
 	unsigned char* getBlob() { return m_pBuffer; }
+
+	/// Returns the current position in the buffer
 	size_t getPos() { return m_nBufferPos; }
+
+	/// Sets the current position in the buffer
 	void setPos(size_t pos) { m_nBufferPos = pos; }
+
+	/// Returns the size of the blob
 	size_t getBlobSize() { return m_nBufferSize; }
+
+	/// Sets the current buffer
 	void setBlob(unsigned char* pBuffer, size_t nSize, bool bDeleteBuffer);
 
 	/// Pops a blob from the buffer (throws if buffer is too small)
@@ -85,11 +97,17 @@ protected:
 	bool m_bOkToResizeBuffer;
 
 public:
+	/// General-purpose constructor
 	GBlobOutgoing(size_t nBufferSize, bool bOkToResizeBuffer);
 	~GBlobOutgoing();
 
+	/// Sets the position within the buffer
 	void setPos(size_t pos) { m_nBufferPos = pos; }
+
+	/// Returns the current blob
 	unsigned char* getBlob() { return m_pBuffer; }
+
+	/// Returns the size of the blob
 	size_t getBlobSize() { return m_nBufferPos; }
 
 	/// Pushes a blob into the blob
@@ -178,3 +196,4 @@ protected:
 } // namespace GClasses
 
 #endif // __GBLOB_H__
+

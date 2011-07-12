@@ -15,7 +15,7 @@
 #else
 #	include <unistd.h>
 #endif
-#include "../GSup/GDynamicPage.h"
+#include "../GClasses/GDynamicPage.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GDom.h"
 #include "../GClasses/GString.h"
@@ -24,8 +24,8 @@
 #include "../GClasses/GTime.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GHashTable.h"
-#include "../GSup/sha1.h"
-#include "../GSup/GDirList.h"
+#include "../GClasses/sha1.h"
+#include "../GClasses/GDirList.h"
 #include <wchar.h>
 #include <string>
 #include <exception>
@@ -112,7 +112,8 @@ protected:
 	Server* m_pController;
 	MySession* m_pSession;
 	Page* m_pParent;
-	UsageNode* m_pNode;
+	UsageNode* m_pOrigNode;
+	UsageNode* m_pEffectiveNode;
 	vector<Page*> m_children;
 	int m_selection;
 	vector<string> m_structData;
@@ -138,7 +139,7 @@ protected:
 	mode m_mode;
 
 public:
-	Page(Server* pController, MySession* pSession, Page* pParent, UsageNode* pNode) : m_pController(pController), m_pSession(pSession), m_pParent(pParent), m_pNode(pNode)
+	Page(Server* pController, MySession* pSession, Page* pParent, UsageNode* pNode) : m_pController(pController), m_pSession(pSession), m_pParent(pParent), m_pOrigNode(pNode)
 	{
 		m_selection = 0;
 		m_doAutoNext = false;
@@ -149,6 +150,7 @@ public:
 		}
 		if(pNode->parts().size() == 2 && pNode->choices().size() == 1 && strcmp(pNode->parts()[1].c_str(), pNode->choices()[0]->tok()) == 0)
 			pNode = pNode->choices()[0];
+		m_pEffectiveNode = pNode;
 		if(pNode->choices().size() > 0 && ((pNode->parts().size() == 1 && pNode->tok()[0] == '[') || (pNode->parts().size() == 2 && pNode->tok()[0] != '[' && pNode->tok()[0] != '<' && pNode->parts()[1].c_str()[0] == '[')))
 			m_mode = mode_choose_one;
 		else if(pNode->tok()[0] == '<')
@@ -195,13 +197,13 @@ public:
 		else if(m_mode == mode_choose_one)
 		{
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
-			response << "Please choose a value for <i>" << m_pNode->tok() << "</i><br>\n";
-			response << m_pNode->descr() << "<br><br>\n\n";
+			response << "Please choose a value for <i>" << m_pEffectiveNode->tok() << "</i><br>\n";
+			response << m_pEffectiveNode->descr() << "<br><br>\n\n";
 			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td></tr></table><br>\n";
 			response << "<table>\n";
-			for(size_t i = 0; i < m_pNode->choices().size(); i++)
+			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
-				UsageNode* pChoice = m_pNode->choices()[i];
+				UsageNode* pChoice = m_pEffectiveNode->choices()[i];
 				response << "	<tr><td valign=top><input type=\"submit\" name=\"btn\" value=\"" << pChoice->tok() << "\"></td>";
 				response << "<td>" << pChoice->descr() << "<br><br></td></tr>\n";
 			}
@@ -214,12 +216,12 @@ public:
 		else if(m_mode == mode_options)
 		{
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
-			response << "Check the options you want for <i>" << m_pNode->tok() << "</i><br><br>\n\n";
+			response << "Check the options you want for <i>" << m_pEffectiveNode->tok() << "</i><br><br>\n\n";
 			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table><br>\n";
 			response << "<table>\n";
-			for(size_t i = 0; i < m_pNode->choices().size(); i++)
+			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
-				UsageNode* pChoice = m_pNode->choices()[i];
+				UsageNode* pChoice = m_pEffectiveNode->choices()[i];
 				string s;
 				pChoice->sig(&s);
 				response << "	<tr><td valign=top><input type=checkbox name=\"" << i << "\"></td>";
@@ -235,24 +237,24 @@ public:
 		else if(m_mode == mode_struct)
 		{
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
-			response << "Please provide values for <i>" << m_pNode->tok() << "</i><br>\n";
-			response << m_pNode->descr() << "<br><br>\n\n";
+			response << "Please provide values for <i>" << m_pEffectiveNode->tok() << "</i><br>\n";
+			response << m_pEffectiveNode->descr() << "<br><br>\n\n";
 			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table><br>\n";
 			response << "<table>\n";
 			size_t index = 0;
-			for(size_t i = 0; i < m_pNode->parts().size(); i++)
+			for(size_t i = 0; i < m_pEffectiveNode->parts().size(); i++)
 			{
-				if(partType(m_pNode, i) == pt_struct)
+				if(partType(m_pEffectiveNode, i) == pt_struct)
 				{
-					string arg = m_pNode->parts()[i];
-					UsageNode* pChoice = m_pNode->choice(arg.c_str());
+					string arg = m_pEffectiveNode->parts()[i];
+					UsageNode* pChoice = m_pEffectiveNode->choice(arg.c_str());
 					if(!pChoice)
 						pChoice = globalUsageNode(arg.c_str());
 					response << "	<tr><td valign=top>" << pChoice->tok() << "</td>";
 					response << "<td valign=top><input type=\"text\" name=\"" << index << "\" ";
 					string s = pChoice->default_value();
 					if(s.length() == 0)
-						s = m_pNode->default_value();
+						s = m_pEffectiveNode->default_value();
 					if(s.length() > 0)
 						response << "value=\"" << s << "\"";
 					response << "/></td>";
@@ -280,9 +282,9 @@ public:
 			if(!pBtn)
 				ThrowError("Expected a \"btn\" parameter value");
 			m_selection = -1;
-			for(size_t i = 0; i < m_pNode->choices().size(); i++)
+			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
-				if(strcmp(m_pNode->choices()[i]->tok(), pBtn) == 0)
+				if(strcmp(m_pEffectiveNode->choices()[i]->tok(), pBtn) == 0)
 				{
 					m_selection = i;
 					break;
@@ -294,7 +296,7 @@ public:
 		else if(m_mode == mode_options)
 		{
 			m_options.clear();
-			for(size_t i = 0; i < m_pNode->choices().size(); i++)
+			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
 				string s = to_str(i);
 				const char* pValue = pp.find(s.c_str());
@@ -305,9 +307,9 @@ public:
 		else if(m_mode == mode_struct)
 		{
 			size_t index = 0;
-			for(size_t i = 0; i < m_pNode->parts().size(); i++)
+			for(size_t i = 0; i < m_pEffectiveNode->parts().size(); i++)
 			{
-				if(partType(m_pNode, i) == pt_struct)
+				if(partType(m_pEffectiveNode, i) == pt_struct)
 				{
 					// Find the value
 					string s = to_str(index);
@@ -399,17 +401,17 @@ public:
 		clearChildren();
 		if(m_mode == mode_choose_one)
 		{
-			UsageNode* pChoice = m_pNode->choices()[m_selection];
+			UsageNode* pChoice = m_pEffectiveNode->choices()[m_selection];
 			m_children.push_back(new Page(m_pController, m_pSession, this, pChoice));
 		}
 		else if(m_mode == mode_struct)
 		{
-			for(size_t i = 0; i < m_pNode->parts().size(); i++)
+			for(size_t i = 0; i < m_pEffectiveNode->parts().size(); i++)
 			{
-				if(partType(m_pNode, i) == pt_loner)
+				if(partType(m_pEffectiveNode, i) == pt_loner)
 				{
-					string arg = m_pNode->parts()[i];
-					UsageNode* pChoice = m_pNode->choice(arg.c_str());
+					string arg = m_pEffectiveNode->parts()[i];
+					UsageNode* pChoice = m_pEffectiveNode->choice(arg.c_str());
 					if(!pChoice)
 						pChoice = globalUsageNode(arg.c_str());
 					m_children.push_back(new Page(m_pController, m_pSession, this, pChoice));
@@ -421,7 +423,7 @@ public:
 			for(size_t i = 0; i < m_options.size(); i++)
 			{
 				size_t option = m_options[i];
-				UsageNode* pChoice = m_pNode->choices()[option];
+				UsageNode* pChoice = m_pEffectiveNode->choices()[option];
 				m_children.push_back(new Page(m_pController, m_pSession, this, pChoice));
 			}
 		}
@@ -435,8 +437,8 @@ public:
 		if(m_mode == mode_choose_one)
 		{
 			GAssert(m_children.size() == 1); // expected one child page
-			if(partType(m_pNode, 0) == pt_string)
-				stream << m_pNode->tok() << " ";
+			if(partType(m_pOrigNode, 0) == pt_string)
+				stream << m_pOrigNode->tok() << " ";
 			m_children[0]->makeCommand(stream);
 		}
 		else if(m_mode == mode_struct)
@@ -444,12 +446,12 @@ public:
 			int stringPos = 0;
 			int structPos = 0;
 			int lonerPos = 0;
-			for(size_t i = 0; i < m_pNode->parts().size(); i++)
+			for(size_t i = 0; i < m_pOrigNode->parts().size(); i++)
 			{
-				part_type pt = partType(m_pNode, i);
+				part_type pt = partType(m_pOrigNode, i);
 				if(pt == pt_string)
 				{
-					stream << m_pNode->parts()[i] << " ";
+					stream << m_pOrigNode->parts()[i] << " ";
 					stringPos++;
 				}
 				else if(pt == pt_struct)
@@ -464,8 +466,8 @@ public:
 		}
 		else if(m_mode == mode_options)
 		{
-			if(partType(m_pNode, 0) == pt_string)
-				stream << m_pNode->tok() << " ";
+			if(partType(m_pOrigNode, 0) == pt_string)
+				stream << m_pOrigNode->tok() << " ";
 			for(size_t i = 0; i < m_children.size(); i++)
 				m_children[i]->makeCommand(stream);
 		}
