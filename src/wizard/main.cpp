@@ -22,6 +22,7 @@
 #include "../GClasses/GHolders.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GTime.h"
+#include "../GClasses/GThread.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/sha1.h"
@@ -94,6 +95,7 @@ class Server : public GDynamicPageServer
 protected:
 	std::string m_basePath;
 	vector<UsageNode*> m_globals;
+	int m_port;
 
 public:
 	Server(int port, GRand* pRand);
@@ -103,6 +105,10 @@ public:
 	virtual void onEverySixHours() {}
 	virtual void onStateChange() {}
 	virtual void onShutDown() {}
+	void pump();
+
+protected:
+	void addScript(std::ostream& response);
 };
 
 
@@ -178,9 +184,25 @@ public:
 
 	bool autoDoNext() { return m_doAutoNext; }
 
+	static bool looksLikeFilename(const char* szVal)
+	{
+		size_t periods = 0;
+		size_t alphas = 0;
+		while(*szVal != '\0')
+		{
+			if(*szVal == '.')
+				periods++;
+			else if(*szVal >= 'a' && *szVal <= 'z' && *szVal != 'e')
+				alphas++;
+			else if(*szVal >= 'A' && *szVal <= 'Z' && *szVal != 'e')
+				alphas++;
+			szVal++;
+		}
+		return periods == 1 && alphas >= 1;
+	}
+
 	void makeBody(std::ostream& response)
 	{
-		bool shutdown = false;
 		response << "<h2>Waffles Command-building Wizard</h2>\n";
 		response << "<table border=\"1\" width=\"1000\"><tr><td>\n";
 
@@ -191,8 +213,11 @@ public:
 			for(size_t i = 0; i < m_structData.size(); i++)
 				response << "	" << m_structData[i] << "\n";
 			response << "</pre><br>\n\n";
-			response << "To execute this command, just paste it into a console window. To use it in a script, just paste it into the script. (You may close this window now.)";
-			shutdown = true;
+			response << "To execute this command, just paste it into a console window. To use it in a script, just paste it into the script.";
+
+			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Finished\" onclick=\"location.href='/shutdown'\" /></td></tr></table>\n";
+			response << "</form>\n";
 		}
 		else if(m_mode == mode_choose_one)
 		{
@@ -251,13 +276,18 @@ public:
 					if(!pChoice)
 						pChoice = globalUsageNode(arg.c_str());
 					response << "	<tr><td valign=top>" << pChoice->tok() << "</td>";
-					response << "<td valign=top><input type=\"text\" name=\"" << index << "\" ";
+					response << "<td valign=top><input type=\"text\" name=\"" << index << "\" id=\"" << index << "\" ";
 					string s = pChoice->default_value();
 					if(s.length() == 0)
 						s = m_pEffectiveNode->default_value();
 					if(s.length() > 0)
-						response << "value=\"" << s << "\"";
-					response << "/></td>";
+						response << "value=\"" << s << "\" ";
+					response << "/>";
+					if(s.length() > 0 && looksLikeFilename(s.c_str()))
+					{
+						response << "<br><input type=\"button\" id=\"b" << index << "\" value=\"Browse\" onClick=\"onClickBrowse(this.id)\">";
+					}
+					response << "</td>";
 					response << "<td>" << pChoice->descr() << "<br><br></td></tr><br>\n";
 					index++;
 				}
@@ -270,8 +300,6 @@ public:
 		}
 
 		response << "</td></tr></table>\n";
-		if(shutdown)
-			m_pController->shutDown();
 	}
 
 	void setChoices(GHttpParamParser& pp)
@@ -462,7 +490,7 @@ public:
 					m_children[lonerPos++]->makeCommand(stream);
 				}
 			}
-			GAssert((size_t)(stringPos + structPos + lonerPos) == m_pNode->parts().size());
+			GAssert((size_t)(stringPos + structPos + lonerPos) == m_pOrigNode->parts().size());
 		}
 		else if(m_mode == mode_options)
 		{
@@ -611,7 +639,7 @@ void MySession::doNext(const char* szParams)
 
 
 
-Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
+Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand), m_port(port)
 {
 	char buf[300];
 	GApp::appPath(buf, 256, true);
@@ -643,11 +671,91 @@ UsageNode* Server::globalUsageNode(const char* name, UsageNode* pDefaultNode)
 	return pDefaultNode;
 }
 
+void Server::addScript(std::ostream& response)
+{
+	response << "<script type=\"text/javascript\">\n";
+	response << "var g_httpClient = null\n";
+	response << "var g_fileBoxes = []\n";
+	response << "var g_path = \"\"\n";
+
+	response << "function httpPost(url, payload) {\n";
+	response << "	g_httpClient = (window.XMLHttpRequest) ? new XMLHttpRequest() : new ActiveXObject('Microsoft.XMLHTTP')\n";
+	response << "	g_httpClient.onreadystatechange = handleHttpResponse\n";
+	response << "	g_httpClient.open('post', url, true)\n";
+	response << "	g_httpClient.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded')\n";
+	response << "	g_httpClient.send(payload)\n";
+	response << "}\n";
+
+	response << "function handleHttpResponse() {\n";
+	response << "	if(g_httpClient.readyState != 4)\n";
+	response << "		return\n";
+	response << "	receiveFolderList(g_httpClient.responseText)\n";
+	response << "}\n";
+
+	response << "function receiveFolderList(t) {\n";
+	response << "	for(var i = 0; i < g_fileBoxes.length; i++) {\n";
+	response << "		var fb = g_fileBoxes[i]\n";
+	response << "		var files = JSON.parse(t)\n";
+	response << "		fb.options.length=0\n";
+	response << "		for(var j = 0; j < files.length; j++)\n";
+	response << "			fb.options[j] = new Option(files[j], \"0\")\n";
+	response << "	}\n";
+	response << "}\n";
+
+	response << "function trimPath(path) {\n";
+	response << "	var begin = 0\n";
+	response << "	for(var i = 0; i < path.length; i++) {\n";
+	response << "		if(path[i] == '/') {\n";
+	response << "			if(path.length > i + 3 && path[i + 1] == '.' && path[i + 2] == '.' && path[i + 3] == '/' && (i - begin != 2 || path[begin] != '.' || path[begin + 1] != '.'))\n";
+	response << "				return trimPath(path.substr(0, begin) + path.substr(i + 4))\n";
+	response << "			begin = i + 1;\n";
+	response << "		}\n";
+	response << "	}\n";
+	response << "	return path\n";
+	response << "}\n";
+
+	response << "function onClickFileBox(lb) {\n";
+	response << "	var index = lb.selectedIndex\n";
+	response << "	var val = lb.options[index].text\n";
+	response << "	if(val[0] == '[') {\n";
+	response << "		var dir = val.substr(1, val.length - 2)\n";
+	response << "		httpPost('listfiles', 'cd=' + dir);\n";
+	response << "		g_path = trimPath(g_path + dir + '/')\n";
+	response << "	}\n";
+	response << "	else {\n";
+	response << "		var tb = lb.targetTextBox\n";
+	response << "		tb.value = g_path + val\n";
+	response << "		var par = lb.parentNode\n";
+	response << "		var btn = document.createElement('input')\n";
+	response << "		btn.setAttribute(\"type\", \"button\")\n";
+	response << "		btn.setAttribute(\"id\", \"b\" + lb.targetTextBox.id)\n";
+	response << "		btn.setAttribute(\"value\", \"Browse\")\n";
+	response << "		btn.setAttribute(\"onClick\", \"onClickBrowse(this.id)\")\n";
+	response << "		par.removeChild(lb)\n";
+	response << "		par.appendChild(btn)\n";
+	response << "	}\n";
+	response << "}\n";
+
+	response << "function onClickBrowse(buttonid) {\n";
+	response << "	var btn = document.getElementById(buttonid)\n";
+	response << "	var par = btn.parentNode\n";
+	response << "	var lb = document.createElement('select')\n";
+	response << "	lb.setAttribute(\"onChange\", \"onClickFileBox(this)\")\n";
+	response << "	lb.size = 10\n";
+	response << "	lb.targetTextBox = document.getElementById(buttonid.substr(1))\n";
+	response << "	par.removeChild(btn)\n";
+	response << "	par.appendChild(lb)\n";
+	response << "	g_fileBoxes.push(lb)\n";
+	response << "	httpPost('listfiles')\n";
+	response << "}\n";
+	response << "</script>\n";
+}
+
 // virtual
 void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pDPSession, std::ostream& response)
 {
 	if(strcmp(szUrl, "/") == 0)
-		szUrl = "/hello";
+		szUrl = "/wizard";
 	if(strcmp(szUrl, "/favicon.ico") == 0)
 		return;
 	if(strncmp(szUrl, "/wizard", 6) == 0)
@@ -655,6 +763,7 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 		MySession* pSession = getSession(pDPSession);
 		pSession->doNext(szParams);
 		response << "<html><head>\n";
+		addScript(response);
 		response << "</head><body>\n";
 		while(pSession->currentPage()->autoDoNext())
 		{
@@ -668,9 +777,84 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 		pSession->currentPage()->makeBody(response);
 		response << "</body></html>\n";
 	}
+	else if(strncmp(szUrl, "/listfiles", 10) == 0)
+	{
+		char buf[300];
+		if(!getcwd(buf, 300))
+			ThrowError("getcwd failed");
+		if(nParamsLen >= 3 && strncmp(szParams, "cd=", 3) == 0)
+		{
+			if(chdir(szParams + 3) != 0)
+				cerr << "Failed to change dir from " << buf << " to " << szUrl << "\n";
+		}
+		response << "[";
+		bool first = true;
+		if(strlen(buf) >= 4)
+		{
+			response << "\"[..]\"";
+			first = false;
+		}
+		{
+			GDirList dl(false, false, true, false);
+			while(true)
+			{
+				const char* szDirName = dl.GetNext();
+				if(!szDirName)
+					break;
+				if(first)
+					first = false;
+				else
+					response << ",";
+				response << "\"[" << szDirName << "]\"";
+			}
+		}
+		{
+			GDirList dl(false, true, false, false);
+			while(true)
+			{
+				const char* szFilename = dl.GetNext();
+				if(!szFilename)
+					break;
+				if(first)
+					first = false;
+				else
+					response << ",";
+				response << "\"" << szFilename << "\"";
+			}
+		}
+		response << "]";
+	}
+	else if(strncmp(szUrl, "/shutdown", 9) == 0)
+	{
+		response << "<html><head></head><body onLoad=\"var closure=function() {self.close()}; setTimeout(closure,1000)\"><h3><a href=\"/shutdown\" onclick=\"self.close()\">Goodbye!</a></h3><p>If you are reading this, then your browser settings do not allow Javascript to close windows, so you will need to close this window manually.</p></body></html>\n";
+		shutDown();
+	}
 	else
 		sendFileSafe(m_basePath.c_str(), szUrl + 1, response);
 }
+
+void Server::pump()
+{
+	double dLastActivity = GTime::seconds();
+	GSignalHandler sh;
+	while(m_bKeepGoing && sh.check() == 0)
+	{
+		if(process())
+			dLastActivity = GTime::seconds();
+		else
+		{
+			if(GTime::seconds() - dLastActivity > 900)	// 15 minutes
+			{
+				cout << "Shutting down due to inactivity for 15 minutes.\n";
+				m_bKeepGoing = false;
+			}
+			else
+				GThread::sleep(100);
+		}
+	}
+	onShutDown();
+}
+
 
 
 
@@ -741,7 +925,7 @@ void do_wizard()
 	LaunchBrowser(server.myAddress());
 
 	// Pump incoming HTTP requests (this is the main loop)
-	server.go();
+	server.pump();
 	cout << "Goodbye.\n";
 }
 

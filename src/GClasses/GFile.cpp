@@ -288,7 +288,6 @@ void GFile::condensePath(char* szPath)
 				nPrevPrevSlash = -1;
 				n = -1;
 			}
-				
 		}
 	}
 }

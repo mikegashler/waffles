@@ -98,7 +98,7 @@ public:
 
 class GDynamicPageServer : public GHttpServer
 {
-// protected:
+protected:
 	GRand* m_pRand;
 	bool m_bKeepGoing;
 	std::map<unsigned long long, GDynamicPageSession*> m_sessions;
