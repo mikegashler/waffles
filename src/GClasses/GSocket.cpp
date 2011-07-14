@@ -244,7 +244,7 @@ void GSocketClientBase::listen()
 	{
 		// See how much data is ready to be received
 #ifdef WINDOWS
-		GWindows::yieldToWindows(); // This is necessary because incoming packets go through the Windows message pump
+		GWindows::yield(); // This is necessary because incoming packets go through the Windows message pump
 		if(ioctlsocket(s, FIONREAD, &dwBytesReadyToRead) != 0)
 			gsocket_LogError();
 #else
@@ -888,7 +888,7 @@ unsigned int ServerWorkerThread(void* pData)
 void GSocketServerBase::ServerWorker()
 {
 #ifdef WINDOWS
-	GWindows::yieldToWindows();
+	GWindows::yield();
 #endif
 	int n, nCount, nBytes;
 	struct timeval timeout;
@@ -1639,19 +1639,19 @@ void TestGSocketSerial(bool bGash, const char* szAddr, int port)
 		szBuf[i] = (char)i;
 	pClient->Send(szBuf, 5000);
 #ifdef WINDOWS
-	GWindows::yieldToWindows();
+	GWindows::yield();
 #endif
 	for(i = 10; i < 60; i++)
 	{
 		if(!pClient->Send(szBuf + i, i))
 			ThrowError("failed");
 #ifdef WINDOWS
-		GWindows::yieldToWindows();
+		GWindows::yield();
 #endif
 	}
 	pClient->Send(szBuf, 5000);
 #ifdef WINDOWS
-	GWindows::yieldToWindows();
+	GWindows::yield();
 #endif
 
 	// Wait for the data to arrive
@@ -1692,7 +1692,7 @@ void TestGSocketSerial(bool bGash, const char* szAddr, int port)
 		if(!pServer->Send(pData, 10, nConnection))
 			ThrowError("failed");
 #ifdef WINDOWS
-		GWindows::yieldToWindows();
+		GWindows::yield();
 #endif
 	}
 	{

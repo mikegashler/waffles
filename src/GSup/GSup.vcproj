@@ -236,49 +236,6 @@
 	</References>
 	<Files>
 		<File
-			RelativePath=".\G3D.cpp"
-			>
-		</File>
-		<File
-			RelativePath=".\G3D.h"
-			>
-		</File>
-		<File
-			RelativePath="GBezier.cpp"
-			>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="ReleaseNoConsole|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="GBezier.h"
-			>
-		</File>
-		<File
 			RelativePath=".\GBigInt.cpp"
 			>
 		</File>
@@ -381,132 +338,11 @@
 			>
 		</File>
 		<File
-			RelativePath="GDirList.cpp"
-			>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="ReleaseNoConsole|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="GDirList.h"
-			>
-		</File>
-		<File
-			RelativePath=".\GDynamicPage.cpp"
-			>
-		</File>
-		<File
-			RelativePath=".\GDynamicPage.h"
-			>
-		</File>
-		<File
-			RelativePath="GHttp.cpp"
-			>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="ReleaseNoConsole|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="GHttp.h"
-			>
-		</File>
-		<File
 			RelativePath=".\GKeyPair.cpp"
 			>
 		</File>
 		<File
 			RelativePath=".\GKeyPair.h"
-			>
-		</File>
-		<File
-			RelativePath=".\GLoadBalance.cpp"
-			>
-		</File>
-		<File
-			RelativePath=".\GLoadBalance.h"
-			>
-		</File>
-		<File
-			RelativePath="GRayTrace.cpp"
-			>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="ReleaseNoConsole|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="GRayTrace.h"
 			>
 		</File>
 		<File
@@ -580,41 +416,6 @@
 			>
 		</File>
 		<File
-			RelativePath="GSocket.cpp"
-			>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="ReleaseNoConsole|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="GSocket.h"
-			>
-		</File>
-		<File
 			RelativePath="GVideo.cpp"
 			>
 			<FileConfiguration
@@ -650,14 +451,6 @@
 			>
 		</File>
 		<File
-			RelativePath=".\GWave.cpp"
-			>
-		</File>
-		<File
-			RelativePath=".\GWave.h"
-			>
-		</File>
-		<File
 			RelativePath="GWidgets.cpp"
 			>
 			<FileConfiguration
@@ -690,41 +483,6 @@
 		</File>
 		<File
 			RelativePath="GWidgets.h"
-			>
-		</File>
-		<File
-			RelativePath="GWindows.cpp"
-			>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="ReleaseNoConsole|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="GWindows.h"
 			>
 		</File>
 		<File

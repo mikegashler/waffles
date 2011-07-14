@@ -12,8 +12,8 @@
 #ifndef __GWIDGETS_H__
 #define __GWIDGETS_H__
 
-#include "GRect.h"
-#include "GImage.h"
+#include "../GClasses/GRect.h"
+#include "../GClasses/GImage.h"
 #include <string>
 #include <vector>
 

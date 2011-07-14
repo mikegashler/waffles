@@ -230,6 +230,14 @@
 	</References>
 	<Files>
 		<File
+			RelativePath=".\G3D.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\G3D.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GActivation.cpp"
 			>
 		</File>
@@ -278,6 +286,14 @@
 		</File>
 		<File
 			RelativePath=".\GBayesianNetwork.h"
+			>
+		</File>
+		<File
+			RelativePath=".\GBezier.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GBezier.h"
 			>
 		</File>
 		<File
@@ -386,6 +402,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GCrypto.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GCrypto.h"
+			>
+		</File>
+		<File
 			RelativePath="GDecisionTree.cpp"
 			>
 			<FileConfiguration
@@ -421,6 +445,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GDirList.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GDirList.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GDistance.cpp"
 			>
 		</File>
@@ -442,6 +474,14 @@
 		</File>
 		<File
 			RelativePath=".\GDom.h"
+			>
+		</File>
+		<File
+			RelativePath=".\GDynamicPage.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GDynamicPage.h"
 			>
 		</File>
 		<File
@@ -723,6 +763,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GHttp.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GHttp.h"
+			>
+		</File>
+		<File
 			RelativePath="GImage.cpp"
 			>
 			<FileConfiguration
@@ -810,6 +858,14 @@
 		</File>
 		<File
 			RelativePath=".\GLinear.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GLoadBalance.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GLoadBalance.h"
 			>
 		</File>
 		<File
@@ -1149,6 +1205,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GRayTrace.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GRayTrace.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GRecommender.cpp"
 			>
 		</File>
@@ -1205,6 +1269,14 @@
 		</File>
 		<File
 			RelativePath=".\GSelfOrganizingMap.h"
+			>
+		</File>
+		<File
+			RelativePath=".\GSocket.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GSocket.h"
 			>
 		</File>
 		<File
@@ -1463,6 +1535,22 @@
 		</File>
 		<File
 			RelativePath=".\GVec.h"
+			>
+		</File>
+		<File
+			RelativePath=".\GWave.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GWave.h"
+			>
+		</File>
+		<File
+			RelativePath=".\GWindows.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GWindows.h"
 			>
 		</File>
 	</Files>

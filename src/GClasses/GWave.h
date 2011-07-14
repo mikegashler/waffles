@@ -12,7 +12,7 @@
 #ifndef __GWAVE_H__
 #define __GWAVE_H__
 
-#include "GError.h"
+#include "../GClasses/GError.h"
 
 namespace GClasses {
 

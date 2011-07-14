@@ -12,8 +12,8 @@
 #ifndef __GSOCKET_H__
 #define __GSOCKET_H__
 
-#include "GError.h"
-#include "GThread.h"
+#include "../GClasses/GError.h"
+#include "../GClasses/GThread.h"
 
 #ifndef WINDOWS
 #	define SOCKET int

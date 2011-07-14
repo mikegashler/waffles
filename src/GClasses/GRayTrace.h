@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <math.h>
 #include "G3D.h"
-#include "GRand.h"
+#include "../GClasses/GRand.h"
 #include <vector>
 #include <cmath>
 
@@ -39,13 +39,11 @@ class GRayTraceColor
 public:
 	G3DReal a, r, g, b;
 
-	/// Constructs a black color
 	GRayTraceColor()
 	: a(1), r(0), g(0), b(0)
 	{
 	}
 
-	/// Copies *pThat
 	GRayTraceColor(GRayTraceColor* pThat)
 	{
 		a = pThat->a;
@@ -54,10 +52,8 @@ public:
 		b = pThat->b;
 	}
 
-	/// Construct from a 32-bit ARGB color value
 	GRayTraceColor(unsigned int c);
 
-	/// General-purpose constructor
 	GRayTraceColor(G3DReal alpha, G3DReal red, G3DReal green, G3DReal blue)
 	{
 		set(alpha, red, green, blue);
@@ -69,7 +65,6 @@ public:
 	/// Load this object from a DOM.
 	void deserialize(GDomNode* pNode);
 
-	/// Returns true iff this color is pure black
 	bool isBlack()
 	{
 		if(r == 0 && g == 0 && b == 0)
@@ -78,7 +73,6 @@ public:
 			return false;
 	}
 
-	/// Sets the color
 	void set(G3DReal alpha, G3DReal red, G3DReal green, G3DReal blue)
 	{
 		a = alpha;
@@ -87,10 +81,8 @@ public:
 		b = blue;
 	}
 
-	/// Sets the color from a 32-bit ARGB value
 	void set(unsigned int c);
 
-	/// Copies *pThat
 	void copy(GRayTraceColor* pThat)
 	{
 		a = pThat->a;
@@ -99,7 +91,6 @@ public:
 		b = pThat->b;
 	}
 
-	/// Adds the color at pThat to this
 	void add(GRayTraceColor* pThat)
 	{
 		a = std::max(a, pThat->a);
@@ -108,7 +99,6 @@ public:
 		b += pThat->b;
 	}
 
-	/// Clips the values to have a max of 1
 	void clip()
 	{
 		r = std::min((G3DReal)1, r);
@@ -116,7 +106,6 @@ public:
 		b = std::min((G3DReal)1, b);
 	}
 
-	/// Scales this color
 	void multiply(G3DReal mag)
 	{
 		r *= mag;
@@ -124,7 +113,6 @@ public:
 		b *= mag;
 	}
 
-	/// Multiplies each channel in this by the corresponding channel in pThat
 	void multiply(GRayTraceColor* pThat)
 	{
 		a *= pThat->a;
@@ -133,10 +121,8 @@ public:
 		b *= pThat->b;
 	}
 
-	/// Returns a 32-bit ARGB-encoded representation of this color
 	unsigned int color();
 
-	/// Helper method for choosing a color using a slider bar
 	void makeSliderColor(float f, GRayTraceColor* pDiffuseColor);
 };
 
@@ -152,7 +138,6 @@ protected:
 	int m_maxDepth; // max number of ray bounces
 
 public:
-	/// General-purpose constructor
 	GRayTraceCamera(int width, int height) : GCamera(width, height)
 	{
 		m_focalDistance = 0;
@@ -160,32 +145,18 @@ public:
 		m_maxDepth = 4;
 	}
 
-	/// Deserializing constructor
 	GRayTraceCamera(GDomNode* pNode);
 
 	virtual ~GRayTraceCamera()
 	{
 	}
 
-	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc);
-
-	/// Specify the maximum number of reflection and/or transmission ray bounces
 	void setMaxDepth(int val) { m_maxDepth = val; }
-
-	/// Returns the maximum number of reflection and/or transmission ray bounces
-	inline int maxDepth() { return m_maxDepth; }
-
-	/// Sets the focal distance
 	void setFocalDistance(G3DReal val) { m_focalDistance = val; }
-
-	/// Sets the diameter of the lens
 	void setLensDiameter(G3DReal val) { m_lensDiameter = val; }
-
-	/// Returns the current focal distance
+	inline int maxDepth() { return m_maxDepth; }
 	inline G3DReal focalDistance() { return m_focalDistance; }
-
-	/// Returns the current lens diameter
 	inline G3DReal lensDiameter() { return m_lensDiameter; }
 };
 
@@ -224,10 +195,7 @@ protected:
 	GRand* m_pRand;
 
 public:
-	/// General-purpose constructor
 	GRayTraceScene(GRand* pRand);
-
-	/// Deserializing constructor
 	GRayTraceScene(GDomNode* pNode, GRand* pRand);
 	~GRayTraceScene();
 
@@ -272,7 +240,6 @@ public:
 	/// or RenderBegin() has not been called yet.
 	GImage* image() { return m_pImage; }
 
-	/// Returns the image, and releases ownership to the caller (meaning you have to delete it).
 	GImage* releaseImage()
 	{
 		GImage* pImage = m_pImage;
@@ -280,82 +247,41 @@ public:
 		return pImage;
 	}
 
-	/// Sets the background color
 	void setBackgroundColor(G3DReal a, G3DReal r, G3DReal g, G3DReal b)
 	{
 		m_backgroundColor.set(a, r, g, b);
 	}
 
-	/// Returns the current background color
-	GRayTraceColor* backgroundColor() { return &m_backgroundColor; }
-
-	/// Sets the color and intensity of ambient light
 	void setAmbientLight(G3DReal r, G3DReal g, G3DReal b)
 	{
 		m_ambientLight.set(1, r, g, b);
 	}
 
-	/// Returns the current color and intensity of ambient light
 	GRayTraceColor* ambientLight() { return &m_ambientLight; }
 
-	/// Returns a pointer to the camera associated with this scene
 	GRayTraceCamera* camera()
 	{
 		return m_pCamera;
 	}
 
-	/// Returns a pointer to the random number generator associated with this scene
 	GRand* rand() { return m_pRand; }
-
-	/// Call this method before ray-tracing if you also want to produce a distance map,
-	/// giving the distance between the camera and the first collision associated with each pixel.
 	void activateDistanceMap();
-
-	/// Returns the distance map (if activateDistanceMap was called).
 	G3DReal* distanceMap() { return m_pDistanceMap; }
-
-	/// Adds a new material to this scene
 	void addMaterial(GRayTraceMaterial* pMaterial);
-
-	/// Adds a new mesh to this scene
 	void addMesh(GRayTraceTriMesh* pMesh);
-
-	/// Adds a new object to this scene
 	void addObject(GRayTraceObject* pObject);
-
-	/// Adds a new light to this scene
 	void addLight(GRayTraceLight* pLight);
-
-	/// Returns the number of materials that have been added to this scene
 	size_t materialCount();
-
-	/// Returns the number of meshes that have been added to this scene
 	size_t meshCount();
-
-	/// Returns the number of objects that have been added to this scene
 	size_t objectCount();
-
-	/// Returns the number of lights that have been added to this scene
 	size_t lightCount();
-
-	/// Returns the specified material
 	GRayTraceMaterial* material(size_t n);
-
-	/// Returns the specified mesh
 	GRayTraceTriMesh* mesh(size_t n);
-
-	/// Returns the specified object
 	GRayTraceObject* object(size_t n);
-
-	/// Returns the specified light
 	GRayTraceLight* light(size_t n);
-
-	/// Returns a vector of all the materials.
 	std::vector<GRayTraceMaterial*>& materials() { return m_materials; }
-
-	/// Returns the root of the tree of bounding boxes
+	GRayTraceColor* backgroundColor() { return &m_backgroundColor; }
 	GRayTraceBoundingBoxBase* boundingBoxTree() { return m_pBoundingBoxTree; }
-
 	void setToneMappingConstant(G3DReal c) { m_toneMappingConstant = c; }
 	size_t materialIndex(GRayTraceMaterial* pMaterial);
 	size_t meshIndex(GRayTraceTriMesh* pMesh);
@@ -383,23 +309,13 @@ protected:
 	GRayTraceColor m_color;
 
 public:
-	/// General-purpose constructor
 	GRayTraceLight(G3DReal r, G3DReal g, G3DReal b);
-
-	/// Deserialization constructor
 	GRayTraceLight(GDomNode* pNode);
 	virtual ~GRayTraceLight();
 
-	/// Deserialize this object
 	static GRayTraceLight* deserialize(GDomNode* pNode, GRayTraceScene* pScene);
-
-	/// Serialize this object
 	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene) = 0;
-
-	/// Returns the type of light
 	virtual LightType lightType() = 0;
-
-	/// Computes the contribution of this light to the specified collision
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular) = 0;
 
 protected:
@@ -419,18 +335,11 @@ protected:
 public:
 	/// Specify the direction to the light, not the direction the light travels
 	GRayTraceDirectionalLight(G3DReal dx, G3DReal dy, G3DReal dz, G3DReal r, G3DReal g, G3DReal b, G3DReal jitter);
-
-	/// Deserialization constructor
 	GRayTraceDirectionalLight(GDomNode* pNode);
 	virtual ~GRayTraceDirectionalLight();
 
-	/// Serialize this object
 	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
-
-	/// See the comment for GRayTraceLight::lightType
 	virtual LightType lightType() { return Directional; }
-
-	/// Computes the contribution of this light to the specified collision
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular);
 };
 
@@ -444,20 +353,12 @@ protected:
 	G3DReal m_jitter;
 
 public:
-	/// General-purpose constructor
 	GRayTracePointLight(G3DReal x, G3DReal y, G3DReal z, G3DReal r, G3DReal g, G3DReal b, G3DReal jitter);
-
-	/// Deserialization constructor
 	GRayTracePointLight(GDomNode* pNode);
 	virtual ~GRayTracePointLight();
 
-	/// Serialize this object
 	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
-
-	/// See the comment for GRayTraceLight::lightType
 	virtual LightType lightType() { return Point; }
-
-	/// Computes the contribution of this light to the specified collision
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular);
 };
 
@@ -470,20 +371,12 @@ protected:
 	GRayTraceObject* m_pObject;
 
 public:
-	/// General-purpose constructor
 	GRayTraceAreaLight(GRayTraceObject* pObject, G3DReal r, G3DReal g, G3DReal b);
-
-	/// Deserialization constructor
 	GRayTraceAreaLight(GDomNode* pNode, GRayTraceScene* pScene);
 	virtual ~GRayTraceAreaLight();
 
-	/// Serialize this object
 	virtual GDomNode* serialize(GDom* pDoc, GRayTraceScene* pScene);
-
-	/// See the comment for GRayTraceLight::lightType
 	virtual LightType lightType() { return Area; }
-
-	/// Computes the contribution of this light to the specified collision
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular);
 };
 
@@ -513,37 +406,18 @@ public:
 	GRayTraceMaterial();
 	virtual ~GRayTraceMaterial();
 
-	/// Deserializes this object
 	static GRayTraceMaterial* deserialize(GDomNode* pNode);
 
-	/// Serializes this object
 	virtual GDomNode* serialize(GDom* pDoc) = 0;
-
-	/// Returns the type of material
 	virtual MaterialType materialType() = 0;
-
-	/// Returns the color of this material
 	virtual GRayTraceColor* color(ColorType eType, GRayTraceRay* pRay) = 0;
-
-	/// Return the index of refraction of this material
 	virtual G3DReal indexOfRefraction() = 0;
-
-	/// Returns the specular exponent of this material
 	virtual G3DReal specularExponent() = 0;
-
-	/// Returns how much reflected rays will be jittered
 	virtual G3DReal glossiness() = 0; // how much to jitter reflected rays
-
-	/// Returns how much transmitted rays will be jittered
 	virtual G3DReal cloudiness() = 0; // how much to jitter transmitted rays
-
-	/// Returns true if the two materials are identical
 	virtual bool isSame(GRayTraceMaterial* pThat) = 0;
-
-	/// Copies this material
 	virtual GRayTraceMaterial* copy() = 0;
 
-	/// Computes the color at a specific ray collision
 	void computeColor(GRayTraceScene* pScene, GRayTraceRay* pRay, bool bAmbient, bool bSpecular);
 };
 
@@ -570,40 +444,18 @@ public:
 	/// used by image-texture materials to determine which pixel applies.)
 	virtual GRayTraceColor* color(ColorType eType, GRayTraceRay* pRay);
 
-	/// Returns the index of refraction for this material
 	virtual G3DReal indexOfRefraction() { return m_indexOfRefraction; }
-
-	/// Returns the specular exponent for this material
 	virtual G3DReal specularExponent() { return m_specularExponent; }
-
-	/// Returns a value that indicates how much reflected rays are jittered.
 	virtual G3DReal glossiness() { return m_glossiness; }
-
-	/// Returns a value that indicates how much transmitted rays are jittered.
 	virtual G3DReal cloudiness() { return m_cloudiness; }
-
-	/// Returns true if the materials are the same
 	virtual bool isSame(GRayTraceMaterial* pThat);
-
-	/// Makes a copy of this material
 	virtual GRayTraceMaterial* copy();
 
-	/// Sets the color of one of this material's properties
 	void setColor(ColorType eType, G3DReal r, G3DReal g, G3DReal b);
-
-	/// Sets the color of one of this material's properties
 	void setColor(ColorType eType, GRayTraceColor* pCol);
-
-	/// Sets the index of refraction for this material
 	void setIndexOfRefraction(G3DReal val) { m_indexOfRefraction = val; }
-
-	/// Sets the specular exponent for this material
 	void setSpecularExponent(G3DReal val) { m_specularExponent = val; }
-
-	/// Sets the jitter for reflected rays
 	void setGlossiness(G3DReal val) { m_glossiness = val; }
-
-	/// Sets the jitter for transmitted rays
 	void setCloudiness(G3DReal val) { m_cloudiness = val; }
 };
 
@@ -616,44 +468,21 @@ protected:
 	GRayTraceColor m_col;
 
 public:
-	/// General-purpose constructor
 	GRayTraceImageTexture();
-
-	/// Deserializing constructor
 	GRayTraceImageTexture(GDomNode* pNode);
 	virtual ~GRayTraceImageTexture();
 
-	/// Serialize this object
 	virtual GDomNode* serialize(GDom* pDoc);
-
-	/// Returns the type of material
 	virtual MaterialType materialType() { return Image; }
-
-	/// Returns the color at the specified point of collision
 	virtual GRayTraceColor* color(ColorType eType, GRayTraceRay* pRay);
-
-	/// Returns 1
 	virtual G3DReal indexOfRefraction() { return 1; }
-
-	/// Returns 1
 	virtual G3DReal specularExponent() { return 1; }
-
-	/// Returns 0
 	virtual G3DReal glossiness() { return 0; }
-
-	/// Returns 0
 	virtual G3DReal cloudiness() { return 0; }
-
-	/// Returns true iff the materials are the same
 	virtual bool isSame(GRayTraceMaterial* pThat);
-
-	/// Returns a copy of this material
 	virtual GRayTraceMaterial* copy();
 
-	/// Sets the texture image
 	void setTextureImage(GImage* pImage, bool bDeleteImage);
-
-	/// Returns the current texture image
 	GImage* textureImage() { return m_pTextureImage; }
 };
 
@@ -885,7 +714,7 @@ public:
 };
 
 
-/// This is a helper-class that builds a mesh from triangle coordinates
+
 class GTriMeshBuilder
 {
 protected:
@@ -912,8 +741,7 @@ protected:
 
 
 
-/// This class generates 3-dimensional letters that can be added to a GRayTraceScene.
-/// (The font is a fairly standard-looking sans-serif home-made font.)
+
 class G3dLetterMaker
 {
 protected:
