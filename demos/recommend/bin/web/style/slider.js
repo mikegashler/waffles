@@ -12,7 +12,7 @@ function slider (a_init, a_tpl) {
 
 	this.f_setValue  = f_sliderSetValue;
 	this.f_getPos    = f_sliderGetPos;
-	
+
 	// register in the global collection	
 	if (!window.A_SLIDERS)
 		window.A_SLIDERS = [];
@@ -38,7 +38,7 @@ function slider (a_init, a_tpl) {
 	);
 	this.e_base   = get_element('sl' + this.n_id + 'base');
 	this.e_slider = get_element('sl' + this.n_id + 'slider');
-	
+
 	// safely hook document/window events
 	if (!window.f_savedMouseMove && document.onmousemove != f_sliderMouseMove) {
 		window.f_savedMouseMove = document.onmousemove;

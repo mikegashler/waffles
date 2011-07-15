@@ -13,6 +13,7 @@
 #include <GClasses/GError.h>
 #include <GClasses/GFile.h>
 #include <GClasses/GHolders.h>
+#include <GClasses/GImage.h>
 #include <GClasses/GFourier.h>
 #include <GClasses/GMath.h>
 #include <GClasses/GVec.h>
@@ -23,6 +24,9 @@
 using namespace GClasses;
 using std::cerr;
 using std::cout;
+using std::string;
+
+#define HALF_STEP_FACTOR 1.05946309435929526456182529494634170077920431749419
 
 class AmbientNoiseReducer : public GFourierWaveProcessor
 {
@@ -109,6 +113,43 @@ protected:
 	}
 };
 
+class PitchShifter : public GFourierWaveProcessor
+{
+protected:
+	double m_halfSteps;
+	double m_fac;
+	struct ComplexNumber* m_pBuf;
+
+public:
+	// If halfSteps is positive, it will shift the pitch up.
+	// If halfSteps is negative, it will shift the pitch down.
+	PitchShifter(size_t blockSize, double halfSteps)
+	: GFourierWaveProcessor(blockSize)
+	{
+		m_fac = pow(2.0, -halfSteps / 12);
+		m_pBuf = new struct ComplexNumber[m_blockSize];
+	}
+
+	virtual ~PitchShifter()
+	{
+		delete(m_pBuf);
+	}
+
+protected:
+	virtual void process(struct ComplexNumber* pBuf)
+	{
+		struct ComplexNumber* pIn = pBuf;
+		struct ComplexNumber* pOut = m_pBuf;
+		for(size_t i = 0; i < m_blockSize; i++)
+		{
+			double j = double(i) * m_fac;
+			
+			ThrowError("Sorry, not finished yet");
+			//todo: pOut[i] = interpolate(pIn[floor(j)], pIn[floor(j) + 1])
+		}
+	}
+};
+
 void amplify(GArgReader& args)
 {
 	const char* inputFilename = args.pop_string();
@@ -168,6 +209,48 @@ void makeSilence(GArgReader& args)
 		double* pSample = it.current();
 		GVec::setAll(pSample, 0.0, channels);
 		it.set(pSample);
+	}
+	w.save(filename);
+}
+
+void makeSine(GArgReader& args)
+{
+	double seconds = args.pop_double();
+	double hertz = args.pop_double();
+	const char* filename = args.pop_string();
+
+	// Parse params
+	int bitsPerSample = 16;
+	int sampleRate = 44100;
+	double volume = 1.0;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-bitspersample"))
+			bitsPerSample = args.pop_uint();
+		else if(args.if_pop("-samplerate"))
+			sampleRate = args.pop_uint();
+		else if(args.if_pop("-volume"))
+			volume = args.pop_double();
+		else
+			ThrowError("Unrecognized option: ", args.pop_string());
+	}
+	if(bitsPerSample % 8 != 0)
+		ThrowError("The number of bits-per-sample must be a multiple of 8");
+
+	// Generate the silence
+	size_t samples = (size_t)(sampleRate * seconds);
+	GWave w;
+	unsigned char* pData = new unsigned char[samples * bitsPerSample];
+	w.setData(pData, bitsPerSample, samples, 1/*channels*/, sampleRate);
+	GWaveIterator it(w);
+	size_t i = 0;
+	size_t total = it.remaining();
+	double scal = hertz * 2.0 * M_PI / sampleRate;
+	for(; i < total; i++)
+	{
+		double val = volume * sin(i * scal);
+		it.set(&val);
+		it.advance();
 	}
 	w.save(filename);
 }
@@ -325,6 +408,86 @@ void sanitize(GArgReader& args)
 	w.save(outFilename);
 }
 
+void spectral(GArgReader& args)
+{
+	const char* filename = args.pop_string();
+
+	// Parse params
+	size_t start = 0;
+	size_t size = 4096;
+	size_t height = 512;
+	string outFilename = "plot.png";
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-start"))
+			start = args.pop_uint();
+		else if(args.if_pop("-size"))
+			size = args.pop_uint();
+		else if(args.if_pop("-height"))
+			height = args.pop_uint();
+		else if(args.if_pop("-out"))
+			outFilename = args.pop_string();
+		else
+			ThrowError("Unrecognized option: ", args.pop_string());
+	}
+	if(!GBits::isPowerOfTwo(size))
+		ThrowError("the size must be a power of 2");
+
+	// Convert to the Fourier domain
+	GWave w;
+	w.load(filename);
+	GWaveIterator it(w);
+	if(it.remaining() < start + size)
+		ThrowError("out of range. (start + size > samples)");
+	for(size_t i = 0; i < start; i++)
+		it.advance();
+	struct ComplexNumber* pCN = new struct ComplexNumber[size];
+	ArrayHolder<struct ComplexNumber> hCN(pCN);
+	struct ComplexNumber* p = pCN;
+	for(size_t i = 0; i < size; i++)
+	{
+		p->real = *it.current();
+		p->imag = 0.0;
+		p++;
+		it.advance();
+	}
+	GFourier::fft(size, pCN, true);
+
+	// Find the max Fourier magnitude
+	p = pCN;
+	double max = 0.0;
+	for(size_t i = 0; i < size; i++)
+	{
+		double mag = sqrt(p->squaredMagnitude());
+		max = std::max(max, mag);
+		p++;
+	}
+
+	// Plot the frequency lines
+	GImage image;
+	image.setSize(size, height);
+	image.clear(0xffffffff);
+	for(double i = 27.5; i <= 14080; i *= 2)
+	{
+		int x = (int)floor(i * size / w.sampleRate() + 0.5);
+		image.line(x, 0, x, height - 1, 0xff808080);
+		string s = to_str(i);
+		s += "Hz";
+		int tw = image.measureTextWidth(s.c_str(), 1.0);
+		image.text(s.c_str(), x - tw / 2, 10, 1.0, 0xff404040);
+	}
+
+	// Plot the Fourier magnitude
+	p = pCN;
+	for(size_t i = 0; i < size; i++)
+	{
+		double mag = sqrt(p->squaredMagnitude());
+		image.line(i, height - 1, i, height - 1 - mag * height / max, 0xff000080);
+		p++;
+	}
+	image.savePng(outFilename.c_str());
+}
+
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -387,9 +550,11 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("amplify")) amplify(args);
 		else if(args.if_pop("makesilence")) makeSilence(args);
+		else if(args.if_pop("makesine")) makeSine(args);
 		else if(args.if_pop("mix")) mix(args);
 		else if(args.if_pop("reduceambientnoise")) reduceAmbientNoise(args);
 		else if(args.if_pop("sanitize")) sanitize(args);
+		else if(args.if_pop("spectral")) spectral(args);
 		else ThrowError("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)

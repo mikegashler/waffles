@@ -236,6 +236,7 @@ public:
 	void textChar(char ch, int x, int y, int wid, int hgt, float size, unsigned int col);
 
 	/// Prints a line of text using a built-in font. (The pixel-height of the font is 12*size.)
+	/// col specifies the color.
 	void text(const char* text, int x, int y, float size, unsigned int col, int wid = 50000, int hgt = 50000);
 
 	/// Determines how many pixels of width are required to print a single character of text

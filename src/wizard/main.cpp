@@ -826,7 +826,7 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 	}
 	else if(strncmp(szUrl, "/shutdown", 9) == 0)
 	{
-		response << "<html><head></head><body onLoad=\"var closure=function() {self.close()}; setTimeout(closure,1000)\"><h3><a href=\"/shutdown\" onclick=\"self.close()\">Goodbye!</a></h3><p>If you are reading this, then your browser settings do not allow Javascript to close windows, so you will need to close this window manually.</p></body></html>\n";
+		response << "<html><head></head><body onLoad=\"var closure=function() { window.top.opener = null; window.open('','_parent',''); window.close()}; setTimeout(closure,1000)\"><h3><a href=\"/shutdown\" onclick=\"self.close()\">Goodbye!</a></h3><p>If you are reading this, then your browser settings do not allow Javascript to close windows, so you will need to close this window manually.</p></body></html>\n";
 		shutDown();
 	}
 	else
@@ -997,10 +997,24 @@ public:
 		return NULL;
 	}
 
+	static void completeFilename(const char* tok)
+	{
+		// Complete with matching filenames
+		GDirList dl(false, true, false, false);
+		while(true)
+		{
+			const char* fn = dl.GetNext();
+			if(!fn)
+				break;
+			if(doesMatch(fn, tok))
+				cout << fn << "\n";
+		}
+	}
+
 	bool doCompletion(GArgReader& args, UsageNode* pNode, size_t nodePos)
 	{
 		vector<string>& parts = pNode->parts();
-		size_t flex = 0;
+		size_t flex = 0; // the number of flexible parts
 		for(size_t i = 0; i < parts.size(); i++)
 		{
 			if(parts[i][0] == '[' || parts[i][0] == '<')
@@ -1037,18 +1051,16 @@ public:
 									cout << (*it)->tok() << "\n";
 							}
 						}
+						else if(pNode->default_value().length() > 0)
+						{
+							if(Page::looksLikeFilename(pNode->default_value().c_str()))
+								completeFilename(tok);
+							else
+								cout << pNode->default_value() << "\n";
+						}
 						else
 						{
-							// Complete with matching filenames
-							GDirList dl(false, true, false, false);
-							while(true)
-							{
-								const char* fn = dl.GetNext();
-								if(!fn)
-									break;
-								if(doesMatch(fn, tok))
-									cout << fn << "\n";
-							}
+							// ?
 						}
 						if(part[0] != '<')
 							m_done = true;

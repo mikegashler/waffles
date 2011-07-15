@@ -263,6 +263,13 @@ UsageNode* makeAudioUsageTree()
 		pOpts->add("-samplerate [n]=44100", "Specify the number of samples-per-second.");
 	}
 	{
+		UsageNode* pMS = pRoot->add("makesine [secs] [hertz] [filename]", "Makes a wave file containing [secs] seconds of a perfect sine wave with a frequency of [hertz].");
+		UsageNode* pOpts = pMS->add("<options>");
+		pOpts->add("-bitspersample [n]=16", "Specify the number of bits-per-sample.");
+		pOpts->add("-volumn [v]=1.0", "Specify the volume (from 0 to 1).");
+		pOpts->add("-samplerate [n]=44100", "Specify the number of samples-per-second.");
+	}
+	{
 		UsageNode* pMix = pRoot->add("mix [in1] [scalar1] [in2] [scalar2] [out]", "Mixes [in1] and [in2] to produce [out].");
 		pMix->add("[in1]=in1.wav", "The filename of an audio track in wav format.");
 		pMix->add("[scalar1]=1.0", "The amount to amplify [in1]. (Positive values less than 1 will reduce the volume. Values greater than 1 will increase the volume.)");
