@@ -17,7 +17,7 @@
 #endif
 #include <GClasses/GDynamicPage.h>
 #include <GClasses/GApp.h>
-#include <GClasses/GTwt.h>
+#include <GClasses/GDom.h>
 #include <GClasses/GString.h>
 #include <GClasses/GHolders.h>
 #include <GClasses/GFile.h>

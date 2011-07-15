@@ -19,8 +19,8 @@ else
 CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../bullet-2.77/src
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = -lGClassesDbg -lpng ../../bullet-2.77/lib/bulletdbg.a -lglut -lGL -lGLU
-OPT_LFLAGS = -lGClasses -lpng ../../bullet-2.77/lib/bullet.a -lglut -lGL -lGLU
+DBG_LFLAGS = -lGClassesDbg -lpng -lpthread ../../bullet-2.77/lib/bulletdbg.a -lglut -lGL -lGLU
+OPT_LFLAGS = -lGClasses -lpng -lpthread ../../bullet-2.77/lib/bullet.a -lglut -lGL -lGLU
 endif
 
 ################

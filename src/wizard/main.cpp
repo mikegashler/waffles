@@ -224,7 +224,7 @@ public:
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Please choose a value for <i>" << m_pEffectiveNode->tok() << "</i><br>\n";
 			response << m_pEffectiveNode->descr() << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td></tr></table><br>\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table><br>\n";
 			response << "<table>\n";
 			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
@@ -234,7 +234,7 @@ public:
 			}
 			response << "</table>\n";
 			response << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td></tr></table>\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table>\n";
 			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
 			response << "</form>\n";
 		}
@@ -242,7 +242,7 @@ public:
 		{
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Check the options you want for <i>" << m_pEffectiveNode->tok() << "</i><br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table><br>\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table><br>\n";
 			response << "<table>\n";
 			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
@@ -255,7 +255,7 @@ public:
 			}
 			response << "</table>\n";
 			response << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table>\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table>\n";
 			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
 			response << "</form>\n";
 		}
@@ -264,7 +264,7 @@ public:
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Please provide values for <i>" << m_pEffectiveNode->tok() << "</i><br>\n";
 			response << m_pEffectiveNode->descr() << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table><br>\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table><br>\n";
 			response << "<table>\n";
 			size_t index = 0;
 			for(size_t i = 0; i < m_pEffectiveNode->parts().size(); i++)
@@ -294,7 +294,7 @@ public:
 			}
 			response << "</table>\n";
 			response << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td></tr></table>\n";
+			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table>\n";
 			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
 			response << "</form>\n";
 		}
@@ -826,7 +826,7 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 	}
 	else if(strncmp(szUrl, "/shutdown", 9) == 0)
 	{
-		response << "<html><head></head><body onLoad=\"var closure=function() { window.top.opener = null; window.open('','_parent',''); window.close()}; setTimeout(closure,1000)\"><h3><a href=\"/shutdown\" onclick=\"self.close()\">Goodbye!</a></h3><p>If you are reading this, then your browser settings do not allow Javascript to close windows, so you will need to close this window manually.</p></body></html>\n";
+		response << "<html><head></head><body onLoad=\"var closure=function() { window.top.opener = null; window.open('','_parent',''); window.close()}; setTimeout(closure,500)\"><h3>Goodbye!</h3></body></html>\n";
 		shutDown();
 	}
 	else
@@ -916,19 +916,39 @@ void LaunchBrowser(const char* szAddress)
 	}
 }
 
+// Launch the web-based wizard tool
 void do_wizard()
 {
 	int port = 8421;
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	GRand prng(seed);
-	Server server(port, &prng);
-	LaunchBrowser(server.myAddress());
+	bool serverStarted = false;
+	try
+	{
+		Server server(port, &prng);
+		serverStarted = true;
+		LaunchBrowser(server.myAddress());
 
-	// Pump incoming HTTP requests (this is the main loop)
-	server.pump();
+		// Pump incoming HTTP requests (this is the main loop)
+		server.pump();
+	}
+	catch(std::exception& e)
+	{
+		if(serverStarted)
+			throw e;
+		else
+		{
+			cout << "Failed to launch the server. Typically, this means there is already another instance running on port " << port << ", so I am just going to open the browser and then exit.\n";
+			string s = "http://localhost:";
+			s += to_str(port);
+			LaunchBrowser(s.c_str());
+		}
+	}
 	cout << "Goodbye.\n";
 }
 
+// Generate a script that can be installed in /etc/bash_completion.d to tell
+// BASH how to use waffles_wizard to complete commands.
 void make_bash_completion_file()
 {
 	UsageNode* pRoot = makeMasterUsageTree();
@@ -943,6 +963,7 @@ void make_bash_completion_file()
 	}
 }
 
+// Returns true iff the first strlen(part) characters in "full" match "part"
 bool doesMatch(const char* full, const char* part)
 {
 	while(*part != '\0')
@@ -953,6 +974,7 @@ bool doesMatch(const char* full, const char* part)
 	return true;
 }
 
+// This is a helper-class used by complete_command to complete commands
 class CommandCompleter
 {
 protected:
@@ -999,15 +1021,70 @@ public:
 
 	static void completeFilename(const char* tok)
 	{
-		// Complete with matching filenames
-		GDirList dl(false, true, false, false);
-		while(true)
+		int lastSlash = -1;
+		for(int i = 0; tok[i] != '\0'; i++)
 		{
-			const char* fn = dl.GetNext();
-			if(!fn)
-				break;
-			if(doesMatch(fn, tok))
-				cout << fn << "\n";
+			if(tok[i] == '/')
+				lastSlash = i;
+		}
+		char origDir[300];
+		char folder[300];
+		folder[0] = '\0';
+		if(lastSlash >= 0)
+		{
+			if(!getcwd(origDir, 300))
+				ThrowError("getcwd failed");
+			size_t len = std::min(299, lastSlash + 1);
+			memcpy(folder, tok, len);
+			folder[len] = '\0';
+			if(chdir(folder) != 0)
+				return;
+			tok += lastSlash + 1;
+		}
+		if(strcmp(tok, "..") == 0)
+		{
+			cout << folder << "../.\n";
+			cout << folder << "../_\n";
+		}
+
+		// Complete with matching dir names
+		{
+			GDirList dl(false, false, true, false);
+			while(true)
+			{
+				const char* fn = dl.GetNext();
+				if(!fn)
+					break;
+				if(doesMatch(fn, tok))
+				{
+					// Do two completions (".", and "_") to trick BASH into not inserting a space. If
+					// the user presses TAB twice to see the full list of completions, this might be
+					// confusing--well, do you know of a better solution?
+					cout << folder << fn << "/.\n";
+					cout << folder << fn << "/_\n";
+				}
+			}
+		}
+
+		// Complete with matching filenames
+		{
+			GDirList dl(false, true, false, false);
+			while(true)
+			{
+				const char* fn = dl.GetNext();
+				if(!fn)
+					break;
+				if(doesMatch(fn, tok))
+					cout << folder << fn << "\n";
+			}
+		}
+
+		// Restore the original folder
+		if(lastSlash >= 0)
+		{
+			if(chdir(origDir) != 0)
+			{
+			}
 		}
 	}
 
@@ -1107,6 +1184,13 @@ public:
 	}
 };
 
+// Complete the command specified starting with arg 3. All completion candidates are printed to stdout,
+// separated by a newline.
+//
+// pArgs[0] = the name of this app, "waffles_wizard"
+// pArgs[1] = the command, "complete"
+// pArgs[2] = the index of the arg that should be completed (as if pArg[3] were at index 0)
+// pArgs[3] to pArgs[*] = the command to complete
 void complete_command(int nArgs, char* pArgs[])
 {
 	try
@@ -1179,11 +1263,11 @@ int main(int nArgs, char* pArgs[])
 	try
 	{
 		if(nArgs < 2)
-			do_wizard();
+			do_wizard(); // do a web-based wizard utility
 		else if(strcmp(pArgs[1], "make_bash_completion_file") == 0)
-			make_bash_completion_file();
+			make_bash_completion_file(); // generate a script that is used to set up bash command-completion
 		else if(strcmp(pArgs[1], "complete") == 0)
-			complete_command(nArgs, pArgs);
+			complete_command(nArgs, pArgs); // complete the specified command
 		else
 			ThrowError("Unrecognized command: ", pArgs[1]);
 		ret = 0;

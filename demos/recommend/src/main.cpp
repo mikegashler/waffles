@@ -20,7 +20,7 @@
 #include <GClasses/GMatrix.h>
 #include <GClasses/GDirList.h>
 #include <GClasses/GApp.h>
-#include <GClasses/GTwt.h>
+#include <GClasses/GDom.h>
 #include <GClasses/GString.h>
 #include <GClasses/GHeap.h>
 #include <GClasses/GHttp.h>
@@ -87,14 +87,14 @@ public:
 			m_weights[i] = 0.1 * pRand->normal();
 	}
 
-	Item(GTwtNode* pNode, GRand* pRand)
+	Item(GDomNode* pNode, GRand* pRand)
 	{
 		m_url = pNode->field("url")->asString();
 		m_title = pNode->field("title")->asString();
 		m_submitter = pNode->field("subm")->asString();
 		m_date = (time_t)pNode->field("date")->asInt();
 		m_weights.resize(PERSONALITY_DIMS + 1);
-		GTwtNode* pWeights = pNode->field("weights");
+		GDomNode* pWeights = pNode->field("weights");
 		size_t i;
 		for(i = 0; i < std::min(pWeights->itemCount(), (size_t)PERSONALITY_DIMS + 1); i++)
 			m_weights[i] = pWeights->item(i)->asDouble();
@@ -105,14 +105,14 @@ public:
 	const char* url() { return m_url.c_str(); }
 	const char* title() { return m_title.c_str(); }
 
-	GTwtNode* toTwt(GTwtDoc* pDoc)
+	GDomNode* toTwt(GDom* pDoc)
 	{
-		GTwtNode* pNode = pDoc->newObj();
+		GDomNode* pNode = pDoc->newObj();
 		pNode->addField(pDoc, "url", pDoc->newString(m_url.c_str()));
 		pNode->addField(pDoc, "title", pDoc->newString(m_title.c_str()));
 		pNode->addField(pDoc, "subm", pDoc->newString(m_submitter.c_str()));
 		pNode->addField(pDoc, "date", pDoc->newInt(m_date));
-		GTwtNode* pWeights = pNode->addField(pDoc, "weights", pDoc->newList(PERSONALITY_DIMS + 1));
+		GDomNode* pWeights = pNode->addField(pDoc, "weights", pDoc->newList(PERSONALITY_DIMS + 1));
 		for(size_t i = 0; i < PERSONALITY_DIMS + 1; i++)
 			pWeights->setItem(i, pDoc->newDouble(m_weights[i]));
 		return pNode;
@@ -230,7 +230,7 @@ public:
 		return true;
 	}
 
-	GTwtNode* toTwt(GTwtDoc* pDoc)
+	GDomNode* toTwt(GDom* pDoc)
 	{
 		GTwtNode* pNode = pDoc->newObj();
 		pNode->addField(pDoc, "descr", pDoc->newString(m_descr.c_str()));

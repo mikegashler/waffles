@@ -19,8 +19,8 @@ else
 CFLAGS = -Wall $(shell sdl-config --cflags) -I$(INSTALL_LOCATION_INCLUDE)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = -lGSupDbg -lGClassesDbg $(shell sdl-config --libs) -lpng
-OPT_LFLAGS = -lGSup -lGClasses $(shell sdl-config --libs) -lpng
+DBG_LFLAGS = -lGSupDbg -lGClassesDbg $(shell sdl-config --libs) -lpng -lpthread
+OPT_LFLAGS = -lGSup -lGClasses $(shell sdl-config --libs) -lpng -lpthread
 endif
 
 ################

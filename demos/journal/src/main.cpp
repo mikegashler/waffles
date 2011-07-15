@@ -20,7 +20,7 @@
 #include <GClasses/GDirList.h>
 #include <GClasses/GHolders.h>
 #include <GClasses/GApp.h>
-#include <GClasses/GTwt.h>
+#include <GClasses/GDom.h>
 #include <GClasses/GString.h>
 #include <GClasses/GHeap.h>
 #include <GClasses/GHttp.h>
@@ -74,8 +74,8 @@ public:
 	virtual void onShutDown();
 	Account* loadAccount(const char* szUsername, const char* szPasswordHash);
 	Account* newAccount(const char* szUsername, const char* szPasswordHash);
-	GTwtNode* serializeState(GTwtDoc* pDoc);
-	void deserializeState(GTwtNode* pNode);
+	GDomNode* serializeState(GDom* pDoc);
+	void deserializeState(GDomNode* pNode);
 };
 
 class Account : public GDynamicPageSessionExtension
@@ -122,15 +122,15 @@ public:
 		return m_afterLoginParams.c_str();
 	}
 
-	static Account* fromTwt(GTwtNode* pNode)
+	static Account* fromTwt(GDomNode* pNode)
 	{
 		Account* pAccount = new Account(pNode->field("username")->asString(), pNode->field("password")->asString());
 		return pAccount;
 	}
 
-	GTwtNode* toTwt(GTwtDoc* pDoc)
+	GDomNode* toTwt(GDom* pDoc)
 	{
-		GTwtNode* pAccount = pDoc->newObj();
+		GDomNode* pAccount = pDoc->newObj();
 		pAccount->addField(pDoc, "username", pDoc->newString(m_username.c_str()));
 		pAccount->addField(pDoc, "password", pDoc->newString(m_passwordHash.c_str()));
 		return pAccount;
@@ -713,8 +713,8 @@ void Server::loadState()
 	getStatePath(statePath);
 	if(GFile::doesFileExist(statePath))
 	{
-		GTwtDoc doc;
-		doc.load(statePath);
+		GDom doc;
+		doc.loadJson(statePath);
 		deserializeState(doc.root());
 		cout << "State loaded from: " << statePath << "\n";
 	}
@@ -724,11 +724,11 @@ void Server::loadState()
 
 void Server::saveState()
 {
-	GTwtDoc doc;
+	GDom doc;
 	doc.setRoot(serializeState(&doc));
 	char szStoragePath[300];
 	getStatePath(szStoragePath);
-	doc.save(szStoragePath);
+	doc.saveJson(szStoragePath);
 	char szTime[256];
 	GTime::asciiTime(szTime, 256, false);
 	cout << "Server state saved at: " << szTime << "\n";
@@ -844,27 +844,27 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 	return pAccount;
 }
 
-GTwtNode* Server::serializeState(GTwtDoc* pDoc)
+GDomNode* Server::serializeState(GDom* pDoc)
 {
-	GTwtNode* pNode = pDoc->newObj();
+	GDomNode* pNode = pDoc->newObj();
 
 	// Captcha salt
 	pNode->addField(pDoc, "daemonSalt", pDoc->newString(daemonSalt()));
 
 	// Save the accounts
-	GTwtNode* pAccounts = pNode->addField(pDoc, "accounts", pDoc->newList(m_accounts.size()));
+	GDomNode* pAccounts = pNode->addField(pDoc, "accounts", pDoc->newList());
 	size_t i = 0;
 	for(map<string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
 	{
 		Account* pAccount = it->second;
-		pAccounts->setItem(i, pAccount->toTwt(pDoc));
+		pAccounts->addItem(pDoc, pAccount->toTwt(pDoc));
 		i++;
 	}
 
 	return pNode;
 }
 
-void Server::deserializeState(GTwtNode* pNode)
+void Server::deserializeState(GDomNode* pNode)
 {
 	// Captcha salt
 	const char* daemonSalt = pNode->fieldIfExists("daemonSalt")->asString();
@@ -872,10 +872,10 @@ void Server::deserializeState(GTwtNode* pNode)
 		setDaemonSalt(daemonSalt);
 
 	// Load the accounts
-	GTwtNode* pAccounts = pNode->field("accounts");
-	for(size_t i = 0; i < pAccounts->itemCount(); i++)
+	GDomNode* pAccounts = pNode->field("accounts");
+	for(GDomListIterator it(pAccounts); it.current(); it.advance())
 	{
-		Account* pAccount = Account::fromTwt(pAccounts->item(i));
+		Account* pAccount = Account::fromTwt(it.current());
 		m_accounts.insert(make_pair(string(pAccount->username()), pAccount));
 	}
 }
