@@ -35,6 +35,7 @@
 #include <vector>
 #include "usage.h"
 #include <sstream>
+#include <stack>
 
 using namespace GClasses;
 using std::cout;
@@ -56,6 +57,7 @@ protected:
 	Page* m_pGoodbyePage;
 	UsageNode* m_pRootNode;
 	UsageNode* m_pDefaultNode;
+	std::stack<Page*> m_pageStack;
 
 public:
 	MySession(GDynamicPageSession* pDPSession);
@@ -72,6 +74,12 @@ public:
 		delete(this);
 	}
 
+	void onShowPage()
+	{
+		m_pageStack.push(m_pCurrentPage);
+	}
+
+	std::stack<Page*>& pageStack() { return m_pageStack; }
 	size_t page() { return m_page; }
 	Page* currentPage() { return m_pCurrentPage; }
 	UsageNode* defaultNode() { return m_pDefaultNode; }
@@ -201,7 +209,26 @@ public:
 		return periods == 1 && alphas >= 1;
 	}
 
-	void makeBody(std::ostream& response)
+	void makeStandardButtons(std::ostream& response, MySession* pSession, bool haveNext)
+	{
+		response << "<table width=100%><tr>";
+		if(pSession->pageStack().size() > 1)
+			response << "<td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Go back\" /></td>";
+		else
+			response << "<td align=\"center\">&nbsp;&nbsp;&nbsp;</td>";
+		if(haveNext)
+			response << "<td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td>";
+		else
+			response << "<td align=\"center\">&nbsp;&nbsp;&nbsp;</td>";
+		if(pSession->pageStack().size() > 1)
+			response << "<td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td>";
+		else
+			response << "<td align=\"center\">&nbsp;&nbsp;&nbsp;</td>";
+		response << "<td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td>";
+		response << "</tr></table><br>\n";
+	}
+
+	void makeBody(std::ostream& response, MySession* pSession)
 	{
 		response << "<h2>Waffles Command-building Wizard</h2>\n";
 		response << "<table border=\"1\" width=\"1000\"><tr><td>\n";
@@ -224,7 +251,7 @@ public:
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Please choose a value for <i>" << m_pEffectiveNode->tok() << "</i><br>\n";
 			response << m_pEffectiveNode->descr() << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table><br>\n";
+			makeStandardButtons(response, pSession, false);
 			response << "<table>\n";
 			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
@@ -234,7 +261,7 @@ public:
 			}
 			response << "</table>\n";
 			response << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\">&nbsp;&nbsp;&nbsp;</td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table>\n";
+			makeStandardButtons(response, pSession, false);
 			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
 			response << "</form>\n";
 		}
@@ -242,7 +269,7 @@ public:
 		{
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Check the options you want for <i>" << m_pEffectiveNode->tok() << "</i><br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table><br>\n";
+			makeStandardButtons(response, pSession, true);
 			response << "<table>\n";
 			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
@@ -255,7 +282,7 @@ public:
 			}
 			response << "</table>\n";
 			response << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table>\n";
+			makeStandardButtons(response, pSession, true);
 			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
 			response << "</form>\n";
 		}
@@ -264,7 +291,7 @@ public:
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
 			response << "Please provide values for <i>" << m_pEffectiveNode->tok() << "</i><br>\n";
 			response << m_pEffectiveNode->descr() << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table><br>\n";
+			makeStandardButtons(response, pSession, true);
 			response << "<table>\n";
 			size_t index = 0;
 			for(size_t i = 0; i < m_pEffectiveNode->parts().size(); i++)
@@ -294,7 +321,7 @@ public:
 			}
 			response << "</table>\n";
 			response << "<br><br>\n\n";
-			response << "<table width=60%><tr><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Start Over\" /></td><td align=\"center\"><input type=\"submit\" name=\"btn\" value=\"Next\" /></td><td align=\"center\"><input type=\"button\" name=\"btn\" value=\"Quit\" onclick=\"location.href='/shutdown'\" /></td></tr></table>\n";
+			makeStandardButtons(response, pSession, true);
 			response << "<input type=\"hidden\" name=\"pageid\" value=\"" << m_pSession->page() << "\" />\n";
 			response << "</form>\n";
 		}
@@ -526,18 +553,36 @@ MySession::MySession(GDynamicPageSession* pDPSession)
 
 void MySession::doNext(const char* szParams)
 {
-	// Check the page id. Start over if it is not what is expected.
+	Page* pNext = NULL;
+
+	// Find the page ID
 	GHttpParamParser pp(szParams);
 	const char* szPageId = pp.find("pageid");
 	size_t pageId = (size_t)-1;
 	if(szPageId)
 		pageId = atoi(szPageId);
+
+	// Check if the back button was pressed
 	const char* szBtn = pp.find("btn");
+	bool backingup = false;
+	if(szBtn && _stricmp(szBtn, "Go back") == 0)
+	{
+		m_pageStack.pop();
+		pNext = m_pageStack.top();
+		m_pageStack.pop();
+		backingup = true;
+	}
+
+	// Check if the start-over button was pressed
 	if(szBtn && _stricmp(szBtn, "Start Over") == 0)
 		pageId = (size_t)-1;
+
+	// Check the page id. Start over if it is not what is expected.
 	if(pageId != m_page || !m_pCurrentPage || !m_pRootPage)
 	{
 		// Start over at the beginning
+		while(m_pageStack.size() > 0)
+			m_pageStack.pop();
 		m_page = 1;
 		delete(m_pRootPage);
 		m_pRootPage = new Page((Server*)m_pDPSession->server(), this, NULL, m_pRootNode);
@@ -546,17 +591,19 @@ void MySession::doNext(const char* szParams)
 	}
 	else
 	{
-		m_pCurrentPage->setChoices(pp);
+		if(!backingup)
+			m_pCurrentPage->setChoices(pp);
 		m_page++;
 	}
 
 	// If there are children, pick the first child
-	if(!m_pCurrentPage->createChildPages())
-		return;
-	Page* pNext = NULL;
-	if(m_pCurrentPage->children().size() > 0)
+	if(!backingup)
+	{
+		if(!m_pCurrentPage->createChildPages())
+			return;
+	}
+	if(!pNext && m_pCurrentPage->children().size() > 0)
 		pNext = m_pCurrentPage->children()[0];
-
 	if(!pNext)
 	{
 		Page* pPar = m_pCurrentPage->parent();
@@ -774,7 +821,8 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 			if(pSession->currentPage() == pPrev)
 				ThrowError("Internal error");
 		}
-		pSession->currentPage()->makeBody(response);
+		pSession->onShowPage();
+		pSession->currentPage()->makeBody(response, pSession);
 		response << "</body></html>\n";
 	}
 	else if(strncmp(szUrl, "/listfiles", 10) == 0)
