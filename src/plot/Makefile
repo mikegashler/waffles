@@ -19,12 +19,12 @@ endif
 # Set platform-specific compiler and linker flags
 ifeq ($(UNAME),Darwin)
 	CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -no-cpp-precomp
-	DBG_LFLAGS = /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/dbg/usage.o ../../lib/GSupDbg.a ../../lib/GClassesDbg.a
-	OPT_LFLAGS = /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/opt/usage.o ../../lib/GSup.a ../../lib/GClasses.a
+	DBG_LFLAGS = /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a
+	OPT_LFLAGS = /sw/lib/libpng.dylib -lz -framework AppKit ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a
 else
 	CFLAGS = -Wall
-	DBG_LFLAGS = ../../obj/waffles_wizard/dbg/usage.o ../../lib/GSupDbg.a ../../lib/GClassesDbg.a -lpng
-	OPT_LFLAGS = ../../obj/waffles_wizard/opt/usage.o ../../lib/GSup.a ../../lib/GClasses.a -lpng
+	DBG_LFLAGS = ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a -lpng
+	OPT_LFLAGS = ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a -lpng
 endif
 
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
@@ -89,12 +89,6 @@ usage:
 
 ../../lib/GClasses.a :
 	$(MAKE) -C ../GClasses opt
-
-../../lib/GSupDbg.a :
-	$(MAKE) -C ../GSup dbg
-
-../../lib/GSup.a :
-	$(MAKE) -C ../GSup opt
 
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waffles_wizard/opt/usage.o ../../lib/GClassesDbg.a

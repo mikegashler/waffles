@@ -4,7 +4,7 @@
 #include <GClasses/GNeuralNet.h>
 #include <GClasses/GActivation.h>
 #include <GClasses/GRand.h>
-#include <GClasses/GTwt.h>
+#include <GClasses/GDom.h>
 #include <GClasses/GFile.h>
 #include <GClasses/GEvolutionary.h>
 #include <GClasses/GTime.h>
@@ -124,20 +124,20 @@ void Train()
 		err = search.iterate();
 		if(i % 250 == 0)
 		{
-			GTwtDoc doc;
+			GDom doc;
 			nn.setWeights(search.currentVector());
-			doc.setRoot(nn.toTwt(&doc));
-			sprintf(szBuf, "policy%d.twt", i);
+			doc.setRoot(nn.serialize(&doc));
+			sprintf(szBuf, "policy%d.json", i);
 			printf("Saving %s (height=%lg) at %s\n", szBuf, -err, GTime::asciiTime(szTime, 64, false));
-			doc.save(szBuf);
+			doc.saveJson(szBuf);
 		}
 	}
 }
 
 GNeuralNet* LoadPolicy(const char* szFilename, GRand* pRand)
 {
-	GTwtDoc doc;
-	doc.load(szFilename);
+	GDom doc;
+	doc.loadJson(szFilename);
 	return new GNeuralNet(doc.root(), pRand);
 }
 

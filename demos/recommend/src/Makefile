@@ -12,14 +12,14 @@ ifeq ($(UNAME),Darwin)
 CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -I../../../src -no-cpp-precomp
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GSupDbg.a ../../../lib/GClassesDbg.a
-OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GSup.a ../../../lib/GClasses.a
+DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GClassesDbg.a
+OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GClasses.a
 else
 CFLAGS = -Wall $(shell sdl-config --cflags)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = -lGSupDbg -lGClassesDbg -lpng -lpthread
-OPT_LFLAGS = -lGSup -lGClasses -lpng -lpthread
+DBG_LFLAGS = -lGClassesDbg -lpng -lpthread
+OPT_LFLAGS = -lGClasses -lpng -lpthread
 endif
 
 ################

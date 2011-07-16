@@ -37,12 +37,15 @@ CPP_FILES = \
 	GApp.cpp\
 	GBayesianNetwork.cpp\
 	GBezier.cpp\
+	GBigInt.cpp\
 	GBits.cpp\
 	GBitTable.cpp\
 	GBlob.cpp\
+	GChess.cpp\
 	GCluster.cpp\
 	GCrypto.cpp\
 	GDecisionTree.cpp\
+	GDiff.cpp\
 	GDirList.cpp\
 	GDistance.cpp\
 	GDistribution.cpp\
@@ -66,6 +69,7 @@ CPP_FILES = \
 	GImage.cpp\
 	GKalman.cpp\
 	GKernelTrick.cpp\
+	GKeyPair.cpp\
 	GKNN.cpp\
 	GLearner.cpp\
 	GLinear.cpp\
@@ -90,6 +94,7 @@ CPP_FILES = \
 	GRecommender.cpp\
 	GRegion.cpp\
 	GReinforcement.cpp\
+	GSDL.cpp\
 	GSelfOrganizingMap.cpp\
 	GSmtp.cpp\
 	GSocket.cpp\

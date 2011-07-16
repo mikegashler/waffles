@@ -98,7 +98,7 @@ public:
 		m_nn.setLearningRate(0.1);
 		sp_relation pFeatureRel = new GUniformRelation(2);
 		sp_relation pLabelRel = new GUniformRelation(3);
-		m_nn.enableIncrementalLearning(pFeatureRel, pLabelRel);
+		m_nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
 		m_pIndexes = new size_t[m_tar.rows()];
 		GIndexVec::makeIndexVec(m_pIndexes, m_tar.rows());
 		m_nextSpotlight = 0;

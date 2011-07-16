@@ -13,10 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "GBigInt.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GHolders.h"
+#include "GError.h"
+#include "GHolders.h"
 #include "GKeyPair.h"
-#include "../GClasses/GDom.h"
+#include "GDom.h"
 #ifndef WINDOWS
 #include <sys/types.h>
 typedef int64_t __int64;

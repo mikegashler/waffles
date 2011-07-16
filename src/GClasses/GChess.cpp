@@ -10,8 +10,8 @@
 */
 
 #include "GChess.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GRand.h"
+#include "GError.h"
+#include "GRand.h"
 
 using namespace GClasses;
 using std::ostream;

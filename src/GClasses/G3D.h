@@ -13,7 +13,7 @@
 #define __G3D_H__
 
 #include <math.h>
-#include "../GClasses/GError.h"
+#include "GError.h"
 #include <vector>
 
 namespace GClasses {

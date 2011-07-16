@@ -23,9 +23,8 @@
 #include "../GClasses/GBitTable.h"
 #include "../GClasses/GCluster.h"
 #include "../GClasses/GCrypto.h"
-#include "../GSup/GDate.h"
 #include "../GClasses/GDecisionTree.h"
-#include "../GSup/GDiff.h"
+#include "../GClasses/GDiff.h"
 #include "../GClasses/GEnsemble.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GFile.h"
@@ -34,7 +33,7 @@
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GHiddenMarkovModel.h"
 #include "../GClasses/GHillClimber.h"
-#include "../GSup/GKeyPair.h"
+#include "../GClasses/GKeyPair.h"
 #include "../GClasses/GKNN.h"
 #include "../GClasses/GLinear.h"
 #include "../GClasses/GManifold.h"
@@ -375,7 +374,6 @@ void RunAllTests()
 	runTest("GCoordVectorIterator", GCoordVectorIterator::test);
 	runTest("GCrypto", GCrypto::test);
 	runTest("GCycleCut", GCycleCut::test);
-	runTest("GDate", TestGDate);
 	runTest("GDecisionTree", GDecisionTree::test);
 	runTest("GDiff", GDiff::test);
 	runTest("GDijkstra", GDijkstra::test);

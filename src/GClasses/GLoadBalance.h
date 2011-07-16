@@ -15,7 +15,7 @@
 #include <string>
 #include <deque>
 #include "GBlob.h"
-#include "../GClasses/GPriorityQueue.h"
+#include "GPriorityQueue.h"
 
 namespace GClasses {
 

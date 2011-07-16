@@ -122,13 +122,13 @@ public:
 		return m_afterLoginParams.c_str();
 	}
 
-	static Account* fromTwt(GDomNode* pNode)
+	static Account* fromDom(GDomNode* pNode)
 	{
 		Account* pAccount = new Account(pNode->field("username")->asString(), pNode->field("password")->asString());
 		return pAccount;
 	}
 
-	GDomNode* toTwt(GDom* pDoc)
+	GDomNode* toDom(GDom* pDoc)
 	{
 		GDomNode* pAccount = pDoc->newObj();
 		pAccount->addField(pDoc, "username", pDoc->newString(m_username.c_str()));
@@ -790,7 +790,7 @@ void getLocalStorageFolder(char* buf)
 void Server::getStatePath(char* buf)
 {
 	getLocalStorageFolder(buf);
-	strcat(buf, "state.twt");
+	strcat(buf, "state.json");
 }
 
 // virtual
@@ -857,7 +857,7 @@ GDomNode* Server::serializeState(GDom* pDoc)
 	for(map<string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
 	{
 		Account* pAccount = it->second;
-		pAccounts->addItem(pDoc, pAccount->toTwt(pDoc));
+		pAccounts->addItem(pDoc, pAccount->toDom(pDoc));
 		i++;
 	}
 
@@ -875,7 +875,7 @@ void Server::deserializeState(GDomNode* pNode)
 	GDomNode* pAccounts = pNode->field("accounts");
 	for(GDomListIterator it(pAccounts); it.current(); it.advance())
 	{
-		Account* pAccount = Account::fromTwt(it.current());
+		Account* pAccount = Account::fromDom(it.current());
 		m_accounts.insert(make_pair(string(pAccount->username()), pAccount));
 	}
 }

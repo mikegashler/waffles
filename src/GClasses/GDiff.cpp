@@ -11,8 +11,8 @@
 
 #include <stddef.h>
 #include "GDiff.h"
-#include "../GClasses/GHashTable.h"
-#include "../GClasses/GHeap.h"
+#include "GHashTable.h"
+#include "GHeap.h"
 
 using namespace GClasses;
 

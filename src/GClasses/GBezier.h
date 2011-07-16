@@ -13,8 +13,8 @@
 #define __GBEZIER_H__
 
 #include <math.h>
-#include "../GClasses/GError.h"
-#include "../GClasses/GMath.h"
+#include "GError.h"
+#include "GMath.h"
 #include "G3D.h"
 
 namespace GClasses {

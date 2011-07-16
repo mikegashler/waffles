@@ -13,8 +13,8 @@ ifeq ($(UNAME),Darwin)
 CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -I../../../src -no-cpp-precomp -I../../bullet-2.77/src
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GSupDbg.a ../../../lib/GClassesDbg.a ../../bullet-2.77/lib/bulletdbg.a -lglut -lGL -lGLU
-OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GSup.a ../../../lib/GClasses.a ../../bullet-2.77/lib/bullet.a -lglut -lGL -lGLU
+DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GClassesDbg.a ../../bullet-2.77/lib/bulletdbg.a -lglut -lGL -lGLU
+OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GClasses.a ../../bullet-2.77/lib/bullet.a -lglut -lGL -lGLU
 else
 CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../bullet-2.77/src
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG

@@ -12,7 +12,7 @@
 #ifndef __CRYPTO_H__
 #define __CRYPTO_H__
 
-#include "../GClasses/GError.h"
+#include "GError.h"
 
 namespace GClasses {
 

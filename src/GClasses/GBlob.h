@@ -13,7 +13,7 @@
 #define __GBLOB_H__
 
 #include <string.h>
-#include "../GClasses/GError.h"
+#include "GError.h"
 #include <string>
 
 namespace GClasses {

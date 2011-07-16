@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <math.h>
 #include "G3D.h"
-#include "../GClasses/GRand.h"
+#include "GRand.h"
 #include <vector>
 #include <cmath>
 

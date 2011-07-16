@@ -10,11 +10,11 @@
 */
 
 #include "G3D.h"
-#include "../GClasses/GRand.h"
-#include "../GClasses/GDom.h"
-#include "../GClasses/GMath.h"
-#include "../GClasses/GImage.h"
-#include "../GClasses/GVec.h"
+#include "GRand.h"
+#include "GDom.h"
+#include "GMath.h"
+#include "GImage.h"
+#include "GVec.h"
 #include <cmath>
 
 using std::vector;

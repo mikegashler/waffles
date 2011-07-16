@@ -12,10 +12,9 @@
 #include <stdio.h>
 #include "GKeyPair.h"
 #include "GBigInt.h"
-#include "../GClasses/GError.h"
-#include "GXML.h"
-#include "../GClasses/GRand.h"
-#include "../GClasses/GDom.h"
+#include "GError.h"
+#include "GRand.h"
+#include "GDom.h"
 #include <time.h>
 
 namespace GClasses {
