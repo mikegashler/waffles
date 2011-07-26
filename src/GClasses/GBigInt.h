@@ -15,13 +15,12 @@
 namespace GClasses {
 
 class GKeyPair;
-class GRandCrypto;
 class GDomNode;
 class GDom;
 
-// Represents an integer of arbitrary size, and provides basic
-// arithmetic functionality. Also contains functionality for
-// implementing RSA symmetric-key cryptography.
+/// Represents an integer of arbitrary size, and provides basic
+/// arithmetic functionality. Also contains functionality for
+/// implementing RSA symmetric-key cryptography.
 class GBigInt
 {
 protected:
@@ -39,142 +38,140 @@ public:
 	GBigInt(GDomNode* pNode);
 	virtual ~GBigInt();
 
+	/// Marshal this object into a DOM that can be converted to a variety of serial formats.
 	GDomNode* serialize(GDom* pDoc);
 
-	// Returns true if the number is positive and false if it is negative
+	/// Returns true if the number is positive and false if it is negative
 	bool getSign() { return m_bSign; }
 
-	// Makes the number positive if bSign is true and negative if bSign is false
+	/// Makes the number positive if bSign is true and negative if bSign is false
 	void setSign(bool bSign) { m_bSign = bSign; }
 
-	// Returns the number of bits in the number
+	/// Returns the number of bits in the number
 	unsigned int getBitCount();
 
-	// Returns the value of the nth bit where 0 represents the least significant bit (little endian)
+	/// Returns the value of the nth bit where 0 represents the least significant bit (little endian)
 	bool getBit(unsigned int n)
 	{
 		return((n >= m_nUInts * BITS_PER_INT) ? false : ((m_pBits[n / BITS_PER_INT] & (1 << (n % BITS_PER_INT))) ? true : false));
 	}
 
-	// Sets the value of the nth bit where 0 represents the least significant bit (little endian)
+	/// Sets the value of the nth bit where 0 represents the least significant bit (little endian)
 	void setBit(unsigned int nPos, bool bVal);
 
-	// Returns the number of unsigned integers required to represent this number
+	/// Returns the number of unsigned integers required to represent this number
 	unsigned int getUIntCount() { return m_nUInts; }
 
-	// Returns the nth unsigned integer used to represent this number
+	/// Returns the nth unsigned integer used to represent this number
 	unsigned int getUInt(unsigned int nPos) { return nPos >= m_nUInts ? 0 : m_pBits[nPos]; }
 
-	// Sets the value of the nth unsigned integer used to represent this number
+	/// Sets the value of the nth unsigned integer used to represent this number
 	void setUInt(unsigned int nPos, unsigned int nVal);
 
-	// Sets the number to zero
+	/// Sets the number to zero
 	void setToZero();
 
-	// Returns true if the number is zero
+	/// Returns true if the number is zero
 	bool isZero();
 
-	// Returns -1 if this is less than pBigNumber
-	// Returns 0 if this is equal to pBigNumber
-	// Returns 1 if this is greater than pBigNumber
+	/// Returns -1 if this is less than pBigNumber
+	/// Returns 0 if this is equal to pBigNumber
+	/// Returns 1 if this is greater than pBigNumber
 	int compareTo(GBigInt* pBigNumber);
 
-	// Copies the value of pBigNumber into this object
+	/// Copies the value of pBigNumber into this object
 	void copy(GBigInt* pBigNumber);
 
-	// Produces a big endian hexadecimal representation of this number
+	/// Produces a big endian hexadecimal representation of this number
 	bool toHex(char* szBuff, int nBufferSize);
 	
-	// Extract a value from a big endian hexadecimal string
+	/// Extract a value from a big endian hexadecimal string
 	bool fromHex(const char* szHexValue);
 
-	// This gives you ownership of the buffer.  (You must delete it.)  It also sets the value to zero.
+	/// This gives you ownership of the buffer.  (You must delete it.)  It also sets the value to zero.
 	unsigned int* toBufferGiveOwnership();
 
-	// Serializes the number. little-Endian (first bit in buffer will be LSB)
+	/// Serializes the number. little-Endian (first bit in buffer will be LSB)
 	bool toBuffer(unsigned int* pBuffer, int nBufferSize);
 	
-	// Deserializes the number. little-Endian (first bit in buffer will be LSB)
+	/// Deserializes the number. little-Endian (first bit in buffer will be LSB)
 	void fromBuffer(const unsigned int* pBuffer, int nBufferSize);
 
-	// Deserializes the number.
+	/// Deserializes the number.
 	void fromByteBuffer(const unsigned char* pBuffer, int nBufferChars);
 
-	// Multiplies the number by -1
+	/// Multiplies the number by -1
 	void negate();
 
-	// Adds one to the number
+	/// Adds one to the number
 	void increment();
 
-	// Subtracts one from the number
+	/// Subtracts one from the number
 	void decrement();
 
-	// Add another big number to this one
+	/// Add another big number to this one
 	void add(GBigInt* pBigNumber);
 
-	// Subtract another big number from this one
+	/// Subtract another big number from this one
 	void subtract(GBigInt* pBigNumber);
 
-	// Set this value to the product of another big number and an unsigned integer
+	/// Set this value to the product of another big number and an unsigned integer
 	void multiply(GBigInt* pBigNumber, unsigned int nUInt);
 
-	// Set this value to the product of two big numbers
+	/// Set this value to the product of two big numbers
 	void multiply(GBigInt* pFirst, GBigInt* pSecond);
 
-	// Set this value to the ratio of two big numbers and return the remainder
+	/// Set this value to the ratio of two big numbers and return the remainder
 	void divide(GBigInt* pInNominator, GBigInt* pInDenominator, GBigInt* pOutRemainder);
 
-	// Shift left (multiply by 2)
+	/// Shift left (multiply by 2)
 	void shiftLeft(unsigned int nBits);
 
-	// Shift right (divide by 2 and round down)
+	/// Shift right (divide by 2 and round down)
 	void shiftRight(unsigned int nBits);
 
-	// bitwise or
+	/// bitwise or
 	void Or(GBigInt* pBigNumber);
 
-	// bitwise and
+	/// bitwise and
 	void And(GBigInt* pBigNumber);
 
-	// bitwise xor
+	/// bitwise xor
 	void Xor(GBigInt* pBigNumber);
 
-	// Input:  integers a, b
-	// Output: this will be set to the greatest common divisor of a,b.
-	//         (If pOutX and pOutY are not NULL, they will be values such
-	//          that "this" = ax + by.)
+	/// Input:  integers a, b
+	/// Output: this will be set to the greatest common divisor of a,b.
+	///         (If pOutX and pOutY are not NULL, they will be values such
+	///          that "this" = ax + by.)
 	void euclid(GBigInt* pA1, GBigInt* pB1, GBigInt* pOutX = NULL, GBigInt* pOutY = NULL);
 
-	// Input:  a, k>=0, n>=2
-	// Output: this will be set to ((a raised to the power of k) modulus n)
+	/// Input:  a, k>=0, n>=2
+	/// Output: this will be set to ((a raised to the power of k) modulus n)
 	void powerMod(GBigInt* pA, GBigInt* pK, GBigInt* pN);
 
-	// Input:  "this" must be >= 3, and 2 <= a < "this"
-	// Output: "true" if this is either prime or a strong pseudoprime to base a,
-	//         "false" otherwise
+	/// Input:  "this" must be >= 3, and 2 <= a < "this"
+	/// Output: "true" if this is either prime or a strong pseudoprime to base a,
+	///         "false" otherwise
 	bool millerRabin(GBigInt* pA);
 
-	// Output: true = pretty darn sure (like 99.999%) it's prime
-	//         false = definately (100%) not prime
+	/// Output: true = pretty darn sure (like 99.999%) it's prime
+	///         false = definately (100%) not prime
 	bool isPrime();
 
-	// Input:  pProd is the product of (p - 1) * (q - 1) where p and q are prime
-	//         pRandomData is some random data that will be used to pick the key.
-	// Output: It will return a key that has no common factors with pProd.  It starts
-	//         with the random data you provide and increments it until it fits this
-	//         criteria.
+	/// Input:  pProd is the product of (p - 1) * (q - 1) where p and q are prime
+	///         pRandomData is some random data that will be used to pick the key.
+	/// Output: It will return a key that has no common factors with pProd.  It starts
+	///         with the random data you provide and increments it until it fits this
+	///         criteria.
 	void selectPublicKey(const unsigned int* pRandomData, int nRandomDataUInts, GBigInt* pProd);
 
-	// Input:  pProd is the product of (p - 1) * (q - 1) where p and q are prime
-	//         pPublicKey is a number that has no common factors with pProd
-	// Output: this will become a private key to go with the public key
+	/// Input:  pProd is the product of (p - 1) * (q - 1) where p and q are prime
+	///         pPublicKey is a number that has no common factors with pProd
+	/// Output: this will become a private key to go with the public key
 	void calculatePrivateKey(GBigInt* pPublicKey, GBigInt* pProd);
 
-	// DO NOT use for crypto--This is NOT a cryptographic random number generator
+	/// DO NOT use for crypto--This is NOT a cryptographic random number generator
 	void setRandom(unsigned int nBits);
-
-	// Cryptographic random number
-	void setToRand(GRandCrypto* pRand);
 
 protected:
 	void resize(unsigned int nBits);

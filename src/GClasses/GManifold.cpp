@@ -2391,10 +2391,12 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	ArrayHolder<double> hParams(pParams);
 	double* pLabels = pParams + m_paramDims;
 	double* pIntrinsic = pLabels + m_labelDims;
-	for(double learningRate = 0.02; learningRate > 0.002; learningRate *= 0.5)
+	double regularizer = 0.000001;
+	for(double learningRate = 0.005; learningRate > 0.0005; learningRate *= 0.5)
 	{
+		m_pNN->setLearningRate(learningRate);
 		double sse = 0;
-		for(size_t i = 0; i < 500000000; i++)
+		for(size_t i = 0; i < 100000000; i++)
 		{
 			m_cvi.setRandom(m_pRand);
 			size_t index = m_cvi.currentIndex();
@@ -2412,13 +2414,15 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			m_pNN->setErrorSingleOutput(target, c);
 			m_pNN->backProp()->backpropagateSingleOutput(c);
 			if(m_updateWeights)
+			{
+				m_pNN->decayWeightsSingleOutput(c, regularizer);
 				m_pNN->backProp()->descendGradientSingleOutput(c, pParams, m_pNN->learningRate(), m_pNN->momentum(), m_pNN->useInputBias());
+			}
 			if(m_updateIntrinsic)
 			{
 				m_pNN->backProp()->adjustFeaturesSingleOutput(c, pParams, m_pNN->learningRate(), true);
+				GVec::multiply(pIntrinsic, 1.0 - learningRate * regularizer, m_intrinsicDims);
 				GVec::copy(m_pIntrinsic->row(r), pIntrinsic, m_intrinsicDims);
-				GVec::floorValues(pIntrinsic, 0.0, m_intrinsicDims);
-				GVec::capValues(pIntrinsic, 1.0, m_intrinsicDims);
 			}
 		}
 	}

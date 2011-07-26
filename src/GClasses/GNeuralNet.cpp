@@ -788,6 +788,16 @@ void GNeuralNet::decayWeightsSingleOutput(size_t output, double lambda)
 	GNeuron& neuron = layer(m_layers.size() - 1).m_neurons[output];
 	for(vector<double>::iterator weight = neuron.m_weights.begin(); weight != neuron.m_weights.end(); weight++)
 		(*weight) *= d;
+	for(size_t l = m_layers.size() - 2; l < m_layers.size(); l--)
+	{
+		GNeuralNetLayer& layer = m_layers[l];
+		double d = (1.0 - lambda * m_learningRate);
+		for(vector<GNeuron>::iterator neuron = layer.m_neurons.begin(); neuron != layer.m_neurons.end(); neuron++)
+		{
+			for(vector<double>::iterator weight = neuron->m_weights.begin() + 1; weight != neuron->m_weights.end(); weight++)
+				*weight *= d;
+		}
+	}
 }
 
 void GNeuralNet::forwardProp(const double* pRow)

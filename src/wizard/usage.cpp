@@ -1227,11 +1227,11 @@ UsageNode* makeTransformUsageTree()
 		}
 	}
 	{
-		UsageNode* pSplitClass = pRoot->add("splitclass [data] [attr] <options>", "Splits a dataset by a class attribute. All rows with a class label of [value] will be saved in a file named \"[data]_[value]\".");
+		UsageNode* pSplitClass = pRoot->add("splitclass [data] [attr] <options>", "Splits a dataset by a class attribute, such that a separate file is created for each unique class label. The generated filenames will be \"[data]_[value]\", where [value] is the unique class label value.");
 		pSplitClass->add("[data]=data.arff", "The filename of a dataset.");
 		pSplitClass->add("[attr]=0", "The zero-indexed column number of the class attribute.");
 		UsageNode* pOpts = pSplitClass->add("<options>");
-		pOpts->add("-dropclass", "Drop the class attribute after splitting the data. (The default is to include the class attribute in each of the output datasets.)");
+		pOpts->add("-dropclass", "Drop the class attribute after splitting the data. (The default is to include the class attribute in each of the output datasets, which is rather redundant since every row in the file will have the same class label.)");
 	}
 	{
 		UsageNode* pSplitFold = pRoot->add("splitfold [dataset] [i] [n] <options>", "Divides a dataset into [n] parts of approximately equal size, then puts part [i] into one file, and the other [n]-1 parts in another file. (This tool may be useful, for example, to implement n-fold cross validation.)");
