@@ -180,31 +180,11 @@ protected:
 	void moveMeanToOrigin();
 };
 
-/*
-/// An experimental algorithm for using Manifold Sculpting to model dynamic systems.
-class GManifoldSculptingForControl : public GManifoldSculpting
-{
-protected:
-	GMatrix* m_pControlData;
-	double m_squaredLambda;
-	bool m_alignConsequences;
 
-public:
-	GManifoldSculptingForControl(size_t nNeighbors, size_t nTargetDims, GRand* pRand, GMatrix* pControlData, double lambda)
-	: GManifoldSculpting(nNeighbors, nTargetDims, pRand), m_pControlData(pControlData), m_squaredLambda(lambda * lambda)
-	{
-	}
-
-	virtual ~GManifoldSculptingForControl()
-	{
-	}
-
-protected:
-	virtual double supervisedError(size_t nPoint);
-};
-*/
-
-/// Isomap. (A well-known manifold learning algorithm.)
+/// Isomap is a manifold learning algorithm that uses the Floyd-Warshall algorithm
+/// to compute an estimate of the geodesic distance between every pair of points
+/// using local neighborhoods, and then uses classic multidimensional scaling to
+/// compute a low-dimensional projection.
 class GIsomap : public GManifoldLearner
 {
 protected:
@@ -238,7 +218,8 @@ public:
 };
 
 
-/// Locally Linear Embedding. (A well-known manifold learning algorithm.)
+/// Locally Linear Embedding is a manifold learning algorithm that uses
+/// sparse matrix techniques to efficiently compute a low-dimensional projection.
 class GLLE : public GManifoldLearner
 {
 protected:
@@ -264,31 +245,6 @@ public:
 	/// Performs NLDR
 	virtual GMatrix* doit(GMatrix& in);
 };
-
-/*
-/// An experimental manifold learning algorithm. (Doesn't really work yet.)
-class GManifoldUnfolder : public GManifoldLearner
-{
-protected:
-	size_t m_neighborCount;
-	size_t m_targetDims;
-	GNeighborFinder* m_pNF;
-	GRand* m_pRand;
-
-public:
-	GManifoldUnfolder(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GManifoldUnfolder(GDomNode* pNode);
-	virtual ~GManifoldUnfolder();
-	GDomNode* serialize(GDom* pDoc);
-	void setNeighborFinder(GNeighborFinder* pNF);
-
-	/// Performs NLDR
-	virtual GMatrix* doit(GMatrix& in);
-
-protected:
-	GMatrix* unfold(GNeighborFinder* pNF, size_t targetDims, GRand* pRand);
-};
-*/
 
 
 /// A manifold learning algorithm that reduces dimensionality in local

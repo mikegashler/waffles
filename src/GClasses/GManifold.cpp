@@ -899,41 +899,6 @@ double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
 	return dTotalError;
 }
 
-// --------------------------------------------------------------------------
-/*
-// virtual
-double GManifoldSculptingForControl::supervisedError(size_t nPoint)
-{
-	if(m_squaredLambda <= 0 || nPoint >= m_pControlData->rows() - 1)
-		return 0;
-	size_t action = m_pControlData->row(nPoint)[0];
-	GTEMPBUF(double, pSum, m_nTargetDims);
-	GVec::setAll(pSum, 0.0, m_nTargetDims);
-	struct GManifoldSculptingNeighbor* pPoint = record(nPoint);
-	size_t count = 0;
-	for(size_t n = 0; n < m_nNeighbors; n++)
-	{
-		size_t neighbor = pPoint[n].m_nNeighbor;
-		if(m_pControlData->row(neighbor)[0] == action && neighbor < m_pControlData->rows() - 1)
-		{
-			GVec::add(pSum, m_pData->row(neighbor + 1), m_nTargetDims);
-			GVec::subtract(pSum, m_pData->row(neighbor), m_nTargetDims);
-			count++;
-		}
-	}
-	if(count >= 1)
-	{
-		GVec::multiply(pSum, -1.0 / count, m_nTargetDims);
-		GVec::add(pSum, m_pData->row(nPoint + 1), m_nTargetDims);
-		GVec::subtract(pSum, m_pData->row(nPoint), m_nTargetDims);
-		return (1.0 - m_scale) * m_squaredLambda * GVec::squaredMagnitude(pSum, m_nTargetDims);
-	}
-	else
-		return 0;
-}
-
-*/
-
 
 
 
@@ -1286,151 +1251,6 @@ GMatrix* GLLE::doit(GMatrix& in)
 	}
 	return GLLEHelper::doLLE(pNF, m_targetDims, m_pRand);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-GManifoldUnfolder::GManifoldUnfolder(size_t neighborCount, size_t targetDims, GRand* pRand)
-: m_neighborCount(neighborCount), m_targetDims(targetDims), m_pNF(NULL), m_pRand(pRand)
-{
-}
-
-GManifoldUnfolder::GManifoldUnfolder(GDomNode* pNode)
-{
-	ThrowError("Not implemented yet");
-}
-
-// virtual
-GManifoldUnfolder::~GManifoldUnfolder()
-{
-}
-
-GDomNode* GManifoldUnfolder::serialize(GDom* pDoc)
-{
-	ThrowError("Not implemented yet");
-	return NULL;
-}
-
-void GManifoldUnfolder::setNeighborFinder(GNeighborFinder* pNF)
-{
-	m_pNF = pNF;
-}
-
-// virtual
-GMatrix* GManifoldUnfolder::doit(GMatrix& in)
-{
-	GNeighborFinder* pNF = m_pNF;
-	Holder<GNeighborFinder> hNF(NULL);
-	if(!pNF)
-	{
-		pNF = new GKdTree(&in, 0, m_neighborCount, NULL, true);
-		hNF.reset(pNF);
-	}
-	return unfold(pNF, m_targetDims, m_pRand);
-}
-
-class GManifoldUnfolderTargetFunction : public GTargetFunction
-{
-protected:
-	GMatrix* m_pData;
-	size_t m_rows, m_cols;
-	GNeighborFinder* m_pNF;
-	size_t* m_pHood;
-	double* m_pDists;
-	double* m_pMean;
-
-public:
-	GManifoldUnfolderTargetFunction(GMatrix* pData, GNeighborFinder* pNF)
-	: GTargetFunction(pData->rows() * pData->cols()), m_pData(pData), m_rows(pData->rows()), m_cols(pData->cols()), m_pNF(pNF)
-	{
-		size_t k = pNF->neighborCount();
-		m_pHood = new size_t[k];
-		m_pDists = new double[k];
-		m_pMean = new double[m_cols];
-	}
-
-	virtual ~GManifoldUnfolderTargetFunction()
-	{
-		delete[] m_pHood;
-		delete[] m_pDists;
-		delete[] m_pMean;
-	}
-
-	virtual bool isStable() { return true; }
-
-	virtual bool isConstrained() { return false; }
-
-	virtual void initVector(double* pVector)
-	{
-		m_pData->toVector(pVector);
-	}
-
-	virtual double computeError(const double* pVector)
-	{
-		// Penalize broken neighbor relationships
-		size_t k = m_pNF->neighborCount();
-		double err = 0;
-		GVec::setAll(m_pMean, 0.0, m_cols);
-		for(size_t i = 0; i < m_rows; i++)
-		{
-			m_pNF->neighbors(m_pHood, m_pDists, i);
-			for(size_t j = 0; j < k; j++)
-			{
-				double d = std::max(0.0, sqrt(GVec::squaredDistance(pVector + i * k, pVector + m_pHood[j] * k, m_cols)) - sqrt(m_pDists[j]));
-				err += (1e8 * d * d);
-			}
-			GVec::add(m_pMean, pVector + i * k, m_cols);
-		}
-
-		// Reward variance
-		for(size_t i = 0; i < m_rows; i++)
-			err -= GVec::squaredDistance(pVector + i * k, m_pMean, m_cols);
-
-		return err;
-	}
-};
-
-GMatrix* GManifoldUnfolder::unfold(GNeighborFinder* pNF, size_t targetDims, GRand* pRand)
-{
-	// Make sure the neighbor finder is cached
-	Holder<GNeighborFinderCacheWrapper> hNF(NULL);
-	if(!pNF->isCached())
-	{
-		GNeighborFinderCacheWrapper* pNF2 = new GNeighborFinderCacheWrapper(pNF, false);
-		hNF.reset(pNF2);
-		pNF = pNF2;
-	}
-	size_t rows = pNF->data()->rows();
-	size_t cols = pNF->data()->cols();
-	GManifoldUnfolderTargetFunction targetFunc(pNF->data(), pNF);
-	GHillClimber optimizer(&targetFunc);
-	//GStochasticGreedySearch optimizer(&targetFunc, m_pRand);
-	optimizer.searchUntil(100, // nBurnInIterations
-				30, // nIterations
-				0.01 //dImprovement
-				);
-	GMatrix* pUnfolded = new GMatrix(cols);
-	Holder<GMatrix> hUnfolded(pUnfolded);
-	pUnfolded->newRows(rows);
-	pUnfolded->fromVector(optimizer.currentVector(), rows);
-	GPCA pca(targetDims, m_pRand);
-	pca.train(pUnfolded);
-	return pca.transformBatch(*pUnfolded);
-}
-*/
-
-
-
-
 
 
 
@@ -2254,6 +2074,96 @@ void GDynamicSystemStateAligner::test()
 
 
 
+// This is a helper-class used by GUnsupervisedBackProp to
+// implicitly rotate, translate, and zoom the images it trains on
+class ImageTweaker
+{
+	size_t m_wid;
+	size_t m_hgt;
+	size_t m_channels;
+	double m_rotateRads;
+	double m_translatePixels;
+	double m_zoomFactor;
+	double m_cx, m_cy;
+	double m_params[4];
+
+public:
+	// if rotateDegrees is 30.0, then it will rotate the image up to 15.0 degrees in either direction.
+	// if translateWidths is 1.0, then it will translate between -0.5*wid and 0.5*wid. It will
+	// also translate vertically by a value in the same range (dependant on wid, not hgt).
+	// if zoomFactor is 2.0, then it will scale between a factor of 0.5 and 2.0.
+	ImageTweaker(size_t wid, size_t hgt, size_t channels, double rotateDegrees, double translateWidths, double zoomFactor)
+	: m_wid(wid), m_hgt(hgt), m_channels(channels), m_rotateRads(rotateDegrees * M_PI / 180.0), m_translatePixels(translateWidths * wid), m_zoomFactor(zoomFactor), m_cx(0.5 * double(wid - 1)), m_cy(0.5 * double(hgt - 1))
+	{
+	}
+
+	double* pickParams(GRand& rand)
+	{
+		for(size_t i = 0; i < 4; i++)
+			m_params[i] = rand.uniform();
+		return m_params;
+	}
+
+	void interpolate(const double* pRow, double x, double y, double* pOut)
+	{
+		// Compute coordinates
+		size_t xx, yy;
+		if(x < 0.0)
+		{
+			xx = 0;
+			x = 0.0;
+		}
+		else if(x + 1 >= m_wid)
+		{
+			xx = m_wid - 2;
+			x = m_wid - 1;
+		}
+		else
+			xx = size_t(floor(x));
+		if(y < 0.0)
+		{
+			yy = 0;
+			y = 0.0;
+		}
+		else if(y + 1 >= m_hgt)
+		{
+			yy = m_hgt - 2;
+			y = m_hgt - 1;
+		}
+		else
+			yy = size_t(floor(y));
+
+		// Linearly interpolate horizontally
+		GTEMPBUF(double, pA, m_channels + m_channels);
+		double u = x - xx;
+		GVec::setAll(pA, 0.0, m_channels + m_channels);
+		GVec::addScaled(pA, 1.0 - u, pRow + m_channels * ((m_wid * yy) + xx), m_channels);
+		GVec::addScaled(pA, u, pRow + m_channels * ((m_wid * yy) + xx + 1), m_channels);
+		GVec::addScaled(pA + m_channels, 1.0 - u, pRow + m_channels * ((m_wid * (yy + 1)) + xx), m_channels);
+		GVec::addScaled(pA + m_channels, u, pRow + m_channels * ((m_wid * (yy + 1)) + xx + 1), m_channels);
+
+		// Linearly interpolate vertically
+		u = y - yy;
+		GVec::setAll(pOut, 0.0, m_channels);
+		GVec::addScaled(pOut, 1.0 - u, pA, m_channels);
+		GVec::addScaled(pOut, u, pA + m_channels, m_channels);
+	}
+
+	void GUnsupervisedBackProp_transformedPix(const double* pRow, size_t x, size_t y, double* pOut)
+	{
+		double xx = double(x) - m_cx;
+		double yy = double(x) - m_cy;
+		double* pParam = m_params;
+		double radius = sqrt(xx * xx + yy * yy) * pow(m_zoomFactor, 2 * (*pParam) - 1.0);
+		pParam++;
+		double angle = atan2(yy, xx) + (*pParam - 0.5) * m_rotateRads;
+		pParam++;
+		xx = radius * cos(angle) + (*pParam - 0.5) * m_translatePixels;
+		pParam++;
+		yy = radius * sin(angle) + (*pParam - 0.5) * m_translatePixels;
+		interpolate(pRow, xx, yy, pOut);
+	}
+};
 
 
 
@@ -2302,14 +2212,6 @@ void GUnsupervisedBackProp::setIntrinsic(GMatrix* pIntrinsic)
 	delete(m_pIntrinsic);
 	m_pIntrinsic = pIntrinsic;
 }
-
-class SparseElement
-{
-public:
-	size_t m_row;
-	size_t m_col;
-	double m_val;
-};
 
 // virtual
 GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)

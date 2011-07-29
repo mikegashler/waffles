@@ -209,9 +209,6 @@ public:
 	/// Write as XML to the specified stream.
 	void writeXml(std::ostream& stream);
 
-	/// Write to a binary blob
-	void writeBlob(GBlobOutgoing& blob);
-
 	/// Gets the root document node
 	GDomNode* root() { return m_pRoot; }
 

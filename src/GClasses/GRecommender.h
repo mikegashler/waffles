@@ -65,7 +65,7 @@ public:
 	/// of formats. (Implementations of this method should use baseDomNode.)
 	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
-	/// This randomly assignes each rating to one of the folds. Then,
+	/// This randomly assigns each rating to one of the folds. Then,
 	/// for each fold, it calls trainBatch with a dataset that contains
 	/// everything except for the ratings in that fold. It predicts
 	/// values for the items in the fold, and returns the mean-squared
