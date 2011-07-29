@@ -367,6 +367,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GBlob.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GBlob.h"
+			>
+		</File>
+		<File
 			RelativePath="GCluster.cpp"
 			>
 			<FileConfiguration
@@ -1551,6 +1559,26 @@
 		</File>
 		<File
 			RelativePath=".\GWindows.h"
+			>
+		</File>
+		<File
+			RelativePath=".\sha1.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\sha1.h"
+			>
+		</File>
+		<File
+			RelativePath=".\sha2.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\sha2.h"
+			>
+		</File>
+		<File
+			RelativePath=".\uitypes.h"
 			>
 		</File>
 	</Files>
