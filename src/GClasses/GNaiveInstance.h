@@ -46,7 +46,7 @@ protected:
 public:
 	/// nNeighbors is the number of neighbors (in each dimension)
 	/// that will contribute to the output value.
-	GNaiveInstance(size_t nNeighbors);
+	GNaiveInstance();
 
 	/// Deserializing constructor
 	GNaiveInstance(GDomNode* pNode, GRand& rand);
@@ -60,11 +60,21 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc);
 
-	/// See the comment for GIncrementalLearner::trainSparse
+	/// Specify the number of neighbors to use.
+	void setNeighbors(size_t k) { m_nNeighbors = k; }
+
+	/// Returns the number of neighbors.
+	size_t neighbors() { return m_nNeighbors; }
+
+	/// See the comment for GIncrementalLearner::trainSparse.
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
-	/// See the comment for GSupervisedLearner::clear
+	/// See the comment for GSupervisedLearner::clear.
 	virtual void clear();
+
+	/// Uses cross-validation to find a set of parameters that works well with
+	/// the provided data.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
 
 protected:
 	void evalInput(size_t nInputDim, double dInput);

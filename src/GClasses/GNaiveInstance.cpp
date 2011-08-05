@@ -76,10 +76,10 @@ public:
 
 // -----------------------------------------------------------
 
-GNaiveInstance::GNaiveInstance(size_t nNeighbors)
+GNaiveInstance::GNaiveInstance()
 : GIncrementalLearner(), m_pHeap(NULL)
 {
-	m_nNeighbors = nNeighbors;
+	m_nNeighbors = 12;
 	m_pAttrs = NULL;
 	m_internalLabelDims = 0;
 	m_internalFeatureDims = 0;
@@ -144,6 +144,29 @@ GDomNode* GNaiveInstance::serialize(GDom* pDoc)
 	for(size_t i = 0; i < m_internalFeatureDims; i++)
 		pAttrs->addItem(pDoc, m_pAttrs[i]->serialize(pDoc, m_internalLabelDims));
 	return pNode;
+}
+
+void GNaiveInstance::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// Find the best ess value
+	size_t bestK = 0;
+	double bestErr = 1e308;
+	size_t cap = size_t(floor(sqrt(double(features.rows()))));
+	for(size_t i = 2; i < cap; i = size_t(i * 1.5))
+	{
+		m_nNeighbors = i;
+		double d = heuristicValidate(features, labels, &rand);
+		if(d < bestErr)
+		{
+			bestErr = d;
+			bestK = i;
+		}
+		else if(i >= 15)
+			break;
+	}
+
+	// Set the best values
+	m_nNeighbors = bestK;
 }
 
 // virtual
@@ -298,7 +321,8 @@ void GNaiveInstance::predictInner(const double* pIn, double* pOut)
 void GNaiveInstance::test()
 {
 	GRand prng(0);
-	GNaiveInstance ni(8);
+	GNaiveInstance ni;
+	ni.setNeighbors(8);
 	ni.basicTest(0.72, 0.55, &prng, 0.02);
 }
 #endif

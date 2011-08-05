@@ -56,6 +56,10 @@ public:
 	/// is 0.5, which is as if there were half of a sample for each value.)
 	void setEquivalentSampleSize(double d) { m_equivalentSampleSize = d; }
 
+	/// Returns the equivalent sample size. (The number of samples of each
+	/// possible value that is added by default to prevent zeros.)
+	double equivalentSampleSize() { return m_equivalentSampleSize; }
+
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
 

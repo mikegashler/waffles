@@ -59,6 +59,9 @@ public:
 	/// Returns the total number of coefficients in this polynomial
 	size_t coefficientCount() { return m_nCoefficients; }
 
+	/// sets the number of control points
+	void setControlPointCount(size_t n) { m_nControlPoints = n; }
+
 	/// Returns the number of control points (per dimension)
 	size_t controlPointCount() { return m_nControlPoints; }
 
@@ -165,10 +168,10 @@ public:
 
 // ---------------------------------------------------------------------------
 
-GPolynomialSingleLabel::GPolynomialSingleLabel(size_t nControlPoints)
-: m_featureDims(0), m_nControlPoints(nControlPoints), m_nCoefficients(0), m_pCoefficients(NULL)
+GPolynomialSingleLabel::GPolynomialSingleLabel(size_t controlPoints)
+: m_featureDims(0), m_nControlPoints(controlPoints), m_nCoefficients(0), m_pCoefficients(NULL)
 {
-	GAssert(nControlPoints > 0);
+	GAssert(controlPoints > 0);
 }
 
 GPolynomialSingleLabel::GPolynomialSingleLabel(GDomNode* pNode, GRand& rand)
@@ -588,8 +591,8 @@ void GPolynomialSingleLabel::test()
 
 
 
-GPolynomial::GPolynomial(size_t nControlPoints)
-: m_controlPoints(nControlPoints)
+GPolynomial::GPolynomial()
+: m_controlPoints(3)
 {
 }
 
@@ -617,6 +620,16 @@ GDomNode* GPolynomial::serialize(GDom* pDoc)
 	for(size_t i = 0; i < m_polys.size(); i++)
 		pPolys->addItem(pDoc, m_polys[i]->serialize(pDoc));
 	return pNode;
+}
+
+void GPolynomial::setControlPoints(size_t n)
+{
+	m_controlPoints = n;
+}
+
+size_t GPolynomial::controlPoints()
+{
+	return m_controlPoints;
 }
 
 // virtual
@@ -654,12 +667,34 @@ void GPolynomial::predictDistributionInner(const double* pIn, GPrediction* pOut)
 	ThrowError("Sorry, this model cannot predict a distribution");
 }
 
+void GPolynomial::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// Find the best value for controlPoints
+	size_t bestCP = 3;
+	double bestErr = 1e308;
+	for(size_t i = 3; i < 7; i++)
+	{
+		m_controlPoints = i;
+		double d = heuristicValidate(features, labels, &rand);
+		if(d < bestErr)
+		{
+			bestErr = d;
+			bestCP = i;
+		}
+		else
+			break;
+	}
+
+	// Set the best values
+	m_controlPoints = bestCP;
+}
+
 #ifndef NO_TEST_CODE
 // static
 void GPolynomial::test()
 {
 	GPolynomialSingleLabel::test();
-	GPolynomial poly(3);
+	GPolynomial poly;
 	GRand prng(0);
 	poly.basicTest(0.78, -1.0/*skip it*/, &prng);
 }

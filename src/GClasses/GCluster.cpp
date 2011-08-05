@@ -349,6 +349,11 @@ void GAgglomerativeTransducer::setMetric(GDistanceMetric* pMetric, bool own)
 	m_ownMetric = own;
 }
 
+void GAgglomerativeTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// This model has no parameters to tune
+}
+
 // virtual
 GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
@@ -1150,11 +1155,11 @@ size_t CountLocalMaximums(size_t nElements, double* pData)
 
 // -----------------------------------------------------------------------------------------
 
-GGraphCutTransducer::GGraphCutTransducer(size_t neighborCount, GRand* pRand)
-: GTransducer(), m_neighborCount(neighborCount), m_pRand(pRand)
+GGraphCutTransducer::GGraphCutTransducer(GRand* pRand)
+: GTransducer(), m_neighborCount(12), m_pRand(pRand)
 {
-	m_pNeighbors = new size_t[neighborCount];
-	m_pDistances = new double[neighborCount];
+	m_pNeighbors = new size_t[m_neighborCount];
+	m_pDistances = new double[m_neighborCount];
 }
 
 // virtual
@@ -1162,6 +1167,38 @@ GGraphCutTransducer::~GGraphCutTransducer()
 {
 	delete[] m_pNeighbors;
 	delete[] m_pDistances;
+}
+
+void GGraphCutTransducer::setNeighbors(size_t k)
+{
+	delete[] m_pNeighbors;
+	delete[] m_pDistances;
+	m_neighborCount = k;
+	m_pNeighbors = new size_t[k];
+	m_pDistances = new double[k];
+}
+
+void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// Find the best value for k
+	size_t cap = size_t(floor(sqrt(double(features.rows()))));
+	size_t bestK = 4;
+	double bestErr = 1e308;
+	for(size_t i = 4; i < cap; i = size_t(i * 1.5))
+	{
+		m_neighborCount = i;
+		double d = heuristicValidate(features, labels, &rand);
+		if(d < bestErr)
+		{
+			bestErr = d;
+			bestK = i;
+		}
+		else if(i >= 12)
+			break;
+	}
+
+	// Set the best values
+	m_neighborCount = bestK;
 }
 
 // virtual

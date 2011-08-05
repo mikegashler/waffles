@@ -137,6 +137,9 @@ public:
 	/// If own is true, then this object will take care to delete pMetric.
 	void setMetric(GDistanceMetric* pMetric, bool own);
 
+	/// This model has no parameters to tune, so this method is a noop.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+
 protected:
 	/// See the comment for GTransducer::transduce.
 	/// Throws if labels1 has more than one column.
@@ -323,8 +326,18 @@ protected:
 	double* m_pDistances;
 
 public:
-	GGraphCutTransducer(size_t neighborCount, GRand* pRand);
+	GGraphCutTransducer(GRand* pRand);
 	virtual ~GGraphCutTransducer();
+
+	/// Sets the number of neighbors to use to form the graph. The default is 12
+	void setNeighbors(size_t k);
+
+	/// Returns the number of neighbors to which each point is connected
+	size_t neighbors() { return m_neighborCount; }
+
+	/// Uses cross-validation to find a set of parameters that works well with
+	/// the provided data.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
 
 protected:
 	/// See the comment for GTransducer::transduce.

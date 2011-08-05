@@ -29,12 +29,24 @@ protected:
 
 public:
 	/// It will have the same number of control points in every feature dimension
-	GPolynomial(size_t nControlPoints);
+	GPolynomial();
 
 	/// Load from a DOM.
 	GPolynomial(GDomNode* pNode, GRand& rand);
 
 	virtual ~GPolynomial();
+
+	/// Set the number of control points in the Bezier representation of the
+	/// polynomial (which is one more than the polynomial order). The default
+	/// is 3.
+	void setControlPoints(size_t n);
+
+	/// Returns the number of control points.
+	size_t controlPoints();
+
+	/// Uses cross-validation to find a set of parameters that works well with
+	/// the provided data.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.

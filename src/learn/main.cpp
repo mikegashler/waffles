@@ -314,8 +314,14 @@ GGraphCutTransducer* InstantiateGraphCutTransducer(GRand* pRand, GArgReader& arg
 {
 	if(args.size() < 1)
 		ThrowError("The number of neighbors must be specified for graphcuttransducer");
-	int neighborCount = args.pop_uint();
-	GGraphCutTransducer* pTransducer = new GGraphCutTransducer(neighborCount, pRand);
+	GGraphCutTransducer* pTransducer = new GGraphCutTransducer(pRand);
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-neighbors"))
+			pTransducer->setNeighbors(args.pop_uint());
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
 	return pTransducer;
 }
 
@@ -337,7 +343,7 @@ GKNN* InstantiateKNN(GRand* pRand, GArgReader& args)
 		else if(args.if_pop("-pearson"))
 			pModel->setMetric(new GPearsonCorrelation(), true);
 		else
-			ThrowError("Invalid knn option: ", args.peek());
+			ThrowError("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -353,60 +359,7 @@ GMeanMarginsTree* InstantiateMeanMarginsTree(GRand* pRand, GArgReader& args)
 	GMeanMarginsTree* pModel = new GMeanMarginsTree(pRand);
 	return pModel;
 }
-/*
-GModerateNet* InstantiateModerateNet(GRand* pRand, GArgReader& args)
-{
-	GModerateNet* pModel = new GModerateNet(pRand);
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-addlayer"))
-			pModel->addLayer(args.pop_uint());
-		else if(args.if_pop("-learningrate"))
-			pModel->setLearningRate(args.pop_double());
-		else if(args.if_pop("-momentum"))
-			pModel->setMomentum(args.pop_double());
-		else if(args.if_pop("-windowepochs"))
-			pModel->setIterationsPerValidationCheck(args.pop_uint());
-		else if(args.if_pop("-minwindowimprovement"))
-			pModel->setMinImprovement(args.pop_double());
-		else if(args.if_pop("-lambda"))
-			pModel->setLambda(args.pop_double());
-		else if(args.if_pop("-squash"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else
-				ThrowError("Unrecognized activation function: ", szSF);
-			pModel->setActivationFunction(pSF, true);
-		}
-		else if(args.if_pop("-crossentropy"))
-			pModel->setBackPropTargetFunction(GNeuralNet::cross_entropy);
-		else if(args.if_pop("-rootcubed"))
-			pModel->setBackPropTargetFunction(GNeuralNet::root_cubed_error);
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-	return pModel;
-}
-*/
+
 GNaiveBayes* InstantiateNaiveBayes(GRand* pRand, GArgReader& args)
 {
 	GNaiveBayes* pModel = new GNaiveBayes(pRand);
@@ -422,10 +375,14 @@ GNaiveBayes* InstantiateNaiveBayes(GRand* pRand, GArgReader& args)
 
 GNaiveInstance* InstantiateNaiveInstance(GRand* pRand, GArgReader& args)
 {
-	if(args.size() < 1)
-		ThrowError("The number of neighbors must be specified for naiveinstance");
-	int neighborCount = args.pop_uint();
-	GNaiveInstance* pModel = new GNaiveInstance(neighborCount);
+	GNaiveInstance* pModel = new GNaiveInstance();
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-neighbors"))
+			pModel->setNeighbors(args.pop_uint());
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
 	return pModel;
 }
 
@@ -449,7 +406,7 @@ GNeighborTransducer* InstantiateNeighborTransducer(GRand* pRand, GArgReader& arg
 			beta = args.pop_double();
 		}
 		else
-			ThrowError("Invalid neighbortransducer option: ", args.peek());
+			ThrowError("Invalid option: ", args.peek());
 	}
 	return pTransducer;
 }
@@ -504,7 +461,7 @@ GNeuralNet* InstantiateNeuralNet(GRand* pRand, GArgReader& args)
 		else if(args.if_pop("-sign"))
 			pModel->setBackPropTargetFunction(GNeuralNet::sign);
 		else
-			ThrowError("Invalid neuralnet option: ", args.peek());
+			ThrowError("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -660,12 +617,42 @@ void autoParamNeuralNet(GMatrix& features, GMatrix& labels, GRand& rand)
 	{
 		const char* szActivationName = nn.layer(i).m_pActivationFunction->name();
 		if(strcmp(szActivationName, szCurrent) != 0)
+		{
 			cout << " -activation " << szActivationName;
+			szCurrent = szActivationName;
+		}
 		if(i < nn.layerCount() - 1)
 			cout << " -addlayer " << nn.layer(i).m_neurons.size();
 	}
 	if(nn.momentum() > 0.0)
 		cout << " -momentum " << nn.momentum();
+	cout << "\n";
+}
+
+void autoParamNaiveBayes(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	GNaiveBayes model(&rand);
+	model.autoTune(features, labels, rand);
+	cout << "naivebayes";
+	cout << " -ess " << model.equivalentSampleSize();
+	cout << "\n";
+}
+
+void autoParamNaiveInstance(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	GNaiveInstance model;
+	model.autoTune(features, labels, rand);
+	cout << "naiveinstance";
+	cout << " -neighbors " << model.neighbors();
+	cout << "\n";
+}
+
+void autoParamGraphCutTransducer(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	GGraphCutTransducer transducer(&rand);
+	transducer.autoTune(features, labels, rand);
+	cout << "graphcuttransducer";
+	cout << " -neighbors " << transducer.neighbors();
 	cout << "\n";
 }
 
@@ -680,12 +667,22 @@ void autoParams(GArgReader& args)
 	// Load the model name
 	GRand rand(0);
 	const char* szModel = args.pop_string();
-	if(strcmp(szModel, "decisiontree") == 0)
+	if(strcmp(szModel, "agglomerativetransducer") == 0)
+		cout << "agglomerativetransducer\n"; // no params to tune
+	else if(strcmp(szModel, "decisiontree") == 0)
 		autoParamDecisionTree(*pFeatures, *pLabels, rand);
+	else if(strcmp(szModel, "graphcuttransducer") == 0)
+		autoParamGraphCutTransducer(*pFeatures, *pLabels, rand);
 	else if(strcmp(szModel, "knn") == 0)
 		autoParamKNN(*pFeatures, *pLabels, rand);
+	if(strcmp(szModel, "meanmarginstree") == 0)
+		cout << "meanmarginstree\n"; // no params to tune
 	else if(strcmp(szModel, "neuralnet") == 0)
 		autoParamNeuralNet(*pFeatures, *pLabels, rand);
+	else if(strcmp(szModel, "naivebayes") == 0)
+		autoParamNaiveBayes(*pFeatures, *pLabels, rand);
+	else if(strcmp(szModel, "naiveinstance") == 0)
+		autoParamNaiveInstance(*pFeatures, *pLabels, rand);
 	else
 		ThrowError("Sorry, autoparams does not currently support a model named ", szModel, ".");
 }

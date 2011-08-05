@@ -122,10 +122,14 @@ GNaiveBayes* InstantiateNaiveBayes(GRand* pRand, GArgReader& args)
 
 GNaiveInstance* InstantiateNaiveInstance(GRand* pRand, GArgReader& args)
 {
-	if(args.size() < 1)
-		ThrowError("The number of neighbors must be specified for naiveinstance");
-	int neighborCount = args.pop_uint();
-	GNaiveInstance* pModel = new GNaiveInstance(neighborCount);
+	GNaiveInstance* pModel = new GNaiveInstance();
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-neighbors"))
+			pModel->setNeighbors(args.pop_uint());
+		else
+			ThrowError("Invalid neighbortransducer option: ", args.peek());
+	}
 	return pModel;
 }
 

@@ -201,7 +201,11 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pOpts = pNB->add("<options>");
 		pOpts->add("-ess [value]=0.2", "Specifies an equivalent sample size to prevent unsampled values from dominating the joint distribution. Good values typically range between 0 and 1.5.");
 	}
-	pRoot->add("naiveinstance [neighbors]=12", "This is an instance learner that assumes each dimension is conditionally independant from other dimensions. It lacks the accuracy of knn in low dimensional feature space, but scales much better to high dimensionality.");
+	{
+		UsageNode* pNI = pRoot->add("naiveinstance <options>", "This is an instance learner that assumes each dimension is conditionally independant from other dimensions. It lacks the accuracy of knn in low dimensional feature space, but scales much better to high dimensionality.");
+		UsageNode* pOpts = pNI->add("<options>");
+		pOpts->add("-neighbors [k]=12", "Set the number of neighbors to use in each dimension");
+	}
 	{
 		UsageNode* pNT = pRoot->add("neighbortransducer [neighbors] <options>", "This is a model-free transduction algorithm. It is an instance learner that propagates labels where the neighbors are most in agreement. This algorithm does well when classes sample a manifold (such as with text recognition).");
 		UsageNode* pOpts = pNT->add("<options>");
