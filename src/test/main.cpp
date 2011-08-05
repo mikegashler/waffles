@@ -48,6 +48,7 @@
 #include "../GClasses/GPriorityQueue.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GRayTrace.h"
+#include "../GClasses/GRecommender.h"
 #include "../GClasses/GRegion.h"
 #include "../GClasses/GSocket.h"
 #include "../GClasses/GSparseMatrix.h"
@@ -359,12 +360,19 @@ bool runTest(const char* szTestName, TestFunc pTest)
 
 void RunAllTests()
 {
+	runTest("GMatrixFactorization", GMatrixFactorization::test);
+	runTest("GNeuralRecommender", GNeuralRecommender::test);
+//	runTest("GDenseClusterRecommender", GDenseClusterRecommender::test);
+
+
 	// Class tests
 	runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 	runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
 	runTest("GAttributeSelector", GAttributeSelector::test);
 	runTest("GBag", GBag::test);
+	runTest("GBagOfRecommenders", GBagOfRecommenders::test);
 	runTest("GBaselineLearner", GBaselineLearner::test);
+	runTest("GBaselineRecommender", GBaselineRecommender::test);
 	runTest("GBezier", GBezier::test);
 	runTest("GBits", GBits::test);
 	runTest("GBitTable", GBitTable::test);
@@ -384,6 +392,7 @@ void RunAllTests()
 	runTest("GGraphCut", GGraphCut::test);
 	runTest("GHashTable", GHashTable::test);
 	runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);
+	runTest("GInstanceRecommender", GInstanceRecommender::test);
 	runTest("GKdTree", GKdTree::test);
 	runTest("GKeyPair", GKeyPair::test);
 	runTest("GKNN", GKNN::test);
@@ -392,12 +401,14 @@ void RunAllTests()
 	runTest("GMath", GMath::test);
 	runTest("GManifold", GManifold::test);
 	runTest("GMatrix", GMatrix::test);
+	runTest("GMatrixFactorization", GMatrixFactorization::test);
 	runTest("GMeanMarginsTree", GMeanMarginsTree::test);
 	runTest("GMixtureOfGaussians", GMixtureOfGaussians::test);
 	runTest("GNaiveBayes", GNaiveBayes::test);
 	runTest("GNaiveInstance", GNaiveInstance::test);
 	runTest("GNeuralNet", GNeuralNet::test);
 	runTest("GNeuralNetPseudoInverse", GNeuralNetPseudoInverse::test);
+	runTest("GNeuralRecommender", GNeuralRecommender::test);
 	runTest("GPCARotateOnly", GPCARotateOnly::test);
 	runTest("GPolynomial", GPolynomial::test);
 	runTest("GPriorityQueue", GPriorityQueue::test);
@@ -406,6 +417,7 @@ void RunAllTests()
 	runTest("GRandomForest", GRandomForest::test);
 	runTest("GShortcutPruner", GShortcutPruner::test);
 	runTest("GSocket", GSocketClient::test);
+	runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);
 	runTest("GSparseMatrix", GSparseMatrix::test);
 	runTest("GSpinLock", GSpinLock::test);
 	runTest("GSubImageFinder", GSubImageFinder::test);

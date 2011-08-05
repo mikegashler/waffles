@@ -134,8 +134,7 @@ public:
 
 	/// This performs two-fold cross-validation on a shuffled
 	/// non-uniform split of the data, and returns an error value that
-	/// represents the results of all labels combined. (This is
-	/// for heuristic optimization, not for reporting accuracy.)
+	/// represents the results of all labels combined.
 	double heuristicValidate(GMatrix& features, GMatrix& labels, GRand* pRand);
 
 protected:
@@ -184,6 +183,7 @@ class GSupervisedLearner : public GTransducer
 protected:
 	GTwoWayIncrementalTransform* m_pFeatureFilter;
 	GTwoWayIncrementalTransform* m_pLabelFilter;
+	bool m_autoFilter;
 	size_t m_featureDims;
 	size_t m_labelDims;
 
@@ -281,6 +281,13 @@ public:
 	/// Trains and tests this learner
 	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
 
+	/// If b is true, enable automatic filter setup. If b is false, disable automatic filter setup.
+	/// It is enabled by default, so you must explicitly disable it if you do not want this feature.
+	/// If automatic filter setup is enabled then, when train is called, it will discard any existing
+	/// filters that have been attached to this learner, and will automatically analyze the training
+	/// data and create any filters that it determines are needed.
+	void setAutoFilter(bool b) { m_autoFilter = b; }
+
 #ifndef NO_TEST_CODE
 	/// This is a helper method used by the unit tests of several model learners
 	void basicTest(double minAccuracy1, double minAccuracy2, GRand* pRand, double deviation = 1e-6, bool printAccuracy = false);
@@ -344,10 +351,11 @@ public:
 	virtual bool canTrainIncrementally() { return true; }
 
 	/// You must call this method before you call trainIncremental.
-	/// Unlike "train", this method does not automatically set up any filters. Rather,
+	/// Unlike "train", this method does not automatically set up any filters (even
+	/// if you have automatic filter setup enabled). Rather,
 	/// it assumes that you have already set up any filters that you wish to use.
 	/// Behavior is undefined if you change the filters (by calling setFeatureFilter
-	/// or setLabelFilter, or by changing the filters) after this method is called.
+	/// or setLabelFilter, or by changing the filters themselves) after this method is called.
 	void beginIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
 
 	/// Pass a single input row and the corresponding label to
@@ -438,6 +446,9 @@ public:
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
+
+	/// This model has no parameters to tune, so this method is a noop.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

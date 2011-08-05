@@ -2160,7 +2160,7 @@ GDynamicSystemNeighborFinder::GDynamicSystemNeighborFinder(GMatrix* pObservation
 		pMap->setFeatureTransform(new GNormalize(-2.0, 2.0), true);
 		pMap->setLabelTransform(new GNormalize(0.0, 1.0), true);
 */
-		GKNN* pMap = new GKNN(1, pRand);
+		GKNN* pMap = new GKNN(*pRand);
 		//pMap->setInterpolationMethod(GKNN::Mean);
 //		GDecisionTree* pMap = new GDecisionTree(pRand);
 		m_consequenceMaps.push_back(pMap);

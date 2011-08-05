@@ -37,16 +37,17 @@ public:
 	GCollaborativeFilter(GDomNode* pNode);
 	virtual ~GCollaborativeFilter() {}
 
-	/// Trains this recommender system in batch mode. The columns
-	/// in pData represent the items. The rows in pData represent
-	/// the users. The elements should all be real (continuous)
-	/// values that specify the users expressed opinion about the item.
-	/// Elements should be set to UNKNOWN_REAL_VALUE if the user has
-	/// not expressed an opinion about the item.
-	virtual void trainBatch(GSparseMatrix* pData) = 0;
+	/// Trains this recommender system. Let R be an m-by-n sparse
+	/// matrix of known ratings from m users of n items. pData should
+	/// contain 3 columns, and one row for each known element in R.
+	/// Column 0 in pData specifies the user index from 0 to m-1, column 1
+	/// in pData specifies the item index from 0 to n-1, and column 2
+	/// in pData specifies the rating vector for that user-item pair. All
+	/// attributes in pData should be continuous.
+	virtual void train(GMatrix& data) = 0;
 
-	/// This returns a prediction for how much the specified user
-	/// will like the specified item. (The model must be trained before
+	/// This returns a prediction for how the specified user
+	/// will rate the specified item. (The model must be trained before
 	/// this method is called. Also, some values for that user and
 	/// item should have been included in the training set, or else
 	/// this method will have no basis to make a good prediction.)
@@ -66,19 +67,16 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
 	/// This randomly assigns each rating to one of the folds. Then,
-	/// for each fold, it calls trainBatch with a dataset that contains
+	/// for each fold, it calls train with a dataset that contains
 	/// everything except for the ratings in that fold. It predicts
 	/// values for the items in the fold, and returns the mean-squared
 	/// difference between the predictions and the actual ratings.
-	/// If there are more than maxRecommendationsPerRow ratings in the current
-	/// fold in a particular row, then only the maxRecommendationsPerRow ratings
-	/// with the higest predicted value will be included in the results for that row.
 	/// If pOutMAE is non-NULL, it will be set to the mean-absolute error.
-	double crossValidate(GSparseMatrix* pData, size_t folds, GRand* pRand, size_t maxRecommendationsPerRow = 1000000, double* pOutMAE = NULL);
+	double crossValidate(GMatrix& data, size_t folds, GRand* pRand, double* pOutMAE = NULL);
 
 	/// This trains on the training set, and then tests on the test set.
 	/// Returns the mean-squared difference between actual and target predictions.
-	double transduce(GSparseMatrix& train, GSparseMatrix& test, double* pOutMAE = NULL);
+	double trainAndTest(GMatrix& train, GMatrix& test, double* pOutMAE = NULL);
 
 	/// This divides the data into two equal-size parts. It trains on one part, and
 	/// then measures the precision/recall using the other part. It returns a
@@ -91,11 +89,16 @@ public:
 	/// ignore your model and report the ideal results as if your model always
 	/// predicted the correct rating. (This is useful because it shows the best
 	/// possible results.)
-	GMatrix* precisionRecall(GSparseMatrix* pData, GRand* pRand, bool ideal = false);
+	GMatrix* precisionRecall(GMatrix& data, GRand* pRand, bool ideal = false);
 
 	/// Pass in the data returned by the precisionRecall function (unmodified), and
 	/// this will compute the area under the ROC curve.
-	static double areaUnderCurve(GMatrix* pData);
+	static double areaUnderCurve(GMatrix& data);
+
+#ifndef NO_TEST_CODE
+	/// Performs a basic unit test on this collaborative filter
+	void basicTest(double minMSE);
+#endif
 
 protected:
 	/// Child classes should use this in their implementation of serialize
@@ -122,8 +125,8 @@ public:
 	/// Destructor
 	virtual ~GBaselineRecommender();
 
-	/// See the comment for GCollaborativeFilter::trainBatch
-	virtual void trainBatch(GSparseMatrix* pData);
+	/// See the comment for GCollaborativeFilter::train
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
@@ -133,6 +136,11 @@ public:
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
+	static void test();
+#endif
 };
 
 
@@ -146,10 +154,11 @@ protected:
 	GSparseSimilarity* m_pMetric;
 	bool m_ownMetric;
 	GSparseMatrix* m_pData;
-	double* m_pBaseline;
+	GBaselineRecommender* m_pBaseline;
 
 public:
 	GInstanceRecommender(size_t neighbors);
+	GInstanceRecommender(GDomNode* pNode);
 	virtual ~GInstanceRecommender();
 
 	/// Sets the similarity metric to use. if own is true, then this object will take care
@@ -160,8 +169,8 @@ public:
 	/// want to modify the regularization value.)
 	GSparseSimilarity* metric() { return m_pMetric; }
 
-	/// See the comment for GCollaborativeFilter::trainBatch
-	virtual void trainBatch(GSparseMatrix* pData);
+	/// See the comment for GCollaborativeFilter::train
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
@@ -171,6 +180,11 @@ public:
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
+	static void test();
+#endif
 };
 
 
@@ -195,8 +209,8 @@ public:
 	/// Set the clustering algorithm to use
 	void setClusterer(GSparseClusterer* pClusterer, bool own);
 
-	/// See the comment for GCollaborativeFilter::trainBatch
-	virtual void trainBatch(GSparseMatrix* pData);
+	/// See the comment for GCollaborativeFilter::train
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
@@ -206,6 +220,11 @@ public:
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
+	static void test();
+#endif
 };
 
 
@@ -231,8 +250,8 @@ public:
 	/// Set the clustering algorithm to use
 	void setClusterer(GClusterer* pClusterer, bool own);
 
-	/// See the comment for GCollaborativeFilter::trainBatch
-	virtual void trainBatch(GSparseMatrix* pData);
+	/// See the comment for GCollaborativeFilter::train
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
@@ -242,6 +261,11 @@ public:
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
+	static void test();
+#endif
 };
 
 
@@ -278,8 +302,8 @@ public:
 	/// Set the regularization value
 	void setRegularizer(double d) { m_regularizer = d; }
 
-	/// See the comment for GCollaborativeFilter::trainBatch
-	virtual void trainBatch(GSparseMatrix* pData);
+	/// See the comment for GCollaborativeFilter::train
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
@@ -299,9 +323,14 @@ public:
 	/// Specify to use no bias value with the inputs
 	void noInputBias() { m_useInputBias = false; }
 
+#ifndef NO_TEST_CODE
+	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
+	static void test();
+#endif
+
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
-	double validate(std::vector<Rating*>& data);
+	double validate(GMatrix& data);
 
 };
 
@@ -339,8 +368,8 @@ public:
 	/// Returns a pointer to the matrix of user preference vectors.
 	GMatrix* users() { return m_pUsers; }
 
-	/// See the comment for GCollaborativeFilter::trainBatch
-	virtual void trainBatch(GSparseMatrix* pData);
+	/// See the comment for GCollaborativeFilter::train
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
@@ -354,9 +383,14 @@ public:
 	/// Specify to use no bias value with the inputs
 	void noInputBias() { m_useInputBias = false; }
 
+#ifndef NO_TEST_CODE
+	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
+	static void test();
+#endif
+
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
-	double validate(std::vector<Rating*>& data);
+	double validate(GNeuralNet* pNN, GMatrix& data);
 };
 
 
@@ -385,8 +419,8 @@ public:
 	/// Add a filter to the bag
 	void addRecommender(GCollaborativeFilter* pRecommender);
 
-	/// See the comment for GCollaborativeFilter::trainBatch
-	virtual void trainBatch(GSparseMatrix* pData);
+	/// See the comment for GCollaborativeFilter::train
+	virtual void train(GMatrix& data);
 
 	/// See the comment for GCollaborativeFilter::predict
 	virtual double predict(size_t user, size_t item);
@@ -399,6 +433,11 @@ public:
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
+	static void test();
+#endif
 };
 
 

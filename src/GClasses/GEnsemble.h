@@ -24,6 +24,28 @@ class GRand;
 
 typedef void (*EnsembleProgressCallback)(void* pThis, size_t i, size_t n);
 
+/// This is a helper-class used by GBag
+class GWeightedModel
+{
+public:
+	double m_weight;
+	GSupervisedLearner* m_pModel;
+
+	/// General-purpose constructor
+	GWeightedModel(double weight, GSupervisedLearner* pModel)
+		: m_weight(weight), m_pModel(pModel)
+	{
+	}
+
+	/// Load from a DOM.
+	GWeightedModel(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader);
+	~GWeightedModel();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	GDomNode* serialize(GDom* pDoc);
+};
+
+
 /// BAG stands for bootstrap aggregator. It represents an ensemble
 /// of voting modelers. Each model is trained with a slightly different
 /// training set, which is produced by drawing randomly from the original
@@ -33,7 +55,7 @@ class GBag : public GSupervisedLearner
 {
 protected:
 	sp_relation m_pLabelRel;
-	std::vector<GSupervisedLearner*> m_models;
+	std::vector<GWeightedModel*> m_models;
 	size_t m_nAccumulatorDims;
 	double* m_pAccumulator;
 	GRand* m_pRand;
@@ -41,9 +63,7 @@ protected:
 	void* m_pThis;
 
 public:
-	/// nInitialSize tells it how fast to grow the dynamic array that holds the
-	/// models. It's not really important to get it right, just guess how many
-	/// models will go in the ensemble.
+	/// General-purpose constructor.
 	GBag(GRand* pRand);
 
 	/// Load from a DOM.
@@ -85,10 +105,26 @@ protected:
 	/// See the comment for GSupervisedLearner::predictDistributionInner
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
-	void accumulate(const double* pOut);
-	void tally(size_t nCount, GPrediction* pOut);
-	void tally(size_t nCount, double* pOut);
+	/// Assigns uniform weight to all models. (This method is deliberately
+	/// virtual so that you can overload it if you want non-uniform weighting.)
+	virtual void determineWeights();
+
+	/// Scales the weights so they sum to 1.0.
+	void normalizeWeights();
+
+	/// Adds the vote from one of the models.
+	void castVote(double weight, const double* pOut);
+
+	/// Counts all the votes from the models in the bag, assuming you are
+	/// interested in knowing the distribution.
+	void tally(GPrediction* pOut);
+
+	/// Counts all the votes from the models in the bag, assuming you only
+	/// care to know the winner, and do not care about the distribution.
+	void tally(double* pOut);
 };
+
+
 
 
 

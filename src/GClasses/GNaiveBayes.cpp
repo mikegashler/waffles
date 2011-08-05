@@ -351,6 +351,28 @@ void GNaiveBayes::predictInner(const double* pIn, double* pOut)
 		pOut[n] = m_pOutputs[n]->predict(pIn, m_equivalentSampleSize, m_pRand);
 }
 
+void GNaiveBayes::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// Find the best ess value
+	double bestEss = 0.0;
+	double bestErr = 1e308;
+	for(double i = 0.0; i < 8; i += 0.25)
+	{
+		m_equivalentSampleSize = i;
+		double d = heuristicValidate(features, labels, &rand);
+		if(d < bestErr)
+		{
+			bestErr = d;
+			bestEss = i;
+		}
+		else if(i >= 2.0)
+			break;
+	}
+
+	// Set the best values
+	m_equivalentSampleSize = bestEss;
+}
+
 #ifndef NO_TEST_CODE
 void GNaiveBayes_CheckResults(double yprior, double ycond, double nprior, double ncond, GPrediction* out)
 {

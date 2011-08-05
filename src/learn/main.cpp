@@ -323,11 +323,12 @@ GKNN* InstantiateKNN(GRand* pRand, GArgReader& args)
 {
 	if(args.size() < 1)
 		ThrowError("The number of neighbors must be specified for knn");
-	int neighborCount = args.pop_uint();
-	GKNN* pModel = new GKNN(neighborCount, pRand);
+	GKNN* pModel = new GKNN(*pRand);
 	while(args.next_is_flag())
 	{
-		if(args.if_pop("-equalweight"))
+		if(args.if_pop("-neighbors"))
+			pModel->setNeighborCount(args.pop_uint());
+		else if(args.if_pop("-equalweight"))
 			pModel->setInterpolationMethod(GKNN::Mean);
 		else if(args.if_pop("-scalefeatures"))
 			pModel->setOptimizeScaleFactors(true);
@@ -627,24 +628,44 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 	return NULL;
 }
 
+void autoParamDecisionTree(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	GDecisionTree dt(&rand);
+	dt.autoTune(features, labels, rand);
+	cout << "decisiontree";
+	if(dt.leafThresh() != 1)
+		cout << " -leafthresh " << dt.leafThresh();
+	cout << "\n";
+}
+
+void autoParamKNN(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	GKNN model(rand);
+	model.autoTune(features, labels, rand);
+	cout << "knn";
+	if(model.neighborCount() != 1)
+		cout << " -neighbors " << model.neighborCount();
+	cout << "\n";
+}
+
 void autoParamNeuralNet(GMatrix& features, GMatrix& labels, GRand& rand)
 {
 	cout << "Warning: Because neural nets take a long time to train, it could take hours to train with enough parameter variations to determine with confidence which parameters are best. (If possible, I would strongly advise running this as a background process while you do something else, rather than sit around waiting for it to finish.)";
 	cout.flush();
-	GNeuralNet* pNN = GNeuralNet::autoParams(features, labels, rand);
+	GNeuralNet nn(&rand);
+	nn.autoTune(features, labels, rand);
 	const char* szCurrent = "logistic";
 	cout << "neuralnet";
-	for(size_t i = 0; i < pNN->layerCount(); i++)
+	for(size_t i = 0; i < nn.layerCount(); i++)
 	{
-		const char* szActivationName = pNN->layer(i).m_pActivationFunction->name();
+		const char* szActivationName = nn.layer(i).m_pActivationFunction->name();
 		if(strcmp(szActivationName, szCurrent) != 0)
 			cout << " -activation " << szActivationName;
-		if(i < pNN->layerCount() - 1)
-			cout << " -addlayer " << pNN->layer(i).m_neurons.size();
+		if(i < nn.layerCount() - 1)
+			cout << " -addlayer " << nn.layer(i).m_neurons.size();
 	}
-	if(pNN->momentum() > 0.0)
-		cout << " -momentum " << pNN->momentum();
-	delete(pNN);
+	if(nn.momentum() > 0.0)
+		cout << " -momentum " << nn.momentum();
 	cout << "\n";
 }
 
@@ -659,7 +680,11 @@ void autoParams(GArgReader& args)
 	// Load the model name
 	GRand rand(0);
 	const char* szModel = args.pop_string();
-	if(strcmp(szModel, "neuralnet") == 0)
+	if(strcmp(szModel, "decisiontree") == 0)
+		autoParamDecisionTree(*pFeatures, *pLabels, rand);
+	else if(strcmp(szModel, "knn") == 0)
+		autoParamKNN(*pFeatures, *pLabels, rand);
+	else if(strcmp(szModel, "neuralnet") == 0)
 		autoParamNeuralNet(*pFeatures, *pLabels, rand);
 	else
 		ThrowError("Sorry, autoparams does not currently support a model named ", szModel, ".");

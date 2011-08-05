@@ -186,9 +186,9 @@ UsageNode* makeAlgorithmUsageTree()
 		pGCT->add("[neighbors]=12", "The number of neighbors to connect with each point in order to form the graph.");
 	}
 	{
-		UsageNode* pKNN = pRoot->add("knn [k] <options>", "The k-Nearest-Neighbor instance-based learning algorithm. It uses Euclidean distance for continuous features and Hamming distance for nominal features.");
-		pKNN->add("[k]=7", "The number of neighbors to use");
+		UsageNode* pKNN = pRoot->add("knn <options>", "The k-Nearest-Neighbor instance-based learning algorithm. It uses Euclidean distance for continuous features and Hamming distance for nominal features.");
 		UsageNode* pOpts = pKNN->add("<options>");
+		pOpts->add("-neighbors [k]", "Specify the number of neighbors, k, to use.");
 		pOpts->add("-equalweight", "Give equal weight to every neighbor. (The default is to use linear weighting for continuous features, and sqared linear weighting for nominal features.");
 		pOpts->add("-scalefeatures", "Use a hill-climbing algorithm on the training set to scale the feature dimensions in order to give more accurate results. This increases training time, but also improves accuracy and robustness to irrelevant features.");
 		pOpts->add("-pearson", "Use Pearson's correlation coefficient to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
@@ -957,7 +957,6 @@ UsageNode* makeRecommendUsageTree()
 		UsageNode* pOpts = pCV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-folds [n]=2", "Specify the number of folds. If not specified, the default is 2.");
-		pOpts->add("-maxrecs [n]=10", "Evaluate only the [n] recommendations for each user with the highest predicted rating. If not specified, the default is 1000000.");
 		pCV->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
 	}
 	{

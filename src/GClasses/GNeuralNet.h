@@ -379,8 +379,9 @@ public:
 	void setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction = squared_error);
 
 	/// Uses cross-validation to find a set of parameters that works well with
-	/// the provided data, and returns a neural net instantiated with those parameters.
-	static GNeuralNet* autoParams(GMatrix& features, GMatrix& labels, GRand& rand);
+	/// the provided data. That is, this method will add a good number of hidden
+	/// layers, pick a good momentum value, etc.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
 
 	/// Specify whether to use an input bias. (The default is false.) This feature is
 	/// used with generative-backpropagation, which adjusts inputs to create latent features.

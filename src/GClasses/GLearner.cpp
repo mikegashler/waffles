@@ -458,6 +458,7 @@ GSupervisedLearner::GSupervisedLearner(GDomNode* pNode, GRand& rand)
 		m_pLabelFilter = ll.loadTwoWayIncrementalTransform(pLabelFilter, &rand);
 	m_featureDims = (size_t)pNode->field("fd")->asInt();
 	m_labelDims = (size_t)pNode->field("ld")->asInt();
+	m_autoFilter = pNode->field("af")->asBool();
 }
 
 GSupervisedLearner::~GSupervisedLearner()
@@ -478,6 +479,7 @@ GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName)
 		pNode->addField(pDoc, "lf", m_pLabelFilter->serialize(pDoc));
 	pNode->addField(pDoc, "fd", pDoc->newInt(m_featureDims));
 	pNode->addField(pDoc, "ld", pDoc->newInt(m_labelDims));
+	pNode->addField(pDoc, "af", pDoc->newBool(m_autoFilter));
 	return pNode;
 }
 
@@ -665,7 +667,8 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 	m_labelDims = labels.cols();
 
 	// Filter the data (if necessary) and train the model
-	setupFilters(features, labels);
+	if(m_autoFilter)
+		setupFilters(features, labels);
 	if(m_pFeatureFilter)
 	{
 		GMatrix* pFilteredFeatures = m_pFeatureFilter->transformBatch(features);
@@ -1165,7 +1168,7 @@ GIncrementalLearner* GLearnerLoader::loadIncrementalLearner(GDomNode* pNode, GRa
 	if(szClass[0] == 'G')
 	{
 		if(strcmp(szClass, "GKNN") == 0)
-			return new GKNN(pNode, pRand);
+			return new GKNN(pNode, *pRand);
 		else if(strcmp(szClass, "GNaiveBayes") == 0)
 			return new GNaiveBayes(pNode, pRand);
 		else if(strcmp(szClass, "GNaiveInstance") == 0)
@@ -1268,6 +1271,11 @@ void GBaselineLearner::predictInner(const double* pIn, double* pOut)
 {
 	for(vector<double>::iterator it = m_prediction.begin(); it != m_prediction.end(); it++)
 		*(pOut++) = *it;
+}
+
+void GBaselineLearner::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// This model has no parameters to tune
 }
 
 #ifndef NO_TEST_CODE

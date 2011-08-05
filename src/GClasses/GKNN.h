@@ -37,7 +37,7 @@ public:
 
 protected:
 	// Settings
-	GRand* m_pRand;
+	GRand& m_rand;
 	GMatrix* m_pFeatures;
 	GSparseMatrix* m_pSparseFeatures;
 	GMatrix* m_pLabels;
@@ -66,12 +66,18 @@ protected:
 
 public:
 	/// nNeighbors specifies the number of neighbors to evaluate in order to make a prediction.
-	GKNN(size_t nNeighbors, GRand* pRand);
+	GKNN(GRand& rand);
 
 	/// Load from a DOM.
-	GKNN(GDomNode* pNode, GRand* pRand);
+	GKNN(GDomNode* pNode, GRand& rand);
 
 	virtual ~GKNN();
+
+	/// Returns the number of neighbors
+	size_t neighborCount() { return m_nNeighbors; }
+
+	/// Specify the number of neighbors to use. (The default is 1.)
+	void setNeighborCount(size_t k) { m_nNeighbors = k; }
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
@@ -109,9 +115,6 @@ public:
 	/// Sets the value for elbow room. (This value is only used with incremental training.)
 	void setElbowRoom(double d) { m_dElbowRoom = d * d; }
 
-	/// Returns the number of neighbors
-	size_t neighborCount() { return m_nNeighbors; }
-
 	/// Returns the dissimilarity metric
 	GRowDistanceScaled* metric() { return m_pDistanceMetric; }
 
@@ -120,7 +123,7 @@ public:
 	void setOptimizeScaleFactors(bool b);
 
 	/// Get the random number generator that was passed to the constructor
-	GRand* getRand() { return m_pRand; }
+	GRand& getRand() { return m_rand; }
 
 	/// Returns the internal feature set
 	GMatrix* features() { return m_pFeatures; }
@@ -130,6 +133,10 @@ public:
 
 	/// Returns the internal label set
 	GMatrix* labels() { return m_pLabels; }
+
+	/// Uses cross-validation to find a set of parameters that works well with
+	/// the provided data.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

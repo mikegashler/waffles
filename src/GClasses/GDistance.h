@@ -188,30 +188,30 @@ public:
 class GSparseSimilarity
 {
 protected:
-        double m_regularizer;
+	double m_regularizer;
 
 public:
-        GSparseSimilarity() : m_regularizer(0.0) {}
-        virtual ~GSparseSimilarity() {}
+	GSparseSimilarity() : m_regularizer(0.0) {}
+	virtual ~GSparseSimilarity() {}
 
-        /// Set a regularizing term to add to the denominator
-        void setRegularizer(double d) { m_regularizer = d; }
+	/// Set a regularizing term to add to the denominator
+	void setRegularizer(double d) { m_regularizer = d; }
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-        virtual GDomNode* serialize(GDom* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
-        /// Computes the similarity between two sparse vectors
-        virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b) = 0;
+	/// Computes the similarity between two sparse vectors
+	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b) = 0;
 
-        /// Computes the similarity between a sparse and a dense vector
-        virtual double similarity(const std::map<size_t,double>& a, const double* pB) = 0;
+	/// Computes the similarity between a sparse and a dense vector
+	virtual double similarity(const std::map<size_t,double>& a, const double* pB) = 0;
 
 	/// Load from a DOM.
-        static GSparseSimilarity* deserialize(GDomNode* pNode);
+	static GSparseSimilarity* deserialize(GDomNode* pNode);
 
 protected:
-        /// A helper method used internally
-        GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
+	/// A helper method used internally
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
 };
 
 
@@ -219,18 +219,18 @@ protected:
 class GCosineSimilarity : public GSparseSimilarity
 {
 public:
-        GCosineSimilarity() : GSparseSimilarity() {}
-        GCosineSimilarity(GDomNode* pNode) : GSparseSimilarity() {}
-        virtual ~GCosineSimilarity() {}
+	GCosineSimilarity() : GSparseSimilarity() {}
+	GCosineSimilarity(GDomNode* pNode) : GSparseSimilarity() {}
+	virtual ~GCosineSimilarity() {}
 
-        /// See the comment for GSparseSimilarity::serialize
-        virtual GDomNode* serialize(GDom* pDoc);
+	/// See the comment for GSparseSimilarity::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 
-        /// Computes the similarity between two sparse vectors
-        virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
+	/// Computes the similarity between two sparse vectors
+	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
 
-        /// Computes the similarity between a sparse and a dense vector
-        virtual double similarity(const std::map<size_t,double>& a, const double* pB);
+	/// Computes the similarity between a sparse and a dense vector
+	virtual double similarity(const std::map<size_t,double>& a, const double* pB);
 };
 
 
@@ -238,18 +238,18 @@ public:
 class GPearsonCorrelation : public GSparseSimilarity
 {
 public:
-        GPearsonCorrelation() : GSparseSimilarity() {}
-        GPearsonCorrelation(GDomNode* pNode) : GSparseSimilarity() {}
-        virtual ~GPearsonCorrelation() {}
+	GPearsonCorrelation() : GSparseSimilarity() {}
+	GPearsonCorrelation(GDomNode* pNode) : GSparseSimilarity() {}
+	virtual ~GPearsonCorrelation() {}
 
-        /// See the comment for GSparseSimilarity::serialize
-        virtual GDomNode* serialize(GDom* pDoc);
+	/// See the comment for GSparseSimilarity::serialize
+	virtual GDomNode* serialize(GDom* pDoc);
 
-        /// Computes the similarity between two sparse vectors
-        virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
+	/// Computes the similarity between two sparse vectors
+	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
 
-        /// Computes the similarity between a sparse and a dense vector
-        virtual double similarity(const std::map<size_t,double>& a, const double* pB);
+	/// Computes the similarity between a sparse and a dense vector
+	virtual double similarity(const std::map<size_t,double>& a, const double* pB);
 };
 
 

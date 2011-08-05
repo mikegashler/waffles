@@ -689,7 +689,10 @@ double GFuzzyKMeans::recomputeWeights()
 		double* pWeights = m_pWeights->row(i);
 		double* pW = pWeights;
 		for(size_t j = 0; j < m_clusterCount; j++)
-			*(pW++) = pow(sqrt(m_pMetric->squaredDistance(m_pData->row(i), m_pCentroids->row(j))), -2.0 / (m_fuzzifier - 1.0));
+		{
+			double e = -2.0 / (m_fuzzifier - 1.0);
+			*(pW++) = pow(sqrt(m_pMetric->squaredDistance(m_pData->row(i), m_pCentroids->row(j))), e);
+		}
 		double scale = 1.0 / GVec::sumElements(pWeights, m_clusterCount);
 		sumError += scale;
 		GVec::multiply(pWeights, scale, m_clusterCount);
@@ -1165,7 +1168,8 @@ GGraphCutTransducer::~GGraphCutTransducer()
 GMatrix* GGraphCutTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
 	// Use k-NN to compute a distance metric with good scale factors for prediction
-	GKNN knn(m_neighborCount, m_pRand);
+	GKNN knn(*m_pRand);
+	knn.setNeighborCount(m_neighborCount);
 	//knn.setOptimizeScaleFactors(true);
 	knn.train(features1, labels1);
 	GRowDistanceScaled* pMetric = knn.metric();

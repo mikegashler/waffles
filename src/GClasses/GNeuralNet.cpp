@@ -1249,18 +1249,14 @@ void GNeuralNet::setErrorSingleOutput(double target, size_t output, TargetFuncti
 	}
 }
 
-// static
-GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& rand)
+void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 {
-	// Warning: This method is written to leak memory if an exception is thrown during its execution
-
 	// Try a plain-old single-layer network
 	size_t hidden = std::max((size_t)4, (features.cols() + 3) / 4);
-	GNeuralNet* cands[2];
-	cands[0] = new GNeuralNet(&rand);
-	cands[1] = NULL;
+	Holder<GNeuralNet> hCand0(new GNeuralNet(&rand));
+	Holder<GNeuralNet> hCand1;
 	double scores[2];
-	scores[0] = cands[0]->heuristicValidate(features, labels, &rand);
+	scores[0] = hCand0.get()->heuristicValidate(features, labels, &rand);
 	scores[1] = 1e308;
 
 	// Try increasing the number of hidden units until accuracy decreases twice
@@ -1272,18 +1268,16 @@ GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& ra
 		double d = cand->heuristicValidate(features, labels, &rand);
 		if(d < scores[0])
 		{
-			delete(cands[1]);
-			cands[1] = cands[0];
+			hCand1.reset(hCand0.release());
 			scores[1] = scores[0];
-			cands[0] = cand;
+			hCand0.reset(cand);
 			scores[0] = d;
 		}
 		else
 		{
 			if(d < scores[1])
 			{
-				delete(cands[1]);
-				cands[1] = cand;
+				hCand1.reset(cand);
 				scores[1] = d;
 			}
 			else
@@ -1297,8 +1291,8 @@ GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& ra
 	// Try narrowing in on the best number of hidden units
 	while(true)
 	{
-		size_t a = cands[0]->layerCount() > 1 ? cands[0]->layer(0).m_neurons.size() : 0;
-		size_t b = cands[0]->layerCount() > 1 ? cands[0]->layer(0).m_neurons.size() : 0;
+		size_t a = hCand0.get()->layerCount() > 1 ? hCand0.get()->layer(0).m_neurons.size() : 0;
+		size_t b = hCand1.get()->layerCount() > 1 ? hCand1.get()->layer(0).m_neurons.size() : 0;
 		size_t dif = b < a ? a - b : b - a;
 		if(dif <= 1)
 			break;
@@ -1308,16 +1302,14 @@ GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& ra
 		double d = cand->heuristicValidate(features, labels, &rand);
 		if(d < scores[0])
 		{
-			delete(cands[1]);
-			cands[1] = cands[0];
+			hCand1.reset(hCand0.release());
 			scores[1] = scores[0];
-			cands[0] = cand;
+			hCand0.reset(cand);
 			scores[0] = d;
 		}
 		else if(d < scores[1])
 		{
-			delete(cands[1]);
-			cands[1] = cand;
+			hCand1.reset(cand);
 			scores[1] = d;
 		}
 		else
@@ -1326,11 +1318,10 @@ GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& ra
 			break;
 		}
 	}
-	delete(cands[1]);
-	cands[1] = NULL;
+	hCand1.reset(NULL);
 
 	// Try two hidden layers
-	size_t hu1 = cands[0]->layerCount() > 1 ? cands[0]->layer(0).m_neurons.size() : 0;
+	size_t hu1 = hCand0.get()->layerCount() > 1 ? hCand0.get()->layer(0).m_neurons.size() : 0;
 	size_t hu2 = 0;
 	if(hu1 > 12)
 	{
@@ -1359,8 +1350,7 @@ GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& ra
 		double d = cand->heuristicValidate(features, labels, &rand);
 		if(d < scores[0])
 		{
-			delete(cands[0]);
-			cands[0] = cand;
+			hCand0.reset(cand);
 			scores[0] = d;
 			hu1 = c1;
 			hu2 = c2;
@@ -1379,8 +1369,7 @@ GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& ra
 		double d = cand->heuristicValidate(features, labels, &rand);
 		if(d < scores[0])
 		{
-			delete(cands[0]);
-			cands[0] = cand;
+			hCand0.reset(cand);
 			scores[0] = d;
 			delete(pActiv);
 			pActiv = new GActivationGaussian();
@@ -1399,8 +1388,7 @@ GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& ra
 		double d = cand->heuristicValidate(features, labels, &rand);
 		if(d < scores[0])
 		{
-			delete(cands[0]);
-			cands[0] = cand;
+			hCand0.reset(cand);
 			scores[0] = d;
 		}
 		else
@@ -1408,7 +1396,7 @@ GNeuralNet* GNeuralNet::autoParams(GMatrix& features, GMatrix& labels, GRand& ra
 	}
 
 	delete(pActiv);
-	return cands[0];
+	copyStructure(hCand0.get());
 }
 
 #ifndef NO_TEST_CODE

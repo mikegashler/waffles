@@ -83,7 +83,8 @@ GKNN* InstantiateKNN(GRand* pRand, GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("The number of neighbors must be specified for knn");
 	int neighborCount = args.pop_uint();
-	GKNN* pModel = new GKNN(neighborCount, pRand);
+	GKNN* pModel = new GKNN(*pRand);
+	pModel->setNeighborCount(neighborCount);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-equalweight"))

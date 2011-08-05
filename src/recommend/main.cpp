@@ -41,6 +41,38 @@ using std::set;
 
 GCollaborativeFilter* InstantiateAlgorithm(GRand* pRand, GArgReader& args);
 
+GMatrix* loadData(const char* szFilename)
+{
+	PathData pd;
+	GFile::parsePath(szFilename, &pd);
+	if(_stricmp(szFilename + pd.extStart, ".sparse") == 0)
+	{
+		GDom doc;
+		doc.loadJson(szFilename);
+		GSparseMatrix sm(doc.root());
+		GMatrix* pData = new GMatrix(0, 3);
+		for(size_t i = 0; i < sm.rows(); i++)
+		{
+			GSparseMatrix::Iter rowEnd = sm.rowEnd(i);
+			for(GSparseMatrix::Iter it = sm.rowBegin(i); it != rowEnd; it++)
+			{
+				double* pVec = pData->newRow();
+				pVec[0] = i;
+				pVec[1] = it->first;
+				pVec[2] = it->second;
+			}
+		}
+		return pData;
+	}
+	else if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
+		return GMatrix::loadArff(szFilename);
+	else
+	{
+		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		return NULL;
+	}
+}
+
 GSparseMatrix* loadSparseData(const char* szFilename)
 {
 	// Load the dataset by extension
@@ -340,8 +372,6 @@ void crossValidate(GArgReader& args)
 			seed = args.pop_uint();
 		else if(args.if_pop("-folds"))
 			folds = args.pop_uint();
-		else if(args.if_pop("-maxrecs"))
-		  	maxRecommendationsPerUser = args.pop_uint();
 		else
 			ThrowError("Invalid crossvalidate option: ", args.peek());
 	}
@@ -351,8 +381,8 @@ void crossValidate(GArgReader& args)
 	// Load the data
 	if(args.size() < 1)
 		ThrowError("No dataset specified.");
-	GSparseMatrix* pData = loadSparseData(args.pop_string());
-	Holder<GSparseMatrix> hData(pData);
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
 
 	// Instantiate the recommender
 	GRand prng(seed);
@@ -363,7 +393,7 @@ void crossValidate(GArgReader& args)
 
 	// Do cross-validation
 	double mae;
-	double mse = pModel->crossValidate(pData, folds, &prng, maxRecommendationsPerUser, &mae);
+	double mse = pModel->crossValidate(*pData, folds, &prng, &mae);
 	cout << "RMSE=" << sqrt(mse) << ", MSE=" << mse << ", MAE=" << mae << "\n";
 }
 
@@ -385,8 +415,8 @@ void precisionRecall(GArgReader& args)
 	// Load the data
 	if(args.size() < 1)
 		ThrowError("No dataset specified.");
-	GSparseMatrix* pData = loadSparseData(args.pop_string());
-	Holder<GSparseMatrix> hData(pData);
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
 
 	// Instantiate the recommender
 	GRand prng(seed);
@@ -396,7 +426,7 @@ void precisionRecall(GArgReader& args)
 		ThrowError("Superfluous argument: ", args.peek());
 
 	// Generate precision-recall data
-	GMatrix* pResults = pModel->precisionRecall(pData, &prng, ideal);
+	GMatrix* pResults = pModel->precisionRecall(*pData, &prng, ideal);
 	Holder<GMatrix> hResults(pResults);
 	pResults->deleteColumn(2); // we don't need the false-positive rate column
 	pResults->print(cout);
@@ -420,8 +450,8 @@ void ROC(GArgReader& args)
 	// Load the data
 	if(args.size() < 1)
 		ThrowError("No dataset specified.");
-	GSparseMatrix* pData = loadSparseData(args.pop_string());
-	Holder<GSparseMatrix> hData(pData);
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
 
 	// Instantiate the recommender
 	GRand prng(seed);
@@ -431,9 +461,9 @@ void ROC(GArgReader& args)
 		ThrowError("Superfluous argument: ", args.peek());
 
 	// Generate ROC data
-	GMatrix* pResults = pModel->precisionRecall(pData, &prng, ideal);
+	GMatrix* pResults = pModel->precisionRecall(*pData, &prng, ideal);
 	Holder<GMatrix> hResults(pResults);
-	double auc = GCollaborativeFilter::areaUnderCurve(pResults);
+	double auc = GCollaborativeFilter::areaUnderCurve(*pResults);
 	pResults->deleteColumn(1); // we don't need the precision column
 	pResults->swapColumns(0, 1);
 	cout << "% Area Under the Curve = " << auc << "\n";
@@ -455,12 +485,12 @@ void transacc(GArgReader& args)
 	// Load the data
 	if(args.size() < 1)
 		ThrowError("No training set specified.");
-	GSparseMatrix* pTrain = loadSparseData(args.pop_string());
-	Holder<GSparseMatrix> hTrain(pTrain);
+	GMatrix* pTrain = loadData(args.pop_string());
+	Holder<GMatrix> hTrain(pTrain);
 	if(args.size() < 1)
 		ThrowError("No test set specified.");
-	GSparseMatrix* pTest = loadSparseData(args.pop_string());
-	Holder<GSparseMatrix> hTest(pTest);
+	GMatrix* pTest = loadData(args.pop_string());
+	Holder<GMatrix> hTest(pTest);
 
 	// Instantiate the recommender
 	GRand prng(seed);
@@ -471,7 +501,7 @@ void transacc(GArgReader& args)
 
 	// Do cross-validation
 	double mae;
-	double mse = pModel->transduce(*pTrain, *pTest, &mae);
+	double mse = pModel->trainAndTest(*pTrain, *pTest, &mae);
 	cout << "MSE=" << mse << ", MAE=" << mae << "\n";
 }
 
@@ -496,7 +526,7 @@ void fillMissingValues(GArgReader& args)
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
 
-	// Convert to a sparse matrix of all real values
+	// Convert to all normalized real values
 	GNominalToCat* pNtc = new GNominalToCat();
 	GTwoWayTransformChainer filter(new GNormalize(), pNtc);
 	pNtc->preserveUnknowns();
@@ -505,8 +535,10 @@ void fillMissingValues(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	hDataOrig.release();
 	pDataOrig = NULL;
-	GSparseMatrix* pMatrix = new GSparseMatrix(pData->rows(), pData->cols(), UNKNOWN_REAL_VALUE);
-	Holder<GSparseMatrix> hMatrix(pMatrix);
+
+	// Convert to 3-column form
+	GMatrix* pMatrix = new GMatrix(0, 3);
+	Holder<GMatrix> hMatrix(pMatrix);
 	size_t dims = pData->cols();
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
@@ -514,13 +546,18 @@ void fillMissingValues(GArgReader& args)
 		for(size_t j = 0; j < dims; j++)
 		{
 			if(*pRow != UNKNOWN_REAL_VALUE)
-				pMatrix->set(i, j, *pRow);
+			{
+				double* pVec = pMatrix->newRow();
+				pVec[0] = i;
+				pVec[1] = j;
+				pVec[2] = *pRow;
+			}
 			pRow++;
 		}
 	}
 
 	// Train the collaborative filter
-	pModel->trainBatch(pMatrix);
+	pModel->train(*pMatrix);
 	hMatrix.release();
 	pMatrix = NULL;
 

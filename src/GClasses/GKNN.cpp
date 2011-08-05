@@ -68,21 +68,22 @@ protected:
 		// todo: this method is WAAAY too inefficient
 		GMatrix* pFeatures = m_pLearner->features();
 		GMatrix* pLabels = m_pLearner->labels();
-		GKNN temp(m_pLearner->neighborCount(), m_pLearner->getRand());
+		GKNN temp(m_pLearner->getRand());
+		temp.setNeighborCount(m_pLearner->neighborCount());
 		temp.beginIncrementalLearning(pFeatures->relation(), pLabels->relation());
 		GVec::copy(temp.metric()->scaleFactors(), pVector, relation()->size());
-		return temp.heuristicValidate(*pFeatures, *pLabels, m_pLearner->getRand());
+		return temp.heuristicValidate(*pFeatures, *pLabels, &m_pLearner->getRand());
 	}
 };
 
 
-GKNN::GKNN(size_t nNeighbors, GRand* pRand)
-: GIncrementalLearner(), m_pRand(pRand)
+GKNN::GKNN(GRand& rand)
+: GIncrementalLearner(), m_rand(rand)
 {
 	m_eInterpolationMethod = Linear;
 	m_pLearner = NULL;
 	m_bOwnLearner = false;
-	m_nNeighbors = nNeighbors;
+	m_nNeighbors = 1;
 	m_pFeatures = NULL;
 	m_pSparseFeatures = NULL;
 	m_pLabels = NULL;
@@ -100,8 +101,8 @@ GKNN::GKNN(size_t nNeighbors, GRand* pRand)
 	m_dElbowRoom = UNKNOWN_REAL_VALUE;
 }
 
-GKNN::GKNN(GDomNode* pNode, GRand* pRand)
-: GIncrementalLearner(pNode, *pRand), m_pRand(pRand)
+GKNN::GKNN(GDomNode* pNode, GRand& rand)
+: GIncrementalLearner(pNode, rand), m_rand(rand)
 {
 	m_pNeighborFinder = NULL;
 	m_pNeighborFinder2 = NULL;
@@ -188,6 +189,29 @@ GDomNode* GKNN::serialize(GDom* pDoc)
 	else
 		pNode->addField(pDoc, "sparseMetric", m_pSparseMetric->serialize(pDoc));
 	return pNode;
+}
+
+void GKNN::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// Find the best value for k
+	size_t cap = size_t(floor(sqrt(double(features.rows()))));
+	size_t bestK = 1;
+	double bestErr = 1e308;
+	for(size_t i = 1; i < cap; i *= 3)
+	{
+		m_nNeighbors = i;
+		double d = heuristicValidate(features, labels, &rand);
+		if(d < bestErr)
+		{
+			bestErr = d;
+			bestK = i;
+		}
+		else if(i >= 27)
+			break;
+	}
+
+	// Set the best values
+	m_nNeighbors = bestK;
 }
 
 void GKNN::setInterpolationMethod(InterpolationMethod eMethod)
@@ -487,7 +511,7 @@ void GKNN::interpolateMean(const double* pIn, GPrediction* pOut, double* pOut2)
 			if(pOut)
 				pOut[i].makeCategorical()->setValues(nValueCount, m_pValueCounts);
 			if(pOut2)
-				pOut2[i] = (double)GVec::indexOfMax(m_pValueCounts, nValueCount, m_pRand);
+				pOut2[i] = (double)GVec::indexOfMax(m_pValueCounts, nValueCount, &m_rand);
 		}
 	}
 }
@@ -559,7 +583,7 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 			if(pOut)
 				pOut[i].makeCategorical()->setValues(nValueCount, m_pValueCounts);
 			if(pOut2)
-				pOut2[i] = (double)GVec::indexOfMax(m_pValueCounts, nValueCount, m_pRand);
+				pOut2[i] = (double)GVec::indexOfMax(m_pValueCounts, nValueCount, &m_rand);
 		}
 	}
 }
@@ -637,7 +661,8 @@ void GKNN::clear()
 void GKNN::test()
 {
 	GRand prng(0);
-	GKNN knn(3, &prng);
+	GKNN knn(prng);
+	knn.setNeighborCount(3);
 	knn.basicTest(0.72, 0.75, &prng);
 }
 #endif

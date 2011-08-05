@@ -79,6 +79,9 @@ public:
 		m_randomDraws = randomDraws;
 	}
 
+	/// Returns the leaf threshold.
+	size_t leafThresh() { return m_leafThresh; }
+
 	/// Sets the leaf threshold. When the number of samples is <= this value,
 	/// it will no longer try to divide the data, but will create a leaf node.
 	/// The default value is 1. For noisy data, a larger value may be advantageous.
@@ -101,6 +104,10 @@ public:
 	/// pRelation is an optional relation that can be supplied in order to provide
 	/// better meta-data to make the print-out richer.
 	void print(std::ostream& stream, GArffRelation* pFeatureRel = NULL, GArffRelation* pLabelRel = NULL);
+
+	/// Uses cross-validation to find a set of parameters that works well with
+	/// the provided data.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -170,6 +177,9 @@ public:
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
+
+	/// This model has no parameters to tune, so this method is a noop.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
 
 protected:
 	GMeanMarginsTreeNode* buildNode(GMatrix& features, GMatrix& labels, double* pBuf, size_t* pBuf2);

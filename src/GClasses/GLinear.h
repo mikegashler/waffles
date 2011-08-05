@@ -65,6 +65,9 @@ public:
 	/// Performs on-line gradient descent to refine the model
 	void refine(GMatrix& features, GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor);
 
+	/// This model has no parameters to tune, so this method is a noop.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(GMatrix& features, GMatrix& labels);

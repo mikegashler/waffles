@@ -59,6 +59,10 @@ public:
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
 
+	/// Uses cross-validation to find a set of parameters that works well with
+	/// the provided data.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(GMatrix& features, GMatrix& labels);

@@ -297,6 +297,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GBigInt.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GBigInt.h"
+			>
+		</File>
+		<File
 			RelativePath="GBits.cpp"
 			>
 			<FileConfiguration
@@ -450,6 +458,14 @@
 		</File>
 		<File
 			RelativePath="GDecisionTree.h"
+			>
+		</File>
+		<File
+			RelativePath=".\GDiff.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GDiff.h"
 			>
 		</File>
 		<File
@@ -822,6 +838,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GKeyPair.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GKeyPair.h"
+			>
+		</File>
+		<File
 			RelativePath="GKNN.cpp"
 			>
 			<FileConfiguration
@@ -866,6 +890,10 @@
 		</File>
 		<File
 			RelativePath=".\GLinear.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GLinear.h"
 			>
 		</File>
 		<File

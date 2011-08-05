@@ -19,6 +19,31 @@
 using namespace GClasses;
 using std::vector;
 
+
+GWeightedModel::GWeightedModel(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
+{
+	m_weight = pNode->field("w")->asDouble();
+	m_pModel = pLoader->loadSupervisedLearner(pNode->field("m"), pRand);
+}
+
+GWeightedModel::~GWeightedModel()
+{
+	delete(m_pModel);
+}
+
+GDomNode* GWeightedModel::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "w", pDoc->newDouble(m_weight));
+	pNode->addField(pDoc, "m", m_pModel->serialize(pDoc));
+	return pNode;
+}
+
+
+
+
+
+
 GBag::GBag(GRand* pRand)
 : GSupervisedLearner(), m_nAccumulatorDims(0), m_pAccumulator(NULL), m_pRand(pRand), m_pCB(NULL), m_pThis(NULL)
 {
@@ -37,14 +62,15 @@ GBag::GBag(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
 	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
 	{
-		m_models.push_back(pLoader->loadSupervisedLearner(it.current(), pRand));
+		GWeightedModel* pWM = new GWeightedModel(it.current(), pRand, pLoader);
+		m_models.push_back(pWM);
 		it.advance();
 	}
 }
 
 GBag::~GBag()
 {
-	for(vector<GSupervisedLearner*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		delete(*it);
 	delete[] m_pAccumulator;
 }
@@ -64,8 +90,8 @@ GDomNode* GBag::serialize(GDom* pDoc)
 
 void GBag::clear()
 {
-	for(vector<GSupervisedLearner*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-		(*it)->clear();
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		(*it)->m_pModel->clear();
 	m_pLabelRel.reset();
 	m_featureDims = 0;
 	delete[] m_pAccumulator;
@@ -75,14 +101,15 @@ void GBag::clear()
 
 void GBag::flush()
 {
-	for(vector<GSupervisedLearner*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		delete(*it);
 	m_models.clear();
 }
 
 void GBag::addLearner(GSupervisedLearner* pLearner)
 {
-	m_models.push_back(pLearner);
+	GWeightedModel* pWM = new GWeightedModel(0.0, pLearner); // The weight will be fixed later
+	m_models.push_back(pWM);
 }
 
 // virtual
@@ -129,14 +156,35 @@ void GBag::trainInner(GMatrix& features, GMatrix& labels)
 			}
 
 			// Train the learner with the drawn data
-			m_models[i]->train(drawnFeatures, drawnLabels);
+			m_models[i]->m_pModel->train(drawnFeatures, drawnLabels);
 		}
 		if(m_pCB)
 			m_pCB(m_pThis, nLearnerCount, nLearnerCount);
 	}
+
+	// Determine the weights
+	determineWeights();
+	normalizeWeights();
 }
 
-void GBag::accumulate(const double* pOut)
+// virtual
+void GBag::determineWeights()
+{
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		(*it)->m_weight = 1.0;
+}
+
+void GBag::normalizeWeights()
+{
+	double sum = 0.0;
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		sum += (*it)->m_weight;
+	double f = 1.0 / sum;
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		(*it)->m_weight *= f;
+}
+
+void GBag::castVote(double weight, const double* pOut)
 {
 	size_t labelDims = m_pLabelRel->size();
 	size_t nDims = 0;
@@ -147,20 +195,20 @@ void GBag::accumulate(const double* pOut)
 		{
 			int nVal = (int)pOut[i];
 			if(nVal >= 0 && nVal < (int)nValues)
-				m_pAccumulator[nDims + nVal]++;
+				m_pAccumulator[nDims + nVal] += weight;
 			nDims += nValues;
 		}
 		else
 		{
 			double dVal = pOut[i];
-			m_pAccumulator[nDims++] += dVal;
-			m_pAccumulator[nDims++] += (dVal * dVal);
+			m_pAccumulator[nDims++] += weight * dVal;
+			m_pAccumulator[nDims++] += weight * (dVal * dVal);
 		}
 	}
 	GAssert(nDims == m_nAccumulatorDims); // invalid dim count
 }
 
-void GBag::tally(size_t nCount, GPrediction* pOut)
+void GBag::tally(GPrediction* pOut)
 {
 	size_t labelDims = m_pLabelRel->size();
 	size_t nDims = 0;
@@ -175,15 +223,15 @@ void GBag::tally(size_t nCount, GPrediction* pOut)
 		}
 		else
 		{
-			mean = m_pAccumulator[nDims] / nCount;
-			pOut[i].makeNormal()->setMeanAndVariance(mean, m_pAccumulator[nDims + 1] / nCount - (mean * mean));
+			mean = m_pAccumulator[nDims];
+			pOut[i].makeNormal()->setMeanAndVariance(mean, m_pAccumulator[nDims + 1] - (mean * mean));
 			nDims += 2;
 		}
 	}
 	GAssert(nDims == m_nAccumulatorDims); // invalid dim count
 }
 
-void GBag::tally(size_t nCount, double* pOut)
+void GBag::tally(double* pOut)
 {
 	size_t labelDims = m_pLabelRel->size();
 	size_t nDims = 0;
@@ -197,7 +245,7 @@ void GBag::tally(size_t nCount, double* pOut)
 		}
 		else
 		{
-			pOut[i] = m_pAccumulator[nDims] / nCount;
+			pOut[i] = m_pAccumulator[nDims];
 			nDims += 2;
 		}
 	}
@@ -208,12 +256,13 @@ void GBag::tally(size_t nCount, double* pOut)
 void GBag::predictInner(const double* pIn, double* pOut)
 {
 	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
-	for(vector<GSupervisedLearner*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 	{
-		(*it)->predict(pIn, pOut);
-		accumulate(pOut);
+		GWeightedModel* pWM = *it;
+		pWM->m_pModel->predict(pIn, pOut);
+		castVote(pWM->m_weight, pOut);
 	}
-	tally(m_models.size(), pOut);
+	tally(pOut);
 }
 
 // virtual
@@ -221,16 +270,17 @@ void GBag::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
 	GTEMPBUF(double, pTmp, m_pLabelRel->size());
 	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
-	for(vector<GSupervisedLearner*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 	{
-		(*it)->predict(pIn, pTmp);
-		accumulate(pTmp);
+		GWeightedModel* pWM = *it;
+		pWM->m_pModel->predict(pIn, pTmp);
+		castVote(pWM->m_weight, pTmp);
 	}
-	tally(m_models.size(), pOut);
+	tally(pOut);
 }
 /*
 // virtual
-double GBag::CrossValidate(GMatrix* pData, int nFolds, bool bRegression)
+double GBag::crossValidate(GMatrix* pData, int nFolds, bool bRegression)
 {
 	// Split the data into parts
 	GTEMPBUF(GMatrix*, pSets, nFolds);

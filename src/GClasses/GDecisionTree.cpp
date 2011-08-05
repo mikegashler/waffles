@@ -376,6 +376,30 @@ void GDecisionTree::trainInner(GMatrix& features, GMatrix& labels)
 	m_pRoot = buildBranch(tmpFeatures, tmpLabels, attrPool, 0/*depth*/, 4/*tolerance*/);
 }
 
+void GDecisionTree::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// Find the best leaf threshold
+	size_t cap = size_t(floor(sqrt(double(features.rows()))));
+	size_t bestLeafThresh = 1;
+	double bestErr = 1e308;
+	for(size_t i = 1; i < cap; i *= 3)
+	{
+		m_leafThresh = i;
+		double d = heuristicValidate(features, labels, &rand);
+		if(d < bestErr)
+		{
+			bestErr = d;
+			bestLeafThresh = i;
+		}
+		else if(i >= 27)
+			break;
+	}
+
+	// Set the best values
+	m_maxLevels = 0;
+	m_leafThresh = bestLeafThresh;
+}
+
 double GDecisionTree_measureRealSplitInfo(GMatrix& features, GMatrix& labels, GMatrix& tmpFeatures, GMatrix& tmpLabels, size_t attr, double pivot)
 {
 	GAssert(tmpFeatures.rows() == 0 && tmpLabels.rows() == 0);
@@ -976,6 +1000,11 @@ void GMeanMarginsTree::trainInner(GMatrix& features, GMatrix& labels)
 	size_t* pBuf2 = new size_t[m_internalFeatureDims * 2];
 	ArrayHolder<size_t> hBuf2(pBuf2);
 	m_pRoot = buildNode(features, labels, pBuf, pBuf2);
+}
+
+void GMeanMarginsTree::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// This model has no parameters to tune
 }
 
 GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& labels, double* pBuf, size_t* pBuf2)

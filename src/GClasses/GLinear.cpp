@@ -136,6 +136,11 @@ void GLinearRegressor::clear()
 	m_pBeta = NULL;
 }
 
+void GLinearRegressor::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// This model has no parameters to tune
+}
+
 #ifndef NO_TEST_CODE
 void GLinearRegressor_linear_test(GRand& prng)
 {
