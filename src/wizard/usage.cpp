@@ -177,17 +177,21 @@ UsageNode* makeAlgorithmUsageTree()
 	{
 		UsageNode* pDT = pRoot->add("decisiontree <options>", "A decision tree.");
 		UsageNode* pOpts = pDT->add("<options>");
+		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
 		pOpts->add("-random [draws]=1", "Use random divisions (instead of divisions that reduce entropy). Random divisions make the algorithm train faster, and also increase model variance, so it is better suited for ensembles, but random divisions also make the decision tree more vulnerable to problems with irrelevant features. [draws] is typically 1, but if you specify a larger value, it will pick the best out of the specified number of random draws.");
 		pOpts->add("-leafthresh [n]=1", "When building the tree, if the number of samples is <= this value, it will stop trying to divide the data and will create a leaf node. The default value is 1. For noisy data, larger values may be advantageous.");
 		pOpts->add("-maxlevels [n]=5", "When building the tree, if the depth (the length of the path from the root to the node currently being formed, including the root and the currently forming node) is [n], it will stop trying to divide the data and will create a leaf node.  This means that there will be at most [n]-1 splits before a decision is made.  This crudely limits overfitting, and so can be helpful on small data sets.  It can also make the resulting trees easier to interpret.  If set to 0, then there is no maximum (which is the default).");
 	}
 	{
-		UsageNode* pGCT = pRoot->add("graphcuttransducer [neighbors]", "This is a model-free transduction algorithm. It uses a min-cut/max-flow graph-cut algorithm to separate each label from all of the others.");
-		pGCT->add("[neighbors]=12", "The number of neighbors to connect with each point in order to form the graph.");
+		UsageNode* pGCT = pRoot->add("graphcuttransducer <options>", "This is a model-free transduction algorithm. It uses a min-cut/max-flow graph-cut algorithm to separate each label from all of the others.");
+		UsageNode* pOpts = pGCT->add("<options>");
+		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
+		pOpts->add("-neighbors [k]=12", "Set the number of neighbors to connect with each point in order to form the graph.");
 	}
 	{
 		UsageNode* pKNN = pRoot->add("knn <options>", "The k-Nearest-Neighbor instance-based learning algorithm. It uses Euclidean distance for continuous features and Hamming distance for nominal features.");
 		UsageNode* pOpts = pKNN->add("<options>");
+		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
 		pOpts->add("-neighbors [k]", "Specify the number of neighbors, k, to use.");
 		pOpts->add("-equalweight", "Give equal weight to every neighbor. (The default is to use linear weighting for continuous features, and sqared linear weighting for nominal features.");
 		pOpts->add("-scalefeatures", "Use a hill-climbing algorithm on the training set to scale the feature dimensions in order to give more accurate results. This increases training time, but also improves accuracy and robustness to irrelevant features.");
@@ -199,22 +203,27 @@ UsageNode* makeAlgorithmUsageTree()
 	{
 		UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm.");
 		UsageNode* pOpts = pNB->add("<options>");
+		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
 		pOpts->add("-ess [value]=0.2", "Specifies an equivalent sample size to prevent unsampled values from dominating the joint distribution. Good values typically range between 0 and 1.5.");
 	}
 	{
 		UsageNode* pNI = pRoot->add("naiveinstance <options>", "This is an instance learner that assumes each dimension is conditionally independant from other dimensions. It lacks the accuracy of knn in low dimensional feature space, but scales much better to high dimensionality.");
 		UsageNode* pOpts = pNI->add("<options>");
+		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
 		pOpts->add("-neighbors [k]=12", "Set the number of neighbors to use in each dimension");
 	}
 	{
-		UsageNode* pNT = pRoot->add("neighbortransducer [neighbors] <options>", "This is a model-free transduction algorithm. It is an instance learner that propagates labels where the neighbors are most in agreement. This algorithm does well when classes sample a manifold (such as with text recognition).");
+		UsageNode* pNT = pRoot->add("neighbortransducer <options>", "This is a model-free transduction algorithm. It is an instance learner that propagates labels where the neighbors are most in agreement. This algorithm does well when classes sample a manifold (such as with text recognition).");
 		UsageNode* pOpts = pNT->add("<options>");
+		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
+		pOpts->add("-neighbors [k]=12", "Set the number of neighbors to use with each point");
 		pOpts->add("-friends [intrinsic-dims] [thresh]", "Use the manifold-friend-finding algorithm instead of the nearest Euclidean neighbors.");
 		pOpts->add("-prune", "Prune shortcuts. (Only effective if used with the -friends option.)");
 	}
 	{
-		UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network. It is trained with online backpropagation. (Rumelhart, D.E., Hinton, G.E., and Williams, R.J. Learning representations by back-propagating errors. Nature, 323:9, 1986.)");
+		UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network (a.k.a. multi-layer perceptron). It can be trained with online backpropagation (Rumelhart, D.E., Hinton, G.E., and Williams, R.J. Learning representations by back-propagating errors. Nature, 323:9, 1986.), or several other optimization methods.");
 		UsageNode* pOpts = pNN->add("<options>");
+		pOpts->add("-autotune", "Automatically determine a good set of parameters (including number of layers, hidden units, learning rate, etc.) for this model with the current data.");
 		pOpts->add("-addlayer [size]=16", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
 		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
 		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
@@ -239,6 +248,9 @@ UsageNode* makeAlgorithmUsageTree()
 		pRF->add("[trees]=50", "Specify the number of trees in the random forest");
 		UsageNode* pOpts = pRF->add("<options>");
 		pOpts->add("-samples [n]=1", "Specify the number of randomly-drawn attributes to evaluate. The one that maximizes information gain will be chosen for the decision boundary. If [n] is 1, then the divisions are completely random. Larger values will decrease the randomness.");
+	}
+	{
+		pRoot->add("usage", "Print usage information.");
 	}
 
 	return pRoot;
@@ -298,6 +310,9 @@ UsageNode* makeAudioUsageTree()
 		pOpts->add("-seconds [s]=0.1", "The length of time in seconds over which to decay the volume until it reaches zero. Only segments of at least twice this length will be sanitized (because there must be enough time to fade out, and then fade back in).");
 		pOpts->add("-thresh [t]=0.15", "The volumne threshold (from 0 to 1). Segments that stay below this threshold for a sufficient length of time will be replaced with silence.");
 	}
+	{
+		pRoot->add("usage", "Print usage information.");
+	}
 	return pRoot;
 }
 
@@ -327,6 +342,9 @@ UsageNode* makeClusterUsageTree()
 		pOpts->add("-reps [n]=1", "Cluster the data [n] times, and return the clustering that minimizes the sum-squared-distance between each row and its corresponding centroid.");
 	}
 	pRoot->add("kmedoids [dataset] [clusters]", "Performs k-medoids clustering. Outputs the cluster id for each row.");
+	{
+		pRoot->add("usage", "Print usage information.");
+	}
 	return pRoot;
 }
 
@@ -430,20 +448,28 @@ UsageNode* makeDimRedUsageTree()
 		UsageNode* pOpts = pBFU->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-reps [n]=10", "The number of times to compute the embedding and blend the results together. If not specified, the default is 1.");
+		pBFU->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pBFU->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
 		UsageNode* pIsomap = pRoot->add("isomap [dataset] [neighbor-finder] [target_dims] <options>", "Use the Isomap algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pIsomap->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-tolerant", "If there are points that are disconnected from the rest of the graph, just drop them from the data. (This may cause the results to contain fewer rows than the input.)");
+		pIsomap->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pIsomap->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
 		UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pLLE->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pLLE->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pLLE->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
 		UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513-520, MIT Press, Cambridge, MA, 2008.)");
+		pMS->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pMS->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 		UsageNode* pOpts = pMS->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-continue [dataset]=prev.arff", "Continue refining the specified reduced-dimensional results. (This feature enables Manifold Sculpting to improve upon its own results, or to refine the results from another dimensionality reduction algorithm.)");
@@ -461,6 +487,8 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-clampbias", "Do not let the bias drift from the centroid. (Leaving the bias unclamped typically gives better results with non-linear activation functions. Clamping them to the centroid is necessary if you want results equivalent with PCA.)");
 		pOpts->add("-linear", "Use a linear activation function instead of the default logistic activation function. (The logistic activation function typically gives better results with most problems, but the linear activation function may be used to obtain results equivalent to PCA.)");
+		pNeuroPCA->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pNeuroPCA->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
 		UsageNode* pPCA = pRoot->add("pca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with principle component analysis. (Prints results to stdout. The input file is not modified.)");
@@ -470,6 +498,8 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-eigenvalues [filename]=eigenvalues.arff", "Save the eigenvalues to the specified file.");
 		pOpts->add("-components [filename]=eigenvectors.arff", "Save the centroid and principal component vectors (in order of decreasing corresponding eigenvalue) to the specified file.");
 		pOpts->add("-aboutorigin", "Compute the principal components about the origin. (The default is to compute them relative to the centroid.)");
+		pPCA->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pPCA->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
 		UsageNode* pUS = pRoot->add("ubpsparse [sparse-data] [intrinsic-dims] <options>", "Applies Unsupervised Back-propagation to reduce the specified sparse matrix to a dense matrix with the specified number of dimensions. The dense reduced-dimensional data is printed to stdout.");
@@ -496,6 +526,9 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-normalize", "Normalize all of the input vectors to have a Euclidean magnitude of 1 prior to training with them.");
 		pOpts->add("-windowsize [n]=200", "Specify the number of epochs over which a certain amount of improvement is expected, or else training will terminate.");
 		pOpts->add("-improvementthresh [t]=0.002", "Specify the ratio of improvement that must be obtained over the window of epoches, or else training will terminate.");
+	}
+	{
+		pRoot->add("usage", "Print usage information.");
 	}
 	return pRoot;
 }
@@ -628,6 +661,9 @@ UsageNode* makeGenerateUsageTree()
 		pOpts->add("-stepsizes [horiz] [vert]", "Specify the horizontal and vertical step sizes. (how many pixels to move the window between samples.)");
 		pOpts->add("-windowsize [width] [height]", "Specify the size of the window. The default is half the width and height of [png-file].");
 	}
+	{
+		pRoot->add("usage", "Print usage information.");
+	}
 
 	return pRoot;
 }
@@ -643,10 +679,26 @@ UsageNode* makeLearnUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("waffles_learn [command]", "Supervised learning, transduction, cross-validation, etc.");
 	{
+		UsageNode* pAT = pRoot->add("autotune [dataset] <data_opts> [algname]", "Use cross-validation to automatically determine a good set of parameters for the specified algorithm with the specified data. The selected parameters are printed to stdout.");
+		pAT->add("[dataset]=train.arff", "The filename of a dataset.");
+		UsageNode* pDO = pAT->add("<data_opts>");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+		UsageNode* pAlgs = pAT->add("[algname]", "The name of the algorithm that you wish to automatically tune.");
+		pAlgs->add("agglomerativetransducer", "An agglomerative transducer");
+		pAlgs->add("decisiontree", "A decision tree");
+		pAlgs->add("graphcuttransducer", "A graph-cut transducer");
+		pAlgs->add("knn", "A k-nearest-neighbor instance-based learner");
+		pAlgs->add("meanmarginstree", "A mean margins tree");
+		pAlgs->add("neuralnet", "A feed-foward neural network (a.k.a. multi-layer perceptron)");
+		pAlgs->add("naivebayes", "A naive Bayes model");
+		pAlgs->add("naiveinstance", "A naive instance model");
+	}
+	{
 		UsageNode* pTrain = pRoot->add("train <options> [dataset] <data_opts> [algorithm]", "Trains a supervised learning algorithm. The trained model-file is printed to stdout. (Typically, you will want to pipe this to a file.)");
 		UsageNode* pOpts = pTrain->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pTrain->add("[dataset]=train.arff", "The filename of a dataset in \".arff\" format.");
+		pTrain->add("[dataset]=train.arff", "The filename of a dataset.");
 		UsageNode* pDO = pTrain->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -768,6 +820,9 @@ UsageNode* makeLearnUsageTree()
 		pMeth->add("evolutionary", "Train with evoluationary optimization");
 		pMeth->add("hillclimber", "Train with a hill-climbing algorithm.");
 		pMeth->add("annealing [deviation] [decay] [window]", "Train with simulated annealing. Good values might be 2.0 0.5 300");
+	}
+	{
+		pRoot->add("usage", "Print usage information.");
 	}
 	return pRoot;
 }
@@ -943,6 +998,9 @@ UsageNode* makePlotUsageTree()
 		UsageNode* pStats = pRoot->add("stats [dataset]", "Prints some basic stats about the dataset to stdout.");
 		pStats->add("[dataset]=data.arff", "The filename of an arff file.");
 	}
+	{
+		pRoot->add("usage", "Print usage information.");
+	}
 	return pRoot;
 }
 
@@ -989,6 +1047,9 @@ UsageNode* makeRecommendUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pTransacc->add("[train]=train.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
 		pTransacc->add("[test]=test.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+	}
+	{
+		pRoot->add("usage", "Print usage information.");
 	}
 	return pRoot;
 }
@@ -1054,6 +1115,9 @@ UsageNode* makeSparseUsageTree()
 		pTest->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
 		pTest->add("[sparse-features]=features.sparse", "The filename of a sparse matrix of features for which labels should be predicted. (The feature matrix should not contain labels.)");
 		pTest->add("[labels]=labels.arff", "The filename of a dense matrix of labels in .arff format. (This matrix should have the same number of rows as [sparse-features], since they correspond with each other.");
+	}
+	{
+		pRoot->add("usage", "Print usage information.");
 	}
 	return pRoot;
 }
@@ -1269,6 +1333,9 @@ UsageNode* makeTransformUsageTree()
 		   "of all continuous attributes, so that their means in the "
 		   "result are zero.  Leaves nominal attributes untouched.");
 
+	{
+		pRoot->add("usage", "Print usage information.");
+	}
 	return pRoot;
 }
 

@@ -365,7 +365,6 @@ void crossValidate(GArgReader& args)
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	size_t folds = 2;
-	size_t maxRecommendationsPerUser = 1000000;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))

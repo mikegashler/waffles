@@ -380,7 +380,7 @@ GDomNode* GBaselineRecommender::serialize(GDom* pDoc)
 void GBaselineRecommender::test()
 {
 	GBaselineRecommender rec;
-	rec.basicTest(4.96);
+	rec.basicTest(1.09);
 }
 #endif
 
@@ -548,7 +548,7 @@ GDomNode* GInstanceRecommender::serialize(GDom* pDoc)
 void GInstanceRecommender::test()
 {
 	GInstanceRecommender rec(8);
-	rec.basicTest(3.73);
+	rec.basicTest(0.512);
 }
 #endif
 
@@ -652,7 +652,7 @@ void GSparseClusterRecommender::test()
 {
 	GRand rand(0);
 	GSparseClusterRecommender rec(6, &rand);
-	rec.basicTest(6.37);
+	rec.basicTest(0.915);
 }
 #endif
 
@@ -1051,7 +1051,7 @@ void GMatrixFactorization::test()
 	GRand rand(0);
 	GMatrixFactorization rec(2, rand);
 	rec.setRegularizer(0.002);
-	rec.basicTest(1.84);
+	rec.basicTest(0.154);
 }
 #endif
 
@@ -1312,7 +1312,7 @@ void GNeuralRecommender::test()
 	GRand rand(0);
 	GNeuralRecommender rec(8, &rand);
 	rec.model()->addLayer(6);
-	rec.basicTest(2.0/*5.02*/);
+	rec.basicTest(1.12);
 }
 #endif
 
@@ -1422,7 +1422,7 @@ void GBagOfRecommenders::test()
 	rec.addRecommender(new GBaselineRecommender());
 	rec.addRecommender(new GMatrixFactorization(8, rand));
 	rec.addRecommender(new GNeuralRecommender(8, &rand));
-	rec.basicTest(4.15);
+	rec.basicTest(0.756);
 }
 #endif
 

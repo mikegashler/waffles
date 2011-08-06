@@ -213,6 +213,15 @@ void GKNN::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 	// Set the best values
 	m_nNeighbors = bestK;
 }
+	
+void GKNN::setNeighborCount(size_t k)
+{
+	delete[] m_pEvalNeighbors;
+	delete[] m_pEvalDistances;
+	m_nNeighbors = k;
+	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
+	m_pEvalDistances = new double[m_nNeighbors + 1];
+}
 
 void GKNN::setInterpolationMethod(InterpolationMethod eMethod)
 {
@@ -669,10 +678,33 @@ void GKNN::test()
 
 // ---------------------------------------------------------------------------------------
 
-GNeighborTransducer::GNeighborTransducer(size_t neighborCount, GRand* pRand)
-: GTransducer(), m_friendCount(neighborCount), m_pRand(pRand)
+GNeighborTransducer::GNeighborTransducer(GRand* pRand)
+: GTransducer(), m_friendCount(12), m_pRand(pRand)
 {
 	m_prune = false;
+}
+
+void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// Find the best value for k
+	size_t cap = size_t(floor(sqrt(double(features.rows()))));
+	size_t bestK = 1;
+	double bestErr = 1e308;
+	for(size_t i = 1; i < cap; i *= 3)
+	{
+		m_friendCount = i;
+		double d = heuristicValidate(features, labels, &rand);
+		if(d < bestErr)
+		{
+			bestErr = d;
+			bestK = i;
+		}
+		else if(i >= 27)
+			break;
+	}
+
+	// Set the best values
+	m_friendCount = bestK;
 }
 
 // virtual

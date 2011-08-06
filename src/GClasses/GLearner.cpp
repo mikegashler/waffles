@@ -442,7 +442,7 @@ GMatrix* GTransducer::repValidate(GMatrix& features, GMatrix& labels, size_t rep
 // ---------------------------------------------------------------
 
 GSupervisedLearner::GSupervisedLearner()
-: GTransducer(), m_pFeatureFilter(NULL), m_pLabelFilter(NULL), m_featureDims((size_t)-1), m_labelDims((size_t)-1)
+: GTransducer(), m_pFeatureFilter(NULL), m_pLabelFilter(NULL), m_autoFilter(true), m_featureDims((size_t)-1), m_labelDims((size_t)-1)
 {
 }
 

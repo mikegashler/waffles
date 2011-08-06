@@ -382,7 +382,7 @@ void GDecisionTree::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 	size_t cap = size_t(floor(sqrt(double(features.rows()))));
 	size_t bestLeafThresh = 1;
 	double bestErr = 1e308;
-	for(size_t i = 1; i < cap; i *= 3)
+	for(size_t i = 1; i < cap; i = std::max(i + 1, size_t(i * 1.5)))
 	{
 		m_leafThresh = i;
 		double d = heuristicValidate(features, labels, &rand);

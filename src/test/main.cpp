@@ -360,11 +360,6 @@ bool runTest(const char* szTestName, TestFunc pTest)
 
 void RunAllTests()
 {
-	runTest("GMatrixFactorization", GMatrixFactorization::test);
-	runTest("GNeuralRecommender", GNeuralRecommender::test);
-//	runTest("GDenseClusterRecommender", GDenseClusterRecommender::test);
-
-
 	// Class tests
 	runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 	runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);

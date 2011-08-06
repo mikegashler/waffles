@@ -376,7 +376,7 @@ protected:
 
 public:
 	GClosestNeighborFindingHelper(size_t neighbors, size_t* pNeighbors, double* pDistances)
-	 : m_found(0), m_neighbors(neighbors), m_pNeighbors(pNeighbors), m_pDistances(pDistances)
+	: m_found(0), m_neighbors(neighbors), m_pNeighbors(pNeighbors), m_pDistances(pDistances)
 	{
 		for(size_t i = 0; i < m_neighbors; i++)
 		{

@@ -77,7 +77,7 @@ public:
 	size_t neighborCount() { return m_nNeighbors; }
 
 	/// Specify the number of neighbors to use. (The default is 1.)
-	void setNeighborCount(size_t k) { m_nNeighbors = k; }
+	void setNeighborCount(size_t k);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
@@ -187,8 +187,19 @@ protected:
 	bool m_prune;
 
 public:
-	GNeighborTransducer(size_t neighborCount, GRand* pRand);
-	
+	/// General-purpose constructor
+	GNeighborTransducer(GRand* pRand);
+
+	/// Returns the number of neighbors.
+	size_t neighbors() { return m_friendCount; }
+
+	/// Specify the number of neighbors to use with each point.
+	void setNeighbors(size_t k) { m_friendCount = k; }
+
+	/// Uses cross-validation to find a set of parameters that works well with
+	/// the provided data.
+	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+
 protected:
 	/// See the comment for GTransducer::transduce
 	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
