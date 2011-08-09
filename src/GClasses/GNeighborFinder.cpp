@@ -1897,7 +1897,7 @@ void GCycleCut::test()
 
 
 
-GManifoldNeighborFinder::GManifoldNeighborFinder(GMatrix* pData, size_t medianCands, size_t neighbors, size_t tangentDims, double sqCorrCap, GRand* pRand)
+GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t tangentDims, double sqCorrCap, GRand* pRand)
 : GNeighborFinder(pData, neighbors), m_rows(pData->rows())
 {
 	double radius = GKdTree::medianDistanceToNeighbor(*pData, medianCands);
@@ -2046,14 +2046,14 @@ GManifoldNeighborFinder::GManifoldNeighborFinder(GMatrix* pData, size_t medianCa
 }
 
 // virtual
-GManifoldNeighborFinder::~GManifoldNeighborFinder()
+GSaffron::~GSaffron()
 {
 	delete[] m_pNeighborhoods;
 	delete[] m_pDistances;
 }
 
 // static
-double GManifoldNeighborFinder::measureAlignment(double* pA, GMatrix* pATan, double* pB, GMatrix* pBTan, double cap, double squaredRadius, GRand* pRand)
+double GSaffron::measureAlignment(double* pA, GMatrix* pATan, double* pB, GMatrix* pBTan, double cap, double squaredRadius, GRand* pRand)
 {
 	size_t dims = pATan->cols();
 	double sqdist = GVec::squaredDistance(pA, pB, dims);
@@ -2079,7 +2079,7 @@ double GManifoldNeighborFinder::measureAlignment(double* pA, GMatrix* pATan, dou
 }
 
 // virtual
-void GManifoldNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
+void GSaffron::neighbors(size_t* pOutNeighbors, size_t index)
 {
 	if(index >= m_rows)
 		ThrowError("out of range");
@@ -2087,13 +2087,13 @@ void GManifoldNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
 }
 
 // virtual
-void GManifoldNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
+void GSaffron::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
 {
 	neighbors(pOutNeighbors, index);
 	GVec::copy(pOutDistances, m_pDistances + index * m_neighborCount, m_neighborCount);
 }
 
-double GManifoldNeighborFinder::meanNeighborCount(double* pDeviation)
+double GSaffron::meanNeighborCount(double* pDeviation)
 {
 	size_t sum = 0;
 	size_t sumOfSq = 0;

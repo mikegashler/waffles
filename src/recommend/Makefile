@@ -54,19 +54,9 @@ DEPS_DBG = $(TEMP_LIST_DBG:%.cpp=%.d)
 
 .DELETE_ON_ERROR:
 
-dbg : titledbg $(TARGET_PATH)/$(TARGET_NAME_DBG)
+dbg : $(TARGET_PATH)/$(TARGET_NAME_DBG)
 
-opt : titleopt $(TARGET_PATH)/$(TARGET_NAME_OPT)
-
-titleopt :
-	@for ((i=0;i<10;i+=1));do echo "";done
-	@echo "Building $(TARGET_NAME_OPT)..."
-	@echo ""
-
-titledbg :
-	@for ((i=0;i<10;i+=1));do echo "";done
-	@echo "Building $(TARGET_NAME_DBG)..."
-	@echo ""
+opt : $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
 usage:
 	#

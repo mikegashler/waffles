@@ -852,7 +852,7 @@ UsageNode* makeNeighborUsageTree()
 		pKD->add("[k]=12", "The number of neighbors.");
 	}
 	{
-		UsageNode* pMan = pRoot->add("manifold <options> [cands] [k] [t] [thresh]", "An intelligent neighbor-finder that finds neighborhoods with aligned tangent hyperplanes.");
+		UsageNode* pMan = pRoot->add("saffron <options> [cands] [k] [t] [thresh]", "The SAFFRON intelligent neighbor-finding algorithm that finds neighborhoods with aligned tangent hyperplanes. This algorithm was published in Gashler, Michael S. and Martinez, Tony. Tangent space guided intelligent neighbor finding. In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11, pages 2617–2624, IEEE Press, 2011.");
 		UsageNode* pOpts = pMan->add("<options>");
 		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
 		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");

@@ -367,12 +367,15 @@ protected:
 
 
 
-
+/// This class implementes the SAFFRON intelligent neighbor-finding algorithm published in
+/// Gashler, Michael S. and Martinez, Tony. Tangent space guided intelligent neighbor finding.
+/// In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11,
+/// pages 2617–2624, IEEE Press, 2011.
 /// This class intelligently selects neighbors for each point in a dataset, such that the neighbors
 /// define a good neighborhood for manifold learning. A relaxation technique is used to ensure
 /// that neighbors lie on a consistent tangent-space while remaining close to the point. This makes
 /// manifold learning possible with difficult (somtimes even self-intersecting) manifolds.
-class GManifoldNeighborFinder : public GNeighborFinder
+class GSaffron : public GNeighborFinder
 {
 protected:
 	size_t* m_pNeighborhoods;
@@ -384,8 +387,9 @@ protected:
 	bool m_prune;
 
 public:
-	GManifoldNeighborFinder(GMatrix* pData, size_t medianCands, size_t neighbors, size_t tangentDims, double sqCorrCap, GRand* pRand);
-	virtual ~GManifoldNeighborFinder();
+	/// General-purpose constructor
+	GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t tangentDims, double sqCorrCap, GRand* pRand);
+	virtual ~GSaffron();
 
 	/// See the comment for GNeighborFinder::neighbors
 	virtual void neighbors(size_t* pOutNeighbors, size_t index);

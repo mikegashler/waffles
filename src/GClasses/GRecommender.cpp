@@ -451,6 +451,8 @@ double GInstanceRecommender::predict(size_t user, size_t item)
 {
 	if(!m_pData)
 		ThrowError("This model has not been trained");
+	if(user >= m_pData->rows() || item >= m_pData->cols())
+		return 0.0;
 
 	// Find the k-nearest neighbors
 	multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
@@ -557,7 +559,7 @@ void GInstanceRecommender::test()
 
 
 GSparseClusterRecommender::GSparseClusterRecommender(size_t clusters, GRand* pRand)
-: GCollaborativeFilter(), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_pRand(pRand)
+: GCollaborativeFilter(), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_pRand(pRand), m_users(0), m_items(0)
 {
 }
 
@@ -588,6 +590,8 @@ void GSparseClusterRecommender::train(GMatrix& data)
 	// Convert the data to a sparse matrix
 	size_t users, items;
 	GCollaborativeFilter_dims(data, &users, &items);
+	m_users = users;
+	m_items = items;
 	GSparseMatrix sm(users, items, UNKNOWN_REAL_VALUE);
 	for(size_t i = 0; i < data.rows(); i++)
 	{
@@ -670,7 +674,7 @@ void GSparseClusterRecommender::test()
 
 
 GDenseClusterRecommender::GDenseClusterRecommender(size_t clusters, GRand* pRand)
-: GCollaborativeFilter(), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_pRand(pRand)
+: GCollaborativeFilter(), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_pRand(pRand), m_users(0), m_items(0)
 {
 }
 
@@ -704,6 +708,8 @@ void GDenseClusterRecommender::train(GMatrix& data)
 	// Cluster the data
 	size_t users, items;
 	GCollaborativeFilter_dims(data, &users, &items);
+	m_users = users;
+	m_items = items;
 	{
 		GMatrix dense(users, items);
 		for(size_t i = 0; i < data.rows(); i++)
@@ -740,6 +746,8 @@ void GDenseClusterRecommender::train(GMatrix& data)
 // virtual
 double GDenseClusterRecommender::predict(size_t user, size_t item)
 {
+	if(user >= m_users || item >= m_items)
+		return 0.0;
 	size_t clust = m_pClusterer->whichCluster(user);
 	double* pRow = m_pPredictions->row(clust);
 	return pRow[item];
@@ -952,6 +960,8 @@ double GMatrixFactorization::predict(size_t user, size_t item)
 {
 	if(!m_pP)
 		ThrowError("Not trained yet");
+	if(user >= m_pP->rows() || item >= m_pQ->rows())
+		return 0.0;
 	double* pWeights = m_pQ->row(item);
 	double* pPref = m_pP->row(user);
 	double pred = *(pWeights++);
@@ -1063,7 +1073,7 @@ void GMatrixFactorization::test()
 
 
 GNeuralRecommender::GNeuralRecommender(size_t intrinsicDims, GRand* pRand)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_pMins(NULL), m_pMaxs(NULL), m_pRand(pRand), m_useInputBias(true)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_items(0), m_pMins(NULL), m_pMaxs(NULL), m_pRand(pRand), m_useInputBias(true)
 {
 	m_pModel = new GNeuralNet(m_pRand);
 	m_pUsers = NULL;
@@ -1075,13 +1085,13 @@ GNeuralRecommender::GNeuralRecommender(GDomNode* pNode, GRand& rand)
 	m_useInputBias = pNode->field("uib")->asBool();
 	m_pUsers = new GMatrix(pNode->field("users"));
 	m_pModel = new GNeuralNet(pNode->field("model"), m_pRand);
-	size_t itemCount = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
-	m_pMins = new double[itemCount];
+	m_items = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
+	m_pMins = new double[m_items];
 	GDomListIterator it1(pNode->field("mins"));
-	GVec::deserialize(m_pMins, itemCount, it1);
-	m_pMaxs = new double[itemCount];
+	GVec::deserialize(m_pMins, m_items, it1);
+	m_pMaxs = new double[m_items];
 	GDomListIterator it2(pNode->field("maxs"));
-	GVec::deserialize(m_pMaxs, itemCount, it2);
+	GVec::deserialize(m_pMaxs, m_items, it2);
 	m_intrinsicDims = m_pModel->layer(0).m_neurons.size();
 }
 
@@ -1126,6 +1136,7 @@ void GNeuralRecommender::train(GMatrix& data)
 {
 	size_t users, items;
 	GCollaborativeFilter_dims(data, &users, &items);
+	m_items = items;
 
 	// Copy and normalize the ratings
 	GMatrix* pClone = data.clone();
@@ -1192,12 +1203,12 @@ void GNeuralRecommender::train(GMatrix& data)
 			}
 		}
 		double regularizer = 0.0015;
-		double rateBegin = 0.05;
-		double rateEnd = 0.001;
+		double rateBegin = 0.03;
+		double rateEnd = 0.0003;
 		if(pass == 2)
 		{
-			rateBegin = 0.02;
-			rateEnd = 0.001;
+			rateBegin = 0.01;
+			rateEnd = 0.0003;
 		}
 		double prevErr = 1e308;
 		for(double learningRate = rateBegin; learningRate > rateEnd; learningRate *= 0.7)
@@ -1231,12 +1242,12 @@ void GNeuralRecommender::train(GMatrix& data)
 
 			// Stopping criteria
 			double rmse = sqrt(validate(pNN, *pClone));
-			if(rmse < 1e-12 || 1.0 - (rmse / prevErr) < 0.00001) // If the amount of improvement is small
+			if(rmse < 1e-12 || 1.0 - (rmse / prevErr) < 0.000001) // If the amount of improvement is small
 				learningRate *= 0.7; // decay the learning rate
 			prevErr = rmse;
 //cout << rmse << "\n";
 		}
-		if(pass == 0 && m_pModel != &nn)
+		if(pass == 0 && pNN == m_pModel)
 			break;
 	}
 }
@@ -1244,7 +1255,10 @@ void GNeuralRecommender::train(GMatrix& data)
 // virtual
 double GNeuralRecommender::predict(size_t user, size_t item)
 {
-	return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_pMins[item];
+	if(user >= m_pUsers->rows() || item >= m_items)
+		return 0.0;
+	else
+		return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_pMins[item];
 }
 
 // virtual

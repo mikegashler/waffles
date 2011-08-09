@@ -76,6 +76,16 @@
 </div><br><br>
 
 <span style="font-weight: bold;">
+	I get build errors that look something like this:
+	<pre>
+		../../obj/GClasses/dbg/GError.d:3: warning: overriding commands for target `GError.o'
+		../../obj/GClasses/opt/GError.d:3: warning: ignoring old commands for target `GError.o'
+	</pre>
+</span><br><div style="margin-left: 40px;">
+	Try doing "make clean". That always fixes it for me. I cannot seem to figure out what causes this to happen. I think it has something to do with two concurrent processes writing to the ".d" file, but I don't know why that would happen. If you know a better solution, I'd love to hear about it.
+</div><br><br>
+
+<span style="font-weight: bold;">
 	How do I uninstall Waffles?
 </span><br><div style="margin-left: 40px;">
 	sudo make uninstall
@@ -149,9 +159,6 @@
 	Next, go to "Run-&gt;Configure Launches". Click on the name of the app. Click on the green plus sign. Specify the right executable binary.
 	(The executable binary is in the bin folder, not the src folder. Use the binary that ends with "dbg". The one that doesn't end with dbg is the optimized one.)
 </div><br><br>
-
-
-
 
 
 

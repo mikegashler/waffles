@@ -198,6 +198,7 @@ protected:
 	GSparseClusterer* m_pClusterer;
 	bool m_ownClusterer;
 	GRand* m_pRand;
+	size_t m_users, m_items;
 
 public:
 	GSparseClusterRecommender(size_t clusters, GRand* pRand);
@@ -239,6 +240,7 @@ protected:
 	GClusterer* m_pClusterer;
 	bool m_ownClusterer;
 	GRand* m_pRand;
+	size_t m_users, m_items;
 
 public:
 	GDenseClusterRecommender(size_t clusters, GRand* pRand);
@@ -343,6 +345,7 @@ class GNeuralRecommender : public GCollaborativeFilter
 {
 protected:
 	size_t m_intrinsicDims;
+	size_t m_items;
 	double* m_pMins;
 	double* m_pMaxs;
 	GRand* m_pRand;
