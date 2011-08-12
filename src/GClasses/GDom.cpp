@@ -155,8 +155,6 @@ void writeJSONString(std::ostream& stream, const char* szString)
 		{
 			switch(*szString)
 			{
-				case '"': stream << "\\\""; break;
-				case '\\': stream << "\\\\"; break;
 				case '\b': stream << "\\b"; break;
 				case '\f': stream << "\\f"; break;
 				case '\n': stream << "\\n"; break;
@@ -166,6 +164,10 @@ void writeJSONString(std::ostream& stream, const char* szString)
 					stream << (*szString);
 			}
 		}
+		else if(*szString == '\\')
+			stream << "\\\\";
+		else if(*szString == '"')
+			stream << "\\\"";
 		else
 			stream << (*szString);
 		szString++;

@@ -2124,7 +2124,7 @@ double GSaffron::meanNeighborCount(double* pDeviation)
 
 
 
-GDynamicSystemNeighborFinder::GDynamicSystemNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand)
+GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand)
 : GNeighborFinder(pObservations, neighborCount), m_ownActionsData(ownActionsData), m_pActions(pActions), m_pRand(pRand)
 {
 	if(pObservations->rows() != pActions->rows())
@@ -2193,7 +2193,7 @@ GDynamicSystemNeighborFinder::GDynamicSystemNeighborFinder(GMatrix* pObservation
 }
 
 // virtual
-GDynamicSystemNeighborFinder::~GDynamicSystemNeighborFinder()
+GTemporalNeighborFinder::~GTemporalNeighborFinder()
 {
 	if(m_ownActionsData)
 		delete(m_pActions);
@@ -2201,7 +2201,7 @@ GDynamicSystemNeighborFinder::~GDynamicSystemNeighborFinder()
 		delete(*it);
 }
 
-bool GDynamicSystemNeighborFinder::findPath(size_t from, size_t to, double* path, double maxDist)
+bool GTemporalNeighborFinder::findPath(size_t from, size_t to, double* path, double maxDist)
 {
 	// Find the path
 	int actionValues = (int)m_pActions->relation()->valueCount(0);
@@ -2260,14 +2260,14 @@ bool GDynamicSystemNeighborFinder::findPath(size_t from, size_t to, double* path
 }
 
 // virtual
-void GDynamicSystemNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
+void GTemporalNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
 {
 	GTEMPBUF(double, dissims, m_neighborCount);
 	neighbors(pOutNeighbors, dissims, index);
 }
 
 // virtual
-void GDynamicSystemNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
+void GTemporalNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
 {
 	int valueCount = (int)m_pActions->relation()->valueCount(0);
 	if(m_pActions->cols() > 1 || valueCount == 0)

@@ -862,7 +862,7 @@ UsageNode* makeNeighborUsageTree()
 		pMan->add("[thresh]=0.9", "A threshold above which all sqared-correlation values are considered to be equal.");
 	}
 	{
-		UsageNode* pSys = pRoot->add("system <options> [action-data] [k]", "A neighbor-finder designed for modeling dynamical systems.");
+		UsageNode* pSys = pRoot->add("temporal <options> [action-data] [k]", "A neighbor-finder designed for use in modeling certain types of dynamical systems. It estimates the number of time-steps between observations. This algorithm was published in Gashler, Michael S. and Martinez, Tony. Temporal nonlinear dimensionality reduction. In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11, pages 1959–1966, IEEE Press, 2011.");
 		UsageNode* pOpts = pSys->add("<options>");
 		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
 		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");

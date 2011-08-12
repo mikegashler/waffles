@@ -186,8 +186,7 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 	pca.train(*pObservations);
 	GMatrix* pReducedObs = pca.transformBatch(*pObservations);
 	Holder<GMatrix> hReducedObs(pReducedObs);
-	GDynamicSystemNeighborFinder nf(pReducedObs, pActions, false, neighbors, m_pRand);
-//	GTemporalNeighborFinder nf(pReducedObs, neighbors, m_pRand);
+	GTemporalNeighborFinder nf(pReducedObs, pActions, false, neighbors, m_pRand);
 
 	//GNeighborFinderCacheWrapper nf2(&nf, false);
 	//nf2.fillCache();

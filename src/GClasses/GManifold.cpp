@@ -2149,7 +2149,7 @@ public:
 		GVec::addScaled(pOut, u, pA + m_channels, m_channels);
 	}
 
-	void GUnsupervisedBackProp_transformedPix(const double* pRow, size_t x, size_t y, double* pOut)
+	void transformedPix(const double* pRow, size_t x, size_t y, double* pOut)
 	{
 		double xx = double(x) - m_cx;
 		double yy = double(x) - m_cy;
@@ -2300,12 +2300,17 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		double sse = 0;
 		for(size_t i = 0; i < 100000000; i++)
 		{
+			// Pick a pixel and channel
 			m_cvi.setRandom(m_pRand);
 			size_t index = m_cvi.currentIndex();
 			size_t c = (size_t)m_pRand->next(channels);
 			GAssert(index * channels + c < in.cols());
 			m_cvi.currentNormalized(pParams);
+
+			// Pick a pattern
 			size_t r = (size_t)m_pRand->next(in.rows());
+
+			// Do backprop
 			if(m_pLabels)
 				GVec::copy(pLabels, m_pLabels->row(r), m_labelDims);
 			GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);
@@ -2315,6 +2320,8 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			sse += (err * err);
 			m_pNN->setErrorSingleOutput(target, c);
 			m_pNN->backProp()->backpropagateSingleOutput(c);
+
+			// Update weights and inputs
 			if(m_updateWeights)
 			{
 				m_pNN->decayWeightsSingleOutput(c, regularizer);

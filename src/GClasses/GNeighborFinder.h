@@ -409,8 +409,11 @@ protected:
 
 /// A neighbor finder that specializes in dynamical systems. It determines
 /// neighbors by searching for the shortest path of actions between observations,
-/// and computes the distance as the length of the path.
-class GDynamicSystemNeighborFinder : public GNeighborFinder
+/// and computes the distance as the number of time-steps in that path.
+/// This algorithm was published in Gashler, Michael S. and Martinez, Tony. Temporal
+/// nonlinear dimensionality reduction. In Proceedings of the IEEE International
+/// Joint Conference on Neural Networks IJCNN’11, pages 1959–1966, IEEE Press, 2011.
+class GTemporalNeighborFinder : public GNeighborFinder
 {
 protected:
 	bool m_ownActionsData;
@@ -419,8 +422,8 @@ protected:
 	GRand* m_pRand;
 
 public:
-	GDynamicSystemNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand);
-	virtual ~GDynamicSystemNeighborFinder();
+	GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand);
+	virtual ~GTemporalNeighborFinder();
 
 	/// Computes the neighbors of the specified vector
 	virtual void neighbors(size_t* pOutNeighbors, size_t index);
@@ -436,27 +439,6 @@ protected:
 	bool findPath(size_t from, size_t to, double* path, double distCap);
 };
 
-/*
-/// An experimental neighbor finder designed to normalize away non-uniform
-/// distances in observation space.
-class GTemporalNeighborFinder : public GNeighborFinder
-{
-protected:
-	GSupervisedLearner* m_pMap;
-	GRand* m_pRand;
-	double* m_pBuf;
-
-public:
-	GTemporalNeighborFinder(GMatrix* pObservations, int neighborCount, GRand* pRand);
-	virtual ~GTemporalNeighborFinder();
-
-	/// Computes the neighbors of the specified vector
-	virtual void neighbors(size_t* pOutNeighbors, size_t index);
-
-	/// Computes the neighbors and distances of the specified vector
-	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
-};
-*/
 
 
 

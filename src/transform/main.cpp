@@ -295,14 +295,14 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			double thresh = args.pop_double();
 			pNF = new GSaffron(pData, medianCands, neighbors, tangentSpaceDims, thresh, pRand);
 		}
-		else if(_stricmp(alg, "system") == 0)
+		else if(_stricmp(alg, "temporal") == 0)
 		{
 			GMatrix* pControlData = loadData(args.pop_string());
 			Holder<GMatrix> hControlData(pControlData);
 			if(pControlData->rows() != pData->rows())
 				ThrowError("mismatching number of rows");
 			int neighbors = args.pop_uint();
-			pNF = new GDynamicSystemNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
+			pNF = new GTemporalNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
 		}
 		else
 			ThrowError("Unrecognized neighbor finding algorithm: ", alg);
