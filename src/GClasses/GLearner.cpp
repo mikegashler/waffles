@@ -1435,14 +1435,13 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode, G
 // ---------------------------------------------------------------
 
 GBaselineLearner::GBaselineLearner()
-: GSupervisedLearner(), m_featureDims(0)
+: GSupervisedLearner()
 {
 }
 
 GBaselineLearner::GBaselineLearner(GDomNode* pNode, GRand& rand)
 : GSupervisedLearner(pNode, rand)
 {
-	m_featureDims = (size_t)pNode->field("featureDims")->asInt();
 	m_prediction.clear();
 	GDomNode* pPred = pNode->field("pred");
 	GDomListIterator it(pPred);
@@ -1464,14 +1463,12 @@ GBaselineLearner::~GBaselineLearner()
 void GBaselineLearner::clear()
 {
 	m_prediction.clear();
-	m_featureDims = 0;
 }
 
 // virtual
 GDomNode* GBaselineLearner::serialize(GDom* pDoc)
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBaselineLearner");
-	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
 	if(m_prediction.size() == 0)
 		ThrowError("Attempted to serialize a model that has not been trained");
 	GDomNode* pPred = pNode->addField(pDoc, "pred", pDoc->newList());
@@ -1484,7 +1481,6 @@ GDomNode* GBaselineLearner::serialize(GDom* pDoc)
 void GBaselineLearner::trainInner(GMatrix& features, GMatrix& labels)
 {
 	clear();
-	m_featureDims = features.cols();
 	size_t labelDims = labels.cols();
 	m_prediction.reserve(labelDims);
 	for(size_t i = 0; i < labelDims; i++)

@@ -70,8 +70,8 @@ Here is the output of that command:<br>
 
 <p>If you have a model that has been trained on some dataset, you might want to visualize that dataset with the trained model. This example will train a neural network (with no hidden layers) on the iris dataset, and will then create a visualization of that model.
 <pre>
-	waffles_learn train -seed 0 iris.arff neuralnet > nn.twt
-	waffles_plot model nn.twt iris.arff 2 3
+	waffles_learn train -seed 0 iris.arff neuralnet > nn.json
+	waffles_plot model nn.json iris.arff 2 3
 </pre>
 <center><img src="iris_nn.png"></center></p>
 

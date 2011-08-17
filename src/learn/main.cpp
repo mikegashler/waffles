@@ -1431,7 +1431,7 @@ void trainRecurrent(GArgReader& args)
 	const char* stateFilename = NULL;
 	double validationInterval = 0;
 	vector<string> validationFilenames;
-	const char* outFilename = "model.twt";
+	const char* outFilename = "model.json";
 	double trainTime = 60 * 60; // 1 hour
 	bool useIsomap = false;
 	while(args.next_is_flag())

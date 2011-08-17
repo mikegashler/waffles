@@ -681,7 +681,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pPredict = pRoot->add("predict <options> [model-file] [dataset] <data_opts>", "Predict labels for all of the patterns in [dataset]. Results are printed in the form of a \".arff\" file (including both features and predictions) to stdout.");
 		UsageNode* pOpts = pPredict->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pPredict->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
+		pPredict->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pPredict->add("[dataset]=test.arff", "The filename of a dataset in \".arff\" format. (There should already be placeholder labels in this dataset. The placeholder labels will be replaced in the output by the labels that the model predicts.)");
 		UsageNode* pDO = pPredict->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -691,7 +691,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pPOP = pRoot->add("predictonepattern <options> [model-file] [data-set] <data_opts> [pattern]", "Predict labels for a single pattern and print the prediction to stdout. Confidence levels are also reported.");
 		UsageNode* pOpts = pPOP->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pPOP->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
+		pPOP->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pPOP->add("[data-set]=train.arff", "The filename of a \".arff\" file from which to obtain meta-data. This can be the training set or the test set. It doesn't matter which, because the data is ignored. Only the meta-data, such as the string names of attribute values, are obtained from this dataset.");
 		pPOP->add("[pattern]", "A list of feature values separated by spaces. (A \"?\" may be used for unknown feature values if the model supports using unknown feature values.)");
 		UsageNode* pDO = pPOP->add("<data_opts>");
@@ -703,7 +703,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pOpts = pTest->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
-		pTest->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
+		pTest->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pTest->add("[dataset]=test.arff", "The filename of a test dataset in \".arff\" format. (This dataset must have the same number of columns as the dataset with which the model was trained.)");
 		UsageNode* pDO = pTest->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -783,7 +783,7 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-paramdims 2 [wid] [hgt]", "If observations are images, use this option to parameterize the predictions, so only the channel values of each pixel are predicted. (Other values besides 2 dimensions are also supported.)");
 		pOpts->add("-state [filename]=state.arff", "Save the estimated state to the specified file. (Only has effect if moses is used as the training method.)");
 		pOpts->add("-validate [interval] 1 [obs] [action]", "Perform validation at [interval]-second intervals with observation data, [obs], and action data, [action]. (Also supports more than 1 validation sequence if desired.)");
-		pOpts->add("-out [filename]=model.twt", "Save the resulting model to the specified file. If not speicified, the default is \"model.twt\".");
+		pOpts->add("-out [filename]=model.json", "Save the resulting model to the specified file. If not speicified, the default is \"model.json\".");
 		pOpts->add("-noblur", "Do not use blurring. The default is to use blurring. Sometimes blurring improves results. Sometimes not.");
 		pOpts->add("-traintime [seconds]=3600", "Specify how many seconds to train the model. The default is 3600, which is 1 hour.");
 		pOpts->add("-isomap", "Use Isomap instead of Breadth-first Unfolding if moses is used as the training method.");
@@ -904,7 +904,7 @@ UsageNode* makePlotUsageTree()
 	}
 	{
 		UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
-		pModel->add("[model-file]=model.twt", "The filename of the trained model. (You can use \"waffles_learn train\" to make a model file.)");
+		pModel->add("[model-file]=model.json", "The filename of the trained model. (You can use \"waffles_learn train\" to make a model file.)");
 		pModel->add("[dataset]=train.arff", "The filename of a dataset to be plotted. It can be the training set that was used to train the model, or a test set that it hasn't yet seen.");
 		pModel->add("[attr-x]=0", "The zero-based index of a continuous feature attributes for the horizontal axis.");
 		pModel->add("[attr-y]=1", "The zero-based index of a continuous feature attributes for the vertical axis.");
@@ -933,7 +933,7 @@ UsageNode* makePlotUsageTree()
 	}
 	{
 		UsageNode* pPDT = pRoot->add("printdecisiontree [model-file] <dataset> <data_opts>", "Print a textual representation of a decision tree to stdout.");
-		pPDT->add("[model-file]=model.twt", "The filename of a trained decision tree model. (You can make one with the command \"waffles_learn train [dataset] decisiontree > [filename]\".)");
+		pPDT->add("[model-file]=model.json", "The filename of a trained decision tree model. (You can make one with the command \"waffles_learn train [dataset] decisiontree > [filename]\".)");
 		pPDT->add("<dataset>", "An optional filename of the arff file that was used to train the decision tree. The data in this file is ignored, but the meta-data will be used to make the printed model richer.");
 		UsageNode* pDO = pPDT->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -1061,7 +1061,7 @@ UsageNode* makeSparseUsageTree()
 		UsageNode* pOpts = pPredict->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pPredict->add("[sparse-matrix]=features.sparse", "The filename of a sparse matrix of features for which labels should be predicted. (The feature matrix should not contain labels.)");
-		pPredict->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
+		pPredict->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
 	}
 	{
 		UsageNode* pShuffle = pRoot->add("shuffle [sparse-matrix] <options>", "Shuffles the row order of a sparse matrix.");
@@ -1086,7 +1086,7 @@ UsageNode* makeSparseUsageTree()
 		UsageNode* pTest = pRoot->add("test <options> [model-file] [sparse-features] [labels]", "Evaluates predictive accuracy for nominal labels, and mean-squared-error for continuous labels. Prints the score to stdout.");
 		UsageNode* pOpts = pTest->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pTest->add("[model-file]=model.twt", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
+		pTest->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
 		pTest->add("[sparse-features]=features.sparse", "The filename of a sparse matrix of features for which labels should be predicted. (The feature matrix should not contain labels.)");
 		pTest->add("[labels]=labels.arff", "The filename of a dense matrix of labels in .arff format. (This matrix should have the same number of rows as [sparse-features], since they correspond with each other.");
 	}

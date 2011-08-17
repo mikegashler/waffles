@@ -19,11 +19,11 @@
 <h3>Train a decision tree</h3>
 <p>First, let's train a decision tree model using the zoo dataset. (You can get zoo.arff and many other datasets at <a href="http://MLData.org">MLData.org</a>.) With this dataset, attribute 0 contains enough information to fully solve the problem. That's no fun, so we will ignore attribute 0 during training.</p>
 <pre>
-	waffles_learn train zoo.arff -ignore 0 decisiontree > dt.twt
+	waffles_learn train zoo.arff -ignore 0 decisiontree > dt.json
 </pre>
 <p>Now, let's take a look at the decision tree that it has built.</p>
 <pre>
-	waffles_plot printdecisiontree dt.twt zoo.arff -ignore 0
+	waffles_plot printdecisiontree dt.json zoo.arff -ignore 0
 </pre>
 It will output the following:
 <pre>
@@ -199,7 +199,7 @@ It gets 0.338. It looks like the neural net actually did pretty well after all. 
 <p>So, now that we've found a pretty good set of parameters, let's train a generalizing model.
 <pre>
 	waffles_learn train lungCancer.arff neuralnet -activation arctan -addlayer 100 -learningrate 0.2\
-	              -momentum 0.8 -minwindowimprovement 0.00001 -windowepochs 500 > model.twt
+	              -momentum 0.8 -minwindowimprovement 0.00001 -windowepochs 500 > model.json
 </pre></p>
 
 <h3>Transduction</h3>

@@ -52,12 +52,12 @@ This example shows how to divide the data for fold 0. To do ten-fold cross-valid
 
 <p>Let's train a 7-nn instance learner that uses the cosine method to evaluate the similarity between sparse vectors:
 <pre>
-	waffles_sparse train train.sparse train.arff knn 7 -cosine > model.twt
+	waffles_sparse train train.sparse train.arff knn 7 -cosine > model.json
 </pre></p>
 
 <p>And finally, let's test our trained model to see how well it classifies the documents in the test portion of our data:
 <pre>
-	waffles_sparse test model.twt test.sparse test.arff
+	waffles_sparse test model.json test.sparse test.arff
 </pre>
 This will print a predictive accuracy score to stdout.<p>
 

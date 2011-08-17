@@ -446,7 +446,6 @@ public:
 class GBaselineLearner : public GSupervisedLearner
 {
 protected:
-	size_t m_featureDims;
 	std::vector<double> m_prediction;
 
 public:

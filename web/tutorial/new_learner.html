@@ -58,31 +58,59 @@
 	virtual void predictInner(const double* pIn, double* pOut) = 0;
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut) = 0;
 	virtual void clear() = 0;
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 </pre></p>
 
-<p>The trainInner method is responsible to train the model using the matrices that are passed to it. (The user will actually call a method named "train", which will automatically take care of converting the data to a form that your algorithm can handle, and will then call "trainInner".) Thus, your trainInner method can assume that only data of the type (nominal or continuous, etc.) supported by your algorithm will ever be passed to it. (This tends to greatly simplify implementation.)</p>
+<p>The trainInner method is responsible to train the model using the matrices that are passed to it. (The user will actually call a method named "train", which will automatically take care of converting the data to a form that your algorithm can handle, and will then call "trainInner".) Thus, your trainInner method can assume that only data of the type (nominal or continuous, etc.) supported by your algorithm will ever be passed to it. (This tends to greatly simplify implementation.) As an example, suppose you are writing an instance-based learning algorithm that simply stores the training data for its model:</p>
+<pre>
+	virtual void trainInner(GMatrix&amp; features, GMatrix&amp; labels)
+	{
+		m_pStoredFeatures = features.clone();
+		m_pStoredLabels = labels.clone();
+	}
+</pre>
 
-<p>The "predictInner" method is responsible to make a prediction. (It should operate on a vector of the same size as one of the rows in the features matrix passed to trainInner, and it should predict a label vector of the same size as one of the rows in the labels matrix.)</p>
+<p>The "predictInner" method is responsible to make a prediction. (It should operate on an input vector of the same size as one of the rows in the features matrix passed to trainInner, and it should predict a label vector of the same size as one of the rows in the labels matrix.) For example, suppose your algorithm predicts the label ofm a random row that it draws from its stored instances:</p>
+<pre>
+	virtual void predictInner(const double* pIn, double* pOut)
+	{
+		size_t index = m_rand.next(m_pStoredLabels->rows());
+		GVec::copy(pOut, m_pStoredLabels->row(index), m_labelDims);
+	}
+</pre>
 
-<p>The "predictDistributionInner" method is supposed to return a distribution instead of just a predicted vector. This method is used in applications for which confidence values are important. If you are feeling lazy, and you do not plan to use it in any applications that require confidence values, then it might be reasonable to implement this method as follows:</p>
+<p>The "predictDistributionInner" method is similar to "predictInner", except that it predicts a distribution instead of just a single value. If you are feeling lazy, and you are pretty-sure that you will never use your algorithm with any applications that require predicted distributions, then it might be reasonable to simply implement this method as follows:</p>
 <pre>
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut)
 	{
 		ThrowError("Sorry, this method is not yet implemented");
 	}
 </pre>
+<p>Of course, that's the wimpy way out. The proper way to implement this method is to create a distribution for each label element. For example, Suppose you want to predict a categorical distribution for label element 0 with a little bit of the likelihood distributed over categories 0 and 1, and most of the likelihood on category 2:</p>
+<pre>
+		GCategoricalDistribution* pCat = pOut[0].makeCategorical();
+		double* pVals = pCat->values(3);
+		pVals[0] = 0.1;
+		pVals[1] = 0.1;
+		pVals[2] = 0.9;
+		pCat->normalize();
+</pre>
+<p>and suppose that you wish to predict a Normal distribution for label element 1 with a mean of 0.1 and a variance of 0.2:</p>
+<pre>
+		GNormalDistribution* pNorm = pOut[1].makeNormal();
+		pNorm->setMeanAndVariance(0.1, 0.2);
+</pre>
+<p>In many cases, you may have some heuristic of confidence, but you won't actually have enough information to express a complete distribution. Fortunately, the GSupervisedLearner class provides a method that calibrates the predicted distributions, so you often don't need to worry too much about making sure your distributions precisely express true probabilities. That is, it can automatically learn a function that maps from the distributions that you predict to the actual distributions in the training data.</p>
 
 <p>The "clear" method should reset the internal model, as though train had not yet been called. If your model occupies a lot of memory, this memory should be freed. This method should generally be trivial to implement.</p>
 
-<p>The "toTwt" method is for serializing the model. Many operations do not require serialization, so if you only plan to use these operations, then you can simply implement this method like this:</p>
+<p>The "serialize" method should marshal your model into a DOM tree. You might find the <a href="serialization.html">serialization tutorial</a> to be helpful. Of course, if you don't plan to use any operations that require serialization, you can implement this method the wimpy way:</p>
 <pre>
-	virtual GTwtNode* toTwt(GTwtDoc* pDoc)
+	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		ThrowError("Sorry, this method is not yet implemented");
 	}
 </pre>
-<p>If you want to be able to serialize your algorithm, then you might find the <a href="serialization.html">serialization tutorial</a> to be helpful. If you are planning to contribute your implementation to this project, then you must have working serialization.</p>
 
 <p>The GSupervisedLearner class implements the "transduceInner" method for you, so you do not need to implement it. (This implementation first calls "train", then calls predict for each row in the unlabeled set.)</p>
 
