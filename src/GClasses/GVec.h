@@ -203,6 +203,65 @@ public:
 };
 
 
+/// Holds an array of doubles that can be resized. This class is
+/// slightly lighter-weight than the C++ vector class, and it
+/// allows access to the buffer in the form of an array of doubles.
+/// Basically, it is useful when working with C-style functions
+/// that expect parameters in the form of an array of doubles, rather
+/// than as a vector of doubles.
+class GVecBuf
+{
+public:
+	double* m_pBuf;
+	size_t m_size;
+
+	GVecBuf()
+	: m_pBuf(NULL), m_size(0)
+	{
+	}
+
+	~GVecBuf()
+	{
+		delete[] m_pBuf;
+	}
+
+	/// Returns the current size of the buffer
+	size_t size()
+	{
+		return m_size;
+	}
+
+	/// Resizes the array, nomatter what, and destroys any existing contents
+	void resize(size_t size)
+	{
+		delete[] m_pBuf;
+		m_pBuf = new double[size];
+		m_size = size;
+	}
+
+	/// Resizes the array if necessary, preserving the contents
+	void grow(size_t size)
+	{
+		if(size > m_size)
+		{
+			double* pNew = new double[size];
+			GVec::copy(pNew, m_pBuf, m_size);
+			m_size = size;
+			delete[] m_pBuf;
+			m_pBuf = pNew;
+		}
+	}
+
+	/// Ensures that the array is at least the specified size. Resizes
+	/// (destroying the contents) if it is not.
+	void reserve(size_t size)
+	{
+		if(size > m_size)
+			resize(size);
+	}
+};
+
+
 /// Useful functions for operating on vectors of indexes
 class GIndexVec
 {

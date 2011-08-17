@@ -2074,101 +2074,89 @@ void GDynamicSystemStateAligner::test()
 
 
 
-// This is a helper-class used by GUnsupervisedBackProp to
-// implicitly rotate, translate, and zoom the images it trains on
-class ImageTweaker
+
+GImageTweaker::GImageTweaker(size_t wid, size_t hgt, size_t channels, double rotateDegrees, double translateWidths, double zoomFactor)
+: m_wid(wid), m_hgt(hgt), m_channels(channels), m_rotateRads(rotateDegrees * M_PI / 180.0), m_translatePixels(translateWidths * wid), m_zoomFactor(zoomFactor), m_cx(0.5 * double(wid - 1)), m_cy(0.5 * double(hgt - 1))
 {
-	size_t m_wid;
-	size_t m_hgt;
-	size_t m_channels;
-	double m_rotateRads;
-	double m_translatePixels;
-	double m_zoomFactor;
-	double m_cx, m_cy;
-	double m_params[4];
+}
 
-public:
-	// if rotateDegrees is 30.0, then it will rotate the image up to 15.0 degrees in either direction.
-	// if translateWidths is 1.0, then it will translate between -0.5*wid and 0.5*wid. It will
-	// also translate vertically by a value in the same range (dependant on wid, not hgt).
-	// if zoomFactor is 2.0, then it will scale between a factor of 0.5 and 2.0.
-	ImageTweaker(size_t wid, size_t hgt, size_t channels, double rotateDegrees, double translateWidths, double zoomFactor)
-	: m_wid(wid), m_hgt(hgt), m_channels(channels), m_rotateRads(rotateDegrees * M_PI / 180.0), m_translatePixels(translateWidths * wid), m_zoomFactor(zoomFactor), m_cx(0.5 * double(wid - 1)), m_cy(0.5 * double(hgt - 1))
+double* GImageTweaker::pickParams(GRand& rand)
+{
+	for(size_t i = 0; i < 4; i++)
+		m_params[i] = rand.uniform();
+	return m_params;
+}
+
+void GImageTweaker::transformedPix(const double* pRow, size_t x, size_t y, double* pOut)
+{
+	double xx = double(x) - m_cx;
+	double yy = double(x) - m_cy;
+	double* pParam = m_params;
+	double radius = sqrt(xx * xx + yy * yy) * pow(m_zoomFactor, 2 * (*pParam) - 1.0);
+	pParam++;
+	double angle = atan2(yy, xx) + (*pParam - 0.5) * m_rotateRads;
+	pParam++;
+	xx = radius * cos(angle) + (*pParam - 0.5) * m_translatePixels;
+	pParam++;
+	yy = radius * sin(angle) + (*pParam - 0.5) * m_translatePixels;
+	interpolate(pRow, xx, yy, pOut);
+}
+
+void GImageTweaker::interpolate(const double* pRow, double x, double y, double* pOut)
+{
+	// Compute coordinates
+	size_t xx, yy;
+	if(x < 0.0)
 	{
+		xx = 0;
+		x = 0.0;
 	}
-
-	double* pickParams(GRand& rand)
+	else if(x + 1 >= m_wid)
 	{
-		for(size_t i = 0; i < 4; i++)
-			m_params[i] = rand.uniform();
-		return m_params;
+		xx = m_wid - 2;
+		x = m_wid - 1;
 	}
-
-	void interpolate(const double* pRow, double x, double y, double* pOut)
+	else
+		xx = size_t(floor(x));
+	if(y < 0.0)
 	{
-		// Compute coordinates
-		size_t xx, yy;
-		if(x < 0.0)
-		{
-			xx = 0;
-			x = 0.0;
-		}
-		else if(x + 1 >= m_wid)
-		{
-			xx = m_wid - 2;
-			x = m_wid - 1;
-		}
-		else
-			xx = size_t(floor(x));
-		if(y < 0.0)
-		{
-			yy = 0;
-			y = 0.0;
-		}
-		else if(y + 1 >= m_hgt)
-		{
-			yy = m_hgt - 2;
-			y = m_hgt - 1;
-		}
-		else
-			yy = size_t(floor(y));
-
-		// Linearly interpolate horizontally
-		GTEMPBUF(double, pA, m_channels + m_channels);
-		double u = x - xx;
-		GVec::setAll(pA, 0.0, m_channels + m_channels);
-		GVec::addScaled(pA, 1.0 - u, pRow + m_channels * ((m_wid * yy) + xx), m_channels);
-		GVec::addScaled(pA, u, pRow + m_channels * ((m_wid * yy) + xx + 1), m_channels);
-		GVec::addScaled(pA + m_channels, 1.0 - u, pRow + m_channels * ((m_wid * (yy + 1)) + xx), m_channels);
-		GVec::addScaled(pA + m_channels, u, pRow + m_channels * ((m_wid * (yy + 1)) + xx + 1), m_channels);
-
-		// Linearly interpolate vertically
-		u = y - yy;
-		GVec::setAll(pOut, 0.0, m_channels);
-		GVec::addScaled(pOut, 1.0 - u, pA, m_channels);
-		GVec::addScaled(pOut, u, pA + m_channels, m_channels);
+		yy = 0;
+		y = 0.0;
 	}
-
-	void transformedPix(const double* pRow, size_t x, size_t y, double* pOut)
+	else if(y + 1 >= m_hgt)
 	{
-		double xx = double(x) - m_cx;
-		double yy = double(x) - m_cy;
-		double* pParam = m_params;
-		double radius = sqrt(xx * xx + yy * yy) * pow(m_zoomFactor, 2 * (*pParam) - 1.0);
-		pParam++;
-		double angle = atan2(yy, xx) + (*pParam - 0.5) * m_rotateRads;
-		pParam++;
-		xx = radius * cos(angle) + (*pParam - 0.5) * m_translatePixels;
-		pParam++;
-		yy = radius * sin(angle) + (*pParam - 0.5) * m_translatePixels;
-		interpolate(pRow, xx, yy, pOut);
+		yy = m_hgt - 2;
+		y = m_hgt - 1;
 	}
-};
+	else
+		yy = size_t(floor(y));
+
+	// Linearly interpolate horizontally
+	GTEMPBUF(double, pA, m_channels + m_channels);
+	double u = x - xx;
+	GVec::setAll(pA, 0.0, m_channels + m_channels);
+	GVec::addScaled(pA, 1.0 - u, pRow + m_channels * ((m_wid * yy) + xx), m_channels);
+	GVec::addScaled(pA, u, pRow + m_channels * ((m_wid * yy) + xx + 1), m_channels);
+	GVec::addScaled(pA + m_channels, 1.0 - u, pRow + m_channels * ((m_wid * (yy + 1)) + xx), m_channels);
+	GVec::addScaled(pA + m_channels, u, pRow + m_channels * ((m_wid * (yy + 1)) + xx + 1), m_channels);
+
+	// Linearly interpolate vertically
+	u = y - yy;
+	GVec::setAll(pOut, 0.0, m_channels);
+	GVec::addScaled(pOut, 1.0 - u, pA, m_channels);
+	GVec::addScaled(pOut, u, pA + m_channels, m_channels);
+}
+
+
+
+
+
+
 
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: m_paramDims(0), m_pParamRanges(NULL), m_labelDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_updateWeights(true), m_updateIntrinsic(true), m_useInputBias(true), m_pLabels(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL)
+: m_paramDims(0), m_pParamRanges(NULL), m_tweakDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_updateWeights(true), m_updateIntrinsic(true), m_useInputBias(true), m_pTweaker(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL)
 {
 	m_pNN = new GNeuralNet(m_pRand);
 }
@@ -2182,6 +2170,7 @@ GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GRand* pRand)
 // virtual
 GUnsupervisedBackProp::~GUnsupervisedBackProp()
 {
+	delete(m_pTweaker);
 	delete(m_pNN);
 	delete[] m_pParamRanges;
 	delete[] m_pIntrinsic;
@@ -2213,6 +2202,12 @@ void GUnsupervisedBackProp::setIntrinsic(GMatrix* pIntrinsic)
 	m_pIntrinsic = pIntrinsic;
 }
 
+void GUnsupervisedBackProp::setTweaker(GImageTweaker* pTweaker)
+{
+	delete(m_pTweaker);
+	m_pTweaker = pTweaker;
+}
+
 // virtual
 GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 {
@@ -2225,24 +2220,27 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		ThrowError("params don't line up");
 
 	// Init
-	m_labelDims = 0;
-	if(m_pLabels)
+	m_tweakDims = 0;
+	GTEMPBUF(double, pixBuf, channels);
+	if(m_pTweaker)
 	{
-		m_labelDims = m_pLabels->cols();
-		if(m_pLabels->rows() != in.rows())
-			ThrowError("Expected the same number of label rows as observation rows");
+		if(m_paramDims != 2)
+			ThrowError("An image tweaker can only be used in conjunction with 2 param dims");
+		if(channels != m_pTweaker->channels() || m_pParamRanges[0] != m_pTweaker->wid() || m_pParamRanges[1] != m_pTweaker->hgt())
+			ThrowError("The image tweaker was constructed with mismatching parameters");
+		m_tweakDims = 4;
 	}
 	if(!m_pNN->hasTrainingBegun())
 	{
 		m_pNN->setUseInputBias(m_useInputBias);
-		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_labelDims + m_intrinsicDims);
+		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_tweakDims + m_intrinsicDims);
 		sp_relation pLabelRel = new GUniformRelation(channels);
 		m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 	else
 	{
-		if(m_pNN->featureDims() != m_paramDims + m_labelDims + m_intrinsicDims)
-			ThrowError("Incorrect number of inputs Expected ", to_str(m_paramDims + m_labelDims + m_intrinsicDims), ", got ", to_str(m_pNN->featureDims()));
+		if(m_pNN->featureDims() != m_paramDims + m_tweakDims + m_intrinsicDims)
+			ThrowError("Incorrect number of inputs Expected ", to_str(m_paramDims + m_tweakDims + m_intrinsicDims), ", got ", to_str(m_pNN->featureDims()));
 		if(m_pNN->labelDims() != channels)
 			ThrowError("Incorrect number of outputs. Expected ", to_str(channels), ", got ", to_str(m_pNN->labelDims()));
 	}
@@ -2289,33 +2287,38 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	}
 
 	// Train
-	double* pParams = new double[m_paramDims + m_labelDims + m_intrinsicDims];
+	double* pParams = new double[m_paramDims + m_tweakDims + m_intrinsicDims];
 	ArrayHolder<double> hParams(pParams);
 	double* pLabels = pParams + m_paramDims;
-	double* pIntrinsic = pLabels + m_labelDims;
-	double regularizer = 0.000001;
+	double* pIntrinsic = pLabels + m_tweakDims;
+	double regularizer = 1e-7; //1e-6;
 	for(double learningRate = 0.005; learningRate > 0.0005; learningRate *= 0.5)
 	{
 		m_pNN->setLearningRate(learningRate);
 		double sse = 0;
 		for(size_t i = 0; i < 100000000; i++)
 		{
-			// Pick a pixel and channel
+			// Pick a row, pixel, and channel
+			size_t r = (size_t)m_pRand->next(in.rows());
 			m_cvi.setRandom(m_pRand);
-			size_t index = m_cvi.currentIndex();
 			size_t c = (size_t)m_pRand->next(channels);
-			GAssert(index * channels + c < in.cols());
 			m_cvi.currentNormalized(pParams);
 
-			// Pick a pattern
-			size_t r = (size_t)m_pRand->next(in.rows());
+			// Get the pixel
+			double* pPix;
+			if(m_pTweaker)
+			{
+				GVec::copy(pLabels, m_pTweaker->pickParams(*m_pRand), m_tweakDims);
+				m_pTweaker->transformedPix(in[r], m_cvi.current()[0], m_cvi.current()[1], pixBuf);
+				pPix = pixBuf;
+			}
+			else
+				pPix = in[r] + m_cvi.currentIndex() * channels;
 
 			// Do backprop
-			if(m_pLabels)
-				GVec::copy(pLabels, m_pLabels->row(r), m_labelDims);
 			GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);
 			double prediction = m_pNN->forwardPropSingleOutput(pParams, c);
-			double target = (in[r][index * channels + c] - m_pMins[c]) / m_pRanges[c];
+			double target = (pPix[c] - m_pMins[c]) / m_pRanges[c];
 			double err = target - prediction;
 			sse += (err * err);
 			m_pNN->setErrorSingleOutput(target, c);

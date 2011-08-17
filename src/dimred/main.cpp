@@ -958,6 +958,8 @@ void unsupervisedBackProp(GArgReader& args)
 			ubp.neuralNet()->addLayer(args.pop_uint());
 		else if(args.if_pop("-params"))
 		{
+			if(ubp.tweaker())
+				ThrowError("You can't change the params after you add an image tweaker");
 			size_t paramDims = args.pop_uint();
 			for(size_t i = 0; i < paramDims; i++)
 				paramRanges.push_back(args.pop_uint());
@@ -972,8 +974,17 @@ void unsupervisedBackProp(GArgReader& args)
 			sModelOut = args.pop_string();
 		else if(args.if_pop("-intrinsicin"))
 			ubp.setIntrinsic(GMatrix::loadArff(args.pop_string()));
-		else if(args.if_pop("-labels"))
-			ubp.setLabels(GMatrix::loadArff(args.pop_string()));
+		else if(args.if_pop("-tweaker"))
+		{
+			if(paramRanges.size() != 2)
+				ThrowError("The params must be set to 2 before a tweaker is set");
+			size_t channels = args.pop_uint();
+			double rot = args.pop_double();
+			double trans = args.pop_double();
+			double zoom = args.pop_double();
+			GImageTweaker* pTweaker = new GImageTweaker(paramRanges[0], paramRanges[1], channels, rot, trans, zoom);
+			ubp.setTweaker(pTweaker);
+		}
 		else if(args.if_pop("-clampweights"))
 			trainWeights = false;
 		else if(args.if_pop("-clampintrinsic"))

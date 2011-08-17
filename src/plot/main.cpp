@@ -1829,7 +1829,6 @@ void ubpFrames(GArgReader& args)
 	const char* szModelFilename = args.pop_string();
 	size_t imageWid = args.pop_uint();
 	size_t imageHgt = args.pop_uint();
-	size_t label = args.pop_uint();
 	size_t framesHoriz = args.pop_uint();
 	size_t framesVert = args.pop_uint();
 	const char* outFilename = args.pop_string();
@@ -1839,12 +1838,11 @@ void ubpFrames(GArgReader& args)
 	GLearnerLoader ll;
 	GRand rand(0);
 	GSupervisedLearner* pLearner = ll.loadSupervisedLearner(doc.root(), &rand);
-	size_t labelDims = pLearner->featureDims() - 4;
+	size_t tweakDims = pLearner->featureDims() - 4;
 
 	GTEMPBUF(double, pFeatures, pLearner->featureDims() + pLearner->labelDims());
 	double* pLabels = pFeatures + pLearner->featureDims();
-	GVec::setAll(pFeatures + 2, 0.0, labelDims);
-	pFeatures[2 + label] = 1.0;
+	GVec::setAll(pFeatures + 2, 0.5, tweakDims);
 	GImage image;
 	image.setSize(imageWid * framesHoriz, imageHgt * framesVert);
 	size_t yy = 0;
@@ -1853,8 +1851,8 @@ void ubpFrames(GArgReader& args)
 		size_t xx = 0;
 		for(size_t hFrame = 0; hFrame < framesHoriz; hFrame++)
 		{
-			pFeatures[2 + labelDims] = (double)hFrame / (framesHoriz - 1);
-			pFeatures[3 + labelDims] = (double)vFrame / (framesVert - 1);
+			pFeatures[2 + tweakDims] = (double)hFrame / (framesHoriz - 1);
+			pFeatures[3 + tweakDims] = (double)vFrame / (framesVert - 1);
 			size_t ranges[2];
 			ranges[0] = imageWid;
 			ranges[1] = imageHgt;

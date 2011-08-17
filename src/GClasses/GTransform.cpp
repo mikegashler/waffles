@@ -12,6 +12,7 @@
 #include "GTransform.h"
 #include "GDom.h"
 #include "GVec.h"
+#include "GDistribution.h"
 #include "GRand.h"
 #include "GManifold.h"
 #include "GCluster.h"
@@ -96,12 +97,6 @@ void GTwoWayTransformChainer::train(GMatrix& data)
 }
 
 // virtual
-void GTwoWayTransformChainer::enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges)
-{
-	ThrowError("Sorry, not implemented yet");
-}
-
-// virtual
 void GTwoWayTransformChainer::transform(const double* pIn, double* pOut)
 {
 	double* pBuf = m_pFirst->innerBuf();
@@ -115,6 +110,14 @@ void GTwoWayTransformChainer::untransform(const double* pIn, double* pOut)
 	double* pBuf = m_pFirst->innerBuf();
 	m_pSecond->untransform(pIn, pBuf);
 	m_pFirst->untransform(pBuf, pOut);
+}
+
+// virtual
+void GTwoWayTransformChainer::untransformToDistribution(const double* pIn, GPrediction* pOut)
+{
+	double* pBuf = m_pFirst->innerBuf();
+	m_pSecond->untransform(pIn, pBuf);
+	m_pFirst->untransformToDistribution(pBuf, pOut);
 }
 
 // ---------------------------------------------------------------
@@ -247,12 +250,6 @@ void GPCA::train(GMatrix& data)
 }
 
 // virtual
-void GPCA::enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges)
-{
-	ThrowError("Sorry, PCA does not support incremental training.");
-}
-
-// virtual
 void GPCA::transform(const double* pIn, double* pOut)
 {
 	double* pMean = m_pBasisVectors->row(0);
@@ -271,6 +268,12 @@ void GPCA::untransform(const double* pIn, double* pOut)
 	GVec::copy(pOut, m_pBasisVectors->row(0), nInputDims);
 	for(size_t i = 0; i < m_targetDims; i++)
 		GVec::addScaled(pOut, pIn[i], m_pBasisVectors->row(i + 1), nInputDims);
+}
+
+// virtual
+void GPCA::untransformToDistribution(const double* pIn, GPrediction* pOut)
+{
+	ThrowError("Sorry, PCA cannot untransform to a distribution");
 }
 
 /*
@@ -495,19 +498,6 @@ void GNoiseGenerator::train(GMatrix& data)
 }
 
 // virtual
-void GNoiseGenerator::enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges)
-{
-	m_pRelationBefore = pRelation;
-	m_pRelationAfter = m_pRelationBefore;
-	size_t attrs = m_pRelationBefore->size();
-	delete[] m_pAfterMins;
-	m_pAfterMins = new double[attrs * 2];
-	m_pAfterRanges = m_pAfterMins + attrs;
-	GVec::copy(m_pAfterMins, pMins, attrs);
-	GVec::copy(m_pAfterRanges, pRanges, attrs);
-}
-
-// virtual
 void GNoiseGenerator::transform(const double* pIn, double* pOut)
 {
 	size_t nDims = m_pRelationBefore->size();
@@ -560,28 +550,6 @@ void GPairProduct::train(GMatrix& data)
 	size_t nAttrsIn = m_pRelationBefore->size();
 	size_t nAttrsOut = std::min(m_maxDims, nAttrsIn * (nAttrsIn - 1) / 2);
 	m_pRelationAfter = new GUniformRelation(nAttrsOut, 0);
-}
-
-// virtual
-void GPairProduct::enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges)
-{
-	m_pRelationBefore = pRelation;
-	size_t nAttrsIn = m_pRelationBefore->size();
-	size_t nAttrsOut = std::min(m_maxDims, nAttrsIn * (nAttrsIn - 1) / 2);
-	m_pRelationAfter = new GUniformRelation(nAttrsOut, 0);
-	delete[] m_pAfterMins;
-	m_pAfterMins = new double[2 * nAttrsOut];
-	m_pAfterRanges = m_pAfterMins + nAttrsOut;
-	size_t pos = 0;
-	for(size_t j = 0; j < nAttrsIn && pos < nAttrsOut; j++)
-	{
-		for(size_t i = j + 1; i < nAttrsIn && pos < nAttrsOut; i++)
-		{
-			m_pAfterMins[pos] = std::min(std::min(pMins[i], pMins[j]), pMins[i] * pMins[j]);
-			m_pAfterRanges[pos] = std::max(std::max(pMins[i] + pRanges[i], pMins[j] + pRanges[j]), (pMins[i] + pRanges[i]) * (pMins[j] + pRanges[j])) - m_pAfterMins[pos];
-			pos++;
-		}
-	}
 }
 
 // virtual
@@ -716,12 +684,6 @@ void GAttributeSelector::train(GMatrix& data)
 }
 
 // virtual
-void GAttributeSelector::enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges)
-{
-	ThrowError("not implemented yet");
-}
-
-// virtual
 void GAttributeSelector::transform(const double* pIn, double* pOut)
 {
 	size_t i;
@@ -835,35 +797,6 @@ void GNominalToCat::train(GMatrix& data)
 }
 
 // virtual
-void GNominalToCat::enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges)
-{
-	init(pRelation);
-	size_t attrs = m_pRelationAfter->size();
-	delete[] m_pAfterMins;
-	m_pAfterMins = new double[2 * attrs];
-	m_pAfterRanges = m_pAfterMins + attrs;
-	size_t nAttrCount = m_pRelationBefore->size();
-	size_t pos = 0;
-	for(size_t i = 0; i < nAttrCount; i++)
-	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
-		if(nValues < 3 || nValues >= m_valueCap)
-		{
-			m_pAfterMins[pos] = pMins[i];
-			m_pAfterRanges[pos] = pRanges[i];
-			pos++;
-		}
-		else
-		{
-			GVec::setAll(m_pAfterMins + pos, 0.0, nValues);
-			GVec::setAll(m_pAfterRanges + pos, 1.0, nValues);
-			pos += nValues;
-		}
-	}
-
-}
-
-// virtual
 GDomNode* GNominalToCat::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
@@ -882,9 +815,9 @@ void GNominalToCat::transform(const double* pIn, double* pOut)
 	for(size_t i = 0; i < nInAttrCount; i++)
 	{
 		size_t nValues = m_pRelationBefore->valueCount(i);
-		if(nValues < 3 || nValues >= m_valueCap)
+		if(nValues < 3)
 		{
-			if(nValues == 0 || nValues >= m_valueCap)
+			if(nValues == 0)
 				*(pOut++) = *(pIn++);
 			else if(nValues == 1)
 			{
@@ -908,7 +841,7 @@ void GNominalToCat::transform(const double* pIn, double* pOut)
 				pIn++;
 			}
 		}
-		else
+		else if(nValues < m_valueCap)
 		{
 			if(*pIn >= 0)
 			{
@@ -926,6 +859,14 @@ void GNominalToCat::transform(const double* pIn, double* pOut)
 			pOut += nValues;
 			pIn++;
 		}
+		else
+		{
+			if(*pIn == UNKNOWN_DISCRETE_VALUE)
+				*(pOut++) = UNKNOWN_REAL_VALUE;
+			else
+				*(pOut++) = *pIn;
+			pIn++;
+		}
 	}
 }
 
@@ -936,9 +877,9 @@ void GNominalToCat::untransform(const double* pIn, double* pOut)
 	for(size_t i = 0; i < nOutAttrCount; i++)
 	{
 		size_t nValues = m_pRelationBefore->valueCount(i);
-		if(nValues < 3 || nValues >= m_valueCap)
+		if(nValues < 3)
 		{
-			if(nValues == 0 || nValues >= m_valueCap)
+			if(nValues == 0)
 				*(pOut++) = *(pIn++);
 			else if(nValues == 1)
 			{
@@ -959,7 +900,7 @@ void GNominalToCat::untransform(const double* pIn, double* pOut)
 					*(pOut++) = (*(pIn++) < 0.5 ? 0 : 1);
 			}
 		}
-		else
+		else if(nValues < m_valueCap)
 		{
 			double max = *(pIn++);
 			*pOut = 0.0;
@@ -972,6 +913,66 @@ void GNominalToCat::untransform(const double* pIn, double* pOut)
 				}
 				pIn++;
 			}
+			pOut++;
+		}
+		else
+		{
+			if(*pIn == UNKNOWN_REAL_VALUE)
+				*(pOut++) = UNKNOWN_DISCRETE_VALUE;
+			else
+				*(pOut++) = std::max(0.0, std::min(double(nValues - 1), floor(*pIn + 0.5)));
+			pIn++;
+		}
+	}
+}
+
+// virtual
+void GNominalToCat::untransformToDistribution(const double* pIn, GPrediction* pOut)
+{
+	size_t nOutAttrCount = m_pRelationBefore->size();
+	for(size_t i = 0; i < nOutAttrCount; i++)
+	{
+		size_t nValues = m_pRelationBefore->valueCount(i);
+		if(nValues < 3)
+		{
+			if(nValues == 0)
+			{
+				GNormalDistribution* pNorm = pOut->makeNormal();
+				pNorm->setMeanAndVariance(*pIn, 1.0);
+			}
+			else if(nValues == 1)
+			{
+				GCategoricalDistribution* pCat = pOut->makeCategorical();
+				pCat->setToUniform(1);
+			}
+			else
+			{
+				GCategoricalDistribution* pCat = pOut->makeCategorical();
+				if(*pIn == UNKNOWN_REAL_VALUE)
+					pCat->setToUniform(2);
+				else
+				{
+					double* pVals = pCat->values(2);
+					pVals[0] = 1.0 - *pIn;
+					pVals[1] = *pIn;
+					pCat->normalize(); // We have to normalize to ensure the values are properly clipped.
+				}
+			}
+			pIn++;
+			pOut++;
+		}
+		else if(nValues < m_valueCap)
+		{
+			GCategoricalDistribution* pCat = pOut->makeCategorical();
+			pCat->setValues(nValues, pIn);
+			pIn += nValues;
+			pOut++;
+		}
+		else
+		{
+			GCategoricalDistribution* pCat = pOut->makeCategorical();
+			pCat->setSpike(nValues, std::max(size_t(0), std::min(nValues - 1, size_t(floor(*pIn + 0.5)))), 3);
+			pIn++;
 			pOut++;
 		}
 	}
@@ -1076,32 +1077,6 @@ void GNormalize::train(GMatrix& data)
 }
 
 // virtual
-void GNormalize::enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges)
-{
-	m_pRelationBefore = pRelation;
-	m_pRelationAfter = m_pRelationBefore;
-	size_t nAttrCount = m_pRelationBefore->size();
-	delete[] m_pMins;
-	m_pMins = new double[2 * nAttrCount];
-	m_pRanges = &m_pMins[nAttrCount];
-	GVec::copy(m_pMins, pMins, nAttrCount);
-	GVec::copy(m_pRanges, pRanges, nAttrCount);
-	for(size_t i = 0; i < nAttrCount; i++)
-	{
-		if(pRelation->valueCount(i) == 0)
-		{
-			if(m_pRanges[i] < 1e-12)
-				m_pRanges[i] = 1.0;
-		}
-	}
-	delete[] m_pAfterMins;
-	m_pAfterMins = new double[2 * nAttrCount];
-	m_pAfterRanges = m_pAfterMins + nAttrCount;
-	GVec::setAll(m_pAfterMins, m_min, nAttrCount);
-	GVec::setAll(m_pAfterRanges, m_max - m_min, nAttrCount);
-}
-
-// virtual
 void GNormalize::transform(const double* pIn, double* pOut)
 {
 	size_t nAttrCount = m_pRelationBefore->size();
@@ -1147,6 +1122,12 @@ void GNormalize::untransform(const double* pIn, double* pOut)
 		pMins++;
 		pRanges++;
 	}
+}
+
+// virtual
+void GNormalize::untransformToDistribution(const double* pIn, GPrediction* pOut)
+{
+	ThrowError("Sorry, cannot denormalize to a distribution");
 }
 
 // --------------------------------------------------------------------------
@@ -1236,46 +1217,6 @@ void GDiscretize::train(GMatrix& data)
 }
 
 // virtual
-void GDiscretize::enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges)
-{
-	// Make the relations
-	m_pRelationBefore = pRelation;
-	m_bucketsOut = m_bucketsIn;
-	if(m_bucketsOut < 0)
-		ThrowError("The number of discretization buckets cannot be automatically determined with incremental training.");
-	size_t nAttrCount = m_pRelationBefore->size();
-	GMixedRelation* pRelationAfter = new GMixedRelation();
-	m_pRelationAfter = pRelationAfter;
-	for(size_t i = 0; i < nAttrCount; i++)
-	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
-		if(nValues > 0)
-			pRelationAfter->addAttr(nValues);
-		else
-			pRelationAfter->addAttr(m_bucketsOut);
-	}
-
-	// Determine the boundaries
-	delete[] m_pMins;
-	m_pMins = new double[2 * nAttrCount];
-	m_pRanges = &m_pMins[nAttrCount];
-	for(size_t i = 0; i < nAttrCount; i++)
-	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
-		if(nValues > 0)
-		{
-			m_pMins[i] = 0;
-			m_pRanges[i] = 0;
-		}
-		else
-		{
-			m_pMins[i] = pMins[i];
-			m_pRanges[i] = pRanges[i];
-		}
-	}
-}
-
-// virtual
 void GDiscretize::transform(const double* pIn, double* pOut)
 {
 	if(!m_pMins)
@@ -1305,6 +1246,12 @@ void GDiscretize::untransform(const double* pIn, double* pOut)
 		else
 			pOut[i] = (((double)pIn[i] + .5) * m_pRanges[i]) / m_bucketsOut + m_pMins[i];
 	}
+}
+
+// virtual
+void GDiscretize::untransformToDistribution(const double* pIn, GPrediction* pOut)
+{
+	ThrowError("Sorry, cannot undiscretize to a distribution");
 }
 
 } // namespace GClasses

@@ -1436,7 +1436,7 @@ void GBagOfRecommenders::test()
 	rec.addRecommender(new GBaselineRecommender());
 	rec.addRecommender(new GMatrixFactorization(8, rand));
 	rec.addRecommender(new GNeuralRecommender(8, &rand));
-	rec.basicTest(0.756);
+	rec.basicTest(0.764);
 }
 #endif
 

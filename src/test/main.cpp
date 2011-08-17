@@ -417,6 +417,7 @@ void RunAllTests()
 	runTest("GSpinLock", GSpinLock::test);
 	runTest("GSubImageFinder", GSubImageFinder::test);
 	runTest("GSubImageFinder2", GSubImageFinder2::test);
+	runTest("GSupervisedLearner", GSupervisedLearner::test);
 	runTest("GVec", GVec::test);
 
 	string s = "waffles_learn";

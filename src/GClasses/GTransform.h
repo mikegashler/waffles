@@ -47,14 +47,12 @@ class GIncrementalTransform : public GTransform
 protected:
 	sp_relation m_pRelationBefore;
 	sp_relation m_pRelationAfter;
-	double* m_pAfterMins;
-	double* m_pAfterRanges;
 	double* m_pInnerBuf;
 
 public:
-	GIncrementalTransform() : GTransform(), m_pAfterMins(NULL), m_pAfterRanges(NULL), m_pInnerBuf(NULL) {}
-	GIncrementalTransform(GDomNode* pNode) : GTransform(pNode), m_pAfterMins(NULL), m_pAfterRanges(NULL), m_pInnerBuf(NULL) {}
-	virtual ~GIncrementalTransform() { delete[] m_pAfterMins; }
+	GIncrementalTransform() : GTransform(), m_pInnerBuf(NULL) {}
+	GIncrementalTransform(GDomNode* pNode) : GTransform(pNode), m_pInnerBuf(NULL) {}
+	virtual ~GIncrementalTransform() {}
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) = 0;
@@ -62,22 +60,11 @@ public:
 	/// sets m_pRelationBefore and m_pRelationAfter, and trains the transform.
 	virtual void train(GMatrix& data) = 0;
 
-	/// Prepares the transform to be used with incremental training
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges) = 0;
-
 	/// train must be called before this method is used
 	sp_relation& before() { return m_pRelationBefore; }
 
 	/// train must be called before this method is used
 	sp_relation& after() { return m_pRelationAfter; }
-
-	/// enableIncrementalTraining must be called before this method is used. It returns a
-	/// vector of minimum values for the data after the transform has been applied.
-	const double* afterMins() { return m_pAfterMins; }
-
-	/// enableIncrementalTraining must be called before this method is used. It returns a
-	/// vector of range values for the data after the transform has been applied.
-	const double* afterRanges() { return m_pAfterRanges; }
 
 	/// pIn is the source row. pOut is a buffer that will hold the transformed row.
 	/// train must be called before this method is used
@@ -110,6 +97,10 @@ public:
 	/// train must be called before this method is used
 	virtual void untransform(const double* pIn, double* pOut) = 0;
 
+	/// Similar to untransform, except it produces a distribution instead of just a vector.
+	/// This method may not be implemented in all classes, so it may throw an exception.
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut) = 0;
+
 	/// This assumes train was previously called, and untransforms all the rows in pIn and returns the results.
 	virtual GMatrix* untransformBatch(GMatrix& in);
 };
@@ -126,19 +117,27 @@ protected:
 	GTwoWayIncrementalTransform* m_pSecond;
 
 public:
+	/// General-purpose constructor
 	GTwoWayTransformChainer(GTwoWayIncrementalTransform* pFirst, GTwoWayIncrementalTransform* pSecond);
+
+	/// Deserializing constructor
 	GTwoWayTransformChainer(GDomNode* pNode, GRand& rand);
 	virtual ~GTwoWayTransformChainer();
 
+	/// See the comment for GTwoWayIncrementalTransform::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
 
+	/// See the comment for GTwoWayIncrementalTransform::train
 	virtual void train(GMatrix& data);
 
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
-
+	/// See the comment for GTwoWayIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
+	/// See the comment for GTwoWayIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
+
+	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 };
 
 
@@ -196,9 +195,6 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 
-	/// See the comment for GIncrementalTransform::enableIncrementalTraining
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
-
 	/// See the comment for GIncrementalTransform::transform.
 	/// Projects the specified point into fewer dimensions.
 	virtual void transform(const double* pIn, double* pOut);
@@ -206,6 +202,9 @@ public:
 	/// Computes a (lossy) high-dimensional point that corresponds with the
 	/// specified low-dimensional coordinates.
 	virtual void untransform(const double* pIn, double* pOut);
+
+	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 };
 
 
@@ -246,8 +245,6 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 
-	/// See the comment for GIncrementalTransform::enableIncrementalTraining
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
 	virtual sp_relation& relationAfter() { return m_pRelationBefore; }
 	
 	/// See the comment for GIncrementalTransform::transform
@@ -278,9 +275,6 @@ public:
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
-	
-	/// See the comment for GIncrementalTransform::enableIncrementalTraining
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
 	
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
@@ -319,9 +313,6 @@ public:
 	
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
-	
-	/// See the comment for GIncrementalTransform::enableIncrementalTraining
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
 	
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
@@ -363,15 +354,15 @@ public:
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
-	
-	/// See the comment for GIncrementalTransform::enableIncrementalTraining
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
-	
+
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
-	
+
 	/// See the comment for GTwoWayIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
+
+	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 
 	/// Makes a mapping from the post-transform attribute indexes to the pre-transform attribute indexes
 	void reverseAttrMap(std::vector<size_t>& rmap);
@@ -411,15 +402,16 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 	
-	/// See the comment for GIncrementalTransform::enableIncrementalTraining
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
-	
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
 	/// See the comment for GTwoWayIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
+	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+
+	/// Specify the input min and range values for each attribute
 	void setMinsAndRanges(sp_relation& pRel, const double* pMins, const double* pRanges);
 };
 
@@ -451,14 +443,14 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 	
-	/// See the comment for GIncrementalTransform::enableIncrementalTraining
-	virtual void enableIncrementalTraining(sp_relation& pRelation, double* pMins, double* pRanges);
-	
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
 	/// See the comment for GTwoWayIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
+
+	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 };
 
 

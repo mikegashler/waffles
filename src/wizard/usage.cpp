@@ -502,32 +502,6 @@ UsageNode* makeDimRedUsageTree()
 		pPCA->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
-		UsageNode* pUS = pRoot->add("ubpsparse [sparse-data] [intrinsic-dims] <options>", "Applies Unsupervised Back-propagation to reduce the specified sparse matrix to a dense matrix with the specified number of dimensions. The dense reduced-dimensional data is printed to stdout.");
-		pUS->add("[sparse-data]=features.sparse", "The filename of a sparse matrix saved in .twt format. (For example, each row might represent a document, and each element might represent the frequency that a particular word occurs in the document.)");
-		pUS->add("[intrinsic-dims]=2", "The number of dimensions into which to reduce the data. The default value is 2.");
-		UsageNode* pOpts = pUS->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pOpts->add("-addlayer [size]=8", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
-		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
-		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
-		{
-			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
-			pAct->add("arctan", "The arctan sigmoid function.");
-			pAct->add("tanh", "The hyperbolic tangeant sigmoid function.");
-			pAct->add("algebraic", "An algebraic sigmoid function.");
-			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
-			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
-			pAct->add("gaussian", "A gaussian activation function");
-			pAct->add("sinc", "A sinc wavelet activation function");
-		}
-		pOpts->add("-modelin [filename]=model.twt", "Specify a filename from which to load the neural net model. (Note that this will replace any model you construct using the -addlayer option, so it would not make much sense to use these switches together.)");
-		pOpts->add("-modelout [filename]=model.twt", "Specify a filename to save the neural net model to after it has been trained.");
-		pOpts->add("-noupdateweights", "Do not update the weights during training. If this switch is specified, then only the intrinsic values will be updated. (This might be useful, for example, to generalize. That is, it can be used to determine the low-dimensional dense vectors that correspond to high-dimensional sparse vectors that were not available at training time, without changing the model further.)");
-		pOpts->add("-normalize", "Normalize all of the input vectors to have a Euclidean magnitude of 1 prior to training with them.");
-		pOpts->add("-windowsize [n]=200", "Specify the number of epochs over which a certain amount of improvement is expected, or else training will terminate.");
-		pOpts->add("-improvementthresh [t]=0.002", "Specify the ratio of improvement that must be obtained over the window of epoches, or else training will terminate.");
-	}
-	{
 		pRoot->add("usage", "Print usage information.");
 	}
 	return pRoot;

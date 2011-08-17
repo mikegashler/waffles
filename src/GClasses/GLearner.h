@@ -16,18 +16,21 @@
 
 namespace GClasses {
 
+class GNeuralNet;
+
+
 class GDom;
 class GDomNode;
 class GDistribution;
 class GCategoricalDistribution;
 class GNormalDistribution;
 class GUniformDistribution;
-class GPlotWindow;
 class GUnivariateDistribution;
 class GIncrementalTransform;
 class GTwoWayIncrementalTransform;
 class GSparseMatrix;
 class GCollaborativeFilter;
+class GNeuralNet;
 
 
 /// This class is used to represent the predicted distribution made by a supervised learning algorithm.
@@ -186,6 +189,7 @@ protected:
 	bool m_autoFilter;
 	size_t m_featureDims;
 	size_t m_labelDims;
+	GNeuralNet** m_pCalibrations;
 
 public:
 	/// General-purpose constructor
@@ -233,20 +237,35 @@ public:
 	/// trainInner to do the actual training.
 	void train(GMatrix& features, GMatrix& labels);
 
-	/// Evaluate pIn and compute a prediction for pOut.
+	/// Evaluate pIn to compute a prediction for pOut. The model must be trained
+	/// (by calling train) before the first time that this method is called.
+	/// pIn and pOut should point to arrays of doubles of the same size as the
+	/// number of columns in the training matrices that were passed to the train
+	/// method.
 	void predict(const double* pIn, double* pOut);
+
+	/// Calibrate the model to make predicted distributions reflect the training
+	/// data. This method should be called after train is called, but before
+	/// the first time predictDistribution is called. Typically, the same matrices
+	/// passed as parameters to the train method are also passed as parameters
+	/// to this method. By default, the mean of
+	/// continuous labels is predicted as accurately as possible, but the variance
+	/// only reflects a heuristic measure of confidence. If calibrate is called, however,
+	/// then logistic regression will be used to map from the heuristic variance estimates
+	/// to the actual variance as measured in the training data, such that the
+	/// predicted variance becomes more reliable. Likewise with categorical
+	/// labels, the mode is predicted as accurately as possible, but the
+	/// distribution of probability among the categories may not be a very good
+	/// prediction of the actual distribution of probability unless this method
+	/// has been called to calibrate them. If you never plan to call predictDistribution,
+	/// there is no reason to ever call this method.
+	void calibrate(GMatrix& features, GMatrix& labels, GRand& rand);
 
 	/// Evaluate pIn and compute a prediction for pOut. pOut is expected
 	/// to point to an array of GPrediction objects which have already been
 	/// allocated. There should be labelDims() elements in this array.
-	/// Even though the prediction is a probability distribution,
-	/// this distribution is not calibrated. For continuous
-	/// label dimensions, the mean should be a good prediction, but the variance
-	/// may be a very rough estimate, or even a bogus value, depending on
-	/// the algorithm. For discrete label dimensions, the mode is the
-	/// most-likely prediction, but the confidence values of
-	/// other categories may be determined by weak heuristics, depending
-	/// on the algorithm.
+	/// The distributions will be more accurate if the model is calibrated
+	/// before the first time that this method is called.
 	void predictDistribution(const double* pIn, GPrediction* pOut);
 
 	/// Discards all training for the purpose of freeing memory.
@@ -291,6 +310,9 @@ public:
 #ifndef NO_TEST_CODE
 	/// This is a helper method used by the unit tests of several model learners
 	void basicTest(double minAccuracy1, double minAccuracy2, GRand* pRand, double deviation = 1e-6, bool printAccuracy = false);
+
+	/// Runs some unit tests related to supervised learning. Throws an exception if any problems are found.
+	static void test();
 #endif
 protected:
 	/// This is the implementation of the model's training algorithm. (This method is called by train).

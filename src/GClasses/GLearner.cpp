@@ -442,7 +442,7 @@ GMatrix* GTransducer::repValidate(GMatrix& features, GMatrix& labels, size_t rep
 // ---------------------------------------------------------------
 
 GSupervisedLearner::GSupervisedLearner()
-: GTransducer(), m_pFeatureFilter(NULL), m_pLabelFilter(NULL), m_autoFilter(true), m_featureDims((size_t)-1), m_labelDims((size_t)-1)
+: GTransducer(), m_pFeatureFilter(NULL), m_pLabelFilter(NULL), m_autoFilter(true), m_featureDims((size_t)-1), m_labelDims((size_t)-1), m_pCalibrations(NULL)
 {
 }
 
@@ -459,10 +459,30 @@ GSupervisedLearner::GSupervisedLearner(GDomNode* pNode, GRand& rand)
 	m_featureDims = (size_t)pNode->field("fd")->asInt();
 	m_labelDims = (size_t)pNode->field("ld")->asInt();
 	m_autoFilter = pNode->field("af")->asBool();
+	m_pCalibrations = NULL;
+	GDomNode* pCalibs = pNode->fieldIfExists("cal");
+	if(pCalibs)
+	{
+		GDomListIterator it(pCalibs);
+		if(it.remaining() != m_labelDims)
+			ThrowError("The number of calibrations does not match the number of labels");
+		m_pCalibrations = new GNeuralNet*[m_labelDims];
+		for(size_t i = 0; i < m_labelDims; i++)
+		{
+			m_pCalibrations[i] = new GNeuralNet(it.current(), &rand);
+			it.advance();
+		}
+	}
 }
 
 GSupervisedLearner::~GSupervisedLearner()
 {
+	if(m_pCalibrations)
+	{
+		for(size_t i = 0; i < m_labelDims; i++)
+			delete(m_pCalibrations[i]);
+		delete[] m_pCalibrations;
+	}
 	delete(m_pFeatureFilter);
 	delete(m_pLabelFilter);
 }
@@ -480,6 +500,12 @@ GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName)
 	pNode->addField(pDoc, "fd", pDoc->newInt(m_featureDims));
 	pNode->addField(pDoc, "ld", pDoc->newInt(m_labelDims));
 	pNode->addField(pDoc, "af", pDoc->newBool(m_autoFilter));
+	if(m_pCalibrations)
+	{
+		GDomNode* pCal = pNode->addField(pDoc, "cal", pDoc->newList());
+		for(size_t i = 0; i < m_labelDims; i++)
+			pCal->addItem(pDoc, m_pCalibrations[i]->serialize(pDoc));
+	}
 	return pNode;
 }
 
@@ -723,20 +749,146 @@ void GSupervisedLearner::predict(const double* pIn, double* pOut)
 	}
 }
 
+void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels, GRand& rand)
+{
+	// Check assumptions
+	if(m_labelDims == (size_t)-1)
+		ThrowError("The model must be trained before it is calibrated");
+	if(features.cols() != m_featureDims || labels.cols() != m_labelDims)
+		ThrowError("This data is not compatible with the data used to train this model");
+	if(features.rows() != labels.rows())
+		ThrowError("Expected features and labels to have the same number of rows");
+
+	// Throw out any existing calibration
+	if(m_pCalibrations)
+	{
+		for(size_t i = 0; i < m_labelDims; i++)
+			delete(m_pCalibrations[i]);
+		delete[] m_pCalibrations;
+	}
+	m_pCalibrations = NULL;
+
+	// Calibrate
+	vector<GNeuralNet*> calibrations;
+	VectorOfPointersHolder<GNeuralNet> hCalibrations(calibrations);
+	size_t neighbors = std::max(size_t(4), std::min(size_t(100), (size_t)sqrt(features.rows())));
+#ifdef WINDOWS
+	GPrediction* out = new GPrediction[m_labelDims];
+	ArrayHolder<GPrediction> hOut(out);
+#else
+	GPrediction out[m_labelDims];
+#endif
+	for(size_t i = 0; i < m_labelDims; i++)
+	{
+		// Gather the predicted (before) distribution values
+		size_t vals = labels.relation()->valueCount(i);
+		GMatrix tmpBefore(features.rows(), std::max(size_t(1), vals));
+		if(vals == 0)
+		{
+			for(size_t j = 0; j < features.rows(); j++)
+			{
+				predictDistribution(features[j], out);
+				tmpBefore[j][0] = out[i].asNormal()->variance();
+			}
+		}
+		else
+		{
+			for(size_t j = 0; j < features.rows(); j++)
+			{
+				predictDistribution(features[j], out);
+				GVec::copy(tmpBefore[j], out[i].asCategorical()->values(vals), vals);
+			}
+		}
+
+		// Use a temporary k-NN model to measure the target (after) distribution values
+		GKNN knn(rand);
+		knn.setNeighborCount(neighbors);
+		knn.train(tmpBefore, labels);
+		GMatrix tmpAfter(features.rows(), std::max(size_t(1), vals));
+		if(vals == 0)
+		{
+			for(size_t j = 0; j < tmpBefore.rows(); j++)
+			{
+				knn.predictDistribution(tmpBefore[j], out);
+				tmpAfter[j][0] = out[0].asNormal()->variance();
+			}
+		}
+		else
+		{
+			for(size_t j = 0; j < features.rows(); j++)
+			{
+				knn.predictDistribution(tmpBefore[j], out);
+				GVec::copy(tmpAfter[j], out[0].asCategorical()->values(vals), vals);
+			}
+		}
+
+		// Train a layer of logistic units to map from the before distribution to the after distribution
+		GNeuralNet* pNN = new GNeuralNet(&rand);
+		calibrations.push_back(pNN);
+		pNN->train(tmpBefore, tmpAfter);
+	}
+
+	// Store the resulting calibration functions
+	GAssert(calibrations.size() == m_labelDims);
+	m_pCalibrations = new GNeuralNet*[m_labelDims];
+	for(size_t i = 0; i < m_labelDims; i++)
+	{
+		m_pCalibrations[i] = calibrations[i];
+		calibrations[i] = NULL;
+	}
+}
+
 void GSupervisedLearner::predictDistribution(const double* pIn, GPrediction* pOut)
 {
-	if(m_pLabelFilter)
-		ThrowError("Sorry, the filter used to enable this model to support this type (nominal or continuous) of label does not support transforming a distribution.");
 	if(m_pFeatureFilter)
 	{
 		double* pInnerFeatures = m_pFeatureFilter->innerBuf();
 		m_pFeatureFilter->transform(pIn, pInnerFeatures);
-		predictDistributionInner(pInnerFeatures, pOut);
+		if(m_pLabelFilter)
+		{
+			double* pInnerLabels = m_pLabelFilter->innerBuf();
+			predictInner(pInnerFeatures, pInnerLabels);
+			m_pLabelFilter->untransformToDistribution(pInnerLabels, pOut);
+		}
+		else
+			predictDistributionInner(pInnerFeatures, pOut);
 	}
 	else
-		predictDistributionInner(pIn, pOut);
-}
+	{
+		if(m_pLabelFilter)
+		{
+			double* pInnerLabels = m_pLabelFilter->innerBuf();
+			predictInner(pIn, pInnerLabels);
+			m_pLabelFilter->untransformToDistribution(pInnerLabels, pOut);
+		}
+		else
+			predictDistributionInner(pIn, pOut);
+	}
 
+	// Adjust the predicted distributions to make them approximate real distributions
+	GVecBuf vb;
+	if(m_pCalibrations)
+	{
+		for(size_t i = 0; i < m_labelDims; i++)
+		{
+			if(pOut[i].isContinuous())
+			{
+				GNormalDistribution* pNorm = pOut[i].asNormal();
+				double varBefore = pNorm->variance();
+				double varAfter;
+				m_pCalibrations[i]->predict(&varBefore, &varAfter);
+				pNorm->setMeanAndVariance(pNorm->mean(), varAfter);
+			}
+			else
+			{
+				GCategoricalDistribution* pCat = pOut[i].asCategorical();
+				vb.reserve(pCat->valueCount());
+				m_pCalibrations[i]->predict(pCat->values(pCat->valueCount()), vb.m_pBuf);
+				GVec::copy(pCat->values(pCat->valueCount()), vb.m_pBuf, pCat->valueCount());
+			}
+		}
+	}
+}
 
 void GSupervisedLearner::accuracy(GMatrix& features, GMatrix& labels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats)
 {
@@ -929,6 +1081,85 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 }
 
 #ifndef NO_TEST_CODE
+#define TEST_SIZE 5000
+// static
+void GSupervisedLearner::test()
+{
+	// Make a probabilistic training set
+	GRand rand(0);
+	vector<size_t> vals1;
+	vals1.push_back(3);
+	vector<size_t> vals2;
+	vals2.push_back(2);
+	GMatrix f(vals1);
+	GMatrix l(vals2);
+	f.newRows(TEST_SIZE);
+	l.newRows(TEST_SIZE);
+	for(size_t i = 0; i < TEST_SIZE; i++)
+	{
+		size_t n = rand.next(3);
+		if(n == 0)
+		{
+			if(rand.uniform() < 0.15)
+				l[i][0] = 0;
+			else
+				l[i][0] = 1;
+		}
+		else if(n == 1)
+		{
+			if(rand.uniform() < 0.3)
+				l[i][0] = 0;
+			else
+				l[i][0] = 1;
+		}
+		else
+		{
+			if(rand.uniform() < 0.85)
+				l[i][0] = 0;
+			else
+				l[i][0] = 1;
+		}
+		f[i][0] = double(n);
+	}
+
+	// Train the model
+	GNeuralNet model(&rand);
+	model.train(f, l);
+	GPrediction out;
+	double d, prob;
+
+// Uncomment this block if you want to see how it does without calibration (which should be a little worse than with it).
+// 	d = 0;
+// 	model.predictDistribution(&d, &out);
+// 	prob = out.asCategorical()->values(2)[0];
+// 	d = 1;
+// 	model.predictDistribution(&d, &out);
+// 	prob = out.asCategorical()->values(2)[0];
+// 	d = 2;
+// 	model.predictDistribution(&d, &out);
+// 	prob = out.asCategorical()->values(2)[0];
+
+	// Calibrate the model
+	model.calibrate(f, l, rand);
+
+	// Check that the predicted distributions are close to the expected distributions
+	d = 0;
+	model.predictDistribution(&d, &out);
+	prob = out.asCategorical()->values(2)[0];
+	if(std::abs(prob - 0.15) > .03)
+		ThrowError("failed");
+	d = 1;
+	model.predictDistribution(&d, &out);
+	prob = out.asCategorical()->values(2)[0];
+	if(std::abs(prob - 0.30) > .03)
+		ThrowError("failed");
+	d = 2;
+	model.predictDistribution(&d, &out);
+	prob = out.asCategorical()->values(2)[0];
+	if(std::abs(prob - 0.85) > .03)
+		ThrowError("failed");
+}
+
 void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& features, GMatrix& labels, GMatrix& testFeatures, GMatrix& testLabels, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
 {
 	// Train the model

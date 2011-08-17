@@ -370,6 +370,54 @@ public:
 
 
 
+/// Given an image encoded as a rasterized row of channel values,
+/// this class computes a single pixel drawn from the image as
+/// if the image had been rotated, translated, and zoomed by a
+/// small random amount. (The purpose of this class is to make it
+/// possible to train GUnsupervisedBackProp to understand these common
+/// image-based transformations.)
+class GImageTweaker
+{
+	size_t m_wid;
+	size_t m_hgt;
+	size_t m_channels;
+	double m_rotateRads;
+	double m_translatePixels;
+	double m_zoomFactor;
+	double m_cx, m_cy;
+	double m_params[4];
+
+public:
+	/// if rotateDegrees is 30.0, then it will rotate the image up to 15.0 degrees in either direction.
+	/// if translateWidths is 1.0, then it will translate between -0.5*wid and 0.5*wid. It will
+	/// also translate vertically by a value in the same range (dependant on wid, not hgt).
+	/// if zoomFactor is 2.0, then it will scale between a factor of 0.5 and 2.0.
+	GImageTweaker(size_t wid, size_t hgt, size_t channels, double rotateDegrees, double translateWidths, double zoomFactor);
+
+	/// Sets the 4 params to random uniform values between 0 and 1, and returns the params
+	double* pickParams(GRand& rand);
+
+	/// Returns the specified pixel in the transformed image
+	void transformedPix(const double* pRow, size_t x, size_t y, double* pOut);
+
+	/// Returns the number of channels
+	size_t channels() { return m_channels; }
+
+	/// Returns the width of the images
+	size_t wid() { return m_wid; }
+
+	/// Returns the height of the images
+	size_t hgt() { return m_hgt; }
+
+protected:
+	void interpolate(const double* pRow, double x, double y, double* pOut);
+};
+
+
+
+
+
+
 /// A manifold learning algorithm that uses back-propagation to train a neural net model
 /// to map from low-dimensional space to high-dimensional space.
 class GUnsupervisedBackProp : public GManifoldLearner
@@ -377,7 +425,7 @@ class GUnsupervisedBackProp : public GManifoldLearner
 protected:
 	size_t m_paramDims;
 	size_t* m_pParamRanges;
-	size_t m_labelDims;
+	size_t m_tweakDims;
 	size_t m_intrinsicDims;
 	GNeuralNet* m_pNN;
 	GRand* m_pRand;
@@ -385,7 +433,7 @@ protected:
 	bool m_updateWeights;
 	bool m_updateIntrinsic;
 	bool m_useInputBias;
-	GMatrix* m_pLabels;
+	GImageTweaker* m_pTweaker;
 	GMatrix* m_pIntrinsic;
 	double* m_pMins;
 	double* m_pRanges;
@@ -411,10 +459,6 @@ public:
 	/// and the width and height are specified for the paramRanges.
 	void setParams(std::vector<size_t>& paramRanges);
 
-	/// Provide a partial set of labels to correspons with the output features.
-	/// This method assumes that pLabels will remain valid for the duration of this object.
-	void setLabels(GMatrix* pLabels) { m_pLabels = pLabels; }
-
 	/// Specify initial values for the intrinsic variables. This method takes ownership of pIntrinsic.
 	/// If this method is not called prior to "doit", then the intrinsic variables will be initialized
 	/// with small random values.
@@ -433,6 +477,16 @@ public:
 
 	/// Specify whether to use one of the input values as a bias
 	void setUseInputBias(bool b) { m_useInputBias = b; }
+
+	/// Takes ownership of pTweaker.
+	/// Specify an image tweaker to use during training to make it robust to rotation,
+	/// translation, and scale. If an image tweaker is used, then there must be exactly two
+	/// dimensional parameters, and the parameters used to construct the image tweaker
+	/// must be consistent with those used to construct this object.
+	void setTweaker(GImageTweaker* pTweaker);
+
+	/// Returns the current image tweaker
+	GImageTweaker* tweaker() { return m_pTweaker; }
 };
 
 
