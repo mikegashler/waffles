@@ -779,7 +779,7 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels, GRand& ra
 	// Calibrate
 	vector<GNeuralNet*> calibrations;
 	VectorOfPointersHolder<GNeuralNet> hCalibrations(calibrations);
-	size_t neighbors = std::max(size_t(4), std::min(size_t(100), (size_t)sqrt(features.rows())));
+	size_t neighbors = std::max(size_t(4), std::min(size_t(100), (size_t)sqrt(double(features.rows()))));
 #ifdef WINDOWS
 	GPrediction* out = new GPrediction[m_labelDims];
 	ArrayHolder<GPrediction> hOut(out);
@@ -1105,7 +1105,7 @@ void GSupervisedLearner::test()
 	l.newRows(TEST_SIZE);
 	for(size_t i = 0; i < TEST_SIZE; i++)
 	{
-		size_t n = rand.next(3);
+		size_t n = size_t(rand.next(3));
 		if(n == 0)
 		{
 			if(rand.uniform() < 0.15)
