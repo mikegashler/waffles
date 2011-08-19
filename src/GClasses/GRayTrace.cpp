@@ -1589,7 +1589,7 @@ GRayTraceObject* GRayTraceBoundingBoxLeaf::closestIntersection(G3DVector* pRayOr
 
 	// Find the closest intersection
 	G3DReal distance;
-	G3DReal closestDistance = (G3DReal)1e30; // todo: unmagic this value
+	G3DReal closestDistance = (G3DReal)1e30;
 	GRayTraceObject* pClosestObject = NULL;
 	int n;
 	for(n = 0; n < m_nObjectCount; n++)

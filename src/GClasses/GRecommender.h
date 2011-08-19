@@ -60,7 +60,7 @@ public:
 	/// be trained before this method is called. Unlike the predict method,
 	/// this method can operate on row-vectors that were not part of the training
 	/// data.)
-	virtual void impute(double* pVec) = 0;
+	virtual void impute(double* pVec, size_t dims) = 0;
 
 	/// Marshal this object into a DOM that can be converted to a variety
 	/// of formats. (Implementations of this method should use baseDomNode.)
@@ -132,7 +132,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec);
+	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
@@ -176,7 +176,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec);
+	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
@@ -217,7 +217,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec);
+	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
@@ -259,7 +259,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec);
+	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
@@ -311,7 +311,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec);
+	virtual void impute(double* pVec, size_t dims);
 
 	/// Returns the matrix of user preference vectors
 	GMatrix* getP() { return m_pP; }
@@ -338,10 +338,13 @@ protected:
 
 
 
-/// This class trains a neural network to fit the sparse matrix
-/// of ratings. This may be seen as a non-linear generalization of matrix
-/// factorization.
-class GNeuralRecommender : public GCollaborativeFilter
+/// This class trains a neural network to fit to the ratings. Although the name
+/// implies that it is an extension of PCA, I think it is better described as a
+/// non-linear generalization of matrix factorization. This algorithm was published
+/// in Scholz, M. Kaplan, F. Guy, C. L. Kopka, J. Selbig, J., Non-linear PCA: a missing
+/// data approach, In Bioinformatics, Vol. 21, Number 20, pp. 3887-3895, Oxford
+/// University Press, 2005.
+class GNonlinearPCA : public GCollaborativeFilter
 {
 protected:
 	size_t m_intrinsicDims;
@@ -355,13 +358,13 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GNeuralRecommender(size_t intrinsicDims, GRand* pRand);
+	GNonlinearPCA(size_t intrinsicDims, GRand* pRand);
 
 	/// Deserialization constructor
-	GNeuralRecommender(GDomNode* pNode, GRand& rand);
+	GNonlinearPCA(GDomNode* pNode, GRand& rand);
 
 	/// Destructor
-	virtual ~GNeuralRecommender();
+	virtual ~GNonlinearPCA();
 
 	/// Returns a pointer to the neural net that is used to model the recommendation space.
 	/// You may want to use this method to add hidden layers, set the learning rate, or change
@@ -378,7 +381,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec);
+	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
@@ -429,7 +432,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec);
+	virtual void impute(double* pVec, size_t dims);
 
 	/// Delete all of the filters
 	void clear();

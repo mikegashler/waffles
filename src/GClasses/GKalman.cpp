@@ -24,7 +24,8 @@ GExtendedKalmanFilter::GExtendedKalmanFilter(int stateDims, int observationDims,
 	GVec::setAll(m_x, 0.0, stateDims);
 	m_pP = new GMatrix(stateDims, stateDims);
 	m_pP->makeIdentity();
-	m_pP->multiply(1000.0); // todo: inefficient since non-diagonal values are known to be 0
+	for(size_t i = 0; i < m_pP->rows(); i++)
+		m_pP->row(i)[i] *= 1000.0;
 }
 
 GExtendedKalmanFilter::~GExtendedKalmanFilter()

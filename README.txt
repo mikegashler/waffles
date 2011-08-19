@@ -4,12 +4,15 @@ Build Instructions:
 			g++
 			make
 			libpng12-dev
-			libsdl1.2-dev (needed only for some demo apps)
-			freeglut3-dev (needed only for some demo apps)
 		2- cd src
 		3- sudo make install
 
 		If you also want to build the demo apps:
+		4- Install the following dependency packages:
+			libsdl1.2-dev
+			freeglut3-dev
+			libx11-dev
+			libssl-dev
 		4- cd ../demos
 		5- make opt
 
@@ -21,8 +24,8 @@ Build Instructions:
 		4- Change to Release mode.
 		5- Build (F7)
 		6- Set the startup app to the app you want to try.
-		7- Set any arguments in Project->Properties->Debugging->
-		   Command Arguments
+		7- Set any relevant arguments in Project->Properties->
+		   Debugging->Command Arguments
 		8- Run it (F5)
 
 	OSX

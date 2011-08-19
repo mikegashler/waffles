@@ -26,6 +26,7 @@ using std::cerr;
 using std::cout;
 using std::string;
 
+// pow(2.0, 1.0 / 12.0)
 #define HALF_STEP_FACTOR 1.05946309435929526456182529494634170077920431749419
 
 class AmbientNoiseReducer : public GFourierWaveProcessor
@@ -167,6 +168,7 @@ protected:
 				pOut[m_blockSize - i].real = 0.0;
 			}
 		}
+		memcpy(pBuf, m_pBuf, sizeof(struct ComplexNumber) * m_blockSize);
 	}
 };
 
@@ -340,13 +342,10 @@ void pitchShift(GArgReader& args)
 
 	// Parse params
 	size_t blockSize = 2048;
-	double deviations = 2.5;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-blocksize"))
 			blockSize = args.pop_uint();
-		else if(args.if_pop("-deviations"))
-			deviations = args.pop_double();
 		else
 			ThrowError("Unrecognized option: ", args.pop_string());
 	}
@@ -516,14 +515,18 @@ void spectral(GArgReader& args)
 	GImage image;
 	image.setSize(size, height);
 	image.clear(0xffffffff);
-	for(double i = 27.5; i <= 14080; i *= 2)
+	for(double i = 13.75; true; i *= 2)
 	{
-		int x = (int)floor(i * size / w.sampleRate() + 0.5);
+		size_t x = size_t(floor(i * size / w.sampleRate() + 0.5));
+		if(x >= size / 2)
+			break;
 		image.line(x, 0, x, height - 1, 0xff808080);
+		image.line(size - x, 0, size - x, height - 1, 0xff808080);
 		string s = to_str(i);
 		s += "Hz";
 		int tw = image.measureTextWidth(s.c_str(), 1.0);
 		image.text(s.c_str(), x - tw / 2, 10, 1.0, 0xff404040);
+		image.text(s.c_str(), (size - x) - tw / 2, 10, 1.0, 0xff404040);
 	}
 
 	// Plot the Fourier magnitude

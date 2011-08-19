@@ -1099,7 +1099,7 @@ void GLLEHelper::computeWeights()
 #ifdef SPARSE
 	m_pWeights = new GSparseMatrix(nRowCount, nRowCount);
 #else
-	m_pWeights = new GMatrix(nRowCount, nRowCount); // todo: this should be a sparse matrix
+	m_pWeights = new GMatrix(nRowCount, nRowCount);
 #endif
 	for(size_t n = 0; n < nRowCount; n++)
 	{

@@ -44,7 +44,8 @@ void do_neural_network(GRand& rand, GMatrix& features, GMatrix& labels, double* 
 
 void do_knn(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GKNN model(3, &rand); // use the 3-nearest neighbors
+	GKNN model(rand);
+	model.setNeighborCount(3); // use the 3-nearest neighbors
 	model.setInterpolationMethod(GKNN::Linear); // use linear interpolation
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);

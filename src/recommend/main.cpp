@@ -238,12 +238,12 @@ GMatrixFactorization* InstantiateMatrixFactorization(GRand* pRand, GArgReader& a
 	return pModel;
 }
 
-GNeuralRecommender* InstantiateNeuralRecommender(GRand* pRand, GArgReader& args)
+GNonlinearPCA* InstantiateNeuralRecommender(GRand* pRand, GArgReader& args)
 {
 	if(args.size() < 1)
 		ThrowError("The number of intrinsic dims must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
-	GNeuralRecommender* pModel = new GNeuralRecommender(intrinsicDims, pRand);
+	GNonlinearPCA* pModel = new GNonlinearPCA(intrinsicDims, pRand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-addlayer"))

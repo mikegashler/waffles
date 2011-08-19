@@ -585,7 +585,11 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				if(normalizationIsNeeded)
 				{
 					if(m_pFeatureFilter)
-						setFeatureFilter(new GTwoWayTransformChainer(m_pFeatureFilter, new GNormalize(supportedMin, supportedMax)));
+					{
+						GTwoWayIncrementalTransform* pFF = m_pFeatureFilter;
+						m_pFeatureFilter = NULL;
+						setFeatureFilter(new GTwoWayTransformChainer(pFF, new GNormalize(supportedMin, supportedMax))); // (The normalization filter must come second because nominalToCat converts to the range 0-1, which may not be in the range of the model)
+					}
 					else
 						setFeatureFilter(new GNormalize(supportedMin, supportedMax));
 				}
@@ -659,7 +663,11 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				if(normalizationIsNeeded)
 				{
 					if(m_pLabelFilter)
-						setLabelFilter(new GTwoWayTransformChainer(m_pLabelFilter, new GNormalize(supportedMin, supportedMax)));
+					{
+						GTwoWayIncrementalTransform* pLF = m_pLabelFilter;
+						m_pLabelFilter = NULL;
+						setLabelFilter(new GTwoWayTransformChainer(pLF, new GNormalize(supportedMin, supportedMax))); // (The normalization filter must come second because nominalToCat converts to the range 0-1, which may not be in the range of the model)
+					}
 					else
 						setLabelFilter(new GNormalize(supportedMin, supportedMax));
 				}
@@ -1425,7 +1433,7 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode, G
 		else if(strcmp(szClass, "GMatrixFactorization") == 0)
 			return new GMatrixFactorization(pNode, rand);
 		else if(strcmp(szClass, "GNeuralRecommender") == 0)
-			return new GNeuralRecommender(pNode, rand);
+			return new GNonlinearPCA(pNode, rand);
 	}
 	if(m_throwIfClassNotFound)
 		ThrowError("Unrecognized class: ", szClass);

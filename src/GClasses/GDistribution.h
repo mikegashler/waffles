@@ -468,7 +468,7 @@ public:
 		if(m_shape >= 1)
 			return (m_shape - 1) * m_scale;
 		else
-			return 0; // todo: is the mode always zero when m_shape < 1?
+			return 0;
 	}
 
 	/// See the comment for GUnivariateDistribution::logLikelihood
@@ -592,9 +592,9 @@ public:
 		if(m_alpha > 1 && m_beta > 1)
 			return (m_alpha - 1) / (m_alpha + m_beta - 2);
 		else if(m_alpha >= m_beta)
-			return 1; // todo: is this always correct?
+			return 1;
 		else
-			return 0; // todo: is this always correct?
+			return 0;
 	}
 
 	/// See the comment for GUnivariateDistribution::logLikelihood

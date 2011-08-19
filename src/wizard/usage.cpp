@@ -294,6 +294,14 @@ UsageNode* makeAudioUsageTree()
 		pMix->add("[out]=out.wav", "The filename to which to save the results.");
 	}
 	{
+		UsageNode* pPS = pRoot->add("pitchshift [in] [halfsteps] [out]", "Shifts the pitch of a wav file (without changing the rate).");
+		pPS->add("[in]=in.wav", "The filename of an audio track in wav format to pitch-shift.");
+		pPS->add("[halfsteps]=12.0", "The number of half-steps to shift the audio track. Positive values will shift to a higher pitch. Negative values will shift to a lower pitch.");
+		pPS->add("[out]=out.wav", "The filename to which to save the results.");
+		UsageNode* pOpts = pPS->add("<options>");
+		pOpts->add("-blocksize [n]=2048", "Specify the block size. [n] must be a power of 2.");
+	}
+	{
 		UsageNode* pRedNoise = pRoot->add("reduceambientnoise [noise] [in] [out] <options>", "Learns the distribution in [noise], and subtracts it from [in] to generate [out].");
 		pRedNoise->add("[noise]=noise.wav", "The filename of an audio track that samples ambient noise. (This is a recording of your studio with no deliberate noise--just computer fans, light hum, a/c, mic noise, or other nearly-constant sources of noise that are difficult to regulate.)");
 		pRedNoise->add("[in]=in.wav", "The filename of an audio track in wav format from which you would like to remove the ambient noise.");
@@ -309,6 +317,15 @@ UsageNode* makeAudioUsageTree()
 		UsageNode* pOpts = pSan->add("<options>");
 		pOpts->add("-seconds [s]=0.1", "The length of time in seconds over which to decay the volume until it reaches zero. Only segments of at least twice this length will be sanitized (because there must be enough time to fade out, and then fade back in).");
 		pOpts->add("-thresh [t]=0.15", "The volumne threshold (from 0 to 1). Segments that stay below this threshold for a sufficient length of time will be replaced with silence.");
+	}
+	{
+		UsageNode* pSpec = pRoot->add("spectral [in] <options>", "Plots a spectral histogram of the frequencies in a wav file.");
+		pSpec->add("[in]=in.wav", "The filename of an audio track in wav format.");
+		UsageNode* pOpts = pSpec->add("<options>");
+		pOpts->add("-start [pos]=0", "Specify the starting position in the wav file (in samples) to begin sampling.");
+		pOpts->add("-size [n]=4096", "Specify the number of samples to take. This will also be the width of the resulting histogram in pixels. [n] must be a power of 2.");
+		pOpts->add("-height [h]=512", "Specify the height of the chart in pixels.");
+		pOpts->add("-out [filename]=plot.png", "Specify the output filename of the PNG image that is generated.");
 	}
 	{
 		pRoot->add("usage", "Print usage information.");
@@ -389,9 +406,9 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-regularize [value]=0.0001", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small values in the matrix factors.");
 	}
 	{
-		UsageNode* pNeural = pRoot->add("neural [intrinsic] <options>", "A neural-network-based collaborative-filtering algorithm.");
-		pNeural->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
-		UsageNode* pOpts = pNeural->add("<options>");
+		UsageNode* pNLPCA = pRoot->add("nlpca [intrinsic] <options>", "A non-linear PCA collaborative-filtering algorithm. This algorithm was published in Scholz, M. Kaplan, F. Guy, C. L. Kopka, J. Selbig, J., Non-linear PCA: a missing data approach, In Bioinformatics, Vol. 21, Number 20, pp. 3887-3895, Oxford University Press, 2005. It uses a generalization of backpropagation to train a multi-layer perceptron to fit to the known ratings, and to predict unknown values.");
+		pNLPCA->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
+		UsageNode* pOpts = pNLPCA->add("<options>");
 		pOpts->add("-addlayer [size]=8", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
 		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
 		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
@@ -482,7 +499,7 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-squareddistances", "The distances in the distance matrix are squared distances, instead of just distances.");
 	}
 	{
-		UsageNode* pNeuroPCA = pRoot->add("neuropca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with principle component analysis. (Prints results to stdout. The input file is not modified.)");
+		UsageNode* pNeuroPCA = pRoot->add("neuropca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with a non-linear generalization of principle component analysis. (Prints results to stdout. The input file is not modified.)");
 		UsageNode* pOpts = pNeuroPCA->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-clampbias", "Do not let the bias drift from the centroid. (Leaving the bias unclamped typically gives better results with non-linear activation functions. Clamping them to the centroid is necessary if you want results equivalent with PCA.)");

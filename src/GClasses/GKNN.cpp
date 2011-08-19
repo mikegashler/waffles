@@ -662,7 +662,7 @@ void GKNN::clear()
 	delete(m_pLabels); m_pLabels = NULL;
 	delete(m_pScaleFactorOptimizer); m_pScaleFactorOptimizer = NULL;
 	delete(m_pCritic); m_pCritic = NULL;
-	delete(m_pValueCounts); m_pValueCounts = NULL;
+	delete[] m_pValueCounts; m_pValueCounts = NULL;
 }
 
 #ifndef NO_TEST_CODE

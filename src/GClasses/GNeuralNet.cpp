@@ -682,7 +682,7 @@ void GNeuralNet::setWeights(const double* pWeights)
 
 void GNeuralNet::copyWeights(GNeuralNet* pOther)
 {
-	if(!hasTrainingBegun() || !pOther->hasTrainingBegun() == 0)
+	if(!hasTrainingBegun() || !pOther->hasTrainingBegun())
 		ThrowError("train or beginIncrementalLearning must be called on both networks before this method");
 	GAssert(m_layers.size() == pOther->m_layers.size());
 	vector<GNeuralNetLayer>::iterator layerOther = pOther->m_layers.begin();

@@ -279,42 +279,48 @@ public:
 		m_workerMode = 1;
 		if(index == 0)
 		{
-			GKNN* pModel = new GKNN(1, m_pRand);
+			GKNN* pModel = new GKNN(*m_pRand);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 1)
 		{
-			GKNN* pModel = new GKNN(2, m_pRand);
+			GKNN* pModel = new GKNN(*m_pRand);
+			pModel->setNeighborCount(2);
 			pModel->setInterpolationMethod(GKNN::Mean);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 2)
 		{
-			GKNN* pModel = new GKNN(2, m_pRand);
+			GKNN* pModel = new GKNN(*m_pRand);
+			pModel->setNeighborCount(2);
 			pModel->setInterpolationMethod(GKNN::Linear);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 3)
 		{
-			GKNN* pModel = new GKNN(4, m_pRand);
+			GKNN* pModel = new GKNN(*m_pRand);
+			pModel->setNeighborCount(4);
 			pModel->setInterpolationMethod(GKNN::Mean);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 4)
 		{
-			GKNN* pModel = new GKNN(4, m_pRand);
+			GKNN* pModel = new GKNN(*m_pRand);
+			pModel->setNeighborCount(4);
 			pModel->setInterpolationMethod(GKNN::Linear);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 5)
 		{
-			GKNN* pModel = new GKNN(8, m_pRand);
+			GKNN* pModel = new GKNN(*m_pRand);
+			pModel->setNeighborCount(8);
 			pModel->setInterpolationMethod(GKNN::Mean);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 6)
 		{
-			GKNN* pModel = new GKNN(8, m_pRand);
+			GKNN* pModel = new GKNN(*m_pRand);
+			pModel->setNeighborCount(8);
 			pModel->setInterpolationMethod(GKNN::Linear);
 			doSupervisedLearner(pModel);
 		}
@@ -370,7 +376,8 @@ public:
 		}
 		else if(index == 14)
 		{
-			GNaiveInstance* pModel = new GNaiveInstance(20);
+			GNaiveInstance* pModel = new GNaiveInstance();
+			pModel->setNeighbors(20);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 15)

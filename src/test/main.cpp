@@ -403,7 +403,7 @@ void RunAllTests()
 	runTest("GNaiveInstance", GNaiveInstance::test);
 	runTest("GNeuralNet", GNeuralNet::test);
 	runTest("GNeuralNetPseudoInverse", GNeuralNetPseudoInverse::test);
-	runTest("GNeuralRecommender", GNeuralRecommender::test);
+	runTest("GNonlinearPCA", GNonlinearPCA::test);
 	runTest("GPCARotateOnly", GPCARotateOnly::test);
 	runTest("GPolynomial", GPolynomial::test);
 	runTest("GPriorityQueue", GPriorityQueue::test);
