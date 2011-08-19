@@ -140,12 +140,32 @@ protected:
 	{
 		struct ComplexNumber* pIn = pBuf;
 		struct ComplexNumber* pOut = m_pBuf;
-		for(size_t i = 0; i < m_blockSize; i++)
+
+		for(size_t i = 0; i < m_blockSize / 2; i++)
 		{
 			double j = double(i) * m_fac;
-			
-			ThrowError("Sorry, not finished yet");
-			//todo: pOut[i] = interpolate(pIn[floor(j)], pIn[floor(j) + 1])
+			size_t k = size_t(floor(j));
+			double t = j - k;
+			if(k > 0 && k < m_blockSize / 2 - 1)
+				pOut[i].interpolate(pIn[k], t, pIn[k + 1]);
+			else
+			{
+				pOut[i].imag = 0.0;
+				pOut[i].real = 0.0;
+			}
+		}
+		for(size_t i = 1; i <= m_blockSize / 2; i++)
+		{
+			double j = double(i) * m_fac;
+			size_t k = size_t(floor(j));
+			double t = j - k;
+			if(k > 1 && k < m_blockSize / 2)
+				pOut[m_blockSize - i].interpolate(pIn[m_blockSize - k], t, pIn[m_blockSize - (k + 1)]);
+			else
+			{
+				pOut[m_blockSize - i].imag = 0.0;
+				pOut[m_blockSize - i].real = 0.0;
+			}
 		}
 	}
 };
@@ -310,6 +330,35 @@ void mix(GArgReader& args)
 	pW1->save(outputFilename);
 	if(clipped > 0)
 		cout << "Warning: " << to_str((double)clipped * 100 / samples) << "% of samples were clipped!\n";
+}
+
+void pitchShift(GArgReader& args)
+{
+	const char* inputFilename = args.pop_string();
+	double halfSteps = args.pop_double();
+	const char* outputFilename = args.pop_string();
+
+	// Parse params
+	size_t blockSize = 2048;
+	double deviations = 2.5;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-blocksize"))
+			blockSize = args.pop_uint();
+		else if(args.if_pop("-deviations"))
+			deviations = args.pop_double();
+		else
+			ThrowError("Unrecognized option: ", args.pop_string());
+	}
+	if(!GBits::isPowerOfTwo(blockSize))
+		ThrowError("the block size must be a power of 2");
+
+	// Shift pitch
+	GWave wSignal;
+	wSignal.load(inputFilename);
+	PitchShifter ps(blockSize, halfSteps);
+	ps.doit(wSignal);
+	wSignal.save(outputFilename);
 }
 
 void reduceAmbientNoise(GArgReader& args)
@@ -552,6 +601,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("makesilence")) makeSilence(args);
 		else if(args.if_pop("makesine")) makeSine(args);
 		else if(args.if_pop("mix")) mix(args);
+		else if(args.if_pop("pitchshift")) pitchShift(args);
 		else if(args.if_pop("reduceambientnoise")) reduceAmbientNoise(args);
 		else if(args.if_pop("sanitize")) sanitize(args);
 		else if(args.if_pop("spectral")) spectral(args);
