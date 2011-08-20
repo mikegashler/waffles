@@ -39,15 +39,16 @@ Now, let's use cross-validation again to measure accuracy with the same two algo
 
 <h3>Recommendation systems</h3>
 
-<p>Another common use for collaborative filters is to build a recommendation system. If you are trying to build a recommendation system, then you may want to compare your algorithm with our collaborative filters. Cross-validation is a good way to to this:
+<p>Another common use for collaborative filters is to build a recommendation system. For example, suppose you run a company that sells <i>i</i> unique items, and you have <i>u</i> customers (or users). Suppose each user has rated (or expressed an opinion about) a small number of items, but most of the user-item combinations have not been rated. Your task is to predict ratings for all of the unknown user-item pairs.</p>
+
+<p>We approach this problem by expressing your data in a 3-column ARFF file, where column 0 specifies a user ID, column 1 specifies an item ID, and column 2 specifies a rating value. (There is one row in this ARFF file for each known rating. You can then use any of our collaborative filtering algorithms to predict ratings for the unknown user-item pairs.</p>
+
+<p>For example, let's use cross-validation to see how well our matrix factorization collaborative filter does at predicting ratings with your data:</p>
 <pre>
-	waffles_recommend crossvalidate -maxrecs 10 mydata.arff neural 3 -addlayer 8
+	waffles_recommend crossvalidate mydata.arff matrix 6
 </pre>
-In this example, we perform crossvalidaton to measure the accuracy of a neural-network-based collaborative filter, with 3 intrinsic dimensions and 8 hidden nodes. We only measure the prediction error of the 10 items with the highest predicted rating for each user (because real-world users rarely have patience to consider more than a small number of recommended items). The scores that this returns should indicate how well this collaborative-filtering algorithm works with your data, given the assumption that users will only consider about 10 recommendations.</p>
 
-<p>Incidentally, our neural-network-based collaborative filtering algorithm also has some very nice scalability properties, so if you are planning to build a high-traffic web-site, this would be a good algorithm to evaluate.</p>
-
-<p>We also provide functionality to generate precision-recall graphs, and ROC curves, which can be useful for evaluating collaborative filtering algorithms. For full details, see the usage information for the waffles_recommend tool.</p>
+<p>We also provide functionality to generate precision-recall graphs, and ROC curves, which can be useful for evaluating collaborative filtering algorithms. For more details, see the usage information for the waffles_recommend tool.</p>
 
 
 

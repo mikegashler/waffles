@@ -411,7 +411,7 @@ int doBandwidthClient(GArgReader& args)
 		{
 			// Let Windows have a chance to pump messages through
 #ifdef WINDOWS
-			GWindows::yieldToWindows();
+			GWindows::yield();
 			Sleep(0);
 #endif
 		}
@@ -439,7 +439,7 @@ int doBandwidthClient(GArgReader& args)
 	{
 		// Let Windows have a chance to pump messages through
 #ifdef WINDOWS
-		GWindows::yieldToWindows();
+		GWindows::yield();
 		Sleep(0);
 #endif
 	}
@@ -495,7 +495,7 @@ int doBandwidthServer(GArgReader& args)
 
                 // Let Windows have a chance to pump messages through
 #ifdef WINDOWS
-		GWindows::yieldToWindows();
+		GWindows::yield();
 		Sleep(0);
 #endif
 	}
