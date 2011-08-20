@@ -699,7 +699,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pOpts = pPredict->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pPredict->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
-		pPredict->add("[dataset]=test.arff", "The filename of a dataset in \".arff\" format. (There should already be placeholder labels in this dataset. The placeholder labels will be replaced in the output by the labels that the model predicts.)");
+		pPredict->add("[dataset]=test.arff", "The filename of a dataset. (There should already be placeholder labels in this dataset. The placeholder labels will be replaced in the output by the labels that the model predicts.)");
 		UsageNode* pDO = pPredict->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -709,7 +709,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pOpts = pPOP->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pPOP->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
-		pPOP->add("[data-set]=train.arff", "The filename of a \".arff\" file from which to obtain meta-data. This can be the training set or the test set. It doesn't matter which, because the data is ignored. Only the meta-data, such as the string names of attribute values, are obtained from this dataset.");
+		pPOP->add("[data-set]=train.arff", "The filename of dataset from which to obtain meta-data. This can be the training set or the test set. It doesn't matter which, because the data is ignored. Only the meta-data, such as the string names of attribute values, are obtained from this dataset.");
 		pPOP->add("[pattern]", "A list of feature values separated by spaces. (A \"?\" may be used for unknown feature values if the model supports using unknown feature values.)");
 		UsageNode* pDO = pPOP->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -721,7 +721,7 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
 		pTest->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
-		pTest->add("[dataset]=test.arff", "The filename of a test dataset in \".arff\" format. (This dataset must have the same number of columns as the dataset with which the model was trained.)");
+		pTest->add("[dataset]=test.arff", "The filename of a test dataset. (This dataset must have the same number of columns as the dataset with which the model was trained.)");
 		UsageNode* pDO = pTest->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -730,8 +730,8 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pTransduce = pRoot->add("transduce <options> [labeled-set] <data_opts1> [unlabeled-set] <data_opts2> [algorithm]", "Predict labels for [unlabeled-set] based on the examples in [labeled-set]. For most algorithms, this is the same as training on [labeled-set] and then predicting labels for [unlabeled-set]. Some algorithms, however, have no models. These can transduce, even though they cannot be trained. The predicted labels are printed to stdout as a \".arff\" file.");
 		UsageNode* pOpts = pTransduce->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pTransduce->add("[labeled-set]=train.arff", "The filename of a dataset in \".arff\" format. The labels in this dataset are used to infer labels for the unlabeled set.");
-		pTransduce->add("[unlabeled-set]=test.arff", "The filename of a dataset in \".arff\" format. This dataset must have placeholder labels, but these will be ignored when predicting new labels.");
+		pTransduce->add("[labeled-set]=train.arff", "The filename of a dataset. The labels in this dataset are used to infer labels for the unlabeled set.");
+		pTransduce->add("[unlabeled-set]=test.arff", "The filename of a dataset. This dataset must have placeholder labels, but these will be ignored when predicting new labels.");
 		UsageNode* pDO1 = pTransduce->add("<data_opts1>");
 		pDO1->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO1->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -744,8 +744,8 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pOpts = pTransAcc->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
-		pTransAcc->add("[training-set]=train.arff", "The filename of a dataset in \".arff\" format. The labels in this dataset are used to infer labels for the unlabeled set.");
-		pTransAcc->add("[test-set]=test.arff", "The filename of a dataset in \".arff\" format. This dataset must have placeholder labels. The placeholder labels will be replaced in the output with the new predicted labels.");
+		pTransAcc->add("[training-set]=train.arff", "The filename of a dataset. The labels in this dataset are used to infer labels for the unlabeled set.");
+		pTransAcc->add("[test-set]=test.arff", "The filename of a dataset. This dataset must have placeholder labels. The placeholder labels will be replaced in the output with the new predicted labels.");
 		UsageNode* pDO1 = pTransAcc->add("<data_opts1>");
 		pDO1->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO1->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -776,7 +776,7 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-reps [value]=5", "Specify the number of repetitions to perform. If not specified, the default is 5.");
 		pOpts->add("-folds [value]=2", "Specify the number of folds to use. If not specified, the default is 2.");
 		pOpts->add("-succinct", "Just report the average accuracy. Do not report deviation, or results at each fold.");
-		pCV->add("[dataset]=data.arff", "The filename of a dataset in \".arff\" format.");
+		pCV->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pDO = pCV->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -788,8 +788,19 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-labeldims [n]=1", "Specify the number of dimensions in the label (output) vector. The default is 1. (Don't confuse this with the number of class labels. It only takes one dimension to specify a class label, even if there are k possible labels.)");
 		pOpts->add("-reps [n]=5", "Specify the number of reps to perform. More reps means it will take longer, but results will be more accurate. The default is 5.");
 		pOpts->add("-samples [n]=100", "Specify the granularity at which to measure recall. If not specified, the default is 100.");
-		pPR->add("[dataset]=data.arff", "The filename of a dataset in \".arff\" format.");
+		pPR->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pDO = pPR->add("<data_opts>");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+	}
+	{
+		UsageNode* pSter = pRoot->add("sterilize <options> [dataset] <data_opts> [algorithm]", "Perform cross-validation to generate a new dataset that contains only the correctly-classified instances. The new sterilized data is printed to stdout.");
+		UsageNode* pOpts = pSter->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pOpts->add("-folds [n]=10", "Specify the number of cross-validation folds to perform.");
+		pOpts->add("-diffthresh [d]=0.1", "Specify a threshold of absolute difference for continuous labels. Predictions with an absolute difference less than this threshold are considered to be \"correct\".");
+		pSter->add("[dataset]=data.arff", "The filename of a dataset to sterilize.");
+		UsageNode* pDO = pSter->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
@@ -875,7 +886,7 @@ UsageNode* makePlotUsageTree()
 	UsageNode* pRoot = new UsageNode("waffles_plot [command]", "Visualize data, plot functions, make charts, etc.");
 	{
 		UsageNode* p3d = pRoot->add("3d [dataset] <options>", "Make a 3d scatter plot. Points are colored with a spectrum according to their order in the dataset.");
-		p3d->add("[dataset]=data.arff", "The filename of an arff file containing the data to plot. It must have exactly 3 continuous attributes.");
+		p3d->add("[dataset]=data.arff", "The filename of a dataset to plot. It must have exactly 3 continuous attributes.");
 		UsageNode* pOpts = p3d->add("<options>");
 		pOpts->add("-blast", "Produce a 5-by-5 grid of renderings, each time using a random point of view. It will print the random camera directions that it selects to stdout.");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -890,7 +901,7 @@ UsageNode* makePlotUsageTree()
 	}
 	{
 		UsageNode* pBar = pRoot->add("bar [dataset] <options>", "Make a bar chart.");
-		pBar->add("[dataset]=data.arff", "The filename of an arff file containing the data for the bar chart. The dataset must contain exactly one continuous attribute. Each data row specifies the height of a bar.");
+		pBar->add("[dataset]=data.arff", "The filename of a dataset for the bar chart. The dataset must contain exactly one continuous attribute. Each data row specifies the height of a bar.");
 		UsageNode* pOpts = pBar->add("<options>");
 		pOpts->add("-log", "Use a logarithmic scale.");
 		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
@@ -912,7 +923,7 @@ UsageNode* makePlotUsageTree()
 	}
 	{
 		UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram.");
-		pHist->add("[dataset]=samples.arff", "The filename of an arff file containing the data for the histogram.");
+		pHist->add("[dataset]=samples.arff", "The filename of a dataset for the histogram.");
 		UsageNode* pOpts = pHist->add("<options>");
 		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
 		pOpts->add("-attr [index]=0", "Specify which attribute is charted. (The default is 0.)");
@@ -979,7 +990,7 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
 		pOpts->add("-neighbors [neighbor-finder]", "Draw lines connecting each point with its neighbors as determined by the specified neighbor finding algorithm.");
 	}
-	pRoot->add("percentsame [dataset1] [dataset2]", "Given two arff "
+	pRoot->add("percentsame [dataset1] [dataset2]", "Given two "
 		   "data files, counts the number of identical values in the "
 		   "same place in each dataset.  Prints as a percent for "
 		   "each column.  The data files must have the same "
@@ -987,7 +998,7 @@ UsageNode* makePlotUsageTree()
 		   "of rows.");
 	{
 		UsageNode* pStats = pRoot->add("stats [dataset]", "Prints some basic stats about the dataset to stdout.");
-		pStats->add("[dataset]=data.arff", "The filename of an arff file.");
+		pStats->add("[dataset]=data.arff", "The filename of a dataset.");
 	}
 	{
 		pRoot->add("usage", "Print usage information.");
@@ -1006,38 +1017,38 @@ UsageNode* makeRecommendUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("waffles_recommend [command]", "Predict missing values in data, and test collaborative-filtering recommendation systems.");
 	{
-		UsageNode* pCV = pRoot->add("crossvalidate <options> [sparse-data] [collab-filter]", "Measure accuracy using cross-validation. Prints MSE and MAE to stdout.");
+		UsageNode* pCV = pRoot->add("crossvalidate <options> [3col-data] [collab-filter]", "Measure accuracy using cross-validation. Prints MSE and MAE to stdout.");
 		UsageNode* pOpts = pCV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-folds [n]=2", "Specify the number of folds. If not specified, the default is 2.");
-		pCV->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+		pCV->add("[3col-data]=ratings.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
 		UsageNode* pFMV = pRoot->add("fillmissingvalues <options> [data] [collab-filter]", "Fill in the missing values in an ARFF file with predicted values and print the resulting full dataset to stdout.");
 		UsageNode* pOpts = pFMV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pFMV->add("[data]=data.arff", "The filename of a dataset.");
+		pFMV->add("[data]=data.arff", "The filename of a dataset with missing values to impute.");
 	}
 	{
-		UsageNode* pPR = pRoot->add("precisionrecall <options> [sparse-data] [collab-filter]", "Compute precision-recall data");
+		UsageNode* pPR = pRoot->add("precisionrecall <options> [3col-data] [collab-filter]", "Compute precision-recall data");
 		UsageNode* pOpts = pPR->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
-		pPR->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+		pPR->add("[3col-data]=ratings.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
-		UsageNode* pROC = pRoot->add("roc <options> [sparse-data] [collab-filter]", "Compute data for an ROC curve. (The area under the curve will appear in the comments at the top of the data.)");
+		UsageNode* pROC = pRoot->add("roc <options> [3col-data] [collab-filter]", "Compute data for an ROC curve. (The area under the curve will appear in the comments at the top of the data.)");
 		UsageNode* pOpts = pROC->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
-		pROC->add("[sparse-data]=ratings.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+		pROC->add("[3col-data]=ratings.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
 		UsageNode* pTransacc = pRoot->add("transacc <options> [train] [test] [collab-filter]", "Train using [train], then test using [test]. Prints MSE and MAE to stdout.");
 		UsageNode* pOpts = pTransacc->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pTransacc->add("[train]=train.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
-		pTransacc->add("[test]=test.arff", "The filename of a sparse matrix where rows indicate users, columns indicate items, and elements in the matrix indicate ratings. Alternatively, you may specify the filename of a 3-column dense ARFF file where each row specifies a user-id, item-id, and rating.");
+		pTransacc->add("[train]=train.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
+		pTransacc->add("[test]=test.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
 		pRoot->add("usage", "Print usage information.");

@@ -149,7 +149,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib  GClasses.lib GSup.lib"
+				AdditionalDependencies="shell32.lib user32.lib wsock32.lib Ws2_32.lib libpng.lib zlib.lib GClasses.lib"
 				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"

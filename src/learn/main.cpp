@@ -1384,6 +1384,111 @@ void PrecisionRecall(GArgReader& args)
 	results.print(cout);
 }
 
+void sterilize(GArgReader& args)
+{
+	// Parse options
+	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	size_t folds = 10;
+	double diffThresh = 0.1;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-seed"))
+			seed = args.pop_uint();
+		else if(args.if_pop("-folds"))
+			folds = args.pop_uint();
+		else if(args.if_pop("-diffthresh"))
+			diffThresh = args.pop_double();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	// Load the data
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
+
+	// Instantiate the modeler
+	GRand prng(seed);
+	GTransducer* pTransducer = InstantiateAlgorithm(&prng, args, pFeatures, pLabels);
+	Holder<GTransducer> hModel(pTransducer);
+	if(args.size() > 0)
+		ThrowError("Superfluous argument: ", args.peek());
+
+	// Sterilize
+	GMatrix sterileFeatures(pFeatures->relation());
+	GReleaseDataHolder hSterileFeatures(&sterileFeatures);
+	GMatrix sterileLabels(pLabels->relation());
+	GReleaseDataHolder hSterileLabels(&sterileLabels);
+	for(size_t fold = 0; fold < folds; fold++)
+	{
+		// Split the data
+		GMatrix trainFeatures(pFeatures->relation());
+		GReleaseDataHolder hTrainFeatures(&trainFeatures);
+		GMatrix trainLabels(pLabels->relation());
+		GReleaseDataHolder hTrainLabels(&trainLabels);
+		GMatrix testFeatures(pFeatures->relation());
+		GReleaseDataHolder hTestFeatures(&testFeatures);
+		GMatrix testLabels(pLabels->relation());
+		GReleaseDataHolder hTestLabels(&testLabels);
+		size_t foldBegin = fold * pFeatures->rows() / folds;
+		size_t foldEnd = (fold + 1) * pFeatures->rows() / folds;
+		for(size_t i = 0; i < foldBegin; i++)
+		{
+			trainFeatures.takeRow(pFeatures->row(i));
+			trainLabels.takeRow(pLabels->row(i));
+		}
+		for(size_t i = foldBegin; i < foldEnd; i++)
+		{
+			testFeatures.takeRow(pFeatures->row(i));
+			testLabels.takeRow(pLabels->row(i));
+		}
+		for(size_t i = foldEnd; i < pFeatures->rows(); i++)
+		{
+			trainFeatures.takeRow(pFeatures->row(i));
+			trainLabels.takeRow(pLabels->row(i));
+		}
+
+		// Transduce
+		GMatrix* pPredictedLabels = pTransducer->transduce(trainFeatures, trainLabels, testFeatures);
+		Holder<GMatrix> hPredictedLabels(pPredictedLabels);
+
+		// Keep only the correct predictions
+		for(size_t j = 0; j < testLabels.rows(); j++)
+		{
+			double* pTarget = testLabels[j];
+			double* pPredicted = pPredictedLabels->row(j);
+			for(size_t i = 0; i < testLabels.cols(); i++)
+			{
+				size_t vals = testLabels.relation()->valueCount(i);
+				bool goodEnough = false;
+				if(vals == 0)
+				{
+					if(std::abs(*pTarget - *pPredicted) < diffThresh)
+						goodEnough = true;
+				}
+				else
+				{
+					if(*pTarget == *pPredicted)
+						goodEnough = true;
+				}
+				if(goodEnough)
+				{
+					sterileFeatures.takeRow(testFeatures[j]);
+					sterileLabels.takeRow(testLabels[j]);
+				}
+				pTarget++;
+				pPredicted++;
+			}
+		}
+	}
+
+	// Merge the sterile features and labels
+	GMatrix* pSterile = GMatrix::mergeHoriz(&sterileFeatures, &sterileLabels);
+	Holder<GMatrix> hSterile(pSterile);
+	pSterile->print(cout);
+}
+
 class MyRecurrentModel : public GRecurrentModel
 {
 protected:
@@ -1664,6 +1769,8 @@ int main(int argc, char *argv[])
 				CrossValidate(args);
 			else if(args.if_pop("precisionrecall"))
 				PrecisionRecall(args);
+			else if(args.if_pop("sterilize"))
+				sterilize(args);
 			else if(args.if_pop("trainrecurrent"))
 				trainRecurrent(args);
 			else
