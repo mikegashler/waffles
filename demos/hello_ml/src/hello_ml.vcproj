@@ -64,7 +64,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib SDL.lib sdlmain.lib GSup_DebugVersion.lib GClasses_DebugVersion.lib"
+				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib SDL.lib sdlmain.lib GClasses_DebugVersion.lib"
 				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
@@ -149,7 +149,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib SDL.lib sdlmain.lib GSup.lib GClasses.lib"
+				AdditionalDependencies="shell32.lib user32.lib libpng.lib zlib.lib SDL.lib sdlmain.lib GClasses.lib"
 				OutputFile="$(OutDir)/$(ProjectName).exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"

@@ -8,16 +8,16 @@
 
 #include <exception>
 #include <iostream>
-#include <GClasses/GApp.h>
-#include <GClasses/GBits.h>
-#include <GClasses/GError.h>
-#include <GClasses/GFile.h>
-#include <GClasses/GHolders.h>
-#include <GClasses/GImage.h>
-#include <GClasses/GFourier.h>
-#include <GClasses/GMath.h>
-#include <GClasses/GVec.h>
-#include <GClasses/GWave.h>
+#include "../GClasses/GApp.h"
+#include "../GClasses/GBits.h"
+#include "../GClasses/GError.h"
+#include "../GClasses/GFile.h"
+#include "../GClasses/GHolders.h"
+#include "../GClasses/GImage.h"
+#include "../GClasses/GFourier.h"
+#include "../GClasses/GMath.h"
+#include "../GClasses/GVec.h"
+#include "../GClasses/GWave.h"
 #include <cmath>
 #include "../wizard/usage.h"
 

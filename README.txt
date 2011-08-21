@@ -34,7 +34,7 @@ Build Instructions:
 		11- Set the startup app to the app you want to try.
 		12- Run it (F5).
 
-	OSX
+	OSX:
 		1- Install Fink (a unix package manager).
 		2- Install the following packages.
 			g++
