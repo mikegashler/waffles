@@ -383,6 +383,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GChess.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GChess.h"
+			>
+		</File>
+		<File
 			RelativePath="GCluster.cpp"
 			>
 			<FileConfiguration
@@ -830,6 +838,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GKalman.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GKalman.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GKernelTrick.cpp"
 			>
 		</File>
@@ -1257,6 +1273,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GRect.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GRect.h"
+			>
+		</File>
+		<File
 			RelativePath="GRegion.cpp"
 			>
 			<FileConfiguration
@@ -1300,11 +1324,27 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GSDL.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GSDL.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GSelfOrganizingMap.cpp"
 			>
 		</File>
 		<File
 			RelativePath=".\GSelfOrganizingMap.h"
+			>
+		</File>
+		<File
+			RelativePath=".\GSmtp.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GSmtp.h"
 			>
 		</File>
 		<File
@@ -1582,11 +1622,27 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GWidgets.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GWidgets.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GWindows.cpp"
 			>
 		</File>
 		<File
 			RelativePath=".\GWindows.h"
+			>
+		</File>
+		<File
+			RelativePath=".\png.h"
+			>
+		</File>
+		<File
+			RelativePath=".\pngconf.h"
 			>
 		</File>
 		<File
@@ -1607,6 +1663,14 @@
 		</File>
 		<File
 			RelativePath=".\uitypes.h"
+			>
+		</File>
+		<File
+			RelativePath=".\zconf.h"
+			>
+		</File>
+		<File
+			RelativePath=".\zlib.h"
 			>
 		</File>
 	</Files>
