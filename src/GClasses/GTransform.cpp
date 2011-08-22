@@ -123,6 +123,12 @@ void GTwoWayTransformChainer::untransformToDistribution(const double* pIn, GPred
 // ---------------------------------------------------------------
 
 // virtual
+GIncrementalTransform::~GIncrementalTransform()
+{
+	delete[] m_pInnerBuf;
+}
+
+// virtual
 GMatrix* GIncrementalTransform::doit(GMatrix& in)
 {
 	train(in);

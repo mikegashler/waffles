@@ -385,7 +385,7 @@ class GImageTweaker
 	double m_translatePixels;
 	double m_zoomFactor;
 	double m_cx, m_cy;
-	double m_params[4];
+	double m_params[4]; // zoom, rotate, h-translate, v-translate
 
 public:
 	/// if rotateDegrees is 30.0, then it will rotate the image up to 15.0 degrees in either direction.
@@ -408,6 +408,10 @@ public:
 
 	/// Returns the height of the images
 	size_t hgt() { return m_hgt; }
+
+#ifndef NO_TEST_CODE
+	static void test(const char* filename);
+#endif
 
 protected:
 	void interpolate(const double* pRow, double x, double y, double* pOut);

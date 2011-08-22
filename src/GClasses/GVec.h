@@ -193,6 +193,7 @@ public:
 	/// channels must be 1 or 3 (for grayscale or rgb)
 	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
 	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
+	/// pVec must be big enough to hold width * height * channels values.
 	static void fromImage(GImage* pImage, double* pVec, int width, int height, int channels, double range);
 
 	/// Sets each value, v, to MIN(cap, v)

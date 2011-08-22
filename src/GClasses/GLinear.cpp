@@ -36,8 +36,7 @@ GLinearRegressor::GLinearRegressor(GDomNode* pNode, GRand* pRand)
 // virtual
 GLinearRegressor::~GLinearRegressor()
 {
-	delete(m_pBeta);
-	delete[] m_pEpsilon;
+	clear();
 }
 
 // virtual
@@ -54,6 +53,7 @@ void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learnin
 	size_t fDims = features.cols();
 	size_t lDims = labels.cols();
 	size_t* pIndexes = new size_t[features.rows()];
+	ArrayHolder<size_t> hIndexes(pIndexes);
 	GIndexVec::makeIndexVec(pIndexes, features.rows());
 	for(size_t i = 0; i < epochs; i++)
 	{
@@ -134,6 +134,8 @@ void GLinearRegressor::clear()
 {
 	delete(m_pBeta);
 	m_pBeta = NULL;
+	delete[] m_pEpsilon;
+	m_pEpsilon = NULL;
 }
 
 void GLinearRegressor::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)

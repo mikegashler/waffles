@@ -64,6 +64,7 @@ double GCollaborativeFilter::crossValidate(GMatrix& data, size_t folds, GRand* p
 	// Randomly assign each rating to one of the folds
 	size_t ratings = data.rows();
 	size_t* pFolds = new size_t[ratings];
+	ArrayHolder<size_t> hFolds(pFolds);
 	for(size_t i = 0; i < ratings; i++)
 		pFolds[i] = (size_t)pRand->next(folds);
 
@@ -1149,7 +1150,9 @@ void GNonlinearPCA::train(GMatrix& data)
 	// Copy and normalize the ratings
 	GMatrix* pClone = data.clone();
 	Holder<GMatrix> hClone(pClone);
+	delete[] m_pMins;
 	m_pMins = new double[items];
+	delete[] m_pMaxs;
 	m_pMaxs = new double[items];
 	GVec::setAll(m_pMins, 1e200, items);
 	GVec::setAll(m_pMaxs, -1e200, items);

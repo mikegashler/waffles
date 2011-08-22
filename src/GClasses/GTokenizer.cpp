@@ -114,6 +114,8 @@ GTokenizer::GTokenizer(const char* pFile, size_t len)
 
 GTokenizer::~GTokenizer()
 {
+	for(map<string,GCharGroup*>::iterator it = m_charGroups.begin(); it != m_charGroups.end(); it++)
+		delete(it->second);
 	delete[] m_pBufStart;
 	delete(m_pStream);
 }

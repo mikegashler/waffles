@@ -105,19 +105,18 @@ void GAgglomerativeClusterer::cluster(GMatrix* pData)
 
 	// Find enough neighbors to form a connected graph
 	GNeighborFinderCacheWrapper* pNF = NULL;
+	Holder<GNeighborFinderCacheWrapper> hNF;
 	size_t neighbors = 6;
 	while(true)
 	{
 		GKdTree* pKdTree = new GKdTree(pData, neighbors, m_pMetric, false);
 		pNF = new GNeighborFinderCacheWrapper(pKdTree, true);
+		hNF.reset(pNF);
 		pNF->fillCache();
 		if(pNF->isConnected())
 			break;
 		if(neighbors + 1 >= pData->rows())
-		{
-			delete(pNF);
 			ThrowError("internal problem--a graph with so many neighbors must be connected");
-		}
 		neighbors = std::min((neighbors * 3) / 2, pData->rows() - 1);
 	}
 

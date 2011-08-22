@@ -52,7 +52,7 @@ protected:
 public:
 	GIncrementalTransform() : GTransform(), m_pInnerBuf(NULL) {}
 	GIncrementalTransform(GDomNode* pNode) : GTransform(pNode), m_pInnerBuf(NULL) {}
-	virtual ~GIncrementalTransform() {}
+	virtual ~GIncrementalTransform();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) = 0;

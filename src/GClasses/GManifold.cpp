@@ -2090,15 +2090,15 @@ double* GImageTweaker::pickParams(GRand& rand)
 void GImageTweaker::transformedPix(const double* pRow, size_t x, size_t y, double* pOut)
 {
 	double xx = double(x) - m_cx;
-	double yy = double(x) - m_cy;
+	double yy = double(y) - m_cy;
 	double* pParam = m_params;
 	double radius = sqrt(xx * xx + yy * yy) * pow(m_zoomFactor, 2 * (*pParam) - 1.0);
 	pParam++;
 	double angle = atan2(yy, xx) + (*pParam - 0.5) * m_rotateRads;
 	pParam++;
-	xx = radius * cos(angle) + (*pParam - 0.5) * m_translatePixels;
+	xx = m_cx + radius * cos(angle) + (*pParam - 0.5) * m_translatePixels;
 	pParam++;
-	yy = radius * sin(angle) + (*pParam - 0.5) * m_translatePixels;
+	yy = m_cy + radius * sin(angle) + (*pParam - 0.5) * m_translatePixels;
 	interpolate(pRow, xx, yy, pOut);
 }
 
@@ -2147,7 +2147,59 @@ void GImageTweaker::interpolate(const double* pRow, double x, double y, double* 
 	GVec::addScaled(pOut, u, pA + m_channels, m_channels);
 }
 
+#ifndef NO_TEST_CODE
+void GImageTweaker_makeImage(GImage& image, GImageTweaker& tweaker, double* pVec, double* pParams, double zoom, double rot, double htrans, double vtrans, const char* filename)
+{
+	pParams[0] = zoom;
+	pParams[1] = rot;
+	pParams[2] = htrans;
+	pParams[3] = vtrans;
+	double pix[3];
+	GImage imageOut;
+	imageOut.setSize(image.width(), image.height());
+	for(int y = 0; y < (int)image.height(); y++)
+	{
+		for(int x = 0; x < (int)image.width(); x++)
+		{
+			tweaker.transformedPix(pVec, x, y, pix);
+			imageOut.setPixel(x, y, gARGB(0xff, (int)pix[0], (int)pix[1], (int)pix[2]));
+		}
+	}
+	imageOut.savePng(filename);
+}
 
+// static
+void GImageTweaker::test(const char* filename)
+{
+	GRand rand(0);
+	GImage image;
+	image.loadPng(filename);
+	double* pVec = new double[image.width() * image.height() * 3];
+	ArrayHolder<double> hVec(pVec);
+	GVec::fromImage(&image, pVec, image.width(), image.height(), 3, 255.0);
+	GImageTweaker tweaker(image.width(), image.height(), 3, 90.0, 0.5, 2.0);
+	double* pParams = tweaker.pickParams(rand);
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.0, 0.5, 0.5, 0.5, "zoom1.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.25, 0.5, 0.5, 0.5, "zoom2.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.75, 0.5, 0.5, 0.5, "zoom3.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 1.0, 0.5, 0.5, 0.5, "zoom4.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.0, 0.5, 0.5, "rot1.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.25, 0.5, 0.5, "rot2.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.75, 0.5, 0.5, "rot3.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 1.0, 0.5, 0.5, "rot4.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.5, 0.0, 0.5, "h1.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.5, 0.25, 0.5, "h2.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.5, 0.75, 0.5, "h3.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.5, 1.0, 0.5, "h4.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.5, 0.5, 0.0, "v1.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.5, 0.5, 0.25, "v2.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.5, 0.5, 0.75, "v3.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.5, 0.5, 0.5, 1.0, "v4.png");
+	GImageTweaker_makeImage(image, tweaker, pVec, pParams, 0.25, 0.25, 0.25, 0.25, "all.png");
+
+	// todo: find an automated way to examine the results
+}
+#endif
 
 
 

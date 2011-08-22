@@ -1139,6 +1139,7 @@ void GSubImageFinder2::findSubImage(int* pOutX, int* pOutY, GImage* pNeedle, GRe
 			if(iters - cands[i]->m_lastPassIter >= 32)
 			{
 				size_t last = cands.size() - 1;
+				delete(cands[i]);
 				std::swap(cands[i], cands[last]);
 				cands.erase(cands.begin() + last);
 				i--;
