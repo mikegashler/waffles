@@ -18,6 +18,7 @@
 #include "GCluster.h"
 #include "GString.h"
 #include "GNeuralNet.h"
+#include "GRecommender.h"
 #include <stdlib.h>
 #include <vector>
 #include <algorithm>
@@ -78,7 +79,7 @@ GTwoWayTransformChainer::~GTwoWayTransformChainer()
 GDomNode* GTwoWayTransformChainer::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before serialize");
+		ThrowError("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GTwoWayTransformChainer");
 	pNode->addField(pDoc, "first", m_pFirst->serialize(pDoc));
 	pNode->addField(pDoc, "second", m_pSecond->serialize(pDoc));
@@ -139,7 +140,7 @@ GMatrix* GIncrementalTransform::doit(GMatrix& in)
 GMatrix* GIncrementalTransform::transformBatch(GMatrix& in)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("neither train nor enableIncrementalTraining has been called");
+		ThrowError("train has been called");
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(after());
 	Holder<GMatrix> hOut(pOut);
@@ -162,7 +163,7 @@ double* GIncrementalTransform::innerBuf()
 GMatrix* GTwoWayIncrementalTransform::untransformBatch(GMatrix& in)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("neither train nor enableIncrementalTraining has been called");
+		ThrowError("train has been called");
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(before());
 	pOut->newRows(nRows);
@@ -200,7 +201,7 @@ GPCA::~GPCA()
 GDomNode* GPCA::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before serialize");
+		ThrowError("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GPCA");
 	pNode->addField(pDoc, "dims", pDoc->newInt(m_targetDims));
 	pNode->addField(pDoc, "basis", m_pBasisVectors->serialize(pDoc));
@@ -488,7 +489,7 @@ GNoiseGenerator::~GNoiseGenerator()
 GDomNode* GNoiseGenerator::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before serialize");
+		ThrowError("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNoiseGenerator");
 	pNode->addField(pDoc, "mean", pDoc->newDouble(m_mean));
 	pNode->addField(pDoc, "dev", pDoc->newDouble(m_deviation));
@@ -541,7 +542,7 @@ GPairProduct::~GPairProduct()
 GDomNode* GPairProduct::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before serialize");
+		ThrowError("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GPairProduct");
 	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
 	pNode->addField(pDoc, "attrs", pDoc->newInt(m_pRelationAfter->size()));
@@ -595,7 +596,7 @@ GAttributeSelector::GAttributeSelector(GDomNode* pNode, GRand* pRand)
 GDomNode* GAttributeSelector::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before serialize");
+		ThrowError("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GAttributeSelector");
 	pNode->addField(pDoc, "labels", pDoc->newInt(m_labelDims));
 	pNode->addField(pDoc, "target", pDoc->newInt(m_targetFeatures));
@@ -806,7 +807,7 @@ void GNominalToCat::train(GMatrix& data)
 GDomNode* GNominalToCat::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before serialize");
+		ThrowError("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNominalToCat");
 	pNode->addField(pDoc, "valueCap", pDoc->newInt(m_valueCap));
 	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
@@ -944,7 +945,7 @@ void GNominalToCat::untransformToDistribution(const double* pIn, GPrediction* pO
 			if(nValues == 0)
 			{
 				GNormalDistribution* pNorm = pOut->makeNormal();
-				pNorm->setMeanAndVariance(*pIn, 1.0);
+				pNorm->setMeanAndVariance(*pIn, 1.0); // todo: should we throw an exception here since we have no way to estimate the variance?
 			}
 			else if(nValues == 1)
 			{
@@ -1034,7 +1035,7 @@ GNormalize::~GNormalize()
 GDomNode* GNormalize::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before serialize");
+		ThrowError("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNormalize");
 	pNode->addField(pDoc, "relation", m_pRelationBefore->serialize(pDoc));
 	pNode->addField(pDoc, "min", pDoc->newDouble(m_min));
@@ -1173,7 +1174,7 @@ GDiscretize::~GDiscretize()
 GDomNode* GDiscretize::serialize(GDom* pDoc)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train or enableIncrementalTraining must be called before serialize");
+		ThrowError("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GDiscretize");
 	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
 	pNode->addField(pDoc, "after", m_pRelationAfter->serialize(pDoc));
@@ -1259,6 +1260,153 @@ void GDiscretize::untransformToDistribution(const double* pIn, GPrediction* pOut
 {
 	ThrowError("Sorry, cannot undiscretize to a distribution");
 }
+
+
+
+
+
+
+GImputeMissingVals::GImputeMissingVals(GRand& rand)
+: m_pCF(NULL), m_pNTC(NULL), m_rand(rand)
+{
+}
+
+GImputeMissingVals::GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll, GRand& rand)
+: GTwoWayIncrementalTransform(pNode), m_rand(rand)
+{
+	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
+	m_pRelationAfter = m_pRelationBefore;
+	m_pCF = ll.loadCollaborativeFilter(pNode->field("cf"), rand);
+	GDomNode* pNTC = pNode->fieldIfExists("ntc");
+	if(pNTC)
+		m_pNTC = new GNominalToCat(pNTC);
+	else
+		m_pNTC = NULL;
+}
+
+// virtual
+GImputeMissingVals::~GImputeMissingVals()
+{
+	delete(m_pCF);
+	delete(m_pNTC);
+}
+
+// virtual
+GDomNode* GImputeMissingVals::serialize(GDom* pDoc)
+{
+	if(!m_pRelationBefore.get())
+		ThrowError("train must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GImputeMissingVals");
+	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
+	pNode->addField(pDoc, "cf", m_pCF->serialize(pDoc));
+	if(m_pNTC)
+		pNode->addField(pDoc, "ntc", m_pNTC->serialize(pDoc));
+	return pNode;
+}
+
+void GImputeMissingVals::setCollaborativeFilter(GCollaborativeFilter* pCF)
+{
+	delete(m_pCF);
+	m_pCF = pCF;
+}
+
+// virtual
+void GImputeMissingVals::train(GMatrix& data)
+{
+	m_pRelationBefore = data.relation();
+	m_pRelationAfter = m_pRelationBefore;
+
+	// Train the nominalToCat filter if needed
+	if(data.relation()->areContinuous(0, data.cols()))
+	{
+		delete(m_pNTC);
+		m_pNTC = NULL;
+	}
+	else if(!m_pNTC)
+	{
+		m_pNTC = new GNominalToCat();
+		m_pNTC->preserveUnknowns();
+	}
+	GMatrix* pData;
+	Holder<GMatrix> hData;
+	if(m_pNTC)
+	{
+		m_pNTC->train(data);
+		pData = m_pNTC->transformBatch(data);
+		hData.reset(pData);
+	}
+	else
+		pData = &data;
+
+	// Train the collaborative filter
+	if(!m_pCF)
+		m_pCF = new GMatrixFactorization(std::max(size_t(2), std::min(size_t(8), data.cols() / 3)), m_rand);
+	m_pCF->trainDenseMatrix(*pData);
+}
+
+// virtual
+void GImputeMissingVals::transform(const double* pIn, double* pOut)
+{
+	// If there are no missing values, just copy it across
+	const double* p = pIn;
+	GRelation& rel = *m_pRelationBefore.get();
+	size_t dims = rel.size();
+	size_t i;
+	for(i = 0; i < dims; i++)
+	{
+		if(rel.valueCount(i) == 0)
+		{
+			if(*p == UNKNOWN_REAL_VALUE)
+				break;
+		}
+		else
+		{
+			if(*p == UNKNOWN_DISCRETE_VALUE)
+				break;
+		}
+		p++;
+	}
+	if(i >= dims)
+	{
+		GVec::copy(pOut, pIn, dims);
+		return;
+	}
+
+	// Convert to all real values if necessary
+	double* pVec;
+	if(m_pNTC)
+	{
+		pVec = m_pNTC->innerBuf();
+		m_pNTC->transform(pIn, pVec);
+		dims = m_pNTC->after()->size();
+	}
+	else
+	{
+		pVec = pOut;
+		GVec::copy(pVec, pIn, dims);
+	}
+
+	// Impute the missing values
+	m_pCF->impute(pVec, dims);
+
+	// Convert back to nominal if necessary
+	if(m_pNTC)
+		m_pNTC->untransform(pVec, pOut);
+}
+
+// virtual
+void GImputeMissingVals::untransform(const double* pIn, double* pOut)
+{
+	GVec::copy(pOut, pIn, m_pRelationAfter->size());
+}
+
+// virtual
+void GImputeMissingVals::untransformToDistribution(const double* pIn, GPrediction* pOut)
+{
+	ThrowError("Sorry, cannot unimpute to a distribution");
+}
+
+
 
 } // namespace GClasses
 

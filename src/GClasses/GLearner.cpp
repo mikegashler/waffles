@@ -666,7 +666,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 					{
 						GTwoWayIncrementalTransform* pLF = m_pLabelFilter;
 						m_pLabelFilter = NULL;
-						setLabelFilter(new GTwoWayTransformChainer(pLF, new GNormalize(supportedMin, supportedMax))); // (The normalization filter must come second because nominalToCat converts to the range 0-1, which may not be in the range of the model)
+						setLabelFilter(new GTwoWayTransformChainer(pLF, new GNormalize(supportedMin, supportedMax))); // (The normalization filter must come second because nominalToCat converts to the range 0-1, which may not be in the range of the model. Also, it is preferable to have the nominalToCat filter come first because it can untransformToDistribution.)
 					}
 					else
 						setLabelFilter(new GNormalize(supportedMin, supportedMax));

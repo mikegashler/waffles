@@ -46,6 +46,11 @@ public:
 	/// attributes in pData should be continuous.
 	virtual void train(GMatrix& data) = 0;
 
+	/// Train from an m-by-n dense matrix, where m is the number of users
+	/// and n is the number of items. All attributes must be
+	/// continuous. Missing values are indicated with UNKNOWN_REAL_VALUE.
+	void trainDenseMatrix(GMatrix& data);
+
 	/// This returns a prediction for how the specified user
 	/// will rate the specified item. (The model must be trained before
 	/// this method is called. Also, some values for that user and

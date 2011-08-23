@@ -454,6 +454,45 @@ public:
 };
 
 
+
+
+class GImputeMissingVals : public GTwoWayIncrementalTransform
+{
+protected:
+	GCollaborativeFilter* m_pCF;
+	GNominalToCat* m_pNTC;
+	GRand& m_rand;
+
+public:
+	/// General-purpose constructor
+	GImputeMissingVals(GRand& rand);
+
+	/// Deserializing constructor
+	GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll, GRand& rand);
+
+	virtual ~GImputeMissingVals();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual void train(GMatrix& data);
+	
+	/// See the comment for GIncrementalTransform::transform
+	virtual void transform(const double* pIn, double* pOut);
+	
+	/// See the comment for GTwoWayIncrementalTransform::untransform
+	virtual void untransform(const double* pIn, double* pOut);
+
+	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+
+	/// Sets the collaborative filter used to impute missing values. Takes
+	/// ownership of pCF. If no collaborative filter is set, the default is to use
+	/// matrix factorization with some typical parameters.
+	void setCollaborativeFilter(GCollaborativeFilter* pCF);
+};
+
 } // namespace GClasses
 
 #endif // __GTRANSFORM_H__

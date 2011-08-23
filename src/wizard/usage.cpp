@@ -975,8 +975,8 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
 		pOpts->add("-logx", "Show the horizontal axis on a logarithmic scale");
 		pOpts->add("-logy", "Show the vertical axis on a logarithmic scale");
-		pOpts->add("-nogrid", "Do not draw any grid lines.");
-		pOpts->add("-novgrid", "Do not draw any vertical grid lines. (This is the same as doing both -novgrid and -nohgrid.)");
+		pOpts->add("-nogrid", "Do not draw any grid lines. (This is the same as doing both -novgrid and -nohgrid.)");
+		pOpts->add("-novgrid", "Do not draw any vertical grid lines.");
 		pOpts->add("-nohgrid", "Do not draw any horizontal grid lines.");
 		pOpts->add("-textsize [size]=1.0", "Sets the label font size. If not specified, the default is 2.0.");
 		pOpts->add("-pointradius [radius]=7.0", "Set the size of the point dots. If not specified, the default is 7.0.");

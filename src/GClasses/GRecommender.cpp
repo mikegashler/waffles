@@ -52,6 +52,35 @@ GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode)
 {
 }
 
+void GCollaborativeFilter::trainDenseMatrix(GMatrix& data)
+{
+	if(!data.relation()->areContinuous(0, data.cols()))
+		ThrowError("GCollaborativeFilter::trainDenseMatrix only supports continuous attributes.");
+
+	// Convert to 3-column form
+	GMatrix* pMatrix = new GMatrix(0, 3);
+	Holder<GMatrix> hMatrix(pMatrix);
+	size_t dims = data.cols();
+	for(size_t i = 0; i < data.rows(); i++)
+	{
+		double* pRow = data.row(i);
+		for(size_t j = 0; j < dims; j++)
+		{
+			if(*pRow != UNKNOWN_REAL_VALUE)
+			{
+				double* pVec = pMatrix->newRow();
+				pVec[0] = i;
+				pVec[1] = j;
+				pVec[2] = *pRow;
+			}
+			pRow++;
+		}
+	}
+
+	// Train
+	train(*pMatrix);
+}
+
 GDomNode* GCollaborativeFilter::baseDomNode(GDom* pDoc, const char* szClassName)
 {
 	GDomNode* pNode = pDoc->newObj();
