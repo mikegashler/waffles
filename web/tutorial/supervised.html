@@ -52,7 +52,8 @@ and
 or
 <pre>
 	GRand rand(0);
-	GKNN model(3, &amp;rand);
+	GKNN model(&amp;rand);
+	model.setNeighborCount(3);
 	model.train(*pFeatures, *pLabels);
 </pre>
 or

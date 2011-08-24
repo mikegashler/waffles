@@ -290,12 +290,11 @@ GDecisionTreeNode* GDecisionTreeNode::deserialize(GDomNode* pNode)
 
 // -----------------------------------------------------------------
 
-GDecisionTree::GDecisionTree(GRand* pRand)
-  : GSupervisedLearner(), m_leafThresh(1), m_maxLevels(0)
+GDecisionTree::GDecisionTree(GRand& rand)
+: GSupervisedLearner(rand), m_leafThresh(1), m_maxLevels(0)
 {
 	m_pRoot = NULL;
 	m_eAlg = GDecisionTree::MINIMIZE_ENTROPY;
-	m_pRand = pRand;
 }
 /*
 GDecisionTree::GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy)
@@ -306,9 +305,8 @@ GDecisionTree::GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInteresti
 	m_pRoot = pThat->m_pRoot->DeepCopy(pThat->m_labelDims, pInterestingNode, ppOutInterestingCopy);
 }
 */
-GDecisionTree::GDecisionTree(GDomNode* pNode, GRand* pRand)
-  : GSupervisedLearner(pNode, *pRand), m_pRand(pRand), m_leafThresh(1), 
-    m_maxLevels(0)
+GDecisionTree::GDecisionTree(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll), m_leafThresh(1), m_maxLevels(0)
 {
 	m_pFeatureRel = GRelation::deserialize(pNode->field("frel"));
 	m_pLabelRel = GRelation::deserialize(pNode->field("lrel"));
@@ -376,7 +374,7 @@ void GDecisionTree::trainInner(GMatrix& features, GMatrix& labels)
 	m_pRoot = buildBranch(tmpFeatures, tmpLabels, attrPool, 0/*depth*/, 4/*tolerance*/);
 }
 
-void GDecisionTree::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GDecisionTree::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Find the best leaf threshold
 	size_t cap = size_t(floor(sqrt(double(features.rows()))));
@@ -385,7 +383,7 @@ void GDecisionTree::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 	for(size_t i = 1; i < cap; i = std::max(i + 1, size_t(i * 1.5)))
 	{
 		m_leafThresh = i;
-		double d = heuristicValidate(features, labels, &rand);
+		double d = heuristicValidate(features, labels);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -473,7 +471,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 		{
 			double info;
 			if(features.relation()->valueCount(*it) == 0)
-				info = GDecisionTree_pickPivotToReduceInfo(features, labels, tmpFeatures, tmpLabels, &pivot, *it, m_pRand);
+				info = GDecisionTree_pickPivotToReduceInfo(features, labels, tmpFeatures, tmpLabels, &pivot, *it, &m_rand);
 			else
 				info = GDecisionTree_measureNominalSplitInfo(features, labels, tmpFeatures, tmpLabels, *it);
 			if(info + 1e-14 < bestInfo) // the small value makes it deterministic across hardware
@@ -497,7 +495,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 		size_t patience = std::max((size_t)6, m_randomDraws * 2);
 		for(size_t i = 0; i < m_randomDraws && patience > 0; i++)
 		{
-			size_t index = (size_t)m_pRand->next(attrPool.size());
+			size_t index = (size_t)m_rand.next(attrPool.size());
 			size_t attr = attrPool[index];
 			double pivot = 0.0;
 			double info;
@@ -505,8 +503,8 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 			{
 				// Pick a random pivot. (Note that this is not a uniform distribution. This
 				// distribution is biased in favor of pivots that will divide the data well.)
-				double a = features[(size_t)m_pRand->next(features.rows())][attr];
-				double b = features[(size_t)m_pRand->next(features.rows())][attr];
+				double a = features[(size_t)m_rand.next(features.rows())][attr];
+				double b = features[(size_t)m_rand.next(features.rows())][attr];
 				pivot = 0.5 * (a + b);
 				if(m_randomDraws > 1)
 					info = GDecisionTree_measureRealSplitInfo(features, labels, tmpFeatures, tmpLabels, attr, pivot);
@@ -537,7 +535,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 		// ratio of homogenous attributes.) Now, we need to be a little more systematic about finding a good
 		// attribute. (This is not specified in the random forest algorithm, but it can make a big difference
 		// with some problems.)
-		size_t k = (size_t)m_pRand->next(attrPool.size());
+		size_t k = (size_t)m_rand.next(attrPool.size());
 		for(size_t i = 0; i < attrPool.size(); i++)
 		{
 			size_t index = (i + k) % attrPool.size();
@@ -560,7 +558,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 					double d = features[j][attr];
 					if(d != UNKNOWN_REAL_VALUE && d > m)
 					{
-						if(m_pRand->next(++candidates) == 0)
+						if(m_rand.next(++candidates) == 0)
 							*pPivot = d;
 					}
 				}
@@ -780,21 +778,21 @@ void GDecisionTree::clear()
 void GDecisionTree::test()
 {
 	{
-		GRand prng(0);
-		GDecisionTree tree(&prng);
-		tree.basicTest(0.69, 0.75, &prng);
+		GRand rand(0);
+		GDecisionTree tree(rand);
+		tree.basicTest(0.69, 0.75);
 	}
 	{
-		GRand prng(0);
-		GDecisionTree ml2Tree(&prng);
+		GRand rand(0);
+		GDecisionTree ml2Tree(rand);
 		ml2Tree.setMaxLevels(2);
-		ml2Tree.basicTest(0.57, 0.65,&prng);
+		ml2Tree.basicTest(0.57, 0.65);
 	}
 	{
-		GRand prng(0);
-		GDecisionTree ml1Tree(&prng);
+		GRand rand(0);
+		GDecisionTree ml1Tree(rand);
 		ml1Tree.setMaxLevels(1);
-		ml1Tree.basicTest(0.33, 0.33,&prng);
+		ml1Tree.basicTest(0.33, 0.33);
 	}
 }
 #endif
@@ -959,13 +957,13 @@ GMeanMarginsTreeNode* GMeanMarginsTreeNode::deserialize(GDomNode* pNode)
 
 // ---------------------------------------------------------------
 
-GMeanMarginsTree::GMeanMarginsTree(GRand* pRand)
-: GSupervisedLearner(), m_internalFeatureDims(0), m_internalLabelDims(0), m_pRoot(NULL), m_pRand(pRand)
+GMeanMarginsTree::GMeanMarginsTree(GRand& rand)
+: GSupervisedLearner(rand), m_internalFeatureDims(0), m_internalLabelDims(0), m_pRoot(NULL)
 {
 }
 
-GMeanMarginsTree::GMeanMarginsTree(GDomNode* pNode, GRand* pRand)
-: GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
+GMeanMarginsTree::GMeanMarginsTree(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
 {
 	m_pRoot = GMeanMarginsTreeNode::deserialize(pNode->field("root"));
 	m_internalFeatureDims = (size_t)pNode->field("ifd")->asInt();
@@ -1002,7 +1000,7 @@ void GMeanMarginsTree::trainInner(GMatrix& features, GMatrix& labels)
 	m_pRoot = buildNode(features, labels, pBuf, pBuf2);
 }
 
-void GMeanMarginsTree::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GMeanMarginsTree::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// This model has no parameters to tune
 }
@@ -1022,7 +1020,7 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 	double* pLabelCentroid = pBuf;
 	labels.centroid(pLabelCentroid);
 	double* pPrincipalComponent = pLabelCentroid + m_internalLabelDims;
-	labels.principalComponentIgnoreUnknowns(pPrincipalComponent, m_internalLabelDims, pLabelCentroid, m_pRand);
+	labels.principalComponentIgnoreUnknowns(pPrincipalComponent, m_internalLabelDims, pLabelCentroid, &m_rand);
 
 	// Compute the centroid of each feature cluster in a manner tolerant of unknown values
 	double* pFeatureCentroid1 = pPrincipalComponent + m_internalLabelDims;
@@ -1085,7 +1083,7 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 	GVec::add(pFeatureCentroid1, pFeatureCentroid2, m_internalFeatureDims);
 	GVec::multiply(pFeatureCentroid1, 0.5, m_internalFeatureDims);
 	GVec::subtract(pFeatureCentroid2, pFeatureCentroid1, m_internalFeatureDims);
-	GVec::safeNormalize(pFeatureCentroid2, m_internalFeatureDims, m_pRand);
+	GVec::safeNormalize(pFeatureCentroid2, m_internalFeatureDims, &m_rand);
 
 	// Make the interior node
 	GMeanMarginsTreeInteriorNode* pNode = new GMeanMarginsTreeInteriorNode(m_internalFeatureDims, pFeatureCentroid1, pFeatureCentroid2);
@@ -1155,9 +1153,9 @@ void GMeanMarginsTree::clear()
 // static
 void GMeanMarginsTree::test()
 {
-	GRand prng(0);
-	GMeanMarginsTree mm(&prng);
-	mm.basicTest(0.70, 0.77, &prng);
+	GRand rand(0);
+	GMeanMarginsTree mm(rand);
+	mm.basicTest(0.70, 0.77);
 }
 #endif
 
@@ -1171,22 +1169,21 @@ void GMeanMarginsTree::test()
 
 
 GRandomForest::GRandomForest(GRand& rand, size_t trees, size_t samples)
-: GSupervisedLearner()
+: GSupervisedLearner(rand)
 {
-	m_pEnsemble = new GBag(&rand);
+	m_pEnsemble = new GBag(rand);
 	for(size_t i = 0; i < trees; i++)
 	{
-		GDecisionTree* pTree = new GDecisionTree(&rand);
+		GDecisionTree* pTree = new GDecisionTree(rand);
 		pTree->useRandomDivisions(samples);
 		m_pEnsemble->addLearner(pTree);
 	}
 }
 
-GRandomForest::GRandomForest(GDomNode* pNode, GRand& rand)
-: GSupervisedLearner(pNode, rand)
+GRandomForest::GRandomForest(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
 {
-	GLearnerLoader ll(true);
-	m_pEnsemble = new GBag(pNode->field("bag"), &rand, &ll);
+	m_pEnsemble = new GBag(pNode->field("bag"), ll);
 }
 
 // virtual
@@ -1233,6 +1230,6 @@ void GRandomForest::test()
 {
 	GRand rand(0);
 	GRandomForest rf(rand, 30);
-	rf.basicTest(0.77, 0.78, &rand, 0.01);
+	rf.basicTest(0.77, 0.78, 0.01);
 }
 #endif

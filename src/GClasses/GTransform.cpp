@@ -36,7 +36,7 @@ GTransform::GTransform()
 {
 }
 
-GTransform::GTransform(GDomNode* pNode)
+GTransform::GTransform(GDomNode* pNode, GLearnerLoader& ll)
 {
 }
 
@@ -60,12 +60,11 @@ GTwoWayTransformChainer::GTwoWayTransformChainer(GTwoWayIncrementalTransform* pF
 {
 }
 
-GTwoWayTransformChainer::GTwoWayTransformChainer(GDomNode* pNode, GRand& rand)
-: GTwoWayIncrementalTransform(pNode)
+GTwoWayTransformChainer::GTwoWayTransformChainer(GDomNode* pNode, GLearnerLoader& ll)
+: GTwoWayIncrementalTransform(pNode, ll)
 {
-	GLearnerLoader ll;
-	m_pFirst = ll.loadTwoWayIncrementalTransform(pNode->field("first"), &rand);
-	m_pSecond = ll.loadTwoWayIncrementalTransform(pNode->field("second"), &rand);
+	m_pFirst = ll.loadTwoWayIncrementalTransform(pNode->field("first"));
+	m_pSecond = ll.loadTwoWayIncrementalTransform(pNode->field("second"));
 }
 
 // virtual
@@ -180,8 +179,8 @@ GPCA::GPCA(size_t targetDims, GRand* pRand)
 {
 }
 
-GPCA::GPCA(GDomNode* pNode, GRand* pRand)
-: GTwoWayIncrementalTransform(pNode), m_pEigVals(NULL), m_pRand(pRand)
+GPCA::GPCA(GDomNode* pNode, GLearnerLoader& ll)
+: GTwoWayIncrementalTransform(pNode, ll), m_pEigVals(NULL), m_pRand(&ll.rand())
 {
 	m_targetDims = (size_t)pNode->field("dims")->asInt();
 	m_pRelationAfter = new GUniformRelation(m_targetDims, 0);
@@ -472,8 +471,8 @@ GNoiseGenerator::GNoiseGenerator(GRand* pRand)
 {
 }
 
-GNoiseGenerator::GNoiseGenerator(GDomNode* pNode, GRand* pRand)
-: GIncrementalTransform(pNode), m_pRand(pRand)
+GNoiseGenerator::GNoiseGenerator(GDomNode* pNode, GLearnerLoader& ll)
+: GIncrementalTransform(pNode, ll), m_pRand(&ll.rand())
 {
 	m_mean = pNode->field("mean")->asDouble();
 	m_deviation = pNode->field("dev")->asDouble();
@@ -525,8 +524,8 @@ GPairProduct::GPairProduct(size_t nMaxDims)
 {
 }
 
-GPairProduct::GPairProduct(GDomNode* pNode)
-: GIncrementalTransform(pNode)
+GPairProduct::GPairProduct(GDomNode* pNode, GLearnerLoader& ll)
+: GIncrementalTransform(pNode, ll)
 {
 	m_maxDims = (size_t)pNode->field("maxDims")->asInt();
 	size_t nAttrsOut = (size_t)pNode->field("attrs")->asInt();
@@ -576,8 +575,8 @@ void GPairProduct::transform(const double* pIn, double* pOut)
 
 // --------------------------------------------------------------------------
 
-GAttributeSelector::GAttributeSelector(GDomNode* pNode, GRand* pRand)
-: GIncrementalTransform(pNode), m_pRand(pRand)
+GAttributeSelector::GAttributeSelector(GDomNode* pNode, GLearnerLoader& ll)
+: GIncrementalTransform(pNode, ll), m_pRand(&ll.rand())
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();
 	m_targetFeatures = (size_t)pNode->field("target")->asInt();
@@ -651,7 +650,7 @@ void GAttributeSelector::train(GMatrix& data)
 		Holder<GMatrix> hFeatures2(pFeatures2);
 
 		// Train a single-layer neural network with the normalized remaining data
-		GNeuralNet nn(m_pRand);
+		GNeuralNet nn(*m_pRand);
 		nn.setWindowSize(30);
 		nn.setImprovementThresh(0.002);
 		nn.train(*pFeatures2, *pLabels);
@@ -734,8 +733,8 @@ GNominalToCat::GNominalToCat(size_t nValueCap)
 {
 }
 
-GNominalToCat::GNominalToCat(GDomNode* pNode)
-: GTwoWayIncrementalTransform(pNode)
+GNominalToCat::GNominalToCat(GDomNode* pNode, GLearnerLoader& ll)
+: GTwoWayIncrementalTransform(pNode, ll)
 {
 	m_valueCap = (size_t)pNode->field("valueCap")->asInt();
 	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
@@ -1009,8 +1008,8 @@ GNormalize::GNormalize(double min, double max)
 {
 }
 
-GNormalize::GNormalize(GDomNode* pNode)
-: GTwoWayIncrementalTransform(pNode)
+GNormalize::GNormalize(GDomNode* pNode, GLearnerLoader& ll)
+: GTwoWayIncrementalTransform(pNode, ll)
 {
 	m_pRelationBefore = GRelation::deserialize(pNode->field("relation"));
 	m_pRelationAfter = m_pRelationBefore;
@@ -1148,8 +1147,8 @@ GDiscretize::GDiscretize(size_t buckets)
 	m_pRanges = NULL;
 }
 
-GDiscretize::GDiscretize(GDomNode* pNode)
-: GTwoWayIncrementalTransform(pNode)
+GDiscretize::GDiscretize(GDomNode* pNode, GLearnerLoader& ll)
+: GTwoWayIncrementalTransform(pNode, ll)
 {
 	m_bucketsIn = (size_t)pNode->field("bucketsIn")->asInt();
 	m_bucketsOut = (size_t)pNode->field("bucketsOut")->asInt();
@@ -1267,19 +1266,19 @@ void GDiscretize::untransformToDistribution(const double* pIn, GPrediction* pOut
 
 
 GImputeMissingVals::GImputeMissingVals(GRand& rand)
-: m_pCF(NULL), m_pNTC(NULL), m_rand(rand)
+: m_pCF(NULL), m_pNTC(NULL), m_rand(rand), m_pLabels(NULL), m_pBatch(NULL)
 {
 }
 
-GImputeMissingVals::GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll, GRand& rand)
-: GTwoWayIncrementalTransform(pNode), m_rand(rand)
+GImputeMissingVals::GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll)
+: GTwoWayIncrementalTransform(pNode, ll), m_rand(ll.rand()), m_pLabels(NULL), m_pBatch(NULL)
 {
 	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
 	m_pRelationAfter = m_pRelationBefore;
-	m_pCF = ll.loadCollaborativeFilter(pNode->field("cf"), rand);
+	m_pCF = ll.loadCollaborativeFilter(pNode->field("cf"));
 	GDomNode* pNTC = pNode->fieldIfExists("ntc");
 	if(pNTC)
-		m_pNTC = new GNominalToCat(pNTC);
+		m_pNTC = new GNominalToCat(pNTC, ll);
 	else
 		m_pNTC = NULL;
 }
@@ -1289,6 +1288,7 @@ GImputeMissingVals::~GImputeMissingVals()
 {
 	delete(m_pCF);
 	delete(m_pNTC);
+	delete(m_pBatch);
 }
 
 // virtual
@@ -1341,7 +1341,7 @@ void GImputeMissingVals::train(GMatrix& data)
 	// Train the collaborative filter
 	if(!m_pCF)
 		m_pCF = new GMatrixFactorization(std::max(size_t(2), std::min(size_t(8), data.cols() / 3)), m_rand);
-	m_pCF->trainDenseMatrix(*pData);
+	m_pCF->trainDenseMatrix(*pData, m_pLabels);
 }
 
 // virtual
@@ -1406,6 +1406,28 @@ void GImputeMissingVals::untransformToDistribution(const double* pIn, GPredictio
 	ThrowError("Sorry, cannot unimpute to a distribution");
 }
 
+// virtual
+GMatrix* GImputeMissingVals::transformBatch(GMatrix& in)
+{
+	GMatrix* pOut = in.clone();
+	size_t dims = in.cols();
+	for(size_t i = 0; i < in.rows(); i++)
+	{
+		double* pVec = in[i];
+		for(size_t j = 0; j < dims; j++)
+		{
+			if(*pVec == UNKNOWN_REAL_VALUE)
+				*pVec = m_pCF->predict(i, j);
+			pVec++;
+		}
+	}
+	return pOut;
+}
+
+void GImputeMissingVals::setLabels(GMatrix* pLabels)
+{
+	m_pLabels = pLabels;
+}
 
 
 } // namespace GClasses

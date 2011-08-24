@@ -223,16 +223,16 @@ struct GNaiveBayesOutputAttr
 
 // --------------------------------------------------------------------
 
-GNaiveBayes::GNaiveBayes(GRand* pRand)
-: GIncrementalLearner(), m_pRand(pRand)
+GNaiveBayes::GNaiveBayes(GRand& rand)
+: GIncrementalLearner(rand)
 {
 	m_pOutputs = NULL;
 	m_equivalentSampleSize = 0.5;
 	m_nSampleCount = 0;
 }
 
-GNaiveBayes::GNaiveBayes(GDomNode* pNode, GRand* pRand)
-: GIncrementalLearner(pNode, *pRand), m_pRand(pRand)
+GNaiveBayes::GNaiveBayes(GDomNode* pNode, GLearnerLoader& ll)
+: GIncrementalLearner(pNode, ll)
 {
 	m_pFeatureRel = GRelation::deserialize(pNode->field("featurerel"));
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
@@ -348,10 +348,10 @@ void GNaiveBayes::predictInner(const double* pIn, double* pOut)
 	if(m_nSampleCount <= 0)
 		ThrowError("You must call train before you call eval");
 	for(size_t n = 0; n < m_pLabelRel->size(); n++)
-		pOut[n] = m_pOutputs[n]->predict(pIn, m_equivalentSampleSize, m_pRand);
+		pOut[n] = m_pOutputs[n]->predict(pIn, m_equivalentSampleSize, &m_rand);
 }
 
-void GNaiveBayes::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GNaiveBayes::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Find the best ess value
 	double bestEss = 0.0;
@@ -359,7 +359,7 @@ void GNaiveBayes::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 	for(double i = 0.0; i < 8; i += 0.25)
 	{
 		m_equivalentSampleSize = i;
-		double d = heuristicValidate(features, labels, &rand);
+		double d = heuristicValidate(features, labels);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -415,7 +415,7 @@ void GNaiveBayes_testMath(GRand* pRand)
 	Holder<GMatrix> hFeatures(pFeatures);
 	GMatrix* pLabels = pTrain->cloneSub(0, 2, pTrain->rows(), 1);
 	Holder<GMatrix> hLabels(pLabels);
-	GNaiveBayes nb(pRand);
+	GNaiveBayes nb(*pRand);
 	nb.setEquivalentSampleSize(0.0);
 	nb.train(*pFeatures, *pLabels);
 	GPrediction out;
@@ -445,8 +445,8 @@ void GNaiveBayes::test()
 {
 	GRand prng(0);
 	GNaiveBayes_testMath(&prng);
-	GNaiveBayes nb(&prng);
-	nb.basicTest(0.77, 0.77, &prng);
+	GNaiveBayes nb(prng);
+	nb.basicTest(0.77, 0.77);
 }
 #endif // !NO_TEST_CODE
 

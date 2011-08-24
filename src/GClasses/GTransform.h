@@ -23,7 +23,7 @@ class GTransform
 {
 public:
 	GTransform();
-	GTransform(GDomNode* pNode);
+	GTransform(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GTransform();
 
 	/// Applies the transformation to pIn and returns the results. For
@@ -51,7 +51,7 @@ protected:
 
 public:
 	GIncrementalTransform() : GTransform(), m_pInnerBuf(NULL) {}
-	GIncrementalTransform(GDomNode* pNode) : GTransform(pNode), m_pInnerBuf(NULL) {}
+	GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll) : GTransform(pNode, ll), m_pInnerBuf(NULL) {}
 	virtual ~GIncrementalTransform();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
@@ -90,7 +90,7 @@ class GTwoWayIncrementalTransform : public GIncrementalTransform
 {
 public:
 	GTwoWayIncrementalTransform() : GIncrementalTransform() {}
-	GTwoWayIncrementalTransform(GDomNode* pNode) : GIncrementalTransform(pNode) {}
+	GTwoWayIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll) : GIncrementalTransform(pNode, ll) {}
 	virtual ~GTwoWayIncrementalTransform() {}
 
 	/// pIn is a previously transformed row, and pOut is a buffer that will hold the untransformed row.
@@ -121,7 +121,7 @@ public:
 	GTwoWayTransformChainer(GTwoWayIncrementalTransform* pFirst, GTwoWayIncrementalTransform* pSecond);
 
 	/// Deserializing constructor
-	GTwoWayTransformChainer(GDomNode* pNode, GRand& rand);
+	GTwoWayTransformChainer(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GTwoWayTransformChainer();
 
 	/// See the comment for GTwoWayIncrementalTransform::serialize
@@ -161,7 +161,7 @@ public:
 	GPCA(size_t targetDims, GRand* pRand);
 
 	/// Load from a DOM.
-	GPCA(GDomNode* pNode, GRand* pRand);
+	GPCA(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GPCA();
 
@@ -235,7 +235,7 @@ public:
 	GNoiseGenerator(GRand* pRand);
 
 	/// Load from a DOM.
-	GNoiseGenerator(GDomNode* pNode, GRand* pRand);
+	GNoiseGenerator(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GNoiseGenerator();
 
@@ -266,7 +266,7 @@ public:
 	GPairProduct(size_t nMaxDims);
 
 	/// Load from a DOM.
-	GPairProduct(GDomNode* pNode);
+	GPairProduct(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GPairProduct();
 
@@ -299,7 +299,7 @@ public:
 	{
 	}
 
-	GAttributeSelector(GDomNode* pNode, GRand* pRand);
+	GAttributeSelector(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GAttributeSelector()
 	{
@@ -345,7 +345,7 @@ public:
 	GNominalToCat(size_t valueCap = 12);
 
 	/// Load from a DOM.
-	GNominalToCat(GDomNode* pNode);
+	GNominalToCat(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GNominalToCat();
 
@@ -392,7 +392,7 @@ public:
 	GNormalize(double min = 0.0, double max = 1.0);
 
 	/// Load from a DOM.
-	GNormalize(GDomNode* pNode);
+	GNormalize(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GNormalize();
 
@@ -433,7 +433,7 @@ public:
 	GDiscretize(size_t buckets = (size_t)-1);
 
 	/// Load from a DOM.
-	GDiscretize(GDomNode* pNode);
+	GDiscretize(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GDiscretize();
 
@@ -462,13 +462,15 @@ protected:
 	GCollaborativeFilter* m_pCF;
 	GNominalToCat* m_pNTC;
 	GRand& m_rand;
+	GMatrix* m_pLabels;
+	GMatrix* m_pBatch;
 
 public:
 	/// General-purpose constructor
 	GImputeMissingVals(GRand& rand);
 
 	/// Deserializing constructor
-	GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll, GRand& rand);
+	GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GImputeMissingVals();
 
@@ -491,6 +493,17 @@ public:
 	/// ownership of pCF. If no collaborative filter is set, the default is to use
 	/// matrix factorization with some typical parameters.
 	void setCollaborativeFilter(GCollaborativeFilter* pCF);
+
+	/// Specify a label matrix that should be appended with the training data.
+	/// This object will not delete pLabels. It is expected that pLabels will remain
+	/// valid at least until after train is next called.
+	void setLabels(GMatrix* pLabels);
+
+	/// Unlike most other transforms, this one assumes that the matrix passed
+	/// to this method is the same that was used to train it. (This assumption
+	/// is necessary in order to utilize the additional label information that
+	/// may be available at training time, which can be important for imputation.)
+	virtual GMatrix* transformBatch(GMatrix& in);
 };
 
 } // namespace GClasses

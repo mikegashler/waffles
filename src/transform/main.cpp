@@ -1250,7 +1250,7 @@ void split(GArgReader& args)
 	// Shuffle if necessary
 	GRand rng(nSeed);
 	if(shouldShuffle){
-	  pData->shuffle(&rng);
+		pData->shuffle(rng);
 	}
 
 	// Split
@@ -1398,7 +1398,7 @@ void Shuffle(GArgReader& args)
 
 	// Shuffle and print
 	GRand prng(nSeed);
-	pData->shuffle(&prng);
+	pData->shuffle(prng);
 	pData->print(cout);
 }
 

@@ -591,18 +591,18 @@ void GPolynomialSingleLabel::test()
 
 
 
-GPolynomial::GPolynomial()
-: m_controlPoints(3)
+GPolynomial::GPolynomial(GRand& rand)
+: GSupervisedLearner(rand), m_controlPoints(3)
 {
 }
 
-GPolynomial::GPolynomial(GDomNode* pNode, GRand& rand)
-: GSupervisedLearner(pNode, rand)
+GPolynomial::GPolynomial(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
 {
 	m_controlPoints = (size_t)pNode->field("controlPoints")->asInt();
 	GDomNode* pPolys = pNode->field("polys");
 	for(GDomListIterator it(pPolys); it.current(); it.advance())
-		m_polys.push_back(new GPolynomialSingleLabel(it.current(), rand));
+		m_polys.push_back(new GPolynomialSingleLabel(it.current(), ll.rand()));
 }
 
 // virtual
@@ -667,7 +667,7 @@ void GPolynomial::predictDistributionInner(const double* pIn, GPrediction* pOut)
 	ThrowError("Sorry, this model cannot predict a distribution");
 }
 
-void GPolynomial::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GPolynomial::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Find the best value for controlPoints
 	size_t bestCP = 3;
@@ -675,7 +675,7 @@ void GPolynomial::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 	for(size_t i = 3; i < 7; i++)
 	{
 		m_controlPoints = i;
-		double d = heuristicValidate(features, labels, &rand);
+		double d = heuristicValidate(features, labels);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -694,9 +694,9 @@ void GPolynomial::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 void GPolynomial::test()
 {
 	GPolynomialSingleLabel::test();
-	GPolynomial poly;
 	GRand prng(0);
-	poly.basicTest(0.78, -1.0/*skip it*/, &prng);
+	GPolynomial poly(prng);
+	poly.basicTest(0.78, -1.0/*skip it*/);
 }
 #endif // NO_TEST_CODE
 

@@ -29,10 +29,10 @@ protected:
 
 public:
 	/// It will have the same number of control points in every feature dimension
-	GPolynomial();
+	GPolynomial(GRand& rand);
 
 	/// Load from a DOM.
-	GPolynomial(GDomNode* pNode, GRand& rand);
+	GPolynomial(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GPolynomial();
 
@@ -46,7 +46,7 @@ public:
 
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.

@@ -76,8 +76,8 @@ public:
 
 // -----------------------------------------------------------
 
-GNaiveInstance::GNaiveInstance()
-: GIncrementalLearner(), m_pHeap(NULL)
+GNaiveInstance::GNaiveInstance(GRand& rand)
+: GIncrementalLearner(rand), m_pHeap(NULL)
 {
 	m_nNeighbors = 12;
 	m_pAttrs = NULL;
@@ -86,8 +86,8 @@ GNaiveInstance::GNaiveInstance()
 	m_pValueSums = NULL;
 }
 
-GNaiveInstance::GNaiveInstance(GDomNode* pNode, GRand& rand)
-: GIncrementalLearner(pNode, rand), m_pHeap(NULL)
+GNaiveInstance::GNaiveInstance(GDomNode* pNode, GLearnerLoader& ll)
+: GIncrementalLearner(pNode, ll), m_pHeap(NULL)
 {
 	m_pAttrs = NULL;
 	m_pValueSums = NULL;
@@ -146,7 +146,7 @@ GDomNode* GNaiveInstance::serialize(GDom* pDoc)
 	return pNode;
 }
 
-void GNaiveInstance::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GNaiveInstance::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Find the best ess value
 	size_t bestK = 0;
@@ -155,7 +155,7 @@ void GNaiveInstance::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 	for(size_t i = 2; i < cap; i = size_t(i * 1.5))
 	{
 		m_nNeighbors = i;
-		double d = heuristicValidate(features, labels, &rand);
+		double d = heuristicValidate(features, labels);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -321,9 +321,9 @@ void GNaiveInstance::predictInner(const double* pIn, double* pOut)
 void GNaiveInstance::test()
 {
 	GRand prng(0);
-	GNaiveInstance ni;
+	GNaiveInstance ni(prng);
 	ni.setNeighbors(8);
-	ni.basicTest(0.72, 0.55, &prng, 0.02);
+	ni.basicTest(0.72, 0.55, 0.02);
 }
 #endif
 

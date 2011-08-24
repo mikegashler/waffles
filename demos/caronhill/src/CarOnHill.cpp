@@ -50,7 +50,7 @@ public:
 		dims[0] = 50; // position
 		dims[1] = 50; // velocity
 		dims[2] = 2; // actions
-		m_pQTable = new GInstanceTable(3, dims, pRand);
+		m_pQTable = new GInstanceTable(3, dims, *pRand);
 		return m_pQTable;
 	}
 

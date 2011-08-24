@@ -73,7 +73,7 @@ public:
 		dims[0] = WORLD_SIZE; // x
 		dims[1] = WORLD_SIZE; // y
 		dims[2] = 4; // action
-		m_pLearner = new GInstanceTable(3, dims, pRand);
+		m_pLearner = new GInstanceTable(3, dims, *pRand);
 		return m_pLearner;
 	}
 

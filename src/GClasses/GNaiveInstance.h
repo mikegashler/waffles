@@ -46,10 +46,10 @@ protected:
 public:
 	/// nNeighbors is the number of neighbors (in each dimension)
 	/// that will contribute to the output value.
-	GNaiveInstance();
+	GNaiveInstance(GRand& rand);
 
 	/// Deserializing constructor
-	GNaiveInstance(GDomNode* pNode, GRand& rand);
+	GNaiveInstance(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GNaiveInstance();
 
 #ifndef NO_TEST_CODE
@@ -74,7 +74,7 @@ public:
 
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	void evalInput(size_t nInputDim, double dInput);

@@ -245,7 +245,7 @@ public:
 			m_pNNForTraining = pNN;
 			pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
 			delete(m_pNNCopyForVisualizing);
-			m_pNNCopyForVisualizing = new GNeuralNet(m_pRand);
+			m_pNNCopyForVisualizing = new GNeuralNet(*m_pRand);
 			m_pNNCopyForVisualizing->copyStructure(pNN);
 		}
 		m_workerMode = 3; // train
@@ -326,26 +326,26 @@ public:
 		}
 		else if(index == 7)
 		{
-			GNaiveBayes* pModel = new GNaiveBayes(m_pRand);
+			GNaiveBayes* pModel = new GNaiveBayes(*m_pRand);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 8)
 		{
-			GDecisionTree* pModel = new GDecisionTree(m_pRand);
+			GDecisionTree* pModel = new GDecisionTree(*m_pRand);
 			pModel->useRandomDivisions(1);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 9)
 		{
-			GMeanMarginsTree* pModel = new GMeanMarginsTree(m_pRand);
+			GMeanMarginsTree* pModel = new GMeanMarginsTree(*m_pRand);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 10)
 		{
-			GBag* pBag = new GBag(m_pRand);
+			GBag* pBag = new GBag(*m_pRand);
 			for(int i = 0; i < 30; i++)
 			{
-				GDecisionTree* pTree = new GDecisionTree(m_pRand);
+				GDecisionTree* pTree = new GDecisionTree(*m_pRand);
 				pTree->useRandomDivisions();
 				pBag->addLearner(pTree);
 			}
@@ -353,41 +353,41 @@ public:
 		}
 		else if(index == 11)
 		{
-			GBag* pBag = new GBag(m_pRand);
+			GBag* pBag = new GBag(*m_pRand);
 			for(int i = 0; i < 30; i++)
 			{
-				GMeanMarginsTree* pTree = new GMeanMarginsTree(m_pRand);
+				GMeanMarginsTree* pTree = new GMeanMarginsTree(*m_pRand);
 				pBag->addLearner(pTree);
 			}
 			doSupervisedLearner(pBag);
 		}
 		else if(index == 12)
 		{
-			GNeuralNet* pModel = new GNeuralNet(m_pRand);
+			GNeuralNet* pModel = new GNeuralNet(*m_pRand);
 			pModel->setActivationFunction(new GActivationIdentity(), true);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 13)
 		{
-			GNeuralNet* pNN = new GNeuralNet(m_pRand);
+			GNeuralNet* pNN = new GNeuralNet(*m_pRand);
 			pNN->addLayer(15);
 			pNN->addLayer(60);
 			doBackProp(pNN);
 		}
 		else if(index == 14)
 		{
-			GNaiveInstance* pModel = new GNaiveInstance();
+			GNaiveInstance* pModel = new GNaiveInstance(*m_pRand);
 			pModel->setNeighbors(20);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 15)
 		{
-			GBaselineLearner* pModel = new GBaselineLearner();
+			GBaselineLearner* pModel = new GBaselineLearner(*m_pRand);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 16)
 		{
-			GNeuralNet* pNN = new GNeuralNet(m_pRand);
+			GNeuralNet* pNN = new GNeuralNet(*m_pRand);
 			pNN->setActivationFunction(new GActivationGaussian(), true);
 			pNN->addLayer(15);
 			pNN->addLayer(60);
@@ -395,7 +395,7 @@ public:
 		}
 		else if(index == 17)
 		{
-			GNeuralNet* pNN = new GNeuralNet(m_pRand);
+			GNeuralNet* pNN = new GNeuralNet(*m_pRand);
 			pNN->setActivationFunction(new GActivationSinc(), true);
 			pNN->addLayer(15);
 			pNN->addLayer(60);
@@ -403,7 +403,7 @@ public:
 		}
 		else if(index == 18)
 		{
-			GNeuralNet* pNN = new GNeuralNet(m_pRand);
+			GNeuralNet* pNN = new GNeuralNet(*m_pRand);
 			pNN->setActivationFunction(new GActivationBend(), true);
 			pNN->addLayer(15);
 			pNN->addLayer(60);

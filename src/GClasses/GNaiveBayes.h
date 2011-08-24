@@ -28,13 +28,12 @@ protected:
 	size_t m_nSampleCount;
 	GNaiveBayesOutputAttr** m_pOutputs;
 	double m_equivalentSampleSize;
-	GRand* m_pRand;
 
 public:
-	GNaiveBayes(GRand* pRand);
+	GNaiveBayes(GRand& rand);
 
 	/// Load from a DOM.
-	GNaiveBayes(GDomNode* pNode, GRand* pRand);
+	GNaiveBayes(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GNaiveBayes();
 
@@ -65,7 +64,7 @@ public:
 
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

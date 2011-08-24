@@ -130,7 +130,7 @@ protected:
 	bool m_ownMetric;
 
 public:
-	GAgglomerativeTransducer();
+	GAgglomerativeTransducer(GRand& rand);
 	virtual ~GAgglomerativeTransducer();
 
 	/// Specify the metric to use to determine the distance between points.
@@ -138,7 +138,7 @@ public:
 	void setMetric(GDistanceMetric* pMetric, bool own);
 
 	/// This model has no parameters to tune, so this method is a noop.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GTransducer::transduce.
@@ -321,12 +321,11 @@ class GGraphCutTransducer : public GTransducer
 {
 protected:
 	size_t m_neighborCount;
-	GRand* m_pRand;
 	size_t* m_pNeighbors;
 	double* m_pDistances;
 
 public:
-	GGraphCutTransducer(GRand* pRand);
+	GGraphCutTransducer(GRand& rand);
 	virtual ~GGraphCutTransducer();
 
 	/// Sets the number of neighbors to use to form the graph. The default is 12
@@ -337,7 +336,7 @@ public:
 
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GTransducer::transduce.

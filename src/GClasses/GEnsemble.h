@@ -33,12 +33,12 @@ public:
 
 	/// General-purpose constructor
 	GWeightedModel(double weight, GSupervisedLearner* pModel)
-		: m_weight(weight), m_pModel(pModel)
+	: m_weight(weight), m_pModel(pModel)
 	{
 	}
 
 	/// Load from a DOM.
-	GWeightedModel(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader);
+	GWeightedModel(GDomNode* pNode, GLearnerLoader& ll);
 	~GWeightedModel();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
@@ -58,16 +58,15 @@ protected:
 	std::vector<GWeightedModel*> m_models;
 	size_t m_nAccumulatorDims;
 	double* m_pAccumulator;
-	GRand* m_pRand;
 	EnsembleProgressCallback m_pCB;
 	void* m_pThis;
 
 public:
 	/// General-purpose constructor.
-	GBag(GRand* pRand);
+	GBag(GRand& rand);
 
 	/// Load from a DOM.
-	GBag(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader);
+	GBag(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBag();
 
@@ -136,16 +135,15 @@ class GBucket : public GSupervisedLearner
 protected:
 	size_t m_nBestLearner;
 	std::vector<GSupervisedLearner*> m_models;
-	GRand* m_pRand;
 
 public:
 	/// nInitialSize tells it how fast to grow the dynamic array that holds the
 	/// models. It's not really important to get it right, just guess how many
 	/// models will go in the ensemble.
-	GBucket(GRand* pRand);
+	GBucket(GRand& rand);
 
 	/// Load from a DOM.
-	GBucket(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader);
+	GBucket(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBucket();
 

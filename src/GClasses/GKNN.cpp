@@ -68,17 +68,17 @@ protected:
 		// todo: this method is WAAAY too inefficient
 		GMatrix* pFeatures = m_pLearner->features();
 		GMatrix* pLabels = m_pLearner->labels();
-		GKNN temp(m_pLearner->getRand());
+		GKNN temp(m_pLearner->rand());
 		temp.setNeighborCount(m_pLearner->neighborCount());
 		temp.beginIncrementalLearning(pFeatures->relation(), pLabels->relation());
 		GVec::copy(temp.metric()->scaleFactors(), pVector, relation()->size());
-		return temp.heuristicValidate(*pFeatures, *pLabels, &m_pLearner->getRand());
+		return temp.heuristicValidate(*pFeatures, *pLabels);
 	}
 };
 
 
 GKNN::GKNN(GRand& rand)
-: GIncrementalLearner(), m_rand(rand)
+: GIncrementalLearner(rand)
 {
 	m_eInterpolationMethod = Linear;
 	m_pLearner = NULL;
@@ -101,8 +101,8 @@ GKNN::GKNN(GRand& rand)
 	m_dElbowRoom = UNKNOWN_REAL_VALUE;
 }
 
-GKNN::GKNN(GDomNode* pNode, GRand& rand)
-: GIncrementalLearner(pNode, rand), m_rand(rand)
+GKNN::GKNN(GDomNode* pNode, GLearnerLoader& ll)
+: GIncrementalLearner(pNode, ll)
 {
 	m_pNeighborFinder = NULL;
 	m_pNeighborFinder2 = NULL;
@@ -191,7 +191,7 @@ GDomNode* GKNN::serialize(GDom* pDoc)
 	return pNode;
 }
 
-void GKNN::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GKNN::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Find the best value for k
 	size_t cap = size_t(floor(sqrt(double(features.rows()))));
@@ -200,7 +200,7 @@ void GKNN::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 	for(size_t i = 1; i < cap; i *= 3)
 	{
 		m_nNeighbors = i;
-		double d = heuristicValidate(features, labels, &rand);
+		double d = heuristicValidate(features, labels);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -672,19 +672,19 @@ void GKNN::test()
 	GRand prng(0);
 	GKNN knn(prng);
 	knn.setNeighborCount(3);
-	knn.basicTest(0.72, 0.75, &prng);
+	knn.basicTest(0.72, 0.75);
 }
 #endif
 
 // ---------------------------------------------------------------------------------------
 
-GNeighborTransducer::GNeighborTransducer(GRand* pRand)
-: GTransducer(), m_friendCount(12), m_pRand(pRand)
+GNeighborTransducer::GNeighborTransducer(GRand& rand)
+: GTransducer(rand), m_friendCount(12)
 {
 	m_prune = false;
 }
 
-void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Find the best value for k
 	size_t cap = size_t(floor(sqrt(double(features.rows()))));
@@ -693,7 +693,7 @@ void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& ra
 	for(size_t i = 1; i < cap; i *= 3)
 	{
 		m_friendCount = i;
-		double d = heuristicValidate(features, labels, &rand);
+		double d = heuristicValidate(features, labels);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -766,7 +766,7 @@ GMatrix* GNeighborTransducer::transduceInner(GMatrix& features1, GMatrix& labels
 							tallys[label] += 0.6;
 					}
 				}
-				int label = (int)GVec::indexOfMax(tallys, labelValues, m_pRand);
+				int label = (int)GVec::indexOfMax(tallys, labelValues, &m_rand);
 				double conf = tallys[label];
 
 				// Penalize for dissenting votes
@@ -820,8 +820,8 @@ GMatrix* GNeighborTransducer::transduceInner(GMatrix& features1, GMatrix& labels
 
 
 
-GInstanceTable::GInstanceTable(size_t dims, size_t* pDims, GRand* pRand)
-: GIncrementalLearner(), m_dims(dims), m_pRand(pRand)
+GInstanceTable::GInstanceTable(size_t dims, size_t* pDims, GRand& rand)
+: GIncrementalLearner(rand), m_dims(dims)
 {
 	m_pDims = new size_t[dims];
 	memcpy(m_pDims, pDims, sizeof(size_t) * dims);
@@ -904,7 +904,7 @@ void GInstanceTable::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_
 	// Initialize with small random values
 	double* p = m_pTable;
 	for(size_t i = 0; i < total; i++)
-		*(p++) = m_pRand->uniform() * 0.1;
+		*(p++) = m_rand.uniform() * 0.1;
 
 	m_featureDims = pFeatureRel->size();
 	m_labelDims = pLabelRel->size();

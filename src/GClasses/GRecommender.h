@@ -27,14 +27,18 @@ class Rating;
 class GClusterer;
 class GDom;
 class GDomNode;
+class GLearnerLoader;
 
 
 /// The base class for collaborative filtering recommender systems.
 class GCollaborativeFilter
 {
+protected:
+	GRand& m_rand;
+
 public:
-	GCollaborativeFilter() {}
-	GCollaborativeFilter(GDomNode* pNode);
+	GCollaborativeFilter(GRand& rand) : m_rand(rand) {}
+	GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GCollaborativeFilter() {}
 
 	/// Trains this recommender system. Let R be an m-by-n sparse
@@ -49,7 +53,9 @@ public:
 	/// Train from an m-by-n dense matrix, where m is the number of users
 	/// and n is the number of items. All attributes must be
 	/// continuous. Missing values are indicated with UNKNOWN_REAL_VALUE.
-	void trainDenseMatrix(GMatrix& data);
+	/// If pLabels is non-NULL, then the labels will be appended as
+	/// additional items.
+	void trainDenseMatrix(GMatrix& data, GMatrix* pLabels = NULL);
 
 	/// This returns a prediction for how the specified user
 	/// will rate the specified item. (The model must be trained before
@@ -77,7 +83,7 @@ public:
 	/// values for the items in the fold, and returns the mean-squared
 	/// difference between the predictions and the actual ratings.
 	/// If pOutMAE is non-NULL, it will be set to the mean-absolute error.
-	double crossValidate(GMatrix& data, size_t folds, GRand* pRand, double* pOutMAE = NULL);
+	double crossValidate(GMatrix& data, size_t folds, double* pOutMAE = NULL);
 
 	/// This trains on the training set, and then tests on the test set.
 	/// Returns the mean-squared difference between actual and target predictions.
@@ -94,7 +100,7 @@ public:
 	/// ignore your model and report the ideal results as if your model always
 	/// predicted the correct rating. (This is useful because it shows the best
 	/// possible results.)
-	GMatrix* precisionRecall(GMatrix& data, GRand* pRand, bool ideal = false);
+	GMatrix* precisionRecall(GMatrix& data, bool ideal = false);
 
 	/// Pass in the data returned by the precisionRecall function (unmodified), and
 	/// this will compute the area under the ROC curve.
@@ -122,10 +128,10 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GBaselineRecommender();
+	GBaselineRecommender(GRand& rand);
 
 	/// Deserialization constructor
-	GBaselineRecommender(GDomNode* pNode);
+	GBaselineRecommender(GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GBaselineRecommender();
@@ -162,8 +168,8 @@ protected:
 	GBaselineRecommender* m_pBaseline;
 
 public:
-	GInstanceRecommender(size_t neighbors);
-	GInstanceRecommender(GDomNode* pNode);
+	GInstanceRecommender(size_t neighbors, GRand& rand);
+	GInstanceRecommender(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GInstanceRecommender();
 
 	/// Sets the similarity metric to use. if own is true, then this object will take care
@@ -202,11 +208,10 @@ protected:
 	GMatrix* m_pPredictions;
 	GSparseClusterer* m_pClusterer;
 	bool m_ownClusterer;
-	GRand* m_pRand;
 	size_t m_users, m_items;
 
 public:
-	GSparseClusterRecommender(size_t clusters, GRand* pRand);
+	GSparseClusterRecommender(size_t clusters, GRand& rand);
 	virtual ~GSparseClusterRecommender();
 
 	/// Returns the number of clusters
@@ -244,11 +249,10 @@ protected:
 	GMatrix* m_pPredictions;
 	GClusterer* m_pClusterer;
 	bool m_ownClusterer;
-	GRand* m_pRand;
 	size_t m_users, m_items;
 
 public:
-	GDenseClusterRecommender(size_t clusters, GRand* pRand);
+	GDenseClusterRecommender(size_t clusters, GRand& rand);
 	virtual ~GDenseClusterRecommender();
 
 	/// Returns the number of clusters
@@ -293,7 +297,6 @@ protected:
 	double m_regularizer;
 	GMatrix* m_pP;
 	GMatrix* m_pQ;
-	GRand& m_rand;
 	bool m_useInputBias;
 
 public:
@@ -301,7 +304,7 @@ public:
 	GMatrixFactorization(size_t intrinsicDims, GRand& rand);
 
 	/// Deserialization constructor
-	GMatrixFactorization(GDomNode* pNode, GRand& rand);
+	GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GMatrixFactorization();
@@ -356,17 +359,16 @@ protected:
 	size_t m_items;
 	double* m_pMins;
 	double* m_pMaxs;
-	GRand* m_pRand;
 	GNeuralNet* m_pModel;
 	GMatrix* m_pUsers;
 	bool m_useInputBias;
 
 public:
 	/// General-purpose constructor
-	GNonlinearPCA(size_t intrinsicDims, GRand* pRand);
+	GNonlinearPCA(size_t intrinsicDims, GRand& rand);
 
 	/// Deserialization constructor
-	GNonlinearPCA(GDomNode* pNode, GRand& rand);
+	GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GNonlinearPCA();
@@ -412,14 +414,13 @@ class GBagOfRecommenders : public GCollaborativeFilter
 protected:
 	std::vector<GCollaborativeFilter*> m_filters;
 	size_t m_itemCount;
-	GRand& m_rand;
 
 public:
 	/// General-purpose constructor
 	GBagOfRecommenders(GRand& rand);
 
 	/// Deserialization constructor
-	GBagOfRecommenders(GDomNode* pNode, GRand& rand);
+	GBagOfRecommenders(GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GBagOfRecommenders();

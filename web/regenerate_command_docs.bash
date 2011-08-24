@@ -21,8 +21,8 @@ cat <<ENDTXT > command/audio.html
 	Here's the usage information:</p>
 <pre>
 ENDTXT
-waffles_cluster usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/cluster.html
-cat <<ENDTXT >> command/cluster.html
+waffles_audio usage | sed 's/</\&lt;/g' | sed 's/>/\&gt;/g' >> command/audio.html
+cat <<ENDTXT >> command/audio.html
 </pre>
 
 <br>

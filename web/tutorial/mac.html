@@ -20,18 +20,22 @@
 	<li>Install the following dependency packages:
 		<ul>
 			<li>g++</li>
-                        <li>make</li>
-                        <li>libpng3-dev</li>
-                        <li>libsdl1.2-dev</li>
+			<li>make</li>
+			<li>libpng3-dev</li>
 		</ul>
-		(The libsdl1.2-dev package is only used by the demo apps. If you do not plan to
-		build the demo apps, you may omit that package.)
 	<li>Next, build the Waffles tools:
 <pre>
 	cd waffles/src
 	make opt
 </pre></li>
-	<li>If you want to build the demo apps, then do
+	<li>If you want to build the demo apps, then also install these packages:
+		<ul>
+			<li>libsdl1.2-dev</li>
+			<li>freeglut3-dev</li>
+			<li>libx11-dev</li>
+			<li>libssl-dev</li>
+		</ul>
+	and then do:
 <pre>
 	cd ../demos
 	make opt

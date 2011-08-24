@@ -19,13 +19,13 @@
 
 using namespace GClasses;
 
-GLinearRegressor::GLinearRegressor(GRand* pRand)
-: m_pRand(pRand), m_pBeta(NULL), m_pEpsilon(NULL)
+GLinearRegressor::GLinearRegressor(GRand& rand)
+: GSupervisedLearner(rand), m_pBeta(NULL), m_pEpsilon(NULL)
 {
 }
 
-GLinearRegressor::GLinearRegressor(GDomNode* pNode, GRand* pRand)
-: GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
+GLinearRegressor::GLinearRegressor(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
 {
 	m_pBeta = new GMatrix(pNode->field("beta"));
 	m_pEpsilon = new double[m_pBeta->rows()];
@@ -57,7 +57,7 @@ void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learnin
 	GIndexVec::makeIndexVec(pIndexes, features.rows());
 	for(size_t i = 0; i < epochs; i++)
 	{
-		GIndexVec::shuffle(pIndexes, features.rows(), m_pRand);
+		GIndexVec::shuffle(pIndexes, features.rows(), &m_rand);
 		size_t* pIndex = pIndexes;
 		for(size_t j = 0; j < features.rows(); j++)
 		{
@@ -92,7 +92,7 @@ void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 	clear();
 	GMatrix* pAll = GMatrix::mergeHoriz(&features, &labels);
 	Holder<GMatrix> hAll(pAll);
-	GPCA pca(features.cols(), m_pRand);
+	GPCA pca(features.cols(), &m_rand);
 	pca.train(*pAll);
 	size_t inputs = features.cols();
 	size_t outputs = labels.cols();
@@ -138,7 +138,7 @@ void GLinearRegressor::clear()
 	m_pEpsilon = NULL;
 }
 
-void GLinearRegressor::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GLinearRegressor::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// This model has no parameters to tune
 }
@@ -157,7 +157,7 @@ void GLinearRegressor_linear_test(GRand& prng)
 		pVec[2] = prng.uniform();
 		labels1.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
 	}
-	GLinearRegressor lr(&prng);
+	GLinearRegressor lr(prng);
 	lr.train(features1, labels1);
 
 	// Check some values
@@ -194,8 +194,8 @@ void GLinearRegressor::test()
 {
 	GRand prng(0);
 	GLinearRegressor_linear_test(prng);
-	GLinearRegressor lr(&prng);
-	lr.basicTest(0.77, 0.79, &prng);
+	GLinearRegressor lr(prng);
+	lr.basicTest(0.77, 0.79);
 }
 #endif
 

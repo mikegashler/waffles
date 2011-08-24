@@ -70,20 +70,20 @@ GMatrix* loadData(const char* szFilename)
 	return pData;
 }
 
-GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args);
+GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args);
 
-GBaselineLearner* InstantiateBaseline(GRand* pRand, GArgReader& args)
+GBaselineLearner* InstantiateBaseline(GRand& rand, GArgReader& args)
 {
-	GBaselineLearner* pModel = new GBaselineLearner();
+	GBaselineLearner* pModel = new GBaselineLearner(rand);
 	return pModel;
 }
 
-GKNN* InstantiateKNN(GRand* pRand, GArgReader& args)
+GKNN* InstantiateKNN(GRand& rand, GArgReader& args)
 {
 	if(args.size() < 1)
 		ThrowError("The number of neighbors must be specified for knn");
 	int neighborCount = args.pop_uint();
-	GKNN* pModel = new GKNN(*pRand);
+	GKNN* pModel = new GKNN(rand);
 	pModel->setNeighborCount(neighborCount);
 	while(args.next_is_flag())
 	{
@@ -101,15 +101,15 @@ GKNN* InstantiateKNN(GRand* pRand, GArgReader& args)
 	return pModel;
 }
 
-GLinearRegressor* InstantiateLinearRegressor(GRand* pRand, GArgReader& args)
+GLinearRegressor* InstantiateLinearRegressor(GRand& rand, GArgReader& args)
 {
-	GLinearRegressor* pModel = new GLinearRegressor(pRand);
+	GLinearRegressor* pModel = new GLinearRegressor(rand);
 	return pModel;
 }
 
-GNaiveBayes* InstantiateNaiveBayes(GRand* pRand, GArgReader& args)
+GNaiveBayes* InstantiateNaiveBayes(GRand& rand, GArgReader& args)
 {
-	GNaiveBayes* pModel = new GNaiveBayes(pRand);
+	GNaiveBayes* pModel = new GNaiveBayes(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-ess"))
@@ -120,9 +120,9 @@ GNaiveBayes* InstantiateNaiveBayes(GRand* pRand, GArgReader& args)
 	return pModel;
 }
 
-GNaiveInstance* InstantiateNaiveInstance(GRand* pRand, GArgReader& args)
+GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args)
 {
-	GNaiveInstance* pModel = new GNaiveInstance();
+	GNaiveInstance* pModel = new GNaiveInstance(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-neighbors"))
@@ -133,9 +133,9 @@ GNaiveInstance* InstantiateNaiveInstance(GRand* pRand, GArgReader& args)
 	return pModel;
 }
 
-GNeuralNet* InstantiateNeuralNet(GRand* pRand, GArgReader& args)
+GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
 {
-	GNeuralNet* pModel = new GNeuralNet(pRand);
+	GNeuralNet* pModel = new GNeuralNet(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-addlayer"))
@@ -238,7 +238,7 @@ void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 	cerr.flush();
 }
 
-GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
+GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 {
 	int argPos = args.get_pos();
 	if(args.size() < 1)
@@ -246,17 +246,17 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args)
 	try
 	{
 		if(args.if_pop("baseline"))
-			return InstantiateBaseline(pRand, args);
+			return InstantiateBaseline(rand, args);
 		else if(args.if_pop("knn"))
-			return InstantiateKNN(pRand, args);
+			return InstantiateKNN(rand, args);
 		else if(args.if_pop("linear"))
-			return InstantiateLinearRegressor(pRand, args);
+			return InstantiateLinearRegressor(rand, args);
 		else if(args.if_pop("naivebayes"))
-			return InstantiateNaiveBayes(pRand, args);
+			return InstantiateNaiveBayes(rand, args);
 //		else if(args.if_pop("naiveinstance"))
-//			return InstantiateNaiveInstance(pRand, args);
+//			return InstantiateNaiveInstance(rand, args);
 		else if(args.if_pop("neuralnet"))
-			return InstantiateNeuralNet(pRand, args);
+			return InstantiateNeuralNet(rand, args);
 		ThrowError("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
@@ -299,7 +299,7 @@ void train(GArgReader& args)
 
 	// Instantiate the modeler
 	GRand prng(seed);
-	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args);
+	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
@@ -335,8 +335,8 @@ void predict(GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	GLearnerLoader ll(prng, true);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the sparse features
@@ -381,8 +381,8 @@ void test(GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	GLearnerLoader ll(prng, true);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the sparse features

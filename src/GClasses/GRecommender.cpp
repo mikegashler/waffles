@@ -48,11 +48,12 @@ void GCollaborativeFilter_dims(GMatrix& data, size_t* pOutUsers, size_t* pOutIte
 		ThrowError("col 1 (item) indexes out of range");
 }
 
-GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode)
+GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll)
+: m_rand(ll.rand())
 {
 }
 
-void GCollaborativeFilter::trainDenseMatrix(GMatrix& data)
+void GCollaborativeFilter::trainDenseMatrix(GMatrix& data, GMatrix* pLabels)
 {
 	if(!data.relation()->areContinuous(0, data.cols()))
 		ThrowError("GCollaborativeFilter::trainDenseMatrix only supports continuous attributes.");
@@ -77,6 +78,26 @@ void GCollaborativeFilter::trainDenseMatrix(GMatrix& data)
 		}
 	}
 
+	if(pLabels)
+	{
+		size_t labelDims = pLabels->cols();
+		for(size_t i = 0; i < pLabels->rows(); i++)
+		{
+			double* pRow = pLabels->row(i);
+			for(size_t j = 0; j < labelDims; j++)
+			{
+				if(*pRow != UNKNOWN_REAL_VALUE)
+				{
+					double* pVec = pMatrix->newRow();
+					pVec[0] = i;
+					pVec[1] = dims + j;
+					pVec[2] = *pRow;
+				}
+				pRow++;
+			}
+		}
+	}
+
 	// Train
 	train(*pMatrix);
 }
@@ -88,14 +109,14 @@ GDomNode* GCollaborativeFilter::baseDomNode(GDom* pDoc, const char* szClassName)
 	return pNode;
 }
 
-double GCollaborativeFilter::crossValidate(GMatrix& data, size_t folds, GRand* pRand, double* pOutMAE)
+double GCollaborativeFilter::crossValidate(GMatrix& data, size_t folds, double* pOutMAE)
 {
 	// Randomly assign each rating to one of the folds
 	size_t ratings = data.rows();
 	size_t* pFolds = new size_t[ratings];
 	ArrayHolder<size_t> hFolds(pFolds);
 	for(size_t i = 0; i < ratings; i++)
-		pFolds[i] = (size_t)pRand->next(folds);
+		pFolds[i] = (size_t)m_rand.next(folds);
 
 	// Evaluate accuracy
 	double ssse = 0.0;
@@ -158,7 +179,7 @@ public:
 	}
 };
 
-GMatrix* GCollaborativeFilter::precisionRecall(GMatrix& data, GRand* pRand, bool ideal)
+GMatrix* GCollaborativeFilter::precisionRecall(GMatrix& data, bool ideal)
 {
 	// Divide into two equal-size folds
 	size_t ratings = data.rows();
@@ -168,7 +189,7 @@ GMatrix* GCollaborativeFilter::precisionRecall(GMatrix& data, GRand* pRand, bool
 	size_t f1 = halfRatings;
 	for(size_t i = 0; i < ratings; i++)
 	{
-		if(pRand->next(f0 + f1) < f0)
+		if(m_rand.next(f0 + f1) < f0)
 		{
 			pFolds[i] = 0;
 			f0--;
@@ -310,7 +331,7 @@ void GCollaborativeFilter::basicTest(double maxMSE)
 	GRand rand(387572);
 	GMatrix m(0, 3);
 	GCF_basicTest_makeData(m, rand);
-	double mse = crossValidate(m, 2, &rand);
+	double mse = crossValidate(m, 2);
 	if(mse > maxMSE)
 		ThrowError("failed");
 }
@@ -320,13 +341,13 @@ void GCollaborativeFilter::basicTest(double maxMSE)
 
 
 
-GBaselineRecommender::GBaselineRecommender()
-: GCollaborativeFilter(), m_pRatings(NULL), m_items(0)
+GBaselineRecommender::GBaselineRecommender(GRand& rand)
+: GCollaborativeFilter(rand), m_pRatings(NULL), m_items(0)
 {
 }
 
-GBaselineRecommender::GBaselineRecommender(GDomNode* pNode)
-: GCollaborativeFilter(pNode)
+GBaselineRecommender::GBaselineRecommender(GDomNode* pNode, GLearnerLoader& ll)
+: GCollaborativeFilter(pNode, ll)
 {
 	GDomListIterator it(pNode->field("ratings"));
 	m_items = it.remaining();
@@ -417,8 +438,9 @@ GDomNode* GBaselineRecommender::serialize(GDom* pDoc)
 // static
 void GBaselineRecommender::test()
 {
-	GBaselineRecommender rec;
-	rec.basicTest(1.09);
+	GRand rand(0);
+	GBaselineRecommender rec(rand);
+	rec.basicTest(1.10);
 }
 #endif
 
@@ -428,20 +450,20 @@ void GBaselineRecommender::test()
 
 
 
-GInstanceRecommender::GInstanceRecommender(size_t neighbors)
-: GCollaborativeFilter(), m_neighbors(neighbors), m_ownMetric(true), m_pData(NULL), m_pBaseline(NULL)
+GInstanceRecommender::GInstanceRecommender(size_t neighbors, GRand& rand)
+: GCollaborativeFilter(rand), m_neighbors(neighbors), m_ownMetric(true), m_pData(NULL), m_pBaseline(NULL)
 {
 	m_pMetric = new GCosineSimilarity();
 }
 
-GInstanceRecommender::GInstanceRecommender(GDomNode* pNode)
-: GCollaborativeFilter(pNode)
+GInstanceRecommender::GInstanceRecommender(GDomNode* pNode, GLearnerLoader& ll)
+: GCollaborativeFilter(pNode, ll)
 {
 	m_neighbors = (size_t)pNode->field("neighbors")->asInt();
 	m_pMetric = GSparseSimilarity::deserialize(pNode->field("metric"));
 	m_ownMetric = true;
 	m_pData = new GSparseMatrix(pNode->field("data"));
-	m_pBaseline = new GBaselineRecommender(pNode->field("bl"));
+	m_pBaseline = new GBaselineRecommender(pNode->field("bl"), ll);
 }
 
 // virtual
@@ -469,7 +491,7 @@ void GInstanceRecommender::train(GMatrix& data)
 
 	// Compute the baseline recommendations
 	delete(m_pBaseline);
-	m_pBaseline = new GBaselineRecommender();
+	m_pBaseline = new GBaselineRecommender(m_rand);
 	m_pBaseline->train(data);
 
 	// Store the data
@@ -589,7 +611,8 @@ GDomNode* GInstanceRecommender::serialize(GDom* pDoc)
 // static
 void GInstanceRecommender::test()
 {
-	GInstanceRecommender rec(8);
+	GRand rand(0);
+	GInstanceRecommender rec(8, rand);
 	rec.basicTest(0.512);
 }
 #endif
@@ -598,8 +621,8 @@ void GInstanceRecommender::test()
 
 
 
-GSparseClusterRecommender::GSparseClusterRecommender(size_t clusters, GRand* pRand)
-: GCollaborativeFilter(), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_pRand(pRand), m_users(0), m_items(0)
+GSparseClusterRecommender::GSparseClusterRecommender(size_t clusters, GRand& rand)
+: GCollaborativeFilter(rand), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_users(0), m_items(0)
 {
 }
 
@@ -641,7 +664,7 @@ void GSparseClusterRecommender::train(GMatrix& data)
 
 	// Make sure we have a clusterer
 	if(!m_pClusterer)
-		setClusterer(new GKMeansSparse(m_clusters, m_pRand), true);
+		setClusterer(new GKMeansSparse(m_clusters, &m_rand), true);
 
 	// Cluster the data
 	m_pClusterer->cluster(&sm);
@@ -695,8 +718,8 @@ GDomNode* GSparseClusterRecommender::serialize(GDom* pDoc)
 void GSparseClusterRecommender::test()
 {
 	GRand rand(0);
-	GSparseClusterRecommender rec(6, &rand);
-	rec.basicTest(0.915);
+	GSparseClusterRecommender rec(6, rand);
+	rec.basicTest(1.68);
 }
 #endif
 
@@ -713,8 +736,8 @@ void GSparseClusterRecommender::test()
 
 
 
-GDenseClusterRecommender::GDenseClusterRecommender(size_t clusters, GRand* pRand)
-: GCollaborativeFilter(), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_pRand(pRand), m_users(0), m_items(0)
+GDenseClusterRecommender::GDenseClusterRecommender(size_t clusters, GRand& rand)
+: GCollaborativeFilter(rand), m_clusters(clusters), m_pPredictions(NULL), m_pClusterer(NULL), m_ownClusterer(false), m_users(0), m_items(0)
 {
 }
 
@@ -743,7 +766,7 @@ void GDenseClusterRecommender::train(GMatrix& data)
 		ThrowError("Expected 3 cols");
 
 	if(!m_pClusterer)
-		setClusterer(new GFuzzyKMeans(m_clusters, m_pRand), true);
+		setClusterer(new GFuzzyKMeans(m_clusters, &m_rand), true);
 
 	// Cluster the data
 	size_t users, items;
@@ -813,7 +836,7 @@ GDomNode* GDenseClusterRecommender::serialize(GDom* pDoc)
 void GDenseClusterRecommender::test()
 {
 	GRand rand(0);
-	GDenseClusterRecommender rec(6, &rand);
+	GDenseClusterRecommender rec(6, rand);
 	rec.basicTest(0.0);
 }
 #endif
@@ -827,12 +850,12 @@ void GDenseClusterRecommender::test()
 
 
 GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims, GRand& rand)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_rand(rand), m_useInputBias(true)
+: GCollaborativeFilter(rand), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_useInputBias(true)
 {
 }
 
-GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GRand& rand)
-: GCollaborativeFilter(pNode), m_rand(rand)
+GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll)
+: GCollaborativeFilter(pNode, ll)
 {
 	m_regularizer = pNode->field("reg")->asDouble();
 	m_useInputBias = pNode->field("uib")->asBool();
@@ -917,7 +940,7 @@ void GMatrixFactorization::train(GMatrix& data)
 	while(learningRate >= 0.001)
 	{
 		// Shuffle the ratings
-		dataCopy.shuffle(&m_rand);
+		dataCopy.shuffle(m_rand);
 
 		// Do an epoch of training
 		for(size_t i = 0; i < dataCopy.rows(); i++)
@@ -1027,7 +1050,7 @@ void GMatrixFactorization::impute(double* pVec, size_t dims)
 	while(learningRate >= 0.001)
 	{
 		// Shuffle the ratings
-		data.shuffle(&m_rand);
+		data.shuffle(m_rand);
 
 		// Do an epoch of training
 		for(size_t i = 0; i < data.rows(); i++)
@@ -1110,19 +1133,19 @@ void GMatrixFactorization::test()
 
 
 
-GNonlinearPCA::GNonlinearPCA(size_t intrinsicDims, GRand* pRand)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_items(0), m_pMins(NULL), m_pMaxs(NULL), m_pRand(pRand), m_useInputBias(true)
+GNonlinearPCA::GNonlinearPCA(size_t intrinsicDims, GRand& rand)
+: GCollaborativeFilter(rand), m_intrinsicDims(intrinsicDims), m_items(0), m_pMins(NULL), m_pMaxs(NULL), m_useInputBias(true)
 {
-	m_pModel = new GNeuralNet(m_pRand);
+	m_pModel = new GNeuralNet(rand);
 	m_pUsers = NULL;
 }
 
-GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GRand& rand)
-: GCollaborativeFilter(pNode), m_pRand(&rand)
+GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
+: GCollaborativeFilter(pNode, ll)
 {
 	m_useInputBias = pNode->field("uib")->asBool();
 	m_pUsers = new GMatrix(pNode->field("users"));
-	m_pModel = new GNeuralNet(pNode->field("model"), m_pRand);
+	m_pModel = new GNeuralNet(pNode->field("model"), ll);
 	m_items = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
 	m_pMins = new double[m_items];
 	GDomListIterator it1(pNode->field("mins"));
@@ -1209,7 +1232,7 @@ void GNonlinearPCA::train(GMatrix& data)
 	sp_relation pLabelRel = new GUniformRelation(items);
 	m_pModel->setUseInputBias(m_useInputBias);
 	m_pModel->beginIncrementalLearning(pFeatureRel, pLabelRel);
-	GNeuralNet nn(m_pRand);
+	GNeuralNet nn(m_rand);
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
 
@@ -1239,7 +1262,7 @@ void GNonlinearPCA::train(GMatrix& data)
 			{
 				double* pVec = m_pUsers->row(i);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
-					*(pVec++) = 0.01 * m_pRand->normal();
+					*(pVec++) = 0.01 * m_rand.normal();
 			}
 		}
 		double regularizer = 0.0015;
@@ -1254,7 +1277,7 @@ void GNonlinearPCA::train(GMatrix& data)
 		for(double learningRate = rateBegin; learningRate > rateEnd; learningRate *= 0.7)
 		{
 			// Shuffle the ratings
-			pClone->shuffle(m_pRand);
+			pClone->shuffle(m_rand);
 
 			// Do an epoch of training
 			m_pModel->setLearningRate(learningRate);
@@ -1365,7 +1388,7 @@ void GNonlinearPCA::impute(double* pVec, size_t dims)
 void GNonlinearPCA::test()
 {
 	GRand rand(0);
-	GNonlinearPCA rec(8, &rand);
+	GNonlinearPCA rec(8, rand);
 	rec.model()->addLayer(6);
 	rec.basicTest(1.12);
 }
@@ -1381,17 +1404,16 @@ void GNonlinearPCA::test()
 
 
 GBagOfRecommenders::GBagOfRecommenders(GRand& rand)
-: GCollaborativeFilter(), m_itemCount(0), m_rand(rand)
+: GCollaborativeFilter(rand), m_itemCount(0)
 {
 }
 
-GBagOfRecommenders::GBagOfRecommenders(GDomNode* pNode, GRand& rand)
-: GCollaborativeFilter(pNode), m_rand(rand)
+GBagOfRecommenders::GBagOfRecommenders(GDomNode* pNode, GLearnerLoader& ll)
+: GCollaborativeFilter(pNode, ll)
 {
 	m_itemCount = (size_t)pNode->field("ic")->asInt();
-	GLearnerLoader ll;
 	for(GDomListIterator it(pNode->field("filters")); it.current(); it.advance())
-		m_filters.push_back(ll.loadCollaborativeFilter(it.current(), rand));
+		m_filters.push_back(ll.loadCollaborativeFilter(it.current()));
 }
 
 GBagOfRecommenders::~GBagOfRecommenders()
@@ -1487,10 +1509,10 @@ void GBagOfRecommenders::test()
 {
 	GRand rand(0);
 	GBagOfRecommenders rec(rand);
-	rec.addRecommender(new GBaselineRecommender());
+	rec.addRecommender(new GBaselineRecommender(rand));
 	rec.addRecommender(new GMatrixFactorization(8, rand));
-	rec.addRecommender(new GNonlinearPCA(8, &rand));
-	rec.basicTest(0.764);
+	rec.addRecommender(new GNonlinearPCA(8, rand));
+	rec.basicTest(0.807);
 }
 #endif
 

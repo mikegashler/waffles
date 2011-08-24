@@ -65,7 +65,7 @@ class GManifoldLearner : public GTransform
 {
 public:
 	GManifoldLearner() : GTransform() {}
-	GManifoldLearner(GDomNode* pNode) : GTransform(pNode) {}
+	GManifoldLearner(GDomNode* pNode, GLearnerLoader& ll) : GTransform(pNode, ll) {}
 	virtual ~GManifoldLearner() {}
 };
 
@@ -196,7 +196,7 @@ protected:
 
 public:
 	GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GIsomap(GDomNode* pNode);
+	GIsomap(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIsomap();
 
 	/// Serializes this object
@@ -230,7 +230,7 @@ protected:
 
 public:
 	GLLE(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GLLE(GDomNode* pNode);
+	GLLE(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GLLE();
 	
 	/// Serialize this object
@@ -264,7 +264,7 @@ public:
 	/// reps specifies the number of times to compute the embedding, and blend the
 	/// results together. If you just want fast results, use reps=1.
 	GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims, GRand* pRand);
-	GBreadthFirstUnfolding(GDomNode* pNode, GRand* pRand);
+	GBreadthFirstUnfolding(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GBreadthFirstUnfolding();
 
 	/// Serialize this object
@@ -444,7 +444,7 @@ protected:
 
 public:
 	GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand);
-	GUnsupervisedBackProp(GDomNode* pNode, GRand* pRand);
+	GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GUnsupervisedBackProp();
 
 	/// Returns a pointer to the neural network used to model the manifold. Typically, this

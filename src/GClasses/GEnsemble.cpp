@@ -20,10 +20,10 @@ using namespace GClasses;
 using std::vector;
 
 
-GWeightedModel::GWeightedModel(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
+GWeightedModel::GWeightedModel(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_weight = pNode->field("w")->asDouble();
-	m_pModel = pLoader->loadSupervisedLearner(pNode->field("m"), pRand);
+	m_pModel = ll.loadSupervisedLearner(pNode->field("m"));
 }
 
 GWeightedModel::~GWeightedModel()
@@ -44,13 +44,13 @@ GDomNode* GWeightedModel::serialize(GDom* pDoc)
 
 
 
-GBag::GBag(GRand* pRand)
-: GSupervisedLearner(), m_nAccumulatorDims(0), m_pAccumulator(NULL), m_pRand(pRand), m_pCB(NULL), m_pThis(NULL)
+GBag::GBag(GRand& rand)
+: GSupervisedLearner(rand), m_nAccumulatorDims(0), m_pAccumulator(NULL), m_pCB(NULL), m_pThis(NULL)
 {
 }
 
-GBag::GBag(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
-: GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
+GBag::GBag(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	m_nAccumulatorDims = (size_t)pNode->field("accum")->asInt();
@@ -62,7 +62,7 @@ GBag::GBag(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
 	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
 	{
-		GWeightedModel* pWM = new GWeightedModel(it.current(), pRand, pLoader);
+		GWeightedModel* pWM = new GWeightedModel(it.current(), ll);
 		m_models.push_back(pWM);
 		it.advance();
 	}
@@ -150,7 +150,7 @@ void GBag::trainInner(GMatrix& features, GMatrix& labels)
 			GReleaseDataHolder hDrawnLabels(&drawnLabels);
 			for(size_t j = 0; j < nVectorCount; j++)
 			{
-				size_t r = (size_t)m_pRand->next(nVectorCount);
+				size_t r = (size_t)m_rand.next(nVectorCount);
 				drawnFeatures.takeRow(features[r]);
 				drawnLabels.takeRow(labels[r]);
 			}
@@ -240,7 +240,7 @@ void GBag::tally(double* pOut)
 		size_t nValues = m_pLabelRel->valueCount(i);
 		if(nValues > 0)
 		{
-			pOut[i] = (double)GVec::indexOfMax(m_pAccumulator + nDims, nValues, m_pRand);
+			pOut[i] = (double)GVec::indexOfMax(m_pAccumulator + nDims, nValues, &m_rand);
 			nDims += nValues;
 		}
 		else
@@ -357,36 +357,35 @@ double GBag::crossValidate(GMatrix* pData, int nFolds, bool bRegression)
 // static
 void GBag::test()
 {
-	GRand prng(0);
-	GBag bag(&prng);
+	GRand rand(0);
+	GBag bag(rand);
 	for(size_t i = 0; i < 64; i++)
 	{
-		GDecisionTree* pTree = new GDecisionTree(&prng);
+		GDecisionTree* pTree = new GDecisionTree(rand);
 		pTree->useRandomDivisions();
 		bag.addLearner(pTree);
 	}
-	bag.basicTest(0.76, 0.76, &prng, 0.01);
+	bag.basicTest(0.76, 0.76, 0.01);
 }
 #endif
 
 // -------------------------------------------------------------------------
 
-GBucket::GBucket(GRand* pRand)
-: GSupervisedLearner()
+GBucket::GBucket(GRand& rand)
+: GSupervisedLearner(rand)
 {
 	m_nBestLearner = -1;
-	m_pRand = pRand;
 }
 
-GBucket::GBucket(GDomNode* pNode, GRand* pRand, GLearnerLoader* pLoader)
-: GSupervisedLearner(pNode, *pRand), m_pRand(pRand)
+GBucket::GBucket(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
 {
 	GDomNode* pModels = pNode->field("models");
 	GDomListIterator it(pModels);
 	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
 	{
-		m_models.push_back(pLoader->loadSupervisedLearner(it.current(), pRand));
+		m_models.push_back(ll.loadSupervisedLearner(it.current()));
 		it.advance();
 	}
 	m_nBestLearner = (size_t)pNode->field("best")->asInt();
@@ -432,14 +431,14 @@ void GBucket::trainInner(GMatrix& features, GMatrix& labels)
 	size_t nLearnerCount = m_models.size();
 	double dBestError = 1e200;
 	GSupervisedLearner* pLearner;
-	m_nBestLearner = (size_t)m_pRand->next(nLearnerCount);
+	m_nBestLearner = (size_t)m_rand.next(nLearnerCount);
 	double err;
 	for(size_t i = 0; i < nLearnerCount; i++)
 	{
 		pLearner = m_models[i];
 		try
 		{
-			err = pLearner->heuristicValidate(features, labels, m_pRand);
+			err = pLearner->heuristicValidate(features, labels);
 		}
 		catch(std::exception& e)
 		{
@@ -495,11 +494,11 @@ void GBucket::onError(std::exception& e)
 // static
 void GBucket::test()
 {
-	GRand prng(0);
-	GBucket bucket(&prng);
-	bucket.addLearner(new GBaselineLearner());
-	bucket.addLearner(new GDecisionTree(&prng));
-	bucket.addLearner(new GMeanMarginsTree(&prng));
-	bucket.basicTest(0.70, 0.73, &prng);
+	GRand rand(0);
+	GBucket bucket(rand);
+	bucket.addLearner(new GBaselineLearner(rand));
+	bucket.addLearner(new GDecisionTree(rand));
+	bucket.addLearner(new GMeanMarginsTree(rand));
+	bucket.basicTest(0.70, 0.73);
 }
 #endif

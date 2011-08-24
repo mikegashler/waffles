@@ -28,15 +28,14 @@ class GPCA;
 class GLinearRegressor : public GSupervisedLearner
 {
 protected:
-	GRand* m_pRand;
 	GMatrix* m_pBeta;
 	double* m_pEpsilon;
 
 public:
-	GLinearRegressor(GRand* pRand);
+	GLinearRegressor(GRand& rand);
 
 	/// Load from a text-format
-	GLinearRegressor(GDomNode* pNode, GRand* pRand);
+	GLinearRegressor(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GLinearRegressor();
 
@@ -53,9 +52,6 @@ public:
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
 
-	/// Returns the random number generator associated with this learner
-	GRand* getRand() { return m_pRand; }
-
 	/// Returns the matrix that represents the linear transformation.
 	GMatrix* beta() { return m_pBeta; }
 
@@ -66,7 +62,7 @@ public:
 	void refine(GMatrix& features, GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor);
 
 	/// This model has no parameters to tune, so this method is a noop.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

@@ -169,7 +169,6 @@ public:
 
 protected:
 	std::vector<GNeuralNetLayer> m_layers;
-	GRand* m_pRand;
 	GBackProp* m_pBackProp;
 	size_t m_internalFeatureDims, m_internalLabelDims;
 	std::vector<GActivationFunction*> m_activationFunctions;
@@ -183,10 +182,10 @@ protected:
 	bool m_useInputBias;
 
 public:
-	GNeuralNet(GRand* pRand);
+	GNeuralNet(GRand& rand);
 
 	/// Load from a text-format
-	GNeuralNet(GDomNode* pNode, GRand* pRand);
+	GNeuralNet(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GNeuralNet();
 
@@ -349,9 +348,6 @@ public:
 	/// countWeights().
 	void weights(double* pOutWeights);
 
-	/// Returns the pseudo-random number generator associated with this object
-	GRand* getRand() { return m_pRand; }
-
 	/// Evaluates a feature vector. (The results will be in the nodes of the output layer.)
 	void forwardProp(const double* pInputs);
 
@@ -381,7 +377,7 @@ public:
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data. That is, this method will add a good number of hidden
 	/// layers, pick a good momentum value, etc.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 	/// Specify whether to use an input bias. (The default is false.) This feature is
 	/// used with generative-backpropagation, which adjusts inputs to create latent features.
@@ -411,6 +407,9 @@ protected:
 
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax);
+
+	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
+	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
 	virtual bool canImplicitlyHandleNominalLabels() { return false; }

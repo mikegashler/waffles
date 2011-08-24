@@ -31,6 +31,7 @@ class GTwoWayIncrementalTransform;
 class GSparseMatrix;
 class GCollaborativeFilter;
 class GNeuralNet;
+class GLearnerLoader;
 
 
 /// This class is used to represent the predicted distribution made by a supervised learning algorithm.
@@ -97,8 +98,11 @@ typedef void (*RepValidateCallback)(void* pThis, size_t nRep, size_t nFold, size
 /// train again with the new rows.)
 class GTransducer
 {
+protected:
+	GRand& m_rand;
+
 public:
-	GTransducer();
+	GTransducer(GRand& rand);
 	virtual ~GTransducer();
 
 	/// Returns false because semi-supervised learners have no internal
@@ -133,12 +137,15 @@ public:
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
 	/// The results of each fold is returned in a dataset.
-	GMatrix* repValidate(GMatrix& features, GMatrix& labels, size_t reps, size_t nFolds, GRand* pRand, RepValidateCallback pCB = NULL, void* pThis = NULL);
+	GMatrix* repValidate(GMatrix& features, GMatrix& labels, size_t reps, size_t nFolds, RepValidateCallback pCB = NULL, void* pThis = NULL);
 
 	/// This performs two-fold cross-validation on a shuffled
 	/// non-uniform split of the data, and returns an error value that
 	/// represents the results of all labels combined.
-	double heuristicValidate(GMatrix& features, GMatrix& labels, GRand* pRand);
+	double heuristicValidate(GMatrix& features, GMatrix& labels);
+
+	/// Returns a reference to the random number generator associated with this object.
+	GRand& rand() { return m_rand; }
 
 protected:
 	/// This is the algorithm's implementation of transduction. (It is called by the transduce method.)
@@ -158,6 +165,11 @@ protected:
 	/// implicitly handle continuous features. If a limited range of continuous values is
 	/// supported, returns false and sets pOutMin and pOutMax to specify the range.
 	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax) { return true; }
+
+	/// Returns true iff this algorithm supports missing feature values. If it cannot,
+	/// then an imputation filter will be used to predict missing values before any
+	/// feature-vectors are passed to the algorithm.
+	virtual bool canImplicitlyHandleMissingFeatures() { return true; }
 
 	/// Returns true iff this algorithm can implicitly handle nominal labels (a.k.a.
 	/// classification). If it cannot, then the GNominalToCat transform will be
@@ -193,10 +205,10 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GSupervisedLearner();
+	GSupervisedLearner(GRand& rand);
 
 	/// Deserialization constructor
-	GSupervisedLearner(GDomNode* pLearner, GRand& rand);
+	GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GSupervisedLearner();
@@ -259,7 +271,7 @@ public:
 	/// prediction of the actual distribution of probability unless this method
 	/// has been called to calibrate them. If you never plan to call predictDistribution,
 	/// there is no reason to ever call this method.
-	void calibrate(GMatrix& features, GMatrix& labels, GRand& rand);
+	void calibrate(GMatrix& features, GMatrix& labels);
 
 	/// Evaluate pIn and compute a prediction for pOut. pOut is expected
 	/// to point to an array of GPrediction objects which have already been
@@ -295,7 +307,7 @@ public:
 	/// pOutPrecision should be an array big enough to hold nPrecisionSize elements for every possible
 	/// label value. (If the attribute is continuous, it should just be big enough to hold nPrecisionSize elements.)
 	/// If bLocal is true, it computes the local precision instead of the global precision.
-	void precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps, GRand* pRand);
+	void precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps);
 
 	/// Trains and tests this learner
 	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
@@ -309,7 +321,7 @@ public:
 
 #ifndef NO_TEST_CODE
 	/// This is a helper method used by the unit tests of several model learners
-	void basicTest(double minAccuracy1, double minAccuracy2, GRand* pRand, double deviation = 1e-6, bool printAccuracy = false);
+	void basicTest(double minAccuracy1, double minAccuracy2, double deviation = 1e-6, bool printAccuracy = false);
 
 	/// Runs some unit tests related to supervised learning. Throws an exception if any problems are found.
 	static void test();
@@ -350,14 +362,14 @@ class GIncrementalLearner : public GSupervisedLearner
 {
 public:
 	/// General-purpose constructor
-	GIncrementalLearner()
-	: GSupervisedLearner()
+	GIncrementalLearner(GRand& rand)
+	: GSupervisedLearner(rand)
 	{
 	}
 
 	/// Deserialization constructor
-	GIncrementalLearner(GDomNode* pLearner, GRand& rand)
-	: GSupervisedLearner(pLearner, rand)
+	GIncrementalLearner(GDomNode* pNode, GLearnerLoader& ll)
+	: GSupervisedLearner(pNode, ll)
 	{
 	}
 
@@ -414,29 +426,37 @@ class GLearnerLoader
 {
 protected:
 	bool m_throwIfClassNotFound;
+	GRand& m_rand;
 
 public:
 	/// Constructor. If throwIfClassNotFound is true, then all of the methods in this
 	/// class will throw an exception of the DOM refers to an unrecognized class.
 	/// If throwIfClassNotFound is false, then NULL will be returned if the class
 	/// is not recognized.
-	GLearnerLoader(bool throwIfClassNotFound = true) { m_throwIfClassNotFound = throwIfClassNotFound; }
+	GLearnerLoader(GRand& rand, bool throwIfClassNotFound = true)
+	: m_throwIfClassNotFound(throwIfClassNotFound), m_rand(rand)
+	{
+	}
+
 	virtual ~GLearnerLoader() {}
 
 	/// Loads an incremental transform (or a two-way incremental transform) from a DOM.
-	virtual GIncrementalTransform* loadIncrementalTransform(GDomNode* pNode, GRand* pRand);
+	virtual GIncrementalTransform* loadIncrementalTransform(GDomNode* pNode);
 
 	/// Loads a two-way transform from a DOM.
-	virtual GTwoWayIncrementalTransform* loadTwoWayIncrementalTransform(GDomNode* pNode, GRand* pRand);
+	virtual GTwoWayIncrementalTransform* loadTwoWayIncrementalTransform(GDomNode* pNode);
 
 	/// Loads a supervised learning algorithm (or an incremental learner) from a DOM.
-	virtual GSupervisedLearner* loadSupervisedLearner(GDomNode* pNode, GRand* pRand);
+	virtual GSupervisedLearner* loadSupervisedLearner(GDomNode* pNode);
 
 	/// Loads an incremental learner from a DOM.
-	virtual GIncrementalLearner* loadIncrementalLearner(GDomNode* pNode, GRand* pRand);
+	virtual GIncrementalLearner* loadIncrementalLearner(GDomNode* pNode);
 
 	/// Loads a collaborative filtering algorithm from a DOM.
-	virtual GCollaborativeFilter* loadCollaborativeFilter(GDomNode* pNode, GRand& rand);
+	virtual GCollaborativeFilter* loadCollaborativeFilter(GDomNode* pNode);
+
+	/// Returns the random number generator associated with this object.
+	GRand& rand() { return m_rand; }
 };
 
 
@@ -450,10 +470,10 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GBaselineLearner();
+	GBaselineLearner(GRand& rand);
 
 	/// Deserialization constructor
-	GBaselineLearner(GDomNode* pNode, GRand& rand);
+	GBaselineLearner(GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GBaselineLearner();
@@ -469,7 +489,7 @@ public:
 	virtual void clear();
 
 	/// This model has no parameters to tune, so this method is a noop.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -494,10 +514,10 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GIdentityFunction();
+	GIdentityFunction(GRand& rand);
 
 	/// Deserialization constructor
-	GIdentityFunction(GDomNode* pNode, GRand& rand);
+	GIdentityFunction(GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GIdentityFunction();

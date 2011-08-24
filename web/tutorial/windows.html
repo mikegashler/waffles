@@ -15,17 +15,29 @@
 
 <h2>Building on Windows</h2>
 <ol>
-	<li>Install Microsoft Visual C++ 2008 Express Edition.</li>
+	<li>Install Microsoft Visual C++ 2008 or 2010 Express Edition.</li>
 	<li>File->Open->Project/Solution</li>
-	<li>Open waffles/src/waffles.sln or waffles/demos/demos.sln</li>
+	<li>Open waffles/src/waffles.sln</li>
 	<li>Build (F7)</li>
 	<li>Set the startup app to the app you want to try.</li>
-	<li>Set arguments in Project->Properties->Debugging->Command Arguments</li>
+	<li>Set any relevant arguments in Project->Properties->Debugging->Command Arguments</li>
 	<li>Run it (F5)</li>
+<br>If you also want to try the demo apps:<br><br>
+	<li>Open waffles\demos\demos.sln in Visual C++.</li>
+	<li>Build (F7).</li>
+	<li>Set the startup app to the app you want to try.</li>
+	<li>Run it (F5).</li>
 </ol>
+
 
 <br><br><br>
 <h3>Troubleshooting</h3>
+
+<span style="font-weight: bold;">
+	When I run one of the apps, a black window appears for just a split second, then disappears, and nothing else happens.
+</span><br><div style="margin-left: 40px;">
+	Most of these apps are command-line applications that are meant to be run in a terminal or command shell. They do not open up a graphical interface for you. If you do not supply any arguments, then they will just print the usage information for the application (which is what you are seeing for a split-second in that black window), and then terminate. If this is confusing to you, then you might want to learn about <a href="http://www.c3scripts.com/tutorials/msdos/">using the command shell</a>.
+</div><br><br>
 
 <span style="font-weight: bold;">
 	When I switch between Debug and Release mode, it doesn't rebuild everything like it should.

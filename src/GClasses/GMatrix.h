@@ -634,11 +634,11 @@ public:
 
 	/// Randomizes the order of the rows. If pExtension is non-NULL, then
 	/// it will also be shuffled such that corresponding rows are preserved.
-	void shuffle(GRand* pRand, GMatrix* pExtension = NULL);
+	void shuffle(GRand& rand, GMatrix* pExtension = NULL);
 
 	/// Shuffles the order of the rows. Also shuffles the rows in "other" in
 	/// the same way, such that corresponding rows are preserved.
-	void shuffle2(GRand* pRand, GMatrix& other);
+	void shuffle2(GRand& rand, GMatrix& other);
 
 	/// This is an inferior way to shuffle the data
 	void shuffleLikeCards();
@@ -808,6 +808,9 @@ public:
 
 	/// Returns the number of ocurrences of the specified value in the specified attribute
 	size_t countValue(size_t attribute, double value);
+
+	/// Returns true iff this matrix is missing any values.
+	bool doesHaveAnyMissingValues();
 
 	/// Throws an exception if this data contains any missing values in a continuous attribute
 	void ensureDataHasNoMissingReals();

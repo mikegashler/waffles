@@ -19,22 +19,26 @@
 	<li>Install the following dependency packages:
 		<ul>
 			<li>g++</li>
-                        <li>make</li>
-                        <li>libpng3-dev</li>
-                        <li>libsdl1.2-dev</li>
+			<li>make</li>
+			<li>libpng12-dev</li>
 		</ul>
 		If you use Debian or Ubuntu, this command will install these packages:
 <pre>
-	sudo apt-get install g++ make libpng3-dev libsdl1.2-dev
+	sudo apt-get install g++ make libpng12-dev
 </pre>
-		(The libsdl1.2-dev package is only used by the demo apps. If you do not plan to
-		build the demo apps, you may omit that package.)
 	<li>Next, build and install the Waffles tools:
 <pre>
 	cd waffles/src
 	sudo make install
 </pre></li>
-	<li>If you want to build the demo apps, then do
+	<li>If you want to build the demo apps, then also install these packages:
+		<ul>
+			<li>libsdl1.2-dev</li>
+			<li>freeglut3-dev</li>
+			<li>libx11-dev</li>
+			<li>libssl-dev</li>
+		</ul>
+	and then do:
 <pre>
 	cd ../demos
 	make opt
@@ -133,8 +137,12 @@
                 but not for Linux?
 </span><br><div style="margin-left: 40px;">
 	It is easy for Linux developers to get the            
-                dependencies from package repositories. This method      
-                is superior anyway because you get the latest versions.
+	dependencies from package repositories. This method      
+	is superior anyway because you get the latest versions.
+	Windows users often require a little extra hand-holding,
+	so I have made it extra convenient for them at the cost
+	of linking to outdated libraries, etc.
+
 </div><br><br>
 
 <span style="font-weight: bold;">

@@ -83,13 +83,12 @@ GRecurrentModel::GRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLea
 }
 
 GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
-: GSystemLearner(pNode),
-	m_pRand(pRand)
+: GSystemLearner(pNode), m_pRand(pRand)
 {
 	// Load the models
-	GLearnerLoader ll;
-	m_pTransitionFunc = ll.loadSupervisedLearner(pNode->field("trans"), pRand);
-	m_pObservationFunc = ll.loadSupervisedLearner(pNode->field("obs"), pRand);
+	GLearnerLoader ll(*m_pRand);
+	m_pTransitionFunc = ll.loadSupervisedLearner(pNode->field("trans"));
+	m_pObservationFunc = ll.loadSupervisedLearner(pNode->field("obs"));
 
 	// Load the param ranges
 	GDomNode* pContext = pNode->field("context");
@@ -1119,7 +1118,7 @@ size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pOb
 	VectorOfPointersHolder<GNeuralNet> hTransNets(transNets);
 	for(size_t i = 0; i < depth; i++)
 	{
-		GNeuralNet* pNet = new GNeuralNet(m_pRand);
+		GNeuralNet* pNet = new GNeuralNet(*m_pRand);
 		pNet->copyStructure(pTransFunc);
 		transNets.push_back(pNet);
 	}

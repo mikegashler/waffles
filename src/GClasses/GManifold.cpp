@@ -908,8 +908,8 @@ GIsomap::GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand) : GManif
 {
 }
 
-GIsomap::GIsomap(GDomNode* pNode)
-: GManifoldLearner(pNode)
+GIsomap::GIsomap(GDomNode* pNode, GLearnerLoader& ll)
+: GManifoldLearner(pNode, ll)
 {
 	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
 }
@@ -1216,8 +1216,8 @@ GLLE::GLLE(size_t neighborCount, size_t targetDims, GRand* pRand) : GManifoldLea
 {
 }
 
-GLLE::GLLE(GDomNode* pNode)
-: GManifoldLearner(pNode)
+GLLE::GLLE(GDomNode* pNode, GLearnerLoader& ll)
+: GManifoldLearner(pNode, ll)
 {
 	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
 }
@@ -1269,8 +1269,8 @@ GBreadthFirstUnfolding::GBreadthFirstUnfolding(size_t reps, size_t neighborCount
 {
 }
 
-GBreadthFirstUnfolding::GBreadthFirstUnfolding(GDomNode* pNode, GRand* pRand)
-: m_reps((size_t)pNode->field("reps")->asInt()), m_neighborCount((size_t)pNode->field("neighbors")->asInt()), m_targetDims((size_t)pNode->field("targetDims")->asInt()), m_pNF(NULL), m_useMds(pNode->field("useMds")->asBool()), m_pRand(pRand)
+GBreadthFirstUnfolding::GBreadthFirstUnfolding(GDomNode* pNode, GLearnerLoader& ll)
+: m_reps((size_t)pNode->field("reps")->asInt()), m_neighborCount((size_t)pNode->field("neighbors")->asInt()), m_targetDims((size_t)pNode->field("targetDims")->asInt()), m_pNF(NULL), m_useMds(pNode->field("useMds")->asBool()), m_pRand(&ll.rand())
 {
 }
 
@@ -1899,8 +1899,8 @@ GMatrix* GDynamicSystemStateAligner::doit(GMatrix& in)
 	}
 
 	// Train the linear regression models
-	GLinearRegressor lrA(&m_rand);
-	GLinearRegressor lrB(&m_rand);
+	GLinearRegressor lrA(m_rand);
+	GLinearRegressor lrB(m_rand);
 	lrA.train(aFeatures, aLabels);
 	lrB.train(bFeatures, bLabels);
 
@@ -2208,13 +2208,13 @@ void GImageTweaker::test(const char* filename)
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: m_paramDims(0), m_pParamRanges(NULL), m_tweakDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_updateWeights(true), m_updateIntrinsic(true), m_useInputBias(true), m_pTweaker(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL)
+: GManifoldLearner(), m_paramDims(0), m_pParamRanges(NULL), m_tweakDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_updateWeights(true), m_updateIntrinsic(true), m_useInputBias(true), m_pTweaker(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL)
 {
-	m_pNN = new GNeuralNet(m_pRand);
+	m_pNN = new GNeuralNet(*m_pRand);
 }
 
-GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GRand* pRand)
-: m_pRand(pRand), m_cvi(0, NULL)
+GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll)
+: GManifoldLearner(pNode, ll), m_pRand(&ll.rand()), m_cvi(0, NULL)
 {
 	ThrowError("not implemented yet");
 }

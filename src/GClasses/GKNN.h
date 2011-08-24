@@ -37,7 +37,6 @@ public:
 
 protected:
 	// Settings
-	GRand& m_rand;
 	GMatrix* m_pFeatures;
 	GSparseMatrix* m_pSparseFeatures;
 	GMatrix* m_pLabels;
@@ -69,7 +68,7 @@ public:
 	GKNN(GRand& rand);
 
 	/// Load from a DOM.
-	GKNN(GDomNode* pNode, GRand& rand);
+	GKNN(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GKNN();
 
@@ -122,9 +121,6 @@ public:
 	/// attribute scaling factors. If you set it to false (the default), it won't.
 	void setOptimizeScaleFactors(bool b);
 
-	/// Get the random number generator that was passed to the constructor
-	GRand& getRand() { return m_rand; }
-
 	/// Returns the internal feature set
 	GMatrix* features() { return m_pFeatures; }
 
@@ -136,7 +132,7 @@ public:
 
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -183,12 +179,11 @@ class GNeighborTransducer : public GTransducer
 {
 protected:
 	size_t m_friendCount;
-	GRand* m_pRand;
 	bool m_prune;
 
 public:
 	/// General-purpose constructor
-	GNeighborTransducer(GRand* pRand);
+	GNeighborTransducer(GRand& rand);
 
 	/// Returns the number of neighbors.
 	size_t neighbors() { return m_friendCount; }
@@ -198,7 +193,7 @@ public:
 
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GTransducer::transduce
@@ -221,12 +216,11 @@ protected:
 	size_t* m_pScales;
 	double* m_pTable;
 	size_t m_product;
-	GRand* m_pRand;
 
 public:
 	/// dims specifies the number of feature dimensions.
 	/// pDims specifies the number of discrete zero-based values for each feature dim.
-	GInstanceTable(size_t dims, size_t* pDims, GRand* pRand);
+	GInstanceTable(size_t dims, size_t* pDims, GRand& rand);
 	virtual ~GInstanceTable();
 
 	/// Serialize this table

@@ -26,14 +26,14 @@ using std::vector;
 
 void do_decision_tree(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GDecisionTree model(&rand);
+	GDecisionTree model(rand);
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);
 }
 
 void do_neural_network(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GNeuralNet model(&rand);
+	GNeuralNet model(rand);
 	model.setActivationFunction(new GActivationTanH(), true); // use the hyperbolic tangent activation function
 	model.addLayer(3); // add one hidden layer of 3 nodes
 	model.setLearningRate(0.1);
@@ -53,17 +53,17 @@ void do_knn(GRand& rand, GMatrix& features, GMatrix& labels, double* test_featur
 
 void do_naivebayes(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GNaiveBayes model(&rand);
+	GNaiveBayes model(rand);
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);
 }
 
 void do_ensemble(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GBag ensemble(&rand);
+	GBag ensemble(rand);
 	for(size_t i = 0; i < 50; i++)
 	{
-		GDecisionTree* pDT = new GDecisionTree(&rand);
+		GDecisionTree* pDT = new GDecisionTree(rand);
 		pDT->useRandomDivisions(1); // Make random tree
 		ensemble.addLearner(pDT);
 	}

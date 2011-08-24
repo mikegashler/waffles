@@ -2634,7 +2634,7 @@ GMatrix* GMatrix::mergeHoriz(GMatrix* pSetA, GMatrix* pSetB)
 	return hNewSet.release();
 }
 
-void GMatrix::shuffle(GRand* pRand, GMatrix* pExtension)
+void GMatrix::shuffle(GRand& rand, GMatrix* pExtension)
 {
 	if(pExtension)
 	{
@@ -2642,7 +2642,7 @@ void GMatrix::shuffle(GRand* pRand, GMatrix* pExtension)
 			ThrowError("Expected pExtension to have the same number of rows");
 		for(size_t n = m_rows.size(); n > 0; n--)
 		{
-			size_t r = (size_t)pRand->next(n);
+			size_t r = (size_t)rand.next(n);
 			std::swap(m_rows[r], m_rows[n - 1]);
 			std::swap(pExtension->m_rows[r], pExtension->m_rows[n - 1]);
 		}
@@ -2650,15 +2650,15 @@ void GMatrix::shuffle(GRand* pRand, GMatrix* pExtension)
 	else
 	{
 		for(size_t n = m_rows.size(); n > 0; n--)
-			std::swap(m_rows[(size_t)pRand->next(n)], m_rows[n - 1]);
+			std::swap(m_rows[(size_t)rand.next(n)], m_rows[n - 1]);
 	}
 }
 
-void GMatrix::shuffle2(GRand* pRand, GMatrix& other)
+void GMatrix::shuffle2(GRand& rand, GMatrix& other)
 {
 	for(size_t n = m_rows.size(); n > 0; n--)
 	{
-		size_t r = (size_t)pRand->next(n);
+		size_t r = (size_t)rand.next(n);
 		std::swap(m_rows[r], m_rows[n - 1]);
 		std::swap(other.m_rows[r], other.m_rows[n - 1]);
 	}
@@ -3637,6 +3637,31 @@ size_t GMatrix::countValue(size_t attribute, double value)
 			count++;
 	}
 	return count;
+}
+
+bool GMatrix::doesHaveAnyMissingValues()
+{
+	size_t dims = m_pRelation->size();
+	for(size_t j = 0; j < dims; j++)
+	{
+		if(m_pRelation->valueCount(j) == 0)
+		{
+			for(size_t i = 0; i < rows(); i++)
+			{
+				if(row(i)[j] == UNKNOWN_REAL_VALUE)
+					return true;
+			}
+		}
+		else
+		{
+			for(size_t i = 0; i < rows(); i++)
+			{
+				if(row(i)[j] == UNKNOWN_DISCRETE_VALUE)
+					return true;
+			}
+		}
+	}
+	return false;
 }
 
 void GMatrix::ensureDataHasNoMissingReals()

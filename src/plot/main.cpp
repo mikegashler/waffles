@@ -1450,11 +1450,11 @@ void printDecisionTree(GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(true);
+	GRand prng(0);
+	GLearnerLoader ll(prng, true);
 	if(_stricmp(doc.root()->field("class")->asString(), "GDecisionTree") != 0)
 		ThrowError("That model is not a decision tree");
-	GRand prng(0);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	GMatrix* pData = NULL;
@@ -1483,9 +1483,9 @@ void model(GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("Model not specified");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(true);
 	GRand prng(0);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	GLearnerLoader ll(prng, true);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the data
@@ -1598,9 +1598,9 @@ void rayTraceManifoldModel(GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("Model not specified");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(true);
 	GRand prng(0);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	GLearnerLoader ll(prng, true);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	if(pModeler->featureDims() != 2 || pModeler->labelDims() != 3)
 		ThrowError("The model has ", to_str(pModeler->featureDims()), " inputs and ", to_str(pModeler->labelDims()), " outputs. 2 real inputs and 3 real outputs are expected");
@@ -1835,9 +1835,9 @@ void ubpFrames(GArgReader& args)
 
 	GDom doc;
 	doc.loadJson(szModelFilename);
-	GLearnerLoader ll;
 	GRand rand(0);
-	GSupervisedLearner* pLearner = ll.loadSupervisedLearner(doc.root(), &rand);
+	GLearnerLoader ll(rand);
+	GSupervisedLearner* pLearner = ll.loadSupervisedLearner(doc.root());
 	size_t tweakDims = pLearner->featureDims() - 4;
 
 	GTEMPBUF(double, pFeatures, pLearner->featureDims() + pLearner->labelDims());

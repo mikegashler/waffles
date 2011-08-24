@@ -968,7 +968,8 @@ void unsupervisedBackProp(GArgReader& args)
 		{
 			GDom doc;
 			doc.loadJson(args.pop_string());
-			ubp.setNeuralNet(new GNeuralNet(doc.root(), &prng));
+			GLearnerLoader ll(prng);
+			ubp.setNeuralNet(new GNeuralNet(doc.root(), ll));
 		}
 		else if(args.if_pop("-modelout"))
 			sModelOut = args.pop_string();

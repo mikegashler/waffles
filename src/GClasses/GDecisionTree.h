@@ -42,13 +42,12 @@ protected:
 	sp_relation m_pLabelRel;
 	GDecisionTreeNode* m_pRoot;
 	DivisionAlgorithm m_eAlg;
-	GRand* m_pRand;
 	size_t m_leafThresh;
 	size_t m_randomDraws;
 	size_t m_maxLevels;
 
 public:
-	GDecisionTree(GRand* pRand);
+	GDecisionTree(GRand& rand);
 #if 0 //Comment out deep-copy constructor
 	/// Makes a deep copy of another decision tree.  Also, if pInterestingNode
 	/// is non-NULL, then ppOutInterestingNode will return the node that is
@@ -56,7 +55,7 @@ public:
 	GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy);
 #endif
 	/// Loads from a DOM.
-	GDecisionTree(GDomNode* pNode, GRand* pRand);
+	GDecisionTree(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GDecisionTree();
 
@@ -107,7 +106,7 @@ public:
 
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -157,14 +156,13 @@ class GMeanMarginsTree : public GSupervisedLearner
 protected:
 	size_t m_internalFeatureDims, m_internalLabelDims;
 	GMeanMarginsTreeNode* m_pRoot;
-	GRand* m_pRand;
 
 public:
 	/// nOutputs specifies the number of output dimensions
-	GMeanMarginsTree(GRand* pRand);
+	GMeanMarginsTree(GRand& rand);
 
 	/// Load from a DOM.
-	GMeanMarginsTree(GDomNode* pNode, GRand* pRand);
+	GMeanMarginsTree(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GMeanMarginsTree();
 
@@ -179,7 +177,7 @@ public:
 	virtual void clear();
 
 	/// This model has no parameters to tune, so this method is a noop.
-	void autoTune(GMatrix& features, GMatrix& labels, GRand& rand);
+	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	GMeanMarginsTreeNode* buildNode(GMatrix& features, GMatrix& labels, double* pBuf, size_t* pBuf2);
@@ -209,7 +207,7 @@ protected:
 
 public:
 	GRandomForest(GRand& rand, size_t trees, size_t samples = 1);
-	GRandomForest(GDomNode* pNode, GRand& rand);
+	GRandomForest(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GRandomForest();
 
 #ifndef NO_TEST_CODE

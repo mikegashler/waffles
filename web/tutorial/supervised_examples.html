@@ -63,8 +63,8 @@ or regression, and all of them will support nominal and/or continuous values aut
 	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff baseline
 	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff decisiontree
 	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff bag 30 decisiontree end
-	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff knn 3
-	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff knn 5
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff knn -neighbors 3
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff knn -neighbors 5
 	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff naivebayes
 	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff neuralnet
 	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff neuralnet -addlayer 4
@@ -215,10 +215,10 @@ It gets 0.338. It looks like the neural net actually did pretty well after all. 
 <p>Next, we'll test the transductive accuracy using three different transduction algorithms. (Transduction can also be done with regular supervised learning models, so we'll throw in a couple of those at the end too.)
 <pre>
 	waffles_learn transacc -seed 0 s1.arff s2.arff agglomerativetransducer
-	waffles_learn transacc -seed 0 s1.arff s2.arff graphcuttransducer 5
-	waffles_learn transacc -seed 0 s1.arff s2.arff neighbortransducer 5
+	waffles_learn transacc -seed 0 s1.arff s2.arff graphcuttransducer -neighbors 5
+	waffles_learn transacc -seed 0 s1.arff s2.arff neighbortransducer -neighbors 5
 	waffles_learn transacc -seed 0 s1.arff s2.arff decisiontree
-	waffles_learn transacc -seed 0 s1.arff s2.arff knn 5
+	waffles_learn transacc -seed 0 s1.arff s2.arff knn -neighbors 5
 </pre>
 The first three algorithms transduce directly from s1.arff to predict labels for s2.arff without ever creating a model. The "decisiontree" and "knn 5" models just train on s1.arff, then test with s2.arff, and then throw away their models.
 </p>

@@ -54,7 +54,7 @@ using std::vector;
 using std::set;
 using std::ostringstream;
 
-GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
 size_t getAttrVal(const char* szString, size_t attrCount)
 {
@@ -219,16 +219,16 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	hLabelsOut.reset(pLabels);
 }
 
-GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GAgglomerativeTransducer* pTransducer = new GAgglomerativeTransducer();
+	GAgglomerativeTransducer* pTransducer = new GAgglomerativeTransducer(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pTransducer->autoTune(*pFeatures, *pLabels, *pRand);
+			pTransducer->autoTune(*pFeatures, *pLabels);
 		}
 		else
 			ThrowError("Invalid agglomerativetransducer option: ", args.peek());
@@ -236,9 +236,9 @@ GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GRand* pRand, GArgR
 	return pTransducer;
 }
 
-GBag* InstantiateBag(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GBag* InstantiateBag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GBag* pEnsemble = new GBag(pRand);
+	GBag* pEnsemble = new GBag(rand);
 	while(args.size() > 0)
 	{
 		if(args.if_pop("end"))
@@ -248,7 +248,7 @@ GBag* InstantiateBag(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix
 		for(int i = 0; i < instance_count; i++)
 		{
 			args.set_pos(arg_pos);
-			GTransducer* pLearner = InstantiateAlgorithm(pRand, args, pFeatures, pLabels);
+			GTransducer* pLearner = InstantiateAlgorithm(rand, args, pFeatures, pLabels);
 			if(!pLearner->canGeneralize())
 			{
 				delete(pLearner);
@@ -260,14 +260,14 @@ GBag* InstantiateBag(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix
 	return pEnsemble;
 }
 
-GBucket* InstantiateBucket(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GBucket* InstantiateBucket(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GBucket* pEnsemble = new GBucket(pRand);
+	GBucket* pEnsemble = new GBucket(rand);
 	while(args.size() > 0)
 	{
 		if(args.if_pop("end"))
 			break;
-		GTransducer* pLearner = InstantiateAlgorithm(pRand, args, pFeatures, pLabels);
+		GTransducer* pLearner = InstantiateAlgorithm(rand, args, pFeatures, pLabels);
 		if(!pLearner->canGeneralize())
 		{
 			delete(pLearner);
@@ -278,16 +278,16 @@ GBucket* InstantiateBucket(GRand* pRand, GArgReader& args, GMatrix* pFeatures, G
 	return pEnsemble;
 }
 
-GBaselineLearner* InstantiateBaseline(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GBaselineLearner* InstantiateBaseline(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GBaselineLearner* pModel = new GBaselineLearner();
+	GBaselineLearner* pModel = new GBaselineLearner(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels, *pRand);
+			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else
 			ThrowError("Invalid agglomerativetransducer option: ", args.peek());
@@ -295,31 +295,31 @@ GBaselineLearner* InstantiateBaseline(GRand* pRand, GArgReader& args, GMatrix* p
 	return pModel;
 }
 
-GBucket* InstantiateCvdt(GRand* pRand, GArgReader& args)
+GBucket* InstantiateCvdt(GRand& rand, GArgReader& args)
 {
 	size_t trees = args.pop_uint();
-	GBucket* pBucket = new GBucket(pRand);
-	GBag* pBag1 = new GBag(pRand);
+	GBucket* pBucket = new GBucket(rand);
+	GBag* pBag1 = new GBag(rand);
 	pBucket->addLearner(pBag1);
 	for(size_t i = 0; i < trees; i++)
-		pBag1->addLearner(new GDecisionTree(pRand));
-	GBag* pBag2 = new GBag(pRand);
+		pBag1->addLearner(new GDecisionTree(rand));
+	GBag* pBag2 = new GBag(rand);
 	pBucket->addLearner(pBag2);
 	for(size_t i = 0; i < trees; i++)
-		pBag2->addLearner(new GMeanMarginsTree(pRand));
+		pBag2->addLearner(new GMeanMarginsTree(rand));
 	return pBucket;
 }
 
-GDecisionTree* InstantiateDecisionTree(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GDecisionTree* InstantiateDecisionTree(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GDecisionTree* pModel = new GDecisionTree(pRand);
+	GDecisionTree* pModel = new GDecisionTree(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels, *pRand);
+			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-random")){
 			pModel->useRandomDivisions(args.pop_uint());
@@ -334,18 +334,18 @@ GDecisionTree* InstantiateDecisionTree(GRand* pRand, GArgReader& args, GMatrix* 
 	return pModel;
 }
 
-GGraphCutTransducer* InstantiateGraphCutTransducer(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GGraphCutTransducer* InstantiateGraphCutTransducer(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	if(args.size() < 1)
 		ThrowError("The number of neighbors must be specified for graphcuttransducer");
-	GGraphCutTransducer* pTransducer = new GGraphCutTransducer(pRand);
+	GGraphCutTransducer* pTransducer = new GGraphCutTransducer(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pTransducer->autoTune(*pFeatures, *pLabels, *pRand);
+			pTransducer->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-neighbors"))
 			pTransducer->setNeighbors(args.pop_uint());
@@ -355,18 +355,18 @@ GGraphCutTransducer* InstantiateGraphCutTransducer(GRand* pRand, GArgReader& arg
 	return pTransducer;
 }
 
-GKNN* InstantiateKNN(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GKNN* InstantiateKNN(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	if(args.size() < 1)
 		ThrowError("The number of neighbors must be specified for knn");
-	GKNN* pModel = new GKNN(*pRand);
+	GKNN* pModel = new GKNN(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels, *pRand);
+			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-neighbors"))
 			pModel->setNeighborCount(args.pop_uint());
@@ -384,16 +384,16 @@ GKNN* InstantiateKNN(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix
 	return pModel;
 }
 
-GLinearRegressor* InstantiateLinearRegressor(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GLinearRegressor* InstantiateLinearRegressor(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GLinearRegressor* pModel = new GLinearRegressor(pRand);
+	GLinearRegressor* pModel = new GLinearRegressor(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels, *pRand);
+			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else
 			ThrowError("Invalid option: ", args.peek());
@@ -401,16 +401,16 @@ GLinearRegressor* InstantiateLinearRegressor(GRand* pRand, GArgReader& args, GMa
 	return pModel;
 }
 
-GMeanMarginsTree* InstantiateMeanMarginsTree(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GMeanMarginsTree* InstantiateMeanMarginsTree(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GMeanMarginsTree* pModel = new GMeanMarginsTree(pRand);
+	GMeanMarginsTree* pModel = new GMeanMarginsTree(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels, *pRand);
+			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else
 			ThrowError("Invalid option: ", args.peek());
@@ -418,16 +418,16 @@ GMeanMarginsTree* InstantiateMeanMarginsTree(GRand* pRand, GArgReader& args, GMa
 	return pModel;
 }
 
-GNaiveBayes* InstantiateNaiveBayes(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GNaiveBayes* InstantiateNaiveBayes(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GNaiveBayes* pModel = new GNaiveBayes(pRand);
+	GNaiveBayes* pModel = new GNaiveBayes(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels, *pRand);
+			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-ess"))
 			pModel->setEquivalentSampleSize(args.pop_double());
@@ -437,16 +437,16 @@ GNaiveBayes* InstantiateNaiveBayes(GRand* pRand, GArgReader& args, GMatrix* pFea
 	return pModel;
 }
 
-GNaiveInstance* InstantiateNaiveInstance(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GNaiveInstance* pModel = new GNaiveInstance();
+	GNaiveInstance* pModel = new GNaiveInstance(rand);
 	while(args.next_is_flag())
 	{
-		if(args.if_pop("-autotune"))
+		if(args.if_pop("-"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels, *pRand);
+			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-neighbors"))
 			pModel->setNeighbors(args.pop_uint());
@@ -456,11 +456,11 @@ GNaiveInstance* InstantiateNaiveInstance(GRand* pRand, GArgReader& args, GMatrix
 	return pModel;
 }
 
-GNeighborTransducer* InstantiateNeighborTransducer(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GNeighborTransducer* InstantiateNeighborTransducer(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	if(args.size() < 1)
 		ThrowError("The number of neighbors must be specified for neighbortransducer");
-	GNeighborTransducer* pTransducer = new GNeighborTransducer(pRand);
+	GNeighborTransducer* pTransducer = new GNeighborTransducer(rand);
 	bool prune = false;
 	double alpha, beta;
 	int intrinsicDims;
@@ -470,7 +470,7 @@ GNeighborTransducer* InstantiateNeighborTransducer(GRand* pRand, GArgReader& arg
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pTransducer->autoTune(*pFeatures, *pLabels, *pRand);
+			pTransducer->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-prune"))
 			prune = true;
@@ -486,16 +486,16 @@ GNeighborTransducer* InstantiateNeighborTransducer(GRand* pRand, GArgReader& arg
 	return pTransducer;
 }
 
-GNeuralNet* InstantiateNeuralNet(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	GNeuralNet* pModel = new GNeuralNet(pRand);
+	GNeuralNet* pModel = new GNeuralNet(rand);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
 				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels, *pRand);
+			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-addlayer"))
 			pModel->addLayer(args.pop_uint());
@@ -547,7 +547,7 @@ GNeuralNet* InstantiateNeuralNet(GRand* pRand, GArgReader& args, GMatrix* pFeatu
 	return pModel;
 }
 
-GRandomForest* InstantiateRandomForest(GRand* pRand, GArgReader& args)
+GRandomForest* InstantiateRandomForest(GRand& rand, GArgReader& args)
 {
 	size_t trees = args.pop_uint();
 	size_t samples = 1;
@@ -558,7 +558,7 @@ GRandomForest* InstantiateRandomForest(GRand* pRand, GArgReader& args)
 		else
 			ThrowError("Invalid random forest option: ", args.peek());
 	}
-	return new GRandomForest(*pRand, trees, samples);
+	return new GRandomForest(rand, trees, samples);
 }
 
 void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
@@ -592,7 +592,7 @@ void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 	cerr.flush();
 }
 
-GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	int argPos = args.get_pos();
 	if(args.size() < 1)
@@ -600,35 +600,35 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args, GMatrix* pFeat
 	try
 	{
 		if(args.if_pop("agglomerativetransducer"))
-			return InstantiateAgglomerativeTransducer(pRand, args, pFeatures, pLabels);
+			return InstantiateAgglomerativeTransducer(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("bag"))
-			return InstantiateBag(pRand, args, pFeatures, pLabels);
+			return InstantiateBag(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("baseline"))
-			return InstantiateBaseline(pRand, args, pFeatures, pLabels);
+			return InstantiateBaseline(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("bucket"))
-			return InstantiateBucket(pRand, args, pFeatures, pLabels);
+			return InstantiateBucket(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("cvdt"))
-			return InstantiateCvdt(pRand, args);
+			return InstantiateCvdt(rand, args);
 		else if(args.if_pop("decisiontree"))
-			return InstantiateDecisionTree(pRand, args, pFeatures, pLabels);
+			return InstantiateDecisionTree(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("graphcuttransducer"))
-			return InstantiateGraphCutTransducer(pRand, args, pFeatures, pLabels);
+			return InstantiateGraphCutTransducer(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("knn"))
-			return InstantiateKNN(pRand, args, pFeatures, pLabels);
+			return InstantiateKNN(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("linear"))
-			return InstantiateLinearRegressor(pRand, args, pFeatures, pLabels);
+			return InstantiateLinearRegressor(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("meanmarginstree"))
-			return InstantiateMeanMarginsTree(pRand, args, pFeatures, pLabels);
+			return InstantiateMeanMarginsTree(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("naivebayes"))
-			return InstantiateNaiveBayes(pRand, args, pFeatures, pLabels);
+			return InstantiateNaiveBayes(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("naiveinstance"))
-			return InstantiateNaiveInstance(pRand, args, pFeatures, pLabels);
+			return InstantiateNaiveInstance(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("neighbortransducer"))
-			return InstantiateNeighborTransducer(pRand, args, pFeatures, pLabels);
+			return InstantiateNeighborTransducer(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("neuralnet"))
-			return InstantiateNeuralNet(pRand, args, pFeatures, pLabels);
+			return InstantiateNeuralNet(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("randomforest"))
-			return InstantiateRandomForest(pRand, args);
+			return InstantiateRandomForest(rand, args);
 		ThrowError("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
@@ -643,8 +643,8 @@ GTransducer* InstantiateAlgorithm(GRand* pRand, GArgReader& args, GMatrix* pFeat
 
 void autoTuneDecisionTree(GMatrix& features, GMatrix& labels, GRand& rand)
 {
-	GDecisionTree dt(&rand);
-	dt.autoTune(features, labels, rand);
+	GDecisionTree dt(rand);
+	dt.autoTune(features, labels);
 	cout << "decisiontree";
 	if(dt.leafThresh() != 1)
 		cout << " -leafthresh " << dt.leafThresh();
@@ -654,7 +654,7 @@ void autoTuneDecisionTree(GMatrix& features, GMatrix& labels, GRand& rand)
 void autoTuneKNN(GMatrix& features, GMatrix& labels, GRand& rand)
 {
 	GKNN model(rand);
-	model.autoTune(features, labels, rand);
+	model.autoTune(features, labels);
 	cout << "knn";
 	if(model.neighborCount() != 1)
 		cout << " -neighbors " << model.neighborCount();
@@ -665,8 +665,8 @@ void autoTuneNeuralNet(GMatrix& features, GMatrix& labels, GRand& rand)
 {
 	cout << "Warning: Because neural nets take a long time to train, it could take hours to train with enough parameter variations to determine with confidence which parameters are best. (If possible, I would strongly advise running this as a background process while you do something else, rather than sit around waiting for it to finish.)";
 	cout.flush();
-	GNeuralNet nn(&rand);
-	nn.autoTune(features, labels, rand);
+	GNeuralNet nn(rand);
+	nn.autoTune(features, labels);
 	const char* szCurrent = "logistic";
 	cout << "neuralnet";
 	for(size_t i = 0; i < nn.layerCount(); i++)
@@ -687,8 +687,8 @@ void autoTuneNeuralNet(GMatrix& features, GMatrix& labels, GRand& rand)
 
 void autoTuneNaiveBayes(GMatrix& features, GMatrix& labels, GRand& rand)
 {
-	GNaiveBayes model(&rand);
-	model.autoTune(features, labels, rand);
+	GNaiveBayes model(rand);
+	model.autoTune(features, labels);
 	cout << "naivebayes";
 	cout << " -ess " << model.equivalentSampleSize();
 	cout << "\n";
@@ -696,8 +696,8 @@ void autoTuneNaiveBayes(GMatrix& features, GMatrix& labels, GRand& rand)
 
 void autoTuneNaiveInstance(GMatrix& features, GMatrix& labels, GRand& rand)
 {
-	GNaiveInstance model;
-	model.autoTune(features, labels, rand);
+	GNaiveInstance model(rand);
+	model.autoTune(features, labels);
 	cout << "naiveinstance";
 	cout << " -neighbors " << model.neighbors();
 	cout << "\n";
@@ -705,8 +705,8 @@ void autoTuneNaiveInstance(GMatrix& features, GMatrix& labels, GRand& rand)
 
 void autoTuneGraphCutTransducer(GMatrix& features, GMatrix& labels, GRand& rand)
 {
-	GGraphCutTransducer transducer(&rand);
-	transducer.autoTune(features, labels, rand);
+	GGraphCutTransducer transducer(rand);
+	transducer.autoTune(features, labels);
 	cout << "graphcuttransducer";
 	cout << " -neighbors " << transducer.neighbors();
 	cout << "\n";
@@ -763,7 +763,7 @@ void Train(GArgReader& args)
 	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
-	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args, pFeatures, pLabels);
+	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
@@ -799,8 +799,8 @@ void predict(GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	GLearnerLoader ll(prng, true);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the data
@@ -842,8 +842,8 @@ void predictOnePattern(GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	GLearnerLoader ll(prng, true);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the dataset
@@ -998,8 +998,8 @@ void Test(GArgReader& args)
 	if(args.size() < 1)
 		ThrowError("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root(), &prng);
+	GLearnerLoader ll(prng, true);
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the data
@@ -1051,7 +1051,7 @@ void Transduce(GArgReader& args)
 		ThrowError("The labeled and unlabeled datasets must have the same number of columns. (The labels in the unlabeled set are just place-holders, and will be overwritten.)");
 
 	// Instantiate the modeler
-	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args, pFeatures1, pLabels1);
+	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures1, pLabels1);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
@@ -1092,7 +1092,7 @@ void TransductiveAccuracy(GArgReader& args)
 		ThrowError("The training and test datasets must have the same number of columns.");
 
 	// Instantiate the modeler
-	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args, pFeatures1, pLabels1);
+	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures1, pLabels1);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
@@ -1146,7 +1146,7 @@ void SplitTest(GArgReader& args)
 	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
-	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args, pFeatures, pLabels);
+	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
@@ -1167,7 +1167,7 @@ void SplitTest(GArgReader& args)
 	for(size_t i = 0; i < reps; i++)
 	{
 		// Shuffle and split the data
-		pFeatures->shuffle(&prng, pLabels);
+		pFeatures->shuffle(prng, pLabels);
 		GMatrix testFeatures(pFeatures->relation(), pFeatures->heap());
 		GMatrix testLabels(pLabels->relation(), pLabels->heap());
 		{
@@ -1252,14 +1252,14 @@ void CrossValidate(GArgReader& args)
 
 	// Instantiate the modeler
 	GRand prng(seed);
-	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args, pFeatures, pLabels);
+	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
 
 	// Test
 	cout.precision(8);
-	GMatrix* pResults = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, &prng, succinct ? NULL : CrossValidateCallback, pSupLearner);
+	GMatrix* pResults = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, succinct ? NULL : CrossValidateCallback, pSupLearner);
 	Holder<GMatrix> hResults(pResults);
 	if(!succinct)
 		cout << "-----\n";
@@ -1326,7 +1326,7 @@ void PrecisionRecall(GArgReader& args)
 
 	// Instantiate the modeler
 	GRand prng(seed);
-	GTransducer* pSupLearner = InstantiateAlgorithm(&prng, args, pFeatures, pLabels);
+	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
@@ -1376,7 +1376,7 @@ void PrecisionRecall(GArgReader& args)
 		size_t valCount = std::max((size_t)1, pLabels->relation()->valueCount(i));
 		double* precision = new double[valCount * samples];
 		ArrayHolder<double> hPrecision(precision);
-		pModel->precisionRecall(precision, samples, *pFeatures, *pLabels, i, reps, &prng);
+		pModel->precisionRecall(precision, samples, *pFeatures, *pLabels, i, reps);
 		for(size_t j = 0; j < valCount; j++)
 			results.setCol(pos++, precision + samples * j);
 	}
@@ -1410,7 +1410,7 @@ void sterilize(GArgReader& args)
 
 	// Instantiate the modeler
 	GRand prng(seed);
-	GTransducer* pTransducer = InstantiateAlgorithm(&prng, args, pFeatures, pLabels);
+	GTransducer* pTransducer = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pTransducer);
 	if(args.size() > 0)
 		ThrowError("Superfluous argument: ", args.peek());
@@ -1631,11 +1631,11 @@ void trainRecurrent(GArgReader& args)
 
 	// Instantiate the recurrent model
 	GRand prng(seed);
-	GTransducer* pTransitionFunc = InstantiateAlgorithm(&prng, args, NULL, NULL);
+	GTransducer* pTransitionFunc = InstantiateAlgorithm(prng, args, NULL, NULL);
 	Holder<GTransducer> hTransitionFunc(pTransitionFunc);
 	if(!pTransitionFunc->canGeneralize())
 		ThrowError("The algorithm specified for the transition function cannot be \"trained\". It can only be used to \"transduce\".");
-	GTransducer* pObservationFunc = InstantiateAlgorithm(&prng, args, NULL, NULL);
+	GTransducer* pObservationFunc = InstantiateAlgorithm(prng, args, NULL, NULL);
 	Holder<GTransducer> hObservationFunc(pObservationFunc);
 	if(!pObservationFunc->canGeneralize())
 		ThrowError("The algorithm specified for the observation function cannot be \"trained\". It can only be used to \"transduce\".");

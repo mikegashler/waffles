@@ -26,11 +26,12 @@
 	virtual bool canImplicitlyHandleNominalFeatures() { return true; }
 	virtual bool canImplicitlyHandleContinuousFeatures() { return true; }
 	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax) { return true; }
+	virtual bool canImplicitlyHandleMissingFeatures() { return true; }
 	virtual bool canImplicitlyHandleNominalLabels() { return true; }
 	virtual bool canImplicitlyHandleContinuousLabels() { return true; }
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) { return true; }
 </pre>
-<p>These methods basically say that your algorithm can handle both nominal and continuous features, both nominal and continuous labels (both classification and regression), and that it can handle any range for continuous values. If this is all correct, then you don't need to do anything in this step. If, however, your algorithm cannot implicitly handle one or more of these cases, then you need to specify this by overloading the appropriate methods. For example, if your algorithm can do classification, but not regression, then you would add this method to your class:</p>
+<p>These methods basically say that your algorithm can handle both nominal and continuous features, both nominal and continuous labels (both classification and regression), that it can handle any range for continuous values, and that it can handle missing feature values. If this is all correct, then you don't need to do anything in this step. If, however, your algorithm cannot implicitly handle one or more of these cases, then you need to specify this by overloading the appropriate methods. For example, if your algorithm can do classification, but not regression, then you would add this method to your class:</p>
 <pre>
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 </pre>
@@ -44,7 +45,7 @@
 	}
 </pre></p>
 
-<p>In the next step, when you implement your algorithm, you only need to implement functionality to support the types of data that you specified it could handle. If some other type of data is passed to your algorithm, it will be automatically converted to a type that your algorithm can handle before your code ever receives it.</p>
+<p>In the next step, when you implement your algorithm, you only need to implement functionality to support the types of data that you said it could handle. If some other type of data is passed to your algorithm, it will be automatically converted to a type that your algorithm can handle before your code ever receives it.</p>
 
 <p>The <b>third step</b> to complete your algorithm is to implement all of the pure virtual methods required by your base class. If you selected GTransducer for your base class, then you only need to implement one pure virtual method:</p>
 <pre>

@@ -412,14 +412,14 @@ void GBackProp::adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeature
 
 // ----------------------------------------------------------------------
 
-GNeuralNet::GNeuralNet(GRand* pRand)
-: GIncrementalLearner(), m_pRand(pRand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0), m_minImprovement(0.002), m_epochsPerValidationCheck(200), m_backPropTargetFunction(squared_error), m_useInputBias(false)
+GNeuralNet::GNeuralNet(GRand& rand)
+: GIncrementalLearner(rand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0), m_minImprovement(0.002), m_epochsPerValidationCheck(200), m_backPropTargetFunction(squared_error), m_useInputBias(false)
 {
 	m_layers.resize(1);
 }
 
-GNeuralNet::GNeuralNet(GDomNode* pNode, GRand* pRand)
-: GIncrementalLearner(pNode, *pRand), m_pRand(pRand)
+GNeuralNet::GNeuralNet(GDomNode* pNode, GLearnerLoader& ll)
+: GIncrementalLearner(pNode, ll)
 {
 	// Create the layers
 	m_pActivationFunction = NULL;
@@ -603,14 +603,14 @@ void GNeuralNet::addNode(size_t layer)
 	l.m_neurons.resize(n + 1);
 	GNeuron& neuron = l.m_neurons[n];
 	neuron.m_weights.resize(l.m_neurons[0].m_weights.size());
-	neuron.resetWeights(m_pRand, l.m_pActivationFunction->center());
+	neuron.resetWeights(&m_rand, l.m_pActivationFunction->center());
 
 	// Add another weight to each node in the next layer
 	if(layer < m_layers.size() - 1)
 	{
 		GNeuralNetLayer& layerNext = m_layers[layer + 1];
 		for(vector<GNeuron>::iterator it = layerNext.m_neurons.begin(); it != layerNext.m_neurons.end(); it++)
-			it->m_weights.push_back(0.05 * m_pRand->normal());
+			it->m_weights.push_back(0.05 * m_rand.normal());
 	}
 }
 
@@ -746,7 +746,7 @@ void GNeuralNet::perturbAllWeights(double deviation)
 	{
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
 			for(vector<double>::iterator weight = neuron->m_weights.begin(); weight != neuron->m_weights.end(); weight++)
-				(*weight) += (m_pRand->normal() * deviation);
+				(*weight) += (m_rand.normal() * deviation);
 	}
 }
 
@@ -998,7 +998,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 	GTEMPBUF(double, pFullRow, features.cols());
 	for(size_t epochs = 0; epochs < 100; epochs++) // todo: need a better stopping criterion
 	{
-		GIndexVec::shuffle(indexes, features.rows(), m_pRand);
+		GIndexVec::shuffle(indexes, features.rows(), &m_rand);
 		for(size_t i = 0; i < features.rows(); i++)
 		{
 			features.fullRow(pFullRow, indexes[i]);
@@ -1047,7 +1047,7 @@ size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLab
 	double dSumSquaredError;
 	for(nEpochs = 0; true; nEpochs++)
 	{
-		GIndexVec::shuffle(pIndexes, rowCount, m_pRand);
+		GIndexVec::shuffle(pIndexes, rowCount, &m_rand);
 		size_t* pIndex = pIndexes;
 		for(size_t n = 0; n < rowCount; n++)
 		{
@@ -1110,7 +1110,7 @@ void GNeuralNet::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_rela
 	double inputCenter = 0.5; // Assume inputs have a range from 0 to 1. If this not correct, learning may be slightly slower.
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
-		m_layers[i].resetWeights(m_pRand, inputCenter);
+		m_layers[i].resetWeights(&m_rand, inputCenter);
 		inputCenter = m_layers[i].m_pActivationFunction->center();
 	}
 
@@ -1249,23 +1249,23 @@ void GNeuralNet::setErrorSingleOutput(double target, size_t output, TargetFuncti
 	}
 }
 
-void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Try a plain-old single-layer network
 	size_t hidden = std::max((size_t)4, (features.cols() + 3) / 4);
-	Holder<GNeuralNet> hCand0(new GNeuralNet(&rand));
+	Holder<GNeuralNet> hCand0(new GNeuralNet(m_rand));
 	Holder<GNeuralNet> hCand1;
 	double scores[2];
-	scores[0] = hCand0.get()->heuristicValidate(features, labels, &rand);
+	scores[0] = hCand0.get()->heuristicValidate(features, labels);
 	scores[1] = 1e308;
 
 	// Try increasing the number of hidden units until accuracy decreases twice
 	size_t failures = 0;
 	while(true)
 	{
-		GNeuralNet* cand = new GNeuralNet(&rand);
+		GNeuralNet* cand = new GNeuralNet(m_rand);
 		cand->addLayer(hidden);
-		double d = cand->heuristicValidate(features, labels, &rand);
+		double d = cand->heuristicValidate(features, labels);
 		if(d < scores[0])
 		{
 			hCand1.reset(hCand0.release());
@@ -1297,9 +1297,9 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 		if(dif <= 1)
 			break;
 		size_t c = (a + b) / 2;
-		GNeuralNet* cand = new GNeuralNet(&rand);
+		GNeuralNet* cand = new GNeuralNet(m_rand);
 		cand->addLayer(c);
-		double d = cand->heuristicValidate(features, labels, &rand);
+		double d = cand->heuristicValidate(features, labels);
 		if(d < scores[0])
 		{
 			hCand1.reset(hCand0.release());
@@ -1344,10 +1344,10 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 			c1 = 16;
 			c2 = 16;
 		}
-		GNeuralNet* cand = new GNeuralNet(&rand);
+		GNeuralNet* cand = new GNeuralNet(m_rand);
 		cand->addLayer(c1);
 		cand->addLayer(c2);
-		double d = cand->heuristicValidate(features, labels, &rand);
+		double d = cand->heuristicValidate(features, labels);
 		if(d < scores[0])
 		{
 			hCand0.reset(cand);
@@ -1362,11 +1362,11 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 	// Try a gaussian activation function
 	GActivationFunction* pActiv = new GActivationLogistic();
 	{
-		GNeuralNet* cand = new GNeuralNet(&rand);
+		GNeuralNet* cand = new GNeuralNet(m_rand);
 		cand->setActivationFunction(new GActivationGaussian(), true);
 		if(hu1 > 0) cand->addLayer(hu1);
 		if(hu2 > 0) cand->addLayer(hu2);
-		double d = cand->heuristicValidate(features, labels, &rand);
+		double d = cand->heuristicValidate(features, labels);
 		if(d < scores[0])
 		{
 			hCand0.reset(cand);
@@ -1380,12 +1380,12 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
 
 	// Try with momentum
 	{
-		GNeuralNet* cand = new GNeuralNet(&rand);
+		GNeuralNet* cand = new GNeuralNet(m_rand);
 		cand->setActivationFunction(pActiv, false);
 		if(hu1 > 0) cand->addLayer(hu1);
 		if(hu2 > 0) cand->addLayer(hu2);
 		cand->setMomentum(0.8);
-		double d = cand->heuristicValidate(features, labels, &rand);
+		double d = cand->heuristicValidate(features, labels);
 		if(d < scores[0])
 		{
 			hCand0.reset(cand);
@@ -1411,7 +1411,7 @@ void GNeuralNet_testMath()
 
 	// Make the Neural Network
 	GRand prng(0);
-	GNeuralNet nn(&prng);
+	GNeuralNet nn(prng);
 	nn.setLearningRate(0.175);
 	nn.setMomentum(0.9);
 	nn.addLayer(3);
@@ -1519,7 +1519,7 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 	for(int i = 0; i < 20; i++)
 	{
 		// Make the neural net
-		GNeuralNet nn(pRand);
+		GNeuralNet nn(*pRand);
 //		nn.addLayer(5);
 //		nn.addLayer(10);
 		sp_relation pFeatureRel = new GUniformRelation(5);
@@ -1589,7 +1589,7 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 		features.newRow()[0] = d;
 		labels.newRow()[0] = 1.0 - d;
 	}
-	GNeuralNet nn(pRand);
+	GNeuralNet nn(*pRand);
 	nn.train(features, labels);
 	double r;
 	nn.accuracy(features, labels, &r);
@@ -1606,15 +1606,15 @@ void GNeuralNet::test()
 
 	// Test with no hidden layers (logistic regression)
 	{
-		GNeuralNet nn(&prng);
-		nn.basicTest(0.75, 0.77, &prng);
+		GNeuralNet nn(prng);
+		nn.basicTest(0.75, 0.77);
 	}
 
 	// Test NN with one hidden layer
 	{
-		GNeuralNet nn(&prng);
+		GNeuralNet nn(prng);
 		nn.addLayer(3);
-		nn.basicTest(0.78, 0.76, &prng);
+		nn.basicTest(0.78, 0.76);
 	}
 
 	GNeuralNet_testInputGradient(&prng);
@@ -1709,7 +1709,7 @@ void GNeuralNetPseudoInverse::computeFeatures(const double* pLabels, double* pFe
 void GNeuralNetPseudoInverse::test()
 {
 	GRand prng(0);
-	GNeuralNet nn(&prng);
+	GNeuralNet nn(prng);
 	nn.addLayer(5);
 	nn.addLayer(7);
 	sp_relation pFeatureRel = new GUniformRelation(3);
@@ -1731,133 +1731,6 @@ void GNeuralNetPseudoInverse::test()
 	}
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-GModerateNet::GModerateNet(GRand* pRand)
-: GNeuralNet(pRand)
-{
-	m_lambda = 0.01;
-}
-
-// virtual
-GModerateNet::~GModerateNet()
-{
-}
-
-// virtual
-GDomNode* GModerateNet::serialize(GDom* pDoc)
-{
-	ThrowError("Not implemented yet");
-	return NULL;
-}
-
-// virtual
-void GModerateNet::train(GMatrix& data, int labelDims)
-{
-	// Split into a training and test set
-	GMatrix dataTrain(pData->relation());
-	GReleaseDataHolder hDataTrain(&dataTrain);
-	for(size_t i = 0; i < pData->rows(); i++)
-		dataTrain.takeRow(pData->row(i));
-	GMatrix dataValidate(pData->relation());
-	GReleaseDataHolder hDataValidate(&dataValidate);
-//	dataTrain.splitBySize(&dataValidate, dataTrain.rows() / 2);
-
-	// Make an internal features set
-	GMatrix* pInternalSet = dataTrain.clone();
-	Holder<GMatrix> hInternalSet(pInternalSet);
-
-	// Do the training
-	GNeuralNet::enableIncrementalLearning(pData->relation(), labelDims, NULL, NULL);
-	size_t featureDims = pData->cols() - labelDims;
-	double dBestError = 1e308;
-	int nEpochsSinceValidationCheck = 0;
-	double dSumSquaredError;
-	while(true)
-	{
-		pInternalSet->shuffle2(m_pRand, dataTrain);
-		for(size_t i = 0; i < pInternalSet->rows(); i++)
-		{
-			// Train the weights
-			double* pRow = pInternalSet->row(i);
-			forwardProp(pRow);
-			setErrorOnOutputLayer(pRow + featureDims);
-			m_pBackProp->backpropagate();
-			m_pBackProp->descendGradient(pRow, m_learningRate, m_momentum);
-
-			// Train the inputs
-			m_pBackProp->adjustFeatures(pRow, m_learningRate);
-
-			// Decay the inputs
-			GVec::multiply(pRow, 1.0 - m_lambda, featureDims);
-			GVec::addScaled(pRow, m_lambda, dataTrain.row(i), featureDims);
-		}
-
-		// Check for termination condition
-		if(nEpochsSinceValidationCheck >= m_epochsPerValidationCheck)
-		{
-			nEpochsSinceValidationCheck = 0;
-			dSumSquaredError = validationSquaredError(&dataTrain);
-			if(1.0 - dSumSquaredError / dBestError < m_minImprovement)
-				break;
-			if(dSumSquaredError < dBestError)
-				dBestError = dSumSquaredError;
-		}
-		else
-			nEpochsSinceValidationCheck++;
-	}
-
-	releaseTrainingJunk();
-}
-
-// virtual
-void GModerateNet::enableIncrementalLearning(sp_relation& pRelation, int labelDims, double* pMins, double* pRanges)
-{
-	ThrowError("Not implemented yet");
-}
-
-// virtual
-void GModerateNet::predictDistribution(const double* pIn, GPrediction* pOut)
-{
-	ThrowError("Not implemented yet");
-}
-
-// virtual
-void GModerateNet::clear()
-{
-	GNeuralNet::clear();
-}
-
-// virtual
-void GModerateNet::trainIncremental(GSparseMatrix& features, GMatrix& labels)
-{
-	ThrowError("Not implemented yet");
-}
-
-// virtual
-void GModerateNet::trainSparse(GSparseMatrix* pData, int labelDims)
-{
-	ThrowError("Not implemented yet");
-}
-*/
-
-
-
-
 
 
 } // namespace GClasses

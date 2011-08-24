@@ -331,8 +331,8 @@ void GAgglomerativeClusterer::test()
 
 // -----------------------------------------------------------------------------------------
 
-GAgglomerativeTransducer::GAgglomerativeTransducer()
-: GTransducer(), m_pMetric(NULL), m_ownMetric(false)
+GAgglomerativeTransducer::GAgglomerativeTransducer(GRand& rand)
+: GTransducer(rand), m_pMetric(NULL), m_ownMetric(false)
 {
 }
 
@@ -348,7 +348,7 @@ void GAgglomerativeTransducer::setMetric(GDistanceMetric* pMetric, bool own)
 	m_ownMetric = own;
 }
 
-void GAgglomerativeTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GAgglomerativeTransducer::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// This model has no parameters to tune
 }
@@ -1154,8 +1154,8 @@ size_t CountLocalMaximums(size_t nElements, double* pData)
 
 // -----------------------------------------------------------------------------------------
 
-GGraphCutTransducer::GGraphCutTransducer(GRand* pRand)
-: GTransducer(), m_neighborCount(12), m_pRand(pRand)
+GGraphCutTransducer::GGraphCutTransducer(GRand& rand)
+: GTransducer(rand), m_neighborCount(12)
 {
 	m_pNeighbors = new size_t[m_neighborCount];
 	m_pDistances = new double[m_neighborCount];
@@ -1177,7 +1177,7 @@ void GGraphCutTransducer::setNeighbors(size_t k)
 	m_pDistances = new double[k];
 }
 
-void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& rand)
+void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Find the best value for k
 	size_t cap = size_t(floor(sqrt(double(features.rows()))));
@@ -1186,7 +1186,7 @@ void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& ra
 	for(size_t i = 4; i < cap; i = size_t(i * 1.5))
 	{
 		m_neighborCount = i;
-		double d = heuristicValidate(features, labels, &rand);
+		double d = heuristicValidate(features, labels);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -1204,7 +1204,7 @@ void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels, GRand& ra
 GMatrix* GGraphCutTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
 	// Use k-NN to compute a distance metric with good scale factors for prediction
-	GKNN knn(*m_pRand);
+	GKNN knn(m_rand);
 	knn.setNeighborCount(m_neighborCount);
 	//knn.setOptimizeScaleFactors(true);
 	knn.train(features1, labels1);
