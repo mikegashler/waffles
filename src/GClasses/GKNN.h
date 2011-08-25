@@ -171,6 +171,9 @@ protected:
 
 	/// Interpolates with the provided supervised learning algorithm
 	void interpolateLearner(const double* pIn, GPrediction* pOut, double* pOut2);
+
+	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
+	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
 };
 
 

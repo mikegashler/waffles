@@ -47,8 +47,6 @@ Build Instructions:
 		5- Install the following dependency packages:
 			libsdl1.2-dev
 			freeglut3-dev
-			libx11-dev
-			libssl-dev
 		6- cd ../demos
 		7- make opt
 

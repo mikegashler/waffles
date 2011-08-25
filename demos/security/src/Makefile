@@ -13,14 +13,14 @@ ifeq ($(UNAME),Darwin)
 CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -I../../../src -no-cpp-precomp
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GSupDbg.a ../../../lib/GClassesDbg.a -lpthread -lX11 -lssl
-OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GSup.a ../../../lib/GClasses.a -lpthread -lX11 -lssl
+DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpthread -lX11 -lssl
+OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libpng.dylib -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a -lpthread -lX11 -lssl
 else
 CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = ../../../obj/waffles_wizard/dbg/usage.o -lGSupDbg -lGClassesDbg -lpng -lpthread -lX11 -lssl
-OPT_LFLAGS = ../../../obj/waffles_wizard/opt/usage.o -lGSup -lGClasses -lpng -lpthread -lX11 -lssl
+DBG_LFLAGS = ../../../obj/waffles_wizard/dbg/usage.o -lGClassesDbg -lpng -lpthread -lX11 -lssl
+OPT_LFLAGS = ../../../obj/waffles_wizard/opt/usage.o -lGClasses -lpng -lpthread -lX11 -lssl
 endif
 
 ################

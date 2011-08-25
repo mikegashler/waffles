@@ -116,13 +116,17 @@
 <b><i>Waffles</i></b> is a broad collection of command-line tools for performing machine learning operations. In contrast with other machine learning toolkits, its major strengths include:
 
 <ul>
-	<li>Waffles algorithms support both classification and regression.</li>
-	<li>Waffles algorithms implicitly support multi-dimensional labels.</li>
+	<li>Waffles <i>just works</i> in more situations:
+		<ul>
+			<li>All of our supervised learners support both classification and regression.</li>
+			<li>All of them implicitly support multi-dimensional labels.</li>
+			<li>They automatically impute missing values in data for algorithms that are not robust to missing values.</li>
+			<li>They automatically discretize data for algorithms that only support nominal values, and convert nominal values to categorical distributions for algorithms that only support continuous values. They also automatically convert predicted values back to their original form, so you can freely operate on arbitrary data with any algorithm.</li>
+			<li>When necessary, Waffles algorithms automatically normalize and denormalize data to fall within the ranges expected by particular algorithms.</li>
+		</ul>
+	</li>
 	<li>Waffles algorithms can automatically tune their own parameters.</li>
-	<li>Waffles can automatically impute missing values in data for algorithms that are not robust to missing values.</li>
-	<li>Waffles automatically discretizes data for algorithms that only support nominal values, and converts nominal values to categorical distributions for algorithms that only support continuous values. It also automatically converts predicted values back to the original form, so you can freely operate on arbitrary data with any algorithm.</li>
-	<li>Waffles automatically normalizes and denormalizes data as necessary for algorithms that expect values to fall within a particular range.</li>
-	<li>Waffles is especially rich in dimensionality reduction, but also provides numerous supervised learning algorithms, collaborative filtering algorithms, data transformations, linear-algebraic operations, optimization methods, data generation tools, visualization tools, etc.</li>
+	<li>Waffles is especially rich in dimensionality reduction techniques, but also provides numerous supervised learning algorithms, collaborative filtering algorithms, data transformations, linear-algebraic operations, optimization methods, data generation tools, visualization tools, etc.</li>
 	<li>Waffles is developed in C++ for speed.</li>
 	<li>Waffles does not depend on any platform or virtual machine, so it will not limit your distribution options.</li>
 	<li>Waffles is distributed under the permissive LGPL license.</li>

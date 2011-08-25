@@ -1069,6 +1069,13 @@ public:
 
 	static void completeFilename(const char* tok)
 	{
+		string s;
+		if(*tok == '~')
+		{
+			s = getenv("HOME");
+			s += (tok + 1);
+			tok = s.c_str();
+		}
 		int lastSlash = -1;
 		for(int i = 0; tok[i] != '\0'; i++)
 		{

@@ -1170,17 +1170,17 @@ void GSupervisedLearner::test()
 	d = 0;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
-	if(std::abs(prob - 0.15) > .03)
+	if(std::abs(prob - 0.15) > .1)
 		ThrowError("failed");
 	d = 1;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
-	if(std::abs(prob - 0.30) > .03)
+	if(std::abs(prob - 0.30) > .1)
 		ThrowError("failed");
 	d = 2;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
-	if(std::abs(prob - 0.85) > .03)
+	if(std::abs(prob - 0.85) > .1)
 		ThrowError("failed");
 }
 
