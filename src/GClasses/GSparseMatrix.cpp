@@ -532,10 +532,11 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 				{
 					s = 0.0;
 					Map::iterator end = pUT->m_rows[i].end();
+					Map::iterator end2 = pUT->m_rows[j].end();
 					Map::iterator it1, it2;
 					for(it1 = pUT->m_rows[i].begin(); it1 != end && it1->first < (size_t)l; it1++) {}
-					for(it2 = pUT->m_rows[j].begin(); it2 != end && it2->first < (size_t)l; it2++) {}
-					while(it1 != end && it2 != end)
+					for(it2 = pUT->m_rows[j].begin(); it2 != end2 && it2->first < (size_t)l; it2++) {}
+					while(it1 != end && it2 != end2)
 					{
 						if(it1->first < it2->first)
 							it1++;
