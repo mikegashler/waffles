@@ -154,6 +154,7 @@ protected:
 	size_t reverseFieldOrder();
 	size_t reverseItemOrder();
 	void writeJson(std::ostream& stream);
+	size_t writeJsonCpp(std::ostream& stream, size_t col);
 	void writeXmlInlineValue(std::ostream& stream);
 	void writeXml(std::ostream& stream, const char* szLabel);
 };
@@ -205,6 +206,10 @@ public:
 	/// Writes this doc to the specified stream in JSON format. (See http://json.org.)
 	/// (If you want to write to a memory buffer, you can use open_memstream.)
 	void writeJson(std::ostream& stream);
+
+	/// Writes this doc to the specified stream as an inlined C++ string in JSON format.
+	/// (This method would be useful for hard-coding a serialized object in a C++ program.)
+	void writeJsonCpp(std::ostream& stream);
 
 	/// Write as XML to the specified stream.
 	void writeXml(std::ostream& stream);

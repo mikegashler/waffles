@@ -21,6 +21,7 @@
 namespace GClasses {
 
 class GHttpClientSocket;
+class GWebSocketClientSocket;
 class GSocketServer;
 class GHttpServerBuffer;
 class GHeap;
@@ -92,7 +93,6 @@ public:
 	void abort();	/// called by the consumer, when an abort is desired. 
 
 protected:
-
 	void processHeader(const unsigned char* szData, size_t nSize);
 	void processBody(const unsigned char* szData, size_t nSize);
 	void processChunkBody(const unsigned char* szData, size_t nSize);
@@ -100,7 +100,19 @@ protected:
 
 };
 
+class GWebSocketClient
+{
+protected:
+	GWebSocketClientSocket* m_pSocket;
 
+public:
+	GWebSocketClient();
+	~GWebSocketClient();
+
+	bool get(const char* szUrl);
+
+	void onLoseConnection();
+};
 
 
 

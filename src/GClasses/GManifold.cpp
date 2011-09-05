@@ -2225,7 +2225,7 @@ GUnsupervisedBackProp::~GUnsupervisedBackProp()
 	delete(m_pTweaker);
 	delete(m_pNN);
 	delete[] m_pParamRanges;
-	delete[] m_pIntrinsic;
+	delete(m_pIntrinsic);
 	delete[] m_pMins;
 	delete[] m_pRanges;
 }

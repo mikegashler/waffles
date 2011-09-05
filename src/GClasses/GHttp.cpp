@@ -23,7 +23,6 @@
 #include <string>
 #include <sstream>
 
-using namespace GClasses;
 using std::vector;
 using std::string;
 using std::ostream;
@@ -65,7 +64,6 @@ protected:
 		m_pParent->onLoseConnection();
 	}
 };
-}
 
 // -------------------------------------------------------------------------------
 
@@ -188,7 +186,7 @@ bool GHttpClient::get(const char* szUrl, bool actuallyGetData) // actuallyGetDat
 		m_bAmCurrentlyDoingJustHeaders = true;
 		s = "HEAD ";
 	}
-	while(*szPath != '\0')
+	while(*szPath != '\0') // todo: write a method to escape urls
 	{
 		if(*szPath == ' ')
 			s += "%20";
@@ -516,9 +514,135 @@ unsigned char* GHttpClient::releaseData(size_t* pnSize)
 }
 
 
-// -----------------------------------------------------------------------
 
-namespace GClasses {
+
+
+
+
+
+class GWebSocketClientSocket : public GSocketClient
+{
+protected:
+	GWebSocketClient* m_pParent;
+
+public:
+	GWebSocketClientSocket(GWebSocketClient* pParent, int nMaxPacketSize) : GSocketClient(false, nMaxPacketSize)
+	{
+		m_pParent = pParent;
+	}
+
+	virtual ~GWebSocketClientSocket()
+	{
+	}
+
+	static GWebSocketClientSocket* ConnectToTCPSocket(GWebSocketClient* pParent, const char* szHost, int nPort)
+	{
+		GWebSocketClientSocket* pSocket = new GWebSocketClientSocket(pParent, 0);
+		if(!pSocket)
+			return NULL;
+		if(!pSocket->Connect(szHost, nPort))
+		{
+			delete(pSocket);
+			return NULL;
+		}
+		return pSocket;
+	}
+
+protected:
+	virtual void onLoseConnection(int nSocketNumber)
+	{
+		m_pParent->onLoseConnection();
+	}
+};
+
+GWebSocketClient::GWebSocketClient()
+: m_pSocket(NULL)
+{
+}
+
+GWebSocketClient::~GWebSocketClient()
+{
+	delete(m_pSocket);
+}
+
+bool GWebSocketClient::get(const char* szUrl)
+{
+	GTEMPBUF(char, szNewUrl, (int)strlen(szUrl) + 1);
+	strcpy(szNewUrl, szUrl);
+	GFile::condensePath(szNewUrl);
+
+	// Get the port
+	int nHostIndex, nPortIndex, nPathIndex;
+	GHttpClientSocket::parseURL(szNewUrl, &nHostIndex, &nPortIndex, &nPathIndex, NULL);
+	int nPort;
+	if(nPathIndex > nPortIndex)
+		nPort = atoi(&szNewUrl[nPortIndex + 1]); // the "+1" is for the ':'
+	else
+		nPort = 80;
+
+	// Copy the host name
+	int nTempBufSize = nPortIndex - nHostIndex + 1;
+	GTEMPBUF(char, szHost, nTempBufSize);
+	memcpy(szHost, &szNewUrl[nHostIndex], nPortIndex - nHostIndex);
+	szHost[nPortIndex - nHostIndex] = '\0';
+
+	// Connect
+	if(!m_pSocket || !m_pSocket->isConnected())
+	{
+		delete(m_pSocket);
+		m_pSocket = NULL;
+		try
+		{
+			m_pSocket = GWebSocketClientSocket::ConnectToTCPSocket(this, szHost, nPort);
+		}
+		catch(...)
+		{
+			return false;
+		}
+		if(!m_pSocket)
+			return false;
+	}
+
+	// Send the request
+	const char* szPath = &szNewUrl[nPathIndex];
+	if(szPath[0] == 0)
+		szPath = "/index.html";
+	string s = "GET ";
+	while(*szPath != '\0') // todo: write a method to escape urls
+	{
+		if(*szPath == ' ')
+			s += "%20";
+		else
+			s += *szPath;
+		szPath++;
+	}
+	s += " HTTP/1.1\r\n";
+	s += "Upgrade: WebSocket\r\n";
+	s += "Connection: Upgrade\r\n";
+	s += "Host: ";
+	s += szHost;
+	s += ":";
+	s += nPort;
+	s += "\r\nOrigin: null\r\n\r\n";
+	if(!m_pSocket->Send((unsigned char*)s.c_str(), (int)s.length()))
+		return false;
+
+	return true;
+}
+
+void GWebSocketClient::onLoseConnection()
+{
+}
+
+
+
+
+
+
+
+
+
+
 class GHttpServerBuffer
 {
 public:
@@ -564,7 +688,7 @@ public:
 		m_pPostBuffer = NULL;
 	}
 };
-}
+
 
 GHttpServer::GHttpServer(int nPort)
 {
@@ -1172,3 +1296,5 @@ bool GHttpMultipartParser::next(size_t* pNameStart, size_t* pNameLen, size_t* pV
 	*pFilenameLen = filenameEnd - filenameStart;
 	return true;
 }
+
+} // namespace GClasses
