@@ -689,6 +689,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pTrain = pRoot->add("train <options> [dataset] <data_opts> [algorithm]", "Trains a supervised learning algorithm. The trained model-file is printed to stdout. (Typically, you will want to pipe this to a file.)");
 		UsageNode* pOpts = pTrain->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pOpts->add("-calibrate", "Calibrate the model after it is trained, such that predicted distributions will approximate the distributions represented in the training data. This switch is typically used only if you plan to predict distributions (by calling predictdistribution) instead of just class labels or regression values. Calibration will not effect the predictions made by regular calls to 'predict', which is used by most other tools.");
 		pTrain->add("[dataset]=train.arff", "The filename of a dataset.");
 		UsageNode* pDO = pTrain->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -705,7 +706,7 @@ UsageNode* makeLearnUsageTree()
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
-		UsageNode* pPOP = pRoot->add("predictonepattern <options> [model-file] [data-set] <data_opts> [pattern]", "Predict labels for a single pattern and print the prediction to stdout. Confidence levels are also reported.");
+		UsageNode* pPOP = pRoot->add("predictdistribution <options> [model-file] [data-set] <data_opts> [pattern]", "Predict a distribution for a single feature vector and print it to stdout. (Typically, the '-calibrate' switch should be used when training the model. If the model is not calibrated, then the predicted distribution may not be a very good estimated distribution. Also, some models cannot be used to predict a distribution.)");
 		UsageNode* pOpts = pPOP->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pPOP->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");

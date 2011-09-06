@@ -2341,14 +2341,15 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	// Train
 	double* pParams = new double[m_paramDims + m_tweakDims + m_intrinsicDims];
 	ArrayHolder<double> hParams(pParams);
-	double* pLabels = pParams + m_paramDims;
-	double* pIntrinsic = pLabels + m_tweakDims;
+	double* pTweaks = pParams + m_paramDims;
+	double* pIntrinsic = pTweaks + m_tweakDims;
 	double regularizer = 1e-7; //1e-6;
-	for(double learningRate = 0.005; learningRate > 0.0005; learningRate *= 0.5)
+	double prevErr = 1e308;
+	for(double learningRate = 0.005; learningRate > 0.0005; )
 	{
 		m_pNN->setLearningRate(learningRate);
 		double sse = 0;
-		for(size_t i = 0; i < 1e9; i++)
+		for(size_t i = 0; i < 1e8; i++)
 		{
 			// Pick a row, pixel, and channel
 			size_t r = (size_t)m_pRand->next(in.rows());
@@ -2360,7 +2361,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			double* pPix;
 			if(m_pTweaker)
 			{
-				GVec::copy(pLabels, m_pTweaker->pickParams(*m_pRand), m_tweakDims);
+				GVec::copy(pTweaks, m_pTweaker->pickParams(*m_pRand), m_tweakDims);
 				m_pTweaker->transformedPix(in[r], m_cvi.current()[0], m_cvi.current()[1], pixBuf);
 				pPix = pixBuf;
 			}
@@ -2389,10 +2390,67 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 				GVec::copy(m_pIntrinsic->row(r), pIntrinsic, m_intrinsicDims);
 			}
 		}
+		double rsse = sqrt(sse);
+		if(1.0 - (rsse / prevErr) < 0.001)
+			learningRate *= 0.5;
+		prevErr = rsse;
 	}
 	GMatrix* pOut = m_pIntrinsic;
 	m_pIntrinsic = NULL;
 	return pOut;
+}
+
+void GUnsupervisedBackProp::hiToLow(const double* pIn, double* pOut)
+{
+	// Compute values
+	size_t pixels = 1;
+	for(size_t i = 0; i < m_paramDims; i++)
+		pixels *= m_pParamRanges[i];
+	size_t channels = m_pNN->labelDims();
+
+	// Init
+	if(!m_pNN->hasTrainingBegun())
+		ThrowError("Not trained");
+	if(m_pNN->featureDims() != m_paramDims + m_tweakDims + m_intrinsicDims)
+		ThrowError("Incorrect number of inputs Expected ", to_str(m_paramDims + m_tweakDims + m_intrinsicDims), ", got ", to_str(m_pNN->featureDims()));
+
+	// Train
+	double* pParams = new double[m_paramDims + m_tweakDims + m_intrinsicDims];
+	ArrayHolder<double> hParams(pParams);
+	double* pTweaks = pParams + m_paramDims;
+	GVec::setAll(pTweaks, 0.5, m_tweakDims + m_intrinsicDims);
+	double prevErr = 1e308;
+	for(double learningRate = 0.005; learningRate > 0.0005; )
+	{
+		m_pNN->setLearningRate(learningRate);
+		double sse = 0;
+		for(size_t i = 0; i < 1e9; i++)
+		{
+			// Pick a pixel, and channel
+			m_cvi.setRandom(m_pRand);
+			size_t c = (size_t)m_pRand->next(channels);
+			m_cvi.currentNormalized(pParams);
+
+			// Get the pixel
+			const double* pPix = pIn + m_cvi.currentIndex() * channels;
+
+			// Do backprop
+			double prediction = m_pNN->forwardPropSingleOutput(pParams, c);
+			double target = (pPix[c] - m_pMins[c]) / m_pRanges[c];
+			double err = target - prediction;
+			sse += (err * err);
+			m_pNN->setErrorSingleOutput(target, c);
+			m_pNN->backProp()->backpropagateSingleOutput(c);
+
+			// Update weights and inputs
+			m_pNN->backProp()->adjustFeaturesSingleOutput(c, pParams, m_pNN->learningRate(), true);
+		}
+		double rsse = sqrt(sse);
+//		if(1.0 - rsse / prevErr < 0.0001)
+			learningRate *= 0.5;
+		prevErr = rsse;
+	}
+	GVec::copy(pOut, pTweaks, m_tweakDims + m_intrinsicDims);
 }
 
 } // namespace GClasses

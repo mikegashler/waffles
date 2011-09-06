@@ -491,6 +491,9 @@ public:
 
 	/// Returns the current image tweaker
 	GImageTweaker* tweaker() { return m_pTweaker; }
+
+	/// Given a high-dimensional vector, computes and returns a corresponding low-dimensional vector.
+	void hiToLow(const double* pIn, double* pOut);
 };
 
 

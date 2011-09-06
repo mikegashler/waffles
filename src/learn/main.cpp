@@ -747,10 +747,13 @@ void Train(GArgReader& args)
 {
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	bool calibrate = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
+		else if(args.if_pop("-calibrate"))
+			calibrate = true;
 		else
 			ThrowError("Invalid train option: ", args.peek());
 	}
@@ -773,6 +776,8 @@ void Train(GArgReader& args)
 
 	// Train the modeler
 	pModel->train(*pFeatures, *pLabels);
+	if(calibrate)
+		pModel->calibrate(*pFeatures, *pLabels);
 
 	// Output the trained model
 	GDom doc;
@@ -824,7 +829,7 @@ void predict(GArgReader& args)
 	pLabels->print(cout);
 }
 
-void predictOnePattern(GArgReader& args)
+void predictDistribution(GArgReader& args)
 {
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
@@ -882,7 +887,7 @@ void predictOnePattern(GArgReader& args)
 	}
 	cout << "\n\n";
 
-	// Display the confidence values
+	// Display the distribution
 	for(size_t i = 0; i < pModeler->labelDims(); i++)
 	{
 		if(out[i].isContinuous())
@@ -893,7 +898,7 @@ void predictOnePattern(GArgReader& args)
 		else
 		{
 			GCategoricalDistribution* pCat = out[i].asCategorical();
-			cout << pLabelRel->attrName(i) << ") Categorical Confidences: {";
+			cout << pLabelRel->attrName(i) << ") Categorical confidences: {";
 			double* pValues = pCat->values(pCat->valueCount());
 			for(size_t j = 0; j < pCat->valueCount(); j++)
 			{
@@ -1757,8 +1762,8 @@ int main(int argc, char *argv[])
 				Test(args);
 			else if(args.if_pop("predict"))
 				predict(args);
-			else if(args.if_pop("predictonepattern"))
-				predictOnePattern(args);
+			else if(args.if_pop("predictdistribution"))
+				predictDistribution(args);
 			else if(args.if_pop("transduce"))
 				Transduce(args);
 			else if(args.if_pop("transacc"))
