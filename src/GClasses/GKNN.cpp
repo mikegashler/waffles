@@ -213,7 +213,7 @@ void GKNN::autoTune(GMatrix& features, GMatrix& labels)
 	// Set the best values
 	m_nNeighbors = bestK;
 }
-	
+
 void GKNN::setNeighborCount(size_t k)
 {
 	delete[] m_pEvalNeighbors;
@@ -424,6 +424,7 @@ void GKNN::findNeighbors(const double* pVector)
 			//m_pNeighborFinder = new GBruteForceNeighborFinder(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
 			m_pNeighborFinder = new GKdTree(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
 		}
+		GAssert(m_pNeighborFinder->neighborCount() == m_nNeighbors);
 		m_pNeighborFinder->neighbors(m_pEvalNeighbors, m_pEvalDistances, pVector);
 	}
 	else

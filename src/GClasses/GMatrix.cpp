@@ -743,7 +743,14 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 		if(strcmp(val, "?") == 0)
 			return UNKNOWN_REAL_VALUE;
 		else
+		{
+			if((*val >= '0' && *val <= '9') || *val == '-' || *val == '.')
+			{
+			}
+			else
+				ThrowError("Invalid real value, ", val, ". Expected it to start with one of {0-9,.,-}.");
 			return atof(val);
+		}
 	}
 	else
 	{
@@ -761,8 +768,22 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 				}
 			}
 			if(v == (size_t)-1)
-				v = atoi(val);
-			return (double)v;
+			{
+				if(*val >= '0' && *val <= '9')
+					v = atoi(val);
+				else
+				{
+					string sChoices;
+					for(size_t j = 0; j < values; j++)
+					{
+						if(j != 0)
+							sChoices += ',';
+						sChoices += m_attrs[attr].m_values[j].c_str();
+					}
+					ThrowError("Invalid categorical value, ", val, ". Expected one of {", sChoices, "}");
+				}
+			}
+			return double(v);
 		}
 	}
 }

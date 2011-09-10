@@ -975,7 +975,9 @@ void do_wizard()
 	{
 		Server server(port, &prng);
 		serverStarted = true;
-		LaunchBrowser(server.myAddress());
+		string s = "http://localhost:";
+		s += to_str(port);
+		LaunchBrowser(s.c_str());
 
 		// Pump incoming HTTP requests (this is the main loop)
 		server.pump();
