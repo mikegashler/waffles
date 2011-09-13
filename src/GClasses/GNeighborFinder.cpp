@@ -378,9 +378,10 @@ public:
 	GClosestNeighborFindingHelper(size_t neighbors, size_t* pNeighbors, double* pDistances)
 	: m_found(0), m_neighbors(neighbors), m_pNeighbors(pNeighbors), m_pDistances(pDistances)
 	{
+		GAssert(m_neighbors >= 1);
 		for(size_t i = 0; i < m_neighbors; i++)
 		{
-			m_pNeighbors[i] = -1;
+			m_pNeighbors[i] = size_t(-1);
 			m_pDistances[i] = 1e308;
 		}
 	}
@@ -864,14 +865,19 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 	else
 	{
 		// Compute the mean
+		size_t missing = 0;
 		double mean = 0;
 		double* pPat;
 		for(size_t i = 0; i < count; i++)
 		{
+			GAssert(pIndexes[i] < m_pData->rows());
 			pPat = m_pData->row(pIndexes[i]);
-			mean += pPat[attr];
+			if(pPat[attr] != UNKNOWN_REAL_VALUE)
+				mean += pPat[attr];
+			else
+				missing++;
 		}
-		mean /= count;
+		mean /= (count - missing);
 
 		// Compute the scaled variance
 		double var = 0;
@@ -882,8 +888,11 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 			for(size_t i = 0; i < count; i++)
 			{
 				pPat = m_pData->row(pIndexes[i]);
-				d = (pPat[attr] - mean) * pScaleFactors[attr];
-				var += (d * d);
+				if(pPat[attr] != UNKNOWN_REAL_VALUE)
+				{
+					d = (pPat[attr] - mean) * pScaleFactors[attr];
+					var += (d * d);
+				}
 			}
 		}
 		else
@@ -891,11 +900,14 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 			for(size_t i = 0; i < count; i++)
 			{
 				pPat = m_pData->row(pIndexes[i]);
-				d = (pPat[attr] - mean);
-				var += (d * d);
+				if(pPat[attr] != UNKNOWN_REAL_VALUE)
+				{
+					d = (pPat[attr] - mean);
+					var += (d * d);
+				}
 			}
 		}
-		var /= count; // (the biassed estimator of variance is better for this purpose)
+		var /= (count - missing); // (the biased estimator of variance is better for this purpose)
 
 		*pOutPivot = mean;
 		*pOutGoodness = var;

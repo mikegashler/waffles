@@ -336,8 +336,6 @@ GDecisionTree* InstantiateDecisionTree(GRand& rand, GArgReader& args, GMatrix* p
 
 GGraphCutTransducer* InstantiateGraphCutTransducer(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	if(args.size() < 1)
-		ThrowError("The number of neighbors must be specified for graphcuttransducer");
 	GGraphCutTransducer* pTransducer = new GGraphCutTransducer(rand);
 	while(args.next_is_flag())
 	{
@@ -357,8 +355,6 @@ GGraphCutTransducer* InstantiateGraphCutTransducer(GRand& rand, GArgReader& args
 
 GKNN* InstantiateKNN(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	if(args.size() < 1)
-		ThrowError("The number of neighbors must be specified for knn");
 	GKNN* pModel = new GKNN(rand);
 	while(args.next_is_flag())
 	{
@@ -458,8 +454,6 @@ GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args, GMatrix*
 
 GNeighborTransducer* InstantiateNeighborTransducer(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	if(args.size() < 1)
-		ThrowError("The number of neighbors must be specified for neighbortransducer");
 	GNeighborTransducer* pTransducer = new GNeighborTransducer(rand);
 	bool prune = false;
 	double alpha, beta;

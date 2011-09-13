@@ -2349,7 +2349,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	{
 		m_pNN->setLearningRate(learningRate);
 		double sse = 0;
-		for(size_t i = 0; i < 1e8; i++)
+		for(size_t i = 0; i < 1e9; i++)
 		{
 			// Pick a row, pixel, and channel
 			size_t r = (size_t)m_pRand->next(in.rows());
@@ -2391,7 +2391,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			}
 		}
 		double rsse = sqrt(sse);
-		if(1.0 - (rsse / prevErr) < 0.001)
+//		if(1.0 - (rsse / prevErr) < 0.001)
 			learningRate *= 0.5;
 		prevErr = rsse;
 	}

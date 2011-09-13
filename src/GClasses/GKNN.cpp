@@ -199,7 +199,7 @@ void GKNN::autoTune(GMatrix& features, GMatrix& labels)
 	double bestErr = 1e308;
 	for(size_t i = 1; i < cap; i *= 3)
 	{
-		m_nNeighbors = i;
+		setNeighborCount(i);
 		double d = heuristicValidate(features, labels);
 		if(d < bestErr)
 		{
