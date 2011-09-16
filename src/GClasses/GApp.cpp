@@ -26,7 +26,9 @@
 //#	include <termios.h>
 //#	include <fcntl.h>
 #	ifndef __linux__
+#  ifndef __FreeBSD__
 #		include <mach-o/dyld.h>
+#  endif
 #	endif
 #endif
 #include "GHolders.h"
@@ -224,7 +226,7 @@ void GPipe::toFile(const char* szFilename)
 		return bytes;
 	}
 #else
-#	ifdef __linux__
+#	if defined(__linux__) || defined(__FreeBSD__)
 	std::ostringstream os;
 	os << "/proc/" << getpid() << "/exe";
 	string tmp = os.str();

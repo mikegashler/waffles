@@ -18,7 +18,11 @@
 #	include <malloc.h>
 #	pragma warning(disable: 4996)
 #else
-#	include <alloca.h>
+# ifdef __FreeBSD__
+#  include <stdlib.h>
+# else
+#  include <alloca.h>
+# endif
 #endif
 #include <vector>
 
