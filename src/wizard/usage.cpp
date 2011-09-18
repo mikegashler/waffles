@@ -167,6 +167,11 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pContents = pBag->add("<contents>");
 		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the bagging ensemble.");
 	}
+	{
+		UsageNode* pBMA = pRoot->add("bma <contents> end", "A Bayesian model averaging ensemble. This trains each model after the manner of bagging, but then combines them weighted according to their probability given the data. Uniform priors are assumed.");
+		UsageNode* pContents = pBMA->add("<contents>");
+		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the BMA ensemble.");
+	}
 	pRoot->add("baseline", "This is one of the simplest of all supervised algorithms. It ignores all features. For nominal labels, it always predicts the most common class in the training set. For continuous labels, it always predicts the mean label in the training set. An effective learning algorithm should never do worse than baseline--hence the name \"baseline\".");
 	{
 		UsageNode* pBucket = pRoot->add("bucket <contents> end", "This uses cross-validation with the training set to select the best model from a bucket of models. When accuracy is measured across multiple datasets, it will usually do better than the best model in the bucket could do. \"end\" marks the end of the contents of the bucket.");

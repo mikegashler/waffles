@@ -163,12 +163,12 @@ void GBag::trainInner(GMatrix& features, GMatrix& labels)
 	}
 
 	// Determine the weights
-	determineWeights();
+	determineWeights(features, labels);
 	normalizeWeights();
 }
 
 // virtual
-void GBag::determineWeights()
+void GBag::determineWeights(GMatrix& features, GMatrix& labels)
 {
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		(*it)->m_weight = 1.0;
@@ -369,8 +369,54 @@ void GBag::test()
 }
 #endif
 
-// -------------------------------------------------------------------------
 
+
+
+
+
+// virtual
+void GBayesianModelAveraging::determineWeights(GMatrix& features, GMatrix& labels)
+{
+	GTEMPBUF(double, results, labels.cols());
+	double m = -500.0;
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+	{
+		(*it)->m_pModel->accuracy(features, labels, results);
+		double d = GVec::sumElements(results, labels.cols()) / labels.cols();
+		double logProbHypothGivenData;
+		if(d == 0.0)
+			logProbHypothGivenData = -500.0;
+		else if(d == 1.0)
+			logProbHypothGivenData = 0.0;
+		else
+			logProbHypothGivenData = features.rows() * (d * log(d) + (1.0 - d) * log(1.0 - d));
+		m = std::max(m, logProbHypothGivenData);
+		(*it)->m_weight = logProbHypothGivenData;
+	}
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+	{
+		double logProbHypothGivenData = (*it)->m_weight;
+		(*it)->m_weight = exp(logProbHypothGivenData - m);
+	}
+}
+
+// virtual
+GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GBayesianModelAveraging");
+	pNode->addField(pDoc, "featuredims", pDoc->newInt(m_featureDims));
+	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
+	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
+	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
+	for(size_t i = 0; i < m_models.size(); i++)
+		pModels->addItem(pDoc, m_models[i]->serialize(pDoc));
+	return pNode;
+}
+
+
+
+
+		
 GBucket::GBucket(GRand& rand)
 : GSupervisedLearner(rand)
 {

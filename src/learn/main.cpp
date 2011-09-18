@@ -260,6 +260,30 @@ GBag* InstantiateBag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 	return pEnsemble;
 }
 
+GBayesianModelAveraging* InstantiateBMA(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	GBayesianModelAveraging* pEnsemble = new GBayesianModelAveraging(rand);
+	while(args.size() > 0)
+	{
+		if(args.if_pop("end"))
+			break;
+		int instance_count = args.pop_uint();
+		int arg_pos = args.get_pos();
+		for(int i = 0; i < instance_count; i++)
+		{
+			args.set_pos(arg_pos);
+			GTransducer* pLearner = InstantiateAlgorithm(rand, args, pFeatures, pLabels);
+			if(!pLearner->canGeneralize())
+			{
+				delete(pLearner);
+				ThrowError("BMA does not support algorithms that cannot generalize.");
+			}
+			pEnsemble->addLearner((GSupervisedLearner*)pLearner);
+		}
+	}
+	return pEnsemble;
+}
+
 GBucket* InstantiateBucket(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GBucket* pEnsemble = new GBucket(rand);
@@ -597,6 +621,8 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 			return InstantiateAgglomerativeTransducer(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("bag"))
 			return InstantiateBag(rand, args, pFeatures, pLabels);
+		else if(args.if_pop("bma"))
+			return InstantiateBMA(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("baseline"))
 			return InstantiateBaseline(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("bucket"))

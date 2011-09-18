@@ -65,7 +65,7 @@ public:
 	/// General-purpose constructor.
 	GBag(GRand& rand);
 
-	/// Load from a DOM.
+	/// Deserializing constructor.
 	GBag(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBag();
@@ -106,7 +106,7 @@ protected:
 
 	/// Assigns uniform weight to all models. (This method is deliberately
 	/// virtual so that you can overload it if you want non-uniform weighting.)
-	virtual void determineWeights();
+	virtual void determineWeights(GMatrix& features, GMatrix& labels);
 
 	/// Scales the weights so they sum to 1.0.
 	void normalizeWeights();
@@ -124,6 +124,34 @@ protected:
 };
 
 
+
+/// This is an ensemble that uses the bagging approach for training, and Bayesian
+/// Model Averaging to combine the models. That is, it trains each model with data
+/// drawn randomly with replacement from the original training data. It combines
+/// the models with weights proporitional to their likelihood as computed using
+/// Bayes' law.
+class GBayesianModelAveraging : public GBag
+{
+public:
+	/// General-purpose constructor
+	GBayesianModelAveraging(GRand& rand) : GBag(rand) {}
+
+	/// Deserializing constructor.
+	GBayesianModelAveraging(GDomNode* pNode, GLearnerLoader& ll) : GBag(pNode, ll) {}
+
+	virtual ~GBayesianModelAveraging() {}
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+protected:
+	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+
+	/// Determines the weights in the manner of Bayesian model averaging,
+	/// with the assumption of uniform priors.
+	virtual void determineWeights(GMatrix& features, GMatrix& labels);
+};
 
 
 
