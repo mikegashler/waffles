@@ -219,6 +219,13 @@ int GRand::binomial(int n, double p)
 	return c;
 }
 
+void GRand::simplex(double* pOutVec, size_t dims)
+{
+	for(size_t i = 0; i < dims; i++)
+		*(pOutVec++) = exponential();
+	GVec::sumToOne(pOutVec, dims);
+}
+
 double GRand::softImpulse(double s)
 {
 	double y = uniform();

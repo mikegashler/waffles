@@ -108,6 +108,10 @@ public:
 	/// Returns a random value from a Poisson distribution
 	int poisson(double mu);
 
+	/// Draws uniformly from a unit simplex. (This is a special case of
+	/// drawing from a dirichlet distribution with uniform parameters.)
+	void simplex(double* pOutVec, size_t dims);
+
 	/// Returns a random value from a soft-impulse distribution with support
 	/// from 0 to 1. (The cdf of the soft-impulse distribution is the soft-step
 	/// function: (1/(pow(1/x-1,s)+1)). The mean is always at 0.5, where
