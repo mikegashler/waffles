@@ -1386,6 +1386,8 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 					return new GBaselineLearner(pNode, *this);
 				else if(strcmp(szClass, "GBayesianModelAveraging") == 0)
 					return new GBayesianModelAveraging(pNode, *this);
+				else if(strcmp(szClass, "GBayesianModelCombination") == 0)
+					return new GBayesianModelCombination(pNode, *this);
 				else if(strcmp(szClass, "GBucket") == 0)
 					return new GBucket(pNode, *this);
 			}

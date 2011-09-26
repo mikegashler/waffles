@@ -155,6 +155,42 @@ protected:
 
 
 
+
+class GBayesianModelCombination : public GBag
+{
+protected:
+	size_t m_samples;
+
+public:
+	/// General-purpose constructor
+	GBayesianModelCombination(GRand& rand) : GBag(rand), m_samples(100) {}
+
+	/// Deserializing constructor.
+	GBayesianModelCombination(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GBayesianModelCombination() {}
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Returns the number of samples from which to estimate the combination weights
+	size_t samples() { return m_samples; }
+
+	/// Sets the number of samples to use to estimate the combination weights
+	void setSamples(size_t n) { m_samples = n; }
+
+protected:
+	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+
+	/// Determines the weights in the manner of Bayesian model averaging,
+	/// with the assumption of uniform priors.
+	virtual void determineWeights(GMatrix& features, GMatrix& labels);
+};
+
+
+
+
 /// When Train is called, this performs cross-validation on the training
 /// set to determine which learner is the best. It then trains that learner
 /// with the entire training set.

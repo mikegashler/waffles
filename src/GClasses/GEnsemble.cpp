@@ -416,7 +416,78 @@ GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc)
 
 
 
-		
+
+
+
+GBayesianModelCombination::GBayesianModelCombination(GDomNode* pNode, GLearnerLoader& ll)
+: GBag(pNode, ll)
+{
+	m_samples = pNode->field("samps")->asInt();
+}
+
+// virtual
+void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& labels)
+{
+	double* pWeights = new double[m_models.size()];
+	ArrayHolder<double> hWeights(pWeights);
+	GVec::setAll(pWeights, 0.0, m_models.size());
+	double sumWeight = 0.0;
+	double maxLogProb = -500.0;
+	GTEMPBUF(double, results, labels.cols());
+	for(size_t i = 0; i < m_samples; i++)
+	{
+		// Set weights randomly from a dirichlet distribution with unifrom probabilities
+		for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+			(*it)->m_weight = m_rand.exponential();
+		normalizeWeights();
+
+		// Evaluate accuracy
+		accuracy(features, labels, results);
+		double d = GVec::sumElements(results, labels.cols()) / labels.cols();
+		double logProbEnsembleGivenData;
+		if(d == 0.0)
+			logProbEnsembleGivenData = -500.0;
+		else if(d == 1.0)
+			logProbEnsembleGivenData = 0.0;
+		else
+			logProbEnsembleGivenData = features.rows() * (d * log(d) + (1.0 - d) * log(1.0 - d));
+
+		// Update the weights
+		if(logProbEnsembleGivenData > maxLogProb)
+		{
+			GVec::multiply(pWeights, exp(maxLogProb - logProbEnsembleGivenData), m_models.size());
+			maxLogProb = logProbEnsembleGivenData;
+		}
+		double w = exp(logProbEnsembleGivenData - maxLogProb);
+		GVec::multiply(pWeights, sumWeight / (sumWeight + w), m_models.size());
+		double* pW = pWeights;
+		for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+			*(pW++) += w * (*it)->m_weight;
+		sumWeight += w;
+	}
+	double* pW = pWeights;
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		(*it)->m_weight = *(pW++);
+}
+
+// virtual
+GDomNode* GBayesianModelCombination::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GBayesianModelCombination");
+	pNode->addField(pDoc, "featuredims", pDoc->newInt(m_featureDims));
+	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
+	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
+	pNode->addField(pDoc, "samps", pDoc->newInt(m_samples));
+	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
+	for(size_t i = 0; i < m_models.size(); i++)
+		pModels->addItem(pDoc, m_models[i]->serialize(pDoc));
+	return pNode;
+}
+
+
+
+
+
 GBucket::GBucket(GRand& rand)
 : GSupervisedLearner(rand)
 {
