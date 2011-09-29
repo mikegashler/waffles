@@ -231,7 +231,7 @@ GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GRand& rand, GArgRe
 			pTransducer->autoTune(*pFeatures, *pLabels);
 		}
 		else
-			ThrowError("Invalid agglomerativetransducer option: ", args.peek());
+			ThrowError("Invalid option: ", args.peek());
 	}
 	return pTransducer;
 }
@@ -284,6 +284,38 @@ GBayesianModelAveraging* InstantiateBMA(GRand& rand, GArgReader& args, GMatrix* 
 	return pEnsemble;
 }
 
+GBayesianModelCombination* InstantiateBMC(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	GBayesianModelCombination* pEnsemble = new GBayesianModelCombination(rand);
+	size_t samples = 100;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-samples"))
+			samples = args.pop_uint();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+	while(args.size() > 0)
+	{
+		if(args.if_pop("end"))
+			break;
+		int instance_count = args.pop_uint();
+		int arg_pos = args.get_pos();
+		for(int i = 0; i < instance_count; i++)
+		{
+			args.set_pos(arg_pos);
+			GTransducer* pLearner = InstantiateAlgorithm(rand, args, pFeatures, pLabels);
+			if(!pLearner->canGeneralize())
+			{
+				delete(pLearner);
+				ThrowError("BMC does not support algorithms that cannot generalize.");
+			}
+			pEnsemble->addLearner((GSupervisedLearner*)pLearner);
+		}
+	}
+	return pEnsemble;
+}
+
 GBucket* InstantiateBucket(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GBucket* pEnsemble = new GBucket(rand);
@@ -314,7 +346,7 @@ GBaselineLearner* InstantiateBaseline(GRand& rand, GArgReader& args, GMatrix* pF
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else
-			ThrowError("Invalid agglomerativetransducer option: ", args.peek());
+			ThrowError("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -352,7 +384,7 @@ GDecisionTree* InstantiateDecisionTree(GRand& rand, GArgReader& args, GMatrix* p
 		}else if(args.if_pop("-maxlevels")){
 			pModel->setMaxLevels(args.pop_uint());
 		}else{
-			ThrowError("Invalid decisiontree option: ", args.peek());
+			ThrowError("Invalid option: ", args.peek());
 		}
 	}
 	return pModel;
@@ -452,7 +484,7 @@ GNaiveBayes* InstantiateNaiveBayes(GRand& rand, GArgReader& args, GMatrix* pFeat
 		else if(args.if_pop("-ess"))
 			pModel->setEquivalentSampleSize(args.pop_double());
 		else
-			ThrowError("Invalid naivebayes option: ", args.peek());
+			ThrowError("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -621,10 +653,12 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 			return InstantiateAgglomerativeTransducer(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("bag"))
 			return InstantiateBag(rand, args, pFeatures, pLabels);
-		else if(args.if_pop("bma"))
-			return InstantiateBMA(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("baseline"))
 			return InstantiateBaseline(rand, args, pFeatures, pLabels);
+		else if(args.if_pop("bma"))
+			return InstantiateBMA(rand, args, pFeatures, pLabels);
+		else if(args.if_pop("bmc"))
+			return InstantiateBMC(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("bucket"))
 			return InstantiateBucket(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("cvdt"))
@@ -858,7 +892,7 @@ void predictDistribution(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid predictonepattern option: ", args.peek());
+			ThrowError("Invalid option: ", args.peek());
 	}
 
 	// Load the model

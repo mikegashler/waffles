@@ -167,16 +167,23 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pContents = pBag->add("<contents>");
 		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the bagging ensemble.");
 	}
-	{
-		UsageNode* pBMA = pRoot->add("bma <contents> end", "A Bayesian model averaging ensemble. This trains each model after the manner of bagging, but then combines them weighted according to their probability given the data. Uniform priors are assumed.");
-		UsageNode* pContents = pBMA->add("<contents>");
-		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the BMA ensemble.");
-	}
 	pRoot->add("baseline", "This is one of the simplest of all supervised algorithms. It ignores all features. For nominal labels, it always predicts the most common class in the training set. For continuous labels, it always predicts the mean label in the training set. An effective learning algorithm should never do worse than baseline--hence the name \"baseline\".");
 	{
 		UsageNode* pBucket = pRoot->add("bucket <contents> end", "This uses cross-validation with the training set to select the best model from a bucket of models. When accuracy is measured across multiple datasets, it will usually do better than the best model in the bucket could do. \"end\" marks the end of the contents of the bucket.");
 		UsageNode* pContents = pBucket->add("<contents>");
 		pContents->add("[algorithm]", "Add an algorithm to the bucket");
+	}
+	{
+		UsageNode* pBMA = pRoot->add("bma <contents> end", "A Bayesian model averaging ensemble. This trains each model after the manner of bagging, but then combines them weighted according to their probability given the data. Uniform priors are assumed.");
+		UsageNode* pContents = pBMA->add("<contents>");
+		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the BMA ensemble.");
+	}
+	{
+		UsageNode* pBMC = pRoot->add("bmc <options> <contents> end", "A Bayesian model combination ensemble. This algorithm is described in Monteith, Kristine and Carroll, James and Seppi, Kevin and Martinez, Tony, Turning Bayesian Model Averaging into Bayesian Model Combination, Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN'11, 2657--2663, 2011.");
+		UsageNode* pOpts = pBMC->add("<options>");
+		pOpts->add("-samples [n]=100", "Specify the number of samples to draw from the simplex of possible ensemble combinations. (Larger values result in better accuracy with the cost of more computation.)");
+		UsageNode* pContents = pBMC->add("<contents>");
+		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the BMA ensemble.");
 	}
 	pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
 	{
