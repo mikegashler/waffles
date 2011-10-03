@@ -847,6 +847,7 @@ void GNeuralNet::forwardProp(const double* pRow)
 double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 {
 	vector<GNeuralNetLayer>::iterator pLayer = m_layers.begin();
+	GAssert(pLayer->m_pActivationFunction);
 	if(pLayer + 1 == m_layers.end())
 	{
 		// Propagate from the feature vector to the specified output node
@@ -877,7 +878,7 @@ double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 			i->m_net = net;
 			i->m_activation = pLayer->m_pActivationFunction->squash(net);
 		}
-	
+
 		// Do the rest of the hidden layers
 		vector<GNeuralNetLayer>::iterator pPrevLayer = pLayer;
 		for(pLayer++; true; pLayer++)

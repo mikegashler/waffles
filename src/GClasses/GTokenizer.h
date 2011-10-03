@@ -18,6 +18,16 @@
 namespace GClasses {
 
 class GCharGroup;
+class GHeap;
+
+/// This is a helper-class used by GTokenizer
+class GTokenizerMapComparer
+{
+public:
+	bool operator() (const char* a, const char* b) const;
+};
+
+
 
 /// This is a simple tokenizer that reads a file, one token at-a-time.
 /// Several of the methods in this class require a string of
@@ -35,7 +45,8 @@ class GCharGroup;
 class GTokenizer
 {
 protected:
-	std::map<std::string,GCharGroup*> m_charGroups;
+	GHeap* m_pHeap;
+	std::map<const char*,GCharGroup*,GTokenizerMapComparer> m_charGroups;
 	char* m_pBufStart;
 	char* m_pBufPos;
 	char* m_pBufEnd;

@@ -2756,10 +2756,21 @@ int GImage::countTextChars(int horizArea, const char* text, float size)
 
 void GImage::blit(int x, int y, GImage* pSource, GRect* pSourceRect)
 {
-	int sx = pSourceRect->x;
-	int sy = pSourceRect->y;
-	int sw = pSourceRect->w;
-	int sh = pSourceRect->h;
+	int sx, sy, sw, sh;
+	if(pSourceRect)
+	{
+		sx = pSourceRect->x;
+		sy = pSourceRect->y;
+		sw = pSourceRect->w;
+		sh = pSourceRect->h;
+	}
+	else
+	{
+		sx = 0;
+		sy = 0;
+		sw = pSource->width();
+		sh = pSource->height();
+	}
 	if(x < 0)
 	{
 		sx -= x;
@@ -2791,10 +2802,21 @@ void GImage::blit(int x, int y, GImage* pSource, GRect* pSourceRect)
 
 void GImage::blitAlpha(int x, int y, GImage* pSource, GRect* pSourceRect)
 {
-	int sx = pSourceRect->x;
-	int sy = pSourceRect->y;
-	int sw = pSourceRect->w;
-	int sh = pSourceRect->h;
+	int sx, sy, sw, sh;
+	if(pSourceRect)
+	{
+		sx = pSourceRect->x;
+		sy = pSourceRect->y;
+		sw = pSourceRect->w;
+		sh = pSourceRect->h;
+	}
+	else
+	{
+		sx = 0;
+		sy = 0;
+		sw = pSource->width();
+		sh = pSource->height();
+	}
 	if(x < 0)
 	{
 		sx -= x;
@@ -2832,12 +2854,23 @@ void GImage::blitAlpha(int x, int y, GImage* pSource, GRect* pSourceRect)
 	}
 }
 
-void GImage::blitAlphaStretch(GRect* pDestRect, GRect* pSourceRect, GImage* pImage)
+void GImage::blitAlphaStretch(GRect* pDestRect, GImage* pSource, GRect* pSourceRect)
 {
-	float fSourceDX =  (float)(pSourceRect->w - 1) / (float)(pDestRect->w - 1);
-	float fSourceDY = (float)(pSourceRect->h - 1) / (float)(pDestRect->h - 1);
-	float fSourceX = (float)pSourceRect->x;
-	float fSourceY = (float)pSourceRect->y;
+	float fSourceX, fSourceY, fSourceDX, fSourceDY;
+	if(pSourceRect)
+	{
+		fSourceDX =  (float)(pSourceRect->w - 1) / (float)(pDestRect->w - 1);
+		fSourceDY = (float)(pSourceRect->h - 1) / (float)(pDestRect->h - 1);
+		fSourceX = (float)pSourceRect->x;
+		fSourceY = (float)pSourceRect->y;
+	}
+	else
+	{
+		fSourceDX =  (float)(pSource->width() - 1) / (float)(pDestRect->w - 1);
+		fSourceDY = (float)(pSource->height() - 1) / (float)(pDestRect->h - 1);
+		fSourceX = 0.0f;
+		fSourceY = 0.0f;
+	}
 	int xStart = pDestRect->x;
 	int xEnd = pDestRect->x + pDestRect->w;
 	int yStart = pDestRect->y;
@@ -2870,7 +2903,7 @@ void GImage::blitAlphaStretch(GRect* pDestRect, GRect* pSourceRect, GImage* pIma
 		pPix = pixels() + (y * m_width) + xStart;
 		for(x = xStart; x < xEnd; x++)
 		{
-			colIn = pImage->pixel((int)fSX, (int)fSourceY);
+			colIn = pSource->pixel((int)fSX, (int)fSourceY);
 			a = gAlpha(colIn);
 			colOld = *pPix;
 			*pPix = gARGB(std::max(a, (int)gAlpha(colOld)),
@@ -2884,19 +2917,34 @@ void GImage::blitAlphaStretch(GRect* pDestRect, GRect* pSourceRect, GImage* pIma
 	}
 }
 
-void GImage::blitStretchInterpolate(GDoubleRect* pDestRect, GDoubleRect* pSourceRect, GImage* pImage)
+void GImage::blitStretchInterpolate(GDoubleRect* pDestRect, GImage* pSource, GDoubleRect* pSourceRect)
 {
+	double sx, sy, sw, sh;
+	if(pSourceRect)
+	{
+		sx = pSourceRect->x;
+		sy = pSourceRect->y;
+		sw = pSourceRect->w;
+		sh = pSourceRect->h;
+	}
+	else
+	{
+		sx = 0;
+		sy = 0;
+		sw = pSource->width();
+		sh = pSource->height();
+	}
 	int t = std::max(0, (int)floor(pDestRect->y));
 	int b = std::min((int)height() - 1, (int)ceil(pDestRect->y + pDestRect->h));
 	int l = std::max(0, (int)floor(pDestRect->x));
 	int r = std::min((int)width() - 1, (int)ceil(pDestRect->x + pDestRect->w));
 	for(int y = t; y <= b; y++)
 	{
-		double yy = ((double)y - pDestRect->y) * pSourceRect->h / pDestRect->h + pSourceRect->y;
+		double yy = ((double)y - pDestRect->y) * sh / pDestRect->h + sy;
 		for(int x = l; x <= r; x++)
 		{
-			double xx = ((double)x - pDestRect->x) * pSourceRect->w / pDestRect->w + pSourceRect->x;
-			setPixel(x, y, pImage->interpolatePixel((float)xx, (float)yy));
+			double xx = ((double)x - pDestRect->x) * sw / pDestRect->w + sx;
+			setPixel(x, y, pSource->interpolatePixel((float)xx, (float)yy));
 		}
 	}
 }

@@ -27,6 +27,8 @@
 #include "../GClasses/GFunction.h"
 #include "../GClasses/GLearner.h"
 #include "../GClasses/GNeighborFinder.h"
+#include "../GClasses/GNeuralNet.h"
+#include "../GClasses/GManifold.h"
 #include "../GClasses/GSystemLearner.h"
 #include "plotchart.h"
 #include "../wizard/usage.h"
@@ -1837,12 +1839,14 @@ void ubpFrames(GArgReader& args)
 	doc.loadJson(szModelFilename);
 	GRand rand(0);
 	GLearnerLoader ll(rand);
-	GSupervisedLearner* pLearner = ll.loadSupervisedLearner(doc.root());
-	size_t tweakDims = pLearner->featureDims() - 4;
+	GUnsupervisedBackProp* pUBP = new GUnsupervisedBackProp(doc.root(), ll);
+	Holder<GUnsupervisedBackProp> hUBP(pUBP);
 
-	GTEMPBUF(double, pFeatures, pLearner->featureDims() + pLearner->labelDims());
-	double* pLabels = pFeatures + pLearner->featureDims();
-	GVec::setAll(pFeatures + 2, 0.5, tweakDims);
+	size_t featureDims = pUBP->featureDims();
+	GTEMPBUF(double, pFeatures, featureDims);
+	GVec::setAll(pFeatures, 0.5, featureDims);
+	size_t labelDims = pUBP->labelDims();
+	GTEMPBUF(double, pLabels, labelDims);
 	GImage image;
 	image.setSize(imageWid * framesHoriz, imageHgt * framesVert);
 	size_t yy = 0;
@@ -1851,37 +1855,12 @@ void ubpFrames(GArgReader& args)
 		size_t xx = 0;
 		for(size_t hFrame = 0; hFrame < framesHoriz; hFrame++)
 		{
-			pFeatures[2 + tweakDims] = (double)hFrame / (framesHoriz - 1);
-			pFeatures[3 + tweakDims] = (double)vFrame / (framesVert - 1);
-			size_t ranges[2];
-			ranges[0] = imageWid;
-			ranges[1] = imageHgt;
-			GCoordVectorIterator cvi(2, ranges);
-			for(size_t y = 0; y < imageHgt; y++)
-			{
-				for(size_t x = 0; x < imageWid; x++)
-				{
-					cvi.currentNormalized(pFeatures);
-					pLearner->predict(pFeatures, pLabels);
-					unsigned int col = 0;
-					if(pLearner->labelDims() == 1)
-					{
-						int pix = std::max(0, std::min(255, int(floor(*pLabels * 256))));
-						col = gARGB(0xff, pix, pix, pix);
-					}
-					else if(pLearner->labelDims() == 3)
-					{
-						int r = std::max(0, std::min(255, int(floor(pLabels[0] * 256))));
-						int g = std::max(0, std::min(255, int(floor(pLabels[1] * 256))));
-						int b = std::max(0, std::min(255, int(floor(pLabels[2] * 256))));
-						col = gARGB(0xff, r, g, b);
-					}
-					else
-						ThrowError("Unexpected number of label dims");
-					image.setPixel(xx + x, yy + y, col);
-					cvi.advance();
-				}
-			}
+			pFeatures[featureDims - 2] = (double)hFrame / (framesHoriz - 1);
+			pFeatures[featureDims - 1] = (double)vFrame / (framesVert - 1);
+			pUBP->lowToHi(pFeatures, pLabels);
+			GImage tmp;
+			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->labelDims(), 256.0);
+			image.blit(xx, yy, &tmp);
 			xx += imageWid;
 		}
 		yy += imageHgt;

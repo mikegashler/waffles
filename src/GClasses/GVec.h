@@ -148,9 +148,9 @@ public:
 	/// Write the vector to a text format
 	static GDomNode* serialize(GDom* pDoc, const double* pVec, size_t dims);
 
-	/// Load the vector from a text format. Throws if it contains
-	/// an unexpected number of dims
-	static void deserialize(double* pVec, size_t dims, GDomListIterator& it);
+	/// Load the vector from a text format. pVec must be large enough to contain all of the
+	/// elements that remain in "it".
+	static void deserialize(double* pVec, GDomListIterator& it);
 
 	/// Prints the values in the vector separated by ", ".
 	/// precision specifies the number of digits to print
@@ -285,6 +285,13 @@ public:
 	/// Returns the index of the max value. In the event of a tie, the
 	/// smallest index of one of the max values is returned.
 	static size_t indexOfMax(size_t* pVec, size_t size);
+
+	/// Write the vector to a text format
+	static GDomNode* serialize(GDom* pDoc, const size_t* pVec, size_t dims);
+
+	/// Load the vector from a text format. pVec must be large enough to contain all of the
+	/// elements that remain in "it".
+	static void deserialize(size_t* pVec, GDomListIterator& it);
 };
 
 

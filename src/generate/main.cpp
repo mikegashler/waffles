@@ -1258,7 +1258,7 @@ void ScaleAndRotate(GArgReader& args)
 			rDest.x += (rSrc.w - rDest.w) / 2.0;
 			rDest.y += (rSrc.h - rDest.h) / 2.0;
 			frame.clear(0xffffffff);
-			frame.blitStretchInterpolate(&rDest, &rSrc, &rotated);
+			frame.blitStretchInterpolate(&rDest, &rotated, &rSrc);
 
 			// Convert to a data row
 			double* pRow = data.newRow();
@@ -1450,7 +1450,7 @@ void sceneRobotSimulationGrid(GArgReader& args)
 			double top = (scene.height() - h) / 2.0;
 			GDoubleRect src(left, top, w, h);
 			GDoubleRect dest(0, 0, cameraWid, cameraHgt);
-			frame.blitStretchInterpolate(&dest, &src, &scene);
+			frame.blitStretchInterpolate(&dest, &scene, &src);
 			GRect r(0, 0, cameraWid, cameraHgt);
 			master.blit((int)(cameraWid * x), (int)(cameraHgt * y), &frame, &r);
 		}
@@ -1536,7 +1536,7 @@ void sceneRobotSimulationPath(GArgReader& args)
 		double top = (scene.height() - h) / 2.0;
 		GDoubleRect src(left, top, w, h);
 		GDoubleRect dest(0, 0, cameraWid, cameraHgt);
-		frame.blitStretchInterpolate(&dest, &src, &scene);
+		frame.blitStretchInterpolate(&dest, &scene, &src);
 
 		// Convert to an observation vector
 		pVec = obs.newRow();
@@ -1686,7 +1686,7 @@ void mechanicalRabbit(GArgReader& args)
 		double top = (scene.height() - h) / 2.0;
 		GDoubleRect src(left, top, w, h);
 		GDoubleRect dest(0, 0, cameraWid, cameraHgt);
-		frame.blitStretchInterpolate(&dest, &src, &scene);
+		frame.blitStretchInterpolate(&dest, &scene, &src);
 
 		// Convert to an observation vector
 		double* pVec = obsActual.newRow();

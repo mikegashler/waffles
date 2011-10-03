@@ -194,9 +194,7 @@ public:
 	static void test();
 #endif
 
-	/// Saves the model to a text file. (This doesn't save the short-term
-	/// memory used for incremental learning, so if you're doing "incremental"
-	/// learning, it will wake up with amnesia when you load it again.)
+	/// Saves the model to a text file.
 	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Sets the activation function to use with all subsequently added

@@ -15,6 +15,7 @@
 #include "GFile.h"
 #include "GString.h"
 #include "GBitTable.h"
+#include "GHeap.h"
 #include <stdio.h>
 #include <string.h>
 #include <fstream>
@@ -66,6 +67,13 @@ public:
 };
 
 
+
+bool GTokenizerMapComparer::operator() (const char* a, const char* b) const
+{
+	return strcmp(a, b) < 0;
+}
+
+
 GTokenizer::GTokenizer(const char* szFilename)
 {
 	std::ifstream* pStream = new std::ifstream();
@@ -85,6 +93,7 @@ GTokenizer::GTokenizer(const char* szFilename)
 		else
 			ThrowError("File not found: ", szFilename);
 	}
+	m_pHeap = new GHeap(1024);
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
@@ -105,6 +114,7 @@ GTokenizer::GTokenizer(const char* pFile, size_t len)
 		m_len = s.length();
 		m_pStream = new std::istringstream(s);
 	}
+	m_pHeap = new GHeap(1024);
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
@@ -114,19 +124,21 @@ GTokenizer::GTokenizer(const char* pFile, size_t len)
 
 GTokenizer::~GTokenizer()
 {
-	for(map<string,GCharGroup*>::iterator it = m_charGroups.begin(); it != m_charGroups.end(); it++)
+	for(map<const char*,GCharGroup*,GTokenizerMapComparer>::iterator it = m_charGroups.begin(); it != m_charGroups.end(); it++)
 		delete(it->second);
+	delete(m_pHeap);
 	delete[] m_pBufStart;
 	delete(m_pStream);
 }
 
 GCharGroup* GTokenizer::getCharGroup(const char* szChars)
 {
-	map<string,GCharGroup*>::iterator it = m_charGroups.find(szChars);
+	map<const char*,GCharGroup*,GTokenizerMapComparer>::iterator it = m_charGroups.find(szChars);
 	if(it == m_charGroups.end())
 	{
 		GCharGroup* pCharGroup = new GCharGroup(szChars);
-		m_charGroups.insert(std::pair<string,GCharGroup*>(szChars, pCharGroup));
+		const char* szCharsCopy = m_pHeap->add(szChars);
+		m_charGroups.insert(std::pair<const char*,GCharGroup*>(szCharsCopy, pCharGroup));
 		return pCharGroup;
 	}
 	else

@@ -1019,9 +1019,13 @@ GNormalize::GNormalize(GDomNode* pNode, GLearnerLoader& ll)
 	m_pMins = new double[2 * nAttrCount];
 	m_pRanges = &m_pMins[nAttrCount];
 	GDomListIterator it1(pNode->field("mins"));
-	GVec::deserialize(m_pMins, nAttrCount, it1);
+	if(it1.remaining() != nAttrCount)
+		ThrowError("unexpected number of elements");
+	GVec::deserialize(m_pMins, it1);
 	GDomListIterator it2(pNode->field("ranges"));
-	GVec::deserialize(m_pRanges, nAttrCount, it2);
+	if(it2.remaining() != nAttrCount)
+		ThrowError("unexpected number of elements");
+	GVec::deserialize(m_pRanges, it2);
 }
 
 // virtual
@@ -1158,9 +1162,13 @@ GDiscretize::GDiscretize(GDomNode* pNode, GLearnerLoader& ll)
 	m_pMins = new double[2 * nAttrCount];
 	m_pRanges = &m_pMins[nAttrCount];
 	GDomListIterator it1(pNode->field("mins"));
-	GVec::deserialize(m_pMins, nAttrCount, it1);
+	if(it1.remaining() != nAttrCount)
+		ThrowError("unexpected number of elements");
+	GVec::deserialize(m_pMins, it1);
 	GDomListIterator it2(pNode->field("ranges"));
-	GVec::deserialize(m_pRanges, nAttrCount, it2);
+	if(it2.remaining() != nAttrCount)
+		ThrowError("unexpected number of elements");
+	GVec::deserialize(m_pRanges, it2);
 }
 
 // virtual

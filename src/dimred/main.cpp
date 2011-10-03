@@ -944,22 +944,22 @@ void unsupervisedBackProp(GArgReader& args)
 	// Parse Options
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
 	GRand prng(nSeed);
-	GUnsupervisedBackProp ubp(targetDims, &prng);
+	GUnsupervisedBackProp* pUBP = new GUnsupervisedBackProp(targetDims, &prng);
+	Holder<GUnsupervisedBackProp> hUBP(pUBP);
 	vector<size_t> paramRanges;
 	string sModelOut;
-	bool trainWeights = true;
-	bool trainIntrinsic = true;
+	string sProgress;
 	bool inputBias = true;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
 			prng.setSeed(args.pop_uint());
 		else if(args.if_pop("-addlayer"))
-			ubp.neuralNet()->addLayer(args.pop_uint());
+			pUBP->neuralNet()->addLayer(args.pop_uint());
 		else if(args.if_pop("-params"))
 		{
-			if(ubp.tweaker())
-				ThrowError("You can't change the params after you add an image tweaker");
+			if(pUBP->jitterer())
+				ThrowError("You can't change the params after you add an image jitterer");
 			size_t paramDims = args.pop_uint();
 			for(size_t i = 0; i < paramDims; i++)
 				paramRanges.push_back(args.pop_uint());
@@ -969,13 +969,14 @@ void unsupervisedBackProp(GArgReader& args)
 			GDom doc;
 			doc.loadJson(args.pop_string());
 			GLearnerLoader ll(prng);
-			ubp.setNeuralNet(new GNeuralNet(doc.root(), ll));
+			pUBP = new GUnsupervisedBackProp(doc.root(), ll);
+			hUBP.reset(pUBP);
 		}
 		else if(args.if_pop("-modelout"))
 			sModelOut = args.pop_string();
 		else if(args.if_pop("-intrinsicin"))
-			ubp.setIntrinsic(GMatrix::loadArff(args.pop_string()));
-		else if(args.if_pop("-tweaker"))
+			pUBP->setIntrinsic(GMatrix::loadArff(args.pop_string()));
+		else if(args.if_pop("-jitter"))
 		{
 			if(paramRanges.size() != 2)
 				ThrowError("The params must be set to 2 before a tweaker is set");
@@ -983,25 +984,24 @@ void unsupervisedBackProp(GArgReader& args)
 			double rot = args.pop_double();
 			double trans = args.pop_double();
 			double zoom = args.pop_double();
-			GImageTweaker* pTweaker = new GImageTweaker(paramRanges[0], paramRanges[1], channels, rot, trans, zoom);
-			ubp.setTweaker(pTweaker);
+			GImageJitterer* pJitterer = new GImageJitterer(paramRanges[0], paramRanges[1], channels, rot, trans, zoom);
+			pUBP->setJitterer(pJitterer);
 		}
-		else if(args.if_pop("-clampweights"))
-			trainWeights = false;
-		else if(args.if_pop("-clampintrinsic"))
-			trainIntrinsic = false;
 		else if(args.if_pop("-noinputbias"))
 			inputBias = false;
+		else if(args.if_pop("-progress"))
+		{
+			sProgress = args.pop_string();
+			pUBP->trackProgress();
+		}
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
-	ubp.setParams(paramRanges);
-	ubp.setUpdateWeights(trainWeights);
-	ubp.setUpdateIntrinsic(trainIntrinsic);
-	ubp.setUseInputBias(inputBias);
+	pUBP->setParams(paramRanges);
+	pUBP->setUseInputBias(inputBias);
 
 	// Transform the data
-	GMatrix* pDataAfter = ubp.doit(*pData);
+	GMatrix* pDataAfter = pUBP->doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 
@@ -1009,9 +1009,11 @@ void unsupervisedBackProp(GArgReader& args)
 	if(sModelOut.length() > 0)
 	{
 		GDom doc;
-		doc.setRoot(ubp.neuralNet()->serialize(&doc));
+		doc.setRoot(pUBP->serialize(&doc));
 		doc.saveJson(sModelOut.c_str());
 	}
+	if(sProgress.length() > 0)
+		pUBP->progress().saveArff(sProgress.c_str());
 }
 
 void ShowUsage(const char* appName)

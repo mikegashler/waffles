@@ -2837,9 +2837,9 @@ void GMatrix::mergeVert(GMatrix* pData)
 		}
 
 		// Merge the data and map the values in pData to match those in this Matrix with the same name
-		while(pData->rows() > 0)
+		for(size_t j = 0; j < pData->rows(); j++)
 		{
-			double* pRow = pData->releaseRow(0);
+			double* pRow = pData->row(j);
 			takeRow(pRow);
 			for(size_t i = 0; i < pThis->size(); i++)
 			{
@@ -2853,13 +2853,15 @@ void GMatrix::mergeVert(GMatrix* pData)
 				pRow++;
 			}
 		}
+		pData->releaseAllRows();
 	}
 	else
 	{
 		if(!relation()->isCompatible(*pData->relation().get()))
 			ThrowError("The two matrices have incompatible relations");
-		while(pData->rows() > 0)
-			takeRow(pData->releaseRow(0));
+		for(size_t i = 0; i < pData->rows(); i++)
+			takeRow(pData->row(i));
+		pData->releaseAllRows();
 	}
 }
 

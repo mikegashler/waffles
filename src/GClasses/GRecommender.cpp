@@ -352,7 +352,7 @@ GBaselineRecommender::GBaselineRecommender(GDomNode* pNode, GLearnerLoader& ll)
 	GDomListIterator it(pNode->field("ratings"));
 	m_items = it.remaining();
 	m_pRatings = new double[m_items];
-	GVec::deserialize(m_pRatings, m_items, it);
+	GVec::deserialize(m_pRatings, it);
 }
 
 // virtual
@@ -1149,10 +1149,14 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 	m_items = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
 	m_pMins = new double[m_items];
 	GDomListIterator it1(pNode->field("mins"));
-	GVec::deserialize(m_pMins, m_items, it1);
+	if(it1.remaining() != m_items)
+		ThrowError("invalid number of elements");
+	GVec::deserialize(m_pMins, it1);
 	m_pMaxs = new double[m_items];
 	GDomListIterator it2(pNode->field("maxs"));
-	GVec::deserialize(m_pMaxs, m_items, it2);
+	if(it2.remaining() != m_items)
+		ThrowError("invalid number of elements");
+	GVec::deserialize(m_pMaxs, it2);
 	m_intrinsicDims = m_pModel->layer(0).m_neurons.size();
 }
 
