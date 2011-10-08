@@ -25,6 +25,7 @@
 #include "../GClasses/GCrypto.h"
 #include "../GClasses/GDecisionTree.h"
 #include "../GClasses/GDiff.h"
+#include "../GClasses/GDistribution.h"
 #include "../GClasses/GEnsemble.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GFile.h"
@@ -373,6 +374,7 @@ void RunAllTests()
 	runTest("GBitTable", GBitTable::test);
 	runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);
 	runTest("GBucket", GBucket::test);
+	runTest("GCategoricalSamplerBatch", GCategoricalSamplerBatch::test);
 	runTest("GCompressor", GCompressor::test);
 	runTest("GCoordVectorIterator", GCoordVectorIterator::test);
 	runTest("GCrypto", GCrypto::test);

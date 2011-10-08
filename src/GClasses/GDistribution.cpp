@@ -171,6 +171,77 @@ size_t GCategoricalSampler::draw(double d)
 
 
 
+GCategoricalSamplerBatch::GCategoricalSamplerBatch(size_t categories, const double* pDistribution, GRand& rand)
+: m_categories(categories), m_pDistribution(pDistribution), m_rand(rand)
+{
+	m_pIndexes = new size_t[m_categories];
+	GIndexVec::makeIndexVec(m_pIndexes, m_categories);
+}
+
+GCategoricalSamplerBatch::~GCategoricalSamplerBatch()
+{
+	delete[] m_pIndexes;
+}
+
+void GCategoricalSamplerBatch::draw(size_t samples, size_t* pOutBatch)
+{
+	double probRemaining = 1.0;
+	GIndexVec::shuffle(m_pIndexes, m_categories, &m_rand);
+	size_t* pOut = pOutBatch;
+	size_t n = samples;
+	for(size_t i = 0; i < m_categories; i++)
+	{
+		size_t index = m_pIndexes[i];
+		double prob = m_pDistribution[index];
+		size_t k = m_rand.binomial_approx(n, prob / probRemaining);
+		GAssert(k <= n);
+		for(size_t j = 0; j < k; j++)
+		{
+			*pOut = index;
+			pOut++;
+		}
+		n -= k;
+		probRemaining -= prob;
+	}
+	GAssert(n == 0);
+	GAssert(std::abs(probRemaining) < 1e-6);
+	GIndexVec::shuffle(pOutBatch, samples, &m_rand);
+}
+
+#ifndef NO_TEST_CODE
+#define SAMPLES 10000
+// static
+void GCategoricalSamplerBatch::test()
+{
+	double probs[3];
+	probs[0] = 0.2;
+	probs[1] = 0.5;
+	probs[2] = 0.3;
+	GRand rand(0);
+	GCategoricalSamplerBatch csb(3, probs, rand);
+	size_t* pResults = new size_t[SAMPLES];
+	ArrayHolder<size_t> hResults(pResults);
+	csb.draw(SAMPLES, pResults);
+	size_t counts[3];
+	counts[0] = 0;
+	counts[1] = 0;
+	counts[2] = 0;
+	for(size_t i = 0; i < SAMPLES; i++)
+	{
+		size_t n = pResults[i];
+		if(n > 2)
+			ThrowError("out of range");
+		counts[n]++;
+	}
+	if(std::abs(0.2 - double(counts[0]) / SAMPLES) >= 0.02)
+		ThrowError("failed");
+	if(std::abs(0.5 - double(counts[1]) / SAMPLES) >= 0.02)
+		ThrowError("failed");
+	if(std::abs(0.3 - double(counts[2]) / SAMPLES) >= 0.02)
+		ThrowError("failed");
+}
+#endif // NO_TEST_CODE
+
 
 
 
