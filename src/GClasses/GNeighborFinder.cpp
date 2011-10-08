@@ -2149,58 +2149,24 @@ GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix
 
 	// Train the consequence maps
 	size_t obsDims = pObservations->cols();
-	sp_relation spRel = new GUniformRelation(obsDims * 2, 0);
 	for(int j = 0; j < actionValues; j++)
 	{
-		GMatrix consequenceData(spRel);
+		GMatrix before(0, obsDims);
+		GMatrix delta(0, obsDims);
 		for(size_t i = 0; i < pObservations->rows() - 1; i++)
 		{
 			if((int)pActions->row(i)[0] == (int)j)
 			{
-				double* pObs = consequenceData.newRow();
-				GVec::copy(pObs, pObservations->row(i), obsDims);
-				double* pDelta = pObs + obsDims;
+				GVec::copy(before.newRow(), pObservations->row(i), obsDims);
+				double* pDelta = delta.newRow();
 				GVec::copy(pDelta, pObservations->row(i + 1), obsDims);
-				GVec::subtract(pDelta, pObs, obsDims);
+				GVec::subtract(pDelta, pObservations->row(i), obsDims);
 			}
 		}
-		GAssert(consequenceData.rows() > 20); // not much data
-/*
-		GNeuralNet* pNN = new GNeuralNet(pRand);
-		pNN->addLayer(40);
-		GFilter* pMap = new GFilter(pNN, true);
-		pMap->setFeatureTransform(new GNormalize(-2.0, 2.0), true);
-		pMap->setLabelTransform(new GNormalize(0.0, 1.0), true);
-*/
+		GAssert(before.rows() > 20); // not much data
 		GKNN* pMap = new GKNN(*pRand);
-		//pMap->setInterpolationMethod(GKNN::Mean);
-//		GDecisionTree* pMap = new GDecisionTree(pRand);
 		m_consequenceMaps.push_back(pMap);
-		//pMap->train(&consequenceData, obsDims);
-#ifdef _DEBUG
-/*
-		string s = "h";
-		s += gformat(j);
-		s += ".arff";
-		consequenceData.saveArff(s.c_str());
-*/
-/*
-		// Check accuracy
-		double* pBuf = new double[pObservations->cols()];
-		ArrayHolder<double> hBuf(pBuf);
-		for(size_t i = 0; i < pObservations->rows() - 1; i++)
-		{
-			if((int)pActions->row(i)[0] == j)
-			{
-				m_consequenceMaps[j]->predict(pObservations->row(i), pBuf);
-				GVec::add(pBuf, pObservations->row(i), pObservations->cols());
-				GVec::subtract(pBuf, pObservations->row(i + 1), pObservations->cols());
-				double meanErr = sqrt(GVec::squaredMagnitude(pBuf, pObservations->cols()) / pObservations->cols());
-				GAssert(meanErr < 2.0); // bad estimate
-			}
-		}
-*/
-#endif
+		pMap->train(before, delta);
 	}
 }
 

@@ -540,7 +540,7 @@ GDomListItem* GDom::newItem()
 char* JSON_readString(GTokenizer& tok)
 {
 	tok.expect("\"");
-	char* szTok = tok.nextUntilNotEscaped('\\', "\"");
+	char* szTok = tok.nextUntilNotEscaped('\\', tok.charSet("\""));
 	tok.advance(1);
 	size_t eat = 0;
 	char* szString = szTok;
@@ -581,9 +581,10 @@ GDomNode* GDom::loadJsonObject(GTokenizer& tok)
 	tok.expect("{");
 	GDomNode* pNewObj = newObj();
 	bool readyForField = true;
+	GCharSet& whitespace = tok.charSet("\t\n\r ");
 	while(tok.remaining() > 0)
 	{
-		tok.skip();
+		tok.skip(whitespace);
 		char c = tok.peek();
 		if(c == '}')
 		{
@@ -605,9 +606,9 @@ GDomNode* GDom::loadJsonObject(GTokenizer& tok)
 			pNewField->m_pPrev = pNewObj->m_value.m_pLastField;
 			pNewObj->m_value.m_pLastField = pNewField;
 			pNewField->m_pName = m_heap.add(JSON_readString(tok));
-			tok.skip();
+			tok.skip(whitespace);
 			tok.expect(":");
-			tok.skip();
+			tok.skip(whitespace);
 			pNewField->m_pValue = loadJsonValue(tok);
 			readyForField = false;
 		}
@@ -624,9 +625,10 @@ GDomNode* GDom::loadJsonArray(GTokenizer& tok)
 	tok.expect("[");
 	GDomNode* pNewList = newList();
 	bool readyForValue = true;
+	GCharSet& whitespace = tok.charSet("\t\n\r ");
 	while(tok.remaining() > 0)
 	{
-		tok.skip();
+		tok.skip(whitespace);
 		char c = tok.peek();
 		if(c == ']')
 		{
@@ -658,7 +660,7 @@ GDomNode* GDom::loadJsonArray(GTokenizer& tok)
 
 GDomNode* GDom::loadJsonNumber(GTokenizer& tok)
 {
-	char* szString = tok.nextWhile("-.+0-9eE");
+	char* szString = tok.nextWhile(tok.charSet("-.+0-9eE"));
 	bool hasPeriod = false;
 	for(char* szChar = szString; *szChar != '\0'; szChar++)
 	{
@@ -717,7 +719,7 @@ GDomNode* GDom::loadJsonValue(GTokenizer& tok)
 
 void GDom::parseJson(GTokenizer& tok)
 {
-	tok.skip();
+	tok.skip(tok.charSet("\t\n\r "));
 	setRoot(loadJsonValue(tok));
 }
 

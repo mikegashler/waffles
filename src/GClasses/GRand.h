@@ -53,7 +53,16 @@ public:
 	double beta(double alpha, double beta);
 
 	/// Returns a random value from a binomial distribution
-	int binomial(int n, double p);
+	/// This method draws n samples from a uniform distribution,
+	/// so it is very slow for large values of n. binomial_approx
+	/// is generally much faster.
+	size_t binomial(size_t n, double p);
+
+	/// Returns a random value approximately from a binomial distribution.
+	/// This method uses a normal distribution to approximate the binomial
+	/// distribution. It is O(1), and is generally quite accurate when
+	/// n is large and p is not too close to 0 or 1.
+	size_t binomial_approx(size_t n, double p);
 
 	/// Returns a random value from a categorical distribution
 	/// with the specified vector of category probabilities.

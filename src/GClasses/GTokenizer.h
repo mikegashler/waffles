@@ -17,7 +17,7 @@
 
 namespace GClasses {
 
-class GCharGroup;
+class GCharSet;
 class GHeap;
 
 /// This is a helper-class used by GTokenizer
@@ -30,23 +30,11 @@ public:
 
 
 /// This is a simple tokenizer that reads a file, one token at-a-time.
-/// Several of the methods in this class require a string of
-/// characters to be supplied as a parameter. These are simply an un-ordered
-/// set of characters (with no separator between them). The only special
-/// character is '-', which is used to indicate a range of characters if it
-/// is not the first character in the string. (So, if you want '-' in your
-/// set of characters, it should come first.) For example, this
-/// string includes all letters: "a-zA-Z", and this string includes all
-/// characters that might appear in a floating-point number: "-.,0-9e".
-/// (There is no way to include '\0' as a delimeter, since that character
-/// indicates the end of the string, but that is okay since '\0' should
-/// not occur in text files anyway, and this class is designed for parsing
-/// text files.)
 class GTokenizer
 {
 protected:
 	GHeap* m_pHeap;
-	std::map<const char*,GCharGroup*,GTokenizerMapComparer> m_charGroups;
+	std::map<const char*,GCharSet*,GTokenizerMapComparer> m_charGroups;
 	char* m_pBufStart;
 	char* m_pBufPos;
 	char* m_pBufEnd;
@@ -64,6 +52,20 @@ public:
 	GTokenizer(const char* pFile, size_t len);
 	~GTokenizer();
 
+	/// Returns a GCharSet. Many of the methods in this class require
+	/// a GCharSet as a parameter. You get it by calling this method.
+	/// szChars is an un-ordered set of characters (with no separator between
+	/// them). The only special character is '-', which is used to indicate a
+	/// range of characters if it is not the first character in the string.
+	/// (So, if you want '-' in your set of characters, it should come first.)
+	/// For example, the following string includes all letters: "a-zA-Z", and the
+	/// following string includes all characters that might appear in a
+	/// floating-point number: "-.,0-9e". (There is no way to include '\0' as
+	/// a character in the set, since that character indicates the end of the
+	/// string, but that is okay since '\0' should not occur in text files
+	/// anyway, and this class is designed for parsing text files.)
+	GCharSet& charSet(const char* szChars);
+
 	/// Returns the next character in the stream. Returns '\0' if there are
 	/// no more characters in the stream. (This could theoretically be ambiguous if the
 	/// the next character in the stream is '\0', but presumably this class
@@ -76,19 +78,21 @@ public:
 	/// minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextUntil(const char* szDelimeters = "\t\n\r ", size_t minLen = 1);
+	char* nextUntil(GCharSet& delimeters, size_t minLen = 1);
+//"\t\n\r "
 
 	/// Reads until the next character would be one of the specified delimeters,
 	/// and the current character is not escapeChar. 
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextUntilNotEscaped(char escapeChar, const char* szDelimeters);
+	char* nextUntilNotEscaped(char escapeChar, GCharSet& delimeters);
 
 	/// Reads while the character is one of the specified characters. Throws an
 	/// exception if fewer than minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextWhile(const char* szSet = "-_a-zA-Z0-9", size_t minLen = 1);
+	char* nextWhile(GCharSet& set, size_t minLen = 1);
+// "-_a-zA-Z0-9"
 
 	/// Returns the next token delimited by whitespace or a '{' character.
 	/// If the next token begins
@@ -103,11 +107,13 @@ public:
 	/// If szDelimeters is NULL, then any characters <= ' ' are considered
 	/// to be delimeters. (This method is similar to nextWhile, except that
 	/// it does not buffer the characters it reads.)
-	void skip(const char* szDelimeters = "\t\n\r ");
+	void skip(GCharSet& delimeters);
+// "\t\n\r "
 
 	/// Skip until the next character is one of the delimeters.
 	/// (This method is the same as nextUntil, except that it does not buffer what it reads.)
-	void skipTo(const char* szDelimeters = "\t\n\r ");
+	void skipTo(GCharSet& delimeters);
+// "\t\n\r "
 
 	/// Advances past the next 'n' characters. (Stops if the end-of-file is reached.)
 	void advance(size_t n);
@@ -121,7 +127,8 @@ public:
 	/// trimmed off of both the beginning and end of the token. For example, if the last
 	/// token that was returned was "  tok  ", then this will return "tok".
 	/// (Calling this method will not change the value returned by tokenLength.)
-	char* trim(const char* szSet = "\t\n\r ");
+	char* trim(GCharSet& set);
+// "\t\n\r "
 
 	/// Returns the current line number. (Begins at 1. Each time a '\n' is encountered,
 	/// the line number is incremented. Mac line-endings do not increment the
@@ -139,7 +146,6 @@ public:
 	size_t tokenLength();
 
 protected:
-	GCharGroup* getCharGroup(const char* szChars);
 	void growBuf();
 	char get();
 	void bufferChar(char c);

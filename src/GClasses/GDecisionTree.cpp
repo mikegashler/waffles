@@ -780,7 +780,7 @@ void GDecisionTree::test()
 	{
 		GRand rand(0);
 		GDecisionTree tree(rand);
-		tree.basicTest(0.69, 0.75);
+		tree.basicTest(0.71, 0.77);
 	}
 	{
 		GRand rand(0);

@@ -616,6 +616,6 @@ void GBucket::test()
 	bucket.addLearner(new GBaselineLearner(rand));
 	bucket.addLearner(new GDecisionTree(rand));
 	bucket.addLearner(new GMeanMarginsTree(rand));
-	bucket.basicTest(0.70, 0.73);
+	bucket.basicTest(0.70, 0.77);
 }
 #endif

@@ -15,8 +15,10 @@
 #include "GRand.h"
 #include "GMath.h"
 #include "GMatrix.h"
+#include <cmath>
 
 using namespace GClasses;
+using std::map;
 
 void GCategoricalDistribution::deserialize(GDomNode* pNode)
 {
@@ -135,6 +137,42 @@ double GCategoricalDistribution::entropy()
 		dEntropy -= (m_pValues[i] * log(m_pValues[i]) * M_LOG2E);
 	return dEntropy;
 }
+
+
+
+
+GCategoricalSampler::GCategoricalSampler(size_t categories, const double* pDistribution)
+{
+	double sum = 0.0;
+	for(size_t i = 0; i < categories; i++)
+	{
+		if(*pDistribution <= 0)
+		{
+			if(*pDistribution < 0)
+				ThrowError("Negative probabilities are not allowed");
+			continue;
+		}
+		sum += *pDistribution;
+		m_map.insert(std::pair<double,size_t>(sum, i));
+	}
+	if(std::abs(sum - 1.0) > 1e-8)
+		ThrowError("The probabilities should sum to 1");
+}
+
+size_t GCategoricalSampler::draw(double d)
+{
+	map<double,size_t>::iterator it = m_map.upper_bound(d);
+	if(it == m_map.end())
+		return 0;
+	return it->second;
+}
+
+
+
+
+
+
+
 
 void GNormalDistribution::precompute()
 {

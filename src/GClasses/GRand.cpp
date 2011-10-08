@@ -208,15 +208,22 @@ double GRand::chiSquare(double t)
 	return gamma(t / 2.0) * 2.0;
 }
 
-int GRand::binomial(int n, double p)
+size_t GRand::binomial(size_t n, double p)
 {
-	int c = 0;
-	for(int i = 0; i < n; i++)
+	size_t c = 0;
+	for(size_t i = 0; i < n; i++)
 	{
 		if(uniform() < p)
 			c++;
 	}
 	return c;
+}
+
+size_t GRand::binomial_approx(size_t n, double p)
+{
+	double mean = p * n;
+	double dev = sqrt(mean * (1.0 - p));
+	return std::max(size_t(0), size_t(floor(normal() * dev + mean + 0.5)));
 }
 
 void GRand::simplex(double* pOutVec, size_t dims)

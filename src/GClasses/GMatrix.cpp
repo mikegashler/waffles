@@ -558,9 +558,12 @@ void GArffRelation::setName(const char* szName)
 
 void GArffRelation::parseAttribute(GTokenizer& tok)
 {
-	tok.skip(" \t");
+	GCharSet& spaces = tok.charSet(" \t");
+	GCharSet& valEnd = tok.charSet(",}\n");
+	GCharSet& whitespace = tok.charSet("\t\n\r ");
+	tok.skip(spaces);
 	string name = tok.nextArg();
-	tok.skip(" \t");
+	tok.skip(spaces);
 	char c = tok.peek();
 	if(c == '{')
 	{
@@ -570,8 +573,8 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 		m_attrs.resize(index + 1);
 		while(true)
 		{
-			tok.nextUntil(",}\n");
-			const char* szVal = tok.trim();
+			tok.nextUntil(valEnd);
+			const char* szVal = tok.trim(whitespace);
 			if(*szVal == '\0')
 				ThrowError("Empty value specified on line ", to_str(tok.line()));
 			m_attrs[index].m_values.push_back(szVal);
@@ -598,7 +601,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 	}
 	else
 	{
-		const char* szType = tok.nextUntil();
+		const char* szType = tok.nextUntil(whitespace);
 		if(	_stricmp(szType, "CONTINUOUS") == 0 ||
 			_stricmp(szType, "REAL") == 0 ||
 			_stricmp(szType, "NUMERIC") == 0 ||
@@ -609,7 +612,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 		else
 			ThrowError("Unsupported attribute type: ", szType, ", at line ", to_str(tok.line()));
 	}
-	tok.skipTo("\n");
+	tok.skipTo(tok.charSet("\n"));
 	tok.advance(1);
 }
 
@@ -892,34 +895,41 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 GMatrix* GMatrix_parseArff(GTokenizer& tok)
 {
 	// Parse the meta data
+	GCharSet& whitespace = tok.charSet("\t\n\r ");
+	GCharSet& spaces = tok.charSet(" \t");
+	GCharSet& space = tok.charSet(" ");
+	GCharSet& newline = tok.charSet("\n");
+	GCharSet& valEnder = tok.charSet(" ,\t}\n");
+	GCharSet& valHardEnder = tok.charSet(",}\t\n");
+	GCharSet& commaNewlineTab = tok.charSet(",\n\t");
 	GArffRelation* pRelation = new GArffRelation();
 	sp_relation sp_rel = pRelation;
 	while(true)
 	{
-		tok.skip(); // Skip Whitespace
+		tok.skip(whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			ThrowError("Invalid ARFF file--contains no data");
 		else if(c == '%')
 		{
 			tok.advance(1);
-			tok.skipTo("\n");
+			tok.skipTo(newline);
 		}
 		else if(c == '@')
 		{
 			tok.advance(1);
-			const char* szTok = tok.nextUntil();
+			const char* szTok = tok.nextUntil(whitespace);
 			if(_stricmp(szTok, "ATTRIBUTE") == 0)
 				pRelation->parseAttribute(tok);
 			else if(_stricmp(szTok, "RELATION") == 0)
 			{
-				tok.skip(" \t");
-				pRelation->setName(tok.nextUntil("\n", 0));
+				tok.skip(spaces);
+				pRelation->setName(tok.nextUntil(newline, 0));
 				tok.advance(1);
 			}
 			else if(_stricmp(szTok, "DATA") == 0)
 			{
-				tok.skipTo("\n");
+				tok.skipTo(newline);
 				tok.advance(1);
 				break;
 			}
@@ -934,14 +944,14 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 	size_t cols = pRelation->size();
 	while(true)
 	{
-		tok.skip();
+		tok.skip(whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			break;
 		else if(c == '%')
 		{
 			tok.advance(1);
-			tok.skipTo("\n");
+			tok.skipTo(newline);
 		}
 		else if(c == '{')
 		{
@@ -950,11 +960,11 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			GVec::setAll(pRow, 0.0, cols);
 			while(true)
 			{
-				tok.skip(" ");
+				tok.skip(space);
 				char c = tok.peek();
 				if(c >= '0' && c <= '9')
 				{
-					const char* szTok = tok.nextUntil(" ,\t}\n");
+					const char* szTok = tok.nextUntil(valEnder);
 #ifdef WIN32
 					size_t col = (size_t)_strtoui64(szTok, (char**)NULL, 10);
 #else
@@ -962,10 +972,10 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 #endif
 					if(col >= cols)
 						ThrowError("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-					tok.skip(" \t");
-					const char* szVal = tok.nextUntil(", \t}\n");
+					tok.skip(spaces);
+					const char* szVal = tok.nextUntil(valEnder);
 					pRow[col] = GMatrix_parseValue(pRelation, col, szVal, tok);
-					tok.skipTo(",}\t\n");
+					tok.skipTo(valHardEnder);
 					c = tok.peek();
 					if(c == ',' || c == '\t')
 						tok.advance(1);
@@ -989,8 +999,8 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			{
 				if(col >= cols)
 					ThrowError("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-				tok.nextUntil(",\n\t", 0);
-				const char* szVal = tok.trim();
+				tok.nextUntil(commaNewlineTab, 0);
+				const char* szVal = tok.trim(whitespace);
 				*pRow = GMatrix_parseValue(pRelation, col, szVal, tok);
 				pRow++;
 				col++;
