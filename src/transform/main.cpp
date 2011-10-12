@@ -31,6 +31,7 @@
 #include "../GClasses/GSelfOrganizingMap.h"
 #include <time.h>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <set>
 #include <map>
@@ -1107,6 +1108,70 @@ void rotate(GArgReader& args)
 	pA->print(cout);
 }
 
+#define MAX_LINE_LENGTH (1024 * 1024)
+
+void sampleRows(GArgReader& args)
+{
+	const char* filename = args.pop_string();
+	double portion = args.pop_double();
+	if(portion < 0 || portion > 1)
+		ThrowError("The portion must be between 0 and 1");
+	PathData pd;
+	GFile::parsePath(filename, &pd);
+	bool arff = false;
+	if(_stricmp(filename + pd.extStart, ".arff") == 0)
+		arff = true;
+
+	// Parse Options
+	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-seed"))
+			seed = args.pop_uint();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+	GRand rand(seed);
+
+	size_t size = 0;
+	std::ifstream s;
+	s.exceptions(std::ios::failbit|std::ios::badbit);
+	try
+	{
+		s.open(filename, std::ios::binary);
+		s.seekg(0, std::ios::end);
+		size = (size_t)s.tellg();
+		s.seekg(0, std::ios::beg);
+	}
+	catch(const std::exception&)
+	{
+		if(GFile::doesFileExist(filename))
+			ThrowError("Error while trying to open the existing file: ", filename);
+		else
+			ThrowError("File not found: ", filename);
+	}
+	char* pLine = new char[MAX_LINE_LENGTH];
+	ArrayHolder<char> hLine(pLine);
+	size_t line = 1;
+	while(size > 0)
+	{
+		s.getline(pLine, std::min(size + 1, size_t(MAX_LINE_LENGTH)));
+		size_t linelen = std::min(size, size_t(s.gcount()));
+		if(linelen >= MAX_LINE_LENGTH - 1)
+			ThrowError("Line ", to_str(line), " is too long"); // todo: just resize the buffer here
+		if(arff)
+		{
+			if(_strnicmp(pLine, "@DATA", 5) == 0)
+				arff = false;
+			cout << pLine << "\n";
+		}
+		else if(rand.uniform() < portion)
+			cout << pLine << "\n";
+		size -= linelen;
+		line++;
+	}
+}
+
 void scaleColumns(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -1676,6 +1741,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
 		else if(args.if_pop("rotate")) rotate(args);
+		else if(args.if_pop("samplerows")) sampleRows(args);
 		else if(args.if_pop("scalecolumns")) scaleColumns(args);
 		else if(args.if_pop("shiftcolumns")) shiftColumns(args);
 		else if(args.if_pop("shuffle")) Shuffle(args);

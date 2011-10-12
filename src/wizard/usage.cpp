@@ -1260,10 +1260,17 @@ UsageNode* makeTransformUsageTree()
 	pRoot->add("reducedrowechelonform [dataset]=m.arff", "Convert a matrix to reduced row echelon form. Results are printed to stdout.");
 	{
 		UsageNode* pRotate = pRoot->add("rotate [dataset] [col_x] [col_y] [angle_degrees]","Rotate angle degrees around the origin in in the col_x,col_y plane.  Only affects the values in col_x and col_y.");
-	  pRotate->add("[dataset]=in.arff", "The filename of a dataset.");
-	  pRotate->add("[col_x]=0", "The zero-based index of an attribute to serve as the x coordinate in the plane of rotation.  Rotation from x to y will be 90 degrees. col_x must be a real-valued attribute.");
-	  pRotate->add("[col_y]=1", "The zero-based index of an attribute to serve as the y coordinate in the plane of rotation.  Rotation from y to x will be 270 degrees. col_y must be a real-valued attribute.");
-	  pRotate->add("[angle_degrees]=90.0","The angle in degrees to rotate around the origin in the col_x,col_y plane.");
+		pRotate->add("[dataset]=in.arff", "The filename of a dataset.");
+		pRotate->add("[col_x]=0", "The zero-based index of an attribute to serve as the x coordinate in the plane of rotation.  Rotation from x to y will be 90 degrees. col_x must be a real-valued attribute.");
+		pRotate->add("[col_y]=1", "The zero-based index of an attribute to serve as the y coordinate in the plane of rotation.  Rotation from y to x will be 270 degrees. col_y must be a real-valued attribute.");
+		pRotate->add("[angle_degrees]=90.0","The angle in degrees to rotate around the origin in the col_x,col_y plane.");
+	}
+	{
+		UsageNode* pSampRows = pRoot->add("samplerows [dataset] [portion]", "Samples from the rows in the specified dataset and prints them to stdout. This tool reads each row one-at-a-time, so it is well-suited for reducing the size of datasets that are too big to fit into memory. (Note that unlike most other tools, this one does not convert CSV to ARFF format internally. If the input is CSV, the output will be CSV too.)");
+		pSampRows->add("[dataset]=in.arff", "The filename of a dataset. ARFF, CSV, and a few other formats are supported.");
+		pSampRows->add("[portion]=0.1", "A value between 0 and 1 that specifies the likelihood that each row will be printed to stdout.");
+		UsageNode* pOpts = pSampRows->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
 	{
 		UsageNode* pScaleCols = pRoot->add("scalecolumns [dataset] [column-list] [scalar]", "Multiply the values in the specified columns by a scalar.");
