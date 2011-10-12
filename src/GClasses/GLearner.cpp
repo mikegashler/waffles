@@ -698,12 +698,6 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 			setLabelFilter(new GDiscretize());
 		}
 	}
-
-	// Train the filters
-	if(m_pFeatureFilter)
-		m_pFeatureFilter->train(features);
-	if(m_pLabelFilter)
-		m_pLabelFilter->train(labels);
 }
 
 void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
@@ -721,10 +715,12 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 		setupFilters(features, labels);
 	if(m_pFeatureFilter)
 	{
+		m_pFeatureFilter->train(features);
 		GMatrix* pFilteredFeatures = m_pFeatureFilter->transformBatch(features);
 		Holder<GMatrix> hFilteredFeatures(pFilteredFeatures);
 		if(m_pLabelFilter)
 		{
+			m_pLabelFilter->train(labels);
 			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(labels);
 			Holder<GMatrix> hFilteredLabels(pFilteredLabels);
 			trainInner(*pFilteredFeatures, *pFilteredLabels);
@@ -736,6 +732,7 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 	{
 		if(m_pLabelFilter)
 		{
+			m_pLabelFilter->train(labels);
 			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(labels);
 			Holder<GMatrix> hFilteredLabels(pFilteredLabels);
 			trainInner(features, *pFilteredLabels);

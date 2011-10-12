@@ -139,7 +139,7 @@ GMatrix* GIncrementalTransform::doit(GMatrix& in)
 GMatrix* GIncrementalTransform::transformBatch(GMatrix& in)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train has been called");
+		ThrowError("train has not been called");
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(after());
 	Holder<GMatrix> hOut(pOut);
@@ -162,7 +162,7 @@ double* GIncrementalTransform::innerBuf()
 GMatrix* GTwoWayIncrementalTransform::untransformBatch(GMatrix& in)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train has been called");
+		ThrowError("train has not been called");
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(before());
 	pOut->newRows(nRows);

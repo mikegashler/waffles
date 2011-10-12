@@ -1575,7 +1575,7 @@ void sceneRobotSimulationPath(GArgReader& args)
 				y = oldy;
 				continue;
 			}
-			if(y > 0.3 * zoomLen && x > 0.3 * strafeLen && x < 0.7 * strafeLen)
+			if(y > 0.4 * zoomLen && y < 0.6 * zoomLen && x > 0.4 * strafeLen && x < 0.6 * strafeLen)
 			{
 				x = oldx;
 				y = oldy;

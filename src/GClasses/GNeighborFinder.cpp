@@ -2135,11 +2135,14 @@ double GSaffron::meanNeighborCount(double* pDeviation)
 
 
 
-
-GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand)
-: GNeighborFinder(pObservations, neighborCount), m_ownActionsData(ownActionsData), m_pActions(pActions), m_pRand(pRand)
+GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand, size_t maxDims)
+: GNeighborFinder(preprocessObservations(pObservations, maxDims, pRand), neighborCount),
+m_pPreprocessed(m_pPreprocessed), // don't panic, this is intentional. m_pPreprocessed is initialized in the previous line, and we do this so that its value will not be stomped over.
+m_pActions(pActions),
+m_ownActionsData(ownActionsData),
+m_pRand(pRand)
 {
-	if(pObservations->rows() != pActions->rows())
+	if(m_pData->rows() != pActions->rows())
 		ThrowError("Expected the same number of observations as control vectors");
 	if(pActions->cols() != 1)
 		ThrowError("Sorry, only one action dim is currently supported");
@@ -2148,23 +2151,25 @@ GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix
 		ThrowError("Sorry, only nominal actions are currently supported");
 
 	// Train the consequence maps
-	size_t obsDims = pObservations->cols();
+	size_t obsDims = m_pData->cols();
 	for(int j = 0; j < actionValues; j++)
 	{
 		GMatrix before(0, obsDims);
 		GMatrix delta(0, obsDims);
-		for(size_t i = 0; i < pObservations->rows() - 1; i++)
+		for(size_t i = 0; i < m_pData->rows() - 1; i++)
 		{
 			if((int)pActions->row(i)[0] == (int)j)
 			{
-				GVec::copy(before.newRow(), pObservations->row(i), obsDims);
+				GVec::copy(before.newRow(), m_pData->row(i), obsDims);
 				double* pDelta = delta.newRow();
-				GVec::copy(pDelta, pObservations->row(i + 1), obsDims);
-				GVec::subtract(pDelta, pObservations->row(i), obsDims);
+				GVec::copy(pDelta, m_pData->row(i + 1), obsDims);
+				GVec::subtract(pDelta, m_pData->row(i), obsDims);
 			}
 		}
 		GAssert(before.rows() > 20); // not much data
 		GKNN* pMap = new GKNN(*pRand);
+		pMap->setAutoFilter(false);
+		pMap->setFeatureFilter(new GPCA(12, pRand));
 		m_consequenceMaps.push_back(pMap);
 		pMap->train(before, delta);
 	}
@@ -2177,6 +2182,23 @@ GTemporalNeighborFinder::~GTemporalNeighborFinder()
 		delete(m_pActions);
 	for(vector<GSupervisedLearner*>::iterator it = m_consequenceMaps.begin(); it != m_consequenceMaps.end(); it++)
 		delete(*it);
+	delete(m_pPreprocessed);
+}
+
+GMatrix* GTemporalNeighborFinder::preprocessObservations(GMatrix* pObs, size_t maxDims, GRand* pRand)
+{
+	if(pObs->cols() > maxDims)
+	{
+		GPCA pca(maxDims, pRand);
+		pca.train(*pObs);
+		m_pPreprocessed = pca.transformBatch(*pObs);
+		return m_pPreprocessed;
+	}
+	else
+	{
+		m_pPreprocessed = NULL;
+		return pObs;
+	}
 }
 
 bool GTemporalNeighborFinder::findPath(size_t from, size_t to, double* path, double maxDist)
