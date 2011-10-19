@@ -1377,7 +1377,9 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 		{
 			if(szClass[1] < 'C')
 			{
-				if(strcmp(szClass, "GBag") == 0)
+				if(strcmp(szClass, "GAdaBoost") == 0)
+					return new GAdaBoost(pNode, *this);
+				else if(strcmp(szClass, "GBag") == 0)
 					return new GBag(pNode, *this);
 				else if(strcmp(szClass, "GBaselineLearner") == 0)
 					return new GBaselineLearner(pNode, *this);

@@ -43,20 +43,17 @@ GDomNode* GWeightedModel::serialize(GDom* pDoc)
 
 
 
-
-GBag::GBag(GRand& rand)
-: GSupervisedLearner(rand), m_nAccumulatorDims(0), m_pAccumulator(NULL), m_pCB(NULL), m_pThis(NULL)
+GEnsemble::GEnsemble(GRand& rand)
+: GSupervisedLearner(rand), m_nAccumulatorDims(0), m_pAccumulator(NULL)
 {
 }
 
-GBag::GBag(GDomNode* pNode, GLearnerLoader& ll)
+GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode, ll)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	m_nAccumulatorDims = (size_t)pNode->field("accum")->asInt();
 	m_pAccumulator = new double[m_nAccumulatorDims];
-	m_pCB = NULL;
-	m_pThis = NULL;
 	GDomNode* pModels = pNode->field("models");
 	GDomListIterator it(pModels);
 	size_t modelCount = it.remaining();
@@ -68,7 +65,7 @@ GBag::GBag(GDomNode* pNode, GLearnerLoader& ll)
 	}
 }
 
-GBag::~GBag()
+GEnsemble::~GEnsemble()
 {
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		delete(*it);
@@ -76,46 +73,28 @@ GBag::~GBag()
 }
 
 // virtual
-GDomNode* GBag::serialize(GDom* pDoc)
+void GEnsemble::serializeBase(GDom* pDoc, GDomNode* pNode)
 {
-	GDomNode* pNode = baseDomNode(pDoc, "GBag");
-	pNode->addField(pDoc, "featuredims", pDoc->newInt(m_featureDims));
 	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
 	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
 	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
 	for(size_t i = 0; i < m_models.size(); i++)
 		pModels->addItem(pDoc, m_models[i]->serialize(pDoc));
-	return pNode;
 }
 
-void GBag::clear()
+void GEnsemble::clearBase()
 {
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		(*it)->m_pModel->clear();
 	m_pLabelRel.reset();
-	m_featureDims = 0;
 	delete[] m_pAccumulator;
 	m_pAccumulator = NULL;
 	m_nAccumulatorDims = 0;
 }
 
-void GBag::flush()
-{
-	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-		delete(*it);
-	m_models.clear();
-}
-
-void GBag::addLearner(GSupervisedLearner* pLearner)
-{
-	GWeightedModel* pWM = new GWeightedModel(0.0, pLearner); // The weight will be fixed later
-	m_models.push_back(pWM);
-}
-
 // virtual
-void GBag::trainInner(GMatrix& features, GMatrix& labels)
+void GEnsemble::trainInner(GMatrix& features, GMatrix& labels)
 {
-	m_featureDims = features.cols();
 	m_pLabelRel = labels.relation();
 
 	// Make the accumulator buffer
@@ -132,49 +111,10 @@ void GBag::trainInner(GMatrix& features, GMatrix& labels)
 	delete[] m_pAccumulator;
 	m_pAccumulator = new double[m_nAccumulatorDims];
 
-	// Train all the models
-	size_t nLearnerCount = m_models.size();
-	size_t nVectorCount = features.rows();
-	GMatrix drawnFeatures(features.relation(), features.heap());
-	GMatrix drawnLabels(labels.relation(), labels.heap());
-	drawnFeatures.reserve(nVectorCount);
-	drawnLabels.reserve(nVectorCount);
-	{
-		for(size_t i = 0; i < nLearnerCount; i++)
-		{
-			if(m_pCB)
-				m_pCB(m_pThis, i, nLearnerCount);
-
-			// Randomly draw some data (with replacement)
-			GReleaseDataHolder hDrawnFeatures(&drawnFeatures);
-			GReleaseDataHolder hDrawnLabels(&drawnLabels);
-			for(size_t j = 0; j < nVectorCount; j++)
-			{
-				size_t r = (size_t)m_rand.next(nVectorCount);
-				drawnFeatures.takeRow(features[r]);
-				drawnLabels.takeRow(labels[r]);
-			}
-
-			// Train the learner with the drawn data
-			m_models[i]->m_pModel->train(drawnFeatures, drawnLabels);
-		}
-		if(m_pCB)
-			m_pCB(m_pThis, nLearnerCount, nLearnerCount);
-	}
-
-	// Determine the weights
-	determineWeights(features, labels);
-	normalizeWeights();
+	trainInnerInner(features, labels);
 }
 
-// virtual
-void GBag::determineWeights(GMatrix& features, GMatrix& labels)
-{
-	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-		(*it)->m_weight = 1.0;
-}
-
-void GBag::normalizeWeights()
+void GEnsemble::normalizeWeights()
 {
 	double sum = 0.0;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
@@ -184,7 +124,7 @@ void GBag::normalizeWeights()
 		(*it)->m_weight *= f;
 }
 
-void GBag::castVote(double weight, const double* pOut)
+void GEnsemble::castVote(double weight, const double* pOut)
 {
 	size_t labelDims = m_pLabelRel->size();
 	size_t nDims = 0;
@@ -208,7 +148,7 @@ void GBag::castVote(double weight, const double* pOut)
 	GAssert(nDims == m_nAccumulatorDims); // invalid dim count
 }
 
-void GBag::tally(GPrediction* pOut)
+void GEnsemble::tally(GPrediction* pOut)
 {
 	size_t labelDims = m_pLabelRel->size();
 	size_t nDims = 0;
@@ -231,7 +171,7 @@ void GBag::tally(GPrediction* pOut)
 	GAssert(nDims == m_nAccumulatorDims); // invalid dim count
 }
 
-void GBag::tally(double* pOut)
+void GEnsemble::tally(double* pOut)
 {
 	size_t labelDims = m_pLabelRel->size();
 	size_t nDims = 0;
@@ -253,7 +193,7 @@ void GBag::tally(double* pOut)
 }
 
 // virtual
-void GBag::predictInner(const double* pIn, double* pOut)
+void GEnsemble::predictInner(const double* pIn, double* pOut)
 {
 	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
@@ -266,7 +206,7 @@ void GBag::predictInner(const double* pIn, double* pOut)
 }
 
 // virtual
-void GBag::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GEnsemble::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
 	GTEMPBUF(double, pTmp, m_pLabelRel->size());
 	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
@@ -278,79 +218,100 @@ void GBag::predictDistributionInner(const double* pIn, GPrediction* pOut)
 	}
 	tally(pOut);
 }
-/*
-// virtual
-double GBag::crossValidate(GMatrix* pData, int nFolds, bool bRegression)
+
+
+
+
+
+
+
+GBag::GBag(GRand& rand)
+: GEnsemble(rand), m_pCB(NULL), m_pThis(NULL), m_trainSize(1.0)
 {
-	// Split the data into parts
-	GTEMPBUF(GMatrix*, pSets, nFolds);
-	int nSize = pData->size() / nFolds + nFolds;
-	int n, i, j, nLearner;
-	for(n = 0; n < nFolds; n++)
-		pSets[n] = new GMatrix(nSize);
-	int nRowCount = pData->size();
-	double* pRow;
-	for(n = 0; n < nRowCount; n++)
-	{
-		pRow = pData->row(n);
-		pSets[n % nFolds]->AddVector(pRow);
-	}
-
-	// Do the training and testing
-	double d;
-	double dScore = 0;
-	GMatrix trainingSet(pData->size());
-	for(n = 0; n < nFolds; n++)
-	{
-		// Train with all of the sub-sets except one
-		{
-			GReleaseDataHolder hReleaseData(&trainingSet);
-			for(i = 0; i < nFolds; i++)
-			{
-				if(i == n)
-					continue;
-				int nCount = pSets[i]->size();
-				for(j = 0; j < nCount; j++)
-				{
-					pRow = pSets[i]->row(j);
-					trainingSet.AddVector(pRow);
-				}
-			}
-
-
-			initialize the accumulator
-			for(nLearner = 0; nLearner < nLearner->size(); nLearner++)
-			{
-				pLearner = m_models[i];
-				pLearner->train(&pTrainer);
-
-				eval each row in pSets[n], and accumulate the results
-
-				// Free the model
-				pLearner->Clear();
-			}
-			pAverageSet = generate a set of average results
-
-			// Measure accuracy
-			if(bRegression)
-				d = MeasureMeanSquaredError(pAverageSet);
-			else
-				d = MeasurePredictiveAccuracy(pAverageSet);
-			dScore += d;
-		}
-	}
-	dScore /= nFolds;
-
-	// Clean up
-	for(n = 0; n < nFolds; n++)
-	{
-		pSets[n]->releaseAllRows();
-		delete(pSets[n]);
-	}
-
-	return dScore;
 }
-*/
+
+GBag::GBag(GDomNode* pNode, GLearnerLoader& ll)
+: GEnsemble(pNode, ll), m_pCB(NULL), m_pThis(NULL)
+{
+	m_trainSize = pNode->field("ts")->asDouble();
+}
+
+GBag::~GBag()
+{
+}
+
+// virtual
+GDomNode* GBag::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GBag");
+	serializeBase(pDoc, pNode);
+	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
+	return pNode;
+}
+
+void GBag::clear()
+{
+	clearBase();
+}
+
+void GBag::flush()
+{
+	clear();
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		delete(*it);
+	m_models.clear();
+}
+
+void GBag::addLearner(GSupervisedLearner* pLearner)
+{
+	GWeightedModel* pWM = new GWeightedModel(0.0, pLearner); // The weight will be fixed later
+	m_models.push_back(pWM);
+}
+
+// virtual
+void GBag::trainInnerInner(GMatrix& features, GMatrix& labels)
+{
+	// Train all the models
+	size_t nLearnerCount = m_models.size();
+	size_t nDrawSize = size_t(m_trainSize * features.rows());
+	GMatrix drawnFeatures(features.relation(), features.heap());
+	GMatrix drawnLabels(labels.relation(), labels.heap());
+	drawnFeatures.reserve(nDrawSize);
+	drawnLabels.reserve(nDrawSize);
+	{
+		for(size_t i = 0; i < nLearnerCount; i++)
+		{
+			if(m_pCB)
+				m_pCB(m_pThis, i, nLearnerCount);
+
+			// Randomly draw some data (with replacement)
+			GReleaseDataHolder hDrawnFeatures(&drawnFeatures);
+			GReleaseDataHolder hDrawnLabels(&drawnLabels);
+			for(size_t j = 0; j < nDrawSize; j++)
+			{
+				size_t r = (size_t)m_rand.next(features.rows());
+				drawnFeatures.takeRow(features[r]);
+				drawnLabels.takeRow(labels[r]);
+			}
+
+			// Train the learner with the drawn data
+			m_models[i]->m_pModel->train(drawnFeatures, drawnLabels);
+		}
+		if(m_pCB)
+			m_pCB(m_pThis, nLearnerCount, nLearnerCount);
+	}
+
+	// Determine the weights
+	determineWeights(features, labels);
+	normalizeWeights();
+}
+
+// virtual
+void GBag::determineWeights(GMatrix& features, GMatrix& labels)
+{
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		(*it)->m_weight = 1.0;
+}
 
 #ifndef NO_TEST_CODE
 #include "GDecisionTree.h"
@@ -404,12 +365,8 @@ void GBayesianModelAveraging::determineWeights(GMatrix& features, GMatrix& label
 GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc)
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBayesianModelAveraging");
-	pNode->addField(pDoc, "featuredims", pDoc->newInt(m_featureDims));
-	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
-	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
-	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
-	for(size_t i = 0; i < m_models.size(); i++)
-		pModels->addItem(pDoc, m_models[i]->serialize(pDoc));
+	serializeBase(pDoc, pNode);
+	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
 	return pNode;
 }
 
@@ -474,15 +431,157 @@ void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& lab
 GDomNode* GBayesianModelCombination::serialize(GDom* pDoc)
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBayesianModelCombination");
-	pNode->addField(pDoc, "featuredims", pDoc->newInt(m_featureDims));
-	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
-	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
+	serializeBase(pDoc, pNode);
+	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
 	pNode->addField(pDoc, "samps", pDoc->newInt(m_samples));
-	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
-	for(size_t i = 0; i < m_models.size(); i++)
-		pModels->addItem(pDoc, m_models[i]->serialize(pDoc));
 	return pNode;
 }
+
+
+
+
+
+
+GAdaBoost::GAdaBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader)
+: GEnsemble(pLoader->rand()), m_pLearner(pLearner), m_ownLearner(ownLearner), m_pLoader(pLoader), m_trainSize(1.0), m_ensembleSize(30)
+{
+}
+
+GAdaBoost::GAdaBoost(GDomNode* pNode, GLearnerLoader& ll)
+: GEnsemble(pNode, ll), m_pLearner(NULL), m_ownLearner(false), m_pLoader(NULL)
+{
+	m_trainSize = pNode->field("ts")->asDouble();
+	m_ensembleSize = pNode->field("es")->asInt();
+}
+
+// virtual
+GAdaBoost::~GAdaBoost()
+{
+	clear();
+	if(m_ownLearner)
+		delete(m_pLearner);
+	delete(m_pLoader);
+}
+
+// virtual
+GDomNode* GAdaBoost::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GAdaBoost");
+	serializeBase(pDoc, pNode);
+	pNode->addField(pDoc, "es", pDoc->newInt(m_ensembleSize));
+	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
+	return pNode;
+}
+
+// virtual
+void GAdaBoost::clear()
+{
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		delete(*it);
+	m_models.clear();
+	if(m_pLearner)
+		m_pLearner->clear();
+}
+
+// virtual
+void GAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
+{
+	clear();
+
+	// Initialize all instances with uniform weights
+	double* pDistribution = new double[features.rows()];
+	ArrayHolder<double> hDistribution(pDistribution);
+	GVec::setAll(pDistribution, 1.0 / features.rows(), features.rows());
+	size_t drawRows = size_t(m_trainSize * features.rows());
+	size_t* pDrawnIndexes = new size_t[drawRows];
+	ArrayHolder<size_t> hDrawnIndexes(pDrawnIndexes);
+
+	// Train the ensemble
+	size_t labelDims = labels.cols();
+	double penalty = 1.0 / labelDims;
+	GTEMPBUF(double, prediction, labelDims);
+	for(size_t es = 0; es < m_ensembleSize; es++)
+	{
+		// Draw a training set from the distribution
+		GCategoricalSamplerBatch csb(features.rows(), pDistribution, m_rand);
+		csb.draw(drawRows, pDrawnIndexes);
+		GMatrix drawnFeatures(features.relation());
+		GReleaseDataHolder hDrawnFeatures(&drawnFeatures);
+		GMatrix drawnLabels(labels.relation());
+		GReleaseDataHolder hDrawnLabels(&drawnLabels);
+		size_t* pIndex = pDrawnIndexes;
+		for(size_t i = 0; i < drawRows; i++)
+		{
+			drawnFeatures.takeRow(features[*pIndex]);
+			drawnLabels.takeRow(labels[*pIndex]);
+			pIndex++;
+		}
+
+		// Train an instance of the model and store a clone of it
+		m_pLearner->train(drawnFeatures, drawnLabels);
+		GDom doc;
+		GSupervisedLearner* pClone = m_pLoader->loadSupervisedLearner(m_pLearner->serialize(&doc));
+
+		// Compute model weight
+		double err = 0.0;
+		for(size_t i = 0; i < features.rows(); i++)
+		{
+			pClone->predict(features[i], prediction);
+			double* pTarget = labels[i];
+			double* pPred = prediction;
+			for(size_t j = 0; j < labelDims; j++)
+			{
+				if((int)*(pTarget++) != (int)*(pPred++))
+					err += penalty;
+			}
+		}
+		err /= features.rows();
+		if(err >= 0.5)
+		{
+			delete(pClone);
+			break;
+		}
+		double weight = 0.5 * log((1.0 - err) / err);
+		m_models.push_back(new GWeightedModel(weight, pClone));
+
+		// Update the distribution to favor mis-classified instances
+		double* pDist = pDistribution;
+		for(size_t i = 0; i < features.rows(); i++)
+		{
+			err = 0.0;
+			pClone->predict(features[i], prediction);
+			double* pTarget = labels[i];
+			double* pPred = prediction;
+			for(size_t j = 0; j < labelDims; j++)
+			{
+				if((int)*(pTarget++) != (int)*(pPred++))
+					err += penalty;
+			}
+			err /= labelDims;
+			*pDist *= exp(weight * (err * 2.0 - 1.0));
+			pDist++;
+		}
+		GVec::sumToOne(pDistribution, features.rows());
+	}
+	normalizeWeights();
+}
+
+#ifndef NO_TEST_CODE
+// static
+void GAdaBoost::test()
+{
+	GRand rand(0);
+	GDecisionTree* pLearner = new GDecisionTree(rand);
+	pLearner->useRandomDivisions();
+	GAdaBoost boost(pLearner, true, new GLearnerLoader(rand));
+	boost.basicTest(0.757, 0.757);
+}
+#endif
+
+
+
+
+
 
 
 

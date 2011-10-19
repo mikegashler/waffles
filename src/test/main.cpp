@@ -362,6 +362,7 @@ bool runTest(const char* szTestName, TestFunc pTest)
 void RunAllTests()
 {
 	// Class tests
+	runTest("GAdaBoost", GAdaBoost::test);
 	runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 	runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
 	runTest("GAttributeSelector", GAttributeSelector::test);

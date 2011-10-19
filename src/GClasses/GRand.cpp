@@ -222,8 +222,8 @@ size_t GRand::binomial(size_t n, double p)
 size_t GRand::binomial_approx(size_t n, double p)
 {
 	double mean = p * n;
-	double dev = sqrt(mean * (1.0 - p));
-	return std::max(size_t(0), size_t(floor(normal() * dev + mean + 0.5)));
+	double dev = sqrt(std::max(0.0, mean * (1.0 - p)));
+	return std::min(n, size_t(floor(std::max(0.0, normal() * dev + mean + 0.5))));
 }
 
 void GRand::simplex(double* pOutVec, size_t dims)

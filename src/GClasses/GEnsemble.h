@@ -41,9 +41,68 @@ public:
 	GWeightedModel(GDomNode* pNode, GLearnerLoader& ll);
 	~GWeightedModel();
 
+	/// Sets the weight of this model
+	void setWeight(double w) { m_weight = w; }
+
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	GDomNode* serialize(GDom* pDoc);
 };
+
+
+/// This is a base-class for ensembles that combine the
+/// predictions from multiple weightd models.
+class GEnsemble : public GSupervisedLearner
+{
+protected:
+	sp_relation m_pLabelRel;
+	std::vector<GWeightedModel*> m_models;
+	size_t m_nAccumulatorDims;
+	double* m_pAccumulator; // a buffer for tallying votes (ballot box?)
+
+public:
+	/// General-purpose constructor.
+	GEnsemble(GRand& rand);
+
+	/// Deserializing constructor.
+	GEnsemble(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GEnsemble();
+
+protected:
+	/// Base classes should call this method to serialize the base object
+	/// as part of their implementation of the serialize method.
+	virtual void serializeBase(GDom* pDoc, GDomNode* pNode);
+
+	/// Calls clear on all of the models, and resets the accumulator buffer
+	virtual void clearBase();
+
+	/// Sets up the accumulator buffer (ballot box) then calls trainInnerInner
+	virtual void trainInner(GMatrix& features, GMatrix& labels);
+
+	/// Implement this method to train the ensemble.
+	virtual void trainInnerInner(GMatrix& features, GMatrix& labels) = 0;
+
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predictInner(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+	/// Scales the weights of all the models so they sum to 1.0.
+	void normalizeWeights();
+
+	/// Adds the vote from one of the models.
+	void castVote(double weight, const double* pOut);
+
+	/// Counts all the votes from the models in the bag, assuming you are
+	/// interested in knowing the distribution.
+	void tally(GPrediction* pOut);
+
+	/// Counts all the votes from the models in the bag, assuming you only
+	/// care to know the winner, and do not care about the distribution.
+	void tally(double* pOut);
+};
+
 
 
 /// BAG stands for bootstrap aggregator. It represents an ensemble
@@ -51,15 +110,12 @@ public:
 /// training set, which is produced by drawing randomly from the original
 /// training set with replacement until we have a new training set of
 /// the same size. Each model is given equal weight in the vote.
-class GBag : public GSupervisedLearner
+class GBag : public GEnsemble
 {
 protected:
-	sp_relation m_pLabelRel;
-	std::vector<GWeightedModel*> m_models;
-	size_t m_nAccumulatorDims;
-	double* m_pAccumulator;
 	EnsembleProgressCallback m_pCB;
 	void* m_pThis;
+	double m_trainSize;
 
 public:
 	/// General-purpose constructor.
@@ -77,10 +133,10 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc);
 
-	/// See the comment for GSupervisedLearner::clear
+	/// Calls clears on all of the learners, but does not delete them.
 	virtual void clear();
 
-	/// Removes and deletes all the learners
+	/// Removes and deletes all the learners.
 	void flush();
 
 	/// Adds a learner to the bag. This takes ownership of pLearner (so
@@ -95,32 +151,12 @@ public:
 	}
 
 protected:
-	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+	/// See the comment for GEnsemble::trainInnerInner
+	virtual void trainInnerInner(GMatrix& features, GMatrix& labels);
 
 	/// Assigns uniform weight to all models. (This method is deliberately
 	/// virtual so that you can overload it if you want non-uniform weighting.)
 	virtual void determineWeights(GMatrix& features, GMatrix& labels);
-
-	/// Scales the weights so they sum to 1.0.
-	void normalizeWeights();
-
-	/// Adds the vote from one of the models.
-	void castVote(double weight, const double* pOut);
-
-	/// Counts all the votes from the models in the bag, assuming you are
-	/// interested in knowing the distribution.
-	void tally(GPrediction* pOut);
-
-	/// Counts all the votes from the models in the bag, assuming you only
-	/// care to know the winner, and do not care about the distribution.
-	void tally(double* pOut);
 };
 
 
@@ -188,6 +224,56 @@ protected:
 	virtual void determineWeights(GMatrix& features, GMatrix& labels);
 };
 
+
+
+class GAdaBoost : public GEnsemble
+{
+protected:
+	GSupervisedLearner* m_pLearner;
+	bool m_ownLearner;
+	GLearnerLoader* m_pLoader;
+	double m_trainSize;
+	size_t m_ensembleSize;
+
+public:
+	/// General purpose constructor. pLearner is the learning algorithm
+	/// that you wish to boost. If ownLearner is true, then this object
+	/// will delete pLearner when it is deleted.
+	/// pLoader is a GLearnerLoader that can load the model you wish to boost.
+	/// (If it is a custom model, then you also need to make a class that inherits
+	/// from GLearnerLoader that can load your custom class.) Takes ownership
+	/// of pLoader (meaning this object will delete pLoader when it is deleted).
+	GAdaBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader);
+
+	/// Deserializing constructor
+	GAdaBoost(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GAdaBoost();
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Deletes all of the models in this ensemble, and calls clear on the base learner.
+	virtual void clear();
+
+	/// Specify the size of the drawn set to train with (as a factor of the training
+	/// set). The default is 1.0.
+	void setTrainSize(double d) { m_trainSize = d; }
+
+	/// Specify the size of the ensemble. The default is 30.
+	void setSize(size_t n) { m_ensembleSize = n; }
+
+protected:
+	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+
+	/// See the comment for GEnsemble::trainInnerInner
+	virtual void trainInnerInner(GMatrix& features, GMatrix& labels);
+};
 
 
 

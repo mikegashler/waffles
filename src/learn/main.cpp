@@ -260,6 +260,23 @@ GBag* InstantiateBag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 	return pEnsemble;
 }
 
+GBaselineLearner* InstantiateBaseline(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	GBaselineLearner* pModel = new GBaselineLearner(rand);
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-autotune"))
+		{
+			if(!pFeatures || !pLabels)
+				ThrowError("Insufficient data to support automatic tuning");
+			pModel->autoTune(*pFeatures, *pLabels);
+		}
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+	return pModel;
+}
+
 GBayesianModelAveraging* InstantiateBMA(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GBayesianModelAveraging* pEnsemble = new GBayesianModelAveraging(rand);
@@ -316,6 +333,18 @@ GBayesianModelCombination* InstantiateBMC(GRand& rand, GArgReader& args, GMatrix
 	return pEnsemble;
 }
 
+GAdaBoost* InstantiateBoost(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	GTransducer* pLearner = InstantiateAlgorithm(rand, args, pFeatures, pLabels);
+	if(!pLearner->canGeneralize())
+	{
+		delete(pLearner);
+		ThrowError("boost does not support algorithms that cannot generalize.");
+	}
+	GAdaBoost* pEnsemble = new GAdaBoost((GSupervisedLearner*)pLearner, true, new GLearnerLoader(rand));
+	return pEnsemble;
+}
+
 GBucket* InstantiateBucket(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GBucket* pEnsemble = new GBucket(rand);
@@ -332,23 +361,6 @@ GBucket* InstantiateBucket(GRand& rand, GArgReader& args, GMatrix* pFeatures, GM
 		pEnsemble->addLearner((GSupervisedLearner*)pLearner);
 	}
 	return pEnsemble;
-}
-
-GBaselineLearner* InstantiateBaseline(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
-{
-	GBaselineLearner* pModel = new GBaselineLearner(rand);
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-autotune"))
-		{
-			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels);
-		}
-		else
-			ThrowError("Invalid option: ", args.peek());
-	}
-	return pModel;
 }
 
 GBucket* InstantiateCvdt(GRand& rand, GArgReader& args)
@@ -659,6 +671,8 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 			return InstantiateBMA(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("bmc"))
 			return InstantiateBMC(rand, args, pFeatures, pLabels);
+		else if(args.if_pop("boost"))
+			return InstantiateBoost(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("bucket"))
 			return InstantiateBucket(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("cvdt"))

@@ -161,13 +161,17 @@ UsageNode* makeMasterUsageTree()
 UsageNode* makeAlgorithmUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("[algorithm]", "A supervised learning algorithm, or a transductive algorithm.");
-	pRoot->add("agglomerativetransducer", "A model-free transduction algorithm based on single-link agglomerative clustering. Unlabeled patterns take the label of the cluster with which they are joined. It never joins clusters with different labels.");
+	{
+		pRoot->add("agglomerativetransducer", "A model-free transduction algorithm based on single-link agglomerative clustering. Unlabeled patterns take the label of the cluster with which they are joined. It never joins clusters with different labels.");
+	}
 	{
 		UsageNode* pBag = pRoot->add("bag <contents> end", "A bagging (bootstrap aggregating) ensemble. This is a way to combine the power of many learning algorithms through voting. \"end\" marks the end of the ensemble contents. Each algorithm instance is trained using a training set created by drawing (with replacement) from the original data until the training set has the same number of instances as the original data.");
 		UsageNode* pContents = pBag->add("<contents>");
 		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the bagging ensemble.");
 	}
-	pRoot->add("baseline", "This is one of the simplest of all supervised algorithms. It ignores all features. For nominal labels, it always predicts the most common class in the training set. For continuous labels, it always predicts the mean label in the training set. An effective learning algorithm should never do worse than baseline--hence the name \"baseline\".");
+	{
+		pRoot->add("baseline", "This is one of the simplest of all supervised algorithms. It ignores all features. For nominal labels, it always predicts the most common class in the training set. For continuous labels, it always predicts the mean label in the training set. An effective learning algorithm should never do worse than baseline--hence the name \"baseline\".");
+	}
 	{
 		UsageNode* pBucket = pRoot->add("bucket <contents> end", "This uses cross-validation with the training set to select the best model from a bucket of models. When accuracy is measured across multiple datasets, it will usually do better than the best model in the bucket could do. \"end\" marks the end of the contents of the bucket.");
 		UsageNode* pContents = pBucket->add("<contents>");
@@ -185,7 +189,12 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pContents = pBMC->add("<contents>");
 		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the BMA ensemble.");
 	}
-	pRoot->add("cvdt [n]", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
+	{
+		pRoot->add("boost [algorithm]", "Uses AdaBoost to create an ensemble that may be more accurate than a lone instance of the specified algorithm.");
+	}
+	{
+		pRoot->add("cvdt [n]=50", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
+	}
 	{
 		UsageNode* pDT = pRoot->add("decisiontree <options>", "A decision tree.");
 		UsageNode* pOpts = pDT->add("<options>");
@@ -210,8 +219,12 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-pearson", "Use Pearson's correlation coefficient to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
 		pOpts->add("-cosine", "Use the cosine method to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");
 	}
-	pRoot->add("linear", "A linear regression model");
-	pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
+	{
+		pRoot->add("linear", "A linear regression model");
+	}
+	{
+		pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
+	}
 	{
 		UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm.");
 		UsageNode* pOpts = pNB->add("<options>");
