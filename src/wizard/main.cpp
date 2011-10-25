@@ -1208,11 +1208,14 @@ public:
 					args.pop_string();
 				else
 				{
-					UsageNode* pExpanded = pNode->choice(part);
+					UsageNode* pExpanded = pNode->choice(part); // find a choice matching the template
 					if(!pExpanded)
-						pExpanded = pNode->choice(tok);
+						pExpanded = pNode->choice(tok); // find a choice matching the token
 					if(!pExpanded && nodePos > 0)
-						pExpanded = trySpecial(part);
+						pExpanded = trySpecial(part); // try to match a special tag (like [algorithm])
+					vector<UsageNode*>& choices = pNode->choices();
+					if(!pExpanded && choices.size() == 1 && choices[0]->tok()[0] == '[' && tok[0] >= '0' && tok[0] <= '9') // This check is a special case to accept the [instance_count] portion of the <contents> tag in some ensemble algorithms.
+						pExpanded = choices[0];
 					if(pExpanded)
 					{
 						if(doCompletion(args, pExpanded, 0) && part[0] == '<')
@@ -1220,7 +1223,6 @@ public:
 					}
 					else
 					{
-						vector<UsageNode*>& choices = pNode->choices();
 						if(choices.size() == 0 || flex != 1)
 							args.pop_string(); // it's a free-form value, so accept anything
 						else
@@ -1228,7 +1230,7 @@ public:
 							if(part[0] != '<')
 								ThrowError("Unexpected token, ", tok, ", in arg ", to_str(args.get_pos() - 3));
 							GAssert(nodePos + 1 >= parts.size());
-							return false;
+							return false; // Failed to match any option, so move on to the next template item. (All the other cases return true to indicate that it is possible to match the same template item again.)
 						}
 					}
 				}

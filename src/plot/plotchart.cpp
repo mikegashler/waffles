@@ -243,6 +243,9 @@ GImage* PlotChartMaker::MakeChart()
 	// Mesh lines (This is an obscure feature that I don't think anyone else will ever use.)
 	if(m_meshSize > 0)
 	{
+		size_t meshHeight = m_pData->rows() / m_meshSize;
+		if(meshHeight * m_meshSize != m_pData->rows())
+			ThrowError("The number of data points is not divisible by the specified mesh size");
 		for(size_t attr = 1; attr < m_pRelation->size(); attr++)
 		{
 			for(size_t pat = 0; pat < m_pData->rows(); pat++)
@@ -270,7 +273,7 @@ GImage* PlotChartMaker::MakeChart()
 						if(pPatNeighbor[0] != UNKNOWN_REAL_VALUE && pPatNeighbor[attr] != UNKNOWN_REAL_VALUE)
 							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor((int)attr - 1, (int)pat));
 					}
-					if(y < m_meshSize - 1)
+					if(y < meshHeight - 1)
 					{
 						double* pPatNeighbor = m_pData->row(pat + m_meshSize);
 						if(pPatNeighbor[0] != UNKNOWN_REAL_VALUE && pPatNeighbor[attr] != UNKNOWN_REAL_VALUE)

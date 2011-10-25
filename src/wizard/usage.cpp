@@ -298,6 +298,8 @@ UsageNode* makeAudioUsageTree()
 	}
 	{
 		UsageNode* pMS = pRoot->add("makesilence [secs] [filename]", "Makes a wave file containing [secs] seconds of silence");
+		pMS->add("[secs]=0.5", "The number of seconds of silence to generate.");
+		pMS->add("[filename]=out.wav", "The output filename.");
 		UsageNode* pOpts = pMS->add("<options>");
 		pOpts->add("-bitspersample [n]=16", "Specify the number of bits-per-sample.");
 		pOpts->add("-channels [n]=1", "Specify the number of channels.");
@@ -305,6 +307,9 @@ UsageNode* makeAudioUsageTree()
 	}
 	{
 		UsageNode* pMS = pRoot->add("makesine [secs] [hertz] [filename]", "Makes a wave file containing [secs] seconds of a perfect sine wave with a frequency of [hertz].");
+		pMS->add("[secs]=0.5", "The number of seconds of sound to generate.");
+		pMS->add("[hertz]=440", "The frequency of the sound to generate.");
+		pMS->add("[filename]=out.wav", "The output filename.");
 		UsageNode* pOpts = pMS->add("<options>");
 		pOpts->add("-bitspersample [n]=16", "Specify the number of bits-per-sample.");
 		pOpts->add("-volumn [v]=1.0", "Specify the volume (from 0 to 1).");
@@ -372,6 +377,7 @@ UsageNode* makeClusterUsageTree()
 	pRoot->add("agglomerative [dataset] [clusters]", "Performs single-link agglomerative clustering. Outputs the cluster id for each row.");
 	{
 		UsageNode* pFKM = pRoot->add("fuzzykmeans [dataset] [clusters]", "Performs fuzzy k-means clustering. Outputs the cluster id for each row. This algorithm is specified in Li, D. and Deogun, J. and Spaulding, W. and Shuart, B., Towards missing data imputation: A study of fuzzy K-means clustering method, In Rough Sets and Current Trends in Computing, Springer, pages 573--579, 2004.");
+		pFKM->add("[dataset]=in.arff", "The filename of a dataset to cluster.");
 		UsageNode* pOpts = pFKM->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-reps [n]=1", "Cluster the data [n] times, and return the clustering that minimizes the sum-weighted-distance between rows and the centroids.");
@@ -379,6 +385,7 @@ UsageNode* makeClusterUsageTree()
 	}
 	{
 		UsageNode* pKM = pRoot->add("kmeans [dataset] [clusters]", "Performs k-means clustering. Outputs the cluster id for each row.");
+		pKM->add("[dataset]=in.arff", "The filename of a dataset to cluster.");
 		UsageNode* pOpts = pKM->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-reps [n]=1", "Cluster the data [n] times, and return the clustering that minimizes the sum-squared-distance between each row and its corresponding centroid.");
@@ -569,7 +576,7 @@ UsageNode* makeGenerateUsageTree()
 		pOpts->add("-blur [radius]=5.0", "Blurs the images. A good starting value might be 5.0.");
 		pOpts->add("-gray", "Use a single grayscale value for every pixel instead of three (red, green, blue) channel values.");
 	}
-	pRoot->add("cube [n]", "returns data evenly distributed on the surface of a unit cube. Each side is sampled with [n]x[n] points. The total number of points in the dataset will be 6*[n]*[n]-12*[n]+8.");
+	pRoot->add("cube [n]=2000", "returns data evenly distributed on the surface of a unit cube. Each side is sampled with [n]x[n] points. The total number of points in the dataset will be 6*[n]*[n]-12*[n]+8.");
 	{
 		UsageNode* pES = pRoot->add("entwinedspirals [points] <options>", "Generates points that lie on an entwined spirals manifold.");
 		pES->add("[points]=1000", "The number of points with which to sample the manifold.");
@@ -579,6 +586,7 @@ UsageNode* makeGenerateUsageTree()
 	}
 	{
 		UsageNode* pFishBowl = pRoot->add("fishbowl [n] <option>", "Generate samples on the surface of a fish-bowl manifold.");
+		pFishBowl->add("[n]=2000", "The number of samples to draw.");
 		UsageNode* pOpts = pFishBowl->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-opening [size]=0.25", "the size of the opening. (0.0 = no opening. 0.25 = default. 1.0 = half of the sphere.)");
@@ -643,6 +651,7 @@ UsageNode* makeGenerateUsageTree()
 	}
 	{
 		UsageNode* pScalRot = pRoot->add("scalerotate [png-file] <options>", "Generate a dataset where each row represents an image that has been scaled and rotated by various amounts. Thus, these images form an open-cylinder (although somewhat cone-shaped) manifold.");
+		pScalRot->add("[png-file]=image.png", "The filename of a PNG image");
 		UsageNode* pOpts = pScalRot->add("<options>");
 		pOpts->add("-saveimage [filename]=frames.png", "Save a composite image showing all the frames in a grid.");
 		pOpts->add("-frames [rotate-frames] [scale-frames]", "Specify the number of frames. The default is 40 15.");
@@ -791,6 +800,7 @@ UsageNode* makeLearnUsageTree()
 			   "when the learner being used has an internal "
 			   "model.");
 		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute after each repetition.");
+		pSplitTest->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pDO = pSplitTest->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -1199,8 +1209,7 @@ UsageNode* makeTransformUsageTree()
 		pCumCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");
 	}
 	{
-		UsageNode* pDet = pRoot->add("determinant [dataset]", "Compute the determinant of the specified matrix.");
-		pDet->add("[dataset]=m.arff", "The filename of a dataset.");
+		pRoot->add("determinant [dataset]=m.arff", "Compute the determinant of the specified matrix.");
 	}
 	{
 		UsageNode* pDisc = pRoot->add("discretize [dataset] <options>", "Discretizes the continuous attributes in the specified dataset.");
@@ -1211,6 +1220,7 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pDropCols = pRoot->add("dropcolumns [dataset] [column-list]", "Remove one or more columns from a dataset and prints the results to stdout. (The input file is not modified.)");
+		pDropCols->add("[dataset]=in.arff", "The filename of a dataset");
 		pDropCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to drop. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	pRoot->add("dropmissingvalues [dataset]=data.arff", "Remove all rows that contain missing values.");
@@ -1220,15 +1230,21 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-tab", "Separate with tabs instead of commas.");
 		pOpts->add("-space", "Separate with spaces instead of commas.");
 	}
-	pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");
+	{
+		UsageNode* pDR = pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");
+		pDR->add("[dataset]=data.arff", "The filename of a dataset");
+		pDR->add("[after-size]=1", "The number of rows to keep");
+	}
 	{
 		UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");
+		pFMS->add("[dataset]=data.arff", "The filename of a dataset");
 		UsageNode* pOpts = pFMS->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-random", "Replace each missing value with a randomly chosen non-missing value from the same attribute. (The default is to use the baseline value. That is, the mean for continuous attributes, and the most-common value for nominal attributes.)");
 	}
 	{
 		UsageNode* pIm = pRoot->add("import [dataset] <options>", "Convert a text file of comma separated (or otherwise separated) values to a .arff file. The meta-data is automatically determined. The .arff file is printed to stdout. This makes it easy to operate on structured data from a spreadsheet, database, or pretty-much any other source.");
+		pIm->add("[dataset]=in.arff", "The filename of a dataset.");
 		UsageNode* pOpts = pIm->add("<options>");
 		pOpts->add("-tab", "Data elements are separated with a tab character instead of a comma.");
 		pOpts->add("-space", "Data elements are separated with a single space instead of a comma.");
@@ -1237,17 +1253,29 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-separator [char]='#'", "Data elements are separated with the specified character.");
 		pOpts->add("-columnnames", "Use the first row of data for column names.");
 	}
-	pRoot->add("enumeratevalues [dataset] [col]", "Enumerates all of the unique values in the specified column, and replaces each value with its enumeration. (For example, if you have a column that contains the social-security-number of each user, this will change them to numbers from 0 to n-1, where n is the number of unique users.)");
+	{
+		UsageNode* pEV = pRoot->add("enumeratevalues [dataset] [col]", "Enumerates all of the unique values in the specified column, and replaces each value with its enumeration. (For example, if you have a column that contains the social-security-number of each user, this will change them to numbers from 0 to n-1, where n is the number of unique users.)");
+		pEV->add("[dataset]=data.arff", "The filename of a dataset");
+		pEV->add("[col]=0", "The column index (starting with 0) to enumerate");
+	}
 	{
 		UsageNode* pMSE = pRoot->add("measuremeansquarederror [dataset1] [dataset2] <options>", "Print the mean squared error between two datasets. (Both datasets must be the same size.)");
+		pMSE->add("[dataset1]=a.arff", "The filename of a dataset");
+		pMSE->add("[dataset2]=b.arff", "The filename of a dataset");
 		UsageNode* pOpts = pMSE->add("<options>");
 		pOpts->add("-fit", "Use a hill-climber to find an affine transformation to make dataset2 fit as closely as possible to dataset1. Report results after each iteration.");
 		pOpts->add("-sum", "Sum the mean-squared error over each attribute and only report this sum. (The default is to report the mean-squared error in each attribute.)");
 	}
-	pRoot->add("mergehoriz [dataset1] [dataset2]", "Merge two (or more) datasets horizontally. All datasets must already have the same number of rows. The resulting dataset will have all the columns of both datasets.");
+	{
+		UsageNode* pMH = pRoot->add("mergehoriz [dataset1] [dataset2]", "Merge two (or more) datasets horizontally. All datasets must already have the same number of rows. The resulting dataset will have all the columns of both datasets.");
+		pMH->add("[dataset1]=a.arff", "The filename of a dataset");
+		pMH->add("[dataset2]=b.arff", "The filename of a dataset");
+	}
 	pRoot->add("mergevert [dataset1] [dataset2]", "Merge two datasets vertically. Both datasets must already have the same number of columns. The resulting dataset will have all the rows of both datasets.");
 	{
 		UsageNode* pMult1 = pRoot->add("multiply [a] [b] <options>", "Matrix multiply [a] x [b]. Both arguments are the filenames of .arff files. Results are printed to stdout.");
+		pMult1->add("[dataset1]=a.arff", "The filename of a dataset");
+		pMult1->add("[dataset2]=b.arff", "The filename of a dataset");
 		UsageNode* pOpts = pMult1->add("<options>");
 		pOpts->add("-transposea", "Transpose [a] before multiplying.");
 		pOpts->add("-transposeb", "Transpose [b] before multiplying.");
@@ -1255,11 +1283,13 @@ UsageNode* makeTransformUsageTree()
 	pRoot->add("multiplyscalar [dataset1] [scalar]", "Multiply all elements in [dataset1] by the specified scalar. Results are printed to stdout.");
 	{
 		UsageNode* pNorm = pRoot->add("normalize [dataset] <options>", "Normalize all continuous attributes to fall within the specified range. (Nominal columns are left unchanged.)");
+		pNorm->add("[dataset]=data.arff", "The filename of a dataset");
 		UsageNode* pOpts = pNorm->add("<options>");
 		pOpts->add("-range [min] [max]", "Specify the output min and max values. (The default is 0 1.)");
 	}
 	{
 		UsageNode* pNomToCat = pRoot->add("nominaltocat [dataset] <options>", "Convert all nominal attributes in the data to vectors of real values by representing them as a categorical distribution. Columns with only two nominal values are converted to 0 or 1. If there are three or more possible values, a column is created for each value. The column corresponding to the value is set to 1, and the others are set to 0. (This is similar to Weka's NominalToBinaryFilter.)");
+		pNomToCat->add("[dataset]=data.arff", "The filename of a dataset");
 		UsageNode* pOpts = pNomToCat->add("<options>");
 		pOpts->add("-maxvalues [cap]=8", "Specify the maximum number of nominal values for which to create new columns. If not specified, the default is 12.");
 	}
@@ -1299,7 +1329,9 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pShuffle = pRoot->add("shuffle [dataset] <options>", "Shuffle the row order.");
-		pShuffle->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pShuffle->add("[dataset]=data.arff", "The filename of a dataset");
+		UsageNode* pOpts = pShuffle->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
 	{
 		UsageNode* pSignif = pRoot->add("significance [dataset] [attr1] [attr2] <options>", "Compute statistical significance values for the two specified attributes.");
@@ -1320,12 +1352,10 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pSplit = pRoot->add("split [dataset] [rows] [filename1] [filename2] <options>", "Split a dataset into two datasets. (Nothing is printed to stdout.)");
 		pSplit->add("[dataset]=data.arff", "The filename of a datset.");
 		pSplit->add("[rows]=200", "The number of rows to go into the first file. The rest go in the second file.");
-		UsageNode* pOpts = pSplit->add("<options>");
 		{
-		  pOpts->add("-seed [value]", "Specify a seed for the "
-			     "random number generator.");
-		  pOpts->add("-shuffle","Shuffle the input data before "
-			     "splitting it.");
+			UsageNode* pOpts = pSplit->add("<options>");
+			pOpts->add("-seed [value]", "Specify a seed for the random number generator.");
+			pOpts->add("-shuffle","Shuffle the input data before splitting it.");
 		}
 	}
 	{
@@ -1343,17 +1373,26 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pSplitFold->add("<options>");
 		pOpts->add("-out [train_filename] [test_filename]", "Specify the filenames for the training and test portions of the data. The default values are train.arff and test.arff.");
 	}
-	pRoot->add("squareddistance [a] [b]", "Computesthe sum and mean squared distance between dataset [a] and [b]. ([a] and [b] are each the names of files in .arff format. They must have the same dimensions.)");
+	{
+		UsageNode* pSD = pRoot->add("squareddistance [a] [b]", "Computesthe sum and mean squared distance between dataset [a] and [b]. ([a] and [b] are each the names of files in .arff format. They must have the same dimensions.)");
+		pSD->add("[a]=a.arff", "The filename of a dataset.");
+		pSD->add("[b]=b.arff", "The filename of a dataset.");
+	}
 	{
 		UsageNode* pSVD = pRoot->add("svd [matrix] <options>", "Compute the singular value decomposition of a matrix.");
-		pSVD->add("[matrix]=m.arff", "A .arff file containing the matrix values.");
+		pSVD->add("[matrix]=m.arff", "The filename of the matrix.");
 		UsageNode* pOpts = pSVD->add("<options>");
 		pOpts->add("-ufilename [filename]=u.arff", "Set the filename to which U will be saved. U is the matrix in which the columns are the eigenvectors of [matrix] times its transpose. The default is u.arff.");
 		pOpts->add("-sigmafilename [filename]=sigma.arff", "Set the filename to which Sigma will be saved. Sigma is the matrix that contains the singular values on its diagonal. All values in Sigma except the diagonal will be zero. If this option is not specified, the default is to only print the diagonal values (not the whole matrix) to stdout. If this options is specified, nothing is printed to stdout.");
 		pOpts->add("-vfilename [filename]=v.arff", "Set the filename to which V will be saved. V is the matrix in which the row are the eigenvectors of the transpose of [matrix] times [matrix]. The default is v.arff.");
 		pOpts->add("-maxiters [n]=100", "Specify the number of times to iterate before giving up. The default is 100, which should be sufficient for most problems.");
 	}
-	pRoot->add("swapcolumns [dataset] [col1] [col2]", "Swap two columns in the specified dataset and prints the results to stdout. (Columns are zero-indexed.)");
+	{
+		UsageNode* pSC = pRoot->add("swapcolumns [dataset] [col1] [col2]", "Swap two columns in the specified dataset and prints the results to stdout. (Columns are zero-indexed.)");
+		pSC->add("[dataset]=data.arff", "The filename of a dataset");
+		pSC->add("[col1]=0", "A zero-indexed column number.");
+		pSC->add("[col2]=1", "A zero-indexed column number.");
+	}
 	{
 		UsageNode* pTransition = pRoot->add("transition [action-sequence] [state-sequence] <options>", "Given a sequence of actions and a sequence of states (each in separate datasets), this generates a single dataset to map from action-state pairs to the next state. This would be useful for generating the data to train a transition function.");
 		UsageNode* pOpts = pTransition->add("<options>");

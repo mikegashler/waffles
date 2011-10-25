@@ -36,7 +36,7 @@
 
 namespace GClasses {
 
-using std::cout;
+//using std::cerr;
 using std::vector;
 using std::priority_queue;
 using std::set;
@@ -1765,7 +1765,7 @@ size_t GCycleCut::cut()
 		else
 			m_pNeighborhoods[point * m_k + neigh] = INVALID_INDEX;
 	}
-
+//cerr << "cuts: " << m_cutCount << "\n";
 	return m_cutCount;
 }
 
