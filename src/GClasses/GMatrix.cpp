@@ -23,10 +23,12 @@
 #include "GLearner.h"
 #include "GRand.h"
 #include "GTokenizer.h"
+#include "GNeighborFinder.h"
 #include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <cmath>
+#include <set>
 
 using namespace GClasses;
 using std::vector;
@@ -3853,7 +3855,296 @@ void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin
 	}
 }
 
+/// This is a helper class used only by GMatrix::bipartiteMatching
+class GBMNode
+{
+public:
+	double m_dist;
+	size_t m_a;
+	size_t m_b;
+	GBMNode* m_pPrevDist;
+	GBMNode* m_pNextDist;
+	GBMNode* m_pPrevA;
+	GBMNode* m_pNextA;
+	GBMNode* m_pPrevB;
+	GBMNode* m_pNextB;
+
+	GBMNode(double dist, size_t a, size_t b, GBMNode** ppHead, GBMNode** ppAB, GBMNode** ppBA)
+	: m_dist(dist), m_a(a), m_b(b), m_pPrevDist(NULL)
+	{
+		// Link by distance
+		m_pNextDist = *ppHead;
+		*ppHead = this;
+		if(m_pNextDist)
+			m_pNextDist->m_pPrevDist = this;
+
+		// Link by a-b
+		if(*ppAB)
+		{
+			m_pNextA = *ppAB;
+			m_pPrevA = m_pNextA->m_pPrevA;
+			m_pNextA->m_pPrevA = this;
+			m_pPrevA->m_pNextA = this;
+		}
+		else
+		{
+			m_pNextA = this;
+			m_pPrevA = this;
+			*ppAB = this;
+		}
+
+		// Link by b-a
+		if(*ppBA)
+		{
+			m_pNextB = *ppBA;
+			m_pPrevB = m_pNextB->m_pPrevB;
+			m_pNextB->m_pPrevB = this;
+			m_pPrevB->m_pNextB = this;
+		}
+		else
+		{
+			m_pNextB = this;
+			m_pPrevB = this;
+			*ppBA = this;
+		}
+	}
+
+	void nix(GBMNode** ppNextDist, size_t* pResults, size_t* pCount)
+	{
+		if(*ppNextDist == this)
+			*ppNextDist = m_pNextDist;
+		GBMNode* pNextA = m_pNextA;
+		GBMNode* pNextB = m_pNextB;
+		if(m_pPrevDist)
+			m_pPrevDist->m_pNextDist = m_pNextDist;
+		if(m_pNextDist)
+			m_pNextDist->m_pPrevDist = m_pPrevDist;
+		m_pNextA->m_pPrevA = m_pPrevA;
+		m_pPrevA->m_pNextA = m_pNextA;
+		m_pNextA = this;
+		m_pPrevA = this;
+		if(pNextA != this && pNextA->m_pNextA == pNextA)
+		{
+			if(pResults[pNextA->m_a] == size_t(-1))
+			{
+				pResults[pNextA->m_a] = pNextA->m_b;
+				(*pCount)++;
+				for(GBMNode* pNix = pNextA->m_pNextB; pNix != pNextA; )
+				{
+					GBMNode* pNext = pNix->m_pNextB;
+					pNix->nix(ppNextDist, pResults, pCount);
+					pNix = pNext;
+				}
+			}
+			else if(pResults[pNextA->m_a] != pNextA->m_b)
+				ThrowError("There is no possible match for row ", to_str(pNextA->m_a));
+		}
+		m_pNextB->m_pPrevB = m_pPrevB;
+		m_pPrevB->m_pNextB = m_pNextB;
+		m_pNextB = this;
+		m_pPrevB = this;
+		if(pNextB != this && pNextB->m_pNextB == pNextB)
+		{
+			if(pResults[pNextB->m_a] == size_t(-1))
+			{
+				pResults[pNextB->m_a] = pNextB->m_b;
+				(*pCount)++;
+				for(GBMNode* pNix = pNextB->m_pNextA; pNix != pNextB; )
+				{
+					GBMNode* pNext = pNix->m_pNextA;
+					pNix->nix(ppNextDist, pResults, pCount);
+					pNix = pNext;
+				}
+			}
+			else if(pResults[pNextB->m_a] != pNextB->m_b)
+				ThrowError("There is no possible match for row ", to_str(pNextB->m_a));
+		}
+	}
+
+	static GBMNode* mergeSort(GBMNode* pFirst, size_t len)
+	{
+		// Split
+		size_t firstLen = len / 2;
+		size_t secondLen = len - firstLen;
+		GBMNode* pSecond = pFirst;
+		for(size_t i = 0; i < firstLen; i++)
+			pSecond = pSecond->m_pNextDist;
+
+		// Recurse
+		if(firstLen >= 2)
+			pFirst = mergeSort(pFirst, firstLen);
+		if(secondLen >= 2)
+			pSecond = mergeSort(pSecond, secondLen);
+
+		// Merge
+		GBMNode* pHead = pFirst;
+		while(true)
+		{
+			if(pFirst->m_dist < pSecond->m_dist)
+			{
+				// Unlink the second
+				GBMNode* pNextSecond = pSecond->m_pNextDist;
+				if(pSecond->m_pNextDist)
+					pSecond->m_pNextDist->m_pPrevDist = pSecond->m_pPrevDist;
+				if(pSecond->m_pPrevDist)
+					pSecond->m_pPrevDist->m_pNextDist = pSecond->m_pNextDist;
+
+				// Link in the new spot
+				pSecond->m_pPrevDist = pFirst->m_pPrevDist;
+				pSecond->m_pNextDist = pFirst;
+				if(pFirst->m_pPrevDist)
+					pFirst->m_pPrevDist->m_pNextDist = pSecond;
+				pFirst->m_pPrevDist = pSecond;
+				if(pHead == pFirst)
+					pHead = pSecond;
+				pSecond = pNextSecond;
+				if(--secondLen == 0)
+					break;
+			}
+			else
+			{
+				pFirst = pFirst->m_pNextDist;
+				if(--firstLen == 0)
+					break;
+			}
+		}
+		return pHead;
+	}
+};
+
+// static
+size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
+{
+	if(a.rows() == 0)
+		return NULL;
+	if(a.rows() != b.rows() || a.cols() != b.cols())
+		ThrowError("Incompatible matrices");
+	k = std::min(a.rows() - 1, k);
+	if(k == 0)
+		k = size_t(sqrt(a.rows()));
+	size_t* pNeighbors = new size_t[k];
+	ArrayHolder<size_t> hNeighbors(pNeighbors);
+	double* pDistances = new double[k];
+	ArrayHolder<double> hDistances(pDistances);
+	vector<GBMNode*> a_b; // Loop of every edge from a to b
+	a_b.resize(a.rows(), NULL);
+	vector<GBMNode*> b_a; // Loop of every edge from b to a
+	b_a.resize(a.rows(), NULL);
+	vector< std::set<size_t> > used;
+	used.resize(a.rows());
+	GHeap heap(4096);
+	GBMNode* pHead = NULL;
+	size_t candCount = 0;
+	{
+		// Add the k-nearest neighbors in b of each row in a
+		GKdTree nf(&b, k, NULL, false);
+		for(size_t aa = 0; aa < a.rows(); aa++)
+		{
+			nf.neighbors(pNeighbors, pDistances, a[aa]);
+			size_t* pB = pNeighbors;
+			double* pDist = pDistances;
+			std::set<size_t>& usedSet = used[aa];
+			for(size_t j = 0; j < k; j++)
+			{
+				if(*pB < a.rows())
+				{
+					new (heap.allocAligned(sizeof(GBMNode))) GBMNode(*pDist, aa, *pB, &pHead, &a_b[aa], &b_a[*pB]); // allocate with placement new
+					usedSet.insert(*pB);
+					candCount++;
+				}
+				pB++;
+				pDist++;
+			}
+		}
+	}
+	{
+		// Add the k-nearest neighbors in a of each row in b
+		GKdTree nf(&a, k, NULL, false);
+		for(size_t bb = 0; bb < a.rows(); bb++)
+		{
+			nf.neighbors(pNeighbors, pDistances, b[bb]);
+			size_t* pA = pNeighbors;
+			double* pDist = pDistances;
+			for(size_t j = 0; j < k; j++)
+			{
+				if(*pA < a.rows())
+				{
+					std::set<size_t>& usedSet = used[*pA];
+					if(usedSet.find(bb) == usedSet.end())
+					{
+						new (heap.allocAligned(sizeof(GBMNode))) GBMNode(*pDist, *pA, bb, &pHead, &a_b[*pA], &b_a[bb]); // allocate with placement new
+						candCount++;
+					}
+				}
+				pA++;
+				pDist++;
+			}
+		}
+	}
+
+	// Sort the distance list by distance (greatest first)
+	pHead = GBMNode::mergeSort(pHead, candCount);
+
+	// Discard the worst matchings until all rows are matched exactly once
+	size_t* pResults = new size_t[a.rows()];
+	ArrayHolder<size_t> hResults(pResults);
+	size_t* pRes = pResults;
+	for(size_t i = 0; i < a.rows(); i++)
+		*(pRes++) = size_t(-1);
+	size_t resultCount = 0;
+	while(pHead)
+	{
+		GBMNode* pNext = pHead;
+		pHead->nix(&pNext, pResults, &resultCount);
+		if(resultCount >= a.rows())
+			break;
+		pHead = pNext;
+	}
+	if(resultCount < a.rows())
+		ThrowError("not enough neighbors for a complete solution");
+	else if(resultCount > a.rows())
+		ThrowError("internal error");
+	return hResults.release();
+}
+
 #ifndef NO_TEST_CODE
+void GMatrix_testBipartiteMatching()
+{
+	GMatrix a(7, 2);
+	a[0][0] = 0; a[0][1] = 0;
+	a[1][0] = 2; a[1][1] = 1;
+	a[2][0] = 5; a[2][1] = 2;
+	a[3][0] = 3; a[3][1] = 5;
+	a[4][0] = 4; a[4][1] = 7;
+	a[5][0] = 1; a[5][1] = 4;
+	a[6][0] = 4; a[6][1] = 2;
+	GMatrix b(7, 2);
+	b[0][0] = 4; b[0][1] = 2;
+	b[1][0] = 2; b[1][1] = 1;
+	b[2][0] = 5.01; b[2][1] = 2;
+	b[3][0] = 6; b[3][1] = 2;
+	b[4][0] = 3.9; b[4][1] = 6.9;
+	b[5][0] = 3.1; b[5][1] = 5.1;
+	b[6][0] = 2.9; b[6][1] = 4.9;
+
+	size_t* pResults = GMatrix::bipartiteMatching(a, b, 2);
+	ArrayHolder<size_t> hResults(pResults);
+	if(pResults[0] != 1)
+		ThrowError("failed");
+	if(pResults[1] != 0)
+		ThrowError("failed");
+	if(pResults[2] != 3)
+		ThrowError("failed");
+	if(pResults[3] != 5)
+		ThrowError("failed");
+	if(pResults[4] != 4)
+		ThrowError("failed");
+	if(pResults[5] != 6)
+		ThrowError("failed");
+	if(pResults[6] != 2)
+		ThrowError("failed");
+}
+
 void GMatrix_testMultiply()
 {
 	GMatrix a(2, 2);
@@ -4322,6 +4613,7 @@ void GMatrix::test()
 	GMatrix_testPseudoInverse();
 	GMatrix_testKabsch(prng);
 	GMatrix_testLUDecomposition(prng);
+	GMatrix_testBipartiteMatching();
 }
 #endif // !NO_TEST_CODE
 

@@ -839,6 +839,16 @@ public:
 	/// one of the orthonormal basis vectors of this hyperplane)
 	void project(double* pDest, const double* pPoint, const double* pOrigin);
 
+	/// Performs bipartite matching of the rows in the specified matrices.
+	/// a and b must have the same number of rows and columns.
+	/// Returns an array of indexes, i[], where i[j] is the row in b that
+	/// corresponds with row j of a.
+	/// k specifies the number of nearest-neighbors to consider in the
+	/// results. Small values of k will lead to faster results. Large values
+	/// of k (approaching the number of rows in the matrices) will guarantee
+	/// optimal results. sqrt(rows) might be a good general value for k.
+	static size_t* bipartiteMatching(GMatrix& a, GMatrix& b, size_t k);
+
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
