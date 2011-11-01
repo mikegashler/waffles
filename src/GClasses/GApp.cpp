@@ -849,3 +849,17 @@ bool GArgReader::next_is_flag()
 		return false;	
 	return (peek()[0] == '-');
 }
+
+bool GArgReader::next_is_uint()
+{
+  if(size() == 0){
+    return false;
+  }
+  const char* s = peek();
+  if (s == NULL || *s == '\0'){
+      return 0;
+  }
+  char * p;
+  strtoul (s, &p, 10);
+  return *p == '\0';
+}

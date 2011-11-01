@@ -48,7 +48,9 @@ public:
 	/// Advances to the next item in the list
 	void advance();
 
-	/// Returns the number of items remaining to be visited
+	/// Returns the number of items remaining to be visited.  When
+	/// the current item in the list is the first item, the number
+	/// remaining is the number of items in the list.
 	size_t remaining();
 };
 
@@ -152,6 +154,13 @@ public:
 
 protected:
 	size_t reverseFieldOrder();
+
+	/// Reverses the order of the items in the list and returns
+	/// the number of items in the list.  Assumes this GDomNode is
+	/// a list node.  Behavior is undefined if it is not a list
+	/// node.
+	///
+	/// \return The number of items in the list
 	size_t reverseItemOrder();
 	void writeJson(std::ostream& stream);
 	size_t writeJsonCpp(std::ostream& stream, size_t col);

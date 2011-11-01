@@ -508,6 +508,51 @@ UsageNode* makeDimRedUsageTree()
 		pIsomap->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
 		pIsomap->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
+	UsageNode* pSOM = pRoot->add
+	  ("som [dataset] [dimensions] <options>",
+	   "Give the output of a Kohonen self-organizing map with the given "
+           "dimensions trained on the input dataset.  Ex: \"som foo 10 11\" "
+	   "would train a 10x11 map on the input data and then give its "
+	   "2D output for each of the input points as a row in the output "
+	   "file.");
+	{
+	  pSOM->add("[dataset]","The filename of a .arff file to be "
+		    "transformed.");
+	  pSOM->add("[dimensions]","A list of integers, one for each "
+		    "dimension of the map being created, giving the number "
+		    "of nodes in that dimension.");
+	  UsageNode* pOpts = pSOM->add("<options>");
+	  {
+	    pOpts->add("-tofile [filename]",
+		       "Write the trained map to the given filename");
+	    pOpts->add("-fromfile [filename]",
+		       "Read a map from the file rather than training it");
+	    pOpts->add("-seed [integer]",
+		       "Seed the random number generator with integer to "
+		       "obtain reproducible results");
+	    pOpts->add("-neighborhood [gaussian|uniform]",
+		       "Use the specified neighborhood type to determine the "
+		       "influence of a node on its neighbors.");
+	    pOpts->add("-printMeshEvery [numIter] [baseFilename] [xDim] [yDim] <showTrain>", "Print a 2D-Mesh visualization every numIter training iteratons to an svg file generated from baseFilename.  The x dimension and y dimension will be chosen from the zero-indexed dimensions of the input using xDim and yDim.  If the option \"showTrain\" is present then the training data is displayed along with the mesh. Ex. \"-printMeshEvery 2 foo 0 1 showTrain\" will write foo_01.svg foo_02.svg etc. every other iteration using the first two dimensions of the input and also display the training data in the svg image.  Note that including this option twice will create two different printing actions, allowing multiple dimension pairs to be visualized at once.");
+	    pOpts->add("-batchTrain [startWidth] [endWidth] [numEpochs] [numConverge]",
+		       "Trains the network using the batch training algorithm. "
+		       "Neighborhood decreases exponentially from startWidth "
+		       "to endWidth over numEpochs epochs.  Each epoch lasts "
+		       "at most numConverge passes through the dataset "
+		       "waiting for the network to converge.  Do not ignore "
+		       "numConverge=1.  There has been good performance with "
+		       "this on some datasets.  This is the default training "
+		       "algorithm.");
+	    pOpts->add("-stdTrain [startWidth] [endWidth] [startRate] [endRate] [numIter]",
+		       "Trains the network using the standard incremental "
+		       "training algorithm with the network width decreasing "
+		       "exponentially from startWidth to endWidth and the "
+		       "learning rate also decreasing exponentially from "
+		       "startRate to endRate, this will happen in exactly "
+		       "numIter data point presentations.");
+	  }
+	}
+	
 	{
 		UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pLLE->add("<options>");
@@ -1033,6 +1078,35 @@ UsageNode* makePlotUsageTree()
 		   "number and type of attributes as well as the same number "
 		   "of rows.");
 	{
+	UsageNode* pSemMap = pRoot->add
+	  ("semanticmap [model-file] [dataset] <options>",
+	   "Write a svg file representing a semantic map for the given "
+	   "self-organizing map processing the given dataset.  For each node "
+	   "n, a semantic map plots, at "
+	   "n's location in the map, one attribute (usually a class label) of "
+	   "the entry of the input data to which n responds most strongly.");
+	{
+	  pSemMap->add("[model-file]","The self-organizing map output "
+		       "from \"waffles_transform som\".");
+	  pSemMap->add("[dataset]","Data for the semantic map in .arff "
+		       "format.  Any attributes over the number needed for "
+		       "input to the self-organizing map are ignored in "
+		       "determining som node responses.");
+	  UsageNode* pOpts = pSemMap->add("<options>");
+	  {
+	    pOpts->add("-out [filename]", "Write the svg file to filename.  "
+		       "The default is \"semantic_map.svg\".");
+	    pOpts->add("-labels [column]","Use the attribute column for "
+		       "labeling.  Column is a zero-based index into the "
+		       "attributes.  The default is to use the last column.");
+	    pOpts->add("-variance","Label the nodes with the variance of the "
+		       "label column values for their winning dataset entries. "
+		       "If the label column is a variable being predicted, "
+		       "then its variance its related to the predictive power "
+		       "of that node.  Higher variance means lower predictive "
+		       "power.");
+	  }
+	}
 		UsageNode* pStats = pRoot->add("stats [dataset]", "Prints some basic stats about the dataset to stdout.");
 		pStats->add("[dataset]=data.arff", "The filename of a dataset.");
 	}

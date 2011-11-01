@@ -147,6 +147,12 @@ public:
 	/// Returns a random value from a Weibull distribution with lambda=1.
 	double weibull(double gamma);
 
+	/// Returns the global random number generator.  Useful to
+        /// avoid passing GRand* all over the place.  Initializes the
+        /// seed based on the time and some other system parameters
+        /// the first time it is called.
+	static GRand& global();
+
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();

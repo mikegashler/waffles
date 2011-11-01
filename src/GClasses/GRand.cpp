@@ -18,7 +18,14 @@
 #include "GTime.h"
 #include "GMath.h"
 #include "GVec.h"
+#include "GReverseBits.h"
 #include <cmath>
+#include <ctime>
+#ifdef WINDOWS
+#include <process.h>
+#else 
+#include <unistd.h>
+#endif
 
 namespace GClasses {
 
@@ -316,6 +323,23 @@ void GRand::cubical(double* pOutVec, size_t dims)
 		*(pEl++) = uniform();
 }
 
+GRand& GRand::global(){
+  static GRand rng(0);
+  static bool initialized = false;
+  if(!initialized){
+    std::time_t t = std::time(NULL);
+#ifdef WINDOWS
+    int pid = _getpid();
+#else
+    pid_t pid = getpid();
+#endif
+    uint64 seed = (~ reverseBits((unsigned)t))+pid;
+    rng.setSeed(seed);
+  }
+  return rng;
+}
+
+
 #ifndef NO_TEST_CODE
 #define TEST_BIT_HIST_ITERS 100000
 void GRand_testBitHistogram()
@@ -363,6 +387,7 @@ void GRand_testSpeed()
 	if(randtime < grandtime)
 		ThrowError("rand is faster than GRand");
 }
+
 
 void GRand_testRange()
 {
@@ -426,6 +451,7 @@ void GRand::test()
 	// todo: add a test for correlations
 }
 #endif // !NO_TEST_CODE
+
 
 } // namespace GClasses
 

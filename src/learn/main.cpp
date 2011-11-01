@@ -1842,8 +1842,8 @@ int main(int argc, char *argv[])
 				CrossValidate(args);
 			else if(args.if_pop("precisionrecall"))
 				PrecisionRecall(args);
-			else if(args.if_pop("sterilize"))
-				sterilize(args);
+ 			else if(args.if_pop("sterilize"))
+ 				sterilize(args);
 			else if(args.if_pop("trainrecurrent"))
 				trainRecurrent(args);
 			else

@@ -89,6 +89,7 @@ CPP_FILES = \
 	GPolynomial.cpp\
 	GPriorityQueue.cpp\
 	GRayTrace.cpp\
+	GReverseBits.cpp\
 	GRect.cpp\
 	GRand.cpp\
 	GRecommender.cpp\

@@ -143,6 +143,11 @@ protected:
 	bool m_ownMetric;
 
 public:
+	/// Create a neighborfinder for finding the neighborCount
+	/// nearest neighbors under the given metric.  If ownMetric is
+	/// true, then the neighborFinder takes responsibility for
+	/// deleting the metric, otherwise it is the caller's
+	/// responsibility.
 	GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric);
 
 	virtual ~GNeighborFinderGeneralizing();

@@ -13,6 +13,7 @@
 #include "../GClasses/GApp.h"
 #include "../GClasses/GBits.h"
 #include "../GClasses/GCluster.h"
+#include "../GClasses/GDistance.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GMatrix.h"
 #include "../GClasses/GImage.h"
@@ -28,7 +29,6 @@
 #include "../GClasses/GRect.h"
 #include "../GClasses/GSparseMatrix.h"
 #include "../GClasses/GMath.h"
-#include "../GClasses/GSelfOrganizingMap.h"
 #include <time.h>
 #include <iostream>
 #include <fstream>
@@ -1288,7 +1288,6 @@ void significance(GArgReader& args)
 */
 	}
 }
-
 
 void split(GArgReader& args)
 {

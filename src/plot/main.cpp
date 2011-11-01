@@ -7,6 +7,7 @@
 // -------------------------------------------------------------
 
 #include <sstream>
+#include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include "../GClasses/GApp.h"
@@ -30,6 +31,7 @@
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GManifold.h"
 #include "../GClasses/GSystemLearner.h"
+#include "../GClasses/GSelfOrganizingMap.h"
 #include "plotchart.h"
 #include "../wizard/usage.h"
 #include <time.h>
@@ -665,6 +667,161 @@ void PlotScatter(GArgReader& args)
 	Holder<GImage> hImage(pImage);
 	pImage->savePng(filename.c_str());
 	cout << "Plot saved to " << filename.c_str() << ".\n";
+}
+
+
+void semanticMap(GArgReader& args){
+  string somFile = args.pop_string();
+  string dataFile = args.pop_string();
+
+  // Load the data
+  Holder<GMatrix> hData(loadData(dataFile.c_str()));
+  if(hData->rows() < 1){
+    ThrowError("The dataset is empty.  Cannot make a semantic map from "
+	       "an empty dataset.");
+  }
+  if(hData->cols() < 1){
+    ThrowError("The dataset has no attributes.  Cannot make a semantic map "
+	       "without attributes.");
+  }
+  // Load the self organizing map
+  GDom doc;
+  doc.loadJson(somFile.c_str());
+  GSelfOrganizingMap som(doc.root());
+  // Parse the options
+  string outFilename="semantic_map.svg";
+  unsigned labelCol = hData->cols()-1;
+  //Set to true to use the variance in the label column among rows
+  //where a given node is the winner as the label.  Lower variance
+  //means a better approximation.
+  bool useVarianceAsLabel = false;
+  while(args.next_is_flag()){
+    if(args.if_pop("-out")){
+      outFilename = args.pop_string();
+    }else if(args.if_pop("-labels")){
+      labelCol = args.pop_uint();
+    }else if(args.if_pop("-variance")){
+      useVarianceAsLabel = true;
+    }else{
+      ThrowError("Invalid option: ", args.peek());
+    }
+  }
+  if(labelCol >= hData->cols()){
+    ThrowError("Label column index is too large");
+  }
+  if(som.outputDimensions() > 2){
+    ThrowError("Semantic map can only plot one or two dimensional "
+	       "self-organizing maps.");
+  }
+  if(som.inputDimensions() > hData->cols()){
+    ThrowError("The input dataset does not have enough attributes for input "
+	       "to the semantic map");
+  }
+
+  //Write the svg output file
+  std::ofstream out(outFilename.c_str());
+  if(!out){
+    ThrowError("Could not open the file named \"",outFilename,"\"");
+  }
+  //First, write the header
+  vector<double> axes = som.outputAxes();
+  double maxDim = *(max_element(axes.begin(), axes.end()));
+  double scale = ((100*maxDim) > 800)?100:800/maxDim;
+  const double shift = scale/2;
+  double ax0 = axes[0]; 
+  double ax1 = (axes.size() == 1)?1:axes[1];
+  out << "<?xml version=\"1.0\" standalone=\"no\"?>\n"
+      << "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n"
+      << "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
+      << "<svg viewbox=\"0 0 "
+      << ax0*scale+shift << " " << ax1*scale+shift
+      << "\" preserveAspectRatio=\"xMinYMin\"\n"
+      << "     width=\""<< ax0*scale+shift << "px\" height=\"" 
+      << ax1*scale+shift << "px\"\n"
+      << "     xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">\n"
+      << "<desc>Semantic map of the self-organizing map stored in \n"
+      << "      \"" << somFile << "\"\n" 
+      << "      using data from \"" << dataFile << "\"\n"
+      << "      Original filename: \"" << outFilename << "\"\n";
+  if(som.outputDimensions() == 2){
+    out << "      Plotting output dimensions " << 0 << " and " 
+	<< 1 << " as (x,y) coordinates.\n";
+  }else{
+    assert(som.outputDimensions() == 1);
+    out << "      Plotting output dimension " << 0 << "as x coordinate.\n";
+  };
+  out << "</desc>\n";
+
+  std::vector<double> labels; labels.reserve(som.nodes().size());
+  if(useVarianceAsLabel){
+    //winlist[i] holds the pointers to the rows of the dataset where
+    //nodes()[i] is the winner
+    std::vector<std::list<const double*> > winLists(som.nodes().size());
+    for(size_t row = 0; row < hData->rows(); ++row){
+      const double* rowVec = hData->row(row);
+      size_t bestNode = som.bestMatch(rowVec);
+      winLists.at(bestNode).push_back(rowVec);
+    }
+    //Calculate the variance of the labelCol column for each node
+    std::vector<std::list<const double*> >::const_iterator list;
+    for(list=winLists.begin(); list != winLists.end(); ++list){
+      if(list->size() == 0){
+	//No elements in the list, no variance
+	labels.push_back(0);
+      }else{
+	//Copy the appropriate column into a 1-column matrix
+	GMatrix m(0,1);
+	std::list<const double*>::const_iterator l;
+	for(l = list->begin(); l != list->end(); ++l){
+	  m.newRow();
+	  double& val = *(m.row(m.rows()-1));
+	  val = (*l)[labelCol];
+	}
+	//Use the matrix to calculate the variance
+	labels.push_back(m.variance(0, m.mean(0)));
+      }
+    }
+  }else{
+    //Find the best data indices using only the first inputDimensions of
+    //the input data
+    Holder<GMatrix> lessColumns(hData->clone());
+    while(lessColumns->cols() > som.inputDimensions()){
+      lessColumns->deleteColumn(lessColumns->cols()-1);
+    }
+    vector<size_t> bestData = som.bestData(lessColumns.get());
+  
+    std::vector<double> labelColumn(hData->rows());
+    hData->col(labelCol, &(labelColumn.at(0)));
+    for(size_t node = 0; node < som.nodes().size(); ++node){
+      labels.push_back(labelColumn.at(bestData.at(node)));
+    }
+  }
+  //Calculate min and max for color coding
+  double minLabel = *std::min_element(labels.begin(), labels.end());
+  double maxLabel = *std::max_element(labels.begin(), labels.end());
+  double labelRange = maxLabel-minLabel;  
+  if(labelRange == 0){ labelRange = 1; }
+
+  //Write the actual map
+  for(size_t node = 0; node < som.nodes().size(); ++node){
+    vector<double> loc = som.nodes()[node].outputLocation;
+    double label = labels.at(node);
+    unsigned red = std::floor(0.5+(255*(label-minLabel)/(labelRange)));
+    unsigned blue = std::floor(0.5+255-(255*(label-minLabel)/(labelRange)));
+    if(som.outputDimensions() == 2){
+      out << "<text x=\"" << (shift+scale*loc[0]) << "\" y=\"" << (shift+scale*loc[1]) << "\" ";
+    }else{
+      assert(som.outputDimensions() == 1);
+      out << "<text x=\"" << (shift+scale*loc[0]) << "\" y=\"" << (maxDim*scale/2) << "\" ";
+    }
+    out << "fill=\"rgb(" << red << ",0," << blue << ")\">";
+    out << label << "</text>\n";
+  }
+  
+  //Close the svg
+  out << "</svg>\n";
+
+  cout << "Output written to \"" << outFilename << "\"\n" ;
 }
 
 void makeHistogram(GArgReader& args)
@@ -1938,6 +2095,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("printdecisiontree")) printDecisionTree(args);
 		else if(args.if_pop("raytracesurface")) rayTraceManifoldModel(args);
 		else if(args.if_pop("scatter")) PlotScatter(args);
+		else if(args.if_pop("semanticmap")) semanticMap(args);
 		else if(args.if_pop("stats")) PrintStats(args);
 		else if(args.if_pop("systemframes")) systemFrames(args);
 		else if(args.if_pop("ubpframes")) ubpFrames(args);

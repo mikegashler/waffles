@@ -48,7 +48,7 @@ public:
 	{
 		UNIFORM,
 		MIXED,
-		ARFF,
+		ARFF
 	};
 
 	GRelation() {}
@@ -591,7 +591,14 @@ public:
 	inline double* row(size_t index) { return m_rows[index]; }
 
 	/// Returns a pointer to the specified row
-	double* operator [](size_t index) { return m_rows[index]; }
+	inline double* operator [](size_t index) { return m_rows[index]; }
+
+	/// Returns a const pointer to the specified row
+	inline const double* row(size_t index) const { return m_rows[index]; }
+
+	/// Returns a const pointer to the specified row
+	inline const double* operator [](size_t index) const { 
+	  return m_rows[index]; }
 
 	/// Sets all elements in this dataset to the specified value
 	void setAll(double val);

@@ -364,8 +364,8 @@ bool GNeighborFinderCacheWrapper::isConnected()
 
 // --------------------------------------------------------------------
 
-// This helper class keeps neighbors sorted as a binary heap, such that the most dissimilar
-// of the k-current-neighbors is always at the front of the heap.
+/// This helper class keeps neighbors sorted as a binary heap, such that the most dissimilar
+/// of the k-current-neighbors is always at the front of the heap.
 class GClosestNeighborFindingHelper
 {
 protected:
@@ -1267,7 +1267,7 @@ public:
 		m_pRelation = pRelation;
 	}
 
-	virtual double squaredDistance(const double* pA, const double* pB)
+	virtual double squaredDistance(const double* pA, const double* pB) const
 	{
 		double squaredDist = GVec::squaredDistance(pA, pB, m_pRelation->size());
 		if(squaredDist > m_squaredMaxDist)

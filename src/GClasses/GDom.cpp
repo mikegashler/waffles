@@ -36,10 +36,14 @@ public:
 	GDomObjField* m_pPrev;
 };
 
+/// An element in a GDom list
 class GDomListItem
 {
 public:
+	/// Pointer to the value contained in this list item
 	GDomNode* m_pValue;
+
+	/// Pointer to the previous node in the list
 	GDomListItem* m_pPrev;
 };
 

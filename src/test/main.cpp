@@ -51,6 +51,7 @@
 #include "../GClasses/GRayTrace.h"
 #include "../GClasses/GRecommender.h"
 #include "../GClasses/GRegion.h"
+#include "../GClasses/GSelfOrganizingMap.h"
 #include "../GClasses/GSocket.h"
 #include "../GClasses/GSparseMatrix.h"
 #include "../GClasses/GSpinLock.h"
@@ -60,7 +61,7 @@
 #include "../GClasses/GTransform.h"
 #include "../GClasses/GDom.h"
 #include "../GClasses/GVec.h"
-
+#include "../GClasses/GReverseBits.h"
 using namespace GClasses;
 using std::cerr;
 using std::cout;
@@ -373,6 +374,7 @@ void RunAllTests()
 	runTest("GBezier", GBezier::test);
 	runTest("GBits", GBits::test);
 	runTest("GBitTable", GBitTable::test);
+	runTest("GReverseBits", reverseBitsTest);
 	runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);
 	runTest("GBucket", GBucket::test);
 	runTest("GCategoricalSamplerBatch", GCategoricalSamplerBatch::test);
@@ -413,6 +415,7 @@ void RunAllTests()
 	runTest("GProbeSearch", GProbeSearch::test);
 	runTest("GRand", GRand::test);
 	runTest("GRandomForest", GRandomForest::test);
+	runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 	runTest("GShortcutPruner", GShortcutPruner::test);
 	runTest("GSocket", GSocketClient::test);
 	runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);
