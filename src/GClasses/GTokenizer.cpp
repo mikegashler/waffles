@@ -42,19 +42,19 @@ public:
 			if(*szChars == '-')
 			{
 				if(c == '\0')
-					m_bt.set(*szChars);
+					m_bt.set((unsigned char)*szChars);
 				else
 				{
 					char d = szChars[1];
 					if(d <= c)
 						ThrowError("invalid character range");
 					for(c++; c <= d && c != 0; c++)
-						m_bt.set(c);
+						m_bt.set((unsigned char)c);
 					szChars++;
 				}
 			}
 			else
-				m_bt.set(*szChars);
+				m_bt.set((unsigned char)*szChars);
 			c = *szChars;
 			szChars++;
 		}
@@ -62,7 +62,7 @@ public:
 
 	bool find(char c)
 	{
-		return m_bt.bit(c);
+		return m_bt.bit((unsigned char)c);
 	}
 };
 

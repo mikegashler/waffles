@@ -2496,6 +2496,14 @@ void G3dLetterMaker::move(G3DReal dx, G3DReal dy, G3DReal dz)
 	m_pos.add(&ofs);
 }
 
+void G3dLetterMaker::move(G3DVector& vec)
+{
+	G3DVector ofs;
+	m_basis.multiply(&vec, &ofs);
+	m_pos.add(&ofs);
+	m_pos.add(&vec);
+}
+
 void G3dLetterMaker::scale(G3DReal width, G3DReal height, G3DReal depth)
 {
 	m_basis.m_rows[0].multiply(width);

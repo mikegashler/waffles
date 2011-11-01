@@ -115,27 +115,40 @@
 	<td bgcolor="#f4f0e5" valign="top">
 
 <br>
-<b><i>Waffles</i></b> is a broad collection of command-line tools for performing machine learning operations. In contrast with other machine learning toolkits, its major strengths include:
+<p><b><i>Waffles</i></b> seeks to be the world's most comprehensive collection of command-line tools for
+machine learning and data mining. Our native tools have minimal dependencies (no interpreter, VM, or runtime
+environment is necessary), and build cross-platform. If you have a useful data mining tool that meets
+these criteria, we want it in <b><i>Waffles</i></b>.</p>
+<br><br>
+
+<p>In contrast with other machine learning toolkits, the major strengths of <b><i>Waffles</i></b> include:
 
 <ul>
 	<li>Waffles <i>just works</i> in more situations:
 		<ul>
 			<li>All of our supervised learners support both classification and regression.</li>
 			<li>All of them implicitly support multi-dimensional labels.</li>
-			<li>They automatically impute missing values in data for algorithms that are not robust to missing values.</li>
-			<li>They automatically discretize data for algorithms that only support nominal values, and convert nominal values to categorical distributions for algorithms that only support continuous values. They also automatically convert predicted values back to their original form, so you can freely operate on arbitrary data with any algorithm.</li>
-			<li>When necessary, Waffles algorithms automatically normalize and denormalize data to fall within the ranges expected by particular algorithms.</li>
+			<li>Developing learning algorithms for <b><i>Waffles</i></b> is easier because:
+				<ul>
+					<li>It automatically imputes missing values if your algorithm is not robust to missing values.</li>
+					<li>It automatically discretizes data if your algorithm only supports discrete values.</li>
+					<li>It automatically converts nominal values to categorical distributions if your algorithm only supports continuous values.</li>
+					<li>When necessary, Waffles algorithms automatically normalize and denormalize data to fall within the ranges expected by particular algorithms.</li>
+					<li>It automatically converts predicted values back to their original form, so the user can freely operate on arbitrary data with any algorithm.</li>
+				</ul>
+			</li>
 		</ul>
 	</li>
 	<li>Waffles algorithms can automatically tune their own parameters.</li>
 	<li>Waffles is especially rich in dimensionality reduction techniques, but also provides numerous supervised learning algorithms, collaborative filtering algorithms, data transformations, linear-algebraic operations, optimization methods, data generation tools, visualization tools, etc.</li>
-	<li>Waffles is developed in C++ for speed.</li>
+	<li>Waffles tools are fast because they are developed as native applications.</li>
 	<li>Waffles does not depend on any platform or virtual machine, so it will not limit your distribution options.</li>
 	<li>Waffles is distributed under the permissive LGPL license.</li>
 	<li>Waffles apps are script-friendly, and are designed to be used with automated processes.</li>
 	<li>Waffles apps are thin wrappers around functionality in a well-documented C++ class library.</li>
-</ul>
+</ul></p>
 
+<br><br>
 <p><b><i>Waffles</i></b> might be described as <i>"Machine Learning meets the Unix philosophy"</i>. We are trying to do for machine learning what Image Magick has done for image processing. That is, we try to keep it simple by providing a big range of functionality in the form of easy-to-use command-line tools. You are free to mix tools from other packages in with ours. You are free to mix your own custom tools with ours. You are free to write scripts that automate your experiments. You are free to use our tools in ways that we could not foresee.</p>
 
 <p>What if you like GUIs because you don't like memorizing commands? No worries! <b><i>Waffles</i></b> contains a graphical wizard tool that will guide you through forms to generate the command that will do exactly what you want...</p>

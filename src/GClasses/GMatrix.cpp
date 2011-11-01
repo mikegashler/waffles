@@ -4127,7 +4127,7 @@ void GMatrix_testBipartiteMatching()
 	b[5][0] = 3.1; b[5][1] = 5.1;
 	b[6][0] = 2.9; b[6][1] = 4.9;
 
-	size_t* pResults = GMatrix::bipartiteMatching(a, b, 2);
+	size_t* pResults = GMatrix::bipartiteMatching(a, b, 5);
 	ArrayHolder<size_t> hResults(pResults);
 	if(pResults[0] != 1)
 		ThrowError("failed");
