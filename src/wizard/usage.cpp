@@ -190,7 +190,16 @@ UsageNode* makeAlgorithmUsageTree()
 		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the BMA ensemble.");
 	}
 	{
-		pRoot->add("boost [algorithm]", "Uses AdaBoost to create an ensemble that may be more accurate than a lone instance of the specified algorithm.");
+		UsageNode* pBoost = pRoot->add("boost <options> [algorithm]", "Uses AdaBoost to create an ensemble that may be more accurate than a lone instance of the specified algorithm.");
+		UsageNode* pOpts = pBoost->add("<options>");
+		pOpts->add
+		  ("-trainratio [value]=1.0", "When approximating the "
+		   "training data weights using a resampling without "
+		   "replacement, use a sample of size "
+		   "trainratio*training_set_size");
+		pOpts->add
+		  ("-size [n]=30", "The number of base learners to use in "
+		   "the ensemble.");
 	}
 	{
 		pRoot->add("cvdt [n]=50", "This is a bucket of two bagging ensembles: one with [n] entropy-reducing decision trees, and one with [n] meanmarginstrees. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
