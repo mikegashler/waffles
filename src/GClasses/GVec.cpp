@@ -10,9 +10,8 @@
 */
 
 #include "GVec.h"
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
+#include <cstdio>
+#include <cstring>
 #include "GRand.h"
 #include "GError.h"
 #include "GMatrix.h"
@@ -152,8 +151,8 @@ double GVec::lNormMagnitude(double norm, const double* pVector, size_t nSize)
 {
 	double dMag = 0;
 	for(size_t i = 0; i < nSize; i++)
-		dMag += pow(std::abs(pVector[i]), norm);
-	return pow(dMag, 1.0 / norm);
+		dMag += std::pow(std::abs(pVector[i]), norm);
+	return std::pow(dMag, 1.0 / norm);
 }
 
 // static
@@ -162,11 +161,11 @@ double GVec::lNormDistance(double norm, const double* pA, const double* pB, size
 	double dist = 0;
 	for(size_t i = 0; i < dims; i++)
 	{
-		dist += pow(std::abs(*pA - *pB), norm);
+		dist += std::pow(std::abs(*pA - *pB), norm);
 		pA++;
 		pB++;
 	}
-	return pow(dist, 1.0 / norm);
+	return std::pow(dist, 1.0 / norm);
 }
 
 // static
@@ -358,6 +357,17 @@ void GVec::multiply(double* pVector, double dScalar, size_t nDims)
 		pVector++;
 	}
 }
+
+//static 
+void GVec::pow(double* pVector, double dScalar, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pVector = std::pow(*pVector, dScalar);
+		pVector++;
+	}
+}
+
 
 // static
 void GVec::pairwiseMultiply(double* pDest, double* pOther, size_t dims)

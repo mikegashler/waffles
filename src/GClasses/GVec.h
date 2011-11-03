@@ -122,6 +122,9 @@ public:
 	/// Multiplies pVector by dScalar
 	static void multiply(double* pVector, double dScalar, size_t nDims);
 
+	/// Raises each element of pVector to the exponent dScalar
+	static void pow(double* pVector, double dScalar, size_t nDims);
+	
 	/// Multiplies each element in pDest by the corresponding element in pOther
 	static void pairwiseMultiply(double* pDest, double* pOther, size_t dims);
 
