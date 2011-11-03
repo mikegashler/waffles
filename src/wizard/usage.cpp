@@ -854,6 +854,7 @@ UsageNode* makeLearnUsageTree()
 			   "when the learner being used has an internal "
 			   "model.");
 		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute after each repetition.");
+		pOpts->add("-stddev", "Print the standard deviation of the results at the end as well as their mean.");
 		pSplitTest->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pDO = pSplitTest->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
