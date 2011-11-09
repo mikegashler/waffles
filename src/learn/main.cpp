@@ -677,6 +677,72 @@ void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 	cerr.flush();
 }
 
+GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	GWag* pWag = new GWag(0, rand);
+	GNeuralNet* pModel = pWag->model();
+	size_t modelCount = 10;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-autotune"))
+		{
+			if(!pFeatures || !pLabels)
+				ThrowError("Insufficient data to support automatic tuning");
+			pModel->autoTune(*pFeatures, *pLabels);
+		}
+		else if(args.if_pop("-addlayer"))
+			pModel->addLayer(args.pop_uint());
+		else if(args.if_pop("-learningrate"))
+			pModel->setLearningRate(args.pop_double());
+		else if(args.if_pop("-momentum"))
+			pModel->setMomentum(args.pop_double());
+		else if(args.if_pop("-models"))
+			modelCount = args.pop_uint();
+		else if(args.if_pop("-windowepochs"))
+			pModel->setWindowSize(args.pop_uint());
+		else if(args.if_pop("-minwindowimprovement"))
+			pModel->setImprovementThresh(args.pop_double());
+		else if(args.if_pop("-activation"))
+		{
+			const char* szSF = args.pop_string();
+			GActivationFunction* pSF = NULL;
+			if(strcmp(szSF, "logistic") == 0)
+				pSF = new GActivationLogistic();
+			else if(strcmp(szSF, "arctan") == 0)
+				pSF = new GActivationArcTan();
+			else if(strcmp(szSF, "tanh") == 0)
+				pSF = new GActivationTanH();
+			else if(strcmp(szSF, "algebraic") == 0)
+				pSF = new GActivationAlgebraic();
+			else if(strcmp(szSF, "identity") == 0)
+				pSF = new GActivationIdentity();
+			else if(strcmp(szSF, "gaussian") == 0)
+				pSF = new GActivationGaussian();
+			else if(strcmp(szSF, "sinc") == 0)
+				pSF = new GActivationSinc();
+			else if(strcmp(szSF, "bend") == 0)
+				pSF = new GActivationBend();
+			else if(strcmp(szSF, "bidir") == 0)
+				pSF = new GActivationBiDir();
+			else if(strcmp(szSF, "piecewise") == 0)
+				pSF = new GActivationPiecewise();
+			else
+				ThrowError("Unrecognized activation function: ", szSF);
+			pModel->setActivationFunction(pSF, true);
+		}
+		else if(args.if_pop("-crossentropy"))
+			pModel->setBackPropTargetFunction(GNeuralNet::cross_entropy);
+		else if(args.if_pop("-physical"))
+			pModel->setBackPropTargetFunction(GNeuralNet::physical);
+		else if(args.if_pop("-sign"))
+			pModel->setBackPropTargetFunction(GNeuralNet::sign);
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+	pWag->setModelCount(modelCount);
+	return pWag;
+}
+
 GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	int argPos = args.get_pos();
@@ -720,6 +786,8 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 			return InstantiateNeuralNet(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("randomforest"))
 			return InstantiateRandomForest(rand, args);
+		else if(args.if_pop("wag"))
+			return InstantiateWag(rand, args, pFeatures, pLabels);
 		ThrowError("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)

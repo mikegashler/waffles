@@ -765,6 +765,7 @@ public:
 	void scale(G3DReal width, G3DReal height, G3DReal depth);
 	void rotate(G3DReal yaw, G3DReal pitch, G3DReal roll);
 	double letterWidth(char c);
+	double measureWidth(const char* szPhrase);
 	G3DVector& pos() { return m_pos; }
 
 protected:

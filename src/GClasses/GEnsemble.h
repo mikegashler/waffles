@@ -276,6 +276,56 @@ protected:
 };
 
 
+/// This model trains several multi-layer perceptrons, then
+/// averages their weights together in an intelligent manner.
+class GWag : public GSupervisedLearner
+{
+protected:
+	size_t m_models;
+	GNeuralNet* m_pNN;
+
+public:
+	/// General-purpose constructor. size specifies the number of
+	/// models to train and then average together.
+	GWag(size_t size, GRand& rand);
+
+	/// Deserializing constructor
+	GWag(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GWag();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// See the comment for GSupervisedLearner::clear
+	virtual void clear();
+
+	/// Returns a pointer to the internal neural network. (You may use this method to
+	/// specify training parameters before training, or to obtain the average
+	/// neural network after training.)
+	GNeuralNet* model() { return m_pNN; }
+
+	/// Specify the number of neural networks to average together
+	void setModelCount(size_t n) { m_models = n; }
+
+protected:
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(GMatrix& features, GMatrix& labels);
+
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predictInner(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
+	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
+
+	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalLabels
+	virtual bool canImplicitlyHandleNominalLabels() { return false; }
+};
+
+
 
 /// When Train is called, this performs cross-validation on the training
 /// set to determine which learner is the best. It then trains that learner
@@ -287,12 +337,10 @@ protected:
 	std::vector<GSupervisedLearner*> m_models;
 
 public:
-	/// nInitialSize tells it how fast to grow the dynamic array that holds the
-	/// models. It's not really important to get it right, just guess how many
-	/// models will go in the ensemble.
+	/// General-purpose constructor
 	GBucket(GRand& rand);
 
-	/// Load from a DOM.
+	/// Deserializing constructor
 	GBucket(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBucket();

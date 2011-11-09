@@ -3936,8 +3936,6 @@ public:
 					pNix = pNext;
 				}
 			}
-			else if(pResults[pNextA->m_a] != pNextA->m_b)
-				ThrowError("There is no possible match for row ", to_str(pNextA->m_a));
 		}
 		m_pNextB->m_pPrevB = m_pPrevB;
 		m_pPrevB->m_pNextB = m_pNextB;
@@ -3956,8 +3954,6 @@ public:
 					pNix = pNext;
 				}
 			}
-			else if(pResults[pNextB->m_a] != pNextB->m_b)
-				ThrowError("There is no possible match for row ", to_str(pNextB->m_a));
 		}
 	}
 
@@ -4019,65 +4015,81 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
 		return NULL;
 	if(a.rows() != b.rows() || a.cols() != b.cols())
 		ThrowError("Incompatible matrices");
-	k = std::min(a.rows() - 1, k);
+	size_t cols = a.cols();
+	k = std::min(a.rows(), k);
 	if(k == 0)
-		k = size_t(sqrt(a.rows()));
-	size_t* pNeighbors = new size_t[k];
-	ArrayHolder<size_t> hNeighbors(pNeighbors);
-	double* pDistances = new double[k];
-	ArrayHolder<double> hDistances(pDistances);
+		k = a.rows();
 	vector<GBMNode*> a_b; // Loop of every edge from a to b
 	a_b.resize(a.rows(), NULL);
 	vector<GBMNode*> b_a; // Loop of every edge from b to a
 	b_a.resize(a.rows(), NULL);
-	vector< std::set<size_t> > used;
-	used.resize(a.rows());
 	GHeap heap(4096);
 	GBMNode* pHead = NULL;
 	size_t candCount = 0;
+	if(k + 1 >= a.rows())
 	{
-		// Add the k-nearest neighbors in b of each row in a
-		GKdTree nf(&b, k, NULL, false);
 		for(size_t aa = 0; aa < a.rows(); aa++)
 		{
-			nf.neighbors(pNeighbors, pDistances, a[aa]);
-			size_t* pB = pNeighbors;
-			double* pDist = pDistances;
-			std::set<size_t>& usedSet = used[aa];
-			for(size_t j = 0; j < k; j++)
+			double* pRowA = a[aa];
+			for(size_t bb = 0; bb < a.rows(); bb++)
 			{
-				if(*pB < a.rows())
-				{
-					new (heap.allocAligned(sizeof(GBMNode))) GBMNode(*pDist, aa, *pB, &pHead, &a_b[aa], &b_a[*pB]); // allocate with placement new
-					usedSet.insert(*pB);
-					candCount++;
-				}
-				pB++;
-				pDist++;
+				new (heap.allocAligned(sizeof(GBMNode))) GBMNode(GVec::squaredDistance(pRowA, b[bb], cols), aa, bb, &pHead, &a_b[aa], &b_a[bb]); // allocate with placement new
+				candCount++;
 			}
 		}
 	}
+	else
 	{
-		// Add the k-nearest neighbors in a of each row in b
-		GKdTree nf(&a, k, NULL, false);
-		for(size_t bb = 0; bb < a.rows(); bb++)
+		size_t* pNeighbors = new size_t[k];
+		ArrayHolder<size_t> hNeighbors(pNeighbors);
+		double* pDistances = new double[k];
+		ArrayHolder<double> hDistances(pDistances);
+		vector< std::set<size_t> > used;
+		used.resize(a.rows());
 		{
-			nf.neighbors(pNeighbors, pDistances, b[bb]);
-			size_t* pA = pNeighbors;
-			double* pDist = pDistances;
-			for(size_t j = 0; j < k; j++)
+			// Add the k-nearest neighbors in b of each row in a
+			GKdTree nf(&b, k, NULL, false);
+			for(size_t aa = 0; aa < a.rows(); aa++)
 			{
-				if(*pA < a.rows())
+				nf.neighbors(pNeighbors, pDistances, a[aa]);
+				size_t* pB = pNeighbors;
+				double* pDist = pDistances;
+				std::set<size_t>& usedSet = used[aa];
+				for(size_t j = 0; j < k; j++)
 				{
-					std::set<size_t>& usedSet = used[*pA];
-					if(usedSet.find(bb) == usedSet.end())
+					if(*pB < a.rows())
 					{
-						new (heap.allocAligned(sizeof(GBMNode))) GBMNode(*pDist, *pA, bb, &pHead, &a_b[*pA], &b_a[bb]); // allocate with placement new
+						new (heap.allocAligned(sizeof(GBMNode))) GBMNode(*pDist, aa, *pB, &pHead, &a_b[aa], &b_a[*pB]); // allocate with placement new
+						usedSet.insert(*pB);
 						candCount++;
 					}
+					pB++;
+					pDist++;
 				}
-				pA++;
-				pDist++;
+			}
+		}
+		{
+			// Add the k-nearest neighbors in a of each row in b
+			GKdTree nf(&a, k, NULL, false);
+			for(size_t bb = 0; bb < a.rows(); bb++)
+			{
+				nf.neighbors(pNeighbors, pDistances, b[bb]);
+				size_t* pA = pNeighbors;
+				double* pDist = pDistances;
+				for(size_t j = 0; j < k; j++)
+				{
+					if(*pA < a.rows())
+					{
+						std::set<size_t>& usedSet = used[*pA];
+						if(usedSet.find(bb) == usedSet.end())
+						{
+							new (heap.allocAligned(sizeof(GBMNode))) GBMNode(*pDist, *pA, bb, &pHead, &a_b[*pA], &b_a[bb]); // allocate with placement new
+							candCount++;
+						}
+					}
+					pA++;
+					pDist++;
+				}
 			}
 		}
 	}

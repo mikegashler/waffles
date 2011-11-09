@@ -764,6 +764,75 @@ void GNeuralNet::clipWeights(double max)
 	}
 }
 
+void GNeuralNet::swapNodes(size_t layer, size_t a, size_t b)
+{
+	GNeuralNetLayer& layerCur = m_layers[layer];
+	std::swap(layerCur.m_neurons[a], layerCur.m_neurons[b]);
+	if(layer < m_layers.size())
+	{
+		GNeuralNetLayer& layerNext = m_layers[layer + 1];
+		for(vector<GNeuron>::iterator it = layerNext.m_neurons.begin(); it != layerNext.m_neurons.end(); it++)
+			std::swap(it->m_weights[a + 1], it->m_weights[b + 1]);
+	}
+}
+
+void GNeuralNet::align(GNeuralNet& that)
+{
+	if(!hasTrainingBegun())
+		ThrowError("train or beginIncrementalLearning must be called before this method");
+	if(layerCount() != that.layerCount())
+		ThrowError("mismatching number of layers");
+	for(size_t i = 0; i + 1 < m_layers.size(); i++)
+	{
+		// Copy weights into matrices
+		GNeuralNetLayer& layerThisCur = m_layers[i];
+		GNeuralNetLayer& layerThatCur = that.m_layers[i];
+		if(layerThisCur.m_neurons.size() != layerThatCur.m_neurons.size())
+			ThrowError("mismatching layer size");
+		GMatrix thisWeights(layerThisCur.m_neurons.size(), layerThisCur.m_neurons[0].m_weights.size());
+		GMatrix thatWeights(layerThisCur.m_neurons.size(), layerThisCur.m_neurons[0].m_weights.size());
+		for(size_t j = 0; j < layerThisCur.m_neurons.size(); j++)
+		{
+			GNeuron& nThis = layerThisCur.m_neurons[j];
+			GNeuron& nThat = layerThatCur.m_neurons[j];
+			double* pThisRow = thisWeights.row(j);
+			double* pThatRow = thatWeights.row(j);
+			vector<double>::iterator wThis = nThis.m_weights.begin();
+			vector<double>::iterator wThat = nThat.m_weights.begin();
+			while(wThis != nThis.m_weights.end())
+			{
+				*(pThisRow++) = *(wThis++);
+				*(pThatRow++) = *(wThat++);
+			}
+		}
+
+		// Do bipartite matching
+		size_t* pIndexes = GMatrix::bipartiteMatching(thatWeights, thisWeights);
+		ArrayHolder<size_t> hIndexes(pIndexes);
+
+		// Align this layer with that layer
+		for(size_t j = 0; j < thisWeights.rows(); j++)
+		{
+			size_t k = pIndexes[j];
+			if(k != j)
+			{
+				// Fix up the indexes
+				size_t m = j + 1;
+				for( ; m < thisWeights.rows(); m++)
+				{
+					if(pIndexes[m] == j)
+						break;
+				}
+				GAssert(m < thisWeights.rows());
+				pIndexes[m] = k;
+
+				// Swap nodes j and k
+				swapNodes(i, j, k);
+			}
+		}
+	}
+}
+
 void GNeuralNet::decayWeights(double lambda, double gamma)
 {
 	if(!hasTrainingBegun())

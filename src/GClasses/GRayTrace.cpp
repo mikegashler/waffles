@@ -3053,6 +3053,17 @@ void G3dLetterMaker::writeString(GRayTraceScene* pScene, const char* szString)
 	}
 }
 
+double G3dLetterMaker::measureWidth(const char* szString)
+{
+	double width = 0.0;
+	while(*szString != '\0')
+	{
+		width += letterWidth(*szString) + m_lineWidth;
+		szString++;
+	}
+	return width;
+}
+
 void G3dLetterMaker::set(G3DVector* pBack, G3DVector* pFront, G3DReal x, G3DReal y)
 {
 	G3DVector tmp(x, y, 0.0);

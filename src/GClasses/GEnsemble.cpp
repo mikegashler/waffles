@@ -13,6 +13,7 @@
 #include "GVec.h"
 #include <stdlib.h>
 #include "GDistribution.h"
+#include "GNeuralNet.h"
 #include "GDom.h"
 #include "GRand.h"
 
@@ -579,6 +580,97 @@ void GAdaBoost::test()
 #endif
 
 
+
+
+
+
+
+
+GWag::GWag(size_t size, GRand& rand)
+: GSupervisedLearner(rand)
+{
+	m_pNN = new GNeuralNet(rand);
+}
+
+GWag::GWag(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
+{
+	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
+	m_models = pNode->field("models")->asInt();
+}
+
+// virtual
+GWag::~GWag()
+{
+	delete(m_pNN);
+}
+
+// virtual
+GDomNode* GWag::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GWag");
+	pNode->addField(pDoc, "models", pDoc->newInt(m_models));
+	pNode->addField(pDoc, "nn", m_pNN->serialize(pDoc));
+	return pNode;
+}
+
+// virtual
+void GWag::clear()
+{
+	m_pNN->clear();
+}
+
+// virtual
+void GWag::trainInner(GMatrix& features, GMatrix& labels)
+{
+	GNeuralNet* pTemp = NULL;
+	Holder<GNeuralNet> hTemp;
+	size_t weights = 0;
+	double* pWeightBuf = NULL;
+	double* pWeightBuf2 = NULL;
+	ArrayHolder<double> hWeightBuf;
+	for(size_t i = 0; i < m_models; i++)
+	{
+		m_pNN->train(features, labels);
+		if(pTemp)
+		{
+			// Average m_pNN with pTemp
+			m_pNN->align(*pTemp);
+			pTemp->weights(pWeightBuf);
+			m_pNN->weights(pWeightBuf2);
+			GVec::multiply(pWeightBuf, double(i) / (i + 1), weights);
+			GVec::addScaled(pWeightBuf, 1.0 / (i + 1), pWeightBuf2, weights);
+			pTemp->setWeights(pWeightBuf);
+		}
+		else
+		{
+			// Copy the m_pNN
+			GDom doc;
+			GDomNode* pNode = m_pNN->serialize(&doc);
+			GLearnerLoader ll(m_rand);
+			pTemp = new GNeuralNet(pNode, ll);
+			hTemp.reset(pTemp);
+			weights = pTemp->countWeights();
+			pWeightBuf = new double[2 * weights];
+			hWeightBuf.reset(pWeightBuf);
+			pWeightBuf2 = pWeightBuf + weights;
+		}
+	}
+	pTemp->weights(pWeightBuf);
+	m_pNN->setWeights(pWeightBuf);
+}
+
+// virtual
+void GWag::predictInner(const double* pIn, double* pOut)
+{
+	m_pNN->predict(pIn, pOut);
+}
+
+// virtual
+void GWag::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	m_pNN->predictDistribution(pIn, pOut);
+}
 
 
 

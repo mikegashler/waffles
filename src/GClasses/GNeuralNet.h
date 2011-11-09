@@ -387,6 +387,16 @@ public:
 	/// Returns true iff train or beginIncrementalTraining has been called.
 	bool hasTrainingBegun() { return m_internalLabelDims > 0; }
 
+	/// Swaps two nodes in the specified layer. If layer specifies one of the hidden
+	/// layers, then this will have no net effect on the output of the network.
+	/// (Assumes this model is already trained.)
+	void swapNodes(size_t layer, size_t a, size_t b);
+
+	/// Swaps nodes in hidden layers of this neural network to align with those in
+	/// that neural network, as determined using bipartite matching. (This might
+	/// be done, for example, before averaging weights together.)
+	void align(GNeuralNet& that);
+
 protected:
 	/// Measures the sum squared error against the specified dataset
 	double validationSquaredError(GMatrix& features, GMatrix& labels);

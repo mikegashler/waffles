@@ -851,10 +851,11 @@ public:
 	/// Returns an array of indexes, i[], where i[j] is the row in b that
 	/// corresponds with row j of a.
 	/// k specifies the number of nearest-neighbors to consider in the
-	/// results. Small values of k will lead to faster results. Large values
+	/// results. If k is 0, it will be set to the number of rows in a (or b).
+	/// Small values of k will lead to faster results. Large values
 	/// of k (approaching the number of rows in the matrices) will guarantee
 	/// optimal results. sqrt(rows) might be a good general value for k.
-	static size_t* bipartiteMatching(GMatrix& a, GMatrix& b, size_t k);
+	static size_t* bipartiteMatching(GMatrix& a, GMatrix& b, size_t k = 0);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
