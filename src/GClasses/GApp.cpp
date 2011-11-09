@@ -860,6 +860,9 @@ bool GArgReader::next_is_uint()
       return 0;
   }
   char * p;
-  strtoul (s, &p, 10);
+  if(strtoul (s, &p, 10) == 0)
+  {
+	  // no-op to circumvent a g++ warning
+  }
   return *p == '\0';
 }

@@ -1361,6 +1361,8 @@ GTwoWayIncrementalTransform* GLearnerLoader::loadTwoWayIncrementalTransform(GDom
 			return new GDiscretize(pNode, *this);
 		else if(strcmp(szClass, "GNormalize") == 0)
 			return new GNormalize(pNode, *this);
+		else if(strcmp(szClass, "GTwoWayTransformChainer") == 0)
+			return new GTwoWayTransformChainer(pNode, *this);
 	}
 	if(m_throwIfClassNotFound)
 		ThrowError("Unrecognized class: ", szClass);

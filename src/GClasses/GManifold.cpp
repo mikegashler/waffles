@@ -2595,7 +2595,7 @@ public:
 void GUnsupervisedBackProp::hiToLow(const double* pIn, double* pOut)
 {
 	// Compute values
-	size_t channels = m_pNN->labelDims();
+//	size_t channels = m_pNN->labelDims();
 
 	// Init
 	if(!m_pNN->hasTrainingBegun())

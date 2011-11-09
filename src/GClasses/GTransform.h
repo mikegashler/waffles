@@ -57,21 +57,21 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
-        /// Trains the transform on the data in pData. 
-        ///
+	/// Trains the transform on the data in pData.
+	///
 	/// For those implementing subclasses, must set
 	/// m_pRelationBefore and m_pRelationAfter
 	virtual void train(GMatrix& data) = 0;
 
-        /// Returns a relation object describing the data before it is
-        /// transformed
-        ///
+	/// Returns a relation object describing the data before it is
+	/// transformed
+	///
 	/// train must be called before this method is used
 	sp_relation& before() { return m_pRelationBefore; }
 
-        /// Returns a relation object describing the data after it is
-        /// transformed
-        ///
+	/// Returns a relation object describing the data after it is
+	/// transformed
+	///
 	/// train must be called before this method is used
 	sp_relation& after() { return m_pRelationAfter; }
 
