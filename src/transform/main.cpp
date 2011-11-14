@@ -623,6 +623,55 @@ void DropMissingValues(GArgReader& args)
 	pData->print(cout);
 }
 
+void dropRandomValues(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	double portion = args.pop_double();
+
+	// Parse the options
+	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-seed"))
+			seed = args.pop_uint();
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	GRand rand(seed);
+	size_t n = pData->rows() * pData->cols();
+	size_t k = size_t(portion * n);
+	for(size_t i = 0; i < pData->cols(); i++)
+	{
+		size_t vals = pData->relation()->valueCount(i);
+		if(vals == 0)
+		{
+			for(size_t j = 0; j < pData->rows(); j++)
+			{
+				if(rand.next(n) < k)
+				{
+					pData->row(j)[i] = UNKNOWN_REAL_VALUE;
+					k--;
+				}
+				n--;
+			}
+		}
+		else
+		{
+			for(size_t j = 0; j < pData->rows(); j++)
+			{
+				if(rand.next(n) < k)
+				{
+					pData->row(j)[i] = UNKNOWN_DISCRETE_VALUE;
+					k--;
+				}
+				n--;
+			}
+		}
+	}
+	pData->print(cout);
+}
+
 void dropRows(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -1724,6 +1773,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("discretize")) Discretize(args);
 		else if(args.if_pop("dropcolumns")) dropColumns(args);
 		else if(args.if_pop("dropmissingvalues")) DropMissingValues(args);
+		else if(args.if_pop("droprandomvalues")) dropRandomValues(args);
 		else if(args.if_pop("droprows")) dropRows(args);
 		else if(args.if_pop("enumeratevalues")) enumerateValues(args);
 		else if(args.if_pop("export")) Export(args);

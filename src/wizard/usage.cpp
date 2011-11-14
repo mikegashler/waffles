@@ -263,6 +263,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
 		pOpts->add("-windowepochs [value]=200", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
 		pOpts->add("-minwindowimprovement [value]=0.002", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
+		pOpts->add("-holdout [portion]=0.35", "Specify the portion of the data (between 0 and 1) to use as a hold-out set for validation. That is, this portion of the data will not be used for training, but will be used to determine when to stop training. If the holdout portion is set to 0, then no holdout set will be used, and the entire training set will be used for validation (which may lead to long training time and overfit).");
 		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
 		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
 		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
@@ -457,6 +458,8 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-minwindowimprovement [value]=0.0001", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
 		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
 		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
+		pOpts->add("-noinputbias", "Do not use an input bias.");
+		pOpts->add("-nothreepass", "Use one-pass training instead of three-pass training.");
 		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
 		{
 			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
@@ -1304,10 +1307,17 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pDropCols = pRoot->add("dropcolumns [dataset] [column-list]", "Remove one or more columns from a dataset and prints the results to stdout. (The input file is not modified.)");
-		pDropCols->add("[dataset]=in.arff", "The filename of a dataset");
+		pDropCols->add("[dataset]=in.arff", "The filename of a dataset.");
 		pDropCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to drop. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	pRoot->add("dropmissingvalues [dataset]=data.arff", "Remove all rows that contain missing values.");
+	{
+		UsageNode* pDRV = pRoot->add("droprandomvalues [dataset] [portion] <options>", "Drop random values from the specified dataset. The resulting dataset with missing values is printed to stdout.");
+		pDRV->add("[dataset]=in.arff", "The filename of a dataset.");
+		pDRV->add("[portion]=0.1", "The portion of the data to drop. For example, if [portion] is 0.1, then 10% of the values will be replaced with unknown values");
+		UsageNode* pOpts = pDRV->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+	}
 	{
 		UsageNode* pEx = pRoot->add("export [dataset] <options>", "Print the data as a list of comma separated values without any meta-data.");
 		UsageNode* pOpts = pEx->add("<options>");
@@ -1316,7 +1326,7 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pDR = pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");
-		pDR->add("[dataset]=data.arff", "The filename of a dataset");
+		pDR->add("[dataset]=data.arff", "The filename of a dataset.");
 		pDR->add("[after-size]=1", "The number of rows to keep");
 	}
 	{

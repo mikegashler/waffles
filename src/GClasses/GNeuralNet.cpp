@@ -413,7 +413,7 @@ void GBackProp::adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeature
 // ----------------------------------------------------------------------
 
 GNeuralNet::GNeuralNet(GRand& rand)
-: GIncrementalLearner(rand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0), m_minImprovement(0.002), m_epochsPerValidationCheck(200), m_backPropTargetFunction(squared_error), m_useInputBias(false)
+: GIncrementalLearner(rand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0.35), m_minImprovement(0.002), m_epochsPerValidationCheck(200), m_backPropTargetFunction(squared_error), m_useInputBias(false)
 {
 	m_layers.resize(1);
 }
@@ -1677,7 +1677,7 @@ void GNeuralNet::test()
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn(prng);
-		nn.basicTest(0.75, 0.77);
+		nn.basicTest(0.745, 0.77);
 	}
 
 	// Test NN with one hidden layer

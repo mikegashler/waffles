@@ -592,6 +592,8 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 			pModel->setWindowSize(args.pop_uint());
 		else if(args.if_pop("-minwindowimprovement"))
 			pModel->setImprovementThresh(args.pop_double());
+		else if(args.if_pop("-holdout"))
+			pModel->setValidationPortion(args.pop_double());
 		else if(args.if_pop("-activation"))
 		{
 			const char* szSF = args.pop_string();

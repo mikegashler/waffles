@@ -238,7 +238,7 @@ GMatrixFactorization* InstantiateMatrixFactorization(GRand& rand, GArgReader& ar
 	return pModel;
 }
 
-GNonlinearPCA* InstantiateNeuralRecommender(GRand& rand, GArgReader& args)
+GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 {
 	if(args.size() < 1)
 		ThrowError("The number of intrinsic dims must be specified for this algorithm");
@@ -256,6 +256,10 @@ GNonlinearPCA* InstantiateNeuralRecommender(GRand& rand, GArgReader& args)
 			pModel->model()->setWindowSize(args.pop_uint());
 		else if(args.if_pop("-minwindowimprovement"))
 			pModel->model()->setImprovementThresh(args.pop_double());
+		else if(args.if_pop("-noinputbias"))
+			pModel->noInputBias();
+		else if(args.if_pop("-nothreepass"))
+			pModel->noThreePass();
 		else if(args.if_pop("-activation"))
 		{
 			const char* szSF = args.pop_string();
@@ -346,8 +350,8 @@ GCollaborativeFilter* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 			return InstantiateSparseClusterRecommender(rand, args);
 		else if(args.if_pop("matrix"))
 			return InstantiateMatrixFactorization(rand, args);
-		else if(args.if_pop("neural"))
-			return InstantiateNeuralRecommender(rand, args);
+		else if(args.if_pop("nlpca"))
+			return InstantiateNonlinearPCA(rand, args);
 		else
 			ThrowError("Unrecognized algorithm name: ", args.peek());
 	}
