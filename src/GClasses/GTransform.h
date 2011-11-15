@@ -509,7 +509,7 @@ public:
 
 	/// Sets the collaborative filter used to impute missing values. Takes
 	/// ownership of pCF. If no collaborative filter is set, the default is to use
-	/// matrix factorization with some typical parameters.
+	/// GBaselineRecommender.
 	void setCollaborativeFilter(GCollaborativeFilter* pCF);
 
 	/// Specify a label matrix that should be appended with the training data.

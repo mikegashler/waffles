@@ -946,10 +946,10 @@ void GMatrixFactorization::train(GMatrix& data)
 		dataCopy.shuffle(m_rand);
 
 		// Do an epoch of training
-		for(size_t i = 0; i < dataCopy.rows(); i++)
+		for(size_t j = 0; j < dataCopy.rows(); j++)
 		{
 			// Compute the error for this rating
-			double* pVec = dataCopy[i];
+			double* pVec = dataCopy[j];
 			double* pPref = m_pP->row(size_t(pVec[0]));
 			double* pWeights = m_pQ->row(size_t(pVec[1]));
 			double pred = *(pWeights++);
