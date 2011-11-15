@@ -1523,7 +1523,7 @@ void GShortcutPruner::onDetectBigAtomicCycle(vector<size_t>& cycle)
 		size_t to = cycle[(i + 1) % cycle.size()];
 		size_t forwIndex = g.neighborIndex(mapIn[from], mapIn[to]);
 		size_t revIndex = g.neighborIndex(mapIn[to], mapIn[from]);
-		double d = g.edgeBetweenness(mapIn[from], forwIndex) + g.edgeBetweenness(mapIn[to], revIndex);
+		double d = g.edgeBetweennessByNeighbor(mapIn[from], forwIndex) + g.edgeBetweennessByNeighbor(mapIn[to], revIndex);
 		if(i == 0 || d > shortcutBetweenness)
 		{
 			shortcutBetweenness = d;

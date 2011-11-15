@@ -1359,6 +1359,8 @@ GTwoWayIncrementalTransform* GLearnerLoader::loadTwoWayIncrementalTransform(GDom
 			return new GNominalToCat(pNode, *this);
 		else if(strcmp(szClass, "GDiscretize") == 0)
 			return new GDiscretize(pNode, *this);
+		else if(strcmp(szClass, "GImputeMissingVals") == 0)
+			return new GImputeMissingVals(pNode, *this);
 		else if(strcmp(szClass, "GNormalize") == 0)
 			return new GNormalize(pNode, *this);
 		else if(strcmp(szClass, "GTwoWayTransformChainer") == 0)

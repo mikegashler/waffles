@@ -3969,6 +3969,8 @@ public:
 		// Recurse
 		if(firstLen >= 2)
 			pFirst = mergeSort(pFirst, firstLen);
+		else if(firstLen == 0)
+			return pSecond;
 		if(secondLen >= 2)
 			pSecond = mergeSort(pSecond, secondLen);
 
@@ -4026,7 +4028,7 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
 	GHeap heap(4096);
 	GBMNode* pHead = NULL;
 	size_t candCount = 0;
-	if(k + 1 >= a.rows())
+	if(k >= a.rows())
 	{
 		for(size_t aa = 0; aa < a.rows(); aa++)
 		{
@@ -4100,6 +4102,11 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
 	// Discard the worst matchings until all rows are matched exactly once
 	size_t* pResults = new size_t[a.rows()];
 	ArrayHolder<size_t> hResults(pResults);
+	if(a.rows() == 1)
+	{
+		pResults[0] = 0;
+		return hResults.release();
+	}
 	size_t* pRes = pResults;
 	for(size_t i = 0; i < a.rows(); i++)
 		*(pRes++) = size_t(-1);
