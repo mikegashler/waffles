@@ -943,7 +943,10 @@ double GBrandesBetweennessCentrality::edgeBetweennessByVertex(size_t vertex1, si
 {
 	size_t index = neighborIndex(vertex1, vertex2);
 	if(index == INVALID_INDEX)
+	{
 		ThrowError("There is no edge between vertices ", to_str(vertex1), " and ", to_str(vertex2)); // todo: should we just return 0 here?
+		return 0.0;
+	}
 	else
 		return edgeBetweennessByNeighbor(vertex1, index);
 }

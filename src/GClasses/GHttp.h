@@ -22,7 +22,9 @@ namespace GClasses {
 
 class GHttpClientSocket;
 class GWebSocketClientSocket;
-class GSocketServer;
+class GHttpServerSocket;
+class GTCPServer;
+class GHttpConnection;
 class GHttpServerBuffer;
 class GHeap;
 class GConstStringHashTable;
@@ -42,6 +44,7 @@ public:
 	};
 
 protected:
+	char* m_pReceiveBuf;
 	char m_szHeaderBuf[258];
 	char m_szServer[256];
 	char m_szClientName[32];
@@ -123,7 +126,8 @@ public:
 class GHttpServer
 {
 protected:
-	GSocketServer* m_pSocket;
+	char* m_pReceiveBuf;
+	GHttpServerSocket* m_pSocket;
 	std::vector<GHttpServerBuffer*> m_buffers;
 	std::ostringstream m_stream;
 	char m_szContentType[64];
@@ -160,16 +164,16 @@ public:
 	void setModifiedTime(time_t t) { m_modifiedTime = t; }
 
 	/// Returns a reference to the socket on which this server listens
-	GSocketServer* socket() { return m_pSocket; }
+	GTCPServer* socket() { return (GTCPServer*)m_pSocket; }
 
 protected:
-	virtual void onProcessLine(int nConnection, const char* szLine) {}
-	void processPostData(int nConnection, GHttpServerBuffer* pClient, const unsigned char* pData, size_t nDataSize);
-	void processHeaderLine(int nConnection, GHttpServerBuffer* pClient, const char* szLine);
-	void beginRequest(GHttpServerBuffer* pClient, int eType, const char* szIn);
-	void sendResponse(GHttpServerBuffer* pClient, int nConnection);
-	void sendNotModifiedResponse(GHttpServerBuffer* pClient, int nConnection);
-	void onReceiveFullPostRequest(GHttpServerBuffer* pClient, int nConnection);
+	virtual void onProcessLine(GHttpConnection* pConn, const char* szLine) {}
+	void processPostData(GHttpConnection* pConn, const unsigned char* pData, size_t nDataSize);
+	void processHeaderLine(GHttpConnection* pConn, const char* szLine);
+	void beginRequest(GHttpConnection* pConn, int eType, const char* szIn);
+	void sendResponse(GHttpConnection* pConn);
+	void sendNotModifiedResponse(GHttpConnection* pConn);
+	void onReceiveFullPostRequest(GHttpConnection* pConn);
 
 	/// This method should set the content type and the date headers, and any other
 	/// headers deemed necessary

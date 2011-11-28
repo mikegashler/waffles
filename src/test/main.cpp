@@ -468,6 +468,7 @@ void RunAllTests()
 	runTest("GNeuralNet", GNeuralNet::test);
 	runTest("GNeuralNetPseudoInverse", GNeuralNetPseudoInverse::test);
 	runTest("GNonlinearPCA", GNonlinearPCA::test);
+	runTest("GPackageServer", GPackageServer::test);
 	runTest("GPCARotateOnly", GPCARotateOnly::test);
 	runTest("GPolynomial", GPolynomial::test);
 	runTest("GPriorityQueue", GPriorityQueue::test);

@@ -94,11 +94,11 @@ GDynamicPageServer::GDynamicPageServer(int port, GRand* pRand)
 	computePasswordSalt();
 
 	// Determine my address
-	char szBuf[64];
+	char szBuf[300];
 	strcpy(szBuf, "http://");
 	try
 	{
-		socket()->GetIPAddr(szBuf + 7, 64, -1);
+		GTCPServer::hostName(szBuf + 7, 256);
 	}
 	catch(...)
 	{

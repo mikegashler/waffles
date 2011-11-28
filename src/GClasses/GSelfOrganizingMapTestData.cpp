@@ -213,7 +213,7 @@ double uniformCylinder[170][3]={
   {-45.3474, -19.8461, 34.}
 };
 
-
+/*
 ///500 2D data points uniformly distributed on two annuli centered on
 ///the origin
 double twoCircles[500][2]= {
@@ -718,7 +718,7 @@ double twoCircles[500][2]= {
   {47.2577,-154.8598},
   {-346.295,-7.3041}
 };
-
+*/
 
 
 

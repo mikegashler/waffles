@@ -273,7 +273,7 @@ GImage* PlotChartMaker::MakeChart()
 						if(pPatNeighbor[0] != UNKNOWN_REAL_VALUE && pPatNeighbor[attr] != UNKNOWN_REAL_VALUE)
 							pw.fatLine(xval(pPat[0]), yval(pPat[attr]), xval(pPatNeighbor[0]), yval(pPatNeighbor[attr]), m_fLineThickness, GetLineColor((int)attr - 1, (int)pat));
 					}
-					if(y < meshHeight - 1)
+					if(y < (int)meshHeight - 1)
 					{
 						double* pPatNeighbor = m_pData->row(pat + m_meshSize);
 						if(pPatNeighbor[0] != UNKNOWN_REAL_VALUE && pPatNeighbor[attr] != UNKNOWN_REAL_VALUE)

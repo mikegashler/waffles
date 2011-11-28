@@ -335,7 +335,7 @@ void GCollaborativeFilter::basicTest(double maxMSE)
 	double mse = crossValidate(m, 2);
 	if(mse > maxMSE)
 		ThrowError("failed");
-	else if(mse + 0.015 < maxMSE)
+	else if(mse + 0.045 < maxMSE)
 		std::cerr << "\nTest needs to be tightened. MSE: " << mse << ", maxMSE: " << maxMSE << "\n";
 }
 #endif
@@ -616,7 +616,7 @@ void GInstanceRecommender::test()
 {
 	GRand rand(0);
 	GInstanceRecommender rec(8, rand);
-	rec.basicTest(0.60);
+	rec.basicTest(0.63);
 }
 #endif
 
@@ -722,7 +722,7 @@ void GSparseClusterRecommender::test()
 {
 	GRand rand(0);
 	GSparseClusterRecommender rec(6, rand);
-	rec.basicTest(1.31);
+	rec.basicTest(1.29);
 }
 #endif
 
