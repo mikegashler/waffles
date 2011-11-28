@@ -2210,7 +2210,7 @@ char* GPackageClient::receive(size_t* pLen)
 					onReceiveBadData("Package too big");
 				if(m_bufSize < m_header[1])
 				{
-					m_bufSize = std::max(size_t(m_header[1]), std::min(m_maxBufSize, 2 * m_bufSize));
+					m_bufSize = std::max(m_header[1], std::min(m_maxBufSize, 2 * m_bufSize));
 					delete[] m_pBuf;
 					m_pBuf = new char[m_bufSize];
 				}
@@ -2321,7 +2321,7 @@ char* GPackageServer::receive(size_t* pOutLen, GTCPConnection** pOutConn)
 								onReceiveBadData("Package too big");
 							if(pConn->m_bufSize < pConn->m_header[1])
 							{
-								pConn->m_bufSize = std::max(size_t(pConn->m_header[1]), std::min(m_maxBufSize, 2 * pConn->m_bufSize));
+								pConn->m_bufSize = std::max(pConn->m_header[1], std::min(m_maxBufSize, 2 * pConn->m_bufSize));
 								delete[] pConn->m_pBuf;
 								pConn->m_pBuf = new char[pConn->m_bufSize];
 							}

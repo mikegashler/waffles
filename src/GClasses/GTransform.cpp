@@ -1348,7 +1348,7 @@ void GImputeMissingVals::train(GMatrix& data)
 
 	// Train the collaborative filter
 	if(!m_pCF)
-		m_pCF = new GBaselineRecommender(m_rand); //new GMatrixFactorization(std::max(size_t(2), std::min(size_t(8), data.cols() / 3)), m_rand);
+		m_pCF = new GMatrixFactorization(std::max(size_t(2), std::min(size_t(8), data.cols() / 3)), m_rand);
 	m_pCF->trainDenseMatrix(*pData, m_pLabels);
 }
 

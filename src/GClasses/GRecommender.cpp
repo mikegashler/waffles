@@ -975,7 +975,8 @@ void GMatrixFactorization::train(GMatrix& data)
 
 			// Update P
 			pWeights = temp_weights;
-			pPref = m_pP->row(size_t(pVec[0]));
+			double* pPrefRow = m_pP->row(size_t(pVec[0]));
+			pPref = pPrefRow;
 			if(m_useInputBias)
 			{
 				*pPref += learningRate * (err - m_regularizer * (*pPref));
@@ -987,6 +988,8 @@ void GMatrixFactorization::train(GMatrix& data)
 				pWeights++;
 				pPref++;
 			}
+			GVec::floorValues(pPrefRow + (m_useInputBias ? 1 : 0), -1.8, m_intrinsicDims);
+			GVec::capValues(pPrefRow + (m_useInputBias ? 1 : 0), 1.8, m_intrinsicDims);
 		}
 		epochs++;
 
@@ -1083,6 +1086,8 @@ void GMatrixFactorization::impute(double* pVec, size_t dims)
 				pWeights++;
 				pPref++;
 			}
+			GVec::floorValues(pPrefVec + (m_useInputBias ? 1 : 0), -1.8, m_intrinsicDims);
+			GVec::capValues(pPrefVec + (m_useInputBias ? 1 : 0), 1.8, m_intrinsicDims);
 		}
 
 		// Stopping criteria
