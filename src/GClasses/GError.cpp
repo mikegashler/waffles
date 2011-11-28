@@ -151,6 +151,19 @@ void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6
 }
 
 
+void AssertEqual(char const*expected, char const*got, std::string desc){
+  AssertEqual(std::string(expected), std::string(got), desc);
+}
+
+void AssertEqual(char const* expected, char* got, std::string desc){
+  AssertEqual(std::string(expected), std::string(got), desc);
+}
+
+void AssertEqual(char* expected, char* got, std::string desc){
+  AssertEqual(std::string(expected), std::string(got), desc);
+}
+
+
 
 #ifdef WINDOWS
 void GAssertFailed()

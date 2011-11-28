@@ -260,6 +260,44 @@ void GRelation::save(GMatrix* pData, const char* szFilename, size_t precision)
 	print(stream, pData, precision);
 }
 
+#ifndef NO_TEST_CODE
+//static
+void GRelation::test()
+{
+	typedef std::string s;
+	AssertEqual
+		("the",quote("the"),
+		 "GRelation::quote gets (the) wrong");								
+
+	AssertEqual("'the rain'", quote("the rain"),
+							"GRelation::quote gets (the rain) wrong");
+
+	AssertEqual("the\\ rain\\'s\\ \\\\mom",
+							quote("the rain's \\mom"),
+							"GRelation::quote gets 'the rain's \\mom' wrong");
+
+	AssertEqual("'%'", quote("%"), "GRelation::quote gets (%) wrong");
+
+	AssertEqual("','", quote(","), "GRelation::quote gets (,) wrong");
+
+	AssertEqual("' '", quote(" "), "GRelation::quote gets ( ) wrong");
+
+	AssertEqual("\\'", quote("'"), "GRelation::quote gets (') wrong");
+
+	AssertEqual("'\\'", quote("\\"), "GRelation::quote gets (\\) wrong");
+
+	AssertEqual("'\"'", quote("\""), "GRelation::quote gets (\") wrong");
+
+	AssertEqual("Dow\\'s\\ rise\\ (\\%)",
+							quote("Dow's rise (%)"),
+							"GRelation::quote gets 'Dow's rise (%)' wrong");
+
+	AssertEqual("\\\"Rise\\'\\\"\\,\\\"Run\\'\\\"",
+							quote("\"Rise'\",\"Run'\""),
+							"GRelation::quote gets '\"Rise'\",\"Run'\"' wrong");
+}
+#endif // !NO_TEST_CODE
+
 
 
 
@@ -565,6 +603,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 	GCharSet& whitespace = tok.charSet("\t\n\r ");
 	tok.skip(spaces);
 	string name = tok.nextArg();
+	//std::cerr << "Attr:" << name << "\n"; //DEBUG
 	tok.skip(spaces);
 	char c = tok.peek();
 	if(c == '{')
@@ -575,7 +614,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 		m_attrs.resize(index + 1);
 		while(true)
 		{
-			tok.nextUntil(valEnd);
+			tok.nextArg(valEnd);
 			const char* szVal = tok.trim(whitespace);
 			if(*szVal == '\0')
 				ThrowError("Empty value specified on line ", to_str(tok.line()));
@@ -586,7 +625,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 			else if(c == '}')
 				break;
 			else if(c == '\n')
-				ThrowError("Expected a '}' on line ", to_str(tok.line()));
+				ThrowError("Expected a '}' but got new-line on line ", to_str(tok.line()));
 			else
 				ThrowError("inconsistency");
 		}
@@ -612,7 +651,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 			addAttribute(name.c_str(), 0, NULL);
 		}
 		else
-			ThrowError("Unsupported attribute type: ", szType, ", at line ", to_str(tok.line()));
+			ThrowError("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
 	}
 	tok.skipTo(tok.charSet("\n"));
 	tok.advance(1);
@@ -621,8 +660,48 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 // virtual
 void GArffRelation::printAttrName(std::ostream& stream, size_t column)
 {
-	stream << attrName(column);
+	stream << GRelation::quote(attrName(column));
 }
+
+// static
+std::string GRelation::quote(const std::string aString){
+	typedef std::string::const_iterator iter;
+
+	//If the string has no bad characters, just return a copy
+	std::size_t firstBad = aString.find_first_of(",' %\\\"");
+	std::string ret(aString);
+	if(firstBad == string::npos){
+		return ret;
+	}
+
+	//The string has bad characters, start over
+	ret.clear();
+
+	//If the string has no apostrophes, just quote it with single quotes
+	std::size_t firstApostrophe = aString.find_first_of('\'');
+	if(firstApostrophe == string::npos){
+		ret.push_back('\'');
+		ret.append(aString);
+		ret.push_back('\'');
+		return ret;
+	}
+
+
+	//Otherwise, use backslash to quote every character
+	ret.reserve(2*aString.size());
+	for(iter c=aString.begin();c != aString.end(); ++c)
+	{
+		if(*c == ','  || *c == '\'' ||
+			 *c == ' '  || *c == '%' ||
+			 *c == '\\' || *c == '"')
+		{
+			ret.push_back('\\');
+		}
+		ret.push_back(*c);
+	}
+	return ret;
+}
+
 
 // virtual
 void GArffRelation::printAttrValue(ostream& stream, size_t column, double value)
@@ -643,7 +722,7 @@ void GArffRelation::printAttrValue(ostream& stream, size_t column, double value)
 		else if(val >= (int)valCount)
 			ThrowError("value out of range");
 		else if(m_attrs[column].m_values.size() > 0)
-			stream << m_attrs[column].m_values[val];
+			stream << GRelation::quote(m_attrs[column].m_values[val]);
 		else if(val < 26)
 		{
 			char tmp[2];
@@ -888,7 +967,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 		{
 			int nVal = pRelation->findEnumeratedValue(col, szVal);
 			if(nVal == UNKNOWN_DISCRETE_VALUE)
-				ThrowError("Unrecognized enumeration value for attribute ", to_str(col), " at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				ThrowError("Unrecognized enumeration value '", szVal, "' for attribute ", to_str(col), " at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 			return (double)nVal;
 		}
 	}
@@ -926,7 +1005,7 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			else if(_stricmp(szTok, "RELATION") == 0)
 			{
 				tok.skip(spaces);
-				pRelation->setName(tok.nextUntil(newline, 0));
+				pRelation->setName(tok.nextArg(tok.charSet("\t\n\r ")));
 				tok.advance(1);
 			}
 			else if(_stricmp(szTok, "DATA") == 0)
@@ -975,7 +1054,7 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 					if(col >= cols)
 						ThrowError("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 					tok.skip(spaces);
-					const char* szVal = tok.nextUntil(valEnder);
+					const char* szVal = tok.nextArg(valEnder);
 					pRow[col] = GMatrix_parseValue(pRelation, col, szVal, tok);
 					tok.skipTo(valHardEnder);
 					c = tok.peek();
@@ -1001,7 +1080,7 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			{
 				if(col >= cols)
 					ThrowError("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-				tok.nextUntil(commaNewlineTab, 0);
+				tok.nextArg(commaNewlineTab);
 				const char* szVal = tok.trim(whitespace);
 				*pRow = GMatrix_parseValue(pRelation, col, szVal, tok);
 				pRow++;

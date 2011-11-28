@@ -14,6 +14,7 @@
 
 #include <istream>
 #include <map>
+#include "GBitTable.h"
 
 namespace GClasses {
 
@@ -27,6 +28,20 @@ public:
 	bool operator() (const char* a, const char* b) const;
 };
 
+/// This is a helper-class used by GTokenizer.  Use
+/// GTokenizer::charSet to create
+class GCharSet
+{
+protected:
+	GBitTable m_bt;
+
+	GCharSet(const char* szChars);
+public:
+
+	inline bool find(char c);
+
+	friend class GTokenizer;
+};
 
 
 /// This is a simple tokenizer that reads a file, one token at-a-time.
@@ -94,14 +109,45 @@ public:
 	char* nextWhile(GCharSet& set, size_t minLen = 1);
 // "-_a-zA-Z0-9"
 
-	/// Returns the next token delimited by whitespace or a '{' character.
-	/// If the next token begins
-	/// with single or double quotes, then the token will be delimited by
-	/// the quotes instead. If a newline character or the end-of-file is
-	/// encountered before the matching quote, then an exception is thrown.
-	/// The quotation marks are not included in the token, but they are
-	/// consumed by the operation.
-	char* nextArg();
+	/// \brief Returns the next token defined by the given delimiters.
+	/// \brief Allows quoting " or ' and escapes with an escape
+	/// \brief character.
+	///
+	/// Returns the next token delimited by the given delimiters.
+	/// (The default delimiters are white-space or {).
+	///
+	/// The token may include delimiters if it is enclosed in quotes or
+	/// the delimiters are escaped.
+	///
+	/// If the next token begins with single or double quotes, then the
+	/// token will be delimited by the quotes. If a newline character or
+	/// the end-of-file is encountered before the matching quote, then
+	/// an exception is thrown.  The quotation marks are not included in
+	/// the token, but they are consumed by the operation.  The escape
+	/// character is ignored inside quotes - unlike what would happen in
+	/// C++.
+	///
+	/// If the first character of the token is not a quotation mark,
+	/// then the escape character is used.  If an escape character
+	/// preceeds any character, then it is included in the token.  The
+	/// escape character is consumed but not included in the token.
+	/// Thus, if the input is (The \\rain\\ in \"spain\") (not including
+	/// the parentheses) and the esapeChar is '\', then the token read
+	/// will be (The \rain\ in "spain").
+	///
+	/// No token may extend over multiple lines, thus the new-line
+	/// character acts as an unescapable delimiter, no matter what set
+	/// of delimiters is passed to the function..
+	///
+	///\param delimiters the set of delimiters used to separate tokens
+	///
+	///\param escapeChar the character that can be used to escape
+	///                  delimiters when quoting is not active
+	///
+	///\return a pointer to an internal character buffer containing the
+	///        null-terminated token
+	char* nextArg(GCharSet delimiters = GCharSet(" \t\n{\r"),
+								char escapeChar = '\\');
 
 	/// Reads past any characters specified in the list of delimeters.
 	/// If szDelimeters is NULL, then any characters <= ' ' are considered

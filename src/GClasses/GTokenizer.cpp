@@ -27,44 +27,37 @@ using std::string;
 namespace GClasses {
 
 
-class GCharSet
-{
-protected:
-	GBitTable m_bt;
-
-public:
-	GCharSet(const char* szChars)
+GCharSet::GCharSet(const char* szChars)
 	: m_bt(256)
+{
+	char c = '\0';
+	while(*szChars != '\0')
 	{
-		char c = '\0';
-		while(*szChars != '\0')
+		if(*szChars == '-')
 		{
-			if(*szChars == '-')
-			{
-				if(c == '\0')
-					m_bt.set((unsigned char)*szChars);
-				else
-				{
-					char d = szChars[1];
-					if(d <= c)
-						ThrowError("invalid character range");
-					for(c++; c <= d && c != 0; c++)
-						m_bt.set((unsigned char)c);
-					szChars++;
-				}
-			}
-			else
+			if(c == '\0')
 				m_bt.set((unsigned char)*szChars);
-			c = *szChars;
-			szChars++;
+			else
+			{
+				char d = szChars[1];
+				if(d <= c)
+					ThrowError("invalid character range");
+				for(c++; c <= d && c != 0; c++)
+					m_bt.set((unsigned char)c);
+				szChars++;
+			}
 		}
+		else
+			m_bt.set((unsigned char)*szChars);
+		c = *szChars;
+		szChars++;
 	}
+}
 
-	bool find(char c)
-	{
-		return m_bt.bit((unsigned char)c);
-	}
-};
+bool GCharSet::find(char c)
+{
+	return m_bt.bit((unsigned char)c);
+}
 
 
 
@@ -255,7 +248,7 @@ void GTokenizer::skipTo(GCharSet& delimeters)
 	}
 }
 
-char* GTokenizer::nextArg()
+char* GTokenizer::nextArg(GCharSet delimiters, char escapeChar)
 {
 	char c = m_pStream->peek();
 	if(c == '"')
@@ -263,7 +256,8 @@ char* GTokenizer::nextArg()
 		advance(1);
 		nextUntil(charSet("\"\n"));
 		if(peek() != '"')
-			ThrowError("Expected matching double-quotes on line ", to_str(m_line), ", col ", to_str(col()));
+			ThrowError("Expected matching double-quotes on line ", 
+								 to_str(m_line), ", col ", to_str(col()));
 		advance(1);
 		return m_pBufStart;
 	}
@@ -272,12 +266,48 @@ char* GTokenizer::nextArg()
 		advance(1);
 		nextUntil(charSet("'\n"));
 		if(peek() != '\'')
-			ThrowError("Expected a matching single-quote on line ", to_str(m_line), ", col ", to_str(col()));
+			ThrowError("Expected a matching single-quote on line ", to_str(m_line), 
+								 ", col ", to_str(col()));
 		advance(1);
 		return m_pBufStart;
 	}
-	else
-		return nextUntil(charSet(" \t\n{\r"));
+	//else
+
+	m_pBufPos = m_pBufStart;
+	bool inEscapeMode = false;
+	while(m_len > 0)
+	{
+		char c = m_pStream->peek();
+		if(inEscapeMode)
+		{
+			if(c == '\n')
+			{
+				ThrowError("Error: '", to_str(escapeChar), "' character used as "
+									 "last character on a line to attempt to extend string over "
+									 "two lines on line" , to_str(m_line), ", col ", 
+									 to_str(col()) );
+			}
+			c = get();
+			bufferChar(c);
+			inEscapeMode = false;			
+		}
+		else
+		{
+			if(c == '\n' || delimiters.find(c)){ break; }
+			c = get();
+			if(c == escapeChar)	{	inEscapeMode = true;	}
+			else { bufferChar(c);	}
+		}
+	}
+
+	if(m_pBufPos == m_pBufEnd)
+	{
+		growBuf();
+	}
+	*m_pBufPos = '\0';
+
+	//	std::cerr << "nextArg: '" << m_pBufStart << "'\n"; //DEBUG
+	return m_pBufStart;
 }
 
 void GTokenizer::advance(size_t n)

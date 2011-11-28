@@ -71,6 +71,7 @@ using std::vector;
 typedef void (*TestFunc)();
 
 
+
 int sysExec(const char* szAppName, const char* szArgs, GPipe* pStdOut = NULL, GPipe* pStdErr = NULL, GPipe* pStdIn = NULL)
 {
 	string s = szAppName;
@@ -217,6 +218,63 @@ void test_recommend_fillmissingvalues()
 		ThrowError("failed");
 	if(M[6][3] != 1)
 		ThrowError("failed");
+}
+
+void test_parsearff_quoting(){
+  const char* inputArff=
+    "@relation 'squares of numbers'\n"
+    "\n"
+    "@attribute 'the number' real\n"
+    "\n"
+    "@attribute 'the square of the number' real\n"
+    "\n"
+    "@attribute exact {'is exact', inexact,is\\\\\\ exact}\n"
+    "\n"
+    "@data\n"
+    "1,1,'is exact'\n"
+    "2,4,is\\ exact\n"
+    "1.414,2,inexact\n"
+    "3,9,\"is exact\"\n"
+    "4,16,\"is\\ exact\"\n"
+    ;
+    
+  GMatrix* pOutput = GMatrix::parseArff(inputArff, strlen(inputArff));
+  Holder<GMatrix> hOutput(pOutput);
+  GMatrix& M = *pOutput;
+  double expected_data[5][3]={{1,1,0},{2,4,0},{1.414,2,1},{3,9,0},{4,16,2}};
+  GArffRelation* pRel = (GArffRelation*)M.relation().get();
+  GArffRelation& R = *pRel;
+  
+  AssertEqual(R.size(), (std::size_t)3, "Incorrect number of attributes");
+  for(unsigned row = 0; row < 5; ++row){
+    for(unsigned col = 0; col < 3; ++col){
+      std::stringstream errdescr;
+      errdescr << "Incorrect matrix entry [" << row << "][" << col << "]";
+      AssertEqual(M[row][col], expected_data[row][col], errdescr.str());
+    }
+  }
+  AssertEqual("squares of numbers", R.name(), "Incorrect relation name");
+  AssertEqual(true, R.areContinuous(0,2), 
+	      "First or second attribute is not continuous");
+  AssertEqual(true, R.areNominal(2,1), "Third attribute is not nominal");
+
+   std::stringstream val0, val1, val2;
+   R.printAttrValue(val0, 2, 0);
+   R.printAttrValue(val1, 2, 1);
+   R.printAttrValue(val2, 2, 2);
+   AssertEqual("'is exact'",val0.str(),
+	       "First value of third attribute incorrect name");
+   AssertEqual("inexact",val1.str(),
+	       "Second value of third attribute incorrect name");
+   AssertEqual("'is\\ exact'",val2.str(),
+	       "Third value of third attribute incorrect name");
+  
+
+  AssertEqual("the number",R.attrName(0),"First attribute incorrect name");
+  AssertEqual("the square of the number",R.attrName(1),
+	      "Second attribute incorrect name");
+  AssertEqual("exact",R.attrName(2),"Third attribute incorrect name");
+  
 }
 
 void test_document_classification()
@@ -401,6 +459,7 @@ void RunAllTests()
 	runTest("GMath", GMath::test);
 	runTest("GManifold", GManifold::test);
 	runTest("GMatrix", GMatrix::test);
+	runTest("GMatrix::parseArff quoting", test_parsearff_quoting);
 	runTest("GMatrixFactorization", GMatrixFactorization::test);
 	runTest("GMeanMarginsTree", GMeanMarginsTree::test);
 	runTest("GMixtureOfGaussians", GMixtureOfGaussians::test);
@@ -415,6 +474,7 @@ void RunAllTests()
 	runTest("GProbeSearch", GProbeSearch::test);
 	runTest("GRand", GRand::test);
 	runTest("GRandomForest", GRandomForest::test);
+	runTest("GRelation", GRelation::test);
 	runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 	runTest("GShortcutPruner", GShortcutPruner::test);
 	runTest("GSocket", GSocketClient::test);

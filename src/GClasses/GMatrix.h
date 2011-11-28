@@ -120,6 +120,17 @@ public:
 
 	/// Saves to a file
 	void save(GMatrix* pData, const char* szFilename, size_t precision);
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests for this class. Throws an exception if there is a failure.
+	static void test();
+#endif // !NO_TEST_CODE
+
+ protected:
+	/// Returns a copy of aString modified to escape internal instances
+	/// of comma, apostrophe, space, percent, back-slash, and
+	/// double-quote
+	static std::string quote(const std::string aString);
 };
 
 typedef smart_ptr<GRelation> sp_relation;

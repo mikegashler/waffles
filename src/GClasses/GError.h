@@ -18,6 +18,7 @@
 #endif
 #include <string>
 #include <sstream>
+#include <iostream>
 
 #ifdef WINDOWS
 // Throw out the min and max macros supplied by Microsoft that collide with std::min and std::max
@@ -88,7 +89,55 @@ int _strnicmp(const char* szA, const char* szB, int len);
 long filelength(int filedes);
 #endif
 
+///\brief Assertion that \a expected and \a got are equal for test code
+///
+///If expected==got then does nothing.  Otherwise prints to stderr:
+///
+///<pre>
+///Test for equality failed: ---------test_descr goes here ---------------
+///
+///Expected: ------------expected goes here---------------
+///Got     : ------------got goes here     ---------------
+///</pre>
+///
+///Then it throws an exception using ThrowError
+///
+///Calls operator==(const T1&,const T2&) to determine equality.
+///
+///Calls GClasses::to_str to form the string representation of \a expected
+///and \a got
+///
+///\param expected The value expected from specifications
+///
+///\param got      The value actually produced by the code
+///
+///\param test_descr A short test description to allow a human to
+///                  easily find the failing test in the code and
+///                  understand why it was written and have some help
+///                  in diagnosing the bug.
+template<class T1, class T2>
+void AssertEqual(const T1& expected, const T2& got, std::string test_descr){
+	using std::endl;
+	if(!(expected == got)){
+		std::cerr
+			<< endl
+			<< "Test for equality failed: " << test_descr << endl
+			<< endl
+			<< "Expected: " << GClasses::to_str(expected) << endl
+			<< "Got     : " << GClasses::to_str(got) << endl
+			;
+		ThrowError("Test for equality failed: ", test_descr);
+	}
+}
 
+///"Specialization" of AssertEqual for c-strings done using overloading
+void AssertEqual(char const* expected, char const* got, std::string desc);
+
+///"Specialization" of AssertEqual for c-strings done using overloading
+void AssertEqual(char const* expected, char* got, std::string desc);
+
+///"Specialization" of AssertEqual for c-strings done using overloading
+void AssertEqual(char* expected, char* got, std::string desc);
 
 } // namespace GClasses
 
