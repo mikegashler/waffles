@@ -1338,6 +1338,58 @@ void significance(GArgReader& args)
 	}
 }
 
+void aggregateCols(GArgReader& args)
+{
+	size_t c = args.pop_uint();
+	vector<string> files;
+	GFile::fileList(files);
+	GMatrix* pResults = NULL;
+	Holder<GMatrix> hResults;
+	size_t i = 0;
+	for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
+	{
+		PathData pd;
+		GFile::parsePath(it->c_str(), &pd);
+		if(strcmp(it->c_str() + pd.extStart, ".arff") != 0)
+			continue;
+		GMatrix* pData = loadData(it->c_str());
+		Holder<GMatrix> hData(pData);
+		if(!pResults)
+		{
+			pResults = new GMatrix(pData->rows(), files.size());
+			hResults.reset(pResults);
+		}
+		pResults->copyColumns(i, pData, c, 1);
+		i++;
+	}
+	pResults->print(cout);
+}
+
+void aggregateRows(GArgReader& args)
+{
+	size_t r = args.pop_uint();
+	vector<string> files;
+	GFile::fileList(files);
+	GMatrix* pResults = NULL;
+	Holder<GMatrix> hResults;
+	for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
+	{
+		PathData pd;
+		GFile::parsePath(it->c_str(), &pd);
+		if(strcmp(it->c_str() + pd.extStart, ".arff") != 0)
+			continue;
+		GMatrix* pData = loadData(it->c_str());
+		Holder<GMatrix> hData(pData);
+		if(!pResults)
+		{
+			pResults = new GMatrix(pData->relation());
+			hResults.reset(pResults);
+		}
+		pResults->takeRow(pData->releaseRow(r));
+	}
+	pResults->print(cout);
+}
+
 void split(GArgReader& args)
 {
 	// Load
@@ -1762,6 +1814,8 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("add")) addMatrices(args);
 		else if(args.if_pop("addindexcolumn")) AddIndexAttribute(args);
 		else if(args.if_pop("addnoise")) addNoise(args);
+		else if(args.if_pop("aggregatecols")) aggregateCols(args);
+		else if(args.if_pop("aggregaterows")) aggregateRows(args);
 		else if(args.if_pop("align")) align(args);
 		else if(args.if_pop("autocorrelation")) autoCorrelation(args);
 		else if(args.if_pop("nominaltocat")) nominalToCat(args);

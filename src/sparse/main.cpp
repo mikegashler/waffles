@@ -590,12 +590,11 @@ void docsToSparseMatrix(GArgReader& args)
 		if(chdir(szFolder) != 0)
 			ThrowError("Failed to change directory to: ", szFolder, ", from: ", cwd);
 		{
-			GDirList dl(false/*recurseSubDirs*/, true/*reportFiles*/, false/*reportDirs*/, false/*reportPaths*/);
-			while(true)
+			vector<string> files;
+			GFile::fileList(files);
+			for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 			{
-				const char* filename = dl.GetNext();
-				if(!filename)
-					break;
+				const char* filename = it->c_str();
 				PathData pd;
 				GFile::parsePath(filename, &pd);
 				if(_stricmp(filename + pd.extStart, ".txt") == 0)
@@ -634,12 +633,11 @@ void docsToSparseMatrix(GArgReader& args)
 		if(chdir(szFolder) != 0)
 			ThrowError("Failed to change directory to: ", szFolder, ", from: ", cwd);
 		{
-			GDirList dl(false/*recurseSubDirs*/, true/*reportFiles*/, false/*reportDirs*/, false/*reportPaths*/);
-			while(true)
+			vector<string> files;
+			GFile::fileList(files);
+			for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 			{
-				const char* filename = dl.GetNext();
-				if(!filename)
-					break;
+				const char* filename = it->c_str();
 				PathData pd;
 				GFile::parsePath(filename, &pd);
 				if(_stricmp(filename + pd.extStart, ".txt") == 0)

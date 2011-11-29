@@ -9,6 +9,8 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
+
+/*
 #ifdef WINDOWS
 
 
@@ -404,8 +406,31 @@ const char* GDirList::GetNext()
 
 
 #endif // !WIN32
+*/
+
+
+#include "GDirList.h"
+#include "GError.h"
+#include "GFile.h"
+#include "GBlob.h"
+#include "GHolders.h"
+#include <string.h>
+
+using std::string;
 
 namespace GClasses {
+
+GDirList::GDirList()
+{
+	char buf[300];
+	if(!getcwd(buf, 300))
+		ThrowError("getcwd failed");
+	GFile::folderList(m_folders, buf, true);
+	GFile::fileList(m_files, buf);
+}
+
+
+
 
 #define BUF_SIZE 2048
 #define COMPRESS_BUF_SIZE 65536
@@ -647,45 +672,36 @@ void GFolderSerializer::startDir(const char* szDirName)
 	// Create the GDirList
 	if(chdir(szDirName) != 0)
 		ThrowError("Failed to change dir to ", szDirName);
-	m_dirStack.push(new GDirList(false, false, true, false));
+	m_dirStack.push(new GDirList());
 	m_state = 3; // continue reading dir
 }
 
 void GFolderSerializer::continueDir()
 {
 	GDirList* pDL = m_dirStack.top();
-	if(pDL->reportDirs())
+	if(pDL->m_folders.size() > 0)
 	{
-		const char* szDirName = pDL->GetNext();
-		if(szDirName)
-			startDir(szDirName);
-		else
-		{
-			delete(pDL);
-			m_dirStack.pop();
-			m_dirStack.push(new GDirList(false, true, false, false));
-			continueDir();
-		}
+		startDir(pDL->m_folders.back().c_str());
+		pDL->m_folders.pop_back();
+	}
+	else if(pDL->m_files.size() > 0)
+	{
+		startFile(pDL->m_files.back().c_str());
+		pDL->m_files.pop_back();
 	}
 	else
 	{
-		const char* szFilename = pDL->GetNext();
-		if(szFilename)
-			startFile(szFilename);
-		else
-		{
-			// End of dir indicator
-			*m_pPos = 'e';
-			m_pPos++;
-			m_size--;
+		// End of dir indicator
+		*m_pPos = 'e';
+		m_pPos++;
+		m_size--;
 
-			// Move out of the dir
-			delete(pDL);
-			m_dirStack.pop();
-			if(chdir("..") != 0)
-				ThrowError("Failed to chdir to ..");
-			m_state = 1;
-		}
+		// Move out of the dir
+		delete(pDL);
+		m_dirStack.pop();
+		if(chdir("..") != 0)
+			ThrowError("Failed to chdir to ..");
+		m_state = 1;
 	}
 }
 

@@ -1276,6 +1276,12 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-excludelast [n]=1", "Do not add noise to the last [n] columns.");
 	}
 	{
+		pRoot->add("aggregatecols [n]=0", "Make a matrix by aggregating each column [n] from the .arff files in the current directory. The resulting matrix is printed to stdout.");
+	}
+	{
+		pRoot->add("aggregaterows [n]=0", "Make a matrix by aggregating each row [n] from the .arff files in the current directory. The resulting matrix is printed to stdout.");
+	}
+	{
 		UsageNode* pAlign = pRoot->add("align [a] [b]", "Translates and rotates dataset [b] to minimize mean squared difference with dataset [a]. (Uses the Kabsch algorithm.)");
 		pAlign->add("[a]=base.arff", "The filename of a dataset.");
 		pAlign->add("[b]=alignme.arff", "The filename of a dataset.");

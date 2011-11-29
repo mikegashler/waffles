@@ -45,7 +45,7 @@ using std::cerr;
 using std::vector;
 using std::string;
 using std::set;
-
+/*
 const char* gsocket_GetLastError()
 {
 	const char* szMsg = NULL;
@@ -296,7 +296,8 @@ unsigned int ListenThread(void* pData)
 	return 0;
 }
 
-/*virtual*/ void GSocketClientBase::onCloseConnection()
+// virtual
+void GSocketClientBase::onCloseConnection()
 {
 }
 
@@ -399,42 +400,42 @@ int GSocketClientBase::parseUrlParams(const char* szParams, int nMaxParams, char
 		nParams++;
 	}
 }
-/*
-in_addr GSocketClientBase::StringToAddr(const char* szURL)
-{
-	// Extract the host and port from the URL
-	GTEMPBUF(szHost, strlen(szURL));
-	ParseURL(szURL, NULL, szHost, NULL, NULL, NULL);
 
-	// Determine if it is a friendly-URL or an IP address
-	if(IsThisAnIPAddress(szHost))
-	{
-		in_addr iaTmp;
-#ifdef WINDOWS
-		iaTmp.S_un.S_addr = inet_addr(szHost);
-#else
-		iaTmp.s_addr = inet_addr(szHost);
-#endif
-		return iaTmp;
-	}
-	else
-	{
-		struct hostent* psh = gethostbyname(szHost);
-		if(!psh)
-		{
-			gsocket_LogError();
-			in_addr iaTmp;
-#ifdef WINDOWS
-			iaTmp.S_un.S_addr = NULL;
-#else
-            iaTmp.s_addr = 0;
-#endif
-			return iaTmp;
-		}
-		return *(in_addr*)psh->h_addr_list[0];
-	}
-}
-*/
+// in_addr GSocketClientBase::StringToAddr(const char* szURL)
+// {
+// 	// Extract the host and port from the URL
+// 	GTEMPBUF(szHost, strlen(szURL));
+// 	ParseURL(szURL, NULL, szHost, NULL, NULL, NULL);
+// 
+// 	// Determine if it is a friendly-URL or an IP address
+// 	if(IsThisAnIPAddress(szHost))
+// 	{
+// 		in_addr iaTmp;
+// #ifdef WINDOWS
+// 		iaTmp.S_un.S_addr = inet_addr(szHost);
+// #else
+// 		iaTmp.s_addr = inet_addr(szHost);
+// #endif
+// 		return iaTmp;
+// 	}
+// 	else
+// 	{
+// 		struct hostent* psh = gethostbyname(szHost);
+// 		if(!psh)
+// 		{
+// 			gsocket_LogError();
+// 			in_addr iaTmp;
+// #ifdef WINDOWS
+// 			iaTmp.S_un.S_addr = NULL;
+// #else
+//             iaTmp.s_addr = 0;
+// #endif
+// 			return iaTmp;
+// 		}
+// 		return *(in_addr*)psh->h_addr_list[0];
+// 	}
+// }
+
 
 bool GSocketClientBase::Connect(const char* szHost, unsigned short nPort, int nTimeout)
 {
@@ -462,15 +463,15 @@ bool GSocketClientBase::Connect(const char* szHost, unsigned short nPort, int nT
 			continue;
 
 
-/*
-		if(connect(m_s, res->ai_addr, (int)res->ai_addrlen) < 0)
-		{
-			CloseSocket(m_s);
-			m_s = INVALID_SOCKET;
-			continue;
-		}
-		break;  // we got a connection
-*/
+
+// 		if(connect(m_s, res->ai_addr, (int)res->ai_addrlen) < 0)
+// 		{
+// 			CloseSocket(m_s);
+// 			m_s = INVALID_SOCKET;
+// 			continue;
+// 		}
+// 		break;  // we got a connection
+
 
 
 
@@ -1117,24 +1118,24 @@ void GSocketServerBase::onAcceptConnection(int nConnection)
 bool GSocketServerBase::IsConnected(int nConnectionNumber)
 {
 	ThrowError("Not implemented yet");
-	/*
-	if(nConnectionNumber == 0)
-	{
-		if(m_hWorkerThread == BAD_HANDLE)
-			return false;
-		else
-			return true;
-	}
-	else
-	{
-		if(m_pHostListenThreads->GetSize() < nConnectionNumber)
-			return false;
-		if(m_pHostListenThreads->GetHandle(nConnectionNumber - 1) == BAD_HANDLE)
-			return false;
-		else
-			return true;
-	}
-	*/
+	
+// 	if(nConnectionNumber == 0)
+// 	{
+// 		if(m_hWorkerThread == BAD_HANDLE)
+// 			return false;
+// 		else
+// 			return true;
+// 	}
+// 	else
+// 	{
+// 		if(m_pHostListenThreads->GetSize() < nConnectionNumber)
+// 			return false;
+// 		if(m_pHostListenThreads->GetHandle(nConnectionNumber - 1) == BAD_HANDLE)
+// 			return false;
+// 		else
+// 			return true;
+// 	}
+
 	return false;
 }
 
@@ -1783,7 +1784,7 @@ void GSocketClient::test()
 
 
 
-
+*/
 
 
 
@@ -1966,7 +1967,7 @@ void GTCPClient::connect(const char* addr, unsigned short port, int timeoutSecs)
 			continue;
 		struct timeval timeout;
 		fd_set socketSet;
-		SetSocketToNonBlockingMode(m_sock);
+		GSocket_setSocketMode(m_sock, false);
 
 		// Trying to connect with timeout
 		if(::connect(m_sock, res->ai_addr, (int)res->ai_addrlen) < 0)
@@ -2005,7 +2006,7 @@ void GTCPClient::connect(const char* addr, unsigned short port, int timeoutSecs)
 					}
 
 					// Got a connection!
-					SetSocketToBlockingMode(m_sock);
+					GSocket_setSocketMode(m_sock, true);
 					break;
 				}
 				else
@@ -2430,11 +2431,7 @@ char* GPackageServer::receive(size_t* pOutLen, GTCPConnection** pOutConn)
 #ifndef NO_TEST_CODE
 #define TEST_PORT 7251
 #define CLIENT_COUNT 5
-#ifdef WINDOWS
-#	define TEST_LEN 100 // Windows uses smaller buffers, and this test deadlocks when they get full
-#else
-#	define TEST_LEN 2000
-#endif
+#define TEST_LEN 100
 #define MAX_PACKET_LEN 2345
 void GPackageServer::test()
 {

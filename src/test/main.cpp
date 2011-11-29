@@ -478,7 +478,7 @@ void RunAllTests()
 	runTest("GRelation", GRelation::test);
 	runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 	runTest("GShortcutPruner", GShortcutPruner::test);
-	runTest("GSocket", GSocketClient::test);
+//	runTest("GSocket", GSocketClient::test);
 	runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);
 	runTest("GSparseMatrix", GSparseMatrix::test);
 	runTest("GSpinLock", GSpinLock::test);

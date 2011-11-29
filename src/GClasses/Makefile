@@ -73,7 +73,6 @@ CPP_FILES = \
 	GKNN.cpp\
 	GLearner.cpp\
 	GLinear.cpp\
-	GLoadBalance.cpp\
 	GManifold.cpp\
 	GMath.cpp\
 	GMatrix.cpp\

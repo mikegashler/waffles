@@ -1249,24 +1249,26 @@ void GNonlinearPCA::train(GMatrix& data)
 	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
 
 	// Train
-	for(size_t pass = m_useThreePass ? 0 : 2; pass < 3; pass++)
+	size_t startPass = 0;
+	if(!m_useThreePass)
+		startPass = 2;
+	else if(m_pModel->layerCount() == 1)
+		startPass = 2;
+	for(size_t pass = startPass; pass < 3; pass++)
 	{
-		GNeuralNet* pNN = m_pModel;
-		if(pass == 0 || !m_useThreePass)
+		GNeuralNet* pNN = (pass == 0 ? &nn : m_pModel);
+		if(pass == startPass)
 		{
-/*
+
 			// Use matrix factorization to compute pref vectors
-			GMatrixFactorization mf(m_intrinsicDims - (m_useInputBias ? 1 : 0), *m_pRand);
+			GMatrixFactorization mf(m_intrinsicDims - (m_useInputBias ? 1 : 0), m_rand);
 			if(!m_useInputBias)
 				mf.noInputBias();
 			mf.train(*pClone);
 			delete(m_pUsers);
 			m_pUsers = mf.getP()->clone();
 			continue;
-*/
-			if(m_useThreePass && m_pModel->layerCount() != 1)
-				pNN = &nn;
-
+/*
 			// Initialize the user matrix
 			delete(m_pUsers);
 			m_pUsers = new GMatrix(users, m_intrinsicDims);
@@ -1276,8 +1278,9 @@ void GNonlinearPCA::train(GMatrix& data)
 				for(size_t j = 0; j < m_intrinsicDims; j++)
 					*(pVec++) = 0.01 * m_rand.normal();
 			}
+*/
 		}
-		double regularizer = 0.01;
+		double regularizer = 0.001;
 		double rateBegin = 0.01;
 		double rateEnd = 0.0001;
 		double prevErr = 1e308;
@@ -1323,8 +1326,6 @@ void GNonlinearPCA::train(GMatrix& data)
 				learningRate *= 0.5; // decay the learning rate
 			prevErr = rmse;
 		}
-		if(pass == 0 && pNN == m_pModel)
-			break;
 	}
 }
 

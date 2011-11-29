@@ -11,7 +11,7 @@
 
 #ifndef __GDIRLIST_H__
 #define __GDIRLIST_H__
-
+/*
 #ifdef WINDOWS
 
 
@@ -116,9 +116,28 @@ public:
 } // namespace GClasses
 
 #endif // !WIN32
+*/
 
+#include <fstream>
+#include <stack>
+#include <vector>
 
 namespace GClasses {
+
+class GBlobQueue;
+
+/// This class contains a list of files and a list of folders.
+/// The constructor populates these lists with the names of files and folders in
+/// the current working directory
+class GDirList
+{
+public:
+	GDirList();
+	~GDirList() {}
+
+	std::vector<std::string> m_folders;
+	std::vector<std::string> m_files;
+};
 
 /// This turns a file or a folder (and its contents recursively) into a stream of bytes
 class GFolderSerializer

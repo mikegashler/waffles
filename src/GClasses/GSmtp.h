@@ -5,8 +5,7 @@
 
 namespace GClasses {
 
-class GQueue;
-class GSocketClient;
+class GTCPClient;
 
 /// For sending email to an SMTP server
 class GSmtp
@@ -29,7 +28,7 @@ protected:
 	const char* m_szSubject;
 	const char* m_szMessage;
 	const char* m_szSMPTServer;
-	GSocketClient* m_pSocket;
+	GTCPClient* m_pSocket;
 	std::ostringstream m_receiveBuffer;
 
 	GSmtp(const char* szTo, const char* szFrom, const char* szSubject, const char* szMessage, const char* szSMPTServer);

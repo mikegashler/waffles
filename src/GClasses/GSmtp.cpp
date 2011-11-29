@@ -22,31 +22,28 @@ GSmtp::GSmtp(const char* szTo, const char* szFrom, const char* szSubject, const 
 
 GSmtp::~GSmtp()
 {
-	delete m_pSocket;
+	delete(m_pSocket);
 }
 
 void GSmtp::send()
 {
-	m_pSocket = new GSocketClient(false, 0);
-	if(!m_pSocket->Connect(m_szSMPTServer, 25))
-		ThrowError("Failed to connect to ", m_szSMPTServer, " on port ", to_str(25));
-	size_t nMessageSize;
-	unsigned char* pMessage;
+	m_pSocket = new GTCPClient();
+	m_pSocket->connect(m_szSMPTServer, 25);
 	time_t tStart, t;
 	time(&tStart);
+	char buf[1024];
 	while(true)
 	{
-		while(m_pSocket->GetMessageCount() > 0)
-		{
-			pMessage = m_pSocket->GetNextMessage(&nMessageSize);
-			receive((const char*)pMessage, nMessageSize);
-		}
-		if(m_eState == SS_Close)
-			break;
 		time(&t);
 		if(t - tStart > 30)
 			ThrowError("Timed out");
-		GThread::sleep(100);
+		size_t len = m_pSocket->receive(buf, 1024);
+		if(len > 0)
+			receive(buf, len);
+		else
+			GThread::sleep(100);
+		if(m_eState == SS_Close)
+			break;
 	}
 }
 
@@ -88,66 +85,64 @@ void GSmtp::receiveLine(const char* szLine)
 	if (m_eState == SS_Init && szLine[0] == '2')
 	{
 		strcpy(szBuff, "HELO there\r\n");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
         	m_eState = SS_Mail;
 	}
 	else if (m_eState == SS_Mail && szLine[0] == '2')
 	{
 		strcpy(szBuff, "MAIL FROM:");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, m_szFrom);
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, "\r\n");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
         	m_eState = SS_Rcpt;
 	}
 	else if (m_eState == SS_Rcpt && szLine[0] == '2')
 	{
 		strcpy(szBuff, "RCPT TO:");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, m_szTo);
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, "\r\n");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		m_eState = SS_Data;
 	}
 	else if (m_eState == SS_Data && szLine[0] == '2')
 	{
 		strcpy(szBuff, "DATA\r\n");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		m_eState = SS_Body;
 	}
 	else if (m_eState == SS_Body && szLine[0] == '3')
 	{
 		strcpy(szBuff, "From: ");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, m_szFrom);
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, "\nTo: ");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, m_szTo);
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, "\nSubject: ");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, m_szSubject);
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		strcpy(szBuff, "\n\n");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
-		m_pSocket->Send((unsigned char*)m_szMessage, (int)strlen(m_szMessage));
+		m_pSocket->send(szBuff, strlen(szBuff));
+		m_pSocket->send(m_szMessage, strlen(m_szMessage));
 		strcpy(szBuff, "\n.\n");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		m_eState = SS_Quit;
 	}
 	else if (m_eState == SS_Quit && szLine[0] == '2')
 	{
 		strcpy(szBuff, "QUIT\r\n");
-		m_pSocket->Send((unsigned char*)szBuff, (int)strlen(szBuff));
+		m_pSocket->send(szBuff, strlen(szBuff));
 		m_eState = SS_Close;
 	}
 	else
-	{
-		ThrowError("Something's broken.  The SMTP server said: ", szLine);
-	}
+		ThrowError("Something is broken. The SMTP server said: ", szLine);
 }
 
 } // namespace GClasses

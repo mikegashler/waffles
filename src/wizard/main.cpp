@@ -843,12 +843,11 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 			first = false;
 		}
 		{
-			GDirList dl(false, false, true, false);
-			while(true)
+			vector<string> folders;
+			GFile::folderList(folders);
+			for(vector<string>::iterator it = folders.begin(); it != folders.end(); it++)
 			{
-				const char* szDirName = dl.GetNext();
-				if(!szDirName)
-					break;
+				const char* szDirName = it->c_str();
 				if(first)
 					first = false;
 				else
@@ -857,12 +856,11 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 			}
 		}
 		{
-			GDirList dl(false, true, false, false);
-			while(true)
+			vector<string> files;
+			GFile::fileList(files);
+			for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 			{
-				const char* szFilename = dl.GetNext();
-				if(!szFilename)
-					break;
+				const char* szFilename = it->c_str();
 				if(first)
 					first = false;
 				else
@@ -1106,12 +1104,11 @@ public:
 
 		// Complete with matching dir names
 		{
-			GDirList dl(false, false, true, false);
-			while(true)
+			vector<string> folders;
+			GFile::folderList(folders);
+			for(vector<string>::iterator it = folders.begin(); it != folders.end(); it++)
 			{
-				const char* fn = dl.GetNext();
-				if(!fn)
-					break;
+				const char* fn = it->c_str();
 				if(doesMatch(fn, tok))
 				{
 					// Do two completions (".", and "_") to trick BASH into not inserting a space. If
@@ -1125,12 +1122,11 @@ public:
 
 		// Complete with matching filenames
 		{
-			GDirList dl(false, true, false, false);
-			while(true)
+			vector<string> files;
+			GFile::fileList(files);
+			for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 			{
-				const char* fn = dl.GetNext();
-				if(!fn)
-					break;
+				const char* fn = it->c_str();
 				if(doesMatch(fn, tok))
 					cout << folder << fn << "\n";
 			}

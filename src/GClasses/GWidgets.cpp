@@ -2291,25 +2291,15 @@ void GWidgetFileSystemBrowser::dirFoldersAndFiles(string* pOutDir, vector<string
 							2)
 #endif
 		pOutFolders->push_back("..");
-	{
-		GDirList dl(false, false, true, false);
-		while(true)
-		{
-			const char* szDir = dl.GetNext();
-			if(!szDir)
-				break;
-			pOutFolders->push_back(szDir);
-		}
-	}
-
+	GFile::folderList(*pOutFolders);
+	
 	// Get the files
 	{
-		GDirList dl(false, true, false, false);
-		while(true)
+		vector<string> files;
+		GFile::fileList(files);
+		for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 		{
-			const char* szFilename = dl.GetNext();
-			if(!szFilename)
-				break;
+			const char* szFilename = it->c_str();
 			if(m_szExtensions)
 			{
 				PathData pd;

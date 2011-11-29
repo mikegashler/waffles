@@ -52,7 +52,7 @@ namespace GClasses {
 
 class GSpinLock;
 class GSocketServerBuffer;
-
+/*
 
 
 class GSocketClientBase
@@ -312,7 +312,7 @@ protected:
 	virtual bool Receive(unsigned char *pBuf, size_t len);
 	void QueueMessage(unsigned char* pBuf, size_t nLen);
 };
-
+*/
 
 /// This class is an abstraction of a TCP client socket connection
 class GTCPClient
@@ -336,7 +336,8 @@ public:
 	/// still open.
 	size_t receive(char* buf, size_t len);
 
-	/// Connect to a server. Throws an exception if it fails to connect.
+	/// Connect to a server. Throws an exception if it fails to connect within the
+	/// specified timout period.
 	void connect(const char* addr, unsigned short port, int timeoutSecs = 20);
 
 	/// Returns true iff the socket is connected
