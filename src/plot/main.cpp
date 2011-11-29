@@ -1471,7 +1471,10 @@ void PrintStats(GArgReader& args)
 				cout << "\n";
 				for(size_t j = 0; j < pRel->valueCount(i); j++)
 				{
-					cout << "     " << ((double)pData->countValue(i, (double)j) * 100.0 / (double)pData->rows()) << "% ";
+					size_t occurrences = pData->countValue(i, (double)j);
+					cout << "     " 
+							 << ((double)occurrences * 100.0 / (double)pData->rows()) 
+							 << "% (" << occurrences << ") ";
 					pRel->printAttrValue(cout, i, (double)j);
 					cout << "\n";
 				}
