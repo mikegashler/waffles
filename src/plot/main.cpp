@@ -806,8 +806,8 @@ void semanticMap(GArgReader& args){
   for(size_t node = 0; node < som.nodes().size(); ++node){
     vector<double> loc = som.nodes()[node].outputLocation;
     double label = labels.at(node);
-    unsigned red = std::floor(0.5+(255*(label-minLabel)/(labelRange)));
-    unsigned blue = std::floor(0.5+255-(255*(label-minLabel)/(labelRange)));
+    unsigned red = (unsigned int)std::floor(0.5+(255*(label-minLabel)/(labelRange)));
+    unsigned blue = (unsigned int)std::floor(0.5+255-(255*(label-minLabel)/(labelRange)));
     if(som.outputDimensions() == 2){
       out << "<text x=\"" << (shift+scale*loc[0]) << "\" y=\"" << (shift+scale*loc[1]) << "\" ";
     }else{

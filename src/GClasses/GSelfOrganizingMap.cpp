@@ -36,8 +36,8 @@ namespace GClasses {
       //Calculate the integer versions of the axes
       std::vector<unsigned> intAxesMax(outputAxesMax.size());
       for(std::size_t dim = 0; dim < outputAxesMax.size(); ++dim){
-	int higher = outputAxesMax[dim]+1.0;
-	int lower = outputAxesMax[dim];
+	int higher = (int)(outputAxesMax[dim]+1.0);
+	int lower = (int)outputAxesMax[dim];
 	double actualVal = outputAxesMax[dim];
 	if(higher - actualVal < epsilon()){
 	  intAxesMax[dim] = higher;
@@ -49,9 +49,9 @@ namespace GClasses {
       //Calculate the number of nodes needed and reallocate
       double natsRequired = 0; //Information content in nats rather than bits
       double natsAvailable = 
-	std::log(std::numeric_limits<std::size_t>::max());
+	std::log((double)std::numeric_limits<std::size_t>::max());
       for(std::size_t dim = 0; dim < intAxesMax.size();++dim){
-	natsRequired += std::log(intAxesMax[dim]);
+	natsRequired += std::log((double)intAxesMax[dim]);
       }
       if(natsRequired > natsAvailable){
 	std::stringstream needed; needed << std::exp(natsRequired);
@@ -101,7 +101,7 @@ namespace GClasses {
       std::set<std::size_t> used;
       std::list<std::size_t> inOrder;
       while(used.size() < nodes.size()){
-	std::size_t index = pRand->next(pIn->rows());
+	std::size_t index = (size_t)pRand->next(pIn->rows());
 	if(used.count(index) == 0){
 	  used.insert(index);
 	  inOrder.push_back(index);
@@ -157,17 +157,17 @@ namespace GClasses {
     //virtual 
     void SVG2DWeightReporter::start(const GMatrix* trainingData, 
 				    int maxIterations, int maxSubIterations){
-      double log10 = std::log(10);
+      double log10 = std::log(10.0);
       double iterDigits, subIterDigits;
       if(maxIterations < 0){
 	iterDigits = 6;
       }else{ 
-	iterDigits = std::log(maxIterations)/log10;
+	iterDigits = std::log((double)maxIterations)/log10;
       }
       if(maxSubIterations < 0){
 	subIterDigits = 4;
       }else{ 
-	subIterDigits = std::log(maxSubIterations)/log10;
+	subIterDigits = std::log((double)maxSubIterations)/log10;
       }
       m_totalDigits = std::min(std::numeric_limits<unsigned>::digits10,
 				    (int)(iterDigits+subIterDigits+1));
@@ -820,7 +820,7 @@ GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc){
 }
 
 GSelfOrganizingMap::GSelfOrganizingMap(GDomNode* pNode){
-  m_nInputDims=pNode->field("inputDims")->asInt();
+  m_nInputDims=(unsigned int)pNode->field("inputDims")->asInt();
   m_outputAxes=doubleVectorDeserialize(pNode->field("outputAxes"));
   m_pTrainer=SOM::TrainingAlgorithm::deserialize(pNode->field("trainer"));
   m_pWeightDistance=GDistanceMetric::deserialize
@@ -863,7 +863,7 @@ GSelfOrganizingMap::GSelfOrganizingMap
 		new SOM::GaussianWindowFunction(), r)),
     m_pWeightDistance(new GRowDistance()),
     m_pNodeDistance(new GRowDistance()),
-    m_nodes(std::pow(nMapWidth,nMapDims)),
+    m_nodes((unsigned int)std::pow((double)nMapWidth,(double)nMapDims)),
     m_sortedNeighborsIsValid(false)
 {
   //Set the after relation based on the number of map dimensions

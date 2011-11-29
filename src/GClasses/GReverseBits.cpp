@@ -12,23 +12,29 @@
 #include "GError.h"
 #include "GReverseBits.h"
 #include <bitset>
-#include <stdint.h> //Change to cstdint when C++0x comes out
+#ifdef WINDOWS
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+#else
+#	include <stdint.h> //Change to cstdint when C++0x comes out
+#endif
 namespace GClasses{
 
   void reverseBitsTest(){
     using std::bitset;
     using std::string;
-    uint8_t a = bitset<8>(string("11100010")).to_ulong();
-    uint8_t a_rev = bitset<8>(string("01000111")).to_ulong();
+    uint8_t a = (uint8_t)bitset<8>(string("11100010")).to_ulong();
+    uint8_t a_rev = (uint8_t)bitset<8>(string("01000111")).to_ulong();
 
     if(a != reverseBits(a_rev) && a_rev != reverseBits(a)){
       ThrowError("reverseBits failed to correctly reverse an 8 bit number.");
     }
 
     uint16_t b
-      =bitset<16>(string("1011010010000001")).to_ulong();
+      = (uint16_t)bitset<16>(string("1011010010000001")).to_ulong();
     uint16_t b_rev
-      =bitset<16>(string("1000000100101101")).to_ulong();
+      = (uint16_t)bitset<16>(string("1000000100101101")).to_ulong();
 
     if(b != reverseBits(b_rev) && b_rev != reverseBits(b)){
       ThrowError("reverseBits failed to correctly reverse a 16 bit number.");

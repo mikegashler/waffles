@@ -825,7 +825,7 @@ void GHttpServer::onReceiveFullPostRequest(GHttpConnection* pConn)
 	{
 		sendResponse(pConn);
 	}
-	catch(std::exception& e)
+	catch(std::exception&)
 	{
 		// failed to send response
 	}
@@ -870,7 +870,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 				{
 					sendResponse(pConn);
 				}
-				catch(std::exception& e)
+				catch(std::exception&)
 				{
 					// failed to send response
 				}
@@ -881,7 +881,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 				{
 					sendNotModifiedResponse(pConn);
 				}
-				catch(std::exception& e)
+				catch(std::exception&)
 				{
 					// failed to send response
 				}
@@ -895,7 +895,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 			{
 				sendResponse(pConn);
 			}
-			catch(std::exception& e)
+			catch(std::exception&)
 			{
 				// failed to send response
 			}

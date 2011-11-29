@@ -1324,6 +1324,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\GReverseBits.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GReverseBits.h"
+			>
+		</File>
+		<File
 			RelativePath=".\GSDL.cpp"
 			>
 		</File>

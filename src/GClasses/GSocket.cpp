@@ -18,6 +18,7 @@
 #include "GString.h"
 #include "GBits.h"
 #include "GRand.h"
+#include "GApp.h"
 #include <wchar.h>
 #include <sstream>
 #include <iostream>
@@ -895,7 +896,7 @@ void GSocketServerBase::ServerWorker()
 		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
 #ifdef WINDOWS
-		nReadySocketCount = select((int)highSocket + 1, &m_socketSe,t NULL, NULL, &timeout);
+		nReadySocketCount = select((int)highSocket + 1, &m_socketSet, NULL, NULL, &timeout);
 #else
 		nReadySocketCount = select(highSocket + 1, &m_socketSet, NULL, NULL, &timeout);
 #endif
@@ -1829,7 +1830,7 @@ void GSocket_setSocketMode(SOCKET s, bool blocking)
 
 void GSocket_closeSocket(SOCKET s)
 {
-	shutdown(s, SHUT_RDWR);
+	shutdown(s, 2/*SHUT_RDWR*/);
 #ifdef WINDOWS
 	closesocket(s);
 #else
@@ -1850,13 +1851,77 @@ in_addr GSocket_ipAddr(SOCKET s)
 	return pInfo->sin_addr;
 }
 
+#ifdef WINDOWS
+string winstrerror(int err)
+{
+    char buf[1024];
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
+                  FORMAT_MESSAGE_MAX_WIDTH_MASK, NULL, err,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  (LPSTR)buf, 1024, NULL);
+    return string(buf);
+}
+#endif
 
+void GSocket_send(SOCKET s, const char* buf, size_t len)
+{
+	while(true)
+	{
+		ssize_t bytesSent = ::send(s, buf, len, 0);
+		if(bytesSent > 0)
+		{
+			buf += bytesSent;
+			len -= bytesSent;
+			if(len == 0)
+				return;
+		}
+		else
+		{
+#ifdef WINDOWS
+			int err = WSAGetLastError();
+			if(bytesSent == 0 || err == WSAECONNRESET || err == WSAECONNABORTED)
+				ThrowError("Connection reset");
+			else
+				ThrowError("Error sending in GTCPClient::send: ", winstrerror(err));
+#else
+			if(bytesSent == 0 || errno == ECONNRESET)
+				ThrowError("Connection reset");
+			else
+				ThrowError("Error sending in GTCPClient::send: ", strerror(errno));
+#endif
+		}
+	}
+}
+
+void GSocket_init()
+{
+#ifdef WINDOWS
+	// Initialize Winsock
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	wVersionRequested = MAKEWORD(1, 1);
+	int err = WSAStartup(wVersionRequested, &wsaData);
+	if(err != 0)
+		ThrowError("Failed to find a usable WinSock DLL");
+
+	// Confirm that the WinSock DLL supports at least 2.2.
+	if ( LOBYTE( wsaData.wVersion ) != 1 ||
+			HIBYTE( wsaData.wVersion ) != 1 )
+	{
+		int n1 = LOBYTE( wsaData.wVersion );
+		int n2 = HIBYTE( wsaData.wVersion );
+		WSACleanup();
+		ThrowError("Found a Winsock DLL, but it only supports an older version. It needs to support version 2.2");
+	}
+#endif
+}
 
 
 
 GTCPClient::GTCPClient()
 : m_sock(INVALID_SOCKET)
 {
+	GSocket_init();
 }
 
 GTCPClient::~GTCPClient()
@@ -1967,26 +2032,14 @@ void GTCPClient::connect(const char* addr, unsigned short port, int timeoutSecs)
 
 void GTCPClient::send(const char* buf, size_t len)
 {
-	while(true)
+	try
 	{
-		ssize_t bytesSent = ::send(m_sock, buf, len, 0);
-		if(bytesSent > 0)
-		{
-			buf += bytesSent;
-			len -= bytesSent;
-			if(len == 0)
-				return;
-		}
-		else
-		{
-			if(bytesSent == 0 || errno == ECONNRESET)
-			{
-				disconnect();
-				ThrowError("Connection reset");
-			}
-			else
-				ThrowError("Error sending in GTCPClient::send: ", strerror(errno));
-		}
+		GSocket_send(m_sock, buf, len);
+	}
+	catch(const std::exception& e)
+	{
+		disconnect();
+		throw e;
 	}
 }
 
@@ -2014,6 +2067,7 @@ size_t GTCPClient::receive(char* buf, size_t len)
 
 GTCPServer::GTCPServer(unsigned short port)
 {
+	GSocket_init();
 	m_sock = socket(AF_INET, SOCK_STREAM, 0); // use SOCK_DGRAM for UDP
 
 	// Tell the socket that it's okay to reuse an old crashed socket that hasn't timed out yet
@@ -2060,8 +2114,13 @@ void GTCPServer::checkForNewConnections()
 	SOCKET s = accept(m_sock, (struct sockaddr*)&sHostAddrIn, &nStructSize);
 	if(s < 0)
 	{
+#ifdef WIN32
+		if(WSAGetLastError() == WSAEWOULDBLOCK) // no connections are ready to be accepted
+			return;
+#else
 		if(errno == EAGAIN) // no connections are ready to be accepted
 			return;
+#endif
 		string s = "Received bad data while trying to accept a connection: ";
 		s += strerror(errno);
 		onReceiveBadData(s.c_str());
@@ -2101,26 +2160,14 @@ size_t GTCPServer::receive(char* buf, size_t len, GTCPConnection** pOutConn)
 
 void GTCPServer::send(const char* buf, size_t len, GTCPConnection* pConn)
 {
-	while(true)
+	try
 	{
-		ssize_t bytesSent = ::send(pConn->socket(), buf, len, 0);
-		if(bytesSent > 0)
-		{
-			buf += bytesSent;
-			len -= bytesSent;
-			if(len == 0)
-				return;
-		}
-		else
-		{
-			if(bytesSent == 0 || errno == ECONNRESET)
-			{
-				disconnect(pConn);
-				ThrowError("Connection reset");
-			}
-			else
-				ThrowError("Error sending in GTCPServer::send: ", strerror(errno));
-		}
+		GSocket_send(pConn->socket(), buf, len);
+	}
+	catch(const std::exception& e)
+	{
+		disconnect(pConn);
+		throw e;
 	}
 }
 
@@ -2383,7 +2430,11 @@ char* GPackageServer::receive(size_t* pOutLen, GTCPConnection** pOutConn)
 #ifndef NO_TEST_CODE
 #define TEST_PORT 7251
 #define CLIENT_COUNT 5
-#define TEST_LEN 2000
+#ifdef WINDOWS
+#	define TEST_LEN 100 // Windows uses smaller buffers, and this test deadlocks when they get full
+#else
+#	define TEST_LEN 2000
+#endif
 #define MAX_PACKET_LEN 2345
 void GPackageServer::test()
 {
@@ -2406,8 +2457,8 @@ void GPackageServer::test()
 			if(sends < TEST_LEN)
 			{
 				// The client sends a random packet of random size
-				size_t len = rand.next(MAX_PACKET_LEN - 5) + 5;
-				size_t seed = rand.next(1000000);
+				size_t len = (size_t)rand.next(MAX_PACKET_LEN - 5) + 5;
+				size_t seed = (size_t)rand.next(1000000);
 				rand.setSeed(seed);
 				q[turn].push(len);
 				q[turn].push(seed);

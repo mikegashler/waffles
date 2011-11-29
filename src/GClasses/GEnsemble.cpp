@@ -380,7 +380,7 @@ GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc)
 GBayesianModelCombination::GBayesianModelCombination(GDomNode* pNode, GLearnerLoader& ll)
 : GBag(pNode, ll)
 {
-	m_samples = pNode->field("samps")->asInt();
+	m_samples = (size_t)pNode->field("samps")->asInt();
 }
 
 // virtual
@@ -452,7 +452,7 @@ GAdaBoost::GAdaBoost(GDomNode* pNode, GLearnerLoader& ll)
 : GEnsemble(pNode, ll), m_pLearner(NULL), m_ownLearner(false), m_pLoader(NULL)
 {
 	m_trainSize = pNode->field("ts")->asDouble();
-	m_ensembleSize = pNode->field("es")->asInt();
+	m_ensembleSize = (size_t)pNode->field("es")->asInt();
 }
 
 // virtual
@@ -596,7 +596,7 @@ GWag::GWag(GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode, ll)
 {
 	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
-	m_models = pNode->field("models")->asInt();
+	m_models = (size_t)pNode->field("models")->asInt();
 }
 
 // virtual

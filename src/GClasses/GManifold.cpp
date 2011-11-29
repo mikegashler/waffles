@@ -2082,9 +2082,9 @@ GImageJitterer::GImageJitterer(size_t wid, size_t hgt, size_t channels, double r
 
 GImageJitterer::GImageJitterer(GDomNode* pNode)
 {
-	m_wid = pNode->field("wid")->asInt();
-	m_hgt = pNode->field("hgt")->asInt();
-	m_channels = pNode->field("chan")->asInt();
+	m_wid = size_t(pNode->field("wid")->asInt());
+	m_hgt = size_t(pNode->field("hgt")->asInt());
+	m_channels = size_t(pNode->field("chan")->asInt());
 	m_rotateRads = pNode->field("rot")->asDouble();
 	m_translatePixels = pNode->field("tp")->asDouble();
 	m_zoomFactor = pNode->field("zoom")->asDouble();
@@ -2435,7 +2435,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		size_t batches = 50;
 		if(pass == 2)
 			batches = 300;
-		size_t batchSize = 1e7;
+		size_t batchSize = 10000000;
 
 		for(size_t i = 0; i < batches; i++)
 		{
@@ -2503,7 +2503,7 @@ pNN->setErrorSingleOutput(prediction + err, c);
 	m_pRevNN = new GNeuralNet(*m_pRand);
 	if(m_pNN->layerCount() > 1)
 	{
-		size_t hiddenNodes = size_t(ceil(sqrt(in.cols() / (m_jitterDims + m_intrinsicDims))));
+		size_t hiddenNodes = (size_t)ceil(sqrt(double(in.cols() / (m_jitterDims + m_intrinsicDims))));
 		m_pRevNN->addLayer(hiddenNodes);
 	}
 	sp_relation pRelFeatures = new GUniformRelation(in.cols());
