@@ -1788,6 +1788,18 @@ void GSocketClient::test()
 
 
 
+#ifdef WINDOWS
+string winstrerror(int err)
+{
+    char buf[1024];
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
+                  FORMAT_MESSAGE_MAX_WIDTH_MASK, NULL, err,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  (LPSTR)buf, 1024, NULL);
+    return string(buf);
+}
+#endif
+
 bool GSocket_isReady(SOCKET s)
 {
 	fd_set sockSet;
@@ -1810,7 +1822,7 @@ size_t GSocket_bytesReady(SOCKET s)
 #ifdef WINDOWS
 	GWindows::yield(); // This is necessary because incoming packets go through the Windows message pump
 	if(ioctlsocket(s, FIONREAD, &bytesReadyToRead) != 0)
-		gsocket_LogError();
+		ThrowError("ioctlsocket failed: ", winstrerror(WSAGetLastError()));
 #else
 	if(ioctl(s, FIONREAD, &bytesReadyToRead) != 0)
 		ThrowError("ioctl failed: ", strerror(errno));
@@ -1851,18 +1863,6 @@ in_addr GSocket_ipAddr(SOCKET s)
 	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
 	return pInfo->sin_addr;
 }
-
-#ifdef WINDOWS
-string winstrerror(int err)
-{
-    char buf[1024];
-    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
-                  FORMAT_MESSAGE_MAX_WIDTH_MASK, NULL, err,
-                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                  (LPSTR)buf, 1024, NULL);
-    return string(buf);
-}
-#endif
 
 void GSocket_send(SOCKET s, const char* buf, size_t len)
 {

@@ -913,14 +913,6 @@
 			>
 		</File>
 		<File
-			RelativePath=".\GLoadBalance.cpp"
-			>
-		</File>
-		<File
-			RelativePath=".\GLoadBalance.h"
-			>
-		</File>
-		<File
 			RelativePath="GManifold.cpp"
 			>
 			<FileConfiguration

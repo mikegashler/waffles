@@ -415,6 +415,10 @@ const char* GDirList::GetNext()
 #include "GBlob.h"
 #include "GHolders.h"
 #include <string.h>
+#ifdef WINDOWS
+#	include <direct.h> // for "getcwd", "chdir", etc.
+#	include <io.h> // for "access"
+#endif
 
 using std::string;
 
@@ -507,7 +511,7 @@ char* GFolderSerializer::nextPiece(size_t* pOutSize)
 			}
 
 			// Add the file or folder
-			if(access(m_szPath, 0 ) != 0)
+			if(access(m_szPath, 0) != 0)
 				ThrowError("The file or folder ", m_szPath, " does not seem to exist");
 			struct stat status;
 			stat(m_szPath, &status);

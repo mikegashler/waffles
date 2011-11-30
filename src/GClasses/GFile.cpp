@@ -21,7 +21,7 @@
 #	include <shlobj.h> // to get users' application data dir
 #	include <sys/utime.h> // utime
 #	include <direct.h>
-#	include <io.h> // for "filelength"
+#	include <io.h> // for "filelength" and "access"
 #	include <process.h>
 #else
 #	include <unistd.h>
@@ -141,7 +141,7 @@ void GFile::fileList(std::vector<std::string>& list, const char* dir)
 		s += "/";
 	s += "*";
 	WIN32_FIND_DATA ent;
-	HANDLE h = FildFirstFile(s.c_str(), &ent);
+	HANDLE h = FindFirstFile(s.c_str(), &ent);
 	if(h == INVALID_HANDLE_VALUE)
 	{
 		if(GetLastError() == ERROR_FILE_NOT_FOUND)
@@ -201,7 +201,7 @@ void GFile::folderList(std::vector<std::string>& list, const char* dir, bool exc
 		s += "/";
 	s += "*";
 	WIN32_FIND_DATA ent;
-	HANDLE h = FildFirstFile(s.c_str(), &ent);
+	HANDLE h = FindFirstFile(s.c_str(), &ent);
 	if(h == INVALID_HANDLE_VALUE)
 	{
 		if(GetLastError() == ERROR_FILE_NOT_FOUND)
