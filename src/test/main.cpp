@@ -62,6 +62,7 @@
 #include "../GClasses/GDom.h"
 #include "../GClasses/GVec.h"
 #include "../GClasses/GReverseBits.h"
+
 using namespace GClasses;
 using std::cerr;
 using std::cout;
@@ -478,7 +479,6 @@ void RunAllTests()
 	runTest("GRelation", GRelation::test);
 	runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 	runTest("GShortcutPruner", GShortcutPruner::test);
-//	runTest("GSocket", GSocketClient::test);
 	runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);
 	runTest("GSparseMatrix", GSparseMatrix::test);
 	runTest("GSpinLock", GSpinLock::test);

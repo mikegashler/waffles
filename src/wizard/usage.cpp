@@ -193,10 +193,7 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pBoost = pRoot->add("boost <options> [algorithm]", "Uses AdaBoost to create an ensemble that may be more accurate than a lone instance of the specified algorithm.");
 		UsageNode* pOpts = pBoost->add("<options>");
 		pOpts->add
-		  ("-trainratio [value]=1.0", "When approximating the "
-		   "training data weights using a resampling without "
-		   "replacement, use a sample of size "
-		   "trainratio*training_set_size");
+		  ("-trainratio [value]=1.0", "When approximating the weighted training set by resampling, use a sample of size [value]*training_set_size");
 		pOpts->add
 		  ("-size [n]=30", "The number of base learners to use in "
 		   "the ensemble.");
@@ -232,7 +229,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pRoot->add("linear", "A linear regression model");
 	}
 	{
-		pRoot->add("meanmarginstree", "This is a very simple linear combination tree. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
+		pRoot->add("meanmarginstree", "This is a very simple oblique (or linear combination) tree. (This algorithm is specified in Gashler, Michael S. and Giraud-Carrier, Christophe and Martinez, Tony. Decision Tree Ensemble: Small Heterogeneous Is Better Than Large Homogeneous. In The Seventh International Conference on Machine Learning and Applications, Pages 900 - 905, ICMLA '08. 2008)");
 	}
 	{
 		UsageNode* pNB = pRoot->add("naivebayes <options>", "The naive Bayes learning algorithm.");
@@ -841,7 +838,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pDO1 = pTransAcc->add("<data_opts1>");
 		pDO1->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO1->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
-		UsageNode* pDO2 = pTransAcc->add("<data_opts1>");
+		UsageNode* pDO2 = pTransAcc->add("<data_opts2>");
 		pDO2->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO2->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
@@ -1326,6 +1323,7 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		UsageNode* pEx = pRoot->add("export [dataset] <options>", "Print the data as a list of comma separated values without any meta-data.");
+		pEx->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pOpts = pEx->add("<options>");
 		pOpts->add("-tab", "Separate with tabs instead of commas.");
 		pOpts->add("-space", "Separate with spaces instead of commas.");
@@ -1371,7 +1369,11 @@ UsageNode* makeTransformUsageTree()
 		pMH->add("[dataset1]=a.arff", "The filename of a dataset");
 		pMH->add("[dataset2]=b.arff", "The filename of a dataset");
 	}
-	pRoot->add("mergevert [dataset1] [dataset2]", "Merge two datasets vertically. Both datasets must already have the same number of columns. The resulting dataset will have all the rows of both datasets.");
+	{
+		UsageNode* pNode = pRoot->add("mergevert [dataset1] [dataset2]", "Merge two datasets vertically. Both datasets must already have the same number of columns. The resulting dataset will have all the rows of both datasets.");
+		pNode->add("[dataset1]=a.arff", "The filename of a dataset");
+		pNode->add("[dataset2]=b.arff", "The filename of a dataset");
+	}
 	{
 		UsageNode* pMult1 = pRoot->add("multiply [a] [b] <options>", "Matrix multiply [a] x [b]. Both arguments are the filenames of .arff files. Results are printed to stdout.");
 		pMult1->add("[dataset1]=a.arff", "The filename of a dataset");
@@ -1380,7 +1382,11 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-transposea", "Transpose [a] before multiplying.");
 		pOpts->add("-transposeb", "Transpose [b] before multiplying.");
 	}
-	pRoot->add("multiplyscalar [dataset1] [scalar]", "Multiply all elements in [dataset1] by the specified scalar. Results are printed to stdout.");
+	{
+		UsageNode* pNode = pRoot->add("multiplyscalar [dataset] [scalar]", "Multiply all elements in [dataset] by the specified scalar. Results are printed to stdout.");
+		pNode->add("[dataset]=in.arff", "The filename of a dataset.");
+		pNode->add("[scalar]=0.5", "A scalar to multiply each element by.");
+	}
 	{
 		UsageNode* pNorm = pRoot->add("normalize [dataset] <options>", "Normalize all continuous attributes to fall within the specified range. (Nominal columns are left unchanged.)");
 		pNorm->add("[dataset]=data.arff", "The filename of a dataset");
@@ -1457,6 +1463,8 @@ UsageNode* makeTransformUsageTree()
 			pOpts->add("-seed [value]", "Specify a seed for the random number generator.");
 			pOpts->add("-shuffle","Shuffle the input data before splitting it.");
 		}
+		pSplit->add("[filename1]=out1.arff", "The filename for one half of the data.");
+		pSplit->add("[filename2]=out2.arff", "The filename for the other half of the data.");
 	}
 	{
 		UsageNode* pSplitClass = pRoot->add("splitclass [data] [attr] <options>", "Splits a dataset by a class attribute, such that a separate file is created for each unique class label. The generated filenames will be \"[data]_[value]\", where [value] is the unique class label value.");
@@ -1498,15 +1506,23 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pTransition->add("<options>");
 		pOpts->add("-delta", "Predict the delta of the state transition instead of the new state.");
 	}
-	pRoot->add("threshold [dataset] [column] [threshold]",
+	{
+		UsageNode* pThresh = pRoot->add("threshold [dataset] [column] [threshold]",
 		   "Outputs a copy of dataset such that any value v in the "
 		   "given column becomes 0 if v <= threshold and 1 otherwise."
 		   "  Only works on continuous attributes.");
-	pRoot->add("transpose [dataset]=m.arff", "Transpose the data such that columns become rows and rows become columns.");
-	pRoot->add("zeromean [dataset]","Subtracts the mean from all values "
+		pThresh->add("[dataset]=in.arff", "The filename of a dataset.");
+		pThresh->add("[column]=0", "The zero-indexed column number to threshold.");
+		pThresh->add("[threshold]=0.5", "The threshold value.");
+	}
+	{
+		pRoot->add("transpose [dataset]=m.arff", "Transpose the data such that columns become rows and rows become columns.");
+	}
+	{
+		pRoot->add("zeromean [dataset]=m.arff","Subtracts the mean from all values "
 		   "of all continuous attributes, so that their means in the "
-		   "result are zero.  Leaves nominal attributes untouched.");
-
+		   "result are zero. Leaves nominal attributes untouched.");
+	}
 	{
 		pRoot->add("usage", "Print usage information.");
 	}

@@ -268,7 +268,7 @@ public:
 		else if(m_mode == mode_options)
 		{
 			response << "<form name=\"input\" action=\"wizard\" method=\"post\">\n";
-			response << "Check the options you want for <i>" << m_pEffectiveNode->tok() << "</i><br><br>\n\n";
+			response << "Check the options you want:<br><br>\n\n";
 			makeStandardButtons(response, pSession, true);
 			response << "<table>\n";
 			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)

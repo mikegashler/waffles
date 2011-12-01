@@ -722,7 +722,7 @@ void GSparseClusterRecommender::test()
 {
 	GRand rand(0);
 	GSparseClusterRecommender rec(6, rand);
-	rec.basicTest(1.29);
+	rec.basicTest(1.31);
 }
 #endif
 
@@ -1259,7 +1259,7 @@ void GNonlinearPCA::train(GMatrix& data)
 		GNeuralNet* pNN = (pass == 0 ? &nn : m_pModel);
 		if(pass == startPass)
 		{
-
+/*
 			// Use matrix factorization to compute pref vectors
 			GMatrixFactorization mf(m_intrinsicDims - (m_useInputBias ? 1 : 0), m_rand);
 			if(!m_useInputBias)
@@ -1268,7 +1268,8 @@ void GNonlinearPCA::train(GMatrix& data)
 			delete(m_pUsers);
 			m_pUsers = mf.getP()->clone();
 			continue;
-/*
+*/
+
 			// Initialize the user matrix
 			delete(m_pUsers);
 			m_pUsers = new GMatrix(users, m_intrinsicDims);
@@ -1278,7 +1279,7 @@ void GNonlinearPCA::train(GMatrix& data)
 				for(size_t j = 0; j < m_intrinsicDims; j++)
 					*(pVec++) = 0.01 * m_rand.normal();
 			}
-*/
+
 		}
 		double regularizer = 0.001;
 		double rateBegin = 0.01;
@@ -1309,14 +1310,11 @@ void GNonlinearPCA::train(GMatrix& data)
 				if(pass != 1)
 				{
 					// Update inputs
-					if(pass < 2)
+					if(pass == 0)
 						GVec::multiply(pPrefs, 1.0 - learningRate * regularizer, m_intrinsicDims);
 					pNN->backProp()->adjustFeaturesSingleOutput(item, pPrefs, learningRate, m_pModel->useInputBias());
-					if(pass == 2)
-					{
-						GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
-						GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
-					}
+					GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
+					GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
 				}
 			}
 
@@ -1526,7 +1524,7 @@ void GBagOfRecommenders::test()
 	rec.addRecommender(new GBaselineRecommender(rand));
 	rec.addRecommender(new GMatrixFactorization(3, rand));
 	rec.addRecommender(new GNonlinearPCA(3, rand));
-	rec.basicTest(0.56);
+	rec.basicTest(0.58);
 }
 #endif
 
