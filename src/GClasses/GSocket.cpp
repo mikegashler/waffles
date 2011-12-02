@@ -791,12 +791,13 @@ unsigned int GPackageServer_test_server(void* pThis)
 		else
 		{
 			if(GTime::seconds() - lastReceiveTime > 10)
+			{
+				cerr << "\nServer aborting after " << bounces << "/" << TEST_LEN << " successful bounces due to inactivity.\n";
 				break;
+			}
 			GThread::sleep(0);
 		}
 	}
-	if(bounces < TEST_LEN)
-		cerr << "\nServer aborting after " << bounces << "/" << TEST_LEN << " successful bounces due to inactivity.\n";
 	pStruct->running = false;
 	return 0;
 }
@@ -873,11 +874,7 @@ void GPackageServer::test()
 			else
 				GThread::sleep(0);
 		}
-		if(++iters == 1000)
-		{
-			if(sends < 40 || receives < sends / 10)
-				ThrowError("not making progress");
-		}
+		iters++;
 	}
 	if(sends != TEST_LEN || receives != TEST_LEN)
 		ThrowError("something is amiss");

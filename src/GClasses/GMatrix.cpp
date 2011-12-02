@@ -601,8 +601,9 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 	GCharSet& spaces = tok.charSet(" \t");
 	GCharSet& valEnd = tok.charSet(",}\n");
 	GCharSet& whitespace = tok.charSet("\t\n\r ");
+	GCharSet& argEnd = tok.charSet(" \t\n{\r");
 	tok.skip(spaces);
-	string name = tok.nextArg();
+	string name = tok.nextArg(argEnd);
 	//std::cerr << "Attr:" << name << "\n"; //DEBUG
 	tok.skip(spaces);
 	char c = tok.peek();

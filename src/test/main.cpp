@@ -406,16 +406,19 @@ bool runTest(const char* szTestName, TestFunc pTest)
 	try
 	{
 		pTest();
+		cout << "Passed\n";
 		bPass = true;
+	}
+	catch(const std::exception& e)
+	{
+		cout << "FAILED!!!\n";
+		cout << e.what() << "\n\n";
 	}
 	catch(...)
 	{
-	}
-	if(bPass)
-		cout << "Passed\n";
-	else
 		cout << "FAILED!!!\n";
-
+		cout << "A non-standard exception was thrown.\n\n";
+	}
 	return bPass;
 }
 

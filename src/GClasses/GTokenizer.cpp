@@ -248,7 +248,7 @@ void GTokenizer::skipTo(GCharSet& delimeters)
 	}
 }
 
-char* GTokenizer::nextArg(GCharSet delimiters, char escapeChar)
+char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 {
 	char c = m_pStream->peek();
 	if(c == '"')

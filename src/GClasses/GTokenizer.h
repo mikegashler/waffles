@@ -94,7 +94,6 @@ public:
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
 	char* nextUntil(GCharSet& delimeters, size_t minLen = 1);
-//"\t\n\r "
 
 	/// Reads until the next character would be one of the specified delimeters,
 	/// and the current character is not escapeChar. 
@@ -107,7 +106,6 @@ public:
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
 	char* nextWhile(GCharSet& set, size_t minLen = 1);
-// "-_a-zA-Z0-9"
 
 	/// \brief Returns the next token defined by the given delimiters.
 	/// \brief Allows quoting " or ' and escapes with an escape
@@ -146,20 +144,17 @@ public:
 	///
 	///\return a pointer to an internal character buffer containing the
 	///        null-terminated token
-	char* nextArg(GCharSet delimiters = GCharSet(" \t\n{\r"),
-								char escapeChar = '\\');
+	char* nextArg(GCharSet& delimiters, char escapeChar = '\\');
 
 	/// Reads past any characters specified in the list of delimeters.
 	/// If szDelimeters is NULL, then any characters <= ' ' are considered
 	/// to be delimeters. (This method is similar to nextWhile, except that
 	/// it does not buffer the characters it reads.)
 	void skip(GCharSet& delimeters);
-// "\t\n\r "
 
 	/// Skip until the next character is one of the delimeters.
 	/// (This method is the same as nextUntil, except that it does not buffer what it reads.)
 	void skipTo(GCharSet& delimeters);
-// "\t\n\r "
 
 	/// Advances past the next 'n' characters. (Stops if the end-of-file is reached.)
 	void advance(size_t n);
@@ -174,7 +169,6 @@ public:
 	/// token that was returned was "  tok  ", then this will return "tok".
 	/// (Calling this method will not change the value returned by tokenLength.)
 	char* trim(GCharSet& set);
-// "\t\n\r "
 
 	/// Returns the current line number. (Begins at 1. Each time a '\n' is encountered,
 	/// the line number is incremented. Mac line-endings do not increment the
