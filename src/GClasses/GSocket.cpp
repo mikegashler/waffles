@@ -829,7 +829,7 @@ void GPackageServer::test()
 		size_t turn = size_t(rand.next(2 * CLIENT_COUNT));
 		if(turn < CLIENT_COUNT)
 		{
-			if(sends < TEST_LEN && sends < receives + 200)
+			if(sends < TEST_LEN && sends < receives + 30)
 			{
 				if(!str.running)
 					ThrowError("The server aborted prematurely");

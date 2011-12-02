@@ -246,35 +246,35 @@ void test_parsearff_quoting(){
   GArffRelation* pRel = (GArffRelation*)M.relation().get();
   GArffRelation& R = *pRel;
   
-  AssertEqual(R.size(), (std::size_t)3, "Incorrect number of attributes");
+  TestEqual(R.size(), (std::size_t)3, "Incorrect number of attributes");
   for(unsigned row = 0; row < 5; ++row){
     for(unsigned col = 0; col < 3; ++col){
       std::stringstream errdescr;
       errdescr << "Incorrect matrix entry [" << row << "][" << col << "]";
-      AssertEqual(M[row][col], expected_data[row][col], errdescr.str());
+      TestEqual(M[row][col], expected_data[row][col], errdescr.str());
     }
   }
-  AssertEqual("squares of numbers", R.name(), "Incorrect relation name");
-  AssertEqual(true, R.areContinuous(0,2), 
+  TestEqual("squares of numbers", R.name(), "Incorrect relation name");
+  TestEqual(true, R.areContinuous(0,2), 
 	      "First or second attribute is not continuous");
-  AssertEqual(true, R.areNominal(2,1), "Third attribute is not nominal");
+  TestEqual(true, R.areNominal(2,1), "Third attribute is not nominal");
 
    std::stringstream val0, val1, val2;
    R.printAttrValue(val0, 2, 0);
    R.printAttrValue(val1, 2, 1);
    R.printAttrValue(val2, 2, 2);
-   AssertEqual("'is exact'",val0.str(),
+   TestEqual("'is exact'",val0.str(),
 	       "First value of third attribute incorrect name");
-   AssertEqual("inexact",val1.str(),
+   TestEqual("inexact",val1.str(),
 	       "Second value of third attribute incorrect name");
-   AssertEqual("'is\\ exact'",val2.str(),
+   TestEqual("'is\\ exact'",val2.str(),
 	       "Third value of third attribute incorrect name");
   
 
-  AssertEqual("the number",R.attrName(0),"First attribute incorrect name");
-  AssertEqual("the square of the number",R.attrName(1),
+  TestEqual("the number",R.attrName(0),"First attribute incorrect name");
+  TestEqual("the square of the number",R.attrName(1),
 	      "Second attribute incorrect name");
-  AssertEqual("exact",R.attrName(2),"Third attribute incorrect name");
+  TestEqual("exact",R.attrName(2),"Third attribute incorrect name");
   
 }
 

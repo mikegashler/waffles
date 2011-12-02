@@ -265,34 +265,34 @@ void GRelation::save(GMatrix* pData, const char* szFilename, size_t precision)
 void GRelation::test()
 {
 	typedef std::string s;
-	AssertEqual
+	TestEqual
 		("the",quote("the"),
 		 "GRelation::quote gets (the) wrong");								
 
-	AssertEqual("'the rain'", quote("the rain"),
+	TestEqual("'the rain'", quote("the rain"),
 							"GRelation::quote gets (the rain) wrong");
 
-	AssertEqual("the\\ rain\\'s\\ \\\\mom",
+	TestEqual("the\\ rain\\'s\\ \\\\mom",
 							quote("the rain's \\mom"),
 							"GRelation::quote gets 'the rain's \\mom' wrong");
 
-	AssertEqual("'%'", quote("%"), "GRelation::quote gets (%) wrong");
+	TestEqual("'%'", quote("%"), "GRelation::quote gets (%) wrong");
 
-	AssertEqual("','", quote(","), "GRelation::quote gets (,) wrong");
+	TestEqual("','", quote(","), "GRelation::quote gets (,) wrong");
 
-	AssertEqual("' '", quote(" "), "GRelation::quote gets ( ) wrong");
+	TestEqual("' '", quote(" "), "GRelation::quote gets ( ) wrong");
 
-	AssertEqual("\\'", quote("'"), "GRelation::quote gets (') wrong");
+	TestEqual("\\'", quote("'"), "GRelation::quote gets (') wrong");
 
-	AssertEqual("'\\'", quote("\\"), "GRelation::quote gets (\\) wrong");
+	TestEqual("'\\'", quote("\\"), "GRelation::quote gets (\\) wrong");
 
-	AssertEqual("'\"'", quote("\""), "GRelation::quote gets (\") wrong");
+	TestEqual("'\"'", quote("\""), "GRelation::quote gets (\") wrong");
 
-	AssertEqual("Dow\\'s\\ rise\\ (\\%)",
+	TestEqual("Dow\\'s\\ rise\\ (\\%)",
 							quote("Dow's rise (%)"),
 							"GRelation::quote gets 'Dow's rise (%)' wrong");
 
-	AssertEqual("\\\"Rise\\'\\\"\\,\\\"Run\\'\\\"",
+	TestEqual("\\\"Rise\\'\\\"\\,\\\"Run\\'\\\"",
 							quote("\"Rise'\",\"Run'\""),
 							"GRelation::quote gets '\"Rise'\",\"Run'\"' wrong");
 }

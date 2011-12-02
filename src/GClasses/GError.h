@@ -9,8 +9,8 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
-#ifndef __GMACROS_H__
-#define __GMACROS_H__
+#ifndef __GERROR_H__
+#define __GERROR_H__
 
 
 #ifdef WINDOWS
@@ -89,7 +89,7 @@ int _strnicmp(const char* szA, const char* szB, int len);
 long filelength(int filedes);
 #endif
 
-///\brief Assertion that \a expected and \a got are equal for test code
+///\brief Verify that \a expected and \a got are equal for test code. Unlike Assert, this check does not disappear in optimized builds.
 ///
 ///If expected==got then does nothing.  Otherwise prints to stderr:
 ///
@@ -107,6 +107,7 @@ long filelength(int filedes);
 ///Calls GClasses::to_str to form the string representation of \a expected
 ///and \a got
 ///
+
 ///\param expected The value expected from specifications
 ///
 ///\param got      The value actually produced by the code
@@ -116,7 +117,7 @@ long filelength(int filedes);
 ///                  understand why it was written and have some help
 ///                  in diagnosing the bug.
 template<class T1, class T2>
-void AssertEqual(const T1& expected, const T2& got, std::string test_descr){
+void TestEqual(const T1& expected, const T2& got, std::string test_descr){
 	using std::endl;
 	if(!(expected == got)){
 		std::cerr
@@ -130,15 +131,15 @@ void AssertEqual(const T1& expected, const T2& got, std::string test_descr){
 	}
 }
 
-///"Specialization" of AssertEqual for c-strings done using overloading
-void AssertEqual(char const* expected, char const* got, std::string desc);
+///"Specialization" of TestEqual for c-strings done using overloading
+void TestEqual(char const* expected, char const* got, std::string desc);
 
-///"Specialization" of AssertEqual for c-strings done using overloading
-void AssertEqual(char const* expected, char* got, std::string desc);
+///"Specialization" of TestEqual for c-strings done using overloading
+void TestEqual(char const* expected, char* got, std::string desc);
 
-///"Specialization" of AssertEqual for c-strings done using overloading
-void AssertEqual(char* expected, char* got, std::string desc);
+///"Specialization" of TestEqual for c-strings done using overloading
+void TestEqual(char* expected, char* got, std::string desc);
 
 } // namespace GClasses
 
-#endif // __GMACROS_H__
+#endif // __GERROR_H__
