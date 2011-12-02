@@ -14,6 +14,7 @@
 #include <wchar.h>
 #include <string>
 #include <vector>
+#include <fstream>
 #ifdef WINDOWS
 #	include <direct.h>
 #endif
@@ -393,135 +394,202 @@ void test_document_classification()
 
 
 
-
-
-bool runTest(const char* szTestName, TestFunc pTest)
+class GTestHarness
 {
-	cout << szTestName;
-	size_t nSpaces = (size_t)70 - strlen(szTestName);
-	for( ; nSpaces > 0; nSpaces--)
-		cout << " ";
-	cout.flush();
-	bool bPass = false;
-	try
-	{
-		pTest();
-		cout << "Passed\n";
-		bPass = true;
-	}
-	catch(const std::exception& e)
-	{
-		cout << "FAILED!!!\n";
-		cout << e.what() << "\n\n";
-	}
-	catch(...)
-	{
-		cout << "FAILED!!!\n";
-		cout << "A non-standard exception was thrown.\n\n";
-	}
-	return bPass;
-}
+protected:
+	std::ostringstream m_testTimes;
 
-void RunAllTests()
-{
-	// Class tests
-	runTest("GAdaBoost", GAdaBoost::test);
-	runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
-	runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
-	runTest("GAttributeSelector", GAttributeSelector::test);
-	runTest("GBag", GBag::test);
-	runTest("GBagOfRecommenders", GBagOfRecommenders::test);
-	runTest("GBaselineLearner", GBaselineLearner::test);
-	runTest("GBaselineRecommender", GBaselineRecommender::test);
-	runTest("GBezier", GBezier::test);
-	runTest("GBits", GBits::test);
-	runTest("GBitTable", GBitTable::test);
-	runTest("GReverseBits", reverseBitsTest);
-	runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);
-	runTest("GBucket", GBucket::test);
-	runTest("GCategoricalSamplerBatch", GCategoricalSamplerBatch::test);
-	runTest("GCompressor", GCompressor::test);
-	runTest("GCoordVectorIterator", GCoordVectorIterator::test);
-	runTest("GCrypto", GCrypto::test);
-	runTest("GCycleCut", GCycleCut::test);
-	runTest("GDecisionTree", GDecisionTree::test);
-	runTest("GDiff", GDiff::test);
-	runTest("GDijkstra", GDijkstra::test);
-	runTest("GDom", GDom::test);
-	runTest("GDynamicSystemStateAligner", GDynamicSystemStateAligner::test);
-	runTest("GFloydWarshall", GFloydWarshall::test);
-	runTest("GFourier", GFourier::test);
-	runTest("GGraphCut", GGraphCut::test);
-	runTest("GHashTable", GHashTable::test);
-	runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);
-	runTest("GInstanceRecommender", GInstanceRecommender::test);
-	runTest("GKdTree", GKdTree::test);
-	runTest("GKeyPair", GKeyPair::test);
-	runTest("GKNN", GKNN::test);
-	runTest("GLinearProgramming", GLinearProgramming::test);
-	runTest("GLinearRegressor", GLinearRegressor::test);
-	runTest("GMath", GMath::test);
-	runTest("GManifold", GManifold::test);
-	runTest("GMatrix", GMatrix::test);
-	runTest("GMatrix::parseArff quoting", test_parsearff_quoting);
-	runTest("GMatrixFactorization", GMatrixFactorization::test);
-	runTest("GMeanMarginsTree", GMeanMarginsTree::test);
-	runTest("GMixtureOfGaussians", GMixtureOfGaussians::test);
-	runTest("GNaiveBayes", GNaiveBayes::test);
-	runTest("GNaiveInstance", GNaiveInstance::test);
-	runTest("GNeuralNet", GNeuralNet::test);
-	runTest("GNeuralNetPseudoInverse", GNeuralNetPseudoInverse::test);
-	runTest("GNonlinearPCA", GNonlinearPCA::test);
-	runTest("GPackageServer", GPackageServer::test);
-	runTest("GPCARotateOnly", GPCARotateOnly::test);
-	runTest("GPolynomial", GPolynomial::test);
-	runTest("GPriorityQueue", GPriorityQueue::test);
-	runTest("GProbeSearch", GProbeSearch::test);
-	runTest("GRand", GRand::test);
-	runTest("GRandomForest", GRandomForest::test);
-	runTest("GRelation", GRelation::test);
-	runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
-	runTest("GShortcutPruner", GShortcutPruner::test);
-	runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);
-	runTest("GSparseMatrix", GSparseMatrix::test);
-	runTest("GSpinLock", GSpinLock::test);
-	runTest("GSubImageFinder", GSubImageFinder::test);
-	runTest("GSubImageFinder2", GSubImageFinder2::test);
-	runTest("GSupervisedLearner", GSupervisedLearner::test);
-	runTest("GVec", GVec::test);
+public:
+	GTestHarness()
+	{
+		char buf[256];
+		if(GApp::appPath(buf, 256, true) == -1)
+			ThrowError("Failed to retrieve app path");
+		if(chdir(buf) != 0)
+			ThrowError("Failed to change the dir to the app folder");
 
-	string s = "waffles_learn";
+		m_testTimes.flags(std::ios::showpoint | std::ios::skipws | std::ios::dec | std::ios::fixed | std::ios::left);
+		m_testTimes.width(6);
+		m_testTimes.precision(2);
+		string s;
+		GTime::appendTimeStampValue(&s, "-", " ", ":", false);
+		m_testTimes << s;
+	}
+
+	~GTestHarness()
+	{
+		// Append the new measurements to perf.log
+		std::ofstream os;
+		bool exists = false;
+		if(GFile::doesFileExist("perf.log"))
+			exists = true;
+		os.exceptions(std::ios::failbit|std::ios::badbit);
+		try
+		{
+			os.open("perf.log", std::ofstream::out | std::ofstream::app);
+		}
+		catch(const std::exception&)
+		{
+			ThrowError("Error creating file: perf.log");
+		}
+
+		if(!exists)
+		{
+			os << "This file logs the running time of each unit test in seconds.\nThis might be useful for detecting performance regressions, etc.\nNote that these running times are affected by CPU load, so don't panic over a single blip.\nThis file is best viewed without line-wrapping.\n\n";
+		}
+		os << m_testTimes.str() << "\n";
+	}
+
+	void logTime(const char* szTestName, double secs)
+	{
+		m_testTimes << ",";
+
+		// Record six letters of the test name (skipping the first one)
+		size_t n = std::min((size_t)6, strlen(szTestName + 1));
+		char buf[7];
+		for(size_t j = 0; j < 6 - n; j++)
+			buf[j] = ' ';
+		memcpy(buf + 6 - n, szTestName + 1, n);
+		buf[6] = '\0';
+		m_testTimes << buf << "=";
+
+		// Record the test time
+		if(secs < 100) m_testTimes << "0";
+		if(secs < 10) m_testTimes << "0";
+		m_testTimes << secs;
+	}
+
+	bool runTest(const char* szTestName, TestFunc pTest)
+	{
+		cout << szTestName;
+		size_t nSpaces = (size_t)70 - strlen(szTestName);
+		for( ; nSpaces > 0; nSpaces--)
+			cout << " ";
+		cout.flush();
+		bool bPass = false;
+		try
+		{
+			double beginTime = GTime::seconds();
+			pTest();
+			double endTime = GTime::seconds();
+			logTime(szTestName, endTime - beginTime);
+			cout << "Passed\n";
+			bPass = true;
+		}
+		catch(const std::exception& e)
+		{
+			cout << "FAILED!!!\n";
+			cout << e.what() << "\n\n";
+		}
+		catch(...)
+		{
+			cout << "FAILED!!!\n";
+			cout << "A non-standard exception was thrown.\n\n";
+		}
+		return bPass;
+	}
+
+	void runAllTests()
+	{
+		// Class tests
+		runTest("GAdaBoost", GAdaBoost::test);
+		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
+		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
+		runTest("GAttributeSelector", GAttributeSelector::test);
+		runTest("GBag", GBag::test);
+		runTest("GBagOfRecommenders", GBagOfRecommenders::test);
+		runTest("GBaselineLearner", GBaselineLearner::test);
+		runTest("GBaselineRecommender", GBaselineRecommender::test);
+		runTest("GBezier", GBezier::test);
+		runTest("GBits", GBits::test);
+		runTest("GBitTable", GBitTable::test);
+		runTest("GReverseBits", reverseBitsTest);
+		runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);
+		runTest("GBucket", GBucket::test);
+		runTest("GCategoricalSamplerBatch", GCategoricalSamplerBatch::test);
+		runTest("GCompressor", GCompressor::test);
+		runTest("GCoordVectorIterator", GCoordVectorIterator::test);
+		runTest("GCrypto", GCrypto::test);
+		runTest("GCycleCut", GCycleCut::test);
+		runTest("GDecisionTree", GDecisionTree::test);
+		runTest("GDiff", GDiff::test);
+		runTest("GDijkstra", GDijkstra::test);
+		runTest("GDom", GDom::test);
+		runTest("GDynamicSystemStateAligner", GDynamicSystemStateAligner::test);
+		runTest("GFloydWarshall", GFloydWarshall::test);
+		runTest("GFourier", GFourier::test);
+		runTest("GGraphCut", GGraphCut::test);
+		runTest("GHashTable", GHashTable::test);
+		runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);
+		runTest("GInstanceRecommender", GInstanceRecommender::test);
+		runTest("GKdTree", GKdTree::test);
+		runTest("GKeyPair", GKeyPair::test);
+		runTest("GKNN", GKNN::test);
+		runTest("GLinearProgramming", GLinearProgramming::test);
+		runTest("GLinearRegressor", GLinearRegressor::test);
+		runTest("GMath", GMath::test);
+		runTest("GManifold", GManifold::test);
+		runTest("GMatrix", GMatrix::test);
+		runTest("GMatrix::parseArff quoting", test_parsearff_quoting);
+		runTest("GMatrixFactorization", GMatrixFactorization::test);
+		runTest("GMeanMarginsTree", GMeanMarginsTree::test);
+		runTest("GMixtureOfGaussians", GMixtureOfGaussians::test);
+		runTest("GNaiveBayes", GNaiveBayes::test);
+		runTest("GNaiveInstance", GNaiveInstance::test);
+		runTest("GNeuralNet", GNeuralNet::test);
+		runTest("GNeuralNetPseudoInverse", GNeuralNetPseudoInverse::test);
+		runTest("GNonlinearPCA", GNonlinearPCA::test);
+		runTest("GPackageServer", GPackageServer::test);
+		runTest("GPCARotateOnly", GPCARotateOnly::test);
+		runTest("GPolynomial", GPolynomial::test);
+		runTest("GPriorityQueue", GPriorityQueue::test);
+		runTest("GProbeSearch", GProbeSearch::test);
+		runTest("GRand", GRand::test);
+		runTest("GRandomForest", GRandomForest::test);
+		runTest("GRelation", GRelation::test);
+		runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
+		runTest("GShortcutPruner", GShortcutPruner::test);
+		runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);
+		runTest("GSparseMatrix", GSparseMatrix::test);
+		runTest("GSpinLock", GSpinLock::test);
+		runTest("GSubImageFinder", GSubImageFinder::test);
+		runTest("GSubImageFinder2", GSubImageFinder2::test);
+		runTest("GSupervisedLearner", GSupervisedLearner::test);
+		runTest("GVec", GVec::test);
+
+		string s = "waffles_learn";
 #ifdef WIN32
-	s += ".exe";
+		s += ".exe";
 #endif
 
 #ifdef WINDOWS
-	bool runCommandLineTests = true;
+		bool runCommandLineTests = true;
 #else
 #	ifdef __linux__
-	bool runCommandLineTests = true;
+		bool runCommandLineTests = true;
 #	else
-	bool runCommandLineTests = false; // I don't have the test-harness for the command-line apps working on OSX yet
+		bool runCommandLineTests = false; // I don't have the test-harness for the command-line apps working on OSX yet
 #	endif
 #endif
-	if(runCommandLineTests)
-	{
-		if(GFile::doesFileExist(s.c_str()))
+		if(runCommandLineTests)
 		{
-			// Command-line tests
-			runTest("waffles_transform mergevert", test_transform_mergevert);
-			runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
+			if(GFile::doesFileExist(s.c_str()))
+			{
+				// Command-line tests
+				runTest("waffles_transform mergevert", test_transform_mergevert);
+				runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
 #ifndef WINDOWS
-			runTest("document classification", test_document_classification);
+				runTest("document classification", test_document_classification);
 #endif
+			}
+			else
+				cout << "Skipping the command-line tool tests because the optimized command-line tools have not yet been built.\n";
 		}
-		else
-			cout << "Skipping the command-line tool tests because the optimized command-line tools have not yet been built.\n";
-	}
 
-	cout << "Done.\n";
-	cout.flush();
-}
+			cout << "Done.\n";
+			cout.flush();
+	}
+};
 
 int main(int argc, char *argv[])
 {
@@ -529,12 +597,8 @@ int main(int argc, char *argv[])
 	int nRet = 0;
 	try
 	{
-		char buf[256];
-		if(GApp::appPath(buf, 256, true) == -1)
-			ThrowError("Failed to retrieve app path");
-		if(chdir(buf) != 0)
-			ThrowError("Failed to change the dir to the app folder");
-		RunAllTests();
+		GTestHarness harness;
+		harness.runAllTests();
 	}
 	catch(const std::exception& e)
 	{

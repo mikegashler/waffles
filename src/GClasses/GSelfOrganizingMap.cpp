@@ -1154,9 +1154,14 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
   }//Anonymous namespace
 
 void GSelfOrganizingMap::test(){
+  bool generateReports = false;
   GRand::global().setSeed(1212);
-  GSelfOrganizingMap squareSom(2, 10, &(GRand::global()), 
-			       new SOM::SVG2DWeightReporter("square_som_test",0,1,true));
+  SOM::Reporter* pReporter;
+  if(generateReports)
+    pReporter = new SOM::SVG2DWeightReporter("square_som_test",0,1,true);
+  else
+    pReporter = new SOM::ReporterChain();
+  GSelfOrganizingMap squareSom(2, 10, &(GRand::global()), pReporter);
   GMatrix uniformSquareMat(0,2);
   for(unsigned i = 0; i < 170; ++i){ 
     uniformSquareMat.copyRow(uniformSquare[i]);
@@ -1164,9 +1169,11 @@ void GSelfOrganizingMap::test(){
   squareSom.train(uniformSquareMat);
 
   Holder<SOM::ReporterChain> cr(new SOM::ReporterChain());
-  cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_01",0,1,true));
-  cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_02",0,2,true));
-  cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_12",1,2,true));
+  if(generateReports) {
+    cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_01",0,1,true));
+    cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_02",0,2,true));
+    cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_12",1,2,true));
+  }
   GSelfOrganizingMap cylinderSom(2, 10, &(GRand::global()), cr.release());
 			       
   GMatrix uniformCylinderMat(0,3);
