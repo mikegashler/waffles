@@ -24,6 +24,7 @@
 #include "GRand.h"
 #include "GTokenizer.h"
 #include "GNeighborFinder.h"
+#include "GDistance.h"
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -4009,12 +4010,8 @@ public:
 			{
 				pResults[pNextA->m_a] = pNextA->m_b;
 				(*pCount)++;
-				for(GBMNode* pNix = pNextA->m_pNextB; pNix != pNextA; )
-				{
-					GBMNode* pNext = pNix->m_pNextB;
-					pNix->nix(ppNextDist, pResults, pCount);
-					pNix = pNext;
-				}
+				while(pNextA->m_pNextB != pNextA)
+					pNextA->m_pNextB->nix(ppNextDist, pResults, pCount);
 			}
 		}
 		m_pNextB->m_pPrevB = m_pPrevB;
@@ -4027,12 +4024,8 @@ public:
 			{
 				pResults[pNextB->m_a] = pNextB->m_b;
 				(*pCount)++;
-				for(GBMNode* pNix = pNextB->m_pNextA; pNix != pNextB; )
-				{
-					GBMNode* pNext = pNix->m_pNextA;
-					pNix->nix(ppNextDist, pResults, pCount);
-					pNix = pNext;
-				}
+				while(pNextB->m_pNextA != pNextB)
+					pNextB->m_pNextA->nix(ppNextDist, pResults, pCount);
 			}
 		}
 	}
@@ -4091,55 +4084,61 @@ public:
 };
 
 // static
-size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
+size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric, size_t k)
 {
 	if(a.rows() == 0)
 		return NULL;
-	if(a.rows() != b.rows() || a.cols() != b.cols())
-		ThrowError("Incompatible matrices");
-	size_t cols = a.cols();
-	k = std::min(a.rows(), k);
-	if(k == 0)
-		k = a.rows();
+	if(a.cols() != b.cols())
+		ThrowError("Expected two matrices with the same number of columns");
+	if(b.rows() < a.rows())
+		ThrowError("Matrix b must have at least as many rows as matrix a");
+	metric.init(a.relation());
+	size_t ka = std::min(a.rows(), k);
+	if(ka == 0)
+		ka = a.rows();
+	size_t kb = std::min(b.rows(), k);
+	if(kb == 0)
+		kb = b.rows();
 	vector<GBMNode*> a_b; // Loop of every edge from a to b
 	a_b.resize(a.rows(), NULL);
 	vector<GBMNode*> b_a; // Loop of every edge from b to a
-	b_a.resize(a.rows(), NULL);
+	b_a.resize(b.rows(), NULL);
 	GHeap heap(4096);
 	GBMNode* pHead = NULL;
 	size_t candCount = 0;
-	if(k >= a.rows())
+	if(ka >= a.rows())
 	{
+		// Fully-connect every row in 'a' with every row in 'b'
 		for(size_t aa = 0; aa < a.rows(); aa++)
 		{
 			double* pRowA = a[aa];
-			for(size_t bb = 0; bb < a.rows(); bb++)
+			for(size_t bb = 0; bb < b.rows(); bb++)
 			{
-				new (heap.allocAligned(sizeof(GBMNode))) GBMNode(GVec::squaredDistance(pRowA, b[bb], cols), aa, bb, &pHead, &a_b[aa], &b_a[bb]); // allocate with placement new
+				new (heap.allocAligned(sizeof(GBMNode))) GBMNode(metric.squaredDistance(pRowA, b[bb]), aa, bb, &pHead, &a_b[aa], &b_a[bb]); // allocate with placement new
 				candCount++;
 			}
 		}
 	}
 	else
 	{
-		size_t* pNeighbors = new size_t[k];
+		size_t* pNeighbors = new size_t[kb];
 		ArrayHolder<size_t> hNeighbors(pNeighbors);
-		double* pDistances = new double[k];
+		double* pDistances = new double[kb];
 		ArrayHolder<double> hDistances(pDistances);
 		vector< std::set<size_t> > used;
 		used.resize(a.rows());
 		{
 			// Add the k-nearest neighbors in b of each row in a
-			GKdTree nf(&b, k, NULL, false);
+			GKdTree nf(&b, kb, &metric, false);
 			for(size_t aa = 0; aa < a.rows(); aa++)
 			{
 				nf.neighbors(pNeighbors, pDistances, a[aa]);
 				size_t* pB = pNeighbors;
 				double* pDist = pDistances;
 				std::set<size_t>& usedSet = used[aa];
-				for(size_t j = 0; j < k; j++)
+				for(size_t j = 0; j < kb; j++)
 				{
-					if(*pB < a.rows())
+					if(*pB < b.rows())
 					{
 						new (heap.allocAligned(sizeof(GBMNode))) GBMNode(*pDist, aa, *pB, &pHead, &a_b[aa], &b_a[*pB]); // allocate with placement new
 						usedSet.insert(*pB);
@@ -4152,13 +4151,13 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
 		}
 		{
 			// Add the k-nearest neighbors in a of each row in b
-			GKdTree nf(&a, k, NULL, false);
-			for(size_t bb = 0; bb < a.rows(); bb++)
+			GKdTree nf(&a, ka, &metric, false);
+			for(size_t bb = 0; bb < b.rows(); bb++)
 			{
 				nf.neighbors(pNeighbors, pDistances, b[bb]);
 				size_t* pA = pNeighbors;
 				double* pDist = pDistances;
-				for(size_t j = 0; j < k; j++)
+				for(size_t j = 0; j < ka; j++)
 				{
 					if(*pA < a.rows())
 					{
@@ -4191,6 +4190,7 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
 	for(size_t i = 0; i < a.rows(); i++)
 		*(pRes++) = size_t(-1);
 	size_t resultCount = 0;
+	size_t iter = 0;
 	while(pHead)
 	{
 		GBMNode* pNext = pHead;
@@ -4198,6 +4198,7 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
 		if(resultCount >= a.rows())
 			break;
 		pHead = pNext;
+		iter++;
 	}
 	if(resultCount < a.rows())
 		ThrowError("not enough neighbors for a complete solution");
@@ -4207,6 +4208,38 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, size_t k)
 }
 
 #ifndef NO_TEST_CODE
+void GMatrix_stressBipartiteMatching()
+{
+	// This test does bipartite matching with a bunch of
+	// random matrices, to make sure there are no crashes
+	// or endless loops. The results are not checked since
+	// correct results are not known.
+	GRand rand(0);
+	GRowDistance metric;
+	for(size_t i = 0; i < 200; i++)
+	{
+		size_t rowsa = rand.next(20);
+		size_t rowsb = std::max(rowsa, (size_t)rand.next(20));
+		size_t cols = rand.next(8);
+		GMatrix a(rowsa, cols);
+		GMatrix b(rowsb, cols);
+		for(size_t j = 0; j < rowsa; j++)
+		{
+			double* pA = a[j];
+			for(size_t k = 0; k < cols; k++)
+				*(pA++) = rand.normal();
+		}
+		for(size_t j = 0; j < rowsb; j++)
+		{
+			double* pB = b[j];
+			for(size_t k = 0; k < cols; k++)
+				*(pB++) = rand.normal();
+		}
+		size_t* pResults = GMatrix::bipartiteMatching(a, b, metric);
+		ArrayHolder<size_t> hResults(pResults);
+	}
+}
+
 void GMatrix_testBipartiteMatching()
 {
 	GMatrix a(7, 2);
@@ -4226,7 +4259,8 @@ void GMatrix_testBipartiteMatching()
 	b[5][0] = 3.1; b[5][1] = 5.1;
 	b[6][0] = 2.9; b[6][1] = 4.9;
 
-	size_t* pResults = GMatrix::bipartiteMatching(a, b, 5);
+	GRowDistance metric;
+	size_t* pResults = GMatrix::bipartiteMatching(a, b, metric, 5);
 	ArrayHolder<size_t> hResults(pResults);
 	if(pResults[0] != 1)
 		ThrowError("failed");
@@ -4713,6 +4747,7 @@ void GMatrix::test()
 	GMatrix_testKabsch(prng);
 	GMatrix_testLUDecomposition(prng);
 	GMatrix_testBipartiteMatching();
+	GMatrix_stressBipartiteMatching();
 }
 #endif // !NO_TEST_CODE
 

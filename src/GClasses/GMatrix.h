@@ -36,6 +36,7 @@ class GHeap;
 class GDom;
 class GDomNode;
 class GTokenizer;
+class GDistanceMetric;
 
 
 /// Holds the metadata for a dataset, including which attributes
@@ -858,15 +859,22 @@ public:
 	void project(double* pDest, const double* pPoint, const double* pOrigin);
 
 	/// Performs bipartite matching of the rows in the specified matrices.
-	/// a and b must have the same number of rows and columns.
-	/// Returns an array of indexes, i[], where i[j] is the row in b that
-	/// corresponds with row j of a.
-	/// k specifies the number of nearest-neighbors to consider in the
-	/// results. If k is 0, it will be set to the number of rows in a (or b).
-	/// Small values of k will lead to faster results. Large values
-	/// of k (approaching the number of rows in the matrices) will guarantee
-	/// optimal results. sqrt(rows) might be a good general value for k.
-	static size_t* bipartiteMatching(GMatrix& a, GMatrix& b, size_t k = 0);
+	/// 'a' and 'b' must have the same number of columns. 'b' must have at
+	/// least as many rows as 'a'. Returns an array of indexes, i[], where i[j] is
+	/// the row in b that corresponds with row j of a.
+	/// "metric" is the distance metric that will be minimized. For example, if metric
+	/// computes the squared distance between two vectors, then this method will
+	/// find the pairings that minimize sum squared distance.
+	/// k specifies the number of nearest-neighbors of each row to consider as candidates
+	/// for pairing. If k is equal to the number of rows in a, then optimal pairings
+	/// are guaranteed. If k is smaller, then results will be obtained faster, but
+	/// optimal results are not guaranteed. (An efficient neighbor-finder that assumes
+	/// metric conforms to the triangle inequality is used to find neighbors.)
+	/// If the number of columns is not too big, then small values for k will usually return
+	/// optimal or near-optimal results anyway. sqrt(rows) might be a good general value to
+	/// use for k. As a special value, if k is 0, then all pairs are considered, and optimal
+	/// results are guaranteed.
+	static size_t* bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric, size_t k = 0);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.

@@ -20,7 +20,7 @@
 #include "GHillClimber.h"
 #include "GTransform.h"
 #include "GSparseMatrix.h"
-#include "GImage.h"
+#include "GDistance.h"
 
 namespace GClasses {
 
@@ -807,7 +807,8 @@ void GNeuralNet::align(GNeuralNet& that)
 		}
 
 		// Do bipartite matching
-		size_t* pIndexes = GMatrix::bipartiteMatching(thatWeights, thisWeights);
+		GRowDistance metric;
+		size_t* pIndexes = GMatrix::bipartiteMatching(thatWeights, thisWeights, metric);
 		ArrayHolder<size_t> hIndexes(pIndexes);
 
 		// Align this layer with that layer
