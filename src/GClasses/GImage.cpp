@@ -2525,7 +2525,7 @@ void GImage::textCharSmall(char ch, int x, int y, int wid, int hgt, float size, 
 	int ofs = g_fontCharStart[charIndex];
 	int w = g_fontCharStart[charIndex + 1] - ofs;
 	float delta = 1.0f / size;
-	float t, xo, yo;
+	float t;
 	float bot = (float)std::min(12, (int)(((float)(m_height - y)) * delta));
 	float top = std::max(0.0f, (float)-y * delta);
 	if(y < 0)
@@ -2542,7 +2542,6 @@ void GImage::textCharSmall(char ch, int x, int y, int wid, int hgt, float size, 
 		int ww = x - std::max(0, x) + wid;
 		unsigned int* pPix = pixelRef(std::max(0, std::min((int)m_width - 1, x)), y++);
 		t = floor(yy);
-		yo = yy - t;
 		int yn = (int)t;
 		float right = std::min((float)w, (m_width - std::max(0, x)) * delta);
 		for(float xx = std::max(0.0f, (float)-x * delta); xx < right; xx += delta)
@@ -2550,7 +2549,6 @@ void GImage::textCharSmall(char ch, int x, int y, int wid, int hgt, float size, 
 			if(ww-- <= 0)
 				break;
 			t = floor(xx);
-			xo = xx - t;
 			int xn = (int)t;
 			unsigned short colPixels = g_fontPixelMap[ofs + xn];
 			if(colPixels & (1 << yn))

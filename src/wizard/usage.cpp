@@ -248,8 +248,6 @@ UsageNode* makeAlgorithmUsageTree()
 		UsageNode* pOpts = pNT->add("<options>");
 		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
 		pOpts->add("-neighbors [k]=12", "Set the number of neighbors to use with each point");
-		pOpts->add("-friends [intrinsic-dims] [thresh]", "Use the manifold-friend-finding algorithm instead of the nearest Euclidean neighbors.");
-		pOpts->add("-prune", "Prune shortcuts. (Only effective if used with the -friends option.)");
 	}
 	{
 		UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network (a.k.a. multi-layer perceptron). It can be trained with online backpropagation (Rumelhart, D.E., Hinton, G.E., and Williams, R.J. Learning representations by back-propagating errors. Nature, 323:9, 1986.), or several other optimization methods.");

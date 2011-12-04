@@ -372,15 +372,14 @@ void GRand_testSpeed()
 {
 	// Compare speed with rand(). (Be sure to build optimized, or else the results aren't very meaningful.)
 	int i;
-	uint64 z;
 	double t1,t2,t3;
 	t1 = GTime::seconds();
 	for(i = 0; i < 100000000; i++)
-		z = rand();
+		rand();
 	t2 = GTime::seconds();
 	GRand gr(0);
 	for(i = 0; i < 100000000; i++)
-		z = gr.next();
+		gr.next();
 	t3 = GTime::seconds();
 	double randtime = t2 - t1;
 	double grandtime = t3 - t2;
@@ -427,8 +426,6 @@ void GRand::test()
 
 	// Test cycle length
 	int n;
-	uint64 rnd;
-	uint64 prev;
 	for(n = 0; n < 100; n++)
 	{
 		GRand r(n);
@@ -436,12 +433,12 @@ void GRand::test()
 			r.next();
 		uint64 startA = r.m_a;
 		uint64 startB = r.m_b;
-		prev = r.next();
+		r.next();
 		for(uint64 j = 0; j < GRANDUINT_TEST_PERIOD_SIZE; j++)
 		{
 			if(r.m_a == startA || r.m_b == startB)
 				ThrowError("Loop too small");
-			rnd = r.next();
+			r.next();
 		}
 	}
 

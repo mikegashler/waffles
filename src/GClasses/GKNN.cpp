@@ -682,7 +682,6 @@ void GKNN::test()
 GNeighborTransducer::GNeighborTransducer(GRand& rand)
 : GTransducer(rand), m_friendCount(12)
 {
-	m_prune = false;
 }
 
 void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels)

@@ -1774,12 +1774,12 @@ void rayTraceManifoldModel(GArgReader& args)
 	double amax = 1.0;
 	double bmin = 0.0;
 	double bmax = 1.0;
-	double xmin = 0.0;
+/*	double xmin = 0.0;
 	double xmax = 1.0;
 	double ymin = 0.0;
 	double ymax = 1.0;
 	double zmin = 0.0;
-	double zmax = 1.0;
+	double zmax = 1.0;*/
 	size_t granularity = 50;
 	string filename = "plot.png";
 	double pointRadius = 0.02;
@@ -1801,7 +1801,7 @@ void rayTraceManifoldModel(GArgReader& args)
 			bmin = args.pop_double();
 			bmax = args.pop_double();
 		}
-		else if(args.if_pop("-range"))
+/*		else if(args.if_pop("-range"))
 		{
 			xmin = args.pop_double();
 			xmax = args.pop_double();
@@ -1809,7 +1809,7 @@ void rayTraceManifoldModel(GArgReader& args)
 			ymax = args.pop_double();
 			zmin = args.pop_double();
 			zmax = args.pop_double();
-		}
+		}*/
 		else if(args.if_pop("-points"))
 		{
 			delete(pPoints);

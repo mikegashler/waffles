@@ -335,7 +335,7 @@ void GCollaborativeFilter::basicTest(double maxMSE)
 	double mse = crossValidate(m, 2);
 	if(mse > maxMSE)
 		ThrowError("failed");
-	else if(mse + 0.045 < maxMSE)
+	else if(mse + 0.085 < maxMSE)
 		std::cerr << "\nTest needs to be tightened. MSE: " << mse << ", maxMSE: " << maxMSE << "\n";
 }
 #endif

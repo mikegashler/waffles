@@ -1611,13 +1611,12 @@ bool GMatrix::gaussianElimination(double* pVector)
 {
 	if(rows() != (size_t)cols())
 		ThrowError("Expected a square matrix");
-	double d, dBest;
+	double d;
 	double* pRow;
 	size_t rowCount = rows();
 	size_t colCount = cols();
 	for(size_t nRow = 0; nRow < rowCount; nRow++)
 	{
-		dBest = 0;
 		size_t i;
 		for(i = nRow; i < rowCount && std::abs(row(i)[nRow]) < 1e-4; i++)
 		{

@@ -312,6 +312,7 @@ GBayesianModelCombination* InstantiateBMC(GRand& rand, GArgReader& args, GMatrix
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
+	pEnsemble->setSamples(samples);
 	while(args.size() > 0)
 	{
 		if(args.if_pop("end"))
@@ -546,9 +547,6 @@ GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args, GMatrix*
 GNeighborTransducer* InstantiateNeighborTransducer(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GNeighborTransducer* pTransducer = new GNeighborTransducer(rand);
-	bool prune = false;
-	double alpha, beta;
-	int intrinsicDims;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
@@ -557,14 +555,8 @@ GNeighborTransducer* InstantiateNeighborTransducer(GRand& rand, GArgReader& args
 				ThrowError("Insufficient data to support automatic tuning");
 			pTransducer->autoTune(*pFeatures, *pLabels);
 		}
-		else if(args.if_pop("-prune"))
-			prune = true;
-		else if(args.if_pop("-friends"))
-		{
-			intrinsicDims = args.pop_uint();
-			alpha = args.pop_double();
-			beta = args.pop_double();
-		}
+		else if(args.if_pop("-neighbors"))
+			pTransducer->setNeighbors(args.pop_uint());
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
