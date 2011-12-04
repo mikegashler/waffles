@@ -317,7 +317,7 @@ public:
 			s += pAccount->username();
 			s += "/";
 			string timestamp;
-			GTime::appendTimeStampValue(&timestamp, true/*use GMT*/);
+			GTime::appendTimeStampValue(&timestamp, "-", "_", "-", true/*use GMT*/);
 			s += timestamp;
 			s += "/";
 			GFile::makeDir(s.c_str());

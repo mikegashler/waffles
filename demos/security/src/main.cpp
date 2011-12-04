@@ -167,12 +167,11 @@ bool shredFolder(const char* szPath)
 	{
 		if(chdir(szPath) != 0)
 			return false;
-		GDirList dl(false, false, true, false);
-		while(true)
+		vector<string> folders;
+		GFile::folderList(folders);
+		for(vector<string>::iterator it = folders.begin(); it != folders.end(); it++)
 		{
-			const char* szDir = dl.GetNext();
-			if(!szDir)
-				break;
+			const char* szDir = it->c_str();
 			if(!shredFolder(szDir))
 				bOK = false;
 		}
@@ -180,12 +179,11 @@ bool shredFolder(const char* szPath)
 
 	// Delete files
 	{
-		GDirList dl(false, true, false, false);
-		while(true)
+		vector<string> files;
+		GFile::fileList(files);
+		for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 		{
-			const char* szFile = dl.GetNext();
-			if(!szFile)
-				break;
+			const char* szFile = it->c_str();
 			if(!shredFile(szFile))
 				bOK = false;
 		}
@@ -388,10 +386,9 @@ int doBandwidthClient(GArgReader& args)
 
 	// Make a ClientSocket
 	cout << "Connecting to server...\n";
-	GSocketClient socket(false, MESSAGESIZE);
+	GPackageClient socket;
 	double dStart = GTime::seconds();
-	if(!socket.Connect(szUrl, port))
-		ThrowError("Failed to connect");
+	socket.connect(szUrl, port);
 	double dFinish = GTime::seconds();
 	cout << "Connecting time = " << dFinish - dStart << "\n";
 
@@ -402,27 +399,25 @@ int doBandwidthClient(GArgReader& args)
 	{
 		// Send a small message
 		dStart = GTime::seconds();
-		if(!socket.Send(pBuf, SMALL_MESSAGE_SIZE))
-			ThrowError("error sending the small message\n");
+		socket.send((const char*)pBuf, SMALL_MESSAGE_SIZE);
 
 		// Wait for a reply
 		cout << "Waiting for the reply...\n";
-		while(socket.GetMessageCount() < 1)
+		char* pMessage;
+		size_t nSize;
+		while(true)
 		{
-			// Let Windows have a chance to pump messages through
+			pMessage = socket.receive(&nSize);
+			if(pMessage)
+				break;
 #ifdef WINDOWS
 			GWindows::yield();
-			Sleep(0);
 #endif
+			GThread::sleep(0);
 		}
 		dFinish = GTime::seconds();
 		if(i > 0)
 			dLatency += (dFinish - dStart);
-	
-		// Proces the message
-		size_t nSize;
-		unsigned char* pMessage = socket.GetNextMessage(&nSize);
-		delete(pMessage);
 	}
 	dLatency /= 16;
 	cout << "Latency: " << dLatency << "\n";
@@ -430,29 +425,29 @@ int doBandwidthClient(GArgReader& args)
 	// Send a big message
 	cout << "Sending an 8MB message (to measure bandwidth)...\n";
 	dStart = GTime::seconds();
-	if(!socket.Send(pBuf, MESSAGESIZE))
-		ThrowError("error sending the big message\n");
+	socket.send((const char*)pBuf, MESSAGESIZE);
 
 	// Wait for a reply
 	cout << "Waiting for the server to send it back...\n";
-	while(socket.GetMessageCount() < 1)
+	char* pMessage;
+	size_t nSize;
+	while(true)
 	{
-		// Let Windows have a chance to pump messages through
+		pMessage = socket.receive(&nSize);
+		if(pMessage)
+			break;
 #ifdef WINDOWS
 		GWindows::yield();
-		Sleep(0);
 #endif
+		GThread::sleep(0);
 	}
 	dFinish = GTime::seconds();
 
 	// Check the message
-	size_t nSize;
-	unsigned char* pMessage = socket.GetNextMessage(&nSize);
 	if(nSize != MESSAGESIZE)
 		ThrowError("The reply is the wrong size--something's wrong\n");
 	if(memcmp(pMessage, pBuf, MESSAGESIZE))
 		cout << "!!!The message differs from the original--something's wrong!!!\n";
-	delete(pMessage);
 
 	cout << "Roundtrip time: " << dFinish - dStart << "\n";
 	cout << "Bandwidth: " << (((double)MESSAGESIZE * 8 * 2) / ((dFinish - dStart) - 2.0 * dLatency)) / 1000000 << "\n";
@@ -474,22 +469,19 @@ int doBandwidthServer(GArgReader& args)
 	}
 
 	// Repeat messages
-	GSocketServer socket(false, MESSAGESIZE, port, 1);
+	GPackageServer socket(port);
 	cout << "waiting for a client program to connect...\n";
 	while(true)
 	{
-		if(socket.GetMessageCount() > 0)
+		size_t nSize;
+		GTCPConnection* pConn;
+		char* pMessage = socket.receive(&nSize, &pConn);
+		if(pMessage)
 		{
 			// Get the message
-			int nConnectionNumber;
-			size_t nSize;
-			unsigned char* pMessage = socket.GetNextMessage(&nSize, &nConnectionNumber);
 			cout << "Got a message.  Sending it back...\n";
-			if(socket.Send(pMessage, nSize, nConnectionNumber))
-				cout << "Message sent.\n";
-			else
-				cout << "Error sending reply\n";
-			delete(pMessage);
+			socket.send((const char*)pMessage, nSize, pConn);
+			cout << "Message sent.\n";
 			cout << "Waiting for another client to connect...\n";
 		}
 

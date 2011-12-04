@@ -15,7 +15,7 @@
 #define BUF_SIZE 4096
 
 namespace GClasses {
-	class GSocketClient;
+	class GPackageClient;
 }
 
 class Satellite
@@ -24,7 +24,7 @@ protected:
 	bool m_keepRunning;
 	int m_timeoutSecs;
 	time_t m_lastPacketTime;
-	GClasses::GSocketClient* m_pSocket;
+	GClasses::GPackageClient* m_pSocket;
 	GClasses::GBlobIncoming m_blobIn;
 	GClasses::GBlobOutgoing m_blobOut;
 

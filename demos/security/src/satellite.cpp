@@ -61,17 +61,13 @@ void Satellite::Connect(const char* szAddr, int port, int timeoutSecs)
 {
 	m_lastPacketTime = time(NULL);
 	m_timeoutSecs = timeoutSecs;
-	m_pSocket = new GSocketClient(false, MAX_PACKET_SIZE);
-	if(!m_pSocket->Connect(szAddr, port, std::min(30, timeoutSecs)))
-	{
-		Disconnect();
-		return;
-	}
+	m_pSocket = new GPackageClient();
+	m_pSocket->connect(szAddr, port, std::min(30, timeoutSecs));
 
 	// Send request to connect
 	m_blobOut.setPos(0);
 	m_blobOut.add(200); // client wants to connect
-	m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 }
 
 void Satellite::OnServerWantsToDisconnect(GBlobIncoming* pBlobIn)
@@ -83,7 +79,7 @@ void Satellite::OnServerWantsPing(GBlobIncoming* pBlobIn)
 {
 	m_blobOut.setPos(0);
 	m_blobOut.add(201); // client responds to ping
-	m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 }
 
 void Satellite::OnServerWantsFileList(GBlobIncoming* pBlobIn)
@@ -106,12 +102,11 @@ void Satellite::OnServerWantsFileList(GBlobIncoming* pBlobIn)
 #endif
 		m_blobOut.add("..");
 	{
-		GDirList dl(false, false, true, false);
-		while(true)
+		vector<string> files;
+		GFile::folderList(files);
+		for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 		{
-			const char* szDir = dl.GetNext();
-			if(!szDir)
-				break;
+			const char* szDir = it->c_str();
 			m_blobOut.add(szDir);
 		}
 	}
@@ -119,17 +114,16 @@ void Satellite::OnServerWantsFileList(GBlobIncoming* pBlobIn)
 
 	// Get the Files
 	{
-		GDirList dl(false, true, false, false);
-		while(true)
+		vector<string> files;
+		GFile::fileList(files);
+		for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 		{
-			const char* szFilename = dl.GetNext();
-			if(!szFilename)
-				break;
-			m_blobOut.add(szFilename);
+			const char* szDir = it->c_str();
+			m_blobOut.add(szDir);
 		}
 	}
 
-	m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 }
 
 void Satellite::OnServerWantsDirectoryChange(GBlobIncoming* pBlobIn)
@@ -140,7 +134,7 @@ void Satellite::OnServerWantsDirectoryChange(GBlobIncoming* pBlobIn)
 		ThrowError("Failed to change directory to: ", s.c_str());
 	m_blobOut.setPos(0);
 	m_blobOut.add(207); // ok
-	m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 }
 
 void Satellite::OnServerWantsToSendFile(GBlobIncoming* pBlobIn)
@@ -212,7 +206,7 @@ void Satellite::OnServerWantsToDownloadFile(GBlobIncoming* pBlobIn)
 	int i;
 	for(i = 0; i < 20; i++)
 		m_blobOut.add(m_fileHash[i]);
-	m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 }
 
 void Satellite::TransferFileChunk()
@@ -228,7 +222,7 @@ void Satellite::TransferFileChunk()
 	m_blobOut.add(205); // client sends a file chunk to server
 	m_blobOut.add((int)size);
 	m_blobOut.add(m_pBuf, size);
-	m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 }
 
 void Satellite::CompleteFileTransfer()
@@ -240,7 +234,7 @@ void Satellite::CompleteFileTransfer()
 	// Send packet
 	m_blobOut.setPos(0);
 	m_blobOut.add(206); // client is done sending file
-	m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 }
 
 void Satellite::ExecuteCommand(GBlobIncoming* pBlobIn)
@@ -308,12 +302,14 @@ bool Satellite::Process()
 {
 	// Handle incoming packets
 	bool gotPacket = false;
-	while(m_pSocket && m_pSocket->GetMessageCount() > 0)
+	while(m_pSocket)
 	{
-		gotPacket = true;
 		size_t size;
-		unsigned char* pPacket = m_pSocket->GetNextMessage(&size);
-		m_blobIn.setBlob(pPacket, size, true);
+		char* pPacket = m_pSocket->receive(&size);
+		if(!pPacket)
+			break;
+		gotPacket = true;
+		m_blobIn.setBlob((unsigned char*)pPacket, size, false);
 		try
 		{
 			HandlePacket(&m_blobIn);
@@ -323,7 +319,7 @@ bool Satellite::Process()
 			m_blobOut.setPos(0);
 			m_blobOut.add(202); // client informs server about an error condition
 			m_blobOut.add(szMessage);
-			m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+			m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 			if(m_pFile)
 			{
 				fclose(m_pFile);
@@ -373,7 +369,7 @@ void Satellite::Go(const char* szAddr, int port, int connectInterval, int timeou
 					m_blobOut.setPos(0);
 					m_blobOut.add(202); // client informs server about an error condition
 					m_blobOut.add("Graceful shut-down. Goodbye.");
-					m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize());
+					m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 				}
 			}
 			else
@@ -453,10 +449,10 @@ void Sha1DigestFile(unsigned char* pOut20ByteHash, const char* filename)
 class CommandCenter
 {
 protected:
-	GSocketServer* m_pSocket;
+	GPackageServer* m_pSocket;
 	GBlobIncoming m_blobIn;
 	GBlobOutgoing m_blobOut;
-	int m_connection;
+	GTCPConnection* m_pConn;
 	string m_remoteDir;
 	FILE* m_pFile;
 	unsigned char* m_pBuf;
@@ -476,8 +472,8 @@ public:
 	CommandCenter(int port)
 	: m_blobOut(2048, true)
 	{
-		m_pSocket = new GSocketServer(false, MAX_PACKET_SIZE, port, 1);
-		m_connection = -1;
+		m_pSocket = new GPackageServer(port);
+		m_pConn = NULL;
 		m_remoteDir = "<Not Connected>";
 		m_pFile = NULL;
 		m_pBuf = new unsigned char[BUF_SIZE];
@@ -515,12 +511,11 @@ public:
 #endif
 			oss << "	.." << "\n";
 		{
-			GDirList dl(false, false, true, false);
-			while(true)
+			vector<string> files;
+			GFile::folderList(files);
+			for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 			{
-				const char* szDir = dl.GetNext();
-				if(!szDir)
-					break;
+				const char* szDir = it->c_str();
 				oss << "	" << szDir << "\n";
 			}
 		}
@@ -529,13 +524,12 @@ public:
 		oss << "Files:\n";
 		size_t filecount = 0;
 		{
-			GDirList dl(false, true, false, false);
-			while(true)
+			vector<string> files;
+			GFile::fileList(files);
+			for(vector<string>::iterator it = files.begin(); it != files.end(); it++)
 			{
-				const char* szFilename = dl.GetNext();
-				if(!szFilename)
-					break;
-				oss << "	" << szFilename << "\n";
+				const char* szFile = it->c_str();
+				oss << "	" << szFile << "\n";
 				filecount++;
 			}
 		}
@@ -550,28 +544,28 @@ public:
 		m_blobOut.setPos(0);
 		m_blobOut.add(609); // server requests the client to execute a command
 		m_blobOut.add(szCommand);
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	void panic()
 	{
 		m_blobOut.setPos(0);
 		m_blobOut.add(608); // server requests the client to uninstall and self-destruct
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	void disconnectFromSatellite()
 	{
 		m_blobOut.setPos(0);
 		m_blobOut.add(600); // server requests the client to disconnect
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	void SendPing()
 	{
 		m_blobOut.setPos(0);
 		m_blobOut.add(601); // server requests ping
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	void localChangeDir(const char* szFoldername)
@@ -588,7 +582,7 @@ public:
 		m_blobOut.setPos(0);
 		m_blobOut.add(603); // server requests directory change
 		m_blobOut.add(szFoldername);
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	void remoteList()
@@ -596,7 +590,7 @@ public:
 		// Request a list of the contents of the remote current directory
 		m_blobOut.setPos(0);
 		m_blobOut.add(602); // server requests a file list
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	void pushFile(const char* szFilename)
@@ -624,7 +618,7 @@ public:
 		int i;
 		for(i = 0; i < 20; i++)
 			m_blobOut.add(m_fileHash[i]);
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	void localDeleteFile(const char* szFilename)
@@ -652,7 +646,7 @@ public:
 		m_blobOut.setPos(0);
 		m_blobOut.add(607); // server requests a file
 		m_blobOut.add(szFilename + pd.fileStart);
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	void remoteDeleteFile(const char* szFilename)
@@ -660,7 +654,7 @@ public:
 		m_blobOut.setPos(0);
 		m_blobOut.add(610); // server requests to delete file
 		m_blobOut.add(szFilename);
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
 
 	// ---------
@@ -737,7 +731,7 @@ public:
 		m_blobOut.add(605); // server sends a file chunk to client
 		m_blobOut.add((int)size);
 		m_blobOut.add(m_pBuf, size);
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 
 		// Update the progres bar
 		onUpdateUploadFileProgress((float)m_filePos / m_fileLen);
@@ -760,7 +754,7 @@ public:
 		// Send packet
 		m_blobOut.setPos(0);
 		m_blobOut.add(606); // server is done sending file
-		m_pSocket->Send(m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_connection);
+		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 		onUpdateUploadFileProgress(1.0f);
 	}
 
@@ -864,21 +858,23 @@ public:
 		try
 		{
 			// Handle incoming packets
-			while(m_pSocket->GetMessageCount() > 0)
+			while(true)
 			{
-				gotPacket = true;
 				size_t size;
-				int connection;
-				unsigned char* pPacket = m_pSocket->GetNextMessage(&size, &connection);
-				m_blobIn.setBlob(pPacket, size, true);
+				GTCPConnection* pConn;
+				char* pPacket = m_pSocket->receive(&size, &pConn);
+				if(!pPacket)
+					break;
+				gotPacket = true;
+				m_blobIn.setBlob((unsigned char*)pPacket, size, false);
 				m_bytesReceived += (size + 8);
-				if(connection == m_connection)
+				if(pConn == m_pConn)
 					HandlePacket(&m_blobIn);
 				else
 				{
-					if(m_connection < 0)
+					if(!m_pConn)
 					{
-						m_connection = connection;
+						m_pConn = pConn;
 						HandlePacket(&m_blobIn);
 					}
 					else
