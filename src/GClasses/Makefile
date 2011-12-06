@@ -35,6 +35,7 @@ CPP_FILES = \
 	G3D.cpp\
 	GActivation.cpp\
 	GApp.cpp\
+	GAssignment.cpp\
 	GBayesianNetwork.cpp\
 	GBezier.cpp\
 	GBigInt.cpp\
