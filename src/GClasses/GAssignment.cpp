@@ -1,6 +1,8 @@
+#include "GMatrix.h"
 #include "GAssignment.h"
 #include <limits>
-#include "GMatrix.h"
+#include <cmath> //For abs
+
 
 
 void GClasses::LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y, 
@@ -67,18 +69,27 @@ void GClasses::LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 				double u2 = inf;
 				for(int j = 2; j <= (int)m; ++j){
 					double h = c[i-1][j-1] - v[j-1];
-					if(h < u2){
-						if(h >= u1) { u2 = h; j2 = j;
-						}else{ u2 = u1; u1 = h; j2 = j1; j1 = j; }
+					//I don't use epsilon here because it looks as if we're
+					//seeing whether h lies in the interval [u1,u2) for which
+					//extending equality is not necessary
+					if(h < u2){ 
+						if(h >= u1) { 
+							u2 = h; j2 = j;
+						}else{ 
+							u2 = u1; u1 = h; j2 = j1; j1 = j; 
+						}
 					}
 				}
 				int i1 = y[j1 -1];
 
-				if(u1 < u2){ v[j1 - 1] = v[j1 -1] - u2 + u1;
-				}else if(i1 > 0){ j1 = j2; i1 = y[j1 - 1]; }
+				if(u1 - u2 < -epsilon){ //u1 < u2
+					v[j1 - 1] = v[j1 -1] - u2 + u1;
+				}else if(i1 > 0){ 
+					j1 = j2; i1 = y[j1 - 1]; 
+				}
 
 				if(i1 > 0){ 
-					if(u1 < u2){
+					if(u1 - u2 < -epsilon){ //u1 < u2
 						--k; free[k-1] = i1; x[i1-1] = 0;
 					}else{
 						++f; free[f-1] = i1; x[i1-1] = 0;
@@ -119,8 +130,14 @@ void GClasses::LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 					for(int k = up; k <= (int)m; ++k){
 						j = col[k-1]; 
 						double h=d[j-1];
-						if(h <= min){
-							if(h < min){ up=low; min=h;}
+						//Note: I don't use epsilon in these comparisons because
+						//they are computing a minimum, so using the
+						//interval-bounded equality would not be appropriate (a
+						//greater number coluld be selected)
+						if(h <= min){ 
+							if(h < min){ //h < min
+								up=low; min=h;
+							}
 							col[k-1]=col[up-1]; col[up-1]=j; ++up;
 						}
 					}
@@ -137,7 +154,7 @@ void GClasses::LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 					double h = c[i-1][j-1] - v[j-1] - u1;
 					if(h < d[j-1]){
 						d[j-1] = h; pred[j-1] = i;
-						if(h == min){
+						if(fabs(h - min) < epsilon){ //h==min
 							if(y[j-1]==0){ 
 								goto augment; 
 							}else{ 
