@@ -102,8 +102,8 @@ void GClasses::LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 		int j,last=-1; //Used for communication between the augment
 					         //subsection and the rest of this section
 		double min=-inf; //Also used for communication
-		for(f = 1; f <= f0; ++ f){
-			int i1 = free[f];
+		for(f = 1; f <= f0; ++f){
+			int i1 = free[f-1];
 			int low = 1;
 			int up = 1;
 			std::vector<double> d(m);
@@ -141,7 +141,7 @@ void GClasses::LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 							if(y[j-1]==0){ 
 								goto augment; 
 							}else{ 
-								col[k-1]=col[up]; col[up]=j; ++up;
+								col[k-1]=col[up-1]; col[up-1]=j; ++up;
 							}
 						}
 					}
