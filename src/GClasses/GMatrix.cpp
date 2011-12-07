@@ -617,9 +617,27 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 		while(true)
 		{
 			tok.nextArg(valEnd);
-			const char* szVal = tok.trim(whitespace);
+			char* szVal = tok.trim(whitespace);
 			if(*szVal == '\0')
 				ThrowError("Empty value specified on line ", to_str(tok.line()));
+			if(*szVal == '\'')
+			{
+				size_t len = strlen(szVal);
+				if(len > 1 && szVal[len - 1] == '\'')
+				{
+					szVal[len - 1] = '\0';
+					szVal++;
+				}
+			}
+			else if(*szVal == '"')
+			{
+				size_t len = strlen(szVal);
+				if(len > 1 && szVal[len - 1] == '"')
+				{
+					szVal[len - 1] = '\0';
+					szVal++;
+				}
+			}
 			m_attrs[index].m_values.push_back(szVal);
 			char c = tok.peek();
 			if(c == ',')
@@ -4207,6 +4225,43 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metr
 }
 
 #ifndef NO_TEST_CODE
+void GMatrix_testParsing()
+{
+	const char* file =
+	"\n"
+	"% This is a comment\n"
+	"\n"
+	"@RELATION rel\n"
+	"\n"
+	"@ATTRIBUTE 'attr 1' { 'y' , n } \n"
+	"@attribute attr_2 continuous\n"
+	"@attribute attr3 REAL\n"
+	"\n"
+	"@data\n"
+	" 'y' , 3 , -1.5e-2 \n"
+	"\"n\" , 0.1, 1\n"
+	"\n"
+	"y,,99 \n"
+	",,\n"
+	"?,?,?";
+	GMatrix* pM = GMatrix::parseArff(file, strlen(file));
+	Holder<GMatrix> hM(pM);
+	if(pM->cols() != 3)
+		ThrowError("failed");
+	if(pM->rows() != 5)
+		ThrowError("failed");
+	if(pM->row(0)[2] != -1.5e-2)
+		ThrowError("failed");
+	if(pM->row(2)[1] != UNKNOWN_REAL_VALUE)
+		ThrowError("failed");
+	if(pM->row(3)[1] != UNKNOWN_REAL_VALUE)
+		ThrowError("failed");
+	if(pM->row(3)[0] != UNKNOWN_DISCRETE_VALUE)
+		ThrowError("failed");
+	if(pM->row(4)[0] != UNKNOWN_DISCRETE_VALUE)
+		ThrowError("failed");
+}
+
 void GMatrix_stressBipartiteMatching()
 {
 	// This test does bipartite matching with a bunch of
@@ -4747,6 +4802,7 @@ void GMatrix::test()
 	GMatrix_testLUDecomposition(prng);
 	GMatrix_testBipartiteMatching();
 	GMatrix_stressBipartiteMatching();
+	GMatrix_testParsing();
 }
 #endif // !NO_TEST_CODE
 

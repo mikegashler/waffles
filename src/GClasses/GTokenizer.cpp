@@ -259,6 +259,8 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 			ThrowError("Expected matching double-quotes on line ", 
 								 to_str(m_line), ", col ", to_str(col()));
 		advance(1);
+		while(!delimiters.find(m_pStream->peek()))
+			advance(1);
 		return m_pBufStart;
 	}
 	else if(c == '\'')
@@ -269,9 +271,10 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 			ThrowError("Expected a matching single-quote on line ", to_str(m_line), 
 								 ", col ", to_str(col()));
 		advance(1);
+		while(!delimiters.find(m_pStream->peek()))
+			advance(1);
 		return m_pBufStart;
 	}
-	//else
 
 	m_pBufPos = m_pBufStart;
 	bool inEscapeMode = false;

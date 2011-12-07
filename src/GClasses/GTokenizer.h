@@ -165,8 +165,8 @@ public:
 	void expect(const char* szString);
 
 	/// Returns the previously-returned token, except with any of the specified characters
-	/// trimmed off of both the beginning and end of the token. For example, if the last
-	/// token that was returned was "  tok  ", then this will return "tok".
+	/// trimmed off of both the beginning and end of the token. For example, this method could
+	/// be used to convert "  tok  " to "tok".
 	/// (Calling this method will not change the value returned by tokenLength.)
 	char* trim(GCharSet& set);
 

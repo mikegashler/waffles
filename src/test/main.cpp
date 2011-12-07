@@ -527,8 +527,8 @@ public:
 		runTest("GKNN", GKNN::test);
 		runTest("GLinearProgramming", GLinearProgramming::test);
 		runTest("GLinearRegressor", GLinearRegressor::test);
-		runTest("GMath", GMath::test);
 		runTest("GManifold", GManifold::test);
+		runTest("GMath", GMath::test);
 		runTest("GMatrix", GMatrix::test);
 		runTest("GMatrix::parseArff quoting", test_parsearff_quoting);
 		runTest("GMatrixFactorization", GMatrixFactorization::test);
