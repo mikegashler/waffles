@@ -107,7 +107,6 @@ long filelength(int filedes);
 ///Calls GClasses::to_str to form the string representation of \a expected
 ///and \a got
 ///
-
 ///\param expected The value expected from specifications
 ///
 ///\param got      The value actually produced by the code
