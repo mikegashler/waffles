@@ -8,8 +8,11 @@
 
 	see http://www.gnu.org/copyleft/lesser.html
 */
-///\file Defines an assignment between two sets and holds algorithms
-///      for generating them.
+///\file
+///\brief Defines an assignment between two sets and holds algorithms
+///       for generating them.
+///
+///\warning This code is still experimental.
 
 
 #ifndef __GASSIGNMENT_H__
@@ -94,19 +97,24 @@ public:
 };
 
 ///\brief A simple concrete implementation of the GAssignment protocol
-///\brief using std::vector<int>
+///using std::vector<int>
+///
+///\see linearAssignment(GMatrix, ShouldMinimize, const double)
+///\see linearAssignment(GMatrix, ShouldMaximize, const double)
+///\see linearAssignmentBruteForce(GMatrix, ShouldMinimize)
+///\see linearAssignmentBruteForce(GMatrix, ShouldMaximize)
 class GSimpleAssignment:public GAssignment{
 protected:
 	///\brief aForB[i[ has the member of A assigned to a given member of
-	///\brief B (or -1 when no member)
+	///B (or -1 when no member)
 	std::vector<int> aForB;
 
 	///\brief bForA[i] has the member of B assigned to a given member of
-	///\brief A (or -1 when no member)
+	///A (or -1 when no member)
 	std::vector<int> bForA;
 public:
 	///\brief Create an assignment between two sets of the given sizes
-	///\brief that assigns everything to -1
+	///that assigns everything to -1
 	///
 	///\param aSize the number of elements in set A (the first set in
 	///             the assignment)
@@ -117,7 +125,7 @@ public:
 																													bForA(aSize, -1){}
 
 	///\brief Create an assignment between the two members, setting any
-	///\brief previously corresponding members to unassigned.
+	///previously corresponding members to unassigned.
 	///
 	///First breaks any assignment between memberOfA and any other
 	///member and memberOfB and any other member, then makes a new
@@ -207,9 +215,147 @@ public:
 	///        corresponding member.
 	virtual int inverse(unsigned memberOfB) const{ return aForB.at(memberOfB); }
 
+	///\brief Return true if *this and other represent the same
+	///       assignments among the same sized sets
+	///
+	///If A is the same size as set A for other and B is the same size
+	///as B for other and the members with identical indices are
+	///assigned to one another and the unassigned members also have
+	///identical indices, then the two assignment objects are equal.
+	///
+	///In other words, returns true if and only if sizeA(), sizeB(),
+	///operator()(unsigned) and inverse()(unsigned) give identical
+	///results on both *this and other for all valid input values.
+	///
+	///\param other the GSimpleAssignment object to compare to this
+	///
+	///\return true if the assignments are the same, false otherwise.
+	///        See main description for details.
+	virtual bool operator==(const GSimpleAssignment& other) const{
+		return aForB == other.aForB && bForA == other.bForA;
+	}
+
 	///\brief A do-nothing destructor needed since there may be subclasses
 	virtual ~GSimpleAssignment(){};
 };
+
+///\brief Tag class to indicate that the linearAssignment routine
+///should maximize the cost of the assignment
+class ShouldMaximize{};
+
+///\brief Tag class to indicate that the linearAssignment routine
+///should minimize the cost of the assignment
+class ShouldMinimize{};
+
+///\brief Return a GSimpleAssignment that minimizes the cost of the assignment
+///
+///costs[i][j] is the cost of assigning element i in set A to element
+///j in set B.  The GSimpleAssignment object returned minimizes the sum
+///of the costs for all assignments made.  All elements in the smaller
+///set will be assigned a corresponding element in the larger set.
+///
+///\param costs costs[i][j] is the cost of assigning element i in set
+///             A to element j in set B
+///
+///\param sm a tag parameter to differentiate this linearAssignment
+///          function from the version that maximizes the benefit of the
+///          assignment.  Just pass ShouldMinimize()
+///
+///\param epsilon fudge factor for floating-point equality comparisons
+///               after multiple additions and subtractions.  If two
+///               values lie within this distance of one another, they
+///               are considered equal.  Make sure that the costs in
+///               your cost matrix that are truely non-equal have
+///               distances much greater than epsilon.
+///
+///\return a Simple assignment object that minimizes the cost of the
+///        assignment.
+///
+///\see linearAssignment(GMatrix, ShouldMaximize, const double)
+///
+///\see LAPVJRCT
+GSimpleAssignment linearAssignment(GMatrix costs,	
+																	 ShouldMinimize sm=ShouldMinimize(), 
+																	 const double epsilon = 1e-8);
+
+
+///\brief Return a GSimpleAssignment that maximizes the benefit of the
+///assignment
+///
+///benefits[i][j] is the benefit of assigning element i in set A to element
+///j in set B.  The GSimpleAssignment object returned maximizes the sum
+///of the benefits for all assignments made.  All elements in the smaller
+///set will be assigned a corresponding element in the larger set.
+///
+///\param benefits benefits[i][j] is the benefit of assigning element i in set
+///             A to element j in set B
+///
+///\param sm a tag parameter to differentiate this linearAssignment
+///          function from the version that minimizes the cost of the
+///          assignment.  Just pass ShouldMaximize()
+///
+///\param epsilon fudge factor for floating-point equality comparisons
+///               after multiple additions and subtractions.  If two
+///               values lie within this distance of one another, they
+///               are considered equal.  Make sure that the costs in
+///               your cost matrix that are truely non-equal have
+///               distances much greater than epsilon.
+///
+///\return a Simple assignment object that maximizes the cost of the
+///        assignment.
+///
+///\see linearAssignment(GMatrix, ShouldMinimize, const double)
+///
+///\see LAPVJRCT
+GSimpleAssignment linearAssignment(GMatrix benefits,	
+																	 ShouldMaximize sm, 
+																	 const double epsilon = 1e-8);
+
+///\brief Solve a linear assignment minimization problem by the VERY SLOW brute
+///force method
+///
+///This method is mainly here for testing.
+///
+///Finds all simple assignments that minimize the cost matrix.  (For
+///certain degenerate cases (like the matrix where all costs are the
+///same), this can be a large number of assignments, be careful).
+///Takes time n choose m where n is the larger matrix dimension and m
+///is the smaller.  Always assigns one element to each of the smaller
+///dimensions of the matrix.
+///
+///The rows are the A set and the columns are the B set.
+///
+///\param costs costs[i][j] is the cost of assigning element i from
+///             set A to element j from set B
+///
+///\param sm A tag class to distinguish this from the code which
+///          maximizes the benefits.  Just pass ShouldMinimize
+std::vector<GSimpleAssignment> 
+linearAssignmentBruteForce(GMatrix costs, ShouldMinimize sm=ShouldMinimize());
+
+
+///\brief Solve a linear assignment maximization problem by the VERY SLOW brute
+///force method
+///
+///This method is mainly here for testing.
+///
+///Finds all simple assignments that maximize the benefit matrix.  (For
+///certain degenerate cases (like the matrix where all benefits are the
+///same), this can be a large number of assignments, be careful).
+///Takes time n choose m where n is the larger matrix dimension and m
+///is the smaller.  Always assigns one element to each of the smaller
+///dimensions of the matrix.
+///
+///The rows are the A set and the columns are the B set.
+///
+///\param benefits benefits[i][j] is the benefit of assigning element i from
+///                set A to element j from set B
+///
+///\param sm A tag class to distinguish this from the code which
+///          maximizes the benefits.  Just pass ShouldMaximize
+std::vector<GSimpleAssignment> 
+linearAssignmentBruteForce(GMatrix benefits, ShouldMaximize sm);
+
 
 ///\brief Rectangular linear assignment problem solver by Volgenant and Jonker
 ///
