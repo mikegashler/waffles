@@ -129,9 +129,9 @@ public:
 	/// then the escape character is used.  If an escape character
 	/// preceeds any character, then it is included in the token.  The
 	/// escape character is consumed but not included in the token.
-	/// Thus, if the input is (The \\rain\\ in \"spain\") (not including
-	/// the parentheses) and the esapeChar is '\', then the token read
-	/// will be (The \rain\ in "spain").
+	/// Thus, if the input is (The \\\\rain\\\\ in \\\"spain\\\") (not
+	/// including the parentheses) and the esapeChar is '\\', then the
+	/// token read will be (The \\rain\\ in "spain").
 	///
 	/// No token may extend over multiple lines, thus the new-line
 	/// character acts as an unescapable delimiter, no matter what set
