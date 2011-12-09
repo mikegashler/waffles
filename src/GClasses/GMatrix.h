@@ -35,7 +35,7 @@ class GRand;
 class GHeap;
 class GDom;
 class GDomNode;
-class GTokenizer;
+class GArffTokenizer;
 class GDistanceMetric;
 
 
@@ -373,7 +373,7 @@ public:
 	double parseValue(size_t attr, const char* val);
 
 	/// \brief Parses the meta-data for an attribute
-	void parseAttribute(GTokenizer& tok);
+	void parseAttribute(GArffTokenizer& tok);
 
 protected:
 	/// \brief takes ownership of ppValues

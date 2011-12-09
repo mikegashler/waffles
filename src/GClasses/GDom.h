@@ -22,7 +22,7 @@ class GDomNode;
 class GDom;
 class GDomObjField;
 class GDomListItem;
-class GTokenizer;
+class GJsonTokenizer;
 
 
 #ifdef WINDOWS
@@ -189,14 +189,8 @@ protected:
 	const char* m_pDoc;
 
 public:
-	GDom()
-	 : m_heap(2000), m_pRoot(NULL), m_line(0), m_len(0), m_pDoc(NULL)
-	{
-	}
-
-	~GDom()
-	{
-	}
+	GDom();
+	~GDom();
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
@@ -210,7 +204,7 @@ public:
 	void saveJson(const char* szFilename);
 
 	/// Parses JSON format from a tokenizer (which wraps a stream).
-	void parseJson(GTokenizer& tok);
+	void parseJson(const char* pFile, size_t len);
 
 	/// Writes this doc to the specified stream in JSON format. (See http://json.org.)
 	/// (If you want to write to a memory buffer, you can use open_memstream.)
@@ -259,10 +253,11 @@ public:
 protected:
 	GDomObjField* newField();
 	GDomListItem* newItem();
-	GDomNode* loadJsonObject(GTokenizer& tok);
-	GDomNode* loadJsonArray(GTokenizer& tok);
-	GDomNode* loadJsonNumber(GTokenizer& tok);
-	GDomNode* loadJsonValue(GTokenizer& tok);
+	GDomNode* loadJsonObject(GJsonTokenizer& tok);
+	GDomNode* loadJsonArray(GJsonTokenizer& tok);
+	GDomNode* loadJsonNumber(GJsonTokenizer& tok);
+	GDomNode* loadJsonValue(GJsonTokenizer& tok);
+	char* loadJsonString(GJsonTokenizer& tok);
 };
 
 } // namespace GClasses

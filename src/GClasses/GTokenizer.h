@@ -21,54 +21,14 @@ namespace GClasses {
 class GCharSet;
 class GHeap;
 
-/// This is a helper-class used by GTokenizer
-class GTokenizerMapComparer
-{
-public:
-	bool operator() (const char* a, const char* b) const;
-};
-
-/// This is a helper-class used by GTokenizer.  Use
-/// GTokenizer::charSet to create
+/// This class represents a set of characters.
 class GCharSet
 {
+friend class GTokenizer;
 protected:
 	GBitTable m_bt;
 
-	GCharSet(const char* szChars);
 public:
-
-	inline bool find(char c);
-
-	friend class GTokenizer;
-};
-
-
-/// This is a simple tokenizer that reads a file, one token at-a-time.
-class GTokenizer
-{
-protected:
-	GHeap* m_pHeap;
-	std::map<const char*,GCharSet*,GTokenizerMapComparer> m_charGroups;
-	char* m_pBufStart;
-	char* m_pBufPos;
-	char* m_pBufEnd;
-	std::istream* m_pStream;
-	size_t m_lineStart;
-	size_t m_len;
-	size_t m_line;
-
-public:
-	/// Opens the specified filename.
-	GTokenizer(const char* szFilename);
-
-	/// Uses the provided buffer of data. (If len is 0, then it
-	/// will read until a null-terminator is found.)
-	GTokenizer(const char* pFile, size_t len);
-	~GTokenizer();
-
-	/// Returns a GCharSet. Many of the methods in this class require
-	/// a GCharSet as a parameter. You get it by calling this method.
 	/// szChars is an un-ordered set of characters (with no separator between
 	/// them). The only special character is '-', which is used to indicate a
 	/// range of characters if it is not the first character in the string.
@@ -79,7 +39,37 @@ public:
 	/// a character in the set, since that character indicates the end of the
 	/// string, but that is okay since '\0' should not occur in text files
 	/// anyway, and this class is designed for parsing text files.)
-	GCharSet& charSet(const char* szChars);
+	GCharSet(const char* szChars);
+
+	/// Returns true iff c is in the character set
+	inline bool find(char c);
+};
+
+
+/// This is a simple tokenizer that reads a file, one token at-a-time.
+/// (To implement a parser, it is common to make a class that inherrits from this
+/// one with several member variables of type GCharSet.)
+class GTokenizer
+{
+protected:
+	char* m_pBufStart;
+	char* m_pBufPos;
+	char* m_pBufEnd;
+	std::istream* m_pStream;
+	size_t m_lineStart;
+	size_t m_len;
+	size_t m_line;
+
+public:
+	/// Opens the specified filename.
+	/// charSets is a class that inherits from GCharSetHolder
+	GTokenizer(const char* szFilename);
+
+	/// Uses the provided buffer of data. (If len is 0, then it
+	/// will read until a null-terminator is found.)
+	GTokenizer(const char* pFile, size_t len);
+
+	virtual ~GTokenizer();
 
 	/// Returns the next character in the stream. Returns '\0' if there are
 	/// no more characters in the stream. (This could theoretically be ambiguous if the

@@ -61,12 +61,6 @@ bool GCharSet::find(char c)
 
 
 
-bool GTokenizerMapComparer::operator() (const char* a, const char* b) const
-{
-	return strcmp(a, b) < 0;
-}
-
-
 GTokenizer::GTokenizer(const char* szFilename)
 {
 	std::ifstream* pStream = new std::ifstream();
@@ -86,7 +80,6 @@ GTokenizer::GTokenizer(const char* szFilename)
 		else
 			ThrowError("File not found: ", szFilename);
 	}
-	m_pHeap = new GHeap(1024);
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
@@ -107,7 +100,6 @@ GTokenizer::GTokenizer(const char* pFile, size_t len)
 		m_len = s.length();
 		m_pStream = new std::istringstream(s);
 	}
-	m_pHeap = new GHeap(1024);
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
@@ -117,25 +109,8 @@ GTokenizer::GTokenizer(const char* pFile, size_t len)
 
 GTokenizer::~GTokenizer()
 {
-	for(map<const char*,GCharSet*,GTokenizerMapComparer>::iterator it = m_charGroups.begin(); it != m_charGroups.end(); it++)
-		delete(it->second);
-	delete(m_pHeap);
 	delete[] m_pBufStart;
 	delete(m_pStream);
-}
-
-GCharSet& GTokenizer::charSet(const char* szChars)
-{
-	map<const char*,GCharSet*,GTokenizerMapComparer>::iterator it = m_charGroups.find(szChars);
-	if(it == m_charGroups.end())
-	{
-		GCharSet* pCharGroup = new GCharSet(szChars);
-		const char* szCharsCopy = m_pHeap->add(szChars);
-		m_charGroups.insert(std::pair<const char*,GCharSet*>(szCharsCopy, pCharGroup));
-		return *pCharGroup;
-	}
-	else
-		return *it->second;
 }
 
 void GTokenizer::growBuf()
@@ -253,8 +228,9 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 	char c = m_pStream->peek();
 	if(c == '"')
 	{
+		GCharSet cs("\"\n");
 		advance(1);
-		nextUntil(charSet("\"\n"));
+		nextUntil(cs);
 		if(peek() != '"')
 			ThrowError("Expected matching double-quotes on line ", 
 								 to_str(m_line), ", col ", to_str(col()));
@@ -266,7 +242,8 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 	else if(c == '\'')
 	{
 		advance(1);
-		nextUntil(charSet("'\n"));
+		GCharSet cs("'\n");
+		nextUntil(cs);
 		if(peek() != '\'')
 			ThrowError("Expected a matching single-quote on line ", to_str(m_line), 
 								 ", col ", to_str(col()));

@@ -31,11 +31,12 @@
 #include <cmath>
 #include <set>
 
-using namespace GClasses;
 using std::vector;
 using std::string;
 using std::ostream;
 using std::ostringstream;
+
+namespace GClasses {
 
 // static
 smart_ptr<GRelation> GRelation::deserialize(GDomNode* pNode)
@@ -508,6 +509,18 @@ void GMixedRelation::setAttrValueCount(size_t nAttr, size_t nValues)
 
 // ------------------------------------------------------------------
 
+class GArffTokenizer : public GTokenizer
+{
+public:
+	GCharSet m_whitespace, m_spaces, m_space, m_valEnd, m_valEnder, m_valHardEnder, m_argEnd, m_newline, m_commaNewlineTab;
+
+	GArffTokenizer(const char* szFilename) : GTokenizer(szFilename),
+	m_whitespace("\t\n\r "), m_spaces(" \t"), m_space(" "), m_valEnd(",}\n"), m_valEnder(" ,\t}\n"), m_valHardEnder(",}\t\n"), m_argEnd(" \t\n{\r"), m_newline("\n"), m_commaNewlineTab(",\n\t") {}
+	GArffTokenizer(const char* pFile, size_t len) : GTokenizer(pFile, len),
+	m_whitespace("\t\n\r "), m_spaces(" \t"), m_space(" "), m_valEnd(",}\n"), m_valEnder(" ,\t}\n"), m_valHardEnder(",}\t\n"), m_argEnd(" \t\n{\r"), m_newline("\n"), m_commaNewlineTab(",\n\t") {}
+	virtual ~GArffTokenizer() {}
+};
+
 GArffRelation::GArffRelation()
 {
 }
@@ -597,16 +610,12 @@ void GArffRelation::setName(const char* szName)
 	m_name = szName;
 }
 
-void GArffRelation::parseAttribute(GTokenizer& tok)
+void GArffRelation::parseAttribute(GArffTokenizer& tok)
 {
-	GCharSet& spaces = tok.charSet(" \t");
-	GCharSet& valEnd = tok.charSet(",}\n");
-	GCharSet& whitespace = tok.charSet("\t\n\r ");
-	GCharSet& argEnd = tok.charSet(" \t\n{\r");
-	tok.skip(spaces);
-	string name = tok.nextArg(argEnd);
+	tok.skip(tok.m_spaces);
+	string name = tok.nextArg(tok.m_argEnd);
 	//std::cerr << "Attr:" << name << "\n"; //DEBUG
-	tok.skip(spaces);
+	tok.skip(tok.m_spaces);
 	char c = tok.peek();
 	if(c == '{')
 	{
@@ -616,8 +625,8 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 		m_attrs.resize(index + 1);
 		while(true)
 		{
-			tok.nextArg(valEnd);
-			char* szVal = tok.trim(whitespace);
+			tok.nextArg(tok.m_valEnd);
+			char* szVal = tok.trim(tok.m_whitespace);
 			if(*szVal == '\0')
 				ThrowError("Empty value specified on line ", to_str(tok.line()));
 			if(*szVal == '\'')
@@ -662,7 +671,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 	}
 	else
 	{
-		const char* szType = tok.nextUntil(whitespace);
+		const char* szType = tok.nextUntil(tok.m_whitespace);
 		if(	_stricmp(szType, "CONTINUOUS") == 0 ||
 			_stricmp(szType, "REAL") == 0 ||
 			_stricmp(szType, "NUMERIC") == 0 ||
@@ -673,7 +682,7 @@ void GArffRelation::parseAttribute(GTokenizer& tok)
 		else
 			ThrowError("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
 	}
-	tok.skipTo(tok.charSet("\n"));
+	tok.skipTo(tok.m_newline);
 	tok.advance(1);
 }
 
@@ -993,44 +1002,37 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 	}
 }
 
-GMatrix* GMatrix_parseArff(GTokenizer& tok)
+GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 {
 	// Parse the meta data
-	GCharSet& whitespace = tok.charSet("\t\n\r ");
-	GCharSet& spaces = tok.charSet(" \t");
-	GCharSet& space = tok.charSet(" ");
-	GCharSet& newline = tok.charSet("\n");
-	GCharSet& valEnder = tok.charSet(" ,\t}\n");
-	GCharSet& valHardEnder = tok.charSet(",}\t\n");
-	GCharSet& commaNewlineTab = tok.charSet(",\n\t");
 	GArffRelation* pRelation = new GArffRelation();
 	sp_relation sp_rel = pRelation;
 	while(true)
 	{
-		tok.skip(whitespace);
+		tok.skip(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			ThrowError("Invalid ARFF file--contains no data");
 		else if(c == '%')
 		{
 			tok.advance(1);
-			tok.skipTo(newline);
+			tok.skipTo(tok.m_newline);
 		}
 		else if(c == '@')
 		{
 			tok.advance(1);
-			const char* szTok = tok.nextUntil(whitespace);
+			const char* szTok = tok.nextUntil(tok.m_whitespace);
 			if(_stricmp(szTok, "ATTRIBUTE") == 0)
 				pRelation->parseAttribute(tok);
 			else if(_stricmp(szTok, "RELATION") == 0)
 			{
-				tok.skip(spaces);
-				pRelation->setName(tok.nextArg(tok.charSet("\t\n\r ")));
+				tok.skip(tok.m_spaces);
+				pRelation->setName(tok.nextArg(tok.m_whitespace));
 				tok.advance(1);
 			}
 			else if(_stricmp(szTok, "DATA") == 0)
 			{
-				tok.skipTo(newline);
+				tok.skipTo(tok.m_newline);
 				tok.advance(1);
 				break;
 			}
@@ -1045,14 +1047,14 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 	size_t cols = pRelation->size();
 	while(true)
 	{
-		tok.skip(whitespace);
+		tok.skip(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			break;
 		else if(c == '%')
 		{
 			tok.advance(1);
-			tok.skipTo(newline);
+			tok.skipTo(tok.m_newline);
 		}
 		else if(c == '{')
 		{
@@ -1061,11 +1063,11 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			GVec::setAll(pRow, 0.0, cols);
 			while(true)
 			{
-				tok.skip(space);
+				tok.skip(tok.m_space);
 				char c = tok.peek();
 				if(c >= '0' && c <= '9')
 				{
-					const char* szTok = tok.nextUntil(valEnder);
+					const char* szTok = tok.nextUntil(tok.m_valEnder);
 #ifdef WIN32
 					size_t col = (size_t)_strtoui64(szTok, (char**)NULL, 10);
 #else
@@ -1073,10 +1075,10 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 #endif
 					if(col >= cols)
 						ThrowError("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-					tok.skip(spaces);
-					const char* szVal = tok.nextArg(valEnder);
+					tok.skip(tok.m_spaces);
+					const char* szVal = tok.nextArg(tok.m_valEnder);
 					pRow[col] = GMatrix_parseValue(pRelation, col, szVal, tok);
-					tok.skipTo(valHardEnder);
+					tok.skipTo(tok.m_valHardEnder);
 					c = tok.peek();
 					if(c == ',' || c == '\t')
 						tok.advance(1);
@@ -1100,8 +1102,8 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 			{
 				if(col >= cols)
 					ThrowError("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-				tok.nextArg(commaNewlineTab);
-				const char* szVal = tok.trim(whitespace);
+				tok.nextArg(tok.m_commaNewlineTab);
+				const char* szVal = tok.trim(tok.m_whitespace);
 				*pRow = GMatrix_parseValue(pRelation, col, szVal, tok);
 				pRow++;
 				col++;
@@ -1123,7 +1125,7 @@ GMatrix* GMatrix_parseArff(GTokenizer& tok)
 // static
 GMatrix* GMatrix::loadArff(const char* szFilename)
 {
-	GTokenizer tok(szFilename);
+	GArffTokenizer tok(szFilename);
 	return GMatrix_parseArff(tok);
 }
 
@@ -1144,7 +1146,7 @@ void GMatrix::saveArff(const char* szFilename)
 // static
 GMatrix* GMatrix::parseArff(const char* szFile, size_t nLen)
 {
-	GTokenizer tok(szFile, nLen);
+	GArffTokenizer tok(szFile, nLen);
 	return GMatrix_parseArff(tok);
 }
 
@@ -4863,3 +4865,5 @@ size_t GMatrixArray::largestSet()
 	}
 	return biggestIndex;
 }
+
+} // namespace GClasses

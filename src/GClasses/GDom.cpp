@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include "GDom.h"
-//#include "GXML.h"
 #include "GFile.h"
 #include "GHolders.h"
 #include <vector>
@@ -463,12 +462,33 @@ void GDomNode::writeXml(std::ostream& stream, const char* szLabel)
 
 // -------------------------------------------------------------------------------
 
+class GJsonTokenizer : public GTokenizer
+{
+public:
+	GCharSet m_whitespace, m_real, m_quot;
+
+	GJsonTokenizer(const char* szFilename) : GTokenizer(szFilename),
+	m_whitespace("\t\n\r "), m_real("-.+0-9eE"), m_quot("\"") {}
+	GJsonTokenizer(const char* pFile, size_t len) : GTokenizer(pFile, len),
+	m_whitespace("\t\n\r "), m_real("-.+0-9eE"), m_quot("\"") {}
+	virtual ~GJsonTokenizer() {}
+};
+
 class Bogus1
 {
 public:
 	int m_type;
 	double m_double;
 };
+
+GDom::GDom()
+: m_heap(2000), m_pRoot(NULL), m_line(0), m_len(0), m_pDoc(NULL)
+{
+}
+
+GDom::~GDom()
+{
+}
 
 GDomNode* GDom::newObj()
 {
@@ -541,10 +561,10 @@ GDomListItem* GDom::newItem()
 	return (GDomListItem*)m_heap.allocAligned(sizeof(GDomListItem));
 }
 
-char* JSON_readString(GTokenizer& tok)
+char* GDom::loadJsonString(GJsonTokenizer& tok)
 {
 	tok.expect("\"");
-	char* szTok = tok.nextUntilNotEscaped('\\', tok.charSet("\""));
+	char* szTok = tok.nextUntilNotEscaped('\\', tok.m_quot);
 	tok.advance(1);
 	size_t eat = 0;
 	char* szString = szTok;
@@ -580,12 +600,12 @@ char* JSON_readString(GTokenizer& tok)
 	return szTok;
 }
 
-GDomNode* GDom::loadJsonObject(GTokenizer& tok)
+GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 {
 	tok.expect("{");
 	GDomNode* pNewObj = newObj();
 	bool readyForField = true;
-	GCharSet& whitespace = tok.charSet("\t\n\r ");
+	GCharSet& whitespace = tok.m_whitespace;
 	while(tok.remaining() > 0)
 	{
 		tok.skip(whitespace);
@@ -609,7 +629,7 @@ GDomNode* GDom::loadJsonObject(GTokenizer& tok)
 			GDomObjField* pNewField = newField();
 			pNewField->m_pPrev = pNewObj->m_value.m_pLastField;
 			pNewObj->m_value.m_pLastField = pNewField;
-			pNewField->m_pName = m_heap.add(JSON_readString(tok));
+			pNewField->m_pName = m_heap.add(loadJsonString(tok));
 			tok.skip(whitespace);
 			tok.expect(":");
 			tok.skip(whitespace);
@@ -624,15 +644,14 @@ GDomNode* GDom::loadJsonObject(GTokenizer& tok)
 	return pNewObj;
 }
 
-GDomNode* GDom::loadJsonArray(GTokenizer& tok)
+GDomNode* GDom::loadJsonArray(GJsonTokenizer& tok)
 {
 	tok.expect("[");
 	GDomNode* pNewList = newList();
 	bool readyForValue = true;
-	GCharSet& whitespace = tok.charSet("\t\n\r ");
 	while(tok.remaining() > 0)
 	{
-		tok.skip(whitespace);
+		tok.skip(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == ']')
 		{
@@ -662,9 +681,9 @@ GDomNode* GDom::loadJsonArray(GTokenizer& tok)
 	return pNewList;
 }
 
-GDomNode* GDom::loadJsonNumber(GTokenizer& tok)
+GDomNode* GDom::loadJsonNumber(GJsonTokenizer& tok)
 {
-	char* szString = tok.nextWhile(tok.charSet("-.+0-9eE"));
+	char* szString = tok.nextWhile(tok.m_real);
 	bool hasPeriod = false;
 	for(char* szChar = szString; *szChar != '\0'; szChar++)
 	{
@@ -683,11 +702,11 @@ GDomNode* GDom::loadJsonNumber(GTokenizer& tok)
 	}
 }
 
-GDomNode* GDom::loadJsonValue(GTokenizer& tok)
+GDomNode* GDom::loadJsonValue(GJsonTokenizer& tok)
 {
 	char c = tok.peek();
 	if(c == '"')
-		return newString(JSON_readString(tok));
+		return newString(loadJsonString(tok));
 	else if(c == '{')
 		return loadJsonObject(tok);
 	else if(c == '[')
@@ -721,16 +740,18 @@ GDomNode* GDom::loadJsonValue(GTokenizer& tok)
 	}
 }
 
-void GDom::parseJson(GTokenizer& tok)
+void GDom::parseJson(const char* pFile, size_t len)
 {
-	tok.skip(tok.charSet("\t\n\r "));
+	GJsonTokenizer tok(pFile, len);
+	tok.skip(tok.m_whitespace);
 	setRoot(loadJsonValue(tok));
 }
 
 void GDom::loadJson(const char* szFilename)
 {
-	GTokenizer tok(szFilename);
-	parseJson(tok);
+	GJsonTokenizer tok(szFilename);
+	tok.skip(tok.m_whitespace);
+	setRoot(loadJsonValue(tok));
 }
 
 void GDom::writeJson(std::ostream& stream)
@@ -808,9 +829,8 @@ void GDom::test()
 		"	\"height\": 5.8,\n"
 		"	\"temp\":98.6\n"
 		"}\n";
-	GTokenizer tok(szTestFile, strlen(szTestFile));
 	GDom doc;
-	doc.parseJson(tok);
+	doc.parseJson(szTestFile, strlen(szTestFile));
 }
 #endif // NO_TEST_CODE
 
