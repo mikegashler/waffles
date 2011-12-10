@@ -1,13 +1,13 @@
 #include "GMatrix.h"
 #include "GAssignment.h"
 #include <limits>
-#include <cmath> //For abs
+#include <cmath> //For abs, isfinite, isinf
 
+namespace GClasses{
 
-
-void GClasses::LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y, 
-												std::vector<double>& u, std::vector<double>& v, 
-												double& totalCost, const double epsilon){
+void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y, 
+							std::vector<double>& u, std::vector<double>& v, 
+							double& totalCost, const double epsilon){
 	//Infinity
 	const double inf = std::numeric_limits<double>::infinity();
 
@@ -307,3 +307,179 @@ void GClasses::LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 	x.resize(n);
 	u.resize(n);
 }
+
+namespace{
+
+	///Return true iff d represents a non-NAN finite value
+	///
+	///This is a stand-in until the isfinite(double) function is added
+	///in the next c++ standard.  It will work on well-behaved
+	///processors, but if you want to compile for an older chip that
+	///does strange things with NaNs and infinities, cross your fingers.
+	///
+	///\param d the double value whose finitude is assessed
+	///
+	///\return true if d is not NaN, infinity or -infinity, return false
+	///        if d is NaN, infinity or -infinity.
+	bool isfinite(double d){
+		const double inf = std::numeric_limits<double>::infinity();
+		return d != inf && d != -inf && d==d;
+	}
+
+	///\brief Applies a linear transformation a*x + b to all finite
+	///entries in the matrix m.  non-finite entries are left unchanged.
+	///
+	///Does: m[i][j] = a*m[i][j] + b for all entries for which
+	///isfinite(m[i][j]) is true in the matrix m
+	///
+	///\param m the matrix to transform
+	///
+	///\param a the multiplicative factor in the a*x+b transformation
+	///         applied to the matrix entries
+	///
+	///\param b the constant term in the a*x+b transformation applied to
+	///         the matrix entries.
+	void linearTransformFiniteMatrixEntries(GMatrix&m, const double a, const double b){
+		for(unsigned i = 0; i < m.rows(); ++i){
+			for(unsigned j = 0; j < m.cols(); ++j){
+				if(isfinite(m[i][j])){
+					if(a==1){
+						m[i][j] += b;
+					}else if(a == -1){
+						m[i][j] = b - m[i][j];
+					}else{
+						m[i][j] = a*m[i][j] + b;
+					}
+				}
+			}
+		}
+	}
+
+	
+	///\brief Set \a min to the minimum finite value in the matrix \a m
+	///
+	///Of all the values x in the matrix for which isfinite(x) is true,
+	///sets \a min to the minimum such value (and sets \a
+	///matrixHadFiniteMinimum to true).  If there is no such value, \a
+	///min is undefined and \a matrixHadFiniteMinimum is set to false.
+	///
+	///\param m the matrix to make non-negative
+	///
+	///\param min the minimum finite value in the matrix \a m.
+	///           undefined if there is no such value
+	///
+	///\param matrixHadFiniteMinimum If \a m had a finite minimum,
+	///                              this will be true.  If the matrix
+	///                              was empty or had no finite value as
+	///                              the minimum, this will be false
+	void minFiniteValue(GMatrix& m, double& min, bool& matrixHadFiniteMinimum){
+		const double inf = std::numeric_limits<double>::infinity();
+		
+		//Find the smallest finite value in the matrix 
+		min = inf;
+		for(std::size_t row = 0; row < m.rows(); ++row){
+			double const* r = m[row];
+			double const* rend = r + m.cols();
+			for(double const* cur = r; cur != rend; ++cur){
+				if(min > *cur && isfinite(*cur)){
+					min = *cur;
+				}
+			}
+		}
+		
+		//If min is not finite, there are no finite values in the matrix
+		matrixHadFiniteMinimum = isfinite(min);
+	}
+
+	///\brief Set \a max to the maximum finite value in the matrix \a m
+	///
+	///Of all the values x in the matrix for which isfinite(x) is true,
+	///sets \a max to the maximum such value (and sets \a
+	///matrixHadFiniteMaximum to true).  If there is no such value, \a
+	///max is undefined and \a matrixHadFiniteMaximum is set to false.
+	///
+	///\param m the matrix to make non-negative
+	///
+	///\param max the maximum finite value in the matrix \a m.
+	///           undefined if there is no such value
+	///
+	///\param matrixHadFiniteMaximum If \a m had a finite maximum,
+	///                              this will be true.  If the matrix
+	///                              was empty or had no finite value as
+	///                              the maximum, this will be false
+	void maxFiniteValue(GMatrix& m, double& max, bool& matrixHadFiniteMaximum){
+		const double inf = std::numeric_limits<double>::infinity();
+		
+		//Find the largest finite value in the matrix 
+		max = -inf;
+		for(std::size_t row = 0; row < m.rows(); ++row){
+			double const* r = m[row];
+			double const* rend = r + m.cols();
+			for(double const* cur = r; cur != rend; ++cur){
+				if(max < *cur && isfinite(*cur)){
+					max = *cur;
+				}
+			}
+		}
+		
+		//If max is not finite, there are no finite values in the matrix
+		matrixHadFiniteMaximum = isfinite(max);
+	}
+
+}
+GSimpleAssignment linearAssignment(GMatrix benefits,	
+																	 ShouldMaximize sm, 
+																	 const double epsilon){
+
+	//Find the minimum and maximum for the matrix
+
+	double min; bool matrixHasFiniteMinimum;
+	minFiniteValue(benefits, min, matrixHasFiniteMinimum);
+
+	double max; bool matrixHasFiniteMaximum;
+	maxFiniteValue(benefits, max, matrixHasFiniteMaximum);
+
+	GSimpleAssignment result(benefits.rows(), benefits.cols());
+	if(! matrixHasFiniteMinimum){
+		//No assignment can be made when the matrix has no finite entries
+		return result;
+	}
+	//Since there is a finite minimum, there must also be a finite maximum
+	assert(matrixHasFiniteMaximum);
+
+	// Add the minimum to all entries if the minimum is negative
+	//
+	// then
+	//
+	// Subtract all entries from the maximum so the maximum becomes the
+	// minimum and vice-versa
+	//
+	// This is equivalent to doing the transformation 
+	// y = x - min then z = max - y  (if min was negative)
+	// or 
+	// z = max - x (if min was non-negative)
+	//
+	// This is equivalent to 
+	//
+	// z = max - (x-min) = max + min - x (if min was negative)
+	// or
+	// z = max - x (if min was non-negative
+	//
+	// I do all these gyrations to allow one pass over the matrix rather
+	// than two for the two transformations.
+	double toAdd;
+	if(min < 0){
+		toAdd = max + min;
+	}else{
+		toAdd = max;
+	}
+
+	linearTransformFiniteMatrixEntries(benefits, -1, toAdd);
+
+	//TODO: make the above into its own routine, run LAPVJRCT, and
+	//translate the results into an assignment.
+	
+}
+
+}//Namespace GClasses
+
