@@ -1,3 +1,17 @@
+/*
+	Copyright (C) 2012, Mike Gashler
+
+	This library is free software; you can redistribute it and/or
+	modify it under the terms of the GNU Lesser General Public
+	License as published by the Free Software Foundation; either
+	version 2.1 of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/lesser.html
+*/
+
+///\file
+///\brief Defines those things declared in GAssignment.h
+
 #include "GMatrix.h"
 #include "GAssignment.h"
 #include <limits>
@@ -326,11 +340,10 @@ namespace{
 		return d != inf && d != -inf && d==d;
 	}
 
-	///\brief Applies a linear transformation a*x + b to all finite
-	///entries in the matrix m.  non-finite entries are left unchanged.
+	///\brief Applies a linear transformation a*x + b to all entries in
+	///the matrix m.
 	///
-	///Does: m[i][j] = a*m[i][j] + b for all entries for which
-	///isfinite(m[i][j]) is true in the matrix m
+	///Does: m[i][j] = a*m[i][j] + b for all entries in the matrix m
 	///
 	///\param m the matrix to transform
 	///
@@ -339,17 +352,16 @@ namespace{
 	///
 	///\param b the constant term in the a*x+b transformation applied to
 	///         the matrix entries.
-	void linearTransformFiniteMatrixEntries(GMatrix&m, const double a, const double b){
+	void linearTransformMatrixEntries(GMatrix&m, 
+																		const double a, const double b){
 		for(unsigned i = 0; i < m.rows(); ++i){
 			for(unsigned j = 0; j < m.cols(); ++j){
-				if(isfinite(m[i][j])){
-					if(a==1){
-						m[i][j] += b;
-					}else if(a == -1){
-						m[i][j] = b - m[i][j];
-					}else{
-						m[i][j] = a*m[i][j] + b;
-					}
+				if(a==1){
+					m[i][j] += b;
+				}else if(a == -1){
+					m[i][j] = b - m[i][j];
+				}else{
+					m[i][j] = b + a*m[i][j];
 				}
 			}
 		}
@@ -363,7 +375,7 @@ namespace{
 	///matrixHadFiniteMinimum to true).  If there is no such value, \a
 	///min is undefined and \a matrixHadFiniteMinimum is set to false.
 	///
-	///\param m the matrix to make non-negative
+	///\param m the matrix whose minimum is found
 	///
 	///\param min the minimum finite value in the matrix \a m.
 	///           undefined if there is no such value
@@ -398,7 +410,7 @@ namespace{
 	///matrixHadFiniteMaximum to true).  If there is no such value, \a
 	///max is undefined and \a matrixHadFiniteMaximum is set to false.
 	///
-	///\param m the matrix to make non-negative
+	///\param m the matrix whose maximum is found
 	///
 	///\param max the maximum finite value in the matrix \a m.
 	///           undefined if there is no such value
@@ -426,59 +438,107 @@ namespace{
 		matrixHadFiniteMaximum = isfinite(max);
 	}
 
+
+	///\brief transforms the benefits matrix for a linear assignment
+	///maximization problem into a non-negative cost matrix for a
+	///minimization problem with the same solution.
+	///
+	///\param benefits the matrix of benefits for the linear-assignment
+	///                maximization problem.  Will become a cost matrix
+	///                with non-negative entries and the same solution.
+	///
+	///\param success true if the matrix could be standardized, false if
+	///               it could not.  Success is not a return value to
+	///               ensure that the caller notices it.
+	void standardizeMaxLinAssignProb(GMatrix& benefits, bool& success){
+		
+		success = false;
+
+		//Find the minimum and maximum for the matrix
+		
+		double min; bool matrixHasFiniteMinimum;
+		minFiniteValue(benefits, min, matrixHasFiniteMinimum);
+		
+		double max; bool matrixHasFiniteMaximum;
+		maxFiniteValue(benefits, max, matrixHasFiniteMaximum);
+
+		if(! matrixHasFiniteMinimum){
+			//The matrix cannot be standardized when the matrix has no
+			//finite entries
+			return;
+		}
+		//Since there is a finite minimum, there must also be a finite maximum
+		assert(matrixHasFiniteMaximum);
+		
+		// Add the minimum to all entries if the minimum is negative
+		//
+		// then
+		//
+		// Subtract all entries from the maximum so the maximum becomes the
+		// minimum and vice-versa
+		//
+		// This is equivalent to doing the transformation 
+		// y = x - min then z = max - y  (if min was negative)
+		// or 
+		// z = max - x (if min was non-negative)
+		//
+		// This is equivalent to 
+		//
+		// z = max - (x-min) = max + min - x (if min was negative)
+		// or
+		// z = max - x (if min was non-negative
+		//
+		// I do all these gyrations to allow one pass over the matrix rather
+		// than two for the two transformations.
+		double toAdd;
+		if(min < 0){
+			toAdd = max + min;
+		}else{
+			toAdd = max;
+		}
+		
+		linearTransformMatrixEntries(benefits, -1, toAdd);
+		success = true;
+	}
+
 }
+
 GSimpleAssignment linearAssignment(GMatrix benefits,	
 																	 ShouldMaximize sm, 
 																	 const double epsilon){
 
-	//Find the minimum and maximum for the matrix
-
-	double min; bool matrixHasFiniteMinimum;
-	minFiniteValue(benefits, min, matrixHasFiniteMinimum);
-
-	double max; bool matrixHasFiniteMaximum;
-	maxFiniteValue(benefits, max, matrixHasFiniteMaximum);
+	bool success;
+	standardizeMaxLinAssignProb(benefits, success);
 
 	GSimpleAssignment result(benefits.rows(), benefits.cols());
-	if(! matrixHasFiniteMinimum){
-		//No assignment can be made when the matrix has no finite entries
+	if(!success){
+		//No assignment is possible if the matrix could not be standardized
 		return result;
 	}
-	//Since there is a finite minimum, there must also be a finite maximum
-	assert(matrixHasFiniteMaximum);
 
-	// Add the minimum to all entries if the minimum is negative
-	//
-	// then
-	//
-	// Subtract all entries from the maximum so the maximum becomes the
-	// minimum and vice-versa
-	//
-	// This is equivalent to doing the transformation 
-	// y = x - min then z = max - y  (if min was negative)
-	// or 
-	// z = max - x (if min was non-negative)
-	//
-	// This is equivalent to 
-	//
-	// z = max - (x-min) = max + min - x (if min was negative)
-	// or
-	// z = max - x (if min was non-negative
-	//
-	// I do all these gyrations to allow one pass over the matrix rather
-	// than two for the two transformations.
-	double toAdd;
-	if(min < 0){
-		toAdd = max + min;
-	}else{
-		toAdd = max;
+	bool hadToTranspose = false;
+	GMatrix* costs = &benefits;
+	if(benefits.rows() > benefits.cols()){
+		hadToTranspose = true;
+	  costs = benefits.transpose();
 	}
 
-	linearTransformFiniteMatrixEntries(benefits, -1, toAdd);
+	std::vector<int> rowAssign;
+	std::vector<int> colAssign;
+	std::vector<double> rowPotential;
+	std::vector<double> colPotential;
+	double totalCost;
+	LAPVJRCT(*costs, rowAssign, colAssign, rowPotential, colPotential,
+					 totalCost, epsilon);
 
-	//TODO: make the above into its own routine, run LAPVJRCT, and
-	//translate the results into an assignment.
-	
+	if(hadToTranspose){
+		result.setBForA(colAssign);
+		delete costs;
+	}else{
+		result.setBForA(rowAssign);
+	}
+
+	return result;
 }
 
 }//Namespace GClasses
