@@ -696,8 +696,17 @@ public:
 	/// \brief Returns the sum of the diagonal elements
 	double trace();
 
-	/// \brief Returns a dataset that is this dataset transposed. (All columns
-	/// in the returned dataset will be continuous.)
+	/// \brief Returns a pointer to a new dataset that is this dataset
+	/// transposed. (All columns in the returned dataset will be
+	/// continuous.)
+	///
+	/// The returned matrix is newly allocated on the system heap with
+	/// operator new and must be deleted by the caller.
+	///
+	/// \return A pointer to a new dataset that is this dataset
+	///         transposed. All columns in the returned dataset will be
+	///         continuous.  The caller is responsible for deleting the
+	///         returned dataset.
 	GMatrix* transpose();
 
 	/// \brief Copies the data from pVector over this dataset. 
