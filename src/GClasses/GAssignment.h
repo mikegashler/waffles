@@ -8,6 +8,7 @@
 
 	see http://www.gnu.org/copyleft/lesser.html
 */
+
 ///\file
 ///\brief Defines an assignment between two sets and holds algorithms
 ///       for generating them.
@@ -21,6 +22,7 @@
 #include "GError.h"
 #include "GHolders.h"
 #include <cassert>
+#include <algorithm>
 
 namespace GClasses {
 
@@ -144,6 +146,30 @@ public:
 		//Create the new assignment
 		bForA[memberOfA] = memberOfB;
 		aForB[memberOfB] = memberOfA;
+	}
+
+	///\brief Set the assignment to the one expressed in the vector \a bForA
+	///
+	///Given a vector \a bForA for which bForA[i] is the index of the
+	///member of set B that corresponds to the i-th member of set A or
+	///is -1 if there is no corresponding element, make the assignments
+	///in this object identical.
+	///
+	///It is assumed that this operation will not change the sizes of
+	///the sets referred to by this assignment.  That is, -1 <= bForA[i]
+	///and bForA[i] < sizeB() and bForA.size() == sizeA()
+	///
+	///\param bForA bForA[i] gives the assignment for element i in set
+	///             A.  It is the index of the corresponding element of
+	///             set B or -1 if there is no corresponding element.
+	virtual void setBForA(const std::vector<int>& bForA){
+		assert(bForA.size() == this->bForA.size());
+		this->bForA = bForA; 
+		std::fill(aForB.begin(), aForB.end(), -1);
+		for(unsigned i = 0; i < bForA.size(); ++i){
+			int match = bForA.at(i);
+			if(match >= 0) { aForB.at(match) = i; }
+		}
 	}
 
 	///\brief Remove any assignment for the given member of A
