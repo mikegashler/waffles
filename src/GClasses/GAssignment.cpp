@@ -541,5 +541,54 @@ GSimpleAssignment linearAssignment(GMatrix benefits,
 	return result;
 }
 
+GSimpleAssignment linearAssignment(GMatrix costs,	
+																	 ShouldMinimize /*Not used*/, 
+																	 const double epsilon){
+
+	//Convert the cost matrix to one with non-negative entries but an
+	//identical solution
+	double min; bool matrixHasFiniteMinimum;
+	minFiniteValue(costs, min, matrixHasFiniteMinimum);
+
+	GSimpleAssignment result(costs.rows(), costs.cols());
+	if(! matrixHasFiniteMinimum){
+		//The matrix cannot be standardized when the matrix has no
+		//finite entries
+		return result;
+	}
+
+	if(min < 0){
+		linearTransformMatrixEntries(costs, 1, min);
+	}
+		
+	//Transpose if necessary so fewer rows than columns
+	bool hadToTranspose = false;
+	GMatrix* cstd = &costs; //standardized costs
+	if(costs.rows() > costs.cols()){
+		hadToTranspose = true;
+	  cstd = costs.transpose();
+	}
+
+	//Run LAPVJRCT
+	std::vector<int> rowAssign;
+	std::vector<int> colAssign;
+	std::vector<double> rowPotential;
+	std::vector<double> colPotential;
+	double totalCost;
+	LAPVJRCT(*cstd, rowAssign, colAssign, rowPotential, colPotential,
+					 totalCost, epsilon);
+
+	//Set the result and free the standardized copy
+	if(hadToTranspose){
+		result.setBForA(colAssign);
+		delete cstd;
+	}else{
+		result.setBForA(rowAssign);
+	}
+
+	return result;
+}
+
+
 }//Namespace GClasses
 
