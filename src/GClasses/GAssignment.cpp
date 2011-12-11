@@ -504,7 +504,7 @@ namespace{
 }
 
 GSimpleAssignment linearAssignment(GMatrix benefits,	
-																	 ShouldMaximize sm, 
+																	 ShouldMaximize /*Not used*/, 
 																	 const double epsilon){
 
 	bool success;
