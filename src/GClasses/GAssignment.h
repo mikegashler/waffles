@@ -125,6 +125,32 @@ public:
 	///             the assignment)
 	GSimpleAssignment(std::size_t aSize, std::size_t bSize):aForB(bSize, -1), 
 																													bForA(aSize, -1){}
+	
+	///\brief Create an assignment between two sets of the given sizes
+	///that assigns everything according to the array \a bForA
+	///
+	///Just like writing:
+	///\code
+	///GSimpleAssignment foo(bForA.size(), \a bSize);
+	///foo.setBForA(bForA);
+	///\endcode
+	///
+	///\param bSize the number of elements in set B (the second set in
+	///             the assignment)
+	///
+	///\param bForA bForA[i] gives the assignment for element i in set
+	///             A.  It is the index of the corresponding element of
+	///             set B or -1 if there is no corresponding element.
+	///
+	///\see GSimpleAssignment(std::size_t, std::size_t)
+	///\see bForA(const std::vector<int>&)
+	GSimpleAssignment(std::size_t bSize, const std::vector<int>& bForA)
+		:aForB(bSize, -1), bForA(bForA){
+		for(std::size_t i = 0; i < bForA.size(); ++i){
+			int match = bForA.at(i);
+			if(match >= 0) { aForB.at(match) = i; }
+		}
+	}
 
 	///\brief Create an assignment between the two members, setting any
 	///previously corresponding members to unassigned.
@@ -166,7 +192,7 @@ public:
 		assert(bForA.size() == this->bForA.size());
 		this->bForA = bForA; 
 		std::fill(aForB.begin(), aForB.end(), -1);
-		for(unsigned i = 0; i < bForA.size(); ++i){
+		for(std::size_t i = 0; i < bForA.size(); ++i){
 			int match = bForA.at(i);
 			if(match >= 0) { aForB.at(match) = i; }
 		}
@@ -259,6 +285,16 @@ public:
 	///        See main description for details.
 	virtual bool operator==(const GSimpleAssignment& other) const{
 		return aForB == other.aForB && bForA == other.bForA;
+	}
+
+	///\brief Swaps the A and B set.  The assignments stay the same.
+	///
+	///If A element i was assigned to B element j before the swap, A
+	///element j will be asigned to B element i after the swap.
+	virtual void swapAAndB(){
+		std::vector<int> tmp = aForB;
+		aForB = bForA;
+		bForA = tmp;
 	}
 
 	///\brief A do-nothing destructor needed since there may be subclasses
@@ -450,6 +486,14 @@ void LAPVJRCT(GMatrix cost, std::vector<int>& rowAssign,
 							std::vector<double>& rowPotential, 
 							std::vector<double>& colPotential, double& totalCost,
 							const double epsilon=1e-8);
+
+#ifndef  NO_TEST_CODE
+
+///\brief Runs unit tests on the linear assignment code and supporting
+///       code.  Throws an exception if it detects an error.
+void testLinearAssignment();
+
+#endif //NO_TEST_CODE
 	
 }
 #endif //  __GASSIGNMENT_H__
