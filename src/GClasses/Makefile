@@ -149,11 +149,13 @@ usage:
 
 # This rule makes the optimized ".a" file by using the "ar" tool with all of the optimized ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT)
-	ar -cr $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT)
+	@echo "Creating optimized library: " $(TARGET_PATH)/$(TARGET_NAME_OPT)
+	@ar -cr $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT)
 
 # This rule makes the debug ".a" file by using the "ar" tool with all of the debug ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
-	ar -cr $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG)
+	@echo "Creating debug library:" $(TARGET_PATH)/$(TARGET_NAME_OPT)
+	@ar -cr $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG)
 
 # This includes all of the ".d" files. Each ".d" file contains a
 # generated rule that tells it how to make .o files. (The reason these are generated is so that
