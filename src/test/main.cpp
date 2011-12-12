@@ -19,6 +19,7 @@
 #	include <direct.h>
 #endif
 #include "../GClasses/GApp.h"
+#include "../GClasses/GAssignment.h"
 #include "../GClasses/GBezier.h"
 #include "../GClasses/GBits.h"
 #include "../GClasses/GBitTable.h"
@@ -494,6 +495,7 @@ public:
 		// Class tests
 		runTest("GAdaBoost", GAdaBoost::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
+		runTest("GAssignment - linearAssignment", testLinearAssignment);
 		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
 		runTest("GAttributeSelector", GAttributeSelector::test);
 		runTest("GBag", GBag::test);
@@ -516,6 +518,7 @@ public:
 		runTest("GDijkstra", GDijkstra::test);
 		runTest("GDom", GDom::test);
 		runTest("GDynamicSystemStateAligner", GDynamicSystemStateAligner::test);
+		runTest("GError.h - to_str", test_to_str);
 		runTest("GFloydWarshall", GFloydWarshall::test);
 		runTest("GFourier", GFourier::test);
 		runTest("GGraphCut", GGraphCut::test);
