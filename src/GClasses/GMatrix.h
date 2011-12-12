@@ -423,6 +423,32 @@ public:
 	/// rows by calling newRow or newRows.
 	GMatrix(sp_relation& pRelation, GHeap* pHeap = NULL);
 
+	///\brief Copy-constructor
+	///
+	///Copies \a orig, making a new relation object and new storage for
+	///the rows (with the same content), but uses the same GHeap object
+	///as \a orig
+	///
+	///\param orig the GMatrix object to copy
+	GMatrix(const GMatrix& orig);
+
+
+	//I put the operator= right after the copy constructor because you
+	//should always have both or neither in a class, this makes that
+	//easy to verify
+
+	///\brief Make *this into a copy of orig
+	///
+	///Copies \a orig, making a new relation object and new storage for
+	///the rows (with the same content), but uses the same GHeap object
+	///as \a orig
+	///
+	///\param orig the GMatrix object to copy
+	///
+	///\return a reference to this GMatrix object
+	GMatrix& operator=(const GMatrix& orig);
+
+
 	/// \brief Load from a DOM.
 	GMatrix(GDomNode* pNode, GHeap* pHeap = NULL);
 
@@ -469,13 +495,13 @@ public:
 
 	/// \brief Copies all the data from pThat. (Just references the same
 	/// relation)
-	void copy(GMatrix* pThat);
+	void copy(const GMatrix* pThat);
 
 	/// \brief Copies the specified block of columns from pSource to
 	/// this dataset. 
 	///
 	/// pSource must have the same number of rows as this dataset.
-	void copyColumns(size_t nDestStartColumn, GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount);
+	void copyColumns(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount);
 
 	/// \brief Adds a copy of the row to the data set
 	void copyRow(const double* pRow);

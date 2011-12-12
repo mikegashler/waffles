@@ -921,6 +921,17 @@ GMatrix::GMatrix(vector<size_t>& attrValues, GHeap* pHeap)
 	m_pRelation = new GMixedRelation(attrValues);
 }
 
+GMatrix::GMatrix(const GMatrix& orig):m_pHeap(orig.m_pHeap){
+  copy(&orig);
+  m_pRelation = m_pRelation->clone();
+}
+
+GMatrix& GMatrix::operator=(const GMatrix& orig){
+  copy(&orig);
+  m_pRelation = m_pRelation->clone();
+  return *this;
+}
+
 GMatrix::GMatrix(GDomNode* pNode, GHeap* pHeap)
 : m_pHeap(pHeap)
 {
@@ -2602,7 +2613,7 @@ void GMatrix::setAll(double val)
 		GVec::setAll(row(i), val, colCount);
 }
 
-void GMatrix::copy(GMatrix* pThat)
+void GMatrix::copy(const GMatrix* pThat)
 {
 	m_pRelation = pThat->m_pRelation;
 	flush();
@@ -2636,7 +2647,7 @@ void GMatrix::copyRow(const double* pRow)
 	GVec::copy(pNewRow, pRow, m_pRelation->size());
 }
 
-void GMatrix::copyColumns(size_t nDestStartColumn, GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount)
+void GMatrix::copyColumns(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount)
 {
 	if(rows() != pSource->rows())
 		ThrowError("expected datasets to have the same number of rows");
