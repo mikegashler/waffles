@@ -19,6 +19,13 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <vector>
+#include <deque>
+#include <list>
+#include <set>
+#include <map>
+#include <utility> //for pair
+
 
 #ifdef WINDOWS
 // Throw out the min and max macros supplied by Microsoft that collide with std::min and std::max
@@ -50,7 +57,7 @@ void GAssertFailed();
 
 
 
-// Convert another type to a string
+///\brief Convert another type that to a string
 template<typename T>
 std::string to_str(const T& n)
 {
@@ -59,6 +66,108 @@ std::string to_str(const T& n)
 	os << n;
 	return os.str();
 }
+
+
+//Forward declaration of the special container class templates
+template<typename T>
+std::string to_str(const std::vector<T>& v);
+template<typename T>
+std::string to_str(const std::list<T>& v);
+template<typename T>
+std::string to_str(const std::set<T>& v);
+template<typename T>
+std::string to_str(const std::deque<T>& v);
+template<typename T>
+std::string to_str(const std::multiset<T>& v);
+template<typename Key, typename T>
+std::string to_str(const std::multimap<Key, T>& v);
+template<typename Key, typename T>
+std::string to_str(const std::map<Key, T>& v);
+
+///\brief Convert a vector<bool> to a string (should allow converting nested
+///stl containers like vector<list ...> to strings)
+std::string to_str(const std::vector<bool>& vv);
+
+
+///\brief Convert a pair to a string (should allow converting nested
+///stl containers like pair<list<vector...>, multiset<foo> > to strings)
+template<typename T, typename U>
+std::string to_str(std::pair<T,U> v){
+  return std::string("<")+to_str(v.first)+","+to_str(v.second)+">";
+}
+
+///\brief Convert an stl container-like object to a string
+template<typename T>
+std::string to_str(T begin, T end, std::string spec = "")
+{
+	std::ostringstream os;
+	os.precision(14);
+	os << "[" << spec; 
+	if(spec != ""){
+	  os << ":";
+	} 
+	while(begin != end){ 
+	  os << to_str(*begin); ++begin; 
+	  if(begin != end){ os << ","; }
+	}
+	os << "]";
+	return os.str();
+}
+
+///\brief Convert a vector to a string (should allow converting nested
+///stl containers like vector<list ...> to strings)
+template<typename T>
+std::string to_str(const std::vector<T>& v){
+  return to_str(v.begin(), v.end(),"vector");
+}
+
+///\brief Convert a list to a string (should allow converting nested
+///stl containers like vector<list ...> to strings)
+template<typename T>
+std::string to_str(const std::list<T>& v){
+  return to_str(v.begin(), v.end(),"list");
+}
+
+///\brief Convert a set to a string (should allow converting nested
+///stl containers like set<vector..> to string)
+template<typename T>
+std::string to_str(const std::set<T>& v){
+  return to_str(v.begin(), v.end(),"set");
+}
+
+///\brief Convert a deque to a string (should allow converting nested
+///stl containers like deque<list ...> to strings)
+template<typename T>
+std::string to_str(const std::deque<T>& v){
+  return to_str(v.begin(), v.end(),"deque");
+}
+
+///\brief Convert a multiset to a string (should allow converting nested
+///stl containers like multiset<list ...> to strings)
+template<typename T>
+std::string to_str(const std::multiset<T>& v){
+  return to_str(v.begin(), v.end(),"multiset");
+}
+
+///\brief Convert a multimap to a string (should allow converting nested
+///stl containers like multimap<list< ...> , vector< ... > > to strings)
+template<typename Key, typename T>
+std::string to_str(const std::multimap<Key, T>& v){
+  return to_str(v.begin(), v.end(),"multimap");
+}
+
+///\brief Convert a map to a string (should allow converting nested
+///stl containers like map<list< ...> , vector< ... > > to strings)
+template<typename Key, typename T>
+std::string to_str(const std::map<Key, T>& v){
+  return to_str(v.begin(), v.end(),"map");
+}
+
+///\brief Run unit tests for the to_str functions.  Throws an
+///       exception if it detects an error
+void test_to_str();
+
+
 
 void ThrowError(std::string s1);
 void ThrowError(std::string s1, std::string s2);
