@@ -301,6 +301,22 @@ public:
 	virtual ~GSimpleAssignment(){};
 };
 
+///\brief Print assignment \a gsa to \a out in a human-readable form
+///
+///The GSimpleAssignment \a gsa is written to out as a sequence of pairs
+///{a,b} where a is an index in set A and b is an index into set B.
+///Any indices that are not listed are unassigned.
+///
+///Thus the assignment from the bForA array [3,2,-1,9] would be output
+///as [{0,3},{1,2},{3,9}]
+///
+///\param out the stream on which the assignment will be printed
+///
+///\param gsa the GSimpleAssignment object to print
+///
+///\return out after gsa has been written to it
+std::ostream& operator<<(std::ostream& out, const GSimpleAssignment& gsa);
+
 ///\brief Tag class to indicate that the linearAssignment routine
 ///should maximize the cost of the assignment
 class ShouldMaximize{};

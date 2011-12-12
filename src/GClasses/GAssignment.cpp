@@ -19,6 +19,20 @@
 
 namespace GClasses{
 
+
+std::ostream& operator<<(std::ostream& out, const GSimpleAssignment& gsa){
+	out << '[';
+	for(unsigned i = 0; i < gsa.sizeA(); ++i){
+		int j = gsa(i);
+		if(j >= 0){
+			if( i > 0 ){ out << ','; }
+			out << '{' << i << ',' << j << '}';
+		}		
+	}
+	return out << ']';
+}
+
+
 void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y, 
 							std::vector<double>& u, std::vector<double>& v, 
 							double& totalCost, const double epsilon){
@@ -501,6 +515,83 @@ namespace{
 		success = true;
 	}
 
+
+	///\brief Produce the next k-permutation of n integers
+	///
+	///Set \a perm to the next permutation in lexiographic order of k
+	///integers selected from the range 0..n-1 if there is such a
+	///k-permutation and return true.  Otherwise, produce the first such
+	///permutation (0,1,2,3...k-1) and return false.
+	///
+	///\note perm.size() == k
+	///
+	///\param perm the current permutation in the sequence.  After
+	///            return, holds the next permutation or 0,1,...k-1 if
+	///            there is no next greater permutation.
+	///
+	///\param n the number of integers that can be selected, must be at
+	///         least k (n>=k)
+	///
+	///\return true if the next k-permutation was produced, otherwise,
+	///             produce the first k-permutation and return false
+	///
+	///\see std::next_permutation
+	bool nextKPermutation(std::vector<int>& perm, int n){
+		assert(n>=0); 
+		assert((unsigned)n >= perm.size());
+		std::vector<int> origPerm = perm; //DEBUG CODE
+		//Mark which elements are used
+		std::vector<bool> used(n,false);
+		for(std::vector<int>::const_iterator it = perm.begin(); it != perm.end();
+				++it){
+			used.at(*it) = true;
+		}
+
+		//Find the int with the greatest index that can be advanced
+		std::vector<int>::reverse_iterator it = perm.rbegin();
+		for(; it != perm.rend(); ++it){
+			int replacement = *it+1;
+			while(replacement < n && used[replacement]){
+				++replacement;
+			}
+			used.at(*it) = false;
+			if(replacement < n){
+				//We've found a valid replacement, do the replacement, fill
+				//the rest of the array and return;
+				used.at(replacement) = true;
+				*it = replacement;
+				//Fill the rest of the perm with sequential elements from the
+				//used array.  From here on, it points to the last element
+				//filled with a replacement
+				for(std::vector<bool>::iterator isUsed = used.begin(); 
+						isUsed != used.end(); ++isUsed){
+					if(it == perm.rbegin()){ 
+						return true;
+					}else{
+						//For each unused element fill the next element of perm
+						if(! *isUsed ){
+							--it;
+							*it = isUsed - used.begin();
+							*isUsed = true; //isUsed doesn't need to be updated, but
+															//I want to keep the data structure
+															//consistent with reality
+							if(it == perm.rbegin()){	return true;	}
+						}
+					}
+				}
+				assert("We should never get here" == NULL);
+			}
+			//No valid replacement exists for the element at *it, go to the
+			//next
+		}
+
+		//No replacement existed for any element of perm, thus, we were
+		//already at the maximum permutation, start over at the beginning
+		for(std::size_t i = 0; i < perm.size(); ++i){
+			perm.at(i) = i;
+		}
+		return false;
+	}
 }
 
 GSimpleAssignment linearAssignment(GMatrix benefits,	
@@ -588,6 +679,194 @@ GSimpleAssignment linearAssignment(GMatrix costs,
 
 	return result;
 }
+
+std::vector<GSimpleAssignment>	
+linearAssignmentBruteForce(GMatrix costs, ShouldMinimize /*not used*/){
+	const double inf = std::numeric_limits<double>::infinity();
+
+	//Make fewer rows than columns
+	bool hadToTranspose = false;
+	if(costs.rows() > costs.cols()){
+		hadToTranspose = true;
+	  GMatrix* tmp = costs.transpose();
+		costs = *tmp;
+		delete tmp;
+	}
+
+	//The minimum cost encountered (will be reinitialized later)
+	double minCost = inf;
+
+	//All assignments found that have cost == minCost
+	std::vector<GSimpleAssignment> result;
+	
+
+	//Only empty assignment possible for an empty matrix
+	if(costs.rows() == 0){ 
+		if(hadToTranspose){
+			result.push_back(GSimpleAssignment(costs.cols(), costs.rows()));
+		}else{
+			result.push_back(GSimpleAssignment(costs.rows(), costs.cols()));
+		}
+		return result; 
+	}
+
+	//The current assignment
+	std::vector<int> cur(costs.rows());
+
+	//Initialize the current assignment to 0...n-1 where n is the number
+	//of rows
+	for(std::size_t i = 0; i < cur.size(); ++i){
+		cur.at(i) = i;
+	}
+
+	//Set minCost to the cost of the current assignment
+	minCost = 0;
+	for(std::size_t i = 0; i < cur.size(); ++i){
+		minCost += costs[i][cur.at(i)];
+	}
+
+	//If the current solution is feasible, add it to the list of
+	//solutions
+	if(minCost < inf){ 
+		result.push_back(GSimpleAssignment(costs.cols(), cur));
+	}
+
+	//Go through all permutations and add to the list any that have a
+	//cost equal to the current minimum.  If the current assignment has
+	//a lower cost, make it the current element in the list and set the
+	//minimum cost to its cost
+	while(nextKPermutation(cur, costs.cols())){
+		double curCost = 0;
+		for(std::size_t i = 0; i < cur.size(); ++i){
+			curCost += costs[i][cur.at(i)];
+		}
+		if(curCost < minCost){
+			minCost = curCost;
+			result.clear();
+		}
+
+		if(curCost == minCost && minCost < inf){
+			result.push_back(GSimpleAssignment(costs.cols(), cur));
+		}
+	}
+
+	if(hadToTranspose){
+		for(std::size_t i = 0; i < result.size(); ++i){
+			result[i].swapAAndB();
+		}
+	}
+
+	return result;
+}
+
+#ifndef  NO_TEST_CODE
+
+///\brief Runs unit tests on nextKPermutation
+void testNextKPermutation(){
+	using std::string;
+	{
+		int perms[][3]={{0,1,2},
+									 {0,2,1},
+									 {1,0,2},
+									 {1,2,0},
+									 {2,0,1},
+									 {2,1,0}};
+		int n = 3;
+		int k = 3;
+		unsigned numPerms = sizeof(perms)/(k*sizeof(int));
+		for(unsigned prev = 0; prev < numPerms; ++prev){
+			std::vector<int> prevPerm(&perms[prev][0], k+&perms[prev][0]); 
+			std::vector<int> pp      (&perms[prev][0], k+&perms[prev][0]); 
+
+			unsigned cur = (prev+1)%numPerms;
+			std::vector<int> curPerm(&perms[cur][0], k+&perms[cur][0]); 
+
+			bool retVal = nextKPermutation(prevPerm, n);
+			TestEqual(cur > prev, retVal, 
+								string("Wrong return value for nextKPermutation(")+
+								to_str(pp)+","+to_str(n)+")");
+			TestEqual(curPerm, prevPerm,
+								string("Wrong permutation generated for nextKPermutation(")+
+								to_str(pp)+","+to_str(n)+")");
+		}
+	}
+
+	{
+		int perms[][3]={{0,1,2},{0,1,3},{0,1,4},
+										{0,2,1},{0,2,3},{0,2,4},
+										{0,3,1},{0,3,2},{0,3,4},
+										{0,4,1},{0,4,2},{0,4,3},
+										{1,0,2},{1,0,3},{1,0,4},
+										{1,2,0},{1,2,3},{1,2,4},
+										{1,3,0},{1,3,2},{1,3,4},
+										{1,4,0},{1,4,2},{1,4,3},
+										{2,0,1},{2,0,3},{2,0,4},
+										{2,1,0},{2,1,3},{2,1,4},
+										{2,3,0},{2,3,1},{2,3,4},
+										{2,4,0},{2,4,1},{2,4,3},
+										{3,0,1},{3,0,2},{3,0,4},
+										{3,1,0},{3,1,2},{3,1,4},
+										{3,2,0},{3,2,1},{3,2,4},
+										{3,4,0},{3,4,1},{3,4,2},
+										{4,0,1},{4,0,2},{4,0,3},
+										{4,1,0},{4,1,2},{4,1,3},
+										{4,2,0},{4,2,1},{4,2,3},
+										{4,3,0},{4,3,1},{4,3,2}
+		};
+		int n = 5;
+		int k = 3;
+		unsigned numPerms = sizeof(perms)/(k*sizeof(int));
+		for(unsigned prev = 0; prev < numPerms; ++prev){
+			std::vector<int> prevPerm(&perms[prev][0], k+&perms[prev][0]); 
+			std::vector<int> pp      (&perms[prev][0], k+&perms[prev][0]); 
+
+			unsigned cur = (prev+1)%numPerms;
+			std::vector<int> curPerm(&perms[cur][0], k+&perms[cur][0]); 
+
+			bool retVal = nextKPermutation(prevPerm, n);
+			TestEqual(cur > prev, retVal, 
+								string("Wrong return value for nextKPermutation(")+
+								to_str(pp)+","+to_str(n)+")");
+			TestEqual(curPerm, prevPerm,
+								string("Wrong permutation generated for nextKPermutation(")+
+								to_str(pp)+","+to_str(n)+")");
+		}
+	}
+}
+
+void testLinearAssignment(){
+	testNextKPermutation();
+	{
+		GMatrix costs(5,5);
+		double c[25] = {
+			0,1,2,3,4,
+			1,0,1,2,3,
+			2,1,0,1,2,
+			3,2,1,0,1,
+			4,3,2,1,0};
+		costs.fromVector(c, 5);
+		int expectA[] = {0,1,2,3,4};
+		std::size_t numExpectA = 5;
+		std::vector<int> expectAA(expectA, expectA+numExpectA);
+		GSimpleAssignment expected(5,expectAA);
+		std::vector<GSimpleAssignment> actual = linearAssignmentBruteForce(costs);
+
+		bool oneWasCorrect = false;
+		for(unsigned i = 0; i < actual.size(); ++i){
+			oneWasCorrect |= (actual.at(i) == expected);
+		}
+		TestEqual(true, oneWasCorrect, 
+							to_str("None of the calculated assignments was the expected ")+
+							"one."+
+							"\nExpected: "+to_str(expected)+
+							"\nAll predicted: "+to_str(actual));
+	}
+
+	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
+	
+}
+#endif //NO_TEST_CODE
+
 
 
 }//Namespace GClasses
