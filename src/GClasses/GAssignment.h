@@ -285,9 +285,23 @@ public:
 	///        See main description for details.
 	virtual bool operator==(const GSimpleAssignment& other) const{
 		return 
+			sizeA() == other.sizeA() && sizeB() == other.sizeB()
+			&&
 			std::equal(aForB.begin(),aForB.end(),other.aForB.begin()) 
 			&&
 			std::equal(bForA.begin(),bForA.end(),other.bForA.begin());
+	}
+
+	///\brief Return true iff *this, expressed as the input to setBForA
+	///is lexiographically less than other
+	///
+	///\param other the GSimpleAssignment being compared to this one
+	///
+	///\return true iff *this, expressed as the input to setBForA is
+	///lexiographically less than other
+	virtual bool operator<(const GSimpleAssignment& other) const{
+		return std::lexicographical_compare(bForA.begin(), bForA.end(),
+																			 other.bForA.begin(), other.bForA.end());
 	}
 
 	///\brief Swaps the A and B set.  The assignments stay the same.

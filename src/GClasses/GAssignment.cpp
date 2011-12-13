@@ -592,7 +592,7 @@ namespace{
 		}
 		return false;
 	}
-}
+}//Anonymous Namespace
 
 GSimpleAssignment linearAssignment(GMatrix benefits,	
 																	 ShouldMaximize /*Not used*/, 
@@ -759,6 +759,87 @@ linearAssignmentBruteForce(GMatrix costs, ShouldMinimize /*not used*/){
 	return result;
 }
 
+
+std::vector<GSimpleAssignment>	
+linearAssignmentBruteForce(GMatrix benefits, ShouldMaximize /*not used*/){
+	const double inf = std::numeric_limits<double>::infinity();
+
+	//Make fewer rows than columns
+	bool hadToTranspose = false;
+	if(benefits.rows() > benefits.cols()){
+		hadToTranspose = true;
+	  GMatrix* tmp = benefits.transpose();
+		benefits = *tmp;
+		delete tmp;
+	}
+
+	//The maximum benefit encountered (will be reinitialized later)
+	double maxBenefit = -inf;
+
+	//All assignments found that have benefit == maxBenefit
+	std::vector<GSimpleAssignment> result;
+	
+
+	//Only empty assignment possible for an empty matrix
+	if(benefits.rows() == 0){ 
+		if(hadToTranspose){
+			result.push_back(GSimpleAssignment(benefits.cols(), benefits.rows()));
+		}else{
+			result.push_back(GSimpleAssignment(benefits.rows(), benefits.cols()));
+		}
+		return result; 
+	}
+
+	//The current assignment
+	std::vector<int> cur(benefits.rows());
+
+	//Initialize the current assignment to 0...n-1 where n is the number
+	//of rows
+	for(std::size_t i = 0; i < cur.size(); ++i){
+		cur.at(i) = i;
+	}
+
+	//Set maxBenefit to the benefit of the current assignment
+	maxBenefit = 0;
+	for(std::size_t i = 0; i < cur.size(); ++i){
+		maxBenefit += benefits[i][cur.at(i)];
+	}
+
+	//If the current solution is feasible, add it to the list of
+	//solutions
+	if(maxBenefit > -inf){ 
+		result.push_back(GSimpleAssignment(benefits.cols(), cur));
+	}
+
+	//Go through all permutations and add to the list any that have a
+	//benefit equal to the current maximum.  If the current assignment has
+	//a greater benefit, make it the current element in the list and set the
+	//maximum benefit to its benefit
+	while(nextKPermutation(cur, benefits.cols())){
+		double curBenefit = 0;
+		for(std::size_t i = 0; i < cur.size(); ++i){
+			curBenefit += benefits[i][cur.at(i)];
+		}
+		if(curBenefit > maxBenefit){
+			maxBenefit = curBenefit;
+			result.clear();
+		}
+
+		if(curBenefit == maxBenefit && maxBenefit > -inf){
+			result.push_back(GSimpleAssignment(benefits.cols(), cur));
+		}
+	}
+
+	if(hadToTranspose){
+		for(std::size_t i = 0; i < result.size(); ++i){
+			result[i].swapAAndB();
+		}
+	}
+
+	return result;
+}
+
+
 #ifndef  NO_TEST_CODE
 
 ///\brief Runs unit tests on nextKPermutation
@@ -834,8 +915,140 @@ void testNextKPermutation(){
 	}
 }
 
+namespace{
+	class LinearAssignmentTestCase{
+		///The input matrix for the test case
+		GMatrix input;
+
+		///True if the problem is a minimization problem, false if it is a
+		///maximization problem
+		bool isMinimization;
+
+		///The set of all correct assignments for the problem
+		std::set<GSimpleAssignment> solutionSet;
+
+		///\brief Finish initializing a partially initialized test case
+		///
+		///Assumes that this object has been partially initialized by the
+		///constructor.  In particular, this->isMinimization has been set
+		///and this->input was constructed with the correct number of rows
+		///and columns.
+		///
+		///For the precise specifications of the parameters, look at 
+		///LinearAssignmentTestCase(const std::size_t, const std::size_t, 
+		///												 double const*, const std::size_t, int const*, 
+		///                        shouldMinimize);
+		///
+		///\param input the input matrix in row-major form.  If m is the
+		///             input matrix then m[i][j]=input[cols*i+j]
+		///
+		///\param numSolutions the number of correct solutions to
+		///                           the linear assignment problem
+		///
+		///\param correct the solution set of assignments in row-major
+		///               form.  The correct assignment to row i in the
+		///               k'th solution is given by correct[k*rows + i].
+		///               If row i should be unassigned, then the correct
+		///               assignment is -1
+		void init(double const* input, 
+							const std::size_t numSolutions,
+							int const*correct){
+			const std::size_t rows = this->input.rows();
+			const std::size_t cols = this->input.cols();
+
+			this->input.fromVector(input, rows);
+			for(std::size_t curSol = 0; curSol < numSolutions; ++curSol){
+				int const* start = correct + curSol * rows;
+				std::vector<int> tmp(start, start+cols);
+				solutionSet.insert(GSimpleAssignment(cols, tmp));
+			}
+		}
+	public:
+		///\brief Make a test case for a linear assignment minimization problem
+		///
+		///\param rows the number of rows in the input matrix (also the
+		///            size of set A for the final solution)
+		///
+		///\param cols the number of columns in the input matrix (also the
+		///            size of set B for the final solution)
+		///
+		///\param input the input matrix in row-major form.  If m is the
+		///             input matrix then m[i][j]=input[cols*i+j]
+		///
+		///\param numSolutions the number of correct solutions to
+		///                           the linear assignment problem
+		///
+		///\param correct the solution set of assignments in row-major
+		///               form.  The correct assignment to row i in the
+		///               k'th solution is given by correct[k*rows + i].
+		///               If row i should be unassigned, then the correct
+		///               assignment is -1
+		LinearAssignmentTestCase(const std::size_t rows, const std::size_t cols, 
+														 double const* input, 
+														 const std::size_t numSolutions,
+														 int const*correct, 
+														 ShouldMinimize):
+			input(rows, cols), isMinimization(true){
+			init(input, numSolutions, correct);
+		}
+		///\brief Make a test case for a linear assignment maximization problem
+		///
+		///For full description, see the minimization constructor which is
+		///identical, except for passing a ShouldMinimize parameter
+		///
+		///\see LinearAssignmentTestCase(const std::size_t rows, const std::size_t cols, double const* input, const std::size_t numSolutions, int const*correct, ShouldMinimize);
+		LinearAssignmentTestCase(const std::size_t rows, const std::size_t cols, 
+														 double const* input, 
+														 const std::size_t numSolutions,
+														 int const*correct, ShouldMaximize):
+			input(rows, cols), isMinimization(false){
+			init(input, numSolutions, correct);
+		}
+
+		///\brief Runs this test case for the brute-force linear
+		///assignment problem solver, throws an exception if there is an error
+		void testBruteForce(){
+			std::vector<GSimpleAssignment> actual;
+			if(isMinimization){
+				actual = linearAssignmentBruteForce(input);
+			}else{
+				actual = linearAssignmentBruteForce(input, ShouldMaximize());
+			}
+			std::set<GSimpleAssignment> actualSet(actual.begin(), actual.end());
+			if(actualSet.size() == solutionSet.size() && 
+				 std::equal(actualSet.begin(), actualSet.end(), solutionSet.begin())){
+				//No error
+			}else{
+				ThrowError
+					("The brute-force linear assignment ", 
+					 isMinimization?"minimization ":"maximization ",
+					 "problem solver returned a different solution set.\n",
+					 "Actual:",to_str(actualSet),"\nExpected:",to_str(solutionSet),
+					 "\non the problem input:\n",to_str(input));
+			}
+		}
+	};
+}
+
+
+
 void testLinearAssignment(){
 	testNextKPermutation();
+	{ 
+		const unsigned r=5, c=5;
+		double input[r*c] = {
+			0,1,2,3,4,
+			1,0,1,2,3,
+			2,1,0,1,2,
+			3,2,1,0,1,
+			4,3,2,1,0};
+		const unsigned ns = 1;
+		int solutions[r*ns] = {
+			0,1,2,3,4};
+		LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());		
+		tc.testBruteForce();
+	}
+#if 0 //Hide old tests
 	//Simple matrix test
 	{
 		GMatrix costs(5,5);
@@ -886,7 +1099,7 @@ void testLinearAssignment(){
 		int expectA[] = {0,2,3,1};
 		std::size_t numExpectA = 4;
 		std::vector<int> expectAA(expectA, expectA+numExpectA);
-		GSimpleAssignment expected(5,expectAA);
+		GSimpleAssignment expected(4,expectAA);
 		std::vector<GSimpleAssignment> actual = linearAssignmentBruteForce(costs);
 
 		bool oneWasCorrect = false;
@@ -899,6 +1112,7 @@ void testLinearAssignment(){
 							"\nExpected: "+to_str(expected)+
 							"\nAll predicted: "+to_str(actual));
 	}
+#endif
 
 	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
 	
