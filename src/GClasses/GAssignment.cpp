@@ -836,6 +836,7 @@ void testNextKPermutation(){
 
 void testLinearAssignment(){
 	testNextKPermutation();
+	//Simple matrix test
 	{
 		GMatrix costs(5,5);
 		double c[25] = {
@@ -847,6 +848,43 @@ void testLinearAssignment(){
 		costs.fromVector(c, 5);
 		int expectA[] = {0,1,2,3,4};
 		std::size_t numExpectA = 5;
+		std::vector<int> expectAA(expectA, expectA+numExpectA);
+		GSimpleAssignment expected(5,expectAA);
+		std::vector<GSimpleAssignment> actual = linearAssignmentBruteForce(costs);
+
+		bool oneWasCorrect = false;
+		for(unsigned i = 0; i < actual.size(); ++i){
+			oneWasCorrect |= (actual.at(i) == expected);
+		}
+		TestEqual(true, oneWasCorrect, 
+							to_str("None of the calculated assignments was the expected ")+
+							"one."+
+							"\nExpected: "+to_str(expected)+
+							"\nAll predicted: "+to_str(actual));
+	}
+
+
+	//Test for distance matrix where original points were:
+	//
+	//A :0,B :2,C :5,D :8 and after moving, the points were
+	//
+	//A':1,B':2,C :3,D':6
+	//
+	//The rows are A,C,D,B and the columns are the primes as A',B',C',D'
+	//
+	//So, the expected permutation is 0,2,3,1
+	{
+		GMatrix costs(4,4);
+		double c[16] = {
+		//A'B'C'D'
+			1,2,3,6, //A
+			4,3,2,1, //C
+			7,6,5,2, //D
+			1,0,1,4, //B
+		};
+		costs.fromVector(c, 4);
+		int expectA[] = {0,2,3,1};
+		std::size_t numExpectA = 4;
 		std::vector<int> expectAA(expectA, expectA+numExpectA);
 		GSimpleAssignment expected(5,expectAA);
 		std::vector<GSimpleAssignment> actual = linearAssignmentBruteForce(costs);
