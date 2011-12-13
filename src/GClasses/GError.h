@@ -57,7 +57,8 @@ void GAssertFailed();
 
 
 
-///\brief Convert another type that to a string
+///\brief Convert another type that has a stream-insertion operator <<
+///to a string
 template<typename T>
 std::string to_str(const T& n)
 {
