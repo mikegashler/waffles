@@ -284,7 +284,10 @@ public:
 	///\return true if the assignments are the same, false otherwise.
 	///        See main description for details.
 	virtual bool operator==(const GSimpleAssignment& other) const{
-		return aForB == other.aForB && bForA == other.bForA;
+		return 
+			std::equal(aForB.begin(),aForB.end(),other.aForB.begin()) 
+			&&
+			std::equal(bForA.begin(),bForA.end(),other.bForA.begin());
 	}
 
 	///\brief Swaps the A and B set.  The assignments stay the same.
