@@ -313,6 +313,8 @@ class smart_ptr
 protected:
 	smart_ptr_ref_counter<T>* m_pRefCounter;
 
+	template<class S>
+	friend class smart_ptr;
 public:
 	smart_ptr()
 	: m_pRefCounter(NULL)
@@ -325,6 +327,36 @@ public:
 		if(m_pRefCounter)
 			m_pRefCounter->m_refCount++;
 	}
+
+	///\brief Make a smart pointer of a different type (T) that shares
+	///referent and ownership with \a other
+	///
+	///This is mainly for creating smart_pointer<const T> from
+	///smart_pointer<T>.
+	///
+	///The basic use is:\code
+	///smart_ptr<int> original_ptr(new int);
+	///int const* type_tag = NULL;
+	///smart_ptr<const int> new_ptr(original_ptr, type_tag);
+	///\endcode
+	///
+	///\warning Using this code for anything other than creating a
+	///         smart_pointer<const T> from smart_pointer<T> is
+	///         dangerous and may do bad things due to pointer
+	///         aliasing.  You do it at your own risk.
+	///
+	///\post get() == (T*)other.get() and when \a other goes out of
+	///      scope, it decreases the reference count for *this and
+	///      vice-versa
+	template <class S>
+	smart_ptr(const smart_ptr<S>& other, T*):
+		m_pRefCounter((smart_ptr_ref_counter<T>*)other.m_pRefCounter)
+	{
+		if(m_pRefCounter)
+			m_pRefCounter->m_refCount++;
+	}
+
+
 
 	template <class S>
 	smart_ptr(S* pThat)
@@ -389,8 +421,6 @@ public:
 		return m_pRefCounter->m_refCount;
 	}
 };
-
-
 
 /// Placing these on the stack can help catch buffer overruns
 class GOverrunSentinel
