@@ -55,7 +55,7 @@ smart_ptr<GRelation> GRelation::deserialize(GDomNode* pNode)
 	}
 }
 
-void GRelation::print(ostream& stream, GMatrix* pData, size_t precision)
+void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) const
 {
 	stream.precision(precision);
 
@@ -93,13 +93,13 @@ void GRelation::print(ostream& stream, GMatrix* pData, size_t precision)
 }
 
 // virtual
-void GRelation::printAttrName(std::ostream& stream, size_t column)
+void GRelation::printAttrName(std::ostream& stream, size_t column) const
 {
 	stream << "attr_" << column;
 }
 
 // virtual
-void GRelation::printAttrValue(ostream& stream, size_t column, double value)
+void GRelation::printAttrValue(ostream& stream, size_t column, double value) const
 {
 	size_t valCount = valueCount(column);
 	if(valCount == 0)
@@ -129,7 +129,7 @@ void GRelation::printAttrValue(ostream& stream, size_t column, double value)
 }
 
 // virtual
-bool GRelation::isCompatible(GRelation& that)
+bool GRelation::isCompatible(const GRelation& that) const
 {
 	if(this == &that)
 		return true;
@@ -143,7 +143,7 @@ bool GRelation::isCompatible(GRelation& that)
 	return true;
 }
 
-void GRelation::printRow(ostream& stream, double* pRow, const char* separator)
+void GRelation::printRow(ostream& stream, const double* pRow, const char* separator) const
 {
 	size_t j = 0;
 	if(j < size())
@@ -161,7 +161,7 @@ void GRelation::printRow(ostream& stream, double* pRow, const char* separator)
 	stream << "\n";
 }
 
-size_t GRelation::countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount)
+size_t GRelation::countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount) const
 {
 	size_t nDims = 0;
 	for(size_t i = 0; i < nAttrCount; i++)
@@ -175,7 +175,7 @@ size_t GRelation::countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount)
 	return nDims;
 }
 
-void GRelation::toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount)
+void GRelation::toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount) const
 {
 	size_t nDims = 0;
 	size_t i, j, k, nValues;
@@ -204,7 +204,7 @@ void GRelation::toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, 
 	}
 }
 
-void GRelation::fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount, GRand* pRand)
+void GRelation::fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount, GRand* pRand) const
 {
 	size_t nDims = 0;
 	size_t i, nValues;
@@ -224,7 +224,7 @@ void GRelation::fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr
 	}
 }
 
-void GRelation::fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount)
+void GRelation::fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount) const
 {
 	size_t nDims = 0;
 	size_t i, nValues;
@@ -247,7 +247,7 @@ void GRelation::fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirs
 	}
 }
 
-void GRelation::save(GMatrix* pData, const char* szFilename, size_t precision)
+void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precision) const
 {
 	std::ofstream stream;
 	stream.exceptions(std::ios::failbit|std::ios::badbit);
@@ -315,7 +315,7 @@ GUniformRelation::GUniformRelation(GDomNode* pNode)
 	m_valueCount = (size_t)pNode->field("vals")->asInt();
 }
 
-GDomNode* GUniformRelation::serialize(GDom* pDoc)
+GDomNode* GUniformRelation::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "attrs", pDoc->newInt(m_attrCount));
@@ -332,7 +332,7 @@ void GUniformRelation::deleteAttribute(size_t index)
 }
 
 // virtual
-bool GUniformRelation::isCompatible(GRelation& that)
+bool GUniformRelation::isCompatible(const GRelation& that) const
 {
 	if(that.type() == GRelation::UNIFORM)
 	{
@@ -369,12 +369,12 @@ GMixedRelation::GMixedRelation(GDomNode* pNode)
 		m_valueCounts.push_back((size_t)it.current()->asInt());
 }
 
-GMixedRelation::GMixedRelation(GRelation* pCopyMe)
+GMixedRelation::GMixedRelation(const GRelation* pCopyMe)
 {
 	copy(pCopyMe);
 }
 
-GMixedRelation::GMixedRelation(GRelation* pCopyMe, size_t firstAttr, size_t attrCount)
+GMixedRelation::GMixedRelation(const GRelation* pCopyMe, size_t firstAttr, size_t attrCount)
 {
 	addAttrs(pCopyMe, firstAttr, attrCount);
 }
@@ -384,7 +384,7 @@ GMixedRelation::~GMixedRelation()
 {
 }
 
-GDomNode* GMixedRelation::serialize(GDom* pDoc)
+GDomNode* GMixedRelation::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	GDomNode* pValueCounts = pNode->addField(pDoc, "valueCounts", pDoc->newList());
@@ -394,7 +394,7 @@ GDomNode* GMixedRelation::serialize(GDom* pDoc)
 }
 
 // virtual
-GRelation* GMixedRelation::clone()
+GRelation* GMixedRelation::clone() const
 {
 	GMixedRelation* pNewRelation = new GMixedRelation();
 	pNewRelation->addAttrs(this, 0, size());
@@ -402,14 +402,14 @@ GRelation* GMixedRelation::clone()
 }
 
 // virtual
-GRelation* GMixedRelation::cloneSub(size_t start, size_t count)
+GRelation* GMixedRelation::cloneSub(size_t start, size_t count) const
 {
 	GMixedRelation* pNewRelation = new GMixedRelation();
 	pNewRelation->addAttrs(this, start, count);
 	return pNewRelation;
 }
 
-void GMixedRelation::addAttrs(GRelation* pCopyMe, size_t firstAttr, size_t attrCount)
+void GMixedRelation::addAttrs(const GRelation* pCopyMe, size_t firstAttr, size_t attrCount)
 {
 	if(firstAttr + attrCount > pCopyMe->size())
 	{
@@ -428,7 +428,7 @@ void GMixedRelation::addAttrs(size_t attrCount, size_t valueCount)
 		addAttr(valueCount);
 }
 
-void GMixedRelation::copy(GRelation* pCopyMe)
+void GMixedRelation::copy(const GRelation* pCopyMe)
 {
 	flush();
 	if(pCopyMe)
@@ -456,7 +456,7 @@ void GMixedRelation::addAttr(size_t nValues)
 }
 
 // virtual
-void GMixedRelation::copyAttr(GRelation* pThat, size_t nAttr)
+void GMixedRelation::copyAttr(const GRelation* pThat, size_t nAttr)
 {
 	if(nAttr >= pThat->size())
 		ThrowError("attribute index out of range");
@@ -464,7 +464,7 @@ void GMixedRelation::copyAttr(GRelation* pThat, size_t nAttr)
 }
 
 // virtual
-bool GMixedRelation::areContinuous(size_t first, size_t count)
+bool GMixedRelation::areContinuous(size_t first, size_t count) const
 {
 	size_t c = first;
 	for(size_t i = 0; i < count; i++)
@@ -477,7 +477,7 @@ bool GMixedRelation::areContinuous(size_t first, size_t count)
 }
 
 // virtual
-bool GMixedRelation::areNominal(size_t first, size_t count)
+bool GMixedRelation::areNominal(size_t first, size_t count) const
 {
 	size_t c = first;
 	for(size_t i = 0; i < count; i++)
@@ -538,7 +538,7 @@ void GArffRelation::flush()
 }
 
 // virtual
-GRelation* GArffRelation::clone()
+GRelation* GArffRelation::clone() const
 {
 	GArffRelation* pNewRelation = new GArffRelation();
 	pNewRelation->addAttrs(this);
@@ -547,7 +547,7 @@ GRelation* GArffRelation::clone()
 }
 
 // virtual
-GRelation* GArffRelation::cloneSub(size_t start, size_t count)
+GRelation* GArffRelation::cloneSub(size_t start, size_t count) const
 {
 	GArffRelation* pNewRelation = new GArffRelation();
 	pNewRelation->addAttrs(this, start, count);
@@ -589,7 +589,7 @@ void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<cons
 }
 
 // virtual
-void GArffRelation::copyAttr(GRelation* pThat, size_t nAttr)
+void GArffRelation::copyAttr(const GRelation* pThat, size_t nAttr)
 {
 	if(nAttr >= pThat->size())
 		ThrowError("attribute index out of range");
@@ -687,7 +687,7 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 }
 
 // virtual
-void GArffRelation::printAttrName(std::ostream& stream, size_t column)
+void GArffRelation::printAttrName(std::ostream& stream, size_t column) const
 {
 	stream << GRelation::quote(attrName(column));
 }
@@ -733,7 +733,7 @@ std::string GRelation::quote(const std::string aString){
 
 
 // virtual
-void GArffRelation::printAttrValue(ostream& stream, size_t column, double value)
+void GArffRelation::printAttrValue(ostream& stream, size_t column, double value) const
 {
 	size_t valCount = valueCount(column);
 	if(valCount == 0)
@@ -765,7 +765,7 @@ void GArffRelation::printAttrValue(ostream& stream, size_t column, double value)
 }
 
 // virtual
-bool GArffRelation::isCompatible(GRelation& that)
+bool GArffRelation::isCompatible(const GRelation& that) const
 {
 	if(that.type() == GRelation::ARFF)
 	{
@@ -782,8 +782,8 @@ bool GArffRelation::isCompatible(GRelation& that)
 			{
 				for(size_t j = 0; j < vals; j++)
 				{
-					GArffAttribute& attrThis = m_attrs[j];
-					GArffAttribute& attrThat = ((GArffRelation*)&that)->m_attrs[j];
+					const GArffAttribute& attrThis = m_attrs[j];
+					const GArffAttribute& attrThat = ((const GArffRelation*)&that)->m_attrs[j];
 					if(attrThis.m_values.size() >= j &&
 						attrThat.m_values.size() >= j &&
 						attrThis.m_values[j].length() != 0 &&
@@ -799,7 +799,7 @@ bool GArffRelation::isCompatible(GRelation& that)
 		return GRelation::isCompatible(that);
 }
 
-int GArffRelation::findEnumeratedValue(size_t nAttr, const char* szValue)
+int GArffRelation::findEnumeratedValue(size_t nAttr, const char* szValue) const
 {
 	size_t nValueCount = valueCount(nAttr);
 	size_t actualValCount = m_attrs[nAttr].m_values.size();
@@ -814,7 +814,7 @@ int GArffRelation::findEnumeratedValue(size_t nAttr, const char* szValue)
 	return UNKNOWN_DISCRETE_VALUE;
 }
 
-const char* GArffRelation::attrName(size_t nAttr)
+const char* GArffRelation::attrName(size_t nAttr) const
 {
 	return m_attrs[nAttr].m_name.c_str();
 }
@@ -4818,6 +4818,39 @@ void GMatrix::test()
 	GMatrix_testParsing();
 }
 #endif // !NO_TEST_CODE
+
+std::string to_str(const GMatrix& m){
+  std::stringstream out;
+  out.precision(14);
+  if(!m.relation()->areContinuous(0,m.cols())){
+    out << '[';
+    for(unsigned j = 0; j < m.cols(); ++j){
+      if(j != 0){ out << ", ";  }
+      if(m.relation()->areContinuous(j,1)){
+	out << "continuous";
+      }else{
+	out << "discrete:" << m.relation()->valueCount(j);
+      }
+    }
+    out << "]\n";
+  }else{
+    out << "Continuous matrix:\n";
+  }
+
+  out << '[';
+  for(unsigned i=0; i < m.rows(); ++i){
+    for(unsigned j=0; j < m.cols(); ++j){
+      if(j != 0){ out << ", ";  }
+      out << m[i][j];
+    }
+    if(i+1 < m.rows()){
+      out << "\n";
+    }else{
+      out << "]\n";
+    }
+  }
+  return out.str();
+}
 
 
 

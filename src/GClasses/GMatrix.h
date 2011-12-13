@@ -57,32 +57,32 @@ public:
 	virtual ~GRelation() {}
 
 	/// \brief Returns the type of relation
-	virtual RelationType type() = 0;
+	virtual RelationType type() const = 0;
 
 	/// \brief Marshal this object into a DOM, which can then be
 	/// converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
 	/// \brief Returns the number of attributes (columns)
-	virtual size_t size() = 0;
+	virtual size_t size() const = 0;
 
 	/// \brief Returns the number of values in the specified
 	/// attribute. (Returns 0 for continuous attributes.)
-	virtual size_t valueCount(size_t nAttr) = 0;
+	virtual size_t valueCount(size_t nAttr) const = 0;
 
 	/// \brief Returns true of all of the attributes in the specified
 	/// range are continuous
-	virtual bool areContinuous(size_t first, size_t count) = 0;
+	virtual bool areContinuous(size_t first, size_t count) const = 0;
 
 	/// \brief Returns true of all of the attributes in the specified
 	/// range are nominal
-	virtual bool areNominal(size_t first, size_t count) = 0;
+	virtual bool areNominal(size_t first, size_t count) const = 0;
 
 	/// \brief Makes a deep copy of this relation
-	virtual GRelation* clone() = 0;
+	virtual GRelation* clone() const = 0;
 
 	/// \brief Makes a deep copy of the specified subset of this relation
-	virtual GRelation* cloneSub(size_t start, size_t count) = 0;
+	virtual GRelation* cloneSub(size_t start, size_t count) const = 0;
 
 	/// \brief Deletes the specified attribute
 	virtual void deleteAttribute(size_t index) = 0;
@@ -92,45 +92,45 @@ public:
 
 	/// \brief Prints as an ARFF file to the specified stream. (pData
 	/// can be NULL if data is not available)
-	void print(std::ostream& stream, GMatrix* pData, size_t precision);
+	void print(std::ostream& stream, const GMatrix* pData, size_t precision) const;
 
 	/// \brief Prints the specified attribute name to a stream
-	virtual void printAttrName(std::ostream& stream, size_t column);
+	virtual void printAttrName(std::ostream& stream, size_t column) const;
 
 	/// \brief Prints the specified value to a stream
-	virtual void printAttrValue(std::ostream& stream, size_t column, double value);
+	virtual void printAttrValue(std::ostream& stream, size_t column, double value) const;
 
 	/// \brief Returns true iff this and that have the same number of
 	/// values for each attribute
-	virtual bool isCompatible(GRelation& that);
+	virtual bool isCompatible(const GRelation& that) const;
 
 	/// \brief Print a single row of data in ARFF format
-	void printRow(std::ostream& stream, double* pRow, const char* separator);
+	void printRow(std::ostream& stream, const double* pRow, const char* separator) const;
 
 	/// \brief Counts the size of the corresponding real-space vector
-	size_t countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount);
+	size_t countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount) const;
 
 	/// \brief Converts a row (pIn) to a real-space vector (pOut) (pIn
 	/// should point to the nFirstAttr'th element, not the first
 	/// element)
-	void toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount);
+	void toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount) const;
 
 	/// \brief Converts a real-space vector (pIn) to a row (pOut)
 	///
 	/// nFirstAttr and nAttrCount refer to the row indexes
-	void fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount, GRand* pRand);
+	void fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount, GRand* pRand) const;
 
 	/// \brief Converts a real-space vector (pIn) to an array of
 	/// predictions (pOut)
 	///
 	/// nFirstAttr and nAttrCount refer to the prediction indexes
-	void fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount);
+	void fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount) const;
 
 	/// \brief Load from a DOM.
 	static smart_ptr<GRelation> deserialize(GDomNode* pNode);
 
 	/// \brief Saves to a file
-	void save(GMatrix* pData, const char* szFilename, size_t precision);
+	void save(const GMatrix* pData, const char* szFilename, size_t precision) const;
 
 #ifndef NO_TEST_CODE
 	/// \brief Performs unit tests for this class. Throws an exception
@@ -165,30 +165,30 @@ public:
 
 	GUniformRelation(GDomNode* pNode);
 
-	virtual RelationType type() { return UNIFORM; }
+	virtual RelationType type() const { return UNIFORM; }
 	
 	/// \brief Serializes this object
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 	
 	/// \brief Returns the number of attributes (columns)
-	virtual size_t size() { return m_attrCount; }
+	virtual size_t size() const { return m_attrCount; }
 	
 	/// \brief Returns the number of values in each nominal attribute
 	/// (or 0 if the attributes are continuous)
-	virtual size_t valueCount(size_t nAttr) { return m_valueCount; }
+	virtual size_t valueCount(size_t nAttr) const { return m_valueCount; }
 	
 	/// \brief See the comment for GRelation::areContinuous
-	virtual bool areContinuous(size_t first, size_t count) { return m_valueCount == 0; }
+	virtual bool areContinuous(size_t first, size_t count) const { return m_valueCount == 0; }
 	
 	/// \brief See the comment for GRelation::areNominal
-	virtual bool areNominal(size_t first, size_t count) { return m_valueCount != 0; }
+	virtual bool areNominal(size_t first, size_t count) const { return m_valueCount != 0; }
 
 	/// \brief Returns a copy of this object
-	virtual GRelation* clone() { return new GUniformRelation(m_attrCount, m_valueCount); }
+	virtual GRelation* clone() const { return new GUniformRelation(m_attrCount, m_valueCount); }
 
 	/// \brief Returns a deep copy of the specified subset of this
 	/// relation
-	virtual GRelation* cloneSub(size_t start, size_t count) { return new GUniformRelation(count, m_valueCount); }
+	virtual GRelation* cloneSub(size_t start, size_t count) const { return new GUniformRelation(count, m_valueCount); }
 
 	/// \brief Drop the specified attribute
 	virtual void deleteAttribute(size_t index);
@@ -198,7 +198,7 @@ public:
 
 	/// \brief Returns true iff this and that have the same number of
 	/// values for each attribute
-	virtual bool isCompatible(GRelation& that);
+	virtual bool isCompatible(const GRelation& that) const;
 };
 
 
@@ -221,25 +221,25 @@ public:
 	GMixedRelation(GDomNode* pNode);
 
 	/// \brief Makes a copy of pCopyMe
-	GMixedRelation(GRelation* pCopyMe);
+	GMixedRelation(const GRelation* pCopyMe);
 
 	/// \brief Makes a copy of the specified range of pCopyMe
-	GMixedRelation(GRelation* pCopyMe, size_t firstAttr, size_t attrCount);
+	GMixedRelation(const GRelation* pCopyMe, size_t firstAttr, size_t attrCount);
 
 	virtual ~GMixedRelation();
 
-	virtual RelationType type() { return MIXED; }
+	virtual RelationType type() const { return MIXED; }
 
 	/// \brief Marshalls this object to a DOM, which can be saved to a
 	/// variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// \brief Makes a deep copy of this relation
-	virtual GRelation* clone();
+	virtual GRelation* clone() const;
 
 	/// \brief Makes a deep copy of the specified subset of this
 	/// relation
-	virtual GRelation* cloneSub(size_t start, size_t count);
+	virtual GRelation* cloneSub(size_t start, size_t count) const;
 
 	/// \brief Deletes all the attributes
 	virtual void flush();
@@ -255,24 +255,24 @@ public:
 	/// \brief Copies the specified attributes and adds them to this
 	/// relation.  If attrCount < 0, then it will copy all attributes
 	/// from firstAttr to the end.
-	void addAttrs(GRelation* pCopyMe, size_t firstAttr = 0, size_t attrCount = (size_t)-1);
+	void addAttrs(const GRelation* pCopyMe, size_t firstAttr = 0, size_t attrCount = (size_t)-1);
 
 	/// \brief Flushes this relation and then copies all of the
 	/// attributes from pCopyMe
-	void copy(GRelation* pCopyMe);
+	void copy(const GRelation* pCopyMe);
 
 	/// \brief Adds a copy of the specified attribute to this relation
-	virtual void copyAttr(GRelation* pThat, size_t nAttr);
+	virtual void copyAttr(const GRelation* pThat, size_t nAttr);
 
 	/// \brief Returns the total number of attributes in this relation
-	virtual size_t size()
+	virtual size_t size() const
 	{
 		return m_valueCounts.size();
 	}
 
 	/// \brief Returns the number of nominal values in the specified
 	/// attribute
-	virtual size_t valueCount(size_t nAttr)
+	virtual size_t valueCount(size_t nAttr) const
 	{
 		return m_valueCounts[nAttr];
 	}
@@ -280,9 +280,9 @@ public:
 	/// \brief Sets the number of values for this attribute
 	virtual void setAttrValueCount(size_t nAttr, size_t nValues);
 
-	virtual bool areContinuous(size_t first, size_t count);
+	virtual bool areContinuous(size_t first, size_t count) const;
 
-	virtual bool areNominal(size_t first, size_t count);
+	virtual bool areNominal(size_t first, size_t count) const;
 
 	/// \brief Swaps two columns
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2);
@@ -314,43 +314,43 @@ public:
 	GArffRelation();
 	virtual ~GArffRelation();
 
-	virtual RelationType type() { return ARFF; }
+	virtual RelationType type() const { return ARFF; }
 
 	/// \brief Returns a deep copy of this object
-	virtual GRelation* clone();
+	virtual GRelation* clone() const;
 
 	/// \brief Makes a deep copy of the specified subset of this relation
-	virtual GRelation* cloneSub(size_t start, size_t count);
+	virtual GRelation* cloneSub(size_t start, size_t count) const;
 
 	/// \brief Deletes all the attributes
 	virtual void flush();
 
 	/// \brief Prints the specified attribute name to a stream
-	virtual void printAttrName(std::ostream& stream, size_t column);
+	virtual void printAttrName(std::ostream& stream, size_t column) const;
 
 	/// \brief Prints the specified value to a stream
-	virtual void printAttrValue(std::ostream& stream, size_t column, double value);
+	virtual void printAttrValue(std::ostream& stream, size_t column, double value) const;
 
 	/// \brief Returns true iff the attributes in both relations have
 	/// the same names, the same number of values, and the names of
 	/// those values all match. (Empty strings are considered to match
 	/// everything.)
-	virtual bool isCompatible(GRelation& that);
+	virtual bool isCompatible(const GRelation& that) const;
 
 	/// \brief Adds a new attribute (column) to the relation
 	void addAttribute(const char* szName, size_t nValues, std::vector<const char*>* pValues);
 
 	/// \brief Adds a copy of the specified attribute to this relation
-	virtual void copyAttr(GRelation* pThat, size_t nAttr);
+	virtual void copyAttr(const GRelation* pThat, size_t nAttr);
 
 	/// \brief Returns the name of the relation
-	const char* name() { return m_name.c_str(); }
+	const char* name() const { return m_name.c_str(); }
 
 	/// \brief Sets the name of this relation
 	void setName(const char* szName);
 
 	/// \brief Returns the name of the specified attribute
-	const char* attrName(size_t nAttr);
+	const char* attrName(size_t nAttr) const;
 
 	/// \brief Adds a new possible value to a nominal attribute. Returns
 	/// the numerical form of the new value.
@@ -367,7 +367,7 @@ public:
 
 	/// \brief Returns the nominal index for the specified attribute
 	/// with the given value
-	int findEnumeratedValue(size_t nAttr, const char* szValue);
+	int findEnumeratedValue(size_t nAttr, const char* szValue) const;
 
 	/// \brief Parses a value
 	double parseValue(size_t attr, const char* val);
@@ -379,7 +379,6 @@ protected:
 	/// \brief takes ownership of ppValues
 	void addAttributeInternal(const char* pName, size_t nameLen, size_t valueCount);
 };
-
 
 /// \brief Represents a matrix or a database table. 
 ///
@@ -650,6 +649,12 @@ public:
 	/// \brief Returns a relation object, which holds meta-data about
 	/// the attributes (columns)
 	sp_relation& relation() { return m_pRelation; }
+
+	/// \brief Returns a relation object, which holds meta-data about
+	/// the attributes (columns) (const version)
+	smart_ptr<const GRelation> relation() const { 
+		return smart_ptr<const GRelation> (m_pRelation, NULL);
+	}
 
 	/// \brief Allocates space for the specified number of patterns (to
 	/// avoid superfluous resizing)
@@ -1109,6 +1114,18 @@ protected:
 	void inPlaceSquareTranspose();
 	void singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, GMatrix** ppV, bool throwIfNoConverge, size_t maxIters);
 };
+
+///\brief Allow GMatrix objects to easily be converted into a string
+///for debugging
+///
+///\param m the matrix that will be converted to a string
+///
+///\return a string representing the matrix \a m
+///
+///\see template<class T> to_str(const T& n)
+std::string to_str(const GMatrix& m);
+
+
 
 
 /// \brief This is a special holder that guarantees the data set will
