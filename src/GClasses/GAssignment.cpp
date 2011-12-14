@@ -1196,6 +1196,17 @@ void testLinearAssignment(){
 			8, 4,8,8
 		};
 		{
+			//Minimization
+			const unsigned ns = 2;
+			int solutions[r*ns] = {
+				0,1,2,
+				0,1,3};
+		
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			tc.testBruteForce();
+			tc.testStandard();
+		}
+		{
 			//Maximization
 			const unsigned ns = 2;
 			int solutions[r*ns] = {
@@ -1204,7 +1215,7 @@ void testLinearAssignment(){
 		
 			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
 			tc.testBruteForce();
-			//			tc.testStandard();
+			tc.testStandard();
 		}
 	}
 	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
