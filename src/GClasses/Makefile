@@ -5,6 +5,7 @@ SHELL = /bin/bash
 TARGET_PATH = ../../lib
 TARGET_NAME_OPT = GClasses.a
 TARGET_NAME_DBG = GClassesDbg.a
+TARGET_NAME_GCOV= GClassesGcov.a
 OBJ_PATH = ../../obj/GClasses
 INSTALL_LOCATION_LIB ?= /usr/local/lib
 INSTALL_LOCATION_INCLUDE ?= /usr/local/include
@@ -24,6 +25,7 @@ else
 	CFLAGS = -Wall
 endif
 
+GCOV_CFLAGS = $(CFLAGS) -g -fprofile-arcs -ftest-coverage 
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
 
@@ -123,11 +125,16 @@ CPP_FILES = \
 
 TEMP_LIST_OPT = $(CPP_FILES:%=$(OBJ_PATH)/opt/%)
 TEMP_LIST_DBG = $(CPP_FILES:%=$(OBJ_PATH)/dbg/%)
+TEMP_LIST_GCOV = $(CPP_FILES:%=$(OBJ_PATH)/gcov/%)
 OBJECTS_OPT = $(TEMP_LIST_OPT:%.cpp=%.o)
 OBJECTS_DBG = $(TEMP_LIST_DBG:%.cpp=%.o)
+OBJECTS_GCOV = $(TEMP_LIST_GCOV:%.cpp=%.o)
 DEPS_OPT = $(TEMP_LIST_OPT:%.cpp=%.d)
 DEPS_DBG = $(TEMP_LIST_DBG:%.cpp=%.d)
+DEPS_GCOV = $(TEMP_LIST_GCOV:%.cpp=%.d)
 
+GCNO_FILES = $(TEMP_LIST_GCOV:%.cpp=%.gcno)
+GCDA_FILES = $(TEMP_LIST_GCOV:%.cpp=%.gcda)
 ################
 # Rules
 ################
@@ -138,6 +145,8 @@ dbg : $(TARGET_PATH)/$(TARGET_NAME_DBG)
 
 opt : $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
+gcov: $(TARGET_PATH)/$(TARGET_NAME_GCOV)
+
 usage:
 	#
 	# Usage:
@@ -145,6 +154,7 @@ usage:
 	#  make clean   (to delete all the .o files)
 	#  make dbg     (to build a debug version)
 	#  make opt     (to build an optimized version)
+	#  make gcov    (to build a profiling/test-coverage version)
 	#
 
 # This rule makes the optimized ".a" file by using the "ar" tool with all of the optimized ".o" files
@@ -154,8 +164,13 @@ $(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT)
 
 # This rule makes the debug ".a" file by using the "ar" tool with all of the debug ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
-	@echo "Creating debug library:" $(TARGET_PATH)/$(TARGET_NAME_OPT)
+	@echo "Creating debug library:" $(TARGET_PATH)/$(TARGET_NAME_DBG)
 	@ar -cr $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG)
+
+# This rule makes the debug ".a" file by using the "ar" tool with all of the debug ".o" files
+$(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV)
+	@echo "Creating test/profile library:" $(TARGET_PATH)/$(TARGET_NAME_GCOV)
+	@ar -cr $(TARGET_PATH)/$(TARGET_NAME_GCOV) $(OBJECTS_GCOV)
 
 # This includes all of the ".d" files. Each ".d" file contains a
 # generated rule that tells it how to make .o files. (The reason these are generated is so that
@@ -163,6 +178,8 @@ $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
 -include $(DEPS_OPT)
 
 -include $(DEPS_DBG)
+
+-include $(DEPS_GCOV)
 
 # This rule makes the optimized ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make an optimized ".o" file.
@@ -186,17 +203,35 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
 	@echo -e "	umask 0;$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
-partialcleandbg :
-	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
+# This rule makes the test/profile ".d" files by using "g++ -MM" with the corresponding ".cpp" file
+# The ".d" file will contain a rule that says how to make a test/profile ".o" file.
+# "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
+$(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
+	@echo -e "Computing gcov dependencies for $<"
+	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
+	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
+	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
+	@echo -e "	umask 0;$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleanopt :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
-clean : partialcleandbg partialcleanopt
+partialcleandbg :
+	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
+
+partialcleangcov :
+	rm -f $(TARGET_PATH)/$(TARGET_NAME_GCOV)
+	rm -f $(TARGET_PATH)/$(GCNO_FILES)
+	rm -f $(TARGET_PATH)/$(GCDA_FILES)
+
+clean : partialcleandbg partialcleanopt partialcleangcov
 	rm -f $(OBJECTS_OPT)
 	rm -f $(OBJECTS_DBG)
+	rm -f $(OBJECTS_GCOV)
 	rm -f $(DEPS_OPT)
 	rm -f $(DEPS_DBG)
+	rm -f $(DEPS_GCOV)
 
 install: $(TARGET_PATH)/$(TARGET_NAME_OPT) $(TARGET_PATH)/$(TARGET_NAME_DBG)
 	mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
