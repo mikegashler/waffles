@@ -1034,6 +1034,7 @@ namespace{
 
 void testLinearAssignment(){
 	testNextKPermutation();
+	//Simple matrix test
 	{ 
 		const unsigned r=5, c=5;
 		double input[r*c] = {
@@ -1048,35 +1049,6 @@ void testLinearAssignment(){
 		LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());		
 		tc.testBruteForce();
 	}
-#if 0 //Hide old tests
-	//Simple matrix test
-	{
-		GMatrix costs(5,5);
-		double c[25] = {
-			0,1,2,3,4,
-			1,0,1,2,3,
-			2,1,0,1,2,
-			3,2,1,0,1,
-			4,3,2,1,0};
-		costs.fromVector(c, 5);
-		int expectA[] = {0,1,2,3,4};
-		std::size_t numExpectA = 5;
-		std::vector<int> expectAA(expectA, expectA+numExpectA);
-		GSimpleAssignment expected(5,expectAA);
-		std::vector<GSimpleAssignment> actual = linearAssignmentBruteForce(costs);
-
-		bool oneWasCorrect = false;
-		for(unsigned i = 0; i < actual.size(); ++i){
-			oneWasCorrect |= (actual.at(i) == expected);
-		}
-		TestEqual(true, oneWasCorrect, 
-							to_str("None of the calculated assignments was the expected ")+
-							"one."+
-							"\nExpected: "+to_str(expected)+
-							"\nAll predicted: "+to_str(actual));
-	}
-
-
 	//Test for distance matrix where original points were:
 	//
 	//A :0,B :2,C :5,D :8 and after moving, the points were
@@ -1087,32 +1059,21 @@ void testLinearAssignment(){
 	//
 	//So, the expected permutation is 0,2,3,1
 	{
-		GMatrix costs(4,4);
-		double c[16] = {
+		const unsigned r=4, c=4;
+		double input[r*c] = {
 		//A'B'C'D'
 			1,2,3,6, //A
 			4,3,2,1, //C
 			7,6,5,2, //D
 			1,0,1,4, //B
 		};
-		costs.fromVector(c, 4);
-		int expectA[] = {0,2,3,1};
-		std::size_t numExpectA = 4;
-		std::vector<int> expectAA(expectA, expectA+numExpectA);
-		GSimpleAssignment expected(4,expectAA);
-		std::vector<GSimpleAssignment> actual = linearAssignmentBruteForce(costs);
 
-		bool oneWasCorrect = false;
-		for(unsigned i = 0; i < actual.size(); ++i){
-			oneWasCorrect |= (actual.at(i) == expected);
-		}
-		TestEqual(true, oneWasCorrect, 
-							to_str("None of the calculated assignments was the expected ")+
-							"one."+
-							"\nExpected: "+to_str(expected)+
-							"\nAll predicted: "+to_str(actual));
+		const unsigned ns = 1;
+		int solutions[r*ns] = {
+			0,2,3,1};
+		LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());		
+		tc.testBruteForce();
 	}
-#endif
 
 	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
 	
