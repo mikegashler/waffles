@@ -1027,6 +1027,34 @@ namespace{
 					 "\non the problem input:\n",to_str(input));
 			}
 		}
+
+		///\brief Runs this test case for the standard linear assignment
+		///problem solver, throws an exception if there is an error
+		///
+		///This is a separate function from the brute-force testing
+		///function because you may want to try the standard algorithm on
+		///a matrix much too big for the brute-force algorithm
+		void testStandard(){
+			GSimpleAssignment actual(input.rows(), input.cols());
+			if(isMinimization){
+				actual = linearAssignment(input);
+			}else{
+				actual = linearAssignment(input, ShouldMaximize());
+			}
+
+			std::set<GSimpleAssignment>::const_iterator location = 
+				solutionSet.find(actual);
+			if(location == solutionSet.end()){
+				//Could not find the generated solution among the correct answers
+				ThrowError
+					("The standard linear assignment ", 
+					 isMinimization?"minimization ":"maximization ",
+					 "problem solver returned an incorrect solution\n",
+					 "Returned answer:",to_str(actual),
+					 "\nCorrect answers:",to_str(solutionSet),
+					 "\non the problem input:\n",to_str(input));
+			}
+		}
 	};
 }
 
@@ -1047,6 +1075,7 @@ void testLinearAssignment(){
 		int solutions[r*ns] = {
 			0,1,2,3,4};
 		LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());		
+		tc.testStandard();
 		tc.testBruteForce();
 	}
 	//Test for distance matrix where original points were:
@@ -1073,6 +1102,7 @@ void testLinearAssignment(){
 			0,2,3,1};
 		LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());		
 		tc.testBruteForce();
+		tc.testStandard();
 	}
 
 	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
