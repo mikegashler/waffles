@@ -1105,6 +1105,108 @@ void testLinearAssignment(){
 		tc.testStandard();
 	}
 
+	//10x10 matrix of uniform[0,1) after applying the exponent function
+	//to each entry and then subtracting 1.  The expected value was
+	//calculated by the brute-force routine
+	{
+		const unsigned r=10, c=10;
+		double input[r*c] = {
+			0.568312, 0.186491, 0.251822, 1.69097, 0.116055, 1.02668, 0.833451, 
+			0.913244, 0.379057, 0.395985, 0.233801, 0.42134, 0.565648, 0.0175523, 
+			0.740374, 0.892502, 0.0773453, 0.637876, 0.913435, 1.21444, 0.126032, 
+			1.68264, 0.493317, 1.4361, 1.01254, 0.692319, 0.589151, 1.49253, 
+			0.446722, 0.356082, 0.535721, 0.336294, 0.370396, 0.347027, 
+			0.00762895, 0.655826, 0.769328, 0.638039, 0.355134, 1.2056, 0.981591, 
+			0.409451, 1.55589, 0.861532, 0.772693, 0.492869, 1.01395, 0.467705, 
+			0.710182, 1.38119, 1.02061, 0.144308, 0.408324, 0.115162, 0.267188, 
+			1.20891, 1.36694, 0.962855, 0.497654, 0.0574919, 0.344201, 0.677325, 
+			0.129867, 0.282101, 1.55384, 0.847254, 0.0174505, 1.27618, 0.037278, 
+			1.01577, 0.554105, 0.592333, 0.00260338, 1.08652, 0.715492, 0.533419, 
+			1.50578, 0.42504, 0.332691, 0.551155, 1.14577, 0.602076, 0.100099, 
+			0.0906785, 0.71927, 0.205266, 0.141679, 0.180455, 0.0312792, 
+			0.379333, 0.849287, 0.170698, 0.965801, 0.0165352, 0.311275, 
+			0.0970228, 1.55921, 0.491228, 0.705571, 0.00843538
+		};
+
+		{
+			//Minimization
+			const unsigned ns = 1;
+			int solutions[r*ns] = {
+				1,3,0,4,7,9,6,2,8,5};
+
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			tc.testStandard();
+		}
+		{
+			//Maximization
+			const unsigned ns = 1;
+			int solutions[r*ns] = {
+				3,8,1,9,2,5,7,4,0,6};
+
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			tc.testStandard();
+		}
+	}
+
+	//10x10 matrix of uniform[0,1) after applying 1/x to each entry.
+	//The expected value was calculated by the brute-force routine
+	{
+		const unsigned r=10, c=10;
+		double input[r*c] = {
+			2.78149, 2.1004, 2.19674, 2.27427, 1.56916, 45.9015, 1.86884,		
+			2.38739, 5.87695, 46.6571, 2.27358, 1.35429, 1.46073, 1.53818,	
+			3.96977, 1.12193, 4.18369, 1.83308, 11.4366, 4.10773, 5.49231,	
+			2.82751, 4.80075, 19.7531, 10.9935, 1.53742, 2.49098, 1.16571,	
+			9425.96, 2.41417, 59.6294, 28.0838, 3.51606, 40.9338, 3.00573,	
+			1.6941, 5.57562, 25.0501, 8.87884, 17.2603, 2.42773, 13.0047,		
+			75.6144, 1.49303, 3.07248, 1625.91, 64.5151, 5.21972, 38.3878,	
+			15.6599, 2.17477, 1.7034, 1.78778, 3.33483, 98.8107, 1.97094,		
+			1.89674, 2.78892, 13.8196, 17.4921, 12.1236, 1.43426, 176.364,	
+			1.78348, 1.85562, 1.11178, 6.95813, 206612., 2.64393, 11.1856,	
+			8573.39, 9.31777, 39.5057, 11.491, 171.322, 1189.06, 1.02777,		
+			3673.09, 493.827, 9.01803, 8573.39, 1.42843, 9.11632, 2.81141,	
+			2.00117, 16.6055, 4.26531, 28.0838, 4.41539, 1.15595, 1.66322,	
+			1.06633, 46.9774, 9.31209, 14.1013, 50.6579, 2.92106, 46.8489,	
+			86.2122, 116.621
+		};
+		{
+			//Minimization
+			const unsigned ns = 1;
+			int solutions[r*ns] = {
+				4,2,7,5,3,0,8,6,9,1};
+
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			tc.testStandard();
+		}
+		{
+			//Maximization
+			const unsigned ns = 1;
+			int solutions[r*ns] = {
+				2,6,8,3,5,1,7,4,0,9};
+
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			tc.testStandard();
+		}
+	}
+	{
+		const unsigned r=3, c=4;
+		double input[r*c] = {
+			1, 2,4,8,
+			8,-2,8,4,
+			8, 4,8,8
+		};
+		{
+			//Maximization
+			const unsigned ns = 2;
+			int solutions[r*ns] = {
+				3,0,2,
+				3,2,0};
+		
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			tc.testBruteForce();
+			//			tc.testStandard();
+		}
+	}
 	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
 	
 }
