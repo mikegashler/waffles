@@ -46,6 +46,9 @@ public:
 
 	virtual ~GHeap();
 
+	/// Deletes all the blocks and frees up memory
+	void clear();
+
 	/// Allocate space in the heap and copy a string to it.  Returns
 	/// a pointer to the string
 	char* add(const char* szString)

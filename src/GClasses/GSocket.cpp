@@ -881,5 +881,61 @@ void GPackageServer::test()
 }
 #endif // !NO_TEST_CODE
 
+
+
+
+void GDomClient::send(GDomNode* pNode)
+{
+	std::ostringstream os;
+	m_doc.setRoot(pNode);
+	m_doc.writeJson(os);
+	string s = os.str();
+	GPackageClient::send(s.c_str(), s.length());
+}
+
+GDomNode* GDomClient::receive()
+{
+	m_doc.clear();
+	size_t len;
+	char* pPackage = GPackageClient::receive(&len);
+	if(pPackage)
+	{
+		m_doc.parseJson(pPackage, len);
+		return m_doc.root();
+	}
+	else
+		return NULL;
+}
+
+
+
+
+
+void GDomServer::send(GDomNode* pNode, GTCPConnection* pConn)
+{
+	std::ostringstream os;
+	m_doc.setRoot(pNode);
+	m_doc.writeJson(os);
+	string s = os.str();
+	GPackageServer::send(s.c_str(), s.length(), pConn);
+}
+
+GDomNode* GDomServer::receive(GTCPConnection** pOutConn)
+{
+	m_doc.clear();
+	size_t len;
+	char* pPackage = GPackageServer::receive(&len, pOutConn);
+	if(pPackage)
+	{
+		m_doc.parseJson(pPackage, len);
+		return m_doc.root();
+	}
+	else
+		return NULL;
+}
+
+
+
+
 } // namespace GClasses
 

@@ -14,6 +14,7 @@
 
 #include "GError.h"
 #include "GThread.h"
+#include "GDom.h"
 
 #ifndef WINDOWS
 #	define SOCKET int
@@ -506,6 +507,42 @@ protected:
 };
 
 
+
+/// This is a socket client that sends and receives DOM nodes
+class GDomClient : public GPackageClient
+{
+protected:
+	GDom m_doc;
+
+public:
+	GDomClient() : GPackageClient() {}
+	virtual ~GDomClient() {}
+
+	/// Send the specified DOM node.
+	void send(GDomNode* pNode);
+
+	/// Receive the next available DOM node, or NULL if none are ready.
+	GDomNode* receive();
+};
+
+
+/// This is a socket server that sends and receives DOM nodes
+class GDomServer : public GPackageServer
+{
+protected:
+	GDom m_doc;
+
+public:
+	GDomServer(unsigned int port) : GPackageServer(port) {}
+	virtual ~GDomServer() {}
+
+	/// Send the specified DOM node.
+	void send(GDomNode* pNode, GTCPConnection* pConn);
+
+	/// Receive the next available DOM node, or NULL if none are ready.
+	GDomNode* receive(GTCPConnection** pOutConn);
+
+};
 
 } // namespace GClasses
 

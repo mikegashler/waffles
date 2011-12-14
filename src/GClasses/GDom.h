@@ -197,6 +197,9 @@ public:
 	static void test();
 #endif
 
+	/// Clears the DOM.
+	void clear();
+
 	/// Load from the specified file in JSON format. (See http://json.org.)
 	void loadJson(const char* szFilename);
 

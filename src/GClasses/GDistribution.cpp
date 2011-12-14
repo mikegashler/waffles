@@ -109,6 +109,20 @@ void GCategoricalDistribution::setValues(size_t nValueCount, const double* pValu
 	normalize();
 }
 
+void GCategoricalDistribution::setValuesInferLast(size_t nValueCount, const double* pValues)
+{
+	values(nValueCount + 1); // Make sure the right amount of space is allocated
+	double* pV = m_pValues;
+	double rem = 1.0;
+	for(size_t i = 0; i < nValueCount; i++)
+	{
+		rem -= *pValues;
+		*(pV++) = *(pValues++);
+	}
+	*pV = rem;
+	normalize();
+}
+
 void GCategoricalDistribution::setSpike(size_t nValueCount, size_t nValue, size_t nDepth)
 {
 	GAssert(nDepth > 0); // nDepth should be at least 1

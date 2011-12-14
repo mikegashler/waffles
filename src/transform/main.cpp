@@ -1080,6 +1080,40 @@ void nominalToCat(GArgReader& args)
 	pDataNew->print(cout);
 }
 
+void overlay(GArgReader& args)
+{
+	GMatrix* pBase = loadData(args.pop_string());
+	Holder<GMatrix> hBase(pBase);
+	GMatrix* pOver = loadData(args.pop_string());
+	Holder<GMatrix> hOver(pOver);
+	if(pOver->rows() != pBase->rows() || pOver->cols() != pBase->cols())
+		ThrowError("Matrices not the same size");
+	size_t dims = pOver->cols();
+	GRelation* pRelOver = pOver->relation().get();
+	for(size_t i = 0; i < pOver->rows(); i++)
+	{
+		double* pVecBase = pBase->row(i);
+		double* pVecOver = pOver->row(i);
+		for(size_t j = 0; j < dims; j++)
+		{
+			size_t vals = pRelOver->valueCount(j);
+			if(vals == 0)
+			{
+				if(*pVecOver == UNKNOWN_REAL_VALUE)
+					*pVecOver = *pVecBase;
+			}
+			else
+			{
+				if(*pVecOver == UNKNOWN_DISCRETE_VALUE)
+					*pVecOver = std::max((size_t)0, std::min(vals - 1, (size_t)floor(*pVecBase + 0.5)));
+			}
+			pVecBase++;
+			pVecOver++;
+		}
+	}
+	pOver->print(cout);
+}
+
 void powerColumns(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -1840,6 +1874,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("multiplyscalar")) multiplyScalar(args);
 		else if(args.if_pop("normalize")) normalize(args);
 		else if(args.if_pop("neighbors")) neighbors(args);
+		else if(args.if_pop("overlay")) overlay(args);
 		else if(args.if_pop("powercolumns")) powerColumns(args);
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);

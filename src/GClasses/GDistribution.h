@@ -171,6 +171,9 @@ public:
 	/// Sets the specified values, and normalizes
 	void setValues(size_t nValueCount, const double* pValues);
 
+	/// Sets the specified values, except infers the last, and normalizes
+	void setValuesInferLast(size_t nValueCount, const double* pValues);
+
 	/// Set all uniform probabilities
 	void setToUniform(size_t nValues)
 	{

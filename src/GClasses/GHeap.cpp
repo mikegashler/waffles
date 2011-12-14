@@ -18,10 +18,16 @@ using namespace GClasses;
 // virtual
 GHeap::~GHeap()
 {
+	clear();
+}
+
+void GHeap::clear()
+{
 	while(m_pCurrentBlock)
 	{
 		char* pNext = *(char**)m_pCurrentBlock;
 		delete[] m_pCurrentBlock;
 		m_pCurrentBlock = pNext;
 	}
+	m_nCurrentPos = m_nMinBlockSize;
 }

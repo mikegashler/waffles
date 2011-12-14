@@ -490,6 +490,12 @@ GDom::~GDom()
 {
 }
 
+void GDom::clear()
+{
+	m_pRoot = NULL;
+	m_heap.clear();
+}
+
 GDomNode* GDom::newObj()
 {
 	GDomNode* pNewObj = (GDomNode*)m_heap.allocAligned(offsetof(Bogus1, m_double) + sizeof(GDomObjField*));

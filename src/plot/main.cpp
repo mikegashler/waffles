@@ -1438,6 +1438,22 @@ void PrintStats(GArgReader& args)
 	size_t stepSize = pRel->size() / 10;
 	if(stepSize < 4)
 		stepSize = 1;
+
+	// Print the arity
+	GMatrix arity(pRel->size(), 1);
+	size_t maxArity = 0;
+	size_t sumArity = 0;
+	for(size_t i = 0; i < pRel->size(); i++)
+	{
+		size_t vals = pRel->valueCount(i);
+		size_t a = vals < 3 ? 1 : vals;
+		arity[i][0] = a;
+		maxArity = std::max(maxArity, a);
+		sumArity += a;
+	}
+	cout << "Median arity=" << arity.median(0) << ", Max arity=" << maxArity << ", Sum arity=" << sumArity << "\n";
+
+	// Print stats about each attribute
 	for(size_t i = 0; i < pRel->size();)
 	{
 		cout << "  " << i << ") " << pRel->attrName(i) << ", ";
@@ -1489,12 +1505,15 @@ void PrintStats(GArgReader& args)
 				cout << " (" << ((double)mostCommonOccurrences * 100.0 / pData->rows()) << "%)\n";
 			}
 		}
+		size_t prevI = i;
 		if(i < 2)
 			i++;
 		else if(i + stepSize >= pRel->size() - 3)
 			i += std::max(1, (int)pRel->size() - 3 - (int)i);
 		else
 			i += stepSize;
+		if(i - prevI > 1)
+			cout << "	...\n";
 	}
 }
 

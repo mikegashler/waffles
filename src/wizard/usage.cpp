@@ -1398,6 +1398,11 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-maxvalues [cap]=8", "Specify the maximum number of nominal values for which to create new columns. If not specified, the default is 12.");
 	}
 	{
+		UsageNode* pOverlay = pRoot->add("overlay [base] [over]", "Combines two same-sized matrices by placing [over] on top of [base], such that elements from [base] are used only if the same element is missing in [over].");
+		pOverlay->add("[base]=base.arff", "The matrix of values to use when they are missing in the other one.");
+		pOverlay->add("[over]=over.arff", "The matrix of values to use as long as they are not missing.");
+	}
+	{
 		UsageNode* pPowerCols = pRoot->add("powercolumns [dataset] [column-list] [exponent]", "Raises the values in the specified columns to some power (or exponent).");
 		pPowerCols->add("[dataset]=data.arff", "The filename of a dataset.");
 		pPowerCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");

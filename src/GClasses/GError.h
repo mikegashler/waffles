@@ -164,10 +164,11 @@ std::string to_str(const std::map<Key, T>& v){
   return to_str(v.begin(), v.end(),"map");
 }
 
+#ifndef NO_TEST_CODE
 ///\brief Run unit tests for the to_str functions.  Throws an
 ///       exception if it detects an error
 void test_to_str();
-
+#endif
 
 
 void ThrowError(std::string s1);
