@@ -959,7 +959,7 @@ namespace{
 			this->input.fromVector(input, rows);
 			for(std::size_t curSol = 0; curSol < numSolutions; ++curSol){
 				int const* start = correct + curSol * rows;
-				std::vector<int> tmp(start, start+cols);
+				std::vector<int> tmp(start, start+rows);
 				solutionSet.insert(GSimpleAssignment(cols, tmp));
 			}
 		}
