@@ -30,18 +30,14 @@ using namespace GClasses;
 
 int main(){
   GRand& rnd = GRand::global();
-  const std::size_t r=12, c=12;
+  const std::size_t r=5, c=10;
   GMatrix m(r,c);
-  
-  //Largest integer such that it and all below are exactly
-  //representable as a double = 2^53 = 9007199254740992
-  const uint64_t largest_double_int=9007199254740992;
   
   uint64_t num_searched = 0;
   while(true){
     for(unsigned i = 0; i < m.rows(); ++i){
       for(unsigned j = 0; j < m.cols(); ++j){
-	m[i][j]=rnd.next(largest_double_int);
+	m[i][j]=rnd.next(1000);
       }
     }
     
@@ -57,6 +53,7 @@ int main(){
     if(LAPVJRCT_augmentation_section_was_used){
       std::cout << "Found matrix for which the augmentation section was used:\n"
 		<< to_str(m) << "\n";
+      std::cerr << "Found one!\n";
     }
 
     ++num_searched;
