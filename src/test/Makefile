@@ -107,8 +107,8 @@ usage:
 ../../lib/GClassesGcov.a :
 	$(MAKE) -C ../GClasses gcov
 
-../../obj/waffles_wizard/dbg/usage.o: ../../lib/GClassesDbg.a
-	$(MAKE) -C ../wizard dbg
+../../obj/waffles_wizard/dbg/usage.o:
+	$(MAKE) -C ../wizard ../../obj/waffles_wizard/dbg/usage.o
 
 
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
