@@ -107,6 +107,10 @@ usage:
 ../../lib/GClassesGcov.a :
 	$(MAKE) -C ../GClasses gcov
 
+../../obj/waffles_wizard/dbg/usage.o: ../../lib/GClassesDbg.a
+	$(MAKE) -C ../wizard dbg
+
+
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a
 	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
