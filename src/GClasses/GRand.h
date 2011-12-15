@@ -12,12 +12,12 @@
 #ifndef __GRAND_H__
 #define __GRAND_H__
 
-#include <sys/types.h>
+#include <stdint.h>
 #include <vector>
 
 namespace GClasses {
 
-typedef unsigned long long int uint64;
+typedef uint64_t uint64;
 
 
 /// This is a 64-bit pseudo-random number generator.

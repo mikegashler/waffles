@@ -175,26 +175,26 @@ public:
 	
 	/// \brief Returns the number of values in each nominal attribute
 	/// (or 0 if the attributes are continuous)
-	virtual size_t valueCount(size_t nAttr) const { return m_valueCount; }
+	virtual size_t valueCount(size_t) const { return m_valueCount; }
 	
 	/// \brief See the comment for GRelation::areContinuous
-	virtual bool areContinuous(size_t first, size_t count) const { return m_valueCount == 0; }
+	virtual bool areContinuous(size_t, size_t) const { return m_valueCount == 0; }
 	
 	/// \brief See the comment for GRelation::areNominal
-	virtual bool areNominal(size_t first, size_t count) const { return m_valueCount != 0; }
+	virtual bool areNominal(size_t, size_t) const { return m_valueCount != 0; }
 
 	/// \brief Returns a copy of this object
 	virtual GRelation* clone() const { return new GUniformRelation(m_attrCount, m_valueCount); }
 
 	/// \brief Returns a deep copy of the specified subset of this
 	/// relation
-	virtual GRelation* cloneSub(size_t start, size_t count) const { return new GUniformRelation(count, m_valueCount); }
+	virtual GRelation* cloneSub(size_t, size_t count) const { return new GUniformRelation(count, m_valueCount); }
 
 	/// \brief Drop the specified attribute
 	virtual void deleteAttribute(size_t index);
 	
-	/// \brief Swap two attributes
-	virtual void swapAttributes(size_t nAttr1, size_t nAttr2) {}
+	/// \brief Swap two attributes (since all attributes are identical, does nothing)
+	virtual void swapAttributes(size_t, size_t) {}
 
 	/// \brief Returns true iff this and that have the same number of
 	/// values for each attribute
