@@ -32,6 +32,23 @@ std::ostream& operator<<(std::ostream& out, const GSimpleAssignment& gsa){
 	return out << ']';
 }
 
+///LAPVJRCT sets this to true if the augmentation section of the code
+///was used.  
+///
+///Usage:
+///\code
+/// extern GCLasses::LAPVJRCT_augmentation_section_was_used;
+/// //...now in a routine
+/// GCLasses::LAPVJRCT_augmentation_section_was_used = false;
+/// GCLasses::LAPVJRCT(c,x,y,u,v,totalCost,epsilon)
+/// if( GCLasses::LAPVJRCT_augmentation_section_was_used ){
+///   // do stuff
+/// }
+///\endcode
+///
+///\warning This variable may go away soon as it is only used for
+///creating test cases.
+bool LAPVJRCT_augmentation_section_was_used;
 
 void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y, 
 							std::vector<double>& u, std::vector<double>& v, 
@@ -229,6 +246,10 @@ void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 		//The number of unassigned rows
 		int f0 = f;
 		int j;
+
+		//If the loop for the augmentation section will be entered, then
+		//we consider the augmentation section used
+		if(1 <= f0){ LAPVJRCT_augmentation_section_was_used = true; }
 
 		//The last column in col-array (with pascal indexing) with d[j-1] < min
 		int last=-1; //The initial value is to remove a compiler warning
@@ -1219,6 +1240,109 @@ void testLinearAssignment(){
 			tc.testStandard();
 		}
 	}
+	//A 14x10 matrix of uniformly distributed values - the expected
+	//solutions were calculated using brute-force.  This allows testing
+	//a larger matrix that needs to be transposed.  Hopefully, we'll see
+	//some use of the augmenting routine in this version.
+	{
+	  const unsigned r=14, c=10;
+		double input[r*c] = {
+			0.4718, 0.257, 0.1236, 0.7595, 0.7386, 0.873, 0.7491, 0.8453,		
+			0.4696, 0.8869, 0.1293, 0.8964, 0.0295, 0.8543, 0.622, 0.736, 0.7821, 
+			0.8776, 0.9383, 0.0809, 0.706, 0.6704, 0.9434, 0.8925, 0.8712,		
+			0.1853, 0.5642, 0.86, 0.1626, 0.7454, 0.5797, 0.07, 0.9714, 0.213, 
+			0.1358, 0.1381, 0.4031, 0.2114, 0.2997, 0.6127, 0.2832, 0.4713,		
+			0.9039, 0.0828, 0.7552, 0.3561, 0.757, 0.2335, 0.3985, 0.8945,		
+			0.5226, 0.2745, 0.1709, 0.7684, 0.8311, 0.7277, 0.8627, 0.5586,		
+			0.3693, 0.7485, 0.9988, 0.4425, 0.7077, 0.9599, 0.5071, 0.4315,		
+			0.1481, 0.0811, 0.4979, 0.5405, 0.4207, 0.5752, 0.4589, 0.6059,		
+			0.5902, 0.14, 0.7982, 0.9461, 0.065, 0.5655, 0.8381, 0.5883, 0.6022, 
+			0.2984, 0.3603, 0.0477, 0.0715, 0.8197, 0.5952, 0.9089, 0.57, 0.6657, 
+			0.3349, 0.3293, 0.5439, 0.5167, 0.1974, 0.3185, 0.3505, 0.7247,		
+			0.4262, 0.8504, 0.1404, 0.4144, 0.2915, 0.1764, 0.3453, 0.6982,		
+			0.6527, 0.8888, 0.3831, 0.1668, 0.8064, 0.7914, 0.5887, 0.6954,		
+			0.138, 0.0456, 0.704, 0.3103, 0.4154, 0.4602, 0.9685, 0.1646, 0.5598, 
+			0.3779, 0.0603, 0.24, 0.2435, 0.9022, 0.8755, 0.9264, 0.3337, 0.1342, 
+			0.0755, 0.4569, 0.5078, 0.4053, 0.8854, 0.1037};
+		{
+			//Minimization
+			const unsigned ns = 1;
+			//Solution given by brute-force:
+			//[{0,2},{1,0},{3,4},{4,3},{6,7},{7,8},{8,5},{11,1},{12,6},{13,9}]
+			int solutions[r*ns] = {
+				2,0,-1,4,3,-1,7,8,5,-1,-1,1,6,9};
+
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			tc.testStandard();
+		}
+		{
+			//Maximization
+			const unsigned ns = 1;
+			//Solution given by brute-force:
+			//[{0,5},{1,8},{2,4},{3,2},{5,6},{6,3},{7,7},{8,0},{12,9},{13,1}]]
+			int solutions[r*ns] = {
+				5,8,4,2,-1,6,3,7,0,-1,-1,-1,9,1};
+
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			tc.testStandard();
+		}
+	}
+
+	//A 14x12 matrix of uniformly distributed values - the expected
+	//solutions were calculated using brute-force.  This allows testing
+	//a larger matrix that needs to be transposed.  Hopefully, we'll see
+	//some use of the augmenting routine in this version.
+	{
+	  const unsigned r=14, c=12;
+		double input[/*r*c*/] = {
+			0.4912, 0.5522, 0.55, 0.6685, 0.1594, 0.0932, 0.7055, 0.1698, 
+			0.1333, 0.1828, 0.9702,	0.4301, 0.9668, 0.1068, 0.9711, 
+			0.9232, 0.4236, 0.0823, 0.3353,	0.0493, 0.8527, 0.632, 
+			0.6092, 0.8295, 0.7893, 0.8104, 0.0397,	0.3228, 0.4566, 
+			0.7227, 0.6319, 0.8309, 0.4065, 0.4397, 0.342, 0.5313, 
+			0.4699, 0.4845, 0.9197, 0.601, 0.352, 0.8833, 0.8623, 0.3754, 
+			0.3508, 0.1123, 0.139, 0.0604, 0.9657, 0.7967, 0.522, 0.5632, 0.9178, 
+			0.8359, 0.2233, 0.2802, 0.1253, 0.9017, 0.0043, 0.1975, 0.65, 0.2945, 
+			0.226, 0.4719, 0.1109, 0.0665, 0.681, 0.5147, 0.4577, 0.5945, 0.6406, 
+			0.1383, 0.4678, 0.1859, 0.956, 0.3578, 0.3218, 0.8576, 0.5734,		
+			0.2051, 0.0805, 0.1656, 0.1931, 0.5893, 0.6533, 0.8333, 0.8191,		
+			0.4311, 0.7842, 0.9173, 0.4158, 0.601, 0.0635, 0.6416, 0.638, 0.7427, 
+			0.9281, 0.6256, 0.6913, 0.8544, 0.2395, 0.9363, 0.3564, 0.0147,		
+			0.6466, 0.9194, 0.964, 0.5965, 0.7353, 0.917, 0.8292, 0.6421, 0.9169, 
+			0.6161, 0.5324, 0.6815, 0.3553, 0.889, 0.9511, 0.4629, 0.9939,		
+			0.7942, 0.1629, 0.7014, 0.5547, 0.2141, 0.1291, 0.0588, 0.7207,		
+			0.703, 0.4362, 0.3578, 0.2946, 0.4821, 0.2691, 0.8935, 0.1992,		
+			0.7264, 0.1883, 0.5204, 0.9035, 0.3624, 0.3394, 0.0183, 0.6564,		
+			0.2968, 0.8296, 0.7499, 0.348, 0.5187, 0.3911, 0.217, 0.0274, 0.9196, 
+			0.8252, 0.5976, 0.4716, 0.7007, 0.922, 0.2059, 0.0157, 0.4735,		
+			0.2537, 0.1985, 0.3115, 0.1215, 0.0394, 0.6461, 0.3961, 0.6628,		
+			0.5206, 0.1862, 0.1749, 0.2558, 0.4363, 0.7981, 0.1341, 0.6684,		
+			0.2181, 0.4873, 0.3175, 0.6351, 0.7117, 0.7754, 0.406, 0.7328,		
+			0.2642, 0.31, 0.2586, 0.6926, 0.6253, 0.6856, 0.7298, 0.784, 0.0286, 
+			0.1462, 0.3993, 0.3355, 0.0259, 0.7446, 0.8826, 0.9244, 0.5914,		
+			0.6769, 0.5693, 0.8382, 0.6111, 0.7786, 0.1394, 0.0513, 0.6841,		
+			0.5431, 0.2846, 0.1595, 0.4031, 0.6819, 0.1604, 0.6566, 0.4709,		
+			0.1484, 0.3594, 0.7114, 0.629, 0.9771, 0.4213, 0.7725, 0.9804,		
+			0.3241, 0.9249, 0.9526, 0.8321, 0.0461, 0.9815, 0.183, 0.0215,		
+			0.1561, 0.2629, 0.2158, 0.1274, 0.5522, 0.2026, 0.6913, 0.1271,		
+			0.5764, 0.5778, 0.1918, 0.0411, 0.221, 0.8571, 0.4613, 0.0405,		
+			0.2457, 0.7222, 0.4632, 0.1998, 0.3083, 0.8328, 0.5552, 0.137, 0.1273
+		};
+		{
+			//Minimization
+			const unsigned ns = 1;
+			int solutions[/*r*ns*/] = {
+				0,1,2,3,4,5,6,7,8,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+				,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+				-1,-1};
+
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			tc.testBruteForce();
+			tc.testStandard();
+		}
+
+	}
+
 	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
 	
 }
