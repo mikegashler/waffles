@@ -30,16 +30,18 @@ using namespace GClasses;
 
 int main(){
   GRand& rnd = GRand::global();
-  const std::size_t r=5, c=10;
+  const std::size_t r=4, c=3;
   GMatrix m(r,c);
-  
+
   uint64_t num_searched = 0;
   while(true){
     for(unsigned i = 0; i < m.rows(); ++i){
       for(unsigned j = 0; j < m.cols(); ++j){
-	m[i][j]=rnd.next(1000);
+	m[i][j]=rnd.next(10);
       }
     }
+
+    GMatrix* tr = m.transpose();
     
     LAPVJRCT_augmentation_section_was_used = false;
     std::vector<int> rowAssign;
@@ -47,8 +49,9 @@ int main(){
     std::vector<double> rowPotential;
     std::vector<double> colPotential;
     double totalCost;
-    LAPVJRCT(m, rowAssign, colAssign, rowPotential, colPotential,
+    LAPVJRCT(*tr, rowAssign, colAssign, rowPotential, colPotential,
 	     totalCost);
+    delete tr; tr = 0;
 
     if(LAPVJRCT_augmentation_section_was_used){
       std::cout << "Found matrix for which the augmentation section was used:\n"
