@@ -147,6 +147,9 @@ opt : $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
 gcov: $(TARGET_PATH)/$(TARGET_NAME_GCOV)
 
+fam: findAugMatrix.cpp ../../lib/GClassesDbg.a
+	g++ -o fam findAugMatrix.cpp ../../lib/GClassesDbg.a -lpng -lz
+
 usage:
 	#
 	# Usage:
@@ -155,6 +158,8 @@ usage:
 	#  make dbg     (to build a debug version)
 	#  make opt     (to build an optimized version)
 	#  make gcov    (to build a profiling/test-coverage version)
+	#  make fam     (build the fam executable for help in generating 
+	#                LAPVJRCT test cases)
 	#
 
 # This rule makes the optimized ".a" file by using the "ar" tool with all of the optimized ".o" files

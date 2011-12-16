@@ -21,12 +21,14 @@ namespace GClasses{
 
 
 std::ostream& operator<<(std::ostream& out, const GSimpleAssignment& gsa){
+	bool printedAPair = false;
 	out << '[';
 	for(unsigned i = 0; i < gsa.sizeA(); ++i){
 		int j = gsa(i);
 		if(j >= 0){
-			if( i > 0 ){ out << ','; }
+			if( printedAPair ){ out << ','; }
 			out << '{' << i << ',' << j << '}';
+			printedAPair = true;
 		}		
 	}
 	return out << ']';
@@ -208,6 +210,12 @@ void GSimpleAssignment::test(){
 								"after an unassignment");}
 	}
 
+	//Test printing when element 0 of set A is unassigned
+	{ stringstream s; s << y;
+		TestEqual("[{2,1}]", s.str(), 
+							"operator<< Incorrectly prints GSimpleAssignment with 2->1, "
+							"that is, with element 0 of set A unassigned");
+	}
 
 	//Test operator== for two same-sized assignments that have different
 	//contents
@@ -246,6 +254,25 @@ void GSimpleAssignment::test(){
 ///\warning This variable may go away soon as it is only used for
 ///creating test cases.
 bool LAPVJRCT_augmentation_section_was_used;
+
+///\brief set to true if the true branch of the if statement labeled
+///h==min was called
+///
+///\see LAPVJRCT_augmentation_section_was_used
+///
+///\warning This variable may go away soon as it is only used for
+///creating test cases.
+bool LAPVJRCT_h_eq_min_true_called;
+
+///\brief set to true if the false branch of the if statement labeled
+///h==min was called
+///
+///\see LAPVJRCT_augmentation_section_was_used
+///
+///\warning This variable may go away soon as it is only used for
+///creating test cases.
+bool LAPVJRCT_h_eq_min_false_called;
+
 
 void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y, 
 							std::vector<double>& u, std::vector<double>& v, 
@@ -501,8 +528,10 @@ void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 						d[j-1] = h; pred[j-1] = i;
 						if(fabs(h - min) < epsilon){ //h==min
 							if(y[j-1]==0){ 
+								LAPVJRCT_h_eq_min_true_called = true;
 								goto augment; 
 							}else{ 
+								LAPVJRCT_h_eq_min_false_called = true;
 								col[k-1]=col[up-1]; col[up-1]=j; ++up;
 							}
 						}
@@ -1483,7 +1512,7 @@ void testLinearAssignmentSolvers(){
 		}
 	}
 
-	//A 4x3 matrix uniformly distributed integers in the range [0..9].
+	//A 4x3 matrix of integers in the range [0..9].
 	//The matrix was chosen using a search tool to find one that called
 	//the agumentation routine of LAPVJRCT.  It was then solved by hand,
 	//so it can test the sections of the brute-force code that
@@ -1522,6 +1551,82 @@ void testLinearAssignmentSolvers(){
 			tc.testStandard();
 		}
 	}
+
+	//A 4x3 matrix of integers in the range [0..9].
+	//The matrix was chosen using a search tool to find one that called
+	//the true branch of the h==min labeled if-statement in LAPVJRCT.
+	//
+	//The expected value was calculated by the brute-force solver
+	{
+	  const unsigned r=4, c=3;
+		double input[r*c] = {
+			4,2,3,
+			5,3,8,
+			5,1,2,
+			4,4,7
+		};
+		{
+			//Minimization
+			const unsigned ns = 2;
+			int solutions[r*ns] = {
+				1,-1,2,0,
+				2,-1,1,0
+			};
+			
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			tc.testStandard();
+		}
+		
+		{
+			//Maximization
+			const unsigned ns = 1;
+			int solutions[r*ns] = {
+				-1,2,0,1
+			};
+			
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			tc.testStandard();
+		}
+	}	
+
+	//A 3x3 matrix of integers in the range [0..9].
+	//The matrix was chosen using a search tool to find one that called
+	//the false branch of the h==min labeled if-statement in LAPVJRCT.
+	//
+	//The expected value was calculated by the brute-force solver
+	{
+	  const unsigned r=3, c=3;
+		double input[r*c] = {
+			2,0,5,
+			4,3,7,
+			7,6,9
+		};
+
+		{
+			//Minimization
+			const unsigned ns = 1;
+			int solutions[r*ns] = {
+				1,0,2
+			};
+			
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			tc.testStandard();
+		}
+		
+		{
+			//Maximization
+			const unsigned ns = 3;
+			int solutions[r*ns] = {
+				0,2,1,
+				2,0,1,
+				2,1,0
+			};
+			
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			tc.testStandard();
+		}
+	}	
+	
 
 	//Test behavior on an empty matrix
 	{
