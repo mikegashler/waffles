@@ -234,7 +234,9 @@ void GSimpleAssignment::test(){
 	GSimpleAssignment w(3,5); w.assign(0,3); w.assign(2,1);
 	TestEqual(false, w<a,"GSimpleAssignment::operator< erroneously reports "
 						"that a set with sizeB == 5 is less than one with sizeB == 3");
-	
+	TestEqual(true, a<w,"GSimpleAssignment::operator< erroneously reports "
+						"that a set with sizeB == 3 is not less than one with sizeB == 5");
+ 
 }
 
 ///LAPVJRCT sets this to true if the augmentation section of the code

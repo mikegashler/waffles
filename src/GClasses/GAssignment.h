@@ -12,9 +12,6 @@
 ///\file
 ///\brief Defines an assignment between two sets and holds algorithms
 ///       for generating them.
-///
-///\warning This code is still experimental.
-
 
 #ifndef __GASSIGNMENT_H__
 #define __GASSIGNMENT_H__
