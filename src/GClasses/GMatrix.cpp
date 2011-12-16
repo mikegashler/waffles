@@ -4867,10 +4867,9 @@ std::string to_str(const GMatrix& m){
     }
     if(i+1 < m.rows()){
       out << "\n";
-    }else{
-      out << "]\n";
-    }
+		}
   }
+	out << "]\n";
   return out.str();
 }
 
