@@ -496,6 +496,7 @@ public:
 		runTest("GAdaBoost", GAdaBoost::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);
+		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);
 		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
 		runTest("GAttributeSelector", GAttributeSelector::test);
 		runTest("GBag", GBag::test);
