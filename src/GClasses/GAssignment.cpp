@@ -1429,6 +1429,32 @@ void testLASupportRoutines(){
 		TestEqual(ez,m,"linearTransformMatrixEntries doesn't work when a==0");
 	}
 
+
+	//Here we test the test case class by giving it an incorrect answer
+	//and checking that it throws.  The error message is not checked.
+	//It should be, but I don't want to bother.
+	{
+		const unsigned r=0, c=0;
+		double* input = NULL;
+		const unsigned ns = 0;
+		int* solutions = NULL;
+		//Minimization
+		{
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			SHOULD_THROW(tc.testBruteForce(), "Brute force minimization test "
+									 "did not report an error for an incorrect answer");
+			SHOULD_THROW(tc.testStandard(), "Standard minimization test "
+									 "did not report an error for an incorrect answer");
+		}
+		//Maximization
+		{
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			SHOULD_THROW(tc.testBruteForce(), "Brute force maximization test "
+									 "did not report an error for an incorrect answer");
+			SHOULD_THROW(tc.testStandard(), "Standard maximization test "
+									 "did not report an error for an incorrect answer");
+		}		
+	}
 }
 
 void testLinearAssignment(){
