@@ -12,12 +12,14 @@
 #ifndef __GMATRIX_H__
 #define __GMATRIX_H__
 
-#include "GError.h"
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <iostream>
+
+#include "GError.h"
 #include "GHolders.h"
+
 
 namespace GClasses {
 
@@ -452,6 +454,15 @@ public:
 	GMatrix(GDomNode* pNode, GHeap* pHeap = NULL);
 
 	~GMatrix();
+
+	/// \brief Returns true iff all the entries in *this and \a
+	/// other are identical and their relations are compatible, and they
+	/// are the same size
+  ///
+	/// \return true iff all the entries in *this and \a other are
+	/// identical, their relations are compatible, and they are the same
+	/// size
+	bool operator==(const GMatrix& other) const;
 
 	/// \brief Adds a new row to the dataset. (The values in the row are
 	/// not initialized)
@@ -1114,17 +1125,6 @@ protected:
 	void inPlaceSquareTranspose();
 	void singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, GMatrix** ppV, bool throwIfNoConverge, size_t maxIters);
 };
-
-///\brief Allow GMatrix objects to easily be converted into a string
-///for debugging
-///
-///\param m the matrix that will be converted to a string
-///
-///\return a string representing the matrix \a m
-///
-///\see template<class T> to_str(const T& n)
-std::string to_str(const GMatrix& m);
-
 
 
 

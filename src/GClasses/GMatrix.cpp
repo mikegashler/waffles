@@ -962,6 +962,28 @@ GMatrix::~GMatrix()
 	flush();
 }
 
+bool GMatrix::operator==(const GMatrix& other) const{
+	//Check if relation is compatible
+	if(!relation()->isCompatible(*other.relation())){
+		return false;
+	}
+	//Check if same size
+	if(!(rows()==other.rows() && cols() == other.cols())){
+		return false;
+	}
+	//Check if have same entries
+	const std::size_t c = cols();
+	std::vector<double*>::const_iterator rThis, rOther;
+	for(rThis = m_rows.begin(), rOther = other.m_rows.begin(); 
+			rThis != m_rows.end(); ++rThis, ++rOther){
+		if(!std::equal(*rThis, c+*rThis, *rOther)){
+			return false;
+		}
+	}
+	return true;
+}
+
+
 void GMatrix::flush()
 {
 	if(!m_pHeap)

@@ -68,6 +68,22 @@ std::string to_str(const T& n)
 	return os.str();
 }
 
+class GMatrix; //Forward declare GMatrix so that I can declare a
+               //to_str override for it
+
+///\brief Allow GMatrix objects to easily be converted into a string
+///for debugging
+///
+///\note this is defined with the rest of the GMatrix code in
+///      GMatrix.cpp.  It is only declared in GError.h
+///
+///\param m the matrix that will be converted to a string
+///
+///\return a string representing the matrix \a m
+///
+///\see template<class T> to_str(const T& n)
+std::string to_str(const GMatrix& m);
+
 
 //Forward declaration of the special container class templates
 template<typename T>
