@@ -1369,10 +1369,54 @@ void testLAPVJRCTThrows(){
 	}
 }
 
+///\brief Run unit tests for support routines for linear assignment
+///code - throws an exception if an error is detected
+///
+///This only tests those lines of code that didn't get tested
+///indirectly through calling other routines.  In theory, someone
+///should go and write explicit tests for the rest of the code,
+///especially some black-box tests.  That someone would have to have
+///the time and motivation to do that, however.
+void testLASupportRoutines(){
+	{ const unsigned r=4, c=3;
+		double input[r*c] = {
+			1,0,2,
+			9,7,7,
+			2,1,5,
+			5,9,6
+		};
+		double expected[r*c] = {
+			13,11,15,
+			29,25,25,
+			15,13,21,
+			21,29,23
+		};
+
+		GMatrix m(r,c); m.fromVector(input, r);
+		GMatrix e(r,c); e.fromVector(expected,r);
+		linearTransformMatrixEntries(m, 2,11);
+		
+		TestEqual(e,m,"linearTransformMatrixEntries doesn't work when abs(a)!=1");
+
+		double expectedZ[r*c] = {
+			3,3,3,
+			3,3,3,
+			3,3,3,
+			3,3,3
+		};
+
+		GMatrix ez(r,c); ez.fromVector(expectedZ,r);
+		linearTransformMatrixEntries(m, 0,3);
+		TestEqual(ez,m,"linearTransformMatrixEntries doesn't work when a==0");
+	}
+
+}
+
 void testLinearAssignment(){
 	testNextKPermutation();
 	testLinearAssignmentSolvers();
 	testLAPVJRCTThrows();
+	testLASupportRoutines();
 	
 	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
 	
