@@ -77,8 +77,8 @@ gcov : $(TARGET_PATH)/$(TARGET_NAME_GCOV)
 lcov:
 	rm -rf lcov_output
 	mkdir -p lcov_output
-	lcov  --capture --directory ../../obj/test/gcov --output-file lcov_output/lcov.info.test -b . 
-	lcov  --capture --directory ../../obj/GClasses/gcov --output-file lcov_output/lcov.info.gclasses -b ../GClasses
+	lcov  --capture --directory ../../obj/test/gcov --output-file lcov_output/lcov.info.test -b .  --ignore-errors source
+	lcov  --capture --directory ../../obj/GClasses/gcov --output-file lcov_output/lcov.info.gclasses -b ../GClasses --ignore-errors source
 	lcov  --add-tracefile lcov_output/lcov.info.test --output-file lcov_output/lcov.info
 	lcov  --add-tracefile lcov_output/lcov.info.gclasses --output-file lcov_output/lcov.info
 	genhtml -o lcov_output lcov_output/lcov.info
