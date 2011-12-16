@@ -54,6 +54,8 @@ DEPS_OPT = $(TEMP_LIST_OPT:%.cpp=%.d)
 DEPS_DBG = $(TEMP_LIST_DBG:%.cpp=%.d)
 DEPS_GCOV = $(TEMP_LIST_GCOV:%.cpp=%.d)
 
+GCNO_FILES = $(TEMP_LIST_GCOV:%.cpp=%.gcno)
+GCDA_FILES = $(TEMP_LIST_GCOV:%.cpp=%.gcda)
 ################
 # Rules
 ################
@@ -122,7 +124,7 @@ $(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waf
 $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 
-# This rule makes the debug binary by using g++ with the debug ".o" files
+# This rule makes the gcov binary by using g++ with the gcov ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV) ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesGcov.a
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_GCOV) $(OBJECTS_GCOV) $(GCOV_LFLAGS)
 
@@ -166,6 +168,7 @@ $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
 	@umask 0;echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
+	@echo -e "	umask 0;rm -f $(GCNO_FILES)" >> $@
 	@echo -e "	umask 0;$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleanopt :
@@ -176,6 +179,7 @@ partialcleandbg :
 
 partialcleangcov :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_GCOV)
+	rm -f $(GCDA_FILES)
 
 clean : partialcleandbg partialcleanopt
 	rm -f $(OBJECTS_OPT)

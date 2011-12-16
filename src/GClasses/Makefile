@@ -217,6 +217,11 @@ $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
 	@umask 0;echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
+
+	@#Delete old gcno file
+	@echo -en "	rm -f " >> $@
+	@echo $$(dirname $@)/$$(basename $@ .d).gcno >> $@
+
 	@echo -e "	umask 0;$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleanopt :
@@ -227,8 +232,8 @@ partialcleandbg :
 
 partialcleangcov :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_GCOV)
-	rm -f $(TARGET_PATH)/$(GCNO_FILES)
-	rm -f $(TARGET_PATH)/$(GCDA_FILES)
+	@echo "Removing all gcda test-coverage/profiling files from ../../obj/GClasses directory"
+	@rm -f $(GCDA_FILES)
 
 clean : partialcleandbg partialcleanopt partialcleangcov
 	rm -f $(OBJECTS_OPT)
