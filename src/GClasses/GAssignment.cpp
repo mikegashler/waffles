@@ -815,7 +815,7 @@ namespace{
 						}
 					}
 				}
-				assert("We should never get here" == NULL);
+				//				assert("We should never get here" == NULL);
 			}
 			//No valid replacement exists for the element at *it, go to the
 			//next
@@ -922,6 +922,18 @@ std::vector<GSimpleAssignment>
 linearAssignmentBruteForce(GMatrix costs, ShouldMinimize /*not used*/){
 	const double inf = std::numeric_limits<double>::infinity();
 
+	//The minimum cost encountered (will be reinitialized later)
+	double minCost = inf;
+
+	//All assignments found that have cost == minCost
+	std::vector<GSimpleAssignment> result;
+	
+	//Only empty assignment possible for an empty matrix
+	if(costs.rows() == 0){ 
+		result.push_back(GSimpleAssignment(costs.rows(), costs.cols()));
+		return result; 
+	}
+
 	//Make fewer rows than columns
 	bool hadToTranspose = false;
 	if(costs.rows() > costs.cols()){
@@ -929,23 +941,6 @@ linearAssignmentBruteForce(GMatrix costs, ShouldMinimize /*not used*/){
 	  GMatrix* tmp = costs.transpose();
 		costs = *tmp;
 		delete tmp;
-	}
-
-	//The minimum cost encountered (will be reinitialized later)
-	double minCost = inf;
-
-	//All assignments found that have cost == minCost
-	std::vector<GSimpleAssignment> result;
-	
-
-	//Only empty assignment possible for an empty matrix
-	if(costs.rows() == 0){ 
-		if(hadToTranspose){
-			result.push_back(GSimpleAssignment(costs.cols(), costs.rows()));
-		}else{
-			result.push_back(GSimpleAssignment(costs.rows(), costs.cols()));
-		}
-		return result; 
 	}
 
 	//The current assignment
@@ -1002,6 +997,18 @@ std::vector<GSimpleAssignment>
 linearAssignmentBruteForce(GMatrix benefits, ShouldMaximize /*not used*/){
 	const double inf = std::numeric_limits<double>::infinity();
 
+	//The maximum benefit encountered (will be reinitialized later)
+	double maxBenefit = -inf;
+
+	//All assignments found that have benefit == maxBenefit
+	std::vector<GSimpleAssignment> result;
+	
+	//Only empty assignment possible for an empty matrix
+	if(benefits.rows() == 0){ 
+		result.push_back(GSimpleAssignment(benefits.rows(), benefits.cols()));
+		return result; 
+	}
+
 	//Make fewer rows than columns
 	bool hadToTranspose = false;
 	if(benefits.rows() > benefits.cols()){
@@ -1009,23 +1016,6 @@ linearAssignmentBruteForce(GMatrix benefits, ShouldMaximize /*not used*/){
 	  GMatrix* tmp = benefits.transpose();
 		benefits = *tmp;
 		delete tmp;
-	}
-
-	//The maximum benefit encountered (will be reinitialized later)
-	double maxBenefit = -inf;
-
-	//All assignments found that have benefit == maxBenefit
-	std::vector<GSimpleAssignment> result;
-	
-
-	//Only empty assignment possible for an empty matrix
-	if(benefits.rows() == 0){ 
-		if(hadToTranspose){
-			result.push_back(GSimpleAssignment(benefits.cols(), benefits.rows()));
-		}else{
-			result.push_back(GSimpleAssignment(benefits.rows(), benefits.cols()));
-		}
-		return result; 
 	}
 
 	//The current assignment
@@ -1764,9 +1754,6 @@ void testLinearAssignment(){
 	testLinearAssignmentSolvers();
 	testLAPVJRCTThrows();
 	testLASupportRoutines();
-	
-	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
-	
 }
 #endif //NO_TEST_CODE
 
