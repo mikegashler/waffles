@@ -1324,7 +1324,26 @@ void testLinearAssignmentSolvers(){
 			tc.testBruteForce();
 			tc.testStandard();
 		}
+	}
 
+	//Test behavior on an empty matrix
+	{
+		const unsigned r=0, c=0;
+		double* input = NULL;
+		const unsigned ns = 1;
+		int* solutions = NULL;
+		//Minimization
+		{
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
+			tc.testBruteForce();
+			tc.testStandard();
+		}
+		//Maximization
+		{
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			tc.testBruteForce();
+			tc.testStandard();
+		}		
 	}
 }
 
