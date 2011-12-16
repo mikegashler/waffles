@@ -1071,9 +1071,7 @@ namespace{
 }
 
 
-
-void testLinearAssignment(){
-	testNextKPermutation();
+void testLinearAssignmentSolvers(){
 	//Simple matrix test
 	{ 
 		const unsigned r=5, c=5;
@@ -1288,61 +1286,94 @@ void testLinearAssignment(){
 		}
 	}
 
-	//A 14x12 matrix of uniformly distributed values - the expected
-	//solutions were calculated using brute-force.  This allows testing
-	//a larger matrix that needs to be transposed.  Hopefully, we'll see
-	//some use of the augmenting routine in this version.
+	//A 4x3 matrix uniformly distributed integers in the range [0..9].
+	//The matrix was chosen using a search tool to find one that called
+	//the agumentation routine of LAPVJRCT.  It was then solved by hand,
+	//so it can test the sections of the brute-force code that
+	//standardize matrices that need to be transposed.
 	{
-	  const unsigned r=14, c=12;
-		double input[/*r*c*/] = {
-			0.4912, 0.5522, 0.55, 0.6685, 0.1594, 0.0932, 0.7055, 0.1698, 
-			0.1333, 0.1828, 0.9702,	0.4301, 0.9668, 0.1068, 0.9711, 
-			0.9232, 0.4236, 0.0823, 0.3353,	0.0493, 0.8527, 0.632, 
-			0.6092, 0.8295, 0.7893, 0.8104, 0.0397,	0.3228, 0.4566, 
-			0.7227, 0.6319, 0.8309, 0.4065, 0.4397, 0.342, 0.5313, 
-			0.4699, 0.4845, 0.9197, 0.601, 0.352, 0.8833, 0.8623, 0.3754, 
-			0.3508, 0.1123, 0.139, 0.0604, 0.9657, 0.7967, 0.522, 0.5632, 0.9178, 
-			0.8359, 0.2233, 0.2802, 0.1253, 0.9017, 0.0043, 0.1975, 0.65, 0.2945, 
-			0.226, 0.4719, 0.1109, 0.0665, 0.681, 0.5147, 0.4577, 0.5945, 0.6406, 
-			0.1383, 0.4678, 0.1859, 0.956, 0.3578, 0.3218, 0.8576, 0.5734,		
-			0.2051, 0.0805, 0.1656, 0.1931, 0.5893, 0.6533, 0.8333, 0.8191,		
-			0.4311, 0.7842, 0.9173, 0.4158, 0.601, 0.0635, 0.6416, 0.638, 0.7427, 
-			0.9281, 0.6256, 0.6913, 0.8544, 0.2395, 0.9363, 0.3564, 0.0147,		
-			0.6466, 0.9194, 0.964, 0.5965, 0.7353, 0.917, 0.8292, 0.6421, 0.9169, 
-			0.6161, 0.5324, 0.6815, 0.3553, 0.889, 0.9511, 0.4629, 0.9939,		
-			0.7942, 0.1629, 0.7014, 0.5547, 0.2141, 0.1291, 0.0588, 0.7207,		
-			0.703, 0.4362, 0.3578, 0.2946, 0.4821, 0.2691, 0.8935, 0.1992,		
-			0.7264, 0.1883, 0.5204, 0.9035, 0.3624, 0.3394, 0.0183, 0.6564,		
-			0.2968, 0.8296, 0.7499, 0.348, 0.5187, 0.3911, 0.217, 0.0274, 0.9196, 
-			0.8252, 0.5976, 0.4716, 0.7007, 0.922, 0.2059, 0.0157, 0.4735,		
-			0.2537, 0.1985, 0.3115, 0.1215, 0.0394, 0.6461, 0.3961, 0.6628,		
-			0.5206, 0.1862, 0.1749, 0.2558, 0.4363, 0.7981, 0.1341, 0.6684,		
-			0.2181, 0.4873, 0.3175, 0.6351, 0.7117, 0.7754, 0.406, 0.7328,		
-			0.2642, 0.31, 0.2586, 0.6926, 0.6253, 0.6856, 0.7298, 0.784, 0.0286, 
-			0.1462, 0.3993, 0.3355, 0.0259, 0.7446, 0.8826, 0.9244, 0.5914,		
-			0.6769, 0.5693, 0.8382, 0.6111, 0.7786, 0.1394, 0.0513, 0.6841,		
-			0.5431, 0.2846, 0.1595, 0.4031, 0.6819, 0.1604, 0.6566, 0.4709,		
-			0.1484, 0.3594, 0.7114, 0.629, 0.9771, 0.4213, 0.7725, 0.9804,		
-			0.3241, 0.9249, 0.9526, 0.8321, 0.0461, 0.9815, 0.183, 0.0215,		
-			0.1561, 0.2629, 0.2158, 0.1274, 0.5522, 0.2026, 0.6913, 0.1271,		
-			0.5764, 0.5778, 0.1918, 0.0411, 0.221, 0.8571, 0.4613, 0.0405,		
-			0.2457, 0.7222, 0.4632, 0.1998, 0.3083, 0.8328, 0.5552, 0.137, 0.1273
+	  const unsigned r=4, c=3;
+		double input[r*c] = {
+			1,0,2,
+			9,7,7,
+			2,1,5,
+			5,9,6
 		};
 		{
 			//Minimization
-			const unsigned ns = 1;
-			int solutions[/*r*ns*/] = {
-				0,1,2,3,4,5,6,7,8,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-				,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-				-1,-1};
+			const unsigned ns = 3;
+			int solutions[r*ns] = {
+				0,-1,1,2,
+				1,-1,0,2,
+				2,-1,1,0
+			};
 
 			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMinimize());
 			tc.testBruteForce();
 			tc.testStandard();
 		}
 
+		{
+			//Maximization
+			const unsigned ns = 1;
+			int solutions[r*ns] = {
+				-1,0,2,1
+			};
+
+			LinearAssignmentTestCase tc(r,c,input, ns, solutions, ShouldMaximize());
+			tc.testBruteForce();
+			tc.testStandard();
+		}
+
+	}
+}
+
+///\brief an assertion that \a code should throw an exception.  If no
+///exception is generated, does ThrowError(errmsg)
+#define SHOULD_THROW(code, errmsg)									\
+	{																									\
+		bool didntThrow;																\
+		try{																						\
+			code; didntThrow = true;											\
+		} catch(...){																		\
+			didntThrow=false;															\
+		}																								\
+		if(didntThrow){																	\
+			ThrowError(errmsg);														\
+		}																								\
 	}
 
+
+///\brief throw an error if LAPVJRCT code does not throw when it
+///should
+void testLAPVJRCTThrows(){
+	std::vector<int> rowAssign;
+	std::vector<int> colAssign;
+	std::vector<double> rowPotential;
+	std::vector<double> colPotential;
+	double totalCost;
+	{	
+		GMatrix m(4,3);
+		SHOULD_THROW																												\
+			(LAPVJRCT(m, rowAssign, colAssign, rowPotential, colPotential,		\
+								totalCost),																							\
+			 "LAPVJRCT didn't throw when passed a wrong-sized cost matrix");	
+	}
+
+	{
+		GMatrix m(1,1); m[0][0]=-10;
+		SHOULD_THROW																												\
+			(LAPVJRCT(m, rowAssign, colAssign, rowPotential, colPotential,		\
+								totalCost),																							\
+			 "LAPVJRCT didn't throw when passed negative cost matrix");
+	}
+}
+
+void testLinearAssignment(){
+	testNextKPermutation();
+	testLinearAssignmentSolvers();
+	testLAPVJRCTThrows();
+	
 	ThrowError("LinearAssignment is still experimental, not all tests have been implimented.  This message means it has passed all implemented tests.");
 	
 }
