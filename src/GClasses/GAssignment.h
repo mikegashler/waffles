@@ -293,15 +293,22 @@ public:
 	}
 
 	///\brief Return true iff *this, expressed as the input to setBForA
-	///is lexiographically less than other
+	/// with sizeB prepended is lexiographically less than other
 	///
 	///\param other the GSimpleAssignment being compared to this one
 	///
-	///\return true iff *this, expressed as the input to setBForA is
-	///lexiographically less than other
+	///\return true iff *this, expressed as the input to setBForA with
+	///sizeB prepended is lexiographically less than other
 	virtual bool operator<(const GSimpleAssignment& other) const{
-		return std::lexicographical_compare(bForA.begin(), bForA.end(),
-																			 other.bForA.begin(), other.bForA.end());
+		if(sizeB() < other.sizeB()){ 
+			return true;
+		}else if(other.sizeB() < sizeB()){
+			return false;
+		}else{ //sizeB() == other.sizeB()
+			return std::lexicographical_compare
+				(bForA.begin(), bForA.end(),
+				 other.bForA.begin(), other.bForA.end());
+		}
 	}
 
 	///\brief Swaps the A and B set.  The assignments stay the same.
@@ -316,6 +323,13 @@ public:
 
 	///\brief A do-nothing destructor needed since there may be subclasses
 	virtual ~GSimpleAssignment(){};
+
+#ifndef  NO_TEST_CODE
+
+	///\brief Run unit tests for GSimpleAssignment - throws an exception
+	///if an error is found.
+	static void test();
+#endif //NO_TEST_CODE
 };
 
 ///\brief Print assignment \a gsa to \a out in a human-readable form

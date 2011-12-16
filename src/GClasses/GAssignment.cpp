@@ -32,6 +32,203 @@ std::ostream& operator<<(std::ostream& out, const GSimpleAssignment& gsa){
 	return out << ']';
 }
 
+//static
+void GSimpleAssignment::test(){
+	using std::stringstream;
+	using std::string;
+	const std::size_t as=3, bs=4;
+	GSimpleAssignment a(as,bs);
+
+	//Test size operator
+	TestEqual(as, a.sizeA(), "Size of set A not correctly reported in GSimpleAssignment");
+	TestEqual(bs, a.sizeB(), "Size of set B not correctly reported in GSimpleAssignment");
+
+	//Test printing an empty assignment
+	{ stringstream s; s << a;
+		TestEqual("[]", s.str(), 
+							"operator<< Incorrectly prints empty GSimpleAssignment.");
+	}
+
+	//Test assignment and operator() and inverse
+	a.assign(0,1);
+	{
+		int exp[as]={1,-1,-1};
+		for(unsigned i=0; i < as; ++i){ 
+			TestEqual(exp[i], a(i), 
+								string("GSimpleAssignment::operator()(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after assigning 0->1");}
+		int expInv[bs]={-1,0,-1,-1};
+		for(unsigned i=0; i < bs; ++i){ 
+			TestEqual(expInv[i], a.inverse(i), 
+								string("GSimpleAssignment::inverse(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after assigning 0->1");}
+	}
+
+	//Test printing with one assignment
+	{ stringstream s; s << a;
+		TestEqual("[{0,1}]", s.str(), 
+							"operator<< Incorrectly prints GSimpleAssignment with 0->1");
+	}
+
+	//Test reassignment and operator() and inverse
+	a.assign(0,3);
+	{
+		int exp[as]={3,-1,-1};
+		for(unsigned i=0; i < as; ++i){ 
+			TestEqual(exp[i], a(i), 
+								string("GSimpleAssignment::operator()(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after reassigning 0->3");}
+		int expInv[bs]={-1,-1,-1,0};
+		for(unsigned i=0; i < bs; ++i){ 
+			TestEqual(expInv[i], a.inverse(i), 
+								string("GSimpleAssignment::inverse(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after reassigning 0->3");}
+	}
+
+	//Test second assignment
+	a.assign(1,1);
+	{
+		int exp[as]={3,1,-1};
+		for(unsigned i=0; i < as; ++i){ 
+			TestEqual(exp[i], a(i), 
+								string("GSimpleAssignment::operator()(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after making a second assignment of 1->1");}
+		int expInv[bs]={-1,1,-1,0};
+		for(unsigned i=0; i < bs; ++i){ 
+			TestEqual(expInv[i], a.inverse(i), 
+								string("GSimpleAssignment::inverse(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after making a second assignment of 1->1");}
+	}
+
+	//Test reassignment of the item in B to an unassigned item in A
+	a.assign(2,1);
+	{
+		int exp[as]={3,-1,1};
+		for(unsigned i=0; i < as; ++i){ 
+			TestEqual(exp[i], a(i), 
+								string("GSimpleAssignment::operator()(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after reassigning the B set item");}
+		int expInv[bs]={-1,2,-1,0};
+		for(unsigned i=0; i < bs; ++i){ 
+			TestEqual(expInv[i], a.inverse(i), 
+								string("GSimpleAssignment::inverse(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after reassigning the B set item");}
+	}
+
+	//Test printing with two assignments
+	{ stringstream s; s << a;
+		TestEqual("[{0,3},{2,1}]", s.str(), 
+							"operator<< Incorrectly prints GSimpleAssignment with 0->3, 2->1");
+	}
+
+	//Test swapping the two sets
+	a.swapAAndB();
+	{
+		int exp[bs]={-1,2,-1,0};
+		for(unsigned i=0; i < bs; ++i){ 
+			TestEqual(exp[i], a(i), 
+								string("GSimpleAssignment::operator()(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after swapping the A and B sets");}
+		int expInv[as]={3,-1,1};
+		for(unsigned i=0; i < as; ++i){ 
+			TestEqual(expInv[i], a.inverse(i), 
+								string("GSimpleAssignment::inverse(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after swapping the A and B sets");}
+	}
+
+	//Test swapping again
+	a.swapAAndB();
+	{
+		int exp[as]={3,-1,1};
+		for(unsigned i=0; i < as; ++i){ 
+			TestEqual(exp[i], a(i), 
+								string("GSimpleAssignment::operator()(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after swapping the A and B sets a second time."); }
+		int expInv[bs]={-1,2,-1,0};
+		for(unsigned i=0; i < bs; ++i){ 
+			TestEqual(expInv[i], a.inverse(i), 
+								string("GSimpleAssignment::inverse(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after swapping the A and B sets a second time."); }
+	}
+
+	//Test copy constructor 
+	GSimpleAssignment y(a);
+	{
+		int exp[as]={3,-1,1};
+		for(unsigned i=0; i < as; ++i){ 
+			TestEqual(exp[i], y(i), 
+								string("GSimpleAssignment::operator()(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after swapping the A and B sets a second time."); }
+		int expInv[bs]={-1,2,-1,0};
+		for(unsigned i=0; i < bs; ++i){ 
+			TestEqual(expInv[i], y.inverse(i), 
+								string("GSimpleAssignment::inverse(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after swapping the A and B sets a second time."); }
+	}
+
+	//Test operator==
+	TestEqual(true,a==y, "Operator== reports two identical assignments "
+						"as different");
+	
+	//Test operator== for different sized but identical assignments
+	GSimpleAssignment z(4,4);
+	z.assign(0,3); z.assign(2,1);
+	TestEqual(false,a==z, "Operator== reports two assignments "
+						"between different sets that have the same memebers assigned as "
+						"being identical");
+
+	//Test unassignA
+	y.unassignA(0);
+	{
+		int exp[as]={-1,-1,1};
+		for(unsigned i=0; i < as; ++i){ 
+			TestEqual(exp[i], y(i), 
+								string("GSimpleAssignment::operator()(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after an unassignment");}
+		int expInv[bs]={-1,2,-1,-1};
+		for(unsigned i=0; i < bs; ++i){ 
+			TestEqual(expInv[i], y.inverse(i), 
+								string("GSimpleAssignment::inverse(")+to_str(i)+") "+
+								"reports the wrong value "
+								"after an unassignment");}
+	}
+
+
+	//Test operator== for two same-sized assignments that have different
+	//contents
+	TestEqual(false, a==y,"GSimpleAssignment::operator== erroneously reports "
+						"same-sized assignments with different contents as being equal.");
+
+	//Test operator<
+	TestEqual(false, a<a,"GSimpleAssignment::operator< erroneously reports "
+						"something as being less than itself");
+	TestEqual(true, y<a,"GSimpleAssignment::operator< erroneously reports "
+						"that {-1, -1, 1} is not less than {3,-1,1}.");
+	//Test operator < for assignments that differ only in the size of set A
+	TestEqual(false, z<a,"GSimpleAssignment::operator< erroneously reports "
+						"that {3,-1,1,-1} is less than {3,-1,1}.");
+	//Test operator < for assignments that differ only in the size of set B
+	GSimpleAssignment w(3,5); w.assign(0,3); w.assign(2,1);
+	TestEqual(false, w<a,"GSimpleAssignment::operator< erroneously reports "
+						"that a set with sizeB == 5 is less than one with sizeB == 3");
+	
+}
+
 ///LAPVJRCT sets this to true if the augmentation section of the code
 ///was used.  
 ///
