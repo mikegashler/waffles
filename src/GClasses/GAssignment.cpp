@@ -254,7 +254,54 @@ void GSimpleAssignment::test(){
 						"that a set with sizeB == 5 is less than one with sizeB == 3");
 	TestEqual(true, a<w,"GSimpleAssignment::operator< erroneously reports "
 						"that a set with sizeB == 3 is not less than one with sizeB == 5");
- 
+
+
+	//Test cost
+	{
+	  const unsigned r=4, c=3;
+		double input[r*c] = {
+			1,0,2,
+			9,7,7,
+			2,1,5,
+			5,9,6
+		};
+		GMatrix costm(r,c); costm.fromVector(input, r);
+		const unsigned ns = 3;
+		int solutions[r*ns] = {
+			0,-1,1,2,
+			1,-1,0,2,
+			2,-1,1,0
+		};
+		int badSolution[r] = {
+			2, 0, 1, -1};
+		std::vector<int> 
+			s1v(solutions,solutions+r),
+			s2v(solutions+r,solutions+2*r),
+			s3v(solutions+2*r,solutions+3*r),
+			bs1v(badSolution, badSolution+r);
+		GSimpleAssignment s1(c, s1v), s2(c, s2v), s3(c, s3v), bs1(c, bs1v);
+
+
+		TestEqual(8,cost(s1,costm),
+							to_str("Cost of assignment s1:"+to_str(s1)+
+										 "on the cost matrix:\n"+to_str(costm)+"\n"+
+										 "is incorrect."));
+
+		TestEqual(8,cost(s2,costm),
+							to_str("Cost of assignment s2:"+to_str(s2)+
+										 "on the cost matrix:\n"+to_str(costm)+"\n"+
+										 "is incorrect."));
+
+		TestEqual(8,cost(s3,costm),
+							to_str("Cost of assignment s3:"+to_str(s3)+
+										 "on the cost matrix:\n"+to_str(costm)+"\n"+
+										 "is incorrect."));
+
+		TestEqual(12,cost(bs1,costm),
+							to_str("Cost of assignment bs1:"+to_str(bs1)+
+										 "on the cost matrix:\n"+to_str(costm)+"\n"+
+										 "is incorrect."));
+	}
 }
 
 ///LAPVJRCT sets this to true if the augmentation section of the code
