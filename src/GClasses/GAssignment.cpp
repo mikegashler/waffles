@@ -34,6 +34,24 @@ std::ostream& operator<<(std::ostream& out, const GSimpleAssignment& gsa){
 	return out << ']';
 }
 
+double cost(const GSimpleAssignment& assign, const GMatrix& costs){
+	if(costs.rows() < assign.sizeA() || costs.cols() < assign.sizeB()){
+		ThrowError("cost(const GSimpleAssignment&, const GMatrix&):"
+							 "The cost matrix must have at least as many rows as "
+							 "the assignment set A has members and its number of columns "
+							 "must be at least the size of the assignment set B.");
+	}
+	double sum = 0;
+	for(unsigned row = 0; row < assign.sizeA(); ++row){
+		int col = assign(row);
+		if(col >= 0){
+			sum += costs[row][col];
+		}
+	}
+	return sum;
+}
+
+
 //static
 void GSimpleAssignment::test(){
 	using std::stringstream;

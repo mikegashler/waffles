@@ -329,6 +329,20 @@ public:
 #endif //NO_TEST_CODE
 };
 
+///\brief Return the cost of the assignment \a assign for the matrix
+///\a costs
+///
+///costs[i][j] is the cost of assigning element i from set A to
+///element j from set B.  This retuns the sum of the costs of making
+///the assignments given in assign.  Non-assigned members have zero
+///costs.
+///
+///\param assign The assignment whose cost will be computed
+///
+///\param costs costs[i][j] is the cost of assigning element i from
+///             set A to element j from set B.
+double cost(const GSimpleAssignment& assign, const GMatrix& costs);
+
 ///\brief Print assignment \a gsa to \a out in a human-readable form
 ///
 ///The GSimpleAssignment \a gsa is written to out as a sequence of pairs
