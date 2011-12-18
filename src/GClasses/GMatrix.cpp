@@ -11,6 +11,7 @@
 
 #include "GMatrix.h"
 #include "GError.h"
+#include "GAssignment.h"
 #include "GMath.h"
 #include "GDistribution.h"
 #include "GVec.h"
@@ -4259,6 +4260,22 @@ size_t* GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metr
 	return hResults.release();
 }
 
+//static 
+GSimpleAssignment GMatrix::bipartiteMatchingLAP(const GMatrix& a, 
+																								const GMatrix& b, 
+																								const GDistanceMetric& cost){
+	GSimpleAssignment result(a.rows(), b.rows());
+	GMatrix costs(a.rows(), b.rows());
+	for(unsigned i=0; i < a.rows(); ++i){
+		for(unsigned j=0; j < b.rows(); ++j){
+			costs[i][j]=cost(a[i],b[j]);
+		}
+	}
+	return linearAssignment(costs);
+}
+
+
+
 #ifndef NO_TEST_CODE
 void GMatrix_testParsing()
 {
@@ -4297,35 +4314,66 @@ void GMatrix_testParsing()
 		ThrowError("failed");
 }
 
+/// This test does bipartite matching with a bunch of random matrices,
+/// to make sure there are no crashes or endless loops. The results
+/// are not checked since correct results are not known.  However, the
+/// results are checked against GMatrix::bipartiteMatchingLAP and an
+/// exception is thrown if the two give different results.
 void GMatrix_stressBipartiteMatching()
 {
-	// This test does bipartite matching with a bunch of
-	// random matrices, to make sure there are no crashes
-	// or endless loops. The results are not checked since
-	// correct results are not known.
 	GRand rand(0);
-	GRowDistance metric;
+	//Right now this uses random integer matrices and the manhattan
+	//distance in order to make the errors easy for humans to parse
+	GLNormDistance metric(1);//GRowDistance metric;
+	
 	for(size_t i = 0; i < 200; i++)
 	{
 		size_t rowsa = rand.next(20);
 		size_t rowsb = std::max(rowsa, (size_t)rand.next(20));
-		size_t cols = rand.next(8);
+		size_t cols = rand.next(1)+1;//(8);
 		GMatrix a(rowsa, cols);
 		GMatrix b(rowsb, cols);
 		for(size_t j = 0; j < rowsa; j++)
 		{
 			double* pA = a[j];
 			for(size_t k = 0; k < cols; k++)
-				*(pA++) = rand.normal();
+				*(pA++) = rand.next(10);//rand.normal();
 		}
 		for(size_t j = 0; j < rowsb; j++)
 		{
 			double* pB = b[j];
 			for(size_t k = 0; k < cols; k++)
-				*(pB++) = rand.normal();
+				*(pB++) = rand.next(10);//rand.normal();
 		}
 		size_t* pResults = GMatrix::bipartiteMatching(a, b, metric);
 		ArrayHolder<size_t> hResults(pResults);
+		GSimpleAssignment lapResults = GMatrix::bipartiteMatchingLAP(a,b,metric);
+		for(size_t j=0; j < rowsa; ++j)
+		{
+			if((int)pResults[j] != lapResults(j)){
+				GMatrix costs(a.rows(), b.rows());
+				for(unsigned aidx=0; aidx < a.rows(); ++aidx){
+					for(unsigned bidx=0; bidx < b.rows(); ++bidx){
+						costs[aidx][bidx]=metric(a[aidx],b[bidx]);
+					}
+				}
+				vector<int> resultsVec(pResults, pResults+rowsa);
+				GSimpleAssignment results(rowsb, resultsVec);
+				ThrowError
+					(string("")+
+					 "bipartiteMatching and bipartiteMatchingLAP returned "+
+					 "different results on the matrices a and b using the "+
+					 //					 "GRowDistance metric.  a was:\n"+to_str(a)+
+					 "GLNormDistance(1) metric.  a was:\n"+to_str(a)+
+					 "b was:\n"+to_str(b)+
+					 "bipartiteMatching returned: "+to_str(pResults, pResults+rowsa)+"\n"+
+					 "its cost was:"+to_str(cost(results, costs))+"\n"+
+					 "bipartiteMatchingLAP returned: "+to_str(lapResults)+"\n"
+					 "its cost was:"+to_str(cost(lapResults, costs))+"\n"+
+					 "The results first differ in column "+to_str(j)+"\n"+
+					 "The cost matrix was:"+to_str(costs)+"\n");
+			}
+		}
 	}
 }
 

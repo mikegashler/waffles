@@ -39,7 +39,7 @@ class GDom;
 class GDomNode;
 class GArffTokenizer;
 class GDistanceMetric;
-
+class GSimpleAssignment;
 
 /// \brief Holds the metadata for a dataset.
 ///
@@ -1114,6 +1114,55 @@ public:
 	/// for k. As a special value, if k is 0, then all pairs are
 	/// considered, and optimal results are guaranteed.
 	static size_t* bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric, size_t k = 0);
+
+	/// \brief Performs a bipartite matching between the rows of \a a
+	/// and \a b using the Linear Assignment Problem (LAP) optimizer
+	///
+	/// Treats the rows of the matrices \a a and \a b as vectors and
+	/// calculates the distances between these vectors using \a cost.
+	/// Returns an optimal assignment from rows of \a a to rows of \a b
+	/// that minimizes sum of the costs of the assignments.
+	///
+	/// Each row is considered to be a vector in multidimensional space.
+	/// The cost is the distance given by \a cost when called on each
+	/// row of \a a and row of \a b in turn.  The cost must not be
+	/// \f$-\infty\f$ for any pair of rows.  Other than that, there are no
+	/// limitations on the cost function..
+	///
+	/// Because of the limitations of GDistanceMetric, \a a and \a b
+	/// must have the same number of columns.
+	///
+	/// If \f$m\f$ is \f$\max(rows(a), rows(b))\f$ then this routine
+	/// requires \f$\Theta(rows(a) \cdot rows(b))\f$ memory and
+	/// \f$O(m^3)\f$ time.
+	///
+	/// This method is very similar to GMatrix::bipartiteMatching.  It
+	/// just uses a different underlying algorithm with different
+	/// limitations and computational complexity.  The return value also
+	/// is more convenient - the user won't have to deal with
+	/// delete[]'ing the returned pointer.
+	///
+	/// \param a the matrix containing the vectors of set a.  Must have
+	///          the same number of columns as the matrix containing the
+	///          vectors of set b.  Each row is considered to be a
+	///          vector in multidimensional space.
+	///
+	/// \param b the matrix containing the vectors of set b.  Must have
+	///          the same number of columns as the matrix containing the
+	///          vectors of set a.  Each row is considered to be a
+	///          vector in multidimensional space.
+	///
+	/// \param cost given a row of \a a and a row of \a b, returns the
+	///             cost of assigning a to b.  Must already be
+	///             initialized with the appropriate relation describing
+	///             the columns of the matrices.
+	///
+	/// \return the optimal assignment in which each of the rows of \a a
+	///         or \a b (whichever has fewer rows) is assigned to a row
+	///         of the other matrix
+	static GSimpleAssignment bipartiteMatchingLAP(const GMatrix& a, 
+																								const GMatrix& b, 
+																								const GDistanceMetric& cost);
 
 #ifndef NO_TEST_CODE
 	/// \brief Performs unit tests for this class. Throws an exception
