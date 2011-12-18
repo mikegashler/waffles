@@ -223,7 +223,7 @@ double GLNormDistance::squaredDistance(const double* pA, const double* pB) const
 		}
 		pA++;
 		pB++;
-		sum += pow(d, m_norm);
+		sum += pow(abs(d), m_norm);
 	}
 	d = pow(sum, 1.0 / m_norm);
 	return (d * d);
