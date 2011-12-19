@@ -102,6 +102,15 @@ public:
 	/// \brief Prints the specified value to a stream
 	virtual void printAttrValue(std::ostream& stream, size_t column, double value) const;
 
+	/// \brief Returns the name of the attribute with index \a nAttr as
+	/// a standard string object or "" if the atribute has no name
+	///
+	/// \param nAttr the index of the attribute whose name is returned
+	///
+	/// \return the name of the attribute with index \a nAttr as a
+	/// standard string object or "" if the atribute has no name
+	virtual std::string attrNameStr(std::size_t nAttr) const{ return ""; }
+
 	/// \brief Returns true iff this and that have the same number of
 	/// values for each attribute
 	virtual bool isCompatible(const GRelation& that) const;
@@ -351,8 +360,23 @@ public:
 	/// \brief Sets the name of this relation
 	void setName(const char* szName);
 
-	/// \brief Returns the name of the specified attribute
+	/// \brief Returns the name of the attribute with index \a nAttr
+	///
+	/// \param nAttr the index of the attribute whose name is returned
+	///
+	/// \return the name of the attribute with index \a nAttr as a
+	/// standard string object or "" if the atribute has no name
 	const char* attrName(size_t nAttr) const;
+
+	/// \brief Returns the name of the attribute with index \a nAttr as
+	/// a standard string object or "" if the atribute has no name
+	///
+	/// \param nAttr the index of the attribute whose name is returned
+	///
+	/// \return the name of the attribute with index \a nAttr as a
+	/// standard string object or "" if the atribute has no name
+	virtual std::string attrNameStr(std::size_t nAttr) const { 
+		return attrName(nAttr); }
 
 	/// \brief Adds a new possible value to a nominal attribute. Returns
 	/// the numerical form of the new value.
