@@ -53,7 +53,15 @@ void GAssertFailed();
 #endif // else _DEBUG
 
 
-
+///\brief The class of all exceptions thrown by this library
+class GException : public std::exception
+{
+public:
+	///\brief Return the error message corresponding to this exception
+	///
+	///\return the error message corresponding to this exception
+  virtual const char* what() const throw();
+};
 
 
 

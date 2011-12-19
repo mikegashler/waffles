@@ -29,12 +29,8 @@ using std::cerr;
 namespace GClasses {
 
 string g_errorMessage;
-class GException : public exception
-{
-public:
-	virtual const char* what() const throw()
-	{ return g_errorMessage.c_str(); }
-};
+const char* GException::what() const throw(){ 
+  return g_errorMessage.c_str(); }
 GException g_exception;
 
 std::string to_str(const std::vector<bool>& vv){
