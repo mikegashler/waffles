@@ -29,8 +29,10 @@
 #include <cmath>
 #ifdef WINDOWS
 #	include "png.h"
+#       include "zlib.h"
 #else
 #	include <png.h>
+#       include <zlib.h>
 #endif
 
 namespace GClasses {
