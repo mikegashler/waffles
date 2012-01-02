@@ -22,9 +22,19 @@
 #include "GAssignment.h"
 #include "GRand.h"
 #include "GApp.h"
-#include <stdint.h>
+#ifdef WINDOWS
+#else
+#	include <stdint.h>
+#endif
 #include <iostream>
 #include <string>
+
+#ifdef WINDOWS
+#	ifndef uint64_t
+typedef unsigned long long uint64_t;
+#	endif
+#endif
+
 namespace GClasses{
   extern bool LAPVJRCT_augmentation_section_was_used;
 	extern bool LAPVJRCT_h_eq_min_true_called;
@@ -72,7 +82,7 @@ int main(int argc, char** argv){
   while(num_found < 10){
     for(unsigned i = 0; i < m.rows(); ++i){
       for(unsigned j = 0; j < m.cols(); ++j){
-				m[i][j]=rnd.next(10);
+				m[i][j]=(double)rnd.next(10);
       }
     }
 

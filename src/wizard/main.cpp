@@ -966,7 +966,7 @@ void LaunchBrowser(const char* szAddress)
 void do_wizard()
 {
 	int port = 8421;
-	uint64_t seed = getpid() * (unsigned int)time(NULL);
+	size_t seed = (size_t)(getpid() * (unsigned int)time(NULL));
 	GRand prng(seed);
 	bool serverStarted = false;
 	try

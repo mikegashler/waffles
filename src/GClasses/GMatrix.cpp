@@ -4328,22 +4328,22 @@ void GMatrix_stressBipartiteMatching()
 	
 	for(size_t i = 0; i < 200; i++)
 	{
-		size_t rowsa = rand.next(20);
+		size_t rowsa = (size_t)rand.next(20);
 		size_t rowsb = std::max(rowsa, (size_t)rand.next(20));
-		size_t cols = rand.next(1)+1;//(8);
+		size_t cols = (size_t)rand.next(1)+1;//(8);
 		GMatrix a(rowsa, cols);
 		GMatrix b(rowsb, cols);
 		for(size_t j = 0; j < rowsa; j++)
 		{
 			double* pA = a[j];
 			for(size_t k = 0; k < cols; k++)
-				*(pA++) = rand.next(10);//rand.normal();
+				*(pA++) = (double)rand.next(10);//rand.normal();
 		}
 		for(size_t j = 0; j < rowsb; j++)
 		{
 			double* pB = b[j];
 			for(size_t k = 0; k < cols; k++)
-				*(pB++) = rand.next(10);//rand.normal();
+				*(pB++) = (double)rand.next(10);//rand.normal();
 		}
 		size_t* pResults = GMatrix::bipartiteMatching(a, b, metric);
 		ArrayHolder<size_t> hResults(pResults);

@@ -230,6 +230,10 @@
 	</References>
 	<Files>
 		<File
+			RelativePath=".\findAugMatrix.cpp"
+			>
+		</File>
+		<File
 			RelativePath=".\G3D.cpp"
 			>
 		</File>
@@ -278,6 +282,14 @@
 		</File>
 		<File
 			RelativePath="GApp.h"
+			>
+		</File>
+		<File
+			RelativePath=".\GAssignment.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GAssignment.h"
 			>
 		</File>
 		<File
