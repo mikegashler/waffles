@@ -587,7 +587,7 @@ void GAdaBoost::test()
 
 
 GWag::GWag(size_t size, GRand& rand)
-: GSupervisedLearner(rand)
+: GSupervisedLearner(rand), m_noAlign(false)
 {
 	m_pNN = new GNeuralNet(rand);
 }
@@ -597,6 +597,7 @@ GWag::GWag(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
 	m_models = (size_t)pNode->field("models")->asInt();
+	m_noAlign = pNode->field("na")->asBool();
 }
 
 // virtual
@@ -611,6 +612,7 @@ GDomNode* GWag::serialize(GDom* pDoc)
 	GDomNode* pNode = baseDomNode(pDoc, "GWag");
 	pNode->addField(pDoc, "models", pDoc->newInt(m_models));
 	pNode->addField(pDoc, "nn", m_pNN->serialize(pDoc));
+	pNode->addField(pDoc, "na", pDoc->newBool(m_noAlign));
 	return pNode;
 }
 
@@ -635,7 +637,8 @@ void GWag::trainInner(GMatrix& features, GMatrix& labels)
 		if(pTemp)
 		{
 			// Average m_pNN with pTemp
-			m_pNN->align(*pTemp);
+			if(!m_noAlign)
+				m_pNN->align(*pTemp);
 			pTemp->weights(pWeightBuf);
 			m_pNN->weights(pWeightBuf2);
 			GVec::multiply(pWeightBuf, double(i) / (i + 1), weights);

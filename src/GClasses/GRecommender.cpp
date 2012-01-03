@@ -1281,7 +1281,7 @@ void GNonlinearPCA::train(GMatrix& data)
 			}
 
 		}
-		double regularizer = 0.001;
+		double regularizer = 0.0001;
 		double rateBegin = 0.01;
 		double rateEnd = 0.0001;
 		double prevErr = 1e308;

@@ -678,12 +678,8 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 	size_t modelCount = 10;
 	while(args.next_is_flag())
 	{
-		if(args.if_pop("-autotune"))
-		{
-			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels);
-		}
+		if(args.if_pop("-noalign"))
+			pWag->noAlign();
 		else if(args.if_pop("-addlayer"))
 			pModel->addLayer(args.pop_uint());
 		else if(args.if_pop("-learningrate"))

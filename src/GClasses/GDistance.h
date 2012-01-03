@@ -27,59 +27,59 @@ namespace GClasses {
 class GDistanceMetric
 {
 protected:
-        sp_relation m_pRelation;
+	sp_relation m_pRelation;
 
 public:
-        GDistanceMetric() {}
-        GDistanceMetric(GDomNode* pNode);
-        virtual ~GDistanceMetric() {}
+	GDistanceMetric() {}
+	GDistanceMetric(GDomNode* pNode);
+	virtual ~GDistanceMetric() {}
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-        virtual GDomNode* serialize(GDom* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
-        /// This must be called before squaredDistance can be called
-        virtual void init(sp_relation& pRelation) = 0;
+	/// This must be called before squaredDistance can be called
+	virtual void init(sp_relation& pRelation) = 0;
 
-        /// Return the squared distance (or squared dissimilarity) between the two specified vectors.
+	/// Return the squared distance (or squared dissimilarity) between the two specified vectors.
  	///
-        /// It is assumed that a and b are vectors of the same
-        /// dimension - and that that dimension is compatible with the
-        /// relation given in init.  By default uses
-        /// squaredDistance(const double*, const double*) const so
-        /// subclassers only need to change that method.
-        virtual double squaredDistance(const std::vector<double> & a, const std::vector<double> & b) const;
+	/// It is assumed that a and b are vectors of the same
+	/// dimension - and that that dimension is compatible with the
+	/// relation given in init.  By default uses
+	/// squaredDistance(const double*, const double*) const so
+	/// subclassers only need to change that method.
+	virtual double squaredDistance(const std::vector<double> & a, const std::vector<double> & b) const;
 
-        /// Computes the squared distance (or squared dissimilarity) between the two specified vectors
-        virtual double squaredDistance(const double* pA, const double* pB) const = 0;
+	/// Computes the squared distance (or squared dissimilarity) between the two specified vectors
+	virtual double squaredDistance(const double* pA, const double* pB) const = 0;
 
-        /// Return squaredDistance(a,b).  Allows dissimilarity metrics
-        /// to be used as function objects.  Do not override.
-        /// Override squaredDistance(a,b) instead.  See GDistanceMetric::squaredDistance(const std::vector<double>&, const std::vector<double>&)
-        inline double operator()(const std::vector<double> & a, const std::vector<double> & b) const
+	/// Return squaredDistance(a,b).  Allows dissimilarity metrics
+	/// to be used as function objects.  Do not override.
+	/// Override squaredDistance(a,b) instead.  See GDistanceMetric::squaredDistance(const std::vector<double>&, const std::vector<double>&)
+	inline double operator()(const std::vector<double> & a, const std::vector<double> & b) const
 	{
 		return squaredDistance(a,b);
 	}
 
-        /// Return squaredDistance(pA, pB).  Allows dissimilarity metrics to
-        /// be used as function objects.  Do not override.  Override
-        /// squaredDistance(pA,pB) instead.  See GDistanceMetric::squaredDistance(const double*, const double*)
-        inline double operator()(const double* pA, const double* pB) const
+	/// Return squaredDistance(pA, pB).  Allows dissimilarity metrics to
+	/// be used as function objects.  Do not override.  Override
+	/// squaredDistance(pA,pB) instead.  See GDistanceMetric::squaredDistance(const double*, const double*)
+	inline double operator()(const double* pA, const double* pB) const
 	{
 		return squaredDistance(pA,pB);
 	}
 
-        /// Returns the relation that specifies the meaning of the vector elements
-        sp_relation& relation() { return m_pRelation; }
+	/// Returns the relation that specifies the meaning of the vector elements
+	sp_relation& relation() { return m_pRelation; }
 
-        /// Deserializes a distance metric
-        static GDistanceMetric* deserialize(GDomNode* pNode);
+	/// Deserializes a distance metric
+	static GDistanceMetric* deserialize(GDomNode* pNode);
 
-        /// Returns a pointer to the vector of scale factors.  This
-        /// may be NULL if the metric does not use scale factors.
-        virtual double* scaleFactors() { return NULL; }
+	/// Returns a pointer to the vector of scale factors.  This
+	/// may be NULL if the metric does not use scale factors.
+	virtual double* scaleFactors() { return NULL; }
 
 protected:
-        GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
 };
 
 

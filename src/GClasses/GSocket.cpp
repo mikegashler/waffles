@@ -41,6 +41,11 @@ using std::vector;
 using std::string;
 using std::set;
 
+#ifndef WINDOWS
+typedef struct sockaddr SOCKADDR;
+typedef struct sockaddr_in SOCKADDR_IN;
+#endif
+
 namespace GClasses {
 
 
@@ -184,6 +189,9 @@ void GSocket_init()
 	}
 #endif
 }
+
+
+
 
 
 
@@ -339,6 +347,21 @@ size_t GTCPClient::receive(char* buf, size_t len)
 
 
 
+
+
+
+
+
+
+in_addr GTCPConnection::ipAddr()
+{
+	return GSocket_ipAddr(m_sock);
+}
+
+
+
+
+
 GTCPServer::GTCPServer(unsigned short port)
 {
 	GSocket_init();
@@ -464,11 +487,6 @@ void GTCPServer::send(const char* buf, size_t len, GTCPConnection* pConn)
 		disconnect(pConn);
 		throw e;
 	}
-}
-
-in_addr GTCPServer::ipAddr(GTCPConnection* pConn)
-{
-	return GSocket_ipAddr(pConn->socket());
 }
 
 // static

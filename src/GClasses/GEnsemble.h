@@ -283,6 +283,7 @@ class GWag : public GSupervisedLearner
 protected:
 	size_t m_models;
 	GNeuralNet* m_pNN;
+	bool m_noAlign;
 
 public:
 	/// General-purpose constructor. size specifies the number of
@@ -307,6 +308,10 @@ public:
 
 	/// Specify the number of neural networks to average together
 	void setModelCount(size_t n) { m_models = n; }
+
+	/// Specify to average weights without first aligning the nodes. (This should
+	/// never improve results, but it might be useful for measuring the value of aligning them.)
+	void noAlign() { m_noAlign = true; }
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

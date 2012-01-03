@@ -21,6 +21,7 @@
 #include "GTransform.h"
 #include "GSparseMatrix.h"
 #include "GDistance.h"
+#include "GAssignment.h"
 
 namespace GClasses {
 
@@ -808,24 +809,23 @@ void GNeuralNet::align(GNeuralNet& that)
 
 		// Do bipartite matching
 		GRowDistance metric;
-		size_t* pIndexes = GMatrix::bipartiteMatching(thatWeights, thisWeights, metric);
-		ArrayHolder<size_t> hIndexes(pIndexes);
+		GSimpleAssignment indexes = GMatrix::bipartiteMatching(thatWeights, thisWeights, metric);
 
 		// Align this layer with that layer
 		for(size_t j = 0; j < thisWeights.rows(); j++)
 		{
-			size_t k = pIndexes[j];
+			size_t k = indexes(j);
 			if(k != j)
 			{
 				// Fix up the indexes
 				size_t m = j + 1;
 				for( ; m < thisWeights.rows(); m++)
 				{
-					if(pIndexes[m] == j)
+					if((size_t)indexes(m) == j)
 						break;
 				}
 				GAssert(m < thisWeights.rows());
-				pIndexes[m] = k;
+				indexes.assign(m, k);
 
 				// Swap nodes j and k
 				swapNodes(i, j, k);

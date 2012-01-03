@@ -104,7 +104,7 @@ public:
 ///\see linearAssignmentBruteForce(GMatrix, ShouldMaximize)
 class GSimpleAssignment:public GAssignment{
 protected:
-	///\brief aForB[i[ has the member of A assigned to a given member of
+	///\brief aForB[i] has the member of A assigned to a given member of
 	///B (or -1 when no member)
 	std::vector<int> aForB;
 
