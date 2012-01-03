@@ -450,5 +450,72 @@ void GRand::test()
 #endif // !NO_TEST_CODE
 
 
+/* initializes mt[NN] with a seed */
+void GRandMersenneTwister::init_genrand64(uint64 seed)
+{
+	mt[0] = seed;
+	for (mti=1; mti<NN; mti++) 
+		mt[mti] =  (6364136223846793005ULL * (mt[mti-1] ^ (mt[mti-1] >> 62)) + mti);
+}
+	
+/* generates a random number on [0, 2^64-1]-interval */
+uint64 GRandMersenneTwister::genrand64_int64(void)
+{
+	int i;
+	uint64 x;
+  
+	if (mti >= NN) { /* generate NN words at one time */
+		
+		for (i=0;i<NN-MM;i++) {
+			x = (mt[i]&UM)|(mt[i+1]&LM);
+			mt[i] = mt[i+MM] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+		}
+		for (;i<NN-1;i++) {
+			x = (mt[i]&UM)|(mt[i+1]&LM);
+			mt[i] = mt[i+(MM-NN)] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+		}
+		x = (mt[NN-1]&UM)|(mt[0]&LM);
+		mt[NN-1] = mt[MM-1] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+		
+		mti = 0;
+	}
+	
+	x = mt[mti++];
+	
+	x ^= (x >> 29) & 0x5555555555555555ULL;
+	x ^= (x << 17) & 0x71D67FFFEDA60000ULL;
+	x ^= (x << 37) & 0xFFF7EEE000000000ULL;
+	x ^= (x >> 43);
+	
+	return x;
+}
+
+void GRandMersenneTwister::init_by_array64(uint64 init_key[],
+																					 uint64 key_length)
+{
+	uint64 i, j, k;
+	init_genrand64(19650218ULL);
+	i=1; j=0;
+	k = (NN>key_length ? NN : key_length);
+	for (; k; k--) {
+		mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 62)) * 3935559000370003845ULL))
+			+ init_key[j] + j; /* non linear */
+		i++; j++;
+		if (i>=NN) { mt[0] = mt[NN-1]; i=1; }
+		if (j>=key_length) j=0;
+	}
+	for (k=NN-1; k; k--) {
+		mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 62)) * 2862933555777941757ULL))
+			- i; /* non linear */
+		i++;
+		if (i>=NN) { mt[0] = mt[NN-1]; i=1; }
+	}
+	
+	mt[0] = 1ULL << 63; /* MSB is 1; assuring non-zero initial array */ 
+}
+
+
+
+
 } // namespace GClasses
 
