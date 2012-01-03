@@ -1358,7 +1358,7 @@ void LoadPng(GImage* pImage, const unsigned char* pData, size_t nDataSize)
 	}
 	else
 	{
-		ThrowError("Sorry, loading one-channel pngs not implemented yet");
+		ThrowError("Sorry, loading ", to_str(channels), "-channel pngs not supported");
 /*		GAssert(channels == 1); // unexpected number of channels
 		for(i = 0; i < nPixels; i++)
 		{
@@ -1695,15 +1695,25 @@ void GImage::box(int nX1, int nY1, int nX2, int nY2, unsigned int color)
 		nY1 = tmp;
 	}
 	int n;
-	for(n = nX1; n <= nX2; n++)
+	if(nY1 > 0 && nY1 < (int)m_height)
 	{
-		setPixel(n, nY1, color);
-		setPixel(n, nY2, color);
+		for(n = std::max(0, nX1); n <= nX2 && n < (int)m_width; n++)
+			setPixel(n, nY1, color);
 	}
-	for(n = nY1 + 1; n < nY2; n++)
+	if(nY2 > 0 && nY2 < (int)m_height)
 	{
-		setPixel(nX1, n, color);
-		setPixel(nX2, n, color);
+		for(n = std::max(0, nX1); n <= nX2 && n < (int)m_width; n++)
+			setPixel(n, nY2, color);
+	}
+	if(nX1 > 0 && nX1 < (int)m_width)
+	{
+		for(n = std::max(0, nY1 + 1); n < nY2 && n < (int)m_height; n++)
+			setPixel(nX1, n, color);
+	}
+	if(nX2 > 0 && nX2 < (int)m_width)
+	{
+		for(n = std::max(0, nY1 + 1); n < nY2 && n < (int)m_height; n++)
+			setPixel(nX2, n, color);
 	}
 }
 

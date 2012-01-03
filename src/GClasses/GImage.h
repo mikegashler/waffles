@@ -325,6 +325,8 @@ public:
 
 	/// Blit an image into this image.
 	/// The dest area can be out of the dest image. The alpha channel is ignored.
+	/// The pSourceRect must be within the bounds of the source image. If pSourceRect
+	/// is NULL, then the full source image is used.
 	void blit(int x, int y, GImage* pSource, GRect* pSourceRect = NULL);
 
 	/// Blit an image into this image. The source rect must be within the source image.
