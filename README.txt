@@ -8,6 +8,8 @@ Build Instructions:
 			libpng12-dev ( libpng-devel )
 		2- cd src
 		3- sudo make install
+		   (or just do "make opt" if you do not want it to
+		    copy the built binaries to /usr/local/bin/)
 
 		If you also want to build the demo apps:
 		4- Install the following dependency packages:
