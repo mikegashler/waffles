@@ -31,9 +31,9 @@ namespace GClasses {
 
 using std::vector;
 
-COMPILER_ASSERT(sizeof(uint64) == 8);
+COMPILER_ASSERT(sizeof(uint64_t) == 8);
 
-GRand::GRand(uint64 seed)
+GRand::GRand(uint64_t seed)
 {
 	setSeed(seed);
 }
@@ -42,17 +42,17 @@ GRand::~GRand()
 {
 }
 
-void GRand::setSeed(uint64 seed)
+void GRand::setSeed(uint64_t seed)
 {
 	m_b = 0xCA535ACA9535ACB2ull + seed;
 	m_a = 0x6CCF6660A66C35E7ull + (seed << 24);
 }
 
-uint64 GRand::next(uint64 range)
+uint64_t GRand::next(uint64_t range)
 {
 	// Use rejection to find a random value in a range that is a multiple of "range"
-	uint64 n = (0xffffffffffffffffull % range) + 1;
-	uint64 x;
+	uint64_t n = (0xffffffffffffffffull % range) + 1;
+	uint64_t x;
 	do
 	{
 		x = next();
@@ -324,19 +324,19 @@ void GRand::cubical(double* pOutVec, size_t dims)
 }
 
 GRand& GRand::global(){
-  static GRand rng(0);
-  static bool initialized = false;
-  if(!initialized){
-    std::time_t t = std::time(NULL);
+	static GRand rng(0);
+	static bool initialized = false;
+	if(!initialized){
+		std::time_t t = std::time(NULL);
 #ifdef WINDOWS
-    int pid = _getpid();
+		int pid = _getpid();
 #else
-    pid_t pid = getpid();
+		pid_t pid = getpid();
 #endif
-    uint64 seed = (~ reverseBits((unsigned)t))+pid;
-    rng.setSeed(seed);
-  }
-  return rng;
+		uint64_t seed = (~ reverseBits((unsigned)t))+pid;
+		rng.setSeed(seed);
+	}
+	return rng;
 }
 
 
@@ -429,12 +429,12 @@ void GRand::test()
 	for(n = 0; n < 100; n++)
 	{
 		GRand r(n);
-		for(uint64 j = 0; j < GRANDUINT_TEST_PRELUDE_SIZE; j++)
+		for(uint64_t j = 0; j < GRANDUINT_TEST_PRELUDE_SIZE; j++)
 			r.next();
-		uint64 startA = r.m_a;
-		uint64 startB = r.m_b;
+		uint64_t startA = r.m_a;
+		uint64_t startB = r.m_b;
 		r.next();
-		for(uint64 j = 0; j < GRANDUINT_TEST_PERIOD_SIZE; j++)
+		for(uint64_t j = 0; j < GRANDUINT_TEST_PERIOD_SIZE; j++)
 		{
 			if(r.m_a == startA || r.m_b == startB)
 				ThrowError("Loop too small");
@@ -451,7 +451,7 @@ void GRand::test()
 
 
 /* initializes mt[NN] with a seed */
-void GRandMersenneTwister::init_genrand64(uint64 seed)
+void GRandMersenneTwister::init_genrand64(uint64_t seed)
 {
 	mt[0] = seed;
 	for (mti=1; mti<NN; mti++) 
@@ -459,10 +459,10 @@ void GRandMersenneTwister::init_genrand64(uint64 seed)
 }
 	
 /* generates a random number on [0, 2^64-1]-interval */
-uint64 GRandMersenneTwister::genrand64_int64(void)
+uint64_t GRandMersenneTwister::genrand64_int64(void)
 {
-	int i;
-	uint64 x;
+	unsigned int i;
+	uint64_t x;
   
 	if (mti >= NN) { /* generate NN words at one time */
 		
@@ -490,10 +490,10 @@ uint64 GRandMersenneTwister::genrand64_int64(void)
 	return x;
 }
 
-void GRandMersenneTwister::init_by_array64(uint64 init_key[],
-																					 uint64 key_length)
+void GRandMersenneTwister::init_by_array64(uint64_t init_key[],
+																					 uint64_t key_length)
 {
-	uint64 i, j, k;
+	uint64_t i, j, k;
 	init_genrand64(19650218ULL);
 	i=1; j=0;
 	k = (NN>key_length ? NN : key_length);

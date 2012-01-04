@@ -70,13 +70,10 @@
 #ifndef __GRAND_H__
 #define __GRAND_H__
 
-//#include <stdint.h> (not yet available on some common distros)
-#include <sys/types.h>
+#include <stdint.h>
 #include <vector>
 
 namespace GClasses {
-
-typedef unsigned long long int uint64;
 
 
 /// This is a 64-bit pseudo-random number generator.
@@ -87,15 +84,15 @@ typedef unsigned long long int uint64;
 class GRand
 {
 protected:
-	uint64 m_a;
-	uint64 m_b;
+	uint64_t m_a;
+	uint64_t m_b;
 
 public:
 	/// Create a new random number generator with the given seed
 	///
 	/// \param seed the seed to use for generating numbers from the
 	///        random number generator
-	GRand(uint64 seed);
+	GRand(uint64_t seed);
 
 	/// Destructor
 	virtual ~GRand();
@@ -110,10 +107,10 @@ public:
 	///       behavior.  To make their program work, the seed for the
 	///       default generator needs to be set rather than being left
 	///       uninitialized.
-	virtual void setSeed(uint64 seed);
+	virtual void setSeed(uint64_t seed);
 
 	/// Returns an unsigned pseudo-random 64-bit value
-	virtual uint64 next()
+	virtual uint64_t next()
 	{
 		m_a = 0x141F2B69ull * (m_a & 0x3ffffffffull) + (m_a >> 32);
 		m_b = 0xC2785A6Bull * (m_b & 0x3ffffffffull) + (m_b >> 32);
@@ -128,7 +125,7 @@ public:
 	///
 	/// \param range one greater than the largest number that will be
 	///        returned
-	virtual uint64 next(uint64 range);
+	virtual uint64_t next(uint64_t range);
 
 	/// Returns a random value from a beta distribution with parameters \a alpha and \a beta
 	///
@@ -163,17 +160,19 @@ public:
 	/// This method draws n samples from a uniform distribution,
 	/// so it is very slow for large values of n. binomial_approx
 	/// is generally much faster.
-	virtual size_t binomial(size_t n, double p);
+	virtual std::size_t binomial(std::size_t n, double p);
 
 	/// Returns a random value approximately from a binomial distribution.
 	/// This method uses a normal distribution to approximate the binomial
 	/// distribution. It is O(1), and is generally quite accurate when
 	/// n is large and p is not too close to 0 or 1.
-	virtual size_t binomial_approx(size_t n, double p);
+	virtual std::size_t binomial_approx(std::size_t n, double p);
 
 	/// Returns a random value from a categorical distribution
-	/// with the specified vector of category probabilities.
-	virtual size_t categorical(std::vector<double>& probabilities);
+	/// with the specified vector of category probabilities. (Note: If you need
+	/// to draw many values from a categorical distribution, the GCategoricalSampler
+	/// and GCategoricalSamplerBatch classes are designed to do this more efficiently.)
+	virtual std::size_t categorical(std::vector<double>& probabilities);
 
 	/// Returns a random value from a standard Cauchy distribution
 	virtual double cauchy();
@@ -226,7 +225,7 @@ public:
 
 	/// Draws uniformly from a unit simplex. (This is a special case of
 	/// drawing from a dirichlet distribution with uniform parameters.)
-	virtual void simplex(double* pOutVec, size_t dims);
+	virtual void simplex(double* pOutVec, std::size_t dims);
 
 	/// Returns a random value from a soft-impulse distribution with support
 	/// from 0 to 1. (The cdf of the soft-impulse distribution is the soft-step
@@ -235,13 +234,13 @@ public:
 	virtual double softImpulse(double s);
 
 	/// Returns a random point on the surface of a dims-dimensional unit sphere
-	virtual void spherical(double* pOutVec, size_t dims);
+	virtual void spherical(double* pOutVec, std::size_t dims);
 
 	/// Returns a random point within the volume of a dims-dimensional unit sphere
-	virtual void spherical_volume(double* pOutVec, size_t dims);
+	virtual void spherical_volume(double* pOutVec, std::size_t dims);
 
 	/// Returns a random point uniformly distributed within a unit cube
-	virtual void cubical(double* pOutVec, size_t dims);
+	virtual void cubical(double* pOutVec, std::size_t dims);
 
 	/// Returns a random value from Student's t-distribution
 	virtual double student(double t);
@@ -325,23 +324,23 @@ class GRandMersenneTwister:public GRand
 {
 private:
 	///Number of elements in the state-vector array
-	const static uint64 NN=312;
+	const static uint64_t NN=312;
 
-	const static uint64 MM=156;
-	const static uint64 MATRIX_A=0xB5026F5AA96619E9ULL;
-	const static uint64 UM=0xFFFFFFFF80000000ULL; /* Most significant 33 bits */
-	const static uint64 LM=0x7FFFFFFFULL; /* Least significant 31 bits */
+	const static uint64_t MM=156;
+	const static uint64_t MATRIX_A=0xB5026F5AA96619E9ULL;
+	const static uint64_t UM=0xFFFFFFFF80000000ULL; /* Most significant 33 bits */
+	const static uint64_t LM=0x7FFFFFFFULL; /* Least significant 31 bits */
 
 	/// The array for the state vector
-	uint64 mt[NN]; 
+	uint64_t mt[NN]; 
 	
-	int mti; 
+	unsigned int mti; 
 
 	/// A state variable used by the number generation
-	uint64 mag01[2];
+	uint64_t mag01[2];
 
 	/// initializes mt[NN] with a seed
-	void init_genrand64(uint64 seed);
+	void init_genrand64(uint64_t seed);
 
 
 	/* initialize by an array with array-length */
@@ -349,11 +348,11 @@ private:
 	/* key_length is its length */
 	//
 	// I don't use this function right now
-	void init_by_array64(uint64 init_key[],
-											 uint64 key_length)	;
+	void init_by_array64(uint64_t init_key[],
+											 uint64_t key_length)	;
 
 	/// generates a random number on [0, 2^64-1]-interval
-	uint64 genrand64_int64(void);
+	uint64_t genrand64_int64(void);
 
 public:
 
@@ -363,7 +362,7 @@ public:
 	///
 	/// \param seed the seed to use for generating numbers from the
 	///        random number generator
-	GRandMersenneTwister(uint64 seed):GRand(seed){
+	GRandMersenneTwister(uint64_t seed):GRand(seed){
 		mag01[0]=0ULL;
 		mag01[1]=MATRIX_A;
 		init_genrand64(seed);
@@ -379,13 +378,13 @@ public:
 
 	/// \param seed the seed to use for generating numbers from the
 	///        random number generator
-	virtual void setSeed(uint64 seed){
+	virtual void setSeed(uint64_t seed){
 		GRand::setSeed(seed);
 		init_genrand64(seed);
 	}
 
 	/// Returns an unsigned pseudo-random 64-bit value
-	virtual uint64 next()
+	virtual uint64_t next()
 	{
 		return genrand64_int64();
 	}
