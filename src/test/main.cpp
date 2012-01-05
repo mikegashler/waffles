@@ -548,6 +548,7 @@ public:
 		runTest("GPriorityQueue", GPriorityQueue::test);
 		runTest("GProbeSearch", GProbeSearch::test);
 		runTest("GRand", GRand::test);
+		runTest("GRandMersenneTwister", GRandMersenneTwister::test);
 		runTest("GRandomForest", GRandomForest::test);
 		runTest("GRelation", GRelation::test);
 		runTest("GResamplingAdaBoost", GResamplingAdaBoost::test);

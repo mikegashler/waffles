@@ -253,10 +253,16 @@ public:
 	/// Returns a random value from a Weibull distribution with lambda=1.
 	virtual double weibull(double gamma);
 
-	/// Returns the global random number generator.  Useful to
-	/// avoid passing GRand* all over the place.  Initializes the
-	/// seed based on the time and some other system parameters
-	/// the first time it is called.
+	/// \brief Returns a reference to the global random number generator.  
+	///
+	/// Useful as a default parameter to constructors so that only users
+	/// who have particular needs will need to construct a new GRand
+	/// object.
+	///
+	/// Initializes the seed based on the time and some other system
+	/// parameters the first time it is called.
+	///
+	/// \returns a reference to the global random number generator.  
 	static GRand& global();
 
 #ifndef NO_TEST_CODE
@@ -347,9 +353,9 @@ private:
 	/* init_key is the array for initializing keys */
 	/* key_length is its length */
 	//
-	// I don't use this function right now
+	// Only used in the test code right now
 	void init_by_array64(uint64_t init_key[],
-											 uint64_t key_length)	;
+											 uint64_t key_length);
 
 	/// generates a random number on [0, 2^64-1]-interval
 	uint64_t genrand64_int64(void);
@@ -369,13 +375,13 @@ public:
 	}
 
 	/// Destructor
-	virtual ~GRandMersenneTwister();
+	virtual ~GRandMersenneTwister(){}
 
 	/// Sets the seed
 	///
 	/// \note If you subclass this, make sure you call GRand::setSeed
 	///       (see the comment there)
-
+	///
 	/// \param seed the seed to use for generating numbers from the
 	///        random number generator
 	virtual void setSeed(uint64_t seed){
@@ -383,13 +389,31 @@ public:
 		init_genrand64(seed);
 	}
 
-	/// Returns an unsigned pseudo-random 64-bit value
-	virtual uint64_t next()
-	{
+	///\brief Returns an unsigned pseudo-random 64-bit value
+	///
+	///\return an unsigned pseudo-random 64-bit value
+	virtual uint64_t next()	{
 		return genrand64_int64();
 	}
 
+	///\brief Returns a random number uniformly distributed on the [0,1)
+	///interval.  This interval includes 0, but does not include 1.
+	///
+	/// This overrides the superclass treatment of the underlying
+	/// integer stream to use the behavior of genrand64_real2 in the
+	/// Mersenne twister code
+	///
+	///\return a random number uniformly distributed on the [0,1)
+	///interval.  This interval includes 0, but does not include 1.
+	virtual double uniform(){
+		return (next() >> 11) * (1.0/9007199254740992.0);
+	}
 
+#ifndef NO_TEST_CODE
+	/// Performs unit tests for this class. Throws an exception if there
+	/// is a failure.
+	static void test();
+#endif // !NO_TEST_CODE
 };
 
 
