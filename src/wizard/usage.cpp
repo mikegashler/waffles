@@ -190,7 +190,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pContents->add("[instance_count] [algorithm]", "Specify the number of instances of a learning algorithm to add to the BMA ensemble.");
 	}
 	{
-		UsageNode* pBoost = pRoot->add("boost <options> [algorithm]", "Uses AdaBoost to create an ensemble that may be more accurate than a lone instance of the specified algorithm.");
+		UsageNode* pBoost = pRoot->add("boost <options> [algorithm]", "Uses ResamplingAdaBoost to create an ensemble that may be more accurate than a lone instance of the specified algorithm. (ResamplingAdaBoost is similar to AdaBoost, except that it uses resampling to approximate weighted instances in the training set. This difference enables it to work with algorithms that do not implicitly support weighted samples.)");
 		UsageNode* pOpts = pBoost->add("<options>");
 		pOpts->add
 		  ("-trainratio [value]=1.0", "When approximating the weighted training set by resampling, use a sample of size [value]*training_set_size");

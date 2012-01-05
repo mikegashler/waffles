@@ -1381,9 +1381,7 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 		{
 			if(szClass[1] < 'C')
 			{
-				if(strcmp(szClass, "GAdaBoost") == 0)
-					return new GAdaBoost(pNode, *this);
-				else if(strcmp(szClass, "GBag") == 0)
+				if(strcmp(szClass, "GBag") == 0)
 					return new GBag(pNode, *this);
 				else if(strcmp(szClass, "GBaselineLearner") == 0)
 					return new GBaselineLearner(pNode, *this);
@@ -1400,6 +1398,8 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 					return new GDecisionTree(pNode, *this);
 				else if(strcmp(szClass, "GIdentityFunction") == 0)
 					return new GIdentityFunction(pNode, *this);
+				else if(strcmp(szClass, "GResamplingAdaBoost") == 0)
+					return new GResamplingAdaBoost(pNode, *this);
 			}
 		}
 		else

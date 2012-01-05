@@ -334,7 +334,7 @@ GBayesianModelCombination* InstantiateBMC(GRand& rand, GArgReader& args, GMatrix
 	return pEnsemble;
 }
 
-GAdaBoost* InstantiateBoost(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+GResamplingAdaBoost* InstantiateBoost(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	double trainingSizeRatio = 1;
 	size_t ensembleSize = 30;
@@ -354,15 +354,15 @@ GAdaBoost* InstantiateBoost(GRand& rand, GArgReader& args, GMatrix* pFeatures, G
 			break;
 		}
 	}
-	
+
 	GTransducer* pLearner = InstantiateAlgorithm(rand, args, pFeatures, pLabels);
 	if(!pLearner->canGeneralize())
-		{
-			delete(pLearner);
-			ThrowError("boost does not support algorithms that cannot generalize.");
-		}
+	{
+		delete(pLearner);
+		ThrowError("boost does not support algorithms that cannot generalize.");
+	}
 
-	GAdaBoost* pEnsemble = new GAdaBoost((GSupervisedLearner*)pLearner, true, new GLearnerLoader(rand));
+	GResamplingAdaBoost* pEnsemble = new GResamplingAdaBoost((GSupervisedLearner*)pLearner, true, new GLearnerLoader(rand));
 	pEnsemble->setTrainSize(trainingSizeRatio);
 	pEnsemble->setSize(ensembleSize);
 

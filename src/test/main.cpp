@@ -493,7 +493,6 @@ public:
 	void runAllTests()
 	{
 		// Class tests
-		runTest("GAdaBoost", GAdaBoost::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);
 		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);
@@ -551,6 +550,7 @@ public:
 		runTest("GRand", GRand::test);
 		runTest("GRandomForest", GRandomForest::test);
 		runTest("GRelation", GRelation::test);
+		runTest("GResamplingAdaBoost", GResamplingAdaBoost::test);
 		runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 		runTest("GShortcutPruner", GShortcutPruner::test);
 		runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);

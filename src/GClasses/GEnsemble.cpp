@@ -443,12 +443,12 @@ GDomNode* GBayesianModelCombination::serialize(GDom* pDoc)
 
 
 
-GAdaBoost::GAdaBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader)
+GResamplingAdaBoost::GResamplingAdaBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader)
 : GEnsemble(pLoader->rand()), m_pLearner(pLearner), m_ownLearner(ownLearner), m_pLoader(pLoader), m_trainSize(1.0), m_ensembleSize(30)
 {
 }
 
-GAdaBoost::GAdaBoost(GDomNode* pNode, GLearnerLoader& ll)
+GResamplingAdaBoost::GResamplingAdaBoost(GDomNode* pNode, GLearnerLoader& ll)
 : GEnsemble(pNode, ll), m_pLearner(NULL), m_ownLearner(false), m_pLoader(NULL)
 {
 	m_trainSize = pNode->field("ts")->asDouble();
@@ -456,7 +456,7 @@ GAdaBoost::GAdaBoost(GDomNode* pNode, GLearnerLoader& ll)
 }
 
 // virtual
-GAdaBoost::~GAdaBoost()
+GResamplingAdaBoost::~GResamplingAdaBoost()
 {
 	clear();
 	if(m_ownLearner)
@@ -465,9 +465,9 @@ GAdaBoost::~GAdaBoost()
 }
 
 // virtual
-GDomNode* GAdaBoost::serialize(GDom* pDoc)
+GDomNode* GResamplingAdaBoost::serialize(GDom* pDoc)
 {
-	GDomNode* pNode = baseDomNode(pDoc, "GAdaBoost");
+	GDomNode* pNode = baseDomNode(pDoc, "GResamplingAdaBoost");
 	serializeBase(pDoc, pNode);
 	pNode->addField(pDoc, "es", pDoc->newInt(m_ensembleSize));
 	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
@@ -475,7 +475,7 @@ GDomNode* GAdaBoost::serialize(GDom* pDoc)
 }
 
 // virtual
-void GAdaBoost::clear()
+void GResamplingAdaBoost::clear()
 {
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		delete(*it);
@@ -485,7 +485,7 @@ void GAdaBoost::clear()
 }
 
 // virtual
-void GAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
+void GResamplingAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
 {
 	clear();
 
@@ -569,12 +569,12 @@ void GAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
 
 #ifndef NO_TEST_CODE
 // static
-void GAdaBoost::test()
+void GResamplingAdaBoost::test()
 {
 	GRand rand(0);
 	GDecisionTree* pLearner = new GDecisionTree(rand);
 	pLearner->useRandomDivisions();
-	GAdaBoost boost(pLearner, true, new GLearnerLoader(rand));
+	GResamplingAdaBoost boost(pLearner, true, new GLearnerLoader(rand));
 	boost.basicTest(0.757, 0.757);
 }
 #endif

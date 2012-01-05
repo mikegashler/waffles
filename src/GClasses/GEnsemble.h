@@ -226,7 +226,11 @@ protected:
 
 
 
-class GAdaBoost : public GEnsemble
+/// This is an implementation of AdaBoost, except instead of using weighted samples,
+/// it resamples the training set by giving each sample a probability proportional to
+/// its weight. This difference enables it to work with algorithms that do not
+/// support weighted samples.
+class GResamplingAdaBoost : public GEnsemble
 {
 protected:
 	GSupervisedLearner* m_pLearner;
@@ -243,12 +247,12 @@ public:
 	/// (If it is a custom model, then you also need to make a class that inherits
 	/// from GLearnerLoader that can load your custom class.) Takes ownership
 	/// of pLoader (meaning this object will delete pLoader when it is deleted).
-	GAdaBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader);
+	GResamplingAdaBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader);
 
 	/// Deserializing constructor
-	GAdaBoost(GDomNode* pNode, GLearnerLoader& ll);
+	GResamplingAdaBoost(GDomNode* pNode, GLearnerLoader& ll);
 
-	virtual ~GAdaBoost();
+	virtual ~GResamplingAdaBoost();
 
 #ifndef NO_TEST_CODE
 	static void test();
