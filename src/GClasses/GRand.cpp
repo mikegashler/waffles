@@ -271,7 +271,7 @@ double GRand::student(double t)
 
 int GRand::geometric(double p)
 {
-	if(p < 0 || p > 1)
+	if(p <= 0 || p >= 1)
 		ThrowError("invalid parameter");
 	return (int)floor(-exponential() / log(1.0 - p));
 }

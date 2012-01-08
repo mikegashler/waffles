@@ -201,8 +201,11 @@ public:
 	/// multiply the value this returns by theta).
 	virtual double gamma(double alpha);
 
-	/// Returns a random value from a geometric distribution with support
-	/// for {0, 1, 2, ...}.
+	/// \brief Returns a random value from a geometric distribution 
+	/// with support for {0, 1, 2, ...}.
+	///
+	/// \param p the probability of success in the underlying 
+	///          bernoulli trials.  0 < p < 1
 	virtual int geometric(double p);
 
 	/// Returns a random value from a standard logistic distribution. To
@@ -249,6 +252,19 @@ public:
 	/// to 1 (exclusive). This uses 52 random bits for the
 	/// mantissa, and discards the extra 12 random bits.
 	virtual double uniform();
+
+	/// Returns a pseudo-random double from \a min (inclusive)
+	/// to \a max (exclusive).
+	///
+	/// \param min the minimum of the interval on which the samples
+	/// returned are distributed
+	///
+	/// \param max the supremum of the interval on which the samples
+	/// returned are distributed.  max will not be generated unless max
+	/// == min or unless the interval is otherwise pathological
+	virtual double uniform(double min, double max){
+		return uniform()*(max-min)+min;
+	}
 
 	/// Returns a random value from a Weibull distribution with lambda=1.
 	virtual double weibull(double gamma);
@@ -407,6 +423,19 @@ public:
 	///interval.  This interval includes 0, but does not include 1.
 	virtual double uniform(){
 		return (next() >> 11) * (1.0/9007199254740992.0);
+	}
+
+	/// Returns a pseudo-random double from \a min (inclusive)
+	/// to \a max (exclusive).
+	///
+	/// \param min the minimum of the interval on which the samples
+	/// returned are distributed
+	///
+	/// \param max the supremum of the interval on which the samples
+	/// returned are distributed.  max will not be generated unless max
+	/// == min or unless the interval is otherwise pathological
+	virtual double uniform(double min, double max){
+		return uniform()*(max-min)+min;
 	}
 
 #ifndef NO_TEST_CODE
