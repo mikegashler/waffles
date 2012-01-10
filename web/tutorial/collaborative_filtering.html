@@ -1,0 +1,63 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="charts.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="document_classification.html">Next</a>
+
+
+
+
+
+
+
+<h2>Collaborative filtering</h2>
+
+<p>Suppose that you decide to measure the accuracy of two algorithms using the soybean dataset:
+<pre>
+	waffles_learn crossvalidate -seed 0 soybean.arff naivebayes
+	waffles_learn crossvalidate -seed 0 soybean.arff bag 64 decisiontree end
+</pre>
+The "naivebayes" model gets a predictive accuracy score of 0.778, and the ensemble model scores 0.245. You might conclude, therefore, that naive Bayes is a better model for this problem. Such a conclusion, however, would be premature because very little analysis has been done. If you look at the basic stats of this dataset,
+<pre>
+	waffles_plot stats soybean.arff
+</pre>
+you will see that many values are missing in this dataset. Let's try filling in those missing values, and see how it affects the results.</p>
+
+<p>A collaborative filter is a technique that predicts values for all the missing elements in a matrix. Let's use the "baseline" collaborative filter, which simply predicts the mode value for each attribute:
+<pre>
+	waffles_recommend fillmissingvalues soybean.arff baseline > soy_dense.arff
+</pre>
+Now, let's use cross-validation again to measure accuracy with the same two algorithms. This time, "naivebayes" scores 0.998, and the ensemble model scores 1. You read that correctly--1--a perfect score. Filling in those missing values made a pretty dramatic difference in this case. So, which algorithm is better for this problem, naive Bayes or a bagging ensemble of 64 decision trees? Who cares? It seems to me that the real winner here is collaborative filtering.</p>
+
+<p>We provide a few other collaborative filters besides "baseline". Some of them will make more intelligent predictions with many problems. To see a full list of the collaborative filtering algorithms, see the full usage information for the waffles_recommend tool:
+<pre>
+	waffles_recommend usage
+</pre></p>
+
+<h3>Recommendation systems</h3>
+
+<p>Another common use for collaborative filters is to build a recommendation system. For example, suppose you run a company that sells <i>i</i> unique items, and you have <i>u</i> customers (or users). Suppose each user has rated (or expressed an opinion about) a small number of items, but most of the user-item combinations have not been rated. Your task is to predict ratings for all of the unknown user-item pairs.</p>
+
+<p>We approach this problem by expressing your data in a 3-column ARFF file, where column 0 specifies a user ID, column 1 specifies an item ID, and column 2 specifies a rating value. (There is one row in this ARFF file for each known rating. You can then use any of our collaborative filtering algorithms to predict ratings for the unknown user-item pairs.</p>
+
+<p>For example, let's use cross-validation to see how well our matrix factorization collaborative filter does at predicting ratings with your data:</p>
+<pre>
+	waffles_recommend crossvalidate mydata.arff matrix 6
+</pre>
+
+<p>We also provide functionality to generate precision-recall graphs, and ROC curves, which can be useful for evaluating collaborative filtering algorithms. For more details, see the usage information for the waffles_recommend tool.</p>
+
+
+
+
+
+<br>
+<a href="charts.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="document_classification.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

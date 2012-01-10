@@ -1,0 +1,37 @@
+<h1>Overview</h1>
+
+This is a general-purpose recommender system. It helps you find things on the web that are difficult to describe.
+
+<h3>How to use it</h3>
+
+<ol>
+	<li>Choose a topic in which you have interest.</li>
+	<li>Rate a few of the random links. (Move the sliders, then press the button to update your ratings.)</li>
+	<li>View the new recommended links. Rate them too.</li>
+	<li>When you rate a recommended item, it is replaced with a new one. The more ratings you submit, the better the recommendations will get (at least until the good items start to run out).</li>
+</ol>
+
+<h3>Suitable Topics</h3>
+
+This is the right tool when you want to know what like-minded people like. (If you can describe what you want, a search engine is what you need.) This tool is particularly good when "quality" is an issue. For example, it might be good for finding high-quality royalty-free music that you like. It might be good for finding interesting academic tutorials, captivating e-novels, or fine recipes in a sea of low-quality wanna-be competitors. It works best when there are lots of users and lots of items, so it can find other people with similar tastes to your own, and items that please those tastes.
+
+<h3>Q and A</h3>
+
+<p><b>How does it work?</b> Each account has an associated "personality vector" that describes the preferences of the person. A logistic regression model is trained to map from a personality vector to the person's opinion about each item. Gradient descent is used to update both the weights of the model, and the personality vectors. (Since the weights and personality vectors depend on each other, this may be thought of as an EM-like algorithm.) When recommendations are requested, the system randomly draws several items from the current topic and predicts the user's opinion about each of them, based on the user's current personality vector. These are put into a priority queue, and the items with the highest predicted values come out as the recommended items.</p>
+
+<p><b>May I turn this into a big commercial product?</b> Sure. Have fun. When you sell your company to a big search-engine or social networking company, maybe you could remember me by helping to fund some of my research.</p>
+
+<p><b>How do you prevent people from gaming the system to promote their products?</b> If clever and determined people are trying to spam the system, the only solution may ultimately be to employ clever and determined people to fight them. Fortunately, several factors help tilt the scale in favor of this system:
+<ul>
+	<li>Gaming this system is not as trivial as it may seem. If you just stuff the system with bad ratings, it will determine that other people are not like you, and your ratings will have no influence on them. Even if clever people try to create false correlations between popular items and their products, the system works to find ways to separate them--that is the very specialty and focus of this system.</li>
+	<li>Ratings are naturally associated with an account, so it is easy to revert them in bulk.</li>
+	<li>Hard captchas make the spammers job more difficult.</li>
+	<li>Traffic analysis is possible to detect bots (although this is not yet implemented).</li>
+	<li>This system naturally clusters accounts with similar behavior together. So if you can identify one account used for spamming, you may find most or all of them all together.</li>
+	<li>The users also provide powerful distributed spammer-detection. All the admin has to do is watch for things that get a lot of zero scores, and see who submitted it. Internally, the admins could even make a list of accounts that consistently detect/expose spammers, and pay attention when they rate something at zero.</li>
+</ul>
+</p>
+
+<p><b>How does it scale?</b> Very well. Each account requires a small constant amount of space. Each item requires a small constant amount of space. Each recommendation requires a constant amount of processing.</p>
+
+<p><b>Where do we go from here?</b> In its current form, this tool is only suitable for items that anyone can critique (like entertainment-oriented media). To make it suitable for works that not everyone is qualified to critique, like scholarly publications, the tool should be altered so that people are only allowed to submit their own works. Then, the algorithm should also be altered so that ratings submitted by a particular user only carry weight with respect to those who have rated his works highly (transitively, perhaps with a decay at each hop). Thus, by rating works highly, I essentially identify the experts in my field, and they transitively identify quality works for me. Ultimately, I would like to see the formation of academic journals based on this design. This would allow authors to publish their works immediately, and be reviewed later. This way, they could focus on the long-term impact of their research, rather than on the near-term factors that influence whether a paper will be accepted by the journal. (In theory, that's already what the journals are looking for, but whether that is what happens in practice is somewhat debated. I think this system could put an end to that debate--or, at least postpone it until after the research has been published.)</p>

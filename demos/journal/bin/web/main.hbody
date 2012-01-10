@@ -1,0 +1,33 @@
+<h1>Welcome</h1>
+
+This is a demo-site, but you are encouraged to make it into a real journal.
+
+<h2>Overview</h2>
+
+<p>An <i>empirically refereed</i> journal is one that uses competitions, rather than peer reviews, to determine the acceptance of papers. This empirically refereed journal is dedicated to serving the field of machine learning. We seek to establish the state-of-the-art in empirically measurable algorithms in machine learning, data mining, artificial intelligence, and closely related fields.</p>
+
+<h2>How this journal works</h2>
+
+<p>We host several competitions. Each one is described in a <i>competition specification</i>, which provides all the necessary details about how to prepare and submit your code. If it performs well, then you will be asked to submit a paper describing your algorithm(s) for publication. Competitions are ongoing, so you can submit any time and try to establish a new "best algorithm" for a particular suite of tests.</p>
+
+<p>Competition submissions will be in the form of a command-line application (so you can use which ever programming language you prefer). We will run each competition submission through a series of tests by passing various parameters to your application as described in the specification. Testing will be done on an Ubuntu Linux image in a VirtualBox virtual machine. You can download the virtual machine image to see exactly how your submission will perform before you even submit. If your application fails, you are welcome to debug it using this image and resubmit.</p>
+
+<p>Each submission (and resubmission) currently costs $12. This nominal fee is intended to offset the operational costs of this journal, and to discourage non-serious submissions.</p>
+
+<p>Submissions are required to be released under an open source license so that we can publish your code (in addition to your paper) and enable future submitters to build upon your work. Any license <a href="http://www.gnu.org/philosophy/license-list.html#GPLCompatibleLicenses">that does not preclude the GPL</a> is acceptable. (This requirement ensures that any past submissions may be combined and used together to create new works.) You retain the copyright to your code, your paper, and anything else you publish through us. We don't want to own it. We are just here to endorse it. This journal is non-exclusive. You are encourage to submit here works that have already been published elsewhere, and you are welcome to publish elsewhere works that are first accepted here (assuming the other journal is also non-exclusive). There is no good reason to limit a good paper to having the endorsement of just one organization. </p>
+
+<h2>Q and A</h2>
+
+<p><b>What if I want to publish a theoretical advancement?</b><br>Another journal is probably better-suited for that purpose.</p>
+
+<p><b>How do we keep our costs so low?</b><br>We do everything electronically, and much of it is automated.</p>
+
+<p><b>What if there is no competition for the problem to which I have a solution?</b><br>You can propose a new competition. Please send us a new competition specification (including test cases), a write-up about why it is significant, and an initial submission. These submissions require human reviewers, so make sure to be thorough and impressive.</p>
+
+<p><b>What if my perfectly reasonable competition suggestion is rejected?</b><br>Do not tolerate such treatment! Start your own empirically-refereed journal.</p>
+
+<p><b>What if someone uses the paper to publish something irrelevant?</b><br>That's fine. A winner can say whatever he/she wants. We're not here to censor smart people, just to identify them.</p>
+
+<p><b>Won't non-determinism in algorithms cause problems?</b><br>One of the parameters specified to every competition application is a seed value for a random number generator. Code that uses pseudo-random numbers should still be designed to be deterministic for a given seed, so that all results can be easily reproduced. If non-determinism is detected, the submission will be rejected. (And yes, we do some testing for non-determinism because reproduceability is important to us.)</p>
+
+<p><b>What if someone games the system?</b><br>This is another reason we require all submissions to be in the form of source code. If you win, we publish your source code. If someone cheats (by hacking our tests, or hard-coding the answer, etc.), that person will just expose him/herself as a fraud.</p>

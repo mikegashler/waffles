@@ -1,0 +1,86 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="matrices.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="new_learner.html">Next</a>
+
+
+
+
+
+
+
+<h2>Coding With Supervised Learners</h2>
+
+<p>Supervised learning algorithms seem to be the hammer of machine learning (meaning a basic tool useful for a diversity of tasks), so we'll look at those now.</p>
+
+<p>The GSupervisedLearner class is declared in Learner.h. The two most significant methods in this class are:
+<pre>
+	void train(GMatrix&amp; features, GMatrix&amp; labels);
+</pre>
+and
+<pre>
+	void predict(const double* pIn, double* pOut);
+</pre>
+. As you might expect, the train method trains the model, and the predict method makes a prediction.</p>
+
+<p>The train method expects two matrices to be passed in as parameters. The first parameter contains the features (or inputs), and the second parameter contains the corresponding labels (or outputs). These two matrices are expected to have the same number of rows.</p>
+
+<p>If your data is stored in one table that contains both features and labels, then you will need to divide it into two separate matrices before you call the train method. Here is an example that will load an ARFF file, and then split it into a feature matrix and a label matrix. In this case, the last 3 columns will be used for the labels:</p>
+<pre>
+	GMatrix* pData = loadArff("mydata.arff");
+	Holder&lt;GMatrix&gt; hData(pData);
+	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - 3);
+	Holder&lt;GMatrix&gt; hFeatures(pFeatures);
+	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - 3, pData->rows(), 3);
+	Holder&lt;GMatrix&gt; hLabels(pLabels);
+</pre>
+
+<p>Notice that you are not restricted to having one-dimensional labels. Most of our supervised learning algorithms can implicitly handle labels of arbitrary dimensionality. This is particularly convenient when you need to predict things like pixel colors (which are generally comprised of 3 channel values), or points in <i>n</i>-dimensional space, or control vectors for systems with several knobs and levers, etc. Of course, it is okay to have a one-column label matrix for solving a boring classification problem too.</p>
+
+<p>All of our supervised learning algorithms will automatically handle classification and/or regression. (Yes, you can even have label vectors that contain a mixture of continuous and categorical values.) How is this possible with algorithms that do not implicitly handle these types? Internally, each model reports its capabilites to the GSupervisedLearner class, and it automatically converts the data into a form that it can handle. For example, if you pass continuous values to GNaiveBayes, it will automatically discretize them, and if you pass nominal values to GNeuralNet, it will automatically represent them with a categorical distribution of real values, and it will also automatically normalize the continuous values to fall within a range that the GNeuralNet model can handle.</p>
+
+<p>So, training a model is as simple as calling the train method.</p>
+<pre>
+	GRand rand(0);
+	GDecisionTree model(&amp;rand);
+	model.train(*pFeatures, *pLabels);
+</pre>
+or
+<pre>
+	GRand rand(0);
+	GKNN model(&amp;rand);
+	model.setNeighborCount(3);
+	model.train(*pFeatures, *pLabels);
+</pre>
+or
+<pre>
+	GRand rand(0);
+	GNeuralNet model(&amp;rand);
+	model.setActivationFunction(new GActivationGaussian(), true);
+	model.addLayer(16);
+	model.train(*pFeatures, *pLabels);
+</pre>
+etc. For a full list of all of our supervised learning algorithms, take a look in the <a href="../apidoc/html/index.html">API docs</a> at the class hierarchy. Expand GTransducer to show all the classes that inherit from it. Then, expand GSupervisedLearner (which inherits from GTransducer) to show all the classes that inherit from it. Also, expand GIncrementalLearner.</p>
+
+<p>To make a prediction using a trained model, just pass one row of features in to the predict method, and the predicted label vector will come out. (pOut must point to an array of doubles big enough to hold the label vector.) Example:</p>
+<pre>
+	double pOut[3];
+	model.predict(pFeatures->row(10), pOut);
+</pre>
+
+
+
+
+
+
+<br>
+<a href="matrices.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="new_learner.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

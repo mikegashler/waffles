@@ -1,0 +1,104 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="dimred.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="collaborative_filtering.html">Next</a>
+
+
+
+
+
+
+
+<h2>Making impressive charts</h2>
+<p>This document will demonstrate how to make an impressive-looking chart for a technical document. (By "impressive", I do not mean a glossy semi-transparent 3-dimensional ray-traced pie chart that masks the fact that it conveys little actual information by distracting the viewer with hot-spots of artificial light glare. I mean a chart that compares useful information in an easy-to-read manner. To me, that's much more impressive.)</p>
+
+<p>For our example, we'll use the well-known diabetes dataset (which you can obtain at <a href="http://mldata.org">MLData.org</a>). We compare two models, naive Bayes and a bagging ensemble of 30 decision trees, at the task of identifying people who are most likely to test positive for diabetes.</p>
+
+<p>Let's start by making a precision/recall graph using naive Bayes. We will use 10 reps to increase the stability of our results:</p>
+<pre>
+	waffles_learn precisionrecall -reps 10 diabetes.arff naivebayes > nb.arff
+</pre>
+
+<p>Now, let's plot this data:
+<pre>
+	waffles_plot scatter nb.arff -lines
+</pre>
+It looks like this:<br>
+<center><img src="nb1.png"></center></p>
+
+<p>Why are there two lines? What do they mean? Let's examine the meta-data:
+<pre>
+	waffles_plot stats nb.arff
+</pre>
+It prints out the following information:
+<pre>
+	Filename: nb.arff
+	Patterns: 100
+	Attributes: 3 (Continuous:3, Nominal:0)
+	  0) recall, Type: Continuous, Mean:0.495, Dev:0.29011492,
+	                               Median:0.495, Min:0, Max:0.99, Missing:0
+	  1) precision__class__tested_negative, Type: Continuous, Mean:0.88991291, Dev:0.084153298,
+	                               Median:0.91548839, Min:0.66742304, Max:1, Missing:0
+	  2) precision__class__tested_positive, Type: Continuous, Mean:0.65757691, Dev:0.095213907,
+	                               Median:0.6887878, Min:0.39450963, Max:0.76638943, Missing:0
+</pre>
+The "waffles_plot scatter" tool uses the first attribute to specify position on the horizontal axis, and plots each subsequent attributes with a unique color. So, in this case, the horizontal axis represents "recall", and the two lines represent precision. The higher line is the precision of the model when trying to identify who has the higest risk for testing negative. The lower line is the precision of the model when trying to identify who has the higest risk for testing positive. As you might expect, identifying the few people most likely to test negative is a much easier task. Unfortunately, it is not a very interesting task, so let's drop that attribute.
+<pre>
+	waffles_transform dropcolumns nb.arff 1 > nb2.arff
+</pre>
+</p>
+
+<p>Next, we will make a similar chart with the other model:</p>
+<pre>
+	waffles_learn precisionrecall -reps 10 diabetes.arff bag 30 decisiontree end > dt.arff
+</pre>
+Since the recall values in both datasets are the same, we can merge them into a dataset:
+<pre>
+	waffles_transform dropcolumns dt.arff 0-1 > dt2.arff
+	waffles_transform mergehoriz nb2.arff dt2.arff > compare.arff
+</pre>
+And let's take a look at our comparison chart.<br>
+<center><img src="compare1.png"></center><br>
+The ensemble of decision trees is apparently better-suited for this task.</p>
+
+<p>Now, let's redo the comparison chart with a few extra parameters to make it pretty. We'll specify a range that we like better than the one it automatically picked. (Note that our new range starts with x=0.1, thus clipping off the far-left side of the chart. This is common practice with precision/recall plots because the far-left side is excessively volatile. If we were really going to publish this, we might use more reps to mitigate this volatility.) We'll also conrol the size of the points, and use some more muted colors:
+<pre>
+	waffles_plot scatter compare.arff -lines -range 0.1 0 1 1 -out compare.png -pointradius 3.5 -linecolors 8080e0 80e080 e08080 e0e080
+</pre></p>
+
+<p>Now, let's suppose that you are actually writing a paper about how some mathematical model relates to these curves. Let's say your mathematical model is: "f(x)=sqrt(0.6-0.45*x^2)". So, let's plot this equation and overlay it on top of our plots. (Note that it is important to use the same range when we plot the equation because the overlay command will not make corrections if you use mismatching ranges. It just places one image directly on top of the other one.)
+<pre>
+	waffles_plot equation -range 0.1 0 1 1 -out eq.png "f1(x)=sqrt(0.6-0.45*x^2)"
+	waffles_plot overlay compare.png eq.png -out compare2.png
+</pre>
+It looks like this:<br>
+<center><img src="compare2.png"></center></p>
+
+<p>To help direct the reader's attention to the important part of the chart, we'll make another chart showing a zoomed-in portion of the image:
+<pre>
+	waffles_plot scatter compare.arff -lines -range 0.1 0.7 0.25 0.85 -out compare3.png\
+		-pointradius 8.5 -linethickness 6.0 -linecolors 8080e0 80e080 e08080 e0e080
+	waffles_plot equation -range 0.1 0.7 0.25 0.85 -out eq2.png "f1(x)=sqrt(0.6-0.45*x^2)"
+	waffles_plot overlay compare3.png eq2.png -out compare4.png
+</pre></p>
+
+<p><b>IMPORTANT:</b> Once you've got things looking the way you want them, don't forget to gather up all of the commands you used, and put them in a script. I know, you think your chart is looking good, and you will never want to change it, but I can almost guarantee that at some future point you will change your mind about something and will want to redo it all. Or, maybe you'll want to do something else that is very similar. This will all be <b>much</b> easier if all you have to do is tweak a script and then run it again. If you don't automate your processes ...well, you can't say I didn't advise you.</p>
+
+<p>Finally, I like to import my charts into Inkscape, so I can add labels with vector graphics. I hate when chart-generators put some kind of key off to the side, and the reader is expected to match symbols from the key with corresponding symbols used to construct lines in the chart. If you want your chart to be easily readable, just put your labels right on top of the chart with a big obvious arrow pointing at the thing you are talking about. Inkscape will save to a .pdf file, which you can use as one of your figures in LaTeX. Behold, the finished product!</p>
+
+<center><img src="chart.png"></center><br>
+
+<p>Admittedly, Inkscape was a significant factor in making this chart look nice, but the Waffles tools enabled us to automate most of the process of making this chart, which is its own kind of impressive.</p>
+
+
+<br>
+<a href="dimred.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="collaborative_filtering.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

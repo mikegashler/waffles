@@ -1,0 +1,76 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="new_learner.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="look_around.html">Next</a>
+
+
+
+
+
+
+
+<h2>Serialization</h2>
+
+<p>In order to write code that will serialize and deserialize your models, you will use the GDom and GDomNode classes (see the <a href="../apidoc/html/index.html">API documentation</a>). These classes enable you to build a document object model (DOM) that can be serialized to a variety of formats, such as <a href="http://json.org">JSON</a>, <a href="http://en.wikipedia.org/wiki/XML">XML</a>, or <a href="http://en.wikipedia.org/wiki/Binary_large_object">BLOb</a>.</p>
+
+<p>Why not just serialize/deserialize your model directly? There are several advantages to using a DOM. Most significantly, it is very easy to build a DOM, and to use one. So, this reduces the burden on the developer. Another advantage is that you can serialize to the format of your choice without having to write special code for it. So, all you need to do is write a method that will convert your model to the DOM, and you can decide later what format to use for serialization.</p>
+
+<p>For example, suppose you have a class like this:
+<pre>
+	class MyClass
+	{
+		string m_name;
+		int m_age;
+		double m_height;
+		bool m_admin;
+		vector&lt;string&gt; m_friends;
+	};
+</pre>
+Here is some code that will marshall this object into a DOM:
+<pre>
+	GDomNode* MyClass::serialize(GDom* pDoc)
+	{
+		GDomNode* pNode = pDoc->newObj();
+		pNode->addField(pDoc, "name", pDoc->newString(m_name.c_str()));
+		pNode->addField(pDoc, "age", pDoc->newInt(m_age));
+		pNode->addField(pDoc, "height", pDoc->newDouble(m_height));
+		pNode->addField(pDoc, "admin", pDoc->newBool(m_admin));
+		GDomNode* pFriends = pNode->addField(pDoc, "friends", pDoc->newList());
+		for(size_t i = 0; i &lt; m_friends.size(); i++)
+			pFriends->addItem(pDoc, pDoc->newString(m_friends[i].c_str()));
+		return pNode;
+	}
+</pre>
+This code will create a DOM with a structure like this:<br>
+<center><img src="dom.png"></center></p>
+<p>By design, each node in the DOM may have child nodes, or it may contain a value, but not both. This forms a natural separation between data (in the leaf nodes) and meta-data (represented by the interior nodes). Since it is bad practice to stuff data values into interior nodes in a DOM anyway, this is a good limitation.</p>
+
+<p>Next, let's write some code that will unmarshall the object from the DOM
+<pre>
+	void MyClass::MyClass(GDomNode* pNode)
+	{
+		m_name = pNode->field("name")->asString();
+		m_age = pNode->field("age")->asInt();
+		m_height = pNode->field("height")->asDouble();
+		m_admin = pNode->field("admin")->asBool();
+		for(GDomListIterator li(pNode->field("friends")); li.current(); li.advance())
+			m_friends.push_back(li.current()->asString());
+	}
+</pre>
+
+
+
+
+
+
+<br>
+<a href="new_learner.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="look_around.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

@@ -1,0 +1,57 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="document_classification.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="demos.html">Next</a>
+
+
+
+
+
+
+
+<h2>Getting Started Writing ML Code</h2>
+
+<p>So, you want to write a C++ program that will perform some machine learning operation using the tools in the GClasses library that is part of Waffles? If so, then you're in the right place. (In this document, I will assume that you are using Linux, that you already have the "make" and "g++" packages installed, that you know the basics of programming in C++, and that you are not afraid of using a command shell.)</p>
+
+<p>First, let's build and install Waffles. This is done by reading the README.txt file and doing what it says to do. Generally, this amounts to:</p>
+<pre>
+	cd waffles/src
+	sudo make install
+</pre>
+
+<p>Perhaps the fastest way to get to writing code is to begin with a working demo. We provide several demo apps in the waffles/demos folder. Generally, you will want to find the demo that is closest to what you are trying to accomplish. If you are trying to do something with machine learning, then there is a good chance that this demo is the one named "hello_ml".</p>
+
+<p>So, let's begin by building that demo.</p>
+<pre>
+	cd waffles/demos/hello_ml/src
+	make
+</pre>
+
+<p>Now, let's run it</p>
+<pre>
+	../bin/hello_mldbg
+</pre>
+
+<p>It will print a bunch of output to the screen. Now let's look at the code and see what all that output is about. So, open "main.cpp" in your favorite text editor.</p>
+
+<p>If your initial reaction is "Yikes! That looks complicated!", then perhaps you should begin with the "hello_console" demo instead. The "hello_console" demo just prints "hello" to the screen. The "hello_ml" demo actually trains some supervised learning algorithms to make some predictions about the flavor and cost of some hypothetical pizzas. If neither of these demos are quite what you're looking for, you might try some of the others.</p>
+
+<p>When you're ready to begin coding, click next to go to the next tutorial.</p>
+
+
+
+
+
+
+
+<br>
+<a href="document_classification.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="demos.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

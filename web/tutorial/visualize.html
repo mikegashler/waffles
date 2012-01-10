@@ -1,0 +1,135 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="formats.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="supervised_examples.html">Next</a>
+
+
+
+
+
+
+
+<h2>Visualizing data</h2>
+<p>One of the first tasks when working with some new data is to try to understand what's in the data, and how it is structured.</p>
+
+<h3>Stats</h3>
+<p>Perhaps the most commom way of visualizing some data is to list some basic stats about each of its attributes. For example, let's take a look at the iris dataset (which you can download from <a href="http://MLData.org">MLData.org</a>).
+<pre>
+	waffles_plot stats iris.arff
+</pre>
+This is one command that you should probably memorize, because you will use it frequently. Here is its output:
+<pre>
+	Filename: iris.arff
+	Patterns: 150
+	Attributes: 5 (Continuous:4, Nominal:1)
+	  0) sepallength, Type: Continuous, Mean:5.8433333, Dev:0.82806613, Median:5.8, Min:4.3, Max:7.9, Missing:0
+	  1) sepalwidth, Type: Continuous, Mean:3.054, Dev:0.43359431, Median:3, Min:2, Max:4.4, Missing:0
+	  2) petallength, Type: Continuous, Mean:3.7586667, Dev:1.7644204, Median:4.35, Min:1, Max:6.9, Missing:0
+	  3) petalwidth, Type: Continuous, Mean:1.1986667, Dev:0.76316074, Median:1.3, Min:0.1, Max:2.5, Missing:0
+	  4) class, Type: Nominal, Values:3, Most Common:Iris-setosa (33.333333%), Entropy: 1.5849625, Missing:0
+	     33.333333% Iris-setosa
+	     33.333333% Iris-versicolor
+	     33.333333% Iris-virginica
+</pre>
+As you can see, it shows some very basic information about each attribute in the dataset.
+</p>
+
+<h3>Overview</h3>
+
+<p>Another common way to look at data is to plot the correlations between various attributes. The following command will generate such a plot for every pair of attributes.
+<pre>
+	waffles_plot overview iris.arff
+</pre>
+<center><img src="iris.png"></center><br>
+Each plot at column <i>i</i>, row <i>j</i>, shows how well the value in attribute <i>i</i> can predict the value in attribute <i>j</i>. (So, if the last attribute is a class label, then the bottom row of the correlation plot matrix is usually the one in which you will be most interested.)</p>
+
+<p>As another example, here are the overview plots from a subset of the attributes in the adult-census.arff dataset. (I only show a subset here because there are a lot of attributes in that dataset.)<br>
+<pre>
+	waffles_plot overview adult-census.arff
+</pre>
+<center><img src="adult-census.png"></center><br>
+Several trends can be immediately observed in these plots. For example, it looks like most of the people in the census made less than $50K. It can be seen that age was somewhat correlated with a greater likelihood of making more than $50K. Those who indicated a marital status of "Married-civ-spouse" were much more likely to make more than $50K than those with other values in this attribute. Those who indicated that their relationship was either "wife" or "husband" were likely to make more than $50K, while those that indicated something else were less likely. It is clear from this chart that the significant majority of the people in the census indicated race to be "white", and that those who indicated "white" or "Asian-Pac-Islander" were more likely to make more than $50K than those with other values. It can be seen that males were more likely than females to make more than $50K. Apparently there were more males than females in this census. It looks like most people worked approximately 40 hours-per-week.</p>
+
+<p>Anyway, the point is, you can tell a lot about a dataset just by examining the overview plots.</p>
+
+<h3>Histograms</h3>
+
+<p>Histograms are a good way to look at the distribution of some data. The following command will draw a million random values from a gamma distribution, and then plot a histogram of it.
+<pre>
+	waffles_generate noise 1000000 -seed 0 -dist gamma 9 2 > gamma.arff
+	waffles_plot histogram gamma.arff
+</pre>
+Here is the output of that command:<br>
+<center><img src="gamma.png"></center></p>
+
+<h3>Model space</h3>
+
+<p>If you have a model that has been trained on some dataset, you might want to visualize that dataset with the trained model. This example will train a neural network (with no hidden layers) on the iris dataset, and will then create a visualization of that model.
+<pre>
+	waffles_learn train -seed 0 iris.arff neuralnet > nn.json
+	waffles_plot model nn.json iris.arff 2 3
+</pre>
+<center><img src="iris_nn.png"></center></p>
+
+<h3>Equations</h3>
+
+<p>You can visualize equations too.
+<pre>
+	waffles_plot equation -range -6 0 6 1 "f1(x) = 1/(1+e^(-x))"
+</pre>
+<center><img src="logistic.png"></center></p>
+
+<p>You can plot multiple equations together. Also, our tools let you define helper functions that you can use within your equations. Example:
+<pre>
+	waffles_plot equation -range -10 0 10 10 "f1(x)=log(x^2+1)+2;f2(x)=\
+	   x^2/g(x)+2;g(m)=10*(cos(m)+pi);f3(x)=sqrt(49-x^2);f4(x)=abs(x)-1"
+</pre></p>
+
+<h3>3D</h3>
+
+<p>You can also plot in 3D:
+<pre>
+	waffles_generate manifold 3000 -seed 1234 "y1(x1, x2) = sin(2 * t(x1));\
+	                      y2(x1, x2) = -2 * cos(t(x1)); y3(x1,x2) = 2 * x2;\
+			      t(x) = 3 * pi * x / 2 + pi / 4" > in.arff
+	waffles_plot 3d in.arff
+</pre>
+<center><img src="intersecting_manifold.png"></center></p>
+
+<h3>Scatter plots</h3>
+
+<p>Of all visualization methods, however, scatter plots may be the most useful of them all.</p>
+<pre>
+	waffles_plot scatter mydata.arff
+</pre>
+This tool assumes that attribute 0 specifies a position on the horizontal axis. All other attributes specify points that should be plotted. By default, each attribute will be plotted with a unique color. You can also specify the "-lines" option to turn it into a line-graph.</p>
+
+<p>If your data lacks an attribute that specifies position on the horizontal axis, you can add one, and then plot it.
+<pre>
+	waffles_transform addindexcolumn mydata.arff > ready_for_scatter_plot.arff
+	waffles_plot scatter mydata.arff -lines
+</pre></p>
+
+<p>This tool can handle logarithmic scales, and a plethora of other useful options. To see all available options, take a look at the usage information.
+<pre>
+	waffles_plot usage
+</pre></p>
+
+<h3>etc.</h3>
+
+<p>There are a few other visualization techniques available. For a complete list, see the usage information for the waffles_plot tool.</p>
+
+
+
+
+<br>
+<a href="formats.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="supervised_examples.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

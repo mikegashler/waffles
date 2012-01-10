@@ -1,0 +1,199 @@
+<html>
+<head>
+	<link rel="stylesheet" type="text/css" href="images/style.css">
+	<title>Waffles</title>
+</head>
+<body leftmargin="0" topmargin="0" style="margin-left: 0px; margin-top: 0px;" alink="#000080" bgcolor="#ffffff" link="#004080" text="#000000" vlink="#000080">
+<table border="0" cellpadding="0" cellspacing="0" width="1100">
+<tr>
+	<td background="images/bar.png">
+		<img src="images/bar.png">
+	</td>
+</tr>
+<tr>
+	<td bgcolor="#e4e0d0">
+		<table border="0" cellpadding="0" cellspacing="0">
+		<tr>
+			<td>
+				<img src="images/logo.jpg" border="0">
+			</td>
+			<td>
+				<table cellpadding="6"><tr><td>
+				<b>
+				A collection of command-line tools for researchers in machine
+				learning, data mining, and related fields.
+				All of the functionality is also provided in a clean C++ class library.
+				Demo apps are included to show how to use the class library.
+				</b><br>
+				by: Mike Gashler<br><br>
+				<table><tr><td>Builds on 32 and 64-bit platforms, including Linux, Windows, OSX, etc.<br>Distributed under the LGPL license.</td><td>
+					<img src="images/linux.png">
+					<img src="images/win32.png">
+					<img src="images/macosx.png">
+				</td></tr></table>
+				<br>
+				If you're looking for a Java web framework, you probably want <a href="http://waffle.codehaus.org/">Waffle</a>.<br>
+				If you're looking for waffles recipes, <a href="http://www.google.com/search?q=waffles+recipes">try here</a>.<br>
+				</font>
+				</td></tr></table>
+			</td>
+		</tr>
+		</table>
+	</td>
+</tr>
+<tr>
+	<td background="images/bar.png">
+		<img src="images/bar.png">
+	</td>
+</tr>
+</table>
+<table border="0" cellpadding="8" cellspacing="0" width="1100">
+<tr>
+	<td bgcolor="#e4e0d0" valign="top" width="160">
+		<br>
+
+		<a href="docs.html"><b>Documentation</b></a><br>
+		<a href="changelog.html"><b>Change Log</b></a><br>
+		<a href="http://sourceforge.net/projects/waffles/files"><b>Download</b></a><br>
+		<a href="http://sourceforge.net/projects/waffles/forums"><b>Forums</b></a><br>
+
+		<p align="center">
+		<br><br>
+		<b>Main Developers:</b><br><br>
+		Mike Gashler<br>
+		<img src="images/email.png"><br><br>
+		Eric Moyer<br>
+		<img src="images/email_eric.png"><br><br>
+
+		<br><br><br>
+		<b>Contributors:</b><br>(of bug-fixes, small improvements, helpful suggestions, etc.)
+		<ul>
+			<li>Desire' Gashler</li> <!-- Took care of many issues so that I could code, and did a small amount of coding too -->
+			<li>Kevin Kemp</li>
+			<li>Helaman Ferguson</li> <!-- Helped me port it to the Mac -->
+			<li>Roger Pack</li> <!-- Made a few bug fixes, and did some work on the HTTP class -->
+			<li>Marcelo Hashimoto</li>
+			<li>Jean-Pierre Moreau</li> <!-- Contributed code for linear programming -->
+			<li>Olaf Krzikalla</li> <!-- Fixed a bug in KdTree_Compare_Nodes_Functor -->
+			<li>Ivan Yanikov</li> <!-- Submitted a patch to improve range checking, and fix an uninitialized values bug -->
+			<li>Greg Sharp</li>
+			<li>Dmitriy Krylov</li> <!-- Made a feature suggestion (GDom::writeJsonCpp) and made Waffles build on FreeBSD -->
+			<li>Will Bendick</li> <!-- Reported a compile issue with g++ 4.6 and helped fix it -->
+		</ul>
+		</p>
+		<br><br>
+		<p align="center">
+		Thanks for the <b>generous support</b> from the <a href="http://axon.cs.byu.edu">Neural Networks and Machine Learning Lab</a> at:<br>
+		<a href="http://cs.byu.edu"><img src="images/BYU_logo.png" height="100" width="100"></a>
+		<br><br><br>
+		Thanks for the free <b>project hosting</b> provided by:<br>
+		<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
+		<br>
+		<br>
+		<br>
+		Thanks to the GNU project for developing Linux, g++, other tools used to develop this code, and the LGPL license, which this project uses:<br>
+		<a href="http://www.gnu.org/copyleft/lesser.html">
+
+			<font color="#ffffff">
+
+			<img src="images/gnu.png" alt="Gnu" border="0">
+		</font>
+		</a>
+		<br><br>
+		Image compression by:<br>
+		<a href="http://www.libpng.org/pub/png/">
+			<img src="images/png.png" border="0" height="31" width="88">
+
+		</a><br><br>
+
+		Some of the demo apps use:<br>
+		<a href="http://www.libsdl.org/">
+			<img src="images/sdl.png" border="0" height="55" width="127"></a><br>
+		<br>
+		<br>
+
+		</p>
+	</td>
+	<td bgcolor="#f4f0e5" valign="top">
+
+<br>
+<p><b><i>Waffles</i></b> seeks to be the world's most comprehensive collection of command-line tools for
+machine learning and data mining. Our native tools have minimal dependencies (no interpreter, VM, or runtime
+environment is necessary), and build cross-platform. If you have a useful data mining tool that meets
+these criteria, we want it in <b><i>Waffles</i></b>.</p>
+<br><br>
+
+<p>In contrast with other machine learning toolkits, the major strengths of <b><i>Waffles</i></b> include:
+
+<ul>
+	<li>Waffles <i>just works</i> in more situations:
+		<ul>
+			<li>All of our supervised learners support both classification and regression.</li>
+			<li>All of them implicitly support multi-dimensional labels.</li>
+			<li>Developing learning algorithms for <b><i>Waffles</i></b> is easier because:
+				<ul>
+					<li>It automatically imputes missing values if your algorithm is not robust to missing values.</li>
+					<li>It automatically discretizes data if your algorithm only supports discrete values.</li>
+					<li>It automatically converts nominal values to categorical distributions if your algorithm only supports continuous values.</li>
+					<li>When necessary, Waffles algorithms automatically normalize and denormalize data to fall within the ranges expected by particular algorithms.</li>
+					<li>It automatically converts predicted values back to their original form, so the user can freely operate on arbitrary data with any algorithm.</li>
+				</ul>
+			</li>
+		</ul>
+	</li>
+	<li>Waffles algorithms can automatically tune their own parameters.</li>
+	<li>Waffles is especially rich in dimensionality reduction techniques, but also provides numerous supervised learning algorithms, collaborative filtering algorithms, data transformations, linear-algebraic operations, optimization methods, data generation tools, visualization tools, etc.</li>
+	<li>Waffles tools are fast because they are developed as native applications.</li>
+	<li>Waffles does not depend on any platform or virtual machine, so it will not limit your distribution options.</li>
+	<li>Waffles is distributed under the permissive LGPL license.</li>
+	<li>Waffles apps are script-friendly, and are designed to be used with automated processes.</li>
+	<li>Waffles apps are thin wrappers around functionality in a well-documented C++ class library.</li>
+</ul></p>
+
+<br><br>
+<p><b><i>Waffles</i></b> might be described as <i>"Machine Learning meets the Unix philosophy"</i>. We are trying to do for machine learning what Image Magick has done for image processing. That is, we try to keep it simple by providing a big range of functionality in the form of easy-to-use command-line tools. You are free to mix tools from other packages in with ours. You are free to mix your own custom tools with ours. You are free to write scripts that automate your experiments. You are free to use our tools in ways that we could not foresee.</p>
+
+<p>What if you like GUIs because you don't like memorizing commands? No worries! <b><i>Waffles</i></b> contains a graphical wizard tool that will guide you through forms to generate the command that will do exactly what you want...</p>
+
+<center><img src="tutorial/wizard.png"></center>
+
+<p>...but you will never get "locked-in" to this GUI, because it prints out the command that will perform the desired task. You can paste this command into a shell to do the job immediately, or you can paste it into a script that will automate your processes.</p>
+
+<p>Want to know more? Take a look at our <a href="docs.html">documentation</a>.</p>
+
+<br><br>
+You can reference <b><i>Waffles</i></b> with the following citation:<br><br>
+
+Michael S. Gashler. <a href="http://www.jmlr.org/papers/volume12/gashler11a/gashler11a.pdf"><i>Waffles</i>: A machine learning toolkit.</a> <i>Journal of Machine Learning Research</i>, MLOSS 12:2383-2387, July 2011. ISSN 1532-4435.
+
+<br><br>Bibtex:<br>
+<pre>
+@article{gashler_waffles,
+	author={Gashler, Michael S.},
+	title={Waffles: A Machine Learning Toolkit},
+	journal={Journal of Machine Learning Research},
+	volume={MLOSS 12},
+	pages={2383--2387},
+	month={July},
+	year={2011},
+	issn={1532-4435},
+	publisher={JMLR.org and Microtome Publishing},
+	url={http://www.jmlr.org/papers/volume12/gashler11a/gashler11a.pdf}
+}</pre>
+
+<br><br>
+If you need help, you are welcome to post to our <a href="http://sourceforge.net/projects/waffles/forums">forum</a>. If you would like to suggest a particular feature, please send email to <img src="images/email.png">. If you want it before a certain deadline, you might consider offering to help fund my research =). If you find a bug, just send me an email. I'll switch to a bug-tracking system if enough bugs are reported. I want to hear about all bugs, even small ones, documentation errors, and little annoyances.<br><br>
+
+If Waffles is not for you, you can find lots of other great open source machine learning toolkits at <a href="http://mloss.org">MLOSS.org</a>.
+	</td>
+</tr>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" width="1100">
+<tr>
+	<td background="images/bar.png">
+		<img src="images/bar.png">
+	</td>
+</tr>
+</table>
+</body>
+</html>
