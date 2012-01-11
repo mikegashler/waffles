@@ -1,0 +1,1 @@
+This file is a placeholder, so git will create the folder in which it resides.
