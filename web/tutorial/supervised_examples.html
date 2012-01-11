@@ -1,0 +1,261 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="visualize.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="dimred.html">Next</a>
+
+
+
+
+
+
+
+<h2>Examples of supervised learning</h2>
+<p>This document shows examples of using supervised learning algorithms.</p>
+
+<h3>Train a decision tree</h3>
+<p>First, let's train a decision tree model using the zoo dataset. (You can get zoo.arff and many other datasets at <a href="http://MLData.org">MLData.org</a>.) With this dataset, attribute 0 contains enough information to fully solve the problem. That's no fun, so we will ignore attribute 0 during training.</p>
+<pre>
+	waffles_learn train zoo.arff -ignore 0 decisiontree > dt.json
+</pre>
+<p>Now, let's take a look at the decision tree that it has built.</p>
+<pre>
+	waffles_plot printdecisiontree dt.json zoo.arff -ignore 0
+</pre>
+It will output the following:
+<pre>
+	What is the value of milk?
+	  false -> What is the value of feathers?
+	    false -> What is the value of backbone?
+	      false -> What is the value of airborne?
+	        false -> What is the value of predator?
+	          false -> Is legs &lt; 3?
+	            Yes -> type=invertebrate
+	            No -> type=insect
+	          true -> type=invertebrate
+	        true -> type=insect
+	      true -> What is the value of fins?
+	        false -> What is the value of aquatic?
+	          false -> type=reptile
+	          true -> What is the value of eggs?
+	            false -> type=reptile
+	            true -> type=amphibian
+	        true -> type=fish
+	    true -> type=bird
+	  true -> type=mammal
+</pre>
+
+<h3>Cross validation</h3>
+
+<p>Now, let's test some supervised learning algorithms. We'll use 50x2 cross-validation to test
+the predictive accuracy of various models on the iris dataset. We'll do it with
+baseline (which always predicts the most common class), a decision tree,
+an ensemble of 30 decision trees, a 3-NN instance learner, a 5-NN instance learner,
+naive bayes, a perceptron, and a neural network with one hidden layer of 4 nodes.
+(Some other models are available that are not demonstrated here. Some of our models are
+better than others for certain tasks, but all of them can be used for classification
+or regression, and all of them will support nominal and/or continuous values automatically.)</p>
+
+<pre>
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff baseline
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff decisiontree
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff bag 30 decisiontree end
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff knn -neighbors 3
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff knn -neighbors 5
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff naivebayes
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff neuralnet
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff neuralnet -addlayer 4
+</pre>
+
+<p>As an example, the output with the 5-nn model is:</p>
+<pre>
+	Rep: 0, Fold: 0, Accuracy: 0.97333333333333
+	Rep: 0, Fold: 1, Accuracy: 0.89333333333333
+	Rep: 1, Fold: 0, Accuracy: 0.98666666666667
+	Rep: 1, Fold: 1, Accuracy: 0.96
+	Rep: 2, Fold: 0, Accuracy: 0.96
+	Rep: 2, Fold: 1, Accuracy: 0.94666666666667
+
+	...
+
+	Rep: 47, Fold: 0, Accuracy: 0.94666666666667
+	Rep: 47, Fold: 1, Accuracy: 0.96
+	Rep: 48, Fold: 0, Accuracy: 0.98666666666667
+	Rep: 48, Fold: 1, Accuracy: 0.96
+	Rep: 49, Fold: 0, Accuracy: 0.98666666666667
+	Rep: 49, Fold: 1, Accuracy: 0.98666666666667
+	-----
+	Attr: 4, Mean predictive accuracy: 0.96226666666667, Deviation: 0.019238476224803
+</pre>
+
+<p>Incidentally, you might be wondering why I use 50x2 cross-validation instead of the more common 1x10 cross-validation. It turns out that the latter is more prone to type-II error. To prove this, try both of the following commands:
+<pre>
+	waffles_learn crossvalidate -reps 1 -folds 10 iris.arff baseline
+
+	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff baseline
+</pre>
+Since the baseline algorithm always predicts the most common class label, and since the iris dataset has three class labels in equal proportion, the correctly-measured accuracy of baseline should come out to about 0.33333. As you can see by trying those two commands, 10-fold cross-validation incorrectly measures the accuracy as being somewhat lower. 2-fold cross-validation is less prone to this error, but it is more volatile. Thus, I like to perform many reps of 2-fold cross-validation to get an accurate estimate of predictive accuracy.</p>
+
+<h3>Neural networks</h3>
+
+<p>Let's do an example of learning with a neural network, since this model supports a lot of potential parameters. I like to begin by entering an incomplete command.
+<pre>
+	waffles_learn crossvalidate lungCancer.arff neuralnet -asdf
+</pre>
+What does the "-asdf" flag do? Nothing. It is an error. I added a bogus flag to the end to make sure that it would fail to parse my command, and would print out the usage information for the neuralnet model. Here is what it prints:
+<pre>
+	Invalid neuralnet option: -asdf                                              
+	
+	Partial Usage Information:
+	
+	neuralnet <options>
+	   A single or multi-layer feed-forward neural network. It is trained with
+	   online backpropagation. Only continuous values are supported, so it is 
+	   common to wrap it in a nominaltocat filter so it can handle discrete   
+	   attributes too. It is also common to wrap that in a normalizing filter, to
+	   ensure that any continuous inputs are within a reasonable range.          
+	   <options>                                                                 
+	      -addlayer [size]                                                       
+	         Add a hidden layer with "size" logisitic units to the network. You may
+	         use this option multiple times to add multiple layers. The first layer
+	         added is adjacent to the input features. The last layer added is      
+	         adjacent to the output labels. If you don't add any hidden layers, the
+	         network is just a single layer of sigmoid units.                      
+	      -learningrate [value]                                                    
+	         Specify a value for the learning rate. The default is 0.1             
+	      -momentum [value]                                                        
+	         Specifies a value for the momentum. The default is 0.0                
+	      -windowepochs [value]                                                    
+	         Specifies the number of training epochs that are performed before the 
+	         stopping criteria is tested again. Bigger values will result in a more
+	         stable stopping criteria. Smaller values will check the stopping      
+	         criteria more frequently.                                             
+	      -minwindowimprovement [value]                                            
+	         Specify the minimum improvement that must occur over the window of    
+	         epochs for training to continue. [value] specifies the minimum        
+	         decrease in error as a ratio. For example, if value is 0.02, then     
+	         training will stop when the mean squared error does not decrease by   
+	         two percent over the window of epochs. Smaller values will typically  
+	         result in longer training times.                                      
+	      -dontsquashoutputs                                                       
+	         Don't squash the outputs values with the logistic function. Just      
+	         report the net value at the output layer. This is often used for      
+	         regression.                                                           
+	      -crossentropy                                                            
+	         Use cross-entropy instead of squared-error for the error signal.
+	      -activation [func]
+	         Specify the activation function to use with all subsequently added
+	         layers. (For example, if you add this option after all of the
+	         -addlayer options, then the specified activation function will only
+	         apply to the output layer. If you add this option before all of the
+	         -addlayer options, then the specified activation function will be used
+	         in all layers. It is okay to use a different activation function with
+	         each layer, if you want.)
+	         logistic
+	            The logistic sigmoid function. (This is the default activation
+	            function.)
+	         arctan
+	            The arctan sigmoid function.
+	         tanh
+	            The hyperbolic tangeant sigmoid function.
+	         algebraic
+	            An algebraic sigmoid function.
+	         identity
+	            The identity function. This activation function is used to create a
+	            layer of linear perceptrons. (For regression problems, it is common
+	            to use this activation function on the output layer.)
+	         bidir
+	            A sigmoid-shaped function with a range from -inf to inf. It
+	            converges at both ends to -sqrt(-x) and sqrt(x). This activation
+	            function is designed to be used on the output layer with regression
+	            problems intead of identity.
+	         gaussian
+	            A gaussian activation function
+	         sinc
+	            A sinc wavelet activation function
+	
+	To see full usage information, run:
+	        waffles_learn usage
+	
+	For a graphical tool that will help you to build a command, run:
+	        waffles_wizard
+</pre>
+(If intentionally causing an error in order to obtain useful info makes you feel uncomfortable, you can also find this same information by doing either of the two commands suggested at the end of that error message.)</p>
+
+<p>So now, using the helpful usage information that was just printed, we put together a command.
+<pre>
+	waffles_learn crossvalidate -seed 0 lungCancer.arff neuralnet -activation arctan -addlayer 100\
+	               -learningrate 0.2 -momentum 0.8 -minwindowimprovement 0.00001 -windowepochs 500
+</pre>
+<p>The mean accuracy that I get is 0.481. That might not sound very good, but this is a rather hard problem. For comparison, let's see how random forest does with this dataset:
+<pre>
+	waffles_learn crossvalidate -seed 0 lungCancer.arff bag 64 decisiontree -random 1 end
+</pre>
+It gets 0.338. It looks like the neural net actually did pretty well after all. In the hands of an expert, neural networks can be extremely powerful models. Unfortunately, they have a lot of parameters. In the hands of a novice, ensembles of decision trees are often a very good choice.</p>
+
+<p>So, now that we've found a pretty good set of parameters, let's train a generalizing model.
+<pre>
+	waffles_learn train lungCancer.arff neuralnet -activation arctan -addlayer 100 -learningrate 0.2\
+	              -momentum 0.8 -minwindowimprovement 0.00001 -windowepochs 500 > model.json
+</pre></p>
+
+<h3>Transduction</h3>
+
+<p>Some learning algorithms do not have a model. Such algorithms cannot be trained, but they can still be used to transduce. That is, they follow the patterns established by a labeled set to predict suitable labels for an unlabeled set. Let's take a look at some of these algorithms. In this example, we'll use the sonar dataset, which you can download from the <a href="http://MLData.org">usual place</a>.</p>
+
+<p>First, let's shuffle the data, and then split it into two parts:
+<pre>
+	waffles_transform shuffle sonar.arff > s_shuffled.arff
+	waffles_transform split s_shuffled.arff 100 s1.arff s2.arff
+</pre></p>
+
+<p>Next, we'll test the transductive accuracy using three different transduction algorithms. (Transduction can also be done with regular supervised learning models, so we'll throw in a couple of those at the end too.)
+<pre>
+	waffles_learn transacc -seed 0 s1.arff s2.arff agglomerativetransducer
+	waffles_learn transacc -seed 0 s1.arff s2.arff graphcuttransducer -neighbors 5
+	waffles_learn transacc -seed 0 s1.arff s2.arff neighbortransducer -neighbors 5
+	waffles_learn transacc -seed 0 s1.arff s2.arff decisiontree
+	waffles_learn transacc -seed 0 s1.arff s2.arff knn -neighbors 5
+</pre>
+The first three algorithms transduce directly from s1.arff to predict labels for s2.arff without ever creating a model. The "decisiontree" and "knn 5" models just train on s1.arff, then test with s2.arff, and then throw away their models.
+</p>
+
+<p>The accuracies that I get are 0.741, 0.75, 0.75, 0.667, and 0.722 respectively. It looks like "graphcuttransducer 5" and "neighbortranducer 5" are tied for the most accurate algorithm. The latter was somewhat faster, however, so I think that makes it the winner. So now let's do transduction to predict labels using that algorithm.
+<pre>
+	waffles_learn transduce s1.arff s2.arff neighbortransducer 5
+</pre></p>
+
+<h3>Ensembles</h3>
+
+<p>One of the most popular ensemble methods is bagging. Here is an example of using a bagging ensemble with 100 decision trees that use random divisions:
+<pre>
+	waffles_learn crossvalidate iris.arff bag 100 decisiontree -random 1 end
+</pre></p>
+
+<p>Of course, you can also put other things in the bag besides decision trees:
+<pre>
+	waffles_learn crossvalidate iris.arff bag 1 decisiontree 1 naivebayes 1 knn 5 1 knn 3 end
+</pre></p>
+
+<p>Another popular ensemble is a bucket. Buckets uses cross-validation to select the best model in the bucket for the specified task.
+<pre>
+	crossvalidate iris.arff bucket decisiontree meanmarginstree naivebayes knn 3 knn 5 naiveinstance 32 end
+</pre>
+If you've got computing cycles to burn, you might as well throw lots of models in the bucket, and you're sure to get high accuracy on every problem.</p>
+
+<p>You can even put bags in your buckets, and vice versa. The following model seems to be quite powerful.
+<pre>
+	waffles_learn crossvalidate iris.arff bucket bag 64 decisiontree end\
+	    bag 64 decisiontree -random 1 end bag 64 meanmarginstree end end
+</pre></p>
+
+<br>
+<a href="visualize.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="dimred.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

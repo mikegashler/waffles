@@ -1,0 +1,6 @@
+Bullet is a 3D Collision Detection and Rigid Body Dynamics Library for games and animation.
+It was not written by Mike Gashler. See the AUTHORS file. It is included in this package
+because some of my demos depend on it, and binary versions of the Bullet libraries are not
+yet conveniently available in the package repositories of the common distros. This may be
+an outdated version. Be sure to get the latest version if you plan to use it in your
+projects.

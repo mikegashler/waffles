@@ -1,0 +1,182 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="overview.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="mac.html">Next</a>
+
+
+
+
+
+
+
+<h2>Building on Linux</h2>
+
+<ol>
+	<li>Install the following dependency packages:
+		<ul>
+			<li>g++</li>
+			<li>make</li>
+			<li>libpng12-dev</li>
+		</ul>
+		If you use Debian or Ubuntu, this command will install these packages:
+<pre>
+	sudo apt-get install g++ make libpng12-dev
+</pre>
+	<li>Next, build and install the Waffles tools:
+<pre>
+	cd waffles/src
+	sudo make install
+</pre></li>
+	<li>If you want to build the demo apps, then also install these packages:
+		<ul>
+			<li>libsdl1.2-dev</li>
+			<li>freeglut3-dev</li>
+			<li>libx11-dev</li>
+			<li>libssl-dev</li>
+		</ul>
+	and then do:
+<pre>
+	cd ../demos
+	make opt
+</pre></li>
+</ol>
+
+<br><br><br>
+<h3>Troubleshooting</h3>
+
+<span style="font-weight: bold;">
+                I get a compiler error in GImage.cpp about png.h not found.
+</span><br><div style="margin-left: 40px;">
+		You need to install the libpng3-dev package.
+</div><br><br>
+
+<span style="font-weight: bold;">
+                I get a compiler error about sdl-config not found,
+                or SDL/SDL.h not found.
+</span><br><div style="margin-left: 40px;">
+		You need to install the libsdl1.2-dev package.
+</div><br><br>
+
+<span style="font-weight: bold;">
+	How do I build optimized binaries?
+</span><br><div style="margin-left: 40px;">
+	make opt
+</div><br><br>
+
+<span style="font-weight: bold;">
+	How do I build binaries with debug symbols?
+</span><br><div style="margin-left: 40px;">
+	make dbg
+</div><br><br>
+
+<span style="font-weight: bold;">
+	I'm trying to link GClasses.a with my app, and I get a linker error about png stuff not being found.
+</span><br><div style="margin-left: 40px;">
+	You need to add "-lpng" after "GClasses.a" to your linking command. Yes, order matters on this line.
+</div><br><br>
+
+<span style="font-weight: bold;">
+	I get build errors that look something like this:
+	<pre>
+		../../obj/GClasses/dbg/GError.d:3: warning: overriding commands for target `GError.o'
+		../../obj/GClasses/opt/GError.d:3: warning: ignoring old commands for target `GError.o'
+	</pre>
+</span><br><div style="margin-left: 40px;">
+	Try doing "make clean". That always fixes it for me. I cannot seem to figure out what causes this to happen. I think it has something to do with two concurrent processes writing to the ".d" file, but I don't know why that would happen. If you know a better solution, I'd love to hear about it.
+</div><br><br>
+
+<span style="font-weight: bold;">
+	How do I uninstall Waffles?
+</span><br><div style="margin-left: 40px;">
+	sudo make uninstall
+</div><br><br>
+
+<span style="font-weight: bold;">
+	Where can I get more specific help?
+</span><br><div style="margin-left: 40px;">
+	You can ask a question at our <a href="http://sourceforge.net/projects/waffles/forums">forum</a>. If you
+	post a question and you do not get a speedy response, please email me. Sometimes the email that is supposed
+	to notify me that there is a new forum post is incorrectly classified as spam and discarded. (That's ironic,
+	since I'm trying to develop better ML algorithms, isn't it?) My email address is on the main page.
+</div><br><br>
+
+<span style="font-weight: bold;">
+	Why isn't Waffles in the apt-get/yum repositories?
+</span><br><div style="margin-left: 40px;">
+	There's a lot of red-tape involved in getting an  
+                app into those repositories, and I'm too busy developing
+                Waffles to bother with it. If you would like to become  
+                a package maintainer and do it, that would be a great   
+                contribution, and I would really appreciate it.
+</div><br><br>
+
+<span style="font-weight: bold;">
+	How do I change the installation target directory?
+</span><br><div style="margin-left: 40px;">
+	Just change the "INSTALL_LOCATION_" variables at  
+                the top of waffles/src/Makefile.
+</div><br><br>
+
+<span style="font-weight: bold;">
+	How do I build Waffles on a machine where I do not
+                have sudo or root permissions?
+</span><br><div style="margin-left: 40px;">
+	Just do "make opt" instead of "sudo make install".
+                This will build everything, but will not install it. 
+                You can run the binaries right out of the bin folder.
+                Alternatively, you could change the install location 
+                as described in the previous question.
+</div><br><br>
+
+<span style="font-weight: bold;">
+	Why do you include the build dependencies for Windows,
+                but not for Linux?
+</span><br><div style="margin-left: 40px;">
+	It is easy for Linux developers to get the            
+	dependencies from package repositories. This method      
+	is superior anyway because you get the latest versions.
+	Windows users often require a little extra hand-holding,
+	so I have made it extra convenient for them at the cost
+	of linking to outdated libraries, etc.
+
+</div><br><br>
+
+<span style="font-weight: bold;">
+	When I run some of the graphical apps, I get an
+                error message about a "bad adaptive filter type" or
+                "extra compressed data".
+</span><br><div style="margin-left: 40px;">
+	This appears to be caused by an old bug in the 
+                libpng3-dev package. It does not repro with newer 
+                versions. You should probably update your distro.
+</div><br><br>
+
+
+<span style="font-weight: bold;">
+	How do I debug a Waffles app with KDevelop?
+</span><br><div style="margin-left: 40px;">
+	If you use KDevelop3, go to "Project-&gt;Import Existing Project". After you run
+	through the wizard, go to "Project-&gt;Project
+	Options-&gt;Run Options" and fix the name of the executable binary. (The executable binary is in the bin folder, not the src folder. Use the binary that ends with "dbg". The one that doesn't end with dbg is the optimized one.)<br>
+
+	If you use KDevelop4, go to "Project-&gt;Open/Import Project". Choose the Makefile for the app you want to debug.
+	Next, go to "Run-&gt;Configure Launches". Click on the name of the app. Click on the green plus sign. Specify the right executable binary.
+	(The executable binary is in the bin folder, not the src folder. Use the binary that ends with "dbg". The one that doesn't end with dbg is the optimized one.)
+</div><br><br>
+
+
+
+                         
+
+
+<br>
+<a href="overview.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="mac.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

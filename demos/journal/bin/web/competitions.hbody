@@ -1,0 +1,14 @@
+<h1>Competition Specifications</h1>
+
+<p>Please click on a competition to see the specification:</p>
+
+<ul>
+	<li>Classification predictive accuracy</li>
+	<li>Area under ROC curve with binary classification sets</li>
+	<li>Classification of hand-written numbers</li>
+	<li>Precision-recall with multi-class data</li>
+	<li>Efficient classification with large datasets</li>
+	<li>Incremental/stream learning tests</li>
+	<li>Active learning tests</li>
+	<li>Robustness to irrelevant features tests</li>
+</ul>

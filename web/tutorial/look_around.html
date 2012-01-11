@@ -1,0 +1,48 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="serialization.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
+
+
+
+
+
+<h2>Looking around</h2>
+
+<p>This document hilights some of the more important tools that you will find to work with in this library.</p>
+
+<p>One of the most common operations in machine learning is to optimize something. The GOptimizer class provides a base class for optimization techniques. Some of the classes that inherrit from GOptimizer include GBruteForceSearch, GAnnealing, GEvolutionaryOptimizer, GHillClimber, GParticleSwarm, GRandomSearch, etc. In order to use these classes for optimization, you must create a class that inherits from GTargetFunction. Your task for the target function is to evaluate the error associated with a candidate vector. You can then plug in any of these optimization techniques to try to find a vector that evaluates to have low error for your particular task. Since some optimizers are better suited for some tasks than others, you might as well try them all and go with the one that works the best. (In my experience, evolutionary optimization is used with more applications than it deserves, and hill climbing often produces surprisingly better results than many people expect. Of course, your mileage may vary, depending on the applications to which you apply it.)</p>
+
+<p>Clustering algorithms inherit from the GClusterer class, which inherits from GTransform. These include GAgglomerativeClusterer, GKMeans, and GKMedoids. These classes all take a matrix as input, and return a class id for each row in the matrix.</p>
+
+<p>Non-linear Dimensionality Reduction algorithms inherit from GManifoldLearner, which also inherits from GTransform. These include GIsomap, GLLE, GManifoldSculpting, and a few others. These methods take a matrix as input, and return a corresponding matrix with fewer columns.</p>
+
+<p>Some other particularly useful classes include GPCA, which implements principal component analysis, and GAttributeSelector, which removes the least salient attributes one-at-a-time, until it can identify the attributes that are most salient for predicting the labels.</p>
+
+<p>Collaborative filtering algorithms inherrit from the GCollaborativeFilter class. These classes are used for building a recommendation system, or for intelligently filling in missing values in data.</p>
+
+<p>Neighbor-finding algorithms inherrit from the GNeighborFinder class. These include GBruteForceNeighborFinder, GKdTree (which finds the nearest neighbors more efficiently), and a few algorithms for intelligently selecting neighbors according to various criteria.</p>
+
+<p>Several graph-based algorithms are provided in the GGraphCut, GFloydWarshall, GDijkstra, GBrandesBetweennessCentrality, and GCycleCut classes.</p>
+
+<p>The GRand class is a particularly useful pseudo-random number generator. It provides methods to draw random values from a plethora of distributions. Implementations of various common statistical distributions are also implemented. These inherrit from GDistribution.</p>
+
+<p>The GPlotWindow and GImage classes are particularly useful for creating visualizations of data.</p>
+
+<p>Many other useful classes are provided for a variety of specific machine learning operations. For a complete list of implemented algorithms, see the <a href="../apidoc/html/index.html">API documentation</a>.</p>
+
+
+
+
+
+<br>
+<a href="serialization.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

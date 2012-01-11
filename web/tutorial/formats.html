@@ -1,0 +1,101 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="../command/transform.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="visualize.html">Next</a>
+
+
+
+
+
+
+
+<h2>Data formats</h2>
+<p>One of your first tasks may be to get your data into a format that our tools can operate on.</p>
+
+<h3>Converting to ARFF forrmat</h3>
+
+<p>Our preferred format for data is <a href="http://www.cs.waikato.ac.nz/~ml/weka/arff.html">ARFF</a>. This format is basically just a text file of comma-separated values, with a little bit of extra meta-data to give meaning to the data. Here is a simple example of some data in ARFF format:
+<pre>
+	@RELATION mydata
+	@ATTRIBUTE age continuous
+	@ATTRIBUTE gender {male,female}
+	@ATTRIBUTE hair {blonde,red,brown,black,none}
+	@ATTRIBUTE weight continuous
+	@DATA
+	18, male,   red, 152
+	84, male,   none, 138
+	42, female, blonde, 168
+	48, male,   black, 341
+	5,  female, brown, 49
+	24, female, red, 140
+</pre></p>
+
+<p>If your data is not in ARFF format, do not despair. We can work with other formats too. The following command will convert a simple text file of comma-separated values to ARFF format by automatically determining the meta-data.
+<pre>
+	waffles_transform import mydata.csv > mydata.arff
+</pre>
+If your data is separated by tabs, instead of spaces, we can handle that too.
+<pre>
+	waffles_transform import mydata.csv -tabs > mydata.arff
+</pre>
+or whitespace
+<pre>
+	waffles_transform import mydata.csv -whitespace > mydata.arff
+</pre>
+or semicolons
+<pre>
+	waffles_transform import mydata.csv -semicolon > mydata.arff
+</pre>
+etc.</p>
+
+<h3>Octave (or Matlab) example</h3>
+
+<p>Suppose you are familiar with Octave (or Matlab), but you want to use Waffles to do something with your data. Here's how you could do it. First, let's export your data, y, from Octave:
+<pre>
+	save -ascii y.txt y
+</pre>
+Next, we'll convert it to ARFF format:
+<pre>
+	waffles_transform import y.txt -whitespace > y.arff
+</pre>
+Now, use Waffles to do something with your data. There are many things you could do. Here is a random example:
+<pre>
+	waffles_dimred breadthfirstunfolding y.arff kdtree 18 2 -reps 20 > x.arff
+</pre>
+Then, we'll convert the results back to the Octave format:
+<pre>
+	waffles_transform export x.arff -tab > x.txt
+</pre>
+Finally, go back into Octave and load your data:
+<pre>
+	load x.txt
+</pre>
+
+<h3>Manipulating data</h3>
+
+<p>Maybe you'll need to tweak your dataset a little bit. We provide tools to drop columns, swap columns, fill in missing values, sort in a particular column, shuffle rows, and numerous other useful transformations. Here are a few examples. Hopefully, the command itself is sufficiently clear to describe what it does.
+<pre>
+	waffles_transform dropcolumns diabetes.arff 0,2-5,7
+	waffles_transform swapcolumns mydata.arff 0 3
+	waffles_transform replacemissingvalues mydata.arff
+	waffles_transform sortcolumn mydata.arff 2
+	waffles_transform shuffle mydata.arff
+</pre>
+There are many other possible transformations that you can apply to your data. For a complete list, take a look at the <a href="../command/transform.html">usage information</a> for the waffles_transform tool.</p>
+
+
+
+
+
+
+<br>
+<a href="../command/transform.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="visualize.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

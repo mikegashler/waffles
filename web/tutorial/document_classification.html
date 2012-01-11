@@ -1,0 +1,75 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="collaborative_filtering.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="start_coding.html">Next</a>
+
+
+
+
+
+
+
+<h2>Document classification</h2>
+
+<p>This page will visit some of the techniques used for document classification.</p>
+
+<p>Let's suppose that you have gathered a collection of training documents in .txt or .html format. These documents are separated into three folders named "ham", "spam", and "auto_responses". You'd like to train some classification algorithm to decide in which folder new documents probably belong.</p>
+
+<p>Since most classification algorithms are designed to operate on structured tables of information, the first step is to convert the collection of documents into a table format. This is typically done by assigning an attribute to each possible word, and a row to each document. Each element in the table will specify some sort of frequency-count for the number of times that a certain word occurs in a certain document.</p>
+
+<p>As you might predict, this is going to be a humongous table! Fortunately, it is going to be very sparse. That is, most elements in the table are going to have a value of 0. If we re</p>
+
+</p>The "waffles_sparse" application contains a tool that will convert a bunch of documents to a sparse matrix in this manner:
+<pre>
+	waffles_sparse docstosparsematrix ham spam auto_responses
+</pre>
+This creates two files, named "features.sparse" and "labels.arff". features.sparse is a sparse feature matrix, where each row represents a document, and each element represents the occurrence of each word in the document. labels.arff is a single-column matrix that specifies the class of each document.</p>
+
+</p>The values in each element of the matrix are computed as a/b*log(c/d), where 'a' is the number of times the word occurs in this document, 'b' is the max number of times this word occurs in any document, 'c' is the total number of documents, and 'd' is the number of documents that contain the word.</p>
+
+<p>By default, the words are stemmed using the Porter stemming algorithm. If you're not using English, this might just make a mess of your words. You can suppress this feature with the "-nostem" flag.:
+<pre>
+	waffles_sparse docstosparsematrix -nostem ham spam auto_responses
+</pre></p>
+
+<p>Now that you've got your data into a sparse matrix, you might want to shuffle the rows. This command will shuffle features.arff and labels.arff in a manner that preserves corresponding rows:
+<pre>
+	waffles_sparse shuffle features.sparse -labels labels.arff l_shuffled.arff > f_shuffled.sparse
+</pre></p>
+
+<p>Next, let's use cross-validation to decide which model is the best. The following commands will divide f_shuffled.sparse into two files named train.sparse and test.sparse, and will divide l_shuffled.arff into two files named train.arff and test.arff:
+<pre>
+	waffles_sparse splitfold f_shuffled.sparse 0 10
+	waffles_transform splitfold l_shuffled.arff 0 10
+</pre>
+This example shows how to divide the data for fold 0. To do ten-fold cross-validation, we would repeat these commands for each fold from 0 to 9.</p>
+
+<p>Now, it's time to train a classifier. First, you need to select a classification algorithm that can be trained with a sparse matrix. These are the algorithms that inherit from GIncrementalLearner. To see the full list of choices, go the the <a href="../apidoc/html/index.html">API docs</a>, open up the "class hierarchy", then navigate to GTransducer->GSupervisedLearner->GIncrementalLearner. The classes that inherit from GIncrementalLearner are the ones that can train on a sparse matrix. GKNN and GNaiveBayes are probably the most common choices for this task.</p>
+
+<p>Let's train a 7-nn instance learner that uses the cosine method to evaluate the similarity between sparse vectors:
+<pre>
+	waffles_sparse train train.sparse train.arff knn 7 -cosine > model.json
+</pre></p>
+
+<p>And finally, let's test our trained model to see how well it classifies the documents in the test portion of our data:
+<pre>
+	waffles_sparse test model.json test.sparse test.arff
+</pre>
+This will print a predictive accuracy score to stdout.<p>
+
+
+
+
+
+
+<br>
+<a href="collaborative_filtering.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="start_coding.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

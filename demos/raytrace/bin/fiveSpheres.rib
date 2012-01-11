@@ -1,0 +1,70 @@
+##RenderMan RIB-Structure 1.1
+##Creator dart
+
+FrameBegin 1
+
+#Output options
+Display "outputimage" "framebuffer" "rgba"
+Clipping 0.01 1000
+
+#Background
+Imager "background" "background" [ 0.1 0.1 0.2 ]
+
+#Camera
+Format 256 256 1
+Projection "perspective" "fov" [ 28.64788976 ]
+ConcatTransform [ 1 0 0 0 0 1 0 0 0 0 -1 0 0 0 41 1 ]
+
+PixelSamples 8 8 
+Attribute "cs655Setting" "renderType" [ "rayTracing" ]
+Attribute "cs655Setting" "rayDepth" [ 4 ]
+WorldBegin
+
+#Lights
+LightSource "cs655ambientLight" 0 "lightcolor" [ 0.25 0.25 0.25 ]
+LightSource "cs655directionalLight" 1 "lightcolor" [ 0.25 0.25 0.25 ] "to" [ -0.5774 -0.5774 -0.5774 ] "jitter" [ 0 ]
+LightSource "cs655directionalLight" 2 "lightcolor" [ 0.25 0.25 0.25 ] "to" [ -0.5774 0.5774 -0.5774 ] "jitter" [ 0 ]
+LightSource "cs655directionalLight" 3 "lightcolor" [ 0.25 0.25 0.25 ] "to" [ 0.5774 -0.5774 -0.5774 ] "jitter" [ 0 ]
+LightSource "cs655directionalLight" 4 "lightcolor" [ 0.25 0.25 0.25 ] "to" [ 0.5774 0.5774 -0.5774 ] "jitter" [ 0 ]
+LightSource "cs655directionalLight" 5 "lightcolor" [ 0.25 0.25 0.25 ] "to" [ 0 0 -1 ] "jitter" [ 0 ]
+
+ReverseOrientation
+
+#Objects
+AttributeBegin
+Color [ 0.698 0 0 ]
+Surface "cs655surface" "specularcolor" [ 1 1 1 ] "reflectedcolor" [ 0 0 0 ] "transmittedcolor" [ 0 0 0 ] "ambientcolor" [ 0.098 0.098 0.098 ] "indexofrefraction" [ 1.2 ] "phong" [ 100 ] "glossiness" [ 0 ] "translucency" [ 0 ] 
+    Translate 5 5 0
+    Sphere 5 -5 5 360
+AttributeEnd
+
+AttributeBegin
+Color [ 0 0.698 0 ]
+Surface "cs655surface" "specularcolor" [ 1 1 1 ] "reflectedcolor" [ 0 0 0 ] "transmittedcolor" [ 0 0 0 ] "ambientcolor" [ 0.098 0.098 0.098 ] "indexofrefraction" [ 1.2 ] "phong" [ 100 ] "glossiness" [ 0 ] "translucency" [ 0 ] 
+    Translate 5 -5 0
+    Sphere 5 -5 5 360
+AttributeEnd
+
+AttributeBegin
+Color [ 0 0 0.698 ]
+Surface "cs655surface" "specularcolor" [ 1 1 1 ] "reflectedcolor" [ 0 0 0 ] "transmittedcolor" [ 0 0 0 ] "ambientcolor" [ 0.098 0.098 0.098 ] "indexofrefraction" [ 1.2 ] "phong" [ 100 ] "glossiness" [ 0 ] "translucency" [ 0 ] 
+    Translate -5 5 0
+    Sphere 5 -5 5 360
+AttributeEnd
+
+AttributeBegin
+Color [ 0.098 0.098 0.098 ]
+Surface "cs655surface" "specularcolor" [ 1 1 1 ] "reflectedcolor" [ 0.698 0.698 0.698 ] "transmittedcolor" [ 0 0 0 ] "ambientcolor" [ 0.098 0.098 0.098 ] "indexofrefraction" [ 1.2 ] "phong" [ 200.1 ] "glossiness" [ 0 ] "translucency" [ 0 ] 
+    Translate -5 -5 0
+    Sphere 5 -5 5 360
+AttributeEnd
+
+AttributeBegin
+Color [ 0.098 0.098 0.098 ]
+Surface "cs655surface" "specularcolor" [ 1 1 1 ] "reflectedcolor" [ 0.098 0.098 0.098 ] "transmittedcolor" [ 0.698 0.698 0.698 ] "ambientcolor" [ 0 0 0 ] "indexofrefraction" [ 1.5 ] "phong" [ 200.1 ] "glossiness" [ 0 ] "translucency" [ 0 ] 
+    Translate 0 0 14
+    Sphere 2 -2 2 360
+AttributeEnd
+
+WorldEnd
+FrameEnd

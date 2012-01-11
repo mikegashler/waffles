@@ -1,0 +1,153 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="supervised.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="serialization.html">Next</a>
+
+
+
+
+
+
+
+<h2>Writing a New Learning Algorithm</h2>
+
+<p>Suppose you want to develop a new learning algorithm. This page will describe how this is done. Our interfaces are carefully designed to be friendly to developers, and we expect that you will find it a pleasure to develop with our framework.</p>
+
+<p>Making a new learning algorithm requires three steps:</p>
+
+<p>The <b>first step</b> is to make a class that inherits from one of: GTransducer, GSupervisedLearner, or GIncrementalLearner. GTransducer is the most general base class. If your new algorithm makes predictions as a batch without producing an internal model, then GTransducer is the appropriate base class to use. If your algorithm has a model that enables it to generalize for previously unseen feature vectors (which is usually the case, unless you know otherwise), then GSupervisedLearner is a better choice for a base class. Finally, if your algorithm has a model that can be trained in an incremental manner, then GIncrementalLearner is the best choice for the base class. Algorithms that inherit from GIncrementalLearner are suitable for use with the widest set of problems, but they must implement the most specific functionality.</p>
+
+<p>The <b>second step</b> is to specify the capabilities of your algorithm. The following virtual methods are implemented by default:</p>
+<pre>
+	virtual bool canImplicitlyHandleNominalFeatures() { return true; }
+	virtual bool canImplicitlyHandleContinuousFeatures() { return true; }
+	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax) { return true; }
+	virtual bool canImplicitlyHandleMissingFeatures() { return true; }
+	virtual bool canImplicitlyHandleNominalLabels() { return true; }
+	virtual bool canImplicitlyHandleContinuousLabels() { return true; }
+	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) { return true; }
+</pre>
+<p>These methods basically say that your algorithm can handle both nominal and continuous features, both nominal and continuous labels (both classification and regression), that it can handle any range for continuous values, and that it can handle missing feature values. If this is all correct, then you don't need to do anything in this step. If, however, your algorithm cannot implicitly handle one or more of these cases, then you need to specify this by overloading the appropriate methods. For example, if your algorithm can do classification, but not regression, then you would add this method to your class:</p>
+<pre>
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+</pre>
+<p>and if your algorithm can only handle continuous features (inputs) that fall in the range from 0 to 1, then you would add this method to your class:</p>
+<pre>
+	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax)
+	{
+		*pOutMin = 0.0;
+		*pOutMax = 1.0;
+		return false;
+	}
+</pre></p>
+
+<p>In the next step, when you implement your algorithm, you only need to implement functionality to support the types of data that you said it could handle. If some other type of data is passed to your algorithm, it will be automatically converted to a type that your algorithm can handle before your code ever receives it.</p>
+
+<p>The <b>third step</b> to complete your algorithm is to implement all of the pure virtual methods required by your base class. If you selected GTransducer for your base class, then you only need to implement one pure virtual method:</p>
+<pre>
+	virtual GMatrix* transduceInner(GMatrix&amp; features1, GMatrix&amp; labels1, GMatrix&amp; features2) = 0;
+</pre>
+<p>This method evaluates the three matrices that are passed in, and returns a matrix of labels that corresponds with features2. (Theoretically, transduction algorithms can achieve the best accuracy because they operate using the most information. That is, they can see the features of the test set, features2, while they are learning. By contrast, supervised learning algorithms do not get to see the test features until after their model is trained. Supervised learners, however, are suitable for a larger set of problems because they can generalize for feature vectors that were not available at training time.)</p>
+
+<p>If you selected GSupervisedLearner for your base class (which is the most common case), then you need to implement the following pure virtual methods:</p>
+<pre>
+	virtual void trainInner(GMatrix&amp; features, GMatrix&amp; labels) = 0;
+	virtual void predictInner(const double* pIn, double* pOut) = 0;
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut) = 0;
+	virtual void clear() = 0;
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
+</pre></p>
+
+<p>The trainInner method is responsible to train the model using the matrices that are passed to it. (The user will actually call a method named "train", which will automatically take care of converting the data to a form that your algorithm can handle, and will then call "trainInner".) Thus, your trainInner method can assume that only data of the type (nominal or continuous, etc.) supported by your algorithm will ever be passed to it. (This tends to greatly simplify implementation.) As an example, suppose you are writing an instance-based learning algorithm that simply stores the training data for its model:</p>
+<pre>
+	virtual void trainInner(GMatrix&amp; features, GMatrix&amp; labels)
+	{
+		m_pStoredFeatures = features.clone();
+		m_pStoredLabels = labels.clone();
+	}
+</pre>
+
+<p>The "predictInner" method is responsible to make a prediction. (It should operate on an input vector of the same size as one of the rows in the features matrix passed to trainInner, and it should predict a label vector of the same size as one of the rows in the labels matrix.) For example, suppose your algorithm predicts the label ofm a random row that it draws from its stored instances:</p>
+<pre>
+	virtual void predictInner(const double* pIn, double* pOut)
+	{
+		size_t index = m_rand.next(m_pStoredLabels->rows());
+		GVec::copy(pOut, m_pStoredLabels->row(index), m_labelDims);
+	}
+</pre>
+
+<p>The "predictDistributionInner" method is similar to "predictInner", except that it predicts a distribution instead of just a single value. If you are feeling lazy, and you are pretty-sure that you will never use your algorithm with any applications that require predicted distributions, then it might be reasonable to simply implement this method as follows:</p>
+<pre>
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut)
+	{
+		ThrowError("Sorry, this method is not yet implemented");
+	}
+</pre>
+<p>Of course, that's the wimpy way out. The proper way to implement this method is to create a distribution for each label element. For example, Suppose you want to predict a categorical distribution for label element 0 with a little bit of the likelihood distributed over categories 0 and 1, and most of the likelihood on category 2:</p>
+<pre>
+		GCategoricalDistribution* pCat = pOut[0].makeCategorical();
+		double* pVals = pCat->values(3);
+		pVals[0] = 0.1;
+		pVals[1] = 0.1;
+		pVals[2] = 0.9;
+		pCat->normalize();
+</pre>
+<p>and suppose that you wish to predict a Normal distribution for label element 1 with a mean of 0.1 and a variance of 0.2:</p>
+<pre>
+		GNormalDistribution* pNorm = pOut[1].makeNormal();
+		pNorm->setMeanAndVariance(0.1, 0.2);
+</pre>
+<p>In many cases, you may have some heuristic of confidence, but you won't actually have enough information to express a complete distribution. Fortunately, the GSupervisedLearner class provides a method that calibrates the predicted distributions, so you often don't need to worry too much about making sure your distributions precisely express true probabilities. That is, it can automatically learn a function that maps from the distributions that you predict to the actual distributions in the training data.</p>
+
+<p>The "clear" method should reset the internal model, as though train had not yet been called. If your model occupies a lot of memory, this memory should be freed. This method should generally be trivial to implement.</p>
+
+<p>The "serialize" method should marshal your model into a DOM tree. You might find the <a href="serialization.html">serialization tutorial</a> to be helpful. Of course, if you don't plan to use any operations that require serialization, you can implement this method the wimpy way:</p>
+<pre>
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		ThrowError("Sorry, this method is not yet implemented");
+	}
+</pre>
+
+<p>The GSupervisedLearner class implements the "transduceInner" method for you, so you do not need to implement it. (This implementation first calls "train", then calls predict for each row in the unlabeled set.)</p>
+
+<p>If you selected GIncrementalLearner for your base class, then it must implement three additional methods (in addition to all of the methods required by GSupervisedLearner):</p>
+<pre>
+	virtual void enableIncrementalLearning(sp_relation&amp; pFeatureRel, sp_relation&amp; pLabelRel) = 0;
+	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
+	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims) = 0;
+</pre>
+
+<p>The "enableIncrementalLearning" method tells the model about the number and types of features and labels, so that it has enough information to begin training in an incremental manner.</p>
+<p>The "trainIncremental" method presents one pattern for incremental training.</p>
+<p>The "trainSparse" method performs batch training, using a sparse matrix instead of a dense matrix. (Typically, this is done by first calling "enableIncrementalLearning", and then for each row in the sparse matrix, convert the row to a dense vector, and call trainIncremental.) If you are feeling lazy, and you do not plan to train your model using a sparse matrix, you can implement it like this:</p>
+<pre>
+	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims)
+	{
+		ThrowError("Sorry, this method is not yet implemented");
+	}
+</pre>
+
+<h3>Testing it</h3>
+
+<p>To test your new algorithm, you might find the GSupervisedLearner::basicTest method to be helpful. It will exercise your algorithm with a few very simple synthetic datasets. Of course, your own testing is likely to be better-suited for the strengths and capabilities of your algorithm.</p>
+
+<p>If you think you have developed a useful algorithm, I would strongly encourage you to contribute it back into the Waffles project.</p>
+
+
+
+
+
+
+
+<br>
+<a href="supervised.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="serialization.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>
