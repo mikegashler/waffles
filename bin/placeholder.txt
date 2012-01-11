@@ -1,1 +1,0 @@
-This file exists so git will create the folder in which it resides.
