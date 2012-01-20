@@ -320,7 +320,7 @@ double GMath::tTestAlphaValue(size_t v, double t)
 double GMath::wilcoxonPValue(int n, double t)
 {
 	GAssert(n >= 12); // n is too small for this approximation to be any good
-	double z = (t - n * (n + 1) / 4) / sqrt((double)(n * (n + 1) * (n + n + 1)) / 24);
+	double z = (t - n * (n + 1) / 4) / sqrt(((double)n * ((double)n + 1) * ((double)n + (double)n + 1)) / 24);
 	double alpha;
 #ifdef WINDOWS
 	alpha = 0;

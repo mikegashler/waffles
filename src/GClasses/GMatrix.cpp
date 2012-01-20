@@ -3735,13 +3735,11 @@ void GMatrix::wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double toleran
 	{
 		double* pPat = row(i);
 		double absdiff = std::abs(pPat[attr2] - pPat[attr1]);
-		if(absdiff >= tolerance)
+		if(absdiff > tolerance)
 		{
 			double* pStat = tmp.newRow();
 			pStat[0] = absdiff;
-			if(pStat[0] < tolerance)
-				pStat[1] = 0;
-			else if(pPat[attr1] < pPat[attr2])
+			if(pPat[attr1] < pPat[attr2])
 				pStat[1] = -1;
 			else
 				pStat[1] = 1;
@@ -4539,6 +4537,29 @@ void GMatrix_testLUDecomposition(GRand& prng)
 		ThrowError("failed");
 }
 
+void GMatrix_testWilcoxon()
+{
+	// These values were copied from the Wikipedia page about the Wilcoxon signed ranks test
+	GMatrix m(10, 2);
+	m[0][0] = 125; m[0][1] = 110;
+	m[1][0] = 115; m[1][1] = 122;
+	m[2][0] = 130; m[2][1] = 125;
+	m[3][0] = 140; m[3][1] = 120;
+	m[4][0] = 140; m[4][1] = 140;
+	m[5][0] = 115; m[5][1] = 124;
+	m[6][0] = 140; m[6][1] = 123;
+	m[7][0] = 125; m[7][1] = 137;
+	m[8][0] = 140; m[8][1] = 135;
+	m[9][0] = 135; m[9][1] = 145;
+	int n;
+	double min, plu;
+	m.wilcoxonSignedRanksTest(0, 1, 0.0, &n, &min, &plu);
+	if(plu != 27)
+		ThrowError("incorrect test statistic");
+	if(min != 18)
+		ThrowError("incorrect test statistic");
+}
+
 // static
 void GMatrix::test()
 {
@@ -4556,6 +4577,7 @@ void GMatrix::test()
 	GMatrix_testLUDecomposition(prng);
 	GMatrix_testBipartiteMatching();
 	GMatrix_testParsing();
+	GMatrix_testWilcoxon();
 }
 #endif // !NO_TEST_CODE
 
