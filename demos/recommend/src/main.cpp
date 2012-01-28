@@ -82,9 +82,9 @@ public:
 		m_title = szTitle;
 		m_submitter = szSubmitter;
 		m_date = date;
-		m_weights.resize(PERSONALITY_DIMS + 1);
-		for(size_t i = 0; i < PERSONALITY_DIMS + 1; i++)
-			m_weights[i] = 0.1 * pRand->normal();
+		m_weights.resize(PERSONALITY_DIMS);
+		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
+			m_weights[i] = 0.02 * pRand->normal();
 	}
 
 	Item(GDomNode* pNode, GRand* pRand)
@@ -93,16 +93,16 @@ public:
 		m_title = pNode->field("title")->asString();
 		m_submitter = pNode->field("subm")->asString();
 		m_date = (time_t)pNode->field("date")->asInt();
-		m_weights.resize(PERSONALITY_DIMS + 1);
+		m_weights.resize(PERSONALITY_DIMS);
 		GDomNode* pWeights = pNode->field("weights");
 		GDomListIterator it(pWeights);
 		size_t i;
-		for(i = 0; i < (size_t)PERSONALITY_DIMS + 1 && it.current(); i++)
+		for(i = 0; i < (size_t)PERSONALITY_DIMS && it.current(); i++)
 		{
 			m_weights[i] = it.current()->asDouble();
 			it.advance();
 		}
-		for( ; i < PERSONALITY_DIMS + 1; i++)
+		for( ; i < PERSONALITY_DIMS; i++)
 			m_weights[i] = 0.1 * pRand->normal();
 	}
 
@@ -117,7 +117,7 @@ public:
 		pNode->addField(pDoc, "subm", pDoc->newString(m_submitter.c_str()));
 		pNode->addField(pDoc, "date", pDoc->newInt(m_date));
 		GDomNode* pWeights = pNode->addField(pDoc, "weights", pDoc->newList());
-		for(size_t i = 0; i < PERSONALITY_DIMS + 1; i++)
+		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
 			pWeights->addItem(pDoc, pDoc->newDouble(m_weights[i]));
 		return pNode;
 	}
@@ -127,8 +127,8 @@ public:
 		vector<double>::const_iterator itW = m_weights.begin();
 		vector<double>::const_iterator itP = personality.begin();
 
-		// Add the bias weight
-		double d = *(itW++);
+		// Add the bias weights
+		double d = *(itW++) + *(itP++);
 
 		// Multiply the weight vector by the personality vector
 		while(itW != m_weights.end())
@@ -149,12 +149,13 @@ public:
 		vector<double>::const_iterator itP = personality.begin();
 
 		// Update the bias weight
+		itP++;
 		*(itW++) += err;
 
 		// Update the other weights
 		while(itW != m_weights.end())
 		{
-			*itW = std::max(-16.0, std::min(16.0, *itW + err * *(itP++))); // Clip the weights to prevent weight saturation
+			*itW = std::max(-12.0, std::min(12.0, *itW + err * *(itP++)));
 			itW++;
 		}
 #ifdef _DEBUG
@@ -173,13 +174,14 @@ public:
 		vector<double>::const_iterator itW = m_weights.begin();
 		vector<double>::iterator itP = personality.begin();
 
-		// Skip the bias weight (since it does not influence the gradient with respect to the personality vector)
+		// Update the bias
 		itW++;
+		*(itP++) += err;
 
 		// Update the personality vector
 		while(itW != m_weights.end())
 		{
-			*itP = std::max(0.0, std::min(1.0, *itP + err * *(itW++))); // Clip personality vector to stay within the unit hyper-cube
+			*itP = std::max(-1.0, std::min(1.0, *itP + err * *(itW++)));
 			itP++;
 		}
 #ifdef _DEBUG
@@ -347,12 +349,12 @@ protected:
 	}
 
 public:
-	Account(const char* szUsername, const char* szPasswordHash)
+	Account(const char* szUsername, const char* szPasswordHash, GRand& rand)
 	: GDynamicPageSessionExtension(), m_username(szUsername), m_passwordHash(szPasswordHash), m_currentTopic(-1)
 	{
 		m_personality.resize(PERSONALITY_DIMS);
 		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-			m_personality[i] = 0.5;
+			m_personality[i] = 0.02 * rand.normal();
 	}
 
 	virtual ~Account()
@@ -387,7 +389,7 @@ public:
 		return m_afterLoginParams.c_str();
 	}
 
-	static Account* fromDom(GDomNode* pNode)
+	static Account* fromDom(GDomNode* pNode, GRand& rand)
 	{
 		Account* pAccount = new Account();
 		pAccount->m_username = pNode->field("username")->asString();
@@ -399,9 +401,12 @@ public:
 			GDomListIterator it(pPersonality);
 			size_t i;
 			for(i = 0; i < (size_t)PERSONALITY_DIMS && it.current(); i++)
-				pAccount->m_personality[i] = it.current()->asDouble();
+			{
+				pAccount->m_personality[i] = std::max(-1.0, std::min(1.0, it.current()->asDouble()));
+				it.advance();
+			}
 			for( ; i < PERSONALITY_DIMS; i++)
-				pAccount->m_personality[i] = 0.5;
+				pAccount->m_personality[i] = 0.02 * rand.normal();
 		}
 
 		// Deserialize the ratings
@@ -1582,7 +1587,7 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 		return NULL;
 
 	// Make the account
-	Account* pAccount = new Account(szUsername, szPasswordHash);
+	Account* pAccount = new Account(szUsername, szPasswordHash, *m_pRand);
 	m_accountsVec.push_back(pAccount);
 	m_accountsMap.insert(make_pair(string(szUsername), pAccount));
 	return pAccount;
@@ -1615,8 +1620,8 @@ void Server::trainModel(size_t topic, size_t iters)
 				Item& item = pCurrentTopic->item(v[index].first);
 				double target = 0.01 * (double)v[index].second;
 				GAssert(target >= 0.0 && target <= 1.0);
-				item.trainWeights(target, 0.1, pSomeAccount->personality());
-				item.trainPersonality(target, 0.1, pSomeAccount->personality());
+				item.trainWeights(target, 0.01, pSomeAccount->personality());
+				item.trainPersonality(target, 0.01, pSomeAccount->personality());
 			}
 		}
 	}
@@ -1636,7 +1641,7 @@ void Server::trainPersonality(Account* pAccount, size_t iters)
 		{
 			size_t index = (size_t)prng()->next(v.size());
 			Item& item = pCurrentTopic->item(v[index].first);
-			item.trainPersonality((double)v[index].second, 0.1, pAccount->personality());
+			item.trainPersonality((double)v[index].second, 0.01, pAccount->personality());
 		}
 	}
 }
@@ -1686,7 +1691,7 @@ void Server::deserializeState(GDomNode* pNode)
 	GDomNode* pAccounts = pNode->field("accounts");
 	for(GDomListIterator it(pAccounts); it.current(); it.advance())
 	{
-		Account* pAccount = Account::fromDom(it.current());
+		Account* pAccount = Account::fromDom(it.current(), *m_pRand);
 		m_accountsVec.push_back(pAccount);
 		m_accountsMap.insert(make_pair(string(pAccount->username()), pAccount));
 	}

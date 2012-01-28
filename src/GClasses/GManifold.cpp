@@ -2474,7 +2474,7 @@ pNN->setErrorSingleOutput(prediction + err, c);
 				pNN->decayWeightsSingleOutput(c, regularizer);
 				pNN->backProp()->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum(), pNN->useInputBias());
 
-				// Update inputes
+				// Update inputs
 				if(pass != 1)
 				{
 					GVec::multiply(pIntrinsic, 1.0 - learningRate * regularizer, m_intrinsicDims);

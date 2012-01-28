@@ -139,15 +139,13 @@ in_addr GSocket_ipAddr(SOCKET s)
 
 void GSocket_send(SOCKET s, const char* buf, size_t len)
 {
-	while(true)
+	while(len > 0)
 	{
 		ssize_t bytesSent = ::send(s, buf, len, 0);
 		if(bytesSent > 0)
 		{
 			buf += bytesSent;
 			len -= bytesSent;
-			if(len == 0)
-				return;
 		}
 		else
 		{
