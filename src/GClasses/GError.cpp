@@ -33,11 +33,6 @@ const char* GException::what() const throw(){
   return g_errorMessage.c_str(); }
 GException g_exception;
 
-std::string to_str(const std::vector<bool>& vv){
-  std::deque<bool> v(vv.begin(), vv.end());
-  return to_str(v.begin(), v.end(),"vector");
-}
-
 void ThrowError(string s)
 {
 	g_errorMessage = s;
@@ -147,6 +142,12 @@ void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6
 	ThrowError(s);
 }
 
+
+
+std::string to_str(const std::vector<bool>& vv){
+	std::deque<bool> v(vv.begin(), vv.end());
+	return to_str(v.begin(), v.end(),"vector");
+}
 
 void TestEqual(char const*expected, char const*got, std::string desc){
   TestEqual(std::string(expected), std::string(got), desc);

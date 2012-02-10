@@ -748,7 +748,7 @@ public:
 								float score = (float)atof(it->second);
 								if(score >= 0.0f && score <= 100.0f)
 								{
-									pAccount->updateRating(currentTopic, itemId, score);
+									pAccount->updateRating(currentTopic, itemId, 0.01 * score);
 									response << "[Rating recorded. Thank you.]<br>\n";
 								}
 								else

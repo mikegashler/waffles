@@ -680,6 +680,8 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 		{
 			addAttribute(name.c_str(), 0, NULL);
 		}
+		else if(_stricmp(szType, "STRING") == 0)
+			addAttribute(name.c_str(), -1, NULL);
 		else
 			ThrowError("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
 	}
@@ -1021,7 +1023,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 			return atof(szVal);
 		}
 	}
-	else
+	else if(vals != (size_t)-1)
 	{
 		// Nominal attribute
 		if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
@@ -1034,6 +1036,8 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 			return (double)nVal;
 		}
 	}
+	else
+		return 0.0;
 }
 
 GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
@@ -1152,6 +1156,11 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 			if(col < cols)
 				ThrowError("Not enough values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		}
+	}
+	for(size_t i = 0; i < cols; i++)
+	{
+		if(pRelation->valueCount(i) == (size_t)-1)
+			pRelation->setAttrValueCount(i, 0);
 	}
 	return hData.release();
 }
