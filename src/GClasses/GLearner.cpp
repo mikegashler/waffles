@@ -1398,8 +1398,6 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 					return new GDecisionTree(pNode, *this);
 				else if(strcmp(szClass, "GIdentityFunction") == 0)
 					return new GIdentityFunction(pNode, *this);
-				else if(strcmp(szClass, "GResamplingAdaBoost") == 0)
-					return new GResamplingAdaBoost(pNode, *this);
 			}
 		}
 		else
@@ -1417,6 +1415,8 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 					return new GPolynomial(pNode, *this);
 				else if(strcmp(szClass, "GRandomForest") == 0)
 					return new GRandomForest(pNode, *this);
+				else if(strcmp(szClass, "GResamplingAdaBoost") == 0)
+					return new GResamplingAdaBoost(pNode, *this);
 			}
 		}
 	}
