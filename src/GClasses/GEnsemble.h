@@ -50,7 +50,7 @@ public:
 
 
 /// This is a base-class for ensembles that combine the
-/// predictions from multiple weightd models.
+/// predictions from multiple weighed models.
 class GEnsemble : public GSupervisedLearner
 {
 protected:
@@ -65,6 +65,9 @@ public:
 
 	/// Deserializing constructor.
 	GEnsemble(GDomNode* pNode, GLearnerLoader& ll);
+
+	/// Getter for models in ensemble.
+	std::vector<GWeightedModel*> getInner() { return m_models; }
 
 	virtual ~GEnsemble();
 
@@ -101,6 +104,9 @@ protected:
 	/// Counts all the votes from the models in the bag, assuming you only
 	/// care to know the winner, and do not care about the distribution.
 	void tally(double* pOut);
+
+
+
 };
 
 

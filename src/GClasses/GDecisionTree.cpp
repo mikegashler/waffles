@@ -1207,6 +1207,17 @@ void GRandomForest::clear()
 	m_pEnsemble->clear();
 }
 
+void GRandomForest::print(std::ostream& stream, GArffRelation* pFeatureRel, GArffRelation* pLabelRel) 
+{
+	std::vector<GWeightedModel*> models = m_pEnsemble->getInner();
+	size_t nModels = models.size();
+	for (size_t i = 0; i < nModels; i++) 
+	{   
+	    stream << "TREE " << i << ":" << std::endl;
+	    ((GDecisionTree *) models[i]->m_pModel)->print(stream, pFeatureRel, pLabelRel);
+	}
+}
+
 // virtual
 void GRandomForest::trainInner(GMatrix& features, GMatrix& labels)
 {
