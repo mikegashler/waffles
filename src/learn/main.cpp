@@ -144,7 +144,7 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 	}
 }
 
-void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& hLabelsOut)
+void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& hLabelsOut, bool requireMetadata = false)
 {
 	// Load the dataset by extension
 	if(args.size() < 1)
@@ -156,9 +156,17 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		pData = GMatrix::loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
+	{
 		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		if(requireMetadata && !pData->relation()->areContinuous(0, pData->cols()))
+			ThrowError("A data format containing meta-data (such as ARFF) is necessary for this operation.");
+	}
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
+	{
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		if(requireMetadata && !pData->relation()->areContinuous(0, pData->cols()))
+			ThrowError("A data format containing meta-data (such as ARFF) is necessary for this operation.");
+	}
 	else
 		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
 	Holder<GMatrix> hData(pData);
@@ -959,7 +967,7 @@ void predict(GArgReader& args)
 
 	// Load the data
 	Holder<GMatrix> hFeatures, hLabels;
-	loadData(args, hFeatures, hLabels);
+	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 	if(pLabels->cols() != pModeler->labelDims())
@@ -1002,7 +1010,7 @@ void predictDistribution(GArgReader& args)
 
 	// Load the dataset
 	Holder<GMatrix> hFeatures, hLabels;
-	loadData(args, hFeatures, hLabels);
+	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 	if(pLabels->cols() != (size_t)pModeler->labelDims())
@@ -1158,7 +1166,7 @@ void Test(GArgReader& args)
 
 	// Load the data
 	Holder<GMatrix> hFeatures, hLabels;
-	loadData(args, hFeatures, hLabels);
+	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 	if(pLabels->cols() != pModeler->labelDims())
@@ -1195,8 +1203,8 @@ void Transduce(GArgReader& args)
 
 	// Load the labeled and unlabeled sets
 	Holder<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
-	loadData(args, hFeatures1, hLabels1);
-	loadData(args, hFeatures2, hLabels2);
+	loadData(args, hFeatures1, hLabels1, true);
+	loadData(args, hFeatures2, hLabels2, true);
 	GMatrix* pFeatures1 = hFeatures1.get();
 	GMatrix* pLabels1 = hLabels1.get();
 	GMatrix* pFeatures2 = hFeatures2.get();
@@ -1236,8 +1244,8 @@ void TransductiveAccuracy(GArgReader& args)
 	// Load the data sets
 	GRand prng(seed);
 	Holder<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
-	loadData(args, hFeatures1, hLabels1);
-	loadData(args, hFeatures2, hLabels2);
+	loadData(args, hFeatures1, hLabels1, true);
+	loadData(args, hFeatures2, hLabels2, true);
 	GMatrix* pFeatures1 = hFeatures1.get();
 	GMatrix* pLabels1 = hLabels1.get();
 	GMatrix* pFeatures2 = hFeatures2.get();
