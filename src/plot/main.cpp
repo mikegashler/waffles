@@ -1657,6 +1657,40 @@ void printDecisionTree(GArgReader& args)
 		((GDecisionTree*)pModeler)->print(cout);
 }
 
+
+void printRandomForest(GArgReader& args)
+{
+	// Load the model
+	GDom doc;
+	if(args.size() < 1)
+		ThrowError("Model not specified.");
+	doc.loadJson(args.pop_string());
+	GRand prng(0);
+	GLearnerLoader ll(prng, true);
+	if(_stricmp(doc.root()->field("class")->asString(), "GRandomForest") != 0)
+		ThrowError("That model is not Random Forest");
+	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	Holder<GSupervisedLearner> hModeler(pModeler);
+
+	GMatrix* pData = NULL;
+	if(args.size() > 0)
+	{
+		size_t ld;
+		pData = loadDataWithSwitches(args, &ld);
+		Holder<GMatrix> hData(pData);
+		size_t labelDims = pModeler->labelDims();
+		if(ld != labelDims)
+			ThrowError("Different number of label dims than the model was trained with");
+		GArffRelation relFeatures;
+		relFeatures.addAttrs(pData->relation().get(), 0, pData->cols() - labelDims);
+		GArffRelation relLabels;
+		relLabels.addAttrs(pData->relation().get(), pData->cols() - labelDims, labelDims);
+		((GRandomForest*)pModeler)->print(cout, &relFeatures, &relLabels);
+	}
+	else
+		((GRandomForest*)pModeler)->print(cout);
+}
+
 void model(GArgReader& args)
 {
 	// Load the model
@@ -2115,6 +2149,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("overlay")) overlay(args);
 		else if(args.if_pop("percentsame")) percentSame(args);
 		else if(args.if_pop("printdecisiontree")) printDecisionTree(args);
+		else if(args.if_pop("printrandomforest")) printRandomForest(args);
 		else if(args.if_pop("raytracesurface")) rayTraceManifoldModel(args);
 		else if(args.if_pop("scatter")) PlotScatter(args);
 		else if(args.if_pop("semanticmap")) semanticMap(args);

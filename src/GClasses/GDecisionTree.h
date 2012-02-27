@@ -219,6 +219,11 @@ public:
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
+	
+	/// Prints an ascii representation of the random forest to the specified stream.
+	/// pRelation is an optional relation that can be supplied in order to provide
+	/// better meta-data to make the print-out richer.
+	void print(std::ostream& stream, GArffRelation* pFeatureRel = NULL, GArffRelation* pLabelRel = NULL);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
