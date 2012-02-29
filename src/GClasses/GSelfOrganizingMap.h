@@ -797,6 +797,11 @@ public:
     }
   }
 
+  /// Throws an exception (because this transform cannot be trained without data)
+  virtual void train(sp_relation& in){
+    ThrowError("This transform cannot be trained without data");
+  }
+
   ///TODO: implement enableIncrementalTraining 
   virtual void beginIncrementalTraining(sp_relation&, double*, double*){
     ThrowError("BeginIncrementalTraining not yet implemented");

@@ -135,6 +135,9 @@ public:
 	/// Obtains the name of this host.
 	static void hostName(char* buf, size_t len);
 
+	/// Returns a reference to the current set of connections
+	std::set<GTCPConnection*>& connections() { return m_socks; }
+
 protected:
 	/// This is called just before a new connection is accepted. It
 	/// returns a pointer to a new GTCPConnection object to

@@ -63,6 +63,14 @@ public:
 	/// m_pRelationBefore and m_pRelationAfter
 	virtual void train(GMatrix& data) = 0;
 
+	/// "Trains" the transform without any data.
+	///
+	/// This method is called to initialize the transform
+	/// when it is used with an incremental learner.
+	/// Transforms that cannot be trained without available
+	/// data may throw an exception in this method.
+	virtual void train(sp_relation& relation) = 0;
+
 	/// Returns a relation object describing the data before it is
 	/// transformed
 	///
@@ -145,10 +153,13 @@ public:
 	/// See the comment for GTwoWayIncrementalTransform::serialize
 	virtual GDomNode* serialize(GDom* pDoc);
 
-	/// See the comment for GTwoWayIncrementalTransform::train
+	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 
-	/// See the comment for GTwoWayIncrementalTransform::transform
+	/// See the comment for GIncrementalTransform::train
+	virtual void train(sp_relation& relation);
+
+	/// See the comment for GIncrementalTransform::train
 	virtual void transform(const double* pIn, double* pOut);
 
 	/// See the comment for GTwoWayIncrementalTransform::untransform
@@ -213,6 +224,9 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual void train(sp_relation& relation);
+
 	/// See the comment for GIncrementalTransform::transform.
 	/// Projects the specified point into fewer dimensions.
 	virtual void transform(const double* pIn, double* pOut);
@@ -263,6 +277,9 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 
+	/// See the comment for GIncrementalTransform::train
+	virtual void train(sp_relation& relation);
+
 	virtual sp_relation& relationAfter() { return m_pRelationBefore; }
 	
 	/// See the comment for GIncrementalTransform::transform
@@ -294,6 +311,9 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 	
+	/// See the comment for GIncrementalTransform::train
+	virtual void train(sp_relation& relation);
+
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 };
@@ -332,6 +352,9 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 	
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual void train(sp_relation& relation);
+
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
@@ -372,6 +395,9 @@ public:
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual void train(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
@@ -420,6 +446,9 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 	
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual void train(sp_relation& relation);
+
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
@@ -461,6 +490,9 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 	
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual void train(sp_relation& relation);
+
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
@@ -498,6 +530,9 @@ public:
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
 	
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual void train(sp_relation& relation);
+
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	

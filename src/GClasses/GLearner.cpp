@@ -1292,14 +1292,20 @@ void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, dou
 void GIncrementalLearner::beginIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	if(m_pFeatureFilter)
+	{
+		m_pFeatureFilter->train(pFeatureRel);
 		m_featureDims = m_pFeatureFilter->before()->size();
+	}
 	else
 		m_featureDims = pFeatureRel->size();
 	if(m_pLabelFilter)
+	{
+		m_pLabelFilter->train(pLabelRel);
 		m_labelDims = m_pLabelFilter->before()->size();
+	}
 	else
 		m_labelDims = pLabelRel->size();
-	beginIncrementalLearningInner(pFeatureRel, pLabelRel);
+	beginIncrementalLearningInner(m_pFeatureFilter ? m_pFeatureFilter->after() : pFeatureRel, m_pLabelFilter ? m_pLabelFilter->after() : pLabelRel);
 }
 
 void GIncrementalLearner::trainIncremental(const double* pIn, const double* pOut)
