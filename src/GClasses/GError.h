@@ -276,7 +276,8 @@ void TestEqual(char* expected, char* got, std::string desc);
 
 ///\brief Verify that \a expectedSubstring is a substring of \a got for test code. Unlike Assert, this check does not disappear in optimized builds.
 ///
-///If expected==got then does nothing.  Otherwise prints to stderr:
+///If \a got contains \a expectedSubstring then does nothing.
+///Otherwise prints to stderr:
 ///
 ///<pre>
 ///Substring match failed: ---------test_descr goes here ---------------
