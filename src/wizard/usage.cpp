@@ -1388,6 +1388,11 @@ UsageNode* makeTransformUsageTree()
 		pEV->add("[col]=0", "The column index (starting with 0) to enumerate");
 	}
 	{
+		UsageNode* pKeepOnlyCols = pRoot->add("keeponlycolumns [dataset] [column-list]", "Removes all unlisted columns from a dataset and prints the results to stdout. (The input file is not modified.)");
+		pKeepOnlyCols->add("[dataset]=in.arff", "The filename of a dataset.");
+		pKeepOnlyCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to which will not be dropped. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+	}
+	{
 		UsageNode* pMSE = pRoot->add("measuremeansquarederror [dataset1] [dataset2] <options>", "Print the mean squared error between two datasets. (Both datasets must be the same size.)");
 		pMSE->add("[dataset1]=a.arff", "The filename of a dataset");
 		pMSE->add("[dataset2]=b.arff", "The filename of a dataset");

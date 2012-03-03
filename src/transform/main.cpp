@@ -588,6 +588,34 @@ void dropColumns(GArgReader& args)
 	pData->print(cout);
 }
 
+void keepOnlyColumns(GArgReader& args)
+{
+	//Load the data file and the list of columns to keep
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	vector<size_t> inputColList;
+	size_t attrCount = pData->cols();
+	parseAttributeList(inputColList, args, attrCount);
+	std::set<size_t> colsToKeep(inputColList.begin(), inputColList.end());
+
+	//colsToDel will be a list of the column indices not listed in
+	//colsToKeep sorted from largest to smallest
+	vector<size_t> colsToDel; 
+	colsToDel.reserve(attrCount - colsToKeep.size());
+	for(size_t i = attrCount-1; i < attrCount; --i){
+	  if(colsToKeep.find(i) == colsToKeep.end()){
+	    colsToDel.push_back(i);
+	  }
+	}
+
+	//Delete the columns. Doing it in largest-to-smallest order
+	//keeps the column indices for undeleted columns the same even
+	//after deletion.
+	for(size_t i = 0; i < colsToDel.size(); i++)
+		pData->deleteColumn(colsToDel[i]);
+	pData->print(cout);
+}
+
 void DropMissingValues(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -1867,6 +1895,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("export")) Export(args);
 		else if(args.if_pop("fillmissingvalues")) fillMissingValues(args);
 		else if(args.if_pop("import")) Import(args);
+		else if(args.if_pop("keeponlycolumns")) keepOnlyColumns(args);
 		else if(args.if_pop("measuremeansquarederror")) MeasureMeanSquaredError(args);
 		else if(args.if_pop("mergehoriz")) mergeHoriz(args);
 		else if(args.if_pop("mergevert")) mergeVert(args);

@@ -153,11 +153,11 @@ std::string golf_arff_dataset(){
 return
   "@RELATION Golf\n"
   "\n"
-  "@ATTRIBUTE Play	real\n"
-  "@ATTRIBUTE Outlook	real\n"
-  "@ATTRIBUTE Temperature	real\n"
-  "@ATTRIBUTE Humidity	real\n"
-  "@ATTRIBUTE Wind	real\n"
+  "@ATTRIBUTE Play\treal\n"
+  "@ATTRIBUTE Outlook\treal\n"
+  "@ATTRIBUTE Temperature\treal\n"
+  "@ATTRIBUTE Humidity\treal\n"
+  "@ATTRIBUTE Wind\treal\n"
   "\n"
   "@DATA\n"
   "-1,1,1,1,-1\n"
@@ -318,11 +318,198 @@ void test_dimred_attributeselector()
      "Unexpected output from golf dataset with .mat input file");
   TestEqual
     (1, retval, "Golf dataset .mat input file "
-     "unexpectedly succeeded command execution");
-
-  
+     "unexpectedly succeeded command execution");  
 }
 
+///Runs the command line waffles_transform keeponlycolumns and returns the 
+///output that was printed to stdout
+///
+///\param dataset the text of a file that will be used as input to
+///               waffles_transform keeponlycolumns
+///
+///\param extension the filename extension (".arff", ".csv"
+///                 (comma-separated), ".dat" (null separated) to use
+///                 in the temporary file read in by waffles_transform
+///
+///\param tokeep the indices of the attributes that are supposed to be
+///              kept
+///
+///\param retval the value returned by the command execution (non-zero
+///              indicates failure)
+///
+///\return the output printed to stdout and standard error
+///
+std::string run_transform_keeponlycolumns(std::string dataset, 
+					 std::string extension,
+					 std::vector<int> tokeep, 
+					 int& retval
+					 ){
+  using std::string;
+  //Make the temp file in.extenson containing the requested data
+  string tmpname = string("in")+extension;
+  TempFileMaker inFile(tmpname.c_str(), dataset.c_str());
+
+  // Build the command line
+  string args;
+  args += " keeponlycolumns ";
+  args += tmpname;
+  std::vector<int>::const_iterator it;
+  if(tokeep.size() > 0){
+    it = tokeep.begin();
+    args += " "+ to_str(*it);
+    for(++it; it != tokeep.end(); ++it){
+      args += ","; args += to_str(*it);
+    }
+  }
+
+  // Execute the command
+  GPipe pipeStdOut;
+  GPipe pipeStdErr;
+  retval = sysExec("waffles_transform", args.c_str(), &pipeStdOut, &pipeStdErr);
+  
+  return pipeStdOut.read()+pipeStdErr.read();
+}
+
+void test_transform_keeponly()
+{
+  int retval;
+  TestContains
+    ("Unexpected end of arguments",
+     run_transform_keeponlycolumns(golf_arff_dataset(),".arff",
+				   (Seq<int>()).asVector(),retval),
+     "Unexpected output from golf dataset with no columns listed");
+  TestEqual
+    (1, retval, "not having columns listed unexpectedly  "
+     "succeeded command execution");
+
+  TestContains
+    ("Invalid column index: 5",
+     run_transform_keeponlycolumns(golf_arff_dataset(),".arff",
+				   (Seq<int>()+5).asVector(),retval),
+     "Unexpected output from golf dataset when keeping only the non-existant "
+     "column number 5");
+  TestEqual
+    (1, retval, "keeping only column 5 unexpectedly  "
+     "succeeded command execution");
+
+  TestEqual
+    (
+     "@RELATION Untitled\n"
+     "\n"
+     "@ATTRIBUTE Outlook\treal\n"
+     "\n"
+     "@DATA\n"
+     "1\n"
+     "1\n"
+     "-1\n"
+     "-1\n"
+     "0\n"
+     "1\n"
+     "1\n"
+     "1\n"
+     "0\n"
+     "0\n"
+     "0\n"
+     "-1\n"
+     "-1\n"
+     "-1\n"
+     ,run_transform_keeponlycolumns(golf_arff_dataset(),".arff",
+				    (Seq<int>()+1).asVector(),retval),
+     "Unexpected output from golf dataset keep only column 1");
+  TestEqual
+    (0, retval, "Keep only column 1 "
+     "failed command execution");
+
+  TestEqual
+    (
+     "@RELATION Untitled\n"
+     "\n"
+     "@ATTRIBUTE Wind\treal\n"
+     "\n"
+     "@DATA\n"
+     "-1\n"
+     "1\n"
+     "-1\n"
+     "-1\n"
+     "1\n"
+     "-1\n"
+     "-1\n"
+     "1\n"
+     "1\n"
+     "-1\n"
+     "-1\n"
+     "-1\n"
+     "1\n"
+     "1\n"
+     ,run_transform_keeponlycolumns(golf_arff_dataset(),".arff",
+				    (Seq<int>()+4).asVector(),retval),
+     "Unexpected output from golf dataset keep only column 4");
+  TestEqual
+    (0, retval, "Keep only column 4 "
+     "failed command execution");
+
+  TestEqual
+    (
+     "@RELATION Untitled\n"
+     "\n"
+     "@ATTRIBUTE Play\treal\n"
+     "@ATTRIBUTE Wind\treal\n"
+     "\n"
+     "@DATA\n"
+     "-1,-1\n"
+     "-1,1\n"
+     "1,-1\n"
+     "1,-1\n"
+     "1,1\n"
+     "-1,-1\n"
+     "1,-1\n"
+     "1,1\n"
+     "1,1\n"
+     "1,-1\n"
+     "1,-1\n"
+     "1,-1\n"
+     "-1,1\n"
+     "-1,1\n"
+     ,run_transform_keeponlycolumns(golf_arff_dataset(),".arff",
+				    (Seq<int>()+0+4).asVector(),retval),
+     "Unexpected output from golf dataset keep only columns 0 and 4");
+  TestEqual
+    (0, retval, "Keep only columns 0 and 4 "
+     "failed command execution");
+
+  TestEqual
+    (
+     "@RELATION Untitled\n"
+     "\n"
+     "@ATTRIBUTE Play\treal\n"
+     "@ATTRIBUTE Outlook\treal\n"
+     "@ATTRIBUTE Temperature\treal\n"
+     "@ATTRIBUTE Humidity\treal\n"
+     "@ATTRIBUTE Wind\treal\n"
+     "\n"
+     "@DATA\n"
+     "-1,1,1,1,-1\n"
+     "-1,1,1,1,1\n"
+     "1,-1,0,1,-1\n"
+     "1,-1,-1,-1,-1\n"
+     "1,0,-1,-1,1\n"
+     "-1,1,0,1,-1\n"
+     "1,1,-1,-1,-1\n"
+     "1,1,0,-1,1\n"
+     "1,0,0,1,1\n"
+     "1,0,1,-1,-1\n"
+     "1,0,1,1,-1\n"
+     "1,-1,0,-1,-1\n"
+     "-1,-1,0,1,1\n"
+     "-1,-1,-1,-1,1\n"
+     ,run_transform_keeponlycolumns(golf_arff_dataset(),".arff",
+				    (Seq<int>()+0+1+2+3+4).asVector(),retval),
+     "Unexpected output from golf dataset keep all columns");
+  TestEqual
+    (0, retval, "Keep all columns "
+     "failed command execution");
+
+}
 
 void test_transform_mergevert()
 {
@@ -833,6 +1020,7 @@ public:
 			{
 				// Command-line tests
 				runTest("waffles_transform mergevert", test_transform_mergevert);
+				runTest("waffles_transform keeponlycolumns", test_transform_keeponly);
 				runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
 				runTest("waffles_dimred attributeselector", test_dimred_attributeselector);
 #ifndef WINDOWS
