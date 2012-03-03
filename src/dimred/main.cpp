@@ -37,6 +37,7 @@
 #include <string>
 #include <set>
 #include <map>
+#include <algorithm>
 #ifdef WIN32
 #	include <direct.h>
 #	include <process.h>
@@ -140,7 +141,28 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 	}
 }
 
-GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
+///Return a pointer to newly allocated data read from the command line
+///represented by args.
+///
+///The returned matrix is allocated by new and it is the caller's
+///responsibility to deallocate it. The suggested manner is to use a
+///Holder<GMatrix*>
+///
+///In the returned matrix, all of the attributes designated as labels
+///have been moved to the end and ignored attributes have been
+///removed. The original indices of all the attributes are returned in
+///originalIndices.
+///
+///\param args the command-line arguments
+///
+///\param pLabelDims (out parameter) the index of the first attribute
+///which is designated a label.
+///
+///\param originalIndices the vector in which to place the original
+///indices.  originalIndices[i] is the index in the original data file
+///of the attribute currently at index i.
+GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
+			      std::vector<size_t>& originalIndices)
 {
 	// Load the dataset by extension
 	const char* szFilename = args.pop_string();
@@ -156,6 +178,12 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 	else
 		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
 	Holder<GMatrix> hData(pData);
+
+	//Make the initial list of original indices
+	originalIndices.resize(pData->cols());
+	for(std::size_t i = 0; i < originalIndices.size(); ++i){
+	  originalIndices.at(i) = i;
+	}
 
 	// Parse params
 	vector<size_t> ignore;
@@ -175,6 +203,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
 		pData->deleteColumn(ignore[i]);
+		originalIndices.erase(originalIndices.begin()+ignore[i]);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
 			if(labels[j] >= ignore[i])
@@ -187,14 +216,16 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 	}
 
 	// Swap label columns to the end
-	*pLabelDims = std::max((size_t)1, labels.size());
+	pLabelDims = std::max((size_t)1, labels.size());
 	for(size_t i = 0; i < labels.size(); i++)
 	{
 		size_t src = labels[i];
-		size_t dst = pData->cols() - *pLabelDims + i;
+		size_t dst = pData->cols() - pLabelDims + i;
 		if(src != dst)
 		{
 			pData->swapColumns(src, dst);
+			std::swap(originalIndices.at(src),
+				  originalIndices.at(dst));
 			for(size_t j = i + 1; j < labels.size(); j++)
 			{
 				if(labels[j] == dst)
@@ -342,7 +373,8 @@ void attributeSelector(GArgReader& args)
 {
 	// Load the data
 	size_t labelDims;
-	GMatrix* pData = loadDataWithSwitches(args, &labelDims);
+	std::vector<size_t> originalIndices;
+	GMatrix* pData = loadDataWithSwitches(args, labelDims, originalIndices);
 	Holder<GMatrix> hData(pData);
 
 	// Parse the options
@@ -378,7 +410,7 @@ void attributeSelector(GArgReader& args)
 	cout << "\nAttribute rankings from most salient to least salient. (Attributes are zero-indexed.)\n";
 	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
 	for(size_t i = 0; i < as.ranks().size(); i++)
-		cout << as.ranks()[i] << " " << pRel->attrName(as.ranks()[i]) << "\n";
+	  cout << originalIndices.at(as.ranks()[i]) << " " << pRel->attrName(as.ranks()[i]) << "\n";
 }
 
 void blendEmbeddings(GArgReader& args)

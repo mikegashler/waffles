@@ -97,6 +97,15 @@ void GTwoWayTransformChainer::train(GMatrix& data)
 }
 
 // virtual
+void GTwoWayTransformChainer::train(sp_relation& relation)
+{
+	m_pFirst->train(relation);
+	m_pRelationBefore = m_pFirst->before();
+	m_pSecond->train(m_pFirst->after());
+	m_pRelationAfter = m_pSecond->after();
+}
+
+// virtual
 void GTwoWayTransformChainer::transform(const double* pIn, double* pOut)
 {
 	double* pBuf = m_pFirst->innerBuf();
@@ -253,6 +262,12 @@ void GPCA::train(GMatrix& data)
 			sse = t;
 		}
 	}
+}
+
+// virtual
+void GPCA::train(sp_relation& relation)
+{
+	ThrowError("This transform cannot be trained without data");
 }
 
 // virtual
@@ -504,6 +519,13 @@ void GNoiseGenerator::train(GMatrix& data)
 }
 
 // virtual
+void GNoiseGenerator::train(sp_relation& relation)
+{
+	m_pRelationBefore = relation;
+	m_pRelationAfter = m_pRelationBefore;
+}
+
+// virtual
 void GNoiseGenerator::transform(const double* pIn, double* pOut)
 {
 	size_t nDims = m_pRelationBefore->size();
@@ -553,6 +575,15 @@ GDomNode* GPairProduct::serialize(GDom* pDoc)
 void GPairProduct::train(GMatrix& data)
 {
 	m_pRelationBefore = data.relation();
+	size_t nAttrsIn = m_pRelationBefore->size();
+	size_t nAttrsOut = std::min(m_maxDims, nAttrsIn * (nAttrsIn - 1) / 2);
+	m_pRelationAfter = new GUniformRelation(nAttrsOut, 0);
+}
+
+// virtual
+void GPairProduct::train(sp_relation& relation)
+{
+	m_pRelationBefore = relation;
 	size_t nAttrsIn = m_pRelationBefore->size();
 	size_t nAttrsOut = std::min(m_maxDims, nAttrsIn * (nAttrsIn - 1) / 2);
 	m_pRelationAfter = new GUniformRelation(nAttrsOut, 0);
@@ -690,6 +721,12 @@ void GAttributeSelector::train(GMatrix& data)
 }
 
 // virtual
+void GAttributeSelector::train(sp_relation& relation)
+{
+	ThrowError("This transform cannot be trained without data");
+}
+
+// virtual
 void GAttributeSelector::transform(const double* pIn, double* pOut)
 {
 	size_t i;
@@ -800,6 +837,12 @@ GNominalToCat::~GNominalToCat()
 void GNominalToCat::train(GMatrix& data)
 {
 	init(data.relation());
+}
+
+// virtual
+void GNominalToCat::train(sp_relation& relation)
+{
+	init(relation);
 }
 
 // virtual
@@ -1087,6 +1130,12 @@ void GNormalize::train(GMatrix& data)
 }
 
 // virtual
+void GNormalize::train(sp_relation& relation)
+{
+	ThrowError("This transform cannot be trained without data");
+}
+
+// virtual
 void GNormalize::transform(const double* pIn, double* pOut)
 {
 	size_t nAttrCount = m_pRelationBefore->size();
@@ -1231,6 +1280,12 @@ void GDiscretize::train(GMatrix& data)
 }
 
 // virtual
+void GDiscretize::train(sp_relation& relation)
+{
+	ThrowError("This transform cannot be trained without data");
+}
+
+// virtual
 void GDiscretize::transform(const double* pIn, double* pOut)
 {
 	if(!m_pMins)
@@ -1350,6 +1405,12 @@ void GImputeMissingVals::train(GMatrix& data)
 	if(!m_pCF)
 		m_pCF = new GMatrixFactorization(std::max(size_t(2), std::min(size_t(8), data.cols() / 3)), m_rand);
 	m_pCF->trainDenseMatrix(*pData, m_pLabels);
+}
+
+// virtual
+void GImputeMissingVals::train(sp_relation& relation)
+{
+	ThrowError("This transform cannot be trained without data");
 }
 
 // virtual
