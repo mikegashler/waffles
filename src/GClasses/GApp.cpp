@@ -98,14 +98,14 @@ std::string GPipe::read()
 {
 	const unsigned bufsize = 256;
 	char buf[bufsize];
-	std::string out("");
+	std::ostringstream out;
 	while(true)
 	{
 		size_t bytes = read(buf, bufsize);
-		out.append(buf, bytes);
+		out.write(buf, bytes);
 		if(bytes < bufsize){ break;}
 	}
-	return out;
+	return out.str();
 }
 
 void GPipe::write(const char* buf, size_t bufSize)
