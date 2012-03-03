@@ -181,8 +181,8 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
 
 	//Make the initial list of original indices
 	originalIndices.resize(pData->cols());
-	for(int i = 0; i < originalIndices.size(); ++i){
-	  orignalIndices.at(i) = i;
+	for(std::size_t i = 0; i < originalIndices.size(); ++i){
+	  originalIndices.at(i) = i;
 	}
 
 	// Parse params
@@ -216,11 +216,11 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
 	}
 
 	// Swap label columns to the end
-	*pLabelDims = std::max((size_t)1, labels.size());
+	pLabelDims = std::max((size_t)1, labels.size());
 	for(size_t i = 0; i < labels.size(); i++)
 	{
 		size_t src = labels[i];
-		size_t dst = pData->cols() - *pLabelDims + i;
+		size_t dst = pData->cols() - pLabelDims + i;
 		if(src != dst)
 		{
 			pData->swapColumns(src, dst);
