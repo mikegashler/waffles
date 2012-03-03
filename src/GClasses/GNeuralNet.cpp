@@ -765,11 +765,28 @@ void GNeuralNet::clipWeights(double max)
 	}
 }
 
+void GNeuralNet::invertNode(size_t layer, size_t node)
+{
+	GNeuralNetLayer& layerCur = m_layers[layer];
+	GNeuron& neuron = layerCur.m_neurons[node];
+	for(vector<double>::iterator it = neuron.m_weights.begin(); it != neuron.m_weights.end(); it++)
+		*it = -(*it);
+	if(layer + 1 < m_layers.size())
+	{
+		GNeuralNetLayer& layerNext = m_layers[layer + 1];
+		for(vector<GNeuron>::iterator it = layerNext.m_neurons.begin(); it != layerNext.m_neurons.end(); it++)
+		{
+			it->m_weights[0] += 2 * layerCur.m_pActivationFunction->center() * it->m_weights[1 + node];
+			it->m_weights[1 + node] = -it->m_weights[1 + node];
+		}
+	}
+}
+
 void GNeuralNet::swapNodes(size_t layer, size_t a, size_t b)
 {
 	GNeuralNetLayer& layerCur = m_layers[layer];
 	std::swap(layerCur.m_neurons[a], layerCur.m_neurons[b]);
-	if(layer < m_layers.size())
+	if(layer + 1 < m_layers.size())
 	{
 		GNeuralNetLayer& layerNext = m_layers[layer + 1];
 		for(vector<GNeuron>::iterator it = layerNext.m_neurons.begin(); it != layerNext.m_neurons.end(); it++)
@@ -1668,6 +1685,36 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 		ThrowError("Failed simple sanity test");
 }
 
+void GNeuralNet_testInvertAndSwap(GRand& rand)
+{
+	// This test ensures that the GNeuralNet::swapNodes and GNeuralNet::invertNode methods
+	// have no net effect on the output of the neural network
+	double in[5];
+	double outBefore[5];
+	double outAfter[5];
+	for(size_t i = 0; i < 30; i++)
+	{
+		GNeuralNet nn(rand);
+		nn.addLayer(5);
+		nn.addLayer(5);
+		sp_relation pRel = new GUniformRelation(5);
+		nn.beginIncrementalLearning(pRel, pRel);
+		nn.perturbAllWeights(0.5);
+		rand.cubical(in, 5);
+		nn.predict(in, outBefore);
+		for(size_t j = 0; j < 8; j++)
+		{
+			if(rand.next(2) == 0)
+				nn.swapNodes(rand.next(2), rand.next(5), rand.next(5));
+			else
+				nn.invertNode(rand.next(2), rand.next(5));
+		}
+		nn.predict(in, outAfter);
+		if(GVec::squaredDistance(outBefore, outAfter, 5) > 1e-10)
+			ThrowError("Failed");
+	}
+}
+
 // static
 void GNeuralNet::test()
 {
@@ -1689,6 +1736,7 @@ void GNeuralNet::test()
 	}
 
 	GNeuralNet_testInputGradient(&prng);
+	GNeuralNet_testInvertAndSwap(prng);
 }
 
 #endif

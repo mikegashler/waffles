@@ -758,6 +758,7 @@ public:
 					}
 
 					// Do some training
+					m_pServer->trainPersonality(pAccount, ON_RATE_TRAINING_ITERS);
 					m_pServer->trainModel(currentTopic, ON_RATE_TRAINING_ITERS);
 				}
 			}
@@ -1618,7 +1619,7 @@ void Server::trainModel(size_t topic, size_t iters)
 			{
 				size_t index = (size_t)prng()->next(v.size());
 				Item& item = pCurrentTopic->item(v[index].first);
-				double target = 0.01 * (double)v[index].second;
+				double target = (double)v[index].second;
 				GAssert(target >= 0.0 && target <= 1.0);
 				item.trainWeights(target, 0.01, pSomeAccount->personality());
 				item.trainPersonality(target, 0.01, pSomeAccount->personality());

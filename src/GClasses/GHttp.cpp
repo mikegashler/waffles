@@ -161,10 +161,8 @@ void GHttpClient_parseURL(const char* szUrl, int* pnHostIndex, int* pnPortIndex,
 		*pnPathIndex = nPath;
 }
 
-bool GHttpClient::get(const char* szUrl, bool actuallyGetData) // actuallyGetData default = true todo rename sendRequestToserver
+bool GHttpClient::sendGetRequest(const char* szUrl, bool headersOnly)
 {
-	// todo: make it more lenient with the timeout values for downloading the heads...
-
 	GTEMPBUF(char, szNewUrl, (int)strlen(szUrl) + 1);
 	strcpy(szNewUrl, szUrl);
 	GFile::condensePath(szNewUrl);
@@ -210,17 +208,17 @@ bool GHttpClient::get(const char* szUrl, bool actuallyGetData) // actuallyGetDat
 	if(szPath[0] == 0)
 		szPath = "/index.html";
 	string s;
-	if(actuallyGetData)
-	{
-		//do GET
-		m_bAmCurrentlyDoingJustHeaders = false;
-		s = "GET ";
-	}
-	else
+	if(headersOnly)
 	{
 		//Do HEAD
 		m_bAmCurrentlyDoingJustHeaders = true;
 		s = "HEAD ";
+	}
+	else
+	{
+		//do GET
+		m_bAmCurrentlyDoingJustHeaders = false;
+		s = "GET ";
 	}
 	while(*szPath != '\0') // todo: write a method to escape urls
 	{
@@ -277,7 +275,7 @@ void GHttpClient::processHeader(const unsigned char* szData, size_t nSize)
 
 				if(m_szRedirect)
 				{
-					if(!get(m_szRedirect))
+					if(!sendGetRequest(m_szRedirect))
 						m_status = Error;
 					delete(m_szRedirect);
 					m_szRedirect = NULL;
@@ -517,7 +515,7 @@ void GHttpClient::gimmeWhatYouGot()
 	}
 }
 
-unsigned char* GHttpClient::getData(size_t* pnSize)
+unsigned char* GHttpClient::data(size_t* pnSize)
 {
 	if(m_status != Done)
 	{
@@ -541,14 +539,58 @@ unsigned char* GHttpClient::getData(size_t* pnSize)
 
 unsigned char* GHttpClient::releaseData(size_t* pnSize)
 {
-	unsigned char* pData = getData(pnSize);
+	unsigned char* pData = data(pnSize);
 	if(!pData)
 		return NULL;
 	m_pData = NULL;
 	return pData;
 }
 
-
+unsigned char* GHttpClient::get(const char* url, size_t* pOutSize, unsigned int sleepMiliSecs, unsigned int timeoutSecs)
+{
+	if(!sendGetRequest(url))
+		ThrowError("Failed to connect to ", url);
+	double startTime = GTime::seconds();
+	float prevProg = 0.0f;
+	float prog;
+	bool stillDownloading = true;
+	while(stillDownloading)
+	{
+		Status st = status(&prog);
+		switch(st)
+		{
+			case Downloading:
+				{
+					double time = GTime::seconds();
+					if(prog > prevProg)
+					{
+						prevProg = prog;
+						startTime = time;
+					}
+					else if(time - startTime > timeoutSecs)
+						ThrowError("Timed out while waiting for any progress downloading ", url);
+					else
+						GThread::sleep(sleepMiliSecs);
+				}
+				break;
+			case Error:
+				ThrowError("Received error status while trying to get ", url);
+				break;
+			case NotFound:
+				ThrowError("404, not found: ", url);
+				break;
+			case Done:
+				stillDownloading = false;
+				break;
+			case Aborted:
+				ThrowError("Download of ", url, " aborted by server");
+				break;
+			default:
+				ThrowError("Unrecognized status code");
+		}
+	}
+	return releaseData(pOutSize);
+}
 
 
 
