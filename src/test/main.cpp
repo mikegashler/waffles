@@ -270,6 +270,35 @@ void test_dimred_attributeselector()
      "failed command execution");
 
   
+  TestEqual
+    ("\nAttribute rankings from most salient to least salient. "
+     "(Attributes are zero-indexed.)\n"
+     "3 Humidity\n"
+     "1 Outlook\n"
+     "2 Temperature\n"
+     "4 Wind\n",
+     run_dimred_attributeselector(golf_arff_dataset(),".arff",
+				  (Seq<int>()+0).asVector(),
+				  Seq<int>().asVector(),retval),
+     "Unexpected output from golf dataset with labels=0 and no ignored");
+  TestEqual
+    (0, retval, "Golf dataset with no labels=0 and no ignored "
+     "failed command execution");
+
+  TestEqual
+    ("\nAttribute rankings from most salient to least salient. "
+     "(Attributes are zero-indexed.)\n"
+     "3 Humidity\n"
+     "4 Wind\n",
+     run_dimred_attributeselector(golf_arff_dataset(),".arff",
+				  (Seq<int>()+0).asVector(),
+				  (Seq<int>()+1+2).asVector(),retval),
+     "Unexpected output from golf dataset with labels=0 and ignored=1,2");
+  TestEqual
+    (0, retval, "Golf dataset with no labels=0 and ignored=1,2 "
+     "failed command execution");
+
+  
 }
 
 
