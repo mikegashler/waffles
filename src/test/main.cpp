@@ -195,7 +195,7 @@ return
 ///\param retval the value returned by the command execution (non-zero
 ///              indicates failure)
 ///
-///\return the output printed to stdout 
+///\return the output printed to stdout and standard error
 ///
 std::string run_dimred_attributeselector(std::string dataset, 
 					 std::string extension,
@@ -230,9 +230,10 @@ std::string run_dimred_attributeselector(std::string dataset,
 
   // Execute the command
   GPipe pipeStdOut;
-  retval = sysExec("waffles_dimred", args.c_str(), &pipeStdOut);
+  GPipe pipeStdErr;
+  retval = sysExec("waffles_dimred", args.c_str(), &pipeStdOut, &pipeStdErr);
   
-  return pipeStdOut.read();
+  return pipeStdOut.read()+pipeStdErr.read();
 }
 
 
@@ -297,6 +298,27 @@ void test_dimred_attributeselector()
   TestEqual
     (0, retval, "Golf dataset with no labels=0 and ignored=1,2 "
      "failed command execution");
+
+  TestContains
+    ("is both ignored and used as a label",
+     run_dimred_attributeselector(golf_arff_dataset(),".arff",
+				  (Seq<int>()+1).asVector(),
+				  (Seq<int>()+1+2).asVector(),retval),
+     "Unexpected output from golf dataset with labels=1 and ignored=1,2");
+  TestEqual
+    (1, retval, "Golf dataset with no labels=1 and ignored=1,2 "
+     "unexpectedly succeeded command execution");
+
+  
+  TestContains
+    ("Unsupported file format",
+     run_dimred_attributeselector(golf_arff_dataset(),".mat",
+				  (Seq<int>()).asVector(),
+				  (Seq<int>()).asVector(),retval),
+     "Unexpected output from golf dataset with .mat input file");
+  TestEqual
+    (1, retval, "Golf dataset .mat input file "
+     "unexpectedly succeeded command execution");
 
   
 }
