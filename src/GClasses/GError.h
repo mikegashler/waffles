@@ -274,6 +274,31 @@ void TestEqual(char const* expected, char* got, std::string desc);
 ///"Specialization" of TestEqual for c-strings done using overloading
 void TestEqual(char* expected, char* got, std::string desc);
 
+///\brief Verify that \a expectedSubstring is a substring of \a got for test code. Unlike Assert, this check does not disappear in optimized builds.
+///
+///If expected==got then does nothing.  Otherwise prints to stderr:
+///
+///<pre>
+///Substring match failed: ---------test_descr goes here ---------------
+///
+///Expected substring: ------------expectedSubstring goes here---------------
+///Got               : ------------got goes here     ---------------
+///</pre>
+///
+///Then it throws an exception using ThrowError
+///
+///\param expectedSubstring The value expected as a substring from
+///                         specifications
+///
+///\param got      The value actually produced by the code
+///
+///\param test_descr A short test description to allow a human to
+///                  easily find the failing test in the code and
+///                  understand why it was written and have some help
+///                  in diagnosing the bug.
+void TestContains(std::string expectedSubstring, std::string got,
+                  std::string desc);
+
 } // namespace GClasses
 
 #endif // __GERROR_H__

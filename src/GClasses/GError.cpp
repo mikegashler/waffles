@@ -161,6 +161,21 @@ void TestEqual(char* expected, char* got, std::string desc){
   TestEqual(std::string(expected), std::string(got), desc);
 }
 
+void TestContains(std::string expectedSubstring, std::string got,
+                  std::string descr){
+	using std::endl;
+	if(got.find(expectedSubstring) == std::string::npos){
+		std::cerr
+			<< endl
+			<< "Substring match failed: " << descr << endl
+			<< endl
+			<< "Expected substring: " << expectedSubstring << endl
+			<< "Got               : " << got << endl
+			;
+		ThrowError("Substring match test failed: ", descr);
+	}
+}
+
 
 
 #ifdef WINDOWS
