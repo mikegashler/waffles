@@ -387,6 +387,12 @@ public:
 	/// Returns true iff train or beginIncrementalTraining has been called.
 	bool hasTrainingBegun() { return m_internalLabelDims > 0; }
 
+	/// Inverts the weights of the specified node, and adjusts the weights in
+	/// the next layer (if there is one) such that this will have no effect
+	/// on the output of the network.
+	/// (Assumes this model is already trained.)
+	void invertNode(size_t layer, size_t node);
+
 	/// Swaps two nodes in the specified layer. If layer specifies one of the hidden
 	/// layers, then this will have no net effect on the output of the network.
 	/// (Assumes this model is already trained.)

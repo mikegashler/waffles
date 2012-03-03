@@ -66,11 +66,19 @@ public:
 	GHttpClient();
 	virtual ~GHttpClient();
 
-	virtual void onReceiveData(const unsigned char* pData, size_t nLen) {}
+	/// Gets a file from the specified URL. You are responsible to delete[] the data this returns. The size of the
+	/// data is returned at *pOutSize. An exception is thrown if any error occurs. sleepMiliSecs specifies how long
+	/// to sleep while waiting for more data. If no progress is made for timeoutSecs seconds, an exception is thrown.
+	/// (This is a high-level method that calls the other low-level methods of this class. Generally, you will either
+	/// use just this method, or all of the other methods.)
+	unsigned char* get(const char* url, size_t* pOutSize, unsigned int sleepMiliSecs = 200, unsigned int timeoutSecs = 30);
 
 	/// Send a request to get a file.  Returns immediately (before the file
-	/// is downloaded).
-	bool get(const char* szUrl, bool actuallyDownloadTheData = true);
+	/// is downloaded). If headersOnly is true, then only the headers will
+	/// be requested, and not the file. Returns true if the request was
+	/// sent successfully. Returns false if it could not connect to the
+	/// specified URL.
+	bool sendGetRequest(const char* szUrl, bool headersOnly = false);
 
 	/// See what the status of the download is.  If everything is going okay,
 	/// it will return "Downloading" while downloading and "Done" when the file
@@ -82,7 +90,7 @@ public:
 	/// Don't call this until the status is "Done".  It returns a pointer to the
 	/// file that was downloaded.  The buffer will be deleted when this object is
 	/// deleted, so if you want to retain the buffer, call releaseData instead.
-	unsigned char* getData(size_t* pnSize);
+	unsigned char* data(size_t* pnSize);
 
 	/// Just like getData except it forgets about the buffer so you'll have to
 	/// delete it yourself.
@@ -91,11 +99,16 @@ public:
 	/// This is called when the connection is lost
 	void onLoseConnection();
 
+	/// Specify the name that the client uses to identify itself when requesting a file. The default is "GHttpClient/1.0".
 	void setClientName(const char* szClientName);
-	
-	void abort();	/// called by the consumer, when an abort is desired. 
+
+	/// The client may call this method to abort the download
+	void abort();
 
 protected:
+	/// This method is called whenever a chunk of data is received
+	virtual void onReceiveData(const unsigned char* pData, size_t nLen) {}
+
 	void processHeader(const unsigned char* szData, size_t nSize);
 	void processBody(const unsigned char* szData, size_t nSize);
 	void processChunkBody(const unsigned char* szData, size_t nSize);

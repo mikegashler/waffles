@@ -211,11 +211,11 @@ void GPipe::toFile(const char* szFilename)
 	// Set the file creation mask. (I don't know why we do this.)
 	umask(0);
 
-	// Get off any mounted drives so that they can be unmounted without
-	// killing the daemon
-	if(chdir("/") != 0)
-	{
-	}
+	// Get off any mounted drives so that they can be unmounted without killing the daemon
+	// No, some daemons may use the current directory, so they should do this themselves if not.
+//	if(chdir("/") != 0)
+//	{
+//	}
 
 	// Launch the daemon
 	pDaemonMain(pArg);
