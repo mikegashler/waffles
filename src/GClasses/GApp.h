@@ -60,6 +60,11 @@ public:
 	/// or the buffer is full.
 	ssize_t read(char* buf, size_t bufSize);
 
+	/// Read from the pipe until there is nothing else to read
+	/// \return the data read from the pipe
+	std::string read();
+
+
 	/// Write to the pipe.
 	void write(const char* buf, size_t bufSize);
 

@@ -94,6 +94,20 @@ ssize_t GPipe::read(char* buf, size_t bufSize)
 #endif
 }
 
+std::string GPipe::read()
+{
+	const unsigned bufsize = 256;
+	char buf[bufsize];
+	std::string out("");
+	while(true)
+	{
+		size_t bytes = read(buf, bufsize);
+		out.append(buf, bytes);
+		if(bytes < bufsize){ break;}
+	}
+	return out;
+}
+
 void GPipe::write(const char* buf, size_t bufSize)
 {
 #ifdef WINDOWS
