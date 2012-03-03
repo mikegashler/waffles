@@ -108,6 +108,170 @@ public:
 	}
 };
 
+namespace{
+  /// A convenience class for making sequences
+  ///
+  /// Example: 
+  ///
+  /// \code
+  /// (Seq<int>()+3+1+4+1+5).asVector();
+  /// \endcode
+  ///
+  /// Will make a vector containing the elements 3,1,4,1, and 5
+  template<class T>
+  class Seq{						
+    std::list<T> l;
+  public:
+    /// Create an empty sequence
+    Seq(){  }
+
+    /// Add \a next to this sequence
+    /// \param next the item to add to the sequence
+    /// \return this sequence after the append
+    Seq<T>& operator+(T next){ l.push_back(next); return *this; }
+
+    /// Return a vector that contains copies of the elements of this sequence
+    /// \return a vector that contains copies of the elements of this sequence
+    std::vector<T> asVector() const{ 
+      return std::vector<T>(l.begin(), l.end()); }
+
+    /// Return a list that contains copies of the elements of this sequence
+    /// \return a list that contains copies of the elements of this sequence
+    std::list<T> asList() const{ 
+      return l; }
+  };
+
+  
+};
+
+
+///Return the golf dataset used in Mark Hall's dissertation
+///"Correlation based feature selection for machine learning" in ARFF
+///format. The nominal attributes have been replaced by integers
+///representing my own ordinal interpretations of them.
+std::string golf_arff_dataset(){
+return
+  "@RELATION Golf\n"
+  "\n"
+  "@ATTRIBUTE Play	real\n"
+  "@ATTRIBUTE Outlook	real\n"
+  "@ATTRIBUTE Temperature	real\n"
+  "@ATTRIBUTE Humidity	real\n"
+  "@ATTRIBUTE Wind	real\n"
+  "\n"
+  "@DATA\n"
+  "-1,1,1,1,-1\n"
+  "-1,1,1,1,1\n"
+  "1,-1,0,1,-1\n"
+  "1,-1,-1,-1,-1\n"
+  "1,0,-1,-1,1\n"
+  "-1,1,0,1,-1\n"
+  "1,1,-1,-1,-1\n"
+  "1,1,0,-1,1\n"
+  "1,0,0,1,1\n"
+  "1,0,1,-1,-1\n"
+  "1,0,1,1,-1\n"
+  "1,-1,0,-1,-1\n"
+  "-1,-1,0,1,1\n"
+  "-1,-1,-1,-1,1\n";
+}
+
+///Runs the command line waffles_dimred attributeselector and returns the 
+///output that was printed to stdout
+///
+///\param dataset the text of a file that will be used as input to
+///               waffles_dimred attributeselector
+///
+///\param extension the filename extension (".arff", ".csv"
+///                 (comma-separated), ".dat" (null separated) to use
+///                 in the temporary file read in by waffles_dimred
+///
+///\param labels the indices of the attributes that are label
+///              dimensions (0-based indices)
+///
+///\param ignored the indices of the attributes that are ignored
+///              dimensions (0-based indices)
+///
+///\param retval the value returned by the command execution (non-zero
+///              indicates failure)
+///
+///\return the output printed to stdout 
+///
+std::string run_dimred_attributeselector(std::string dataset, 
+					 std::string extension,
+					 std::vector<int> labels, 
+					 std::vector<int> ignored,
+					 int& retval
+					 ){
+  using std::string;
+  //Make the temp file in.extenson containing the requested data
+  string tmpname = string("in")+extension;
+  TempFileMaker inFile(tmpname.c_str(), dataset.c_str());
+
+  // Build the command line
+  string args;
+  args += " attributeselector ";
+  args += tmpname;
+  std::vector<int>::const_iterator it;
+  if(labels.size() > 0){
+    it = labels.begin();
+    args += " -labels "+ to_str(*it);
+    for(++it; it != labels.end(); ++it){
+      args += ","; args += to_str(*it);
+    }
+  }
+  if(ignored.size() > 0){
+    it = ignored.begin();
+    args += " -ignore "+ to_str(*it);
+    for(++it; it != ignored.end(); ++it){
+      args += ","; args += to_str(*it);
+    }
+  }
+
+  // Execute the command
+  GPipe pipeStdOut;
+  retval = sysExec("waffles_dimred", args.c_str(), &pipeStdOut);
+  
+  return pipeStdOut.read();
+}
+
+
+void test_dimred_attributeselector()
+{
+  int retval;
+  TestEqual
+    ("\nAttribute rankings from most salient to least salient. "
+     "(Attributes are zero-indexed.)\n"
+     "1 Outlook\n"
+     "0 Play\n"
+     "3 Humidity\n"
+     "2 Temperature\n",
+     run_dimred_attributeselector(golf_arff_dataset(),".arff",
+				  (Seq<int>()).asVector(),
+				  Seq<int>().asVector(),retval),
+     "Unexpected output from golf dataset with no labels and no ignored");
+  TestEqual
+    (0, retval, "Golf dataset with no labels and no ignored "
+     "failed command execution");
+
+  TestEqual
+    ("\nAttribute rankings from most salient to least salient. "
+     "(Attributes are zero-indexed.)\n"
+     "1 Outlook\n"
+     "0 Play\n"
+     "3 Humidity\n"
+     "2 Temperature\n",
+     run_dimred_attributeselector(golf_arff_dataset(),".arff",
+				  (Seq<int>()+4).asVector(),
+				  Seq<int>().asVector(),retval),
+     "Unexpected output from golf dataset with labels=4 and no ignored");
+  TestEqual
+    (0, retval, "Golf dataset with no labels=4 and no ignored "
+     "failed command execution");
+
+  
+}
+
 
 void test_transform_mergevert()
 {
@@ -583,6 +747,7 @@ public:
 				// Command-line tests
 				runTest("waffles_transform mergevert", test_transform_mergevert);
 				runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
+				runTest("waffles_dimred attributeselector", test_dimred_attributeselector);
 #ifndef WINDOWS
 				runTest("document classification", test_document_classification);
 #endif
