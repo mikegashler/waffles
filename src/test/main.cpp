@@ -564,9 +564,28 @@ class GTestHarness
 protected:
 	std::ostringstream m_testTimes;
 
+	///A test will only be run if its name contains one of the
+	///testNameSubstr strings.  Any string contains the empty string as
+	///a substring, so the empty string matches all strings.
+	std::list<std::string> m_testNameSubstr;
 public:
-	GTestHarness()
+	///Create a test harness that runs tests matching the substrings
+	///passed on the command line. argc and argv are interpreted as if
+	///they were the arguments to main.  If no substrings are given
+	///(that is, no arguments are passed), all tests are run, as if one
+	///argument of an empty string had been given.
+	GTestHarness(int argc, char**argv)
 	{
+		//Make list of test names to match
+ 		if(argc < 2){ 
+			m_testNameSubstr.push_back("");
+		}else{
+			for(int i = 1; i < argc; ++i){
+				m_testNameSubstr.push_back(argv[i]);
+			}
+		}
+
+		//Ready performance stats
 		char buf[256];
 		if(GApp::appPath(buf, 256, true) == -1)
 			ThrowError("Failed to retrieve app path");
@@ -624,32 +643,49 @@ public:
 		m_testTimes << secs;
 	}
 
+	///Return true if this testHarness will run a test named
+	///testname.  You can also think about it as returning true
+	///iff testname contains one of the strings passed on the
+	///command line as a pattern which the test names must match.
+	bool willRunTest(std::string testName) const{
+		std::list<std::string>::const_iterator pat;
+		const std::list<std::string>& pats = m_testNameSubstr;
+		for(pat = pats.begin(); pat != pats.end(); ++pat){
+			if(testName.find(*pat) != std::string::npos){
+				return true;
+			}
+		}
+		return false;
+	}
+
 	bool runTest(const char* szTestName, TestFunc pTest)
 	{
-		cout << szTestName;
-		size_t nSpaces = (size_t)70 - strlen(szTestName);
-		for( ; nSpaces > 0; nSpaces--)
-			cout << " ";
-		cout.flush();
 		bool bPass = false;
-		try
-		{
-			double beginTime = GTime::seconds();
-			pTest();
-			double endTime = GTime::seconds();
-			logTime(szTestName, endTime - beginTime);
-			cout << "Passed\n";
-			bPass = true;
-		}
-		catch(const std::exception& e)
-		{
-			cout << "FAILED!!!\n";
-			cout << e.what() << "\n\n";
-		}
-		catch(...)
-		{
-			cout << "FAILED!!!\n";
-			cout << "A non-standard exception was thrown.\n\n";
+		if(willRunTest(szTestName)){
+			cout << szTestName;
+			size_t nSpaces = (size_t)70 - strlen(szTestName);
+			for( ; nSpaces > 0; nSpaces--)
+				cout << " ";
+			cout.flush();
+			try
+			{
+				double beginTime = GTime::seconds();
+				pTest();
+				double endTime = GTime::seconds();
+				logTime(szTestName, endTime - beginTime);
+				cout << "Passed\n";
+				bPass = true;
+			}
+			catch(const std::exception& e)
+			{
+				cout << "FAILED!!!\n";
+				cout << e.what() << "\n\n";
+			}
+			catch(...)
+			{
+				cout << "FAILED!!!\n";
+				cout << "A non-standard exception was thrown.\n\n";
+			}
 		}
 		return bPass;
 	}
@@ -764,10 +800,17 @@ public:
 int main(int argc, char *argv[])
 {
 	GApp::enableFloatingPointExceptions();
+
+	if(argc < 2){
+	  std::cout << 
+	    "You can run only specific tests by passing strings that must be "
+	    "substrings of \nthe test names on the command line\n";
+	}
+
 	int nRet = 0;
 	try
 	{
-		GTestHarness harness;
+		GTestHarness harness(argc, argv);
 		harness.runAllTests();
 	}
 	catch(const std::exception& e)
