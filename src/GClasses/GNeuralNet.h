@@ -403,6 +403,9 @@ public:
 	/// be done, for example, before averaging weights together.)
 	void align(GNeuralNet& that);
 
+	/// Prints weights in a human-readable format
+	void printWeights(std::ostream& stream);
+
 protected:
 	/// Measures the sum squared error against the specified dataset
 	double validationSquaredError(GMatrix& features, GMatrix& labels);

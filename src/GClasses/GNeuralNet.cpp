@@ -23,9 +23,9 @@
 #include "GDistance.h"
 #include "GAssignment.h"
 
-namespace GClasses {
-
 using std::vector;
+
+namespace GClasses {
 
 void GNeuron::resetWeights(GRand* pRand, double inputCenter)
 {
@@ -807,46 +807,66 @@ void GNeuralNet::align(GNeuralNet& that)
 		GNeuralNetLayer& layerThatCur = that.m_layers[i];
 		if(layerThisCur.m_neurons.size() != layerThatCur.m_neurons.size())
 			ThrowError("mismatching layer size");
-		GMatrix thisWeights(layerThisCur.m_neurons.size(), layerThisCur.m_neurons[0].m_weights.size());
-		GMatrix thatWeights(layerThisCur.m_neurons.size(), layerThisCur.m_neurons[0].m_weights.size());
-		for(size_t j = 0; j < layerThisCur.m_neurons.size(); j++)
+
+		GMatrix costs(layerThisCur.m_neurons.size(), layerThatCur.m_neurons.size());
+		for(size_t k = 0; k < layerThisCur.m_neurons.size(); k++)
 		{
-			GNeuron& nThis = layerThisCur.m_neurons[j];
-			GNeuron& nThat = layerThatCur.m_neurons[j];
-			double* pThisRow = thisWeights.row(j);
-			double* pThatRow = thatWeights.row(j);
-			vector<double>::iterator wThis = nThis.m_weights.begin();
-			vector<double>::iterator wThat = nThat.m_weights.begin();
-			while(wThis != nThis.m_weights.end())
+			GNeuron& neuronThis = layerThisCur.m_neurons[k];
+			for(size_t j = 0; j < layerThatCur.m_neurons.size(); j++)
 			{
-				*(pThisRow++) = *(wThis++);
-				*(pThatRow++) = *(wThat++);
+				GNeuron& neuronOther = layerThatCur.m_neurons[j];
+				double pos = 0.0;
+				double neg = 0.0;
+				vector<double>::iterator itThis = neuronThis.m_weights.begin();
+				vector<double>::iterator itThat = neuronOther.m_weights.begin();
+				while(itThis != neuronThis.m_weights.end())
+				{
+					double d = *itThis - *itThat;
+					pos += (d * d);
+					d = *itThis + *itThat;
+					neg += (d * d);
+					itThis++;
+					itThat++;
+				}
+				costs[j][k] = std::min(pos, neg);
 			}
 		}
-
-		// Do bipartite matching
-		GRowDistance metric;
-		GSimpleAssignment indexes = GMatrix::bipartiteMatching(thatWeights, thisWeights, metric);
+		GSimpleAssignment indexes = linearAssignment(costs);
 
 		// Align this layer with that layer
-		for(size_t j = 0; j < thisWeights.rows(); j++)
+		for(size_t j = 0; j < layerThisCur.m_neurons.size(); j++)
 		{
 			size_t k = indexes(j);
 			if(k != j)
 			{
 				// Fix up the indexes
 				size_t m = j + 1;
-				for( ; m < thisWeights.rows(); m++)
+				for( ; m < layerThisCur.m_neurons.size(); m++)
 				{
 					if((size_t)indexes(m) == j)
 						break;
 				}
-				GAssert(m < thisWeights.rows());
+				GAssert(m < layerThisCur.m_neurons.size());
 				indexes.assign(m, k);
 
 				// Swap nodes j and k
 				swapNodes(i, j, k);
 			}
+
+			// Test whether not j needs to be inverted by computing the dot product of the two weight vectors
+			double dp = 0.0;
+			GNeuron& neuronThis = layerThisCur.m_neurons[j];
+			vector<double>::iterator itThis = neuronThis.m_weights.begin();
+			GNeuron& neuronThat = layerThatCur.m_neurons[j];
+			vector<double>::iterator itThat = neuronThat.m_weights.begin();
+			while(itThis != neuronThis.m_weights.end())
+			{
+				dp += (*itThis * *itThat);
+				itThis++;
+				itThat++;
+			}
+			if(dp < 0)
+				invertNode(i, j); // invert it
 		}
 	}
 }
@@ -1487,6 +1507,32 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	copyStructure(hCand0.get());
 }
 
+void GNeuralNet::printWeights(std::ostream& stream)
+{
+	stream.precision(6);
+	stream << "Neural Network:\n";
+	for(size_t i = layerCount() - 1; i < layerCount(); i--)
+	{
+		if(i == layerCount() - 1)
+			stream << "	Output Layer:\n";
+		else
+			stream << "	Hidden Layer " << to_str(i) << ":\n";
+		GNeuralNetLayer& layer = this->layer(i);
+		for(size_t j = 0; j < layer.m_neurons.size(); j++)
+		{
+			stream << "		Unit " << to_str(j) << ":	";
+			GNeuron& neuron = layer.m_neurons[j];
+			for(size_t k = 0; k < neuron.m_weights.size(); k++)
+			{
+				if(k > 0)
+					stream << "	";
+				stream << neuron.m_weights[k];
+			}
+			stream << "\n";
+		}
+	}
+}
+
 #ifndef NO_TEST_CODE
 void GNeuralNet_testMath()
 {
@@ -1685,33 +1731,104 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 		ThrowError("Failed simple sanity test");
 }
 
+#define TEST_INVERT_INPUTS 5
 void GNeuralNet_testInvertAndSwap(GRand& rand)
 {
+	size_t layers = 2;
+	size_t layerSize = 5;
+
 	// This test ensures that the GNeuralNet::swapNodes and GNeuralNet::invertNode methods
 	// have no net effect on the output of the neural network
-	double in[5];
-	double outBefore[5];
-	double outAfter[5];
+	double in[TEST_INVERT_INPUTS];
+	double outBefore[TEST_INVERT_INPUTS];
+	double outAfter[TEST_INVERT_INPUTS];
 	for(size_t i = 0; i < 30; i++)
 	{
 		GNeuralNet nn(rand);
-		nn.addLayer(5);
-		nn.addLayer(5);
-		sp_relation pRel = new GUniformRelation(5);
+		for(size_t j = 0; j < layers; j++)
+			nn.addLayer(layerSize);
+		sp_relation pRel = new GUniformRelation(TEST_INVERT_INPUTS);
 		nn.beginIncrementalLearning(pRel, pRel);
 		nn.perturbAllWeights(0.5);
-		rand.cubical(in, 5);
+		rand.cubical(in, TEST_INVERT_INPUTS);
 		nn.predict(in, outBefore);
 		for(size_t j = 0; j < 8; j++)
 		{
 			if(rand.next(2) == 0)
-				nn.swapNodes(rand.next(2), rand.next(5), rand.next(5));
+				nn.swapNodes(rand.next(layers), rand.next(layerSize), rand.next(layerSize));
 			else
-				nn.invertNode(rand.next(2), rand.next(5));
+				nn.invertNode(rand.next(layers), rand.next(layerSize));
 		}
 		nn.predict(in, outAfter);
-		if(GVec::squaredDistance(outBefore, outAfter, 5) > 1e-10)
+		if(GVec::squaredDistance(outBefore, outAfter, TEST_INVERT_INPUTS) > 1e-10)
 			ThrowError("Failed");
+	}
+
+	for(size_t i = 0; i < 30; i++)
+	{
+		// Generate two identical neural networks
+		GNeuralNet nn1(rand);
+		GNeuralNet nn2(rand);
+		for(size_t j = 0; j < layers; j++)
+		{
+			nn1.addLayer(layerSize);
+			nn2.addLayer(layerSize);
+		}
+		sp_relation pRel = new GUniformRelation(TEST_INVERT_INPUTS);
+		nn1.beginIncrementalLearning(pRel, pRel);
+		nn2.beginIncrementalLearning(pRel, pRel);
+		nn1.perturbAllWeights(0.5);
+		nn2.copyWeights(&nn1);
+
+		// Predict something
+		rand.cubical(in, TEST_INVERT_INPUTS);
+		nn1.predict(in, outBefore);
+
+		// Mess with the topology of both networks
+		for(size_t j = 0; j < 20; j++)
+		{
+			if(rand.next(2) == 0)
+			{
+				if(rand.next(2) == 0)
+					nn1.swapNodes(rand.next(layers), rand.next(layerSize), rand.next(layerSize));
+				else
+					nn1.invertNode(rand.next(layers), rand.next(layerSize));
+			}
+			else
+			{
+				if(rand.next(2) == 0)
+					nn2.swapNodes(rand.next(layers), rand.next(layerSize), rand.next(layerSize));
+				else
+					nn2.invertNode(rand.next(layers), rand.next(layerSize));
+			}
+		}
+
+		// Align the first network to match the second one
+		nn1.align(nn2);
+
+		// Check that predictions match before
+		nn2.predict(in, outAfter);
+		if(GVec::squaredDistance(outBefore, outAfter, TEST_INVERT_INPUTS) > 1e-10)
+			ThrowError("Failed");
+		nn1.predict(in, outAfter);
+		if(GVec::squaredDistance(outBefore, outAfter, TEST_INVERT_INPUTS) > 1e-10)
+			ThrowError("Failed");
+
+		// Check that they have matching weights
+		size_t wc = nn1.countWeights();
+		double* pW1 = new double[wc];
+		ArrayHolder<double> hW1(pW1);
+		nn1.weights(pW1);
+		double* pW2 = new double[wc];
+		ArrayHolder<double> hW2(pW2);
+		nn2.weights(pW2);
+		for(size_t j = 0; j < wc; j++)
+		{
+			if(std::abs(*pW1 - *pW2) >= 1e-9)
+				ThrowError("Failed");
+			pW1++;
+			pW2++;
+		}
 	}
 }
 
