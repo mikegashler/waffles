@@ -1712,6 +1712,7 @@ void testLinearAssignmentSolvers(){
 	{																									\
 		bool didntThrow;																\
 		try{																						\
+			GExpectException ee;													\
 			code; didntThrow = true;											\
 		} catch(...){																		\
 			didntThrow=false;															\

@@ -28,16 +28,17 @@ using std::cerr;
 
 namespace GClasses {
 
+bool g_exceptionExpected = false;
 string g_errorMessage;
-const char* GException::what() const throw(){ 
-  return g_errorMessage.c_str(); }
 GException g_exception;
 
 void ThrowError(string s)
 {
 	g_errorMessage = s;
+	if(g_exceptionExpected)
+		throw g_exception;
 
-	// Behold! The central location from which all exceptions in this library are thrown!
+	// Behold! The central location from which all unexpected exceptions in this library are thrown!
 	// (This might be a good place to put a breakpoint.)
 	throw g_exception;
 }
@@ -141,6 +142,27 @@ void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6
 	s += s10;
 	ThrowError(s);
 }
+
+
+
+const char* GException::what() const throw()
+{ 
+	return g_errorMessage.c_str();
+}
+
+
+
+GExpectException::GExpectException()
+{
+	m_prev = g_exceptionExpected;
+	g_exceptionExpected = true;
+}
+
+GExpectException::~GExpectException()
+{
+	g_exceptionExpected = m_prev;
+}
+
 
 
 

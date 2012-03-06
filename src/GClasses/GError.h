@@ -53,6 +53,20 @@ void GAssertFailed();
 #endif // else _DEBUG
 
 
+
+///\brief Instantiating an object of this class specifies that an exception is expected during the life of the object.
+class GExpectException
+{
+protected:
+	bool m_prev;
+
+public:
+	GExpectException();
+	~GExpectException();
+};
+
+
+
 ///\brief The class of all exceptions thrown by this library
 class GException : public std::exception
 {
