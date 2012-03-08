@@ -29,18 +29,15 @@ using std::cerr;
 namespace GClasses {
 
 bool g_exceptionExpected = false;
-string g_errorMessage;
-GException g_exception;
 
 void ThrowError(string s)
 {
-	g_errorMessage = s;
-	if(g_exceptionExpected)
-		throw g_exception;
+	if(g_exceptionExpected) // Technically, using globals is not thread-safe, but it doesn't matter in this case since behavior is the same either way.
+		throw GException(s);
 
 	// Behold! The central location from which all unexpected exceptions in this library are thrown!
 	// (This might be a good place to put a breakpoint.)
-	throw g_exception;
+	throw GException(s);
 }
 
 
@@ -147,7 +144,7 @@ void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6
 
 const char* GException::what() const throw()
 { 
-	return g_errorMessage.c_str();
+	return m_message.c_str();
 }
 
 

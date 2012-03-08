@@ -70,11 +70,22 @@ public:
 ///\brief The class of all exceptions thrown by this library
 class GException : public std::exception
 {
+protected:
+	std::string m_message;
+
 public:
+	GException(std::string message) : m_message(message)
+	{
+	}
+	
+    virtual ~GException() throw()
+	{
+	}
+
 	///\brief Return the error message corresponding to this exception
 	///
 	///\return the error message corresponding to this exception
-  virtual const char* what() const throw();
+	virtual const char* what() const throw();
 };
 
 
