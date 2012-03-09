@@ -831,7 +831,8 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pTest = pRoot->add("test <options> [model-file] [dataset] <data_opts>", "Test a trained model using some test data. Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal label dimensions, and mean-squared-error is reported for continuous label dimensions.");
 		UsageNode* pOpts = pTest->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
+		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");		
+		pOpts->add("-confusioncsv", "Print a confusion matrix in comma-separated value format for each nominal label attribute.");
 		pTest->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pTest->add("[dataset]=test.arff", "The filename of a test dataset. (This dataset must have the same number of columns as the dataset with which the model was trained.)");
 		UsageNode* pDO = pTest->add("<data_opts>");
@@ -856,6 +857,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pOpts = pTransAcc->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
+		pOpts->add("-confusioncsv", "Print a confusion matrix in comma-separated value format for each nominal label attribute.");
 		pTransAcc->add("[training-set]=train.arff", "The filename of a dataset. The labels in this dataset are used to infer labels for the unlabeled set.");
 		pTransAcc->add("[test-set]=test.arff", "The filename of a dataset. This dataset must have placeholder labels. The placeholder labels will be replaced in the output with the new predicted labels.");
 		UsageNode* pDO1 = pTransAcc->add("<data_opts1>");
@@ -877,6 +879,7 @@ UsageNode* makeLearnUsageTree()
 			   "when the learner being used has an internal "
 			   "model.");
 		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute after each repetition.");
+		pOpts->add("-confusioncsv", "Print a confusion matrix in comma-separated value format for each nominal label attribute.");
 		pOpts->add("-stddev", "Print the standard deviation of the results at the end as well as their mean.");
 		pSplitTest->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pDO = pSplitTest->add("<data_opts>");
