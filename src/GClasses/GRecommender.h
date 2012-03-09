@@ -75,7 +75,7 @@ public:
 
 	/// Marshal this object into a DOM that can be converted to a variety
 	/// of formats. (Implementations of this method should use baseDomNode.)
-	virtual GDomNode* serialize(GDom* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
 	/// This randomly assigns each rating to one of the folds. Then,
 	/// for each fold, it calls train with a dataset that contains
@@ -113,7 +113,7 @@ public:
 
 protected:
 	/// Child classes should use this in their implementation of serialize
-	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 };
 
 
@@ -146,7 +146,7 @@ public:
 	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
@@ -190,7 +190,7 @@ public:
 	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
@@ -230,7 +230,7 @@ public:
 	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
@@ -271,7 +271,7 @@ public:
 	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
@@ -328,7 +328,7 @@ public:
 	GMatrix* getQ() { return m_pQ; }
 
 	/// See the comment for GCollaborativeFilter::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Specify to use no bias value with the inputs
 	void noInputBias() { m_useInputBias = false; }
@@ -392,7 +392,7 @@ public:
 	virtual void impute(double* pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Specify to use no bias value with the inputs
 	void noInputBias() { m_useInputBias = false; }
@@ -448,7 +448,7 @@ public:
 	void clear();
 
 	/// See the comment for GCollaborativeFilter::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.

@@ -152,20 +152,40 @@ public:
 	/// Adds an item to a list node. Returns a pointer to the item passed in (pNode).
 	GDomNode* addItem(GDom* pDoc, GDomNode* pNode);
 
+	/// Writes this node in JSON format.
+	void writeJson(std::ostream& stream) const;
+
+	/// Writes this node in JSON format indented in a manner suitable for human readability.
+	void writeJsonPretty(std::ostream& stream, size_t indents) const;
+
+	/// Writes this node in JSON format, escaped in a manner suitable for hard-coding in a C/C++ string.
+	size_t writeJsonCpp(std::ostream& stream, size_t col) const;
+
+	/// Writes this node as XML
+	void writeXml(std::ostream& stream, const char* szLabel) const;
+
 protected:
-	size_t reverseFieldOrder();
+	/// Reverses the order of the fiels in the object and returns
+	/// the number of fields.  Assumes this GDomNode is
+	/// a object node.  Behavior is undefined if it is not an object
+	/// node.
+	///
+	/// \note This method is hackishly marked const because it is always used twice, such that it has no net effect.
+	///
+	/// \return The number of fields
+	size_t reverseFieldOrder() const;
 
 	/// Reverses the order of the items in the list and returns
 	/// the number of items in the list.  Assumes this GDomNode is
 	/// a list node.  Behavior is undefined if it is not a list
 	/// node.
 	///
+	/// \note This method is hackishly marked const because it is always used twice, such that it has no net effect.
+	///
 	/// \return The number of items in the list
-	size_t reverseItemOrder();
-	void writeJson(std::ostream& stream);
-	size_t writeJsonCpp(std::ostream& stream, size_t col);
+	size_t reverseItemOrder() const;
+
 	void writeXmlInlineValue(std::ostream& stream);
-	void writeXml(std::ostream& stream, const char* szLabel);
 };
 #ifdef WINDOWS
 //	reset packing to the default
@@ -204,24 +224,28 @@ public:
 	void loadJson(const char* szFilename);
 
 	/// Saves to a file in JSON format. (See http://json.org.)
-	void saveJson(const char* szFilename);
+	void saveJson(const char* szFilename) const;
 
 	/// Parses JSON format from a tokenizer (which wraps a stream).
 	void parseJson(const char* pFile, size_t len);
 
 	/// Writes this doc to the specified stream in JSON format. (See http://json.org.)
 	/// (If you want to write to a memory buffer, you can use open_memstream.)
-	void writeJson(std::ostream& stream);
+	void writeJson(std::ostream& stream) const;
+
+	/// Writes this doc to the specified stream in JSON format with indentation to make it human-readable.
+	/// (If you want to write to a memory buffer, you can use open_memstream.)
+	void writeJsonPretty(std::ostream& stream) const;
 
 	/// Writes this doc to the specified stream as an inlined C++ string in JSON format.
 	/// (This method would be useful for hard-coding a serialized object in a C++ program.)
-	void writeJsonCpp(std::ostream& stream);
+	void writeJsonCpp(std::ostream& stream) const;
 
 	/// Write as XML to the specified stream.
-	void writeXml(std::ostream& stream);
+	void writeXml(std::ostream& stream) const;
 
 	/// Gets the root document node
-	GDomNode* root() { return m_pRoot; }
+	GDomNode* root() const { return m_pRoot; }
 
 	/// Sets the root document node. (Returns the same node that you pass in.)
 	GDomNode* setRoot(GDomNode* pNode) { m_pRoot = pNode; return pNode; }
@@ -263,6 +287,15 @@ protected:
 	char* loadJsonString(GJsonTokenizer& tok);
 };
 
+///\brief Converts a GDomNode to a string
+std::string to_str(const GDomNode& node);
+
+///\brief Converts a GDom to a string
+std::string to_str(const GDom& doc);
+
 } // namespace GClasses
+
+
+
 
 #endif // __GDOM_H__

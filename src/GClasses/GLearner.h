@@ -215,7 +215,7 @@ public:
 
 	/// Marshal this object into a DOM that can be converted to a variety
 	/// of formats. (Implementations of this method should use baseDomNode.)
-	virtual GDomNode* serialize(GDom* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
 	/// Returns true because fully supervised learners have an internal
 	/// model that allows them to generalize previously unseen rows.
@@ -350,8 +350,12 @@ protected:
 	size_t precisionRecallContinuous(GPrediction* pOutput, double* pFunc, GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, size_t label);
 
 	/// Child classes should use this in their implementation of serialize
-	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 };
+
+///\brief Converts a GSupervisedLearner to a string
+std::string to_str(const GSupervisedLearner& learner);
+
 
 
 
@@ -483,7 +487,7 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
@@ -523,7 +527,7 @@ public:
 	virtual ~GIdentityFunction();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

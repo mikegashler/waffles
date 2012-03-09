@@ -1256,7 +1256,7 @@ public:
 	{
 	}
 
-	virtual GDomNode* serialize(GDom* pDoc)
+	virtual GDomNode* serialize(GDom* pDoc) const
 	{
 		ThrowError("not implemented");
 		return NULL;

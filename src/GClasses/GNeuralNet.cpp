@@ -482,7 +482,7 @@ GNeuralNet::~GNeuralNet()
 }
 
 // virtual
-GDomNode* GNeuralNet::serialize(GDom* pDoc)
+GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 {
 	if(!hasTrainingBegun())
 		ThrowError("The network has not been trained");
@@ -637,25 +637,25 @@ void GNeuralNet::dropNode(size_t layer, size_t node)
 	}
 }
 
-size_t GNeuralNet::countWeights()
+size_t GNeuralNet::countWeights() const
 {
 	if(!hasTrainingBegun())
 		ThrowError("train or beginIncrementalLearning must be called before this method");
 	size_t wc = 0;
-	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
+	for(vector<GNeuralNetLayer>::const_iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 		wc += layer->m_neurons.size() * layer->m_neurons.begin()->m_weights.size(); // We assume that every node in a layer has the same number of weights
 	return wc;
 }
 
-void GNeuralNet::weights(double* pOutWeights)
+void GNeuralNet::weights(double* pOutWeights) const
 {
 	if(!hasTrainingBegun())
 		ThrowError("train or beginIncrementalLearning must be called before this method");
-	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
+	for(vector<GNeuralNetLayer>::const_iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
-		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
+		for(vector<GNeuron>::const_iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
 		{
-			for(vector<double>::iterator weight = neuron->m_weights.begin(); weight != neuron->m_weights.end(); weight++)
+			for(vector<double>::const_iterator weight = neuron->m_weights.begin(); weight != neuron->m_weights.end(); weight++)
 			{
 				*pOutWeights = *weight;
 				pOutWeights++;

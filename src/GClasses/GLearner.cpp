@@ -487,7 +487,7 @@ GSupervisedLearner::~GSupervisedLearner()
 	delete(m_pLabelFilter);
 }
 
-GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName)
+GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	if(m_featureDims == (size_t)-1 || m_labelDims == (size_t)-1)
 		ThrowError("The model must be trained before it is serialized.");
@@ -507,6 +507,13 @@ GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName)
 			pCal->addItem(pDoc, m_pCalibrations[i]->serialize(pDoc));
 	}
 	return pNode;
+}
+
+std::string to_str(const GSupervisedLearner& learner)
+{
+	GDom doc;
+	learner.serialize(&doc);
+	return to_str(doc);
 }
 
 void GSupervisedLearner::setFeatureFilter(GTwoWayIncrementalTransform* pFilter)
@@ -1503,7 +1510,7 @@ void GBaselineLearner::clear()
 }
 
 // virtual
-GDomNode* GBaselineLearner::serialize(GDom* pDoc)
+GDomNode* GBaselineLearner::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBaselineLearner");
 	if(m_prediction.size() == 0)
@@ -1579,7 +1586,7 @@ void GIdentityFunction::clear()
 }
 
 // virtual
-GDomNode* GIdentityFunction::serialize(GDom* pDoc)
+GDomNode* GIdentityFunction::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GIdentityFunction");
 	pNode->addField(pDoc, "labels", pDoc->newInt(m_labelDims));

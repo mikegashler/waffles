@@ -788,7 +788,7 @@ public:
   /// GSelfOrganizingMap obtained from a dom file
   ///
   ///TODO: make all serialize's const
-  virtual GDomNode* serialize(GDom*);
+  virtual GDomNode* serialize(GDom*) const;
 
   ///see comment on GIncrementalTransform::train(GMatrix&)
   virtual void train(GMatrix& in){ 

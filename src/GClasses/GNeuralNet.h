@@ -195,7 +195,7 @@ public:
 #endif
 
 	/// Saves the model to a text file.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Sets the activation function to use with all subsequently added
 	/// layers. (Note that the activation function for the output layer is
@@ -216,7 +216,7 @@ public:
 	/// at least one output layer, plus all of the hidden layers that you add by calling
 	/// addLayer. The input vector does not count as a layer, even though it may be
 	/// common to visualize it as a layer.)
-	size_t layerCount() { return m_layers.size(); }
+	size_t layerCount() const { return m_layers.size(); }
 
 	/// Returns a reference to the specified layer.
 	GNeuralNetLayer& layer(size_t n) { return m_layers[n]; }
@@ -239,7 +239,7 @@ public:
 
 	/// Counts the number of weights in the network. (This value is not cached, so
 	/// you should cache it rather than frequently call this method.)
-	size_t countWeights();
+	size_t countWeights() const;
 
 	/// Perturbs all weights in the network by a random normal offset with the
 	/// specified deviation.
@@ -265,13 +265,13 @@ public:
 	void decayWeightsSingleOutput(size_t output, double lambda);
 
 	/// Returns the current learning rate
-	double learningRate() { return m_learningRate; }
+	double learningRate() const { return m_learningRate; }
 
 	/// Set the learning rate
 	void setLearningRate(double d) { m_learningRate = d; }
 
 	/// Returns the current momentum value
-	double momentum() { return m_momentum; }
+	double momentum() const { return m_momentum; }
 
 	/// Momentum has the effect of speeding convergence and helping
 	/// the gradient descent algorithm move past some local minimums
@@ -344,7 +344,7 @@ public:
 	/// Serializes the network weights into an array of doubles. The
 	/// number of doubles in the array can be determined by calling
 	/// countWeights().
-	void weights(double* pOutWeights);
+	void weights(double* pOutWeights) const;
 
 	/// Evaluates a feature vector. (The results will be in the nodes of the output layer.)
 	void forwardProp(const double* pInputs);
@@ -382,10 +382,10 @@ public:
 	void setUseInputBias(bool b) { m_useInputBias = b; }
 
 	/// Returns whether this neural network utilizes an input bias.
-	bool useInputBias() { return m_useInputBias; }
+	bool useInputBias() const { return m_useInputBias; }
 
 	/// Returns true iff train or beginIncrementalTraining has been called.
-	bool hasTrainingBegun() { return m_internalLabelDims > 0; }
+	bool hasTrainingBegun() const { return m_internalLabelDims > 0; }
 
 	/// Inverts the weights of the specified node, and adjusts the weights in
 	/// the next layer (if there is one) such that this will have no effect
@@ -497,7 +497,7 @@ public:
 	virtual ~GModerateNet();
 	double lambda() { return m_lambda; }
 	void setLambda(double d) { m_lambda = d; }
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 	virtual void train(GMatrix& data, int labelDims);
 	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 	virtual void clear();

@@ -53,7 +53,7 @@ GBigInt::~GBigInt()
 	delete [] m_pBits;
 }
 
-GDomNode* GBigInt::serialize(GDom* pDoc)
+GDomNode* GBigInt::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newList();
 	pNode->addItem(pDoc, pDoc->newInt(m_bSign ? 1 : -1));

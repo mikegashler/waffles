@@ -59,7 +59,7 @@ GSparseMatrix::~GSparseMatrix()
 {
 }
 
-GDomNode* GSparseMatrix::serialize(GDom* pDoc)
+GDomNode* GSparseMatrix::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "def", pDoc->newDouble(m_defaultValue));

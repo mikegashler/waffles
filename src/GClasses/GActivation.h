@@ -30,7 +30,7 @@ class GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() = 0;
+	virtual const char* name() const = 0;
 
 	/// The activation function
 	virtual double squash(double x) = 0;
@@ -57,7 +57,7 @@ public:
 	virtual double derivativeOfNet(double net, double activation) { return derivative(net); }
 
 	/// Serialize this object
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Deserialize this object
 	static GActivationFunction* deserialize(GDomNode* pNode);
@@ -68,7 +68,7 @@ class GActivationLogistic : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "logistic"; }
+	virtual const char* name() const { return "logistic"; }
 
 	/// The logistic function. Returns 1.0/(e^(-x)+1.0)
 	virtual double squash(double x)
@@ -111,7 +111,7 @@ class GActivationArcTan : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "arctan"; }
+	virtual const char* name() const { return "arctan"; }
 
 	/// Returns atan(x). The result will be in the range -PI/2 <= y <= PI/2
 	virtual double squash(double x) { return atan(x); }
@@ -137,7 +137,7 @@ class GActivationTanH : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "tanh"; }
+	virtual const char* name() const { return "tanh"; }
 
 	/// Returns tanh(x). The result is in the range -1 <= y <= 1
 	virtual double squash(double x) { return tanh(x); }
@@ -174,7 +174,7 @@ class GActivationAlgebraic : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "algebraic"; }
+	virtual const char* name() const { return "algebraic"; }
 
 	/// Returns x/(sqrt(x*x+1.0). The result is in the range -1 <= y <= 1
 	virtual double squash(double x) { return x / (sqrt(x * x + 1.0)); }
@@ -203,7 +203,7 @@ class GActivationIdentity : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "identity"; }
+	virtual const char* name() const { return "identity"; }
 
 	/// Returns x
 	virtual double squash(double x) { return x; }
@@ -234,7 +234,7 @@ class GActivationBend : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "bend"; }
+	virtual const char* name() const { return "bend"; }
 
 	/// Returns the bend function of x
 	virtual double squash(double x)
@@ -275,7 +275,7 @@ class GActivationBiDir : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "bidir"; }
+	virtual const char* name() const { return "bidir"; }
 
 	virtual double squash(double x)
 	{
@@ -316,7 +316,7 @@ class GActivationPiecewise : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "piecewise"; }
+	virtual const char* name() const { return "piecewise"; }
 
 	virtual double squash(double x);
 
@@ -351,7 +351,7 @@ class GActivationGaussian : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "gaussian"; }
+	virtual const char* name() const { return "gaussian"; }
 	
 	virtual double squash(double x) { return exp(-(x * x)); }
 
@@ -380,7 +380,7 @@ class GActivationSinc : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() { return "sinc"; }
+	virtual const char* name() const { return "sinc"; }
 	
 	virtual double squash(double x) { return x == 0 ? 1.0 : sin(x) / x; }
 

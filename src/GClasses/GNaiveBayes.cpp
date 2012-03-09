@@ -256,7 +256,7 @@ GNaiveBayes::~GNaiveBayes()
 }
 
 // virtual
-GDomNode* GNaiveBayes::serialize(GDom* pDoc)
+GDomNode* GNaiveBayes::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNaiveBayes");
 	pNode->addField(pDoc, "featurerel", m_pFeatureRel->serialize(pDoc));

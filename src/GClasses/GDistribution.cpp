@@ -36,7 +36,7 @@ void GCategoricalDistribution::deserialize(GDomNode* pNode)
 	}
 }
 
-GDomNode* GCategoricalDistribution::serialize(GDom* pDoc)
+GDomNode* GCategoricalDistribution::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newList();
 	for(size_t i = 0; i < m_nValueCount; i++)

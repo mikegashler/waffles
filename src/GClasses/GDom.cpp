@@ -91,7 +91,7 @@ GDomNode* GDomNode::fieldIfExists(const char* szName)
 	return NULL;
 }
 
-size_t GDomNode::reverseFieldOrder()
+size_t GDomNode::reverseFieldOrder() const
 {
 	GAssert(m_type == type_obj);
 	size_t count = 0;
@@ -99,16 +99,16 @@ size_t GDomNode::reverseFieldOrder()
 	while(m_value.m_pLastField)
 	{
 		GDomObjField* pTemp = m_value.m_pLastField;
-		m_value.m_pLastField = pTemp->m_pPrev;
+		((GDomNode*)this)->m_value.m_pLastField = pTemp->m_pPrev;
 		pTemp->m_pPrev = pNewHead;
 		pNewHead = pTemp;
 		count++;
 	}
-	m_value.m_pLastField = pNewHead;
+	((GDomNode*)this)->m_value.m_pLastField = pNewHead;
 	return count;
 }
 
-size_t GDomNode::reverseItemOrder()
+size_t GDomNode::reverseItemOrder() const
 {
 	GAssert(m_type == type_list);
 	size_t count = 0;
@@ -116,12 +116,12 @@ size_t GDomNode::reverseItemOrder()
 	while(m_value.m_pLastItem)
 	{
 		GDomListItem* pTemp = m_value.m_pLastItem;
-		m_value.m_pLastItem = pTemp->m_pPrev;
+		((GDomNode*)this)->m_value.m_pLastItem = pTemp->m_pPrev;
 		pTemp->m_pPrev = pNewHead;
 		pNewHead = pTemp;
 		count++;
 	}
-	m_value.m_pLastItem = pNewHead;
+	((GDomNode*)this)->m_value.m_pLastItem = pNewHead;
 	return count;
 }
 
@@ -220,7 +220,7 @@ size_t writeJSONStringCpp(std::ostream& stream, const char* szString)
 	return chars;
 }
 
-void GDomNode::writeJson(std::ostream& stream)
+void GDomNode::writeJson(std::ostream& stream) const
 {
 	switch(m_type)
 	{
@@ -270,7 +270,66 @@ void GDomNode::writeJson(std::ostream& stream)
 	}
 }
 
-size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col)
+void newLineAndIndent(std::ostream& stream, size_t indents)
+{
+	stream << "\n";
+	for(size_t i = 0; i < indents; i++)
+		stream << "	";
+}
+
+void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
+{
+	switch(m_type)
+	{
+		case type_obj:
+			newLineAndIndent(stream, indents); stream << "{";
+			reverseFieldOrder();
+			for(GDomObjField* pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
+			{
+				newLineAndIndent(stream, indents + 1); writeJSONString(stream, pField->m_pName);
+				stream << ":";
+				pField->m_pValue->writeJsonPretty(stream, indents + 1);
+				if(pField->m_pPrev)
+					stream << ",";
+			}
+			reverseFieldOrder();
+			newLineAndIndent(stream, indents); stream << "}";
+			break;
+		case type_list:
+			newLineAndIndent(stream, indents); stream << "[";
+			reverseItemOrder();
+			for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
+			{
+				newLineAndIndent(stream, indents + 1);
+				pItem->m_pValue->writeJson(stream);
+				if(pItem->m_pPrev)
+					stream << ",";
+			}
+			reverseItemOrder();
+			newLineAndIndent(stream, indents);
+			stream << "]";
+			break;
+		case type_bool:
+			stream << (m_value.m_bool ? "true" : "false");
+			break;
+		case type_int:
+			stream << m_value.m_int;
+			break;
+		case type_double:
+			stream << m_value.m_double;
+			break;
+		case type_string:
+			writeJSONString(stream, m_value.m_string);
+			break;
+		case type_null:
+			stream << "null";
+			break;
+		default:
+			ThrowError("Unrecognized node type");
+	}
+}
+
+size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 {
 	switch(m_type)
 	{
@@ -387,7 +446,7 @@ void GDomNode::writeXmlInlineValue(std::ostream& stream)
 	}
 }
 
-void GDomNode::writeXml(std::ostream& stream, const char* szLabel)
+void GDomNode::writeXml(std::ostream& stream, const char* szLabel) const
 {
 	switch(m_type)
 	{
@@ -760,7 +819,7 @@ void GDom::loadJson(const char* szFilename)
 	setRoot(loadJsonValue(tok));
 }
 
-void GDom::writeJson(std::ostream& stream)
+void GDom::writeJson(std::ostream& stream) const
 {
 	if(!m_pRoot)
 		ThrowError("No root node has been set");
@@ -768,7 +827,15 @@ void GDom::writeJson(std::ostream& stream)
 	m_pRoot->writeJson(stream);
 }
 
-void GDom::writeJsonCpp(std::ostream& stream)
+void GDom::writeJsonPretty(std::ostream& stream) const
+{
+	if(!m_pRoot)
+		ThrowError("No root node has been set");
+	stream.precision(14);
+	m_pRoot->writeJsonPretty(stream, 0);
+}
+
+void GDom::writeJsonCpp(std::ostream& stream) const
 {
 	if(!m_pRoot)
 		ThrowError("No root node has been set");
@@ -778,7 +845,7 @@ void GDom::writeJsonCpp(std::ostream& stream)
 	stream << "\";\n\n";
 }
 
-void GDom::saveJson(const char* szFilename)
+void GDom::saveJson(const char* szFilename) const
 {
 	std::ofstream os;
 	os.exceptions(std::ios::failbit|std::ios::badbit);
@@ -793,13 +860,27 @@ void GDom::saveJson(const char* szFilename)
 	writeJson(os);
 }
 
-void GDom::writeXml(std::ostream& stream)
+void GDom::writeXml(std::ostream& stream) const
 {
 	if(!m_pRoot)
 		ThrowError("No root node has been set");
 	stream.precision(14);
 	stream << "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>";
 	m_pRoot->writeXml(stream, "root");
+}
+
+std::string to_str(const GDomNode& node)
+{
+	std::ostringstream os;
+	node.writeJsonPretty(os, 0);
+	return os.str();
+}
+
+std::string to_str(const GDom& doc)
+{
+	std::ostringstream os;
+	doc.writeJsonPretty(os);
+	return os.str();
 }
 
 #ifndef NO_TEST_CODE

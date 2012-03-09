@@ -35,7 +35,7 @@ public:
 	virtual ~GDistanceMetric() {}
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
 	/// This must be called before squaredDistance can be called
 	virtual void init(sp_relation& pRelation) = 0;
@@ -79,7 +79,7 @@ public:
 	virtual double* scaleFactors() { return NULL; }
 
 protected:
-	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 };
 
 
@@ -101,7 +101,7 @@ public:
 	virtual ~GRowDistance() {}
 
 	/// See the comment for GDistanceMetric::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GDistanceMetric::init
 	virtual void init(sp_relation& pRelation);
@@ -138,7 +138,7 @@ public:
         }
 
         /// See the comment for GDistanceMetric::serialize
-        virtual GDomNode* serialize(GDom* pDoc);
+        virtual GDomNode* serialize(GDom* pDoc) const;
 
         /// See the comment for GDistanceMetric::init
         virtual void init(sp_relation& pRelation);
@@ -167,7 +167,7 @@ public:
         GLNormDistance(GDomNode* pNode);
 
         /// See the comment for GDistanceMetric::serialize
-        virtual GDomNode* serialize(GDom* pDoc);
+        virtual GDomNode* serialize(GDom* pDoc) const;
 
         /// See the comment for GDistanceMetric::init
         virtual void init(sp_relation& pRelation);
@@ -199,7 +199,7 @@ public:
 	void setRegularizer(double d) { m_regularizer = d; }
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
 	/// Computes the similarity between two sparse vectors
 	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b) = 0;
@@ -212,7 +212,7 @@ public:
 
 protected:
 	/// A helper method used internally
-	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 };
 
 
@@ -225,7 +225,7 @@ public:
 	virtual ~GCosineSimilarity() {}
 
 	/// See the comment for GSparseSimilarity::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Computes the similarity between two sparse vectors
 	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
@@ -244,7 +244,7 @@ public:
 	virtual ~GPearsonCorrelation() {}
 
 	/// See the comment for GSparseSimilarity::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Computes the similarity between two sparse vectors
 	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);

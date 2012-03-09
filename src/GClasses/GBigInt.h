@@ -39,7 +39,7 @@ public:
 	virtual ~GBigInt();
 
 	/// Marshal this object into a DOM that can be converted to a variety of serial formats.
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Returns true if the number is positive and false if it is negative
 	bool getSign() { return m_bSign; }

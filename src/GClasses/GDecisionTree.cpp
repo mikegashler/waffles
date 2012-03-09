@@ -321,7 +321,7 @@ GDecisionTree::~GDecisionTree()
 }
 
 // virtual
-GDomNode* GDecisionTree::serialize(GDom* pDoc)
+GDomNode* GDecisionTree::serialize(GDom* pDoc) const
 {
 	if(!m_pRoot)
 		ThrowError("Attempted to serialize a model that has not been trained");
@@ -977,7 +977,7 @@ GMeanMarginsTree::~GMeanMarginsTree()
 }
 
 // virtual
-GDomNode* GMeanMarginsTree::serialize(GDom* pDoc)
+GDomNode* GMeanMarginsTree::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GMeanMarginsTree");
 	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
@@ -1194,7 +1194,7 @@ GRandomForest::~GRandomForest()
 }
 
 // virtual
-GDomNode* GRandomForest::serialize(GDom* pDoc)
+GDomNode* GRandomForest::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GRandomForest");
 	pNode->addField(pDoc, "bag", m_pEnsemble->serialize(pDoc));

@@ -52,7 +52,7 @@ public:
 	typedef Map::const_iterator Iter;
 
 	/// Serializes this object
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Returns the default value--the common value that is not stored.
 	double defaultValue() { return m_defaultValue; }
@@ -68,11 +68,11 @@ public:
 
 	/// Returns a const_iterator to the beginning of a row. The iterator
 	/// references a pair, such that first is the column, and second is the value.
-	Iter rowBegin(size_t i) { return m_rows[i].begin(); }
+	Iter rowBegin(size_t i) const { return m_rows[i].begin(); }
 
 	/// Returns a const_iterator to the end of a row. The iterator
 	/// references a pair, such that first is the column, and second is the value.
-	Iter rowEnd(size_t i) { return m_rows[i].end(); }
+	Iter rowEnd(size_t i) const { return m_rows[i].end(); }
 
 	/// Returns the specified sparse row.
 	Map& row(size_t i) { return m_rows[i]; }

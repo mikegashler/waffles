@@ -798,7 +798,7 @@ SOM::TrainingAlgorithm* SOM::TrainingAlgorithm::deserialize(GDomNode* pNode){
 
 
 //virtual 
-GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc){
+GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
   GDomNode* pNode = pDoc->newObj();
   pNode->addField(pDoc, "inputDims", pDoc->newInt(m_nInputDims));
   pNode->addField(pDoc, "outputAxes",doubleVectorSerialize(pDoc, m_outputAxes));

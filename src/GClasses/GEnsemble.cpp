@@ -32,7 +32,7 @@ GWeightedModel::~GWeightedModel()
 	delete(m_pModel);
 }
 
-GDomNode* GWeightedModel::serialize(GDom* pDoc)
+GDomNode* GWeightedModel::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "w", pDoc->newDouble(m_weight));
@@ -74,7 +74,7 @@ GEnsemble::~GEnsemble()
 }
 
 // virtual
-void GEnsemble::serializeBase(GDom* pDoc, GDomNode* pNode)
+void GEnsemble::serializeBase(GDom* pDoc, GDomNode* pNode) const
 {
 	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
 	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
@@ -242,7 +242,7 @@ GBag::~GBag()
 }
 
 // virtual
-GDomNode* GBag::serialize(GDom* pDoc)
+GDomNode* GBag::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBag");
 	serializeBase(pDoc, pNode);
@@ -363,7 +363,7 @@ void GBayesianModelAveraging::determineWeights(GMatrix& features, GMatrix& label
 }
 
 // virtual
-GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc)
+GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBayesianModelAveraging");
 	serializeBase(pDoc, pNode);
@@ -429,7 +429,7 @@ void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& lab
 }
 
 // virtual
-GDomNode* GBayesianModelCombination::serialize(GDom* pDoc)
+GDomNode* GBayesianModelCombination::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBayesianModelCombination");
 	serializeBase(pDoc, pNode);
@@ -465,7 +465,7 @@ GResamplingAdaBoost::~GResamplingAdaBoost()
 }
 
 // virtual
-GDomNode* GResamplingAdaBoost::serialize(GDom* pDoc)
+GDomNode* GResamplingAdaBoost::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GResamplingAdaBoost");
 	serializeBase(pDoc, pNode);
@@ -607,7 +607,7 @@ GWag::~GWag()
 }
 
 // virtual
-GDomNode* GWag::serialize(GDom* pDoc)
+GDomNode* GWag::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GWag");
 	pNode->addField(pDoc, "models", pDoc->newInt(m_models));
@@ -709,7 +709,7 @@ GBucket::~GBucket()
 }
 
 // virtual
-GDomNode* GBucket::serialize(GDom* pDoc)
+GDomNode* GBucket::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBucket");
 	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());

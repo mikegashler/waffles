@@ -134,7 +134,7 @@ void GNaiveInstance::clear()
 }
 
 // virtual
-GDomNode* GNaiveInstance::serialize(GDom* pDoc)
+GDomNode* GNaiveInstance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNaiveInstance");
 	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
