@@ -35,6 +35,7 @@
 #include "../GClasses/GDom.h"
 #include "../GClasses/GVec.h"
 #include "../wizard/usage.h"
+#include <cassert>
 #include <time.h>
 #include <iostream>
 #ifdef WINDOWS
@@ -1086,6 +1087,97 @@ void rightJustifiedString(const char* pIn, char* pOut, size_t outLen)
 	pOut[outLen] = '\0';
 }
 
+///\brief Returns the header for the machine readable confusion matrix
+///for variable \a variable_idx as printed by
+///printMachineReadableConfusionMatrices
+///
+///The header is comma-separated values. The first two entries in the
+///header are "Variable Name","Variable Index". The rest of the
+///entries fit the format "Expected:xxx/Got:yyy" where xxx and yyy are
+///two values that the variable can take on.
+///
+///\param variable_idx the index of the variable in the relation
+///
+///\param pRelation a pointer to the relation from which the
+///                 variable_idx-'th variable is taken. Cannot be null
+std::string machineReadableConfusionHeader(std::size_t variable_idx, GRelation* pRelation){
+  assert(pRelation != NULL);
+  ostringstream out;
+  out << "\"Variable Name\",\"Variable Index\"";
+  std::size_t n = pRelation->valueCount(variable_idx);
+  for(std::size_t r = 0; r < n; ++r){
+    std::ostringstream expected_name;
+    pRelation->printAttrValue(expected_name, variable_idx, r);
+    std::string e = expected_name.str();
+    for(std::size_t c = 0; c < n; ++c){
+      std::ostringstream got_name;
+      pRelation->printAttrValue(got_name, variable_idx, r);
+      std::string g = got_name.str();
+      out << ",\"Expected:" << e <<" Got:" << g << "\"";
+    }
+  }
+  return out.str();
+}
+
+//\brief Returns the data for the machine readable confusion matrix
+///for variable \a variable_idx as printed by
+///printMachineReadableConfusionMatrices
+///
+///The first entry is the name of the variable. The second entry is
+///the value of variable_idx, The entry (r*numCols+c)+2 where r and c are both in 0..nv-1, nv being the number of values that the variable takes on, is the entry at row r and column c of *pMatrix
+///
+///\param variable_idx the index of the variable in the relation
+///
+///\param pRelation a pointer to the relation from which the
+///                 variable_idx-'th variable is taken. Cannot be NULL.
+///
+///\param pMatrix a pointer to the confusion matrix. (*pMatrix)[r][c]
+///               is the number of times that r was expected and c was
+///               received. Cannot be NULL.
+std::string machineReadableConfusionData(std::size_t variable_idx, GRelation* pRelation, GMatrix const * const pMatrix){
+  ostringstream out;
+  {
+    ostringstream v_name;
+    pRelation->printAttrName(v_name, variable_idx);
+    out << v_name.str() << "," << variable_idx;
+  }
+  const GMatrix& m = *pMatrix;
+  std::size_t n = pRelation->valueCount(variable_idx);
+  for(std::size_t r = 0; r < n; ++r){
+    for(std::size_t c = 0; c < n; ++c){
+      out << "," << m[r][c];
+    }
+  }
+  return out.str();  
+}
+
+///\brief Prints the confusion matrices as machine-readable csv-like lines.
+///
+///The first line is a header giving the names of the columns for the
+///next line.  The first column is the name of the label variable for
+///which the matrix is being printed.  The rest of the columns are the
+///names of the expected/got values (row/column in the input matrices)
+///
+///\param pRelation the relation for which the confusion matrices are
+///                 given.  Cannot be NULL.
+///
+///\param matrixArray matrixArray[i] is null if there is no matrix to
+///                   be printed. Otherwise matrixArray[i] is the
+///                   confusion matrix for the i'th attribute of
+///                   pRelation. Row r, column c of matrixArray[i] is the 
+///                   number of times the value r of the attribute was expected
+///                   and c was encountered.
+void printMachineReadableConfusionMatrices(GRelation* pRelation, vector<GMatrix*>& matrixArray){
+  for(size_t i = 0; i < matrixArray.size(); i++){
+    if(matrixArray[i] == NULL){
+      continue;
+    }
+    std::cout << machineReadableConfusionHeader(i, pRelation) << std::endl;
+    std::cout << machineReadableConfusionData(i, pRelation, matrixArray[i])
+	      << std::endl;
+  }
+}
+
 void printConfusionMatrices(GRelation* pRelation, vector<GMatrix*>& matrixArray)
 {
 	cout << "\n(Rows=expected values, Cols=predicted values, Elements=number of occurrences)\n\n";
@@ -1144,12 +1236,15 @@ void Test(GArgReader& args)
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	bool confusion = false;
+	bool confusioncsv = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
-		if(args.if_pop("-confusion"))
+		else if(args.if_pop("-confusion"))
 			confusion = true;
+		else if(args.if_pop("-confusioncsv"))
+			confusioncsv = true;
 		else
 			ThrowError("Invalid test option: ", args.peek());
 	}
@@ -1175,13 +1270,20 @@ void Test(GArgReader& args)
 	// Test
 	GTEMPBUF(double, results, pLabels->cols());
 	vector<GMatrix*> confusionMatrices;
-	pModeler->accuracy(*pFeatures, *pLabels, results, confusion ? &confusionMatrices : NULL);
+	pModeler->accuracy(*pFeatures, *pLabels, results, 
+			   (confusion || confusioncsv) ? 
+			   &confusionMatrices : NULL);
 	GVec::print(cout, 14, results, pLabels->cols());
 	cout << "\n";
 
 	// Print the confusion matrix
-	if(confusion)
+	if(confusion){
 		printConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+	}
+
+	if(confusioncsv){
+		printMachineReadableConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+	}
 }
 
 void Transduce(GArgReader& args)
@@ -1231,12 +1333,15 @@ void TransductiveAccuracy(GArgReader& args)
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	bool confusion = false;
+	bool confusioncsv = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else if(args.if_pop("-confusion"))
 			confusion = true;
+		else if(args.if_pop("-confusioncsv"))
+			confusioncsv = true;
 		else
 			ThrowError("Invalid transacc option: ", args.peek());
 	}
@@ -1262,15 +1367,20 @@ void TransductiveAccuracy(GArgReader& args)
 	// Transduce and measure accuracy
 	GTEMPBUF(double, results, pLabels1->cols());
 	vector<GMatrix*> confusionMatrices;
-	pSupLearner->trainAndTest(*pFeatures1, *pLabels1, *pFeatures2, *pLabels2, results, confusion ? &confusionMatrices : NULL);
+	pSupLearner->trainAndTest(*pFeatures1, *pLabels1, *pFeatures2, *pLabels2, results, (confusion || confusioncsv) ? &confusionMatrices : NULL);
 
 	// Print results
 	GVec::print(cout, 14, results, pLabels1->cols());
 	cout << "\n";
 
 	// Print the confusion matrix
-	if(confusion)
+	if(confusion){
 		printConfusionMatrices(pLabels2->relation().get(), confusionMatrices);
+	}
+	if(confusioncsv){
+		printMachineReadableConfusionMatrices(pLabels2->relation().get(), confusionMatrices);
+	}
+
 }
 
 void SplitTest(GArgReader& args)
@@ -1281,6 +1391,7 @@ void SplitTest(GArgReader& args)
 	size_t reps = 1;
 	string lastModelFile="";
 	bool confusion = false;
+	bool confusioncsv = false;
 	bool should_show_standard_dev = false;
 	while(args.next_is_flag())
 	{
@@ -1296,6 +1407,8 @@ void SplitTest(GArgReader& args)
 			should_show_standard_dev = true;
 		}else if(args.if_pop("-confusion")){
 			confusion = true;
+		}else if(args.if_pop("-confusioncsv")){
+			confusioncsv = true;
 		}else{
 			ThrowError("Invalid splittest option: ", args.peek());
 		}
@@ -1359,7 +1472,7 @@ void SplitTest(GArgReader& args)
 
 			// Test and print results
 			vector<GMatrix*> confusionMatrices;
-			pSupLearner->trainAndTest(*pFeatures, *pLabels, testFeatures, testLabels, repResults, confusion ? &confusionMatrices : NULL);
+			pSupLearner->trainAndTest(*pFeatures, *pLabels, testFeatures, testLabels, repResults, (confusion || confusioncsv) ? &confusionMatrices : NULL);
 
 			// Write trained model file on last repetition
 			if(lastModelFile != "" && i+1 == reps){
@@ -1396,8 +1509,13 @@ void SplitTest(GArgReader& args)
 			}
 
 			// Print the confusion matrix (if specified)
-			if(confusion)
+			if(confusion){
 				printConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+			}
+			if(confusioncsv){
+				printMachineReadableConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+			}
+
 		}
 	}
 	if(pLabels->cols() > 1){
