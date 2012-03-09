@@ -33,7 +33,7 @@ double GDistanceMetric::squaredDistance(const std::vector<double> & x, const std
 }
 
 
-GDomNode* GDistanceMetric::baseDomNode(GDom* pDoc, const char* szClassName)
+GDomNode* GDistanceMetric::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
@@ -69,7 +69,7 @@ GRowDistance::GRowDistance(GDomNode* pNode)
 }
 
 // virtual
-GDomNode* GRowDistance::serialize(GDom* pDoc)
+GDomNode* GRowDistance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GRowDistance");
 	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
@@ -131,7 +131,7 @@ GRowDistanceScaled::GRowDistanceScaled(GDomNode* pNode)
 }
 
 // virtual
-GDomNode* GRowDistanceScaled::serialize(GDom* pDoc)
+GDomNode* GRowDistanceScaled::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GRowDistance");
 	size_t dims = m_pRelation->size();
@@ -184,7 +184,7 @@ GLNormDistance::GLNormDistance(GDomNode* pNode)
 }
 
 // virtual
-GDomNode* GLNormDistance::serialize(GDom* pDoc)
+GDomNode* GLNormDistance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GLNormDistance");
 	pNode->addField(pDoc, "norm", pDoc->newDouble(m_norm));
@@ -246,7 +246,7 @@ GSparseSimilarity* GSparseSimilarity::deserialize(GDomNode* pNode)
 	return pObj;
 }
 
-GDomNode* GSparseSimilarity::baseDomNode(GDom* pDoc, const char* szClassName)
+GDomNode* GSparseSimilarity::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
@@ -257,7 +257,7 @@ GDomNode* GSparseSimilarity::baseDomNode(GDom* pDoc, const char* szClassName)
 // --------------------------------------------------------------------
 
 // virtual
-GDomNode* GCosineSimilarity::serialize(GDom* pDoc)
+GDomNode* GCosineSimilarity::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GCosineSimilarity");
 	return pNode;
@@ -331,7 +331,7 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const double* 
 // --------------------------------------------------------------------
 
 // virtual
-GDomNode* GPearsonCorrelation::serialize(GDom* pDoc)
+GDomNode* GPearsonCorrelation::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GPearsonCorrelation");
 	return pNode;

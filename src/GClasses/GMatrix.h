@@ -757,7 +757,7 @@ public:
 	void toVector(double* pVector);
 
 	/// \brief Marshalls this object to a DOM, which may be saved to a variety of serial formats.
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// \brief Returns the sum of the diagonal elements
 	double trace();

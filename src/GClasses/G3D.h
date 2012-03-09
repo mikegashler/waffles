@@ -57,7 +57,7 @@ public:
 	G3DReal* vals() { return m_vals; }
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Load this object from a DOM.
 	void deserialize(GDomNode* pNode);
@@ -215,7 +215,7 @@ public:
 	G3DVector m_rows[3];
 
 	/// serializes this matrix
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// deserializes this matrix
 	void deserialize(GDomNode* pNode);
@@ -319,7 +319,7 @@ public:
 	}
 
 	/// serializes this object
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Specifies the size of the 2-D image this camera will produce
 	void setImageSize(int width, int height) { m_nWidth = width; m_nHeight = height; }

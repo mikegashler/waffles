@@ -1414,17 +1414,16 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 	return hData.release();
 }
 
-GDomNode* GMatrix::serialize(GDom* pDoc)
+GDomNode* GMatrix::serialize(GDom* pDoc) const
 {
 	GDomNode* pData = pDoc->newObj();
 	size_t attrCount = m_pRelation->size();
 	pData->addField(pDoc, "rel", m_pRelation->serialize(pDoc));
 	GDomNode* pPats = pData->addField(pDoc, "pats", pDoc->newList());
 	GDomNode* pRow;
-	double* pPat;
 	for(size_t i = 0; i < rows(); i++)
 	{
-		pPat = row(i);
+		const double* pPat = row(i);
 		pRow = pPats->addItem(pDoc, pDoc->newList());
 		for(size_t j = 0; j < attrCount; j++)
 			pRow->addItem(pDoc, pDoc->newDouble(pPat[j]));

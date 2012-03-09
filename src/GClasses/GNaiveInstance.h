@@ -58,7 +58,7 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Specify the number of neighbors to use.
 	void setNeighbors(size_t k) { m_nNeighbors = k; }

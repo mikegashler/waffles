@@ -102,7 +102,7 @@ void GCollaborativeFilter::trainDenseMatrix(GMatrix& data, GMatrix* pLabels)
 	train(*pMatrix);
 }
 
-GDomNode* GCollaborativeFilter::baseDomNode(GDom* pDoc, const char* szClassName)
+GDomNode* GCollaborativeFilter::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
@@ -430,7 +430,7 @@ void GBaselineRecommender::impute(double* pVec, size_t dims)
 }
 
 // virtual
-GDomNode* GBaselineRecommender::serialize(GDom* pDoc)
+GDomNode* GBaselineRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBaselineRecommender");
 	pNode->addField(pDoc, "ratings", GVec::serialize(pDoc, m_pRatings, m_items));
@@ -600,7 +600,7 @@ void GInstanceRecommender::impute(double* pVec, size_t dims)
 }
 
 // virtual
-GDomNode* GInstanceRecommender::serialize(GDom* pDoc)
+GDomNode* GInstanceRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GInstanceRecommender");
 	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_neighbors));
@@ -709,7 +709,7 @@ void GSparseClusterRecommender::impute(double* pVec, size_t dims)
 }
 
 // virtual
-GDomNode* GSparseClusterRecommender::serialize(GDom* pDoc)
+GDomNode* GSparseClusterRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GSparseClusterRecommender");
 	ThrowError("Sorry, this method has not been implemented yet");
@@ -827,7 +827,7 @@ void GDenseClusterRecommender::impute(double* pVec, size_t dims)
 }
 
 // virtual
-GDomNode* GDenseClusterRecommender::serialize(GDom* pDoc)
+GDomNode* GDenseClusterRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GDenseClusterRecommender");
 	ThrowError("Sorry, this method has not been implemented yet");
@@ -877,7 +877,7 @@ GMatrixFactorization::~GMatrixFactorization()
 }
 
 // virtual
-GDomNode* GMatrixFactorization::serialize(GDom* pDoc)
+GDomNode* GMatrixFactorization::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GMatrixFactorization");
 	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
@@ -1178,7 +1178,7 @@ GNonlinearPCA::~GNonlinearPCA()
 }
 
 // virtual
-GDomNode* GNonlinearPCA::serialize(GDom* pDoc)
+GDomNode* GNonlinearPCA::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNonlinearPCA");
 	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
@@ -1505,12 +1505,12 @@ void GBagOfRecommenders::impute(double* pVec, size_t dims)
 }
 
 // virtual
-GDomNode* GBagOfRecommenders::serialize(GDom* pDoc)
+GDomNode* GBagOfRecommenders::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBagOfRecommenders");
 	pNode->addField(pDoc, "ic", pDoc->newInt(m_itemCount));
 	GDomNode* pFilters = pNode->addField(pDoc, "filters", pDoc->newList());
-	for(vector<GCollaborativeFilter*>::iterator it = m_filters.begin(); it != m_filters.end(); it++)
+	for(vector<GCollaborativeFilter*>::const_iterator it = m_filters.begin(); it != m_filters.end(); it++)
 		pFilters->addItem(pDoc, (*it)->serialize(pDoc));
 	return pNode;
 }

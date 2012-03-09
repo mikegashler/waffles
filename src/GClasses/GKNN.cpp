@@ -170,7 +170,7 @@ GKNN::~GKNN()
 }
 
 // virtual
-GDomNode* GKNN::serialize(GDom* pDoc)
+GDomNode* GKNN::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GKNN");
 	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_nNeighbors));
@@ -846,7 +846,7 @@ GInstanceTable::~GInstanceTable()
 }
 
 // virtual
-GDomNode* GInstanceTable::serialize(GDom* pDoc)
+GDomNode* GInstanceTable::serialize(GDom* pDoc) const
 {
 	ThrowError("not implemented yet");
 	return NULL;

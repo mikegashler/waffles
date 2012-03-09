@@ -34,7 +34,7 @@ public:
 
 protected:
 	/// Child classes should use this in their implementation of serialize
-	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 };
 
 
@@ -55,7 +55,7 @@ public:
 	virtual ~GIncrementalTransform();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) = 0;
+	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
 	/// Trains the transform on the data in pData.
 	///
@@ -151,7 +151,7 @@ public:
 	virtual ~GTwoWayTransformChainer();
 
 	/// See the comment for GTwoWayIncrementalTransform::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -195,7 +195,7 @@ public:
 	virtual ~GPCA();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Specify to compute the eigenvalues during training. This
 	/// method must be called before train is called.
@@ -272,7 +272,7 @@ public:
 	virtual ~GNoiseGenerator();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -306,7 +306,7 @@ public:
 	virtual ~GPairProduct();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -347,7 +347,7 @@ public:
 	static void test();
 #endif
 
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 	
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -391,7 +391,7 @@ public:
 	virtual ~GNominalToCat();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -441,7 +441,7 @@ public:
 	virtual ~GNormalize();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -485,7 +485,7 @@ public:
 	virtual ~GDiscretize();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);
@@ -525,7 +525,7 @@ public:
 	virtual ~GImputeMissingVals();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void train(GMatrix& data);

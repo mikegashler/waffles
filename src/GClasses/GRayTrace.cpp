@@ -22,7 +22,7 @@ namespace GClasses {
 
 using std::vector;
 
-GDomNode* GRayTraceColor::serialize(GDom* pDoc)
+GDomNode* GRayTraceColor::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "a", pDoc->newDouble(a));
@@ -95,7 +95,7 @@ GRayTraceCamera::GRayTraceCamera(GDomNode* pNode)
 }
 
 // virtual
-GDomNode* GRayTraceCamera::serialize(GDom* pDoc)
+GDomNode* GRayTraceCamera::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = GCamera::serialize(pDoc);
 	pNode->addField(pDoc, "focal", pDoc->newDouble(m_focalDistance));
@@ -459,7 +459,7 @@ GRayTraceScene::~GRayTraceScene()
 	delete(m_pDistanceMap);
 }
 
-GDomNode* GRayTraceScene::serialize(GDom* pDoc)
+GDomNode* GRayTraceScene::serialize(GDom* pDoc) const
 {
 	GDomNode* pSceneNode = pDoc->newObj();
 	pSceneNode->addField(pDoc, "bgcol", m_backgroundColor.serialize(pDoc));
@@ -559,26 +559,26 @@ void GRayTraceScene::addMaterial(GRayTraceMaterial* pMaterial)
 }
 
 template<typename T>
-size_t GetIndexOfPointerInVector(vector<T*>& vec, T* p)
+size_t GetIndexOfPointerInVector(const vector<T*>& vec, T* p)
 {
-	for(typename vector<T*>::iterator it = vec.begin(); it != vec.end(); it++)
+	for(typename vector<T*>::const_iterator it = vec.begin(); it != vec.end(); it++)
 		if(p == *it)
 			return (it - vec.begin());
 	ThrowError("The specified value could not be found");
 	return -1;
 }
 
-size_t GRayTraceScene::materialIndex(GRayTraceMaterial* pMaterial)
+size_t GRayTraceScene::materialIndex(GRayTraceMaterial* pMaterial) const
 {
 	return GetIndexOfPointerInVector(m_materials, pMaterial);
 }
 
-size_t GRayTraceScene::meshIndex(GRayTraceTriMesh* pMesh)
+size_t GRayTraceScene::meshIndex(GRayTraceTriMesh* pMesh) const
 {
 	return GetIndexOfPointerInVector(m_meshes, pMesh);
 }
 
-size_t GRayTraceScene::objectIndex(GRayTraceObject* pObj)
+size_t GRayTraceScene::objectIndex(GRayTraceObject* pObj) const
 {
 	return GetIndexOfPointerInVector(m_objects, pObj);
 }
@@ -887,7 +887,7 @@ GRayTraceLight::GRayTraceLight(GDomNode* pNode)
 {
 }
 
-GDomNode* GRayTraceLight::baseDomNode(GDom* pDoc)
+GDomNode* GRayTraceLight::baseDomNode(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "color", m_color.serialize(pDoc));
@@ -930,7 +930,7 @@ GRayTraceDirectionalLight::GRayTraceDirectionalLight(GDomNode* pNode)
 }
 
 // virtual
-GDomNode* GRayTraceDirectionalLight::serialize(GDom* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceDirectionalLight::serialize(GDom* pDoc, const GRayTraceScene* pScene) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "dir", m_direction.serialize(pDoc));
@@ -987,7 +987,7 @@ GRayTracePointLight::GRayTracePointLight(GDomNode* pNode)
 }
 
 // virtual
-GDomNode* GRayTracePointLight::serialize(GDom* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTracePointLight::serialize(GDom* pDoc, const GRayTraceScene* pScene) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "pos", m_position.serialize(pDoc));
@@ -1054,7 +1054,7 @@ GRayTraceAreaLight::GRayTraceAreaLight(GDomNode* pNode, GRayTraceScene* pScene)
 }
 
 // virtual
-GDomNode* GRayTraceAreaLight::serialize(GDom* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceAreaLight::serialize(GDom* pDoc, const GRayTraceScene* pScene) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "obj", pDoc->newInt(pScene->objectIndex(m_pObject)));
@@ -1236,7 +1236,7 @@ GRayTracePhysicalMaterial::~GRayTracePhysicalMaterial()
 }
 
 // virtual
-GDomNode* GRayTracePhysicalMaterial::serialize(GDom* pDoc)
+GDomNode* GRayTracePhysicalMaterial::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(materialType()));
@@ -1334,7 +1334,7 @@ GRayTraceImageTexture::~GRayTraceImageTexture()
 }
 
 // virtual
-GDomNode* GRayTraceImageTexture::serialize(GDom* pDoc)
+GDomNode* GRayTraceImageTexture::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(materialType()));
@@ -1697,7 +1697,7 @@ GRayTraceTriMesh::GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene)
 	delete[] m_pTextureCoords;
 }
 
-GDomNode* GRayTraceTriMesh::serialize(GDom* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceTriMesh::serialize(GDom* pDoc, const GRayTraceScene* pScene) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "material", pDoc->newInt(pScene->materialIndex(m_pMaterial)));
@@ -2274,7 +2274,7 @@ GRayTraceSphere::GRayTraceSphere(GDomNode* pNode, GRayTraceScene* pScene)
 }
 
 // virtual
-GDomNode* GRayTraceSphere::serialize(GDom* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceSphere::serialize(GDom* pDoc, const GRayTraceScene* pScene) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(type()));
@@ -2364,7 +2364,7 @@ GRayTraceTriangle::GRayTraceTriangle(GDomNode* pNode, GRayTraceScene* pScene)
 }
 
 // virtual
-GDomNode* GRayTraceTriangle::serialize(GDom* pDoc, GRayTraceScene* pScene)
+GDomNode* GRayTraceTriangle::serialize(GDom* pDoc, const GRayTraceScene* pScene) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(type()));

@@ -15,7 +15,7 @@
 
 namespace GClasses {
 
-GDomNode* GActivationFunction::serialize(GDom* pDoc)
+GDomNode* GActivationFunction::serialize(GDom* pDoc) const
 {
 	return pDoc->newString(name());
 }

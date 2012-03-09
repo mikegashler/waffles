@@ -45,7 +45,7 @@ public:
 	void setWeight(double w) { m_weight = w; }
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 };
 
 
@@ -74,7 +74,7 @@ public:
 protected:
 	/// Base classes should call this method to serialize the base object
 	/// as part of their implementation of the serialize method.
-	virtual void serializeBase(GDom* pDoc, GDomNode* pNode);
+	virtual void serializeBase(GDom* pDoc, GDomNode* pNode) const;
 
 	/// Calls clear on all of the models, and resets the accumulator buffer
 	virtual void clearBase();
@@ -137,7 +137,7 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Calls clears on all of the learners, but does not delete them.
 	virtual void clear();
@@ -184,7 +184,7 @@ public:
 	virtual ~GBayesianModelAveraging() {}
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 protected:
 	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
@@ -213,7 +213,7 @@ public:
 	virtual ~GBayesianModelCombination() {}
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Returns the number of samples from which to estimate the combination weights
 	size_t samples() { return m_samples; }
@@ -265,7 +265,7 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Deletes all of the models in this ensemble, and calls clear on the base learner.
 	virtual void clear();
@@ -306,7 +306,7 @@ public:
 	virtual ~GWag();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
@@ -365,7 +365,7 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

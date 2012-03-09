@@ -282,10 +282,10 @@ namespace{
 void test_to_str(){
 	using namespace std;
 	//Test some basic types (not exhaustive)
-  TestEqual("12",to_str(12),"Failed to_str(12)");
-  TestEqual("12.123456789012",to_str(12.12345678901234),
+	TestEqual("12",to_str(12),"Failed to_str(12)");
+	TestEqual("12.123456789012",to_str(12.12345678901234),
 						"Failed to_str(12.12345678901234)");
-  TestEqual("A string",to_str("A string"),
+	TestEqual("A string",to_str("A string"),
 						"Failed to_str(\"A string\")");
 
 

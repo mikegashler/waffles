@@ -40,7 +40,7 @@ GLinearRegressor::~GLinearRegressor()
 }
 
 // virtual
-GDomNode* GLinearRegressor::serialize(GDom* pDoc)
+GDomNode* GLinearRegressor::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GLinearRegressor");
 	pNode->addField(pDoc, "beta", m_pBeta->serialize(pDoc));

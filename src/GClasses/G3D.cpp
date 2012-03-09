@@ -21,7 +21,7 @@ using std::vector;
 
 namespace GClasses {
 
-GDomNode* G3DVector::serialize(GDom* pDoc)
+GDomNode* G3DVector::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "x", pDoc->newDouble(m_vals[0]));
@@ -69,7 +69,7 @@ void G3DVector::yawAndPitch(G3DReal* pYaw, G3DReal* pPitch) const
 
 // -----------------------------------------
 
-GDomNode* G3DMatrix::serialize(GDom* pDoc)
+GDomNode* G3DMatrix::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newList();
 	for(int r = 0; r < 3; r++)
@@ -139,7 +139,7 @@ GCamera::GCamera(GDomNode* pNode)
 }
 
 // virtual
-GDomNode* GCamera::serialize(GDom* pDoc)
+GDomNode* GCamera::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "from", m_lookFromPoint.serialize(pDoc));

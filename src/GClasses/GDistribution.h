@@ -93,7 +93,7 @@ public:
 	void deserialize(GDomNode* pNode);
 
 	/// Save values to a text format
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Returns categorical
 	virtual Type type() const

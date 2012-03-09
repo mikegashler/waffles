@@ -46,7 +46,7 @@ public:
 
 protected:
 	/// Child classes should use this in their implementation of serialize
-	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName);
+	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 };
 
 
@@ -85,7 +85,7 @@ public:
 	virtual ~GRecurrentModel();
 
 	/// See the comment for GSystemLearner::serialize
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Returns the transition function
 	GSupervisedLearner* transitionFunc() { return m_pTransitionFunc; }

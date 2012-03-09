@@ -46,7 +46,7 @@ GTransform::~GTransform()
 }
 
 // virtual
-GDomNode* GTransform::baseDomNode(GDom* pDoc, const char* szClassName)
+GDomNode* GTransform::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
@@ -75,7 +75,7 @@ GTwoWayTransformChainer::~GTwoWayTransformChainer()
 }
 
 // virtual
-GDomNode* GTwoWayTransformChainer::serialize(GDom* pDoc)
+GDomNode* GTwoWayTransformChainer::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");
@@ -206,7 +206,7 @@ GPCA::~GPCA()
 }
 
 // virtual
-GDomNode* GPCA::serialize(GDom* pDoc)
+GDomNode* GPCA::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");
@@ -500,7 +500,7 @@ GNoiseGenerator::~GNoiseGenerator()
 }
 
 // virtual
-GDomNode* GNoiseGenerator::serialize(GDom* pDoc)
+GDomNode* GNoiseGenerator::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");
@@ -560,7 +560,7 @@ GPairProduct::~GPairProduct()
 }
 
 // virtual
-GDomNode* GPairProduct::serialize(GDom* pDoc)
+GDomNode* GPairProduct::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");
@@ -623,7 +623,7 @@ GAttributeSelector::GAttributeSelector(GDomNode* pNode, GLearnerLoader& ll)
 }
 
 // virtual
-GDomNode* GAttributeSelector::serialize(GDom* pDoc)
+GDomNode* GAttributeSelector::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");
@@ -846,7 +846,7 @@ void GNominalToCat::train(sp_relation& relation)
 }
 
 // virtual
-GDomNode* GNominalToCat::serialize(GDom* pDoc)
+GDomNode* GNominalToCat::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");
@@ -1078,7 +1078,7 @@ GNormalize::~GNormalize()
 }
 
 // virtual
-GDomNode* GNormalize::serialize(GDom* pDoc)
+GDomNode* GNormalize::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");
@@ -1227,7 +1227,7 @@ GDiscretize::~GDiscretize()
 }
 
 // virtual
-GDomNode* GDiscretize::serialize(GDom* pDoc)
+GDomNode* GDiscretize::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");
@@ -1355,7 +1355,7 @@ GImputeMissingVals::~GImputeMissingVals()
 }
 
 // virtual
-GDomNode* GImputeMissingVals::serialize(GDom* pDoc)
+GDomNode* GImputeMissingVals::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
 		ThrowError("train must be called before serialize");

@@ -919,7 +919,7 @@ GIsomap::~GIsomap()
 {
 }
 
-GDomNode* GIsomap::serialize(GDom* pDoc)
+GDomNode* GIsomap::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GIsomap");
 	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
@@ -1227,7 +1227,7 @@ GLLE::~GLLE()
 {
 }
 
-GDomNode* GLLE::serialize(GDom* pDoc)
+GDomNode* GLLE::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GLLE");
 	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
@@ -1279,7 +1279,7 @@ GBreadthFirstUnfolding::~GBreadthFirstUnfolding()
 {
 }
 
-GDomNode* GBreadthFirstUnfolding::serialize(GDom* pDoc)
+GDomNode* GBreadthFirstUnfolding::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "reps", pDoc->newInt(m_reps));
@@ -2092,7 +2092,7 @@ GImageJitterer::GImageJitterer(GDomNode* pNode)
 	m_cy = pNode->field("cy")->asDouble();
 }
 
-GDomNode* GImageJitterer::serialize(GDom* pDoc)
+GDomNode* GImageJitterer::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "wid", pDoc->newInt(m_wid));
@@ -2283,7 +2283,7 @@ GUnsupervisedBackProp::~GUnsupervisedBackProp()
 	delete(m_pProgress);
 }
 
-GDomNode* GUnsupervisedBackProp::serialize(GDom* pDoc)
+GDomNode* GUnsupervisedBackProp::serialize(GDom* pDoc) const
 {
 	size_t channels = m_pNN->labelDims();
 	GDomNode* pNode = pDoc->newObj();

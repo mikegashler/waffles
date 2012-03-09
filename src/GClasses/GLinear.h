@@ -47,7 +47,7 @@ public:
 	/// Saves the model to a text file. (This doesn't save the short-term
 	/// memory used for incremental learning, so if you're doing "incremental"
 	/// learning, it will wake up with amnesia when you load it again.)
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();

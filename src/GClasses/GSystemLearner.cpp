@@ -41,7 +41,7 @@ using std::cout;
 using std::cerr;
 using std::vector;
 
-GDomNode* GSystemLearner::baseDomNode(GDom* pDoc, const char* szClassName)
+GDomNode* GSystemLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
@@ -145,7 +145,7 @@ GRecurrentModel::~GRecurrentModel()
 }
 
 // virtual
-GDomNode* GRecurrentModel::serialize(GDom* pDoc)
+GDomNode* GRecurrentModel::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GRecurrentModel");
 	pNode->addField(pDoc, "trans", m_pTransitionFunc->serialize(pDoc));

@@ -43,7 +43,7 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	/// This method assumes that the values in pData are all binary values (0 or 1).

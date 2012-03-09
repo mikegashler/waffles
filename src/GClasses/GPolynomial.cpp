@@ -48,7 +48,7 @@ public:
 #endif // NO_TEST_CODE
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Specify the number of input and output features
 	void init(size_t featureDims);
@@ -196,7 +196,7 @@ GPolynomialSingleLabel::~GPolynomialSingleLabel()
 }
 
 // virtual
-GDomNode* GPolynomialSingleLabel::serialize(GDom* pDoc)
+GDomNode* GPolynomialSingleLabel::serialize(GDom* pDoc) const
 {
 	if(m_featureDims == 0)
 		ThrowError("train has not been called");
@@ -612,7 +612,7 @@ GPolynomial::~GPolynomial()
 }
 
 // virtual
-GDomNode* GPolynomial::serialize(GDom* pDoc)
+GDomNode* GPolynomial::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GPolynomial");
 	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_controlPoints));

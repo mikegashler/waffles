@@ -200,7 +200,7 @@ public:
 	virtual ~GIsomap();
 
 	/// Serializes this object
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// If there are any points that are not connected to the main group, just drop them instead of
 	/// throwing an exception. (Note that this may cause the results to contain a different number
@@ -234,7 +234,7 @@ public:
 	virtual ~GLLE();
 	
 	/// Serialize this object
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Specifies to use the neighborhoods determined by the specified neighbor-finder instead of the nearest
 	/// Euclidean-distance neighbors to establish local linearity. If this method is called, it will also
@@ -268,7 +268,7 @@ public:
 	virtual ~GBreadthFirstUnfolding();
 
 	/// Serialize this object
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Specify the neighbor finder to use to pick neighbors for this algorithm
 	void setNeighborFinder(GNeighborFinder* pNF);
@@ -398,7 +398,7 @@ public:
 	GImageJitterer(GDomNode* pNode);
 
 	/// Marshall this object into a DOM that can be serialized
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Sets the 4 params to random uniform values between 0 and 1, and returns the params
 	double* pickParams(GRand& rand);
@@ -454,7 +454,7 @@ public:
 	virtual ~GUnsupervisedBackProp();
 
 	/// Marshall this object to a DOM that can be serialized.
-	GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Returns a pointer to the neural network used to model the manifold. Typically, this
 	/// is used to add layers to the neural network, or set the learning rate (etc.) before
