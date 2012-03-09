@@ -1111,7 +1111,7 @@ std::string machineReadableConfusionHeader(std::size_t variable_idx, GRelation* 
     std::string e = expected_name.str();
     for(std::size_t c = 0; c < n; ++c){
       std::ostringstream got_name;
-      pRelation->printAttrValue(got_name, variable_idx, r);
+      pRelation->printAttrValue(got_name, variable_idx, c);
       std::string g = got_name.str();
       out << ",\"Expected:" << e <<" Got:" << g << "\"";
     }
