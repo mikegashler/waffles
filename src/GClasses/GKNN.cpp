@@ -81,6 +81,8 @@ GKNN::GKNN(GRand& rand)
 : GIncrementalLearner(rand)
 {
 	m_eInterpolationMethod = Linear;
+	m_eTrainMethod = StoreAll;
+	m_trainParam = 0.0;
 	m_pLearner = NULL;
 	m_bOwnLearner = false;
 	m_nNeighbors = 1;
@@ -91,6 +93,7 @@ GKNN::GKNN(GRand& rand)
 	m_pNeighborFinder2 = NULL;
 	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
 	m_pEvalDistances = new double[m_nNeighbors + 1];
+	m_normalizeScaleFactors = true;
 	m_optimizeScaleFactors = false;
 	m_pDistanceMetric = NULL;
 	m_pSparseMetric = NULL;
@@ -113,6 +116,9 @@ GKNN::GKNN(GDomNode* pNode, GLearnerLoader& ll)
 	m_bOwnLearner = false;
 	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
 	m_eInterpolationMethod = (InterpolationMethod)pNode->field("interpMethod")->asInt();
+	m_eTrainMethod = (TrainMethod)pNode->field("trainMethod")->asInt();
+	m_trainParam = pNode->field("trainParam")->asDouble();
+	m_normalizeScaleFactors = pNode->field("normalize")->asBool();
 	m_optimizeScaleFactors = pNode->field("optimize")->asBool();
 	m_dElbowRoom = pNode->field("elbowRoom")->asDouble();
 	GMatrix* pFeatures = NULL;
@@ -177,6 +183,9 @@ GDomNode* GKNN::serialize(GDom* pDoc) const
 	if(m_eInterpolationMethod == Learner)
 		ThrowError("Sorry, serialize is not supported for the \"Learner\" interpolation method");
 	pNode->addField(pDoc, "interpMethod", pDoc->newInt(m_eInterpolationMethod));
+	pNode->addField(pDoc, "trainMethod", pDoc->newInt(m_eTrainMethod));
+	pNode->addField(pDoc, "trainParam", pDoc->newDouble(m_trainParam));
+	pNode->addField(pDoc, "normalize", pDoc->newBool(m_normalizeScaleFactors));
 	pNode->addField(pDoc, "optimize", pDoc->newBool(m_optimizeScaleFactors));
 	pNode->addField(pDoc, "elbowRoom", pDoc->newDouble(m_dElbowRoom));
 	if(m_pFeatures)
@@ -212,6 +221,12 @@ void GKNN::autoTune(GMatrix& features, GMatrix& labels)
 
 	// Set the best values
 	m_nNeighbors = bestK;
+
+	// Try without normalization
+	m_normalizeScaleFactors = false;
+	double d = heuristicValidate(features, labels);
+	if(d >= bestErr)
+		m_normalizeScaleFactors = true;
 }
 
 void GKNN::setNeighborCount(size_t k)
@@ -254,6 +269,11 @@ size_t GKNN::addVector(const double* pFeatures, const double* pLabels)
 	// Store the labels
 	GVec::copy(m_pLabels->newRow(), pLabels, m_pLabels->cols());
 	return index;
+}
+
+void GKNN::setNormalizeScaleFactors(bool b)
+{
+	m_normalizeScaleFactors = b;
 }
 
 void GKNN::setOptimizeScaleFactors(bool b)
@@ -358,26 +378,50 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 	if(m_pSparseMetric)
 		ThrowError("This method is not compatible with sparse similarity metrics. You should either use trainSparse instead, or use a dense dissimilarity metric.");
 	beginIncrementalLearningInner(features.relation(), labels.relation());
-	m_pFeatures->reserve(features.rows());
-	m_pLabels->reserve(features.rows());
-	for(size_t i = 0; i < features.rows(); i++)
-		addVector(features[i], labels[i]);
 
 	// Give each attribute an equal chance by scaling out the deviation
 	double* pScaleFactors = m_pDistanceMetric->scaleFactors();
-	for(size_t i = 0; i < features.cols(); i++)
+	if(m_normalizeScaleFactors)
 	{
-		if(m_pFeatures->relation()->valueCount(i) == 0)
+		for(size_t i = 0; i < features.cols(); i++)
 		{
-			double m = m_pFeatures->mean(i);
-			double d = sqrt(m_pFeatures->variance(i, m));
-			if(d >= 1e-8)
-				pScaleFactors[i] = 1.0 / (2.0 * d);
+			if(features.relation()->valueCount(i) == 0)
+			{
+				double m = features.mean(i);
+				double d = sqrt(features.variance(i, m));
+				if(d >= 1e-8)
+					pScaleFactors[i] = 1.0 / (2.0 * d);
+				else
+					pScaleFactors[i] = 1.0;
+			}
 			else
 				pScaleFactors[i] = 1.0;
 		}
-		else
-			pScaleFactors[i] = 1.0;
+	}
+	else
+		GVec::setAll(pScaleFactors, 1.0, features.cols());
+
+	if(m_eTrainMethod == StoreAll)
+	{
+		m_pFeatures->reserve(features.rows());
+		m_pLabels->reserve(features.rows());
+		for(size_t i = 0; i < features.rows(); i++)
+			addVector(features[i], labels[i]);
+	}
+	else if(m_eTrainMethod == ValidationPrune)
+	{
+		ThrowError("Sorry, this training method is not implemented yet");
+	}
+	else if(m_eTrainMethod == DrawRandom)
+	{
+		size_t n = (size_t)m_trainParam;
+		m_pFeatures->reserve(n);
+		m_pLabels->reserve(n);
+		for(size_t i = 0; i < n; i++)
+		{
+			size_t index = m_rand.next(features.rows());
+			addVector(features[index], labels[index]);
+		}
 	}
 
 	// Learn to scale the attributes

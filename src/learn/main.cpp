@@ -454,6 +454,68 @@ GGraphCutTransducer* InstantiateGraphCutTransducer(GRand& rand, GArgReader& args
 	return pTransducer;
 }
 
+GBayesianModelCombination* InstantiateHodgePodge(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	GBayesianModelCombination* pEnsemble = new GBayesianModelCombination(rand);
+
+	GNaiveBayes* pNB = new GNaiveBayes(rand);
+	pEnsemble->addLearner(pNB);
+
+	GNaiveBayes* pNB2 = new GNaiveBayes(rand);
+	pNB2->setEquivalentSampleSize(1.0);
+	pEnsemble->addLearner(pNB2);
+
+	GLinearRegressor* pLin = new GLinearRegressor(rand);
+	pEnsemble->addLearner(pLin);
+
+	GNaiveInstance* pNI = new GNaiveInstance(rand);
+	pEnsemble->addLearner(pNI);
+
+	GNeuralNet* pNN = new GNeuralNet(rand);
+	pEnsemble->addLearner(pNN);
+
+	GBaselineLearner* pBL = new GBaselineLearner(rand);
+	pEnsemble->addLearner(pBL);
+
+	for(size_t i = 0; i < 6; i++)
+	{
+		GDecisionTree* pDT = new GDecisionTree(rand);
+		pDT->setLeafThresh(6 * i);
+		pEnsemble->addLearner(pDT);
+	}
+
+	for(size_t i = 0; i < 12; i++)
+	{
+		GDecisionTree* pRDT = new GDecisionTree(rand);
+		pRDT->useRandomDivisions(1);
+		pEnsemble->addLearner(pRDT);
+	}
+
+	for(size_t i = 0; i < 8; i++)
+	{
+		GMeanMarginsTree* pMM = new GMeanMarginsTree(rand);
+		pEnsemble->addLearner(pMM);
+	}
+
+	for(size_t i = 0; i < 5; i++)
+	{
+		GKNN* pKnn = new GKNN(rand);
+		pKnn->setNeighborCount(1);
+		pKnn->drawRandom(16);
+		pEnsemble->addLearner(pKnn);
+	}
+
+	for(size_t i = 0; i < 3; i++)
+	{
+		GKNN* pKnn = new GKNN(rand);
+		pKnn->setNeighborCount(3);
+		pKnn->drawRandom(24);
+		pEnsemble->addLearner(pKnn);
+	}
+
+	return pEnsemble;
+}
+
 GKNN* InstantiateKNN(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GKNN* pModel = new GKNN(rand);
@@ -465,6 +527,8 @@ GKNN* InstantiateKNN(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 				ThrowError("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
+		else if(args.if_pop("-nonormalize"))
+			pModel->setNormalizeScaleFactors(false);
 		else if(args.if_pop("-neighbors"))
 			pModel->setNeighborCount(args.pop_uint());
 		else if(args.if_pop("-equalweight"))
@@ -769,6 +833,8 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 			return InstantiateDecisionTree(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("graphcuttransducer"))
 			return InstantiateGraphCutTransducer(rand, args, pFeatures, pLabels);
+		else if(args.if_pop("hodgepodge"))
+			return InstantiateHodgePodge(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("knn"))
 			return InstantiateKNN(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("linear"))

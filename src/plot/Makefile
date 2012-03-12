@@ -101,10 +101,10 @@ $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../obj/waf
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@echo -e "Computing opt dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@echo -e "	$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 # This rule makes the debug ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
@@ -112,10 +112,10 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@echo -e "Computing dbg dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleandbg :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
@@ -129,8 +129,10 @@ clean : partialcleandbg partialcleanopt
 	rm -f $(DEPS_OPT)
 	rm -f $(DEPS_DBG)
 
-install : $(TARGET_PATH)/$(TARGET_NAME_OPT)
-	rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
+install :
+	@if [ "$${SUDO_USER}" == "" ]; then echo "You must use sudo to install"; false; fi
+	@sudo -u $${SUDO_USER} $(MAKE) -C . opt
+	@rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
 	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_BIN)
 
 uninstall:

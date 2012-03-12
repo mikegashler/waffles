@@ -143,10 +143,10 @@ $(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV) ../../obj/
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@echo -e "Computing opt dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@echo -e "	$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 # This rule makes the debug ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
@@ -154,10 +154,10 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@echo -e "Computing dbg dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 # This rule makes the debug ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
@@ -165,11 +165,11 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@echo -e "Computing gcov dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;rm -f $(GCNO_FILES)" >> $@
-	@echo -e "	umask 0;$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@echo -e "	rm -f $(GCNO_FILES)" >> $@
+	@echo -e "	$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleanopt :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
@@ -189,7 +189,9 @@ clean : partialcleandbg partialcleanopt
 	rm -f $(DEPS_DBG)
 	rm -f $(DEPS_GCOV)
 
-install: opt
+install:
+	@if [ "$${SUDO_USER}" == "" ]; then echo "You must use sudo to install"; false; fi
+	@sudo -u $${SUDO_USER} $(MAKE) -C . opt
 
 uninstall:
 

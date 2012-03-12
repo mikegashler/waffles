@@ -216,10 +216,14 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-neighbors [k]=12", "Set the number of neighbors to connect with each point in order to form the graph.");
 	}
 	{
+		pRoot->add("hodgepodge", "This is a ready-made ensemble of various unrelated learning algorithms.");
+	}
+	{
 		UsageNode* pKNN = pRoot->add("knn <options>", "The k-Nearest-Neighbor instance-based learning algorithm. It uses Euclidean distance for continuous features and Hamming distance for nominal features.");
 		UsageNode* pOpts = pKNN->add("<options>");
 		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
 		pOpts->add("-neighbors [k]", "Specify the number of neighbors, k, to use.");
+		pOpts->add("-nonormalize", "Specify not to normalize the scale of continuous features. (The default is to normalize by dividing by 2 times the deviation in that attribute.)");
 		pOpts->add("-equalweight", "Give equal weight to every neighbor. (The default is to use linear weighting for continuous features, and sqared linear weighting for nominal features.");
 		pOpts->add("-scalefeatures", "Use a hill-climbing algorithm on the training set to scale the feature dimensions in order to give more accurate results. This increases training time, but also improves accuracy and robustness to irrelevant features.");
 		pOpts->add("-pearson", "Use Pearson's correlation coefficient to evaluate the similarity between sparse vectors. (Only compatible with sparse training.)");

@@ -35,6 +35,13 @@ public:
 		Learner,
 	};
 
+	enum TrainMethod
+	{
+		StoreAll,
+		ValidationPrune,
+		DrawRandom,
+	};
+
 protected:
 	// Settings
 	GMatrix* m_pFeatures;
@@ -42,11 +49,14 @@ protected:
 	GMatrix* m_pLabels;
 	size_t m_nNeighbors;
 	InterpolationMethod m_eInterpolationMethod;
+	TrainMethod m_eTrainMethod;
+	double m_trainParam;
 	GSupervisedLearner* m_pLearner;
 	bool m_bOwnLearner;
 	double m_dElbowRoom;
 
 	// Scale Factor Optimization
+	bool m_normalizeScaleFactors;
 	bool m_optimizeScaleFactors;
 	GRowDistanceScaled* m_pDistanceMetric;
 	GSparseSimilarity* m_pSparseMetric;
@@ -117,6 +127,9 @@ public:
 	/// Returns the dissimilarity metric
 	GRowDistanceScaled* metric() { return m_pDistanceMetric; }
 
+	/// Specify whether to normalize the scaling of each attribute. (The default is to normalize.)
+	void setNormalizeScaleFactors(bool b);
+
 	/// If you set this to true, it will use a hill-climber to optimize the
 	/// attribute scaling factors. If you set it to false (the default), it won't.
 	void setOptimizeScaleFactors(bool b);
@@ -133,6 +146,13 @@ public:
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data.
 	void autoTune(GMatrix& features, GMatrix& labels);
+
+	/// Specify to train by drawing 'n' random patterns from the training set.
+	void drawRandom(size_t n)
+	{
+		m_eTrainMethod = DrawRandom;
+		m_trainParam = n;
+	}
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

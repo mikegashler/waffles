@@ -192,10 +192,10 @@ $(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV)
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@echo -e "Computing opt dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@echo -e "	$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 # This rule makes the debug ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
@@ -203,10 +203,10 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@echo -e "Computing dbg dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
-	@echo -e "	umask 0;$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 # This rule makes the test/profile ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a test/profile ".o" file.
@@ -214,15 +214,15 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@echo -e "Computing gcov dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
 
 	@#Delete old gcno file
 	@echo -en "	rm -f " >> $@
 	@echo $$(dirname $@)/$$(basename $@ .d).gcno >> $@
 
-	@echo -e "	umask 0;$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@echo -e "	$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleanopt :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
@@ -243,9 +243,12 @@ clean : partialcleandbg partialcleanopt partialcleangcov
 	rm -f $(DEPS_DBG)
 	rm -f $(DEPS_GCOV)
 
-install: $(TARGET_PATH)/$(TARGET_NAME_OPT) $(TARGET_PATH)/$(TARGET_NAME_DBG)
-	mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
-	mkdir -m 0755 -p $(INSTALL_LOCATION_INCLUDE)/GClasses
+install:
+	@if [ "$${SUDO_USER}" == "" ]; then echo "You must use sudo to install"; false; fi
+	@sudo -u $${SUDO_USER} $(MAKE) -C . dbg
+	@sudo -u $${SUDO_USER} $(MAKE) -C . opt
+	@sudo -u $${SUDO_USER} mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
+	@sudo -u $${SUDO_USER} mkdir -m 0755 -p $(INSTALL_LOCATION_INCLUDE)/GClasses
 	install $(TARGET_PATH)/GClasses.a $(INSTALL_LOCATION_LIB)/libGClasses.a
 	install $(TARGET_PATH)/GClassesDbg.a $(INSTALL_LOCATION_LIB)/libGClassesDbg.a
 	install *.h $(INSTALL_LOCATION_INCLUDE)/GClasses
