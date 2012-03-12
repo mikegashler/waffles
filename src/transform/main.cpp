@@ -14,6 +14,7 @@
 #include "../GClasses/GBits.h"
 #include "../GClasses/GCluster.h"
 #include "../GClasses/GDistance.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GMatrix.h"
 #include "../GClasses/GImage.h"
@@ -1158,6 +1159,13 @@ void powerColumns(GArgReader& args)
 	pA->print(cout);
 }
 
+void prettify(GArgReader& args)
+{
+	GDom doc;
+	doc.loadJson(args.pop_string());
+	doc.writeJsonPretty(cout);
+}
+
 void pseudoInverse(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -1905,6 +1913,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("neighbors")) neighbors(args);
 		else if(args.if_pop("overlay")) overlay(args);
 		else if(args.if_pop("powercolumns")) powerColumns(args);
+		else if(args.if_pop("prettify")) prettify(args);
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
 		else if(args.if_pop("rotate")) rotate(args);

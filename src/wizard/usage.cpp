@@ -1453,6 +1453,9 @@ UsageNode* makeTransformUsageTree()
 		pPowerCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");
 		pPowerCols->add("[exponent]=0.5", "An exponent value, such as 0.5, 2, etc.");
 	}
+	{
+		pRoot->add("prettify [json-file]=model.json", "Pretty-prints a JSON file.");
+	}
 	pRoot->add("pseudoinverse [dataset]=m.arff", "Compute the Moore-Penrose pseudo-inverse of the specified matrix of real values.");
 	pRoot->add("reducedrowechelonform [dataset]=m.arff", "Convert a matrix to reduced row echelon form. Results are printed to stdout.");
 	{
