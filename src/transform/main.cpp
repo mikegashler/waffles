@@ -1807,6 +1807,13 @@ void transition(GArgReader& args)
 	pTransition->print(cout);
 }
 
+void uglify(GArgReader& args)
+{
+	GDom doc;
+	doc.loadJson(args.pop_string());
+	doc.writeJson(cout);
+}
+
 void wilcoxon(GArgReader& args)
 {
 	size_t n = args.pop_uint();
@@ -1932,6 +1939,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("threshold")) threshold(args);
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
+		else if(args.if_pop("uglify")) uglify(args);
 		else if(args.if_pop("wilcoxon")) wilcoxon(args);
 		else if(args.if_pop("zeromean")) zeroMean(args);
 		else ThrowError("Unrecognized command: ", args.peek());

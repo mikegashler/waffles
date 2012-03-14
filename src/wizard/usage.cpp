@@ -1459,7 +1459,7 @@ UsageNode* makeTransformUsageTree()
 	pRoot->add("pseudoinverse [dataset]=m.arff", "Compute the Moore-Penrose pseudo-inverse of the specified matrix of real values.");
 	pRoot->add("reducedrowechelonform [dataset]=m.arff", "Convert a matrix to reduced row echelon form. Results are printed to stdout.");
 	{
-		UsageNode* pRotate = pRoot->add("rotate [dataset] [col_x] [col_y] [angle_degrees]","Rotate angle degrees around the origin in in the col_x,col_y plane.  Only affects the values in col_x and col_y.");
+		UsageNode* pRotate = pRoot->add("rotate [dataset] [col_x] [col_y] [angle_degrees]","Rotate angle degrees around the origin in in the col_x,col_y plane. Only affects the values in col_x and col_y.");
 		pRotate->add("[dataset]=in.arff", "The filename of a dataset.");
 		pRotate->add("[col_x]=0", "The zero-based index of an attribute to serve as the x coordinate in the plane of rotation.  Rotation from x to y will be 90 degrees. col_x must be a real-valued attribute.");
 		pRotate->add("[col_y]=1", "The zero-based index of an attribute to serve as the y coordinate in the plane of rotation.  Rotation from y to x will be 270 degrees. col_y must be a real-valued attribute.");
@@ -1568,6 +1568,9 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		pRoot->add("transpose [dataset]=m.arff", "Transpose the data such that columns become rows and rows become columns.");
+	}
+	{
+		pRoot->add("uglify [json-file]=model.json", "Prints a JSON file with whitespace removed.");
 	}
 	{
 		pRoot->add("zeromean [dataset]=m.arff","Subtracts the mean from all values "

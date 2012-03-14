@@ -39,8 +39,8 @@
 #	include <netinet/in.h>
 #endif
 #include <vector>
-#include <deque>
 #include <set>
+#include <queue>
 #include <string.h>
 
 namespace GClasses {
@@ -101,6 +101,9 @@ public:
 	/// Returns the socket associated with this connection
 	SOCKET socket() { return m_sock; }
 
+	/// Sets the socket for this connection
+	void setSocket(SOCKET sock) { m_sock = sock; }
+
 	/// Returns the client's IP address for this connection.
 	/// (You can use inet_ntoa to convert the value this returns to a string.)
 	in_addr ipAddr();
@@ -143,7 +146,9 @@ protected:
 	/// returns a pointer to a new GTCPConnection object to
 	/// associate with this connection. (The connection, however, isn't yet fully
 	/// established, so it might cause an error if you send something to the
-	/// client in an overload of this method.)
+	/// client in an overload of this method.) If you want to associate
+	/// some data with each connection, you can overload this method to
+	/// create a custom object.
 	virtual GTCPConnection* makeConnection(SOCKET s) { return new GTCPConnection(s); }
 
 	/// This is called when a connection is first known to have disconnected.
@@ -157,19 +162,71 @@ protected:
 };
 
 
-/// This class abstracts a client that speaks a home-made protocol that
-/// guarantees packages will arrive in the same order and size as when
-/// they were sent. This protocol is a simple layer on top of TCP.
-class GPackageClient : public GTCPClient
+/// This is a helper class used by GPackageConnection.
+class GPackageConnectionBuf
 {
-protected:
+public:
+	char* m_pBuf;
+	unsigned int m_bufSize;
+	unsigned int m_dataSize;
+
+	GPackageConnectionBuf(char* pBuf, unsigned int bufSize, unsigned int dataSize)
+	: m_pBuf(pBuf), m_bufSize(bufSize), m_dataSize(dataSize)
+	{
+	}
+
+	GPackageConnectionBuf(const GPackageConnectionBuf& that)
+	: m_pBuf(that.m_pBuf), m_bufSize(that.m_bufSize), m_dataSize(that.m_dataSize)
+	{
+	}
+};
+
+
+/// This is a helper class used by GPackageServer. If you implement a custom
+/// connection object for a sub-class of GPackageServer, then it should inherrit
+/// from this class.
+class GPackageConnection : public GTCPConnection
+{
+public:
+	std::queue<GPackageConnectionBuf> m_q;
+	char* m_pCondemned;
+	char* m_pBuf;
 	unsigned int m_header[2];
 	unsigned int m_headerBytes;
 	unsigned int m_payloadBytes;
 	unsigned int m_bufSize;
+
+	GPackageConnection(SOCKET sock)
+	: GTCPConnection(sock), m_pCondemned(NULL), m_pBuf(NULL), m_headerBytes(0), m_payloadBytes(0), m_bufSize(0)
+	{
+	}
+
+	virtual ~GPackageConnection()
+	{
+		delete[] m_pCondemned;
+		delete[] m_pBuf;
+	}
+
+	/// Receives any available incoming data and adds it to the queue when a complete package is received.
+	/// Returns 0 if no errors occur (whether or not a full package was received).
+	/// Returns 1 if the other end disconnected. Returns 2 if the other end tried to send a package
+	/// that was too big. Returns 3 if the other end breached protocol by sending a bad header.
+	int receive(unsigned int maxBufSize, unsigned int maxPackageSize);
+
+	/// Returns the next ready package. Returns NULL if no complete package is ready.
+	char* next(size_t* pOutSize);
+};
+
+
+/// This class abstracts a client that speaks a home-made protocol that
+/// guarantees packages will arrive in the same order and size as when
+/// they were sent. This protocol is a simple layer on top of TCP.
+class GPackageClient
+{
+protected:
+	GPackageConnection m_conn;
 	unsigned int m_maxBufSize;
 	unsigned int m_maxPackageSize;
-	char* m_pBuf;
 
 public:
     GPackageClient();
@@ -192,10 +249,21 @@ public:
 	/// again the next time a package is received.
 	void setMaxBufferSizes(size_t a, size_t b) { m_maxBufSize = (unsigned int)a; m_maxPackageSize = (unsigned int)b; }
 
+	/// Connect to a server. Throws an exception if it fails to connect within the
+	/// specified timout period.
+	void connect(const char* addr, unsigned short port, int timeoutSecs = 20);
+
+	/// Disconnect from the server
+	void disconnect();
+
 protected:
 	/// This method is called if the peer sends data that does
 	/// not follow the expected protocol.
 	virtual void onReceiveBadData(const char* message) {}
+
+	/// This is called when the connection is first known to have disconnected.
+	virtual void onDisconnect() {}
+
 };
 
 

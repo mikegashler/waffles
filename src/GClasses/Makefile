@@ -191,10 +191,12 @@ $(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV)
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
+	@-rm -f $$(dirname $@)/$$(basename $@)
+	@touch $$(dirname $@)/$$(basename $@)
 	@echo -e "Computing opt dependencies for $<"
-	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
-	@echo -en "$$(dirname $@)/" > $@
+	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
+	@echo -en "$$(dirname $@)/" >> $@
 	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
@@ -203,10 +205,12 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
+	@-rm -f $$(dirname $@)/$$(basename $@)
+	@touch $$(dirname $@)/$$(basename $@)
 	@echo -e "Computing dbg dependencies for $<"
-	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
-	@echo -en "$$(dirname $@)/" > $@
+	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
+	@echo -en "$$(dirname $@)/" >> $@
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
@@ -215,10 +219,12 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
+	@-rm -f $$(dirname $@)/$$(basename $@)
+	@touch $$(dirname $@)/$$(basename $@)
 	@echo -e "Computing gcov dependencies for $<"
-	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
-	@echo -en "$$(dirname $@)/" > $@
+	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
+	@echo -en "$$(dirname $@)/" >> $@
 	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
 
 	@#Delete old gcno file

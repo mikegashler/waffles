@@ -83,8 +83,21 @@ bool GSocket_isReady(SOCKET s)
 	return ret == 0 ? false : true;
 }
 
+void GSocket_setSocketMode(SOCKET s, bool blocking)
+{
+	unsigned long ulMode = blocking ? 0 : 1;
+#ifdef WINDOWS
+	if(ioctlsocket(s, FIONBIO, &ulMode) != 0)
+#else
+	if(ioctl(s, FIONBIO, &ulMode) != 0)
+#endif
+		ThrowError("Error changing the mode of a socket");
+}
+
 size_t GSocket_bytesReady(SOCKET s)
 {
+	if(s == INVALID_SOCKET)
+		return 0;
 	unsigned long bytesReadyToRead = 0;
 #ifdef WINDOWS
 	GWindows::yield(); // This is necessary because incoming packets go through the Windows message pump
@@ -95,17 +108,6 @@ size_t GSocket_bytesReady(SOCKET s)
 		ThrowError("ioctl failed: ", strerror(errno));
 #endif
 	return bytesReadyToRead;
-}
-
-void GSocket_setSocketMode(SOCKET s, bool blocking)
-{
-	unsigned long ulMode = blocking ? 0 : 1;
-#ifdef WINDOWS
-	if(ioctlsocket(s, FIONBIO, &ulMode) != 0)
-#else
-	if(ioctl(s, FIONBIO, &ulMode) != 0)
-#endif
-		ThrowError("Error changing the mode of a socket");
 }
 
 void GSocket_closeSocket(SOCKET s)
@@ -137,32 +139,28 @@ in_addr GSocket_ipAddr(SOCKET s)
 	return pInfo->sin_addr;
 }
 
-void GSocket_send(SOCKET s, const char* buf, size_t len)
+size_t GSocket_send(SOCKET s, const char* buf, size_t len)
 {
-	while(len > 0)
+	if(s == INVALID_SOCKET)
+		ThrowError("Tried to send over a socket that was not connected");
+	ssize_t bytesSent = ::send(s, buf, len, 0);
+	if(bytesSent < 0)
 	{
-		ssize_t bytesSent = ::send(s, buf, len, 0);
-		if(bytesSent > 0)
-		{
-			buf += bytesSent;
-			len -= bytesSent;
-		}
-		else
-		{
 #ifdef WINDOWS
-			int err = WSAGetLastError();
-			if(bytesSent == 0 || err == WSAEWOULDBLOCK)
-				GThread::sleep(0);
-			else
-				ThrowError("Error sending in GTCPClient::send: ", winstrerror(err));
+		if(WSAGetLastError() == WSAEWOULDBLOCK)
+			return 0;
+		else
+			ThrowError("Error sending in GTCPClient::send: ", winstrerror(err));
 #else
-			if(bytesSent == 0 || errno == EWOULDBLOCK)
-				GThread::sleep(0);
-			else
-				ThrowError("Error sending in GTCPClient::send: ", strerror(errno));
+		if(errno == EWOULDBLOCK)
+			return 0;
+		else
+			ThrowError("Error sending in GTCPClient::send: ", strerror(errno));
 #endif
-		}
+		return 0;
 	}
+	else
+		return (size_t)bytesSent;
 }
 
 void GSocket_init()
@@ -188,7 +186,91 @@ void GSocket_init()
 #endif
 }
 
+SOCKET GSocket_connect(const char* addr, unsigned short port, int timeoutSecs)
+{
+	struct addrinfo hints, *res, *res0;
+	int error;
+	res0 = NULL;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	std::ostringstream os;
+	os << port;
+	string tmp = os.str();
+	error = getaddrinfo(addr, tmp.c_str(), &hints, &res0);
+	if(error)
+		ThrowError(gai_strerror(error));
+	SOCKET sock = INVALID_SOCKET;
+	for(res = res0; res; res = res->ai_next)
+	{
+		sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if(sock < 0)
+			continue;
+		struct timeval timeout;
+		fd_set socketSet;
+		GSocket_setSocketMode(sock, false);
 
+		// Trying to connect with timeout
+		if(::connect(sock, res->ai_addr, (int)res->ai_addrlen) < 0)
+		{
+#ifdef WINDOWS
+			int n = WSAGetLastError();
+			if(n == WSAEWOULDBLOCK || n == WSAEINPROGRESS)
+#else
+			if(errno == EINPROGRESS)
+#endif
+			{
+				timeout.tv_sec = timeoutSecs;
+				timeout.tv_usec = 0;
+				FD_ZERO(&socketSet);
+				FD_SET(sock, &socketSet);
+#ifdef WINDOWS
+				int res = select((int)sock + 1, NULL, &socketSet, NULL, &timeout);
+				if(res < 0 && WSAGetLastError() != WSAEINTR)
+#else
+				int res = select(sock + 1, NULL, &socketSet, NULL, &timeout);
+				if(res < 0 && errno != EINTR)
+#endif
+					ThrowError("Failed to connect to ", addr, " on port ", to_str(port));
+				else if(res > 0)
+				{
+					// Socket selected for write
+					socklen_t lon = sizeof(int);
+					int valopt;
+					if(getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)(&valopt), &lon) < 0)
+						ThrowError("getsockopt failed");
+					if(valopt)
+					{
+						GSocket_closeSocket(sock);
+						sock = INVALID_SOCKET;
+						continue;
+					}
+
+					// Got a connection!
+					break;
+				}
+				else
+				{
+					// Timeout exceeded
+					GSocket_closeSocket(sock);
+					sock = INVALID_SOCKET;
+					continue;
+				}
+			}
+			else
+			{
+				// Failed to connect to this address
+				GSocket_closeSocket(sock);
+				sock = INVALID_SOCKET;
+				continue;
+			}
+		}
+	}
+	freeaddrinfo(res0);
+	if(sock == INVALID_SOCKET)
+		ThrowError("Failed to connect to ", addr, " on port ", to_str(port));
+	return sock;
+}
 
 
 
@@ -221,94 +303,24 @@ bool GTCPClient::isConnected()
 void GTCPClient::connect(const char* addr, unsigned short port, int timeoutSecs)
 {
 	disconnect();
-	struct addrinfo hints, *res, *res0;
-	int error;
-	res0 = NULL;
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	std::ostringstream os;
-	os << port;
-	string tmp = os.str();
-	error = getaddrinfo(addr, tmp.c_str(), &hints, &res0);
-	if(error)
-		ThrowError(gai_strerror(error));
-	m_sock = INVALID_SOCKET;
-	for(res = res0; res; res = res->ai_next)
-	{
-		m_sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		if(m_sock < 0)
-			continue;
-		struct timeval timeout;
-		fd_set socketSet;
-		GSocket_setSocketMode(m_sock, false);
-
-		// Trying to connect with timeout
-		if(::connect(m_sock, res->ai_addr, (int)res->ai_addrlen) < 0)
-		{
-#ifdef WINDOWS
-			int n = WSAGetLastError();
-			if(n == WSAEWOULDBLOCK || n == WSAEINPROGRESS)
-#else
-			if(errno == EINPROGRESS)
-#endif
-			{
-				timeout.tv_sec = timeoutSecs;
-				timeout.tv_usec = 0;
-				FD_ZERO(&socketSet);
-				FD_SET(m_sock, &socketSet);
-#ifdef WINDOWS
-				int res = select((int)m_sock + 1, NULL, &socketSet, NULL, &timeout);
-				if(res < 0 && WSAGetLastError() != WSAEINTR)
-#else
-				int res = select(m_sock + 1, NULL, &socketSet, NULL, &timeout);
-				if(res < 0 && errno != EINTR)
-#endif
-					ThrowError("Failed to connect to ", addr, " on port ", to_str(port));
-				else if(res > 0)
-				{
-					// Socket selected for write
-					socklen_t lon = sizeof(int);
-					int valopt;
-					if(getsockopt(m_sock, SOL_SOCKET, SO_ERROR, (char*)(&valopt), &lon) < 0)
-						ThrowError("getsockopt failed");
-					if(valopt)
-					{
-						GSocket_closeSocket(m_sock);
-						m_sock = INVALID_SOCKET;
-						continue;
-					}
-
-					// Got a connection!
-					break;
-				}
-				else
-				{
-					// Timeout exceeded
-					GSocket_closeSocket(m_sock);
-					m_sock = INVALID_SOCKET;
-					continue;
-				}
-			}
-			else
-			{
-				// Failed to connect to this address
-				GSocket_closeSocket(m_sock);
-				m_sock = INVALID_SOCKET;
-				continue;
-			}
-		}
-	}
-	freeaddrinfo(res0);
-	if(m_sock == INVALID_SOCKET)
-		ThrowError("Failed to connect to ", addr, " on port ", to_str(port));
+	m_sock = GSocket_connect(addr, port, timeoutSecs);
 }
 
 void GTCPClient::send(const char* buf, size_t len)
 {
 	try
 	{
-		GSocket_send(m_sock, buf, len);
+		while(len > 0)
+		{
+			size_t bytesSent = GSocket_send(m_sock, buf, len);
+			if(bytesSent > 0)
+			{
+				buf += bytesSent;
+				len -= bytesSent;
+			}
+			else
+				GThread::sleep(0);
+		}
 	}
 	catch(const std::exception& e)
 	{
@@ -478,7 +490,17 @@ void GTCPServer::send(const char* buf, size_t len, GTCPConnection* pConn)
 {
 	try
 	{
-		GSocket_send(pConn->socket(), buf, len);
+		while(len > 0)
+		{
+			size_t bytesSent = GSocket_send(pConn->socket(), buf, len);
+			if(bytesSent > 0)
+			{
+				buf += bytesSent;
+				len -= bytesSent;
+			}
+			else
+				GThread::sleep(0);
+		}
 	}
 	catch(const std::exception& e)
 	{
@@ -536,14 +558,154 @@ in_addr GTCPServer::hostNameToIPAddress(char* szHostName)
 
 #define MAGIC_VALUE 0x0b57ac1e
 
+int GPackageConnection::receive(unsigned int maxBufSize, unsigned int maxPackageSize)
+{
+	if(GSocket_bytesReady(m_sock) == 0)
+		return 0; // Nothing bad happened
+	if(m_headerBytes < 2 * sizeof(unsigned int)) // if the header is still incomplete...
+	{
+		// Receive the header
+		ssize_t bytesReceived = recv(m_sock, ((char*)m_header) + m_headerBytes, 2 * sizeof(unsigned int) - m_headerBytes, 0);
+		if(bytesReceived > 0) // if we successfully received something...
+		{
+			m_headerBytes += bytesReceived;
+			if(m_headerBytes >= 2 * sizeof(unsigned int))
+			{
+				if(m_header[0] == MAGIC_VALUE)
+				{
+					if(m_header[1] > maxPackageSize)
+						return 2; // The package is too big
+					if(m_bufSize < m_header[1])
+					{
+						m_bufSize = std::max(m_header[1], std::min(maxBufSize, 2 * m_bufSize));
+						delete[] m_pBuf;
+						m_pBuf = new char[m_bufSize];
+					}
+					else if(m_bufSize > maxBufSize && m_header[1] < maxBufSize)
+					{
+						m_bufSize = m_header[1];
+						delete[] m_pBuf;
+						m_pBuf = new char[m_bufSize];
+					}
+					return receive(maxBufSize, maxPackageSize); // do it again to get the body of the package
+				}
+				else
+				{
+					m_headerBytes = 0;
+					m_payloadBytes = 0;
+					return 3; // The header is incorrect
+				}
+			}
+			else
+				return 0; // Nothing bad happened
+		}
+		else if(bytesReceived == 0)
+			return 1; // The other end disconnected
+		else
+		{
+#ifdef WINDOWS
+			ThrowError("Error calling recv: ", winstrerror(WSAGetLastError()));
+#else
+			ThrowError("Error calling recv: ", strerror(errno));
+#endif
+			return 1; // The other end disconnected
+		}
+	}
+	else
+	{
+		// Receive the payload
+		ssize_t bytesReceived = recv(m_sock, m_pBuf + m_payloadBytes, m_header[1] - m_payloadBytes, 0);
+		if(bytesReceived > 0) // if we successfully received something...
+		{
+			m_payloadBytes += bytesReceived;
+			if(m_payloadBytes >= m_header[1])
+			{
+				m_q.push(GPackageConnectionBuf(m_pBuf, m_bufSize, m_payloadBytes));
+				m_pBuf = NULL;
+				m_bufSize = 0;
+				m_payloadBytes = 0;
+				m_headerBytes = 0;
+			}
+			return 0; // nothing bad happened
+		}
+		else if(bytesReceived == 0)
+			return 1; // The other end disconnected
+		else
+		{
+#ifdef WINDOWS
+			ThrowError("Error calling recv: ", winstrerror(WSAGetLastError()));
+#else
+			ThrowError("Error calling recv: ", strerror(errno));
+#endif
+			return 1; // The other end disconnected
+		}
+	}
+}
+
+char* GPackageConnection::next(size_t* pOutSize)
+{
+	if(m_q.size() == 0)
+		return NULL;
+	GPackageConnectionBuf& package = m_q.front();
+	if(m_bufSize == 0)
+	{
+		m_pBuf = package.m_pBuf;
+		m_bufSize = package.m_bufSize;
+		*pOutSize = package.m_dataSize;
+		m_q.pop();
+		return m_pBuf;
+	}
+	else
+	{
+		delete[] m_pCondemned;
+		m_pCondemned = package.m_pBuf;
+		*pOutSize = package.m_dataSize;
+		m_q.pop();
+		return m_pCondemned;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 GPackageClient::GPackageClient()
-: GTCPClient(), m_headerBytes(0), m_payloadBytes(0), m_bufSize(0), m_maxBufSize(8192), m_maxPackageSize(0x1000000), m_pBuf(NULL)
+: m_conn(INVALID_SOCKET), m_maxBufSize(8192), m_maxPackageSize(0x1000000)
 {
 }
 
 GPackageClient::~GPackageClient()
 {
-	delete[] m_pBuf;
+}
+
+void GPackageClient::disconnect()
+{
+	if(m_conn.socket() == INVALID_SOCKET)
+		return;
+	onDisconnect();
+	GSocket_closeSocket(m_conn.socket());
+	m_conn.setSocket(INVALID_SOCKET);
+}
+
+void GPackageClient::connect(const char* addr, unsigned short port, int timeoutSecs)
+{
+	disconnect();
+	m_conn.setSocket(GSocket_connect(addr, port, timeoutSecs));
 }
 
 void GPackageClient::send(const char* buf, size_t len)
@@ -551,85 +713,94 @@ void GPackageClient::send(const char* buf, size_t len)
 	unsigned int header[2];
 	header[0] = MAGIC_VALUE;
 	header[1] = (unsigned int)len;
-	GTCPClient::send((char*)header, 2 * sizeof(unsigned int));
-	GTCPClient::send(buf, len);
+	char* pH = (char*)header;
+	size_t hl = 2 * sizeof(unsigned int);
+	try
+	{
+		while(hl > 0)
+		{
+			size_t bytesSent = GSocket_send(m_conn.socket(), pH, hl);
+			if(bytesSent > 0)
+			{
+				pH += bytesSent;
+				hl -= bytesSent;
+			}
+			else
+			{
+				int status = m_conn.receive(m_maxBufSize, m_maxPackageSize);
+				if(status)
+				{
+					if(status == 1)
+					{
+						disconnect();
+						return;
+					}
+					else if(status == 2)
+						onReceiveBadData("Package too big");
+					else if(status == 3)
+						onReceiveBadData("Breach of protocol");
+				}
+				GThread::sleep(0);
+			}
+		}
+		while(len > 0)
+		{
+			size_t bytesSent = GSocket_send(m_conn.socket(), buf, len);
+			if(bytesSent > 0)
+			{
+				buf += bytesSent;
+				len -= bytesSent;
+			}
+			else
+			{
+				int status = m_conn.receive(m_maxBufSize, m_maxPackageSize);
+				if(status)
+				{
+					if(status == 1)
+					{
+						disconnect();
+						return;
+					}
+					else if(status == 2)
+						onReceiveBadData("Package too big");
+					else if(status == 3)
+						onReceiveBadData("Breach of protocol");
+				}
+				GThread::sleep(0);
+				GThread::sleep(0);
+			}
+		}
+	}
+	catch(const std::exception& e)
+	{
+		disconnect();
+		throw e;
+	}
 }
 
 char* GPackageClient::receive(size_t* pLen)
 {
-	if(m_headerBytes < 2 * sizeof(unsigned int))
+	int status = m_conn.receive(m_maxBufSize, m_maxPackageSize);
+	if(status)
 	{
-		m_headerBytes += GTCPClient::receive(((char*)m_header) + m_headerBytes, 2 * sizeof(unsigned int) - m_headerBytes);
-		if(m_headerBytes >= 2 * sizeof(unsigned int))
-		{
-			if(m_header[0] == MAGIC_VALUE)
-			{
-				if(m_header[1] > m_maxPackageSize)
-					onReceiveBadData("Package too big");
-				if(m_bufSize < m_header[1])
-				{
-					m_bufSize = std::max(m_header[1], std::min(m_maxBufSize, 2 * m_bufSize));
-					delete[] m_pBuf;
-					m_pBuf = new char[m_bufSize];
-				}
-				else if(m_bufSize > m_maxBufSize && m_header[1] < m_maxBufSize)
-				{
-					m_bufSize = m_header[1];
-					delete[] m_pBuf;
-					m_pBuf = new char[m_bufSize];
-				}
-				return receive(pLen);
-			}
-			else
-			{
-				onReceiveBadData("Breach of protocol");
-				m_headerBytes = 0;
-				m_payloadBytes = 0;
-				return NULL;
-			}
-		}
-		else
-			return NULL;
+		if(status == 1)
+			disconnect();
+		else if(status == 2)
+			onReceiveBadData("Package too big");
+		else if(status == 3)
+			onReceiveBadData("Breach of protocol");
+		return NULL;
 	}
 	else
-	{
-		m_payloadBytes += GTCPClient::receive(m_pBuf + m_payloadBytes, m_header[1] - m_payloadBytes);
-		if(m_payloadBytes >= m_header[1])
-		{
-			m_headerBytes = 0;
-			*pLen = m_payloadBytes;
-			m_payloadBytes = 0;
-			return m_pBuf;
-		}
-		else
-			return NULL;
-	}
+		return m_conn.next(pLen);
 }
 
 
 
 
 
-/// This is a helper class used by GPackageServer
-class GPackageConnection : public GTCPConnection
-{
-public:
-	unsigned int m_headerBytes;
-	unsigned int m_payloadBytes;
-	unsigned int m_bufSize;
-	unsigned int m_header[2];
-	char* m_pBuf;
 
-	GPackageConnection(SOCKET sock)
-	: GTCPConnection(sock), m_headerBytes(0), m_payloadBytes(0), m_bufSize(0), m_pBuf(NULL)
-	{
-	}
 
-	virtual ~GPackageConnection()
-	{
-		delete[] m_pBuf;
-	}
-};
 
 GPackageServer::GPackageServer(unsigned short port)
 : GTCPServer(port), m_maxBufSize(8192), m_maxPackageSize(0x1000000)
@@ -658,97 +829,31 @@ void GPackageServer::send(const char* buf, size_t len, GTCPConnection* pConn)
 char* GPackageServer::receive(size_t* pOutLen, GTCPConnection** pOutConn)
 {
 	checkForNewConnections();
-	for(set<GTCPConnection*>::iterator it = m_socks.begin(); it != m_socks.end(); )
+	for(set<GTCPConnection*>::iterator it = m_socks.begin(); it != m_socks.end(); it++)
 	{
 		GPackageConnection* pConn = (GPackageConnection*)*it;
-		bool doagain = false;
-		if(GSocket_bytesReady(pConn->socket()) > 0) // if there is something ready to receive...
+		int status = pConn->receive(m_maxBufSize, m_maxPackageSize);
+		if(status)
 		{
-			if(pConn->m_headerBytes < 2 * sizeof(unsigned int)) // if the header is still incomplete...
+			if(status == 2)
+				onReceiveBadData("Package too big");
+			else if(status == 3)
+				onReceiveBadData("Breach of protocol");
+			disconnect(pConn);
+		}
+		else
+		{
+			char* pPackage = pConn->next(pOutLen);
+			if(pPackage)
 			{
-				// Receive the header
-				ssize_t bytesReceived = recv(pConn->socket(), ((char*)pConn->m_header) + pConn->m_headerBytes, 2 * sizeof(unsigned int) - pConn->m_headerBytes, 0);
-				if(bytesReceived > 0) // if we successfully received something...
-				{
-					pConn->m_headerBytes += bytesReceived;
-					if(pConn->m_headerBytes >= 2 * sizeof(unsigned int))
-					{
-						if(pConn->m_header[0] == MAGIC_VALUE)
-						{
-							if(pConn->m_header[1] > m_maxPackageSize)
-								onReceiveBadData("Package too big");
-							if(pConn->m_bufSize < pConn->m_header[1])
-							{
-								pConn->m_bufSize = std::max(pConn->m_header[1], std::min(m_maxBufSize, 2 * pConn->m_bufSize));
-								delete[] pConn->m_pBuf;
-								pConn->m_pBuf = new char[pConn->m_bufSize];
-							}
-							else if(pConn->m_bufSize > m_maxBufSize && pConn->m_header[1] < m_maxBufSize)
-							{
-								pConn->m_bufSize = pConn->m_header[1];
-								delete[] pConn->m_pBuf;
-								pConn->m_pBuf = new char[pConn->m_bufSize];
-							}
-							doagain = true; // let's visit this connection again
-						}
-						else
-						{
-							onReceiveBadData("breach of protocol");
-							pConn->m_headerBytes = 0;
-							pConn->m_payloadBytes = 0;
-						}
-					}
-				}
-				else if(bytesReceived == 0) // if the client disconnected...
-				{
-					disconnect(pConn);
-					return receive(pOutLen, pOutConn); // Recurse since the previous operation will invalidate the iterator
-				}
-				else
-				{
-#ifdef WINDOWS
-					ThrowError("Error calling recv: ", winstrerror(WSAGetLastError()));
-#else
-					ThrowError("Error calling recv: ", strerror(errno));
-#endif
-				}
-			}
-			else
-			{
-				// Receive the payload
-				ssize_t bytesReceived = recv(pConn->socket(), pConn->m_pBuf + pConn->m_payloadBytes, pConn->m_header[1] - pConn->m_payloadBytes, 0);
-				if(bytesReceived > 0) // if we successfully received something...
-				{
-					pConn->m_payloadBytes += bytesReceived;
-					if(pConn->m_payloadBytes >= pConn->m_header[1])
-					{
-						*pOutLen = pConn->m_payloadBytes;
-						*pOutConn = pConn;
-						pConn->m_headerBytes = 0;
-						pConn->m_payloadBytes = 0;
-						return pConn->m_pBuf;
-					}
-				}
-				else if(bytesReceived == 0) // if the client disconnected...
-				{
-					disconnect(pConn);
-					return receive(pOutLen, pOutConn); // Recurse since the previous operation will invalidate the iterator
-				}
-				else
-				{
-#ifdef WINDOWS
-					ThrowError("Error calling recv: ", winstrerror(WSAGetLastError()));
-#else
-					ThrowError("Error calling recv: ", strerror(errno));
-#endif
-				}
+				*pOutConn = pConn;
+				return pPackage;
 			}
 		}
-		if(!doagain) // if we just completed a header, there is a good chance the payload may be ready too
-			it++;
 	}
 	return NULL;
 }
+
 
 #ifndef NO_TEST_CODE
 #define TEST_PORT 7251
@@ -756,115 +861,44 @@ char* GPackageServer::receive(size_t* pOutLen, GTCPConnection** pOutConn)
 #define TEST_LEN 5000
 #define MAX_PACKET_LEN 2345
 
-class GPackageServer_test_struct
+void GPackageServer_serial_test()
 {
-public:
-	volatile bool serverIsUp;
-	volatile bool keepRunning;
-	volatile bool running;
-
-	GPackageServer_test_struct()
-	: serverIsUp(false), keepRunning(true), running(true)
-	{
-	}
-
-	~GPackageServer_test_struct()
-	{
-		keepRunning = false;
-		size_t timeout = 200;
-		while(running && --timeout != 0)
-			GThread::sleep(50);
-		if(running)
-			ThrowError("Failed to join server thread");
-	}
-};
-
-
-
-unsigned int GPackageServer_test_server(void* pThis)
-{
-	GPackageServer_test_struct* pStruct = (GPackageServer_test_struct*)pThis;
-	if(pStruct->serverIsUp)
-	{
-		pStruct->running = false;
-		return 1;
-	}
 	GPackageServer server(TEST_PORT);
-	pStruct->serverIsUp = true;
-	size_t bounces = 0;
-	double lastReceiveTime = GTime::seconds();
-	while(bounces < TEST_LEN && pStruct->keepRunning)
-	{
-		size_t len;
-		GTCPConnection* pConn;
-		char* pPackage = server.receive(&len, &pConn);
-		if(pPackage)
-		{
-			server.send(pPackage, len, pConn);
-			bounces++;
-			lastReceiveTime = GTime::seconds();
-		}
-		else
-		{
-			if(GTime::seconds() - lastReceiveTime > 10)
-			{
-				cerr << "\nServer aborting after " << bounces << "/" << TEST_LEN << " successful bounces due to inactivity.\n";
-				break;
-			}
-			GThread::sleep(0);
-		}
-	}
-	pStruct->running = false;
-	return 0;
-}
-
-void GPackageServer::test()
-{
-	// Spawn a bounce server in another thread
-	GPackageServer_test_struct str;
-	GThread::spawnThread(GPackageServer_test_server, &str);
-	size_t timeout = 200;
-	while(!str.serverIsUp)
-	{
-		GThread::sleep(50);
-		if(--timeout == 0)
-			ThrowError("Failed to spawn server thread");
-	}
-
-	// Connect to it with several clients
 	GPackageClient clients[CLIENT_COUNT];
 	for(size_t i = 0; i < CLIENT_COUNT; i++)
 		clients[i].connect("localhost", TEST_PORT, 5);
 	std::queue<size_t> q[CLIENT_COUNT];
-	GRand rand(0);
+	GRand randMaster(0);
+	GRand randData(1234);
 	char buf[MAX_PACKET_LEN];
 	size_t sends = 0;
 	size_t receives = 0;
+	size_t bounces = 0;
 	size_t iters = 0;
 	while(receives < TEST_LEN)
 	{
-		size_t turn = size_t(rand.next(2 * CLIENT_COUNT));
+		size_t turn = size_t(randMaster.next(3 * CLIENT_COUNT));
 		if(turn < CLIENT_COUNT)
 		{
-			if(sends < TEST_LEN && sends < receives + 30)
+			if(sends < TEST_LEN && sends < receives + 50)
 			{
-				if(!str.running)
-					ThrowError("The server aborted prematurely");
-
 				// The client sends a random packet of random size
-				size_t len = (size_t)rand.next(MAX_PACKET_LEN - 5) + 5;
-				size_t seed = (size_t)rand.next(1000000);
-				rand.setSeed(seed);
+				size_t len = (size_t)randMaster.next(MAX_PACKET_LEN - 5) + 5;
+				size_t seed = (size_t)randMaster.next(1000000);
+				randData.setSeed(seed);
 				q[turn].push(len);
 				q[turn].push(seed);
 				char* pB = buf;
 				for(size_t i = 0; i < len; i++)
-					*(pB++) = (char)rand.next();
+					*(pB++) = (char)randData.next();
+//cout << "Client " << to_str(turn) << " sent seed=" << to_str(seed) << ", len=" << len << ", data=" << to_str((int)buf[0]) << to_str((int)buf[1]) << to_str((int)buf[2]) << "\n"; cout.flush();
 				clients[turn].send(buf, len);
 				sends++;
 			}
+			else
+				GThread::sleep(0);
 		}
-		else
+		else if(turn < CLIENT_COUNT + CLIENT_COUNT)
 		{
 			// The client receives the next packet and checks it
 			turn -= CLIENT_COUNT;
@@ -874,18 +908,35 @@ void GPackageServer::test()
 			{
 				if(q[turn].size() == 0)
 					ThrowError("unexpected package");
-				if(len != q[turn].front())
+				size_t ll = q[turn].front();
+				q[turn].pop();
+				if(len != ll)
 					ThrowError("incorrect package size");
+				size_t seed = q[turn].front();
 				q[turn].pop();
-				rand.setSeed(q[turn].front());
-				q[turn].pop();
+				randData.setSeed(seed);
 				char* pB = pPackage;
+//cout << "Client " << to_str(turn) << " received seed=" << to_str(seed) << ", len=" << len << ", data=" << to_str((int)pB[0]) << to_str((int)pB[1]) << to_str((int)pB[2]) << "\n"; cout.flush();
 				for(size_t i = 0; i < len; i++)
 				{
-					if(*(pB++) != (char)rand.next())
+					if(*(pB++) != (char)randData.next())
 						ThrowError("package corruption");
 				}
 				receives++;
+			}
+			else
+				GThread::sleep(0);
+		}
+		else
+		{
+			size_t len;
+			GTCPConnection* pConn;
+			char* pPackage = server.receive(&len, &pConn);
+			if(pPackage)
+			{
+//cout << "Server bounced " << to_str((int)pPackage[0]) << to_str((int)pPackage[1]) << to_str((int)pPackage[2]) << "\n"; cout.flush();
+				server.send(pPackage, len, pConn);
+				bounces++;
 			}
 			else
 				GThread::sleep(0);
@@ -895,6 +946,13 @@ void GPackageServer::test()
 	if(sends != TEST_LEN || receives != TEST_LEN)
 		ThrowError("something is amiss");
 }
+
+void GPackageServer::test()
+{
+	GPackageServer_serial_test();
+	//GPackageServer_threaded_test();
+}
+
 #endif // !NO_TEST_CODE
 
 

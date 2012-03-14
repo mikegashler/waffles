@@ -832,7 +832,7 @@ public:
 
 		m_testTimes.flags(std::ios::showpoint | std::ios::skipws | std::ios::dec | std::ios::fixed | std::ios::left);
 		m_testTimes.width(6);
-		m_testTimes.precision(2);
+		m_testTimes.precision(3);
 		string s;
 		GTime::appendTimeStampValue(&s, "-", " ", ":", false);
 		m_testTimes << s;
@@ -876,7 +876,6 @@ public:
 		m_testTimes << buf << "=";
 
 		// Record the test time
-		if(secs < 100) m_testTimes << "0";
 		if(secs < 10) m_testTimes << "0";
 		m_testTimes << secs;
 	}
