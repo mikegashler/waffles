@@ -708,6 +708,24 @@ void GPackageClient::connect(const char* addr, unsigned short port, int timeoutS
 	m_conn.setSocket(GSocket_connect(addr, port, timeoutSecs));
 }
 
+void GPackageClient::pump()
+{
+	int status = m_conn.receive(m_maxBufSize, m_maxPackageSize);
+	if(status)
+	{
+		if(status == 1)
+		{
+			disconnect();
+			return;
+		}
+		else if(status == 2)
+			onReceiveBadData("Package too big");
+		else if(status == 3)
+			onReceiveBadData("Breach of protocol");
+	}
+	GThread::sleep(0);
+}
+
 void GPackageClient::send(const char* buf, size_t len)
 {
 	unsigned int header[2];
@@ -726,22 +744,7 @@ void GPackageClient::send(const char* buf, size_t len)
 				hl -= bytesSent;
 			}
 			else
-			{
-				int status = m_conn.receive(m_maxBufSize, m_maxPackageSize);
-				if(status)
-				{
-					if(status == 1)
-					{
-						disconnect();
-						return;
-					}
-					else if(status == 2)
-						onReceiveBadData("Package too big");
-					else if(status == 3)
-						onReceiveBadData("Breach of protocol");
-				}
-				GThread::sleep(0);
-			}
+				pump();
 		}
 		while(len > 0)
 		{
@@ -752,23 +755,7 @@ void GPackageClient::send(const char* buf, size_t len)
 				len -= bytesSent;
 			}
 			else
-			{
-				int status = m_conn.receive(m_maxBufSize, m_maxPackageSize);
-				if(status)
-				{
-					if(status == 1)
-					{
-						disconnect();
-						return;
-					}
-					else if(status == 2)
-						onReceiveBadData("Package too big");
-					else if(status == 3)
-						onReceiveBadData("Breach of protocol");
-				}
-				GThread::sleep(0);
-				GThread::sleep(0);
-			}
+				pump();
 		}
 	}
 	catch(const std::exception& e)
@@ -817,16 +804,59 @@ GTCPConnection* GPackageServer::makeConnection(SOCKET s)
 	return new GPackageConnection(s);
 }
 
-void GPackageServer::send(const char* buf, size_t len, GTCPConnection* pConn)
+void GPackageServer::pump(GPackageConnection* pConn)
+{
+	int status = pConn->receive(m_maxBufSize, m_maxPackageSize);
+	if(status)
+	{
+		if(status == 2)
+			onReceiveBadData("Package too big");
+		else if(status == 3)
+			onReceiveBadData("Breach of protocol");
+		disconnect(pConn);
+	}
+	GThread::sleep(0);
+}
+
+void GPackageServer::send(const char* buf, size_t len, GPackageConnection* pConn)
 {
 	unsigned int header[2];
 	header[0] = MAGIC_VALUE;
 	header[1] = (unsigned int)len;
-	GTCPServer::send((char*)header, 2 * sizeof(unsigned int), pConn);
-	GTCPServer::send(buf, len, pConn);
+	char* pH = (char*)header;
+	size_t hl = 2 * sizeof(unsigned int);
+	try
+	{
+		while(hl > 0)
+		{
+			size_t bytesSent = GSocket_send(pConn->socket(), pH, hl);
+			if(bytesSent > 0)
+			{
+				pH += bytesSent;
+				hl -= bytesSent;
+			}
+			else
+				pump(pConn);
+		}
+		while(len > 0)
+		{
+			size_t bytesSent = GSocket_send(pConn->socket(), buf, len);
+			if(bytesSent > 0)
+			{
+				buf += bytesSent;
+				len -= bytesSent;
+			}
+			else
+				pump(pConn);
+		}
+	}
+	catch(const std::exception& e)
+	{
+		onReceiveBadData(e.what());
+	}
 }
 
-char* GPackageServer::receive(size_t* pOutLen, GTCPConnection** pOutConn)
+char* GPackageServer::receive(size_t* pOutLen, GPackageConnection** pOutConn)
 {
 	checkForNewConnections();
 	for(set<GTCPConnection*>::iterator it = m_socks.begin(); it != m_socks.end(); it++)
@@ -930,7 +960,7 @@ void GPackageServer_serial_test()
 		else
 		{
 			size_t len;
-			GTCPConnection* pConn;
+			GPackageConnection* pConn;
 			char* pPackage = server.receive(&len, &pConn);
 			if(pPackage)
 			{
@@ -985,7 +1015,7 @@ GDomNode* GDomClient::receive()
 
 
 
-void GDomServer::send(GDomNode* pNode, GTCPConnection* pConn)
+void GDomServer::send(GDomNode* pNode, GPackageConnection* pConn)
 {
 	std::ostringstream os;
 	m_doc.setRoot(pNode);
@@ -994,7 +1024,7 @@ void GDomServer::send(GDomNode* pNode, GTCPConnection* pConn)
 	GPackageServer::send(s.c_str(), s.length(), pConn);
 }
 
-GDomNode* GDomServer::receive(GTCPConnection** pOutConn)
+GDomNode* GDomServer::receive(GPackageConnection** pOutConn)
 {
 	m_doc.clear();
 	size_t len;

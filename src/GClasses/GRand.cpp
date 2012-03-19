@@ -855,7 +855,7 @@ namespace{
 		8631389005200569973ull,  5538133061362648855ull,  3369942850878700758ull, 
 		7813559982698427184ull,  509051590411815948ull,   10197035660403006684ull, 
 		13004818533162292132ull, 9831652587047067687ull,  7619315254749630976ull, 
-		994412663058993407
+		994412663058993407ull
  };
 
 	///The expected values produced by the floating point portion of the
@@ -1074,7 +1074,7 @@ void GRandMersenneTwister::test()
 	uint64_t init[4]={0x12345ULL, 0x23456ULL, 0x34567ULL, 0x45678ULL};
 	uint64_t length=4;
 	GRandMersenneTwister tw(1);
-  tw.init_by_array64(init, length);
+	tw.init_by_array64(init, length);
 	for(int i = 0; i < 1000; ++i){
 		TestEqual(uint64MTTestValues[i], tw.next(), s+
 							"Mersenne Twister "

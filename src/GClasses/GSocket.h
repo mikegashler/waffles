@@ -256,6 +256,10 @@ public:
 	/// Disconnect from the server
 	void disconnect();
 
+	/// Receives any pending messages into an internal buffer (to unblock the
+	/// server, in case its send buffer is full.)
+	void pump();
+
 protected:
 	/// This method is called if the peer sends data that does
 	/// not follow the expected protocol.
@@ -282,7 +286,7 @@ public:
 
 	/// Send a package, which guarantees to arrive in the
 	/// same order and size as it was sent.
-	void send(const char* buf, size_t len, GTCPConnection* pConn);
+	void send(const char* buf, size_t len, GPackageConnection* pConn);
 
 	/// Receives the next available package. (The order and size is
 	/// guaranteed to arrive the same as when it was sent.)
@@ -290,7 +294,7 @@ public:
 	/// The returned value is a pointer to an internal buffer, the
 	/// contents of which is only valid until the next time receive
 	/// is called.
-	char* receive(size_t* pOutLen, GTCPConnection** pOutConn);
+	char* receive(size_t* pOutLen, GPackageConnection** pOutConn);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
@@ -304,6 +308,10 @@ public:
 	/// then the buffer will be grown to that size, but it will be made small
 	/// again the next time a package is received.
 	void setMaxBufferSizes(size_t a, size_t b) { m_maxBufSize = (unsigned int)a; m_maxPackageSize = (unsigned int)b; }
+
+	/// Receives any pending messages into an internal buffer (to unblock the
+	/// client, in case its send buffer is full.)
+	void pump(GPackageConnection* pConn);
 
 protected:
 	/// See the comment for GTCPConnection::makeConnection.
@@ -341,10 +349,10 @@ public:
 	virtual ~GDomServer() {}
 
 	/// Send the specified DOM node.
-	void send(GDomNode* pNode, GTCPConnection* pConn);
+	void send(GDomNode* pNode, GPackageConnection* pConn);
 
 	/// Receive the next available DOM node, or NULL if none are ready.
-	GDomNode* receive(GTCPConnection** pOutConn);
+	GDomNode* receive(GPackageConnection** pOutConn);
 
 };
 

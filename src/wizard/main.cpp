@@ -1008,6 +1008,7 @@ void make_bash_completion_file()
 		cout << "_" << pNode->tok() << "()\n{\n";
 		cout << "	COMPREPLY=( $(waffles_wizard complete ${COMP_CWORD} ${COMP_WORDS[@]}) )\n";
 		cout << "}\ncomplete -F _" << pNode->tok() << " " << pNode->tok() << "\n\n";
+//		cout << "complete -F _" << pNode->tok() << " " << pNode->tok() << "dbg\n\n";
 	}
 }
 
@@ -1274,27 +1275,36 @@ void complete_command(int nArgs, char* pArgs[])
 		if(cur < 1)
 			ThrowError("expected cur to be >= 1");
 		const char* szApp = args.pop_string();
+		while(*szApp != 'w' && *szApp != '\0') szApp++;
+		if(*szApp == 'w') szApp++;
+		if(*szApp == 'a') szApp++;
+		if(*szApp == 'f') szApp++;
+		if(*szApp == 'f') szApp++;
+		if(*szApp == 'l') szApp++;
+		if(*szApp == 'e') szApp++;
+		if(*szApp == 's') szApp++;
+		if(*szApp == '_') szApp++;
 		UsageNode* pNode = NULL;
-		if(doesMatch(szApp, "waffles_learn"))
+		if(doesMatch(szApp, "learn"))
 			pNode = makeLearnUsageTree();
-		else if(doesMatch(szApp, "waffles_transform"))
+		else if(doesMatch(szApp, "transform"))
 			pNode = makeTransformUsageTree();
-		else if(doesMatch(szApp, "waffles_recommend"))
+		else if(doesMatch(szApp, "recommend"))
 			pNode = makeRecommendUsageTree();
-		else if(doesMatch(szApp, "waffles_plot"))
+		else if(doesMatch(szApp, "plot"))
 			pNode = makePlotUsageTree();
-		else if(doesMatch(szApp, "waffles_dimred"))
+		else if(doesMatch(szApp, "dimred"))
 			pNode = makeDimRedUsageTree();
-		else if(doesMatch(szApp, "waffles_cluster"))
+		else if(doesMatch(szApp, "cluster"))
 			pNode = makeClusterUsageTree();
-		else if(doesMatch(szApp, "waffles_generate"))
+		else if(doesMatch(szApp, "generate"))
 			pNode = makeGenerateUsageTree();
-		else if(doesMatch(szApp, "waffles_audio"))
+		else if(doesMatch(szApp, "audio"))
 			pNode = makeAudioUsageTree();
-		else if(doesMatch(szApp, "waffles_sparse"))
+		else if(doesMatch(szApp, "sparse"))
 			pNode = makeSparseUsageTree();
 		else
-			ThrowError("unrecognized app");
+			ThrowError("Unrecognized app: waffles_", szApp);
 		Holder<UsageNode> hNode(pNode);
 		CommandCompleter cc;
 		cc.doCompletion(args, pNode, 1);
