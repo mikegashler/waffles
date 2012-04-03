@@ -628,6 +628,8 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-eigenvalues [filename]=eigenvalues.arff", "Save the eigenvalues to the specified file.");
 		pOpts->add("-components [filename]=eigenvectors.arff", "Save the centroid and principal component vectors (in order of decreasing corresponding eigenvalue) to the specified file.");
 		pOpts->add("-aboutorigin", "Compute the principal components about the origin. (The default is to compute them relative to the centroid.)");
+		pOpts->add("-modelin [filename]=in.json", "Load the PCA model from a json file.");
+		pOpts->add("-modelout [filename]=out.json", "Save the trained PCA model to a json file.");
 		pPCA->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
 		pPCA->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}

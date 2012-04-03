@@ -708,6 +708,7 @@ void GPackageClient::connect(const char* addr, unsigned short port, int timeoutS
 	m_conn.setSocket(GSocket_connect(addr, port, timeoutSecs));
 }
 
+// virtual
 void GPackageClient::pump()
 {
 	int status = m_conn.receive(m_maxBufSize, m_maxPackageSize);
@@ -790,20 +791,55 @@ char* GPackageClient::receive(size_t* pLen)
 
 
 GPackageServer::GPackageServer(unsigned short port)
-: GTCPServer(port), m_maxBufSize(8192), m_maxPackageSize(0x1000000)
+: m_maxBufSize(8192), m_maxPackageSize(0x1000000)
 {
+	GSocket_init();
+	m_sock = socket(AF_INET, SOCK_STREAM, 0); // use SOCK_DGRAM for UDP
+
+	// Tell the socket that it's okay to reuse an old crashed socket that hasn't timed out yet
+	int flag = 1;
+	setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&flag, sizeof(flag));
+
+	// Bind the socket to the port
+	SOCKADDR_IN sHostAddrIn;
+	memset(&sHostAddrIn, '\0', sizeof(SOCKADDR_IN));
+	sHostAddrIn.sin_family = AF_INET;
+	sHostAddrIn.sin_port = htons(port);
+	sHostAddrIn.sin_addr.s_addr = htonl(INADDR_ANY);
+	if(bind(m_sock, (struct sockaddr*)&sHostAddrIn, sizeof(SOCKADDR)) != 0)
+	{
+#ifdef WINDOWS
+		ThrowError("Failed to bind to port ", to_str(port), ": ", winstrerror(WSAGetLastError()));
+#else
+		ThrowError("Failed to bind to port ", to_str(port), ": ", strerror(errno));
+#endif
+	}
+
+	// Start listening for connections
+	if(listen(m_sock, SOMAXCONN) != 0)
+#ifdef WINDOWS
+		ThrowError("Failed to listen on the socket: ", winstrerror(WSAGetLastError()));
+#else
+		ThrowError("Failed to listen on the socket: ", strerror(errno));
+#endif
 }
 
 GPackageServer::~GPackageServer()
 {
+	while(m_socks.size() > 0)
+		disconnect(*m_socks.begin());
+	GSocket_closeSocket(m_sock);
+}
+
+void GPackageServer::disconnect(GPackageConnection* pConn)
+{
+	onDisconnect(pConn);
+	GSocket_closeSocket(pConn->socket());
+	m_socks.erase(pConn);
+	delete(pConn);
 }
 
 // virtual
-GTCPConnection* GPackageServer::makeConnection(SOCKET s)
-{
-	return new GPackageConnection(s);
-}
-
 void GPackageServer::pump(GPackageConnection* pConn)
 {
 	int status = pConn->receive(m_maxBufSize, m_maxPackageSize);
@@ -816,6 +852,37 @@ void GPackageServer::pump(GPackageConnection* pConn)
 		disconnect(pConn);
 	}
 	GThread::sleep(0);
+}
+
+void GPackageServer::checkForNewConnections()
+{
+	if(!GSocket_isReady(m_sock))
+		return;
+
+	// Accept the connection
+	SOCKADDR_IN sHostAddrIn;
+	socklen_t nStructSize = sizeof(struct sockaddr);
+	SOCKET s = accept(m_sock, (struct sockaddr*)&sHostAddrIn, &nStructSize);
+	if(s < 0)
+	{
+#ifdef WIN32
+		if(WSAGetLastError() == WSAEWOULDBLOCK) // no connections are ready to be accepted
+			return;
+#else
+		if(errno == EAGAIN) // no connections are ready to be accepted
+			return;
+#endif
+		string s = "Received bad data while trying to accept a connection: ";
+#ifdef WINDOWS
+		s += winstrerror(WSAGetLastError());
+#else
+		s += strerror(errno);
+#endif
+		onReceiveBadData(s.c_str());
+		return;
+	}
+	GSocket_setSocketMode(s, false);
+	m_socks.insert(makeConnection(s));
 }
 
 void GPackageServer::send(const char* buf, size_t len, GPackageConnection* pConn)
@@ -859,9 +926,9 @@ void GPackageServer::send(const char* buf, size_t len, GPackageConnection* pConn
 char* GPackageServer::receive(size_t* pOutLen, GPackageConnection** pOutConn)
 {
 	checkForNewConnections();
-	for(set<GTCPConnection*>::iterator it = m_socks.begin(); it != m_socks.end(); it++)
+	for(set<GPackageConnection*>::iterator it = m_socks.begin(); it != m_socks.end(); it++)
 	{
-		GPackageConnection* pConn = (GPackageConnection*)*it;
+		GPackageConnection* pConn = *it;
 		int status = pConn->receive(m_maxBufSize, m_maxPackageSize);
 		if(status)
 		{

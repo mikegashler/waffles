@@ -854,8 +854,10 @@ void principalComponentAnalysis(GArgReader& args)
 	// Parse options
 	string roundTrip;
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	string eigenvalues = "";
-	string components = "";
+	string eigenvalues;
+	string components;
+	string modelIn;
+	string modelOut;
 	bool aboutOrigin = false;
 	while(args.next_is_flag())
 	{
@@ -869,19 +871,36 @@ void principalComponentAnalysis(GArgReader& args)
 			components = args.pop_string();
 		else if(args.if_pop("-aboutorigin"))
 			aboutOrigin = true;
+		else if(args.if_pop("-modelin"))
+			modelIn = args.pop_string();
+		else if(args.if_pop("-modelout"))
+			modelOut = args.pop_string();
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
 	GRand prng(seed);
-	GPCA transform(nTargetDims, &prng);
-	if(aboutOrigin)
-		transform.aboutOrigin();
-	if(eigenvalues.length() > 0)
-		transform.computeEigVals();
-	transform.train(*pData);
-	GMatrix* pDataAfter = transform.transformBatch(*pData);
+	GPCA* pTransform = NULL;
+	if(modelIn.length() > 0)
+	{
+		GDom doc;
+		doc.loadJson(modelIn.c_str());
+		GLearnerLoader ll(prng);
+		pTransform = new GPCA(doc.root(), ll);
+	}
+	else
+	{
+		pTransform = new GPCA(nTargetDims, &prng);
+		if(aboutOrigin)
+			pTransform->aboutOrigin();
+		if(eigenvalues.length() > 0)
+			pTransform->computeEigVals();
+		pTransform->train(*pData);
+	}
+	Holder<GPCA> hTransform(pTransform);
+
+	GMatrix* pDataAfter = pTransform->transformBatch(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 
 	// Save the eigenvalues
@@ -892,7 +911,7 @@ void principalComponentAnalysis(GArgReader& args)
 		sp_relation pRel = pRelation;
 		GMatrix dataEigenvalues(pRel);
 		dataEigenvalues.newRows(nTargetDims);
-		double* pEigVals = transform.eigVals();
+		double* pEigVals = pTransform->eigVals();
 		for(int i = 0; i < nTargetDims; i++)
 			dataEigenvalues[i][0] = pEigVals[i];
 		dataEigenvalues.saveArff(eigenvalues.c_str());
@@ -900,17 +919,24 @@ void principalComponentAnalysis(GArgReader& args)
 
 	// Save the components
 	if(components.length() > 0)
-		transform.components()->saveArff(components.c_str());
+		pTransform->components()->saveArff(components.c_str());
 
 	// Do the round-trip
 	if(roundTrip.size() > 0)
 	{
 		GMatrix roundTripped(pData->rows(), pData->cols());
 		for(size_t i = 0; i < pData->rows(); i++)
-			transform.untransform(pDataAfter->row(i), roundTripped.row(i));
+			pTransform->untransform(pDataAfter->row(i), roundTripped.row(i));
 		roundTripped.saveArff(roundTrip.c_str());
 	}
-	
+
+	if(modelOut.length() > 0)
+	{
+		GDom doc;
+		doc.setRoot(pTransform->serialize(&doc));
+		doc.saveJson(modelOut.c_str());
+	}
+
 	pDataAfter->print(cout);
 }
 

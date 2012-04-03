@@ -22,14 +22,6 @@
 #endif
 
 #ifdef WINDOWS
-#	ifndef _MT
-#		error ERROR: _MT not defined.  GSocket requires using the multithreaded libraries
-#		define _MT
-#	endif // !_MT
-#endif
-
-
-#ifdef WINDOWS
 #	ifndef IPPROTO_IP
 #		include <winsock2.h>
 #	endif // IPPROTO_IP
@@ -44,8 +36,6 @@
 #include <string.h>
 
 namespace GClasses {
-
-class GSpinLock;
 
 /// This class is an abstraction of a TCP client socket connection
 class GTCPClient
@@ -141,6 +131,9 @@ public:
 	/// Returns a reference to the current set of connections
 	std::set<GTCPConnection*>& connections() { return m_socks; }
 
+	/// Accept any new incoming connections
+	void checkForNewConnections();
+
 protected:
 	/// This is called just before a new connection is accepted. It
 	/// returns a pointer to a new GTCPConnection object to
@@ -156,9 +149,6 @@ protected:
 
 	/// This is called when a client sends some bad data.
 	virtual void onReceiveBadData(const char* message) {}
-
-	/// Accept any new incoming connections
-	void checkForNewConnections();
 };
 
 
@@ -258,7 +248,7 @@ public:
 
 	/// Receives any pending messages into an internal buffer (to unblock the
 	/// server, in case its send buffer is full.)
-	void pump();
+	virtual void pump();
 
 protected:
 	/// This method is called if the peer sends data that does
@@ -274,9 +264,11 @@ protected:
 /// This class abstracts a server that speaks a home-made protocol that
 /// guarantees packages will arrive in the same order and size as when
 /// they were sent. This protocol is a simple layer on top of TCP.
-class GPackageServer : public GTCPServer
+class GPackageServer
 {
 protected:
+	SOCKET m_sock; // used to listen for incoming connections
+	std::set<GPackageConnection*> m_socks; // used to communicate with each connected client
 	unsigned int m_maxBufSize;
 	unsigned int m_maxPackageSize;
 
@@ -296,6 +288,9 @@ public:
 	/// is called.
 	char* receive(size_t* pOutLen, GPackageConnection** pOutConn);
 
+	/// Disconnect from the specified client.
+	void disconnect(GPackageConnection* pConn);
+
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
@@ -311,11 +306,29 @@ public:
 
 	/// Receives any pending messages into an internal buffer (to unblock the
 	/// client, in case its send buffer is full.)
-	void pump(GPackageConnection* pConn);
+	virtual void pump(GPackageConnection* pConn);
+
+	/// Returns a reference to the current set of connections
+	std::set<GPackageConnection*>& connections() { return m_socks; }
+
+	/// Accept any new incoming connections
+	void checkForNewConnections();
 
 protected:
-	/// See the comment for GTCPConnection::makeConnection.
-	virtual GTCPConnection* makeConnection(SOCKET s);
+	/// This is called just before a new connection is accepted. It
+	/// returns a pointer to a new GPackageConnection object to
+	/// associate with this connection. (The connection, however, isn't yet fully
+	/// established, so it might cause an error if you send something to the
+	/// client in an overload of this method.) If you want to associate
+	/// some data with each connection, you can overload this method to
+	/// create a custom object.
+	virtual GPackageConnection* makeConnection(SOCKET s) { return new GPackageConnection(s); }
+
+	/// This is called when a connection is first known to have disconnected.
+	virtual void onDisconnect(GTCPConnection* pConn) {}
+
+	/// This is called when a client sends some bad data.
+	virtual void onReceiveBadData(const char* message) {}
 };
 
 

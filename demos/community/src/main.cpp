@@ -347,7 +347,8 @@ public:
 	{
 		std::map<size_t, float>::iterator itA = m_map.find(a);
 		std::map<size_t, float>::iterator itB = m_map.find(b);
-		float ratingA, ratingB;
+		float ratingA = 0.0f;
+		float ratingB = 0.0f;
 		bool gotA = false;
 		bool gotB = false;
 		if(itA != m_map.end())
@@ -1090,10 +1091,7 @@ public:
 
 	double controversy() const
 	{
-		if(m_agg == 0 || m_dis == 0)
-			return 0.0;
-		else
-			return m_deviation;
+		return m_deviation * (m_agg + m_dis);
 	}
 
 	static bool comparer(const ItemStats* pA, const ItemStats* pB)
