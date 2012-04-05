@@ -1895,7 +1895,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("aggregaterows")) aggregateRows(args);
 		else if(args.if_pop("align")) align(args);
 		else if(args.if_pop("autocorrelation")) autoCorrelation(args);
-		else if(args.if_pop("nominaltocat")) nominalToCat(args);
 		else if(args.if_pop("center")) center(args);
 		else if(args.if_pop("cholesky")) cholesky(args);
 		else if(args.if_pop("correlation")) correlation(args);
@@ -1916,6 +1915,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("mergevert")) mergeVert(args);
 		else if(args.if_pop("multiply")) multiplyMatrices(args);
 		else if(args.if_pop("multiplyscalar")) multiplyScalar(args);
+		else if(args.if_pop("nominaltocat")) nominalToCat(args);
 		else if(args.if_pop("normalize")) normalize(args);
 		else if(args.if_pop("neighbors")) neighbors(args);
 		else if(args.if_pop("overlay")) overlay(args);

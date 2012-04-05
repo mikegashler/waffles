@@ -1,0 +1,94 @@
+<html><body>
+<table border="0" cellpadding="0" cellspacing="0" width="980" bgcolor="#f4f0e5">
+<tr><td background="../images/bar.png"><br>
+</td></tr><tr><td>
+<a href="../docs.html">Back to the docs page</a><br>
+
+<br>
+<a href="serialization.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="look_around.html">Next</a>
+
+
+
+
+
+
+
+<h2>Developing a new tool</h2>
+
+<p>Suppose you have a machine learning tool that you would like to add to Waffles. This page will walk you through the steps of adding your new tool.</p>
+
+<ol>
+
+<li>The first step is to decide which application is the best home for your tool. Let's suppose that you wish to add a new tool that transposes a dataset. (That is, it swaps the rows with the columns.) A tool like this probably belongs in the waffles_transform tool, so we'll put it there.</li>
+
+<li>Next, we dig into the source code. So, let's open waffles/src/transform/main.cpp in your favorite text editor. We know that execution begins with a function named "main", so search for this function. (It's at the very bottom.) You will see that this method contains a great big switch statement that looks something like this:<br>
+<pre>
+		if(args.size() < 1) ThrowError("Expected a command");
+		else if(args.if_pop("add")) addMatrices(args);
+		else if(args.if_pop("addindexcolumn")) AddIndexAttribute(args);
+		else if(args.if_pop("addnoise")) addNoise(args);
+		else if(args.if_pop("aggregatecols")) aggregateCols(args);
+		else if(args.if_pop("aggregaterows")) aggregateRows(args);
+		else if(args.if_pop("align")) align(args);
+		else if(args.if_pop("autocorrelation")) autoCorrelation(args);
+		else if(args.if_pop("center")) center(args);
+		else if(args.if_pop("cholesky")) cholesky(args);
+		else if(args.if_pop("correlation")) correlation(args);
+		else if(args.if_pop("cumulativecolumns")) cumulativeColumns(args);
+		else if(args.if_pop("determinant")) determinant(args);
+		else if(args.if_pop("discretize")) Discretize(args);
+		...
+</pre>
+This switch statement just tells it to execute the tool that is specified by the first argument to the application. Since we are going to add a new tool that transposes a matrix, we will add a new line like this:<br>
+<pre>
+		else if(args.if_pop("transpose")) transpose(args);
+</pre>
+</li>
+
+<li>Now, we are ready to implement our tool. So, we add a function that transposes a matrix:<br>
+<pre>
+	void Transpose(GArgReader& args)
+	{
+		GMatrix* pData = loadData(args.pop_string());
+		Holder&lt;GMatrix&gt; hData(pData);
+		GMatrix* pTransposed = pData->transpose();
+		Holder&lt;GMatrix&gt; hTransposed(pTransposed);
+		pTransposed->print(cout);
+	}
+</pre>
+The first line in this function loads the dataset specified by the next command-line argument.<br>
+The second line constructs a "holder" object that will delete(pData) in its destructor. (This is better than just calling delete(pData) at the end of your function, because it will clean up the memory even if an exception is thrown.)<br>
+The third line is the one that really does the job. In this case, it was easy to implement because the GMatrix class already has a method that transposes the data.<br>
+The fourth line constructs a "holder" object that will delete(pTransposed) in its destructor.<br>
+The last line prints the transposed matrix to stdout.
+</li>
+
+<li>Then, rebuild Waffles, test your new tool, and fix your bugs. This tutorial cannot possibly tell you how to fix your bugs. You're just going to have to figure that part out on your own.
+</li>
+
+<li>Wait! You're not done. No tool is really complete until it is documented. The documentation for all of the tools in Waffles is found in "waffles/src/wizard/usage.cpp". So, let's open this file in your favorite text editor. You will see that it is a great big file containing lots of usage information. Basically, we are going to add an entry (just like all the others) for our new tool.<br>
+Since we put our new tool in the waffles_transform application, let's search for a function named "makeTransformUsageTree". This function contains all of the usage information for this tool. We add the following entry:<br>
+<pre>
+	{
+		pRoot->add("transpose [dataset]=m.arff", "Transpose the data such that columns become rows and rows become columns.");
+	}
+</pre>
+Now, re-build Waffles and enter:
+<pre>
+	waffles_transform usage
+</pre>
+You will see that your new tool is now described in the usage information of the waffles_transform tool. If you use Linux, BASH command-completion should also now work with your new tool.
+</li>
+
+<li>
+Finally, don't forget to push your changes into our Git repository. You want the whole world to have your new tool, right?
+</li>
+
+
+<br>
+<a href="serialization.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="look_around.html">Next</a>
+
+<br><br><a href="../docs.html">Back to the docs page</a>
+</td></tr><tr><td background="../images/bar.png"><br>
+</td></tr></table>
+</body></html>

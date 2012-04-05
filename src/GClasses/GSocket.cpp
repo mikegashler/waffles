@@ -147,7 +147,8 @@ size_t GSocket_send(SOCKET s, const char* buf, size_t len)
 	if(bytesSent < 0)
 	{
 #ifdef WINDOWS
-		if(WSAGetLastError() == WSAEWOULDBLOCK)
+		int err = WSAGetLastError();
+		if(err == WSAEWOULDBLOCK)
 			return 0;
 		else
 			ThrowError("Error sending in GTCPClient::send: ", winstrerror(err));
