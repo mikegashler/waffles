@@ -474,7 +474,7 @@ GKMeans::GKMeans(size_t clusters, GRand* pRand)
 GKMeans::~GKMeans()
 {
 	delete(m_pCentroids);
-	delete(m_pClusters);
+	delete[] m_pClusters;
 }
 
 void GKMeans::init(GMatrix* pData)
@@ -497,7 +497,7 @@ void GKMeans::init(GMatrix* pData)
 	}
 
 	// Initialize the clusters
-	delete(m_pClusters);
+	delete[] m_pClusters;
 	m_pClusters = new size_t[pData->rows()];
 }
 
@@ -535,9 +535,10 @@ double GKMeans::assignClusters()
 
 void GKMeans::recomputeCentroids()
 {
-	// Recompute the centroids
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
+		double* pCentroid = m_pCentroids->row(i);
+		size_t unknownCount = 0;
 		for(size_t j = 0; j < m_pData->cols(); j++)
 		{
 			size_t vals = m_pData->relation()->valueCount(j);
@@ -558,9 +559,12 @@ void GKMeans::recomputeCentroids()
 					}
 				}
 				if(count > 0)
-					m_pCentroids->row(i)[j] = sum / count;
+					pCentroid[j] = sum / count;
 				else
-					m_pCentroids->row(i)[j] = UNKNOWN_REAL_VALUE;
+				{
+					pCentroid[j] = UNKNOWN_REAL_VALUE;
+					unknownCount++;
+				}
 			}
 			else
 			{
@@ -578,9 +582,31 @@ void GKMeans::recomputeCentroids()
 				}
 				size_t index = GIndexVec::indexOfMax(pFreq, vals);
 				if(pFreq[index] == 0)
-					m_pCentroids->row(i)[j] = UNKNOWN_DISCRETE_VALUE;
+				{
+					pCentroid[j] = UNKNOWN_DISCRETE_VALUE;
+					unknownCount++;
+				}
 				else
-					m_pCentroids->row(i)[j] = (double)index;
+					pCentroid[j] = (double)index;
+			}
+		}
+		if(unknownCount > 0)
+		{
+			double* pRow = m_pData->row(m_pRand->next(m_pData->rows()));
+			for(size_t j = 0; j < m_pData->cols(); j++)
+			{
+				size_t vals = m_pData->relation()->valueCount(j);
+				if(vals == 0)
+				{
+					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
+						pCentroid[j] = *pRow;
+				}
+				else
+				{
+					if(pCentroid[j] == UNKNOWN_DISCRETE_VALUE)
+						pCentroid[j] = *pRow;
+				}
+				pRow++;
 			}
 		}
 	}
@@ -708,6 +734,8 @@ void GFuzzyKMeans::recomputeCentroids()
 {
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
+		double* pCentroid = m_pCentroids->row(i);
+		size_t unknownCount = 0;
 		for(size_t j = 0; j < m_pData->cols(); j++)
 		{
 			size_t vals = m_pData->relation()->valueCount(j);
@@ -726,9 +754,12 @@ void GFuzzyKMeans::recomputeCentroids()
 					}
 				}
 				if(sumWeight > 0.0)
-					m_pCentroids->row(i)[j] = sum / sumWeight;
+					pCentroid[j] = sum / sumWeight;
 				else
-					m_pCentroids->row(i)[j] = UNKNOWN_REAL_VALUE;
+				{
+					pCentroid[j] = UNKNOWN_REAL_VALUE;
+					unknownCount++;
+				}
 			}
 			else
 			{
@@ -743,9 +774,31 @@ void GFuzzyKMeans::recomputeCentroids()
 				}
 				size_t index = GVec::indexOfMax(pFreq, vals, m_pRand);
 				if(pFreq[index] > 0.0)
-					m_pCentroids->row(i)[j] = (double)index;
+					pCentroid[j] = (double)index;
 				else
-					m_pCentroids->row(i)[j] = UNKNOWN_DISCRETE_VALUE;
+				{
+					pCentroid[j] = UNKNOWN_DISCRETE_VALUE;
+					unknownCount++;
+				}
+			}
+		}
+		if(unknownCount > 0)
+		{
+			double* pRow = m_pData->row(m_pRand->next(m_pData->rows()));
+			for(size_t j = 0; j < m_pData->cols(); j++)
+			{
+				size_t vals = m_pData->relation()->valueCount(j);
+				if(vals == 0)
+				{
+					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
+						pCentroid[j] = *pRow;
+				}
+				else
+				{
+					if(pCentroid[j] == UNKNOWN_DISCRETE_VALUE)
+						pCentroid[j] = *pRow;
+				}
+				pRow++;
 			}
 		}
 	}

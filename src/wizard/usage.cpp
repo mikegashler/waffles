@@ -410,7 +410,7 @@ UsageNode* makeClusterUsageTree()
 	UsageNode* pRoot = new UsageNode("waffles_cluster [command]", "Cluster data.");
 	pRoot->add("agglomerative [dataset] [clusters]", "Performs single-link agglomerative clustering. Outputs the cluster id for each row.");
 	{
-		UsageNode* pFKM = pRoot->add("fuzzykmeans [dataset] [clusters]", "Performs fuzzy k-means clustering. Outputs the cluster id for each row. This algorithm is specified in Li, D. and Deogun, J. and Spaulding, W. and Shuart, B., Towards missing data imputation: A study of fuzzy K-means clustering method, In Rough Sets and Current Trends in Computing, Springer, pages 573--579, 2004.");
+		UsageNode* pFKM = pRoot->add("fuzzykmeans [dataset] [clusters] <options>", "Performs fuzzy k-means clustering. Outputs the cluster id for each row. This algorithm is specified in Li, D. and Deogun, J. and Spaulding, W. and Shuart, B., Towards missing data imputation: A study of fuzzy K-means clustering method, In Rough Sets and Current Trends in Computing, Springer, pages 573--579, 2004.");
 		pFKM->add("[dataset]=in.arff", "The filename of a dataset to cluster.");
 		UsageNode* pOpts = pFKM->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -418,13 +418,15 @@ UsageNode* makeClusterUsageTree()
 		pOpts->add("-fuzzifier [value]=1.3", "Specify the fuzzifier parameter, which should be greater than 1.");
 	}
 	{
-		UsageNode* pKM = pRoot->add("kmeans [dataset] [clusters]", "Performs k-means clustering. Outputs the cluster id for each row.");
+		UsageNode* pKM = pRoot->add("kmeans [dataset] [clusters] <options>", "Performs k-means clustering. Outputs the cluster id for each row.");
 		pKM->add("[dataset]=in.arff", "The filename of a dataset to cluster.");
 		UsageNode* pOpts = pKM->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-reps [n]=1", "Cluster the data [n] times, and return the clustering that minimizes the sum-squared-distance between each row and its corresponding centroid.");
 	}
-	pRoot->add("kmedoids [dataset] [clusters]", "Performs k-medoids clustering. Outputs the cluster id for each row.");
+	{
+		pRoot->add("kmedoids [dataset] [clusters]", "Performs k-medoids clustering. Outputs the cluster id for each row.");
+	}
 	{
 		pRoot->add("usage", "Print usage information.");
 	}
