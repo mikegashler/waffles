@@ -394,7 +394,7 @@ void test_transform_keeponly()
 
   TestEqual
     (
-     "@RELATION Untitled\n"
+     "@RELATION Golf\n"
      "\n"
      "@ATTRIBUTE Outlook\treal\n"
      "\n"
@@ -422,7 +422,7 @@ void test_transform_keeponly()
 
   TestEqual
     (
-     "@RELATION Untitled\n"
+     "@RELATION Golf\n"
      "\n"
      "@ATTRIBUTE Wind\treal\n"
      "\n"
@@ -450,7 +450,7 @@ void test_transform_keeponly()
 
   TestEqual
     (
-     "@RELATION Untitled\n"
+     "@RELATION Golf\n"
      "\n"
      "@ATTRIBUTE Play\treal\n"
      "@ATTRIBUTE Wind\treal\n"
@@ -479,7 +479,7 @@ void test_transform_keeponly()
 
   TestEqual
     (
-     "@RELATION Untitled\n"
+     "@RELATION Golf\n"
      "\n"
      "@ATTRIBUTE Play\treal\n"
      "@ATTRIBUTE Outlook\treal\n"

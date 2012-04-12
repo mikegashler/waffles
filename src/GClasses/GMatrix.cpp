@@ -61,7 +61,12 @@ void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) c
 	stream.precision(precision);
 
 	// Write the relation title
-	stream << "@RELATION Untitled\n\n";
+	stream << "@RELATION ";
+	if(type() == ARFF)
+		stream << ((GArffRelation*)this)->name();
+	else
+		stream << "Untitled";
+	stream << "\n\n";
 
 	// Write the attributes
 	for(size_t i = 0; i < size(); i++)
@@ -523,6 +528,7 @@ public:
 };
 
 GArffRelation::GArffRelation()
+: m_name("Untitled")
 {
 }
 
