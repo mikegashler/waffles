@@ -1088,6 +1088,7 @@ public:
 	unsigned int disagree() { return m_disagree; }
 	unsigned int uncertain() { return m_uncertain; }
 	unsigned int agree() { return m_agree; }
+	unsigned int split() { return std::min(m_agg, m_dis); }
 
 	double controversy() const
 	{
@@ -1181,7 +1182,7 @@ public:
 				continue;
 			ItemStats is(topicId, topic.item(i), i, pAccs, accCount);
 			double c = is.controversy();
-			if(c > 0.0)
+			if(is.split() > 0)
 			{
 				if(c > mostCont)
 				{
