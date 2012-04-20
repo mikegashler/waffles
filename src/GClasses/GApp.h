@@ -20,6 +20,7 @@
 		typedef SSIZE_T ssize_t;
 #	endif
 #else
+#	include <unistd.h>
 #	include <termios.h>
 #endif
 
