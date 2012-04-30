@@ -592,7 +592,7 @@ void GKMeans::recomputeCentroids()
 		}
 		if(unknownCount > 0)
 		{
-			double* pRow = m_pData->row(m_pRand->next(m_pData->rows()));
+			double* pRow = m_pData->row((size_t)m_pRand->next(m_pData->rows()));
 			for(size_t j = 0; j < m_pData->cols(); j++)
 			{
 				size_t vals = m_pData->relation()->valueCount(j);
@@ -784,7 +784,7 @@ void GFuzzyKMeans::recomputeCentroids()
 		}
 		if(unknownCount > 0)
 		{
-			double* pRow = m_pData->row(m_pRand->next(m_pData->rows()));
+			double* pRow = m_pData->row((size_t)m_pRand->next(m_pData->rows()));
 			for(size_t j = 0; j < m_pData->cols(); j++)
 			{
 				size_t vals = m_pData->relation()->valueCount(j);

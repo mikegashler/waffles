@@ -419,7 +419,7 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 		m_pLabels->reserve(n);
 		for(size_t i = 0; i < n; i++)
 		{
-			size_t index = m_rand.next(features.rows());
+			size_t index = (size_t)m_rand.next(features.rows());
 			addVector(features[index], labels[index]);
 		}
 	}
