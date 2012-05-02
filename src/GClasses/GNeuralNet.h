@@ -401,7 +401,7 @@ public:
 	/// Swaps nodes in hidden layers of this neural network to align with those in
 	/// that neural network, as determined using bipartite matching. (This might
 	/// be done, for example, before averaging weights together.)
-	void align(GNeuralNet& that);
+	void align(const GNeuralNet& that);
 
 	/// Prints weights in a human-readable format
 	void printWeights(std::ostream& stream);

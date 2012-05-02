@@ -82,8 +82,8 @@ $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@echo -e "Computing opt dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@g++ $(OPT_CFLAGS) -MM $< >> $@
 	@echo -e "	g++ $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
@@ -93,16 +93,18 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@echo -e "Computing dbg dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ ! -d "$$(dirname $@)" ]; then umask 0;mkdir -p "$$(dirname $@)"; fi
-	@umask 0;echo -en "$$(dirname $@)/" > $@
+	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
+	@echo -en "$$(dirname $@)/" > $@
 	@g++ $(DBG_CFLAGS) -MM $< >> $@
 	@echo -e "	g++ $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleandbg :
-	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
+	@rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
 
 partialcleanopt :
-	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
+	@rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
 clean : partialcleandbg partialcleanopt
 	rm -f $(OBJECTS_OPT)

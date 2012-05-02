@@ -112,7 +112,7 @@ protected:
 
 
 /// BAG stands for bootstrap aggregator. It represents an ensemble
-/// of voting modelers. Each model is trained with a slightly different
+/// of voting models. Each model is trained with a slightly different
 /// training set, which is produced by drawing randomly from the original
 /// training set with replacement until we have a new training set of
 /// the same size. Each model is given equal weight in the vote.

@@ -429,7 +429,6 @@ void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 		//LIST:={all unassigned rows};
 		//for all i in LIST 
 		//   repeat
-
 		//      (* Find two indices q which have the two lowest values of
 		//         c[i, q]-v[q] *)
 		//      u1 := min { c[i,j]-v[j] | j=1..n }
@@ -442,8 +441,8 @@ void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 		//
 		//      if u1 < u2
 		//         v[j1] := v[j1] - (c[j2]-v[j2]) + (c[j1] - v[j1]) 
-	  //                = c[j1] - (c[j2]-v[j2])
-	  //                = c[j1] - u2
+		//                = c[j1] - (c[j2]-v[j2])
+		//                = c[j1] - u2
 		//         v[j1] := v[j1] - (u2-u1)
 		//      else (* they are equal *) if j1 is assigned
 		//         j1 := j2
@@ -506,9 +505,7 @@ void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 				}
 
 				if(i1 > 0){ 
-					//This comparison doesn't need epsilon because we only care
-					//about whether u1 is the minimum or if u2 is equal
-					if(u1 < u2){
+					if(u1 + epsilon < u2){
 						--k; free[k-1] = i1; x[i1-1] = 0;
 					}else{
 						++f; free[f-1] = i1; x[i1-1] = 0;

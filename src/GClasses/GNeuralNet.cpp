@@ -414,7 +414,7 @@ void GBackProp::adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeature
 // ----------------------------------------------------------------------
 
 GNeuralNet::GNeuralNet(GRand& rand)
-: GIncrementalLearner(rand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0.35), m_minImprovement(0.002), m_epochsPerValidationCheck(200), m_backPropTargetFunction(squared_error), m_useInputBias(false)
+: GIncrementalLearner(rand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0.35), m_minImprovement(0.002), m_epochsPerValidationCheck(100), m_backPropTargetFunction(squared_error), m_useInputBias(false)
 {
 	m_layers.resize(1);
 }
@@ -794,7 +794,7 @@ void GNeuralNet::swapNodes(size_t layer, size_t a, size_t b)
 	}
 }
 
-void GNeuralNet::align(GNeuralNet& that)
+void GNeuralNet::align(const GNeuralNet& that)
 {
 	if(!hasTrainingBegun())
 		ThrowError("train or beginIncrementalLearning must be called before this method");
@@ -804,7 +804,7 @@ void GNeuralNet::align(GNeuralNet& that)
 	{
 		// Copy weights into matrices
 		GNeuralNetLayer& layerThisCur = m_layers[i];
-		GNeuralNetLayer& layerThatCur = that.m_layers[i];
+		const GNeuralNetLayer& layerThatCur = that.m_layers[i];
 		if(layerThisCur.m_neurons.size() != layerThatCur.m_neurons.size())
 			ThrowError("mismatching layer size");
 
@@ -814,11 +814,11 @@ void GNeuralNet::align(GNeuralNet& that)
 			GNeuron& neuronThis = layerThisCur.m_neurons[k];
 			for(size_t j = 0; j < layerThatCur.m_neurons.size(); j++)
 			{
-				GNeuron& neuronOther = layerThatCur.m_neurons[j];
+				const GNeuron& neuronOther = layerThatCur.m_neurons[j];
 				double pos = 0.0;
 				double neg = 0.0;
 				vector<double>::iterator itThis = neuronThis.m_weights.begin();
-				vector<double>::iterator itThat = neuronOther.m_weights.begin();
+				vector<double>::const_iterator itThat = neuronOther.m_weights.begin();
 				while(itThis != neuronThis.m_weights.end())
 				{
 					double d = *itThis - *itThat;
@@ -857,8 +857,8 @@ void GNeuralNet::align(GNeuralNet& that)
 			double dp = 0.0;
 			GNeuron& neuronThis = layerThisCur.m_neurons[j];
 			vector<double>::iterator itThis = neuronThis.m_weights.begin();
-			GNeuron& neuronThat = layerThatCur.m_neurons[j];
-			vector<double>::iterator itThat = neuronThat.m_weights.begin();
+			const GNeuron& neuronThat = layerThatCur.m_neurons[j];
+			vector<double>::const_iterator itThat = neuronThat.m_weights.begin();
 			while(itThis != neuronThis.m_weights.end())
 			{
 				dp += (*itThis * *itThat);
