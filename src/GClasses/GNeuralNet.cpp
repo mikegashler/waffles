@@ -1755,9 +1755,9 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		for(size_t j = 0; j < 8; j++)
 		{
 			if(rand.next(2) == 0)
-				nn.swapNodes(rand.next(layers), rand.next(layerSize), rand.next(layerSize));
+				nn.swapNodes((size_t)rand.next(layers), (size_t)rand.next(layerSize), (size_t)rand.next(layerSize));
 			else
-				nn.invertNode(rand.next(layers), rand.next(layerSize));
+				nn.invertNode((size_t)rand.next(layers), (size_t)rand.next(layerSize));
 		}
 		nn.predict(in, outAfter);
 		if(GVec::squaredDistance(outBefore, outAfter, TEST_INVERT_INPUTS) > 1e-10)
@@ -1790,16 +1790,16 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 			if(rand.next(2) == 0)
 			{
 				if(rand.next(2) == 0)
-					nn1.swapNodes(rand.next(layers), rand.next(layerSize), rand.next(layerSize));
+					nn1.swapNodes((size_t)rand.next(layers), (size_t)rand.next(layerSize), (size_t)rand.next(layerSize));
 				else
-					nn1.invertNode(rand.next(layers), rand.next(layerSize));
+					nn1.invertNode((size_t)rand.next(layers), (size_t)rand.next(layerSize));
 			}
 			else
 			{
 				if(rand.next(2) == 0)
-					nn2.swapNodes(rand.next(layers), rand.next(layerSize), rand.next(layerSize));
+					nn2.swapNodes((size_t)rand.next(layers), (size_t)rand.next(layerSize), (size_t)rand.next(layerSize));
 				else
-					nn2.invertNode(rand.next(layers), rand.next(layerSize));
+					nn2.invertNode((size_t)rand.next(layers), (size_t)rand.next(layerSize));
 			}
 		}
 
