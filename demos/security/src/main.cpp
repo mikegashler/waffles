@@ -474,7 +474,7 @@ int doBandwidthServer(GArgReader& args)
 	while(true)
 	{
 		size_t nSize;
-		GTCPConnection* pConn;
+		GPackageConnection* pConn;
 		char* pMessage = socket.receive(&nSize, &pConn);
 		if(pMessage)
 		{
@@ -516,7 +516,7 @@ void nthash(const char* password, unsigned char* hash)
 #endif
 }
 
-void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* charSet, size_t part, bool onePartOnly, bool stopOnCollision, bool showProgress)
+void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* charSet, size_t part, bool onePartOnly, bool stopOnCollision, bool showProgress, const char* szInclude)
 {
 	unsigned char candHash[16];
 	if(passwordLen == 0)
@@ -527,13 +527,15 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 			cout << "\r                        \rFound a collision: <empty password>\n";
 			cout.flush();
 		}
-		if(stopOnCollision)
-			return;
+		return;
 	}
 	cout.precision(8);
-	GTEMPBUF(const char*, pChars, passwordLen);
-	GTEMPBUF(char, cand, passwordLen + 1);
-	cand[passwordLen] = '\0';
+	size_t includeLen = 0;
+	if(szInclude)
+		includeLen = strlen(szInclude);
+	GTEMPBUF(const char*, pChars, passwordLen); // A buffer of pointers. Each element points at the current char in that position.
+	GTEMPBUF(char, cand, passwordLen + includeLen + 1); // The candidate passphrase.
+	cand[passwordLen + includeLen] = '\0';
 	for(size_t i = 0; i < passwordLen; i++)
 	{
 		pChars[i] = charSet;
@@ -551,13 +553,43 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 	while(true)
 	{
 		// Try the candidate password
-		nthash(cand, candHash);
-		if(*(size_t*)candHash == *(size_t*)hash && memcmp(candHash, hash, 16) == 0)
+		if(szInclude)
 		{
-			cout << "\r                        \rFound a collision: " << cand << "\n";
-			cout.flush();
-			if(stopOnCollision)
-				return;
+			// Shift the candidate passphrase
+			memmove(cand + includeLen, cand, passwordLen);
+			memcpy(cand, szInclude, includeLen);
+			nthash(cand, candHash);
+			if(*(size_t*)candHash == *(size_t*)hash && memcmp(candHash, hash, 16) == 0)
+			{
+				cout << "\r                        \rFound a collision: " << cand << "\n";
+				cout.flush();
+				if(stopOnCollision)
+					return;
+			}
+			for(size_t i = 0; i < passwordLen; i++)
+			{
+				cand[i] = cand[i + includeLen];
+				memcpy(cand + i + 1, szInclude, includeLen);
+				nthash(cand, candHash);
+				if(*(size_t*)candHash == *(size_t*)hash && memcmp(candHash, hash, 16) == 0)
+				{
+					cout << "\r                        \rFound a collision: " << cand << "\n";
+					cout.flush();
+					if(stopOnCollision)
+						return;
+				}
+			}
+		}
+		else
+		{
+			nthash(cand, candHash);
+			if(*(size_t*)candHash == *(size_t*)hash && memcmp(candHash, hash, 16) == 0)
+			{
+				cout << "\r                        \rFound a collision: " << cand << "\n";
+				cout.flush();
+				if(stopOnCollision)
+					return;
+			}
 		}
 
 		// Advance
@@ -568,6 +600,7 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 			if(*pChars[i] == '\0')
 			{
 				pChars[i] = charSet;
+				cand[i] = *charSet;
 				if(i == termLen)
 				{
 					cout << "\r                        \r";
@@ -577,7 +610,6 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 			else
 				break;
 		}
-
 		// Display progress
 		if(showProgress && --n == 0)
 		{
@@ -607,6 +639,7 @@ void bruteForceNTPassword(GArgReader& args)
 	unsigned char hash[16];
 	GBits::hexToBufferBigEndian(szHashHex, 32, hash);
 	string charset = "";
+	string include = "";
 	size_t startLen = 0;
 	size_t part = 0;
 	bool onePartOnly = false;
@@ -638,6 +671,8 @@ void bruteForceNTPassword(GArgReader& args)
 			stopOnCollision = true;
 		else if(args.if_pop("-noprogress"))
 			showProgress = false;
+		else if(args.if_pop("-include"))
+			include = args.pop_string();
 		else
 			ThrowError("Invalid option: ", args.peek());
 	}
@@ -658,7 +693,7 @@ void bruteForceNTPassword(GArgReader& args)
 
 	cout << "Character set: " << charset << "\n";
 	if(onePartOnly)
-		bruteForceNTPassword(startLen, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress);
+		bruteForceNTPassword(startLen, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress, include.length() > 0 ? include.c_str() : NULL);
 	else
 	{
 		size_t len = startLen;
@@ -666,7 +701,7 @@ void bruteForceNTPassword(GArgReader& args)
 		{
 			cout << "Trying passwords of length " << len << ":\n";
 			cout.flush();
-			bruteForceNTPassword(len++, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress);
+			bruteForceNTPassword(len++, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress, include.length() > 0 ? include.c_str() : NULL);
 		}
 	}
 }
@@ -778,7 +813,7 @@ public:
 unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutSize)
 {
 	GHttpClient client;
-	if(!client.get(szAddr, true))
+	if(!client.sendGetRequest(szAddr))
 		ThrowError("Error connecting");
 	float fProgress;
 	time_t start = time(NULL);

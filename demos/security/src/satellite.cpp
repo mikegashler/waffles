@@ -452,7 +452,7 @@ protected:
 	GPackageServer* m_pSocket;
 	GBlobIncoming m_blobIn;
 	GBlobOutgoing m_blobOut;
-	GTCPConnection* m_pConn;
+	GPackageConnection* m_pConn;
 	string m_remoteDir;
 	FILE* m_pFile;
 	unsigned char* m_pBuf;
@@ -861,7 +861,7 @@ public:
 			while(true)
 			{
 				size_t size;
-				GTCPConnection* pConn;
+				GPackageConnection* pConn;
 				char* pPacket = m_pSocket->receive(&size, &pConn);
 				if(!pPacket)
 					break;
