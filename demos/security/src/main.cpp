@@ -84,10 +84,12 @@ UsageNode* makeCryptoUsageTree()
 		pOpts->add("-sym2", "Adds these symbols to the character set: !@#$%^&*+=");
 		pOpts->add("-sym3", "Adds these symbols to the character set: ()<>[]{}|\\;:~`\"/");
 		pOpts->add("-startlen [n]", "Specify the starting password length. That is, don't try any passwords smaller than [n] characters.");
+		pOpts->add("-maxlen [n]", "Specify the maximum password length.");
 		pOpts->add("-part [n]", "Start on the specified part of the possible combinations of passwords. [n] should be a number from 0 to c-1, where c is the number of characters in the character set.");
 		pOpts->add("-onepartonly", "Only do one part, and then exit. This option is useful for doing it in parallel, such that each parallel process does a different part.");
 		pOpts->add("-stoponcollision", "Terminate when the first collision is found.");
 		pOpts->add("-noprogress", "Do not display progress percentage. (It might be preferable not to display progress, for example, if you are going to pipe the output to a file.)");
+		pOpts->add("-include [substr]", "Specify a substring that is suspected to occur within the password. Each candidate password will be attempted with this substring insterted at every possible position. (This substring is not counted as part of the password length by the -startlen or -maxlen options.)");
 	}
 	UsageNode* pCC = pRoot->add("commandcenter <options>", "Run an inter-active command-center program that enables you to direct your satellites.");
 	{
@@ -516,6 +518,18 @@ void nthash(const char* password, unsigned char* hash)
 #endif
 }
 
+const char* g_trigrams = // 320 common trigrams
+"theandingionentforatiterhastioateersresthaheresttiscomproeresthallmenncendeintoftyouedtonsourcon"
+"areveressthireastatinhatistectortearineagehistedontstoithntesintororeliniveitewitnotnthtraomeica"
+"perartcatctisteofticeoutothideillethiesoneserstrecoerauseuresanevedinratonacesediitierirannality"
+"ounrinameactighesestiaventshesturastntasitderfthlesmanpriantnewreeostbleporghtindancchaeasparove"
+"romtesrecsonertlanaincalcanormworsofendheainalicshoberhanmattathinnesprentiardcouredrenticeineme"
+"ricustfrorthinceataseleandiinstanssininminailrchompellervplapleealtalencasstthlleelemoreantemsea"
+"rmaalsrieemaalindaackhenialordanaundarcgramesorichethoeofntoommposabllatndslisdiseencarngtireead"
+"etoeneinfmernfohavattheckinesavieotedthdatliternsioonoesimarchitenuniimenatdeshoutotanytriretfin"
+"rittimdenscoanshelnstrepesospeducntrrtimbeunttteusitivneroushemensaledayngstreralnitoraroungewil"
+"ileopefrewasinihartoflasmontonorsveneliuctshiaboooksedownaniditeviangaryondracappisisenissorktel";
+
 void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* charSet, size_t part, bool onePartOnly, bool stopOnCollision, bool showProgress, const char* szInclude)
 {
 	unsigned char candHash[16];
@@ -641,6 +655,7 @@ void bruteForceNTPassword(GArgReader& args)
 	string charset = "";
 	string include = "";
 	size_t startLen = 0;
+	size_t maxLen = 1000000;
 	size_t part = 0;
 	bool onePartOnly = false;
 	bool stopOnCollision = false;
@@ -663,6 +678,8 @@ void bruteForceNTPassword(GArgReader& args)
 			charset += "()<>[]{}|\\;:~`\"/";
 		else if(args.if_pop("-startlen"))
 			startLen = args.pop_uint();
+		else if(args.if_pop("-maxlen"))
+			maxLen = args.pop_uint();
 		else if(args.if_pop("-part"))
 			part = args.pop_uint();
 		else if(args.if_pop("-onepartonly"))
@@ -696,12 +713,11 @@ void bruteForceNTPassword(GArgReader& args)
 		bruteForceNTPassword(startLen, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress, include.length() > 0 ? include.c_str() : NULL);
 	else
 	{
-		size_t len = startLen;
-		while(true)
+		for(size_t len = startLen; len <= maxLen; len++)
 		{
 			cout << "Trying passwords of length " << len << ":\n";
 			cout.flush();
-			bruteForceNTPassword(len++, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress, include.length() > 0 ? include.c_str() : NULL);
+			bruteForceNTPassword(len, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress, include.length() > 0 ? include.c_str() : NULL);
 		}
 	}
 }
