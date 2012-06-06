@@ -51,6 +51,9 @@ public:
 	/// Computes the dot product of (pTargetA - pOriginA) with (pTargetB - pOriginB).
 	static double dotProduct(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nSize);
 
+	/// Computes the dot product of two vectors, ignoring any unknown values.
+	static double dotProductIgnoringUnknowns(const double* pA, const double* pB, size_t nSize);
+
 	/// Computes the dot product of (pTarget - pOrigin) with pVector. Unknown values
 	/// in pTarget will simply be ignored. (pOrigin and pVector must not contain any
 	/// unknown values.)

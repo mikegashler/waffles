@@ -18,6 +18,7 @@
 #include "../GClasses/GDistribution.h"
 #include "../GClasses/GEnsemble.h"
 #include "../GClasses/GFile.h"
+#include "../GClasses/GGaussianProcess.h"
 #include "../GClasses/GImage.h"
 #include "../GClasses/GKernelTrick.h"
 #include "../GClasses/GKNN.h"
@@ -435,6 +436,34 @@ GDecisionTree* InstantiateDecisionTree(GRand& rand, GArgReader& args, GMatrix* p
 	return pModel;
 }
 
+GGaussianProcess* InstantiateGaussianProcess(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	GGaussianProcess* pModel = new GGaussianProcess(rand);
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-noise")){
+			pModel->setNoiseVariance(args.pop_double());
+		}else if(args.if_pop("-prior")){
+			pModel->setWeightsPriorVariance(args.pop_double());
+		}else if(args.if_pop("-maxsamples")){
+			pModel->setMaxSamples(args.pop_uint());
+		}else if(args.if_pop("-kernel")){
+			if(args.if_pop("identity"))
+				pModel->setKernel(new GKernelIdentity());
+			else if(args.if_pop("chisquared"))
+				pModel->setKernel(new GKernelChiSquared());
+			else if(args.if_pop("rbf"))
+				pModel->setKernel(new GKernelGaussianRBF(args.pop_double()));
+			else if(args.if_pop("polynomial"))
+				pModel->setKernel(new GKernelPolynomial(args.pop_double(), args.pop_uint()));
+			else ThrowError("Unrecognized kernel: ", args.pop_string());
+		}else{
+			ThrowError("Invalid option: ", args.peek());
+		}
+	}
+	return pModel;
+}
+
 GGraphCutTransducer* InstantiateGraphCutTransducer(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GGraphCutTransducer* pTransducer = new GGraphCutTransducer(rand);
@@ -831,6 +860,8 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 			return InstantiateCvdt(rand, args);
 		else if(args.if_pop("decisiontree"))
 			return InstantiateDecisionTree(rand, args, pFeatures, pLabels);
+		else if(args.if_pop("gaussianprocess"))
+			return InstantiateGaussianProcess(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("graphcuttransducer"))
 			return InstantiateGraphCutTransducer(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("hodgepodge"))

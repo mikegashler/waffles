@@ -1842,7 +1842,7 @@ void GNeuralNet::test()
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn(prng);
-		nn.basicTest(0.745, 0.77);
+		nn.basicTest(0.745, 0.759);
 	}
 
 	// Test NN with one hidden layer

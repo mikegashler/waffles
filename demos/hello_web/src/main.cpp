@@ -68,11 +68,9 @@ Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
 // virtual
 void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response)
 {
-	if(strcmp(szUrl, "/") == 0)
-		szUrl = "/hello";
 	if(strcmp(szUrl, "/favicon.ico") == 0)
 		return;
-	if(strncmp(szUrl, "/hello", 6) == 0)
+	else if(strncmp(szUrl, "/hello", 6) == 0)
 	{
 		response << "<html><head>\n";
 		response << "	<title>My Hello Site</title>\n";
@@ -81,8 +79,10 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 		response << "	Hello Web! <img src=\"smiley.png\"><br>\n";
 		response << "</body></html>\n";
 	}
-	else
+	else if(strcmp(szUrl, "/smiley.png") == 0)
 		sendFileSafe(m_basePath.c_str(), szUrl + 1, response);
+	else
+		response << "<h1>404 - Not found!</h1>";
 }
 
 void getLocalStorageFolder(char* buf)

@@ -468,8 +468,9 @@ void cholesky(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
 	Holder<GMatrix> hA(pA);
-	pA->cholesky();
-	pA->print(cout);
+	GMatrix* pB = pA->cholesky();
+	Holder<GMatrix> hB(pB);
+	pB->print(cout);
 }
 
 void correlation(GArgReader& args)

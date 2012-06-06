@@ -60,6 +60,7 @@ CPP_FILES = \
 	GFile.cpp\
 	GFourier.cpp\
 	GFunction.cpp\
+	GGaussianProcess.cpp\
 	GGraph.cpp\
 	GHashTable.cpp\
 	GHeap.cpp\
@@ -192,13 +193,13 @@ $(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV)
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
-	@-rm -f $$(dirname $@)/$$(basename $@)
-	@touch $$(dirname $@)/$$(basename $@)
 	@echo -e "Computing opt dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@echo -en "$$(dirname $@)/" >> $@
+	@lockfile-create -r 0 $@
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@lockfile-remove $@
 
 # This rule makes the debug ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
@@ -206,13 +207,13 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
-	@-rm -f $$(dirname $@)/$$(basename $@)
-	@touch $$(dirname $@)/$$(basename $@)
 	@echo -e "Computing dbg dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@echo -en "$$(dirname $@)/" >> $@
+	@lockfile-create -r 0 $@
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@lockfile-remove $@
 
 # This rule makes the test/profile ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a test/profile ".o" file.
@@ -220,11 +221,10 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
-	@-rm -f $$(dirname $@)/$$(basename $@)
-	@touch $$(dirname $@)/$$(basename $@)
 	@echo -e "Computing gcov dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@echo -en "$$(dirname $@)/" >> $@
+	@lockfile-create -r 0 $@
+	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
 
 	@#Delete old gcno file
@@ -232,6 +232,7 @@ $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@echo $$(dirname $@)/$$(basename $@ .d).gcno >> $@
 
 	@echo -e "	$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@lockfile-remove $@
 
 partialcleanopt :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
@@ -251,6 +252,9 @@ clean : partialcleandbg partialcleanopt partialcleangcov
 	rm -f $(DEPS_OPT)
 	rm -f $(DEPS_DBG)
 	rm -f $(DEPS_GCOV)
+	rm -f $(OBJ_PATH)/opt/*.lock
+	rm -f $(OBJ_PATH)/dbg/*.lock
+	rm -f $(OBJ_PATH)/gcov/*.lock
 
 install:
 	@if [ "$${SUDO_USER}" == "" ]; then echo "You must use sudo to install"; false; fi

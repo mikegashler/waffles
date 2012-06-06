@@ -509,10 +509,13 @@ public:
 	/// \brief This computes the square root of this matrix. (If you
 	/// take the matrix that this returns and multiply it by its
 	/// transpose, you should get the original dataset again.)
+	/// (Returns a lower-triangular matrix.)
 	///
-	/// Behavior is undefined if there are nominal attributes. If this
+	/// Behavior is undefined if there are nominal attributes. If
+	/// tolerant is true, it will return even if it cannot compute
+	/// accurate results. If tolerant is false (the default) and this
 	/// matrix is not positive definate, it will throw an exception.
-	GMatrix* cholesky();
+	GMatrix* cholesky(bool tolerant = false);
 
 	/// \brief Makes a deep copy of this dataset
 	GMatrix* clone();
@@ -645,8 +648,8 @@ public:
 	/// pVectorOut should have the same number of elements as
 	/// rows (or cols, if transpose is true.) 
 	///
-	/// \note if transpose is true, it is the same as if pVectorIn is a
-	/// row vector and you multiply it by this matrix to get pVectorOut.
+	/// \note if transpose is true, then pVectorIn is treated as a
+	/// row vector and is multiplied by this matrix to get pVectorOut.
 	void multiply(const double* pVectorIn, double* pVectorOut, bool transpose = false);
 
 	/// \brief Matrix multiply. 
@@ -654,7 +657,7 @@ public:
 	/// For convenience, you can also specify that neither, one, or both
 	/// of the inputs are virtually transposed prior to the
 	/// multiplication. (If you want the results to come out transposed,
-	/// you can use the equality AB=((B^T)(A^T))^T to figure out how to
+	/// you can use the equality (AB)^T=(B^T)(A^T) to figure out how to
 	/// specify the parameters.)
 	static GMatrix* multiply(GMatrix& a, GMatrix& b, bool transposeA, bool transposeB);
 

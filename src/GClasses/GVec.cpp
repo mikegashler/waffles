@@ -57,6 +57,19 @@ double GVec::dotProduct(const double* pA, const double* pB, size_t nSize)
 }
 
 // static
+double GVec::dotProductIgnoringUnknowns(const double* pA, const double* pB, size_t nSize)
+{
+	double d = 0;
+	while(nSize > 0)
+	{
+		if(*pA != UNKNOWN_REAL_VALUE && *pB != UNKNOWN_REAL_VALUE)
+			d += *(pA++) * *(pB++);
+		nSize--;
+	}
+	return d;
+}
+
+// static
 double GVec::dotProduct(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize)
 {
 	double d = 0;

@@ -3,6 +3,7 @@
 
 #include "GLearner.h"
 #include "GVec.h"
+#include "GDom.h"
 #include <math.h>
 #include <cmath>
 
@@ -20,24 +21,78 @@ public:
 	GKernel() {}
 	virtual ~GKernel() {}
 
-	/// Applies the kernel to the two specified vectors
-	virtual double apply(const double* pA, const double* pB) = 0;
+	/// Returns the name of this kernel.
+	virtual const char* name() const = 0;
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
+
+	/// Applies the kernel to the two specified vectors.
+	virtual double apply(const double* pA, const double* pB, size_t dims) = 0;
+
+	/// Deserializes a kernel object
+	static GKernel* deserialize(GDomNode* pNode);
+
+protected:
+	/// Helper method used by the serialize methods in child classes
+	GDomNode* makeBaseNode(GDom* pDoc) const;
 };
 
 /// The identity kernel
 class GKernelIdentity : public GKernel
 {
-protected:
-	size_t m_dims;
-
 public:
-	GKernelIdentity(size_t dims) : GKernel(), m_dims(dims) {}
+	GKernelIdentity() : GKernel() {}
+	GKernelIdentity(GDomNode* pNode) : GKernel() {}
 	virtual ~GKernelIdentity() {}
 
-	/// Computes A*B
-	virtual double apply(const double* pA, const double* pB)
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
 	{
-		return GVec::dotProduct(pA, pB, m_dims);
+		GDomNode* pObj = GKernel::makeBaseNode(pDoc);
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "identity"; }
+
+	/// Computes A*B
+	virtual double apply(const double* pA, const double* pB, size_t dims)
+	{
+		return GVec::dotProductIgnoringUnknowns(pA, pB, dims);
+	}
+};
+
+/// Chi Squared kernel
+class GKernelChiSquared : public GKernel
+{
+public:
+	GKernelChiSquared() : GKernel() {}
+	GKernelChiSquared(GDomNode* pNode) : GKernel() {}
+	virtual ~GKernelChiSquared() {}
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = makeBaseNode(pDoc);
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "chisquared"; }
+
+	/// Computes the sum over each element of 2 * a * b / (a + b)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
+	{
+		double d = 0.0;
+		for(size_t i = 0; i < dims; i++)
+		{
+			if(*pA != UNKNOWN_REAL_VALUE && *pB != UNKNOWN_REAL_VALUE)
+				d += 2.0 * (*pA) * (*pB) / ((*pA) + (*pB));
+			pA++;
+			pB++;
+		}
+		return d;
 	}
 };
 
@@ -45,18 +100,30 @@ public:
 class GKernelPolynomial : public GKernel
 {
 protected:
-	size_t m_dims;
 	double m_offset;
 	unsigned int m_order;
 
 public:
-	GKernelPolynomial(size_t dims, double offset, unsigned int order) : GKernel(), m_dims(dims), m_offset(std::abs(offset)), m_order(order) {}
+	GKernelPolynomial(double offset, unsigned int order) : GKernel(), m_offset(std::abs(offset)), m_order(order) {}
+	GKernelPolynomial(GDomNode* pNode) : GKernel(), m_offset(pNode->field("offset")->asDouble()), m_order(pNode->field("order")->asInt()) {}
 	virtual ~GKernelPolynomial() {}
 
-	/// Computes (A * B + offset)^order
-	virtual double apply(const double* pA, const double* pB)
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
 	{
-		return pow(GVec::dotProduct(pA, pB, m_dims) + m_offset, (int)m_order);
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "offset", pDoc->newDouble(m_offset));
+		pObj->addField(pDoc, "order", pDoc->newInt(m_order));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "polynomial"; }
+
+	/// Computes (A * B + offset)^order
+	virtual double apply(const double* pA, const double* pB, size_t dims)
+	{
+		return pow(GVec::dotProductIgnoringUnknowns(pA, pB, dims) + m_offset, (int)m_order);
 	}
 };
 
@@ -64,17 +131,28 @@ public:
 class GKernelGaussianRBF : public GKernel
 {
 protected:
-	size_t m_dims;
 	double m_variance;
 
 public:
-	GKernelGaussianRBF(size_t dims, double variance) : GKernel(), m_dims(dims), m_variance(std::abs(variance)) {}
+	GKernelGaussianRBF(double variance) : GKernel(), m_variance(std::abs(variance)) {}
+	GKernelGaussianRBF(GDomNode* pNode) : GKernel(), m_variance(pNode->field("var")->asDouble()) {}
 	virtual ~GKernelGaussianRBF() {}
 
-	/// Computes e^(-0.5 * ||A - B||^2 / variance)
-	virtual double apply(const double* pA, const double* pB)
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
 	{
-		return exp(-0.5 * GVec::squaredDistance(pA, pB, m_dims) / m_variance);
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "var", pDoc->newDouble(m_variance));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "rbf"; }
+
+	/// Computes e^(-0.5 * ||A - B||^2 / variance)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
+	{
+		return exp(-0.5 * GVec::estimateSquaredDistanceWithUnknowns(pA, pB, dims) / m_variance);
 	}
 };
 
@@ -88,12 +166,25 @@ protected:
 public:
 	/// Takes ownership of pK
 	GKernelTranslate(GKernel* pK, double value) : GKernel(), m_pK(pK), m_value(std::abs(value)) {}
-	virtual ~GKernelTranslate() {}
+	GKernelTranslate(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))), m_value(pNode->field("v")->asDouble()) {}
+	virtual ~GKernelTranslate() { delete(m_pK); }
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
+		pObj->addField(pDoc, "v", pDoc->newDouble(m_value));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "translate"; }
 
 	/// Computes K(A, B) + value
-	virtual double apply(const double* pA, const double* pB)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
 	{
-		return m_pK->apply(pA, pB) + m_value;
+		return m_pK->apply(pA, pB, dims) + m_value;
 	}
 };
 
@@ -107,12 +198,25 @@ protected:
 public:
 	/// Takes ownership of pK
 	GKernelScale(GKernel* pK, double value) : GKernel(), m_pK(pK), m_value(std::abs(value)) {}
-	virtual ~GKernelScale() {}
+	GKernelScale(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))), m_value(pNode->field("v")->asDouble()) {}
+	virtual ~GKernelScale() { delete(m_pK); }
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
+		pObj->addField(pDoc, "v", pDoc->newDouble(m_value));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "scale"; }
 
 	/// Computes K(A, B) * value
-	virtual double apply(const double* pA, const double* pB)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
 	{
-		return m_pK->apply(pA, pB) * m_value;
+		return m_pK->apply(pA, pB, dims) * m_value;
 	}
 };
 
@@ -126,12 +230,25 @@ protected:
 public:
 	/// Takes ownership of pK1 and pK2
 	GKernelAdd(GKernel* pK1, GKernel* pK2) : GKernel(), m_pK1(pK1), m_pK2(pK2) {}
-	virtual ~GKernelAdd() {}
+	GKernelAdd(GDomNode* pNode) : GKernel(), m_pK1(GKernel::deserialize(pNode->field("k1"))), m_pK2(GKernel::deserialize(pNode->field("k2"))) {}
+	virtual ~GKernelAdd() { delete(m_pK1); delete(m_pK2); }
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "k1", m_pK1->serialize(pDoc));
+		pObj->addField(pDoc, "k2", m_pK2->serialize(pDoc));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "add"; }
 
 	/// Computes K1(A, B) + K2(A, B)
-	virtual double apply(const double* pA, const double* pB)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
 	{
-		return m_pK1->apply(pA, pB) + m_pK2->apply(pA, pB);
+		return m_pK1->apply(pA, pB, dims) + m_pK2->apply(pA, pB, dims);
 	}
 };
 
@@ -145,12 +262,25 @@ protected:
 public:
 	/// Takes ownership of pK1 and pK2
 	GKernelMultiply(GKernel* pK1, GKernel* pK2) : GKernel(), m_pK1(pK1), m_pK2(pK2) {}
-	virtual ~GKernelMultiply() {}
+	GKernelMultiply(GDomNode* pNode) : GKernel(), m_pK1(GKernel::deserialize(pNode->field("k1"))), m_pK2(GKernel::deserialize(pNode->field("k2"))) {}
+	virtual ~GKernelMultiply() { delete(m_pK1); delete(m_pK2); }
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "k1", m_pK1->serialize(pDoc));
+		pObj->addField(pDoc, "k2", m_pK2->serialize(pDoc));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "multiply"; }
 
 	/// Computes K1(A, B) * K2(A, B)
-	virtual double apply(const double* pA, const double* pB)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
 	{
-		return m_pK1->apply(pA, pB) * m_pK2->apply(pA, pB);
+		return m_pK1->apply(pA, pB, dims) * m_pK2->apply(pA, pB, dims);
 	}
 };
 
@@ -162,13 +292,27 @@ protected:
 	unsigned int m_value;
 
 public:
+	/// Takes ownership of pK
 	GKernelPow(GKernel* pK, unsigned int value) : GKernel(), m_pK(pK), m_value(value) {}
-	virtual ~GKernelPow() {}
+	GKernelPow(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))), m_value(pNode->field("v")->asDouble()) {}
+	virtual ~GKernelPow() { delete(m_pK); }
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
+		pObj->addField(pDoc, "v", pDoc->newDouble(m_value));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "pow"; }
 
 	/// Computes K(A, B)^value
-	virtual double apply(const double* pA, const double* pB)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
 	{
-		return pow(m_pK->apply(pA, pB), (int)m_value);
+		return pow(m_pK->apply(pA, pB, dims), (int)m_value);
 	}
 };
 
@@ -179,13 +323,26 @@ protected:
 	GKernel* m_pK;
 
 public:
+	/// Takes ownership of pK
 	GKernelExp(GKernel* pK) : GKernel(), m_pK(pK) {}
-	virtual ~GKernelExp() {}
+	GKernelExp(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))) {}
+	virtual ~GKernelExp() { delete(m_pK); }
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "exp"; }
 
 	/// Computes e^K(A, B)
-	virtual double apply(const double* pA, const double* pB)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
 	{
-		return exp(m_pK->apply(pA, pB));
+		return exp(m_pK->apply(pA, pB, dims));
 	}
 };
 
@@ -196,15 +353,29 @@ protected:
 	GKernel* m_pK;
 
 public:
+	/// Takes ownership of pK
 	GKernelNormalize(GKernel* pK) : GKernel(), m_pK(pK) {}
-	virtual ~GKernelNormalize() {}
+	GKernelNormalize(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))) {}
+	virtual ~GKernelNormalize() { delete(m_pK); }
+
+	/// Marshalls this object into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = makeBaseNode(pDoc);
+		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
+		return pObj;
+	}
+
+	/// Returns the name of this kernel
+	virtual const char* name() const { return "normalize"; }
 
 	/// Computes K(A, B) / sqrt(K(A, A) * K(B, B))
-	virtual double apply(const double* pA, const double* pB)
+	virtual double apply(const double* pA, const double* pB, size_t dims)
 	{
-		return m_pK->apply(pA, pB) / sqrt(m_pK->apply(pA, pA) * m_pK->apply(pB, pB));
+		return m_pK->apply(pA, pB, dims) / sqrt(m_pK->apply(pA, pA, dims) * m_pK->apply(pB, pB, dims));
 	}
 };
+
 
 } // namespace GClasses
 

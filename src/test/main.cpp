@@ -32,6 +32,7 @@
 #include "../GClasses/GError.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GFourier.h"
+#include "../GClasses/GGaussianProcess.h"
 #include "../GClasses/GGraph.h"
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GHiddenMarkovModel.h"
@@ -958,6 +959,7 @@ public:
 		runTest("GError.h - to_str", test_to_str);
 		runTest("GFloydWarshall", GFloydWarshall::test);
 		runTest("GFourier", GFourier::test);
+		runTest("GGaussianProcess", GGaussianProcess::test);
 		runTest("GGraphCut", GGraphCut::test);
 		runTest("GHashTable", GHashTable::test);
 		runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);
@@ -965,6 +967,7 @@ public:
 		runTest("GKdTree", GKdTree::test);
 		runTest("GKeyPair", GKeyPair::test);
 		runTest("GKNN", GKNN::test);
+		runTest("GLinearDistribution", GLinearDistribution::test);
 		runTest("GLinearProgramming", GLinearProgramming::test);
 		runTest("GLinearRegressor", GLinearRegressor::test);
 		runTest("GManifold", GManifold::test);
@@ -989,6 +992,7 @@ public:
 		runTest("GRandomForest", GRandomForest::test);
 		runTest("GRelation", GRelation::test);
 		runTest("GResamplingAdaBoost", GResamplingAdaBoost::test);
+		runTest("GRunningCovariance", GRunningCovariance::test);
 		runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 		runTest("GShortcutPruner", GShortcutPruner::test);
 		runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);

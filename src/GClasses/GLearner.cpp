@@ -16,6 +16,7 @@
 #include "GVec.h"
 #include "GHeap.h"
 #include "GDom.h"
+#include "GGaussianProcess.h"
 #include "GImage.h"
 #include "GNeuralNet.h"
 #include "GKNN.h"
@@ -1409,6 +1410,8 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 			{
 				if(strcmp(szClass, "GDecisionTree") == 0)
 					return new GDecisionTree(pNode, *this);
+				else if(strcmp(szClass, "GGaussianProcess") == 0)
+					return new GGaussianProcess(pNode, *this);
 				else if(strcmp(szClass, "GIdentityFunction") == 0)
 					return new GIdentityFunction(pNode, *this);
 			}
@@ -1417,7 +1420,9 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 		{
 			if(szClass[1] < 'N')
 			{
-				if(strcmp(szClass, "GLinearRegressor") == 0)
+				if(strcmp(szClass, "GLinearDistribution") == 0)
+					return new GLinearDistribution(pNode, *this);
+				else if(strcmp(szClass, "GLinearRegressor") == 0)
 					return new GLinearRegressor(pNode, *this);
 				else if(strcmp(szClass, "GMeanMarginsTree") == 0)
 					return new GMeanMarginsTree(pNode, *this);

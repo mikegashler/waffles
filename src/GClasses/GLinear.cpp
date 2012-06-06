@@ -12,6 +12,7 @@
 #include "GLinear.h"
 #include "GDom.h"
 #include "GTransform.h"
+#include "GDistribution.h"
 #include "GRand.h"
 #include "GVec.h"
 #include <cmath>
@@ -202,6 +203,134 @@ void GLinearRegressor::test()
 
 
 
+
+
+GLinearDistribution::GLinearDistribution(GRand& rand)
+: GSupervisedLearner(rand), m_noiseDev(1.0), m_pAInv(NULL), m_pWBar(NULL), m_pBuf(NULL)
+{
+}
+
+GLinearDistribution::GLinearDistribution(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
+{
+	m_noiseDev = pNode->field("nd")->asDouble();
+	m_pWBar = new GMatrix(pNode->field("w"));
+	m_pAInv = new GMatrix(pNode->field("a"));
+	m_pBuf = new double[m_pAInv->rows()];
+}
+
+// virtual
+GLinearDistribution::~GLinearDistribution()
+{
+	clear();
+}
+
+#ifndef NO_TEST_CODE
+// static
+void GLinearDistribution::test()
+{
+	GRand prng(0);
+	GLinearDistribution gp(prng);
+	gp.basicTest(0.69, 0.77);
+}
+#endif
+
+// virtual
+GDomNode* GLinearDistribution::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GLinearDistribution");
+	pNode->addField(pDoc, "nd", pDoc->newDouble(m_noiseDev));
+	pNode->addField(pDoc, "w", m_pWBar->serialize(pDoc));
+	pNode->addField(pDoc, "a", m_pAInv->serialize(pDoc));
+	return pNode;
+}
+
+// virtual
+void GLinearDistribution::clear()
+{
+	delete(m_pAInv);
+	m_pAInv = NULL;
+	delete(m_pWBar);
+	m_pWBar = NULL;
+	delete[] m_pBuf;
+	m_pBuf = NULL;
+}
+
+// virtual
+void GLinearDistribution::trainInner(GMatrix& features, GMatrix& labels)
+{
+	// Init A with the inverse of the weights prior covariance matrix
+	size_t dims = features.cols();
+	GMatrix a(dims, dims);
+	a.setAll(0.0);
+
+	// Init XY
+	size_t labelDims = labels.cols();
+	GMatrix xy(dims, labelDims);
+	xy.setAll(0.0);
+
+	// Train on each instance
+	double w = 1.0 / (m_noiseDev * m_noiseDev);
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		// Update A
+		double* pFeat = features[i];
+		for(size_t j = 0; j < dims; j++)
+		{
+			double* pEl = a[j];
+			for(size_t k = 0; k < dims; k++)
+			{
+				*pEl += pFeat[j] * pFeat[k];
+				pEl++;
+			}
+		}
+
+		// Update XY
+		double* pLab = labels[i];
+		for(size_t j = 0; j < dims; j++)
+		{
+			double* pEl = xy[j];
+			for(size_t k = 0; k < labelDims; k++)
+			{
+				*pEl += pFeat[j] * pLab[k];
+				pEl++;
+			}
+		}
+	}
+	a.multiply(w);
+	xy.multiply(w);
+
+	// Compute final matrices
+	clear();
+	m_pAInv = a.pseudoInverse();
+	GAssert(m_pAInv->cols() == dims);
+	GAssert(m_pAInv->rows() == dims);
+	m_pWBar = GMatrix::multiply(xy, *m_pAInv, true, true);
+	GAssert(m_pWBar->cols() == dims);
+	GAssert(m_pWBar->rows() == labelDims);
+	m_pBuf = new double[dims];
+}
+
+// virtual
+void GLinearDistribution::predictInner(const double* pIn, double* pOut)
+{
+	m_pWBar->multiply(pIn, pOut);
+}
+
+// virtual
+void GLinearDistribution::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	size_t dims = m_pAInv->rows();
+	m_pAInv->multiply(pIn, m_pBuf);
+	double v = GVec::dotProduct(pIn, m_pBuf, dims);
+	for(size_t i = 0; i < m_pWBar->rows(); i++)
+	{
+		GNormalDistribution* pNorm = (*pOut).makeNormal();
+		double m = GVec::dotProduct(m_pWBar->row(i), pIn, dims);
+		pNorm->setMeanAndVariance(m, v);
+		pOut++;
+	}
+}
 
 
 

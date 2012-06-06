@@ -1742,7 +1742,7 @@ bool GMatrix::gaussianElimination(double* pVector)
 	return true;
 }
 
-GMatrix* GMatrix::cholesky()
+GMatrix* GMatrix::cholesky(bool tolerant)
 {
 	size_t rowCount = rows();
 	size_t colCount = (size_t)cols();
@@ -1757,6 +1757,8 @@ GMatrix* GMatrix::cholesky()
 			d = 0;
 			for(size_t k = 0; k < i; k++)
 				d += (pOut->row(i)[k] * pOut->row(j)[k]);
+			if(std::abs(pOut->row(i)[i]) < 1e-12)
+				pOut->row(i)[i] = 1e-10;
 			pOut->row(j)[i] = (1.0 / pOut->row(i)[i]) * (row(i)[j] - d);
 		}
 		d = 0;
@@ -1767,6 +1769,8 @@ GMatrix* GMatrix::cholesky()
 		{
 			if(d > -1e-12)
 				d = 0; // it's probably just rounding error
+			else if(tolerant)
+				d = -d;
 			else
 				ThrowError("not positive definite");
 		}

@@ -83,6 +83,65 @@ protected:
 
 
 
+/// A linear regression model that predicts a distribution. (This algorithm also differs from GLinearRegressor
+/// in that it computes its model in closed form instead of using a numerical approach to find it. In general,
+/// GLinearRegressor seems to be a bit more accurate. Perhaps the method used in this algorithm is not very
+/// numerically stable.)
+class GLinearDistribution : public GSupervisedLearner
+{
+protected:
+	double m_noiseDev;
+	GMatrix* m_pAInv;
+	GMatrix* m_pWBar;
+	double* m_pBuf;
+
+public:
+	/// General-purpose constructor
+	GLinearDistribution(GRand& rand);
+
+	/// Deserialization constructor
+	GLinearDistribution(GDomNode* pNode, GLearnerLoader& ll);
+
+	/// Destructor
+	virtual ~GLinearDistribution();
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// See the comment for GSupervisedLearner::clear
+	virtual void clear();
+
+	/// Specify the prior expected deviation of the noise (The default is 1.0.)
+	void setNoiseDeviation(double d) { m_noiseDev = d; }
+
+protected:
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(GMatrix& features, GMatrix& labels);
+
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predictInner(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
+	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
+
+	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
+	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
+
+	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
+	virtual bool canImplicitlyHandleNominalLabels() { return false; }
+};
+
+
+
+
+
 class GLinearProgramming
 {
 public:
