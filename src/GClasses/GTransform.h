@@ -34,7 +34,7 @@ public:
 
 protected:
 	/// Child classes should use this in their implementation of serialize
-	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
+	virtual GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 };
 
 
@@ -51,17 +51,15 @@ protected:
 
 public:
 	GIncrementalTransform() : GTransform(), m_pInnerBuf(NULL) {}
-	GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll) : GTransform(pNode, ll), m_pInnerBuf(NULL) {}
+	GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIncrementalTransform();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
-	/// Trains the transform on the data in pData.
-	///
-	/// For those implementing subclasses, must set
-	/// m_pRelationBefore and m_pRelationAfter
-	virtual void train(GMatrix& data) = 0;
+	/// Trains the transform on the data in pData. (This method may be a no-op
+	/// for transformations that always behave in the same manner.)
+	void train(GMatrix& data);
 
 	/// "Trains" the transform without any data.
 	///
@@ -69,7 +67,7 @@ public:
 	/// when it is used with an incremental learner.
 	/// Transforms that cannot be trained without available
 	/// data may throw an exception in this method.
-	virtual void train(sp_relation& relation) = 0;
+	void train(sp_relation& relation);
 
 	/// Returns a relation object describing the data before it is
 	/// transformed
@@ -104,23 +102,10 @@ public:
 	/// the buffer, but the same buffer will be returned each
 	/// time.
 	double* innerBuf();
-};
-
-
-
-
-/// This is the base class of algorithms that can transform data
-/// one row at a time without supervision, and can (un)transform
-/// a row back to its original form if necessary.
-class GTwoWayIncrementalTransform : public GIncrementalTransform
-{
-public:
-	GTwoWayIncrementalTransform() : GIncrementalTransform() {}
-	GTwoWayIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll) : GIncrementalTransform(pNode, ll) {}
-	virtual ~GTwoWayIncrementalTransform() {}
 
 	/// pIn is a previously transformed row, and pOut is a buffer that will hold the untransformed row.
-	/// train must be called before this method is used
+	/// train must be called before this method is used.
+	/// This method may throw an exception if this transformation cannot be undone or approximately undone.
 	virtual void untransform(const double* pIn, double* pOut) = 0;
 
 	/// Similar to untransform, except it produces a distribution instead of just a vector.
@@ -129,43 +114,63 @@ public:
 
 	/// This assumes train was previously called, and untransforms all the rows in pIn and returns the results.
 	virtual GMatrix* untransformBatch(GMatrix& in);
+
+protected:
+	/// Child classes should use this in their implementation of serialize
+	virtual GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
+
+	/// This method implements the functionality called by train.
+	/// The data passed in may be used to guide training.
+	/// This method returns a smart-pointer to a relation the represents
+	/// the form that the data will take after it is transformed.
+	virtual sp_relation trainInner(GMatrix& data) = 0;
+
+	/// This method implements the functionality called by train.
+	/// This method is called to initialize the transform
+	/// when it is used with an incremental learner.
+	/// Transforms that cannot be trained without available
+	/// data may throw an exception in this method.
+	/// The relation passed in represents the form that the input
+	/// data will have.
+	/// This method returns a smart-pointer to a relation the represents
+	/// the form that the data will take after it is transformed.
+	virtual sp_relation trainInner(sp_relation& relation) = 0;
 };
 
 
 
 
-
 /// This wraps two two-way-incremental-transoforms to form a single combination transform
-class GTwoWayTransformChainer : public GTwoWayIncrementalTransform
+class GIncrementalTransformChainer : public GIncrementalTransform
 {
 protected:
-	GTwoWayIncrementalTransform* m_pFirst;
-	GTwoWayIncrementalTransform* m_pSecond;
+	GIncrementalTransform* m_pFirst;
+	GIncrementalTransform* m_pSecond;
 
 public:
 	/// General-purpose constructor
-	GTwoWayTransformChainer(GTwoWayIncrementalTransform* pFirst, GTwoWayIncrementalTransform* pSecond);
+	GIncrementalTransformChainer(GIncrementalTransform* pFirst, GIncrementalTransform* pSecond);
 
 	/// Deserializing constructor
-	GTwoWayTransformChainer(GDomNode* pNode, GLearnerLoader& ll);
-	virtual ~GTwoWayTransformChainer();
+	GIncrementalTransformChainer(GDomNode* pNode, GLearnerLoader& ll);
+	virtual ~GIncrementalTransformChainer();
 
-	/// See the comment for GTwoWayIncrementalTransform::serialize
+	/// See the comment for GIncrementalTransform::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void transform(const double* pIn, double* pOut);
 
-	/// See the comment for GTwoWayIncrementalTransform::untransform
+	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
-	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 };
 
@@ -177,7 +182,7 @@ public:
 /// Principal Component Analysis. (Computes the principal components about
 /// the mean of the data when you call train. The transformed (reduced-dimensional)
 /// data will have a mean about the origin.)
-class GPCA : public GTwoWayIncrementalTransform
+class GPCA : public GIncrementalTransform
 {
 protected:
 	size_t m_targetDims;
@@ -222,10 +227,10 @@ public:
 	GMatrix* components() { return m_pBasisVectors; }
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::transform.
 	/// Projects the specified point into fewer dimensions.
@@ -235,7 +240,7 @@ public:
 	/// specified low-dimensional coordinates.
 	virtual void untransform(const double* pIn, double* pOut);
 
-	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 };
 
@@ -275,10 +280,10 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	virtual sp_relation& relationAfter() { return m_pRelationBefore; }
 	
@@ -286,6 +291,14 @@ public:
 	virtual void transform(const double* pIn, double* pOut);
 
 	void setMeanAndDeviation(double m, double d) { m_mean = m; m_deviation = d; }
+
+	/// Throws an exception (because this transform cannot be reversed).
+	virtual void untransform(const double* pIn, double* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
+
+	/// Throws an exception (because this transform cannot be undone).
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
 };
 
 
@@ -309,13 +322,104 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 	
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
+
+	/// Throws an exception (because this transform cannot be reversed).
+	virtual void untransform(const double* pIn, double* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
+
+	/// Throws an exception (because this transform cannot be undone).
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
+};
+
+
+
+/// This transforms data by passing it through a multi-layer perceptron
+/// with randomely-initialized weights. (This transform automatically
+/// converts nominal attributes to categorical as necessary, but it does
+/// not normalize. In other words, it assumes that all continuous attributes
+/// fall approximately within a 0-1 range.)
+class GReservoir : public GIncrementalTransform
+{
+protected:
+	GNeuralNet* m_pNN;
+	size_t m_outputs;
+	double m_deviation;
+
+public:
+	GReservoir(GRand& rand, double weightDeviation = 2.0, size_t outputs = 64, size_t hiddenLayers = 2);
+
+	/// Load from a DOM.
+	GReservoir(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GReservoir();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(sp_relation& relation);
+
+	/// See the comment for GIncrementalTransform::transform
+	virtual void transform(const double* pIn, double* pOut);
+
+	/// Throws an exception (because this transform cannot be reversed).
+	virtual void untransform(const double* pIn, double* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
+
+	/// Throws an exception (because this transform cannot be undone).
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
+};
+
+
+
+/// This class augments data. That is, it transforms the data according to
+/// some provided transformation, and attaches the transformed data as new
+/// attributes to the existing data.
+class GDataAugmenter : public GIncrementalTransform
+{
+protected:
+	GIncrementalTransform* m_pTransform;
+
+public:
+	/// Generic constructor. pTransform specifies any data transformation. The transformed
+	/// data will be attached to the existing data in order to augment it.
+	/// This method takes ownership of pTransform.
+	GDataAugmenter(GIncrementalTransform* pTransform);
+
+	/// Load from a DOM
+	GDataAugmenter(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GDataAugmenter();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(sp_relation& relation);
+
+	/// See the comment for GIncrementalTransform::transform
+	virtual void transform(const double* pIn, double* pOut);
+
+	/// See the comment for GIncrementalTransform::untransform
+	virtual void untransform(const double* pIn, double* pOut);
+
+	/// Throws an exception
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 };
 
 
@@ -350,20 +454,29 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 	
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 	
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
-	/// Specifies the number of features to select
-	void setTargetFeatures(size_t n);
+	/// Specifies the number of features to select. (This method must be called
+	/// after train.)
+	sp_relation setTargetFeatures(size_t n);
 
 	/// Returns a list of attributes in ranked-order. Most important attributes are first. Weakest attributes are last.
 	/// (The results are undefined until after train is called.)
 	std::vector<size_t>& ranks() { return m_ranks; }
+
+	/// Throws an exception (because this transform cannot be reversed).
+	virtual void untransform(const double* pIn, double* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
+
+	/// Throws an exception (because this transform cannot be reversed).
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
 };
 
 
@@ -374,7 +487,7 @@ public:
 /// as the vector 0 0 1 0. When predictions are converted back to nominal values, the mode of the
 /// categorical distribution is used as the predicted value. (This is similar to Weka's
 /// NominalToBinaryFilter.)
-class GNominalToCat : public GTwoWayIncrementalTransform
+class GNominalToCat : public GIncrementalTransform
 {
 protected:
 	size_t m_valueCap;
@@ -394,18 +507,18 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
-	/// See the comment for GTwoWayIncrementalTransform::untransform
+	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
-	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 
 	/// Makes a mapping from the post-transform attribute indexes to the pre-transform attribute indexes
@@ -416,14 +529,14 @@ public:
 	void preserveUnknowns() { m_preserveUnknowns = true; }
 
 protected:
-	void init(sp_relation& pRelationBefore);
+	sp_relation init();
 };
 
 
 
 /// This transform scales and shifts continuous values
 /// to make them fall within a specified range.
-class GNormalize : public GTwoWayIncrementalTransform
+class GNormalize : public GIncrementalTransform
 {
 protected:
 	double m_min, m_max;
@@ -444,18 +557,18 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 	
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
-	/// See the comment for GTwoWayIncrementalTransform::untransform
+	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
-	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 
 	/// Specify the input min and range values for each attribute
@@ -468,7 +581,7 @@ public:
 /// It is common to use GFilter to combine this with your favorite modeler
 /// (which only supports discrete values) to create a modeler that can also support
 /// continuous values as well.
-class GDiscretize : public GTwoWayIncrementalTransform
+class GDiscretize : public GIncrementalTransform
 {
 protected:
 	size_t m_bucketsIn, m_bucketsOut;
@@ -488,25 +601,25 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 	
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
-	/// See the comment for GTwoWayIncrementalTransform::untransform
+	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
-	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 };
 
 
 
 
-class GImputeMissingVals : public GTwoWayIncrementalTransform
+class GImputeMissingVals : public GIncrementalTransform
 {
 protected:
 	GCollaborativeFilter* m_pCF;
@@ -528,18 +641,18 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
-	virtual void train(GMatrix& data);
+	virtual sp_relation trainInner(GMatrix& data);
 	
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual void train(sp_relation& relation);
+	virtual sp_relation trainInner(sp_relation& relation);
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
-	/// See the comment for GTwoWayIncrementalTransform::untransform
+	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
-	/// See the comment for GTwoWayIncrementalTransform::untransformToDistribution
+	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 
 	/// Sets the collaborative filter used to impute missing values. Takes

@@ -74,7 +74,7 @@ public:
 
 	/// \brief Returns true of all of the attributes in the specified
 	/// range are continuous
-	virtual bool areContinuous(size_t first, size_t count) const = 0;
+	virtual bool areContinuous(size_t first = 0, size_t count = (size_t)-1) const = 0;
 
 	/// \brief Returns true of all of the attributes in the specified
 	/// range are nominal
@@ -291,9 +291,11 @@ public:
 	/// \brief Sets the number of values for this attribute
 	virtual void setAttrValueCount(size_t nAttr, size_t nValues);
 
-	virtual bool areContinuous(size_t first, size_t count) const;
+	/// \brief Returns true iff all attributes in the specified range are continuous
+	virtual bool areContinuous(size_t first = 0, size_t count = (size_t)-1) const;
 
-	virtual bool areNominal(size_t first, size_t count) const;
+	/// \brief Returns true iff all attributes in the specified range are nominal
+	virtual bool areNominal(size_t first = 0, size_t count = (size_t)-1) const;
 
 	/// \brief Swaps two columns
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2);

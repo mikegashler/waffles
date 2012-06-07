@@ -806,13 +806,6 @@ GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
   pNode->addField(pDoc, "weightDistance",m_pWeightDistance->serialize(pDoc));
   pNode->addField(pDoc, "nodeDistance", m_pNodeDistance->serialize(pDoc));
   pNode->addField(pDoc, "nodes", objVectorSerialize(pDoc, m_nodes));
-
-  if(m_pRelationBefore.get() != NULL){
-    pNode->addField(pDoc, "m_pRelationBefore", m_pRelationBefore->serialize(pDoc));
-  }
-  if(m_pRelationAfter.get() != NULL){
-    pNode->addField(pDoc, "m_pRelationAfter", m_pRelationAfter->serialize(pDoc));
-  }
   
   //Do not serialize sorted neighbors, just mark as invalid on
   //deserialization
@@ -827,24 +820,6 @@ GSelfOrganizingMap::GSelfOrganizingMap(GDomNode* pNode){
     (pNode->field("weightDistance"));
   m_pNodeDistance=GDistanceMetric::deserialize
     (pNode->field("nodeDistance"));
-
-  {
-    GDomNode* n = pNode->fieldIfExists("m_pRelationBefore");
-    if(n){
-      m_pRelationBefore = GRelation::deserialize(n);
-    }else{
-      m_pRelationBefore = (GRelation*)NULL;
-    }
-  }
-
-  {
-    GDomNode* n = pNode->fieldIfExists("m_pRelationAfter");
-    if(n){
-      m_pRelationAfter = GRelation::deserialize(n);
-    }else{
-      m_pRelationAfter = (GRelation*)NULL;
-    }
-  }
 
   typedef std::vector<SOM::Node> nodevec;
   m_nodes=objVectorDeserialize<nodevec>(pNode->field("nodes"));
@@ -866,9 +841,6 @@ GSelfOrganizingMap::GSelfOrganizingMap
     m_nodes((unsigned int)std::pow((double)nMapWidth,(double)nMapDims)),
     m_sortedNeighborsIsValid(false)
 {
-  //Set the after relation based on the number of map dimensions
-  m_pRelationAfter = new GUniformRelation(nMapDims);
-
   //Set the node locations in a grid topology
   SOM::GridTopology g;
   g.setLocations(m_outputAxes, m_nodes);
@@ -900,8 +872,6 @@ GSelfOrganizingMap::GSelfOrganizingMap(const std::vector<double>& outputAxes,
    m_pWeightDistance(weightDistance), m_pNodeDistance(nodeDistance),
    m_nodes(numNodes),
    m_sortedNeighborsIsValid(false){
-  //Set the after relation based on the number of map dimensions
-  m_pRelationAfter = new GUniformRelation(outputAxes.size());
 
   //Set the topology
   topology->setLocations(outputAxes, m_nodes);

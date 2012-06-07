@@ -992,6 +992,7 @@ public:
 		runTest("GRandomForest", GRandomForest::test);
 		runTest("GRelation", GRelation::test);
 		runTest("GResamplingAdaBoost", GResamplingAdaBoost::test);
+		runTest("GReservoirNet", GReservoirNet::test);
 		runTest("GRunningCovariance", GRunningCovariance::test);
 		runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 		runTest("GShortcutPruner", GShortcutPruner::test);

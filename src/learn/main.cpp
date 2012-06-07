@@ -506,6 +506,12 @@ GBayesianModelCombination* InstantiateHodgePodge(GRand& rand, GArgReader& args, 
 	GBaselineLearner* pBL = new GBaselineLearner(rand);
 	pEnsemble->addLearner(pBL);
 
+	for(size_t i = 0; i < 2; i++)
+	{
+		GReservoirNet* pRN = new GReservoirNet(rand);
+		pEnsemble->addLearner(pRN);
+	}
+
 	for(size_t i = 0; i < 6; i++)
 	{
 		GDecisionTree* pDT = new GDecisionTree(rand);
@@ -742,35 +748,22 @@ GRandomForest* InstantiateRandomForest(GRand& rand, GArgReader& args)
 	return new GRandomForest(rand, trees, samples);
 }
 
-void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
+GReservoirNet* InstantiateReservoirNet(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
-	cerr << "_________________________________\n";
-	cerr << szMessage << "\n\n";
-	const char* szAlgName = args.peek();
-	UsageNode* pAlgTree = makeAlgorithmUsageTree();
-	Holder<UsageNode> hAlgTree(pAlgTree);
-	if(szAlgName)
+	GReservoirNet* pModel = new GReservoirNet(rand);
+	while(args.next_is_flag())
 	{
-		UsageNode* pUsageAlg = pAlgTree->choice(szAlgName);
-		if(pUsageAlg)
-		{
-			cerr << "Partial Usage Information:\n\n";
-			pUsageAlg->print(cerr, 0, 3, 76, 1000, true);
-		}
-		else
-		{
-			cerr << "\"" << szAlgName << "\" is not a recognized algorithm. Try one of these:\n\n";
-			pAlgTree->print(cerr, 0, 3, 76, 1, false);
+		if(args.if_pop("-augments")){
+			pModel->setAugments(args.pop_uint());
+		}else if(args.if_pop("-deviation")){
+			pModel->setWeightDeviation(args.pop_double());
+		}else if(args.if_pop("-layers")){
+			pModel->setReservoirLayers(args.pop_uint());
+		}else{
+			ThrowError("Invalid option: ", args.peek());
 		}
 	}
-	else
-	{
-		cerr << "Expected an algorithm. Here are some choices:\n";
-		pAlgTree->print(cerr, 0, 3, 76, 1, false);
-	}
-	cerr << "\nTo see full usage information, run:\n	waffles_learn usage\n\n";
-	cerr << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
-	cerr.flush();
+	return pModel;
 }
 
 GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
@@ -835,6 +828,37 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 	return pWag;
 }
 
+void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
+{
+	cerr << "_________________________________\n";
+	cerr << szMessage << "\n\n";
+	const char* szAlgName = args.peek();
+	UsageNode* pAlgTree = makeAlgorithmUsageTree();
+	Holder<UsageNode> hAlgTree(pAlgTree);
+	if(szAlgName)
+	{
+		UsageNode* pUsageAlg = pAlgTree->choice(szAlgName);
+		if(pUsageAlg)
+		{
+			cerr << "Partial Usage Information:\n\n";
+			pUsageAlg->print(cerr, 0, 3, 76, 1000, true);
+		}
+		else
+		{
+			cerr << "\"" << szAlgName << "\" is not a recognized algorithm. Try one of these:\n\n";
+			pAlgTree->print(cerr, 0, 3, 76, 1, false);
+		}
+	}
+	else
+	{
+		cerr << "Expected an algorithm. Here are some choices:\n";
+		pAlgTree->print(cerr, 0, 3, 76, 1, false);
+	}
+	cerr << "\nTo see full usage information, run:\n	waffles_learn usage\n\n";
+	cerr << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
+	cerr.flush();
+}
+
 GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	int argPos = args.get_pos();
@@ -882,6 +906,8 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 			return InstantiateNeuralNet(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("randomforest"))
 			return InstantiateRandomForest(rand, args);
+		else if(args.if_pop("reservoir"))
+			return InstantiateReservoirNet(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("wag"))
 			return InstantiateWag(rand, args, pFeatures, pLabels);
 		ThrowError("Unrecognized algorithm name: ", args.peek());

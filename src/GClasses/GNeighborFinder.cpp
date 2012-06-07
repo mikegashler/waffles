@@ -2133,6 +2133,18 @@ double GSaffron::meanNeighborCount(double* pDeviation)
 
 
 
+class GTemporalNeighborFinderKnn : public GKNN
+{
+public:
+	GTemporalNeighborFinderKnn(GRand& rand) : GKNN(rand) {}
+	virtual ~GTemporalNeighborFinderKnn() {}
+
+	virtual void clearFeatureFilter()
+	{
+		delete(m_pFeatureFilter);
+		m_pFeatureFilter = new GPCA(12, &m_rand);
+	}
+};
 
 
 GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand, size_t maxDims)
@@ -2167,9 +2179,7 @@ m_pRand(pRand)
 			}
 		}
 		GAssert(before.rows() > 20); // not much data
-		GKNN* pMap = new GKNN(*pRand);
-		pMap->setAutoFilter(false);
-		pMap->setFeatureFilter(new GPCA(12, pRand));
+		GKNN* pMap = new GTemporalNeighborFinderKnn(*pRand);
 		m_consequenceMaps.push_back(pMap);
 		pMap->train(before, delta);
 	}

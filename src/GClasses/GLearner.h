@@ -27,7 +27,6 @@ class GNormalDistribution;
 class GUniformDistribution;
 class GUnivariateDistribution;
 class GIncrementalTransform;
-class GTwoWayIncrementalTransform;
 class GSparseMatrix;
 class GCollaborativeFilter;
 class GNeuralNet;
@@ -196,9 +195,8 @@ protected:
 class GSupervisedLearner : public GTransducer
 {
 protected:
-	GTwoWayIncrementalTransform* m_pFeatureFilter;
-	GTwoWayIncrementalTransform* m_pLabelFilter;
-	bool m_autoFilter;
+	GIncrementalTransform* m_pFeatureFilter;
+	GIncrementalTransform* m_pLabelFilter;
 	size_t m_featureDims;
 	size_t m_labelDims;
 	GNeuralNet** m_pCalibrations;
@@ -228,20 +226,22 @@ public:
 	size_t labelDims() { return m_labelDims; }
 
 	/// Returns the current feature filter (or NULL if none has been set).
-	GTwoWayIncrementalTransform* featureFilter() { return m_pFeatureFilter; }
+	GIncrementalTransform* featureFilter() { return m_pFeatureFilter; }
 
 	/// Returns the current label filter (or NULL if none has been set).
-	GTwoWayIncrementalTransform* labelFilter() { return m_pLabelFilter; }
+	GIncrementalTransform* labelFilter() { return m_pLabelFilter; }
 
-	/// Sets the filter for features. (Note that the "train" method automatically
-	/// sets the filters, replacing any filters that you have set, so this method is
-	/// really only useful in conjunction with incremental learning.)
-	void setFeatureFilter(GTwoWayIncrementalTransform* pFilter);
+	/// Clears the filter for features.
+	virtual void clearFeatureFilter();
 
-	/// Sets the filter for labels. (Note that the "train" method automatically
-	/// sets the filters, replacing any filters that you have set, so this method is
-	/// really only useful in conjunction with incremental learning.)
-	void setLabelFilter(GTwoWayIncrementalTransform* pFilter);
+	/// Wrap whatever feature filter is currently set with the specified filter
+	void wrapFeatures(GIncrementalTransform* pFilter);
+
+	/// Clears the filter for labels.
+	virtual void clearLabelFilter();
+
+	/// Wrap whatever label filter is currently set with the specified filter
+	void wrapLabels(GIncrementalTransform* pFilter);
 
 	/// Call this method to train the model. It automatically determines which
 	/// filters are needed to convert the training features and labels into
@@ -311,13 +311,6 @@ public:
 
 	/// Trains and tests this learner
 	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
-
-	/// If b is true, enable automatic filter setup. If b is false, disable automatic filter setup.
-	/// It is enabled by default, so you must explicitly disable it if you do not want this feature.
-	/// If automatic filter setup is enabled then, when train is called, it will discard any existing
-	/// filters that have been attached to this learner, and will automatically analyze the training
-	/// data and create any filters that it determines are needed.
-	void setAutoFilter(bool b) { m_autoFilter = b; }
 
 #ifndef NO_TEST_CODE
 	/// This is a helper method used by the unit tests of several model learners
@@ -392,8 +385,7 @@ public:
 	/// Unlike "train", this method does not automatically set up any filters (even
 	/// if you have automatic filter setup enabled). Rather,
 	/// it assumes that you have already set up any filters that you wish to use.
-	/// Behavior is undefined if you change the filters (by calling setFeatureFilter
-	/// or setLabelFilter, or by changing the filters themselves) after this method is called.
+	/// Behavior is undefined if you change the filters after this method is called.
 	void beginIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
 
 	/// Pass a single input row and the corresponding label to
@@ -446,9 +438,6 @@ public:
 
 	/// Loads an incremental transform (or a two-way incremental transform) from a DOM.
 	virtual GIncrementalTransform* loadIncrementalTransform(GDomNode* pNode);
-
-	/// Loads a two-way transform from a DOM.
-	virtual GTwoWayIncrementalTransform* loadTwoWayIncrementalTransform(GDomNode* pNode);
 
 	/// Loads a supervised learning algorithm (or an incremental learner) from a DOM.
 	virtual GSupervisedLearner* loadSupervisedLearner(GDomNode* pNode);

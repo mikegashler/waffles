@@ -531,7 +531,7 @@ void fillMissingValues(GArgReader& args)
 
 	// Convert to all normalized real values
 	GNominalToCat* pNtc = new GNominalToCat();
-	GTwoWayTransformChainer filter(new GNormalize(), pNtc);
+	GIncrementalTransformChainer filter(new GNormalize(), pNtc);
 	pNtc->preserveUnknowns();
 	filter.train(*pDataOrig);
 	GMatrix* pData = filter.transformBatch(*pDataOrig);

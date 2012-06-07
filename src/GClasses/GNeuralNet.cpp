@@ -484,9 +484,14 @@ GNeuralNet::~GNeuralNet()
 // virtual
 GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 {
+	return serializeInner(pDoc, "GNeuralNet");
+}
+
+GDomNode* GNeuralNet::serializeInner(GDom* pDoc, const char* szClassName) const
+{
 	if(!hasTrainingBegun())
 		ThrowError("The network has not been trained");
-	GDomNode* pNode = baseDomNode(pDoc, "GNeuralNet");
+	GDomNode* pNode = baseDomNode(pDoc, szClassName);
 
 	// Add the layer sizes
 	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
@@ -1967,6 +1972,56 @@ void GNeuralNetPseudoInverse::test()
 	}
 }
 #endif
+
+
+
+
+
+
+
+
+
+GReservoirNet::GReservoirNet(GRand& rand)
+: GNeuralNet(rand), m_weightDeviation(2.0), m_augments(64), m_reservoirLayers(2)
+{
+	clearFeatureFilter();
+}
+
+GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
+: GNeuralNet(pNode, ll)
+{
+	m_weightDeviation = pNode->field("wdev")->asDouble();
+	m_augments = pNode->field("augs")->asInt();
+	m_reservoirLayers = pNode->field("reslays")->asInt();
+}
+
+// virtual
+GDomNode* GReservoirNet::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = serializeInner(pDoc, "GReservoirNet");
+	pNode->addField(pDoc, "wdev", pDoc->newDouble(m_weightDeviation));
+	pNode->addField(pDoc, "augs", pDoc->newInt(m_augments));
+	pNode->addField(pDoc, "reslays", pDoc->newInt(m_reservoirLayers));
+	return pNode;
+}
+
+// virtual
+void GReservoirNet::clearFeatureFilter()
+{
+	delete(m_pFeatureFilter);
+	m_pFeatureFilter = new GDataAugmenter(new GReservoir(m_rand, m_weightDeviation, m_augments, m_reservoirLayers));
+}
+
+#ifndef NO_TEST_CODE
+// static
+void GReservoirNet::test()
+{
+	GRand prng(0);
+	GReservoirNet lr(prng);
+	lr.basicTest(0.77, 0.77);
+}
+#endif
+
 
 
 } // namespace GClasses

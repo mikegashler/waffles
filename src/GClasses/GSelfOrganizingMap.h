@@ -791,15 +791,17 @@ public:
   virtual GDomNode* serialize(GDom*) const;
 
   ///see comment on GIncrementalTransform::train(GMatrix&)
-  virtual void train(GMatrix& in){ 
+  virtual sp_relation trainInner(GMatrix& in){
     if(m_pTrainer != NULL){
       m_pTrainer->train(*this, &in);
     }
+    return new GUniformRelation(outputDimensions());
   }
 
   /// Throws an exception (because this transform cannot be trained without data)
-  virtual void train(sp_relation& in){
+  virtual sp_relation trainInner(sp_relation& in){
     ThrowError("This transform cannot be trained without data");
+	return m_pRelationBefore;
   }
 
   ///TODO: implement enableIncrementalTraining 
@@ -871,6 +873,14 @@ public:
   /// between two nodes for their relative influence
   const GDistanceMetric* nodeDistance() const { 
     return m_pNodeDistance; }  
+
+	/// Throws an exception (because this transform cannot be reversed).
+	virtual void untransform(const double* pIn, double* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
+
+	/// Throws an exception (because this transform cannot be reversed).
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
+	{ ThrowError("This transformation cannot be reversed"); }
 };
 
 inline GDistanceMetric& 

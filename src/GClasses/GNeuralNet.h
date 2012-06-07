@@ -407,6 +407,9 @@ public:
 	void printWeights(std::ostream& stream);
 
 protected:
+	/// A helper method used by serialize.
+	GDomNode* serializeInner(GDom* pDoc, const char* szClassName) const;
+
 	/// Measures the sum squared error against the specified dataset
 	double validationSquaredError(GMatrix& features, GMatrix& labels);
 
@@ -506,6 +509,44 @@ public:
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 };
 */
+
+class GReservoirNet : public GNeuralNet
+{
+protected:
+	double m_weightDeviation;
+	size_t m_augments;
+	size_t m_reservoirLayers;
+
+public:
+	/// General-purpose constructor
+	GReservoirNet(GRand& rand);
+
+	/// Deserializing constructor
+	GReservoirNet(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GReservoirNet() {}
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
+
+	/// Specify the deviation of the random weights in the reservoir
+	void setWeightDeviation(double d) { m_weightDeviation = d; }
+
+	/// Specify the number of additional attributes to augment the data with
+	void setAugments(size_t n) { m_augments = n; }
+
+	/// Specify the number of hidden layers in the reservoir
+	void setReservoirLayers(size_t n) { m_reservoirLayers = n; }
+
+	/// Marshall this object to a DOM
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// See the comment for GSupervisedLearner::clearFeatureFilter.
+	virtual void clearFeatureFilter();
+};
+
+
 } // namespace GClasses
 
 #endif // __GNEURALNET_H__
