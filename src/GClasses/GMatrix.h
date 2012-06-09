@@ -977,27 +977,27 @@ public:
 	///
 	/// (To compute the next principal component, call RemoveComponent,
 	/// then call this again.)
-	void principalComponent(double* pOutVector, size_t dims, const double* pMean, GRand* pRand);
+	void principalComponent(double* pOutVector, const double* pMean, GRand* pRand);
 
 	/// \brief Computes the first principal component assuming the mean
 	/// is already subtracted out of the data
-	void principalComponentAboutOrigin(double* pOutVector, size_t dims, GRand* pRand);
+	void principalComponentAboutOrigin(double* pOutVector, GRand* pRand);
 
 	/// \brief Computes principal components, while ignoring missing
 	/// values
-	void principalComponentIgnoreUnknowns(double* pOutVector, size_t dims, const double* pMean, GRand* pRand);
+	void principalComponentIgnoreUnknowns(double* pOutVector, const double* pMean, GRand* pRand);
 
 	/// \brief Computes the first principal component of the data with
 	/// each row weighted according to the vector pWeights. (pWeights
 	/// must have an element for each row.)
-	void weightedPrincipalComponent(double* pOutVector, size_t dims, const double* pMean, const double* pWeights, GRand* pRand);
+	void weightedPrincipalComponent(double* pOutVector, const double* pMean, const double* pWeights, GRand* pRand);
 
 	/// \brief Computes the eigenvalue that corresponds to \a *pEigenvector.
 	///
 	/// After you compute the principal component, you can call this to
 	/// obtain the eigenvalue that corresponds to that principal
 	/// component vector (eigenvector).
-	double eigenValue(const double* pMean, const double* pEigenVector, size_t dims, GRand* pRand);
+	double eigenValue(const double* pMean, const double* pEigenVector, GRand* pRand);
 
 	/// \brief Removes the component specified by pComponent from the
 	/// data. (pComponent should already be normalized.)
@@ -1005,10 +1005,10 @@ public:
 	/// This might be useful, for example, to remove the first principal
 	/// component from the data so you can then proceed to compute the
 	/// second principal component, and so forth.
-	void removeComponent(const double* pMean, const double* pComponent, size_t dims);
+	void removeComponent(const double* pMean, const double* pComponent);
 
 	/// \brief Removes the specified component assuming the mean is zero.
-	void removeComponentAboutOrigin(const double* pComponent, size_t dims);
+	void removeComponentAboutOrigin(const double* pComponent);
 
 	/// \brief Computes the minimum number of principal components
 	/// necessary so that less than the specified portion of the

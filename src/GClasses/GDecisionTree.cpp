@@ -1021,7 +1021,7 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 	double* pLabelCentroid = pBuf;
 	labels.centroid(pLabelCentroid);
 	double* pPrincipalComponent = pLabelCentroid + m_internalLabelDims;
-	labels.principalComponentIgnoreUnknowns(pPrincipalComponent, m_internalLabelDims, pLabelCentroid, &m_rand);
+	labels.principalComponentIgnoreUnknowns(pPrincipalComponent, pLabelCentroid, &m_rand);
 
 	// Compute the centroid of each feature cluster in a manner tolerant of unknown values
 	double* pFeatureCentroid1 = pPrincipalComponent + m_internalLabelDims;

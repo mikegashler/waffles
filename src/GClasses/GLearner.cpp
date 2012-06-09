@@ -706,8 +706,6 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 	if(m_pFeatureFilter)
 	{
 		m_pFeatureFilter->train(features);
-GAssert(m_pFeatureFilter->after()->size() != -1);
-GAssert(m_pFeatureFilter->before()->size() != -1);
 		GMatrix* pFilteredFeatures = m_pFeatureFilter->transformBatch(features);
 		Holder<GMatrix> hFilteredFeatures(pFilteredFeatures);
 		if(m_pLabelFilter)

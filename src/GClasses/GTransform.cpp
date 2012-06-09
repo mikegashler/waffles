@@ -85,6 +85,66 @@ void GIncrementalTransform::train(sp_relation& relation)
 	m_pRelationAfter = trainInner(relation);
 }
 
+#ifndef NO_TEST_CODE
+//static
+void GIncrementalTransform::test()
+{
+	// Make an input matrix
+	vector<size_t> valCounts;
+	valCounts.push_back(0);
+	valCounts.push_back(1);
+	valCounts.push_back(2);
+	valCounts.push_back(3);
+	valCounts.push_back(0);
+	GMatrix m(valCounts);
+	m.newRows(2);
+	m[0][0] = 2.4; m[0][1] = 0; m[0][2] = 0; m[0][3] = 2; m[0][4] = 8.2;
+	m[1][0] = 0.0; m[1][1] = 0; m[1][2] = 1; m[1][3] = 0; m[1][4] = 2.2;
+
+	// Make an expected output matrix
+	GMatrix e(2, 7);
+	e[0][0] = 1; e[0][1] = 0; e[0][2] = 0; e[0][3] = 0; e[0][4] = 0; e[0][5] = 1; e[0][6] = 1;
+	e[1][0] = 0; e[1][1] = 0; e[1][2] = 1; e[1][3] = 1; e[1][4] = 0; e[1][5] = 0; e[1][6] = 0;
+
+	// Transform the input matrix and check it
+	GIncrementalTransformChainer trans(new GNormalize(), new GNominalToCat());
+	trans.train(m);
+	GMatrix* pA = trans.transformBatch(m);
+	Holder<GMatrix> hA(pA);
+	if(pA->sumSquaredDifference(e) > 1e-12)
+		ThrowError("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
+	if(!pA->relation()->areContinuous())
+		ThrowError("failed");
+	GMatrix* pB = trans.untransformBatch(*pA);
+	Holder<GMatrix> hB(pB);
+	if(pB->sumSquaredDifference(m) > 1e-12)
+		ThrowError("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
+	if(!pB->relation()->isCompatible(*m.relation().get()) || !m.relation()->isCompatible(*pB->relation().get()))
+		ThrowError("failed");
+
+	// Round-trip it through serialization
+	GDom doc;
+	GDomNode* pNode = trans.serialize(&doc);
+	GRand rand(0);
+	GLearnerLoader ll(rand);
+	GIncrementalTransform* pTrans = ll.loadIncrementalTransform(pNode);
+
+	// Transform the input matrix again, and check it
+	GMatrix* pC = pTrans->transformBatch(m);
+	Holder<GMatrix> hC(pC);
+	if(pC->sumSquaredDifference(e) > 1e-12)
+		ThrowError("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
+	if(!pC->relation()->areContinuous())
+		ThrowError("failed");
+	GMatrix* pD = trans.untransformBatch(*pC);
+	Holder<GMatrix> hD(pD);
+	if(pD->sumSquaredDifference(m) > 1e-12)
+		ThrowError("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
+	if(!pD->relation()->isCompatible(*m.relation().get()) || !m.relation()->isCompatible(*pD->relation().get()))
+		ThrowError("failed");
+}
+#endif
+
 // ---------------------------------------------------------------
 
 GIncrementalTransformChainer::GIncrementalTransformChainer(GIncrementalTransform* pFirst, GIncrementalTransform* pSecond)
@@ -276,8 +336,8 @@ sp_relation GPCA::trainInner(GMatrix& data)
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
 		double* pVector = m_pBasisVectors->row(i + 1);
-		tmpData.principalComponentIgnoreUnknowns(pVector, nInputDims, pMean, m_pRand);
-		tmpData.removeComponent(pMean, pVector, nInputDims);
+		tmpData.principalComponentIgnoreUnknowns(pVector, pMean, m_pRand);
+		tmpData.removeComponent(pMean, pVector);
 		if(m_pEigVals)
 		{
 			double t = tmpData.sumSquaredDistance(pMean);
@@ -433,8 +493,8 @@ GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, GMatrix* pData
 	for(size_t i = 0; i < nComponents; i++)
 	{
 		// Compute the next principle component
-		pOutData->principalComponent(pComponent, nDims, pMean, pRand);
-		pOutData->removeComponent(pMean, pComponent, nDims);
+		pOutData->principalComponent(pComponent, pMean, pRand);
+		pOutData->removeComponent(pMean, pComponent);
 
 		// Use the current axis as the first plane vector
 		GVec::copy(pA, &pBasisVectors[nDims * i], nDims);
@@ -927,7 +987,7 @@ sp_relation GNominalToCat::init()
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
 		size_t nValues = m_pRelationBefore->valueCount(i);
-		if(nValues < 3 || nValues >= m_valueCap)
+		if(nValues == 0)
 		{
 			nDims++;
 			if(m_pRelationBefore->type() == GRelation::ARFF)
@@ -938,7 +998,18 @@ sp_relation GNominalToCat::init()
 			else
 				((GMixedRelation*)spRel.get())->addAttr(0);
 		}
-		else
+		else if(nValues < 3 || nValues >= m_valueCap)
+		{
+			nDims++;
+			if(m_pRelationBefore->type() == GRelation::ARFF)
+			{
+				szName = ((GArffRelation*)m_pRelationBefore.get())->attrName(i);
+				((GArffRelation*)spRel.get())->addAttribute(szName, 0, NULL);
+			}
+			else
+				((GMixedRelation*)spRel.get())->addAttr(0);
+		}
+		else if(nValues < m_valueCap)
 		{
 			nDims += nValues;
 			if(m_pRelationBefore->type() == GRelation::ARFF)
@@ -959,6 +1030,17 @@ sp_relation GNominalToCat::init()
 				for(size_t j = 0; j < nValues; j++)
 					((GMixedRelation*)spRel.get())->addAttr(0);
 			}
+		}
+		else
+		{
+			nDims++;
+			if(m_pRelationBefore->type() == GRelation::ARFF)
+			{
+				szName = ((GArffRelation*)m_pRelationBefore.get())->attrName(i);
+				((GArffRelation*)spRel.get())->addAttribute(szName, 0, NULL);
+			}
+			else
+				((GMixedRelation*)spRel.get())->addAttr(0);
 		}
 	}
 	return spRel;

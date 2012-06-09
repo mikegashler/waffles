@@ -1973,8 +1973,8 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 			for(size_t j = 0; j < tangentDims; j++)
 			{
 				double* pBasis = pTanSpace->row(j);
-				neighborhood.weightedPrincipalComponent(pBasis, dims, pData->row(i), pHoodWeights, pRand);
-				neighborhood.removeComponent(pData->row(i), pBasis, dims);
+				neighborhood.weightedPrincipalComponent(pBasis, pData->row(i), pHoodWeights, pRand);
+				neighborhood.removeComponent(pData->row(i), pBasis);
 			}
 			pHoodWeights += maxCandidates;
 		}

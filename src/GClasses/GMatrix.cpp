@@ -3291,9 +3291,10 @@ void GMatrix::replaceMissingValuesRandomly(size_t nAttr, GRand* pRand)
 	}
 }
 
-void GMatrix::principalComponent(double* pOutVector, size_t dims, const double* pMean, GRand* pRand)
+void GMatrix::principalComponent(double* pOutVector, const double* pMean, GRand* pRand)
 {
 	// Initialize the out-vector to a random direction
+	size_t dims = cols();
 	pRand->spherical(pOutVector, dims);
 
 	// Iterate
@@ -3317,16 +3318,17 @@ void GMatrix::principalComponent(double* pOutVector, size_t dims, const double* 
 		GVec::copy(pOutVector, pAccumulator, dims);
 		GVec::safeNormalize(pOutVector, dims, pRand);
 		d = GVec::squaredMagnitude(pAccumulator, dims);
-		if(iters < 6 || d > mag)
+		if(iters < 6 || d - mag > 1e-8)
 			mag = d;
 		else
 			break;
 	}
 }
 
-void GMatrix::principalComponentAboutOrigin(double* pOutVector, size_t dims, GRand* pRand)
+void GMatrix::principalComponentAboutOrigin(double* pOutVector, GRand* pRand)
 {
 	// Initialize the out-vector to a random direction
+	size_t dims = cols();
 	pRand->spherical(pOutVector, dims);
 
 	// Iterate
@@ -3349,16 +3351,23 @@ void GMatrix::principalComponentAboutOrigin(double* pOutVector, size_t dims, GRa
 		GVec::copy(pOutVector, pAccumulator, dims);
 		GVec::safeNormalize(pOutVector, dims, pRand);
 		d = GVec::squaredMagnitude(pAccumulator, dims);
-		if(iters < 6 || d > mag)
+		if(iters < 6 || d - mag > 1e-8)
 			mag = d;
 		else
 			break;
 	}
 }
 
-void GMatrix::principalComponentIgnoreUnknowns(double* pOutVector, size_t dims, const double* pMean, GRand* pRand)
+void GMatrix::principalComponentIgnoreUnknowns(double* pOutVector, const double* pMean, GRand* pRand)
 {
+	if(!doesHaveAnyMissingValues())
+	{
+		principalComponent(pOutVector, pMean, pRand);
+		return;
+	}
+
 	// Initialize the out-vector to a random direction
+	size_t dims = cols();
 	pRand->spherical(pOutVector, dims);
 
 	// Iterate
@@ -3388,16 +3397,17 @@ void GMatrix::principalComponentIgnoreUnknowns(double* pOutVector, size_t dims, 
 		GVec::copy(pOutVector, pAccumulator, dims);
 		GVec::safeNormalize(pOutVector, dims, pRand);
 		d = GVec::squaredMagnitude(pAccumulator, dims);
-		if(iters < 6 || d > mag)
+		if(iters < 6 || d - mag > 1e-8)
 			mag = d;
 		else
 			break;
 	}
 }
 
-void GMatrix::weightedPrincipalComponent(double* pOutVector, size_t dims, const double* pMean, const double* pWeights, GRand* pRand)
+void GMatrix::weightedPrincipalComponent(double* pOutVector, const double* pMean, const double* pWeights, GRand* pRand)
 {
 	// Initialize the out-vector to a random direction
+	size_t dims = cols();
 	pRand->spherical(pOutVector, dims);
 
 	// Iterate
@@ -3423,17 +3433,18 @@ void GMatrix::weightedPrincipalComponent(double* pOutVector, size_t dims, const 
 		GVec::copy(pOutVector, pAccumulator, dims);
 		GVec::safeNormalize(pOutVector, dims, pRand);
 		d = GVec::squaredMagnitude(pAccumulator, dims);
-		if(iters < 6 || d > mag)
+		if(iters < 6 || d - mag > 1e-8)
 			mag = d;
 		else
 			break;
 	}
 }
 
-double GMatrix::eigenValue(const double* pMean, const double* pEigenVector, size_t dims, GRand* pRand)
+double GMatrix::eigenValue(const double* pMean, const double* pEigenVector, GRand* pRand)
 {
 	// Use the element of the eigenvector with the largest magnitude,
 	// because that will give us the least rounding error when we compute the eigenvalue.
+	size_t dims = cols();
 	size_t index = GVec::indexOfMaxMagnitude(pEigenVector, dims, pRand);
 
 	// The eigenvalue is the factor by which the eigenvector is scaled by the covariance matrix,
@@ -3445,8 +3456,9 @@ double GMatrix::eigenValue(const double* pMean, const double* pEigenVector, size
 	return d / pEigenVector[index];
 }
 
-void GMatrix::removeComponent(const double* pMean, const double* pComponent, size_t dims)
+void GMatrix::removeComponent(const double* pMean, const double* pComponent)
 {
+	size_t dims = cols();
 	size_t nCount = rows();
 	for(size_t i = 0; i < nCount; i++)
 	{
@@ -3461,8 +3473,9 @@ void GMatrix::removeComponent(const double* pMean, const double* pComponent, siz
 	}
 }
 
-void GMatrix::removeComponentAboutOrigin(const double* pComponent, size_t dims)
+void GMatrix::removeComponentAboutOrigin(const double* pComponent)
 {
+	size_t dims = cols();
 	size_t nCount = rows();
 	for(size_t i = 0; i < nCount; i++)
 	{
@@ -3504,8 +3517,8 @@ size_t GMatrix::countPrincipalComponents(double d, GRand* pRand)
 	size_t i;
 	for(i = 1; i < dims; i++)
 	{
-		tmpData.principalComponentAboutOrigin(vec, dims, pRand);
-		tmpData.removeComponentAboutOrigin(vec, dims);
+		tmpData.principalComponentAboutOrigin(vec, pRand);
+		tmpData.removeComponentAboutOrigin(vec);
 		if(tmpData.sumSquaredDistance(NULL) < thresh)
 			break;
 	}
@@ -3954,7 +3967,7 @@ bool GMatrix::leastCorrelatedVector(double* pOut, GMatrix* pThat, GRand* pRand)
 	if(d < 1e-9)
 		return false;
 	pD->subtract(this, true);
-	pD->principalComponentAboutOrigin(pOut, rows(), pRand);
+	pD->principalComponentAboutOrigin(pOut, pRand);
 	return true;
 /*
 	GMatrix* pE = GMatrix::multiply(*pD, *pD, true, false);
@@ -4283,7 +4296,7 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 	mean[0] = data.mean(0);
 	mean[1] = data.mean(1);
 	double eig[2];
-	data.principalComponent(eig, 2, mean, &prng);
+	data.principalComponent(eig, mean, &prng);
 	if(std::abs(eig[0] * 2 - eig[1]) > .0001)
 		ThrowError("incorrect value");
 

@@ -54,6 +54,11 @@ public:
 	GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIncrementalTransform();
 
+#ifndef NO_TEST_CODE
+	/// Performs unit tests for this class. Throws an exception if there is a failure.
+	static void test();
+#endif
+
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
@@ -159,12 +164,6 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
-
-	/// See the comment for GIncrementalTransform::train
 	virtual void transform(const double* pIn, double* pOut);
 
 	/// See the comment for GIncrementalTransform::untransform
@@ -172,6 +171,13 @@ public:
 
 	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -226,12 +232,6 @@ public:
 	/// rows are the principal component vectors in order of decreasing eigenvalue.
 	GMatrix* components() { return m_pBasisVectors; }
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-
-	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform.
 	/// Projects the specified point into fewer dimensions.
 	virtual void transform(const double* pIn, double* pOut);
@@ -242,6 +242,13 @@ public:
 
 	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -257,7 +264,7 @@ public:
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
+#endif
 };
 
 
@@ -279,12 +286,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	virtual sp_relation& relationAfter() { return m_pRelationBefore; }
 	
 	/// See the comment for GIncrementalTransform::transform
@@ -299,6 +300,13 @@ public:
 	/// Throws an exception (because this transform cannot be undone).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
 	{ ThrowError("This transformation cannot be reversed"); }
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -321,12 +329,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-	
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
@@ -337,6 +339,13 @@ public:
 	/// Throws an exception (because this transform cannot be undone).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
 	{ ThrowError("This transformation cannot be reversed"); }
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -364,12 +373,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
@@ -380,6 +383,13 @@ public:
 	/// Throws an exception (because this transform cannot be undone).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
 	{ ThrowError("This transformation cannot be reversed"); }
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -406,12 +416,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
@@ -420,6 +424,13 @@ public:
 
 	/// Throws an exception
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -453,12 +464,6 @@ public:
 
 	virtual GDomNode* serialize(GDom* pDoc) const;
 	
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-	
-	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
@@ -477,6 +482,13 @@ public:
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
 	{ ThrowError("This transformation cannot be reversed"); }
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -506,12 +518,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
@@ -530,6 +536,12 @@ public:
 
 protected:
 	sp_relation init();
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -556,12 +568,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-	
-	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
@@ -573,6 +579,13 @@ public:
 
 	/// Specify the input min and range values for each attribute
 	void setMinsAndRanges(sp_relation& pRel, const double* pMins, const double* pRanges);
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -600,12 +613,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-	
-	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
@@ -614,6 +621,13 @@ public:
 
 	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 
@@ -640,12 +654,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
-	
-	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
-
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 	
@@ -670,6 +678,13 @@ public:
 	/// is necessary in order to utilize the additional label information that
 	/// may be available at training time, which can be important for imputation.)
 	virtual GMatrix* transformBatch(GMatrix& in);
+
+protected:
+	/// See the comment for GIncrementalTransform::train
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// Throws an exception (because this transform cannot be trained without data)
+	virtual sp_relation trainInner(sp_relation& relation);
 };
 
 } // namespace GClasses
