@@ -742,6 +742,56 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	*ppV = hV.release();
 }
 
+void GSparseMatrix::principalComponentAboutOrigin(double* pOutVector, GRand* pRand)
+{
+	if(m_defaultValue != 0.0)
+		ThrowError("Expected the default value to be 0");
+
+	// Initialize the out-vector to a random direction
+	size_t dims = cols();
+	pRand->spherical(pOutVector, dims);
+
+	// Iterate
+	size_t nCount = rows();
+	GTEMPBUF(double, pAccumulator, dims);
+	double d;
+	double mag = 0;
+	for(size_t iters = 0; iters < 200; iters++)
+	{
+		GVec::setAll(pAccumulator, 0.0, dims);
+		for(size_t n = 0; n < nCount; n++)
+		{
+			Iter itEnd = rowEnd(n);
+			double d = 0.0;
+			for(Iter it = rowBegin(n); it != itEnd; it++)
+				d += pOutVector[it->first] * it->second;
+			for(Iter it = rowBegin(n); it != itEnd; it++)
+				pAccumulator[it->first] += d * it->second;
+		}
+		GVec::copy(pOutVector, pAccumulator, dims);
+		GVec::safeNormalize(pOutVector, dims, pRand);
+		d = GVec::squaredMagnitude(pAccumulator, dims);
+		if(iters < 6 || d - mag > 1e-8)
+			mag = d;
+		else
+			break;
+	}
+}
+
+void GSparseMatrix::removeComponentAboutOrigin(const double* pComponent)
+{
+	size_t nCount = rows();
+	for(size_t i = 0; i < nCount; i++)
+	{
+		Iter itEnd = rowEnd(i);
+		double d = 0.0;
+		for(Iter it = rowBegin(i); it != itEnd; it++)
+			d += pComponent[it->first] * it->second;
+		for(Map::iterator it = m_rows[i].begin(); it != itEnd; it++)
+			it->second -= d * pComponent[it->first];
+	}
+}
+
 #ifndef NO_TEST_CODE
 bool GSparseMatrix_testHelper(GSparseMatrix& sm)
 {

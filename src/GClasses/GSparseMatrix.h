@@ -135,6 +135,16 @@ public:
 	/// value is not 0.0.
 	void singularValueDecomposition(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge = false, size_t maxIters = 80);
 
+	/// Computes the first principal component about the origin. (This method
+	/// expects the default value to be 0.0.) The size of pOutVector will be the
+	/// number of columns in this matrix.
+	/// (To compute the next principal component, call RemoveComponent,
+	/// then call this method again.)
+	void principalComponentAboutOrigin(double* pOutVector, GRand* pRand);
+
+	/// Removes the specified component, assuming the mean is at the origin.
+	void removeComponentAboutOrigin(const double* pComponent);
+
 protected:
 	void singularValueDecompositionHelper(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters);
 };

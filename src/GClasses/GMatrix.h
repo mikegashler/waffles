@@ -972,11 +972,9 @@ public:
 	/// See "EM Algorithms for PCA and SPCA"
 	/// by Sam Roweis, 1998 NIPS.
 	///
-	/// nIterations should be a small constant. 20 seems work well for
-	/// most applications.
-	///
+	/// The size of pOutVector will be the number of columns in this matrix.
 	/// (To compute the next principal component, call RemoveComponent,
-	/// then call this again.)
+	/// then call this method again.)
 	void principalComponent(double* pOutVector, const double* pMean, GRand* pRand);
 
 	/// \brief Computes the first principal component assuming the mean
