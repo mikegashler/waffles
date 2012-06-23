@@ -195,11 +195,11 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing opt dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@lockfile-create -r 0 $@
+	@#lockfile-create -r 0 $@
 	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
-	@lockfile-remove $@
+	@#lockfile-remove $@
 
 # This rule makes the debug ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
@@ -209,11 +209,11 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing dbg dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@lockfile-create -r 0 $@
+	@#lockfile-create -r 0 $@
 	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
-	@lockfile-remove $@
+	@#lockfile-remove $@
 
 # This rule makes the test/profile ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a test/profile ".o" file.
@@ -223,16 +223,14 @@ $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing gcov dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@lockfile-create -r 0 $@
+	@#lockfile-create -r 0 $@
 	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
-
 	@#Delete old gcno file
 	@echo -en "	rm -f " >> $@
 	@echo $$(dirname $@)/$$(basename $@ .d).gcno >> $@
-
 	@echo -e "	$(COMPILER) $(GCOV_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
-	@lockfile-remove $@
+	@#lockfile-remove $@
 
 partialcleanopt :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
