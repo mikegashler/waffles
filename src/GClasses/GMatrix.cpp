@@ -4702,4 +4702,15 @@ size_t GMatrixArray::largestSet()
 	return biggestIndex;
 }
 
+size_t GMatrixArray::countEmptySets()
+{
+	size_t count = 0;
+	for(vector<GMatrix*>::iterator it = m_sets.begin(); it != m_sets.end(); it++)
+	{
+		if((*it)->rows() == 0)
+			count++;
+	}
+	return count;
+}
+
 } // namespace GClasses

@@ -1229,6 +1229,9 @@ public:
 
 	/// \brief Returns the index of the largest data set
 	size_t largestSet();
+
+	/// \brief Returns the number of data sets with zero rows
+	size_t countEmptySets();
 };
 
 } // namespace GClasses

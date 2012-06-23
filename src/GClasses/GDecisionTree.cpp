@@ -587,13 +587,16 @@ double* GDecisionTreeNode_labelVec(GMatrix& labels)
 	return pVec;
 }
 
-double* GDecisionTreeNode_labelVec(GMatrix& labels, GMatrixArray& parts)
+double* GDecisionTreeNode_copyIfNotTheLast(size_t emptySets, ArrayHolder<double>& hBaselineVec, size_t dims)
 {
-	GMatrix* pB = parts.sets()[parts.largestSet()];
-	if(labels.rows() > pB->rows())
-		return GDecisionTreeNode_labelVec(labels);
+	if(emptySets > 1)
+	{
+		double* pCopy = new double[dims];
+		GVec::copy(pCopy, hBaselineVec.get(), dims);
+		return pCopy;
+	}
 	else
-		return GDecisionTreeNode_labelVec(*pB);
+		return hBaselineVec.release();
 }
 
 // This constructs the decision tree in a recursive depth-first manner
@@ -678,13 +681,24 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	}
 
 	// Make an interior node
+	double* pBaselineVec = NULL;
+	size_t emptySets = featureParts.countEmptySets() + (features.rows() == 0 ? 1 : 0);
+	if(emptySets > 0)
+	{
+		GMatrix* pB = labelParts.sets()[labelParts.largestSet()];
+		if(labels.rows() > pB->rows())
+			pBaselineVec = GDecisionTreeNode_labelVec(labels);
+		else
+			pBaselineVec = GDecisionTreeNode_labelVec(*pB);
+	}
+	ArrayHolder<double> hBaselineVec(pBaselineVec);
 	GDecisionTreeInteriorNode* pNode = new GDecisionTreeInteriorNode(attr, pivot, featureParts.sets().size() + 1, 0);
 	Holder<GDecisionTreeInteriorNode> hNode(pNode);
 	size_t biggest = features.rows();
 	if(features.rows() > 0){
 		pNode->m_ppChildren[0] = buildBranch(features, labels, attrPool, nDepth + 1, tolerance);
 	}else{
-		pNode->m_ppChildren[0] = new GDecisionTreeLeafNode(GDecisionTreeNode_labelVec(labels, labelParts), 0);
+		pNode->m_ppChildren[0] = new GDecisionTreeLeafNode(GDecisionTreeNode_copyIfNotTheLast(emptySets--, hBaselineVec, labels.cols()), 0);
 	}
 	for(size_t i = 0; i < featureParts.sets().size(); i++)
 	{
@@ -698,7 +712,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 			}
 		}
 		else
-			pNode->m_ppChildren[i + 1] = new GDecisionTreeLeafNode(GDecisionTreeNode_labelVec(labels, labelParts), 0);
+			pNode->m_ppChildren[i + 1] = new GDecisionTreeLeafNode(GDecisionTreeNode_copyIfNotTheLast(emptySets--, hBaselineVec, labels.cols()), 0);
 	}
 	attrPool.push_back(attr);
 	return hNode.release();
