@@ -23,14 +23,15 @@ class GRand;
 class GDomNode;
 class GDom;
 
+typedef std::map<size_t,double> SparseVec;
+
 /// This class stores a row-compressed sparse matrix. That is,
 /// each row consists of a map from a column-index to a value.
 class GSparseMatrix
 {
 protected:
-	typedef std::map<size_t,double> Map;
 	size_t m_cols;
-	std::vector<Map> m_rows;
+	std::vector<SparseVec> m_rows;
 	double m_defaultValue;
 
 public:
@@ -49,7 +50,7 @@ public:
 	static void test();
 #endif
 
-	typedef Map::const_iterator Iter;
+	typedef SparseVec::const_iterator Iter;
 
 	/// Serializes this object
 	GDomNode* serialize(GDom* pDoc) const;
@@ -75,7 +76,7 @@ public:
 	Iter rowEnd(size_t i) const { return m_rows[i].end(); }
 
 	/// Returns the specified sparse row.
-	Map& row(size_t i) { return m_rows[i]; }
+	SparseVec& row(size_t i) { return m_rows[i]; }
 
 	/// Returns the number of non-default-valued elements in the specified row.
 	size_t rowNonDefValues(size_t i) { return m_rows[i].size(); }
@@ -106,13 +107,17 @@ public:
 	void newRows(size_t n);
 
 	/// Adds a new row to this matrix by copying the parameter row
-	void copyRow(Map& row);
+	void copyRow(SparseVec& row);
 
 	/// Converts to a full matrix
 	GMatrix* toFullMatrix();
 
 	/// Multiplies the matrix by a scalar value
 	void multiply(double scalar);
+
+	/// Multiplies this sparse matrix by pThat dense matrix, and returns the resulting dense matrix.
+	/// If transposeThat is true, then it multiplies by the transpose of pThat.
+	GMatrix* multiply(GMatrix* pThat, bool transposeThat);
 
 	/// Swaps the two specified columns. (This method is a lot slower than swapRows.)
 	void swapColumns(size_t a, size_t b);
@@ -145,9 +150,24 @@ public:
 	/// Removes the specified component, assuming the mean is at the origin.
 	void removeComponentAboutOrigin(const double* pComponent);
 
+	/// Returns a k-row dense matrix containing the first k principal components of this sparse matrix.
+	GMatrix* firstPrincipalComponents(size_t k, GRand& rand);
+
 protected:
 	void singularValueDecompositionHelper(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters);
 };
+
+/// Provides static methods for operating on sparse vectors
+class GSparseVec
+{
+public:
+	/// Computes the dot product of a sparse vector with a dense vector
+	static double dotProduct(SparseVec& sparse, double* pDense);
+
+	/// Computes the dot product of two sparse vectors
+	static double dotProduct(SparseVec& a, SparseVec& b);
+};
+
 
 } // namespace GClasses
 

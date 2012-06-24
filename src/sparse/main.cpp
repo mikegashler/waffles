@@ -269,6 +269,61 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 	return NULL;
 }
 
+void firstPrincipalComponents(GArgReader& args)
+{
+	// Load the sparse matrix
+	if(args.size() < 1)
+		ThrowError("No dataset specified.");
+	GSparseMatrix* pA;
+	Holder<GSparseMatrix> hA(NULL);
+	{
+		GDom doc;
+		doc.loadJson(args.pop_string());
+		pA = new GSparseMatrix(doc.root());
+		hA.reset(pA);
+	}
+
+	size_t k = args.pop_uint();
+
+	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	GRand rand(seed);
+	GMatrix* pResult = pA->firstPrincipalComponents(k, rand);
+	pResult->print(cout);
+}
+
+void multiplyDense(GArgReader& args)
+{
+	// Load the sparse matrix
+	if(args.size() < 1)
+		ThrowError("No dataset specified.");
+	GSparseMatrix* pA;
+	Holder<GSparseMatrix> hA(NULL);
+	{
+		GDom doc;
+		doc.loadJson(args.pop_string());
+		pA = new GSparseMatrix(doc.root());
+		hA.reset(pA);
+	}
+
+	// Load the dense matrix
+	GMatrix* pB = GMatrix::loadArff(args.pop_string());
+	Holder<GMatrix> hB(pB);
+
+	// Parse options
+	bool transpose = false;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-transpose"))
+			transpose = true;
+		else
+			ThrowError("Invalid option: ", args.peek());
+	}
+
+	GMatrix* pResult = pA->multiply(pB, transpose);
+	Holder<GMatrix> hResult(pResult);
+	pResult->print(cout);
+}
+
 void train(GArgReader& args)
 {
 	// Parse options
@@ -430,6 +485,32 @@ void test(GArgReader& args)
 	}
 	GVec::multiply(results, 1.0 / pData->rows(), pLabels->cols());
 	GVec::print(cout, 14, results, pLabels->cols());
+}
+
+void transpose(GArgReader& args)
+{
+	// Load the sparse matrix
+	if(args.size() < 1)
+		ThrowError("No dataset specified.");
+	GSparseMatrix* pA;
+	Holder<GSparseMatrix> hA(NULL);
+	{
+		GDom doc;
+		doc.loadJson(args.pop_string());
+		pA = new GSparseMatrix(doc.root());
+		hA.reset(pA);
+	}
+
+	// Transpose it
+	GSparseMatrix* pB = pA->transpose();
+	Holder<GSparseMatrix> hB(pB);
+
+	// Print it
+	{
+		GDom doc;
+		doc.setRoot(pB->serialize(&doc));
+		doc.writeJson(cout);
+	}
 }
 
 class MyHtmlParser1 : public GHtml
@@ -856,12 +937,15 @@ int main(int argc, char *argv[])
 			if(args.if_pop("usage"))
 				ShowUsage(appName);
 			else if(args.if_pop("docstosparsematrix")) docsToSparseMatrix(args);
-			else if(args.if_pop("train")) train(args);
+			else if(args.if_pop("fpc")) firstPrincipalComponents(args);
+			else if(args.if_pop("multiplydense")) multiplyDense(args);
 			else if(args.if_pop("predict")) predict(args);
 			else if(args.if_pop("shuffle")) shuffle(args);
 			else if(args.if_pop("split")) split(args);
 			else if(args.if_pop("splitfold")) splitFold(args);
 			else if(args.if_pop("test")) test(args);
+			else if(args.if_pop("train")) train(args);
+			else if(args.if_pop("transpose")) transpose(args);
 			else
 			{
 				nRet = 1;

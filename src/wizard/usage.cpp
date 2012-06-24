@@ -1292,11 +1292,16 @@ UsageNode* makeSparseUsageTree()
 		pOpts->add("-vocabfile [filename]=vocab.txt", "Save the vocabulary of words to the specified file. The default is to not save the list of words. Note that the words will be stemmed (unless -nostem was specified), so it is normal for many of them to appear misspelled.");
 	}
 	{
-		UsageNode* pTrain = pRoot->add("train <options> [sparse-features] [dense-labels] [algorithm]", "Train the specified algorithm with the sparse matrix. Only incremental learners (such as naivebayes or neuralnet) support this functionality. It will print the trained model-file to stdout.");
-		UsageNode* pOpts = pTrain->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pTrain->add("[sparse-features]=features.sparse", "The filename of a sparse matrix representing the training features. (This matrix should not contain labels.)");
-		pTrain->add("[dense-labels]=labels.arff", "The filename of a dense matrix representing the training labels that correspond with the training features. (The label matrix must have the same number of rows as the feature matrix.)");
+		UsageNode* pFPC = pRoot->add("fpc [sparse-matrix] [k]", "Computes the first [k] principal components of [sparse-matrix] and prints the results as a [k]-row dense matrix in ARFF format.");
+		pFPC->add("[sparse-matrix]=matrix.sparse", "The filename of a sparse matrix.");
+		pFPC->add("[k]=5", "The number of principal components to compute.");
+	}
+	{
+		UsageNode* pMD = pRoot->add("multiplydense [sparse-matrix] [dense-matrix] <options>", "Multiplies a sparse matrix by a dense matrix. Prints the resulting dense matrix to stdout in ARFF format.");
+		pMD->add("[sparse-matrix]=a.sparse", "The filename of a sparse matrix.");
+		pMD->add("[dense-matrix]=b.arff", "The filename of a dense matrix in ARFF format.");
+		UsageNode* pOpts = pMD->add("<options>");
+		pOpts->add("-transpose", "Transpose the dense matrix before multiplying.");
 	}
 	{
 		UsageNode* pPredict = pRoot->add("predict <options> [model-file] [sparse-matrix]", "Predict labels for all of the rows in [sparse-matrix]. Label predictions for each row are printed to stdout. (The features are not printed with the predictions.)");
@@ -1331,6 +1336,16 @@ UsageNode* makeSparseUsageTree()
 		pTest->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.) Only incremental learning algorithms are supported.");
 		pTest->add("[sparse-features]=features.sparse", "The filename of a sparse matrix of features for which labels should be predicted. (The feature matrix should not contain labels.)");
 		pTest->add("[labels]=labels.arff", "The filename of a dense matrix of labels in .arff format. (This matrix should have the same number of rows as [sparse-features], since they correspond with each other.");
+	}
+	{
+		UsageNode* pTrain = pRoot->add("train <options> [sparse-features] [dense-labels] [algorithm]", "Train the specified algorithm with the sparse matrix. Only incremental learners (such as naivebayes or neuralnet) support this functionality. It will print the trained model-file to stdout.");
+		UsageNode* pOpts = pTrain->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
+		pTrain->add("[sparse-features]=features.sparse", "The filename of a sparse matrix representing the training features. (This matrix should not contain labels.)");
+		pTrain->add("[dense-labels]=labels.arff", "The filename of a dense matrix representing the training labels that correspond with the training features. (The label matrix must have the same number of rows as the feature matrix.)");
+	}
+	{
+		UsageNode* pTranspose = pRoot->add("transpose [sparse-matrix]", "Transposes the specified matrix. Prints the resulting sparse matrix to stdout.");
 	}
 	{
 		pRoot->add("usage", "Print usage information.");

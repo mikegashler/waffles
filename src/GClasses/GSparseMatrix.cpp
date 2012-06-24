@@ -88,7 +88,7 @@ void GSparseMatrix::fullRow(double* pOutFullRow, size_t row)
 double GSparseMatrix::get(size_t row, size_t col)
 {
 	GAssert(row < m_rows.size() && col < m_cols); // out of range
-	Map::iterator it = m_rows[row].find(col);
+	SparseVec::iterator it = m_rows[row].find(col);
 	if(it == m_rows[row].end())
 		return m_defaultValue;
 	return it->second;
@@ -109,10 +109,51 @@ void GSparseMatrix::multiply(double scalar)
 		ThrowError("This method assumes the default value is 0");
 	for(size_t r = 0; r < m_rows.size(); r++)
 	{
-		Map::iterator end = m_rows[r].end();
-		for(Map::iterator it = m_rows[r].begin(); it != end; it++)
+		SparseVec::iterator end = m_rows[r].end();
+		for(SparseVec::iterator it = m_rows[r].begin(); it != end; it++)
 			it->second *= scalar;
 	}
+}
+
+GMatrix* GSparseMatrix::multiply(GMatrix* pThat, bool transposeThat)
+{
+	// Transpose pThat if necessary
+	GMatrix* pOther = pThat;
+	Holder<GMatrix> hOther(NULL);
+	if(!transposeThat)
+	{
+		pOther = pThat->transpose();
+		hOther.reset(pOther);
+	}
+	if(pOther->cols() != cols())
+		ThrowError("Matrices have incompatible sizes");
+
+	// Do the multiplying
+	GMatrix* pResult = new GMatrix(rows(), pOther->rows());
+	for(size_t r = 0; r < rows(); r++)
+	{
+		SparseVec& a = row(r);
+		double* pOut = pResult->row(r);
+		for(size_t c = 0; c < pOther->rows(); c++)
+		{
+			double* pB = pOther->row(c);
+			*(pOut++) = GSparseVec::dotProduct(a, pB);
+		}
+	}
+	return pResult;
+}
+
+GMatrix* GSparseMatrix::firstPrincipalComponents(size_t k, GRand& rand)
+{
+	GSparseMatrix clone(rows(), cols(), defaultValue());
+	clone.copyFrom(this);
+	GMatrix* pResult = new GMatrix(k, cols());
+	for(size_t i = 0; i < k; i++)
+	{
+		clone.principalComponentAboutOrigin(pResult->row(i), &rand);
+		clone.removeComponentAboutOrigin(pResult->row(i));
+	}
+	return pResult;
 }
 
 void GSparseMatrix::copyFrom(GSparseMatrix* that)
@@ -155,11 +196,11 @@ void GSparseMatrix::newRows(size_t n)
 	m_rows.resize(m_rows.size() + n);
 }
 
-void GSparseMatrix::copyRow(Map& row)
+void GSparseMatrix::copyRow(SparseVec& row)
 {
 	size_t n = m_rows.size();
 	newRow();
-	Map& m = m_rows[n];
+	SparseVec& m = m_rows[n];
 	m = row;
 }
 
@@ -330,8 +371,8 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 		scale = 0.0;
 		if(i < m)
 		{
-			Map::iterator end = pUT->m_rows[i].end();
-			Map::iterator it, it2, end2;
+			SparseVec::iterator end = pUT->m_rows[i].end();
+			SparseVec::iterator it, it2, end2;
 			for(it = pUT->m_rows[i].begin(); it != end && it->first < (size_t)i; it++) {}
 			for(; it != end; it++)
 				scale += std::abs(it->second);
@@ -398,8 +439,8 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 		scale = 0.0;
 		if(i < m && i != n - 1)
 		{
-			Map::iterator end = pU->m_rows[i].end();
-			Map::iterator it, it2, end2;
+			SparseVec::iterator end = pU->m_rows[i].end();
+			SparseVec::iterator it, it2, end2;
 			for(it = pU->m_rows[i].begin(); it != end && it->first < (size_t)l; it++) {}
 			for(; it != end; it++)
 				scale += std::abs(it->second);
@@ -475,9 +516,9 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 				for(j = l; j < n; j++)
 				{
 					s = 0.0;
-					Map::iterator endU = pU->m_rows[i].end();
-					Map::iterator endV = pV->m_rows[j].end();
-					Map::iterator itU, itV;
+					SparseVec::iterator endU = pU->m_rows[i].end();
+					SparseVec::iterator endV = pV->m_rows[j].end();
+					SparseVec::iterator itU, itV;
 					for(itU = pU->m_rows[i].begin(); itU != endU && itU->first < (size_t)l; itU++) {}
 					for(itV = pV->m_rows[j].begin(); itV != endV && itV->first < (size_t)l; itV++) {}
 					while(itU != endU && itV != endV)
@@ -531,9 +572,9 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 				for(j = l; j < n; j++)
 				{
 					s = 0.0;
-					Map::iterator end = pUT->m_rows[i].end();
-					Map::iterator end2 = pUT->m_rows[j].end();
-					Map::iterator it1, it2;
+					SparseVec::iterator end = pUT->m_rows[i].end();
+					SparseVec::iterator end2 = pUT->m_rows[j].end();
+					SparseVec::iterator it1, it2;
 					for(it1 = pUT->m_rows[i].begin(); it1 != end && it1->first < (size_t)l; it1++) {}
 					for(it2 = pUT->m_rows[j].begin(); it2 != end2 && it2->first < (size_t)l; it2++) {}
 					while(it1 != end && it2 != end2)
@@ -614,11 +655,11 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 					c = g * h;
 					s = -f * h;
 					indexes.clear();
-					Map::iterator end = pUT->m_rows[i].end();
-					for(Map::iterator it = pUT->m_rows[i].begin(); it != end; it++)
+					SparseVec::iterator end = pUT->m_rows[i].end();
+					for(SparseVec::iterator it = pUT->m_rows[i].begin(); it != end; it++)
 						indexes.insert(it->first);
 					end = pUT->m_rows[q].end();
-					for(Map::iterator it = pUT->m_rows[q].begin(); it != end; it++)
+					for(SparseVec::iterator it = pUT->m_rows[q].begin(); it != end; it++)
 						indexes.insert(it->first);
 					for(std::set<size_t>::iterator it = indexes.begin(); it != indexes.end(); it++)
 					{
@@ -677,11 +718,11 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 				h = y * s;
 				y = y * c;
 				indexes.clear();
-				Map::iterator end = pV->m_rows[i].end();
-				for(Map::iterator it = pV->m_rows[i].begin(); it != end; it++)
+				SparseVec::iterator end = pV->m_rows[i].end();
+				for(SparseVec::iterator it = pV->m_rows[i].begin(); it != end; it++)
 					indexes.insert(it->first);
 				end = pV->m_rows[j].end();
-				for(Map::iterator it = pV->m_rows[j].begin(); it != end; it++)
+				for(SparseVec::iterator it = pV->m_rows[j].begin(); it != end; it++)
 					indexes.insert(it->first);
 				for(std::set<size_t>::iterator it = indexes.begin(); it != indexes.end(); it++)
 				{
@@ -702,10 +743,10 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 				x = c * y - s * g;
 				indexes.clear();
 				end = pUT->m_rows[i].end();
-				for(Map::iterator it = pUT->m_rows[i].begin(); it != end; it++)
+				for(SparseVec::iterator it = pUT->m_rows[i].begin(); it != end; it++)
 					indexes.insert(it->first);
 				end = pUT->m_rows[j].end();
-				for(Map::iterator it = pUT->m_rows[j].begin(); it != end; it++)
+				for(SparseVec::iterator it = pUT->m_rows[j].begin(); it != end; it++)
 					indexes.insert(it->first);
 				for(std::set<size_t>::iterator it = indexes.begin(); it != indexes.end(); it++)
 				{
@@ -787,7 +828,7 @@ void GSparseMatrix::removeComponentAboutOrigin(const double* pComponent)
 		double d = 0.0;
 		for(Iter it = rowBegin(i); it != itEnd; it++)
 			d += pComponent[it->first] * it->second;
-		for(Map::iterator it = m_rows[i].begin(); it != itEnd; it++)
+		for(SparseVec::iterator it = m_rows[i].begin(); it != itEnd; it++)
 			it->second -= d * pComponent[it->first];
 	}
 }
@@ -847,6 +888,54 @@ void GSparseMatrix::test()
 		ThrowError("failed");
 }
 #endif
+
+
+
+
+
+// static
+double GSparseVec::dotProduct(SparseVec& sparse, double* pDense)
+{
+	double d = 0.0;
+	for(SparseVec::iterator it = sparse.begin(); it != sparse.end(); it++)
+		d += pDense[it->first] * it->second;
+	return d;
+}
+
+// static
+double GSparseVec::dotProduct(SparseVec& a, SparseVec& b)
+{
+	double d = 0.0;
+	SparseVec::iterator itA = a.begin();
+	if(itA == a.end())
+		return d;
+	SparseVec::iterator itB = b.begin();
+	if(itB == b.end())
+		return d;
+	while(true)
+	{
+		if(itA->first < itB->first)
+		{
+			itA++;
+			if(itA == a.end())
+				break;
+		}
+		else if(itB->first < itA->first)
+		{
+			itB++;
+			if(itB == b.end())
+				break;
+		}
+		else
+		{
+			d += itA->second * itB->second;
+			itA++;
+			itB++;
+		}
+	}
+	return d;
+}
+
 
 } // namespace GClasses
 
