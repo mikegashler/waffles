@@ -310,6 +310,8 @@ class GArffAttribute
 public:
 	std::string m_name;
 	std::vector<std::string> m_values;
+
+	GDomNode* serialize(GDom* pDoc, size_t valCount) const;
 };
 
 
@@ -324,10 +326,19 @@ protected:
 	std::vector<GArffAttribute> m_attrs;
 
 public:
+	/// General-purpose constructor
 	GArffRelation();
+
+	/// Deserializing constructor
+	GArffRelation(GDomNode* pNode);
+
 	virtual ~GArffRelation();
 
 	virtual RelationType type() const { return ARFF; }
+
+	/// \brief Marshalls this object to a DOM, which can be saved to a
+	/// variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// \brief Returns a deep copy of this object
 	virtual GRelation* clone() const;
@@ -402,10 +413,6 @@ public:
 
 	/// \brief Parses the meta-data for an attribute
 	void parseAttribute(GArffTokenizer& tok);
-
-protected:
-	/// \brief takes ownership of ppValues
-	void addAttributeInternal(const char* pName, size_t nameLen, size_t valueCount);
 };
 
 /// \brief Represents a matrix or a database table. 

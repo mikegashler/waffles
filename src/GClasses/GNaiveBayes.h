@@ -23,8 +23,8 @@ struct GNaiveBayesOutputAttr;
 class GNaiveBayes : public GIncrementalLearner
 {
 protected:
-	sp_relation m_pFeatureRel;
-	sp_relation m_pLabelRel;
+	sp_relation m_pInnerRelFeatures;
+	sp_relation m_pInnerRelLabels;
 	size_t m_nSampleCount;
 	GNaiveBayesOutputAttr** m_pOutputs;
 	double m_equivalentSampleSize;

@@ -234,18 +234,18 @@ GNaiveBayes::GNaiveBayes(GRand& rand)
 GNaiveBayes::GNaiveBayes(GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalLearner(pNode, ll)
 {
-	m_pFeatureRel = GRelation::deserialize(pNode->field("featurerel"));
-	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
+	m_pInnerRelFeatures = GRelation::deserialize(pNode->field("irf"));
+	m_pInnerRelLabels = GRelation::deserialize(pNode->field("irl"));
 	m_nSampleCount = (size_t)pNode->field("sampleCount")->asInt();
 	m_equivalentSampleSize = pNode->field("ess")->asDouble();
 	GDomNode* pOutputs = pNode->field("outputs");
 	GDomListIterator it(pOutputs);
-	if(it.remaining() != m_pLabelRel->size())
+	if(it.remaining() != m_pInnerRelLabels->size())
 		ThrowError("Wrong number of outputs");
-	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pLabelRel->size()];
-	for(size_t i = 0; i < m_pLabelRel->size(); i++)
+	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pInnerRelLabels->size()];
+	for(size_t i = 0; i < m_pInnerRelLabels->size(); i++)
 	{
-		m_pOutputs[i] = new struct GNaiveBayesOutputAttr(it.current(), m_pFeatureRel->size(), m_pLabelRel->valueCount(i));
+		m_pOutputs[i] = new struct GNaiveBayesOutputAttr(it.current(), m_pInnerRelFeatures->size(), m_pInnerRelLabels->valueCount(i));
 		it.advance();
 	}
 }
@@ -259,12 +259,12 @@ GNaiveBayes::~GNaiveBayes()
 GDomNode* GNaiveBayes::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNaiveBayes");
-	pNode->addField(pDoc, "featurerel", m_pFeatureRel->serialize(pDoc));
-	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
+	pNode->addField(pDoc, "irf", m_pInnerRelFeatures->serialize(pDoc));
+	pNode->addField(pDoc, "irl", m_pInnerRelLabels->serialize(pDoc));
 	pNode->addField(pDoc, "sampleCount", pDoc->newInt(m_nSampleCount));
 	pNode->addField(pDoc, "ess", pDoc->newDouble(m_equivalentSampleSize));
 	GDomNode* pOutputs = pNode->addField(pDoc, "outputs", pDoc->newList());
-	for(size_t i = 0; i < m_pLabelRel->size(); i++)
+	for(size_t i = 0; i < m_pInnerRelLabels->size(); i++)
 		pOutputs->addItem(pDoc, m_pOutputs[i]->serialize(pDoc));
 	return pNode;
 }
@@ -275,7 +275,7 @@ void GNaiveBayes::clear()
 	m_nSampleCount = 0;
 	if(m_pOutputs)
 	{
-		for(size_t n = 0; n < m_pLabelRel->size(); n++)
+		for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
 			delete(m_pOutputs[n]);
 		delete[] m_pOutputs;
 	}
@@ -286,17 +286,17 @@ void GNaiveBayes::clear()
 void GNaiveBayes::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	clear();
-	m_pFeatureRel = pFeatureRel;
-	m_pLabelRel = pLabelRel;
-	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pLabelRel->size()];
-	for(size_t n = 0; n < m_pLabelRel->size(); n++)
-		m_pOutputs[n] = new struct GNaiveBayesOutputAttr(m_pFeatureRel.get(), m_pFeatureRel->size(), m_pLabelRel->valueCount(n));
+	m_pInnerRelFeatures = pFeatureRel;
+	m_pInnerRelLabels = pLabelRel;
+	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pInnerRelLabels->size()];
+	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
+		m_pOutputs[n] = new struct GNaiveBayesOutputAttr(m_pInnerRelFeatures.get(), m_pInnerRelFeatures->size(), m_pInnerRelLabels->valueCount(n));
 }
 
 // virtual
 void GNaiveBayes::trainIncrementalInner(const double* pIn, const double* pOut)
 {
-	for(size_t n = 0; n < m_pLabelRel->size(); n++)
+	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
 		m_pOutputs[n]->AddTrainingSample(pIn, (int)pOut[n]);
 	m_nSampleCount++;
 }
@@ -339,7 +339,7 @@ void GNaiveBayes::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
 	if(m_nSampleCount <= 0)
 		ThrowError("You must call train before you call eval");
-	for(size_t n = 0; n < m_pLabelRel->size(); n++)
+	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
 		m_pOutputs[n]->eval(pIn, &pOut[n], m_equivalentSampleSize);
 }
 
@@ -347,7 +347,7 @@ void GNaiveBayes::predictInner(const double* pIn, double* pOut)
 {
 	if(m_nSampleCount <= 0)
 		ThrowError("You must call train before you call eval");
-	for(size_t n = 0; n < m_pLabelRel->size(); n++)
+	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
 		pOut[n] = m_pOutputs[n]->predict(pIn, m_equivalentSampleSize, &m_rand);
 }
 

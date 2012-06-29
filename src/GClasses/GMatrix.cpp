@@ -42,18 +42,14 @@ namespace GClasses {
 // static
 smart_ptr<GRelation> GRelation::deserialize(GDomNode* pNode)
 {
-	if(pNode->fieldIfExists("attrs"))
-	{
-		sp_relation sp;
+	sp_relation sp;
+	if(pNode->fieldIfExists("name"))
+		sp = new GArffRelation(pNode);
+	else if(pNode->fieldIfExists("attrs"))
 		sp = new GUniformRelation(pNode);
-		return sp;
-	}
 	else
-	{
-		sp_relation sp;
 		sp = new GMixedRelation(pNode);
-		return sp;
-	}
+	return sp;
 }
 
 void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) const
@@ -321,6 +317,7 @@ GUniformRelation::GUniformRelation(GDomNode* pNode)
 	m_valueCount = (size_t)pNode->field("vals")->asInt();
 }
 
+// virtual
 GDomNode* GUniformRelation::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
@@ -368,7 +365,7 @@ GMixedRelation::GMixedRelation(vector<size_t>& attrValues)
 GMixedRelation::GMixedRelation(GDomNode* pNode)
 {
 	m_valueCounts.clear();
-	GDomNode* pValueCounts = pNode->field("valueCounts");
+	GDomNode* pValueCounts = pNode->field("vals");
 	GDomListIterator it(pValueCounts);
 	m_valueCounts.reserve(it.remaining());
 	for( ; it.current(); it.advance())
@@ -390,10 +387,11 @@ GMixedRelation::~GMixedRelation()
 {
 }
 
+// virtual
 GDomNode* GMixedRelation::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	GDomNode* pValueCounts = pNode->addField(pDoc, "valueCounts", pDoc->newList());
+	GDomNode* pValueCounts = pNode->addField(pDoc, "vals", pDoc->newList());
 	for(size_t i = 0; i < m_valueCounts.size(); i++)
 		pValueCounts->addItem(pDoc, pDoc->newInt(m_valueCounts[i]));
 	return pNode;
@@ -515,6 +513,21 @@ void GMixedRelation::setAttrValueCount(size_t nAttr, size_t nValues)
 
 // ------------------------------------------------------------------
 
+GDomNode* GArffAttribute::serialize(GDom* pDoc, size_t valCount) const
+{
+	GDomNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "name", pDoc->newString(m_name.c_str()));
+	if(valCount > 0 && m_values.size() >= valCount)
+	{
+		GDomNode* pVals = pNode->addField(pDoc, "vals", pDoc->newList());
+		for(size_t i = 0; i < valCount; i++)
+			pVals->addItem(pDoc, pDoc->newString(m_values[i].c_str()));
+	}
+	else
+		pNode->addField(pDoc, "vc", pDoc->newInt(valCount));
+	return pNode;
+}
+
 class GArffTokenizer : public GTokenizer
 {
 public:
@@ -532,8 +545,44 @@ GArffRelation::GArffRelation()
 {
 }
 
+GArffRelation::GArffRelation(GDomNode* pNode)
+{
+	m_name = pNode->field("name")->asString();
+	GDomListIterator it(pNode->field("attrs"));
+	while(it.current())
+	{
+		GDomNode* pVals = it.current()->fieldIfExists("vals");
+		const char* valName = it.current()->field("name")->asString();
+		if(pVals)
+		{
+			vector<const char*> valNames;
+			GDomListIterator it2(pVals);
+			while(it2.current())
+			{
+				valNames.push_back(it2.current()->asString());
+				it2.advance();
+			}
+			addAttribute(valName, valNames.size(), &valNames);
+		}
+		else
+			addAttribute(valName, it.current()->field("vc")->asInt(), NULL);
+		it.advance();
+	}
+}
+
 GArffRelation::~GArffRelation()
 {
+}
+
+// virtual
+GDomNode* GArffRelation::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "name", pDoc->newString(m_name.c_str()));
+	GDomNode* pAttrs = pNode->addField(pDoc, "attrs", pDoc->newList());
+	for(size_t i = 0; i < m_attrs.size(); i++)
+		pAttrs->addItem(pDoc, m_attrs[i].serialize(pDoc, m_valueCounts[i]));
+	return pNode;
 }
 
 // virtual
@@ -560,15 +609,6 @@ GRelation* GArffRelation::cloneSub(size_t start, size_t count) const
 	pNewRelation->addAttrs(this, start, count);
 	pNewRelation->setName(name());
 	return pNewRelation;
-}
-
-void GArffRelation::addAttributeInternal(const char* pName, size_t nameLen, size_t valueCount)
-{
-	GAssert(m_attrs.size() == m_valueCounts.size());
-	size_t index = m_valueCounts.size();
-	m_valueCounts.push_back(valueCount);
-	m_attrs.resize(index + 1);
-	m_attrs[index].m_name.append(pName, nameLen);
 }
 
 void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<const char*>* pValues)
@@ -604,7 +644,7 @@ void GArffRelation::copyAttr(const GRelation* pThat, size_t nAttr)
 	{
 		size_t index = m_valueCounts.size();
 		GArffRelation* pOther = (GArffRelation*)pThat;
-		addAttributeInternal(pOther->m_attrs[nAttr].m_name.c_str(), pOther->m_attrs[nAttr].m_name.length(), pOther->m_valueCounts[nAttr]);
+		addAttribute(pOther->m_attrs[nAttr].m_name.c_str(), pOther->m_valueCounts[nAttr], NULL);
 		for(size_t i = 0; i < pOther->m_attrs[nAttr].m_values.size(); i++)
 			m_attrs[index].m_values.push_back(pOther->m_attrs[nAttr].m_values[i]);
 	}
@@ -789,13 +829,12 @@ bool GArffRelation::isCompatible(const GRelation& that) const
 			size_t vals = valueCount(i);
 			if(vals != 0)
 			{
-				for(size_t j = 0; j < vals; j++)
+				const GArffAttribute& attrThis = m_attrs[i];
+				const GArffAttribute& attrThat = ((const GArffRelation*)&that)->m_attrs[i];
+				size_t named = std::min(attrThis.m_values.size(), attrThat.m_values.size());
+				for(size_t j = 0; j < named; j++)
 				{
-					const GArffAttribute& attrThis = m_attrs[j];
-					const GArffAttribute& attrThat = ((const GArffRelation*)&that)->m_attrs[j];
-					if(attrThis.m_values.size() >= j &&
-						attrThat.m_values.size() >= j &&
-						attrThis.m_values[j].length() != 0 &&
+					if(	attrThis.m_values[j].length() != 0 &&
 						attrThat.m_values[j].length() != 0 &&
 						strcmp(attrThis.m_values[j].c_str(), attrThat.m_values[j].c_str()) != 0)
 						return false;

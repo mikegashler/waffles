@@ -280,7 +280,6 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-windowepochs [value]=200", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
 		pOpts->add("-minwindowimprovement [value]=0.002", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
 		pOpts->add("-holdout [portion]=0.35", "Specify the portion of the data (between 0 and 1) to use as a hold-out set for validation. That is, this portion of the data will not be used for training, but will be used to determine when to stop training. If the holdout portion is set to 0, then no holdout set will be used, and the entire training set will be used for validation (which may lead to long training time and overfit).");
-		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
 		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
 		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to "
 			"the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
@@ -846,6 +845,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pOpts = pTrain->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pOpts->add("-calibrate", "Calibrate the model after it is trained, such that predicted distributions will approximate the distributions represented in the training data. This switch is typically used only if you plan to predict distributions (by calling predictdistribution) instead of just class labels or regression values. Calibration will not effect the predictions made by regular calls to 'predict', which is used by most other tools.");
+		pOpts->add("-embed", "Escape the output model such that it can easily be embedded in C or C++ code.");
 		pTrain->add("[dataset]=train.arff", "The filename of a dataset.");
 		UsageNode* pDO = pTrain->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of"
@@ -866,11 +866,10 @@ UsageNode* makeLearnUsageTree()
 			"A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
-		UsageNode* pPOP = pRoot->add("predictdistribution <options> [model-file] [data-set] <data_opts> [pattern]", "Predict a distribution for a single feature vector and print it to stdout. (Typically, the '-calibrate' switch should be used when training the model. If the model is not calibrated, then the predicted distribution may not be a very good estimated distribution. Also, some models cannot be used to predict a distribution.)");
+		UsageNode* pPOP = pRoot->add("predictdistribution <options> [model-file] <data_opts> [pattern]", "Predict a distribution for a single feature vector and print it to stdout. (Typically, the '-calibrate' switch should be used when training the model. If the model is not calibrated, then the predicted distribution may not be a very good estimated distribution. Also, some models cannot be used to predict a distribution.)");
 		UsageNode* pOpts = pPOP->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pPOP->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
-		pPOP->add("[data-set]=train.arff", "The filename of dataset from which to obtain meta-data. This can be the training set or the test set. It doesn't matter which, because the data is ignored. Only the meta-data, such as the string names of attribute values, are obtained from this dataset.");
 		pPOP->add("[pattern]", "A list of feature values separated by spaces. (A \"?\" may be used for unknown feature values if the model supports using unknown feature values.)");
 		UsageNode* pDO = pPOP->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -1345,7 +1344,7 @@ UsageNode* makeSparseUsageTree()
 		pTrain->add("[dense-labels]=labels.arff", "The filename of a dense matrix representing the training labels that correspond with the training features. (The label matrix must have the same number of rows as the feature matrix.)");
 	}
 	{
-		UsageNode* pTranspose = pRoot->add("transpose [sparse-matrix]", "Transposes the specified matrix. Prints the resulting sparse matrix to stdout.");
+		pRoot->add("transpose [sparse-matrix]=matrix.sparse", "Transposes the specified matrix. Prints the resulting sparse matrix to stdout.");
 	}
 	{
 		pRoot->add("usage", "Print usage information.");

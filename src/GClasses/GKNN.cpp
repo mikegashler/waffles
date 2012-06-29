@@ -927,7 +927,8 @@ void GInstanceTable::predictInner(const double* pIn, double* pOut)
 			ThrowError("dim=", to_str(i), ", index=", to_str(pIn[i]), ", out of range. Expected >= 0 and < ", to_str(m_pDims[i]));
 		pos += n * m_pScales[i];
 	}
-	GVec::copy(pOut, m_pTable + pos * m_labelDims, m_labelDims);
+	size_t labelDims = m_pRelLabels->size();
+	GVec::copy(pOut, m_pTable + pos * labelDims, labelDims);
 }
 
 // virtual
@@ -950,8 +951,6 @@ void GInstanceTable::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_
 	for(size_t i = 0; i < total; i++)
 		*(p++) = m_rand.uniform() * 0.1;
 
-	m_featureDims = pFeatureRel->size();
-	m_labelDims = pLabelRel->size();
 	m_dims = pFeatureRel->size();
 }
 
@@ -966,7 +965,8 @@ void GInstanceTable::trainIncrementalInner(const double* pIn, const double* pOut
 			ThrowError("dim=", to_str(i), ", index=", to_str(pIn[i]), ", out of range. Expected >= 0 and < ", to_str(m_pDims[i]));
 		pos += n * m_pScales[i];
 	}
-	GVec::copy(m_pTable + pos * m_labelDims, pOut, m_labelDims);
+	size_t labelDims = m_pRelLabels->size();
+	GVec::copy(m_pTable + pos * labelDims, pOut, labelDims);
 }
 
 }

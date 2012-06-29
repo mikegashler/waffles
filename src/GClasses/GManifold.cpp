@@ -2261,7 +2261,7 @@ GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll
 		m_pJitterer = NULL;
 		m_jitterDims = 0;
 	}
-	m_intrinsicDims = m_pNN->featureDims() - (m_paramDims + m_jitterDims);
+	m_intrinsicDims = m_pNN->relFeatures()->size() - (m_paramDims + m_jitterDims);
 	GDomListIterator itMins(pNode->field("mins"));
 	m_pMins = new double[itMins.remaining()];
 	GVec::deserialize(m_pMins, itMins);
@@ -2285,12 +2285,12 @@ GUnsupervisedBackProp::~GUnsupervisedBackProp()
 
 GDomNode* GUnsupervisedBackProp::serialize(GDom* pDoc) const
 {
-	size_t channels = m_pNN->labelDims();
+	size_t channels = m_pNN->relLabels()->size();
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "params", GIndexVec::serialize(pDoc, m_pParamRanges, m_paramDims));
 	pNode->addField(pDoc, "nn", m_pNN->serialize(pDoc));
 	pNode->addField(pDoc, "rev", m_pRevNN->serialize(pDoc));
-	GAssert(m_paramDims + m_jitterDims + m_intrinsicDims == m_pNN->featureDims());
+	GAssert(m_paramDims + m_jitterDims + m_intrinsicDims == m_pNN->relFeatures()->size());
 	pNode->addField(pDoc, "bias", pDoc->newBool(m_useInputBias));
 	if(m_pJitterer)
 		pNode->addField(pDoc, "jitterer", m_pJitterer->serialize(pDoc));
@@ -2399,8 +2399,8 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	ArrayHolder<double> hParams(pParams);
 	double* pJitters = pParams + m_paramDims;
 	double* pIntrinsic = pJitters + m_jitterDims;
-	double* pInputMomentum = new double[m_pNN->featureDims()];
-	GVec::setAll(pInputMomentum, 0.0, m_pNN->featureDims());
+	double* pInputMomentum = new double[m_pNN->relFeatures()->size()];
+	GVec::setAll(pInputMomentum, 0.0, m_pNN->relFeatures()->size());
 	ArrayHolder<double> hInputMomentum(pInputMomentum);
 	for(size_t pass = 0; pass < 3; pass++)
 	{
@@ -2600,8 +2600,8 @@ void GUnsupervisedBackProp::hiToLow(const double* pIn, double* pOut)
 	// Init
 	if(!m_pNN->hasTrainingBegun())
 		ThrowError("Not trained");
-	if(m_pNN->featureDims() != m_paramDims + m_jitterDims + m_intrinsicDims)
-		ThrowError("Incorrect number of inputs Expected ", to_str(m_paramDims + m_jitterDims + m_intrinsicDims), ", got ", to_str(m_pNN->featureDims()));
+	if(m_pNN->relFeatures()->size() != m_paramDims + m_jitterDims + m_intrinsicDims)
+		ThrowError("Incorrect number of inputs Expected ", to_str(m_paramDims + m_jitterDims + m_intrinsicDims), ", got ", to_str(m_pNN->relFeatures()->size()));
 
 	// Use the reverse map
 	double* pParams = new double[m_paramDims + m_jitterDims + m_intrinsicDims];
@@ -2658,7 +2658,7 @@ m_pNN->setErrorSingleOutput(prediction + err, c);
 
 void GUnsupervisedBackProp::lowToHi(const double* pIn, double* pOut)
 {
-	size_t channels = m_pNN->labelDims();
+	size_t channels = m_pNN->relLabels()->size();
 	double* pParams = new double[m_paramDims + m_jitterDims + m_intrinsicDims];
 	ArrayHolder<double> hParams(pParams);
 	GVec::copy(pParams + m_paramDims, pIn, m_jitterDims + m_intrinsicDims);
@@ -2684,7 +2684,7 @@ double* GUnsupervisedBackProp::mins()
 	{
 		if(!m_pNN)
 			ThrowError("No neural net has been set");
-		m_pMins = new double[m_pNN->labelDims()];
+		m_pMins = new double[m_pNN->relLabels()->size()];
 	}
 	return m_pMins;
 }
@@ -2695,14 +2695,14 @@ double* GUnsupervisedBackProp::ranges()
 	{
 		if(!m_pNN)
 			ThrowError("No neural net has been set");
-		m_pRanges = new double[m_pNN->labelDims()];
+		m_pRanges = new double[m_pNN->relLabels()->size()];
 	}
 	return m_pRanges;
 }
 
 size_t GUnsupervisedBackProp::labelDims()
 {
-	return m_cvi.coordCount() * m_pNN->labelDims();
+	return m_cvi.coordCount() * m_pNN->relLabels()->size();
 }
 
 } // namespace GClasses

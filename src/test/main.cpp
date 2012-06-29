@@ -739,7 +739,7 @@ void test_document_classification()
 		TempFileMaker tempFileTestFeatures("test.sparse", NULL);
 		TempFileMaker tempFileTrainLabels("train.arff", NULL);
 		TempFileMaker tempFileTestLabels("test.arff", NULL);
-		TempFileMaker tempFileModel("model.twt", NULL);
+		TempFileMaker tempFileModel("model.json", NULL);
 		char buf[256];
 		GMatrix results(18, models.size());
 		for(size_t i = 0; i < 18; i++)
@@ -765,11 +765,11 @@ void test_document_classification()
 				GPipe pipeStdOut2;
 				if(sysExec("waffles_sparse", sArgs.c_str(), &pipeStdOut2) != 0)
 					ThrowError("exit status indicates failure");
-				pipeStdOut2.toFile("model.twt");
+				pipeStdOut2.toFile("model.json");
 
 				// Test the model
 				GPipe pipeStdOut3;
-				if(sysExec("waffles_sparse", "test -seed 0 model.twt test.sparse test.arff", &pipeStdOut3) != 0)
+				if(sysExec("waffles_sparse", "test -seed 0 model.json test.sparse test.arff", &pipeStdOut3) != 0)
 					ThrowError("exit status indicates failure");
 				size_t len = pipeStdOut3.read(buf, 256);
 				if(len >= 256)

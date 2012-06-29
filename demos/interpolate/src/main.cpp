@@ -455,9 +455,6 @@ public:
 
 			// Display the image
 			GTEMPBUF(double, row, 5);
-			size_t ranges[2];
-			ranges[0] = m_pImageBig->width();
-			ranges[1] = m_pImageBig->height();
 			m_pCvi->reset();
 			unsigned int* pPix = m_pImageBig->pixels();
 			while(true)

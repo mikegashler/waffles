@@ -38,8 +38,6 @@ public:
 	};
 
 protected:
-	sp_relation m_pFeatureRel;
-	sp_relation m_pLabelRel;
 	GDecisionTreeNode* m_pRoot;
 	DivisionAlgorithm m_eAlg;
 	size_t m_leafThresh;

@@ -1644,7 +1644,7 @@ void printDecisionTree(GArgReader& args)
 		size_t ld;
 		pData = loadDataWithSwitches(args, &ld);
 		Holder<GMatrix> hData(pData);
-		size_t labelDims = pModeler->labelDims();
+		size_t labelDims = pModeler->relLabels()->size();
 		if(ld != labelDims)
 			ThrowError("Different number of label dims than the model was trained with");
 		GArffRelation relFeatures;
@@ -1678,7 +1678,7 @@ void printRandomForest(GArgReader& args)
 		size_t ld;
 		pData = loadDataWithSwitches(args, &ld);
 		Holder<GMatrix> hData(pData);
-		size_t labelDims = pModeler->labelDims();
+		size_t labelDims = pModeler->relLabels()->size();
 		if(ld != labelDims)
 			ThrowError("Different number of label dims than the model was trained with");
 		GArffRelation relFeatures;
@@ -1708,7 +1708,7 @@ void model(GArgReader& args)
 		ThrowError("Expected the filename of a dataset");
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	if(pData->cols() != pModeler->featureDims() + pModeler->labelDims())
+	if(pData->cols() != pModeler->relFeatures()->size() + pModeler->relLabels()->size())
 		ThrowError("Model was trained with a different number of attributes than in this data");
 
 	// Get other parameters
@@ -1718,7 +1718,7 @@ void model(GArgReader& args)
 	unsigned int attry = args.pop_uint();
 	if(pData->relation()->valueCount(attry) != 0)
 		ThrowError("Sorry, currently only continuous attributes can be plotted");
-	size_t featureDims = pModeler->featureDims();
+	size_t featureDims = pModeler->relFeatures()->size();
 	if(attrx >= (unsigned int)featureDims || attry >= (unsigned int)featureDims)
 		ThrowError("feature attribute out of range");
 
@@ -1817,8 +1817,8 @@ void rayTraceManifoldModel(GArgReader& args)
 	GLearnerLoader ll(prng, true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
-	if(pModeler->featureDims() != 2 || pModeler->labelDims() != 3)
-		ThrowError("The model has ", to_str(pModeler->featureDims()), " inputs and ", to_str(pModeler->labelDims()), " outputs. 2 real inputs and 3 real outputs are expected");
+	if(pModeler->relFeatures()->size() != 2 || pModeler->relLabels()->size() != 3)
+		ThrowError("The model has ", to_str(pModeler->relFeatures()->size()), " inputs and ", to_str(pModeler->relLabels()->size()), " outputs. 2 real inputs and 3 real outputs are expected");
 
 	// Parse options
 	int width = 400;
@@ -2055,10 +2055,10 @@ void ubpFrames(GArgReader& args)
 	GUnsupervisedBackProp* pUBP = new GUnsupervisedBackProp(doc.root(), ll);
 	Holder<GUnsupervisedBackProp> hUBP(pUBP);
 
-	size_t featureDims = pUBP->featureDims();
+	size_t featureDims = pUBP->neuralNet()->relFeatures()->size();
 	GTEMPBUF(double, pFeatures, featureDims);
 	GVec::setAll(pFeatures, 0.5, featureDims);
-	size_t labelDims = pUBP->labelDims();
+	size_t labelDims = pUBP->neuralNet()->relLabels()->size();
 	GTEMPBUF(double, pLabels, labelDims);
 	GImage image;
 	image.setSize(imageWid * framesHoriz, imageHgt * framesVert);
@@ -2072,7 +2072,7 @@ void ubpFrames(GArgReader& args)
 			pFeatures[featureDims - 1] = (double)vFrame / (framesVert - 1);
 			pUBP->lowToHi(pFeatures, pLabels);
 			GImage tmp;
-			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->labelDims(), 256.0);
+			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->relLabels()->size(), 256.0);
 			image.blit(xx, yy, &tmp);
 			xx += imageWid;
 		}

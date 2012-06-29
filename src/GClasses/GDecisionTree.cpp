@@ -296,20 +296,10 @@ GDecisionTree::GDecisionTree(GRand& rand)
 	m_pRoot = NULL;
 	m_eAlg = GDecisionTree::MINIMIZE_ENTROPY;
 }
-/*
-GDecisionTree::GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy)
-: GSupervisedLearner(), m_leafThresh(1), m_maxLevels(0)
-{
-	if(!m_pLabelRel.get())
-		ThrowError("not trained");
-	m_pRoot = pThat->m_pRoot->DeepCopy(pThat->m_labelDims, pInterestingNode, ppOutInterestingCopy);
-}
-*/
+
 GDecisionTree::GDecisionTree(GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode, ll), m_leafThresh(1), m_maxLevels(0)
 {
-	m_pFeatureRel = GRelation::deserialize(pNode->field("frel"));
-	m_pLabelRel = GRelation::deserialize(pNode->field("lrel"));
 	m_eAlg = (DivisionAlgorithm)pNode->field("alg")->asInt();
 	m_pRoot = GDecisionTreeNode::deserialize(pNode->field("root"));
 }
@@ -326,10 +316,8 @@ GDomNode* GDecisionTree::serialize(GDom* pDoc) const
 	if(!m_pRoot)
 		ThrowError("Attempted to serialize a model that has not been trained");
 	GDomNode* pNode = baseDomNode(pDoc, "GDecisionTree");
-	pNode->addField(pDoc, "frel", m_pFeatureRel->serialize(pDoc));
-	pNode->addField(pDoc, "lrel", m_pLabelRel->serialize(pDoc));
 	pNode->addField(pDoc, "alg", pDoc->newInt(m_eAlg));
-	pNode->addField(pDoc, "root", m_pRoot->serialize(pDoc, m_pLabelRel->size()));
+	pNode->addField(pDoc, "root", m_pRoot->serialize(pDoc, m_pRelLabels->size()));
 	return pNode;
 }
 
@@ -345,30 +333,28 @@ void GDecisionTree::print(ostream& stream, GArffRelation* pFeatureRel, GArffRela
 	GRelation* pFRel = pFeatureRel;
 	GRelation* pLRel = pLabelRel;
 	if(!pFRel)
-		pFRel = m_pFeatureRel.get();
+		pFRel = m_pRelFeatures.get();
 	if(!pLRel)
-		pLRel = m_pLabelRel.get();
+		pLRel = m_pRelLabels.get();
 	m_pRoot->print(pFRel, pLRel, stream, 0, NULL);
 }
 
 // virtual
 void GDecisionTree::trainInner(GMatrix& features, GMatrix& labels)
 {
-	m_pFeatureRel = features.relation();
-	m_pLabelRel = labels.relation();
 	clear();
 
 	// Make a list of available features
 	vector<size_t> attrPool;
-	attrPool.reserve(m_pFeatureRel->size());
-	for(size_t i = 0; i < m_pFeatureRel->size(); i++)
+	attrPool.reserve(m_pRelFeatures->size());
+	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 		attrPool.push_back(i);
 
 	// We must make a copy of the features because buildNode will mess with it
 	// by calling RandomlyReplaceMissinGMatrix
-	GMatrix tmpFeatures(m_pFeatureRel, features.heap());
+	GMatrix tmpFeatures(m_pRelFeatures, features.heap());
 	tmpFeatures.copy(&features);
-	GMatrix tmpLabels(m_pLabelRel, labels.heap());
+	GMatrix tmpLabels(m_pRelLabels, labels.heap());
 	tmpLabels.copy(&labels);
 
 	m_pRoot = buildBranch(tmpFeatures, tmpLabels, attrPool, 0/*depth*/, 4/*tolerance*/);
@@ -629,10 +615,10 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	features.replaceMissingValuesWithBaseline(attr);
 
 	// Split the data
-	GMatrixArray featureParts(m_pFeatureRel);
-	GMatrixArray labelParts(m_pLabelRel);
+	GMatrixArray featureParts(m_pRelFeatures);
+	GMatrixArray labelParts(m_pRelLabels);
 	size_t nonEmptyBranchCount = 0;
-	if(m_pFeatureRel->valueCount(attr) == 0)
+	if(m_pRelFeatures->valueCount(attr) == 0)
 	{
 		// Split on a continuous attribute
 		GMatrix* pOtherFeatures = featureParts.newSet(0);
@@ -728,7 +714,7 @@ GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth
 	while(!pNode->IsLeaf())
 	{
 		GDecisionTreeInteriorNode* pInterior = (GDecisionTreeInteriorNode*)pNode;
-		if(m_pFeatureRel->valueCount(pInterior->m_nAttribute) == 0)
+		if(m_pRelFeatures->valueCount(pInterior->m_nAttribute) == 0)
 		{
 			if(pIn[pInterior->m_nAttribute] == UNKNOWN_REAL_VALUE)
 				pNode = pInterior->m_ppChildren[pInterior->m_defaultChild];
@@ -745,7 +731,7 @@ GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth
 				GAssert(nVal == UNKNOWN_DISCRETE_VALUE); // out of range
 				nVal = (int)pInterior->m_defaultChild;
 			}
-			GAssert((size_t)nVal < m_pFeatureRel->valueCount(pInterior->m_nAttribute)); // value out of range
+			GAssert((size_t)nVal < m_pRelFeatures->valueCount(pInterior->m_nAttribute)); // value out of range
 			pNode = pInterior->m_ppChildren[nVal];
 		}
 		nDepth++;
@@ -759,7 +745,7 @@ void GDecisionTree::predictInner(const double* pIn, double* pOut)
 {
 	size_t depth;
 	GDecisionTreeLeafNode* pLeaf = findLeaf(pIn, &depth);
-	GVec::copy(pOut, pLeaf->m_pOutputValues, m_pLabelRel->size());
+	GVec::copy(pOut, pLeaf->m_pOutputValues, m_pRelLabels->size());
 }
 
 // virtual
@@ -769,10 +755,10 @@ void GDecisionTree::predictDistributionInner(const double* pIn, GPrediction* pOu
 	size_t depth;
 	GDecisionTreeLeafNode* pLeaf = findLeaf(pIn, &depth);
 	size_t n, nValues;
-	size_t labelDims = m_pLabelRel->size();
+	size_t labelDims = m_pRelLabels->size();
 	for(n = 0; n < labelDims; n++)
 	{
-		nValues = m_pLabelRel->valueCount(n);
+		nValues = m_pRelLabels->valueCount(n);
 		if(nValues == 0)
 			pOut[n].makeNormal()->setMeanAndVariance(pLeaf->m_pOutputValues[n], (double)depth);
 		else

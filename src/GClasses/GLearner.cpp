@@ -444,30 +444,31 @@ GMatrix* GTransducer::repValidate(GMatrix& features, GMatrix& labels, size_t rep
 // ---------------------------------------------------------------
 
 GSupervisedLearner::GSupervisedLearner(GRand& rand)
-: GTransducer(rand), m_pFeatureFilter(NULL), m_pLabelFilter(NULL), m_featureDims((size_t)-1), m_labelDims((size_t)-1), m_pCalibrations(NULL)
+: GTransducer(rand), m_pFilterFeatures(NULL), m_pFilterLabels(NULL), m_pCalibrations(NULL)
 {
 }
 
 GSupervisedLearner::GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll)
-: GTransducer(ll.rand()), m_pFeatureFilter(NULL), m_pLabelFilter(NULL)
+: GTransducer(ll.rand()), m_pFilterFeatures(NULL), m_pFilterLabels(NULL)
 {
-	GDomNode* pFeatureFilter = pNode->fieldIfExists("ff");
+	GDomNode* pFeatureFilter = pNode->fieldIfExists("_ff");
 	if(pFeatureFilter)
-		m_pFeatureFilter = ll.loadIncrementalTransform(pFeatureFilter);
-	GDomNode* pLabelFilter = pNode->fieldIfExists("lf");
+		m_pFilterFeatures = ll.loadIncrementalTransform(pFeatureFilter);
+	GDomNode* pLabelFilter = pNode->fieldIfExists("_fl");
 	if(pLabelFilter)
-		m_pLabelFilter = ll.loadIncrementalTransform(pLabelFilter);
-	m_featureDims = (size_t)pNode->field("fd")->asInt();
-	m_labelDims = (size_t)pNode->field("ld")->asInt();
+		m_pFilterLabels = ll.loadIncrementalTransform(pLabelFilter);
+	m_pRelFeatures = GRelation::deserialize(pNode->field("_rf"));
+	m_pRelLabels = GRelation::deserialize(pNode->field("_rl"));
 	m_pCalibrations = NULL;
 	GDomNode* pCalibs = pNode->fieldIfExists("cal");
 	if(pCalibs)
 	{
 		GDomListIterator it(pCalibs);
-		if(it.remaining() != m_labelDims)
+		size_t labelDims = m_pRelLabels->size();
+		if(it.remaining() != labelDims)
 			ThrowError("The number of calibrations does not match the number of labels");
-		m_pCalibrations = new GNeuralNet*[m_labelDims];
-		for(size_t i = 0; i < m_labelDims; i++)
+		m_pCalibrations = new GNeuralNet*[labelDims];
+		for(size_t i = 0; i < labelDims; i++)
 		{
 			m_pCalibrations[i] = new GNeuralNet(it.current(), ll);
 			it.advance();
@@ -479,30 +480,32 @@ GSupervisedLearner::~GSupervisedLearner()
 {
 	if(m_pCalibrations)
 	{
-		for(size_t i = 0; i < m_labelDims; i++)
+		size_t labelDims = m_pRelLabels->size();
+		for(size_t i = 0; i < labelDims; i++)
 			delete(m_pCalibrations[i]);
 		delete[] m_pCalibrations;
 	}
-	delete(m_pFeatureFilter);
-	delete(m_pLabelFilter);
+	delete(m_pFilterFeatures);
+	delete(m_pFilterLabels);
 }
 
 GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
-	if(m_featureDims == (size_t)-1 || m_labelDims == (size_t)-1)
+	if(!m_pRelLabels.get())
 		ThrowError("The model must be trained before it is serialized.");
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
-	if(m_pFeatureFilter)
-		pNode->addField(pDoc, "ff", m_pFeatureFilter->serialize(pDoc));
-	if(m_pLabelFilter)
-		pNode->addField(pDoc, "lf", m_pLabelFilter->serialize(pDoc));
-	pNode->addField(pDoc, "fd", pDoc->newInt(m_featureDims));
-	pNode->addField(pDoc, "ld", pDoc->newInt(m_labelDims));
+	if(m_pFilterFeatures)
+		pNode->addField(pDoc, "_ff", m_pFilterFeatures->serialize(pDoc));
+	if(m_pFilterLabels)
+		pNode->addField(pDoc, "_fl", m_pFilterLabels->serialize(pDoc));
+	pNode->addField(pDoc, "_rf", m_pRelFeatures->serialize(pDoc));
+	pNode->addField(pDoc, "_rl", m_pRelLabels->serialize(pDoc));
 	if(m_pCalibrations)
 	{
 		GDomNode* pCal = pNode->addField(pDoc, "cal", pDoc->newList());
-		for(size_t i = 0; i < m_labelDims; i++)
+		size_t labelDims = m_pRelLabels->size();
+		for(size_t i = 0; i < labelDims; i++)
 			pCal->addItem(pDoc, m_pCalibrations[i]->serialize(pDoc));
 	}
 	return pNode;
@@ -518,31 +521,31 @@ std::string to_str(const GSupervisedLearner& learner)
 // virtual
 void GSupervisedLearner::clearFeatureFilter()
 {
-	delete(m_pFeatureFilter);
-	m_pFeatureFilter = NULL;
+	delete(m_pFilterFeatures);
+	m_pFilterFeatures = NULL;
 }
 
 void GSupervisedLearner::wrapFeatures(GIncrementalTransform* pFilter)
 {
-	if(m_pFeatureFilter)
-		m_pFeatureFilter = new GIncrementalTransformChainer(pFilter, m_pFeatureFilter);
+	if(m_pFilterFeatures)
+		m_pFilterFeatures = new GIncrementalTransformChainer(pFilter, m_pFilterFeatures);
 	else
-		m_pFeatureFilter = pFilter;
+		m_pFilterFeatures = pFilter;
 }
 
 // virtual
 void GSupervisedLearner::clearLabelFilter()
 {
-	delete(m_pLabelFilter);
-	m_pLabelFilter = NULL;
+	delete(m_pFilterLabels);
+	m_pFilterLabels = NULL;
 }
 
 void GSupervisedLearner::wrapLabels(GIncrementalTransform* pFilter)
 {
-	if(m_pLabelFilter)
-		m_pLabelFilter = new GIncrementalTransformChainer(pFilter, m_pLabelFilter);
+	if(m_pFilterLabels)
+		m_pFilterLabels = new GIncrementalTransformChainer(pFilter, m_pFilterLabels);
 	else
-		m_pLabelFilter = pFilter;
+		m_pFilterLabels = pFilter;
 }
 
 void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
@@ -698,20 +701,20 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 		ThrowError("Expected features and labels to have the same number of rows");
 	if(labels.cols() == 0)
 		ThrowError("Expected at least one label dimension");
-	m_featureDims = features.cols();
-	m_labelDims = labels.cols();
+	m_pRelFeatures = features.relation();
+	m_pRelLabels = labels.relation();
 
 	// Filter the data (if necessary) and train the model
 	setupFilters(features, labels);
-	if(m_pFeatureFilter)
+	if(m_pFilterFeatures)
 	{
-		m_pFeatureFilter->train(features);
-		GMatrix* pFilteredFeatures = m_pFeatureFilter->transformBatch(features);
+		m_pFilterFeatures->train(features);
+		GMatrix* pFilteredFeatures = m_pFilterFeatures->transformBatch(features);
 		Holder<GMatrix> hFilteredFeatures(pFilteredFeatures);
-		if(m_pLabelFilter)
+		if(m_pFilterLabels)
 		{
-			m_pLabelFilter->train(labels);
-			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(labels);
+			m_pFilterLabels->train(labels);
+			GMatrix* pFilteredLabels = m_pFilterLabels->transformBatch(labels);
 			Holder<GMatrix> hFilteredLabels(pFilteredLabels);
 			trainInner(*pFilteredFeatures, *pFilteredLabels);
 		}
@@ -720,10 +723,10 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 	}
 	else
 	{
-		if(m_pLabelFilter)
+		if(m_pFilterLabels)
 		{
-			m_pLabelFilter->train(labels);
-			GMatrix* pFilteredLabels = m_pLabelFilter->transformBatch(labels);
+			m_pFilterLabels->train(labels);
+			GMatrix* pFilteredLabels = m_pFilterLabels->transformBatch(labels);
 			Holder<GMatrix> hFilteredLabels(pFilteredLabels);
 			trainInner(features, *pFilteredLabels);
 		}
@@ -734,26 +737,26 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 
 void GSupervisedLearner::predict(const double* pIn, double* pOut)
 {
-	if(m_pFeatureFilter)
+	if(m_pFilterFeatures)
 	{
-		double* pInnerFeatures = m_pFeatureFilter->innerBuf();
-		m_pFeatureFilter->transform(pIn, pInnerFeatures);
-		if(m_pLabelFilter)
+		double* pInnerFeatures = m_pFilterFeatures->innerBuf();
+		m_pFilterFeatures->transform(pIn, pInnerFeatures);
+		if(m_pFilterLabels)
 		{
-			double* pInnerLabels = m_pLabelFilter->innerBuf();
+			double* pInnerLabels = m_pFilterLabels->innerBuf();
 			predictInner(pInnerFeatures, pInnerLabels);
-			m_pLabelFilter->untransform(pInnerLabels, pOut);
+			m_pFilterLabels->untransform(pInnerLabels, pOut);
 		}
 		else
 			predictInner(pInnerFeatures, pOut);
 	}
 	else
 	{
-		if(m_pLabelFilter)
+		if(m_pFilterLabels)
 		{
-			double* pInnerLabels = m_pLabelFilter->innerBuf();
+			double* pInnerLabels = m_pFilterLabels->innerBuf();
 			predictInner(pIn, pInnerLabels);
-			m_pLabelFilter->untransform(pInnerLabels, pOut);
+			m_pFilterLabels->untransform(pInnerLabels, pOut);
 		}
 		else
 			predictInner(pIn, pOut);
@@ -763,17 +766,18 @@ void GSupervisedLearner::predict(const double* pIn, double* pOut)
 void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 {
 	// Check assumptions
-	if(m_labelDims == (size_t)-1)
+	if(!m_pRelLabels.get())
 		ThrowError("The model must be trained before it is calibrated");
-	if(features.cols() != m_featureDims || labels.cols() != m_labelDims)
+	if(!m_pRelFeatures->isCompatible(*features.relation().get()) || !m_pRelLabels->isCompatible(*labels.relation().get()))
 		ThrowError("This data is not compatible with the data used to train this model");
 	if(features.rows() != labels.rows())
 		ThrowError("Expected features and labels to have the same number of rows");
 
 	// Throw out any existing calibration
+	size_t labelDims = m_pRelLabels->size();
 	if(m_pCalibrations)
 	{
-		for(size_t i = 0; i < m_labelDims; i++)
+		for(size_t i = 0; i < labelDims; i++)
 			delete(m_pCalibrations[i]);
 		delete[] m_pCalibrations;
 	}
@@ -787,9 +791,9 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 	GPrediction* out = new GPrediction[m_labelDims];
 	ArrayHolder<GPrediction> hOut(out);
 #else
-	GPrediction out[m_labelDims];
+	GPrediction out[labelDims];
 #endif
-	for(size_t i = 0; i < m_labelDims; i++)
+	for(size_t i = 0; i < labelDims; i++)
 	{
 		// Gather the predicted (before) distribution values
 		size_t vals = labels.relation()->valueCount(i);
@@ -840,9 +844,9 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 	}
 
 	// Store the resulting calibration functions
-	GAssert(calibrations.size() == m_labelDims);
-	m_pCalibrations = new GNeuralNet*[m_labelDims];
-	for(size_t i = 0; i < m_labelDims; i++)
+	GAssert(calibrations.size() == labelDims);
+	m_pCalibrations = new GNeuralNet*[labelDims];
+	for(size_t i = 0; i < labelDims; i++)
 	{
 		m_pCalibrations[i] = calibrations[i];
 		calibrations[i] = NULL;
@@ -851,26 +855,26 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 
 void GSupervisedLearner::predictDistribution(const double* pIn, GPrediction* pOut)
 {
-	if(m_pFeatureFilter)
+	if(m_pFilterFeatures)
 	{
-		double* pInnerFeatures = m_pFeatureFilter->innerBuf();
-		m_pFeatureFilter->transform(pIn, pInnerFeatures);
-		if(m_pLabelFilter)
+		double* pInnerFeatures = m_pFilterFeatures->innerBuf();
+		m_pFilterFeatures->transform(pIn, pInnerFeatures);
+		if(m_pFilterLabels)
 		{
-			double* pInnerLabels = m_pLabelFilter->innerBuf();
+			double* pInnerLabels = m_pFilterLabels->innerBuf();
 			predictInner(pInnerFeatures, pInnerLabels);
-			m_pLabelFilter->untransformToDistribution(pInnerLabels, pOut);
+			m_pFilterLabels->untransformToDistribution(pInnerLabels, pOut);
 		}
 		else
 			predictDistributionInner(pInnerFeatures, pOut);
 	}
 	else
 	{
-		if(m_pLabelFilter)
+		if(m_pFilterLabels)
 		{
-			double* pInnerLabels = m_pLabelFilter->innerBuf();
+			double* pInnerLabels = m_pFilterLabels->innerBuf();
 			predictInner(pIn, pInnerLabels);
-			m_pLabelFilter->untransformToDistribution(pInnerLabels, pOut);
+			m_pFilterLabels->untransformToDistribution(pInnerLabels, pOut);
 		}
 		else
 			predictDistributionInner(pIn, pOut);
@@ -880,7 +884,8 @@ void GSupervisedLearner::predictDistribution(const double* pIn, GPrediction* pOu
 	GVecBuf vb;
 	if(m_pCalibrations)
 	{
-		for(size_t i = 0; i < m_labelDims; i++)
+		size_t labelDims = m_pRelLabels->size();
+		for(size_t i = 0; i < labelDims; i++)
 		{
 			if(pOut[i].isContinuous())
 			{
@@ -1192,15 +1197,15 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
 
 	// Roundtrip the model through serialization
-	size_t labelDimsBefore = pLearner->labelDims();
+	sp_relation pRelLabelsBefore = pLearner->relLabels();
 	GDom doc;
 	doc.setRoot(pLearner->serialize(&doc));
 	pLearner->clear(); // free up some memory, just because we can
 	GLearnerLoader ll(*pRand);
 	GSupervisedLearner* pModel = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModel(pModel);
-	if(pModel->labelDims() != labelDimsBefore)
-		ThrowError("label dims failed to round-trip. Did your deserializing constructor call the base class constructor?");
+	if(!pRelLabelsBefore->isCompatible(*pModel->relLabels().get()))
+		ThrowError("The label relation failed to round-trip. Did your deserializing constructor call the base class constructor?");
 
 	// Test the accuracy again
 	double resultsAfter;
@@ -1281,38 +1286,30 @@ void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, dou
 
 void GIncrementalLearner::beginIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
-	if(m_pFeatureFilter)
-	{
-		m_pFeatureFilter->train(pFeatureRel);
-		m_featureDims = m_pFeatureFilter->before()->size();
-	}
-	else
-		m_featureDims = pFeatureRel->size();
-	if(m_pLabelFilter)
-	{
-		m_pLabelFilter->train(pLabelRel);
-		m_labelDims = m_pLabelFilter->before()->size();
-	}
-	else
-		m_labelDims = pLabelRel->size();
-	beginIncrementalLearningInner(m_pFeatureFilter ? m_pFeatureFilter->after() : pFeatureRel, m_pLabelFilter ? m_pLabelFilter->after() : pLabelRel);
+	m_pRelFeatures = pFeatureRel;
+	m_pRelLabels = pLabelRel;
+	if(m_pFilterFeatures)
+		m_pFilterFeatures->train(pFeatureRel);
+	if(m_pFilterLabels)
+		m_pFilterLabels->train(pLabelRel);
+	beginIncrementalLearningInner(m_pFilterFeatures ? m_pFilterFeatures->after() : pFeatureRel, m_pFilterLabels ? m_pFilterLabels->after() : pLabelRel);
 }
 
 void GIncrementalLearner::trainIncremental(const double* pIn, const double* pOut)
 {
 	const double* pInInner;
 	const double* pOutInner;
-	if(m_pFeatureFilter)
+	if(m_pFilterFeatures)
 	{
-		pInInner = m_pFeatureFilter->innerBuf();
-		m_pFeatureFilter->transform(pIn, m_pFeatureFilter->innerBuf());
+		pInInner = m_pFilterFeatures->innerBuf();
+		m_pFilterFeatures->transform(pIn, m_pFilterFeatures->innerBuf());
 	}
 	else
 		pInInner = pIn;
-	if(m_pLabelFilter)
+	if(m_pFilterLabels)
 	{
-		pOutInner = m_pLabelFilter->innerBuf();
-		m_pLabelFilter->transform(pOut, m_pLabelFilter->innerBuf());
+		pOutInner = m_pFilterLabels->innerBuf();
+		m_pFilterLabels->transform(pOut, m_pFilterLabels->innerBuf());
 	}
 	else
 		pOutInner = pOut;

@@ -486,30 +486,9 @@ public:
 #endif
 };
 
-/*
-/// This is an experimental neural network that has the ability to adjust features (inputs) as well as weights
-/// in order to make good predictions. The idea is that this should prevent outliers from having too much
-/// influence on the model. The value of this idea, however, is not yet well-established.
-class GModerateNet : public GNeuralNet
-{
-protected:
-	double m_lambda;
-
-public:
-	GModerateNet(GRand* pRand);
-	virtual ~GModerateNet();
-	double lambda() { return m_lambda; }
-	void setLambda(double d) { m_lambda = d; }
-	virtual GDomNode* serialize(GDom* pDoc) const;
-	virtual void train(GMatrix& data, int labelDims);
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
-	virtual void clear();
-	virtual void enableIncrementalLearning(sp_relation& pRelation, size_t labelDims, double* pMins, double* pRanges);
-	virtual void trainIncremental(const double* pIn, const double* pOut);
-	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
-};
-*/
-
+/// This model uses a randomely-initialized network to map the inputs into
+/// a higher-dimensional space, and it uses a layer of perceptrons to learn
+/// in this augmented space.
 class GReservoirNet : public GNeuralNet
 {
 protected:

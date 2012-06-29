@@ -296,18 +296,49 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 			newLineAndIndent(stream, indents); stream << "}";
 			break;
 		case type_list:
-			newLineAndIndent(stream, indents); stream << "[";
-			reverseItemOrder();
-			for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
 			{
-				newLineAndIndent(stream, indents + 1);
-				pItem->m_pValue->writeJson(stream);
-				if(pItem->m_pPrev)
-					stream << ",";
+				reverseItemOrder();
+
+				// Check whether all items in the list are atomic
+				bool allAtomic = true;
+				size_t itemCount = 0;
+				for(GDomListItem* pItem = m_value.m_pLastItem; pItem && allAtomic; pItem = pItem->m_pPrev)
+				{
+					if(pItem->m_pValue->type() == GDomNode::type_obj || pItem->m_pValue->type() == GDomNode::type_list)
+						allAtomic = false;
+					if(++itemCount >= 1024)
+						allAtomic = false;
+				}
+
+				// Print the items
+				if(allAtomic)
+				{
+					// All items are atomic, so let's put them all on one line
+					stream << "[";
+					for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
+					{
+						pItem->m_pValue->writeJson(stream);
+						if(pItem->m_pPrev)
+							stream << ",";
+					}
+					stream << "]";
+				}
+				else
+				{
+					// Some items are non-atomic, so let's spread across multiple lines
+					newLineAndIndent(stream, indents);
+					stream << "[";
+					for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
+					{
+						pItem->m_pValue->writeJsonPretty(stream, indents + 1);
+						if(pItem->m_pPrev)
+							stream << ",";
+					}
+					newLineAndIndent(stream, indents);
+					stream << "]";
+				}
+				reverseItemOrder();
 			}
-			reverseItemOrder();
-			newLineAndIndent(stream, indents);
-			stream << "]";
 			break;
 		case type_bool:
 			stream << (m_value.m_bool ? "true" : "false");

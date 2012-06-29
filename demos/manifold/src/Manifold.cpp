@@ -1090,7 +1090,7 @@ public:
 		m_pView = new SwissRollView(m_pModel);
 
 		// First learn the points
-		int nPass = 0;
+		//int nPass = 0;
 		double timeOld = GTime::seconds();
 		double time;
 		m_pView->update();
@@ -1108,7 +1108,7 @@ public:
 
 		// Now do the demo with semi-supervision
 		prng.setSeed(0);
-		nPass = 0;
+//		nPass = 0;
 		SwissRollModel* pPrevModel = (SwissRollModel*)m_pModel;
 		m_pModel = new SwissRollModel(SwissRollModel::SWISS_ROLL, SWISS_ROLL_POINTS, false, 40/*neighbors*/, .7, false, 100, pPrevModel, &prng);
 		((SwissRollView*)m_pView)->SetModel(m_pModel);

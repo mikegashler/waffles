@@ -195,10 +195,10 @@ protected:
 class GSupervisedLearner : public GTransducer
 {
 protected:
-	GIncrementalTransform* m_pFeatureFilter;
-	GIncrementalTransform* m_pLabelFilter;
-	size_t m_featureDims;
-	size_t m_labelDims;
+	GIncrementalTransform* m_pFilterFeatures;
+	GIncrementalTransform* m_pFilterLabels;
+	sp_relation m_pRelFeatures;
+	sp_relation m_pRelLabels;
 	GNeuralNet** m_pCalibrations;
 
 public:
@@ -219,17 +219,21 @@ public:
 	/// model that allows them to generalize previously unseen rows.
 	virtual bool canGeneralize() { return true; }
 
-	/// Returns the number of feature dims.
-	size_t featureDims() { return m_featureDims; }
+	/// Returns a smart-pointer to the feature relation (meta-data about the input attributes).
+	/// (Note that this relation describes outer data, and may contain types that are not
+	/// supported by the inner algorithm.)
+	sp_relation relFeatures() { return m_pRelFeatures; }
 
-	/// Returns the number of label dims.
-	size_t labelDims() { return m_labelDims; }
+	/// Returns a smart-pointer to the label relation (meta-data about the output attributes).
+	/// (Note that this relation describes outer data, and may contain types that are not
+	/// supported by the inner algorithm.)
+	sp_relation relLabels() { return m_pRelLabels; }
 
 	/// Returns the current feature filter (or NULL if none has been set).
-	GIncrementalTransform* featureFilter() { return m_pFeatureFilter; }
+	GIncrementalTransform* featureFilter() { return m_pFilterFeatures; }
 
 	/// Returns the current label filter (or NULL if none has been set).
-	GIncrementalTransform* labelFilter() { return m_pLabelFilter; }
+	GIncrementalTransform* labelFilter() { return m_pFilterLabels; }
 
 	/// Clears the filter for features.
 	virtual void clearFeatureFilter();

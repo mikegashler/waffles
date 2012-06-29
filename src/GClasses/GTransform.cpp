@@ -691,7 +691,7 @@ GReservoir::GReservoir(GRand& rand, double weightDeviation, size_t outputs, size
 GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
-	m_outputs = m_pNN->labelDims();
+	m_outputs = m_pNN->relLabels()->size();
 	m_deviation = pNode->field("dev")->asDouble();
 }
 
@@ -891,7 +891,7 @@ sp_relation GAttributeSelector::trainInner(GMatrix& data)
 		for(size_t i = 0; i < curDims; i++)
 		{
 			double w = 0;
-			while(pos < nn.featureDims() && rmap[pos] == i)
+			while(pos < nn.relFeatures()->size() && rmap[pos] == i)
 			{
 				for(vector<GNeuron>::iterator it = layer.m_neurons.begin(); it != layer.m_neurons.end(); it++)
 					w = std::max(w, std::abs(it->m_weights[pos + 1]));

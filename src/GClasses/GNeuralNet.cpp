@@ -2008,8 +2008,8 @@ GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 // virtual
 void GReservoirNet::clearFeatureFilter()
 {
-	delete(m_pFeatureFilter);
-	m_pFeatureFilter = new GDataAugmenter(new GReservoir(m_rand, m_weightDeviation, m_augments, m_reservoirLayers));
+	delete(m_pFilterFeatures);
+	m_pFilterFeatures = new GDataAugmenter(new GReservoir(m_rand, m_weightDeviation, m_augments, m_reservoirLayers));
 }
 
 #ifndef NO_TEST_CODE

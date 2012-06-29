@@ -1029,12 +1029,15 @@ void Train(GArgReader& args)
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	bool calibrate = false;
+	bool embed = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else if(args.if_pop("-calibrate"))
 			calibrate = true;
+		else if(args.if_pop("-embed"))
+			embed = true;
 		else
 			ThrowError("Invalid train option: ", args.peek());
 	}
@@ -1064,7 +1067,10 @@ void Train(GArgReader& args)
 	GDom doc;
 	GDomNode* pRoot = pModel->serialize(&doc);
 	doc.setRoot(pRoot);
-	doc.writeJson(cout);
+	if(embed)
+		doc.writeJsonCpp(cout);
+	else
+		doc.writeJson(cout);
 }
 
 void predict(GArgReader& args)
@@ -1094,8 +1100,10 @@ void predict(GArgReader& args)
 	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
-	if(pLabels->cols() != pModeler->labelDims())
-		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
+	if(pLabels->cols() != pModeler->relLabels()->size())
+		ThrowError("The model was trained with ", to_str(pModeler->relLabels()->size()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
+	if(!pFeatures->relation()->isCompatible(*pModeler->relFeatures().get()) || !pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
+		ThrowError("This data is not compatible with the data that was used to train the model. (The column meta-data is different.)");
 	pLabels->setAll(0.0); // Wipe out the existing labels, just to be absolutely certain that we don't somehow accidentally let them influence the predictions
 
 	// Test
@@ -1132,64 +1140,90 @@ void predictDistribution(GArgReader& args)
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
-	// Load the dataset
-	Holder<GMatrix> hFeatures, hLabels;
-	loadData(args, hFeatures, hLabels, true);
-	GMatrix* pFeatures = hFeatures.get();
-	GMatrix* pLabels = hLabels.get();
-	if(pLabels->cols() != (size_t)pModeler->labelDims())
-		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
-	if(pFeatures->relation()->type() != GRelation::ARFF || pLabels->relation()->type() != GRelation::ARFF)
-		ThrowError("Expected a dataset with ARFF metadata");
-	GArffRelation* pFeatureRel = (GArffRelation*)pFeatures->relation().get();
-	GArffRelation* pLabelRel = (GArffRelation*)pLabels->relation().get();
-
 	// Parse the pattern
-	size_t featureDims = pModeler->featureDims();
+	if(pModeler->relFeatures()->type() != GRelation::ARFF)
+		ThrowError("meta data is missing");
+	GArffRelation* pFeatureRel = (GArffRelation*)pModeler->relFeatures().get();
+	if(pModeler->relLabels()->type() != GRelation::ARFF)
+		ThrowError("meta data is missing");
+	GArffRelation* pLabelRel = (GArffRelation*)pModeler->relLabels().get();
+	size_t featureDims = pModeler->relFeatures()->size();
 	GTEMPBUF(double, pattern, featureDims);
 	for(size_t i = 0; i < featureDims; i++)
 		pattern[i] = pFeatureRel->parseValue(i, args.pop_string());
 
 	// Predict
-	GPrediction* out = new GPrediction[pModeler->labelDims()];
+	GPrediction* out = new GPrediction[pLabelRel->size()];
 	ArrayHolder<GPrediction> hOut(out);
-	pModeler->predictDistribution(pattern, out);
-
-	// Display the prediction
-	cout.precision(8);
-	for(size_t i = 0; i < pLabels->cols(); i++)
+	bool gotPrediction = false;
+	try
 	{
-		if(i > 0)
-			cout << ", ";
-		if(pLabelRel->valueCount(i) == 0)
-			cout << out[i].mode();
-		else
-			pLabelRel->printAttrValue(cout, i, (int)out[i].mode());
+		pModeler->predictDistribution(pattern, out);
+		gotPrediction = true;
 	}
-	cout << "\n\n";
-
-	// Display the distribution
-	for(size_t i = 0; i < pModeler->labelDims(); i++)
+	catch(const std::exception& e)
 	{
-		if(out[i].isContinuous())
+		cout << e.what() << "\n";
+	}
+
+	if(gotPrediction)
+	{
+		// Display the prediction
+		cout.precision(8);
+		for(size_t i = 0; i < pLabelRel->size(); i++)
 		{
-			GNormalDistribution* pNorm = out[i].asNormal();
-			cout << pLabelRel->attrName(i) << ") Normal: predicted mean=" << pNorm->mean() << " predicted variance=" << pNorm->variance() << "\n";
+			if(i > 0)
+				cout << ", ";
+			if(pLabelRel->valueCount(i) == 0)
+				cout << out[i].mode();
+			else
+				pLabelRel->printAttrValue(cout, i, (int)out[i].mode());
 		}
-		else
+		cout << "\n\n";
+
+		// Display the distribution
+		for(size_t i = 0; i < pLabelRel->size(); i++)
 		{
-			GCategoricalDistribution* pCat = out[i].asCategorical();
-			cout << pLabelRel->attrName(i) << ") Categorical confidences: {";
-			double* pValues = pCat->values(pCat->valueCount());
-			for(size_t j = 0; j < pCat->valueCount(); j++)
+			if(out[i].isContinuous())
 			{
-				if(j > 0)
-					cout << ", ";
-				pLabelRel->printAttrValue(cout, i, (int)j);
-				cout << "=" << pValues[j];
+				GNormalDistribution* pNorm = out[i].asNormal();
+				cout << pLabelRel->attrName(i) << ") Normal: predicted mean=" << pNorm->mean() << " predicted variance=" << pNorm->variance() << "\n";
 			}
-			cout << "}\n";
+			else
+			{
+				GCategoricalDistribution* pCat = out[i].asCategorical();
+				cout << pLabelRel->attrName(i) << ") Categorical confidences: {";
+				double* pValues = pCat->values(pCat->valueCount());
+				for(size_t j = 0; j < pCat->valueCount(); j++)
+				{
+					if(j > 0)
+						cout << ", ";
+					pLabelRel->printAttrValue(cout, i, (int)j);
+					cout << "=" << pValues[j];
+				}
+				cout << "}\n";
+			}
 		}
+	}
+	else
+	{
+		// This model apparently cannot predict distributions, so let's just predict normally
+		double* out2 = new double[pLabelRel->size()];
+		ArrayHolder<double> hOut2(out2);
+		pModeler->predict(pattern, out2);
+
+		// Display the prediction
+		cout.precision(8);
+		for(size_t i = 0; i < pLabelRel->size(); i++)
+		{
+			if(i > 0)
+				cout << ", ";
+			if(pLabelRel->valueCount(i) == 0)
+				cout << out2[i];
+			else
+				pLabelRel->printAttrValue(cout, i, (int)out2[i]);
+		}
+		cout << "\n\n";
 	}
 }
 
@@ -1387,8 +1421,8 @@ void Test(GArgReader& args)
 	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
-	if(pLabels->cols() != pModeler->labelDims())
-		ThrowError("The model was trained with ", to_str(pModeler->labelDims()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
+	if(!pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
+		ThrowError("This dataset is not compatible with the one used to train the model. (The meta-data is different.)");
 
 	// Test
 	GTEMPBUF(double, results, pLabels->cols());

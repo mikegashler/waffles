@@ -94,12 +94,12 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 	GDomNode* pContext = pNode->field("context");
 	GDomListIterator it1(pContext);
 	m_contextDims = it1.remaining();
-	if(m_contextDims != m_pTransitionFunc->labelDims())
+	if(m_contextDims != m_pTransitionFunc->relLabels()->size())
 		ThrowError("invalid model");
 	GDomNode* pParamRanges = pNode->field("params");
 	GDomListIterator it2(pParamRanges);
 	m_paramDims = it2.remaining();
-	if(m_paramDims != (size_t)(m_pObservationFunc->featureDims() - m_contextDims))
+	if(m_paramDims != (size_t)(m_pObservationFunc->relFeatures()->size() - m_contextDims))
 		ThrowError("invalid model");
 	m_pParamRanges = new size_t[m_paramDims];
 	for(size_t i = 0; i < m_paramDims; i++)
@@ -109,10 +109,10 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 	}
 
 	// Infer other stuff
-	m_actionDims = m_pTransitionFunc->featureDims() - m_contextDims;
+	m_actionDims = m_pTransitionFunc->relFeatures()->size() - m_contextDims;
 	if(m_actionDims < 0)
 		ThrowError("invalid model");
-	m_channels = m_pObservationFunc->labelDims();
+	m_channels = m_pObservationFunc->relLabels()->size();
 	m_pixels = 1;
 	for(size_t i = 0; i < m_paramDims; i++)
 		m_pixels *= m_pParamRanges[i];
@@ -615,7 +615,7 @@ public:
 	virtual double computeError(const double* pVector)
 	{
 		GVec::copy(m_pModel->context(), pVector, m_pModel->contextDims());
-		size_t channels = m_pModel->observationFunc()->labelDims();
+		size_t channels = m_pModel->observationFunc()->relLabels()->size();
 		GTEMPBUF(double, prediction, channels);
 		double err = 0;
 		const double* pTar = m_pTarget;
@@ -1113,7 +1113,7 @@ size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pOb
 	prepareForOptimization(pActions, pObservations);
 
 	// Make a copy of the transition net for each unfolding-through-time
-	sp_relation pRel = new GUniformRelation(pTransFunc->featureDims() + pTransFunc->labelDims(), 0);
+	sp_relation pRel = new GUniformRelation(pTransFunc->relFeatures()->size() + pTransFunc->relLabels()->size(), 0);
 	vector<GNeuralNet*> transNets;
 	VectorOfPointersHolder<GNeuralNet> hTransNets(transNets);
 	for(size_t i = 0; i < depth; i++)
@@ -1269,7 +1269,7 @@ void GRecurrentModel::predict(double* pObs)
 	{
 		pi.currentNormalized(m_pParams);
 		m_pObservationFunc->predict(m_pParams, pObs);
-		pObs += m_pObservationFunc->labelDims();
+		pObs += m_pObservationFunc->relLabels()->size();
 		if(!pi.advance())
 			break;
 	}
@@ -1435,7 +1435,7 @@ GImage* GRecurrentModel::frames(GMatrix* pDataAction, GMatrix* pDataObs, bool ca
 		ThrowError("Expected frameWidth to be a multiply of ", to_str(m_pParamRanges[0]));
 	if(m_channels != 3)
 		ThrowError("Expected 3 channels");
-	if(m_pObservationFunc->labelDims() != m_channels)
+	if(m_pObservationFunc->relLabels()->size() != m_channels)
 		ThrowError("Something is wrong");
 	if(calibrateContext && !pDataObs)
 		ThrowError("Cannot calibrate if observations are not given");

@@ -2141,8 +2141,8 @@ public:
 
 	virtual void clearFeatureFilter()
 	{
-		delete(m_pFeatureFilter);
-		m_pFeatureFilter = new GPCA(12, &m_rand);
+		delete(m_pFilterFeatures);
+		m_pFilterFeatures = new GPCA(12, &m_rand);
 	}
 };
 

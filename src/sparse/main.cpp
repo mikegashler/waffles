@@ -407,7 +407,7 @@ void predict(GArgReader& args)
 	}
 
 	// Predict labels
-	GMatrix labels(pData->rows(), pModeler->labelDims());
+	GMatrix labels(pData->rows(), pModeler->relLabels()->size());
 	double* pFullRow = new double[pData->cols()];
 	ArrayHolder<double> hFullRow(pFullRow);
 	for(unsigned int i = 0; i < pData->rows(); i++)
@@ -455,8 +455,8 @@ void test(GArgReader& args)
 	// Load the dense labels
 	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
 	Holder<GMatrix> hLabels(pLabels);
-	if(pLabels->cols() != pModeler->labelDims())
-		ThrowError("The model was trained to predict a different number of label dims");
+	if(!pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
+		ThrowError("The data is not compatible with the data used to trainn the model. (The meta-data is different.)");
 
 	// Test
 	GTEMPBUF(double, prediction, pLabels->cols());

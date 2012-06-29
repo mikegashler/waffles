@@ -110,9 +110,6 @@ public:
 		double initialState[2];
 		initialState[0] = m_carPos;
 		initialState[1] = m_velocity;
-		double goalState[2];
-		goalState[0] = 2;
-		goalState[1] = 0;
 		m_pActionIterator = new GDiscreteActionIterator(2);
 		m_pAgents[0] = new CarQAgent(relAgent, initialState, m_prng, m_pActionIterator);
 		((GQLearner*)m_pAgents[0])->setLearningRate(.9);
