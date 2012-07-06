@@ -590,6 +590,23 @@ void dropColumns(GArgReader& args)
 	pData->print(cout);
 }
 
+void dropHomogeneousCols(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	vector<size_t> colList;
+	size_t attrCount = pData->cols();
+	for(size_t i = 0; i < attrCount; i++)
+	{
+		if(pData->isAttrHomogenous(i))
+			colList.push_back(i);
+	}
+	std::reverse(colList.begin(), colList.end());
+	for(size_t i = 0; i < colList.size(); i++)
+		pData->deleteColumn(colList[i]);
+	pData->print(cout);
+}
+
 void keepOnlyColumns(GArgReader& args)
 {
 	//Load the data file and the list of columns to keep
@@ -709,6 +726,36 @@ void dropRows(GArgReader& args)
 	size_t newSize = args.pop_uint();
 	while(pData->rows() > newSize)
 		pData->deleteRow(pData->rows() - 1);
+	pData->print(cout);
+}
+
+void dropUnusedValues(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	for(size_t i = 0; i < pData->cols(); i++)
+	{
+		size_t valCount = pData->relation()->valueCount(i);
+		for(size_t j = 0; j < valCount; j++)
+		{
+			bool gotOne = false;
+			for(size_t k = 0; k < pData->rows(); k++)
+			{
+				if(pData->row(k)[i] == j)
+				{
+					gotOne = true;
+					break;
+				}
+			}
+			if(!gotOne)
+			{
+				pData->dropValue(i, j);
+				j--;
+				valCount--;
+				GAssert(valCount == pData->relation()->valueCount(i));
+			}
+		}
+	}
 	pData->print(cout);
 }
 
@@ -1108,6 +1155,26 @@ void nominalToCat(GArgReader& args)
 
 	// Print results
 	pDataNew->print(cout);
+}
+
+void obfuscate(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	if(pData->relation()->type() != GRelation::ARFF)
+		ThrowError("Expected some meta-data");
+	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+	pRel->setName("Untitled");
+	for(size_t i = 0; i < pRel->size(); i++)
+	{
+		string s = "attr";
+		s += to_str(i);
+		pRel->setAttrName(i, s.c_str());
+		size_t vals = pRel->valueCount(i);
+		if(vals > 0)
+			pRel->setAttrValueCount(i, vals);
+	}
+	pData->print(cout);
 }
 
 void overlay(GArgReader& args)
@@ -1903,9 +1970,11 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("determinant")) determinant(args);
 		else if(args.if_pop("discretize")) Discretize(args);
 		else if(args.if_pop("dropcolumns")) dropColumns(args);
+		else if(args.if_pop("drophomogcols")) dropHomogeneousCols(args);
 		else if(args.if_pop("dropmissingvalues")) DropMissingValues(args);
 		else if(args.if_pop("droprandomvalues")) dropRandomValues(args);
 		else if(args.if_pop("droprows")) dropRows(args);
+		else if(args.if_pop("dropunusedvalues")) dropUnusedValues(args);
 		else if(args.if_pop("enumeratevalues")) enumerateValues(args);
 		else if(args.if_pop("export")) Export(args);
 		else if(args.if_pop("fillmissingvalues")) fillMissingValues(args);
@@ -1919,6 +1988,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("nominaltocat")) nominalToCat(args);
 		else if(args.if_pop("normalize")) normalize(args);
 		else if(args.if_pop("neighbors")) neighbors(args);
+		else if(args.if_pop("obfuscate")) obfuscate(args);
 		else if(args.if_pop("overlay")) overlay(args);
 		else if(args.if_pop("powercolumns")) powerColumns(args);
 		else if(args.if_pop("prettify")) prettify(args);

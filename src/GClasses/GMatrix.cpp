@@ -867,6 +867,11 @@ const char* GArffRelation::attrName(size_t nAttr) const
 	return m_attrs[nAttr].m_name.c_str();
 }
 
+void GArffRelation::setAttrName(size_t attr, const char* szNewName)
+{
+	m_attrs[attr].m_name = szNewName;
+}
+
 int GArffRelation::addAttrValue(size_t nAttr, const char* szValue)
 {
 	int val = (int)m_valueCounts[nAttr]++;
@@ -947,6 +952,20 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 			return double(v);
 		}
 	}
+}
+
+void GArffRelation::dropValue(size_t attr, int val)
+{
+	size_t valCount = valueCount(attr);
+	if((size_t)val >= valCount)
+		ThrowError("out of range");
+	GArffAttribute& at = m_attrs[attr];
+	if(at.m_values.size() == valCount)
+	{
+		std::swap(at.m_values[val], at.m_values[valCount - 1]);
+		at.m_values.erase(at.m_values.end() - 1);
+	}
+	GMixedRelation::setAttrValueCount(attr, valCount - 1);
 }
 
 // ------------------------------------------------------------------
@@ -1509,6 +1528,40 @@ void GMatrix::add(GMatrix* pThat, bool transpose)
 			ThrowError("expected matrices of same size");
 		for(size_t i = 0; i < rows(); i++)
 			GVec::add(row(i), pThat->row(i), c);
+	}
+}
+
+void GMatrix::dropValue(size_t attr, int val)
+{
+	if(attr >= cols())
+		ThrowError("out of range");
+	size_t lastVal = relation()->valueCount(attr);
+	if((size_t)val >= lastVal)
+		ThrowError("out of range");
+	lastVal--;
+
+	// Adjust the relation
+	if(relation()->type() == GRelation::ARFF)
+	{
+		GArffRelation* pRel = (GArffRelation*)relation().get();
+		pRel->dropValue(attr, val);
+	}
+	else if(relation()->type() == GRelation::MIXED)
+	{
+		GMixedRelation* pRel = (GMixedRelation*)relation().get();
+		pRel->setAttrValueCount(attr, lastVal);
+	}
+	else
+		ThrowError("Sorry, not supported for uniform relations");
+
+	// Adjust the data
+	for(size_t i = 0; i < m_rows.size(); i++)
+	{
+		double* pRow = row(i);
+		if(pRow[attr] == lastVal)
+			pRow[attr] = val;
+		else if(pRow[attr] == val)
+			pRow[attr] = UNKNOWN_DISCRETE_VALUE;
 	}
 }
 

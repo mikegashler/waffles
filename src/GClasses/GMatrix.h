@@ -391,6 +391,9 @@ public:
 	virtual std::string attrNameStr(std::size_t nAttr) const { 
 		return attrName(nAttr); }
 
+	/// \brief Sets the name of the specified attribute.
+	void setAttrName(size_t attr, const char* szNewName);
+
 	/// \brief Adds a new possible value to a nominal attribute. Returns
 	/// the numerical form of the new value.
 	int addAttrValue(size_t nAttr, const char* szValue);
@@ -413,6 +416,10 @@ public:
 
 	/// \brief Parses the meta-data for an attribute
 	void parseAttribute(GArffTokenizer& tok);
+
+	/// \brief Drops the specified value from the list of possible values.
+	/// (Swaps the last value in to fill its slot.)
+	void dropValue(size_t attr, int val);
 };
 
 /// \brief Represents a matrix or a database table. 
@@ -491,7 +498,7 @@ public:
 	/// \brief Returns true iff all the entries in *this and \a
 	/// other are identical and their relations are compatible, and they
 	/// are the same size
-  ///
+	///
 	/// \return true iff all the entries in *this and \a other are
 	/// identical, their relations are compatible, and they are the same
 	/// size
@@ -554,6 +561,9 @@ public:
 
 	/// \brief Computes the determinant of this matrix
 	double determinant();
+
+	/// \brief Drops any occurrences of the specified value, and removes it as a possible value
+	void dropValue(size_t attr, int val);
 
 	/// \brief Computes the eigenvalue that corresponds to the specified
 	/// eigenvector of this matrix

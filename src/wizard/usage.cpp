@@ -1421,6 +1421,7 @@ UsageNode* makeTransformUsageTree()
 		pDropCols->add("[dataset]=in.arff", "The filename of a dataset.");
 		pDropCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to drop. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
+	pRoot->add("drophomogcols [dataset]=data.arff", "Remove all columns that are homogeneous (have zero variance).");
 	pRoot->add("dropmissingvalues [dataset]=data.arff", "Remove all rows that contain missing values.");
 	{
 		UsageNode* pDRV = pRoot->add("droprandomvalues [dataset] [portion] <options>", "Drop random values from the specified dataset. The resulting dataset with missing values is printed to stdout.");
@@ -1429,6 +1430,7 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pDRV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
+	pRoot->add("dropunusedvalues [dataset]=data.arff", "Drops any nominal meta-data values that are not used.");
 	{
 		UsageNode* pEx = pRoot->add("export [dataset] <options>", "Print the data as a list of comma separated values without any meta-data.");
 		pEx->add("[dataset]=data.arff", "The filename of a dataset.");
@@ -1513,6 +1515,7 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pNomToCat->add("<options>");
 		pOpts->add("-maxvalues [cap]=8", "Specify the maximum number of nominal values for which to create new columns. If not specified, the default is 12.");
 	}
+	pRoot->add("obfuscate [data]=data.arff", "Strips comments from an ARFF file, and replaces meta-data with generic meaningless values, thus making it difficult to determine what the data means. (You may also want to normalize the data to make the range of continuous attributes meaningless.) Note that the values of the actual data are not altered, so it may still be possible to derive meaning from them.");
 	{
 		UsageNode* pOverlay = pRoot->add("overlay [base] [over]", "Combines two same-sized matrices by placing [over] on top of [base], such that elements from [base] are used only if the same element is missing in [over].");
 		pOverlay->add("[base]=base.arff", "The matrix of values to use when they are missing in the other one.");
