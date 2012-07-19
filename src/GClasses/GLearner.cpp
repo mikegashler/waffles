@@ -1192,7 +1192,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	  std::cerr << "AccBeforeSerial: " << resultsBefore;
 	}
 	if(resultsBefore < minAccuracy)
-		ThrowError("accuracy has regressed");
+		ThrowError("accuracy has regressed. Expected at least", to_str(minAccuracy), ". Only got ", to_str(resultsBefore), ".");
 	if(resultsBefore >= minAccuracy + 0.035)
 		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
 

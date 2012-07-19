@@ -585,6 +585,34 @@ double* GDecisionTreeNode_copyIfNotTheLast(size_t emptySets, ArrayHolder<double>
 		return hBaselineVec.release();
 }
 
+class GDTAttrPoolHolder
+{
+protected:
+	vector<size_t>& m_attrPool;
+	size_t m_attr;
+
+public:
+	GDTAttrPoolHolder(vector<size_t>& attrPool)
+	: m_attrPool(attrPool), m_attr((size_t)-1)
+	{
+	}
+
+	void temporarilyRemoveAttribute(size_t index)
+	{
+		m_attr = m_attrPool[index];
+		GAssert(m_attr != (size_t)-1);
+		std::swap(m_attrPool[index], m_attrPool[m_attrPool.size() - 1]);
+		m_attrPool.erase(m_attrPool.end() - 1);
+	}
+
+	~GDTAttrPoolHolder()
+	{
+		// Put the attribute that we temporarily removed back in the pool
+		if(m_attr != (size_t)-1)
+			m_attrPool.push_back(m_attr);
+	}
+};
+
 // This constructs the decision tree in a recursive depth-first manner
 GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels, vector<size_t>& attrPool, size_t nDepth, size_t tolerance)
 {
@@ -618,6 +646,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	GMatrixArray featureParts(m_pRelFeatures);
 	GMatrixArray labelParts(m_pRelLabels);
 	size_t nonEmptyBranchCount = 0;
+	GDTAttrPoolHolder hAttrPool(attrPool);
 	if(m_pRelFeatures->valueCount(attr) == 0)
 	{
 		// Split on a continuous attribute
@@ -640,10 +669,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 		}
 		if(features.rows() > 0)
 			nonEmptyBranchCount++;
-
-		// Remove this attribute from the pool of available attributes
-		std::swap(attrPool[bestIndex], attrPool[attrPool.size() - 1]);
-		attrPool.erase(attrPool.end() - 1);
+		hAttrPool.temporarilyRemoveAttribute(bestIndex);
 	}
 
 	// If we didn't actually separate anything
@@ -661,7 +687,6 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 		{
 			// Try another division
 			GDecisionTreeNode* pNode = buildBranch(features, labels, attrPool, nDepth, tolerance - 1);
-			attrPool.push_back(attr);
 			return pNode;
 		}
 	}
@@ -700,7 +725,6 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 		else
 			pNode->m_ppChildren[i + 1] = new GDecisionTreeLeafNode(GDecisionTreeNode_copyIfNotTheLast(emptySets--, hBaselineVec, labels.cols()), 0);
 	}
-	attrPool.push_back(attr);
 	return hNode.release();
 }
 
@@ -780,7 +804,7 @@ void GDecisionTree::test()
 	{
 		GRand rand(0);
 		GDecisionTree tree(rand);
-		tree.basicTest(0.71, 0.77);
+		tree.basicTest(0.704, 0.77);
 	}
 	{
 		GRand rand(0);

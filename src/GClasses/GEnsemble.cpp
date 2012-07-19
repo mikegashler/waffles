@@ -327,7 +327,7 @@ void GBag::test()
 		pTree->useRandomDivisions();
 		bag.addLearner(pTree);
 	}
-	bag.basicTest(0.76, 0.76, 0.01);
+	bag.basicTest(0.767, 0.8, 0.01);
 }
 #endif
 
@@ -575,7 +575,7 @@ void GResamplingAdaBoost::test()
 	GDecisionTree* pLearner = new GDecisionTree(rand);
 	pLearner->useRandomDivisions();
 	GResamplingAdaBoost boost(pLearner, true, new GLearnerLoader(rand));
-	boost.basicTest(0.757, 0.757);
+	boost.basicTest(0.753, 0.757);
 }
 #endif
 
