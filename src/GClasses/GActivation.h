@@ -29,6 +29,9 @@ class GDom;
 class GActivationFunction
 {
 public:
+	GActivationFunction() {}
+	virtual ~GActivationFunction() {}
+
 	/// Returns the name of this activation function
 	virtual const char* name() const = 0;
 

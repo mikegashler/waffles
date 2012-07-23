@@ -3146,7 +3146,7 @@ double GMatrix::mean(size_t nAttribute)
 
 double GMatrix::median(size_t nAttribute)
 {
-	if(nAttribute >= cols() || nAttribute <  0)
+	if(nAttribute >= cols())
 		ThrowError("attribute index out of range");
 	vector<double> vals;
 	vals.reserve(rows());
