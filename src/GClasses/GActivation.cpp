@@ -10,7 +10,9 @@
 */
 
 #include "GActivation.h"
+#ifndef MIN_PREDICT
 #include "GMath.h"
+#endif // MIN_PREDICT
 #include "GDom.h"
 
 namespace GClasses {

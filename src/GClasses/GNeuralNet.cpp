@@ -10,18 +10,24 @@
 */
 
 #include "GNeuralNet.h"
+#ifndef MIN_PREDICT
 #include "GMath.h"
+#endif // MIN_PREDICT
 #include "GActivation.h"
 #include "GDistribution.h"
 #include "GError.h"
 #include "GRand.h"
 #include "GVec.h"
 #include "GDom.h"
+#ifndef MIN_PREDICT
 #include "GHillClimber.h"
+#endif  // MIN_PREDICT
 #include "GTransform.h"
+#ifndef MIN_PREDICT
 #include "GSparseMatrix.h"
 #include "GDistance.h"
 #include "GAssignment.h"
+#endif // MIN_PREDICT
 
 using std::vector;
 
@@ -481,6 +487,8 @@ GNeuralNet::~GNeuralNet()
 		delete(*it);
 }
 
+
+#ifndef MIN_PREDICT
 // virtual
 GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 {
@@ -527,6 +535,7 @@ GDomNode* GNeuralNet::serializeInner(GDom* pDoc, const char* szClassName) const
 
 	return pNode;
 }
+#endif // MIN_PREDICT
 
 void GNeuralNet::setActivationFunction(GActivationFunction* pSF, bool hold)
 {
@@ -799,6 +808,7 @@ void GNeuralNet::swapNodes(size_t layer, size_t a, size_t b)
 	}
 }
 
+#ifndef MIN_PREDICT
 void GNeuralNet::align(const GNeuralNet& that)
 {
 	if(!hasTrainingBegun())
@@ -911,6 +921,7 @@ void GNeuralNet::decayWeightsSingleOutput(size_t output, double lambda)
 		}
 	}
 }
+#endif // MIN_PREDICT
 
 void GNeuralNet::forwardProp(const double* pRow)
 {
@@ -1031,6 +1042,7 @@ double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 	}
 }
 
+#ifndef MIN_PREDICT
 // virtual
 void GNeuralNet::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
@@ -1049,6 +1061,7 @@ void GNeuralNet::predictDistributionInner(const double* pIn, GPrediction* pOut)
 		pOut++;
 	}
 }
+#endif // MIN_PREDICT
 
 void GNeuralNet::copyPrediction(double* pOut)
 {
@@ -1098,6 +1111,7 @@ void GNeuralNet::trainInner(GMatrix& features, GMatrix& labels)
 		trainWithValidation(features, labels, features, labels);
 }
 
+#ifndef MIN_PREDICT
 // virtual
 void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
@@ -1122,6 +1136,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 		}
 	}
 }
+#endif // MIN_PREDICT
 
 double GNeuralNet::validationSquaredError(GMatrix& features, GMatrix& labels)
 {
@@ -1331,6 +1346,7 @@ void GNeuralNet::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTa
 	}
 }
 
+#ifndef MIN_PREDICT
 void GNeuralNet::setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction)
 {
 	// Compute error on output layer
@@ -1511,6 +1527,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	delete(pActiv);
 	copyStructure(hCand0.get());
 }
+#endif // MIN_PREDICT
 
 void GNeuralNet::printWeights(std::ostream& stream)
 {
@@ -1538,7 +1555,7 @@ void GNeuralNet::printWeights(std::ostream& stream)
 	}
 }
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 void GNeuralNet_testMath()
 {
 	GMatrix features(0, 2);
@@ -1861,7 +1878,7 @@ void GNeuralNet::test()
 	GNeuralNet_testInvertAndSwap(prng);
 }
 
-#endif
+#endif // MIN_PREDICT
 
 
 
@@ -1945,7 +1962,7 @@ void GNeuralNetPseudoInverse::computeFeatures(const double* pLabels, double* pFe
 	GVec::copy(pFeatures, m_pBuf2, inCount);
 }
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 // static
 void GNeuralNetPseudoInverse::test()
 {
@@ -1971,7 +1988,7 @@ void GNeuralNetPseudoInverse::test()
 			ThrowError("failed");
 	}
 }
-#endif
+#endif // MIN_PREDICT
 
 
 
@@ -1995,6 +2012,7 @@ GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
 	m_reservoirLayers = pNode->field("reslays")->asInt();
 }
 
+#ifndef MIN_PREDICT
 // virtual
 GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 {
@@ -2012,7 +2030,7 @@ void GReservoirNet::clearFeatureFilter()
 	m_pFilterFeatures = new GDataAugmenter(new GReservoir(m_rand, m_weightDeviation, m_augments, m_reservoirLayers));
 }
 
-#ifndef NO_TEST_CODE
+
 // static
 void GReservoirNet::test()
 {
@@ -2020,7 +2038,7 @@ void GReservoirNet::test()
 	GReservoirNet lr(prng);
 	lr.basicTest(0.77, 0.77);
 }
-#endif
+#endif // MIN_PREDICT
 
 
 

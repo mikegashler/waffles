@@ -222,7 +222,7 @@ void GCategoricalSamplerBatch::draw(size_t samples, size_t* pOutBatch)
 	GIndexVec::shuffle(pOutBatch, samples, &m_rand);
 }
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 #define SAMPLES 10000
 // static
 void GCategoricalSamplerBatch::test()
@@ -254,7 +254,7 @@ void GCategoricalSamplerBatch::test()
 	if(std::abs(0.3 - double(counts[2]) / SAMPLES) >= 0.02)
 		ThrowError("failed");
 }
-#endif // NO_TEST_CODE
+#endif // MIN_PREDICT
 
 
 

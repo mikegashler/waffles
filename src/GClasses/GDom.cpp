@@ -13,7 +13,9 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include "GDom.h"
+#ifndef MIN_PREDICT
 #include "GFile.h"
+#endif // MIN_PREDICT
 #include "GHolders.h"
 #include <vector>
 #include <deque>
@@ -914,7 +916,7 @@ std::string to_str(const GDom& doc)
 	return os.str();
 }
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 // static
 void GDom::test()
 {
@@ -950,7 +952,7 @@ void GDom::test()
 	GDom doc;
 	doc.parseJson(szTestFile, strlen(szTestFile));
 }
-#endif // NO_TEST_CODE
+#endif // MIN_PREDICT
 
 } // namespace GClasses
 

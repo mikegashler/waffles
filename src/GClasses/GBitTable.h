@@ -35,10 +35,10 @@ public:
 
 	virtual ~GBitTable();
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
+#endif // MIN_PREDICT
 
 	/// Sets all bits to false
 	void clearAll();

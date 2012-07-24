@@ -11,21 +11,31 @@
 
 #include "GMatrix.h"
 #include "GError.h"
+#ifndef MIN_PREDICT
 #include "GAssignment.h"
 #include "GMath.h"
 #include "GDistribution.h"
+#endif // MIN_PREDICT
 #include "GVec.h"
+#ifndef MIN_PREDICT
 #include "GFile.h"
+#endif // MIN_PREDICT
 #include "GHeap.h"
 #include "GDom.h"
+#ifndef MIN_PREDICT
 #include "GHashTable.h"
+#endif // MIN_PREDICT
 #include <math.h>
+#ifndef MIN_PREDICT
 #include "GBits.h"
+#endif // MIN_PREDICT
 #include "GLearner.h"
 #include "GRand.h"
 #include "GTokenizer.h"
+#ifndef MIN_PREDICT
 #include "GNeighborFinder.h"
 #include "GDistance.h"
+#endif // MIN_PREDICT
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -206,6 +216,7 @@ void GRelation::toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, 
 	}
 }
 
+#ifndef MIN_PREDICT
 void GRelation::fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount, GRand* pRand) const
 {
 	size_t nDims = 0;
@@ -249,6 +260,7 @@ void GRelation::fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirs
 	}
 }
 
+
 void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precision) const
 {
 	std::ofstream stream;
@@ -264,7 +276,6 @@ void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precis
 	print(stream, pData, precision);
 }
 
-#ifndef NO_TEST_CODE
 //static
 void GRelation::test()
 {
@@ -300,7 +311,7 @@ void GRelation::test()
 							quote("\"Rise'\",\"Run'\""),
 							"GRelation::quote gets '\"Rise'\",\"Run'\"' wrong");
 }
-#endif // !NO_TEST_CODE
+#endif // MIN_PREDICT
 
 
 
@@ -867,10 +878,12 @@ const char* GArffRelation::attrName(size_t nAttr) const
 	return m_attrs[nAttr].m_name.c_str();
 }
 
+#ifndef MIN_PREDICT
 void GArffRelation::setAttrName(size_t attr, const char* szNewName)
 {
 	m_attrs[attr].m_name = szNewName;
 }
+#endif // MIN_PREDICT
 
 int GArffRelation::addAttrValue(size_t nAttr, const char* szValue)
 {
@@ -954,6 +967,7 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 	}
 }
 
+#ifndef MIN_PREDICT
 void GArffRelation::dropValue(size_t attr, int val)
 {
 	size_t valCount = valueCount(attr);
@@ -967,6 +981,7 @@ void GArffRelation::dropValue(size_t attr, int val)
 	}
 	GMixedRelation::setAttrValueCount(attr, valCount - 1);
 }
+#endif // MIN_PREDICT
 
 // ------------------------------------------------------------------
 
@@ -1104,6 +1119,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 		return 0.0;
 }
 
+#ifndef MIN_PREDICT
 GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 {
 	// Parse the meta data
@@ -1256,6 +1272,7 @@ GMatrix* GMatrix::parseArff(const char* szFile, size_t nLen)
 	GArffTokenizer tok(szFile, nLen);
 	return GMatrix_parseArff(tok);
 }
+
 
 class ImportRow
 {
@@ -1495,6 +1512,8 @@ GDomNode* GMatrix::serialize(GDom* pDoc) const
 	return pData;
 }
 
+#endif // MIN_PREDICT
+
 void GMatrix::col(size_t index, double* pOutVector)
 {
 	for(size_t i = 0; i < rows(); i++)
@@ -1531,6 +1550,7 @@ void GMatrix::add(GMatrix* pThat, bool transpose)
 	}
 }
 
+#ifndef MIN_PREDICT
 void GMatrix::dropValue(size_t attr, int val)
 {
 	if(attr >= cols())
@@ -1564,6 +1584,7 @@ void GMatrix::dropValue(size_t attr, int val)
 			pRow[attr] = UNKNOWN_DISCRETE_VALUE;
 	}
 }
+#endif // MIN_PREDICT
 
 void GMatrix::subtract(GMatrix* pThat, bool transpose)
 {
@@ -3144,6 +3165,7 @@ double GMatrix::mean(size_t nAttribute)
 	}
 }
 
+#ifndef MIN_PREDICT
 double GMatrix::median(size_t nAttribute)
 {
 	if(nAttribute >= cols())
@@ -3172,6 +3194,7 @@ double GMatrix::median(size_t nAttribute)
 		return 0.5 * (*a + *b);
 	}
 }
+#endif // MIN_PREDICT
 
 void GMatrix::centroid(double* pOutMeans)
 {
@@ -4110,6 +4133,7 @@ void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin
 	}
 }
 
+#ifndef MIN_PREDICT
 //static 
 GSimpleAssignment GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric)
 {
@@ -4125,9 +4149,10 @@ GSimpleAssignment GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMe
 	}
 	return linearAssignment(costs);
 }
+#endif // MIN_PREDICT
 
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 void GMatrix_testParsing()
 {
 	const char* file =
@@ -4702,7 +4727,7 @@ void GMatrix::test()
 	GMatrix_testParsing();
 	GMatrix_testWilcoxon();
 }
-#endif // !NO_TEST_CODE
+#endif // !MIN_PREDICT
 
 std::string to_str(const GMatrix& m){
   std::stringstream out;

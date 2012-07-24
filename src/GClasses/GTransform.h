@@ -54,13 +54,13 @@ public:
 	GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIncrementalTransform();
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
+#endif // MIN_PREDICT
 
 	/// Trains the transform on the data in pData. (This method may be a no-op
 	/// for transformations that always behave in the same manner.)
@@ -113,9 +113,11 @@ public:
 	/// This method may throw an exception if this transformation cannot be undone or approximately undone.
 	virtual void untransform(const double* pIn, double* pOut) = 0;
 
+#ifndef MIN_PREDICT
 	/// Similar to untransform, except it produces a distribution instead of just a vector.
 	/// This method may not be implemented in all classes, so it may throw an exception.
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut) = 0;
+#endif // MIN_PREDICT
 
 	/// This assumes train was previously called, and untransforms all the rows in pIn and returns the results.
 	virtual GMatrix* untransformBatch(GMatrix& in);
@@ -160,8 +162,10 @@ public:
 	GIncrementalTransformChainer(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIncrementalTransformChainer();
 
+#ifndef MIN_PREDICT
 	/// See the comment for GIncrementalTransform::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
+#endif // MIN_PREDICT
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void transform(const double* pIn, double* pOut);
@@ -169,8 +173,10 @@ public:
 	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
+#ifndef MIN_PREDICT
 	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+#endif // MIN_PREDICT
 
 protected:
 	/// See the comment for GIncrementalTransform::train
@@ -205,8 +211,10 @@ public:
 
 	virtual ~GPCA();
 
+#ifndef MIN_PREDICT
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
+#endif // MIN_PREDICT
 
 	/// Specify to compute the eigenvalues during training. This
 	/// method must be called before train is called.
@@ -261,10 +269,10 @@ public:
 	/// number of principle components.
 	static GMatrix* transform(size_t nDims, size_t nOutputs, GMatrix* pData, size_t nComponents, GRand* pRand);
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
+#endif // MIN_PREDICT
 };
 
 
@@ -349,7 +357,6 @@ protected:
 };
 
 
-
 /// This transforms data by passing it through a multi-layer perceptron
 /// with randomely-initialized weights. (This transform automatically
 /// converts nominal attributes to categorical as necessary, but it does
@@ -370,8 +377,10 @@ public:
 
 	virtual ~GReservoir();
 
+#ifndef MIN_PREDICT
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
+#endif // MIN_PREDICT
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
@@ -393,7 +402,6 @@ protected:
 };
 
 
-
 /// This class augments data. That is, it transforms the data according to
 /// some provided transformation, and attaches the transformed data as new
 /// attributes to the existing data.
@@ -413,8 +421,10 @@ public:
 
 	virtual ~GDataAugmenter();
 
+#ifndef MIN_PREDICT
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
+#endif // MIN_PREDICT
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
@@ -434,7 +444,7 @@ protected:
 };
 
 
-
+#ifndef MIN_PREDICT
 /// Generates subsets of data that contain only the most relevant features for predicting the labels.
 /// The train method of this class produces a ranked ordering of the feature attributes by training
 /// a single-layer neural network, and deselecting the weakest attribute until all attributes have been
@@ -458,9 +468,7 @@ public:
 	{
 	}
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	virtual GDomNode* serialize(GDom* pDoc) const;
 	
@@ -490,7 +498,7 @@ protected:
 	/// Throws an exception (because this transform cannot be trained without data)
 	virtual sp_relation trainInner(sp_relation& relation);
 };
-
+#endif // MIN_PREDICT
 
 
 /// This is sort-of the opposite of discretize. It converts each nominal attribute to a categorical
@@ -524,8 +532,10 @@ public:
 	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
+#ifndef MIN_PREDICT
 	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+#endif // MIN_PREDICT
 
 	/// Makes a mapping from the post-transform attribute indexes to the pre-transform attribute indexes
 	void reverseAttrMap(std::vector<size_t>& rmap);
@@ -632,7 +642,7 @@ protected:
 
 
 
-
+#ifndef MIN_PREDICT
 class GImputeMissingVals : public GIncrementalTransform
 {
 protected:
@@ -686,6 +696,7 @@ protected:
 	/// Throws an exception (because this transform cannot be trained without data)
 	virtual sp_relation trainInner(sp_relation& relation);
 };
+#endif // MIN_PREDICT
 
 } // namespace GClasses
 

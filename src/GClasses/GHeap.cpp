@@ -11,7 +11,9 @@
 
 #include "GHeap.h"
 #include "GError.h"
+#ifndef MIN_PREDICT
 #include "GHashTable.h"
+#endif // MIN_PREDICT
 
 using namespace GClasses;
 

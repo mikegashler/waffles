@@ -15,10 +15,14 @@
 #include "GRand.h"
 #include "GError.h"
 #include "GMatrix.h"
+#ifndef MIN_PREDICT
 #include "GBits.h"
+#endif // MIN_PREDICT
 #include "GDom.h"
+#ifndef MIN_PREDICT
 #include "GMath.h"
 #include "GImage.h"
+#endif // MIN_PREDICT
 #include "GBitTable.h"
 #include <cmath>
 
@@ -676,6 +680,7 @@ double GVec::refinePoint(double* pPoint, double* pNeighbor, size_t dims, double 
 	return mag;
 }
 
+#ifndef MIN_PREDICT
 // static
 void GVec::toImage(const double* pVec, GImage* pImage, int width, int height, int channels, double range)
 {
@@ -740,6 +745,7 @@ void GVec::fromImage(GImage* pImage, double* pVec, int width, int height, int ch
 	else
 		ThrowError("unsupported value for channels");
 }
+#endif // MIN_PREDICT
 
 // static
 void GVec::capValues(double* pVec, double cap, size_t dims)
@@ -765,7 +771,7 @@ void GVec::floorValues(double* pVec, double floor, size_t dims)
 	}
 }
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 // static
 void GVec::test()
 {
@@ -786,7 +792,7 @@ void GVec::test()
 			ThrowError("Failed");
 	}
 }
-#endif // NO_TEST_CODE
+#endif // MIN_PREDICT
 
 
 
@@ -1006,6 +1012,7 @@ bool GCoordVectorIterator::advance(size_t steps)
 	return true;
 }
 
+#ifndef MIN_PREDICT
 bool GCoordVectorIterator::advanceSampling()
 {
 	if(m_sampleShift == (size_t)-1) // if we have not yet computed the step size
@@ -1044,6 +1051,7 @@ bool GCoordVectorIterator::advanceSampling()
 	}
 	return true;
 }
+#endif // MIN_PREDICT
 
 size_t* GCoordVectorIterator::current()
 {
@@ -1077,7 +1085,7 @@ void GCoordVectorIterator::setRandom(GRand* pRand)
 		m_pCoords[i] = (size_t)pRand->next(m_pRanges[i]);
 }
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 #define TEST_DIMS 4
 // static
 void GCoordVectorIterator::test()
@@ -1105,7 +1113,7 @@ void GCoordVectorIterator::test()
 	if(count != size)
 		ThrowError("didn't get them all");
 }
-#endif
+#endif // MIN_PREDICT
 
 
 } // namespace GClasses

@@ -15,8 +15,9 @@
 #include <cmath>
 #include <math.h>
 #include "GError.h"
+#ifndef MIN_PREDICT
 #include "GMath.h"
-
+#endif // MIN_PREDICT
 namespace GClasses {
 
 class GDomNode;

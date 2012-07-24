@@ -281,10 +281,10 @@ public:
 	/// \returns a reference to the global random number generator.  
 	static GRand& global();
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
+#endif // !MIN_PREDICT
 };
 
 /// \brief A 64-bit pseudo-random number generator based on the
@@ -438,11 +438,11 @@ public:
 		return uniform()*(max-min)+min;
 	}
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there
 	/// is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
+#endif // !MIN_PREDICT
 };
 
 

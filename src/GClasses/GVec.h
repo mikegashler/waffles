@@ -28,10 +28,10 @@ class GDomListIterator;
 class GVec
 {
 public:
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
+#endif // MIN_PREDICT
 
 	/// This returns true if the vector contains any unknown values. Most of the methods in this
 	/// class will give bad results if a vector contains unknown values, but for efficiency
@@ -322,10 +322,10 @@ public:
 	GCoordVectorIterator(std::vector<size_t>& ranges);
 	~GCoordVectorIterator();
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if any problems are found.
 	static void test();
-#endif
+#endif // MIN_PREDICT
 
 	/// Sets the coordinate vector to all zeros.
 	void reset();

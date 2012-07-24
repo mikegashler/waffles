@@ -243,9 +243,9 @@ public:
 	/// you use GCategoricalSampler.)
 	void draw(size_t samples, size_t* pOutBatch);
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	static void test();
-#endif // NO_TEST_CODE
+#endif // MIN_PREDICT
 
 };
 

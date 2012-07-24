@@ -20,7 +20,9 @@
 #include <stdlib.h>
 #include <iostream>
 #include <sstream>
+#ifndef MIN_PREDICT
 #include "GString.h"
+#endif // MIN_PREDICT
 
 using std::exception;
 using std::string;
@@ -252,7 +254,7 @@ long filelength(int filedes)
 }
 #endif
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 namespace{
 	template<class container, class T>
 		void CFill(container& c, const T a){
@@ -361,7 +363,7 @@ void test_to_str(){
 							"Failed to_str on map<list<int>,vector<int> >");
 	}
 }
-#endif
+#endif // MIN_PREDICT
 
 } // namespace GClasses
 

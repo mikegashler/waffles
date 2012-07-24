@@ -14,11 +14,15 @@
 #include <math.h>
 #include "GError.h"
 #include <stdlib.h>
+#ifndef MIN_PREDICT
 #include "GHistogram.h"
 #include "GTime.h"
 #include "GMath.h"
+#endif // MIN_PREDICT
 #include "GVec.h"
+#ifndef MIN_PREDICT
 #include "GReverseBits.h"
+#endif // MIN_PREDICT
 #include <cmath>
 #include <ctime>
 #ifdef WINDOWS
@@ -323,6 +327,7 @@ void GRand::cubical(double* pOutVec, size_t dims)
 		*(pEl++) = uniform();
 }
 
+#ifndef MIN_PREDICT
 GRand& GRand::global(){
 	static GRand rng(0);
 	static bool initialized = false;
@@ -339,8 +344,6 @@ GRand& GRand::global(){
 	return rng;
 }
 
-
-#ifndef NO_TEST_CODE
 #define TEST_BIT_HIST_ITERS 100000
 void GRand_testBitHistogram()
 {
@@ -386,7 +389,6 @@ void GRand_testSpeed()
 	if(randtime < grandtime)
 		ThrowError("rand is faster than GRand");
 }
-
 
 void GRand_testRange()
 {
@@ -447,7 +449,7 @@ void GRand::test()
 	//GRand_testSpeed();
 	// todo: add a test for correlations
 }
-#endif // !NO_TEST_CODE
+#endif // MIN_PREDICT
 
 
 /* initializes mt[NN] with a seed */
@@ -516,7 +518,7 @@ void GRandMersenneTwister::init_by_array64(uint64_t init_key[],
 
 
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 namespace{
 	///The expected values produced by the integer portion of the test
 	///code included with the original mersenne twister code.  There are
@@ -1095,6 +1097,6 @@ void GRandMersenneTwister::test()
 
 }
 
-#endif // !NO_TEST_CODE
+#endif // !MIN_PREDICT
 
 } // namespace GClasses

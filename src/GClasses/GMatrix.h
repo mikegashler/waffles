@@ -143,11 +143,11 @@ public:
 	/// \brief Saves to a file
 	void save(const GMatrix* pData, const char* szFilename, size_t precision) const;
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception
 	/// if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
+#endif // !MIN_PREDICT
 
  protected:
 	/// \brief Returns a copy of aString modified to escape internal
@@ -391,8 +391,10 @@ public:
 	virtual std::string attrNameStr(std::size_t nAttr) const { 
 		return attrName(nAttr); }
 
-	/// \brief Sets the name of the specified attribute.
-	void setAttrName(size_t attr, const char* szNewName);
+#ifndef MIN_PREDICT
+    /// \brief Sets the name of the specified attribute.
+    void setAttrName(size_t attr, const char* szNewName);
+#endif // MIN_PREDICT
 
 	/// \brief Adds a new possible value to a nominal attribute. Returns
 	/// the numerical form of the new value.
@@ -417,9 +419,11 @@ public:
 	/// \brief Parses the meta-data for an attribute
 	void parseAttribute(GArffTokenizer& tok);
 
+#ifndef MIN_PREDICT
 	/// \brief Drops the specified value from the list of possible values.
 	/// (Swaps the last value in to fill its slot.)
 	void dropValue(size_t attr, int val);
+#endif // MIN_PREDICT
 };
 
 /// \brief Represents a matrix or a database table. 
@@ -562,8 +566,10 @@ public:
 	/// \brief Computes the determinant of this matrix
 	double determinant();
 
+#ifndef MIN_PREDICT
 	/// \brief Drops any occurrences of the specified value, and removes it as a possible value
 	void dropValue(size_t attr, int val);
+#endif // MIN_PREDICT
 
 	/// \brief Computes the eigenvalue that corresponds to the specified
 	/// eigenvector of this matrix
@@ -609,12 +615,15 @@ public:
 	/// number of rows and columns.)
 	static GMatrix* align(GMatrix* pA, GMatrix* pB);
 
+
+#ifndef MIN_PREDICT
 	/// \brief Loads an ARFF file and returns the data. This will throw
 	/// an exception if there's an error.
 	static GMatrix* loadArff(const char* szFilename);
 
 	/// \brief Loads a file in CSV format.
 	static GMatrix* loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, bool tolerant);
+#endif // MIN_PREDICT
 
 	/// \brief Sets this dataset to an identity matrix. (It doesn't
 	/// change the number of columns or rows. It just stomps over
@@ -680,6 +689,7 @@ public:
 	/// specify the parameters.)
 	static GMatrix* multiply(GMatrix& a, GMatrix& b, bool transposeA, bool transposeB);
 
+#ifndef MIN_PREDICT
 	/// \brief Parses an ARFF file and returns the data. 
 	///
 	/// This will throw an exception if there's an error.
@@ -697,6 +707,7 @@ public:
 	///      elements. (This is the case when you save a Matlab matrix
 	///      to an ascii file.)
 	static GMatrix* parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, bool tolerant = false);
+#endif // MIN_PREDICT
 
 	/// \brief Computes the Moore-Penrose pseudoinverse of this matrix
 	/// (using the SVD method). You are responsible to delete the
@@ -720,8 +731,10 @@ public:
 	/// \brief Returns the number of rows in the dataset
 	size_t rows() const { return m_rows.size(); }
 
+#ifndef MIN_PREDICT
 	/// \brief Saves the dataset to a file in ARFF format
 	void saveArff(const char* szFilename);
+#endif // MIN_PREDICT
 
 	/// \brief Sets the relation for this dataset
 	void setRelation(sp_relation& pRelation) { m_pRelation = pRelation; }
@@ -778,8 +791,10 @@ public:
 	/// pVector must be big enough to hold rows() x cols() doubles.
 	void toVector(double* pVector);
 
+#ifndef MIN_PREDICT
 	/// \brief Marshalls this object to a DOM, which may be saved to a variety of serial formats.
 	GDomNode* serialize(GDom* pDoc) const;
+#endif // MIN_PREDICT
 
 	/// \brief Returns the sum of the diagonal elements
 	double trace();
@@ -939,8 +954,10 @@ public:
 	/// specified column
 	double mean(size_t nAttribute);
 
+#ifndef MIN_PREDICT
 	/// \brief Computes the median of the values in the specified column
 	double median(size_t nAttribute);
+#endif // MIN_PREDICT
 
 	/// \brief Computes the arithmetic means of all attributes
 	void centroid(double* pOutCentroid);
@@ -1170,11 +1187,11 @@ public:
 	///         of the other matrix
 	static GSimpleAssignment bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric);
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception
 	/// if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
+#endif // MIN_PREDICT
 protected:
 	double determinantHelper(size_t nEndRow, size_t* pColumnList);
 	void inPlaceSquareTranspose();

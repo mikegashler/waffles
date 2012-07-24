@@ -12,8 +12,10 @@
 #include "GTokenizer.h"
 #include "GError.h"
 #include "GHolders.h"
+#ifndef MIN_PREDICT
 #include "GFile.h"
 #include "GString.h"
+#endif // MIN_PREDICT
 #include "GBitTable.h"
 #include "GHeap.h"
 #include <stdio.h>
@@ -60,7 +62,6 @@ bool GCharSet::find(char c)
 }
 
 
-
 GTokenizer::GTokenizer(const char* szFilename)
 {
 	std::ifstream* pStream = new std::ifstream();
@@ -75,7 +76,7 @@ GTokenizer::GTokenizer(const char* szFilename)
 	}
 	catch(const std::exception&)
 	{
-		if(GFile::doesFileExist(szFilename))
+		if (access(szFilename, 0) == 0)
 			ThrowError("Error while trying to open the existing file: ", szFilename);
 		else
 			ThrowError("File not found: ", szFilename);

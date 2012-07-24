@@ -189,13 +189,13 @@ public:
 
 	virtual ~GNeuralNet();
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Saves the model to a text file.
 	virtual GDomNode* serialize(GDom* pDoc) const;
+#endif // MIN_PREDICT
 
 	/// Sets the activation function to use with all subsequently added
 	/// layers. (Note that the activation function for the output layer is
@@ -306,9 +306,11 @@ public:
 	/// Returns the enumeration of the target function used for backpropagation
 	TargetFunction backPropTargetFunction() { return m_backPropTargetFunction; }
 
+#ifndef MIN_PREDICT
 	/// See the comment for GIncrementalLearner::trainSparse
 	/// Assumes all attributes are continuous.
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
+#endif // MIN_PREDICT
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear() {}
@@ -407,8 +409,10 @@ public:
 	void printWeights(std::ostream& stream);
 
 protected:
+#ifndef MIN_PREDICT
 	/// A helper method used by serialize.
 	GDomNode* serializeInner(GDom* pDoc, const char* szClassName) const;
+#endif // MIN_PREDICT
 
 	/// Measures the sum squared error against the specified dataset
 	double validationSquaredError(GMatrix& features, GMatrix& labels);
@@ -419,8 +423,10 @@ protected:
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
 
+#ifndef MIN_PREDICT
 	/// See the comment for GSupervisedLearner::predictDistributionInner
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+#endif // MIN_PREDICT
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
@@ -481,9 +487,9 @@ public:
 	/// vector.
 	void computeFeatures(const double* pLabels, double* pFeatures);
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	static void test();
-#endif
+#endif // MIN_PREDICT
 };
 
 /// This model uses a randomely-initialized network to map the inputs into
@@ -505,9 +511,9 @@ public:
 
 	virtual ~GReservoirNet() {}
 
-#ifndef NO_TEST_CODE
+#ifndef MIN_PREDICT
 	static void test();
-#endif
+#endif // MIN_PREDICT
 
 	/// Specify the deviation of the random weights in the reservoir
 	void setWeightDeviation(double d) { m_weightDeviation = d; }
@@ -518,11 +524,13 @@ public:
 	/// Specify the number of hidden layers in the reservoir
 	void setReservoirLayers(size_t n) { m_reservoirLayers = n; }
 
+#ifndef MIN_PREDICT
 	/// Marshall this object to a DOM
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::clearFeatureFilter.
 	virtual void clearFeatureFilter();
+#endif // MIN_PREDICT
 };
 
 
