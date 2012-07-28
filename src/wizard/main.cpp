@@ -335,7 +335,7 @@ public:
 		{
 			const char* pBtn = pp.find("btn");
 			if(!pBtn)
-				ThrowError("Expected a \"btn\" parameter value");
+				throw Ex("Expected a \"btn\" parameter value");
 			m_selection = -1;
 			for(size_t i = 0; i < m_pEffectiveNode->choices().size(); i++)
 			{
@@ -346,7 +346,7 @@ public:
 				}
 			}
 			if(m_selection < 0)
-				ThrowError("Unrecognized choice: ", pBtn);
+				throw Ex("Unrecognized choice: ", pBtn);
 		}
 		else if(m_mode == mode_options)
 		{
@@ -483,7 +483,7 @@ public:
 			}
 		}
 		else
-			ThrowError("Unrecognized mode");
+			throw Ex("Unrecognized mode");
 		return true;
 	}
 
@@ -527,7 +527,7 @@ public:
 				m_children[i]->makeCommand(stream);
 		}
 		else
-			ThrowError("Unrecognized mode");
+			throw Ex("Unrecognized mode");
 	}
 };
 
@@ -617,7 +617,7 @@ void MySession::doNext(const char* szParams)
 					break;
 			}
 			if(i >= pPar->children().size())
-				ThrowError("internal error"); // failed to find current page
+				throw Ex("internal error"); // failed to find current page
 
 			// Pick the next sibling if there is one
 			if(i + 1 < pPar->children().size())
@@ -640,7 +640,7 @@ void MySession::doNext(const char* szParams)
 							break;
 					}
 					if(i >= pParPar->children().size())
-						ThrowError("internal error"); // failed to find pPar page
+						throw Ex("internal error"); // failed to find pPar page
 
 					// Pick the next sibling of pPar
 					if(i + 1 < pParPar->children().size())
@@ -819,7 +819,7 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 			sParams += to_str(pSession->page());
 			pSession->doNext(sParams.c_str());
 			if(pSession->currentPage() == pPrev)
-				ThrowError("Internal error");
+				throw Ex("Internal error");
 		}
 		pSession->onShowPage();
 		pSession->currentPage()->makeBody(response, pSession);
@@ -829,7 +829,7 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 	{
 		char buf[300];
 		if(!getcwd(buf, 300))
-			ThrowError("getcwd failed");
+			throw Ex("getcwd failed");
 		if(nParamsLen >= 3 && strncmp(szParams, "cd=", 3) == 0)
 		{
 			if(chdir(szParams + 3) != 0)
@@ -907,11 +907,11 @@ void Server::pump()
 void getLocalStorageFolder(char* buf)
 {
 	if(!GFile::localStorageDirectory(buf))
-		ThrowError("Failed to find local storage folder");
+		throw Ex("Failed to find local storage folder");
 	strcat(buf, "/.hello/");
 	GFile::makeDir(buf);
 	if(!GFile::doesDirExist(buf))
-		ThrowError("Failed to create folder in storage area");
+		throw Ex("Failed to create folder in storage area");
 }
 
 
@@ -1089,7 +1089,7 @@ public:
 		if(lastSlash >= 0)
 		{
 			if(!getcwd(origDir, 300))
-				ThrowError("getcwd failed");
+				throw Ex("getcwd failed");
 			size_t len = std::min(299, lastSlash + 1);
 			memcpy(folder, tok, len);
 			folder[len] = '\0';
@@ -1225,7 +1225,7 @@ public:
 						else
 						{
 							if(part[0] != '<')
-								ThrowError("Unexpected token, ", tok, ", in arg ", to_str(args.get_pos() - 3));
+								throw Ex("Unexpected token, ", tok, ", in arg ", to_str(args.get_pos() - 3));
 							GAssert(nodePos + 1 >= parts.size());
 							return false; // Failed to match any option, so move on to the next template item. (All the other cases return true to indicate that it is possible to match the same template item again.)
 						}
@@ -1252,14 +1252,14 @@ void complete_command(int nArgs, char* pArgs[])
 	try
 	{
 		if(nArgs < 3)
-			ThrowError("Expected more args");
+			throw Ex("Expected more args");
 		size_t cur = atoi(pArgs[2]);
 		ArrayHolder<char*> hArgs;
 		if((int)cur >= nArgs - 3)
 		{
 			// Append an empty-string to the args
 			if((int)cur > nArgs - 3)
-				ThrowError("Out of range");
+				throw Ex("Out of range");
 			char** pArgsNew = new char*[nArgs + 1];
 			hArgs.reset(pArgsNew);
 			for(size_t i = 0; i < (size_t)nArgs; i++)
@@ -1273,7 +1273,7 @@ void complete_command(int nArgs, char* pArgs[])
 		args.pop_string(); // complete
 		args.pop_string(); // the current arg number
 		if(cur < 1)
-			ThrowError("expected cur to be >= 1");
+			throw Ex("expected cur to be >= 1");
 		const char* szApp = args.pop_string();
 		while(*szApp != 'w' && *szApp != '\0') szApp++;
 		if(*szApp == 'w') szApp++;
@@ -1304,7 +1304,7 @@ void complete_command(int nArgs, char* pArgs[])
 		else if(doesMatch(szApp, "sparse"))
 			pNode = makeSparseUsageTree();
 		else
-			ThrowError("Unrecognized app: waffles_", szApp);
+			throw Ex("Unrecognized app: waffles_", szApp);
 		Holder<UsageNode> hNode(pNode);
 		CommandCompleter cc;
 		cc.doCompletion(args, pNode, 1);
@@ -1334,7 +1334,7 @@ int main(int nArgs, char* pArgs[])
 		else if(strcmp(pArgs[1], "complete") == 0)
 			complete_command(nArgs, pArgs); // complete the specified command
 		else
-			ThrowError("Unrecognized command: ", pArgs[1]);
+			throw Ex("Unrecognized command: ", pArgs[1]);
 		ret = 0;
 	}
 	catch(std::exception& e)

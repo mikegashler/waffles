@@ -173,54 +173,54 @@ void GDiff::test()
 
 	// eenie
 	if(!differ.nextLine(&dl))
-		ThrowError("failed");
+		throw Ex("failed");
 	if(dl.nLength != 5)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(dl.nLineNumber1 != 1 || dl.nLineNumber2 != INVALID_INDEX)
-		ThrowError("wrong");
+		throw Ex("wrong");
 
 	// wham
 	if(!differ.nextLine(&dl))
-		ThrowError("failed");
+		throw Ex("failed");
 	if(dl.nLength != 4)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(dl.nLineNumber1 != INVALID_INDEX || dl.nLineNumber2 != 1)
-		ThrowError("wrong");
+		throw Ex("wrong");
 
 	// meenie
 	if(!differ.nextLine(&dl))
-		ThrowError("failed");
+		throw Ex("failed");
 	if(dl.nLength != 6)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(dl.nLineNumber1 != 2 || dl.nLineNumber2 != 2)
-		ThrowError("wrong");
+		throw Ex("wrong");
 
 	// froopy
 	if(!differ.nextLine(&dl))
-		ThrowError("failed");
+		throw Ex("failed");
 
 	// meiny
 	if(!differ.nextLine(&dl))
-		ThrowError("failed");
+		throw Ex("failed");
 	if(dl.nLineNumber1 != 3 || dl.nLineNumber2 != 4)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(strncmp(dl.pLine, "meiny", 5) != 0)
-		ThrowError("wrong");
+		throw Ex("wrong");
 
 	// mo
 	if(!differ.nextLine(&dl))
-		ThrowError("failed");
+		throw Ex("failed");
 
 	// gwobble
 	if(!differ.nextLine(&dl))
-		ThrowError("failed");
+		throw Ex("failed");
 
 	// one blank line at the end of the second file
 	if(!differ.nextLine(&dl))
-		ThrowError("failed");
+		throw Ex("failed");
 
 	// that's all folks
 	if(differ.nextLine(&dl))
-		ThrowError("That should have been the end");
+		throw Ex("That should have been the end");
 }
 #endif // !NO_TEST_CODE

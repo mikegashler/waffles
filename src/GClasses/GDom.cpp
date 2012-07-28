@@ -52,7 +52,7 @@ public:
 GDomListIterator::GDomListIterator(GDomNode* pNode)
 {
 	if(pNode->m_type != GDomNode::type_list)
-		ThrowError("Not a list type");
+		throw Ex("Not a list type");
 	m_pList = pNode;
 	m_remaining = m_pList->reverseItemOrder();
 	m_pCurrent = m_pList->m_value.m_pLastItem;
@@ -83,7 +83,7 @@ size_t GDomListIterator::remaining()
 GDomNode* GDomNode::fieldIfExists(const char* szName)
 {
 	if(m_type != type_obj)
-		ThrowError("not an obj");
+		throw Ex("not an obj");
 	GDomObjField* pField;
 	for(pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
 	{
@@ -130,7 +130,7 @@ size_t GDomNode::reverseItemOrder() const
 GDomNode* GDomNode::addField(GDom* pDoc, const char* szName, GDomNode* pNode)
 {
 	if(m_type != type_obj)
-		ThrowError("not an obj");
+		throw Ex("not an obj");
 	GDomObjField* pField = pDoc->newField();
 	pField->m_pPrev = m_value.m_pLastField;
 	m_value.m_pLastField = pField;
@@ -143,7 +143,7 @@ GDomNode* GDomNode::addField(GDom* pDoc, const char* szName, GDomNode* pNode)
 GDomNode* GDomNode::addItem(GDom* pDoc, GDomNode* pNode)
 {
 	if(m_type != type_list)
-		ThrowError("not a list");
+		throw Ex("not a list");
 	GDomListItem* pItem = pDoc->newItem();
 	pItem->m_pPrev = m_value.m_pLastItem;
 	m_value.m_pLastItem = pItem;
@@ -268,7 +268,7 @@ void GDomNode::writeJson(std::ostream& stream) const
 			stream << "null";
 			break;
 		default:
-			ThrowError("Unrecognized node type");
+			throw Ex("Unrecognized node type");
 	}
 }
 
@@ -358,7 +358,7 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 			stream << "null";
 			break;
 		default:
-			ThrowError("Unrecognized node type");
+			throw Ex("Unrecognized node type");
 	}
 }
 
@@ -433,7 +433,7 @@ size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 			col += 4;
 			break;
 		default:
-			ThrowError("Unrecognized node type");
+			throw Ex("Unrecognized node type");
 	}
 	if(col >= 200)
 	{
@@ -475,7 +475,7 @@ void GDomNode::writeXmlInlineValue(std::ostream& stream)
 			stream << "null";
 			break;
 		default:
-			ThrowError("Type cannot be inlined");
+			throw Ex("Type cannot be inlined");
 	}
 }
 
@@ -548,7 +548,7 @@ void GDomNode::writeXml(std::ostream& stream, const char* szLabel) const
 			stream << "</" << szLabel << ">";
 			break;
 		default:
-			ThrowError("Unrecognized node type");
+			throw Ex("Unrecognized node type");
 	}
 }
 
@@ -687,7 +687,7 @@ char* GDom::loadJsonString(GJsonTokenizer& tok)
 					eat += 3;
 					break;
 				default:
-					ThrowError("Unrecognized escape sequence");
+					throw Ex("Unrecognized escape sequence");
 			}
 			eat++;
 		}
@@ -716,14 +716,14 @@ GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 		else if(c == ',')
 		{
 			if(readyForField)
-				ThrowError("Unexpected ',' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				throw Ex("Unexpected ',' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 			tok.advance(1);
 			readyForField = true;
 		}
 		else if(c == '\"')
 		{
 			if(!readyForField)
-				ThrowError("Expected a ',' before the next field in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				throw Ex("Expected a ',' before the next field in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 			GDomObjField* pNewField = newField();
 			pNewField->m_pPrev = pNewObj->m_value.m_pLastField;
 			pNewObj->m_value.m_pLastField = pNewField;
@@ -735,9 +735,9 @@ GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 			readyForField = false;
 		}
 		else if(c == '\0')
-			ThrowError("Expected a matching '}' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			throw Ex("Expected a matching '}' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		else
-			ThrowError("Expected a '}' or a '\"' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			throw Ex("Expected a '}' or a '\"' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 	}
 	return pNewObj;
 }
@@ -759,16 +759,16 @@ GDomNode* GDom::loadJsonArray(GJsonTokenizer& tok)
 		else if(c == ',')
 		{
 			if(readyForValue)
-				ThrowError("Unexpected ',' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				throw Ex("Unexpected ',' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 			tok.advance(1);
 			readyForValue = true;
 		}
 		else if(c == '\0')
-			ThrowError("Expected a matching ']' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			throw Ex("Expected a matching ']' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		else
 		{
 			if(!readyForValue)
-				ThrowError("Expected a ',' or ']' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				throw Ex("Expected a ',' or ']' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 			GDomListItem* pNewItem = newItem();
 			pNewItem->m_pPrev = pNewList->m_value.m_pLastItem;
 			pNewList->m_value.m_pLastItem = pNewItem;
@@ -828,12 +828,12 @@ GDomNode* GDom::loadJsonValue(GJsonTokenizer& tok)
 		return loadJsonNumber(tok);
 	else if(c == '\0')
 	{
-		ThrowError("Unexpected end of file while parsing JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+		throw Ex("Unexpected end of file while parsing JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		return NULL;
 	}
 	else
 	{
-		ThrowError("Unexpected token while parsing JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+		throw Ex("Unexpected token while parsing JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		return NULL;
 	}
 }
@@ -855,7 +855,7 @@ void GDom::loadJson(const char* szFilename)
 void GDom::writeJson(std::ostream& stream) const
 {
 	if(!m_pRoot)
-		ThrowError("No root node has been set");
+		throw Ex("No root node has been set");
 	stream.precision(14);
 	m_pRoot->writeJson(stream);
 }
@@ -863,7 +863,7 @@ void GDom::writeJson(std::ostream& stream) const
 void GDom::writeJsonPretty(std::ostream& stream) const
 {
 	if(!m_pRoot)
-		ThrowError("No root node has been set");
+		throw Ex("No root node has been set");
 	stream.precision(14);
 	m_pRoot->writeJsonPretty(stream, 0);
 }
@@ -871,7 +871,7 @@ void GDom::writeJsonPretty(std::ostream& stream) const
 void GDom::writeJsonCpp(std::ostream& stream) const
 {
 	if(!m_pRoot)
-		ThrowError("No root node has been set");
+		throw Ex("No root node has been set");
 	stream.precision(14);
 	stream << "const char* g_rename_me = \"";
 	m_pRoot->writeJsonCpp(stream, 0);
@@ -888,7 +888,7 @@ void GDom::saveJson(const char* szFilename) const
 	}
 	catch(const std::exception&)
 	{
-		ThrowError("Error creating file: ", szFilename);
+		throw Ex("Error creating file: ", szFilename);
 	}
 	writeJson(os);
 }
@@ -896,7 +896,7 @@ void GDom::saveJson(const char* szFilename) const
 void GDom::writeXml(std::ostream& stream) const
 {
 	if(!m_pRoot)
-		ThrowError("No root node has been set");
+		throw Ex("No root node has been set");
 	stream.precision(14);
 	stream << "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>";
 	m_pRoot->writeXml(stream, "root");

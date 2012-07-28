@@ -78,7 +78,7 @@ public:
 #endif
 
 
-void ThrowError(std::string s);
+void verboten();
 
 /// This class is very similar to the standard C++ class auto_ptr,
 /// except it throws an exception if you try to make a copy of it.
@@ -103,12 +103,11 @@ public:
 	}
 
 private:
-        ///Private copy constructor so that the attempts to copy a
-        ///holder are caught at compile time rather than at run time
+	/// Private copy constructor so that the attempts to copy a
+	/// holder are caught at compile time rather than at run time
 	Holder(const Holder& other)
 	{
-		//reset(((Holder<T>)other).release());
-		ThrowError("tried to copy a holder");
+		verboten();
 	}
 public:
 	/// Deletes the object that is being held
@@ -117,12 +116,11 @@ public:
 		delete(m_p);
 	}
 private:
-        ///Private operator= so that the attempts to copy a
-        ///holder are caught at compile time rather than at run time
+	/// Private operator= so that the attempts to copy a
+	/// holder are caught at compile time rather than at run time
 	const Holder& operator=(const Holder& other)
 	{
-		//reset(((Holder)other).release());
-		ThrowError("tried to copy a holder");
+		verboten();
 		return *this;
 	}
 public:
@@ -175,25 +173,24 @@ public:
 	{
 		m_p = p;
 	}
-	
+private:	
 	ArrayHolder(const ArrayHolder& other)
 	{
-		ThrowError("tried to copy an array holder");
+		verboten();
 	}
-	
+public:	
 	/// Deletes the array of objects being held
 	~ArrayHolder()
 	{
 		delete[] m_p;
 	}
-
+private:
 	const ArrayHolder& operator=(const ArrayHolder& other)
 	{
-		//reset(((ArrayHolder)other).release());
-		ThrowError("tried to copy an array holder");
+		verboten();
 		return *this;
 	}
-
+public:
 	/// Deletes the array of objects being held and sets this holder to hold NULL
 	void reset(T* p = NULL)
 	{
@@ -438,11 +435,7 @@ public:
 		Check();
 	}
 
-	void Check()
-	{
-		if(m_sentinel != 0x5e47143a)
-			ThrowError("buffer overrun!");
-	}
+	void Check();
 };
 
 

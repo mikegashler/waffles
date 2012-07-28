@@ -113,7 +113,7 @@ double GRand::cauchy()
 int GRand::poisson(double mu)
 {
 	if(mu <= 0)
-		ThrowError("invalid parameter");
+		throw Ex("invalid parameter");
 	double p = 1.0;
 	int n = 0;
 	if(mu < 30)
@@ -132,7 +132,7 @@ int GRand::poisson(double mu)
 		double b = M_PI / sqrt(3.0 * mu);
 		double a = b * mu;
 		if(c <= 0)
-			ThrowError("Error generating Poisson deviate");
+			throw Ex("Error generating Poisson deviate");
 		double k = log(c) - mu - log(b);
 		double ck1 = 0.0;
 		double ck2;
@@ -164,7 +164,7 @@ double GRand::gamma(double alpha)
 {
 	double x;
 	if(alpha <= 0)
-		ThrowError("invalid parameter");
+		throw Ex("invalid parameter");
 	if(alpha == 1)
 		return exponential();
 	else if(alpha < 1)
@@ -210,7 +210,7 @@ double GRand::gamma(double alpha)
 				return c1 * w;
 		} while(r2 < 2);
 	}
-	ThrowError("Error making random gamma");
+	throw Ex("Error making random gamma");
 	return 0;
 }
 
@@ -253,7 +253,7 @@ double GRand::softImpulse(double s)
 double GRand::weibull(double gamma)
 {
 	if(gamma <= 0)
-		ThrowError("invalid parameter");
+		throw Ex("invalid parameter");
 	return pow(exponential(), (1.0 / gamma));
 }
 
@@ -269,21 +269,21 @@ void GRand::dirichlet(double* pOutVec, const double* pParams, int dims)
 double GRand::student(double t)
 {
 	if(t <= 0)
-		ThrowError("invalid parameter");
+		throw Ex("invalid parameter");
 	return normal() / sqrt(chiSquare(t) / t);
 }
 
 int GRand::geometric(double p)
 {
 	if(p <= 0 || p >= 1)
-		ThrowError("invalid parameter");
+		throw Ex("invalid parameter");
 	return (int)floor(-exponential() / log(1.0 - p));
 }
 
 double GRand::f(double t, double u)
 {
 	if(t <= 0 || u <= 0)
-		ThrowError("invalid parameters");
+		throw Ex("invalid parameters");
 	return chiSquare(t) * u / (t * chiSquare(u));
 }
 
@@ -301,7 +301,7 @@ double GRand::logNormal(double mean, double dev)
 double GRand::beta(double alpha, double beta)
 {
 	if(alpha <= 0 || beta <= 0)
-		ThrowError("invalid parameters");
+		throw Ex("invalid parameters");
 	double r = gamma(alpha);
 	return r / (r + gamma(beta));
 }
@@ -364,7 +364,7 @@ void GRand_testBitHistogram()
 	{
 		double d = (double)counts[i] / TEST_BIT_HIST_ITERS;
 		if(std::abs(d - 0.5) > 0.01)
-			ThrowError("Poor bit-wise histogram");
+			throw Ex("Poor bit-wise histogram");
 	}
 }
 
@@ -387,7 +387,7 @@ void GRand_testSpeed()
 	double randtime = t2 - t1;
 	double grandtime = t3 - t2;
 	if(randtime < grandtime)
-		ThrowError("rand is faster than GRand");
+		throw Ex("rand is faster than GRand");
 }
 
 void GRand_testRange()
@@ -403,11 +403,11 @@ void GRand_testRange()
 		max = std::max(max, d);
 	}
 	if(min < 0.0 || max > 1.0)
-		ThrowError("Out of range");
+		throw Ex("Out of range");
 	if(std::abs(min - 0.0) > 0.001)
-		ThrowError("poor min");
+		throw Ex("poor min");
 	if(std::abs(max - 1.0) > 0.001)
-		ThrowError("poor max");
+		throw Ex("poor max");
 }
 
 void GRand_test_determinism()
@@ -417,7 +417,7 @@ void GRand_test_determinism()
 	for(size_t i = 0; i < 16; i++)
 	{
 		if((unsigned int)rand.next() != expected[i])
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 }
 
@@ -439,7 +439,7 @@ void GRand::test()
 		for(uint64_t j = 0; j < GRANDUINT_TEST_PERIOD_SIZE; j++)
 		{
 			if(r.m_a == startA || r.m_b == startB)
-				ThrowError("Loop too small");
+				throw Ex("Loop too small");
 			r.next();
 		}
 	}

@@ -36,7 +36,7 @@ std::ostream& operator<<(std::ostream& out, const GSimpleAssignment& gsa){
 
 double cost(const GSimpleAssignment& assign, const GMatrix& costs){
 	if(costs.rows() < assign.sizeA() || costs.cols() < assign.sizeB()){
-		ThrowError("cost(const GSimpleAssignment&, const GMatrix&):"
+		throw Ex("cost(const GSimpleAssignment&, const GMatrix&):"
 							 "The cost matrix must have at least as many rows as "
 							 "the assignment set A has members and its number of columns "
 							 "must be at least the size of the assignment set B.");
@@ -355,14 +355,14 @@ void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 	//Check input that it is a square matrix or a rectangular matrix
 	//with fewer rows than columns, and that no costs are negative
 	if(n > m){ 
-		ThrowError("There must be at least as many columns as rows in the "
+		throw Ex("There must be at least as many columns as rows in the "
 							 "cost matrix passed to LAPVJRCT"); return;
 	}
 
 	for(std::size_t i = 0; i < n; ++i){
 		for(std::size_t j = 0; j < m; ++j){
 			if(c[i][j] < 0){
-				ThrowError("The cost matrix passed to LAPVJRCT must have only "
+				throw Ex("The cost matrix passed to LAPVJRCT must have only "
 									 "nonnegative entries."); return;
 			}
 		}
@@ -1311,8 +1311,7 @@ namespace{
 				 std::equal(actualSet.begin(), actualSet.end(), solutionSet.begin())){
 				//No error
 			}else{
-				ThrowError
-					("The brute-force linear assignment ", 
+				throw Ex("The brute-force linear assignment ",
 					 isMinimization?"minimization ":"maximization ",
 					 "problem solver returned a different solution set.\n",
 					 "Actual:",to_str(actualSet),"\nExpected:",to_str(solutionSet),
@@ -1338,8 +1337,7 @@ namespace{
 				solutionSet.find(actual);
 			if(location == solutionSet.end()){
 				//Could not find the generated solution among the correct answers
-				ThrowError
-					("The standard linear assignment ", 
+				throw Ex("The standard linear assignment ",
 					 isMinimization?"minimization ":"maximization ",
 					 "problem solver returned an incorrect solution\n",
 					 "Returned answer:",to_str(actual),
@@ -1704,7 +1702,7 @@ void testLinearAssignmentSolvers(){
 }
 
 ///\brief an assertion that \a code should throw an exception.  If no
-///exception is generated, does ThrowError(errmsg)
+///exception is generated, does throw Ex(errmsg)
 #define SHOULD_THROW(code, errmsg)									\
 	{																									\
 		bool didntThrow;																\
@@ -1715,7 +1713,7 @@ void testLinearAssignmentSolvers(){
 			didntThrow=false;															\
 		}																								\
 		if(didntThrow){																	\
-			ThrowError(errmsg);														\
+			throw Ex(errmsg);														\
 		}																								\
 	}
 

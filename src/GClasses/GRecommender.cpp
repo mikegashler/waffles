@@ -36,16 +36,16 @@ void GCollaborativeFilter_dims(GMatrix& data, size_t* pOutUsers, size_t* pOutIte
 	double m, r;
 	data.minAndRange(0, &m, &r);
 	if(m < 0)
-		ThrowError("col 0 (user) indexes out of range");
+		throw Ex("col 0 (user) indexes out of range");
 	*pOutUsers = size_t(ceil(m + r)) + 1;
 	data.minAndRange(1, &m, &r);
 	if(m < 0)
-		ThrowError("col 1 (item) indexes out of range");
+		throw Ex("col 1 (item) indexes out of range");
 	*pOutItems = size_t(ceil(m + r)) + 1;
 	if(data.rows() * 8 < *pOutUsers)
-		ThrowError("col 0 (user) indexes out of range");
+		throw Ex("col 0 (user) indexes out of range");
 	if(data.rows() * 8 < *pOutItems)
-		ThrowError("col 1 (item) indexes out of range");
+		throw Ex("col 1 (item) indexes out of range");
 }
 
 GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll)
@@ -56,7 +56,7 @@ GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll)
 void GCollaborativeFilter::trainDenseMatrix(GMatrix& data, GMatrix* pLabels)
 {
 	if(!data.relation()->areContinuous(0, data.cols()))
-		ThrowError("GCollaborativeFilter::trainDenseMatrix only supports continuous attributes.");
+		throw Ex("GCollaborativeFilter::trainDenseMatrix only supports continuous attributes.");
 
 	// Convert to 3-column form
 	GMatrix* pMatrix = new GMatrix(0, 3);
@@ -334,7 +334,7 @@ void GCollaborativeFilter::basicTest(double maxMSE)
 	GCF_basicTest_makeData(m, rand);
 	double mse = crossValidate(m, 2);
 	if(mse > maxMSE)
-		ThrowError("failed");
+		throw Ex("failed");
 	else if(mse + 0.085 < maxMSE)
 		std::cerr << "\nTest needs to be tightened. MSE: " << mse << ", maxMSE: " << maxMSE << "\n";
 }
@@ -369,12 +369,12 @@ void GBaselineRecommender::train(GMatrix& data)
 {
 	// Determine the sizes
 	if(data.cols() != 3)
-		ThrowError("Expected 3 cols");
+		throw Ex("Expected 3 cols");
 	double m, r;
 	data.minAndRange(1, &m, &r);
 	m_items = size_t(ceil(m + r)) + 1;
 	if(data.rows() * 8 < m_items)
-		ThrowError("column 1 (item) indexes out of range");
+		throw Ex("column 1 (item) indexes out of range");
 
 	// Allocate space
 	delete[] m_pRatings;
@@ -490,7 +490,7 @@ void GInstanceRecommender::setMetric(GSparseSimilarity* pMetric, bool own)
 void GInstanceRecommender::train(GMatrix& data)
 {
 	if(data.cols() != 3)
-		ThrowError("Expected 3 cols");
+		throw Ex("Expected 3 cols");
 
 	// Compute the baseline recommendations
 	delete(m_pBaseline);
@@ -513,7 +513,7 @@ void GInstanceRecommender::train(GMatrix& data)
 double GInstanceRecommender::predict(size_t user, size_t item)
 {
 	if(!m_pData)
-		ThrowError("This model has not been trained");
+		throw Ex("This model has not been trained");
 	if(user >= m_pData->rows() || item >= m_pData->cols())
 		return 0.0;
 
@@ -557,9 +557,9 @@ double GInstanceRecommender::predict(size_t user, size_t item)
 void GInstanceRecommender::impute(double* pVec, size_t dims)
 {
 	if(!m_pData)
-		ThrowError("This model has not been trained");
+		throw Ex("This model has not been trained");
 	if(dims != m_pData->cols())
-		ThrowError("The vector has a different size than this model was trained with");
+		throw Ex("The vector has a different size than this model was trained with");
 
 	// Find the k-nearest neighbors
 	multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
@@ -640,7 +640,7 @@ GSparseClusterRecommender::~GSparseClusterRecommender()
 void GSparseClusterRecommender::setClusterer(GSparseClusterer* pClusterer, bool own)
 {
 	if(pClusterer->clusterCount() != m_clusters)
-		ThrowError("Mismatching number of clusters");
+		throw Ex("Mismatching number of clusters");
 	if(m_ownClusterer)
 		delete(m_pClusterer);
 	m_pClusterer = pClusterer;
@@ -651,7 +651,7 @@ void GSparseClusterRecommender::setClusterer(GSparseClusterer* pClusterer, bool 
 void GSparseClusterRecommender::train(GMatrix& data)
 {
 	if(data.cols() != 3)
-		ThrowError("Expected 3 cols");
+		throw Ex("Expected 3 cols");
 
 	// Convert the data to a sparse matrix
 	size_t users, items;
@@ -704,7 +704,7 @@ double GSparseClusterRecommender::predict(size_t user, size_t item)
 // virtual
 void GSparseClusterRecommender::impute(double* pVec, size_t dims)
 {
-	ThrowError("Sorry, GSparseClusterRecommender::impute is not yet implemented");
+	throw Ex("Sorry, GSparseClusterRecommender::impute is not yet implemented");
 	// todo: Find the closest centroid, and use it to impute all values
 }
 
@@ -712,7 +712,7 @@ void GSparseClusterRecommender::impute(double* pVec, size_t dims)
 GDomNode* GSparseClusterRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GSparseClusterRecommender");
-	ThrowError("Sorry, this method has not been implemented yet");
+	throw Ex("Sorry, this method has not been implemented yet");
 	return pNode;
 }
 
@@ -755,7 +755,7 @@ GDenseClusterRecommender::~GDenseClusterRecommender()
 void GDenseClusterRecommender::setClusterer(GClusterer* pClusterer, bool own)
 {
 	if(pClusterer->clusterCount() != m_clusters)
-		ThrowError("Mismatching number of clusters");
+		throw Ex("Mismatching number of clusters");
 	if(m_ownClusterer)
 		delete(m_pClusterer);
 	m_pClusterer = pClusterer;
@@ -766,7 +766,7 @@ void GDenseClusterRecommender::setClusterer(GClusterer* pClusterer, bool own)
 void GDenseClusterRecommender::train(GMatrix& data)
 {
 	if(data.cols() != 3)
-		ThrowError("Expected 3 cols");
+		throw Ex("Expected 3 cols");
 
 	if(!m_pClusterer)
 		setClusterer(new GFuzzyKMeans(m_clusters, &m_rand), true);
@@ -822,7 +822,7 @@ double GDenseClusterRecommender::predict(size_t user, size_t item)
 // virtual
 void GDenseClusterRecommender::impute(double* pVec, size_t dims)
 {
-	ThrowError("Sorry, GDenseClusterRecommender::impute is not yet implemented");
+	throw Ex("Sorry, GDenseClusterRecommender::impute is not yet implemented");
 	// todo: Find the closest centroid, and use it to impute all values
 }
 
@@ -830,7 +830,7 @@ void GDenseClusterRecommender::impute(double* pVec, size_t dims)
 GDomNode* GDenseClusterRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GDenseClusterRecommender");
-	ThrowError("Sorry, this method has not been implemented yet");
+	throw Ex("Sorry, this method has not been implemented yet");
 	return pNode;
 }
 
@@ -865,7 +865,7 @@ GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll)
 	m_pP = new GMatrix(pNode->field("p"));
 	m_pQ = new GMatrix(pNode->field("q"));
 	if(m_pP->cols() != m_pQ->cols())
-		ThrowError("Mismatching matrix sizes");
+		throw Ex("Mismatching matrix sizes");
 	m_intrinsicDims = m_pP->cols() - 1;
 }
 
@@ -1005,7 +1005,7 @@ void GMatrixFactorization::train(GMatrix& data)
 double GMatrixFactorization::predict(size_t user, size_t item)
 {
 	if(!m_pP)
-		ThrowError("Not trained yet");
+		throw Ex("Not trained yet");
 	if(user >= m_pP->rows() || item >= m_pQ->rows())
 		return 0.0;
 	double* pWeights = m_pQ->row(item);
@@ -1039,7 +1039,7 @@ void GMatrixFactorization_vectorToRatings(const double* pVec, size_t dims, GMatr
 void GMatrixFactorization::impute(double* pVec, size_t dims)
 {
 	if(!m_pP)
-		ThrowError("Not trained yet");
+		throw Ex("Not trained yet");
 
 	// Convert the vector to a set of ratings
 	GMatrix data(0, 3);
@@ -1158,12 +1158,12 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 	m_pMins = new double[m_items];
 	GDomListIterator it1(pNode->field("mins"));
 	if(it1.remaining() != m_items)
-		ThrowError("invalid number of elements");
+		throw Ex("invalid number of elements");
 	GVec::deserialize(m_pMins, it1);
 	m_pMaxs = new double[m_items];
 	GDomListIterator it2(pNode->field("maxs"));
 	if(it2.remaining() != m_items)
-		ThrowError("invalid number of elements");
+		throw Ex("invalid number of elements");
 	GVec::deserialize(m_pMaxs, it2);
 	m_intrinsicDims = m_pModel->layer(0).m_neurons.size();
 }
@@ -1339,7 +1339,7 @@ double GNonlinearPCA::predict(size_t user, size_t item)
 // virtual
 void GNonlinearPCA::impute(double* pVec, size_t dims)
 {
-	ThrowError("Sorry, GNonlinearPCA::impute is not implemented yet");
+	throw Ex("Sorry, GNonlinearPCA::impute is not implemented yet");
 /*	// Initialize a preference vector
 	GTEMPBUF(double, pPrefVec, m_intrinsicDims);
 	GActivationFunction* pAF = m_pModel->layer(0).m_pActivationFunction;

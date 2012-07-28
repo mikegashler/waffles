@@ -501,7 +501,7 @@ class GDistanceMetric;
 
       /// Throw error
       virtual void train(GSelfOrganizingMap& map, GMatrix* pIn){
-	ThrowError("Training of self-organizing maps loaded from files is currently unsupported");
+	throw Ex("Training of self-organizing maps loaded from files is currently unsupported");
       }
       ///Destructor to ensure good memory hygiene
       virtual ~DummyTrainingAlgorithm(){}      
@@ -800,13 +800,13 @@ public:
 
   /// Throws an exception (because this transform cannot be trained without data)
   virtual sp_relation trainInner(sp_relation& in){
-    ThrowError("This transform cannot be trained without data");
+    throw Ex("This transform cannot be trained without data");
 	return m_pRelationBefore;
   }
 
   ///TODO: implement enableIncrementalTraining 
   virtual void beginIncrementalTraining(sp_relation&, double*, double*){
-    ThrowError("BeginIncrementalTraining not yet implemented");
+    throw Ex("BeginIncrementalTraining not yet implemented");
   }
 
   ///Transform the given vector from input coordinates to map
@@ -876,11 +876,11 @@ public:
 
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransform(const double* pIn, double* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 };
 
 inline GDistanceMetric& 

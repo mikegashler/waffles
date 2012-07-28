@@ -147,7 +147,7 @@ public:
 			else
 				stream << "Is attr " << m_nAttribute << " < " << s.c_str() << "?\n";
 			if(m_nChildren != 2)
-				ThrowError("expected this node to have two child nodes");
+				throw Ex("expected this node to have two child nodes");
 			m_ppChildren[0]->print(pFeatureRel, pLabelRel, stream, depth + 1, "Yes");
 			m_ppChildren[1]->print(pFeatureRel, pLabelRel, stream, depth + 1, "No");
 		}
@@ -314,7 +314,7 @@ GDecisionTree::~GDecisionTree()
 GDomNode* GDecisionTree::serialize(GDom* pDoc) const
 {
 	if(!m_pRoot)
-		ThrowError("Attempted to serialize a model that has not been trained");
+		throw Ex("Attempted to serialize a model that has not been trained");
 	GDomNode* pNode = baseDomNode(pDoc, "GDecisionTree");
 	pNode->addField(pDoc, "alg", pDoc->newInt(m_eAlg));
 	pNode->addField(pDoc, "root", m_pRoot->serialize(pDoc, m_pRelLabels->size()));
@@ -329,7 +329,7 @@ size_t GDecisionTree::treeSize()
 void GDecisionTree::print(ostream& stream, GArffRelation* pFeatureRel, GArffRelation* pLabelRel)
 {
 	if(!m_pRoot)
-		ThrowError("not trained yet");
+		throw Ex("not trained yet");
 	GRelation* pFRel = pFeatureRel;
 	GRelation* pLRel = pLabelRel;
 	if(!pFRel)
@@ -731,7 +731,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth)
 {
 	if(!m_pRoot)
-		ThrowError("Not trained yet");
+		throw Ex("Not trained yet");
 	GDecisionTreeNode* pNode = m_pRoot;
 	int nVal;
 	size_t nDepth = 1;
@@ -1007,7 +1007,7 @@ GDomNode* GMeanMarginsTree::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
 	pNode->addField(pDoc, "ild", pDoc->newInt(m_internalLabelDims));
 	if(!m_pRoot)
-		ThrowError("Attempted to serialize a model that has not been trained");
+		throw Ex("Attempted to serialize a model that has not been trained");
 	pNode->addField(pDoc, "root", m_pRoot->serialize(pDoc, m_internalFeatureDims, m_internalLabelDims));
 	return pNode;
 }
@@ -1146,7 +1146,7 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 // virtual
 void GMeanMarginsTree::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, this model cannot predict a distribution");
+	throw Ex("Sorry, this model cannot predict a distribution");
 }
 
 // virtual

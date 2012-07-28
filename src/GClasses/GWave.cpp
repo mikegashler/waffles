@@ -84,7 +84,7 @@ void GWave::load(const char* szFilename)
 	}
 	catch(const std::exception&)
 	{
-		ThrowError("Failed to open file: ", szFilename);
+		throw Ex("Failed to open file: ", szFilename);
 	}
 	struct WaveHeader waveHeader;
 	s.read((char*)&waveHeader, sizeof(struct WaveHeader));
@@ -141,7 +141,7 @@ void GWave::save(const char* szFilename)
 	}
 	catch(const std::exception&)
 	{
-		ThrowError("Error creating file: ", szFilename);
+		throw Ex("Error creating file: ", szFilename);
 	}
 	os.write((const char*)&waveHeader, sizeof(struct WaveHeader));
 	os.write((const char*)m_pData, size);

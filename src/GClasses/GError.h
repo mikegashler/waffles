@@ -37,6 +37,38 @@
 namespace GClasses {
 
 
+///\brief The class of all exceptions thrown by this library
+/// A simple exception object that wraps a string message
+class Ex : public std::exception
+{
+protected:
+	std::string m_message;
+
+public:
+	typedef std::string s;
+	Ex(s a) { setMessage(a); }
+	Ex(s a, s b) { setMessage(a + b); }
+	Ex(s a, s b, s c) { setMessage(a + b + c); }
+	Ex(s a, s b, s c, s d) { setMessage(a + b + c + d); }
+	Ex(s a, s b, s c, s d, s e) { setMessage(a + b + c + d + e); }
+	Ex(s a, s b, s c, s d, s e, s f) { setMessage(a + b + c + d + e + f); }
+	Ex(s a, s b, s c, s d, s e, s f, s g) { setMessage(a + b + c + d + e + f + g); }
+	Ex(s a, s b, s c, s d, s e, s f, s g, s h) { setMessage(a + b + c + d + e + f + g + h); }
+	Ex(s a, s b, s c, s d, s e, s f, s g, s h, s i) { setMessage(a + b + c + d + e + f + g + h + i); }
+	Ex(s a, s b, s c, s d, s e, s f, s g, s h, s i, s j) { setMessage(a + b + c + d + e + f + g + h + i + j); }
+
+	virtual ~Ex() throw()
+	{
+	}
+
+	/// Sets the message on the exception. (This method is called by all constructors of this object.)
+	void setMessage(std::string message);
+
+	/// Returns the error message corresponding to this exception
+	virtual const char* what() const throw();
+};
+
+
 #define INVALID_INDEX ((size_t)-1)
 
 
@@ -63,29 +95,6 @@ protected:
 public:
 	GExpectException();
 	~GExpectException();
-};
-
-
-
-///\brief The class of all exceptions thrown by this library
-class GException : public std::exception
-{
-protected:
-	std::string m_message;
-
-public:
-	GException(std::string message) : m_message(message)
-	{
-	}
-	
-    virtual ~GException() throw()
-	{
-	}
-
-	///\brief Return the error message corresponding to this exception
-	///
-	///\return the error message corresponding to this exception
-	virtual const char* what() const throw();
 };
 
 
@@ -220,19 +229,6 @@ void test_to_str();
 #endif // MIN_PREDICT
 
 
-void ThrowError(std::string s1);
-void ThrowError(std::string s1, std::string s2);
-void ThrowError(std::string s1, std::string s2, std::string s3);
-void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4);
-void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5);
-void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6);
-void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6, std::string s7);
-void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6, std::string s7, std::string s8);
-void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6, std::string s7, std::string s8, std::string s9);
-void ThrowError(std::string s1, std::string s2, std::string s3, std::string s4, std::string s5, std::string s6, std::string s7, std::string s8, std::string s9, std::string s10);
-
-
-
 #define COMPILER_ASSERT(expr)  enum { CompilerAssertAtLine##__LINE__ = sizeof( char[(expr) ? +1 : -1] ) }
 
 
@@ -286,7 +282,7 @@ void TestEqual(const T1& expected, const T2& got, std::string test_descr){
 			<< "Expected: " << GClasses::to_str(expected) << endl
 			<< "Got     : " << GClasses::to_str(got) << endl
 			;
-		ThrowError("Test for equality failed: ", test_descr);
+		throw Ex("Test for equality failed: ", test_descr);
 	}
 }
 

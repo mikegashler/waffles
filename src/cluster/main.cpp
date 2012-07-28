@@ -64,7 +64,7 @@ GMatrix* loadData(const char* szFilename)
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return pData;
 }
 
@@ -102,7 +102,7 @@ void fuzzykmeans(GArgReader& args)
 		else if(args.if_pop("-reps"))
 			reps = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Do the clustering
@@ -132,7 +132,7 @@ void kmeans(GArgReader& args)
 		else if(args.if_pop("-reps"))
 			reps = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Do the clustering
@@ -216,13 +216,13 @@ int main(int argc, char *argv[])
 	args.pop_string(); // advance past the app name
 	try
 	{
-		if(args.size() < 1) ThrowError("Expected a command");
+		if(args.size() < 1) throw Ex("Expected a command");
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("agglomerative")) agglomerativeclusterer(args);
 		else if(args.if_pop("fuzzykmeans")) fuzzykmeans(args);
 		else if(args.if_pop("kmeans")) kmeans(args);
 		else if(args.if_pop("kmedoids")) kmedoids(args);
-		else ThrowError("Unrecognized command: ", args.peek());
+		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{

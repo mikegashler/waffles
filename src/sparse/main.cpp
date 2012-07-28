@@ -66,7 +66,7 @@ GMatrix* loadData(const char* szFilename)
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return pData;
 }
 
@@ -81,7 +81,7 @@ GBaselineLearner* InstantiateBaseline(GRand& rand, GArgReader& args)
 GKNN* InstantiateKNN(GRand& rand, GArgReader& args)
 {
 	if(args.size() < 1)
-		ThrowError("The number of neighbors must be specified for knn");
+		throw Ex("The number of neighbors must be specified for knn");
 	int neighborCount = args.pop_uint();
 	GKNN* pModel = new GKNN(rand);
 	pModel->setNeighborCount(neighborCount);
@@ -96,7 +96,7 @@ GKNN* InstantiateKNN(GRand& rand, GArgReader& args)
 		else if(args.if_pop("-pearson"))
 			pModel->setMetric(new GPearsonCorrelation(), true);
 		else
-			ThrowError("Invalid knn option: ", args.peek());
+			throw Ex("Invalid knn option: ", args.peek());
 	}
 	return pModel;
 }
@@ -115,7 +115,7 @@ GNaiveBayes* InstantiateNaiveBayes(GRand& rand, GArgReader& args)
 		if(args.if_pop("-ess"))
 			pModel->setEquivalentSampleSize(args.pop_double());
 		else
-			ThrowError("Invalid naivebayes option: ", args.peek());
+			throw Ex("Invalid naivebayes option: ", args.peek());
 	}
 	return pModel;
 }
@@ -128,7 +128,7 @@ GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args)
 		if(args.if_pop("-neighbors"))
 			pModel->setNeighbors(args.pop_uint());
 		else
-			ThrowError("Invalid neighbortransducer option: ", args.peek());
+			throw Ex("Invalid neighbortransducer option: ", args.peek());
 	}
 	return pModel;
 }
@@ -173,7 +173,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
 			else if(strcmp(szSF, "piecewise") == 0)
 				pSF = new GActivationPiecewise();
 			else
-				ThrowError("Unrecognized activation function: ", szSF);
+				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
 		}
 		else if(args.if_pop("-crossentropy"))
@@ -181,7 +181,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
 		else if(args.if_pop("-physical"))
 			pModel->setBackPropTargetFunction(GNeuralNet::physical);
 		else
-			ThrowError("Invalid neuralnet option: ", args.peek());
+			throw Ex("Invalid neuralnet option: ", args.peek());
 	}
 	return pModel;
 }
@@ -201,7 +201,7 @@ GNeuralTransducer* InstantiateNeuralTransducer(GRand* pRand, GArgReader& args)
 				paramDims.push_back(args.pop_uint());
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	pTransducer->setParams(paramDims);
 	return pTransducer;
@@ -242,7 +242,7 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 {
 	int argPos = args.get_pos();
 	if(args.size() < 1)
-		ThrowError("No algorithm specified.");
+		throw Ex("No algorithm specified.");
 	try
 	{
 		if(args.if_pop("baseline"))
@@ -257,14 +257,14 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 //			return InstantiateNaiveInstance(rand, args);
 		else if(args.if_pop("neuralnet"))
 			return InstantiateNeuralNet(rand, args);
-		ThrowError("Unrecognized algorithm name: ", args.peek());
+		throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{
 		args.set_pos(argPos);
 		if(strcmp(e.what(), "nevermind") != 0) // if an error message was not already displayed...
 			showInstantiateAlgorithmError(e.what(), args);
-		ThrowError("nevermind"); // this means "don't display another error message"
+		throw Ex("nevermind"); // this means "don't display another error message"
 	}
 	return NULL;
 }
@@ -273,7 +273,7 @@ void firstPrincipalComponents(GArgReader& args)
 {
 	// Load the sparse matrix
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
+		throw Ex("No dataset specified.");
 	GSparseMatrix* pA;
 	Holder<GSparseMatrix> hA(NULL);
 	{
@@ -295,7 +295,7 @@ void multiplyDense(GArgReader& args)
 {
 	// Load the sparse matrix
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
+		throw Ex("No dataset specified.");
 	GSparseMatrix* pA;
 	Holder<GSparseMatrix> hA(NULL);
 	{
@@ -316,7 +316,7 @@ void multiplyDense(GArgReader& args)
 		if(args.if_pop("-transpose"))
 			transpose = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GMatrix* pResult = pA->multiply(pB, transpose);
@@ -333,12 +333,12 @@ void train(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid trainsparse option: ", args.peek());
+			throw Ex("Invalid trainsparse option: ", args.peek());
 	}
 
 	// Load the sparse features
 	if(args.size() < 1)
-		ThrowError("Expected a filename of a sparse matrix.");
+		throw Ex("Expected a filename of a sparse matrix.");
 	GSparseMatrix* pSparseFeatures;
 	Holder<GSparseMatrix> hSparseFeatures(NULL);
 	{
@@ -357,9 +357,9 @@ void train(GArgReader& args)
 	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 	if(!pSupLearner->canTrainIncrementally())
-		ThrowError("This algorithm cannot be trained with a sparse matrix. Only incremental learners (such as naivebayes, knn, and neuralnet) support this functionality.");
+		throw Ex("This algorithm cannot be trained with a sparse matrix. Only incremental learners (such as naivebayes, knn, and neuralnet) support this functionality.");
 	GIncrementalLearner* pModel = (GIncrementalLearner*)pSupLearner;
 
 	// Train the modeler
@@ -381,14 +381,14 @@ void predict(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid predictsparse option: ", args.peek());
+			throw Ex("Invalid predictsparse option: ", args.peek());
 	}
 
 	// Load the model
 	GRand prng(seed);
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified.");
+		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(prng, true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
@@ -396,7 +396,7 @@ void predict(GArgReader& args)
 
 	// Load the sparse features
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
+		throw Ex("No dataset specified.");
 	GSparseMatrix* pData;
 	Holder<GSparseMatrix> hData(NULL);
 	{
@@ -427,14 +427,14 @@ void test(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid predictsparse option: ", args.peek());
+			throw Ex("Invalid predictsparse option: ", args.peek());
 	}
 
 	// Load the model
 	GRand prng(seed);
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified.");
+		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(prng, true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
@@ -442,7 +442,7 @@ void test(GArgReader& args)
 
 	// Load the sparse features
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
+		throw Ex("No dataset specified.");
 	GSparseMatrix* pData;
 	Holder<GSparseMatrix> hData(NULL);
 	{
@@ -456,7 +456,7 @@ void test(GArgReader& args)
 	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
 	Holder<GMatrix> hLabels(pLabels);
 	if(!pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
-		ThrowError("The data is not compatible with the data used to trainn the model. (The meta-data is different.)");
+		throw Ex("The data is not compatible with the data used to trainn the model. (The meta-data is different.)");
 
 	// Test
 	GTEMPBUF(double, prediction, pLabels->cols());
@@ -491,7 +491,7 @@ void transpose(GArgReader& args)
 {
 	// Load the sparse matrix
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
+		throw Ex("No dataset specified.");
 	GSparseMatrix* pA;
 	Holder<GSparseMatrix> hA(NULL);
 	{
@@ -654,7 +654,7 @@ void docsToSparseMatrix(GArgReader& args)
 		else if(args.if_pop("-vocabfile"))
 			vocabFile = args.pop_string();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Parse the vocabulary
@@ -667,9 +667,9 @@ void docsToSparseMatrix(GArgReader& args)
 		folders.push_back(szFolder);
 		char cwd[300];
 		if(!getcwd(cwd, 300))
-			ThrowError("Failed to get cwd");
+			throw Ex("Failed to get cwd");
 		if(chdir(szFolder) != 0)
-			ThrowError("Failed to change directory to: ", szFolder, ", from: ", cwd);
+			throw Ex("Failed to change directory to: ", szFolder, ", from: ", cwd);
 		{
 			vector<string> files;
 			GFile::fileList(files);
@@ -687,10 +687,10 @@ void docsToSparseMatrix(GArgReader& args)
 			}
 		}
 		if(chdir(cwd) != 0)
-			ThrowError("failed to change dir");
+			throw Ex("failed to change dir");
 	}
 	if(folders.size() == 0)
-		ThrowError("At least one folder name must be specified");
+		throw Ex("At least one folder name must be specified");
 	printf("-----\n");
 
 	// Make the sparse feature matrix and the label matrix
@@ -710,9 +710,9 @@ void docsToSparseMatrix(GArgReader& args)
 		const char* szFolder = folders[clss].c_str();
 		char cwd[300];
 		if(!getcwd(cwd, 300))
-			ThrowError("Failed to get cwd");
+			throw Ex("Failed to get cwd");
 		if(chdir(szFolder) != 0)
-			ThrowError("Failed to change directory to: ", szFolder, ", from: ", cwd);
+			throw Ex("Failed to change directory to: ", szFolder, ", from: ", cwd);
 		{
 			vector<string> files;
 			GFile::fileList(files);
@@ -734,7 +734,7 @@ void docsToSparseMatrix(GArgReader& args)
 			}
 		}
 		if(chdir(cwd) != 0)
-			ThrowError("Failed to change dir");
+			throw Ex("Failed to change dir");
 	}
 
 	// Save the files
@@ -777,7 +777,7 @@ void shuffle(GArgReader& args)
 			labelsOut = args.pop_string();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Shuffle and print
@@ -807,7 +807,7 @@ void split(GArgReader& args)
 	size_t pats1 = args.pop_uint();
 	size_t pats2 = pData->rows() - pats1;
 	if(pats2 < 0)
-		ThrowError("out of range. The data only has ", to_str(pData->rows()), " rows.");
+		throw Ex("out of range. The data only has ", to_str(pData->rows()), " rows.");
 	const char* szFilename1 = args.pop_string();
 	const char* szFilename2 = args.pop_string();
 
@@ -832,7 +832,7 @@ void splitFold(GArgReader& args)
 	size_t fold = args.pop_uint();
 	size_t folds = args.pop_uint();
 	if(fold >= folds)
-		ThrowError("fold index out of range. It must be less than the total number of folds.");
+		throw Ex("fold index out of range. It must be less than the total number of folds.");
 
 	// Options
 	string filenameTrain = "train.sparse";
@@ -845,7 +845,7 @@ void splitFold(GArgReader& args)
 			filenameTest = args.pop_string();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Copy relevant portions of the data

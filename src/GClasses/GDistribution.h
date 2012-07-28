@@ -126,7 +126,7 @@ public:
 	{
 		size_t index = (size_t)x;
 		if(index >= m_nValueCount)
-			ThrowError("out of range");
+			throw Ex("out of range");
 		return m_pValues[index];
 	}
 

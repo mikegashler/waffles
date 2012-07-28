@@ -537,11 +537,11 @@ void test_transform_mergevert()
 	// Execute the command
 	GPipe pipeStdOut;
 	if(sysExec("waffles_transform", "mergevert a.arff b.arff", &pipeStdOut) != 0)
-		ThrowError("exit status indicates failure");
+		throw Ex("exit status indicates failure");
 	char buf[512];
 	size_t len = pipeStdOut.read(buf, 512);
 	if(len == 512)
-		ThrowError("need a bigger buffer");
+		throw Ex("need a bigger buffer");
 	buf[len] = '\0';
 
 	// Check the results
@@ -549,25 +549,25 @@ void test_transform_mergevert()
 	Holder<GMatrix> hOutput(pOutput);
 	GMatrix& M = *pOutput;
 	if(M.rows() != 4 || M.cols() != 3)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M.relation()->valueCount(0) != 0)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M.relation()->valueCount(1) != 3)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M.relation()->valueCount(2) != 2)
-		ThrowError("failed");
+		throw Ex("failed");
 	std::ostringstream oss;
 	GArffRelation* pRel = (GArffRelation*)M.relation().get();
 	pRel->printAttrValue(oss, 1, 2.0);
 	string s = oss.str();
 	if(strcmp(s.c_str(), "charlie") != 0)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[0][0] != 1.2 || M[1][0] != 2.3 || M[2][0] != 3.4 || M[3][0] != 4.5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[0][1] != 0 || M[1][1] != 1 || M[2][1] != 1 || M[3][1] != 2)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[0][2] != 0 || M[1][2] != 1 || M[2][2] != 0 || M[3][2] != 1)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 void test_recommend_fillmissingvalues()
@@ -593,11 +593,11 @@ void test_recommend_fillmissingvalues()
 	// Execute the command
 	GPipe pipeStdOut;
 	if(sysExec("waffles_recommend", "fillmissingvalues a.arff baseline", &pipeStdOut) != 0)
-		ThrowError("exit status indicates failure");
+		throw Ex("exit status indicates failure");
 	char buf[512];
 	size_t len = pipeStdOut.read(buf, 512);
 	if(len == 512)
-		ThrowError("need a bigger buffer");
+		throw Ex("need a bigger buffer");
 	buf[len] = '\0';
 
 	// Check the results
@@ -605,25 +605,25 @@ void test_recommend_fillmissingvalues()
 	Holder<GMatrix> hOutput(pOutput);
 	GMatrix& M = *pOutput;
 	if(M.rows() != 7 || M.cols() != 4)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[0][0] != 0)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[0][1] != 3)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[1][1] != 2)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[2][1] != 3)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[3][3] != 2)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[4][0] != 0)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[5][1] != 3)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[6][2] != 1)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(M[6][3] != 1)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 void test_parsearff_quoting(){
@@ -714,7 +714,7 @@ void test_document_classification()
 		{
 			GPipe pipeIgnoreMe;
 			if(sysExec("waffles_sparse", "docstosparsematrix class_ham class_auto class_spam", &pipeIgnoreMe) != 0)
-				ThrowError("exit status indicates failure");
+				throw Ex("exit status indicates failure");
 		}
 		TempFileMaker tempFileFeatures("features.sparse", NULL);
 		TempFileMaker tempFileLabels("labels.arff", NULL);
@@ -722,7 +722,7 @@ void test_document_classification()
 		// Shuffle the data
 		GPipe pipeStdOut;
 		if(sysExec("waffles_sparse", "shuffle features.sparse -seed 0 -labels labels.arff l2.arff", &pipeStdOut) != 0)
-			ThrowError("exit status indicates failure");
+			throw Ex("exit status indicates failure");
 		pipeStdOut.toFile("f2.sparse");
 		TempFileMaker tempF2("f2.sparse", NULL);
 		TempFileMaker tempL2("l2.arff", NULL);
@@ -749,12 +749,12 @@ void test_document_classification()
 			sArgs1 += to_str(i);
 			sArgs1 += " 18";
 			if(sysExec("waffles_sparse", sArgs1.c_str()) != 0)
-				ThrowError("exit status indicates failure");
+				throw Ex("exit status indicates failure");
 			string sArgs2 = "splitfold l2.arff ";
 			sArgs2 += to_str(i);
 			sArgs2 += " 18";
 			if(sysExec("waffles_transform", sArgs2.c_str()) != 0)
-				ThrowError("exit status indicates failure");
+				throw Ex("exit status indicates failure");
 
 			// Train and test each model
 			for(size_t j = 0; j < models.size(); j++)
@@ -764,16 +764,16 @@ void test_document_classification()
 				sArgs += models[j];
 				GPipe pipeStdOut2;
 				if(sysExec("waffles_sparse", sArgs.c_str(), &pipeStdOut2) != 0)
-					ThrowError("exit status indicates failure");
+					throw Ex("exit status indicates failure");
 				pipeStdOut2.toFile("model.json");
 
 				// Test the model
 				GPipe pipeStdOut3;
 				if(sysExec("waffles_sparse", "test -seed 0 model.json test.sparse test.arff", &pipeStdOut3) != 0)
-					ThrowError("exit status indicates failure");
+					throw Ex("exit status indicates failure");
 				size_t len = pipeStdOut3.read(buf, 256);
 				if(len >= 256)
-					ThrowError("Need a bigger buffer");
+					throw Ex("Need a bigger buffer");
 				buf[len] = '\0';
 				double accuracy = atof(buf);
 				results[i][j] = accuracy;
@@ -783,11 +783,11 @@ void test_document_classification()
 		double resultsKnnCosine = results.mean(1);
 		//double resultsKnnPearson = results.mean(2);
 		if(resultsNaiveBayes < 0.83)
-			ThrowError("failed");
+			throw Ex("failed");
 		if(resultsKnnCosine < 0.88)
-			ThrowError("failed");
+			throw Ex("failed");
 		//if(resultsKnnPearson < 0.50)
-		//	ThrowError("failed");
+		//	throw Ex("failed");
 	}
 	GFile::removeDir("class_ham");
 	GFile::removeDir("class_auto");
@@ -827,9 +827,9 @@ public:
 		//Ready performance stats
 		char buf[256];
 		if(GApp::appPath(buf, 256, true) == -1)
-			ThrowError("Failed to retrieve app path");
+			throw Ex("Failed to retrieve app path");
 		if(chdir(buf) != 0)
-			ThrowError("Failed to change the dir to the app folder");
+			throw Ex("Failed to change the dir to the app folder");
 
 		m_testTimes.flags(std::ios::showpoint | std::ios::skipws | std::ios::dec | std::ios::fixed | std::ios::left);
 		m_testTimes.width(6);
@@ -853,7 +853,7 @@ public:
 		}
 		catch(const std::exception&)
 		{
-			ThrowError("Error creating file: perf.log");
+			throw Ex("Error creating file: perf.log");
 		}
 
 		if(!exists)

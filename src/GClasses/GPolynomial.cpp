@@ -199,7 +199,7 @@ GPolynomialSingleLabel::~GPolynomialSingleLabel()
 GDomNode* GPolynomialSingleLabel::serialize(GDom* pDoc) const
 {
 	if(m_featureDims == 0)
-		ThrowError("train has not been called");
+		throw Ex("train has not been called");
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
 	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_nControlPoints));
@@ -222,14 +222,14 @@ size_t GPolynomialSingleLabel::calcIndex(size_t* pCoords)
 double GPolynomialSingleLabel::coefficient(size_t* pCoords)
 {
 	if(m_featureDims == 0)
-		ThrowError("init has not been called");
+		throw Ex("init has not been called");
 	return m_pCoefficients[calcIndex(pCoords)];
 }
 
 void GPolynomialSingleLabel::setCoefficient(size_t* pCoords, double dVal)
 {
 	if(m_featureDims == 0)
-		ThrowError("init has not been called");
+		throw Ex("init has not been called");
 	m_pCoefficients[calcIndex(pCoords)] = dVal;
 }
 
@@ -280,7 +280,7 @@ protected:
 void GPolynomialSingleLabel::setCoefficients(const double* pVector)
 {
 	if(m_featureDims == 0)
-		ThrowError("init has not been called");
+		throw Ex("init has not been called");
 	GVec::copy(m_pCoefficients, pVector, m_nCoefficients);
 }
 
@@ -321,7 +321,7 @@ void GPolynomialSingleLabel::train(GMatrix& features, GMatrix& labels)
 double GPolynomialSingleLabel::predict(const double* pIn)
 {
 	if(m_featureDims == 0)
-		ThrowError("init has not been called");
+		throw Ex("init has not been called");
 	GTEMPBUF(size_t, pCoords, m_featureDims);
 	GPolynomialLatticeIterator iter(pCoords, m_featureDims, m_nControlPoints, (size_t)-1);
 	double dSum = 0;
@@ -344,7 +344,7 @@ double GPolynomialSingleLabel::predict(const double* pIn)
 void GPolynomialSingleLabel::toBezierCoefficients()
 {
 	if(m_featureDims == 0)
-		ThrowError("init has not been called");
+		throw Ex("init has not been called");
 	// Make Pascal's triangle
 	GTEMPBUF(size_t, pCoords, m_featureDims);
 	GTEMPBUF(size_t, pPascalsTriangle, m_nControlPoints);
@@ -399,7 +399,7 @@ void GPolynomialSingleLabel::toBezierCoefficients()
 void GPolynomialSingleLabel::fromBezierCoefficients()
 {
 	if(m_featureDims == 0)
-		ThrowError("init has not been called");
+		throw Ex("init has not been called");
 	// Forward difference the coefficients
 	GTEMPBUF(size_t, pCoords, m_featureDims);
 	GTEMPBUF(size_t, pPascalsTriangle, m_nControlPoints);
@@ -452,7 +452,7 @@ void GPolynomialSingleLabel::fromBezierCoefficients()
 void GPolynomialSingleLabel::differentiate()
 {
 	if(m_featureDims == 0)
-		ThrowError("init has not been called");
+		throw Ex("init has not been called");
 	GTEMPBUF(size_t, pCoords, m_featureDims);
 	double d;
 	for(size_t n = 0; n < m_featureDims; n++)
@@ -480,7 +480,7 @@ void GPolynomialSingleLabel::differentiate()
 void GPolynomialSingleLabel::integrate()
 {
 	if(m_featureDims == 0)
-		ThrowError("init has not been called");
+		throw Ex("init has not been called");
 	GTEMPBUF(size_t, pCoords, m_featureDims);
 	double d;
 	for(size_t n = 0; n < m_featureDims; n++)
@@ -511,7 +511,7 @@ void GPolynomialSingleLabel::copy(GPolynomialSingleLabel* pOther)
 {
 	m_featureDims = pOther->m_featureDims;
 	if(controlPointCount() >= pOther->controlPointCount())
-		ThrowError("this polynomial must have at least as many control points as pOther");
+		throw Ex("this polynomial must have at least as many control points as pOther");
 	if(controlPointCount() > pOther->controlPointCount())
 		GVec::setAll(m_pCoefficients, 0.0, m_nCoefficients);
 	GTEMPBUF(size_t, pCoords, m_featureDims);
@@ -664,7 +664,7 @@ void GPolynomial::predictInner(const double* pIn, double* pOut)
 // virtual
 void GPolynomial::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, this model cannot predict a distribution");
+	throw Ex("Sorry, this model cannot predict a distribution");
 }
 
 void GPolynomial::autoTune(GMatrix& features, GMatrix& labels)

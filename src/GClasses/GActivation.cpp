@@ -47,7 +47,7 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 	else if(strcmp(szName, "piecewise") == 0)
 		return new GActivationPiecewise();
 	else
-		ThrowError("Unrecognized activation function: ", szName);
+		throw Ex("Unrecognized activation function: ", szName);
 	return NULL;
 }
 

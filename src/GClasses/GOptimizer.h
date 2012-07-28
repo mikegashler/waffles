@@ -57,7 +57,7 @@ public:
 	/// Estimates the error of the given vector using a single (usually randomly selected) pattern
 	virtual double computeErrorOnline(const double* pVector, size_t nPattern)
 	{
-		ThrowError("This critic doesn't support online evaluation");
+		throw Ex("This critic doesn't support online evaluation");
 		return 0.0;
 	}
 

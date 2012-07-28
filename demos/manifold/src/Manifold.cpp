@@ -132,7 +132,7 @@ public:
 	{
 		FILE* pFile = fopen(szFilename, "w");
 		if(!pFile)
-			ThrowError("failed to create file");
+			throw Ex("failed to create file");
 		size_t nDataPoints = m_pData->rows();
 		for(size_t dim = 0; dim < m_pRelation->size(); dim++)
 		{
@@ -151,7 +151,7 @@ public:
 	{
 		FILE* pFile = fopen(szFilename, "r");
 		if(!pFile)
-			ThrowError("failed to open file");
+			throw Ex("failed to open file");
 		FileHolder hFile(pFile);
 		int nDataPoints = m_pData->rows();
 		char* pBuf = new char[nDataPoints * 20];
@@ -353,7 +353,7 @@ double LengthOfSineFunc(void* pThis, double x)
 double LengthOfSwissRoll(double x)
 {
 #ifdef WINDOWS
-	ThrowError("not implemented yet for Windows");
+	throw Ex("not implemented yet for Windows");
 	return 0;
 #else
 	return (x * sqrt(x * x + 1) + asinh(x)) / 2;
@@ -643,7 +643,7 @@ public:
 		// Set the supervised points
 		if(nSupervisedPoints > 0)
 		{
-			ThrowError("not implemented");
+			throw Ex("not implemented");
 		}
 	}
 

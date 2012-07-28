@@ -120,7 +120,7 @@ void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 // virtual
 void GLinearRegressor::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, this model cannot predict a distribution.");
+	throw Ex("Sorry, this model cannot predict a distribution.");
 }
 
 // virtual
@@ -163,15 +163,15 @@ void GLinearRegressor_linear_test(GRand& prng)
 
 	// Check some values
 	if(lr.beta()->rows() != 1 || lr.beta()->cols() != 3)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(lr.beta()->row(0)[0] - 0.3) > 1e-6)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(lr.beta()->row(0)[1] - 0.0) > 1e-6)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(lr.beta()->row(0)[2] - 2.0) > 1e-6)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(lr.epsilon()[0] - 5.0) > 1e-6)
-		ThrowError("failed");
+		throw Ex("failed");
 
 	// Test
 	GMatrix features2(0, 3);
@@ -187,7 +187,7 @@ void GLinearRegressor_linear_test(GRand& prng)
 	double results;
 	lr.accuracy(features2, labels2, &results);
 	if(results > 0.0005)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 // static
@@ -608,7 +608,7 @@ bool GLinearProgramming::simplexMethod(GMatrix* pA, const double* pB, int leCons
 {
 	// Set up the matrix in the expected form
 	if((size_t)leConstraints + (size_t)geConstraints > pA->rows())
-		ThrowError("The number of constraints must be >= leConstraints + geConstraints");
+		throw Ex("The number of constraints must be >= leConstraints + geConstraints");
 	GMatrix aa(pA->rows() + 3, pA->cols() + 2);
 	aa.setAll(0.0);
 	aa[1][1] = 0.0;
@@ -653,14 +653,14 @@ void GLinearProgramming::test()
 	double c[4]; c[0] = 1.0; c[1] = 1.0; c[2] = 3.0; c[3] = -0.5;
 	double x[4];
 	if(!GLinearProgramming::simplexMethod(&a, b, 2, 1, c, x))
-		ThrowError("failed to find a solution");
+		throw Ex("failed to find a solution");
 	if(std::abs(0.0 - x[0]) > 1e-6)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(3.325 - x[1]) > 1e-6)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(4.725 - x[2]) > 1e-6)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(0.95 - x[3]) > 1e-6)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif

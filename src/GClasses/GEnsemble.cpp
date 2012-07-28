@@ -770,7 +770,7 @@ void GBucket::trainInner(GMatrix& features, GMatrix& labels)
 GSupervisedLearner* GBucket::releaseBestModeler()
 {
 	if(m_nBestLearner < 0)
-		ThrowError("Not trained yet");
+		throw Ex("Not trained yet");
 	GSupervisedLearner* pModeler = m_models[m_nBestLearner];
 	m_models[m_nBestLearner] = m_models[m_models.size() - 1];
 	m_models.pop_back();
@@ -782,7 +782,7 @@ GSupervisedLearner* GBucket::releaseBestModeler()
 void GBucket::predictInner(const double* pIn, double* pOut)
 {
 	if(m_nBestLearner < 0)
-		ThrowError("not trained yet");
+		throw Ex("not trained yet");
 	m_models[m_nBestLearner]->predict(pIn, pOut);
 }
 
@@ -790,7 +790,7 @@ void GBucket::predictInner(const double* pIn, double* pOut)
 void GBucket::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
 	if(m_nBestLearner < 0)
-		ThrowError("not trained yet");
+		throw Ex("not trained yet");
 	m_models[m_nBestLearner]->predictDistribution(pIn, pOut);
 }
 

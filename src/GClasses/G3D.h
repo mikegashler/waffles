@@ -89,7 +89,7 @@ public:
 	{
 		G3DReal mag = (G3DReal)sqrt(squaredMag());
 		if(mag == 0)
-			ThrowError("Can't normalize a vector with zero magnitude");
+			throw Ex("Can't normalize a vector with zero magnitude");
 		m_vals[0] /= mag;
 		m_vals[1] /= mag;
 		m_vals[2] /= mag;

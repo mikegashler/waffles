@@ -51,7 +51,7 @@ void GBlobIncoming::setBlob(unsigned char* pBuffer, size_t nSize, bool bDeleteBu
 void GBlobIncoming::get(unsigned char* pData, size_t nSize)
 {
 	if(m_nBufferSize - m_nBufferPos < nSize)
-		ThrowError("GBlobIncoming blob is too small to contain the expected data");
+		throw Ex("GBlobIncoming blob is too small to contain the expected data");
 	memcpy(pData, &m_pBuffer[m_nBufferPos], nSize);
 	m_nBufferPos += nSize;
 }
@@ -113,7 +113,7 @@ void GBlobIncoming::get(string* pString)
 	unsigned int nLen;
 	get(&nLen);
 	if(m_nBufferSize - m_nBufferPos < nLen)
-		ThrowError("GBlobIncoming blob is too small to contain the expected data");
+		throw Ex("GBlobIncoming blob is too small to contain the expected data");
 	pString->assign((const char*)&m_pBuffer[m_nBufferPos], nLen);
 	m_nBufferPos += nLen;
 }
@@ -121,7 +121,7 @@ void GBlobIncoming::get(string* pString)
 void GBlobIncoming::peek(size_t nIndex, unsigned char* pData, size_t nSize)
 {
 	if(nIndex + nSize > m_nBufferSize)
-		ThrowError("GBlobIncoming peek out of range");
+		throw Ex("GBlobIncoming peek out of range");
 	memcpy(pData, &m_pBuffer[nIndex], nSize);
 }
 
@@ -155,7 +155,7 @@ void GBlobOutgoing::resizeBuffer(size_t nRequiredSize)
 		m_nBufferSize = nNewSize;
 	}
 	else
-		ThrowError("GBlobOutgoing buffer too small to hold blob");
+		throw Ex("GBlobOutgoing buffer too small to hold blob");
 }
 
 void GBlobOutgoing::add(const unsigned char* pData, size_t nSize)
@@ -229,7 +229,7 @@ void GBlobOutgoing::add(const char* szString)
 void GBlobOutgoing::poke(size_t nIndex, const unsigned char* pData, size_t nSize)
 {
 	if(nIndex + nSize > m_nBufferPos)
-		ThrowError("GBlobOutgoing poke out of range");
+		throw Ex("GBlobOutgoing poke out of range");
 	memcpy(&m_pBuffer[nIndex], pData, nSize);
 }
 
@@ -268,7 +268,7 @@ void GBlobQueue::reallocBuffer(size_t newSize)
 void GBlobQueue::enqueue(const char* pBlob, size_t len)
 {
 	if(m_bytesRemaining > 0)
-		ThrowError("There are still bytes remainging to be processed. You should call dequeue until it returns NULL");
+		throw Ex("There are still bytes remainging to be processed. You should call dequeue until it returns NULL");
 	m_pPos = pBlob;
 	m_bytesRemaining = len;
 }

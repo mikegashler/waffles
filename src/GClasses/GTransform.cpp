@@ -70,7 +70,7 @@ GIncrementalTransform::GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll
 GDomNode* GIncrementalTransform::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	if(!m_pRelationAfter.get())
-		ThrowError("train must be called before serialize");
+		throw Ex("train must be called before serialize");
 	GDomNode* pNode = GTransform::baseDomNode(pDoc, szClassName);
 	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
 	pNode->addField(pDoc, "after", m_pRelationAfter->serialize(pDoc));
@@ -116,15 +116,15 @@ void GIncrementalTransform::test()
 	GMatrix* pA = trans.transformBatch(m);
 	Holder<GMatrix> hA(pA);
 	if(pA->sumSquaredDifference(e) > 1e-12)
-		ThrowError("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
+		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
 	if(!pA->relation()->areContinuous())
-		ThrowError("failed");
+		throw Ex("failed");
 	GMatrix* pB = trans.untransformBatch(*pA);
 	Holder<GMatrix> hB(pB);
 	if(pB->sumSquaredDifference(m) > 1e-12)
-		ThrowError("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
+		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
 	if(!pB->relation()->isCompatible(*m.relation().get()) || !m.relation()->isCompatible(*pB->relation().get()))
-		ThrowError("failed");
+		throw Ex("failed");
 
 	// Round-trip it through serialization
 	GDom doc;
@@ -137,15 +137,15 @@ void GIncrementalTransform::test()
 	GMatrix* pC = pTrans->transformBatch(m);
 	Holder<GMatrix> hC(pC);
 	if(pC->sumSquaredDifference(e) > 1e-12)
-		ThrowError("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
+		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
 	if(!pC->relation()->areContinuous())
-		ThrowError("failed");
+		throw Ex("failed");
 	GMatrix* pD = trans.untransformBatch(*pC);
 	Holder<GMatrix> hD(pD);
 	if(pD->sumSquaredDifference(m) > 1e-12)
-		ThrowError("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
+		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
 	if(!pD->relation()->isCompatible(*m.relation().get()) || !m.relation()->isCompatible(*pD->relation().get()))
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif
 
@@ -175,7 +175,7 @@ GIncrementalTransformChainer::~GIncrementalTransformChainer()
 GDomNode* GIncrementalTransformChainer::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train must be called before serialize");
+		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GIncrementalTransformChainer");
 	pNode->addField(pDoc, "first", m_pFirst->serialize(pDoc));
 	pNode->addField(pDoc, "second", m_pSecond->serialize(pDoc));
@@ -246,7 +246,7 @@ GMatrix* GIncrementalTransform::doit(GMatrix& in)
 GMatrix* GIncrementalTransform::transformBatch(GMatrix& in)
 {
 	if(!m_pRelationAfter.get())
-		ThrowError("train has not been called");
+		throw Ex("train has not been called");
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(m_pRelationAfter);
 	Holder<GMatrix> hOut(pOut);
@@ -267,7 +267,7 @@ double* GIncrementalTransform::innerBuf()
 GMatrix* GIncrementalTransform::untransformBatch(GMatrix& in)
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train has not been called");
+		throw Ex("train has not been called");
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(before());
 	pOut->newRows(nRows);
@@ -304,7 +304,7 @@ GPCA::~GPCA()
 GDomNode* GPCA::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train must be called before serialize");
+		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GPCA");
 	pNode->addField(pDoc, "basis", m_pBasisVectors->serialize(pDoc));
 	pNode->addField(pDoc, "aboutOrigin", pDoc->newBool(m_aboutOrigin));
@@ -322,7 +322,7 @@ void GPCA::computeEigVals()
 sp_relation GPCA::trainInner(GMatrix& data)
 {
 	if(!m_pRelationBefore->areContinuous(0, m_pRelationBefore->size()))
-		ThrowError("GPCA doesn't support nominal values. (You could filter with nominaltocat to make them real.)");
+		throw Ex("GPCA doesn't support nominal values. (You could filter with nominaltocat to make them real.)");
 	delete(m_pBasisVectors);
 	m_pBasisVectors = new GMatrix(m_pRelationBefore);
 	m_pBasisVectors->newRows(m_targetDims + 1);
@@ -362,7 +362,7 @@ sp_relation GPCA::trainInner(GMatrix& data)
 // virtual
 sp_relation GPCA::trainInner(sp_relation& relation)
 {
-	ThrowError("This transform cannot be trained without data");
+	throw Ex("This transform cannot be trained without data");
 	return m_pRelationBefore;
 }
 
@@ -390,7 +390,7 @@ void GPCA::untransform(const double* pIn, double* pOut)
 // virtual
 void GPCA::untransformToDistribution(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, PCA cannot untransform to a distribution");
+	throw Ex("Sorry, PCA cannot untransform to a distribution");
 }
 
 /*
@@ -561,15 +561,15 @@ void GPCARotateOnly::test()
 		if(std::abs(std::abs(pVec[0]) - 7.071067) < .001)
 		{
 			if(std::abs(pVec[1]) > .001)
-				ThrowError("wrong answer");
+				throw Ex("wrong answer");
 		}
 		else if(std::abs(pVec[0]) < .001)
 		{
 			if(std::abs(std::abs(pVec[1]) - 1.414214) > .001)
-				ThrowError("wrong answer");
+				throw Ex("wrong answer");
 		}
 		else
-			ThrowError("wrong answer");
+			throw Ex("wrong answer");
 	}
 	delete(pOut2);
 }
@@ -597,7 +597,7 @@ GNoiseGenerator::~GNoiseGenerator()
 GDomNode* GNoiseGenerator::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train must be called before serialize");
+		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNoiseGenerator");
 	pNode->addField(pDoc, "mean", pDoc->newDouble(m_mean));
 	pNode->addField(pDoc, "dev", pDoc->newDouble(m_deviation));
@@ -651,7 +651,7 @@ GPairProduct::~GPairProduct()
 GDomNode* GPairProduct::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train must be called before serialize");
+		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GPairProduct");
 	pNode->addField(pDoc, "maxDims", pDoc->newInt(m_maxDims));
 	return pNode;
@@ -815,7 +815,7 @@ void GDataAugmenter::untransform(const double* pIn, double* pOut)
 // virtual
 void GDataAugmenter::untransformToDistribution(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, this method is not implemented yet");
+	throw Ex("Sorry, this method is not implemented yet");
 }
 
 // --------------------------------------------------------------------------
@@ -832,9 +832,9 @@ GAttributeSelector::GAttributeSelector(GDomNode* pNode, GLearnerLoader& ll)
 	for( ; it.current(); it.advance())
 		m_ranks.push_back((size_t)it.current()->asInt());
 	if(m_ranks.size() + (size_t)m_labelDims != (size_t)m_pRelationBefore->size())
-		ThrowError("invalid attribute selector");
+		throw Ex("invalid attribute selector");
 	if(m_targetFeatures > m_ranks.size())
-		ThrowError("invalid attribute selector");
+		throw Ex("invalid attribute selector");
 }
 
 // virtual
@@ -852,7 +852,7 @@ GDomNode* GAttributeSelector::serialize(GDom* pDoc) const
 sp_relation GAttributeSelector::setTargetFeatures(size_t n)
 {
 	if(n > m_pRelationBefore->size())
-		ThrowError("out of range");
+		throw Ex("out of range");
 	GMixedRelation* pRelAfter;
 	if(m_pRelationBefore->type() == GRelation::ARFF)
 		pRelAfter = new GArffRelation();
@@ -861,7 +861,7 @@ sp_relation GAttributeSelector::setTargetFeatures(size_t n)
 	for(size_t i = 0; i < m_targetFeatures; i++)
 		pRelAfter->copyAttr(m_pRelationBefore.get(), m_ranks[i]);
 	if(m_labelDims > m_pRelationBefore->size())
-		ThrowError("label dims out of range");
+		throw Ex("label dims out of range");
 	size_t featureDims = m_pRelationBefore->size() - m_labelDims;
 	for(size_t i = 0; i < m_labelDims; i++)
 		pRelAfter->copyAttr(m_pRelationBefore.get(), featureDims + i);
@@ -872,7 +872,7 @@ sp_relation GAttributeSelector::setTargetFeatures(size_t n)
 sp_relation GAttributeSelector::trainInner(GMatrix& data)
 {
 	if(m_labelDims > data.cols())
-		ThrowError("label dims is greater than the number of columns in the data");
+		throw Ex("label dims is greater than the number of columns in the data");
 	size_t curDims = data.cols() - m_labelDims;
 	m_ranks.resize(curDims);
 	GMatrix* pFeatures = data.cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
@@ -935,7 +935,7 @@ sp_relation GAttributeSelector::trainInner(GMatrix& data)
 // virtual
 sp_relation GAttributeSelector::trainInner(sp_relation& relation)
 {
-	ThrowError("This transform cannot be trained without data");
+	throw Ex("This transform cannot be trained without data");
 	return m_pRelationBefore;
 }
 
@@ -965,13 +965,13 @@ void GAttributeSelector::test()
 	as.train(data);
 	std::vector<size_t>& r = as.ranks();
 	if(r[1] == r[0] || r[2] == r[0] || r[2] == r[1])
-		ThrowError("bogus rankings");
+		throw Ex("bogus rankings");
 	if(r[0] != 3 && r[0] != 13 && r[0] != 17)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(r[1] != 3 && r[1] != 13 && r[1] != 17)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(r[2] != 3 && r[2] != 13 && r[2] != 17)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif // MIN_PREDICT
 
@@ -1083,7 +1083,7 @@ sp_relation GNominalToCat::trainInner(sp_relation& relation)
 GDomNode* GNominalToCat::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train must be called before serialize");
+		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNominalToCat");
 	pNode->addField(pDoc, "valueCap", pDoc->newInt(m_valueCap));
 	pNode->addField(pDoc, "pu", pDoc->newBool(m_preserveUnknowns));
@@ -1296,11 +1296,11 @@ GNormalize::GNormalize(GDomNode* pNode, GLearnerLoader& ll)
 	m_pRanges = &m_pMins[nAttrCount];
 	GDomListIterator it1(pNode->field("mins"));
 	if(it1.remaining() != nAttrCount)
-		ThrowError("unexpected number of elements");
+		throw Ex("unexpected number of elements");
 	GVec::deserialize(m_pMins, it1);
 	GDomListIterator it2(pNode->field("ranges"));
 	if(it2.remaining() != nAttrCount)
-		ThrowError("unexpected number of elements");
+		throw Ex("unexpected number of elements");
 	GVec::deserialize(m_pRanges, it2);
 }
 
@@ -1314,7 +1314,7 @@ GNormalize::~GNormalize()
 GDomNode* GNormalize::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train must be called before serialize");
+		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNormalize");
 	pNode->addField(pDoc, "min", pDoc->newDouble(m_min));
 	pNode->addField(pDoc, "max", pDoc->newDouble(m_max));
@@ -1363,7 +1363,7 @@ sp_relation GNormalize::trainInner(GMatrix& data)
 // virtual
 sp_relation GNormalize::trainInner(sp_relation& relation)
 {
-	ThrowError("This transform cannot be trained without data");
+	throw Ex("This transform cannot be trained without data");
 	return m_pRelationBefore;
 }
 
@@ -1418,7 +1418,7 @@ void GNormalize::untransform(const double* pIn, double* pOut)
 // virtual
 void GNormalize::untransformToDistribution(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, cannot denormalize to a distribution");
+	throw Ex("Sorry, cannot denormalize to a distribution");
 }
 
 // --------------------------------------------------------------------------
@@ -1442,11 +1442,11 @@ GDiscretize::GDiscretize(GDomNode* pNode, GLearnerLoader& ll)
 	m_pRanges = &m_pMins[nAttrCount];
 	GDomListIterator it1(pNode->field("mins"));
 	if(it1.remaining() != nAttrCount)
-		ThrowError("unexpected number of elements");
+		throw Ex("unexpected number of elements");
 	GVec::deserialize(m_pMins, it1);
 	GDomListIterator it2(pNode->field("ranges"));
 	if(it2.remaining() != nAttrCount)
-		ThrowError("unexpected number of elements");
+		throw Ex("unexpected number of elements");
 	GVec::deserialize(m_pRanges, it2);
 }
 
@@ -1507,7 +1507,7 @@ sp_relation GDiscretize::trainInner(GMatrix& data)
 // virtual
 sp_relation GDiscretize::trainInner(sp_relation& relation)
 {
-	ThrowError("This transform cannot be trained without data");
+	throw Ex("This transform cannot be trained without data");
 	return m_pRelationBefore;
 }
 
@@ -1515,7 +1515,7 @@ sp_relation GDiscretize::trainInner(sp_relation& relation)
 void GDiscretize::transform(const double* pIn, double* pOut)
 {
 	if(!m_pMins)
-		ThrowError("Train was not called");
+		throw Ex("Train was not called");
 	size_t nAttrCount = m_pRelationBefore->size();
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
@@ -1531,7 +1531,7 @@ void GDiscretize::transform(const double* pIn, double* pOut)
 void GDiscretize::untransform(const double* pIn, double* pOut)
 {
 	if(!m_pMins)
-		ThrowError("Train was not called");
+		throw Ex("Train was not called");
 	size_t nAttrCount = m_pRelationBefore->size();
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
@@ -1546,7 +1546,7 @@ void GDiscretize::untransform(const double* pIn, double* pOut)
 // virtual
 void GDiscretize::untransformToDistribution(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, cannot undiscretize to a distribution");
+	throw Ex("Sorry, cannot undiscretize to a distribution");
 }
 
 
@@ -1582,7 +1582,7 @@ GImputeMissingVals::~GImputeMissingVals()
 GDomNode* GImputeMissingVals::serialize(GDom* pDoc) const
 {
 	if(!m_pRelationBefore.get())
-		ThrowError("train must be called before serialize");
+		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GImputeMissingVals");
 	pNode->addField(pDoc, "cf", m_pCF->serialize(pDoc));
 	if(m_pNTC)
@@ -1631,7 +1631,7 @@ sp_relation GImputeMissingVals::trainInner(GMatrix& data)
 // virtual
 sp_relation GImputeMissingVals::trainInner(sp_relation& relation)
 {
-	ThrowError("This transform cannot be trained without data");
+	throw Ex("This transform cannot be trained without data");
 	return m_pRelationBefore;
 }
 
@@ -1694,7 +1694,7 @@ void GImputeMissingVals::untransform(const double* pIn, double* pOut)
 // virtual
 void GImputeMissingVals::untransformToDistribution(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, cannot unimpute to a distribution");
+	throw Ex("Sorry, cannot unimpute to a distribution");
 }
 
 // virtual

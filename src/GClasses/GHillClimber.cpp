@@ -23,9 +23,9 @@ GMomentumGreedySearch::GMomentumGreedySearch(GTargetFunction* pCritic)
 : GOptimizer(pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	if(pCritic->isConstrained())
-		ThrowError("Sorry, this optimizer doesn't support constrained problems");
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_nDimensions = pCritic->relation()->size();
 	m_nCurrentDim = 0;
 	m_pVector = new double[2 * m_nDimensions];
@@ -100,7 +100,7 @@ GHillClimber::GHillClimber(GTargetFunction* pCritic)
 : GOptimizer(pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	m_nDims = pCritic->relation()->size();
 	m_pVector = new double[(2 + (m_pCritic->isConstrained() ? 1 : 0)) * m_nDims];
 	m_pStepSizes = m_pVector + m_nDims;
@@ -337,9 +337,9 @@ GAnnealing::GAnnealing(GTargetFunction* pTargetFunc, double initialDeviation, do
 : GOptimizer(pTargetFunc), m_initialDeviation(initialDeviation), m_decay(decay), m_pRand(pRand)
 {
 	if(!pTargetFunc->relation()->areContinuous(0, pTargetFunc->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	if(pTargetFunc->isConstrained())
-		ThrowError("Sorry, this optimizer doesn't support constrained problems");
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_dims = pTargetFunc->relation()->size();
 	m_pBuf = new double[m_dims * 2];
 	m_pVector = m_pBuf;
@@ -383,9 +383,9 @@ GEmpiricalGradientDescent::GEmpiricalGradientDescent(GTargetFunction* pCritic, G
 : GOptimizer(pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	if(pCritic->isConstrained())
-		ThrowError("Sorry, this optimizer doesn't support constrained problems");
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_nDimensions = pCritic->relation()->size();
 	m_pVector = new double[m_nDimensions * 3];
 	m_pGradient = m_pVector + m_nDimensions;
@@ -431,9 +431,9 @@ GSampleClimber::GSampleClimber(GTargetFunction* pCritic, GRand* pRand)
 : GOptimizer(pCritic), m_pRand(pRand)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	if(pCritic->isConstrained())
-		ThrowError("Sorry, this optimizer doesn't support constrained problems");
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_dims = pCritic->relation()->size();
 	m_pVector = new double[m_dims * 4];
 	m_pDir = m_pVector + m_dims;

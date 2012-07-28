@@ -98,7 +98,7 @@ public:
 	bool asBool()
 	{
 		if(m_type != type_bool)
-			ThrowError("not an bool");
+			throw Ex("not an bool");
 		return m_value.m_bool;
 	}
 
@@ -106,7 +106,7 @@ public:
 	long long asInt()
 	{
 		if(m_type != type_int)
-			ThrowError("not an int");
+			throw Ex("not an int");
 		return m_value.m_int;
 	}
 
@@ -118,7 +118,7 @@ public:
 		else if(m_type == type_int)
 			return (double)m_value.m_int;
 		else
-			ThrowError("not a double");
+			throw Ex("not a double");
 		return 0.0;
 	}
 
@@ -126,7 +126,7 @@ public:
 	const char* asString()
 	{
 		if(m_type != type_string)
-			ThrowError("not a string");
+			throw Ex("not a string");
 		return m_value.m_string;
 	}
 
@@ -140,7 +140,7 @@ public:
 	{
 		GDomNode* pNode = fieldIfExists(szName);
 		if(!pNode)
-			ThrowError("There is no field named ", szName);
+			throw Ex("There is no field named ", szName);
 		return pNode;
 	}
 

@@ -160,23 +160,23 @@ void GBitTable::test()
 	for(size_t i = 0; i < TEST_SIZE; i++)
 	{
 		if(bt.bit(i) != arr[i])
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 
 	GBitTable bt2(81);
 	if(!bt2.areAllClear(81))
-		ThrowError("failed");
+		throw Ex("failed");
 	bt2.set(80);
 	if(bt2.areAllClear(81))
-		ThrowError("failed");
+		throw Ex("failed");
 	if(!bt2.areAllClear(80))
-		ThrowError("failed");
+		throw Ex("failed");
 	for(size_t i = 0; i < 79; i++)
 		bt2.set(i);
 	if(bt2.areAllSet(81))
-		ThrowError("failed");
+		throw Ex("failed");
 	bt2.set(79);
 	if(!bt2.areAllSet(81))
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif  // MIN_PREDICT

@@ -303,11 +303,11 @@ public:
 
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransform(const double* pIn, double* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 	/// Throws an exception (because this transform cannot be undone).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 protected:
 	/// See the comment for GIncrementalTransform::train
@@ -342,11 +342,11 @@ public:
 
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransform(const double* pIn, double* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 	/// Throws an exception (because this transform cannot be undone).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 protected:
 	/// See the comment for GIncrementalTransform::train
@@ -387,11 +387,11 @@ public:
 
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransform(const double* pIn, double* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 	/// Throws an exception (because this transform cannot be undone).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 protected:
 	/// See the comment for GIncrementalTransform::train
@@ -485,11 +485,11 @@ public:
 
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransform(const double* pIn, double* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
-	{ ThrowError("This transformation cannot be reversed"); }
+	{ throw Ex("This transformation cannot be reversed"); }
 
 protected:
 	/// See the comment for GIncrementalTransform::train

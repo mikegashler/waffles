@@ -163,14 +163,14 @@ GCategoricalSampler::GCategoricalSampler(size_t categories, const double* pDistr
 		if(*pDistribution <= 0)
 		{
 			if(*pDistribution < 0)
-				ThrowError("Negative probabilities are not allowed");
+				throw Ex("Negative probabilities are not allowed");
 			continue;
 		}
 		sum += *pDistribution;
 		m_map.insert(std::pair<double,size_t>(sum, i));
 	}
 	if(std::abs(sum - 1.0) > 1e-8)
-		ThrowError("The probabilities should sum to 1");
+		throw Ex("The probabilities should sum to 1");
 }
 
 size_t GCategoricalSampler::draw(double d)
@@ -244,15 +244,15 @@ void GCategoricalSamplerBatch::test()
 	{
 		size_t n = pResults[i];
 		if(n > 2)
-			ThrowError("out of range");
+			throw Ex("out of range");
 		counts[n]++;
 	}
 	if(std::abs(0.2 - double(counts[0]) / SAMPLES) >= 0.02)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(0.5 - double(counts[1]) / SAMPLES) >= 0.02)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(0.3 - double(counts[2]) / SAMPLES) >= 0.02)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif // MIN_PREDICT
 

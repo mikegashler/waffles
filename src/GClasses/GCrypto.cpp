@@ -237,20 +237,20 @@ void GCrypto::test()
 		GCrypto c("password", 8);
 		c.doChunk(pB, testLen);
 		if(memcmp(pA, pB, testLen) == 0)
-			ThrowError("Didn't do anything");
+			throw Ex("Didn't do anything");
 	}
 	memcpy(pC, pB, testLen);
 	{
 		GCrypto c("passworx", 8);
 		c.doChunk(pB, testLen);
 		if(memcmp(pA, pB, testLen) == 0)
-			ThrowError("This should have failed");
+			throw Ex("This should have failed");
 	}
 	{
 		GCrypto c("password", 8);
 		c.doChunk(pC, testLen);
 		if(memcmp(pA, pC, testLen) != 0)
-			ThrowError("This should have worked");
+			throw Ex("This should have worked");
 	}
 }
 #endif // NO_TEST_CODE

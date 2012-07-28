@@ -127,7 +127,7 @@ void GRelation::printAttrValue(ostream& stream, size_t column, double value) con
 		if(val < 0)
 			stream << "?";
 		else if(val >= (int)valCount)
-			ThrowError("value out of range");
+			throw Ex("value out of range");
 		else if(val < 26)
 		{
 			char tmp[2];
@@ -271,7 +271,7 @@ void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precis
 	}
 	catch(const std::exception&)
 	{
-		ThrowError("Error creating file: ", szFilename);
+		throw Ex("Error creating file: ", szFilename);
 	}
 	print(stream, pData, precision);
 }
@@ -341,7 +341,7 @@ GDomNode* GUniformRelation::serialize(GDom* pDoc) const
 void GUniformRelation::deleteAttribute(size_t index)
 {
 	if(index >= m_attrCount)
-		ThrowError("Index out of range");
+		throw Ex("Index out of range");
 	m_attrCount--;
 }
 
@@ -431,7 +431,7 @@ void GMixedRelation::addAttrs(const GRelation* pCopyMe, size_t firstAttr, size_t
 		if(attrCount == (size_t)-1)
 			attrCount = pCopyMe->size() - firstAttr;
 		else
-			ThrowError("out of range");
+			throw Ex("out of range");
 	}
 	for(size_t i = 0; i < attrCount; i++)
 		copyAttr(pCopyMe, firstAttr + i);
@@ -474,7 +474,7 @@ void GMixedRelation::addAttr(size_t nValues)
 void GMixedRelation::copyAttr(const GRelation* pThat, size_t nAttr)
 {
 	if(nAttr >= pThat->size())
-		ThrowError("attribute index out of range");
+		throw Ex("attribute index out of range");
 	addAttr(pThat->valueCount(nAttr));
 }
 
@@ -640,7 +640,7 @@ void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<cons
 	if(pValues)
 	{
 		if(nValues != pValues->size())
-			ThrowError("mismatching value counts");
+			throw Ex("mismatching value counts");
 		for(size_t i = 0; i < nValues; i++)
 			m_attrs[index].m_values.push_back((*pValues)[i]);
 	}
@@ -650,7 +650,7 @@ void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<cons
 void GArffRelation::copyAttr(const GRelation* pThat, size_t nAttr)
 {
 	if(nAttr >= pThat->size())
-		ThrowError("attribute index out of range");
+		throw Ex("attribute index out of range");
 	if(pThat->type() == ARFF)
 	{
 		size_t index = m_valueCounts.size();
@@ -686,7 +686,7 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 			tok.nextArg(tok.m_valEnd);
 			char* szVal = tok.trim(tok.m_whitespace);
 			if(*szVal == '\0')
-				ThrowError("Empty value specified on line ", to_str(tok.line()));
+				throw Ex("Empty value specified on line ", to_str(tok.line()));
 			if(*szVal == '\'')
 			{
 				size_t len = strlen(szVal);
@@ -712,9 +712,9 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 			else if(c == '}')
 				break;
 			else if(c == '\n')
-				ThrowError("Expected a '}' but got new-line on line ", to_str(tok.line()));
+				throw Ex("Expected a '}' but got new-line on line ", to_str(tok.line()));
 			else
-				ThrowError("inconsistency");
+				throw Ex("inconsistency");
 		}
 		m_valueCounts.push_back(m_attrs[index].m_values.size());
 		if(name.length() > 0)
@@ -740,7 +740,7 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 		else if(_stricmp(szType, "STRING") == 0)
 			addAttribute(name.c_str(), -1, NULL);
 		else
-			ThrowError("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
+			throw Ex("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
 	}
 	tok.skipTo(tok.m_newline);
 	tok.advance(1);
@@ -809,7 +809,7 @@ void GArffRelation::printAttrValue(ostream& stream, size_t column, double value)
 		if(val < 0)
 			stream << "?";
 		else if(val >= (int)valCount)
-			ThrowError("value out of range");
+			throw Ex("value out of range");
 		else if(m_attrs[column].m_values.size() > 0)
 			stream << GRelation::quote(m_attrs[column].m_values[val]);
 		else if(val < 26)
@@ -863,7 +863,7 @@ int GArffRelation::findEnumeratedValue(size_t nAttr, const char* szValue) const
 	size_t nValueCount = valueCount(nAttr);
 	size_t actualValCount = m_attrs[nAttr].m_values.size();
 	if(nValueCount > actualValCount)
-		ThrowError("some values have no names");
+		throw Ex("some values have no names");
 	size_t i;
 	for(i = 0; i < nValueCount; i++)
 	{
@@ -927,7 +927,7 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 			{
 			}
 			else
-				ThrowError("Invalid real value, ", val, ". Expected it to start with one of {0-9,.,-}.");
+				throw Ex("Invalid real value, ", val, ". Expected it to start with one of {0-9,.,-}.");
 			return atof(val);
 		}
 	}
@@ -959,7 +959,7 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 							sChoices += ',';
 						sChoices += m_attrs[attr].m_values[j].c_str();
 					}
-					ThrowError("Invalid categorical value, ", val, ". Expected one of {", sChoices, "}");
+					throw Ex("Invalid categorical value, ", val, ". Expected one of {", sChoices, "}");
 				}
 			}
 			return double(v);
@@ -972,7 +972,7 @@ void GArffRelation::dropValue(size_t attr, int val)
 {
 	size_t valCount = valueCount(attr);
 	if((size_t)val >= valCount)
-		ThrowError("out of range");
+		throw Ex("out of range");
 	GArffAttribute& at = m_attrs[attr];
 	if(at.m_values.size() == valCount)
 	{
@@ -1028,7 +1028,7 @@ GMatrix::GMatrix(GDomNode* pNode, GHeap* pHeap)
 		GDomNode* pRow = it.current();
 		GDomListIterator it2(pRow);
 		if(it2.remaining() != dims)
-			ThrowError("Row ", to_str(i), " has an unexpected number of values");
+			throw Ex("Row ", to_str(i), " has an unexpected number of values");
 		pPat = newRow();
 		for( ; it2.current(); it2.advance())
 		{
@@ -1098,7 +1098,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 		else
 		{
 			if(!IsRealValue(szVal))
-				ThrowError("Expected a numeric value at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				throw Ex("Expected a numeric value at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 			return atof(szVal);
 		}
 	}
@@ -1111,7 +1111,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 		{
 			int nVal = pRelation->findEnumeratedValue(col, szVal);
 			if(nVal == UNKNOWN_DISCRETE_VALUE)
-				ThrowError("Unrecognized enumeration value '", szVal, "' for attribute ", to_str(col), " at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				throw Ex("Unrecognized enumeration value '", szVal, "' for attribute ", to_str(col), " at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 			return (double)nVal;
 		}
 	}
@@ -1130,7 +1130,7 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 		tok.skip(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
-			ThrowError("Invalid ARFF file--contains no data");
+			throw Ex("Invalid ARFF file--contains no data");
 		else if(c == '%')
 		{
 			tok.advance(1);
@@ -1156,7 +1156,7 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 			}
 		}
 		else
-			ThrowError("Expected a '%' or a '@' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			throw Ex("Expected a '%' or a '@' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 	}
 
 	// Parse the data section
@@ -1192,7 +1192,7 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 					size_t col = strtoull(szTok, (char**)NULL, 10);
 #endif
 					if(col >= cols)
-						ThrowError("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+						throw Ex("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 					tok.skip(tok.m_spaces);
 					const char* szVal = tok.nextArg(tok.m_valEnder);
 					pRow[col] = GMatrix_parseValue(pRelation, col, szVal, tok);
@@ -1207,9 +1207,9 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 					break;
 				}
 				else if(c == '\n' || c == '\0')
-					ThrowError("Expected a matching '}' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+					throw Ex("Expected a matching '}' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 				else
-					ThrowError("Unexpected token at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+					throw Ex("Unexpected token at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 			}
 		}
 		else
@@ -1219,7 +1219,7 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 			while(true)
 			{
 				if(col >= cols)
-					ThrowError("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+					throw Ex("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 				tok.nextArg(tok.m_commaNewlineTab);
 				const char* szVal = tok.trim(tok.m_whitespace);
 				*pRow = GMatrix_parseValue(pRelation, col, szVal, tok);
@@ -1231,10 +1231,10 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 				else if(c == '\n' || c == '\0')
 					break;
 				else
-					ThrowError("inconsistency");
+					throw Ex("inconsistency");
 			}
 			if(col < cols)
-				ThrowError("Not enough values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				throw Ex("Not enough values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		}
 	}
 	for(size_t i = 0; i < cols; i++)
@@ -1385,7 +1385,7 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 		else
 		{
 			if(row.m_elements.size() != (size_t)elementCount)
-				ThrowError("Line ", to_str(nLine), " has a different number of elements than line ", to_str(nFirstDataLine));
+				throw Ex("Line ", to_str(nLine), " has a different number of elements than line ", to_str(nFirstDataLine));
 		}
 
 		// Move to next line
@@ -1532,7 +1532,7 @@ void GMatrix::add(GMatrix* pThat, bool transpose)
 	{
 		size_t c = (size_t)cols();
 		if(rows() != (size_t)pThat->cols() || c != pThat->rows())
-			ThrowError("expected matrices of same size");
+			throw Ex("expected matrices of same size");
 		for(size_t i = 0; i < rows(); i++)
 		{
 			double* pRow = row(i);
@@ -1544,7 +1544,7 @@ void GMatrix::add(GMatrix* pThat, bool transpose)
 	{
 		size_t c = cols();
 		if(rows() != pThat->rows() || c != pThat->cols())
-			ThrowError("expected matrices of same size");
+			throw Ex("expected matrices of same size");
 		for(size_t i = 0; i < rows(); i++)
 			GVec::add(row(i), pThat->row(i), c);
 	}
@@ -1554,10 +1554,10 @@ void GMatrix::add(GMatrix* pThat, bool transpose)
 void GMatrix::dropValue(size_t attr, int val)
 {
 	if(attr >= cols())
-		ThrowError("out of range");
+		throw Ex("out of range");
 	size_t lastVal = relation()->valueCount(attr);
 	if((size_t)val >= lastVal)
-		ThrowError("out of range");
+		throw Ex("out of range");
 	lastVal--;
 
 	// Adjust the relation
@@ -1572,7 +1572,7 @@ void GMatrix::dropValue(size_t attr, int val)
 		pRel->setAttrValueCount(attr, lastVal);
 	}
 	else
-		ThrowError("Sorry, not supported for uniform relations");
+		throw Ex("Sorry, not supported for uniform relations");
 
 	// Adjust the data
 	for(size_t i = 0; i < m_rows.size(); i++)
@@ -1592,7 +1592,7 @@ void GMatrix::subtract(GMatrix* pThat, bool transpose)
 	{
 		size_t c = (size_t)cols();
 		if(rows() != (size_t)pThat->cols() || c != pThat->rows())
-			ThrowError("expected matrices of same size");
+			throw Ex("expected matrices of same size");
 		for(size_t i = 0; i < rows(); i++)
 		{
 			double* pRow = row(i);
@@ -1604,7 +1604,7 @@ void GMatrix::subtract(GMatrix* pThat, bool transpose)
 	{
 		size_t c = cols();
 		if(rows() != pThat->rows() || c != pThat->cols())
-			ThrowError("expected matrices of same size");
+			throw Ex("expected matrices of same size");
 		for(size_t i = 0; i < rows(); i++)
 			GVec::subtract(row(i), pThat->row(i), c);
 	}
@@ -1643,7 +1643,7 @@ GMatrix* GMatrix::multiply(GMatrix& a, GMatrix& b, bool transposeA, bool transpo
 		{
 			size_t dims = a.rows();
 			if((size_t)b.cols() != dims)
-				ThrowError("dimension mismatch");
+				throw Ex("dimension mismatch");
 			size_t w = b.rows();
 			size_t h = a.cols();
 			GMatrix* pOut = new GMatrix(h, w);
@@ -1665,7 +1665,7 @@ GMatrix* GMatrix::multiply(GMatrix& a, GMatrix& b, bool transposeA, bool transpo
 		{
 			size_t dims = a.rows();
 			if(b.rows() != dims)
-				ThrowError("dimension mismatch");
+				throw Ex("dimension mismatch");
 			size_t w = b.cols();
 			size_t h = a.cols();
 			GMatrix* pOut = new GMatrix(h, w);
@@ -1689,7 +1689,7 @@ GMatrix* GMatrix::multiply(GMatrix& a, GMatrix& b, bool transposeA, bool transpo
 		{
 			size_t dims = (size_t)a.cols();
 			if((size_t)b.cols() != dims)
-				ThrowError("dimension mismatch");
+				throw Ex("dimension mismatch");
 			size_t w = b.rows();
 			size_t h = a.rows();
 			GMatrix* pOut = new GMatrix(h, w);
@@ -1706,7 +1706,7 @@ GMatrix* GMatrix::multiply(GMatrix& a, GMatrix& b, bool transposeA, bool transpo
 		{
 			size_t dims = (size_t)a.cols();
 			if(b.rows() != dims)
-				ThrowError("dimension mismatch");
+				throw Ex("dimension mismatch");
 			size_t w = b.cols();
 			size_t h = a.rows();
 			GMatrix* pOut = new GMatrix(h, w);
@@ -1791,7 +1791,7 @@ size_t GMatrix::toReducedRowEchelonForm()
 bool GMatrix::gaussianElimination(double* pVector)
 {
 	if(rows() != (size_t)cols())
-		ThrowError("Expected a square matrix");
+		throw Ex("Expected a square matrix");
 	double d;
 	double* pRow;
 	size_t rowCount = rows();
@@ -1885,7 +1885,7 @@ GMatrix* GMatrix::cholesky(bool tolerant)
 			else if(tolerant)
 				d = -d;
 			else
-				ThrowError("not positive definite");
+				throw Ex("not positive definite");
 		}
 		pOut->row(j)[i] = sqrt(d);
 		for(i++; i < colCount; i++)
@@ -1925,7 +1925,7 @@ void GMatrix::LUDecomposition()
 void GMatrix::invert()
 {
 	if(rows() != (size_t)cols())
-		ThrowError("only square matrices supported");
+		throw Ex("only square matrices supported");
 	if(rows() == 1)
 	{
 		row(0)[0] = 1.0 / row(0)[0];
@@ -2004,7 +2004,7 @@ void GMatrix::inPlaceSquareTranspose()
 {
 	size_t size = rows();
 	if(size != (size_t)cols())
-		ThrowError("Expected a square matrix");
+		throw Ex("Expected a square matrix");
 	for(size_t a = 0; a < size; a++)
 	{
 		for(size_t b = a + 1; b < size; b++)
@@ -2084,7 +2084,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	int m = (int)rows();
 	int n = (int)cols();
 	if(m < n)
-		ThrowError("Expected at least as many rows as columns");
+		throw Ex("Expected at least as many rows as columns");
 	int i, j, k;
 	int l = 0;
 	int p, q;
@@ -2310,7 +2310,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 				break;
 			}
 			if(throwIfNoConverge && iter >= maxIters)
-				ThrowError("failed to converge");
+				throw Ex("failed to converge");
 
 			// Shift from bottom 2x2 minor
 			x = pSigma[l];
@@ -2472,7 +2472,7 @@ double GMatrix::determinant()
 	// Check size
 	size_t n = rows();
 	if(n != cols())
-		ThrowError("Only square matrices are supported");
+		throw Ex("Only square matrices are supported");
 
 	// Convert to a triangular matrix
 	double epsilon = 1e-10;
@@ -2503,7 +2503,7 @@ double GMatrix::determinant()
 		if(std::abs(po) < epsilon)
 		{
 			nonSingular = false;
-			//ThrowError("Failed to compute determinant. Pivot too small.");
+			//throw Ex("Failed to compute determinant. Pivot too small.");
 		}
 		else
 		{
@@ -2612,7 +2612,7 @@ void GMatrix::eigenVector(double eigenvalue, double* pOutVector)
 		row(i)[i] = row(i)[i] - eigenvalue;
 	GVec::setAll(pOutVector, 0.0, rowCount);
 	if(!gaussianElimination(pOutVector))
-		ThrowError("no solution");
+		throw Ex("no solution");
 	GVec::normalize(pOutVector, rowCount);
 }
 
@@ -2620,9 +2620,9 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 {
 	size_t dims = cols();
 	if(nCount > dims)
-		ThrowError("Can't have more eigenvectors than columns");
+		throw Ex("Can't have more eigenvectors than columns");
 	if(rows() != (size_t)dims)
-		ThrowError("expected a square matrix");
+		throw Ex("expected a square matrix");
 
 /*
 	// The principle components of the Cholesky (square-root) matrix are the same as
@@ -2786,7 +2786,7 @@ GMatrix* GMatrix::clone()
 GMatrix* GMatrix::cloneSub(size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
 {
 	if(rowStart + rowCount > rows())
-		ThrowError("row index out of range");
+		throw Ex("row index out of range");
 	sp_relation pSubRel = (colCount == cols() ? m_pRelation : m_pRelation->cloneSub(colStart, colCount));
 	GMatrix* pThat = new GMatrix(pSubRel);
 	pThat->newRows(rowCount);
@@ -2804,7 +2804,7 @@ void GMatrix::copyRow(const double* pRow)
 void GMatrix::copyColumns(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount)
 {
 	if(rows() != pSource->rows())
-		ThrowError("expected datasets to have the same number of rows");
+		throw Ex("expected datasets to have the same number of rows");
 	size_t count = rows();
 	for(size_t i = 0; i < count; i++)
 		GVec::copy(row(i) + nDestStartColumn, pSource->row(i) + nSourceStartColumn, nColumnCount);
@@ -2813,7 +2813,7 @@ void GMatrix::copyColumns(size_t nDestStartColumn, const GMatrix* pSource, size_
 GMatrix* GMatrix::attrSubset(size_t firstAttr, size_t attrCount)
 {
 	if(firstAttr + attrCount > m_pRelation->size())
-		ThrowError("index out of range");
+		throw Ex("index out of range");
 	sp_relation relNew;
 	if(relation()->type() == GRelation::UNIFORM)
 	{
@@ -2909,7 +2909,7 @@ void GMatrix::releaseAllRows()
 GMatrix* GMatrix::mergeHoriz(GMatrix* pSetA, GMatrix* pSetB)
 {
 	if(pSetA->rows() != pSetB->rows())
-		ThrowError("Expected same number of rows");
+		throw Ex("Expected same number of rows");
 	GArffRelation* pRel = new GArffRelation();
 	sp_relation spRel;
 	spRel = pRel;
@@ -2937,7 +2937,7 @@ void GMatrix::shuffle(GRand& rand, GMatrix* pExtension)
 	if(pExtension)
 	{
 		if(pExtension->rows() != rows())
-			ThrowError("Expected pExtension to have the same number of rows");
+			throw Ex("Expected pExtension to have the same number of rows");
 		for(size_t n = m_rows.size(); n > 0; n--)
 		{
 			size_t r = (size_t)rand.next(n);
@@ -3015,7 +3015,7 @@ double GMatrix::entropy(size_t nColumn)
 void GMatrix::splitByPivot(GMatrix* pGreaterOrEqual, size_t nAttribute, double dPivot, GMatrix* pExtensionA, GMatrix* pExtensionB)
 {
 	if(pExtensionA && pExtensionA->rows() != rows())
-		ThrowError("Expected pExtensionA to have the same number of rows as this dataset");
+		throw Ex("Expected pExtensionA to have the same number of rows as this dataset");
 	GAssert(pGreaterOrEqual->m_pHeap == m_pHeap);
 	size_t nUnknowns = 0;
 	double* pRow;
@@ -3070,7 +3070,7 @@ void GMatrix::splitBySize(GMatrix* pOtherData, size_t nOtherRows)
 {
 	GAssert(pOtherData->m_pHeap == m_pHeap);
 	if(nOtherRows > rows())
-		ThrowError("row count out of range");
+		throw Ex("row count out of range");
 	size_t targetSize = pOtherData->rows() + nOtherRows;
 	pOtherData->reserve(targetSize);
 	while(pOtherData->rows() < targetSize)
@@ -3085,17 +3085,17 @@ void GMatrix::mergeVert(GMatrix* pData)
 		GArffRelation* pThis = (GArffRelation*)relation().get();
 		GArffRelation* pThat = (GArffRelation*)pData->relation().get();
 		if(pThis->size() != pThat->size())
-			ThrowError("Mismatching number of columns");
+			throw Ex("Mismatching number of columns");
 		vector< vector<size_t> > valueMap;
 		valueMap.resize(pThis->size());
 		for(size_t i = 0; i < pThis->size(); i++)
 		{
 			if(strcmp(pThis->attrName(i), pThat->attrName(i)) != 0)
-				ThrowError("The name of attribute ", to_str(i), " does not match");
+				throw Ex("The name of attribute ", to_str(i), " does not match");
 			if(pThis->valueCount(i) == 0 && pThat->valueCount(i) != 0)
-				ThrowError("Attribute ", to_str(i), " is continuous in one matrix and nominal in the other");
+				throw Ex("Attribute ", to_str(i), " is continuous in one matrix and nominal in the other");
 			if(pThis->valueCount(i) != 0 && pThat->valueCount(i) == 0)
-				ThrowError("Attribute ", to_str(i), " is continuous in one matrix and nominal in the other");
+				throw Ex("Attribute ", to_str(i), " is continuous in one matrix and nominal in the other");
 			vector<size_t>& vm = valueMap[i];
 			GArffAttribute& attrThis = pThis->m_attrs[i];
 			GArffAttribute& attrThat = pThat->m_attrs[i];
@@ -3135,7 +3135,7 @@ void GMatrix::mergeVert(GMatrix* pData)
 	else
 	{
 		if(!relation()->isCompatible(*pData->relation().get()))
-			ThrowError("The two matrices have incompatible relations");
+			throw Ex("The two matrices have incompatible relations");
 		for(size_t i = 0; i < pData->rows(); i++)
 			takeRow(pData->row(i));
 		pData->releaseAllRows();
@@ -3145,7 +3145,7 @@ void GMatrix::mergeVert(GMatrix* pData)
 double GMatrix::mean(size_t nAttribute)
 {
 	if(nAttribute >= cols() || nAttribute <  0)
-		ThrowError("attribute index out of range");
+		throw Ex("attribute index out of range");
 	double sum = 0;
 	size_t missing = 0;
 	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
@@ -3160,7 +3160,7 @@ double GMatrix::mean(size_t nAttribute)
 		return sum / count;
 	else
 	{
-		ThrowError("at least one value is required to compute a mean");
+		throw Ex("at least one value is required to compute a mean");
 		return 0.0;
 	}
 }
@@ -3169,7 +3169,7 @@ double GMatrix::mean(size_t nAttribute)
 double GMatrix::median(size_t nAttribute)
 {
 	if(nAttribute >= cols())
-		ThrowError("attribute index out of range");
+		throw Ex("attribute index out of range");
 	vector<double> vals;
 	vals.reserve(rows());
 	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
@@ -3179,7 +3179,7 @@ double GMatrix::median(size_t nAttribute)
 			vals.push_back(d);
 	}
 	if(vals.size() < 1)
-		ThrowError("at least one value is required to compute a median");
+		throw Ex("at least one value is required to compute a median");
 	if(vals.size() & 1)
 	{
 		vector<double>::iterator med = vals.begin() + (vals.size() / 2);
@@ -3660,9 +3660,9 @@ double GMatrix::sumSquaredDistance(const double* pPoint)
 double GMatrix::columnSumSquaredDifference(GMatrix& that, size_t col)
 {
 	if(that.rows() != rows())
-		ThrowError("Mismatching number of rows");
+		throw Ex("Mismatching number of rows");
 	if(col >= cols() || col >= that.cols())
-		ThrowError("column index out of range");
+		throw Ex("column index out of range");
 	double sse = 0.0;
 	if(relation()->valueCount(col) == 0)
 	{
@@ -3689,7 +3689,7 @@ double GMatrix::sumSquaredDifference(GMatrix& that, bool transpose)
 	{
 		size_t colCount = (size_t)cols();
 		if(rows() != (size_t)that.cols() || colCount != that.rows())
-			ThrowError("expected matrices of same size");
+			throw Ex("expected matrices of same size");
 		double err = 0;
 		for(size_t i = 0; i < rows(); i++)
 		{
@@ -3705,7 +3705,7 @@ double GMatrix::sumSquaredDifference(GMatrix& that, bool transpose)
 	else
 	{
 		if(this->rows() != that.rows() || this->cols() != that.cols())
-			ThrowError("mismatching sizes");
+			throw Ex("mismatching sizes");
 		size_t colCount = cols();
 		double d = 0;
 		for(size_t i = 0; i < rows(); i++)
@@ -3988,7 +3988,7 @@ void GMatrix::ensureDataHasNoMissingReals()
 			if(m_pRelation->valueCount(j) != 0)
 				continue;
 			if(pPat[i] == UNKNOWN_REAL_VALUE)
-				ThrowError("Missing values in continuous attributes are not supported");
+				throw Ex("Missing values in continuous attributes are not supported");
 		}
 	}
 }
@@ -4004,7 +4004,7 @@ void GMatrix::ensureDataHasNoMissingNominals()
 			if(m_pRelation->valueCount(j) == 0)
 				continue;
 			if((int)pPat[i] == UNKNOWN_DISCRETE_VALUE)
-				ThrowError("Missing values in nominal attributes are not supported");
+				throw Ex("Missing values in nominal attributes are not supported");
 		}
 	}
 }
@@ -4056,7 +4056,7 @@ double GMatrix::sumSquaredDiffWithIdentity()
 bool GMatrix::leastCorrelatedVector(double* pOut, GMatrix* pThat, GRand* pRand)
 {
 	if(rows() != pThat->rows() || cols() != pThat->cols())
-		ThrowError("Expected matrices with the same dimensions");
+		throw Ex("Expected matrices with the same dimensions");
 	GMatrix* pC = GMatrix::multiply(*pThat, *this, false, true);
 	Holder<GMatrix> hC(pC);
 	GMatrix* pE = GMatrix::multiply(*pC, *pC, true, false);
@@ -4073,7 +4073,7 @@ bool GMatrix::leastCorrelatedVector(double* pOut, GMatrix* pThat, GRand* pRand)
 bool GMatrix::leastCorrelatedVector(double* pOut, GMatrix* pThat, GRand* pRand)
 {
 	if(rows() != pThat->rows() || cols() != pThat->cols())
-		ThrowError("Expected matrices with the same dimensions");
+		throw Ex("Expected matrices with the same dimensions");
 	GMatrix* pC = GMatrix::multiply(*pThat, *this, false, true);
 	Holder<GMatrix> hC(pC);
 	GMatrix* pD = GMatrix::multiply(*pThat, *pC, true, false);
@@ -4138,7 +4138,7 @@ void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin
 GSimpleAssignment GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric)
 {
 	if(a.cols() != b.cols())
-		ThrowError("Expected input matrices to have the same number of cols");
+		throw Ex("Expected input matrices to have the same number of cols");
 	metric.init(a.relation());
 	//GSimpleAssignment result(a.rows(), b.rows());
 	GMatrix costs(a.rows(), b.rows());
@@ -4175,19 +4175,19 @@ void GMatrix_testParsing()
 	GMatrix* pM = GMatrix::parseArff(file, strlen(file));
 	Holder<GMatrix> hM(pM);
 	if(pM->cols() != 3)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(pM->rows() != 5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(pM->row(0)[2] != -1.5e-2)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(pM->row(2)[1] != UNKNOWN_REAL_VALUE)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(pM->row(3)[1] != UNKNOWN_REAL_VALUE)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(pM->row(3)[0] != UNKNOWN_DISCRETE_VALUE)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(pM->row(4)[0] != UNKNOWN_DISCRETE_VALUE)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 /// This test does bipartite matching with a bunch of random matrices,
@@ -4217,19 +4217,19 @@ void GMatrix_testBipartiteMatching()
 	GRowDistance metric;
 	GSimpleAssignment results = GMatrix::bipartiteMatching(a, b, metric);
 	if(results(0) != 1)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(results(1) != 0)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(results(2) != 3)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(results(3) != 5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(results(4) != 4)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(results(5) != 6)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(results(6) != 2)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 void GMatrix_testMultiply()
@@ -4243,33 +4243,33 @@ void GMatrix_testMultiply()
 	GMatrix* pC;
 	pC = GMatrix::multiply(a, b, false, false);
 	if(pC->rows() != 2 || pC->cols() != 2)
-		ThrowError("wrong size");
+		throw Ex("wrong size");
 	if(pC->row(0)[0] != 107 || pC->row(0)[1] != 227 ||
 		pC->row(1)[0] != 172 || pC->row(1)[1] != 268)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	delete(pC);
 	GMatrix* pA = a.transpose();
 	pC = GMatrix::multiply(*pA, b, true, false);
 	if(pC->rows() != 2 || pC->cols() != 2)
-		ThrowError("wrong size");
+		throw Ex("wrong size");
 	if(pC->row(0)[0] != 107 || pC->row(0)[1] != 227 ||
 		pC->row(1)[0] != 172 || pC->row(1)[1] != 268)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	delete(pC);
 	GMatrix* pB = b.transpose();
 	pC = GMatrix::multiply(a, *pB, false, true);
 	if(pC->rows() != 2 || pC->cols() != 2)
-		ThrowError("wrong size");
+		throw Ex("wrong size");
 	if(pC->row(0)[0] != 107 || pC->row(0)[1] != 227 ||
 		pC->row(1)[0] != 172 || pC->row(1)[1] != 268)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	delete(pC);
 	pC = GMatrix::multiply(*pA, *pB, true, true);
 	if(pC->rows() != 2 || pC->cols() != 2)
-		ThrowError("wrong size");
+		throw Ex("wrong size");
 	if(pC->row(0)[0] != 107 || pC->row(0)[1] != 227 ||
 		pC->row(1)[0] != 172 || pC->row(1)[1] != 268)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	delete(pC);
 	delete(pA);
 	delete(pB);
@@ -4286,7 +4286,7 @@ void GMatrix_testCholesky()
 	GMatrix* pM4 = pM3->cholesky();
 	Holder<GMatrix> hM4(pM4);
 	if(m1.sumSquaredDifference(*pM4, false) >= .0001)
-		ThrowError("Cholesky decomposition didn't work right");
+		throw Ex("Cholesky decomposition didn't work right");
 }
 
 void GMatrix_testInvert()
@@ -4303,7 +4303,7 @@ void GMatrix_testInvert()
 	i2[1][0] = .5;	i2[1][1] = 1;	i2[1][2] = .5;
 	i2[2][0] = .25;	i2[2][1] = .5;	i2[2][2] = .75;
 	if(pInv->sumSquaredDifference(i2, false) >= .0001)
-		ThrowError("Not good enough");
+		throw Ex("Not good enough");
 //	i1.invert();
 	GMatrix* pInvInv = pInv->pseudoInverse();
 	Holder<GMatrix> hInvInv(pInvInv);
@@ -4312,7 +4312,7 @@ void GMatrix_testInvert()
 	GMatrix i4(3, 3);
 	i4.makeIdentity();
 	if(pI3->sumSquaredDifference(i4, false) >= .0001)
-		ThrowError("Not good enough");
+		throw Ex("Not good enough");
 }
 
 void GMatrix_testDeterminant()
@@ -4328,7 +4328,7 @@ void GMatrix_testDeterminant()
 	d1.fromVector(dettest, 4);
 	double det = d1.determinant();
 	if(std::abs(det - 72.0) >= .0001)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	const double dettest2[] =
 	{
 		3,2,
@@ -4338,7 +4338,7 @@ void GMatrix_testDeterminant()
 	d2.fromVector(dettest2, 2);
 	det = d2.determinant();
 	if(std::abs(det - 11.0) >= .0001)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	const double dettest3[] =
 	{
 		1,2,3,
@@ -4349,7 +4349,7 @@ void GMatrix_testDeterminant()
 	d3.fromVector(dettest3, 3);
 	det = d3.determinant();
 	if(std::abs(det - 0.0) >= .0001)
-		ThrowError("wrong");
+		throw Ex("wrong");
 }
 
 void GMatrix_testReducedRowEchelonForm()
@@ -4371,11 +4371,11 @@ void GMatrix_testReducedRowEchelonForm()
 	GMatrix r1(0, 5);
 	r1.fromVector(reducedrowechelonformtest, 4);
 	if(r1.toReducedRowEchelonForm() != 2)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	GMatrix r2(0, 5);
 	r2.fromVector(reducedrowechelonformanswer, 4);
 	if(r1.sumSquaredDifference(r2) > .001)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	const double reducedrowechelonformtest2[] =
 	{
 		-2, -4, 4,
@@ -4391,11 +4391,11 @@ void GMatrix_testReducedRowEchelonForm()
 	GMatrix r3(0, 3);
 	r3.fromVector(reducedrowechelonformtest2, 3);
 	if(r3.toReducedRowEchelonForm() != 2)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	GMatrix r4(0, 3);
  	r4.fromVector(reducedrowechelonformanswer2, 3);
 	if(r4.sumSquaredDifference(r3) > .001)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 }
 
 void GMatrix_testPrincipalComponents(GRand& prng)
@@ -4415,7 +4415,7 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 	double eig[2];
 	data.principalComponent(eig, mean, &prng);
 	if(std::abs(eig[0] * 2 - eig[1]) > .0001)
-		ThrowError("incorrect value");
+		throw Ex("incorrect value");
 
 	// Compute principal components via eigenvectors of covariance matrix, and
 	// make sure they're the same
@@ -4428,7 +4428,7 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 	GMatrix* pEigenVecs = pM->eigs(1, &ev, &prng, true);
 	Holder<GMatrix> hEigenVecs(pEigenVecs);
 	if(std::abs(pEigenVecs->row(0)[0] * pEigenVecs->row(0)[1] - eig[0] * eig[1]) > .0001)
-		ThrowError("answers don't agree");
+		throw Ex("answers don't agree");
 
 	// Test most significant eigenvector computation
 	GMatrix e1(2, 2);
@@ -4438,13 +4438,13 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 	GMatrix* pE2 = e1.eigs(2, ev2, &prng, true);
 	Holder<GMatrix> hE2(pE2);
 	if(std::abs(pE2->row(0)[0] * pE2->row(0)[0] + pE2->row(0)[1] * pE2->row(0)[1] - 1) > .0001)
-		ThrowError("answer not normalized");
+		throw Ex("answer not normalized");
 	if(std::abs(pE2->row(0)[0] * pE2->row(0)[1] - .27735) >= .0001)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	if(std::abs(pE2->row(1)[0] * pE2->row(1)[0] + pE2->row(1)[1] * pE2->row(1)[1] - 1) > .0001)
-		ThrowError("answer not normalized");
+		throw Ex("answer not normalized");
 	if(std::abs(pE2->row(1)[0] * pE2->row(1)[1] + .27735) >= .0001)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 
 	// Test least significant eigenvector computation and gaussian ellimination
 	GMatrix e3(2, 2);
@@ -4455,13 +4455,13 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 	GMatrix* pE5 = e3.eigs(2, ev2, &prng, false);
 	Holder<GMatrix> hE5(pE5);
 	if(std::abs(std::abs(pE4->row(0)[0]) - std::abs(pE5->row(1)[0])) >= .0001)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(std::abs(pE4->row(0)[1]) - std::abs(pE5->row(1)[1])) >= .0001)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(std::abs(pE4->row(1)[0]) - std::abs(pE5->row(0)[0])) >= .0001)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(std::abs(pE4->row(1)[1]) - std::abs(pE5->row(0)[1])) >= .0001)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 void GMatrix_testDihedralCorrelation(GRand& prng)
@@ -4511,7 +4511,7 @@ void GMatrix_testDihedralCorrelation(GRand& prng)
 		double actual = cos(angle);
 		double measured = p3.dihedralCorrelation(&p4, &prng);
 		if(std::abs(measured - actual) > 1e-8)
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 
 	// Measure the dihedral angle of two 3-hyperplanes in 5-space
@@ -4529,7 +4529,7 @@ void GMatrix_testDihedralCorrelation(GRand& prng)
 	double cosangle = sp1.dihedralCorrelation(sp3, &prng);
 	double measured = acos(cosangle);
 	if(std::abs(measured - angle) > 1e-8)
-		ThrowError("failed");
+		throw Ex("failed");
 
 	// Make sure dihedral angles are computed correctly with parallel planes
 	static const double aa[] = {1.0, 0.0, 0.0, 0.0, -1.0, 0.0};
@@ -4540,10 +4540,10 @@ void GMatrix_testDihedralCorrelation(GRand& prng)
 	planeB.fromVector(bb, 2);
 	cosangle = planeA.dihedralCorrelation(&planeB, &prng);
 	if(std::abs(cosangle - 1.0) > 1e-8)
-		ThrowError("failed");
+		throw Ex("failed");
 	cosangle = planeB.dihedralCorrelation(&planeA, &prng);
 	if(std::abs(cosangle - 1.0) > 1e-8)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 void GMatrix_testSingularValueDecomposition()
@@ -4561,21 +4561,21 @@ void GMatrix_testSingularValueDecomposition()
 
 	// Test that the diagonal values are correct
 	if(std::abs(pDiag[0] - sqrt(40.0)) > 1e-8)
-		ThrowError("pDiag is not correct");
+		throw Ex("pDiag is not correct");
 	if(std::abs(pDiag[1] - sqrt(10.0)) > 1e-8)
-		ThrowError("pDiag is not correct");
+		throw Ex("pDiag is not correct");
 
 	// Test that U is unitary
 	GMatrix* pT1 = GMatrix::multiply(*pU, *pU, false, true);
 	Holder<GMatrix> hT1(pT1);
 	if(pT1->sumSquaredDiffWithIdentity() > 1e-8)
-		ThrowError("U is not unitary");
+		throw Ex("U is not unitary");
 
 	// Test that V is unitary
 	GMatrix* pT2 = GMatrix::multiply(*pV, *pV, false, true);
 	Holder<GMatrix> hT2(pT2);
 	if(pT2->sumSquaredDiffWithIdentity() > 1e-8)
-		ThrowError("V is not unitary");
+		throw Ex("V is not unitary");
 }
 
 void GMatrix_testPseudoInverse()
@@ -4590,7 +4590,7 @@ void GMatrix_testPseudoInverse()
 		B[0][0] = 0.1; B[0][1] = 0.2;
 		B[1][0] = 0.1; B[1][1] = 0.2;
 		if(A->sumSquaredDifference(B, false) > 1e-8)
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 	{
 		GMatrix M(3, 2);
@@ -4600,12 +4600,12 @@ void GMatrix_testPseudoInverse()
 		GMatrix* A = M.pseudoInverse();
 		Holder<GMatrix> hA(A);
 		if(A->rows() != 2 || A->cols() != 3)
-			ThrowError("wrong size");
+			throw Ex("wrong size");
 		GMatrix B(2, 3);
 		B[0][0] = -16.0/12.0; B[0][1] = -4.0/12.0; B[0][2] = 8.0/12.0;
 		B[1][0] = 13.0/12.0; B[1][1] = 4.0/12.0; B[1][2] = -5.0/12.0;
 		if(A->sumSquaredDifference(B, false) > 1e-8)
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 	{
 		GMatrix M(2, 3);
@@ -4614,13 +4614,13 @@ void GMatrix_testPseudoInverse()
 		GMatrix* A = M.pseudoInverse();
 		Holder<GMatrix> hA(A);
 		if(A->rows() != 3 || A->cols() != 2)
-			ThrowError("wrong size");
+			throw Ex("wrong size");
 		GMatrix B(3, 2);
 		B[0][0] = -16.0/12.0; B[0][1] = 13.0/12.0;
 		B[1][0] = -4.0/12.0; B[1][1] = 4.0/12.0;
 		B[2][0] = 8.0/12.0; B[2][1] = -5.0/12.0;
 		if(A->sumSquaredDifference(B, false) > 1e-8)
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 }
 
@@ -4646,11 +4646,11 @@ void GMatrix_testKabsch(GRand& prng)
 	GMatrix* pK = GMatrix::kabsch(&a, pB);
 	Holder<GMatrix> hK(pK);
 	if(pK->sumSquaredDifference(rot, true) > 1e-6)
-		ThrowError("Failed to recover rotation matrix");
+		throw Ex("Failed to recover rotation matrix");
 	GMatrix* pC = GMatrix::multiply(*pB, *pK, false, false);
 	Holder<GMatrix> hC(pC);
 	if(a.sumSquaredDifference(*pC, false) > 1e-6)
-		ThrowError("Failed to align data");
+		throw Ex("Failed to align data");
 }
 
 void GMatrix_testLUDecomposition(GRand& prng)
@@ -4682,7 +4682,7 @@ void GMatrix_testLUDecomposition(GRand& prng)
 	GMatrix* pProd = GMatrix::multiply(l, u, false, false);
 	Holder<GMatrix> hProd(pProd);
 	if(pProd->sumSquaredDifference(a, false) > 0.00001)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 void GMatrix_testWilcoxon()
@@ -4703,9 +4703,9 @@ void GMatrix_testWilcoxon()
 	double min, plu;
 	m.wilcoxonSignedRanksTest(0, 1, 0.0, &n, &min, &plu);
 	if(plu != 27)
-		ThrowError("incorrect test statistic");
+		throw Ex("incorrect test statistic");
 	if(min != 18)
-		ThrowError("incorrect test statistic");
+		throw Ex("incorrect test statistic");
 }
 
 // static

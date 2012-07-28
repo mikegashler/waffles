@@ -28,7 +28,7 @@ GDirList::GDirList()
 {
 	char buf[300];
 	if(!getcwd(buf, 300))
-		ThrowError("getcwd failed");
+		throw Ex("getcwd failed");
 	GFile::folderList(m_folders, buf, true);
 	GFile::fileList(m_files, buf);
 }
@@ -44,7 +44,7 @@ GFolderSerializer::GFolderSerializer(const char* szPath, bool compress)
 	m_szPath = szPath;
 	m_szOrigPath = new char[300];
 	if(!getcwd(m_szOrigPath, 300))
-		ThrowError("getcwd failed");
+		throw Ex("getcwd failed");
 	m_pBuf = new char[BUF_SIZE];
 	m_pPos = m_pBuf;
 	m_size = BUF_SIZE;
@@ -64,7 +64,7 @@ GFolderSerializer::GFolderSerializer(const char* szPath, bool compress)
 GFolderSerializer::~GFolderSerializer()
 {
 	if(chdir(m_szOrigPath) != 0)
-		ThrowError("Failed to restore original path");
+		throw Ex("Failed to restore original path");
 	delete[] m_szOrigPath;
 	delete[] m_pBuf;
 	delete(m_pInStream);
@@ -107,12 +107,12 @@ char* GFolderSerializer::nextPiece(size_t* pOutSize)
 				string s;
 				s.assign(m_szPath, pd.fileStart);
 				if(chdir(s.c_str()) != 0)
-					ThrowError("Failed to change dir to ", s.c_str());
+					throw Ex("Failed to change dir to ", s.c_str());
 			}
 
 			// Add the file or folder
 			if(access(m_szPath, 0) != 0)
-				ThrowError("The file or folder ", m_szPath, " does not seem to exist");
+				throw Ex("The file or folder ", m_szPath, " does not seem to exist");
 			struct stat status;
 			stat(m_szPath, &status);
 			if(status.st_mode & S_IFDIR)
@@ -122,7 +122,7 @@ char* GFolderSerializer::nextPiece(size_t* pOutSize)
 		}
 		break;
 	default:
-		ThrowError("Unexpected state");
+		throw Ex("Unexpected state");
 	}
 	*pOutSize = (m_pPos - m_pBuf);
 	m_pPos = m_pBuf;
@@ -234,7 +234,7 @@ void GFolderSerializer::startFile(const char* szFilename)
 	}
 	catch(const std::exception e)
 	{
-		ThrowError("Error opening file: ", szFilename);
+		throw Ex("Error opening file: ", szFilename);
 	}
 	memcpy(m_pPos, &size, sizeof(unsigned long long));
 	m_pPos += sizeof(unsigned long long);
@@ -254,7 +254,7 @@ void GFolderSerializer::continueFile()
 	}
 	catch(const std::exception&)
 	{
-		ThrowError("Error while reading from file");
+		throw Ex("Error while reading from file");
 	}
 	m_remaining -= chunk;
 	m_pPos += chunk;
@@ -275,7 +275,7 @@ void GFolderSerializer::startDir(const char* szDirName)
 
 	// Create the GDirList
 	if(chdir(szDirName) != 0)
-		ThrowError("Failed to change dir to ", szDirName);
+		throw Ex("Failed to change dir to ", szDirName);
 	m_dirStack.push(new GDirList());
 	m_state = 3; // continue reading dir
 }
@@ -304,7 +304,7 @@ void GFolderSerializer::continueDir()
 		delete(pDL);
 		m_dirStack.pop();
 		if(chdir("..") != 0)
-			ThrowError("Failed to chdir to ..");
+			throw Ex("Failed to chdir to ..");
 		m_state = 1;
 	}
 }
@@ -357,7 +357,7 @@ void GFolderDeserializer::pump1()
 					return;
 				}
 				else
-					ThrowError("Unrecognized format");
+					throw Ex("Unrecognized format");
 			}
 			break;
 		case 1: // the file type
@@ -370,12 +370,12 @@ void GFolderDeserializer::pump1()
 				else if(*pChunk == 'e')
 				{
 					if(m_depth-- == 0)
-						ThrowError("corruption issue");
+						throw Ex("corruption issue");
 					if(chdir("..") != 0)
-						ThrowError("Failed to move up one dir");
+						throw Ex("Failed to move up one dir");
 				}
 				else
-					ThrowError("Unexpected value");
+					throw Ex("Unexpected value");
 			}
 			break;
 		case 2: // filename len
@@ -394,7 +394,7 @@ void GFolderDeserializer::pump1()
 					m_pBaseName->assign(sFilename);
 				GAssert(m_pOutStream == NULL);
 				if(m_depth == 0 && access(sFilename.c_str(), 0 ) == 0)
-					ThrowError("There is already a file or folder named \"", sFilename.c_str(), "\"");
+					throw Ex("There is already a file or folder named \"", sFilename.c_str(), "\"");
 				m_pOutStream = new std::ofstream();
 				m_pOutStream->exceptions(std::ios::failbit|std::ios::badbit);
 				m_pOutStream->open(sFilename.c_str(), std::ios::binary);
@@ -413,7 +413,7 @@ void GFolderDeserializer::pump1()
 				size_t writeAmount = std::min((size_t)m_fileLen, m_pBQ1->readyBytes());
 				const char* pChunk = m_pBQ1->dequeue(writeAmount);
 				if(!pChunk)
-					ThrowError("Expected this call to succeed");
+					throw Ex("Expected this call to succeed");
 				m_pOutStream->write(pChunk, writeAmount);
 				m_fileLen -= writeAmount;
 				if(m_fileLen == 0)
@@ -441,22 +441,22 @@ void GFolderDeserializer::pump1()
 				if(m_pBaseName && m_pBaseName->length() == 0)
 					m_pBaseName->assign(sDirname);
 				if(m_depth == 0 && access(sDirname.c_str(), 0) == 0)
-					ThrowError("There is already a file or folder named \"", sDirname.c_str(), "\"");
+					throw Ex("There is already a file or folder named \"", sDirname.c_str(), "\"");
 #ifdef WINDOWS
 				bool bOK = (mkdir(sDirname.c_str()) == 0);
 #else
 				bool bOK = (mkdir(sDirname.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0); // read/write/search permissions for owner and group, and with read/search permissions for others
 #endif
 				if(!bOK)
-					ThrowError("Failed to create dir");
+					throw Ex("Failed to create dir");
 				if(chdir(sDirname.c_str()) != 0)
-					ThrowError("Failed to change dir to ", sDirname.c_str());
+					throw Ex("Failed to change dir to ", sDirname.c_str());
 				m_depth++;
 				m_state = 1;
 			}
 			break;
 		default:
-			ThrowError("Unrecognized state");
+			throw Ex("Unrecognized state");
 		}
 	}
 }
@@ -471,7 +471,7 @@ void GFolderDeserializer::pump2()
 			unsigned int compressedBlockSize = *(unsigned int*)pChunk;
 			m_compressedBlockSize = (size_t)compressedBlockSize;
 			if(compressedBlockSize > COMPRESS_BUF_SIZE + 5)
-				ThrowError("out of range");
+				throw Ex("out of range");
 		}
 		else
 		{

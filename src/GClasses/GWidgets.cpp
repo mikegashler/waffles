@@ -1952,9 +1952,9 @@ void GWidgetGrid::setWidget(int col, int row, GWidget* pWidget)
 		addWidget(pWidget);
 	}
 	else if(pWidget->m_pParent != this)
-		ThrowError("That widget is already a child of another group widget");
+		throw Ex("That widget is already a child of another group widget");
 	if(col < 0 || col >= m_nColumns)
-		ThrowError("out of range");
+		throw Ex("out of range");
 	while(row >= (int)m_rows.size())
 		addBlankRow();
 	GWidget** pRow = m_rows[row];
@@ -2279,7 +2279,7 @@ void GWidgetFileSystemBrowser::dirFoldersAndFiles(string* pOutDir, vector<string
 	// Get the path
 	char szPath[300];
 	if(!getcwd(szPath, 300))
-		ThrowError("error getting cwd");
+		throw Ex("error getting cwd");
 	*pOutDir = szPath;
 	(*pOutDir) += "/";
 
@@ -2959,7 +2959,7 @@ void GWidgetWave::draw(GImage* pCanvas, int xx, int yy)
 		}
 	}
 	else
-		ThrowError("Sorry, GWidgetWave doesn't support ", to_str(m_pWave->bitsPerSample()), " bit samples. It only supports 16 and 32 bit samples");
+		throw Ex("Sorry, GWidgetWave doesn't support ", to_str(m_pWave->bitsPerSample()), " bit samples. It only supports 16 and 32 bit samples");
 }
 
 /*virtual*/ void GWidgetWave::grab(int button, int x, int y)

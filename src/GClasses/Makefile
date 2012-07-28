@@ -269,7 +269,4 @@ uninstall:
 	rm -f $(INSTALL_LOCATION_LIB)/libGClassesDbg.a
 	rm -rf $(INSTALL_LOCATION_INCLUDE)/GClasses
 
-yo:
-	echo "yo mamma" > $(TEST_VARS)
-
 .PHONY: clean partialcleandbg partialcleanopt install uninstall dbg opt

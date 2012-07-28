@@ -291,7 +291,7 @@ void GHiddenMarkovModel::baumWelchEndTraining()
 void GHiddenMarkovModel::baumWelch(vector<int*>& sequences, vector<int>& lengths, int maxPasses)
 {
 	if(sequences.size() != lengths.size())
-		ThrowError("Expected both vectors to have the same size");
+		throw Ex("Expected both vectors to have the same size");
 	int maxLen = 0;
 	for(size_t i = 0; i < lengths.size(); i++)
 		maxLen = std::max(maxLen, lengths[i]);
@@ -342,25 +342,25 @@ void GHiddenMarkovModel::test()
 
 	// Check the results
 	if(std::abs(pInitial[0] - 0.29849966020178786) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pInitial[1] - 0.70150033979821202) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pTrans[0] - 0.40399443180411687) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pTrans[1] - 0.59600556819588313) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pTrans[2] - 0.61206063945288547) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pTrans[3] - 0.38793936054711436) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pSym[0] - 0.49547467745041401) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pSym[1] - 0.50452532254958593) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pSym[2] - 0.19935077334351725) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pSym[3] - 0.80064922665648264) > 1e-12)
-		ThrowError("wrong");
+		throw Ex("wrong");
 }
 #endif
 

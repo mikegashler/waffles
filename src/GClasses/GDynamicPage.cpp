@@ -169,7 +169,7 @@ const char* GDynamicPageServer::daemonSalt()
 void GDynamicPageServer::setDaemonSalt(const char* szSalt)
 {
 	if(strlen(szSalt) != 14)
-		ThrowError("Salt has unexpected length");
+		throw Ex("Salt has unexpected length");
 	strcpy(m_daemonSalt, szSalt);
 	computePasswordSalt();
 }

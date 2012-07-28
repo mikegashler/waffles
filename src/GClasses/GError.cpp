@@ -32,119 +32,15 @@ namespace GClasses {
 
 bool g_exceptionExpected = false;
 
-void ThrowError(string s)
+void Ex::setMessage(std::string message)
 {
-	if(g_exceptionExpected) // Technically, using globals is not thread-safe, but it doesn't matter in this case since behavior is the same either way.
-		throw GException(s);
-
-	// Behold! The central location from which all unexpected exceptions in this library are thrown!
-	// (This might be a good place to put a breakpoint.)
-	throw GException(s);
+	if(g_exceptionExpected)
+		m_message = message;
+	else
+		m_message = message; // (This is a good place to put a breakpoint. All unexpected exceptions pass through here.)
 }
 
-
-void ThrowError(string s1, string s2)
-{
-	string s = s1;
-	s += s2;
-	ThrowError(s);
-}
-
-void ThrowError(string s1, string s2, string s3)
-{
-	string s = s1;
-	s += s2;
-	s += s3;
-	ThrowError(s);
-}
-
-void ThrowError(string s1, string s2, string s3, string s4)
-{
-	string s = s1;
-	s += s2;
-	s += s3;
-	s += s4;
-	ThrowError(s);
-}
-
-void ThrowError(string s1, string s2, string s3, string s4, string s5)
-{
-	string s = s1;
-	s += s2;
-	s += s3;
-	s += s4;
-	s += s5;
-	ThrowError(s);
-}
-
-void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6)
-{
-	string s = s1;
-	s += s2;
-	s += s3;
-	s += s4;
-	s += s5;
-	s += s6;
-	ThrowError(s);
-}
-
-void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6, string s7)
-{
-	string s = s1;
-	s += s2;
-	s += s3;
-	s += s4;
-	s += s5;
-	s += s6;
-	s += s7;
-	ThrowError(s);
-}
-
-void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6, string s7, string s8)
-{
-	string s = s1;
-	s += s2;
-	s += s3;
-	s += s4;
-	s += s5;
-	s += s6;
-	s += s7;
-	s += s8;
-	ThrowError(s);
-}
-
-void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6, string s7, string s8, string s9)
-{
-	string s = s1;
-	s += s2;
-	s += s3;
-	s += s4;
-	s += s5;
-	s += s6;
-	s += s7;
-	s += s8;
-	s += s9;
-	ThrowError(s);
-}
-
-void ThrowError(string s1, string s2, string s3, string s4, string s5, string s6, string s7, string s8, string s9, string s10)
-{
-	string s = s1;
-	s += s2;
-	s += s3;
-	s += s4;
-	s += s5;
-	s += s6;
-	s += s7;
-	s += s8;
-	s += s9;
-	s += s10;
-	ThrowError(s);
-}
-
-
-
-const char* GException::what() const throw()
+const char* Ex::what() const throw()
 { 
 	return m_message.c_str();
 }
@@ -193,7 +89,7 @@ void TestContains(std::string expectedSubstring, std::string got,
 			<< "Expected substring: " << expectedSubstring << endl
 			<< "Got               : " << got << endl
 			;
-		ThrowError("Substring match test failed: ", descr);
+		throw Ex("Substring match test failed: ", descr);
 	}
 }
 

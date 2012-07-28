@@ -60,7 +60,7 @@ GPolicyLearner::GPolicyLearner(sp_relation& pRelation, int actionDims)
 {
 	m_senseDims = (int)pRelation->size() - actionDims;
 	if(m_senseDims < 0)
-		ThrowError("more action dims than relation dims");
+		throw Ex("more action dims than relation dims");
 	m_actionDims = actionDims;
 	m_teleported = true;
 	m_explore = true;
@@ -136,7 +136,7 @@ void GPeachAgent::setGoal(double* pNewGoal)
 	for(i = 0; i < m_senseDims; i++)
 	{
 		if(pNewGoal[i] == UNKNOWN_REAL_VALUE)
-			ThrowError("GPeachAgent doesn't support unknown goal dimensions");
+			throw Ex("GPeachAgent doesn't support unknown goal dimensions");
 	}
 	GVec::copy(m_pGoal, pNewGoal, m_senseDims);
 }

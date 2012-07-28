@@ -105,14 +105,14 @@ GNormalDistribution* GPrediction::makeNormal()
 GCategoricalDistribution* GPrediction::asCategorical()
 {
 	if(!m_pDistribution || m_pDistribution->type() != GUnivariateDistribution::categorical)
-		ThrowError("The current distribution is not a categorical distribution");
+		throw Ex("The current distribution is not a categorical distribution");
 	return (GCategoricalDistribution*)m_pDistribution;
 }
 
 GNormalDistribution* GPrediction::asNormal()
 {
 	if(!m_pDistribution || m_pDistribution->type() != GUnivariateDistribution::normal)
-		ThrowError("The current distribution is not a normal distribution");
+		throw Ex("The current distribution is not a normal distribution");
 	return (GNormalDistribution*)m_pDistribution;
 }
 #endif // MIN_PREDICT
@@ -150,9 +150,9 @@ public:
 GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
 {
 	if(features1.rows() != labels1.rows())
-		ThrowError("Expected features1 and labels1 to have the same number of rows");
+		throw Ex("Expected features1 and labels1 to have the same number of rows");
 	if(features1.cols() != features2.cols())
-		ThrowError("Expected both feature matrices to have the same number of cols");
+		throw Ex("Expected both feature matrices to have the same number of cols");
 
 	// Convert the features to a form that this algorithm can handle
 	GMatrix& f1 = features1;
@@ -162,7 +162,7 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 	if(!canImplicitlyHandleNominalFeatures())
 	{
 		if(!canImplicitlyHandleContinuousFeatures())
-			ThrowError("Can't handle nominal or continuous features");
+			throw Ex("Can't handle nominal or continuous features");
 
 		// Convert nominal features to continuous
  		if(!features1.relation()->areContinuous(0, features1.relation()->size()))
@@ -180,7 +180,7 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 	if(!canImplicitlyHandleContinuousFeatures())
 	{
 		if(!canImplicitlyHandleNominalFeatures())
-			ThrowError("Can't handle nominal or continuous features");
+			throw Ex("Can't handle nominal or continuous features");
 
 		// Convert continuous features to nominal
 		if(!features1.relation()->areNominal(0, features1.relation()->size()))
@@ -216,7 +216,7 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 	if(!canImplicitlyHandleContinuousLabels())
 	{
 		if(!canImplicitlyHandleNominalLabels())
-			ThrowError("This algorithm says it cannot handle nominal or continuous labels");
+			throw Ex("This algorithm says it cannot handle nominal or continuous labels");
 		if(labels1.relation()->areNominal(0, labels1.relation()->size()))
 			return transduceInner(f1, labels1, f2);
 		else
@@ -264,7 +264,7 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 			else
 			{
 				// todo: both nominalToCat and normalization filters are necessary in this case
-				ThrowError("case not yet supported");
+				throw Ex("case not yet supported");
 				return NULL;
 			}
 		}
@@ -276,9 +276,9 @@ void GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMa
 {
 	// Check assumptions
 	if(testFeatures.rows() != testLabels.rows())
-		ThrowError("Expected the test features to have the same number of rows as the test labels");
+		throw Ex("Expected the test features to have the same number of rows as the test labels");
 	if(trainFeatures.cols() != testFeatures.cols())
-		ThrowError("Expected the training features and test features to have the same number of columns");
+		throw Ex("Expected the training features and test features to have the same number of columns");
 
 	// Transduce
 	GMatrix* pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
@@ -328,7 +328,7 @@ double GTransducer::heuristicValidate(GMatrix& features, GMatrix& labels)
 {
 	// Check assumptions
 	if(features.rows() != labels.rows())
-		ThrowError("Expected the features and labels to have the same number of rows");
+		throw Ex("Expected the features and labels to have the same number of rows");
 
 	// Randomly divide into two datasets
 	GMatrix featuresA(features.relation());
@@ -384,7 +384,7 @@ double GTransducer::heuristicValidate(GMatrix& features, GMatrix& labels)
 GMatrix* GTransducer::crossValidate(GMatrix& features, GMatrix& labels, size_t folds, RepValidateCallback pCB, size_t nRep, void* pThis)
 {
 	if(features.rows() != labels.rows())
-		ThrowError("Expected the features and labels to have the same number of rows");
+		throw Ex("Expected the features and labels to have the same number of rows");
 
 	// Make a place to store the results
 	GMatrix* pResults = new GMatrix(0, labels.cols());
@@ -475,7 +475,7 @@ GSupervisedLearner::GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll)
 		GDomListIterator it(pCalibs);
 		size_t labelDims = m_pRelLabels->size();
 		if(it.remaining() != labelDims)
-			ThrowError("The number of calibrations does not match the number of labels");
+			throw Ex("The number of calibrations does not match the number of labels");
 		m_pCalibrations = new GNeuralNet*[labelDims];
 		for(size_t i = 0; i < labelDims; i++)
 		{
@@ -502,7 +502,7 @@ GSupervisedLearner::~GSupervisedLearner()
 GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	if(!m_pRelLabels.get())
-		ThrowError("The model must be trained before it is serialized.");
+		throw Ex("The model must be trained before it is serialized.");
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
 	if(m_pFilterFeatures)
@@ -626,7 +626,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 		else
 		{
 			if(!canImplicitlyHandleNominalFeatures())
-				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of feature");
+				throw Ex("This learner says it cannot implicitly handle any type (nominal or continuous) of feature");
 			wrapFeatures(new GDiscretize());
 		}
 	}
@@ -635,7 +635,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 		if(!canImplicitlyHandleNominalFeatures())
 		{
 			if(!canImplicitlyHandleContinuousFeatures())
-				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of feature");
+				throw Ex("This learner says it cannot implicitly handle any type (nominal or continuous) of feature");
 			wrapFeatures(new GNominalToCat(16));
 		}
 	}
@@ -691,7 +691,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 		else
 		{
 			if(!canImplicitlyHandleNominalLabels())
-				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of label");
+				throw Ex("This learner says it cannot implicitly handle any type (nominal or continuous) of label");
 			wrapLabels(new GDiscretize());
 		}
 	}
@@ -700,7 +700,7 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 		if(!canImplicitlyHandleNominalLabels())
 		{
 			if(!canImplicitlyHandleContinuousLabels())
-				ThrowError("This learner says it cannot implicitly handle any type (nominal or continuous) of label");
+				throw Ex("This learner says it cannot implicitly handle any type (nominal or continuous) of label");
 			wrapLabels(new GNominalToCat(16));
 		}
 	}
@@ -710,9 +710,9 @@ void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
 {
 	// Check assumptions
 	if(features.rows() != labels.rows())
-		ThrowError("Expected features and labels to have the same number of rows");
+		throw Ex("Expected features and labels to have the same number of rows");
 	if(labels.cols() == 0)
-		ThrowError("Expected at least one label dimension");
+		throw Ex("Expected at least one label dimension");
 	m_pRelFeatures = features.relation();
 	m_pRelLabels = labels.relation();
 
@@ -781,11 +781,11 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 {
 	// Check assumptions
 	if(!m_pRelLabels.get())
-		ThrowError("The model must be trained before it is calibrated");
+		throw Ex("The model must be trained before it is calibrated");
 	if(!m_pRelFeatures->isCompatible(*features.relation().get()) || !m_pRelLabels->isCompatible(*labels.relation().get()))
-		ThrowError("This data is not compatible with the data used to train this model");
+		throw Ex("This data is not compatible with the data used to train this model");
 	if(features.rows() != labels.rows())
-		ThrowError("Expected features and labels to have the same number of rows");
+		throw Ex("Expected features and labels to have the same number of rows");
 
 	// Throw out any existing calibration
 	size_t labelDims = m_pRelLabels->size();
@@ -923,7 +923,7 @@ void GSupervisedLearner::predictDistribution(const double* pIn, GPrediction* pOu
 void GSupervisedLearner::accuracy(GMatrix& features, GMatrix& labels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats)
 {
 	if(features.rows() != labels.rows())
-		ThrowError("Expected the features and rows to have the same number of rows");
+		throw Ex("Expected the features and rows to have the same number of rows");
 	size_t labelDims = labels.cols();
 	if(pNominalLabelStats)
 	{
@@ -1005,7 +1005,7 @@ size_t GSupervisedLearner::precisionRecallContinuous(GPrediction* pOutput, doubl
 		double* pResultsVec = stats.row(i);
 		pResultsVec[0] = testLabels[i][label];
 		if(pResultsVec[0] < 0.0 || pResultsVec[0] > 1.0)
-			ThrowError("Expected continuous labels to range from 0 to 1");
+			throw Ex("Expected continuous labels to range from 0 to 1");
 		GNormalDistribution* pDist = pOutput[label].asNormal();
 		pResultsVec[1] = pDist->mean();
 	}
@@ -1064,7 +1064,7 @@ size_t GSupervisedLearner::precisionRecallNominal(GPrediction* pOutput, double* 
 void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps)
 {
 	if(features.rows() != labels.rows())
-		ThrowError("Expected the features and labels to have the same number of rows");
+		throw Ex("Expected the features and labels to have the same number of rows");
 	size_t nFuncs = std::max((size_t)1, labels.relation()->valueCount(label));
 	GVec::setAll(pOutPrecision, 0.0, nFuncs * nPrecisionSize);
 	double* pFunc = new double[features.rows()];
@@ -1177,17 +1177,17 @@ void GSupervisedLearner::test()
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
 	if(std::abs(prob - 0.15) > .1)
-		ThrowError("failed");
+		throw Ex("failed");
 	d = 1;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
 	if(std::abs(prob - 0.30) > .1)
-		ThrowError("failed");
+		throw Ex("failed");
 	d = 2;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
 	if(std::abs(prob - 0.85) > .1)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 
 void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& features, GMatrix& labels, GMatrix& testFeatures, GMatrix& testLabels, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
@@ -1206,7 +1206,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	  std::cerr << "AccBeforeSerial: " << resultsBefore;
 	}
 	if(resultsBefore < minAccuracy)
-		ThrowError("accuracy has regressed. Expected at least", to_str(minAccuracy), ". Only got ", to_str(resultsBefore), ".");
+		throw Ex("accuracy has regressed. Expected at least", to_str(minAccuracy), ". Only got ", to_str(resultsBefore), ".");
 	if(resultsBefore >= minAccuracy + 0.035)
 		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
 
@@ -1219,7 +1219,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	GSupervisedLearner* pModel = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModel(pModel);
 	if(!pRelLabelsBefore->isCompatible(*pModel->relLabels().get()))
-		ThrowError("The label relation failed to round-trip. Did your deserializing constructor call the base class constructor?");
+		throw Ex("The label relation failed to round-trip. Did your deserializing constructor call the base class constructor?");
 
 	// Test the accuracy again
 	double resultsAfter;
@@ -1228,7 +1228,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	  std::cerr << "  AccAfterSerial: " << resultsAfter << std::endl;
 	}
 	if(std::abs(resultsAfter - resultsBefore) > deviation)
-		ThrowError("serialization shouldn't influence accuracy this much");
+		throw Ex("serialization shouldn't influence accuracy this much");
 }
 
 void GSupervisedLearner_basicTest1(GSupervisedLearner* pLearner, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
@@ -1386,7 +1386,7 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
 		}
 	}
 	if(m_throwIfClassNotFound)
-		ThrowError("Unrecognized class: ", szClass);
+		throw Ex("Unrecognized class: ", szClass);
 	return NULL;
 }
 
@@ -1469,7 +1469,7 @@ GIncrementalLearner* GLearnerLoader::loadIncrementalLearner(GDomNode* pNode)
 			return new GReservoirNet(pNode, *this);
 	}
 	if(m_throwIfClassNotFound)
-		ThrowError("Unrecognized class: ", szClass);
+		throw Ex("Unrecognized class: ", szClass);
 	return NULL;
 }
 
@@ -1490,7 +1490,7 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode)
 			return new GNonlinearPCA(pNode, *this);
 	}
 	if(m_throwIfClassNotFound)
-		ThrowError("Unrecognized class: ", szClass);
+		throw Ex("Unrecognized class: ", szClass);
 	return NULL;
 }
 
@@ -1533,7 +1533,7 @@ GDomNode* GBaselineLearner::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBaselineLearner");
 	if(m_prediction.size() == 0)
-		ThrowError("Attempted to serialize a model that has not been trained");
+		throw Ex("Attempted to serialize a model that has not been trained");
 	GDomNode* pPred = pNode->addField(pDoc, "pred", pDoc->newList());
 	for(size_t i = 0; i < m_prediction.size(); i++)
 		pPred->addItem(pDoc, pDoc->newDouble(m_prediction[i]));
@@ -1553,7 +1553,7 @@ void GBaselineLearner::trainInner(GMatrix& features, GMatrix& labels)
 // virtual
 void GBaselineLearner::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, this learner cannot predict a distribution");
+	throw Ex("Sorry, this learner cannot predict a distribution");
 }
 
 // virtual
@@ -1623,7 +1623,7 @@ void GIdentityFunction::trainInner(GMatrix& features, GMatrix& labels)
 // virtual
 void GIdentityFunction::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, not implemented yet");
+	throw Ex("Sorry, not implemented yet");
 }
 
 // virtual

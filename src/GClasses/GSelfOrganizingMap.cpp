@@ -55,7 +55,7 @@ namespace GClasses {
       }
       if(natsRequired > natsAvailable){
 	std::stringstream needed; needed << std::exp(natsRequired);
-	ThrowError("Not enough bits to index an array of ", needed.str(), 
+	throw Ex("Not enough bits to index an array of ", needed.str(), 
 		   " nodes in SOM::GridTopology.");
       }else{
 	std::size_t nodesNeeded = 1;
@@ -307,11 +307,11 @@ namespace GClasses {
       if(nodes.size() > 0){
 	std::size_t numWeights = nodes.at(1).weights.size();
 	if(numWeights <= m_xDim){
-	  ThrowError("X dimension is larger than the number of weights in "
+	  throw Ex("X dimension is larger than the number of weights in "
 		     "SVG output.");
 	}
 	if(numWeights <= m_yDim){
-	  ThrowError("Y dimension is larger than the number of weights in "
+	  throw Ex("Y dimension is larger than the number of weights in "
 		     "SVG output.");
 	}
       }
@@ -459,7 +459,7 @@ namespace GClasses {
 	///should not be called if the sum of the weights is 0.
 	std::vector<double> average() const{
 	  if(sameSinceLastReset){
-	    ThrowError("Average called on IncrementalWeightedAverage ",
+	    throw Ex("Average called on IncrementalWeightedAverage ",
 		       "object that has not been updated since the last ",
 		       "reset (or since object creation)");
 	  }
@@ -952,10 +952,10 @@ std::vector<std::size_t> GSelfOrganizingMap::bestData
 (const GMatrix*data) const{
   typedef std::vector<SOM::Node>::const_iterator NIter;
   if(data == NULL){
-    ThrowError("Null data pointer passed to bestData.");
+    throw Ex("Null data pointer passed to bestData.");
   }
   if(data->rows() == 0){
-    ThrowError("No bestData indices can be returned for an empty dataset.");
+    throw Ex("No bestData indices can be returned for an empty dataset.");
   }
   using std::vector;
   using std::size_t;

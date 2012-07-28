@@ -74,7 +74,7 @@ public:
 			GMatrix* pTmp = GMatrix::loadArff("in.arff");
 			Holder<GMatrix> hTmp(pTmp);
 			if(pTmp->cols() != 3)
-				ThrowError("unexpected number of columns");
+				throw Ex("unexpected number of columns");
 			m_tar.newRows(pTmp->rows());
 			m_tar.copyColumns(0, pTmp, 0, 3);
 		}

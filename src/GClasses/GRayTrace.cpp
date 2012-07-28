@@ -528,28 +528,28 @@ size_t GRayTraceScene::lightCount()
 GRayTraceMaterial* GRayTraceScene::material(size_t n)
 {
 	if(n >= m_materials.size())
-		ThrowError("out of range");
+		throw Ex("out of range");
 	return m_materials[n];
 }
 
 GRayTraceTriMesh* GRayTraceScene::mesh(size_t n)
 {
 	if(n >= m_meshes.size())
-		ThrowError("out of range");
+		throw Ex("out of range");
 	return m_meshes[n];
 }
 
 GRayTraceObject* GRayTraceScene::object(size_t n)
 {
 	if(n >= m_objects.size())
-		ThrowError("out of range");
+		throw Ex("out of range");
 	return m_objects[n];
 }
 
 GRayTraceLight* GRayTraceScene::light(size_t n)
 {
 	if(n >= m_lights.size())
-		ThrowError("out of range");
+		throw Ex("out of range");
 	return m_lights[n];
 }
 
@@ -564,7 +564,7 @@ size_t GetIndexOfPointerInVector(const vector<T*>& vec, T* p)
 	for(typename vector<T*>::const_iterator it = vec.begin(); it != vec.end(); it++)
 		if(p == *it)
 			return (it - vec.begin());
-	ThrowError("The specified value could not be found");
+	throw Ex("The specified value could not be found");
 	return -1;
 }
 
@@ -907,7 +907,7 @@ GRayTraceLight* GRayTraceLight::deserialize(GDomNode* pNode, GRayTraceScene* pSc
 		case Area:
 			return new GRayTraceAreaLight(pNode, pScene);
 	}
-	ThrowError("Unrecognized light type");
+	throw Ex("Unrecognized light type");
 	return NULL;
 }
 
@@ -1179,7 +1179,7 @@ GRayTraceMaterial* GRayTraceMaterial::deserialize(GDomNode* pNode)
 		case Image:
 			return new GRayTraceImageTexture(pNode);
 		case Etherial:
-			ThrowError("Sorry, not implemented yet");
+			throw Ex("Sorry, not implemented yet");
 	}
 	return NULL;
 }
@@ -1323,7 +1323,7 @@ GRayTraceImageTexture::GRayTraceImageTexture()
 
 GRayTraceImageTexture::GRayTraceImageTexture(GDomNode* pNode)
 {
-	ThrowError("Sorry, deserializing images not yet supported");
+	throw Ex("Sorry, deserializing images not yet supported");
 }
 
 // virtual
@@ -1338,21 +1338,21 @@ GDomNode* GRayTraceImageTexture::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "type", pDoc->newInt(materialType()));
-	ThrowError("Sorry, serializing images not yet supported");
+	throw Ex("Sorry, serializing images not yet supported");
 	return pNode;
 }
 
 // virtual
 bool GRayTraceImageTexture::isSame(GRayTraceMaterial* pThat)
 {
-	ThrowError("Sorry, not implemented yet");
+	throw Ex("Sorry, not implemented yet");
 	return false;
 }
 
 // virtual
 GRayTraceMaterial* GRayTraceImageTexture::copy()
 {
-	ThrowError("Sorry, not implemented yet");
+	throw Ex("Sorry, not implemented yet");
 	return NULL;
 }
 
@@ -1650,7 +1650,7 @@ GRayTraceTriMesh::GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene)
 	}
 	GDomListIterator it2(pTrianglesNode);
 	if(it2.remaining() % 3 != 0)
-		ThrowError("triangle points are not a multiple of 3");
+		throw Ex("triangle points are not a multiple of 3");
 	m_nTriangles = it2.remaining() / 3;
 	m_pTriangles = new size_t[it2.remaining()];
 	for(size_t i = 0; it2.current(); i++)
@@ -1662,7 +1662,7 @@ GRayTraceTriMesh::GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene)
 	{
 		GDomListIterator it3(pNormalsNode);
 		if(it3.remaining() != (size_t)m_nPoints)
-			ThrowError("The number of normals must match the number of vertexes");
+			throw Ex("The number of normals must match the number of vertexes");
 		m_pNormals = new G3DVector[m_nPoints];
 		for(size_t i = 0; it3.current(); i++)
 		{
@@ -1676,7 +1676,7 @@ GRayTraceTriMesh::GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene)
 	{
 		GDomListIterator it4(pCoordsNode);
 		if(it4.remaining() != 2 * (size_t)m_nPoints)
-			ThrowError("The number of texture coords must be double the number of vertexes");
+			throw Ex("The number of texture coords must be double the number of vertexes");
 		m_pTextureCoords = new G3DReal[2 * m_nPoints];
 		for(size_t i = 0; it4.current(); i++)
 		{
@@ -2259,7 +2259,7 @@ GRayTraceObject* GRayTraceObject::deserialize(GDomNode* pNode, GRayTraceScene* p
 		case Triangle:
 			return new GRayTraceTriangle(pNode, pScene);
 	}
-	ThrowError("Unexpected type");
+	throw Ex("Unexpected type");
 	return NULL;
 }
 
@@ -2360,7 +2360,7 @@ GRayTraceTriangle::GRayTraceTriangle(GDomNode* pNode, GRayTraceScene* pScene)
 	m_pMesh = pScene->mesh((size_t)pNode->field("mesh")->asInt());
 	m_nIndex = (size_t)pNode->field("index")->asInt();
 	if(m_nIndex < 0 || m_nIndex >= m_pMesh->triangleCount())
-		ThrowError("out of range");
+		throw Ex("out of range");
 }
 
 // virtual
@@ -2426,7 +2426,7 @@ GTriMeshBuilder::GTriMeshBuilder(GRayTraceMaterial* pMaterial)
 : m_pMaterial(pMaterial)
 {
 	if(pMaterial->materialType() == GRayTraceMaterial::Image)
-		ThrowError("Sorry, this class does not support image materials");
+		throw Ex("Sorry, this class does not support image materials");
 }
 
 GTriMeshBuilder::~GTriMeshBuilder()
@@ -3039,7 +3039,7 @@ GRayTraceTriMesh* G3dLetterMaker::specialChar(const char* szName)
 		curve(0.25, 0.2, 0.25, 0.2, 1.0, 1.5);
 	}
 	else
-		ThrowError("Unrecognized special char");
+		throw Ex("Unrecognized special char");
 	return m_builder.mesh();
 }
 

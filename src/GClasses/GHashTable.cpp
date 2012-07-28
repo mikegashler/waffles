@@ -278,21 +278,21 @@ void GHashTable::test()
 	for(n = 0; n < nElements; n += 7)
 		ht.remove(&pNothing[n]);
 	if(!VerifyBucketCount(&ht))
-		ThrowError("failed");
+		throw Ex("failed");
 	void* pVal = NULL;
 	for(n = 0; n < nElements; n++)
 	{
 		if(n % 7 == 0)
 		{
 			if(ht.get(&pNothing[n], &pVal))
-				ThrowError("failed");
+				throw Ex("failed");
 		}
 		else
 		{
 			if(!ht.get(&pNothing[n], &pVal))
-				ThrowError("failed");
+				throw Ex("failed");
 			if(pVal != &pNothing[n])
-				ThrowError("failed");
+				throw Ex("failed");
 		}
 	}
 }

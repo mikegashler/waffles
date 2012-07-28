@@ -33,7 +33,7 @@ UsageNode::UsageNode(const char* templ, const char* descr)
 		if(*templ == '=')
 		{
 			if(m_default_value.size() > 0)
-				ThrowError("Only one default value is permitted per node. You should probably expand with child nodes.");
+				throw Ex("Only one default value is permitted per node. You should probably expand with child nodes.");
 
 			// Find the end of the default value
 			for(i = 1; templ[i] != ' ' && templ[i] != '\0'; i++)

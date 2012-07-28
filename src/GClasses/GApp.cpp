@@ -112,10 +112,10 @@ void GPipe::write(const char* buf, size_t bufSize)
 {
 #ifdef WINDOWS
 	if(!WriteFile(m_handle, buf, (DWORD)bufSize, NULL, NULL))
-		ThrowError("Error writing to pipe");
+		throw Ex("Error writing to pipe");
 #else
 	if(::write(m_handle, buf, bufSize) == -1)
-		ThrowError("Error writing to pipe");
+		throw Ex("Error writing to pipe");
 #endif
 }
 
@@ -129,7 +129,7 @@ void GPipe::toFile(const char* szFilename)
 	}
 	catch(const std::exception&)
 	{
-		ThrowError("Error creating file: ", szFilename);
+		throw Ex("Error creating file: ", szFilename);
 	}
 	char buf[256];
 	while(true)
@@ -169,14 +169,14 @@ void GPipe::toFile(const char* szFilename)
 			switch(childExitStatus)
 			{
 				case 0: return; // Everything was successfully
-				case 1: ThrowError("Failed to redirect stdout to append to ", stdoutFilename);
-				case 2: ThrowError("Failed to redirect stderr to append to ", stderrFilename);
-				case 3: ThrowError("Failed to fork off the grand-child daemon process");
-				default: ThrowError("Internal error. Unknown exit code");
+				case 1: throw Ex("Failed to redirect stdout to append to ", stdoutFilename);
+				case 2: throw Ex("Failed to redirect stderr to append to ", stderrFilename);
+				case 3: throw Ex("Failed to fork off the grand-child daemon process");
+				default: throw Ex("Internal error. Unknown exit code");
 			}
 		}
 		else
-			ThrowError("The child process failed to fork off the grand-child daemon");
+			throw Ex("The child process failed to fork off the grand-child daemon");
 	}
 
 	// If it gets to here, I am the child process
@@ -379,7 +379,7 @@ int GApp::systemCall(const char* szCommand, bool wait, bool show)
 	sei.lpDirectory = NULL;
 	sei.nShow = show ? SW_SHOW : SW_HIDE;
 	if(!ShellExecuteEx(&sei))
-		ThrowError("An error occurred while executing the command \"", argv[0], " ", argv[1], "\"");
+		throw Ex("An error occurred while executing the command \"", argv[0], " ", argv[1], "\"");
 	DWORD ret = 0;
 	if(wait)
 	{
@@ -387,7 +387,7 @@ int GApp::systemCall(const char* szCommand, bool wait, bool show)
 		if(!GetExitCodeProcess(sei.hProcess, &ret))
 		{
 			CloseHandle(sei.hProcess);
-			ThrowError("Failed to obtain exit code");
+			throw Ex("Failed to obtain exit code");
 		}
 		CloseHandle(sei.hProcess);
 	}
@@ -398,7 +398,7 @@ int GApp::systemCall(const char* szCommand, bool wait, bool show)
 		s += " &";
 	int status = system(s.c_str());
 	if(status == -1)
-		ThrowError("Failed to execute command");
+		throw Ex("Failed to execute command");
 	return WEXITSTATUS(status);
 #endif
 }
@@ -423,7 +423,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 	if(pStdOut)
 	{
 		if(!CreatePipe(&hChildStdoutRd, &hChildStdoutWr, &saAttr, 0))
-			ThrowError("Failed to create a pipe for the child processes stdout");
+			throw Ex("Failed to create a pipe for the child processes stdout");
 		SetHandleInformation(hChildStdoutRd, HANDLE_FLAG_INHERIT, 0); // Ensure that the read handle to the child process's pipe for stdout is not inherited
 		pStdOut->set(hChildStdoutRd);
 		siStartInfo.hStdOutput = hChildStdoutWr;
@@ -436,7 +436,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 	if(pStdErr)
 	{
 		if(!CreatePipe(&hChildStderrRd, &hChildStderrWr, &saAttr, 0))
-			ThrowError("Failed to create a pipe for the child processes stderr");
+			throw Ex("Failed to create a pipe for the child processes stderr");
 		SetHandleInformation(hChildStderrRd, HANDLE_FLAG_INHERIT, 0); // Ensure that the read handle to the child process's pipe for stderr is not inherited
 		pStdErr->set(hChildStderrRd);
 		siStartInfo.hStdError = hChildStderrWr;
@@ -474,7 +474,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 		}
 		char buf2[256];
 		getcwd(buf2, 256);
-		ThrowError("Failed to create process: ", buf, "(cwd=", buf2, ")");
+		throw Ex("Failed to create process: ", buf, "(cwd=", buf2, ")");
 	}
 
 	// Close the child processes' stdin pipe, since we don't really need it
@@ -492,7 +492,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 		{
 			CloseHandle(piProcInfo.hProcess);
 			CloseHandle(piProcInfo.hThread);
-			ThrowError("Failed to obtain exit code");
+			throw Ex("Failed to obtain exit code");
 		}
 	}
 	CloseHandle(piProcInfo.hProcess);
@@ -514,7 +514,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 	if(pStdOut)
 	{
 		if(pipe(stdOutPipe) == -1)
-			ThrowError("Error creating pipe for stdout. errno=", to_str(errno));
+			throw Ex("Error creating pipe for stdout. errno=", to_str(errno));
 	}
 
 	// Create a pipe for stderr
@@ -522,7 +522,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 	if(pStdErr)
 	{
 		if(pipe(stdErrPipe) == -1)
-			ThrowError("Error creating pipe for stderr. errno=", to_str(errno));
+			throw Ex("Error creating pipe for stderr. errno=", to_str(errno));
 	}
 
 	// Call it
@@ -551,7 +551,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 		execvp(argv[0], argv);
 
 		// execvp only returns if there is an error. Otherwise, it replaces the current process.
-		ThrowError("Error calling execvp. errno=", to_str(errno));
+		throw Ex("Error calling execvp. errno=", to_str(errno));
 	}
 	else if(pid > 0) // else if I am the calling process...
 	{
@@ -580,13 +580,13 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 				return ret;
 			}
 			else if(WIFSIGNALED(status))
-				ThrowError("The process was interruped with signal ", to_str(WSTOPSIG(status)));
+				throw Ex("The process was interruped with signal ", to_str(WSTOPSIG(status)));
 			else
-				ThrowError("The process stopped without exiting, and it cannot be restarted.");
+				throw Ex("The process stopped without exiting, and it cannot be restarted.");
 		}
 	}
 	else // else fork failed...
-		ThrowError("There was an error forking the process");
+		throw Ex("There was an error forking the process");
 	return 0;
 #endif
 }
@@ -673,7 +673,7 @@ void GApp_onSigSegV(int n)
 GSignalHandler::GSignalHandler()
 {
 	if(g_pSignalHandler)
-		ThrowError("GSignalHandler is not reentrant, so it cannot be nested");
+		throw Ex("GSignalHandler is not reentrant, so it cannot be nested");
 	g_pSignalHandler = this;
 	m_gotSignal = 0;
 #ifndef WINDOWS
@@ -731,13 +731,13 @@ char GPassiveConsole::getChar()
 	while(true)
 	{
 		if(!PeekConsoleInput(m_hStdin, &m_inputRecord, 1, &n))
-			ThrowError("PeekConsoleInput failed");
+			throw Ex("PeekConsoleInput failed");
 		if(n == 0)
 			return '\0';
 		if(m_inputRecord.EventType == KEY_EVENT && m_inputRecord.Event.KeyEvent.bKeyDown && m_inputRecord.Event.KeyEvent.uChar.AsciiChar != 0)
 			break;
 		if(!ReadConsoleInput(m_hStdin, &m_inputRecord, 1, &n))
-			ThrowError("ReadConsoleInput failed");
+			throw Ex("ReadConsoleInput failed");
 	}
 	char c;
 	if(ReadConsole(m_hStdin/*hConsoleInput*/, &c, 1, &n, NULL))
@@ -747,7 +747,7 @@ char GPassiveConsole::getChar()
 	}
 	else
 	{
-		ThrowError("ReadConsole failed");
+		throw Ex("ReadConsole failed");
 		return '\0';
 	}
 }
@@ -755,7 +755,7 @@ char GPassiveConsole::getChar()
 GPassiveConsole::GPassiveConsole(bool echo)
 {
 	if(tcgetattr(0, &m_old) < 0)
-		ThrowError("Error getting terminal settings");
+		throw Ex("Error getting terminal settings");
 	struct termios tmp;
 	memcpy(&tmp, &m_old, sizeof(struct termios));
 	tmp.c_lflag &= ~ICANON;
@@ -764,19 +764,19 @@ GPassiveConsole::GPassiveConsole(bool echo)
 	tmp.c_cc[VMIN] = 1;
 	tmp.c_cc[VTIME] = 0;
 	if(tcsetattr(0, TCSANOW, &tmp) < 0)
-		ThrowError("Error setting terminal settings");
+		throw Ex("Error setting terminal settings");
 	m_stdin = fileno(stdin);
 	m_oldStreamFlags = fcntl(m_stdin, F_GETFL, 0);
 	if(fcntl(m_stdin, F_SETFL, m_oldStreamFlags | O_NONBLOCK) == -1)
-		ThrowError("Error setting stdin to non-blocking");
+		throw Ex("Error setting stdin to non-blocking");
 }
 
 GPassiveConsole::~GPassiveConsole()
 {
 	if(tcsetattr(0, TCSANOW, &m_old) < 0)
-		ThrowError("Error restoring terminal settings");
+		throw Ex("Error restoring terminal settings");
 	if(fcntl(m_stdin, F_SETFL, m_oldStreamFlags) == -1)
-		ThrowError("Error restoring stdin flags");
+		throw Ex("Error restoring stdin flags");
 }
 
 char GPassiveConsole::getChar()
@@ -818,7 +818,7 @@ const char* GArgReader::peek()
 const char* GArgReader::pop_string()
 {
 	if(m_argPos >= m_argc)
-		ThrowError("Unexpected end of arguments");
+		throw Ex("Unexpected end of arguments");
 	return m_argv[m_argPos++];
 }
 
@@ -828,7 +828,7 @@ unsigned int GArgReader::pop_uint()
 	for(int i = 0; str[i] != '\0'; i++)
 	{
 		if(str[i] < '0' || str[i] > '9')
-			ThrowError("Expected an unsigned integer value for parameter ", to_str(m_argPos), ". (Got \"", str, "\".)");
+			throw Ex("Expected an unsigned integer value for parameter ", to_str(m_argPos), ". (Got \"", str, "\".)");
 	}
 	return (unsigned int)atoi(str);
 }

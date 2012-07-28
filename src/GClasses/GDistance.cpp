@@ -51,7 +51,7 @@ GDistanceMetric* GDistanceMetric::deserialize(GDomNode* pNode)
 		return new GRowDistance(pNode);
 	if(strcmp(szClass, "GLNormDistance") == 0)
 		return new GLNormDistance(pNode);
-	ThrowError("Unrecognized class: ", szClass);
+	throw Ex("Unrecognized class: ", szClass);
 	return NULL;
 }
 
@@ -121,7 +121,7 @@ GRowDistanceScaled::GRowDistanceScaled(GDomNode* pNode)
 	GDomListIterator it(pScaleFactors);
 	size_t dims = m_pRelation->size();
 	if(it.remaining() != dims)
-		ThrowError("wrong number of scale factors");
+		throw Ex("wrong number of scale factors");
 	m_pScaleFactors = new double[dims];
 	for(size_t i = 0; i < dims; i++)
 	{
@@ -241,7 +241,7 @@ GSparseSimilarity* GSparseSimilarity::deserialize(GDomNode* pNode)
 	else if(strcmp(szClass, "GPearsonCorrelation") == 0)
 		return new GPearsonCorrelation(pNode);
 	else
-		ThrowError("Unrecognized class: ", szClass);
+		throw Ex("Unrecognized class: ", szClass);
 	pObj->m_regularizer = pNode->field("reg")->asDouble();
 	return pObj;
 }

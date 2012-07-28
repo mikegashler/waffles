@@ -508,7 +508,7 @@ Account* getAccount(GDynamicPageSession* pSession)
 		{
 			pAccount = pServer->newAccount(szGenericUsername, NULL);
 			if(!pAccount)
-				ThrowError("Failed to create account");
+				throw Ex("Failed to create account");
 		}
 		pSession->setExtension(pAccount);
 	}
@@ -1275,7 +1275,7 @@ void DeleteFile(const char* szFilename)
 	strcat(szBuf, szFilename);
 	strcat(szBuf, " &");
 	if(system(szBuf) == -1)
-		ThrowError("Failed to delete file");
+		throw Ex("Failed to delete file");
 }
 #endif
 
@@ -1529,11 +1529,11 @@ bool Server::addItem(size_t topic, const char* szUrl, const char* szTitle, const
 void getLocalStorageFolder(char* buf)
 {
 	if(!GFile::localStorageDirectory(buf))
-		ThrowError("Failed to find local storage folder");
+		throw Ex("Failed to find local storage folder");
 	strcat(buf, "/.recommend/");
 	GFile::makeDir(buf);
 	if(!GFile::doesDirExist(buf))
-		ThrowError("Failed to create folder in storage area");
+		throw Ex("Failed to create folder in storage area");
 }
 
 void Server::getStatePath(char* buf)
@@ -1724,7 +1724,7 @@ void redirectStandardStreams(const char* pPath)
 	{
 		cout << "Error redirecting stdout\n";
 		cerr << "Error redirecting stdout\n";
-		ThrowError("Error redirecting stdout");
+		throw Ex("Error redirecting stdout");
 	}
 	string s2(pPath);
 	s2 += "stderr.log";
@@ -1732,7 +1732,7 @@ void redirectStandardStreams(const char* pPath)
 	{
 		cout << "Error redirecting stderr\n";
 		cerr << "Error redirecting stderr\n";
-		ThrowError("Error redirecting stderr");
+		throw Ex("Error redirecting stderr");
 	}
 }
 

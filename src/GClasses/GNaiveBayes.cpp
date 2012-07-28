@@ -98,7 +98,7 @@ struct GNaiveBayesOutputValue
 	{
 		GDomListIterator it(pNode);
 		if(it.remaining() != nInputCount + 1)
-			ThrowError("Unexpected number of inputs");
+			throw Ex("Unexpected number of inputs");
 		m_nCount = (size_t)it.current()->asInt();
 		it.advance();
 		m_featureDims = nInputCount;
@@ -172,7 +172,7 @@ struct GNaiveBayesOutputAttr
 	{
 		GDomListIterator it(pNode);
 		if(it.remaining() != nValueCount)
-			ThrowError("Unexpected number of values");
+			throw Ex("Unexpected number of values");
 		m_nValueCount = nValueCount;
 		m_pValues = new struct GNaiveBayesOutputValue*[m_nValueCount];
 		for(size_t n = 0; n < m_nValueCount; n++)
@@ -241,7 +241,7 @@ GNaiveBayes::GNaiveBayes(GDomNode* pNode, GLearnerLoader& ll)
 	GDomNode* pOutputs = pNode->field("outputs");
 	GDomListIterator it(pOutputs);
 	if(it.remaining() != m_pInnerRelLabels->size())
-		ThrowError("Wrong number of outputs");
+		throw Ex("Wrong number of outputs");
 	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pInnerRelLabels->size()];
 	for(size_t i = 0; i < m_pInnerRelLabels->size(); i++)
 	{
@@ -313,7 +313,7 @@ void GNaiveBayes::trainInner(GMatrix& features, GMatrix& labels)
 void GNaiveBayes::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
 	if(features.rows() != labels.rows())
-		ThrowError("Expected the features and labels to have the same number of rows");
+		throw Ex("Expected the features and labels to have the same number of rows");
 	size_t featureDims = features.cols();
 	sp_relation pFeatureRel = new GUniformRelation(featureDims, 2);
 	beginIncrementalLearning(pFeatureRel, labels.relation());
@@ -338,7 +338,7 @@ void GNaiveBayes::trainSparse(GSparseMatrix& features, GMatrix& labels)
 void GNaiveBayes::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
 	if(m_nSampleCount <= 0)
-		ThrowError("You must call train before you call eval");
+		throw Ex("You must call train before you call eval");
 	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
 		m_pOutputs[n]->eval(pIn, &pOut[n], m_equivalentSampleSize);
 }
@@ -346,7 +346,7 @@ void GNaiveBayes::predictDistributionInner(const double* pIn, GPrediction* pOut)
 void GNaiveBayes::predictInner(const double* pIn, double* pOut)
 {
 	if(m_nSampleCount <= 0)
-		ThrowError("You must call train before you call eval");
+		throw Ex("You must call train before you call eval");
 	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
 		pOut[n] = m_pOutputs[n]->predict(pIn, m_equivalentSampleSize, &m_rand);
 }
@@ -384,9 +384,9 @@ void GNaiveBayes_CheckResults(double yprior, double ycond, double nprior, double
 	GCategoricalDistribution* pCat = out->asCategorical();
 	double* pVals = pCat->values(2);
 	if(std::abs(pVals[0] - py) > 1e-8)
-		ThrowError("wrong");
+		throw Ex("wrong");
 	if(std::abs(pVals[1] - pn) > 1e-8)
-		ThrowError("wrong");
+		throw Ex("wrong");
 }
 
 void GNaiveBayes_testMath(GRand* pRand)

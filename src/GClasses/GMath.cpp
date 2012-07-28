@@ -184,7 +184,7 @@ double GMath::logFactorial(int x)
 	};
 
 	if(x < 1)
-		ThrowError("out of range");
+		throw Ex("out of range");
 	if(x < 30)
 		return logfact[x - 1];
 	return logGamma(x + 1);
@@ -247,7 +247,7 @@ double GMath::integrate(MathFunc pFunc, double dStart, double dEnd, int nSteps, 
 		if(d >= -1e100 && d < 1e100)
 			sum += d / 2;
 		else
-			ThrowError("This function can't be integrated due to extreme values");
+			throw Ex("This function can't be integrated due to extreme values");
 	}
 	int i;
 	for(i = 1; i < nSteps; i++)
@@ -261,12 +261,12 @@ double GMath::integrate(MathFunc pFunc, double dStart, double dEnd, int nSteps, 
 			if(d >= -1e100 && d < 1e100)
 				sum += d / 2;
 			else
-				ThrowError("This function can't be integrated due to extreme values");
+				throw Ex("This function can't be integrated due to extreme values");
 			d = pFunc(pThis, (double)(i + 1) * dWidth / nSteps + dStart);
 			if(d >= -1e100 && d < 1e100)
 				sum += d / 2;
 			else
-				ThrowError("This function can't be integrated due to extreme values");
+				throw Ex("This function can't be integrated due to extreme values");
 		}
 	}
 	d = pFunc(pThis, dEnd);
@@ -278,7 +278,7 @@ double GMath::integrate(MathFunc pFunc, double dStart, double dEnd, int nSteps, 
 		if(d >= -1e100 && d < 1e100)
 			sum += d / 2;
 		else
-			ThrowError("This function can't be integrated due to extreme values");
+			throw Ex("This function can't be integrated due to extreme values");
 	}
 	return sum * dWidth / nSteps;
 }
@@ -324,7 +324,7 @@ double GMath::wilcoxonPValue(int n, double t)
 	double alpha;
 #ifdef WINDOWS
 	alpha = 0;
-	ThrowError("Sorry, GMath::ComputeWilcoxonPValue is not implemented for Windows yet");
+	throw Ex("Sorry, GMath::ComputeWilcoxonPValue is not implemented for Windows yet");
 #else
 	alpha = 1.0 - erf(-z * M_SQRT1_2);
 #endif
@@ -364,7 +364,7 @@ double GMath::approximateInverseErf(double x)
 double GMath::productLog(double x)
 {
 	if(x < -1.0 / M_E)
-		ThrowError("undefined");
+		throw Ex("undefined");
 
 	// Compute a good initial estimate
 	double w;

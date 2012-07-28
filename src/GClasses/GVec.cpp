@@ -226,7 +226,7 @@ void GVec::normalize(double* pVector, size_t nSize)
 {
 	double dMag = squaredMagnitude(pVector, nSize);
 	if(dMag <= 0)
-		ThrowError("Can't normalize a vector with zero magnitude");
+		throw Ex("Can't normalize a vector with zero magnitude");
 	GVec::multiply(pVector, 1.0  / sqrt(dMag), nSize);
 }
 
@@ -711,7 +711,7 @@ void GVec::toImage(const double* pVec, GImage* pImage, int width, int height, in
 		}
 	}
 	else
-		ThrowError("unsupported value for channels");
+		throw Ex("unsupported value for channels");
 }
 
 // static
@@ -743,7 +743,7 @@ void GVec::fromImage(GImage* pImage, double* pVec, int width, int height, int ch
 		}
 	}
 	else
-		ThrowError("unsupported value for channels");
+		throw Ex("unsupported value for channels");
 }
 #endif // MIN_PREDICT
 
@@ -785,11 +785,11 @@ void GVec::test()
 		GVec::subtractComponent(v2, v1, 100);
 		GVec::normalize(v2, 100);
 		if(std::abs(GVec::correlation(v1, v2, 100)) > 1e-4)
-			ThrowError("Failed");
+			throw Ex("Failed");
 		if(std::abs(GVec::squaredMagnitude(v1, 100) - 1) > 1e-4)
-			ThrowError("Failed");
+			throw Ex("Failed");
 		if(std::abs(GVec::squaredMagnitude(v2, 100) - 1) > 1e-4)
-			ThrowError("Failed");
+			throw Ex("Failed");
 	}
 }
 #endif // MIN_PREDICT
@@ -1104,14 +1104,14 @@ void GCoordVectorIterator::test()
 	{
 		size_t index = cvi.currentIndex();
 		if(bt.bit(index))
-			ThrowError("already got this one");
+			throw Ex("already got this one");
 		bt.set(index);
 		count++;
 		if(!cvi.advanceSampling())
 			break;
 	}
 	if(count != size)
-		ThrowError("didn't get them all");
+		throw Ex("didn't get them all");
 }
 #endif // MIN_PREDICT
 

@@ -75,9 +75,9 @@ bool GSocket_isReady(SOCKET s)
 	if(ret < 0)
 	{
 #ifdef WINDOWS
-		ThrowError("select failed: ", winstrerror(WSAGetLastError()));
+		throw Ex("select failed: ", winstrerror(WSAGetLastError()));
 #else
-		ThrowError("select failed: ", strerror(errno));
+		throw Ex("select failed: ", strerror(errno));
 #endif
 	}
 	return ret == 0 ? false : true;
@@ -91,7 +91,7 @@ void GSocket_setSocketMode(SOCKET s, bool blocking)
 #else
 	if(ioctl(s, FIONBIO, &ulMode) != 0)
 #endif
-		ThrowError("Error changing the mode of a socket");
+		throw Ex("Error changing the mode of a socket");
 }
 
 size_t GSocket_bytesReady(SOCKET s)
@@ -102,10 +102,10 @@ size_t GSocket_bytesReady(SOCKET s)
 #ifdef WINDOWS
 	GWindows::yield(); // This is necessary because incoming packets go through the Windows message pump
 	if(ioctlsocket(s, FIONREAD, &bytesReadyToRead) != 0)
-		ThrowError("ioctlsocket failed: ", winstrerror(WSAGetLastError()));
+		throw Ex("ioctlsocket failed: ", winstrerror(WSAGetLastError()));
 #else
 	if(ioctl(s, FIONREAD, &bytesReadyToRead) != 0)
-		ThrowError("ioctl failed: ", strerror(errno));
+		throw Ex("ioctl failed: ", strerror(errno));
 #endif
 	return bytesReadyToRead;
 }
@@ -128,13 +128,13 @@ in_addr GSocket_ipAddr(SOCKET s)
 	if(getpeername(s, &sAddr, &l))
 	{
 #ifdef WINDOWS
-		ThrowError("getpeername failed: ", winstrerror(WSAGetLastError()));
+		throw Ex("getpeername failed: ", winstrerror(WSAGetLastError()));
 #else
-		ThrowError("getpeername failed: ", strerror(errno));
+		throw Ex("getpeername failed: ", strerror(errno));
 #endif
 	}
 	if(sAddr.sa_family != AF_INET)
-		ThrowError("Error, expected family to be AF_INET");
+		throw Ex("Error, expected family to be AF_INET");
 	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
 	return pInfo->sin_addr;
 }
@@ -142,7 +142,7 @@ in_addr GSocket_ipAddr(SOCKET s)
 size_t GSocket_send(SOCKET s, const char* buf, size_t len)
 {
 	if(s == INVALID_SOCKET)
-		ThrowError("Tried to send over a socket that was not connected");
+		throw Ex("Tried to send over a socket that was not connected");
 	ssize_t bytesSent = ::send(s, buf, len, 0);
 	if(bytesSent < 0)
 	{
@@ -151,12 +151,12 @@ size_t GSocket_send(SOCKET s, const char* buf, size_t len)
 		if(err == WSAEWOULDBLOCK)
 			return 0;
 		else
-			ThrowError("Error sending in GTCPClient::send: ", winstrerror(err));
+			throw Ex("Error sending in GTCPClient::send: ", winstrerror(err));
 #else
 		if(errno == EWOULDBLOCK)
 			return 0;
 		else
-			ThrowError("Error sending in GTCPClient::send: ", strerror(errno));
+			throw Ex("Error sending in GTCPClient::send: ", strerror(errno));
 #endif
 		return 0;
 	}
@@ -173,7 +173,7 @@ void GSocket_init()
 	wVersionRequested = MAKEWORD(1, 1);
 	int err = WSAStartup(wVersionRequested, &wsaData);
 	if(err != 0)
-		ThrowError("Failed to find a usable WinSock DLL");
+		throw Ex("Failed to find a usable WinSock DLL");
 
 	// Confirm that the WinSock DLL supports at least 2.2.
 	if ( LOBYTE( wsaData.wVersion ) != 1 ||
@@ -182,7 +182,7 @@ void GSocket_init()
 		int n1 = LOBYTE( wsaData.wVersion );
 		int n2 = HIBYTE( wsaData.wVersion );
 		WSACleanup();
-		ThrowError("Found a Winsock DLL, but it only supports an older version. It needs to support version 2.2");
+		throw Ex("Found a Winsock DLL, but it only supports an older version. It needs to support version 2.2");
 	}
 #endif
 }
@@ -200,7 +200,7 @@ SOCKET GSocket_connect(const char* addr, unsigned short port, int timeoutSecs)
 	string tmp = os.str();
 	error = getaddrinfo(addr, tmp.c_str(), &hints, &res0);
 	if(error)
-		ThrowError(gai_strerror(error));
+		throw Ex(gai_strerror(error));
 	SOCKET sock = INVALID_SOCKET;
 	for(res = res0; res; res = res->ai_next)
 	{
@@ -232,14 +232,14 @@ SOCKET GSocket_connect(const char* addr, unsigned short port, int timeoutSecs)
 				int res = select(sock + 1, NULL, &socketSet, NULL, &timeout);
 				if(res < 0 && errno != EINTR)
 #endif
-					ThrowError("Failed to connect to ", addr, " on port ", to_str(port));
+					throw Ex("Failed to connect to ", addr, " on port ", to_str(port));
 				else if(res > 0)
 				{
 					// Socket selected for write
 					socklen_t lon = sizeof(int);
 					int valopt;
 					if(getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)(&valopt), &lon) < 0)
-						ThrowError("getsockopt failed");
+						throw Ex("getsockopt failed");
 					if(valopt)
 					{
 						GSocket_closeSocket(sock);
@@ -269,7 +269,7 @@ SOCKET GSocket_connect(const char* addr, unsigned short port, int timeoutSecs)
 	}
 	freeaddrinfo(res0);
 	if(sock == INVALID_SOCKET)
-		ThrowError("Failed to connect to ", addr, " on port ", to_str(port));
+		throw Ex("Failed to connect to ", addr, " on port ", to_str(port));
 	return sock;
 }
 
@@ -346,9 +346,9 @@ size_t GTCPClient::receive(char* buf, size_t len)
 		else
 		{
 #ifdef WINDOWS
-			ThrowError("Error calling recv: ", winstrerror(WSAGetLastError()));
+			throw Ex("Error calling recv: ", winstrerror(WSAGetLastError()));
 #else
-			ThrowError("Error calling recv: ", strerror(errno));
+			throw Ex("Error calling recv: ", strerror(errno));
 #endif
 		}
 	}
@@ -391,18 +391,18 @@ GTCPServer::GTCPServer(unsigned short port)
 	if(bind(m_sock, (struct sockaddr*)&sHostAddrIn, sizeof(SOCKADDR)) != 0)
 	{
 #ifdef WINDOWS
-		ThrowError("Failed to bind to port ", to_str(port), ": ", winstrerror(WSAGetLastError()));
+		throw Ex("Failed to bind to port ", to_str(port), ": ", winstrerror(WSAGetLastError()));
 #else
-		ThrowError("Failed to bind to port ", to_str(port), ": ", strerror(errno));
+		throw Ex("Failed to bind to port ", to_str(port), ": ", strerror(errno));
 #endif
 	}
 
 	// Start listening for connections
 	if(listen(m_sock, SOMAXCONN) != 0)
 #ifdef WINDOWS
-		ThrowError("Failed to listen on the socket: ", winstrerror(WSAGetLastError()));
+		throw Ex("Failed to listen on the socket: ", winstrerror(WSAGetLastError()));
 #else
-		ThrowError("Failed to listen on the socket: ", strerror(errno));
+		throw Ex("Failed to listen on the socket: ", strerror(errno));
 #endif
 }
 
@@ -477,9 +477,9 @@ size_t GTCPServer::receive(char* buf, size_t len, GTCPConnection** pOutConn)
 			else
 			{
 #ifdef WINDOWS
-				ThrowError("Error calling recv: ", winstrerror(WSAGetLastError()));
+				throw Ex("Error calling recv: ", winstrerror(WSAGetLastError()));
 #else
-				ThrowError("Error calling recv: ", strerror(errno));
+				throw Ex("Error calling recv: ", strerror(errno));
 #endif
 			}
 		}
@@ -514,7 +514,7 @@ void GTCPServer::send(const char* buf, size_t len, GTCPConnection* pConn)
 void GTCPServer::hostName(char* buf, size_t len)
 {
 	if(gethostname(buf, len) == SOCKET_ERROR)
-		ThrowError("failed to get host noame");
+		throw Ex("failed to get host noame");
 }
 
 /*
@@ -523,7 +523,7 @@ in_addr GTCPServer::hostNameToIPAddress(char* szHostName)
 {
 	struct hostent* pHostEnt = gethostbyname(szHostName);
 	if(pHostEnt == 0)
-		ThrowError("Couldn't resolve an IP address for ", szHostName);
+		throw Ex("Couldn't resolve an IP address for ", szHostName);
 	struct in_addr addr, cand;
 	int nGoodness = -1;
 
@@ -605,9 +605,9 @@ int GPackageConnection::receive(unsigned int maxBufSize, unsigned int maxPackage
 		else
 		{
 #ifdef WINDOWS
-			ThrowError("Error calling recv: ", winstrerror(WSAGetLastError()));
+			throw Ex("Error calling recv: ", winstrerror(WSAGetLastError()));
 #else
-			ThrowError("Error calling recv: ", strerror(errno));
+			throw Ex("Error calling recv: ", strerror(errno));
 #endif
 			return 1; // The other end disconnected
 		}
@@ -634,9 +634,9 @@ int GPackageConnection::receive(unsigned int maxBufSize, unsigned int maxPackage
 		else
 		{
 #ifdef WINDOWS
-			ThrowError("Error calling recv: ", winstrerror(WSAGetLastError()));
+			throw Ex("Error calling recv: ", winstrerror(WSAGetLastError()));
 #else
-			ThrowError("Error calling recv: ", strerror(errno));
+			throw Ex("Error calling recv: ", strerror(errno));
 #endif
 			return 1; // The other end disconnected
 		}
@@ -810,18 +810,18 @@ GPackageServer::GPackageServer(unsigned short port)
 	if(bind(m_sock, (struct sockaddr*)&sHostAddrIn, sizeof(SOCKADDR)) != 0)
 	{
 #ifdef WINDOWS
-		ThrowError("Failed to bind to port ", to_str(port), ": ", winstrerror(WSAGetLastError()));
+		throw Ex("Failed to bind to port ", to_str(port), ": ", winstrerror(WSAGetLastError()));
 #else
-		ThrowError("Failed to bind to port ", to_str(port), ": ", strerror(errno));
+		throw Ex("Failed to bind to port ", to_str(port), ": ", strerror(errno));
 #endif
 	}
 
 	// Start listening for connections
 	if(listen(m_sock, SOMAXCONN) != 0)
 #ifdef WINDOWS
-		ThrowError("Failed to listen on the socket: ", winstrerror(WSAGetLastError()));
+		throw Ex("Failed to listen on the socket: ", winstrerror(WSAGetLastError()));
 #else
-		ThrowError("Failed to listen on the socket: ", strerror(errno));
+		throw Ex("Failed to listen on the socket: ", strerror(errno));
 #endif
 }
 
@@ -1005,11 +1005,11 @@ void GPackageServer_serial_test()
 			if(pPackage)
 			{
 				if(q[turn].size() == 0)
-					ThrowError("unexpected package");
+					throw Ex("unexpected package");
 				size_t ll = q[turn].front();
 				q[turn].pop();
 				if(len != ll)
-					ThrowError("incorrect package size");
+					throw Ex("incorrect package size");
 				size_t seed = q[turn].front();
 				q[turn].pop();
 				randData.setSeed(seed);
@@ -1018,7 +1018,7 @@ void GPackageServer_serial_test()
 				for(size_t i = 0; i < len; i++)
 				{
 					if(*(pB++) != (char)randData.next())
-						ThrowError("package corruption");
+						throw Ex("package corruption");
 				}
 				receives++;
 			}
@@ -1042,7 +1042,7 @@ void GPackageServer_serial_test()
 		iters++;
 	}
 	if(sends != TEST_LEN || receives != TEST_LEN)
-		ThrowError("something is amiss");
+		throw Ex("something is amiss");
 }
 
 void GPackageServer::test()

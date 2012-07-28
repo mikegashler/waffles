@@ -48,12 +48,12 @@ THREAD_HANDLE GThread::spawnThread(unsigned int (*pFunc)(void*), void* pData)
 							(unsigned long*)&nID
 							);
 	if(hThread == BAD_HANDLE)
-		ThrowError("Failed to create thread");
+		throw Ex("Failed to create thread");
 	return hThread;
 #else
 	pthread_t thread;
 	if(pthread_create(&thread, NULL, (void*(*)(void*))pFunc, pData) != 0)
-		ThrowError("Failed to create thread");
+		throw Ex("Failed to create thread");
 	pthread_detach(thread);
 	return thread;
 #endif

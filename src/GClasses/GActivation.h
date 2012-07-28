@@ -258,7 +258,7 @@ public:
 	/// Throws an exception
 	virtual double inverse(double y)
 	{
-		ThrowError("inverse unknown");
+		throw Ex("inverse unknown");
 		return 0;
 	}
 
@@ -326,13 +326,13 @@ public:
 
 	virtual double derivative(double x)
 	{
-		ThrowError("Not implemented yet");
+		throw Ex("Not implemented yet");
 		return 0;
 	}
 
 	virtual double inverse(double y)
 	{
-		ThrowError("Not implemented yet");
+		throw Ex("Not implemented yet");
 		return 0;
 	}
 
@@ -363,7 +363,7 @@ public:
 
 	virtual double inverse(double y)
 	{
-		ThrowError("Not invertible");
+		throw Ex("Not invertible");
 		return 0;
 	}
 
@@ -392,7 +392,7 @@ public:
 
 	virtual double inverse(double y)
 	{
-		ThrowError("The Sinc function cannot be inverted");
+		throw Ex("The Sinc function cannot be inverted");
 		return 0;
 	}
 

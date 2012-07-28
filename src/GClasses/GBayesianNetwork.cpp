@@ -135,12 +135,12 @@ GBayesianNetwork::~GBayesianNetwork()
 
 void GBayesianNetwork::train(GMatrix& data)
 {
-	ThrowError("todo: GBayesianNetwork::Train isn't implemented yet. It should use a genetic algorithm or tabu search, or something like that to find a suitable network, and use GBayesianNetworkNode::Sample to infer parameter values for the network");
+	throw Ex("todo: GBayesianNetwork::Train isn't implemented yet. It should use a genetic algorithm or tabu search, or something like that to find a suitable network, and use GBayesianNetworkNode::Sample to infer parameter values for the network");
 }
 
 void GBayesianNetwork::predictDistribution(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("todo: GBayesianNetwork::Train isn't implemented yet");
+	throw Ex("todo: GBayesianNetwork::Train isn't implemented yet");
 }
 */
 

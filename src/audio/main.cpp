@@ -41,14 +41,14 @@ public:
 	: GFourierWaveProcessor(blockSize), m_deviations(deviations)
 	{
 		if(noise.channels() != 1)
-			ThrowError("Sorry, ", to_str(noise.channels()), "-channel ambient noise files are not yet supported");
+			throw Ex("Sorry, ", to_str(noise.channels()), "-channel ambient noise files are not yet supported");
 		m_pNoise = new struct ComplexNumber[m_blockSize];
 		m_noiseBlocks = 0;
 
 		// Analyze the noise
 		GWaveIterator itNoise(noise);
 		if(itNoise.remaining() < m_blockSize * 8)
-			ThrowError("Not enough noise to analyze");
+			throw Ex("Not enough noise to analyze");
 		for(size_t i = 0; i < m_blockSize; i++)
 			itNoise.advance(); // skip a little bit from the beginning
 		while(itNoise.remaining() > m_blockSize * 2)
@@ -97,7 +97,7 @@ protected:
 	virtual void process(struct ComplexNumber* pBuf)
 	{
 		if(m_noiseBlocks < 2)
-			ThrowError("Not enough noise blocks to estimate a deviation");
+			throw Ex("Not enough noise blocks to estimate a deviation");
 		struct ComplexNumber* pNoise = m_pNoise;
 		struct ComplexNumber* pSignal = pBuf;
 		for(size_t i = 0; i < m_blockSize; i++)
@@ -216,10 +216,10 @@ void makeSilence(GArgReader& args)
 		else if(args.if_pop("-samplerate"))
 			sampleRate = args.pop_uint();
 		else
-			ThrowError("Unrecognized option: ", args.pop_string());
+			throw Ex("Unrecognized option: ", args.pop_string());
 	}
 	if(bitsPerSample % 8 != 0)
-		ThrowError("The number of bits-per-sample must be a multiple of 8");
+		throw Ex("The number of bits-per-sample must be a multiple of 8");
 
 	// Generate the silence
 	size_t samples = (size_t)(sampleRate * seconds);
@@ -254,10 +254,10 @@ void makeSine(GArgReader& args)
 		else if(args.if_pop("-volume"))
 			volume = args.pop_double();
 		else
-			ThrowError("Unrecognized option: ", args.pop_string());
+			throw Ex("Unrecognized option: ", args.pop_string());
 	}
 	if(bitsPerSample % 8 != 0)
-		ThrowError("The number of bits-per-sample must be a multiple of 8");
+		throw Ex("The number of bits-per-sample must be a multiple of 8");
 
 	// Generate the silence
 	size_t samples = (size_t)(sampleRate * seconds);
@@ -289,9 +289,9 @@ void mix(GArgReader& args)
 	GWave w2;
 	w2.load(input2);
 	if(w1.channels() != w2.channels())
-		ThrowError("Mismatching number of channels");
+		throw Ex("Mismatching number of channels");
 	if(w1.sampleRate() != w2.sampleRate())
-		ThrowError("Mismatching sample rates");
+		throw Ex("Mismatching sample rates");
 	GWave* pW1 = &w1;
 	GWave* pW2 = &w2;
 	if(pW1->sampleCount() < pW2->sampleCount())
@@ -347,10 +347,10 @@ void pitchShift(GArgReader& args)
 		if(args.if_pop("-blocksize"))
 			blockSize = args.pop_uint();
 		else
-			ThrowError("Unrecognized option: ", args.pop_string());
+			throw Ex("Unrecognized option: ", args.pop_string());
 	}
 	if(!GBits::isPowerOfTwo(blockSize))
-		ThrowError("the block size must be a power of 2");
+		throw Ex("the block size must be a power of 2");
 
 	// Shift pitch
 	GWave wSignal;
@@ -376,10 +376,10 @@ void reduceAmbientNoise(GArgReader& args)
 		else if(args.if_pop("-deviations"))
 			deviations = args.pop_double();
 		else
-			ThrowError("Unrecognized option: ", args.pop_string());
+			throw Ex("Unrecognized option: ", args.pop_string());
 	}
 	if(!GBits::isPowerOfTwo(blockSize))
-		ThrowError("the block size must be a power of 2");
+		throw Ex("the block size must be a power of 2");
 
 	GWave wNoise;
 	wNoise.load(noiseFilename);
@@ -405,7 +405,7 @@ void sanitize(GArgReader& args)
 		else if(args.if_pop("-thresh"))
 			thresh = args.pop_double();
 		else
-			ThrowError("Unrecognized option: ", args.pop_string());
+			throw Ex("Unrecognized option: ", args.pop_string());
 	}
 
 	// Sanitize
@@ -476,17 +476,17 @@ void spectral(GArgReader& args)
 		else if(args.if_pop("-out"))
 			outFilename = args.pop_string();
 		else
-			ThrowError("Unrecognized option: ", args.pop_string());
+			throw Ex("Unrecognized option: ", args.pop_string());
 	}
 	if(!GBits::isPowerOfTwo(size))
-		ThrowError("the size must be a power of 2");
+		throw Ex("the size must be a power of 2");
 
 	// Convert to the Fourier domain
 	GWave w;
 	w.load(filename);
 	GWaveIterator it(w);
 	if(it.remaining() < start + size)
-		ThrowError("out of range. (start + size > samples)");
+		throw Ex("out of range. (start + size > samples)");
 	for(size_t i = 0; i < start; i++)
 		it.advance();
 	struct ComplexNumber* pCN = new struct ComplexNumber[size];
@@ -598,7 +598,7 @@ int main(int argc, char *argv[])
 	args.pop_string(); // advance past the app name
 	try
 	{
-		if(args.size() < 1) ThrowError("Expected a command");
+		if(args.size() < 1) throw Ex("Expected a command");
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("amplify")) amplify(args);
 		else if(args.if_pop("makesilence")) makeSilence(args);
@@ -608,7 +608,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("reduceambientnoise")) reduceAmbientNoise(args);
 		else if(args.if_pop("sanitize")) sanitize(args);
 		else if(args.if_pop("spectral")) spectral(args);
-		else ThrowError("Unrecognized command: ", args.peek());
+		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{

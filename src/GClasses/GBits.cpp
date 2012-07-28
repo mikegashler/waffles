@@ -78,10 +78,10 @@ void test_boundingShift()
 		size_t bits = (size_t)rand.next(31);
 		int n = 1 << bits;
 		if(GBits::boundingShift(n) != bits)
-			ThrowError("failed");
+			throw Ex("failed");
 		n++;
 		if(GBits::boundingShift(n) != bits + 1)
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 }
 
@@ -90,7 +90,7 @@ void test_countTrailingZeros()
 	for(size_t i = 0; i < 10000; i++)
 	{
 		if(count_trailing_zeros(i) != GBits::countTrailingZeros(i))
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 }
 

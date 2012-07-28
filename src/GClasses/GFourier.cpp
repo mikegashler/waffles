@@ -74,7 +74,7 @@ void GFourier::fft(size_t arraySize, struct ComplexNumber* pComplexNumberArray, 
 
 	// Make sure arraySize is a power of 2
 	if(arraySize == 0 || arraySize & (arraySize - 1))
-		ThrowError("Expected the array to be a power of 2");
+		throw Ex("Expected the array to be a power of 2");
 
 	// Calculate the Log2 of arraySize and put it in nBits
 	size_t nBits = 0;
@@ -364,24 +364,24 @@ void GFourier::test()
 	cn[3].imag = 0;
 	GFourier::fft(4, cn, true);
 	if(std::abs(cn[0].real - 4) > 1e-12)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	if(std::abs(cn[0].imag) > 1e-12)
-		ThrowError("wrong answer");
+		throw Ex("wrong answer");
 	int n;
 	for(n = 1; n < 3; n++)
 	{
 		if(std::abs(cn[n].real) > 1e-12)
-			ThrowError("wrong answer");
+			throw Ex("wrong answer");
 		if(std::abs(cn[n].imag) > 1e-12)
-			ThrowError("wrong answer");
+			throw Ex("wrong answer");
 	}
 	GFourier::fft(4, cn, false);
 	for(n = 0; n < 3; n++)
 	{
 		if(std::abs(cn[n].real - 1) > 1e-12)
-			ThrowError("wrong answer");
+			throw Ex("wrong answer");
 		if(std::abs(cn[n].imag) > 1e-12)
-			ThrowError("wrong answer");
+			throw Ex("wrong answer");
 	}
 }
 

@@ -83,7 +83,7 @@ void GRunningCovariance::test()
 		for(size_t j = 0; j < m.cols(); j++)
 		{
 			if(std::abs(rc.element(i, j) - pCov1->row(i)[j]) > 1e-12)
-				ThrowError("failed");
+				throw Ex("failed");
 		}
 	}
 }

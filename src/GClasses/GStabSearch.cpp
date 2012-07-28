@@ -23,9 +23,9 @@ GBruteForceSearch::GBruteForceSearch(GTargetFunction* pCritic)
 : GOptimizer(pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	if(pCritic->isConstrained())
-		ThrowError("Sorry, this optimizer doesn't support constrained problems");
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	vector<size_t> ranges;
 	ranges.resize(pCritic->relation()->size());
 	for(size_t i = 0; i < (size_t)pCritic->relation()->size(); i++)
@@ -77,9 +77,9 @@ GRandomSearch::GRandomSearch(GTargetFunction* pCritic, GRand* pRand)
 : GOptimizer(pCritic), m_pRand(pRand)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	if(pCritic->isConstrained())
-		ThrowError("Sorry, this optimizer doesn't support constrained problems");
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_pCandidate = new double[2 * pCritic->relation()->size()];
 	m_pBestVector = m_pCandidate + pCritic->relation()->size();
 }
@@ -123,9 +123,9 @@ GProbeSearch::GProbeSearch(GTargetFunction* pCritic)
 : GOptimizer(pCritic), m_rand(0)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	if(pCritic->isConstrained())
-		ThrowError("Sorry, this optimizer doesn't support constrained problems");
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_nDimensions = pCritic->relation()->size();
 	m_nStabDepth = m_nDimensions * 30;
 	m_pMins = new double[m_nDimensions * 4];
@@ -278,7 +278,7 @@ void GProbeSearch::test()
 		search.iterate();
 	double err = GVec::squaredDistance(search.currentVector(), critic.m_target, 3);
 	if(err >= 1e-3)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif // !NO_TEST_CODE
 

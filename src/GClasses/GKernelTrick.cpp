@@ -50,7 +50,7 @@ GKernel* GKernel::deserialize(GDomNode* pNode)
 	else if(strcmp(szName, "normalize") == 0)
 		return new GKernelNormalize(pNode);
 	else
-		ThrowError("Unrecognized activation function: ", szName);
+		throw Ex("Unrecognized activation function: ", szName);
 	return NULL;
 }
 

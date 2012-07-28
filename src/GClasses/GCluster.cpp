@@ -116,7 +116,7 @@ void GAgglomerativeClusterer::cluster(GMatrix* pData)
 		if(pNF->isConnected())
 			break;
 		if(neighbors + 1 >= pData->rows())
-			ThrowError("internal problem--a graph with so many neighbors must be connected");
+			throw Ex("internal problem--a graph with so many neighbors must be connected");
 		neighbors = std::min((neighbors * 3) / 2, pData->rows() - 1);
 	}
 
@@ -199,7 +199,7 @@ void GAgglomerativeClusterer::cluster(GMatrix* pData)
 		if(--currentClusterCount <= m_clusterCount)
 			return;
 	}
-	ThrowError("internal error--should have found the desired number of clusters before now");
+	throw Ex("internal error--should have found the desired number of clusters before now");
 }
 
 // virtual
@@ -251,19 +251,19 @@ void GAgglomerativeClusterer::test()
 
 	// Test for correctness
 	if(clust.whichCluster(0) == clust.whichCluster(1))
-		ThrowError("failed");
+		throw Ex("failed");
 	if(clust.whichCluster(1) == clust.whichCluster(2))
-		ThrowError("failed");
+		throw Ex("failed");
 	if(clust.whichCluster(2) == clust.whichCluster(0))
-		ThrowError("failed");
+		throw Ex("failed");
 	for(size_t i = 3; i < SPRIAL_POINTS; i += 3)
 	{
 		if(clust.whichCluster(i) != clust.whichCluster(0))
-			ThrowError("Wrong cluster");
+			throw Ex("Wrong cluster");
 		if(clust.whichCluster(i + 1) != clust.whichCluster(1))
-			ThrowError("Wrong cluster");
+			throw Ex("Wrong cluster");
 		if(clust.whichCluster(i + 2) != clust.whichCluster(2))
-			ThrowError("Wrong cluster");
+			throw Ex("Wrong cluster");
 	}
 
 /*  // Uncomment this to make a spiffy visualization of the entwined spirals
@@ -383,7 +383,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& l
 		if(neighbors + 1 >= featuresAll.rows())
 		{
 			delete(pNF);
-			ThrowError("internal problem--a graph with so many neighbors must be connected");
+			throw Ex("internal problem--a graph with so many neighbors must be connected");
 		}
 		neighbors = std::min((neighbors * 3) / 2, featuresAll.rows() - 1);
 	}
@@ -484,7 +484,7 @@ void GKMeans::init(GMatrix* pData)
 		setMetric(new GRowDistance(), true);
 	m_pMetric->init(pData->relation());
 	if(pData->rows() < (size_t)m_clusterCount)
-		ThrowError("Fewer data point than clusters");
+		throw Ex("Fewer data point than clusters");
 
 	// Initialize the centroids with random rows. (Note that it is okay if two centroids happen to be initialized with the same row here, because the assignClusters method randomly picks among the best centroids in the event of a tie.)
 	delete(m_pCentroids);
@@ -672,7 +672,7 @@ void GFuzzyKMeans::init(GMatrix* pData)
 		setMetric(new GRowDistance(), true);
 	m_pMetric->init(pData->relation());
 	if(pData->rows() < (size_t)m_clusterCount)
-		ThrowError("Fewer data point than clusters");
+		throw Ex("Fewer data point than clusters");
 
 	// Initialize the centroids
 	delete(m_pCentroids);
@@ -877,7 +877,7 @@ void GKMedoids::cluster(GMatrix* pData)
 		setMetric(new GRowDistance(), true);
 	m_pMetric->init(pData->relation());
 	if(pData->rows() < (size_t)m_clusterCount)
-		ThrowError("Fewer data point than clusters");
+		throw Ex("Fewer data point than clusters");
 	for(size_t i = 0; i < m_clusterCount; i++)
 		m_pMedoids[i] = i;
 	double err = curErr();
@@ -969,7 +969,7 @@ void GKMedoidsSparse::cluster(GSparseMatrix* pData)
 	if(!m_pMetric)
 		setMetric(new GCosineSimilarity(), true);
 	if(pData->rows() < (size_t)m_clusterCount)
-		ThrowError("Fewer data point than clusters");
+		throw Ex("Fewer data point than clusters");
 	for(size_t i = 0; i < m_clusterCount; i++)
 		m_pMedoids[i] = i;
 	double goodness = curGoodness();

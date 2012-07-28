@@ -10,9 +10,9 @@ GParticleSwarm::GParticleSwarm(GTargetFunction* pCritic, size_t nPopulation, dou
 : GOptimizer(pCritic), m_pRand(pRand)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
-		ThrowError("Discrete attributes are not supported");
+		throw Ex("Discrete attributes are not supported");
 	if(pCritic->isConstrained())
-		ThrowError("Sorry, this optimizer doesn't support constrained problems");
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_dLearningRate = .2;
 	m_nDimensions = pCritic->relation()->size();
 	m_nPopulation = nPopulation;
@@ -174,7 +174,7 @@ void GRubberBallSwarm::advanceBall(double* pBallPos)
 	if(!isInside(pBallPos))
 	{
 		if(GVec::squaredMagnitude(pBallPos, m_dims) == 0)
-			ThrowError("GRubberBallSwarm expects the origin to be inside");
+			throw Ex("GRubberBallSwarm expects the origin to be inside");
 
 		// The shell moved, and the ball is not longer inside, so it must die
 		initBall(pBallPos, pBallStats->m_speed / 2);

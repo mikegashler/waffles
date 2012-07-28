@@ -27,7 +27,7 @@ namespace GClasses {
 GPlotLabelSpacer::GPlotLabelSpacer(double min, double max, int maxLabels)
 {
 	if(max <= min)
-		ThrowError("invalid range");
+		throw Ex("invalid range");
 	int p = (int)ceil(log((max - min) / maxLabels) * M_LOG10E);
 
 	// Every 10
@@ -118,17 +118,17 @@ GPlotWindow::GPlotWindow(GImage* pImage, double xmin, double ymin, double xmax, 
 	{
 	}
 	else
-		ThrowError("Invalid range");
+		throw Ex("Invalid range");
 	if(xmin >= xmax)
-		ThrowError("xmin is expected to be smaller then xmax");
+		throw Ex("xmin is expected to be smaller then xmax");
 	if(ymin >= ymax)
-		ThrowError("ymin is expected to be smaller then ymax");
+		throw Ex("ymin is expected to be smaller then ymax");
 	m_pImage = pImage;
 	m_window.set(xmin, ymin, xmax - xmin, ymax - ymin);
 	if(m_window.w <= 0)
-		ThrowError("xmax must be > xmin");
+		throw Ex("xmax must be > xmin");
 	if(m_window.h <= 0)
-		ThrowError("ymax must be > ymin");
+		throw Ex("ymax must be > ymin");
 	m_w = pImage->width();
 	m_h = pImage->height();
 }

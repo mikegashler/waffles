@@ -91,7 +91,7 @@ unsigned int hexToRgb(const char* szHex)
 		szHex[3] == '\0' ||
 		szHex[4] == '\0' ||
 		szHex[5] == '\0')
-			ThrowError("A color value should consist of six hexadecimal digits");
+			throw Ex("A color value should consist of six hexadecimal digits");
 	unsigned char r = GBits::hexToByte(szHex[1], szHex[0]);
 	unsigned char g = GBits::hexToByte(szHex[3], szHex[2]);
 	unsigned char b = GBits::hexToByte(szHex[5], szHex[4]);
@@ -302,7 +302,7 @@ void GImage::loadByExtension(const char* szFilename)
 	else if(_stricmp(szExt, ".pgm") == 0)
 		loadPgm(szFilename);
 	else
-		ThrowError("Unrecognized extension");
+		throw Ex("Unrecognized extension");
 }
 
 void GImage::saveByExtension(const char* szFilename)
@@ -319,26 +319,26 @@ void GImage::saveByExtension(const char* szFilename)
 	else if(_stricmp(szExt, ".pgm") == 0)
 		savePgm(szFilename);
 	else
-		ThrowError("Unrecognized extension");
+		throw Ex("Unrecognized extension");
 }
 
 void GImage::loadPpm(const char* szFilename)
 {
 	FILE* pFile = fopen(szFilename, "rb");
 	if(!pFile)
-		ThrowError("Failed to open file: ", szFilename);
+		throw Ex("Failed to open file: ", szFilename);
 	FileHolder hFile(pFile);
 	char pBuff[2];
 	if(fread(pBuff, 2, 1, pFile) != 1)
-		ThrowError("Error reading from file: ", szFilename);
+		throw Ex("Error reading from file: ", szFilename);
 	if(pBuff[0] != 'P' && pBuff[0] != 'p')
-		ThrowError("Unrecognized file format");
+		throw Ex("Unrecognized file format");
 	if(pBuff[1] == '3')
 		loadPixMap(pFile, true, false);
 	else if(pBuff[1] == '6')
 		loadPixMap(pFile, false, false);
 	else
-		ThrowError("Unrecognized format");
+		throw Ex("Unrecognized format");
 }
 
 int ReadNextPixMapInteger(FILE* pFile)
@@ -388,16 +388,16 @@ int ReadNextPixMapInteger(FILE* pFile)
 void GImage::loadPixMap(FILE* pFile, bool bTextData, bool bGrayScale)
 {
 	if(!pFile)
-		ThrowError("expected a valid stream");
+		throw Ex("expected a valid stream");
 	int nWidth = ReadNextPixMapInteger(pFile);
 	if(nWidth < 1)
-		ThrowError("invalid width");
+		throw Ex("invalid width");
 	int nHeight = ReadNextPixMapInteger(pFile);
 	if(nHeight < 1)
-		ThrowError("invalid height");
+		throw Ex("invalid height");
 	int nRange = ReadNextPixMapInteger(pFile) + 1;
 	if(nRange < 2)
-		ThrowError("invalid range");
+		throw Ex("invalid range");
 
 	// Read the data
 	setSize(nWidth, nHeight);
@@ -412,20 +412,20 @@ void GImage::loadPixMap(FILE* pFile, bool bTextData, bool bGrayScale)
 				{
 					g = ReadNextPixMapInteger(pFile);
 					if(g < 0)
-						ThrowError("invalid value");
+						throw Ex("invalid value");
 					setPixel(x, y, gRGB(g, g, g));
 				}
 				else
 				{
 					r = ReadNextPixMapInteger(pFile);
 					if(r < 0)
-						ThrowError("invalid value");
+						throw Ex("invalid value");
 					g = ReadNextPixMapInteger(pFile);
 					if(g < 0)
-						ThrowError("invalid value");
+						throw Ex("invalid value");
 					b = ReadNextPixMapInteger(pFile);
 					if(b < 0)
-						ThrowError("invalid value");
+						throw Ex("invalid value");
 					setPixel(x, y, gRGB(r, g, b));
 				}
 			}
@@ -444,14 +444,14 @@ void GImage::loadPixMap(FILE* pFile, bool bTextData, bool bGrayScale)
 				if(bGrayScale)
 				{
 					if(fread(pBuff, 1, 1, pFile) != 1)
-						ThrowError("error reading from file");
+						throw Ex("error reading from file");
 					nRed = (pBuff[0] << 8) / nRange;
 					setPixel(x, y, gRGB(nRed, nRed, nRed));
 				}
 				else
 				{
 					if(fread(pBuff, 3, 1, pFile) != 1)
-						ThrowError("error reading from file");
+						throw Ex("error reading from file");
 					nRed = (pBuff[0] << 8) / nRange;
 					nGreen = (pBuff[1] << 8) / nRange;
 					nBlue = (pBuff[2] << 8) / nRange;
@@ -466,19 +466,19 @@ void GImage::loadPgm(const char* szFilename)
 {
 	FILE* pFile = fopen(szFilename, "rb");
 	if(!pFile)
-		ThrowError("Error opening file: ", szFilename);
+		throw Ex("Error opening file: ", szFilename);
 	FileHolder hFile(pFile);
 	char pBuff[2];
 	if(fread(pBuff, 2, 1, pFile) != 1)
-		ThrowError("Error reading from file: ", szFilename);
+		throw Ex("Error reading from file: ", szFilename);
 	if(pBuff[0] != 'P' && pBuff[0] != 'p')
-		ThrowError("Unrecognized file format: ", szFilename);
+		throw Ex("Unrecognized file format: ", szFilename);
 	if(pBuff[1] == '2')
 		loadPixMap(pFile, true, true);
 	else if(pBuff[1] == '5')
 		loadPixMap(pFile, false, true);
 	else
-		ThrowError("Unexpected format");
+		throw Ex("Unexpected format");
 }
 
 void GImage::savePixMap(FILE* pFile, bool bTextData, bool bGrayScale)
@@ -501,7 +501,7 @@ void GImage::savePixMap(FILE* pFile, bool bTextData, bool bGrayScale)
 				col = pixel(x, y);
 				unsigned char nGray = gGray(col) >> 8;
 				if(fwrite(&nGray, 1, 1, pFile) != 1)
-					ThrowError("Error writing to file");
+					throw Ex("Error writing to file");
 			}
 			else
 			{
@@ -509,13 +509,13 @@ void GImage::savePixMap(FILE* pFile, bool bTextData, bool bGrayScale)
 				int n;
 				n = gRed(col);
 				if(fwrite(&n, 1, 1, pFile) != 1)
-					ThrowError("Error writing to file");
+					throw Ex("Error writing to file");
 				n = gGreen(col);
 				if(fwrite(&n, 1, 1, pFile) != 1)
-					ThrowError("Error writing to file");
+					throw Ex("Error writing to file");
 				n = gBlue(col);
 				if(fwrite(&n, 1, 1, pFile) != 1)
-					ThrowError("Error writing to file");
+					throw Ex("Error writing to file");
 			}
 		}
 	}
@@ -525,10 +525,10 @@ void GImage::savePpm(const char* szFilename)
 {
 	FILE* pFile = fopen(szFilename, "wb");
 	if(!pFile)
-		ThrowError("Error creating file: ", szFilename);
+		throw Ex("Error creating file: ", szFilename);
 	FileHolder hFile(pFile);
 	if(fputs("P6\n", pFile) == EOF)
-		ThrowError("Error writing to file: ", szFilename);
+		throw Ex("Error writing to file: ", szFilename);
 	savePixMap(pFile, false, false);
 }
 
@@ -536,10 +536,10 @@ void GImage::savePgm(const char* szFilename)
 {
 	FILE* pFile = fopen(szFilename, "wb");
 	if(!pFile)
-		ThrowError("Error creating file: ", szFilename);
+		throw Ex("Error creating file: ", szFilename);
 	FileHolder hFile(pFile);
 	if(fputs("P5\n", pFile) == EOF)
-		ThrowError("Error writing to file: ", szFilename);
+		throw Ex("Error writing to file: ", szFilename);
 	savePixMap(pFile, false, true);
 }
 
@@ -1291,7 +1291,7 @@ void LoadPng(GImage* pImage, const unsigned char* pData, size_t nDataSize)
 {
 	// Check for the PNG signature
 	if(nDataSize < 8 || png_sig_cmp((png_bytep)pData, 0, 8) != 0)
-		ThrowError("not a png file");
+		throw Ex("not a png file");
 
 	// Read all PNG data up until the image data chunk.
 	GPNGReader reader(pData);
@@ -1358,7 +1358,7 @@ void LoadPng(GImage* pImage, const unsigned char* pData, size_t nDataSize)
 	}
 	else
 	{
-		ThrowError("Sorry, loading ", to_str(channels), "-channel pngs not supported");
+		throw Ex("Sorry, loading ", to_str(channels), "-channel pngs not supported");
 /*		GAssert(channels == 1); // unexpected number of channels
 		for(i = 0; i < nPixels; i++)
 		{
@@ -1384,10 +1384,10 @@ public:
 	{
 		m_pWriteStruct = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, error_handler, NULL);
 		if(!m_pWriteStruct)
-			ThrowError("Failed to create write struct. Out of mem?");
+			throw Ex("Failed to create write struct. Out of mem?");
 		m_pInfoStruct = png_create_info_struct(m_pWriteStruct);
 		if(!m_pInfoStruct)
-			ThrowError("Failed to create info struct. Out of mem?");
+			throw Ex("Failed to create info struct. Out of mem?");
 	}
 
 	~GPNGWriter()
@@ -1397,7 +1397,7 @@ public:
 
 	static void error_handler(png_structp png_ptr, png_const_charp msg)
 	{
-		ThrowError("Error writing PNG file: ", msg);
+		throw Ex("Error writing PNG file: ", msg);
 	}
 };
 
@@ -1407,7 +1407,7 @@ void SavePng(GImage* pImage, FILE* pFile, bool bIncludeAlphaChannel)
 	// Set the jump value (This has something to do with enabling the error handler)
 	GPNGWriter writer;
 	if(setjmp(png_jmpbuf(writer.m_pWriteStruct)))
-		ThrowError("Failed to set the jump value");
+		throw Ex("Failed to set the jump value");
 
 	// Init the IO
 	png_init_io(writer.m_pWriteStruct, pFile);
@@ -1460,7 +1460,7 @@ void SavePng(GImage* pImage, FILE* pFile, bool bIncludeAlphaChannel)
 		}
 	}
 	else
-		ThrowError("Unsupported number of channels");
+		throw Ex("Unsupported number of channels");
 	png_write_end(writer.m_pWriteStruct, writer.m_pInfoStruct);
 }
 
@@ -1495,7 +1495,7 @@ void GImage::savePng(const char* szFilename)
 {
 	FILE* pFile = fopen(szFilename, "wb");
 	if(!pFile)
-		ThrowError("Failed to create file: ", szFilename);
+		throw Ex("Failed to create file: ", szFilename);
 	FileHolder hFile(pFile);
 	savePng(pFile);
 }
@@ -1526,13 +1526,13 @@ void GImage::saveBmp(const char* szFilename)
 
 	FILE* pFile = fopen(szFilename, "wb");
 	if(!pFile)
-		ThrowError("Error creating file: ", szFilename);
+		throw Ex("Error creating file: ", szFilename);
 	FileHolder hFile(pFile);
 
 	if(fwrite(&h1, sizeof(BITMAPFILEHEADER), 1, pFile) != 1)
-		ThrowError("Error writing to file: ", szFilename);
+		throw Ex("Error writing to file: ", szFilename);
 	if(fwrite(&h2, sizeof(BITMAPINFOHEADER), 1, pFile) != 1)
-		ThrowError("Error writing to file: ", szFilename);
+		throw Ex("Error writing to file: ", szFilename);
 	int y;
 	int x;
 	unsigned int col;
@@ -1549,7 +1549,7 @@ void GImage::saveBmp(const char* szFilename)
 				fwrite(&nG, 1, 1, pFile) != 1 ||
 				fwrite(&nR, 1, 1, pFile) != 1
 				)
-				ThrowError("Error writing to file: ", szFilename);
+				throw Ex("Error writing to file: ", szFilename);
 		}
 		int n = (x * 3) % 4;
 		if(n > 0)
@@ -1558,7 +1558,7 @@ void GImage::saveBmp(const char* szFilename)
 			while(n < 4) // Allign on word boundaries
 			{
 				if(fwrite(&nR, 1, 1, pFile) != 1)
-					ThrowError("error writing to file: ", szFilename);
+					throw Ex("error writing to file: ", szFilename);
 				n++;
 			}
 		}
@@ -1570,7 +1570,7 @@ void GImage::loadBmp(const char* szFilename)
 	FILE* pFile = fopen(szFilename, "rb");
 	FileHolder hFile(pFile);
 	if(!pFile)
-		ThrowError("Error opening file: ", szFilename);
+		throw Ex("Error opening file: ", szFilename);
 	loadBmp(pFile);
 }
 
@@ -1579,13 +1579,13 @@ void GImage::loadBmp(FILE* pFile)
 	BITMAPFILEHEADER h1;
 	BITMAPINFOHEADER h2;
 	if(fread(&h1, sizeof(BITMAPFILEHEADER), 1, pFile) != 1)
-		ThrowError("Unrecognized bitmap file format");
+		throw Ex("Unrecognized bitmap file format");
 	if(fread(&h2, sizeof(BITMAPINFOHEADER), 1, pFile) != 1)
-		ThrowError("Unrecognized bitmap file format");
+		throw Ex("Unrecognized bitmap file format");
 	if(h2.biBitCount != 24)
-		ThrowError("Sorry, only 24-bit bitmaps are currently supported");
+		throw Ex("Sorry, only 24-bit bitmaps are currently supported");
 	if(h2.biWidth < 1 || h2.biHeight < 1)
-		ThrowError("Sorry, only bottom-up bitmaps are currently supported");
+		throw Ex("Sorry, only bottom-up bitmaps are currently supported");
 	setSize(h2.biWidth, h2.biHeight);
 
 	int y;
@@ -1602,7 +1602,7 @@ void GImage::loadBmp(FILE* pFile)
 				fread(&nG, 1, 1, pFile) != 1 ||
 				fread(&nR, 1, 1, pFile) != 1
 				)
-				ThrowError("Error reading from file");
+				throw Ex("Error reading from file");
 			setPixel(x, y, gRGB(nR, nG, nB));
 		}
 		int n = (x * 3) % 4;
@@ -1612,7 +1612,7 @@ void GImage::loadBmp(FILE* pFile)
 			while(n < 4) // Align on word boundaries
 			{
 				if(fread(&nR, 1, 1, pFile) != 1)
-					ThrowError("Error reading from file");
+					throw Ex("Error reading from file");
 				n++;
 			}
 		}
@@ -1622,14 +1622,14 @@ void GImage::loadBmp(FILE* pFile)
 void GImage::loadBmp(const unsigned char* pRawData, int nLen)
 {
 	if(nLen < (int)(sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)))
-		ThrowError("Unrecognized bitmap format");
+		throw Ex("Unrecognized bitmap format");
 	BITMAPFILEHEADER* h1 = (BITMAPFILEHEADER*)pRawData;
 	BITMAPINFOHEADER* h2 = (BITMAPINFOHEADER*)((char*)h1 + sizeof(BITMAPFILEHEADER));
 	const unsigned char* pData = (const unsigned char*)((char*)h2 + sizeof(BITMAPINFOHEADER));
 	if(h2->biBitCount != 24)
-		ThrowError("Sorry, only 24-bit bitmaps are currently supported");
+		throw Ex("Sorry, only 24-bit bitmaps are currently supported");
 	if(h2->biWidth < 1 || h2->biHeight < 1)
-		ThrowError("Sorry, only bottom-up bitmaps are currently supported");
+		throw Ex("Sorry, only bottom-up bitmaps are currently supported");
 	setSize(h2->biWidth, h2->biHeight);
 	// todo: make sure nLen is big enough to hold all the data
 	int y;

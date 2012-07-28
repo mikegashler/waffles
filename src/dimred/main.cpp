@@ -62,7 +62,7 @@ size_t getAttrVal(const char* szString, size_t attrCount)
 		szString++;
 	}
 	if(*szString < '0' || *szString > '9')
-		ThrowError("Expected a digit while parsing attribute list");
+		throw Ex("Expected a digit while parsing attribute list");
 #ifdef WIN32
 	size_t val = (size_t)_strtoui64(szString, (char**)NULL, 10);
 #else
@@ -104,9 +104,9 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			{
 				size_t val = getAttrVal(szList, attrCount);
 				if(val >= attrCount)
-					ThrowError("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				if(attrSet.find(val) != attrSet.end())
-					ThrowError("Columns ", to_str(val), " is listed multiple times");
+					throw Ex("Columns ", to_str(val), " is listed multiple times");
 				attrSet.insert(val);
 				list.push_back(val);
 			}
@@ -114,17 +114,17 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			{
 				size_t beg = getAttrVal(szList, attrCount);
 				if(beg >= attrCount)
-					ThrowError("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				size_t end = getAttrVal(szList + j + 1, attrCount);
 				if(end >= attrCount)
-					ThrowError("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				int step = 1;
 				if(end < beg)
 					step = -1;
 				for(size_t val = beg; true; val += step)
 				{
 					if(attrSet.find(val) != attrSet.end())
-						ThrowError("Column ", to_str(val), " is listed multiple times");
+						throw Ex("Column ", to_str(val), " is listed multiple times");
 					attrSet.insert(val);
 						list.push_back(val);
 					if(val == end)
@@ -176,7 +176,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	Holder<GMatrix> hData(pData);
 
 	//Make the initial list of original indices
@@ -209,7 +209,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
 			if(labels[j] >= ignore[i])
 			{
 				if(labels[j] == ignore[i])
-					ThrowError("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
+					throw Ex("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
 				labels[j]--;
 			}
 		}
@@ -253,7 +253,7 @@ GMatrix* loadData(const char* szFilename)
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return pData;
 }
 
@@ -307,7 +307,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			else if(args.if_pop("-normalize"))
 				normalize = true;
 			else
-				ThrowError("Invalid neighbor finder option: ", args.peek());
+				throw Ex("Invalid neighbor finder option: ", args.peek());
 		}
 
 		// Parse required algorithms
@@ -334,12 +334,12 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			GMatrix* pControlData = loadData(args.pop_string());
 			Holder<GMatrix> hControlData(pControlData);
 			if(pControlData->rows() != pData->rows())
-				ThrowError("mismatching number of rows");
+				throw Ex("mismatching number of rows");
 			int neighbors = args.pop_uint();
 			pNF = new GTemporalNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
 		}
 		else
-			ThrowError("Unrecognized neighbor finding algorithm: ", alg);
+			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
 	
 		// Normalize
 		if(normalize)
@@ -363,7 +363,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 	{
 		args.set_pos(argPos);
 		showInstantiateNeighborFinderError(e.what(), args);
-		ThrowError("nevermind"); // this means "don't display another error message"
+		throw Ex("nevermind"); // this means "don't display another error message"
 	}
 
 	return pNF;
@@ -391,7 +391,7 @@ void attributeSelector(GArgReader& args)
 			outFilename = args.pop_string();
 		}
 		else
-			ThrowError("Invalid neighbor finder option: ", args.peek());
+			throw Ex("Invalid neighbor finder option: ", args.peek());
 	}
 
 	// Do the attribute selection
@@ -427,9 +427,9 @@ void blendEmbeddings(GArgReader& args)
 	GMatrix* pDataB = loadData(args.pop_string());
 	Holder<GMatrix> hDataB(pDataB);
 	if(pDataA->rows() != pDataOrig->rows() || pDataB->rows() != pDataOrig->rows())
-		ThrowError("mismatching number of rows");
+		throw Ex("mismatching number of rows");
 	if(pDataA->cols() != pDataB->cols())
-		ThrowError("mismatching number of cols");
+		throw Ex("mismatching number of cols");
 
 	// Parse Options
 	while(args.size() > 0)
@@ -437,7 +437,7 @@ void blendEmbeddings(GArgReader& args)
 		if(args.if_pop("-seed"))
 			prng.setSeed(args.pop_uint());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Get a neighbor table
@@ -481,7 +481,7 @@ void breadthFirstUnfolding(GArgReader& args)
 		else if(args.if_pop("-reps"))
 			reps = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
@@ -518,7 +518,7 @@ void curviness2(GArgReader& args)
 		else if(args.if_pop("-maxeigs"))
 			maxEigs = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GRand rand(seed);
@@ -577,7 +577,7 @@ void isomap(GArgReader& args)
 		else if(args.if_pop("-tolerant"))
 			tolerant = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
@@ -607,7 +607,7 @@ void lle(GArgReader& args)
 		if(args.if_pop("-seed"))
 			prng.setSeed(args.pop_uint());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
@@ -641,7 +641,7 @@ void ManifoldSculpting(GArgReader& args)
 		else if(args.if_pop("-scalerate"))
 			scaleRate = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Load the hint data
@@ -652,9 +652,9 @@ void ManifoldSculpting(GArgReader& args)
 		pDataHint = loadData(szPreprocessedData);
 		hDataHint.reset(pDataHint);
 		if(pDataHint->relation()->size() != targetDims)
-			ThrowError("Wrong number of dims in the hint data");
+			throw Ex("Wrong number of dims in the hint data");
 		if(pDataHint->rows() != pData->rows())
-			ThrowError("Wrong number of patterns in the hint data");
+			throw Ex("Wrong number of patterns in the hint data");
 	}
 
 	// Transform the data
@@ -694,7 +694,7 @@ void manifoldSculptingForControl(GArgReader& args)
 		else if(args.if_pop("-alignconsequences"))
 			lambda = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Load the hint data
@@ -705,9 +705,9 @@ void manifoldSculptingForControl(GArgReader& args)
 		pDataHint = loadData(szPreprocessedData);
 		hDataHint.reset(pDataHint);
 		if(pDataHint->relation()->size() != targetDims)
-			ThrowError("Wrong number of dims in the hint data");
+			throw Ex("Wrong number of dims in the hint data");
 		if(pDataHint->rows() != pDataObs->rows())
-			ThrowError("Wrong number of patterns in the hint data");
+			throw Ex("Wrong number of patterns in the hint data");
 	}
 
 	// Transform the data
@@ -742,7 +742,7 @@ void manifoldUnfolder(GArgReader& args)
 		if(args.if_pop("-seed"))
 			prng.setSeed(args.pop_uint());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
@@ -767,7 +767,7 @@ void multiDimensionalScaling(GArgReader& args)
 		if(args.if_pop("-squareddistances"))
 			useSquaredDistances = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GMatrix* pResults = GManifold::multiDimensionalScaling(pDistances, targetDims, &prng, useSquaredDistances);
@@ -799,7 +799,7 @@ void neuroPCA(GArgReader& args)
 		else if(args.if_pop("-eigenvalues"))
 			eigenvalues = args.pop_string();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
@@ -876,7 +876,7 @@ void principalComponentAnalysis(GArgReader& args)
 		else if(args.if_pop("-modelout"))
 			modelOut = args.pop_string();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
@@ -955,7 +955,7 @@ void selfOrganizingMap(GArgReader& args){
     numNodes *= dim;
   }
   if(netDims.size() < 1){
-    ThrowError("No dimensions specified for self organizing map.  ",
+    throw Ex("No dimensions specified for self organizing map.  ",
 	       "A map must be at least 1 dimensional.");
   }
 
@@ -996,7 +996,7 @@ void selfOrganizingMap(GArgReader& args){
       }else if(name == "uniform"){
 	windowFunc.reset(new SOM::UniformWindowFunction());
       }else{
-	ThrowError("Only gaussian and uniform are acceptible ",
+	throw Ex("Only gaussian and uniform are acceptible ",
 		   "neighborhood types");
       }
     }else if(args.if_pop("-printMeshEvery")){
@@ -1028,7 +1028,7 @@ void selfOrganizingMap(GArgReader& args){
       endRate = args.pop_double();
       numIter = args.pop_uint();
     }else{
-      ThrowError("Invalid option: ", args.peek());
+      throw Ex("Invalid option: ", args.peek());
     }
   }
 
@@ -1048,7 +1048,7 @@ void selfOrganizingMap(GArgReader& args){
        weightInit.release(), windowFunc.release(),
        reporters.release()));
   }else{
-    ThrowError("Unknown type of training algorithm: \"",
+    throw Ex("Unknown type of training algorithm: \"",
 	       algoName, "\"");
   }
 
@@ -1110,7 +1110,7 @@ void unsupervisedBackProp(GArgReader& args)
 		else if(args.if_pop("-params"))
 		{
 			if(pUBP->jitterer())
-				ThrowError("You can't change the params after you add an image jitterer");
+				throw Ex("You can't change the params after you add an image jitterer");
 			size_t paramDims = args.pop_uint();
 			for(size_t i = 0; i < paramDims; i++)
 				paramRanges.push_back(args.pop_uint());
@@ -1130,7 +1130,7 @@ void unsupervisedBackProp(GArgReader& args)
 		else if(args.if_pop("-jitter"))
 		{
 			if(paramRanges.size() != 2)
-				ThrowError("The params must be set to 2 before a tweaker is set");
+				throw Ex("The params must be set to 2 before a tweaker is set");
 			size_t channels = args.pop_uint();
 			double rot = args.pop_double();
 			double trans = args.pop_double();
@@ -1146,7 +1146,7 @@ void unsupervisedBackProp(GArgReader& args)
 			pUBP->trackProgress();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	pUBP->setParams(paramRanges);
 	pUBP->setUseInputBias(inputBias);
@@ -1231,7 +1231,7 @@ int main(int argc, char *argv[])
 	args.pop_string(); // advance past the app name
 	try
 	{
-		if(args.size() < 1) ThrowError("Expected a command");
+		if(args.size() < 1) throw Ex("Expected a command");
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("attributeselector")) attributeSelector(args);
 		else if(args.if_pop("blendembeddings")) blendEmbeddings(args);
@@ -1245,7 +1245,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("pca")) principalComponentAnalysis(args);
 		else if(args.if_pop("som")) selfOrganizingMap(args);
 		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
-		else ThrowError("Unrecognized command: ", args.peek());
+		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{

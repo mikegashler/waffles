@@ -444,7 +444,7 @@ GNeuralNet::GNeuralNet(GDomNode* pNode, GLearnerLoader& ll)
 		if(pActivation)
 			setActivationFunction(GActivationFunction::deserialize(pActivation), true);
 		else if(i == 0)
-			ThrowError("The first layer is expected to specify an activation function");
+			throw Ex("The first layer is expected to specify an activation function");
 		addLayer((size_t)it1.current()->field("nodes")->asInt());
 		it1.advance();
 	}
@@ -452,7 +452,7 @@ GNeuralNet::GNeuralNet(GDomNode* pNode, GLearnerLoader& ll)
 	if(pActivation)
 		setActivationFunction(GActivationFunction::deserialize(pActivation), true);
 	else if(layerCount == 1)
-		ThrowError("The first layer is expected to specify an activation function");
+		throw Ex("The first layer is expected to specify an activation function");
 	m_internalLabelDims = (size_t)it1.current()->field("nodes")->asInt();
 
 	// Enable training
@@ -470,7 +470,7 @@ GNeuralNet::GNeuralNet(GDomNode* pNode, GLearnerLoader& ll)
 	GDomNode* pWeightList = pNode->field("weights");
 	GDomListIterator it2(pWeightList);
 	if(it2.remaining() != countWeights())
-		ThrowError("Weights don't line up. (expected ", to_str(countWeights()), ", got ", to_str(it2.remaining()), ".)");
+		throw Ex("Weights don't line up. (expected ", to_str(countWeights()), ", got ", to_str(it2.remaining()), ".)");
 	GTEMPBUF(double, pWeights, it2.remaining());
 	for(size_t i = 0; it2.current(); i++)
 	{
@@ -498,7 +498,7 @@ GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 GDomNode* GNeuralNet::serializeInner(GDom* pDoc, const char* szClassName) const
 {
 	if(!hasTrainingBegun())
-		ThrowError("The network has not been trained");
+		throw Ex("The network has not been trained");
 	GDomNode* pNode = baseDomNode(pDoc, szClassName);
 
 	// Add the layer sizes
@@ -582,9 +582,9 @@ void GNeuralNet::releaseTrainingJunk()
 void GNeuralNet::addLayer(size_t nodeCount)
 {
 	if(hasTrainingBegun())
-		ThrowError("Changing the network structure after some training has begun is not yet supported.");
+		throw Ex("Changing the network structure after some training has begun is not yet supported.");
 	if(nodeCount < 1)
-		ThrowError("Cannot add a layer with fewer than 1 node");
+		throw Ex("Cannot add a layer with fewer than 1 node");
 
 	// Add a new layer to be the new output layer
 	size_t i = m_layers.size();
@@ -610,7 +610,7 @@ void GNeuralNet::addLayer(size_t nodeCount)
 void GNeuralNet::addNode(size_t layer)
 {
 	if(layer >= m_layers.size())
-		ThrowError("layer index out of range");
+		throw Ex("layer index out of range");
 
 	// Add a new neuron to this layer
 	GNeuralNetLayer& l = m_layers[layer];
@@ -632,12 +632,12 @@ void GNeuralNet::addNode(size_t layer)
 void GNeuralNet::dropNode(size_t layer, size_t node)
 {
 	if(layer >= m_layers.size())
-		ThrowError("layer index out of range");
+		throw Ex("layer index out of range");
 	GNeuralNetLayer& l = m_layers[layer];
 	if(node >= l.m_neurons.size())
-		ThrowError("node index out of range");
+		throw Ex("node index out of range");
 	if(l.m_neurons.size() == 1)
-		ThrowError("The layer must have at least one node in it");
+		throw Ex("The layer must have at least one node in it");
 
 	// Drop the neuron from this layer
 	l.m_neurons.erase(l.m_neurons.begin() + node);
@@ -654,7 +654,7 @@ void GNeuralNet::dropNode(size_t layer, size_t node)
 size_t GNeuralNet::countWeights() const
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	size_t wc = 0;
 	for(vector<GNeuralNetLayer>::const_iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 		wc += layer->m_neurons.size() * layer->m_neurons.begin()->m_weights.size(); // We assume that every node in a layer has the same number of weights
@@ -664,7 +664,7 @@ size_t GNeuralNet::countWeights() const
 void GNeuralNet::weights(double* pOutWeights) const
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::const_iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		for(vector<GNeuron>::const_iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
@@ -681,7 +681,7 @@ void GNeuralNet::weights(double* pOutWeights) const
 void GNeuralNet::setWeights(const double* pWeights)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
@@ -698,7 +698,7 @@ void GNeuralNet::setWeights(const double* pWeights)
 void GNeuralNet::copyWeights(GNeuralNet* pOther)
 {
 	if(!hasTrainingBegun() || !pOther->hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called on both networks before this method");
+		throw Ex("train or beginIncrementalLearning must be called on both networks before this method");
 	GAssert(m_layers.size() == pOther->m_layers.size());
 	vector<GNeuralNetLayer>::iterator layerOther = pOther->m_layers.begin();
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
@@ -720,7 +720,7 @@ void GNeuralNet::copyWeights(GNeuralNet* pOther)
 void GNeuralNet::copyStructure(GNeuralNet* pOther)
 {
 	if(!pOther->hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	releaseTrainingJunk();
 	for(vector<GActivationFunction*>::iterator it = m_activationFunctions.begin(); it != m_activationFunctions.end(); it++)
 		delete(*it);
@@ -756,7 +756,7 @@ void GNeuralNet::copyStructure(GNeuralNet* pOther)
 void GNeuralNet::perturbAllWeights(double deviation)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
@@ -768,7 +768,7 @@ void GNeuralNet::perturbAllWeights(double deviation)
 void GNeuralNet::clipWeights(double max)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
@@ -812,16 +812,16 @@ void GNeuralNet::swapNodes(size_t layer, size_t a, size_t b)
 void GNeuralNet::align(const GNeuralNet& that)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	if(layerCount() != that.layerCount())
-		ThrowError("mismatching number of layers");
+		throw Ex("mismatching number of layers");
 	for(size_t i = 0; i + 1 < m_layers.size(); i++)
 	{
 		// Copy weights into matrices
 		GNeuralNetLayer& layerThisCur = m_layers[i];
 		const GNeuralNetLayer& layerThatCur = that.m_layers[i];
 		if(layerThisCur.m_neurons.size() != layerThatCur.m_neurons.size())
-			ThrowError("mismatching layer size");
+			throw Ex("mismatching layer size");
 
 		GMatrix costs(layerThisCur.m_neurons.size(), layerThatCur.m_neurons.size());
 		for(size_t k = 0; k < layerThisCur.m_neurons.size(); k++)
@@ -889,7 +889,7 @@ void GNeuralNet::align(const GNeuralNet& that)
 void GNeuralNet::decayWeights(double lambda, double gamma)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
 		double d = (1.0 - lambda * m_learningRate);
@@ -905,7 +905,7 @@ void GNeuralNet::decayWeights(double lambda, double gamma)
 void GNeuralNet::decayWeightsSingleOutput(size_t output, double lambda)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	double d = (1.0 - lambda * m_learningRate);
 	GNeuron& neuron = layer(m_layers.size() - 1).m_neurons[output];
 	for(vector<double>::iterator weight = neuron.m_weights.begin(); weight != neuron.m_weights.end(); weight++)
@@ -1047,7 +1047,7 @@ double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 void GNeuralNet::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 
 	// Do the evaluation
 	forwardProp(pIn);
@@ -1086,7 +1086,7 @@ double GNeuralNet::sumSquaredPredictionError(const double* pTarget)
 void GNeuralNet::predictInner(const double* pIn, double* pOut)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	forwardProp(pIn);
 	copyPrediction(pOut);
 }
@@ -1116,7 +1116,7 @@ void GNeuralNet::trainInner(GMatrix& features, GMatrix& labels)
 void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
 	if(features.rows() != labels.rows())
-		ThrowError("Expected the features and labels to have the same number of rows");
+		throw Ex("Expected the features and labels to have the same number of rows");
 	sp_relation pFeatureRel = new GUniformRelation(features.cols());
 	beginIncrementalLearning(pFeatureRel, labels.relation());
 
@@ -1159,7 +1159,7 @@ double GNeuralNet::validationSquaredError(GMatrix& features, GMatrix& labels)
 size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& validateFeatures, GMatrix& validateLabels)
 {
 	if(trainFeatures.rows() != trainLabels.rows() || validateFeatures.rows() != validateLabels.rows())
-		ThrowError("Expected the features and labels to have the same number of rows");
+		throw Ex("Expected the features and labels to have the same number of rows");
 	beginIncrementalLearningInner(trainFeatures.relation(), trainLabels.relation());
 
 	// Make a random ordering
@@ -1209,9 +1209,9 @@ size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLab
 void GNeuralNet::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	if(pLabelRel->size() < 1)
-		ThrowError("The label relation must have at least 1 attribute");
+		throw Ex("The label relation must have at least 1 attribute");
 	if(!pFeatureRel->areContinuous(0, pFeatureRel->size()) || !pLabelRel->areContinuous(0, pLabelRel->size()))
-		ThrowError("Only continuous values are supported. (Using the GNominalToCat transform may be a good solution to this problem.)");
+		throw Ex("Only continuous values are supported. (Using the GNominalToCat transform may be a good solution to this problem.)");
 
 	// Adjust the size of the output layer
 	m_internalFeatureDims = pFeatureRel->size();
@@ -1251,7 +1251,7 @@ void GNeuralNet::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_rela
 void GNeuralNet::trainIncrementalInner(const double* pIn, const double* pOut)
 {
 	if(!hasTrainingBegun())
-		ThrowError("train or beginIncrementalLearning must be called before this method");
+		throw Ex("train or beginIncrementalLearning must be called before this method");
 	forwardProp(pIn);
 	setErrorOnOutputLayer(pOut, m_backPropTargetFunction);
 	m_pBackProp->backpropagate();
@@ -1341,7 +1341,7 @@ void GNeuralNet::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTa
 			break;
 
 		default:
-			ThrowError("Unrecognized target function for back-propagation");
+			throw Ex("Unrecognized target function for back-propagation");
 			break;
 	}
 }
@@ -1373,7 +1373,7 @@ void GNeuralNet::setErrorSingleOutput(double target, size_t output, TargetFuncti
 			break;
 
 		default:
-			ThrowError("Unrecognized target function for back-propagation");
+			throw Ex("Unrecognized target function for back-propagation");
 			break;
 	}
 }
@@ -1573,7 +1573,7 @@ void GNeuralNet_testMath()
 	nn.addLayer(3);
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
 	if(nn.countWeights() != 13)
-		ThrowError("Wrong number of weights");
+		throw Ex("Wrong number of weights");
 	GNeuralNetLayer& layerOut = nn.layer(1);
 	layerOut.m_neurons[0].m_weights[0] = 0.02; // w_0
 	layerOut.m_neurons[0].m_weights[1] = -0.01; // w_1
@@ -1603,7 +1603,7 @@ void GNeuralNet_testMath()
 	// o_2 = squash(w_7*1+w_8*x+w_9*y) = 1/(1+exp(-(.01*1+.04*0-.02*(-.7)))) = 0.50599971201659
 	// o_3 = squash(w_10*1+w_11*x+w_12*y) = 1/(1+exp(-(-.02*1+.03*0+.02*(-.7)))) = 0.49150081873869
 	// o_0 = squash(w_0*1+w_1*o_1+w_2*o_2+w_3*o_3) = 1/(1+exp(-(.02*1-.01*.4922506205862+.03*.50599971201659+.02*.49150081873869))) = 0.51002053349535
-	if(std::abs(pat[2] - 0.51002053349535) > tol) ThrowError("forward prop problem");
+	if(std::abs(pat[2] - 0.51002053349535) > tol) throw Ex("forward prop problem");
 
 	// Test that the output error is computed properly
 	nn.trainIncremental(features[0], labels[0]);
@@ -1614,59 +1614,59 @@ void GNeuralNet_testMath()
 	{
 		// Here is the math for why these results are expected:
 		// e_0 = target-output = 1-.51002053349535 = 0.4899794665046473
-		if(std::abs(pBP->layer(1).m_neurons[0].m_error - 0.4899794665046473) > tol) ThrowError("problem computing output error");
+		if(std::abs(pBP->layer(1).m_neurons[0].m_error - 0.4899794665046473) > tol) throw Ex("problem computing output error");
 	}
 	else
 	{
 		// Here is the math for why these results are expected:
 		// e_0 = output*(1-output)*(target-output) = .51002053349535*(1-.51002053349535)*(1-.51002053349535) = 0.1224456672531
-		if(std::abs(pBP->layer(1).m_neurons[0].m_error - 0.1224456672531) > tol) ThrowError("problem computing output error");
+		if(std::abs(pBP->layer(1).m_neurons[0].m_error - 0.1224456672531) > tol) throw Ex("problem computing output error");
 	}
 
 	// Test Back Prop
 	if(useCrossEntropy)
 	{
-		if(std::abs(pBP->layer(0).m_neurons[0].m_error + 0.0012246544194742083) > tol) ThrowError("back prop problem");
+		if(std::abs(pBP->layer(0).m_neurons[0].m_error + 0.0012246544194742083) > tol) throw Ex("back prop problem");
 		// e_2 = o_2*(1-o_2)*(w_2*e_0) = 0.00091821027577176
-		if(std::abs(pBP->layer(0).m_neurons[1].m_error - 0.0036743168717579557) > tol) ThrowError("back prop problem");
+		if(std::abs(pBP->layer(0).m_neurons[1].m_error - 0.0036743168717579557) > tol) throw Ex("back prop problem");
 		// e_3 = o_3*(1-o_3)*(w_3*e_0) = 0.00061205143636003
-		if(std::abs(pBP->layer(0).m_neurons[2].m_error - 0.002449189448583718) > tol) ThrowError("back prop problem");
+		if(std::abs(pBP->layer(0).m_neurons[2].m_error - 0.002449189448583718) > tol) throw Ex("back prop problem");
 	}
 	else
 	{
 		// e_1 = o_1*(1-o_1)*(w_1*e_0) = .4922506205862*(1-.4922506205862)*(-.01*.1224456672531) = -0.00030604063598154
-		if(std::abs(pBP->layer(0).m_neurons[0].m_error + 0.00030604063598154) > tol) ThrowError("back prop problem");
+		if(std::abs(pBP->layer(0).m_neurons[0].m_error + 0.00030604063598154) > tol) throw Ex("back prop problem");
 		// e_2 = o_2*(1-o_2)*(w_2*e_0) = 0.00091821027577176
-		if(std::abs(pBP->layer(0).m_neurons[1].m_error - 0.00091821027577176) > tol) ThrowError("back prop problem");
+		if(std::abs(pBP->layer(0).m_neurons[1].m_error - 0.00091821027577176) > tol) throw Ex("back prop problem");
 		// e_3 = o_3*(1-o_3)*(w_3*e_0) = 0.00061205143636003
-		if(std::abs(pBP->layer(0).m_neurons[2].m_error - 0.00061205143636003) > tol) ThrowError("back prop problem");
+		if(std::abs(pBP->layer(0).m_neurons[2].m_error - 0.00061205143636003) > tol) throw Ex("back prop problem");
 	}
 
 	// Test weight update
 	if(useCrossEntropy)
 	{
-		if(std::abs(layerOut.m_neurons[0].m_weights[0] - 0.10574640663831328) > tol) ThrowError("weight update problem");
-		if(std::abs(layerOut.m_neurons[0].m_weights[1] - 0.032208721880745944) > tol) ThrowError("weight update problem");
+		if(std::abs(layerOut.m_neurons[0].m_weights[0] - 0.10574640663831328) > tol) throw Ex("weight update problem");
+		if(std::abs(layerOut.m_neurons[0].m_weights[1] - 0.032208721880745944) > tol) throw Ex("weight update problem");
 	}
 	else
 	{
 		// d_0 = (d_0*momentum)+(learning_rate*e_0*1) = 0*.9+.175*.1224456672531*1
 		// w_0 = w_0 + d_0 = .02+.0214279917693 = 0.041427991769293
-		if(std::abs(layerOut.m_neurons[0].m_weights[0] - 0.041427991769293) > tol) ThrowError("weight update problem");
+		if(std::abs(layerOut.m_neurons[0].m_weights[0] - 0.041427991769293) > tol) throw Ex("weight update problem");
 		// d_1 = (d_1*momentum)+(learning_rate*e_0*o_1) = 0*.9+.175*.1224456672531*.4922506205862
 		// w_1 = w_1 + d_1 = -.01+.0105479422563 = 0.00054794224635029
-		if(std::abs(layerOut.m_neurons[0].m_weights[1] - 0.00054794224635029) > tol) ThrowError("weight update problem");
-		if(std::abs(layerOut.m_neurons[0].m_weights[2] - 0.040842557664356) > tol) ThrowError("weight update problem");
-		if(std::abs(layerOut.m_neurons[0].m_weights[3] - 0.030531875498533) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[0].m_weights[0] + 0.010053557111297) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[0].m_weights[1] + 0.03) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[0].m_weights[2] - 0.030037489977908) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[1].m_weights[0] - 0.01016068679826) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[1].m_weights[1] - 0.04) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[1].m_weights[2] + 0.020112480758782) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[2].m_weights[0] + 0.019892890998637) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[2].m_weights[1] - 0.03) > tol) ThrowError("weight update problem");
-		if(std::abs(layerHidden.m_neurons[2].m_weights[2] - 0.019925023699046) > tol) ThrowError("weight update problem");
+		if(std::abs(layerOut.m_neurons[0].m_weights[1] - 0.00054794224635029) > tol) throw Ex("weight update problem");
+		if(std::abs(layerOut.m_neurons[0].m_weights[2] - 0.040842557664356) > tol) throw Ex("weight update problem");
+		if(std::abs(layerOut.m_neurons[0].m_weights[3] - 0.030531875498533) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[0].m_weights[0] + 0.010053557111297) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[0].m_weights[1] + 0.03) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[0].m_weights[2] - 0.030037489977908) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[1].m_weights[0] - 0.01016068679826) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[1].m_weights[1] - 0.04) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[1].m_weights[2] + 0.020112480758782) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[2].m_weights[0] + 0.019892890998637) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[2].m_weights[1] - 0.03) > tol) throw Ex("weight update problem");
+		if(std::abs(layerHidden.m_neurons[2].m_weights[2] - 0.019925023699046) > tol) throw Ex("weight update problem");
 	}
 }
 
@@ -1727,9 +1727,9 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 		// Check it
 		double corr = GVec::correlation(pFeatureGradient, pEmpiricalGradient, 5);
 		if(corr > 1.0)
-			ThrowError("pathological results");
+			throw Ex("pathological results");
 		if(corr < 0.999)
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 }
 
@@ -1750,7 +1750,7 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 	double r;
 	nn.accuracy(features, labels, &r);
 	if(r != 1)
-		ThrowError("Failed simple sanity test");
+		throw Ex("Failed simple sanity test");
 }
 
 #define TEST_INVERT_INPUTS 5
@@ -1783,7 +1783,7 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		}
 		nn.predict(in, outAfter);
 		if(GVec::squaredDistance(outBefore, outAfter, TEST_INVERT_INPUTS) > 1e-10)
-			ThrowError("Failed");
+			throw Ex("Failed");
 	}
 
 	for(size_t i = 0; i < 30; i++)
@@ -1831,10 +1831,10 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		// Check that predictions match before
 		nn2.predict(in, outAfter);
 		if(GVec::squaredDistance(outBefore, outAfter, TEST_INVERT_INPUTS) > 1e-10)
-			ThrowError("Failed");
+			throw Ex("Failed");
 		nn1.predict(in, outAfter);
 		if(GVec::squaredDistance(outBefore, outAfter, TEST_INVERT_INPUTS) > 1e-10)
-			ThrowError("Failed");
+			throw Ex("Failed");
 
 		// Check that they have matching weights
 		size_t wc = nn1.countWeights();
@@ -1847,7 +1847,7 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		for(size_t j = 0; j < wc; j++)
 		{
 			if(std::abs(*pW1 - *pW2) >= 1e-9)
-				ThrowError("Failed");
+				throw Ex("Failed");
 			pW1++;
 			pW2++;
 		}
@@ -1985,7 +1985,7 @@ void GNeuralNetPseudoInverse::test()
 		nn.predict(features, labels);
 		nni.computeFeatures(labels, features2);
 		if(GVec::squaredDistance(features, features2, 3) > 1e-8)
-			ThrowError("failed");
+			throw Ex("failed");
 	}
 }
 #endif // MIN_PREDICT

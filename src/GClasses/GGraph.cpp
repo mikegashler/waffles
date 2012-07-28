@@ -416,7 +416,7 @@ void GGraphCut::findAHome(size_t nNode)
 bool GGraphCut::isSource(size_t nNode)
 {
 	if(!m_pSource)
-		ThrowError("You must call 'Cut' before calling this method");
+		throw Ex("You must call 'Cut' before calling this method");
 	GAssert(nNode != INVALID_INDEX && nNode < m_nNodes); // out of range
 	struct GGraphCutNode* pNode = &m_pNodes[nNode];
 	if(!pNode->GetRoot())
@@ -635,7 +635,7 @@ void GFloydWarshall::test()
 			double floyd = g1.cost(origin, j);
 			double dijkstra = g2.cost(j);
 			if(std::abs(floyd - dijkstra) > 1e-8)
-				ThrowError("wrong");
+				throw Ex("wrong");
 		}
 	}
 }
@@ -783,18 +783,18 @@ void GDijkstra::test()
 	g.addDirectedEdge(4, 3, 1.1);
 	g.addDirectedEdge(3, 0, 0.5);
 	g.compute(5);
-	if(g.previous(1) != 4) ThrowError("failed");
-	if(g.previous(2) != 5) ThrowError("failed");
-	if(g.previous(4) != 3) ThrowError("failed");
-	if(g.previous(3) != 5) ThrowError("failed");
-	if(g.previous(0) != 3) ThrowError("failed");
-	if(g.previous(5) != INVALID_INDEX) ThrowError("failed");
-	if(g.cost(4) != 0.9) ThrowError("failed");
-	if(g.cost(1) != 1.0) ThrowError("failed");
-	if(g.cost(0) != 1.3) ThrowError("failed");
-	if(g.cost(5) != 0.0) ThrowError("failed");
-	if(g.cost(2) != 0.9) ThrowError("failed");
-	if(g.cost(3) != 0.8) ThrowError("failed");
+	if(g.previous(1) != 4) throw Ex("failed");
+	if(g.previous(2) != 5) throw Ex("failed");
+	if(g.previous(4) != 3) throw Ex("failed");
+	if(g.previous(3) != 5) throw Ex("failed");
+	if(g.previous(0) != 3) throw Ex("failed");
+	if(g.previous(5) != INVALID_INDEX) throw Ex("failed");
+	if(g.cost(4) != 0.9) throw Ex("failed");
+	if(g.cost(1) != 1.0) throw Ex("failed");
+	if(g.cost(0) != 1.3) throw Ex("failed");
+	if(g.cost(5) != 0.0) throw Ex("failed");
+	if(g.cost(2) != 0.9) throw Ex("failed");
+	if(g.cost(3) != 0.8) throw Ex("failed");
 }
 #endif
 
@@ -944,7 +944,7 @@ double GBrandesBetweennessCentrality::edgeBetweennessByVertex(size_t vertex1, si
 	size_t index = neighborIndex(vertex1, vertex2);
 	if(index == INVALID_INDEX)
 	{
-		ThrowError("There is no edge between vertices ", to_str(vertex1), " and ", to_str(vertex2)); // todo: should we just return 0 here?
+		throw Ex("There is no edge between vertices ", to_str(vertex1), " and ", to_str(vertex2)); // todo: should we just return 0 here?
 		return 0.0;
 	}
 	else
@@ -969,19 +969,19 @@ void GBrandesBetweennessCentrality::test()
 	graph.addDirectedEdge(3, 5); graph.addDirectedEdge(5, 3);
 	graph.compute();
 	if(std::abs(graph.edgeBetweennessByNeighbor(0, 0) - 1) > 1e-5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(graph.edgeBetweennessByNeighbor(0, 1) - 4) > 1e-5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(graph.edgeBetweennessByNeighbor(2, 0) - 4) > 1e-5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(graph.edgeBetweennessByNeighbor(2, 1) - 4) > 1e-5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(graph.edgeBetweennessByNeighbor(2, 2) - 9) > 1e-5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(graph.edgeBetweennessByNeighbor(5, 0) - 1) > 1e-5)
-		ThrowError("failed");
+		throw Ex("failed");
 	if(std::abs(graph.edgeBetweennessByNeighbor(5, 1) - 4) > 1e-5)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif
 
@@ -1157,14 +1157,14 @@ public:
 		else if(cycle.size() == 5 && !m_five)
 			m_five = true;
 		else
-			ThrowError("Unexpected cycle");
+			throw Ex("Unexpected cycle");
 		return true;
 	}
 
 	void gotEmAll()
 	{
 		if(!m_three || !m_four || !m_five)
-			ThrowError("missed a cycle");
+			throw Ex("missed a cycle");
 	}
 };
 

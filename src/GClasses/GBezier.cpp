@@ -592,7 +592,7 @@ void GNurbs::newKnotPeriodic(struct GBezierPoint* pA, struct GBezierPoint* pB, i
 void GNurbs::insertKnotPeriodic(int nInterval, double dRatio)
 {
 	if(!m_bPeriodic)
-		ThrowError("This function is not implemented for non-periodic NURBS");
+		throw Ex("This function is not implemented for non-periodic NURBS");
 	struct GNurbsPoint* pNewPoints = new struct GNurbsPoint[m_nControlPoints + 1];
 	int nStart = nInterval - (m_nDegree >> 1);
 	struct GBezierPoint a;

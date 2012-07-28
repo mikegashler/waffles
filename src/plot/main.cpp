@@ -62,7 +62,7 @@ size_t getAttrVal(const char* szString, size_t attrCount)
 		szString++;
 	}
 	if(*szString < '0' || *szString > '9')
-		ThrowError("Expected a digit while parsing attribute list");
+		throw Ex("Expected a digit while parsing attribute list");
 #ifdef WIN32
 	size_t val = (size_t)_strtoui64(szString, (char**)NULL, 10);
 #else
@@ -104,9 +104,9 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			{
 				size_t val = getAttrVal(szList, attrCount);
 				if(val >= attrCount)
-					ThrowError("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				if(attrSet.find(val) != attrSet.end())
-					ThrowError("Columns ", to_str(val), " is listed multiple times");
+					throw Ex("Columns ", to_str(val), " is listed multiple times");
 				attrSet.insert(val);
 				list.push_back(val);
 			}
@@ -114,17 +114,17 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			{
 				size_t beg = getAttrVal(szList, attrCount);
 				if(beg >= attrCount)
-					ThrowError("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				size_t end = getAttrVal(szList + j + 1, attrCount);
 				if(end >= attrCount)
-					ThrowError("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				int step = 1;
 				if(end < beg)
 					step = -1;
 				for(size_t val = beg; true; val += step)
 				{
 					if(attrSet.find(val) != attrSet.end())
-						ThrowError("Column ", to_str(val), " is listed multiple times");
+						throw Ex("Column ", to_str(val), " is listed multiple times");
 					attrSet.insert(val);
 						list.push_back(val);
 					if(val == end)
@@ -155,7 +155,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	Holder<GMatrix> hData(pData);
 
 	// Parse params
@@ -168,7 +168,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 		else if(args.if_pop("-ignore"))
 			parseAttributeList(ignore, args, pData->cols());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Throw out the ignored attributes
@@ -181,7 +181,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 			if(labels[j] >= ignore[i])
 			{
 				if(labels[j] == ignore[i])
-					ThrowError("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
+					throw Ex("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
 				labels[j]--;
 			}
 		}
@@ -223,7 +223,7 @@ GMatrix* loadData(const char* szFilename)
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return pData;
 }
 
@@ -277,7 +277,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			else if(args.if_pop("-normalize"))
 				normalize = true;
 			else
-				ThrowError("Invalid neighbor finder option: ", args.peek());
+				throw Ex("Invalid neighbor finder option: ", args.peek());
 		}
 	
 		// Parse required algorithms
@@ -304,12 +304,12 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			GMatrix* pControlData = loadData(args.pop_string());
 			Holder<GMatrix> hControlData(pControlData);
 			if(pControlData->rows() != pData->rows())
-				ThrowError("mismatching number of rows");
+				throw Ex("mismatching number of rows");
 			int neighbors = args.pop_uint();
 			pNF = new GTemporalNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
 		}
 		else
-			ThrowError("Unrecognized neighbor finding algorithm: ", alg);
+			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
 	
 		// Normalize
 		if(normalize)
@@ -333,7 +333,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 	{
 		args.set_pos(argPos);
 		showInstantiateNeighborFinderError(e.what(), args);
-		ThrowError("nevermind"); // this means "don't display another error message"
+		throw Ex("nevermind"); // this means "don't display another error message"
 	}
 
 	return pNF;
@@ -346,7 +346,7 @@ void PlotBar(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
 	if(pRel->size() != 1 || pRel->areContinuous(0, 1))
-		ThrowError("Expected exactly one continuous attribute");
+		throw Ex("Expected exactly one continuous attribute");
 	double* values = new double[pData->rows()];
 	ArrayHolder<double> hValues(values);
 	for(size_t i = 0; i < pData->rows(); i++)
@@ -362,7 +362,7 @@ void PlotBar(GArgReader& args)
 		else if(args.if_pop("-log"))
 			bLog = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the chart
@@ -454,9 +454,9 @@ void EstimateBigO(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
 	if(pRel->size() < 2)
-		ThrowError("Expected at least two attributes");
+		throw Ex("Expected at least two attributes");
 	if(!pRel->areContinuous(0, pRel->size()))
-		ThrowError("Expected all continuous attributes");
+		throw Ex("Expected all continuous attributes");
 
 	// Regress t=an^b+c for each algorithm
 	cout.precision(8);
@@ -503,7 +503,7 @@ void PlotEquation(GArgReader& args)
 		else if(args.if_pop("-textsize"))
 			textSize = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Accumulate the expression
@@ -539,11 +539,11 @@ void PlotEquation(GArgReader& args)
 		if(!pFunc)
 		{
 			if(i == 1)
-				ThrowError("There is no function named \"f1\". Nothing to plot.");
+				throw Ex("There is no function named \"f1\". Nothing to plot.");
 			break;
 		}
 		if(pFunc->m_expectedParams != 1)
-			ThrowError("The function ", szFuncName, " takes ", to_str(pFunc->m_expectedParams), " parameters. Expected a function with 1 parameter");
+			throw Ex("The function ", szFuncName, " takes ", to_str(pFunc->m_expectedParams), " parameters. Expected a function with 1 parameter");
 
 		// Plot it
 		unsigned int col = colors[i % 6];
@@ -656,7 +656,7 @@ void PlotScatter(GArgReader& args)
 		else if(args.if_pop("-randomorder"))
 			pcm.randomOrder();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	pcm.ShowAxisLabels(vertGrid, horizGrid);
 	if(!showLines)
@@ -677,11 +677,11 @@ void semanticMap(GArgReader& args){
   // Load the data
   Holder<GMatrix> hData(loadData(dataFile.c_str()));
   if(hData->rows() < 1){
-    ThrowError("The dataset is empty.  Cannot make a semantic map from "
+    throw Ex("The dataset is empty.  Cannot make a semantic map from "
 	       "an empty dataset.");
   }
   if(hData->cols() < 1){
-    ThrowError("The dataset has no attributes.  Cannot make a semantic map "
+    throw Ex("The dataset has no attributes.  Cannot make a semantic map "
 	       "without attributes.");
   }
   // Load the self organizing map
@@ -703,25 +703,25 @@ void semanticMap(GArgReader& args){
     }else if(args.if_pop("-variance")){
       useVarianceAsLabel = true;
     }else{
-      ThrowError("Invalid option: ", args.peek());
+      throw Ex("Invalid option: ", args.peek());
     }
   }
   if(labelCol >= hData->cols()){
-    ThrowError("Label column index is too large");
+    throw Ex("Label column index is too large");
   }
   if(som.outputDimensions() > 2){
-    ThrowError("Semantic map can only plot one or two dimensional "
+    throw Ex("Semantic map can only plot one or two dimensional "
 	       "self-organizing maps.");
   }
   if(som.inputDimensions() > hData->cols()){
-    ThrowError("The input dataset does not have enough attributes for input "
+    throw Ex("The input dataset does not have enough attributes for input "
 	       "to the semantic map");
   }
 
   //Write the svg output file
   std::ofstream out(outFilename.c_str());
   if(!out){
-    ThrowError("Could not open the file named \"",outFilename,"\"");
+    throw Ex("Could not open the file named \"",outFilename,"\"");
   }
   //First, write the header
   vector<double> axes = som.outputAxes();
@@ -856,10 +856,10 @@ void makeHistogram(GArgReader& args)
 			ymax = args.pop_double();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	if(attr < 0 || attr >= pData->relation()->size())
-		ThrowError("attr out of range");
+		throw Ex("attr out of range");
 
 	// Make the histogram
 	GImage image;
@@ -1116,7 +1116,7 @@ void PlotCorrelations(GArgReader& args)
 		else if(args.if_pop("-maxattrs"))
 			maxAttrs = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the chart
@@ -1372,7 +1372,7 @@ void Plot3dMulti(GArgReader& args)
 		else if(args.if_pop("-nolabels"))
 			labels = false;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	if(blast)
 	{
@@ -1385,9 +1385,9 @@ void Plot3dMulti(GArgReader& args)
 
 	// Check values
 	if(pRel->size() != 3)
-		ThrowError("Sorry, only data with 3 dims is currently supported");
+		throw Ex("Sorry, only data with 3 dims is currently supported");
 	if(!pRel->areContinuous(0,3))
-		ThrowError("Sorry, only continuous attributes are currently supported");
+		throw Ex("Sorry, only continuous attributes are currently supported");
 
 	// Make plots
 	GRand prng(nSeed);
@@ -1523,9 +1523,9 @@ void overlay(GArgReader& args)
 	a.loadPng(args.pop_string());
 	b.loadPng(args.pop_string());
 	if(a.width() != b.width())
-		ThrowError("Images have different widths");
+		throw Ex("Images have different widths");
 	if(a.height() != b.height())
-		ThrowError("Images have different heights");
+		throw Ex("Images have different heights");
 	c.setSize(a.width(), a.height());
 
 	// options
@@ -1541,7 +1541,7 @@ void overlay(GArgReader& args)
 		else if(args.if_pop("-tolerance"))
 			tolerance = (int)args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the combination image
@@ -1566,15 +1566,15 @@ void percentSame(GArgReader& args){
   const size_t cols = hData1->cols();
   const size_t rows = hData1->rows();
   if(hData1->cols() != hData2->cols()){
-    ThrowError("The two files have different numbers of attributes.  Cannot "
+    throw Ex("The two files have different numbers of attributes.  Cannot "
 	       "compare entries when the number of columns is different");
   }
   if(hData1->rows() != hData2->rows()){
-    ThrowError("The two files have different numbers of tuples.  Cannot "
+    throw Ex("The two files have different numbers of tuples.  Cannot "
 	       "compare entries when the number of rows is different");
   }
   if(rows == 0){
-    ThrowError("The files have no rows.  Cannot calculate the percentage of "
+    throw Ex("The files have no rows.  Cannot calculate the percentage of "
 	       "identical values for empty files.");
   }
   for(size_t i = 0; i < cols; ++i){
@@ -1597,7 +1597,7 @@ void percentSame(GArgReader& args){
       }else{
 	msg << "a nominal attribute with " << v2 << " values.";
       }
-      ThrowError(msg.str());
+      throw Ex(msg.str());
     }
   }
   //Count the same values
@@ -1629,12 +1629,12 @@ void printDecisionTree(GArgReader& args)
 	// Load the model
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified.");
+		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GRand prng(0);
 	GLearnerLoader ll(prng, true);
 	if(_stricmp(doc.root()->field("class")->asString(), "GDecisionTree") != 0)
-		ThrowError("That model is not a decision tree");
+		throw Ex("That model is not a decision tree");
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
@@ -1646,7 +1646,7 @@ void printDecisionTree(GArgReader& args)
 		Holder<GMatrix> hData(pData);
 		size_t labelDims = pModeler->relLabels()->size();
 		if(ld != labelDims)
-			ThrowError("Different number of label dims than the model was trained with");
+			throw Ex("Different number of label dims than the model was trained with");
 		GArffRelation relFeatures;
 		relFeatures.addAttrs(pData->relation().get(), 0, pData->cols() - labelDims);
 		GArffRelation relLabels;
@@ -1663,12 +1663,12 @@ void printRandomForest(GArgReader& args)
 	// Load the model
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified.");
+		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GRand prng(0);
 	GLearnerLoader ll(prng, true);
 	if(_stricmp(doc.root()->field("class")->asString(), "GRandomForest") != 0)
-		ThrowError("That model is not Random Forest");
+		throw Ex("That model is not Random Forest");
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
@@ -1680,7 +1680,7 @@ void printRandomForest(GArgReader& args)
 		Holder<GMatrix> hData(pData);
 		size_t labelDims = pModeler->relLabels()->size();
 		if(ld != labelDims)
-			ThrowError("Different number of label dims than the model was trained with");
+			throw Ex("Different number of label dims than the model was trained with");
 		GArffRelation relFeatures;
 		relFeatures.addAttrs(pData->relation().get(), 0, pData->cols() - labelDims);
 		GArffRelation relLabels;
@@ -1696,7 +1696,7 @@ void model(GArgReader& args)
 	// Load the model
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified");
+		throw Ex("Model not specified");
 	doc.loadJson(args.pop_string());
 	GRand prng(0);
 	GLearnerLoader ll(prng, true);
@@ -1705,22 +1705,22 @@ void model(GArgReader& args)
 
 	// Load the data
 	if(args.size() < 1)
-		ThrowError("Expected the filename of a dataset");
+		throw Ex("Expected the filename of a dataset");
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	if(pData->cols() != pModeler->relFeatures()->size() + pModeler->relLabels()->size())
-		ThrowError("Model was trained with a different number of attributes than in this data");
+		throw Ex("Model was trained with a different number of attributes than in this data");
 
 	// Get other parameters
 	unsigned int attrx = args.pop_uint();
 	if(pData->relation()->valueCount(attrx) != 0)
-		ThrowError("Sorry, currently only continuous attributes can be plotted");
+		throw Ex("Sorry, currently only continuous attributes can be plotted");
 	unsigned int attry = args.pop_uint();
 	if(pData->relation()->valueCount(attry) != 0)
-		ThrowError("Sorry, currently only continuous attributes can be plotted");
+		throw Ex("Sorry, currently only continuous attributes can be plotted");
 	size_t featureDims = pModeler->relFeatures()->size();
 	if(attrx >= (unsigned int)featureDims || attry >= (unsigned int)featureDims)
-		ThrowError("feature attribute out of range");
+		throw Ex("feature attribute out of range");
 
 	// Parse options
 	int width = 400;
@@ -1740,7 +1740,7 @@ void model(GArgReader& args)
 		else if(args.if_pop("-out"))
 			filename = args.pop_string();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 
@@ -1811,14 +1811,14 @@ void rayTraceManifoldModel(GArgReader& args)
 	// Load the model
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified");
+		throw Ex("Model not specified");
 	doc.loadJson(args.pop_string());
 	GRand prng(0);
 	GLearnerLoader ll(prng, true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	if(pModeler->relFeatures()->size() != 2 || pModeler->relLabels()->size() != 3)
-		ThrowError("The model has ", to_str(pModeler->relFeatures()->size()), " inputs and ", to_str(pModeler->relLabels()->size()), " outputs. 2 real inputs and 3 real outputs are expected");
+		throw Ex("The model has ", to_str(pModeler->relFeatures()->size()), " inputs and ", to_str(pModeler->relLabels()->size()), " outputs. 2 real inputs and 3 real outputs are expected");
 
 	// Parse options
 	int width = 400;
@@ -1869,14 +1869,14 @@ void rayTraceManifoldModel(GArgReader& args)
 			pPoints = GMatrix::loadArff(args.pop_string());
 			hPoints.reset(pPoints);
 			if(pPoints->cols() != 3)
-				ThrowError("Expected 3-dimensional points");
+				throw Ex("Expected 3-dimensional points");
 		}
 		else if(args.if_pop("-pointradius"))
 			pointRadius = args.pop_double();
 		else if(args.if_pop("-granularity"))
 			granularity = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Set up the scene
@@ -1973,7 +1973,7 @@ void rowToImage(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	unsigned int r = args.pop_uint();
 	if(r > pData->rows())
-		ThrowError("row index out of range");
+		throw Ex("row index out of range");
 	unsigned int width = args.pop_uint();
 
 	string filename = "plot.png";
@@ -1982,7 +1982,7 @@ void rowToImage(GArgReader& args)
 
 	size_t cols = pData->cols();
 	if((cols % (channels * width)) != 0)
-		ThrowError("The row has ", to_str(cols), " dims, which is not a multiple of ", to_str(channels), " channels times ", to_str(width), " pixels wide");
+		throw Ex("The row has ", to_str(cols), " dims, which is not a multiple of ", to_str(channels), " channels times ", to_str(width), " pixels wide");
 	double* pRow = pData->row(r);
 	unsigned int height = (unsigned int)cols / (unsigned int)(channels * width);
 	GImage image;
@@ -2027,7 +2027,7 @@ void systemFrames(GArgReader& args)
 			hObs.reset(pObs);
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Instantiate the model
@@ -2136,7 +2136,7 @@ int main(int argc, char *argv[])
 	int ret = 0;
 	try
 	{
-		if(args.size() < 1) ThrowError("Expected a command");
+		if(args.size() < 1) throw Ex("Expected a command");
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("3d")) Plot3dMulti(args);
 		else if(args.if_pop("bar")) PlotBar(args);
@@ -2156,7 +2156,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("stats")) PrintStats(args);
 		else if(args.if_pop("systemframes")) systemFrames(args);
 		else if(args.if_pop("ubpframes")) ubpFrames(args);
-		else ThrowError("Unrecognized command: ", args.peek());
+		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{

@@ -118,7 +118,7 @@ void GHistogram::toFile(const char* filename)
 	}
 	catch(const std::exception&)
 	{
-		ThrowError("Error creating file: ", filename);
+		throw Ex("Error creating file: ", filename);
 	}
 	os.precision(5);
 	for(size_t i = 0; i < m_binCount; i++)

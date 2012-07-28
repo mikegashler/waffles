@@ -35,7 +35,7 @@ public:
 		GDomListIterator it(pAttr);
 		size_t count = it.remaining() / (1 + labelDims);
 		if(count * (1 + labelDims) != it.remaining())
-			ThrowError("invalid list size");
+			throw Ex("invalid list size");
 		for(size_t i = 0; i < count; i++)
 		{
 			double d = it.current()->asDouble();
@@ -100,7 +100,7 @@ GNaiveInstance::GNaiveInstance(GDomNode* pNode, GLearnerLoader& ll)
 	GDomNode* pAttrs = pNode->field("attrs");
 	GDomListIterator it(pAttrs);
 	if(it.remaining() != m_internalFeatureDims)
-		ThrowError("Expected ", to_str(m_internalFeatureDims), " attrs, got ", to_str(it.remaining()), " attrs");
+		throw Ex("Expected ", to_str(m_internalFeatureDims), " attrs, got ", to_str(it.remaining()), " attrs");
 	m_pHeap = new GHeap(1024);
 	for(size_t i = 0; i < m_internalFeatureDims; i++)
 	{
@@ -173,7 +173,7 @@ void GNaiveInstance::autoTune(GMatrix& features, GMatrix& labels)
 void GNaiveInstance::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
 {
 	if(!pFeatureRel->areContinuous(0, pFeatureRel->size()) || !pLabelRel->areContinuous(0, pLabelRel->size()))
-		ThrowError("Only continuous attributes are supported.");
+		throw Ex("Only continuous attributes are supported.");
 	clear();
 	m_internalFeatureDims = pFeatureRel->size();
 	m_internalLabelDims = pLabelRel->size();
@@ -211,7 +211,7 @@ void GNaiveInstance::trainInner(GMatrix& features, GMatrix& labels)
 // virtual
 void GNaiveInstance::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
-	ThrowError("Sorry, trainSparse is not implemented yet in GNaiveInstance");
+	throw Ex("Sorry, trainSparse is not implemented yet in GNaiveInstance");
 }
 
 void GNaiveInstance::evalInput(size_t nInputDim, double dInput)

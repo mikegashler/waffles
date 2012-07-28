@@ -60,7 +60,7 @@ size_t getAttrVal(const char* szString, size_t attrCount)
 		szString++;
 	}
 	if(*szString < '0' || *szString > '9')
-		ThrowError("Expected a digit while parsing attribute list");
+		throw Ex("Expected a digit while parsing attribute list");
 #ifdef WIN32
 	size_t val = (size_t)_strtoui64(szString, (char**)NULL, 10);
 #else
@@ -102,9 +102,9 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			{
 				size_t val = getAttrVal(szList, attrCount);
 				if(val >= attrCount)
-					ThrowError("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				if(attrSet.find(val) != attrSet.end())
-					ThrowError("Columns ", to_str(val), " is listed multiple times");
+					throw Ex("Columns ", to_str(val), " is listed multiple times");
 				attrSet.insert(val);
 				list.push_back(val);
 			}
@@ -112,17 +112,17 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			{
 				size_t beg = getAttrVal(szList, attrCount);
 				if(beg >= attrCount)
-					ThrowError("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				size_t end = getAttrVal(szList + j + 1, attrCount);
 				if(end >= attrCount)
-					ThrowError("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				int step = 1;
 				if(end < beg)
 					step = -1;
 				for(size_t val = beg; true; val += step)
 				{
 					if(attrSet.find(val) != attrSet.end())
-						ThrowError("Column ", to_str(val), " is listed multiple times");
+						throw Ex("Column ", to_str(val), " is listed multiple times");
 					attrSet.insert(val);
 						list.push_back(val);
 					if(val == end)
@@ -153,7 +153,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	Holder<GMatrix> hData(pData);
 
 	// Parse params
@@ -179,7 +179,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 			if(labels[j] >= ignore[i])
 			{
 				if(labels[j] == ignore[i])
-					ThrowError("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
+					throw Ex("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
 				labels[j]--;
 			}
 		}
@@ -221,7 +221,7 @@ GMatrix* loadData(const char* szFilename)
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return pData;
 }
 
@@ -275,7 +275,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			else if(args.if_pop("-normalize"))
 				normalize = true;
 			else
-				ThrowError("Invalid neighbor finder option: ", args.peek());
+				throw Ex("Invalid neighbor finder option: ", args.peek());
 		}
 
 		// Parse required algorithms
@@ -302,12 +302,12 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			GMatrix* pControlData = loadData(args.pop_string());
 			Holder<GMatrix> hControlData(pControlData);
 			if(pControlData->rows() != pData->rows())
-				ThrowError("mismatching number of rows");
+				throw Ex("mismatching number of rows");
 			int neighbors = args.pop_uint();
 			pNF = new GTemporalNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
 		}
 		else
-			ThrowError("Unrecognized neighbor finding algorithm: ", alg);
+			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
 	
 		// Normalize
 		if(normalize)
@@ -331,7 +331,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 	{
 		args.set_pos(argPos);
 		showInstantiateNeighborFinderError(e.what(), args);
-		ThrowError("nevermind"); // this means "don't display another error message"
+		throw Ex("nevermind"); // this means "don't display another error message"
 	}
 
 	return pNF;
@@ -350,7 +350,7 @@ void AddIndexAttribute(GArgReader& args)
 		else if(args.if_pop("-increment"))
 			nIncrement = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GMatrix* pData = loadData(filename);
@@ -393,7 +393,7 @@ void addNoise(GArgReader& args)
 		else if(args.if_pop("-excludelast"))
 			excludeLast = args.pop_uint();
 		else
-			ThrowError("Invalid neighbor finder option: ", args.peek());
+			throw Ex("Invalid neighbor finder option: ", args.peek());
 	}
 
 	GRand prng(seed);
@@ -487,7 +487,7 @@ void correlation(GArgReader& args)
 		if(args.if_pop("-aboutorigin"))
 			aboutorigin = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	double m1, m2;
@@ -552,10 +552,10 @@ void Discretize(GArgReader& args)
 			nLast = args.pop_uint();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	if(nFirst < 0 || nLast >= pData->relation()->size() || nLast < nFirst)
-		ThrowError("column index out of range");
+		throw Ex("column index out of range");
 
 	// Discretize the continuous attributes in the specified range
 	for(size_t i = nFirst; i <= nLast; i++)
@@ -682,7 +682,7 @@ void dropRandomValues(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GRand rand(seed);
@@ -802,7 +802,7 @@ void Export(GArgReader& args)
 		else if(args.if_pop("-space"))
 			separator = " ";
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Print
@@ -839,7 +839,7 @@ void Import(GArgReader& args)
 		else if(args.if_pop("-columnnames"))
 			columnNamesInFirstRow = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Parse the file
@@ -950,9 +950,9 @@ void MeasureMeanSquaredError(GArgReader& args)
 
 	// check sizes
 	if(pData1->relation()->size() != pData2->relation()->size())
-		ThrowError("The datasets must have the same number of dims");
+		throw Ex("The datasets must have the same number of dims");
 	if(pData1->rows() != pData2->rows())
-		ThrowError("The datasets must have the same size");
+		throw Ex("The datasets must have the same size");
 
 	// Parse Options
 	bool fit = false;
@@ -964,7 +964,7 @@ void MeasureMeanSquaredError(GArgReader& args)
 		else if(args.if_pop("-sum"))
 			sumOverAttributes = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	size_t dims = pData1->relation()->size();
@@ -1016,7 +1016,7 @@ void mergeHoriz(GArgReader& args)
 		GMatrix* pData2 = loadData(args.pop_string());
 		Holder<GMatrix> hData2(pData2);
 		if(pMerged->rows() != pData2->rows())
-			ThrowError("The datasets must have the same number of rows");
+			throw Ex("The datasets must have the same number of rows");
 		pMerged = GMatrix::mergeHoriz(pMerged, pData2);
 		hMerged.reset(pMerged);
 	}
@@ -1050,7 +1050,7 @@ void multiplyMatrices(GArgReader& args)
 		else if(args.if_pop("-transposeb"))
 			transposeB = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GMatrix* pC = GMatrix::multiply(*pA, *pB, transposeA, transposeB);
@@ -1064,7 +1064,7 @@ void multiplyScalar(GArgReader& args)
 	Holder<GMatrix> hA(pA);
 	double scale = args.pop_double();
 	if(args.size() > 0)
-		ThrowError("Superfluous arg: ", args.pop_string());
+		throw Ex("Superfluous arg: ", args.pop_string());
 	pA->multiply(scale);
 	pA->print(cout);
 }
@@ -1074,7 +1074,7 @@ void zeroMean(GArgReader& args)
 	GMatrix* pA = loadData(args.pop_string());
 	Holder<GMatrix> hA(pA);
 	if(args.size() > 0)
-		ThrowError("Superfluous arg: ", args.pop_string());
+		throw Ex("Superfluous arg: ", args.pop_string());
 	pA->centerMeanAtOrigin();
 	pA->print(cout);
 }
@@ -1095,7 +1095,7 @@ void normalize(GArgReader& args)
 			max = args.pop_double();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GNormalize transform(min, max);
@@ -1144,7 +1144,7 @@ void nominalToCat(GArgReader& args)
 		if(args.if_pop("-maxvalues"))
 			maxValues = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
@@ -1162,7 +1162,7 @@ void obfuscate(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	if(pData->relation()->type() != GRelation::ARFF)
-		ThrowError("Expected some meta-data");
+		throw Ex("Expected some meta-data");
 	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
 	pRel->setName("Untitled");
 	for(size_t i = 0; i < pRel->size(); i++)
@@ -1184,7 +1184,7 @@ void overlay(GArgReader& args)
 	GMatrix* pOver = loadData(args.pop_string());
 	Holder<GMatrix> hOver(pOver);
 	if(pOver->rows() != pBase->rows() || pOver->cols() != pBase->cols())
-		ThrowError("Matrices not the same size");
+		throw Ex("Matrices not the same size");
 	size_t dims = pOver->cols();
 	GRelation* pRelOver = pOver->relation().get();
 	for(size_t i = 0; i < pOver->rows(); i++)
@@ -1258,25 +1258,25 @@ void rotate(GArgReader& args)
 	sp_relation relation = pA->relation();
 	unsigned colx = args.pop_uint();
 	if(colx >= pA->cols()){
-	  ThrowError("Rotation first column index (",to_str(colx),") "
+	  throw Ex("Rotation first column index (",to_str(colx),") "
 		     "should not be greater "
 		     "than the largest index, which is ", to_str(pA->cols()-1),
 		     ".");
 	}
 	if(!relation->areContinuous(colx,1)){
-	  ThrowError("Rotation first column index (",to_str(colx),") "
+	  throw Ex("Rotation first column index (",to_str(colx),") "
 		     "should be continuous and it is not.");
 		     
 	}
 	unsigned coly = args.pop_uint();
 	if(coly >= pA->cols()){
-	  ThrowError("Rotation second column index (",to_str(coly),") "
+	  throw Ex("Rotation second column index (",to_str(coly),") "
 		     "should not be greater "
 		     "than the largest index, which is ", to_str(pA->cols()-1),
 		     ".");
 	}
 	if(!relation->areContinuous(coly,1)){
-	  ThrowError("Rotation second column index (",to_str(coly),") "
+	  throw Ex("Rotation second column index (",to_str(coly),") "
 		     "should be continuous and it is not.");
 	}
 	
@@ -1302,7 +1302,7 @@ void sampleRows(GArgReader& args)
 	const char* filename = args.pop_string();
 	double portion = args.pop_double();
 	if(portion < 0 || portion > 1)
-		ThrowError("The portion must be between 0 and 1");
+		throw Ex("The portion must be between 0 and 1");
 	PathData pd;
 	GFile::parsePath(filename, &pd);
 	bool arff = false;
@@ -1316,7 +1316,7 @@ void sampleRows(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	GRand rand(seed);
 
@@ -1333,9 +1333,9 @@ void sampleRows(GArgReader& args)
 	catch(const std::exception&)
 	{
 		if(GFile::doesFileExist(filename))
-			ThrowError("Error while trying to open the existing file: ", filename);
+			throw Ex("Error while trying to open the existing file: ", filename);
 		else
-			ThrowError("File not found: ", filename);
+			throw Ex("File not found: ", filename);
 	}
 	char* pLine = new char[MAX_LINE_LENGTH];
 	ArrayHolder<char> hLine(pLine);
@@ -1345,7 +1345,7 @@ void sampleRows(GArgReader& args)
 		s.getline(pLine, std::min(size + 1, size_t(MAX_LINE_LENGTH)));
 		size_t linelen = std::min(size, size_t(s.gcount()));
 		if(linelen >= MAX_LINE_LENGTH - 1)
-			ThrowError("Line ", to_str(line), " is too long"); // todo: just resize the buffer here
+			throw Ex("Line ", to_str(line), " is too long"); // todo: just resize the buffer here
 		if(arff)
 		{
 			if(_strnicmp(pLine, "@DATA", 5) == 0)
@@ -1405,7 +1405,7 @@ void significance(GArgReader& args)
 		if(args.if_pop("-tol"))
 			tolerance = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Print some basic stats
@@ -1535,7 +1535,7 @@ void split(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	int pats = (int)pData->rows() - args.pop_uint();
 	if(pats < 0)
-		ThrowError("out of range. The data only has ", to_str(pData->rows()), " rows.");
+		throw Ex("out of range. The data only has ", to_str(pData->rows()), " rows.");
 	const char* szFilename1 = args.pop_string();
 	const char* szFilename2 = args.pop_string();
 
@@ -1547,7 +1547,7 @@ void split(GArgReader& args)
 		}else if(args.if_pop("-seed")){
 			nSeed = args.pop_uint();
 		}else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Shuffle if necessary
@@ -1571,7 +1571,7 @@ void splitFold(GArgReader& args)
 	size_t fold = args.pop_uint();
 	size_t folds = args.pop_uint();
 	if(fold >= folds)
-		ThrowError("fold index out of range. It must be less than the total number of folds.");
+		throw Ex("fold index out of range. It must be less than the total number of folds.");
 
 	// Options
 	string filenameTrain = "train.arff";
@@ -1584,7 +1584,7 @@ void splitFold(GArgReader& args)
 			filenameTest = args.pop_string();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Copy relevant portions of the data
@@ -1615,7 +1615,7 @@ void splitClass(GArgReader& args)
 		if(args.if_pop("-dropclass"))
 			dropClass = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	for(size_t i = 0; i < pData->relation()->valueCount(classAttr); i++)
@@ -1665,7 +1665,7 @@ void fillMissingValues(GArgReader& args)
 		else if(args.if_pop("-random"))
 			random = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Replace missing values and print
@@ -1696,7 +1696,7 @@ void Shuffle(GArgReader& args)
 		if(args.if_pop("-seed"))
 			nSeed = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Shuffle and print
@@ -1727,7 +1727,7 @@ void singularValueDecomposition(GArgReader& args)
 		else if(args.if_pop("-maxiters"))
 			maxIters = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GMatrix* pU;
@@ -1762,7 +1762,7 @@ void SortByAttribute(GArgReader& args)
 	size_t nAttr = args.pop_uint();
 	size_t attrCount = pData->relation()->size();
 	if(nAttr >= attrCount)
-		ThrowError("Index out of range");
+		throw Ex("Index out of range");
 
 	// Parse options
 	bool descending = false;
@@ -1771,7 +1771,7 @@ void SortByAttribute(GArgReader& args)
 		if(args.if_pop("-descending"))
 			descending = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	pData->sort(nAttr);
@@ -1788,9 +1788,9 @@ void SwapAttributes(GArgReader& args)
 	size_t nAttr2 = args.pop_uint();
 	size_t attrCount = pData->relation()->size();
 	if(nAttr1 >= attrCount)
-		ThrowError("Index out of range");
+		throw Ex("Index out of range");
 	if(nAttr2 >= attrCount)
-		ThrowError("Index out of range");
+		throw Ex("Index out of range");
 	pData->swapColumns(nAttr1, nAttr2);
 	pData->print(cout);
 }
@@ -1807,10 +1807,10 @@ void threshold(GArgReader& args){
     }else{
       msg << "This data has no columns to threshold.";
     }
-    ThrowError(msg.str());
+    throw Ex(msg.str());
   }
   if(hData->relation()->valueCount(column) != 0){
-    ThrowError("Can only use threshold on continuous attributes.");
+    throw Ex("Can only use threshold on continuous attributes.");
   }
   double value = args.pop_double();
 
@@ -1842,7 +1842,7 @@ void transition(GArgReader& args)
 	GMatrix* pState = loadData(args.pop_string());
 	Holder<GMatrix> hState(pState);
 	if(pState->rows() != pActions->rows())
-		ThrowError("Expected the same number of rows in both datasets");
+		throw Ex("Expected the same number of rows in both datasets");
 
 	// Parse options
 	bool delta = false;
@@ -1851,7 +1851,7 @@ void transition(GArgReader& args)
 		if(args.if_pop("-delta"))
 			delta = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the output data
@@ -1954,7 +1954,7 @@ int main(int argc, char *argv[])
 	args.pop_string(); // advance past the app name
 	try
 	{
-		if(args.size() < 1) ThrowError("Expected a command");
+		if(args.size() < 1) throw Ex("Expected a command");
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("add")) addMatrices(args);
 		else if(args.if_pop("addindexcolumn")) AddIndexAttribute(args);
@@ -2013,7 +2013,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("uglify")) uglify(args);
 		else if(args.if_pop("wilcoxon")) wilcoxon(args);
 		else if(args.if_pop("zeromean")) zeroMean(args);
-		else ThrowError("Unrecognized command: ", args.peek());
+		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{

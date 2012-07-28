@@ -43,7 +43,7 @@ GCharSet::GCharSet(const char* szChars)
 			{
 				char d = szChars[1];
 				if(d <= c)
-					ThrowError("invalid character range");
+					throw Ex("invalid character range");
 				for(c++; c <= d && c != 0; c++)
 					m_bt.set((unsigned char)c);
 				szChars++;
@@ -77,9 +77,9 @@ GTokenizer::GTokenizer(const char* szFilename)
 	catch(const std::exception&)
 	{
 		if (access(szFilename, 0) == 0)
-			ThrowError("Error while trying to open the existing file: ", szFilename);
+			throw Ex("Error while trying to open the existing file: ", szFilename);
 		else
-			ThrowError("File not found: ", szFilename);
+			throw Ex("File not found: ", szFilename);
 	}
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
@@ -157,7 +157,7 @@ char* GTokenizer::nextUntil(GCharSet& delimeters, size_t minLen)
 		bufferChar(c);
 	}
 	if((size_t)(m_pBufPos - m_pBufStart) < minLen)
-		ThrowError("Unexpected token on line ", to_str(m_line), ", col ", to_str(col()));
+		throw Ex("Unexpected token on line ", to_str(m_line), ", col ", to_str(col()));
 	if(m_pBufPos == m_pBufEnd)
 		growBuf();
 	*m_pBufPos = '\0';
@@ -195,7 +195,7 @@ char* GTokenizer::nextWhile(GCharSet& set, size_t minLen)
 		bufferChar(c);
 	}
 	if((size_t)(m_pBufPos - m_pBufStart) < minLen)
-		ThrowError("Unexpected token on line ", to_str(m_line), ", col ", to_str(col()));
+		throw Ex("Unexpected token on line ", to_str(m_line), ", col ", to_str(col()));
 	if(m_pBufPos == m_pBufEnd)
 		growBuf();
 	*m_pBufPos = '\0';
@@ -233,7 +233,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 		advance(1);
 		nextUntil(cs);
 		if(peek() != '"')
-			ThrowError("Expected matching double-quotes on line ", 
+			throw Ex("Expected matching double-quotes on line ", 
 								 to_str(m_line), ", col ", to_str(col()));
 		advance(1);
 		while(!delimiters.find(m_pStream->peek()))
@@ -246,7 +246,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 		GCharSet cs("'\n");
 		nextUntil(cs);
 		if(peek() != '\'')
-			ThrowError("Expected a matching single-quote on line ", to_str(m_line), 
+			throw Ex("Expected a matching single-quote on line ", to_str(m_line), 
 								 ", col ", to_str(col()));
 		advance(1);
 		while(!delimiters.find(m_pStream->peek()))
@@ -263,7 +263,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 		{
 			if(c == '\n')
 			{
-				ThrowError("Error: '", to_str(escapeChar), "' character used as "
+				throw Ex("Error: '", to_str(escapeChar), "' character used as "
 									 "last character on a line to attempt to extend string over "
 									 "two lines on line" , to_str(m_line), ", col ", 
 									 to_str(col()) );
@@ -324,11 +324,11 @@ void GTokenizer::expect(const char* szString)
 	{
 		char c = get();
 		if(c != *szString)
-			ThrowError("Expected \"", szString, "\" on line ", to_str(m_line), ", col ", to_str(col()));
+			throw Ex("Expected \"", szString, "\" on line ", to_str(m_line), ", col ", to_str(col()));
 		szString++;
 	}
 	if(*szString != '\0')
-		ThrowError("Expected \", szString, \". Reached end-of-file instead.");
+		throw Ex("Expected \", szString, \". Reached end-of-file instead.");
 }
 
 size_t GTokenizer::tokenLength()

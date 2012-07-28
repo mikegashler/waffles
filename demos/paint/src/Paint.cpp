@@ -863,42 +863,42 @@ public:
 		char szLine[256];
 		FILE* pFile = fopen(szMaster, "r");
 		if(!pFile)
-			ThrowError("Failed to open file");
-		if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+			throw Ex("Failed to open file");
+		if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 		int nLenMaster = atoi(szLine);
 		double* pMaster = new double[nLenMaster];
 		Holder<double> hMaster(pMaster);
-		if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+		if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 		int nStartMaster = atoi(szLine);
-		if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+		if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 		int i;
 		for(i = 0; i < nLenMaster; i++)
 		{
-			if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+			if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 			pMaster[i] = atof(szLine);
-			if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+			if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 		}
 		fclose(pFile);
 
 		// Load the candidate
 		pFile = fopen(szCand, "r");
 		if(!pFile)
-			ThrowError("Failed to open file");
-		if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+			throw Ex("Failed to open file");
+		if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 		int nLenCand = atoi(szLine);
 		double* pCand1 = new double[nLenCand];
 		double* pCand2 = new double[nLenCand];
 		Holder<double> hCand1(pCand1);
 		Holder<double> hCand2(pCand2);
-		if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+		if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 		int nStartCand1 = atoi(szLine);
-		if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+		if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 		int nStartCand2 = atoi(szLine);
 		for(i = 0; i < nLenCand; i++)
 		{
-			if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+			if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 			pCand1[i] = atof(szLine);
-			if(!fgets(szLine, 256, pFile)) ThrowError("expected more");
+			if(!fgets(szLine, 256, pFile)) throw Ex("expected more");
 			pCand2[i] = atof(szLine);
 		}
 		fclose(pFile);
@@ -1171,7 +1171,6 @@ void PaintController::RunModal()
 {
 	double timeOld = GTime::seconds();
 	double time;
-	double timeUpdate = 0;
 	m_pView->update();
 	while(m_bKeepRunning)
 	{
@@ -1179,7 +1178,6 @@ void PaintController::RunModal()
 		if(handleEvents(time - timeOld)) // HandleEvents returns true if it thinks the view needs to be updated
 		{
 			m_pView->update();
-			timeUpdate = time;
 		}
 		else
 		{

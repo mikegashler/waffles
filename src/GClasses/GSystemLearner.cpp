@@ -54,14 +54,14 @@ GRecurrentModel::GRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLea
 : GSystemLearner(), m_actionDims(actionDims), m_contextDims(contextDims), m_obsDims(obsDims)
 {
 	if(m_actionDims < 0)
-		ThrowError("Invalid number of action dims");
+		throw Ex("Invalid number of action dims");
 	m_pixels = 1;
 	size_t paramDims = pParamDims ? pParamDims->size() : 0;
 	for(size_t i = 0; i < paramDims; i++)
 		m_pixels *= (*pParamDims)[i];
 	m_channels = m_obsDims / m_pixels;
 	if(m_obsDims != m_channels * m_pixels)
-		ThrowError("Invalid observation dims");
+		throw Ex("Invalid observation dims");
 	m_pTransitionFunc = pTransition;
 	m_pObservationFunc = pObservation;
 	m_paramDims = paramDims;
@@ -95,12 +95,12 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 	GDomListIterator it1(pContext);
 	m_contextDims = it1.remaining();
 	if(m_contextDims != m_pTransitionFunc->relLabels()->size())
-		ThrowError("invalid model");
+		throw Ex("invalid model");
 	GDomNode* pParamRanges = pNode->field("params");
 	GDomListIterator it2(pParamRanges);
 	m_paramDims = it2.remaining();
 	if(m_paramDims != (size_t)(m_pObservationFunc->relFeatures()->size() - m_contextDims))
-		ThrowError("invalid model");
+		throw Ex("invalid model");
 	m_pParamRanges = new size_t[m_paramDims];
 	for(size_t i = 0; i < m_paramDims; i++)
 	{
@@ -111,7 +111,7 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 	// Infer other stuff
 	m_actionDims = m_pTransitionFunc->relFeatures()->size() - m_contextDims;
 	if(m_actionDims < 0)
-		ThrowError("invalid model");
+		throw Ex("invalid model");
 	m_channels = m_pObservationFunc->relLabels()->size();
 	m_pixels = 1;
 	for(size_t i = 0; i < m_paramDims; i++)
@@ -241,7 +241,7 @@ void GRecurrentModel::trainTransitionFunction(GMatrix* pActions, GMatrix* pEstSt
 
 GMatrix* GRecurrentModel::joshuaEstimateState(GMatrix* pActions, GMatrix* pObservations)
 {
-ThrowError("out of order");/*
+throw Ex("out of order");/*
 	// Convert actions to a categorical distribution
 	GNominalToCat cat;
 	GMatrix* pActionsCat = cat.doit(*pActions);
@@ -315,7 +315,7 @@ ThrowError("out of order");/*
 		pH->setLabelTransform(new GNormalize(0.0, 1.0), true);
 		sp_relation pFeatureRel = new GUniformRelation(featureDims);
 		sp_relation pLabelRel = new GUniformRelation(m_channels);
-ThrowError("todo: do something about the mins and ranges");
+throw Ex("todo: do something about the mins and ranges");
 		pH->enableIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 
@@ -353,7 +353,7 @@ ThrowError("todo: do something about the mins and ranges");
 
 	// Create a visualization of the mask
 	if(m_paramDims != 2)
-		ThrowError("Expected image-based observations");
+		throw Ex("Expected image-based observations");
 	size_t frameCount = std::min((size_t)20, pObservations->rows());
 	GImage image;
 	image.setSize(m_pParamRanges[0] * 3, m_pParamRanges[1] * frameCount);
@@ -490,7 +490,7 @@ void GRecurrentModel::trainObservationFunctionIteratively(double dStart, GMatrix
 {
 	// Enable incremental learning
 	if(!m_pObservationFunc->canTrainIncrementally())
-		ThrowError("This is not an incremental learner");
+		throw Ex("This is not an incremental learner");
 	GIncrementalLearner* pObsLearner = (GIncrementalLearner*)m_pObservationFunc;
 	{
 		double* pMins = new double[2 * (m_paramDims + m_contextDims + m_channels)];
@@ -522,7 +522,7 @@ void GRecurrentModel::trainObservationFunctionIteratively(double dStart, GMatrix
 		}
 		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_contextDims);
 		sp_relation pLabelRel = new GUniformRelation(m_channels);
-ThrowError("todo: do something about the mins and ranges");
+throw Ex("todo: do something about the mins and ranges");
 		pObsLearner->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 
@@ -565,11 +565,11 @@ void GRecurrentModel::trainMoses(GMatrix* pActions, GMatrix* pObservations)
 {
 	// Consistency checks
 	if(pActions->rows() != pObservations->rows())
-		ThrowError("Expected the same number of rows");
+		throw Ex("Expected the same number of rows");
 	if(pActions->cols() != m_actionDims)
-		ThrowError("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
+		throw Ex("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
 	if(pObservations->cols() != m_obsDims)
-		ThrowError("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
+		throw Ex("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
 
 	// Estimate state
 	double dStart = GTime::seconds();
@@ -640,11 +640,11 @@ void GRecurrentModel::trainAaron(GMatrix* pActions, GMatrix* pObservations)
 {
 	// Consistency checks
 	if(pActions->rows() != pObservations->rows())
-		ThrowError("Expected the same number of rows");
+		throw Ex("Expected the same number of rows");
 	if(pActions->cols() != m_actionDims)
-		ThrowError("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
+		throw Ex("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
 	if(pObservations->cols() != m_obsDims)
-		ThrowError("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
+		throw Ex("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
 
 	// Init the context
 	GMatrix contextData(pActions->rows(), m_contextDims);
@@ -819,11 +819,11 @@ void GRecurrentModel::trainJoshua(GMatrix* pActions, GMatrix* pObservations)
 {
 	// Consistency checks
 	if(pActions->rows() != pObservations->rows())
-		ThrowError("Expected the same number of rows");
+		throw Ex("Expected the same number of rows");
 	if(pActions->cols() != m_actionDims)
-		ThrowError("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
+		throw Ex("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
 	if(pObservations->cols() != m_obsDims)
-		ThrowError("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
+		throw Ex("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
 
 	// Estimate state
 //	double dStart = GTime::seconds();
@@ -896,12 +896,12 @@ public:
 
 	size_t countWeights(GRecurrentModel* pModel)
 	{
-ThrowError("out of order"); /*
+throw Ex("out of order"); /*
 		GIncrementalLearner* pTrans = (GIncrementalLearner*)pModel->transitionFunc();
 		while(true)
 		{
 			if(!pTrans->canTrainIncrementally())
-				ThrowError("Expected a filter or a neural net");
+				throw Ex("Expected a filter or a neural net");
 			if(!pTrans->isFilter())
 				break;
 			pTrans = (GIncrementalLearner*)((GFilter*)pTrans)->modeler();
@@ -913,7 +913,7 @@ ThrowError("out of order"); /*
 		while(true)
 		{
 			if(!pObs->canTrainIncrementally())
-				ThrowError("Expected a filter or a neural net");
+				throw Ex("Expected a filter or a neural net");
 			if(!pObs->isFilter())
 				break;
 			pObs = (GIncrementalLearner*)((GFilter*)pObs)->modeler();
@@ -944,7 +944,7 @@ void GRecurrentModel::prepareForOptimization(GMatrix* pActions, GMatrix* pObserv
 {
 	// Enable incremental learning
 	if(!m_pTransitionFunc->canTrainIncrementally())
-		ThrowError("Expected an incremental learner");
+		throw Ex("Expected an incremental learner");
 	{
 		GMixedRelation* pMixedRel = new GMixedRelation();
 		sp_relation pFeatureRel = pMixedRel;
@@ -956,12 +956,12 @@ void GRecurrentModel::prepareForOptimization(GMatrix* pActions, GMatrix* pObserv
 		double* pRanges = pMins + pActions->cols() + m_contextDims + m_contextDims;
 		GVec::setAll(pMins, 0.0, pActions->cols() + m_contextDims + m_contextDims);
 		GVec::setAll(pRanges, 1.0, pActions->cols() + m_contextDims + m_contextDims);
-ThrowError("todo: do something about the mins and ranges");
+throw Ex("todo: do something about the mins and ranges");
 		((GIncrementalLearner*)m_pTransitionFunc)->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 
 	if(!m_pObservationFunc->canTrainIncrementally())
-		ThrowError("Expected an incremental learner");
+		throw Ex("Expected an incremental learner");
 	GIncrementalLearner* pObsLearner = (GIncrementalLearner*)m_pObservationFunc;
 	{
 		double* pMins = new double[2 * (m_paramDims + m_contextDims + m_channels)];
@@ -996,7 +996,7 @@ ThrowError("todo: do something about the mins and ranges");
 		}
 		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_contextDims);
 		sp_relation pLabelRel = new GUniformRelation(m_channels);
-ThrowError("todo: do something about the mins and ranges");
+throw Ex("todo: do something about the mins and ranges");
 		pObsLearner->beginIncrementalLearning(pFeatureRel, pLabelRel);
 	}
 }
@@ -1005,11 +1005,11 @@ void GRecurrentModel::trainEvolutionary(GMatrix* pActions, GMatrix* pObservation
 {
 	// Consistency checks
 	if(pActions->rows() != pObservations->rows())
-		ThrowError("Expected the same number of rows");
+		throw Ex("Expected the same number of rows");
 	if(pActions->cols() != m_actionDims)
-		ThrowError("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
+		throw Ex("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
 	if(pObservations->cols() != m_obsDims)
-		ThrowError("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
+		throw Ex("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
 
 	prepareForOptimization(pActions, pObservations);
 	GRecurrentModelTargetFunction tar(this, m_paramDims, m_pParamRanges, m_pRand, pObservations, pActions);
@@ -1048,11 +1048,11 @@ void GRecurrentModel::trainHillClimber(GMatrix* pActions, GMatrix* pObservations
 {
 	// Consistency checks
 	if(pActions->rows() != pObservations->rows())
-		ThrowError("Expected the same number of rows");
+		throw Ex("Expected the same number of rows");
 	if(pActions->cols() != m_actionDims)
-		ThrowError("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
+		throw Ex("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
 	if(pObservations->cols() != m_obsDims)
-		ThrowError("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
+		throw Ex("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
 
 	prepareForOptimization(pActions, pObservations);
 	GRecurrentModelTargetFunction tar(this, m_paramDims, m_pParamRanges, m_pRand, pObservations, pActions);
@@ -1099,13 +1099,13 @@ size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pOb
 {
 	// Consistency checks
 	if(pActions->rows() != pObservations->rows())
-		ThrowError("Expected the same number of rows");
+		throw Ex("Expected the same number of rows");
 	if(pActions->cols() != m_actionDims)
-		ThrowError("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
+		throw Ex("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
 	if(!pActions->relation()->areContinuous(0, pActions->cols()))
-		ThrowError("Expected continuous actions");
+		throw Ex("Expected continuous actions");
 	if(pObservations->cols() != m_obsDims)
-		ThrowError("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
+		throw Ex("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
 
 	m_transitionDelta = false;
 	GNeuralNet* pTransFunc = (GNeuralNet*)m_pTransitionFunc;
@@ -1355,17 +1355,17 @@ double GRecurrentModel::validate(vector<GMatrix*>& validationData, bool calibrat
 	double* pPrediction = new double[m_obsDims];
 	ArrayHolder<double> hPrediction(pPrediction);
 	if(validationData.size() & 1)
-		ThrowError("Expected an even number of datasets, one action set after each observation set");
+		throw Ex("Expected an even number of datasets, one action set after each observation set");
 	size_t count = 0;
 	m_multiplier = multiplier;
 	for(size_t j = 0; j < validationData.size() / 2; j++)
 	{
 		GMatrix* pDataObs = validationData[2 * j];
 		if(pDataObs->cols() != m_obsDims)
-			ThrowError("Wrong number of dims in the obs validation data at index ", to_str(2 * j));
+			throw Ex("Wrong number of dims in the obs validation data at index ", to_str(2 * j));
 		GMatrix* pDataAction = validationData[2 * j + 1];
 		if(pDataAction->cols() != m_actionDims)
-			ThrowError("Wrong number of dims in the action validation data at index ", to_str(2 * j + 1));
+			throw Ex("Wrong number of dims in the action validation data at index ", to_str(2 * j + 1));
 		GVec::setAll(m_pContext, 0.0, m_contextDims);
 		double err = 0.0;
 		for(size_t i = 0; i + 1 < pDataAction->rows(); i++)
@@ -1394,7 +1394,7 @@ double GRecurrentModel::validate(vector<GMatrix*>& validationData, bool calibrat
 double GRecurrentModel::quickValidate(GMatrix* pDataAction, GMatrix* pDataObs, size_t pixelSamples, double* paramArray, bool monotonic)
 {
 	if(m_paramDims != 2)
-		ThrowError("Sorry, this method is currently only implemented for 2 param dims");
+		throw Ex("Sorry, this method is currently only implemented for 2 param dims");
 	GVec::setAll(m_pContext, 0.0, m_contextDims);
 	double sse = 0;
 	GTEMPBUF(double, pObs, m_channels + pixelSamples);
@@ -1426,22 +1426,22 @@ GImage* GRecurrentModel::frames(GMatrix* pDataAction, GMatrix* pDataObs, bool ca
 {
 	// Allocate the image
 	if(pDataObs && pDataAction->rows() != pDataObs->rows())
-		ThrowError("Expected same number of rows");
+		throw Ex("Expected same number of rows");
 	if(m_paramDims != 2)
-		ThrowError("Expected 2 params (x and y)");
+		throw Ex("Expected 2 params (x and y)");
 	if(frameWidth < m_pParamRanges[0])
-		ThrowError("Expected frameWidth to be at least ", to_str(m_pParamRanges[0]));
+		throw Ex("Expected frameWidth to be at least ", to_str(m_pParamRanges[0]));
 	if(frameWidth % m_pParamRanges[0] != 0)
-		ThrowError("Expected frameWidth to be a multiply of ", to_str(m_pParamRanges[0]));
+		throw Ex("Expected frameWidth to be a multiply of ", to_str(m_pParamRanges[0]));
 	if(m_channels != 3)
-		ThrowError("Expected 3 channels");
+		throw Ex("Expected 3 channels");
 	if(m_pObservationFunc->relLabels()->size() != m_channels)
-		ThrowError("Something is wrong");
+		throw Ex("Something is wrong");
 	if(calibrateContext && !pDataObs)
-		ThrowError("Cannot calibrate if observations are not given");
+		throw Ex("Cannot calibrate if observations are not given");
 	double prediction[3];
 	if(pDataObs && (size_t)pDataObs->cols() != m_pParamRanges[0] * m_pParamRanges[1] * m_channels)
-		ThrowError("observation cols don't match specified parameters");
+		throw Ex("observation cols don't match specified parameters");
 	unsigned int frameHeight = (unsigned int)(frameWidth / m_pParamRanges[0] * m_pParamRanges[1]);
 	unsigned int imageHeight = (unsigned int)(frameHeight * ((pDataAction->rows() - 1) / stepsPerImage));
 	GImage* pImage = new GImage();
@@ -1527,9 +1527,9 @@ GManifoldDynamicsLearner::GManifoldDynamicsLearner(sp_relation& pRelation, int a
 	m_shortTermMemory.reserve(shortTermMemorySize);
 	int actionCount = m_pActionIterator->actionCount();
 	if(actionCount > 200)
-		ThrowError("Sorry, only small discrete numbers of actions are supported by this algorithm");
+		throw Ex("Sorry, only small discrete numbers of actions are supported by this algorithm");
 	if(m_contextDims > m_senseDims)
-		ThrowError("Sorry, context dims must be smaller than sense dims");
+		throw Ex("Sorry, context dims must be smaller than sense dims");
 	m_shortTermMemory.newRows(shortTermMemorySize);
 	double* pCurPat = m_shortTermMemory.row(m_shortTermMemoryPos);
 	GVec::setAll(pCurPat, UNKNOWN_REAL_VALUE, m_senseDims + m_actionDims);
@@ -1738,7 +1738,7 @@ void GManifoldDynamicsLearner::doAction(const double* pActions)
 		for(action = 0; true; action++)
 		{
 			if(!m_pActionIterator->nextAction(m_pBuf))
-				ThrowError("action not found");
+				throw Ex("action not found");
 			if(GVec::squaredDistance(m_pBuf, pActions, m_actionDims) < 0.5)
 				break;
 		}
@@ -1789,7 +1789,7 @@ void GManifoldDynamicsLearner::predict(double* pSenses)
 void GManifoldDynamicsLearner::calibrate(const double* pSenses)
 {
 	if(!m_contextStack.empty())
-		ThrowError("You're not supposed to call this method when the context stack is not empty");
+		throw Ex("You're not supposed to call this method when the context stack is not empty");
 
 	// Remember the observations
 	double* pCurPat = m_shortTermMemory.row(m_shortTermMemoryPos);
@@ -1831,7 +1831,7 @@ GTemporalInstanceLearner::GTemporalInstanceLearner(sp_relation& pRelation, int a
 {
 	m_actionCount = pRelation->valueCount(pRelation->size() - 1);
 	if(actionDims != 1 || m_actionCount == 0)
-		ThrowError("Expected exactly 1 nominal action dimension");
+		throw Ex("Expected exactly 1 nominal action dimension");
 	m_balance = 0.5;
 	m_pActionIterator = new GDiscreteActionIterator(m_actionCount);
 	m_shortTermMemory.newRows(shortTermMemorySize);

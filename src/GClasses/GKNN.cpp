@@ -181,7 +181,7 @@ GDomNode* GKNN::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GKNN");
 	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_nNeighbors));
 	if(m_eInterpolationMethod == Learner)
-		ThrowError("Sorry, serialize is not supported for the \"Learner\" interpolation method");
+		throw Ex("Sorry, serialize is not supported for the \"Learner\" interpolation method");
 	pNode->addField(pDoc, "interpMethod", pDoc->newInt(m_eInterpolationMethod));
 	pNode->addField(pDoc, "trainMethod", pDoc->newInt(m_eTrainMethod));
 	pNode->addField(pDoc, "trainParam", pDoc->newDouble(m_trainParam));
@@ -241,7 +241,7 @@ void GKNN::setNeighborCount(size_t k)
 void GKNN::setInterpolationMethod(InterpolationMethod eMethod)
 {
 	if(eMethod == Learner)
-		ThrowError("You should call SetInterpolationLearner instead");
+		throw Ex("You should call SetInterpolationLearner instead");
 	m_eInterpolationMethod = eMethod;
 }
 
@@ -326,11 +326,11 @@ void GKNN::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& 
 	else if(m_pSparseMetric)
 	{
 		if(!pFeatureRel->areContinuous(0, pFeatureRel->size()))
-			ThrowError("Sorry, nominal features cannot be used in conjunction with sparse metrics");
+			throw Ex("Sorry, nominal features cannot be used in conjunction with sparse metrics");
 		m_pSparseFeatures = new GSparseMatrix(0, pFeatureRel->size(), UNKNOWN_REAL_VALUE);
 	}
 	else
-		ThrowError("Some sort of distance or similarity metric is required");
+		throw Ex("Some sort of distance or similarity metric is required");
 
 	m_pLabels = new GMatrix(pLabelRel);
 
@@ -376,7 +376,7 @@ void GKNN::trainIncrementalInner(const double* pIn, const double* pOut)
 void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 {
 	if(m_pSparseMetric)
-		ThrowError("This method is not compatible with sparse similarity metrics. You should either use trainSparse instead, or use a dense dissimilarity metric.");
+		throw Ex("This method is not compatible with sparse similarity metrics. You should either use trainSparse instead, or use a dense dissimilarity metric.");
 	beginIncrementalLearningInner(features.relation(), labels.relation());
 
 	// Give each attribute an equal chance by scaling out the deviation
@@ -410,7 +410,7 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 	}
 	else if(m_eTrainMethod == ValidationPrune)
 	{
-		ThrowError("Sorry, this training method is not implemented yet");
+		throw Ex("Sorry, this training method is not implemented yet");
 	}
 	else if(m_eTrainMethod == DrawRandom)
 	{
@@ -445,9 +445,9 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 void GKNN::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
 	if(features.rows() != labels.rows())
-		ThrowError("Expected the features and labels to have the same number of rows");
+		throw Ex("Expected the features and labels to have the same number of rows");
 	if(m_pDistanceMetric)
-		ThrowError("This method is not compatible with dense dissimilarity metrics. You should either use the train method instead, or use a sparse similarity metric.");
+		throw Ex("This method is not compatible with dense dissimilarity metrics. You should either use the train method instead, or use a sparse similarity metric.");
 	if(!m_pSparseMetric)
 		setMetric(new GCosineSimilarity(), true);
 	sp_relation pFeatureRel = new GUniformRelation(features.cols(), 0);
@@ -474,7 +474,7 @@ void GKNN::findNeighbors(const double* pVector)
 	else
 	{
 		if(!m_pSparseMetric)
-			ThrowError("train, trainSparse, or beginIncrementalLearning must be called before this method");
+			throw Ex("train, trainSparse, or beginIncrementalLearning must be called before this method");
 		multimap<double,size_t> priority_queue;
 		for(size_t i = 0; i < m_pSparseFeatures->rows(); i++)
 		{
@@ -558,7 +558,7 @@ void GKNN::interpolateMean(const double* pIn, GPrediction* pOut, double* pOut2)
 					double* pNeighbor = m_pLabels->row(k);
 					int val = (int)pNeighbor[i];
 					if(val < 0 || val >= (int)nValueCount)
-						ThrowError("GKNN doesn't support unknown label values");
+						throw Ex("GKNN doesn't support unknown label values");
 					m_pValueCounts[val]++;
 				}
 			}
@@ -587,7 +587,7 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 				{
 					double* pNeighbor = m_pLabels->row(k);
 					if(pNeighbor[i] == UNKNOWN_REAL_VALUE)
-						ThrowError("GKNN doesn't support unknown label values");
+						throw Ex("GKNN doesn't support unknown label values");
 					double d = 1.0 / std::max(sqrt(m_pEvalDistances[j]), 1e-9); // the weight
 					dTot += d;
 					d *= pNeighbor[i]; // weighted sum
@@ -629,7 +629,7 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 					double d = 1.0 / std::max(m_pEvalDistances[j], 1e-9); // to be truly "linear", we should use sqrt(d) instead of d, but this is faster to compute and arguably better for nominal values anyway
 					int val = (int)pNeighbor[i];
 					if(val < 0 || val >= nValueCount)
-						ThrowError("GKNN doesn't support unknown label values");
+						throw Ex("GKNN doesn't support unknown label values");
 					m_pValueCounts[val] += d;
 					dSumWeight += d;
 				}
@@ -892,14 +892,14 @@ GInstanceTable::~GInstanceTable()
 // virtual
 GDomNode* GInstanceTable::serialize(GDom* pDoc) const
 {
-	ThrowError("not implemented yet");
+	throw Ex("not implemented yet");
 	return NULL;
 }
 
 // virtual
 void GInstanceTable::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
-	ThrowError("Sorry, trainSparse is not implemented yet in GInstanceTable");
+	throw Ex("Sorry, trainSparse is not implemented yet in GInstanceTable");
 }
 
 // virtual
@@ -913,7 +913,7 @@ void GInstanceTable::trainInner(GMatrix& features, GMatrix& labels)
 // virtual
 void GInstanceTable::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
-	ThrowError("Sorry, this model cannot predict a distribution");
+	throw Ex("Sorry, this model cannot predict a distribution");
 }
 
 // virtual
@@ -924,7 +924,7 @@ void GInstanceTable::predictInner(const double* pIn, double* pOut)
 	{
 		size_t n = (size_t)floor(pIn[i] + 0.5);
 		if(n >= m_pDims[i])
-			ThrowError("dim=", to_str(i), ", index=", to_str(pIn[i]), ", out of range. Expected >= 0 and < ", to_str(m_pDims[i]));
+			throw Ex("dim=", to_str(i), ", index=", to_str(pIn[i]), ", out of range. Expected >= 0 and < ", to_str(m_pDims[i]));
 		pos += n * m_pScales[i];
 	}
 	size_t labelDims = m_pRelLabels->size();
@@ -962,7 +962,7 @@ void GInstanceTable::trainIncrementalInner(const double* pIn, const double* pOut
 	{
 		size_t n = (size_t)floor(pIn[i] + 0.5);
 		if(n >= m_pDims[i])
-			ThrowError("dim=", to_str(i), ", index=", to_str(pIn[i]), ", out of range. Expected >= 0 and < ", to_str(m_pDims[i]));
+			throw Ex("dim=", to_str(i), ", index=", to_str(pIn[i]), ", out of range. Expected >= 0 and < ", to_str(m_pDims[i]));
 		pos += n * m_pScales[i];
 	}
 	size_t labelDims = m_pRelLabels->size();

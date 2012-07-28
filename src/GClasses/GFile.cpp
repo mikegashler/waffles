@@ -53,7 +53,7 @@ bool GFile::doesDirExist(const char *szDir)
 	char* pCurDir = getcwd(szBuff, 255);
 	int nVal = chdir(szDir);
 	if(chdir(pCurDir) != 0)
-		ThrowError("Failed to restore current dir");
+		throw Ex("Failed to restore current dir");
 	return(nVal == 0);
 }
 
@@ -146,7 +146,7 @@ void GFile::fileList(std::vector<std::string>& list, const char* dir)
 	{
 		if(GetLastError() == ERROR_FILE_NOT_FOUND)
 			return;
-		ThrowError("Failed to open dir: ", dir);
+		throw Ex("Failed to open dir: ", dir);
 	}
 	do
 	{
@@ -163,7 +163,7 @@ void GFile::fileList(std::vector<std::string>& list, const char* dir)
 #else
 	DIR* pDir = opendir(dir);
 	if(!pDir)
-		ThrowError("Failed to open dir: ", dir);
+		throw Ex("Failed to open dir: ", dir);
 	while(true)
 	{
 		struct dirent *pDirent = readdir(pDir);
@@ -177,7 +177,7 @@ void GFile::fileList(std::vector<std::string>& list, const char* dir)
 			if(lstat(pDirent->d_name, &st) != 0)
 			{
 				closedir(pDir);
-				ThrowError("Failed to lstat file: ", pDirent->d_name);
+				throw Ex("Failed to lstat file: ", pDirent->d_name);
 			}
 			if(st.st_mode & S_IFDIR)
 				pDirent->d_type = DT_DIR;
@@ -206,7 +206,7 @@ void GFile::folderList(std::vector<std::string>& list, const char* dir, bool exc
 	{
 		if(GetLastError() == ERROR_FILE_NOT_FOUND)
 			return;
-		ThrowError("Failed to open dir: ", dir);
+		throw Ex("Failed to open dir: ", dir);
 	}
 	do
 	{
@@ -221,7 +221,7 @@ void GFile::folderList(std::vector<std::string>& list, const char* dir, bool exc
 #else
 	DIR* pDir = opendir(dir);
 	if(!pDir)
-		ThrowError("Failed to open dir: ", dir);
+		throw Ex("Failed to open dir: ", dir);
 	while(true)
 	{
 		struct dirent *pDirent = readdir(pDir);
@@ -235,7 +235,7 @@ void GFile::folderList(std::vector<std::string>& list, const char* dir, bool exc
 			if(lstat(pDirent->d_name, &st) != 0)
 			{
 				closedir(pDir);
-				ThrowError("Failed to lstat file: ", pDirent->d_name);
+				throw Ex("Failed to lstat file: ", pDirent->d_name);
 			}
 			if(st.st_mode & S_IFDIR)
 				pDirent->d_type = DT_DIR;
@@ -277,9 +277,9 @@ bool GFile::copyFile(const char* szSrcPath, const char* szDestPath)
 	{
 		nChunkSize = std::min(nFileSize, 1024);
 		if(fread(szBuf, nChunkSize, 1, pSrc) != 1)
-			ThrowError("Error reading");
+			throw Ex("Error reading");
 		if(fwrite(szBuf, nChunkSize, 1, pDest) != 1)
-			ThrowError("Error writing");
+			throw Ex("Error writing");
 		nFileSize -= nChunkSize;
 	}
 	fclose(pSrc);
@@ -337,9 +337,9 @@ bool GFile::localStorageDirectory(char *toHere)
 	catch(const std::exception&)
 	{
 		if(GFile::doesFileExist(szFilename))
-			ThrowError("Error while trying to open the existing file: ", szFilename);
+			throw Ex("Error while trying to open the existing file: ", szFilename);
 		else
-			ThrowError("File not found: ", szFilename);
+			throw Ex("File not found: ", szFilename);
 	}
 	char* pBuf = new char[*pnSize + 1];
 	ArrayHolder<char> hBuf(pBuf);
@@ -358,7 +358,7 @@ bool GFile::localStorageDirectory(char *toHere)
 	}
 	catch(const std::exception&)
 	{
-		ThrowError("Error creating file: ", szFilename);
+		throw Ex("Error creating file: ", szFilename);
 	}
 	s.write(pBuf, size);
 }
@@ -755,23 +755,23 @@ unsigned int uncompressWorker(unsigned char* pIn, unsigned int inLen, unsigned c
 {
 	// Read the key size
 	if(inLen < sizeof(unsigned char))
-		ThrowError("invalid data");
+		throw Ex("invalid data");
 	unsigned int keySize = (unsigned int)*pIn;
 	pIn++;
 	inLen--;
 
 	// Read the piece size
 	if(inLen < sizeof(unsigned char))
-		ThrowError("invalid data");
+		throw Ex("invalid data");
 	unsigned int pieceSize = (unsigned int)*pIn;
 	pIn++;
 	inLen--;
 	if(keySize >= pieceSize)
-		ThrowError("invalid data");
+		throw Ex("invalid data");
 
 	// Read the number of table entries
 	if(inLen < sizeof(unsigned short))
-		ThrowError("invalid data");
+		throw Ex("invalid data");
 	unsigned int origLen = inLen;
 	unsigned short keyCount = *(unsigned short*)pIn;
 	pIn += sizeof(unsigned short);
@@ -783,7 +783,7 @@ unsigned int uncompressWorker(unsigned char* pIn, unsigned int inLen, unsigned c
 	for(unsigned short i = 0; i < keyCount; i++)
 	{
 		if(inLen < keySize + pieceSize)
-			ThrowError("invalid data");
+			throw Ex("invalid data");
 		unsigned char* pKey = pIn;
 		pIn += keySize;
 		inLen -= keySize;
@@ -805,7 +805,7 @@ unsigned int uncompressWorker(unsigned char* pIn, unsigned int inLen, unsigned c
 		if(it == table.end())
 		{
 			if(outLen < 1)
-				ThrowError("invalid data");
+				throw Ex("invalid data");
 			*(pOut++) = *(pIn++);
 			inLen--;
 			outLen--;
@@ -814,7 +814,7 @@ unsigned int uncompressWorker(unsigned char* pIn, unsigned int inLen, unsigned c
 		else
 		{
 			if(outLen < pieceSize)
-				ThrowError("invalid data");
+				throw Ex("invalid data");
 			memcpy(pOut, it->second, pieceSize);
 			pIn += keySize;
 			inLen -= keySize;
@@ -824,7 +824,7 @@ unsigned int uncompressWorker(unsigned char* pIn, unsigned int inLen, unsigned c
 		}
 	}
 	if(newLen <= origLen)
-		ThrowError("invalid data");
+		throw Ex("invalid data");
 	return newLen;
 }
 
@@ -832,18 +832,18 @@ unsigned int uncompressWorker(unsigned char* pIn, unsigned int inLen, unsigned c
 unsigned char* GCompressor::uncompress(unsigned char* pIn, unsigned int len, unsigned int* pOutUncompressedLen)
 {
 	if(len < sizeof(unsigned int))
-		ThrowError("invalid data");
+		throw Ex("invalid data");
 	unsigned int origLen = *(unsigned int*)pIn;
 	pIn += sizeof(unsigned int);
 	len -= sizeof(unsigned int);
 	if(len < sizeof(unsigned char))
-		ThrowError("invalid data");
+		throw Ex("invalid data");
 	if(*pIn == '\0')
 	{
 		pIn++;
 		len--;
 		if(len != origLen)
-			ThrowError("invalid data");
+			throw Ex("invalid data");
 		unsigned char* pOut = new unsigned char[len];
 		memcpy(pOut, pIn, len);
 		*pOutUncompressedLen = len;
@@ -857,9 +857,9 @@ unsigned char* GCompressor::uncompress(unsigned char* pIn, unsigned int len, uns
 	{
 		unsigned int newLen = uncompressWorker(pCur, len, pOut, origLen);
 		if(newLen <= len)
-			ThrowError("invalid data");
+			throw Ex("invalid data");
 		if(newLen > origLen)
-			ThrowError("invalid data");
+			throw Ex("invalid data");
 		if(newLen == origLen)
 			break;
 		if(pCur == pIn)
@@ -887,14 +887,14 @@ void GCompressor::test()
 	unsigned char* pCompressed = GCompressor::compress((unsigned char*)szTest, len, &compressedLen);
 	ArrayHolder<unsigned char> hCompressed(pCompressed);
 	if(compressedLen >= len)
-		ThrowError("failed to compress");
+		throw Ex("failed to compress");
 	unsigned int finalLen;
 	unsigned char* pFinal = GCompressor::uncompress(pCompressed, compressedLen, &finalLen);
 	ArrayHolder<unsigned char> hFinal(pFinal);
 	if(finalLen != len)
-		ThrowError("failed to uncompress");
+		throw Ex("failed to uncompress");
 	if(memcmp(szTest, pFinal, len) != 0)
-		ThrowError("not the same");
+		throw Ex("not the same");
 }
 #endif
 

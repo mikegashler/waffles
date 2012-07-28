@@ -90,7 +90,7 @@ void GManifold::computeNeighborWeights(GMatrix* pData, size_t point, size_t k, c
 // 	for(size_t i = 0; i < pSquare->rows(); i++)
 // 		pOutWeights[i] = 1;
 // 	if(!pSquare->gaussianElimination(pOutWeights))
-// 		ThrowError("Failed to find a solution in computeNeighborWeights");
+// 		throw Ex("Failed to find a solution in computeNeighborWeights");
 
 	// Compute the weights the SVD way
 	GMatrix* pInv = pSquare->pseudoInverse();
@@ -149,7 +149,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 	size_t rowCount = pA->rows();
 	size_t colCount = pA->cols();
 	if(pB->rows() != rowCount || pB->cols() != colCount)
-		ThrowError("mismatching sizes");
+		throw Ex("mismatching sizes");
 
 	// Blend the seed neighborhood
 	GMatrix* pC = new GMatrix(rowCount, colCount);
@@ -251,7 +251,7 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 {
 	size_t n = pDistances->rows();
 	if((size_t)pDistances->cols() != n)
-		ThrowError("Expected a square and symmetric distance matrix");
+		throw Ex("Expected a square and symmetric distance matrix");
 
 	// Square every element in the distance matrix (unless it's already squared) and ensure symmetry
 	GMatrix* pD = new GMatrix(pDistances->relation());
@@ -306,7 +306,7 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 	GMatrix* pEigs = pD->eigs(std::min(n, targetDims), pEigenVals, pRand, true);
 	if(n < (size_t)targetDims)
 	{
-		ThrowError("targetDims cannot be larger than the number of rows or columns in the distance matrix");
+		throw Ex("targetDims cannot be larger than the number of rows or columns in the distance matrix");
 /*
 		for(size_t i = n; i < targetDims; i++)
 			pEigenVals[i] = 0.0;
@@ -355,7 +355,7 @@ void GManifold_testMultiDimensionalScaling()
 			double expected = sqrt(GVec::squaredDistance(foo.row(i), foo.row(j), 2));
 			double actual = sqrt(GVec::squaredDistance(pMDS->row(i), pMDS->row(j), 2));
 			if(std::abs(expected - actual) > 1e-5)
-				ThrowError("failed");
+				throw Ex("failed");
 		}
 	}
 }
@@ -484,7 +484,7 @@ void GManifoldSculpting::beginTransform(GMatrix* pRealSpaceData)
 {
 	m_nDimensions = pRealSpaceData->cols();
 	if(!pRealSpaceData->relation()->areContinuous(0, m_nDimensions))
-		ThrowError("Only continuous values are supported");
+		throw Ex("Only continuous values are supported");
 
 	// Calculate metadata
 	calculateMetadata(pRealSpaceData);
@@ -494,9 +494,9 @@ void GManifoldSculpting::beginTransform(GMatrix* pRealSpaceData)
 	{
 		// Check the supplied pre-processed data
 		if(m_pData->rows() != pRealSpaceData->rows())
-			ThrowError("Preprocessed data has wrong number of points");
+			throw Ex("Preprocessed data has wrong number of points");
 		if(m_pData->relation()->size() < (size_t)m_nTargetDims)
-			ThrowError("Preprocessed data has too few dimensions");
+			throw Ex("Preprocessed data has too few dimensions");
 	}
 	else
 	{
@@ -552,9 +552,9 @@ void GManifoldSculpting::calculateMetadata(GMatrix* pData)
 		if(pNF)
 		{
 			if(pNF->data() != pData)
-				ThrowError("Data mismatch");
+				throw Ex("Data mismatch");
 			if(pNF->neighborCount() != (size_t)m_nNeighbors)
-				ThrowError("mismatching numbers of neighbors");
+				throw Ex("mismatching numbers of neighbors");
 		}
 		else
 		{
@@ -828,7 +828,7 @@ void GManifoldSculpting::moveMeanToOrigin()
 double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
 {
 	if(!m_pMetaData)
-		ThrowError("You must call BeginTransform before calling this method");
+		throw Ex("You must call BeginTransform before calling this method");
 	struct GManifoldSculptingNeighbor* pPoint;
 	struct GManifoldSculptingStuff* pStuff;
 
@@ -961,7 +961,7 @@ GMatrix* GIsomap::doit(GMatrix& in)
 	if(!graph.isConnected())
 	{
 		if(!m_dropDisconnectedPoints)
-			ThrowError("The local neighborhoods do not form a connected graph. Increasing the neighbor count may be a good solution. Another solution is to specify to dropDisconnectedPoints.");
+			throw Ex("The local neighborhoods do not form a connected graph. Increasing the neighbor count may be a good solution. Another solution is to specify to dropDisconnectedPoints.");
 		GMatrix* pCM = graph.costMatrix();
 		size_t c = pCM->cols();
 		while(true)
@@ -1287,7 +1287,7 @@ GDomNode* GBreadthFirstUnfolding::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
 	pNode->addField(pDoc, "useMds", pDoc->newBool(m_useMds));
 	if(m_pNF)
-		ThrowError("sorry, serializing a neighbor finder is not yet implemented");
+		throw Ex("sorry, serializing a neighbor finder is not yet implemented");
 	return pNode;
 }
 
@@ -1420,7 +1420,7 @@ void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootInde
 		if(iters == 0)
 			firstErr = err;
 		else if(iters == 29 && err > firstErr)
-			ThrowError("made it worse");
+			throw Ex("made it worse");
 	}
 }
 
@@ -1745,7 +1745,7 @@ double GNeuroPCA::computeSumSquaredErr(GMatrix* pIn, GMatrix* pOut, size_t cols)
 GMatrix* GNeuroPCA::doit(GMatrix& in)
 {
 	if(!in.relation()->areContinuous(0, in.cols()))
-		ThrowError("GNeuroPCA doesn't support nominal values. You should filter with nominaltocat to make them real.");
+		throw Ex("GNeuroPCA doesn't support nominal values. You should filter with nominaltocat to make them real.");
 	delete(m_pWeights);
 	m_pWeights = new GMatrix(in.relation());
 	m_pWeights->newRows(1 + m_targetDims); // the first row holds the biases
@@ -1758,7 +1758,7 @@ GMatrix* GNeuroPCA::doit(GMatrix& in)
 		{
 			double mean = in.mean(i);
 			if((mean < m_pActivation->center() - m_pActivation->halfRange()) || (mean > m_pActivation->center() + m_pActivation->halfRange()))
-				ThrowError("The data is expected to fall within the range of the activation function");
+				throw Ex("The data is expected to fall within the range of the activation function");
 			*(pBiases++) = m_pActivation->inverse(mean);
 		}
 	}
@@ -1801,7 +1801,7 @@ GDynamicSystemStateAligner::GDynamicSystemStateAligner(size_t neighbors, GMatrix
 : GTransform(), m_neighbors(neighbors), m_inputs(inputs), m_rand(rand)
 {
 	if(!inputs.relation()->areContinuous(0, inputs.cols()))
-		ThrowError("Only continuous attributes are supported");
+		throw Ex("Only continuous attributes are supported");
 	m_seedA = (size_t)m_rand.next(inputs.rows());
 	m_seedB = (size_t)m_rand.next(inputs.rows() - 1);
 	if(m_seedB >= m_seedA)
@@ -1827,9 +1827,9 @@ void GDynamicSystemStateAligner::setSeeds(size_t a, size_t b)
 GMatrix* GDynamicSystemStateAligner::doit(GMatrix& in)
 {
 	if(!in.relation()->areContinuous(0, in.cols()))
-		ThrowError("Only continuous attributes are supported");
+		throw Ex("Only continuous attributes are supported");
 	if(in.rows() != m_inputs.rows())
-		ThrowError("Expected pIn to have the same number of rows as the inputs");
+		throw Ex("Expected pIn to have the same number of rows as the inputs");
 	if(in.rows() < 6)
 		return in.clone();
 
@@ -2040,16 +2040,16 @@ void GDynamicSystemStateAligner::test()
 		if(alt)
 		{
 			if(std::abs(pStateOut->row(i)[0] - x2) > 0.6)
-				ThrowError("failed");
+				throw Ex("failed");
 			if(std::abs(pStateOut->row(i)[1] - y2) > 0.6)
-				ThrowError("failed");
+				throw Ex("failed");
 		}
 		else
 		{
 			if(std::abs(pStateOut->row(i)[0] - x1) > 0.6)
-				ThrowError("failed");
+				throw Ex("failed");
 			if(std::abs(pStateOut->row(i)[1] - y1) > 0.6)
-				ThrowError("failed");
+				throw Ex("failed");
 		}
 		size_t action = GVec::indexOfMax(inputs[i], 4, &prng);
 		double dx = 0;
@@ -2324,7 +2324,7 @@ void GUnsupervisedBackProp::setParams(vector<size_t>& paramRanges)
 void GUnsupervisedBackProp::setIntrinsic(GMatrix* pIntrinsic)
 {
 	if(pIntrinsic->cols() != m_intrinsicDims)
-		ThrowError("Expected ", to_str(m_intrinsicDims), " cols. Got ", to_str(pIntrinsic->cols()));
+		throw Ex("Expected ", to_str(m_intrinsicDims), " cols. Got ", to_str(pIntrinsic->cols()));
 	delete(m_pIntrinsic);
 	m_pIntrinsic = pIntrinsic;
 }
@@ -2344,7 +2344,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		pixels *= m_pParamRanges[i];
 	size_t channels = in.cols() / pixels;
 	if((pixels * channels) != (size_t)in.cols())
-		ThrowError("params don't line up");
+		throw Ex("params don't line up");
 
 	// Compute the mins and ranges
 	delete[] m_pMins;
@@ -2381,9 +2381,9 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	if(m_pJitterer)
 	{
 		if(m_paramDims != 2)
-			ThrowError("An image jitterer can only be used in conjunction with 2 param dims");
+			throw Ex("An image jitterer can only be used in conjunction with 2 param dims");
 		if(channels != m_pJitterer->channels() || m_pParamRanges[0] != m_pJitterer->wid() || m_pParamRanges[1] != m_pJitterer->hgt())
-			ThrowError("The image jitterer was constructed with mismatching parameters");
+			throw Ex("The image jitterer was constructed with mismatching parameters");
 		m_jitterDims = 4;
 	}
 	sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_jitterDims + m_intrinsicDims);
@@ -2599,9 +2599,9 @@ void GUnsupervisedBackProp::hiToLow(const double* pIn, double* pOut)
 
 	// Init
 	if(!m_pNN->hasTrainingBegun())
-		ThrowError("Not trained");
+		throw Ex("Not trained");
 	if(m_pNN->relFeatures()->size() != m_paramDims + m_jitterDims + m_intrinsicDims)
-		ThrowError("Incorrect number of inputs Expected ", to_str(m_paramDims + m_jitterDims + m_intrinsicDims), ", got ", to_str(m_pNN->relFeatures()->size()));
+		throw Ex("Incorrect number of inputs Expected ", to_str(m_paramDims + m_jitterDims + m_intrinsicDims), ", got ", to_str(m_pNN->relFeatures()->size()));
 
 	// Use the reverse map
 	double* pParams = new double[m_paramDims + m_jitterDims + m_intrinsicDims];
@@ -2683,7 +2683,7 @@ double* GUnsupervisedBackProp::mins()
 	if(!m_pMins)
 	{
 		if(!m_pNN)
-			ThrowError("No neural net has been set");
+			throw Ex("No neural net has been set");
 		m_pMins = new double[m_pNN->relLabels()->size()];
 	}
 	return m_pMins;
@@ -2694,7 +2694,7 @@ double* GUnsupervisedBackProp::ranges()
 	if(!m_pRanges)
 	{
 		if(!m_pNN)
-			ThrowError("No neural net has been set");
+			throw Ex("No neural net has been set");
 		m_pRanges = new double[m_pNN->relLabels()->size()];
 	}
 	return m_pRanges;

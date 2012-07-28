@@ -240,7 +240,7 @@ void GNeighborFinderCacheWrapper::patchMissingSpots(GRand* pRand)
 	for(size_t i = 0; i < rowCount; i++)
 	{
 		if(*pCache == m_pData->rows())
-			ThrowError("cache not filled out");
+			throw Ex("cache not filled out");
 		for(size_t j = 0; j < m_neighborCount; j++)
 		{
 			if(pCache[j] >= m_pData->rows())
@@ -261,7 +261,7 @@ void GNeighborFinderCacheWrapper::patchMissingSpots(GRand* pRand)
 					}
 				}
 				if(pCache[l] >= m_pData->rows())
-					ThrowError("row has zero valid neighbors");
+					throw Ex("row has zero valid neighbors");
 				if(pDissims)
 					pDissims[j] = pDissims[l];
 				pCache[j] = pCache[l];
@@ -281,7 +281,7 @@ void GNeighborFinderCacheWrapper::normalizeDistances()
 	for(size_t i = 0; i < rowCount; i++)
 	{
 		if(*pCache == m_pData->rows())
-			ThrowError("cache not filled out");
+			throw Ex("cache not filled out");
 		for(size_t j = 0; j < m_neighborCount; j++)
 		{
 			pDissims[j] = sqrt(pDissims[j]);
@@ -463,7 +463,7 @@ public:
 			for(size_t j = 0; j < std::min((size_t)TEST_NEIGHBOR_COUNT, values1.rows()); j++)
 			{
 				if(std::abs(values1[j][0] - values2[j][0]) > 1e-12)
-					ThrowError("something is wrong");
+					throw Ex("something is wrong");
 			}
 		}
 	}
@@ -1154,7 +1154,7 @@ double GKdTree::medianDistanceToNeighbor(GMatrix& data, size_t n)
 
 	// Find the median value
 	if(vals.size() < 1)
-		ThrowError("at least one value is required to compute a median");
+		throw Ex("at least one value is required to compute a median");
 	if(vals.size() & 1)
 	{
 		vector<double>::iterator med = vals.begin() + (vals.size() / 2);
@@ -1258,7 +1258,7 @@ public:
 
 	virtual GDomNode* serialize(GDom* pDoc) const
 	{
-		ThrowError("not implemented");
+		throw Ex("not implemented");
 		return NULL;
 	}
 
@@ -1271,7 +1271,7 @@ public:
 	{
 		double squaredDist = GVec::squaredDistance(pA, pB, m_pRelation->size());
 		if(squaredDist > m_squaredMaxDist)
-			ThrowError("a kd-tree shouldn't have to look this far away");
+			throw Ex("a kd-tree shouldn't have to look this far away");
 		return squaredDist;
 	}
 };
@@ -1342,7 +1342,7 @@ void GKdTree::test()
 		for(size_t j = 0; j < TEST_DIMS; j++)
 		{
 			if(bfNeighbors[j] != kdNeighbors[j])
-				ThrowError("wrong answer!");
+				throw Ex("wrong answer!");
 		}
 	}
 }
@@ -1453,7 +1453,7 @@ size_t GShortcutPruner::prune()
 		size_t oldCuts = m_cuts;
 		g.compute();
 		if(everyNodeReachable && !isEveryNodeReachable())
-			ThrowError("Cutting shortcuts should not segment the graph");
+			throw Ex("Cutting shortcuts should not segment the graph");
 		if(m_cuts == oldCuts)
 			break;
 	}
@@ -1556,7 +1556,7 @@ void GShortcutPruner::onDetectBigAtomicCycle(vector<size_t>& cycle)
 		}
 	}
 	if(!cutForward && !cutReverse)
-		ThrowError("Failed to find the offending edge");
+		throw Ex("Failed to find the offending edge");
 }
 
 #ifndef NO_TEST_CODE
@@ -1597,13 +1597,13 @@ void GShortcutPruner::test()
 	pruner.setSubGraphRange(3);
 	size_t cuts = pruner.prune();
 	if(pNeighbors[(0 * w + 0) * k + 0] != INVALID_INDEX)
-		ThrowError("missed a shortcut");
+		throw Ex("missed a shortcut");
 	if(pNeighbors[(0 * w + (w - 1)) * k + 1] != INVALID_INDEX)
-		ThrowError("missed a shortcut");
+		throw Ex("missed a shortcut");
 	if(pNeighbors[((h - 1) * w + (w - 1)) * k + 0] != INVALID_INDEX)
-		ThrowError("missed a shortcut");
+		throw Ex("missed a shortcut");
 	if(cuts != 3)
-		ThrowError("wrong number of cuts");
+		throw Ex("wrong number of cuts");
 }
 #endif // NO_TEST_CODE
 
@@ -1890,13 +1890,13 @@ void GCycleCut::test()
 	pruner.setCycleThreshold(h);
 	size_t cuts = pruner.cut();
 	if(pNeighbors[(0 * w + 0) * k + 0] != INVALID_INDEX)
-		ThrowError("missed a shortcut");
+		throw Ex("missed a shortcut");
 	if(pNeighbors[(0 * w + (w - 1)) * k + 1] != INVALID_INDEX)
-		ThrowError("missed a shortcut");
+		throw Ex("missed a shortcut");
 	if(pNeighbors[((h - 1) * w + (w - 1)) * k + 0] != INVALID_INDEX)
-		ThrowError("missed a shortcut");
+		throw Ex("missed a shortcut");
 	if(cuts != 3)
-		ThrowError("wrong number of cuts");
+		throw Ex("wrong number of cuts");
 }
 #endif // NO_TEST_CODE
 
@@ -2094,7 +2094,7 @@ double GSaffron::measureAlignment(double* pA, GMatrix* pATan, double* pB, GMatri
 void GSaffron::neighbors(size_t* pOutNeighbors, size_t index)
 {
 	if(index >= m_rows)
-		ThrowError("out of range");
+		throw Ex("out of range");
 	memcpy(pOutNeighbors, m_pNeighborhoods + index * m_neighborCount, sizeof(size_t) * m_neighborCount);
 }
 
@@ -2155,12 +2155,12 @@ m_ownActionsData(ownActionsData),
 m_pRand(pRand)
 {
 	if(m_pData->rows() != pActions->rows())
-		ThrowError("Expected the same number of observations as control vectors");
+		throw Ex("Expected the same number of observations as control vectors");
 	if(pActions->cols() != 1)
-		ThrowError("Sorry, only one action dim is currently supported");
+		throw Ex("Sorry, only one action dim is currently supported");
 	int actionValues = (int)m_pActions->relation()->valueCount(0);
 	if(actionValues < 2)
-		ThrowError("Sorry, only nominal actions are currently supported");
+		throw Ex("Sorry, only nominal actions are currently supported");
 
 	// Train the consequence maps
 	size_t obsDims = m_pData->cols();
@@ -2281,7 +2281,7 @@ void GTemporalNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDista
 {
 	int valueCount = (int)m_pActions->relation()->valueCount(0);
 	if(m_pActions->cols() > 1 || valueCount == 0)
-		ThrowError("continuous and multi-dim actions not supported yet");
+		throw Ex("continuous and multi-dim actions not supported yet");
 	size_t actionValues = m_pActions->relation()->valueCount(0);
 	size_t pos = 0;
 	GTEMPBUF(double, path, actionValues);

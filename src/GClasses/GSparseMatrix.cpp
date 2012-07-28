@@ -47,7 +47,7 @@ GSparseMatrix::GSparseMatrix(GDomNode* pNode)
 			size_t col = (size_t)it2.current()->asInt();
 			it2.advance();
 			if(!it2.current())
-				ThrowError("Expected an even number of items in the list");
+				throw Ex("Expected an even number of items in the list");
 			double val = it2.current()->asDouble();
 			set(i, col, val);
 		}
@@ -106,7 +106,7 @@ void GSparseMatrix::set(size_t row, size_t col, double val)
 void GSparseMatrix::multiply(double scalar)
 {
 	if(m_defaultValue != 0.0)
-		ThrowError("This method assumes the default value is 0");
+		throw Ex("This method assumes the default value is 0");
 	for(size_t r = 0; r < m_rows.size(); r++)
 	{
 		SparseVec::iterator end = m_rows[r].end();
@@ -126,7 +126,7 @@ GMatrix* GSparseMatrix::multiply(GMatrix* pThat, bool transposeThat)
 		hOther.reset(pOther);
 	}
 	if(pOther->cols() != cols())
-		ThrowError("Matrices have incompatible sizes");
+		throw Ex("Matrices have incompatible sizes");
 
 	// Do the multiplying
 	GMatrix* pResult = new GMatrix(rows(), pOther->rows());
@@ -255,7 +255,7 @@ void GSparseMatrix::shuffle(GRand* pRand, GMatrix* pLabels)
 GSparseMatrix* GSparseMatrix::subMatrix(size_t row, size_t col, size_t height, size_t width)
 {
 	if(row + height >= m_rows.size() || col + width >= m_cols)
-		ThrowError("out of range");
+		throw Ex("out of range");
 	GSparseMatrix* pSub = new GSparseMatrix(height, width, m_defaultValue);
 	for(size_t y = 0; y < height; y++)
 	{
@@ -308,7 +308,7 @@ double GSparseMatrix_takeSign(double a, double b)
 void GSparseMatrix::singularValueDecomposition(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters)
 {
 	if(m_defaultValue != 0.0)
-		ThrowError("Expected the default value to be 0");
+		throw Ex("Expected the default value to be 0");
 	if(rows() >= cols())
 		singularValueDecompositionHelper(ppU, ppDiag, ppV, throwIfNoConverge, maxIters);
 	else
@@ -342,7 +342,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	int m = (int)rows();
 	int n = (int)cols();
 	if(m < n)
-		ThrowError("Expected at least as many rows as columns");
+		throw Ex("Expected at least as many rows as columns");
 	int i, j, k, q;
 	int l = 0;
 	double c, f, h, s, x, y, z;
@@ -687,7 +687,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 				break;
 			}
 			if(throwIfNoConverge && iter >= maxIters)
-				ThrowError("failed to converge");
+				throw Ex("failed to converge");
 
 			// Shift from bottom 2x2 minor
 			x = pSigma[l];
@@ -786,7 +786,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 void GSparseMatrix::principalComponentAboutOrigin(double* pOutVector, GRand* pRand)
 {
 	if(m_defaultValue != 0.0)
-		ThrowError("Expected the default value to be 0");
+		throw Ex("Expected the default value to be 0");
 
 	// Initialize the out-vector to a random direction
 	size_t dims = cols();
@@ -885,7 +885,7 @@ void GSparseMatrix::test()
 	if(sizeof(size_t) == 4)
 		tolerance += 6; // on 32-bit machines there seem to be a small number of failures due to rounding error (I think)
 	if(failures > tolerance)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif
 

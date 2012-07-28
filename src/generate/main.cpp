@@ -57,7 +57,7 @@ GMatrix* loadData(const char* szFilename)
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return pData;
 }
 
@@ -100,7 +100,7 @@ void fishBowl(GArgReader& args)
 			opening = args.pop_double();
 	}
 	if(opening >= 2.0)
-		ThrowError("opening too big--consumes entire fish bowl");
+		throw Ex("opening too big--consumes entire fish bowl");
 
 	// Make the data
 	GRand prng(seed);
@@ -116,7 +116,7 @@ void fishBowl(GArgReader& args)
 				break;
 		}
 		if(j == 0)
-			ThrowError("Failed to find a point on the fish bowl");
+			throw Ex("Failed to find a point on the fish bowl");
 	}
 	data.sort(1);
 	data.print(cout);
@@ -213,7 +213,7 @@ void Noise(GArgReader& args)
 				p1 = args.pop_double();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the data
@@ -316,7 +316,7 @@ void Noise(GArgReader& args)
 			data.newRow()[0] = prng.weibull(p1);
 	}
 	else
-		ThrowError("Unrecognized distribution: ", dist.c_str());
+		throw Ex("Unrecognized distribution: ", dist.c_str());
 
 	data.print(cout);
 }
@@ -366,7 +366,7 @@ void SwissRoll(GArgReader& args)
 		else if(args.if_pop("-reduced"))
 			reduced = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Generate the data
@@ -396,7 +396,7 @@ void SwissRoll(GArgReader& args)
 					break;
 			}
 			if(i >= 1000)
-				ThrowError("The star is too big. It severs the manifold.");
+				throw Ex("The star is too big. It severs the manifold.");
 		}
 		else
 			pVector[1] = prng.uniform() * 12;
@@ -432,7 +432,7 @@ void SCurve(GArgReader& args)
 		else if(args.if_pop("-reduced"))
 			reduced = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Generate the data
@@ -476,7 +476,7 @@ void EntwinedSpirals(GArgReader& args)
 		else if(args.if_pop("-reduced"))
 			reduced = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Generate the data
@@ -549,7 +549,7 @@ void ImageTranslatedOverNoise(GArgReader& args)
 		else if(args.if_pop("-reduced"))
 			reduced = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Load the image
@@ -626,7 +626,7 @@ void SelfIntersectingRibbon(GArgReader& args)
 		if(args.if_pop("-seed"))
 			nSeed = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GRand prng(nSeed);
@@ -675,7 +675,7 @@ void WindowedImageData(GArgReader& args)
 		else if(args.if_pop("-hole"))
 			hole = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the relation
@@ -878,7 +878,7 @@ void CraneDataset(GArgReader& args)
 		else if(args.if_pop("-gray"))
 			gray = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GMatrix data(0, wid * hgt * (gray ? 1 : 3));
@@ -972,7 +972,7 @@ void cranePath(GArgReader& args)
 			observationNoiseDev = args.pop_double();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the observation data
@@ -1079,7 +1079,7 @@ void threeCranePath(GArgReader& args)
 			observationNoiseDev = args.pop_double();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the observation data
@@ -1197,7 +1197,7 @@ void randomSequence(GArgReader& args)
 		else if(args.if_pop("-start"))
 			start = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the sequence
@@ -1235,7 +1235,7 @@ void ScaleAndRotate(GArgReader& args)
 		else if(args.if_pop("-arc"))
 			arc = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Make the frames
@@ -1286,10 +1286,10 @@ void gridRandomWalk(GArgReader& args)
 	int width = args.pop_uint();
 	int height = (int)(pData->rows() / width);
 	if((height * width) != (int)pData->rows())
-		ThrowError("Expected a dataset with a number of rows that is divisible by width");
+		throw Ex("Expected a dataset with a number of rows that is divisible by width");
 	size_t samples = args.pop_uint();
 	if(pData->rows() < 2)
-		ThrowError("Expected at least two states");
+		throw Ex("Expected at least two states");
 
 	// Parse options
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
@@ -1311,7 +1311,7 @@ void gridRandomWalk(GArgReader& args)
 		else if(args.if_pop("-actionfile"))
 			actionFile = args.pop_string();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Generate the dataset
@@ -1382,12 +1382,12 @@ void vectorToImage(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	size_t r = args.pop_uint();
 	if(r >= pData->rows())
-		ThrowError("row index out of range");
+		throw Ex("row index out of range");
 	size_t wid = args.pop_uint();
 	size_t channels = 3;
 	size_t hgt = pData->cols() / (wid * channels);
 	if((wid * hgt * channels) != pData->cols())
-		ThrowError("Invalid dimensions");
+		throw Ex("Invalid dimensions");
 	double* pVec = pData->row(r);
 	GImage image;
 	vectorToImage(&image, pVec, (int)wid, (int)hgt);
@@ -1402,7 +1402,7 @@ void dataToFrames(GArgReader& args)
 	size_t channels = 3;
 	size_t hgt = pData->cols() / (wid * channels);
 	if((wid * hgt * channels) != pData->cols())
-		ThrowError("Invalid dimensions");
+		throw Ex("Invalid dimensions");
 	GImage image;
 	GImage master;
 	master.setSize((unsigned int)wid, (unsigned int)(hgt * pData->rows()));
@@ -1425,7 +1425,7 @@ void sceneRobotSimulationGrid(GArgReader& args)
 	GImage scene;
 	scene.loadPng(sceneFilename);
 	if(scene.height() > scene.width() * cameraHgt / cameraWid)
-		ThrowError("Expected a panoramic (wide) scene");
+		throw Ex("Expected a panoramic (wide) scene");
 	double maxWid = scene.height() * cameraWid / cameraHgt;
 	double maxStrafeStride = (scene.width() - maxWid) / strafeLen;
 
@@ -1500,13 +1500,13 @@ void sceneRobotSimulationPath(GArgReader& args)
 			obsFilename = args.pop_string();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	GImage scene;
 	scene.loadPng(sceneFilename);
 	if(scene.height() > scene.width() * cameraHgt / cameraWid)
-		ThrowError("Expected a panoramic (wide) scene");
+		throw Ex("Expected a panoramic (wide) scene");
 	double maxWid = scene.height() * cameraWid / cameraHgt;
 	double maxStrafeStride = (scene.width() - maxWid) / strafeLen;
 	GRand prng(seed);
@@ -1629,7 +1629,7 @@ void mechanicalRabbit(GArgReader& args)
 			observationNoise = args.pop_double();
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Generate the context sequence
@@ -1652,7 +1652,7 @@ void mechanicalRabbit(GArgReader& args)
 	GImage scene;
 	scene.loadPng(sceneFilename);
 	if(scene.height() > scene.width() * cameraHgt / cameraWid)
-		ThrowError("Expected a panoramic (wide) scene");
+		throw Ex("Expected a panoramic (wide) scene");
 	double maxWid = scene.height() * cameraWid / cameraHgt;
 	double maxStrafeStride = (scene.width() - maxWid) / strafeLen;
 	GImage frame;
@@ -1770,7 +1770,7 @@ void manifold(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.pop_string());
+			throw Ex("Invalid option: ", args.pop_string());
 	}
 
 	// Parse the expression
@@ -1791,7 +1791,7 @@ void manifold(GArgReader& args)
 		if(!pFunc)
 		{
 			if(equations == 0)
-				ThrowError("There is no function named \"y1\". You must name your functions y1, y2, ...");
+				throw Ex("There is no function named \"y1\". You must name your functions y1, y2, ...");
 			break;
 		}
 		if(equations == 0)
@@ -1799,7 +1799,7 @@ void manifold(GArgReader& args)
 		else
 		{
 			if((size_t)pFunc->m_expectedParams != intrinsicDims)
-				ThrowError("Function ", funcName, " has a different number of parameters than function y1. All of the y# functions must have the same number of parameters.");
+				throw Ex("Function ", funcName, " has a different number of parameters than function y1. All of the y# functions must have the same number of parameters.");
 		}
 		funcs.push_back(pFunc);
 		equations++;
@@ -1890,7 +1890,7 @@ int main(int argc, char *argv[])
 	int ret = 0;
 	try
 	{
-		if(args.size() < 1) ThrowError("Expected a command");
+		if(args.size() < 1) throw Ex("Expected a command");
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("crane")) CraneDataset(args);
 		else if(args.if_pop("cranepath")) cranePath(args);
@@ -1913,7 +1913,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("threecranepath")) threeCranePath(args);
 		else if(args.if_pop("vectortoimage")) vectorToImage(args);
 		else if(args.if_pop("windowedimage")) WindowedImageData(args);
-		else ThrowError("Unrecognized command: ", args.peek());
+		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{

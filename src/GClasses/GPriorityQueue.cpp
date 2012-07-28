@@ -238,11 +238,11 @@ void GPriorityQueue::test()
 		pInt = (int*)q.minimum();
 		q.removeMin();
 		if(*pInt != i)
-			ThrowError("wrong answer");
+			throw Ex("wrong answer");
 		pInt = (int*)q.maximum();
 		q.removeMax();
 		if(*pInt != (TEST_SIZE - 1) - i)
-			ThrowError("wrong answer");
+			throw Ex("wrong answer");
 	}
 }
 #endif

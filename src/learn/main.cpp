@@ -67,7 +67,7 @@ size_t getAttrVal(const char* szString, size_t attrCount)
 		szString++;
 	}
 	if(*szString < '0' || *szString > '9')
-		ThrowError("Expected a digit while parsing attribute list");
+		throw Ex("Expected a digit while parsing attribute list");
 #ifdef WIN32
 	size_t val = (size_t)_strtoui64(szString, (char**)NULL, 10);
 #else
@@ -109,9 +109,9 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			{
 				size_t val = getAttrVal(szList, attrCount);
 				if(val >= attrCount)
-					ThrowError("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(val), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				if(attrSet.find(val) != attrSet.end())
-					ThrowError("Columns ", to_str(val), " is listed multiple times");
+					throw Ex("Columns ", to_str(val), " is listed multiple times");
 				attrSet.insert(val);
 				list.push_back(val);
 			}
@@ -119,17 +119,17 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 			{
 				size_t beg = getAttrVal(szList, attrCount);
 				if(beg >= attrCount)
-					ThrowError("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(beg), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				size_t end = getAttrVal(szList + j + 1, attrCount);
 				if(end >= attrCount)
-					ThrowError("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
+					throw Ex("Invalid column index: ", to_str(end), ". Valid values are from 0 to ", to_str(attrCount - 1), ". (Columns are zero-indexed.)");
 				int step = 1;
 				if(end < beg)
 					step = -1;
 				for(size_t val = beg; true; val += step)
 				{
 					if(attrSet.find(val) != attrSet.end())
-						ThrowError("Column ", to_str(val), " is listed multiple times");
+						throw Ex("Column ", to_str(val), " is listed multiple times");
 					attrSet.insert(val);
 						list.push_back(val);
 					if(val == end)
@@ -150,7 +150,7 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 {
 	// Load the dataset by extension
 	if(args.size() < 1)
-		ThrowError("Expected the filename of a datset. (Found end of arguments.)");
+		throw Ex("Expected the filename of a datset. (Found end of arguments.)");
 	const char* szFilename = args.pop_string();
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
@@ -161,16 +161,16 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	{
 		pData = GMatrix::loadCsv(szFilename, ',', false, false);
 		if(requireMetadata && !pData->relation()->areContinuous(0, pData->cols()))
-			ThrowError("A data format containing meta-data (such as ARFF) is necessary for this operation.");
+			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 	{
 		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
 		if(requireMetadata && !pData->relation()->areContinuous(0, pData->cols()))
-			ThrowError("A data format containing meta-data (such as ARFF) is necessary for this operation.");
+			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
 	else
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	Holder<GMatrix> hData(pData);
 
 	// Parse params
@@ -183,7 +183,7 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 		else if(args.if_pop("-ignore"))
 			parseAttributeList(ignore, args, pData->cols());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Throw out the ignored attributes
@@ -196,7 +196,7 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 			if(labels[j] >= ignore[i])
 			{
 				if(labels[j] == ignore[i])
-					ThrowError("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
+					throw Ex("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
 				labels[j]--;
 			}
 		}
@@ -237,11 +237,11 @@ GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GRand& rand, GArgRe
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pTransducer->autoTune(*pFeatures, *pLabels);
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pTransducer;
 }
@@ -262,7 +262,7 @@ GBag* InstantiateBag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 			if(!pLearner->canGeneralize())
 			{
 				delete(pLearner);
-				ThrowError("bag does not support algorithms that cannot generalize.");
+				throw Ex("bag does not support algorithms that cannot generalize.");
 			}
 			pEnsemble->addLearner((GSupervisedLearner*)pLearner);
 		}
@@ -278,11 +278,11 @@ GBaselineLearner* InstantiateBaseline(GRand& rand, GArgReader& args, GMatrix* pF
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -303,7 +303,7 @@ GBayesianModelAveraging* InstantiateBMA(GRand& rand, GArgReader& args, GMatrix* 
 			if(!pLearner->canGeneralize())
 			{
 				delete(pLearner);
-				ThrowError("BMA does not support algorithms that cannot generalize.");
+				throw Ex("BMA does not support algorithms that cannot generalize.");
 			}
 			pEnsemble->addLearner((GSupervisedLearner*)pLearner);
 		}
@@ -320,7 +320,7 @@ GBayesianModelCombination* InstantiateBMC(GRand& rand, GArgReader& args, GMatrix
 		if(args.if_pop("-samples"))
 			samples = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	pEnsemble->setSamples(samples);
 	while(args.size() > 0)
@@ -336,7 +336,7 @@ GBayesianModelCombination* InstantiateBMC(GRand& rand, GArgReader& args, GMatrix
 			if(!pLearner->canGeneralize())
 			{
 				delete(pLearner);
-				ThrowError("BMC does not support algorithms that cannot generalize.");
+				throw Ex("BMC does not support algorithms that cannot generalize.");
 			}
 			pEnsemble->addLearner((GSupervisedLearner*)pLearner);
 		}
@@ -369,7 +369,7 @@ GResamplingAdaBoost* InstantiateBoost(GRand& rand, GArgReader& args, GMatrix* pF
 	if(!pLearner->canGeneralize())
 	{
 		delete(pLearner);
-		ThrowError("boost does not support algorithms that cannot generalize.");
+		throw Ex("boost does not support algorithms that cannot generalize.");
 	}
 
 	GResamplingAdaBoost* pEnsemble = new GResamplingAdaBoost((GSupervisedLearner*)pLearner, true, new GLearnerLoader(rand));
@@ -390,7 +390,7 @@ GBucket* InstantiateBucket(GRand& rand, GArgReader& args, GMatrix* pFeatures, GM
 		if(!pLearner->canGeneralize())
 		{
 			delete(pLearner);
-			ThrowError("crossvalidationselector does not support algorithms that cannot generalize.");
+			throw Ex("crossvalidationselector does not support algorithms that cannot generalize.");
 		}
 		pEnsemble->addLearner((GSupervisedLearner*)pLearner);
 	}
@@ -420,7 +420,7 @@ GDecisionTree* InstantiateDecisionTree(GRand& rand, GArgReader& args, GMatrix* p
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-random")){
@@ -430,7 +430,7 @@ GDecisionTree* InstantiateDecisionTree(GRand& rand, GArgReader& args, GMatrix* p
 		}else if(args.if_pop("-maxlevels")){
 			pModel->setMaxLevels(args.pop_uint());
 		}else{
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 		}
 	}
 	return pModel;
@@ -456,9 +456,9 @@ GGaussianProcess* InstantiateGaussianProcess(GRand& rand, GArgReader& args, GMat
 				pModel->setKernel(new GKernelGaussianRBF(args.pop_double()));
 			else if(args.if_pop("polynomial"))
 				pModel->setKernel(new GKernelPolynomial(args.pop_double(), args.pop_uint()));
-			else ThrowError("Unrecognized kernel: ", args.pop_string());
+			else throw Ex("Unrecognized kernel: ", args.pop_string());
 		}else{
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 		}
 	}
 	return pModel;
@@ -472,13 +472,13 @@ GGraphCutTransducer* InstantiateGraphCutTransducer(GRand& rand, GArgReader& args
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pTransducer->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-neighbors"))
 			pTransducer->setNeighbors(args.pop_uint());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pTransducer;
 }
@@ -559,7 +559,7 @@ GKNN* InstantiateKNN(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-nonormalize"))
@@ -575,7 +575,7 @@ GKNN* InstantiateKNN(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 		else if(args.if_pop("-pearson"))
 			pModel->setMetric(new GPearsonCorrelation(), true);
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -588,11 +588,11 @@ GLinearRegressor* InstantiateLinearRegressor(GRand& rand, GArgReader& args, GMat
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -605,11 +605,11 @@ GMeanMarginsTree* InstantiateMeanMarginsTree(GRand& rand, GArgReader& args, GMat
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -622,13 +622,13 @@ GNaiveBayes* InstantiateNaiveBayes(GRand& rand, GArgReader& args, GMatrix* pFeat
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-ess"))
 			pModel->setEquivalentSampleSize(args.pop_double());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -641,13 +641,13 @@ GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args, GMatrix*
 		if(args.if_pop("-"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-neighbors"))
 			pModel->setNeighbors(args.pop_uint());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -660,13 +660,13 @@ GNeighborTransducer* InstantiateNeighborTransducer(GRand& rand, GArgReader& args
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pTransducer->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-neighbors"))
 			pTransducer->setNeighbors(args.pop_uint());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pTransducer;
 }
@@ -679,7 +679,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 		if(args.if_pop("-autotune"))
 		{
 			if(!pFeatures || !pLabels)
-				ThrowError("Insufficient data to support automatic tuning");
+				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-addlayer"))
@@ -719,7 +719,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 			else if(strcmp(szSF, "piecewise") == 0)
 				pSF = new GActivationPiecewise();
 			else
-				ThrowError("Unrecognized activation function: ", szSF);
+				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
 		}
 		else if(args.if_pop("-crossentropy"))
@@ -729,7 +729,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 		else if(args.if_pop("-sign"))
 			pModel->setBackPropTargetFunction(GNeuralNet::sign);
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -743,7 +743,7 @@ GRandomForest* InstantiateRandomForest(GRand& rand, GArgReader& args)
 		if(args.if_pop("-samples"))
 			samples = args.pop_uint();
 		else
-			ThrowError("Invalid random forest option: ", args.peek());
+			throw Ex("Invalid random forest option: ", args.peek());
 	}
 	return new GRandomForest(rand, trees, samples);
 }
@@ -760,7 +760,7 @@ GReservoirNet* InstantiateReservoirNet(GRand& rand, GArgReader& args, GMatrix* p
 		}else if(args.if_pop("-layers")){
 			pModel->setReservoirLayers(args.pop_uint());
 		}else{
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 		}
 	}
 	return pModel;
@@ -812,7 +812,7 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 			else if(strcmp(szSF, "piecewise") == 0)
 				pSF = new GActivationPiecewise();
 			else
-				ThrowError("Unrecognized activation function: ", szSF);
+				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
 		}
 		else if(args.if_pop("-crossentropy"))
@@ -822,7 +822,7 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 		else if(args.if_pop("-sign"))
 			pModel->setBackPropTargetFunction(GNeuralNet::sign);
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	pWag->setModelCount(modelCount);
 	return pWag;
@@ -863,7 +863,7 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 {
 	int argPos = args.get_pos();
 	if(args.size() < 1)
-		ThrowError("No algorithm specified.");
+		throw Ex("No algorithm specified.");
 	try
 	{
 		if(args.if_pop("agglomerativetransducer"))
@@ -910,14 +910,14 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args, GMatrix* pFeatu
 			return InstantiateReservoirNet(rand, args, pFeatures, pLabels);
 		else if(args.if_pop("wag"))
 			return InstantiateWag(rand, args, pFeatures, pLabels);
-		ThrowError("Unrecognized algorithm name: ", args.peek());
+		throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{
 		args.set_pos(argPos);
 		if(strcmp(e.what(), "nevermind") != 0) // if an error message was not already displayed...
 			showInstantiateAlgorithmError(e.what(), args);
-		ThrowError("nevermind"); // this means "don't display another error message"
+		throw Ex("nevermind"); // this means "don't display another error message"
 	}
 	return NULL;
 }
@@ -1021,7 +1021,7 @@ void autoTune(GArgReader& args)
 	else if(strcmp(szModel, "naiveinstance") == 0)
 		autoTuneNaiveInstance(*pFeatures, *pLabels, rand);
 	else
-		ThrowError("Sorry, autotune does not currently support a model named ", szModel, ".");
+		throw Ex("Sorry, autotune does not currently support a model named ", szModel, ".");
 }
 
 void Train(GArgReader& args)
@@ -1039,7 +1039,7 @@ void Train(GArgReader& args)
 		else if(args.if_pop("-embed"))
 			embed = true;
 		else
-			ThrowError("Invalid train option: ", args.peek());
+			throw Ex("Invalid train option: ", args.peek());
 	}
 
 	// Load the data
@@ -1053,9 +1053,9 @@ void Train(GArgReader& args)
 	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 	if(!pSupLearner->canGeneralize())
-		ThrowError("This algorithm cannot be \"trained\". It can only be used to \"transduce\".");
+		throw Ex("This algorithm cannot be \"trained\". It can only be used to \"transduce\".");
 	GSupervisedLearner* pModel = (GSupervisedLearner*)pSupLearner;
 
 	// Train the modeler
@@ -1082,14 +1082,14 @@ void predict(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid predict option: ", args.peek());
+			throw Ex("Invalid predict option: ", args.peek());
 	}
 
 	// Load the model
 	GRand prng(seed);
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified.");
+		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(prng, true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
@@ -1101,9 +1101,9 @@ void predict(GArgReader& args)
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 	if(pLabels->cols() != pModeler->relLabels()->size())
-		ThrowError("The model was trained with ", to_str(pModeler->relLabels()->size()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
+		throw Ex("The model was trained with ", to_str(pModeler->relLabels()->size()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
 	if(!pFeatures->relation()->isCompatible(*pModeler->relFeatures().get()) || !pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
-		ThrowError("This data is not compatible with the data that was used to train the model. (The column meta-data is different.)");
+		throw Ex("This data is not compatible with the data that was used to train the model. (The column meta-data is different.)");
 	pLabels->setAll(0.0); // Wipe out the existing labels, just to be absolutely certain that we don't somehow accidentally let them influence the predictions
 
 	// Test
@@ -1127,14 +1127,14 @@ void predictDistribution(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Load the model
 	GRand prng(seed);
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified.");
+		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(prng, true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
@@ -1142,10 +1142,10 @@ void predictDistribution(GArgReader& args)
 
 	// Parse the pattern
 	if(pModeler->relFeatures()->type() != GRelation::ARFF)
-		ThrowError("meta data is missing");
+		throw Ex("meta data is missing");
 	GArffRelation* pFeatureRel = (GArffRelation*)pModeler->relFeatures().get();
 	if(pModeler->relLabels()->type() != GRelation::ARFF)
-		ThrowError("meta data is missing");
+		throw Ex("meta data is missing");
 	GArffRelation* pLabelRel = (GArffRelation*)pModeler->relLabels().get();
 	size_t featureDims = pModeler->relFeatures()->size();
 	GTEMPBUF(double, pattern, featureDims);
@@ -1403,14 +1403,14 @@ void Test(GArgReader& args)
 		else if(args.if_pop("-confusioncsv"))
 			confusioncsv = true;
 		else
-			ThrowError("Invalid test option: ", args.peek());
+			throw Ex("Invalid test option: ", args.peek());
 	}
 
 	// Load the model
 	GRand prng(seed);
 	GDom doc;
 	if(args.size() < 1)
-		ThrowError("Model not specified.");
+		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(prng, true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
@@ -1422,7 +1422,7 @@ void Test(GArgReader& args)
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 	if(!pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
-		ThrowError("This dataset is not compatible with the one used to train the model. (The meta-data is different.)");
+		throw Ex("This dataset is not compatible with the one used to train the model. (The meta-data is different.)");
 
 	// Test
 	GTEMPBUF(double, results, pLabels->cols());
@@ -1452,13 +1452,13 @@ void Transduce(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid transduce option: ", args.peek());
+			throw Ex("Invalid transduce option: ", args.peek());
 	}
 
 	// Load the data sets
 	GRand prng(seed);
 	if(args.size() < 1)
-		ThrowError("No labeled set specified.");
+		throw Ex("No labeled set specified.");
 
 	// Load the labeled and unlabeled sets
 	Holder<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
@@ -1469,13 +1469,13 @@ void Transduce(GArgReader& args)
 	GMatrix* pFeatures2 = hFeatures2.get();
 	GMatrix* pLabels2 = hLabels2.get();
 	if(pFeatures1->cols() != pFeatures2->cols() || pLabels1->cols() != pLabels2->cols())
-		ThrowError("The labeled and unlabeled datasets must have the same number of columns. (The labels in the unlabeled set are just place-holders, and will be overwritten.)");
+		throw Ex("The labeled and unlabeled datasets must have the same number of columns. (The labels in the unlabeled set are just place-holders, and will be overwritten.)");
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures1, pLabels1);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Transduce
 	GMatrix* pLabels3 = pSupLearner->transduce(*pFeatures1, *pLabels1, *pFeatures2);
@@ -1500,7 +1500,7 @@ void TransductiveAccuracy(GArgReader& args)
 		else if(args.if_pop("-confusioncsv"))
 			confusioncsv = true;
 		else
-			ThrowError("Invalid transacc option: ", args.peek());
+			throw Ex("Invalid transacc option: ", args.peek());
 	}
 
 	// Load the data sets
@@ -1513,13 +1513,13 @@ void TransductiveAccuracy(GArgReader& args)
 	GMatrix* pFeatures2 = hFeatures2.get();
 	GMatrix* pLabels2 = hLabels2.get();
 	if(pFeatures1->cols() != pFeatures2->cols() || pLabels1->cols() != pLabels2->cols())
-		ThrowError("The training and test datasets must have the same number of columns.");
+		throw Ex("The training and test datasets must have the same number of columns.");
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures1, pLabels1);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Transduce and measure accuracy
 	GTEMPBUF(double, results, pLabels1->cols());
@@ -1567,11 +1567,11 @@ void SplitTest(GArgReader& args)
 		}else if(args.if_pop("-confusioncsv")){
 			confusioncsv = true;
 		}else{
-			ThrowError("Invalid splittest option: ", args.peek());
+			throw Ex("Invalid splittest option: ", args.peek());
 		}
 	}
 	if(trainRatio < 0 || trainRatio > 1)
-		ThrowError("trainratio must be between 0 and 1");
+		throw Ex("trainratio must be between 0 and 1");
 
 	// Load the data
 	GRand prng(seed);
@@ -1584,11 +1584,11 @@ void SplitTest(GArgReader& args)
 	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Ensure that can write if we are required to
 	if(!pSupLearner->canGeneralize() && lastModelFile != ""){
-	  ThrowError("The learner specified does not have an internal model "
+	  throw Ex("The learner specified does not have an internal model "
 		     "and thus cannot be saved to a file.  Remove the "
 		     "-lastModelFile argument.");
 	}
@@ -1724,12 +1724,12 @@ void CrossValidate(GArgReader& args)
 		else if(args.if_pop("-succinct"))
 			succinct = true;
 		else
-			ThrowError("Invalid crossvalidate option: ", args.peek());
+			throw Ex("Invalid crossvalidate option: ", args.peek());
 	}
 	if(reps < 1)
-		ThrowError("There must be at least 1 rep.");
+		throw Ex("There must be at least 1 rep.");
 	if(folds < 2)
-		ThrowError("There must be at least 2 folds.");
+		throw Ex("There must be at least 2 folds.");
 
 	// Load the data
 	Holder<GMatrix> hFeatures, hLabels;
@@ -1742,7 +1742,7 @@ void CrossValidate(GArgReader& args)
 	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Test
 	cout.precision(8);
@@ -1798,12 +1798,12 @@ void PrecisionRecall(GArgReader& args)
 		else if(args.if_pop("-samples"))
 			samples = args.pop_uint();
 		else
-			ThrowError("Invalid precisionrecall option: ", args.peek());
+			throw Ex("Invalid precisionrecall option: ", args.peek());
 	}
 	if(reps < 1)
-		ThrowError("There must be at least 1 rep.");
+		throw Ex("There must be at least 1 rep.");
 	if(samples < 2)
-		ThrowError("There must be at least 2 samples.");
+		throw Ex("There must be at least 2 samples.");
 
 	// Load the data
 	Holder<GMatrix> hFeatures, hLabels;
@@ -1816,9 +1816,9 @@ void PrecisionRecall(GArgReader& args)
 	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 	if(!pSupLearner->canGeneralize())
-		ThrowError("This algorithm cannot be \"trained\". It can only be used to \"transduce\".");
+		throw Ex("This algorithm cannot be \"trained\". It can only be used to \"transduce\".");
 	GSupervisedLearner* pModel = (GSupervisedLearner*)pSupLearner;
 
 	// Build the relation for the results
@@ -1886,7 +1886,7 @@ void sterilize(GArgReader& args)
 		else if(args.if_pop("-diffthresh"))
 			diffThresh = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Load the data
@@ -1900,7 +1900,7 @@ void sterilize(GArgReader& args)
 	GTransducer* pTransducer = InstantiateAlgorithm(prng, args, pFeatures, pLabels);
 	Holder<GTransducer> hModel(pTransducer);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Sterilize
 	GMatrix sterileFeatures(pFeatures->relation());
@@ -2055,7 +2055,7 @@ void trainRecurrent(GArgReader& args)
 		else if(args.if_pop("-isomap"))
 			useIsomap = true;
 		else
-			ThrowError("Invalid trainRecurrent option: ", args.peek());
+			throw Ex("Invalid trainRecurrent option: ", args.peek());
 	}
 
 	// Parse the algorithm
@@ -2097,7 +2097,7 @@ void trainRecurrent(GArgReader& args)
 		annealTimeWindow = args.pop_double();
 	}
 	else
-		ThrowError("Unrecognized recurrent model training algorithm: ", alg);
+		throw Ex("Unrecognized recurrent model training algorithm: ", alg);
 
 	// Load the data
 	GMatrix* pDataObs = GMatrix::loadArff(args.pop_string());
@@ -2114,20 +2114,20 @@ void trainRecurrent(GArgReader& args)
 		pixels *= *it;
 	size_t channels = pDataObs->cols() / pixels;
 	if((channels * pixels) != pDataObs->cols())
-		ThrowError("The number of columns in the observation data must be a multiple of the product of the param dims");
+		throw Ex("The number of columns in the observation data must be a multiple of the product of the param dims");
 
 	// Instantiate the recurrent model
 	GRand prng(seed);
 	GTransducer* pTransitionFunc = InstantiateAlgorithm(prng, args, NULL, NULL);
 	Holder<GTransducer> hTransitionFunc(pTransitionFunc);
 	if(!pTransitionFunc->canGeneralize())
-		ThrowError("The algorithm specified for the transition function cannot be \"trained\". It can only be used to \"transduce\".");
+		throw Ex("The algorithm specified for the transition function cannot be \"trained\". It can only be used to \"transduce\".");
 	GTransducer* pObservationFunc = InstantiateAlgorithm(prng, args, NULL, NULL);
 	Holder<GTransducer> hObservationFunc(pObservationFunc);
 	if(!pObservationFunc->canGeneralize())
-		ThrowError("The algorithm specified for the observation function cannot be \"trained\". It can only be used to \"transduce\".");
+		throw Ex("The algorithm specified for the observation function cannot be \"trained\". It can only be used to \"transduce\".");
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 	MyRecurrentModel model((GSupervisedLearner*)hTransitionFunc.release(), (GSupervisedLearner*)hObservationFunc.release(), pDataAction->cols(), contextDims, pDataObs->cols(), &prng, &paramDims, stateFilename, validationInterval);
 
 	// Set it up to do validation during training if specified

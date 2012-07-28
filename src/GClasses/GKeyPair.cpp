@@ -159,9 +159,9 @@ GDomNode* GKeyPair::serialize(GDom* pDoc, bool bIncludePrivateKey)
 {
 	GDomNode* pNode = pDoc->newObj();
 	if(!n() || !publicKey())
-		ThrowError("No key has been made yet");
+		throw Ex("No key has been made yet");
 	if(bIncludePrivateKey && !privateKey())
-		ThrowError("This key-pair doesn't include the private key");
+		throw Ex("This key-pair doesn't include the private key");
 	pNode->addField(pDoc, "n", n()->serialize(pDoc));
 	pNode->addField(pDoc, "public", publicKey()->serialize(pDoc));
 	if(bIncludePrivateKey)
@@ -211,7 +211,7 @@ unsigned char* GKeyPair::powerMod(const unsigned char* pInput, int nInputSize, b
 
 	// Check the final value
 	if(final.compareTo(&message) != 0)
-		ThrowError("failed");
+		throw Ex("failed");
 }
 #endif // !NO_TEST_CODE
 

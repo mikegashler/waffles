@@ -28,7 +28,7 @@ namespace GClasses{
     uint8_t a_rev = (uint8_t)bitset<8>(string("01000111")).to_ulong();
 
     if(a != reverseBits(a_rev) && a_rev != reverseBits(a)){
-      ThrowError("reverseBits failed to correctly reverse an 8 bit number.");
+      throw Ex("reverseBits failed to correctly reverse an 8 bit number.");
     }
 
     uint16_t b
@@ -37,7 +37,7 @@ namespace GClasses{
       = (uint16_t)bitset<16>(string("1000000100101101")).to_ulong();
 
     if(b != reverseBits(b_rev) && b_rev != reverseBits(b)){
-      ThrowError("reverseBits failed to correctly reverse a 16 bit number.");
+      throw Ex("reverseBits failed to correctly reverse a 16 bit number.");
     }
 
     uint32_t c
@@ -46,7 +46,7 @@ namespace GClasses{
       =bitset<32>(string("01010110011111000011101111011010")).to_ulong();
 
     if(c != reverseBits(c_rev) && c_rev != reverseBits(c)){
-      ThrowError("reverseBits failed to correctly reverse a 32 bit number.");
+      throw Ex("reverseBits failed to correctly reverse a 32 bit number.");
     }
 
   }

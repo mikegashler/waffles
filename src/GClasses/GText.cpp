@@ -167,7 +167,7 @@ void GVocabulary::addWord(const char* szWord, size_t nLen)
 GWordStats& GVocabulary::stats(size_t word)
 {
 	if(!m_pWordStats)
-		ThrowError("You didn't call newDoc before adding vocabulary words, so stats weren't tracked");
+		throw Ex("You didn't call newDoc before adding vocabulary words, so stats weren't tracked");
 	return (*m_pWordStats)[word];
 }
 
@@ -210,7 +210,7 @@ void GVocabulary::newDoc()
 	if(!m_pWordStats)
 	{
 		if(m_vocabSize > 0)
-			ThrowError("If you call newDoc, then you must call it before the first word is added");
+			throw Ex("If you call newDoc, then you must call it before the first word is added");
 		m_pWordStats = new vector<GWordStats>();
 		m_docNumber = 0;
 		return;

@@ -16,7 +16,17 @@ GTempBufSentinel::~GTempBufSentinel()
 }
 #endif // _DEBUG
 
+void GOverrunSentinel::Check()
+{
+	if(m_sentinel != 0x5e47143a)
+		throw Ex("buffer overrun!");
+}
 
+
+void verboten()
+{
+	throw Ex("Tried to copy a holder. (The method that facilitates this should have been private to catch this at compile time.)");
+}
 
 void FileHolder::reset(FILE* pFile)
 {

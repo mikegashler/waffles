@@ -68,7 +68,7 @@ GMatrix* loadData(const char* szFilename)
 		return GMatrix::loadArff(szFilename);
 	else
 	{
-		ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 		return NULL;
 	}
 }
@@ -83,14 +83,14 @@ GSparseMatrix* loadSparseData(const char* szFilename)
 		// Convert a 3-column dense ARFF file to a sparse matrix
 		GMatrix* pData = GMatrix::loadArff(szFilename);
 		if(pData->cols() != 3)
-			ThrowError("Expected 3 columns: 0) user or row-index, 1) item or col-index, 2) value or rating");
+			throw Ex("Expected 3 columns: 0) user or row-index, 1) item or col-index, 2) value or rating");
 		double m0, r0, m1, r1;
 		pData->minAndRange(0, &m0, &r0);
 		pData->minAndRange(1, &m1, &r1);
 		if(m0 < 0 || m0 > 1e10 || r0 < 2 || r0 > 1e10)
-			ThrowError("Invalid row indexes");
+			throw Ex("Invalid row indexes");
 		if(m1 < 0 || m1 > 1e10 || r1 < 2 || r1 > 1e10)
-			ThrowError("Invalid col indexes");
+			throw Ex("Invalid col indexes");
 		GSparseMatrix* pMatrix = new GSparseMatrix(size_t(m0 + r0) + 1, size_t(m1 + r1) + 1, UNKNOWN_REAL_VALUE);
 		Holder<GSparseMatrix> hMatrix(pMatrix);
 		for(size_t i = 0; i < pData->rows(); i++)
@@ -106,7 +106,7 @@ GSparseMatrix* loadSparseData(const char* szFilename)
 		doc.loadJson(szFilename);
 		return new GSparseMatrix(doc.root());
 	}
-	ThrowError("Unsupported file format: ", szFilename + pd.extStart);
+	throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return NULL;
 }
 
@@ -137,7 +137,7 @@ GBagOfRecommenders* InstantiateBagOfRecommenders(GRand& rand, GArgReader& args)
 GInstanceRecommender* InstantiateInstanceRecommender(GRand& rand, GArgReader& args)
 {
 	if(args.size() < 1)
-		ThrowError("The number of neighbors must be specified for this algorithm");
+		throw Ex("The number of neighbors must be specified for this algorithm");
 	int neighborCount = args.pop_uint();
 	double regularizer = 0.0;
 	bool pearson = false;
@@ -148,7 +148,7 @@ GInstanceRecommender* InstantiateInstanceRecommender(GRand& rand, GArgReader& ar
 		else if(args.if_pop("-regularize"))
 			regularizer = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	GInstanceRecommender* pModel = new GInstanceRecommender(neighborCount, rand);
 	if(pearson)
@@ -160,7 +160,7 @@ GInstanceRecommender* InstantiateInstanceRecommender(GRand& rand, GArgReader& ar
 GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgReader& args)
 {
 	if(args.size() < 1)
-		ThrowError("The number of clusters must be specified for this algorithm");
+		throw Ex("The number of clusters must be specified for this algorithm");
 	size_t clusterCount = args.pop_uint();
 	double missingPenalty = 1.0;
 	double norm = 2.0;
@@ -171,7 +171,7 @@ GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgRe
 		else if(args.if_pop("-missingpenalty"))
 			missingPenalty = args.pop_double();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 		// todo: allow the user to specify the clustering algorithm. (Currently, it uses k-means, but k-medoids and agglomerativeclusterer should also be an option)
 	}
 	GDenseClusterRecommender* pModel = new GDenseClusterRecommender(clusterCount, rand);
@@ -201,7 +201,7 @@ GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgRe
 GSparseClusterRecommender* InstantiateSparseClusterRecommender(GRand& rand, GArgReader& args)
 {
 	if(args.size() < 1)
-		ThrowError("The number of clusters must be specified for this algorithm");
+		throw Ex("The number of clusters must be specified for this algorithm");
 	size_t clusterCount = args.pop_uint();
 	bool pearson = false;
 	while(args.next_is_flag())
@@ -209,7 +209,7 @@ GSparseClusterRecommender* InstantiateSparseClusterRecommender(GRand& rand, GArg
 		if(args.if_pop("-pearson"))
 			pearson = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 		// todo: allow the user to specify the clustering algorithm. (Currently, it uses k-means, but k-medoids should also be an option)
 	}
 	GSparseClusterRecommender* pModel = new GSparseClusterRecommender(clusterCount, rand);
@@ -225,7 +225,7 @@ GSparseClusterRecommender* InstantiateSparseClusterRecommender(GRand& rand, GArg
 GMatrixFactorization* InstantiateMatrixFactorization(GRand& rand, GArgReader& args)
 {
 	if(args.size() < 1)
-		ThrowError("The number of intrinsic dims must be specified for this algorithm");
+		throw Ex("The number of intrinsic dims must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
 	GMatrixFactorization* pModel = new GMatrixFactorization(intrinsicDims, rand);
 	while(args.next_is_flag())
@@ -233,7 +233,7 @@ GMatrixFactorization* InstantiateMatrixFactorization(GRand& rand, GArgReader& ar
 		if(args.if_pop("-regularize"))
 			pModel->setRegularizer(args.pop_double());
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -241,7 +241,7 @@ GMatrixFactorization* InstantiateMatrixFactorization(GRand& rand, GArgReader& ar
 GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 {
 	if(args.size() < 1)
-		ThrowError("The number of intrinsic dims must be specified for this algorithm");
+		throw Ex("The number of intrinsic dims must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
 	GNonlinearPCA* pModel = new GNonlinearPCA(intrinsicDims, rand);
 	while(args.next_is_flag())
@@ -285,7 +285,7 @@ GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 			else if(strcmp(szSF, "sinc") == 0)
 				pSF = new GActivationSinc();
 			else
-				ThrowError("Unrecognized activation function: ", szSF);
+				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->model()->setActivationFunction(pSF, true);
 		}
 		else if(args.if_pop("-crossentropy"))
@@ -295,7 +295,7 @@ GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 		else if(args.if_pop("-physical"))
 			pModel->model()->setBackPropTargetFunction(GNeuralNet::physical);
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	return pModel;
 }
@@ -335,7 +335,7 @@ GCollaborativeFilter* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 {
 	int argPos = args.get_pos();
 	if(args.size() < 1)
-		ThrowError("No algorithm specified.");
+		throw Ex("No algorithm specified.");
 	try
 	{
 		if(args.if_pop("baseline"))
@@ -353,13 +353,13 @@ GCollaborativeFilter* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 		else if(args.if_pop("nlpca"))
 			return InstantiateNonlinearPCA(rand, args);
 		else
-			ThrowError("Unrecognized algorithm name: ", args.peek());
+			throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{
 		args.set_pos(argPos);
 		showInstantiateAlgorithmError(e.what(), args);
-		ThrowError("nevermind"); // this means "don't display another error message"
+		throw Ex("nevermind"); // this means "don't display another error message"
 	}
 	return NULL;
 }
@@ -376,14 +376,14 @@ void crossValidate(GArgReader& args)
 		else if(args.if_pop("-folds"))
 			folds = args.pop_uint();
 		else
-			ThrowError("Invalid crossvalidate option: ", args.peek());
+			throw Ex("Invalid crossvalidate option: ", args.peek());
 	}
 	if(folds < 2)
-		ThrowError("There must be at least 2 folds.");
+		throw Ex("There must be at least 2 folds.");
 
 	// Load the data
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
+		throw Ex("No dataset specified.");
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 
@@ -392,7 +392,7 @@ void crossValidate(GArgReader& args)
 	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Do cross-validation
 	double mae;
@@ -412,12 +412,12 @@ void precisionRecall(GArgReader& args)
 		else if(args.if_pop("-ideal"))
 			ideal = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Load the data
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
+		throw Ex("No dataset specified.");
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 
@@ -426,7 +426,7 @@ void precisionRecall(GArgReader& args)
 	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Generate precision-recall data
 	GMatrix* pResults = pModel->precisionRecall(*pData, ideal);
@@ -447,12 +447,12 @@ void ROC(GArgReader& args)
 		else if(args.if_pop("-ideal"))
 			ideal = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Load the data
 	if(args.size() < 1)
-		ThrowError("No dataset specified.");
+		throw Ex("No dataset specified.");
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 
@@ -461,7 +461,7 @@ void ROC(GArgReader& args)
 	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Generate ROC data
 	GMatrix* pResults = pModel->precisionRecall(*pData, ideal);
@@ -482,16 +482,16 @@ void transacc(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid crossvalidate option: ", args.peek());
+			throw Ex("Invalid crossvalidate option: ", args.peek());
 	}
 
 	// Load the data
 	if(args.size() < 1)
-		ThrowError("No training set specified.");
+		throw Ex("No training set specified.");
 	GMatrix* pTrain = loadData(args.pop_string());
 	Holder<GMatrix> hTrain(pTrain);
 	if(args.size() < 1)
-		ThrowError("No test set specified.");
+		throw Ex("No test set specified.");
 	GMatrix* pTest = loadData(args.pop_string());
 	Holder<GMatrix> hTest(pTest);
 
@@ -500,7 +500,7 @@ void transacc(GArgReader& args)
 	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Do cross-validation
 	double mae;
@@ -516,7 +516,7 @@ void fillMissingValues(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Load the data and the filter
@@ -527,7 +527,7 @@ void fillMissingValues(GArgReader& args)
 	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
-		ThrowError("Superfluous argument: ", args.peek());
+		throw Ex("Superfluous argument: ", args.peek());
 
 	// Convert to all normalized real values
 	GNominalToCat* pNtc = new GNominalToCat();

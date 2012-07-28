@@ -36,7 +36,7 @@ void GSmtp::send()
 	{
 		time(&t);
 		if(t - tStart > 30)
-			ThrowError("Timed out");
+			throw Ex("Timed out");
 		size_t len = m_pSocket->receive(buf, 1024);
 		if(len > 0)
 			receive(buf, len);
@@ -142,7 +142,7 @@ void GSmtp::receiveLine(const char* szLine)
 		m_eState = SS_Close;
 	}
 	else
-		ThrowError("Something is broken. The SMTP server said: ", szLine);
+		throw Ex("Something is broken. The SMTP server said: ", szLine);
 }
 
 } // namespace GClasses

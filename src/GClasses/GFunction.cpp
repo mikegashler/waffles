@@ -164,7 +164,7 @@ public:
 
 	virtual double Call(vector<double>& params)
 	{
-		ThrowError("GFunctionStub::Eval should never be called. Was Link called?");
+		throw Ex("GFunctionStub::Eval should never be called. Was Link called?");
 		return -1e308;
 	}
 };
@@ -202,13 +202,13 @@ public:
 			{
 				// An exact number of parameters is expected
 				if((int)m_children.size() != pFunc->m_expectedParams)
-					ThrowError("The function ", pStub->m_name.c_str(), " expects ", to_str(pFunc->m_expectedParams), " parameters. (Got ", to_str(m_children.size()), ").");
+					throw Ex("The function ", pStub->m_name.c_str(), " expects ", to_str(pFunc->m_expectedParams), " parameters. (Got ", to_str(m_children.size()), ").");
 			}
 			else
 			{
 				// A minimum number of parameters is expected
 				if((int)m_children.size() < -pFunc->m_expectedParams - 1)
-					ThrowError("The function ", pStub->m_name.c_str(), " expects at least ", to_str(-pFunc->m_expectedParams - 1), " parameters. (Got ", to_str(m_children.size()), ".)");
+					throw Ex("The function ", pStub->m_name.c_str(), " expects at least ", to_str(-pFunc->m_expectedParams - 1), " parameters. (Got ", to_str(m_children.size()), ".)");
 			}
 			m_pFunction = pFunc->m_pRoot;
 		}
@@ -476,7 +476,7 @@ GFunction* GFunctionParser::getFunction(const char* name)
 {
 	GFunction* pFunc = getFunctionNoThrow(name);
 	if(!pFunc)
-		ThrowError("No identifier named \"", name, "\" is currently defined");
+		throw Ex("No identifier named \"", name, "\" is currently defined");
 	return pFunc;
 }
 
@@ -494,7 +494,7 @@ int GFunctionParser::findOperatorWithLowestPrecidence(vector<string>& tokens, in
 		{
 			nests--;
 			if(i < 0)
-				ThrowError("Unbalanced parentheses");
+				throw Ex("Unbalanced parentheses");
 		}
 		else if(nests == 0)
 		{
@@ -549,7 +549,7 @@ int GFunctionParser::findOperatorWithLowestPrecidence(vector<string>& tokens, in
 					}
 				}
 				else
-					ThrowError("Unrecognized operator: ", to_str(c));
+					throw Ex("Unrecognized operator: ", to_str(c));
 			}
 		}
 	}
@@ -576,10 +576,10 @@ GFunctionNode* GFunctionParser::parseMathOperator(std::vector<std::string>& vari
 			return pFunc;
 		}
 		else
-			ThrowError("Expected something before the operator: ", tokens[index].c_str());
+			throw Ex("Expected something before the operator: ", tokens[index].c_str());
 	}
 	if(!pRight)
-		ThrowError("Expected something after the operator: ", tokens[index].c_str());
+		throw Ex("Expected something after the operator: ", tokens[index].c_str());
 	char c = tokens[index][0];
 	GFunctionCall* pFunc = NULL;
 	if(c == '^')
@@ -595,7 +595,7 @@ GFunctionNode* GFunctionParser::parseMathOperator(std::vector<std::string>& vari
 	else if(c == '-')
 		pFunc = new GFunctionCall(m_pMinus);
 	else
-		ThrowError("Unrecognized operator: ", to_str(c));
+		throw Ex("Unrecognized operator: ", to_str(c));
 	pFunc->AddChild(hLeft.release());
 	pFunc->AddChild(hRight.release());
 	return pFunc;
@@ -615,7 +615,7 @@ void GFunctionParser::parseCommaSeparatedChildren(std::vector<std::string>& vari
 		{
 			nests--;
 			if(i < 0)
-				ThrowError("Unbalanced parentheses");
+				throw Ex("Unbalanced parentheses");
 		}
 		else if(nests == 0)
 		{
@@ -640,9 +640,9 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 {
 	// Protect against maliciously designed formulas
 	if(depth > 10000)
-		ThrowError("Pathologically deep nesting");
+		throw Ex("Pathologically deep nesting");
 	if(count <= 0)
-		ThrowError("Empty expression");
+		throw Ex("Empty expression");
 
 	// Handle enclosing parens
 	if(tokens[start].compare("(") == 0 && tokens[start + count - 1].compare(")") == 0)
@@ -687,7 +687,7 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 		{
 			// We've got a numeric constant
 			if(!GFunctionTokenizer::IsDigit(c) && c != '.')
-				ThrowError("Cannot parse symbol: ", tokens[start].c_str());
+				throw Ex("Cannot parse symbol: ", tokens[start].c_str());
 			return new GFunctionConstant(atof(tokens[start].c_str()));
 		}
 	}
@@ -704,7 +704,7 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 				string s;
 				for(int i = 0; i < count; i++)
 					s += tokens[start + i];
-				ThrowError("Cannot parse this portion of the expression: ", s.c_str());
+				throw Ex("Cannot parse this portion of the expression: ", s.c_str());
 			}
 			GFunctionCall* pFunc = makeStubbedOperator(tokens[start].c_str());
 			Holder<GFunctionCall> hFunc(pFunc);
@@ -720,10 +720,10 @@ void GFunctionParser::parseVariableNames(vector<string>& variables, vector<strin
 	{
 		char c = tokens[start + i][0];
 		if(!GFunctionTokenizer::IsNameChar(c))
-			ThrowError("Expected a variable name to start with a letter or '_'");
+			throw Ex("Expected a variable name to start with a letter or '_'");
 		variables.push_back(tokens[start + i].c_str());
 		if(i + 1 < count && tokens[start + i + 1].compare(",") != 0)
-			ThrowError("Expected a comma between variable declarations");
+			throw Ex("Expected a comma between variable declarations");
 		i++;
 	}
 }
@@ -741,9 +741,9 @@ GFunctionNode* GFunctionParser::parseFunction(vector<string>& tokens, int start,
 			break;
 	}
 	if(equalPos >= count)
-		ThrowError("All functions must contain an '='");
+		throw Ex("All functions must contain an '='");
 	if(equalPos == 0)
-		ThrowError("All functions must have a name");
+		throw Ex("All functions must have a name");
 
 	// Parse the variable names
 	const char* szFunctionName = tokens[start].c_str();
@@ -751,9 +751,9 @@ GFunctionNode* GFunctionParser::parseFunction(vector<string>& tokens, int start,
 	if(equalPos > 1)
 	{
 		if(tokens[start + 1].compare("(") != 0)
-			ThrowError("Expected a '(' after ", szFunctionName);
+			throw Ex("Expected a '(' after ", szFunctionName);
 		if(tokens[start + equalPos - 1].compare(")") != 0)
-			ThrowError("Expected a ')' before the '='");
+			throw Ex("Expected a ')' before the '='");
 		parseVariableNames(variables, tokens, start + 2, equalPos - 3);
 	}
 
@@ -796,26 +796,26 @@ void GFunctionParser::test()
 		GFunctionParser mfp("f(x)=1/(1+e^-x)");
 		GFunction* pFunc = mfp.getFunction("f");
 		if(pFunc->m_expectedParams != 1)
-			ThrowError("Wrong number of expected parameters");
+			throw Ex("Wrong number of expected parameters");
 		double x = 1.23456789;
 		vector<double> params;
 		params.push_back(x);
 		double y = pFunc->call(params);
 		if(std::abs(y - GMath::logistic(x)) > 1e-12)
-			ThrowError("Wrong answer");
+			throw Ex("Wrong answer");
 	}
 
 	{
 		GFunctionParser mfp("h(bob)=bob^2;somefunc(x)=3+blah(x,5)*h(x)-(x/foo);blah(a,b)=a*b-b;foo=3.2");
 		GFunction* pFunc = mfp.getFunction("somefunc");
 		if(pFunc->m_expectedParams != 1)
-			ThrowError("Wrong number of expected parameters");
+			throw Ex("Wrong number of expected parameters");
 		double x = 1.1;
 		vector<double> params;
 		params.push_back(x);
 		double y = pFunc->call(params);
 		if(std::abs(y - 3.26125) > 1e-12)
-			ThrowError("Wrong answer");
+			throw Ex("Wrong answer");
 	}
 }
 

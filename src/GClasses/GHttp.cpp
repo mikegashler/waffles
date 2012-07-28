@@ -549,7 +549,7 @@ unsigned char* GHttpClient::releaseData(size_t* pnSize)
 unsigned char* GHttpClient::get(const char* url, size_t* pOutSize, unsigned int sleepMiliSecs, unsigned int timeoutSecs)
 {
 	if(!sendGetRequest(url))
-		ThrowError("Failed to connect to ", url);
+		throw Ex("Failed to connect to ", url);
 	double startTime = GTime::seconds();
 	float prevProg = 0.0f;
 	float prog;
@@ -568,25 +568,25 @@ unsigned char* GHttpClient::get(const char* url, size_t* pOutSize, unsigned int 
 						startTime = time;
 					}
 					else if(time - startTime > timeoutSecs)
-						ThrowError("Timed out while waiting for any progress downloading ", url);
+						throw Ex("Timed out while waiting for any progress downloading ", url);
 					else
 						GThread::sleep(sleepMiliSecs);
 				}
 				break;
 			case Error:
-				ThrowError("Received error status while trying to get ", url);
+				throw Ex("Received error status while trying to get ", url);
 				break;
 			case NotFound:
-				ThrowError("404, not found: ", url);
+				throw Ex("404, not found: ", url);
 				break;
 			case Done:
 				stillDownloading = false;
 				break;
 			case Aborted:
-				ThrowError("Download of ", url, " aborted by server");
+				throw Ex("Download of ", url, " aborted by server");
 				break;
 			default:
-				ThrowError("Unrecognized status code");
+				throw Ex("Unrecognized status code");
 		}
 	}
 	return releaseData(pOutSize);

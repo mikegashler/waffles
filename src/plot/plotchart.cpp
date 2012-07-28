@@ -174,7 +174,7 @@ GImage* PlotChartMaker::MakeChart()
 {
 	// Compute the size of the image
 	if(m_nOutputCount <= 0)
-		ThrowError("There are no output values to chart");
+		throw Ex("There are no output values to chart");
 
 	GImage* pImage = new GImage();
 	Holder<GImage> hImage(pImage);
@@ -245,7 +245,7 @@ GImage* PlotChartMaker::MakeChart()
 	{
 		size_t meshHeight = m_pData->rows() / m_meshSize;
 		if(meshHeight * m_meshSize != m_pData->rows())
-			ThrowError("The number of data points is not divisible by the specified mesh size");
+			throw Ex("The number of data points is not divisible by the specified mesh size");
 		for(size_t attr = 1; attr < m_pRelation->size(); attr++)
 		{
 			for(size_t pat = 0; pat < m_pData->rows(); pat++)

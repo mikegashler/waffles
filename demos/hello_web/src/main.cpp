@@ -88,11 +88,11 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 void getLocalStorageFolder(char* buf)
 {
 	if(!GFile::localStorageDirectory(buf))
-		ThrowError("Failed to find local storage folder");
+		throw Ex("Failed to find local storage folder");
 	strcat(buf, "/.hello/");
 	GFile::makeDir(buf);
 	if(!GFile::doesDirExist(buf))
-		ThrowError("Failed to create folder in storage area");
+		throw Ex("Failed to create folder in storage area");
 }
 
 void LaunchBrowser(const char* szAddress)

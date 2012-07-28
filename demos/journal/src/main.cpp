@@ -161,7 +161,7 @@ Account* getAccount(GDynamicPageSession* pSession)
 		{
 			pAccount = pServer->newAccount(szGenericUsername, NULL);
 			if(!pAccount)
-				ThrowError("Failed to create account");
+				throw Ex("Failed to create account");
 		}
 		pSession->setExtension(pAccount);
 	}
@@ -332,20 +332,23 @@ public:
 			GHttpMultipartParser parser(pSession->params(), pSession->paramsLen());
 			while(parser.next(&nameStart, &nameLen, &valueStart, &valueLen, &filenameStart, &filenameLen))
 			{
-				if(nameStart >= 0)
-					meta.append(pSession->params() + nameStart, nameLen);
-				else
-					meta += "?";
-				meta += "=";
-				if(filenameStart >= 0)
+				if(filenameStart != (size_t)-1)
 				{
+					meta.append("filename=");
 					meta.append(pSession->params() + filenameStart, filenameLen);
 					string s2 = s;
 					s2.append(pSession->params() + filenameStart, filenameLen);
 					GFile::saveFile(pSession->params() + valueStart, valueLen, s2.c_str());
 				}
 				else
+				{
+					if(nameStart >= 0)
+						meta.append(pSession->params() + nameStart, nameLen);
+					else
+						meta += "?";
+					meta += "=";
 					meta.append(pSession->params() + valueStart, valueLen);
+				}
 				meta += "\n";
 			}
 			s += "meta.txt";
@@ -536,7 +539,7 @@ void DeleteFile(const char* szFilename)
 	strcat(szBuf, szFilename);
 	strcat(szBuf, " &");
 	if(system(szBuf) == -1)
-		ThrowError("Failed to delete file");
+		throw Ex("Failed to delete file");
 }
 #endif
 
@@ -780,11 +783,11 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 void getLocalStorageFolder(char* buf)
 {
 	if(!GFile::localStorageDirectory(buf))
-		ThrowError("Failed to find local storage folder");
+		throw Ex("Failed to find local storage folder");
 	strcat(buf, "/.erjml/");
 	GFile::makeDir(buf);
 	if(!GFile::doesDirExist(buf))
-		ThrowError("Failed to create folder in storage area");
+		throw Ex("Failed to create folder in storage area");
 }
 
 void Server::getStatePath(char* buf)

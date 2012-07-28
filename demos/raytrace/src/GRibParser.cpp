@@ -86,10 +86,9 @@ bool RibParser::createScene(FILE* F)
 	bool success = true; // Let's be optimistic
 
 	vector< int > lines, line_nums;
-	int total_length;
 	RibData line;
 
-	total_length = readLines( F, lines, line_nums );
+	/*int total_length =*/ readLines( F, lines, line_nums );
 	//printf("Read %d lines, parsing...\n", lines.size());
 	char* line_buff = lineBuffs.back();
 

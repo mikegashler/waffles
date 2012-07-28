@@ -203,7 +203,7 @@ void GMixtureOfGaussians::test()
 				break;
 		}
 		if(j >= KERNEL_COUNT)
-			ThrowError("Failed");
+			throw Ex("Failed");
 	}
 }
 #endif // !NO_TEST_CODE
