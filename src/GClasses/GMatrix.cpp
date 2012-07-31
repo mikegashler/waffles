@@ -3144,7 +3144,7 @@ void GMatrix::mergeVert(GMatrix* pData)
 
 double GMatrix::mean(size_t nAttribute)
 {
-	if(nAttribute >= cols() || nAttribute <  0)
+	if(nAttribute >= cols())
 		throw Ex("attribute index out of range");
 	double sum = 0;
 	size_t missing = 0;

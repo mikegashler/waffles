@@ -12,7 +12,9 @@
 #include "GTransform.h"
 #include "GDom.h"
 #include "GVec.h"
+#ifndef MIN_PREDICT
 #include "GDistribution.h"
+#endif // MIN_PREDICT
 #include "GRand.h"
 #ifndef MIN_PREDICT
 #include "GManifold.h"
@@ -147,7 +149,7 @@ void GIncrementalTransform::test()
 	if(!pD->relation()->isCompatible(*m.relation().get()) || !m.relation()->isCompatible(*pD->relation().get()))
 		throw Ex("failed");
 }
-#endif
+#endif // MIN_PREDICT
 
 // ---------------------------------------------------------------
 

@@ -14,7 +14,9 @@
 #include "GMath.h"
 #endif // MIN_PREDICT
 #include "GActivation.h"
+#ifndef MIN_PREDICT
 #include "GDistribution.h"
+#endif // MIN_PREDICT
 #include "GError.h"
 #include "GRand.h"
 #include "GVec.h"
