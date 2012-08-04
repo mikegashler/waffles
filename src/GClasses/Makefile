@@ -20,7 +20,8 @@ endif
 
 # Set platform-specific compiler flags
 ifeq ($(UNAME),Darwin)
-	CFLAGS = -D_THREAD_SAFE -DDARWIN -I/sw/include -no-cpp-precomp
+	DARWIN_BASE ?= /usr/X11
+	CFLAGS = -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
 else
 	CFLAGS = -Wall
 endif

@@ -18,10 +18,11 @@ endif
 
 # Set platform-specific compiler and linker flags
 ifeq ($(UNAME),Darwin)
-	CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -no-cpp-precomp
-	OPT_LFLAGS = /sw/lib/libpng.dylib -lz -framework AppKit ../../lib/GClasses.a
-	DBG_LFLAGS = /sw/lib/libpng.dylib -lz -framework AppKit ../../lib/GClassesDbg.a
-	GCOV_LFLAGS = -fprofile-arcs /sw/lib/libpng.dylib -lz -framework AppKit ../../lib/GClassesGcov.a
+	DARWIN_BASE ?= /usr/X11
+	CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
+	OPT_LFLAGS = $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../lib/GClasses.a
+	DBG_LFLAGS = $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../lib/GClassesDbg.a
+	GCOV_LFLAGS = -fprofile-arcs $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../lib/GClassesGcov.a
 else
 	CFLAGS = -Wall
 	OPT_LFLAGS = ../../lib/GClasses.a -lpng -lpthread

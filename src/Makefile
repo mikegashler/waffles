@@ -2,6 +2,9 @@ SHELL = /bin/bash
 export INSTALL_LOCATION_LIB="/usr/local/lib"
 export INSTALL_LOCATION_INCLUDE="/usr/local/include"
 export INSTALL_LOCATION_BIN="/usr/local/bin"
+ifeq ($(UNAME),Darwin)
+	export DARWIN_BASE="/usr/X11"
+endif
 SUBDIRS= _GClasses _wizard _audio _cluster _dimred _generate _learn _plot _recommend _sparse _test _transform
 DBG_SUBDIRS= $(SUBDIRS:_%=DBG_%)
 OPT_SUBDIRS= $(SUBDIRS:_%=OPT_%)
