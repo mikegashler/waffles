@@ -166,17 +166,17 @@ usage:
 
 # This rule makes the optimized ".a" file by using the "ar" tool with all of the optimized ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT)
-	@echo "Creating optimized library: " $(TARGET_PATH)/$(TARGET_NAME_OPT)
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT)
 
 # This rule makes the debug ".a" file by using the "ar" tool with all of the debug ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
-	@echo "Creating debug library:" $(TARGET_PATH)/$(TARGET_NAME_DBG)
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG)
 
 # This rule makes the debug ".a" file by using the "ar" tool with all of the debug ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV)
-	@echo "Creating test/profile library:" $(TARGET_PATH)/$(TARGET_NAME_GCOV)
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_GCOV) $(OBJECTS_GCOV)
 
 # This includes all of the ".d" files. Each ".d" file contains a
@@ -259,8 +259,8 @@ install:
 	@if [ "$${SUDO_USER}" == "" ]; then echo "You must use sudo to install"; false; fi
 	@sudo -u $${SUDO_USER} $(MAKE) -C . dbg
 	@sudo -u $${SUDO_USER} $(MAKE) -C . opt
-	@sudo -u $${SUDO_USER} mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
-	@sudo -u $${SUDO_USER} mkdir -m 0755 -p $(INSTALL_LOCATION_INCLUDE)/GClasses
+	mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
+	mkdir -m 0755 -p $(INSTALL_LOCATION_INCLUDE)/GClasses
 	install $(TARGET_PATH)/GClasses.a $(INSTALL_LOCATION_LIB)/libGClasses.a
 	install $(TARGET_PATH)/GClassesDbg.a $(INSTALL_LOCATION_LIB)/libGClassesDbg.a
 	install *.h $(INSTALL_LOCATION_INCLUDE)/GClasses

@@ -21,6 +21,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <fstream>
+#ifdef WINDOWS
+	#include <direct.h>
+#else
+	#include <unistd.h>
+#endif
 
 using std::string;
 using std::map;

@@ -38,14 +38,14 @@ GOptimizer::GOptimizer(GTargetFunction* pCritic)
 
 double GOptimizer::searchUntil(size_t nBurnInIterations, size_t nIterations, double dImprovement)
 {
-	for(size_t i = 1; i < nBurnInIterations; i++)
+	for(size_t i = 0; i < nBurnInIterations; i++)
 		iterate();
 	double dPrevError;
 	double dError = iterate();
 	while(true)
 	{
 		dPrevError = dError;
-		for(size_t i = 1; i < nIterations; i++)
+		for(size_t i = 0; i < nIterations; i++)
 			iterate();
 		dError = iterate();
 		if((dPrevError - dError) / dPrevError < dImprovement)
