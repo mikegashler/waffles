@@ -345,7 +345,7 @@ void PlotBar(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
-	if(pRel->size() != 1 || pRel->areContinuous(0, 1))
+	if(pRel->size() != 1 || !pRel->areContinuous(0, 1))
 		throw Ex("Expected exactly one continuous attribute");
 	double* values = new double[pData->rows()];
 	ArrayHolder<double> hValues(values);

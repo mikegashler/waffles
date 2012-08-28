@@ -203,13 +203,13 @@ public:
 	{
 		m_ss << "<line x1=\"" << to_str(x1) << "\" y1=\"" << to_str(y1) << "\" x2=\"" << to_str(x2) << "\" y2=\"" << to_str(y2) << "\" style=\"stroke:#008000;stroke-width:1\"/>\n";
 	}
-/*
+
 	/// Draw black text at the specified location.
 	void text(double x, double y, const char* szText, double scale)
 	{
-		m_ss << "<text x=\"" << to_str(x) << "\" y=\"" << to_str(y) << "\" style=\"font-size:" << to_str(scale * 10) << "px;fill:#000000;font-family:Sans\">" << szText << "</text>\n";
+		m_ss << "<text x=\"" << to_str(x) << "\" y=\"" << to_str(-y) << "\" style=\"font-size:" << to_str(scale * 10) << "px;fill:#000000;font-family:Sans\" transform=\"scale(1 -1)\">" << szText << "</text>\n";
 	}
-*/
+
 	/// Generate an SVG file with all of the components added so far.
 	void print(std::ostream& stream)
 	{
