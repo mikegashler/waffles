@@ -162,7 +162,7 @@ bool shredFolder(const char* szPath)
 	char* szOldDir = new char[300]; // use heap so deep recursion won't overflow stack
 	ArrayHolder<char> hOldDir(szOldDir);
 	if(!getcwd(szOldDir, 300))
-		ThrowError("Failed to read current dir");
+		throw Ex("Failed to read current dir");
 
 	// Recurse subdirs
 	bool bOK = true;
@@ -192,7 +192,7 @@ bool shredFolder(const char* szPath)
 	}
 
 	if(chdir(szOldDir) != 0)
-		ThrowError("Failed to restore the old dir");
+		throw Ex("Failed to restore the old dir");
 
 	// todo: we should rename the directory before we delete it
 
@@ -207,7 +207,7 @@ bool shredFolder(const char* szPath)
 void shred(const char* szPath)
 {
 	if(access(szPath, 0 ) != 0)
-		ThrowError("The file or folder ", szPath, " does not seem to exist");
+		throw Ex("The file or folder ", szPath, " does not seem to exist");
 	struct stat status;
 	stat(szPath, &status);
 	if(status.st_mode & S_IFDIR)
@@ -259,19 +259,19 @@ HKEY GetRunKey()
 {
 	HKEY hSoftware;
 	if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE", 0, KEY_ALL_ACCESS, &hSoftware) != ERROR_SUCCESS)
-		ThrowError("Failed to open SOFTWARE registry key");
+		throw Ex("Failed to open SOFTWARE registry key");
 	HKEY hMicrosoft;
 	if(RegOpenKeyEx(hSoftware, "Microsoft", 0, KEY_ALL_ACCESS, &hMicrosoft) != ERROR_SUCCESS)
-		ThrowError("Failed to open Microsoft registry key");
+		throw Ex("Failed to open Microsoft registry key");
 	HKEY hWindows;
 	if(RegOpenKeyEx(hMicrosoft, "Windows", 0, KEY_ALL_ACCESS, &hWindows) != ERROR_SUCCESS)
-		ThrowError("Failed to open Windows registry key");
+		throw Ex("Failed to open Windows registry key");
 	HKEY hCurrentVersion;
 	if(RegOpenKeyEx(hWindows, "CurrentVersion", 0, KEY_ALL_ACCESS, &hCurrentVersion) != ERROR_SUCCESS)
-		ThrowError("Failed to open CurrentVersion registry key");
+		throw Ex("Failed to open CurrentVersion registry key");
 	HKEY hRun;
 	if(RegOpenKeyEx(hCurrentVersion, "Run", 0, KEY_ALL_ACCESS, &hRun) != ERROR_SUCCESS)
-		ThrowError("Failed to open Run registry key");
+		throw Ex("Failed to open Run registry key");
 	
 	return hRun;
 }
@@ -279,13 +279,13 @@ HKEY GetRunKey()
 void InstallInRunFolder(const char* szName, const char* szPath)
 {
 	if(RegSetValueEx(GetRunKey(), szName, 0, REG_SZ, (const unsigned char*)szPath, strlen(szPath) + 1) != ERROR_SUCCESS)
-		ThrowError("Failed to set registry value");
+		throw Ex("Failed to set registry value");
 }
 
 void RemoveFromRunFolder(const char* szName)
 {
 	if(RegDeleteValue(GetRunKey(), szName) != ERROR_SUCCESS)
-		ThrowError("Failed to set registry value");
+		throw Ex("Failed to set registry value");
 }
 
 void InstallOnWindowsAndLaunch()
@@ -375,7 +375,7 @@ int doBandwidthClient(GArgReader& args)
 		else if(args.if_pop("-addr"))
 			szUrl = args.pop_string();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Fill an 8-MB buffer with random data
@@ -447,7 +447,7 @@ int doBandwidthClient(GArgReader& args)
 
 	// Check the message
 	if(nSize != MESSAGESIZE)
-		ThrowError("The reply is the wrong size--something's wrong\n");
+		throw Ex("The reply is the wrong size--something's wrong\n");
 	if(memcmp(pMessage, pBuf, MESSAGESIZE))
 		cout << "!!!The message differs from the original--something's wrong!!!\n";
 
@@ -467,7 +467,7 @@ int doBandwidthServer(GArgReader& args)
 		if(args.if_pop("-port"))
 			port = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Repeat messages
@@ -501,7 +501,7 @@ int doBandwidthServer(GArgReader& args)
 void nthash(const char* password, unsigned char* hash)
 {
 #ifdef WINDOWS
-	ThrowError("Sorry, this feature is not yet implemented for Windows. (It works on Linux.)");
+	throw Ex("Sorry, this feature is not yet implemented for Windows. (It works on Linux.)");
 #else
 	unsigned short buf[128];
 	unsigned int len = 0;
@@ -558,7 +558,7 @@ void bruteForceNTPassword(size_t passwordLen, unsigned char* hash, const char* c
 	size_t charSetLen = strlen(charSet);
 	size_t termLen = passwordLen - 1;
 	if(part >= charSetLen)
-		ThrowError("Part ", to_str(part), " is out of range. It should be from 0 to ", to_str(charSetLen - 1));
+		throw Ex("Part ", to_str(part), " is out of range. It should be from 0 to ", to_str(charSetLen - 1));
 	pChars[passwordLen - 1] += part;
 	cand[passwordLen - 1] = *pChars[passwordLen - 1];
 	if(termLen > 0 && onePartOnly)
@@ -649,7 +649,7 @@ void bruteForceNTPassword(GArgReader& args)
 {
 	const char* szHashHex = args.pop_string();
 	if(strlen(szHashHex) != 32)
-		ThrowError("Expected the hash to consist of 32 hexadecimal digits");
+		throw Ex("Expected the hash to consist of 32 hexadecimal digits");
 	unsigned char hash[16];
 	GBits::hexToBufferBigEndian(szHashHex, 32, hash);
 	string charset = "";
@@ -691,7 +691,7 @@ void bruteForceNTPassword(GArgReader& args)
 		else if(args.if_pop("-include"))
 			include = args.pop_string();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Remove dupes
@@ -814,7 +814,7 @@ public:
 			if(args.if_pop("-daemon"))
 				daemon = true;
 			else
-				ThrowError("Invalid option: ", args.peek());
+				throw Ex("Invalid option: ", args.peek());
 		}
 		if(daemon)
 			GApp::launchDaemon(doLogging, (void*)szFilename);
@@ -830,7 +830,7 @@ unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutS
 {
 	GHttpClient client;
 	if(!client.sendGetRequest(szAddr))
-		ThrowError("Error connecting");
+		throw Ex("Error connecting");
 	float fProgress;
 	time_t start = time(NULL);
 	while(client.status(&fProgress) == GHttpClient::Downloading)
@@ -840,7 +840,7 @@ unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutS
 		GThread::sleep(50);
 	}
 	if(client.status(&fProgress) != GHttpClient::Done)
-		ThrowError("Error downloading page");
+		throw Ex("Error downloading page");
 	return client.releaseData(pOutSize);
 }
 
@@ -863,7 +863,7 @@ void doCommandCenter(GArgReader& args)
 		if(args.if_pop("-port"))
 			port = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	doShellCommandCenter(port);
 }
@@ -883,7 +883,7 @@ int doSatellite(GArgReader& args)
 		else if(args.if_pop("-port"))
 			port = args.pop_uint();
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
         Satellite sat;
         sat.Go(szAddr, port, connectInterval, timeoutSecs);
@@ -969,7 +969,7 @@ void decryptFile(const char* source, char* passphrase, char* outSalt, std::strin
 	ifs.exceptions(std::ios::failbit|std::ios::badbit);
 	ifs.open(source, std::ios::binary);
 	ifs.seekg(0, std::ios::end);
-	size_t len = ifs.tellg();
+	size_t len = (size_t)ifs.tellg();
 	ifs.seekg(0, std::ios::beg);
 
 	// Read the salt
@@ -995,7 +995,7 @@ void decryptFile(const char* source, char* passphrase, char* outSalt, std::strin
 		{
 			first = false;
 			if(memcmp(pBuf, "ugfs", 4) != 0 && memcmp(pBuf, "cgfs", 4) != 0)
-				ThrowError("The passphrase is incorrect");
+				throw Ex("The passphrase is incorrect");
 		}
 		fd.doNext(pBuf, chunkSize);
 		if(prevLen - len >= 10000)
@@ -1061,7 +1061,7 @@ void encryptPath(const char* pathName, char* passphrase, const char* targetName,
 		}
 		catch(const std::exception&)
 		{
-			ThrowError("Error writing to file ", targetName);
+			throw Ex("Error writing to file ", targetName);
 		}
 	}
 	cout << "\rDone.               \n";
@@ -1089,7 +1089,7 @@ void encrypt(GArgReader& args)
 		else if(args.if_pop("-compress"))
 			compress = true;
 		else
-			ThrowError("Invalid option: ", args.peek());
+			throw Ex("Invalid option: ", args.peek());
 	}
 	char passphrase[MAX_PASSPHRASE_LEN];
 	char salt[SALT_LEN];
@@ -1276,12 +1276,12 @@ void open(GArgReader& args)
 			if(access(backupname.c_str(), 0) == 0)
 			{
 				if(unlink(backupname.c_str()) != 0)
-					ThrowError("Error deleting the file ", backupname.c_str());
+					throw Ex("Error deleting the file ", backupname.c_str());
 			}
 			
 			// Rename the old encrypted file to the backup name
 			if(rename(filename, backupname.c_str()) != 0)
-				ThrowError("Error renaming old encryped file");
+				throw Ex("Error renaming old encryped file");
 			
 			// Re-encrypt the files
 			encryptPath(basename.c_str(), passphrase, filename, false);
@@ -1291,7 +1291,7 @@ void open(GArgReader& args)
 			
 			// Delete the old encrypted file
 			if(unlink(backupname.c_str()) != 0)
-				ThrowError("Error deleting the file ", backupname.c_str());
+				throw Ex("Error deleting the file ", backupname.c_str());
 			break;
 		}
 		else if(strcmp(choice, "3") == 0)
@@ -1347,7 +1347,7 @@ void showError(GArgReader& args, const char* szMessage)
 
 void doit(GArgReader& args)
 {
-	if(args.size() < 1) ThrowError("Expected a command");
+	if(args.size() < 1) throw Ex("Expected a command");
 	else if(args.if_pop("usage")) ShowUsage();
 	else if(args.if_pop("bandwidthclient")) doBandwidthClient(args);
 	else if(args.if_pop("bandwidthserver")) doBandwidthServer(args);
@@ -1363,7 +1363,7 @@ void doit(GArgReader& args)
 	else if(args.if_pop("satellite")) doSatellite(args);
 	else if(args.if_pop("shred")) shred(args);
 	else if(args.if_pop("wget")) wget(args);
-	else ThrowError("Unrecognized command: ", args.peek());
+	else throw Ex("Unrecognized command: ", args.peek());
 }
 
 #ifdef WINDOWS

@@ -1025,10 +1025,10 @@ public:
 			{
 				// Command-line tests
 				runTest("waffles_transform mergevert", test_transform_mergevert);
-				runTest("waffles_transform keeponlycolumns", test_transform_keeponly);
 				runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
-				runTest("waffles_dimred attributeselector", test_dimred_attributeselector);
 #ifndef WINDOWS
+				runTest("waffles_transform keeponlycolumns", test_transform_keeponly);
+				runTest("waffles_dimred attributeselector", test_dimred_attributeselector);
 				runTest("document classification", test_document_classification);
 #endif
 			}

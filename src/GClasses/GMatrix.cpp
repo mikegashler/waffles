@@ -576,7 +576,7 @@ GArffRelation::GArffRelation(GDomNode* pNode)
 			addAttribute(valName, valNames.size(), &valNames);
 		}
 		else
-			addAttribute(valName, it.current()->field("vc")->asInt(), NULL);
+			addAttribute(valName, (size_t)it.current()->field("vc")->asInt(), NULL);
 		it.advance();
 	}
 }

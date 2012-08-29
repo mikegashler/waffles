@@ -108,7 +108,7 @@ GGaussianProcess::GGaussianProcess(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_weightsPriorVar = pNode->field("wv")->asDouble();
 	m_noiseVar = pNode->field("nv")->asDouble();
-	m_maxSamples = pNode->field("ms")->asInt();
+	m_maxSamples = (size_t)pNode->field("ms")->asInt();
 	m_pLInv = new GMatrix(pNode->field("l"));
 	m_pAlpha = new GMatrix(pNode->field("a"));
 	m_pStoredFeatures = new GMatrix(pNode->field("feat"));
@@ -183,7 +183,7 @@ void GGaussianProcess::trainInner(GMatrix& features, GMatrix& labels)
 	GRand rand(0);
 	while(f.rows() > m_maxSamples)
 	{
-		size_t i = rand.next(f.rows());
+		size_t i = (size_t)rand.next(f.rows());
 		f.releaseRow(i);
 		l.releaseRow(i);
 	}

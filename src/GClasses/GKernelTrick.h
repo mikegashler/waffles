@@ -105,7 +105,7 @@ protected:
 
 public:
 	GKernelPolynomial(double offset, unsigned int order) : GKernel(), m_offset(std::abs(offset)), m_order(order) {}
-	GKernelPolynomial(GDomNode* pNode) : GKernel(), m_offset(pNode->field("offset")->asDouble()), m_order(pNode->field("order")->asInt()) {}
+	GKernelPolynomial(GDomNode* pNode) : GKernel(), m_offset(pNode->field("offset")->asDouble()), m_order((unsigned int)pNode->field("order")->asInt()) {}
 	virtual ~GKernelPolynomial() {}
 
 	/// Marshalls this object into a DOM.
@@ -289,7 +289,7 @@ class GKernelPow : public GKernel
 {
 protected:
 	GKernel* m_pK;
-	unsigned int m_value;
+	double m_value;
 
 public:
 	/// Takes ownership of pK
@@ -312,7 +312,7 @@ public:
 	/// Computes K(A, B)^value
 	virtual double apply(const double* pA, const double* pB, size_t dims)
 	{
-		return pow(m_pK->apply(pA, pB, dims), (int)m_value);
+		return pow(m_pK->apply(pA, pB, dims), m_value);
 	}
 };
 

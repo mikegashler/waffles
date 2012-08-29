@@ -802,7 +802,7 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 	VectorOfPointersHolder<GNeuralNet> hCalibrations(calibrations);
 	size_t neighbors = std::max(size_t(4), std::min(size_t(100), (size_t)sqrt(double(features.rows()))));
 #ifdef WINDOWS
-	GPrediction* out = new GPrediction[m_labelDims];
+	GPrediction* out = new GPrediction[labelDims];
 	ArrayHolder<GPrediction> hOut(out);
 #else
 	GPrediction out[labelDims];

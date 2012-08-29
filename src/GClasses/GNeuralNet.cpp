@@ -2010,8 +2010,8 @@ GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
 : GNeuralNet(pNode, ll)
 {
 	m_weightDeviation = pNode->field("wdev")->asDouble();
-	m_augments = pNode->field("augs")->asInt();
-	m_reservoirLayers = pNode->field("reslays")->asInt();
+	m_augments = (size_t)pNode->field("augs")->asInt();
+	m_reservoirLayers = (size_t)pNode->field("reslays")->asInt();
 }
 
 #ifndef MIN_PREDICT

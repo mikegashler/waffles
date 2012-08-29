@@ -90,7 +90,7 @@ void Satellite::OnServerWantsFileList(GBlobIncoming* pBlobIn)
 	// Get the path
 	char szPath[300];
 	if(!getcwd(szPath, 256))
-		ThrowError("Failed to get current dir");
+		throw Ex("Failed to get current dir");
 	m_blobOut.add(szPath);
 
 	// Get the folders
@@ -131,7 +131,7 @@ void Satellite::OnServerWantsDirectoryChange(GBlobIncoming* pBlobIn)
 	string s;
 	pBlobIn->get(&s);
 	if(chdir(s.c_str()) != 0)
-		ThrowError("Failed to change directory to: ", s.c_str());
+		throw Ex("Failed to change directory to: ", s.c_str());
 	m_blobOut.setPos(0);
 	m_blobOut.add(207); // ok
 	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
@@ -140,7 +140,7 @@ void Satellite::OnServerWantsDirectoryChange(GBlobIncoming* pBlobIn)
 void Satellite::OnServerWantsToSendFile(GBlobIncoming* pBlobIn)
 {
 	if(m_pFile)
-		ThrowError("Already receiving a file");
+		throw Ex("Already receiving a file");
 	pBlobIn->get(&m_filename);
 	pBlobIn->get(&m_fileLen);
 	m_filePos = 0;
@@ -149,26 +149,26 @@ void Satellite::OnServerWantsToSendFile(GBlobIncoming* pBlobIn)
 		pBlobIn->get(&m_fileHash[i]);
 	m_pFile = fopen(m_filename.c_str(), "wb");
 	if(!m_pFile)
-		ThrowError("Failed to create file ", m_filename.c_str(), " for writing");
+		throw Ex("Failed to create file ", m_filename.c_str(), " for writing");
 	m_uploading = false;
 }
 
 void Satellite::OnServerSendsFileChunk(GBlobIncoming* pBlobIn)
 {
 	if(m_uploading)
-		ThrowError("Client is uploading");
+		throw Ex("Client is uploading");
 	int size; pBlobIn->get(&size);
 	if(size > BUF_SIZE)
-		ThrowError("Chunk too big for buffer");
+		throw Ex("Chunk too big for buffer");
 	pBlobIn->get(m_pBuf, size);
 	if(fwrite(m_pBuf, size, 1, m_pFile) != 1)
-		ThrowError("error writing to file");
+		throw Ex("error writing to file");
 }
 
 void Satellite::OnServerDoneSendingFile(GBlobIncoming* pBlobIn)
 {
 	if(m_uploading)
-		ThrowError("Client is uploading");
+		throw Ex("Client is uploading");
 	fclose(m_pFile);
 #ifndef WINDOWS
 	chmod(m_filename.c_str(), S_IXUSR | S_IWUSR | S_IRUSR);
@@ -177,13 +177,13 @@ void Satellite::OnServerDoneSendingFile(GBlobIncoming* pBlobIn)
 	unsigned char hash[20];
 	Sha1DigestFile(hash, m_filename.c_str());
 	if(memcmp(hash, m_fileHash, 20) != 0)
-		ThrowError("File hash for ", m_filename.c_str(), " does not match");
+		throw Ex("File hash for ", m_filename.c_str(), " does not match");
 }
 
 void Satellite::OnServerWantsToDownloadFile(GBlobIncoming* pBlobIn)
 {
 	if(m_pFile)
-		ThrowError("Still transferring another file");
+		throw Ex("Still transferring another file");
 
 	// Extract the filename
 	string filename; pBlobIn->get(&filename);
@@ -194,7 +194,7 @@ void Satellite::OnServerWantsToDownloadFile(GBlobIncoming* pBlobIn)
 	// Open the file
 	m_pFile = fopen(filename.c_str(), "rb");
 	if(!m_pFile)
-		ThrowError("Failed to open file for reading");
+		throw Ex("Failed to open file for reading");
 	m_uploading = true;
 	m_fileLen = filelength(fileno(m_pFile));
 	m_filePos = 0;
@@ -214,7 +214,7 @@ void Satellite::TransferFileChunk()
 	// Read a chunk
 	size_t size = std::min((size_t)(m_fileLen - m_filePos), (size_t)BUF_SIZE);
 	if(fread(m_pBuf, size, 1, m_pFile) != 1)
-		ThrowError("error reading from file");
+		throw Ex("error reading from file");
 	m_filePos += size;
 
 	// Send it
@@ -253,7 +253,7 @@ void Satellite::HandlePacket(GBlobIncoming* pBlobIn)
 {
 	int id; pBlobIn->get(&id);
 	if(id < 600 || id >= 800)
-		ThrowError("packet id ", to_str(id), " out of expected range");
+		throw Ex("packet id ", to_str(id), " out of expected range");
 	switch(id)
 	{
 		case 600: // server requests disconnect
@@ -294,7 +294,7 @@ void Satellite::HandlePacket(GBlobIncoming* pBlobIn)
 			Delete_File(pBlobIn);
 			break;
 		default:
-			ThrowError("unrecognized packet id: ", to_str(id));
+			throw Ex("unrecognized packet id: ", to_str(id));
 	}
 }
 
@@ -419,7 +419,7 @@ void Sha1DigestFile(unsigned char* pOut20ByteHash, const char* filename)
 	SHA1_Init(&ctx);
 	FILE* pFileIn = fopen(filename, "rb");
 	if(!pFileIn)
-		ThrowError("could not open the file \"%s\"", filename);
+		throw Ex("could not open the file \"%s\"", filename);
 	FileHolder hFile(pFileIn);
 	int fileSize = filelength(fileno(pFileIn));
 	int size;
@@ -427,9 +427,9 @@ void Sha1DigestFile(unsigned char* pOut20ByteHash, const char* filename)
 	{
 		size = std::min(fileSize, 8192);
 		if(fread(buf, size, 1, pFileIn) != 1)
-			ThrowError("error reading from file \"%s\"", filename);
+			throw Ex("error reading from file \"%s\"", filename);
 		if(ferror(pFileIn) != 0)
-			ThrowError("error reading file \"%s\"", filename);
+			throw Ex("error reading file \"%s\"", filename);
 		SHA1_Update(&ctx, buf, size);
 		fileSize -= size;
 	}
@@ -497,7 +497,7 @@ public:
 	{
 		char szPath[300];
 		if(!getcwd(szPath, 256))
-			ThrowError("Failed to get the current dir");
+			throw Ex("Failed to get the current dir");
 		ostringstream oss;
 		oss << "Listing of " << szPath << "\n";
 
@@ -596,7 +596,7 @@ public:
 	void pushFile(const char* szFilename)
 	{
 		if(m_pFile)
-			ThrowError("Still transferring another file");
+			throw Ex("Still transferring another file");
 
 		// Hash the file
 		Sha1DigestFile(m_fileHash, szFilename);
@@ -604,7 +604,7 @@ public:
 		// Open the file
 		m_pFile = fopen(szFilename, "rb");
 		if(!m_pFile)
-			ThrowError("Failed to open file for reading");
+			throw Ex("Failed to open file for reading");
 		m_uploading = true;
 		m_filename = szFilename;
 		m_fileLen = filelength(fileno(m_pFile));
@@ -629,12 +629,12 @@ public:
 	void pullFile(const char* szFilename)
 	{
 		if(m_pFile)
-			ThrowError("Still transferring another file");
+			throw Ex("Still transferring another file");
 
 		// Open the file
 		m_pFile = fopen(szFilename, "wb");
 		if(!m_pFile)
-			ThrowError("Failed to open file for reading");
+			throw Ex("Failed to open file for reading");
 		m_filename = szFilename;
 		m_uploading = false;
 		m_fileLen = 0;
@@ -723,7 +723,7 @@ public:
 		// Read a chunk
 		size_t size = std::min((size_t)(m_fileLen - m_filePos), (size_t)BUF_SIZE);
 		if(fread(m_pBuf, size, 1, m_pFile) != 1)
-			ThrowError("error reading from file");
+			throw Ex("error reading from file");
 		m_filePos += size;
 
 		// Send it
@@ -761,7 +761,7 @@ public:
 	void OnClientDeliversFileInfo(GBlobIncoming* pBlobIn)
 	{
 		if(m_uploading)
-			ThrowError("Server is uploading");
+			throw Ex("Server is uploading");
 		pBlobIn->get(&m_fileLen);
 		int i;
 		for(i = 0; i < 20; i++)
@@ -771,13 +771,13 @@ public:
 	void OnClientSendsFileChunk(GBlobIncoming* pBlobIn)
 	{
 		if(m_uploading)
-			ThrowError("Server is uploading");
+			throw Ex("Server is uploading");
 		int size; pBlobIn->get(&size);
 		if(size > BUF_SIZE)
-			ThrowError("Chunk too big for buffer");
+			throw Ex("Chunk too big for buffer");
 		pBlobIn->get(m_pBuf, size);
 		if(fwrite(m_pBuf, size, 1, m_pFile) != 1)
-			ThrowError("error writing to file");
+			throw Ex("error writing to file");
 		m_filePos += size;
 
 		// Update the progres bar
@@ -805,13 +805,13 @@ public:
 	void OnClientDoneSendingFile(GBlobIncoming* pBlobIn)
 	{
 		if(m_uploading)
-			ThrowError("Server is uploading");
+			throw Ex("Server is uploading");
 		fclose(m_pFile);
 		m_pFile = NULL;
 		unsigned char hash[20];
 		Sha1DigestFile(hash, m_filename.c_str());
 		if(memcmp(hash, m_fileHash, 20) != 0)
-			ThrowError("File hash for %s does not match", m_filename.c_str());
+			throw Ex("File hash for %s does not match", m_filename.c_str());
 		onUpdateDownloadFileProgress(1.0f);
 	}
 
@@ -823,7 +823,7 @@ public:
 	{
 		int id; pBlob->get(&id);
 		if(id < 200 || id >= 400)
-			ThrowError("packet id ", to_str(id), " out of expected range");
+			throw Ex("packet id ", to_str(id), " out of expected range");
 		switch(id)
 		{
 			case 200: OnClientWantsToConnect(pBlob); break;
