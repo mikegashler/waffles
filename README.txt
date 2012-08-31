@@ -21,8 +21,7 @@ Build Instructions:
 		6- make opt
 
 	Windows:
-		1- Install Microsoft Visual C++ 2008 or 2010.
-		   (The free Express Edition is sufficient.)
+		1- Install Microsoft Visual C++ 2010 Express Edition.
 		2- File->Open->Project/Solution
 		3- Open waffles\src\waffles.sln
 		4- Change to Release mode.
@@ -39,7 +38,7 @@ Build Instructions:
 		12- Run it (F5).
 
 	OSX:
-		1- Install Fink (a unix package manager).
+		1- Install Fink or some other UNIX package manager.
 		2- Install the following packages.
 			g++
 			make
