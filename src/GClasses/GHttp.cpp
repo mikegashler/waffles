@@ -17,7 +17,6 @@
 #include "GHolders.h"
 #include "GTime.h"
 #include "GThread.h" // Sleep
-#include "GHashTable.h"
 #include "GHeap.h"
 #include <time.h>
 #include <string>

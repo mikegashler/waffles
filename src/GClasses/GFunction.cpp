@@ -135,6 +135,7 @@ public:
 			d = std::min(d, *it);
 		return d;
 	}
+	static double _sign(vector<double>& params) { return params[0] >= 0 ? 1.0 : 0.0; }
 	static double _sin(vector<double>& params) { return sin(params[0]); }
 	static double _sinh(vector<double>& params) { return sinh(params[0]); }
 	static double _sqrt(vector<double>& params) { return sqrt(params[0]); }
@@ -414,6 +415,7 @@ GFunctionParser::GFunctionParser(const char* szEquations)
 	addFunction("log", new GFunctionBuiltIn(GFunctionBuiltIn::_log), 1);
 	addFunction("max", new GFunctionBuiltIn(GFunctionBuiltIn::_max), -2/*at least 1 param*/);
 	addFunction("min", new GFunctionBuiltIn(GFunctionBuiltIn::_min), -2/*at least 1 param*/);
+	addFunction("sign", new GFunctionBuiltIn(GFunctionBuiltIn::_sign), 1);
 	addFunction("sin", new GFunctionBuiltIn(GFunctionBuiltIn::_sin), 1);
 	addFunction("sinh", new GFunctionBuiltIn(GFunctionBuiltIn::_sinh), 1);
 	addFunction("sqrt", new GFunctionBuiltIn(GFunctionBuiltIn::_sqrt), 1);

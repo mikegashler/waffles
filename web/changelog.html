@@ -79,6 +79,12 @@
 			<li>Greg Sharp</li>
 			<li>Dmitriy Krylov</li> <!-- Made a feature suggestion (GDom::writeJsonCpp) and made Waffles build on FreeBSD -->
 			<li>Will Bendick</li> <!-- Reported a compile issue with g++ 4.6 and helped fix it -->
+			<li>Vojtech Rylko</li> <!-- Added a tool to visualize random forests -->
+			<li>Daniel McEnnis</li> <!-- Found a design-flaw in our implementation of k-means -->
+			<li>Jonas Gehring</li> <!-- Contributed a patch to make it build with g++ 4.7 -->
+			<li>Andrew Borthwick</li> <!-- Found a bug in the GDecisionTree class, added MIN_PREDICT feature -->
+			<li>Vikram Rangnekar</li> <!-- Improved makefiles for Mac builds -->
+			<li>Tang Yan</li> <!-- Found a bug in the GDecisionTree class -->
 		</ul>
 		</p>
 		<br><br>
@@ -120,7 +126,25 @@
 		<center><b>Change Log / Release Notes</b></center>
 		<br>
 
-		<br><br><br><b>2011-12-6</b><br><br>
+		<br><br><br><b>2012-09-01</b><br><br>
+		Added linear assignment solver and bipartite matching.
+		Added a Gaussian Process model.
+		Added a reservoid network model.
+		Added a method to compute principal components with sparse matrices.
+		Better support for const objects.
+		Improved internal classes, such as the tokenizer and the to_str methods.
+		Added Mersenne twister class.
+		Switched from Subversion to Git for our code repository.
+		Added feature to print random forests.
+		Added a dynamic-survey demo app.
+		Added Makefile support for lcov/gcov.
+		Added ability to build a minimal version of the GClasses library with no dependencies and little cruft.
+		Added multi-layer-perceptron weight averaging ensemble.
+		Added a class for making SVG plots.
+		Ported to VC++ 2010. (Dropped support for VC++ 2008.)
+		Strengthened unit tests, rewrote some classes that were growing cob-webs, made some documentation improvements, and of course, fixed several bugs.
+
+		<br><br><br><b>2011-12-06</b><br><br>
 		Added Bayesian Model Averaging ensembles.
 		Added Bayesian Model Combination ensembles.
 		Added AdaBoost.
@@ -132,7 +156,7 @@
 		Port to FreeBSD.
 		Port to g++ 4.6.
 
-		<br><br><br><b>2011-8-25</b><br><br>
+		<br><br><br><b>2011-08-25</b><br><br>
 		Added a tool to auto-tune the parameters of supervised learners.
 		Added an app for sparse matrix learning tools.
 		Added an app for dimensionality reduction tools.
@@ -152,7 +176,7 @@
 		Added automatic missing-value imputation to supervised learners.
 		Added calibration for all supervised learning algorithms that can predict distributions.
 
-		<br><br><br><b>2011-3-17</b><br><br>
+		<br><br><br><b>2011-03-17</b><br><br>
 		Added Win64 as a build target. Made all learning models support multi-dimensional labels.
 		Made learning algorithms automatically handle data type-conversion. (It is no longer necessary
 		to wrap them in an appropriate filter.) Improved the wizard tool. (It is now web-based, and provides
@@ -164,7 +188,7 @@
 		security demo app. Improved standards compliance. Removed several redundant and not-very-useful classes.
 		Redesigned learning interfaces to be more developer-friendly. Added several new unit tests.
 
-		<br><br><br><b>2010-11-5</b><br><br>
+		<br><br><br><b>2010-11-05</b><br><br>
 		Fixed issues with OSX compatibility. Added lots of comments to make the API docs more complete.
 		Made GDecisionTree more conformant with the random forest algorithm. Added a recommender system
 		demo. Added a demo for unsupervised back-prop. Updated GNeuralNet to support the dynamic addition
@@ -187,7 +211,7 @@
 		Added random and brute-force optimizers for baseline comparisons. Added a linear programming solver and
 		a linear regression learner.
 
-		<br><br><br><b>2010-7-06</b><br><br>
+		<br><br><br><b>2010-07-06</b><br><br>
 		<table><tr><td>
 			<a href="http://download.famouswhy.com/waffles/"><img src="images/famouswhy_pickaward2.gif" border="0" alt="FamousWhy Editor's Pick Award"></a>
 		</td><td>
@@ -198,10 +222,10 @@
 			work for the link.
 		</td></tr></table>
 
-		<br><br><br><b>2010-6-24</b><br><br>
+		<br><br><br><b>2010-06-24</b><br><br>
 		Some cosmetic changes to make the docs and some tools more friendly.
 
-		<br><br><br><b>2010-6-11</b><br><br>
+		<br><br><br><b>2010-06-11</b><br><br>
 		<table><tr><td>
 			<a href="http://www.soft82.com/"><img src="images/soft82_award_88x88.gif" width="88" height="88" border="0" alt="Free download software"></a>
 		</td><td>
@@ -213,7 +237,7 @@
 		</td></tr></table>
 
 
-		<br><br><br><b>2010-6-9</b><br><br>
+		<br><br><br><b>2010-06-09</b><br><br>
 		Added a graphical wizard tool to help build waffles command-line commands.
 		Added a class for the Extended Kalman Filter. Added a sparse matrix class.
 		Added an automatic attribute-selection tool. Added k-medoids and other
@@ -229,7 +253,7 @@
 		incremental learners. Added simulated annealing. Switched to using C++ streams. Strengthened
 		unit tests. Improved some interfaces. Fixed several bugs.
 
-		<br><br><br><b>2009-9-27</b><br><br>
+		<br><br><br><b>2009-09-27</b><br><br>
 		Added the Locally-Linear Embedding (LLE) to the transform tool and improved
 		the Breadth First Unfolding manifold learning algorithm. Added the Kabsch
 		algorithm for aligning data. Added singular value decomposition to the
@@ -237,7 +261,7 @@
 		learning interface. Repaired some regressions with serialization. Added
 		several unit tests.
 
-		<br><br><br><b>2009-9-16</b><br><br>
+		<br><br><br><b>2009-09-16</b><br><br>
 		Ported to 64-bit Linux. Ported to VC++ 2008.
 		Added classes for hidden Markov Models, equation parsing, intelligent
 		neighbor-finding, drawing random values from various distributions,
@@ -255,12 +279,12 @@
 		of maintaining. Fixed a regression in the naive Bayes algorithm. Added
 		several unit tests. Dumped some dead code.
 
-		<br><br><br><b>2009-2-1</b><br><br>
+		<br><br><br><b>2009-02-01</b><br><br>
 		Added a script-friendly command-line interface for all of the data mining tools.
 		Converted to standard containers and did a whole lot of clean-up, maintenance,
 		and polishing on the code.
 
-		<br><br><br><b>2008-5-5</b><br><br>
+		<br><br><br><b>2008-05-05</b><br><br>
 		Models can now be persisted to/from a text-based format.
 		Added incremental kd-tree. Added calibrator. Restructured some interfaces. Added
 		new modelers. Added incremental support to some modelers. Added significance testing.

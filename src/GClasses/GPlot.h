@@ -162,60 +162,40 @@ protected:
 };
 
 
-#define MARGIN_SIZE 50
-#define GRID_LINES 20
+
 
 /// This class simplifies plotting data to an SVG file
 class GSVG
 {
 protected:
 	std::stringstream m_ss;
+	double m_unit;
 
 public:
-	GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax)
-	{
-		m_ss << "<?xml version=\"1.0\"?><svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"";
-		m_ss << to_str(width + MARGIN_SIZE) << "\" height=\"" << to_str(height + MARGIN_SIZE) << "\">\n";
-		for(size_t i = 0; i <= GRID_LINES; i++)
-		{
-			double x = (double)width * i / GRID_LINES + MARGIN_SIZE;
-			double y = (double)height * (GRID_LINES - i) / GRID_LINES;
-			m_ss << "<text x=\"" << to_str(x) << "\" y=\"" << to_str(height + MARGIN_SIZE) << "\" style=\"font-size:10px;fill:#000000;font-family:Sans\" transform=\"rotate(-90 " << to_str(x) << " " << to_str(height + MARGIN_SIZE) << ")\">" << to_str((xmax - xmin) * i / GRID_LINES + xmin) << "</text>\n";
-			m_ss << "<line x1=\"" << to_str(x) << "\" y1=\"0\" x2=\"" << to_str(x) << "\" y2=\"" << to_str(height) << "\" style=\"stroke:#404040;stroke-width:0.5\"/>\n";
-			m_ss << "<text x=\"0\" y=\"" << to_str(y) << "\" style=\"font-size:10px;fill:#000000;font-family:Sans\">" << to_str((ymax - ymin) * i / GRID_LINES + ymin) << "</text>\n";
-			m_ss << "<line x1=\"" << to_str(MARGIN_SIZE) << "\" y1=\"" << to_str(y) << "\" x2=\"" << to_str(MARGIN_SIZE + width) << "\" y2=\"" << to_str(y) << "\" style=\"stroke:#404040;stroke-width:0.5\"/>\n";
-		}
-		m_ss << "<g transform=\"translate(" << to_str(MARGIN_SIZE) << " " << to_str(height) << ") scale(" << to_str((double)width / (xmax - xmin)) << " " << to_str(-(double)height / (ymax - ymin)) << ") translate(" << to_str(-xmin) << " " << to_str(-ymin) << ") \">\n";
-	}
+	GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax);
+	~GSVG();
 
-	~GSVG()
-	{
-	}
+	/// Returns (ymax - ymin) / height, which is often a useful size.
+	double unit() { return m_unit; }
 
-	/// Draw a dark blue dot at the specified location.
-	void dot(double x, double y, double r)
-	{
-		m_ss << "<circle cx=\"" << to_str(x) << "\" cy=\"" << to_str(y) << "\" r=\"" << to_str(r) << "\" fill=\"#000080\" />\n";
-	}
+	/// Draw a dot
+	void dot(double x, double y, double r, unsigned int col = 0x000080);
 
-	/// Draw a dark green line at the specified location.
-	void line(double x1, double y1, double x2, double y2)
-	{
-		m_ss << "<line x1=\"" << to_str(x1) << "\" y1=\"" << to_str(y1) << "\" x2=\"" << to_str(x2) << "\" y2=\"" << to_str(y2) << "\" style=\"stroke:#008000;stroke-width:1\"/>\n";
-	}
+	/// Draw a line
+	void line(double x1, double y1, double x2, double y2, double thickness = 1.0, unsigned int col = 0x008000);
 
-	/// Draw black text at the specified location.
-	void text(double x, double y, const char* szText, double scale)
-	{
-		m_ss << "<text x=\"" << to_str(x) << "\" y=\"" << to_str(-y) << "\" style=\"font-size:" << to_str(scale * 10) << "px;fill:#000000;font-family:Sans\" transform=\"scale(1 -1)\">" << szText << "</text>\n";
-	}
+	/// Draw a rectangle
+	void rect(double x, double y, double w, double h, unsigned int col = 0x008080);
 
-	/// Generate an SVG file with all of the components added so far.
-	void print(std::ostream& stream)
-	{
-		m_ss << "</g></svg>\n";
-		stream << m_ss.str();
-	}
+	/// Draw text
+	void text(double x, double y, const char* szText, double size, unsigned int col = 0x000000, double angle = 0.0);
+
+	/// Generate an SVG file with all of the components that have been added so far.
+	void print(std::ostream& stream);
+
+protected:
+	void color(unsigned int c);
+	void grid(size_t lines, double xmin, double ymin, double xmax, double ymax);
 };
 
 

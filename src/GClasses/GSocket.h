@@ -13,7 +13,6 @@
 #define __GSOCKET_H__
 
 #include "GError.h"
-#include "GThread.h"
 #include "GDom.h"
 
 #ifndef WINDOWS

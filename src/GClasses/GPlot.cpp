@@ -349,5 +349,88 @@ GImage* GPlotWindow::labelAxes(int maxHorizAxisLabels, int maxVertAxisLabels, in
 	return pOutImage;
 }
 
+
+
+
+
+
+
+#define MARGIN_SIZE 50
+const char* g_hex = "0123456789abcdef";
+
+GSVG::GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax)
+: m_unit((ymax - ymin) / height)
+{
+	m_ss << "<?xml version=\"1.0\"?><svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"";
+	m_ss << to_str(width + MARGIN_SIZE) << "\" height=\"" << to_str(height + MARGIN_SIZE) << "\">\n";
+	m_ss << "<g transform=\"translate(" << to_str(MARGIN_SIZE) << " " << to_str(height) << ") scale(" << to_str((double)width / (xmax - xmin)) <<
+		" " << to_str(-(double)height / (ymax - ymin)) << ") translate(" << to_str(-xmin) << " " << to_str(-ymin) << ") \">\n";
+	grid(20, xmin, ymin, xmax, ymax);
+}
+
+GSVG::~GSVG()
+{
+}
+
+void GSVG::color(unsigned int c)
+{
+	m_ss << '#' << g_hex[(c >> 20) & 0xf] << g_hex[(c >> 16) & 0xf];
+	m_ss << g_hex[(c >> 12) & 0xf] << g_hex[(c >> 8) & 0xf];
+	m_ss << g_hex[(c >> 4) & 0xf] << g_hex[c & 0xf];
+}
+
+void GSVG::grid(size_t lines, double xmin, double ymin, double xmax, double ymax)
+{
+	for(size_t i = 0; i <= lines; i++)
+	{
+		double x = (xmax - xmin) * i / lines + xmin;
+		double y = (ymax - ymin) * i / lines + ymin;
+		line(xmin, y, xmax, y, m_unit, 0xa0a0a0);
+		text(xmin, y, to_str(y).c_str(), m_unit, 0x000000);
+		line(x, ymin, x, ymax, m_unit, 0xa0a0a0);
+		text(x, ymin, to_str(x).c_str(), m_unit, 0x000000, 90);
+	}
+}
+
+void GSVG::dot(double x, double y, double r, unsigned int col)
+{
+	m_ss << "<circle cx=\"" << to_str(x) << "\" cy=\"" << to_str(y) << "\" r=\"" << to_str(r) << "\" fill=\"";
+	color(col);
+	m_ss << "\" />\n";
+}
+
+void GSVG::line(double x1, double y1, double x2, double y2, double thickness, unsigned int col)
+{
+	m_ss << "<line x1=\"" << to_str(x1) << "\" y1=\"" << to_str(y1) << "\" x2=\"" << to_str(x2) << "\" y2=\"" << to_str(y2) << "\" style=\"stroke:";
+	color(col);
+	m_ss << ";stroke-width:" << to_str(thickness) << "\"/>\n";
+}
+
+void GSVG::rect(double x, double y, double w, double h, unsigned int col)
+{
+	m_ss << "<rect x=\"" << to_str(x) << "\" y=\"" << to_str(y) << "\" width=\"" << to_str(w) << "\" height=\"" << to_str(h) << "\" style=\"fill:";
+	color(col);
+	m_ss << "\"/>\n";
+}
+
+void GSVG::text(double x, double y, const char* szText, double size, unsigned int col, double angle)
+{
+	m_ss << "<text x=\"" << to_str(x) << "\" y=\"" << to_str(-y) << "\" style=\"font-size:" << to_str(size * 10) << "px;fill:";
+	color(col);
+	m_ss << ";font-family:Sans\" transform=\"";
+	if(angle != 0.0)
+		m_ss << "rotate(" << to_str(angle) << " " << to_str(x) << " " << to_str(-y) << ") ";
+	m_ss << "scale(1 -1)\" text-anchor=\"end\"";
+	m_ss << ">" << szText << "</text>\n";
+}
+
+void GSVG::print(std::ostream& stream)
+{
+	m_ss << "</g></svg>\n";
+	stream << m_ss.str();
+}
+
+
+
 } // namespace GClasses
 

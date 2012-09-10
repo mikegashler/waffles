@@ -14,7 +14,6 @@
 #include "GBits.h"
 #include "GHashTable.h"
 #include "GDom.h"
-#include "GHeap.h"
 #include "GImage.h"
 #include "GHolders.h"
 #include "GFile.h"

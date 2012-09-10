@@ -332,6 +332,7 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 					stream << "[";
 					for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
 					{
+						newLineAndIndent(stream, indents + 1);
 						pItem->m_pValue->writeJsonPretty(stream, indents + 1);
 						if(pItem->m_pPrev)
 							stream << ",";
