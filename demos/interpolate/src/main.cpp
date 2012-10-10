@@ -370,8 +370,8 @@ public:
 		else if(index == 13)
 		{
 			GNeuralNet* pNN = new GNeuralNet(*m_pRand);
-			pNN->addLayer(15);
-			pNN->addLayer(60);
+			pNN->addLayer(30);
+			pNN->addLayer(256);
 			doBackProp(pNN);
 		}
 		else if(index == 14)

@@ -69,10 +69,22 @@ void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learnin
 			{
 				double err = *pLab - (GVec::dotProduct(pFeat, m_pBeta->row(k), fDims) + *pBias);
 				double* pF = pFeat;
+				double lr = learningRate;
+				double mag = 0.0;
+				for(size_t l = 0; l < fDims; l++)
+				{
+					double d = *pF * err;
+					mag += (d * d);
+					pF++;
+				}
+				mag += err * err;
+				if(mag > 1.0)
+					lr /= mag;
+				pF = pFeat;
 				double* pW = m_pBeta->row(k);
 				for(size_t l = 0; l < fDims; l++)
 				{
-					*pW += *pF * learningRate * err;
+					*pW += *pF * lr * err;
 					pF++;
 					pW++;
 				}
@@ -114,7 +126,7 @@ void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 	GVec::add(m_pEpsilon, pca.mean() + inputs, outputs);
 
 	// Refine the results using gradient descent
-	refine(features, labels, 0.06, 10, 0.75);
+	refine(features, labels, 0.06, 20, 0.75);
 }
 
 // virtual
@@ -196,7 +208,7 @@ void GLinearRegressor::test()
 	GRand prng(0);
 	GLinearRegressor_linear_test(prng);
 	GLinearRegressor lr(prng);
-	lr.basicTest(0.77, 0.79);
+	lr.basicTest(0.75, 0.78);
 }
 #endif
 

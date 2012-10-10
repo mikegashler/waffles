@@ -135,7 +135,7 @@ public:
 			d = std::min(d, *it);
 		return d;
 	}
-	static double _sign(vector<double>& params) { return params[0] >= 0 ? 1.0 : 0.0; }
+	static double _sign(vector<double>& params) { return params[0] >= 0 ? 1.0 : -1.0; }
 	static double _sin(vector<double>& params) { return sin(params[0]); }
 	static double _sinh(vector<double>& params) { return sinh(params[0]); }
 	static double _sqrt(vector<double>& params) { return sqrt(params[0]); }

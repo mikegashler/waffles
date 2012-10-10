@@ -353,7 +353,7 @@ sp_relation GPCA::trainInner(GMatrix& data)
 		if(m_pEigVals)
 		{
 			double t = tmpData.sumSquaredDistance(pMean);
-			m_pEigVals[i] = (sse - t) / nInputDims;
+			m_pEigVals[i] = (sse - t) / (data.rows() - 1);
 			sse = t;
 		}
 	}

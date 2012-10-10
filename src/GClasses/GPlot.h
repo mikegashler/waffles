@@ -37,7 +37,7 @@ protected:
 
 public:
 	/// maxLabels specifies the maximum number of labels that it can ever
-	/// decide to use.  (It should be just smaller than the number of labels
+	/// decide to use. (It should be just smaller than the number of labels
 	/// that would make the graph look too crowded.)
 	GPlotLabelSpacer(double min, double max, int maxLabels);
 
@@ -167,16 +167,25 @@ protected:
 /// This class simplifies plotting data to an SVG file
 class GSVG
 {
+public:
+	enum Anchor
+	{
+		Start,
+		Middle,
+		End,
+	};
+
 protected:
 	std::stringstream m_ss;
-	double m_unit;
+	double m_hunit, m_vunit, m_margin;
+	double m_xmin, m_ymin, m_xmax, m_ymax;
 
 public:
-	GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax);
+	GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax, double margin = 100);
 	~GSVG();
 
 	/// Returns (ymax - ymin) / height, which is often a useful size.
-	double unit() { return m_unit; }
+	double unit() { return m_vunit; }
 
 	/// Draw a dot
 	void dot(double x, double y, double r, unsigned int col = 0x000080);
@@ -188,14 +197,23 @@ public:
 	void rect(double x, double y, double w, double h, unsigned int col = 0x008080);
 
 	/// Draw text
-	void text(double x, double y, const char* szText, double size, unsigned int col = 0x000000, double angle = 0.0);
+	void text(double x, double y, const char* szText, double size, Anchor eAnchor = Start, unsigned int col = 0x000000, double angle = 0.0, bool serifs = true);
 
 	/// Generate an SVG file with all of the components that have been added so far.
 	void print(std::ostream& stream);
 
+	/// Label the horizontal axis. If maxLabels is 0, then no grid-lines will be drawn. If maxLabels is -1, then
+	/// Logarithmic grid-lines will be drawn. If pLabels is non-NULL, then its values will be used to label
+	/// the grid-lines instead of the continuous values.
+	void horizLabels(const char* szAxisLabel, int maxLabels, std::vector<std::string>* pLabels = NULL);
+
+	/// Label the vertical axis. If maxLabels is 0, then no grid-lines will be drawn. If maxLabels is -1, then
+	/// Logarithmic grid-lines will be drawn. If pLabels is non-NULL, then its values will be used to label
+	/// the grid-lines instead of the continuous values.
+	void vertLabels(const char* szAxisLabel, int maxLabels, std::vector<std::string>* pLabels = NULL);
+
 protected:
 	void color(unsigned int c);
-	void grid(size_t lines, double xmin, double ymin, double xmax, double ymax);
 };
 
 

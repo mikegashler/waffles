@@ -18,6 +18,7 @@
 #include "GMath.h"
 #include <string>
 #include <sstream>
+#include <cmath>
 
 using std::string;
 using std::ostringstream;
@@ -26,6 +27,13 @@ namespace GClasses {
 
 GPlotLabelSpacer::GPlotLabelSpacer(double min, double max, int maxLabels)
 {
+	if(maxLabels == 0)
+	{
+		m_spacing = 0.0;
+		m_start = 0;
+		m_count = 0;
+		return;
+	}
 	if(max <= min)
 		throw Ex("invalid range");
 	int p = (int)ceil(log((max - min) / maxLabels) * M_LOG10E);
@@ -355,17 +363,15 @@ GImage* GPlotWindow::labelAxes(int maxHorizAxisLabels, int maxVertAxisLabels, in
 
 
 
-#define MARGIN_SIZE 50
-const char* g_hex = "0123456789abcdef";
+const char* g_hexChars = "0123456789abcdef";
 
-GSVG::GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax)
-: m_unit((ymax - ymin) / height)
+GSVG::GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax, double margin)
+: m_hunit((xmax - xmin) / width), m_vunit((ymax - ymin) / height), m_margin(margin), m_xmin(xmin), m_ymin(ymin), m_xmax(xmax), m_ymax(ymax)
 {
 	m_ss << "<?xml version=\"1.0\"?><svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"";
-	m_ss << to_str(width + MARGIN_SIZE) << "\" height=\"" << to_str(height + MARGIN_SIZE) << "\">\n";
-	m_ss << "<g transform=\"translate(" << to_str(MARGIN_SIZE) << " " << to_str(height) << ") scale(" << to_str((double)width / (xmax - xmin)) <<
+	m_ss << to_str(width + m_margin) << "\" height=\"" << to_str(height + m_margin) << "\">\n";
+	m_ss << "<g transform=\"translate(" << to_str(m_margin) << " " << to_str(height) << ") scale(" << to_str((double)width / (xmax - xmin)) <<
 		" " << to_str(-(double)height / (ymax - ymin)) << ") translate(" << to_str(-xmin) << " " << to_str(-ymin) << ") \">\n";
-	grid(20, xmin, ymin, xmax, ymax);
 }
 
 GSVG::~GSVG()
@@ -374,27 +380,14 @@ GSVG::~GSVG()
 
 void GSVG::color(unsigned int c)
 {
-	m_ss << '#' << g_hex[(c >> 20) & 0xf] << g_hex[(c >> 16) & 0xf];
-	m_ss << g_hex[(c >> 12) & 0xf] << g_hex[(c >> 8) & 0xf];
-	m_ss << g_hex[(c >> 4) & 0xf] << g_hex[c & 0xf];
-}
-
-void GSVG::grid(size_t lines, double xmin, double ymin, double xmax, double ymax)
-{
-	for(size_t i = 0; i <= lines; i++)
-	{
-		double x = (xmax - xmin) * i / lines + xmin;
-		double y = (ymax - ymin) * i / lines + ymin;
-		line(xmin, y, xmax, y, m_unit, 0xa0a0a0);
-		text(xmin, y, to_str(y).c_str(), m_unit, 0x000000);
-		line(x, ymin, x, ymax, m_unit, 0xa0a0a0);
-		text(x, ymin, to_str(x).c_str(), m_unit, 0x000000, 90);
-	}
+	m_ss << '#' << g_hexChars[(c >> 20) & 0xf] << g_hexChars[(c >> 16) & 0xf];
+	m_ss << g_hexChars[(c >> 12) & 0xf] << g_hexChars[(c >> 8) & 0xf];
+	m_ss << g_hexChars[(c >> 4) & 0xf] << g_hexChars[c & 0xf];
 }
 
 void GSVG::dot(double x, double y, double r, unsigned int col)
 {
-	m_ss << "<circle cx=\"" << to_str(x) << "\" cy=\"" << to_str(y) << "\" r=\"" << to_str(r) << "\" fill=\"";
+	m_ss << "<ellipse cx=\"" << to_str(x) << "\" cy=\"" << to_str(y) << "\" rx=\"" << to_str(r * 4 * m_hunit) << "\" ry=\"" << to_str(r * 4 * m_vunit) << "\" fill=\"";
 	color(col);
 	m_ss << "\" />\n";
 }
@@ -403,7 +396,9 @@ void GSVG::line(double x1, double y1, double x2, double y2, double thickness, un
 {
 	m_ss << "<line x1=\"" << to_str(x1) << "\" y1=\"" << to_str(y1) << "\" x2=\"" << to_str(x2) << "\" y2=\"" << to_str(y2) << "\" style=\"stroke:";
 	color(col);
-	m_ss << ";stroke-width:" << to_str(thickness) << "\"/>\n";
+	double l = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+	double w = thickness * (std::abs(x2 - x1) * m_vunit + std::abs(y2 - y1) * m_hunit) / l;
+	m_ss << ";stroke-width:" << to_str(w) << "\"/>\n";
 }
 
 void GSVG::rect(double x, double y, double w, double h, unsigned int col)
@@ -413,14 +408,23 @@ void GSVG::rect(double x, double y, double w, double h, unsigned int col)
 	m_ss << "\"/>\n";
 }
 
-void GSVG::text(double x, double y, const char* szText, double size, unsigned int col, double angle)
+void GSVG::text(double x, double y, const char* szText, double size, Anchor eAnchor, unsigned int col, double angle, bool serifs)
 {
-	m_ss << "<text x=\"" << to_str(x) << "\" y=\"" << to_str(-y) << "\" style=\"font-size:" << to_str(size * 10) << "px;fill:";
+	double xx = x / (m_hunit * size);
+	double yy = -y / (m_vunit * size);
+	m_ss << "<text x=\"" << to_str(xx) << "\" y=\"" << to_str(yy) << "\" style=\"fill:";
 	color(col);
-	m_ss << ";font-family:Sans\" transform=\"";
+	if(!serifs)
+		m_ss << ";font-family:Sans";
+	m_ss << "\" transform=\"";
+	m_ss << "scale(" << to_str(size * m_hunit) << " " << to_str(-size * m_vunit) << ")";
 	if(angle != 0.0)
-		m_ss << "rotate(" << to_str(angle) << " " << to_str(x) << " " << to_str(-y) << ") ";
-	m_ss << "scale(1 -1)\" text-anchor=\"end\"";
+		m_ss << " rotate(" << to_str(-angle) << " " << to_str(xx) << " " << to_str(yy) << ")";
+	m_ss << "\"";
+	if(eAnchor == Middle)
+		m_ss << " text-anchor=\"middle\"";
+	else if(eAnchor == End)
+		m_ss << " text-anchor=\"end\"";
 	m_ss << ">" << szText << "</text>\n";
 }
 
@@ -430,7 +434,83 @@ void GSVG::print(std::ostream& stream)
 	stream << m_ss.str();
 }
 
+void GSVG::horizLabels(const char* szAxisLabel, int maxLabels, std::vector<std::string>* pLabels)
+{
+	m_ss << "\n<!-- Horiz labels -->\n";
+	if(strlen(szAxisLabel) > 0)
+		text((m_xmin + m_xmax) / 2, m_ymin - m_vunit * ((m_margin / 2) + 10), szAxisLabel, 1.5, Middle, 0x000000, 0.0);
+	if(maxLabels >= 0)
+	{
+		GPlotLabelSpacer spacer(m_xmin, m_xmax, maxLabels);
+		int count = spacer.count();
+		for(int i = 0; i < count; i++)
+		{
+			double x = spacer.label(i);
+			line(x, m_ymin, x, m_ymax, 0.2, 0xa0a0a0);
+			if(pLabels)
+			{
+				if(pLabels->size() > (size_t)i)
+					text(x + 3 * m_hunit, m_ymin - m_vunit, (*pLabels)[i].c_str(), 1, End, 0x000000, 90);
+			}
+			else
+				text(x + 3 * m_hunit, m_ymin - m_vunit, to_str(x).c_str(), 1, End, 0x000000, 90);
+		}
+	}
+	else
+	{
+		GPlotLabelSpacerLogarithmic spacer(m_xmin, m_xmax);
+		double x;
+		bool primary;
+		while(true)
+		{
+			if(!spacer.next(&x, &primary))
+				break;
+			line(log(x), m_ymin, log(x), m_ymax, 0.2, 0xa0a0a0);
+			if(primary)
+				text(log(x) + 3 * m_hunit, m_ymin - m_vunit, to_str(x).c_str(), 1, End, 0x000000, 90);
+		}
+	}
+	m_ss << "\n";
+}
 
+void GSVG::vertLabels(const char* szAxisLabel, int maxLabels, std::vector<std::string>* pLabels)
+{
+	m_ss << "\n<!-- Vert labels -->\n";
+	if(strlen(szAxisLabel) > 0)
+		text(m_xmin - m_hunit * ((m_margin / 2) - 10), (m_ymax - m_ymin) / 2, szAxisLabel, 1.5, Middle, 0x000000, 90.0);
+	if(maxLabels >= 0)
+	{
+		GPlotLabelSpacer spacer(m_ymin, m_ymax, maxLabels);
+		int count = spacer.count();
+		for(int i = 0; i < count; i++)
+		{
+			double y = spacer.label(i);
+			line(m_xmin, y, m_xmax, y, 0.2, 0xa0a0a0);
+			if(pLabels)
+			{
+				if(pLabels->size() > (size_t)i)
+					text(m_xmin - m_hunit, y - 3 * m_vunit, (*pLabels)[i].c_str(), 1, End, 0x000000);
+			}
+			else
+				text(m_xmin - m_hunit, y - 3 * m_vunit, to_str(y).c_str(), 1, End, 0x000000);
+		}
+	}
+	else
+	{
+		GPlotLabelSpacerLogarithmic spacer(m_xmin, m_xmax);
+		double y;
+		bool primary;
+		while(true)
+		{
+			if(!spacer.next(&y, &primary))
+				break;
+			line(m_xmin, log(y), m_xmax, log(y), 0.2, 0xa0a0a0);
+			if(primary)
+				text(m_xmin - m_hunit, log(y) - 3 * m_vunit, to_str(y).c_str(), 1, End, 0x000000);
+		}
+	}
+	m_ss << "\n";
+}
 
 } // namespace GClasses
 

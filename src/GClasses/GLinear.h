@@ -79,6 +79,9 @@ protected:
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
 	virtual bool canImplicitlyHandleNominalLabels() { return false; }
+
+	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
+	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
 };
 
 
