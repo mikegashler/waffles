@@ -105,7 +105,7 @@ CPP_FILES = \
 	GSocket.cpp\
 	GSparseMatrix.cpp\
 	GSpinLock.cpp\
-	GStabSearch.cpp\
+	GGridSearch.cpp\
 	GStemmer.cpp\
 	GString.cpp\
 	GSystemLearner.cpp\

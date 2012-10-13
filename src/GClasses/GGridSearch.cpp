@@ -9,7 +9,7 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
-#include "GStabSearch.h"
+#include "GGridSearch.h"
 #include <math.h>
 #include <stdio.h>
 #include "GVec.h"
@@ -19,7 +19,7 @@ using std::vector;
 
 namespace GClasses {
 
-GBruteForceSearch::GBruteForceSearch(GTargetFunction* pCritic)
+GGridSearch::GGridSearch(GTargetFunction* pCritic)
 : GOptimizer(pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
@@ -36,14 +36,14 @@ GBruteForceSearch::GBruteForceSearch(GTargetFunction* pCritic)
 }
 
 // virtual
-GBruteForceSearch::~GBruteForceSearch()
+GGridSearch::~GGridSearch()
 {
 	delete(m_pCvi);
 	delete[] std::min(m_pCandidate, m_pBestVector);
 }
 
 // virtual
-double GBruteForceSearch::iterate()
+double GGridSearch::iterate()
 {
 	size_t* pCur = m_pCvi->current();
 	double* pCand = m_pCandidate;
@@ -60,7 +60,7 @@ double GBruteForceSearch::iterate()
 }
 
 // virtual
-double* GBruteForceSearch::currentVector()
+double* GGridSearch::currentVector()
 {
 	return m_pBestVector;
 }

@@ -438,7 +438,7 @@ protected:
 	size_t m_jitterDims;
 	size_t m_intrinsicDims;
 	GNeuralNet* m_pNN;
-	GNeuralNet* m_pRevNN;
+//	GNeuralNet* m_pRevNN;
 	GRand* m_pRand;
 	GCoordVectorIterator m_cvi;
 	bool m_useInputBias;
@@ -447,6 +447,7 @@ protected:
 	double* m_pMins;
 	double* m_pRanges;
 	GMatrix* m_pProgress;
+	bool m_onePass;
 
 public:
 	GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand);
@@ -500,6 +501,9 @@ public:
 
 	/// Given a low-dimensional vector, computes and returns the corresponding high-dimensional vector.
 	void lowToHi(const double* pIn, double* pOut);
+
+	/// Use only single-pass training.
+	void onePass() { m_onePass = true; }
 
 	double* mins();
 	double* ranges();

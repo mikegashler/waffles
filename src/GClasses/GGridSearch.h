@@ -18,10 +18,12 @@
 
 namespace GClasses {
 
-/// This performs a brute force search with uniform sampling over the
+/// This performs a brute-force grid search with uniform sampling over the
 /// unit hypercube with increasing granularity. (Your target function should scale
-/// the candidate vectors as necessary to cover the desired space.)
-class GBruteForceSearch : public GOptimizer
+/// the candidate vectors as necessary to cover the desired space.) This grid-search
+/// increases the granularity after each pass, and carefully avoids sampling anywhere
+/// that it has sampled before.
+class GGridSearch : public GOptimizer
 {
 protected:
 	double* m_pCandidate;
@@ -30,8 +32,8 @@ protected:
 	GCoordVectorIterator* m_pCvi;
 
 public:
-	GBruteForceSearch(GTargetFunction* pCritic);
-	virtual ~GBruteForceSearch();
+	GGridSearch(GTargetFunction* pCritic);
+	virtual ~GGridSearch();
 
 	/// Each pass will complete after ((2^n)+1)^d iterations. The distance between
 	/// samples at that point will be 1/(2^n). After it completes n=30, it will begin repeating.

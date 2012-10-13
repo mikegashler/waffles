@@ -58,7 +58,7 @@
 #include "../GClasses/GSocket.h"
 #include "../GClasses/GSparseMatrix.h"
 #include "../GClasses/GSpinLock.h"
-#include "../GClasses/GStabSearch.h"
+#include "../GClasses/GGridSearch.h"
 #include "../GClasses/GThread.h"
 #include "../GClasses/GTime.h"
 #include "../GClasses/GTransform.h"

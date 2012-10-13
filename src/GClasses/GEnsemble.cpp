@@ -524,7 +524,7 @@ void GResamplingAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
 		GSupervisedLearner* pClone = m_pLoader->loadSupervisedLearner(m_pLearner->serialize(&doc));
 
 		// Compute model weight
-		double err = 0.0;
+		double err = 0.5;
 		for(size_t i = 0; i < features.rows(); i++)
 		{
 			pClone->predict(features[i], prediction);

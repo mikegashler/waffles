@@ -2234,13 +2234,13 @@ void GImageJitterer::test(const char* filename)
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: GManifoldLearner(), m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_pRevNN(NULL), m_pRand(pRand), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL)
+: GManifoldLearner(), m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL)
 {
 	m_pNN = new GNeuralNet(*m_pRand);
 }
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll)
-: GManifoldLearner(pNode, ll), m_pRand(&ll.rand()), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL)
+: GManifoldLearner(pNode, ll), m_pRand(&ll.rand()), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL), m_onePass(false)
 {
 	GDomListIterator it(pNode->field("params"));
 	m_paramDims = it.remaining();
@@ -2248,7 +2248,7 @@ GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll
 	GIndexVec::deserialize(m_pParamRanges, it);
 	m_cvi.reset(m_paramDims, m_pParamRanges);
 	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
-	m_pRevNN = new GNeuralNet(pNode->field("rev"), ll);
+//	m_pRevNN = new GNeuralNet(pNode->field("rev"), ll);
 	m_useInputBias = pNode->field("bias")->asBool();
 	GDomNode* pJitterer = pNode->fieldIfExists("jitterer");
 	if(pJitterer)
@@ -2275,7 +2275,7 @@ GUnsupervisedBackProp::~GUnsupervisedBackProp()
 {
 	delete(m_pJitterer);
 	delete(m_pNN);
-	delete(m_pRevNN);
+//	delete(m_pRevNN);
 	delete[] m_pParamRanges;
 	delete(m_pIntrinsic);
 	delete[] m_pMins;
@@ -2289,7 +2289,7 @@ GDomNode* GUnsupervisedBackProp::serialize(GDom* pDoc) const
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "params", GIndexVec::serialize(pDoc, m_pParamRanges, m_paramDims));
 	pNode->addField(pDoc, "nn", m_pNN->serialize(pDoc));
-	pNode->addField(pDoc, "rev", m_pRevNN->serialize(pDoc));
+//	pNode->addField(pDoc, "rev", m_pRevNN->serialize(pDoc));
 	GAssert(m_paramDims + m_jitterDims + m_intrinsicDims == m_pNN->relFeatures()->size());
 	pNode->addField(pDoc, "bias", pDoc->newBool(m_useInputBias));
 	if(m_pJitterer)
@@ -2405,12 +2405,12 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	for(size_t pass = 0; pass < 3; pass++)
 	{
 		GNeuralNet* pNN = m_pNN;
-		if(pass == 0)
+		if(pass == 0 || m_onePass)
 		{
-			if(m_pNN->layerCount() != 1)
+			if(pass == 0 && m_pNN->layerCount() != 1)
 				pNN = &nn;
 
-			// Initialize the user matrix
+			// Initialize the intrinsic matrix
 			delete(m_pIntrinsic);
 			m_pIntrinsic = new GMatrix(in.rows(), m_intrinsicDims);
 			for(size_t i = 0; i < in.rows(); i++)
@@ -2422,9 +2422,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		}
 
 		double learningRate = 0.0005;
-		double momentum = 0.9;
-		if(pass == 0)
-			momentum = 0.0;
+		double momentum = 0.0;
 		double regularizer = 1e-5;
 		if(pass == 1)
 			regularizer *= 0.1;
@@ -2463,11 +2461,9 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 				GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);
 				double prediction = pNN->forwardPropSingleOutput(pParams, c);
 				double target = (pPix[c] - m_pMins[c]) / m_pRanges[c];
-//				double err = target - prediction;
-double err = (target - prediction) * pow(2.58, target + target - 1.0);
+				double err = target - prediction;
 				sse += (err * err);
-//				pNN->setErrorSingleOutput(target, c);
-pNN->setErrorSingleOutput(prediction + err, c);
+				pNN->setErrorSingleOutput(target, c);
 				pNN->backProp()->backpropagateSingleOutput(c);
 
 				// Update weights
@@ -2497,7 +2493,7 @@ pNN->setErrorSingleOutput(prediction + err, c);
 		if(pass == 0 && pNN == m_pNN)
 			break;
 	}
-
+/*
 	// Train the reverse map
 	delete(m_pRevNN);
 	m_pRevNN = new GNeuralNet(*m_pRand);
@@ -2542,7 +2538,7 @@ pNN->setErrorSingleOutput(prediction + err, c);
 		presentations++;
 	}
 cout << "presentations=" << presentations << "\n";
-
+*/
 	GMatrix* pOut = m_pIntrinsic;
 	m_pIntrinsic = NULL;
 	return pOut;
@@ -2594,6 +2590,8 @@ public:
 
 void GUnsupervisedBackProp::hiToLow(const double* pIn, double* pOut)
 {
+	throw Ex("Not implemented yet");
+/*
 	// Compute values
 //	size_t channels = m_pNN->labelDims();
 
@@ -2609,7 +2607,7 @@ void GUnsupervisedBackProp::hiToLow(const double* pIn, double* pOut)
 	double* pJitters = pParams + m_paramDims;
 	//GVec::setAll(pJitters, 0.5, m_jitterDims + m_intrinsicDims);
 	m_pRevNN->predict(pIn, pJitters);
-/*
+
 	// Refine
 	double prevErr = 1e308;
 	for(double learningRate = 0.0001; learningRate > 0.00005; )
@@ -2646,7 +2644,7 @@ m_pNN->setErrorSingleOutput(prediction + err, c);
 			learningRate *= 0.5;
 		prevErr = rsse;
 	}
-*/
+
 	GUBPTargetFunc targetFunc(this, pJitters, pIn);
 	GHillClimber optimizer(&targetFunc);
 	optimizer.searchUntil(500, 50, 0.0001);
@@ -2654,6 +2652,7 @@ m_pNN->setErrorSingleOutput(prediction + err, c);
 
 
 	GVec::copy(pOut, pJitters, m_jitterDims + m_intrinsicDims);
+*/
 }
 
 void GUnsupervisedBackProp::lowToHi(const double* pIn, double* pOut)

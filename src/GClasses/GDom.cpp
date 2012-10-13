@@ -630,10 +630,18 @@ GDomNode* GDom::newInt(long long n)
 
 GDomNode* GDom::newDouble(double d)
 {
-	GDomNode* pNewDouble = (GDomNode*)m_heap.allocAligned(offsetof(Bogus1, m_double) + sizeof(double));
-	pNewDouble->m_type = GDomNode::type_double;
-	pNewDouble->m_value.m_double = d;
-	return pNewDouble;
+	if(d >= -2e308 && d <= 2e308)
+	{
+		GDomNode* pNewDouble = (GDomNode*)m_heap.allocAligned(offsetof(Bogus1, m_double) + sizeof(double));
+		pNewDouble->m_type = GDomNode::type_double;
+		pNewDouble->m_value.m_double = d;
+		return pNewDouble;
+	}
+	else
+	{
+		throw Ex("invalid value");
+		return NULL;
+	}
 }
 
 GDomNode* GDom::newString(const char* pString, size_t len)
