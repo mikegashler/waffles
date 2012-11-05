@@ -630,7 +630,7 @@ GDomNode* GDom::newInt(long long n)
 
 GDomNode* GDom::newDouble(double d)
 {
-	if(d >= -2e308 && d <= 2e308)
+	if(d >= -1.5e308 && d <= 1.5e308)
 	{
 		GDomNode* pNewDouble = (GDomNode*)m_heap.allocAligned(offsetof(Bogus1, m_double) + sizeof(double));
 		pNewDouble->m_type = GDomNode::type_double;

@@ -68,6 +68,33 @@ public:
 };
 
 
+
+/// This is a hill climber for semi-linear error surfaces that minimizes testing with
+/// an approach like binary-search.
+/// It only searches approximately within the unit cube (although it may stray a little
+/// outside of it). It is the target function's responsibility
+/// to map this into an appropriate space.
+class GMinBinSearch : public GOptimizer
+{
+protected:
+	size_t m_curDim;
+	double m_stepSize;
+	double* m_pCurrent;
+	double m_curErr;
+
+public:
+	GMinBinSearch(GTargetFunction* pCritic);
+	virtual ~GMinBinSearch();
+
+	/// Try another random vector
+	virtual double iterate();
+
+	/// Returns the best vector yet found
+	virtual double* currentVector() { return m_pCurrent; }
+};
+
+
+
 /// This is somewhat of a multi-dimensional version of binary-search.
 /// It greedily probes the best choices first, but then starts trying
 /// the opposite choices at the higher divisions so that it can also

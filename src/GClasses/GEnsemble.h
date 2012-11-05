@@ -183,6 +183,10 @@ public:
 
 	virtual ~GBayesianModelAveraging() {}
 
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
+
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
@@ -211,6 +215,10 @@ public:
 	GBayesianModelCombination(GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBayesianModelCombination() {}
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;

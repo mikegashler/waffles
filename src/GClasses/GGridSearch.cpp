@@ -114,6 +114,49 @@ double* GRandomSearch::currentVector()
 
 
 
+GMinBinSearch::GMinBinSearch(GTargetFunction* pCritic)
+: GOptimizer(pCritic), m_curDim(0), m_stepSize(0.25)
+{
+	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
+		throw Ex("Discrete attributes are not supported");
+	if(pCritic->isConstrained())
+		throw Ex("Sorry, this optimizer doesn't support constrained problems");
+	m_pCurrent = new double[m_pCritic->relation()->size()];
+	GVec::setAll(m_pCurrent, 0.5, m_pCritic->relation()->size());
+	m_curErr = m_pCritic->computeError(m_pCurrent);
+}
+
+// virtual
+GMinBinSearch::~GMinBinSearch()
+{
+	delete[] m_pCurrent;
+}
+
+// virtual
+double GMinBinSearch::iterate()
+{
+	m_pCurrent[m_curDim] += m_stepSize;
+	double d = m_pCritic->computeError(m_pCurrent);
+	if(d < m_curErr)
+		m_curErr = d;
+	else
+	{
+		m_pCurrent[m_curDim] -= 2.0 * m_stepSize;
+		d = m_pCritic->computeError(m_pCurrent);
+		if(d < m_curErr)
+			m_curErr = d;
+		else
+			m_pCurrent[m_curDim] += m_stepSize;
+	}
+	if(++m_curDim >= m_pCritic->relation()->size())
+	{
+		m_curDim = 0;
+		m_stepSize *= 0.65;
+	}
+	return m_curErr;
+}
+
+
 
 
 

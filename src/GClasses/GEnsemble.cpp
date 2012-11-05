@@ -340,14 +340,14 @@ void GBag::test()
 void GBayesianModelAveraging::determineWeights(GMatrix& features, GMatrix& labels)
 {
 	GTEMPBUF(double, results, labels.cols());
-	double m = -500.0;
+	double m = -1e38;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 	{
 		(*it)->m_pModel->accuracy(features, labels, results);
 		double d = GVec::sumElements(results, labels.cols()) / labels.cols();
 		double logProbHypothGivenData;
 		if(d == 0.0)
-			logProbHypothGivenData = -500.0;
+			logProbHypothGivenData = -1e38;
 		else if(d == 1.0)
 			logProbHypothGivenData = 0.0;
 		else
@@ -371,6 +371,22 @@ GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc) const
 	return pNode;
 }
 
+#ifndef NO_TEST_CODE
+// static
+void GBayesianModelAveraging::test()
+{
+	GRand rand(0);
+	GBayesianModelAveraging bma(rand);
+	for(size_t i = 0; i < 32; i++)
+	{
+		GDecisionTree* pTree = new GDecisionTree(rand);
+		pTree->useRandomDivisions();
+		bma.addLearner(pTree);
+	}
+	bma.basicTest(0.715, 0.76, 0.01);
+}
+#endif
+
 
 
 
@@ -390,7 +406,7 @@ void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& lab
 	ArrayHolder<double> hWeights(pWeights);
 	GVec::setAll(pWeights, 0.0, m_models.size());
 	double sumWeight = 0.0;
-	double maxLogProb = -500.0;
+	double maxLogProb = -1e38;
 	GTEMPBUF(double, results, labels.cols());
 	for(size_t i = 0; i < m_samples; i++)
 	{
@@ -404,7 +420,7 @@ void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& lab
 		double d = GVec::sumElements(results, labels.cols()) / labels.cols();
 		double logProbEnsembleGivenData;
 		if(d == 0.0)
-			logProbEnsembleGivenData = -500.0;
+			logProbEnsembleGivenData = -1e38;
 		else if(d == 1.0)
 			logProbEnsembleGivenData = 0.0;
 		else
@@ -438,6 +454,21 @@ GDomNode* GBayesianModelCombination::serialize(GDom* pDoc) const
 	return pNode;
 }
 
+#ifndef NO_TEST_CODE
+// static
+void GBayesianModelCombination::test()
+{
+	GRand rand(0);
+	GBayesianModelCombination bmc(rand);
+	for(size_t i = 0; i < 32; i++)
+	{
+		GDecisionTree* pTree = new GDecisionTree(rand);
+		pTree->useRandomDivisions();
+		bmc.addLearner(pTree);
+	}
+	bmc.basicTest(0.76, 0.81, 0.01);
+}
+#endif
 
 
 

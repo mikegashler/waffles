@@ -434,11 +434,19 @@ void GSVG::print(std::ostream& stream)
 	stream << m_ss.str();
 }
 
-void GSVG::horizLabels(const char* szAxisLabel, int maxLabels, std::vector<std::string>* pLabels)
+double GSVG::horizLabelPos()
+{
+	return m_ymin - m_vunit * ((m_margin / 2) + 10);
+}
+
+double GSVG::vertLabelPos()
+{
+	return m_xmin - m_hunit * ((m_margin / 2) - 10);
+}
+
+void GSVG::horizMarks(int maxLabels, std::vector<std::string>* pLabels)
 {
 	m_ss << "\n<!-- Horiz labels -->\n";
-	if(strlen(szAxisLabel) > 0)
-		text((m_xmin + m_xmax) / 2, m_ymin - m_vunit * ((m_margin / 2) + 10), szAxisLabel, 1.5, Middle, 0x000000, 0.0);
 	if(maxLabels >= 0)
 	{
 		GPlotLabelSpacer spacer(m_xmin, m_xmax, maxLabels);
@@ -473,11 +481,9 @@ void GSVG::horizLabels(const char* szAxisLabel, int maxLabels, std::vector<std::
 	m_ss << "\n";
 }
 
-void GSVG::vertLabels(const char* szAxisLabel, int maxLabels, std::vector<std::string>* pLabels)
+void GSVG::vertMarks(int maxLabels, std::vector<std::string>* pLabels)
 {
 	m_ss << "\n<!-- Vert labels -->\n";
-	if(strlen(szAxisLabel) > 0)
-		text(m_xmin - m_hunit * ((m_margin / 2) - 10), (m_ymax - m_ymin) / 2, szAxisLabel, 1.5, Middle, 0x000000, 90.0);
 	if(maxLabels >= 0)
 	{
 		GPlotLabelSpacer spacer(m_ymin, m_ymax, maxLabels);

@@ -32,7 +32,6 @@
 #include "../GClasses/GManifold.h"
 #include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GSelfOrganizingMap.h"
-#include "plotchart.h"
 #include "../wizard/usage.h"
 #include <time.h>
 #include <iostream>
@@ -570,105 +569,394 @@ void PlotEquation(GArgReader& args)
 	cout << "Plot saved to " << filename.c_str() << ".\n";
 }
 
+class ScatterCol
+{
+public:
+	enum ColType
+	{
+		Fixed,
+		Row,
+		Attr,
+	};
+
+	ColType m_type;
+	size_t m_color;
+	size_t m_attrX;
+	size_t m_attrY;
+	double m_radius;
+	double m_thickness;
+
+	void parse(GArgReader& args)
+	{
+		// Parse the color
+		m_type = Fixed;
+		m_color = 0xff000000;
+		if(args.peek()[0] == '#')
+		{
+			const char* hex = args.pop_string();
+			m_color = hexToRgb(hex + 1);
+		}
+		else if(args.if_pop("row"))
+			m_type = Row;
+		else if(args.if_pop("red"))
+			m_color = 0xff800000;
+		else if(args.if_pop("pink"))
+			m_color = 0xffffc0c0;
+		else if(args.if_pop("peach"))
+			m_color = 0xffffc080;
+		else if(args.if_pop("orange"))
+			m_color = 0xffff8000;
+		else if(args.if_pop("brown"))
+			m_color = 0xffa06000;
+		else if(args.if_pop("yellow"))
+			m_color = 0xffd0d000;
+		else if(args.if_pop("green"))
+			m_color = 0xff008000;
+		else if(args.if_pop("cyan"))
+			m_color = 0xff008080;
+		else if(args.if_pop("blue"))
+			m_color = 0xff000080;
+		else if(args.if_pop("purple"))
+			m_color = 0xff8000ff;
+		else if(args.if_pop("magenta"))
+			m_color = 0xff800080;
+		else if(args.if_pop("black"))
+			m_color = 0xff000000;
+		else if(args.if_pop("gray"))
+			m_color = 0xff808080;
+		else
+		{
+			m_type = Attr;
+			m_color = args.pop_uint();
+		}
+
+		// Parse the X attribute
+		if(args.if_pop("row"))
+			m_attrX = (size_t)-1;
+		else
+			m_attrX = args.pop_uint();
+
+		// Parse the Y attribute
+		if(args.if_pop("row"))
+			m_attrY = (size_t)-1;
+		else
+			m_attrY = args.pop_uint();
+
+		// Parse the color-specific options
+		m_radius = 1.0;
+		m_thickness = 0.0;
+		while(args.next_is_flag())
+		{
+			if(args.if_pop("-radius"))
+				m_radius = args.pop_double();
+			else if(args.if_pop("-thickness"))
+				m_thickness = args.pop_double();
+			else
+				throw Ex("unrecognized flag", args.pop_string());
+		}
+	}
+
+	static double attrVal(GMatrix* pData, size_t i, size_t attr)
+	{
+		if(attr < pData->cols())
+			return pData->row(i)[attr];
+		else
+			return i;
+	}
+
+	void plot(GSVG& svg, GMatrix* pData)
+	{
+		if(m_type == Fixed || m_type == Row || m_type == Attr)
+		{
+			double x, y;
+			double xPrev = UNKNOWN_REAL_VALUE;
+			double yPrev = UNKNOWN_REAL_VALUE;
+			double colorMin, colorRange;
+			if(m_type == Row)
+				colorRange = pData->rows() * 1.15;
+			if(m_type == Attr)
+			{
+				pData->minAndRange(m_color, &colorMin, &colorRange);
+				colorRange *= 1.15;
+			}
+			for(size_t i = 0; i < pData->rows(); i++)
+			{
+				x = attrVal(pData, i, m_attrX);
+				y = attrVal(pData, i, m_attrY);
+				if(m_type == Row)
+					m_color = gAHSV(0xff, i / colorRange, 1.0f, 0.5f);
+				else if(m_type == Attr)
+					m_color = gAHSV(0xff, (pData->row(i)[m_color] - colorMin) / colorRange, 1.0f, 0.5f);
+				if(x != UNKNOWN_REAL_VALUE && y != UNKNOWN_REAL_VALUE)
+				{
+					if(m_thickness > 0.0 && xPrev != UNKNOWN_REAL_VALUE && yPrev != UNKNOWN_REAL_VALUE)
+						svg.line(xPrev, yPrev, x, y, m_thickness, m_color);
+					svg.dot(x, y, m_radius, m_color);
+				}
+				xPrev = x;
+				yPrev = y;
+			}
+		}
+		else
+			throw Ex("Unrecognized type");
+	}
+};
+
+void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, double pad, bool x, double& axisMin, double& axisMax)
+{
+	// Determine the range
+	if(logx)
+	{
+		if(axisMin == UNKNOWN_REAL_VALUE)
+		{
+			axisMin = 1e300;
+			axisMax = -1e300;
+			for(size_t i = 0; i < cols.size(); i++)
+			{
+				size_t attr = x ? cols[i].m_attrX : cols[i].m_attrY;
+				if(attr < pData->cols()) // if attr is an attribute
+				{
+					double m, r;
+					pData->minAndRange(attr, &m, &r);
+					axisMin = std::min(axisMin, m);
+					axisMax = std::max(axisMax, m + r);
+				}
+				else // attr is the row index
+				{
+					axisMin = 1.0;
+					axisMax = std::max(axisMax, (double)(pData->rows() - 1));
+				}
+			}
+		}
+		axisMin = std::max(1e-12, axisMin);
+		axisMax = std::max(axisMin * 15, axisMax);
+		double d = pow(axisMax / axisMin, pad);
+		axisMax *= d;
+		axisMin /= d;
+		axisMin = log(axisMin);
+		axisMax = log(axisMax);
+	}
+	else
+	{
+		if(axisMin == UNKNOWN_REAL_VALUE)
+		{
+			axisMin = 1e300;
+			axisMax = -1e300;
+			for(size_t i = 0; i < cols.size(); i++)
+			{
+				size_t attr = x ? cols[i].m_attrX : cols[i].m_attrY;
+				if(attr < pData->cols()) // if attr is an attribute
+				{
+					double m, r;
+					pData->minAndRange(attr, &m, &r);
+					axisMin = std::min(axisMin, m);
+					axisMax = std::max(axisMax, m + r);
+				}
+				else // attr is the row index
+				{
+					axisMin = std::min(axisMin, 0.0);
+					axisMax = std::max(axisMax, (double)(pData->rows() - 1));
+				}
+			}
+			if(axisMin < -1e200)
+				axisMin = 0.0;
+			if(axisMax <= axisMin)
+			{
+				axisMax = axisMin + 1e-9;
+				axisMin -= 1e-9;
+			}
+			double d = pad * (axisMax - axisMin);
+			axisMin -= d;
+			axisMax += d;
+		}
+		if(axisMin < -1e200)
+			axisMin = 0.0;
+		if(axisMax <= axisMin)
+		{
+			axisMax = axisMin + 1e-9;
+			axisMin -= 1e-9;
+		}
+	}
+}
+
+void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axisMin, double axisMax, GSVG& svg, bool serifs)
+{
+	// Count the unique attributes
+	size_t count = 1;
+	for(size_t i = 1; i < cols.size(); i++)
+	{
+		if((horiz && cols[i].m_attrX != cols[i - 1].m_attrX) || (!horiz && cols[i].m_attrY != cols[i - 1].m_attrY))
+			count++;
+	}
+
+	// Draw the labels
+	size_t pos = 0;
+	for(size_t i = 0; i < cols.size(); i++)
+	{
+		if(i > 0)
+		{
+			if((horiz && cols[i].m_attrX == cols[i - 1].m_attrX) || (!horiz && cols[i].m_attrY == cols[i - 1].m_attrY))
+				continue;
+		}
+		
+		// Determine the label
+		string sLabel;
+		size_t attr = horiz ? cols[i].m_attrX : cols[i].m_attrY;
+		if(pData->relation()->type() == GRelation::ARFF)
+			sLabel = ((GArffRelation*)pData->relation().get())->attrName(attr);
+		else
+		{
+			sLabel = "Attr ";
+			sLabel += to_str(attr);
+		}
+
+		// Determine the color
+		unsigned int c = 0xff000000;
+		if(cols[i].m_type == ScatterCol::Fixed)
+		{
+			if(i + 1 == cols.size() || (horiz && cols[i].m_attrX != cols[i + 1].m_attrX) || (!horiz && cols[i].m_attrY != cols[i + 1].m_attrY))
+				c = cols[i].m_color;
+		}
+
+		// Draw the label
+		double plotPos = (axisMax - axisMin) * (double)(pos + 1) / (double)(count + 1) + axisMin;
+		if(horiz)
+			svg.text(plotPos, svg.horizLabelPos(), sLabel.c_str(), 1.5, GSVG::Middle, c, 0, serifs);
+		else
+			svg.text(svg.vertLabelPos(), plotPos, sLabel.c_str(), 1.5, GSVG::Middle, c, 90, serifs);
+		pos++;
+	}
+}
+
 void PlotScatter(GArgReader& args)
 {
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 
-	// Parse options
+	// Parse global options
+	size_t width = 960;
+	size_t height = 540;
+	size_t margin = 100;
+	size_t maxHorizMarks = 30;
+	size_t maxVertMarks = size_t(-1);
+	double pad = 0.05;
+	double xmin = UNKNOWN_REAL_VALUE;
+	double ymin = UNKNOWN_REAL_VALUE;
+	double xmax = UNKNOWN_REAL_VALUE;
+	double ymax = UNKNOWN_REAL_VALUE;
+	bool logx = false;
+	bool logy = false;
+	bool horizMarks = true;
+	bool vertMarks = true;
+	bool serifs = true;
+	bool aspect = false;
+	string horizLabel;
+	string vertLabel;
 	GRand prng(0);
-	PlotChartMaker pcm(pData->relation(), pData, prng);
-	string filename = "plot.png";
-	bool horizGrid = true;
-	bool vertGrid = true;
-	bool showLines = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-size"))
 		{
-			int wid = args.pop_uint();
-			int hgt = args.pop_uint();
-			pcm.SetSize(wid, hgt);
+			width = args.pop_uint();
+			height = args.pop_uint();
 		}
-		else if(args.if_pop("-lines"))
-			showLines = true;
-		else if(args.if_pop("-logx"))
-			pcm.SetLogX();
-		else if(args.if_pop("-logy"))
-			pcm.SetLogY();
-		else if(args.if_pop("-novgrid"))
-			vertGrid = false;
-		else if(args.if_pop("-nohgrid"))
-			horizGrid = false;
-		else if(args.if_pop("-nogrid"))
-		{
-			vertGrid = false;
-			horizGrid = false;
-		}
-		else if(args.if_pop("-pointradius"))
-			pcm.SetPointRadius((float)args.pop_double());
-		else if(args.if_pop("-textsize"))
-			pcm.setTextSize((float)args.pop_double());
-		else if(args.if_pop("-linethickness"))
-			pcm.SetLineThickness((float)args.pop_double());
-		else if(args.if_pop("-maxgridlines"))
-		{
-			int h = args.pop_uint();
-			int v = args.pop_uint();
-			pcm.setMaxGridLines(h, v);
-		}
-		else if(args.if_pop("-mesh"))
-			pcm.SetMeshRowSize(args.pop_uint());
-		else if(args.if_pop("-aspect"))
-			pcm.setAspect();
+		else if(args.if_pop("-margin"))
+			margin = args.pop_uint();
+		else if(args.if_pop("-horizmarks"))
+			maxHorizMarks = args.pop_uint();
+		else if(args.if_pop("-vertmarks"))
+			maxVertMarks = args.pop_uint();
+		else if(args.if_pop("-pad"))
+			pad = args.pop_double();
 		else if(args.if_pop("-range"))
 		{
-			double xmin = args.pop_double();
-			double ymin = args.pop_double();
-			double xmax = args.pop_double();
-			double ymax = args.pop_double();
-			pcm.SetCustomRange(xmin, ymin, xmax, ymax);
+			xmin = args.pop_double();
+			ymin = args.pop_double();
+			xmax = args.pop_double();
+			ymax = args.pop_double();
 		}
-		else if(args.if_pop("-chartcolors"))
+		else if(args.if_pop("-logx"))
+			logx = true;
+		else if(args.if_pop("-logy"))
+			logy = true;
+		else if(args.if_pop("-nohmarks"))
+			horizMarks = false;
+		else if(args.if_pop("-novmarks"))
+			vertMarks = false;
+		else if(args.if_pop("-nogrid"))
 		{
-			unsigned int cBackground = hexToRgb(args.pop_string());
-			unsigned int cText = hexToRgb(args.pop_string());
-			unsigned int cGrid = hexToRgb(args.pop_string());
-			pcm.SetChartColors(cBackground, cText, cGrid);
+			horizMarks = false;
+			vertMarks = false;
 		}
-		else if(args.if_pop("-linecolors"))
-		{
-			unsigned int c1 = hexToRgb(args.pop_string());
-			unsigned int c2 = hexToRgb(args.pop_string());
-			unsigned int c3 = hexToRgb(args.pop_string());
-			unsigned int c4 = hexToRgb(args.pop_string());
-			pcm.SetPlotColors(c1, c2, c3, c4);
-		}
-		else if(args.if_pop("-spectrum"))
-			pcm.UseSpectrumColors();
-		else if(args.if_pop("-specmod"))
-			pcm.UseSpectrumColors(args.pop_uint());
-		else if(args.if_pop("-out"))
-			filename = args.pop_string();
-		else if(args.if_pop("-neighbors"))
-			pcm.showNeighbors(instantiateNeighborFinder(pData, &prng, args));
-		else if(args.if_pop("-randomorder"))
-			pcm.randomOrder();
+		else if(args.if_pop("-noserifs"))
+			serifs = false;
+		else if(args.if_pop("-hlabel"))
+			horizLabel = args.pop_string();
+		else if(args.if_pop("-vlabel"))
+			vertLabel = args.pop_string();
+		else if(args.if_pop("-aspect"))
+			aspect = true;
 		else
-			throw Ex("Invalid option: ", args.peek());
+			throw Ex("unrecognized flag", args.pop_string());
 	}
-	pcm.ShowAxisLabels(vertGrid, horizGrid);
-	if(!showLines)
-		pcm.noLines();
 
-	// Make the chart
-	GImage* pImage = pcm.MakeChart();
-	Holder<GImage> hImage(pImage);
-	pImage->savePng(filename.c_str());
-	cout << "Plot saved to " << filename.c_str() << ".\n";
+	// Parse the colors
+	vector<ScatterCol> cols;
+	while(args.size() > 0)
+	{
+		size_t n = cols.size();
+		cols.resize(cols.size() + 1);
+		cols[n].parse(args);
+	}
+
+	// Draw the grid
+	determineRange(pData, cols, logx, pad, true, xmin, xmax);
+	determineRange(pData, cols, logy, pad, false, ymin, ymax);
+	if(aspect)
+	{
+		if(logx || logy)
+			throw Ex("the \"-aspect\" flag is not compatible with logarithmic scales");
+		if((xmax - xmin) / width < (ymax - ymin) / height)
+		{
+			double dif = 0.5 * ((ymax - ymin) * width / height - (xmax - xmin));
+			xmin -= dif;
+			xmax += dif;
+		}
+		else
+		{
+			double dif = 0.5 * ((xmax - xmin) * height / width - (ymax - ymin));
+			ymin -= dif;
+			ymax += dif;
+		}
+	}
+	GSVG svg(width, height, xmin, ymin, xmax, ymax, margin);
+	if(horizMarks)
+		svg.horizMarks(maxHorizMarks);
+	if(vertMarks)
+	{
+		if(maxVertMarks == (size_t)-1)
+			maxVertMarks = maxHorizMarks * height / width;
+		svg.vertMarks(maxVertMarks);
+	}
+
+	// Draw the axis labels
+	if(horizLabel.length() > 0)
+		svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), horizLabel.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
+	else
+		autolabel(pData, cols, true, xmin, xmax, svg, serifs);
+	if(vertLabel.length() > 0)
+		svg.text(svg.vertLabelPos(), 0.5 * (ymin + ymax), vertLabel.c_str(), 1.5, GSVG::Middle, 0xff000000, 90, serifs);
+	else
+		autolabel(pData, cols, false, ymin, ymax, svg, serifs);
+
+	// Draw the colors
+	for(size_t i = 0; i < cols.size(); i++)
+		cols[i].plot(svg, pData);
+
+	// output the plot
+	svg.print(cout);
 }
-
 
 void semanticMap(GArgReader& args){
   string somFile = args.pop_string();

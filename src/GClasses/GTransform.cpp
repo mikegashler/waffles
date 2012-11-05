@@ -1501,7 +1501,10 @@ sp_relation GDiscretize::trainInner(GMatrix& data)
 			m_pRanges[i] = 0;
 		}
 		else
+		{
 			data.minAndRangeUnbiased(i, &m_pMins[i], &m_pRanges[i]);
+			m_pRanges[i] = std::max(m_pRanges[i], 1e-9);
+		}
 	}
 	return pRelationAfter;
 }

@@ -940,6 +940,8 @@ public:
 		runTest("GBagOfRecommenders", GBagOfRecommenders::test);
 		runTest("GBaselineLearner", GBaselineLearner::test);
 		runTest("GBaselineRecommender", GBaselineRecommender::test);
+		runTest("GBayesianModelAveraging", GBayesianModelAveraging::test);
+		runTest("GBayesianModelCombination", GBayesianModelCombination::test);
 		runTest("GBezier", GBezier::test);
 		runTest("GBits", GBits::test);
 		runTest("GBitTable", GBitTable::test);

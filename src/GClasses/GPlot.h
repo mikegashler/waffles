@@ -188,7 +188,7 @@ public:
 	double unit() { return m_vunit; }
 
 	/// Draw a dot
-	void dot(double x, double y, double r, unsigned int col = 0x000080);
+	void dot(double x, double y, double r = 1.0, unsigned int col = 0x000080);
 
 	/// Draw a line
 	void line(double x1, double y1, double x2, double y2, double thickness = 1.0, unsigned int col = 0x008000);
@@ -197,7 +197,7 @@ public:
 	void rect(double x, double y, double w, double h, unsigned int col = 0x008080);
 
 	/// Draw text
-	void text(double x, double y, const char* szText, double size, Anchor eAnchor = Start, unsigned int col = 0x000000, double angle = 0.0, bool serifs = true);
+	void text(double x, double y, const char* szText, double size = 1.0, Anchor eAnchor = Start, unsigned int col = 0x000000, double angle = 0.0, bool serifs = true);
 
 	/// Generate an SVG file with all of the components that have been added so far.
 	void print(std::ostream& stream);
@@ -205,13 +205,18 @@ public:
 	/// Label the horizontal axis. If maxLabels is 0, then no grid-lines will be drawn. If maxLabels is -1, then
 	/// Logarithmic grid-lines will be drawn. If pLabels is non-NULL, then its values will be used to label
 	/// the grid-lines instead of the continuous values.
-	void horizLabels(const char* szAxisLabel, int maxLabels, std::vector<std::string>* pLabels = NULL);
+	void horizMarks(int maxLabels, std::vector<std::string>* pLabels = NULL);
 
 	/// Label the vertical axis. If maxLabels is 0, then no grid-lines will be drawn. If maxLabels is -1, then
 	/// Logarithmic grid-lines will be drawn. If pLabels is non-NULL, then its values will be used to label
 	/// the grid-lines instead of the continuous values.
-	void vertLabels(const char* szAxisLabel, int maxLabels, std::vector<std::string>* pLabels = NULL);
+	void vertMarks(int maxLabels, std::vector<std::string>* pLabels = NULL);
 
+	/// Returns a good y position for the horizontal axis label
+	double horizLabelPos();
+
+	/// Returns a good x position for the vertical axis label
+	double vertLabelPos();
 protected:
 	void color(unsigned int c);
 };
