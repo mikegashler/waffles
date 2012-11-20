@@ -19,7 +19,7 @@
 namespace GClasses {
 
 class GCharSet;
-class GHeap;
+
 
 /// This class represents a set of characters.
 class GCharSet

@@ -343,65 +343,119 @@ void PlotBar(GArgReader& args)
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
-	if(pRel->size() != 1 || !pRel->areContinuous(0, 1))
-		throw Ex("Expected exactly one continuous attribute");
-	double* values = new double[pData->rows()];
-	ArrayHolder<double> hValues(values);
-	for(size_t i = 0; i < pData->rows(); i++)
-		values[i] = pData->row(i)[0];
+	//if(!pData->relation()->areContinuous())
+	//	throw Ex("Expected all attributes to be continuous");
 
 	// Parse options
-	bool bLog = false;
-	string filename = "plot.png";
+	double ymin = UNKNOWN_REAL_VALUE;
+	double ymax = UNKNOWN_REAL_VALUE;
+	double padding = 0.1;
+	double thickness = 2.0;
+	double spacing = 1.0;
+	double textSize = 1.0;
+	size_t width = 960;
+	size_t height = 540;
+	size_t row = 0;
+	bool serifs = true;
+	size_t marks = 30;
+	vector<string> labels;
 	while(args.next_is_flag())
 	{
-		if(args.if_pop("-out"))
-			filename = args.pop_string();
-		else if(args.if_pop("-log"))
-			bLog = true;
+		if(args.if_pop("-range"))
+		{
+			ymin = args.pop_double();
+			ymax = args.pop_double();
+		}
+		else if(args.if_pop("-row"))
+			row = args.pop_uint();
+		else if(args.if_pop("-pad"))
+			padding = args.pop_double();
+		else if(args.if_pop("-thickness"))
+			thickness = args.pop_double();
+		else if(args.if_pop("-spacing"))
+			spacing = args.pop_double();
+		else if(args.if_pop("-textsize"))
+			textSize = args.pop_double();
+		else if(args.if_pop("-noserifs"))
+			serifs = false;
+		else if(args.if_pop("-marks"))
+			marks = args.pop_uint();
+		else if(args.if_pop("-size"))
+		{
+			width = args.pop_uint();
+			height = args.pop_uint();
+		}
+		else if(args.if_pop("-labels"))
+		{
+			for(size_t i = 0; i < pData->cols(); i++)
+				labels.push_back(args.pop_string());
+		}
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
 
-	// Make the chart
-	GRand prng(0);
-	size_t minIndex = GVec::indexOfMin(values, pData->rows(), &prng);
-	size_t maxIndex = GVec::indexOfMax(values, pData->rows(), &prng);
-	double dMin = values[minIndex];
-	double dMax = std::max(1e-12, values[maxIndex]);
-	if(dMin > 0 && !bLog && (dMax - dMin) / dMax > 0.05)
-		dMin = 0;
-	GImage image;
-	image.setSize(800, 800);
-	image.clear(0xffffffff);
-	double xmin = -0.5;
-	double ymin = bLog ? log(dMin * 0.7) : dMin - 0.1 * (dMax - dMin);
-	double xmax = (double)pData->rows();
-	double ymax = bLog ? log(dMax + 0.5 * (dMax - dMin)) : dMax + 0.1 * (dMax - dMin);
-	GPlotWindow pw(&image, xmin, ymin, xmax, ymax);
-	pw.gridLines(0, (bLog ? -1 : 30), 0xff808080);
-	for(size_t i = 0; i < pData->rows(); i++)
+	// Determine the range
+	double* pRow = pData->row(row);
+	if(ymin == UNKNOWN_REAL_VALUE || ymax == UNKNOWN_REAL_VALUE)
 	{
-		int x1, y1, x2, y2;
-			pw.windowToView((double)i, 0, &x1, &y1);
-		if(bLog)
+		ymin = pRow[0];
+		ymax = pRow[0];
+		if(ymin == UNKNOWN_REAL_VALUE)
+			throw Ex("Unknown values are not supported");
+		for(size_t i = 1; i < pData->cols(); i++)
 		{
-			pw.windowToView(0.5 + i, log(values[i]), &x2, &y2);
-			image.boxFill(x1, y2, x2 - x1, std::max(0, (int)image.height() - y2), gAHSV(0xff, (float)i / pData->rows(), 1.0f, 0.5f));
+			if(pRow[i] == UNKNOWN_REAL_VALUE)
+				throw Ex("Unknown values are not supported");
+			ymin = std::min(ymin, pRow[i]);
+			ymax = std::max(ymax, pRow[i]);
+		}
+		double d = padding * (ymax - ymin);
+		ymin -= d;
+		ymax += d;
+	}
+
+	// Determine the labels
+	while(labels.size() < pData->cols())
+	{
+		if(pData->relation()->type() == GRelation::ARFF)
+		{
+			GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+			labels.push_back(pRel->attrName(labels.size()));
 		}
 		else
 		{
-			pw.windowToView(0.5 + i, values[i], &x2, &y2);
-			if(y2 < y1)
-				std::swap(y1, y2);
-			image.boxFill(x1, y1, x2 - x1, y2 - y1, gAHSV(0xff, (float)i / pData->rows(), 1.0f, 0.5f));
+			string s = "Attr ";
+			s += to_str(labels.size());
+			labels.push_back(s);
 		}
 	}
-	GImage* pLabeledImage = pw.labelAxes(0, (bLog ? -1 : 30), 5/*precision*/, 1/*size*/, 0xff000000/*color*/, 45.0 * (M_PI / 180)/*angle*/);
-	Holder<GImage> hLabeledImage(pLabeledImage);
-	pLabeledImage->savePng(filename.c_str());
-	cout << "Chart saved to " << filename.c_str() << ".\n";
+
+	// Make the chart
+	GSVG svg(width, height, 0, ymin, pData->cols() * thickness + (pData->cols() + 1) * spacing, ymax);
+	if(marks > 0)
+		svg.vertMarks(marks);
+	double x = spacing;
+	double base = std::max(ymin, 0.0);
+	for(size_t i = 0; i < pData->cols(); i++)
+	{
+		// Draw the bar
+		unsigned int c = gAHSV(0xff, 0.85f * (float)i / pData->cols(), 1.0f, 0.5f);
+		double bot = base;
+		double hgt = pRow[i] - base;
+		if(hgt < 0.0)
+		{
+			bot = hgt;
+			hgt = -hgt;
+		}
+		svg.rect(x, bot, thickness, hgt, c);
+
+		// Draw the label
+		svg.text(x + 0.5 * thickness, ymin - 10 * svg.vunit(), labels[i].c_str(), textSize, GSVG::End, 0xff000000, 45.0, serifs);
+
+		x += thickness;
+		x += spacing;
+	}
+	svg.print(cout);
 }
 
 class BigOCritic : public GTargetFunction
@@ -585,6 +639,18 @@ public:
 	size_t m_attrY;
 	double m_radius;
 	double m_thickness;
+	GFunctionParser* m_pFP;
+	GFunction* m_pFunc;
+
+	ScatterCol()
+	: m_pFP(NULL), m_pFunc(NULL)
+	{
+	}
+
+	~ScatterCol()
+	{
+		delete(m_pFP);
+	}
 
 	void parse(GArgReader& args)
 	{
@@ -631,20 +697,34 @@ public:
 		}
 
 		// Parse the X attribute
-		if(args.if_pop("row"))
+		if(args.if_pop("equation"))
+		{
+			if(m_type != Fixed)
+				throw Ex("Sorry, only fixed colors are compatible with equations");
+			m_attrX = 0;
+			m_attrY = 0;
+			m_pFP = new GFunctionParser(args.pop_string());
+			m_pFunc = m_pFP->getFunctionNoThrow("f");
+			if(!m_pFunc)
+				throw Ex("Expected a function named \"f\"");
+		}
+		else if(args.if_pop("row"))
 			m_attrX = (size_t)-1;
 		else
 			m_attrX = args.pop_uint();
 
 		// Parse the Y attribute
-		if(args.if_pop("row"))
-			m_attrY = (size_t)-1;
-		else
-			m_attrY = args.pop_uint();
+		if(!m_pFunc)
+		{
+			if(args.if_pop("row"))
+				m_attrY = (size_t)-1;
+			else
+				m_attrY = args.pop_uint();
+		}
 
 		// Parse the color-specific options
 		m_radius = 1.0;
-		m_thickness = 0.0;
+		m_thickness = (m_pFunc ? 1.0 : 0.0);
 		while(args.next_is_flag())
 		{
 			if(args.if_pop("-radius"))
@@ -664,21 +744,39 @@ public:
 			return i;
 	}
 
-	void plot(GSVG& svg, GMatrix* pData)
+	void plot(GSVG& svg, GMatrix* pData, double xmin, double xmax, size_t width)
 	{
-		if(m_type == Fixed || m_type == Row || m_type == Attr)
+		double x, y;
+		double xPrev = UNKNOWN_REAL_VALUE;
+		double yPrev = UNKNOWN_REAL_VALUE;
+		double colorMin, colorRange;
+		if(m_type == Row)
+			colorRange = pData->rows() * 1.15;
+		if(m_type == Attr)
 		{
-			double x, y;
-			double xPrev = UNKNOWN_REAL_VALUE;
-			double yPrev = UNKNOWN_REAL_VALUE;
-			double colorMin, colorRange;
-			if(m_type == Row)
-				colorRange = pData->rows() * 1.15;
-			if(m_type == Attr)
+			pData->minAndRange(m_color, &colorMin, &colorRange);
+			colorRange *= 1.15;
+		}
+		if(m_pFunc)
+		{
+			double dx = (xmax - xmin) / width;
+			x = xmin;
+			vector<double> params;
+			params.push_back(x);
+			y = m_pFunc->call(params);
+			while(x <= xmax)
 			{
-				pData->minAndRange(m_color, &colorMin, &colorRange);
-				colorRange *= 1.15;
+				xPrev = x;
+				yPrev = y;
+				x += dx;
+				params[0] = x;
+				y = m_pFunc->call(params);
+				if(y > -1e100 && y < 1e100 && yPrev > -1e100 && yPrev < 1e100)
+					svg.line(xPrev, yPrev, x, y, m_thickness, m_color);
 			}
+		}
+		else
+		{
 			for(size_t i = 0; i < pData->rows(); i++)
 			{
 				x = attrVal(pData, i, m_attrX);
@@ -697,8 +795,6 @@ public:
 				yPrev = y;
 			}
 		}
-		else
-			throw Ex("Unrecognized type");
 	}
 };
 
@@ -952,7 +1048,7 @@ void PlotScatter(GArgReader& args)
 
 	// Draw the colors
 	for(size_t i = 0; i < cols.size(); i++)
-		cols[i].plot(svg, pData);
+		cols[i].plot(svg, pData, xmin, xmax, width);
 
 	// output the plot
 	svg.print(cout);

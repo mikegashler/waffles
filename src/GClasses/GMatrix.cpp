@@ -481,12 +481,10 @@ void GMixedRelation::copyAttr(const GRelation* pThat, size_t nAttr)
 // virtual
 bool GMixedRelation::areContinuous(size_t first, size_t count) const
 {
-	size_t c = first;
-	for(size_t i = 0; i < count && i + c < size(); i++)
+	for(size_t i = 0; i < count && i + first < size(); i++)
 	{
-		if(valueCount(c) != 0)
+		if(valueCount(i + first) != 0)
 			return false;
-		c++;
 	}
 	return true;
 }
@@ -494,12 +492,10 @@ bool GMixedRelation::areContinuous(size_t first, size_t count) const
 // virtual
 bool GMixedRelation::areNominal(size_t first, size_t count) const
 {
-	size_t c = first;
-	for(size_t i = 0; i < count && i + c < size(); i++)
+	for(size_t i = 0; i < count && i + first < size(); i++)
 	{
-		if(valueCount(c) == 0)
+		if(valueCount(i + first) == 0)
 			return false;
-		c++;
 	}
 	return true;
 }
