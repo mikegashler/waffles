@@ -1069,11 +1069,22 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-nobox", "Don't draw a bounding box around the plot.");
 	}
 	{
-		UsageNode* pBar = pRoot->add("bar [dataset] <options>", "Make a bar chart.");
-		pBar->add("[dataset]=data.arff", "The filename of a dataset for the bar chart. The dataset must contain exactly one continuous attribute. Each data row specifies the height of a bar.");
+		UsageNode* pBar = pRoot->add("bar [dataset] <options>", "Make a bar chart using one row of data from the specified dataset. Prints the chart as an SVG file to stdout.");
+		pBar->add("[dataset]=data.arff", "The filename of a dataset for the bar chart. The dataset should contain only continuous attributes. It only needs to have one row since the other rows are ignored.");
 		UsageNode* pOpts = pBar->add("<options>");
-		pOpts->add("-log", "Use a logarithmic scale.");
-		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-range [min] [max]", "Specify the min and max values to show on the chart. (The default is to compute the range automatically.)");
+		pOpts->add("-row [n]=0", "Specify which row in the dataset to use. (The default is 0.)");
+		pOpts->add("-pad [d]=0.1", "Specify how much range to show beyond the min and max values when the range is determined automatically. This value is ignored if the range is specified explicitly.");
+		pOpts->add("-thickness [t]=2", "Specify the thickness of the bars. (Note that the whole chart will be stretched to fit the width, so adjusting the width may also affect bar thickness.)");
+		pOpts->add("-spacing [s]=1", "Specify how much space to place between the bars.");
+		pOpts->add("-textsize [d]=1.0", "Specify the size of the font to use for the text labels.");
+		pOpts->add("-noserifs", "Use a font with no serifs. (Generally, this makes the chart look a little cleaner.)");
+		pOpts->add("-marks [n]=30", "Specify the maximum number of horizontal lines to use to mark positions on the vertical axis. (Set to 0 if you do not want any markings.)");
+		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 960 540.)");
+		pOpts->add("-labels [l0] [l1] [l2] [etc]", "Specify label strings to use instead of the attribute names. The number of labels specified should match the number of columns in the data.");
+	}
+	{
+		pRoot->add("bigo [dataset]=results.arff", "Estimate the Big-O runtime of algorithms based on empirical results. Regresses the formula t=a*(n^b+c) to fit the data, where n is the value in attribute 0 (representing the size of the data), and t (representing time) in the other attributes for each algorithm. The values of a, b, and c are reported for each attribute > 0.");
 	}
 	{
 		pRoot->add("bigo [dataset]=results.arff", "Estimate the Big-O runtime of algorithms based on empirical results. Regresses the formula t=a*(n^b+c) to fit the data, where n is the value in attribute 0 (representing the size of the data), and t (representing time) in the other attributes for each algorithm. The values of a, b, and c are reported for each attribute > 0.");
