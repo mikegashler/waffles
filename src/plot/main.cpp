@@ -472,26 +472,33 @@ void EstimateBigO(GArgReader& args)
 void PlotEquation(GArgReader& args)
 {
 	// Parse options
-	string filename = "plot.png";
-	int width = 1024;
-	int height = 1024;
+	size_t width = 960;
+	size_t height = 540;
+	size_t margin = 100;
+	size_t maxHorizMarks = 30;
+	size_t maxVertMarks = size_t(-1);
 	double xmin = -10;
-	double ymin = -10;
+	double ymin = -5;
 	double xmax = 10;
-	double ymax = 10;
-	double textSize = 2.0;
-	bool grid = true;
+	double ymax = 5;
+	bool serifs = true;
+	bool aspect = false;
+	bool horizMarks = true;
+	bool vertMarks = true;
+	double thickness = 1.0;
 	while(args.next_is_flag())
 	{
-		if(args.if_pop("-out"))
-			filename = args.pop_string();
-		else if(args.if_pop("-size"))
+		if(args.if_pop("-size"))
 		{
 			width = args.pop_uint();
 			height = args.pop_uint();
 		}
-		else if(args.if_pop("-nogrid"))
-			grid = false;
+		else if(args.if_pop("-margin"))
+			margin = args.pop_uint();
+		else if(args.if_pop("-horizmarks"))
+			maxHorizMarks = args.pop_uint();
+		else if(args.if_pop("-vertmarks"))
+			maxVertMarks = args.pop_uint();
 		else if(args.if_pop("-range"))
 		{
 			xmin = args.pop_double();
@@ -499,8 +506,21 @@ void PlotEquation(GArgReader& args)
 			xmax = args.pop_double();
 			ymax = args.pop_double();
 		}
-		else if(args.if_pop("-textsize"))
-			textSize = args.pop_double();
+		else if(args.if_pop("-nohmarks"))
+			horizMarks = false;
+		else if(args.if_pop("-novmarks"))
+			vertMarks = false;
+		else if(args.if_pop("-nogrid"))
+		{
+			horizMarks = false;
+			vertMarks = false;
+		}
+		else if(args.if_pop("-noserifs"))
+			serifs = false;
+		else if(args.if_pop("-aspect"))
+			aspect = true;
+		else if(args.if_pop("-thickness"))
+			thickness = args.pop_double();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -514,22 +534,36 @@ void PlotEquation(GArgReader& args)
 	GFunctionParser mfp(expr.c_str());
 
 	// Make the chart
-	GImage image;
-	image.setSize(width, height);
-	image.clear(0xffffffff);
-	GPlotWindow pw(&image, xmin, ymin, xmax, ymax);
-	if(grid)
-		pw.gridLines(30, 30, 0xffa0a0a0);
+	if(aspect)
+	{
+		if((xmax - xmin) / width < (ymax - ymin) / height)
+		{
+			double dif = 0.5 * ((ymax - ymin) * width / height - (xmax - xmin));
+			xmin -= dif;
+			xmax += dif;
+		}
+		else
+		{
+			double dif = 0.5 * ((xmax - xmin) * height / width - (ymax - ymin));
+			ymin -= dif;
+			ymax += dif;
+		}
+	}
+	GSVG svg(width, height, xmin, ymin, xmax, ymax, margin);
+	if(horizMarks)
+		svg.horizMarks(maxHorizMarks);
+	if(vertMarks)
+	{
+		if(maxVertMarks == (size_t)-1)
+			maxVertMarks = maxHorizMarks * height / width;
+		svg.vertMarks(maxVertMarks);
+	}
+
+	// Draw the equation as the label under the graph
+	svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), expr.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
 
 	// Plot all the functions
 	char szFuncName[32];
-	unsigned int colors[6];
-	colors[0] = 0xff000080;
-	colors[1] = 0xff800000;
-	colors[2] = 0xff008000;
-	colors[3] = 0xff808000;
-	colors[4] = 0xff800080;
-	colors[5] = 0xff008080;
 	for(int i = 1; true; i++)
 	{
 		// Find the function
@@ -545,8 +579,8 @@ void PlotEquation(GArgReader& args)
 			throw Ex("The function ", szFuncName, " takes ", to_str(pFunc->m_expectedParams), " parameters. Expected a function with 1 parameter");
 
 		// Plot it
-		unsigned int col = colors[i % 6];
-		double dx = pw.pixelWidth();
+		unsigned int col = gAHSV(0xff, (i - 1) / 6.0, 1.0f, 0.5f);
+		double dx = 2.0 * svg.hunit();
 		vector<double> params;
 		double x = xmin;
 		params.push_back(x);
@@ -559,14 +593,12 @@ void PlotEquation(GArgReader& args)
 			params[0] = x;
 			y = pFunc->call(params);
 			if(y > -1e100 && y < 1e100 && yPrev > -1e100 && yPrev < 1e100)
-				pw.line(xPrev, yPrev, x, y, col);
+				svg.line(xPrev, yPrev, x, y, thickness, col);
 		}
 	}
 
-	GImage* pLabeledImage = pw.labelAxes(30, 30, 5/*precision*/, (float)textSize/*size*/, 0xff000000/*color*/, 45.0 * (M_PI / 180)/*angle*/);
-	Holder<GImage> hLabeledImage(pLabeledImage);
-	pLabeledImage->savePng(filename.c_str());
-	cout << "Plot saved to " << filename.c_str() << ".\n";
+	// output the plot
+	svg.print(cout);
 }
 
 class ScatterCol
@@ -666,39 +698,34 @@ public:
 
 	void plot(GSVG& svg, GMatrix* pData)
 	{
-		if(m_type == Fixed || m_type == Row || m_type == Attr)
+		double x, y;
+		double xPrev = UNKNOWN_REAL_VALUE;
+		double yPrev = UNKNOWN_REAL_VALUE;
+		double colorMin, colorRange;
+		if(m_type == Row)
+			colorRange = pData->rows() * 1.15;
+		if(m_type == Attr)
 		{
-			double x, y;
-			double xPrev = UNKNOWN_REAL_VALUE;
-			double yPrev = UNKNOWN_REAL_VALUE;
-			double colorMin, colorRange;
-			if(m_type == Row)
-				colorRange = pData->rows() * 1.15;
-			if(m_type == Attr)
-			{
-				pData->minAndRange(m_color, &colorMin, &colorRange);
-				colorRange *= 1.15;
-			}
-			for(size_t i = 0; i < pData->rows(); i++)
-			{
-				x = attrVal(pData, i, m_attrX);
-				y = attrVal(pData, i, m_attrY);
-				if(m_type == Row)
-					m_color = gAHSV(0xff, i / colorRange, 1.0f, 0.5f);
-				else if(m_type == Attr)
-					m_color = gAHSV(0xff, (pData->row(i)[m_color] - colorMin) / colorRange, 1.0f, 0.5f);
-				if(x != UNKNOWN_REAL_VALUE && y != UNKNOWN_REAL_VALUE)
-				{
-					if(m_thickness > 0.0 && xPrev != UNKNOWN_REAL_VALUE && yPrev != UNKNOWN_REAL_VALUE)
-						svg.line(xPrev, yPrev, x, y, m_thickness, m_color);
-					svg.dot(x, y, m_radius, m_color);
-				}
-				xPrev = x;
-				yPrev = y;
-			}
+			pData->minAndRange(m_color, &colorMin, &colorRange);
+			colorRange *= 1.15;
 		}
-		else
-			throw Ex("Unrecognized type");
+		for(size_t i = 0; i < pData->rows(); i++)
+		{
+			x = attrVal(pData, i, m_attrX);
+			y = attrVal(pData, i, m_attrY);
+			if(m_type == Row)
+				m_color = gAHSV(0xff, i / colorRange, 1.0f, 0.5f);
+			else if(m_type == Attr)
+				m_color = gAHSV(0xff, (pData->row(i)[m_color] - colorMin) / colorRange, 1.0f, 0.5f);
+			if(x != UNKNOWN_REAL_VALUE && y != UNKNOWN_REAL_VALUE)
+			{
+				if(m_thickness > 0.0 && xPrev != UNKNOWN_REAL_VALUE && yPrev != UNKNOWN_REAL_VALUE)
+					svg.line(xPrev, yPrev, x, y, m_thickness, m_color);
+				svg.dot(x, y, m_radius, m_color);
+			}
+			xPrev = x;
+			yPrev = y;
+		}
 	}
 };
 

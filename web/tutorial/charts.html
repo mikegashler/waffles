@@ -71,6 +71,7 @@ The ensemble of decision trees is apparently better-suited for this task.</p>
 </pre></p>
 
 <p>Now, let's suppose that you are actually writing a paper about how some mathematical model relates to these curves. Let's say your mathematical model is: "f(x)=sqrt(0.6-0.45*x^2)". So, let's plot this equation and overlay it on top of our plots. (Note that it is important to use the same range when we plot the equation because the overlay command will not make corrections if you use mismatching ranges. It just places one image directly on top of the other one.)
+<!-- waffles_plot equation "f1(x)=1/(1+e^-x); f2(x)=0.1*x*x; f3(x)=2*sin(x); f4(x)= x / 4; f5(x)=sign(x) * sqrt(abs(x))"> tmp.svg -->
 <pre>
 	waffles_plot equation -range 0.1 0 1 1 -out eq.png "f1(x)=sqrt(0.6-0.45*x^2)"
 	waffles_plot overlay compare.png eq.png -out compare2.png

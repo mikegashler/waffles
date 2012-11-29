@@ -1075,23 +1075,31 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-log", "Use a logarithmic scale.");
 		pOpts->add("-out [filename]=plot.png", "Specifies the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
 	}
-	pRoot->add("bigo [dataset]=results.arff", "Estimate the Big-O runtime of algorithms based on empirical results. Regresses the formula t=a*(n^b+c) to fit the data, where n is the value in attribute 0 (representing the size of the data), and t (representing time) in the other attributes for each algorithm. The values of a, b, and c are reported for each attribute > 0.");
 	{
-		UsageNode* pEquat = pRoot->add("equation <options> [equations]", "Plot an equation (or multiple equations) in 2D");
+		pRoot->add("bigo [dataset]=results.arff", "Estimate the Big-O runtime of algorithms based on empirical results. Regresses the formula t=a*(n^b+c) to fit the data, where n is the value in attribute 0 (representing the size of the data), and t (representing time) in the other attributes for each algorithm. The values of a, b, and c are reported for each attribute > 0.");
+	}
+	{
+		UsageNode* pEquat = pRoot->add("equation <options> [equations]", "Plot an equation (or multiple equations) in 2D. Output is printed to stdout as an SVG file.");
 		UsageNode* pOpts = pEquat->add("<options>");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
-		pOpts->add("-range [xmin] [ymin] [xmax] [ymax]", "Set the range. (The default is: -10 -10 10 10.)");
-		pOpts->add("-textsize [size]=1.0", "Sets the label font size. If not specified, the default is 2.0.");
-		pOpts->add("-nogrid", "Do not draw any grid lines.");
-		pEquat->add("[equations]=\"f1(x)=sin(x)/x\"", "A set of equations separated by semicolons. Since '^' is a special character for many shells, it's usually a good idea to put your equations inside quotation marks. Here are some examples:\n"
+		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 960 540.)");
+		pOpts->add("-margin [size]=100", "Specify the size of the margin for the axis labels. (The default is 100.)");
+		pOpts->add("-horizmarks [n]=30", "Specify the maximum number of vertical lines to draw to mark position along the horizontal axis.");
+		pOpts->add("-vertmarks [n]=30", "Specify the maximum number of horizontal lines to draw to mark position along the vertical axis.");
+		pOpts->add("-range [xmin] [ymin] [xmax] [ymax]", "Set the range. (The default is: -10 -5 10 5.)");
+		pOpts->add("-nohmarks", "Do not draw any vertical lines to mark position on the horizontal axis.");
+		pOpts->add("-novmarks", "Do not draw any horizontal lines to mark position on the vertical axis.");
+		pOpts->add("-nogrid", "Do not draw any horizontal or vertical grid lines.");
+		pOpts->add("-noserifs", "Use a font with no serifs. (This generally makes charts look a little cleaner.)");
+		pOpts->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
+		pOpts->add("-thickness [size]=1", "Specify the thickness of the lines.");
+		pEquat->add("[equations]=\"f1(x)=sin(x)/x\"", "A set of equations separated by semicolons. Since '^' is a special character for many shells, it's usually a good idea to put your equations inside quotation marks. Here are some examples:\n      "
 		"\"f1(x)=3*x+2\"\n"
 		"\"f1(x)=(g(x)+1)/g(x); g(x)=sqrt(x)+pi\"\n"
-		"\"h(bob)=bob^2;f1(x)=3+bar(x,5)*h(x)-(x/foo);bar(a,b)=a*b-b;foo=3.2\"\n"
+		"\"h(bob)=bob^2;f1(x)=3+bar(x,5)*h(x)-(x/foo);bar(a,b)=a*b-b;foo=3.2\"\n      "
 		"Only functions that begin with 'f' followed by a number will be plotted, starting with 'f1', and it will stop when the next number in ascending order is not defined. You may define any number of helper functions or constants with any name you like. Built in constants include: e, and pi. "
 		"Built in functions include: +, -, *, /, %, ^, abs, acos, acosh, asin, asinh, atan, atanh, ceil, cos, cosh, erf, floor, gamma, lgamma, log, max, min, sin, sinh, sqrt, tan, and tanh."
-		" These generally have the same meaning as in C, except '^' means exponent, \"gamma\" is the gamma function, and max and min can support any number (>=1) of parameters. (Some of these functions may not not be available on Windows, but most of them are.) You can override any built in constants or"
-			"functions with your own variables or functions, so you don't need to worry too much about name collisions. Variables must begin with an alphabet character or an underscore. Multiplication is never implicit, so you must use a '*' character to multiply. Whitespace is ignored.");
+		" These generally have the same meaning as in C, except '^' means exponent, \"gamma\" is the gamma function, and max and min can support any number (>=1) of parameters. (Some of these functions may not not be available on Windows, but most of them are.) You can override any built in constants or "
+		"functions with your own variables or functions, so you don't need to worry too much about name collisions. Variables must begin with an alphabet character or an underscore. Multiplication is never implicit, so you must use a '*' character to multiply. Whitespace is ignored.");
 	}
 	{
 		UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram.");

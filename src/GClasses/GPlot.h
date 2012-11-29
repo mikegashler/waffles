@@ -184,8 +184,11 @@ public:
 	GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax, double margin = 100);
 	~GSVG();
 
+	/// Returns (xmax - xmin) / width, which is often a useful size.
+	double hunit() { return m_hunit; }
+
 	/// Returns (ymax - ymin) / height, which is often a useful size.
-	double unit() { return m_vunit; }
+	double vunit() { return m_vunit; }
 
 	/// Draw a dot
 	void dot(double x, double y, double r = 1.0, unsigned int col = 0x000080);
