@@ -1249,10 +1249,9 @@ void makeHistogram(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 
 	// Parse options
-	int wid = 800;
-	int hgt = 800;
+	size_t wid = 960;
+	size_t hgt = 540;
 	size_t attr = 0;
-	string filename = "plot.png";
 	double xmin = UNKNOWN_REAL_VALUE;
 	double xmax = UNKNOWN_REAL_VALUE;
 	double ymax = UNKNOWN_REAL_VALUE;
@@ -1265,8 +1264,6 @@ void makeHistogram(GArgReader& args)
 			wid = args.pop_uint();
 			hgt = args.pop_uint();
 		}
-		else if(args.if_pop("-out"))
-			filename = args.pop_string();
 		else if(args.if_pop("-range"))
 		{
 			xmin = args.pop_double();
@@ -1280,34 +1277,25 @@ void makeHistogram(GArgReader& args)
 		throw Ex("attr out of range");
 
 	// Make the histogram
-	GImage image;
-	image.setSize(wid, hgt);
-	image.clear(0xffffffff);
 	if(pData->relation()->valueCount(attr) == 0)
 	{
-		GHistogram hist(*pData, attr, xmin, xmax, (size_t)image.width());
+		GHistogram hist(*pData, attr, xmin, xmax, wid);
 		double height = (ymax == UNKNOWN_REAL_VALUE ? hist.binLikelihood(hist.modeBin()) * 1.5 : ymax);
-		GPlotWindow pw(&image, hist.xmin(), 0.0, hist.xmax(), height);
-		for(int i = 0; i < (int)image.width(); i++)
+		GSVG svg(wid, hgt, hist.xmin(), 0.0, hist.xmax(), height);
+		for(double x = hist.xmin(); x <= hist.xmax(); x += svg.hunit())
 		{
-			double x, y;
-			pw.viewToWindow(i, 0, &x, &y);
 			size_t bin = hist.xToBin(x);
 			double likelihood = hist.binLikelihood(bin);
 			if(likelihood > 0.0)
-				pw.line(x, 0.0, x, likelihood, 0xff000080);
+				svg.rect(x, 0.0, svg.hunit(), likelihood, 0xff000080);
 		}
 
 		// Draw the grid
-		pw.gridLines(40, 40, 0xff808080);
+		svg.horizMarks(30);
+		svg.vertMarks(20);
 
-		// Draw the labels
-		GImage* pLabeledImage = pw.labelAxes(30, 30, 5/*precision*/, 1/*size*/, 0xff000000/*color*/, 45.0 * (M_PI / 180)/*angle*/);
-		Holder<GImage> hLabeledImage(pLabeledImage);
-
-		// Save the image
-		pLabeledImage->savePng(filename.c_str());
-		cout << "Histogram saved to " << filename.c_str() << ".\n";
+		// Print it
+		svg.print(cout);
 	}
 	else
 	{
@@ -1322,20 +1310,16 @@ void makeHistogram(GArgReader& args)
 		}
 
 		// Plot it
-		size_t max = 0;
-		for(size_t i = 1; i < buckets; i++)
-		{
-			if(hist[i] > hist[max])
-				max = i;
-		}
-		for(int i = 0; i < (int)image.width(); i++)
-		{
-			size_t b = i * buckets / image.width();
-			int h = (int)(hist[b] * image.height() / hist[max]);
-			image.line(i, image.height(), i, image.height() - h, (((b & 1) == 0) ? 0xff400000 : 0xff008040));
-		}
-		image.savePng(filename.c_str());
-		cout << "Histogram saved to " << filename.c_str() << ".\n";
+		GSVG svg(wid, hgt, 0.0, 0.0, buckets, 1.0);
+		for(size_t i = 0; i < buckets; i++)
+			svg.rect(i, 0, 1, hist[i] / pData->rows(), (((i & 1) == 0) ? 0xff400000 : 0xff008040));
+
+		// Draw the grid
+		svg.horizMarks(30);
+		svg.vertMarks(20);
+
+		// Print it
+		svg.print(cout);
 	}
 }
 

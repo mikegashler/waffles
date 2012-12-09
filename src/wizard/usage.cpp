@@ -1113,13 +1113,12 @@ UsageNode* makePlotUsageTree()
 		"functions with your own variables or functions, so you don't need to worry too much about name collisions. Variables must begin with an alphabet character or an underscore. Multiplication is never implicit, so you must use a '*' character to multiply. Whitespace is ignored.");
 	}
 	{
-		UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram.");
+		UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram. Print the plot to stdout in SVG format.");
 		pHist->add("[dataset]=samples.arff", "The filename of a dataset for the histogram.");
 		UsageNode* pOpts = pHist->add("<options>");
 		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
 		pOpts->add("-attr [index]=0", "Specify which attribute is charted. (The default is 0.)");
-		pOpts->add("-out [filename]=hist.png", "Specify the name of the output file. (If not specified, the default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-range [xmin] [xmax] [ymax]", "Specify the range of the histogram plot");
+		pOpts->add("-range [xmin] [xmax] [ymax]", "Specify the range of the histogram plot. (Note that ymin is always 0.)");
 	}
 	{
 		UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
