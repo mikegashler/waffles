@@ -177,12 +177,24 @@ public:
 
 protected:
 	std::stringstream m_ss;
+	size_t m_width, m_height, m_hWindows, m_vWindows, m_hPos, m_vPos;
 	double m_hunit, m_vunit, m_margin;
 	double m_xmin, m_ymin, m_xmax, m_ymax;
+	bool m_clipping;
 
 public:
-	GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax, double margin = 100);
+	/// This object represents a hWindows-by-vWindows grid of charts. Typically, hWindows and vWindows
+	/// are 1, so this is just a single chart, but you may specify larger values to produce a grid of charts.
+	/// width and height specify the width and height of the entire grid of charts. An equal portion of
+	/// the width and height is given to each chart in the grid.
+	GSVG(size_t width, size_t height, size_t hWindows = 1, size_t vWindows = 1);
 	~GSVG();
+
+	/// Start a new chart. This method must be called before any drawing operations are performed.
+	/// xmin, ymin, xmax, and ymax specify the coordinates in the chart to begin drawing.
+	/// If this contains more than a 1x1 grid of charts, then you may call this method again to begin
+	/// drawing a different chart in the grid. hPos and vPos specify which chart in the grid to begin drawing.
+	void newChart(double xmin, double ymin, double xmax, double ymax, size_t hPos = 0, size_t vPos = 0, double margin = 100);
 
 	/// Returns (xmax - xmin) / width, which is often a useful size.
 	double hunit() { return m_hunit; }
@@ -220,8 +232,14 @@ public:
 
 	/// Returns a good x position for the vertical axis label
 	double vertLabelPos();
+
+	/// After calling this method, all draw operations will be clipped to fall within (xmin, ymin)-(xmax, ymax),
+	/// until a new chart is started.
+	void clip();
+
 protected:
 	void color(unsigned int c);
+	void closeTags();
 };
 
 

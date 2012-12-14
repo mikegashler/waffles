@@ -431,7 +431,8 @@ void PlotBar(GArgReader& args)
 	}
 
 	// Make the chart
-	GSVG svg(width, height, 0, ymin, pData->cols() * thickness + (pData->cols() + 1) * spacing, ymax);
+	GSVG svg(width, height);
+	svg.newChart(0, ymin, pData->cols() * thickness + (pData->cols() + 1) * spacing, ymax);
 	if(marks > 0)
 		svg.vertMarks(marks);
 	double x = spacing;
@@ -603,7 +604,8 @@ void PlotEquation(GArgReader& args)
 			ymax += dif;
 		}
 	}
-	GSVG svg(width, height, xmin, ymin, xmax, ymax, margin);
+	GSVG svg(width, height);
+	svg.newChart(xmin, ymin, xmax, ymax, 0, 0, margin);
 	if(horizMarks)
 		svg.horizMarks(maxHorizMarks);
 	if(vertMarks)
@@ -617,6 +619,7 @@ void PlotEquation(GArgReader& args)
 	svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), expr.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
 
 	// Plot all the functions
+	svg.clip();
 	char szFuncName[32];
 	for(int i = 1; true; i++)
 	{
@@ -1060,7 +1063,8 @@ void PlotScatter(GArgReader& args)
 			ymax += dif;
 		}
 	}
-	GSVG svg(width, height, xmin, ymin, xmax, ymax, margin);
+	GSVG svg(width, height);
+	svg.newChart(xmin, ymin, xmax, ymax, 0, 0, margin);
 	if(horizMarks)
 		svg.horizMarks(maxHorizMarks);
 	if(vertMarks)
@@ -1081,6 +1085,7 @@ void PlotScatter(GArgReader& args)
 		autolabel(pData, cols, false, ymin, ymax, svg, serifs);
 
 	// Draw the colors
+	svg.clip();
 	for(size_t i = 0; i < cols.size(); i++)
 		cols[i].plot(svg, pData, xmin, xmax, width);
 
@@ -1281,7 +1286,8 @@ void makeHistogram(GArgReader& args)
 	{
 		GHistogram hist(*pData, attr, xmin, xmax, wid);
 		double height = (ymax == UNKNOWN_REAL_VALUE ? hist.binLikelihood(hist.modeBin()) * 1.5 : ymax);
-		GSVG svg(wid, hgt, hist.xmin(), 0.0, hist.xmax(), height);
+		GSVG svg(wid, hgt);
+		svg.newChart(hist.xmin(), 0.0, hist.xmax(), height);
 		for(double x = hist.xmin(); x <= hist.xmax(); x += svg.hunit())
 		{
 			size_t bin = hist.xToBin(x);
@@ -1310,7 +1316,8 @@ void makeHistogram(GArgReader& args)
 		}
 
 		// Plot it
-		GSVG svg(wid, hgt, 0.0, 0.0, buckets, 1.0);
+		GSVG svg(wid, hgt);
+		svg.newChart(0.0, 0.0, buckets, 1.0);
 		for(size_t i = 0; i < buckets; i++)
 			svg.rect(i, 0, 1, hist[i] / pData->rows(), (((i & 1) == 0) ? 0xff400000 : 0xff008040));
 

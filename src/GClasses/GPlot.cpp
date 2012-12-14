@@ -362,20 +362,62 @@ GImage* GPlotWindow::labelAxes(int maxHorizAxisLabels, int maxVertAxisLabels, in
 
 
 
-
+#define BOGUS_XMIN -1e308
 const char* g_hexChars = "0123456789abcdef";
 
-GSVG::GSVG(int width, int height, double xmin, double ymin, double xmax, double ymax, double margin)
-: m_hunit((xmax - xmin) / width), m_vunit((ymax - ymin) / height), m_margin(margin), m_xmin(xmin), m_ymin(ymin), m_xmax(xmax), m_ymax(ymax)
+GSVG::GSVG(size_t width, size_t height, size_t hWindows, size_t vWindows)
+: m_width(width), m_height(height), m_hWindows(hWindows), m_vWindows(vWindows), m_xmin(BOGUS_XMIN), m_clipping(false)
 {
 	m_ss << "<?xml version=\"1.0\"?><svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"";
-	m_ss << to_str(width + m_margin) << "\" height=\"" << to_str(height + m_margin) << "\">\n";
-	m_ss << "<g transform=\"translate(" << to_str(m_margin) << " " << to_str(height) << ") scale(" << to_str((double)width / (xmax - xmin)) <<
-		" " << to_str(-(double)height / (ymax - ymin)) << ") translate(" << to_str(-xmin) << " " << to_str(-ymin) << ") \">\n";
+	m_ss << to_str(width) << "\" height=\"" << to_str(height) << "\">\n";
+}
+
+void GSVG::closeTags()
+{
+	// Close the current clipping group
+	if(m_clipping)
+	{
+		m_ss << "</g>";
+		m_clipping = false;
+	}
+
+	// Close the current chart
+	if(m_xmin != BOGUS_XMIN)
+		m_ss << "</g>";
+}
+
+void GSVG::newChart(double xmin, double ymin, double xmax, double ymax, size_t hPos, size_t vPos, double margin)
+{
+	closeTags();
+	m_hPos = hPos;
+	m_vPos = vPos;
+	double chartWidth = (double)m_width / m_hWindows;
+	double chartHeight = (double)m_height / m_vWindows;
+	m_hunit = (xmax - xmin) / chartWidth;
+	m_vunit = (ymax - ymin) / chartHeight;
+	margin = std::min(margin, 0.75 * chartWidth);
+	margin = std::min(margin, 0.75 * chartHeight);
+	m_margin = margin;
+	m_xmin = xmin;
+	m_ymin = ymin;
+	m_xmax = xmax;
+	m_ymax = ymax;
+	m_ss << "<defs><clipPath id=\"chart" << to_str(hPos) << "-" << to_str(vPos) << "\"><rect x=\"" << to_str(xmin) << "\" y=\"" << to_str(ymin) << "\" width=\"" << to_str(xmax - xmin) << "\" height=\"" << to_str(ymax - ymin) << "\" /></clipPath></defs>\n";
+	m_ss << "<g transform=\"translate(" << to_str(chartWidth * hPos + margin) << " "
+		<< to_str(chartHeight * (vPos + 1) - margin) << ") scale(" << to_str((chartWidth - margin) / (xmax - xmin)) <<
+		" " << to_str(-(chartHeight - margin) / (ymax - ymin)) << ") translate(" << to_str(-xmin) << " " << to_str(-ymin) << ")\""
+		<< ">\n";
 }
 
 GSVG::~GSVG()
 {
+}
+
+void GSVG::clip()
+{
+	m_ss << "\n<!-- Clipped region -->\n";
+	m_ss << "<g clip-path=\"url(#chart" << to_str(m_hPos) << "-" << to_str(m_vPos) << ")\">\n";
+	m_clipping = true;
 }
 
 void GSVG::color(unsigned int c)
@@ -430,7 +472,12 @@ void GSVG::text(double x, double y, const char* szText, double size, Anchor eAnc
 
 void GSVG::print(std::ostream& stream)
 {
-	m_ss << "</g></svg>\n";
+	closeTags();
+
+	// Close the whole SVG file
+	m_ss << "</svg>\n";
+
+	// Print it
 	stream << m_ss.str();
 }
 
