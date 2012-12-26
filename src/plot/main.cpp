@@ -961,16 +961,90 @@ void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axis
 	}
 }
 
+void findGridPattern(GMatrix* pData, size_t attr, size_t& block, size_t& cycle)
+{
+	// Count reps
+	for(block = 1; block < pData->rows(); block++)
+	{
+		if(pData->row(block)[attr] != pData->row(0)[attr])
+			break;
+	}
+
+	// Find first repeat
+	for(cycle = block; cycle < pData->rows(); cycle++)
+	{
+		if(pData->row(cycle)[attr] == pData->row(0)[attr])
+			break;
+	}
+
+	// Test pattern
+	if((pData->rows() % cycle) != 0)
+		throw Ex("The values in attr ", to_str(attr), " do not follow a pattern amenable to plotting across a grid of charts");
+	for(size_t i = 0; i < cycle; i += block)
+	{
+		if(i > 0 && pData->row(i)[attr] <= pData->row(i - 1)[attr])
+			throw Ex("The values in attr ", to_str(attr), " do not follow a pattern amenable to plotting across a grid of charts");
+		for(size_t j = 0; j < block; j++)
+		{
+			for(size_t k = 0; i + j + k < pData->rows(); k += cycle)
+			{
+				if(pData->row(i + j + k)[attr] != pData->row(i)[attr])
+					throw Ex("The values in attr ", to_str(attr), " do not follow a pattern amenable to plotting across a grid of charts");
+			}
+		}
+	}
+}
+
+void makeGridDataSubset(GMatrix* pSource, GMatrix* pDest, size_t horizPos, size_t horizAttr, size_t horizBlock, size_t vertPos, size_t vertAttr, size_t vertBlock)
+{
+	if(horizAttr == (size_t)-1)
+	{
+		double vertValue = pSource->row(vertBlock * vertPos)[vertAttr];
+		for(size_t i = 0; i < pSource->rows(); i++)
+		{
+			if(pSource->row(i)[vertAttr] == vertValue)
+				pDest->takeRow(pSource->row(i));
+		}
+	}
+	else if(vertAttr == (size_t)-1)
+	{
+		double horizValue = pSource->row(horizBlock * horizPos)[horizAttr];
+		for(size_t i = 0; i < pSource->rows(); i++)
+		{
+			if(pSource->row(i)[horizAttr] == horizValue)
+				pDest->takeRow(pSource->row(i));
+		}
+	}
+	else
+	{
+		double horizValue = pSource->row(horizBlock * horizPos)[horizAttr];
+		double vertValue = pSource->row(vertBlock * vertPos)[vertAttr];
+		for(size_t i = 0; i < pSource->rows(); i++)
+		{
+			if(pSource->row(i)[horizAttr] == horizValue && pSource->row(i)[vertAttr] == vertValue)
+				pDest->takeRow(pSource->row(i));
+		}
+	}
+}
+
 void PlotScatter(GArgReader& args)
 {
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 
-	// Parse global options
+	// Values pertaining to grids of charts
+	size_t horizCharts = 1;
+	size_t horizAttr = (size_t)-1;
+	size_t horizBlock, horizCycle;
+	size_t vertCharts = 1;
+	size_t vertAttr = (size_t)-1;
+	size_t vertBlock, vertCycle;
+
+	// Values pertaining to each chart
 	size_t width = 960;
 	size_t height = 540;
-	size_t margin = 100;
+	size_t margin = (size_t)-1;
 	size_t maxHorizMarks = 30;
 	size_t maxVertMarks = size_t(-1);
 	double pad = 0.05;
@@ -993,6 +1067,18 @@ void PlotScatter(GArgReader& args)
 		{
 			width = args.pop_uint();
 			height = args.pop_uint();
+		}
+		else if(args.if_pop("-horizattr"))
+		{
+			horizAttr = args.pop_uint();
+			findGridPattern(pData, horizAttr, horizBlock, horizCycle);
+			horizCharts = horizCycle / horizBlock;
+		}
+		else if(args.if_pop("-vertattr"))
+		{
+			vertAttr = args.pop_uint();
+			findGridPattern(pData, vertAttr, vertBlock, vertCycle);
+			vertCharts = vertCycle / vertBlock;
 		}
 		else if(args.if_pop("-margin"))
 			margin = args.pop_uint();
@@ -1034,6 +1120,9 @@ void PlotScatter(GArgReader& args)
 			throw Ex("unrecognized flag", args.pop_string());
 	}
 
+	if(margin == (size_t)-1)
+		margin = (size_t)(std::min(width, height) * 0.2);
+
 	// Parse the colors
 	vector<ScatterCol> cols;
 	while(args.size() > 0)
@@ -1063,31 +1152,48 @@ void PlotScatter(GArgReader& args)
 			ymax += dif;
 		}
 	}
-	GSVG svg(width, height);
-	svg.newChart(xmin, ymin, xmax, ymax, 0, 0, margin);
-	if(horizMarks)
-		svg.horizMarks(maxHorizMarks);
-	if(vertMarks)
+	GSVG svg(width, height, horizCharts, vertCharts);
+	for(size_t vert = 0; vert < vertCharts; vert++)
 	{
-		if(maxVertMarks == (size_t)-1)
-			maxVertMarks = maxHorizMarks * height / width;
-		svg.vertMarks(maxVertMarks);
+		for(size_t horiz = 0; horiz < horizCharts; horiz++)
+		{
+			svg.newChart(xmin, ymin, xmax, ymax, horiz, vert, margin);
+			if(horizMarks)
+				svg.horizMarks(maxHorizMarks);
+			if(vertMarks)
+			{
+				if(maxVertMarks == (size_t)-1)
+					maxVertMarks = maxHorizMarks * height / width;
+				svg.vertMarks(maxVertMarks);
+			}
+
+			// Draw the axis labels
+			if(horizLabel.length() > 0)
+				svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), horizLabel.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
+			else
+				autolabel(pData, cols, true, xmin, xmax, svg, serifs);
+			if(vertLabel.length() > 0)
+				svg.text(svg.vertLabelPos(), 0.5 * (ymin + ymax), vertLabel.c_str(), 1.5, GSVG::Middle, 0xff000000, 90, serifs);
+			else
+				autolabel(pData, cols, false, ymin, ymax, svg, serifs);
+
+			// Draw the colors
+			svg.clip();
+			if(horizCharts > 1 || vertCharts > 1)
+			{
+				GMatrix temp(pData->relation());
+				GReleaseDataHolder hTemp(&temp);
+				makeGridDataSubset(pData, &temp, horiz, horizAttr, horizBlock, vert, vertAttr, vertBlock);
+				for(size_t i = 0; i < cols.size(); i++)
+					cols[i].plot(svg, &temp, xmin, xmax, width);
+			}
+			else
+			{
+				for(size_t i = 0; i < cols.size(); i++)
+					cols[i].plot(svg, pData, xmin, xmax, width);
+			}
+		}
 	}
-
-	// Draw the axis labels
-	if(horizLabel.length() > 0)
-		svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), horizLabel.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
-	else
-		autolabel(pData, cols, true, xmin, xmax, svg, serifs);
-	if(vertLabel.length() > 0)
-		svg.text(svg.vertLabelPos(), 0.5 * (ymin + ymax), vertLabel.c_str(), 1.5, GSVG::Middle, 0xff000000, 90, serifs);
-	else
-		autolabel(pData, cols, false, ymin, ymax, svg, serifs);
-
-	// Draw the colors
-	svg.clip();
-	for(size_t i = 0; i < cols.size(); i++)
-		cols[i].plot(svg, pData, xmin, xmax, width);
 
 	// output the plot
 	svg.print(cout);

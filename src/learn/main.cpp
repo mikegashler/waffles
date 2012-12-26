@@ -18,7 +18,9 @@
 #include "../GClasses/GDistribution.h"
 #include "../GClasses/GEnsemble.h"
 #include "../GClasses/GFile.h"
+#include "../GClasses/GFunction.h"
 #include "../GClasses/GGaussianProcess.h"
+#include "../GClasses/GHillClimber.h"
 #include "../GClasses/GImage.h"
 #include "../GClasses/GKernelTrick.h"
 #include "../GClasses/GKNN.h"
@@ -28,6 +30,7 @@
 #include "../GClasses/GNaiveBayes.h"
 #include "../GClasses/GNaiveInstance.h"
 #include "../GClasses/GNeuralNet.h"
+#include "../GClasses/GOptimizer.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GSparseMatrix.h"
 #include "../GClasses/GSystemLearner.h"
@@ -2165,6 +2168,89 @@ void trainRecurrent(GArgReader& args)
 	doc.saveJson(outFilename);
 }
 
+class OptimizerTargetFunc : public GTargetFunction
+{
+public:
+	GMatrix* m_pIn;
+	GMatrix* m_pOut;
+	GFunction* m_pFunc;
+	
+	OptimizerTargetFunc(GMatrix* pIn, GMatrix* pOut, GFunction* pFunc) : GTargetFunction(pFunc->m_expectedParams - pIn->cols()), m_pIn(pIn), m_pOut(pOut), m_pFunc(pFunc)
+	{
+	}
+
+	virtual ~OptimizerTargetFunc()
+	{
+	}
+
+	virtual bool isStable() { return true; }
+	virtual bool isConstrained() { return false; }
+
+	virtual void initVector(double* pVector)
+	{
+		GVec::setAll(pVector, 0.1, relation()->size());
+	}
+
+	virtual double computeError(const double* pVector)
+	{
+		double sse = 0.0;
+		vector<double> params;
+		params.resize(m_pFunc->m_expectedParams);
+		size_t inDims = m_pIn->cols();
+		for(size_t j = 0; j < m_pRelation->size(); j++)
+			params[inDims + j] = pVector[j];
+		for(size_t i = 0; i < m_pIn->rows(); i++)
+		{
+			double* pIn = m_pIn->row(i);
+			for(size_t j = 0; j < inDims; j++)
+				params[j] = pIn[j];
+			double pred = m_pFunc->call(params);
+			double* pOut = m_pOut->row(i);
+			double d = *pOut - pred;
+			sse += d * d;
+		}
+		return sse;
+	}
+};
+
+void optimize(GArgReader& args)
+{
+	// Load the data
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
+	if(pLabels->cols() != 1)
+		throw Ex("Sorry, only 1 label dimension currently supported");
+
+	// Load the equation
+	string expr;
+	while(args.size() > 0)
+		expr += args.pop_string();
+	GFunctionParser fp(expr.c_str());
+	GFunction* pFunc = fp.getFunctionNoThrow("f");
+	if(!pFunc)
+		throw Ex("Expected a function named \"f\".");
+	if((size_t)pFunc->m_expectedParams <= pFeatures->cols())
+		throw Ex("Expected more than", to_str(pFeatures->cols()), " params. Got only ", to_str(pFunc->m_expectedParams));
+
+	// Optimize
+	OptimizerTargetFunc tf(pFeatures, pLabels, pFunc);
+	GHillClimber hc(&tf);
+	hc.searchUntil(10000, 200, 0.01);
+	double err = hc.currentError();
+	cout << "SSE = " << to_str(err) << "\n";
+	cout << "Params:\n";
+	double* pVec = hc.currentVector();
+	for(size_t i = 0; i < (size_t)pFunc->m_expectedParams - pFeatures->cols(); i++)
+	{
+		if(i > 0)
+			cout << ", ";
+		cout << to_str(pVec[i]);
+	}
+	cout << "\n";
+}
+
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -2260,6 +2346,8 @@ int main(int argc, char *argv[])
  				sterilize(args);
 			else if(args.if_pop("trainrecurrent"))
 				trainRecurrent(args);
+			else if(args.if_pop("optimize"))
+				optimize(args);
 			else
 			{
 				nRet = 1;

@@ -384,6 +384,7 @@ void GSVG::closeTags()
 	// Close the current chart
 	if(m_xmin != BOGUS_XMIN)
 		m_ss << "</g>";
+	m_ss << "\n\n";
 }
 
 void GSVG::newChart(double xmin, double ymin, double xmax, double ymax, size_t hPos, size_t vPos, double margin)
@@ -393,10 +394,10 @@ void GSVG::newChart(double xmin, double ymin, double xmax, double ymax, size_t h
 	m_vPos = vPos;
 	double chartWidth = (double)m_width / m_hWindows;
 	double chartHeight = (double)m_height / m_vWindows;
-	m_hunit = (xmax - xmin) / chartWidth;
-	m_vunit = (ymax - ymin) / chartHeight;
 	margin = std::min(margin, 0.75 * chartWidth);
 	margin = std::min(margin, 0.75 * chartHeight);
+	m_hunit = ((xmax - xmin)) / (chartWidth - margin);
+	m_vunit = ((ymax - ymin)) / (chartHeight - margin);
 	m_margin = margin;
 	m_xmin = xmin;
 	m_ymin = ymin;
@@ -483,12 +484,12 @@ void GSVG::print(std::ostream& stream)
 
 double GSVG::horizLabelPos()
 {
-	return m_ymin - m_vunit * ((m_margin / 2) + 10);
+	return m_ymin - m_vunit * ((m_margin / 2));
 }
 
 double GSVG::vertLabelPos()
 {
-	return m_xmin - m_hunit * ((m_margin / 2) - 10);
+	return m_xmin - m_hunit * ((m_margin / 2));
 }
 
 void GSVG::horizMarks(int maxLabels, std::vector<std::string>* pLabels)
