@@ -89,7 +89,7 @@ public:
 		GroupBox,
 		HorizSlider,
 		HScrollBar,
-		ImageLabel,
+//		ImageLabel,
 		PolarChart,
 		ProgressBar,
 		SliderTab,
@@ -584,7 +584,7 @@ protected:
 };
 
 
-
+/*
 class GWidgetImageLabel : public GWidgetAtomic
 {
 protected:
@@ -599,7 +599,7 @@ public:
 	/// Draws this widget on pCanvas at (x,y)
 	virtual void draw(GImage* pCanvas, int x, int y);
 };
-
+*/
 
 
 

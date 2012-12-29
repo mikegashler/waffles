@@ -104,7 +104,7 @@ public:
 	/// Load a file (Determines the format from the extension. Doesn't
 	/// handle incorrect extensions. Currently supports .png, .bmp, .ppm, and .pgm.)
 	void loadByExtension(const char* szFilename);
-
+#ifdef HAVE_LIBPNG
 	/// Load the image from a PNG as raw data
 	void loadPng(const unsigned char* pRawData, size_t nBytes);
 
@@ -113,7 +113,7 @@ public:
 
 	/// Load the image from a hex'd PNG file
 	void loadPngFromHex(const char* szHex);
-
+#endif
 	/// Load the image from a BMP file
 	void loadBmp(const char* szFilename);
 
@@ -132,13 +132,13 @@ public:
 	/// Saves to a file. (Determines the file type from the extension.
 	/// Currently supports .png, .bmp, .ppm, and .pgm.)
 	void saveByExtension(const char* szFilename);
-
+#ifdef HAVE_LIBPNG
 	/// Save the image as a PNG to a stream
 	void savePng(FILE* pFile);
 
 	/// Save the image as a PNG to a file
 	void savePng(const char* szFilename);
-
+#endif
 	/// Save the image to a BMP file
 	void saveBmp(const char* szFilename);
 

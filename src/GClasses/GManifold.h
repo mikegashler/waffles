@@ -176,7 +176,6 @@ protected:
 	double computeError(size_t nPoint);
 	size_t adjustDataPoint(size_t nPoint, double* pError);
 	double averageNeighborDistance(size_t nDims);
-	void plotData(float radius);
 	void moveMeanToOrigin();
 };
 

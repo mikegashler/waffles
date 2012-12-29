@@ -1,22 +1,29 @@
 Build Instructions:
-	Linux:
 
-		1- Install the following dependency packages (names
-		   for fedora-like distros given in parentheses):
-			g++
-			make
-			libpng12-dev ( libpng-devel )
+	Linux:
+		1- Install g++ and make (if they are not already installed)
+			On Debian, Ubuntu, and derivatives:
+				sudo apt-get install g++ make
+			On Red Hat, Fedora, and derivatives:
+				sudo yum install g++ make
 		2- cd src
 		3- sudo make install
-		   (or just do "make opt" if you do not want it to
-		    copy the built binaries to /usr/local/bin/)
+
+		To uninstall:
+			sudo make uninstall
+
+		To build optimized binaries without installing them:
+			make opt
+
+		To build demo apps and additional tools:
+			see web/docs.html
 
 		If you also want to build the demo apps:
 		4- Install the following dependency packages:
+			libpng12-dev ( libpng-devel )
 			libsdl1.2-dev ( SDL-devel )
 			freeglut3-dev ( freeglut-devel )
 			libx11-dev ( libX11-devel )
-			libssl-dev ( openssl-devel )
 		5- cd ../demos
 		6- make opt
 

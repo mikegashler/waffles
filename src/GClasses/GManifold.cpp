@@ -416,33 +416,6 @@ GManifoldSculpting::~GManifoldSculpting()
 	delete[] m_pMetaData;
 }
 
-void GManifoldSculpting::plotData(float radius)
-{
-	if((m_nPass & (m_nPass - 1)) != 0)
-		return; // only plot if m_nPass is a power of 2
-	GImage image;
-	image.setSize(800, 800);
-	image.clear(0xff000000);
-	double* pVec = m_pData->row(0);
-	GDoubleRect r(pVec[0], pVec[1], 1e-12, 1e-12);
-	for(size_t i = 1; i < m_pData->rows(); i++)
-	{
-		pVec = m_pData->row(i);
-		r.include(pVec[0], pVec[1]);
-	}
-	r.makeAspect(800, 800);
-	GPlotWindow pw(&image, r.x, r.y, r.x + r.w, r.y + r.h);
-	for(size_t i = 0; i < m_pData->rows(); i++)
-	{
-		pVec = m_pData->row(i);
-		pw.dot(pVec[0], pVec[1], radius, gAHSV(0xff, (float)i / m_pData->rows(), 1.0f, 1.0f), 0xff000000);
-	}
-	string filename = "ms";
-	filename += to_str(m_nPass);
-	filename += ".png";
-	image.savePng(filename.c_str());
-}
-
 void GManifoldSculpting::setPreprocessedData(GMatrix* pData)
 {
 	delete(m_pData);
@@ -2191,7 +2164,7 @@ void GImageJitterer_makeImage(GImage& image, GImageJitterer& jitterer, double* p
 			imageOut.setPixel(x, y, gARGB(0xff, (int)pix[0], (int)pix[1], (int)pix[2]));
 		}
 	}
-	imageOut.savePng(filename);
+	imageOut.savePpm(filename);
 }
 
 // static
@@ -2199,29 +2172,29 @@ void GImageJitterer::test(const char* filename)
 {
 	GRand rand(0);
 	GImage image;
-	image.loadPng(filename);
+	image.loadPpm(filename);
 	double* pVec = new double[image.width() * image.height() * 3];
 	ArrayHolder<double> hVec(pVec);
 	GVec::fromImage(&image, pVec, image.width(), image.height(), 3, 255.0);
 	GImageJitterer jitterer(image.width(), image.height(), 3, 90.0, 0.5, 2.0);
 	double* pParams = jitterer.pickParams(rand);
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.0, 0.5, 0.5, 0.5, "zoom1.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.25, 0.5, 0.5, 0.5, "zoom2.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.75, 0.5, 0.5, 0.5, "zoom3.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 1.0, 0.5, 0.5, 0.5, "zoom4.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.0, 0.5, 0.5, "rot1.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.25, 0.5, 0.5, "rot2.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.75, 0.5, 0.5, "rot3.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 1.0, 0.5, 0.5, "rot4.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.0, 0.5, "h1.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.25, 0.5, "h2.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.75, 0.5, "h3.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 1.0, 0.5, "h4.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.0, "v1.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.25, "v2.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.75, "v3.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 1.0, "v4.png");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.25, 0.25, 0.25, 0.25, "all.png");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.0, 0.5, 0.5, 0.5, "zoom1.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.25, 0.5, 0.5, 0.5, "zoom2.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.75, 0.5, 0.5, 0.5, "zoom3.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 1.0, 0.5, 0.5, 0.5, "zoom4.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.0, 0.5, 0.5, "rot1.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.25, 0.5, 0.5, "rot2.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.75, 0.5, 0.5, "rot3.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 1.0, 0.5, 0.5, "rot4.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.0, 0.5, "h1.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.25, 0.5, "h2.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.75, 0.5, "h3.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 1.0, 0.5, "h4.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.0, "v1.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.25, "v2.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.75, "v3.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 1.0, "v4.ppm");
+	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.25, 0.25, 0.25, 0.25, "all.ppm");
 
 	// todo: find an automated way to examine the results
 }

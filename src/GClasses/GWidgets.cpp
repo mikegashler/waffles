@@ -849,7 +849,7 @@ void GWidgetTextLabel::wrap()
 }
 
 // ----------------------------------------------------------------------
-
+/*
 GWidgetImageLabel::GWidgetImageLabel(GWidgetGroup* pParent, int x, int y, const char* szHexPngFile)
 : GWidgetAtomic(pParent, x, y, 0, 0)
 {
@@ -858,7 +858,8 @@ GWidgetImageLabel::GWidgetImageLabel(GWidgetGroup* pParent, int x, int y, const 
 	rect()->h = m_image.height();
 }
 
-/*virtual*/ GWidgetImageLabel::~GWidgetImageLabel()
+// virtual
+GWidgetImageLabel::~GWidgetImageLabel()
 {
 }
 
@@ -868,7 +869,7 @@ void GWidgetImageLabel::draw(GImage* pCanvas, int x, int y)
 	GRect r(0, 0, m_rect.w, m_rect.h);
 	pCanvas->blitAlpha(x, y, &m_image, &r);
 }
-
+*/
 // ----------------------------------------------------------------------
 
 GWidgetGroupBox::GWidgetGroupBox(GWidgetGroup* pParent, int x, int y, int w, int h, unsigned int cLight, unsigned int cShadow)

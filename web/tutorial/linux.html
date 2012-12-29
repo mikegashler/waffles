@@ -16,50 +16,59 @@
 <h2>Building on Linux</h2>
 
 <ol>
-	<li>Install the following dependency packages:
-		<ul>
-			<li>g++</li>
-			<li>make</li>
-			<li>libpng12-dev</li>
-		</ul>
-		If you use Debian or Ubuntu, this command will install these packages:
+	<li>Install g++ and make (if they are not already installed).<br>
+		If you use Debian or Ubuntu, this command will do it:
 <pre>
-	sudo apt-get install g++ make libpng12-dev
+	sudo apt-get install g++ make
 </pre>
-	<li>Next, build and install the Waffles tools:
+		If you use Red Hat or Fedora, I think the command is:
+<pre>
+	sudo yum install g++ make
+</pre>
+
+	<br><li>Change to the source folder:
 <pre>
 	cd waffles/src
+</pre>
+
+	<br><li>Next, build and install the Waffles tools:
+<pre>
 	sudo make install
-</pre></li>
-	<li>If you want to build the demo apps, then also install these packages:
-		<ul>
-			<li>libsdl1.2-dev</li>
-			<li>freeglut3-dev</li>
-			<li>libx11-dev</li>
-			<li>libssl-dev</li>
-		</ul>
-	and then do:
+</pre>
+	To uninstall:
+<pre>
+	sudo make uninstall
+</pre>
+	If you only want to build optimized binaries, but not install them:
+<pre>
+	make opt
+</pre>
+
+	</li>
+	<br><li>There are also some additional tools and demo apps that are not built by default. If you want to build
+			these, you need to install some additional dependency packages:
+			<table align=center>
+				<tr><td><b><i><u>Debian/Ubuntu</u></i></b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td><b><i><u>Red Hat/Fedora</u></i></b></td></tr>
+				<tr><td>libpng12-dev</td><td>libpng-devel</td></tr>
+				<tr><td>libsdl1.2-dev</td><td>SDL-devel</td></tr>
+				<tr><td>freeglut3-dev</td><td>freeglut-devel</td></tr>
+				<tr><td>libx11-dev</td><td>X11-devel</td></tr>
+			</table>
+	To build the additional tools:
+<pre>
+	cd depends
+	sudo make install
+</pre>
+	<br>To build the demo apps:
 <pre>
 	cd ../demos
 	make opt
-</pre></li>
+</pre>
+	</li>
 </ol>
 
 <br><br><br>
 <h3>Troubleshooting</h3>
-
-<span style="font-weight: bold;">
-                I get a compiler error in GImage.cpp about png.h not found.
-</span><br><div style="margin-left: 40px;">
-		You need to install the libpng3-dev package.
-</div><br><br>
-
-<span style="font-weight: bold;">
-                I get a compiler error about sdl-config not found,
-                or SDL/SDL.h not found.
-</span><br><div style="margin-left: 40px;">
-		You need to install the libsdl1.2-dev package.
-</div><br><br>
 
 <span style="font-weight: bold;">
 	How do I build optimized binaries?
@@ -74,25 +83,16 @@
 </div><br><br>
 
 <span style="font-weight: bold;">
-	I'm trying to link GClasses.a with my app, and I get a linker error about png stuff not being found.
-</span><br><div style="margin-left: 40px;">
-	You need to add "-lpng" after "GClasses.a" to your linking command. Yes, order matters on this line.
-</div><br><br>
-
-<span style="font-weight: bold;">
 	I get build errors that look something like this:
 	<pre>
 		../../obj/GClasses/dbg/GError.d:3: warning: overriding commands for target `GError.o'
 		../../obj/GClasses/opt/GError.d:3: warning: ignoring old commands for target `GError.o'
 	</pre>
 </span><br><div style="margin-left: 40px;">
-	Try doing "make clean". That always fixes it for me. I cannot seem to figure out what causes this to happen. I think it has something to do with two concurrent processes writing to the ".d" file, but I don't know why that would happen. If you know a better solution, I'd love to hear about it.
-</div><br><br>
-
-<span style="font-weight: bold;">
-	How do I uninstall Waffles?
-</span><br><div style="margin-left: 40px;">
-	sudo make uninstall
+	Try doing "make clean". That always fixes it for me. This is caused by a synchronization issue with generating
+	the dependency (.d) files. Unfortunately, the solution would require adding locking mechanisms to the build
+	process, which would require additional build dependencies, which would be worse than the problem it solves.
+	So, just do "make clean", and the problem will go away.
 </div><br><br>
 
 <span style="font-weight: bold;">
@@ -108,33 +108,33 @@
 	Why isn't Waffles in the apt-get/yum repositories?
 </span><br><div style="margin-left: 40px;">
 	There's a lot of red-tape involved in getting an  
-                app into those repositories, and I'm too busy developing
-                Waffles to bother with it. If you would like to become  
-                a package maintainer and do it, that would be a great   
-                contribution, and I would really appreciate it.
+	app into those repositories, and I'm too busy developing
+	Waffles to bother with it. If you would like to become  
+	a package maintainer and do it, that would be a great   
+	contribution, and I would really appreciate it.
 </div><br><br>
 
 <span style="font-weight: bold;">
 	How do I change the installation target directory?
 </span><br><div style="margin-left: 40px;">
 	Just change the "INSTALL_LOCATION_" variables at  
-                the top of waffles/src/Makefile.
+	the top of waffles/src/Makefile.
 </div><br><br>
 
 <span style="font-weight: bold;">
 	How do I build Waffles on a machine where I do not
-                have sudo or root permissions?
+	have sudo or root permissions?
 </span><br><div style="margin-left: 40px;">
 	Just do "make opt" instead of "sudo make install".
-                This will build everything, but will not install it. 
-                You can run the binaries right out of the bin folder.
-                Alternatively, you could change the install location 
-                as described in the previous question.
+	This will build everything, but will not install it. 
+	You can run the binaries right out of the bin folder.
+	Alternatively, you could change the install location 
+	as described in the previous question.
 </div><br><br>
 
 <span style="font-weight: bold;">
 	Why do you include the build dependencies for Windows,
-                but not for Linux?
+	but not for Linux?
 </span><br><div style="margin-left: 40px;">
 	It is easy for Linux developers to get the            
 	dependencies from package repositories. This method      
@@ -142,17 +142,6 @@
 	Windows users often require a little extra hand-holding,
 	so I have made it extra convenient for them at the cost
 	of linking to outdated libraries, etc.
-
-</div><br><br>
-
-<span style="font-weight: bold;">
-	When I run some of the graphical apps, I get an
-                error message about a "bad adaptive filter type" or
-                "extra compressed data".
-</span><br><div style="margin-left: 40px;">
-	This appears to be caused by an old bug in the 
-                libpng3-dev package. It does not repro with newer 
-                versions. You should probably update your distro.
 </div><br><br>
 
 

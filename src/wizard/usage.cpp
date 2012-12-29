@@ -408,13 +408,13 @@ UsageNode* makeAudioUsageTree()
 		pOpts->add("-thresh [t]=0.15", "The volumne threshold (from 0 to 1). Segments that stay below this threshold for a sufficient length of time will be replaced with silence.");
 	}
 	{
-		UsageNode* pSpec = pRoot->add("spectral [in] <options>", "Plots a spectral histogram of the frequencies in a wav file.");
+		UsageNode* pSpec = pRoot->add("spectral [in] <options>", "Plots a spectral histogram of the frequencies in a wav file. The output is saved as a PPM file.");
 		pSpec->add("[in]=in.wav", "The filename of an audio track in wav format.");
 		UsageNode* pOpts = pSpec->add("<options>");
 		pOpts->add("-start [pos]=0", "Specify the starting position in the wav file (in samples) to begin sampling.");
 		pOpts->add("-size [n]=4096", "Specify the number of samples to take. This will also be the width of the resulting histogram in pixels. [n] must be a power of 2.");
 		pOpts->add("-height [h]=512", "Specify the height of the chart in pixels.");
-		pOpts->add("-out [filename]=plot.png", "Specify the output filename of the PNG image that is generated.");
+		pOpts->add("-out [filename]=plot.ppm", "Specify the output filename of the PPM image that is generated.");
 	}
 	{
 		pRoot->add("usage", "Print usage information.");
@@ -685,6 +685,22 @@ UsageNode* makeGenerateUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("waffles_generate [command]", "Generate certain useful datasets");
 	{
+		UsageNode* p3d = pRoot->add("3d [dataset] <options>", "Make a 3d scatter plot. Points are colored with a spectrum according to their order in the dataset.");
+		p3d->add("[dataset]=data.arff", "The filename of a dataset to plot. It must have exactly 3 continuous attributes.");
+		UsageNode* pOpts = p3d->add("<options>");
+		pOpts->add("-blast", "Produce a 5-by-5 grid of renderings, each time using a random point of view. It will print the random camera directions that it selects to stdout.");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-size [width] [height]", "Sets the size of the image. The default is 1000 1000.");
+		pOpts->add("-pointradius [radius]=40.0", "Set the size of the points. The default is 40.0.");
+		pOpts->add("-bgcolor [color]=ddeeff", "Set the background color. If not specified, the default is ffffff.");
+		pOpts->add("-cameradistance [dist]=3.5", "Set the distance between the camera and the mean of the data. This value is specified as a factor, which is multiplied by "
+						"the distance between the min and max corners of the data. If not specified, the default is 1.5. (If the camera is too close to the data, make this value bigger.)");
+		pOpts->add("-cameradirection [dx] [dy] [dz]", "Specifies the direction from the camera to the mean of the data. (The camera always looks at the mean.) The default is 0.6 -0.3 -0.8.");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-nolabels", "Don't put axis labels on the bounding box.");
+		pOpts->add("-nobox", "Don't draw a bounding box around the plot.");
+	}
+	{
 		UsageNode* pCrane = pRoot->add("crane <options>", "Generate a dataset where each row represents a ray-traced image of a crane with a ball.");
 		UsageNode* pOpts = pCrane->add("<options>");
 		pOpts->add("-saveimage [filename]=frames.png", "Save an image showing all the frames.");
@@ -736,6 +752,17 @@ UsageNode* makeGenerateUsageTree()
 			"manifold-defining equations must all have the same number of parameters. The parameters will be drawn from a standard normal distribution (from 0 to 1). Usually it is a good idea to wrap the equations in quotes. Example: \"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"");
 	}
 	{
+		UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
+		pModel->add("[model-file]=model.json", "The filename of the trained model. (You can use \"waffles_learn train\" to make a model file.)");
+		pModel->add("[dataset]=train.arff", "The filename of a dataset to be plotted. It can be the training set that was used to train the model, or a test set that it hasn't yet seen.");
+		pModel->add("[attr-x]=0", "The zero-based index of a continuous feature attributes for the horizontal axis.");
+		pModel->add("[attr-y]=1", "The zero-based index of a continuous feature attributes for the vertical axis.");
+		UsageNode* pOpts = pModel->add("<options>");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-size [width] [height]", "Specify the size of the image.");
+		pOpts->add("-pointradius [size]=3.0", "Specify the size of the dots used to represent each instance.");
+	}
+	{
 		UsageNode* pNoise = pRoot->add("noise [rows] <options>", "Generate random data by sampling from a distribution.");
 		pNoise->add("[rows]=1000", "The number of patterns to generate.");
 		UsageNode* pOpts = pNoise->add("<options>");
@@ -760,6 +787,15 @@ UsageNode* makeGenerateUsageTree()
 		pDist->add("student [t]");
 		pDist->add("uniform [a] [b]");
 		pDist->add("weibull [gamma]");
+	}
+	{
+		UsageNode* pOver = pRoot->add("overview [dataset]", "Generate a matrix of plots of attribute distributions and correlations. This is a useful chart for becoming acquainted with a dataset.");
+		pOver->add("[dataset]=data.arff", "The filename of a dataset to be charted.");
+		UsageNode* pOpts = pOver->add("<options>");
+		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
+		pOpts->add("-cellsize [value]=100", "Change the size of each cell. The default is 100.");
+		pOpts->add("-jitter [value]=0.03", "Specify how much to jitter the plotted points. The default is 0.03.");
+		pOpts->add("-maxattrs [value]=20", "Specifies the maximum number of attributes to plot. The default is 20.");
 	}
 	{
 		UsageNode* pRS = pRoot->add("randomsequence [length] <options>", "Generates a sequential list of integer values, shuffles them randomly, and then prints the shuffled list to stdout.");
@@ -1062,22 +1098,6 @@ UsageNode* makePlotUsageTree()
 {
 	UsageNode* pRoot = new UsageNode("waffles_plot [command]", "Visualize data, plot functions, make charts, etc.");
 	{
-		UsageNode* p3d = pRoot->add("3d [dataset] <options>", "Make a 3d scatter plot. Points are colored with a spectrum according to their order in the dataset.");
-		p3d->add("[dataset]=data.arff", "The filename of a dataset to plot. It must have exactly 3 continuous attributes.");
-		UsageNode* pOpts = p3d->add("<options>");
-		pOpts->add("-blast", "Produce a 5-by-5 grid of renderings, each time using a random point of view. It will print the random camera directions that it selects to stdout.");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-size [width] [height]", "Sets the size of the image. The default is 1000 1000.");
-		pOpts->add("-pointradius [radius]=40.0", "Set the size of the points. The default is 40.0.");
-		pOpts->add("-bgcolor [color]=ddeeff", "Set the background color. If not specified, the default is ffffff.");
-		pOpts->add("-cameradistance [dist]=3.5", "Set the distance between the camera and the mean of the data. This value is specified as a factor, which is multiplied by "
-						"the distance between the min and max corners of the data. If not specified, the default is 1.5. (If the camera is too close to the data, make this value bigger.)");
-		pOpts->add("-cameradirection [dx] [dy] [dz]", "Specifies the direction from the camera to the mean of the data. (The camera always looks at the mean.) The default is 0.6 -0.3 -0.8.");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-nolabels", "Don't put axis labels on the bounding box.");
-		pOpts->add("-nobox", "Don't draw a bounding box around the plot.");
-	}
-	{
 		UsageNode* pBar = pRoot->add("bar [dataset] <options>", "Make a bar chart using one row of data from the specified dataset. Prints the chart as an SVG file to stdout.");
 		pBar->add("[dataset]=data.arff", "The filename of a dataset for the bar chart. The dataset should contain only continuous attributes. It only needs to have one row since the other rows are ignored.");
 		UsageNode* pOpts = pBar->add("<options>");
@@ -1091,12 +1111,6 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-marks [n]=30", "Specify the maximum number of horizontal lines to use to mark positions on the vertical axis. (Set to 0 if you do not want any markings.)");
 		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 960 540.)");
 		pOpts->add("-labels [l0] [l1] [l2] [etc]", "Specify label strings to use instead of the attribute names. The number of labels specified should match the number of columns in the data.");
-	}
-	{
-		pRoot->add("bigo [dataset]=results.arff", "Estimate the Big-O runtime of algorithms based on empirical results. Regresses the formula t=a*(n^b+c) to fit the data, where n is the value in attribute 0 (representing the size of the data), and t (representing time) in the other attributes for each algorithm. The values of a, b, and c are reported for each attribute > 0.");
-	}
-	{
-		pRoot->add("bigo [dataset]=results.arff", "Estimate the Big-O runtime of algorithms based on empirical results. Regresses the formula t=a*(n^b+c) to fit the data, where n is the value in attribute 0 (representing the size of the data), and t (representing time) in the other attributes for each algorithm. The values of a, b, and c are reported for each attribute > 0.");
 	}
 	{
 		UsageNode* pEquat = pRoot->add("equation <options> [equations]", "Plot an equation (or multiple equations) in 2D. Output is printed to stdout as an SVG file.");
@@ -1128,35 +1142,6 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 1024 1024.)");
 		pOpts->add("-attr [index]=0", "Specify which attribute is charted. (The default is 0.)");
 		pOpts->add("-range [xmin] [xmax] [ymax]", "Specify the range of the histogram plot. (Note that ymin is always 0.)");
-	}
-	{
-		UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
-		pModel->add("[model-file]=model.json", "The filename of the trained model. (You can use \"waffles_learn train\" to make a model file.)");
-		pModel->add("[dataset]=train.arff", "The filename of a dataset to be plotted. It can be the training set that was used to train the model, or a test set that it hasn't yet seen.");
-		pModel->add("[attr-x]=0", "The zero-based index of a continuous feature attributes for the horizontal axis.");
-		pModel->add("[attr-y]=1", "The zero-based index of a continuous feature attributes for the vertical axis.");
-		UsageNode* pOpts = pModel->add("<options>");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-size [width] [height]", "Specify the size of the image.");
-		pOpts->add("-pointradius [size]=3.0", "Specify the size of the dots used to represent each instance.");
-	}
-	{
-		UsageNode* pOL = pRoot->add("overlay [png1] [png2] <options>", "Make an image comprised of [png1] with [png2] on top of it. The two images must be the same size.");
-		pOL->add("[png1]=below.png", "The filename of an image in png format.");
-		pOL->add("[png2]=above.png", "The filename of an image in png format.");
-		UsageNode* pOpts = pOL->add("<options>");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-backcolor [hex]=00ff00", "Specify the six-digit hexadecimal representation of the background color. (This color will be treated as being transparent in [png2]. If not specified, the default is ffffff (white).");
-		pOpts->add("-tolerance [n]=12", "Specify the tolerance (an integer). If not specified, the default is 0. If a larger value is specified, then pixels in [png2] that are close to the background color will also be treated as being transparent.");
-	}
-	{
-		UsageNode* pOver = pRoot->add("overview [dataset]", "Generate a matrix of plots of attribute distributions and correlations. This is a useful chart for becoming acquainted with a dataset.");
-		pOver->add("[dataset]=data.arff", "The filename of a dataset to be charted.");
-		UsageNode* pOpts = pOver->add("<options>");
-		pOpts->add("-out [filename]=plot.png", "Specify the name of the output file. (The default is plot.png.) It should have the .png extension because other image formats are not yet supported.");
-		pOpts->add("-cellsize [value]=100", "Change the size of each cell. The default is 100.");
-		pOpts->add("-jitter [value]=0.03", "Specify how much to jitter the plotted points. The default is 0.03.");
-		pOpts->add("-maxattrs [value]=20", "Specifies the maximum number of attributes to plot. The default is 20.");
 	}
 	{
 		UsageNode* pPDT = pRoot->add("printdecisiontree [model-file] <dataset> <data_opts>", "Print a textual representation of a decision tree to stdout.");

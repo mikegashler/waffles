@@ -8,17 +8,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <GClasses/GHttp.h>
-#include <GClasses/GApp.h>
-#include <GClasses/GBits.h>
-#include <GClasses/GDirList.h>
-#include <GClasses/GCrypto.h>
-#include <GClasses/GError.h>
-#include <GClasses/GHolders.h>
-#include <GClasses/GRand.h>
-#include <GClasses/GFile.h>
-#include <GClasses/GTime.h>
-#include <GClasses/GSocket.h>
+#include "../../GClasses/GHttp.h"
+#include "../../GClasses/GApp.h"
+#include "../../GClasses/GBits.h"
+#include "../../GClasses/GDirList.h"
+#include "../../GClasses/GCrypto.h"
+#include "../../GClasses/GError.h"
+#include "../../GClasses/GHolders.h"
+#include "../../GClasses/GRand.h"
+#include "../../GClasses/GFile.h"
+#include "../../GClasses/GThread.h"
+#include "../../GClasses/GTime.h"
+#include "../../GClasses/GSocket.h"
 #include "GKeyboard.h"
 #include <time.h>
 #include <iostream>
@@ -28,11 +29,11 @@
 #	include <direct.h>
 #	include <process.h>
 #	include <io.h> // for "filelength"
-#	include <GClasses/GWindows.h>
+#	include "../../GClasses/GWindows.h"
 #	include <stdlib.h>
 #	include <TCHAR.h>
 #else
-#	include <openssl/md4.h> // for md4 hash
+#	include "md4.h" // for md4 hash
 #endif
 #include <exception>
 #include <fstream>
@@ -57,6 +58,9 @@ using std::ofstream;
 #define KBYTES 8192
 #define MESSAGESIZE KILO * KBYTES
 #define SMALL_MESSAGE_SIZE 8
+
+
+
 
 UsageNode* makeCryptoUsageTree()
 {
@@ -511,10 +515,10 @@ void nthash(const char* password, unsigned char* hash)
 		pBuf++;
 		len++;
 	}
-	MD4_CTX ctx;
-	MD4_Init(&ctx);
-	MD4_Update(&ctx, buf, len * sizeof(unsigned short));
-	MD4_Final(hash, &ctx);
+	md4 ctx;
+	md4_init(&ctx);
+	md4_update(&ctx, buf, len * sizeof(unsigned short));
+	md4_finito(&ctx, hash);
 #endif
 }
 

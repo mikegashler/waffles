@@ -537,7 +537,7 @@ void spectral(GArgReader& args)
 		image.line(i, height - 1, i, height - 1 - mag * height / max, 0xff000080);
 		p++;
 	}
-	image.savePng(outFilename.c_str());
+	image.savePpm(outFilename.c_str());
 }
 
 void ShowUsage(const char* appName)
