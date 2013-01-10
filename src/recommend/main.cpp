@@ -84,9 +84,10 @@ GSparseMatrix* loadSparseData(const char* szFilename)
 		GMatrix* pData = GMatrix::loadArff(szFilename);
 		if(pData->cols() != 3)
 			throw Ex("Expected 3 columns: 0) user or row-index, 1) item or col-index, 2) value or rating");
-		double m0, r0, m1, r1;
-		pData->minAndRange(0, &m0, &r0);
-		pData->minAndRange(1, &m1, &r1);
+		double m0 = pData->columnMin(0);
+		double r0 = pData->columnMax(0) - m0;
+		double m1 = pData->columnMin(1);
+		double r1 = pData->columnMax(1) - m1;
 		if(m0 < 0 || m0 > 1e10 || r0 < 2 || r0 > 1e10)
 			throw Ex("Invalid row indexes");
 		if(m1 < 0 || m1 > 1e10 || r1 < 2 || r1 > 1e10)

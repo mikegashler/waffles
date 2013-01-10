@@ -498,8 +498,8 @@ void correlation(GArgReader& args)
 	}
 	else
 	{
-		m1 = pA->mean(attr1);
-		m2 = pA->mean(attr2);
+		m1 = pA->columnMean(attr1);
+		m2 = pA->columnMean(attr2);
 	}
 	double corr = pA->linearCorrelationCoefficient(attr1, m1, attr2, m2);
 	cout.precision(14);
@@ -562,8 +562,8 @@ void Discretize(GArgReader& args)
 	{
 		if(pData->relation()->valueCount(i) != 0)
 			continue;
-		double min, range;
-		pData->minAndRange(i, &min, &range);
+		double min = pData->columnMin(i);
+		double range = pData->columnMax(i) - min;
 		for(size_t j = 0; j < pData->rows(); j++)
 		{
 			double* pPat = pData->row(j);
@@ -1412,12 +1412,12 @@ void significance(GArgReader& args)
 	cout.precision(8);
 	{
 		cout << "### Some basic stats\n";
-		cout << "Medians = " << pData->median(attr1) << ", " << pData->median(attr2) << "\n";
-		double mean1 = pData->mean(attr1);
-		double mean2 = pData->mean(attr2);
+		cout << "Medians = " << pData->columnMedian(attr1) << ", " << pData->columnMedian(attr2) << "\n";
+		double mean1 = pData->columnMean(attr1);
+		double mean2 = pData->columnMean(attr2);
 		cout << "Means = " << mean1 << ", " << mean2 << "\n";
-		double var1 = pData->variance(attr1, mean1);
-		double var2 = pData->variance(attr2, mean2);
+		double var1 = pData->columnVariance(attr1, mean1);
+		double var2 = pData->columnVariance(attr2, mean2);
 		cout << "Standard deviations = " << sqrt(var1) << ", " << sqrt(var2) << "\n";
 		int less = 0;
 		int eq = 0;

@@ -1729,7 +1729,7 @@ GMatrix* GNeuroPCA::doit(GMatrix& in)
 		double* pBiases = m_pWeights->row(0);
 		for(size_t i = 0; i < dims; i++)
 		{
-			double mean = in.mean(i);
+			double mean = in.columnMean(i);
 			if((mean < m_pActivation->center() - m_pActivation->halfRange()) || (mean > m_pActivation->center() + m_pActivation->halfRange()))
 				throw Ex("The data is expected to fall within the range of the activation function");
 			*(pBiases++) = m_pActivation->inverse(mean);
@@ -2207,13 +2207,13 @@ void GImageJitterer::test(const char* filename)
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: GManifoldLearner(), m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL)
+: GManifoldLearner(), m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL), m_onePass(false)
 {
 	m_pNN = new GNeuralNet(*m_pRand);
 }
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll)
-: GManifoldLearner(pNode, ll), m_pRand(&ll.rand()), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL), m_onePass(false)
+: GManifoldLearner(pNode, ll), m_pRand(&ll.rand()), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL)
 {
 	GDomListIterator it(pNode->field("params"));
 	m_paramDims = it.remaining();
@@ -2241,6 +2241,7 @@ GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll
 	GDomListIterator itRanges(pNode->field("ranges"));
 	m_pRanges = new double[itRanges.remaining()];
 	GVec::deserialize(m_pRanges, itRanges);
+	m_onePass = pNode->field("op")->asBool();
 }
 
 // virtual
@@ -2269,6 +2270,7 @@ GDomNode* GUnsupervisedBackProp::serialize(GDom* pDoc) const
 		pNode->addField(pDoc, "jitterer", m_pJitterer->serialize(pDoc));
 	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, channels));
 	pNode->addField(pDoc, "ranges", GVec::serialize(pDoc, m_pRanges, channels));
+	pNode->addField(pDoc, "op", pDoc->newBool(m_onePass));
 	return pNode;
 }
 
@@ -2330,13 +2332,10 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	{
 		for(size_t i = 0; i < channels; i++)
 		{
-			double m, r;
-			in.minAndRange(channels * j + i, &m, &r);
-			if(m != UNKNOWN_REAL_VALUE && r != UNKNOWN_REAL_VALUE)
-			{
-				m_pMins[i] = std::min(m_pMins[i], m);
-				m_pRanges[i] = std::max(m_pRanges[i], m + r);
-			}
+			double inMin = in.columnMin(channels * j + i);
+			double inMax = in.columnMax(channels * j + i);
+			m_pMins[i] = std::min(m_pMins[i], inMin);
+			m_pRanges[i] = std::max(m_pRanges[i], inMax);
 		}
 	}
 	for(size_t i = 0; i < channels; i++)
@@ -2346,6 +2345,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		if(m_pRanges[i] <= m_pMins[i])
 			m_pRanges[i] = m_pMins[i] + 1.0;
 		m_pRanges[i] -= m_pMins[i];
+		//std::cerr << "Min " << to_str(i) << "=" << to_str(m_pMins[i]) << ", Range " << to_str(i) << "=" << to_str(m_pRanges[i]) << "\n";
 	}
 
 	// Init
@@ -2368,19 +2368,22 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
 
 	// Train
-	double* pParams = new double[m_paramDims + m_jitterDims + m_intrinsicDims];
+	double* pParams = new double[(m_paramDims + m_jitterDims + m_intrinsicDims) * 2];
 	ArrayHolder<double> hParams(pParams);
 	double* pJitters = pParams + m_paramDims;
 	double* pIntrinsic = pJitters + m_jitterDims;
-	double* pInputMomentum = new double[m_pNN->relFeatures()->size()];
-	GVec::setAll(pInputMomentum, 0.0, m_pNN->relFeatures()->size());
-	ArrayHolder<double> hInputMomentum(pInputMomentum);
-	for(size_t pass = 0; pass < 3; pass++)
+	double* pGradientOfInputs = pIntrinsic + m_intrinsicDims;
+	size_t totalPasses = 3;
+	if(m_onePass)
+		totalPasses = 1;
+	if(m_pNN->layerCount() == 1)
+		totalPasses = 1;
+	for(size_t pass = 0; pass < totalPasses; pass++)
 	{
 		GNeuralNet* pNN = m_pNN;
-		if(pass == 0 || m_onePass)
+		if(pass == 0)
 		{
-			if(pass == 0 && m_pNN->layerCount() != 1)
+			if(totalPasses > 1)
 				pNN = &nn;
 
 			// Initialize the intrinsic matrix
@@ -2390,69 +2393,78 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			{
 				double* pVec = m_pIntrinsic->row(i);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
-					*(pVec++) = 0.01 * m_pRand->normal();
+					*(pVec++) = 0.1 * m_pRand->normal();
 			}
 		}
 
-		double learningRate = 0.0005;
+		double learningRate = 0.01;
 		double momentum = 0.0;
-		double regularizer = 1e-5;
-		if(pass == 1)
-			regularizer *= 0.1;
-		else if(pass == 2)
-			regularizer = 0.0;
+		double regularizer = 0.0;
+		switch(totalPasses - pass)
+		{
+			case 3: regularizer = 1e-6; break;
+			case 2: regularizer = 1e-8; break;
+			case 1: break;
+			default: throw Ex("Unexpected case");
+		}
 		pNN->setLearningRate(learningRate);
 		pNN->setMomentum(momentum);
-		size_t batches = 50;
-		if(pass == 2)
-			batches = 300;
-		size_t batchSize = 10000000;
+		size_t sampleSize = std::max((size_t)1, (size_t)ceil(sqrt(m_cvi.coordCount())));
+		size_t batchSize = std::max((size_t)ceil(sqrt(in.rows())), in.rows() / sampleSize);
+		size_t batches = 1000;
 
 		for(size_t i = 0; i < batches; i++)
 		{
 			double sse = 0;
-			for(size_t j = 0; j < batchSize; j++)
+			for(size_t j = 0; j < 1000 * batchSize; j++) // A batch is like an epoch. It visits each sample row an average of once.
 			{
-				// Pick a row, pixel, and channel
+				// Pick a row
 				size_t r = (size_t)m_pRand->next(in.rows());
-				m_cvi.setRandom(m_pRand);
-				size_t c = (size_t)m_pRand->next(channels);
-				m_cvi.currentNormalized(pParams);
-
-				// Get the pixel
-				double* pPix;
-				if(m_pJitterer)
+				double* pIn = in[r];
+				double* pInt = m_pIntrinsic->row(r);
+				for(size_t k = 0; k < sampleSize; k++) // use the same row for a few iterations to reduce page swaps
 				{
-					GVec::copy(pJitters, m_pJitterer->pickParams(*m_pRand), m_jitterDims);
-					m_pJitterer->transformedPix(in[r], m_cvi.current()[0], m_cvi.current()[1], pixBuf);
-					pPix = pixBuf;
-				}
-				else
-					pPix = in[r] + m_cvi.currentIndex() * channels;
+					// Pick a row, pixel, and channel
+					m_cvi.setRandom(m_pRand);
+					size_t c = (size_t)m_pRand->next(channels);
+					m_cvi.currentNormalized(pParams);
 
-				// Do backprop
-				GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);
-				double prediction = pNN->forwardPropSingleOutput(pParams, c);
-				double target = (pPix[c] - m_pMins[c]) / m_pRanges[c];
-				double err = target - prediction;
-				sse += (err * err);
-				pNN->setErrorSingleOutput(target, c);
-				pNN->backProp()->backpropagateSingleOutput(c);
+					// Get the pixel
+					double* pPix;
+					if(m_pJitterer)
+					{
+						GVec::copy(pJitters, m_pJitterer->pickParams(*m_pRand), m_jitterDims);
+						m_pJitterer->transformedPix(pIn, m_cvi.current()[0], m_cvi.current()[1], pixBuf);
+						pPix = pixBuf;
+					}
+					else
+						pPix = pIn + m_cvi.currentIndex() * channels;
 
-				// Update weights
-				pNN->decayWeightsSingleOutput(c, regularizer);
-				pNN->backProp()->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum(), pNN->useInputBias());
+					// Do backprop
+					GVec::copy(pIntrinsic, pInt, m_intrinsicDims);
+					double prediction = pNN->forwardPropSingleOutput(pParams, c);
+					double target = (pPix[c] - m_pMins[c]) / m_pRanges[c];
+					GAssert(target >= 0.0 && target <= 1.0 && prediction >= 0.0 && prediction <= 1.0);
+					double err = target - prediction;
+					sse += (err * err);
+					pNN->setErrorSingleOutput(target, c);
+					pNN->backProp()->backpropagateSingleOutput(c);
 
-				// Update inputs
-				if(pass != 1)
-				{
-					GVec::multiply(pIntrinsic, 1.0 - learningRate * regularizer, m_intrinsicDims);
-					GVec::multiply(pInputMomentum + m_paramDims + m_jitterDims, momentum, m_intrinsicDims);
-					pNN->backProp()->adjustFeaturesSingleOutput(c, pInputMomentum, pNN->learningRate(), pNN->useInputBias());
-					GVec::add(pIntrinsic, pInputMomentum + m_paramDims + m_jitterDims, m_intrinsicDims);
-					GVec::floorValues(pIntrinsic, 0.0, m_intrinsicDims);
-					GVec::capValues(pIntrinsic, 1.0, m_intrinsicDims);
-					GVec::copy(m_pIntrinsic->row(r), pIntrinsic, m_intrinsicDims);
+					// Calculate the gradient of the inputs
+					if(pass != 1)
+						pNN->backProp()->gradientOfInputsSingleOutput(c, pGradientOfInputs, pNN->useInputBias());
+
+					// Update weights
+					pNN->decayWeightsSingleOutput(c, regularizer);
+					pNN->backProp()->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum(), pNN->useInputBias());
+
+					// Update inputs
+					if(pass != 1)
+					{
+						GVec::multiply(pIntrinsic, 1.0 - learningRate * regularizer, m_intrinsicDims);
+						GVec::addScaled(pIntrinsic, -learningRate, pGradientOfInputs + m_paramDims + m_jitterDims, m_intrinsicDims);
+						GVec::copy(pInt, pIntrinsic, m_intrinsicDims);
+					}
 				}
 			}
 			double rmse = sqrt(sse / batchSize);
@@ -2462,9 +2474,23 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 				pProg[0] = 50 * pass + i;
 				pProg[1] = rmse;
 			}
+
+			// Print progress
+			std::cerr << "Pass " << to_str(pass + 1) << "/" << to_str(totalPasses) << ", Batch " << to_str(i + 1) << "/" << to_str(batches) << "\n";
 		}
-		if(pass == 0 && pNN == m_pNN)
-			break;
+	}
+
+	// Normalize the intrinsic values
+	for(size_t i = 0; i < m_intrinsicDims; i++)
+	{
+		//std::cerr << "Before intrinsic dim=" << to_str(i) << ", min=" << to_str(m_pIntrinsic->columnMin(i)) << ", max=" << to_str(m_pIntrinsic->columnMax(i)) << "\n";
+		double _min = m_pIntrinsic->columnMin(i);
+		double _max = m_pIntrinsic->columnMax(i);
+		if(_max - _min < 1e-12)
+			_max = _min + 1e-6;
+		m_pNN->normalizeInput(m_paramDims + m_jitterDims + i, _min, _max, 0.0, 1.0);
+		m_pIntrinsic->normalize(i, _min, _max - _min, 0.0, 1.0);
+		//std::cerr << " After intrinsic dim=" << to_str(i) << ", min=" << to_str(m_pIntrinsic->columnMin(i)) << ", max=" << to_str(m_pIntrinsic->columnMax(i)) << "\n";
 	}
 /*
 	// Train the reverse map
@@ -2631,8 +2657,7 @@ m_pNN->setErrorSingleOutput(prediction + err, c);
 void GUnsupervisedBackProp::lowToHi(const double* pIn, double* pOut)
 {
 	size_t channels = m_pNN->relLabels()->size();
-	double* pParams = new double[m_paramDims + m_jitterDims + m_intrinsicDims];
-	ArrayHolder<double> hParams(pParams);
+	GTEMPBUF(double, pParams, m_paramDims + m_jitterDims + m_intrinsicDims);
 	GVec::copy(pParams + m_paramDims, pIn, m_jitterDims + m_intrinsicDims);
 	m_cvi.reset();
 	while(true)
@@ -2641,8 +2666,8 @@ void GUnsupervisedBackProp::lowToHi(const double* pIn, double* pOut)
 		m_pNN->predict(pParams, pOut);
 		for(size_t i = 0; i < channels; i++)
 		{
-			*pOut *= m_pRanges[i];
-			*pOut += m_pMins[i];
+			(*pOut) *= m_pRanges[i];
+			(*pOut) += m_pMins[i];
 			pOut++;
 		}
 		if(!m_cvi.advance())

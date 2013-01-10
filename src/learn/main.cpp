@@ -1755,8 +1755,8 @@ void CrossValidate(GArgReader& args)
 		cout << "-----\n";
 	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
-		double mean = pResults->mean(i);
-		double variance = pResults->variance(i, mean);
+		double mean = pResults->columnMean(i);
+		double variance = pResults->columnVariance(i, mean);
 		if(!succinct)
 		{
 			cout << "Attr: " << (pFeatures->cols() + i);

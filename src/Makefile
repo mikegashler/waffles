@@ -25,6 +25,8 @@ configure:
 
 install: $(INSTALL_SUBDIRS)
 
+installall: $(INSTALL_SUBDIRS) INSTALL_depends
+
 uninstall: $(UNINSTALL_SUBDIRS)
 
 $(DBG_SUBDIRS): DBG_% :
@@ -38,6 +40,9 @@ $(CLEAN_SUBDIRS): CLEAN_% :
 
 $(INSTALL_SUBDIRS): INSTALL_% :
 	$(MAKE) -C $* install
+
+INSTALL_depends:
+	$(MAKE) -C depends install
 
 $(UNINSTALL_SUBDIRS): UNINSTALL_% :
 	$(MAKE) -C $* uninstall

@@ -718,12 +718,14 @@ public:
 		double x, y;
 		double xPrev = UNKNOWN_REAL_VALUE;
 		double yPrev = UNKNOWN_REAL_VALUE;
-		double colorMin, colorRange;
+		double colorMin = 0.0;
+		double colorRange = 1.0;
 		if(m_type == Row)
 			colorRange = pData->rows() * 1.15;
 		if(m_type == Attr)
 		{
-			pData->minAndRange(m_color, &colorMin, &colorRange);
+			colorMin = pData->columnMin(m_color);
+			colorRange = pData->columnMax(m_color) - colorMin;
 			colorRange *= 1.15;
 		}
 		if(m_pFunc)
@@ -783,10 +785,8 @@ void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, double 
 				size_t attr = x ? cols[i].m_attrX : cols[i].m_attrY;
 				if(attr < pData->cols()) // if attr is an attribute
 				{
-					double m, r;
-					pData->minAndRange(attr, &m, &r);
-					axisMin = std::min(axisMin, m);
-					axisMax = std::max(axisMax, m + r);
+					axisMin = std::min(axisMin, pData->columnMin(attr));
+					axisMax = std::max(axisMax, pData->columnMax(attr));
 				}
 				else // attr is the row index
 				{
@@ -814,10 +814,8 @@ void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, double 
 				size_t attr = x ? cols[i].m_attrX : cols[i].m_attrY;
 				if(attr < pData->cols()) // if attr is an attribute
 				{
-					double m, r;
-					pData->minAndRange(attr, &m, &r);
-					axisMin = std::min(axisMin, m);
-					axisMax = std::max(axisMax, m + r);
+					axisMin = std::min(axisMin, pData->columnMin(attr));
+					axisMax = std::max(axisMax, pData->columnMax(attr));
 				}
 				else // attr is the row index
 				{
@@ -1241,7 +1239,7 @@ void semanticMap(GArgReader& args){
 	  val = (*l)[labelCol];
 	}
 	//Use the matrix to calculate the variance
-	labels.push_back(m.variance(0, m.mean(0)));
+	labels.push_back(m.columnVariance(0, m.columnMean(0)));
       }
     }
   }else{
@@ -1405,7 +1403,7 @@ void PrintStats(GArgReader& args)
 		maxArity = std::max(maxArity, a);
 		sumArity += a;
 	}
-	cout << "Median arity=" << arity.median(0) << ", Max arity=" << maxArity << ", Sum arity=" << sumArity << "\n";
+	cout << "Median arity=" << arity.columnMedian(0) << ", Max arity=" << maxArity << ", Sum arity=" << sumArity << "\n";
 
 	// Print stats about each attribute
 	for(size_t i = 0; i < pRel->size();)
@@ -1417,12 +1415,11 @@ void PrintStats(GArgReader& args)
 			try
 			{
 				double d1, d2, d3;
-				d1 = pData->mean(i);
-				d2 = pData->variance(i, d1);
-				d3 = pData->median(i);
+				d1 = pData->columnMean(i);
+				d2 = pData->columnVariance(i, d1);
+				d3 = pData->columnMedian(i);
 				cout << "Mean:" << d1 << ", Dev:" << sqrt(d2) << ", Median:" << d3 << ", ";
-				pData->minAndRange(i, &d1, &d2);
-				cout << "Min:" << d1 << ", Max:" << d1 + d2 << ", ";
+				cout << "Min:" << pData->columnMin(i) << ", Max:" << pData->columnMax(i) << ", ";
 			}
 			catch(...)
 			{

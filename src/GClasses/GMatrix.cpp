@@ -3138,7 +3138,7 @@ void GMatrix::mergeVert(GMatrix* pData)
 	}
 }
 
-double GMatrix::mean(size_t nAttribute)
+double GMatrix::columnMean(size_t nAttribute)
 {
 	if(nAttribute >= cols())
 		throw Ex("attribute index out of range");
@@ -3162,7 +3162,7 @@ double GMatrix::mean(size_t nAttribute)
 }
 
 #ifndef MIN_PREDICT
-double GMatrix::median(size_t nAttribute)
+double GMatrix::columnMedian(size_t nAttribute)
 {
 	if(nAttribute >= cols())
 		throw Ex("attribute index out of range");
@@ -3196,10 +3196,10 @@ void GMatrix::centroid(double* pOutMeans)
 {
 	size_t c = cols();
 	for(size_t n = 0; n < c; n++)
-		pOutMeans[n] = mean(n);
+		pOutMeans[n] = columnMean(n);
 }
 
-double GMatrix::variance(size_t nAttr, double mean)
+double GMatrix::columnVariance(size_t nAttr, double mean)
 {
 	double d;
 	double dSum = 0;
@@ -3221,38 +3221,30 @@ double GMatrix::variance(size_t nAttr, double mean)
 		return 0; // todo: wouldn't UNKNOWN_REAL_VALUE be better here?
 }
 
-void GMatrix::minAndRange(size_t nAttribute, double* pMin, double* pRange)
+double GMatrix::columnMin(size_t nAttribute)
 {
-	double dMin = 1e300;
-	double dMax = -1e300;
+	double d = 1e300;
 	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
 	{
 		if((*it)[nAttribute] == UNKNOWN_REAL_VALUE)
 			continue;
-		if((*it)[nAttribute] < dMin)
-			dMin = (*it)[nAttribute];
-		if((*it)[nAttribute] > dMax)
-			dMax = (*it)[nAttribute];
+		if((*it)[nAttribute] < d)
+			d = (*it)[nAttribute];
 	}
-	if(dMax >= dMin)
-	{
-		*pMin = dMin;
-		*pRange = dMax - dMin;
-	}
-	else
-	{
-		*pMin = UNKNOWN_REAL_VALUE;
-		*pRange = UNKNOWN_REAL_VALUE;
-	}
+	return d;
 }
 
-void GMatrix::minAndRangeUnbiased(size_t nAttribute, double* pMin, double* pRange)
+double GMatrix::columnMax(size_t nAttribute)
 {
-	double min, range, d;
-	minAndRange(nAttribute, &min, &range);
-	d = .5 * (range * (rows() + 1) / (rows() - 1) - range);
-	*pMin = (min - d);
-	*pRange = (range + d);
+	double d = -1e300;
+	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
+	{
+		if((*it)[nAttribute] == UNKNOWN_REAL_VALUE)
+			continue;
+		if((*it)[nAttribute] > d)
+			d = (*it)[nAttribute];
+	}
+	return d;
 }
 
 void GMatrix::normalize(size_t nAttribute, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange)
@@ -3280,7 +3272,7 @@ void GMatrix::normalize(size_t nAttribute, double dInputMin, double dInputRange,
 double GMatrix::baselineValue(size_t nAttribute)
 {
 	if(m_pRelation->valueCount(nAttribute) == 0)
-		return mean(nAttribute);
+		return columnMean(nAttribute);
 	int j;
 	int val;
 	int nValues = (int)m_pRelation->valueCount(nAttribute);
@@ -3773,7 +3765,7 @@ GMatrix* GMatrix::covarianceMatrix()
 	// Compute the deviations
 	GTEMPBUF(double, pMeans, colCount);
 	for(size_t i = 0; i < colCount; i++)
-		pMeans[i] = mean(i);
+		pMeans[i] = columnMean(i);
 
 	// Compute the covariances for half the matrix
 	for(size_t i = 0; i < colCount; i++)
@@ -4020,8 +4012,8 @@ double GMatrix::measureInfo()
 		{
 			if(rows() > 1)
 			{
-				double m = mean(n);
-				dInfo += variance(n, m);
+				double m = columnMean(n);
+				dInfo += columnVariance(n, m);
 			}
 		}
 		else
@@ -4406,8 +4398,8 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 		pNewRow[1] = 2 * pNewRow[0];
 	}
 	double mean[2];
-	mean[0] = data.mean(0);
-	mean[1] = data.mean(1);
+	mean[0] = data.columnMean(0);
+	mean[1] = data.columnMean(1);
 	double eig[2];
 	data.principalComponent(eig, mean, &prng);
 	if(std::abs(eig[0] * 2 - eig[1]) > .0001)

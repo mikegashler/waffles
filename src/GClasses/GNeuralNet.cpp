@@ -383,39 +383,41 @@ void GBackProp::descendGradientSingleOutput(size_t outputNeuron, const double* p
 	}
 }
 
-void GBackProp::adjustFeatures(double* pFeatures, double learningRate, size_t skip, bool useInputBias)
+void GBackProp::gradientOfInputs(double* pOutGradient, bool useInputBias)
 {
 	GNeuralNetLayer& nnLayer = m_pNN->m_layers[0];
 	GBackPropLayer& bpLayer = m_layers[0];
 	vector<GNeuron>::iterator nn = nnLayer.m_neurons.begin();
 	vector<GBackPropNeuron>::iterator bp = bpLayer.m_neurons.begin();
+	GVec::setAll(pOutGradient, 0.0, nn->m_weights.size() - (useInputBias ? 0 : 1));
 	while(nn != nnLayer.m_neurons.end())
 	{
-		double* pF = pFeatures;
+		double* pG = pOutGradient;
 		if(useInputBias)
-			*(pF++) += learningRate * bp->m_error;
-		for(vector<double>::iterator w = nn->m_weights.begin() + 1 + skip; w != nn->m_weights.end(); w++)
-			*(pF++) += learningRate * bp->m_error * (*w);
+			*(pG++) -= bp->m_error;
+		for(vector<double>::iterator w = nn->m_weights.begin() + 1; w != nn->m_weights.end(); w++)
+			*(pG++) -= bp->m_error * (*w);
 		nn++;
 		bp++;
 	}
 }
 
-void GBackProp::adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeatures, double learningRate, bool useInputBias)
+void GBackProp::gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient, bool useInputBias)
 {
 	if(m_layers.size() != 1)
 	{
-		adjustFeatures(pFeatures, learningRate, 0, useInputBias);
+		gradientOfInputs(pOutGradient, useInputBias);
 		return;
 	}
 	GAssert(outputNeuron < m_pNN->m_layers[0].m_neurons.size()); // out of range
 	GNeuron& nn = m_pNN->m_layers[0].m_neurons[outputNeuron];
 	GBackPropNeuron& bp = m_layers[0].m_neurons[outputNeuron];
-	double* pOut = pFeatures;
+	GVec::setAll(pOutGradient, 0.0, nn.m_weights.size() - (useInputBias ? 0 : 1));
+	double* pG = pOutGradient;
 	if(useInputBias)
-		*(pOut++) += learningRate * bp.m_error;
+		*(pG++) -= bp.m_error;
 	for(vector<double>::iterator w = nn.m_weights.begin() + 1; w != nn.m_weights.end(); w++)
-		*(pOut++) += learningRate * bp.m_error * (*w);
+		*(pG++) -= bp.m_error * (*w);
 }
 
 
@@ -1348,6 +1350,20 @@ void GNeuralNet::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTa
 	}
 }
 
+void GNeuralNet::normalizeInput(size_t index, double oldMin, double oldMax, double newMin, double newMax)
+{
+	index++; // add one for the bias weight
+	if(m_useInputBias)
+		index--; // bias inputs have no weights
+	GNeuralNetLayer& layer = m_layers[0];
+	for(vector<GNeuron>::iterator it = layer.m_neurons.begin(); it != layer.m_neurons.end(); it++)
+	{
+		it->m_weights[0] += (oldMin - newMin);
+		if(index > 0) // if index refers to a non-bias input
+			it->m_weights[index] *= ((oldMax - oldMin) / (newMax - newMin));
+	}
+}
+
 #ifndef MIN_PREDICT
 void GNeuralNet::setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction)
 {
@@ -1711,10 +1727,8 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 		nn.forwardProp(pFeatures);
 		nn.setErrorOnOutputLayer(pTarget);
 		nn.backProp()->backpropagate();
-		GVec::copy(pFeatureGradient, pFeatures, 5);
-		nn.backProp()->adjustFeatures(pFeatureGradient, 1.0, 0, false);
-		GVec::subtract(pFeatureGradient, pFeatures, 5);
-		GVec::multiply(pFeatureGradient, -2.0, 5);
+		nn.backProp()->gradientOfInputs(pFeatureGradient);
+		GVec::multiply(pFeatureGradient, 2.0, 5);
 
 		// Empirically measure gradient
 		for(int i = 0; i < 5; i++)

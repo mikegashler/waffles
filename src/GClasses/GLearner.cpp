@@ -606,14 +606,14 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				{
 					if(pFeatureRel->valueCount(i) != 0)
 						continue;
-					double m, r;
-					features.minAndRange(i, &m, &r);
-					if(m < supportedMin || m + r > supportedMax)
+					double fMin = features.columnMin(i);
+					double fMax = features.columnMax(i);
+					if(fMin < supportedMin || fMax > supportedMax)
 					{
 						normalizationIsNeeded = true;
 						break;
 					}
-					if(r >= 1e-12 && r * 4 < supportedMax - supportedMin)
+					if((fMax - fMin) >= 1e-12 && (fMax - fMin) * 4 < supportedMax - supportedMin)
 					{
 						normalizationIsNeeded = true;
 						break;
@@ -671,14 +671,14 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 				{
 					if(pLabelRel->valueCount(i) != 0)
 						continue;
-					double m, r;
-					labels.minAndRange(i, &m, &r);
-					if(m < supportedMin || m + r > supportedMax)
+					double lMin = labels.columnMin(i);
+					double lMax = labels.columnMax(i);
+					if(lMin < supportedMin || lMax > supportedMax)
 					{
 						normalizationIsNeeded = true;
 						break;
 					}
-					if(r >= 1e-12 && r * 4 < supportedMax - supportedMin)
+					if((lMax - lMin) >= 1e-12 && (lMax - lMin) * 4 < supportedMax - supportedMin)
 					{
 						normalizationIsNeeded = true;
 						break;

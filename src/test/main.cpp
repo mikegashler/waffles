@@ -779,8 +779,8 @@ void test_document_classification()
 				results[i][j] = accuracy;
 			}
 		}
-		double resultsNaiveBayes = results.mean(0);
-		double resultsKnnCosine = results.mean(1);
+		double resultsNaiveBayes = results.columnMean(0);
+		double resultsKnnCosine = results.columnMean(1);
 		//double resultsKnnPearson = results.mean(2);
 		if(resultsNaiveBayes < 0.83)
 			throw Ex("failed");

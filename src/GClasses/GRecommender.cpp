@@ -33,15 +33,16 @@ namespace GClasses {
 
 void GCollaborativeFilter_dims(GMatrix& data, size_t* pOutUsers, size_t* pOutItems)
 {
-	double m, r;
-	data.minAndRange(0, &m, &r);
+	double m = data.columnMin(0);
+	double r = data.columnMax(0);
 	if(m < 0)
 		throw Ex("col 0 (user) indexes out of range");
-	*pOutUsers = size_t(ceil(m + r)) + 1;
-	data.minAndRange(1, &m, &r);
+	*pOutUsers = size_t(ceil(r)) + 1;
+	m = data.columnMin(1);
+	r = data.columnMax(1);
 	if(m < 0)
 		throw Ex("col 1 (item) indexes out of range");
-	*pOutItems = size_t(ceil(m + r)) + 1;
+	*pOutItems = size_t(ceil(r)) + 1;
 	if(data.rows() * 8 < *pOutUsers)
 		throw Ex("col 0 (user) indexes out of range");
 	if(data.rows() * 8 < *pOutItems)
@@ -334,7 +335,7 @@ void GCollaborativeFilter::basicTest(double maxMSE)
 	GCF_basicTest_makeData(m, rand);
 	double mse = crossValidate(m, 2);
 	if(mse > maxMSE)
-		throw Ex("failed");
+		throw Ex("Failed. Expected MSE=", to_str(maxMSE), ". Actual MSE=", to_str(mse), ".");
 	else if(mse + 0.085 < maxMSE)
 		std::cerr << "\nTest needs to be tightened. MSE: " << mse << ", maxMSE: " << maxMSE << "\n";
 }
@@ -370,9 +371,9 @@ void GBaselineRecommender::train(GMatrix& data)
 	// Determine the sizes
 	if(data.cols() != 3)
 		throw Ex("Expected 3 cols");
-	double m, r;
-	data.minAndRange(1, &m, &r);
-	m_items = size_t(ceil(m + r)) + 1;
+//	double m = data.columnMin(1);
+	double r = data.columnMax(1);
+	m_items = size_t(ceil(r)) + 1;
 	if(data.rows() * 8 < m_items)
 		throw Ex("column 1 (item) indexes out of range");
 
@@ -1247,6 +1248,8 @@ void GNonlinearPCA::train(GMatrix& data)
 	GNeuralNet nn(m_rand);
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
+	double* pPrefGradient = new double[m_intrinsicDims];
+	ArrayHolder<double> hPrefGradient(pPrefGradient);
 
 	// Train
 	size_t startPass = 0;
@@ -1306,13 +1309,15 @@ void GNonlinearPCA::train(GMatrix& data)
 				pNN->backProp()->backpropagateSingleOutput(item);
 				if(pass < 2)
 					pNN->decayWeightsSingleOutput(item, regularizer);
+				if(pass != 1)
+					pNN->backProp()->gradientOfInputsSingleOutput(item, pPrefGradient, m_pModel->useInputBias());
 				pNN->backProp()->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum(), pNN->useInputBias());
 				if(pass != 1)
 				{
 					// Update inputs
 					if(pass == 0)
 						GVec::multiply(pPrefs, 1.0 - learningRate * regularizer, m_intrinsicDims);
-					pNN->backProp()->adjustFeaturesSingleOutput(item, pPrefs, learningRate, m_pModel->useInputBias());
+					GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
 					GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
 					GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
 				}

@@ -493,7 +493,7 @@ GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, GMatrix* pData
 
 	// Compute the mean
 	for(j = 0; j < nDims; j++)
-		pMean[j] = pData->mean(j);
+		pMean[j] = pData->columnMean(j);
 
 	// Make a copy of the data
 	GMatrix* pOutData = new GMatrix(pData->relation());
@@ -1349,7 +1349,8 @@ sp_relation GNormalize::trainInner(GMatrix& data)
 	{
 		if(m_pRelationBefore->valueCount(i) == 0)
 		{
-			data.minAndRange(i, &m_pMins[i], &m_pRanges[i]);
+			m_pMins[i] = data.columnMin(i);
+			m_pRanges[i] = data.columnMax(i) - m_pMins[i];
 			if(m_pRanges[i] < 1e-12)
 				m_pRanges[i] = 1.0;
 		}
@@ -1502,7 +1503,8 @@ sp_relation GDiscretize::trainInner(GMatrix& data)
 		}
 		else
 		{
-			data.minAndRangeUnbiased(i, &m_pMins[i], &m_pRanges[i]);
+			m_pMins[i] = data.columnMin(i);
+			m_pRanges[i] = data.columnMax(i) - m_pMins[i];
 			m_pRanges[i] = std::max(m_pRanges[i], 1e-9);
 		}
 	}

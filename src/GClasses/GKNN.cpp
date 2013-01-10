@@ -387,8 +387,8 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 		{
 			if(features.relation()->valueCount(i) == 0)
 			{
-				double m = features.mean(i);
-				double d = sqrt(features.variance(i, m));
+				double m = features.columnMean(i);
+				double d = sqrt(features.columnVariance(i, m));
 				if(d >= 1e-8)
 					pScaleFactors[i] = 1.0 / (2.0 * d);
 				else

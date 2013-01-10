@@ -27,8 +27,9 @@ GMixtureOfGaussians::GMixtureOfGaussians(int nKernelCount, GMatrix* pData, int n
 	m_pArrMeanVarWeight = new double[3 * m_nKernelCount + 4 * m_nKernelCount];
 	m_pCatLikelihoods = &m_pArrMeanVarWeight[3 * m_nKernelCount];
 	m_pTemp = &m_pCatLikelihoods[m_nKernelCount];
-	double min, range, d;
-	pData->minAndRangeUnbiased(nAttribute, &min, &range);
+	double min = pData->columnMin(nAttribute);
+	double range = pData->columnMax(nAttribute) - min;
+	double d;
 	int i;
 	int pos = 0;
 	for(i = 0; i < nKernelCount; i++)

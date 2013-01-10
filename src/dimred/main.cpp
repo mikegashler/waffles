@@ -1145,6 +1145,8 @@ void unsupervisedBackProp(GArgReader& args)
 			sProgress = args.pop_string();
 			pUBP->trackProgress();
 		}
+		else if(args.if_pop("-onepass"))
+			pUBP->onePass();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}

@@ -937,33 +937,38 @@ public:
 
 	/// \brief Measures the entropy of the specified attribute
 	double entropy(size_t nColumn);
-
+/*
 	/// \brief Finds the min and the range of the values of the
 	/// specified attribute
 	void minAndRange(size_t nAttribute, double* pMin, double* pRange);
 
 	/// \brief Estimates the actual min and range based on a random sample
 	void minAndRangeUnbiased(size_t nAttribute, double* pMin, double* pRange);
+*/
+	/// \brief Returns the minimum value in the specified column (not counting UNKNOWN_REAL_VALUE), or 1e300 if there are no values.
+	double columnMin(size_t nAttribute);
+
+	/// \brief Returns the maximum value in the specified column (not counting UNKNOWN_REAL_VALUE), or -1e300 if there are no values.
+	double columnMax(size_t nAttribute);
+
+	/// \brief Computes the arithmetic mean of the values in the specified column
+	double columnMean(size_t nAttribute);
+
+	/// \brief Computes the average variance of a single attribute
+	double columnVariance(size_t nAttr, double mean);
+
+#ifndef MIN_PREDICT
+	/// \brief Computes the median of the values in the specified column
+	double columnMedian(size_t nAttribute);
+#endif // MIN_PREDICT
 
 	/// \brief Shifts the data such that the mean occurs at the origin.
 	/// Only continuous values are affected.  Nominal values are left
 	/// unchanged.
 	void centerMeanAtOrigin();
 
-	/// \brief Computes the arithmetic mean of the values in the
-	/// specified column
-	double mean(size_t nAttribute);
-
-#ifndef MIN_PREDICT
-	/// \brief Computes the median of the values in the specified column
-	double median(size_t nAttribute);
-#endif // MIN_PREDICT
-
 	/// \brief Computes the arithmetic means of all attributes
 	void centroid(double* pOutCentroid);
-
-	/// \brief Computes the average variance of a single attribute
-	double variance(size_t nAttr, double mean);
 
 	/// \brief Normalizes the specified attribute values
 	void normalize(size_t nAttribute, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);

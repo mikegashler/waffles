@@ -143,13 +143,18 @@ public:
 	/// it transitively. It adjusts weights to descend the gradient of the error surface with respect to the weights.
 	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum, bool useInputBias);
 
-	/// This method assumes that the error term is already set for every network unit. It descends the gradient
-	/// by adjusting the features (not the weights).
-	void adjustFeatures(double* pFeatures, double learningRate, size_t skip, bool useInputBias);
+	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
+	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
+	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradient.
+	/// Also, note that descendGradient depends on the input features, so be sure not to update them until after you call descendGradient.)
+	void gradientOfInputs(double* pOutGradient, bool useInputBias = false);
 
-	/// This adjusts the features (not the weights) to descend the gradient, assuming that the error is computed
-	/// from only one of the output units of the network.
-	void adjustFeaturesSingleOutput(size_t outputNeuron, double* pFeatures, double learningRate, bool useInputBias);
+	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
+	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
+	/// This method assumes that error is computed for only one output neuron, which is specified.
+	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradientSingleOutput.)
+	/// Also, note that descendGradientSingleOutput depends on the input features, so be sure not to update them until after you call descendGradientSingleOutput.)
+	void gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient, bool useInputBias = false);
 };
 
 
@@ -407,6 +412,10 @@ public:
 
 	/// Prints weights in a human-readable format
 	void printWeights(std::ostream& stream);
+
+	/// Adjusts weights on the first layer such that new inputs will be expected to fall in
+	/// the new range instead of the old range.
+	void normalizeInput(size_t index, double oldMin, double oldMax, double newMin, double newMax);
 
 protected:
 #ifndef MIN_PREDICT

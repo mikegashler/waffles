@@ -504,14 +504,21 @@ void GRecurrentModel::trainObservationFunctionIteratively(double dStart, GMatrix
 			*(pR++) = 1.0;
 		}
 		for(size_t i = 0; i < m_contextDims; i++)
-			pEstState->minAndRangeUnbiased(i, pM++, pR++);
+		{
+			*pM = pEstState->columnMin(i);
+			*pR = pEstState->columnMax(i) - *pM;
+			pM++;
+			pR++;
+		}
 		for(size_t i = 0; i < m_channels; i++)
 		{
 			double m, r;
-			pObservations->minAndRangeUnbiased(0, pM, pR);
+			*pM = pEstState->columnMin(0);
+			*pR = pEstState->columnMax(0) - *pM;
 			for(size_t j = 1; j < m_pixels; j++)
 			{
-				pObservations->minAndRangeUnbiased(m_channels * j, &m, &r);
+				m = pEstState->columnMin(m_channels * j);
+				r = pEstState->columnMax(m_channels * j) - m;
 				if(m < *pM)
 					*pM = m;
 				if(*pM + *pR < m + r)
@@ -982,10 +989,12 @@ throw Ex("todo: do something about the mins and ranges");
 		for(size_t i = 0; i < m_channels; i++)
 		{
 			double m, r;
-			pObservations->minAndRangeUnbiased(0, pM, pR);
+			*pM = pObservations->columnMin(0);
+			*pR = pObservations->columnMax(0) - *pM;
 			for(size_t j = 1; j < m_pixels; j++)
 			{
-				pObservations->minAndRangeUnbiased(m_channels * j, &m, &r);
+				m = pObservations->columnMin(m_channels * j);
+				r = pObservations->columnMax(m_channels * j) - m;
 				if(m < *pM)
 					*pM = m;
 				if(*pM + *pR < m + r)

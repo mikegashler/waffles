@@ -350,7 +350,7 @@ GMultivariateNormalDistribution::GMultivariateNormalDistribution(GMatrix* pData,
 	m_pVector1 = &m_pMean[m_nDims];
 	m_pVector2 = &m_pMean[2 * m_nDims];
 	for(size_t i = 0; i < nDims; i++)
-		m_pMean[i] = pData->mean(i);
+		m_pMean[i] = pData->columnMean(i);
 	GMatrix* pCov = pData->covarianceMatrix();
 	Holder<GMatrix> hCov(pCov);
 	precompute(pCov);

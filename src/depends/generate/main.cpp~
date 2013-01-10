@@ -1889,8 +1889,8 @@ void MakeCorrelationGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, 
 	bool bothNominal = true;
 	if(pRelation->valueCount(attrx) == 0) //Continuous x attribute
 	{
-		pData->minAndRange(attrx, &xmin, &xmax);
-		xmax += xmin;
+		xmin = pData->columnMin(attrx);
+		xmax = pData->columnMax(attrx);
 		bothNominal = false;
 	}
 	else //Discrete x attribute
@@ -1900,8 +1900,8 @@ void MakeCorrelationGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, 
 	}
 	if(pRelation->valueCount(attry) == 0) //Continuous y attribute
 	{
-		pData->minAndRange(attry, &ymin, &ymax);
-		ymax += ymin;
+		ymin = pData->columnMin(attry);
+		ymax = pData->columnMax(attry);
 		bothNominal = false;
 	}
 	else //Discrete y atrribute
@@ -1953,9 +1953,8 @@ void MakeCorrelationLabel(GArffRelation* pRelation, GMatrix* pData, GImage* pIma
 	if(pRelation->valueCount(attr) == 0)
 	{
 		pImage->text(pRelation->attrName(attr), 0, 0, 1.0f, 0xff400000);
-		double min, max;
-		pData->minAndRange(attr, &min, &max);
-		max += min;
+		double min = pData->columnMin(attr);
+		double max = pData->columnMax(attr);
 
 		for(int i = 0; i < 2; i++)
 		{
@@ -2106,13 +2105,16 @@ void Plot3d(GImage* pImage, GMatrix* pData, unsigned int bgCol, float pointRadiu
 	GCamera camera(pImage->width(), pImage->height());
 	camera.setViewAngle(M_PI / 3);
 	G3DVector mean;
-	mean.m_vals[0] = pData->mean(0);
-	mean.m_vals[1] = pData->mean(1);
-	mean.m_vals[2] = pData->mean(2);
+	mean.m_vals[0] = pData->columnMean(0);
+	mean.m_vals[1] = pData->columnMean(1);
+	mean.m_vals[2] = pData->columnMean(2);
 	G3DVector min, max, range;
-	pData->minAndRangeUnbiased(0, &min.m_vals[0], &range.m_vals[0]);
-	pData->minAndRangeUnbiased(1, &min.m_vals[1], &range.m_vals[1]);
-	pData->minAndRangeUnbiased(2, &min.m_vals[2], &range.m_vals[2]);
+	min.m_vals[0] = pData->columnMin(0);
+	range.m_vals[0] = pData->columnMax(0) - min.m_vals[0];
+	min.m_vals[1] = pData->columnMin(1);
+	range.m_vals[1] = pData->columnMax(1) - min.m_vals[1];
+	min.m_vals[2] = pData->columnMin(2);
+	range.m_vals[2] = pData->columnMax(2) - min.m_vals[2];
 	max.copy(&range);
 	max.add(&min);
 	G3DReal dist = sqrt(min.squaredDist(&max)) * cameraDist;
@@ -2387,12 +2389,17 @@ void model(GArgReader& args)
 	double labelMin = 0.0;
 	double labelRange = (double)pData->relation()->valueCount(featureDims + labelDim);
 	if(labelRange == 0.0)
-		pData->minAndRangeUnbiased(featureDims + labelDim, &labelMin, &labelRange);
+	{
+		labelMin = pData->columnMin(featureDims + labelDim);
+		labelRange = pData->columnMax(featureDims + labelDim) - labelMin;
+	}
 
 	// Plot the data
 	double xmin, xrange, ymin, yrange;
-	pData->minAndRangeUnbiased(attrx, &xmin, &xrange);
-	pData->minAndRangeUnbiased(attry, &ymin, &yrange);
+	xmin = pData->columnMin(attrx);
+	xrange = pData->columnMax(attrx) - xmin;
+	ymin = pData->columnMin(attry);
+	yrange = pData->columnMax(attry) - ymin;
 	GImage image;
 	image.setSize(width, height);
 	GPlotWindow pw(&image, xmin, ymin, xmin + xrange, ymin + yrange);
@@ -2697,7 +2704,7 @@ void ubpFrames(GArgReader& args)
 	size_t featureDims = pUBP->neuralNet()->relFeatures()->size();
 	GTEMPBUF(double, pFeatures, featureDims);
 	GVec::setAll(pFeatures, 0.5, featureDims);
-	size_t labelDims = pUBP->neuralNet()->relLabels()->size();
+	size_t labelDims = pUBP->labelDims();
 	GTEMPBUF(double, pLabels, labelDims);
 	GImage image;
 	image.setSize(imageWid * framesHoriz, imageHgt * framesVert);
@@ -2711,13 +2718,13 @@ void ubpFrames(GArgReader& args)
 			pFeatures[featureDims - 1] = (double)vFrame / (framesVert - 1);
 			pUBP->lowToHi(pFeatures, pLabels);
 			GImage tmp;
-			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->relLabels()->size(), 256.0);
+			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->relLabels()->size(), 1.0);
 			image.blit(xx, yy, &tmp);
 			xx += imageWid;
 		}
 		yy += imageHgt;
 	}
-	image.savePng(outFilename);
+	savePng(&image, outFilename);
 }
 
 void ShowUsage(const char* appName)

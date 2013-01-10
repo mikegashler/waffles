@@ -29,11 +29,11 @@ GHistogram::GHistogram(double xmin, double xmax, size_t binCount)
 
 GHistogram::GHistogram(GMatrix& data, size_t col, double xmin, double xmax, size_t maxBuckets)
 {
-	double dataMin, dataRange;
-	data.minAndRangeUnbiased(col, &dataMin, &dataRange);
-	double mean = data.mean(col);
-	double median = data.median(col);
-	double dev = sqrt(data.variance(col, mean));
+	double dataMin = data.columnMin(col);
+	double dataRange = data.columnMax(col) - dataMin;
+	double mean = data.columnMean(col);
+	double median = data.columnMedian(col);
+	double dev = sqrt(data.columnVariance(col, mean));
 	if(xmin == UNKNOWN_REAL_VALUE)
 		m_min = std::max(dataMin, median - 4 * dev);
 	else
