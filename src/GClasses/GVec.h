@@ -347,8 +347,7 @@ public:
 	bool advance(size_t steps);
 
 	/// Advances in a manner that approximates a uniform sampling of the space, but
-	/// ultimately visits every coordinate. (Behavior is not defined if dims > 31,
-	/// or if the largest range is >= (1 << 31).)
+	/// ultimately visits every coordinate.
 	bool advanceSampling();
 
 	/// Returns the number of dims

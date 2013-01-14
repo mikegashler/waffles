@@ -2397,7 +2397,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			}
 		}
 
-		double learningRate = 0.01;
+		double learningRate = 0.1;
 		double momentum = 0.0;
 		double regularizer = 0.0;
 		switch(totalPasses - pass)
@@ -2411,8 +2411,12 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		pNN->setMomentum(momentum);
 		size_t sampleSize = std::max((size_t)1, (size_t)ceil(sqrt(m_cvi.coordCount())));
 		size_t batchSize = std::max((size_t)ceil(sqrt(in.rows())), in.rows() / sampleSize);
-		size_t batches = 1000;
 
+//sampleSize = 1;
+//batchSize = 100;
+
+		size_t batches = 1000;
+		double decay = pow(0.05, 1.0 / batches);
 		for(size_t i = 0; i < batches; i++)
 		{
 			double sse = 0;
@@ -2471,12 +2475,13 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			if(m_pProgress)
 			{
 				double* pProg = m_pProgress->newRow();
-				pProg[0] = 50 * pass + i;
+				pProg[0] = batches * pass + i;
 				pProg[1] = rmse;
 			}
 
 			// Print progress
 			std::cerr << "Pass " << to_str(pass + 1) << "/" << to_str(totalPasses) << ", Batch " << to_str(i + 1) << "/" << to_str(batches) << "\n";
+			learningRate *= decay;
 		}
 	}
 
@@ -2492,52 +2497,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		m_pIntrinsic->normalize(i, _min, _max - _min, 0.0, 1.0);
 		//std::cerr << " After intrinsic dim=" << to_str(i) << ", min=" << to_str(m_pIntrinsic->columnMin(i)) << ", max=" << to_str(m_pIntrinsic->columnMax(i)) << "\n";
 	}
-/*
-	// Train the reverse map
-	delete(m_pRevNN);
-	m_pRevNN = new GNeuralNet(*m_pRand);
-	if(m_pNN->layerCount() > 1)
-	{
-		size_t hiddenNodes = (size_t)ceil(sqrt(double(in.cols() / (m_jitterDims + m_intrinsicDims))));
-		m_pRevNN->addLayer(hiddenNodes);
-	}
-	sp_relation pRelFeatures = new GUniformRelation(in.cols());
-	sp_relation pRelLabels = new GUniformRelation(m_jitterDims + m_intrinsicDims);
-	m_pRevNN->beginIncrementalLearning(pRelFeatures, pRelLabels);
-	double* pJitteredPattern = m_pJitterer ? new double[in.cols()] : NULL;
-	ArrayHolder<double> hJitteredPattern(pJitteredPattern);
-	double dStartTime = GTime::seconds();
-	size_t presentations = 0;
-	while(GTime::seconds() - dStartTime < 10800) // 3 hours
-	{
-		// Pick a row (and jitter if necessary)
-		size_t r = (size_t)m_pRand->next(in.rows());
-		double* pRow;
-		if(m_pJitterer)
-		{
-			GVec::copy(pJitters, m_pJitterer->pickParams(*m_pRand), m_jitterDims);
-			double* pSrc = in.row(r);
-			double* pDest = pJitteredPattern;
-			for(size_t y = 0; y < m_pParamRanges[1]; y++)
-			{
-				for(size_t x = 0; x < m_pParamRanges[0]; x++)
-				{
-					m_pJitterer->transformedPix(pSrc, x, y, pDest);
-					pDest += channels;
-				}
-			}
-			pRow = pJitteredPattern;
-		}
-		else
-			pRow = in.row(r);
 
-		// Train with it
-		GVec::copy(pIntrinsic, m_pIntrinsic->row(r), m_intrinsicDims);
-		m_pRevNN->trainIncremental(pRow, pJitters);
-		presentations++;
-	}
-cout << "presentations=" << presentations << "\n";
-*/
 	GMatrix* pOut = m_pIntrinsic;
 	m_pIntrinsic = NULL;
 	return pOut;

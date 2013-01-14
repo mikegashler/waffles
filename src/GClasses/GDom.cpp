@@ -284,7 +284,7 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 	switch(m_type)
 	{
 		case type_obj:
-			newLineAndIndent(stream, indents); stream << "{";
+			stream << "{";
 			reverseFieldOrder();
 			for(GDomObjField* pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
 			{

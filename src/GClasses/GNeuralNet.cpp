@@ -1358,9 +1358,10 @@ void GNeuralNet::normalizeInput(size_t index, double oldMin, double oldMax, doub
 	GNeuralNetLayer& layer = m_layers[0];
 	for(vector<GNeuron>::iterator it = layer.m_neurons.begin(); it != layer.m_neurons.end(); it++)
 	{
-		it->m_weights[0] += (oldMin - newMin);
+		double f = (oldMax - oldMin) / (newMax - newMin);
+		it->m_weights[0] += it->m_weights[index] * (oldMin - newMin * f);
 		if(index > 0) // if index refers to a non-bias input
-			it->m_weights[index] *= ((oldMax - oldMin) / (newMax - newMin));
+			it->m_weights[index] *= f;
 	}
 }
 
@@ -1870,6 +1871,33 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 	}
 }
 
+void GNeuralNet_testNormalizeInput(GRand& rand)
+{
+	double in[5];
+	for(size_t i = 0; i < 20; i++)
+	{
+		GNeuralNet nn(rand);
+		nn.addLayer(5);
+		sp_relation pRelIn = new GUniformRelation(5);
+		sp_relation pRelOut = new GUniformRelation(1);
+		nn.beginIncrementalLearning(pRelIn, pRelOut);
+		nn.perturbAllWeights(1.0);
+		rand.spherical(in, 5);
+		double before, after;
+		nn.predict(in, &before);
+		double a = rand.normal();
+		double b = rand.normal();
+		double c = rand.normal();
+		double d = rand.normal();
+		size_t ind = rand.next(5);
+		nn.normalizeInput(ind, a, b, c, d);
+		in[ind] = GMatrix::normalize(in[ind], a, (b - a), c, (d - c));
+		nn.predict(in, &after);
+		if(std::abs(after - before) > 1e-9)
+			throw Ex("Failed");
+	}
+}
+
 // static
 void GNeuralNet::test()
 {
@@ -1892,6 +1920,7 @@ void GNeuralNet::test()
 
 	GNeuralNet_testInputGradient(&prng);
 	GNeuralNet_testInvertAndSwap(prng);
+	GNeuralNet_testNormalizeInput(prng);
 }
 
 #endif // MIN_PREDICT

@@ -2065,6 +2065,14 @@ void PlotCorrelations(GArgReader& args)
 	cout << "Output saved to " << filename.c_str() << ".\n";
 }
 
+
+void ppmToPng(GArgReader& args)
+{
+	GImage image;
+	image.loadPpm(args.pop_string());
+	savePng(&image, args.pop_string());
+}
+
 class Compare3DPointsByDistanceFromCameraFunctor
 {
 protected:
@@ -2701,7 +2709,7 @@ void ubpFrames(GArgReader& args)
 	GUnsupervisedBackProp* pUBP = new GUnsupervisedBackProp(doc.root(), ll);
 	Holder<GUnsupervisedBackProp> hUBP(pUBP);
 
-	size_t featureDims = pUBP->neuralNet()->relFeatures()->size();
+	size_t featureDims = pUBP->neuralNet()->relFeatures()->size() - 2;
 	GTEMPBUF(double, pFeatures, featureDims);
 	GVec::setAll(pFeatures, 0.5, featureDims);
 	size_t labelDims = pUBP->labelDims();
@@ -2804,6 +2812,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("model")) model(args);
 		else if(args.if_pop("noise")) Noise(args);
 		else if(args.if_pop("overview")) PlotCorrelations(args);
+		else if(args.if_pop("ppmtopng")) ppmToPng(args);
 		else if(args.if_pop("randomsequence")) randomSequence(args);
 		else if(args.if_pop("raytracesurface")) rayTraceManifoldModel(args);
 		else if(args.if_pop("rowtoimage")) rowToImage(args);
