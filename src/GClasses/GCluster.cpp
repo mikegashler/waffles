@@ -521,7 +521,7 @@ double GKMeans::assignClusters()
 			}
 			else if(d == best)
 			{
-				// Give an equal likelihood to each centroid that ties for the closest
+				// Pick randomly among the centroids that tie for the closest
 				ties++;
 				if(m_pRand->next(ties) == 0)
 					clust = j;

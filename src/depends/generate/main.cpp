@@ -1390,13 +1390,14 @@ void vectorToImage(GArgReader& args)
 	if(r >= pData->rows())
 		throw Ex("row index out of range");
 	size_t wid = args.pop_uint();
-	size_t channels = 3;
+	size_t channels = args.pop_uint();
 	size_t hgt = pData->cols() / (wid * channels);
+	double range = args.pop_double();
 	if((wid * hgt * channels) != pData->cols())
 		throw Ex("Invalid dimensions");
 	double* pVec = pData->row(r);
 	GImage image;
-	vectorToImage(&image, pVec, (int)wid, (int)hgt);
+	GVec::toImage(pVec, &image, wid, hgt, channels, range);
 	savePng(&image, "image.png");
 }
 
@@ -1405,8 +1406,9 @@ void dataToFrames(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	size_t wid = args.pop_uint();
-	size_t channels = 3;
+	size_t channels = args.pop_uint();
 	size_t hgt = pData->cols() / (wid * channels);
+	double range = args.pop_double();
 	if((wid * hgt * channels) != pData->cols())
 		throw Ex("Invalid dimensions");
 	GImage image;
@@ -1414,7 +1416,7 @@ void dataToFrames(GArgReader& args)
 	master.setSize((unsigned int)wid, (unsigned int)(hgt * pData->rows()));
 	for(unsigned int i = 0; i < pData->rows(); i++)
 	{
-		vectorToImage(&image, pData->row(i), (int)wid, (int)hgt);
+		GVec::toImage(pData->row(i), &image, wid, hgt, channels, range);
 		GRect r(0, 0, (int)wid, (int)hgt);
 		master.blit(0, i * (int)hgt, &image, &r);
 	}
@@ -2715,7 +2717,8 @@ void ubpFrames(GArgReader& args)
 	size_t labelDims = pUBP->labelDims();
 	GTEMPBUF(double, pLabels, labelDims);
 	GImage image;
-	image.setSize(imageWid * framesHoriz, imageHgt * framesVert);
+	image.setSize((imageWid + 1) * framesHoriz, (imageHgt + 1) * framesVert);
+	image.clear(0xff008000);
 	size_t yy = 0;
 	for(size_t vFrame = 0; vFrame < framesVert; vFrame++)
 	{
@@ -2728,9 +2731,9 @@ void ubpFrames(GArgReader& args)
 			GImage tmp;
 			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->relLabels()->size(), 255.0);
 			image.blit(xx, yy, &tmp);
-			xx += imageWid;
+			xx += imageWid + 1;
 		}
-		yy += imageHgt;
+		yy += imageHgt + 1;
 	}
 	savePng(&image, outFilename);
 }

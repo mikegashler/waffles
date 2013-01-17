@@ -763,6 +763,13 @@ void GDenseClusterRecommender::setClusterer(GClusterer* pClusterer, bool own)
 	m_ownClusterer = own;
 }
 
+void GDenseClusterRecommender::setFuzzifier(double d)
+{
+	if(!m_pClusterer)
+		setClusterer(new GFuzzyKMeans(m_clusters, &m_rand), true);
+	((GFuzzyKMeans*)m_pClusterer)->setFuzzifier(d);
+}
+
 // virtual
 void GDenseClusterRecommender::train(GMatrix& data)
 {
@@ -941,62 +948,63 @@ void GMatrixFactorization::train(GMatrix& data)
 	double learningRate = 0.01;
 	GTEMPBUF(double, temp_weights, m_intrinsicDims);
 	size_t epochs = 0;
-	while(learningRate >= 0.0001)
+	while(learningRate >= 0.001)
 	{
-		// Shuffle the ratings
-		dataCopy.shuffle(m_rand);
-
-		// Do an epoch of training
-		for(size_t j = 0; j < dataCopy.rows(); j++)
+		for(size_t j = 0; j < 30; j++)
 		{
-			// Compute the error for this rating
-			double* pVec = dataCopy[j];
-			double* pPref = m_pP->row(size_t(pVec[0]));
-			double* pWeights = m_pQ->row(size_t(pVec[1]));
-			double pred = *(pWeights++);
-			if(m_useInputBias)
-				pred += *(pPref++);
-			for(size_t i = 0; i < m_intrinsicDims; i++)
-				pred += *(pPref++) * (*pWeights++);
-			double err = pVec[2] - pred;
+			// Shuffle the ratings
+			dataCopy.shuffle(m_rand);
 
-			// Update Q
-			pPref = m_pP->row(size_t(pVec[0])) + (m_useInputBias ? 1 : 0);
-			double* pT = temp_weights;
-			pWeights = m_pQ->row(size_t(pVec[1]));
-			*pWeights += learningRate * (err - m_regularizer * (*pWeights));
-			pWeights++;
-			for(size_t i = 0; i < m_intrinsicDims; i++)
+			// Do an epoch of training
+			for(size_t j = 0; j < dataCopy.rows(); j++)
 			{
-				*(pT++) = *pWeights;
-				*pWeights += learningRate * (err * (*pPref) - m_regularizer * (*pWeights));
-				pPref++;
-				pWeights++;
-			}
+				// Compute the error for this rating
+				double* pVec = dataCopy[j];
+				double* pPref = m_pP->row(size_t(pVec[0]));
+				double* pWeights = m_pQ->row(size_t(pVec[1]));
+				double pred = *(pWeights++);
+				if(m_useInputBias)
+					pred += *(pPref++);
+				for(size_t i = 0; i < m_intrinsicDims; i++)
+					pred += *(pPref++) * (*pWeights++);
+				double err = pVec[2] - pred;
 
-			// Update P
-			pWeights = temp_weights;
-			double* pPrefRow = m_pP->row(size_t(pVec[0]));
-			pPref = pPrefRow;
-			if(m_useInputBias)
-			{
-				*pPref += learningRate * (err - m_regularizer * (*pPref));
-				pPref++;
-			}
-			for(size_t i = 0; i < m_intrinsicDims; i++)
-			{
-				*pPref += learningRate * (err * (*pWeights) - m_regularizer * (*pPref));
+				// Update Q
+				pPref = m_pP->row(size_t(pVec[0])) + (m_useInputBias ? 1 : 0);
+				double* pT = temp_weights;
+				pWeights = m_pQ->row(size_t(pVec[1]));
+				*pWeights += learningRate * (err - m_regularizer * (*pWeights));
 				pWeights++;
-				pPref++;
+				for(size_t i = 0; i < m_intrinsicDims; i++)
+				{
+					*(pT++) = *pWeights;
+					*pWeights += learningRate * (err * (*pPref) - m_regularizer * (*pWeights));
+					pPref++;
+					pWeights++;
+				}
+
+				// Update P
+				pWeights = temp_weights;
+				double* pPrefRow = m_pP->row(size_t(pVec[0]));
+				pPref = pPrefRow;
+				if(m_useInputBias)
+				{
+					*pPref += learningRate * (err - m_regularizer * (*pPref));
+					pPref++;
+				}
+				for(size_t i = 0; i < m_intrinsicDims; i++)
+				{
+					*pPref += learningRate * (err * (*pWeights) - m_regularizer * (*pPref));
+					pWeights++;
+					pPref++;
+				}
 			}
-			GVec::floorValues(pPrefRow + (m_useInputBias ? 1 : 0), -1.8, m_intrinsicDims);
-			GVec::capValues(pPrefRow + (m_useInputBias ? 1 : 0), 1.8, m_intrinsicDims);
+			epochs++;
 		}
-		epochs++;
 
 		// Stopping criteria
 		double rsse = sqrt(validate(data));
-		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.00001) // If the amount of improvement is less than 0.001%
+		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.001) // If the amount of improvement is small
 			learningRate *= 0.5; // decay the learning rate
 		prevErr = rsse;
 	}
@@ -1262,17 +1270,6 @@ void GNonlinearPCA::train(GMatrix& data)
 		GNeuralNet* pNN = (pass == 0 ? &nn : m_pModel);
 		if(pass == startPass)
 		{
-/*
-			// Use matrix factorization to compute pref vectors
-			GMatrixFactorization mf(m_intrinsicDims - (m_useInputBias ? 1 : 0), m_rand);
-			if(!m_useInputBias)
-				mf.noInputBias();
-			mf.train(*pClone);
-			delete(m_pUsers);
-			m_pUsers = mf.getP()->clone();
-			continue;
-*/
-
 			// Initialize the user matrix
 			delete(m_pUsers);
 			m_pUsers = new GMatrix(users, m_intrinsicDims);
@@ -1282,50 +1279,52 @@ void GNonlinearPCA::train(GMatrix& data)
 				for(size_t j = 0; j < m_intrinsicDims; j++)
 					*(pVec++) = 0.01 * m_rand.normal();
 			}
-
 		}
 		double regularizer = 0.0001;
-		double rateBegin = 0.01;
-		double rateEnd = 0.0001;
+		double rateBegin = 0.1;
+		double rateEnd = 0.001;
 		double prevErr = 1e308;
 		for(double learningRate = rateBegin; learningRate > rateEnd; )
 		{
-			// Shuffle the ratings
-			pClone->shuffle(m_rand);
-
-			// Do an epoch of training
-			m_pModel->setLearningRate(learningRate);
-			for(size_t i = 0; i < pClone->rows(); i++)
+			for(size_t j = 0; j < 100; j++)
 			{
-				// Forward-prop
-				double* pVec = pClone->row(i);
-				size_t user = size_t(pVec[0]);
-				size_t item = size_t(pVec[1]);
-				double* pPrefs = m_pUsers->row(user);
-				pNN->forwardPropSingleOutput(pPrefs, item);
+				// Shuffle the ratings
+				pClone->shuffle(m_rand);
 
-				// Update weights
-				pNN->setErrorSingleOutput(pVec[2], item, pNN->backPropTargetFunction());
-				pNN->backProp()->backpropagateSingleOutput(item);
-				if(pass < 2)
-					pNN->decayWeightsSingleOutput(item, regularizer);
-				if(pass != 1)
-					pNN->backProp()->gradientOfInputsSingleOutput(item, pPrefGradient, m_pModel->useInputBias());
-				pNN->backProp()->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum(), pNN->useInputBias());
-				if(pass != 1)
+				// Do an epoch of training
+				m_pModel->setLearningRate(learningRate);
+				for(size_t i = 0; i < pClone->rows(); i++)
 				{
-					// Update inputs
-					if(pass == 0)
-						GVec::multiply(pPrefs, 1.0 - learningRate * regularizer, m_intrinsicDims);
-					GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
-					GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
-					GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
+					// Forward-prop
+					double* pVec = pClone->row(i);
+					size_t user = size_t(pVec[0]);
+					size_t item = size_t(pVec[1]);
+					double* pPrefs = m_pUsers->row(user);
+					pNN->forwardPropSingleOutput(pPrefs, item);
+
+					// Update weights
+					pNN->setErrorSingleOutput(pVec[2], item, pNN->backPropTargetFunction());
+					pNN->backProp()->backpropagateSingleOutput(item);
+					if(pass < 2)
+						pNN->decayWeightsSingleOutput(item, regularizer);
+					if(pass != 1)
+						pNN->backProp()->gradientOfInputsSingleOutput(item, pPrefGradient, m_pModel->useInputBias());
+					pNN->backProp()->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum(), pNN->useInputBias());
+					if(pass != 1)
+					{
+						// Update inputs
+						if(pass == 0)
+							GVec::multiply(pPrefs, 1.0 - learningRate * regularizer, m_intrinsicDims);
+						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
+//						GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
+//						GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
+					}
 				}
 			}
 
 			// Stopping criteria
 			double rmse = sqrt(validate(pNN, *pClone));
-			if(rmse < 1e-12 || 1.0 - (rmse / prevErr) < 0.00001) // If the amount of improvement is small
+			if(rmse < 1e-12 || 1.0 - (rmse / prevErr) < 0.001) // If the amount of improvement is small
 				learningRate *= 0.5; // decay the learning rate
 			prevErr = rmse;
 		}
@@ -1529,7 +1528,7 @@ void GBagOfRecommenders::test()
 	rec.addRecommender(new GBaselineRecommender(rand));
 	rec.addRecommender(new GMatrixFactorization(3, rand));
 	rec.addRecommender(new GNonlinearPCA(3, rand));
-	rec.basicTest(0.58);
+	rec.basicTest(0.60);
 }
 #endif
 

@@ -165,12 +165,15 @@ GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgRe
 	size_t clusterCount = args.pop_uint();
 	double missingPenalty = 1.0;
 	double norm = 2.0;
+	double fuzzifier = 1.3;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-norm"))
 			norm = args.pop_double();
 		else if(args.if_pop("-missingpenalty"))
 			missingPenalty = args.pop_double();
+		else if(args.if_pop("-fuzzifier"))
+			fuzzifier = args.pop_double();
 		else
 			throw Ex("Invalid option: ", args.peek());
 		// todo: allow the user to specify the clustering algorithm. (Currently, it uses k-means, but k-medoids and agglomerativeclusterer should also be an option)
@@ -180,7 +183,7 @@ GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgRe
 	{
 		if(missingPenalty != 1.0)
 		{
-			GKMeans* pClusterer = new GKMeans(clusterCount, &rand);
+			GFuzzyKMeans* pClusterer = new GFuzzyKMeans(clusterCount, &rand);
 			pModel->setClusterer(pClusterer, true);
 			GRowDistance* pMetric = new GRowDistance();
 			pClusterer->setMetric(pMetric, true);
@@ -189,13 +192,14 @@ GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgRe
 	}
 	else
 	{
-		GKMeans* pClusterer = new GKMeans(clusterCount, &rand);
+		GFuzzyKMeans* pClusterer = new GFuzzyKMeans(clusterCount, &rand);
 		pModel->setClusterer(pClusterer, true);
 		GLNormDistance* pMetric = new GLNormDistance(norm);
 		pClusterer->setMetric(pMetric, true);
 		if(missingPenalty != 1.0)
 			pMetric->setDiffWithUnknown(missingPenalty);
 	}
+	pModel->setFuzzifier(fuzzifier);
 	return pModel;
 }
 

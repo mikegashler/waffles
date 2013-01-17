@@ -273,6 +273,11 @@ public:
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
+	/// The behavior of this method is only defined if GFuzzyKMeans
+	/// is used as the clusterer. (It is the default.) This sets
+	/// the fuzzifier value on it.
+	void setFuzzifier(double d);
+
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
