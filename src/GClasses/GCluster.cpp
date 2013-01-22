@@ -817,7 +817,7 @@ void GFuzzyKMeans::cluster(GMatrix* pData)
 		for(size_t iters = 0; true; iters++)
 		{
 			d = recomputeWeights();
-			if(iters > 2 && 1.0 - (d / prevErr) < 0.000001) // If it improved by less than 0.0001%
+			if(iters > 2 && (d < 1e-12 || 1.0 - (d / prevErr) < 0.000001)) // If it improved by less than 0.0001%
 				break;
 			recomputeCentroids();
 			prevErr = d;
