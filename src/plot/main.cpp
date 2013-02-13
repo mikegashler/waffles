@@ -621,7 +621,7 @@ public:
 		delete(m_pFP);
 	}
 
-	void parse(GArgReader& args)
+	void parse(GArgReader& args, size_t cols)
 	{
 		// Parse the color
 		m_type = Fixed;
@@ -663,6 +663,8 @@ public:
 		{
 			m_type = Attr;
 			m_color = args.pop_uint();
+			if(m_color >= cols)
+				throw Ex("column index ", to_str(m_color), " out of range. Expected 0-", to_str(cols - 1));
 		}
 
 		// Parse the X attribute
@@ -680,7 +682,11 @@ public:
 		else if(args.if_pop("row"))
 			m_attrX = (size_t)-1;
 		else
+		{
 			m_attrX = args.pop_uint();
+			if(m_attrX >= cols)
+				throw Ex("column index ", to_str(m_attrX), " out of range. Expected 0-", to_str(cols - 1));
+		}
 
 		// Parse the Y attribute
 		if(!m_pFunc)
@@ -688,12 +694,16 @@ public:
 			if(args.if_pop("row"))
 				m_attrY = (size_t)-1;
 			else
+			{
 				m_attrY = args.pop_uint();
+				if(m_attrY >= cols)
+					throw Ex("column index ", to_str(m_attrY), " out of range. Expected 0-", to_str(cols - 1));
+			}
 		}
 
 		// Parse the color-specific options
 		m_radius = 1.0;
-		m_thickness = (m_pFunc ? 1.0 : 0.0);
+		m_thickness = 1.0;
 		while(args.next_is_flag())
 		{
 			if(args.if_pop("-radius"))
@@ -1061,7 +1071,7 @@ void PlotScatter(GArgReader& args)
 	{
 		size_t n = cols.size();
 		cols.resize(cols.size() + 1);
-		cols[n].parse(args);
+		cols[n].parse(args, pData->cols());
 	}
 
 	// Draw the grid

@@ -1,0 +1,112 @@
+<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="960" height="540">
+
+
+<defs><clipPath id="chart0-0"><rect x="-0.5" y="0.775" width="11" height="4.95" /></clipPath></defs>
+<g transform="translate(108 432) scale(77.454545454545 -87.272727272727) translate(0.5 -0.775)">
+
+<!-- Horiz labels -->
+<line x1="-0.5" y1="0.775" x2="-0.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="-35.727272727273" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 -35.727272727273 -66.636363636364)" text-anchor="end">-0.5</text>
+<line x1="0" y1="0.775" x2="0" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="3" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 3 -66.636363636364)" text-anchor="end">0</text>
+<line x1="0.5" y1="0.775" x2="0.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="41.727272727273" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 41.727272727273 -66.636363636364)" text-anchor="end">0.5</text>
+<line x1="1" y1="0.775" x2="1" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="80.454545454545" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 80.454545454545 -66.636363636364)" text-anchor="end">1</text>
+<line x1="1.5" y1="0.775" x2="1.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="119.18181818182" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 119.18181818182 -66.636363636364)" text-anchor="end">1.5</text>
+<line x1="2" y1="0.775" x2="2" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="157.90909090909" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 157.90909090909 -66.636363636364)" text-anchor="end">2</text>
+<line x1="2.5" y1="0.775" x2="2.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="196.63636363636" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 196.63636363636 -66.636363636364)" text-anchor="end">2.5</text>
+<line x1="3" y1="0.775" x2="3" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="235.36363636364" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 235.36363636364 -66.636363636364)" text-anchor="end">3</text>
+<line x1="3.5" y1="0.775" x2="3.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="274.09090909091" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 274.09090909091 -66.636363636364)" text-anchor="end">3.5</text>
+<line x1="4" y1="0.775" x2="4" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="312.81818181818" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 312.81818181818 -66.636363636364)" text-anchor="end">4</text>
+<line x1="4.5" y1="0.775" x2="4.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="351.54545454545" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 351.54545454545 -66.636363636364)" text-anchor="end">4.5</text>
+<line x1="5" y1="0.775" x2="5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="390.27272727273" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 390.27272727273 -66.636363636364)" text-anchor="end">5</text>
+<line x1="5.5" y1="0.775" x2="5.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="429" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 429 -66.636363636364)" text-anchor="end">5.5</text>
+<line x1="6" y1="0.775" x2="6" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="467.72727272727" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 467.72727272727 -66.636363636364)" text-anchor="end">6</text>
+<line x1="6.5" y1="0.775" x2="6.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="506.45454545455" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 506.45454545455 -66.636363636364)" text-anchor="end">6.5</text>
+<line x1="7" y1="0.775" x2="7" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="545.18181818182" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 545.18181818182 -66.636363636364)" text-anchor="end">7</text>
+<line x1="7.5" y1="0.775" x2="7.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="583.90909090909" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 583.90909090909 -66.636363636364)" text-anchor="end">7.5</text>
+<line x1="8" y1="0.775" x2="8" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="622.63636363636" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 622.63636363636 -66.636363636364)" text-anchor="end">8</text>
+<line x1="8.5" y1="0.775" x2="8.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="661.36363636364" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 661.36363636364 -66.636363636364)" text-anchor="end">8.5</text>
+<line x1="9" y1="0.775" x2="9" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="700.09090909091" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 700.09090909091 -66.636363636364)" text-anchor="end">9</text>
+<line x1="9.5" y1="0.775" x2="9.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="738.81818181818" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 738.81818181818 -66.636363636364)" text-anchor="end">9.5</text>
+<line x1="10" y1="0.775" x2="10" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="777.54545454545" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 777.54545454545 -66.636363636364)" text-anchor="end">10</text>
+<line x1="10.5" y1="0.775" x2="10.5" y2="5.725" style="stroke:#a0a0a0;stroke-width:0.0025821596244131"/>
+<text x="816.27272727273" y="-66.636363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333) rotate(-90 816.27272727273 -66.636363636364)" text-anchor="end">10.5</text>
+
+
+<!-- Vert labels -->
+<line x1="-0.5" y1="1" x2="10.5" y2="1" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-84.272727272727" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">1</text>
+<line x1="-0.5" y1="1.5" x2="10.5" y2="1.5" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-127.90909090909" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">1.5</text>
+<line x1="-0.5" y1="2" x2="10.5" y2="2" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-171.54545454545" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">2</text>
+<line x1="-0.5" y1="2.5" x2="10.5" y2="2.5" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-215.18181818182" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">2.5</text>
+<line x1="-0.5" y1="3" x2="10.5" y2="3" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-258.81818181818" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">3</text>
+<line x1="-0.5" y1="3.5" x2="10.5" y2="3.5" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-302.45454545455" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">3.5</text>
+<line x1="-0.5" y1="4" x2="10.5" y2="4" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-346.09090909091" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">4</text>
+<line x1="-0.5" y1="4.5" x2="10.5" y2="4.5" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-389.72727272727" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">4.5</text>
+<line x1="-0.5" y1="5" x2="10.5" y2="5" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-433.36363636364" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">5</text>
+<line x1="-0.5" y1="5.5" x2="10.5" y2="5.5" style="stroke:#a0a0a0;stroke-width:0.0022916666666667"/>
+<text x="-39.727272727273" y="-477" style="fill:#000000" transform="scale(0.012910798122066 -0.011458333333333)" text-anchor="end">5.5</text>
+
+<text x="258.18181818182" y="-9.0909090909091" style="fill:#000000" transform="scale(0.019366197183099 -0.0171875)" text-anchor="middle">x</text>
+<text x="-61.818181818182" y="-141.09090909091" style="fill:#000080" transform="scale(0.019366197183099 -0.0171875) rotate(-90 -61.818181818182 -141.09090909091)" text-anchor="middle">y</text>
+<text x="-61.818181818182" y="-237.09090909091" style="fill:#800000" transform="scale(0.019366197183099 -0.0171875) rotate(-90 -61.818181818182 -237.09090909091)" text-anchor="middle">z</text>
+
+<!-- Clipped region -->
+<g clip-path="url(#chart0-0)">
+<ellipse cx="0" cy="5.5" rx="0.051643192488263" ry="0.045833333333333" fill="#000080" />
+<line x1="0" y1="5.5" x2="1" y2="5" style="stroke:#000080;stroke-width:0.016022529345817"/>
+<ellipse cx="1" cy="5" rx="0.051643192488263" ry="0.045833333333333" fill="#000080" />
+<line x1="1" y1="5" x2="2" y2="5.1" style="stroke:#000080;stroke-width:0.012686140233164"/>
+<ellipse cx="2" cy="5.1" rx="0.051643192488263" ry="0.045833333333333" fill="#000080" />
+<line x1="2" y1="5.1" x2="4" y2="3.4" style="stroke:#000080;stroke-width:0.017092212688589"/>
+<ellipse cx="4" cy="3.4" rx="0.051643192488263" ry="0.045833333333333" fill="#000080" />
+<line x1="4" y1="3.4" x2="8" y2="1.8" style="stroke:#000080;stroke-width:0.015433745463219"/>
+<ellipse cx="8" cy="1.8" rx="0.051643192488263" ry="0.045833333333333" fill="#000080" />
+<line x1="8" y1="1.8" x2="9" y2="2.1" style="stroke:#000080;stroke-width:0.014684983392842"/>
+<ellipse cx="9" cy="2.1" rx="0.051643192488263" ry="0.045833333333333" fill="#000080" />
+<line x1="9" y1="2.1" x2="10" y2="1.7" style="stroke:#000080;stroke-width:0.015433745463219"/>
+<ellipse cx="10" cy="1.7" rx="0.051643192488263" ry="0.045833333333333" fill="#000080" />
+<ellipse cx="0" cy="1" rx="0.051643192488263" ry="0.045833333333333" fill="#800000" />
+<line x1="0" y1="1" x2="1" y2="1.9" style="stroke:#800000;stroke-width:0.017153780693175"/>
+<ellipse cx="1" cy="1.9" rx="0.051643192488263" ry="0.045833333333333" fill="#800000" />
+<line x1="1" y1="1.9" x2="2" y2="2.1" style="stroke:#800000;stroke-width:0.013767836071541"/>
+<ellipse cx="2" cy="2.1" rx="0.051643192488263" ry="0.045833333333333" fill="#800000" />
+<line x1="2" y1="2.1" x2="4" y2="3" style="stroke:#800000;stroke-width:0.01574723608555"/>
+<ellipse cx="4" cy="3" rx="0.051643192488263" ry="0.045833333333333" fill="#800000" />
+<line x1="4" y1="3" x2="8" y2="4.7" style="stroke:#800000;stroke-width:0.015595396285498"/>
+<ellipse cx="8" cy="4.7" rx="0.051643192488263" ry="0.045833333333333" fill="#800000" />
+<line x1="8" y1="4.7" x2="9" y2="4.9" style="stroke:#800000;stroke-width:0.013767836071541"/>
+<ellipse cx="9" cy="4.9" rx="0.051643192488263" ry="0.045833333333333" fill="#800000" />
+<line x1="9" y1="4.9" x2="10" y2="4.5" style="stroke:#800000;stroke-width:0.015433745463219"/>
+<ellipse cx="10" cy="4.5" rx="0.051643192488263" ry="0.045833333333333" fill="#800000" />
+</g></g>
+
+</svg>

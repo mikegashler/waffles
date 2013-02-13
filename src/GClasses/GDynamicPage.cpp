@@ -309,6 +309,23 @@ const char* g_pExtensionToMimeTypeHackTable[] =
 	".gif", "image/gif",
 };
 
+const char* GDynamicPageServer::extensionToMimeType(const char* szFilename)
+{
+	PathData pd;
+	GFile::parsePath(szFilename, &pd);
+	const char* szExt = szFilename + pd.extStart;
+	const char* szMimeType = "text/html";
+	for(size_t i = 0; i < sizeof(g_pExtensionToMimeTypeHackTable) / sizeof(const char*); i += 2)
+	{
+		if(_stricmp(szExt, g_pExtensionToMimeTypeHackTable[i]) == 0)
+		{
+			szMimeType = g_pExtensionToMimeTypeHackTable[i + 1];
+			break;
+		}
+	}
+	return szMimeType;
+}
+
 void GDynamicPageServer::sendFileSafe(const char* szJailPath, const char* szLocalPath, ostream& response)
 {
 	// Make sure the file is within the jail
@@ -324,26 +341,10 @@ void GDynamicPageServer::sendFileSafe(const char* szJailPath, const char* szLoca
 	// Send the file
 	if(GFile::doesFileExist(buf))
 	{
-		// Find the extension
-		PathData pd;
-		GFile::parsePath(buf, &pd);
-		const char* szExt = buf + pd.extStart;
-
-		// Determine the mime type
-		const char* szMimeType = "text/html";
-		for(size_t i = 0; i < sizeof(g_pExtensionToMimeTypeHackTable) / sizeof(const char*); i += 2)
-		{
-			if(_stricmp(szExt, g_pExtensionToMimeTypeHackTable[i]) == 0)
-			{
-				szMimeType = g_pExtensionToMimeTypeHackTable[i + 1];
-				break;
-			}
-		}
-
 		// Send the file
 		try
 		{
-			sendFile(szMimeType, buf, response);
+			sendFile(extensionToMimeType(buf), buf, response);
 		}
 		catch(const char* szError)
 		{

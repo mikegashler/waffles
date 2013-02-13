@@ -1209,7 +1209,7 @@ UsageNode* makePlotUsageTree()
 		pCXY->add("[attr-y]=1", "The zero-based index of the attribute to use to specify position on the vertical axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the vertical axis.)");
 		UsageNode* pOpts = pCXY->add("<options>");
 		pOpts->add("-radius=1.0", "Specify the radius (in window units) to use for each point.");
-		pOpts->add("-thickness=0.0", "Specify the thickness (in window units) of the lines to use to connect the points. (Use 0 if you want a scatter plot with no connecting lines.)");
+		pOpts->add("-thickness=1.0", "Specify the thickness (in window units) of the lines to use to connect the points. (Use 0 if you want a scatter plot with no connecting lines.)");
 	}
 	pRoot->add("percentsame [dataset1] [dataset2]", "Given two "
 		   "data files, counts the number of identical values in the "

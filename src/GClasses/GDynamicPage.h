@@ -129,6 +129,10 @@ public:
 	/// it automatically determines the mime type from the extension, and sends the file.
 	void sendFileSafe(const char* szJailPath, const char* localPath, std::ostream& response);
 
+	/// Determines an appropriate mime type for the given filename based on its extension.
+	/// (Currently only recognizes a very small number of extensions.)
+	const char* extensionToMimeType(const char* szFilename);
+
 	GRand* prng() { return m_pRand; }
 	void redirect(std::ostream& response, const char* szUrl);
 
