@@ -521,7 +521,7 @@ double GKMeans::assignClusters()
 			}
 			else if(d == best)
 			{
-				// Give an equal likelihood to each centroid that ties for the closest
+				// Pick randomly among the centroids that tie for the closest
 				ties++;
 				if(m_pRand->next(ties) == 0)
 					clust = j;
@@ -817,7 +817,7 @@ void GFuzzyKMeans::cluster(GMatrix* pData)
 		for(size_t iters = 0; true; iters++)
 		{
 			d = recomputeWeights();
-			if(iters > 2 && 1.0 - (d / prevErr) < 0.000001) // If it improved by less than 0.0001%
+			if(iters > 2 && (d < 1e-12 || 1.0 - (d / prevErr) < 0.000001)) // If it improved by less than 0.0001%
 				break;
 			recomputeCentroids();
 			prevErr = d;
