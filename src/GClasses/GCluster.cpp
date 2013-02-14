@@ -467,7 +467,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& l
 // -----------------------------------------------------------------------------------------
 
 GKMeans::GKMeans(size_t clusters, GRand* pRand)
-: GClusterer(clusters), m_pCentroids(NULL), m_pData(NULL), m_pClusters(NULL), m_reps(1), m_pRand(pRand)
+: GClusterer(clusters), m_pCentroids(NULL), m_pClusters(NULL), m_reps(1), m_pRand(pRand)
 {
 }
 
@@ -479,7 +479,6 @@ GKMeans::~GKMeans()
 
 void GKMeans::init(GMatrix* pData)
 {
-	m_pData = pData;
 	if(!m_pMetric)
 		setMetric(new GRowDistance(), true);
 	m_pMetric->init(pData->relation());
@@ -501,18 +500,18 @@ void GKMeans::init(GMatrix* pData)
 	m_pClusters = new size_t[pData->rows()];
 }
 
-double GKMeans::assignClusters()
+double GKMeans::assignClusters(GMatrix* pData)
 {
 	// Assign each row to a cluster
 	double sse = 0.0;
-	for(size_t i = 0; i < m_pData->rows(); i++)
+	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		double best = 1e308;
 		size_t clust = 0;
 		size_t ties = 1;
 		for(size_t j = 0; j < m_clusterCount; j++)
 		{
-			double d = m_pMetric->squaredDistance(m_pData->row(i), m_pCentroids->row(j));
+			double d = m_pMetric->squaredDistance(pData->row(i), m_pCentroids->row(j));
 			if(d < best)
 			{
 				clust = j;
@@ -533,24 +532,24 @@ double GKMeans::assignClusters()
 	return sse;
 }
 
-void GKMeans::recomputeCentroids()
+void GKMeans::recomputeCentroids(GMatrix* pData)
 {
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
 		double* pCentroid = m_pCentroids->row(i);
 		size_t unknownCount = 0;
-		for(size_t j = 0; j < m_pData->cols(); j++)
+		for(size_t j = 0; j < pData->cols(); j++)
 		{
-			size_t vals = m_pData->relation()->valueCount(j);
+			size_t vals = pData->relation()->valueCount(j);
 			if(vals == 0)
 			{
 				double sum = 0.0;
 				size_t count = 0;
-				for(size_t k = 0; k < m_pData->rows(); k++)
+				for(size_t k = 0; k < pData->rows(); k++)
 				{
 					if(m_pClusters[k] == i)
 					{
-						double d = m_pData->row(k)[j];
+						double d = pData->row(k)[j];
 						if(d != UNKNOWN_REAL_VALUE)
 						{
 							sum += d;
@@ -571,11 +570,11 @@ void GKMeans::recomputeCentroids()
 				size_t* pFreq = new size_t[vals];
 				ArrayHolder<size_t> hFreq(pFreq);
 				memset(pFreq, 0, sizeof(size_t) * vals);
-				for(size_t k = 0; k < m_pData->rows(); k++)
+				for(size_t k = 0; k < pData->rows(); k++)
 				{
 					if(m_pClusters[k] == i)
 					{
-						int v = (int)m_pData->row(k)[j];
+						int v = (int)pData->row(k)[j];
 						if(v != UNKNOWN_DISCRETE_VALUE && (size_t)v < vals)
 							pFreq[v]++;
 					}
@@ -592,10 +591,10 @@ void GKMeans::recomputeCentroids()
 		}
 		if(unknownCount > 0)
 		{
-			double* pRow = m_pData->row((size_t)m_pRand->next(m_pData->rows()));
-			for(size_t j = 0; j < m_pData->cols(); j++)
+			double* pRow = pData->row((size_t)m_pRand->next(pData->rows()));
+			for(size_t j = 0; j < pData->cols(); j++)
 			{
-				size_t vals = m_pData->relation()->valueCount(j);
+				size_t vals = pData->relation()->valueCount(j);
 				if(vals == 0)
 				{
 					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
@@ -624,10 +623,10 @@ void GKMeans::cluster(GMatrix* pData)
 		double sse = 1e308;
 		for(size_t iters = 0; true; iters++)
 		{
-			d = assignClusters();
+			d = assignClusters(pData);
 			if(d >= sse && iters > 2)
 				break;
-			recomputeCentroids();
+			recomputeCentroids(pData);
 			sse = d;
 		}
 		if(d < bestErr)
@@ -647,7 +646,6 @@ void GKMeans::cluster(GMatrix* pData)
 // virtual
 size_t GKMeans::whichCluster(size_t index)
 {
-	GAssert(index < m_pData->rows());
 	return m_pClusters[index];
 }
 
@@ -667,7 +665,6 @@ GFuzzyKMeans::~GFuzzyKMeans()
 
 void GFuzzyKMeans::init(GMatrix* pData)
 {
-	m_pData = pData;
 	if(!m_pMetric)
 		setMetric(new GRowDistance(), true);
 	m_pMetric->init(pData->relation());
@@ -711,17 +708,18 @@ void GFuzzyKMeans::init(GMatrix* pData)
 	m_pWeights = new GMatrix(pData->rows(), m_clusterCount);
 }
 
-double GFuzzyKMeans::recomputeWeights()
+double GFuzzyKMeans::recomputeWeights(GMatrix* pData)
 {
 	double sumError = 0.0;
-	for(size_t i = 0; i < m_pData->rows(); i++)
+	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		double* pWeights = m_pWeights->row(i);
 		double* pW = pWeights;
 		for(size_t j = 0; j < m_clusterCount; j++)
 		{
 			double e = -2.0 / (m_fuzzifier - 1.0);
-			*(pW++) = pow(sqrt(m_pMetric->squaredDistance(m_pData->row(i), m_pCentroids->row(j))), e);
+			double b = std::max(1e-6, sqrt(m_pMetric->squaredDistance(pData->row(i), m_pCentroids->row(j))));
+			*(pW++) = pow(b, e);
 		}
 		double scale = 1.0 / GVec::sumElements(pWeights, m_clusterCount);
 		sumError += scale;
@@ -730,22 +728,22 @@ double GFuzzyKMeans::recomputeWeights()
 	return sumError;
 }
 
-void GFuzzyKMeans::recomputeCentroids()
+void GFuzzyKMeans::recomputeCentroids(GMatrix* pData)
 {
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
 		double* pCentroid = m_pCentroids->row(i);
 		size_t unknownCount = 0;
-		for(size_t j = 0; j < m_pData->cols(); j++)
+		for(size_t j = 0; j < pData->cols(); j++)
 		{
-			size_t vals = m_pData->relation()->valueCount(j);
+			size_t vals = pData->relation()->valueCount(j);
 			if(vals == 0)
 			{
 				double sum = 0.0;
 				double sumWeight = 0.0;
-				for(size_t k = 0; k < m_pData->rows(); k++)
+				for(size_t k = 0; k < pData->rows(); k++)
 				{
-					double d = m_pData->row(k)[j];
+					double d = pData->row(k)[j];
 					if(d != UNKNOWN_REAL_VALUE)
 					{
 						double weight = m_pWeights->row(k)[i];
@@ -766,9 +764,9 @@ void GFuzzyKMeans::recomputeCentroids()
 				double* pFreq = new double[vals];
 				ArrayHolder<double> hFreq(pFreq);
 				GVec::setAll(pFreq, 0.0, vals);
-				for(size_t k = 0; k < m_pData->rows(); k++)
+				for(size_t k = 0; k < pData->rows(); k++)
 				{
-					int v = (int)m_pData->row(k)[j];
+					int v = (int)pData->row(k)[j];
 					if(v != UNKNOWN_DISCRETE_VALUE && (size_t)v < vals)
 						pFreq[v] += m_pWeights->row(k)[i];
 				}
@@ -784,10 +782,10 @@ void GFuzzyKMeans::recomputeCentroids()
 		}
 		if(unknownCount > 0)
 		{
-			double* pRow = m_pData->row((size_t)m_pRand->next(m_pData->rows()));
-			for(size_t j = 0; j < m_pData->cols(); j++)
+			double* pRow = pData->row((size_t)m_pRand->next(pData->rows()));
+			for(size_t j = 0; j < pData->cols(); j++)
 			{
-				size_t vals = m_pData->relation()->valueCount(j);
+				size_t vals = pData->relation()->valueCount(j);
 				if(vals == 0)
 				{
 					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
@@ -816,10 +814,10 @@ void GFuzzyKMeans::cluster(GMatrix* pData)
 		double prevErr = 1e308;
 		for(size_t iters = 0; true; iters++)
 		{
-			d = recomputeWeights();
+			d = recomputeWeights(pData);
 			if(iters > 2 && (d < 1e-12 || 1.0 - (d / prevErr) < 0.000001)) // If it improved by less than 0.0001%
 				break;
-			recomputeCentroids();
+			recomputeCentroids(pData);
 			prevErr = d;
 		}
 		if(d < bestErr)
@@ -839,7 +837,6 @@ void GFuzzyKMeans::cluster(GMatrix* pData)
 // virtual
 size_t GFuzzyKMeans::whichCluster(size_t index)
 {
-	GAssert(index < m_pData->rows());
 	return GVec::indexOfMax(m_pWeights->row(index), m_clusterCount, m_pRand);
 }
 
@@ -858,10 +855,10 @@ GKMedoids::~GKMedoids()
 	delete[] m_pMedoids;
 }
 
-double GKMedoids::curErr()
+double GKMedoids::curErr(GMatrix* pData)
 {
 	double err = 0;
-	for(size_t i = 0; i < m_pData->rows(); i++)
+	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		whichCluster(i);
 		err += m_d;
@@ -880,7 +877,7 @@ void GKMedoids::cluster(GMatrix* pData)
 		throw Ex("Fewer data point than clusters");
 	for(size_t i = 0; i < m_clusterCount; i++)
 		m_pMedoids[i] = i;
-	double err = curErr();
+	double err = curErr(pData);
 	while(true)
 	{
 		bool improved = false;
@@ -901,7 +898,7 @@ void GKMedoids::cluster(GMatrix* pData)
 			{
 				size_t old = m_pMedoids[j];
 				m_pMedoids[j] = i;
-				double cand = curErr();
+				double cand = curErr(pData);
 				if(cand < err)
 				{
 					err = cand;

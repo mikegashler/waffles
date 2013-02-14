@@ -20,6 +20,7 @@
 #include <GClasses/GReinforcement.h>
 #include <math.h>
 #include <sstream>
+#include "GImagePng.h"
 
 using namespace GClasses;
 using std::string;
@@ -93,7 +94,7 @@ public:
 
 		// Load the car image and add some border so we can rotate it
 		GImage tmp;
-		tmp.loadPng("minicar.png");
+		loadPng(&tmp, "minicar.png");
 		m_pCar = new GImage();
 		m_pCar->setSize(70, 60);
 		GRect r(0, 0, 60, 36);

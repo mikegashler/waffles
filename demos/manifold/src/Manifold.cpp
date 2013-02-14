@@ -20,6 +20,7 @@
 #include <GClasses/GApp.h>
 #include <math.h>
 #include <time.h>
+#include "GImagePng.h"
 
 using namespace GClasses;
 
@@ -401,7 +402,7 @@ public:
 			// Load the image mask (if necessary)
 			GImage imageMask;
 			if(bMask)
-				imageMask.loadPng("mask.png");
+				loadPng(&imageMask, "mask.png");
 
 			for(n = 0; n < nPoints; n++)
 			{
@@ -605,7 +606,7 @@ public:
 			MakeEightDigitInt(i + 1 + nSkip, szTmp);
 			strcpy(szFilename + nLen, szTmp);
 			strcpy(szFilename + nLen + 8, ".png");
-			m_pImages[i].loadPng(szFilename);
+			loadPng(&m_pImages[i], szFilename);
 			GAssert((int)m_pImages[i].width() == nImageWidth); // unexpected size
 			GAssert((int)m_pImages[i].height() == nImageHeight); // unexpected size
 			pVector = m_pData->newRow();
@@ -662,7 +663,7 @@ public:
 void Make2DImages(const char* szFilenameIn, const char* szDir)
 {
 	GImage imageMaster;
-	imageMaster.loadPng(szFilenameIn);
+	loadPng(&imageMaster, szFilenameIn);
 	GImage imageSubset;
 	imageSubset.setSize(35, 35);
 	float x, y;
@@ -683,7 +684,7 @@ void Make2DImages(const char* szFilenameIn, const char* szDir)
 			strcpy(szFilename, szDir);
 			strcat(szFilename, szTmp);
 			strcat(szFilename, ".png");
-			imageSubset.savePng(szFilename);
+			savePng(&imageSubset, szFilename);
 		}
 	}
 }
@@ -691,7 +692,7 @@ void Make2DImages(const char* szFilenameIn, const char* szDir)
 void Make2DNoiseImages(const char* szFilenameIn, const char* szDir)
 {
 	GImage imageMaster;
-	imageMaster.loadPng(szFilenameIn);
+	loadPng(&imageMaster, szFilenameIn);
 	GImage imageNoise;
 	imageNoise.setSize(imageMaster.width() + 19, imageMaster.height() + 19);
 	int x, y;
@@ -717,7 +718,7 @@ void Make2DNoiseImages(const char* szFilenameIn, const char* szDir)
 			strcpy(szFilename, szDir);
 			strcat(szFilename, szTmp);
 			strcat(szFilename, ".png");
-			imageAll.savePng(szFilename);
+			savePng(&imageAll, szFilename);
 		}
 	}
 }

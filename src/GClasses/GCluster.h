@@ -155,7 +155,6 @@ class GKMeans : public GClusterer
 {
 protected:
 	GMatrix* m_pCentroids;
-	GMatrix* m_pData;
 	size_t* m_pClusters;
 	size_t m_reps;
 	GRand* m_pRand;
@@ -175,10 +174,10 @@ public:
 
 	/// Assigns each row to the cluster of the nearest centroid as measured
 	/// with the dissimilarity metric. Returns the sum-squared-distance of each row with its centroid.
-	double assignClusters();
+	double assignClusters(GMatrix* pData);
 
 	/// Computes new centroids for each cluster.
-	void recomputeCentroids();
+	void recomputeCentroids(GMatrix* pData);
 
 	/// Returns a k x d matrix, where each row is one of the k centroids.
 	GMatrix* centroids() { return m_pCentroids; }
@@ -201,7 +200,6 @@ class GFuzzyKMeans : public GClusterer
 {
 protected:
 	GMatrix* m_pCentroids;
-	GMatrix* m_pData;
 	GMatrix* m_pWeights;
 	double m_fuzzifier;
 	size_t m_reps;
@@ -222,10 +220,10 @@ public:
 
 	/// Assigns each row to partial membership in each cluster, as measured
 	/// with the dissimilarity metric. Returns the weighted-sum-distance of each row with the centroids.
-	double recomputeWeights();
+	double recomputeWeights(GMatrix* pData);
 
 	/// Computes new centroids for each cluster.
-	void recomputeCentroids();
+	void recomputeCentroids(GMatrix* pData);
 
 	/// Returns a k x d matrix, where each row is one of the k centroids.
 	GMatrix* centroids() { return m_pCentroids; }
@@ -249,8 +247,8 @@ class GKMedoids : public GClusterer
 {
 protected:
 	size_t* m_pMedoids;
-	GMatrix* m_pData;
 	double m_d;
+	GMatrix* m_pData;
 
 public:
 	GKMedoids(size_t clusters);
@@ -263,7 +261,7 @@ public:
 	virtual size_t whichCluster(size_t nVector);
 
 protected:
-	double curErr();
+	double curErr(GMatrix* pData);
 };
 
 
@@ -273,8 +271,8 @@ class GKMedoidsSparse : public GSparseClusterer
 {
 protected:
 	size_t* m_pMedoids;
-	GSparseMatrix* m_pData;
 	double m_d;
+	GSparseMatrix* m_pData;
 
 public:
 	GKMedoidsSparse(size_t clusters);

@@ -29,6 +29,7 @@ endif
 CPP_FILES =\
 	main.cpp\
 	Gui.cpp\
+	GImagePng.cpp\
 	Manifold.cpp\
 
 ################

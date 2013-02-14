@@ -22,6 +22,7 @@
 #include <math.h>
 #include <exception>
 #include <iostream>
+#include "GImagePng.h"
 
 using namespace GClasses;
 using std::cerr;
@@ -95,7 +96,7 @@ public:
 		m_pDarkStrategy->setSelection(0);
 
 		m_pPieces = new GImage();
-		m_pPieces->loadPng("pieces.png");
+		loadPng(m_pPieces, "pieces.png");
 		m_pPieces->replaceColor(0xff00ff00, 0x00000000); // Change opaque green to translucent black
 		m_pMoveIterators = new GChessMoveIterator[MAX_DEPTH_EVER];
 		m_maxDepth = 6;

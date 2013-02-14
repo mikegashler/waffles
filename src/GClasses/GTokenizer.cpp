@@ -153,6 +153,24 @@ void GTokenizer::bufferChar(char c)
 	m_pBufPos++;
 }
 
+char* GTokenizer::nullTerminate()
+{
+	if(m_pBufPos == m_pBufEnd)
+		growBuf();
+	*m_pBufPos = '\0';
+	return m_pBufStart;
+}
+
+char* GTokenizer::appendToToken(const char* string)
+{
+	while(*string != '\0')
+	{
+		bufferChar(*string);
+		string++;
+	}
+	return nullTerminate();
+}
+
 char* GTokenizer::nextUntil(GCharSet& delimeters, size_t minLen)
 {
 	m_pBufPos = m_pBufStart;
@@ -165,11 +183,8 @@ char* GTokenizer::nextUntil(GCharSet& delimeters, size_t minLen)
 		bufferChar(c);
 	}
 	if((size_t)(m_pBufPos - m_pBufStart) < minLen)
-		throw Ex("Unexpected token on line ", to_str(m_line), ", col ", to_str(col()));
-	if(m_pBufPos == m_pBufEnd)
-		growBuf();
-	*m_pBufPos = '\0';
-	return m_pBufStart;
+		throw Ex("On line ", to_str(m_line), ", col ", to_str(col()), ", expected a token of at least size ", to_str(minLen), ", but got only ", to_str(m_pBufPos - m_pBufStart));
+	return nullTerminate();
 }
 
 char* GTokenizer::nextUntilNotEscaped(char escapeChar, GCharSet& delimeters)
@@ -185,10 +200,7 @@ char* GTokenizer::nextUntilNotEscaped(char escapeChar, GCharSet& delimeters)
 		bufferChar(c);
 		cCur = c;
 	}
-	if(m_pBufPos == m_pBufEnd)
-		growBuf();
-	*m_pBufPos = '\0';
-	return m_pBufStart;
+	return nullTerminate();
 }
 
 char* GTokenizer::nextWhile(GCharSet& set, size_t minLen)
@@ -204,10 +216,7 @@ char* GTokenizer::nextWhile(GCharSet& set, size_t minLen)
 	}
 	if((size_t)(m_pBufPos - m_pBufStart) < minLen)
 		throw Ex("Unexpected token on line ", to_str(m_line), ", col ", to_str(col()));
-	if(m_pBufPos == m_pBufEnd)
-		growBuf();
-	*m_pBufPos = '\0';
-	return m_pBufStart;
+	return nullTerminate();
 }
 
 void GTokenizer::skip(GCharSet& delimeters)
@@ -289,14 +298,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 		}
 	}
 
-	if(m_pBufPos == m_pBufEnd)
-	{
-		growBuf();
-	}
-	*m_pBufPos = '\0';
-
-	//	std::cerr << "nextArg: '" << m_pBufStart << "'\n"; //DEBUG
-	return m_pBufStart;
+	return nullTerminate();
 }
 
 void GTokenizer::advance(size_t n)

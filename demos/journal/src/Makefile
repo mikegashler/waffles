@@ -28,6 +28,7 @@ endif
 
 CPP_FILES =\
 	main.cpp\
+	GImagePng.cpp\
 
 ################
 # Lists

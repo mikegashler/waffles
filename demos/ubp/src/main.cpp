@@ -114,6 +114,7 @@ public:
 
 	void update()
 	{
+		double inputGradient[2];
 		double* pSpotlightTarget = m_tar.row(m_nextSpotlight);
 		double* pSpotlightContext = m_context.row(m_nextSpotlight);
 		m_nn.forwardProp(pSpotlightContext);
@@ -148,10 +149,9 @@ public:
 				pBP->backpropagate();
 				activeCount++;
 				maxBelowThresh = std::max(maxBelowThresh, err);
+				pBP->gradientOfInputs(inputGradient);
 				pBP->descendGradient(pContext, m_nn.learningRate(), 0.0, false);
-				pBP->adjustFeatures(pContext, m_nn.learningRate(), 0, false);
-//				GVec::capValues(pContext, 1.0, 2);
-//				GVec::floorValues(pContext, 0.0, 2);
+				GVec::addScaled(pContext, -m_nn.learningRate(), inputGradient, 2);
 
 				// See if we can improve the spotlight point
 				double sse = m_nn.sumSquaredPredictionError(pTar);
@@ -282,13 +282,16 @@ public:
 	{
 		m_pCamera = new GCamera(pImage->width(), pImage->height());
 		m_pCamera->setViewAngle(M_PI / 3);
-		m_centroid.m_vals[0] = pDataTar->mean(0);
-		m_centroid.m_vals[1] = pDataTar->mean(1);
-		m_centroid.m_vals[2] = pDataTar->mean(2);
+		m_centroid.m_vals[0] = pDataTar->columnMean(0);
+		m_centroid.m_vals[1] = pDataTar->columnMean(1);
+		m_centroid.m_vals[2] = pDataTar->columnMean(2);
 		G3DVector min, max, range;
-		pDataTar->minAndRangeUnbiased(0, &min.m_vals[0], &range.m_vals[0]);
-		pDataTar->minAndRangeUnbiased(1, &min.m_vals[1], &range.m_vals[1]);
-		pDataTar->minAndRangeUnbiased(2, &min.m_vals[2], &range.m_vals[2]);
+		min.m_vals[0] = pDataTar->columnMin(0);
+		range.m_vals[0] = pDataTar->columnMax(0) - min.m_vals[0];
+		min.m_vals[1] = pDataTar->columnMin(1);
+		range.m_vals[1] = pDataTar->columnMax(1) - min.m_vals[1];
+		min.m_vals[2] = pDataTar->columnMin(2);
+		range.m_vals[2] = pDataTar->columnMax(2) - min.m_vals[2];
 		max.copy(&range);
 		max.add(&min);
 		updateCameraDirection();

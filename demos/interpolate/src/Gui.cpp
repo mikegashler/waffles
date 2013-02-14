@@ -318,17 +318,6 @@ ControllerBase::~ControllerBase()
 {
 }
 
-GImage* LoadHardImage(const char* pHex)
-{
-	int nLen = strlen(pHex);
-	unsigned char* pBin = new unsigned char[nLen / 2];
-	ArrayHolder<unsigned char> hBin(pBin);
-	GBits::hexToBuffer(pHex, nLen, pBin);
-	GImage* pImage = new GImage();
-	pImage->loadPng(pBin, nLen / 2);
-	return pImage;
-}
-
 #ifndef NOGUI
 bool ControllerBase::handleEvents(double dTimeDelta)
 {

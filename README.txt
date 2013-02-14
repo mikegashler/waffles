@@ -18,15 +18,6 @@ Build Instructions:
 		To build demo apps and additional tools:
 			see web/docs.html
 
-		If you also want to build the demo apps:
-		4- Install the following dependency packages:
-			libpng12-dev ( libpng-devel )
-			libsdl1.2-dev ( SDL-devel )
-			freeglut3-dev ( freeglut-devel )
-			libx11-dev ( libX11-devel )
-		5- cd ../demos
-		6- make opt
-
 	Windows:
 		1- Install Microsoft Visual C++ 2010 Express Edition.
 		2- File->Open->Project/Solution
@@ -49,16 +40,11 @@ Build Instructions:
 		2- Install the following packages.
 			g++
 			make
-			libpng3-dev
 		3- cd waffles/src
 		4- make opt
 
-		If you also want to build the demo apps:
-		5- Install the following dependency packages:
-			libsdl1.2-dev
-			freeglut3-dev
-		6- cd ../demos
-		7- make opt
+		To build demo apps and additional tools:
+			see web/docs.html
 
 For more detailed instructions, troubleshooting help, an overview of this
 toolkit, and instructions for using it, see web/docs.html.

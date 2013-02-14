@@ -39,6 +39,7 @@
 #include <set>
 #include <sstream>
 #include <cmath>
+#include "GImagePng.h"
 
 using namespace GClasses;
 using std::cout;
@@ -1294,7 +1295,7 @@ void ViewNewAccount::MakeCaptcha(const char* szID, ostream& response)
 	// Make the captcha
 	GImage image;
 	image.captcha(szText, m_pServer->prng());
-	image.savePng(szTemp);
+	savePng(&image, szTemp);
 	m_pServer->sendFile("image/png", szTemp, response);
 	DeleteFile(szTemp);
 }

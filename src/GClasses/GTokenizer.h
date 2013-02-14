@@ -46,9 +46,26 @@ public:
 };
 
 
+
+
 /// This is a simple tokenizer that reads a file, one token at-a-time.
-/// (To implement a parser, it is common to make a class that inherrits from this
-/// one with several member variables of type GCharSet.)
+/// To use it, you should make a child class that defines several character sets. Example:
+///
+/// class MyTokenizer : public GTokenizer
+/// {
+/// public:
+/// 	GCharSet m_whitespace, m_alphanum, m_float, m_commanewline;
+/// 
+/// 	MyTokenizer(const char* szFilename) : GTokenizer(szFilename),
+/// 		m_whitespace("\t\n\r "),
+/// 		m_alphanum("a-zA-Z0-9"),
+/// 		m_float("-.,0-9e"),
+/// 		m_commanewline(",\n")
+/// 		{}
+/// 
+/// 	virtual ~MyTokenizer() {}
+/// };
+/// 
 class GTokenizer
 {
 protected:
@@ -77,6 +94,10 @@ public:
 	/// is mostly used for parsing text files, and that character should not
 	/// occur in a text file.)
 	char peek();
+
+	/// Appends a string to the current token (without modifying the file), and returns
+	/// the full modified token.
+	char* appendToToken(const char* string);
 
 	/// Reads until the next character would be one of the specified delimeters.
 	/// The delimeter character is not read. Throws an exception if fewer than
@@ -179,6 +200,7 @@ protected:
 	void growBuf();
 	char get();
 	void bufferChar(char c);
+	char* nullTerminate();
 };
 
 } // namespace GClasses

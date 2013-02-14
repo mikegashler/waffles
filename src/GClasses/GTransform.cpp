@@ -1350,9 +1350,17 @@ sp_relation GNormalize::trainInner(GMatrix& data)
 		if(m_pRelationBefore->valueCount(i) == 0)
 		{
 			m_pMins[i] = data.columnMin(i);
-			m_pRanges[i] = data.columnMax(i) - m_pMins[i];
-			if(m_pRanges[i] < 1e-12)
+			if(m_pMins[i] >= 1e300)
+			{
+				m_pMins[i] = 0.0;
 				m_pRanges[i] = 1.0;
+			}
+			else
+			{
+				m_pRanges[i] = data.columnMax(i) - m_pMins[i];
+				if(m_pRanges[i] < 1e-12)
+					m_pRanges[i] = 1.0;
+			}
 		}
 		else
 		{
@@ -1411,6 +1419,7 @@ void GNormalize::untransform(const double* pIn, double* pOut)
 		}
 		else
 			*pOut = *pIn;
+GAssert(*pOut < 1e200);
 		pOut++;
 		pIn++;
 		pMins++;

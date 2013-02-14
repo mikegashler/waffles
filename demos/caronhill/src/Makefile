@@ -30,6 +30,7 @@ endif
 CPP_FILES =\
 	main.cpp\
 	CarOnHill.cpp\
+	GImagePng.cpp\
 	Gui.cpp\
 
 ################

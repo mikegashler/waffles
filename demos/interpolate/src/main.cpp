@@ -28,6 +28,7 @@
 #include <GClasses/GWidgets.h>
 #include <GClasses/GThread.h>
 #include "Gui.h"
+#include "GImagePng.h"
 #include <exception>
 #include <iostream>
 #ifdef WINDOWS
@@ -83,7 +84,7 @@ public:
 		m_pRand = new GRand(0);
 		m_pImageSmall = new GImage();
 #ifdef USE_IMAGE
-		m_pImageSmall->loadPng("input.png");
+		loadPng(m_pImageSmall, "input.png");
 #else
 		m_pImageSmall->setSize(50, 50);
 		m_pImageSmall->clear(0xffff8080);
