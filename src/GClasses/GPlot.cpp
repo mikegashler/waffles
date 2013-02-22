@@ -359,7 +359,14 @@ GImage* GPlotWindow::labelAxes(int maxHorizAxisLabels, int maxVertAxisLabels, in
 
 
 
-
+std::string svg_to_str(double d)
+{
+	std::ostringstream os;
+	os.setf(std::ios::fixed);
+	//os.precision(6);
+	os << d;
+	return os.str();
+}
 
 
 #define BOGUS_XMIN -1e308
@@ -403,10 +410,10 @@ void GSVG::newChart(double xmin, double ymin, double xmax, double ymax, size_t h
 	m_ymin = ymin;
 	m_xmax = xmax;
 	m_ymax = ymax;
-	m_ss << "<defs><clipPath id=\"chart" << to_str(hPos) << "-" << to_str(vPos) << "\"><rect x=\"" << to_str(xmin) << "\" y=\"" << to_str(ymin) << "\" width=\"" << to_str(xmax - xmin) << "\" height=\"" << to_str(ymax - ymin) << "\" /></clipPath></defs>\n";
-	m_ss << "<g transform=\"translate(" << to_str(chartWidth * hPos + margin) << " "
-		<< to_str(chartHeight * (vPos + 1) - margin) << ") scale(" << to_str((chartWidth - margin) / (xmax - xmin)) <<
-		" " << to_str(-(chartHeight - margin) / (ymax - ymin)) << ") translate(" << to_str(-xmin) << " " << to_str(-ymin) << ")\""
+	m_ss << "<defs><clipPath id=\"chart" << to_str(hPos) << "-" << to_str(vPos) << "\"><rect x=\"" << svg_to_str(xmin) << "\" y=\"" << svg_to_str(ymin) << "\" width=\"" << svg_to_str(xmax - xmin) << "\" height=\"" << svg_to_str(ymax - ymin) << "\" /></clipPath></defs>\n";
+	m_ss << "<g transform=\"translate(" << svg_to_str(chartWidth * hPos + margin) << " "
+		<< svg_to_str(chartHeight * (vPos + 1) - margin) << ") scale(" << svg_to_str((chartWidth - margin) / (xmax - xmin)) <<
+		" " << svg_to_str(-(chartHeight - margin) / (ymax - ymin)) << ") translate(" << svg_to_str(-xmin) << " " << svg_to_str(-ymin) << ")\""
 		<< ">\n";
 }
 
@@ -430,23 +437,23 @@ void GSVG::color(unsigned int c)
 
 void GSVG::dot(double x, double y, double r, unsigned int col)
 {
-	m_ss << "<ellipse cx=\"" << to_str(x) << "\" cy=\"" << to_str(y) << "\" rx=\"" << to_str(r * 4 * m_hunit) << "\" ry=\"" << to_str(r * 4 * m_vunit) << "\" fill=\"";
+	m_ss << "<ellipse cx=\"" << svg_to_str(x) << "\" cy=\"" << svg_to_str(y) << "\" rx=\"" << svg_to_str(r * 4 * m_hunit) << "\" ry=\"" << svg_to_str(r * 4 * m_vunit) << "\" fill=\"";
 	color(col);
 	m_ss << "\" />\n";
 }
 
 void GSVG::line(double x1, double y1, double x2, double y2, double thickness, unsigned int col)
 {
-	m_ss << "<line x1=\"" << to_str(x1) << "\" y1=\"" << to_str(y1) << "\" x2=\"" << to_str(x2) << "\" y2=\"" << to_str(y2) << "\" style=\"stroke:";
+	m_ss << "<line x1=\"" << svg_to_str(x1) << "\" y1=\"" << svg_to_str(y1) << "\" x2=\"" << svg_to_str(x2) << "\" y2=\"" << svg_to_str(y2) << "\" style=\"stroke:";
 	color(col);
 	double l = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 	double w = thickness * (std::abs(x2 - x1) * m_vunit + std::abs(y2 - y1) * m_hunit) / l;
-	m_ss << ";stroke-width:" << to_str(w) << "\"/>\n";
+	m_ss << ";stroke-width:" << svg_to_str(w) << "\"/>\n";
 }
 
 void GSVG::rect(double x, double y, double w, double h, unsigned int col)
 {
-	m_ss << "<rect x=\"" << to_str(x) << "\" y=\"" << to_str(y) << "\" width=\"" << to_str(w) << "\" height=\"" << to_str(h) << "\" style=\"fill:";
+	m_ss << "<rect x=\"" << svg_to_str(x) << "\" y=\"" << svg_to_str(y) << "\" width=\"" << svg_to_str(w) << "\" height=\"" << svg_to_str(h) << "\" style=\"fill:";
 	color(col);
 	m_ss << "\"/>\n";
 }
@@ -455,14 +462,14 @@ void GSVG::text(double x, double y, const char* szText, double size, Anchor eAnc
 {
 	double xx = x / (m_hunit * size);
 	double yy = -y / (m_vunit * size);
-	m_ss << "<text x=\"" << to_str(xx) << "\" y=\"" << to_str(yy) << "\" style=\"fill:";
+	m_ss << "<text x=\"" << svg_to_str(xx) << "\" y=\"" << svg_to_str(yy) << "\" style=\"fill:";
 	color(col);
 	if(!serifs)
 		m_ss << ";font-family:Sans";
 	m_ss << "\" transform=\"";
-	m_ss << "scale(" << to_str(size * m_hunit) << " " << to_str(-size * m_vunit) << ")";
+	m_ss << "scale(" << svg_to_str(size * m_hunit) << " " << svg_to_str(-size * m_vunit) << ")";
 	if(angle != 0.0)
-		m_ss << " rotate(" << to_str(-angle) << " " << to_str(xx) << " " << to_str(yy) << ")";
+		m_ss << " rotate(" << svg_to_str(-angle) << " " << svg_to_str(xx) << " " << svg_to_str(yy) << ")";
 	m_ss << "\"";
 	if(eAnchor == Middle)
 		m_ss << " text-anchor=\"middle\"";
