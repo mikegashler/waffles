@@ -2420,7 +2420,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		for(size_t i = 0; i < batches; i++)
 		{
 			double sse = 0;
-			for(size_t j = 0; j < 1000 * batchSize; j++) // A batch is like an epoch. It visits each sample row an average of once.
+			for(size_t j = 0; j < 200 * batchSize; j++)
 			{
 				// Pick a row
 				size_t r = (size_t)m_pRand->next(in.rows());

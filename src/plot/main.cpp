@@ -762,15 +762,20 @@ public:
 			{
 				x = attrVal(pData, i, m_attrX);
 				y = attrVal(pData, i, m_attrY);
-				if(m_type == Row)
-					m_color = gAHSV(0xff, i / colorRange, 1.0f, 0.5f);
+				size_t col = 0;
+				if(m_type == Fixed)
+					col = m_color;
+				else if(m_type == Row)
+					col = gAHSV(0xff, i / colorRange, 1.0f, 0.5f);
 				else if(m_type == Attr)
-					m_color = gAHSV(0xff, (pData->row(i)[m_color] - colorMin) / colorRange, 1.0f, 0.5f);
+					col = gAHSV(0xff, (pData->row(i)[m_color] - colorMin) / colorRange, 1.0f, 0.5f);
+				else
+					throw Ex("Unrecognized type");
 				if(x != UNKNOWN_REAL_VALUE && y != UNKNOWN_REAL_VALUE)
 				{
 					if(m_thickness > 0.0 && xPrev != UNKNOWN_REAL_VALUE && yPrev != UNKNOWN_REAL_VALUE)
-						svg.line(xPrev, yPrev, x, y, m_thickness, m_color);
-					svg.dot(x, y, m_radius, m_color);
+						svg.line(xPrev, yPrev, x, y, m_thickness, col);
+					svg.dot(x, y, m_radius, col);
 				}
 				xPrev = x;
 				yPrev = y;

@@ -1547,6 +1547,10 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-range [min] [max]", "Specify the output min and max values. (The default is 0 1.)");
 	}
 	{
+		UsageNode* pNorm = pRoot->add("normalizemagnitude [dataset]", "Normalize the magnitude of each row-vector to 1.");
+		pNorm->add("[dataset]=data.arff", "The filename of a dataset");
+	}
+	{
 		UsageNode* pNomToCat = pRoot->add("nominaltocat [dataset] <options>", "Convert all nominal attributes in the data to vectors of real values by representing them as a categorical distribution. Columns with only two nominal values are "
 											"converted to 0 or 1. If there are three or more possible values, a column is created for each value. The column corresponding to the value is set to 1, and the others are set to 0. (This is similar to Weka's NominalToBinaryFilter.)");
 		pNomToCat->add("[dataset]=data.arff", "The filename of a dataset");

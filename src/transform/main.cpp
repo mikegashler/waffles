@@ -1105,6 +1105,17 @@ void normalize(GArgReader& args)
 	pOut->print(cout);
 }
 
+void normalizeMagnitude(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	GRand rand(0);
+	size_t cols = pData->cols();
+	for(size_t i = 0; i < pData->rows(); i++)
+		GVec::safeNormalize(pData->row(i), cols, &rand);
+	pData->print(cout);
+}
+
 void neighbors(GArgReader& args)
 {
 	// Load the data
@@ -1987,6 +1998,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("multiplyscalar")) multiplyScalar(args);
 		else if(args.if_pop("nominaltocat")) nominalToCat(args);
 		else if(args.if_pop("normalize")) normalize(args);
+		else if(args.if_pop("normalizemagnitude")) normalizeMagnitude(args);
 		else if(args.if_pop("neighbors")) neighbors(args);
 		else if(args.if_pop("obfuscate")) obfuscate(args);
 		else if(args.if_pop("overlay")) overlay(args);
