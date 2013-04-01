@@ -111,7 +111,7 @@ void GRelation::printAttrName(std::ostream& stream, size_t column) const
 }
 
 // virtual
-void GRelation::printAttrValue(ostream& stream, size_t column, double value) const
+void GRelation::printAttrValue(ostream& stream, size_t column, double value, const char* missing) const
 {
 	size_t valCount = valueCount(column);
 	if(valCount == 0)
@@ -155,19 +155,19 @@ bool GRelation::isCompatible(const GRelation& that) const
 	return true;
 }
 
-void GRelation::printRow(ostream& stream, const double* pRow, const char* separator) const
+void GRelation::printRow(ostream& stream, const double* pRow, const char* separator, const char* missing) const
 {
 	size_t j = 0;
 	if(j < size())
 	{
-		printAttrValue(stream, j, *pRow);
+		printAttrValue(stream, j, *pRow, missing);
 		pRow++;
 		j++;
 	}
 	for(; j < size(); j++)
 	{
 		stream << separator;
-		printAttrValue(stream, j, *pRow);
+		printAttrValue(stream, j, *pRow, missing);
 		pRow++;
 	}
 	stream << "\n";
@@ -279,37 +279,6 @@ void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precis
 //static
 void GRelation::test()
 {
-	typedef std::string s;
-	TestEqual
-		("the",quote("the"),
-		 "GRelation::quote gets (the) wrong");								
-
-	TestEqual("'the rain'", quote("the rain"),
-							"GRelation::quote gets (the rain) wrong");
-
-	TestEqual("the\\ rain\\'s\\ \\\\mom",
-							quote("the rain's \\mom"),
-							"GRelation::quote gets 'the rain's \\mom' wrong");
-
-	TestEqual("'%'", quote("%"), "GRelation::quote gets (%) wrong");
-
-	TestEqual("','", quote(","), "GRelation::quote gets (,) wrong");
-
-	TestEqual("' '", quote(" "), "GRelation::quote gets ( ) wrong");
-
-	TestEqual("\\'", quote("'"), "GRelation::quote gets (') wrong");
-
-	TestEqual("'\\'", quote("\\"), "GRelation::quote gets (\\) wrong");
-
-	TestEqual("'\"'", quote("\""), "GRelation::quote gets (\") wrong");
-
-	TestEqual("Dow\\'s\\ rise\\ (\\%)",
-							quote("Dow's rise (%)"),
-							"GRelation::quote gets 'Dow's rise (%)' wrong");
-
-	TestEqual("\\\"Rise\\'\\\"\\,\\\"Run\\'\\\"",
-							quote("\"Rise'\",\"Run'\""),
-							"GRelation::quote gets '\"Rise'\",\"Run'\"' wrong");
 }
 #endif // MIN_PREDICT
 
@@ -683,24 +652,6 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 			char* szVal = tok.trim(tok.m_whitespace);
 			if(*szVal == '\0')
 				throw Ex("Empty value specified on line ", to_str(tok.line()));
-			if(*szVal == '\'')
-			{
-				size_t len = strlen(szVal);
-				if(len > 1 && szVal[len - 1] == '\'')
-				{
-					szVal[len - 1] = '\0';
-					szVal++;
-				}
-			}
-			else if(*szVal == '"')
-			{
-				size_t len = strlen(szVal);
-				if(len > 1 && szVal[len - 1] == '"')
-				{
-					szVal[len - 1] = '\0';
-					szVal++;
-				}
-			}
 			m_attrs[index].m_values.push_back(szVal);
 			char c = tok.peek();
 			if(c == ',')
@@ -745,57 +696,17 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 // virtual
 void GArffRelation::printAttrName(std::ostream& stream, size_t column) const
 {
-	stream << GRelation::quote(attrName(column));
+	stream << attrName(column);
 }
-
-// static
-std::string GRelation::quote(const std::string aString){
-	typedef std::string::const_iterator iter;
-
-	//If the string has no bad characters, just return a copy
-	std::size_t firstBad = aString.find_first_of(",' %\\\"");
-	std::string ret(aString);
-	if(firstBad == string::npos){
-		return ret;
-	}
-
-	//The string has bad characters, start over
-	ret.clear();
-
-	//If the string has no apostrophes, just quote it with single quotes
-	std::size_t firstApostrophe = aString.find_first_of('\'');
-	if(firstApostrophe == string::npos){
-		ret.push_back('\'');
-		ret.append(aString);
-		ret.push_back('\'');
-		return ret;
-	}
-
-
-	//Otherwise, use backslash to quote every character
-	ret.reserve(2*aString.size());
-	for(iter c=aString.begin();c != aString.end(); ++c)
-	{
-		if(*c == ','  || *c == '\'' ||
-			 *c == ' '  || *c == '%' ||
-			 *c == '\\' || *c == '"')
-		{
-			ret.push_back('\\');
-		}
-		ret.push_back(*c);
-	}
-	return ret;
-}
-
 
 // virtual
-void GArffRelation::printAttrValue(ostream& stream, size_t column, double value) const
+void GArffRelation::printAttrValue(ostream& stream, size_t column, double value, const char* missing) const
 {
 	size_t valCount = valueCount(column);
 	if(valCount == 0)
 	{
 		if(value == UNKNOWN_REAL_VALUE)
-			stream << "?";
+			stream << missing;
 		else
 			stream << value;
 	}
@@ -803,11 +714,11 @@ void GArffRelation::printAttrValue(ostream& stream, size_t column, double value)
 	{
 		int val = (int)value;
 		if(val < 0)
-			stream << "?";
+			stream << missing;
 		else if(val >= (int)valCount)
 			throw Ex("value out of range");
 		else if(m_attrs[column].m_values.size() > 0)
-			stream << GRelation::quote(m_attrs[column].m_values[val]);
+			stream << m_attrs[column].m_values[val];
 		else if(val < 26)
 		{
 			char tmp[2];
@@ -854,6 +765,17 @@ bool GArffRelation::isCompatible(const GRelation& that) const
 		return GRelation::isCompatible(that);
 }
 
+string stripQuotes(string& s)
+{
+	if(s.length() < 2)
+		return s;
+	if(s[0] == '"' && s[s.length() - 1] == '"')
+		return s.substr(1, s.length() - 2);
+	if(s[0] == '\'' && s[s.length() - 1] == '\'')
+		return s.substr(1, s.length() - 2);
+	return s;
+}
+
 int GArffRelation::findEnumeratedValue(size_t nAttr, const char* szValue) const
 {
 	size_t nValueCount = valueCount(nAttr);
@@ -861,10 +783,28 @@ int GArffRelation::findEnumeratedValue(size_t nAttr, const char* szValue) const
 	if(nValueCount > actualValCount)
 		throw Ex("some values have no names");
 	size_t i;
+	bool quotedCand = false;
 	for(i = 0; i < nValueCount; i++)
 	{
-		if(_stricmp(m_attrs[nAttr].m_values[i].c_str(), szValue) == 0)
+		const char* szCand = m_attrs[nAttr].m_values[i].c_str();
+		if(_stricmp(szCand, szValue) == 0)
 			return (int)i;
+		if(*szCand == '"' || *szCand == '\'')
+			quotedCand = true;
+	}
+	if(quotedCand || *szValue == '"' || *szValue == '\'')
+	{
+		string sValue = szValue;
+		if(sValue.length() > 0 && (sValue[0] == '"' || sValue[0] == '\''))
+			sValue = stripQuotes(sValue);
+		for(i = 0; i < nValueCount; i++)
+		{
+			string sCand = m_attrs[nAttr].m_values[i].c_str();
+			if(sCand.length() > 0 && (sCand[0] == '"' || sCand[0] == '\''))
+				sCand = stripQuotes(sCand);
+			if(sCand.compare(sValue) == 0)
+				return (int)i;
+		}
 	}
 	return UNKNOWN_DISCRETE_VALUE;
 }
@@ -1299,7 +1239,7 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 			break;
 
 		// Count the elements
-		if(elementCount == (size_t)-1)
+		if(elementCount == (size_t)-1 && (!columnNamesInFirstRow || nLine > 1))
 		{
 			if(separator == '\0')
 			{
@@ -1322,9 +1262,25 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 				// Elements are separated by the specified character
 				nFirstDataLine = nLine;
 				elementCount = 1;
+				bool quo = false;
+				bool quoquo = false;
 				for(size_t i = 0; pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
 				{
-					if(pFile[nPos + i] == separator)
+					if(quoquo)
+					{
+						if(pFile[nPos + i] == '"')
+							quoquo = false;
+					}
+					else if(quo)
+					{
+						if(pFile[nPos + i] == '\'')
+							quo = false;
+					}
+					else if(pFile[nPos + i] == '"')
+						quoquo = true;
+					else if(pFile[nPos + i] == '\'')
+						quo = true;
+					else if(pFile[nPos + i] == separator)
 						elementCount++;
 				}
 			}
@@ -1358,8 +1314,26 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 			}
 			else
 			{
-				for(i = 0; pFile[nPos + i] != separator && pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
+				bool quo = false;
+				bool quoquo = false;
+				for(i = 0; pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
 				{
+					if(quoquo)
+					{
+						if(pFile[nPos + i] == '"')
+							quoquo = false;
+					}
+					else if(quo)
+					{
+						if(pFile[nPos + i] == '\'')
+							quo = false;
+					}
+					else if(pFile[nPos + i] == '"')
+						quoquo = true;
+					else if(pFile[nPos + i] == '\'')
+						quo = true;
+					else if(pFile[nPos + i] == separator)
+						break;
 				}
 				for(l = i; l > 0 && pFile[nPos + l - 1] <= ' '; l--)
 				{
@@ -1375,8 +1349,11 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 		}
 		if(tolerant)
 		{
-			while(row.m_elements.size() < elementCount)
-				row.m_elements.push_back("");
+			if(!columnNamesInFirstRow || nLine > 1)
+			{
+				while(row.m_elements.size() < elementCount)
+					row.m_elements.push_back("?");
+			}
 		}
 		else
 		{
@@ -1389,6 +1366,12 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 		{
 		}
 		continue;
+	}
+	if(columnNamesInFirstRow && tolerant)
+	{
+		ImportRow& row = rows[0];
+		while(row.m_elements.size() < elementCount)
+			row.m_elements.push_back("attr");
 	}
 
 	// Parse it all
@@ -4151,13 +4134,14 @@ void GMatrix_testParsing()
 	"\n"
 	"@ATTRIBUTE 'attr 1' { 'y' , n } \n"
 	"@attribute attr_2 continuous\n"
-	"@attribute attr3 REAL\n"
+	"@Attribute attr3 REAL\n"
 	"\n"
 	"@data\n"
 	" 'y' , 3 , -1.5e-2 \n"
-	"\"n\" , 0.1, 1\n"
+	"n , 0.1, 1\n"
 	"\n"
-	"y,,99 \n"
+	" % Here is another comment\n"
+	"'y',,99 \n"
 	",,\n"
 	"?,?,?";
 	GMatrix* pM = GMatrix::parseArff(file, strlen(file));

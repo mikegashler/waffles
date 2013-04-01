@@ -243,35 +243,53 @@ void GTokenizer::skipTo(GCharSet& delimeters)
 
 char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 {
+	m_pBufPos = m_pBufStart;
 	char c = m_pStream->peek();
 	if(c == '"')
 	{
-		GCharSet cs("\"\n");
+		bufferChar('"');
 		advance(1);
-		nextUntil(cs);
+		GCharSet cs("\"\n");
+		while(m_len > 0)
+		{
+			char c = m_pStream->peek();
+			if(cs.find(c))
+				break;
+			c = get();
+			bufferChar(c);
+		}
 		if(peek() != '"')
 			throw Ex("Expected matching double-quotes on line ", 
 								 to_str(m_line), ", col ", to_str(col()));
+		bufferChar('"');
 		advance(1);
 		while(!delimiters.find(m_pStream->peek()))
 			advance(1);
-		return m_pBufStart;
+		return nullTerminate();
 	}
 	else if(c == '\'')
 	{
+		bufferChar('\'');
 		advance(1);
 		GCharSet cs("'\n");
-		nextUntil(cs);
+		while(m_len > 0)
+		{
+			char c = m_pStream->peek();
+			if(cs.find(c))
+				break;
+			c = get();
+			bufferChar(c);
+		}
 		if(peek() != '\'')
 			throw Ex("Expected a matching single-quote on line ", to_str(m_line), 
 								 ", col ", to_str(col()));
+		bufferChar('\'');
 		advance(1);
 		while(!delimiters.find(m_pStream->peek()))
 			advance(1);
-		return m_pBufStart;
+		return nullTerminate();
 	}
 
-	m_pBufPos = m_pBufStart;
 	bool inEscapeMode = false;
 	while(m_len > 0)
 	{

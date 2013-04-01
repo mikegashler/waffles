@@ -123,22 +123,22 @@ public:
 	/// \brief character.
 	///
 	/// Returns the next token delimited by the given delimiters.
-	/// (The default delimiters are white-space or {).
 	///
-	/// The token may include delimiters if it is enclosed in quotes or
+	/// The token may include delimiter characters if it is enclosed in quotes or
 	/// the delimiters are escaped.
 	///
 	/// If the next token begins with single or double quotes, then the
 	/// token will be delimited by the quotes. If a newline character or
 	/// the end-of-file is encountered before the matching quote, then
-	/// an exception is thrown.  The quotation marks are not included in
-	/// the token, but they are consumed by the operation.  The escape
-	/// character is ignored inside quotes - unlike what would happen in
-	/// C++.
+	/// an exception is thrown. The quotation marks are included in
+	/// the token.  The escape
+	/// character is ignored inside quotes (unlike what would happen in
+	/// C++).
 	///
-	/// If the first character of the token is not a quotation mark,
-	/// then the escape character is used.  If an escape character
-	/// preceeds any character, then it is included in the token.  The
+	/// If the first character of the token is not an apostrophe or quotation mark
+	/// then it attempts to use the escape character to escape any special characters.
+	/// That is, if the escape character appears, then the next character is
+	/// interpreted to be part of the token. The
 	/// escape character is consumed but not included in the token.
 	/// Thus, if the input is (The \\\\rain\\\\ in \\\"spain\\\") (not
 	/// including the parentheses) and the esapeChar is '\\', then the
@@ -146,7 +146,7 @@ public:
 	///
 	/// No token may extend over multiple lines, thus the new-line
 	/// character acts as an unescapable delimiter, no matter what set
-	/// of delimiters is passed to the function..
+	/// of delimiters is passed to the function.
 	///
 	///\param delimiters the set of delimiters used to separate tokens
 	///

@@ -100,7 +100,7 @@ public:
 	virtual void printAttrName(std::ostream& stream, size_t column) const;
 
 	/// \brief Prints the specified value to a stream
-	virtual void printAttrValue(std::ostream& stream, size_t column, double value) const;
+	virtual void printAttrValue(std::ostream& stream, size_t column, double value, const char* missing = "?") const;
 
 	/// \brief Returns the name of the attribute with index \a nAttr as
 	/// a standard string object or "" if the atribute has no name
@@ -116,7 +116,7 @@ public:
 	virtual bool isCompatible(const GRelation& that) const;
 
 	/// \brief Print a single row of data in ARFF format
-	void printRow(std::ostream& stream, const double* pRow, const char* separator) const;
+	void printRow(std::ostream& stream, const double* pRow, const char* separator, const char* missing = "?") const;
 
 	/// \brief Counts the size of the corresponding real-space vector
 	size_t countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount) const;
@@ -149,11 +149,6 @@ public:
 	static void test();
 #endif // !MIN_PREDICT
 
- protected:
-	/// \brief Returns a copy of aString modified to escape internal
-	/// instances of comma, apostrophe, space, percent, back-slash, and
-	/// double-quote
-	static std::string quote(const std::string aString);
 };
 
 typedef smart_ptr<GRelation> sp_relation;
@@ -353,7 +348,7 @@ public:
 	virtual void printAttrName(std::ostream& stream, size_t column) const;
 
 	/// \brief Prints the specified value to a stream
-	virtual void printAttrValue(std::ostream& stream, size_t column, double value) const;
+	virtual void printAttrValue(std::ostream& stream, size_t column, double value, const char* missing = "?") const;
 
 	/// \brief Returns true iff the attributes in both relations have
 	/// the same names, the same number of values, and the names of

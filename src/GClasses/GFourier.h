@@ -71,6 +71,30 @@ public:
 };
 
 
+
+/// Wavelet transform
+class GWavelet
+{
+protected:
+	double* m_pBuf;
+	size_t m_bufSize;
+
+public:
+	GWavelet();
+	~GWavelet();
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
+
+	void transform(double* x, size_t n);
+	void inverse(double* x, size_t n);
+
+protected:
+	double* getBuf(size_t n);
+
+};
+
 } // namespace GClasses
 
 #endif // __GFOURIER_H__

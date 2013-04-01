@@ -386,3 +386,186 @@ void GFourier::test()
 }
 
 #endif // NO_TEST_CODE
+
+
+GWavelet::GWavelet()
+: m_pBuf(NULL), m_bufSize(0)
+{
+}
+
+GWavelet::~GWavelet()
+{
+	delete[] m_pBuf;
+}
+
+double* GWavelet::getBuf(size_t n)
+{
+	if(m_bufSize < n)
+	{
+		delete[] m_pBuf;
+		m_pBuf = new double[n];
+	}
+	return m_pBuf;
+}
+
+void GWavelet::transform(double* x, size_t n)
+{
+  if(n < 2)
+    throw Ex("out of range");
+  double a;
+  size_t i;
+  // Predict 1
+  a=-1.586134342;
+  for (i=1;i+2<n;i+=2)
+  {
+    x[i]+=a*(x[i-1]+x[i+1]);
+  }
+  x[n-1]+=2*a*x[n-2];
+  // Update 1
+  a=-0.05298011854;
+  for (i=2;i<n;i+=2)
+  {
+    x[i]+=a*(x[i-1]+x[i+1]);
+  }
+  x[0]+=2*a*x[1];
+  // Predict 2
+  a=0.8829110762;
+  for (i=1;i+2<n;i+=2)
+  {
+    x[i]+=a*(x[i-1]+x[i+1]);
+  }
+  x[n-1]+=2*a*x[n-2];
+  // Update 2
+  a=0.4435068522;
+  for (i=2;i<n;i+=2)
+  {
+    x[i]+=a*(x[i-1]+x[i+1]);
+  }
+  x[0]+=2*a*x[1];
+  // Scale
+  a=1/1.149604398;
+  for (i=0;i<n;i++)
+  {
+    if (i%2) x[i]*=a;
+    else x[i]/=a;
+  }
+  // Pack
+  double* tempbank = getBuf(n);
+  for (i=0;i<n;i++)
+  {
+    if (i%2==0) tempbank[i/2]=x[i];
+    else tempbank[n/2+i/2]=x[i];
+  }
+  for (i=0;i<n;i++) x[i]=tempbank[i];
+}
+
+void GWavelet::inverse(double* x, size_t n)
+{
+  if(n < 2)
+    throw Ex("out of range");
+  double a;
+  size_t i;
+  // Unpack
+  double* tempbank = getBuf(n);
+  for (i=0;i<n/2;i++)
+  {
+    tempbank[i*2]=x[i];
+    tempbank[i*2+1]=x[i+n/2];
+  }
+  for (i=0;i<n;i++) x[i]=tempbank[i];
+  // Undo scale
+  a=1.149604398;
+  for (i=0;i<n;i++)
+  {
+    if (i%2) x[i]*=a;
+    else x[i]/=a;
+  }
+  // Undo update 2
+  a=-0.4435068522;
+  for (i=2;i<n;i+=2)
+  {
+    x[i]+=a*(x[i-1]+x[i+1]);
+  }
+  x[0]+=2*a*x[1];
+  // Undo predict 2
+  a=-0.8829110762;
+  for (i=1;i+2<n;i+=2)
+  {
+    x[i]+=a*(x[i-1]+x[i+1]);
+  }
+  x[n-1]+=2*a*x[n-2];
+  // Undo update 1
+  a=0.05298011854;
+  for (i=2;i<n;i+=2)
+  {
+    x[i]+=a*(x[i-1]+x[i+1]);
+  }
+  x[0]+=2*a*x[1];
+  // Undo predict 1
+  a=1.586134342;
+  for (i=1;i+2<n;i+=2)
+  {
+    x[i]+=a*(x[i-1]+x[i+1]);
+  }
+  x[n-1]+=2*a*x[n-2];
+}
+
+#ifndef NO_TEST_CODE
+#include "GMatrix.h"
+// static
+void GWavelet::test()
+{
+	GImage im;
+	im.loadPgm("/home/mike/tmp/mike.pgm");
+	GMatrix m(im.height(), im.width());
+	GWavelet w;
+	for(size_t y = 0; y < im.height(); y++)
+	{
+		double* pRow = m[y];
+		double* pR = pRow;
+		for(size_t x = 0; x < im.width(); x++)
+		{
+			*pR = gGreen(im.pixel(x, y));
+			pR++;
+		}
+		w.transform(pRow, im.width());
+	}
+	GMatrix* pT = m.transpose();
+	Holder<GMatrix> hT(pT);
+	for(size_t x = 0; x < im.width(); x++)
+	{
+		double* pRow = pT->row(x);
+		w.transform(pRow, im.height());
+		double* pR = pRow;
+		for(size_t y = 0; y < im.height(); y++)
+		{
+			im.setPixel(x, y, gARGB(0xff, ClipChan(*pR), ClipChan(*pR), ClipChan(*pR)));
+			pR++;
+		}
+	}
+	im.savePgm("/home/mike/tmp/mike2.pgm");
+
+	// Now do the inverse transform
+	GMatrix* pM = pT->transpose();
+	Holder<GMatrix> hM(pM);
+	for(size_t y = 0; y < im.height(); y++)
+	{
+		double* pRow = pM->row(y);
+		w.inverse(pRow, im.width());
+	}
+	GMatrix* pTT = pM->transpose();
+	Holder<GMatrix> hTT(pTT);
+	for(size_t x = 0; x < im.width(); x++)
+	{
+		double* pRow = pTT->row(x);
+		w.inverse(pRow, im.height());
+		double* pR = pRow;
+		for(size_t y = 0; y < im.height(); y++)
+		{
+			im.setPixel(x, y, gARGB(0xff, ClipChan(*pR), ClipChan(*pR), ClipChan(*pR)));
+			pR++;
+		}
+	}
+	im.savePgm("/home/mike/tmp/mike3.pgm");
+}
+#endif

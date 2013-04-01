@@ -1460,6 +1460,12 @@ UsageNode* makeTransformUsageTree()
 		pDropCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to drop. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	pRoot->add("drophomogcols [dataset]=data.arff", "Remove all columns that are homogeneous (have zero variance).");
+	{
+		UsageNode* pDITC = pRoot->add("dropiftooclose [dataset] [col] [gap]", "Drop each row if the value in the specified column is less than [gap] greater than that in the previous row.");
+		pDITC->add("[dataset]=data.arff", "The filename of a dataset.");
+		pDITC->add("[col]=0", "The column to evaluate.");
+		pDITC->add("[gap]=1.0", "The minimum gap between sequential values.");
+	}
 	pRoot->add("dropmissingvalues [dataset]=data.arff", "Remove all rows that contain missing values.");
 	{
 		UsageNode* pDRV = pRoot->add("droprandomvalues [dataset] [portion] <options>", "Drop random values from the specified dataset. The resulting dataset with missing values is printed to stdout.");
@@ -1475,6 +1481,8 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pEx->add("<options>");
 		pOpts->add("-tab", "Separate with tabs instead of commas.");
 		pOpts->add("-space", "Separate with spaces instead of commas.");
+		pOpts->add("-r", "Use \"NA\" instead of \"?\" for missing values. (This is the format used by R.)");
+		pOpts->add("-columnnames", "Print column names on the first row. (The default is to not print column names.)");
 	}
 	{
 		UsageNode* pDR = pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");

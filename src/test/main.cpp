@@ -659,7 +659,6 @@ void test_parsearff_quoting(){
       TestEqual(M[row][col], expected_data[row][col], errdescr.str());
     }
   }
-  TestEqual("squares of numbers", R.name(), "Incorrect relation name");
   TestEqual(true, R.areContinuous(0,2), 
 	      "First or second attribute is not continuous");
   TestEqual(true, R.areNominal(2,1), "Third attribute is not nominal");
@@ -672,12 +671,12 @@ void test_parsearff_quoting(){
 	       "First value of third attribute incorrect name");
    TestEqual("inexact",val1.str(),
 	       "Second value of third attribute incorrect name");
-   TestEqual("'is\\ exact'",val2.str(),
+   TestEqual("is\\ exact",val2.str(),
 	       "Third value of third attribute incorrect name");
   
 
-  TestEqual("the number",R.attrName(0),"First attribute incorrect name");
-  TestEqual("the square of the number",R.attrName(1),
+  TestEqual("'the number'",R.attrName(0),"First attribute incorrect name");
+  TestEqual("'the square of the number'",R.attrName(1),
 	      "Second attribute incorrect name");
   TestEqual("exact",R.attrName(2),"Third attribute incorrect name");
   

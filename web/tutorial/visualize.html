@@ -109,16 +109,40 @@ by a color (blue), followed by two attribute indexes (0 1). Example:</p>
 </pre>
 <center><img src="plot.svg"></center></p>
 
-<p>This tool can handle logarithmic scales, and a plethora of other useful options. To see all available options, take a look at the usage information.
+<p>If you don't want the lines connecting the dots, do:
+<pre>
+	waffles_plot scatter mydata.arff blue 0 1 <font color="red">-thickness 0</font> red 0 2 <font color="red">-thickness 0</font> &gt; plot.svg
+</pre><br>
+This tool can handle logarithmic scales, and a plethora of other useful options. To see all available options, take a look at the usage information.
 <pre>
 	waffles_plot scatter
 </pre></p>
 
+
+<h3>Precision/recall</h3>
+
+<p>As another example, let's make a precision/recall chart. We will use the diabetes dataset (which you can obtain at <a href="http://mldata.org">MLData.org</a>),
+and a naive Bayes classifier.</p>
+
+<p>Let's start by making a precision/recall graph using naive Bayes. We will use 10 reps to increase the stability of our results:</p>
+<pre>
+	waffles_learn precisionrecall -reps 10 diabetes.arff naivebayes > nb.arff
+</pre>
+
+<p>Now, let's plot this data:
+<pre>
+	waffles_plot scatter nb.arff -size 800 800 blue 0 1 red 0 2 > pr.svg
+</pre>
+
+It looks like this:<br>
+<center><img src="pr.svg"></center></p>
+
+<p>Note that all of these charts are in SVG format, so you can easily edit them with Inkscape, or the SVG editor of your choice. In this
+case, the labels on the vertical axis ran together, so I touched them up to make it look better.</p>
+
 <h3>etc.</h3>
 
 <p>There are a few other visualization techniques available. For a complete list, see the usage information for the waffles_plot tool.</p>
-
-
 
 
 <br>

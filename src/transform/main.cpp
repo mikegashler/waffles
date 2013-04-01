@@ -729,6 +729,31 @@ void dropRows(GArgReader& args)
 	pData->print(cout);
 }
 
+void dropIfTooClose(GArgReader& args)
+{
+	const char* szDataset = args.pop_string();
+	size_t col = args.pop_uint();
+	double minGap = args.pop_double();
+	GMatrix* pData = loadData(szDataset);
+	Holder<GMatrix> hData(pData);
+	{
+		GMatrix keep(pData->relation());
+		GReleaseDataHolder hKeep(&keep);
+		keep.takeRow(pData->row(0));
+		double* pLastKept = pData->row(0);
+		for(size_t i = 1; i < pData->rows(); i++)
+		{
+			double* pCand = pData->row(i);
+			if(pCand[col] - pLastKept[col] >= minGap)
+			{
+				keep.takeRow(pCand);
+				pLastKept = pCand;
+			}
+		}
+		keep.print(cout);
+	}
+}
+
 void dropUnusedValues(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -795,19 +820,38 @@ void Export(GArgReader& args)
 
 	// Parse options
 	const char* separator = ",";
+	const char* missing = "?";
+	bool colnames = false;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-tab"))
 			separator = "	";
 		else if(args.if_pop("-space"))
 			separator = " ";
+		else if(args.if_pop("-r"))
+			missing = "NA";
+		else if(args.if_pop("-columnnames"))
+			colnames = true;
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
 
-	// Print
+	// Print column names
+	if(colnames)
+	{
+		size_t c = pData->cols();
+		for(size_t i = 0; i < c; i++)
+		{
+			if(i > 0)
+				cout << separator;
+			pData->relation()->printAttrName(cout, i);
+		}
+		cout << "\n";
+	}
+
+	// Print data
 	for(size_t i = 0; i < pData->rows(); i++)
-		pData->relation()->printRow(cout, pData->row(i), separator);
+		pData->relation()->printRow(cout, pData->row(i), separator, missing);
 }
 
 void Import(GArgReader& args)
@@ -1982,6 +2026,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("discretize")) Discretize(args);
 		else if(args.if_pop("dropcolumns")) dropColumns(args);
 		else if(args.if_pop("drophomogcols")) dropHomogeneousCols(args);
+		else if(args.if_pop("dropiftooclose")) dropIfTooClose(args);
 		else if(args.if_pop("dropmissingvalues")) DropMissingValues(args);
 		else if(args.if_pop("droprandomvalues")) dropRandomValues(args);
 		else if(args.if_pop("droprows")) dropRows(args);
