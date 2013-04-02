@@ -570,7 +570,7 @@ void PlotEquation(GArgReader& args)
 			throw Ex("The function ", szFuncName, " takes ", to_str(pFunc->m_expectedParams), " parameters. Expected a function with 1 parameter");
 
 		// Plot it
-		unsigned int col = gAHSV(0xff, (i - 1) / 6.0, 1.0f, 0.5f);
+		unsigned int col = gAHSV(0xff, (i - 1) / 6.0f, 1.0f, 0.5f);
 		double dx = 2.0 * svg.hunit();
 		vector<double> params;
 		double x = xmin;
@@ -766,9 +766,9 @@ public:
 				if(m_type == Fixed)
 					col = m_color;
 				else if(m_type == Row)
-					col = gAHSV(0xff, i / colorRange, 1.0f, 0.5f);
+					col = gAHSV(0xff, i / (float)colorRange, 1.0f, 0.5f);
 				else if(m_type == Attr)
-					col = gAHSV(0xff, (pData->row(i)[m_color] - colorMin) / colorRange, 1.0f, 0.5f);
+					col = gAHSV(0xff, (pData->row(i)[m_color] - colorMin) / (float)colorRange, 1.0f, 0.5f);
 				else
 					throw Ex("Unrecognized type");
 				if(x != UNKNOWN_REAL_VALUE && y != UNKNOWN_REAL_VALUE)

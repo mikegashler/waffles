@@ -5,8 +5,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GClasses", "..\src\GClasses
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ubp", "ubp\src\ubp.vcxproj", "{753B4452-9DC1-4A26-8549-471C968737A1}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_security", "security\src\waffles_security.vcxproj", "{CBEE00FD-5CE6-4887-A747-2CC067A9A912}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "recommend", "recommend\src\recommend.vcxproj", "{C3A6C54B-3B33-4AC3-8325-B92077E9E0FF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ray-trace", "raytrace\src\raytrace.vcxproj", "{1AAD13EC-BF23-43BC-9E10-C509D6C41441}"
@@ -66,18 +64,6 @@ Global
 		{753B4452-9DC1-4A26-8549-471C968737A1}.ReleaseNoConsole|Win32.ActiveCfg = ReleaseNoConsole|Win32
 		{753B4452-9DC1-4A26-8549-471C968737A1}.ReleaseNoConsole|x64.ActiveCfg = ReleaseNoConsole|x64
 		{753B4452-9DC1-4A26-8549-471C968737A1}.ReleaseNoConsole|x64.Build.0 = ReleaseNoConsole|x64
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.Debug|Win32.ActiveCfg = Debug|Win32
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.Debug|Win32.Build.0 = Debug|Win32
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.Debug|x64.ActiveCfg = Debug|x64
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.Debug|x64.Build.0 = Debug|x64
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.Release|Win32.ActiveCfg = Release|Win32
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.Release|Win32.Build.0 = Release|Win32
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.Release|x64.ActiveCfg = Release|x64
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.Release|x64.Build.0 = Release|x64
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.ReleaseNoConsole|Win32.ActiveCfg = ReleaseNoConsole|Win32
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.ReleaseNoConsole|Win32.Build.0 = ReleaseNoConsole|Win32
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.ReleaseNoConsole|x64.ActiveCfg = ReleaseNoConsole|x64
-		{CBEE00FD-5CE6-4887-A747-2CC067A9A912}.ReleaseNoConsole|x64.Build.0 = ReleaseNoConsole|x64
 		{C3A6C54B-3B33-4AC3-8325-B92077E9E0FF}.Debug|Win32.ActiveCfg = Debug|Win32
 		{C3A6C54B-3B33-4AC3-8325-B92077E9E0FF}.Debug|Win32.Build.0 = Debug|Win32
 		{C3A6C54B-3B33-4AC3-8325-B92077E9E0FF}.Debug|x64.ActiveCfg = Debug|x64
