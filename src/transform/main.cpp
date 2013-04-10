@@ -139,90 +139,22 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 	}
 }
 
-GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
-{
-	// Load the dataset by extension
-	const char* szFilename = args.pop_string();
-	PathData pd;
-	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
-	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
-	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
-	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
-	else
-		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	Holder<GMatrix> hData(pData);
-
-	// Parse params
-	vector<size_t> ignore;
-	vector<size_t> labels;
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-labels"))
-			parseAttributeList(labels, args, pData->cols());
-		else if(args.if_pop("-ignore"))
-			parseAttributeList(ignore, args, pData->cols());
-		else
-			break;
-	}
-
-	// Throw out the ignored attributes
-	std::sort(ignore.begin(), ignore.end());
-	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
-	{
-		pData->deleteColumn(ignore[i]);
-		for(size_t j = 0; j < labels.size(); j++)
-		{
-			if(labels[j] >= ignore[i])
-			{
-				if(labels[j] == ignore[i])
-					throw Ex("Attribute ", to_str(labels[j]), " is both ignored and used as a label");
-				labels[j]--;
-			}
-		}
-	}
-
-	// Swap label columns to the end
-	*pLabelDims = std::max((size_t)1, labels.size());
-	for(size_t i = 0; i < labels.size(); i++)
-	{
-		size_t src = labels[i];
-		size_t dst = pData->cols() - *pLabelDims + i;
-		if(src != dst)
-		{
-			pData->swapColumns(src, dst);
-			for(size_t j = i + 1; j < labels.size(); j++)
-			{
-				if(labels[j] == dst)
-				{
-					labels[j] = src;
-					break;
-				}
-			}
-		}
-	}
-
-	return hData.release();
-}
-
 GMatrix* loadData(const char* szFilename)
 {
 	// Load the dataset by extension
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
+	GMatrix* pData = new GMatrix();
+	Holder<GMatrix> hData(pData);
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		pData->loadCsv(szFilename, ',', false, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		pData->loadCsv(szFilename, '\0', false, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	return pData;
+	return hData.release();
 }
 
 void showInstantiateNeighborFinderError(const char* szMessage, GArgReader& args)
@@ -887,12 +819,12 @@ void Import(GArgReader& args)
 	}
 
 	// Parse the file
-	GMatrix* pData = GMatrix::parseCsv(pFile, len, separator, columnNamesInFirstRow, tolerant);
-	Holder<GMatrix> hData(pData);
-	((GArffRelation*)pData->relation().get())->setName(filename);
+	GMatrix data;
+	data.parseCsv(pFile, len, separator, columnNamesInFirstRow, tolerant);
+	((GArffRelation*)data.relation().get())->setName(filename);
 
 	// Print the data
-	pData->print(cout);
+	data.print(cout);
 }
 
 void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, double* pResults)
@@ -1675,7 +1607,7 @@ void splitClass(GArgReader& args)
 
 	for(size_t i = 0; i < pData->relation()->valueCount(classAttr); i++)
 	{
-		GMatrix tmp(pData->relation(), pData->heap());
+		GMatrix tmp(pData->relation());
 		pData->splitByNominalValue(&tmp, classAttr, i);
 		std::ostringstream oss;
 		PathData pd;

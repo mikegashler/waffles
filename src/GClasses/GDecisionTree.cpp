@@ -352,9 +352,9 @@ void GDecisionTree::trainInner(GMatrix& features, GMatrix& labels)
 
 	// We must make a copy of the features because buildNode will mess with it
 	// by calling RandomlyReplaceMissinGMatrix
-	GMatrix tmpFeatures(m_pRelFeatures, features.heap());
+	GMatrix tmpFeatures(m_pRelFeatures);
 	tmpFeatures.copy(&features);
-	GMatrix tmpLabels(m_pRelLabels, labels.heap());
+	GMatrix tmpLabels(m_pRelLabels);
 	tmpLabels.copy(&labels);
 
 	m_pRoot = buildBranch(tmpFeatures, tmpLabels, attrPool, 0/*depth*/, 4/*tolerance*/);
@@ -440,9 +440,9 @@ double GDecisionTree_measureNominalSplitInfo(GMatrix& features, GMatrix& labels,
 
 size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* pPivot, vector<size_t>& attrPool, size_t nDepth)
 {
-	GMatrix tmpFeatures(features.relation(), features.heap());
+	GMatrix tmpFeatures(features.relation());
 	tmpFeatures.reserve(features.rows());
-	GMatrix tmpLabels(labels.relation(), labels.heap());
+	GMatrix tmpLabels(labels.relation());
 	tmpLabels.reserve(features.rows());
 	if(m_eAlg == MINIMIZE_ENTROPY)
 	{
@@ -1115,8 +1115,8 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 	Holder<GMeanMarginsTreeInteriorNode> hNode(pNode);
 
 	// Divide the data
-	GMatrix otherFeatures(features.relation(), features.heap());
-	GMatrix otherLabels(labels.relation(), labels.heap());
+	GMatrix otherFeatures(features.relation());
+	GMatrix otherLabels(labels.relation());
 	{
 		GMergeDataHolder hFeatures(features, otherFeatures);
 		GMergeDataHolder hLabels(labels, otherLabels);

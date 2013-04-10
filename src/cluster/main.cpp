@@ -51,33 +51,31 @@ using std::string;
 using std::set;
 using std::map;
 
-GMatrix* loadData(const char* szFilename)
+void loadData(GMatrix& m, const char* szFilename)
 {
 	// Load the dataset by extension
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		m.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		m.loadCsv(szFilename, ',', false, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		m.loadCsv(szFilename, '\0', false, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	return pData;
 }
 
 void agglomerativeclusterer(GArgReader& args)
 {
 	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	GMatrix data;
+	loadData(data, args.pop_string());
 	int clusters = args.pop_uint();
 
 	// Do the clustering
 	GAgglomerativeClusterer clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(*pData);
+	GMatrix* pOut = clusterer.doit(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -85,8 +83,8 @@ void agglomerativeclusterer(GArgReader& args)
 void fuzzykmeans(GArgReader& args)
 {
 	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	GMatrix data;
+	loadData(data, args.pop_string());
 	int clusters = args.pop_uint();
 
 	// Parse Options
@@ -110,7 +108,7 @@ void fuzzykmeans(GArgReader& args)
 	GFuzzyKMeans clusterer(clusters, &prng);
 	clusterer.setFuzzifier(fuzzifier);
 	clusterer.setReps(reps);
-	GMatrix* pOut = clusterer.doit(*pData);
+	GMatrix* pOut = clusterer.doit(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -118,8 +116,8 @@ void fuzzykmeans(GArgReader& args)
 void kmeans(GArgReader& args)
 {
 	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	GMatrix data;
+	loadData(data, args.pop_string());
 	int clusters = args.pop_uint();
 
 	// Parse Options
@@ -139,7 +137,7 @@ void kmeans(GArgReader& args)
 	GRand prng(nSeed);
 	GKMeans clusterer(clusters, &prng);
 	clusterer.setReps(reps);
-	GMatrix* pOut = clusterer.doit(*pData);
+	GMatrix* pOut = clusterer.doit(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -147,13 +145,13 @@ void kmeans(GArgReader& args)
 void kmedoids(GArgReader& args)
 {
 	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	GMatrix data;
+	loadData(data, args.pop_string());
 	int clusters = args.pop_uint();
 
 	// Do the clustering
 	GKMedoids clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(*pData);
+	GMatrix* pOut = clusterer.doit(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }

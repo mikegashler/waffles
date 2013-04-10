@@ -1310,8 +1310,8 @@ void GKdTree::test()
 
 	sp_relation rel;
 	rel = new GUniformRelation(TEST_DIMS, 0);
-	GHeap heap(2048);
-	GMatrix data(rel, &heap);
+	GMatrix data(rel);
+	data.reserve(TEST_PATTERNS);
 	GRand prng(0);
 	for(size_t i = 0; i < TEST_PATTERNS; i++)
 	{

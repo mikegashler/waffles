@@ -392,13 +392,13 @@ GMatrix* GTransducer::crossValidate(GMatrix& features, GMatrix& labels, size_t f
 	Holder<GMatrix> hResults(pResults);
 
 	// Do cross-validation
-	GMatrix trainFeatures(features.relation(), features.heap());
+	GMatrix trainFeatures(features.relation());
 	trainFeatures.reserve(features.rows());
-	GMatrix testFeatures(features.relation(), features.heap());
+	GMatrix testFeatures(features.relation());
 	testFeatures.reserve(features.rows() / folds + 1);
-	GMatrix trainLabels(labels.relation(), labels.heap());
+	GMatrix trainLabels(labels.relation());
 	trainLabels.reserve(labels.rows());
-	GMatrix testLabels(labels.relation(), labels.heap());
+	GMatrix testLabels(labels.relation());
 	testLabels.reserve(labels.rows() / folds + 1);
 	for(size_t i = 0; i < folds; i++)
 	{
@@ -1075,8 +1075,8 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 #else
 	GPrediction out[labels.cols()];
 #endif
-	GMatrix otherFeatures(features.relation(), features.heap());
-	GMatrix otherLabels(labels.relation(), labels.heap());
+	GMatrix otherFeatures(features.relation());
+	GMatrix otherLabels(labels.relation());
 	size_t valueCount = labels.relation()->valueCount(label);
 	for(size_t nRep = 0; nRep < nReps; nRep++)
 	{

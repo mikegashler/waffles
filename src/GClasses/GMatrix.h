@@ -34,7 +34,6 @@ namespace GClasses {
 class GMatrix;
 class GPrediction;
 class GRand;
-class GHeap;
 class GDom;
 class GDomNode;
 class GArffTokenizer;
@@ -159,6 +158,9 @@ typedef smart_ptr<GRelation> sp_relation;
 /// same number of possible values.
 class GUniformRelation : public GRelation
 {
+public:
+	static sp_relation s_emptyRelation;
+
 protected:
 	size_t m_attrCount;
 	size_t m_valueCount;
@@ -175,17 +177,17 @@ public:
 	
 	/// \brief Serializes this object
 	virtual GDomNode* serialize(GDom* pDoc) const;
-	
+
 	/// \brief Returns the number of attributes (columns)
 	virtual size_t size() const { return m_attrCount; }
-	
+
 	/// \brief Returns the number of values in each nominal attribute
 	/// (or 0 if the attributes are continuous)
 	virtual size_t valueCount(size_t) const { return m_valueCount; }
-	
+
 	/// \brief See the comment for GRelation::areContinuous
 	virtual bool areContinuous(size_t, size_t) const { return m_valueCount == 0; }
-	
+
 	/// \brief See the comment for GRelation::areNominal
 	virtual bool areNominal(size_t, size_t) const { return m_valueCount != 0; }
 
@@ -430,17 +432,19 @@ class GMatrix
 {
 protected:
 	sp_relation m_pRelation;
-	GHeap* m_pHeap;
 	std::vector<double*> m_rows;
 
 public:
+	/// \brief Makes an empty 0x0 matrix.
+	GMatrix();
+
 	/// \brief Construct a rows x cols matrix with all elements of the
 	/// matrix assumed to be continuous.
 	///
 	/// It is okay to initially set rows to 0 and later call newRow to
 	/// add each row. Adding columns later, however, is not very
 	/// computationally efficient.)
-	GMatrix(size_t rows, size_t cols, GHeap* pHeap = NULL);
+	GMatrix(size_t rows, size_t cols);
 
 	/// \brief Construct a matrix with a mixed relation. That is, one
 	/// with some continuous attributes (columns), and some nominal
@@ -451,7 +455,7 @@ public:
 	///
 	/// Initially, this matrix will have 0 rows, but you can add more
 	/// rows by calling newRow or newRows.
-	GMatrix(std::vector<size_t>& attrValues, GHeap* pHeap = NULL);
+	GMatrix(std::vector<size_t>& attrValues);
 
 	/// \brief Create an empty matrix whose attributes/column types are
 	/// specified by pRelation
@@ -461,13 +465,12 @@ public:
 	///
 	/// Initially, this matrix will have 0 rows, but you can add more
 	/// rows by calling newRow or newRows.
-	GMatrix(sp_relation& pRelation, GHeap* pHeap = NULL);
+	GMatrix(sp_relation& pRelation);
 
 	///\brief Copy-constructor
 	///
 	///Copies \a orig, making a new relation object and new storage for
-	///the rows (with the same content), but uses the same GHeap object
-	///as \a orig
+	///the rows (with the same content).
 	///
 	///\param orig the GMatrix object to copy
 	GMatrix(const GMatrix& orig);
@@ -480,8 +483,7 @@ public:
 	///\brief Make *this into a copy of orig
 	///
 	///Copies \a orig, making a new relation object and new storage for
-	///the rows (with the same content), but uses the same GHeap object
-	///as \a orig
+	///the rows (with the same content).
 	///
 	///\param orig the GMatrix object to copy
 	///
@@ -490,7 +492,7 @@ public:
 
 
 	/// \brief Load from a DOM.
-	GMatrix(GDomNode* pNode, GHeap* pHeap = NULL);
+	GMatrix(GDomNode* pNode);
 
 	~GMatrix();
 
@@ -503,11 +505,20 @@ public:
 	/// size
 	bool operator==(const GMatrix& other) const;
 
-	/// \brief Adds a new row to the dataset. (The values in the row are
-	/// not initialized)
+	/// \brief Sets the relation for this dataset, which specifies the number of columns, and their data types.
+	/// If there are one or more rows in this matrix, and the new relation
+	/// does not have the same number of columns as the old relation, then
+	/// this will throw an exception.
+	void setRelation(sp_relation& pRelation);
+
+	/// \brief Resizes this matrix. (Assumes that all columns have continuous values.)
+	void resize(size_t rows, size_t cols);
+
+	/// \brief Adds a new row to the matrix. (The values in the row are
+	/// not initialized.) Returns a pointer to the new row.
 	double* newRow();
 
-	/// \brief Adds "nRows" uninitialized rows to the data set
+	/// \brief Adds "nRows" uninitialized rows to this matrix.
 	void newRows(size_t nRows);
 
 	/// \brief Matrix add
@@ -585,9 +596,6 @@ public:
 	/// this dataset (so make a copy first if you care).
 	bool gaussianElimination(double* pVector);
 
-	/// \brief Returns the heap used to allocate rows for this dataset
-	GHeap* heap() { return m_pHeap; }
-
 	/// \brief Performs an in-place LU-decomposition, such that the
 	/// lower triangle of this matrix (including the diagonal) specifies
 	/// L, and the uppoer triangle of this matrix (not including the
@@ -612,13 +620,32 @@ public:
 
 
 #ifndef MIN_PREDICT
-	/// \brief Loads an ARFF file and returns the data. This will throw
-	/// an exception if there's an error.
-	static GMatrix* loadArff(const char* szFilename);
+	/// \brief Loads an ARFF file and replaces the contents of this matrix with it.
+	void loadArff(const char* szFilename);
+
+	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
+	void parseArff(const char* szFile, size_t nLen);
+
+	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
+	void parseArff(GArffTokenizer& tok);
 
 	/// \brief Loads a file in CSV format.
-	static GMatrix* loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, bool tolerant);
+	void loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, bool tolerant);
+
+	///\brief Imports data from a text file. Determines the meta-data
+	///automatically.
+	///
+	///\note This method does not support Mac line-endings. You should
+	///      first replace all '\\r' with '\\n' if your data comes from
+	///      a Mac. As a special case, if separator is '\\0', then it
+	///      assumes data elements are separated by any number of
+	///      whitespace characters, that element values themselves
+	///      contain no whitespace, and that there are no missing
+	///      elements. (This is the case when you save a Matlab matrix
+	///      to an ascii file.)
+	void parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, bool tolerant = false);
 #endif // MIN_PREDICT
+
 
 	/// \brief Sets this dataset to an identity matrix. (It doesn't
 	/// change the number of columns or rows. It just stomps over
@@ -684,26 +711,6 @@ public:
 	/// specify the parameters.)
 	static GMatrix* multiply(GMatrix& a, GMatrix& b, bool transposeA, bool transposeB);
 
-#ifndef MIN_PREDICT
-	/// \brief Parses an ARFF file and returns the data. 
-	///
-	/// This will throw an exception if there's an error.
-	static GMatrix* parseArff(const char* szFile, size_t nLen);
-
-	///\brief Imports data from a text file. Determines the meta-data
-	///automatically.
-	///
-	///\note This method does not support Mac line-endings. You should
-	///      first replace all '\\r' with '\\n' if your data comes from
-	///      a Mac.  As a special case, if separator is '\\0', then it
-	///      assumes data elements are separated by any number of
-	///      whitespace characters, that element values themselves
-	///      contain no whitespace, and that there are no missing
-	///      elements. (This is the case when you save a Matlab matrix
-	///      to an ascii file.)
-	static GMatrix* parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, bool tolerant = false);
-#endif // MIN_PREDICT
-
 	/// \brief Computes the Moore-Penrose pseudoinverse of this matrix
 	/// (using the SVD method). You are responsible to delete the
 	/// matrix this returns.
@@ -730,9 +737,6 @@ public:
 	/// \brief Saves the dataset to a file in ARFF format
 	void saveArff(const char* szFilename);
 #endif // MIN_PREDICT
-
-	/// \brief Sets the relation for this dataset
-	void setRelation(sp_relation& pRelation) { m_pRelation = pRelation; }
 
 	/// \brief Performs SVD on A, where A is this m-by-n matrix.
 	///
@@ -773,9 +777,7 @@ public:
 	/// and an identity matrix
 	double sumSquaredDiffWithIdentity();
 
-	/// \brief Adds an already-allocated row to this dataset. The row must
-	/// be allocated in the same heap that this dataset uses. (There is no way
-	/// for this method to verify that, so be careful.)
+	/// \brief Adds an already-allocated row to this dataset.
 	void takeRow(double* pRow);
 
 	/// \brief Converts the matrix to reduced row echelon form
@@ -798,8 +800,7 @@ public:
 	/// transposed. (All columns in the returned dataset will be
 	/// continuous.)
 	///
-	/// The returned matrix is newly allocated on the system heap with
-	/// operator new and must be deleted by the caller.
+	/// The returned matrix must be deleted by the caller.
 	///
 	/// \return A pointer to a new dataset that is this dataset
 	///         transposed. All columns in the returned dataset will be
@@ -843,8 +844,7 @@ public:
 	/// \brief Swaps the specified row with the last row, and then
 	/// releases it from the dataset.
 	///
-	/// If this dataset does not have its own heap, then you must delete
-	/// the row this returns
+	/// The caller is responsible to delete the row this method returns.
 	double* releaseRow(size_t index);
 
 	/// \brief Swaps the specified row with the last row, and then deletes it.
@@ -853,22 +853,20 @@ public:
 	/// \brief Releases the specified row from the dataset and shifts
 	/// everything after it up one slot.
 	///
-	/// If this dataset does not have its own heap, then you must delete
-	/// the row this returns
+	/// The caller is responsible to delete the row this method returns.
 	double* releaseRowPreserveOrder(size_t index);
 
-	/// \brief Deletes the specified row and shifts everything after it
-	/// up one slot
+	/// \brief Deletes the specified row and shifts everything after it up one slot
 	void deleteRowPreserveOrder(size_t index);
 
 	/// \brief Replaces any occurrences of NAN in the matrix with the
 	/// corresponding values from an identity matrix.
 	void fixNans();
 
-	/// \brief Deletes all the data
+	/// \brief Deletes all the rows in this matrix.
 	void flush();
 
-	/// \brief Abandons (leaks) all the rows of data
+	/// \brief Abandons (leaks) all the rows in this matrix.
 	void releaseAllRows();
 
 	/// \brief Randomizes the order of the rows. 

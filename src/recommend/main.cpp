@@ -41,7 +41,7 @@ using std::set;
 
 GCollaborativeFilter* InstantiateAlgorithm(GRand& rand, GArgReader& args);
 
-GMatrix* loadData(const char* szFilename)
+void loadData(GMatrix& data, const char* szFilename)
 {
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
@@ -50,27 +50,23 @@ GMatrix* loadData(const char* szFilename)
 		GDom doc;
 		doc.loadJson(szFilename);
 		GSparseMatrix sm(doc.root());
-		GMatrix* pData = new GMatrix(0, 3);
+		data.resize(0, 3);
 		for(size_t i = 0; i < sm.rows(); i++)
 		{
 			GSparseMatrix::Iter rowEnd = sm.rowEnd(i);
 			for(GSparseMatrix::Iter it = sm.rowBegin(i); it != rowEnd; it++)
 			{
-				double* pVec = pData->newRow();
+				double* pVec = data.newRow();
 				pVec[0] = i;
 				pVec[1] = it->first;
 				pVec[2] = it->second;
 			}
 		}
-		return pData;
 	}
 	else if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		return GMatrix::loadArff(szFilename);
+		data.loadArff(szFilename);
 	else
-	{
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-		return NULL;
-	}
 }
 
 GSparseMatrix* loadSparseData(const char* szFilename)
@@ -81,22 +77,23 @@ GSparseMatrix* loadSparseData(const char* szFilename)
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 	{
 		// Convert a 3-column dense ARFF file to a sparse matrix
-		GMatrix* pData = GMatrix::loadArff(szFilename);
-		if(pData->cols() != 3)
+		GMatrix data;
+		data.loadArff(szFilename);
+		if(data.cols() != 3)
 			throw Ex("Expected 3 columns: 0) user or row-index, 1) item or col-index, 2) value or rating");
-		double m0 = pData->columnMin(0);
-		double r0 = pData->columnMax(0) - m0;
-		double m1 = pData->columnMin(1);
-		double r1 = pData->columnMax(1) - m1;
+		double m0 = data.columnMin(0);
+		double r0 = data.columnMax(0) - m0;
+		double m1 = data.columnMin(1);
+		double r1 = data.columnMax(1) - m1;
 		if(m0 < 0 || m0 > 1e10 || r0 < 2 || r0 > 1e10)
 			throw Ex("Invalid row indexes");
 		if(m1 < 0 || m1 > 1e10 || r1 < 2 || r1 > 1e10)
 			throw Ex("Invalid col indexes");
 		GSparseMatrix* pMatrix = new GSparseMatrix(size_t(m0 + r0) + 1, size_t(m1 + r1) + 1, UNKNOWN_REAL_VALUE);
 		Holder<GSparseMatrix> hMatrix(pMatrix);
-		for(size_t i = 0; i < pData->rows(); i++)
+		for(size_t i = 0; i < data.rows(); i++)
 		{
-			double* pRow = pData->row(i);
+			double* pRow = data.row(i);
 			pMatrix->set(size_t(pRow[0]), size_t(pRow[1]), pRow[2]);
 		}
 		return hMatrix.release();
@@ -389,8 +386,8 @@ void crossValidate(GArgReader& args)
 	// Load the data
 	if(args.size() < 1)
 		throw Ex("No dataset specified.");
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	GMatrix data;
+	loadData(data, args.pop_string());
 
 	// Instantiate the recommender
 	GRand prng(seed);
@@ -401,7 +398,7 @@ void crossValidate(GArgReader& args)
 
 	// Do cross-validation
 	double mae;
-	double mse = pModel->crossValidate(*pData, folds, &mae);
+	double mse = pModel->crossValidate(data, folds, &mae);
 	cout << "RMSE=" << sqrt(mse) << ", MSE=" << mse << ", MAE=" << mae << "\n";
 }
 
@@ -423,8 +420,8 @@ void precisionRecall(GArgReader& args)
 	// Load the data
 	if(args.size() < 1)
 		throw Ex("No dataset specified.");
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	GMatrix data;
+	loadData(data, args.pop_string());
 
 	// Instantiate the recommender
 	GRand prng(seed);
@@ -434,7 +431,7 @@ void precisionRecall(GArgReader& args)
 		throw Ex("Superfluous argument: ", args.peek());
 
 	// Generate precision-recall data
-	GMatrix* pResults = pModel->precisionRecall(*pData, ideal);
+	GMatrix* pResults = pModel->precisionRecall(data, ideal);
 	Holder<GMatrix> hResults(pResults);
 	pResults->deleteColumn(2); // we don't need the false-positive rate column
 	pResults->print(cout);
@@ -458,8 +455,8 @@ void ROC(GArgReader& args)
 	// Load the data
 	if(args.size() < 1)
 		throw Ex("No dataset specified.");
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	GMatrix data;
+	loadData(data, args.pop_string());
 
 	// Instantiate the recommender
 	GRand prng(seed);
@@ -469,7 +466,7 @@ void ROC(GArgReader& args)
 		throw Ex("Superfluous argument: ", args.peek());
 
 	// Generate ROC data
-	GMatrix* pResults = pModel->precisionRecall(*pData, ideal);
+	GMatrix* pResults = pModel->precisionRecall(data, ideal);
 	Holder<GMatrix> hResults(pResults);
 	double auc = GCollaborativeFilter::areaUnderCurve(*pResults);
 	pResults->deleteColumn(1); // we don't need the precision column
@@ -493,12 +490,12 @@ void transacc(GArgReader& args)
 	// Load the data
 	if(args.size() < 1)
 		throw Ex("No training set specified.");
-	GMatrix* pTrain = loadData(args.pop_string());
-	Holder<GMatrix> hTrain(pTrain);
+	GMatrix train;
+	loadData(train, args.pop_string());
 	if(args.size() < 1)
 		throw Ex("No test set specified.");
-	GMatrix* pTest = loadData(args.pop_string());
-	Holder<GMatrix> hTest(pTest);
+	GMatrix test;
+	loadData(test, args.pop_string());
 
 	// Instantiate the recommender
 	GRand prng(seed);
@@ -509,7 +506,7 @@ void transacc(GArgReader& args)
 
 	// Do cross-validation
 	double mae;
-	double mse = pModel->trainAndTest(*pTrain, *pTest, &mae);
+	double mse = pModel->trainAndTest(train, test, &mae);
 	cout << "MSE=" << mse << ", MAE=" << mae << "\n";
 }
 
@@ -525,9 +522,9 @@ void fillMissingValues(GArgReader& args)
 	}
 
 	// Load the data and the filter
-	GMatrix* pDataOrig = GMatrix::loadArff(args.pop_string());
-	Holder<GMatrix> hDataOrig(pDataOrig);
-	sp_relation pOrigRel = pDataOrig->relation();
+	GMatrix dataOrig;
+	dataOrig.loadArff(args.pop_string());
+	sp_relation pOrigRel = dataOrig.relation();
 	GRand prng(seed);
 	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
 	Holder<GCollaborativeFilter> hModel(pModel);
@@ -538,11 +535,9 @@ void fillMissingValues(GArgReader& args)
 	GNominalToCat* pNtc = new GNominalToCat();
 	GIncrementalTransformChainer filter(new GNormalize(), pNtc);
 	pNtc->preserveUnknowns();
-	filter.train(*pDataOrig);
-	GMatrix* pData = filter.transformBatch(*pDataOrig);
+	filter.train(dataOrig);
+	GMatrix* pData = filter.transformBatch(dataOrig);
 	Holder<GMatrix> hData(pData);
-	hDataOrig.release();
-	pDataOrig = NULL;
 
 	// Convert to 3-column form
 	GMatrix* pMatrix = new GMatrix(0, 3);

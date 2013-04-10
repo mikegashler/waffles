@@ -545,9 +545,8 @@ void test_transform_mergevert()
 	buf[len] = '\0';
 
 	// Check the results
-	GMatrix* pOutput = GMatrix::parseArff(buf, strlen(buf));
-	Holder<GMatrix> hOutput(pOutput);
-	GMatrix& M = *pOutput;
+	GMatrix M;
+	M.parseArff(buf, strlen(buf));
 	if(M.rows() != 4 || M.cols() != 3)
 		throw Ex("failed");
 	if(M.relation()->valueCount(0) != 0)
@@ -601,9 +600,8 @@ void test_recommend_fillmissingvalues()
 	buf[len] = '\0';
 
 	// Check the results
-	GMatrix* pOutput = GMatrix::parseArff(buf, strlen(buf));
-	Holder<GMatrix> hOutput(pOutput);
-	GMatrix& M = *pOutput;
+	GMatrix M;
+	M.parseArff(buf, strlen(buf));
 	if(M.rows() != 7 || M.cols() != 4)
 		throw Ex("failed");
 	if(M[0][0] != 0)
@@ -643,10 +641,9 @@ void test_parsearff_quoting(){
     "3,9,\"is exact\"\n"
     "4,16,\"is\\ exact\"\n"
     ;
-    
-  GMatrix* pOutput = GMatrix::parseArff(inputArff, strlen(inputArff));
-  Holder<GMatrix> hOutput(pOutput);
-  GMatrix& M = *pOutput;
+
+  GMatrix M;
+  M.parseArff(inputArff, strlen(inputArff));
   double expected_data[5][3]={{1,1,0},{2,4,0},{1.414,2,1},{3,9,0},{4,16,2}};
   GArffRelation* pRel = (GArffRelation*)M.relation().get();
   GArffRelation& R = *pRel;

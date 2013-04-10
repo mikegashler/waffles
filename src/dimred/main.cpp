@@ -161,26 +161,24 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 ///\param originalIndices the vector in which to place the original
 ///indices.  originalIndices[i] is the index in the original data file
 ///of the attribute currently at index i.
-GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
+void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t& pLabelDims,
 			      std::vector<size_t>& originalIndices)
 {
 	// Load the dataset by extension
 	const char* szFilename = args.pop_string();
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		data.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		data.loadCsv(szFilename, ',', false, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		data.loadCsv(szFilename, '\0', false, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	Holder<GMatrix> hData(pData);
 
 	//Make the initial list of original indices
-	originalIndices.resize(pData->cols());
+	originalIndices.resize(data.cols());
 	for(std::size_t i = 0; i < originalIndices.size(); ++i){
 	  originalIndices.at(i) = i;
 	}
@@ -191,9 +189,9 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-labels"))
-			parseAttributeList(labels, args, pData->cols());
+			parseAttributeList(labels, args, data.cols());
 		else if(args.if_pop("-ignore"))
-			parseAttributeList(ignore, args, pData->cols());
+			parseAttributeList(ignore, args, data.cols());
 		else
 			break;
 	}
@@ -202,7 +200,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		pData->deleteColumn(ignore[i]);
+		data.deleteColumn(ignore[i]);
 		originalIndices.erase(originalIndices.begin()+ignore[i]);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
@@ -220,10 +218,10 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
 	for(size_t i = 0; i < labels.size(); i++)
 	{
 		size_t src = labels[i];
-		size_t dst = pData->cols() - pLabelDims + i;
+		size_t dst = data.cols() - pLabelDims + i;
 		if(src != dst)
 		{
-			pData->swapColumns(src, dst);
+			data.swapColumns(src, dst);
 			std::swap(originalIndices.at(src),
 				  originalIndices.at(dst));
 			for(size_t j = i + 1; j < labels.size(); j++)
@@ -236,8 +234,6 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t& pLabelDims,
 			}
 		}
 	}
-
-	return hData.release();
 }
 
 GMatrix* loadData(const char* szFilename)
@@ -245,13 +241,13 @@ GMatrix* loadData(const char* szFilename)
 	// Load the dataset by extension
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
+	GMatrix* pData = new GMatrix();
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		pData->loadCsv(szFilename, ',', false, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		pData->loadCsv(szFilename, '\0', false, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return pData;
@@ -374,8 +370,8 @@ void attributeSelector(GArgReader& args)
 	// Load the data
 	size_t labelDims;
 	std::vector<size_t> originalIndices;
-	GMatrix* pData = loadDataWithSwitches(args, labelDims, originalIndices);
-	Holder<GMatrix> hData(pData);
+	GMatrix data;
+	loadDataWithSwitches(data, args, labelDims, originalIndices);
 
 	// Parse the options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
@@ -399,16 +395,16 @@ void attributeSelector(GArgReader& args)
 	GAttributeSelector as(labelDims, targetFeatures, &prng);
 	if(outFilename.length() > 0)
 	{
-		as.train(*pData);
-		GMatrix* pDataOut = as.transformBatch(*pData);
+		as.train(data);
+		GMatrix* pDataOut = as.transformBatch(data);
 		Holder<GMatrix> hDataOut(pDataOut);
 		cout << "Reduced data saved to " << outFilename.c_str() << ".\n";
 		pDataOut->saveArff(outFilename.c_str());
 	}
 	else
-		as.train(*pData);
+		as.train(data);
 	cout << "\nAttribute rankings from most salient to least salient. (Attributes are zero-indexed.)\n";
-	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+	GArffRelation* pRel = (GArffRelation*)data.relation().get();
 	for(size_t i = 0; i < as.ranks().size(); i++)
 	  cout << originalIndices.at(as.ranks()[i]) << " " << pRel->attrName(as.ranks()[i]) << "\n";
 }
@@ -1126,7 +1122,11 @@ void unsupervisedBackProp(GArgReader& args)
 		else if(args.if_pop("-modelout"))
 			sModelOut = args.pop_string();
 		else if(args.if_pop("-intrinsicin"))
-			pUBP->setIntrinsic(GMatrix::loadArff(args.pop_string()));
+		{
+			GMatrix* pInt = new GMatrix();
+			pInt->loadArff(args.pop_string());
+			pUBP->setIntrinsic(pInt);
+		}
 		else if(args.if_pop("-jitter"))
 		{
 			if(paramRanges.size() != 2)

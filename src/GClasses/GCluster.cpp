@@ -210,7 +210,7 @@ size_t GAgglomerativeClusterer::whichCluster(size_t nVector)
 
 #ifndef NO_TEST_CODE
 
-#define SPRIAL_POINTS 250
+#define SPIRAL_POINTS 250
 #define SPIRAL_HEIGHT 3
 
 #include "GImage.h"
@@ -220,29 +220,29 @@ size_t GAgglomerativeClusterer::whichCluster(size_t nVector)
 void GAgglomerativeClusterer::test()
 {
 	// Make a 3D data set with 3 entwined spirals
-	GHeap heap(1000);
-	GMatrix data(0, 3, &heap);
+	GMatrix data(0, 3);
+	data.reserve(3 * SPIRAL_POINTS);
 	double dThirdCircle = M_PI * 2 / 3;
 	double* pVector;
 	double rads;
-	for(size_t i = 0; i < SPRIAL_POINTS; i += 3)
+	for(size_t i = 0; i < SPIRAL_POINTS; i += 3)
 	{
-		rads = (double)i * 2 * M_PI / SPRIAL_POINTS;
+		rads = (double)i * 2 * M_PI / SPIRAL_POINTS;
 
 		pVector = data.newRow();
 		pVector[0] = cos(rads);
 		pVector[2] = sin(rads);
-		pVector[1] = (double)i * SPIRAL_HEIGHT / SPRIAL_POINTS;
+		pVector[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 
 		pVector = data.newRow();
 		pVector[0] = cos(rads + dThirdCircle);
 		pVector[2] = sin(rads + dThirdCircle);
-		pVector[1] = (double)i * SPIRAL_HEIGHT / SPRIAL_POINTS;
+		pVector[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 
 		pVector = data.newRow();
 		pVector[0] = cos(rads + dThirdCircle + dThirdCircle);
 		pVector[2] = sin(rads + dThirdCircle + dThirdCircle);
-		pVector[1] = (double)i * SPIRAL_HEIGHT / SPRIAL_POINTS;
+		pVector[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 	}
 
 	// Cluster the points
@@ -256,7 +256,7 @@ void GAgglomerativeClusterer::test()
 		throw Ex("failed");
 	if(clust.whichCluster(2) == clust.whichCluster(0))
 		throw Ex("failed");
-	for(size_t i = 3; i < SPRIAL_POINTS; i += 3)
+	for(size_t i = 3; i < SPIRAL_POINTS; i += 3)
 	{
 		if(clust.whichCluster(i) != clust.whichCluster(0))
 			throw Ex("Wrong cluster");
@@ -281,7 +281,7 @@ void GAgglomerativeClusterer::test()
 	double* pVec;
 	G3DVector point;
 	GColor col = 0;
-	for(i = 0; i < SPRIAL_POINTS; i++)
+	for(i = 0; i < SPIRAL_POINTS; i++)
 	{
 		pVec = data.row(i);
 		point.Set(pVec[0], pVec[1], pVec[2]);

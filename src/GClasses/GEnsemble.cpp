@@ -275,8 +275,8 @@ void GBag::trainInnerInner(GMatrix& features, GMatrix& labels)
 	// Train all the models
 	size_t nLearnerCount = m_models.size();
 	size_t nDrawSize = size_t(m_trainSize * features.rows());
-	GMatrix drawnFeatures(features.relation(), features.heap());
-	GMatrix drawnLabels(labels.relation(), labels.heap());
+	GMatrix drawnFeatures(features.relation());
+	GMatrix drawnLabels(labels.relation());
 	drawnFeatures.reserve(nDrawSize);
 	drawnLabels.reserve(nDrawSize);
 	{

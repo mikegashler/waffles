@@ -157,24 +157,23 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	const char* szFilename = args.pop_string();
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
+	GMatrix data;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		data.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
 	{
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
-		if(requireMetadata && !pData->relation()->areContinuous(0, pData->cols()))
+		data.loadCsv(szFilename, ',', false, false);
+		if(requireMetadata && !data.relation()->areContinuous(0, data.cols()))
 			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 	{
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
-		if(requireMetadata && !pData->relation()->areContinuous(0, pData->cols()))
+		data.loadCsv(szFilename, '\0', false, false);
+		if(requireMetadata && !data.relation()->areContinuous(0, data.cols()))
 			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	Holder<GMatrix> hData(pData);
 
 	// Parse params
 	vector<size_t> ignore;
@@ -182,9 +181,9 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-labels"))
-			parseAttributeList(labels, args, pData->cols());
+			parseAttributeList(labels, args, data.cols());
 		else if(args.if_pop("-ignore"))
-			parseAttributeList(ignore, args, pData->cols());
+			parseAttributeList(ignore, args, data.cols());
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -193,7 +192,7 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		pData->deleteColumn(ignore[i]);
+		data.deleteColumn(ignore[i]);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
 			if(labels[j] >= ignore[i])
@@ -210,10 +209,10 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	for(size_t i = 0; i < labels.size(); i++)
 	{
 		size_t src = labels[i];
-		size_t dst = pData->cols() - labelDims + i;
+		size_t dst = data.cols() - labelDims + i;
 		if(src != dst)
 		{
-			pData->swapColumns(src, dst);
+			data.swapColumns(src, dst);
 			for(size_t j = i + 1; j < labels.size(); j++)
 			{
 				if(labels[j] == dst)
@@ -225,10 +224,10 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 		}
 	}
 
-	// Split pData into a feature matrix and a label matrix
-	GMatrix* pFeatures = pData->cloneSub(0, 0, pData->rows(), pData->cols() - labelDims);
+	// Split data into a feature matrix and a label matrix
+	GMatrix* pFeatures = data.cloneSub(0, 0, data.rows(), data.cols() - labelDims);
 	hFeaturesOut.reset(pFeatures);
-	GMatrix* pLabels = pData->cloneSub(0, pData->cols() - labelDims, pData->rows(), labelDims);
+	GMatrix* pLabels = data.cloneSub(0, data.cols() - labelDims, data.rows(), labelDims);
 	hLabelsOut.reset(pLabels);
 }
 
@@ -1620,8 +1619,8 @@ void SplitTest(GArgReader& args)
 	{
 		// Shuffle and split the data
 		pFeatures->shuffle(prng, pLabels);
-		GMatrix testFeatures(pFeatures->relation(), pFeatures->heap());
-		GMatrix testLabels(pLabels->relation(), pLabels->heap());
+		GMatrix testFeatures(pFeatures->relation());
+		GMatrix testLabels(pLabels->relation());
 		{
 			GMergeDataHolder hFeatures(*pFeatures, testFeatures);
 			GMergeDataHolder hLabels(*pLabels, testLabels);
@@ -2103,10 +2102,10 @@ void trainRecurrent(GArgReader& args)
 		throw Ex("Unrecognized recurrent model training algorithm: ", alg);
 
 	// Load the data
-	GMatrix* pDataObs = GMatrix::loadArff(args.pop_string());
-	Holder<GMatrix> hDataObs(pDataObs);
-	GMatrix* pDataAction = GMatrix::loadArff(args.pop_string());
-	Holder<GMatrix> hDataAction(pDataAction);
+	GMatrix dataObs;
+	dataObs.loadArff(args.pop_string());
+	GMatrix dataAction;
+	dataAction.loadArff(args.pop_string());
 
 	// Get the number of context dims
 	int contextDims = args.pop_uint();
@@ -2115,8 +2114,8 @@ void trainRecurrent(GArgReader& args)
 	size_t pixels = 1;
 	for(vector<size_t>::iterator it = paramDims.begin(); it != paramDims.end(); it++)
 		pixels *= *it;
-	size_t channels = pDataObs->cols() / pixels;
-	if((channels * pixels) != pDataObs->cols())
+	size_t channels = dataObs.cols() / pixels;
+	if((channels * pixels) != dataObs.cols())
 		throw Ex("The number of columns in the observation data must be a multiple of the product of the param dims");
 
 	// Instantiate the recurrent model
@@ -2131,7 +2130,7 @@ void trainRecurrent(GArgReader& args)
 		throw Ex("The algorithm specified for the observation function cannot be \"trained\". It can only be used to \"transduce\".");
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
-	MyRecurrentModel model((GSupervisedLearner*)hTransitionFunc.release(), (GSupervisedLearner*)hObservationFunc.release(), pDataAction->cols(), contextDims, pDataObs->cols(), &prng, &paramDims, stateFilename, validationInterval);
+	MyRecurrentModel model((GSupervisedLearner*)hTransitionFunc.release(), (GSupervisedLearner*)hObservationFunc.release(), dataAction.cols(), contextDims, dataObs.cols(), &prng, &paramDims, stateFilename, validationInterval);
 
 	// Set it up to do validation during training if specified
 	vector<GMatrix*> validationData;
@@ -2139,7 +2138,12 @@ void trainRecurrent(GArgReader& args)
 	if(validationInterval > 0)
 	{
 		for(size_t i = 0; i < validationFilenames.size(); i++)
-			validationData.push_back(GMatrix::loadArff(validationFilenames[i].c_str()));
+		{
+			GMatrix* pVal = new GMatrix();
+			Holder<GMatrix> hVal(pVal);
+			pVal->loadArff(validationFilenames[i].c_str());
+			validationData.push_back(hVal.release());
+		}
 		model.validateDuringTraining(validationInterval, &validationData);
 		cout << "@RELATION validation_scores\n\n@ATTRIBUTE seconds real\n@ATTRIBUTE " << alg << " real\n\n@DATA\n";
 	}
@@ -2150,19 +2154,19 @@ void trainRecurrent(GArgReader& args)
 
 	// Do the training
 	if(strcmp(alg, "moses") == 0)
-		model.trainMoses(pDataAction, pDataObs);
+		model.trainMoses(&dataAction, &dataObs);
 	else if(strcmp(alg, "aaron") == 0)
-		model.trainAaron(pDataAction, pDataObs);
+		model.trainAaron(&dataAction, &dataObs);
 	else if(strcmp(alg, "joshua") == 0)
-		model.trainJoshua(pDataAction, pDataObs);
+		model.trainJoshua(&dataAction, &dataObs);
 	else if(strcmp(alg, "bptt") == 0)
-		model.trainBackPropThroughTime(pDataAction, pDataObs, bpttDepth, bpttItersPerGrow);
+		model.trainBackPropThroughTime(&dataAction, &dataObs, bpttDepth, bpttItersPerGrow);
 	else if(strcmp(alg, "evolutionary") == 0)
-		model.trainEvolutionary(pDataAction, pDataObs);
+		model.trainEvolutionary(&dataAction, &dataObs);
 	else if(strcmp(alg, "hillclimber") == 0)
-		model.trainHillClimber(pDataAction, pDataObs, 0.0, 0.0, 0.0, true, false);
+		model.trainHillClimber(&dataAction, &dataObs, 0.0, 0.0, 0.0, true, false);
 	else if(strcmp(alg, "annealing") == 0)
-		model.trainHillClimber(pDataAction, pDataObs, annealDeviation, annealDecay, annealTimeWindow, false, true);
+		model.trainHillClimber(&dataAction, &dataObs, annealDeviation, annealDecay, annealTimeWindow, false, true);
 	GDom doc;
 	doc.setRoot(model.serialize(&doc));
 	doc.saveJson(outFilename);

@@ -71,12 +71,12 @@ public:
 	: m_tar(0, 5), m_context(0, 2), m_pred(0, 5), m_rand(0), m_nn(m_rand), m_errorThresh(0.0), m_targetActive(1.0)
 	{
 		{
-			GMatrix* pTmp = GMatrix::loadArff("in.arff");
-			Holder<GMatrix> hTmp(pTmp);
-			if(pTmp->cols() != 3)
+			GMatrix tmp;
+			tmp.loadArff("in.arff");
+			if(tmp.cols() != 3)
 				throw Ex("unexpected number of columns");
-			m_tar.newRows(pTmp->rows());
-			m_tar.copyColumns(0, pTmp, 0, 3);
+			m_tar.newRows(tmp.rows());
+			m_tar.copyColumns(0, &tmp, 0, 3);
 		}
 		m_pred.newRows(m_tar.rows());
 		m_context.newRows(m_tar.rows());

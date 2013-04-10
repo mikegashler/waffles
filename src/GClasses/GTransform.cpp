@@ -338,7 +338,7 @@ sp_relation GPCA::trainInner(GMatrix& data)
 		data.centroid(pMean);
 
 	// Make a copy of the data
-	GMatrix tmpData(data.relation(), data.heap());
+	GMatrix tmpData(data.relation());
 	tmpData.copy(&data);
 
 	// Compute the principle components
@@ -549,8 +549,7 @@ GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, GMatrix* pData
 void GPCARotateOnly::test()
 {
 	GRand prng(0);
-	GHeap heap(1000);
-	GMatrix data(0, 2, &heap);
+	GMatrix data(0, 2);
 	double* pVec;
 	pVec = data.newRow();	pVec[0] = 0;	pVec[1] = 0;
 	pVec = data.newRow();	pVec[0] = 10;	pVec[1] = 10;

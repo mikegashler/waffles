@@ -12,30 +12,22 @@
 #include "GMatrix.h"
 #include "GError.h"
 #ifndef MIN_PREDICT
-#include "GAssignment.h"
-#include "GMath.h"
-#include "GDistribution.h"
+#	include "GAssignment.h"
+#	include "GMath.h"
+#	include "GDistribution.h"
+#	include "GFile.h"
+#	include "GHashTable.h"
+#	include "GBits.h"
+#	include "GNeighborFinder.h"
+#	include "GDistance.h"
 #endif // MIN_PREDICT
 #include "GVec.h"
-#ifndef MIN_PREDICT
-#include "GFile.h"
-#endif // MIN_PREDICT
 #include "GHeap.h"
 #include "GDom.h"
-#ifndef MIN_PREDICT
-#include "GHashTable.h"
-#endif // MIN_PREDICT
 #include <math.h>
-#ifndef MIN_PREDICT
-#include "GBits.h"
-#endif // MIN_PREDICT
 #include "GLearner.h"
 #include "GRand.h"
 #include "GTokenizer.h"
-#ifndef MIN_PREDICT
-#include "GNeighborFinder.h"
-#include "GDistance.h"
-#endif // MIN_PREDICT
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -48,6 +40,9 @@ using std::ostream;
 using std::ostringstream;
 
 namespace GClasses {
+
+// static
+sp_relation GUniformRelation::s_emptyRelation = new GUniformRelation(0, 0);
 
 // static
 smart_ptr<GRelation> GRelation::deserialize(GDomNode* pNode)
@@ -921,37 +916,39 @@ void GArffRelation::dropValue(size_t attr, int val)
 
 // ------------------------------------------------------------------
 
-GMatrix::GMatrix(sp_relation& pRelation, GHeap* pHeap)
-: m_pRelation(pRelation), m_pHeap(pHeap)
+GMatrix::GMatrix()
+: m_pRelation(GUniformRelation::s_emptyRelation)
 {
 }
 
-GMatrix::GMatrix(size_t rows, size_t cols, GHeap* pHeap)
-: m_pHeap(pHeap)
+GMatrix::GMatrix(sp_relation& pRelation)
+: m_pRelation(pRelation)
+{
+}
+
+GMatrix::GMatrix(size_t rows, size_t cols)
 {
 	m_pRelation = new GUniformRelation(cols, 0);
 	newRows(rows);
 }
 
-GMatrix::GMatrix(vector<size_t>& attrValues, GHeap* pHeap)
-: m_pHeap(pHeap)
+GMatrix::GMatrix(vector<size_t>& attrValues)
 {
 	m_pRelation = new GMixedRelation(attrValues);
 }
 
-GMatrix::GMatrix(const GMatrix& orig):m_pHeap(orig.m_pHeap){
-  copy(&orig);
-  m_pRelation = m_pRelation->clone();
+GMatrix::GMatrix(const GMatrix& orig) {
+	copy(&orig);
+	m_pRelation = m_pRelation->clone();
 }
 
-GMatrix& GMatrix::operator=(const GMatrix& orig){
-  copy(&orig);
-  m_pRelation = m_pRelation->clone();
-  return *this;
+GMatrix& GMatrix::operator=(const GMatrix& orig) {
+	copy(&orig);
+	m_pRelation = m_pRelation->clone();
+	return *this;
 }
 
-GMatrix::GMatrix(GDomNode* pNode, GHeap* pHeap)
-: m_pHeap(pHeap)
+GMatrix::GMatrix(GDomNode* pNode)
 {
 	m_pRelation = GRelation::deserialize(pNode->field("rel"));
 	GDomNode* pRows = pNode->field("pats");
@@ -1001,14 +998,25 @@ bool GMatrix::operator==(const GMatrix& other) const{
 	return true;
 }
 
+void GMatrix::setRelation(sp_relation& pRelation)
+{
+	if(rows() > 0 && pRelation->size() != m_pRelation->size())
+		throw Ex("Existing data incompatible with new relation");
+	m_pRelation = pRelation;
+}
+
+void GMatrix::resize(size_t rows, size_t cols)
+{
+	flush();
+	sp_relation pRel = new GUniformRelation(cols, 0);
+	setRelation(pRel);
+	newRows(rows);
+}
 
 void GMatrix::flush()
 {
-	if(!m_pHeap)
-	{
-		for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
-			delete[] (*it);
-	}
+	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
+		delete[] (*it);
 	m_rows.clear();
 }
 
@@ -1056,7 +1064,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 }
 
 #ifndef MIN_PREDICT
-GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
+void GMatrix::parseArff(GArffTokenizer& tok)
 {
 	// Parse the meta data
 	GArffRelation* pRelation = new GArffRelation();
@@ -1095,9 +1103,8 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 			throw Ex("Expected a '%' or a '@' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 	}
 
-	// Parse the data section
-	GMatrix* pData = new GMatrix(sp_rel);
-	Holder<GMatrix> hData(pData);
+	flush();
+	setRelation(sp_rel);
 	size_t cols = pRelation->size();
 	while(true)
 	{
@@ -1113,7 +1120,7 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 		else if(c == '{')
 		{
 			tok.advance(1);
-			double* pRow = pData->newRow();
+			double* pRow = newRow();
 			GVec::setAll(pRow, 0.0, cols);
 			while(true)
 			{
@@ -1150,7 +1157,7 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 		}
 		else
 		{
-			double* pRow = pData->newRow();
+			double* pRow = newRow();
 			size_t col = 0;
 			while(true)
 			{
@@ -1178,23 +1185,22 @@ GMatrix* GMatrix_parseArff(GArffTokenizer& tok)
 		if(pRelation->valueCount(i) == (size_t)-1)
 			pRelation->setAttrValueCount(i, 0);
 	}
-	return hData.release();
 }
 
 // static
-GMatrix* GMatrix::loadArff(const char* szFilename)
+void GMatrix::loadArff(const char* szFilename)
 {
 	GArffTokenizer tok(szFilename);
-	return GMatrix_parseArff(tok);
+	parseArff(tok);
 }
 
 // static
-GMatrix* GMatrix::loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, bool tolerant)
+void GMatrix::loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, bool tolerant)
 {
 	size_t nLen;
 	char* szFile = GFile::loadFile(szFilename, &nLen);
 	ArrayHolder<char> hFile(szFile);
-	return parseCsv(szFile, nLen, separator, columnNamesInFirstRow, tolerant);
+	parseCsv(szFile, nLen, separator, columnNamesInFirstRow, tolerant);
 }
 
 void GMatrix::saveArff(const char* szFilename)
@@ -1203,10 +1209,10 @@ void GMatrix::saveArff(const char* szFilename)
 }
 
 // static
-GMatrix* GMatrix::parseArff(const char* szFile, size_t nLen)
+void GMatrix::parseArff(const char* szFile, size_t nLen)
 {
 	GArffTokenizer tok(szFile, nLen);
-	return GMatrix_parseArff(tok);
+	parseArff(tok);
 }
 
 
@@ -1217,7 +1223,7 @@ public:
 };
 
 // static
-GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, bool tolerant)
+void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, bool tolerant)
 {
 	// Extract the elements
 	GHeap heap(2048);
@@ -1357,7 +1363,7 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 		}
 		else
 		{
-			if(row.m_elements.size() != (size_t)elementCount)
+			if(row.m_elements.size() != (size_t)elementCount && elementCount != (size_t)-1)
 				throw Ex("Line ", to_str(nLine), " has a different number of elements than line ", to_str(nFirstDataLine));
 		}
 
@@ -1376,16 +1382,15 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 
 	// Parse it all
 	GArffRelation* pRelation = new GArffRelation();
-	sp_relation pRel;
-	pRel = pRelation;
-	GMatrix* pData = new GMatrix(pRel);
-	Holder<GMatrix> hData(pData);
+	sp_relation pRel = pRelation;
+	flush();
+	setRelation(pRel);
 	size_t rowCount = rows.size();
 	if(columnNamesInFirstRow)
 		rowCount--;
-	pData->reserve(rowCount);
+	reserve(rowCount);
 	for(size_t i = 0; i < rowCount; i++)
-		pData->m_rows.push_back(new double[elementCount]);
+		m_rows.push_back(new double[elementCount]);
 	for(size_t attr = 0; attr < elementCount; attr++)
 	{
 		// Determine if the attribute can be real
@@ -1425,7 +1430,7 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 					val = UNKNOWN_REAL_VALUE;
 				else
 					val = atof(el);
-				pData->row(i)[attr] = val;
+				row(i)[attr] = val;
 				i++;
 			}
 		}
@@ -1442,9 +1447,9 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 			{
 				const char* el = rows[pat].m_elements[attr];
 				if(el[0] == '\0')
-					pData->row(i)[attr] = UNKNOWN_DISCRETE_VALUE;
+					row(i)[attr] = UNKNOWN_DISCRETE_VALUE;
 				else if(strcmp(el, "?") == 0)
-					pData->row(i)[attr] = UNKNOWN_DISCRETE_VALUE;
+					row(i)[attr] = UNKNOWN_DISCRETE_VALUE;
 				else
 				{
 					if(ht.get(el, &pVal))
@@ -1455,7 +1460,7 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 						n = valueCount++;
 						ht.add(el, (const void*)n);
 					}
-					pData->row(i)[attr] = (double)n;
+					row(i)[attr] = (double)n;
 				}
 				i++;
 			}
@@ -1471,7 +1476,6 @@ GMatrix* GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool c
 			}
 		}
 	}
-	return hData.release();
 }
 
 GDomNode* GMatrix::serialize(GDom* pDoc) const
@@ -2691,10 +2695,7 @@ double* GMatrix::newRow()
 {
 	size_t nAttributes = m_pRelation->size();
 	double* pNewRow;
-	if(m_pHeap)
-		pNewRow = (double*)m_pHeap->allocate(sizeof(double) * nAttributes);
-	else
-		pNewRow = new double[nAttributes];
+	pNewRow = new double[nAttributes];
 	m_rows.push_back(pNewRow);
 	return pNewRow;
 }
@@ -2860,9 +2861,7 @@ double* GMatrix::releaseRow(size_t index)
 
 void GMatrix::deleteRow(size_t index)
 {
-	double* pRow = releaseRow(index);
-	if(!m_pHeap)
-		delete[] pRow;
+	delete[] releaseRow(index);
 }
 
 double* GMatrix::releaseRowPreserveOrder(size_t index)
@@ -2874,9 +2873,7 @@ double* GMatrix::releaseRowPreserveOrder(size_t index)
 
 void GMatrix::deleteRowPreserveOrder(size_t index)
 {
-	double* pRow = releaseRowPreserveOrder(index);
-	if(!m_pHeap)
-		delete[] pRow;
+	delete[] releaseRowPreserveOrder(index);
 }
 
 void GMatrix::releaseAllRows()
@@ -2995,7 +2992,6 @@ void GMatrix::splitByPivot(GMatrix* pGreaterOrEqual, size_t nAttribute, double d
 {
 	if(pExtensionA && pExtensionA->rows() != rows())
 		throw Ex("Expected pExtensionA to have the same number of rows as this dataset");
-	GAssert(pGreaterOrEqual->m_pHeap == m_pHeap);
 	size_t nUnknowns = 0;
 	double* pRow;
 	size_t n;
@@ -3032,7 +3028,6 @@ void GMatrix::splitByPivot(GMatrix* pGreaterOrEqual, size_t nAttribute, double d
 
 void GMatrix::splitByNominalValue(GMatrix* pSingleClass, size_t nAttr, int nValue, GMatrix* pExtensionA, GMatrix* pExtensionB)
 {
-	GAssert(pSingleClass->m_pHeap == m_pHeap);
 	for(size_t i = rows() - 1; i < rows(); i--)
 	{
 		double* pVec = row(i);
@@ -3047,7 +3042,6 @@ void GMatrix::splitByNominalValue(GMatrix* pSingleClass, size_t nAttr, int nValu
 
 void GMatrix::splitBySize(GMatrix* pOtherData, size_t nOtherRows)
 {
-	GAssert(pOtherData->m_pHeap == m_pHeap);
 	if(nOtherRows > rows())
 		throw Ex("row count out of range");
 	size_t targetSize = pOtherData->rows() + nOtherRows;
@@ -3595,7 +3589,7 @@ void GMatrix::centerMeanAtOrigin()
 size_t GMatrix::countPrincipalComponents(double d, GRand* pRand)
 {
 	size_t dims = cols();
-	GMatrix tmpData(relation(), heap());
+	GMatrix tmpData(relation());
 	tmpData.copy(this);
 	tmpData.centerMeanAtOrigin();
 	GTEMPBUF(double, vec, dims);
@@ -3846,8 +3840,7 @@ void GMatrix::pairedTTest(size_t* pOutV, double* pOutT, size_t attr1, size_t att
 void GMatrix::wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance, int* pNum, double* pWMinus, double* pWPlus)
 {
 	// Make sorted list of differences
-	GHeap heap(1024);
-	GMatrix tmp(0, 2, &heap); // col 0 holds the absolute difference. col 1 holds the sign.
+	GMatrix tmp(0, 2); // col 0 holds the absolute difference. col 1 holds the sign.
 	for(size_t i = 0; i < rows(); i++)
 	{
 		double* pPat = row(i);
@@ -4144,21 +4137,21 @@ void GMatrix_testParsing()
 	"'y',,99 \n"
 	",,\n"
 	"?,?,?";
-	GMatrix* pM = GMatrix::parseArff(file, strlen(file));
-	Holder<GMatrix> hM(pM);
-	if(pM->cols() != 3)
+	GMatrix m;
+	m.parseArff(file, strlen(file));
+	if(m.cols() != 3)
 		throw Ex("failed");
-	if(pM->rows() != 5)
+	if(m.rows() != 5)
 		throw Ex("failed");
-	if(pM->row(0)[2] != -1.5e-2)
+	if(m[0][2] != -1.5e-2)
 		throw Ex("failed");
-	if(pM->row(2)[1] != UNKNOWN_REAL_VALUE)
+	if(m[2][1] != UNKNOWN_REAL_VALUE)
 		throw Ex("failed");
-	if(pM->row(3)[1] != UNKNOWN_REAL_VALUE)
+	if(m[3][1] != UNKNOWN_REAL_VALUE)
 		throw Ex("failed");
-	if(pM->row(3)[0] != UNKNOWN_DISCRETE_VALUE)
+	if(m[3][0] != UNKNOWN_DISCRETE_VALUE)
 		throw Ex("failed");
-	if(pM->row(4)[0] != UNKNOWN_DISCRETE_VALUE)
+	if(m[4][0] != UNKNOWN_DISCRETE_VALUE)
 		throw Ex("failed");
 }
 
@@ -4374,7 +4367,8 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 {
 	// Test principal components
 	GHeap heap(1000);
-	GMatrix data(0, 2, &heap);
+	GMatrix data(0, 2);
+	data.reserve(100);
 	for(size_t i = 0; i < 100; i++)
 	{
 		double* pNewRow = data.newRow();

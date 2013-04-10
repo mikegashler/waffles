@@ -139,22 +139,20 @@ void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount
 	}
 }
 
-GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
+void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t* pLabelDims)
 {
 	// Load the dataset by extension
 	const char* szFilename = args.pop_string();
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		data.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		data.loadCsv(szFilename, ',', false, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		data.loadCsv(szFilename, '\0', false, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	Holder<GMatrix> hData(pData);
 
 	// Parse params
 	vector<size_t> ignore;
@@ -162,9 +160,9 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-labels"))
-			parseAttributeList(labels, args, pData->cols());
+			parseAttributeList(labels, args, data.cols());
 		else if(args.if_pop("-ignore"))
-			parseAttributeList(ignore, args, pData->cols());
+			parseAttributeList(ignore, args, data.cols());
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -173,7 +171,7 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		pData->deleteColumn(ignore[i]);
+		data.deleteColumn(ignore[i]);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
 			if(labels[j] >= ignore[i])
@@ -190,10 +188,10 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 	for(size_t i = 0; i < labels.size(); i++)
 	{
 		size_t src = labels[i];
-		size_t dst = pData->cols() - *pLabelDims + i;
+		size_t dst = data.cols() - *pLabelDims + i;
 		if(src != dst)
 		{
-			pData->swapColumns(src, dst);
+			data.swapColumns(src, dst);
 			for(size_t j = i + 1; j < labels.size(); j++)
 			{
 				if(labels[j] == dst)
@@ -204,8 +202,6 @@ GMatrix* loadDataWithSwitches(GArgReader& args, size_t* pLabelDims)
 			}
 		}
 	}
-
-	return hData.release();
 }
 
 GMatrix* loadData(const char* szFilename)
@@ -213,16 +209,17 @@ GMatrix* loadData(const char* szFilename)
 	// Load the dataset by extension
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
+	GMatrix* pData = new GMatrix();
+	Holder<GMatrix> hData(pData);
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		pData->loadCsv(szFilename, ',', false, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		pData->loadCsv(szFilename, '\0', false, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	return pData;
+	return hData.release();
 }
 
 void showInstantiateNeighborFinderError(const char* szMessage, GArgReader& args)
@@ -1561,19 +1558,18 @@ void printDecisionTree(GArgReader& args)
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
-	GMatrix* pData = NULL;
 	if(args.size() > 0)
 	{
+		GMatrix data;
 		size_t ld;
-		pData = loadDataWithSwitches(args, &ld);
-		Holder<GMatrix> hData(pData);
+		loadDataWithSwitches(data, args, &ld);
 		size_t labelDims = pModeler->relLabels()->size();
 		if(ld != labelDims)
 			throw Ex("Different number of label dims than the model was trained with");
 		GArffRelation relFeatures;
-		relFeatures.addAttrs(pData->relation().get(), 0, pData->cols() - labelDims);
+		relFeatures.addAttrs(data.relation().get(), 0, data.cols() - labelDims);
 		GArffRelation relLabels;
-		relLabels.addAttrs(pData->relation().get(), pData->cols() - labelDims, labelDims);
+		relLabels.addAttrs(data.relation().get(), data.cols() - labelDims, labelDims);
 		((GDecisionTree*)pModeler)->print(cout, &relFeatures, &relLabels);
 	}
 	else
@@ -1595,19 +1591,18 @@ void printRandomForest(GArgReader& args)
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
-	GMatrix* pData = NULL;
 	if(args.size() > 0)
 	{
 		size_t ld;
-		pData = loadDataWithSwitches(args, &ld);
-		Holder<GMatrix> hData(pData);
+		GMatrix data;
+		loadDataWithSwitches(data, args, &ld);
 		size_t labelDims = pModeler->relLabels()->size();
 		if(ld != labelDims)
 			throw Ex("Different number of label dims than the model was trained with");
 		GArffRelation relFeatures;
-		relFeatures.addAttrs(pData->relation().get(), 0, pData->cols() - labelDims);
+		relFeatures.addAttrs(data.relation().get(), 0, data.cols() - labelDims);
 		GArffRelation relLabels;
-		relLabels.addAttrs(pData->relation().get(), pData->cols() - labelDims, labelDims);
+		relLabels.addAttrs(data.relation().get(), data.cols() - labelDims, labelDims);
 		((GRandomForest*)pModeler)->print(cout, &relFeatures, &relLabels);
 	}
 	else

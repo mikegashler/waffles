@@ -645,11 +645,10 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 void GKNN::interpolateLearner(const double* pIn, GPrediction* pOut, double* pOut2)
 {
 	GAssert(m_pLearner); // no learner is set
-	GHeap heap(1000);
-	GMatrix dataFeatures(m_pFeatures->relation(), &heap);
+	GMatrix dataFeatures(m_pFeatures->relation());
 	GReleaseDataHolder hDataFeatures(&dataFeatures);
 	dataFeatures.reserve(m_nNeighbors);
-	GMatrix dataLabels(m_pLabels->relation(), &heap);
+	GMatrix dataLabels(m_pLabels->relation());
 	GReleaseDataHolder hDataLabels(&dataLabels);
 	dataLabels.reserve(m_nNeighbors);
 	for(size_t i = 0; i < m_nNeighbors; i++)

@@ -53,21 +53,19 @@ using std::string;
 using std::vector;
 using std::set;
 
-GMatrix* loadData(const char* szFilename)
+void loadData(GMatrix& data, const char* szFilename)
 {
 	// Load the dataset by extension
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		data.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		data.loadCsv(szFilename, ',', false, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		data.loadCsv(szFilename, '\0', false, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	return pData;
 }
 
 GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args);
@@ -306,8 +304,8 @@ void multiplyDense(GArgReader& args)
 	}
 
 	// Load the dense matrix
-	GMatrix* pB = GMatrix::loadArff(args.pop_string());
-	Holder<GMatrix> hB(pB);
+	GMatrix b;
+	b.loadArff(args.pop_string());
 
 	// Parse options
 	bool transpose = false;
@@ -319,7 +317,7 @@ void multiplyDense(GArgReader& args)
 			throw Ex("Invalid option: ", args.peek());
 	}
 
-	GMatrix* pResult = pA->multiply(pB, transpose);
+	GMatrix* pResult = pA->multiply(&b, transpose);
 	Holder<GMatrix> hResult(pResult);
 	pResult->print(cout);
 }
@@ -349,8 +347,8 @@ void train(GArgReader& args)
 	}
 
 	// Load the dense labels
-	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
-	Holder<GMatrix> hLabels(pLabels);
+	GMatrix labels;
+	labels.loadArff(args.pop_string());
 
 	// Instantiate the modeler
 	GRand prng(seed);
@@ -363,7 +361,7 @@ void train(GArgReader& args)
 	GIncrementalLearner* pModel = (GIncrementalLearner*)pSupLearner;
 
 	// Train the modeler
-	pModel->trainSparse(*pSparseFeatures, *pLabels);
+	pModel->trainSparse(*pSparseFeatures, labels);
 
 	// Output the trained model
 	GDom doc;
@@ -453,25 +451,25 @@ void test(GArgReader& args)
 	}
 
 	// Load the dense labels
-	GMatrix* pLabels = GMatrix::loadArff(args.pop_string());
-	Holder<GMatrix> hLabels(pLabels);
-	if(!pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
+	GMatrix labels;
+	labels.loadArff(args.pop_string());
+	if(!labels.relation()->isCompatible(*pModeler->relLabels().get()))
 		throw Ex("The data is not compatible with the data used to trainn the model. (The meta-data is different.)");
 
 	// Test
-	GTEMPBUF(double, prediction, pLabels->cols());
+	GTEMPBUF(double, prediction, labels.cols());
 	double* pFullRow = new double[pData->cols()];
 	ArrayHolder<double> hFullRow(pFullRow);
-	GTEMPBUF(double, results, pLabels->cols());
-	GVec::setAll(results, 0.0, pLabels->cols());
+	GTEMPBUF(double, results, labels.cols());
+	GVec::setAll(results, 0.0, labels.cols());
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		pData->fullRow(pFullRow, i);
 		pModeler->predict(pFullRow, prediction);
-		double* pTarget = pLabels->row(i);
-		for(size_t j = 0; j < pLabels->cols(); j++)
+		double* pTarget = labels.row(i);
+		for(size_t j = 0; j < labels.cols(); j++)
 		{
-			if(pLabels->relation()->valueCount(j) == 0)
+			if(labels.relation()->valueCount(j) == 0)
 			{
 				double d = pTarget[j] - prediction[j];
 				results[j] += (d * d);
@@ -483,8 +481,8 @@ void test(GArgReader& args)
 			}
 		}
 	}
-	GVec::multiply(results, 1.0 / pData->rows(), pLabels->cols());
-	GVec::print(cout, 14, results, pLabels->cols());
+	GVec::multiply(results, 1.0 / pData->rows(), labels.cols());
+	GVec::print(cout, 14, results, labels.cols());
 }
 
 void transpose(GArgReader& args)
@@ -786,8 +784,9 @@ void shuffle(GArgReader& args)
 	Holder<GMatrix> hLabels(NULL);
 	if(labelsIn.length() > 0)
 	{
-		pLabels = loadData(labelsIn.c_str());
+		pLabels = new GMatrix();
 		hLabels.reset(pLabels);
+		loadData(*pLabels, labelsIn.c_str());
 	}
 	pData->shuffle(&prng, pLabels);
 	GDom doc2;

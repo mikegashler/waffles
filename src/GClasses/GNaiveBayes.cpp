@@ -409,11 +409,11 @@ void GNaiveBayes_testMath(GRand* pRand)
 	"f,g,n\n"
 	"f,b,y\n"
 	"t,r,n\n";
-	GMatrix* pTrain = GMatrix::parseArff(trainFile, strlen(trainFile));
-	Holder<GMatrix> hTrain(pTrain);
-	GMatrix* pFeatures = pTrain->cloneSub(0, 0, pTrain->rows(), 2);
+	GMatrix train;
+	train.parseArff(trainFile, strlen(trainFile));
+	GMatrix* pFeatures = train.cloneSub(0, 0, train.rows(), 2);
 	Holder<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pTrain->cloneSub(0, 2, pTrain->rows(), 1);
+	GMatrix* pLabels = train.cloneSub(0, 2, train.rows(), 1);
 	Holder<GMatrix> hLabels(pLabels);
 	GNaiveBayes nb(*pRand);
 	nb.setEquivalentSampleSize(0.0);
