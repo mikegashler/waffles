@@ -1889,7 +1889,7 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 		double b = rand.normal();
 		double c = rand.normal();
 		double d = rand.normal();
-		size_t ind = rand.next(5);
+		size_t ind = (size_t)rand.next(5);
 		nn.normalizeInput(ind, a, b, c, d);
 		in[ind] = GMatrix::normalize(in[ind], a, (b - a), c, (d - c));
 		nn.predict(in, &after);

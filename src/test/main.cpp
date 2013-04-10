@@ -892,15 +892,20 @@ public:
 		return false;
 	}
 
+	void printTestName(const char* szTestName)
+	{
+		cout << szTestName;
+		size_t nSpaces = (size_t)70 - strlen(szTestName);
+		for( ; nSpaces > 0; nSpaces--)
+			cout << " ";
+		cout.flush();
+	}
+
 	bool runTest(const char* szTestName, TestFunc pTest)
 	{
 		bool bPass = false;
 		if(willRunTest(szTestName)){
-			cout << szTestName;
-			size_t nSpaces = (size_t)70 - strlen(szTestName);
-			for( ; nSpaces > 0; nSpaces--)
-				cout << " ";
-			cout.flush();
+			printTestName(szTestName);
 			try
 			{
 				double beginTime = GTime::seconds();
@@ -1045,8 +1050,8 @@ int main(int argc, char *argv[])
 
 	if(argc < 2){
 	  std::cout << 
-	    "You can run only specific tests by passing strings that must be "
-	    "substrings of \nthe test names on the command line\n";
+	    "(Optionally, you can run specific tests by passing a string as an argument."
+		"Only tests containing the string will be executed.)\n";
 	}
 
 	int nRet = 0;

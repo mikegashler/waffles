@@ -2409,8 +2409,8 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		}
 		pNN->setLearningRate(learningRate);
 		pNN->setMomentum(momentum);
-		size_t sampleSize = std::max((size_t)1, (size_t)ceil(sqrt(m_cvi.coordCount())));
-		size_t batchSize = std::max((size_t)ceil(sqrt(in.rows())), in.rows() / sampleSize);
+		size_t sampleSize = std::max((size_t)1, (size_t)ceil(sqrt((double)m_cvi.coordCount())));
+		size_t batchSize = std::max((size_t)ceil(sqrt((double)in.rows())), in.rows() / sampleSize);
 
 //sampleSize = 1;
 //batchSize = 100;

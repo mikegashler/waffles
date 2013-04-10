@@ -226,6 +226,7 @@ SOCKET GSocket_connect(const char* addr, unsigned short port, int timeoutSecs)
 				FD_ZERO(&socketSet);
 				FD_SET(sock, &socketSet);
 #ifdef WINDOWS
+				GWindows::yield();
 				int res = select((int)sock + 1, NULL, &socketSet, NULL, &timeout);
 				if(res < 0 && WSAGetLastError() != WSAEINTR)
 #else
@@ -956,8 +957,8 @@ char* GPackageServer::receive(size_t* pOutLen, GPackageConnection** pOutConn)
 #ifndef NO_TEST_CODE
 #define TEST_PORT 7251
 #define CLIENT_COUNT 5
-#define TEST_LEN 5000
-#define MAX_PACKET_LEN 2345
+#define TEST_LEN 1000
+#define MAX_PACKET_LEN 257
 
 void GPackageServer_serial_test()
 {

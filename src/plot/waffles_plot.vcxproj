@@ -114,11 +114,9 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="plotchart.cpp" />
     <ClCompile Include="..\wizard\usage.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="plotchart.h" />
     <ClInclude Include="..\wizard\usage.h" />
   </ItemGroup>
   <ItemGroup>

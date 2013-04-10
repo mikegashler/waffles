@@ -100,7 +100,7 @@ void Train()
 	GMatrix features(0, FEATURE_DIMS);
 	GMatrix labels(0, LABEL_DIMS);
 	GenerateSeedTrainingSet(&features, &labels, &prng);
-	GNeuralNet nn(&prng);
+	GNeuralNet nn(prng);
 	nn.addLayer(8);
 	nn.setActivationFunction(new GActivationBiDir(), true);
 	nn.train(features, labels);
@@ -138,7 +138,8 @@ GNeuralNet* LoadPolicy(const char* szFilename, GRand* pRand)
 {
 	GDom doc;
 	doc.loadJson(szFilename);
-	return new GNeuralNet(doc.root(), pRand);
+	GLearnerLoader ll(*pRand);
+	return new GNeuralNet(doc.root(), ll);
 }
 
 GNeuralNet* TrainPolicy()
@@ -147,7 +148,7 @@ GNeuralNet* TrainPolicy()
 	GMatrix features(0, FEATURE_DIMS);
 	GMatrix labels(0, LABEL_DIMS);
 	GenerateSeedTrainingSet(&features, &labels, pRand);
-	GNeuralNet* pNN = new GNeuralNet(pRand);
+	GNeuralNet* pNN = new GNeuralNet(*pRand);
 	//pNN->SetMinImprovement(0.01);
 	//pNN->SetIterationsPerValidationCheck(600);
 	pNN->addLayer(4);

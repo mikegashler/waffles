@@ -28,6 +28,7 @@
 #include <math.h>
 #include <vector>
 #include <iostream>
+#include "GImagePng.h"
 
 using namespace GClasses;
 using std::cerr;
@@ -1125,7 +1126,12 @@ void PaintController::OpenFile()
 	const char* szFilename = dialog.filename();
 	if(!szFilename)
 		return;
-	m_pImage->loadByExtension(szFilename);
+	PathData pd;
+	GFile::parsePath(szFilename, &pd);
+	if(_stricmp(szFilename + pd.extStart, ".png") == 0)
+		loadPng(m_pImage, szFilename);
+	else
+		m_pImage->loadByExtension(szFilename);
 	m_pSelection->setSize(m_pImage->width(), m_pImage->height());
 	m_pSelection->clear(0);
 	((PaintView*)m_pView)->OnLoadImage();
@@ -1141,7 +1147,12 @@ void PaintController::SaveFile()
 		return;
 	try
 	{
-		m_pImage->saveByExtension(szFilename);
+		PathData pd;
+		GFile::parsePath(szFilename, &pd);
+		if(_stricmp(szFilename + pd.extStart, ".png") == 0)
+			savePng(m_pImage, szFilename);
+		else
+			m_pImage->saveByExtension(szFilename);
 	}
 	catch(const std::exception& e)
 	{
