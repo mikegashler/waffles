@@ -24,10 +24,15 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_generate", "depends
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_security", "depends\security\waffles_security.vcxproj", "{77021AC6-0B36-46A4-AF17-BA924E807564}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_audio", "audio\waffles_audio.vcxproj", "{5F64187D-C4DF-4565-B1CC-9D5CE4C94462}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E9F67748-E716-4F28-B096-44343A8E28B3} = {E9F67748-E716-4F28-B096-44343A8E28B3}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Win32 = Debug|Win32
 		Release|Win32 = Release|Win32
+		Debug|Win32 = Debug|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{7794088A-E2FD-4AB4-9FE7-B166CB9CBBAA}.Debug|Win32.ActiveCfg = Debug|Win32
@@ -78,6 +83,10 @@ Global
 		{77021AC6-0B36-46A4-AF17-BA924E807564}.Debug|Win32.Build.0 = Debug|Win32
 		{77021AC6-0B36-46A4-AF17-BA924E807564}.Release|Win32.ActiveCfg = Release|Win32
 		{77021AC6-0B36-46A4-AF17-BA924E807564}.Release|Win32.Build.0 = Release|Win32
+		{5F64187D-C4DF-4565-B1CC-9D5CE4C94462}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5F64187D-C4DF-4565-B1CC-9D5CE4C94462}.Debug|Win32.Build.0 = Debug|Win32
+		{5F64187D-C4DF-4565-B1CC-9D5CE4C94462}.Release|Win32.ActiveCfg = Release|Win32
+		{5F64187D-C4DF-4565-B1CC-9D5CE4C94462}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

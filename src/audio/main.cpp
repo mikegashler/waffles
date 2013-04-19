@@ -534,7 +534,7 @@ void spectral(GArgReader& args)
 	for(size_t i = 0; i < size; i++)
 	{
 		double mag = sqrt(p->squaredMagnitude());
-		image.line(i, height - 1, i, height - 1 - mag * height / max, 0xff000080);
+		image.line(i, height - 1, i, height - 1 - (int)(mag * height / max), 0xff000080);
 		p++;
 	}
 	image.savePpm(outFilename.c_str());

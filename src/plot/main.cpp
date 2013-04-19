@@ -765,7 +765,7 @@ public:
 				else if(m_type == Row)
 					col = gAHSV(0xff, i / (float)colorRange, 1.0f, 0.5f);
 				else if(m_type == Attr)
-					col = gAHSV(0xff, (pData->row(i)[m_color] - colorMin) / (float)colorRange, 1.0f, 0.5f);
+					col = gAHSV(0xff, (float)(pData->row(i)[m_color] - colorMin) / (float)colorRange, 1.0f, 0.5f);
 				else
 					throw Ex("Unrecognized type");
 				if(x != UNKNOWN_REAL_VALUE && y != UNKNOWN_REAL_VALUE)
