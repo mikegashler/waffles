@@ -737,6 +737,17 @@ UsageNode* makeGenerateUsageTree()
 		pOpts->add("-actionfile [filename]=actions.arff", "Specify the filename for the actions data. The default is actions.arff.");
 	}
 	{
+		UsageNode* pITA = pRoot->add("imagestoarff <options>", "Converts the numbered PNG image files in the current directory to an ARFF file, where each row encodes one image. (For example, you might use ffmpeg to convert a video to a sequence of images, and then use this tool to convert the images to an ARFF file.)");
+		UsageNode* pOpts = pITA->add("<options>");
+		pOpts->add("-inc [val]=1", "Specify how the frame numbering is incremented. By default, each frame increments the number by 1.");
+		pOpts->add("-start [val]=0", "Specify the lowest number of any image. For example, if the first frame is named frame001.png, then this value should be 1. (Note that it will stop as soon as it cannot find the next frame, so if this starting value is incorrect, there may be no results.)");
+		pOpts->add("-pre [str]=", "Specify the prefix that comes before the number in the filenames. For example, if frame001.png is the name of one of the files, then the prefix should be \"frame\".");
+		pOpts->add("-suf [str]=.png", "Specify the suffix that comes after the number in the filenames. For example, if f001yo.png is the name of one of the files, then the suffix should be \"yo.png\".");
+		pOpts->add("-digits [n]=3", "Specify the number of digits (including zero padding) used in the frame numbering. For example, if frame00001.png is one of the frames, then this value should be 5.");
+		pOpts->add("-channels [c]=3", "Specify the number of color channels to encode. For grayscale, use 1. For RGB, use 3.");
+		pOpts->add("-range [r]=255", "Specify the largest possible value in the encoding of a single channel. Typical values are 1.0 and 255.0");
+	}
+	{
 		UsageNode* pITON = pRoot->add("imagetranslatedovernoise [png-file] <options>", "Sample a manifold by translating an image over a background of noise.");
 		pITON->add("[png-file]=in.png", "The filename of a png image.");
 		UsageNode* pOpts = pITON->add("<options>");
@@ -1466,6 +1477,11 @@ UsageNode* makeTransformUsageTree()
 		pDITC->add("[col]=0", "The column to evaluate.");
 		pDITC->add("[gap]=1.0", "The minimum gap between sequential values.");
 	}
+	{
+		UsageNode* pDR = pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");
+		pDR->add("[dataset]=data.arff", "The filename of a dataset.");
+		pDR->add("[after-size]=1", "The number of rows to keep");
+	}
 	pRoot->add("dropmissingvalues [dataset]=data.arff", "Remove all rows that contain missing values.");
 	{
 		UsageNode* pDRV = pRoot->add("droprandomvalues [dataset] [portion] <options>", "Drop random values from the specified dataset. The resulting dataset with missing values is printed to stdout.");
@@ -1483,11 +1499,6 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-space", "Separate with spaces instead of commas.");
 		pOpts->add("-r", "Use \"NA\" instead of \"?\" for missing values. (This is the format used by R.)");
 		pOpts->add("-columnnames", "Print column names on the first row. (The default is to not print column names.)");
-	}
-	{
-		UsageNode* pDR = pRoot->add("droprows [dataset] [after-size]", "Removes all rows except for the first [after-size] rows.");
-		pDR->add("[dataset]=data.arff", "The filename of a dataset.");
-		pDR->add("[after-size]=1", "The number of rows to keep");
 	}
 	{
 		UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");

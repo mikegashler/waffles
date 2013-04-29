@@ -262,7 +262,7 @@ size_t GVec::indexOfMin(const double* pVector, size_t dims, GRand* pRand)
 			if(pVector[n] == pVector[index])
 			{
 				count++;
-				if(pRand->next(count) == 0)
+				if(pRand && pRand->next(count) == 0)
 					index = n;
 			}
 			else
@@ -287,7 +287,7 @@ size_t GVec::indexOfMax(const double* pVector, size_t dims, GRand* pRand)
 			if(pVector[n] == pVector[index])
 			{
 				count++;
-				if(pRand->next(count) == 0)
+				if(pRand && pRand->next(count) == 0)
 					index = n;
 			}
 			else

@@ -99,12 +99,16 @@ public:
 	static double correlation(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nDims);
 
 	/// Returns the index of the min value in pVector. If multiple elements have
-	/// have an equivalent max value, it randomly (uniformly) picks from all the ties.
-	static size_t indexOfMin(const double* pVector, size_t dims, GRand* pRand);
+	/// have an equivalent max value, then behavior depends on the value of pRand.
+	/// If pRand is NULL, it will pick the first one. If pRand is non-NULL, it will
+	/// uniformly pick from all the ties.
+	static size_t indexOfMin(const double* pVector, size_t dims, GRand* pRand = NULL);
 
 	/// Returns the index of the max value in pVector. If multiple elements have
-	/// have an equivalent max value, it randomly (uniformly) picks from all the ties.
-	static size_t indexOfMax(const double* pVector, size_t dims, GRand* pRand);
+	/// have an equivalent max value, then behavior depends on the value of pRand.
+	/// If pRand is NULL, it will pick the first one. If pRand is non-NULL, it will
+	/// uniformly pick from all the ties.
+	static size_t indexOfMax(const double* pVector, size_t dims, GRand* pRand = NULL);
 
 	/// Returns the index of the value with the largest magnitude in pVector. If multiple elements have
 	/// have an equivalent magnitude, it randomly (uniformly) picks from all the ties.

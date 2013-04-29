@@ -55,13 +55,13 @@ GMatrix* loadData(const char* szFilename)
 	// Load the dataset by extension
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	GMatrix* pData = NULL;
+	GMatrix* pData = new GMatrix();
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
-		pData = GMatrix::loadArff(szFilename);
+		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData = GMatrix::loadCsv(szFilename, ',', false, false);
+		pData->loadCsv(szFilename, ',', false, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData = GMatrix::loadCsv(szFilename, '\0', false, false);
+		pData->loadCsv(szFilename, '\0', false, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return pData;
@@ -1401,6 +1401,70 @@ void vectorToImage(GArgReader& args)
 	savePng(&image, "image.png");
 }
 
+void imagesToArff(GArgReader& args)
+{
+	const char* szPrefix = "";
+	size_t digits = 4;
+	const char* szSuffix = ".png";
+	size_t start = 0;
+	size_t increment = 1;
+	int channels = 3;
+	double range = 255.0;
+
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-inc"))
+			increment = args.pop_uint();
+		else if(args.if_pop("-start"))
+			start = args.pop_uint();
+		else if(args.if_pop("-pre"))
+			szPrefix = args.pop_string();
+		else if(args.if_pop("-suf"))
+			szSuffix = args.pop_string();
+		else if(args.if_pop("-digits"))
+			digits = args.pop_uint();
+		else if(args.if_pop("-channels"))
+			channels = args.pop_uint();
+		else if(args.if_pop("-range"))
+			range = args.pop_double();
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	size_t i = start;
+	string format = "%s%0";
+	format += to_str(digits);
+	format += "d%s";
+	size_t w = 0;
+	size_t h = 0;
+	char buf[256];
+	GMatrix m;
+	while(true)
+	{
+		sprintf(buf, format.c_str(), szPrefix, i, szSuffix);
+		GImage image;
+		if(!GFile::doesFileExist(buf))
+			break;
+		loadPng(&image, buf);
+		if(m.rows() > 0)
+		{
+			if(image.width() != w || image.height() != h)
+				throw Ex("Image ", buf, " not of uniform dimensions");
+		}
+		else
+		{
+			w = image.width();
+			h = image.height();
+			size_t dims = w * h * channels;
+			m.resize(0, dims);
+		}
+		GVec::fromImage(&image, m.newRow(), image.width(), image.height(), channels, range);
+
+		i += increment;
+	}
+	m.print(cout);
+}
+
 void dataToFrames(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -2401,7 +2465,7 @@ void model(GArgReader& args)
 	if(labelRange == 0.0)
 	{
 		labelMin = pData->columnMin(featureDims + labelDim);
-		labelRange = pData->columnMax(featureDims + labelDim) - labelMin;
+		labelRange = (pData->columnMax(featureDims + labelDim) - labelMin);
 	}
 
 	// Plot the data
@@ -2418,6 +2482,7 @@ void model(GArgReader& args)
 	unsigned int* pPix = image.pixels();
 	size_t step = std::max((size_t)1, pData->rows() / 100);
 	double xx, yy;
+	bool continuous = pData->relation()->valueCount(featureDims + labelDim) == 0 ? true : false;
 	for(int y = 0; y < height; y++)
 	{
 		cout << ((float)y * 100.0f / height) << "%       \r";
@@ -2435,7 +2500,11 @@ void model(GArgReader& args)
 				features[attrx] = xx;
 				features[attry] = yy;
 				pModeler->predict(features, labels);
-				unsigned int hue = gAHSV(0xff, std::max(0.0f, std::min(1.0f, (float)((labels[labelDim] - labelMin) / labelRange))), 1.0f, 0.5f);
+				unsigned int hue;
+				if(continuous)
+					hue = MixColors(gARGB(0xff, 0, 0x80, 0x80), gARGB(0xff, 0x80, 0, 0), 256.0 * (labels[labelDim] - labelMin) / labelRange);
+				else
+					hue = gAHSV(0xff, std::max(0.0f, std::min(1.0f, (float)((labels[labelDim] - labelMin) / labelRange))), 1.0f, 0.5f);
 				r += gRed(hue);
 				g += gGreen(hue);
 				b += gBlue(hue);
@@ -2455,7 +2524,13 @@ void model(GArgReader& args)
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		double* pRow = pData->row(i);
-		pw.dot(pRow[attrx], pRow[attry], dotRadius, gAHSV(0xff, std::max(0.0f, std::min(1.0f, (float)((pRow[featureDims + labelDim] - labelMin) / labelRange))), 1.0, 1.0), 0xff000000);
+		unsigned int hue;
+		if(continuous)
+			hue = MixColors(gARGB(0xff, 0, 0xff, 0xff), gARGB(0xff, 0xff, 0, 0), 256.0 * (pRow[featureDims + labelDim] - labelMin) / labelRange);
+		else
+			hue = gAHSV(0xff, std::max(0.0f, std::min(1.0f, (float)((pRow[featureDims + labelDim] - labelMin) / labelRange))), 1.0f, 1.0f);
+
+		pw.dot(pRow[attrx], pRow[attry], dotRadius, hue, 0xff000000);
 	}
 
 	savePng(&image, filename.c_str());
@@ -2522,7 +2597,8 @@ void rayTraceManifoldModel(GArgReader& args)
 		else if(args.if_pop("-points"))
 		{
 			delete(pPoints);
-			pPoints = GMatrix::loadArff(args.pop_string());
+			pPoints = new GMatrix();
+			pPoints->loadArff(args.pop_string());
 			hPoints.reset(pPoints);
 			if(pPoints->cols() != 3)
 				throw Ex("Expected 3-dimensional points");
@@ -2809,6 +2885,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("entwinedspirals")) EntwinedSpirals(args);
 		else if(args.if_pop("fishbowl")) fishBowl(args);
 		else if(args.if_pop("gridrandomwalk")) gridRandomWalk(args);
+		else if(args.if_pop("imagestoarff")) imagesToArff(args);
 		else if(args.if_pop("imagetranslatedovernoise")) ImageTranslatedOverNoise(args);
 		else if(args.if_pop("manifold")) manifold(args);
 		else if(args.if_pop("mechanicalrabbit")) mechanicalRabbit(args);

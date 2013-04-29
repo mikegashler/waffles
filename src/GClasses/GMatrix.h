@@ -1081,6 +1081,11 @@ public:
 	/// and attr2Origin.
 	double linearCorrelationCoefficient(size_t attr1, double attr1Origin, size_t attr2, double attr2Origin);
 
+	/// \brief Finds a sphere that bounds all the row-points in this matrix.
+	/// 
+	/// Returns the squared radius of the sphere, and stores its center in pOutCenter.
+	double boundingSphere(double* pOutCenter);
+
 	/// \brief Computes the covariance between two attributes
 	double covariance(size_t nAttr1, double dMean1, size_t nAttr2, double dMean2);
 

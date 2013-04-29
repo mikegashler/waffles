@@ -21,6 +21,7 @@
 #include <time.h>
 #include <string>
 #include <sstream>
+#include <stdlib.h>
 
 using std::vector;
 using std::string;

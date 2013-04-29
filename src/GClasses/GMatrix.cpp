@@ -3763,6 +3763,75 @@ GMatrix* GMatrix::covarianceMatrix()
 	return pOut;
 }
 
+double GMatrix::boundingSphere(double* pCenter)
+{
+	size_t dims = cols();
+	if(rows() < 2)
+	{
+		if(rows() < 1)
+			throw Ex("Empty matrix");
+		GVec::copy(pCenter, row(0), dims);
+		return 1e-18;
+	}
+
+	// Find the two farthest points
+	double* pA = row(0);
+	size_t b = 1;
+	double sdist = GVec::squaredDistance(pA, row(b), dims);
+	for(size_t i = 2; i < rows(); i++)
+	{
+		double cand = GVec::squaredDistance(pA, row(i), dims);
+		if(cand > sdist)
+		{
+			sdist = cand;
+			b = i;
+		}
+	}
+	double* pB = row(b);
+	size_t c = 0;
+	sdist = GVec::squaredDistance(pB, row(c), dims);
+	for(size_t i = 1; i < rows(); i++)
+	{
+		if(i == b)
+			continue;
+		double cand = GVec::squaredDistance(pB, row(i), dims);
+		if(cand > sdist)
+		{
+			sdist = cand;
+			c = i;
+		}
+	}
+
+	// Compute initial center and radius
+	double sradius = 0.25 * sdist;
+	GVec::copy(pCenter, row(b), dims);
+	GVec::add(pCenter, row(c), dims);
+	GVec::multiply(pCenter, 0.5, dims);
+
+	// Refine and grow the bounding sphere until it definitely includes all points
+	while(true)
+	{
+		size_t externals = 0;
+		for(size_t i = 0; i < rows(); i++)
+		{
+			double* pCand = row(i);
+			sdist = GVec::squaredDistance(pCand, pCenter, dims);
+			if(sdist > sradius)
+			{
+				externals++;
+				double scale = sradius / (2.0 * sdist) + 0.5;
+				for(size_t j = 0; j < dims; j++)
+					pCenter[j] = pCand[j] + scale * (pCenter[j] - pCand[j]);
+				double tmp = (sradius + sdist) * 1.01; // This is the grow rate for the radius
+				sradius = tmp * tmp / (4.0 * sdist);
+			}
+		}
+		if(externals == 0)
+			break;
+	}
+	return sradius;
+}
+
 class Row_Binary_Predicate_Functor
 {
 protected:
@@ -4674,6 +4743,27 @@ void GMatrix_testWilcoxon()
 		throw Ex("incorrect test statistic");
 }
 
+void GMatrix_testBoundingSphere(GRand& rand)
+{
+	GTEMPBUF(double, center, 10);
+	for(size_t i = 0; i < 30; i++)
+	{
+		size_t points = rand.next(48) + 2;
+		size_t dims = rand.next(8) + 2;
+		GMatrix m(points, dims);
+		for(size_t j = 0; j < points; j++)
+			rand.spherical(m[j], dims);
+		double r2 = m.boundingSphere(center);
+		if(sqrt(r2) > 1.1)
+			throw Ex("radius ", to_str(sqrt(r2)), " too large");
+		for(size_t j = 0; j < points; j++)
+		{
+			if(GVec::squaredDistance(center, m[j], dims) > r2)
+				throw Ex("point not bounded");
+		}
+	}
+}
+
 // static
 void GMatrix::test()
 {
@@ -4692,6 +4782,7 @@ void GMatrix::test()
 	GMatrix_testBipartiteMatching();
 	GMatrix_testParsing();
 	GMatrix_testWilcoxon();
+	GMatrix_testBoundingSphere(prng);
 }
 #endif // !MIN_PREDICT
 

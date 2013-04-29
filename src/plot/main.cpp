@@ -879,13 +879,18 @@ void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axis
 		// Determine the label
 		string sLabel;
 		size_t attr = horiz ? cols[i].m_attrX : cols[i].m_attrY;
-		if(pData->relation()->type() == GRelation::ARFF)
-			sLabel = ((GArffRelation*)pData->relation().get())->attrName(attr);
-		else
+		if(attr < pData->relation()->size())
 		{
-			sLabel = "Attr ";
-			sLabel += to_str(attr);
+			if(pData->relation()->type() == GRelation::ARFF)
+				sLabel = ((GArffRelation*)pData->relation().get())->attrName(attr);
+			else
+			{
+				sLabel = "Attr ";
+				sLabel += to_str(attr);
+			}
 		}
+		else
+			sLabel = "index";
 
 		// Determine the color
 		unsigned int c = 0xff000000;
