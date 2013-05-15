@@ -1050,7 +1050,7 @@ int main(int argc, char *argv[])
 
 	if(argc < 2){
 	  std::cout << 
-	    "(Optionally, you can run specific tests by passing a string as an argument."
+	    "(Optionally, you can run specific tests by passing a string as an argument. "
 		"Only tests containing the string will be executed.)\n";
 	}
 

@@ -59,6 +59,9 @@ void GNeuralNetLayer::resetWeights(GRand* pRand, double inputCenter)
 GBackProp::GBackProp(GNeuralNet* pNN)
 : m_pNN(pNN)
 {
+	if(!m_pNN->hasTrainingBegun())
+		throw Ex("The specified neural network is not yet ready for training");
+
 	// Initialize structures to mirror the neural network
 	m_layers.resize(m_pNN->m_layers.size());
 	for(size_t i = 0; i < m_layers.size(); i++)
@@ -70,6 +73,151 @@ GBackProp::GBackProp(GNeuralNet* pNN)
 			GBackPropNeuron& neuron = layer.m_neurons[j];
 			neuron.m_weights.resize(pNN->m_layers[i].m_neurons[j].m_weights.size());
 		}
+	}
+
+	// Make the slack values
+	size_t labelDims = m_layers[m_layers.size() - 1].m_neurons.size();
+	m_pSlack = new double[labelDims];
+	GVec::setAll(m_pSlack, 0.0, labelDims);
+}
+
+GBackProp::~GBackProp()
+{
+	delete[] m_pSlack;
+}
+
+void GBackProp::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTargetFunction)
+{
+	// Compute error on output layer
+	GBackPropLayer& bpOutputLayer = layer(m_layers.size() - 1);
+	GNeuralNetLayer& nnOutputLayer = m_pNN->m_layers[m_layers.size() - 1];
+	switch(eTargetFunction)
+	{
+		case squared_error:
+			{
+				vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin();
+				vector<GBackPropNeuron>::iterator itBP = bpOutputLayer.m_neurons.begin();
+				double* pSlack = m_pSlack;
+				while(itNN != nnOutputLayer.m_neurons.end())
+				{
+					if(*pTarget == UNKNOWN_REAL_VALUE)
+						itBP->m_error = 0.0;
+					else
+					{
+						GAssert(*pSlack == 0.0);
+						if(*pTarget > itNN->m_activation + *pSlack)
+							itBP->m_error = (*pTarget - itNN->m_activation - *pSlack) * nnOutputLayer.m_pActivationFunction->derivativeOfNet(itNN->m_net, itNN->m_activation);
+						else if(*pTarget < itNN->m_activation - *pSlack)
+							itBP->m_error = (*pTarget - itNN->m_activation + *pSlack) * nnOutputLayer.m_pActivationFunction->derivativeOfNet(itNN->m_net, itNN->m_activation);
+						else
+							itBP->m_error = 0.0;
+					}
+					pTarget++;
+					pSlack++;
+					itNN++;
+					itBP++;
+				}
+			}
+			break;
+
+		case cross_entropy:
+			{
+				vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin();
+				vector<GBackPropNeuron>::iterator itBP = bpOutputLayer.m_neurons.begin();
+				double* pSlack = m_pSlack;
+				while(itNN != nnOutputLayer.m_neurons.end())
+				{
+					if(*pTarget == UNKNOWN_REAL_VALUE)
+						itBP->m_error = 0.0;
+					else
+					{
+						if(*pTarget > itNN->m_activation + *pSlack)
+							itBP->m_error = *pTarget - itNN->m_activation - *pSlack;
+						else if(*pTarget < itNN->m_activation - *pSlack)
+							itBP->m_error = *pTarget - itNN->m_activation + *pSlack;
+						else
+							itBP->m_error = 0.0;
+					}
+					pTarget++;
+					pSlack++;
+					itNN++;
+					itBP++;
+				}
+			}
+			break;
+
+		case sign:
+			{
+				vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin();
+				vector<GBackPropNeuron>::iterator itBP = bpOutputLayer.m_neurons.begin();
+				double* pSlack = m_pSlack;
+				while(itNN != nnOutputLayer.m_neurons.end())
+				{
+					if(*pTarget == UNKNOWN_REAL_VALUE)
+						itBP->m_error = 0.0;
+					else
+					{
+						if(*pTarget > itNN->m_activation + *pSlack)
+							itBP->m_error = nnOutputLayer.m_pActivationFunction->derivativeOfNet(itNN->m_net, itNN->m_activation);
+						else if(*pTarget < itNN->m_activation - *pSlack)
+							itBP->m_error = -nnOutputLayer.m_pActivationFunction->derivativeOfNet(itNN->m_net, itNN->m_activation);
+						else
+							itBP->m_error = 0.0;
+					}
+					pTarget++;
+					pSlack++;
+					itNN++;
+					itBP++;
+				}
+			}
+			break;
+
+		default:
+			throw Ex("Unrecognized target function for back-propagation");
+			break;
+	}
+}
+
+void GBackProp::setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction)
+{
+	// Compute error on output layer
+	GBackPropLayer& bpOutputLayer = layer(m_layers.size() - 1);
+	GBackPropNeuron& bpNeuron = bpOutputLayer.m_neurons[output];
+	GNeuralNetLayer& nnOutputLayer = m_pNN->m_layers[m_layers.size() - 1];
+	GNeuron& nnNeuron = nnOutputLayer.m_neurons[output];
+	double slack = m_pSlack[output];
+	switch(eTargetFunction)
+	{
+		case squared_error:
+			if(target > nnNeuron.m_activation + slack)
+				bpNeuron.m_error = (target - nnNeuron.m_activation - slack) * nnOutputLayer.m_pActivationFunction->derivativeOfNet(nnNeuron.m_net, nnNeuron.m_activation);
+			else if(target < nnNeuron.m_activation - slack)
+				bpNeuron.m_error = (target - nnNeuron.m_activation + slack) * nnOutputLayer.m_pActivationFunction->derivativeOfNet(nnNeuron.m_net, nnNeuron.m_activation);
+			else
+				bpNeuron.m_error = 0.0;
+			break;
+
+		case cross_entropy:
+			if(target > nnNeuron.m_activation + slack)
+				bpNeuron.m_error = target - nnNeuron.m_activation - slack;
+			else if(target < nnNeuron.m_activation - slack)
+				bpNeuron.m_error = target - nnNeuron.m_activation + slack;
+			else
+				bpNeuron.m_error = 0.0;
+			break;
+
+		case sign:
+			if(target > nnNeuron.m_activation + slack)
+				bpNeuron.m_error = nnOutputLayer.m_pActivationFunction->derivativeOfNet(nnNeuron.m_net, nnNeuron.m_activation);
+			else if(target < nnNeuron.m_activation - slack)
+				bpNeuron.m_error = -nnOutputLayer.m_pActivationFunction->derivativeOfNet(nnNeuron.m_net, nnNeuron.m_activation);
+			else
+				bpNeuron.m_error = 0.0;
+			break;
+
+		default:
+			throw Ex("Unrecognized target function for back-propagation");
+			break;
 	}
 }
 
@@ -351,7 +499,24 @@ void GBackProp::descendGradient(const double* pFeatures, double learningRate, do
 	}
 
 	// adjust the weights on the last hidden layer
-	adjustWeights(pNNPrevLayer, pFeatures, useInputBias, pBPPrevLayer, m_pNN->learningRate(), m_pNN->momentum());
+	adjustWeights(pNNPrevLayer, pFeatures, useInputBias, pBPPrevLayer, learningRate, momentum);
+}
+
+void GBackProp::descendGradientOneLayer(size_t layer, const double* pFeatures, double learningRate, double momentum, bool useInputBias)
+{
+	if(layer > 0)
+	{
+		GNeuralNetLayer* pNNPrevLayer = &m_pNN->m_layers[layer];
+		GBackPropLayer* pBPPrevLayer = &m_layers[layer];
+		GNeuralNetLayer* pNNCurLayer = &m_pNN->m_layers[layer - 1];
+		adjustWeights(pNNPrevLayer, pNNCurLayer, pBPPrevLayer, learningRate, momentum);
+	}
+	else
+	{
+		GNeuralNetLayer* pNNPrevLayer = &m_pNN->m_layers[0];
+		GBackPropLayer* pBPPrevLayer = &m_layers[0];
+		adjustWeights(pNNPrevLayer, pFeatures, useInputBias, pBPPrevLayer, learningRate, momentum);
+	}
 }
 
 void GBackProp::descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum, bool useInputBias)
@@ -379,7 +544,7 @@ void GBackProp::descendGradientSingleOutput(size_t outputNeuron, const double* p
 		}
 
 		// adjust the weights on the last hidden layer
-		adjustWeights(pNNPrevLayer, pFeatures, useInputBias, pBPPrevLayer, m_pNN->learningRate(), m_pNN->momentum());
+		adjustWeights(pNNPrevLayer, pFeatures, useInputBias, pBPPrevLayer, learningRate, momentum);
 	}
 }
 
@@ -424,7 +589,7 @@ void GBackProp::gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGr
 // ----------------------------------------------------------------------
 
 GNeuralNet::GNeuralNet(GRand& rand)
-: GIncrementalLearner(rand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0.35), m_minImprovement(0.002), m_epochsPerValidationCheck(100), m_backPropTargetFunction(squared_error), m_useInputBias(false)
+: GIncrementalLearner(rand), m_pBackProp(NULL), m_internalFeatureDims(0), m_internalLabelDims(0), m_pActivationFunction(NULL), m_learningRate(0.1), m_momentum(0.0), m_validationPortion(0.35), m_minImprovement(0.002), m_epochsPerValidationCheck(100), m_backPropTargetFunction(GBackProp::squared_error), m_useInputBias(false)
 {
 	m_layers.resize(1);
 }
@@ -468,7 +633,7 @@ GNeuralNet::GNeuralNet(GDomNode* pNode, GLearnerLoader& ll)
 	// Set other settings
 	m_learningRate = pNode->field("learningRate")->asDouble();
 	m_momentum = pNode->field("momentum")->asDouble();
-	m_backPropTargetFunction = (TargetFunction)pNode->field("target")->asInt();
+	m_backPropTargetFunction = (GBackProp::TargetFunction)pNode->field("target")->asInt();
 
 	// Set the weights
 	GDomNode* pWeightList = pNode->field("weights");
@@ -1134,7 +1299,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 		{
 			features.fullRow(pFullRow, indexes[i]);
 			forwardProp(pFullRow);
-			setErrorOnOutputLayer(labels.row(indexes[i]), m_backPropTargetFunction);
+			m_pBackProp->setErrorOnOutputLayer(labels.row(indexes[i]), m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
 			m_pBackProp->descendGradient(pFullRow, m_learningRate, m_momentum, m_useInputBias);
 		}
@@ -1185,7 +1350,7 @@ size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLab
 		{
 			const double* pFeatures = trainFeatures[*pIndex];
 			forwardProp(pFeatures);
-			setErrorOnOutputLayer(trainLabels[*pIndex], m_backPropTargetFunction);
+			m_pBackProp->setErrorOnOutputLayer(trainLabels[*pIndex], m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
 			m_pBackProp->descendGradient(pFeatures, m_learningRate, m_momentum, m_useInputBias);
 			pIndex++;
@@ -1257,146 +1422,13 @@ void GNeuralNet::trainIncrementalInner(const double* pIn, const double* pOut)
 	if(!hasTrainingBegun())
 		throw Ex("train or beginIncrementalLearning must be called before this method");
 	forwardProp(pIn);
-	setErrorOnOutputLayer(pOut, m_backPropTargetFunction);
+	m_pBackProp->setErrorOnOutputLayer(pOut, m_backPropTargetFunction);
 	m_pBackProp->backpropagate();
 	m_pBackProp->descendGradient(pIn, m_learningRate, m_momentum, m_useInputBias);
 }
 
-void GNeuralNet::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTargetFunction)
-{
-	// Compute error on output layer
-	GBackPropLayer& bpOutputLayer = m_pBackProp->layer(m_layers.size() - 1);
-	GNeuralNetLayer& nnOutputLayer = m_layers[m_layers.size() - 1];
-	switch(eTargetFunction)
-	{
-		case squared_error:
-			{
-				vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin();
-				vector<GBackPropNeuron>::iterator itBP = bpOutputLayer.m_neurons.begin();
-				while(itNN != nnOutputLayer.m_neurons.end())
-				{
-					if(*pTarget == UNKNOWN_REAL_VALUE)
-						itBP->m_error = 0.0;
-					else
-						itBP->m_error = (*pTarget - itNN->m_activation) * nnOutputLayer.m_pActivationFunction->derivativeOfNet(itNN->m_net, itNN->m_activation);
-					pTarget++;
-					itNN++;
-					itBP++;
-				}
-			}
-			break;
-
-		case cross_entropy:
-			{
-				vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin();
-				vector<GBackPropNeuron>::iterator itBP = bpOutputLayer.m_neurons.begin();
-				while(itNN != nnOutputLayer.m_neurons.end())
-				{
-					if(*pTarget == UNKNOWN_REAL_VALUE)
-						itBP->m_error = 0.0;
-					else
-						itBP->m_error = *pTarget - itNN->m_activation;
-					pTarget++;
-					itNN++;
-					itBP++;
-				}
-			}
-			break;
-
-		case sign:
-			{
-				vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin();
-				vector<GBackPropNeuron>::iterator itBP = bpOutputLayer.m_neurons.begin();
-				while(itNN != nnOutputLayer.m_neurons.end())
-				{
-					if(*pTarget == UNKNOWN_REAL_VALUE)
-						itBP->m_error = 0.0;
-					else
-						itBP->m_error = nnOutputLayer.m_pActivationFunction->derivativeOfNet(itNN->m_net, itNN->m_activation) * (*pTarget >= itNN->m_activation ? 0.1 : -0.1);
-					pTarget++;
-					itNN++;
-					itBP++;
-				}
-			}
-
-		case physical:
-			{
-				double force = 0.0;
-				const double* pT = pTarget;
-				for(vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin(); itNN != nnOutputLayer.m_neurons.end(); itNN++)
-				{
-					double d = *(pT++) - itNN->m_activation;
-					force += (d * d);
-				}
-				force = std::min(1.0, 0.0001 / force);
-				vector<GNeuron>::iterator itNN = nnOutputLayer.m_neurons.begin();
-				vector<GBackPropNeuron>::iterator itBP = bpOutputLayer.m_neurons.begin();
-				while(itNN != nnOutputLayer.m_neurons.end())
-				{
-					if(*pTarget == UNKNOWN_REAL_VALUE)
-						itBP->m_error = 0.0;
-					else
-						itBP->m_error = force * (*pTarget - itNN->m_activation) * nnOutputLayer.m_pActivationFunction->derivativeOfNet(itNN->m_net, itNN->m_activation);
-					pTarget++;
-					itNN++;
-					itBP++;
-				}
-			}
-			break;
-
-		default:
-			throw Ex("Unrecognized target function for back-propagation");
-			break;
-	}
-}
-
-void GNeuralNet::normalizeInput(size_t index, double oldMin, double oldMax, double newMin, double newMax)
-{
-	index++; // add one for the bias weight
-	if(m_useInputBias)
-		index--; // bias inputs have no weights
-	GNeuralNetLayer& layer = m_layers[0];
-	for(vector<GNeuron>::iterator it = layer.m_neurons.begin(); it != layer.m_neurons.end(); it++)
-	{
-		double f = (oldMax - oldMin) / (newMax - newMin);
-		it->m_weights[0] += it->m_weights[index] * (oldMin - newMin * f);
-		if(index > 0) // if index refers to a non-bias input
-			it->m_weights[index] *= f;
-	}
-}
 
 #ifndef MIN_PREDICT
-void GNeuralNet::setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction)
-{
-	// Compute error on output layer
-	GBackPropLayer& bpOutputLayer = m_pBackProp->layer(m_layers.size() - 1);
-	GBackPropNeuron& bpNeuron = bpOutputLayer.m_neurons[output];
-	GNeuralNetLayer& nnOutputLayer = m_layers[m_layers.size() - 1];
-	GNeuron& nnNeuron = nnOutputLayer.m_neurons[output];
-	switch(eTargetFunction)
-	{
-		case squared_error:
-			bpNeuron.m_error = (target - nnNeuron.m_activation) * nnOutputLayer.m_pActivationFunction->derivativeOfNet(nnNeuron.m_net, nnNeuron.m_activation);
-			break;
-
-		case cross_entropy:
-			bpNeuron.m_error = target - nnNeuron.m_activation;
-			break;
-
-		case sign:
-			bpNeuron.m_error = nnOutputLayer.m_pActivationFunction->derivativeOfNet(nnNeuron.m_net, nnNeuron.m_activation) * (target >= nnNeuron.m_activation ? 0.1 : -0.1);
-
-		case physical:
-			// Note: Physical error requires knowing all the outputs, but this hack sort of approximates it without knowing them.
-			bpNeuron.m_error = GMath::signedRoot(target - nnNeuron.m_activation) * nnOutputLayer.m_pActivationFunction->derivativeOfNet(nnNeuron.m_net, nnNeuron.m_activation);
-			break;
-
-		default:
-			throw Ex("Unrecognized target function for back-propagation");
-			break;
-	}
-}
-
 void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Try a plain-old single-layer network
@@ -1547,6 +1579,21 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	copyStructure(hCand0.get());
 }
 #endif // MIN_PREDICT
+
+void GNeuralNet::normalizeInput(size_t index, double oldMin, double oldMax, double newMin, double newMax)
+{
+	index++; // add one for the bias weight
+	if(m_useInputBias)
+		index--; // bias inputs have no weights
+	GNeuralNetLayer& layer = m_layers[0];
+	for(vector<GNeuron>::iterator it = layer.m_neurons.begin(); it != layer.m_neurons.end(); it++)
+	{
+		double f = (oldMax - oldMin) / (newMax - newMin);
+		it->m_weights[0] += it->m_weights[index] * (oldMin - newMin * f);
+		if(index > 0) // if index refers to a non-bias input
+			it->m_weights[index] *= f;
+	}
+}
 
 void GNeuralNet::printWeights(std::ostream& stream)
 {
@@ -1726,7 +1773,7 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 
 		// Compute the feature gradient
 		nn.forwardProp(pFeatures);
-		nn.setErrorOnOutputLayer(pTarget);
+		nn.backProp()->setErrorOnOutputLayer(pTarget);
 		nn.backProp()->backpropagate();
 		nn.backProp()->gradientOfInputs(pFeatureGradient);
 		GVec::multiply(pFeatureGradient, 2.0, 5);
@@ -1887,8 +1934,12 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 		nn.predict(in, &before);
 		double a = rand.normal();
 		double b = rand.normal();
+		if(b < a)
+			std::swap(a, b);
 		double c = rand.normal();
 		double d = rand.normal();
+		if(d < c)
+			std::swap(c, d);
 		size_t ind = (size_t)rand.next(5);
 		nn.normalizeInput(ind, a, b, c, d);
 		in[ind] = GMatrix::normalize(in[ind], a, (b - a), c, (d - c));
@@ -1904,6 +1955,9 @@ void GNeuralNet::test()
 	GRand prng(0);
 	GNeuralNet_testMath();
 	GNeuralNet_testBinaryClassification(&prng);
+	GNeuralNet_testInputGradient(&prng);
+	GNeuralNet_testInvertAndSwap(prng);
+	GNeuralNet_testNormalizeInput(prng);
 
 	// Test with no hidden layers (logistic regression)
 	{
@@ -1917,10 +1971,6 @@ void GNeuralNet::test()
 		nn.addLayer(3);
 		nn.basicTest(0.76, 0.75);
 	}
-
-	GNeuralNet_testInputGradient(&prng);
-	GNeuralNet_testInvertAndSwap(prng);
-	GNeuralNet_testNormalizeInput(prng);
 }
 
 #endif // MIN_PREDICT

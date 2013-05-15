@@ -1206,10 +1206,8 @@ size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pOb
 			pObsFunc->forwardProp(m_pParams);
 
 			// Compute the error on the output nodes
-			pObsFunc->setErrorOnOutputLayer(pTar);
-
-			// Compute the context gradient
 			GBackProp* pBPObs = pObsFunc->backProp();
+			pBPObs->setErrorOnOutputLayer(pTar);
 
 			// Back prop over observation function
 			pBPObs->backpropagate();

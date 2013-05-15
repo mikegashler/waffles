@@ -291,11 +291,9 @@ GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 			pModel->model()->setActivationFunction(pSF, true);
 		}
 		else if(args.if_pop("-crossentropy"))
-			pModel->model()->setBackPropTargetFunction(GNeuralNet::cross_entropy);
+			pModel->model()->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else if(args.if_pop("-sign"))
-			pModel->model()->setBackPropTargetFunction(GNeuralNet::sign);
-		else if(args.if_pop("-physical"))
-			pModel->model()->setBackPropTargetFunction(GNeuralNet::physical);
+			pModel->model()->setBackPropTargetFunction(GBackProp::sign);
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}

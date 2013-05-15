@@ -1303,7 +1303,7 @@ void GNonlinearPCA::train(GMatrix& data)
 					pNN->forwardPropSingleOutput(pPrefs, item);
 
 					// Update weights
-					pNN->setErrorSingleOutput(pVec[2], item, pNN->backPropTargetFunction());
+					pNN->backProp()->setErrorSingleOutput(pVec[2], item, pNN->backPropTargetFunction());
 					pNN->backProp()->backpropagateSingleOutput(item);
 					if(pass < 2)
 						pNN->decayWeightsSingleOutput(item, regularizer);

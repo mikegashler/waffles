@@ -725,11 +725,9 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 			pModel->setActivationFunction(pSF, true);
 		}
 		else if(args.if_pop("-crossentropy"))
-			pModel->setBackPropTargetFunction(GNeuralNet::cross_entropy);
-		else if(args.if_pop("-physical"))
-			pModel->setBackPropTargetFunction(GNeuralNet::physical);
+			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else if(args.if_pop("-sign"))
-			pModel->setBackPropTargetFunction(GNeuralNet::sign);
+			pModel->setBackPropTargetFunction(GBackProp::sign);
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -818,11 +816,9 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 			pModel->setActivationFunction(pSF, true);
 		}
 		else if(args.if_pop("-crossentropy"))
-			pModel->setBackPropTargetFunction(GNeuralNet::cross_entropy);
-		else if(args.if_pop("-physical"))
-			pModel->setBackPropTargetFunction(GNeuralNet::physical);
+			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else if(args.if_pop("-sign"))
-			pModel->setBackPropTargetFunction(GNeuralNet::sign);
+			pModel->setBackPropTargetFunction(GBackProp::sign);
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}

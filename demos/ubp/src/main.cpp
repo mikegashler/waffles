@@ -136,7 +136,7 @@ public:
 			double* pContext = m_context.row(index);
 			m_nn.forwardProp(pContext);
 			m_nn.copyPrediction(pPred);
-			m_nn.setErrorOnOutputLayer(pTar/*, GNeuralNet::root_cubed_error*/);
+			pBP->setErrorOnOutputLayer(pTar/*, GNeuralNet::root_cubed_error*/);
 			
 			//double err = m_nn.sumSquaredPredictionError(pTar);
 			double err = 0.0;

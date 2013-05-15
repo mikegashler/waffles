@@ -2451,7 +2451,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 					GAssert(target >= 0.0 && target <= 1.0 && prediction >= 0.0 && prediction <= 1.0);
 					double err = target - prediction;
 					sse += (err * err);
-					pNN->setErrorSingleOutput(target, c);
+					pNN->backProp()->setErrorSingleOutput(target, c);
 					pNN->backProp()->backpropagateSingleOutput(c);
 
 					// Calculate the gradient of the inputs

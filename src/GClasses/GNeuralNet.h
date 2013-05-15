@@ -80,23 +80,47 @@ public:
 class GBackProp
 {
 friend class GNeuralNet;
+public:
+	enum TargetFunction
+	{
+		squared_error, /// (default) best for regression
+		cross_entropy, /// best for classification
+		sign, /// uses the sign of the error, as in the perceptron training rule
+	};
+
 protected:
 	GNeuralNet* m_pNN;
 	std::vector<GBackPropLayer> m_layers;
+	double* m_pSlack;
 
 public:
 	/// This class will adjust the weights in pNN
 	GBackProp(GNeuralNet* pNN);
 
-	~GBackProp()
-	{
-	}
+	~GBackProp();
 
 	/// Returns a layer (not a layer of the neural network, but a corresponding layer of values used for back-prop)
 	GBackPropLayer& layer(size_t layer)
 	{
 		return m_layers[layer];
 	}
+
+	/// Returns a pointer to the vector of slack values. These specify how close a predicted label must be to the
+	/// target label value before error is counted. (By default, they are all set to 0, but you can increase values in
+	/// this array to give it more flexibility. For example, this might make sense when working with binary representations
+	/// of categorical values.)
+	double* slack() { return m_pSlack; }
+
+	/// This method computes the error terms for each node in the output layer.
+	/// It assumes that forwardProp has already been called.
+	/// After calling this method, it is typical to call backpropagate(), to compute the error on
+	/// the hidden nodes, and then to call backProp()->descendGradient to update
+	/// the weights. pTarget contains the target values for the output nodes.
+	void setErrorOnOutputLayer(const double* pTarget, TargetFunction eTargetFunction = squared_error);
+
+	/// This is the same as setErrorOnOutputLayer, except that it only sets
+	/// the error on a single output node.
+	void setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction = squared_error);
 
 	/// Backpropagates the error from the "from" layer to the "to" layer. (If the "to" layer has fewer units than the "from"
 	/// layer, then it will begin propagating with the (fromBegin+1)th weight and stop when the "to" layer runs out of units.
@@ -135,13 +159,17 @@ public:
 	/// the specified output node.)
 	void backpropagateSingleOutput(size_t outputNode);
 
-	/// This method assumes that the error term is already set for every network unit. It adjusts weights to descend the
+	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights to descend the
 	/// gradient of the error surface with respect to the weights.
 	void descendGradient(const double* pFeatures, double learningRate, double momentum, bool useInputBias);
 
 	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
-	/// it transitively. It adjusts weights to descend the gradient of the error surface with respect to the weights.
+	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
 	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum, bool useInputBias);
+
+	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights on the specified layer
+	/// to descend the gradient of the error surface with respect to the weights.
+	void descendGradientOneLayer(size_t layer, const double* pFeatures, double learningRate, double momentum, bool useInputBias);
 
 	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
 	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
@@ -163,15 +191,6 @@ public:
 class GNeuralNet : public GIncrementalLearner
 {
 friend class GBackProp;
-public:
-	enum TargetFunction
-	{
-		squared_error, /// (default) best for regression
-		cross_entropy, /// best for classification
-		sign, /// uses the sign of the error, as in the perceptron training rule
-		physical, /// squared error scaled by the inverse square of the distance
-	};
-
 protected:
 	std::vector<GNeuralNetLayer> m_layers;
 	GBackProp* m_pBackProp;
@@ -183,7 +202,7 @@ protected:
 	double m_validationPortion;
 	double m_minImprovement;
 	size_t m_epochsPerValidationCheck;
-	TargetFunction m_backPropTargetFunction;
+	GBackProp::TargetFunction m_backPropTargetFunction;
 	bool m_useInputBias;
 
 public:
@@ -306,10 +325,10 @@ public:
 
 	/// Specify the target function to use for back-propagation. The default is squared_error.
 	/// cross_entropy tends to be faster, and is well-suited for classification tasks.
-	void setBackPropTargetFunction(TargetFunction eTF) { m_backPropTargetFunction = eTF; }
+	void setBackPropTargetFunction(GBackProp::TargetFunction eTF) { m_backPropTargetFunction = eTF; }
 
 	/// Returns the enumeration of the target function used for backpropagation
-	TargetFunction backPropTargetFunction() { return m_backPropTargetFunction; }
+	GBackProp::TargetFunction backPropTargetFunction() { return m_backPropTargetFunction; }
 
 #ifndef MIN_PREDICT
 	/// See the comment for GIncrementalLearner::trainSparse
@@ -366,18 +385,6 @@ public:
 	/// This method assumes forwardProp has been called. It computes the sum squared prediction error
 	/// with the specified target vector.
 	double sumSquaredPredictionError(const double* pTarget);
-
-	/// This method assumes that forwardProp has already been called. (Note that
-	/// the predict method calls forwardProp). It computes the error
-	/// values at each node in the output layer. After calling this method,
-	/// it is typical to call backProp()->backpropagate(), to compute the error on
-	/// the hidden nodes, and then to call backProp()->descendGradient to update
-	/// the weights. pTarget contains the target values for the ouptut nodes.
-	void setErrorOnOutputLayer(const double* pTarget, TargetFunction eTargetFunction = squared_error);
-
-	/// This is teh same as setErrorOnOutputLayer, except that it only sets
-	/// the error on a single output node.
-	void setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction = squared_error);
 
 	/// Uses cross-validation to find a set of parameters that works well with
 	/// the provided data. That is, this method will add a good number of hidden

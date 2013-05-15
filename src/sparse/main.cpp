@@ -175,9 +175,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
 			pModel->setActivationFunction(pSF, true);
 		}
 		else if(args.if_pop("-crossentropy"))
-			pModel->setBackPropTargetFunction(GNeuralNet::cross_entropy);
-		else if(args.if_pop("-physical"))
-			pModel->setBackPropTargetFunction(GNeuralNet::physical);
+			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else
 			throw Ex("Invalid neuralnet option: ", args.peek());
 	}
