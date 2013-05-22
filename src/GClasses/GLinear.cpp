@@ -196,9 +196,8 @@ void GLinearRegressor_linear_test(GRand& prng)
 		pVec[2] = prng.uniform();
 		labels2.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
 	}
-	double results;
-	lr.accuracy(features2, labels2, &results);
-	if(results > 0.0005)
+	double rmse = sqrt(lr.sumSquaredError(features2, labels2) / features2.rows());
+	if(rmse > 0.0224)
 		throw Ex("failed");
 }
 

@@ -2078,7 +2078,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	GMatrix* pU = new GMatrix(m, m);
 	Holder<GMatrix> hU(pU);
 	pU->setAll(0.0);
-	pU->copyColumns(0, this, 0, n);
+	pU->copyColumnsDataOnly(0, this, 0, n);
 	double* pSigma = new double[n];
 	ArrayHolder<double> hSigma(pSigma);
 	GMatrix* pV = new GMatrix(n, n);
@@ -2740,11 +2740,11 @@ void GMatrix::toVector(double* pVec)
 	}
 }
 
-void GMatrix::setAll(double val)
+void GMatrix::setAll(double val, size_t colStart, size_t colCount)
 {
-	size_t colCount = cols();
+	size_t count = std::min(cols() - colStart, colCount);
 	for(size_t i = 0; i < rows(); i++)
-		GVec::setAll(row(i), val, colCount);
+		GVec::setAll(row(i) + colStart, val, count);
 }
 
 void GMatrix::copy(const GMatrix* pThat)
@@ -2752,14 +2752,14 @@ void GMatrix::copy(const GMatrix* pThat)
 	m_pRelation = pThat->m_pRelation;
 	flush();
 	newRows(pThat->rows());
-	copyColumns(0, pThat, 0, m_pRelation->size());
+	copyColumnsDataOnly(0, pThat, 0, m_pRelation->size());
 }
 
 GMatrix* GMatrix::clone()
 {
 	GMatrix* pOther = new GMatrix(relation());
 	pOther->newRows(rows());
-	pOther->copyColumns(0, this, 0, cols());
+	pOther->copyColumnsDataOnly(0, this, 0, cols());
 	return pOther;
 }
 
@@ -2781,7 +2781,7 @@ void GMatrix::copyRow(const double* pRow)
 	GVec::copy(pNewRow, pRow, m_pRelation->size());
 }
 
-void GMatrix::copyColumns(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount)
+void GMatrix::copyColumnsDataOnly(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount)
 {
 	if(rows() != pSource->rows())
 		throw Ex("expected datasets to have the same number of rows");
@@ -2790,26 +2790,27 @@ void GMatrix::copyColumns(size_t nDestStartColumn, const GMatrix* pSource, size_
 		GVec::copy(row(i) + nDestStartColumn, pSource->row(i) + nSourceStartColumn, nColumnCount);
 }
 
-GMatrix* GMatrix::attrSubset(size_t firstAttr, size_t attrCount)
+void GMatrix::copyCols(GMatrix& that, size_t firstCol, size_t colCount)
 {
-	if(firstAttr + attrCount > m_pRelation->size())
-		throw Ex("index out of range");
+	if(that.cols() < firstCol + colCount)
+		throw Ex("columns out of range");
+	if(rows() > 0)
+		flush();
 	sp_relation relNew;
-	if(relation()->type() == GRelation::UNIFORM)
+	if(that.relation()->type() == GRelation::UNIFORM)
 	{
-		GUniformRelation* pNewRelation = new GUniformRelation(attrCount, relation()->valueCount(firstAttr));
+		GUniformRelation* pNewRelation = new GUniformRelation(colCount, relation()->valueCount(firstCol));
 		relNew = pNewRelation;
 	}
 	else
 	{
 		GMixedRelation* pNewRelation = new GMixedRelation();
-		pNewRelation->addAttrs(m_pRelation.get(), firstAttr, attrCount);
+		pNewRelation->addAttrs(that.relation().get(), firstCol, colCount);
 		relNew = pNewRelation;
 	}
-	GMatrix* pNewData = new GMatrix(relNew);
-	pNewData->newRows(rows());
-	pNewData->copyColumns(0, this, firstAttr, attrCount);
-	return pNewData;
+	m_pRelation = relNew;
+	newRows(that.rows());
+	copyColumnsDataOnly(0, &that, firstCol, colCount);
 }
 
 void GMatrix::swapRows(size_t a, size_t b)
@@ -3040,14 +3041,26 @@ void GMatrix::splitByNominalValue(GMatrix* pSingleClass, size_t nAttr, int nValu
 	}
 }
 
-void GMatrix::splitBySize(GMatrix* pOtherData, size_t nOtherRows)
+void GMatrix::splitBySize(GMatrix& other, size_t nOtherRows)
 {
 	if(nOtherRows > rows())
 		throw Ex("row count out of range");
-	size_t targetSize = pOtherData->rows() + nOtherRows;
-	pOtherData->reserve(targetSize);
-	while(pOtherData->rows() < targetSize)
-		pOtherData->takeRow(releaseRow(rows() - 1));
+	size_t a = other.rows();
+	size_t targetSize = a + nOtherRows;
+	other.reserve(targetSize);
+	while(other.rows() < targetSize)
+		other.takeRow(releaseRow(rows() - 1));
+
+	// Restore the original order to the other data
+	if(other.rows() == 0)
+		return;
+	size_t b = other.rows() - 1;
+	while(b > a)
+	{
+		other.swapRows(a, b);
+		a++;
+		b--;
+	}
 }
 
 void GMatrix::mergeVert(GMatrix* pData)

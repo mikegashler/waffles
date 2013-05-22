@@ -649,7 +649,7 @@ void GPolynomial::trainInner(GMatrix& features, GMatrix& labels)
 	{
 		GPolynomialSingleLabel* pPSL = new GPolynomialSingleLabel(m_controlPoints);
 		m_polys.push_back(pPSL);
-		labelCol.copyColumns(0, &labels, i, 1);
+		labelCol.copyCols(labels, i, 1);
 		pPSL->train(features, labelCol);
 	}
 }

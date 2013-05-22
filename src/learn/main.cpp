@@ -1423,21 +1423,22 @@ void Test(GArgReader& args)
 		throw Ex("This dataset is not compatible with the one used to train the model. (The meta-data is different.)");
 
 	// Test
-	GTEMPBUF(double, results, pLabels->cols());
-	vector<GMatrix*> confusionMatrices;
-	pModeler->accuracy(*pFeatures, *pLabels, results, 
-			   (confusion || confusioncsv) ? 
-			   &confusionMatrices : NULL);
-	GVec::print(cout, 14, results, pLabels->cols());
-	cout << "\n";
+	double mse = pModeler->sumSquaredError(*pFeatures, *pLabels) / pFeatures->rows();
+	cout << "Mean squared error: " << to_str(mse) << "\n";
 
-	// Print the confusion matrix
-	if(confusion){
-		printConfusionMatrices(pLabels->relation().get(), confusionMatrices);
-	}
+	if(confusion || confusioncsv)
+	{
+		vector<GMatrix*> confusionMatrices;
+		pModeler->confusion(*pFeatures, *pLabels, confusionMatrices);
 
-	if(confusioncsv){
-		printMachineReadableConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+		// Print the confusion matrix
+		if(confusion){
+			printConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+		}
+
+		if(confusioncsv){
+			printMachineReadableConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+		}
 	}
 }
 
@@ -1487,16 +1488,16 @@ void TransductiveAccuracy(GArgReader& args)
 {
 	// Parse options
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	bool confusion = false;
-	bool confusioncsv = false;
+//	bool confusion = false;
+//	bool confusioncsv = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
-		else if(args.if_pop("-confusion"))
+/*		else if(args.if_pop("-confusion"))
 			confusion = true;
 		else if(args.if_pop("-confusioncsv"))
-			confusioncsv = true;
+			confusioncsv = true;*/
 		else
 			throw Ex("Invalid transacc option: ", args.peek());
 	}
@@ -1522,12 +1523,10 @@ void TransductiveAccuracy(GArgReader& args)
 	// Transduce and measure accuracy
 	GTEMPBUF(double, results, pLabels1->cols());
 	vector<GMatrix*> confusionMatrices;
-	pSupLearner->trainAndTest(*pFeatures1, *pLabels1, *pFeatures2, *pLabels2, results, (confusion || confusioncsv) ? &confusionMatrices : NULL);
-
-	// Print results
+	double mse = pSupLearner->trainAndTest(*pFeatures1, *pLabels1, *pFeatures2, *pLabels2) / pFeatures2->rows();
 	GVec::print(cout, 14, results, pLabels1->cols());
-	cout << "\n";
-
+	cout << "Mean squared error: " << to_str(mse) << "\n";
+/*
 	// Print the confusion matrix
 	if(confusion){
 		printConfusionMatrices(pLabels2->relation().get(), confusionMatrices);
@@ -1535,7 +1534,7 @@ void TransductiveAccuracy(GArgReader& args)
 	if(confusioncsv){
 		printMachineReadableConfusionMatrices(pLabels2->relation().get(), confusionMatrices);
 	}
-
+*/
 }
 
 void SplitTest(GArgReader& args)
@@ -1545,9 +1544,6 @@ void SplitTest(GArgReader& args)
 	double trainRatio = 0.5;
 	size_t reps = 1;
 	string lastModelFile="";
-	bool confusion = false;
-	bool confusioncsv = false;
-	bool should_show_standard_dev = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed")){
@@ -1558,12 +1554,6 @@ void SplitTest(GArgReader& args)
 			reps = args.pop_uint();
 		}else if(args.if_pop("-writelastmodel")){
 			lastModelFile = args.pop_string();
-		}else if(args.if_pop("-stddev")){
-			should_show_standard_dev = true;
-		}else if(args.if_pop("-confusion")){
-			confusion = true;
-		}else if(args.if_pop("-confusioncsv")){
-			confusioncsv = true;
 		}else{
 			throw Ex("Invalid splittest option: ", args.peek());
 		}
@@ -1596,21 +1586,7 @@ void SplitTest(GArgReader& args)
 	size_t testPatterns = pFeatures->rows() - trainingPatterns;
 	// Results is the mean results for all columns (plus some extra
 	// storage to make allocation and deallocation easier)
-	GTEMPBUF(double, results, 6 * pLabels->cols());
-	// The result of a single repetition
-	double* repResults = results + pLabels->cols();
-	// resultsV (for variance, which quantity it resembles) and
-	// oldResults are temporary variables used in calculating the
-	// standard deviation incrementally in a way robust to
-	// round-off error.  The algorithm is from
-	// http://mathcentral.uregina.ca/QQ/database/QQ.09.02/carlos1.html
-	// and they cite Knuth "The Art of Computer Programming,
-	// Volume 2: Seminumerical Algorithms", section 4.2.2
-	double* resultsV = results + 2 * pLabels->cols();
-	double* oldResults = results + 3 * pLabels->cols();
-	double* tempR1 = results + 4 * pLabels->cols();
-	double* tempR2 = results + 5 * pLabels->cols();
-	GVec::setAll(results, 0, 6 * pLabels->cols());
+	double sumMSE = 0.0;
 	for(size_t i = 0; i < reps; i++)
 	{
 		// Shuffle and split the data
@@ -1622,12 +1598,12 @@ void SplitTest(GArgReader& args)
 			GMergeDataHolder hLabels(*pLabels, testLabels);
 			testFeatures.reserve(testPatterns);
 			testLabels.reserve(testPatterns);
-			pFeatures->splitBySize(&testFeatures, testPatterns);
-			pLabels->splitBySize(&testLabels, testPatterns);
+			pFeatures->splitBySize(testFeatures, testPatterns);
+			pLabels->splitBySize(testLabels, testPatterns);
 
 			// Test and print results
 			vector<GMatrix*> confusionMatrices;
-			pSupLearner->trainAndTest(*pFeatures, *pLabels, testFeatures, testLabels, repResults, (confusion || confusioncsv) ? &confusionMatrices : NULL);
+			double mse = pSupLearner->trainAndTest(*pFeatures, *pLabels, testFeatures, testLabels) / testFeatures.rows();
 
 			// Write trained model file on last repetition
 			if(lastModelFile != "" && i+1 == reps){
@@ -1643,65 +1619,19 @@ void SplitTest(GArgReader& args)
 				}
 			}
 			cout << "rep " << i << ") ";
-			GVec::print(cout, 14, repResults, pLabels->cols());
-			cout << "\n";
-			if (i>0){
-				GVec::copy(oldResults, results, pLabels->cols());
-			}
-			double weight = 1.0 / (i + 1);
-			GVec::multiply(results, 1.0 - weight, pLabels->cols());
-			GVec::addScaled(results, weight, repResults, pLabels->cols());
-
-			//Calculate the recurrence s(k)=s(k-1) + (x(k) - M(k-1)) * (x(k) - M(k))
-			//where s = resultsV, x=repResults, M = results, M(k-1) = oldResults
-			if (i>0){
-				GVec::copy(tempR1, repResults, pLabels->cols());
-				GVec::copy(tempR2, repResults, pLabels->cols());
-				GVec::subtract(tempR1, oldResults, pLabels->cols());
-				GVec::subtract(tempR2, results, pLabels->cols());
-				GVec::pairwiseMultiply(tempR1, tempR2, pLabels->cols());
-				GVec::add(resultsV, tempR1, pLabels->cols());
-			}
-
-			// Print the confusion matrix (if specified)
-			if(confusion){
-				printConfusionMatrices(pLabels->relation().get(), confusionMatrices);
-			}
-			if(confusioncsv){
-				printMachineReadableConfusionMatrices(pLabels->relation().get(), confusionMatrices);
-			}
-
+			cout << "Mean squared error: " << to_str(mse) << "\n";
+			sumMSE += mse;
 		}
 	}
 	if(pLabels->cols() > 1){
-	  cout << "-----Means-----\n";
-	}else{
-	  cout << "-----Mean-----\n";
+	  cout << "-----Average-----\n";
 	}
-	GVec::print(cout, 14, results, pLabels->cols());
-	cout << "\n";
-
-	if(should_show_standard_dev){
-		if(pLabels->cols() > 1){
-			cout << "-----Standard Deviations-----\n";
-		}else{
-			cout << "-----Standard Deviation-----\n";
-		}
-		
-		if(reps > 1){
-			GVec::multiply(resultsV, 1.0/(reps-1), pLabels->cols());
-		}
-		GVec::pow(resultsV, 0.5, pLabels->cols());
-		GVec::print(cout, 14, resultsV, pLabels->cols());
-		cout << "\n";
-	}
+	cout << "Mean squared error: " << to_str(sumMSE / reps) << "\n";
 }
 
-void CrossValidateCallback(void* pSupLearner, size_t nRep, size_t nFold, size_t labelDims, double* pFoldResults)
+void CrossValidateCallback(void* pSupLearner, size_t nRep, size_t nFold, size_t labelDims, double foldMSE)
 {
-	cout << "Rep: " << nRep << ", Fold: " << nFold <<", Accuracy: ";
-	GVec::print(cout, 14, pFoldResults, labelDims);
-	cout << "\n";
+	cout << "Rep: " << nRep << ", Fold: " << nFold <<", Mean squared error: " << to_str(foldMSE) << "\n";
 }
 
 void CrossValidate(GArgReader& args)
@@ -1744,32 +1674,12 @@ void CrossValidate(GArgReader& args)
 
 	// Test
 	cout.precision(8);
-	GMatrix* pResults = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, succinct ? NULL : CrossValidateCallback, pSupLearner);
-	Holder<GMatrix> hResults(pResults);
+	double mse = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, succinct ? NULL : CrossValidateCallback, pSupLearner) / pFeatures->rows();
 	if(!succinct)
-		cout << "-----\n";
-	for(size_t i = 0; i < pLabels->cols(); i++)
-	{
-		double mean = pResults->columnMean(i);
-		double variance = pResults->columnVariance(i, mean);
-		if(!succinct)
-		{
-			cout << "Attr: " << (pFeatures->cols() + i);
-			if(pLabels->relation()->valueCount(i) == 0)
-				cout << ", Mean squared error: ";
-			else
-				cout << ", Mean predictive accuracy: ";
-		}
-		cout << mean;
-		if(succinct)
-		{
-			if(i + 1 < pLabels->cols())
-				cout << ", ";
-		}
-		else
-			cout << ", Deviation: " << sqrt(variance) << "\n";
-	}
-	cout << "\n";
+		cout << "Mean squared error: ";
+	cout << to_str(mse);
+	if(!succinct)
+		cout << "\n";
 }
 
 void vette(string& s)

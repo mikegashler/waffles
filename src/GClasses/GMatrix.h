@@ -528,9 +528,13 @@ public:
 	/// same dimensions. Behavior is undefined for nominal columns.
 	void add(GMatrix* pThat, bool transpose);
 
-	/// \brief Returns a new dataset that contains a subset of the
-	/// attributes in this dataset
-	GMatrix* attrSubset(size_t firstAttr, size_t attrCount);
+	/// \brief Copies the specified range of columns (including meta-data) from that matrix into this matrix,
+	/// replacing all data currently in this matrix.
+	void copyCols(GMatrix& that, size_t firstCol, size_t colCount);
+
+	/// \brief Copies all the data from pThat. (Just references the same
+	/// relation)
+	void copy(const GMatrix* pThat);
 
 	/// \brief This computes the square root of this matrix. (If you
 	/// take the matrix that this returns and multiply it by its
@@ -555,16 +559,6 @@ public:
 
 	/// \brief Returns the number of columns in the dataset
 	size_t cols() const { return m_pRelation->size(); }
-
-	/// \brief Copies all the data from pThat. (Just references the same
-	/// relation)
-	void copy(const GMatrix* pThat);
-
-	/// \brief Copies the specified block of columns from pSource to
-	/// this dataset. 
-	///
-	/// pSource must have the same number of rows as this dataset.
-	void copyColumns(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount);
 
 	/// \brief Adds a copy of the row to the data set
 	void copyRow(const double* pRow);
@@ -816,18 +810,18 @@ public:
 	/// \brief Returns a pointer to the specified row
 	inline double* row(size_t index) { return m_rows[index]; }
 
+	/// \brief Returns a const pointer to the specified row
+	inline const double* row(size_t index) const { return m_rows[index]; }
+
 	/// \brief Returns a pointer to the specified row
 	inline double* operator [](size_t index) { return m_rows[index]; }
 
 	/// \brief Returns a const pointer to the specified row
-	inline const double* row(size_t index) const { return m_rows[index]; }
+	inline const double* operator [](size_t index) const { return m_rows[index]; }
 
-	/// \brief Returns a const pointer to the specified row
-	inline const double* operator [](size_t index) const { 
-	  return m_rows[index]; }
-
-	/// \brief Sets all elements in this dataset to the specified value
-	void setAll(double val);
+	/// \brief Sets all elements in the specified range of columns to the specified value.
+	/// If no column ranges are specified, the default is to set all of them.
+	void setAll(double val, size_t colStart = 0, size_t colCount = (size_t)-1);
 
 	/// \brief Copies pVector over the specified column
 	void setCol(size_t index, const double* pVector);
@@ -844,7 +838,7 @@ public:
 	/// \brief Swaps the specified row with the last row, and then
 	/// releases it from the dataset.
 	///
-	/// The caller is responsible to delete the row this method returns.
+	/// The caller is responsible to delete the row (array of doubles) this method returns.
 	double* releaseRow(size_t index);
 
 	/// \brief Swaps the specified row with the last row, and then deletes it.
@@ -925,8 +919,8 @@ public:
 	void splitByNominalValue(GMatrix* pSingleClass, size_t nAttr, int nValue, GMatrix* pExtensionA = NULL, GMatrix* pExtensionB = NULL);
 
 	/// \brief Removes the last nOtherRows rows from this data set and
-	/// puts them in pOtherData
-	void splitBySize(GMatrix* pOtherData, size_t nOtherRows);
+	/// puts them in "other". (Order is preserved.)
+	void splitBySize(GMatrix& other, size_t nOtherRows);
 
 	/// \brief Measures the entropy of the specified attribute
 	double entropy(size_t nColumn);
@@ -1189,6 +1183,9 @@ public:
 	///         or \a b (whichever has fewer rows) is assigned to a row
 	///         of the other matrix
 	static GSimpleAssignment bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric);
+
+	/// \brief Copies just the data in the specified columns into this matrix.
+	void copyColumnsDataOnly(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount);
 
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception

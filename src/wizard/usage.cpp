@@ -951,8 +951,6 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pTransAcc = pRoot->add("transacc <options> [training-set] <data_opts1> [test-set] <data_opts2> [algorithm]", "Measure the transductive accuracy of [algorithm] with respect to the specified training and test sets. Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal labels, and mean-squared-error is reported for continuous labels.");
 		UsageNode* pOpts = pTransAcc->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
-		pOpts->add("-confusioncsv", "Print a confusion matrix in comma-separated value format for each nominal label attribute.");
 		pTransAcc->add("[training-set]=train.arff", "The filename of a dataset. The labels in this dataset are used to infer labels for the unlabeled set.");
 		pTransAcc->add("[test-set]=test.arff", "The filename of a dataset. This dataset must have placeholder labels. The placeholder labels will be replaced in the output with the new predicted labels.");
 		UsageNode* pDO1 = pTransAcc->add("<data_opts1>");
@@ -968,26 +966,19 @@ UsageNode* makeLearnUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pOpts->add("-trainratio [value]=0.5", "Specify the amount of the data (between 0 and 1) to use for training. The rest will be used for testing.");
 		pOpts->add("-reps [value]=10", "Specify the number of repetitions to perform. If not specified, the default is 1.");
-		pOpts->add("-writelastmodel [filename]", 
-			   "Write the model generated on the last repetion "
-			   "to the given filename.  Note that this only works "
-			   "when the learner being used has an internal "
-			   "model.");
-		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute after each repetition.");
-		pOpts->add("-confusioncsv", "Print a confusion matrix in comma-separated value format for each nominal label attribute.");
-		pOpts->add("-stddev", "Print the standard deviation of the results at the end as well as their mean.");
+		pOpts->add("-writelastmodel [filename]", "Write the model generated on the last repetion to the given filename.  Note that this only works when the learner being used has an internal model.");
 		pSplitTest->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pDO = pSplitTest->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
-		UsageNode* pCV = pRoot->add("crossvalidate <options> [dataset] <data_opts> [algorithm]", "Perform cross-validation with the specified dataset and algorithm. Results are printed to stdout. (Supports model-free algorithms too.)");
+		UsageNode* pCV = pRoot->add("crossvalidate <options> [dataset] <data_opts> [algorithm]", "Perform cross-validation with the specified dataset and algorithm. Results are printed to stdout.");
 		UsageNode* pOpts = pCV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pOpts->add("-reps [value]=5", "Specify the number of repetitions to perform. If not specified, the default is 5.");
 		pOpts->add("-folds [value]=2", "Specify the number of folds to use. If not specified, the default is 2.");
-		pOpts->add("-succinct", "Just report the average accuracy. Do not report deviation, or results at each fold.");
+		pOpts->add("-succinct", "Just report the average mean squared error. Do not report results at each fold.");
 		pCV->add("[dataset]=data.arff", "The filename of a dataset.");
 		UsageNode* pDO = pCV->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");

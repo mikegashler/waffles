@@ -1306,7 +1306,7 @@ void GNonlinearPCA::train(GMatrix& data)
 					pNN->backProp()->setErrorSingleOutput(pVec[2], item, pNN->backPropTargetFunction());
 					pNN->backProp()->backpropagateSingleOutput(item);
 					if(pass < 2)
-						pNN->decayWeightsSingleOutput(item, regularizer);
+						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * regularizer));
 					if(pass != 1)
 						pNN->backProp()->gradientOfInputsSingleOutput(item, pPrefGradient, m_pModel->useInputBias());
 					pNN->backProp()->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum(), pNN->useInputBias());
@@ -1314,7 +1314,7 @@ void GNonlinearPCA::train(GMatrix& data)
 					{
 						// Update inputs
 						if(pass == 0)
-							GVec::multiply(pPrefs, 1.0 - learningRate * regularizer, m_intrinsicDims);
+							GVec::multiply(pPrefs, 1.0 - (learningRate * regularizer), m_intrinsicDims);
 						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
 //						GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
 //						GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
@@ -1406,7 +1406,7 @@ void GNonlinearPCA::test()
 	GRand rand(0);
 	GNonlinearPCA rec(3, rand);
 	rec.model()->addLayer(3);
-	rec.basicTest(0.18);
+	rec.basicTest(0.181);
 }
 #endif
 

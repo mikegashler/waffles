@@ -1484,7 +1484,7 @@ void aggregateCols(GArgReader& args)
 			pResults = new GMatrix(pData->rows(), files.size());
 			hResults.reset(pResults);
 		}
-		pResults->copyColumns(i, pData, c, 1);
+		pResults->copyColumnsDataOnly(i, pData, c, 1);
 		i++;
 	}
 	pResults->print(cout);
@@ -1545,7 +1545,7 @@ void split(GArgReader& args)
 
 	// Split
 	GMatrix other(pData->relation());
-	pData->splitBySize(&other, pats);
+	pData->splitBySize(other, pats);
 	pData->saveArff(szFilename1);
 	other.saveArff(szFilename2);
 }

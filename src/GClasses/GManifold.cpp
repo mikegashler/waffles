@@ -447,7 +447,7 @@ GMatrix* GManifoldSculpting::doit(GMatrix& in)
 	// Produce the output data
 	GMatrix* pDataOut = new GMatrix(relationAfter());
 	pDataOut->newRows(m_pData->rows());
-	pDataOut->copyColumns(0, m_pData, 0, m_nTargetDims);
+	pDataOut->copyCols(*m_pData, 0, m_nTargetDims);
 	delete(m_pData);
 	m_pData = NULL;
 	return pDataOut;
@@ -2459,7 +2459,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 						pNN->backProp()->gradientOfInputsSingleOutput(c, pGradientOfInputs, pNN->useInputBias());
 
 					// Update weights
-					pNN->decayWeightsSingleOutput(c, regularizer);
+					pNN->scaleWeightsSingleOutput(c, 1.0 - (learningRate * regularizer));
 					pNN->backProp()->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum(), pNN->useInputBias());
 
 					// Update inputs

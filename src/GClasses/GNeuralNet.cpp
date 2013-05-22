@@ -1055,38 +1055,44 @@ void GNeuralNet::align(const GNeuralNet& that)
 	}
 }
 
-void GNeuralNet::decayWeights(double lambda, double gamma)
+void GNeuralNet::scaleWeights(double factor)
 {
 	if(!hasTrainingBegun())
 		throw Ex("train or beginIncrementalLearning must be called before this method");
 	for(vector<GNeuralNetLayer>::iterator layer = m_layers.begin(); layer != m_layers.end(); layer++)
 	{
-		double d = (1.0 - lambda * m_learningRate);
 		for(vector<GNeuron>::iterator neuron = layer->m_neurons.begin(); neuron != layer->m_neurons.end(); neuron++)
 		{
-			for(vector<double>::iterator weight = neuron->m_weights.begin() + 1; weight != neuron->m_weights.end(); weight++)
-				*weight *= d;
+			for(vector<double>::iterator weight = neuron->m_weights.begin(); weight != neuron->m_weights.end(); weight++)
+				*weight *= factor;
 		}
-		lambda *= gamma;
 	}
 }
 
-void GNeuralNet::decayWeightsSingleOutput(size_t output, double lambda)
+void GNeuralNet::scaleWeightsOneLayer(double factor, size_t lay)
+{
+	GNeuralNetLayer& l = layer(lay);
+	for(vector<GNeuron>::iterator neuron = l.m_neurons.begin(); neuron != l.m_neurons.end(); neuron++)
+	{
+		for(vector<double>::iterator weight = neuron->m_weights.begin(); weight != neuron->m_weights.end(); weight++)
+			*weight *= factor;
+	}
+}
+
+void GNeuralNet::scaleWeightsSingleOutput(size_t output, double factor)
 {
 	if(!hasTrainingBegun())
 		throw Ex("train or beginIncrementalLearning must be called before this method");
-	double d = (1.0 - lambda * m_learningRate);
 	GNeuron& neuron = layer(m_layers.size() - 1).m_neurons[output];
 	for(vector<double>::iterator weight = neuron.m_weights.begin(); weight != neuron.m_weights.end(); weight++)
-		(*weight) *= d;
+		(*weight) *= factor;
 	for(size_t l = m_layers.size() - 2; l < m_layers.size(); l--)
 	{
 		GNeuralNetLayer& layer = m_layers[l];
-		double d = (1.0 - lambda * m_learningRate);
 		for(vector<GNeuron>::iterator neuron = layer.m_neurons.begin(); neuron != layer.m_neurons.end(); neuron++)
 		{
-			for(vector<double>::iterator weight = neuron->m_weights.begin() + 1; weight != neuron->m_weights.end(); weight++)
-				*weight *= d;
+			for(vector<double>::iterator weight = neuron->m_weights.begin(); weight != neuron->m_weights.end(); weight++)
+				*weight *= factor;
 		}
 	}
 }
@@ -1271,8 +1277,8 @@ void GNeuralNet::trainInner(GMatrix& features, GMatrix& labels)
 		{
 			GMergeDataHolder hFeatures(features, validateFeatures);
 			GMergeDataHolder hLabels(labels, validateLabels);
-			features.splitBySize(&validateFeatures, validationRows);
-			labels.splitBySize(&validateLabels, validationRows);
+			features.splitBySize(validateFeatures, validationRows);
+			labels.splitBySize(validateLabels, validationRows);
 			trainWithValidation(features, labels, validateFeatures, validateLabels);
 		}
 	}
@@ -1811,9 +1817,8 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 	}
 	GNeuralNet nn(*pRand);
 	nn.train(features, labels);
-	double r;
-	nn.accuracy(features, labels, &r);
-	if(r != 1)
+	double r = nn.sumSquaredError(features, labels);
+	if(r > 0.0)
 		throw Ex("Failed simple sanity test");
 }
 
@@ -2068,7 +2073,7 @@ void GNeuralNetPseudoInverse::test()
 	sp_relation pFeatureRel = new GUniformRelation(3);
 	sp_relation pLabelRel = new GUniformRelation(12);
 	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
-	nn.decayWeights(-9.0 * nn.learningRate()); // multiply all non-bias weights by 10
+	nn.scaleWeights(10.0);
 	GNeuralNetPseudoInverse nni(&nn, 0.001);
 	double labels[12];
 	double features[3];

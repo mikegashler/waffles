@@ -137,20 +137,6 @@ public:
 	/// instantiations. "pass" specifies how much of the error for this pass to accept. 1=all of it, 2=half of it, 3=one third, etc.
 	static void backPropLayer2(GNeuralNetLayer* pNNFromLayer1, GNeuralNetLayer* pNNFromLayer2, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPFromLayer1, GBackPropLayer* pBPFromLayer2, GBackPropLayer* pBPToLayer, size_t pass);
 
-	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
-	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
-	static void adjustWeights(GNeuralNetLayer* pNNFromLayer, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
-
-	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
-	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
-	static void adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, bool useInputBias, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
-
-	/// Adjust the weights of a single neuron that follows a hidden layer. (Assumes the error of this neuron has already been computed).
-	void adjustWeightsSingleNeuron(GNeuron& nnFrom, GNeuralNetLayer* pNNToLayer, GBackPropNeuron& bpFrom, double learningRate, double momentum);
-
-	/// Adjust the weights of a single neuron when there are no hidden layers. (Assumes the error of this neuron has already been computed).
-	void adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatures, bool useInputBias, GBackPropNeuron& bpFrom, double learningRate, double momentum);
-
 	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
 	void backpropagate();
@@ -183,6 +169,21 @@ public:
 	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradientSingleOutput.)
 	/// Also, note that descendGradientSingleOutput depends on the input features, so be sure not to update them until after you call descendGradientSingleOutput.)
 	void gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient, bool useInputBias = false);
+
+protected:
+	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
+	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
+	static void adjustWeights(GNeuralNetLayer* pNNFromLayer, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
+
+	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
+	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
+	static void adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, bool useInputBias, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
+
+	/// Adjust the weights of a single neuron that follows a hidden layer. (Assumes the error of this neuron has already been computed).
+	void adjustWeightsSingleNeuron(GNeuron& nnFrom, GNeuralNetLayer* pNNToLayer, GBackPropNeuron& bpFrom, double learningRate, double momentum);
+
+	/// Adjust the weights of a single neuron when there are no hidden layers. (Assumes the error of this neuron has already been computed).
+	void adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatures, bool useInputBias, GBackPropNeuron& bpFrom, double learningRate, double momentum);
 };
 
 
@@ -272,21 +273,14 @@ public:
 	/// Clips all non-bias weights to fall within the range [-max, max].
 	void clipWeights(double max);
 
-	/// Multiplies all non-bias weights by (1.0 - (learning_rate * lambda)),
-	/// starting with the output layer, and ending with the first hidden layer.
-	/// Typical values for lambda are small (like 0.001.)
-	/// After each layer, the value of lambda is multiplied by gamma.
-	/// (If gamma is greater than 1.0, then weights in hidden layers will decay
-	/// faster, and if gamma is less than 1.0, then weights in hidden layers will
-	/// decay slower.) It may be significant to note that if a regularizing
-	/// penalty is added to the error of lambda times the sum-squared values of
-	/// non-bias weights, then on-line weight updating works out to the same as
-	/// decaying the weights after each application of back-prop.
-	void decayWeights(double lambda, double gamma = 1.0);
+	/// Multiplies all weights in the network by the specified factor.
+	void scaleWeights(double factor);
 
-	/// Just like decayWeights, except it only decays the weights in one of
-	/// the output units.
-	void decayWeightsSingleOutput(size_t output, double lambda);
+	/// Just like scaleWeights, except it only scales the weights in one of the output units.
+	void scaleWeightsSingleOutput(size_t output, double lambda);
+
+	/// Multiplies all weights (including biases) in the specified layer by "factor".
+	void scaleWeightsOneLayer(double factor, size_t lay);
 
 	/// Returns the current learning rate
 	double learningRate() const { return m_learningRate; }

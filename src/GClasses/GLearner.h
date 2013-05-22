@@ -86,7 +86,7 @@ public:
 
 
 // nRep and nFold are zero-indexed
-typedef void (*RepValidateCallback)(void* pThis, size_t nRep, size_t nFold, size_t labelDims, double* pFoldResults);
+typedef void (*RepValidateCallback)(void* pThis, size_t nRep, size_t nFold, size_t labelDims, double foldSSE);
 
 
 /// This is the base class of supervised learning algorithms (that may or may not
@@ -116,32 +116,29 @@ public:
 	/// labels will be consistent with the patterns exhibited by features1 and labels1.
 	GMatrix* transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
 
-	/// Trains and tests this learner. pOutResults should have
-	/// an element for each label dim.
-	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
+	/// Trains and tests this learner. Returns the sum-squared-error.
+	virtual double trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels);
 
-	/// Perform n-fold cross validation on pData. Uses trainAndTest
-	/// for each fold. pCB is an optional callback method for reporting
+	/// Makes a confusion matrix for a transduction algorithm
+	void transductiveConfusionMatrix(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, std::vector<GMatrix*>& stats);
+
+	/// Perform n-fold cross validation on pData. Returns sum-squared error.
+	/// Uses trainAndTest for each fold. pCB is an optional callback method for reporting
 	/// intermediate stats. It can be NULL if you don't want intermediate reporting.
 	/// nRep is just the rep number that will be passed to the callback.
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
-	/// The results of each fold is returned in a dataset.
-	GMatrix* crossValidate(GMatrix& features, GMatrix& labels, size_t nFolds, RepValidateCallback pCB = NULL, size_t nRep = 0, void* pThis = NULL);
+	double crossValidate(GMatrix& features, GMatrix& labels, size_t nFolds, RepValidateCallback pCB = NULL, size_t nRep = 0, void* pThis = NULL);
 
 	/// Perform cross validation "nReps" times and return the
-	/// average score. (5 reps with 2 folds is preferred over 10-fold cross
-	/// validation because it yields less type 1 error.)
-	/// pCB is an optional callback method for reporting intermediate stats
+	/// average score. pCB is an optional callback method for reporting intermediate stats
 	/// It can be NULL if you don't want intermediate reporting.
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
-	/// The results of each fold is returned in a dataset.
-	GMatrix* repValidate(GMatrix& features, GMatrix& labels, size_t reps, size_t nFolds, RepValidateCallback pCB = NULL, void* pThis = NULL);
+	double repValidate(GMatrix& features, GMatrix& labels, size_t reps, size_t nFolds, RepValidateCallback pCB = NULL, void* pThis = NULL);
 
 	/// This performs two-fold cross-validation on a shuffled
-	/// non-uniform split of the data, and returns an error value that
-	/// represents the results of all labels combined.
+	/// non-uniform split of the data, and returns the sum-squared-error.
 	double heuristicValidate(GMatrix& features, GMatrix& labels);
 #endif // MIN_PREDICT
 
@@ -302,19 +299,17 @@ public:
 	virtual void clear() = 0;
 
 #ifndef MIN_PREDICT
-	/// This method assumes that this learner has already been trained.
-	/// It computes the predictive accuracy for nominal labels and mean-squared error
-	/// for continuous labels. pOutResults should be the size of the number of columns in labels.
-	/// If pNominalLabelStats is non-NULL, then it will be filled with confusion-matrix statistics about
-	/// predictions for nominal labels. pNominalLabelStats should point to an empty vector when
-	/// it is passed in. It will be resized to the number of columns in labels. Elements corresponding
-	/// with continuous label attributes will be set to NULL. Elements corresponding to nominal label
-	/// attributes will be set to contain an n x n matrix, where n is the number of possible values
-	/// in that label column. Each row refers to the expected value, each column refers to the
-	/// predicted value, and each element contains the count of the number of times that each
-	/// expected/predicted value occurred over the test set. The caller is responsible to delete each
-	/// element in pNominalLabelStats.
-	void accuracy(GMatrix& features, GMatrix& labels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
+	/// Generates a confusion matrix containing the total counts of the number of times
+	/// each value was expected and predicted. (Rows represent target values, and columns
+	/// represent predicted values.) stats should be an empty vector. This method will
+	/// resize stats to the number of dimensions in the label vector. The caller is
+	/// responsible to delete all of the matrices that it puts in this vector. For
+	/// continuous labels, the value will be NULL.
+	void confusion(GMatrix& features, GMatrix& labels, std::vector<GMatrix*>& stats);
+
+	/// Computes the sum-squared-error for predicting the labels from the features.
+	/// For categorical labels, Hamming distance is used.
+	double sumSquaredError(GMatrix& features, GMatrix& labels);
 
 	/// label specifies which output to measure. (It should be 0 if there is only one label dimension.)
 	/// The measurement will be performed "nReps" times and results averaged together
@@ -324,8 +319,8 @@ public:
 	/// If bLocal is true, it computes the local precision instead of the global precision.
 	void precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps);
 
-	/// Trains and tests this learner
-	virtual void trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, double* pOutResults, std::vector<GMatrix*>* pNominalLabelStats = NULL);
+	/// Trains and tests this learner. Returns sum-squared-error.
+	virtual double trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels);
 #endif // MIN_PREDICT
 
 #ifndef MIN_PREDICT

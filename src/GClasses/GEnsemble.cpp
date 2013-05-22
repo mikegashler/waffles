@@ -339,14 +339,12 @@ void GBag::test()
 // virtual
 void GBayesianModelAveraging::determineWeights(GMatrix& features, GMatrix& labels)
 {
-	GTEMPBUF(double, results, labels.cols());
 	double m = -1e38;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 	{
-		(*it)->m_pModel->accuracy(features, labels, results);
-		double d = GVec::sumElements(results, labels.cols()) / labels.cols();
+		double d = 1.0 - ((*it)->m_pModel->sumSquaredError(features, labels) / labels.rows());
 		double logProbHypothGivenData;
-		if(d == 0.0)
+		if(d <= 0.0)
 			logProbHypothGivenData = -1e38;
 		else if(d == 1.0)
 			logProbHypothGivenData = 0.0;
@@ -407,7 +405,6 @@ void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& lab
 	GVec::setAll(pWeights, 0.0, m_models.size());
 	double sumWeight = 0.0;
 	double maxLogProb = -1e38;
-	GTEMPBUF(double, results, labels.cols());
 	for(size_t i = 0; i < m_samples; i++)
 	{
 		// Set weights randomly from a dirichlet distribution with unifrom probabilities
@@ -416,10 +413,9 @@ void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& lab
 		normalizeWeights();
 
 		// Evaluate accuracy
-		accuracy(features, labels, results);
-		double d = GVec::sumElements(results, labels.cols()) / labels.cols();
+		double d = 1.0 - (sumSquaredError(features, labels) / labels.rows());
 		double logProbEnsembleGivenData;
-		if(d == 0.0)
+		if(d <= 0.0)
 			logProbEnsembleGivenData = -1e38;
 		else if(d == 1.0)
 			logProbEnsembleGivenData = 0.0;
