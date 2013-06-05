@@ -359,6 +359,10 @@ protected:
 	/// Child classes should use this in their implementation of serialize
 	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 #endif // MIN_PREDICT
+
+protected:
+	/// Used to measure SSE with data that has already been converted to the internal format.
+	double sumSquaredErrorInternal(GMatrix& features, GMatrix& labels);
 };
 
 ///\brief Converts a GSupervisedLearner to a string

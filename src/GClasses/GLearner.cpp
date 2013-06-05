@@ -941,12 +941,43 @@ double GSupervisedLearner::sumSquaredError(GMatrix& features, GMatrix& labels)
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and rows to have the same number of rows");
+	if(!m_pRelFeatures->isCompatible(*features.relation().get()))
+		throw Ex("Features incompatible with this learner");
+	if(!m_pRelLabels->isCompatible(*labels.relation().get()))
+		throw Ex("Labels incompatible with this learner");
 	size_t labelDims = labels.cols();
 	GTEMPBUF(double, prediction, labelDims);
 	double sse = 0.0;
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		predict(features[i], prediction);
+		double* target = labels[i];
+		for(size_t j = 0; j < labelDims; j++)
+		{
+			double d;
+			if(labels.relation()->valueCount(j) == 0)
+				d = target[j] - prediction[j];
+			else
+			{
+				if((int)target[j] == (int)prediction[j])
+					d = 0.0;
+				else
+					d = 1.0;
+			}
+			sse += (d * d);
+		}
+	}
+	return sse;
+}
+
+double GSupervisedLearner::sumSquaredErrorInternal(GMatrix& features, GMatrix& labels)
+{
+	size_t labelDims = labels.cols();
+	GTEMPBUF(double, prediction, labelDims);
+	double sse = 0.0;
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		predictInner(features[i], prediction);
 		double* target = labels[i];
 		for(size_t j = 0; j < labelDims; j++)
 		{
@@ -1409,6 +1440,8 @@ GSupervisedLearner* GLearnerLoader::loadSupervisedLearner(GDomNode* pNode)
 					return new GDecisionTree(pNode, *this);
 				else if(strcmp(szClass, "GGaussianProcess") == 0)
 					return new GGaussianProcess(pNode, *this);
+				else if(strcmp(szClass, "GHingedLinear") == 0)
+					return new GHingedLinear(pNode, *this);
 				else if(strcmp(szClass, "GIdentityFunction") == 0)
 					return new GIdentityFunction(pNode, *this);
 			}

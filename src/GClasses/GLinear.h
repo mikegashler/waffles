@@ -165,6 +165,68 @@ public:
 };
 
 
+
+
+
+class GHingedLinearLayer;
+
+/// An experimental learning algorithm
+class GHingedLinear : public GSupervisedLearner
+{
+protected:
+	std::vector<GHingedLinearLayer*> m_layers;
+	double* m_pBuf;
+	std::vector<size_t> m_topology;
+
+public:
+	/// General-purpose constructor
+	GHingedLinear(GRand& rand);
+
+	/// Load from a text-format
+	GHingedLinear(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GHingedLinear();
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests for this class. Throws an exception if there is a failure.
+	static void test();
+#endif
+
+	/// Specify the number of hidden layers, and nodes in each hidden layer
+	void setTopology(std::vector<size_t>& topo) { m_topology = topo; }
+
+	/// Saves the model to a text file. (This doesn't save the short-term
+	/// memory used for incremental learning, so if you're doing "incremental"
+	/// learning, it will wake up with amnesia when you load it again.)
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// See the comment for GSupervisedLearner::clear
+	virtual void clear();
+
+	/// A helper method used during training
+	double tryWeights(const double* pVector, GMatrix& feat, GMatrix& lab);
+
+protected:
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(GMatrix& features, GMatrix& labels);
+
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predictInner(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
+	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
+
+	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
+	virtual bool canImplicitlyHandleNominalLabels() { return false; }
+
+	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
+	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
+};
+
+
 } // namespace GClasses
 
 #endif // __GLINEAR_H__

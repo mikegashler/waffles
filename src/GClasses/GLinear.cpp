@@ -15,10 +15,12 @@
 #include "GDistribution.h"
 #include "GRand.h"
 #include "GVec.h"
+#include "GOptimizer.h"
+#include "GHillClimber.h"
 #include <cmath>
 #include <math.h>
 
-using namespace GClasses;
+namespace GClasses {
 
 GLinearRegressor::GLinearRegressor(GRand& rand)
 : GSupervisedLearner(rand), m_pBeta(NULL), m_pEpsilon(NULL)
@@ -48,6 +50,50 @@ GDomNode* GLinearRegressor::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "epsilon", GVec::serialize(pDoc, m_pEpsilon, m_pBeta->rows()));
 	return pNode;
 }
+/*
+class GLinearRegressorTargetFunction : public GTargetFunction
+{
+protected:
+	GLinearRegressor* m_pLR;
+	GMatrix& m_feat;
+	GMatrix& m_lab;
+
+public:
+	GLinearRegressorTargetFunction(size_t dims, GLinearRegressor* pLR, GMatrix& feat, GMatrix& lab) : GTargetFunction(dims), m_pLR(pLR), m_feat(feat), m_lab(lab)
+	{
+	}
+	
+	virtual ~GLinearRegressorTargetFunction() {}
+	
+	virtual bool isStable() { return true; }
+	virtual bool isConstrained() { return false; }
+
+	virtual void initVector(double* pVector)
+	{
+		GVec::setAll(pVector, 0.0, relation()->size());
+	}
+
+	virtual double computeError(const double* pVector)
+	{
+		GVec::copy(m_pLR->m_pEpsilon, pVector, m_pLR->m_pBeta->rows());
+		pVector += m_pLR->m_pBeta->rows();
+		m_pLR->m_pBeta->fromVector(pVector, m_pLR->m_pBeta->rows());
+		double sse = m_pLR->sumSquaredErrorInternal(m_feat, m_lab);
+		return sse;
+	}
+};
+
+void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor)
+{
+	GLinearRegressorTargetFunction tf(m_pBeta->rows() * (m_pBeta->cols() + 1), this, features, labels);
+	GMomentumGreedySearch hc(&tf);
+	hc.searchUntil(100, 100, 0.0001);
+	double* pVector = hc.currentVector();
+	GVec::copy(m_pEpsilon, pVector, m_pBeta->rows());
+	pVector += m_pBeta->rows();
+	m_pBeta->fromVector(pVector, m_pBeta->rows());
+}
+*/
 
 void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor)
 {
@@ -675,3 +721,274 @@ void GLinearProgramming::test()
 		throw Ex("failed");
 }
 #endif
+
+
+
+
+
+
+
+
+/// A helper class used by GHingedLinear
+class GHingedLinearLayer
+{
+protected:
+	size_t m_inSize;
+	GMatrix m_a;
+	GMatrix m_b;
+	double* m_pBuf;
+	double* m_pBiasA;
+	double* m_pBiasB;
+	bool m_max;
+
+public:
+	GHingedLinearLayer(size_t inSize, size_t outSize, bool max)
+	: m_inSize(inSize), m_a(outSize, inSize), m_b(outSize, inSize), m_max(max)
+	{
+		m_pBuf = new double[3 * outSize];
+		m_pBiasA = m_pBuf + outSize;
+		m_pBiasB = m_pBiasA + outSize;
+	}
+	
+	GHingedLinearLayer(GDomNode* pNode)
+	: m_a(pNode->field("a")), m_b(pNode->field("b"))
+	{
+		m_inSize = m_a.cols();
+		size_t outSize = m_a.rows();
+		m_pBuf = new double[3 * m_a.rows()];
+		m_pBiasA = m_pBuf + outSize;
+		m_pBiasB = m_pBiasA + outSize;
+		GDomListIterator it(pNode->field("v"));
+		GVec::deserialize(m_pBiasA, it);
+	}
+	
+	~GHingedLinearLayer()
+	{
+		delete[] m_pBuf;
+	}
+	
+	GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pNode = pDoc->newObj();
+		pNode->addField(pDoc, "a", m_a.serialize(pDoc));
+		pNode->addField(pDoc, "b", m_b.serialize(pDoc));
+		pNode->addField(pDoc, "v", GVec::serialize(pDoc, m_pBiasA, 2 * m_a.rows()));
+		return pNode;
+	}
+	
+	size_t outSize() { return m_a.rows(); }
+	
+	void map(const double* pIn, double* pOut)
+	{
+		m_a.multiply(pIn, pOut);
+		GVec::add(pOut, m_pBiasA, m_a.rows());
+		m_b.multiply(pIn, m_pBuf);
+		GVec::add(m_pBuf, m_pBiasB, m_a.rows());
+		if(m_max)
+		{
+			for(size_t i = 0; i < m_a.rows(); i++)
+				pOut[i] = std::max(pOut[i], m_pBuf[i]);
+		}
+		else
+		{
+			for(size_t i = 0; i < m_a.rows(); i++)
+				pOut[i] = std::min(pOut[i], m_pBuf[i]);
+		}
+	}
+	
+	size_t weightCount()
+	{
+		return (2 * m_inSize + 2) * m_a.rows();
+	}
+	
+	void setWeights(const double* pWeights)
+	{
+		m_a.fromVector(pWeights, m_a.rows()); pWeights += (m_a.rows() * m_inSize);
+		GVec::copy(m_pBiasA, pWeights, m_a.rows()); pWeights += m_a.rows();
+		m_b.fromVector(pWeights, m_a.rows()); pWeights += (m_a.rows() * m_inSize);
+		GVec::copy(m_pBiasB, pWeights, m_b.rows());
+	}
+};
+
+
+
+
+
+GHingedLinear::GHingedLinear(GRand& rand)
+: GSupervisedLearner(rand), m_pBuf(NULL)
+{
+}
+
+GHingedLinear::GHingedLinear(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
+{
+	GDomNode* pTopo = pNode->field("topology");
+	GDomListIterator it1(pTopo);
+	while(it1.remaining() > 0)
+	{
+		m_topology.push_back(it1.current()->asInt());
+		it1.advance();
+	}
+
+	size_t maxSize = 0;
+	GDomNode* pLayers = pNode->field("layers");
+	GDomListIterator it2(pLayers);
+	while(it2.remaining() > 0)
+	{
+		GHingedLinearLayer* pL = new GHingedLinearLayer(it2.current());
+		if(it2.remaining() > 1)
+			maxSize = std::max(maxSize, pL->outSize());
+		m_layers.push_back(pL);
+		it2.advance();
+	}
+	
+	m_pBuf = maxSize > 0 ? new double[maxSize] : NULL;
+}
+
+// virtual
+GHingedLinear::~GHingedLinear()
+{
+	clear();
+}
+
+// virtual
+GDomNode* GHingedLinear::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GHingedLinear");
+	GDomNode* pLayers = pNode->addField(pDoc, "layers", pDoc->newList());
+	for(size_t i = 0; i < m_layers.size(); i++)
+		pLayers->addItem(pDoc, m_layers[i]->serialize(pDoc));
+	GDomNode* pTopo = pNode->addField(pDoc, "topology", pDoc->newList());
+	for(size_t i = 0; i < m_topology.size(); i++)
+		pTopo->addItem(pDoc, pDoc->newInt(m_topology[i]));
+	return pNode;
+}
+
+class GHingedLinearTargetFunction : public GTargetFunction
+{
+protected:
+	GHingedLinear* m_pHL;
+	GMatrix& m_feat;
+	GMatrix& m_lab;
+
+public:
+	GHingedLinearTargetFunction(size_t dims, GHingedLinear* pHL, GMatrix& feat, GMatrix& lab) : GTargetFunction(dims), m_pHL(pHL), m_feat(feat), m_lab(lab)
+	{
+	}
+	
+	virtual ~GHingedLinearTargetFunction() {}
+	
+	virtual bool isStable() { return true; }
+	virtual bool isConstrained() { return false; }
+
+	virtual void initVector(double* pVector)
+	{
+		GVec::setAll(pVector, 0.0, relation()->size());
+	}
+
+	virtual double computeError(const double* pVector)
+	{
+		return m_pHL->tryWeights(pVector, m_feat, m_lab);
+	}
+};
+
+double GHingedLinear::tryWeights(const double* pVector, GMatrix& feat, GMatrix& lab)
+{
+	for(std::vector<GHingedLinearLayer*>::iterator it = m_layers.begin(); it != m_layers.end(); it++)
+	{
+		(*it)->setWeights(pVector);
+		pVector += (*it)->weightCount();
+	}
+	double sse = sumSquaredErrorInternal(feat, lab);
+	return sse;
+}
+
+// virtual
+void GHingedLinear::trainInner(GMatrix& features, GMatrix& labels)
+{
+	// Make the layers and buffer
+	size_t maxSize = 0;
+	clear();
+	size_t inSize = features.cols();
+	bool max = false;
+	for(size_t i = 0; i < m_topology.size(); i++)
+	{
+		m_layers.push_back(new GHingedLinearLayer(inSize, m_topology[i], max));
+		max = !max;
+		maxSize = std::max(maxSize, m_topology[i]);
+		inSize = m_topology[i];
+	}
+	m_layers.push_back(new GHingedLinearLayer(inSize, labels.cols(), max));
+	m_pBuf = maxSize > 0 ? new double[maxSize] : NULL;
+	
+	// Count the weights
+	size_t dims = 0;
+	for(std::vector<GHingedLinearLayer*>::iterator it = m_layers.begin(); it != m_layers.end(); it++)
+		dims += (*it)->weightCount();
+
+	// Optimize the weights
+	GHingedLinearTargetFunction tf(dims, this, features, labels);
+	GHillClimber hc(&tf);
+	hc.searchUntil(30, 30, 0.01);
+	
+	// Keep the best weights yet found
+	double* pVector = hc.currentVector();
+	for(std::vector<GHingedLinearLayer*>::iterator it = m_layers.begin(); it != m_layers.end(); it++)
+	{
+		(*it)->setWeights(pVector);
+		pVector += (*it)->weightCount();
+	}
+}
+
+// virtual
+void GHingedLinear::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	throw Ex("Sorry, this model cannot predict a distribution.");
+}
+
+// virtual
+void GHingedLinear::predictInner(const double* pIn, double* pOut)
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		double* tmp;
+		if(i + 1 < m_layers.size())
+			tmp = m_pBuf;
+		else
+			tmp = pOut;
+		m_layers[i]->map(pIn, tmp);
+		pIn = tmp;
+	}
+}
+
+// virtual
+void GHingedLinear::clear()
+{
+	for(std::vector<GHingedLinearLayer*>::iterator it = m_layers.begin(); it != m_layers.end(); it++)
+		delete(*it);
+	m_layers.clear();
+	delete[] m_pBuf;
+	m_pBuf = NULL;
+}
+
+#ifndef NO_TEST_CODE
+// static
+void GHingedLinear::test()
+{
+	GRand prng(0);
+	{
+		GHingedLinear hl(prng);
+		hl.basicTest(0.78, 0.77);
+	}
+/*	{
+		GHingedLinear hl(prng);
+		std::vector<size_t> topo;
+		topo.push_back(3);
+		topo.push_back(3);
+		hl.setTopology(topo);
+		hl.basicTest(0.76, 0.77);
+	}*/
+}
+#endif
+
+} // namespace GClasses

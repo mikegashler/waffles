@@ -1273,7 +1273,7 @@ UsageNode* makeRecommendUsageTree()
 		UsageNode* pOpts = pCV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-folds [n]=2", "Specify the number of folds. If not specified, the default is 2.");
-		pCV->add("[3col-data]=ratings.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
+		pCV->add("[3col-data]=ratings.arff", "The filename of 3-column (user, item, rating) dataset. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
 		UsageNode* pFMV = pRoot->add("fillmissingvalues <options> [data] [collab-filter]", "Fill in the missing values in an ARFF file with predicted values and print the resulting full dataset to stdout.");
@@ -1286,21 +1286,21 @@ UsageNode* makeRecommendUsageTree()
 		UsageNode* pOpts = pPR->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
-		pPR->add("[3col-data]=ratings.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
+		pPR->add("[3col-data]=ratings.arff", "The filename of 3-column (user, item, rating) dataset. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
 		UsageNode* pROC = pRoot->add("roc <options> [3col-data] [collab-filter]", "Compute data for an ROC curve. (The area under the curve will appear in the comments at the top of the data.)");
 		UsageNode* pOpts = pROC->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-ideal", "Ignore the model and compute ideal results (as if the model always predicted correct ratings).");
-		pROC->add("[3col-data]=ratings.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
+		pROC->add("[3col-data]=ratings.arff", "The filename of 3-column (user, item, rating) dataset. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
 		UsageNode* pTransacc = pRoot->add("transacc <options> [train] [test] [collab-filter]", "Train using [train], then test using [test]. Prints MSE and MAE to stdout.");
 		UsageNode* pOpts = pTransacc->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pTransacc->add("[train]=train.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
-		pTransacc->add("[test]=test.arff", "The filename of 3-column dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
+		pTransacc->add("[train]=train.arff", "The filename of 3-column (user, item, rating) dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
+		pTransacc->add("[test]=test.arff", "The filename of 3-column (user, item, rating) dataset with one row for each rating. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
 		pRoot->add("usage", "Print usage information.");

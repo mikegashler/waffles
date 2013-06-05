@@ -48,7 +48,7 @@ double GOptimizer::searchUntil(size_t nBurnInIterations, size_t nIterations, dou
 		for(size_t i = 0; i < nIterations; i++)
 			iterate();
 		dError = iterate();
-		if((dPrevError - dError) / dPrevError < dImprovement)
+		if((dPrevError - dError) / dPrevError < dImprovement || dError == 0.0)
 			break;
 	}
 	return dError;
