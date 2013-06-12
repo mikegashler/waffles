@@ -1211,7 +1211,7 @@ size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pOb
 
 			// Back prop over observation function
 			pBPObs->backpropagate();
-			pBPObs->descendGradient(m_pParams, pObsFunc->learningRate(), pObsFunc->momentum(), pObsFunc->useInputBias());
+			pBPObs->descendGradient(m_pParams, pObsFunc->learningRate(), pObsFunc->momentum());
 
 			// Repeatedly back prop over transition function back to the src
 			for(size_t i = passDepth - 1; i < passDepth; i--)
@@ -1228,7 +1228,7 @@ size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pOb
 				GVec::copy(pContextIn, contexts.row(i), m_contextDims);
 				GBackProp* pBPTemp = transNets[i]->backProp();
 				pBPTemp->backpropagate();
-				pBPTemp->descendGradient(pAct, transNets[i]->learningRate(), transNets[i]->momentum(), transNets[i]->useInputBias());
+				pBPTemp->descendGradient(pAct, transNets[i]->learningRate(), transNets[i]->momentum());
 			}
 
 			// Average the weights over the transition functions

@@ -195,8 +195,6 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing opt dependencies for $<"
-	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ -f "$@" ]; then rm -f "$@.tmp"; mv "$@ $@.tmp"; fi
 	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
@@ -208,8 +206,6 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing dbg dependencies for $<"
-	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ -f "$@" ]; then rm -f "$@.tmp"; mv "$@ $@.tmp"; fi
 	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
@@ -221,8 +217,6 @@ $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
 	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing gcov dependencies for $<"
-	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
-	@if [ -f "$@" ]; then rm -f "$@.tmp"; mv "$@ $@.tmp"; fi
 	@echo -en "$$(dirname $@)/" > $@
 	@$(COMPILER) $(GCOV_CFLAGS) -MM $< >> $@
 	@#Delete old gcno file

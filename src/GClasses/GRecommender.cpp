@@ -1308,8 +1308,8 @@ void GNonlinearPCA::train(GMatrix& data)
 					if(pass < 2)
 						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * regularizer));
 					if(pass != 1)
-						pNN->backProp()->gradientOfInputsSingleOutput(item, pPrefGradient, m_pModel->useInputBias());
-					pNN->backProp()->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum(), pNN->useInputBias());
+						pNN->backProp()->gradientOfInputsSingleOutput(item, pPrefGradient);
+					pNN->backProp()->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
 					if(pass != 1)
 					{
 						// Update inputs

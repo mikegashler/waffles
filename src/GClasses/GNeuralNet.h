@@ -147,37 +147,40 @@ public:
 
 	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights to descend the
 	/// gradient of the error surface with respect to the weights.
-	void descendGradient(const double* pFeatures, double learningRate, double momentum, bool useInputBias);
+	void descendGradient(const double* pFeatures, double learningRate, double momentum);
 
 	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
 	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
-	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum, bool useInputBias);
+	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum);
 
 	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights on the specified layer
 	/// to descend the gradient of the error surface with respect to the weights.
-	void descendGradientOneLayer(size_t layer, const double* pFeatures, double learningRate, double momentum, bool useInputBias);
+	/// Returns the sum-squared delta.
+	double descendGradientOneLayer(size_t layer, const double* pFeatures, double learningRate, double momentum);
 
 	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
 	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
 	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradient.
 	/// Also, note that descendGradient depends on the input features, so be sure not to update them until after you call descendGradient.)
-	void gradientOfInputs(double* pOutGradient, bool useInputBias = false);
+	void gradientOfInputs(double* pOutGradient);
 
 	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
 	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
 	/// This method assumes that error is computed for only one output neuron, which is specified.
 	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradientSingleOutput.)
 	/// Also, note that descendGradientSingleOutput depends on the input features, so be sure not to update them until after you call descendGradientSingleOutput.)
-	void gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient, bool useInputBias = false);
+	void gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient);
 
 protected:
 	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
 	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
-	static void adjustWeights(GNeuralNetLayer* pNNFromLayer, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
+	/// Returns the sum-squared delta.
+	static double adjustWeights(GNeuralNetLayer* pNNFromLayer, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
 
 	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
 	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
-	static void adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, bool useInputBias, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
+	/// Returns the sum-squared delta.
+	static double adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, bool useInputBias, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
 
 	/// Adjust the weights of a single neuron that follows a hidden layer. (Assumes the error of this neuron has already been computed).
 	void adjustWeightsSingleNeuron(GNeuron& nnFrom, GNeuralNetLayer* pNNToLayer, GBackPropNeuron& bpFrom, double learningRate, double momentum);
@@ -417,6 +420,28 @@ public:
 	/// Adjusts weights on the first layer such that new inputs will be expected to fall in
 	/// the new range instead of the old range.
 	void normalizeInput(size_t index, double oldMin, double oldMax, double newMin, double newMax);
+
+	/// Inserts a new hidden layer with the specified number of nodes just before the output layer.
+	/// Its weights will be initialized in a manner that loosely approximates the identity function
+	/// with some random perturbation, and without changing any weights in other layers. (Note that
+	/// a better approximation for adding a new layer with no net effect on the overall behavior of
+	/// the network could be implemented if the weights in other layers were also adjusted, but that
+	/// might exacerbate weight saturation.)
+	/// The current implementation makes the unnecessary assumptions that the output of the previous
+	/// layer will be between 0 and 1, and the new layer uses the logistic function for its activation
+	/// function.
+	void insertHiddenLayerLast(size_t nodeCount);
+
+	/// Inserts a new hidden layer with the specified number of nodes as the first hidden layer in feed-forward oder.
+	/// Its weights will be initialized in a manner that loosely approximates the identity function
+	/// with some random perturbation, and without changing any weights in other layers. (Note that
+	/// a better approximation for adding a new layer with no net effect on the overall behavior of
+	/// the network could be implemented if the weights in other layers were also adjusted, but that
+	/// might exacerbate weight saturation.)
+	/// The current implementation makes the unnecessary assumptions that the inputs
+	/// will be between 0 and 1, and the new layer uses the logistic function for its activation
+	/// function.
+	void insertHiddenLayerFirst(size_t nodeCount);
 
 protected:
 #ifndef MIN_PREDICT

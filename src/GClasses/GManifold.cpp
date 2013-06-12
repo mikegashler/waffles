@@ -2456,11 +2456,11 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 
 					// Calculate the gradient of the inputs
 					if(pass != 1)
-						pNN->backProp()->gradientOfInputsSingleOutput(c, pGradientOfInputs, pNN->useInputBias());
+						pNN->backProp()->gradientOfInputsSingleOutput(c, pGradientOfInputs);
 
 					// Update weights
 					pNN->scaleWeightsSingleOutput(c, 1.0 - (learningRate * regularizer));
-					pNN->backProp()->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum(), pNN->useInputBias());
+					pNN->backProp()->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum());
 
 					// Update inputs
 					if(pass != 1)
