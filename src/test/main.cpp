@@ -966,6 +966,7 @@ public:
 		runTest("GGraphCut", GGraphCut::test);
 		runTest("GHashTable", GHashTable::test);
 		runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);
+		runTest("GHingedLinear", GHingedLinear::test);
 		runTest("GIncrementalTransform", GIncrementalTransform::test);
 		runTest("GInstanceRecommender", GInstanceRecommender::test);
 		runTest("GKdTree", GKdTree::test);
