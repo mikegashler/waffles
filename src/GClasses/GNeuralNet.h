@@ -285,6 +285,12 @@ public:
 	/// Multiplies all weights (including biases) in the specified layer by "factor".
 	void scaleWeightsOneLayer(double factor, size_t lay);
 
+	/// Adjust the magnitudes of the incoming and outgoing connections by amount alpha,
+	/// such that sum-squared magnitude remains constant. A small value for alpha, such as
+	/// 0.0001, will bring the magnitudes closer together by a small amount (so the bigger
+	/// one will be scaled down, and the smaller one will be scaled up).
+	void bleedWeights(double alpha);
+
 	/// Returns the current learning rate
 	double learningRate() const { return m_learningRate; }
 

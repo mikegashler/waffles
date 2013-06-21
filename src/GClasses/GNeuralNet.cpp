@@ -1204,6 +1204,46 @@ void GNeuralNet::scaleWeightsSingleOutput(size_t output, double factor)
 }
 #endif // MIN_PREDICT
 
+void GNeuralNet::bleedWeights(double alpha)
+{
+	for(size_t i = m_layers.size() - 2; i < m_layers.size(); i--)
+	{
+		size_t layerSize = m_layers[i].m_neurons.size();
+		for(size_t j = 0; j < layerSize; j++)
+		{
+			// Compute sum-squared weights in next layer
+			double sswNext = 0.0;
+			GNeuralNetLayer& layNext = m_layers[i + 1];
+			for(vector<GNeuron>::iterator it = layNext.m_neurons.begin(); it != layNext.m_neurons.end(); it++)
+			{
+				double w = it->m_weights[1 + j];
+				sswNext += (w * w);
+			}
+			
+			// Compute sum-squared weights in this layer
+			double sswCur = 0.0;
+			GNeuron& neuronCur = m_layers[i].m_neurons[j];
+			for(vector<double>::iterator it = neuronCur.m_weights.begin() + 1; it != neuronCur.m_weights.end(); it++)
+				sswCur += ((*it) * (*it));
+
+			// Compute scaling factors
+			double t1 = sqrt(sswNext);
+			double t2 = sqrt(sswCur);
+			double t3 = 4.0 * t1 * t2 * alpha;
+			double t4 = sswCur + sswNext;
+			double beta = (-t3 + sqrt(t3 * t3 - 4.0 * t4 * t4 * (alpha * alpha - 1.0))) / (2.0 * t4);
+			double facNext = (beta * t1 + alpha * t2) / t1;
+			double facCur = (beta * t2 + alpha * t1) / t2;
+
+			// Scale the weights in both layers
+			for(vector<GNeuron>::iterator it = layNext.m_neurons.begin(); it != layNext.m_neurons.end(); it++)
+				it->m_weights[1 + j] *= facNext;
+			for(vector<double>::iterator it = neuronCur.m_weights.begin() + 1; it != neuronCur.m_weights.end(); it++)
+				*it *= facCur;
+		}
+	}
+}
+
 void GNeuralNet::forwardProp(const double* pRow)
 {
 	// Propagate from the feature vector to the first layer
@@ -2102,6 +2142,37 @@ void GNeuralNet_testTrainOneLayer(GRand& rand)
 		throw Ex("problem with descendGradientOneLayer");
 }
 
+void GNeuralNet_testBleedWeights(GRand& rand)
+{
+	GNeuralNet nn(rand);
+	nn.addLayer(2);
+	nn.addLayer(2);
+	sp_relation pRel = new GUniformRelation(2, 0);
+	nn.beginIncrementalLearning(pRel, pRel);
+	nn.layer(2).m_neurons[0].m_weights[1] = 1.0;
+	nn.layer(2).m_neurons[0].m_weights[2] = 1.0;
+	nn.layer(2).m_neurons[1].m_weights[1] = 1.0;
+	nn.layer(2).m_neurons[1].m_weights[2] = 1.0;
+	nn.layer(1).m_neurons[0].m_weights[1] = 5.0;
+	nn.layer(1).m_neurons[0].m_weights[2] = 2.0;
+	nn.layer(1).m_neurons[1].m_weights[1] = 3.0;
+	nn.layer(1).m_neurons[1].m_weights[2] = 1.0;
+	nn.layer(0).m_neurons[0].m_weights[1] = 0.5;
+	nn.layer(0).m_neurons[0].m_weights[2] = 0.2;
+	nn.layer(0).m_neurons[1].m_weights[1] = 0.3;
+	nn.layer(0).m_neurons[1].m_weights[2] = 0.1;
+	size_t wc = nn.countWeights();
+	double* pBefore = new double[wc];
+	ArrayHolder<double> hBefore(pBefore);
+	double* pAfter = new double[wc];
+	ArrayHolder<double> hAfter(pAfter);
+	nn.weights(pBefore);
+	nn.bleedWeights(0.1);
+	nn.weights(pAfter);
+	if(std::abs(GVec::squaredMagnitude(pBefore, wc) - GVec::squaredMagnitude(pAfter, wc)) > 0.000001)
+		throw Ex("failed");
+}
+
 // static
 void GNeuralNet::test()
 {
@@ -2112,18 +2183,19 @@ void GNeuralNet::test()
 	GNeuralNet_testInvertAndSwap(prng);
 	GNeuralNet_testNormalizeInput(prng);
 	GNeuralNet_testTrainOneLayer(prng);
+	GNeuralNet_testBleedWeights(prng);
 
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn(prng);
-		nn.basicTest(0.745, 0.78);
+		nn.basicTest(0.74, 0.8);
 	}
 
 	// Test NN with one hidden layer
 	{
 		GNeuralNet nn(prng);
 		nn.addLayer(3);
-		nn.basicTest(0.76, 0.78);
+		nn.basicTest(0.76, 0.75);
 	}
 }
 
