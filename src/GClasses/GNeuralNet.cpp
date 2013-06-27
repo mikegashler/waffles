@@ -54,6 +54,25 @@ void GNeuralNetLayer::resetWeights(GRand* pRand, double inputCenter)
 		neuron->resetWeights(pRand, inputCenter);
 }
 
+void GNeuralNetLayer::feedForward(const double* pIn, double* pOut, bool useInputBias)
+{
+	double net;
+	for(vector<GNeuron>::iterator i = m_neurons.begin(); i != m_neurons.end(); i++)
+	{
+		vector<double>::iterator j = i->m_weights.begin();
+		net = *(j++); // (the first weight is the bias)
+		const double* pR = pIn;
+		if(useInputBias)
+			net += *(pR++);
+		while(j != i->m_weights.end())
+			net += (*(j++)) * (*(pR++));
+		//i->m_net = net;
+		//i->m_activation = pLayer->m_pActivationFunction->squash(net);
+		*pOut = m_pActivationFunction->squash(net);
+		pOut++;
+	}
+}
+
 // ----------------------------------------------------------------------
 
 GBackProp::GBackProp(GNeuralNet* pNN)
@@ -86,11 +105,12 @@ GBackProp::~GBackProp()
 	delete[] m_pSlack;
 }
 
-void GBackProp::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTargetFunction)
+void GBackProp::computeBlame(const double* pTarget, size_t layer, TargetFunction eTargetFunction)
 {
 	// Compute error on output layer
-	GBackPropLayer& bpOutputLayer = layer(m_layers.size() - 1);
-	GNeuralNetLayer& nnOutputLayer = m_pNN->m_layers[m_layers.size() - 1];
+	layer = std::min(layer, m_layers.size() - 1);
+	GBackPropLayer& bpOutputLayer = m_layers[layer];
+	GNeuralNetLayer& nnOutputLayer = m_pNN->m_layers[layer];
 	switch(eTargetFunction)
 	{
 		case squared_error:
@@ -177,12 +197,13 @@ void GBackProp::setErrorOnOutputLayer(const double* pTarget, TargetFunction eTar
 	}
 }
 
-void GBackProp::setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction)
+void GBackProp::computeBlameSingleOutput(double target, size_t output, size_t layer, TargetFunction eTargetFunction)
 {
 	// Compute error on output layer
-	GBackPropLayer& bpOutputLayer = layer(m_layers.size() - 1);
+	layer = std::min(layer, m_layers.size() - 1);
+	GBackPropLayer& bpOutputLayer = m_layers[layer];
 	GBackPropNeuron& bpNeuron = bpOutputLayer.m_neurons[output];
-	GNeuralNetLayer& nnOutputLayer = m_pNN->m_layers[m_layers.size() - 1];
+	GNeuralNetLayer& nnOutputLayer = m_pNN->m_layers[layer];
 	GNeuron& nnNeuron = nnOutputLayer.m_neurons[output];
 	double slack = m_pSlack[output];
 	switch(eTargetFunction)
@@ -453,9 +474,9 @@ void GBackProp::adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatur
 	}
 }
 
-void GBackProp::backpropagate()
+void GBackProp::backpropagate(size_t startLayer)
 {
-	size_t i = m_layers.size() - 1;
+	size_t i = std::min(startLayer, m_layers.size() - 1);
 	GNeuralNetLayer* pNNPrevLayer = &m_pNN->m_layers[i];
 	GBackPropLayer* pBPPrevLayer = &m_layers[i];
 	for(i--; i < m_layers.size(); i--)
@@ -468,9 +489,9 @@ void GBackProp::backpropagate()
 	}
 }
 
-void GBackProp::backpropagateSingleOutput(size_t outputNode)
+void GBackProp::backpropagateSingleOutput(size_t outputNode, size_t startLayer)
 {
-	size_t i = m_layers.size() - 1;
+	size_t i = std::min(startLayer, m_layers.size() - 1);
 	GNeuralNetLayer* pNNPrevLayer = &m_pNN->m_layers[i];
 	GBackPropLayer* pBPPrevLayer = &m_layers[i];
 	if(--i < m_layers.size())
@@ -593,7 +614,6 @@ void GBackProp::gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGr
 	for(vector<double>::iterator w = nn.m_weights.begin() + 1; w != nn.m_weights.end(); w++)
 		*(pG++) -= bp.m_error * (*w);
 }
-
 
 // ----------------------------------------------------------------------
 
@@ -1244,7 +1264,7 @@ void GNeuralNet::bleedWeights(double alpha)
 	}
 }
 
-void GNeuralNet::forwardProp(const double* pRow)
+void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 {
 	// Propagate from the feature vector to the first layer
 	vector<GNeuralNetLayer>::iterator pLayer = m_layers.begin();
@@ -1269,8 +1289,11 @@ void GNeuralNet::forwardProp(const double* pRow)
 
 	// Do the rest of the hidden layers
 	vector<GNeuralNetLayer>::iterator pPrevLayer = pLayer;
+	size_t depth = 1;
 	for(pLayer++; pLayer != m_layers.end(); pLayer++)
 	{
+		if(depth++ >= maxLayers)
+			break;
 		for(vector<GNeuron>::iterator i = pLayer->m_neurons.begin(); i != pLayer->m_neurons.end(); i++)
 		{
 			vector<double>::iterator j = i->m_weights.begin();
@@ -1451,7 +1474,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 		{
 			features.fullRow(pFullRow, indexes[i]);
 			forwardProp(pFullRow);
-			m_pBackProp->setErrorOnOutputLayer(labels.row(indexes[i]), m_backPropTargetFunction);
+			m_pBackProp->computeBlame(labels.row(indexes[i]), (size_t)-1, m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
 			m_pBackProp->descendGradient(pFullRow, m_learningRate, m_momentum);
 		}
@@ -1502,7 +1525,7 @@ size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLab
 		{
 			const double* pFeatures = trainFeatures[*pIndex];
 			forwardProp(pFeatures);
-			m_pBackProp->setErrorOnOutputLayer(trainLabels[*pIndex], m_backPropTargetFunction);
+			m_pBackProp->computeBlame(trainLabels[*pIndex], (size_t)-1, m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
 			m_pBackProp->descendGradient(pFeatures, m_learningRate, m_momentum);
 			pIndex++;
@@ -1574,7 +1597,7 @@ void GNeuralNet::trainIncrementalInner(const double* pIn, const double* pOut)
 	if(!hasTrainingBegun())
 		throw Ex("train or beginIncrementalLearning must be called before this method");
 	forwardProp(pIn);
-	m_pBackProp->setErrorOnOutputLayer(pOut, m_backPropTargetFunction);
+	m_pBackProp->computeBlame(pOut, (size_t)-1, m_backPropTargetFunction);
 	m_pBackProp->backpropagate();
 	m_pBackProp->descendGradient(pIn, m_learningRate, m_momentum);
 }
@@ -1925,7 +1948,7 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 
 		// Compute the feature gradient
 		nn.forwardProp(pFeatures);
-		nn.backProp()->setErrorOnOutputLayer(pTarget);
+		nn.backProp()->computeBlame(pTarget);
 		nn.backProp()->backpropagate();
 		nn.backProp()->gradientOfInputs(pFeatureGradient);
 		GVec::multiply(pFeatureGradient, 2.0, 5);
@@ -2093,7 +2116,7 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 			std::swap(c, d);
 		size_t ind = (size_t)rand.next(5);
 		nn.normalizeInput(ind, a, b, c, d);
-		in[ind] = GMatrix::normalize(in[ind], a, (b - a), c, (d - c));
+		in[ind] = GMatrix::normalizeValue(in[ind], a, b, c, d);
 		nn.predict(in, &after);
 		if(std::abs(after - before) > 1e-9)
 			throw Ex("Failed");
@@ -2126,14 +2149,14 @@ void GNeuralNet_testTrainOneLayer(GRand& rand)
 	if(GVec::squaredDistance(pW1, pW2, wc) > 1e-12)
 		throw Ex("copying error");
 	nn1.forwardProp(in);
-	nn1.backProp()->setErrorOnOutputLayer(out);
+	nn1.backProp()->computeBlame(out);
 	nn1.backProp()->backpropagate();
 	nn1.backProp()->descendGradient(in, 0.2, 0.0);
 	nn1.weights(pW1);
 	if(GVec::squaredDistance(pW1, pW2, wc) < 1e-5)
 		throw Ex("weight update problem");
 	nn2.forwardProp(in);
-	nn2.backProp()->setErrorOnOutputLayer(out);
+	nn2.backProp()->computeBlame(out);
 	nn2.backProp()->backpropagate();
 	for(size_t l = 0; l < nn2.layerCount(); l++)
 		nn2.backProp()->descendGradientOneLayer(l, in, 0.2, 0.0);

@@ -340,11 +340,7 @@ void GVec::add(double* pDest, const double* pSource, size_t nDims)
 void GVec::addScaled(double* pDest, double dMag, const double* pSource, size_t nDims)
 {
 	for(size_t i = 0; i < nDims; i++)
-	{
-		*pDest += (dMag * (*pSource));
-		pDest++;
-		pSource++;
-	}
+		*(pDest++) += (dMag * *(pSource++));
 }
 
 // static

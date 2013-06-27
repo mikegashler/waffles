@@ -3237,25 +3237,25 @@ double GMatrix::columnMax(size_t nAttribute)
 	return d;
 }
 
-void GMatrix::normalize(size_t nAttribute, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange)
+void GMatrix::normalizeColumn(size_t col, double dInMin, double dInMax, double dOutMin, double dOutMax)
 {
-	GAssert(dInputRange > 0);
-	double dScale = dOutputRange / dInputRange;
+	GAssert(dInMax > dInMin);
+	double dScale = (dOutMax - dOutMin) / (dInMax - dInMin);
 	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
 	{
-		(*it)[nAttribute] -= dInputMin;
-		(*it)[nAttribute] *= dScale;
-		(*it)[nAttribute] += dOutputMin;
+		(*it)[col] -= dInMin;
+		(*it)[col] *= dScale;
+		(*it)[col] += dOutMin;
 	}
 }
 
-/*static*/ double GMatrix::normalize(double dVal, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange)
+/*static*/ double GMatrix::normalizeValue(double dVal, double dInMin, double dInMax, double dOutMin, double dOutMax)
 {
-	GAssert(dInputRange > 0);
-	dVal -= dInputMin;
-	dVal /= dInputRange;
-	dVal *= dOutputRange;
-	dVal += dOutputMin;
+	GAssert(dInMax > dInMin);
+	dVal -= dInMin;
+	dVal /= (dInMax - dInMin);
+	dVal *= (dOutMax - dOutMin);
+	dVal += dOutMin;
 	return dVal;
 }
 

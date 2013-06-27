@@ -1303,7 +1303,8 @@ void GNonlinearPCA::train(GMatrix& data)
 					pNN->forwardPropSingleOutput(pPrefs, item);
 
 					// Update weights
-					pNN->backProp()->setErrorSingleOutput(pVec[2], item, pNN->backPropTargetFunction());
+					pNN->backProp()->computeBlameSingleOutput(pVec[2], item, (size_t)-1, 
+								      pNN->backPropTargetFunction());
 					pNN->backProp()->backpropagateSingleOutput(item);
 					if(pass < 2)
 						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * regularizer));

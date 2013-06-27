@@ -698,6 +698,39 @@ protected:
 };
 #endif // MIN_PREDICT
 
+
+/// This transform converts continuous values into logarithmic space.
+class GLogify : public GIncrementalTransform
+{
+public:
+	/// General purpose constructor
+	GLogify();
+
+	/// Load from a DOM.
+	GLogify(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GLogify();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// See the comment for GIncrementalTransform::transform
+	virtual void transform(const double* pIn, double* pOut);
+	
+	/// See the comment for GIncrementalTransform::untransform
+	virtual void untransform(const double* pIn, double* pOut);
+
+	/// See the comment for GIncrementalTransform::untransformToDistribution
+	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
+
+protected:
+	/// See the comment for GIncrementalTransform::trainInner
+	virtual sp_relation trainInner(GMatrix& data);
+
+	/// See the comment for GIncrementalTransform::trainInner
+	virtual sp_relation trainInner(sp_relation& relation);
+};
+
 } // namespace GClasses
 
 #endif // __GTRANSFORM_H__

@@ -1390,7 +1390,7 @@ void GNormalize::transform(const double* pIn, double* pOut)
 			if(*pIn == UNKNOWN_REAL_VALUE)
 				*pOut = UNKNOWN_REAL_VALUE;
 			else
-				*pOut = GMatrix::normalize(*pIn, *pMins, *pRanges, m_min, m_max - m_min);
+				*pOut = GMatrix::normalizeValue(*pIn, *pMins, *pMins + *pRanges, m_min, m_max);
 		}
 		else
 			*pOut = *pIn;
@@ -1414,7 +1414,7 @@ void GNormalize::untransform(const double* pIn, double* pOut)
 			if(*pIn == UNKNOWN_REAL_VALUE)
 				*pOut = UNKNOWN_REAL_VALUE;
 			else
-				*pOut = GMatrix::normalize(*pIn, m_min, m_max - m_min, *pMins, *pRanges);
+				*pOut = GMatrix::normalizeValue(*pIn, m_min, m_max, *pMins, *pMins + *pRanges);
 		}
 		else
 			*pOut = *pIn;
@@ -1736,6 +1736,91 @@ void GImputeMissingVals::setLabels(GMatrix* pLabels)
 }
 
 #endif // MIN_PREDICT
+
+// --------------------------------------------------------------------------
+
+GLogify::GLogify()
+: GIncrementalTransform()
+{
+}
+
+GLogify::GLogify(GDomNode* pNode, GLearnerLoader& ll)
+: GIncrementalTransform(pNode, ll)
+{
+}
+
+// virtual
+GLogify::~GLogify()
+{
+}
+
+// virtual
+GDomNode* GLogify::serialize(GDom* pDoc) const
+{
+	if(!m_pRelationBefore.get())
+		throw Ex("train must be called before serialize");
+	GDomNode* pNode = baseDomNode(pDoc, "GLogify");
+	return pNode;
+}
+
+// virtual
+sp_relation GLogify::trainInner(GMatrix& data)
+{
+	return data.relation();
+}
+
+// virtual
+sp_relation GLogify::trainInner(sp_relation& relation)
+{
+	return relation;
+}
+
+// virtual
+void GLogify::transform(const double* pIn, double* pOut)
+{
+	size_t nAttrCount = m_pRelationBefore->size();
+	for(size_t i = 0; i < nAttrCount; i++)
+	{
+		if(m_pRelationBefore->valueCount(i) == 0)
+		{
+			if(*pIn == UNKNOWN_REAL_VALUE)
+				*pOut = UNKNOWN_REAL_VALUE;
+			else
+				*pOut = log(*pIn);
+		}
+		else
+			*pOut = *pIn;
+		pOut++;
+		pIn++;
+	}
+}
+
+// virtual
+void GLogify::untransform(const double* pIn, double* pOut)
+{
+	size_t nAttrCount = m_pRelationBefore->size();
+	for(size_t i = 0; i < nAttrCount; i++)
+	{
+		if(m_pRelationBefore->valueCount(i) == 0)
+		{
+			if(*pIn == UNKNOWN_REAL_VALUE)
+				*pOut = UNKNOWN_REAL_VALUE;
+			else
+				*pOut = exp(*pIn);
+		}
+		else
+			*pOut = *pIn;
+		pOut++;
+		pIn++;
+	}
+}
+
+// virtual
+void GLogify::untransformToDistribution(const double* pIn, GPrediction* pOut)
+{
+	throw Ex("Sorry, cannot unlogify to a distribution");
+}
+
 
 
 } // namespace GClasses

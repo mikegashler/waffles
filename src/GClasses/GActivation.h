@@ -109,7 +109,47 @@ public:
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationLogistic(); }
 };
+/*
+/// The logistic activation function implemented with a lookup table
+class GActivationLogisticLookup : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "logisticlookup"; }
 
+	/// The logistic function. Returns 1.0/(e^(-x)+1.0)
+	virtual double squash(double x);
+
+	/// Returns d*(1.0-d), where d=squash(x)
+	virtual double derivative(double x)
+	{
+		throw Ex("Sorry, inverse is not implemented yet");
+	}
+
+	/// The logit function. Returns log(y)-log(1.0-y)
+	virtual double inverse(double y)
+	{
+		throw Ex("Sorry, inverse is not implemented yet");
+	}
+
+	/// Returns y*(1.0-y)
+	virtual double derivativeOfNet(double net, double activation) { return activation * (1.0 - activation); }
+
+	/// Returns 0.5
+	virtual double center() { return 0.5; }
+
+	/// Returns 0.5
+	virtual double halfRange() { return 0.5; }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationLogisticLookup(); }
+
+#ifndef MIN_PREDICT
+	/// Performs unit tests. Throws an exception if any tests fail.
+	static void test();
+#endif
+};
+*/
 /// The arctan activation function
 class GActivationArcTan : public GActivationFunction
 {

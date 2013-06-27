@@ -44,6 +44,7 @@ public:
 	GActivationFunction* m_pActivationFunction;
 
 	void resetWeights(GRand* pRand, double inputCenter);
+	void feedForward(const double* pIn, double* pOut, bool useInputBias = false);
 };
 
 /// An internal class used by GBackProp
@@ -116,11 +117,11 @@ public:
 	/// After calling this method, it is typical to call backpropagate(), to compute the error on
 	/// the hidden nodes, and then to call backProp()->descendGradient to update
 	/// the weights. pTarget contains the target values for the output nodes.
-	void setErrorOnOutputLayer(const double* pTarget, TargetFunction eTargetFunction = squared_error);
+	void computeBlame(const double* pTarget, size_t layer = (size_t)-1, TargetFunction eTargetFunction = squared_error);
 
-	/// This is the same as setErrorOnOutputLayer, except that it only sets
+	/// This is the same as computeBlame, except that it only sets
 	/// the error on a single output node.
-	void setErrorSingleOutput(double target, size_t output, TargetFunction eTargetFunction = squared_error);
+	void computeBlameSingleOutput(double target, size_t output, size_t layer = (size_t)-1, TargetFunction eTargetFunction = squared_error);
 
 	/// Backpropagates the error from the "from" layer to the "to" layer. (If the "to" layer has fewer units than the "from"
 	/// layer, then it will begin propagating with the (fromBegin+1)th weight and stop when the "to" layer runs out of units.
@@ -139,11 +140,11 @@ public:
 
 	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
-	void backpropagate();
+	void backpropagate(size_t startLayer = (size_t)-1);
 
 	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
 	/// the specified output node.)
-	void backpropagateSingleOutput(size_t outputNode);
+	void backpropagateSingleOutput(size_t outputNode, size_t startLayer = (size_t)-1);
 
 	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights to descend the
 	/// gradient of the error surface with respect to the weights.
@@ -376,7 +377,8 @@ public:
 	void weights(double* pOutWeights) const;
 
 	/// Evaluates a feature vector. (The results will be in the nodes of the output layer.)
-	void forwardProp(const double* pInputs);
+	/// The maxLayers parameter can limit how far into the network values are propagated.
+	void forwardProp(const double* pInputs, size_t maxLayers = (size_t)-1);
 
 	/// This is the same as forwardProp, except it only propagates to a single output node.
 	/// It returns the value that this node outputs.
@@ -425,7 +427,7 @@ public:
 
 	/// Adjusts weights on the first layer such that new inputs will be expected to fall in
 	/// the new range instead of the old range.
-	void normalizeInput(size_t index, double oldMin, double oldMax, double newMin, double newMax);
+	void normalizeInput(size_t index, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	/// Inserts a new hidden layer with the specified number of nodes just before the output layer.
 	/// Its weights will be initialized in a manner that loosely approximates the identity function

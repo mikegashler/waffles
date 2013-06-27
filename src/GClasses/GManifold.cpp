@@ -2451,7 +2451,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 					GAssert(target >= 0.0 && target <= 1.0 && prediction >= 0.0 && prediction <= 1.0);
 					double err = target - prediction;
 					sse += (err * err);
-					pNN->backProp()->setErrorSingleOutput(target, c);
+					pNN->backProp()->computeBlameSingleOutput(target, c);
 					pNN->backProp()->backpropagateSingleOutput(c);
 
 					// Calculate the gradient of the inputs
@@ -2493,8 +2493,8 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 		double _max = m_pIntrinsic->columnMax(i);
 		if(_max - _min < 1e-12)
 			_max = _min + 1e-6;
-		m_pNN->normalizeInput(m_paramDims + m_jitterDims + i, _min, _max, 0.0, 1.0);
-		m_pIntrinsic->normalize(i, _min, _max - _min, 0.0, 1.0);
+		m_pNN->normalizeInput(m_paramDims + m_jitterDims + i, _min, _max);
+		m_pIntrinsic->normalizeColumn(i, _min, _max);
 		//std::cerr << " After intrinsic dim=" << to_str(i) << ", min=" << to_str(m_pIntrinsic->columnMin(i)) << ", max=" << to_str(m_pIntrinsic->columnMax(i)) << "\n";
 	}
 

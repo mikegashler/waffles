@@ -957,12 +957,11 @@ public:
 	/// \brief Computes the arithmetic means of all attributes
 	void centroid(double* pOutCentroid);
 
-	/// \brief Normalizes the specified attribute values
-	void normalize(size_t nAttribute, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);
+	/// \brief Normalizes the specified column
+	void normalizeColumn(size_t col, double dInMin, double dInMax, double dOutMin = 0.0, double dOutMax = 1.0);
 
-	/// \brief Normalize a value from the input min and range to the
-	/// output min and range
-	static double normalize(double dVal, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);
+	/// \brief Normalize a value from the input min and max to the output min and max.
+	static double normalizeValue(double dVal, double dInMin, double dInMax, double dOutMin = 0.0, double dOutMax = 1.0);
 
 	/// \brief Returns the mean if the specified attribute is
 	/// continuous, otherwise returns the most common nominal value in
@@ -1208,14 +1207,22 @@ protected:
 	GMatrix* m_pData;
 
 public:
-	GReleaseDataHolder(GMatrix* pData)
+	GReleaseDataHolder(GMatrix* pData = NULL)
 	{
 		m_pData = pData;
 	}
 
 	~GReleaseDataHolder()
 	{
-		m_pData->releaseAllRows();
+		if(m_pData)
+			m_pData->releaseAllRows();
+	}
+
+	void reset(GMatrix* pData = NULL)
+	{
+		if(m_pData && m_pData != pData)
+			m_pData->releaseAllRows();
+		m_pData = pData;
 	}
 };
 
