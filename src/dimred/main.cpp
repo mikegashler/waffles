@@ -1097,12 +1097,13 @@ void unsupervisedBackProp(GArgReader& args)
 	string sModelOut;
 	string sProgress;
 	bool inputBias = true;
+	vector<size_t> topology;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
 			prng.setSeed(args.pop_uint());
 		else if(args.if_pop("-addlayer"))
-			pUBP->neuralNet()->addLayer(args.pop_uint());
+			topology.push_back(args.pop_uint());
 		else if(args.if_pop("-params"))
 		{
 			if(pUBP->jitterer())
@@ -1152,6 +1153,7 @@ void unsupervisedBackProp(GArgReader& args)
 	}
 	pUBP->setParams(paramRanges);
 	pUBP->setUseInputBias(inputBias);
+	pUBP->neuralNet()->setTopology(topology);
 
 	// Transform the data
 	GMatrix* pDataAfter = pUBP->doit(*pData);

@@ -695,8 +695,10 @@ GReservoir::GReservoir(GRand& rand, double weightDeviation, size_t outputs, size
 : GIncrementalTransform(), m_outputs(outputs), m_deviation(weightDeviation)
 {
 	m_pNN = new GNeuralNet(rand);
+	vector<size_t> topology;
 	for(size_t i = 0; i < hiddenLayers; i++)
-		m_pNN->addLayer(outputs);
+		topology.push_back(outputs);
+	m_pNN->setTopology(topology);
 }
 
 GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
@@ -902,7 +904,7 @@ sp_relation GAttributeSelector::trainInner(GMatrix& data)
 		ntc.reverseAttrMap(rmap);
 
 		// Identify the weakest attribute
-		GNeuralNetLayer& layer = nn.layer(nn.layerCount() - 1);
+		GNeuralNetLayer& layer = *nn.getLayer(nn.layerCount() - 1);
 		size_t pos = 0;
 		double weakest = 1e308;
 		size_t weakestIndex = 0;
@@ -911,8 +913,8 @@ sp_relation GAttributeSelector::trainInner(GMatrix& data)
 			double w = 0;
 			while(pos < nn.relFeatures()->size() && rmap[pos] == i)
 			{
-				for(vector<GNeuron>::iterator it = layer.m_neurons.begin(); it != layer.m_neurons.end(); it++)
-					w = std::max(w, std::abs(it->m_weights[pos + 1]));
+				for(size_t neuron = 0; neuron < layer.outputs(); neuron++)
+					w = std::max(w, std::abs(layer.m_weights[pos][neuron]));
 				pos++;
 			}
 			if(w < weakest)

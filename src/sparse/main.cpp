@@ -134,10 +134,11 @@ GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args)
 GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
 {
 	GNeuralNet* pModel = new GNeuralNet(rand);
+	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-addlayer"))
-			pModel->addLayer(args.pop_uint());
+			topology.push_back(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -146,7 +147,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
 			pModel->setWindowSize(args.pop_uint());
 		else if(args.if_pop("-minwindowimprovement"))
 			pModel->setImprovementThresh(args.pop_double());
-		else if(args.if_pop("-activation"))
+/*		else if(args.if_pop("-activation"))
 		{
 			const char* szSF = args.pop_string();
 			GActivationFunction* pSF = NULL;
@@ -173,12 +174,13 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
 			else
 				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
-		}
+		}*/
 		else if(args.if_pop("-crossentropy"))
 			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else
 			throw Ex("Invalid neuralnet option: ", args.peek());
 	}
+	pModel->setTopology(topology);
 	return pModel;
 }
 /*

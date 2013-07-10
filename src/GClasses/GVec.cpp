@@ -454,6 +454,12 @@ void GVec::rotate(double* pVector, size_t nDims, double dAngle, const double* pA
 	GVec::addScaled(pVector, y, pB, nDims);
 }
 
+void GVec::perturb(double* pDest, double deviation, size_t dims, GRand& rand)
+{
+	for(size_t i = 0; i < dims; i++)
+		*(pDest++) += deviation * rand.normal();
+}
+
 void GVec::addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals)
 {
 	if(nInVals > nOutVals)

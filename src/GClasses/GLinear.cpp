@@ -760,6 +760,7 @@ public:
 		m_pBiasB = m_pBiasA + outSize;
 		GDomListIterator it(pNode->field("v"));
 		GVec::deserialize(m_pBiasA, it);
+		m_max = pNode->field("m")->asBool();
 	}
 	
 	~GHingedLinearLayer()
@@ -773,6 +774,7 @@ public:
 		pNode->addField(pDoc, "a", m_a.serialize(pDoc));
 		pNode->addField(pDoc, "b", m_b.serialize(pDoc));
 		pNode->addField(pDoc, "v", GVec::serialize(pDoc, m_pBiasA, 2 * m_a.rows()));
+		pNode->addField(pDoc, "m", pDoc->newBool(m_max));
 		return pNode;
 	}
 	

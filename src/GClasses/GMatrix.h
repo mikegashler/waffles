@@ -518,6 +518,10 @@ public:
 	/// not initialized.) Returns a pointer to the new row.
 	double* newRow();
 
+	/// \brief Adds a new column to the matrix. (This resizes every row, which is very inefficient.)
+	/// The values in the new row are not initialized.
+	void newColumn();
+
 	/// \brief Adds "nRows" uninitialized rows to this matrix.
 	void newRows(size_t nRows);
 
@@ -779,7 +783,7 @@ public:
 
 	/// \brief Copies all the data from this dataset into pVector. 
 	///
-	/// pVector must be big enough to hold rows() x cols() doubles.
+	/// pVector must be big enough to hold rows() * cols() doubles.
 	void toVector(double* pVector);
 
 #ifndef MIN_PREDICT

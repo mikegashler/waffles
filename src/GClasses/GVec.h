@@ -152,6 +152,9 @@ public:
 	/// Rotates pVector by dAngle radians in the plane defined by the orthogonal axes pA and pB
 	static void rotate(double* pVector, size_t nDims, double dAngle, const double* pA, const double* pB);
 
+	/// Adds Gaussian noise with the specified deviation to each element in the matrix
+	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
+
 	/// Adds the function pIn to pOut after interpolating pIn to be the same size as pOut.
 	static void addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals);
 

@@ -246,10 +246,11 @@ GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 		throw Ex("The number of intrinsic dims must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
 	GNonlinearPCA* pModel = new GNonlinearPCA(intrinsicDims, rand);
+	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-addlayer"))
-			pModel->model()->addLayer(args.pop_uint());
+			topology.push_back(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			pModel->model()->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -262,7 +263,7 @@ GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 			pModel->noInputBias();
 		else if(args.if_pop("-nothreepass"))
 			pModel->noThreePass();
-		else if(args.if_pop("-activation"))
+/*		else if(args.if_pop("-activation"))
 		{
 			const char* szSF = args.pop_string();
 			GActivationFunction* pSF = NULL;
@@ -289,7 +290,7 @@ GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 			else
 				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->model()->setActivationFunction(pSF, true);
-		}
+		}*/
 		else if(args.if_pop("-crossentropy"))
 			pModel->model()->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else if(args.if_pop("-sign"))
@@ -297,6 +298,7 @@ GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
+	pModel->model()->setTopology(topology);
 	return pModel;
 }
 

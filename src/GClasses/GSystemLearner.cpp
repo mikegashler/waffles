@@ -643,213 +643,6 @@ public:
 	}
 };
 
-void GRecurrentModel::trainAaron(GMatrix* pActions, GMatrix* pObservations)
-{
-	// Consistency checks
-	if(pActions->rows() != pObservations->rows())
-		throw Ex("Expected the same number of rows");
-	if(pActions->cols() != m_actionDims)
-		throw Ex("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
-	if(pObservations->cols() != m_obsDims)
-		throw Ex("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
-
-	// Init the context
-	GMatrix contextData(pActions->rows(), m_contextDims);
-	for(size_t i = 0; i < contextData.rows(); i++)
-	{
-		double* pRow = contextData.row(i);
-		m_pRand->cubical(pRow, m_contextDims);
-	}
-
-	// Enable incremental learning
-	m_transitionDelta = false;
-	GNeuralNet* pTransFunc = (GNeuralNet*)m_pTransitionFunc;
-	GNeuralNet* pObsFunc = (GNeuralNet*)m_pObservationFunc;
-	prepareForOptimization(pActions, pObservations);
-
-	// Do bias training
-	GCoordVectorIterator cvi(m_paramDims, m_pParamRanges);
-	size_t samples = 30;
-cerr << "starting bias training...\n"; cerr.flush();
-	for(size_t i = 0; i < 500000; i++)
-	{
-		size_t t = (size_t)m_pRand->next(pActions->rows());
-		double* pObs = pObservations->row(t);
-		GVec::copy(m_pContext, contextData.row(t), m_contextDims);
-		for(size_t j = 0; j < samples; j++)
-		{
-			cvi.setRandom(m_pRand);
-			cvi.currentNormalized(m_pParams);
-			pObsFunc->trainIncremental(m_pParams, pObs + m_channels * cvi.currentIndex());
-		}
-	}
-cerr << "done with bias training...\n"; cerr.flush();
-
-	// Train
-	double dStart = GTime::seconds();
-	int timeSlice = -1;
-	GTEMPBUF(double, pPix, m_channels + m_contextDims);
-	double* pTransContext = pPix + m_channels;
-	GVec::setAll(contextData.row(0), 0.0, m_contextDims);
-	while(true)
-	{
-		// Validate
-		double dTime = GTime::seconds() - dStart;
-		if(m_pValidationData)
-		{
-			int slice = (int)floor(dTime / m_validationInterval);
-			if(slice > timeSlice)
-			{
-				while(timeSlice + 1 < slice)
-					onObtainValidationScore(++timeSlice, UNKNOWN_REAL_VALUE, UNKNOWN_REAL_VALUE);
-				timeSlice = slice;
-				double mse = validate(*m_pValidationData, false, false, 255.0);
-				onObtainValidationScore(timeSlice, dTime, mse);
-			}
-		}
-		if(dTime >= m_trainingSeconds)
-			break;
-
-		// Do some training
-		for(size_t t = 0; t < pActions->rows(); t++)
-		{
-			double* pObs = pObservations->row(t);
-			if(t > 0)
-			{
-				// Compute the context according to the transition function
-				GVec::copy(m_pBuf, pActions->row(t - 1), m_actionDims);
-				GVec::copy(m_pBuf + m_actionDims, contextData.row(t - 1), m_contextDims);
-				pTransFunc->predict(m_pBuf, pTransContext);
-			}
-			GVec::copy(m_pContext, contextData.row(t), m_contextDims);
-			for(size_t i = 0; i < samples; i++)
-			{
-				cvi.setRandom(m_pRand);
-				cvi.currentNormalized(m_pParams);
-				pTransFunc->trainIncremental(m_pParams, pObs + m_channels * cvi.currentIndex());
-				if(t > 0)
-				{
-					// Update the context
-					GBackProp* pBP = pObsFunc->backProp();
-					GBackPropLayer& bpLayer = pBP->layer(0);
-					GNeuralNetLayer& nnLayer = pObsFunc->layer(0);
-					for(size_t j = 0; j < m_contextDims; j++)
-					{
-						for(size_t k = 0; k < nnLayer.m_neurons.size(); k++)
-							m_pContext[j] += 0.1 * bpLayer.m_neurons[k].m_error * nnLayer.m_neurons[k].m_weights[1 + j];
-					}
-				}
-			}
-			if(t > 0)
-			{
-				// Average the context estimates
-//				GVec::add(contextData.row(t), pTransContext, m_contextDims);
-//				GVec::multiply(contextData.row(t), 0.5, m_contextDims);
-
-				// Train the transition function
-				GVec::copy(m_pBuf, pActions->row(t - 1), m_actionDims);
-				GVec::copy(m_pBuf + m_actionDims, contextData.row(t - 1), m_contextDims);
-				pTransFunc->trainIncremental(m_pBuf, contextData.row(t));
-			}
-
-
-/*
-				// Search for a context that satisfies the observation function
-				double bestErr = 1e300;
-				for(size_t i = 0; i < 7; i++)
-				{
-					// Pick a starting point
-					if(i == 0)
-						GVec::copy(m_pContext, contextData.row(t), m_contextDims);
-					else if(i == 1)
-						GVec::copy(m_pContext, pTransContext, m_contextDims);
-					else if(i == 2)
-						GVec::copy(m_pContext, contextData.row(t - 1), m_contextDims);
-					else
-						GVec::copy(m_pContext, contextData.row(m_pRand->next(contextData.rows())), m_contextDims);
-
-					// Refine the context
-					for(size_t i = 0; i < 100; i++)
-					{
-						cvi.setRandom(m_pRand);
-						cvi.currentNormalized(m_pParams);
-						pObsFunc->singleRowFeatureGradient(m_pParams, pObs + m_channels * cvi.currentIndex(), m_pBuf, m_paramDims);
-						GVec::addScaled(m_pContext, -0.01, m_pBuf, m_contextDims);
-					}
-
-					// Evaluate the context and keep the best one
-					double err = 0;
-					cvi.reset();
-					while(true)
-					{
-						cvi.currentNormalized(m_pParams);
-						double* pTar = pObs + m_channels * cvi.currentIndex();
-						pObsFunc->predict(m_pParams, pPix);
-						err += GVec::squaredDistance(pTar, pPix, m_channels);
-						if(!cvi.advance(7))
-							break;
-					}
-					if(err < bestErr)
-					{
-						bestErr = err;
-						GVec::copy(contextData.row(t), m_pContext, m_contextDims);
-					}
-				}
-
-				// Average best observation context with the transition context
-//				GVec::add(contextData.row(t), pTransContext, m_contextDims);
-//				GVec::multiply(contextData.row(t), 0.5, m_contextDims);
-
-				// Train the transition function
-				GVec::copy(m_pBuf, pActions->row(t - 1), m_actionDims);
-				GVec::copy(m_pBuf + m_actionDims, contextData.row(t - 1), m_contextDims);
-				pTransFunc->trainIncremental(m_pBuf, contextData.row(t));
-			}
-
-			// Train the observation function
-			GVec::copy(m_pContext, contextData.row(t), m_contextDims);
-			for(size_t i = 0; i < samples; i++)
-			{
-				cvi.setRandom(m_pRand);
-				cvi.currentNormalized(m_pParams);
-				double* pTar = pObs + m_channels * cvi.currentIndex();
-				pObsFunc->trainIncremental(m_pParams, pTar);
-			}
-*/
-		}
-	}
-
-contextData.saveArff("aaron_context.arff");
-}
-
-void GRecurrentModel::trainJoshua(GMatrix* pActions, GMatrix* pObservations)
-{
-	// Consistency checks
-	if(pActions->rows() != pObservations->rows())
-		throw Ex("Expected the same number of rows");
-	if(pActions->cols() != m_actionDims)
-		throw Ex("Expected ", to_str(m_actionDims), " action dims, got ", to_str(pActions->cols()));
-	if(pObservations->cols() != m_obsDims)
-		throw Ex("Expected ", to_str(m_obsDims), " action dims, got ", to_str(pObservations->cols()));
-
-	// Estimate state
-//	double dStart = GTime::seconds();
-	GMatrix* pEstState = joshuaEstimateState(pActions, pObservations);
-	Holder<GMatrix> hEstState(pEstState);
-/*
-	onFinishedComputingStateEstimate(pEstState);
-
-	// Train the transition function
-	trainTransitionFunction(pActions, pEstState);
-
-	// Train the observation function
-	if(m_pObservationFunc->canTrainIncrementally())
-		trainObservationFunctionIteratively(dStart, pEstState, pObservations);
-	else
-		trainObservationFunction(pEstState, pObservations);
-*/
-}
-
 class GRecurrentModelTargetFunction : public GTargetFunction
 {
 protected:
@@ -1103,7 +896,7 @@ void GRecurrentModel::trainHillClimber(GMatrix* pActions, GMatrix* pObservations
 		}
 	}
 }
-
+/*
 size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pObservations, size_t depth, size_t itersPerSeqLen)
 {
 	// Consistency checks
@@ -1220,7 +1013,9 @@ size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pOb
 				if(i == passDepth - 1)
 				{
 					GBackPropLayer& bpTo = pBPTrans->layer(transLayers - 1);
-					GBackProp::backPropLayer(&pObsFunc->layer(0), &transNets[i]->layer(transLayers - 1), &pBPObs->layer(0), &bpTo, m_paramDims);
+					if(m_paramDims != 0)
+						throw Ex("Sorry, param dims not supported by this function");
+					GBackProp::backPropLayer(pObsFunc->getLayer(0), transNets[i]->getLayer(transLayers - 1), &pBPObs->layer(0), &bpTo);
 				}
 				else
 					GBackProp::backPropLayer(&transNets[i + 1]->layer(0), &transNets[i]->layer(transLayers - 1), &transNets[i + 1]->backProp()->layer(0), &pBPTrans->layer(transLayers - 1), m_actionDims);
@@ -1253,7 +1048,7 @@ size_t GRecurrentModel::trainBackPropThroughTime(GMatrix* pActions, GMatrix* pOb
 //cout << "% seq len = " << seqLen << "\n";
 	return seqLen;
 }
-
+*/
 void GRecurrentModel::doAction(const double* pAction)
 {
 	GVec::copy(m_pBuf, pAction, m_actionDims);

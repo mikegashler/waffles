@@ -281,7 +281,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-minwindowimprovement [value]=0.002", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
 		pOpts->add("-holdout [portion]=0.35", "Specify the portion of the data (between 0 and 1) to use as a hold-out set for validation. That is, this portion of the data will not be used for training, but will be used to determine when to stop training. If the holdout portion is set to 0, then no holdout set will be used, and the entire training set will be used for validation (which may lead to long training time and overfit).");
 		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
-		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to "
+/*		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to "
 			"the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
 		{
 			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
@@ -292,7 +292,7 @@ UsageNode* makeAlgorithmUsageTree()
 			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
 			pAct->add("gaussian", "A gaussian activation function");
 			pAct->add("sinc", "A sinc wavelet activation function");
-		}
+		}*/
 	}
 	{
 		UsageNode* pRF = pRoot->add("randomforest [trees] <options>", "A baggging ensemble of decision trees that use random division boundaries. (This algorithm is described in Breiman, Leo (2001). Random Forests. Machine Learning 45 (1): 5-32. doi:10.1023/A:1010933404324.)");
@@ -320,7 +320,7 @@ UsageNode* makeAlgorithmUsageTree()
 		pOpts->add("-holdout [portion]=0.35", "Specify the portion of the data (between 0 and 1) to use as a hold-out set for validation. That is, this portion of the data will not be used for training, but will be used to determine when to stop training. If the holdout portion is set to 0, then no holdout set will be used, and the entire training set will be used for validation (which may lead to long training time and overfit).");
 		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
 		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
-		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only"
+/*		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only"
 			" apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
 		{
 			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
@@ -331,7 +331,7 @@ UsageNode* makeAlgorithmUsageTree()
 			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
 			pAct->add("gaussian", "A gaussian activation function");
 			pAct->add("sinc", "A sinc wavelet activation function");
-		}
+		}*/
 	}
 	{
 		pRoot->add("usage", "Print usage information.");
@@ -515,7 +515,7 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
 		pOpts->add("-noinputbias", "Do not use an input bias.");
 		pOpts->add("-nothreepass", "Use one-pass training instead of three-pass training.");
-		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will"
+/*		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will"
 			" only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
 		{
 			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
@@ -526,7 +526,7 @@ UsageNode* makeCollaborativeFilterUsageTree()
 			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
 			pAct->add("gaussian", "A gaussian activation function");
 			pAct->add("sinc", "A sinc wavelet activation function");
-		}
+		}*/
 	}
 	return pRoot;
 }

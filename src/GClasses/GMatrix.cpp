@@ -2700,6 +2700,24 @@ double* GMatrix::newRow()
 	return pNewRow;
 }
 
+void GMatrix::newColumn()
+{
+	size_t oldSize = m_pRelation->size();
+	if(m_pRelation->type() == GRelation::UNIFORM)
+		m_pRelation = new GUniformRelation(m_pRelation->size() + 1, m_pRelation->valueCount(0));
+	else
+	{
+		m_pRelation = m_pRelation->clone();
+		((GMixedRelation*)m_pRelation.get())->addAttr(0);
+	}
+	for(size_t i = 0; i < rows(); i++)
+	{
+		double* pOld = m_rows[i];
+		double* pNew = new double[oldSize + 1];
+		GVec::copy(pNew, pOld, oldSize);
+	}
+}
+
 void GMatrix::takeRow(double* pRow)
 {
 	m_rows.push_back(pRow);
@@ -2784,7 +2802,7 @@ void GMatrix::copyRow(const double* pRow)
 void GMatrix::copyColumnsDataOnly(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount)
 {
 	if(rows() != pSource->rows())
-		throw Ex("expected datasets to have the same number of rows");
+		throw Ex("expected the two matrices to have the same number of rows");
 	size_t count = rows();
 	for(size_t i = 0; i < count; i++)
 		GVec::copy(row(i) + nDestStartColumn, pSource->row(i) + nSourceStartColumn, nColumnCount);

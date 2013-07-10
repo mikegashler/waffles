@@ -676,6 +676,7 @@ GNeighborTransducer* InstantiateNeighborTransducer(GRand& rand, GArgReader& args
 GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GNeuralNet* pModel = new GNeuralNet(rand);
+	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
@@ -685,7 +686,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-addlayer"))
-			pModel->addLayer(args.pop_uint());
+			topology.push_back(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -696,7 +697,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 			pModel->setImprovementThresh(args.pop_double());
 		else if(args.if_pop("-holdout"))
 			pModel->setValidationPortion(args.pop_double());
-		else if(args.if_pop("-activation"))
+/*		else if(args.if_pop("-activation"))
 		{
 			const char* szSF = args.pop_string();
 			GActivationFunction* pSF = NULL;
@@ -723,7 +724,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 			else
 				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
-		}
+		}*/
 		else if(args.if_pop("-crossentropy"))
 			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else if(args.if_pop("-sign"))
@@ -731,6 +732,7 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args, GMatrix* pFeatur
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
+	pModel->setTopology(topology);
 	return pModel;
 }
 
@@ -771,12 +773,13 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 	GWag* pWag = new GWag(0, rand);
 	GNeuralNet* pModel = pWag->model();
 	size_t modelCount = 10;
+	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-noalign"))
 			pWag->noAlign();
 		else if(args.if_pop("-addlayer"))
-			pModel->addLayer(args.pop_uint());
+			topology.push_back(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -787,7 +790,7 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 			pModel->setWindowSize(args.pop_uint());
 		else if(args.if_pop("-minwindowimprovement"))
 			pModel->setImprovementThresh(args.pop_double());
-		else if(args.if_pop("-activation"))
+/*		else if(args.if_pop("-activation"))
 		{
 			const char* szSF = args.pop_string();
 			GActivationFunction* pSF = NULL;
@@ -814,7 +817,7 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 			else
 				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
-		}
+		}*/
 		else if(args.if_pop("-crossentropy"))
 			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else if(args.if_pop("-sign"))
@@ -822,6 +825,7 @@ GWag* InstantiateWag(GRand& rand, GArgReader& args, GMatrix* pFeatures, GMatrix*
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
+	pModel->setTopology(topology);
 	pWag->setModelCount(modelCount);
 	return pWag;
 }
@@ -946,18 +950,18 @@ void autoTuneNeuralNet(GMatrix& features, GMatrix& labels, GRand& rand)
 	cout.flush();
 	GNeuralNet nn(rand);
 	nn.autoTune(features, labels);
-	const char* szCurrent = "logistic";
+//	const char* szCurrent = "logistic";
 	cout << "neuralnet";
 	for(size_t i = 0; i < nn.layerCount(); i++)
 	{
-		const char* szActivationName = nn.layer(i).m_pActivationFunction->name();
+/*		const char* szActivationName = nn.layer(i).m_pActivationFunction->name();
 		if(strcmp(szActivationName, szCurrent) != 0)
 		{
 			cout << " -activation " << szActivationName;
 			szCurrent = szActivationName;
-		}
+		}*/
 		if(i < nn.layerCount() - 1)
-			cout << " -addlayer " << nn.layer(i).m_neurons.size();
+			cout << " -addlayer " << nn.getLayer(i)->outputs();
 	}
 	if(nn.momentum() > 0.0)
 		cout << " -momentum " << nn.momentum();
@@ -1968,21 +1972,15 @@ void trainRecurrent(GArgReader& args)
 
 	// Parse the algorithm
 	const char* alg = args.pop_string();
-	int bpttDepth = 0;
-	int bpttItersPerGrow = 0;
+//	int bpttDepth = 0;
+//	int bpttItersPerGrow = 0;
 	double annealDeviation = 0.0;
 	double annealDecay = 0.0;
 	double annealTimeWindow = 0.0;
 	if(strcmp(alg, "moses") == 0)
 	{
 	}
-	else if(strcmp(alg, "aaron") == 0)
-	{
-	}
-	else if(strcmp(alg, "joshua") == 0)
-	{
-	}
-	else if(strcmp(alg, "bptt") == 0)
+/*	else if(strcmp(alg, "bptt") == 0)
 	{
 		bpttDepth = args.pop_uint();
 		bpttItersPerGrow = args.pop_uint();
@@ -1991,7 +1989,7 @@ void trainRecurrent(GArgReader& args)
 	{
 		bpttDepth = args.pop_uint();
 		bpttItersPerGrow = args.pop_uint();
-	}
+	}*/
 	else if(strcmp(alg, "evolutionary") == 0)
 	{
 	}
@@ -2061,12 +2059,8 @@ void trainRecurrent(GArgReader& args)
 	// Do the training
 	if(strcmp(alg, "moses") == 0)
 		model.trainMoses(&dataAction, &dataObs);
-	else if(strcmp(alg, "aaron") == 0)
-		model.trainAaron(&dataAction, &dataObs);
-	else if(strcmp(alg, "joshua") == 0)
-		model.trainJoshua(&dataAction, &dataObs);
-	else if(strcmp(alg, "bptt") == 0)
-		model.trainBackPropThroughTime(&dataAction, &dataObs, bpttDepth, bpttItersPerGrow);
+/*	else if(strcmp(alg, "bptt") == 0)
+		model.trainBackPropThroughTime(&dataAction, &dataObs, bpttDepth, bpttItersPerGrow);*/
 	else if(strcmp(alg, "evolutionary") == 0)
 		model.trainEvolutionary(&dataAction, &dataObs);
 	else if(strcmp(alg, "hillclimber") == 0)

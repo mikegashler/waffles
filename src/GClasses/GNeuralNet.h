@@ -22,56 +22,48 @@ class GRand;
 class GBackProp;
 class GImage;
 class GActivationFunction;
+class LagrangeVals;
 
-
-
-/// Represents a single neuron in a neural network
-class GNeuron
-{
-public:
-	double m_activation;
-	double m_net;
-	std::vector<double> m_weights; // Weight zero is always the bias weight
-
-	void resetWeights(GRand* pRand, double inputCenter);
-};
 
 /// Represents a layer of neurons in a neural network
 class GNeuralNetLayer
 {
 public:
-	std::vector<GNeuron> m_neurons;
+	GNeuralNetLayer(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
+	GNeuralNetLayer(GDomNode* pNode);
+	~GNeuralNetLayer();
+
+	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation.
 	GActivationFunction* m_pActivationFunction;
 
-	void resetWeights(GRand* pRand, double inputCenter);
-	void feedForward(const double* pIn, double* pOut, bool useInputBias = false);
+	GDomNode* serialize(GDom* pDoc);
+	void resize(size_t inputs, size_t outputs);
+	void resizePreserve(size_t inputCount, size_t outputCount, GRand& rand);
+	void resetWeights(GRand* pRand);
+	size_t inputs() const { return m_weights.rows(); }
+	size_t outputs() const { return m_weights.cols(); }
+	double* bias() { return m_bias[0]; }
+	const double* bias() const { return m_bias[0]; }
+	double* net() { return m_bias[1]; }
+	double* activation() { return m_bias[2]; }
+	void feedForward(const double* pIn);
+	void feedForwardWithInputBias(const double* pIn);
+	void feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias);
 };
 
-/// An internal class used by GBackProp
-class GBackPropWeight
-{
-public:
-	double m_delta;
-
-	GBackPropWeight()
-	{
-		m_delta = 0;
-	}
-};
-
-/// An internal class used by GBackProp
-class GBackPropNeuron
-{
-public:
-	double m_error;
-	std::vector<GBackPropWeight> m_weights;
-};
 
 /// An internal class used by GBackProp
 class GBackPropLayer
 {
 public:
-	std::vector<GBackPropNeuron> m_neurons;
+	GMatrix m_delta;
+	GMatrix m_blame;
+
+	void resize(size_t inputs, size_t outputs);
+	double* blame() { return m_blame[0]; }
+	double* biasDelta() { return m_blame[1]; }
+	double* slack() { return m_blame[2]; }
 };
 
 /// This class performs backpropagation on a neural network. (I made it a separate
@@ -87,12 +79,12 @@ public:
 		squared_error, /// (default) best for regression
 		cross_entropy, /// best for classification
 		sign, /// uses the sign of the error, as in the perceptron training rule
+		uniform, /// sets all blame values on the output units to 1.0.
 	};
 
 protected:
 	GNeuralNet* m_pNN;
 	std::vector<GBackPropLayer> m_layers;
-	double* m_pSlack;
 
 public:
 	/// This class will adjust the weights in pNN
@@ -106,12 +98,6 @@ public:
 		return m_layers[layer];
 	}
 
-	/// Returns a pointer to the vector of slack values. These specify how close a predicted label must be to the
-	/// target label value before error is counted. (By default, they are all set to 0, but you can increase values in
-	/// this array to give it more flexibility. For example, this might make sense when working with binary representations
-	/// of categorical values.)
-	double* slack() { return m_pSlack; }
-
 	/// This method computes the error terms for each node in the output layer.
 	/// It assumes that forwardProp has already been called.
 	/// After calling this method, it is typical to call backpropagate(), to compute the error on
@@ -123,20 +109,11 @@ public:
 	/// the error on a single output node.
 	void computeBlameSingleOutput(double target, size_t output, size_t layer = (size_t)-1, TargetFunction eTargetFunction = squared_error);
 
-	/// Backpropagates the error from the "from" layer to the "to" layer. (If the "to" layer has fewer units than the "from"
-	/// layer, then it will begin propagating with the (fromBegin+1)th weight and stop when the "to" layer runs out of units.
-	/// It would be an error if the number of units in the "from" layer is less than the number of units in the "to" layer
-	/// plus fromBegin.
-	static void backPropLayer(GNeuralNetLayer* pNNFromLayer, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPFromLayer, GBackPropLayer* pBPToLayer, size_t fromBegin = 0);
+	/// Backpropagates the error from the downstream layer to the upstream layer.
+	static void backPropLayer(GNeuralNetLayer* pNNDownStreamLayer, GNeuralNetLayer* pNNUpStreamLayer, GBackPropLayer* pBPDownStreamLayer, GBackPropLayer* pBPUpStreamLayer);
 
 	/// Backpropagates the error from a single output node to a hidden layer.
-	void backPropFromSingleNode(GNeuron& nnFrom, GBackPropNeuron& bpFrom, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPToLayer);
-
-	/// This is another implementation of backPropLayer. This one is somewhat more flexible, but slightly less efficient.
-	/// It supports backpropagating error from one or two layers. (pNNFromLayer2 should be NULL if you are backpropagating from just one
-	/// layer.) It also supports temporal backpropagation by unfolding in time and then averaging the error across all of the unfolded
-	/// instantiations. "pass" specifies how much of the error for this pass to accept. 1=all of it, 2=half of it, 3=one third, etc.
-	static void backPropLayer2(GNeuralNetLayer* pNNFromLayer1, GNeuralNetLayer* pNNFromLayer2, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPFromLayer1, GBackPropLayer* pBPFromLayer2, GBackPropLayer* pBPToLayer, size_t pass);
+	void backPropFromSingleNode(size_t outputNode, GNeuralNetLayer* pNNDownStreamLayer, GNeuralNetLayer* pNNUpStreamLayer, GBackPropLayer* pBPDownStreamLayer, GBackPropLayer* pBPUpStreamLayer);
 
 	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
@@ -157,7 +134,7 @@ public:
 	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights on the specified layer
 	/// to descend the gradient of the error surface with respect to the weights.
 	/// Returns the sum-squared delta.
-	double descendGradientOneLayer(size_t layer, const double* pFeatures, double learningRate, double momentum);
+	void descendGradientOneLayer(size_t layer, const double* pFeatures, double learningRate, double momentum);
 
 	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
 	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
@@ -173,21 +150,14 @@ public:
 	void gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient);
 
 protected:
-	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
-	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
-	/// Returns the sum-squared delta.
-	static double adjustWeights(GNeuralNetLayer* pNNFromLayer, GNeuralNetLayer* pNNToLayer, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
-
-	/// Adjust weights in pNNFromLayer. (The error for pNNFromLayer layer must have already been computed.) (If you are
-	/// backpropagating error from two layers, you can just call this method twice, once for each previous layer.)
-	/// Returns the sum-squared delta.
-	static double adjustWeights(GNeuralNetLayer* pNNFromLayer, const double* pFeatures, bool useInputBias, GBackPropLayer* pBPFromLayer, double learningRate, double momentum);
+	/// Adjust weights in pNNDownStreamLayer. (The error for pNNDownStreamLayer layer must have already been computed.)
+	static void adjustWeights(GNeuralNetLayer* pNNDownStreamLayer, const double* pUpStreamActivation, GBackPropLayer* pBPDownStreamLayer, double learningRate, double momentum);
 
 	/// Adjust the weights of a single neuron that follows a hidden layer. (Assumes the error of this neuron has already been computed).
-	void adjustWeightsSingleNeuron(GNeuron& nnFrom, GNeuralNetLayer* pNNToLayer, GBackPropNeuron& bpFrom, double learningRate, double momentum);
+	static void adjustWeightsSingleNeuron(size_t outputNode, GNeuralNetLayer* pNNDownStreamLayer, const double* pUpStreamActivation, GBackPropLayer* pBPDownStreamLayer, double learningRate, double momentum);
 
-	/// Adjust the weights of a single neuron when there are no hidden layers. (Assumes the error of this neuron has already been computed).
-	void adjustWeightsSingleNeuron(GNeuron& nnFrom, const double* pFeatures, bool useInputBias, GBackPropNeuron& bpFrom, double learningRate, double momentum);
+	/// Adjust the weights in a manner that uses Lagrange multipliers to regularize the weights. (Experimental.)
+	void adjustWeightsLagrange(GNeuralNetLayer* pNNDownStreamLayer, const double* pUpStreamActivation, GBackPropLayer* pBPDownStreamLayer, LagrangeVals& lv);
 };
 
 
@@ -197,11 +167,9 @@ class GNeuralNet : public GIncrementalLearner
 {
 friend class GBackProp;
 protected:
-	std::vector<GNeuralNetLayer> m_layers;
+	std::vector<size_t> m_topology;
+	std::vector<GNeuralNetLayer*> m_layers;
 	GBackProp* m_pBackProp;
-	size_t m_internalFeatureDims, m_internalLabelDims;
-	std::vector<GActivationFunction*> m_activationFunctions;
-	GActivationFunction* m_pActivationFunction;
 	double m_learningRate;
 	double m_momentum;
 	double m_validationPortion;
@@ -226,29 +194,19 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 #endif // MIN_PREDICT
 
-	/// Sets the activation function to use with all subsequently added
-	/// layers. (Note that the activation function for the output layer is
-	/// set when train or beginIncrementalLearning is called, so if you
-	/// only wish to set the squshing function for the output layer, call
-	/// this method after all hidden layers have been added, but before you call train.)
-	/// If hold is true, then the neural network will hold on to this instance
-	/// of the activation function and delete it when the neural network is deleted.
-	void setActivationFunction(GActivationFunction* pSF, bool hold);
+	/// Specify the number of nodes in each hidden layer in feed-forward order. For example,
+	/// if topology contains the values [3,7], then the network will have two hidden layers.
+	/// The first hidden layer (in feed-forward order) will have 3 nodes. The next hidden
+	/// layer will have 7 nodes. (The output layer will be automatically added with the
+	/// number of nodes to match the columns in the training labels.)
+	void setTopology(const std::vector<size_t>& topology) { m_topology = topology; }
 
-	/// Adds a hidden layer to the network. (The first hidden layer
-	/// that you add will be adjacent to the input features. The last
-	/// hidden layer that you add will be adjacent to the output
-	/// layer.)
-	void addLayer(size_t nNodes);
-
-	/// Returns the number of layers in this neural network. (Every network has
-	/// at least one output layer, plus all of the hidden layers that you add by calling
-	/// addLayer. The input vector does not count as a layer, even though it may be
-	/// common to visualize it as a layer.)
+	/// Returns the number of layers in this neural network. These include the hidden
+	/// layers and the output layer. (The input vector does not count as a layer.)
 	size_t layerCount() const { return m_layers.size(); }
 
 	/// Returns a reference to the specified layer.
-	GNeuralNetLayer& layer(size_t n) { return m_layers[n]; }
+	GNeuralNetLayer* getLayer(size_t n) { return m_layers[n]; }
 
 	/// Adds a new node at the end of the specified layer. (The new node is initialized
 	/// with small weights, so this operation should initially have little impact on
@@ -341,7 +299,7 @@ public:
 #endif // MIN_PREDICT
 
 	/// See the comment for GSupervisedLearner::clear
-	virtual void clear() {}
+	virtual void clear();
 
 	/// Train the network until the termination condition is met.
 	/// Returns the number of epochs required to train it.
@@ -404,7 +362,7 @@ public:
 	bool useInputBias() const { return m_useInputBias; }
 
 	/// Returns true iff train or beginIncrementalTraining has been called.
-	bool hasTrainingBegun() const { return m_internalLabelDims > 0; }
+	bool hasTrainingBegun() const { return m_layers.size() > 0; }
 
 	/// Inverts the weights of the specified node, and adjusts the weights in
 	/// the next layer (if there is one) such that this will have no effect
@@ -429,27 +387,15 @@ public:
 	/// the new range instead of the old range.
 	void normalizeInput(size_t index, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
-	/// Inserts a new hidden layer with the specified number of nodes just before the output layer.
+	/// Inserts a new layer at the specified position.
 	/// Its weights will be initialized in a manner that loosely approximates the identity function
 	/// with some random perturbation, and without changing any weights in other layers. (Note that
 	/// a better approximation for adding a new layer with no net effect on the overall behavior of
 	/// the network could be implemented if the weights in other layers were also adjusted, but that
 	/// might exacerbate weight saturation.)
-	/// The current implementation makes the unnecessary assumptions that the output of the previous
-	/// layer will be between 0 and 1, and the new layer uses the logistic function for its activation
-	/// function.
-	void insertHiddenLayerLast(size_t nodeCount);
-
-	/// Inserts a new hidden layer with the specified number of nodes as the first hidden layer in feed-forward oder.
-	/// Its weights will be initialized in a manner that loosely approximates the identity function
-	/// with some random perturbation, and without changing any weights in other layers. (Note that
-	/// a better approximation for adding a new layer with no net effect on the overall behavior of
-	/// the network could be implemented if the weights in other layers were also adjusted, but that
-	/// might exacerbate weight saturation.)
-	/// The current implementation makes the unnecessary assumptions that the inputs
-	/// will be between 0 and 1, and the new layer uses the logistic function for its activation
-	/// function.
-	void insertHiddenLayerFirst(size_t nodeCount);
+	/// The current implementation makes the unnecessary assumptions that the logistic function is used
+	/// as the activation function in all layers.
+	void insertLayer(size_t position, size_t nodeCount);
 
 protected:
 #ifndef MIN_PREDICT

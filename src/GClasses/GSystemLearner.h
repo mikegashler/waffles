@@ -119,12 +119,6 @@ public:
 	/// Trains with the MOSES algorithm. (Calls onFinishedComputingStateEstimate when the state estimate is computed.)
 	void trainMoses(GMatrix* pActions, GMatrix* pObservations);
 
-	/// An experimental training technique
-	void trainAaron(GMatrix* pActions, GMatrix* pObservations);
-
-	/// An experimental training technique
-	void trainJoshua(GMatrix* pActions, GMatrix* pObservations);
-
 	/// Trains with an evolutionary optimizer
 	void trainEvolutionary(GMatrix* pActions, GMatrix* pObservations);
 
@@ -132,7 +126,7 @@ public:
 	void trainHillClimber(GMatrix* pActions, GMatrix* pObservations, double dev, double decay, double seconds, bool climb, bool anneal);
 
 	/// Trains with the back-prop-through-time algorithm. Returns the final sequence length.
-	size_t trainBackPropThroughTime(GMatrix* pActions, GMatrix* pObservations, size_t depth, size_t itersPerSeqLen);
+	//size_t trainBackPropThroughTime(GMatrix* pActions, GMatrix* pObservations, size_t depth, size_t itersPerSeqLen);
 
 	size_t paramDims() { return m_paramDims; }
 	size_t* paramRanges() { return m_pParamRanges; }

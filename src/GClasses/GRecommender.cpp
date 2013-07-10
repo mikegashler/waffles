@@ -1163,7 +1163,7 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 	m_useInputBias = pNode->field("uib")->asBool();
 	m_pUsers = new GMatrix(pNode->field("users"));
 	m_pModel = new GNeuralNet(pNode->field("model"), ll);
-	m_items = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
+	m_items = m_pModel->getLayer(m_pModel->layerCount() - 1)->outputs();
 	m_pMins = new double[m_items];
 	GDomListIterator it1(pNode->field("mins"));
 	if(it1.remaining() != m_items)
@@ -1174,7 +1174,7 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 	if(it2.remaining() != m_items)
 		throw Ex("invalid number of elements");
 	GVec::deserialize(m_pMaxs, it2);
-	m_intrinsicDims = m_pModel->layer(0).m_neurons.size();
+	m_intrinsicDims = m_pModel->getLayer(0)->outputs();
 }
 
 // virtual
@@ -1193,7 +1193,7 @@ GDomNode* GNonlinearPCA::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
 	pNode->addField(pDoc, "users", m_pUsers->serialize(pDoc));
 	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
-	size_t itemCount = m_pModel->layer(m_pModel->layerCount() - 1).m_neurons.size();
+	size_t itemCount = m_pModel->getLayer(m_pModel->layerCount() - 1)->outputs();
 	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, itemCount));
 	pNode->addField(pDoc, "maxs", GVec::serialize(pDoc, m_pMaxs, itemCount));
 	return pNode;
@@ -1406,7 +1406,9 @@ void GNonlinearPCA::test()
 {
 	GRand rand(0);
 	GNonlinearPCA rec(3, rand);
-	rec.model()->addLayer(3);
+	vector<size_t> topology;
+	topology.push_back(3);
+	rec.model()->setTopology(topology);
 	rec.basicTest(0.181);
 }
 #endif
