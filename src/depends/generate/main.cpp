@@ -327,6 +327,176 @@ void Noise(GArgReader& args)
 	data.print(cout);
 }
 
+void randomWalk(GArgReader& args)
+{
+	// Parse args
+	size_t samples = args.pop_uint();
+	size_t dims = 2;
+	size_t seed = getpid() * (unsigned int)time(NULL);
+	vector<double> scale;
+	double start = 0.5;
+	double step = 0.1;
+	bool discrete = true;
+	double delib = 0.0;
+	double perturb = 0.0;
+	string actionFilename = "";
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-seed"))
+			seed = args.pop_uint();
+		else if(args.if_pop("-dims"))
+			dims = args.pop_uint();
+		else if(args.if_pop("-stepscale"))
+		{
+			size_t index = args.pop_uint();
+			double s = args.pop_double();
+			scale.resize(std::max(scale.size(), index + 1), 1.0);
+			scale[index] = s;
+		}
+		else if(args.if_pop("-start"))
+			start = args.pop_double();
+		else if(args.if_pop("-continuous"))
+			discrete = false;
+		else if(args.if_pop("-step"))
+			step = args.pop_double();
+		else if(args.if_pop("-delib"))
+			delib = args.pop_double();
+		else if(args.if_pop("-actions"))
+			actionFilename = args.pop_string();
+		else if(args.if_pop("-perturb"))
+			perturb = args.pop_double();
+		else
+			throw Ex("Unrecognized flag: ", args.pop_string());
+	}
+
+	// Generate samples
+	GRand rand(seed);
+	scale.resize(dims, 1.0);
+	vector<double> pos;
+	pos.resize(dims, start);
+	GTEMPBUF(double, cur, 2 * dims);
+	double* prev = cur + dims;
+	GMatrix states(samples, dims);
+	GMatrix actions;
+	if(discrete)
+	{
+		sp_relation pRel = new GUniformRelation(1, dims * 2);
+		actions.setRelation(pRel);
+		actions.newRows(samples);
+		double d = 0.0;
+		size_t dir = 0;
+		for(size_t i = 0; i < samples; i++)
+		{
+			// Record the state
+			double* pState = states[i];
+			for(size_t j = 0; j < dims; j++)
+				pState[j] = pos[j];
+
+			// Take an action
+			size_t safety = 0;
+			while(true)
+			{
+				if(rand.uniform() >= d)
+				{
+					// Pick a new direction
+					dir = rand.next(2 * dims);
+				}
+
+				// Take the step
+				size_t dirDim = dir / 2;
+				double s = step;
+				if((dir & 1) == 0)
+					s = -step;
+				pos[dirDim] += scale[dirDim] * s;
+				if(pos[dirDim] >= 0.0 && pos[dirDim] <= 1.0)
+					break;
+
+				// Undo the step
+				pos[dirDim] -= scale[dirDim] * s;
+				d = 0.0;
+				if(++safety > 100)
+					throw Ex("Failed to find a legal action in 100 attempts");
+			}
+			
+			// Perturb
+			if(perturb > 0.0)
+			{
+				for(size_t j = 0; j < dims; j++)
+				{
+					double t = pos[j] + rand.normal() * scale[j] * perturb;
+					if(t >= 0.0 && t <= 1.0)
+						pos[j] = t;
+				}
+			}
+
+			actions[i][0] = (double)dir;
+			d = delib;
+		}
+	}
+	else
+	{
+		actions.resize(samples, dims);
+		rand.spherical(prev, dims);
+		for(size_t i = 0; i < samples; i++)
+		{
+			// Record the state
+			double* pState = states[i];
+			for(size_t j = 0; j < dims; j++)
+				pState[j] = pos[j];
+
+			// Take an action
+			double d = delib;
+			size_t safety = 0;
+			while(true)
+			{
+				// Pick a direction
+				rand.spherical(cur, dims);
+				GVec::multiply(cur, 1.0 - d, dims);
+				GVec::addScaled(cur, d, prev, dims);
+				GVec::normalize(cur, dims);
+				GVec::multiply(cur, step, dims);
+				bool inbounds = true;
+				for(size_t j = 0; j < dims; j++)
+				{
+					pos[j] += scale[j] * cur[j];
+					if(pos[j] < 0.0 || pos[j] > 1.0)
+						inbounds = false;
+				}
+				if(inbounds)
+					break;
+
+				// Undo the step
+				for(size_t j = 0; j < dims; j++)
+					pos[j] -= scale[j] * cur[j];
+				d = 0.0; // The next attempt should be completely random
+				if(++safety > 100)
+					throw Ex("Failed to find a legal action in 100 attempts");
+			}
+
+			// Perturb
+			if(perturb > 0.0)
+			{
+				for(size_t j = 0; j < dims; j++)
+				{
+					double t = pos[j] + rand.normal() * scale[j] * perturb;
+					if(t >= 0.0 && t <= 1.0)
+						pos[j] = t;
+				}
+			}
+
+			GVec::copy(actions[i], cur, dims);
+			GVec::copy(prev, cur, dims);
+		}
+	}
+
+	// Output results
+	states.print(cout);
+	if(actionFilename.length() > 0)
+		actions.saveArff(actionFilename.c_str());
+}
+
+
+
 bool isInsideUnitStar(double x, double y)
 {
 	int count = 0;
@@ -2296,7 +2466,7 @@ void Plot3d(GImage* pImage, GMatrix* pData, unsigned int bgCol, float pointRadiu
 	// Plot the points
 	Compare3DPointsByDistanceFromCameraFunctor comparator(&camera);
 	GMatrix copy(pData->rows(), 4);
-	copy.copyColumns(0, pData, 0, 3);
+	copy.copyColumnsDataOnly(0, pData, 0, 3);
 	for(size_t i = 0; i < copy.rows(); i++)
 		copy.row(i)[3] = (double)i;
 	copy.sort(comparator);
@@ -2894,6 +3064,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("overview")) PlotCorrelations(args);
 		else if(args.if_pop("ppmtopng")) ppmToPng(args);
 		else if(args.if_pop("randomsequence")) randomSequence(args);
+		else if(args.if_pop("randomwalk")) randomWalk(args);
 		else if(args.if_pop("raytracesurface")) rayTraceManifoldModel(args);
 		else if(args.if_pop("rowtoimage")) rowToImage(args);
 		else if(args.if_pop("scalerotate")) ScaleAndRotate(args);

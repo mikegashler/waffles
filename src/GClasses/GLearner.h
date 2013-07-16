@@ -241,14 +241,16 @@ public:
 	/// Clears the filter for features.
 	virtual void clearFeatureFilter();
 
-	/// Wrap whatever feature filter is currently set with the specified filter
+	/// Wrap whatever feature filter is currently set with the specified filter.
+	/// Takes ownership of the filter.
 	void wrapFeatures(GIncrementalTransform* pFilter);
 
 	/// Clears the filter for labels.
 	virtual void clearLabelFilter();
 
 #ifndef MIN_PREDICT
-	/// Wrap whatever label filter is currently set with the specified filter
+	/// Wrap whatever label filter is currently set with the specified filter.
+	/// Takes ownership of the filter.
 	void wrapLabels(GIncrementalTransform* pFilter);
 
 	/// Call this method to train the model. It automatically determines which
