@@ -50,6 +50,12 @@ public:
 	void feedForward(const double* pIn);
 	void feedForwardWithInputBias(const double* pIn);
 	void feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias);
+
+	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
+	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
+	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
+	/// that is added before the transform.
+	void transformWeights(GMatrix& transform, const double* pOffset);
 };
 
 
@@ -396,6 +402,11 @@ public:
 	/// The current implementation makes the unnecessary assumptions that the logistic function is used
 	/// as the activation function in all layers.
 	void insertLayer(size_t position, size_t nodeCount);
+
+	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
+	/// variance of the data to the first few columns. Adjusts the weights on the input layer accordingly,
+	/// such that the network output remains the same. Returns the transformed feature matrix.
+	GMatrix* compressFeatures(GMatrix& features);
 
 protected:
 #ifndef MIN_PREDICT

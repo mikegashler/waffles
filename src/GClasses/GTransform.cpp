@@ -282,7 +282,7 @@ GMatrix* GIncrementalTransform::untransformBatch(GMatrix& in)
 // ---------------------------------------------------------------
 
 GPCA::GPCA(size_t targetDims, GRand* pRand)
-: GIncrementalTransform(), m_targetDims(targetDims), m_pBasisVectors(NULL), m_pEigVals(NULL), m_aboutOrigin(false), m_pRand(pRand)
+: GIncrementalTransform(), m_targetDims(targetDims), m_pBasisVectors(NULL), m_pCentroid(NULL), m_pEigVals(NULL), m_aboutOrigin(false), m_pRand(pRand)
 {
 }
 
@@ -291,6 +291,7 @@ GPCA::GPCA(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_targetDims = m_pRelationBefore->size();
 	m_pBasisVectors = new GMatrix(pNode->field("basis"));
+	m_pCentroid = new GMatrix(pNode->field("centroid"));
 	m_aboutOrigin = pNode->field("aboutOrigin")->asBool();
 }
 
@@ -298,6 +299,7 @@ GPCA::GPCA(GDomNode* pNode, GLearnerLoader& ll)
 GPCA::~GPCA()
 {
 	delete(m_pBasisVectors);
+	delete(m_pCentroid);
 	delete[] m_pEigVals;
 }
 
@@ -309,6 +311,7 @@ GDomNode* GPCA::serialize(GDom* pDoc) const
 		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GPCA");
 	pNode->addField(pDoc, "basis", m_pBasisVectors->serialize(pDoc));
+	pNode->addField(pDoc, "centroid", m_pCentroid->serialize(pDoc));
 	pNode->addField(pDoc, "aboutOrigin", pDoc->newBool(m_aboutOrigin));
 	return pNode;
 }
@@ -326,12 +329,13 @@ sp_relation GPCA::trainInner(GMatrix& data)
 	if(!m_pRelationBefore->areContinuous(0, m_pRelationBefore->size()))
 		throw Ex("GPCA doesn't support nominal values. (You could filter with nominaltocat to make them real.)");
 	delete(m_pBasisVectors);
-	m_pBasisVectors = new GMatrix(m_pRelationBefore);
-	m_pBasisVectors->newRows(m_targetDims + 1);
+	delete(m_pCentroid);
+	m_pBasisVectors = new GMatrix(m_targetDims, m_pRelationBefore->size());
+	m_pCentroid = new GMatrix(1, m_pRelationBefore->size());
 
 	// Compute the mean
 	size_t nInputDims = m_pRelationBefore->size();
-	double* pMean = m_pBasisVectors->row(0);
+	double* pMean = m_pCentroid->row(0);
 	if(m_aboutOrigin)
 		GVec::setAll(pMean, 0.0, nInputDims);
 	else
@@ -347,7 +351,7 @@ sp_relation GPCA::trainInner(GMatrix& data)
 		sse = tmpData.sumSquaredDistance(pMean);
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
-		double* pVector = m_pBasisVectors->row(i + 1);
+		double* pVector = m_pBasisVectors->row(i);
 		tmpData.principalComponentIgnoreUnknowns(pVector, pMean, m_pRand);
 		tmpData.removeComponent(pMean, pVector);
 		if(m_pEigVals)
@@ -371,12 +375,12 @@ sp_relation GPCA::trainInner(sp_relation& relation)
 // virtual
 void GPCA::transform(const double* pIn, double* pOut)
 {
-	double* pMean = m_pBasisVectors->row(0);
+	double* pMean = m_pCentroid->row(0);
 	size_t nInputDims = m_pRelationBefore->size();
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
-		double* pBasisVector = m_pBasisVectors->row(i + 1);
-		pOut[i] = GVec::dotProductIgnoringUnknowns(pMean, pIn, pBasisVector, nInputDims);
+		double* pBasisVector = m_pBasisVectors->row(i);
+		*(pOut++) = GVec::dotProductIgnoringUnknowns(pMean, pIn, pBasisVector, nInputDims);
 	}
 }
 
@@ -384,9 +388,9 @@ void GPCA::transform(const double* pIn, double* pOut)
 void GPCA::untransform(const double* pIn, double* pOut)
 {
 	size_t nInputDims = m_pRelationBefore->size();
-	GVec::copy(pOut, m_pBasisVectors->row(0), nInputDims);
+	GVec::copy(pOut, m_pCentroid->row(0), nInputDims);
 	for(size_t i = 0; i < m_targetDims; i++)
-		GVec::addScaled(pOut, pIn[i], m_pBasisVectors->row(i + 1), nInputDims);
+		GVec::addScaled(pOut, pIn[i], m_pBasisVectors->row(i), nInputDims);
 }
 
 // virtual

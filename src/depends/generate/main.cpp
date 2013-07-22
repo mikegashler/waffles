@@ -2071,6 +2071,57 @@ void manifold(GArgReader& args)
 	data.print(cout);
 }
 
+void mapEquations(GArgReader& args)
+{
+	// Get the params
+	GMatrix in;
+	in.loadArff(args.pop_string());
+
+	// Parse the expression
+	string expr;
+	while(args.size() > 0)
+		expr += args.pop_string();
+	GFunctionParser mfp(expr.c_str());
+
+	// Parse the equations
+	vector<GFunction*> funcs;
+	char funcName[32];
+	size_t equations = 0;
+	while(true)
+	{
+		sprintf(funcName, "y%d", (int)equations + 1);
+		GFunction* pFunc = mfp.getFunctionNoThrow(funcName);
+		if(!pFunc)
+		{
+			if(equations == 0)
+				throw Ex("There is no function named \"y1\". You must name your functions y1, y2, ...");
+			break;
+		}
+		if((size_t)pFunc->m_expectedParams > in.cols())
+			throw Ex("Data has only ", to_str(in.cols()), " dims, but y", to_str(equations + 1), " takes ", to_str((size_t)pFunc->m_expectedParams), " params");
+		funcs.push_back(pFunc);
+		equations++;
+	}
+
+	// Map the data
+	vector<double> params;
+	size_t dims = in.cols();
+	params.resize(dims);
+	GMatrix out(in.rows(), funcs.size());
+	for(size_t i = 0; i < in.rows(); i++)
+	{
+		double* pIn = in[i];
+		double* pOut = out[i];
+		for(size_t j = 0; j < dims; j++)
+			params[j] = pIn[j];
+		for(size_t j = 0; j < funcs.size(); j++)
+			pOut[j] = funcs[j]->call(params);
+	}
+
+	// Print results
+	out.print(cout);
+}
+
 void MakeAttributeSummaryGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, int attr)
 {
 	if(pRelation->valueCount(attr) == 0)
@@ -3058,6 +3109,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("imagestoarff")) imagesToArff(args);
 		else if(args.if_pop("imagetranslatedovernoise")) ImageTranslatedOverNoise(args);
 		else if(args.if_pop("manifold")) manifold(args);
+		else if(args.if_pop("map")) mapEquations(args);
 		else if(args.if_pop("mechanicalrabbit")) mechanicalRabbit(args);
 		else if(args.if_pop("model")) model(args);
 		else if(args.if_pop("noise")) Noise(args);

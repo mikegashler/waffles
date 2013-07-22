@@ -1314,7 +1314,7 @@ void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccur
 void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, double deviation, bool printAccuracy)
 {
 	GSupervisedLearner_basicTest1(this, minAccuracy1, &m_rand, deviation, printAccuracy);
-	GSupervisedLearner_basicTest2(this, minAccuracy2, &m_rand, deviation, printAccuracy);
+	GSupervisedLearner_basicTest2(this, minAccuracy2, &m_rand, deviation * 2, printAccuracy);
 }
 #endif // MIN_PREDICT
 

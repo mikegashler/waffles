@@ -710,7 +710,9 @@ UsageNode* makeGenerateUsageTree()
 		pOpts->add("-blur [radius]=5.0", "Blurs the images. A good starting value might be 5.0.");
 		pOpts->add("-gray", "Use a single grayscale value for every pixel instead of three (red, green, blue) channel values.");
 	}
-	pRoot->add("cube [n]=2000", "returns data evenly distributed on the surface of a unit cube. Each side is sampled with [n]x[n] points. The total number of points in the dataset will be 6*[n]*[n]-12*[n]+8.");
+	{
+		pRoot->add("cube [n]=2000", "returns data evenly distributed on the surface of a unit cube. Each side is sampled with [n]x[n] points. The total number of points in the dataset will be 6*[n]*[n]-12*[n]+8.");
+	}
 	{
 		UsageNode* pES = pRoot->add("entwinedspirals [points] <options>", "Generates points that lie on an entwined spirals manifold.");
 		pES->add("[points]=1000", "The number of points with which to sample the manifold.");
@@ -761,6 +763,12 @@ UsageNode* makeGenerateUsageTree()
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pManifold->add("[equations]=\"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"", "A set of equations that define the manifold. The equations that define the manifold must be named y1, y2, ..., but helper equations may be included. The "
 			"manifold-defining equations must all have the same number of parameters. The parameters will be drawn from a standard normal distribution (from 0 to 1). Usually it is a good idea to wrap the equations in quotes. Example: \"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"");
+	}
+	{
+		UsageNode* pMap = pRoot->add("map [in] [equations]", "Map a dataset using the specified equations.");
+		pMap->add("[in]=in.arff", "The input dataset.");
+		pMap->add("[equations]=\"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"", "A set of equations that define the mapping. The number of input values should match the number of columns in the input data. The number of equations will determine the number of columns in the output data. The equations that define the manifold must be named y1, y2, ..., but helper equations may be included."
+			"Usually it is a good idea to wrap the equations in quotes. Example: \"y1(x1,x2)=x1;y2(x1,x2)=sqrt(x1*x2);h(x)=sqrt(1-x);y3(x1,x2)=x2*x2-h(x1)\"");
 	}
 	{
 		UsageNode* pModel = pRoot->add("model [model-file] [dataset] [attr-x] [attr-y] <options>", "Plot the model space of a trained supervised learning algorithm.");
@@ -814,6 +822,22 @@ UsageNode* makeGenerateUsageTree()
 		UsageNode* pOpts = pRS->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-start [value]=0", "Specify the smallest value in the sequence.");
+	}
+	{
+		UsageNode* pRW = pRoot->add("randomwalk [samples] <options>", "Perform a random walk to generate the specified number of sample points. The walk is bounded within the unit cube (or hypercube). If you need a random walk with different bounds, you can use the map tool to convert it to the desired bounds.");
+		pRW->add("[samples]=1000", "The number of samples to take.");
+		UsageNode* pOpts = pRW->add("<options>");
+		pOpts->add("-seed [n]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-dims [n]=2", "Specify the number of dimensions in the samples.");
+		UsageNode* pSS = pOpts->add("-stepscale [dim] [scale]", "Scale the steps in a particular dimension by a scalar. For example, if you plan to map the samples to a wider space, you may want to make horizontal steps smaller so that they will be uniform after the mapping. This option may be used any number of times.");
+		pSS->add("[dim]=0", "The dimension to scale.");
+		pSS->add("[scale]=0.5", "The amount to scale the steps in that dimension.");
+		pOpts->add("-start [val]=0.5", "A scalar to initialize all dimensions of the starting position. For example, if there are 3 sample dimensions, and this value is 0.2, then the starting point will be <0.2,0.2,0.2>.");
+		pOpts->add("-continuous", "Specify to use continuous actions. That is, steps will move in arbitrary directions instead of axis-aligned directions.");
+		pOpts->add("-step [size]=0.1", "Specify the step size. (Note that the -stepscale option is applied to scale the step size in particular dimensions after this option is applied.)");
+		pOpts->add("-delib [d]=0.9", "Specify a deliberateness factor between 0 and 1. A value of 0 will make every step completely random, and independent of previous steps. A value close to 1 will travel in a straight line until a boundary is encountered, then choose a new random direction. Values in between will do something in between.");
+		pOpts->add("-actions [filename]=actions.arff", "Generate a dataset containing a representation of the action performed at each step. Note that the first action is performed AFTER the first sample is taken. No sample is taken after the last action is performed.");
+		pOpts->add("-perturb [dev]=0.1", "Perturb the sample with Gaussian noise. Note that this noise is additive, in that the next step will be taken from the perturbed location. If you want non-additive noise, you can postprocess the data with the waffles_transform addnoise tool.");
 	}
 	{
 		UsageNode* pScalRot = pRoot->add("scalerotate [png-file] <options>", "Generate a dataset where each row represents an image that has been scaled and rotated by various amounts. Thus, these images form an open-cylinder (although somewhat cone-shaped) manifold.");

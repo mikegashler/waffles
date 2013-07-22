@@ -76,7 +76,7 @@ public:
 			if(tmp.cols() != 3)
 				throw Ex("unexpected number of columns");
 			m_tar.newRows(tmp.rows());
-			m_tar.copyColumns(0, &tmp, 0, 3);
+			m_tar.copyColumnsDataOnly(0, &tmp, 0, 3);
 		}
 		m_pred.newRows(m_tar.rows());
 		m_context.newRows(m_tar.rows());
@@ -94,7 +94,9 @@ public:
 			pPred[3] = 0.8 * i / m_pred.rows();
 			pPred[4] = 10.0;
 		}
-		m_nn.addLayer(36);
+		vector<size_t> topo;
+		topo.push_back(36);
+		m_nn.setTopology(topo);
 		m_nn.setLearningRate(0.1);
 		sp_relation pFeatureRel = new GUniformRelation(2);
 		sp_relation pLabelRel = new GUniformRelation(3);
@@ -136,13 +138,9 @@ public:
 			double* pContext = m_context.row(index);
 			m_nn.forwardProp(pContext);
 			m_nn.copyPrediction(pPred);
-			pBP->setErrorOnOutputLayer(pTar/*, GNeuralNet::root_cubed_error*/);
+			pBP->computeBlame(pTar);
 			
-			//double err = m_nn.sumSquaredPredictionError(pTar);
-			double err = 0.0;
-			for(vector<GBackPropNeuron>::iterator it = bpLayer.m_neurons.begin(); it != bpLayer.m_neurons.end(); it++)
-				err += it->m_error * it->m_error;
-
+			double err = m_nn.sumSquaredPredictionError(pTar);
 			if(err < m_errorThresh)
 			{
 				pPred[4] = 10.0; // big radius
@@ -150,7 +148,7 @@ public:
 				activeCount++;
 				maxBelowThresh = std::max(maxBelowThresh, err);
 				pBP->gradientOfInputs(inputGradient);
-				pBP->descendGradient(pContext, m_nn.learningRate(), 0.0, false);
+				pBP->descendGradient(pContext, m_nn.learningRate(), 0.0);
 				GVec::addScaled(pContext, -m_nn.learningRate(), inputGradient, 2);
 
 				// See if we can improve the spotlight point

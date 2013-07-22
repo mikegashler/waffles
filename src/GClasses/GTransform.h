@@ -199,6 +199,7 @@ class GPCA : public GIncrementalTransform
 protected:
 	size_t m_targetDims;
 	GMatrix* m_pBasisVectors;
+	GMatrix* m_pCentroid;
 	double* m_pEigVals;
 	bool m_aboutOrigin;
 	GRand* m_pRand;
@@ -230,11 +231,12 @@ public:
 	/// Returns the number of principal components that it will find.
 	size_t targetDims() { return m_targetDims; }
 
-	/// Returns the mean of the data used to train this transform
-	double* mean() { return m_pBasisVectors->row(0); }
+	/// Returns the centroid about which the principal components were calculated.
+	double* centroid() { return m_pCentroid->row(0); }
 
-	/// Returns the i'th principal component vector
-	double* basis(size_t i) { return m_pBasisVectors->row(i + 1); }
+	/// Returns the matrix of basis vectors. Row 0 is the first principal component,
+	/// row 1 is the second principal component, and so forth.
+	GMatrix* basis() { return m_pBasisVectors; }
 
 	/// Returns a dataset where the first row is the centroid, and the remaining
 	/// rows are the principal component vectors in order of decreasing eigenvalue.

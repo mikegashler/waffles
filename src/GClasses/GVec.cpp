@@ -106,9 +106,9 @@ double GVec::dotProductIgnoringUnknowns(const double* pOrigin, const double* pTa
 	double dVal = 0;
 	for(size_t n = 0; n < nSize; n++)
 	{
-		GAssert(pOrigin[n] != UNKNOWN_REAL_VALUE && pVector[n] != UNKNOWN_REAL_VALUE); // unknowns in pOrigin or pVector not supported
-		if(pTarget[n] != UNKNOWN_REAL_VALUE)
-			dVal += (pTarget[n] - pOrigin[n]) * pVector[n];
+		GAssert(*pOrigin != UNKNOWN_REAL_VALUE && *pVector != UNKNOWN_REAL_VALUE); // unknowns in pOrigin or pVector not supported
+		if(*pTarget != UNKNOWN_REAL_VALUE)
+			dVal += (*(pTarget++) - *(pOrigin++)) * *(pVector++);
 	}
 	return dVal;
 }

@@ -159,17 +159,17 @@ void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
 	GMatrix l(inputs, outputs);
 	for(size_t i = 0; i < inputs; i++)
 	{
-		GVec::copy(f[i], pca.basis(i), inputs);
+		GVec::copy(f[i], pca.basis()->row(i), inputs);
 		double sqmag = GVec::squaredMagnitude(f[i], inputs);
 		if(sqmag > 1e-10)
 			GVec::multiply(f[i], 1.0 / sqmag, inputs);
-		GVec::copy(l[i], pca.basis(i) + inputs, outputs);
+		GVec::copy(l[i], pca.basis()->row(i) + inputs, outputs);
 	}
 	m_pBeta = GMatrix::multiply(l, f, true, false);
 	m_pEpsilon = new double[outputs];
-	m_pBeta->multiply(pca.mean(), m_pEpsilon, false);
+	m_pBeta->multiply(pca.centroid(), m_pEpsilon, false);
 	GVec::multiply(m_pEpsilon, -1.0, outputs);
-	GVec::add(m_pEpsilon, pca.mean() + inputs, outputs);
+	GVec::add(m_pEpsilon, pca.centroid() + inputs, outputs);
 
 	// Refine the results using gradient descent
 	refine(features, labels, 0.06, 20, 0.75);

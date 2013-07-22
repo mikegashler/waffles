@@ -169,6 +169,23 @@ void GNeuralNetLayer::feedForwardToOneOutput(const double* pIn, size_t output, b
 	*pAct = m_pActivationFunction->squash(*pNet);
 }
 
+void GNeuralNetLayer::transformWeights(GMatrix& transform, const double* pOffset)
+{
+	if(transform.rows() != inputs())
+		throw Ex("Transformation matrix not suitable size for this layer");
+	if(transform.rows() != transform.cols())
+		throw Ex("Expected a square transformation matrix.");
+	size_t outputs = m_weights.cols();
+	GMatrix* pNewWeights = GMatrix::multiply(transform, m_weights, true, false);
+	Holder<GMatrix> hNewWeights(pNewWeights);
+	m_weights.copyColumnsDataOnly(0, pNewWeights, 0, outputs);
+	double* pNet = net();
+	GVec::setAll(pNet, 0.0, outputs);
+	for(size_t i = 0; i < m_weights.rows(); i++)
+		GVec::addScaled(pNet, *(pOffset++), m_weights.row(i), outputs);
+	GVec::add(bias(), pNet, outputs);
+}
+
 // ----------------------------------------------------------------------
 
 void GBackPropLayer::resize(size_t inputs, size_t outputs)
@@ -1474,6 +1491,25 @@ void GNeuralNet::printWeights(std::ostream& stream)
 	}
 }
 
+GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
+{
+	GNeuralNetLayer& lay = *getLayer(0);
+	if(lay.inputs() != features.cols())
+		throw Ex("mismatching number of data columns and layer units");
+	GPCA pca(lay.inputs(), &m_rand);
+//	pca.aboutOrigin();
+	pca.train(features);
+	GMatrix* pBasis = pca.basis();
+	double* pOff = new double[lay.inputs()];
+	ArrayHolder<double> hOff(pOff);
+	pBasis->multiply(pca.centroid(), pOff, lay.inputs());
+	GMatrix* pInvTransform = pBasis->pseudoInverse();
+	Holder<GMatrix> hInvTransform(pInvTransform);
+	lay.transformWeights(*pInvTransform, pOff);
+	return pca.transformBatch(features);
+}
+
+
 #ifndef MIN_PREDICT
 void GNeuralNet_testMath()
 {
@@ -1884,6 +1920,81 @@ void GNeuralNet_testBleedWeights(GRand& rand)
 		throw Ex("failed");
 }
 
+void GNeuralNet_testTransformWeights(GRand& prng)
+{
+	for(size_t i = 0; i < 10; i++)
+	{
+		// Set up
+		GNeuralNet nn(prng);
+		sp_relation in = new GUniformRelation(2);
+		sp_relation out = new GUniformRelation(3);
+		nn.beginIncrementalLearning(in, out);
+		nn.perturbAllWeights(1.0);
+		double x1[2];
+		double x2[2];
+		double y1[3];
+		double y2[3];
+		prng.spherical(x1, 2);
+
+		// Predict normally
+		nn.predict(x1, y1);
+		
+		// Transform the inputs and weights
+		GMatrix transform(2, 2);
+		prng.spherical(transform[0], 2);
+		prng.spherical(transform[1], 2);
+		double offset[2];
+		prng.spherical(offset, 2);
+GVec::add(x1, offset, 2);
+		transform.multiply(x1, x2, false);
+		//GVec::add(x2, offset, 2);
+double tmp[2];
+GVec::multiply(offset, -1.0, 2);
+transform.multiply(offset, tmp);
+GVec::copy(offset, tmp, 2);
+		GMatrix* pTransInv = transform.pseudoInverse();
+		Holder<GMatrix> hTransInv(pTransInv);
+		nn.getLayer(0)->transformWeights(*pTransInv, offset);
+
+		// Predict again
+		nn.predict(x2, y2);
+		if(GVec::squaredDistance(y1, y2, 3) > 1e-8)
+			throw Ex("transformWeights failed");
+	}
+}
+
+void GNeuralNet_testCompressFeatures(GRand& prng)
+{
+	size_t dims = 5;
+	GMatrix feat(50, dims);
+	for(size_t i = 0; i < feat.rows(); i++)
+		prng.spherical(feat[i], dims);
+
+	// Set up
+	GNeuralNet nn1(prng);
+	vector<size_t> topology;
+	topology.push_back(dims * 2);
+	nn1.setTopology(topology);
+	nn1.beginIncrementalLearning(feat.relation(), feat.relation());
+	nn1.perturbAllWeights(1.0);
+	GNeuralNet nn2(prng);
+	nn2.copyStructure(&nn1);
+	nn2.copyWeights(&nn1);
+
+	// Test
+	GMatrix* pNewFeat = nn1.compressFeatures(feat);
+	Holder<GMatrix> hNewFeat(pNewFeat);
+	double out1[dims];
+	double out2[dims];
+	for(size_t i = 0; i < feat.rows(); i++)
+	{
+		nn1.predict(pNewFeat->row(i), out1);
+		nn2.predict(feat[i], out2);
+		if(GVec::squaredDistance(out1, out2, dims) > 0.01)
+			throw Ex("failed");
+	}
+}
+
 // static
 void GNeuralNet::test()
 {
@@ -1895,11 +2006,13 @@ void GNeuralNet::test()
 	GNeuralNet_testNormalizeInput(prng);
 	GNeuralNet_testTrainOneLayer(prng);
 	GNeuralNet_testBleedWeights(prng);
+	GNeuralNet_testTransformWeights(prng);
+	GNeuralNet_testCompressFeatures(prng);
 
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn(prng);
-		nn.basicTest(0.74, 0.8);
+		nn.basicTest(0.74, 0.78);
 	}
 
 	// Test NN with one hidden layer
@@ -1908,7 +2021,7 @@ void GNeuralNet::test()
 		vector<size_t> topology;
 		topology.push_back(3);
 		nn.setTopology(topology);
-		nn.basicTest(0.76, 0.75);
+		nn.basicTest(0.76, 0.752);
 	}
 }
 
