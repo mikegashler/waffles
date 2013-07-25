@@ -518,9 +518,9 @@ public:
 	/// not initialized.) Returns a pointer to the new row.
 	double* newRow();
 
-	/// \brief Adds a new column to the matrix. (This resizes every row, which is very inefficient.)
-	/// The values in the new row are not initialized.
-	void newColumn();
+	/// \brief Adds 'n' new columns to the matrix. (This resizes every row and copies all the
+	/// existing data, which is very inefficient.) The values in the new columns are not initialized.
+	void newColumns(size_t n);
 
 	/// \brief Adds "nRows" uninitialized rows to this matrix.
 	void newRows(size_t nRows);
@@ -550,9 +550,6 @@ public:
 	/// accurate results. If tolerant is false (the default) and this
 	/// matrix is not positive definate, it will throw an exception.
 	GMatrix* cholesky(bool tolerant = false);
-
-	/// \brief Makes a deep copy of this dataset
-	GMatrix* clone();
 
 	/// \brief Makes a deep copy of the specified rectangular region of
 	/// this matrix
@@ -964,6 +961,9 @@ public:
 	/// \brief Normalizes the specified column
 	void normalizeColumn(size_t col, double dInMin, double dInMax, double dOutMin = 0.0, double dOutMax = 1.0);
 
+	/// \brief Clips the values in the specified column to fall beween dMin and dMax (inclusively).
+	void clipColumn(size_t col, double dMin, double dMax);
+
 	/// \brief Normalize a value from the input min and max to the output min and max.
 	static double normalizeValue(double dVal, double dInMin, double dInMax, double dOutMin = 0.0, double dOutMax = 1.0);
 
@@ -1187,8 +1187,11 @@ public:
 	///         of the other matrix
 	static GSimpleAssignment bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric);
 
-	/// \brief Copies just the data in the specified columns into this matrix.
-	void copyColumnsDataOnly(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount);
+	/// \brief Copies values from a rectangular region of the source matrix into this matrix.
+	/// The wid and hgt values are clipped if they exceed the size of the source matrix.
+	/// An exception is thrown if the destination is not big enough to hold the values at the specified location.
+	/// If checkMetaData is true, then this will throw an exception if the data types are incompatible.
+	void copyBlock(const GMatrix& source, size_t srcRow = 0, size_t srcCol = 0, size_t hgt = (size_t)-1, size_t wid = (size_t)-1, size_t destRow = 0, size_t destCol = 0, bool checkMetaData = true);
 
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception

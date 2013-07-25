@@ -676,7 +676,9 @@ namespace GClasses {
       m_reporter->newStatus(0, 0, map);
 
       //Copy the input
-      Holder<GMatrix> inputCopy(pInput->clone());
+      GMatrix* pInputCopy = new GMatrix();
+      pInputCopy->copy(pInput);
+      Holder<GMatrix> inputCopy(pInputCopy);
 
       //For each iteration
       for(unsigned iteration = 0; iteration < m_numIterations; ++iteration){

@@ -1484,7 +1484,7 @@ void aggregateCols(GArgReader& args)
 			pResults = new GMatrix(pData->rows(), files.size());
 			hResults.reset(pResults);
 		}
-		pResults->copyColumnsDataOnly(i, pData, c, 1);
+		pResults->copyBlock(*pData, 0, c, pData->rows(), 1, 0, i, false);
 		i++;
 	}
 	pResults->print(cout);

@@ -1262,7 +1262,9 @@ void semanticMap(GArgReader& args){
   }else{
     //Find the best data indices using only the first inputDimensions of
     //the input data
-    Holder<GMatrix> lessColumns(hData->clone());
+    GMatrix* pLessColumns = new GMatrix();
+	pLessColumns->copy(hData.get());
+    Holder<GMatrix> lessColumns(pLessColumns);
     while(lessColumns->cols() > som.inputDimensions()){
       lessColumns->deleteColumn(lessColumns->cols()-1);
     }

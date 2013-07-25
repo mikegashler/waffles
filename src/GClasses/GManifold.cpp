@@ -1804,7 +1804,11 @@ GMatrix* GDynamicSystemStateAligner::doit(GMatrix& in)
 	if(in.rows() != m_inputs.rows())
 		throw Ex("Expected pIn to have the same number of rows as the inputs");
 	if(in.rows() < 6)
-		return in.clone();
+	{
+		GMatrix* pRet = new GMatrix();
+		pRet->copy(&in);
+		return pRet;
+	}
 
 	// Make a graph of local neighborhoods
 	GKdTree neighborFinder(&in, m_neighbors, NULL, false);
@@ -1863,7 +1867,8 @@ GMatrix* GDynamicSystemStateAligner::doit(GMatrix& in)
 	}
 
 	// Make the output data
-	GMatrix* pOut = in.clone();
+	GMatrix* pOut = new GMatrix();
+	pOut->copy(&in);
 	Holder<GMatrix> hOut(pOut);
 	if(aFeatures.rows() < in.cols() || bFeatures.rows() < in.cols() || cLabels.rows() < 1)
 	{

@@ -142,10 +142,18 @@ bool GRelation::isCompatible(const GRelation& that) const
 		return true;
 	if(size() != that.size())
 		return false;
-	for(size_t i = 0; i < size(); i++)
+	if(type() == UNIFORM && that.type() == UNIFORM)
 	{
-		if(valueCount(i) != that.valueCount(i))
+		if(valueCount(0) != that.valueCount(0))
 			return false;
+	}
+	else
+	{
+		for(size_t i = 0; i < size(); i++)
+		{
+			if(valueCount(i) != that.valueCount(i))
+				return false;
+		}
 	}
 	return true;
 }
@@ -2078,7 +2086,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	GMatrix* pU = new GMatrix(m, m);
 	Holder<GMatrix> hU(pU);
 	pU->setAll(0.0);
-	pU->copyColumnsDataOnly(0, this, 0, n);
+	pU->copyBlock(*this, 0, 0, m, n, 0, 0, false);
 	double* pSigma = new double[n];
 	ArrayHolder<double> hSigma(pSigma);
 	GMatrix* pV = new GMatrix(n, n);
@@ -2433,18 +2441,16 @@ GMatrix* GMatrix::align(GMatrix* pA, GMatrix* pB)
 	size_t columns = pA->cols();
 	GTEMPBUF(double, mean, columns);
 	pA->centroid(mean);
-	GMatrix* pAA = pA->clone();
-	Holder<GMatrix> hAA(pAA);
-	pAA->centerMeanAtOrigin();
-	GMatrix* pBB = pB->clone();
-	Holder<GMatrix> hBB(pBB);
-	pBB->centerMeanAtOrigin();
-	GMatrix* pK = GMatrix::kabsch(pBB, pAA);
+	GMatrix aa;
+	aa.copy(pA);
+	aa.centerMeanAtOrigin();
+	GMatrix bb;
+	bb.copy(pB);
+	bb.centerMeanAtOrigin();
+	GMatrix* pK = GMatrix::kabsch(&bb, &aa);
 	Holder<GMatrix> hK(pK);
-	hAA.reset(NULL);
-	GMatrix* pAligned = GMatrix::multiply(*pBB, *pK, false, true);
+	GMatrix* pAligned = GMatrix::multiply(bb, *pK, false, true);
 	Holder<GMatrix> hAligned(pAligned);
-	hBB.reset(NULL);
 	for(vector<double*>::iterator it = pAligned->m_rows.begin(); it != pAligned->m_rows.end(); it++)
 		GVec::add(*it, mean, columns);
 	return hAligned.release();
@@ -2459,9 +2465,8 @@ double GMatrix::determinant()
 
 	// Convert to a triangular matrix
 	double epsilon = 1e-10;
-	GMatrix* pC = this->clone();
-	Holder<GMatrix> hC(pC);
-	GMatrix& C = *pC;
+	GMatrix C;
+	C.copy(this);
 	GTEMPBUF(size_t, Kp, 2 * n);
 	size_t* Lp = Kp + n;
 	size_t l, ko, lo;
@@ -2637,7 +2642,10 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 	pOut->newRows(nCount);
 	GMatrix* pA;
 	if(mostSignificant)
-		pA = clone();
+	{
+		pA = new GMatrix();
+		pA->copy(this);
+	}
 	else
 		pA = pseudoInverse();
 	Holder<GMatrix> hA(pA);
@@ -2700,21 +2708,24 @@ double* GMatrix::newRow()
 	return pNewRow;
 }
 
-void GMatrix::newColumn()
+void GMatrix::newColumns(size_t n)
 {
 	size_t oldSize = m_pRelation->size();
 	if(m_pRelation->type() == GRelation::UNIFORM)
-		m_pRelation = new GUniformRelation(m_pRelation->size() + 1, m_pRelation->valueCount(0));
+		m_pRelation = new GUniformRelation(m_pRelation->size() + n, m_pRelation->valueCount(0));
 	else
 	{
 		m_pRelation = m_pRelation->clone();
-		((GMixedRelation*)m_pRelation.get())->addAttr(0);
+		for(size_t i = 0; i < n; i++)
+			((GMixedRelation*)m_pRelation.get())->addAttr(0);
 	}
 	for(size_t i = 0; i < rows(); i++)
 	{
 		double* pOld = m_rows[i];
-		double* pNew = new double[oldSize + 1];
+		double* pNew = new double[oldSize + n];
 		GVec::copy(pNew, pOld, oldSize);
+		delete[] pOld;
+		m_rows[i] = pNew;
 	}
 }
 
@@ -2770,15 +2781,7 @@ void GMatrix::copy(const GMatrix* pThat)
 	m_pRelation = pThat->m_pRelation;
 	flush();
 	newRows(pThat->rows());
-	copyColumnsDataOnly(0, pThat, 0, m_pRelation->size());
-}
-
-GMatrix* GMatrix::clone()
-{
-	GMatrix* pOther = new GMatrix(relation());
-	pOther->newRows(rows());
-	pOther->copyColumnsDataOnly(0, this, 0, cols());
-	return pOther;
+	copyBlock(*pThat, 0, 0, pThat->rows(), pThat->cols(), 0, 0, false);
 }
 
 GMatrix* GMatrix::cloneSub(size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
@@ -2788,8 +2791,7 @@ GMatrix* GMatrix::cloneSub(size_t rowStart, size_t colStart, size_t rowCount, si
 	sp_relation pSubRel = (colCount == cols() ? m_pRelation : m_pRelation->cloneSub(colStart, colCount));
 	GMatrix* pThat = new GMatrix(pSubRel);
 	pThat->newRows(rowCount);
-	for(size_t i = 0; i < rowCount; i++)
-		GVec::copy(pThat->row(i), row(rowStart + i) + colStart, colCount);
+	pThat->copyBlock(*this, rowStart, colStart, rowCount, colCount, 0, 0, false);
 	return pThat;
 }
 
@@ -2799,13 +2801,34 @@ void GMatrix::copyRow(const double* pRow)
 	GVec::copy(pNewRow, pRow, m_pRelation->size());
 }
 
-void GMatrix::copyColumnsDataOnly(size_t nDestStartColumn, const GMatrix* pSource, size_t nSourceStartColumn, size_t nColumnCount)
+void GMatrix::copyBlock(const GMatrix& source, size_t srcRow, size_t srcCol, size_t hgt, size_t wid, size_t destRow, size_t destCol, bool checkMetaData)
 {
-	if(rows() != pSource->rows())
-		throw Ex("expected the two matrices to have the same number of rows");
-	size_t count = rows();
-	for(size_t i = 0; i < count; i++)
-		GVec::copy(row(i) + nDestStartColumn, pSource->row(i) + nSourceStartColumn, nColumnCount);
+	wid = std::min(wid, std::max((size_t)0, source.cols() - srcCol));
+	hgt = std::min(hgt, std::max((size_t)0, source.rows() - srcRow));
+	if(destRow + hgt > rows())
+		throw Ex("Destination matrix has insufficient rows for this operation");
+	if(destCol + wid > cols())
+		throw Ex("Destination matrix has insufficient cols for this operation");
+	if(checkMetaData)
+	{
+		if(relation()->type() == GRelation::UNIFORM && source.relation()->type() == GRelation::UNIFORM)
+		{
+			if(relation()->valueCount(0) != source.relation()->valueCount(0))
+				throw Ex("Incompatible metadata");
+		}
+		else
+		{
+			for(size_t i = 0; i < wid; i++)
+			{
+				const GRelation& rs = *source.relation().get();
+				const GRelation& rd = *relation().get();
+				if(rs.valueCount(srcCol + i) != rd.valueCount(destCol + i))
+					throw Ex("Incompatible metadata");
+			}
+		}
+	}
+	for(size_t i = 0; i < hgt; i++)
+		GVec::copy(row(destRow + i) + destCol, source[srcRow + i] + srcCol, wid);
 }
 
 void GMatrix::copyCols(GMatrix& that, size_t firstCol, size_t colCount)
@@ -2828,7 +2851,7 @@ void GMatrix::copyCols(GMatrix& that, size_t firstCol, size_t colCount)
 	}
 	m_pRelation = relNew;
 	newRows(that.rows());
-	copyColumnsDataOnly(0, &that, firstCol, colCount);
+	copyBlock(that, 0, firstCol, that.rows(), colCount, 0, 0, false);
 }
 
 void GMatrix::swapRows(size_t a, size_t b)
@@ -3265,6 +3288,13 @@ void GMatrix::normalizeColumn(size_t col, double dInMin, double dInMax, double d
 		(*it)[col] *= dScale;
 		(*it)[col] += dOutMin;
 	}
+}
+
+void GMatrix::clipColumn(size_t col, double dMin, double dMax)
+{
+	GAssert(dMax > dMin);
+	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
+		(*it)[col] = std::max(dMin, std::min(dMax, (*it)[col]));
 }
 
 /*static*/ double GMatrix::normalizeValue(double dVal, double dInMin, double dInMax, double dOutMin, double dOutMax)
@@ -4727,9 +4757,9 @@ void GMatrix_testLUDecomposition(GRand& prng)
 		for(size_t j = 0; j < 5; j++)
 			a[i][j] = prng.normal();
 	}
-	GMatrix* pB = a.clone();
-	Holder<GMatrix> hB(pB);
-	pB->LUDecomposition();
+	GMatrix b;
+	b.copy(&a);
+	b.LUDecomposition();
 	GMatrix l(5, 5);
 	l.setAll(0.0);
 	GMatrix u(5, 5);
@@ -4739,9 +4769,9 @@ void GMatrix_testLUDecomposition(GRand& prng)
 		for(size_t j = 0; j < 5; j++)
 		{
 			if(i < j)
-				u[i][j] = pB->row(i)[j];
+				u[i][j] = b[i][j];
 			else
-				l[i][j] = pB->row(i)[j];
+				l[i][j] = b[i][j];
 		}
 		u[i][i] = 1.0;
 	}

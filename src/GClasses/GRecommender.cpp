@@ -1221,7 +1221,8 @@ void GNonlinearPCA::train(GMatrix& data)
 	m_items = items;
 
 	// Copy and normalize the ratings
-	GMatrix* pClone = data.clone();
+	GMatrix* pClone = new GMatrix();
+	pClone->copy(&data);
 	Holder<GMatrix> hClone(pClone);
 	delete[] m_pMins;
 	m_pMins = new double[items];

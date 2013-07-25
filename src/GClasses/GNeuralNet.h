@@ -50,6 +50,8 @@ public:
 	void feedForward(const double* pIn);
 	void feedForwardWithInputBias(const double* pIn);
 	void feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias);
+	void perturbWeights(GRand& rand, double deviation);
+	void setToWeaklyApproximateIdentity();
 
 	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
@@ -214,10 +216,10 @@ public:
 	/// Returns a reference to the specified layer.
 	GNeuralNetLayer* getLayer(size_t n) { return m_layers[n]; }
 
-	/// Adds a new node at the end of the specified layer. (The new node is initialized
-	/// with small weights, so this operation should initially have little impact on
+	/// Adds new nodes at the end of the specified layer. (The new nodes are initialized
+	/// with small random weights, so this operation should initially have little impact on
 	/// predictions.)
-	void addNode(size_t layer);
+	void addNodes(size_t layer, size_t nodeCount);
 
 	/// Removes the specified node from the specified layer. (An exception will be thrown
 	/// the layer only has one node.)

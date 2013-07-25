@@ -375,12 +375,12 @@ sp_relation GPCA::trainInner(sp_relation& relation)
 // virtual
 void GPCA::transform(const double* pIn, double* pOut)
 {
-	double* pMean = m_pCentroid->row(0);
+	double* pCentroid = m_pCentroid->row(0);
 	size_t nInputDims = m_pRelationBefore->size();
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
 		double* pBasisVector = m_pBasisVectors->row(i);
-		*(pOut++) = GVec::dotProductIgnoringUnknowns(pMean, pIn, pBasisVector, nInputDims);
+		*(pOut++) = GVec::dotProductIgnoringUnknowns(pCentroid, pIn, pBasisVector, nInputDims);
 	}
 }
 
@@ -1721,7 +1721,8 @@ void GImputeMissingVals::untransformToDistribution(const double* pIn, GPredictio
 // virtual
 GMatrix* GImputeMissingVals::transformBatch(GMatrix& in)
 {
-	GMatrix* pOut = in.clone();
+	GMatrix* pOut = new GMatrix();
+	pOut->copy(&in);
 	size_t dims = in.cols();
 	for(size_t i = 0; i < in.rows(); i++)
 	{

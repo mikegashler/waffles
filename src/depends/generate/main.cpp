@@ -2517,7 +2517,7 @@ void Plot3d(GImage* pImage, GMatrix* pData, unsigned int bgCol, float pointRadiu
 	// Plot the points
 	Compare3DPointsByDistanceFromCameraFunctor comparator(&camera);
 	GMatrix copy(pData->rows(), 4);
-	copy.copyColumnsDataOnly(0, pData, 0, 3);
+	copy.copyBlock(*pData, 0, 0, pData->rows(), 3, 0, 0, false);
 	for(size_t i = 0; i < copy.rows(); i++)
 		copy.row(i)[3] = (double)i;
 	copy.sort(comparator);

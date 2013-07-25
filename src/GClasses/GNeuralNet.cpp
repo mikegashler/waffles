@@ -78,13 +78,13 @@ void GNeuralNetLayer::resizePreserve(size_t inputCount, size_t outputCount, GRan
 	size_t oldOutputs = outputs();
 	size_t fewerInputs = std::min(oldInputs, inputCount);
 	size_t fewerOutputs = std::min(oldOutputs, outputCount);
-	GMatrix* pOld = m_weights.clone();
-	Holder<GMatrix> hOld(pOld);
+	GMatrix old;
+	old.copy(&m_weights);
 	m_weights.resize(inputCount, outputCount);
 	for(size_t i = 0; i < fewerInputs; i++)
 	{
 		double* pRow = m_weights[i];
-		GVec::copy(pRow, pOld->row(i), fewerOutputs);
+		GVec::copy(pRow, old[i], fewerOutputs);
 		pRow += fewerOutputs;
 		for(size_t j = fewerOutputs; j < outputCount; j++)
 			*(pRow++) = 0.01 * rand.normal();
@@ -95,10 +95,10 @@ void GNeuralNetLayer::resizePreserve(size_t inputCount, size_t outputCount, GRan
 		for(size_t j = 0; j < outputCount; j++)
 			*(pRow++) = 0.01 * rand.normal();
 	}
-	GVec::copy(pOld->row(0), bias(), fewerOutputs);
+	GVec::copy(old[0], bias(), fewerOutputs);
 	m_bias.resize(3, outputCount);
 	double* pB = bias();
-	GVec::copy(pB, pOld->row(0), fewerOutputs);
+	GVec::copy(pB, old[0], fewerOutputs);
 	pB += fewerOutputs;
 	for(size_t j = fewerOutputs; j < outputCount; j++)
 		*(pB++) = 0.01 * rand.normal();
@@ -178,12 +178,31 @@ void GNeuralNetLayer::transformWeights(GMatrix& transform, const double* pOffset
 	size_t outputs = m_weights.cols();
 	GMatrix* pNewWeights = GMatrix::multiply(transform, m_weights, true, false);
 	Holder<GMatrix> hNewWeights(pNewWeights);
-	m_weights.copyColumnsDataOnly(0, pNewWeights, 0, outputs);
+	m_weights.copyBlock(*pNewWeights, 0, 0, pNewWeights->rows(), outputs, 0, 0, false);
 	double* pNet = net();
 	GVec::setAll(pNet, 0.0, outputs);
 	for(size_t i = 0; i < m_weights.rows(); i++)
 		GVec::addScaled(pNet, *(pOffset++), m_weights.row(i), outputs);
 	GVec::add(bias(), pNet, outputs);
+}
+
+void GNeuralNetLayer::perturbWeights(GRand& rand, double deviation)
+{
+	size_t outs = outputs();
+	for(size_t j = 0; j < m_weights.rows(); j++)
+		GVec::perturb(m_weights[j], deviation, outs, rand);
+	GVec::perturb(bias(), deviation, outs, rand);
+}
+
+void GNeuralNetLayer::setToWeaklyApproximateIdentity()
+{
+	m_weights.setAll(0.0);
+	size_t n = std::min(inputs(), outputs());
+	for(size_t i = 0; i < n; i++)
+	{
+		m_weights[i][i] = 4.92;
+		bias()[i] = -0.5 * 4.92;
+	}
 }
 
 // ----------------------------------------------------------------------
@@ -711,27 +730,34 @@ void GNeuralNet::releaseTrainingJunk()
 	m_pBackProp = NULL;
 }
 
-void GNeuralNet::addNode(size_t layer)
+void GNeuralNet::addNodes(size_t layer, size_t nodeCount)
 {
 	if(layer >= m_layers.size())
 		throw Ex("layer index out of range");
 
-	// Add a column to the upstream layer
+	// Add columns to the upstream layer
 	GNeuralNetLayer* pUpStream = m_layers[layer];
 	size_t in = pUpStream->inputs();
 	size_t out = pUpStream->outputs();
-	pUpStream->m_weights.newColumn();
-	pUpStream->m_bias.newColumn();
+	pUpStream->m_weights.newColumns(nodeCount);
+	pUpStream->m_bias.newColumns(nodeCount);
 	for(size_t i = 0; i < in; i++)
-		pUpStream->m_weights[i][out] = 0.01 * m_rand.normal();
-	pUpStream->bias()[out] = 0.01 * m_rand.normal();
-	
-	// Add a row to the downstream layer
+	{
+		for(size_t j = 0; j < nodeCount; j++)
+			pUpStream->m_weights[i][out + j] = 0.01 * m_rand.normal();
+	}
+	for(size_t j = 0; j < nodeCount; j++)
+		pUpStream->bias()[out + j] = 0.01 * m_rand.normal();
+
+	// Add rows to the downstream layer
 	if(layer + 1 < m_layers.size())
 	{
-		double* pRow = m_layers[layer + 1]->m_weights.newRow();
-		for(size_t i = 0; i < out; i++)
-			*(pRow++) = 0.01 * m_rand.normal();
+		for(size_t j = 0; j < nodeCount; j++)
+		{
+			double* pRow = m_layers[layer + 1]->m_weights.newRow();
+			for(size_t i = 0; i < out; i++)
+				*(pRow++) = 0.01 * m_rand.normal();
+		}
 	}
 }
 
@@ -793,7 +819,7 @@ void GNeuralNet::copyWeights(GNeuralNet* pOther)
 	{
 		GNeuralNetLayer& src = *pOther->m_layers[i];
 		GNeuralNetLayer& dest = *m_layers[i];
-		dest.m_weights.copyColumnsDataOnly(0, &src.m_weights, 0, src.outputs());
+		dest.m_weights.copyBlock(src.m_weights, 0, 0, (size_t)-1, (size_t)-1, 0, 0, false);
 		GVec::copy(dest.bias(), src.bias(), src.outputs());
 	}
 }
@@ -821,23 +847,7 @@ void GNeuralNet::perturbAllWeights(double deviation)
 	if(!hasTrainingBegun())
 		throw Ex("train or beginIncrementalLearning must be called before this method");
 	for(size_t i = 0; i < m_layers.size(); i++)
-	{
-		GMatrix& m = m_layers[i]->m_weights;
-		size_t outputs = m.cols();
-/*
-		for(size_t j = 0; j < m.rows(); j++)
-			GVec::perturb(m[j], deviation, outputs, m_rand);
-		GVec::perturb(m_layers[i]->bias(), deviation, outputs, m_rand);
-*/
-		double* pB = m_layers[i]->bias();
-		size_t inputs = m.rows();
-		for(size_t j = 0; j < outputs; j++)
-		{
-			*(pB++) += (m_rand.normal() * deviation);
-			for(size_t k = 0; k < inputs; k++)
-				m[k][j] += (m_rand.normal() * deviation);
-		}
-	}
+		m_layers[i]->perturbWeights(m_rand, deviation);
 }
 
 void GNeuralNet::clipWeights(double max)
@@ -909,22 +919,8 @@ void GNeuralNet::insertLayer(size_t position, size_t nodeCount)
 
 	// Make the new layer
 	GNeuralNetLayer* pNewLayer = new GNeuralNetLayer(inputs, nodeCount);
-	GMatrix& w = pNewLayer->m_weights;
-	for(size_t i = 0; i < inputs; i++)
-	{
-		double* pRow = w[i];
-		for(size_t j = 0; j < nodeCount; j++)
-			*(pRow++) = 0.01 * m_rand.normal();
-	}
-	double* pB = pNewLayer->bias();
-	for(size_t j = 0; j < nodeCount; j++)
-		*(pB++) = 0.01 * m_rand.normal();
-	pB = pNewLayer->bias();
-	for(size_t j = 0; j < nodeCount && j < inputs; j++)
-	{
-		*(pB++) -= 0.5 * 4.92;
-		w[j][j] += 4.92;
-	}
+	pNewLayer->setToWeaklyApproximateIdentity();
+	pNewLayer->perturbWeights(m_rand, 0.01);
 
 	// Make sure the next layer is ready for it
 	if(position < m_layers.size())
@@ -1497,12 +1493,12 @@ GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 	if(lay.inputs() != features.cols())
 		throw Ex("mismatching number of data columns and layer units");
 	GPCA pca(lay.inputs(), &m_rand);
-//	pca.aboutOrigin();
 	pca.train(features);
-	GMatrix* pBasis = pca.basis();
+	GMatrix* pBasis = pca.basis();//->transpose();
+//	Holder<GMatrix> hBasis(pBasis);
 	double* pOff = new double[lay.inputs()];
 	ArrayHolder<double> hOff(pOff);
-	pBasis->multiply(pca.centroid(), pOff, lay.inputs());
+	pBasis->multiply(pca.centroid(), pOff);
 	GMatrix* pInvTransform = pBasis->pseudoInverse();
 	Holder<GMatrix> hInvTransform(pInvTransform);
 	lay.transformWeights(*pInvTransform, pOff);
@@ -1938,27 +1934,27 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 
 		// Predict normally
 		nn.predict(x1, y1);
-		
+
 		// Transform the inputs and weights
 		GMatrix transform(2, 2);
 		prng.spherical(transform[0], 2);
 		prng.spherical(transform[1], 2);
 		double offset[2];
 		prng.spherical(offset, 2);
-GVec::add(x1, offset, 2);
+		GVec::add(x1, offset, 2);
 		transform.multiply(x1, x2, false);
-		//GVec::add(x2, offset, 2);
-double tmp[2];
-GVec::multiply(offset, -1.0, 2);
-transform.multiply(offset, tmp);
-GVec::copy(offset, tmp, 2);
+
+		double tmp[2];
+		GVec::multiply(offset, -1.0, 2);
+		transform.multiply(offset, tmp);
+		GVec::copy(offset, tmp, 2);
 		GMatrix* pTransInv = transform.pseudoInverse();
 		Holder<GMatrix> hTransInv(pTransInv);
 		nn.getLayer(0)->transformWeights(*pTransInv, offset);
 
 		// Predict again
 		nn.predict(x2, y2);
-		if(GVec::squaredDistance(y1, y2, 3) > 1e-8)
+		if(GVec::squaredDistance(y1, y2, 3) > 1e-15)
 			throw Ex("transformWeights failed");
 	}
 }
@@ -1990,7 +1986,7 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 	{
 		nn1.predict(pNewFeat->row(i), out1);
 		nn2.predict(feat[i], out2);
-		if(GVec::squaredDistance(out1, out2, dims) > 0.01)
+		if(GVec::squaredDistance(out1, out2, dims) > 1e-14)
 			throw Ex("failed");
 	}
 }
