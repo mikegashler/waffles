@@ -517,18 +517,16 @@ public:
 
 /// This is a nonlinear dimensionality reduction algorithm loosely inspired by
 /// Maximum Variance Unfolding. It iteratively scales up the data, then restores
-/// distances between neighbors. (It doesn't work very well yet--needs some adjusting.)
+/// distances between neighbors.
 class GScalingUnfolder : public GManifoldLearner
 {
 protected:
 	size_t m_neighborCount;
 	size_t m_targetDims;
+	size_t m_passes;
 	double m_learningRate;
 	double m_scaleRate;
 	double m_keepRatio;
-	size_t m_epochs;
-	size_t m_windowSize;
-	double m_windowImprovement;
 	GRand& m_rand;
 
 public:

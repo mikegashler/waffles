@@ -2680,12 +2680,10 @@ GScalingUnfolder::GScalingUnfolder(GRand& rand)
 : GManifoldLearner(),
 m_neighborCount(14),
 m_targetDims(2),
+m_passes(50),
 m_learningRate(0.1),
-m_scaleRate(0.99),
+m_scaleRate(0.9),
 m_keepRatio(0.9),
-m_epochs(100),
-m_windowSize(100),
-m_windowImprovement(0.001),
 m_rand(rand)
 {
 }
@@ -2703,6 +2701,17 @@ GScalingUnfolder::~GScalingUnfolder()
 
 }
 
+void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double curSqDist, double tarSqDist)
+{
+	double scal = sqrt(tarSqDist) / sqrt(curSqDist);
+	for(size_t i = 0; i < dims; i++)
+	{
+		double t = 0.5 * (*pB * (1.0 + scal) + *pA * (1.0 - scal)) - *pB;
+		*(pA++) -= t;
+		*(pB++) += t;
+	}
+}
+
 // virtual
 GMatrix* GScalingUnfolder::doit(GMatrix& in)
 {
@@ -2710,21 +2719,20 @@ GMatrix* GScalingUnfolder::doit(GMatrix& in)
 	GKdTree kdtree(&in, m_neighborCount, NULL, false);
 	GNeighborFinderCacheWrapper nf(&kdtree, false);
 	nf.fillCache();
-	size_t* neighbors = new size_t[m_neighborCount];
-	ArrayHolder<size_t> hNeighbors(neighbors);
-	double* distances = new double[m_neighborCount + in.cols() + in.cols()];
-	ArrayHolder<double> hDistances(distances);
-	double* pBuf1 = distances + m_neighborCount;
-	double* pBuf2 = pBuf1 + in.cols();
 
 	// Start with a copy of the data
 	size_t intrinsicDims = in.cols();
 	GMatrix* pIntrinsic = new GMatrix();
 	Holder<GMatrix> hIntrinsic(pIntrinsic);
 	pIntrinsic->copy(&in);
-	GRandomIndexIterator ii(in.rows(), m_rand);
+	GRandomIndexIterator ii(in.rows() * m_neighborCount, m_rand);
 
 	// Reduce dimensionality
+	double scaleUpRate = 1.0 / m_scaleRate;
+	double scaleUp2 = scaleUpRate * scaleUpRate;
+	double scaleUp4 = scaleUp2 * scaleUp2;
+	double scaleDown2 = m_scaleRate * m_scaleRate;
+	double scaleDown4 = scaleDown2 * scaleDown2;
 	size_t dropAtLeast = 0;
 	while(true)
 	{
@@ -2759,53 +2767,52 @@ GMatrix* GScalingUnfolder::doit(GMatrix& in)
 		}
 
 		// Try to unfold the data
-		for(size_t epoch = 0; epoch < m_epochs; epoch++)
+		for(size_t pass = 0; pass < m_passes; pass++)
 		{
 			// Scale up the data
-			pIntrinsic->multiply(1.0 / m_scaleRate);
+			pIntrinsic->multiply(scaleUpRate);
 
 			// Restore local relationships
-			double bestSSE = 1e300;
+			size_t bestViolators = (size_t)-1;
 			size_t tolerance = 0;
 			while(true)
 			{
 				// Do a training epoch
-				double sse = 0.0;
 				ii.reset();
 				size_t ind;
+				size_t violators = 0;
 				while(ii.next(ind))
 				{
-					// Compute the blame term
-					nf.neighbors(neighbors, distances, ind);
-					GVec::setAll(pBuf1, 0.0, intrinsicDims);
-					size_t nc = 0;
-					for(size_t j = 0; j < m_neighborCount; j++)
+					size_t a = ind / m_neighborCount;
+					size_t b = nf.cache()[ind];
+					if(b != (size_t)-1)
 					{
-						if(neighbors[j] != (size_t)-1)
+						double dTarget = std::max(1e-12, nf.squaredDistanceTable()[ind]);
+						double* pA = pIntrinsic->row(a);
+						double* pB = pIntrinsic->row(b);
+						double dCur = GVec::squaredDistance(pA, pB, intrinsicDims);
+						if(dCur * scaleUp4 < dTarget)
 						{
-							size_t neighborIndex = neighbors[j];
-							double extDist = m_scaleRate * sqrt(distances[j]);
-							double intDist = sqrt(GVec::squaredDistance(pIntrinsic->row(ind), pIntrinsic->row(neighborIndex), intrinsicDims));
-							GVec::copy(pBuf2, pIntrinsic->row(neighborIndex), intrinsicDims);
-							GVec::subtract(pBuf2, pIntrinsic->row(ind), intrinsicDims);
-							GVec::addScaled(pBuf1, intDist - extDist, pBuf2, intrinsicDims);
-							nc++;
+							GScalingUnfolder_adjustPoints(pA, pB, intrinsicDims, dCur, dTarget * scaleDown2);
+							violators++;
+						}
+						else if(dCur * scaleDown4 > dTarget)
+						{
+							GScalingUnfolder_adjustPoints(pA, pB, intrinsicDims, dCur, dTarget * scaleUp2);
+							violators++;
 						}
 					}
-					GVec::multiply(pBuf1, m_learningRate / nc, intrinsicDims);
-					sse += GVec::squaredMagnitude(pBuf1, intrinsicDims);
-					//for(size_t j = 0; j < intrinsicDims; j++)
-					//	pBuf1[j] = tanh(pBuf1[j]);
-					GVec::add(pIntrinsic->row(ind), pBuf1, intrinsicDims);
 				}
-				if(1.0 - (sse / bestSSE) > m_windowImprovement)
+				if(violators < bestViolators)
 				{
-					bestSSE = sse;
+					if(violators == 0)
+						break;
+					bestViolators = violators;
 					tolerance = 0;
 				}
 				else
 				{
-					if(++tolerance > m_windowSize)
+					if(++tolerance > 100)
 						break;
 				}
 			}
