@@ -26,7 +26,7 @@ else
 	CFLAGS = -Wall
 endif
 
-GCOV_CFLAGS = $(CFLAGS) -g -fprofile-arcs -ftest-coverage 
+GCOV_CFLAGS = $(CFLAGS) -g -fprofile-arcs -ftest-coverage
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
 
@@ -49,6 +49,7 @@ CPP_FILES = \
 	GCluster.cpp\
 	GCrypto.cpp\
 	GDecisionTree.cpp\
+	GDeepNet.cpp\
 	GDiff.cpp\
 	GDirList.cpp\
 	GDistance.cpp\
@@ -160,7 +161,7 @@ usage:
 	#  make dbg     (to build a debug version)
 	#  make opt     (to build an optimized version)
 	#  make gcov    (to build a profiling/test-coverage version)
-	#  make fam     (build the fam executable for help in generating 
+	#  make fam     (build the fam executable for help in generating
 	#                LAPVJRCT test cases)
 	#
 

@@ -336,7 +336,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		}
 		else
 			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
-	
+
 		// Normalize
 		if(normalize)
 		{
@@ -345,7 +345,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			pNF2->normalizeDistances();
 			pNF = pNF2;
 		}
-	
+
 		// Apply CycleCut
 		if(cutCycleLen > 0)
 		{
@@ -490,7 +490,7 @@ void breadthFirstUnfolding(GArgReader& args)
 
 void curviness1(GArgReader& args)
 {
-	
+
 }
 
 void curviness2(GArgReader& args)
@@ -936,6 +936,35 @@ void principalComponentAnalysis(GArgReader& args)
 	pDataAfter->print(cout);
 }
 
+void scalingUnfolder(GArgReader& args)
+{
+	// Load the file and params
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	GRand prng(nSeed);
+	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
+	Holder<GNeighborFinder> hNF(pNF);
+	int targetDims = args.pop_uint();
+
+	// Parse Options
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-seed"))
+			prng.setSeed(args.pop_uint());
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	// Transform the data
+	GScalingUnfolder transform(prng);
+	transform.setNeighborCount(pNF->neighborCount());
+	transform.setTargetDims(targetDims);
+	//transform.setNeighborFinder(pNF);
+	GMatrix* pDataAfter = transform.doit(*pData);
+	Holder<GMatrix> hDataAfter(pDataAfter);
+	pDataAfter->print(cout);
+}
 
 void selfOrganizingMap(GArgReader& args){
   // Load the file
@@ -962,7 +991,7 @@ void selfOrganizingMap(GArgReader& args){
   Holder<SOM::NodeLocationInitialization> topology(new SOM::GridTopology);
   Holder<SOM::NodeWeightInitialization> weightInit
     (new SOM::NodeWeightInitializationTrainingSetSample(NULL));
-  Holder<SOM::NeighborhoodWindowFunction> 
+  Holder<SOM::NeighborhoodWindowFunction>
     windowFunc(new SOM::GaussianWindowFunction());
 
   //Loading and saving
@@ -1051,11 +1080,11 @@ void selfOrganizingMap(GArgReader& args){
   //Create the network & transform the data
   Holder<GSelfOrganizingMap> som;
   Holder<GMatrix> out;
-  
+
   if(loadFrom == ""){
     //Create map from arguments given
     som.reset(new GSelfOrganizingMap
-      (netDims, numNodes, topology.release(), algo.release(), 
+      (netDims, numNodes, topology.release(), algo.release(),
        weightDist.release(), nodeDist.release()));
     //Train the network and transform the data in place
     out.reset(som->doit(*pData));
@@ -1247,6 +1276,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("multidimensionalscaling")) multiDimensionalScaling(args);
 		else if(args.if_pop("neuropca")) neuroPCA(args);
 		else if(args.if_pop("pca")) principalComponentAnalysis(args);
+		else if(args.if_pop("scalingunfolder")) scalingUnfolder(args);
 		else if(args.if_pop("som")) selfOrganizingMap(args);
 		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
 		else throw Ex("Unrecognized command: ", args.peek());

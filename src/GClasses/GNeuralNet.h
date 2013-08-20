@@ -28,36 +28,86 @@ class LagrangeVals;
 /// Represents a layer of neurons in a neural network
 class GNeuralNetLayer
 {
+friend class GBackProp;
+friend class GNeuralNet;
 public:
+	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
+protected:
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation.
+	GActivationFunction* m_pActivationFunction;
+
+public:
+	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GNeuralNetLayer(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
 	GNeuralNetLayer(GDomNode* pNode);
 	~GNeuralNetLayer();
 
-	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation.
-	GActivationFunction* m_pActivationFunction;
-
+	/// Marshall this layer into a DOM.
 	GDomNode* serialize(GDom* pDoc);
+
+	/// Resizes this layer. Does not initialize the new weights in any way.
 	void resize(size_t inputs, size_t outputs);
+
+	/// Resizes this layer while preserving as many weight values as possible.
+	/// New weights are initialized with small random values.
 	void resizePreserve(size_t inputCount, size_t outputCount, GRand& rand);
+
+	/// Initialize the weights with small random values.
 	void resetWeights(GRand* pRand);
+
+	/// Returns the number of values expected to be fed as input into this layer.
 	size_t inputs() const { return m_weights.rows(); }
+
+	/// Returns the number of nodes or units in this layer.
 	size_t outputs() const { return m_weights.cols(); }
+
+	/// Returns the bias vector of this layer.
 	double* bias() { return m_bias[0]; }
+
+	/// Returns the bias vector of this layer.
 	const double* bias() const { return m_bias[0]; }
+
+	/// Returns the net vector (that is, the values computed before the activation function was applied)
+	/// from the most recent call to feedForward().
 	double* net() { return m_bias[1]; }
+
+	/// Returns the activation values from the most recent call to feedForward().
 	double* activation() { return m_bias[2]; }
+
+	/// Feed a vector forward through this layer. The results are placed in activation();
 	void feedForward(const double* pIn);
+
+	/// Feeds a vector forward through this layer. Uses the first value in pIn as an input bias.
 	void feedForwardWithInputBias(const double* pIn);
+
+	/// Feeds a vector forward through this layer to compute only the one specified output value.
 	void feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias);
+
+	/// Perturbs all the weights in this layer with Gaussian noise.
 	void perturbWeights(GRand& rand, double deviation);
+
+	/// Sets the weights of this layer to make it weakly approximate the identity function.
+	/// Currently only supports the logistic and identity activation functions. Throws an exception
+	/// if some other activation function is attached to this layer.
 	void setToWeaklyApproximateIdentity();
+
+	/// An experimental thing--needs more testing
+	void outputGradient(const double* pIn); // Initially, pass in direction. Assumes logistic activation. Puts results in net(). Leaves activation() alone.
+
+	/// Returns the activation function used in this layer
+	GActivationFunction* activationFunction() { return m_pActivationFunction; }
+
+	/// Takes ownership of pAF
+	void setActivationFunction(GActivationFunction* pAF);
 
 	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
 	/// that is added before the transform.
 	void transformWeights(GMatrix& transform, const double* pOffset);
+
+	/// Clips all non-bias weights to fall within the range [-max, max].
+	void clipWeights(double max);
 };
 
 
@@ -87,7 +137,6 @@ public:
 		squared_error, /// (default) best for regression
 		cross_entropy, /// best for classification
 		sign, /// uses the sign of the error, as in the perceptron training rule
-		uniform, /// sets all blame values on the output units to 1.0.
 	};
 
 protected:
@@ -213,7 +262,7 @@ public:
 	/// layers and the output layer. (The input vector does not count as a layer.)
 	size_t layerCount() const { return m_layers.size(); }
 
-	/// Returns a reference to the specified layer.
+	/// Returns a pointer to the specified layer.
 	GNeuralNetLayer* getLayer(size_t n) { return m_layers[n]; }
 
 	/// Adds new nodes at the end of the specified layer. (The new nodes are initialized
@@ -271,7 +320,7 @@ public:
 	/// the gradient descent algorithm move past some local minimums
 	void setMomentum(double d) { m_momentum = d; }
 
-	/// Returns the threshold ratio for improvement. 
+	/// Returns the threshold ratio for improvement.
 	double improvementThresh() { return m_minImprovement; }
 
 	/// Specifies the threshold ratio for improvement that must be

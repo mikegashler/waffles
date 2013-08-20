@@ -23,6 +23,12 @@ GTargetFunction::GTargetFunction(size_t dims)
 	m_pRelation = new GUniformRelation(dims, 0);
 }
 
+// virtual
+void GTargetFunction::initVector(double* pVector)
+{
+	GVec::setAll(pVector, 0.0, m_pRelation->size());
+}
+
 
 // -------------------------------------------------------
 
@@ -32,7 +38,8 @@ GOptimizer::GOptimizer(GTargetFunction* pCritic)
 {
 }
 
-/*virtual*/ GOptimizer::~GOptimizer()
+// virtual
+GOptimizer::~GOptimizer()
 {
 }
 
@@ -139,7 +146,7 @@ public:
         }
 
         GAction* GetPrev() { return m_pPrev; }
-        int GetAction() { return m_nAction; } 
+        int GetAction() { return m_nAction; }
 };
 
 // -------------------------------------------------------

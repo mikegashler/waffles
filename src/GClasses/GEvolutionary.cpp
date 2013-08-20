@@ -70,7 +70,6 @@ GEvolutionaryOptimizer::GEvolutionaryOptimizer(GTargetFunction* pCritic, size_t 
 		GEvolutionaryOptimizerNode* pNode = new GEvolutionaryOptimizerNode(dims);
 		pVec = pNode->GetVector();
 		m_pCritic->initVector(pVec);
-		m_pCritic->constrain(pVec);
 		if(m_pCritic->isStable())
 		{
 			double error = pCritic->computeError(pVec);
@@ -212,7 +211,6 @@ double GEvolutionaryOptimizer::iterate()
 			}
 			break;
 	}
-	m_pCritic->constrain(pVec);
 	if(m_pCritic->isStable())
 		recomputeError(target, pNode, pVec);
 	return m_bestErr;

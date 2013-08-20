@@ -37,9 +37,8 @@ namespace GClasses {
 
 GNeuralNetLayer::GNeuralNetLayer(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction)
 {
-	if(pActivationFunction)
-		m_pActivationFunction = pActivationFunction->clone();
-	else
+	m_pActivationFunction = pActivationFunction;
+	if(!m_pActivationFunction)
 		m_pActivationFunction = new GActivationLogistic();
 	resize(inputs, outputs);
 }
@@ -169,6 +168,28 @@ void GNeuralNetLayer::feedForwardToOneOutput(const double* pIn, size_t output, b
 	*pAct = m_pActivationFunction->squash(*pNet);
 }
 
+void GNeuralNetLayer::outputGradient(const double* pIn)
+{
+	// Compute net = pIn * m_weights + bias
+	size_t outputs = m_weights.cols();
+	double* pNet = net();
+	GVec::setAll(pNet, 0.0, outputs);
+	for(size_t i = 0; i < m_weights.rows(); i++)
+		GVec::addScaled(pNet, *(pIn++), m_weights.row(i), outputs);
+	GVec::add(pNet, bias(), outputs);
+
+	// Apply the activation function
+	double* pAct = activation();
+	for(size_t i = 0; i < outputs; i++)
+		*(pNet++) *= m_pActivationFunction->derivativeOfNet(0.0, *(pAct++));
+}
+
+void GNeuralNetLayer::setActivationFunction(GActivationFunction* pAF)
+{
+	delete(m_pActivationFunction);
+	m_pActivationFunction = pAF;
+}
+
 void GNeuralNetLayer::transformWeights(GMatrix& transform, const double* pOffset)
 {
 	if(transform.rows() != inputs())
@@ -196,12 +217,32 @@ void GNeuralNetLayer::perturbWeights(GRand& rand, double deviation)
 
 void GNeuralNetLayer::setToWeaklyApproximateIdentity()
 {
-	m_weights.setAll(0.0);
-	size_t n = std::min(inputs(), outputs());
-	for(size_t i = 0; i < n; i++)
+	if(strcmp(m_pActivationFunction->name(), "logistic") == 0)
 	{
-		m_weights[i][i] = 4.92;
-		bias()[i] = -0.5 * 4.92;
+		m_weights.setAll(0.0);
+		size_t n = std::min(inputs(), outputs());
+		for(size_t i = 0; i < n; i++)
+		{
+			m_weights[i][i] = 4.92;
+			bias()[i] = -0.5 * 4.92;
+		}
+	}
+	else if(strcmp(m_pActivationFunction->name(), "identity") == 0)
+	{
+		m_weights.makeIdentity();
+		GVec::setAll(bias(), 0.0, outputs());
+	}
+	else
+		throw Ex("Sorry, this method deoes not yet support the ", m_pActivationFunction->name(), " activation function");
+}
+
+void GNeuralNetLayer::clipWeights(double max)
+{
+	size_t outputs = m_weights.cols();
+	for(size_t j = 0; j < m_weights.rows(); j++)
+	{
+		GVec::floorValues(m_weights[j], -max, outputs);
+		GVec::capValues(m_weights[j], max, outputs);
 	}
 }
 
@@ -322,16 +363,6 @@ void GBackProp::computeBlame(const double* pTarget, size_t layer, TargetFunction
 			}
 			break;
 
-		case uniform:
-			{
-				for(size_t i = 0; i < outputs; i++)
-				{
-					*pBlame = 1.0;
-					pBlame++;
-				}
-			}
-			break;
-
 		default:
 			throw Ex("Unrecognized target function for back-propagation");
 			break;
@@ -375,10 +406,6 @@ void GBackProp::computeBlameSingleOutput(double target, size_t output, size_t la
 				*pBlame = -nnOutputLayer.m_pActivationFunction->derivativeOfNet(net, act);
 			else
 				*pBlame = 0.0;
-			break;
-
-		case uniform:
-			*pBlame = 1.0;
 			break;
 
 		default:
@@ -606,7 +633,7 @@ void GBackProp::gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGr
 	}
 	GMatrix& w = m_pNN->m_layers[0]->m_weights;
 	GAssert(outputNeuron < w.cols());
-	
+
 	double* pBlame = m_layers[0].blame();
 	if(m_pNN->useInputBias())
 		*(pOutGradient++) = -pBlame[outputNeuron];
@@ -830,7 +857,7 @@ void GNeuralNet::copyStructure(GNeuralNet* pOther)
 		throw Ex("train or beginIncrementalLearning must be called before this method");
 	clear();
 	for(size_t i = 0; i < pOther->m_layers.size(); i++)
-		m_layers.push_back(new GNeuralNetLayer(pOther->m_layers[i]->inputs(), pOther->m_layers[i]->outputs(), pOther->m_layers[i]->m_pActivationFunction));
+		m_layers.push_back(new GNeuralNetLayer(pOther->m_layers[i]->inputs(), pOther->m_layers[i]->outputs(), pOther->m_layers[i]->m_pActivationFunction->clone()));
 	m_learningRate = pOther->m_learningRate;
 	m_momentum = pOther->m_momentum;
 	m_validationPortion = pOther->m_validationPortion;
@@ -855,17 +882,7 @@ void GNeuralNet::clipWeights(double max)
 	if(!hasTrainingBegun())
 		throw Ex("train or beginIncrementalLearning must be called before this method");
 	for(size_t i = 0; i < m_layers.size(); i++)
-	{
-		GMatrix& m = m_layers[i]->m_weights;
-		size_t outputs = m.cols();
-		for(size_t j = 0; j < m.rows(); j++)
-		{
-			GVec::floorValues(m[j], -max, outputs);
-			GVec::capValues(m[j], max, outputs);
-		}
-		GVec::floorValues(m_layers[i]->bias(), -max, outputs);
-		GVec::capValues(m_layers[i]->bias(), max, outputs);
-	}
+		m_layers[i]->clipWeights(max);
 }
 
 void GNeuralNet::invertNode(size_t layer, size_t node)
@@ -1059,7 +1076,7 @@ void GNeuralNet::bleedWeights(double alpha)
 			size_t dsOutputs = layDownStream.outputs();
 			GMatrix& dsW = layDownStream.m_weights;
 			double sswDownStream = GVec::squaredMagnitude(dsW[j], dsOutputs);
-			
+
 			// Compute sum-squared weights in this layer
 			double sswUpStream = 0.0;
 			GNeuralNetLayer& layUpStream = *m_layers[i];
@@ -2038,7 +2055,7 @@ GNeuralNetPseudoInverse::GNeuralNetPseudoInverse(GNeuralNet* pNN, double padding
 		maxNodes = std::max(maxNodes, nnLayer.outputs());
 		GNeuralNetInverseLayer* pLayer = new GNeuralNetInverseLayer();
 		m_layers.push_back(pLayer);
-		pLayer->m_pActivationFunction = nnLayer.m_pActivationFunction;
+		pLayer->m_pActivationFunction = nnLayer.activationFunction()->clone();
 		GMatrix weights(nnLayer.outputs(), nnLayer.inputs());
 		double* pBias = nnLayer.bias();
 		GMatrix& weightsIn = nnLayer.m_weights;
@@ -2049,7 +2066,7 @@ GNeuralNetPseudoInverse::GNeuralNetPseudoInverse(GNeuralNet* pNN, double padding
 			for(size_t k = 0; k < nnLayer.inputs(); k++)
 			{
 				*(pRow++) = weightsIn[k][j];
-				unbias -= nnLayer.m_pActivationFunction->center() * weightsIn[k][j];
+				unbias -= nnLayer.activationFunction()->center() * weightsIn[k][j];
 			}
 			pLayer->m_unbias.push_back(unbias);
 		}

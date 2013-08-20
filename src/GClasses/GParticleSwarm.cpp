@@ -11,8 +11,6 @@ GParticleSwarm::GParticleSwarm(GTargetFunction* pCritic, size_t nPopulation, dou
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pCritic->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_dLearningRate = .2;
 	m_nDimensions = pCritic->relation()->size();
 	m_nPopulation = nPopulation;

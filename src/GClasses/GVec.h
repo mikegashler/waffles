@@ -131,7 +131,7 @@ public:
 
 	/// Raises each element of pVector to the exponent dScalar
 	static void pow(double* pVector, double dScalar, size_t nDims);
-	
+
 	/// Multiplies each element in pDest by the corresponding element in pOther
 	static void pairwiseMultiply(double* pDest, double* pOther, size_t dims);
 
@@ -306,6 +306,33 @@ public:
 	/// elements that remain in "it".
 	static void deserialize(size_t* pVec, GDomListIterator& it);
 };
+
+
+/// This class iterates over all the integer values from 0 to length-1 in random order.
+class GRandomIndexIterator
+{
+protected:
+	size_t m_length;
+	size_t* m_pIndexes;
+	size_t* m_pCur;
+	size_t* m_pEnd;
+	GRand& m_rand;
+
+public:
+	/// General-purpose constructor. This constructor does not call reset(). You should
+	/// probably call reset() before you call next() for the first time.
+	GRandomIndexIterator(size_t length, GRand& rand);
+	~GRandomIndexIterator();
+
+	/// Shuffles the order of the indexes, and starts the iterator over at the beginning.
+	void reset();
+
+	/// If the end of the list has been reached, returns false. Otherwise, sets outIndex
+	/// to the next index, and returns true. (Note that you should call reset() before
+	/// the first call to this method. The constructor does not call reset() for you.)
+	bool next(size_t& outIndex);
+};
+
 
 
 /// An iterator for an n-dimensional coordinate vector. For example, suppose you have

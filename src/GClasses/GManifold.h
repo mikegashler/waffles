@@ -231,7 +231,7 @@ public:
 	GLLE(size_t neighborCount, size_t targetDims, GRand* pRand);
 	GLLE(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GLLE();
-	
+
 	/// Serialize this object
 	GDomNode* serialize(GDom* pDoc) const;
 
@@ -513,6 +513,37 @@ public:
 	size_t labelDims();
 };
 
+
+
+/// This is a nonlinear dimensionality reduction algorithm loosely inspired by
+/// Maximum Variance Unfolding. It iteratively scales up the data, then restores
+/// distances between neighbors. (It doesn't work very well yet--needs some adjusting.)
+class GScalingUnfolder : public GManifoldLearner
+{
+protected:
+	size_t m_neighborCount;
+	size_t m_targetDims;
+	double m_learningRate;
+	double m_scaleRate;
+	double m_keepRatio;
+	size_t m_epochs;
+	size_t m_windowSize;
+	double m_windowImprovement;
+	GRand& m_rand;
+
+public:
+	GScalingUnfolder(GRand& m_rand);
+	GScalingUnfolder(GDomNode* pNode, GLearnerLoader& ll);
+	virtual ~GScalingUnfolder();
+
+	/// Specify the number of neighbors to use. (The default is 14.)
+	void setNeighborCount(size_t n) { m_neighborCount = n; }
+
+	/// Specify the number of dimensions in the output results
+	void setTargetDims(size_t n) { m_targetDims = n; }
+
+	virtual GMatrix* doit(GMatrix& in);
+};
 
 
 
