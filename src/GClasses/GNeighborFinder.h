@@ -148,7 +148,7 @@ public:
 	/// true, then the neighborFinder takes responsibility for
 	/// deleting the metric, otherwise it is the caller's
 	/// responsibility.
-	GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric);
+	GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 
 	virtual ~GNeighborFinderGeneralizing();
 
@@ -183,7 +183,7 @@ public:
 class GBruteForceNeighborFinder : public GNeighborFinderGeneralizing
 {
 public:
-	GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric);
+	GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GBruteForceNeighborFinder();
 
 	/// Add a point-vector
@@ -217,7 +217,7 @@ protected:
 	GKdNode* m_pRoot;
 
 public:
-	GKdTree(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric);
+	GKdTree(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GKdTree();
 
 #ifndef NO_TEST_CODE

@@ -1633,9 +1633,9 @@ void SplitTest(GArgReader& args)
 	cout << "Mean squared error: " << to_str(sumMSE / reps) << "\n";
 }
 
-void CrossValidateCallback(void* pSupLearner, size_t nRep, size_t nFold, size_t labelDims, double foldMSE)
+void CrossValidateCallback(void* pSupLearner, size_t nRep, size_t nFold, double foldSSE, size_t rows)
 {
-	cout << "Rep: " << nRep << ", Fold: " << nFold <<", Mean squared error: " << to_str(foldMSE) << "\n";
+	cout << "Rep: " << nRep << ", Fold: " << nFold <<", Mean squared error: " << to_str(foldSSE / rows) << "\n";
 }
 
 void CrossValidate(GArgReader& args)
@@ -1678,10 +1678,10 @@ void CrossValidate(GArgReader& args)
 
 	// Test
 	cout.precision(8);
-	double mse = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, succinct ? NULL : CrossValidateCallback, pSupLearner) / pFeatures->rows();
+	double sse = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, succinct ? NULL : CrossValidateCallback, pSupLearner);
 	if(!succinct)
 		cout << "Mean squared error: ";
-	cout << to_str(mse);
+	cout << to_str(sse / pFeatures->rows());
 	if(!succinct)
 		cout << "\n";
 }

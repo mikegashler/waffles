@@ -417,7 +417,7 @@ double GTransducer::crossValidate(GMatrix& features, GMatrix& labels, size_t fol
 		double foldsse = trainAndTest(trainFeatures, trainLabels, testFeatures, testLabels);
 		sse += foldsse;
 		if(pCB)
-			pCB(pThis, nRep, i, labels.cols(), foldsse);
+			pCB(pThis, nRep, i, foldsse, testLabels.rows());
 	}
 	return sse;
 }
