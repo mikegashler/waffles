@@ -1,0 +1,270 @@
+/*
+	Copyright (C) 2013, Mike Gashler
+
+	This library is free software; you can redistribute it and/or
+	modify it under the terms of the GNU Lesser General Public
+	License as published by the Free Software Foundation; either
+	version 2.1 of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/lesser.html
+*/
+
+#ifndef __GDEEPNET_H__
+#define __GDEEPNET_H__
+
+#include "GMatrix.h"
+
+namespace GClasses {
+
+class GRand;
+
+
+/// Abstract parent class of network layers that are suitable for stacking to form a deep network
+class GDeepNetLayer
+{
+protected:
+	size_t m_hiddenCount;
+	size_t m_visibleCount;
+	GRand& m_rand;
+
+public:
+	/// General-purpose constructor
+	GDeepNetLayer(size_t hidden, size_t visible, GRand& rand);
+	virtual ~GDeepNetLayer();
+
+	/// Returns the number of visible units
+	size_t visibleCount() { return m_visibleCount; }
+
+	/// Returns the number of hidden units
+	size_t hiddenCount() { return m_hiddenCount; }
+
+	/// Trains this layer in an unsupervised manner
+	void trainUnsupervised(const GMatrix& observations, size_t epochs = 100, double initialLearningRate = 0.1, double decay = 0.97);
+
+	/// Map observations through this layer to generate a matrix suitable for training the layer that feeds into this layer
+	GMatrix* mapToHidden(const GMatrix& observations);
+
+	/// Return a vector of hidden activation values
+	virtual double* activationHidden() = 0;
+
+	/// Return a vector of visible activation values
+	virtual double* activationVisible() = 0;
+
+	/// Return a vector of hidden blame values
+	virtual double* blameHidden() = 0;
+
+	/// Return a vector of visible blame values
+	virtual double* blameVisible() = 0;
+
+	/// Feeds pVisible backward through this layer to generate a hidden vector
+	/// The result can be retrieved by calling activationHidden().
+	virtual void propToHidden(const double* pVisible) = 0;
+
+	/// Feeds pHidden forward through this layer to generate a predicted visible vector
+	/// The result can be retrieved by calling activationVisible().
+	virtual void propToVisible(const double* pHidden) = 0;
+
+	/// Draws a sample from this layer at the end of an MCMC chain of length iters.
+	/// The result can be retrieved by calling activationVisible().
+	virtual void draw(size_t iters) = 0;
+
+	/// Present pVisible to this layer for training in an on-line manner.
+	virtual void update(const double* pVisible, double learningRate) = 0;
+
+	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
+	virtual void backpropHelper1(const double* pInputs, double* pInputBlame, double learningRate) = 0;
+
+	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
+	virtual void backpropHelper2(const double* pInputs, double* pInputBlame, double learningRate) = 0;
+};
+
+
+
+
+/// Implements a restricted boltzmann machine (RBM).
+class GRestrictedBoltzmannMachine : public GDeepNetLayer
+{
+protected:
+	GMatrix m_w;
+	GMatrix m_delta;
+	double* m_biasHidden;
+	double* m_biasVisible;
+	double* m_activationHidden;
+	double* m_activationVisible;
+	double* m_blameHidden;
+	double* m_blameVisible;
+
+public:
+	GRestrictedBoltzmannMachine(size_t hidden, size_t visible, GRand& rand);
+	~GRestrictedBoltzmannMachine();
+
+	/// Returns the vector of blame terms
+	virtual double* blameHidden() { return m_blameHidden; }
+
+	/// Returns the vector of blame terms
+	virtual double* blameVisible() { return m_blameVisible; }
+
+	/// Returns the vector of hidden activation values.
+	virtual double* activationHidden() { return m_activationHidden; }
+
+	/// Returns the vector of hidden activation values.
+	virtual double* activationVisible() { return m_activationVisible; }
+
+	/// Propagates to compute the hidden activations.
+	virtual void propToHidden(const double* pObserved);
+
+	/// Propagates to compute the visibile activations.
+	virtual void propToVisible(const double* pHidden);
+
+	/// Assumes the visible activations have already been set. Returns an inferred sample of the hiddens.
+	void sampleHidden();
+
+	/// Assumes the hidden activations have already been set. Returns an inferred sample of the visibles.
+	void sampleVisible();
+
+	/// Sets the hidden activations to random values, then iterates the specified number of times
+	virtual void draw(size_t iters);
+
+	/// Computes the free energy for the given observation.
+	double freeEnergy(const double* pVisibleSample);
+
+	/// Update the weights by contrastive divergence.
+	void contrastiveDivergenceUpdate(const double* pVisibleSample, double learningRate, double momentum, size_t gibbsSamples = 1);
+
+	/// Update the weights in the maximum likelihood manner.
+	void maximumLikelihoodUpdate(const double* pVisibleSample, double learningRate, double momentum);
+
+	/// Present a single visible vector, and update all the weights by on-line gradient descent.
+	virtual void update(const double* pVisible, double learningRate);
+
+	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
+	virtual void backpropHelper1(const double* pInputs, double* pInputBlame, double learningRate);
+
+	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
+	virtual void backpropHelper2(const double* pInputs, double* pInputBlame, double learningRate);
+};
+
+
+
+/// A stackable autoencoder. It can be thought of as two single-layer perceptrons, one that goes in each direction
+/// between the hidden and visible layers. It differs from a Restricted Boltzmann Machine (RBM) in that it uses a
+/// separate weights matrix for each of the two directions, instead of using the same weights matrix for both
+/// directions, as the RBM does.
+class GStackableAutoencoder : public GDeepNetLayer
+{
+protected:
+	GMatrix m_weightsEncode; // The weights that map from the input to the hidden layer
+	GMatrix m_weightsDecode; // The weights that map from the hidden to the output layer
+	GMatrix m_biasHidden; // The bias and activation values for the hidden layer
+	GMatrix m_biasVisible; // The bias and activation values for the output layer
+	double m_noiseDeviation;
+
+public:
+	/// General-purpose constructor
+	GStackableAutoencoder(size_t hidden, size_t visible, GRand& rand);
+	~GStackableAutoencoder();
+
+	/// Returns the number of visible units
+	virtual size_t visibleCount() { return m_visibleCount; }
+
+	/// Returns the number of hidden units
+	virtual size_t hiddenCount() { return m_hiddenCount; }
+
+	/// Train this autoencoder to denoise by injecting Gaussian noise with
+	/// the specified deviation into all training observations.
+	void denoise(double deviation) { m_noiseDeviation = deviation; }
+
+	/// Returns the vector of hidden biases.
+	double* biasHidden() { return m_biasHidden[0]; }
+
+	/// Returns the vector of visible biases.
+	double* biasVisible() { return m_biasVisible[0]; }
+
+	/// Returns the weights for the encoder
+	GMatrix& weightsEncode() { return m_weightsEncode; }
+
+	/// Returns the weights for the decoder
+	GMatrix& weightsDecode() { return m_weightsDecode; }
+
+	/// Returns the vector of blame terms
+	virtual double* blameHidden() { return m_biasHidden[2]; }
+
+	/// Returns the vector of blame terms
+	virtual double* blameVisible() { return m_biasVisible[2]; }
+
+	/// Returns the vector of hidden activation values.
+	virtual double* activationHidden() { return m_biasHidden[1]; }
+
+	/// Returns the vector of hidden activation values.
+	virtual double* activationVisible() { return m_biasVisible[1]; }
+
+	/// Computes a hidden vector from the given visible vector
+	virtual void propToHidden(const double* pVisible);
+
+	/// Computes a visible vector from the given hidden vector
+	virtual void propToVisible(const double* pHidden);
+
+	/// Draws a random sample from this layer
+	virtual void draw(size_t iters);
+
+	/// Present a single visible vector, and update all the weights by on-line gradient descent.
+	virtual void update(const double* pVisible, double learningRate);
+
+	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
+	virtual void backpropHelper1(const double* pInputs, double* pInputBlame, double learningRate);
+
+	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
+	virtual void backpropHelper2(const double* pInputs, double* pInputBlame, double learningRate);
+};
+
+
+
+/// A collection of GDeepNetLayer instances.
+class GDeepNet
+{
+protected:
+	std::vector<GDeepNetLayer*> m_layers; // the last layer is the visible end
+	GRand& m_rand;
+
+public:
+	GDeepNet(GRand& rand);
+	virtual ~GDeepNet();
+
+#ifndef MIN_PREDICT
+	/// Run some unit tests. Throws an exception if any tests fail.
+	static void test();
+#endif
+
+	/// Adds a new layer to this deep net. Takes ownership of pNewLayer.
+	/// The new layer is added at the end farthest from the visible end.
+	void addLayer(GDeepNetLayer* pNewLayer);
+
+	/// Draw a sample from the hidden-most layer, then feed it forward through
+	/// all the layers to return a sample predicted observation.
+	double* draw(size_t iters);
+
+	/// Feed pIntrinsic forward through all the layers to return a predicted observation.
+	double* forward(const double* pIntrinsic);
+
+	/// Feed pObserved backward through all the layers to return a predicted intrinsic representation.
+	double* backward(const double* pObserved);
+
+	/// This performs greedy layer-wise training. That is, it trains each layer (starting with the
+	/// visible end) for many epochs, then maps the data through the layer, and trains the next layer,
+	/// until all layers have been trained. Typically, this is done as a pre-processing step to find
+	/// a good set of initial weights for the deep network.
+	void trainLayerwise(GMatrix& observations, size_t epochs = 100, double initialLearningRate = 0.1, double decay = 0.97);
+
+	/// Present a single observation to refine all of the layers by backpropagation. (Note that this only
+	/// refines the forward-direction component of the layers. Its effect on backward-direction effectiveness
+	/// may not be good.)
+	void refineBackprop(const double* pObservation, double learningRate);
+};
+
+
+
+
+
+} // namespace GClasses
+
+#endif // __GDEEPNET_H__

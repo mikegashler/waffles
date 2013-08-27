@@ -371,7 +371,7 @@ void GVec::multiply(double* pVector, double dScalar, size_t nDims)
 	}
 }
 
-//static 
+//static
 void GVec::pow(double* pVector, double dScalar, size_t nDims)
 {
 	for(size_t i = 0; i < nDims; i++)
@@ -897,8 +897,36 @@ void GIndexVec::deserialize(size_t* pVec, GDomListIterator& it)
 
 
 
+GRandomIndexIterator::GRandomIndexIterator(size_t length, GRand& rand)
+: m_length(length), m_rand(rand)
+{
+	m_pIndexes = new size_t[length];
+	size_t* pInd = m_pIndexes;
+	for(size_t i = 0; i < length; i++)
+		*(pInd++) = i;
+	m_pEnd = m_pIndexes + length;
+	m_pCur = m_pEnd;
+}
 
+GRandomIndexIterator::~GRandomIndexIterator()
+{
+	delete[] m_pIndexes;
+}
 
+void GRandomIndexIterator::reset()
+{
+	for(size_t i = m_length; i > 1; i--)
+		std::swap(m_pIndexes[i - 1], m_pIndexes[m_rand.next(i)]);
+	m_pCur = m_pIndexes;
+}
+
+bool GRandomIndexIterator::next(size_t& outIndex)
+{
+	if(m_pCur == m_pEnd)
+		return false;
+	outIndex = *(m_pCur++);
+	return true;
+}
 
 
 

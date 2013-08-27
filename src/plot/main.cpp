@@ -274,7 +274,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			else
 				throw Ex("Invalid neighbor finder option: ", args.peek());
 		}
-	
+
 		// Parse required algorithms
 		if(_stricmp(alg, "bruteforce") == 0)
 		{
@@ -305,7 +305,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		}
 		else
 			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
-	
+
 		// Normalize
 		if(normalize)
 		{
@@ -314,7 +314,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			pNF2->normalizeDistances();
 			pNF = pNF2;
 		}
-	
+
 		// Apply CycleCut
 		if(cutCycleLen > 0)
 		{
@@ -708,7 +708,7 @@ public:
 			else if(args.if_pop("-thickness"))
 				m_thickness = args.pop_double();
 			else
-				throw Ex("unrecognized flag", args.pop_string());
+				throw Ex("unrecognized flag ", args.pop_string());
 		}
 	}
 
@@ -875,7 +875,7 @@ void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axis
 			if((horiz && cols[i].m_attrX == cols[i - 1].m_attrX) || (!horiz && cols[i].m_attrY == cols[i - 1].m_attrY))
 				continue;
 		}
-		
+
 		// Determine the label
 		string sLabel;
 		size_t attr = horiz ? cols[i].m_attrX : cols[i].m_attrY;
@@ -1066,7 +1066,7 @@ void PlotScatter(GArgReader& args)
 		else if(args.if_pop("-aspect"))
 			aspect = true;
 		else
-			throw Ex("unrecognized flag", args.pop_string());
+			throw Ex("unrecognized flag ", args.pop_string());
 	}
 
 	if(margin == (size_t)-1)
@@ -1206,7 +1206,7 @@ void semanticMap(GArgReader& args){
   double maxDim = *(max_element(axes.begin(), axes.end()));
   double scale = ((100*maxDim) > 800)?100:800/maxDim;
   const double shift = scale/2;
-  double ax0 = axes[0]; 
+  double ax0 = axes[0];
   double ax1 = (axes.size() == 1)?1:axes[1];
   out << "<?xml version=\"1.0\" standalone=\"no\"?>\n"
       << "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n"
@@ -1214,15 +1214,15 @@ void semanticMap(GArgReader& args){
       << "<svg viewbox=\"0 0 "
       << ax0*scale+shift << " " << ax1*scale+shift
       << "\" preserveAspectRatio=\"xMinYMin\"\n"
-      << "     width=\""<< ax0*scale+shift << "px\" height=\"" 
+      << "     width=\""<< ax0*scale+shift << "px\" height=\""
       << ax1*scale+shift << "px\"\n"
       << "     xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">\n"
       << "<desc>Semantic map of the self-organizing map stored in \n"
-      << "      \"" << somFile << "\"\n" 
+      << "      \"" << somFile << "\"\n"
       << "      using data from \"" << dataFile << "\"\n"
       << "      Original filename: \"" << outFilename << "\"\n";
   if(som.outputDimensions() == 2){
-    out << "      Plotting output dimensions " << 0 << " and " 
+    out << "      Plotting output dimensions " << 0 << " and "
 	<< 1 << " as (x,y) coordinates.\n";
   }else{
     assert(som.outputDimensions() == 1);
@@ -1269,7 +1269,7 @@ void semanticMap(GArgReader& args){
       lessColumns->deleteColumn(lessColumns->cols()-1);
     }
     vector<size_t> bestData = som.bestData(lessColumns.get());
-  
+
     std::vector<double> labelColumn(hData->rows());
     hData->col(labelCol, &(labelColumn.at(0)));
     for(size_t node = 0; node < som.nodes().size(); ++node){
@@ -1279,7 +1279,7 @@ void semanticMap(GArgReader& args){
   //Calculate min and max for color coding
   double minLabel = *std::min_element(labels.begin(), labels.end());
   double maxLabel = *std::max_element(labels.begin(), labels.end());
-  double labelRange = maxLabel-minLabel;  
+  double labelRange = maxLabel-minLabel;
   if(labelRange == 0){ labelRange = 1; }
 
   //Write the actual map
@@ -1297,7 +1297,7 @@ void semanticMap(GArgReader& args){
     out << "fill=\"rgb(" << red << ",0," << blue << ")\">";
     out << label << "</text>\n";
   }
-  
+
   //Close the svg
   out << "</svg>\n";
 
@@ -1458,8 +1458,8 @@ void PrintStats(GArgReader& args)
 				for(size_t j = 0; j < pRel->valueCount(i); j++)
 				{
 					size_t occurrences = pData->countValue(i, (double)j);
-					cout << "     " 
-							 << ((double)occurrences * 100.0 / (double)pData->rows()) 
+					cout << "     "
+							 << ((double)occurrences * 100.0 / (double)pData->rows())
 							 << "% (" << occurrences << ") ";
 					pRel->printAttrValue(cout, i, (double)j);
 					cout << "\n";
@@ -1505,21 +1505,21 @@ void percentSame(GArgReader& args){
 	       "identical values for empty files.");
   }
   for(size_t i = 0; i < cols; ++i){
-    if(hData1->relation()->valueCount(i) != 
+    if(hData1->relation()->valueCount(i) !=
        hData2->relation()->valueCount(i)){
       size_t v1 = hData1->relation()->valueCount(i);
       size_t v2 = hData2->relation()->valueCount(i);
       std::stringstream msg;
       msg << "The two files have different attribute types at "
 	  << "attribute index " << i << ".  The first file has ";
-      if(v1 == 0){ 
+      if(v1 == 0){
 	msg << "a continuous attribute.  ";
       }else{
 	msg << "a nominal attribute with " << v1 << " values.  ";
       }
-      
+
       msg << "The second file has ";
-      if(v2 == 0){ 
+      if(v2 == 0){
 	msg << "a continuous attribute.";
       }else{
 	msg << "a nominal attribute with " << v2 << " values.";
@@ -1543,7 +1543,7 @@ void percentSame(GArgReader& args){
   for(size_t col = 0; col < cols; ++col){
     pctSame[col] = 100.0 * (double)numSame[col] / rows;
   }
-  
+
   //Print
   for(size_t col = 0; col < cols; ++col){
     cout << pctSame[col] << " %  ";

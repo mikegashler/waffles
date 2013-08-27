@@ -396,7 +396,7 @@ class GActivationGaussian : public GActivationFunction
 public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "gaussian"; }
-	
+
 	virtual double squash(double x) { return exp(-(x * x)); }
 
 	virtual double derivative(double x) { return -2.0 * x * exp(-(x * x)); }
@@ -425,7 +425,7 @@ class GActivationSinc : public GActivationFunction
 public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "sinc"; }
-	
+
 	virtual double squash(double x) { return x == 0 ? 1.0 : sin(x) / x; }
 
 	virtual double derivative(double x) { return x == 0 ? 0.0 : cos(x) / x - sin(x) / (x * x); }
@@ -444,6 +444,51 @@ public:
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationSinc(); }
+};
+
+
+/// Uses the derivative of the logistic function as an activation function.
+class GActivationLogisticDerivative : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "logisticderiv"; }
+
+	/// The derivative of the logistic function.
+	virtual double squash(double x)
+	{
+		if(x >= 700.0) // Don't trigger a floating point exception
+			return 0.0;
+		if(x < -700.0) // Don't trigger a floating point exception
+			return 0.0;
+		double y = 1.0 / (exp(-x) + 1.0);
+		return y * (1.0 - y);
+	}
+
+	/// Returns d*(1.0-d), where d=squash(x)
+	virtual double derivative(double x) { double d = squash(x); return d * (1.0 - d) * (1.0 - 2.0 * d); }
+
+	/// The logit function. Returns log(y)-log(1.0-y)
+	virtual double inverse(double y)
+	{
+		throw Ex("This function is not easily invertible");
+	}
+
+	/// Returns y*(1.0-y)
+	virtual double derivativeOfNet(double net, double activation)
+	{
+		double t = 1.0 - 2.0 / (exp(-net) + 1.0);
+		return activation * t;
+	}
+
+	/// Returns 0.5
+	virtual double center() { return 0.5; }
+
+	/// Returns 0.5
+	virtual double halfRange() { return 0.5; }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationLogisticDerivative(); }
 };
 
 

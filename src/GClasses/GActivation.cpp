@@ -48,6 +48,8 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 		return new GActivationSinc();
 	else if(strcmp(szName, "piecewise") == 0)
 		return new GActivationPiecewise();
+	else if(strcmp(szName, "logisticderiv") == 0)
+		return new GActivationLogisticDerivative();
 	else
 		throw Ex("Unrecognized activation function: ", szName);
 	return NULL;

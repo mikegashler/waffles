@@ -38,33 +38,21 @@ public:
 	/// (discrete or real) of each element in the vector that is being optimized.
 	sp_relation& relation() { return m_pRelation; }
 
-	/// Return true if computeError is completely deterministic with respect to
-	/// the vector being optimized. Return false if the error also depends on some
+	/// This method should return true if computeError is deterministic with respect to
+	/// the vector being optimized. It should return false if the error depends on some
 	/// state other than the vector being optimized. This mostly affects whether
 	/// the optimization algorithms are permitted to remember old error values for
-	/// efficiency purposes.
-	virtual bool isStable() = 0;
+	/// efficiency purposes. Stable is assumed, so you should override this method if
+	/// your target function is not stable.
+	virtual bool isStable() { return true; }
 
-	/// Return true if this function is constrained to only support certain vectors.
-	virtual bool isConstrained() = 0;
-
-	/// Sets pVector to an initial guess
-	virtual void initVector(double* pVector) = 0;
+	/// Sets pVector to an initial guess. The default behavior is to initialize the
+	/// vector to all zeros. You should override this method if different behavior
+	/// is desired.
+	virtual void initVector(double* pVector);
 
 	/// Computes the error of the given vector using all patterns
 	virtual double computeError(const double* pVector) = 0;
-
-	/// Estimates the error of the given vector using a single (usually randomly selected) pattern
-	virtual double computeErrorOnline(const double* pVector, size_t nPattern)
-	{
-		throw Ex("This critic doesn't support online evaluation");
-		return 0.0;
-	}
-
-	/// Adjust pVector to the nearest vector that fits the constraints
-	virtual void constrain(double* pVector)
-	{
-	}
 };
 
 

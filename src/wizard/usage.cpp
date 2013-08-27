@@ -576,6 +576,13 @@ UsageNode* makeDimRedUsageTree()
 		pIsomap->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
 		pIsomap->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
+	{
+		UsageNode* SU = pRoot->add("scalingunfolder [dataset] [neighbor-finder] [target_dims] <options>", "Use the ScalingUnfolder algorithm to reduce dimensionality. (This algorithm was inspired by Maximum Variance Unfolding (MVU). It iteratively scales up the data, then restores distances in local neighborhoods. Unlike MVU, however, it does not use semidefinite programming.)");
+		UsageNode* pOpts = SU->add("<options>");
+		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		SU->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		SU->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
+	}
 	UsageNode* pSOM = pRoot->add
 	  ("som [dataset] [dimensions] <options>",
 	   "Give the output of a Kohonen self-organizing map with the given "
@@ -623,7 +630,7 @@ UsageNode* makeDimRedUsageTree()
 		       "numIter data point presentations.");
 	  }
 	}
-	
+
 	{
 		UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pLLE->add("<options>");
@@ -950,7 +957,7 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pTest = pRoot->add("test <options> [model-file] [dataset] <data_opts>", "Test a trained model using some test data. Results are printed to stdout for each dimension in the label vector. Predictive accuracy is reported for nominal label dimensions, and mean-squared-error is reported for continuous label dimensions.");
 		UsageNode* pOpts = pTest->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");		
+		pOpts->add("-confusion", "Print a confusion matrix for each nominal label attribute.");
 		pOpts->add("-confusioncsv", "Print a confusion matrix in comma-separated value format for each nominal label attribute.");
 		pTest->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
 		pTest->add("[dataset]=test.arff", "The filename of a test dataset. (This dataset must have the same number of columns as the dataset with which the model was trained.)");

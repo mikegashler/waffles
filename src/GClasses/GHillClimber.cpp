@@ -24,8 +24,6 @@ GMomentumGreedySearch::GMomentumGreedySearch(GTargetFunction* pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pCritic->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_nDimensions = pCritic->relation()->size();
 	m_nCurrentDim = 0;
 	m_pVector = new double[2 * m_nDimensions];
@@ -102,7 +100,7 @@ GHillClimber::GHillClimber(GTargetFunction* pCritic)
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDims = pCritic->relation()->size();
-	m_pVector = new double[(2 + (m_pCritic->isConstrained() ? 1 : 0)) * m_nDims];
+	m_pVector = new double[2 * m_nDims];
 	m_pStepSizes = m_pVector + m_nDims;
 	m_dChangeFactor = .83;
 	m_pAnnealCand = NULL;
@@ -119,7 +117,6 @@ void GHillClimber::reset()
 {
 	setStepSizes(0.1);
 	m_pCritic->initVector(m_pVector);
-	m_pCritic->constrain(m_pVector);
 	if(m_pCritic->isStable())
 		m_dError = m_pCritic->computeError(m_pVector);
 	else
@@ -138,174 +135,81 @@ double* GHillClimber::stepSizes()
 
 /*virtual*/ double GHillClimber::iterate()
 {
-	if(m_pCritic->isConstrained())
+	double decel, accel, decScore, accScore;
+	for(size_t dim = 0; dim < m_nDims; dim++)
 	{
-		double* pTemp = m_pStepSizes + m_nDims;
-		double decel, accel, decScore, accScore;
-		for(size_t dim = 0; dim < m_nDims; dim++)
+		decel = m_pStepSizes[dim] * m_dChangeFactor;
+		if(std::abs(decel) < 1e-16)
+			decel = 0.1;
+		accel = m_pStepSizes[dim] / m_dChangeFactor;
+		if(std::abs(accel) > 1e14)
+			accel = 0.1;
+		if(!m_pCritic->isStable())
+			m_dError = m_pCritic->computeError(m_pVector); // Current spot
+		m_pVector[dim] += decel;
+		decScore = m_pCritic->computeError(m_pVector); // Forward decelerated
+		m_pVector[dim] -= decel; // undo
+		m_pVector[dim] += accel;
+		accScore = m_pCritic->computeError(m_pVector); // Forward accelerated
+		if(m_dError < decScore && m_dError < accScore)
 		{
-			decel = m_pStepSizes[dim] * m_dChangeFactor;
-			if(std::abs(decel) < 1e-16)
-				decel = 0.1;
-			accel = m_pStepSizes[dim] / m_dChangeFactor;
-			if(std::abs(accel) > 1e14)
-				accel = 0.1;
-			if(!m_pCritic->isStable())
-				m_dError = m_pCritic->computeError(m_pVector); // Current spot
-			GVec::copy(pTemp, m_pVector, m_nDims);
-			pTemp[dim] += decel;
-			m_pCritic->constrain(pTemp);
-			decScore = m_pCritic->computeError(pTemp); // Forward declerated
-			GVec::copy(pTemp, m_pVector, m_nDims);
-			pTemp[dim] += accel;
-			m_pCritic->constrain(pTemp);
-			accScore = m_pCritic->computeError(pTemp); // Forward accelerated
+			m_pVector[dim] -= accel; // undo
+			m_pVector[dim] -= decel;
+			decScore = m_pCritic->computeError(m_pVector); // Reverse decelerated
+			m_pVector[dim] += decel; // undo
+			m_pVector[dim] -= accel;
+			accScore = m_pCritic->computeError(m_pVector); // Reverse accelerated
 			if(m_dError < decScore && m_dError < accScore)
 			{
-				GVec::copy(pTemp, m_pVector, m_nDims);
-				pTemp[dim] -= decel;
-				m_pCritic->constrain(pTemp);
-				decScore = m_pCritic->computeError(pTemp); // Reverse decelerated
-				GVec::copy(pTemp, m_pVector, m_nDims);
-				pTemp[dim] -= accel;
-				m_pCritic->constrain(pTemp);
-				accScore = m_pCritic->computeError(pTemp); // Reverse accelerated
-				if(m_dError < decScore && m_dError < accScore)
-				{
-					// Stay put and decelerate
-					m_pStepSizes[dim] = decel;
-				}
-				else if(decScore < accScore)
-				{
-					// Reverse and decelerate
-					m_pVector[dim] -= decel;
-					m_pCritic->constrain(m_pVector);
-					m_dError = decScore;
-					m_pStepSizes[dim] = -decel;
-				}
-				else
-				{
-					// Reverse and accelerate
-					m_pVector[dim] -= accel;
-					m_pCritic->constrain(m_pVector);
-					m_dError = accScore;
-					m_pStepSizes[dim] = -accel;
-				}
+				// Stay put and decelerate
+				m_pVector[dim] += accel;
+				m_pStepSizes[dim] = decel;
 			}
 			else if(decScore < accScore)
 			{
-				// Forward and decelerate
-				m_pVector[dim] += decel;
-				m_pCritic->constrain(m_pVector);
+				// Reverse and decelerate
+				m_pVector[dim] += accel;
+				m_pVector[dim] -= decel;
 				m_dError = decScore;
-				m_pStepSizes[dim] = decel;
+				m_pStepSizes[dim] = -decel;
 			}
-			else if(decScore == accScore)
+			else
 			{
-				if(m_dError == decScore)
-				{
-					// Neither accelerate nor decelerate. If we're on a temporary plateau
-					// on the target function, slowing down would be bad because we might
-					// never get off the plateau. If we're at the max error, speeding up
-					// would be bad, because we'd just run off to infinity.
-					m_pVector[dim] += accel;
-					m_pCritic->constrain(m_pVector);
-				}
-				else
-				{
-					// Forward and accelerate
-					m_dError = accScore;
-					m_pStepSizes[dim] = accel;
-				}
+				// Reverse and accelerate
+				m_dError = accScore;
+				m_pStepSizes[dim] = -accel;
+			}
+		}
+		else if(decScore < accScore)
+		{
+			// Forward and decelerate
+			m_pVector[dim] -= accel;
+			m_pVector[dim] += decel;
+			m_dError = decScore;
+			m_pStepSizes[dim] = decel;
+		}
+		else if(decScore == accScore)
+		{
+			if(m_dError == decScore)
+			{
+				// Neither accelerate nor decelerate. If we're on a temporary plateau
+				// on the target function, slowing down would be bad because we might
+				// never get off the plateau. If we're at the max error, speeding up
+				// would be bad, because we'd just run off to infinity. We will, however
+				// move at the accelerated rate, just so we're going somewhere.
 			}
 			else
 			{
 				// Forward and accelerate
-				m_pVector[dim] += accel;
-				m_pCritic->constrain(m_pVector);
 				m_dError = accScore;
 				m_pStepSizes[dim] = accel;
 			}
 		}
-	}
-	else
-	{
-		double decel, accel, decScore, accScore;
-		for(size_t dim = 0; dim < m_nDims; dim++)
+		else
 		{
-			decel = m_pStepSizes[dim] * m_dChangeFactor;
-			if(std::abs(decel) < 1e-16)
-				decel = 0.1;
-			accel = m_pStepSizes[dim] / m_dChangeFactor;
-			if(std::abs(accel) > 1e14)
-				accel = 0.1;
-			if(!m_pCritic->isStable())
-				m_dError = m_pCritic->computeError(m_pVector); // Current spot
-			m_pVector[dim] += decel;
-			decScore = m_pCritic->computeError(m_pVector); // Forward decelerated
-			m_pVector[dim] -= decel; // undo
-			m_pVector[dim] += accel;
-			accScore = m_pCritic->computeError(m_pVector); // Forward accelerated
-			if(m_dError < decScore && m_dError < accScore)
-			{
-				m_pVector[dim] -= accel; // undo
-				m_pVector[dim] -= decel;
-				decScore = m_pCritic->computeError(m_pVector); // Reverse decelerated
-				m_pVector[dim] += decel; // undo
-				m_pVector[dim] -= accel;
-				accScore = m_pCritic->computeError(m_pVector); // Reverse accelerated
-				if(m_dError < decScore && m_dError < accScore)
-				{
-					// Stay put and decelerate
-					m_pVector[dim] += accel;
-					m_pStepSizes[dim] = decel;
-				}
-				else if(decScore < accScore)
-				{
-					// Reverse and decelerate
-					m_pVector[dim] += accel;
-					m_pVector[dim] -= decel;
-					m_dError = decScore;
-					m_pStepSizes[dim] = -decel;
-				}
-				else
-				{
-					// Reverse and accelerate
-					m_dError = accScore;
-					m_pStepSizes[dim] = -accel;
-				}
-			}
-			else if(decScore < accScore)
-			{
-				// Forward and decelerate
-				m_pVector[dim] -= accel;
-				m_pVector[dim] += decel;
-				m_dError = decScore;
-				m_pStepSizes[dim] = decel;
-			}
-			else if(decScore == accScore)
-			{
-				if(m_dError == decScore)
-				{
-					// Neither accelerate nor decelerate. If we're on a temporary plateau
-					// on the target function, slowing down would be bad because we might
-					// never get off the plateau. If we're at the max error, speeding up
-					// would be bad, because we'd just run off to infinity. We will, however
-					// move at the accelerated rate, just so we're going somewhere.
-				}
-				else
-				{
-					// Forward and accelerate
-					m_dError = accScore;
-					m_pStepSizes[dim] = accel;
-				}
-			}
-			else
-			{
-				// Forward and accelerate
-				m_dError = accScore;
-				m_pStepSizes[dim] = accel;
-			}
+			// Forward and accelerate
+			m_dError = accScore;
+			m_pStepSizes[dim] = accel;
 		}
 	}
 
@@ -338,8 +242,6 @@ GAnnealing::GAnnealing(GTargetFunction* pTargetFunc, double initialDeviation, do
 {
 	if(!pTargetFunc->relation()->areContinuous(0, pTargetFunc->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pTargetFunc->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_dims = pTargetFunc->relation()->size();
 	m_pBuf = new double[m_dims * 2];
 	m_pVector = m_pBuf;
@@ -384,8 +286,6 @@ GEmpiricalGradientDescent::GEmpiricalGradientDescent(GTargetFunction* pCritic, G
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pCritic->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_nDimensions = pCritic->relation()->size();
 	m_pVector = new double[m_nDimensions * 3];
 	m_pGradient = m_pVector + m_nDimensions;
@@ -411,13 +311,12 @@ void GEmpiricalGradientDescent::reset()
 /*virtual*/ double GEmpiricalGradientDescent::iterate()
 {
 	// Feel the gradient in each dimension using one random pattern
-	size_t nPattern = (size_t)m_pRand->next();
-	double dCurrentError = m_pCritic->computeErrorOnline(m_pVector, nPattern);
+	double dCurrentError = m_pCritic->computeError(m_pVector);
 	double d = m_dFeelDistance * m_dLearningRate;
 	for(size_t i = 0; i < m_nDimensions; i++)
 	{
 		m_pVector[i] += d;
-		m_pGradient[i] = (m_pCritic->computeErrorOnline(m_pVector, nPattern) - dCurrentError) / d;
+		m_pGradient[i] = (m_pCritic->computeError(m_pVector) - dCurrentError) / d;
 		m_pVector[i] -= d;
 		m_pDelta[i] = m_dMomentum * m_pDelta[i] - m_dLearningRate * m_pGradient[i];
 		m_pVector[i] += m_pDelta[i];
@@ -432,8 +331,6 @@ GSampleClimber::GSampleClimber(GTargetFunction* pCritic, GRand* pRand)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pCritic->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_dims = pCritic->relation()->size();
 	m_pVector = new double[m_dims * 4];
 	m_pDir = m_pVector + m_dims;

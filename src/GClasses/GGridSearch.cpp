@@ -24,8 +24,6 @@ GGridSearch::GGridSearch(GTargetFunction* pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pCritic->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	vector<size_t> ranges;
 	ranges.resize(pCritic->relation()->size());
 	for(size_t i = 0; i < (size_t)pCritic->relation()->size(); i++)
@@ -78,8 +76,6 @@ GRandomSearch::GRandomSearch(GTargetFunction* pCritic, GRand* pRand)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pCritic->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_pCandidate = new double[2 * pCritic->relation()->size()];
 	m_pBestVector = m_pCandidate + pCritic->relation()->size();
 }
@@ -119,8 +115,6 @@ GMinBinSearch::GMinBinSearch(GTargetFunction* pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pCritic->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_pCurrent = new double[m_pCritic->relation()->size()];
 	GVec::setAll(m_pCurrent, 0.5, m_pCritic->relation()->size());
 	m_curErr = m_pCritic->computeError(m_pCurrent);
@@ -167,8 +161,6 @@ GProbeSearch::GProbeSearch(GTargetFunction* pCritic)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	if(pCritic->isConstrained())
-		throw Ex("Sorry, this optimizer doesn't support constrained problems");
 	m_nDimensions = pCritic->relation()->size();
 	m_nStabDepth = m_nDimensions * 30;
 	m_pMins = new double[m_nDimensions * 4];

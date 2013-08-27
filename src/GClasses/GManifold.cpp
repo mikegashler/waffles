@@ -864,10 +864,10 @@ double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
 	else
 		m_dLearningRate /= .91;
 //	cout << "[Learning Rate: " << m_dLearningRate << "]\n";
-	
+
 	if(m_nPass % 20 == 0)
 		moveMeanToOrigin();
-	
+
 	m_nPass++;
 	return dTotalError;
 }
@@ -1326,7 +1326,7 @@ void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootInde
 	GTEMPBUF(size_t, indexes, pLocal->rows())
 	size_t* pRootNeighbors = pNeighborTable + m_neighborCount * rootIndex;
 	indexes[0] = rootIndex;
-	size_t pos = 1;	
+	size_t pos = 1;
 	for(size_t i = 0; i < m_neighborCount; i++)
 	{
 		if(pRootNeighbors[i] != INVALID_INDEX)
@@ -1656,24 +1656,24 @@ void GNeuroPCA::computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatri
 						// Compute the predicted output
 						double net = *pBias + *pPre + *pW * (*pX);
 						double pred = m_pActivation->squash(net);
-	
+
 						// Compute the error (pIn gives the target)
 						double err = learningRate * (*pTar - pred) * m_pActivation->derivativeOfNet(net, pred);
 						sse += (err * err);
-	
+
 						// Adjust the bias and weight
 						if(m_updateBias)
 							*pBias += err;
 						double w = *pW;
 						*pW += err * (*pX);
-	
+
 						// Adjust x
 						*pX += err * w;
 
 						// Clip x
 //						*pX = std::max(0.0, std::min(1.0, *pX));
 					}
-	
+
 					pBias++;
 					pPre++;
 					pW++;
@@ -2666,5 +2666,166 @@ size_t GUnsupervisedBackProp::labelDims()
 {
 	return m_cvi.coordCount() * m_pNN->relLabels()->size();
 }
+
+
+
+
+
+
+
+
+
+
+GScalingUnfolder::GScalingUnfolder(GRand& rand)
+: GManifoldLearner(),
+m_neighborCount(14),
+m_targetDims(2),
+m_passes(50),
+m_learningRate(0.1),
+m_scaleRate(0.9),
+m_keepRatio(0.9),
+m_rand(rand)
+{
+}
+
+GScalingUnfolder::GScalingUnfolder(GDomNode* pNode, GLearnerLoader& ll)
+: GManifoldLearner(pNode, ll),
+m_rand(ll.rand())
+{
+	throw Ex("Sorry, this method is not implemented yet");
+}
+
+// virtual
+GScalingUnfolder::~GScalingUnfolder()
+{
+
+}
+
+void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double curSqDist, double tarSqDist)
+{
+	double scal = sqrt(tarSqDist) / sqrt(curSqDist);
+	for(size_t i = 0; i < dims; i++)
+	{
+		double t = 0.5 * (*pB * (1.0 + scal) + *pA * (1.0 - scal)) - *pB;
+		*(pA++) -= t;
+		*(pB++) += t;
+	}
+}
+
+// virtual
+GMatrix* GScalingUnfolder::doit(GMatrix& in)
+{
+	// Find neighbors
+	GKdTree kdtree(&in, m_neighborCount, NULL, false);
+	GNeighborFinderCacheWrapper nf(&kdtree, false);
+	nf.fillCache();
+
+	// Start with a copy of the data
+	size_t intrinsicDims = in.cols();
+	GMatrix* pIntrinsic = new GMatrix();
+	Holder<GMatrix> hIntrinsic(pIntrinsic);
+	pIntrinsic->copy(&in);
+	GRandomIndexIterator ii(in.rows() * m_neighborCount, m_rand);
+
+	// Reduce dimensionality
+	double scaleUpRate = 1.0 / m_scaleRate;
+	double scaleUp2 = scaleUpRate * scaleUpRate;
+	double scaleUp4 = scaleUp2 * scaleUp2;
+	double scaleDown2 = m_scaleRate * m_scaleRate;
+	double scaleDown4 = scaleDown2 * scaleDown2;
+	size_t dropAtLeast = 0;
+	while(true)
+	{
+		// Shift the variance into the first few dimensions
+		GPCA pca(intrinsicDims, &m_rand);
+		pca.computeEigVals();
+		pca.train(*pIntrinsic);
+		pIntrinsic = pca.transformBatch(*pIntrinsic);
+		hIntrinsic.reset(pIntrinsic);
+
+		// Drop as many dimensions as possible without losing much information
+		double var = GVec::sumElements(pca.eigVals(), intrinsicDims);
+		double sum = var;
+		while(intrinsicDims > m_targetDims)
+		{
+			if(dropAtLeast > 0 || (sum - pca.eigVals()[intrinsicDims - 1]) / var >= m_keepRatio * m_keepRatio)
+			{
+				intrinsicDims--;
+				sum -= pca.eigVals()[intrinsicDims - 1];
+				if(dropAtLeast > 0)
+					dropAtLeast--;
+			}
+			else
+				break;
+		}
+		if(pIntrinsic->cols() > intrinsicDims)
+		{
+			GMatrix* pNew = new GMatrix(pIntrinsic->rows(), intrinsicDims);
+			pNew->copyBlock(*pIntrinsic, 0, 0, pIntrinsic->rows(), intrinsicDims, 0, 0, false);
+			pIntrinsic = pNew;
+			hIntrinsic.reset(pIntrinsic);
+		}
+
+		// Try to unfold the data
+		for(size_t pass = 0; pass < m_passes; pass++)
+		{
+			// Scale up the data
+			pIntrinsic->multiply(scaleUpRate);
+
+			// Restore local relationships
+			size_t bestViolators = (size_t)-1;
+			size_t tolerance = 0;
+			while(true)
+			{
+				// Do a training epoch
+				ii.reset();
+				size_t ind;
+				size_t violators = 0;
+				while(ii.next(ind))
+				{
+					size_t a = ind / m_neighborCount;
+					size_t b = nf.cache()[ind];
+					if(b != (size_t)-1)
+					{
+						double dTarget = std::max(1e-12, nf.squaredDistanceTable()[ind]);
+						double* pA = pIntrinsic->row(a);
+						double* pB = pIntrinsic->row(b);
+						double dCur = GVec::squaredDistance(pA, pB, intrinsicDims);
+						if(dCur * scaleUp4 < dTarget)
+						{
+							GScalingUnfolder_adjustPoints(pA, pB, intrinsicDims, dCur, dTarget * scaleDown2);
+							violators++;
+						}
+						else if(dCur * scaleDown4 > dTarget)
+						{
+							GScalingUnfolder_adjustPoints(pA, pB, intrinsicDims, dCur, dTarget * scaleUp2);
+							violators++;
+						}
+					}
+				}
+				if(violators < bestViolators)
+				{
+					if(violators == 0)
+						break;
+					bestViolators = violators;
+					tolerance = 0;
+				}
+				else
+				{
+					if(++tolerance > 100)
+						break;
+				}
+			}
+		}
+
+		if(intrinsicDims == m_targetDims)
+			return hIntrinsic.release();
+		dropAtLeast = std::max((size_t)1, intrinsicDims / 10);
+	}
+}
+
+
+
+
 
 } // namespace GClasses

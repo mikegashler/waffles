@@ -26,6 +26,7 @@
 #include "../GClasses/GCluster.h"
 #include "../GClasses/GCrypto.h"
 #include "../GClasses/GDecisionTree.h"
+#include "../GClasses/GDeepNet.h"
 #include "../GClasses/GDiff.h"
 #include "../GClasses/GDistribution.h"
 #include "../GClasses/GEnsemble.h"
@@ -112,7 +113,7 @@ public:
 namespace{
   /// A convenience class for making sequences
   ///
-  /// Example: 
+  /// Example:
   ///
   /// \code
   /// (Seq<int>()+3+1+4+1+5).asVector();
@@ -120,7 +121,7 @@ namespace{
   ///
   /// Will make a vector containing the elements 3,1,4,1, and 5
   template<class T>
-  class Seq{						
+  class Seq{
     std::list<T> l;
   public:
     /// Create an empty sequence
@@ -133,16 +134,16 @@ namespace{
 
     /// Return a vector that contains copies of the elements of this sequence
     /// \return a vector that contains copies of the elements of this sequence
-    std::vector<T> asVector() const{ 
+    std::vector<T> asVector() const{
       return std::vector<T>(l.begin(), l.end()); }
 
     /// Return a list that contains copies of the elements of this sequence
     /// \return a list that contains copies of the elements of this sequence
-    std::list<T> asList() const{ 
+    std::list<T> asList() const{
       return l; }
   };
 
-  
+
 };
 
 
@@ -177,7 +178,7 @@ return
   "-1,-1,-1,-1,1\n";
 }
 
-///Runs the command line waffles_dimred attributeselector and returns the 
+///Runs the command line waffles_dimred attributeselector and returns the
 ///output that was printed to stdout
 ///
 ///\param dataset the text of a file that will be used as input to
@@ -198,9 +199,9 @@ return
 ///
 ///\return the output printed to stdout and standard error
 ///
-std::string run_dimred_attributeselector(std::string dataset, 
+std::string run_dimred_attributeselector(std::string dataset,
 					 std::string extension,
-					 std::vector<int> labels, 
+					 std::vector<int> labels,
 					 std::vector<int> ignored,
 					 int& retval
 					 ){
@@ -233,7 +234,7 @@ std::string run_dimred_attributeselector(std::string dataset,
   GPipe pipeStdOut;
   GPipe pipeStdErr;
   retval = sysExec("waffles_dimred", args.c_str(), &pipeStdOut, &pipeStdErr);
-  
+
   return pipeStdOut.read()+pipeStdErr.read();
 }
 
@@ -271,7 +272,7 @@ void test_dimred_attributeselector()
     (0, retval, "Golf dataset with no labels=4 and no ignored "
      "failed command execution");
 
-  
+
   TestEqual
     ("\nAttribute rankings from most salient to least salient. "
      "(Attributes are zero-indexed.)\n"
@@ -310,7 +311,7 @@ void test_dimred_attributeselector()
     (1, retval, "Golf dataset with no labels=1 and ignored=1,2 "
      "unexpectedly succeeded command execution");
 
-  
+
   TestContains
     ("Unsupported file format",
      run_dimred_attributeselector(golf_arff_dataset(),".mat",
@@ -319,10 +320,10 @@ void test_dimred_attributeselector()
      "Unexpected output from golf dataset with .mat input file");
   TestEqual
     (1, retval, "Golf dataset .mat input file "
-     "unexpectedly succeeded command execution");  
+     "unexpectedly succeeded command execution");
 }
 
-///Runs the command line waffles_transform keeponlycolumns and returns the 
+///Runs the command line waffles_transform keeponlycolumns and returns the
 ///output that was printed to stdout
 ///
 ///\param dataset the text of a file that will be used as input to
@@ -340,9 +341,9 @@ void test_dimred_attributeselector()
 ///
 ///\return the output printed to stdout and standard error
 ///
-std::string run_transform_keeponlycolumns(std::string dataset, 
+std::string run_transform_keeponlycolumns(std::string dataset,
 					 std::string extension,
-					 std::vector<int> tokeep, 
+					 std::vector<int> tokeep,
 					 int& retval
 					 ){
   using std::string;
@@ -367,7 +368,7 @@ std::string run_transform_keeponlycolumns(std::string dataset,
   GPipe pipeStdOut;
   GPipe pipeStdErr;
   retval = sysExec("waffles_transform", args.c_str(), &pipeStdOut, &pipeStdErr);
-  
+
   return pipeStdOut.read()+pipeStdErr.read();
 }
 
@@ -647,7 +648,7 @@ void test_parsearff_quoting(){
   double expected_data[5][3]={{1,1,0},{2,4,0},{1.414,2,1},{3,9,0},{4,16,2}};
   GArffRelation* pRel = (GArffRelation*)M.relation().get();
   GArffRelation& R = *pRel;
-  
+
   TestEqual(R.size(), (std::size_t)3, "Incorrect number of attributes");
   for(unsigned row = 0; row < 5; ++row){
     for(unsigned col = 0; col < 3; ++col){
@@ -656,7 +657,7 @@ void test_parsearff_quoting(){
       TestEqual(M[row][col], expected_data[row][col], errdescr.str());
     }
   }
-  TestEqual(true, R.areContinuous(0,2), 
+  TestEqual(true, R.areContinuous(0,2),
 	      "First or second attribute is not continuous");
   TestEqual(true, R.areNominal(2,1), "Third attribute is not nominal");
 
@@ -670,13 +671,13 @@ void test_parsearff_quoting(){
 	       "Second value of third attribute incorrect name");
    TestEqual("is\\ exact",val2.str(),
 	       "Third value of third attribute incorrect name");
-  
+
 
   TestEqual("'the number'",R.attrName(0),"First attribute incorrect name");
   TestEqual("'the square of the number'",R.attrName(1),
 	      "Second attribute incorrect name");
   TestEqual("exact",R.attrName(2),"Third attribute incorrect name");
-  
+
 }
 
 void test_document_classification()
@@ -812,7 +813,7 @@ public:
 	GTestHarness(int argc, char**argv)
 	{
 		//Make list of test names to match
- 		if(argc < 2){ 
+ 		if(argc < 2){
 			m_testNameSubstr.push_back("");
 		}else{
 			for(int i = 1; i < argc; ++i){
@@ -955,6 +956,7 @@ public:
 		runTest("GCrypto", GCrypto::test);
 		runTest("GCycleCut", GCycleCut::test);
 		runTest("GDecisionTree", GDecisionTree::test);
+		runTest("GDeepNet", GDeepNet::test);
 		runTest("GDiff", GDiff::test);
 		runTest("GDijkstra", GDijkstra::test);
 		runTest("GDom", GDom::test);
@@ -1050,7 +1052,7 @@ int main(int argc, char *argv[])
 	GApp::enableFloatingPointExceptions();
 
 	if(argc < 2){
-	  std::cout << 
+	  std::cout <<
 	    "(Optionally, you can run specific tests by passing a string as an argument. "
 		"Only tests containing the string will be executed.)\n";
 	}
