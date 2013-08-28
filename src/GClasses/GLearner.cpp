@@ -417,7 +417,7 @@ double GTransducer::crossValidate(GMatrix& features, GMatrix& labels, size_t fol
 		double foldsse = trainAndTest(trainFeatures, trainLabels, testFeatures, testLabels);
 		sse += foldsse;
 		if(pCB)
-			pCB(pThis, nRep, i, labels.cols(), foldsse);
+			pCB(pThis, nRep, i, foldsse, testLabels.rows());
 	}
 	return sse;
 }
@@ -951,20 +951,25 @@ double GSupervisedLearner::sumSquaredError(GMatrix& features, GMatrix& labels)
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		predict(features[i], prediction);
-		double* target = labels[i];
+		double* targ = labels[i];
+		double* pred = prediction;
 		for(size_t j = 0; j < labelDims; j++)
 		{
-			double d;
 			if(labels.relation()->valueCount(j) == 0)
-				d = target[j] - prediction[j];
+			{
+				if(*targ != UNKNOWN_REAL_VALUE)
+				{
+					double d = *targ - *pred;
+					sse += (d * d);
+				}
+			}
 			else
 			{
-				if((int)target[j] == (int)prediction[j])
-					d = 0.0;
-				else
-					d = 1.0;
+				if(*targ != UNKNOWN_DISCRETE_VALUE && (int)*targ != (int)*pred)
+					sse += 1.0;
 			}
-			sse += (d * d);
+			targ++;
+			pred++;
 		}
 	}
 	return sse;

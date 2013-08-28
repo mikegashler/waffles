@@ -86,7 +86,7 @@ public:
 
 
 // nRep and nFold are zero-indexed
-typedef void (*RepValidateCallback)(void* pThis, size_t nRep, size_t nFold, size_t labelDims, double foldSSE);
+typedef void (*RepValidateCallback)(void* pThis, size_t nRep, size_t nFold, double foldSSE, size_t rows);
 
 
 /// This is the base class of supervised learning algorithms (that may or may not
