@@ -409,7 +409,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 	// Initialize a STARTUPINFO structure
 	STARTUPINFO siStartInfo;
 	ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
-	siStartInfo.cb = sizeof(STARTUPINFO); 
+	siStartInfo.cb = sizeof(STARTUPINFO);
 	siStartInfo.dwFlags |= STARTF_USESTDHANDLES; // Let us to specify the std handles
 
 	// Set the bInheritHandle flag so pipe handles can be inherited.
@@ -484,7 +484,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 		CloseHandle(hChildStderrWr);
 
 	// Wait for the child process
-	DWORD ret = 0;
+	DWORD ret = piProcInfo.hProcess;
 	if(wait)
 	{
 		WaitForSingleObject(piProcInfo.hProcess, 10000/*INFINITE*/);
@@ -587,7 +587,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 	}
 	else // else fork failed...
 		throw Ex("There was an error forking the process");
-	return 0;
+	return pid;
 #endif
 }
 
@@ -860,7 +860,7 @@ int GArgReader::size()
 bool GArgReader::next_is_flag()
 {
 	if(size() == 0)
-		return false;	
+		return false;
 	return (peek()[0] == '-');
 }
 
