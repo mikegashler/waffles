@@ -106,8 +106,8 @@ public:
 	/// Executes the specified system command. (szCommand should contain
 	/// the app name as well as args.)
 	/// If wait is true, then the exit code of the command will be returned.
-	/// If wait is false, then 0 will be returned immediately, and the
-	/// command will continue to execute.
+	/// If wait is false, then the process id will be returned immediately,
+	/// and the command will continue to execute.
 	/// If pStdOut is NULL, it will use the same stdout as the calling
 	/// process. If pStdOut is non-NULL, then the value it points to will
 	/// be set to the handle of the read end of a pipe, which will receive
