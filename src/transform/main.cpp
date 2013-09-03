@@ -289,8 +289,7 @@ void AddIndexAttribute(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	GArffRelation* pIndexRelation = new GArffRelation();
 	pIndexRelation->addAttribute("index", 0, NULL);
-	sp_relation pIndexRel = pIndexRelation;
-	GMatrix indexes(pIndexRel);
+	GMatrix indexes(pIndexRelation);
 	indexes.newRows(pData->rows());
 	for(size_t i = 0; i < pData->rows(); i++)
 		indexes.row(i)[0] = nStartValue + i * nIncrement;
@@ -472,7 +471,7 @@ void Discretize(GArgReader& args)
 
 	// Parse Options
 	size_t nFirst = 0;
-	size_t nLast = pData->relation()->size() - 1;
+	size_t nLast = pData->relation().size() - 1;
 	size_t nBuckets = std::max(2, (int)floor(sqrt((double)pData->rows() + 0.5)));
 	while(args.size() > 0)
 	{
@@ -486,13 +485,13 @@ void Discretize(GArgReader& args)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	if(nFirst < 0 || nLast >= pData->relation()->size() || nLast < nFirst)
+	if(nFirst < 0 || nLast >= pData->relation().size() || nLast < nFirst)
 		throw Ex("column index out of range");
 
 	// Discretize the continuous attributes in the specified range
 	for(size_t i = nFirst; i <= nLast; i++)
 	{
-		if(pData->relation()->valueCount(i) != 0)
+		if(pData->relation().valueCount(i) != 0)
 			continue;
 		double min = pData->columnMin(i);
 		double range = pData->columnMax(i) - min;
@@ -501,7 +500,7 @@ void Discretize(GArgReader& args)
 			double* pPat = pData->row(j);
 			pPat[i] = (double)std::max((size_t)0, std::min(nBuckets - 1, (size_t)floor(((pPat[i] - min) * nBuckets) / range)));
 		}
-		((GArffRelation*)pData->relation().get())->setAttrValueCount(i, nBuckets);
+		((GArffRelation*)&pData->relation())->setAttrValueCount(i, nBuckets);
 	}
 
 	// Print results
@@ -571,7 +570,7 @@ void DropMissingValues(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	GRelation* pRelation = pData->relation().get();
+	const GRelation* pRelation = &pData->relation();
 	size_t dims = pRelation->size();
 	for(size_t i = pData->rows() - 1; i < pData->rows(); i--)
 	{
@@ -622,7 +621,7 @@ void dropRandomValues(GArgReader& args)
 	size_t k = size_t(portion * n);
 	for(size_t i = 0; i < pData->cols(); i++)
 	{
-		size_t vals = pData->relation()->valueCount(i);
+		size_t vals = pData->relation().valueCount(i);
 		if(vals == 0)
 		{
 			for(size_t j = 0; j < pData->rows(); j++)
@@ -669,7 +668,7 @@ void dropIfTooClose(GArgReader& args)
 	GMatrix* pData = loadData(szDataset);
 	Holder<GMatrix> hData(pData);
 	{
-		GMatrix keep(pData->relation());
+		GMatrix keep(pData->relation().clone());
 		GReleaseDataHolder hKeep(&keep);
 		keep.takeRow(pData->row(0));
 		double* pLastKept = pData->row(0);
@@ -692,7 +691,7 @@ void dropUnusedValues(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	for(size_t i = 0; i < pData->cols(); i++)
 	{
-		size_t valCount = pData->relation()->valueCount(i);
+		size_t valCount = pData->relation().valueCount(i);
 		for(size_t j = 0; j < valCount; j++)
 		{
 			bool gotOne = false;
@@ -709,7 +708,7 @@ void dropUnusedValues(GArgReader& args)
 				pData->dropValue(i, j);
 				j--;
 				valCount--;
-				GAssert(valCount == pData->relation()->valueCount(i));
+				GAssert(valCount == pData->relation().valueCount(i));
 			}
 		}
 	}
@@ -721,8 +720,8 @@ void enumerateValues(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	size_t col = args.pop_uint();
-	if(pData->relation()->valueCount(col) > 0)
-		((GArffRelation*)pData->relation().get())->setAttrValueCount(col, 0);
+	if(pData->relation().valueCount(col) > 0)
+		((GArffRelation*)&pData->relation())->setAttrValueCount(col, 0);
 	else
 	{
 		size_t n = 0;
@@ -776,14 +775,14 @@ void Export(GArgReader& args)
 		{
 			if(i > 0)
 				cout << separator;
-			pData->relation()->printAttrName(cout, i);
+			pData->relation().printAttrName(cout, i);
 		}
 		cout << "\n";
 	}
 
 	// Print data
 	for(size_t i = 0; i < pData->rows(); i++)
-		pData->relation()->printRow(cout, pData->row(i), separator, missing);
+		pData->relation().printRow(cout, pData->row(i), separator, missing);
 }
 
 void Import(GArgReader& args)
@@ -821,7 +820,7 @@ void Import(GArgReader& args)
 	// Parse the file
 	GMatrix data;
 	data.parseCsv(pFile, len, separator, columnNamesInFirstRow, tolerant);
-	((GArffRelation*)data.relation().get())->setName(filename);
+	((GArffRelation*)&data.relation())->setName(filename);
 
 	// Print the data
 	data.print(cout);
@@ -925,7 +924,7 @@ void MeasureMeanSquaredError(GArgReader& args)
 	Holder<GMatrix> hData2(pData2);
 
 	// check sizes
-	if(pData1->relation()->size() != pData2->relation()->size())
+	if(pData1->relation().size() != pData2->relation().size())
 		throw Ex("The datasets must have the same number of dims");
 	if(pData1->rows() != pData2->rows())
 		throw Ex("The datasets must have the same size");
@@ -943,7 +942,7 @@ void MeasureMeanSquaredError(GArgReader& args)
 			throw Ex("Invalid option: ", args.peek());
 	}
 
-	size_t dims = pData1->relation()->size();
+	size_t dims = pData1->relation().size();
 	if(fit)
 	{
 		FitDataCritic critic(pData1, pData2, dims);
@@ -1148,9 +1147,9 @@ void obfuscate(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	if(pData->relation()->type() != GRelation::ARFF)
+	if(pData->relation().type() != GRelation::ARFF)
 		throw Ex("Expected some meta-data");
-	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+	GArffRelation* pRel = (GArffRelation*)&pData->relation();
 	pRel->setName("Untitled");
 	for(size_t i = 0; i < pRel->size(); i++)
 	{
@@ -1173,7 +1172,7 @@ void overlay(GArgReader& args)
 	if(pOver->rows() != pBase->rows() || pOver->cols() != pBase->cols())
 		throw Ex("Matrices not the same size");
 	size_t dims = pOver->cols();
-	GRelation* pRelOver = pOver->relation().get();
+	const GRelation* pRelOver = &pOver->relation();
 	for(size_t i = 0; i < pOver->rows(); i++)
 	{
 		double* pVecBase = pBase->row(i);
@@ -1242,7 +1241,7 @@ void rotate(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
 	Holder<GMatrix> hA(pA);
-	sp_relation relation = pA->relation();
+	const GRelation* relation = &pA->relation();
 	unsigned colx = args.pop_uint();
 	if(colx >= pA->cols()){
 	  throw Ex("Rotation first column index (",to_str(colx),") "
@@ -1507,7 +1506,7 @@ void aggregateRows(GArgReader& args)
 		Holder<GMatrix> hData(pData);
 		if(!pResults)
 		{
-			pResults = new GMatrix(pData->relation());
+			pResults = new GMatrix(pData->relation().clone());
 			hResults.reset(pResults);
 		}
 		pResults->takeRow(pData->releaseRow(r));
@@ -1544,7 +1543,7 @@ void split(GArgReader& args)
 	}
 
 	// Split
-	GMatrix other(pData->relation());
+	GMatrix other(pData->relation().clone());
 	pData->splitBySize(other, pats);
 	pData->saveArff(szFilename1);
 	other.saveArff(szFilename2);
@@ -1575,8 +1574,8 @@ void splitFold(GArgReader& args)
 	}
 
 	// Copy relevant portions of the data
-	GMatrix train(pData->relation());
-	GMatrix test(pData->relation());
+	GMatrix train(pData->relation().clone());
+	GMatrix test(pData->relation().clone());
 	size_t begin = pData->rows() * fold / folds;
 	size_t end = pData->rows() * (fold + 1) / folds;
 	for(size_t i = 0; i < begin; i++)
@@ -1605,9 +1604,9 @@ void splitClass(GArgReader& args)
 			throw Ex("Invalid option: ", args.peek());
 	}
 
-	for(size_t i = 0; i < pData->relation()->valueCount(classAttr); i++)
+	for(size_t i = 0; i < pData->relation().valueCount(classAttr); i++)
 	{
-		GMatrix tmp(pData->relation());
+		GMatrix tmp(pData->relation().clone());
 		pData->splitByNominalValue(&tmp, classAttr, i);
 		std::ostringstream oss;
 		PathData pd;
@@ -1615,7 +1614,7 @@ void splitClass(GArgReader& args)
 		string fn;
 		fn.assign(filename + pd.fileStart, pd.extStart - pd.fileStart);
 		oss << fn << "_";
-		pData->relation()->printAttrValue(oss, classAttr, (double)i);
+		pData->relation().printAttrValue(oss, classAttr, (double)i);
 		oss << ".arff";
 		string s = oss.str();
 		if(dropClass)
@@ -1659,12 +1658,12 @@ void fillMissingValues(GArgReader& args)
 	GRand prng(nSeed);
 	if(random)
 	{
-		for(size_t i = 0; i < pData->relation()->size(); i++)
+		for(size_t i = 0; i < pData->relation().size(); i++)
 			pData->replaceMissingValuesRandomly(i, &prng);
 	}
 	else
 	{
-		for(size_t i = 0; i < pData->relation()->size(); i++)
+		for(size_t i = 0; i < pData->relation().size(); i++)
 			pData->replaceMissingValuesWithBaseline(i);
 	}
 	pData->print(cout);
@@ -1747,7 +1746,7 @@ void SortByAttribute(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	size_t nAttr = args.pop_uint();
-	size_t attrCount = pData->relation()->size();
+	size_t attrCount = pData->relation().size();
 	if(nAttr >= attrCount)
 		throw Ex("Index out of range");
 
@@ -1773,7 +1772,7 @@ void SwapAttributes(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	size_t nAttr1 = args.pop_uint();
 	size_t nAttr2 = args.pop_uint();
-	size_t attrCount = pData->relation()->size();
+	size_t attrCount = pData->relation().size();
 	if(nAttr1 >= attrCount)
 		throw Ex("Index out of range");
 	if(nAttr2 >= attrCount)
@@ -1796,7 +1795,7 @@ void threshold(GArgReader& args){
     }
     throw Ex(msg.str());
   }
-  if(hData->relation()->valueCount(column) != 0){
+  if(hData->relation().valueCount(column) != 0){
     throw Ex("Can only use threshold on continuous attributes.");
   }
   double value = args.pop_double();
@@ -1845,10 +1844,9 @@ void transition(GArgReader& args)
 	size_t actionDims = pActions->cols();
 	size_t stateDims = pState->cols();
 	GMixedRelation* pRelation = new GMixedRelation();
-	sp_relation pRel = pRelation;
-	pRelation->addAttrs(pActions->relation().get());
+	pRelation->addAttrs(pActions->relation());
 	pRelation->addAttrs(stateDims + stateDims, 0);
-	GMatrix* pTransition = new GMatrix(pRel);
+	GMatrix* pTransition = new GMatrix(pRelation);
 	pTransition->newRows(pActions->rows() - 1);
 	for(size_t i = 0; i < pActions->rows() - 1; i++)
 	{

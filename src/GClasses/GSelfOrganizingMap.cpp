@@ -89,13 +89,13 @@ namespace GClasses {
     void NodeWeightInitializationTrainingSetSample::
     setWeights(std::vector<Node>& nodes, 
 	       GDistanceMetric& weightDistance,
-	       GMatrix* pIn) const{
+	       const GMatrix* pIn) const{
       assert(pRand != NULL);
       assert(pIn != NULL);
       assert(pIn->rows() >= nodes.size());
 
       //Set the weight distance function's relation metadata
-      weightDistance.init(pIn->relation());
+      weightDistance.init(pIn->relation().clone(), true);
       
       //Generate a sample of indices 
       std::set<std::size_t> used;
@@ -501,7 +501,7 @@ namespace GClasses {
     }//anonymous namespace
     
     //virtual 
-    void BatchTraining::train(GSelfOrganizingMap& map, GMatrix* pIn){
+    void BatchTraining::train(GSelfOrganizingMap& map, const GMatrix* pIn){
       assert(pIn != NULL);
       //Report start
       m_reporter->start(pIn, m_numIterations,
@@ -560,7 +560,7 @@ namespace GClasses {
 	  bool hasConverged = true;
 	  //For each input point
 	  for(std::size_t rIdx = 0; rIdx < pIn->rows(); ++rIdx){
-	    double * pRow = pIn->row(rIdx);
+	    const double * pRow = pIn->row(rIdx);
 	    //Find the closest node
 	    std::size_t best = map.bestMatch(pRow);
 	    //compare to closest last time - if different, not converged
@@ -660,7 +660,7 @@ namespace GClasses {
     //GMatrix (this will require making GMatrix const-correct)
 
     //virtual 
-    void TraditionalTraining::train(GSelfOrganizingMap& map, GMatrix* pInput){
+    void TraditionalTraining::train(GSelfOrganizingMap& map, const GMatrix* pInput){
       assert(pInput != NULL);
       //Report start
       m_reporter->start(pInput, m_numIterations, 1);
@@ -857,10 +857,8 @@ GSelfOrganizingMap::GSelfOrganizingMap
   }
 
   //Initialize the distance metrics to use all continuous attributes
-  sp_relation nodeRel(new GUniformRelation(m_outputAxes.size()));
-  m_pNodeDistance->init(nodeRel);
-  sp_relation weightRel(new GUniformRelation(1));
-  m_pWeightDistance->init(weightRel);
+  m_pNodeDistance->init(new GUniformRelation(m_outputAxes.size()), true);
+  m_pWeightDistance->init(new GUniformRelation(1), true);
 }
 
 GSelfOrganizingMap::GSelfOrganizingMap(const std::vector<double>& outputAxes,
@@ -889,10 +887,8 @@ GSelfOrganizingMap::GSelfOrganizingMap(const std::vector<double>& outputAxes,
   }
   
   //Initialize the distance metrics to use all continuous attributes
-  sp_relation nodeRel(new GUniformRelation(m_outputAxes.size()));
-  m_pNodeDistance->init(nodeRel);
-  sp_relation weightRel(new GUniformRelation(1));
-  m_pWeightDistance->init(weightRel);
+  m_pNodeDistance->init(new GUniformRelation(m_outputAxes.size()), true);
+  m_pWeightDistance->init(new GUniformRelation(1), true);
   
 }
   

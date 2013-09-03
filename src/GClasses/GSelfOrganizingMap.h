@@ -139,7 +139,7 @@ class GDistanceMetric;
       ///attribute according to the relation for the matrix
       virtual void setWeights(std::vector<Node>& nodes, 
 			      GDistanceMetric& weightDistance,
-			      GMatrix* pIn) const = 0;
+			      const GMatrix* pIn) const = 0;
 
       ///Virtual destructor for good memory hygiene
       virtual ~NodeWeightInitialization(){}
@@ -173,7 +173,7 @@ class GDistanceMetric;
       ///see comment on NodeWeightInitialization::setWeights
       virtual void setWeights(std::vector<Node>& nodes, 
 			      GDistanceMetric& weightDistance,
-			      GMatrix* pIn) const;
+			      const GMatrix* pIn) const;
 
       ///Virtual destructor for good memory hygiene
       virtual ~NodeWeightInitializationTrainingSetSample(){}
@@ -477,7 +477,7 @@ class GDistanceMetric;
 
       /// Train the map.  Subclassers see also
       /// TrainingAlgorithm::setPRelationBefore
-      virtual void train(GSelfOrganizingMap& map, GMatrix* pIn) = 0;
+      virtual void train(GSelfOrganizingMap& map, const GMatrix* pIn) = 0;
 
       /// Virtual destructor
       virtual ~TrainingAlgorithm(){}
@@ -489,7 +489,7 @@ class GDistanceMetric;
       /// Set map.m_pRelationBefore to newval.  All subclasses must
       /// call this in their train methods so that the map will appear
       /// trained for the purposes of GIncrementalTransform
-      void setPRelationBefore(GSelfOrganizingMap& map, sp_relation& newval);
+      void setPRelationBefore(GSelfOrganizingMap& map, const GRelation& newval);
     };
 
     /// A training algorithm that throws an exception when train is
@@ -500,7 +500,7 @@ class GDistanceMetric;
       DummyTrainingAlgorithm(){}
 
       /// Throw error
-      virtual void train(GSelfOrganizingMap& map, GMatrix* pIn){
+      virtual void train(GSelfOrganizingMap& map, const GMatrix* pIn){
 	throw Ex("Training of self-organizing maps loaded from files is currently unsupported");
       }
       ///Destructor to ensure good memory hygiene
@@ -569,7 +569,7 @@ class GDistanceMetric;
 		    Reporter* reporter);
       
       /// Train the map
-      virtual void train(GSelfOrganizingMap& map, GMatrix* pIn);
+      virtual void train(GClasses::GSelfOrganizingMap& map, const GClasses::GMatrix* pIn);
 
       virtual ~BatchTraining();
     };
@@ -643,7 +643,7 @@ class GDistanceMetric;
 			  Reporter* reporter);
       
       /// Train the map
-      virtual void train(GSelfOrganizingMap& map, GMatrix* pIn);
+      virtual void train(GSelfOrganizingMap& map, const GMatrix* pIn);
 
       virtual ~TraditionalTraining();
     };
@@ -791,7 +791,7 @@ public:
   virtual GDomNode* serialize(GDom*) const;
 
   ///see comment on GIncrementalTransform::train(GMatrix&)
-  virtual sp_relation trainInner(GMatrix& in){
+  virtual GRelation* trainInner(const GMatrix& in){
     if(m_pTrainer != NULL){
       m_pTrainer->train(*this, &in);
     }
@@ -799,15 +799,11 @@ public:
   }
 
   /// Throws an exception (because this transform cannot be trained without data)
-  virtual sp_relation trainInner(sp_relation& in){
+  virtual GRelation* trainInner(const GRelation& in){
     throw Ex("This transform cannot be trained without data");
-	return m_pRelationBefore;
+	return before().clone();
   }
 
-  ///TODO: implement enableIncrementalTraining 
-  virtual void beginIncrementalTraining(sp_relation&, double*, double*){
-    throw Ex("BeginIncrementalTraining not yet implemented");
-  }
 
   ///Transform the given vector from input coordinates to map
   ///coordinates by finding the best match among the nodes.
@@ -889,8 +885,8 @@ SOM::TrainingAlgorithm::weightDistance(GSelfOrganizingMap& map){
 }
 
 inline void 
-SOM::TrainingAlgorithm::setPRelationBefore(GSelfOrganizingMap& map, sp_relation& newval){
-  map.m_pRelationBefore = newval;
+SOM::TrainingAlgorithm::setPRelationBefore(GSelfOrganizingMap& map, const GRelation& newval){
+	map.setBefore(newval.clone());
 }
 
 

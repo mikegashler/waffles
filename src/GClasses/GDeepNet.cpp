@@ -267,6 +267,9 @@ m_biasVisible(3, visible)
 			pRow++;
 		}
 	}
+	double* pB = biasVisible();
+	for(size_t j = 0; j < visible; j++)
+		*(pB++) = 0.01 * m_rand.normal();
 	for(size_t i = 0; i < visible; i++)
 	{
 		double* pRow = m_weightsDecode[i];
@@ -276,6 +279,9 @@ m_biasVisible(3, visible)
 			pRow++;
 		}
 	}
+	pB = biasHidden();
+	for(size_t j = 0; j < hidden; j++)
+		*(pB++) = 0.01 * m_rand.normal();
 }
 
 GStackableAutoencoder::~GStackableAutoencoder()
@@ -530,20 +536,23 @@ void GDeepNet::test()
 	topo.push_back(2);
 	topo.push_back(3);
 	nn.setTopology(topo);
-	sp_relation pEnds = new GUniformRelation(4);
-	nn.beginIncrementalLearning(pEnds, pEnds);
+	GUniformRelation ends(4);
+	nn.beginIncrementalLearning(ends, ends);
 
 	// Copy the weights from the deep network to the neural net
 	Holder<GMatrix> h(NULL);
 	h.reset(((GStackableAutoencoder*)dn.m_layers[1])->weightsEncode().transpose());
 	nn.getLayer(0)->m_weights.copy(h.get());
 	GVec::copy(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasHidden(), 3);
+
 	h.reset(((GStackableAutoencoder*)dn.m_layers[0])->weightsEncode().transpose());
 	nn.getLayer(1)->m_weights.copy(h.get());
 	GVec::copy(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasHidden(), 2);
+
 	h.reset(((GStackableAutoencoder*)dn.m_layers[0])->weightsDecode().transpose());
 	nn.getLayer(2)->m_weights.copy(h.get());
 	GVec::copy(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasVisible(), 3);
+
 	h.reset(((GStackableAutoencoder*)dn.m_layers[1])->weightsDecode().transpose());
 	nn.getLayer(3)->m_weights.copy(h.get());
 	GVec::copy(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasVisible(), 4);

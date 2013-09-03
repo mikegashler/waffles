@@ -27,18 +27,19 @@ namespace GClasses {
 class GDistanceMetric
 {
 protected:
-	sp_relation m_pRelation;
+	const GRelation* m_pRelation;
+	bool m_ownRelation;
 
 public:
-	GDistanceMetric() {}
+	GDistanceMetric() : m_pRelation(NULL), m_ownRelation(false) {}
 	GDistanceMetric(GDomNode* pNode);
-	virtual ~GDistanceMetric() {}
+	virtual ~GDistanceMetric();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
-	/// This must be called before squaredDistance can be called
-	virtual void init(sp_relation& pRelation) = 0;
+	/// This must be called before squaredDistance can be called. Takes ownership of pRelation iff own is true.
+	virtual void init(const GRelation* pRelation, bool own) = 0;
 
 	/// Return the squared distance (or squared dissimilarity) between the two specified vectors.
  	///
@@ -69,7 +70,7 @@ public:
 	}
 
 	/// Returns the relation that specifies the meaning of the vector elements
-	sp_relation& relation() { return m_pRelation; }
+	const GRelation* relation() const { return m_pRelation; }
 
 	/// Deserializes a distance metric
 	static GDistanceMetric* deserialize(GDomNode* pNode);
@@ -80,6 +81,10 @@ public:
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
+
+	/// Sets the relation to use with this metric. Takes ownership
+	/// of the relation iff own is true.
+	void setRelation(const GRelation* pRelation, bool own);
 };
 
 
@@ -103,8 +108,8 @@ public:
 	/// See the comment for GDistanceMetric::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GDistanceMetric::init
-	virtual void init(sp_relation& pRelation);
+	/// See the comment for GDistanceMetric::init.
+	virtual void init(const GRelation* pRelation, bool own);
 
 	/// Returns the distance between pA and pB
 	virtual double squaredDistance(const double* pA, const double* pB) const;
@@ -140,8 +145,8 @@ public:
         /// See the comment for GDistanceMetric::serialize
         virtual GDomNode* serialize(GDom* pDoc) const;
 
-        /// See the comment for GDistanceMetric::init
-        virtual void init(sp_relation& pRelation);
+        /// See the comment for GDistanceMetric::init.
+        virtual void init(const GRelation* pRelation, bool own);
 
         /// Returns the scaled distance between pA and pB
         virtual double squaredDistance(const double* pA, const double* pB) const;
@@ -159,21 +164,21 @@ public:
 class GLNormDistance : public GDistanceMetric
 {
 protected:
-        double m_norm;
+	double m_norm;
 	double m_diffWithUnknown;
 
 public:
-        GLNormDistance(double norm);
-        GLNormDistance(GDomNode* pNode);
+	GLNormDistance(double norm);
+	GLNormDistance(GDomNode* pNode);
 
-        /// See the comment for GDistanceMetric::serialize
-        virtual GDomNode* serialize(GDom* pDoc) const;
+	/// See the comment for GDistanceMetric::serialize
+	virtual GDomNode* serialize(GDom* pDoc) const;
 
-        /// See the comment for GDistanceMetric::init
-        virtual void init(sp_relation& pRelation);
+	/// See the comment for GDistanceMetric::init.
+	virtual void init(const GRelation* pRelation, bool own);
 
-        /// Returns the distance (using the norm passed to the constructor) between pA and pB
-        virtual double squaredDistance(const double* pA, const double* pB) const;
+	/// Returns the distance (using the norm passed to the constructor) between pA and pB
+	virtual double squaredDistance(const double* pA, const double* pB) const;
 
 	/// Specify the difference to use when one or more of the values is unknown.
 	/// (If your data contains unknown values, you may want to normalize the

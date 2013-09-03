@@ -105,7 +105,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -123,7 +123,7 @@ protected:
 	virtual bool canImplicitlyHandleNominalLabels() { return false; }
 
 	/// Called by trainInner
-	void trainInnerInner(GMatrix& features, GMatrix& labels);
+	void trainInnerInner(const GMatrix& features, const GMatrix& labels);
 };
 
 } // namespace GClasses

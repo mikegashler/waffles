@@ -17,8 +17,8 @@
 
 namespace GClasses {
 
-GQLearner::GQLearner(sp_relation& pRelation, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator)
-: GPolicyLearner(pRelation, actionDims), m_pRand(pRand), m_pActionIterator(pActionIterator)
+GQLearner::GQLearner(const GRelation& relation, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator)
+: GPolicyLearner(relation, actionDims), m_pRand(pRand), m_pActionIterator(pActionIterator)
 {
 	m_learningRate = 1;
 	m_discountFactor = 0.98;
@@ -83,13 +83,13 @@ void GQLearner::refinePolicyAndChooseNextAction(const double* pSenses, double* p
 
 // -----------------------------------------------------------------
 
-GIncrementalLearnerQAgent::GIncrementalLearnerQAgent(sp_relation& pObsControlRelation, GIncrementalLearner* pQTable, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator, double softMaxThresh)
-: GQLearner(pObsControlRelation, actionDims, pInitialState, pRand, pActionIterator)
+GIncrementalLearnerQAgent::GIncrementalLearnerQAgent(const GRelation& obsControlRelation, GIncrementalLearner* pQTable, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator, double softMaxThresh)
+: GQLearner(obsControlRelation, actionDims, pInitialState, pRand, pActionIterator)
 {
 	// Enable incremental learning
 	m_pQTable = pQTable;
-	sp_relation pQRelation = new GUniformRelation(1);
-	pQTable->beginIncrementalLearning(pObsControlRelation, pQRelation);
+	GUniformRelation qRel(1);
+	pQTable->beginIncrementalLearning(obsControlRelation, qRel);
 
 	// Init other stuff
 	m_pBuf = new double[m_senseDims + m_actionDims];

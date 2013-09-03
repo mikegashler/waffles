@@ -163,13 +163,13 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
 	{
 		data.loadCsv(szFilename, ',', false, false);
-		if(requireMetadata && !data.relation()->areContinuous(0, data.cols()))
+		if(requireMetadata && !data.relation().areContinuous())
 			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 	{
 		data.loadCsv(szFilename, '\0', false, false);
-		if(requireMetadata && !data.relation()->areContinuous(0, data.cols()))
+		if(requireMetadata && !data.relation().areContinuous())
 			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
 	else
@@ -1102,9 +1102,9 @@ void predict(GArgReader& args)
 	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
-	if(pLabels->cols() != pModeler->relLabels()->size())
-		throw Ex("The model was trained with ", to_str(pModeler->relLabels()->size()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
-	if(!pFeatures->relation()->isCompatible(*pModeler->relFeatures().get()) || !pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
+	if(pLabels->cols() != pModeler->relLabels().size())
+		throw Ex("The model was trained with ", to_str(pModeler->relLabels().size()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
+	if(!pFeatures->relation().isCompatible(pModeler->relFeatures()) || !pLabels->relation().isCompatible(pModeler->relLabels()))
 		throw Ex("This data is not compatible with the data that was used to train the model. (The column meta-data is different.)");
 	pLabels->setAll(0.0); // Wipe out the existing labels, just to be absolutely certain that we don't somehow accidentally let them influence the predictions
 
@@ -1143,13 +1143,13 @@ void predictDistribution(GArgReader& args)
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Parse the pattern
-	if(pModeler->relFeatures()->type() != GRelation::ARFF)
+	if(pModeler->relFeatures().type() != GRelation::ARFF)
 		throw Ex("meta data is missing");
-	GArffRelation* pFeatureRel = (GArffRelation*)pModeler->relFeatures().get();
-	if(pModeler->relLabels()->type() != GRelation::ARFF)
+	GArffRelation* pFeatureRel = (GArffRelation*)&pModeler->relFeatures();
+	if(pModeler->relLabels().type() != GRelation::ARFF)
 		throw Ex("meta data is missing");
-	GArffRelation* pLabelRel = (GArffRelation*)pModeler->relLabels().get();
-	size_t featureDims = pModeler->relFeatures()->size();
+	GArffRelation* pLabelRel = (GArffRelation*)&pModeler->relLabels();
+	size_t featureDims = pModeler->relFeatures().size();
 	GTEMPBUF(double, pattern, featureDims);
 	for(size_t i = 0; i < featureDims; i++)
 		pattern[i] = pFeatureRel->parseValue(i, args.pop_string());
@@ -1259,7 +1259,7 @@ void rightJustifiedString(const char* pIn, char* pOut, size_t outLen)
 ///
 ///\param pRelation a pointer to the relation from which the
 ///                 variable_idx-'th variable is taken. Cannot be null
-std::string machineReadableConfusionHeader(std::size_t variable_idx, GRelation* pRelation){
+std::string machineReadableConfusionHeader(std::size_t variable_idx, const GRelation* pRelation){
   assert(pRelation != NULL);
   ostringstream out;
   out << "\"Variable Name\",\"Variable Index\"";
@@ -1293,7 +1293,7 @@ std::string machineReadableConfusionHeader(std::size_t variable_idx, GRelation* 
 ///\param pMatrix a pointer to the confusion matrix. (*pMatrix)[r][c]
 ///               is the number of times that r was expected and c was
 ///               received. Cannot be NULL.
-std::string machineReadableConfusionData(std::size_t variable_idx, GRelation* pRelation, GMatrix const * const pMatrix){
+std::string machineReadableConfusionData(std::size_t variable_idx, const GRelation* pRelation, GMatrix const * const pMatrix){
   ostringstream out;
   {
     ostringstream v_name;
@@ -1326,7 +1326,7 @@ std::string machineReadableConfusionData(std::size_t variable_idx, GRelation* pR
 ///                   pRelation. Row r, column c of matrixArray[i] is the 
 ///                   number of times the value r of the attribute was expected
 ///                   and c was encountered.
-void printMachineReadableConfusionMatrices(GRelation* pRelation, vector<GMatrix*>& matrixArray){
+void printMachineReadableConfusionMatrices(const GRelation* pRelation, vector<GMatrix*>& matrixArray){
   for(size_t i = 0; i < matrixArray.size(); i++){
     if(matrixArray[i] == NULL){
       continue;
@@ -1337,7 +1337,7 @@ void printMachineReadableConfusionMatrices(GRelation* pRelation, vector<GMatrix*
   }
 }
 
-void printConfusionMatrices(GRelation* pRelation, vector<GMatrix*>& matrixArray)
+void printConfusionMatrices(const GRelation* pRelation, vector<GMatrix*>& matrixArray)
 {
 	cout << "\n(Rows=expected values, Cols=predicted values, Elements=number of occurrences)\n\n";
 	char buf[41];
@@ -1423,7 +1423,7 @@ void Test(GArgReader& args)
 	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
-	if(!pLabels->relation()->isCompatible(*pModeler->relLabels().get()))
+	if(!pLabels->relation().isCompatible(pModeler->relLabels()))
 		throw Ex("This dataset is not compatible with the one used to train the model. (The meta-data is different.)");
 
 	// Test
@@ -1437,11 +1437,11 @@ void Test(GArgReader& args)
 
 		// Print the confusion matrix
 		if(confusion){
-			printConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+			printConfusionMatrices(&pLabels->relation(), confusionMatrices);
 		}
 
 		if(confusioncsv){
-			printMachineReadableConfusionMatrices(pLabels->relation().get(), confusionMatrices);
+			printMachineReadableConfusionMatrices(&pLabels->relation(), confusionMatrices);
 		}
 	}
 }
@@ -1595,8 +1595,8 @@ void SplitTest(GArgReader& args)
 	{
 		// Shuffle and split the data
 		pFeatures->shuffle(prng, pLabels);
-		GMatrix testFeatures(pFeatures->relation());
-		GMatrix testLabels(pLabels->relation());
+		GMatrix testFeatures(pFeatures->relation().clone());
+		GMatrix testLabels(pLabels->relation().clone());
 		{
 			GMergeDataHolder hFeatures(*pFeatures, testFeatures);
 			GMergeDataHolder hLabels(*pLabels, testLabels);
@@ -1734,19 +1734,18 @@ void PrecisionRecall(GArgReader& args)
 	GSupervisedLearner* pModel = (GSupervisedLearner*)pSupLearner;
 
 	// Build the relation for the results
-	sp_relation pRelation;
-	pRelation = new GArffRelation();
-	((GArffRelation*)pRelation.get())->setName("untitled");
-	GArffRelation* pRel = (GArffRelation*)pRelation.get();
+	GArffRelation* pRelation = new GArffRelation();
+	pRelation->setName("untitled");
+	GArffRelation* pRel = pRelation;
 	pRel->addAttribute("recall", 0, NULL);
 	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
-		size_t valCount = std::max((size_t)1, pLabels->relation()->valueCount(i));
+		size_t valCount = std::max((size_t)1, pLabels->relation().valueCount(i));
 		for(int val = 0; val < (int)valCount; val++)
 		{
 			string s = "precision_";
-			if(pLabels->relation()->type() == GRelation::ARFF)
-				s += ((GArffRelation*)pLabels->relation().get())->attrName(i);
+			if(pLabels->relation().type() == GRelation::ARFF)
+				s += ((const GArffRelation&)pLabels->relation()).attrName(i);
 			else
 			{
 				s += "attr";
@@ -1756,7 +1755,7 @@ void PrecisionRecall(GArgReader& args)
 			{
 				s += "_";
 				ostringstream oss;
-				pLabels->relation()->printAttrValue(oss, i, val);
+				pLabels->relation().printAttrValue(oss, i, val);
 				s += oss.str();
 			}
 			vette(s);
@@ -1772,7 +1771,7 @@ void PrecisionRecall(GArgReader& args)
 	size_t pos = 1;
 	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
-		size_t valCount = std::max((size_t)1, pLabels->relation()->valueCount(i));
+		size_t valCount = std::max((size_t)1, pLabels->relation().valueCount(i));
 		double* precision = new double[valCount * samples];
 		ArrayHolder<double> hPrecision(precision);
 		pModel->precisionRecall(precision, samples, *pFeatures, *pLabels, i, reps);
@@ -1815,20 +1814,20 @@ void sterilize(GArgReader& args)
 		throw Ex("Superfluous argument: ", args.peek());
 
 	// Sterilize
-	GMatrix sterileFeatures(pFeatures->relation());
+	GMatrix sterileFeatures(pFeatures->relation().clone());
 	GReleaseDataHolder hSterileFeatures(&sterileFeatures);
-	GMatrix sterileLabels(pLabels->relation());
+	GMatrix sterileLabels(pLabels->relation().clone());
 	GReleaseDataHolder hSterileLabels(&sterileLabels);
 	for(size_t fold = 0; fold < folds; fold++)
 	{
 		// Split the data
-		GMatrix trainFeatures(pFeatures->relation());
+		GMatrix trainFeatures(pFeatures->relation().clone());
 		GReleaseDataHolder hTrainFeatures(&trainFeatures);
-		GMatrix trainLabels(pLabels->relation());
+		GMatrix trainLabels(pLabels->relation().clone());
 		GReleaseDataHolder hTrainLabels(&trainLabels);
-		GMatrix testFeatures(pFeatures->relation());
+		GMatrix testFeatures(pFeatures->relation().clone());
 		GReleaseDataHolder hTestFeatures(&testFeatures);
-		GMatrix testLabels(pLabels->relation());
+		GMatrix testLabels(pLabels->relation().clone());
 		GReleaseDataHolder hTestLabels(&testLabels);
 		size_t foldBegin = fold * pFeatures->rows() / folds;
 		size_t foldEnd = (fold + 1) * pFeatures->rows() / folds;
@@ -1859,7 +1858,7 @@ void sterilize(GArgReader& args)
 			double* pPredicted = pPredictedLabels->row(j);
 			for(size_t i = 0; i < testLabels.cols(); i++)
 			{
-				size_t vals = testLabels.relation()->valueCount(i);
+				size_t vals = testLabels.relation().valueCount(i);
 				bool goodEnough = false;
 				if(vals == 0)
 				{

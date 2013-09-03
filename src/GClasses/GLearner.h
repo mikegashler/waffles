@@ -114,13 +114,13 @@ public:
 
 	/// Predicts a set of labels to correspond with features2, such that these
 	/// labels will be consistent with the patterns exhibited by features1 and labels1.
-	GMatrix* transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+	GMatrix* transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// Trains and tests this learner. Returns the sum-squared-error.
-	virtual double trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels);
+	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels);
 
 	/// Makes a confusion matrix for a transduction algorithm
-	void transductiveConfusionMatrix(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, std::vector<GMatrix*>& stats);
+	void transductiveConfusionMatrix(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, std::vector<GMatrix*>& stats);
 
 	/// Perform n-fold cross validation on pData. Returns sum-squared error.
 	/// Uses trainAndTest for each fold. pCB is an optional callback method for reporting
@@ -128,18 +128,14 @@ public:
 	/// nRep is just the rep number that will be passed to the callback.
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
-	double crossValidate(GMatrix& features, GMatrix& labels, size_t nFolds, RepValidateCallback pCB = NULL, size_t nRep = 0, void* pThis = NULL);
+	double crossValidate(const GMatrix& features, const GMatrix& labels, size_t nFolds, RepValidateCallback pCB = NULL, size_t nRep = 0, void* pThis = NULL);
 
 	/// Perform cross validation "nReps" times and return the
 	/// average score. pCB is an optional callback method for reporting intermediate stats
 	/// It can be NULL if you don't want intermediate reporting.
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
-	double repValidate(GMatrix& features, GMatrix& labels, size_t reps, size_t nFolds, RepValidateCallback pCB = NULL, void* pThis = NULL);
-
-	/// This performs two-fold cross-validation on a shuffled
-	/// non-uniform split of the data, and returns the sum-squared-error.
-	double heuristicValidate(GMatrix& features, GMatrix& labels);
+	double repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t nFolds, RepValidateCallback pCB = NULL, void* pThis = NULL);
 #endif // MIN_PREDICT
 
 	/// Returns a reference to the random number generator associated with this object.
@@ -148,7 +144,7 @@ public:
 protected:
 #ifndef MIN_PREDICT
 	/// This is the algorithm's implementation of transduction. (It is called by the transduce method.)
-	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2) = 0;
+	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2) = 0;
 #endif // MIN_PREDICT
 
 	/// Returns true iff this algorithm can implicitly handle nominal features. If it
@@ -198,8 +194,8 @@ class GSupervisedLearner : public GTransducer
 protected:
 	GIncrementalTransform* m_pFilterFeatures;
 	GIncrementalTransform* m_pFilterLabels;
-	sp_relation m_pRelFeatures;
-	sp_relation m_pRelLabels;
+	GRelation* m_pRelFeatures;
+	GRelation* m_pRelLabels;
 	GNeuralNet** m_pCalibrations;
 
 public:
@@ -225,12 +221,12 @@ public:
 	/// Returns a smart-pointer to the feature relation (meta-data about the input attributes).
 	/// (Note that this relation describes outer data, and may contain types that are not
 	/// supported by the inner algorithm.)
-	sp_relation relFeatures() { return m_pRelFeatures; }
+	const GRelation& relFeatures() { return *m_pRelFeatures; }
 
 	/// Returns a smart-pointer to the label relation (meta-data about the output attributes).
 	/// (Note that this relation describes outer data, and may contain types that are not
 	/// supported by the inner algorithm.)
-	sp_relation relLabels() { return m_pRelLabels; }
+	const GRelation& relLabels() { return *m_pRelLabels; }
 
 	/// Returns the current feature filter (or NULL if none has been set).
 	GIncrementalTransform* featureFilter() { return m_pFilterFeatures; }
@@ -257,7 +253,7 @@ public:
 	/// filters are needed to convert the training features and labels into
 	/// a form that the model's training algorithm can handle, and then calls
 	/// trainInner to do the actual training.
-	void train(GMatrix& features, GMatrix& labels);
+	void train(const GMatrix& features, const GMatrix& labels);
 #endif // MIN_PREDICT
 
 	/// Evaluate pIn to compute a prediction for pOut. The model must be trained
@@ -311,7 +307,7 @@ public:
 
 	/// Computes the sum-squared-error for predicting the labels from the features.
 	/// For categorical labels, Hamming distance is used.
-	double sumSquaredError(GMatrix& features, GMatrix& labels);
+	double sumSquaredError(const GMatrix& features, const GMatrix& labels);
 
 	/// label specifies which output to measure. (It should be 0 if there is only one label dimension.)
 	/// The measurement will be performed "nReps" times and results averaged together
@@ -322,7 +318,7 @@ public:
 	void precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps);
 
 	/// Trains and tests this learner. Returns sum-squared-error.
-	virtual double trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels);
+	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels);
 #endif // MIN_PREDICT
 
 #ifndef MIN_PREDICT
@@ -334,7 +330,7 @@ public:
 #endif // MIN_PREDICT
 protected:
 	/// This is the implementation of the model's training algorithm. (This method is called by train).
-	virtual void trainInner(GMatrix& features, GMatrix& labels) = 0;
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels) = 0;
 
 	/// This is the implementation of the model's prediction algorithm. (This method is called by predict).
 	virtual void predictInner(const double* pIn, double* pOut) = 0;
@@ -344,12 +340,12 @@ protected:
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut) = 0;
 
 	/// See GTransducer::transduce
-	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 #endif // MIN_PREDICT
 
 	/// This method determines which data filters (normalize, discretize,
 	/// and/or nominal-to-cat) are needed and trains them.
-	void setupFilters(GMatrix& features, GMatrix& labels);
+	void setupFilters(const GMatrix& features, const GMatrix& labels);
 #ifndef MIN_PREDICT
 
 	/// This is a helper method used by precisionRecall.
@@ -364,7 +360,7 @@ protected:
 
 protected:
 	/// Used to measure SSE with data that has already been converted to the internal format.
-	double sumSquaredErrorInternal(GMatrix& features, GMatrix& labels);
+	double sumSquaredErrorInternal(const GMatrix& features, const GMatrix& labels);
 };
 
 ///\brief Converts a GSupervisedLearner to a string
@@ -407,7 +403,7 @@ public:
 	/// if you have automatic filter setup enabled). Rather,
 	/// it assumes that you have already set up any filters that you wish to use.
 	/// Behavior is undefined if you change the filters after this method is called.
-	void beginIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+	void beginIncrementalLearning(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// Pass a single input row and the corresponding label to
 	/// incrementally train this model
@@ -424,7 +420,7 @@ public:
 
 protected:
 	/// Prepare the model for incremental learning.
-	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel) = 0;
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel) = 0;
 
 	/// Refine the model with the specified pattern.
 	virtual void trainIncrementalInner(const double* pIn, const double* pOut) = 0;
@@ -511,7 +507,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -548,7 +544,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);

@@ -147,7 +147,7 @@ public:
 };
 
 // virtual
-GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	if(features1.rows() != labels1.rows())
 		throw Ex("Expected features1 and labels1 to have the same number of rows");
@@ -155,8 +155,8 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 		throw Ex("Expected both feature matrices to have the same number of cols");
 
 	// Convert the features to a form that this algorithm can handle
-	GMatrix& f1 = features1;
-	GMatrix& f2 = features2;
+	const GMatrix* pF1 = &features1;
+	const GMatrix* pF2 = &features2;
 	Holder<GMatrix> hF1(NULL);
 	Holder<GMatrix> hF2(NULL);
 	if(!canImplicitlyHandleNominalFeatures())
@@ -165,16 +165,16 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 			throw Ex("Can't handle nominal or continuous features");
 
 		// Convert nominal features to continuous
- 		if(!features1.relation()->areContinuous(0, features1.relation()->size()))
- 		{
+		if(!features1.relation().areContinuous())
+		{
 			GNominalToCat ntc;
-			ntc.train(f1);
-			GMatrix* pF1 = ntc.transformBatch(f1);
-			hF1.reset(pF1);
-			f1 = *pF1;
-			GMatrix* pF2 = ntc.transformBatch(f2);
-			hF2.reset(pF2);
-			f2 = *pF2;
+			ntc.train(*pF1);
+			GMatrix* pTemp = ntc.transformBatch(*pF1);
+			hF1.reset(pTemp);
+			pF1 = pTemp;
+			pTemp = ntc.transformBatch(*pF2);
+			hF2.reset(pTemp);
+			pF2 = pTemp;
 		}
 	}
 	if(!canImplicitlyHandleContinuousFeatures())
@@ -183,16 +183,16 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 			throw Ex("Can't handle nominal or continuous features");
 
 		// Convert continuous features to nominal
-		if(!features1.relation()->areNominal(0, features1.relation()->size()))
+		if(!features1.relation().areNominal())
 		{
 			GDiscretize disc;
-			disc.train(f1); // todo: should really use both feature sets here
-			GMatrix* pF1 = disc.transformBatch(features1);
-			hF1.reset(pF1);
-			f1 = *pF1;
-			GMatrix* pF2 = disc.transformBatch(features2);
-			hF2.reset(pF2);
-			f2 = *pF2;
+			disc.train(*pF1); // todo: should really use both feature sets here
+			GMatrix* pTemp = disc.transformBatch(*pF1);
+			hF1.reset(pTemp);
+			pF1 = pTemp;
+			pTemp = disc.transformBatch(*pF2);
+			hF2.reset(pTemp);
+			pF2 = pTemp;
 		}
 	}
 	if(canImplicitlyHandleContinuousFeatures())
@@ -202,13 +202,13 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 		if(!supportedFeatureRange(&fmin, &fmax))
 		{
 			GNormalize norm(fmin, fmax);
-			norm.train(f1); // todo: should really use both feature sets here
-			GMatrix* pF1 = norm.transformBatch(f1);
-			hF1.reset(pF1);
-			f1 = *pF1;
-			GMatrix* pF2 = norm.transformBatch(f2);
-			hF2.reset(pF2);
-			f2 = *pF2;
+			norm.train(*pF1); // todo: should really use both feature sets here
+			GMatrix* pTemp = norm.transformBatch(*pF1);
+			hF1.reset(pTemp);
+			pF1 = pTemp;
+			pTemp = norm.transformBatch(*pF2);
+			hF2.reset(pTemp);
+			pF2 = pTemp;
 		}
 	}
 
@@ -217,33 +217,33 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 	{
 		if(!canImplicitlyHandleNominalLabels())
 			throw Ex("This algorithm says it cannot handle nominal or continuous labels");
-		if(labels1.relation()->areNominal(0, labels1.relation()->size()))
-			return transduceInner(f1, labels1, f2);
+		if(labels1.relation().areNominal())
+			return transduceInner(*pF1, labels1, *pF2);
 		else
 		{
 			GDiscretize disc;
 			disc.train(labels1);
 			GMatrix* pL1 = disc.transformBatch(labels1);
 			Holder<GMatrix> hL1(pL1);
-			GMatrix* pL2 = transduceInner(f1, *pL1, f2);
+			GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
 			Holder<GMatrix> hL2(pL2);
 			return disc.untransformBatch(*pL2);
 		}
 	}
 	else
 	{
-		if(canImplicitlyHandleNominalLabels() || labels1.relation()->areContinuous(0, labels1.relation()->size()))
+		if(canImplicitlyHandleNominalLabels() || labels1.relation().areContinuous())
 		{
 			double lmin, lmax;
 			if(supportedLabelRange(&lmin, &lmax))
-				return transduceInner(f1, labels1, f2);
+				return transduceInner(*pF1, labels1, *pF2);
 			else
 			{
 				GNormalize norm(lmin, lmax);
 				norm.train(labels1);
 				GMatrix* pL1 = norm.transformBatch(labels1);
 				Holder<GMatrix> hL1(pL1);
-				GMatrix* pL2 = transduceInner(f1, *pL1, f2);
+				GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
 				Holder<GMatrix> hL2(pL2);
 				return norm.untransformBatch(*pL2);
 			}
@@ -257,7 +257,7 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 				ntc.train(labels1);
 				GMatrix* pL1 = ntc.transformBatch(labels1);
 				Holder<GMatrix> hL1(pL1);
-				GMatrix* pL2 = transduceInner(f1, *pL1, f2);
+				GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
 				Holder<GMatrix> hL2(pL2);
 				return ntc.untransformBatch(*pL2);
 			}
@@ -272,7 +272,7 @@ GMatrix* GTransducer::transduce(GMatrix& features1, GMatrix& labels1, GMatrix& f
 }
 
 // virtual
-double GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels)
+double GTransducer::trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels)
 {
 	// Check assumptions
 	if(testFeatures.rows() != testLabels.rows())
@@ -293,7 +293,7 @@ double GTransducer::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, G
 }
 
 // virtual
-void GTransducer::transductiveConfusionMatrix(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, std::vector<GMatrix*>& stats)
+void GTransducer::transductiveConfusionMatrix(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, std::vector<GMatrix*>& stats)
 {
 	// Check assumptions
 	if(testFeatures.rows() != testLabels.rows())
@@ -310,7 +310,7 @@ void GTransducer::transductiveConfusionMatrix(GMatrix& trainFeatures, GMatrix& t
 	stats.resize(labelDims);
 	for(size_t j = 0; j < labelDims; j++)
 	{
-		size_t vals = testLabels.relation()->valueCount(j);
+		size_t vals = testLabels.relation().valueCount(j);
 		if(vals > 0)
 		{
 			stats[j] = new GMatrix(vals, vals);
@@ -321,7 +321,7 @@ void GTransducer::transductiveConfusionMatrix(GMatrix& trainFeatures, GMatrix& t
 	}
 	for(size_t i = 0; i < pPredictedLabels->rows(); i++)
 	{
-		double* pTarget = testLabels[i];
+		const double* pTarget = testLabels[i];
 		double* pPred = pPredictedLabels->row(i);
 		for(size_t j = 0; j < labelDims; j++)
 		{
@@ -336,56 +336,19 @@ void GTransducer::transductiveConfusionMatrix(GMatrix& trainFeatures, GMatrix& t
 	}
 }
 
-double GTransducer::heuristicValidate(GMatrix& features, GMatrix& labels)
-{
-	// Check assumptions
-	if(features.rows() != labels.rows())
-		throw Ex("Expected the features and labels to have the same number of rows");
-
-	// Randomly divide into two datasets
-	GMatrix featuresA(features.relation());
-	GReleaseDataHolder hFeaturesA(&featuresA);
-	featuresA.reserve(features.rows());
-	GMatrix featuresB(features.relation());
-	GReleaseDataHolder hFeaturesB(&featuresB);
-	featuresB.reserve(features.rows());
-	GMatrix labelsA(labels.relation());
-	GReleaseDataHolder hLabelsA(&labelsA);
-	labelsA.reserve(labels.rows());
-	GMatrix labelsB(labels.relation());
-	GReleaseDataHolder hLabelsB(&labelsB);
-	labelsB.reserve(labels.rows());
-	for(size_t i = 0; i < features.rows(); i++)
-	{
-		if(m_rand.next() & 1)
-		{
-			featuresA.takeRow(features[i]);
-			labelsA.takeRow(labels[i]);
-		}
-		else
-		{
-			featuresB.takeRow(features[i]);
-			labelsB.takeRow(labels[i]);
-		}
-	}
-
-	// Evaluate
-	return trainAndTest(featuresA, labelsA, featuresB, labelsB) + trainAndTest(featuresB, labelsB, featuresA, labelsA);
-}
-
-double GTransducer::crossValidate(GMatrix& features, GMatrix& labels, size_t folds, RepValidateCallback pCB, size_t nRep, void* pThis)
+double GTransducer::crossValidate(const GMatrix& features, const GMatrix& labels, size_t folds, RepValidateCallback pCB, size_t nRep, void* pThis)
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
 
 	// Do cross-validation
-	GMatrix trainFeatures(features.relation());
+	GMatrix trainFeatures(features.relation().clone());
 	trainFeatures.reserve(features.rows());
-	GMatrix testFeatures(features.relation());
+	GMatrix testFeatures(features.relation().clone());
 	testFeatures.reserve(features.rows() / folds + 1);
-	GMatrix trainLabels(labels.relation());
+	GMatrix trainLabels(labels.relation().clone());
 	trainLabels.reserve(labels.rows());
-	GMatrix testLabels(labels.relation());
+	GMatrix testLabels(labels.relation().clone());
 	testLabels.reserve(labels.rows() / folds + 1);
 	double sse = 0.0;
 	for(size_t i = 0; i < folds; i++)
@@ -399,18 +362,18 @@ double GTransducer::crossValidate(GMatrix& features, GMatrix& labels, size_t fol
 		size_t foldEnd = (i + 1) * features.rows() / folds;
 		for(size_t j = 0; j < foldStart; j++)
 		{
-			trainFeatures.takeRow(features[j]);
-			trainLabels.takeRow(labels[j]);
+			trainFeatures.takeRow((double*)features[j]);
+			trainLabels.takeRow((double*)labels[j]);
 		}
 		for(size_t j = foldStart; j < foldEnd; j++)
 		{
-			testFeatures.takeRow(features[j]);
-			testLabels.takeRow(labels[j]);
+			testFeatures.takeRow((double*)features[j]);
+			testLabels.takeRow((double*)labels[j]);
 		}
 		for(size_t j = foldEnd; j < features.rows(); j++)
 		{
-			trainFeatures.takeRow(features[j]);
-			trainLabels.takeRow(labels[j]);
+			trainFeatures.takeRow((double*)features[j]);
+			trainLabels.takeRow((double*)labels[j]);
 		}
 
 		// Evaluate
@@ -422,13 +385,24 @@ double GTransducer::crossValidate(GMatrix& features, GMatrix& labels, size_t fol
 	return sse;
 }
 
-double GTransducer::repValidate(GMatrix& features, GMatrix& labels, size_t reps, size_t folds, RepValidateCallback pCB, void* pThis)
+double GTransducer::repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t folds, RepValidateCallback pCB, void* pThis)
 {
+	if(features.rows() != labels.rows())
+		throw Ex("Expected the features and labels to have the same number of rows");
+	GMatrix f(features.relation().clone());
+	GReleaseDataHolder hF(&f);
+	GMatrix l(labels.relation().clone());
+	GReleaseDataHolder hL(&l);
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		f.takeRow((double*)features[i]);
+		l.takeRow((double*)labels[i]);
+	}
 	double ssse = 0.0;
 	for(size_t i = 0; i < reps; i++)
 	{
-		features.shuffle(m_rand, &labels);
-		ssse += crossValidate(features, labels, folds, pCB, i, pThis);
+		f.shuffle(m_rand, &l);
+		ssse += crossValidate(f, l, folds, pCB, i, pThis);
 	}
 	return ssse / reps;
 }
@@ -437,7 +411,7 @@ double GTransducer::repValidate(GMatrix& features, GMatrix& labels, size_t reps,
 // ---------------------------------------------------------------
 
 GSupervisedLearner::GSupervisedLearner(GRand& rand)
-: GTransducer(rand), m_pFilterFeatures(NULL), m_pFilterLabels(NULL), m_pCalibrations(NULL)
+: GTransducer(rand), m_pFilterFeatures(NULL), m_pFilterLabels(NULL), m_pRelFeatures(NULL), m_pRelLabels(NULL), m_pCalibrations(NULL)
 {
 }
 
@@ -480,12 +454,14 @@ GSupervisedLearner::~GSupervisedLearner()
 	}
 	delete(m_pFilterFeatures);
 	delete(m_pFilterLabels);
+	delete(m_pRelFeatures);
+	delete(m_pRelLabels);
 }
 
 #ifndef MIN_PREDICT
 GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
-	if(!m_pRelLabels.get())
+	if(!m_pRelLabels)
 		throw Ex("The model must be trained before it is serialized.");
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
@@ -544,7 +520,7 @@ void GSupervisedLearner::wrapLabels(GIncrementalTransform* pFilter)
 		m_pFilterLabels = pFilter;
 }
 
-void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
+void GSupervisedLearner::setupFilters(const GMatrix& features, const GMatrix& labels)
 {
 	// Discard any existing filters
 	clearFeatureFilter();
@@ -553,10 +529,10 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 	// Automatically instantiate any necessary filters for the features
 	bool hasNominalFeatures = false;
 	bool hasContinuousFeatures = false;
-	GRelation* pFeatureRel = features.relation().get();
-	for(size_t i = 0; i < pFeatureRel->size(); i++)
+	const GRelation& featureRel = features.relation();
+	for(size_t i = 0; i < featureRel.size(); i++)
 	{
-		if(pFeatureRel->valueCount(i) == 0)
+		if(featureRel.valueCount(i) == 0)
 		{
 			hasContinuousFeatures = true;
 			if(hasNominalFeatures)
@@ -586,9 +562,9 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 			if(!supportedFeatureRange(&supportedMin, &supportedMax))
 			{
 				bool normalizationIsNeeded = false;
-				for(size_t i = 0; i < pFeatureRel->size(); i++)
+				for(size_t i = 0; i < featureRel.size(); i++)
 				{
-					if(pFeatureRel->valueCount(i) != 0)
+					if(featureRel.valueCount(i) != 0)
 						continue;
 					double fMin = features.columnMin(i);
 					double fMax = features.columnMax(i);
@@ -627,10 +603,10 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 	// Automatically instantiate any necessary filters for the labels
 	bool hasNominalLabels = false;
 	bool hasContinuousLabels = false;
-	GRelation* pLabelRel = labels.relation().get();
-	for(size_t i = 0; i < pLabelRel->size(); i++)
+	const GRelation& labelRel = labels.relation();
+	for(size_t i = 0; i < labelRel.size(); i++)
 	{
-		if(pLabelRel->valueCount(i) == 0)
+		if(labelRel.valueCount(i) == 0)
 		{
 			hasContinuousLabels = true;
 			if(hasNominalLabels)
@@ -651,9 +627,9 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 			if(!supportedLabelRange(&supportedMin, &supportedMax))
 			{
 				bool normalizationIsNeeded = false;
-				for(size_t i = 0; i < pLabelRel->size(); i++)
+				for(size_t i = 0; i < labelRel.size(); i++)
 				{
-					if(pLabelRel->valueCount(i) != 0)
+					if(labelRel.valueCount(i) != 0)
 						continue;
 					double lMin = labels.columnMin(i);
 					double lMax = labels.columnMax(i);
@@ -690,15 +666,17 @@ void GSupervisedLearner::setupFilters(GMatrix& features, GMatrix& labels)
 	}
 }
 
-void GSupervisedLearner::train(GMatrix& features, GMatrix& labels)
+void GSupervisedLearner::train(const GMatrix& features, const GMatrix& labels)
 {
 	// Check assumptions
 	if(features.rows() != labels.rows())
 		throw Ex("Expected features and labels to have the same number of rows");
 	if(labels.cols() == 0)
 		throw Ex("Expected at least one label dimension");
-	m_pRelFeatures = features.relation();
-	m_pRelLabels = labels.relation();
+	delete(m_pRelFeatures);
+	m_pRelFeatures = features.relation().clone();
+	delete(m_pRelLabels);
+	m_pRelLabels = labels.relation().clone();
 
 	// Filter the data (if necessary) and train the model
 	setupFilters(features, labels);
@@ -764,9 +742,9 @@ void GSupervisedLearner::predict(const double* pIn, double* pOut)
 void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 {
 	// Check assumptions
-	if(!m_pRelLabels.get())
+	if(!m_pRelLabels)
 		throw Ex("The model must be trained before it is calibrated");
-	if(!m_pRelFeatures->isCompatible(*features.relation().get()) || !m_pRelLabels->isCompatible(*labels.relation().get()))
+	if(!m_pRelFeatures->isCompatible(features.relation()) || !m_pRelLabels->isCompatible(labels.relation()))
 		throw Ex("This data is not compatible with the data used to train this model");
 	if(features.rows() != labels.rows())
 		throw Ex("Expected features and labels to have the same number of rows");
@@ -794,7 +772,7 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 	for(size_t i = 0; i < labelDims; i++)
 	{
 		// Gather the predicted (before) distribution values
-		size_t vals = labels.relation()->valueCount(i);
+		size_t vals = labels.relation().valueCount(i);
 		GMatrix tmpBefore(features.rows(), std::max(size_t(1), vals));
 		if(vals == 0)
 		{
@@ -912,7 +890,7 @@ void GSupervisedLearner::confusion(GMatrix& features, GMatrix& labels, std::vect
 	stats.resize(labelDims);
 	for(size_t j = 0; j < labelDims; j++)
 	{
-		size_t vals = labels.relation()->valueCount(j);
+		size_t vals = labels.relation().valueCount(j);
 		if(vals > 0)
 		{
 			stats[j] = new GMatrix(vals, vals);
@@ -928,7 +906,7 @@ void GSupervisedLearner::confusion(GMatrix& features, GMatrix& labels, std::vect
 		double* target = labels[i];
 		for(size_t j = 0; j < labelDims; j++)
 		{
-			if(labels.relation()->valueCount(j) > 0)
+			if(labels.relation().valueCount(j) > 0)
 			{
 				if((int)target[j] >= 0 && (int)prediction[j] >= 0)
 					stats[j]->row((int)target[j])[(int)prediction[j]]++;
@@ -937,13 +915,13 @@ void GSupervisedLearner::confusion(GMatrix& features, GMatrix& labels, std::vect
 	}
 }
 
-double GSupervisedLearner::sumSquaredError(GMatrix& features, GMatrix& labels)
+double GSupervisedLearner::sumSquaredError(const GMatrix& features, const GMatrix& labels)
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and rows to have the same number of rows");
-	if(!m_pRelFeatures->isCompatible(*features.relation().get()))
+	if(!m_pRelFeatures->isCompatible(features.relation()))
 		throw Ex("Features incompatible with this learner");
-	if(!m_pRelLabels->isCompatible(*labels.relation().get()))
+	if(!m_pRelLabels->isCompatible(labels.relation()))
 		throw Ex("Labels incompatible with this learner");
 	size_t labelDims = labels.cols();
 	GTEMPBUF(double, prediction, labelDims);
@@ -951,11 +929,11 @@ double GSupervisedLearner::sumSquaredError(GMatrix& features, GMatrix& labels)
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		predict(features[i], prediction);
-		double* targ = labels[i];
+		const double* targ = labels[i];
 		double* pred = prediction;
 		for(size_t j = 0; j < labelDims; j++)
 		{
-			if(labels.relation()->valueCount(j) == 0)
+			if(labels.relation().valueCount(j) == 0)
 			{
 				if(*targ != UNKNOWN_REAL_VALUE)
 				{
@@ -975,7 +953,7 @@ double GSupervisedLearner::sumSquaredError(GMatrix& features, GMatrix& labels)
 	return sse;
 }
 
-double GSupervisedLearner::sumSquaredErrorInternal(GMatrix& features, GMatrix& labels)
+double GSupervisedLearner::sumSquaredErrorInternal(const GMatrix& features, const GMatrix& labels)
 {
 	size_t labelDims = labels.cols();
 	GTEMPBUF(double, prediction, labelDims);
@@ -983,11 +961,11 @@ double GSupervisedLearner::sumSquaredErrorInternal(GMatrix& features, GMatrix& l
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		predictInner(features[i], prediction);
-		double* target = labels[i];
+		const double* target = labels[i];
 		for(size_t j = 0; j < labelDims; j++)
 		{
 			double d;
-			if(labels.relation()->valueCount(j) == 0)
+			if(labels.relation().valueCount(j) == 0)
 				d = target[j] - prediction[j];
 			else
 			{
@@ -1003,13 +981,13 @@ double GSupervisedLearner::sumSquaredErrorInternal(GMatrix& features, GMatrix& l
 }
 
 // virtual
-GMatrix* GSupervisedLearner::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GSupervisedLearner::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Train
 	train(features1, labels1);
 
 	// Predict
-	GMatrix* pOut = new GMatrix(labels1.relation());
+	GMatrix* pOut = new GMatrix(labels1.relation().clone());
 	pOut->newRows(features2.rows());
 	for(size_t i = 0; i < features2.rows(); i++)
 		predict(features2.row(i), pOut->row(i));
@@ -1017,7 +995,7 @@ GMatrix* GSupervisedLearner::transduceInner(GMatrix& features1, GMatrix& labels1
 }
 
 // virtual
-double GSupervisedLearner::trainAndTest(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels)
+double GSupervisedLearner::trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels)
 {
 	train(trainFeatures, trainLabels);
 	return sumSquaredError(testFeatures, testLabels);
@@ -1094,7 +1072,7 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
-	size_t nFuncs = std::max((size_t)1, labels.relation()->valueCount(label));
+	size_t nFuncs = std::max((size_t)1, labels.relation().valueCount(label));
 	GVec::setAll(pOutPrecision, 0.0, nFuncs * nPrecisionSize);
 	double* pFunc = new double[features.rows()];
 	ArrayHolder<double> hFunc(pFunc);
@@ -1104,9 +1082,9 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 #else
 	GPrediction out[labels.cols()];
 #endif
-	GMatrix otherFeatures(features.relation());
-	GMatrix otherLabels(labels.relation());
-	size_t valueCount = labels.relation()->valueCount(label);
+	GMatrix otherFeatures(features.relation().clone());
+	GMatrix otherLabels(labels.relation().clone());
+	size_t valueCount = labels.relation().valueCount(label);
 	for(size_t nRep = 0; nRep < nReps; nRep++)
 	{
 		// Split the data
@@ -1239,14 +1217,14 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
 
 	// Roundtrip the model through serialization
-	sp_relation pRelLabelsBefore = pLearner->relLabels();
+	const GRelation& relLabelsBefore = pLearner->relLabels();
 	GDom doc;
 	doc.setRoot(pLearner->serialize(&doc));
 	pLearner->clear(); // free up some memory, just because we can
 	GLearnerLoader ll(*pRand);
 	GSupervisedLearner* pModel = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModel(pModel);
-	if(!pRelLabelsBefore->isCompatible(*pModel->relLabels().get()))
+	if(!relLabelsBefore.isCompatible(pModel->relLabels()))
 		throw Ex("The label relation failed to round-trip. Did your deserializing constructor call the base class constructor?");
 
 	// Test the accuracy again
@@ -1274,9 +1252,9 @@ void GSupervisedLearner_basicTest1(GSupervisedLearner* pLearner, double minAccur
 		pL[0] = (double)c;
 	}
 	size_t testSize = features.rows() / 2;
-	GMatrix testFeatures(features.relation());
+	GMatrix testFeatures(features.relation().clone());
 	features.splitBySize(testFeatures, testSize);
-	GMatrix testLabels(labels.relation());
+	GMatrix testLabels(labels.relation().clone());
 	labels.splitBySize(testLabels, testSize);
 	GSupervisedLearner_basicTestEngine(pLearner, features, labels, testFeatures, testLabels, minAccuracy, pRand, deviation, printAccuracy);
 }
@@ -1309,9 +1287,9 @@ void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccur
 		pL[0] = (double)c;
 	}
 	size_t testSize = features.rows() / 2;
-	GMatrix testFeatures(features.relation());
+	GMatrix testFeatures(features.relation().clone());
 	features.splitBySize(testFeatures, testSize);
-	GMatrix testLabels(labels.relation());
+	GMatrix testLabels(labels.relation().clone());
 	labels.splitBySize(testLabels, testSize);
 	GSupervisedLearner_basicTestEngine(pLearner, features, labels, testFeatures, testLabels, minAccuracy, pRand, deviation, printAccuracy);
 }
@@ -1325,15 +1303,15 @@ void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, dou
 
 // ---------------------------------------------------------------
 
-void GIncrementalLearner::beginIncrementalLearning(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GIncrementalLearner::beginIncrementalLearning(const GRelation& featureRel, const GRelation& labelRel)
 {
-	m_pRelFeatures = pFeatureRel;
-	m_pRelLabels = pLabelRel;
+	m_pRelFeatures = featureRel.clone();
+	m_pRelLabels = labelRel.clone();
 	if(m_pFilterFeatures)
-		m_pFilterFeatures->train(pFeatureRel);
+		m_pFilterFeatures->train(featureRel);
 	if(m_pFilterLabels)
-		m_pFilterLabels->train(pLabelRel);
-	beginIncrementalLearningInner(m_pFilterFeatures ? m_pFilterFeatures->after() : pFeatureRel, m_pFilterLabels ? m_pFilterLabels->after() : pLabelRel);
+		m_pFilterLabels->train(labelRel);
+	beginIncrementalLearningInner(m_pFilterFeatures ? m_pFilterFeatures->after() : featureRel, m_pFilterLabels ? m_pFilterLabels->after() : labelRel);
 }
 
 void GIncrementalLearner::trainIncremental(const double* pIn, const double* pOut)
@@ -1570,7 +1548,7 @@ GDomNode* GBaselineLearner::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GBaselineLearner::trainInner(GMatrix& features, GMatrix& labels)
+void GBaselineLearner::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	clear();
 	size_t labelDims = labels.cols();
@@ -1643,7 +1621,7 @@ GDomNode* GIdentityFunction::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GIdentityFunction::trainInner(GMatrix& features, GMatrix& labels)
+void GIdentityFunction::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	m_labelDims = labels.cols();
 	m_featureDims = features.cols();

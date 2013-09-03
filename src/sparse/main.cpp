@@ -405,7 +405,7 @@ void predict(GArgReader& args)
 	}
 
 	// Predict labels
-	GMatrix labels(pData->rows(), pModeler->relLabels()->size());
+	GMatrix labels(pData->rows(), pModeler->relLabels().size());
 	double* pFullRow = new double[pData->cols()];
 	ArrayHolder<double> hFullRow(pFullRow);
 	for(unsigned int i = 0; i < pData->rows(); i++)
@@ -453,7 +453,7 @@ void test(GArgReader& args)
 	// Load the dense labels
 	GMatrix labels;
 	labels.loadArff(args.pop_string());
-	if(!labels.relation()->isCompatible(*pModeler->relLabels().get()))
+	if(!labels.relation().isCompatible(pModeler->relLabels()))
 		throw Ex("The data is not compatible with the data used to trainn the model. (The meta-data is different.)");
 
 	// Test
@@ -469,7 +469,7 @@ void test(GArgReader& args)
 		double* pTarget = labels.row(i);
 		for(size_t j = 0; j < labels.cols(); j++)
 		{
-			if(labels.relation()->valueCount(j) == 0)
+			if(labels.relation().valueCount(j) == 0)
 			{
 				double d = pTarget[j] - prediction[j];
 				results[j] += (d * d);

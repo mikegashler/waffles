@@ -94,12 +94,12 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 	GDomNode* pContext = pNode->field("context");
 	GDomListIterator it1(pContext);
 	m_contextDims = it1.remaining();
-	if(m_contextDims != m_pTransitionFunc->relLabels()->size())
+	if(m_contextDims != m_pTransitionFunc->relLabels().size())
 		throw Ex("invalid model");
 	GDomNode* pParamRanges = pNode->field("params");
 	GDomListIterator it2(pParamRanges);
 	m_paramDims = it2.remaining();
-	if(m_paramDims != (size_t)(m_pObservationFunc->relFeatures()->size() - m_contextDims))
+	if(m_paramDims != (size_t)(m_pObservationFunc->relFeatures().size() - m_contextDims))
 		throw Ex("invalid model");
 	m_pParamRanges = new size_t[m_paramDims];
 	for(size_t i = 0; i < m_paramDims; i++)
@@ -109,10 +109,10 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 	}
 
 	// Infer other stuff
-	m_actionDims = m_pTransitionFunc->relFeatures()->size() - m_contextDims;
+	m_actionDims = m_pTransitionFunc->relFeatures().size() - m_contextDims;
 	if(m_actionDims < 0)
 		throw Ex("invalid model");
-	m_channels = m_pObservationFunc->relLabels()->size();
+	m_channels = m_pObservationFunc->relLabels().size();
 	m_pixels = 1;
 	for(size_t i = 0; i < m_paramDims; i++)
 		m_pixels *= m_pParamRanges[i];
@@ -218,10 +218,9 @@ void GRecurrentModel::trainTransitionFunction(GMatrix* pActions, GMatrix* pEstSt
 {
 	// Make data for training the transition function
 	GMixedRelation* pRelation = new GMixedRelation();
-	sp_relation pFeatureRel = pRelation;
-	pRelation->addAttrs(pActions->relation().get());
+	pRelation->addAttrs(pActions->relation());
 	pRelation->addAttrs(m_contextDims, 0);
-	GMatrix* pTransitionFeatures = new GMatrix(pFeatureRel);
+	GMatrix* pTransitionFeatures = new GMatrix(pRelation);
 	pTransitionFeatures->newRows(pActions->rows() - 1);
 	Holder<GMatrix> hTransitionFeatures(pTransitionFeatures);
 	GMatrix transitionLabels(pActions->rows() - 1, m_contextDims);
@@ -527,10 +526,10 @@ void GRecurrentModel::trainObservationFunctionIteratively(double dStart, GMatrix
 			pM++;
 			pR++;
 		}
-		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_contextDims);
-		sp_relation pLabelRel = new GUniformRelation(m_channels);
+		GUniformRelation featureRel(m_paramDims + m_contextDims);
+		GUniformRelation labelRel(m_channels);
 throw Ex("todo: do something about the mins and ranges");
-		pObsLearner->beginIncrementalLearning(pFeatureRel, pLabelRel);
+		pObsLearner->beginIncrementalLearning(featureRel, labelRel);
 	}
 
 	// Do training
@@ -622,7 +621,7 @@ public:
 	virtual double computeError(const double* pVector)
 	{
 		GVec::copy(m_pModel->context(), pVector, m_pModel->contextDims());
-		size_t channels = m_pModel->observationFunc()->relLabels()->size();
+		size_t channels = m_pModel->observationFunc()->relLabels().size();
 		GTEMPBUF(double, prediction, channels);
 		double err = 0;
 		const double* pTar = m_pTarget;
@@ -663,8 +662,8 @@ public:
 	GRecurrentModelTargetFunction(GRecurrentModel* pModel, size_t paramDims, size_t* paramRanges, GRand* pRand, GMatrix* pObservations, GMatrix* pActions)
 	: GTargetFunction(countWeights(pModel)), m_pModel(pModel), m_paramDims(paramDims), m_pParamRanges(paramRanges), m_pRand(pRand), m_it(paramDims, paramRanges)
 	{
-		m_pObservations = new GMatrix(pObservations->relation());
-		m_pActions = new GMatrix(pActions->relation());
+		m_pObservations = new GMatrix(pObservations->relation().clone());
+		m_pActions = new GMatrix(pActions->relation().clone());
 		for(size_t i = 0; i < 40 && i < pActions->rows(); i++)
 		{
 			m_pObservations->takeRow(pObservations->row(i));
@@ -746,18 +745,17 @@ void GRecurrentModel::prepareForOptimization(GMatrix* pActions, GMatrix* pObserv
 	if(!m_pTransitionFunc->canTrainIncrementally())
 		throw Ex("Expected an incremental learner");
 	{
-		GMixedRelation* pMixedRel = new GMixedRelation();
-		sp_relation pFeatureRel = pMixedRel;
-		pMixedRel->addAttrs(pActions->relation().get());
-		pMixedRel->addAttrs(m_contextDims, 0);
-		sp_relation pLabelRel = new GUniformRelation(m_contextDims);
+		GMixedRelation mixedRel;
+		mixedRel.addAttrs(pActions->relation());
+		mixedRel.addAttrs(m_contextDims, 0);
+		GUniformRelation labelRel(m_contextDims);
 		double* pMins = new double[2 * (pActions->cols() + m_contextDims + m_contextDims)];
 		ArrayHolder<double> hMins(pMins);
 		double* pRanges = pMins + pActions->cols() + m_contextDims + m_contextDims;
 		GVec::setAll(pMins, 0.0, pActions->cols() + m_contextDims + m_contextDims);
 		GVec::setAll(pRanges, 1.0, pActions->cols() + m_contextDims + m_contextDims);
 throw Ex("todo: do something about the mins and ranges");
-		((GIncrementalLearner*)m_pTransitionFunc)->beginIncrementalLearning(pFeatureRel, pLabelRel);
+		((GIncrementalLearner*)m_pTransitionFunc)->beginIncrementalLearning(mixedRel, labelRel);
 	}
 
 	if(!m_pObservationFunc->canTrainIncrementally())
@@ -796,10 +794,10 @@ throw Ex("todo: do something about the mins and ranges");
 			pM++;
 			pR++;
 		}
-		sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_contextDims);
-		sp_relation pLabelRel = new GUniformRelation(m_channels);
+		GUniformRelation featureRel(m_paramDims + m_contextDims);
+		GUniformRelation labelRel(m_channels);
 throw Ex("todo: do something about the mins and ranges");
-		pObsLearner->beginIncrementalLearning(pFeatureRel, pLabelRel);
+		pObsLearner->beginIncrementalLearning(featureRel, labelRel);
 	}
 }
 
@@ -1071,7 +1069,7 @@ void GRecurrentModel::predict(double* pObs)
 	{
 		pi.currentNormalized(m_pParams);
 		m_pObservationFunc->predict(m_pParams, pObs);
-		pObs += m_pObservationFunc->relLabels()->size();
+		pObs += m_pObservationFunc->relLabels().size();
 		if(!pi.advance())
 			break;
 	}
@@ -1237,7 +1235,7 @@ GImage* GRecurrentModel::frames(GMatrix* pDataAction, GMatrix* pDataObs, bool ca
 		throw Ex("Expected frameWidth to be a multiply of ", to_str(m_pParamRanges[0]));
 	if(m_channels != 3)
 		throw Ex("Expected 3 channels");
-	if(m_pObservationFunc->relLabels()->size() != m_channels)
+	if(m_pObservationFunc->relLabels().size() != m_channels)
 		throw Ex("Something is wrong");
 	if(calibrateContext && !pDataObs)
 		throw Ex("Cannot calibrate if observations are not given");

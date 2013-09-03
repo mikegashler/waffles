@@ -51,12 +51,12 @@ using std::make_pair;
 #define STEP_SIZE_PER_POINT
 
 // static
-void GManifold::computeNeighborWeights(GMatrix* pData, size_t point, size_t k, const size_t* pNeighbors, double* pOutWeights)
+void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_t k, const size_t* pNeighbors, double* pOutWeights)
 {
 	// Create a matrix of all the neighbors normalized around the origin
 	size_t colCount = pData->cols();
-	GMatrix z(pData->relation());
-	double* pRow = pData->row(point);
+	GMatrix z(pData->relation().clone());
+	const double* pRow = pData->row(point);
 	for(size_t i = 0; i < k; i++)
 	{
 		if(*pNeighbors < pData->rows())
@@ -108,9 +108,9 @@ GMatrix* GManifold::blendNeighborhoods(size_t index, GMatrix* pA, double ratio, 
 	// Copy the two neighborhoods
 	size_t rowCount = pA->rows();
 	size_t colCount = pA->cols();
-	GMatrix neighborhoodA(pA->relation());
+	GMatrix neighborhoodA(pA->relation().clone());
 	GVec::copy(neighborhoodA.newRow(), pA->row(index), colCount);
-	GMatrix neighborhoodB(pB->relation());
+	GMatrix neighborhoodB(pB->relation().clone());
 	GVec::copy(neighborhoodB.newRow(), pB->row(index), colCount);
 	for(size_t j = 0; j < neighborCount; j++)
 	{
@@ -189,8 +189,8 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		Holder<GMatrix> hD(pD);
 
 		// Make sub-neighborhoods that contain only tentatively-placed points
-		GMatrix tentativeC(pC->relation());
-		GMatrix tentativeD(pD->relation());
+		GMatrix tentativeC(pC->relation().clone());
+		GMatrix tentativeD(pD->relation().clone());
 		GReleaseDataHolder hTentativeD(&tentativeD);
 		GVec::copy(tentativeC.newRow(), pC->row(par), colCount);
 		tentativeD.takeRow(pD->row(0));
@@ -254,7 +254,7 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 		throw Ex("Expected a square and symmetric distance matrix");
 
 	// Square every element in the distance matrix (unless it's already squared) and ensure symmetry
-	GMatrix* pD = new GMatrix(pDistances->relation());
+	GMatrix* pD = new GMatrix(pDistances->relation().clone());
 	Holder<GMatrix> hD(pD);
 	pD->newRows(n);
 	for(size_t i = 0; i < n; i++)
@@ -445,7 +445,7 @@ GMatrix* GManifoldSculpting::doit(GMatrix& in)
 	}
 
 	// Produce the output data
-	GMatrix* pDataOut = new GMatrix(relationAfter());
+	GMatrix* pDataOut = new GMatrix(relationAfter().clone());
 	pDataOut->newRows(m_pData->rows());
 	pDataOut->copyCols(*m_pData, 0, m_nTargetDims);
 	delete(m_pData);
@@ -456,7 +456,7 @@ GMatrix* GManifoldSculpting::doit(GMatrix& in)
 void GManifoldSculpting::beginTransform(GMatrix* pRealSpaceData)
 {
 	m_nDimensions = pRealSpaceData->cols();
-	if(!pRealSpaceData->relation()->areContinuous(0, m_nDimensions))
+	if(!pRealSpaceData->relation().areContinuous(0, m_nDimensions))
 		throw Ex("Only continuous values are supported");
 
 	// Calculate metadata
@@ -468,19 +468,19 @@ void GManifoldSculpting::beginTransform(GMatrix* pRealSpaceData)
 		// Check the supplied pre-processed data
 		if(m_pData->rows() != pRealSpaceData->rows())
 			throw Ex("Preprocessed data has wrong number of points");
-		if(m_pData->relation()->size() < (size_t)m_nTargetDims)
+		if(m_pData->relation().size() < (size_t)m_nTargetDims)
 			throw Ex("Preprocessed data has too few dimensions");
 	}
 	else
 	{
 		// Preprocess the data
-		if(pRealSpaceData->relation()->size() < 30)
-			m_pData = GPCARotateOnly::transform(pRealSpaceData->relation()->size(), 0, pRealSpaceData, m_nTargetDims, m_pRand);
+		if(pRealSpaceData->relation().size() < 30)
+			m_pData = GPCARotateOnly::transform(pRealSpaceData->relation().size(), 0, pRealSpaceData, m_nTargetDims, m_pRand);
 		else
 		{
 			size_t preserveDims = m_nTargetDims * 6;
 			preserveDims = std::max((size_t)30, preserveDims);
-			preserveDims = std::min(pRealSpaceData->relation()->size(), preserveDims);
+			preserveDims = std::min(pRealSpaceData->relation().size(), preserveDims);
 			GPCA pca(preserveDims, m_pRand);
 			pca.train(*pRealSpaceData);
 			m_pData = pca.transformBatch(*pRealSpaceData);
@@ -489,7 +489,7 @@ void GManifoldSculpting::beginTransform(GMatrix* pRealSpaceData)
 
 	// Calculate the junk
 	m_q.clear();
-	m_nDimensions = m_pData->relation()->size();
+	m_nDimensions = m_pData->relation().size();
 	m_nPass = 0;
 	m_scale = 1.0;
 	for(size_t i = 0; i < m_pData->rows(); i++)
@@ -989,7 +989,7 @@ GMatrix* GIsomap::doit(GMatrix& in)
 class GLLEHelper
 {
 protected:
-	GMatrix* m_pInputData;
+	const GMatrix* m_pInputData;
 	GMatrix* m_pOutputData;
 	size_t m_nInputDims;
 	size_t m_nTargetDims;
@@ -1002,7 +1002,7 @@ protected:
 #endif
 	GRand* m_pRand;
 
-	GLLEHelper(GMatrix* pData, size_t nTargetDims, size_t nNeighbors, GRand* pRand);
+	GLLEHelper(const GMatrix* pData, size_t nTargetDims, size_t nNeighbors, GRand* pRand);
 public:
 	~GLLEHelper();
 
@@ -1018,7 +1018,7 @@ protected:
 	GMatrix* releaseOutputData();
 };
 
-GLLEHelper::GLLEHelper(GMatrix* pData, size_t nTargetDims, size_t nNeighbors, GRand* pRand)
+GLLEHelper::GLLEHelper(const GMatrix* pData, size_t nTargetDims, size_t nNeighbors, GRand* pRand)
 : m_pRand(pRand)
 {
 	m_pInputData = pData;
@@ -1293,7 +1293,7 @@ GMatrix* GBreadthFirstUnfolding::doit(GMatrix& in)
 	pCachedNF->fillCache();
 	size_t* pNeighborTable = pCachedNF->cache();
 	double* pSquaredDistances = pCachedNF->squaredDistanceTable();
-	GMatrix* pData = pNF->data();
+	const GMatrix* pData = pNF->data();
 
 	// Learn the manifold
 	double* pGlobalWeights = new double[in.rows() * 2];
@@ -1397,7 +1397,7 @@ void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootInde
 	}
 }
 
-GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances)
+GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances)
 {
 	GMatrix* pReducedNeighborhood = NULL;
 	if(m_useMds)
@@ -1446,14 +1446,14 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(GMatrix* pIn, size_t index, 
 	else
 	{
 		// Make a local neighborhood
-		GMatrix local(pIn->relation());
+		GMatrix local(pIn->relation().clone());
 		GReleaseDataHolder hLocal(&local);
-		local.takeRow(pIn->row(index));
+		local.takeRow((double*)pIn->row(index));
 		size_t* pHood = pNeighborhoods + m_neighborCount * index;
 		for(size_t j = 0; j < m_neighborCount; j++)
 		{
 			if(pHood[j] < pIn->rows())
-				local.takeRow(pIn->row(pHood[j]));
+				local.takeRow((double*)pIn->row(pHood[j]));
 		}
 
 		// Use PCA to reduce the neighborhood
@@ -1465,7 +1465,7 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(GMatrix* pIn, size_t index, 
 	return pReducedNeighborhood;
 }
 
-GMatrix* GBreadthFirstUnfolding::unfold(GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights)
+GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights)
 {
 	// Reduce the seed neighborhood
 	GMatrix* pOut = new GMatrix(pIn->rows(), m_targetDims);
@@ -1510,8 +1510,8 @@ GMatrix* GBreadthFirstUnfolding::unfold(GMatrix* pIn, size_t* pNeighborTable, do
 		Holder<GMatrix> hLocal(pLocal);
 
 		// Make sub-neighborhoods that contain only tentatively-placed points
-		GMatrix tentativeC(pOut->relation());
-		GMatrix tentativeD(pLocal->relation());
+		GMatrix tentativeC(pOut->relation().clone());
+		GMatrix tentativeD(pLocal->relation().clone());
 		GReleaseDataHolder hTentativeD(&tentativeD);
 		GVec::copy(tentativeC.newRow(), pOut->row(par), m_targetDims);
 		tentativeD.takeRow(pLocal->row(0));
@@ -1717,10 +1717,10 @@ double GNeuroPCA::computeSumSquaredErr(GMatrix* pIn, GMatrix* pOut, size_t cols)
 // virtual
 GMatrix* GNeuroPCA::doit(GMatrix& in)
 {
-	if(!in.relation()->areContinuous(0, in.cols()))
+	if(!in.relation().areContinuous())
 		throw Ex("GNeuroPCA doesn't support nominal values. You should filter with nominaltocat to make them real.");
 	delete(m_pWeights);
-	m_pWeights = new GMatrix(in.relation());
+	m_pWeights = new GMatrix(in.relation().clone());
 	m_pWeights->newRows(1 + m_targetDims); // the first row holds the biases
 
 	// Initialize the biases
@@ -1741,7 +1741,7 @@ GMatrix* GNeuroPCA::doit(GMatrix& in)
 	Holder<GMatrix> hOut(pOut);
 
 	// Make a buffer for preprocessed info
-	GMatrix preprocess(in.relation());
+	GMatrix preprocess(in.relation().clone());
 	preprocess.newRows(in.rows());
 
 	// Compute the principle components
@@ -1773,7 +1773,7 @@ GMatrix* GNeuroPCA::doit(GMatrix& in)
 GDynamicSystemStateAligner::GDynamicSystemStateAligner(size_t neighbors, GMatrix& inputs, GRand& rand)
 : GTransform(), m_neighbors(neighbors), m_inputs(inputs), m_rand(rand)
 {
-	if(!inputs.relation()->areContinuous(0, inputs.cols()))
+	if(!inputs.relation().areContinuous())
 		throw Ex("Only continuous attributes are supported");
 	m_seedA = (size_t)m_rand.next(inputs.rows());
 	m_seedB = (size_t)m_rand.next(inputs.rows() - 1);
@@ -1799,7 +1799,7 @@ void GDynamicSystemStateAligner::setSeeds(size_t a, size_t b)
 // virtual
 GMatrix* GDynamicSystemStateAligner::doit(GMatrix& in)
 {
-	if(!in.relation()->areContinuous(0, in.cols()))
+	if(!in.relation().areContinuous())
 		throw Ex("Only continuous attributes are supported");
 	if(in.rows() != m_inputs.rows())
 		throw Ex("Expected pIn to have the same number of rows as the inputs");
@@ -1832,13 +1832,13 @@ GMatrix* GDynamicSystemStateAligner::doit(GMatrix& in)
 	gc.cut(m_seedA, m_seedB);
 
 	// Create training data for the linear regressors
-	GMatrix aFeatures(m_inputs.relation());
+	GMatrix aFeatures(m_inputs.relation().clone());
 	GReleaseDataHolder hAFeatures(&aFeatures);
-	GMatrix bFeatures(m_inputs.relation());
+	GMatrix bFeatures(m_inputs.relation().clone());
 	GReleaseDataHolder hBFeatures(&bFeatures);
-	GMatrix aLabels(in.relation()); // Transitions within cluster A
-	GMatrix bLabels(in.relation()); // Transitions within cluster B
-	GMatrix cLabels(in.relation()); // Transitions between clusters
+	GMatrix aLabels(in.relation().clone()); // Transitions within cluster A
+	GMatrix bLabels(in.relation().clone()); // Transitions within cluster B
+	GMatrix cLabels(in.relation().clone()); // Transitions between clusters
 	for(size_t i = 0; i < in.rows() - 1; i++)
 	{
 		double* pLabel;
@@ -2239,7 +2239,7 @@ GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll
 		m_pJitterer = NULL;
 		m_jitterDims = 0;
 	}
-	m_intrinsicDims = m_pNN->relFeatures()->size() - (m_paramDims + m_jitterDims);
+	m_intrinsicDims = m_pNN->relFeatures().size() - (m_paramDims + m_jitterDims);
 	GDomListIterator itMins(pNode->field("mins"));
 	m_pMins = new double[itMins.remaining()];
 	GVec::deserialize(m_pMins, itMins);
@@ -2264,12 +2264,12 @@ GUnsupervisedBackProp::~GUnsupervisedBackProp()
 
 GDomNode* GUnsupervisedBackProp::serialize(GDom* pDoc) const
 {
-	size_t channels = m_pNN->relLabels()->size();
+	size_t channels = m_pNN->relLabels().size();
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "params", GIndexVec::serialize(pDoc, m_pParamRanges, m_paramDims));
 	pNode->addField(pDoc, "nn", m_pNN->serialize(pDoc));
 //	pNode->addField(pDoc, "rev", m_pRevNN->serialize(pDoc));
-	GAssert(m_paramDims + m_jitterDims + m_intrinsicDims == m_pNN->relFeatures()->size());
+	GAssert(m_paramDims + m_jitterDims + m_intrinsicDims == m_pNN->relFeatures().size());
 	pNode->addField(pDoc, "bias", pDoc->newBool(m_useInputBias));
 	if(m_pJitterer)
 		pNode->addField(pDoc, "jitterer", m_pJitterer->serialize(pDoc));
@@ -2364,13 +2364,13 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			throw Ex("The image jitterer was constructed with mismatching parameters");
 		m_jitterDims = 4;
 	}
-	sp_relation pFeatureRel = new GUniformRelation(m_paramDims + m_jitterDims + m_intrinsicDims);
-	sp_relation pLabelRel = new GUniformRelation(channels);
+	GUniformRelation featureRel(m_paramDims + m_jitterDims + m_intrinsicDims);
+	GUniformRelation labelRel(channels);
 	m_pNN->setUseInputBias(m_useInputBias);
-	m_pNN->beginIncrementalLearning(pFeatureRel, pLabelRel);
+	m_pNN->beginIncrementalLearning(featureRel, labelRel);
 	GNeuralNet nn(*m_pRand);
 	nn.setUseInputBias(m_useInputBias);
-	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
+	nn.beginIncrementalLearning(featureRel, labelRel);
 
 	// Train
 	double* pParams = new double[(m_paramDims + m_jitterDims + m_intrinsicDims) * 2];
@@ -2621,7 +2621,7 @@ m_pNN->setErrorSingleOutput(prediction + err, c);
 
 void GUnsupervisedBackProp::lowToHi(const double* pIn, double* pOut)
 {
-	size_t channels = m_pNN->relLabels()->size();
+	size_t channels = m_pNN->relLabels().size();
 	GTEMPBUF(double, pParams, m_paramDims + m_jitterDims + m_intrinsicDims);
 	GVec::copy(pParams + m_paramDims, pIn, m_jitterDims + m_intrinsicDims);
 	m_cvi.reset();
@@ -2646,7 +2646,7 @@ double* GUnsupervisedBackProp::mins()
 	{
 		if(!m_pNN)
 			throw Ex("No neural net has been set");
-		m_pMins = new double[m_pNN->relLabels()->size()];
+		m_pMins = new double[m_pNN->relLabels().size()];
 	}
 	return m_pMins;
 }
@@ -2657,14 +2657,14 @@ double* GUnsupervisedBackProp::ranges()
 	{
 		if(!m_pNN)
 			throw Ex("No neural net has been set");
-		m_pRanges = new double[m_pNN->relLabels()->size()];
+		m_pRanges = new double[m_pNN->relLabels().size()];
 	}
 	return m_pRanges;
 }
 
 size_t GUnsupervisedBackProp::labelDims()
 {
-	return m_cvi.coordCount() * m_pNN->relLabels()->size();
+	return m_cvi.coordCount() * m_pNN->relLabels().size();
 }
 
 

@@ -37,7 +37,7 @@ protected:
 	int m_actionCap;
 
 public:
-	GQLearner(sp_relation& pRelation, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator);
+	GQLearner(const GRelation& relation, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator);
 	virtual ~GQLearner();
 
 	/// Sets the learning rate (often called "alpha"). If state is deterministic and actions
@@ -112,7 +112,7 @@ public:
 	/// pInitialState is the initial sense vector.
 	/// If softMaxThresh is 0, it always picks a random action. If softMaxThresh is 1, it
 	/// always picks the best action. For values in between, it does something in between.
-	GIncrementalLearnerQAgent(sp_relation& pObsControlRelation, GIncrementalLearner* pQTable, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator, double softMaxThresh);
+	GIncrementalLearnerQAgent(const GRelation& obsControlRelation, GIncrementalLearner* pQTable, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator, double softMaxThresh);
 	virtual ~GIncrementalLearnerQAgent();
 
 	/// See the comment for GQLearner::GetQValue

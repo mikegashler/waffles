@@ -404,9 +404,9 @@ void attributeSelector(GArgReader& args)
 	else
 		as.train(data);
 	cout << "\nAttribute rankings from most salient to least salient. (Attributes are zero-indexed.)\n";
-	GArffRelation* pRel = (GArffRelation*)data.relation().get();
+	const GArffRelation& rel = (GArffRelation&)data.relation();
 	for(size_t i = 0; i < as.ranks().size(); i++)
-	  cout << originalIndices.at(as.ranks()[i]) << " " << pRel->attrName(as.ranks()[i]) << "\n";
+	  cout << originalIndices.at(as.ranks()[i]) << " " << rel.attrName(as.ranks()[i]) << "\n";
 }
 
 void blendEmbeddings(GArgReader& args)
@@ -647,7 +647,7 @@ void ManifoldSculpting(GArgReader& args)
 	{
 		pDataHint = loadData(szPreprocessedData);
 		hDataHint.reset(pDataHint);
-		if(pDataHint->relation()->size() != targetDims)
+		if(pDataHint->relation().size() != targetDims)
 			throw Ex("Wrong number of dims in the hint data");
 		if(pDataHint->rows() != pData->rows())
 			throw Ex("Wrong number of patterns in the hint data");
@@ -815,8 +815,7 @@ void neuroPCA(GArgReader& args)
 	{
 		GArffRelation* pRelation = new GArffRelation();
 		pRelation->addAttribute("eigenvalues", 0, NULL);
-		sp_relation pRel = pRelation;
-		GMatrix dataEigenvalues(pRel);
+		GMatrix dataEigenvalues(pRelation);
 		dataEigenvalues.newRows(nTargetDims);
 		double* pEigVals = transform.eigVals();
 		for(int i = 0; i < nTargetDims; i++)
@@ -904,8 +903,7 @@ void principalComponentAnalysis(GArgReader& args)
 	{
 		GArffRelation* pRelation = new GArffRelation();
 		pRelation->addAttribute("eigenvalues", 0, NULL);
-		sp_relation pRel = pRelation;
-		GMatrix dataEigenvalues(pRel);
+		GMatrix dataEigenvalues(pRelation);
 		dataEigenvalues.newRows(nTargetDims);
 		double* pEigVals = pTransform->eigVals();
 		for(int i = 0; i < nTargetDims; i++)

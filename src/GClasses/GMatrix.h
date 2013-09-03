@@ -77,7 +77,7 @@ public:
 
 	/// \brief Returns true of all of the attributes in the specified
 	/// range are nominal
-	virtual bool areNominal(size_t first, size_t count) const = 0;
+	virtual bool areNominal(size_t first = 0, size_t count = (size_t)-1) const = 0;
 
 	/// \brief Makes a deep copy of this relation
 	virtual GRelation* clone() const = 0;
@@ -137,7 +137,7 @@ public:
 	void fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount) const;
 
 	/// \brief Load from a DOM.
-	static smart_ptr<GRelation> deserialize(GDomNode* pNode);
+	static GRelation* deserialize(GDomNode* pNode);
 
 	/// \brief Saves to a file
 	void save(const GMatrix* pData, const char* szFilename, size_t precision) const;
@@ -150,8 +150,6 @@ public:
 
 };
 
-typedef smart_ptr<GRelation> sp_relation;
-
 
 /// \brief A relation with a minimal memory footprint that assumes all
 /// attributes are continuous, or all of them are nominal and have the
@@ -159,7 +157,7 @@ typedef smart_ptr<GRelation> sp_relation;
 class GUniformRelation : public GRelation
 {
 public:
-	static sp_relation s_emptyRelation;
+	static GUniformRelation* s_pEmptyRelation;
 
 protected:
 	size_t m_attrCount;
@@ -186,10 +184,10 @@ public:
 	virtual size_t valueCount(size_t) const { return m_valueCount; }
 
 	/// \brief See the comment for GRelation::areContinuous
-	virtual bool areContinuous(size_t, size_t) const { return m_valueCount == 0; }
+	virtual bool areContinuous(size_t first = 0, size_t count = (size_t)-1) const { return m_valueCount == 0; }
 
 	/// \brief See the comment for GRelation::areNominal
-	virtual bool areNominal(size_t, size_t) const { return m_valueCount != 0; }
+	virtual bool areNominal(size_t first = 0, size_t count = (size_t)-1) const { return m_valueCount != 0; }
 
 	/// \brief Returns a copy of this object
 	virtual GRelation* clone() const { return new GUniformRelation(m_attrCount, m_valueCount); }
@@ -263,7 +261,7 @@ public:
 	/// \brief Copies the specified attributes and adds them to this
 	/// relation.  If attrCount < 0, then it will copy all attributes
 	/// from firstAttr to the end.
-	void addAttrs(const GRelation* pCopyMe, size_t firstAttr = 0, size_t attrCount = (size_t)-1);
+	void addAttrs(const GRelation& copyMe, size_t firstAttr = 0, size_t attrCount = (size_t)-1);
 
 	/// \brief Flushes this relation and then copies all of the
 	/// attributes from pCopyMe
@@ -431,7 +429,7 @@ public:
 class GMatrix
 {
 protected:
-	sp_relation m_pRelation;
+	GRelation* m_pRelation;
 	std::vector<double*> m_rows;
 
 public:
@@ -460,12 +458,11 @@ public:
 	/// \brief Create an empty matrix whose attributes/column types are
 	/// specified by pRelation
 	///
-	/// pRelation is a smart-pointer to a relation, which specifies the
-	/// type of each attribute (column) in the data set.
+	/// Takes ownership of pRelation. That is, the destructor will delete pRelation.
 	///
 	/// Initially, this matrix will have 0 rows, but you can add more
 	/// rows by calling newRow or newRows.
-	GMatrix(sp_relation& pRelation);
+	GMatrix(GRelation* pRelation);
 
 	///\brief Copy-constructor
 	///
@@ -509,7 +506,8 @@ public:
 	/// If there are one or more rows in this matrix, and the new relation
 	/// does not have the same number of columns as the old relation, then
 	/// this will throw an exception.
-	void setRelation(sp_relation& pRelation);
+	/// Takes ownership of pRelation. That is, the destructor will delete it.
+	void setRelation(GRelation* pRelation);
 
 	/// \brief Resizes this matrix. (Assumes that all columns have continuous values.)
 	void resize(size_t rows, size_t cols);
@@ -530,11 +528,11 @@ public:
 	/// Adds the values in pThat to this. (If transpose is true, adds
 	/// the transpose of pThat to this.) Both datasets must have the
 	/// same dimensions. Behavior is undefined for nominal columns.
-	void add(GMatrix* pThat, bool transpose);
+	void add(const GMatrix* pThat, bool transpose);
 
 	/// \brief Copies the specified range of columns (including meta-data) from that matrix into this matrix,
 	/// replacing all data currently in this matrix.
-	void copyCols(GMatrix& that, size_t firstCol, size_t colCount);
+	void copyCols(const GMatrix& that, size_t firstCol, size_t colCount);
 
 	/// \brief Copies all the data from pThat. (Just references the same
 	/// relation)
@@ -553,7 +551,7 @@ public:
 
 	/// \brief Makes a deep copy of the specified rectangular region of
 	/// this matrix
-	GMatrix* cloneSub(size_t rowStart, size_t colStart, size_t rowCount, size_t colCount);
+	GMatrix* cloneSub(size_t rowStart, size_t colStart, size_t rowCount, size_t colCount) const;
 
 	/// \brief Copies the specified column into pOutVector
 	void col(size_t index, double* pOutVector);
@@ -660,7 +658,7 @@ public:
 	/// will contain the attributes of both datasets. Both pSetA and
 	/// pSetB (and the resulting dataset) must have the same number of
 	/// rows
-	static GMatrix* mergeHoriz(GMatrix* pSetA, GMatrix* pSetB);
+	static GMatrix* mergeHoriz(const GMatrix* pSetA, const GMatrix* pSetB);
 
 	/// \brief Steals all the rows from pData and adds them to this set.
 	/// (You still have to delete pData.) Both datasets must have the
@@ -695,7 +693,7 @@ public:
 	///
 	/// \note if transpose is true, then pVectorIn is treated as a
 	/// row vector and is multiplied by this matrix to get pVectorOut.
-	void multiply(const double* pVectorIn, double* pVectorOut, bool transpose = false);
+	void multiply(const double* pVectorIn, double* pVectorOut, bool transpose = false) const;
 
 	/// \brief Matrix multiply. 
 	///
@@ -704,22 +702,16 @@ public:
 	/// multiplication. (If you want the results to come out transposed,
 	/// you can use the equality (AB)^T=(B^T)(A^T) to figure out how to
 	/// specify the parameters.)
-	static GMatrix* multiply(GMatrix& a, GMatrix& b, bool transposeA, bool transposeB);
+	static GMatrix* multiply(const GMatrix& a, const GMatrix& b, bool transposeA, bool transposeB);
 
 	/// \brief Computes the Moore-Penrose pseudoinverse of this matrix
 	/// (using the SVD method). You are responsible to delete the
 	/// matrix this returns.
 	GMatrix* pseudoInverse();
 
-	/// \brief Returns a relation object, which holds meta-data about
+	/// \brief Returns a const pointer to the relation object, which holds meta-data about
 	/// the attributes (columns)
-	sp_relation& relation() { return m_pRelation; }
-
-	/// \brief Returns a relation object, which holds meta-data about
-	/// the attributes (columns) (const version)
-	smart_ptr<const GRelation> relation() const { 
-		return smart_ptr<const GRelation> (m_pRelation, NULL);
-	}
+	const GRelation& relation() const { return *m_pRelation; }
 
 	/// \brief Allocates space for the specified number of patterns (to
 	/// avoid superfluous resizing)
@@ -766,7 +758,7 @@ public:
 	///
 	/// \param transpose If true, the transpose of *pThat is subtracted.
 	///                  If false, *pThat is subtracted
-	void subtract(GMatrix* pThat, bool transpose);
+	void subtract(const GMatrix* pThat, bool transpose);
 
 	/// \brief Returns the sum squared difference between this matrix
 	/// and an identity matrix
@@ -924,7 +916,7 @@ public:
 	void splitBySize(GMatrix& other, size_t nOtherRows);
 
 	/// \brief Measures the entropy of the specified attribute
-	double entropy(size_t nColumn);
+	double entropy(size_t nColumn) const;
 /*
 	/// \brief Finds the min and the range of the values of the
 	/// specified attribute
@@ -934,20 +926,20 @@ public:
 	void minAndRangeUnbiased(size_t nAttribute, double* pMin, double* pRange);
 */
 	/// \brief Returns the minimum value in the specified column (not counting UNKNOWN_REAL_VALUE), or 1e300 if there are no values.
-	double columnMin(size_t nAttribute);
+	double columnMin(size_t nAttribute) const;
 
 	/// \brief Returns the maximum value in the specified column (not counting UNKNOWN_REAL_VALUE), or -1e300 if there are no values.
-	double columnMax(size_t nAttribute);
+	double columnMax(size_t nAttribute) const;
 
 	/// \brief Computes the arithmetic mean of the values in the specified column
-	double columnMean(size_t nAttribute);
+	double columnMean(size_t nAttribute) const;
 
 	/// \brief Computes the average variance of a single attribute
-	double columnVariance(size_t nAttr, double mean);
+	double columnVariance(size_t nAttr, double mean) const;
 
 #ifndef MIN_PREDICT
 	/// \brief Computes the median of the values in the specified column
-	double columnMedian(size_t nAttribute);
+	double columnMedian(size_t nAttribute) const;
 #endif // MIN_PREDICT
 
 	/// \brief Shifts the data such that the mean occurs at the origin.
@@ -956,7 +948,7 @@ public:
 	void centerMeanAtOrigin();
 
 	/// \brief Computes the arithmetic means of all attributes
-	void centroid(double* pOutCentroid);
+	void centroid(double* pOutCentroid) const;
 
 	/// \brief Normalizes the specified column
 	void normalizeColumn(size_t col, double dInMin, double dInMax, double dOutMin = 0.0, double dOutMax = 1.0);
@@ -970,16 +962,16 @@ public:
 	/// \brief Returns the mean if the specified attribute is
 	/// continuous, otherwise returns the most common nominal value in
 	/// the attribute.
-	double baselineValue(size_t nAttribute);
+	double baselineValue(size_t nAttribute) const;
 
 	/// \brief Returns true iff the specified attribute contains
 	/// homogenous values. (Unknowns are counted as homogenous with
 	/// anything)
-	bool isAttrHomogenous(size_t col);
+	bool isAttrHomogenous(size_t col) const;
 
 	/// \brief Returns true iff each of the last labelDims columns in
 	/// the data are homogenous
-	bool isHomogenous();
+	bool isHomogenous() const;
 
 	/// \brief Replace missing values with the appropriate measure of
 	/// central tendency.
@@ -1004,27 +996,27 @@ public:
 	/// The size of pOutVector will be the number of columns in this matrix.
 	/// (To compute the next principal component, call RemoveComponent,
 	/// then call this method again.)
-	void principalComponent(double* pOutVector, const double* pMean, GRand* pRand);
+	void principalComponent(double* pOutVector, const double* pMean, GRand* pRand) const;
 
 	/// \brief Computes the first principal component assuming the mean
 	/// is already subtracted out of the data
-	void principalComponentAboutOrigin(double* pOutVector, GRand* pRand);
+	void principalComponentAboutOrigin(double* pOutVector, GRand* pRand) const;
 
 	/// \brief Computes principal components, while ignoring missing
 	/// values
-	void principalComponentIgnoreUnknowns(double* pOutVector, const double* pMean, GRand* pRand);
+	void principalComponentIgnoreUnknowns(double* pOutVector, const double* pMean, GRand* pRand) const;
 
 	/// \brief Computes the first principal component of the data with
 	/// each row weighted according to the vector pWeights. (pWeights
 	/// must have an element for each row.)
-	void weightedPrincipalComponent(double* pOutVector, const double* pMean, const double* pWeights, GRand* pRand);
+	void weightedPrincipalComponent(double* pOutVector, const double* pMean, const double* pWeights, GRand* pRand) const;
 
 	/// \brief Computes the eigenvalue that corresponds to \a *pEigenvector.
 	///
 	/// After you compute the principal component, you can call this to
 	/// obtain the eigenvalue that corresponds to that principal
 	/// component vector (eigenvector).
-	double eigenValue(const double* pMean, const double* pEigenVector, GRand* pRand);
+	double eigenValue(const double* pMean, const double* pEigenVector, GRand* pRand) const;
 
 	/// \brief Removes the component specified by pComponent from the
 	/// data. (pComponent should already be normalized.)
@@ -1045,7 +1037,7 @@ public:
 	/// components contains 90 percent of the deviation that the
 	/// original data contains, then if you pass the value 0.1 to this
 	/// method, it will return 3.
-	size_t countPrincipalComponents(double d, GRand* pRand);
+	size_t countPrincipalComponents(double d, GRand* pRand) const;
 
 	/// \brief Computes the sum-squared distance between pPoint and all
 	/// of the points in the dataset.
@@ -1058,72 +1050,72 @@ public:
 	///       the mean after removing the corresponding component, and
 	///       then dividing by the number of dimensions. This is more
 	///       efficient than calling eigenValue.
-	double sumSquaredDistance(const double* pPoint);
+	double sumSquaredDistance(const double* pPoint) const;
 
 	/// \brief Computes the sum-squared distance between the specified
 	/// column of this and that. If the column is a nominal attribute,
 	/// then Hamming distance is used.
-	double columnSumSquaredDifference(GMatrix& that, size_t col);
+	double columnSumSquaredDifference(const GMatrix& that, size_t col) const;
 
 	/// \brief Computes the squared distance between this and that.
 	///
 	/// If transpose is true, computes the difference between this and
 	/// the transpose of that.
-	double sumSquaredDifference(GMatrix& that, bool transpose = false);
+	double sumSquaredDifference(const GMatrix& that, bool transpose = false) const;
 
 	/// \brief Computes the linear coefficient between the two specified
 	/// attributes.
 	///
 	/// Usually you will want to pass the mean values for attr1Origin
 	/// and attr2Origin.
-	double linearCorrelationCoefficient(size_t attr1, double attr1Origin, size_t attr2, double attr2Origin);
+	double linearCorrelationCoefficient(size_t attr1, double attr1Origin, size_t attr2, double attr2Origin) const;
 
 	/// \brief Finds a sphere that bounds all the row-points in this matrix.
 	/// 
 	/// Returns the squared radius of the sphere, and stores its center in pOutCenter.
-	double boundingSphere(double* pOutCenter);
+	double boundingSphere(double* pOutCenter) const;
 
 	/// \brief Computes the covariance between two attributes
-	double covariance(size_t nAttr1, double dMean1, size_t nAttr2, double dMean2);
+	double covariance(size_t nAttr1, double dMean1, size_t nAttr2, double dMean2) const;
 
 	/// \brief Computes the covariance matrix of the data
-	GMatrix* covarianceMatrix();
+	GMatrix* covarianceMatrix() const;
 
 	/// \brief Performs a paired T-Test with data from the two specified
 	/// attributes.
 	///
 	/// pOutV will hold the degrees of freedom. pOutT will hold the T-value.
 	/// You can use GMath::tTestAlphaValue to convert these to a P-value.
-	void pairedTTest(size_t* pOutV, double* pOutT, size_t attr1, size_t attr2, bool normalize);
+	void pairedTTest(size_t* pOutV, double* pOutT, size_t attr1, size_t attr2, bool normalize) const;
 
 	/// \brief Performs the Wilcoxon signed ranks test from the two
 	/// specified attributes.
 	///
 	/// If two values are closer than tolerance, they are considered to
 	/// be equal.
-	void wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance, int* pNum, double* pWMinus, double* pWPlus);
+	void wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance, int* pNum, double* pWMinus, double* pWPlus) const;
 
 	/// \brief Prints the data to the specified stream
-	void print(std::ostream& stream);
+	void print(std::ostream& stream) const;
 
 	/// \brief Returns the number of ocurrences of the specified value
 	/// in the specified attribute
-	size_t countValue(size_t attribute, double value);
+	size_t countValue(size_t attribute, double value) const;
 
 	/// \brief Returns true iff this matrix is missing any values.
-	bool doesHaveAnyMissingValues();
+	bool doesHaveAnyMissingValues() const;
 
 	/// \brief Throws an exception if this data contains any missing
 	/// values in a continuous attribute
-	void ensureDataHasNoMissingReals();
+	void ensureDataHasNoMissingReals() const;
 
 	/// \brief Throws an exception if this data contains any missing
 	/// values in a nominal attribute
-	void ensureDataHasNoMissingNominals();
+	void ensureDataHasNoMissingNominals() const;
 
 	/// \brief Computes the sum entropy of the data (or the sum variance
 	/// for continuous attributes)
-	double measureInfo();
+	double measureInfo() const;
 
 	/// \brief Computes the vector in this subspace that has the
 	/// greatest distance from its projection into pThat subspace.
@@ -1132,21 +1124,21 @@ public:
 	///
 	/// Returns false if the subspaces are so nearly parallel that pOut
 	/// cannot be computed with accuracy.
-	bool leastCorrelatedVector(double* pOut, GMatrix* pThat, GRand* pRand);
+	bool leastCorrelatedVector(double* pOut, const GMatrix* pThat, GRand* pRand) const;
 
 	/// \brief Computes the cosine of the dihedral angle between this
 	/// subspace and pThat subspace
-	double dihedralCorrelation(GMatrix* pThat, GRand* pRand);
+	double dihedralCorrelation(const GMatrix* pThat, GRand* pRand) const;
 
 	/// \brief Projects pPoint onto this hyperplane (where each row
 	/// defines one of the orthonormal basis vectors of this hyperplane)
 	///
 	/// This computes (A^T)Ap, where A is this matrix, and p is pPoint.
-	void project(double* pDest, const double* pPoint);
+	void project(double* pDest, const double* pPoint) const;
 
 	/// \brief Projects pPoint onto this hyperplane (where each row
 	/// defines one of the orthonormal basis vectors of this hyperplane)
-	void project(double* pDest, const double* pPoint, const double* pOrigin);
+	void project(double* pDest, const double* pPoint, const double* pOrigin) const;
 
 	/// \brief Performs a bipartite matching between the rows of \a a
 	/// and \a b using the Linear Assignment Problem (LAP) optimizer
@@ -1249,38 +1241,6 @@ public:
 	}
 };
 
-
-/// \brief Represents an array of matrices or datasets that all have
-/// the same number of columns.
-class GMatrixArray
-{
-protected:
-	sp_relation m_pRelation;
-	std::vector<GMatrix*> m_sets;
-
-public:
-	GMatrixArray(sp_relation& pRelation);
-	GMatrixArray(size_t cols);
-	~GMatrixArray();
-	std::vector<GMatrix*>& sets() { return m_sets; }
-
-	/// \brief Adds a new dataset to the array and preallocates the
-	/// specified number of rows
-	GMatrix* newSet(size_t rows);
-
-	/// \brief Adds count new datasets to the array, and preallocates
-	/// the specified number of rows in each one
-	void newSets(size_t count, size_t rows);
-
-	/// \brief Deletes all the datasets
-	void flush();
-
-	/// \brief Returns the index of the largest data set
-	size_t largestSet();
-
-	/// \brief Returns the number of data sets with zero rows
-	size_t countEmptySets();
-};
 
 } // namespace GClasses
 

@@ -97,7 +97,7 @@ public:
 class GPolicyLearner
 {
 protected:
-	sp_relation m_pRelation;
+	GRelation* m_pRelation;
 	int m_senseDims;
 	int m_actionDims;
 	bool m_teleported;
@@ -114,12 +114,10 @@ public:
 	/// pRelation specifies the type of each element in the sense and action vectors (whether they
 	/// are continuous or discrete). The first attributes refer to the senses, and the last actionDims
 	/// attributes refer to the actions.
-	GPolicyLearner(sp_relation& pRelation, int actionDims);
+	GPolicyLearner(const GRelation& relation, int actionDims);
 	GPolicyLearner(GDomNode* pNode);
 
-	virtual ~GPolicyLearner()
-	{
-	}
+	virtual ~GPolicyLearner();
 
 	/// This method tells the agent to learn from the current senses,
 	/// and select a new action vector. (This method should also
@@ -147,39 +145,6 @@ protected:
 	/// If a child class has a serialize method, it
 	/// should use this method to serialize the base-class stuff.
 	GDomNode* baseDomNode(GDom* pDoc);
-};
-
-
-/// This is an experimental policy-learning algorithm. It's currently too slow to be practical.
-class GPeachAgent : public GPolicyLearner
-{
-protected:
-	GRand* m_pRand;
-	sp_relation m_pRelPhysics;
-	sp_relation m_pRelState;
-	GIncrementalLearner* m_pPhysicsModel;
-	double* m_pGoal;
-	double* m_pSubGoal;
-	double* m_pTrainingRow;
-	GAgentActionIterator* m_pActionIterator;
-	int m_burnIn;
-
-public:
-	/// pGoal is expected to be a vector of size m_senseCount. (m_senseCount = pRelation->GetAttributeCount() - actionDims.)
-	GPeachAgent(sp_relation& pRelation, int actionDims, GRand* pRand, double* pGoal, GAgentActionIterator* pActionIterator);
-	virtual ~GPeachAgent();
-
-	/// See GPolicyLearner::refinePolicyAndChooseNextAction
-	virtual void refinePolicyAndChooseNextAction(const double* pSenses, double* pActions);
-
-	/// Specify a goal for this agent
-	void setGoal(double* pNewGoal);
-
-	/// Returns the model used by this agent
-	GIncrementalLearner* physicsModel();
-
-protected:
-	void chooseAction(const double* pSenses, double* pActions);
 };
 
 

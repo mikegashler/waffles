@@ -27,16 +27,16 @@ class GRand;
 class GTargetFunction
 {
 protected:
-	sp_relation m_pRelation;
+	GRelation* m_pRelation;
 
 public:
-	GTargetFunction(sp_relation& pRelation) : m_pRelation(pRelation) {}
+	GTargetFunction(GRelation* pRelation) : m_pRelation(pRelation) {}
 	GTargetFunction(size_t dims);
 	virtual ~GTargetFunction() {}
 
 	/// Returns a (smart) pointer to the relation, which specifies the type
 	/// (discrete or real) of each element in the vector that is being optimized.
-	sp_relation& relation() { return m_pRelation; }
+	GRelation* relation() { return m_pRelation; }
 
 	/// This method should return true if computeError is deterministic with respect to
 	/// the vector being optimized. It should return false if the error depends on some
@@ -95,7 +95,7 @@ public:
 class GParallelOptimizers
 {
 protected:
-	sp_relation m_pRelation;
+	GRelation* m_pRelation;
 	std::vector<GTargetFunction*> m_targetFunctions;
 	std::vector<GOptimizer*> m_optimizers;
 
@@ -107,7 +107,7 @@ public:
 	~GParallelOptimizers();
 
 	/// Returns the relation associated with these optimizers
-	sp_relation& relation() { return m_pRelation; }
+	GRelation* relation() { return m_pRelation; }
 
 	/// Takes ownership of pTargetFunction and pOptimizer
 	void add(GTargetFunction* pTargetFunction, GOptimizer* pOptimizer);

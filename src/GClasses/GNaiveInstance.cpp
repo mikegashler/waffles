@@ -94,9 +94,9 @@ GNaiveInstance::GNaiveInstance(GDomNode* pNode, GLearnerLoader& ll)
 	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
 	m_internalFeatureDims = (size_t)pNode->field("ifd")->asInt();
 	m_internalLabelDims = (size_t)pNode->field("ild")->asInt();
-	sp_relation pFeatureRel = new GUniformRelation(m_internalFeatureDims);
-	sp_relation pLabelRel = new GUniformRelation(m_internalLabelDims);
-	beginIncrementalLearningInner(pFeatureRel, pLabelRel);
+	GUniformRelation featureRel(m_internalFeatureDims);
+	GUniformRelation labelRel(m_internalLabelDims);
+	beginIncrementalLearningInner(featureRel, labelRel);
 	GDomNode* pAttrs = pNode->field("attrs");
 	GDomListIterator it(pAttrs);
 	if(it.remaining() != m_internalFeatureDims)
@@ -155,7 +155,7 @@ void GNaiveInstance::autoTune(GMatrix& features, GMatrix& labels)
 	for(size_t i = 2; i < cap; i = size_t(i * 1.5))
 	{
 		m_nNeighbors = i;
-		double d = heuristicValidate(features, labels);
+		double d = crossValidate(features, labels, 2);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -170,13 +170,13 @@ void GNaiveInstance::autoTune(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-void GNaiveInstance::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GNaiveInstance::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
 {
-	if(!pFeatureRel->areContinuous(0, pFeatureRel->size()) || !pLabelRel->areContinuous(0, pLabelRel->size()))
+	if(!featureRel.areContinuous() || !labelRel.areContinuous())
 		throw Ex("Only continuous attributes are supported.");
 	clear();
-	m_internalFeatureDims = pFeatureRel->size();
-	m_internalLabelDims = pLabelRel->size();
+	m_internalFeatureDims = featureRel.size();
+	m_internalLabelDims = labelRel.size();
 	m_pAttrs = new GNaiveInstanceAttr*[m_internalFeatureDims];
 	for(size_t i = 0; i < m_internalFeatureDims; i++)
 		m_pAttrs[i] = new GNaiveInstanceAttr();
@@ -201,7 +201,7 @@ void GNaiveInstance::trainIncrementalInner(const double* pIn, const double* pOut
 }
 
 // virtual
-void GNaiveInstance::trainInner(GMatrix& features, GMatrix& labels)
+void GNaiveInstance::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	beginIncrementalLearningInner(features.relation(), labels.relation());
 	for(size_t i = 0; i < features.rows(); i++)

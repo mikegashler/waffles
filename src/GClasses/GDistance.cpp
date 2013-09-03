@@ -22,6 +22,21 @@ namespace GClasses {
 GDistanceMetric::GDistanceMetric(GDomNode* pNode)
 {
 	m_pRelation = GRelation::deserialize(pNode->field("relation"));
+	m_ownRelation = true;
+}
+
+// virtual
+GDistanceMetric::~GDistanceMetric()
+{
+	setRelation(NULL, false);
+}
+
+void GDistanceMetric::setRelation(const GRelation* pRelation, bool own)
+{
+	if(m_ownRelation)
+		delete((GRelation*)m_pRelation);
+	m_pRelation = pRelation;
+	m_ownRelation = own;
 }
 
 double GDistanceMetric::squaredDistance(const std::vector<double> & x, const std::vector<double> & y) const{
@@ -77,21 +92,20 @@ GDomNode* GRowDistance::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GRowDistance::init(sp_relation& pRelation)
+void GRowDistance::init(const GRelation* pRelation, bool own)
 {
-	m_pRelation = pRelation;
+	setRelation(pRelation, own);
 }
 
 // virtual
 double GRowDistance::squaredDistance(const double* pA, const double* pB) const
 {
-	GRelation* pRel = m_pRelation.get();
 	double sum = 0;
-	size_t count = pRel->size();
+	size_t count = m_pRelation->size();
 	double d;
 	for(size_t i = 0; i < count; i++)
 	{
-		if(pRel->valueCount(i) == 0)
+		if(m_pRelation->valueCount(i) == 0)
 		{
 			if(*pA == UNKNOWN_REAL_VALUE || *pB == UNKNOWN_REAL_VALUE)
 				d = m_diffWithUnknown;
@@ -142,9 +156,9 @@ GDomNode* GRowDistanceScaled::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GRowDistanceScaled::init(sp_relation& pRelation)
+void GRowDistanceScaled::init(const GRelation* pRelation, bool own)
 {
-	m_pRelation = pRelation;
+	setRelation(pRelation, own);
 	delete[] m_pScaleFactors;
 	m_pScaleFactors = new double[pRelation->size()];
 	GVec::setAll(m_pScaleFactors, 1.0, pRelation->size());
@@ -193,21 +207,20 @@ GDomNode* GLNormDistance::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GLNormDistance::init(sp_relation& pRelation)
+void GLNormDistance::init(const GRelation* pRelation, bool own)
 {
-	m_pRelation = pRelation;
+	setRelation(pRelation, own);
 }
 
 // virtual
 double GLNormDistance::squaredDistance(const double* pA, const double* pB) const
 {
-	GRelation* pRel = m_pRelation.get();
 	double sum = 0;
-	size_t count = pRel->size();
+	size_t count = m_pRelation->size();
 	double d;
 	for(size_t i = 0; i < count; i++)
 	{
-		if(pRel->valueCount(i) == 0)
+		if(m_pRelation->valueCount(i) == 0)
 		{
 			if(*pA == UNKNOWN_REAL_VALUE || *pB == UNKNOWN_REAL_VALUE)
 				d = m_diffWithUnknown;

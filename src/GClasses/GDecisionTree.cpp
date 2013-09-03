@@ -24,7 +24,6 @@
 #include <iostream>
 
 using namespace GClasses;
-using std::cout;
 using std::string;
 using std::ostream;
 using std::ostringstream;
@@ -333,14 +332,14 @@ void GDecisionTree::print(ostream& stream, GArffRelation* pFeatureRel, GArffRela
 	GRelation* pFRel = pFeatureRel;
 	GRelation* pLRel = pLabelRel;
 	if(!pFRel)
-		pFRel = m_pRelFeatures.get();
+		pFRel = m_pRelFeatures;
 	if(!pLRel)
-		pLRel = m_pRelLabels.get();
+		pLRel = m_pRelLabels;
 	m_pRoot->print(pFRel, pLRel, stream, 0, NULL);
 }
 
 // virtual
-void GDecisionTree::trainInner(GMatrix& features, GMatrix& labels)
+void GDecisionTree::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	clear();
 
@@ -350,11 +349,10 @@ void GDecisionTree::trainInner(GMatrix& features, GMatrix& labels)
 	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 		attrPool.push_back(i);
 
-	// We must make a copy of the features because buildNode will mess with it
-	// by calling RandomlyReplaceMissinGMatrix
-	GMatrix tmpFeatures(m_pRelFeatures);
+	// Copy the data
+	GMatrix tmpFeatures(m_pRelFeatures->clone());
 	tmpFeatures.copy(&features);
-	GMatrix tmpLabels(m_pRelLabels);
+	GMatrix tmpLabels(m_pRelLabels->clone());
 	tmpLabels.copy(&labels);
 
 	m_pRoot = buildBranch(tmpFeatures, tmpLabels, attrPool, 0/*depth*/, 4/*tolerance*/);
@@ -369,7 +367,7 @@ void GDecisionTree::autoTune(GMatrix& features, GMatrix& labels)
 	for(size_t i = 1; i < cap; i = std::max(i + 1, size_t(i * 1.5)))
 	{
 		m_leafThresh = i;
-		double d = heuristicValidate(features, labels);
+		double d = crossValidate(features, labels, 2);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -426,7 +424,7 @@ double GDecisionTree_pickPivotToReduceInfo(GMatrix& features, GMatrix& labels, G
 double GDecisionTree_measureNominalSplitInfo(GMatrix& features, GMatrix& labels, GMatrix& tmpFeatures, GMatrix& tmpLabels, size_t nAttribute)
 {
 	size_t nRowCount = features.rows() - features.countValue(nAttribute, UNKNOWN_DISCRETE_VALUE);
-	int values = (int)features.relation()->valueCount(nAttribute);
+	int values = (int)features.relation().valueCount(nAttribute);
 	double dInfo = 0;
 	for(int n = 0; n < values; n++)
 	{
@@ -440,9 +438,9 @@ double GDecisionTree_measureNominalSplitInfo(GMatrix& features, GMatrix& labels,
 
 size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* pPivot, vector<size_t>& attrPool, size_t nDepth)
 {
-	GMatrix tmpFeatures(features.relation());
+	GMatrix tmpFeatures(features.relation().clone());
 	tmpFeatures.reserve(features.rows());
-	GMatrix tmpLabels(labels.relation());
+	GMatrix tmpLabels(labels.relation().clone());
 	tmpLabels.reserve(features.rows());
 	if(m_eAlg == MINIMIZE_ENTROPY)
 	{
@@ -456,7 +454,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 		for(vector<size_t>::iterator it = attrPool.begin(); it != attrPool.end(); it++)
 		{
 			double info;
-			if(features.relation()->valueCount(*it) == 0)
+			if(features.relation().valueCount(*it) == 0)
 				info = GDecisionTree_pickPivotToReduceInfo(features, labels, tmpFeatures, tmpLabels, &pivot, *it, &m_rand);
 			else
 				info = GDecisionTree_measureNominalSplitInfo(features, labels, tmpFeatures, tmpLabels, *it);
@@ -485,7 +483,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 			size_t attr = attrPool[index];
 			double pivot = 0.0;
 			double info;
-			if(features.relation()->valueCount(attr) == 0)
+			if(features.relation().valueCount(attr) == 0)
 			{
 				// Pick a random pivot. (Note that this is not a uniform distribution. This
 				// distribution is biased in favor of pivots that will divide the data well.)
@@ -526,7 +524,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 		{
 			size_t index = (i + k) % attrPool.size();
 			size_t attr = attrPool[index];
-			if(features.relation()->valueCount(attr) == 0)
+			if(features.relation().valueCount(attr) == 0)
 			{
 				// Find the min
 				double m = 1e300;
@@ -643,26 +641,32 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	features.replaceMissingValuesWithBaseline(attr);
 
 	// Split the data
-	GMatrixArray featureParts(m_pRelFeatures);
-	GMatrixArray labelParts(m_pRelLabels);
+	vector<GMatrix*> featureParts;
+	VectorOfPointersHolder<GMatrix> hFeatureParts(featureParts);
+	vector<GMatrix*> labelParts;
+	VectorOfPointersHolder<GMatrix> hLabelParts(labelParts);
 	size_t nonEmptyBranchCount = 0;
 	GDTAttrPoolHolder hAttrPool(attrPool);
 	if(m_pRelFeatures->valueCount(attr) == 0)
 	{
 		// Split on a continuous attribute
-		GMatrix* pOtherFeatures = featureParts.newSet(0);
-		GMatrix* pOtherLabels = labelParts.newSet(0);
+		GMatrix* pOtherFeatures = new GMatrix(m_pRelFeatures->clone());
+		featureParts.push_back(pOtherFeatures);
+		GMatrix* pOtherLabels = new GMatrix(m_pRelLabels->clone());
+		labelParts.push_back(pOtherLabels);
 		features.splitByPivot(pOtherFeatures, attr, pivot, &labels, pOtherLabels);
 		nonEmptyBranchCount += (features.rows() > 0 ? 1 : 0) + (pOtherFeatures->rows() > 0 ? 1 : 0);
 	}
 	else
 	{
 		// Split on a nominal attribute
-		int valueCount = (int)features.relation()->valueCount(attr);
+		int valueCount = (int)features.relation().valueCount(attr);
 		for(int i = 1; i < valueCount; i++)
 		{
-			GMatrix* pOtherFeatures = featureParts.newSet(0);
-			GMatrix* pOtherLabels = labelParts.newSet(0);
+			GMatrix* pOtherFeatures = new GMatrix(m_pRelFeatures->clone());
+			featureParts.push_back(pOtherFeatures);
+			GMatrix* pOtherLabels = new GMatrix(m_pRelLabels->clone());
+			labelParts.push_back(pOtherLabels);
 			features.splitByNominalValue(pOtherFeatures, attr, i, &labels, pOtherLabels);
 			if(pOtherFeatures->rows() > 0)
 				nonEmptyBranchCount++;
@@ -675,11 +679,11 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	// If we didn't actually separate anything
 	if(nonEmptyBranchCount < 2)
 	{
-		size_t setCount = featureParts.sets().size();
+		size_t setCount = featureParts.size();
 		for(size_t i = 0; i < setCount; i++)
 		{
-			features.mergeVert(featureParts.sets()[i]);
-			labels.mergeVert(labelParts.sets()[i]);
+			features.mergeVert(featureParts[i]);
+			labels.mergeVert(labelParts[i]);
 		}
 		if(m_eAlg == MINIMIZE_ENTROPY)
 			return new GDecisionTreeLeafNode(GDecisionTreeNode_labelVec(labels), labels.rows());
@@ -693,17 +697,29 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 
 	// Make an interior node
 	double* pBaselineVec = NULL;
-	size_t emptySets = featureParts.countEmptySets() + (features.rows() == 0 ? 1 : 0);
+	size_t emptySets = 0;
+	for(size_t i = 0; i < featureParts.size(); i++)
+	{
+		if(featureParts[i]->rows() == 0)
+			emptySets++;
+	}
+	if(features.rows() == 0)
+		emptySets++;
 	if(emptySets > 0)
 	{
-		GMatrix* pB = labelParts.sets()[labelParts.largestSet()];
+		GMatrix* pB = labelParts[0];
+		for(size_t i = 1; i < labelParts.size(); i++)
+		{
+			if(labelParts[i]->rows() > pB->rows())
+				pB = labelParts[i];
+		}
 		if(labels.rows() > pB->rows())
 			pBaselineVec = GDecisionTreeNode_labelVec(labels);
 		else
 			pBaselineVec = GDecisionTreeNode_labelVec(*pB);
 	}
 	ArrayHolder<double> hBaselineVec(pBaselineVec);
-	GDecisionTreeInteriorNode* pNode = new GDecisionTreeInteriorNode(attr, pivot, featureParts.sets().size() + 1, 0);
+	GDecisionTreeInteriorNode* pNode = new GDecisionTreeInteriorNode(attr, pivot, featureParts.size() + 1, 0);
 	Holder<GDecisionTreeInteriorNode> hNode(pNode);
 	size_t biggest = features.rows();
 	if(features.rows() > 0){
@@ -711,14 +727,14 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	}else{
 		pNode->m_ppChildren[0] = new GDecisionTreeLeafNode(GDecisionTreeNode_copyIfNotTheLast(emptySets--, hBaselineVec, labels.cols()), 0);
 	}
-	for(size_t i = 0; i < featureParts.sets().size(); i++)
+	for(size_t i = 0; i < featureParts.size(); i++)
 	{
-		if(featureParts.sets()[i]->rows() > 0)
+		if(featureParts[i]->rows() > 0)
 		{
-			pNode->m_ppChildren[i + 1] = buildBranch(*featureParts.sets()[i], *labelParts.sets()[i], attrPool, nDepth + 1, tolerance);
-			if(featureParts.sets()[i]->rows() > biggest)
+			pNode->m_ppChildren[i + 1] = buildBranch(*featureParts[i], *labelParts[i], attrPool, nDepth + 1, tolerance);
+			if(featureParts[i]->rows() > biggest)
 			{
-				biggest = featureParts.sets()[i]->rows();
+				biggest = featureParts[i]->rows();
 				pNode->m_defaultChild = i + 1;
 			}
 		}
@@ -933,7 +949,7 @@ protected:
 	double* m_pOutputs;
 
 public:
-	GMeanMarginsTreeLeafNode(size_t nOutputCount, double* pOutputs)
+	GMeanMarginsTreeLeafNode(size_t nOutputCount, const double* pOutputs)
 	: GMeanMarginsTreeNode()
 	{
 		m_pOutputs = new double[nOutputCount];
@@ -1013,7 +1029,7 @@ GDomNode* GMeanMarginsTree::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GMeanMarginsTree::trainInner(GMatrix& features, GMatrix& labels)
+void GMeanMarginsTree::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	clear();
 	m_internalFeatureDims = features.cols();
@@ -1022,7 +1038,9 @@ void GMeanMarginsTree::trainInner(GMatrix& features, GMatrix& labels)
 	ArrayHolder<double> hBuf(pBuf);
 	size_t* pBuf2 = new size_t[m_internalFeatureDims * 2];
 	ArrayHolder<size_t> hBuf2(pBuf2);
-	m_pRoot = buildNode(features, labels, pBuf, pBuf2);
+	GMatrix fTmp(features);
+	GMatrix lTmp(labels);
+	m_pRoot = buildNode(fTmp, lTmp, pBuf, pBuf2);
 }
 
 void GMeanMarginsTree::autoTune(GMatrix& features, GMatrix& labels)
@@ -1058,7 +1076,7 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 	memset(pCounts2, '\0', sizeof(size_t) * m_internalFeatureDims);
 	for(size_t i = 0; i < nCount; i++)
 	{
-		double* pF = features[i];
+		const double* pF = features[i];
 		if(GVec::dotProductIgnoringUnknowns(pLabelCentroid, labels[i], pPrincipalComponent, m_internalLabelDims) >= 0)
 		{
 			double* pM = pFeatureCentroid2;
@@ -1115,8 +1133,8 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 	Holder<GMeanMarginsTreeInteriorNode> hNode(pNode);
 
 	// Divide the data
-	GMatrix otherFeatures(features.relation());
-	GMatrix otherLabels(labels.relation());
+	GMatrix otherFeatures(features.relation().clone());
+	GMatrix otherLabels(labels.relation().clone());
 	{
 		GMergeDataHolder hFeatures(features, otherFeatures);
 		GMergeDataHolder hLabels(labels, otherLabels);
@@ -1243,7 +1261,7 @@ void GRandomForest::print(std::ostream& stream, GArffRelation* pFeatureRel, GArf
 }
 
 // virtual
-void GRandomForest::trainInner(GMatrix& features, GMatrix& labels)
+void GRandomForest::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	m_pEnsemble->train(features, labels);
 }

@@ -23,8 +23,8 @@ struct GNaiveBayesOutputAttr;
 class GNaiveBayes : public GIncrementalLearner
 {
 protected:
-	sp_relation m_pInnerRelFeatures;
-	sp_relation m_pInnerRelLabels;
+	GRelation* m_pInnerRelFeatures;
+	GRelation* m_pInnerRelLabels;
 	size_t m_nSampleCount;
 	GNaiveBayesOutputAttr** m_pOutputs;
 	double m_equivalentSampleSize;
@@ -68,7 +68,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -83,7 +83,7 @@ protected:
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
-	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// Adds a single training sample to the collection
 	virtual void trainIncrementalInner(const double* pIn, const double* pOut);

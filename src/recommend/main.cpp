@@ -524,7 +524,8 @@ void fillMissingValues(GArgReader& args)
 	// Load the data and the filter
 	GMatrix dataOrig;
 	dataOrig.loadArff(args.pop_string());
-	sp_relation pOrigRel = dataOrig.relation();
+	GRelation* pOrigRel = dataOrig.relation().clone();
+	Holder<GRelation> hOrigRel(pOrigRel);
 	GRand prng(seed);
 	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
 	Holder<GCollaborativeFilter> hModel(pModel);
@@ -579,7 +580,7 @@ void fillMissingValues(GArgReader& args)
 
 	// Convert the data back to its original form
 	GMatrix* pOut = filter.untransformBatch(*pData);
-	pOut->setRelation(pOrigRel);
+	pOut->setRelation(hOrigRel.release());
 	pOut->print(cout);
 }
 

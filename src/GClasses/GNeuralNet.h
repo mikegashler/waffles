@@ -360,7 +360,7 @@ public:
 
 	/// Train the network until the termination condition is met.
 	/// Returns the number of epochs required to train it.
-	size_t trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& validateFeatures, GMatrix& validateLabels);
+	size_t trainWithValidation(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& validateFeatures, const GMatrix& validateLabels);
 
 	/// Some extra junk is allocated when training to make it efficient.
 	/// This method is called when training is done to get rid of that
@@ -466,10 +466,10 @@ protected:
 #endif // MIN_PREDICT
 
 	/// Measures the sum squared error against the specified dataset
-	double validationSquaredError(GMatrix& features, GMatrix& labels);
+	double validationSquaredError(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -495,7 +495,7 @@ protected:
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
-	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// See the comment for GIncrementalLearner::trainIncrementalInner
 	virtual void trainIncrementalInner(const double* pIn, const double* pOut);

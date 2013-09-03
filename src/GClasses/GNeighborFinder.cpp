@@ -209,15 +209,15 @@ void GNeighborFinderCacheWrapper::fillCache()
 
 void GNeighborFinderCacheWrapper::fillDistances(GDistanceMetric* pMetric)
 {
-	pMetric->init(m_pData->relation());
+	pMetric->init(&m_pData->relation(), false);
 	double* pDissim = m_pDissims;
 	size_t* pHood = m_pCache;
 	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
-		double* pA = m_pData->row(i);
+		const double* pA = m_pData->row(i);
 		for(size_t j = 0; j < m_neighborCount; j++)
 		{
-			double* pB = m_pData->row(pHood[j]);
+			const double* pB = m_pData->row(pHood[j]);
 			*pDissim = pMetric->squaredDistance(pA, pB);
 			pDissim++;
 		}
@@ -472,7 +472,7 @@ public:
 
 // --------------------------------------------------------------------------------
 
-GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
+GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
 : GNeighborFinder(pData, neighborCount), m_pMetric(pMetric), m_ownMetric(ownMetric)
 {
 	if(!m_pMetric)
@@ -480,7 +480,7 @@ GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(GMatrix* pData, size_t 
 		m_pMetric = new GRowDistance();
 		m_ownMetric = true;
 	}
-	m_pMetric->init(pData->relation());
+	m_pMetric->init(&pData->relation(), false);
 }
 
 // virtual
@@ -501,18 +501,6 @@ GBruteForceNeighborFinder::~GBruteForceNeighborFinder()
 {
 }
 
-size_t GBruteForceNeighborFinder::addCopy(const double* pVector)
-{
-	size_t index = m_pData->rows();
-	GVec::copy(m_pData->newRow(), pVector, m_pData->cols());
-	return index;
-}
-
-double* GBruteForceNeighborFinder::releaseVector(size_t nIndex)
-{
-	return m_pData->releaseRow(nIndex);
-}
-
 // virtual
 void GBruteForceNeighborFinder::reoptimize()
 {
@@ -529,14 +517,13 @@ void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
 void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
 {
 	GClosestNeighborFindingHelper helper(m_neighborCount, pOutNeighbors, pOutDistances);
-	double* pCand;
 	double dist;
-	double* pInputVector = m_pData->row(index);
+	const double* pInputVector = m_pData->row(index);
 	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
 		if(i == index)
 			continue;
-		pCand = m_pData->row(i);
+		const double* pCand = m_pData->row(i);
 		dist = m_pMetric->squaredDistance(pInputVector, pCand);
 		helper.TryPoint(i, dist);
 	}
@@ -546,11 +533,10 @@ void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDis
 void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, const double* pInputVector)
 {
 	GClosestNeighborFindingHelper helper(m_neighborCount, pOutNeighbors, pOutDistances);
-	double* pCand;
 	double dist;
 	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
-		pCand = m_pData->row(i);
+		const double* pCand = m_pData->row(i);
 		dist = m_pMetric->squaredDistance(pInputVector, pCand);
 		helper.TryPoint(i, dist);
 	}
@@ -800,7 +786,7 @@ public:
 
 // --------------------------------------------------------------------------------------------------------
 
-GKdTree::GKdTree(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
+GKdTree::GKdTree(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
 : GNeighborFinderGeneralizing(pData, neighborCount, pMetric, ownMetric)
 {
 	m_maxLeafSize = 6;
@@ -823,12 +809,11 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 	if(valueCount > 0)
 	{
 		// Count the ocurrences of each value
-		double* pPat;
 		GTEMPBUF(size_t, counts, valueCount);
 		memset(counts, '\0', sizeof(size_t) * valueCount);
 		for(size_t i = 0; i < count; i++)
 		{
-			pPat = m_pData->row(pIndexes[i]);
+			const double* pPat = m_pData->row(pIndexes[i]);
 			if((int)pPat[attr] >= 0)
 			{
 				GAssert((unsigned int)pPat[attr] < (unsigned int)valueCount); // out of range
@@ -867,11 +852,10 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 		// Compute the mean
 		size_t missing = 0;
 		double mean = 0;
-		double* pPat;
 		for(size_t i = 0; i < count; i++)
 		{
 			GAssert(pIndexes[i] < m_pData->rows());
-			pPat = m_pData->row(pIndexes[i]);
+			const double* pPat = m_pData->row(pIndexes[i]);
 			if(pPat[attr] != UNKNOWN_REAL_VALUE)
 				mean += pPat[attr];
 			else
@@ -887,7 +871,7 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 		{
 			for(size_t i = 0; i < count; i++)
 			{
-				pPat = m_pData->row(pIndexes[i]);
+				const double* pPat = m_pData->row(pIndexes[i]);
 				if(pPat[attr] != UNKNOWN_REAL_VALUE)
 				{
 					d = (pPat[attr] - mean) * pScaleFactors[attr];
@@ -899,7 +883,7 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 		{
 			for(size_t i = 0; i < count; i++)
 			{
-				pPat = m_pData->row(pIndexes[i]);
+				const double* pPat = m_pData->row(pIndexes[i]);
 				if(pPat[attr] != UNKNOWN_REAL_VALUE)
 				{
 					d = (pPat[attr] - mean);
@@ -916,7 +900,6 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 
 size_t GKdTree::splitIndexes(size_t count, size_t* pIndexes, size_t attr, double pivot)
 {
-	double* pPat;
 	size_t t;
 	size_t beg = 0;
 	size_t end = count - 1;
@@ -924,7 +907,7 @@ size_t GKdTree::splitIndexes(size_t count, size_t* pIndexes, size_t attr, double
 	{
 		while(end >= beg && end < count)
 		{
-			pPat = m_pData->row(pIndexes[beg]);
+			const double* pPat = m_pData->row(pIndexes[beg]);
 			if(pPat[attr] >= pivot)
 			{
 				t = pIndexes[beg];
@@ -940,7 +923,7 @@ size_t GKdTree::splitIndexes(size_t count, size_t* pIndexes, size_t attr, double
 	{
 		while(end >= beg && end < count)
 		{
-			pPat = m_pData->row(pIndexes[beg]);
+			const double* pPat = m_pData->row(pIndexes[beg]);
 			if((int)pPat[attr] == (int)pivot)
 			{
 				t = pIndexes[beg];
@@ -997,52 +980,6 @@ GKdNode* GKdTree::buildTree(size_t count, size_t* pIndexes)
 	return new GKdInteriorNode(dims, pLess, greaterOrEqual, count, attr, pivot);
 }
 
-// virtual
-size_t GKdTree::addCopy(const double* pVector)
-{
-	size_t index = m_pData->rows();
-	double* pVec = m_pData->newRow();
-	GVec::copy(pVec, pVector, m_pData->cols());
-	m_pRoot->Insert(this, index, pVec);
-	if(m_pRoot->IsLeaf())
-	{
-		if(((GKdLeafNode*)m_pRoot)->GetSize() > m_maxLeafSize)
-		{
-			size_t* pIndexes = new size_t[((GKdLeafNode*)m_pRoot)->GetSize()];
-			ArrayHolder<size_t> hIndexes(pIndexes);
-			size_t used = m_pRoot->Gather(pIndexes);
-			GAssert(used == ((GKdLeafNode*)m_pRoot)->GetSize()); // m_size is wrong. This may corrupt memory.
-			GKdNode* pNewNode = buildTree(used, pIndexes);
-			delete(m_pRoot);
-			m_pRoot = pNewNode;
-		}
-	}
-	else
-	{
-		if(((GKdInteriorNode*)m_pRoot)->m_timeLeft <= 0)
-		{
-			GKdNode* pNewNode = ((GKdInteriorNode*)m_pRoot)->Rebuild(this);
-			delete(m_pRoot);
-			m_pRoot = pNewNode;
-		}
-	}
-	return index;
-}
-
-// virtual
-double* GKdTree::releaseVector(size_t index)
-{
-	double* pPat = m_pData->row(index);
-	m_pRoot->Remove(this, index, pPat);
-	size_t last = m_pData->rows() - 1;
-	if(index != last)
-	{
-		double* pPatLast = m_pData->row(last);
-		m_pRoot->Rename(this, last, index, pPatLast);
-	}
-	return m_pData->releaseRow(index); // (releaseRow moves the last row to the index position)
-}
-
 class KdTree_Compare_Nodes_Functor
 {
 public:
@@ -1069,7 +1006,7 @@ void GKdTree::findNeighbors(size_t* pOutNeighbors, double* pOutSquaredDistances,
 		if(pNode->IsLeaf())
 		{
 			double squaredDist;
-			double* pCand;
+			const double* pCand;
 			vector<size_t>* pIndexes = ((GKdLeafNode*)pNode)->GetIndexes();
 			size_t count = pIndexes->size();
 			for(size_t i = 0; i < count; i++)
@@ -1262,9 +1199,9 @@ public:
 		return NULL;
 	}
 
-	virtual void init(sp_relation& pRelation)
+	virtual void init(const GRelation* pRelation, bool own)
 	{
-		m_pRelation = pRelation;
+		setRelation(pRelation, own);
 	}
 
 	virtual double squaredDistance(const double* pA, const double* pB) const
@@ -1308,9 +1245,7 @@ void GKdTree::test()
 	GClosestNeighborFindingHelper::test();
 	GKdTree_testThatItDoesntLookFar();
 
-	sp_relation rel;
-	rel = new GUniformRelation(TEST_DIMS, 0);
-	GMatrix data(rel);
+	GMatrix data(new GUniformRelation(TEST_DIMS, 0));
 	data.reserve(TEST_PATTERNS);
 	GRand prng(0);
 	for(size_t i = 0; i < TEST_PATTERNS; i++)
@@ -1651,7 +1586,7 @@ public:
 	}
 };
 
-GCycleCut::GCycleCut(size_t* pNeighborhoods, GMatrix* pPoints, size_t k)
+GCycleCut::GCycleCut(size_t* pNeighborhoods, const GMatrix* pPoints, size_t k)
 : m_pNeighborhoods(pNeighborhoods), m_pPoints(pPoints), m_k(k), m_cycleThresh(10), m_cutCount(0)
 {
 	// Compute the mean neighbor distance
@@ -1917,7 +1852,7 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 	size_t maxCandidates = medianCands * 3 / 2;
 
 	// Make a table of all the neighbors to each point within the radius
-	size_t dims = pData->relation()->size();
+	size_t dims = pData->relation().size();
 	GKdTree neighborFinder(pData, maxCandidates, NULL, true);
 	size_t* pCandIndexes = new size_t[maxCandidates * pData->rows()];
 	ArrayHolder<size_t> hCandIndexes(pCandIndexes);
@@ -1945,8 +1880,9 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 	GVec::setAll(pWeights, 1.0 / maxCandidates, maxCandidates * pData->rows());
 
 	// Refine the weights
-	GMatrixArray tanSpaces(dims);
-	tanSpaces.newSets(pData->rows(), tangentDims);
+	vector<GMatrix> tanSpaces;
+	for(size_t i = 0; i < pData->rows(); i++)
+		tanSpaces[i].resize(tangentDims, dims);
 	double* pBuf = new double[dims + maxCandidates];
 	ArrayHolder<double> hBuf(pBuf);
 	double* pSquaredCorr = pBuf + dims;
@@ -1969,7 +1905,7 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 			}
 
 			// Compute the tangeant hyperplane
-			GMatrix* pTanSpace = tanSpaces.sets()[i];
+			GMatrix* pTanSpace = &tanSpaces[i];
 			for(size_t j = 0; j < tangentDims; j++)
 			{
 				double* pBasis = pTanSpace->row(j);
@@ -1988,7 +1924,7 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 		{
 			// Compute the squaredDistance with each neighbor
 			double* pMe = pData->row(i);
-			GMatrix* pMyTan = tanSpaces.sets()[i];
+			GMatrix* pMyTan = &tanSpaces[i];
 			for(size_t j = 0; j < maxCandidates; j++)
 			{
 				size_t neighIndex = pHoodIndexes[j];
@@ -1998,7 +1934,7 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 					continue;
 				}
 				double* pNeigh = pData->row(neighIndex);
-				GMatrix* pNeighTan = tanSpaces.sets()[neighIndex];
+				GMatrix* pNeighTan = &tanSpaces[neighIndex];
 				pSquaredCorr[j] = measureAlignment(pMe, pMyTan, pNeigh, pNeighTan, sqCorrCap, squaredRadius, pRand);
 
 				// Compute squared correlation between the two neighbors
@@ -2158,7 +2094,7 @@ m_pRand(pRand)
 		throw Ex("Expected the same number of observations as control vectors");
 	if(pActions->cols() != 1)
 		throw Ex("Sorry, only one action dim is currently supported");
-	int actionValues = (int)m_pActions->relation()->valueCount(0);
+	int actionValues = (int)m_pActions->relation().valueCount(0);
 	if(actionValues < 2)
 		throw Ex("Sorry, only nominal actions are currently supported");
 
@@ -2214,9 +2150,9 @@ GMatrix* GTemporalNeighborFinder::preprocessObservations(GMatrix* pObs, size_t m
 bool GTemporalNeighborFinder::findPath(size_t from, size_t to, double* path, double maxDist)
 {
 	// Find the path
-	int actionValues = (int)m_pActions->relation()->valueCount(0);
-	double* pStart = m_pData->row(from);
-	double* pGoal = m_pData->row(to);
+	int actionValues = (int)m_pActions->relation().valueCount(0);
+	const double* pStart = m_pData->row(from);
+	const double* pGoal = m_pData->row(to);
 	size_t dims = m_pData->cols();
 	double origSquaredDist = GVec::squaredDistance(pStart, pGoal, dims);
 	GTEMPBUF(double, pObs, dims + dims + dims);
@@ -2279,10 +2215,10 @@ void GTemporalNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
 // virtual
 void GTemporalNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
 {
-	int valueCount = (int)m_pActions->relation()->valueCount(0);
+	int valueCount = (int)m_pActions->relation().valueCount(0);
 	if(m_pActions->cols() > 1 || valueCount == 0)
 		throw Ex("continuous and multi-dim actions not supported yet");
-	size_t actionValues = m_pActions->relation()->valueCount(0);
+	size_t actionValues = m_pActions->relation().valueCount(0);
 	size_t pos = 0;
 	GTEMPBUF(double, path, actionValues);
 	for(size_t i = 0; pos < m_neighborCount && i < m_pData->rows(); i++)

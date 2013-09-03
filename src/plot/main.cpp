@@ -413,9 +413,9 @@ void PlotBar(GArgReader& args)
 	// Determine the labels
 	while(labels.size() < pData->cols())
 	{
-		if(pData->relation()->type() == GRelation::ARFF)
+		if(pData->relation().type() == GRelation::ARFF)
 		{
-			GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+			const GArffRelation* pRel = (GArffRelation*)&pData->relation();
 			labels.push_back(pRel->attrName(labels.size()));
 		}
 		else
@@ -879,10 +879,10 @@ void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axis
 		// Determine the label
 		string sLabel;
 		size_t attr = horiz ? cols[i].m_attrX : cols[i].m_attrY;
-		if(attr < pData->relation()->size())
+		if(attr < pData->relation().size())
 		{
-			if(pData->relation()->type() == GRelation::ARFF)
-				sLabel = ((GArffRelation*)pData->relation().get())->attrName(attr);
+			if(pData->relation().type() == GRelation::ARFF)
+				sLabel = ((GArffRelation*)&pData->relation())->attrName(attr);
 			else
 			{
 				sLabel = "Attr ";
@@ -1130,7 +1130,7 @@ void PlotScatter(GArgReader& args)
 			svg.clip();
 			if(horizCharts > 1 || vertCharts > 1)
 			{
-				GMatrix temp(pData->relation());
+				GMatrix temp(pData->relation().clone());
 				GReleaseDataHolder hTemp(&temp);
 				makeGridDataSubset(pData, &temp, horiz, horizAttr, horizBlock, vert, vertAttr, vertBlock);
 				for(size_t i = 0; i < cols.size(); i++)
@@ -1335,11 +1335,11 @@ void makeHistogram(GArgReader& args)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	if(attr < 0 || attr >= pData->relation()->size())
+	if(attr < 0 || attr >= pData->relation().size())
 		throw Ex("attr out of range");
 
 	// Make the histogram
-	if(pData->relation()->valueCount(attr) == 0)
+	if(pData->relation().valueCount(attr) == 0)
 	{
 		GHistogram hist(*pData, attr, xmin, xmax, wid);
 		double height = (ymax == UNKNOWN_REAL_VALUE ? hist.binLikelihood(hist.modeBin()) * 1.5 : ymax);
@@ -1362,7 +1362,7 @@ void makeHistogram(GArgReader& args)
 	}
 	else
 	{
-		size_t buckets = pData->relation()->valueCount(attr);
+		size_t buckets = pData->relation().valueCount(attr);
 		GTEMPBUF(double, hist, buckets);
 		GVec::setAll(hist, 0.0, buckets);
 		for(size_t i = 0; i < pData->rows(); i++)
@@ -1393,7 +1393,7 @@ void PrintStats(GArgReader& args)
 	const char* szFilename = args.pop_string();
 	GMatrix* pData = loadData(szFilename);
 	Holder<GMatrix> hData(pData);
-	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+	GArffRelation* pRel = (GArffRelation*)&pData->relation();
 
 	// Print some quick stats
 	cout.precision(8);
@@ -1505,10 +1505,10 @@ void percentSame(GArgReader& args){
 	       "identical values for empty files.");
   }
   for(size_t i = 0; i < cols; ++i){
-    if(hData1->relation()->valueCount(i) !=
-       hData2->relation()->valueCount(i)){
-      size_t v1 = hData1->relation()->valueCount(i);
-      size_t v2 = hData2->relation()->valueCount(i);
+    if(hData1->relation().valueCount(i) !=
+       hData2->relation().valueCount(i)){
+      size_t v1 = hData1->relation().valueCount(i);
+      size_t v2 = hData2->relation().valueCount(i);
       std::stringstream msg;
       msg << "The two files have different attribute types at "
 	  << "attribute index " << i << ".  The first file has ";
@@ -1570,13 +1570,13 @@ void printDecisionTree(GArgReader& args)
 		GMatrix data;
 		size_t ld;
 		loadDataWithSwitches(data, args, &ld);
-		size_t labelDims = pModeler->relLabels()->size();
+		size_t labelDims = pModeler->relLabels().size();
 		if(ld != labelDims)
 			throw Ex("Different number of label dims than the model was trained with");
 		GArffRelation relFeatures;
-		relFeatures.addAttrs(data.relation().get(), 0, data.cols() - labelDims);
+		relFeatures.addAttrs(data.relation(), 0, data.cols() - labelDims);
 		GArffRelation relLabels;
-		relLabels.addAttrs(data.relation().get(), data.cols() - labelDims, labelDims);
+		relLabels.addAttrs(data.relation(), data.cols() - labelDims, labelDims);
 		((GDecisionTree*)pModeler)->print(cout, &relFeatures, &relLabels);
 	}
 	else
@@ -1603,13 +1603,13 @@ void printRandomForest(GArgReader& args)
 		size_t ld;
 		GMatrix data;
 		loadDataWithSwitches(data, args, &ld);
-		size_t labelDims = pModeler->relLabels()->size();
+		size_t labelDims = pModeler->relLabels().size();
 		if(ld != labelDims)
 			throw Ex("Different number of label dims than the model was trained with");
 		GArffRelation relFeatures;
-		relFeatures.addAttrs(data.relation().get(), 0, data.cols() - labelDims);
+		relFeatures.addAttrs(data.relation(), 0, data.cols() - labelDims);
 		GArffRelation relLabels;
-		relLabels.addAttrs(data.relation().get(), data.cols() - labelDims, labelDims);
+		relLabels.addAttrs(data.relation(), data.cols() - labelDims, labelDims);
 		((GRandomForest*)pModeler)->print(cout, &relFeatures, &relLabels);
 	}
 	else

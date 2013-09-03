@@ -104,7 +104,7 @@ public:
 	/// polynomial before integrating.
 	void integrate();
 
-	void train(GMatrix& features, GMatrix& labels);
+	void train(const GMatrix& features, const GMatrix& labels);
 
 	double predict(const double* pIn);
 
@@ -237,11 +237,11 @@ class GPolynomialRegressCritic : public GTargetFunction
 {
 protected:
 	GPolynomialSingleLabel* m_pPolynomial;
-	GMatrix& m_features;
-	GMatrix& m_labels;
+	const GMatrix& m_features;
+	const GMatrix& m_labels;
 
 public:
-	GPolynomialRegressCritic(GPolynomialSingleLabel* pPolynomial, GMatrix& features, GMatrix& labels)
+	GPolynomialRegressCritic(GPolynomialSingleLabel* pPolynomial, const GMatrix& features, const GMatrix& labels)
 	: GTargetFunction(pPolynomial->coefficientCount()), m_features(features), m_labels(labels)
 	{
 		m_pPolynomial = pPolynomial;
@@ -268,7 +268,7 @@ protected:
 		double dSumSquaredError = 0;
 		for(size_t i = 0; i < m_features.rows(); i++)
 		{
-			double* pVec = m_features[i];
+			const double* pVec = m_features[i];
 			double prediction = m_pPolynomial->predict(pVec);
 			d = m_labels[i][0] - prediction;
 			dSumSquaredError += (d * d);
@@ -304,7 +304,7 @@ void GPolynomialSingleLabel::init(size_t featureDims)
 	GVec::setAll(m_pCoefficients, 0.0, m_nCoefficients);
 }
 
-void GPolynomialSingleLabel::train(GMatrix& features, GMatrix& labels)
+void GPolynomialSingleLabel::train(const GMatrix& features, const GMatrix& labels)
 {
 	GAssert(labels.cols() == 1);
 	init(features.cols());
@@ -641,7 +641,7 @@ void GPolynomial::clear()
 }
 
 // virtual
-void GPolynomial::trainInner(GMatrix& features, GMatrix& labels)
+void GPolynomial::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	GMatrix labelCol(labels.rows(), 1);
 	clear();
@@ -675,7 +675,7 @@ void GPolynomial::autoTune(GMatrix& features, GMatrix& labels)
 	for(size_t i = 3; i < 7; i++)
 	{
 		m_controlPoints = i;
-		double d = heuristicValidate(features, labels);
+		double d = crossValidate(features, labels, 2);
 		if(d < bestErr)
 		{
 			bestErr = d;

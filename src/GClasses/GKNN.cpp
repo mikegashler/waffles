@@ -72,7 +72,7 @@ protected:
 		temp.setNeighborCount(m_pLearner->neighborCount());
 		temp.beginIncrementalLearning(pFeatures->relation(), pLabels->relation());
 		GVec::copy(temp.metric()->scaleFactors(), pVector, relation()->size());
-		return temp.heuristicValidate(*pFeatures, *pLabels);
+		return temp.crossValidate(*pFeatures, *pLabels, 2);
 	}
 };
 
@@ -90,7 +90,6 @@ GKNN::GKNN(GRand& rand)
 	m_pSparseFeatures = NULL;
 	m_pLabels = NULL;
 	m_pNeighborFinder = NULL;
-	m_pNeighborFinder2 = NULL;
 	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
 	m_pEvalDistances = new double[m_nNeighbors + 1];
 	m_normalizeScaleFactors = true;
@@ -101,14 +100,12 @@ GKNN::GKNN(GRand& rand)
 	m_pValueCounts = NULL;
 	m_pCritic = NULL;
 	m_pScaleFactorOptimizer = NULL;
-	m_dElbowRoom = UNKNOWN_REAL_VALUE;
 }
 
 GKNN::GKNN(GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalLearner(pNode, ll)
 {
 	m_pNeighborFinder = NULL;
-	m_pNeighborFinder2 = NULL;
 	m_pCritic = NULL;
 	m_pScaleFactorOptimizer = NULL;
 	m_pLearner = NULL;
@@ -120,7 +117,6 @@ GKNN::GKNN(GDomNode* pNode, GLearnerLoader& ll)
 	m_trainParam = pNode->field("trainParam")->asDouble();
 	m_normalizeScaleFactors = pNode->field("normalize")->asBool();
 	m_optimizeScaleFactors = pNode->field("optimize")->asBool();
-	m_dElbowRoom = pNode->field("elbowRoom")->asDouble();
 	GMatrix* pFeatures = NULL;
 	GSparseMatrix* pSparseFeatures = NULL;
 	GDomNode* pFeaturesNode = pNode->fieldIfExists("features");
@@ -146,8 +142,8 @@ GKNN::GKNN(GDomNode* pNode, GLearnerLoader& ll)
 		beginIncrementalLearningInner(pFeatures->relation(), pLabels->relation());
 	else
 	{
-		sp_relation pRel = new GUniformRelation(pSparseFeatures->cols(), 0);
-		beginIncrementalLearningInner(pRel, pLabels->relation());
+		GUniformRelation rel(pSparseFeatures->cols(), 0);
+		beginIncrementalLearningInner(rel, pLabels->relation());
 	}
 	delete(m_pFeatures);
 	delete(m_pSparseFeatures);
@@ -187,7 +183,6 @@ GDomNode* GKNN::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "trainParam", pDoc->newDouble(m_trainParam));
 	pNode->addField(pDoc, "normalize", pDoc->newBool(m_normalizeScaleFactors));
 	pNode->addField(pDoc, "optimize", pDoc->newBool(m_optimizeScaleFactors));
-	pNode->addField(pDoc, "elbowRoom", pDoc->newDouble(m_dElbowRoom));
 	if(m_pFeatures)
 		pNode->addField(pDoc, "features", m_pFeatures->serialize(pDoc));
 	else
@@ -209,7 +204,7 @@ void GKNN::autoTune(GMatrix& features, GMatrix& labels)
 	for(size_t i = 1; i < cap; i *= 3)
 	{
 		setNeighborCount(i);
-		double d = heuristicValidate(features, labels);
+		double d = crossValidate(features, labels, 2);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -224,7 +219,7 @@ void GKNN::autoTune(GMatrix& features, GMatrix& labels)
 
 	// Try without normalization
 	m_normalizeScaleFactors = false;
-	double d = heuristicValidate(features, labels);
+	double d = crossValidate(features, labels, 2);
 	if(d >= bestErr)
 		m_normalizeScaleFactors = true;
 }
@@ -259,12 +254,12 @@ size_t GKNN::addVector(const double* pFeatures, const double* pLabels)
 	// Store the features
 	size_t index;
 	if(m_pNeighborFinder)
-		index = m_pNeighborFinder->addCopy(pFeatures);
-	else
 	{
-		index = m_pFeatures->rows();
-		GVec::copy(m_pFeatures->newRow(), pFeatures, m_pFeatures->cols());
+		delete(m_pNeighborFinder);
+		m_pNeighborFinder = NULL;
 	}
+	index = m_pFeatures->rows();
+	GVec::copy(m_pFeatures->newRow(), pFeatures, m_pFeatures->cols());
 
 	// Store the labels
 	GVec::copy(m_pLabels->newRow(), pLabels, m_pLabels->cols());
@@ -306,38 +301,38 @@ void GKNN::setMetric(GSparseSimilarity* pMetric, bool own)
 }
 
 // virtual
-void GKNN::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GKNN::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
 {
 	clear();
 	if(!m_pDistanceMetric && !m_pSparseMetric)
 		setMetric(new GRowDistanceScaled(), true);
 	if(m_pDistanceMetric)
 	{
-		m_pFeatures = new GMatrix(pFeatureRel);
-		m_pDistanceMetric->init(pFeatureRel);
+		m_pFeatures = new GMatrix(featureRel.clone());
+		m_pDistanceMetric->init(&m_pFeatures->relation(), false);
 
 		// Scale factor optimization
 		if(m_optimizeScaleFactors)
 		{
-			m_pCritic = new GKnnScaleFactorCritic(this, pFeatureRel->size(), pLabelRel->size());
+			m_pCritic = new GKnnScaleFactorCritic(this, featureRel.size(), labelRel.size());
 			m_pScaleFactorOptimizer = new GMomentumGreedySearch(m_pCritic);
 		}
 	}
 	else if(m_pSparseMetric)
 	{
-		if(!pFeatureRel->areContinuous(0, pFeatureRel->size()))
+		if(!featureRel.areContinuous(0, featureRel.size()))
 			throw Ex("Sorry, nominal features cannot be used in conjunction with sparse metrics");
-		m_pSparseFeatures = new GSparseMatrix(0, pFeatureRel->size(), UNKNOWN_REAL_VALUE);
+		m_pSparseFeatures = new GSparseMatrix(0, featureRel.size(), UNKNOWN_REAL_VALUE);
 	}
 	else
 		throw Ex("Some sort of distance or similarity metric is required");
 
-	m_pLabels = new GMatrix(pLabelRel);
+	m_pLabels = new GMatrix(labelRel.clone());
 
 	// Allocate a buffer for counting values
 	size_t maxOutputValueCount = 0;
-	for(size_t n = 0; n < pLabelRel->size(); n++)
-		maxOutputValueCount = std::max(maxOutputValueCount, pLabelRel->valueCount(n));
+	for(size_t n = 0; n < labelRel.size(); n++)
+		maxOutputValueCount = std::max(maxOutputValueCount, labelRel.valueCount(n));
 	m_pValueCounts = new double[maxOutputValueCount];
 }
 
@@ -346,24 +341,7 @@ void GKNN::trainIncrementalInner(const double* pIn, const double* pOut)
 {
 	// Make a copy of the vector
 	GAssert(m_pDistanceMetric);
-	size_t index = addVector(pIn, pOut);
-
-	// Delete the closest neighbor if the (k+1)th neighbor is closer than the specified threshold
-	if(m_dElbowRoom != UNKNOWN_REAL_VALUE)
-	{
-		if(!m_pNeighborFinder2)
-		{
-			m_pNeighborFinder2 = new GKdTree(m_pFeatures, m_nNeighbors + 1, m_pDistanceMetric, false);
-			return;
-		}
-		m_pNeighborFinder2->neighbors(m_pEvalNeighbors, m_pEvalDistances, index);
-		m_pNeighborFinder2->sortNeighbors(m_pEvalNeighbors, m_pEvalDistances);
-		if(m_pEvalNeighbors[m_nNeighbors] >= 0 && m_pEvalDistances[m_nNeighbors] < m_dElbowRoom)
-		{
-			double* pClosest = m_pNeighborFinder->releaseVector(m_pEvalNeighbors[0]);
-			delete[] pClosest;
-		}
-	}
+	addVector(pIn, pOut);
 
 	// Learn how to scale the attributes
 	if(m_pScaleFactorOptimizer && m_pFeatures->rows() > 50)
@@ -373,7 +351,7 @@ void GKNN::trainIncrementalInner(const double* pIn, const double* pOut)
 	}
 }
 
-void GKNN::trainInner(GMatrix& features, GMatrix& labels)
+void GKNN::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	if(m_pSparseMetric)
 		throw Ex("This method is not compatible with sparse similarity metrics. You should either use trainSparse instead, or use a dense dissimilarity metric.");
@@ -385,7 +363,7 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 	{
 		for(size_t i = 0; i < features.cols(); i++)
 		{
-			if(features.relation()->valueCount(i) == 0)
+			if(features.relation().valueCount(i) == 0)
 			{
 				double m = features.columnMean(i);
 				double d = sqrt(features.columnVariance(i, m));
@@ -431,10 +409,9 @@ void GKNN::trainInner(GMatrix& features, GMatrix& labels)
 		{
 			m_pNeighborFinder = new GKdTree(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
 		}
-		for(size_t j = 0; j < 5; j++)
+		for(size_t j = 0; j < 50; j++)
 		{
-			for(size_t i = 0; i < 20; i++)
-				m_pScaleFactorOptimizer->iterate();
+			m_pScaleFactorOptimizer->iterate();
 			m_pNeighborFinder->reoptimize();
 		}
 		GVec::copy(pScaleFactors, m_pScaleFactorOptimizer->currentVector(), features.cols());
@@ -450,8 +427,8 @@ void GKNN::trainSparse(GSparseMatrix& features, GMatrix& labels)
 		throw Ex("This method is not compatible with dense dissimilarity metrics. You should either use the train method instead, or use a sparse similarity metric.");
 	if(!m_pSparseMetric)
 		setMetric(new GCosineSimilarity(), true);
-	sp_relation pFeatureRel = new GUniformRelation(features.cols(), 0);
-	beginIncrementalLearning(pFeatureRel, labels.relation());
+	GUniformRelation featureRel(features.cols(), 0);
+	beginIncrementalLearning(featureRel, labels.relation());
 
 	// Copy the training data
 	m_pSparseFeatures->newRows(features.rows());
@@ -510,7 +487,7 @@ void GKNN::interpolateMean(const double* pIn, GPrediction* pOut, double* pOut2)
 {
 	for(size_t i = 0; i < m_pLabels->cols(); i++)
 	{
-		if(m_pLabels->relation()->valueCount(i) == 0)
+		if(m_pLabels->relation().valueCount(i) == 0)
 		{
 			// Continuous label
 			double dSum = 0;
@@ -548,7 +525,7 @@ void GKNN::interpolateMean(const double* pIn, GPrediction* pOut, double* pOut2)
 		else
 		{
 			// Nominal label
-			size_t nValueCount = m_pLabels->relation()->valueCount(i);
+			size_t nValueCount = m_pLabels->relation().valueCount(i);
 			GVec::setAll(m_pValueCounts, 0.0, nValueCount);
 			for(size_t j = 0; j < m_nNeighbors; j++)
 			{
@@ -574,7 +551,7 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 {
 	for(size_t i = 0; i < m_pLabels->cols(); i++)
 	{
-		if(m_pLabels->relation()->valueCount(i) == 0)
+		if(m_pLabels->relation().valueCount(i) == 0)
 		{
 			// Continuous label
 			double dSum = 0;
@@ -617,7 +594,7 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 		else
 		{
 			// Nominal label
-			int nValueCount = (int)m_pLabels->relation()->valueCount(i);
+			int nValueCount = (int)m_pLabels->relation().valueCount(i);
 			GVec::setAll(m_pValueCounts, 0.0, nValueCount);
 			double dSumWeight = 0;
 			for(size_t j = 0; j < m_nNeighbors; j++)
@@ -645,10 +622,10 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 void GKNN::interpolateLearner(const double* pIn, GPrediction* pOut, double* pOut2)
 {
 	GAssert(m_pLearner); // no learner is set
-	GMatrix dataFeatures(m_pFeatures->relation());
+	GMatrix dataFeatures(m_pFeatures->relation().clone());
 	GReleaseDataHolder hDataFeatures(&dataFeatures);
 	dataFeatures.reserve(m_nNeighbors);
-	GMatrix dataLabels(m_pLabels->relation());
+	GMatrix dataLabels(m_pLabels->relation().clone());
 	GReleaseDataHolder hDataLabels(&dataLabels);
 	dataLabels.reserve(m_nNeighbors);
 	for(size_t i = 0; i < m_nNeighbors; i++)
@@ -736,7 +713,7 @@ void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels)
 	for(size_t i = 1; i < cap; i *= 3)
 	{
 		m_friendCount = i;
-		double d = heuristicValidate(features, labels);
+		double d = crossValidate(features, labels, 2);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -751,17 +728,17 @@ void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-GMatrix* GNeighborTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Make a dataset containing all rows
-	GMatrix featuresAll(features1.relation());
+	GMatrix featuresAll(features1.relation().clone());
 	featuresAll.reserve(features1.rows() + features2.rows());
 	GReleaseDataHolder hFeaturesAll(&featuresAll);
 	for(size_t i = 0; i < features2.rows(); i++)
-		featuresAll.takeRow(features2[i]);
+		featuresAll.takeRow((double*)features2[i]);
 	for(size_t i = 0; i < features1.rows(); i++)
-		featuresAll.takeRow(features1[i]);
-	GMatrix* pOut = new GMatrix(labels1.relation());
+		featuresAll.takeRow((double*)features1[i]);
+	GMatrix* pOut = new GMatrix(labels1.relation().clone());
 	pOut->newRows(features2.rows());
 	Holder<GMatrix> hOut(pOut);
 
@@ -773,7 +750,7 @@ GMatrix* GNeighborTransducer::transduceInner(GMatrix& features1, GMatrix& labels
 	// Transduce
 	for(size_t lab = 0; lab < labels1.cols(); lab++)
 	{
-		size_t labelValues = labels1.relation()->valueCount(lab);
+		size_t labelValues = labels1.relation().valueCount(lab);
 		double* tallys = new double[labelValues];
 		ArrayHolder<double> hTallys(tallys);
 
@@ -938,11 +915,11 @@ void GInstanceTable::clear()
 }
 
 // virtual
-void GInstanceTable::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GInstanceTable::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
 {
 	// Allocate the table
 	clear();
-	size_t total = m_product * pLabelRel->size();
+	size_t total = m_product * labelRel.size();
 	m_pTable = new double[total];
 
 	// Initialize with small random values
@@ -950,7 +927,7 @@ void GInstanceTable::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_
 	for(size_t i = 0; i < total; i++)
 		*(p++) = m_rand.uniform() * 0.1;
 
-	m_dims = pFeatureRel->size();
+	m_dims = featureRel.size();
 }
 
 // virtual

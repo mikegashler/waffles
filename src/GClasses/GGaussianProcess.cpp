@@ -164,21 +164,21 @@ void GGaussianProcess::clear()
 }
 
 // virtual
-void GGaussianProcess::trainInner(GMatrix& features, GMatrix& labels)
+void GGaussianProcess::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	if(features.rows() <= m_maxSamples)
 	{
 		trainInnerInner(features, labels);
 		return;
 	}
-	GMatrix f(features.relation());
+	GMatrix f(features.relation().clone());
 	GReleaseDataHolder hF(&f);
-	GMatrix l(labels.relation());
+	GMatrix l(labels.relation().clone());
 	GReleaseDataHolder hL(&l);
 	for(size_t i = 0; i < features.rows(); i++)
 	{
-		f.takeRow(features[i]);
-		l.takeRow(labels[i]);
+		f.takeRow((double*)features[i]);
+		l.takeRow((double*)labels[i]);
 	}
 	GRand rand(0);
 	while(f.rows() > m_maxSamples)
@@ -190,7 +190,7 @@ void GGaussianProcess::trainInner(GMatrix& features, GMatrix& labels)
 	trainInnerInner(f, l);
 }
 
-void GGaussianProcess::trainInnerInner(GMatrix& features, GMatrix& labels)
+void GGaussianProcess::trainInnerInner(const GMatrix& features, const GMatrix& labels)
 {
 	clear();
 	size_t dims = features.cols();
@@ -201,10 +201,10 @@ void GGaussianProcess::trainInnerInner(GMatrix& features, GMatrix& labels)
 		for(size_t i = 0; i < features.rows(); i++)
 		{
 			double* pRow = k[i];
-			double* pA = features[i];
+			const double* pA = features[i];
 			for(size_t j = 0; j < features.rows(); j++)
 			{
-				double* pB = features[j];
+				const double* pB = features[j];
 				*pRow = m_weightsPriorVar * m_pKernel->apply(pA, pB, dims);
 				pRow++;
 			}

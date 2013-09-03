@@ -55,7 +55,7 @@ public:
 	/// continuous. Missing values are indicated with UNKNOWN_REAL_VALUE.
 	/// If pLabels is non-NULL, then the labels will be appended as
 	/// additional items.
-	void trainDenseMatrix(GMatrix& data, GMatrix* pLabels = NULL);
+	void trainDenseMatrix(const GMatrix& data, const GMatrix* pLabels = NULL);
 
 	/// This returns a prediction for how the specified user
 	/// will rate the specified item. (The model must be trained before

@@ -80,7 +80,7 @@ protected:
 	void evalInput(size_t nInputDim, double dInput);
 
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -95,7 +95,7 @@ protected:
 	virtual bool canImplicitlyHandleNominalLabels() { return false; }
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
-	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// Incrementally train with a single instance
 	virtual void trainIncrementalInner(const double* pIn, const double* pOut);

@@ -59,14 +59,14 @@ public:
 	double* epsilon() { return m_pEpsilon; }
 
 	/// Performs on-line gradient descent to refine the model
-	void refine(GMatrix& features, GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor);
+	void refine(const GMatrix& features, const GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor);
 
 	/// This model has no parameters to tune, so this method is a noop.
 	void autoTune(GMatrix& features, GMatrix& labels);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -123,7 +123,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -204,11 +204,11 @@ public:
 	virtual void clear();
 
 	/// A helper method used during training
-	double tryWeights(const double* pVector, GMatrix& feat, GMatrix& lab);
+	double tryWeights(const double* pVector, const GMatrix& feat, const GMatrix& lab);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);

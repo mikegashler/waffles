@@ -48,8 +48,7 @@ public:
 	virtual GMatrix* doit(GMatrix& in)
 	{
 		cluster(&in);
-		sp_relation pRel = new GUniformRelation(1, m_clusterCount);
-		GMatrix* pOut = new GMatrix(pRel);
+		GMatrix* pOut = new GMatrix(new GUniformRelation(1, m_clusterCount));
 		size_t nCount = in.rows();
 		pOut->newRows(nCount);
 		for(size_t i = 0; i < nCount; i++)
@@ -143,7 +142,7 @@ public:
 protected:
 	/// See the comment for GTransducer::transduce.
 	/// Throws if labels1 has more than one column.
-	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
@@ -339,7 +338,7 @@ public:
 protected:
 	/// See the comment for GTransducer::transduce.
 	/// Only supports one-dimensional labels.
-	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }

@@ -95,7 +95,7 @@ void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learnin
 }
 */
 
-void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor)
+void GLinearRegressor::refine(const GMatrix& features, const GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor)
 {
 	size_t fDims = features.cols();
 	size_t lDims = labels.cols();
@@ -108,13 +108,13 @@ void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learnin
 		size_t* pIndex = pIndexes;
 		for(size_t j = 0; j < features.rows(); j++)
 		{
-			double* pFeat = features[*pIndex];
-			double* pLab = labels[*pIndex];
+			const double* pFeat = features[*pIndex];
+			const double* pLab = labels[*pIndex];
 			double* pBias = m_pEpsilon;
 			for(size_t k = 0; k < lDims; k++)
 			{
 				double err = *pLab - (GVec::dotProduct(pFeat, m_pBeta->row(k), fDims) + *pBias);
-				double* pF = pFeat;
+				const double* pF = pFeat;
 				double lr = learningRate;
 				double mag = 0.0;
 				for(size_t l = 0; l < fDims; l++)
@@ -145,7 +145,7 @@ void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learnin
 }
 
 // virtual
-void GLinearRegressor::trainInner(GMatrix& features, GMatrix& labels)
+void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	// Use a fast, but not-very-numerically-stable technique to compute an initial approximation for beta and epsilon
 	clear();
@@ -314,7 +314,7 @@ void GLinearDistribution::clear()
 }
 
 // virtual
-void GLinearDistribution::trainInner(GMatrix& features, GMatrix& labels)
+void GLinearDistribution::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	// Init A with the inverse of the weights prior covariance matrix
 	size_t dims = features.cols();
@@ -331,7 +331,7 @@ void GLinearDistribution::trainInner(GMatrix& features, GMatrix& labels)
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		// Update A
-		double* pFeat = features[i];
+		const double* pFeat = features[i];
 		for(size_t j = 0; j < dims; j++)
 		{
 			double* pEl = a[j];
@@ -343,7 +343,7 @@ void GLinearDistribution::trainInner(GMatrix& features, GMatrix& labels)
 		}
 
 		// Update XY
-		double* pLab = labels[i];
+		const double* pLab = labels[i];
 		for(size_t j = 0; j < dims; j++)
 		{
 			double* pEl = xy[j];
@@ -870,11 +870,11 @@ class GHingedLinearTargetFunction : public GTargetFunction
 {
 protected:
 	GHingedLinear* m_pHL;
-	GMatrix& m_feat;
-	GMatrix& m_lab;
+	const GMatrix& m_feat;
+	const GMatrix& m_lab;
 
 public:
-	GHingedLinearTargetFunction(size_t dims, GHingedLinear* pHL, GMatrix& feat, GMatrix& lab) : GTargetFunction(dims), m_pHL(pHL), m_feat(feat), m_lab(lab)
+	GHingedLinearTargetFunction(size_t dims, GHingedLinear* pHL, const GMatrix& feat, const GMatrix& lab) : GTargetFunction(dims), m_pHL(pHL), m_feat(feat), m_lab(lab)
 	{
 	}
 	
@@ -894,7 +894,7 @@ public:
 	}
 };
 
-double GHingedLinear::tryWeights(const double* pVector, GMatrix& feat, GMatrix& lab)
+double GHingedLinear::tryWeights(const double* pVector, const GMatrix& feat, const GMatrix& lab)
 {
 	for(std::vector<GHingedLinearLayer*>::iterator it = m_layers.begin(); it != m_layers.end(); it++)
 	{
@@ -906,7 +906,7 @@ double GHingedLinear::tryWeights(const double* pVector, GMatrix& feat, GMatrix& 
 }
 
 // virtual
-void GHingedLinear::trainInner(GMatrix& features, GMatrix& labels)
+void GHingedLinear::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	// Make the layers and buffer
 	size_t maxSize = 0;

@@ -101,7 +101,7 @@ void GAgglomerativeClusterer::cluster(GMatrix* pData)
 	// Init the metric
 	if(!m_pMetric)
 		setMetric(new GRowDistance(), true);
-	m_pMetric->init(pData->relation());
+	m_pMetric->init(&pData->relation(), false);
 
 	// Find enough neighbors to form a connected graph
 	GNeighborFinderCacheWrapper* pNF = NULL;
@@ -354,21 +354,21 @@ void GAgglomerativeTransducer::autoTune(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Init the metric
 	if(!m_pMetric)
 		setMetric(new GRowDistance(), true);
-	m_pMetric->init(features1.relation());
+	m_pMetric->init(&features1.relation(), false);
 
 	// Make a dataset with all featuers
-	GMatrix featuresAll(features1.relation());
+	GMatrix featuresAll(features1.relation().clone());
 	featuresAll.reserve(features1.rows() + features2.rows());
 	GReleaseDataHolder hFeaturesAll(&featuresAll);
 	for(size_t i = 0; i < features1.rows(); i++)
-		featuresAll.takeRow(features1[i]);
+		featuresAll.takeRow((double*)features1[i]);
 	for(size_t i = 0; i < features2.rows(); i++)
-		featuresAll.takeRow(features2[i]);
+		featuresAll.takeRow((double*)features2[i]);
 
 	// Find enough neighbors to form a connected graph
 	GNeighborFinderCacheWrapper* pNF = NULL;
@@ -412,7 +412,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(GMatrix& features1, GMatrix& l
 	std::sort(distNeighs.begin(), it);
 
 	// Transduce
-	GMatrix* pOut = new GMatrix(labels1.relation());
+	GMatrix* pOut = new GMatrix(labels1.relation().clone());
 	Holder<GMatrix> hOut(pOut);
 	pOut->newRows(features2.rows());
 	pOut->setAll(-1);
@@ -481,13 +481,13 @@ void GKMeans::init(GMatrix* pData)
 {
 	if(!m_pMetric)
 		setMetric(new GRowDistance(), true);
-	m_pMetric->init(pData->relation());
+	m_pMetric->init(&pData->relation(), false);
 	if(pData->rows() < (size_t)m_clusterCount)
 		throw Ex("Fewer data point than clusters");
 
 	// Initialize the centroids with random rows. (Note that it is okay if two centroids happen to be initialized with the same row here, because the assignClusters method randomly picks among the best centroids in the event of a tie.)
 	delete(m_pCentroids);
-	m_pCentroids = new GMatrix(pData->relation());
+	m_pCentroids = new GMatrix(pData->relation().clone());
 	m_pCentroids->newRows(m_clusterCount);
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
@@ -540,7 +540,7 @@ void GKMeans::recomputeCentroids(GMatrix* pData)
 		size_t unknownCount = 0;
 		for(size_t j = 0; j < pData->cols(); j++)
 		{
-			size_t vals = pData->relation()->valueCount(j);
+			size_t vals = pData->relation().valueCount(j);
 			if(vals == 0)
 			{
 				double sum = 0.0;
@@ -594,7 +594,7 @@ void GKMeans::recomputeCentroids(GMatrix* pData)
 			double* pRow = pData->row((size_t)m_pRand->next(pData->rows()));
 			for(size_t j = 0; j < pData->cols(); j++)
 			{
-				size_t vals = pData->relation()->valueCount(j);
+				size_t vals = pData->relation().valueCount(j);
 				if(vals == 0)
 				{
 					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
@@ -667,13 +667,13 @@ void GFuzzyKMeans::init(GMatrix* pData)
 {
 	if(!m_pMetric)
 		setMetric(new GRowDistance(), true);
-	m_pMetric->init(pData->relation());
+	m_pMetric->init(&pData->relation(), false);
 	if(pData->rows() < (size_t)m_clusterCount)
 		throw Ex("Fewer data point than clusters");
 
 	// Initialize the centroids
 	delete(m_pCentroids);
-	m_pCentroids = new GMatrix(pData->relation());
+	m_pCentroids = new GMatrix(pData->relation().clone());
 	m_pCentroids->newRows(m_clusterCount);
 	for(size_t j = 0; j < 10; j++) // Try up to ten times to find a unique set of initial centroids
 	{
@@ -736,7 +736,7 @@ void GFuzzyKMeans::recomputeCentroids(GMatrix* pData)
 		size_t unknownCount = 0;
 		for(size_t j = 0; j < pData->cols(); j++)
 		{
-			size_t vals = pData->relation()->valueCount(j);
+			size_t vals = pData->relation().valueCount(j);
 			if(vals == 0)
 			{
 				double sum = 0.0;
@@ -785,7 +785,7 @@ void GFuzzyKMeans::recomputeCentroids(GMatrix* pData)
 			double* pRow = pData->row((size_t)m_pRand->next(pData->rows()));
 			for(size_t j = 0; j < pData->cols(); j++)
 			{
-				size_t vals = pData->relation()->valueCount(j);
+				size_t vals = pData->relation().valueCount(j);
 				if(vals == 0)
 				{
 					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
@@ -872,7 +872,7 @@ void GKMedoids::cluster(GMatrix* pData)
 	m_pData = pData;
 	if(!m_pMetric)
 		setMetric(new GRowDistance(), true);
-	m_pMetric->init(pData->relation());
+	m_pMetric->init(&pData->relation(), false);
 	if(pData->rows() < (size_t)m_clusterCount)
 		throw Ex("Fewer data point than clusters");
 	for(size_t i = 0; i < m_clusterCount; i++)
@@ -1236,7 +1236,7 @@ void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels)
 	for(size_t i = 4; i < cap; i = size_t(i * 1.5))
 	{
 		m_neighborCount = i;
-		double d = heuristicValidate(features, labels);
+		double d = crossValidate(features, labels, 2);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -1251,7 +1251,7 @@ void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-GMatrix* GGraphCutTransducer::transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2)
+GMatrix* GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Use k-NN to compute a distance metric with good scale factors for prediction
 	GKNN knn(m_rand);
@@ -1261,26 +1261,26 @@ GMatrix* GGraphCutTransducer::transduceInner(GMatrix& features1, GMatrix& labels
 	GRowDistanceScaled* pMetric = knn.metric();
 
 	// Merge the features into one dataset and build a kd-tree
-	GMatrix both(features1.relation());
+	GMatrix both(features1.relation().clone());
 	GReleaseDataHolder hBoth(&both);
 	both.reserve(features1.rows() + features2.rows());
 	for(size_t i = 0; i < features1.rows(); i++)
-		both.takeRow(features1[i]);
+		both.takeRow((double*)features1[i]);
 	for(size_t i = 0; i < features2.rows(); i++)
-		both.takeRow(features2[i]);
+		both.takeRow((double*)features2[i]);
 	GRowDistanceScaled metric2;
 	GKdTree neighborFinder(&both, m_neighborCount, &metric2, false);
 	GVec::copy(metric2.scaleFactors(), pMetric->scaleFactors(), features1.cols());
 
 	// Transduce
-	GMatrix* pOut = new GMatrix(labels1.relation());
+	GMatrix* pOut = new GMatrix(labels1.relation().clone());
 	Holder<GMatrix> hOut(pOut);
 	pOut->newRows(features2.rows());
 	pOut->setAll(0);
 	for(size_t lab = 0; lab < labels1.cols(); lab++)
 	{
 		// Use max-flow/min-cut graph-cut to separate out each label value
-		int valueCount = (int)labels1.relation()->valueCount(lab);
+		int valueCount = (int)labels1.relation().valueCount(lab);
 		for(int val = 1; val < valueCount; val++)
 		{
 			// Add neighborhood edges

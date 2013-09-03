@@ -31,11 +31,11 @@ class GSupervisedLearner;
 class GNeighborFinder
 {
 protected:
-	GMatrix* m_pData;
+	const GMatrix* m_pData;
 	size_t m_neighborCount;
 
 public:
-	GNeighborFinder(GMatrix* pData, size_t neighborCount)
+	GNeighborFinder(const GMatrix* pData, size_t neighborCount)
 	: m_pData(pData), m_neighborCount(neighborCount)
 	{
 	}
@@ -45,7 +45,7 @@ public:
 	}
 
 	/// Returns the data passed to the constructor of this object
-	GMatrix* data() { return m_pData; }
+	const GMatrix* data() { return m_pData; }
 
 	/// Returns the number of neighbors to find
 	size_t neighborCount() { return m_neighborCount; }
@@ -148,19 +148,12 @@ public:
 	/// true, then the neighborFinder takes responsibility for
 	/// deleting the metric, otherwise it is the caller's
 	/// responsibility.
-	GNeighborFinderGeneralizing(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
+	GNeighborFinderGeneralizing(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 
 	virtual ~GNeighborFinderGeneralizing();
 
 	/// Returns true. See the comment for GNeighborFinder::canGeneralize.
 	virtual bool canGeneralize() { return true; }
-
-	/// Add a copy of pVector to the data set.
-	virtual size_t addCopy(const double* pVector) = 0;
-
-	/// Releases a vector from the dataset. You are responsible to delete[] the vector
-	/// that this returns.
-	virtual double* releaseVector(size_t nIndex) = 0;
 
 	/// If you make major changes, you can call this to tell it to rebuild
 	/// any optimization structures.
@@ -185,12 +178,6 @@ class GBruteForceNeighborFinder : public GNeighborFinderGeneralizing
 public:
 	GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GBruteForceNeighborFinder();
-
-	/// Add a point-vector
-	virtual size_t addCopy(const double* pVector);
-
-	/// Returns a point-vector (and removes it from the internal set). You are responsible to delete it.
-	virtual double* releaseVector(size_t nIndex);
 
 	/// This is a no-op method in this class.
 	virtual void reoptimize();
@@ -217,19 +204,13 @@ protected:
 	GKdNode* m_pRoot;
 
 public:
-	GKdTree(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
+	GKdTree(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GKdTree();
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
 #endif
-
-	/// Add a new point-vector to the internal set
-	virtual size_t addCopy(const double* pVector);
-
-	/// Release a point-vector from the internal set
-	virtual double* releaseVector(size_t nIndex);
 
 	/// Rebuilds the tree to improve subsequent performance. This should be called after
 	/// a significant number of point-vectors are added to or released from the internal set.
@@ -334,7 +315,7 @@ class GCycleCut
 {
 protected:
 	size_t* m_pNeighborhoods;
-	GMatrix* m_pPoints;
+	const GMatrix* m_pPoints;
 	std::map<std::pair<size_t, size_t>, double> m_capacities;
 	std::vector<size_t> m_cuts;
 	size_t m_k;
@@ -345,7 +326,7 @@ protected:
 public:
 	/// pNeighborMap is expected to be an array of size n*k, where n is the
 	/// number pPoints->rows(), and k is the number of neighbors.
-	GCycleCut(size_t* pNeighborhoods, GMatrix* pPoints, size_t k);
+	GCycleCut(size_t* pNeighborhoods, const GMatrix* pPoints, size_t k);
 	~GCycleCut();
 
 #ifndef NO_TEST_CODE

@@ -54,9 +54,9 @@ GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll)
 {
 }
 
-void GCollaborativeFilter::trainDenseMatrix(GMatrix& data, GMatrix* pLabels)
+void GCollaborativeFilter::trainDenseMatrix(const GMatrix& data, const GMatrix* pLabels)
 {
-	if(!data.relation()->areContinuous(0, data.cols()))
+	if(!data.relation().areContinuous())
 		throw Ex("GCollaborativeFilter::trainDenseMatrix only supports continuous attributes.");
 
 	// Convert to 3-column form
@@ -65,7 +65,7 @@ void GCollaborativeFilter::trainDenseMatrix(GMatrix& data, GMatrix* pLabels)
 	size_t dims = data.cols();
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		double* pRow = data.row(i);
+		const double* pRow = data.row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
 			if(*pRow != UNKNOWN_REAL_VALUE)
@@ -84,7 +84,7 @@ void GCollaborativeFilter::trainDenseMatrix(GMatrix& data, GMatrix* pLabels)
 		size_t labelDims = pLabels->cols();
 		for(size_t i = 0; i < pLabels->rows(); i++)
 		{
-			double* pRow = pLabels->row(i);
+			const double* pRow = pLabels->row(i);
 			for(size_t j = 0; j < labelDims; j++)
 			{
 				if(*pRow != UNKNOWN_REAL_VALUE)
@@ -125,9 +125,9 @@ double GCollaborativeFilter::crossValidate(GMatrix& data, size_t folds, double* 
 	for(size_t i = 0; i < folds; i++)
 	{
 		// Split the data
-		GMatrix dataTrain(data.relation());
+		GMatrix dataTrain(data.relation().clone());
 		GReleaseDataHolder hDataTrain(&dataTrain);
-		GMatrix dataTest(data.relation());
+		GMatrix dataTest(data.relation().clone());
 		GReleaseDataHolder hDataTest(&dataTest);
 		size_t* pF = pFolds;
 		for(size_t j = 0; j < data.rows(); j++)
@@ -207,9 +207,9 @@ GMatrix* GCollaborativeFilter::precisionRecall(GMatrix& data, bool ideal)
 	tarPred.reserve(halfRatings);
 
 	// Split the data
-	GMatrix dataTrain(data.relation());
+	GMatrix dataTrain(data.relation().clone());
 	GReleaseDataHolder hDataTrain(&dataTrain);
-	GMatrix dataTest(data.relation());
+	GMatrix dataTest(data.relation().clone());
 	GReleaseDataHolder hDataTest(&dataTest);
 	size_t* pF = pFolds;
 	for(size_t j = 0; j < data.rows(); j++)
@@ -938,7 +938,7 @@ void GMatrixFactorization::train(GMatrix& data)
 	}
 
 	// Make a shallow copy of the data (so we can shuffle it)
-	GMatrix dataCopy(data.relation());
+	GMatrix dataCopy(data.relation().clone());
 	GReleaseDataHolder hDataCopy(&dataCopy);
 	for(size_t i = 0; i < data.rows(); i++)
 		dataCopy.takeRow(data[i]);
@@ -1250,13 +1250,13 @@ void GNonlinearPCA::train(GMatrix& data)
 	}
 
 	// Prep the model for incremental training
-	sp_relation pFeatureRel = new GUniformRelation(m_intrinsicDims);
-	sp_relation pLabelRel = new GUniformRelation(items);
+	GUniformRelation featureRel(m_intrinsicDims);
+	GUniformRelation labelRel(items);
 	m_pModel->setUseInputBias(m_useInputBias);
-	m_pModel->beginIncrementalLearning(pFeatureRel, pLabelRel);
+	m_pModel->beginIncrementalLearning(featureRel, labelRel);
 	GNeuralNet nn(m_rand);
 	nn.setUseInputBias(m_useInputBias);
-	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
+	nn.beginIncrementalLearning(featureRel, labelRel);
 	double* pPrefGradient = new double[m_intrinsicDims];
 	ArrayHolder<double> hPrefGradient(pPrefGradient);
 
@@ -1459,7 +1459,7 @@ void GBagOfRecommenders::train(GMatrix& data)
 	for(vector<GCollaborativeFilter*>::iterator it = m_filters.begin(); it != m_filters.end(); it++)
 	{
 		// Make a matrix that randomly samples about half of the elements in pData
-		GMatrix tmp(data.relation());
+		GMatrix tmp(data.relation().clone());
 		GReleaseDataHolder hTmp(&tmp);
 		for(size_t i = 0; i < data.rows(); i++)
 		{

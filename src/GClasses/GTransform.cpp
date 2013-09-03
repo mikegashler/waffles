@@ -69,9 +69,17 @@ GIncrementalTransform::GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll
 }
 
 // virtual
+GIncrementalTransform::~GIncrementalTransform()
+{
+	delete(m_pRelationBefore);
+	delete(m_pRelationAfter);
+	delete[] m_pInnerBuf;
+}
+
+// virtual
 GDomNode* GIncrementalTransform::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
-	if(!m_pRelationAfter.get())
+	if(!m_pRelationAfter)
 		throw Ex("train must be called before serialize");
 	GDomNode* pNode = GTransform::baseDomNode(pDoc, szClassName);
 	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
@@ -79,16 +87,70 @@ GDomNode* GIncrementalTransform::baseDomNode(GDom* pDoc, const char* szClassName
 	return pNode;
 }
 
-void GIncrementalTransform::train(GMatrix& data)
+void GIncrementalTransform::setBefore(GRelation* pRel)
 {
-	m_pRelationBefore = data.relation();
-	m_pRelationAfter = trainInner(data);
+	delete(m_pRelationBefore);
+	m_pRelationBefore = pRel;
 }
 
-void GIncrementalTransform::train(sp_relation& relation)
+void GIncrementalTransform::setAfter(GRelation* pRel)
 {
-	m_pRelationBefore = relation;
-	m_pRelationAfter = trainInner(relation);
+	delete(m_pRelationAfter);
+	m_pRelationAfter = pRel;
+}
+
+void GIncrementalTransform::train(const GMatrix& data)
+{
+	setBefore(data.relation().clone());
+	setAfter(trainInner(data));
+}
+
+void GIncrementalTransform::train(const GRelation& relation)
+{
+	setBefore(relation.clone());
+	setAfter(trainInner(relation));
+}
+
+// virtual
+GMatrix* GIncrementalTransform::doit(GMatrix& in)
+{
+	train(in);
+	return transformBatch(in);
+}
+
+// virtual
+GMatrix* GIncrementalTransform::transformBatch(const GMatrix& in)
+{
+	if(!m_pRelationAfter)
+		throw Ex("train has not been called");
+	size_t nRows = in.rows();
+	GMatrix* pOut = new GMatrix(m_pRelationAfter->clone());
+	Holder<GMatrix> hOut(pOut);
+	pOut->newRows(nRows);
+	for(size_t i = 0; i < nRows; i++)
+		transform(in.row(i), pOut->row(i));
+	return hOut.release();
+}
+
+double* GIncrementalTransform::innerBuf()
+{
+	if(!m_pInnerBuf)
+		m_pInnerBuf = new double[m_pRelationAfter->size()];
+	return m_pInnerBuf;
+}
+
+// virtual
+GMatrix* GIncrementalTransform::untransformBatch(const GMatrix& in)
+{
+	if(!m_pRelationBefore)
+		throw Ex("train has not been called");
+	size_t nRows = in.rows();
+	GMatrix* pOut = new GMatrix(before().clone());
+	pOut->newRows(nRows);
+	Holder<GMatrix> hOut(pOut);
+	for(size_t i = 0; i < nRows; i++)
+		untransform(in.row(i), pOut->row(i));
+	return hOut.release();
 }
 
 #ifndef MIN_PREDICT
@@ -119,13 +181,13 @@ void GIncrementalTransform::test()
 	Holder<GMatrix> hA(pA);
 	if(pA->sumSquaredDifference(e) > 1e-12)
 		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
-	if(!pA->relation()->areContinuous())
+	if(!pA->relation().areContinuous())
 		throw Ex("failed");
 	GMatrix* pB = trans.untransformBatch(*pA);
 	Holder<GMatrix> hB(pB);
 	if(pB->sumSquaredDifference(m) > 1e-12)
 		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
-	if(!pB->relation()->isCompatible(*m.relation().get()) || !m.relation()->isCompatible(*pB->relation().get()))
+	if(!pB->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pB->relation()))
 		throw Ex("failed");
 
 	// Round-trip it through serialization
@@ -140,18 +202,27 @@ void GIncrementalTransform::test()
 	Holder<GMatrix> hC(pC);
 	if(pC->sumSquaredDifference(e) > 1e-12)
 		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
-	if(!pC->relation()->areContinuous())
+	if(!pC->relation().areContinuous())
 		throw Ex("failed");
 	GMatrix* pD = trans.untransformBatch(*pC);
 	Holder<GMatrix> hD(pD);
 	if(pD->sumSquaredDifference(m) > 1e-12)
 		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
-	if(!pD->relation()->isCompatible(*m.relation().get()) || !m.relation()->isCompatible(*pD->relation().get()))
+	if(!pD->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pD->relation()))
 		throw Ex("failed");
 }
 #endif // MIN_PREDICT
 
-// ---------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
 
 GIncrementalTransformChainer::GIncrementalTransformChainer(GIncrementalTransform* pFirst, GIncrementalTransform* pSecond)
 : GIncrementalTransform(), m_pFirst(pFirst), m_pSecond(pSecond)
@@ -176,8 +247,6 @@ GIncrementalTransformChainer::~GIncrementalTransformChainer()
 // virtual
 GDomNode* GIncrementalTransformChainer::serialize(GDom* pDoc) const
 {
-	if(!m_pRelationBefore.get())
-		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GIncrementalTransformChainer");
 	pNode->addField(pDoc, "first", m_pFirst->serialize(pDoc));
 	pNode->addField(pDoc, "second", m_pSecond->serialize(pDoc));
@@ -186,21 +255,21 @@ GDomNode* GIncrementalTransformChainer::serialize(GDom* pDoc) const
 #endif // MIN_PREDICT
 
 // virtual
-sp_relation GIncrementalTransformChainer::trainInner(GMatrix& data)
+GRelation* GIncrementalTransformChainer::trainInner(const GMatrix& data)
 {
 	m_pFirst->train(data);
 	GMatrix* pData2 = m_pFirst->transformBatch(data); // todo: often this step is computation overkill since m_pSecond may not even use it during training. Is there a way to avoid doing it?
 	Holder<GMatrix> hData2(pData2);
 	m_pSecond->train(*pData2);
-	return m_pSecond->after();
+	return m_pSecond->after().clone();
 }
 
 // virtual
-sp_relation GIncrementalTransformChainer::trainInner(sp_relation& relation)
+GRelation* GIncrementalTransformChainer::trainInner(const GRelation& relation)
 {
 	m_pFirst->train(relation);
 	m_pSecond->train(m_pFirst->after());
-	return m_pSecond->after();
+	return m_pSecond->after().clone();
 }
 
 // virtual
@@ -231,56 +300,6 @@ void GIncrementalTransformChainer::untransformToDistribution(const double* pIn, 
 
 // ---------------------------------------------------------------
 
-// virtual
-GIncrementalTransform::~GIncrementalTransform()
-{
-	delete[] m_pInnerBuf;
-}
-
-// virtual
-GMatrix* GIncrementalTransform::doit(GMatrix& in)
-{
-	train(in);
-	return transformBatch(in);
-}
-
-// virtual
-GMatrix* GIncrementalTransform::transformBatch(GMatrix& in)
-{
-	if(!m_pRelationAfter.get())
-		throw Ex("train has not been called");
-	size_t nRows = in.rows();
-	GMatrix* pOut = new GMatrix(m_pRelationAfter);
-	Holder<GMatrix> hOut(pOut);
-	pOut->newRows(nRows);
-	for(size_t i = 0; i < nRows; i++)
-		transform(in.row(i), pOut->row(i));
-	return hOut.release();
-}
-
-double* GIncrementalTransform::innerBuf()
-{
-	if(!m_pInnerBuf)
-		m_pInnerBuf = new double[m_pRelationAfter->size()];
-	return m_pInnerBuf;
-}
-
-// virtual
-GMatrix* GIncrementalTransform::untransformBatch(GMatrix& in)
-{
-	if(!m_pRelationBefore.get())
-		throw Ex("train has not been called");
-	size_t nRows = in.rows();
-	GMatrix* pOut = new GMatrix(before());
-	pOut->newRows(nRows);
-	Holder<GMatrix> hOut(pOut);
-	for(size_t i = 0; i < nRows; i++)
-		untransform(in.row(i), pOut->row(i));
-	return hOut.release();
-}
-
-// ---------------------------------------------------------------
-
 GPCA::GPCA(size_t targetDims, GRand* pRand)
 : GIncrementalTransform(), m_targetDims(targetDims), m_pBasisVectors(NULL), m_pCentroid(NULL), m_pEigVals(NULL), m_aboutOrigin(false), m_pRand(pRand)
 {
@@ -289,7 +308,7 @@ GPCA::GPCA(size_t targetDims, GRand* pRand)
 GPCA::GPCA(GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalTransform(pNode, ll), m_pEigVals(NULL), m_pRand(&ll.rand())
 {
-	m_targetDims = m_pRelationBefore->size();
+	m_targetDims = before().size();
 	m_pBasisVectors = new GMatrix(pNode->field("basis"));
 	m_pCentroid = new GMatrix(pNode->field("centroid"));
 	m_aboutOrigin = pNode->field("aboutOrigin")->asBool();
@@ -307,8 +326,6 @@ GPCA::~GPCA()
 // virtual
 GDomNode* GPCA::serialize(GDom* pDoc) const
 {
-	if(!m_pRelationBefore.get())
-		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GPCA");
 	pNode->addField(pDoc, "basis", m_pBasisVectors->serialize(pDoc));
 	pNode->addField(pDoc, "centroid", m_pCentroid->serialize(pDoc));
@@ -324,17 +341,17 @@ void GPCA::computeEigVals()
 }
 
 // virtual
-sp_relation GPCA::trainInner(GMatrix& data)
+GRelation* GPCA::trainInner(const GMatrix& data)
 {
-	if(!m_pRelationBefore->areContinuous(0, m_pRelationBefore->size()))
+	if(!before().areContinuous())
 		throw Ex("GPCA doesn't support nominal values. (You could filter with nominaltocat to make them real.)");
 	delete(m_pBasisVectors);
 	delete(m_pCentroid);
-	m_pBasisVectors = new GMatrix(m_targetDims, m_pRelationBefore->size());
-	m_pCentroid = new GMatrix(1, m_pRelationBefore->size());
+	m_pBasisVectors = new GMatrix(m_targetDims, before().size());
+	m_pCentroid = new GMatrix(1, before().size());
 
 	// Compute the mean
-	size_t nInputDims = m_pRelationBefore->size();
+	size_t nInputDims = before().size();
 	double* pMean = m_pCentroid->row(0);
 	if(m_aboutOrigin)
 		GVec::setAll(pMean, 0.0, nInputDims);
@@ -342,7 +359,7 @@ sp_relation GPCA::trainInner(GMatrix& data)
 		data.centroid(pMean);
 
 	// Make a copy of the data
-	GMatrix tmpData(data.relation());
+	GMatrix tmpData(data.relation().clone());
 	tmpData.copy(&data);
 
 	// Compute the principle components
@@ -366,17 +383,17 @@ sp_relation GPCA::trainInner(GMatrix& data)
 }
 
 // virtual
-sp_relation GPCA::trainInner(sp_relation& relation)
+GRelation* GPCA::trainInner(const GRelation& relation)
 {
 	throw Ex("This transform cannot be trained without data");
-	return m_pRelationBefore;
+	return before().clone();
 }
 
 // virtual
 void GPCA::transform(const double* pIn, double* pOut)
 {
 	double* pCentroid = m_pCentroid->row(0);
-	size_t nInputDims = m_pRelationBefore->size();
+	size_t nInputDims = before().size();
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
 		double* pBasisVector = m_pBasisVectors->row(i);
@@ -387,7 +404,7 @@ void GPCA::transform(const double* pIn, double* pOut)
 // virtual
 void GPCA::untransform(const double* pIn, double* pOut)
 {
-	size_t nInputDims = m_pRelationBefore->size();
+	size_t nInputDims = before().size();
 	GVec::copy(pOut, m_pCentroid->row(0), nInputDims);
 	for(size_t i = 0; i < m_targetDims; i++)
 		GVec::addScaled(pOut, pIn[i], m_pBasisVectors->row(i), nInputDims);
@@ -500,7 +517,7 @@ GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, GMatrix* pData
 		pMean[j] = pData->columnMean(j);
 
 	// Make a copy of the data
-	GMatrix* pOutData = new GMatrix(pData->relation());
+	GMatrix* pOutData = new GMatrix(pData->relation().clone());
 	pOutData->copy(pData);
 	Holder<GMatrix> hOutData(pOutData);
 
@@ -601,8 +618,6 @@ GNoiseGenerator::~GNoiseGenerator()
 // virtual
 GDomNode* GNoiseGenerator::serialize(GDom* pDoc) const
 {
-	if(!m_pRelationBefore.get())
-		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNoiseGenerator");
 	pNode->addField(pDoc, "mean", pDoc->newDouble(m_mean));
 	pNode->addField(pDoc, "dev", pDoc->newDouble(m_deviation));
@@ -610,24 +625,24 @@ GDomNode* GNoiseGenerator::serialize(GDom* pDoc) const
 }
 
 // virtual
-sp_relation GNoiseGenerator::trainInner(GMatrix& data)
+GRelation* GNoiseGenerator::trainInner(const GMatrix& data)
 {
-	return data.relation();
+	return data.relation().clone();
 }
 
 // virtual
-sp_relation GNoiseGenerator::trainInner(sp_relation& relation)
+GRelation* GNoiseGenerator::trainInner(const GRelation& relation)
 {
-	return relation;
+	return relation.clone();
 }
 
 // virtual
 void GNoiseGenerator::transform(const double* pIn, double* pOut)
 {
-	size_t nDims = m_pRelationBefore->size();
+	size_t nDims = before().size();
 	for(size_t i = 0; i < nDims; i++)
 	{
-		size_t vals = m_pRelationBefore->valueCount(i);
+		size_t vals = before().valueCount(i);
 		if(vals == 0)
 			pOut[i] = m_pRand->normal() * m_deviation + m_mean;
 		else
@@ -655,25 +670,23 @@ GPairProduct::~GPairProduct()
 // virtual
 GDomNode* GPairProduct::serialize(GDom* pDoc) const
 {
-	if(!m_pRelationBefore.get())
-		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GPairProduct");
 	pNode->addField(pDoc, "maxDims", pDoc->newInt(m_maxDims));
 	return pNode;
 }
 
 // virtual
-sp_relation GPairProduct::trainInner(GMatrix& data)
+GRelation* GPairProduct::trainInner(const GMatrix& data)
 {
-	size_t nAttrsIn = m_pRelationBefore->size();
+	size_t nAttrsIn = before().size();
 	size_t nAttrsOut = std::min(m_maxDims, nAttrsIn * (nAttrsIn + 1) / 2);
 	return new GUniformRelation(nAttrsOut, 0);
 }
 
 // virtual
-sp_relation GPairProduct::trainInner(sp_relation& relation)
+GRelation* GPairProduct::trainInner(const GRelation& relation)
 {
-	size_t nAttrsIn = m_pRelationBefore->size();
+	size_t nAttrsIn = before().size();
 	size_t nAttrsOut = std::min(m_maxDims, nAttrsIn * (nAttrsIn + 1) / 2);
 	return new GUniformRelation(nAttrsOut, 0);
 }
@@ -682,8 +695,8 @@ sp_relation GPairProduct::trainInner(sp_relation& relation)
 void GPairProduct::transform(const double* pIn, double* pOut)
 {
 	size_t i, j, nAttr;
-	size_t nAttrsIn = m_pRelationBefore->size();
-	size_t nAttrsOut = m_pRelationAfter->size();
+	size_t nAttrsIn = before().size();
+	size_t nAttrsOut = after().size();
 	nAttr = 0;
 	for(j = 0; j < nAttrsIn && nAttr < nAttrsOut; j++)
 	{
@@ -708,7 +721,7 @@ GReservoir::GReservoir(GRand& rand, double weightDeviation, size_t outputs, size
 GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
-	m_outputs = m_pNN->relLabels()->size();
+	m_outputs = m_pNN->relLabels().size();
 	m_deviation = pNode->field("dev")->asDouble();
 }
 
@@ -731,21 +744,21 @@ GDomNode* GReservoir::serialize(GDom* pDoc) const
 
 
 // virtual
-sp_relation GReservoir::trainInner(GMatrix& data)
+GRelation* GReservoir::trainInner(const GMatrix& data)
 {
 	return trainInner(data.relation());
 }
 
 // virtual
-sp_relation GReservoir::trainInner(sp_relation& relation)
+GRelation* GReservoir::trainInner(const GRelation& relation)
 {
-	sp_relation pRel = new GUniformRelation(m_outputs);
-	if(!relation->areContinuous())
+	GUniformRelation* pRel = new GUniformRelation(m_outputs);
+	if(!relation.areContinuous())
 	{
 		m_pNN->clearFeatureFilter();
 		m_pNN->wrapFeatures(new GNominalToCat());
 	}
-	m_pNN->beginIncrementalLearning(relation, pRel);
+	m_pNN->beginIncrementalLearning(relation, *pRel);
 	m_pNN->perturbAllWeights(m_deviation);
 	return pRel;
 }
@@ -787,36 +800,36 @@ GDomNode* GDataAugmenter::serialize(GDom* pDoc) const
 #endif // MIN_PREDICT
 
 // virtual
-sp_relation GDataAugmenter::trainInner(GMatrix& data)
+GRelation* GDataAugmenter::trainInner(const GMatrix& data)
 {
 	m_pTransform->train(data);
 	GMixedRelation* pNewRel = new GMixedRelation();
-	pNewRel->addAttrs(data.relation().get());
-	pNewRel->addAttrs(m_pTransform->after().get());
+	pNewRel->addAttrs(data.relation());
+	pNewRel->addAttrs(m_pTransform->after());
 	return pNewRel;
 }
 
 // virtual
-sp_relation GDataAugmenter::trainInner(sp_relation& relation)
+GRelation* GDataAugmenter::trainInner(const GRelation& relation)
 {
 	m_pTransform->train(relation);
 	GMixedRelation* pNewRel = new GMixedRelation();
-	pNewRel->addAttrs(m_pRelationBefore.get());
-	pNewRel->addAttrs(m_pTransform->after().get());
+	pNewRel->addAttrs(before());
+	pNewRel->addAttrs(m_pTransform->after());
 	return pNewRel;
 }
 
 // virtual
 void GDataAugmenter::transform(const double* pIn, double* pOut)
 {
-	GVec::copy(pOut, pIn, m_pRelationBefore->size());
-	m_pTransform->transform(pIn, pOut + m_pRelationBefore->size());
+	GVec::copy(pOut, pIn, before().size());
+	m_pTransform->transform(pIn, pOut + before().size());
 }
 
 // virtual
 void GDataAugmenter::untransform(const double* pIn, double* pOut)
 {
-	GVec::copy(pOut, pIn, m_pRelationBefore->size());
+	GVec::copy(pOut, pIn, before().size());
 }
 
 // virtual
@@ -838,7 +851,7 @@ GAttributeSelector::GAttributeSelector(GDomNode* pNode, GLearnerLoader& ll)
 	m_ranks.reserve(it.remaining());
 	for( ; it.current(); it.advance())
 		m_ranks.push_back((size_t)it.current()->asInt());
-	if(m_ranks.size() + (size_t)m_labelDims != (size_t)m_pRelationBefore->size())
+	if(m_ranks.size() + (size_t)m_labelDims != (size_t)before().size())
 		throw Ex("invalid attribute selector");
 	if(m_targetFeatures > m_ranks.size())
 		throw Ex("invalid attribute selector");
@@ -856,27 +869,27 @@ GDomNode* GAttributeSelector::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-sp_relation GAttributeSelector::setTargetFeatures(size_t n)
+GRelation* GAttributeSelector::setTargetFeatures(size_t n)
 {
-	if(n > m_pRelationBefore->size())
+	if(n > before().size())
 		throw Ex("out of range");
 	GMixedRelation* pRelAfter;
-	if(m_pRelationBefore->type() == GRelation::ARFF)
+	if(before().type() == GRelation::ARFF)
 		pRelAfter = new GArffRelation();
 	else
 		pRelAfter = new GMixedRelation();
 	for(size_t i = 0; i < m_targetFeatures; i++)
-		pRelAfter->copyAttr(m_pRelationBefore.get(), m_ranks[i]);
-	if(m_labelDims > m_pRelationBefore->size())
+		pRelAfter->copyAttr(&before(), m_ranks[i]);
+	if(m_labelDims > before().size())
 		throw Ex("label dims out of range");
-	size_t featureDims = m_pRelationBefore->size() - m_labelDims;
+	size_t featureDims = before().size() - m_labelDims;
 	for(size_t i = 0; i < m_labelDims; i++)
-		pRelAfter->copyAttr(m_pRelationBefore.get(), featureDims + i);
+		pRelAfter->copyAttr(&before(), featureDims + i);
 	return pRelAfter;
 }
 
 // virtual
-sp_relation GAttributeSelector::trainInner(GMatrix& data)
+GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 {
 	if(m_labelDims > data.cols())
 		throw Ex("label dims is greater than the number of columns in the data");
@@ -915,7 +928,7 @@ sp_relation GAttributeSelector::trainInner(GMatrix& data)
 		for(size_t i = 0; i < curDims; i++)
 		{
 			double w = 0;
-			while(pos < nn.relFeatures()->size() && rmap[pos] == i)
+			while(pos < nn.relFeatures().size() && rmap[pos] == i)
 			{
 				for(size_t neuron = 0; neuron < layer.outputs(); neuron++)
 					w = std::max(w, std::abs(layer.m_weights[pos][neuron]));
@@ -940,10 +953,10 @@ sp_relation GAttributeSelector::trainInner(GMatrix& data)
 }
 
 // virtual
-sp_relation GAttributeSelector::trainInner(sp_relation& relation)
+GRelation* GAttributeSelector::trainInner(const GRelation& relation)
 {
 	throw Ex("This transform cannot be trained without data");
-	return m_pRelationBefore;
+	return before().clone();
 }
 
 // virtual
@@ -952,7 +965,7 @@ void GAttributeSelector::transform(const double* pIn, double* pOut)
 	size_t i;
 	for(i = 0; i < m_targetFeatures; i++)
 		pOut[i] = pIn[m_ranks[i]];
-	size_t featureDims = m_pRelationBefore->size() - m_labelDims;
+	size_t featureDims = before().size() - m_labelDims;
 	for(size_t j = 0; j < m_labelDims; j++)
 		pOut[i++] = pIn[featureDims + j];
 }
@@ -997,76 +1010,23 @@ GNominalToCat::GNominalToCat(GDomNode* pNode, GLearnerLoader& ll)
 	init();
 }
 
-sp_relation GNominalToCat::init()
+GRelation* GNominalToCat::init()
 {
-	sp_relation spRel;
-	if(m_pRelationBefore->type() == GRelation::ARFF)
-		spRel = new GArffRelation();
-	else
-		spRel = new GMixedRelation();
 	size_t nDims = 0;
-	size_t nAttrCount = m_pRelationBefore->size();
-	const char* szName;
+	size_t nAttrCount = before().size();
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues == 0)
-		{
 			nDims++;
-			if(m_pRelationBefore->type() == GRelation::ARFF)
-			{
-				szName = ((GArffRelation*)m_pRelationBefore.get())->attrName(i);
-				((GArffRelation*)spRel.get())->addAttribute(szName, 0, NULL);
-			}
-			else
-				((GMixedRelation*)spRel.get())->addAttr(0);
-		}
 		else if(nValues < 3 || nValues >= m_valueCap)
-		{
 			nDims++;
-			if(m_pRelationBefore->type() == GRelation::ARFF)
-			{
-				szName = ((GArffRelation*)m_pRelationBefore.get())->attrName(i);
-				((GArffRelation*)spRel.get())->addAttribute(szName, 0, NULL);
-			}
-			else
-				((GMixedRelation*)spRel.get())->addAttr(0);
-		}
 		else if(nValues < m_valueCap)
-		{
 			nDims += nValues;
-			if(m_pRelationBefore->type() == GRelation::ARFF)
-			{
-				szName = ((GArffRelation*)m_pRelationBefore.get())->attrName(i);
-				string sName = szName;
-				sName += "_";
-				for(size_t j = 0; j < nValues; j++)
-				{
-					ostringstream oss;
-					m_pRelationBefore->printAttrValue(oss, i, (double)j);
-					sName += oss.str();
-					((GArffRelation*)spRel.get())->addAttribute(sName.c_str(), 0, NULL);
-				}
-			}
-			else
-			{
-				for(size_t j = 0; j < nValues; j++)
-					((GMixedRelation*)spRel.get())->addAttr(0);
-			}
-		}
 		else
-		{
 			nDims++;
-			if(m_pRelationBefore->type() == GRelation::ARFF)
-			{
-				szName = ((GArffRelation*)m_pRelationBefore.get())->attrName(i);
-				((GArffRelation*)spRel.get())->addAttribute(szName, 0, NULL);
-			}
-			else
-				((GMixedRelation*)spRel.get())->addAttr(0);
-		}
 	}
-	return spRel;
+	return new GUniformRelation(nDims);
 }
 
 // virtual
@@ -1075,13 +1035,13 @@ GNominalToCat::~GNominalToCat()
 }
 
 // virtual
-sp_relation GNominalToCat::trainInner(GMatrix& data)
+GRelation* GNominalToCat::trainInner(const GMatrix& data)
 {
 	return init();
 }
 
 // virtual
-sp_relation GNominalToCat::trainInner(sp_relation& relation)
+GRelation* GNominalToCat::trainInner(const GRelation& relation)
 {
 	return init();
 }
@@ -1089,8 +1049,6 @@ sp_relation GNominalToCat::trainInner(sp_relation& relation)
 // virtual
 GDomNode* GNominalToCat::serialize(GDom* pDoc) const
 {
-	if(!m_pRelationBefore.get())
-		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNominalToCat");
 	pNode->addField(pDoc, "valueCap", pDoc->newInt(m_valueCap));
 	pNode->addField(pDoc, "pu", pDoc->newBool(m_preserveUnknowns));
@@ -1100,10 +1058,10 @@ GDomNode* GNominalToCat::serialize(GDom* pDoc) const
 // virtual
 void GNominalToCat::transform(const double* pIn, double* pOut)
 {
-	size_t nInAttrCount = m_pRelationBefore->size();
+	size_t nInAttrCount = before().size();
 	for(size_t i = 0; i < nInAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues < 3)
 		{
 			if(nValues == 0)
@@ -1162,10 +1120,10 @@ void GNominalToCat::transform(const double* pIn, double* pOut)
 // virtual
 void GNominalToCat::untransform(const double* pIn, double* pOut)
 {
-	size_t nOutAttrCount = m_pRelationBefore->size();
+	size_t nOutAttrCount = before().size();
 	for(size_t i = 0; i < nOutAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues < 3)
 		{
 			if(nValues == 0)
@@ -1219,10 +1177,10 @@ void GNominalToCat::untransform(const double* pIn, double* pOut)
 // virtual
 void GNominalToCat::untransformToDistribution(const double* pIn, GPrediction* pOut)
 {
-	size_t nOutAttrCount = m_pRelationBefore->size();
+	size_t nOutAttrCount = before().size();
 	for(size_t i = 0; i < nOutAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues < 3)
 		{
 			if(nValues == 0)
@@ -1272,10 +1230,10 @@ void GNominalToCat::untransformToDistribution(const double* pIn, GPrediction* pO
 void GNominalToCat::reverseAttrMap(vector<size_t>& rmap)
 {
 	rmap.clear();
-	size_t nInAttrCount = m_pRelationBefore->size();
+	size_t nInAttrCount = before().size();
 	for(size_t i = 0; i < nInAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues < 3 || nValues >= m_valueCap)
 			rmap.push_back(i);
 		else
@@ -1298,7 +1256,7 @@ GNormalize::GNormalize(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_min = pNode->field("min")->asDouble();
 	m_max = pNode->field("max")->asDouble();
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	m_pMins = new double[2 * nAttrCount];
 	m_pRanges = &m_pMins[nAttrCount];
 	GDomListIterator it1(pNode->field("mins"));
@@ -1320,22 +1278,20 @@ GNormalize::~GNormalize()
 // virtual
 GDomNode* GNormalize::serialize(GDom* pDoc) const
 {
-	if(!m_pRelationBefore.get())
-		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GNormalize");
 	pNode->addField(pDoc, "min", pDoc->newDouble(m_min));
 	pNode->addField(pDoc, "max", pDoc->newDouble(m_max));
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, nAttrCount));
 	pNode->addField(pDoc, "ranges", GVec::serialize(pDoc, m_pRanges, nAttrCount));
 	return pNode;
 }
 
-void GNormalize::setMinsAndRanges(sp_relation& pRel, const double* pMins, const double* pRanges)
+void GNormalize::setMinsAndRanges(const GRelation& rel, const double* pMins, const double* pRanges)
 {
-	m_pRelationBefore = pRel;
-	m_pRelationAfter = m_pRelationBefore;
-	size_t nAttrCount = m_pRelationBefore->size();
+	setBefore(rel.clone());
+	setAfter(rel.clone());
+	size_t nAttrCount = before().size();
 	delete[] m_pMins;
 	m_pMins = new double[2 * nAttrCount];
 	m_pRanges = &m_pMins[nAttrCount];
@@ -1344,15 +1300,15 @@ void GNormalize::setMinsAndRanges(sp_relation& pRel, const double* pMins, const 
 }
 
 // virtual
-sp_relation GNormalize::trainInner(GMatrix& data)
+GRelation* GNormalize::trainInner(const GMatrix& data)
 {
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	delete[] m_pMins;
 	m_pMins = new double[2 * nAttrCount];
 	m_pRanges = &m_pMins[nAttrCount];
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		if(m_pRelationBefore->valueCount(i) == 0)
+		if(before().valueCount(i) == 0)
 		{
 			m_pMins[i] = data.columnMin(i);
 			if(m_pMins[i] >= 1e300)
@@ -1373,25 +1329,25 @@ sp_relation GNormalize::trainInner(GMatrix& data)
 			m_pRanges[i] = 0;
 		}
 	}
-	return data.relation();
+	return data.relation().clone();
 }
 
 // virtual
-sp_relation GNormalize::trainInner(sp_relation& relation)
+GRelation* GNormalize::trainInner(const GRelation& relation)
 {
 	throw Ex("This transform cannot be trained without data");
-	return m_pRelationBefore;
+	return before().clone();
 }
 
 // virtual
 void GNormalize::transform(const double* pIn, double* pOut)
 {
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	double* pMins = m_pMins;
 	double* pRanges = m_pRanges;
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		if(m_pRelationBefore->valueCount(i) == 0)
+		if(before().valueCount(i) == 0)
 		{
 			if(*pIn == UNKNOWN_REAL_VALUE)
 				*pOut = UNKNOWN_REAL_VALUE;
@@ -1410,12 +1366,12 @@ void GNormalize::transform(const double* pIn, double* pOut)
 // virtual
 void GNormalize::untransform(const double* pIn, double* pOut)
 {
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	double* pMins = m_pMins;
 	double* pRanges = m_pRanges;
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		if(m_pRelationBefore->valueCount(i) == 0)
+		if(before().valueCount(i) == 0)
 		{
 			if(*pIn == UNKNOWN_REAL_VALUE)
 				*pOut = UNKNOWN_REAL_VALUE;
@@ -1454,7 +1410,7 @@ GDiscretize::GDiscretize(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_bucketsIn = (size_t)pNode->field("bucketsIn")->asInt();
 	m_bucketsOut = (size_t)pNode->field("bucketsOut")->asInt();
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	m_pMins = new double[2 * nAttrCount];
 	m_pRanges = &m_pMins[nAttrCount];
 	GDomListIterator it1(pNode->field("mins"));
@@ -1479,14 +1435,14 @@ GDomNode* GDiscretize::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GDiscretize");
 	pNode->addField(pDoc, "bucketsIn", pDoc->newInt(m_bucketsIn));
 	pNode->addField(pDoc, "bucketsOut", pDoc->newInt(m_bucketsOut));
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, nAttrCount));
 	pNode->addField(pDoc, "ranges", GVec::serialize(pDoc, m_pRanges, nAttrCount));
 	return pNode;
 }
 
 // virtual
-sp_relation GDiscretize::trainInner(GMatrix& data)
+GRelation* GDiscretize::trainInner(const GMatrix& data)
 {
 	// Make the relations
 	m_bucketsOut = m_bucketsIn;
@@ -1496,7 +1452,7 @@ sp_relation GDiscretize::trainInner(GMatrix& data)
 	GMixedRelation* pRelationAfter = new GMixedRelation();
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues > 0)
 			pRelationAfter->addAttr(nValues);
 		else
@@ -1509,7 +1465,7 @@ sp_relation GDiscretize::trainInner(GMatrix& data)
 	m_pRanges = &m_pMins[nAttrCount];
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues > 0)
 		{
 			m_pMins[i] = 0;
@@ -1526,10 +1482,10 @@ sp_relation GDiscretize::trainInner(GMatrix& data)
 }
 
 // virtual
-sp_relation GDiscretize::trainInner(sp_relation& relation)
+GRelation* GDiscretize::trainInner(const GRelation& relation)
 {
 	throw Ex("This transform cannot be trained without data");
-	return m_pRelationBefore;
+	return before().clone();
 }
 
 // virtual
@@ -1537,10 +1493,10 @@ void GDiscretize::transform(const double* pIn, double* pOut)
 {
 	if(!m_pMins)
 		throw Ex("Train was not called");
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues > 0)
 			pOut[i] = pIn[i];
 		else
@@ -1553,10 +1509,10 @@ void GDiscretize::untransform(const double* pIn, double* pOut)
 {
 	if(!m_pMins)
 		throw Ex("Train was not called");
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		size_t nValues = m_pRelationBefore->valueCount(i);
+		size_t nValues = before().valueCount(i);
 		if(nValues > 0)
 			pOut[i] = pIn[i];
 		else
@@ -1602,8 +1558,6 @@ GImputeMissingVals::~GImputeMissingVals()
 // virtual
 GDomNode* GImputeMissingVals::serialize(GDom* pDoc) const
 {
-	if(!m_pRelationBefore.get())
-		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GImputeMissingVals");
 	pNode->addField(pDoc, "cf", m_pCF->serialize(pDoc));
 	if(m_pNTC)
@@ -1618,10 +1572,10 @@ void GImputeMissingVals::setCollaborativeFilter(GCollaborativeFilter* pCF)
 }
 
 // virtual
-sp_relation GImputeMissingVals::trainInner(GMatrix& data)
+GRelation* GImputeMissingVals::trainInner(const GMatrix& data)
 {
 	// Train the nominalToCat filter if needed
-	if(data.relation()->areContinuous(0, data.cols()))
+	if(data.relation().areContinuous())
 	{
 		delete(m_pNTC);
 		m_pNTC = NULL;
@@ -1631,13 +1585,14 @@ sp_relation GImputeMissingVals::trainInner(GMatrix& data)
 		m_pNTC = new GNominalToCat();
 		m_pNTC->preserveUnknowns();
 	}
-	GMatrix* pData;
+	const GMatrix* pData;
 	Holder<GMatrix> hData;
 	if(m_pNTC)
 	{
 		m_pNTC->train(data);
-		pData = m_pNTC->transformBatch(data);
-		hData.reset(pData);
+		GMatrix* pTemp = m_pNTC->transformBatch(data);
+		hData.reset(pTemp);
+		pData = pTemp;
 	}
 	else
 		pData = &data;
@@ -1646,14 +1601,14 @@ sp_relation GImputeMissingVals::trainInner(GMatrix& data)
 	if(!m_pCF)
 		m_pCF = new GMatrixFactorization(std::max(size_t(2), std::min(size_t(8), data.cols() / 3)), m_rand);
 	m_pCF->trainDenseMatrix(*pData, m_pLabels);
-	return m_pRelationBefore;
+	return before().clone();
 }
 
 // virtual
-sp_relation GImputeMissingVals::trainInner(sp_relation& relation)
+GRelation* GImputeMissingVals::trainInner(const GRelation& relation)
 {
 	throw Ex("This transform cannot be trained without data");
-	return m_pRelationBefore;
+	return before().clone();
 }
 
 // virtual
@@ -1661,12 +1616,11 @@ void GImputeMissingVals::transform(const double* pIn, double* pOut)
 {
 	// If there are no missing values, just copy it across
 	const double* p = pIn;
-	GRelation& rel = *m_pRelationBefore.get();
-	size_t dims = rel.size();
+	size_t dims = before().size();
 	size_t i;
 	for(i = 0; i < dims; i++)
 	{
-		if(rel.valueCount(i) == 0)
+		if(before().valueCount(i) == 0)
 		{
 			if(*p == UNKNOWN_REAL_VALUE)
 				break;
@@ -1690,7 +1644,7 @@ void GImputeMissingVals::transform(const double* pIn, double* pOut)
 	{
 		pVec = m_pNTC->innerBuf();
 		m_pNTC->transform(pIn, pVec);
-		dims = m_pNTC->after()->size();
+		dims = m_pNTC->after().size();
 	}
 	else
 	{
@@ -1709,7 +1663,7 @@ void GImputeMissingVals::transform(const double* pIn, double* pOut)
 // virtual
 void GImputeMissingVals::untransform(const double* pIn, double* pOut)
 {
-	GVec::copy(pOut, pIn, m_pRelationAfter->size());
+	GVec::copy(pOut, pIn, after().size());
 }
 
 // virtual
@@ -1719,14 +1673,14 @@ void GImputeMissingVals::untransformToDistribution(const double* pIn, GPredictio
 }
 
 // virtual
-GMatrix* GImputeMissingVals::transformBatch(GMatrix& in)
+GMatrix* GImputeMissingVals::transformBatch(const GMatrix& in)
 {
 	GMatrix* pOut = new GMatrix();
 	pOut->copy(&in);
-	size_t dims = in.cols();
-	for(size_t i = 0; i < in.rows(); i++)
+	size_t dims = pOut->cols();
+	for(size_t i = 0; i < pOut->rows(); i++)
 	{
-		double* pVec = in[i];
+		double* pVec = pOut->row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
 			if(*pVec == UNKNOWN_REAL_VALUE)
@@ -1737,7 +1691,7 @@ GMatrix* GImputeMissingVals::transformBatch(GMatrix& in)
 	return pOut;
 }
 
-void GImputeMissingVals::setLabels(GMatrix* pLabels)
+void GImputeMissingVals::setLabels(const GMatrix* pLabels)
 {
 	m_pLabels = pLabels;
 }
@@ -1764,31 +1718,29 @@ GLogify::~GLogify()
 // virtual
 GDomNode* GLogify::serialize(GDom* pDoc) const
 {
-	if(!m_pRelationBefore.get())
-		throw Ex("train must be called before serialize");
 	GDomNode* pNode = baseDomNode(pDoc, "GLogify");
 	return pNode;
 }
 
 // virtual
-sp_relation GLogify::trainInner(GMatrix& data)
+GRelation* GLogify::trainInner(const GMatrix& data)
 {
-	return data.relation();
+	return data.relation().clone();
 }
 
 // virtual
-sp_relation GLogify::trainInner(sp_relation& relation)
+GRelation* GLogify::trainInner(const GRelation& relation)
 {
-	return relation;
+	return relation.clone();
 }
 
 // virtual
 void GLogify::transform(const double* pIn, double* pOut)
 {
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		if(m_pRelationBefore->valueCount(i) == 0)
+		if(before().valueCount(i) == 0)
 		{
 			if(*pIn == UNKNOWN_REAL_VALUE)
 				*pOut = UNKNOWN_REAL_VALUE;
@@ -1805,10 +1757,10 @@ void GLogify::transform(const double* pIn, double* pOut)
 // virtual
 void GLogify::untransform(const double* pIn, double* pOut)
 {
-	size_t nAttrCount = m_pRelationBefore->size();
+	size_t nAttrCount = before().size();
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
-		if(m_pRelationBefore->valueCount(i) == 0)
+		if(before().valueCount(i) == 0)
 		{
 			if(*pIn == UNKNOWN_REAL_VALUE)
 				*pOut = UNKNOWN_REAL_VALUE;

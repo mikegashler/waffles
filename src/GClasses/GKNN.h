@@ -53,7 +53,6 @@ protected:
 	double m_trainParam;
 	GSupervisedLearner* m_pLearner;
 	bool m_bOwnLearner;
-	double m_dElbowRoom;
 
 	// Scale Factor Optimization
 	bool m_normalizeScaleFactors;
@@ -70,8 +69,7 @@ protected:
 	double* m_pValueCounts;
 
 	// Neighbor Finding
-	GNeighborFinderGeneralizing* m_pNeighborFinder; // used for evaluation
-	GNeighborFinderGeneralizing* m_pNeighborFinder2; // used for incremental training
+	GNeighborFinderGeneralizing* m_pNeighborFinder;
 
 public:
 	/// nNeighbors specifies the number of neighbors to evaluate in order to make a prediction.
@@ -121,9 +119,6 @@ public:
 	/// Adds a copy of pVector to the internal set.
 	size_t addVector(const double* pIn, const double* pOut);
 
-	/// Sets the value for elbow room. (This value is only used with incremental training.)
-	void setElbowRoom(double d) { m_dElbowRoom = d * d; }
-
 	/// Returns the dissimilarity metric
 	GRowDistanceScaled* metric() { return m_pDistanceMetric; }
 
@@ -156,7 +151,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -165,7 +160,7 @@ protected:
 	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
-	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// Adds a vector to the internal set. Also, if the (k+1)th nearest
 	/// neighbor of that vector is less than "elbow room" from it, then
@@ -219,7 +214,7 @@ public:
 
 protected:
 	/// See the comment for GTransducer::transduce
-	virtual GMatrix* transduceInner(GMatrix& features1, GMatrix& labels1, GMatrix& features2);
+	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
@@ -268,7 +263,7 @@ protected:
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
-	virtual void beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel);
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// See the comment for GIncrementalLearner::trainIncrementalInner
 	virtual void trainIncrementalInner(const double* pIn, const double* pOut);

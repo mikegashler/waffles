@@ -54,7 +54,7 @@ public:
 class GEnsemble : public GSupervisedLearner
 {
 protected:
-	sp_relation m_pLabelRel;
+	GRelation* m_pLabelRel;
 	std::vector<GWeightedModel*> m_models;
 	size_t m_nAccumulatorDims;
 	double* m_pAccumulator; // a buffer for tallying votes (ballot box?)
@@ -80,10 +80,10 @@ protected:
 	virtual void clearBase();
 
 	/// Sets up the accumulator buffer (ballot box) then calls trainInnerInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// Implement this method to train the ensemble.
-	virtual void trainInnerInner(GMatrix& features, GMatrix& labels) = 0;
+	virtual void trainInnerInner(const GMatrix& features, const GMatrix& labels) = 0;
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -158,11 +158,11 @@ public:
 
 protected:
 	/// See the comment for GEnsemble::trainInnerInner
-	virtual void trainInnerInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInnerInner(const GMatrix& features, const GMatrix& labels);
 
 	/// Assigns uniform weight to all models. (This method is deliberately
 	/// virtual so that you can overload it if you want non-uniform weighting.)
-	virtual void determineWeights(GMatrix& features, GMatrix& labels);
+	virtual void determineWeights(const GMatrix& features, const GMatrix& labels);
 };
 
 
@@ -290,7 +290,7 @@ protected:
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
 
 	/// See the comment for GEnsemble::trainInnerInner
-	virtual void trainInnerInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInnerInner(const GMatrix& features, const GMatrix& labels);
 };
 
 
@@ -333,7 +333,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -397,7 +397,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);

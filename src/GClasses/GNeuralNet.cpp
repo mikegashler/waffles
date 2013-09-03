@@ -1175,19 +1175,32 @@ void GNeuralNet::predictInner(const double* pIn, double* pOut)
 }
 
 // virtual
-void GNeuralNet::trainInner(GMatrix& features, GMatrix& labels)
+void GNeuralNet::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	size_t validationRows = (size_t)(m_validationPortion * features.rows());
+	size_t trainRows = features.rows() - validationRows;
 	if(validationRows > 0)
 	{
-		GMatrix validateFeatures(features.relation());
-		GMatrix validateLabels(labels.relation());
+		GMatrix trainFeatures(features.relation().clone());
+		GMatrix trainLabels(labels.relation().clone());
+		GMatrix validateFeatures(features.relation().clone());
+		GMatrix validateLabels(labels.relation().clone());
 		{
-			GMergeDataHolder hFeatures(features, validateFeatures);
-			GMergeDataHolder hLabels(labels, validateLabels);
-			features.splitBySize(validateFeatures, validationRows);
-			labels.splitBySize(validateLabels, validationRows);
-			trainWithValidation(features, labels, validateFeatures, validateLabels);
+			GReleaseDataHolder hTrainFeatures(&trainFeatures);
+			GReleaseDataHolder hTrainLabels(&trainLabels);
+			GReleaseDataHolder hValidateFeatures(&validateFeatures);
+			GReleaseDataHolder hValidateLabels(&validateLabels);
+			for(size_t i = 0; i < trainRows; i++)
+			{
+				trainFeatures.takeRow((double*)features[i]);
+				trainLabels.takeRow((double*)labels[i]);
+			}
+			for(size_t i = trainRows; i < features.rows(); i++)
+			{
+				validateFeatures.takeRow((double*)features[i]);
+				validateLabels.takeRow((double*)labels[i]);
+			}
+			trainWithValidation(trainFeatures, trainLabels, validateFeatures, validateLabels);
 		}
 	}
 	else
@@ -1200,8 +1213,8 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
-	sp_relation pFeatureRel = new GUniformRelation(features.cols());
-	beginIncrementalLearning(pFeatureRel, labels.relation());
+	GUniformRelation featureRel(features.cols());
+	beginIncrementalLearning(featureRel, labels.relation());
 
 	GTEMPBUF(size_t, indexes, features.rows());
 	GIndexVec::makeIndexVec(indexes, features.rows());
@@ -1221,7 +1234,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 }
 #endif // MIN_PREDICT
 
-double GNeuralNet::validationSquaredError(GMatrix& features, GMatrix& labels)
+double GNeuralNet::validationSquaredError(const GMatrix& features, const GMatrix& labels)
 {
 	double sse = 0;
 	size_t nCount = features.rows();
@@ -1233,7 +1246,7 @@ double GNeuralNet::validationSquaredError(GMatrix& features, GMatrix& labels)
 	return sse;
 }
 
-size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& validateFeatures, GMatrix& validateLabels)
+size_t GNeuralNet::trainWithValidation(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& validateFeatures, const GMatrix& validateLabels)
 {
 	if(trainFeatures.rows() != trainLabels.rows() || validateFeatures.rows() != validateLabels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
@@ -1283,14 +1296,14 @@ size_t GNeuralNet::trainWithValidation(GMatrix& trainFeatures, GMatrix& trainLab
 }
 
 // virtual
-void GNeuralNet::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_relation& pLabelRel)
+void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
 {
-	if(pLabelRel->size() < 1)
+	if(labelRel.size() < 1)
 		throw Ex("The label relation must have at least 1 attribute");
 
 	// Make the layers
 	clear();
-	size_t inputs = pFeatureRel->size() - (m_useInputBias ? 1 : 0);
+	size_t inputs = featureRel.size() - (m_useInputBias ? 1 : 0);
 	for(size_t i = 0; i < m_topology.size(); i++)
 	{
 		size_t outputs = m_topology[i];
@@ -1299,7 +1312,7 @@ void GNeuralNet::beginIncrementalLearningInner(sp_relation& pFeatureRel, sp_rela
 		m_layers.push_back(pNewLayer);
 		inputs = outputs;
 	}
-	size_t outputs = pLabelRel->size();
+	size_t outputs = labelRel.size();
 	GNeuralNetLayer* pNewLayer = new GNeuralNetLayer(inputs, outputs);
 	pNewLayer->resetWeights(&m_rand);
 	m_layers.push_back(pNewLayer);
@@ -1328,7 +1341,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	Holder<GNeuralNet> hCand0(new GNeuralNet(m_rand));
 	Holder<GNeuralNet> hCand1;
 	double scores[2];
-	scores[0] = hCand0.get()->heuristicValidate(features, labels);
+	scores[0] = hCand0.get()->crossValidate(features, labels, 2);
 	scores[1] = 1e308;
 
 	// Try increasing the number of hidden units until accuracy decreases twice
@@ -1339,7 +1352,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 		vector<size_t> topology;
 		topology.push_back(hidden);
 		cand->setTopology(topology);
-		double d = cand->heuristicValidate(features, labels);
+		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
 			hCand1.reset(hCand0.release());
@@ -1375,7 +1388,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 		vector<size_t> topology;
 		topology.push_back(c);
 		cand->setTopology(topology);
-		double d = cand->heuristicValidate(features, labels);
+		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
 			hCand1.reset(hCand0.release());
@@ -1425,7 +1438,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 		topology.push_back(c1);
 		topology.push_back(c2);
 		cand->setTopology(topology);
-		double d = cand->heuristicValidate(features, labels);
+		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
 			hCand0.reset(cand);
@@ -1445,7 +1458,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 		if(hu2 > 0) topology.push_back(hu2);
 		cand->setTopology(topology);
 		cand->setMomentum(0.8);
-		double d = cand->heuristicValidate(features, labels);
+		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
 			hCand0.reset(cand);
@@ -1648,9 +1661,9 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 		GNeuralNet nn(*pRand);
 //		nn.addLayer(5);
 //		nn.addLayer(10);
-		sp_relation pFeatureRel = new GUniformRelation(5);
-		sp_relation pLabelRel = new GUniformRelation(10);
-		nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
+		GUniformRelation featureRel(5);
+		GUniformRelation labelRel(10);
+		nn.beginIncrementalLearning(featureRel, labelRel);
 
 		// Init with random weights
 		size_t weightCount = nn.countWeights();
@@ -1738,8 +1751,8 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		for(size_t j = 0; j < layers; j++)
 			topology.push_back(layerSize);
 		nn.setTopology(topology);
-		sp_relation pRel = new GUniformRelation(TEST_INVERT_INPUTS);
-		nn.beginIncrementalLearning(pRel, pRel);
+		GUniformRelation rel(TEST_INVERT_INPUTS);
+		nn.beginIncrementalLearning(rel, rel);
 		nn.perturbAllWeights(0.5);
 		rand.cubical(in, TEST_INVERT_INPUTS);
 		nn.predict(in, outBefore);
@@ -1765,9 +1778,9 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 			topology.push_back(layerSize);
 		nn1.setTopology(topology);
 		nn2.setTopology(topology);
-		sp_relation pRel = new GUniformRelation(TEST_INVERT_INPUTS);
-		nn1.beginIncrementalLearning(pRel, pRel);
-		nn2.beginIncrementalLearning(pRel, pRel);
+		GUniformRelation rel(TEST_INVERT_INPUTS);
+		nn1.beginIncrementalLearning(rel, rel);
+		nn2.beginIncrementalLearning(rel, rel);
 		nn1.perturbAllWeights(0.5);
 		nn2.copyWeights(&nn1);
 
@@ -1832,9 +1845,9 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 		vector<size_t> topology;
 		topology.push_back(5);
 		nn.setTopology(topology);
-		sp_relation pRelIn = new GUniformRelation(5);
-		sp_relation pRelOut = new GUniformRelation(1);
-		nn.beginIncrementalLearning(pRelIn, pRelOut);
+		GUniformRelation relIn(5);
+		GUniformRelation relOut(1);
+		nn.beginIncrementalLearning(relIn, relOut);
 		nn.perturbAllWeights(1.0);
 		rand.spherical(in, 5);
 		double before, after;
@@ -1869,8 +1882,8 @@ void GNeuralNet_testTrainOneLayer(GRand& rand)
 	topology.push_back(5);
 	nn1.setTopology(topology);
 	nn1.setUseInputBias(true);
-	sp_relation pRel = new GUniformRelation(5, 0);
-	nn1.beginIncrementalLearning(pRel, pRel);
+	GUniformRelation rel(5, 0);
+	nn1.beginIncrementalLearning(rel, rel);
 	nn1.perturbAllWeights(3.0);
 	GNeuralNet nn2(rand);
 	nn2.copyStructure(&nn1);
@@ -1907,8 +1920,8 @@ void GNeuralNet_testBleedWeights(GRand& rand)
 	topology.push_back(2);
 	topology.push_back(2);
 	nn.setTopology(topology);
-	sp_relation pRel = new GUniformRelation(2, 0);
-	nn.beginIncrementalLearning(pRel, pRel);
+	GUniformRelation rel(2, 0);
+	nn.beginIncrementalLearning(rel, rel);
 	nn.getLayer(2)->m_weights[0][0] = 1.0;
 	nn.getLayer(2)->m_weights[1][0] = 1.0;
 	nn.getLayer(2)->m_weights[0][1] = 1.0;
@@ -1939,8 +1952,8 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 	{
 		// Set up
 		GNeuralNet nn(prng);
-		sp_relation in = new GUniformRelation(2);
-		sp_relation out = new GUniformRelation(3);
+		GUniformRelation in(2);
+		GUniformRelation out(3);
 		nn.beginIncrementalLearning(in, out);
 		nn.perturbAllWeights(1.0);
 		double x1[2];
@@ -2130,9 +2143,9 @@ void GNeuralNetPseudoInverse::test()
 	topology.push_back(5);
 	topology.push_back(7);
 	nn.setTopology(topology);
-	sp_relation pFeatureRel = new GUniformRelation(3);
-	sp_relation pLabelRel = new GUniformRelation(12);
-	nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
+	GUniformRelation featureRel(3);
+	GUniformRelation labelRel(12);
+	nn.beginIncrementalLearning(featureRel, labelRel);
 	nn.scaleWeights(10.0);
 	GNeuralNetPseudoInverse nni(&nn, 0.001);
 	double labels[12];

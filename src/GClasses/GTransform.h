@@ -44,13 +44,13 @@ protected:
 /// one row at a time without supervision.
 class GIncrementalTransform : public GTransform
 {
-protected:
-	sp_relation m_pRelationBefore;
-	sp_relation m_pRelationAfter;
+private:
+	GRelation* m_pRelationBefore;
+	GRelation* m_pRelationAfter;
 	double* m_pInnerBuf;
 
 public:
-	GIncrementalTransform() : GTransform(), m_pInnerBuf(NULL) {}
+	GIncrementalTransform() : GTransform(), m_pRelationBefore(NULL), m_pRelationAfter(NULL), m_pInnerBuf(NULL) {}
 	GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIncrementalTransform();
 
@@ -64,7 +64,7 @@ public:
 
 	/// Trains the transform on the data in pData. (This method may be a no-op
 	/// for transformations that always behave in the same manner.)
-	void train(GMatrix& data);
+	void train(const GMatrix& data);
 
 	/// "Trains" the transform without any data.
 	///
@@ -72,19 +72,25 @@ public:
 	/// when it is used with an incremental learner.
 	/// Transforms that cannot be trained without available
 	/// data may throw an exception in this method.
-	void train(sp_relation& relation);
+	void train(const GRelation& pRelation);
+
+	/// Sets the before relation. Takes ownership of pRel.
+	void setBefore(GRelation* pRel);
+
+	/// Sets the after relation. Takes ownership of pRel.
+	void setAfter(GRelation* pRel);
 
 	/// Returns a relation object describing the data before it is
 	/// transformed
 	///
 	/// train must be called before this method is used
-	sp_relation& before() { return m_pRelationBefore; }
+	const GRelation& before() const { return *m_pRelationBefore; }
 
 	/// Returns a relation object describing the data after it is
 	/// transformed
 	///
 	/// train must be called before this method is used
-	sp_relation& after() { return m_pRelationAfter; }
+	const GRelation& after() const { return *m_pRelationAfter; }
 
 	/// pIn is the source row. pOut is a buffer that will hold the
 	/// transformed row.  train must be called before this method
@@ -100,7 +106,7 @@ public:
 	/// transforms all the rows in in returning the resulting
 	/// matrix.  The caller is responsible for deleting the new
 	/// matrix.
-	virtual GMatrix* transformBatch(GMatrix& in);
+	virtual GMatrix* transformBatch(const GMatrix& in);
 
 	/// Returns a buffer of sufficient size to store an inner
 	/// (transformed) vector.  The caller does not have to delete
@@ -120,7 +126,7 @@ public:
 #endif // MIN_PREDICT
 
 	/// This assumes train was previously called, and untransforms all the rows in pIn and returns the results.
-	virtual GMatrix* untransformBatch(GMatrix& in);
+	virtual GMatrix* untransformBatch(const GMatrix& in);
 
 protected:
 	/// Child classes should use this in their implementation of serialize
@@ -130,7 +136,7 @@ protected:
 	/// The data passed in may be used to guide training.
 	/// This method returns a smart-pointer to a relation the represents
 	/// the form that the data will take after it is transformed.
-	virtual sp_relation trainInner(GMatrix& data) = 0;
+	virtual GRelation* trainInner(const GMatrix& data) = 0;
 
 	/// This method implements the functionality called by train.
 	/// This method is called to initialize the transform
@@ -141,7 +147,7 @@ protected:
 	/// data will have.
 	/// This method returns a smart-pointer to a relation the represents
 	/// the form that the data will take after it is transformed.
-	virtual sp_relation trainInner(sp_relation& relation) = 0;
+	virtual GRelation* trainInner(const GRelation& relation) = 0;
 };
 
 
@@ -180,10 +186,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -255,10 +261,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -296,8 +302,6 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	virtual sp_relation& relationAfter() { return m_pRelationBefore; }
-	
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
@@ -313,10 +317,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -352,10 +356,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -397,10 +401,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -439,10 +443,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -479,7 +483,7 @@ public:
 
 	/// Specifies the number of features to select. (This method must be called
 	/// after train.)
-	sp_relation setTargetFeatures(size_t n);
+	GRelation* setTargetFeatures(size_t n);
 
 	/// Returns a list of attributes in ranked-order. Most important attributes are first. Weakest attributes are last.
 	/// (The results are undefined until after train is called.)
@@ -495,10 +499,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 #endif // MIN_PREDICT
 
@@ -547,13 +551,13 @@ public:
 	void preserveUnknowns() { m_preserveUnknowns = true; }
 
 protected:
-	sp_relation init();
+	GRelation* init();
 
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -590,14 +594,14 @@ public:
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 
 	/// Specify the input min and range values for each attribute
-	void setMinsAndRanges(sp_relation& pRel, const double* pMins, const double* pRanges);
+	void setMinsAndRanges(const GRelation& pRel, const double* pMins, const double* pRanges);
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -636,10 +640,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 
@@ -651,7 +655,7 @@ protected:
 	GCollaborativeFilter* m_pCF;
 	GNominalToCat* m_pNTC;
 	GRand& m_rand;
-	GMatrix* m_pLabels;
+	const GMatrix* m_pLabels;
 	GMatrix* m_pBatch;
 
 public:
@@ -683,20 +687,20 @@ public:
 	/// Specify a label matrix that should be appended with the training data.
 	/// This object will not delete pLabels. It is expected that pLabels will remain
 	/// valid at least until after train is next called.
-	void setLabels(GMatrix* pLabels);
+	void setLabels(const GMatrix* pLabels);
 
 	/// Unlike most other transforms, this one assumes that the matrix passed
 	/// to this method is the same that was used to train it. (This assumption
 	/// is necessary in order to utilize the additional label information that
 	/// may be available at training time, which can be important for imputation.)
-	virtual GMatrix* transformBatch(GMatrix& in);
+	virtual GMatrix* transformBatch(const GMatrix& in);
 
 protected:
 	/// See the comment for GIncrementalTransform::train
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// Throws an exception (because this transform cannot be trained without data)
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 #endif // MIN_PREDICT
 
@@ -727,10 +731,10 @@ public:
 
 protected:
 	/// See the comment for GIncrementalTransform::trainInner
-	virtual sp_relation trainInner(GMatrix& data);
+	virtual GRelation* trainInner(const GMatrix& data);
 
 	/// See the comment for GIncrementalTransform::trainInner
-	virtual sp_relation trainInner(sp_relation& relation);
+	virtual GRelation* trainInner(const GRelation& relation);
 };
 
 } // namespace GClasses

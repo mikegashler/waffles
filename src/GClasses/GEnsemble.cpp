@@ -45,7 +45,7 @@ GDomNode* GWeightedModel::serialize(GDom* pDoc) const
 
 
 GEnsemble::GEnsemble(GRand& rand)
-: GSupervisedLearner(rand), m_nAccumulatorDims(0), m_pAccumulator(NULL)
+: GSupervisedLearner(rand), m_pLabelRel(NULL), m_nAccumulatorDims(0), m_pAccumulator(NULL)
 {
 }
 
@@ -71,6 +71,7 @@ GEnsemble::~GEnsemble()
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		delete(*it);
 	delete[] m_pAccumulator;
+	delete(m_pLabelRel);
 }
 
 // virtual
@@ -87,16 +88,17 @@ void GEnsemble::clearBase()
 {
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		(*it)->m_pModel->clear();
-	m_pLabelRel.reset();
+	delete(m_pLabelRel);
+	m_pLabelRel = NULL;
 	delete[] m_pAccumulator;
 	m_pAccumulator = NULL;
 	m_nAccumulatorDims = 0;
 }
 
 // virtual
-void GEnsemble::trainInner(GMatrix& features, GMatrix& labels)
+void GEnsemble::trainInner(const GMatrix& features, const GMatrix& labels)
 {
-	m_pLabelRel = labels.relation();
+	m_pLabelRel = labels.relation().clone();
 
 	// Make the accumulator buffer
 	size_t labelDims = m_pLabelRel->size();
@@ -270,13 +272,13 @@ void GBag::addLearner(GSupervisedLearner* pLearner)
 }
 
 // virtual
-void GBag::trainInnerInner(GMatrix& features, GMatrix& labels)
+void GBag::trainInnerInner(const GMatrix& features, const GMatrix& labels)
 {
 	// Train all the models
 	size_t nLearnerCount = m_models.size();
 	size_t nDrawSize = size_t(m_trainSize * features.rows());
-	GMatrix drawnFeatures(features.relation());
-	GMatrix drawnLabels(labels.relation());
+	GMatrix drawnFeatures(features.relation().clone());
+	GMatrix drawnLabels(labels.relation().clone());
 	drawnFeatures.reserve(nDrawSize);
 	drawnLabels.reserve(nDrawSize);
 	{
@@ -291,8 +293,8 @@ void GBag::trainInnerInner(GMatrix& features, GMatrix& labels)
 			for(size_t j = 0; j < nDrawSize; j++)
 			{
 				size_t r = (size_t)m_rand.next(features.rows());
-				drawnFeatures.takeRow(features[r]);
-				drawnLabels.takeRow(labels[r]);
+				drawnFeatures.takeRow((double*)features[r]); // This case is only okay because we only use drawFeatures as a const GMatrix
+				drawnLabels.takeRow((double*)labels[r]); // This case is only okay because we only use drawnLabels as a const GMatrix
 			}
 
 			// Train the learner with the drawn data
@@ -308,7 +310,7 @@ void GBag::trainInnerInner(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-void GBag::determineWeights(GMatrix& features, GMatrix& labels)
+void GBag::determineWeights(const GMatrix& features, const GMatrix& labels)
 {
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		(*it)->m_weight = 1.0;
@@ -381,7 +383,7 @@ void GBayesianModelAveraging::test()
 		pTree->useRandomDivisions();
 		bma.addLearner(pTree);
 	}
-	bma.basicTest(0.715, 0.76, 0.01);
+	bma.basicTest(0.755, 0.76, 0.01);
 }
 #endif
 
@@ -462,7 +464,7 @@ void GBayesianModelCombination::test()
 		pTree->useRandomDivisions();
 		bmc.addLearner(pTree);
 	}
-	bmc.basicTest(0.76, 0.81, 0.01);
+	bmc.basicTest(0.76, 0.765, 0.01);
 }
 #endif
 
@@ -512,7 +514,7 @@ void GResamplingAdaBoost::clear()
 }
 
 // virtual
-void GResamplingAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
+void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix& labels)
 {
 	clear();
 
@@ -533,15 +535,15 @@ void GResamplingAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
 		// Draw a training set from the distribution
 		GCategoricalSamplerBatch csb(features.rows(), pDistribution, m_rand);
 		csb.draw(drawRows, pDrawnIndexes);
-		GMatrix drawnFeatures(features.relation());
+		GMatrix drawnFeatures(features.relation().clone());
 		GReleaseDataHolder hDrawnFeatures(&drawnFeatures);
-		GMatrix drawnLabels(labels.relation());
+		GMatrix drawnLabels(labels.relation().clone());
 		GReleaseDataHolder hDrawnLabels(&drawnLabels);
 		size_t* pIndex = pDrawnIndexes;
 		for(size_t i = 0; i < drawRows; i++)
 		{
-			drawnFeatures.takeRow(features[*pIndex]);
-			drawnLabels.takeRow(labels[*pIndex]);
+			drawnFeatures.takeRow((double*)features[*pIndex]);
+			drawnLabels.takeRow((double*)labels[*pIndex]);
 			pIndex++;
 		}
 
@@ -555,7 +557,7 @@ void GResamplingAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
 		for(size_t i = 0; i < features.rows(); i++)
 		{
 			pClone->predict(features[i], prediction);
-			double* pTarget = labels[i];
+			const double* pTarget = labels[i];
 			double* pPred = prediction;
 			for(size_t j = 0; j < labelDims; j++)
 			{
@@ -578,7 +580,7 @@ void GResamplingAdaBoost::trainInnerInner(GMatrix& features, GMatrix& labels)
 		{
 			err = 0.0;
 			pClone->predict(features[i], prediction);
-			double* pTarget = labels[i];
+			const double* pTarget = labels[i];
 			double* pPred = prediction;
 			for(size_t j = 0; j < labelDims; j++)
 			{
@@ -650,7 +652,7 @@ void GWag::clear()
 }
 
 // virtual
-void GWag::trainInner(GMatrix& features, GMatrix& labels)
+void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	GNeuralNet* pTemp = NULL;
 	Holder<GNeuralNet> hTemp;
@@ -764,7 +766,7 @@ void GBucket::addLearner(GSupervisedLearner* pLearner)
 }
 
 // virtual
-void GBucket::trainInner(GMatrix& features, GMatrix& labels)
+void GBucket::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	size_t nLearnerCount = m_models.size();
 	double dBestError = 1e200;
@@ -776,7 +778,7 @@ void GBucket::trainInner(GMatrix& features, GMatrix& labels)
 		pLearner = m_models[i];
 		try
 		{
-			err = pLearner->heuristicValidate(features, labels);
+			err = pLearner->crossValidate(features, labels, 2);
 		}
 		catch(std::exception& e)
 		{
@@ -837,6 +839,6 @@ void GBucket::test()
 	bucket.addLearner(new GBaselineLearner(rand));
 	bucket.addLearner(new GDecisionTree(rand));
 	bucket.addLearner(new GMeanMarginsTree(rand));
-	bucket.basicTest(0.70, 0.77);
+	bucket.basicTest(0.695, 0.77);
 }
 #endif

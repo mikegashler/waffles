@@ -550,14 +550,14 @@ void test_transform_mergevert()
 	M.parseArff(buf, strlen(buf));
 	if(M.rows() != 4 || M.cols() != 3)
 		throw Ex("failed");
-	if(M.relation()->valueCount(0) != 0)
+	if(M.relation().valueCount(0) != 0)
 		throw Ex("failed");
-	if(M.relation()->valueCount(1) != 3)
+	if(M.relation().valueCount(1) != 3)
 		throw Ex("failed");
-	if(M.relation()->valueCount(2) != 2)
+	if(M.relation().valueCount(2) != 2)
 		throw Ex("failed");
 	std::ostringstream oss;
-	GArffRelation* pRel = (GArffRelation*)M.relation().get();
+	const GArffRelation* pRel = (const GArffRelation*)&M.relation();
 	pRel->printAttrValue(oss, 1, 2.0);
 	string s = oss.str();
 	if(strcmp(s.c_str(), "charlie") != 0)
@@ -646,8 +646,8 @@ void test_parsearff_quoting(){
   GMatrix M;
   M.parseArff(inputArff, strlen(inputArff));
   double expected_data[5][3]={{1,1,0},{2,4,0},{1.414,2,1},{3,9,0},{4,16,2}};
-  GArffRelation* pRel = (GArffRelation*)M.relation().get();
-  GArffRelation& R = *pRel;
+  const GArffRelation* pRel = (const GArffRelation*)&M.relation();
+  const GArffRelation& R = *pRel;
 
   TestEqual(R.size(), (std::size_t)3, "Incorrect number of attributes");
   for(unsigned row = 0; row < 5; ++row){

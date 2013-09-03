@@ -32,7 +32,7 @@ class GManifold
 {
 public:
 	/// Computes a set of weights for each neighbor to linearly approximate this point
-	static void computeNeighborWeights(GMatrix* pData, size_t point, size_t k, const size_t* pNeighbors, double* pOutWeights);
+	static void computeNeighborWeights(const GMatrix* pData, size_t point, size_t k, const size_t* pNeighbors, double* pOutWeights);
 
 	/// Aligns and averages two local neighborhoods together. The results will be
 	/// centered around the neighborhood mean. The first point will be
@@ -93,7 +93,7 @@ protected:
 	double m_dLearningRate;
 	double m_minNeighborDist, m_maxNeighborDist;
 	std::deque<size_t> m_q;
-	sp_relation m_pRelationAfter;
+	GRelation* m_pRelationAfter;
 	GRand* m_pRand;
 	GMatrix* m_pData;
 	unsigned char* m_pMetaData;
@@ -106,7 +106,7 @@ public:
 	/// Perform NLDR.
 	virtual GMatrix* doit(GMatrix& in);
 
-	virtual sp_relation& relationAfter() { return m_pRelationAfter; }
+	const GRelation& relationAfter() { return *m_pRelationAfter; }
 
 	GMatrix& data() { return *m_pData; }
 
@@ -280,8 +280,8 @@ public:
 
 protected:
 	void refineNeighborhood(GMatrix* pLocal, size_t rootIndex, size_t* pNeighborTable, double* pDistanceTable);
-	GMatrix* reduceNeighborhood(GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances);
-	GMatrix* unfold(GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights);
+	GMatrix* reduceNeighborhood(const GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances);
+	GMatrix* unfold(const GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights);
 };
 
 

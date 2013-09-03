@@ -46,12 +46,7 @@ protected:
 
 public:
 	GDecisionTree(GRand& rand);
-#if 0 //Comment out deep-copy constructor
-	/// Makes a deep copy of another decision tree.  Also, if pInterestingNode
-	/// is non-NULL, then ppOutInterestingNode will return the node that is
-	/// a copy of pInterestingNode
-	GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy);
-#endif
+
 	/// Loads from a DOM.
 	GDecisionTree(GDomNode* pNode, GLearnerLoader& ll);
 
@@ -108,7 +103,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -181,7 +176,7 @@ protected:
 	GMeanMarginsTreeNode* buildNode(GMatrix& features, GMatrix& labels, double* pBuf, size_t* pBuf2);
 
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
@@ -225,7 +220,7 @@ public:
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(GMatrix& features, GMatrix& labels);
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predictInner
 	virtual void predictInner(const double* pIn, double* pOut);
