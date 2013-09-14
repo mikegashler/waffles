@@ -693,6 +693,18 @@ void GNeuralNet::clear()
 	m_layers.clear();
 }
 
+void GNeuralNet::setTopology(size_t h1, size_t h2, size_t h3, size_t h4, size_t h5, size_t h6)
+{
+	vector<size_t> topo;
+	if(h1 > 0) topo.push_back(h1);
+	if(h2 > 0) topo.push_back(h2);
+	if(h3 > 0) topo.push_back(h3);
+	if(h4 > 0) topo.push_back(h4);
+	if(h5 > 0) topo.push_back(h5);
+	if(h6 > 0) topo.push_back(h6);
+	setTopology(topo);
+}
+
 #ifndef MIN_PREDICT
 // virtual
 GDomNode* GNeuralNet::serialize(GDom* pDoc) const

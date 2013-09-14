@@ -258,6 +258,15 @@ public:
 	/// number of nodes to match the columns in the training labels.)
 	void setTopology(const std::vector<size_t>& topology) { m_topology = topology; }
 
+	/// This is a convenience method. It just calls the other one with the same name, which is more versatile.
+	/// It specifies the number of nodes in each hidden layer in feed-forward order. Zeros
+	/// will be ignored. For example, if you pass in (3, 7, 0, 0, 0, 0),
+	/// then the network will have two hidden layers.
+	/// The first hidden layer (in feed-forward order) will have 3 nodes. The next hidden
+	/// layer will have 7 nodes. (The output layer will be automatically added with the
+	/// number of nodes to match the columns in the training labels.)
+	void setTopology(size_t h1 = 0, size_t h2 = 0, size_t h3 = 0, size_t h4 = 0, size_t h5 = 0, size_t h6 = 0);
+
 	/// Returns the number of layers in this neural network. These include the hidden
 	/// layers and the output layer. (The input vector does not count as a layer.)
 	size_t layerCount() const { return m_layers.size(); }

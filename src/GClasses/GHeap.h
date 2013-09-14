@@ -81,7 +81,10 @@ public:
 		return pNewBytes;
 	}
 
-	/// Allocate space in the heap and return a pointer to it
+	/// Allocate space in the heap and return a pointer to it. The returned pointer
+	/// will be aligned to start at a location divisible by the size of a pointer,
+	/// so it will be suitable for use with placement new even on architectures that
+	/// require aligned pointers.
 	char* allocAligned(size_t nLength)
 	{
 		size_t nAlignedCurPos = ALIGN_UP(m_nCurrentPos);

@@ -20,6 +20,7 @@
 #endif
 #include "../GClasses/GApp.h"
 #include "../GClasses/GAssignment.h"
+#include "../GClasses/GBayesianNetwork.h"
 #include "../GClasses/GBezier.h"
 #include "../GClasses/GBits.h"
 #include "../GClasses/GBitTable.h"
@@ -944,6 +945,7 @@ public:
 		runTest("GBaselineRecommender", GBaselineRecommender::test);
 		runTest("GBayesianModelAveraging", GBayesianModelAveraging::test);
 		runTest("GBayesianModelCombination", GBayesianModelCombination::test);
+		runTest("GBayesNet", GBayesNet::test);
 		runTest("GBezier", GBezier::test);
 		runTest("GBits", GBits::test);
 		runTest("GBitTable", GBitTable::test);

@@ -240,7 +240,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		}
 		else
 			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
-	
+
 		// Normalize
 		if(normalize)
 		{
@@ -249,7 +249,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			pNF2->normalizeDistances();
 			pNF = pNF2;
 		}
-	
+
 		// Apply CycleCut
 		if(cutCycleLen > 0)
 		{
@@ -550,7 +550,7 @@ void keepOnlyColumns(GArgReader& args)
 
 	//colsToDel will be a list of the column indices not listed in
 	//colsToKeep sorted from largest to smallest
-	vector<size_t> colsToDel; 
+	vector<size_t> colsToDel;
 	colsToDel.reserve(attrCount - colsToKeep.size());
 	for(size_t i = attrCount-1; i < attrCount; --i){
 	  if(colsToKeep.find(i) == colsToKeep.end()){
@@ -1252,7 +1252,7 @@ void rotate(GArgReader& args)
 	if(!relation->areContinuous(colx,1)){
 	  throw Ex("Rotation first column index (",to_str(colx),") "
 		     "should be continuous and it is not.");
-		     
+
 	}
 	unsigned coly = args.pop_uint();
 	if(coly >= pA->cols()){
@@ -1265,7 +1265,7 @@ void rotate(GArgReader& args)
 	  throw Ex("Rotation second column index (",to_str(coly),") "
 		     "should be continuous and it is not.");
 	}
-	
+
 	double angle = args.pop_double();
 
 	angle = angle * M_PI / 180; //Convert from degrees to radians
@@ -1594,7 +1594,7 @@ void splitClass(GArgReader& args)
 	GMatrix* pData = loadData(filename);
 	Holder<GMatrix> hData(pData);
 	size_t classAttr = args.pop_uint();
-	
+
 	bool dropClass = false;
 	while(args.size() > 0)
 	{
@@ -1621,6 +1621,19 @@ void splitClass(GArgReader& args)
 			tmp.deleteColumn(classAttr);
 		tmp.saveArff(s.c_str());
 	}
+}
+
+void splitVal(GArgReader& args)
+{
+	const char* filename = args.pop_string();
+	GMatrix* pData = loadData(filename);
+	Holder<GMatrix> hData(pData);
+	size_t col = args.pop_uint();
+	double val = args.pop_double();
+	GMatrix ge(pData->relation().clone());
+	pData->splitByPivot(&ge, col, val);
+	pData->saveArff("less_than.arff");
+	ge.saveArff("greater_or_equal.arff");
 }
 
 void squaredDistance(GArgReader& args)
@@ -1991,6 +2004,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("split")) split(args);
 		else if(args.if_pop("splitclass")) splitClass(args);
 		else if(args.if_pop("splitfold")) splitFold(args);
+		else if(args.if_pop("splitval")) splitVal(args);
 		else if(args.if_pop("squaredDistance")) squaredDistance(args);
 		else if(args.if_pop("svd")) singularValueDecomposition(args);
 		else if(args.if_pop("swapcolumns")) SwapAttributes(args);
