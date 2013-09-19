@@ -45,7 +45,7 @@ public:
 	virtual bool IsLeaf() = 0;
 	virtual size_t GetBranchSize() = 0;
 	virtual GDecisionTreeNode* DeepCopy(size_t nOutputCount, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy) = 0;
-	virtual void print(GRelation* pFeatureRel, GRelation* pLabelRel, ostream& stream, size_t depth, const char* parentValue) = 0;
+	virtual void print(GDecisionTree* pTree, ostream& stream, vector<char>& prefix, const char* parentValue) = 0;
 	virtual void CountValues(size_t nOutput, size_t* pnCounts) = 0;
 	virtual double FindSumOutputValue(size_t nOutput) = 0;
 	static GDecisionTreeNode* deserialize(GDomNode* pNode);
@@ -130,39 +130,89 @@ public:
 		return pNewNode;
 	}
 
-	virtual void print(GRelation* pFeatureRel, GRelation* pLabelRel, ostream& stream, size_t depth, const char* parentValue)
+	virtual void print(GDecisionTree* pTree, ostream& stream, vector<char>& prefix, const char* parentValue)
 	{
-		for(size_t n = 0; n < depth; n++)
-			stream << "  ";
+		for(size_t n = 0; n + 1 < prefix.size(); n++)
+			stream << prefix[n];
+		stream << "|\n";
+		for(size_t n = 0; n + 1 < prefix.size(); n++)
+			stream << prefix[n];
 		if(parentValue)
-			stream << parentValue << " -> ";
-		if(pFeatureRel->valueCount(m_nAttribute) == 0)
+			stream << "+" << parentValue << "->";
+		if(pTree->relFeatures().valueCount(m_nAttribute) == 0)
 		{
 			ostringstream oss;
-			pFeatureRel->printAttrValue(oss, m_nAttribute, m_dPivot);
+			pTree->relFeatures().printAttrValue(oss, m_nAttribute, m_dPivot);
 			string s = oss.str();
-			if(pFeatureRel->type() == GRelation::ARFF)
-				stream << "Is " << ((GArffRelation*)pFeatureRel)->attrName(m_nAttribute) << " < " << s.c_str() << "?\n";
+			if(pTree->relFeatures().type() == GRelation::ARFF)
+				stream << "Is " << ((GArffRelation&)pTree->relFeatures()).attrName(m_nAttribute) << " < " << s.c_str() << "?\n";
 			else
-				stream << "Is attr " << m_nAttribute << " < " << s.c_str() << "?\n";
+				stream << "Is attr " << to_str(m_nAttribute) << " < " << s.c_str() << "?\n";
 			if(m_nChildren != 2)
 				throw Ex("expected this node to have two child nodes");
-			m_ppChildren[0]->print(pFeatureRel, pLabelRel, stream, depth + 1, "Yes");
-			m_ppChildren[1]->print(pFeatureRel, pLabelRel, stream, depth + 1, "No");
+			prefix.push_back(' ');
+			prefix.push_back(' ');
+			prefix.push_back(' ');
+			prefix.push_back('|');
+			m_ppChildren[0]->print(pTree, stream, prefix, "Yes");
+			prefix.pop_back();
+			prefix.push_back(' ');
+			m_ppChildren[1]->print(pTree, stream, prefix, "No");
+			prefix.pop_back();
+			prefix.pop_back();
+			prefix.pop_back();
+			prefix.pop_back();
+		}
+		else if(pTree->isBinary())
+		{
+			ostringstream oss;
+			pTree->relFeatures().printAttrValue(oss, m_nAttribute, m_dPivot);
+			string s = oss.str();
+			if(pTree->relFeatures().type() == GRelation::ARFF)
+				stream << "Is " << ((GArffRelation&)pTree->relFeatures()).attrName(m_nAttribute) << " == " << s.c_str() << "?\n";
+			else
+				stream << "Is attr " << to_str(m_nAttribute) << " == " << s.c_str() << "?\n";
+			if(m_nChildren != 2)
+				throw Ex("expected this node to have two child nodes");
+			prefix.push_back(' ');
+			prefix.push_back(' ');
+			prefix.push_back(' ');
+			prefix.push_back('|');
+			m_ppChildren[0]->print(pTree, stream, prefix, "Yes");
+			prefix.pop_back();
+			prefix.push_back(' ');
+			m_ppChildren[1]->print(pTree, stream, prefix, "No");
+			prefix.pop_back();
+			prefix.pop_back();
+			prefix.pop_back();
+			prefix.pop_back();
 		}
 		else
 		{
-			if(pFeatureRel->type() == GRelation::ARFF)
-				stream << "What is the value of " << ((GArffRelation*)pFeatureRel)->attrName(m_nAttribute) << "?\n";
+			if(pTree->relFeatures().type() == GRelation::ARFF)
+				stream << ((GArffRelation&)pTree->relFeatures()).attrName(m_nAttribute) << "?\n";
 			else
-				stream << "What is the value of attr " << m_nAttribute << "?\n";
+				stream << "Attr " << to_str(m_nAttribute) << "?\n";
+			prefix.push_back(' ');
+			prefix.push_back(' ');
+			prefix.push_back(' ');
+			prefix.push_back('|');
 			for(size_t n = 0; n < m_nChildren; n++)
 			{
+				if(n + 1 == m_nChildren)
+				{
+					prefix.pop_back();
+					prefix.push_back(' ');
+				}
 				ostringstream oss;
-				pFeatureRel->printAttrValue(oss, m_nAttribute, (double)n);
+				pTree->relFeatures().printAttrValue(oss, m_nAttribute, (double)n);
 				string s = oss.str();
-				m_ppChildren[n]->print(pFeatureRel, pLabelRel, stream, depth + 1, s.c_str());
+				m_ppChildren[n]->print(pTree, stream, prefix, s.c_str());
 			}
+			prefix.pop_back();
+			prefix.pop_back();
+			prefix.pop_back();
+			prefix.pop_back();
 		}
 	}
 
@@ -243,21 +293,24 @@ public:
 		return pNewNode;
 	}
 
-	virtual void print(GRelation* pFeatureRel, GRelation* pLabelRel, ostream& stream, size_t depth, const char* parentValue)
+	virtual void print(GDecisionTree* pTree, ostream& stream, vector<char>& prefix, const char* parentValue)
 	{
-		for(size_t n = 0; n < depth; n++)
-			stream << "  ";
+		for(size_t n = 0; n + 1 < prefix.size(); n++)
+			stream << prefix[n];
+		stream << "|\n";
+		for(size_t n = 0; n + 1 < prefix.size(); n++)
+			stream << prefix[n];
 		if(parentValue)
-			stream << parentValue << " -> ";
-		for(size_t n = 0; n < pLabelRel->size(); n++)
+			stream << "+" << parentValue << "->";
+		for(size_t n = 0; n < pTree->relLabels().size(); n++)
 		{
 			if(n > 0)
 				stream << ", ";
 			ostringstream oss;
-			pLabelRel->printAttrValue(oss, n, m_pOutputValues[n]);
+			pTree->relLabels().printAttrValue(oss, n, m_pOutputValues[n]);
 			string s = oss.str();
-			if(pLabelRel->type() == GRelation::ARFF)
-				stream << ((GArffRelation*)pLabelRel)->attrName(n) << "=" << s.c_str();
+			if(pTree->relLabels().type() == GRelation::ARFF)
+				stream << ((GArffRelation&)pTree->relLabels()).attrName(n) << "=" << s.c_str();
 			else
 				stream << s.c_str();
 		}
@@ -290,7 +343,7 @@ GDecisionTreeNode* GDecisionTreeNode::deserialize(GDomNode* pNode)
 // -----------------------------------------------------------------
 
 GDecisionTree::GDecisionTree(GRand& rand)
-: GSupervisedLearner(rand), m_leafThresh(1), m_maxLevels(0)
+: GSupervisedLearner(rand), m_leafThresh(1), m_maxLevels(0), m_binaryDivisions(false)
 {
 	m_pRoot = NULL;
 	m_eAlg = GDecisionTree::MINIMIZE_ENTROPY;
@@ -301,6 +354,7 @@ GDecisionTree::GDecisionTree(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_eAlg = (DivisionAlgorithm)pNode->field("alg")->asInt();
 	m_pRoot = GDecisionTreeNode::deserialize(pNode->field("root"));
+	m_binaryDivisions = pNode->field("bin")->asBool();
 }
 
 // virtual
@@ -317,6 +371,7 @@ GDomNode* GDecisionTree::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GDecisionTree");
 	pNode->addField(pDoc, "alg", pDoc->newInt(m_eAlg));
 	pNode->addField(pDoc, "root", m_pRoot->serialize(pDoc, m_pRelLabels->size()));
+	pNode->addField(pDoc, "bin", pDoc->newBool(m_binaryDivisions));
 	return pNode;
 }
 
@@ -325,17 +380,33 @@ size_t GDecisionTree::treeSize()
 	return m_pRoot->GetBranchSize();
 }
 
+void GDecisionTree::useBinaryDivisions()
+{
+	m_binaryDivisions = true;
+	delete(m_pRoot);
+	m_pRoot = NULL;
+}
+
 void GDecisionTree::print(ostream& stream, GArffRelation* pFeatureRel, GArffRelation* pLabelRel)
 {
 	if(!m_pRoot)
 		throw Ex("not trained yet");
-	GRelation* pFRel = pFeatureRel;
-	GRelation* pLRel = pLabelRel;
-	if(!pFRel)
-		pFRel = m_pRelFeatures;
-	if(!pLRel)
-		pLRel = m_pRelLabels;
-	m_pRoot->print(pFRel, pLRel, stream, 0, NULL);
+	if(pFeatureRel && pFeatureRel->type() == GRelation::ARFF)
+	{
+		if(!m_pRelFeatures->isCompatible(*pFeatureRel))
+			throw Ex("Feature relation not compatible");
+		delete(m_pRelFeatures);
+		m_pRelFeatures = pFeatureRel->clone();
+	}
+	if(pLabelRel && pLabelRel->type() == GRelation::ARFF)
+	{
+		if(!m_pRelLabels->isCompatible(*pLabelRel))
+			throw Ex("Label relation not compatible");
+		delete(m_pRelLabels);
+		m_pRelLabels = pLabelRel->clone();
+	}
+	vector<char> prefix;
+	m_pRoot->print(this, stream, prefix, NULL);
 }
 
 // virtual
@@ -387,34 +458,62 @@ double GDecisionTree_measureRealSplitInfo(GMatrix& features, GMatrix& labels, GM
 	GAssert(tmpFeatures.rows() == 0 && tmpLabels.rows() == 0);
 	size_t rowCount = features.rows();
 	features.splitByPivot(&tmpFeatures, attr, pivot, &labels, &tmpLabels);
-	double d;
-	if(features.rows() > 0 && tmpLabels.rows() > 0)
-		d = (labels.measureInfo() * labels.rows() + tmpLabels.measureInfo() * tmpLabels.rows()) / rowCount;
+	double dInfo;
+	if(features.rows() > 0 && tmpFeatures.rows() > 0)
+		dInfo = (labels.measureInfo() * labels.rows() + tmpLabels.measureInfo() * tmpLabels.rows()) / rowCount;
 	else
-		d = 1e308;
+		dInfo = 1e308;
 	features.mergeVert(&tmpFeatures);
 	labels.mergeVert(&tmpLabels);
-	return d;
+	return dInfo;
+}
+
+double GDecisionTree_measureBinarySplitInfo(GMatrix& features, GMatrix& labels, GMatrix& tmpFeatures, GMatrix& tmpLabels, size_t attr, int pivot)
+{
+	GAssert(tmpFeatures.rows() == 0 && tmpLabels.rows() == 0);
+	size_t rowCount = features.rows();
+	features.splitByNominalValue(&tmpFeatures, attr, pivot, &labels, &tmpLabels);
+	double dInfo;
+	if(features.rows() > 0 && tmpFeatures.rows() > 0)
+		dInfo = (labels.measureInfo() * labels.rows() + tmpLabels.measureInfo() * tmpLabels.rows()) / rowCount;
+	else
+		dInfo = 1e308;
+	features.mergeVert(&tmpFeatures);
+	labels.mergeVert(&tmpLabels);
+	return dInfo;
 }
 
 double GDecisionTree_pickPivotToReduceInfo(GMatrix& features, GMatrix& labels, GMatrix& tmpFeatures, GMatrix& tmpLabels, double* pPivot, size_t attr, GRand* pRand)
 {
-	size_t nRows = features.rows();
 	double bestPivot = UNKNOWN_REAL_VALUE;
 	double bestInfo = 1e100;
-	double* pRow1;
-	double* pRow2;
-	size_t attempts = std::min(features.rows() - 1, (features.rows() * features.cols() > 100000 ? (size_t)1 : (size_t)8));
-	for(size_t n = 0; n < attempts; n++)
+	size_t vals = features.relation().valueCount(attr);
+	if(vals == 0)
 	{
-		pRow1 = features.row((size_t)pRand->next(nRows));
-		pRow2 = features.row((size_t)pRand->next(nRows));
-		double pivot = 0.5 * (pRow1[attr] + pRow2[attr]);
-		double info = GDecisionTree_measureRealSplitInfo(features, labels, tmpFeatures, tmpLabels, attr, pivot);
-		if(info + 1e-14 < bestInfo) // the small value makes it deterministic across hardware
+		size_t attempts = std::min(features.rows() - 1, (features.rows() * features.cols() > 100000 ? (size_t)1 : (size_t)8));
+		for(size_t n = 0; n < attempts; n++)
 		{
-			bestInfo = info;
-			bestPivot = pivot;
+			double* pRow1 = features.row((size_t)pRand->next(features.rows()));
+			double* pRow2 = features.row((size_t)pRand->next(features.rows()));
+			double pivot = 0.5 * (pRow1[attr] + pRow2[attr]);
+			double info = GDecisionTree_measureRealSplitInfo(features, labels, tmpFeatures, tmpLabels, attr, pivot);
+			if(info + 1e-14 < bestInfo) // the small value makes it deterministic across hardware
+			{
+				bestInfo = info;
+				bestPivot = pivot;
+			}
+		}
+	}
+	else
+	{
+		for(int i = 0; (size_t)i < vals; i++)
+		{
+			double info = GDecisionTree_measureBinarySplitInfo(features, labels, tmpFeatures, tmpLabels, attr, i);
+			if(info + 1e-14 < bestInfo) // the small value makes it deterministic across hardware
+			{
+				bestInfo = info;
+				bestPivot = (double)i;
+			}
 		}
 	}
 	*pPivot = bestPivot;
@@ -454,7 +553,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 		for(vector<size_t>::iterator it = attrPool.begin(); it != attrPool.end(); it++)
 		{
 			double info;
-			if(features.relation().valueCount(*it) == 0)
+			if(m_binaryDivisions || features.relation().valueCount(*it) == 0)
 				info = GDecisionTree_pickPivotToReduceInfo(features, labels, tmpFeatures, tmpLabels, &pivot, *it, &m_rand);
 			else
 				info = GDecisionTree_measureNominalSplitInfo(features, labels, tmpFeatures, tmpLabels, *it);
@@ -492,6 +591,14 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 				pivot = 0.5 * (a + b);
 				if(m_randomDraws > 1)
 					info = GDecisionTree_measureRealSplitInfo(features, labels, tmpFeatures, tmpLabels, attr, pivot);
+				else
+					info = 0.0;
+			}
+			else if(m_binaryDivisions)
+			{
+				pivot = (double)m_rand.next(features.relation().valueCount(attr));
+				if(m_randomDraws > 1)
+					info = GDecisionTree_measureBinarySplitInfo(features, labels, tmpFeatures, tmpLabels, attr, (int)pivot);
 				else
 					info = 0.0;
 			}
@@ -619,11 +726,10 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	// Make a leaf if we're out of tolerance or the output is
 	// homogenous or there are no attributes left or we have
 	// reached the maximum number of levels in the tree
-	if(tolerance <= 0 || features.rows() <= m_leafThresh 
-	   || attrPool.size() == 0 || labels.isHomogenous() 
+	if(tolerance <= 0 || features.rows() <= m_leafThresh
+	   || attrPool.size() == 0 || labels.isHomogenous()
 	   || (nDepth+1 == m_maxLevels)){
-	  return new GDecisionTreeLeafNode(GDecisionTreeNode_labelVec(labels), 
-					   labels.rows());
+		return new GDecisionTreeLeafNode(GDecisionTreeNode_labelVec(labels), labels.rows());
 	}
 
 	// Pick the division
@@ -632,8 +738,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 
 	// Make a leaf if there are no good divisions
 	if(bestIndex >= attrPool.size()){
-	  return new GDecisionTreeLeafNode(GDecisionTreeNode_labelVec(labels), 
-					   labels.rows());
+		return new GDecisionTreeLeafNode(GDecisionTreeNode_labelVec(labels), labels.rows());
 	}
 	size_t attr = attrPool[bestIndex];
 
@@ -655,6 +760,16 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 		GMatrix* pOtherLabels = new GMatrix(m_pRelLabels->clone());
 		labelParts.push_back(pOtherLabels);
 		features.splitByPivot(pOtherFeatures, attr, pivot, &labels, pOtherLabels);
+		nonEmptyBranchCount += (features.rows() > 0 ? 1 : 0) + (pOtherFeatures->rows() > 0 ? 1 : 0);
+	}
+	else if(m_binaryDivisions)
+	{
+		// Split on a nominal attribute and specific value
+		GMatrix* pOtherFeatures = new GMatrix(m_pRelFeatures->clone());
+		featureParts.push_back(pOtherFeatures);
+		GMatrix* pOtherLabels = new GMatrix(m_pRelLabels->clone());
+		labelParts.push_back(pOtherLabels);
+		features.splitByNominalValue(pOtherFeatures, attr, (int)pivot, &labels, pOtherLabels);
 		nonEmptyBranchCount += (features.rows() > 0 ? 1 : 0) + (pOtherFeatures->rows() > 0 ? 1 : 0);
 	}
 	else
@@ -759,6 +874,20 @@ GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth
 			if(pIn[pInterior->m_nAttribute] == UNKNOWN_REAL_VALUE)
 				pNode = pInterior->m_ppChildren[pInterior->m_defaultChild];
 			else if(pIn[pInterior->m_nAttribute] < pInterior->m_dPivot)
+				pNode = pInterior->m_ppChildren[0];
+			else
+				pNode = pInterior->m_ppChildren[1];
+		}
+		else if(m_binaryDivisions)
+		{
+			nVal = (int)pIn[pInterior->m_nAttribute];
+			if(nVal < 0)
+			{
+				GAssert(nVal == UNKNOWN_DISCRETE_VALUE); // out of range
+				nVal = (int)pInterior->m_defaultChild;
+			}
+			GAssert((size_t)nVal < m_pRelFeatures->valueCount(pInterior->m_nAttribute)); // value out of range
+			if(nVal == (int)pInterior->m_dPivot)
 				pNode = pInterior->m_ppChildren[0];
 			else
 				pNode = pInterior->m_ppChildren[1];
@@ -1148,11 +1277,11 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 				otherLabels.takeRow(labels.releaseRow(i));
 			}
 		}
-	
+
 		// If we couldn't separate anything, just return a leaf node
 		if(features.rows() == 0 || otherFeatures.rows() == 0)
 			return new GMeanMarginsTreeLeafNode(m_internalLabelDims, pLabelCentroid);
-	
+
 		// Build the child nodes
 		pNode->SetLeft(buildNode(features, labels, pBuf, pBuf2));
 		pNode->SetRight(buildNode(otherFeatures, otherLabels, pBuf, pBuf2));
@@ -1249,14 +1378,14 @@ void GRandomForest::clear()
 	m_pEnsemble->clear();
 }
 
-void GRandomForest::print(std::ostream& stream, GArffRelation* pFeatureRel, GArffRelation* pLabelRel) 
+void GRandomForest::print(std::ostream& stream, GArffRelation* pFeatureRel, GArffRelation* pLabelRel)
 {
 	std::vector<GWeightedModel*> models = m_pEnsemble->getInner();
 	size_t nModels = models.size();
-	for (size_t i = 0; i < nModels; i++) 
-	{   
+	for (size_t i = 0; i < nModels; i++)
+	{
 	    stream << "TREE " << i << ":" << std::endl;
-	    ((GDecisionTree *) models[i]->m_pModel)->print(stream, pFeatureRel, pLabelRel);
+	    ((GDecisionTree*)models[i]->m_pModel)->print(stream, pFeatureRel, pLabelRel);
 	}
 }
 

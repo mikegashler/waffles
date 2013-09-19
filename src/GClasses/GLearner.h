@@ -218,12 +218,12 @@ public:
 	/// model that allows them to generalize previously unseen rows.
 	virtual bool canGeneralize() { return true; }
 
-	/// Returns a smart-pointer to the feature relation (meta-data about the input attributes).
+	/// Returns a reference to the feature relation (meta-data about the input attributes).
 	/// (Note that this relation describes outer data, and may contain types that are not
 	/// supported by the inner algorithm.)
 	const GRelation& relFeatures() { return *m_pRelFeatures; }
 
-	/// Returns a smart-pointer to the label relation (meta-data about the output attributes).
+	/// Returns a reference to the label relation (meta-data about the output attributes).
 	/// (Note that this relation describes outer data, and may contain types that are not
 	/// supported by the inner algorithm.)
 	const GRelation& relLabels() { return *m_pRelLabels; }

@@ -43,6 +43,7 @@ protected:
 	size_t m_leafThresh;
 	size_t m_randomDraws;
 	size_t m_maxLevels;
+	bool m_binaryDivisions;
 
 public:
 	GDecisionTree(GRand& rand);
@@ -73,6 +74,12 @@ public:
 
 	/// Returns the leaf threshold.
 	size_t leafThresh() { return m_leafThresh; }
+
+	/// Specify to only use binary divisions.
+	void useBinaryDivisions();
+
+	/// Returns true iff useBinaryDivisions was called.
+	bool isBinary() { return m_binaryDivisions; }
 
 	/// Sets the leaf threshold. When the number of samples is <= this value,
 	/// it will no longer try to divide the data, but will create a leaf node.
@@ -212,7 +219,7 @@ public:
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
-	
+
 	/// Prints an ascii representation of the random forest to the specified stream.
 	/// pRelation is an optional relation that can be supplied in order to provide
 	/// better meta-data to make the print-out richer.

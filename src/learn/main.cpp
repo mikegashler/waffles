@@ -350,7 +350,7 @@ GResamplingAdaBoost* InstantiateBoost(GRand& rand, GArgReader& args, GMatrix* pF
 {
 	double trainingSizeRatio = 1;
 	size_t ensembleSize = 30;
-	
+
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-trainratio"))
@@ -424,6 +424,9 @@ GDecisionTree* InstantiateDecisionTree(GRand& rand, GArgReader& args, GMatrix* p
 			if(!pFeatures || !pLabels)
 				throw Ex("Insufficient data to support automatic tuning");
 			pModel->autoTune(*pFeatures, *pLabels);
+		}
+		else if(args.if_pop("-binary")){
+			pModel->useBinaryDivisions();
 		}
 		else if(args.if_pop("-random")){
 			pModel->useRandomDivisions(args.pop_uint());
@@ -1307,7 +1310,7 @@ std::string machineReadableConfusionData(std::size_t variable_idx, const GRelati
       out << "," << m[r][c];
     }
   }
-  return out.str();  
+  return out.str();
 }
 
 ///\brief Prints the confusion matrices as machine-readable csv-like lines.
@@ -1323,7 +1326,7 @@ std::string machineReadableConfusionData(std::size_t variable_idx, const GRelati
 ///\param matrixArray matrixArray[i] is null if there is no matrix to
 ///                   be printed. Otherwise matrixArray[i] is the
 ///                   confusion matrix for the i'th attribute of
-///                   pRelation. Row r, column c of matrixArray[i] is the 
+///                   pRelation. Row r, column c of matrixArray[i] is the
 ///                   number of times the value r of the attribute was expected
 ///                   and c was encountered.
 void printMachineReadableConfusionMatrices(const GRelation* pRelation, vector<GMatrix*>& matrixArray){
@@ -1611,7 +1614,7 @@ void SplitTest(GArgReader& args)
 
 			// Write trained model file on last repetition
 			if(lastModelFile != "" && i+1 == reps){
-				GSupervisedLearner* pSup = 
+				GSupervisedLearner* pSup =
 				  dynamic_cast<GSupervisedLearner*>
 				  (pSupLearner);
 				GDom doc;
@@ -2077,7 +2080,7 @@ public:
 	GMatrix* m_pIn;
 	GMatrix* m_pOut;
 	GFunction* m_pFunc;
-	
+
 	OptimizerTargetFunc(GMatrix* pIn, GMatrix* pOut, GFunction* pFunc) : GTargetFunction(pFunc->m_expectedParams - pIn->cols()), m_pIn(pIn), m_pOut(pOut), m_pFunc(pFunc)
 	{
 	}
