@@ -49,8 +49,8 @@ protected:
 	GIncrementalLearner* m_pLearner;
 
 public:
-	TestQAgent(sp_relation& pRelation, double* pInitialState, GRand* prng, GAgentActionIterator* pActionIterator, double softMaxThresh, double soberness, double reward, double penalty, bool warpRandom)
-	: GIncrementalLearnerQAgent(pRelation, MakeLearner(prng), 1/*actionDims*/, pInitialState, prng, pActionIterator, softMaxThresh)
+	TestQAgent(const GRelation& relation, double* pInitialState, GRand* prng, GAgentActionIterator* pActionIterator, double softMaxThresh, double soberness, double reward, double penalty, bool warpRandom)
+	: GIncrementalLearnerQAgent(relation, MakeLearner(prng), 1/*actionDims*/, pInitialState, prng, pActionIterator, softMaxThresh)
 	{
 		m_lastReward = UNKNOWN_REAL_VALUE;
 		m_soberness = soberness;
@@ -275,12 +275,10 @@ void DoTest(GRand* prng, double rcoeff, double alpha, double gamma, double rewar
 	fflush(stdout);
 	soft_max_thresh /= 100;
 	double soberness = ((rcoeff * 4 / 100) - 1) / 3;
-	sp_relation rel;
-	GMixedRelation* pRel = new GMixedRelation();
-	rel = pRel;
-	pRel->addAttr(0); // x
-	pRel->addAttr(0); // y
-	pRel->addAttr(4); // {E,N,W,S}
+	GMixedRelation rel;
+	rel.addAttr(0); // x
+	rel.addAttr(0); // y
+	rel.addAttr(4); // {E,N,W,S}
 	GDiscreteActionIterator it(4);
 	double initialstate[2];
 	initialstate[0] = 0;

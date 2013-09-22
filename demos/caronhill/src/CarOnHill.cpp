@@ -34,8 +34,8 @@ protected:
 	GIncrementalLearner* m_pQTable;
 
 public:
-	CarQAgent(sp_relation& pRelation, double* pInitialState, GRand* prng, GAgentActionIterator* pActionIterator)
-	: GIncrementalLearnerQAgent(pRelation, MakeQTable(prng), 1/*actionDims*/, pInitialState, prng, pActionIterator, 0.97/*softMaxThresh*/)
+	CarQAgent(const GRelation& obsControlRelation, double* pInitialState, GRand* prng, GAgentActionIterator* pActionIterator)
+	: GIncrementalLearnerQAgent(obsControlRelation, MakeQTable(prng), 1/*actionDims*/, pInitialState, prng, pActionIterator, 0.97/*softMaxThresh*/)
 	{
 		m_lastReward = UNKNOWN_REAL_VALUE;
 	}
@@ -102,12 +102,10 @@ public:
 		m_pRotatedCar = new GImage();
 
 		// Make the agent
-		GMixedRelation* pRelAgent = new GMixedRelation();
-		sp_relation relAgent;
-		relAgent = pRelAgent;
-		pRelAgent->addAttr(0); // position
-		pRelAgent->addAttr(0); // velocity
-		pRelAgent->addAttr(2); // action {forward, reverse}
+		GMixedRelation relAgent;
+		relAgent.addAttr(0); // position
+		relAgent.addAttr(0); // velocity
+		relAgent.addAttr(2); // action {forward, reverse}
 		double initialState[2];
 		initialState[0] = m_carPos;
 		initialState[1] = m_velocity;

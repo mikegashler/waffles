@@ -811,7 +811,7 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 				pRow[2] = conf;
 			}
 			labelList.sort(2);
-	
+
 			// Assign the labels to the patterns we are most confident about
 			size_t maxCount = std::max((size_t)4, features1.rows() / 8);
 			size_t count = 0;
@@ -879,7 +879,7 @@ void GInstanceTable::trainSparse(GSparseMatrix& features, GMatrix& labels)
 }
 
 // virtual
-void GInstanceTable::trainInner(GMatrix& features, GMatrix& labels)
+void GInstanceTable::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	beginIncrementalLearningInner(features.relation(), labels.relation());
 	for(size_t i = 0; i < features.rows(); i++)

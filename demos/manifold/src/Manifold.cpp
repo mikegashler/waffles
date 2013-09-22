@@ -93,7 +93,7 @@ protected:
 class ManifoldModel
 {
 protected:
-	sp_relation m_pRelation;
+	GRelation* m_pRelation;
 	GMatrix* m_pData;
 	GManifoldSculpting* m_pSculpter;
 	double* m_pIdealResults;
@@ -112,6 +112,7 @@ public:
 		delete(m_pSculpter);
 		delete(m_pData);
 		delete[] m_pIdealResults;
+		delete(m_pRelation);
 	}
 
 	double* GetPoint(int n)
@@ -395,7 +396,7 @@ public:
 			m_pIdealResults = new double[nPoints * (eType == SPIRALS ? 1 : 2)];
 		double t;
 		int n;
-		m_pData = new GMatrix(m_pRelation);
+		m_pData = new GMatrix(m_pRelation->clone());
 		m_pData->reserve(nPoints);
 		if(eType == SWISS_ROLL)
 		{
@@ -497,7 +498,7 @@ public:
 			for(i = 0; i < nSupervisedPoints; i++)
 			{
 				size_t nPoint = (size_t)prng->next(nPoints);
-				GVec::copy(m_pSculpter->data().row(nPoint), pTrainedModel->GetSculpter()->data().row(nPoint), m_pSculpter->data().relation()->size());
+				GVec::copy(m_pSculpter->data().row(nPoint), pTrainedModel->GetSculpter()->data().row(nPoint), m_pSculpter->data().relation().size());
 				m_pSculpter->clampPoint(nPoint);
 			}
 		}
@@ -514,7 +515,7 @@ public:
 		// Make another swiss roll
 		int nNeighbors = 24;
 		srand(0); // Make sure we always get consistent results
-		GMatrix data(m_pRelation);
+		GMatrix data(m_pRelation->clone());
 		data.reserve(SWISS_ROLL_POINTS);
 		double t;
 		int n;
@@ -537,7 +538,7 @@ public:
 		{
 			if(prng.next(20) == 0)
 			{
-				GVec::copy(pSculpter->data().row(n), m_pSculpter->data().row(n), pSculpter->data().relation()->size());
+				GVec::copy(pSculpter->data().row(n), m_pSculpter->data().row(n), pSculpter->data().relation().size());
 				pSculpter->clampPoint(n);
 			}
 		}
@@ -590,7 +591,7 @@ public:
 		int i, x, y;
 
 		// Load the images into the ARFF data
-		m_pData = new GMatrix(m_pRelation);
+		m_pData = new GMatrix(m_pRelation->clone());
 		m_pData->reserve(nImageCount);
 		char szFilename[300];
 		GApp::appPath(szFilename, 300, true);

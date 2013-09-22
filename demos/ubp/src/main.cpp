@@ -76,7 +76,7 @@ public:
 			if(tmp.cols() != 3)
 				throw Ex("unexpected number of columns");
 			m_tar.newRows(tmp.rows());
-			m_tar.copyColumnsDataOnly(0, &tmp, 0, 3);
+			m_tar.copyBlock(tmp, 0, 0, tmp.rows(), 3);
 		}
 		m_pred.newRows(m_tar.rows());
 		m_context.newRows(m_tar.rows());
@@ -98,9 +98,9 @@ public:
 		topo.push_back(36);
 		m_nn.setTopology(topo);
 		m_nn.setLearningRate(0.1);
-		sp_relation pFeatureRel = new GUniformRelation(2);
-		sp_relation pLabelRel = new GUniformRelation(3);
-		m_nn.beginIncrementalLearning(pFeatureRel, pLabelRel);
+		GUniformRelation featureRel(2);
+		GUniformRelation labelRel(3);
+		m_nn.beginIncrementalLearning(featureRel, labelRel);
 		m_pIndexes = new size_t[m_tar.rows()];
 		GIndexVec::makeIndexVec(m_pIndexes, m_tar.rows());
 		m_nextSpotlight = 0;
@@ -126,7 +126,7 @@ public:
 		double cumErr = 0.0;
 		size_t activeCount = 0;
 		GBackProp* pBP = m_nn.backProp();
-		GBackPropLayer& bpLayer = pBP->layer(m_nn.layerCount() - 1);
+//		GBackPropLayer& bpLayer = pBP->layer(m_nn.layerCount() - 1);
 		GIndexVec::shuffle(m_pIndexes, m_tar.rows(), &m_rand);
 		size_t* pInd = m_pIndexes;
 		for(size_t i = 0; i < m_tar.rows(); i++)
@@ -294,7 +294,7 @@ public:
 		max.add(&min);
 		updateCameraDirection();
 
-		m_pDataSorter = new GMatrix(pDataTar->relation());
+		m_pDataSorter = new GMatrix(pDataTar->relation().clone());
 		m_pDataSorter->reserve(pDataTar->rows() + pDataPred->rows());
 		for(size_t i = 0; i < pDataTar->rows(); i++)
 			m_pDataSorter->takeRow(pDataTar->row(i));

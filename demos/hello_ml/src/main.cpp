@@ -34,8 +34,7 @@ void do_decision_tree(GRand& rand, GMatrix& features, GMatrix& labels, double* t
 void do_neural_network(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
 	GNeuralNet model(rand);
-	model.setActivationFunction(new GActivationTanH(), true); // use the hyperbolic tangent activation function
-	model.addLayer(3); // add one hidden layer of 3 nodes
+	model.setTopology(3); // add one hidden layer of 3 nodes
 	model.setLearningRate(0.1);
 	model.setMomentum(0.1);
 	model.train(features, labels);
