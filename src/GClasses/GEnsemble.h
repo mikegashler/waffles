@@ -166,6 +166,43 @@ protected:
 };
 
 
+/// An experimental ensemble technique
+class GBomb : public GBag
+{
+protected:
+	size_t m_samples;
+
+public:
+	/// General-purpose constructor
+	GBomb(GRand& rand) : GBag(rand), m_samples(100) {}
+
+	/// Deserializing constructor.
+	GBomb(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GBomb() {}
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Returns the number of samples from which to estimate the combination weights
+	size_t samples() { return m_samples; }
+
+	/// Sets the number of samples to use to estimate the combination weights
+	void setSamples(size_t n) { m_samples = n; }
+
+protected:
+	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+
+	/// Determines the weights in the manner of Bayesian model averaging,
+	/// with the assumption of uniform priors.
+	virtual void determineWeights(GMatrix& features, GMatrix& labels);
+};
+
 
 /// This is an ensemble that uses the bagging approach for training, and Bayesian
 /// Model Averaging to combine the models. That is, it trains each model with data

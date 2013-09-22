@@ -338,6 +338,83 @@ void GBag::test()
 
 
 
+GBomb::GBomb(GDomNode* pNode, GLearnerLoader& ll)
+: GBag(pNode, ll)
+{
+	m_samples = (size_t)pNode->field("samps")->asInt();
+}
+
+// virtual
+void GBomb::determineWeights(GMatrix& features, GMatrix& labels)
+{
+	// Try uniform weights first
+	double* pWeights = new double[m_models.size()];
+	ArrayHolder<double> hWeights(pWeights);
+	double uniform = 1.0 / m_models.size();
+	GVec::setAll(pWeights, uniform, m_models.size());
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		(*it)->m_weight = uniform;
+	double minErr = sumSquaredError(features, labels);
+
+	// Try random weight combinations
+	for(size_t i = 0; i < m_samples; i++)
+	{
+		// Set weights randomly from a dirichlet distribution with unifrom probabilities
+		for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+			(*it)->m_weight = m_rand.exponential();
+		normalizeWeights();
+
+		// Evaluate accuracy
+		double err = sumSquaredError(features, labels);
+
+		// Remember the best weights yet found
+		if(err < minErr)
+		{
+			minErr = err;
+			double* pW = pWeights;
+			for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+				*(pW++) = (*it)->m_weight;
+		}
+	}
+
+	// Restore the best weights yet found
+	double* pW = pWeights;
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		(*it)->m_weight = *(pW++);
+}
+
+// virtual
+GDomNode* GBomb::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GBomb");
+	serializeBase(pDoc, pNode);
+	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
+	pNode->addField(pDoc, "samps", pDoc->newInt(m_samples));
+	return pNode;
+}
+
+#ifndef NO_TEST_CODE
+// static
+void GBomb::test()
+{
+	GRand rand(0);
+	GBomb bomb(rand);
+	for(size_t i = 0; i < 32; i++)
+	{
+		GDecisionTree* pTree = new GDecisionTree(rand);
+		pTree->useRandomDivisions();
+		bomb.addLearner(pTree);
+	}
+	bomb.basicTest(0.76, 0.765, 0.01);
+}
+#endif
+
+
+
+
+
+
+
 // virtual
 void GBayesianModelAveraging::determineWeights(GMatrix& features, GMatrix& labels)
 {

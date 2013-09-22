@@ -225,8 +225,7 @@ void Noise(GArgReader& args)
 	// Make the data
 	GRand prng(nSeed);
 	GUniformRelation* pRelation = new GUniformRelation(dims, vals);
-	sp_relation pRel = pRelation;
-	GMatrix data(pRel);
+	GMatrix data(pRelation);
 	if(dist.compare("gaussian") == 0 || dist.compare("normal") == 0)
 	{
 		for(int i = 0; i < pats; i++)
@@ -380,7 +379,7 @@ void randomWalk(GArgReader& args)
 	GMatrix actions;
 	if(discrete)
 	{
-		sp_relation pRel = new GUniformRelation(1, dims * 2);
+		GUniformRelation* pRel = new GUniformRelation(1, dims * 2);
 		actions.setRelation(pRel);
 		actions.newRows(samples);
 		double d = 0.0;
@@ -1492,9 +1491,8 @@ void gridRandomWalk(GArgReader& args)
 
 	// Generate the dataset
 	GRand prng(nSeed);
-	GMatrix dataObs(pData->relation());
-	sp_relation pControlRel = new GUniformRelation(1, 4);
-	GMatrix dataControl(pControlRel);
+	GMatrix dataObs(pData->relation().clone());
+	GMatrix dataControl(new GUniformRelation(1, 4));
 	GMatrix dataState(0, 2);
 	int colCount = (int)pData->cols();
 	while(dataObs.rows() < samples)
@@ -1757,9 +1755,8 @@ void sceneRobotSimulationPath(GArgReader& args)
 	frame.setSize(cameraWid, cameraHgt);
 	double x = strafeLen / 2.0;
 	double y = 0.0;//zoomLen / 2.0;
-	sp_relation pRel = new GUniformRelation(1, 4);
 	GMatrix state(0, 2);
-	GMatrix act(pRel);
+	GMatrix act(new GUniformRelation(1, 4));
 	GMatrix obs(0, cameraWid * cameraHgt * 3);
 	for(unsigned int i = 0; i < frames; i++)
 	{
@@ -1903,8 +1900,7 @@ void mechanicalRabbit(GArgReader& args)
 	double y = 0.0;
 	GMatrix obsActual(0, rm.obsDims());
 	GMatrix state(0, 2);
-	sp_relation pRel = new GUniformRelation(1, 4);
-	GMatrix actionsActual(pRel);
+	GMatrix actionsActual(new GUniformRelation(1, 4));
 
 	// Do the mechanical rabbit
 	GTEMPBUF(double, tmpContext, rm.contextDims());
@@ -2122,7 +2118,7 @@ void mapEquations(GArgReader& args)
 	out.print(cout);
 }
 
-void MakeAttributeSummaryGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, int attr)
+void MakeAttributeSummaryGraph(const GRelation* pRelation, GMatrix* pData, GImage* pImage, int attr)
 {
 	if(pRelation->valueCount(attr) == 0)
 	{
@@ -2169,7 +2165,7 @@ void MakeAttributeSummaryGraph(GRelation* pRelation, GMatrix* pData, GImage* pIm
 	}
 }
 
-void MakeCorrelationGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, int attrx, int attry, double jitter, GRand* pRand)
+void MakeCorrelationGraph(const GRelation* pRelation, GMatrix* pData, GImage* pImage, int attrx, int attry, double jitter, GRand* pRand)
 {
 	pImage->clear(0xffffffff);
 	double xmin, ymin, xmax, ymax;
@@ -2204,7 +2200,7 @@ void MakeCorrelationGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, 
 		size_t tot = pData->rows();
 		for(size_t i = 0; i < pRelation->valueCount(attrx); i++)
 		{
-			GMatrix tmp(pData->relation());
+			GMatrix tmp(pData->relation().clone());
 			pData->splitByNominalValue(&tmp, attrx, (int)i);
 			right += (double)tmp.rows() / tot;
 			double bot = 0.0;
@@ -2234,7 +2230,7 @@ void MakeCorrelationGraph(GRelation* pRelation, GMatrix* pData, GImage* pImage, 
 	}
 }
 
-void MakeCorrelationLabel(GArffRelation* pRelation, GMatrix* pData, GImage* pImage, int attr, unsigned int bgCol)
+void MakeCorrelationLabel(const GArffRelation* pRelation, GMatrix* pData, GImage* pImage, int attr, unsigned int bgCol)
 {
 	pImage->clear(bgCol);
 	if(pRelation->valueCount(attr) == 0)
@@ -2296,7 +2292,7 @@ void PlotCorrelations(GArgReader& args)
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+	const GArffRelation* pRel = (const GArffRelation*)&pData->relation();
 
 	// Parse options
 	string filename = "plot.png";
@@ -2536,7 +2532,7 @@ void Plot3dMulti(GArgReader& args)
 	// Load
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	GArffRelation* pRel = (GArffRelation*)pData->relation().get();
+	const GArffRelation* pRel = (const GArffRelation*)&pData->relation();
 
 	// Parse options
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
@@ -2644,17 +2640,17 @@ void model(GArgReader& args)
 		throw Ex("Expected the filename of a dataset");
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	if(pData->cols() != pModeler->relFeatures()->size() + pModeler->relLabels()->size())
+	if(pData->cols() != pModeler->relFeatures().size() + pModeler->relLabels().size())
 		throw Ex("Model was trained with a different number of attributes than in this data");
 
 	// Get other parameters
 	unsigned int attrx = args.pop_uint();
-	if(pData->relation()->valueCount(attrx) != 0)
+	if(pData->relation().valueCount(attrx) != 0)
 		throw Ex("Sorry, currently only continuous attributes can be plotted");
 	unsigned int attry = args.pop_uint();
-	if(pData->relation()->valueCount(attry) != 0)
+	if(pData->relation().valueCount(attry) != 0)
 		throw Ex("Sorry, currently only continuous attributes can be plotted");
-	size_t featureDims = pModeler->relFeatures()->size();
+	size_t featureDims = pModeler->relFeatures().size();
 	if(attrx >= (unsigned int)featureDims || attry >= (unsigned int)featureDims)
 		throw Ex("feature attribute out of range");
 
@@ -2682,7 +2678,7 @@ void model(GArgReader& args)
 
 	// Compute label range
 	double labelMin = 0.0;
-	double labelRange = (double)pData->relation()->valueCount(featureDims + labelDim);
+	double labelRange = (double)pData->relation().valueCount(featureDims + labelDim);
 	if(labelRange == 0.0)
 	{
 		labelMin = pData->columnMin(featureDims + labelDim);
@@ -2703,7 +2699,7 @@ void model(GArgReader& args)
 	unsigned int* pPix = image.pixels();
 	size_t step = std::max((size_t)1, pData->rows() / 100);
 	double xx, yy;
-	bool continuous = pData->relation()->valueCount(featureDims + labelDim) == 0 ? true : false;
+	bool continuous = pData->relation().valueCount(featureDims + labelDim) == 0 ? true : false;
 	for(int y = 0; y < height; y++)
 	{
 		cout << ((float)y * 100.0f / height) << "%       \r";
@@ -2769,8 +2765,8 @@ void rayTraceManifoldModel(GArgReader& args)
 	GLearnerLoader ll(prng, true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
-	if(pModeler->relFeatures()->size() != 2 || pModeler->relLabels()->size() != 3)
-		throw Ex("The model has ", to_str(pModeler->relFeatures()->size()), " inputs and ", to_str(pModeler->relLabels()->size()), " outputs. 2 real inputs and 3 real outputs are expected");
+	if(pModeler->relFeatures().size() != 2 || pModeler->relLabels().size() != 3)
+		throw Ex("The model has ", to_str(pModeler->relFeatures().size()), " inputs and ", to_str(pModeler->relLabels().size()), " outputs. 2 real inputs and 3 real outputs are expected");
 
 	// Parse options
 	int width = 400;
@@ -3008,7 +3004,7 @@ void ubpFrames(GArgReader& args)
 	GUnsupervisedBackProp* pUBP = new GUnsupervisedBackProp(doc.root(), ll);
 	Holder<GUnsupervisedBackProp> hUBP(pUBP);
 
-	size_t featureDims = pUBP->neuralNet()->relFeatures()->size() - 2;
+	size_t featureDims = pUBP->neuralNet()->relFeatures().size() - 2;
 	GTEMPBUF(double, pFeatures, featureDims);
 	GVec::setAll(pFeatures, 0.5, featureDims);
 	size_t labelDims = pUBP->labelDims();
@@ -3026,7 +3022,7 @@ void ubpFrames(GArgReader& args)
 			pFeatures[featureDims - 1] = (double)vFrame / (framesVert - 1);
 			pUBP->lowToHi(pFeatures, pLabels);
 			GImage tmp;
-			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->relLabels()->size(), 255.0);
+			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->relLabels().size(), 255.0);
 			image.blit(xx, yy, &tmp);
 			xx += imageWid + 1;
 		}
