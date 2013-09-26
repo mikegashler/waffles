@@ -573,7 +573,7 @@ void GSupervisedLearner::setupFilters(const GMatrix& features, const GMatrix& la
 						normalizationIsNeeded = true;
 						break;
 					}
-					if((fMax - fMin) >= 1e-12 && (fMax - fMin) * 4 < supportedMax - supportedMin)
+					if((fMax - fMin) >= 1e-12 && (fMax - fMin) * 4.0 < supportedMax - supportedMin)
 					{
 						normalizationIsNeeded = true;
 						break;
@@ -1183,17 +1183,17 @@ void GSupervisedLearner::test()
 	d = 0;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
-	if(std::abs(prob - 0.15) > .1)
+	if(std::abs(prob - 0.15) > .11)
 		throw Ex("failed");
 	d = 1;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
-	if(std::abs(prob - 0.30) > .1)
+	if(std::abs(prob - 0.30) > .11)
 		throw Ex("failed");
 	d = 2;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
-	if(std::abs(prob - 0.85) > .1)
+	if(std::abs(prob - 0.85) > .11)
 		throw Ex("failed");
 }
 
@@ -1305,7 +1305,9 @@ void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, dou
 
 void GIncrementalLearner::beginIncrementalLearning(const GRelation& featureRel, const GRelation& labelRel)
 {
+	delete(m_pRelFeatures);
 	m_pRelFeatures = featureRel.clone();
+	delete(m_pRelLabels);
 	m_pRelLabels = labelRel.clone();
 	if(m_pFilterFeatures)
 		m_pFilterFeatures->train(featureRel);
@@ -1352,7 +1354,7 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
 					return new GAttributeSelector(pNode, *this);
 				else
 #endif // MIN_PREDICT
-                    if(strcmp(szClass, "GDataAugmenter") == 0)
+				if(strcmp(szClass, "GDataAugmenter") == 0)
 					return new GDataAugmenter(pNode, *this);
 				else if(strcmp(szClass, "GDiscretize") == 0)
 					return new GDiscretize(pNode, *this);
@@ -1364,7 +1366,7 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
 					return new GImputeMissingVals(pNode, *this);
 				else
 #endif // MIN_PREDICT
-                    if(strcmp(szClass, "GIncrementalTransformChainer") == 0)
+				if(strcmp(szClass, "GIncrementalTransformChainer") == 0)
 					return new GIncrementalTransformChainer(pNode, *this);
 			}
 		}

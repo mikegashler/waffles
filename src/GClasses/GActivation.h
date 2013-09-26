@@ -203,6 +203,9 @@ public:
 #endif
 	}
 
+	/// Returns 1-(y*y)
+	virtual double derivativeOfNet(double net, double activation) { return 1.0 - (activation * activation); }
+
 	/// Returns 0.0
 	virtual double center() { return 0.0; }
 

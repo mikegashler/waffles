@@ -196,6 +196,7 @@ void GIncrementalTransform::test()
 	GRand rand(0);
 	GLearnerLoader ll(rand);
 	GIncrementalTransform* pTrans = ll.loadIncrementalTransform(pNode);
+	Holder<GIncrementalTransform> hTrans(pTrans);
 
 	// Transform the input matrix again, and check it
 	GMatrix* pC = pTrans->transformBatch(m);
@@ -1007,7 +1008,6 @@ GNominalToCat::GNominalToCat(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_valueCap = (size_t)pNode->field("valueCap")->asInt();
 	m_preserveUnknowns = pNode->field("pu")->asBool();
-	init();
 }
 
 GRelation* GNominalToCat::init()

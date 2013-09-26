@@ -98,6 +98,7 @@ void GEnsemble::clearBase()
 // virtual
 void GEnsemble::trainInner(const GMatrix& features, const GMatrix& labels)
 {
+	delete(m_pLabelRel);
 	m_pLabelRel = labels.relation().clone();
 
 	// Make the accumulator buffer

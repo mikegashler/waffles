@@ -296,7 +296,7 @@ void GStackableAutoencoder::propToHidden(const double* pVisible)
 	GVec::add(pA, biasHidden(), m_hiddenCount);
 	for(size_t i = 0; i < m_hiddenCount; i++)
 	{
-		*pA = GMath::logistic(*pA);
+		*pA = tanh(*pA);
 		pA++;
 	}
 }
@@ -309,7 +309,7 @@ void GStackableAutoencoder::propToVisible(const double* pHidden)
 	GVec::add(pA, biasVisible(), m_visibleCount);
 	for(size_t i = 0; i < m_visibleCount; i++)
 	{
-		*pA = GMath::logistic(*pA);
+		*pA = tanh(*pA);
 		pA++;
 	}
 }
@@ -368,7 +368,7 @@ void GStackableAutoencoder::backpropHelper1(const double* pInputs, double* pInpu
 	const double* pInp = pInputs;
 	for(size_t i = 0; i < m_hiddenCount; i++)
 	{
-		*(pInputBlame++) *= (*pInp) * (1.0 - *pInp);
+		*(pInputBlame++) *= (1.0 - (*pInp) * (*pInp));
 		pInp++;
 	}
 
@@ -391,7 +391,7 @@ void GStackableAutoencoder::backpropHelper2(const double* pInputs, double* pInpu
 	const double* pInp = pInputs;
 	for(size_t i = 0; i < m_visibleCount; i++)
 	{
-		*(pInputBlame++) *= (*pInp) * (1.0 - *pInp);
+		*(pInputBlame++) *= (1.0 - (*pInp) * (*pInp));
 		pInp++;
 	}
 
@@ -504,7 +504,7 @@ void GDeepNet::refineBackprop(const double* pObservation, double learningRate)
 	const double* pObs = pObservation;
 	for(size_t i = 0; i < pVisibleLayer->visibleCount(); i++)
 	{
-		*(pBlame++) = (*pObs - *pAct) * (*pAct) * (1.0 - *pAct);
+		*(pBlame++) = (*pObs - *pAct) * (1.0 - (*pAct) * (*pAct));
 		pAct++;
 		pObs++;
 	}

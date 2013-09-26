@@ -30,9 +30,12 @@ protected:
 	GRelation* m_pRelation;
 
 public:
+	/// Takes ownership of pRelation
 	GTargetFunction(GRelation* pRelation) : m_pRelation(pRelation) {}
+
 	GTargetFunction(size_t dims);
-	virtual ~GTargetFunction() {}
+
+	virtual ~GTargetFunction();
 
 	/// Returns a (smart) pointer to the relation, which specifies the type
 	/// (discrete or real) of each element in the vector that is being optimized.

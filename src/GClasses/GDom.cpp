@@ -842,7 +842,7 @@ GDomNode* GDom::loadJsonValue(GJsonTokenizer& tok)
 	}
 	else
 	{
-		throw Ex("Unexpected token while parsing JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+		throw Ex("Unexpected token, \"", to_str(c), "\", while parsing JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		return NULL;
 	}
 }

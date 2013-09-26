@@ -24,6 +24,12 @@ GTargetFunction::GTargetFunction(size_t dims)
 }
 
 // virtual
+GTargetFunction::~GTargetFunction()
+{
+	delete(m_pRelation);
+}
+
+// virtual
 void GTargetFunction::initVector(double* pVector)
 {
 	GVec::setAll(pVector, 0.0, m_pRelation->size());

@@ -39,7 +39,7 @@ GNeuralNetLayer::GNeuralNetLayer(size_t inputs, size_t outputs, GActivationFunct
 {
 	m_pActivationFunction = pActivationFunction;
 	if(!m_pActivationFunction)
-		m_pActivationFunction = new GActivationLogistic();
+		m_pActivationFunction = new GActivationTanH();
 	resize(inputs, outputs);
 }
 
@@ -113,11 +113,6 @@ void GNeuralNetLayer::resetWeights(GRand* pRand)
 		*pB = pRand->normal() * 0.1;
 		for(size_t j = 0; j < inputs; j++)
 			m_weights[j][i] = pRand->normal() * 0.1;
-
-		// Compensate for the bias introduced by the non-zero center of the logistic output
-		for(size_t j = 0; j < inputs; j++)
-			*pB -= 0.5 * m_weights[j][i];
-
 		pB++;
 	}
 }
@@ -217,23 +212,15 @@ void GNeuralNetLayer::perturbWeights(GRand& rand, double deviation)
 
 void GNeuralNetLayer::setToWeaklyApproximateIdentity()
 {
-	if(strcmp(m_pActivationFunction->name(), "logistic") == 0)
+	double d = 1.0 / m_pActivationFunction->derivative(0.0);
+	double b = -m_pActivationFunction->center() * d;
+	m_weights.setAll(0.0);
+	size_t n = std::min(inputs(), outputs());
+	for(size_t i = 0; i < n; i++)
 	{
-		m_weights.setAll(0.0);
-		size_t n = std::min(inputs(), outputs());
-		for(size_t i = 0; i < n; i++)
-		{
-			m_weights[i][i] = 4.92;
-			bias()[i] = -0.5 * 4.92;
-		}
+		m_weights[i][i] = d;
+		bias()[i] = b;
 	}
-	else if(strcmp(m_pActivationFunction->name(), "identity") == 0)
-	{
-		m_weights.makeIdentity();
-		GVec::setAll(bias(), 0.0, outputs());
-	}
-	else
-		throw Ex("Sorry, this method deoes not yet support the ", m_pActivationFunction->name(), " activation function");
 }
 
 void GNeuralNetLayer::clipWeights(double max)
@@ -756,8 +743,8 @@ bool GNeuralNet::supportedLabelRange(double* pOutMin, double* pOutMax)
 	}
 	else
 	{
-		// Assume the logistic function is the default
-		*pOutMin = 0.0;
+		// Assume the tanh function is the default
+		*pOutMin = -1.0;
 		*pOutMax = 1.0;
 	}
 	return false;
@@ -1598,7 +1585,8 @@ void GNeuralNet_testMath()
 	// o_2 = squash(w_7*1+w_8*x+w_9*y) = 1/(1+exp(-(.01*1+.04*0-.02*(-.7)))) = 0.50599971201659
 	// o_3 = squash(w_10*1+w_11*x+w_12*y) = 1/(1+exp(-(-.02*1+.03*0+.02*(-.7)))) = 0.49150081873869
 	// o_0 = squash(w_0*1+w_1*o_1+w_2*o_2+w_3*o_3) = 1/(1+exp(-(.02*1-.01*.4922506205862+.03*.50599971201659+.02*.49150081873869))) = 0.51002053349535
-	if(std::abs(pat[2] - 0.51002053349535) > tol) throw Ex("forward prop problem");
+	//if(std::abs(pat[2] - 0.51002053349535) > tol) throw Ex("forward prop problem"); // logistic
+	if(std::abs(pat[2] - 0.02034721575641) > tol) throw Ex("forward prop problem"); // tanh
 
 	// Test that the output error is computed properly
 	nn.trainIncremental(features[0], labels[0]);
@@ -1615,7 +1603,8 @@ void GNeuralNet_testMath()
 	{
 		// Here is the math for why these results are expected:
 		// e_0 = output*(1-output)*(target-output) = .51002053349535*(1-.51002053349535)*(1-.51002053349535) = 0.1224456672531
-		if(std::abs(pBP->layer(1).blame()[0] - 0.1224456672531) > tol) throw Ex("problem computing output error");
+		//if(std::abs(pBP->layer(1).blame()[0] - 0.1224456672531) > tol) throw Ex("problem computing output error"); // logistic
+		if(std::abs(pBP->layer(1).blame()[0] - 0.9792471989888) > tol) throw Ex("problem computing output error"); // tanh
 	}
 
 	// Test Back Prop
@@ -1630,11 +1619,14 @@ void GNeuralNet_testMath()
 	else
 	{
 		// e_1 = o_1*(1-o_1)*(w_1*e_0) = .4922506205862*(1-.4922506205862)*(-.01*.1224456672531) = -0.00030604063598154
-		if(std::abs(pBP->layer(0).blame()[0] + 0.00030604063598154) > tol) throw Ex("back prop problem");
+		//if(std::abs(pBP->layer(0).blame()[0] + 0.00030604063598154) > tol) throw Ex("back prop problem"); // logistic
+		if(std::abs(pBP->layer(0).blame()[0] + 0.00978306745006032) > tol) throw Ex("back prop problem"); // tanh
 		// e_2 = o_2*(1-o_2)*(w_2*e_0) = 0.00091821027577176
-		if(std::abs(pBP->layer(0).blame()[1] - 0.00091821027577176) > tol) throw Ex("back prop problem");
+		//if(std::abs(pBP->layer(0).blame()[1] - 0.00091821027577176) > tol) throw Ex("back prop problem"); // logistic
+		if(std::abs(pBP->layer(0).blame()[1] - 0.02936050107376107) > tol) throw Ex("back prop problem"); // tanh
 		// e_3 = o_3*(1-o_3)*(w_3*e_0) = 0.00061205143636003
-		if(std::abs(pBP->layer(0).blame()[2] - 0.00061205143636003) > tol) throw Ex("back prop problem");
+		//if(std::abs(pBP->layer(0).blame()[2] - 0.00061205143636003) > tol) throw Ex("back prop problem"); // logistic
+		if(std::abs(pBP->layer(0).blame()[2] - 0.01956232122115741) > tol) throw Ex("back prop problem"); // tanh
 	}
 
 	// Test weight update
@@ -1647,21 +1639,31 @@ void GNeuralNet_testMath()
 	{
 		// d_0 = (d_0*momentum)+(learning_rate*e_0*1) = 0*.9+.175*.1224456672531*1
 		// w_0 = w_0 + d_0 = .02+.0214279917693 = 0.041427991769293
-		if(std::abs(layerOut.bias()[0] - 0.041427991769293) > tol) throw Ex("weight update problem");
+		//if(std::abs(layerOut.bias()[0] - 0.041427991769293) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerOut.bias()[0] - 0.191368259823049) > tol) throw Ex("weight update problem"); // tanh
 		// d_1 = (d_1*momentum)+(learning_rate*e_0*o_1) = 0*.9+.175*.1224456672531*.4922506205862
 		// w_1 = w_1 + d_1 = -.01+.0105479422563 = 0.00054794224635029
-		if(std::abs(layerOut.m_weights[0][0] - 0.00054794224635029) > tol) throw Ex("weight update problem");
-		if(std::abs(layerOut.m_weights[1][0] - 0.040842557664356) > tol) throw Ex("weight update problem");
-		if(std::abs(layerOut.m_weights[2][0] - 0.030531875498533) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.bias()[0] + 0.010053557111297) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.m_weights[0][0] + 0.03) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.m_weights[1][0] - 0.030037489977908) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.bias()[1] - 0.01016068679826) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.m_weights[0][1] - 0.04) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.m_weights[1][1] + 0.020112480758782) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.bias()[2] + 0.019892890998637) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.m_weights[0][2] - 0.03) > tol) throw Ex("weight update problem");
-		if(std::abs(layerHidden.m_weights[1][2] - 0.019925023699046) > tol) throw Ex("weight update problem");
+		//if(std::abs(layerOut.m_weights[0][0] - 0.00054794224635029) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerOut.m_weights[0][0] + 0.015310714964467731) > tol) throw Ex("weight update problem"); // tanh
+		//if(std::abs(layerOut.m_weights[1][0] - 0.040842557664356) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerOut.m_weights[1][0] - 0.034112048752708297) > tol) throw Ex("weight update problem"); // tanh
+		//if(std::abs(layerOut.m_weights[2][0] - 0.030531875498533) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerOut.m_weights[2][0] - 0.014175723281037968) > tol) throw Ex("weight update problem"); // tanh
+		//if(std::abs(layerHidden.bias()[0] + 0.010053557111297) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerHidden.bias()[0] + 0.011712036803760557) > tol) throw Ex("weight update problem"); // tanh
+		if(std::abs(layerHidden.m_weights[0][0] + 0.03) > tol) throw Ex("weight update problem"); // logistic & tanh
+		//if(std::abs(layerHidden.m_weights[1][0] - 0.030037489977908) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerHidden.m_weights[1][0] - 0.03119842576263239) > tol) throw Ex("weight update problem"); // tanh
+		//if(std::abs(layerHidden.bias()[1] - 0.01016068679826) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerHidden.bias()[1] - 0.015138087687908187) > tol) throw Ex("weight update problem"); // tanh
+		if(std::abs(layerHidden.m_weights[0][1] - 0.04) > tol) throw Ex("weight update problem"); // logistic & tanh
+		//if(std::abs(layerHidden.m_weights[1][1] + 0.020112480758782) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerHidden.m_weights[1][1] + 0.023596661381535732) > tol) throw Ex("weight update problem"); // tanh
+		//if(std::abs(layerHidden.bias()[2] + 0.019892890998637) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerHidden.bias()[2] + 0.016576593786297455) > tol) throw Ex("weight update problem"); // tanh
+		if(std::abs(layerHidden.m_weights[0][2] - 0.03) > tol) throw Ex("weight update problem"); // logistic & tanh
+		//if(std::abs(layerHidden.m_weights[1][2] - 0.019925023699046) > tol) throw Ex("weight update problem"); // logistic
+		if(std::abs(layerHidden.m_weights[1][2] - 0.01760361565040822) > tol) throw Ex("weight update problem"); // tanh
 	}
 }
 
@@ -2050,7 +2052,7 @@ void GNeuralNet::test()
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn(prng);
-		nn.basicTest(0.74, 0.78);
+		nn.basicTest(0.74, 0.79);
 	}
 
 	// Test NN with one hidden layer
@@ -2059,12 +2061,25 @@ void GNeuralNet::test()
 		vector<size_t> topology;
 		topology.push_back(3);
 		nn.setTopology(topology);
-		nn.basicTest(0.76, 0.752);
+		nn.basicTest(0.76, 0.708);
 	}
 }
 
 #endif // MIN_PREDICT
 
+
+
+
+
+
+
+
+
+GNeuralNetInverseLayer::~GNeuralNetInverseLayer()
+{
+	delete(m_pInverseWeights);
+	delete(m_pActivationFunction);
+}
 
 
 
@@ -2080,6 +2095,7 @@ GNeuralNetPseudoInverse::GNeuralNetPseudoInverse(GNeuralNet* pNN, double padding
 		maxNodes = std::max(maxNodes, nnLayer.outputs());
 		GNeuralNetInverseLayer* pLayer = new GNeuralNetInverseLayer();
 		m_layers.push_back(pLayer);
+		delete(pLayer->m_pActivationFunction);
 		pLayer->m_pActivationFunction = nnLayer.activationFunction()->clone();
 		GMatrix weights(nnLayer.outputs(), nnLayer.inputs());
 		double* pBias = nnLayer.bias();
@@ -2158,7 +2174,11 @@ void GNeuralNetPseudoInverse::test()
 	GUniformRelation featureRel(3);
 	GUniformRelation labelRel(12);
 	nn.beginIncrementalLearning(featureRel, labelRel);
-	nn.scaleWeights(10.0);
+	for(size_t i = 0; i < nn.layerCount(); i++)
+	{
+		nn.getLayer(i)->setToWeaklyApproximateIdentity();
+		nn.getLayer(i)->perturbWeights(prng, 0.5);
+	}
 	GNeuralNetPseudoInverse nni(&nn, 0.001);
 	double labels[12];
 	double features[3];
@@ -2184,7 +2204,7 @@ void GNeuralNetPseudoInverse::test()
 
 
 GReservoirNet::GReservoirNet(GRand& rand)
-: GNeuralNet(rand), m_weightDeviation(2.0), m_augments(64), m_reservoirLayers(2)
+: GNeuralNet(rand), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)
 {
 	clearFeatureFilter();
 }
@@ -2221,7 +2241,7 @@ void GReservoirNet::test()
 {
 	GRand prng(0);
 	GReservoirNet lr(prng);
-	lr.basicTest(0.77, 0.72);
+	lr.basicTest(0.77, 0.68);
 }
 #endif // MIN_PREDICT
 

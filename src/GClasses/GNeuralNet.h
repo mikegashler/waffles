@@ -87,8 +87,6 @@ public:
 	void perturbWeights(GRand& rand, double deviation);
 
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
-	/// Currently only supports the logistic and identity activation functions. Throws an exception
-	/// if some other activation function is attached to this layer.
 	void setToWeaklyApproximateIdentity();
 
 	/// An experimental thing--needs more testing
@@ -459,8 +457,6 @@ public:
 	/// a better approximation for adding a new layer with no net effect on the overall behavior of
 	/// the network could be implemented if the weights in other layers were also adjusted, but that
 	/// might exacerbate weight saturation.)
-	/// The current implementation makes the unnecessary assumptions that the logistic function is used
-	/// as the activation function in all layers.
 	void insertLayer(size_t position, size_t nodeCount);
 
 	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
@@ -519,13 +515,19 @@ public:
 	std::vector<double> m_unbias;
 	GMatrix* m_pInverseWeights;
 
-	~GNeuralNetInverseLayer()
+	GNeuralNetInverseLayer()
+	: m_pActivationFunction(NULL)
 	{
-		delete(m_pInverseWeights);
 	}
+
+	~GNeuralNetInverseLayer();
 };
 
-/// Computes the pseudo-inverse of a neural network.
+/// Approximates the inverse of a neural network. (This only
+/// works well if the neural network is mostly invertible. For
+/// example, if the neural network only deviates a little from
+/// the identity function, then this will work well. With many
+/// interesting problems, this gives very poor results.)
 class GNeuralNetPseudoInverse
 {
 protected:
