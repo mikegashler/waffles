@@ -15,7 +15,7 @@
 
 <h2>Building on Windows</h2>
 <ol>
-	<li>Install Microsoft Visual C++ 2008 or 2010 Express Edition.</li>
+	<li>Install Microsoft Visual C++ 2010 Express Edition.</li>
 	<li>File->Open->Project/Solution</li>
 	<li>Open waffles/src/waffles.sln</li>
 	<li>Build (F7)</li>
@@ -36,13 +36,24 @@
 <span style="font-weight: bold;">
 	When I run one of the apps, a black window appears for just a split second, then disappears, and nothing else happens.
 </span><br><div style="margin-left: 40px;">
-	Most of these apps are command-line applications that are meant to be run in a terminal or command shell. They do not open up a graphical interface for you. If you do not supply any arguments, then they will just print the usage information for the application (which is what you are seeing for a split-second in that black window), and then terminate. If this is confusing to you, then you might want to learn about <a href="http://www.c3scripts.com/tutorials/msdos/">using the command shell</a>.
+	Most of these apps are command-line applications that are meant to be run in a terminal or command shell. They do not open up a graphical interface for you.
+	If you do not supply any arguments, then they will just print the usage information for the application
+	(which is what you are seeing for a split-second in that black window), and then terminate.
+	If this is confusing to you, then you might want to learn about <a href="http://www.c3scripts.com/tutorials/msdos/">using the command shell</a>.
 </div><br><br>
 
 <span style="font-weight: bold;">
 	When I switch between Debug and Release mode, it doesn't rebuild everything like it should.
 </span><br><div style="margin-left: 40px;">
-	Due to a series of unfortunate design decisions by Microsoft, we have been forced to make both Debug and Release modes target the same filename. Hence, whenever you switch between the two, you must do a clean build, or else it will see the one it already built and think it does not need to build anything. Why don't we just put them in different folders, as is the default in VC++? Because several of our apps rely on external files--imagine that. Why not just duplicate those external files? Because keeping the size of our archive small is important to us. Further, redundant files is bad practice because it propagates bugs. Why not just use a symbolic link? Not all versions of Windows support those. Why not just require everyone to have the latest version of Windows? Because Windows is not free, and I will not be evil. Why not use different names for the Debug and Release versions? That's how we used to do it, but it turns out that the tool that converts VC++ 2008 project files to VC++ 2010 project files makes the assumption that your target file has the same name as the project, and the project has the same name in both Debug and Release mode.
+	Due to a series of unfortunate design decisions by Microsoft, we have been forced to make both Debug and Release modes target the same filename.
+	Hence, whenever you switch between the two, you must do a clean build, or else it will see the one it already built and think it does not need to build anything.
+	Why don't we just put them in different folders, as is the default in VC++? Because several of our apps rely on external files--imagine that.
+	Why not just duplicate those external files? Because keeping the size of our archive small is important to us.
+	Further, redundant files is bad practice because it propagates bugs. Why not just use a symbolic link? Not all versions of Windows support those.
+	Why not just require everyone to have the latest version of Windows? Because Windows is not free, and I will not be evil.
+	Why not use different names for the Debug and Release versions?
+	That's how we used to do it, but it turns out that the tool that converts VC++ 2008 project files to VC++ 2010 project files makes the assumption that
+	your target file has the same name as the project, and the project has the same name in both Debug and Release mode.
 </div><br><br>
 
 <span style="font-weight: bold;">
@@ -83,8 +94,7 @@
 </span><br><div style="margin-left: 40px;">
 	You can ask a question at our <a href="http://sourceforge.net/projects/waffles/forums">forum</a>. If you
 	post a question and you do not get a speedy response, please email me. Sometimes the email that is supposed
-	to notify me that there is a new forum post is incorrectly classified as spam and discarded. (That's ironic,
-	since I'm trying to develop better ML algorithms, isn't it?) My email address is on the main page.
+	to notify me that there is a new forum post is incorrectly classified as spam and discarded. My email address is on the main page.
 </div><br><br>
 
 

@@ -1,4 +1,13 @@
-
+cmake_minimum_required(VERSION 2.8)
 
 add_subdirectory (GClasses)
+add_subdirectory (audio)
+add_subdirectory (cluster)
+add_subdirectory (dimred)
 add_subdirectory (learn)
+add_subdirectory (plot)
+add_subdirectory (recommend)
+add_subdirectory (sparse)
+add_subdirectory (test)
+add_subdirectory (transform)
+add_subdirectory (wizard)

@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 #CMakeLists.txt
 #-------------------------------------------------------------------------------
-PROJECT( learn )
+PROJECT( cluster )
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 IF(WIN32)
@@ -31,13 +31,13 @@ INCLUDE_DIRECTORIES(../wizard)
 #And build a static library
 SET (LIBRARY_OUTPUT_PATH ../../lib/ CACHE PATH "Output directory libraries.")
 SET (EXECUTABLE_OUTPUT_PATH ../../bin/ CACHE PATH "Output directory for executables.")
-ADD_EXECUTABLE(waffles_learn ../wizard/usage.cpp ${SOURCE_FILES} ../wizard/usage.h ${HEADER_FILES})
-TARGET_LINK_LIBRARIES(waffles_learn GClasses)
+ADD_EXECUTABLE(waffles_cluster ../wizard/usage.cpp ${SOURCE_FILES} ../wizard/usage.h ${HEADER_FILES})
+TARGET_LINK_LIBRARIES(waffles_cluster GClasses)
 
 #-------------------------------------------------------------------------------
 INSTALL(
   TARGETS
-    waffles_learn
+    waffles_cluster
   ARCHIVE DESTINATION 
     lib
   RUNTIME DESTINATION

@@ -70,7 +70,23 @@
 </ol>
 
 <br><br><br>
-<h3>Troubleshooting</h3>
+<h2>Using CMake instead of Gnu Make</h2>
+<p>If you prefer to use CMake, you can:
+	<ol>
+		<li>Install CMake. (sudo apt-get install cmake)</li>
+		<li>cd waffles/src</li>
+		<li>cmake .</li>
+		<li>make</li>
+	</ol>
+	<br>
+(Disclaimer: The Waffles developers are currently more familiar with Gnu Make. CMake is still somewhat new to us,
+and we don't use it very much, so our CMakeLists.txt files may not be very polished. For example, they do not
+currently install the binaries after building them. If any CMake experts out there want to help clean it up, that
+would be appreciated.)</p>
+
+
+<br><br><br>
+<h2>Troubleshooting</h2>
 
 <span style="font-weight: bold;">
 	How do I build optimized binaries?
@@ -102,8 +118,7 @@
 </span><br><div style="margin-left: 40px;">
 	You can ask a question at our <a href="http://sourceforge.net/projects/waffles/forums">forum</a>. If you
 	post a question and you do not get a speedy response, please email me. Sometimes the email that is supposed
-	to notify me that there is a new forum post is incorrectly classified as spam and discarded. (That's ironic,
-	since I'm trying to develop better ML algorithms, isn't it?) My email address is on the main page.
+	to notify me that there is a new forum post is incorrectly classified as spam and discarded. My email address is on the main page.
 </div><br><br>
 
 <span style="font-weight: bold;">
@@ -150,13 +165,11 @@
 <span style="font-weight: bold;">
 	How do I debug a Waffles app with KDevelop?
 </span><br><div style="margin-left: 40px;">
-	If you use KDevelop3, go to "Project-&gt;Import Existing Project". After you run
-	through the wizard, go to "Project-&gt;Project
-	Options-&gt;Run Options" and fix the name of the executable binary. (The executable binary is in the bin folder, not the src folder. Use the binary that ends with "dbg". The one that doesn't end with dbg is the optimized one.)<br>
-
-	If you use KDevelop4, go to "Project-&gt;Open/Import Project". Choose the Makefile for the app you want to debug.
+	In KDevelop4, go to "Project-&gt;Open/Import Project". Choose the Makefile for the app you want to debug.
 	Next, go to "Run-&gt;Configure Launches". Click on the name of the app. Click on the green plus sign. Specify the right executable binary.
-	(The executable binary is in the bin folder, not the src folder. Use the binary that ends with "dbg". The one that doesn't end with dbg is the optimized one.)
+	(The executable binary is in the bin folder, not the src folder. Use the binary that ends with "dbg".
+	The one that doesn't end with dbg is the optimized one. If you do not see a binary that ends with "dbg", then you need to go into the "src"
+	folder and do "make dbg".)
 </div><br><br>
 
 
