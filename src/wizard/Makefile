@@ -96,7 +96,7 @@ $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../lib/GCl
 # The ".d" file will contain a rule that says how to make an optimized ".o" file.
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
-	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
+	@if [ "$${USER}" == "root" ] && [ "$${SUDO_USER}" != "" ]; then false; fi
 	@echo -e "Computing opt dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
@@ -108,7 +108,7 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
-	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
+	@if [ "$${USER}" == "root" ] && [ "$${SUDO_USER}" != "" ]; then false; fi
 	@echo -e "Computing dbg dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi

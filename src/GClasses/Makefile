@@ -193,7 +193,7 @@ $(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV)
 # The ".d" file will contain a rule that says how to make an optimized ".o" file.
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
-	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
+	@if [ "$${USER}" == "root" ] && [ "$${SUDO_USER}" != "" ]; then false; fi
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing opt dependencies for $<"
 	@echo -en "$$(dirname $@)/" > $@
@@ -204,7 +204,7 @@ $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
-	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
+	@if [ "$${USER}" == "root" ] && [ "$${SUDO_USER}" != "" ]; then false; fi
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing dbg dependencies for $<"
 	@echo -en "$$(dirname $@)/" > $@
@@ -215,7 +215,7 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 # The ".d" file will contain a rule that says how to make a test/profile ".o" file.
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_GCOV) : $(OBJ_PATH)/gcov/%.d : %.cpp
-	@if [ "$${USER}" == "root" ]; then false; fi # don't generate dependencies as root
+	@if [ "$${USER}" == "root" ] && [ "$${SUDO_USER}" != "" ]; then false; fi
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -e "Computing gcov dependencies for $<"
 	@echo -en "$$(dirname $@)/" > $@
