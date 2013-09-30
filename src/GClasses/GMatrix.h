@@ -909,7 +909,14 @@ public:
 	///
 	/// If pExtensionA is non-NULL, then it will also split pExtensionA
 	/// such that corresponding rows are preserved.
-	void splitByNominalValue(GMatrix* pSingleClass, size_t nAttr, int nValue, GMatrix* pExtensionA = NULL, GMatrix* pExtensionB = NULL);
+	void splitCategoricalKeepIfNotEqual(GMatrix* pSingleClass, size_t nAttr, int nValue, GMatrix* pExtensionA = NULL, GMatrix* pExtensionB = NULL);
+
+	/// \brief Moves all rows with the specified value in the specified
+	/// attribute into pOtherValues
+	///
+	/// If pExtensionA is non-NULL, then it will also split pExtensionA
+	/// such that corresponding rows are preserved.
+	void splitCategoricalKeepIfEqual(GMatrix* pOtherValues, size_t nAttr, int nValue, GMatrix* pExtensionA, GMatrix* pExtensionB);
 
 	/// \brief Removes the last nOtherRows rows from this data set and
 	/// puts them in "other". (Order is preserved.)

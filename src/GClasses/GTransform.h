@@ -30,7 +30,7 @@ public:
 	/// transformations with an internal model (including all transforms
 	/// that inherit from GIncrementalTransform), this is equivalent to calling
 	/// train, and then calling transformBatch.
-	virtual GMatrix* doit(GMatrix& in) = 0;
+	virtual GMatrix* doit(const GMatrix& in) = 0;
 
 protected:
 	/// Child classes should use this in their implementation of serialize
@@ -100,7 +100,7 @@ public:
 	/// This calls Train with in, then transforms in and returns
 	/// the results.  The caller is responsible for deleting the
 	/// new matrix.
-	virtual GMatrix* doit(GMatrix& in);
+	virtual GMatrix* doit(const GMatrix& in);
 
 	/// This assumes that train has already been called, and
 	/// transforms all the rows in in returning the resulting
@@ -275,7 +275,7 @@ class GPCARotateOnly
 public:
 	/// This rotates the data to align the first nComponents axes with the same
 	/// number of principle components.
-	static GMatrix* transform(size_t nDims, size_t nOutputs, GMatrix* pData, size_t nComponents, GRand* pRand);
+	static GMatrix* transform(size_t nDims, size_t nOutputs, const GMatrix* pData, size_t nComponents, GRand* pRand);
 
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.

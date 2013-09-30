@@ -472,7 +472,7 @@ double GDecisionTree_measureBinarySplitInfo(GMatrix& features, GMatrix& labels, 
 {
 	GAssert(tmpFeatures.rows() == 0 && tmpLabels.rows() == 0);
 	size_t rowCount = features.rows();
-	features.splitByNominalValue(&tmpFeatures, attr, pivot, &labels, &tmpLabels);
+	features.splitCategoricalKeepIfEqual(&tmpFeatures, attr, pivot, &labels, &tmpLabels);
 	double dInfo;
 	if(features.rows() > 0 && tmpFeatures.rows() > 0)
 		dInfo = (labels.measureInfo() * labels.rows() + tmpLabels.measureInfo() * tmpLabels.rows()) / rowCount;
@@ -527,7 +527,7 @@ double GDecisionTree_measureNominalSplitInfo(GMatrix& features, GMatrix& labels,
 	double dInfo = 0;
 	for(int n = 0; n < values; n++)
 	{
-		features.splitByNominalValue(&tmpFeatures, nAttribute, n, &labels, &tmpLabels);
+		features.splitCategoricalKeepIfEqual(&tmpFeatures, nAttribute, n, &labels, &tmpLabels);
 		dInfo += ((double)tmpLabels.rows() / nRowCount) * tmpLabels.measureInfo();
 		features.mergeVert(&tmpFeatures);
 		labels.mergeVert(&tmpLabels);
@@ -769,7 +769,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 		featureParts.push_back(pOtherFeatures);
 		GMatrix* pOtherLabels = new GMatrix(m_pRelLabels->clone());
 		labelParts.push_back(pOtherLabels);
-		features.splitByNominalValue(pOtherFeatures, attr, (int)pivot, &labels, pOtherLabels);
+		features.splitCategoricalKeepIfEqual(pOtherFeatures, attr, (int)pivot, &labels, pOtherLabels);
 		nonEmptyBranchCount += (features.rows() > 0 ? 1 : 0) + (pOtherFeatures->rows() > 0 ? 1 : 0);
 	}
 	else
@@ -782,7 +782,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 			featureParts.push_back(pOtherFeatures);
 			GMatrix* pOtherLabels = new GMatrix(m_pRelLabels->clone());
 			labelParts.push_back(pOtherLabels);
-			features.splitByNominalValue(pOtherFeatures, attr, i, &labels, pOtherLabels);
+			features.splitCategoricalKeepIfNotEqual(pOtherFeatures, attr, i, &labels, pOtherLabels);
 			if(pOtherFeatures->rows() > 0)
 				nonEmptyBranchCount++;
 		}

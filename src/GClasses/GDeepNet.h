@@ -41,7 +41,8 @@ public:
 	/// Trains this layer in an unsupervised manner
 	void trainUnsupervised(const GMatrix& observations, size_t epochs = 100, double initialLearningRate = 0.1, double decay = 0.97);
 
-	/// Map observations through this layer to generate a matrix suitable for training the layer that feeds into this layer
+	/// Map observations through this layer to generate a matrix suitable for training the layer that feeds into this layer.
+	/// The caller is responsible to delete the returned matrix.
 	GMatrix* mapToHidden(const GMatrix& observations);
 
 	/// Return a vector of hidden activation values
@@ -215,6 +216,10 @@ public:
 
 	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
 	virtual void backpropHelper2(const double* pInputs, double* pInputBlame, double learningRate);
+
+	/// Trains the layer using a dimensionality reduction technique.
+	/// Returns the data as mapped through to the input of this layer.
+	GMatrix* trainDimRed(const GMatrix& observations);
 };
 
 

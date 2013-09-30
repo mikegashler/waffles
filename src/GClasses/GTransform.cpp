@@ -112,7 +112,7 @@ void GIncrementalTransform::train(const GRelation& relation)
 }
 
 // virtual
-GMatrix* GIncrementalTransform::doit(GMatrix& in)
+GMatrix* GIncrementalTransform::doit(const GMatrix& in)
 {
 	train(in);
 	return transformBatch(in);
@@ -497,7 +497,7 @@ GMatrix* GPCARotateOnly::ReleaseOutputData()
 	return pData;
 }
 */
-GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, GMatrix* pData, size_t nComponents, GRand* pRand)
+GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, const GMatrix* pData, size_t nComponents, GRand* pRand)
 {
 	// Init the basis vectors
 	size_t nElements = nDims * nDims;
@@ -552,7 +552,7 @@ GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, GMatrix* pData
 	}
 
 	// Align data with new basis vectors
-	double* pInVector;
+	const double* pInVector;
 	double* pOutVector;
 	size_t nCount = pData->rows();
 	for(size_t i = 0; i < nCount; i++)

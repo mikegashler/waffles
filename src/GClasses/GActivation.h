@@ -197,7 +197,7 @@ public:
 	virtual double inverse(double y)
 	{
 #ifdef WINDOWS
-		return 0.5 * log((1.0 + y) / (1.0 - y));
+		return 0.5 * (log(1.0 + y) - log(1.0 - y));
 #else
 		return atanh(y);
 #endif

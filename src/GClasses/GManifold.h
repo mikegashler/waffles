@@ -59,25 +59,12 @@ public:
 
 
 
-/// This is the base class of manifold learning (aka non-linear
-/// dimensionality reducing) algorithms.
-class GManifoldLearner : public GTransform
-{
-public:
-	GManifoldLearner() : GTransform() {}
-	GManifoldLearner(GDomNode* pNode, GLearnerLoader& ll) : GTransform(pNode, ll) {}
-	virtual ~GManifoldLearner() {}
-};
-
-
-
-
 /// Manifold Sculpting. A non-linear dimensionality reduction algorithm.
 /// (See Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative
 /// non-linear dimensionality reduction with manifold sculpting. In Advances
 /// in Neural Information Processing Systems 20, pages 513–520, MIT Press,
 /// Cambridge, MA, 2008.)
-class GManifoldSculpting : public GManifoldLearner
+class GManifoldSculpting : public GTransform
 {
 protected:
 	size_t m_nDimensions;
@@ -104,7 +91,7 @@ public:
 	virtual ~GManifoldSculpting();
 
 	/// Perform NLDR.
-	virtual GMatrix* doit(GMatrix& in);
+	virtual GMatrix* doit(const GMatrix& in);
 
 	const GRelation& relationAfter() { return *m_pRelationAfter; }
 
@@ -112,7 +99,7 @@ public:
 
 	/// Call this before calling SquishPass. pRealSpaceData should be a dataset
 	/// of all real values.
-	void beginTransform(GMatrix* pRealSpaceData);
+	void beginTransform(const GMatrix* pRealSpaceData);
 
 	/// Perform one iteration of squishing. Returns a heuristical error value
 	double squishPass(size_t nSeedDataPoint);
@@ -170,8 +157,8 @@ protected:
 	/// You can overload this to add some intelligent supervision to the heuristic
 	virtual double supervisedError(size_t nPoint) { return 0; }
 
-	void calculateMetadata(GMatrix* pData);
-	double vectorCorrelation(double* pdA, double* pdV, double* pdB);
+	void calculateMetadata(const GMatrix* pData);
+	double vectorCorrelation(const double* pdA, const double* pdV, const double* pdB);
 	double vectorCorrelation2(double squaredScale, size_t a, size_t vertex, struct GManifoldSculptingNeighbor* pNeighborRec);
 	double computeError(size_t nPoint);
 	size_t adjustDataPoint(size_t nPoint, double* pError);
@@ -184,7 +171,7 @@ protected:
 /// to compute an estimate of the geodesic distance between every pair of points
 /// using local neighborhoods, and then uses classic multidimensional scaling to
 /// compute a low-dimensional projection.
-class GIsomap : public GManifoldLearner
+class GIsomap : public GTransform
 {
 protected:
 	size_t m_neighborCount;
@@ -213,13 +200,13 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Performs NLDR
-	virtual GMatrix* doit(GMatrix& in);
+	virtual GMatrix* doit(const GMatrix& in);
 };
 
 
 /// Locally Linear Embedding is a manifold learning algorithm that uses
 /// sparse matrix techniques to efficiently compute a low-dimensional projection.
-class GLLE : public GManifoldLearner
+class GLLE : public GTransform
 {
 protected:
 	size_t m_neighborCount;
@@ -242,14 +229,14 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Performs NLDR
-	virtual GMatrix* doit(GMatrix& in);
+	virtual GMatrix* doit(const GMatrix& in);
 };
 
 
 /// A manifold learning algorithm that reduces dimensionality in local
 /// neighborhoods, and then stitches the reduced local neighborhoods together
 /// using the Kabsch algorithm.
-class GBreadthFirstUnfolding : public GManifoldLearner
+class GBreadthFirstUnfolding : public GTransform
 {
 protected:
 	size_t m_reps;
@@ -273,7 +260,7 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Perform NLDR
-	virtual GMatrix* doit(GMatrix& in);
+	virtual GMatrix* doit(const GMatrix& in);
 
 	/// Specify to use multi-dimensional scaling instead of PCA to reduce in local patches.
 	void useMds(bool b) { m_useMds = b; }
@@ -328,11 +315,11 @@ public:
 	void setActivation(GActivationFunction* pActivation);
 
 	/// See the comment for GTransform::doIt
-	virtual GMatrix* doit(GMatrix& in);
+	virtual GMatrix* doit(const GMatrix& in);
 
 protected:
-	void computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess);
-	double computeSumSquaredErr(GMatrix* pIn, GMatrix* pOut, size_t cols);
+	void computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess);
+	double computeSumSquaredErr(const GMatrix* pIn, GMatrix* pOut, size_t cols);
 };
 
 
@@ -357,7 +344,7 @@ public:
 	virtual ~GDynamicSystemStateAligner();
 
 	/// Perform the transformation
-	virtual GMatrix* doit(GMatrix& in);
+	virtual GMatrix* doit(const GMatrix& in);
 
 	/// Specify the source and sink points for dividing the data into two clusters
 	void setSeeds(size_t a, size_t b);
@@ -429,7 +416,7 @@ protected:
 
 /// A manifold learning algorithm that uses back-propagation to train a neural net model
 /// to map from low-dimensional space to high-dimensional space.
-class GUnsupervisedBackProp : public GManifoldLearner
+class GUnsupervisedBackProp : public GTransform
 {
 protected:
 	size_t m_paramDims;
@@ -480,7 +467,7 @@ public:
 	/// Perform NLDR. (This also trains the internal neural network to map from
 	/// low-dimensional space to high-dimensional space.) Returns a pointer to
 	/// the intrinsic values (which you are responsible to delete).
-	virtual GMatrix* doit(GMatrix& in);
+	virtual GMatrix* doit(const GMatrix& in);
 
 	/// Specify whether to use one of the input values as a bias
 	void setUseInputBias(bool b) { m_useInputBias = b; }
@@ -518,7 +505,7 @@ public:
 /// This is a nonlinear dimensionality reduction algorithm loosely inspired by
 /// Maximum Variance Unfolding. It iteratively scales up the data, then restores
 /// distances between neighbors.
-class GScalingUnfolder : public GManifoldLearner
+class GScalingUnfolder : public GTransform
 {
 protected:
 	size_t m_neighborCount;
@@ -527,7 +514,10 @@ protected:
 	double m_learningRate;
 	double m_scaleRate;
 	double m_keepRatio;
+	bool m_reduce;
 	GRand& m_rand;
+	size_t m_encoderTrainIters;
+	GNeuralNet* m_pEncoder;
 
 public:
 	GScalingUnfolder(GRand& m_rand);
@@ -540,7 +530,18 @@ public:
 	/// Specify the number of dimensions in the output results
 	void setTargetDims(size_t n) { m_targetDims = n; }
 
-	virtual GMatrix* doit(GMatrix& in);
+	/// Specify the number of times to 'scale the data then recover local relationships'.
+	void setPasses(size_t n ) { m_passes = n; }
+
+	/// Just unfold the data, don't reduce dimensionality
+	void noReduce() { m_reduce = false; }
+
+	/// Provide neural nets to train to do the mapping. (Does not take ownership of these, just trains them.)
+	/// pEncoder and pDecoder should already be initialized to approximate the identity function with some perturbation.
+	/// In both cases, the number of inputs and outputs should be set to the number of cols in the observation matrix.
+	void trainEncoder(GNeuralNet* pEncoder, size_t encoderTrainIters = 5);
+
+	virtual GMatrix* doit(const GMatrix& in);
 };
 
 

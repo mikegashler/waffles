@@ -191,7 +191,7 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 	//nf2.fillCache();
 	//nf2.cutShortcuts(8);
 
-	GManifoldLearner* pML;
+	GTransform* pML;
 	if(m_useIsomap)
 	{
 		pML = new GIsomap(neighbors, (int)m_contextDims, m_pRand);
@@ -202,7 +202,7 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 		pML = new GBreadthFirstUnfolding(1/*reps*/, neighbors, (int)m_contextDims, m_pRand);
 		((GBreadthFirstUnfolding*)pML)->setNeighborFinder(&nf);
 	}
-	Holder<GManifoldLearner> hML(pML);
+	Holder<GTransform> hML(pML);
 	GMatrix* pEstState = pML->doit(*pObservations);
 
 	// Center the first state estimate at the origin

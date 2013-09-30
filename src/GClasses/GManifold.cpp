@@ -390,7 +390,7 @@ struct GManifoldSculptingStuff
 };
 
 GManifoldSculpting::GManifoldSculpting(size_t nNeighbors, size_t targetDims, GRand* pRand)
-: GManifoldLearner(), m_pRand(pRand), m_pNF(NULL)
+: m_pRand(pRand), m_pNF(NULL)
 {
 	m_pMetaData = NULL;
 	m_nDimensions = 0;
@@ -423,7 +423,7 @@ void GManifoldSculpting::setPreprocessedData(GMatrix* pData)
 }
 
 // virtual
-GMatrix* GManifoldSculpting::doit(GMatrix& in)
+GMatrix* GManifoldSculpting::doit(const GMatrix& in)
 {
 	beginTransform(&in);
 
@@ -453,7 +453,7 @@ GMatrix* GManifoldSculpting::doit(GMatrix& in)
 	return pDataOut;
 }
 
-void GManifoldSculpting::beginTransform(GMatrix* pRealSpaceData)
+void GManifoldSculpting::beginTransform(const GMatrix* pRealSpaceData)
 {
 	m_nDimensions = pRealSpaceData->cols();
 	if(!pRealSpaceData->relation().areContinuous(0, m_nDimensions))
@@ -510,7 +510,7 @@ void GManifoldSculpting::beginTransform(GMatrix* pRealSpaceData)
 	}
 }
 
-void GManifoldSculpting::calculateMetadata(GMatrix* pData)
+void GManifoldSculpting::calculateMetadata(const GMatrix* pData)
 {
 	delete[] m_pMetaData;
 	m_pMetaData = new unsigned char[m_nRecordSize * pData->rows()];
@@ -630,7 +630,7 @@ size_t GManifoldSculpting::countShortcuts(size_t nThreshold)
 	return nShortcuts;
 }
 
-double GManifoldSculpting::vectorCorrelation(double* pdA, double* pdV, double* pdB)
+double GManifoldSculpting::vectorCorrelation(const double* pdA, const double* pdV, const double* pdB)
 {
 	double dDotProd = 0;
 	double dMagA = 0;
@@ -877,12 +877,12 @@ double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
 
 
 
-GIsomap::GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand) : GManifoldLearner(), m_neighborCount(neighborCount), m_targetDims(targetDims), m_pNF(NULL), m_pRand(pRand), m_dropDisconnectedPoints(false)
+GIsomap::GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand) : m_neighborCount(neighborCount), m_targetDims(targetDims), m_pNF(NULL), m_pRand(pRand), m_dropDisconnectedPoints(false)
 {
 }
 
 GIsomap::GIsomap(GDomNode* pNode, GLearnerLoader& ll)
-: GManifoldLearner(pNode, ll)
+: GTransform(pNode, ll)
 {
 	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
 }
@@ -905,7 +905,7 @@ void GIsomap::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GIsomap::doit(GMatrix& in)
+GMatrix* GIsomap::doit(const GMatrix& in)
 {
 	GNeighborFinder* pNF = m_pNF;
 	Holder<GNeighborFinder> hNF(NULL);
@@ -1185,12 +1185,12 @@ void GLLEHelper::computeEmbedding()
 }
 
 
-GLLE::GLLE(size_t neighborCount, size_t targetDims, GRand* pRand) : GManifoldLearner(), m_neighborCount(neighborCount), m_targetDims(targetDims), m_pNF(NULL), m_pRand(pRand)
+GLLE::GLLE(size_t neighborCount, size_t targetDims, GRand* pRand) : m_neighborCount(neighborCount), m_targetDims(targetDims), m_pNF(NULL), m_pRand(pRand)
 {
 }
 
 GLLE::GLLE(GDomNode* pNode, GLearnerLoader& ll)
-: GManifoldLearner(pNode, ll)
+: GTransform(pNode, ll)
 {
 	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
 }
@@ -1213,7 +1213,7 @@ void GLLE::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GLLE::doit(GMatrix& in)
+GMatrix* GLLE::doit(const GMatrix& in)
 {
 	GNeighborFinder* pNF = m_pNF;
 	Holder<GNeighborFinder> hNF(NULL);
@@ -1270,7 +1270,7 @@ void GBreadthFirstUnfolding::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GBreadthFirstUnfolding::doit(GMatrix& in)
+GMatrix* GBreadthFirstUnfolding::doit(const GMatrix& in)
 {
 	// Obtain the neighbor finder
 	GNeighborFinder* pNF = m_pNF;
@@ -1608,7 +1608,7 @@ void GNeuroPCA::computeEigVals()
 	m_pEigVals = new double[m_targetDims];
 }
 
-void GNeuroPCA::computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess)
+void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess)
 {
 	size_t dims = (size_t)pIn->cols();
 	if(col == 0)
@@ -1648,7 +1648,7 @@ void GNeuroPCA::computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatri
 				double* pPre = pPreprocess->row(index);
 				double* pX = pOut->row(index) + col;
 				double* pW = pWeights;
-				double* pTar = pIn->row(index);
+				const double* pTar = pIn->row(index);
 				for(size_t j = 0; j < dims; j++)
 				{
 					if(*pTar != UNKNOWN_REAL_VALUE)
@@ -1693,13 +1693,13 @@ void GNeuroPCA::computeComponent(GMatrix* pIn, GMatrix* pOut, size_t col, GMatri
 	}
 }
 
-double GNeuroPCA::computeSumSquaredErr(GMatrix* pIn, GMatrix* pOut, size_t cols)
+double GNeuroPCA::computeSumSquaredErr(const GMatrix* pIn, GMatrix* pOut, size_t cols)
 {
 	size_t dims = (size_t)pIn->cols();
 	double sse = 0.0;
 	for(size_t i = 0; i < pIn->rows(); i++)
 	{
-		double* pTar = pIn->row(i);
+		const double* pTar = pIn->row(i);
 		double* pBias = m_pWeights->row(0);
 		for(size_t j = 0; j < dims; j++)
 		{
@@ -1715,7 +1715,7 @@ double GNeuroPCA::computeSumSquaredErr(GMatrix* pIn, GMatrix* pOut, size_t cols)
 }
 
 // virtual
-GMatrix* GNeuroPCA::doit(GMatrix& in)
+GMatrix* GNeuroPCA::doit(const GMatrix& in)
 {
 	if(!in.relation().areContinuous())
 		throw Ex("GNeuroPCA doesn't support nominal values. You should filter with nominaltocat to make them real.");
@@ -1797,7 +1797,7 @@ void GDynamicSystemStateAligner::setSeeds(size_t a, size_t b)
 }
 
 // virtual
-GMatrix* GDynamicSystemStateAligner::doit(GMatrix& in)
+GMatrix* GDynamicSystemStateAligner::doit(const GMatrix& in)
 {
 	if(!in.relation().areContinuous())
 		throw Ex("Only continuous attributes are supported");
@@ -2212,13 +2212,13 @@ void GImageJitterer::test(const char* filename)
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: GManifoldLearner(), m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL), m_onePass(false)
+: m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL), m_onePass(false)
 {
 	m_pNN = new GNeuralNet(*m_pRand);
 }
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll)
-: GManifoldLearner(pNode, ll), m_pRand(&ll.rand()), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL)
+: GTransform(pNode, ll), m_pRand(&ll.rand()), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL)
 {
 	GDomListIterator it(pNode->field("params"));
 	m_paramDims = it.remaining();
@@ -2316,7 +2316,7 @@ void GUnsupervisedBackProp::setJitterer(GImageJitterer* pJitterer)
 }
 
 // virtual
-GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
+GMatrix* GUnsupervisedBackProp::doit(const GMatrix& in)
 {
 	// Compute pixels and channels
 	size_t pixels = 1;
@@ -2429,7 +2429,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 			{
 				// Pick a row
 				size_t r = (size_t)m_pRand->next(in.rows());
-				double* pIn = in[r];
+				const double* pIn = in[r];
 				double* pInt = m_pIntrinsic->row(r);
 				for(size_t k = 0; k < sampleSize; k++) // use the same row for a few iterations to reduce page swaps
 				{
@@ -2439,7 +2439,7 @@ GMatrix* GUnsupervisedBackProp::doit(GMatrix& in)
 					m_cvi.currentNormalized(pParams);
 
 					// Get the pixel
-					double* pPix;
+					const double* pPix;
 					if(m_pJitterer)
 					{
 						GVec::copy(pJitters, m_pJitterer->pickParams(*m_pRand), m_jitterDims);
@@ -2677,19 +2677,21 @@ size_t GUnsupervisedBackProp::labelDims()
 
 
 GScalingUnfolder::GScalingUnfolder(GRand& rand)
-: GManifoldLearner(),
-m_neighborCount(14),
+: m_neighborCount(14),
 m_targetDims(2),
 m_passes(50),
 m_learningRate(0.1),
 m_scaleRate(0.9),
 m_keepRatio(0.9),
-m_rand(rand)
+m_reduce(true),
+m_rand(rand),
+m_encoderTrainIters(0),
+m_pEncoder(NULL)
 {
 }
 
 GScalingUnfolder::GScalingUnfolder(GDomNode* pNode, GLearnerLoader& ll)
-: GManifoldLearner(pNode, ll),
+: GTransform(pNode, ll),
 m_rand(ll.rand())
 {
 	throw Ex("Sorry, this method is not implemented yet");
@@ -2699,6 +2701,13 @@ m_rand(ll.rand())
 GScalingUnfolder::~GScalingUnfolder()
 {
 
+}
+
+void GScalingUnfolder::trainEncoder(GNeuralNet* pEncoder, size_t encoderTrainIters)
+{
+	noReduce();
+	m_pEncoder = pEncoder;
+	m_encoderTrainIters = encoderTrainIters;
 }
 
 void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double curSqDist, double tarSqDist)
@@ -2713,7 +2722,7 @@ void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double c
 }
 
 // virtual
-GMatrix* GScalingUnfolder::doit(GMatrix& in)
+GMatrix* GScalingUnfolder::doit(const GMatrix& in)
 {
 	// Find neighbors
 	GKdTree kdtree(&in, m_neighborCount, NULL, false);
@@ -2736,34 +2745,37 @@ GMatrix* GScalingUnfolder::doit(GMatrix& in)
 	size_t dropAtLeast = 0;
 	while(true)
 	{
-		// Shift the variance into the first few dimensions
-		GPCA pca(intrinsicDims, &m_rand);
-		pca.computeEigVals();
-		pca.train(*pIntrinsic);
-		pIntrinsic = pca.transformBatch(*pIntrinsic);
-		hIntrinsic.reset(pIntrinsic);
-
-		// Drop as many dimensions as possible without losing much information
-		double var = GVec::sumElements(pca.eigVals(), intrinsicDims);
-		double sum = var;
-		while(intrinsicDims > m_targetDims)
+		if(m_reduce)
 		{
-			if(dropAtLeast > 0 || (sum - pca.eigVals()[intrinsicDims - 1]) / var >= m_keepRatio * m_keepRatio)
-			{
-				intrinsicDims--;
-				sum -= pca.eigVals()[intrinsicDims - 1];
-				if(dropAtLeast > 0)
-					dropAtLeast--;
-			}
-			else
-				break;
-		}
-		if(pIntrinsic->cols() > intrinsicDims)
-		{
-			GMatrix* pNew = new GMatrix(pIntrinsic->rows(), intrinsicDims);
-			pNew->copyBlock(*pIntrinsic, 0, 0, pIntrinsic->rows(), intrinsicDims, 0, 0, false);
-			pIntrinsic = pNew;
+			// Shift the variance into the first few dimensions
+			GPCA pca(intrinsicDims, &m_rand);
+			pca.computeEigVals();
+			pca.train(*pIntrinsic);
+			pIntrinsic = pca.transformBatch(*pIntrinsic);
 			hIntrinsic.reset(pIntrinsic);
+
+			// Drop as many dimensions as possible without losing much information
+			double var = GVec::sumElements(pca.eigVals(), intrinsicDims);
+			double sum = var;
+			while(intrinsicDims > m_targetDims)
+			{
+				if(dropAtLeast > 0 || (sum - pca.eigVals()[intrinsicDims - 1]) / var >= m_keepRatio * m_keepRatio)
+				{
+					intrinsicDims--;
+					sum -= pca.eigVals()[intrinsicDims - 1];
+					if(dropAtLeast > 0)
+						dropAtLeast--;
+				}
+				else
+					break;
+			}
+			if(pIntrinsic->cols() > intrinsicDims)
+			{
+				GMatrix* pNew = new GMatrix(pIntrinsic->rows(), intrinsicDims);
+				pNew->copyBlock(*pIntrinsic, 0, 0, pIntrinsic->rows(), intrinsicDims, 0, 0, false);
+				pIntrinsic = pNew;
+				hIntrinsic.reset(pIntrinsic);
+			}
 		}
 
 		// Try to unfold the data
@@ -2816,12 +2828,31 @@ GMatrix* GScalingUnfolder::doit(GMatrix& in)
 						break;
 				}
 			}
+
+			// Train the encoder and decoder
+			if(m_pEncoder)
+			{
+				for(size_t i = 0; i < m_encoderTrainIters; i++)
+				{
+					ii.reset();
+					size_t ind;
+					while(ii.next(ind))
+						m_pEncoder->trainIncremental(in[ind], pIntrinsic->row(ind));
+				}
+			}
 		}
 
-		if(intrinsicDims == m_targetDims)
-			return hIntrinsic.release();
-		dropAtLeast = std::max((size_t)1, intrinsicDims / 10);
+		// Determine when to stop
+		if(m_reduce)
+		{
+			if(intrinsicDims == m_targetDims)
+				break;
+			dropAtLeast = std::max((size_t)1, intrinsicDims / 10);
+		}
+		else
+			break;
 	}
+	return hIntrinsic.release();
 }
 
 

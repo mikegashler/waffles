@@ -3043,7 +3043,7 @@ void GMatrix::splitByPivot(GMatrix* pGreaterOrEqual, size_t nAttribute, double d
 	}
 }
 
-void GMatrix::splitByNominalValue(GMatrix* pSingleClass, size_t nAttr, int nValue, GMatrix* pExtensionA, GMatrix* pExtensionB)
+void GMatrix::splitCategoricalKeepIfNotEqual(GMatrix* pSingleClass, size_t nAttr, int nValue, GMatrix* pExtensionA, GMatrix* pExtensionB)
 {
 	for(size_t i = rows() - 1; i < rows(); i--)
 	{
@@ -3051,6 +3051,20 @@ void GMatrix::splitByNominalValue(GMatrix* pSingleClass, size_t nAttr, int nValu
 		if((int)pVec[nAttr] == nValue)
 		{
 			pSingleClass->takeRow(releaseRow(i));
+			if(pExtensionA)
+				pExtensionB->takeRow(pExtensionA->releaseRow(i));
+		}
+	}
+}
+
+void GMatrix::splitCategoricalKeepIfEqual(GMatrix* pOtherValues, size_t nAttr, int nValue, GMatrix* pExtensionA, GMatrix* pExtensionB)
+{
+	for(size_t i = rows() - 1; i < rows(); i--)
+	{
+		double* pVec = row(i);
+		if((int)pVec[nAttr] != nValue)
+		{
+			pOtherValues->takeRow(releaseRow(i));
 			if(pExtensionA)
 				pExtensionB->takeRow(pExtensionA->releaseRow(i));
 		}

@@ -1607,7 +1607,7 @@ void splitClass(GArgReader& args)
 	for(size_t i = 0; i < pData->relation().valueCount(classAttr); i++)
 	{
 		GMatrix tmp(pData->relation().clone());
-		pData->splitByNominalValue(&tmp, classAttr, i);
+		pData->splitCategoricalKeepIfNotEqual(&tmp, classAttr, (int)i);
 		std::ostringstream oss;
 		PathData pd;
 		GFile::parsePath(filename, &pd);

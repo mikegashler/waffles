@@ -45,7 +45,7 @@ public:
 
 	/// Clusters pIn and outputs a dataset with one column that specifies
 	/// the cluster number for each row.
-	virtual GMatrix* doit(GMatrix& in)
+	virtual GMatrix* doit(const GMatrix& in)
 	{
 		cluster(&in);
 		GMatrix* pOut = new GMatrix(new GUniformRelation(1, m_clusterCount));
@@ -57,7 +57,7 @@ public:
 	}
 
 	/// Performs clustering.
-	virtual void cluster(GMatrix* pData) = 0;
+	virtual void cluster(const GMatrix* pData) = 0;
 
 	/// Reports which cluster the specified row is a member of.
 	virtual size_t whichCluster(size_t nVector) = 0;
@@ -112,7 +112,7 @@ public:
 #endif // !NO_TEST_CODE
 
 	/// Performs clustering
-	virtual void cluster(GMatrix* pData);
+	virtual void cluster(const GMatrix* pData);
 
 	/// Identifies the cluster of the specified row
 	virtual size_t whichCluster(size_t nVector);
@@ -163,20 +163,20 @@ public:
 	~GKMeans();
 
 	/// Performs clustering
-	virtual void cluster(GMatrix* pData);
+	virtual void cluster(const GMatrix* pData);
 
 	/// Identifies the cluster of the specified row
 	virtual size_t whichCluster(size_t nVector);
 
 	/// Selects random centroids and initializes internal data structures
-	void init(GMatrix* pData);
+	void init(const GMatrix* pData);
 
 	/// Assigns each row to the cluster of the nearest centroid as measured
 	/// with the dissimilarity metric. Returns the sum-squared-distance of each row with its centroid.
-	double assignClusters(GMatrix* pData);
+	double assignClusters(const GMatrix* pData);
 
 	/// Computes new centroids for each cluster.
-	void recomputeCentroids(GMatrix* pData);
+	void recomputeCentroids(const GMatrix* pData);
 
 	/// Returns a k x d matrix, where each row is one of the k centroids.
 	GMatrix* centroids() { return m_pCentroids; }
@@ -187,7 +187,7 @@ public:
 
 protected:
 	bool clusterAttempt(size_t nMaxIterations);
-	bool selectSeeds(GMatrix* pSeeds);
+	bool selectSeeds(const GMatrix* pSeeds);
 };
 
 
@@ -209,20 +209,20 @@ public:
 	~GFuzzyKMeans();
 
 	/// Performs clustering
-	virtual void cluster(GMatrix* pData);
+	virtual void cluster(const GMatrix* pData);
 
 	/// Identifies the cluster of the specified row
 	virtual size_t whichCluster(size_t nVector);
 
 	/// Selects random centroids and initializes internal data structures
-	void init(GMatrix* pData);
+	void init(const GMatrix* pData);
 
 	/// Assigns each row to partial membership in each cluster, as measured
 	/// with the dissimilarity metric. Returns the weighted-sum-distance of each row with the centroids.
-	double recomputeWeights(GMatrix* pData);
+	double recomputeWeights(const GMatrix* pData);
 
 	/// Computes new centroids for each cluster.
-	void recomputeCentroids(GMatrix* pData);
+	void recomputeCentroids(const GMatrix* pData);
 
 	/// Returns a k x d matrix, where each row is one of the k centroids.
 	GMatrix* centroids() { return m_pCentroids; }
@@ -237,7 +237,7 @@ public:
 
 protected:
 	bool clusterAttempt(size_t nMaxIterations);
-	bool selectSeeds(GMatrix* pSeeds);
+	bool selectSeeds(const GMatrix* pSeeds);
 };
 
 
@@ -247,20 +247,20 @@ class GKMedoids : public GClusterer
 protected:
 	size_t* m_pMedoids;
 	double m_d;
-	GMatrix* m_pData;
+	const GMatrix* m_pData;
 
 public:
 	GKMedoids(size_t clusters);
 	virtual ~GKMedoids();
 
 	/// Performs clustering
-	virtual void cluster(GMatrix* pData);
+	virtual void cluster(const GMatrix* pData);
 
 	/// Identifies the cluster of the specified row
 	virtual size_t whichCluster(size_t nVector);
 
 protected:
-	double curErr(GMatrix* pData);
+	double curErr(const GMatrix* pData);
 };
 
 
