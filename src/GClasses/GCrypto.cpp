@@ -1,12 +1,20 @@
 /*
-	Copyright (C) 2006, Mike Gashler
+  The contents of this file are dedicated by all of its authors, including
 
-	This library is free software; you can redistribute it and/or
-	modify it under the terms of the GNU Lesser General Public
-	License as published by the Free Software Foundation; either
-	version 2.1 of the License, or (at your option) any later version.
+    Michael S. Gashler,
+    Eric Moyer,
+    anonymous contributors,
 
-	see http://www.gnu.org/copyleft/lesser.html
+  to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
+
+  Note that some moral obligations still exist in the absence of legal ones.
+  For example, it would still be dishonest to deliberately misrepresent the
+  origin of a work. Although we impose no legal requirements to obtain a
+  license, it is beseeming for those who build on the works of others to
+  give back useful improvements, or find a way to pay it forward. If
+  you would like to cite us, a published paper about Waffles can be found
+  at http://jmlr.org/papers/volume12/gashler11a/gashler11a.pdf. If you find
+  our code to be useful, the Waffles team would love to hear how you use it.
 */
 
 #include "GCrypto.h"
