@@ -730,8 +730,8 @@ GDomNode* GNeuralNet::serializeInner(GDom* pDoc, const char* szClassName) const
 // virtual
 bool GNeuralNet::supportedFeatureRange(double* pOutMin, double* pOutMax)
 {
-	*pOutMin = -1.5;
-	*pOutMax = 1.5;
+	*pOutMin = -1.0;
+	*pOutMax = 1.0;
 	return false;
 }
 
@@ -2059,7 +2059,7 @@ void GNeuralNet::test()
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn(prng);
-		nn.basicTest(0.74, 0.79);
+		nn.basicTest(0.74, 0.77);
 	}
 
 	// Test NN with one hidden layer
@@ -2068,7 +2068,7 @@ void GNeuralNet::test()
 		vector<size_t> topology;
 		topology.push_back(3);
 		nn.setTopology(topology);
-		nn.basicTest(0.76, 0.708);
+		nn.basicTest(0.76, 0.75);
 	}
 }
 
@@ -2248,7 +2248,7 @@ void GReservoirNet::test()
 {
 	GRand prng(0);
 	GReservoirNet lr(prng);
-	lr.basicTest(0.77, 0.68);
+	lr.basicTest(0.68, 0.68);
 }
 #endif // MIN_PREDICT
 

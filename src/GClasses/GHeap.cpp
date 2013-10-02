@@ -39,3 +39,4 @@ void GHeap::clear()
 		m_pCurrentBlock = pNext;
 	}
 	m_nCurrentPos = m_nMinBlockSize;
+}
