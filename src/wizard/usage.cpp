@@ -650,7 +650,15 @@ UsageNode* makeDimRedUsageTree()
 		       "numIter data point presentations.");
 	  }
 	}
-
+	{
+		UsageNode* pSVD = pRoot->add("svd [matrix] <options>", "Compute the singular value decomposition of a matrix.");
+		pSVD->add("[matrix]=m.arff", "The filename of the matrix.");
+		UsageNode* pOpts = pSVD->add("<options>");
+		pOpts->add("-ufilename [filename]=u.arff", "Set the filename to which U will be saved. U is the matrix in which the columns are the eigenvectors of [matrix] times its transpose. The default is u.arff.");
+		pOpts->add("-sigmafilename [filename]=sigma.arff", "Set the filename to which Sigma will be saved. Sigma is the matrix that contains the singular values on its diagonal. All values in Sigma except the diagonal will be zero. If this option is not specified, the default is to only print the diagonal values (not the whole matrix) to stdout. If this options is specified, nothing is printed to stdout.");
+		pOpts->add("-vfilename [filename]=v.arff", "Set the filename to which V will be saved. V is the matrix in which the row are the eigenvectors of the transpose of [matrix] times [matrix]. The default is v.arff.");
+		pOpts->add("-maxiters [n]=100", "Specify the number of times to iterate before giving up. The default is 100, which should be sufficient for most problems.");
+	}
 	{
 		UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pLLE->add("<options>");
@@ -1713,15 +1721,6 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pSD = pRoot->add("squareddistance [a] [b]", "Computesthe sum and mean squared distance between dataset [a] and [b]. ([a] and [b] are each the names of files in .arff format. They must have the same dimensions.)");
 		pSD->add("[a]=a.arff", "The filename of a dataset.");
 		pSD->add("[b]=b.arff", "The filename of a dataset.");
-	}
-	{
-		UsageNode* pSVD = pRoot->add("svd [matrix] <options>", "Compute the singular value decomposition of a matrix.");
-		pSVD->add("[matrix]=m.arff", "The filename of the matrix.");
-		UsageNode* pOpts = pSVD->add("<options>");
-		pOpts->add("-ufilename [filename]=u.arff", "Set the filename to which U will be saved. U is the matrix in which the columns are the eigenvectors of [matrix] times its transpose. The default is u.arff.");
-		pOpts->add("-sigmafilename [filename]=sigma.arff", "Set the filename to which Sigma will be saved. Sigma is the matrix that contains the singular values on its diagonal. All values in Sigma except the diagonal will be zero. If this option is not specified, the default is to only print the diagonal values (not the whole matrix) to stdout. If this options is specified, nothing is printed to stdout.");
-		pOpts->add("-vfilename [filename]=v.arff", "Set the filename to which V will be saved. V is the matrix in which the row are the eigenvectors of the transpose of [matrix] times [matrix]. The default is v.arff.");
-		pOpts->add("-maxiters [n]=100", "Specify the number of times to iterate before giving up. The default is 100, which should be sufficient for most problems.");
 	}
 	{
 		UsageNode* pSC = pRoot->add("swapcolumns [dataset] [col1] [col2]", "Swap two columns in the specified dataset and prints the results to stdout. (Columns are zero-indexed.)");

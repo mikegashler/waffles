@@ -1715,56 +1715,6 @@ void Shuffle(GArgReader& args)
 	pData->print(cout);
 }
 
-void singularValueDecomposition(GArgReader& args)
-{
-	// Load
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-
-	// Parse options
-	string ufilename = "u.arff";
-	string sigmafilename;
-	string vfilename = "v.arff";
-	int maxIters = 100;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-ufilename"))
-			ufilename = args.pop_string();
-		else if(args.if_pop("-sigmafilename"))
-			sigmafilename = args.pop_string();
-		else if(args.if_pop("-vfilename"))
-			vfilename = args.pop_string();
-		else if(args.if_pop("-maxiters"))
-			maxIters = args.pop_uint();
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-
-	GMatrix* pU;
-	double* pDiag;
-	GMatrix* pV;
-	pData->singularValueDecomposition(&pU, &pDiag, &pV, false, maxIters);
-	Holder<GMatrix> hU(pU);
-	ArrayHolder<double> hDiag(pDiag);
-	Holder<GMatrix> hV(pV);
-	pU->saveArff(ufilename.c_str());
-	pV->saveArff(vfilename.c_str());
-	if(sigmafilename.length() > 0)
-	{
-		GMatrix sigma(pU->rows(), pV->rows());
-		sigma.setAll(0.0);
-		size_t m = std::min(sigma.rows(), (size_t)sigma.cols());
-		for(size_t i = 0; i < m; i++)
-			sigma.row(i)[i] = pDiag[i];
-		sigma.saveArff(sigmafilename.c_str());
-	}
-	else
-	{
-		GVec::print(cout, 14, pDiag, std::min(pU->rows(), pV->rows()));
-		cout << "\n";
-	}
-}
-
 void SortByAttribute(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
@@ -2017,7 +1967,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("splitfold")) splitFold(args);
 		else if(args.if_pop("splitval")) splitVal(args);
 		else if(args.if_pop("squaredDistance")) squaredDistance(args);
-		else if(args.if_pop("svd")) singularValueDecomposition(args);
 		else if(args.if_pop("swapcolumns")) SwapAttributes(args);
 		else if(args.if_pop("threshold")) threshold(args);
 		else if(args.if_pop("transition")) transition(args);

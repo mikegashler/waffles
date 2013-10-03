@@ -221,8 +221,7 @@ protected:
 
 
 
-/// A node in a probabilistic graphical model that is distributed according to a Gaussian,
-/// or normal, distribution.
+/// A node in a probabilistic graphical model that represents a Gaussian, or normal, distribution.
 class GPGMNormal : public GPGMMetropolisNode
 {
 protected:
@@ -231,7 +230,7 @@ protected:
 public:
 	/// General-purpose constructor. The prior mean and deviation parameters are
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
-	/// used for the mean and deviation of this distribution. Typically, you will
+	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMeanAndDev) after constructing this node.
 	GPGMNormal(double priorMean, double priorDeviation, GPGMNode* pDefaultVal);
 	~GPGMNormal() {}
@@ -242,16 +241,304 @@ public:
 	/// something more meaningful (by calling setMeanAndDev) after you call this method.
 	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
 
-	/// Set the mean and deviation for one of the normal distributions of this node.
+	/// Set the mean and deviation for one of the distributions of this node.
 	/// "cat" specifies the index of the combination of values (in little-endian order) in the
-	/// categorical parent distributions for which this normal distribution is being specified.
+	/// categorical parent distributions for which this distribution is being specified.
 	void setMeanAndDev(size_t cat, GPGMNode* pMean, GPGMNode* pDeviation);
 
 	/// Returns false.
 	virtual bool isDiscrete() { return false; }
 
-	/// Returns true for all values.
-	virtual bool isSupported(double val) { return true; }
+	/// Returns the likelihood that the value x would be drawn from this distribution given
+	/// the current values of all the parent nodes.
+	virtual double likelihood(double x);
+};
+
+
+
+
+/// A node in a probabilistic graphical model that represents a lognormal distribution.
+class GPGMLogNormal : public GPGMMetropolisNode
+{
+protected:
+	std::vector<GPGMNode*> m_meanAndDev;
+
+public:
+	/// General-purpose constructor. The prior mean and deviation parameters are
+	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
+	/// used for the parameters of this distribution. Typically, you will
+	/// change these values (by calling setMeanAndDev) after constructing this node.
+	GPGMLogNormal(double priorMean, double priorDeviation, GPGMNode* pDefaultVal);
+	~GPGMLogNormal() {}
+
+	/// Adds a categorical node as a parent of this node. Calling this method will cause
+	/// This node to resize its table of distribution parameters, so a default value is
+	/// required to fill in new elements. Typically, you will set these new elements to
+	/// something more meaningful (by calling setMeanAndDev) after you call this method.
+	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
+
+	/// Set the mean and deviation for one of the distributions of this node.
+	/// "cat" specifies the index of the combination of values (in little-endian order) in the
+	/// categorical parent distributions for which this distribution is being specified.
+	void setMeanAndDev(size_t cat, GPGMNode* pMean, GPGMNode* pDeviation);
+
+	/// Returns false.
+	virtual bool isDiscrete() { return false; }
+
+	/// Returns the likelihood that the value x would be drawn from this distribution given
+	/// the current values of all the parent nodes.
+	virtual double likelihood(double x);
+};
+
+
+
+
+/// A node in a probabilistic graphical model that represents a Pareto distribution.
+class GPGMPareto : public GPGMMetropolisNode
+{
+protected:
+	std::vector<GPGMNode*> m_alphaAndM;
+
+public:
+	/// General-purpose constructor. The prior mean and deviation parameters are
+	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
+	/// used for the parameters of this distribution. Typically, you will
+	/// change these values (by calling setAlphaAndM) after constructing this node.
+	GPGMPareto(double priorMean, double priorDeviation, GPGMNode* pDefaultVal);
+	~GPGMPareto() {}
+
+	/// Adds a categorical node as a parent of this node. Calling this method will cause
+	/// This node to resize its table of distribution parameters, so a default value is
+	/// required to fill in new elements. Typically, you will set these new elements to
+	/// something more meaningful (by calling setAlphaAndM) after you call this method.
+	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
+
+	/// Set the alpha and M parameters for one of the distributions of this node.
+	/// "cat" specifies the index of the combination of values (in little-endian order) in the
+	/// categorical parent distributions for which this distribution is being specified.
+	void setAlphaAndM(size_t cat, GPGMNode* pAlpha, GPGMNode* pM);
+
+	/// Returns false.
+	virtual bool isDiscrete() { return false; }
+
+	/// Returns the likelihood that the value x would be drawn from this distribution given
+	/// the current values of all the parent nodes.
+	virtual double likelihood(double x);
+};
+
+
+
+
+/// A node in a probabilistic graphical model that represents a uniform discrete distribution.
+class GPGMUniformDiscrete : public GPGMMetropolisNode
+{
+protected:
+	std::vector<GPGMNode*> m_minAndMax;
+
+public:
+	/// General-purpose constructor. The prior mean and deviation parameters are
+	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
+	/// used for the parameters of this distribution. Typically, you will
+	/// change these values (by calling setMinAndMax) after constructing this node.
+	GPGMUniformDiscrete(double priorMean, double priorDeviation, GPGMNode* pDefaultVal);
+	~GPGMUniformDiscrete() {}
+
+	/// Adds a categorical node as a parent of this node. Calling this method will cause
+	/// This node to resize its table of distribution parameters, so a default value is
+	/// required to fill in new elements. Typically, you will set these new elements to
+	/// something more meaningful (by calling setMinAndMax) after you call this method.
+	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
+
+	/// Set the min and max parameters for one of the distributions of this node.
+	/// "cat" specifies the index of the combination of values (in little-endian order) in the
+	/// categorical parent distributions for which this distribution is being specified.
+	void setMinAndMax(size_t cat, GPGMNode* pMin, GPGMNode* pMax);
+
+	/// Returns true.
+	virtual bool isDiscrete() { return true; }
+
+	/// Returns the likelihood that the value x would be drawn from this distribution given
+	/// the current values of all the parent nodes.
+	virtual double likelihood(double x);
+};
+
+
+
+
+/// A node in a probabilistic graphical model that represents a uniform continuous distribution.
+class GPGMUniformContinuous : public GPGMMetropolisNode
+{
+protected:
+	std::vector<GPGMNode*> m_minAndMax;
+
+public:
+	/// General-purpose constructor. The prior mean and deviation parameters are
+	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
+	/// used for the parameters of this distribution. Typically, you will
+	/// change these values (by calling setMinAndMax) after constructing this node.
+	GPGMUniformContinuous(double priorMean, double priorDeviation, GPGMNode* pDefaultVal);
+	~GPGMUniformContinuous() {}
+
+	/// Adds a categorical node as a parent of this node. Calling this method will cause
+	/// This node to resize its table of distribution parameters, so a default value is
+	/// required to fill in new elements. Typically, you will set these new elements to
+	/// something more meaningful (by calling setMinAndMax) after you call this method.
+	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
+
+	/// Set the min and max parameters for one of the distributions of this node.
+	/// "cat" specifies the index of the combination of values (in little-endian order) in the
+	/// categorical parent distributions for which this distribution is being specified.
+	void setMinAndMax(size_t cat, GPGMNode* pMin, GPGMNode* pMax);
+
+	/// Returns false.
+	virtual bool isDiscrete() { return false; }
+
+	/// Returns the likelihood that the value x would be drawn from this distribution given
+	/// the current values of all the parent nodes.
+	virtual double likelihood(double x);
+};
+
+
+
+
+/// A node in a probabilistic graphical model that represents a Poisson distribution.
+class GPGMPoisson : public GPGMMetropolisNode
+{
+protected:
+	std::vector<GPGMNode*> m_lambda;
+
+public:
+	/// General-purpose constructor. The prior mean and deviation parameters are
+	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
+	/// used for the parameter of this distribution. Typically, you will
+	/// change this value (by calling setLambda) after constructing this node.
+	GPGMPoisson(double priorMean, double priorDeviation, GPGMNode* pDefaultVal);
+	~GPGMPoisson() {}
+
+	/// Adds a categorical node as a parent of this node. Calling this method will cause
+	/// This node to resize its table of distribution parameters, so a default value is
+	/// required to fill in new elements. Typically, you will set these new elements to
+	/// something more meaningful (by calling setLambda) after you call this method.
+	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
+
+	/// Set the lambda parameter for one of the distributions of this node.
+	/// "cat" specifies the index of the combination of values (in little-endian order) in the
+	/// categorical parent distributions for which this distribution is being specified.
+	void setLambda(size_t cat, GPGMNode* pLambda);
+
+	/// Returns true.
+	virtual bool isDiscrete() { return true; }
+
+	/// Returns the likelihood that the value x would be drawn from this distribution given
+	/// the current values of all the parent nodes.
+	virtual double likelihood(double x);
+};
+
+
+
+
+/// A node in a probabilistic graphical model that represents an exponential distribution.
+class GPGMExponential : public GPGMMetropolisNode
+{
+protected:
+	std::vector<GPGMNode*> m_lambda;
+
+public:
+	/// General-purpose constructor. The prior mean and deviation parameters are
+	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
+	/// used for the parameter of this distribution. Typically, you will
+	/// change this value (by calling setLambda) after constructing this node.
+	GPGMExponential(double priorMean, double priorDeviation, GPGMNode* pDefaultVal);
+	~GPGMExponential() {}
+
+	/// Adds a categorical node as a parent of this node. Calling this method will cause
+	/// This node to resize its table of distribution parameters, so a default value is
+	/// required to fill in new elements. Typically, you will set these new elements to
+	/// something more meaningful (by calling setLambda) after you call this method.
+	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
+
+	/// Set the lambda parameter for one of the distributions of this node.
+	/// "cat" specifies the index of the combination of values (in little-endian order) in the
+	/// categorical parent distributions for which this distribution is being specified.
+	void setLambda(size_t cat, GPGMNode* pLambda);
+
+	/// Returns true.
+	virtual bool isDiscrete() { return false; }
+
+	/// Returns the likelihood that the value x would be drawn from this distribution given
+	/// the current values of all the parent nodes.
+	virtual double likelihood(double x);
+};
+
+
+
+
+/// A node in a probabilistic graphical model that represents a beta distribution.
+class GPGMBeta : public GPGMMetropolisNode
+{
+protected:
+	std::vector<GPGMNode*> m_alphaAndBeta;
+
+public:
+	/// General-purpose constructor. The prior mean and deviation parameters are
+	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
+	/// used for the parameters of this distribution. Typically, you will
+	/// change these values (by calling setAlphaAndBeta) after constructing this node.
+	GPGMBeta(double priorMean, double priorDeviation, GPGMNode* pDefaultVal);
+	~GPGMBeta() {}
+
+	/// Adds a categorical node as a parent of this node. Calling this method will cause
+	/// This node to resize its table of distribution parameters, so a default value is
+	/// required to fill in new elements. Typically, you will set these new elements to
+	/// something more meaningful (by calling setAlphaAndBeta) after you call this method.
+	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
+
+	/// Set the alpha and beta values for one of the distributions of this node.
+	/// "cat" specifies the index of the combination of values (in little-endian order) in the
+	/// categorical parent distributions for which this distribution is being specified.
+	void setAlphaAndBeta(size_t cat, GPGMNode* pAlpha, GPGMNode* pBeta);
+
+	/// Returns false.
+	virtual bool isDiscrete() { return false; }
+
+	/// Returns the likelihood that the value x would be drawn from this distribution given
+	/// the current values of all the parent nodes.
+	virtual double likelihood(double x);
+};
+
+
+
+
+/// A node in a probabilistic graphical model that represents a beta distribution.
+class GPGMGamma : public GPGMMetropolisNode
+{
+protected:
+	std::vector<GPGMNode*> m_alphaAndBeta;
+	bool m_betaIsScaleInsteadOfRate;
+
+public:
+	/// General-purpose constructor. The prior mean and deviation parameters are
+	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
+	/// used for the parameters of this distribution. Typically, you will
+	/// change these values (by calling setAlphaAndBeta) after constructing this node.
+	/// If the "beta" parameter is scale (typically denoted with thata) instead of rate,
+	/// then betaIsScaleInsteadOfRate should be set to true.
+	GPGMGamma(double priorMean, double priorDeviation, GPGMNode* pDefaultVal, bool betaIsScaleInsteadOfRate = false);
+	~GPGMGamma() {}
+
+	/// Adds a categorical node as a parent of this node. Calling this method will cause
+	/// This node to resize its table of distribution parameters, so a default value is
+	/// required to fill in new elements. Typically, you will set these new elements to
+	/// something more meaningful (by calling setAlphaAndBeta) after you call this method.
+	virtual void addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal);
+
+	/// Set the alpha and beta values for one of the distributions of this node.
+	/// "cat" specifies the index of the combination of values (in little-endian order) in the
+	/// categorical parent distributions for which this distribution is being specified.
+	void setAlphaAndBeta(size_t cat, GPGMNode* pAlpha, GPGMNode* pBeta);
+
+	/// Returns false.
+	virtual bool isDiscrete() { return false; }
 
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
@@ -266,7 +553,7 @@ public:
 /// that just doesn't seem to have as nice of a ring to it, so I called it GBayesNet instead.)
 /// It allocates nodes in its own help using placement new, so you don't have to worry about deleting the nodes.
 /// You can allocate your nodes manually and use them separately from this class if you want, but it is a lot
-/// easier if you use this class to do it all.
+/// easier if you use this class to manage it all.
 class GBayesNet
 {
 protected:
@@ -301,6 +588,46 @@ public:
 	/// This node is allocated using placement new in an internal heap,
 	/// so you do not need to worry about deleting it.
 	GPGMNormal* newNormal(double priorMean, double priorDev);
+
+	/// Return a pointer to a node that represents a lognormal distribution.
+	/// This node is allocated using placement new in an internal heap,
+	/// so you do not need to worry about deleting it.
+	GPGMLogNormal* newLogNormal(double priorMean, double priorDev);
+
+	/// Return a pointer to a node that represents a Pareto distribution.
+	/// This node is allocated using placement new in an internal heap,
+	/// so you do not need to worry about deleting it.
+	GPGMPareto* newPareto(double priorMean, double priorDev);
+
+	/// Return a pointer to a node that represents a uniform discrete distribution.
+	/// This node is allocated using placement new in an internal heap,
+	/// so you do not need to worry about deleting it.
+	GPGMUniformDiscrete* newUniformDiscrete(double priorMean, double priorDev);
+
+	/// Return a pointer to a node that represents a uniform continuous distribution.
+	/// This node is allocated using placement new in an internal heap,
+	/// so you do not need to worry about deleting it.
+	GPGMUniformContinuous* newUniformContinuous(double priorMean, double priorDev);
+
+	/// Return a pointer to a node that represents a Poisson distribution.
+	/// This node is allocated using placement new in an internal heap,
+	/// so you do not need to worry about deleting it.
+	GPGMPoisson* newPoisson(double priorMean, double priorDev);
+
+	/// Return a pointer to a node that represents an Exponential distribution.
+	/// This node is allocated using placement new in an internal heap,
+	/// so you do not need to worry about deleting it.
+	GPGMExponential* newExponential(double priorMean, double priorDev);
+
+	/// Return a pointer to a node that represents a Beta distribution.
+	/// This node is allocated using placement new in an internal heap,
+	/// so you do not need to worry about deleting it.
+	GPGMBeta* newBeta(double priorMean, double priorDev);
+
+	/// Return a pointer to a node that represents a Beta distribution.
+	/// This node is allocated using placement new in an internal heap,
+	/// so you do not need to worry about deleting it.
+	GPGMGamma* newGamma(double priorMean, double priorDev, bool useScaleInsteadOfRate = false);
 
 	/// Sample each node in the graph one time
 	void sample();
