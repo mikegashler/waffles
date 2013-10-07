@@ -22,6 +22,7 @@
 #include "../../GClasses/GSparseMatrix.h"
 #include "../../GClasses/GHashTable.h"
 #include "../../GClasses/GHillClimber.h"
+#include "../../GClasses/GHolders.h"
 #include "../../GClasses/GManifold.h"
 #include "../../GClasses/GMath.h"
 #include "../../GClasses/GMatrix.h"
@@ -2201,7 +2202,7 @@ void MakeCorrelationGraph(const GRelation* pRelation, GMatrix* pData, GImage* pI
 		for(size_t i = 0; i < pRelation->valueCount(attrx); i++)
 		{
 			GMatrix tmp(pData->relation().clone());
-			pData->splitByNominalValue(&tmp, attrx, (int)i);
+			pData->splitCategoricalKeepIfNotEqual(&tmp, attrx, (int)i);
 			right += (double)tmp.rows() / tot;
 			double bot = 0.0;
 			double top = 0.0;
@@ -2630,8 +2631,7 @@ void model(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("Model not specified");
 	doc.loadJson(args.pop_string());
-	GRand prng(0);
-	GLearnerLoader ll(prng, true);
+	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
@@ -2761,8 +2761,7 @@ void rayTraceManifoldModel(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("Model not specified");
 	doc.loadJson(args.pop_string());
-	GRand prng(0);
-	GLearnerLoader ll(prng, true);
+	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	if(pModeler->relFeatures().size() != 2 || pModeler->relLabels().size() != 3)
@@ -2829,6 +2828,7 @@ void rayTraceManifoldModel(GArgReader& args)
 	}
 
 	// Set up the scene
+	GRand prng(0);
 	GRayTraceScene scene(&prng);
 	scene.setBackgroundColor(1.0, 0.0, 0.0, 0.0);
 	scene.setAmbientLight(0.9, 0.9, 0.9);
@@ -2999,8 +2999,7 @@ void ubpFrames(GArgReader& args)
 
 	GDom doc;
 	doc.loadJson(szModelFilename);
-	GRand rand(0);
-	GLearnerLoader ll(rand);
+	GLearnerLoader ll;
 	GUnsupervisedBackProp* pUBP = new GUnsupervisedBackProp(doc.root(), ll);
 	Holder<GUnsupervisedBackProp> hUBP(pUBP);
 
