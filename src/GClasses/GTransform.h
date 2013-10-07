@@ -216,10 +216,10 @@ protected:
 	GMatrix* m_pCentroid;
 	double* m_pEigVals;
 	bool m_aboutOrigin;
-	GRand* m_pRand;
+	GRand m_rand;
 
 public:
-	GPCA(size_t targetDims, GRand* pRand);
+	GPCA(size_t targetDims);
 
 	/// Load from a DOM.
 	GPCA(GDomNode* pNode, GLearnerLoader& ll);
@@ -267,6 +267,8 @@ public:
 	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut);
 
+	/// Returns a reference to the pseudo-random number generator used by this object.
+	GRand& rand() { return m_rand; }
 protected:
 	/// See the comment for GIncrementalTransform::train
 	virtual GRelation* trainInner(const GMatrix& data);
@@ -296,11 +298,11 @@ public:
 class GNoiseGenerator : public GIncrementalTransform
 {
 protected:
-	GRand* m_pRand;
+	GRand m_rand;
 	double m_mean, m_deviation;
 
 public:
-	GNoiseGenerator(GRand* pRand);
+	GNoiseGenerator();
 
 	/// Load from a DOM.
 	GNoiseGenerator(GDomNode* pNode, GLearnerLoader& ll);
@@ -313,6 +315,7 @@ public:
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
+	/// Sets the mean and deviation of the noise
 	void setMeanAndDeviation(double m, double d) { m_mean = m; m_deviation = d; }
 
 	/// Throws an exception (because this transform cannot be reversed).
@@ -322,6 +325,9 @@ public:
 	/// Throws an exception (because this transform cannot be undone).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
 	{ throw Ex("This transformation cannot be reversed"); }
+
+	/// Returns a reference to the rand object used to generate noise.
+	GRand& rand() { return m_rand; }
 
 protected:
 	/// See the comment for GIncrementalTransform::train
@@ -384,7 +390,7 @@ protected:
 	double m_deviation;
 
 public:
-	GReservoir(GRand& rand, double weightDeviation = 2.0, size_t outputs = 64, size_t hiddenLayers = 2);
+	GReservoir(double weightDeviation = 2.0, size_t outputs = 64, size_t hiddenLayers = 2);
 
 	/// Load from a DOM.
 	GReservoir(GDomNode* pNode, GLearnerLoader& ll);
@@ -469,10 +475,10 @@ protected:
 	size_t m_labelDims;
 	size_t m_targetFeatures;
 	std::vector<size_t> m_ranks;
-	GRand* m_pRand;
+	size_t m_seed;
 
 public:
-	GAttributeSelector(size_t labelDims, size_t targetFeatures, GRand* pRand) : GIncrementalTransform(), m_labelDims(labelDims), m_targetFeatures(targetFeatures), m_pRand(pRand)
+	GAttributeSelector(size_t labelDims, size_t targetFeatures) : GIncrementalTransform(), m_labelDims(labelDims), m_targetFeatures(targetFeatures), m_seed(1234567)
 	{
 	}
 
@@ -485,7 +491,7 @@ public:
 	static void test();
 
 	virtual GDomNode* serialize(GDom* pDoc) const;
-	
+
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
 
@@ -504,6 +510,9 @@ public:
 	/// Throws an exception (because this transform cannot be reversed).
 	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
 	{ throw Ex("This transformation cannot be reversed"); }
+
+	/// Sets a random seed to use with this attribute selector
+	void setSeed(size_t seed) { m_seed = seed; }
 
 protected:
 	/// See the comment for GIncrementalTransform::train
@@ -594,7 +603,7 @@ public:
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
-	
+
 	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
@@ -627,7 +636,7 @@ protected:
 
 public:
 	/// if buckets is less than 0, then it will use the floor of the square root of the number of rows in the data
-	GDiscretize(size_t buckets = (size_t)-1);
+	GDiscretize(size_t buckets = INVALID_INDEX);
 
 	/// Load from a DOM.
 	GDiscretize(GDomNode* pNode, GLearnerLoader& ll);
@@ -639,7 +648,7 @@ public:
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
-	
+
 	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
@@ -662,13 +671,12 @@ class GImputeMissingVals : public GIncrementalTransform
 protected:
 	GCollaborativeFilter* m_pCF;
 	GNominalToCat* m_pNTC;
-	GRand& m_rand;
 	const GMatrix* m_pLabels;
 	GMatrix* m_pBatch;
 
 public:
 	/// General-purpose constructor
-	GImputeMissingVals(GRand& rand);
+	GImputeMissingVals();
 
 	/// Deserializing constructor
 	GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll);
@@ -680,7 +688,7 @@ public:
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
-	
+
 	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 
@@ -730,7 +738,7 @@ public:
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const double* pIn, double* pOut);
-	
+
 	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const double* pIn, double* pOut);
 

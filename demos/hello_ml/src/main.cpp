@@ -21,7 +21,6 @@
 #include <vector>
 #include <GClasses/GApp.h>
 #include <GClasses/GError.h>
-#include <GClasses/GRand.h>
 #include <GClasses/GDecisionTree.h>
 #include <GClasses/GNeuralNet.h>
 #include <GClasses/GActivation.h>
@@ -34,16 +33,16 @@ using std::cerr;
 using std::cout;
 using std::vector;
 
-void do_decision_tree(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_decision_tree(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GDecisionTree model(rand);
+	GDecisionTree model;
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);
 }
 
-void do_neural_network(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_neural_network(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GNeuralNet model(rand);
+	GNeuralNet model;
 	model.setTopology(3); // add one hidden layer of 3 nodes
 	model.setLearningRate(0.1);
 	model.setMomentum(0.1);
@@ -51,28 +50,28 @@ void do_neural_network(GRand& rand, GMatrix& features, GMatrix& labels, double* 
 	model.predict(test_features, predicted_labels);
 }
 
-void do_knn(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_knn(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GKNN model(rand);
+	GKNN model;
 	model.setNeighborCount(3); // use the 3-nearest neighbors
 	model.setInterpolationMethod(GKNN::Linear); // use linear interpolation
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);
 }
 
-void do_naivebayes(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_naivebayes(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GNaiveBayes model(rand);
+	GNaiveBayes model;
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);
 }
 
-void do_ensemble(GRand& rand, GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_ensemble(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GBag ensemble(rand);
+	GBag ensemble;
 	for(size_t i = 0; i < 50; i++)
 	{
-		GDecisionTree* pDT = new GDecisionTree(rand);
+		GDecisionTree* pDT = new GDecisionTree();
 		pDT->useRandomDivisions(1); // Make random tree
 		ensemble.addLearner(pDT);
 	}
@@ -121,21 +120,20 @@ void doit()
 	cout << "Predicting labels for a 15 inch pizza with a Neapolitan-style crust, no meat, for dine-in.\n\n";
 
 	// Use several models to make predictions
-	GRand rand(0);
 	cout.precision(4);
-	do_decision_tree(rand, features, labels, test_features, predicted_labels);
+	do_decision_tree(features, labels, test_features, predicted_labels);
 	cout << "The decision tree predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 
-	do_neural_network(rand, features, labels, test_features, predicted_labels);
+	do_neural_network(features, labels, test_features, predicted_labels);
 	cout << "The neural network predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 
-	do_knn(rand, features, labels, test_features, predicted_labels);
+	do_knn(features, labels, test_features, predicted_labels);
 	cout << "The knn model predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 
-	do_naivebayes(rand, features, labels, test_features, predicted_labels);
+	do_naivebayes(features, labels, test_features, predicted_labels);
 	cout << "The naive Bayes model predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 
-	do_ensemble(rand, features, labels, test_features, predicted_labels);
+	do_ensemble(features, labels, test_features, predicted_labels);
 	cout << "Random forest predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 }
 

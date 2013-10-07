@@ -31,6 +31,7 @@
 #include "GBitTable.h"
 #include "GDistance.h"
 #include "GSparseMatrix.h"
+#include "GHolders.h"
 #include <map>
 
 using std::multimap;
@@ -75,7 +76,7 @@ protected:
 		// todo: this method is WAAAY too inefficient
 		GMatrix* pFeatures = m_pLearner->features();
 		GMatrix* pLabels = m_pLearner->labels();
-		GKNN temp(m_pLearner->rand());
+		GKNN temp;
 		temp.setNeighborCount(m_pLearner->neighborCount());
 		temp.beginIncrementalLearning(pFeatures->relation(), pLabels->relation());
 		GVec::copy(temp.metric()->scaleFactors(), pVector, relation()->size());
@@ -84,8 +85,8 @@ protected:
 };
 
 
-GKNN::GKNN(GRand& rand)
-: GIncrementalLearner(rand)
+GKNN::GKNN()
+: GIncrementalLearner()
 {
 	m_eInterpolationMethod = Linear;
 	m_eTrainMethod = StoreAll;
@@ -697,17 +698,16 @@ void GKNN::clear()
 //static
 void GKNN::test()
 {
-	GRand prng(0);
-	GKNN knn(prng);
+	GKNN knn;
 	knn.setNeighborCount(3);
-	knn.basicTest(0.72, 0.75);
+	knn.basicTest(0.72, 0.924);
 }
 #endif
 
 // ---------------------------------------------------------------------------------------
 
-GNeighborTransducer::GNeighborTransducer(GRand& rand)
-: GTransducer(rand), m_friendCount(12)
+GNeighborTransducer::GNeighborTransducer()
+: GTransducer(), m_friendCount(12)
 {
 }
 
@@ -847,8 +847,8 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 
 
 
-GInstanceTable::GInstanceTable(size_t dims, size_t* pDims, GRand& rand)
-: GIncrementalLearner(rand), m_dims(dims)
+GInstanceTable::GInstanceTable(size_t dims, size_t* pDims)
+: GIncrementalLearner(), m_dims(dims)
 {
 	m_pDims = new size_t[dims];
 	memcpy(m_pDims, pDims, sizeof(size_t) * dims);

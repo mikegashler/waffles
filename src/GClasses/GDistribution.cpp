@@ -23,6 +23,7 @@
 #include "GRand.h"
 #include "GMath.h"
 #include "GMatrix.h"
+#include "GHolders.h"
 #include <cmath>
 
 using namespace GClasses;

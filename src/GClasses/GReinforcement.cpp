@@ -21,6 +21,7 @@
 #include "GNeuralNet.h"
 #include "GKNN.h"
 #include "GRand.h"
+#include "GHolders.h"
 
 namespace GClasses {
 

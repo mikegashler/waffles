@@ -28,6 +28,7 @@
 #include "GDom.h"
 #include "GTransform.h"
 #include "GEnsemble.h"
+#include "GHolders.h"
 #include <string>
 #include <iostream>
 
@@ -350,8 +351,8 @@ GDecisionTreeNode* GDecisionTreeNode::deserialize(GDomNode* pNode)
 
 // -----------------------------------------------------------------
 
-GDecisionTree::GDecisionTree(GRand& rand)
-: GSupervisedLearner(rand), m_leafThresh(1), m_maxLevels(0), m_binaryDivisions(false)
+GDecisionTree::GDecisionTree()
+: GSupervisedLearner(), m_leafThresh(1), m_maxLevels(0), m_binaryDivisions(false)
 {
 	m_pRoot = NULL;
 	m_eAlg = GDecisionTree::MINIMIZE_ENTROPY;
@@ -706,14 +707,14 @@ protected:
 
 public:
 	GDTAttrPoolHolder(vector<size_t>& attrPool)
-	: m_attrPool(attrPool), m_attr((size_t)-1)
+	: m_attrPool(attrPool), m_attr(INVALID_INDEX)
 	{
 	}
 
 	void temporarilyRemoveAttribute(size_t index)
 	{
 		m_attr = m_attrPool[index];
-		GAssert(m_attr != (size_t)-1);
+		GAssert(m_attr != INVALID_INDEX);
 		std::swap(m_attrPool[index], m_attrPool[m_attrPool.size() - 1]);
 		m_attrPool.erase(m_attrPool.end() - 1);
 	}
@@ -721,7 +722,7 @@ public:
 	~GDTAttrPoolHolder()
 	{
 		// Put the attribute that we temporarily removed back in the pool
-		if(m_attr != (size_t)-1)
+		if(m_attr != INVALID_INDEX)
 			m_attrPool.push_back(m_attr);
 	}
 };
@@ -955,19 +956,16 @@ void GDecisionTree::clear()
 void GDecisionTree::test()
 {
 	{
-		GRand rand(0);
-		GDecisionTree tree(rand);
+		GDecisionTree tree;
 		tree.basicTest(0.704, 0.77);
 	}
 	{
-		GRand rand(0);
-		GDecisionTree ml2Tree(rand);
+		GDecisionTree ml2Tree;
 		ml2Tree.setMaxLevels(2);
-		ml2Tree.basicTest(0.57, 0.65);
+		ml2Tree.basicTest(0.57, 0.68);
 	}
 	{
-		GRand rand(0);
-		GDecisionTree ml1Tree(rand);
+		GDecisionTree ml1Tree;
 		ml1Tree.setMaxLevels(1);
 		ml1Tree.basicTest(0.33, 0.33);
 	}
@@ -1135,8 +1133,8 @@ GMeanMarginsTreeNode* GMeanMarginsTreeNode::deserialize(GDomNode* pNode)
 
 // ---------------------------------------------------------------
 
-GMeanMarginsTree::GMeanMarginsTree(GRand& rand)
-: GSupervisedLearner(rand), m_internalFeatureDims(0), m_internalLabelDims(0), m_pRoot(NULL)
+GMeanMarginsTree::GMeanMarginsTree()
+: GSupervisedLearner(), m_internalFeatureDims(0), m_internalLabelDims(0), m_pRoot(NULL)
 {
 }
 
@@ -1333,9 +1331,8 @@ void GMeanMarginsTree::clear()
 // static
 void GMeanMarginsTree::test()
 {
-	GRand rand(0);
-	GMeanMarginsTree mm(rand);
-	mm.basicTest(0.70, 0.77);
+	GMeanMarginsTree mm;
+	mm.basicTest(0.70, 0.9);
 }
 #endif
 
@@ -1348,13 +1345,13 @@ void GMeanMarginsTree::test()
 
 
 
-GRandomForest::GRandomForest(GRand& rand, size_t trees, size_t samples)
-: GSupervisedLearner(rand)
+GRandomForest::GRandomForest(size_t trees, size_t samples)
+: GSupervisedLearner()
 {
-	m_pEnsemble = new GBag(rand);
+	m_pEnsemble = new GBag();
 	for(size_t i = 0; i < trees; i++)
 	{
-		GDecisionTree* pTree = new GDecisionTree(rand);
+		GDecisionTree* pTree = new GDecisionTree();
 		pTree->useRandomDivisions(samples);
 		m_pEnsemble->addLearner(pTree);
 	}
@@ -1419,8 +1416,7 @@ void GRandomForest::predictDistributionInner(const double* pIn, GPrediction* pOu
 // static
 void GRandomForest::test()
 {
-	GRand rand(0);
-	GRandomForest rf(rand, 30);
-	rf.basicTest(0.765, 0.78, 0.01);
+	GRandomForest rf(30);
+	rf.basicTest(0.762, 0.93, 0.01);
 }
 #endif

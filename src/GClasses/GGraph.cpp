@@ -28,6 +28,7 @@
 #include "GNeighborFinder.h"
 #include "GRand.h"
 #include "GVec.h"
+#include "GHolders.h"
 #include <vector>
 #include <deque>
 #include <cmath>
@@ -701,7 +702,7 @@ void GDijkstra::compute(size_t origin)
 		size_t u = q[1];
 		if(m_pCosts[u] >= 1e300)
 			break;
-		
+
 		// Pop from the front of the heap
 		size_t index = 1;
 		while(2 * index <= qSize)

@@ -32,6 +32,7 @@
 #include "GImage.h"
 #endif // MIN_PREDICT
 #include "GBitTable.h"
+#include "GHolders.h"
 #include <cmath>
 
 namespace GClasses {
@@ -960,7 +961,7 @@ GCoordVectorIterator::~GCoordVectorIterator()
 void GCoordVectorIterator::reset()
 {
 	memset(m_pCoords, '\0', sizeof(size_t) * m_dims);
-	m_sampleShift = (size_t)-1;
+	m_sampleShift = INVALID_INDEX;
 }
 
 void GCoordVectorIterator::reset(size_t dims, size_t* pRanges)
@@ -1053,7 +1054,7 @@ bool GCoordVectorIterator::advance(size_t steps)
 #ifndef MIN_PREDICT
 bool GCoordVectorIterator::advanceSampling()
 {
-	if(m_sampleShift == (size_t)-1) // if we have not yet computed the step size
+	if(m_sampleShift == INVALID_INDEX) // if we have not yet computed the step size
 	{
 		size_t r = m_pRanges[0];
 		for(size_t i = 1; i < m_dims; i++)
@@ -1078,7 +1079,7 @@ bool GCoordVectorIterator::advanceSampling()
 		}
 		if(j >= m_dims)
 		{
-			if(--m_sampleShift == (size_t)-1) // if we're all done
+			if(--m_sampleShift == INVALID_INDEX) // if we're all done
 				return false;
 		}
 		if(m_sampleMask == 0)

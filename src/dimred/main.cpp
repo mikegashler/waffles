@@ -402,8 +402,8 @@ void attributeSelector(GArgReader& args)
 	}
 
 	// Do the attribute selection
-	GRand prng(seed);
-	GAttributeSelector as(labelDims, targetFeatures, &prng);
+	GAttributeSelector as(labelDims, targetFeatures);
+	as.setSeed(seed);
 	if(outFilename.length() > 0)
 	{
 		as.train(data);
@@ -472,7 +472,7 @@ void breadthFirstUnfolding(GArgReader& args)
 	// Load the file and params
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	size_t nSeed = getpid() * (unsigned int)time(NULL);
 	GRand prng(nSeed);
 	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
 	Holder<GNeighborFinder> hNF(pNF);
@@ -484,7 +484,7 @@ void breadthFirstUnfolding(GArgReader& args)
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
+			nSeed = args.pop_uint();
 		else if(args.if_pop("-reps"))
 			reps = args.pop_uint();
 		else
@@ -492,7 +492,8 @@ void breadthFirstUnfolding(GArgReader& args)
 	}
 
 	// Transform the data
-	GBreadthFirstUnfolding transform(reps, pNF->neighborCount(), targetDims, &prng);
+	GBreadthFirstUnfolding transform(reps, pNF->neighborCount(), targetDims);
+	transform.rand().setSeed(nSeed);
 	transform.setNeighborFinder(pNF);
 	GMatrix* pDataAfter = transform.doit(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
@@ -859,7 +860,7 @@ void principalComponentAnalysis(GArgReader& args)
 
 	// Parse options
 	string roundTrip;
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	size_t seed = getpid() * (unsigned int)time(NULL);
 	string eigenvalues;
 	string components;
 	string modelIn;
@@ -886,18 +887,17 @@ void principalComponentAnalysis(GArgReader& args)
 	}
 
 	// Transform the data
-	GRand prng(seed);
 	GPCA* pTransform = NULL;
 	if(modelIn.length() > 0)
 	{
 		GDom doc;
 		doc.loadJson(modelIn.c_str());
-		GLearnerLoader ll(prng);
+		GLearnerLoader ll;
 		pTransform = new GPCA(doc.root(), ll);
 	}
 	else
 	{
-		pTransform = new GPCA(nTargetDims, &prng);
+		pTransform = new GPCA(nTargetDims);
 		if(aboutOrigin)
 			pTransform->aboutOrigin();
 		if(eigenvalues.length() > 0)
@@ -905,6 +905,7 @@ void principalComponentAnalysis(GArgReader& args)
 		pTransform->train(*pData);
 	}
 	Holder<GPCA> hTransform(pTransform);
+	pTransform->rand().setSeed(seed);
 
 	GMatrix* pDataAfter = pTransform->transformBatch(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
@@ -950,7 +951,7 @@ void scalingUnfolder(GArgReader& args)
 	// Load the file and params
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
+	size_t nSeed = getpid() * (unsigned int)time(NULL);
 	GRand prng(nSeed);
 	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
 	Holder<GNeighborFinder> hNF(pNF);
@@ -960,13 +961,14 @@ void scalingUnfolder(GArgReader& args)
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
+			nSeed = args.pop_uint();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Transform the data
-	GScalingUnfolder transform(prng);
+	GScalingUnfolder transform;
+	transform.rand().setSeed(nSeed);
 	transform.setNeighborCount(pNF->neighborCount());
 	transform.setTargetDims(targetDims);
 	//transform.setNeighborFinder(pNF);
@@ -993,13 +995,14 @@ void selfOrganizingMap(GArgReader& args){
 	       "A map must be at least 1 dimensional.");
   }
 
+  GRand rand(getpid() * (unsigned int)time(NULL));
   Holder<SOM::ReporterChain> reporters(new SOM::ReporterChain);
   Holder<SOM::TrainingAlgorithm> alg(NULL);
   Holder<GDistanceMetric> weightDist(new GRowDistance);
   Holder<GDistanceMetric> nodeDist(new GRowDistance);
   Holder<SOM::NodeLocationInitialization> topology(new SOM::GridTopology);
   Holder<SOM::NodeWeightInitialization> weightInit
-    (new SOM::NodeWeightInitializationTrainingSetSample(NULL));
+    (new SOM::NodeWeightInitializationTrainingSetSample(rand));
   Holder<SOM::NeighborhoodWindowFunction>
     windowFunc(new SOM::GaussianWindowFunction());
 
@@ -1022,7 +1025,7 @@ void selfOrganizingMap(GArgReader& args){
     }else if(args.if_pop("-fromfile")){
       loadFrom = args.pop_string();
     }else if(args.if_pop("-seed")){
-      GRand::global().setSeed(args.pop_uint());
+      rand.setSeed(args.pop_uint());
     }else if(args.if_pop("-neighborhood")){
       string name = args.pop_string();
       if(name == "gaussian"){
@@ -1203,7 +1206,7 @@ void unsupervisedBackProp(GArgReader& args)
 		{
 			GDom doc;
 			doc.loadJson(args.pop_string());
-			GLearnerLoader ll(prng);
+			GLearnerLoader ll;
 			pUBP = new GUnsupervisedBackProp(doc.root(), ll);
 			hUBP.reset(pUBP);
 		}

@@ -23,6 +23,7 @@
 #include "GNeuralNet.h"
 #include "GDom.h"
 #include "GRand.h"
+#include "GHolders.h"
 
 using namespace GClasses;
 using std::vector;
@@ -51,8 +52,8 @@ GDomNode* GWeightedModel::serialize(GDom* pDoc) const
 
 
 
-GEnsemble::GEnsemble(GRand& rand)
-: GSupervisedLearner(rand), m_pLabelRel(NULL), m_nAccumulatorDims(0), m_pAccumulator(NULL)
+GEnsemble::GEnsemble()
+: GSupervisedLearner(), m_pLabelRel(NULL), m_nAccumulatorDims(0), m_pAccumulator(NULL)
 {
 }
 
@@ -236,8 +237,8 @@ void GEnsemble::predictDistributionInner(const double* pIn, GPrediction* pOut)
 
 
 
-GBag::GBag(GRand& rand)
-: GEnsemble(rand), m_pCB(NULL), m_pThis(NULL), m_trainSize(1.0)
+GBag::GBag()
+: GEnsemble(), m_pCB(NULL), m_pThis(NULL), m_trainSize(1.0)
 {
 }
 
@@ -275,6 +276,7 @@ void GBag::flush()
 
 void GBag::addLearner(GSupervisedLearner* pLearner)
 {
+	pLearner->rand().setSeed(m_rand.next()); // Ensure that every learner has a different seed
 	GWeightedModel* pWM = new GWeightedModel(0.0, pLearner); // The weight will be fixed later
 	m_models.push_back(pWM);
 }
@@ -329,15 +331,14 @@ void GBag::determineWeights(const GMatrix& features, const GMatrix& labels)
 // static
 void GBag::test()
 {
-	GRand rand(0);
-	GBag bag(rand);
+	GBag bag;
 	for(size_t i = 0; i < 64; i++)
 	{
-		GDecisionTree* pTree = new GDecisionTree(rand);
+		GDecisionTree* pTree = new GDecisionTree();
 		pTree->useRandomDivisions();
 		bag.addLearner(pTree);
 	}
-	bag.basicTest(0.767, 0.8, 0.01);
+	bag.basicTest(0.767, 0.93, 0.01);
 }
 #endif
 
@@ -405,11 +406,10 @@ GDomNode* GBomb::serialize(GDom* pDoc) const
 // static
 void GBomb::test()
 {
-	GRand rand(0);
-	GBomb bomb(rand);
+	GBomb bomb;
 	for(size_t i = 0; i < 32; i++)
 	{
-		GDecisionTree* pTree = new GDecisionTree(rand);
+		GDecisionTree* pTree = new GDecisionTree();
 		pTree->useRandomDivisions();
 		bomb.addLearner(pTree);
 	}
@@ -460,15 +460,14 @@ GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc) const
 // static
 void GBayesianModelAveraging::test()
 {
-	GRand rand(0);
-	GBayesianModelAveraging bma(rand);
+	GBayesianModelAveraging bma;
 	for(size_t i = 0; i < 32; i++)
 	{
-		GDecisionTree* pTree = new GDecisionTree(rand);
+		GDecisionTree* pTree = new GDecisionTree();
 		pTree->useRandomDivisions();
 		bma.addLearner(pTree);
 	}
-	bma.basicTest(0.755, 0.76, 0.01);
+	bma.basicTest(0.755, 0.944, 0.01);
 }
 #endif
 
@@ -541,15 +540,14 @@ GDomNode* GBayesianModelCombination::serialize(GDom* pDoc) const
 // static
 void GBayesianModelCombination::test()
 {
-	GRand rand(0);
-	GBayesianModelCombination bmc(rand);
+	GBayesianModelCombination bmc;
 	for(size_t i = 0; i < 32; i++)
 	{
-		GDecisionTree* pTree = new GDecisionTree(rand);
+		GDecisionTree* pTree = new GDecisionTree();
 		pTree->useRandomDivisions();
 		bmc.addLearner(pTree);
 	}
-	bmc.basicTest(0.76, 0.765, 0.01);
+	bmc.basicTest(0.76, 0.944, 0.01);
 }
 #endif
 
@@ -558,7 +556,7 @@ void GBayesianModelCombination::test()
 
 
 GResamplingAdaBoost::GResamplingAdaBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader)
-: GEnsemble(pLoader->rand()), m_pLearner(pLearner), m_ownLearner(ownLearner), m_pLoader(pLoader), m_trainSize(1.0), m_ensembleSize(30)
+: GEnsemble(), m_pLearner(pLearner), m_ownLearner(ownLearner), m_pLoader(pLoader), m_trainSize(1.0), m_ensembleSize(30)
 {
 }
 
@@ -685,11 +683,10 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 // static
 void GResamplingAdaBoost::test()
 {
-	GRand rand(0);
-	GDecisionTree* pLearner = new GDecisionTree(rand);
+	GDecisionTree* pLearner = new GDecisionTree();
 	pLearner->useRandomDivisions();
-	GResamplingAdaBoost boost(pLearner, true, new GLearnerLoader(rand));
-	boost.basicTest(0.753, 0.757);
+	GResamplingAdaBoost boost(pLearner, true, new GLearnerLoader());
+	boost.basicTest(0.753, 0.92);
 }
 #endif
 
@@ -700,10 +697,10 @@ void GResamplingAdaBoost::test()
 
 
 
-GWag::GWag(size_t size, GRand& rand)
-: GSupervisedLearner(rand), m_noAlign(false)
+GWag::GWag(size_t size)
+: GSupervisedLearner(), m_noAlign(false)
 {
-	m_pNN = new GNeuralNet(rand);
+	m_pNN = new GNeuralNet();
 }
 
 GWag::GWag(GDomNode* pNode, GLearnerLoader& ll)
@@ -764,7 +761,7 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 			// Copy the m_pNN
 			GDom doc;
 			GDomNode* pNode = m_pNN->serialize(&doc);
-			GLearnerLoader ll(m_rand);
+			GLearnerLoader ll;
 			pTemp = new GNeuralNet(pNode, ll);
 			hTemp.reset(pTemp);
 			weights = pTemp->countWeights();
@@ -796,8 +793,8 @@ void GWag::predictDistributionInner(const double* pIn, GPrediction* pOut)
 
 
 
-GBucket::GBucket(GRand& rand)
-: GSupervisedLearner(rand)
+GBucket::GBucket()
+: GSupervisedLearner()
 {
 	m_nBestLearner = -1;
 }
@@ -847,6 +844,7 @@ void GBucket::flush()
 
 void GBucket::addLearner(GSupervisedLearner* pLearner)
 {
+	pLearner->rand().setSeed(m_rand.next()); // Ensure that every learner has a different seed
 	m_models.push_back(pLearner);
 }
 
@@ -919,11 +917,10 @@ void GBucket::onError(std::exception& e)
 // static
 void GBucket::test()
 {
-	GRand rand(0);
-	GBucket bucket(rand);
-	bucket.addLearner(new GBaselineLearner(rand));
-	bucket.addLearner(new GDecisionTree(rand));
-	bucket.addLearner(new GMeanMarginsTree(rand));
-	bucket.basicTest(0.695, 0.77);
+	GBucket bucket;
+	bucket.addLearner(new GBaselineLearner());
+	bucket.addLearner(new GDecisionTree());
+	bucket.addLearner(new GMeanMarginsTree());
+	bucket.basicTest(0.695, 0.918);
 }
 #endif

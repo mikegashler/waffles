@@ -552,7 +552,7 @@ void PlotEquation(GArgReader& args)
 		svg.horizMarks(maxHorizMarks);
 	if(vertMarks)
 	{
-		if(maxVertMarks == (size_t)-1)
+		if(maxVertMarks == INVALID_INDEX)
 			maxVertMarks = maxHorizMarks * height / width;
 		svg.vertMarks(maxVertMarks);
 	}
@@ -688,7 +688,7 @@ public:
 				throw Ex("Expected a function named \"f\"");
 		}
 		else if(args.if_pop("row"))
-			m_attrX = (size_t)-1;
+			m_attrX = INVALID_INDEX;
 		else
 		{
 			m_attrX = args.pop_uint();
@@ -700,7 +700,7 @@ public:
 		if(!m_pFunc)
 		{
 			if(args.if_pop("row"))
-				m_attrY = (size_t)-1;
+				m_attrY = INVALID_INDEX;
 			else
 			{
 				m_attrY = args.pop_uint();
@@ -957,7 +957,7 @@ void findGridPattern(GMatrix* pData, size_t attr, size_t& block, size_t& cycle)
 
 void makeGridDataSubset(GMatrix* pSource, GMatrix* pDest, size_t horizPos, size_t horizAttr, size_t horizBlock, size_t vertPos, size_t vertAttr, size_t vertBlock)
 {
-	if(horizAttr == (size_t)-1)
+	if(horizAttr == INVALID_INDEX)
 	{
 		double vertValue = pSource->row(vertBlock * vertPos)[vertAttr];
 		for(size_t i = 0; i < pSource->rows(); i++)
@@ -966,7 +966,7 @@ void makeGridDataSubset(GMatrix* pSource, GMatrix* pDest, size_t horizPos, size_
 				pDest->takeRow(pSource->row(i));
 		}
 	}
-	else if(vertAttr == (size_t)-1)
+	else if(vertAttr == INVALID_INDEX)
 	{
 		double horizValue = pSource->row(horizBlock * horizPos)[horizAttr];
 		for(size_t i = 0; i < pSource->rows(); i++)
@@ -995,16 +995,16 @@ void PlotScatter(GArgReader& args)
 
 	// Values pertaining to grids of charts
 	size_t horizCharts = 1;
-	size_t horizAttr = (size_t)-1;
+	size_t horizAttr = INVALID_INDEX;
 	size_t horizBlock, horizCycle;
 	size_t vertCharts = 1;
-	size_t vertAttr = (size_t)-1;
+	size_t vertAttr = INVALID_INDEX;
 	size_t vertBlock, vertCycle;
 
 	// Values pertaining to each chart
 	size_t width = 960;
 	size_t height = 540;
-	size_t margin = (size_t)-1;
+	size_t margin = INVALID_INDEX;
 	size_t maxHorizMarks = 30;
 	size_t maxVertMarks = size_t(-1);
 	double pad = 0.05;
@@ -1080,7 +1080,7 @@ void PlotScatter(GArgReader& args)
 			throw Ex("unrecognized flag ", args.pop_string());
 	}
 
-	if(margin == (size_t)-1)
+	if(margin == INVALID_INDEX)
 		margin = (size_t)(std::min(width, height) * 0.2);
 
 	// Parse the colors
@@ -1122,7 +1122,7 @@ void PlotScatter(GArgReader& args)
 				svg.horizMarks(maxHorizMarks);
 			if(vertMarks)
 			{
-				if(maxVertMarks == (size_t)-1)
+				if(maxVertMarks == INVALID_INDEX)
 					maxVertMarks = maxHorizMarks * height / width;
 				svg.vertMarks(maxVertMarks);
 			}
@@ -1569,8 +1569,7 @@ void printDecisionTree(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GRand prng(0);
-	GLearnerLoader ll(prng, true);
+	GLearnerLoader ll(true);
 	if(_stricmp(doc.root()->field("class")->asString(), "GDecisionTree") != 0)
 		throw Ex("That model is not a decision tree");
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
@@ -1602,8 +1601,7 @@ void printRandomForest(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GRand prng(0);
-	GLearnerLoader ll(prng, true);
+	GLearnerLoader ll(true);
 	if(_stricmp(doc.root()->field("class")->asString(), "GRandomForest") != 0)
 		throw Ex("That model is not Random Forest");
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());

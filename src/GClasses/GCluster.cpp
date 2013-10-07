@@ -31,6 +31,7 @@
 #include "GBitTable.h"
 #include "GSparseMatrix.h"
 #include "GKNN.h"
+#include "GHolders.h"
 #include "GTime.h"
 #include "GGraph.h"
 #include "GDom.h"
@@ -172,7 +173,7 @@ void GAgglomerativeClusterer::cluster(const GMatrix* pData)
 		GAssert(a != b && a < pData->rows() && b < pData->rows());
 		size_t clustA = m_pClusters[a];
 		size_t clustB = m_pClusters[b];
-		
+
 		// Merge the clusters
 		if(clustA == clustB)
 			continue; // The two points are already in the same cluster
@@ -339,8 +340,8 @@ void GAgglomerativeClusterer::test()
 
 // -----------------------------------------------------------------------------------------
 
-GAgglomerativeTransducer::GAgglomerativeTransducer(GRand& rand)
-: GTransducer(rand), m_pMetric(NULL), m_ownMetric(false)
+GAgglomerativeTransducer::GAgglomerativeTransducer()
+: GTransducer(), m_pMetric(NULL), m_ownMetric(false)
 {
 }
 
@@ -431,7 +432,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, cons
 		// Assign each row to its own cluster
 		GIndexVec::makeIndexVec(pSiblings, featuresAll.rows()); // init such that each row is in a cluster of 1
 		size_t missingLabels = features2.rows();
-	
+
 		// Merge until we have the desired number of clusters
 		pRows = pNF->cache();
 		for(vector< std::pair<double,size_t> >::iterator dn = distNeighs.begin(); dn != it; dn++)
@@ -1212,8 +1213,8 @@ size_t CountLocalMaximums(size_t nElements, double* pData)
 
 // -----------------------------------------------------------------------------------------
 
-GGraphCutTransducer::GGraphCutTransducer(GRand& rand)
-: GTransducer(rand), m_neighborCount(12)
+GGraphCutTransducer::GGraphCutTransducer()
+: GTransducer(), m_neighborCount(12)
 {
 	m_pNeighbors = new size_t[m_neighborCount];
 	m_pDistances = new double[m_neighborCount];
@@ -1262,7 +1263,7 @@ void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels)
 GMatrix* GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Use k-NN to compute a distance metric with good scale factors for prediction
-	GKNN knn(m_rand);
+	GKNN knn;
 	knn.setNeighborCount(m_neighborCount);
 	//knn.setOptimizeScaleFactors(true);
 	knn.train(features1, labels1);

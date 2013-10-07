@@ -29,6 +29,7 @@
 #include "GOptimizer.h"
 #include "GHillClimber.h"
 #include "GMath.h"
+#include "GHolders.h"
 #include <vector>
 #include <algorithm>
 #include <string.h>
@@ -63,13 +64,13 @@ typedef struct tagBITMAPINFOHEADER {
     DWORD  biClrImportant;
 } BITMAPINFOHEADER;
 
-typedef struct tagBITMAPFILEHEADER { 
-  WORD    bfType; 
-  DWORD   bfSize; 
-  WORD    bfReserved1; 
-  WORD    bfReserved2; 
-  DWORD   bfOffBits; 
-} BITMAPFILEHEADER, *PBITMAPFILEHEADER; 
+typedef struct tagBITMAPFILEHEADER {
+  WORD    bfType;
+  DWORD   bfSize;
+  WORD    bfReserved1;
+  WORD    bfReserved2;
+  DWORD   bfOffBits;
+} BITMAPFILEHEADER, *PBITMAPFILEHEADER;
 #pragma pack()
 
 #endif
@@ -593,8 +594,8 @@ void GImage::equalizeColorSpread()
 			col = pixel(x, y);
 			nGray = gGray(col) >> 8;
 			fFactor = ((float)pnHistData[nGray] / (float)nFactor) / nGray;
-			
-			setPixel(x, y, 
+
+			setPixel(x, y,
 				gRGB(
 				(char)std::min((int)((float)gRed(col) * fFactor), 255),
 				(char)std::min((int)((float)gGreen(col) * fFactor), 255),
@@ -639,13 +640,13 @@ void GImage::locallyEqualizeColorSpread(int nLocalSize, float fExtent)
 					}
 				}
 			}
-			
+
 			// Turn the histogram into cumulative histogram data
 			for(n = 1; n < 256; n++)
 				pHist[n] += pHist[n - 1];
 		}
 	}
-	
+
 	// Equalize the colors
 	float fFactor1, fFactor2, fFactor3, fFactor4, fFactorTop, fFactorBottom, fFactorInterpolated;
 	float fInterp;
@@ -662,23 +663,23 @@ void GImage::locallyEqualizeColorSpread(int nLocalSize, float fExtent)
 			nDX = nX % nHalfRegionSize;
 			col = pixel(nX, nY);
 			nGrayscale = gGray(col) >> 8;
-			
+
 			// Calculate equalization factor for quadrant 1
 			pHist = pArrHistograms + 256 * (nHorizRegions * nVert + nHoriz);
 			fFactor1 = ((float)pHist[nGrayscale] / (float)pHist[255]) * 255 / nGrayscale;
-			
+
 			// Calculate equalization factor for quadrant 2
 			pHist = pArrHistograms + 256 * (nHorizRegions * nVert + (nHoriz + 1));
 			fFactor2 = ((float)pHist[nGrayscale] / (float)pHist[255]) * 255 / nGrayscale;
-			
+
 			// Calculate equalization factor for quadrant 3
 			pHist = pArrHistograms + 256 * (nHorizRegions * (nVert + 1) + nHoriz);
 			fFactor3 = ((float)pHist[nGrayscale] / (float)pHist[255]) * 255 / nGrayscale;
-			
+
 			// Calculate equalization factor for quadrant 4
 			pHist = pArrHistograms + 256 * (nHorizRegions * (nVert + 1) + (nHoriz + 1));
 			fFactor4 = ((float)pHist[nGrayscale] / (float)pHist[255]) * 255 / nGrayscale;
-			
+
 			// Interpolate a factor from all 4 quadrants
 			fInterp = (float)nDX / (float)(nHalfRegionSize - 1);
 			fFactorTop = fInterp * fFactor2 + (1 - fInterp) * fFactor1;
@@ -892,10 +893,10 @@ void GImage::lineAntiAlias(int nX1, int nY1, int nX2, int nY2, unsigned int colo
 			{
 				d = (double)nOverflow / nXDif;
 				col = pixel(n, m);
-				setPixel(n, m, 
+				setPixel(n, m,
 					gRGB((unsigned char)(d * gRed(col) + (1 - d) * gRed(color)), (unsigned char)(d * gGreen(col) + (1 - d) * gGreen(color)), (unsigned char)(d * gBlue(col) + (1 - d) * gBlue(color))));
 				col = pixel(n, m + 1);
-				setPixel(n, m + 1, 
+				setPixel(n, m + 1,
 					gRGB((unsigned char)((1 - d) * gRed(col) + d * gRed(color)), (unsigned char)((1 - d) * gGreen(col) + d * gGreen(color)), (unsigned char)((1 - d) * gBlue(col) + d * gBlue(color))));
 				nOverflow += nYDif;
 				if(nOverflow >= nXDif)
@@ -911,10 +912,10 @@ void GImage::lineAntiAlias(int nX1, int nY1, int nX2, int nY2, unsigned int colo
 			{
 				d = (double)nOverflow / nXDif;
 				col = pixel(n, m);
-				setPixel(n, m, 
+				setPixel(n, m,
 					gRGB((unsigned char)(d * gRed(col) + (1 - d) * gRed(color)), (unsigned char)(d * gGreen(col) + (1 - d) * gGreen(color)), (unsigned char)(d * gBlue(col) + (1 - d) * gBlue(color))));
 				col = pixel(n, m - 1);
-				setPixel(n, m - 1, 
+				setPixel(n, m - 1,
 					gRGB((unsigned char)((1 - d) * gRed(col) + d * gRed(color)), (unsigned char)((1 - d) * gGreen(col) + d * gGreen(color)), (unsigned char)((1 - d) * gBlue(col) + d * gBlue(color))));
 				nOverflow += nYDif;
 				if(nOverflow >= nXDif)
@@ -944,10 +945,10 @@ void GImage::lineAntiAlias(int nX1, int nY1, int nX2, int nY2, unsigned int colo
 			{
 				d = (double)nOverflow / nYDif;
 				col = pixel(m, n);
-				setPixel(m, n, 
+				setPixel(m, n,
 					gRGB((unsigned char)(d * gRed(col) + (1 - d) * gRed(color)), (unsigned char)(d * gGreen(col) + (1 - d) * gGreen(color)), (unsigned char)(d * gBlue(col) + (1 - d) * gBlue(color))));
 				col = pixel(m + 1, n);
-				setPixel(m + 1, n, 
+				setPixel(m + 1, n,
 					gRGB((unsigned char)((1 - d) * gRed(col) + d * gRed(color)), (unsigned char)((1 - d) * gGreen(col) + d * gGreen(color)), (unsigned char)((1 - d) * gBlue(col) + d * gBlue(color))));
 				nOverflow += nXDif;
 				if(nOverflow >= nYDif)
@@ -963,10 +964,10 @@ void GImage::lineAntiAlias(int nX1, int nY1, int nX2, int nY2, unsigned int colo
 			{
 				d = (double)nOverflow / nYDif;
 				col = pixel(m, n);
-				setPixel(m, n, 
+				setPixel(m, n,
 					gRGB((unsigned char)(d * gRed(col) + (1 - d) * gRed(color)), (unsigned char)(d * gGreen(col) + (1 - d) * gGreen(color)), (unsigned char)(d * gBlue(col) + (1 - d) * gBlue(color))));
 				col = pixel(m - 1, n);
-				setPixel(m - 1, n, 
+				setPixel(m - 1, n,
 					gRGB((unsigned char)((1 - d) * gRed(col) + d * gRed(color)), (unsigned char)((1 - d) * gGreen(col) + d * gGreen(color)), (unsigned char)((1 - d) * gBlue(col) + d * gBlue(color))));
 				nOverflow += nXDif;
 				if(nOverflow >= nYDif)
@@ -1007,7 +1008,7 @@ void GImage::floodFillRecurser(int nX, int nY, unsigned char nSrcR, unsigned cha
 					btUp.set(nX);
 			}
 		}
-		
+
 		if(nY < (int)m_height - 1)
 		{
 			col = pixel(nX, nY + 1);
@@ -1098,7 +1099,7 @@ void GImage::boundaryFill(int nX, int nY, unsigned char nBoundaryR, unsigned cha
 					btUp.set(nX);
 			}
 		}
-		
+
 		if(nY < (int)m_height - 1)
 		{
 			col = pixel(nX, nY + 1);

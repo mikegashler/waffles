@@ -2,7 +2,6 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
-    Eric Moyer,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -249,7 +248,8 @@ public:
 #endif
 
 	/// Adds a new layer to this deep net. Takes ownership of pNewLayer.
-	/// The new layer is added at the end farthest from the visible end.
+	/// The first layer added is the visible layer. The last layer added
+	/// is the intrinsic or input layer.
 	void addLayer(GDeepNetLayer* pNewLayer);
 
 	/// Draw a sample from the hidden-most layer, then feed it forward through

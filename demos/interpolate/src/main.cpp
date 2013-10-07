@@ -24,6 +24,7 @@
 #include <GClasses/GDecisionTree.h>
 #include <GClasses/GEnsemble.h>
 #include <GClasses/GTransform.h>
+#include <GClasses/GHolders.h>
 #include <GClasses/GKNN.h>
 #include <GClasses/GLearner.h>
 #include <GClasses/GLinear.h>
@@ -256,7 +257,7 @@ public:
 			m_pNNForTraining = pNN;
 			pNN->beginIncrementalLearning(featureRel, labelRel);
 			delete(m_pNNCopyForVisualizing);
-			m_pNNCopyForVisualizing = new GNeuralNet(*m_pRand);
+			m_pNNCopyForVisualizing = new GNeuralNet();
 			m_pNNCopyForVisualizing->copyStructure(pNN);
 		}
 		m_workerMode = 3; // train
@@ -287,73 +288,73 @@ public:
 		m_workerMode = 1;
 		if(index == 0)
 		{
-			GKNN* pModel = new GKNN(*m_pRand);
+			GKNN* pModel = new GKNN();
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 1)
 		{
-			GKNN* pModel = new GKNN(*m_pRand);
+			GKNN* pModel = new GKNN();
 			pModel->setNeighborCount(2);
 			pModel->setInterpolationMethod(GKNN::Mean);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 2)
 		{
-			GKNN* pModel = new GKNN(*m_pRand);
+			GKNN* pModel = new GKNN();
 			pModel->setNeighborCount(2);
 			pModel->setInterpolationMethod(GKNN::Linear);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 3)
 		{
-			GKNN* pModel = new GKNN(*m_pRand);
+			GKNN* pModel = new GKNN();
 			pModel->setNeighborCount(4);
 			pModel->setInterpolationMethod(GKNN::Mean);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 4)
 		{
-			GKNN* pModel = new GKNN(*m_pRand);
+			GKNN* pModel = new GKNN();
 			pModel->setNeighborCount(4);
 			pModel->setInterpolationMethod(GKNN::Linear);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 5)
 		{
-			GKNN* pModel = new GKNN(*m_pRand);
+			GKNN* pModel = new GKNN();
 			pModel->setNeighborCount(8);
 			pModel->setInterpolationMethod(GKNN::Mean);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 6)
 		{
-			GKNN* pModel = new GKNN(*m_pRand);
+			GKNN* pModel = new GKNN();
 			pModel->setNeighborCount(8);
 			pModel->setInterpolationMethod(GKNN::Linear);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 7)
 		{
-			GNaiveBayes* pModel = new GNaiveBayes(*m_pRand);
+			GNaiveBayes* pModel = new GNaiveBayes();
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 8)
 		{
-			GDecisionTree* pModel = new GDecisionTree(*m_pRand);
+			GDecisionTree* pModel = new GDecisionTree();
 			pModel->useRandomDivisions(1);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 9)
 		{
-			GMeanMarginsTree* pModel = new GMeanMarginsTree(*m_pRand);
+			GMeanMarginsTree* pModel = new GMeanMarginsTree();
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 10)
 		{
-			GBag* pBag = new GBag(*m_pRand);
+			GBag* pBag = new GBag();
 			for(int i = 0; i < 30; i++)
 			{
-				GDecisionTree* pTree = new GDecisionTree(*m_pRand);
+				GDecisionTree* pTree = new GDecisionTree();
 				pTree->useRandomDivisions();
 				pBag->addLearner(pTree);
 			}
@@ -361,34 +362,34 @@ public:
 		}
 		else if(index == 11)
 		{
-			GBag* pBag = new GBag(*m_pRand);
+			GBag* pBag = new GBag();
 			for(int i = 0; i < 30; i++)
 			{
-				GMeanMarginsTree* pTree = new GMeanMarginsTree(*m_pRand);
+				GMeanMarginsTree* pTree = new GMeanMarginsTree();
 				pBag->addLearner(pTree);
 			}
 			doSupervisedLearner(pBag);
 		}
 		else if(index == 12)
 		{
-			GNeuralNet* pModel = new GNeuralNet(*m_pRand);
+			GNeuralNet* pModel = new GNeuralNet();
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 13)
 		{
-			GNeuralNet* pNN = new GNeuralNet(*m_pRand);
+			GNeuralNet* pNN = new GNeuralNet();
 			pNN->setTopology(30, 256);
 			doBackProp(pNN);
 		}
 		else if(index == 14)
 		{
-			GNaiveInstance* pModel = new GNaiveInstance(*m_pRand);
+			GNaiveInstance* pModel = new GNaiveInstance();
 			pModel->setNeighbors(20);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 15)
 		{
-			GBaselineLearner* pModel = new GBaselineLearner(*m_pRand);
+			GBaselineLearner* pModel = new GBaselineLearner();
 			doSupervisedLearner(pModel);
 		}
 	}

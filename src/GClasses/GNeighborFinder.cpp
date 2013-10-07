@@ -33,6 +33,7 @@
 #include <deque>
 #include "GDom.h"
 #include "GKNN.h"
+#include "GHolders.h"
 #include "GTransform.h"
 #include <sstream>
 #include <string>
@@ -2080,19 +2081,19 @@ double GSaffron::meanNeighborCount(double* pDeviation)
 class GTemporalNeighborFinderKnn : public GKNN
 {
 public:
-	GTemporalNeighborFinderKnn(GRand& rand) : GKNN(rand) {}
+	GTemporalNeighborFinderKnn(GRand& rand) : GKNN() {}
 	virtual ~GTemporalNeighborFinderKnn() {}
 
 	virtual void clearFeatureFilter()
 	{
 		delete(m_pFilterFeatures);
-		m_pFilterFeatures = new GPCA(12, &m_rand);
+		m_pFilterFeatures = new GPCA(12);
 	}
 };
 
 
 GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand, size_t maxDims)
-: GNeighborFinder(preprocessObservations(pObservations, maxDims, pRand), neighborCount),
+: GNeighborFinder(preprocessObservations(pObservations, maxDims), neighborCount),
 m_pPreprocessed(m_pPreprocessed), // don't panic, this is intentional. m_pPreprocessed is initialized in the previous line, and we do this so that its value will not be stomped over.
 m_pActions(pActions),
 m_ownActionsData(ownActionsData),
@@ -2139,11 +2140,11 @@ GTemporalNeighborFinder::~GTemporalNeighborFinder()
 	delete(m_pPreprocessed);
 }
 
-GMatrix* GTemporalNeighborFinder::preprocessObservations(GMatrix* pObs, size_t maxDims, GRand* pRand)
+GMatrix* GTemporalNeighborFinder::preprocessObservations(GMatrix* pObs, size_t maxDims)
 {
 	if(pObs->cols() > maxDims)
 	{
-		GPCA pca(maxDims, pRand);
+		GPCA pca(maxDims);
 		pca.train(*pObs);
 		m_pPreprocessed = pca.transformBatch(*pObs);
 		return m_pPreprocessed;

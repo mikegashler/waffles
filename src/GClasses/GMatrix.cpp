@@ -406,7 +406,7 @@ void GMixedRelation::addAttrs(const GRelation& copyMe, size_t firstAttr, size_t 
 {
 	if(firstAttr + attrCount > copyMe.size())
 	{
-		if(attrCount == (size_t)-1)
+		if(attrCount == INVALID_INDEX)
 			attrCount = copyMe.size() - firstAttr;
 		else
 			throw Ex("out of range");
@@ -882,7 +882,7 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 			return UNKNOWN_DISCRETE_VALUE;
 		else
 		{
-			size_t v = (size_t)-1;
+			size_t v = INVALID_INDEX;
 			for(size_t j = 0; j < values; j++)
 			{
 				if(_stricmp(val, m_attrs[attr].m_values[j].c_str()) == 0)
@@ -891,7 +891,7 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 					break;
 				}
 			}
-			if(v == (size_t)-1)
+			if(v == INVALID_INDEX)
 			{
 				if(*val >= '0' && *val <= '9')
 					v = atoi(val);
@@ -1005,7 +1005,7 @@ bool GMatrix::operator==(const GMatrix& other) const{
 	//Check if have same entries
 	const std::size_t c = cols();
 	std::vector<double*>::const_iterator rThis, rOther;
-	for(rThis = m_rows.begin(), rOther = other.m_rows.begin(); 
+	for(rThis = m_rows.begin(), rOther = other.m_rows.begin();
 			rThis != m_rows.end(); ++rThis, ++rOther){
 		if(!std::equal(*rThis, c+*rThis, *rOther)){
 			return false;
@@ -1066,7 +1066,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 			return atof(szVal);
 		}
 	}
-	else if(vals != (size_t)-1)
+	else if(vals != INVALID_INDEX)
 	{
 		// Nominal attribute
 		if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
@@ -1201,7 +1201,7 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 	}
 	for(size_t i = 0; i < cols; i++)
 	{
-		if(pRelation->valueCount(i) == (size_t)-1)
+		if(pRelation->valueCount(i) == INVALID_INDEX)
 			pRelation->setAttrValueCount(i, 0);
 	}
 }
@@ -1247,7 +1247,7 @@ void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool colum
 	// Extract the elements
 	GHeap heap(2048);
 	vector<ImportRow> rows;
-	size_t elementCount = (size_t)-1;
+	size_t elementCount = INVALID_INDEX;
 	size_t nFirstDataLine = 1;
 	size_t nLine = 1;
 	size_t nPos = 0;
@@ -1264,7 +1264,7 @@ void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool colum
 			break;
 
 		// Count the elements
-		if(elementCount == (size_t)-1 && (!columnNamesInFirstRow || nLine > 1))
+		if(elementCount == INVALID_INDEX && (!columnNamesInFirstRow || nLine > 1))
 		{
 			if(separator == '\0')
 			{
@@ -1382,7 +1382,7 @@ void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool colum
 		}
 		else
 		{
-			if(row.m_elements.size() != (size_t)elementCount && elementCount != (size_t)-1)
+			if(row.m_elements.size() != (size_t)elementCount && elementCount != INVALID_INDEX)
 				throw Ex("Line ", to_str(nLine), " has a different number of elements than line ", to_str(nFirstDataLine));
 		}
 
@@ -4220,7 +4220,7 @@ void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin
 }
 
 #ifndef MIN_PREDICT
-//static 
+//static
 GSimpleAssignment GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric)
 {
 	if(a.cols() != b.cols())

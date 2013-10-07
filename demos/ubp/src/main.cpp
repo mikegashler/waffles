@@ -78,7 +78,7 @@ protected:
 
 public:
 	UBPModel()
-	: m_tar(0, 5), m_context(0, 2), m_pred(0, 5), m_rand(0), m_nn(m_rand), m_errorThresh(0.0), m_targetActive(1.0)
+	: m_tar(0, 5), m_context(0, 2), m_pred(0, 5), m_rand(0), m_errorThresh(0.0), m_targetActive(1.0)
 	{
 		{
 			GMatrix tmp;

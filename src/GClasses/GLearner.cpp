@@ -39,6 +39,7 @@
 #endif // MIN_PREDICT
 #include "GTransform.h"
 #include "GRand.h"
+#include "GHolders.h"
 #ifndef MIN_PREDICT
 #include "GPlot.h"
 #include "GDistribution.h"
@@ -125,8 +126,8 @@ GNormalDistribution* GPrediction::asNormal()
 #endif // MIN_PREDICT
 // ---------------------------------------------------------------
 
-GTransducer::GTransducer(GRand& rand)
-: m_rand(rand)
+GTransducer::GTransducer()
+: m_rand(0)
 {
 }
 
@@ -417,13 +418,13 @@ double GTransducer::repValidate(const GMatrix& features, const GMatrix& labels, 
 
 // ---------------------------------------------------------------
 
-GSupervisedLearner::GSupervisedLearner(GRand& rand)
-: GTransducer(rand), m_pFilterFeatures(NULL), m_pFilterLabels(NULL), m_pRelFeatures(NULL), m_pRelLabels(NULL), m_pCalibrations(NULL)
+GSupervisedLearner::GSupervisedLearner()
+: GTransducer(), m_pFilterFeatures(NULL), m_pFilterLabels(NULL), m_pRelFeatures(NULL), m_pRelLabels(NULL), m_pCalibrations(NULL)
 {
 }
 
 GSupervisedLearner::GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll)
-: GTransducer(ll.rand()), m_pFilterFeatures(NULL), m_pFilterLabels(NULL)
+: GTransducer(), m_pFilterFeatures(NULL), m_pFilterLabels(NULL)
 {
 	GDomNode* pFeatureFilter = pNode->fieldIfExists("_ff");
 	if(pFeatureFilter)
@@ -556,7 +557,7 @@ void GSupervisedLearner::setupFilters(const GMatrix& features, const GMatrix& la
 	{
 		if(features.doesHaveAnyMissingValues())
 		{
-			GImputeMissingVals* pImputer = new GImputeMissingVals(m_rand);
+			GImputeMissingVals* pImputer = new GImputeMissingVals();
 			pImputer->setLabels(&labels);
 			wrapFeatures(pImputer);
 		}
@@ -799,7 +800,7 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 		}
 
 		// Use a temporary k-NN model to measure the target (after) distribution values
-		GKNN knn(m_rand);
+		GKNN knn;
 		knn.setNeighborCount(neighbors);
 		knn.train(tmpBefore, labels);
 		GMatrix tmpAfter(features.rows(), std::max(size_t(1), vals));
@@ -821,7 +822,7 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 		}
 
 		// Train a layer of logistic units to map from the before distribution to the after distribution
-		GNeuralNet* pNN = new GNeuralNet(m_rand);
+		GNeuralNet* pNN = new GNeuralNet;
 		calibrations.push_back(pNN);
 		pNN->train(tmpBefore, tmpAfter);
 	}
@@ -1167,7 +1168,7 @@ void GSupervisedLearner::test()
 	}
 
 	// Train the model
-	GNeuralNet model(rand);
+	GNeuralNet model;
 	model.train(f, l);
 	GPrediction out;
 	double d, prob;
@@ -1219,7 +1220,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	  std::cerr << "AccBeforeSerial: " << resultsBefore;
 	}
 	if(resultsBefore < minAccuracy)
-		throw Ex("accuracy has regressed. Expected at least ", to_str(minAccuracy), ". Only got ", to_str(resultsBefore), ".");
+		throw Ex("accuracy has regressed. Expected at least ", to_str(minAccuracy), ". Only got ", to_str(resultsBefore), ". (Sometimes, harmless changes that affect random orderings can trigger small regressions, so don't panic yet.)");
 	if(resultsBefore >= minAccuracy + 0.035)
 		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
 
@@ -1228,7 +1229,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	GDom doc;
 	doc.setRoot(pLearner->serialize(&doc));
 	pLearner->clear(); // free up some memory, just because we can
-	GLearnerLoader ll(*pRand);
+	GLearnerLoader ll;
 	GSupervisedLearner* pModel = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModel(pModel);
 	if(!relLabelsBefore.isCompatible(pModel->relLabels()))
@@ -1271,9 +1272,9 @@ void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccur
 	if(minAccuracy == -1.0)
 		return; // skip this test
 	vector<size_t> featureVals;
-	featureVals.push_back(3);
-	featureVals.push_back(3);
-	featureVals.push_back(3);
+	size_t cols = 10;
+	for(size_t i = 0; i < cols; i++)
+		featureVals.push_back(3);
 	GMatrix features(featureVals);
 	vector<size_t> labelVals;
 	labelVals.push_back(3);
@@ -1282,7 +1283,7 @@ void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccur
 	{
 		int c = (int)pRand->next(3);
 		double* pF = features.newRow();
-		for(size_t j = 0; j < 3; j++)
+		for(size_t j = 0; j < cols; j++)
 		{
 			if(pRand->next(2) == 0)
 				*pF = (double)c;
@@ -1513,8 +1514,8 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode)
 
 // ---------------------------------------------------------------
 
-GBaselineLearner::GBaselineLearner(GRand& rand)
-: GSupervisedLearner(rand)
+GBaselineLearner::GBaselineLearner()
+: GSupervisedLearner()
 {
 }
 
@@ -1588,16 +1589,15 @@ void GBaselineLearner::autoTune(GMatrix& features, GMatrix& labels)
 // static
 void GBaselineLearner::test()
 {
-	GRand rand(0);
-	GBaselineLearner bl(rand);
+	GBaselineLearner bl;
 	bl.basicTest(0.33, 0.33);
 }
 #endif // MIN_PREDICT
 
 // ---------------------------------------------------------------
 
-GIdentityFunction::GIdentityFunction(GRand& rand)
-: GSupervisedLearner(rand), m_labelDims(0), m_featureDims(0)
+GIdentityFunction::GIdentityFunction()
+: GSupervisedLearner(), m_labelDims(0), m_featureDims(0)
 {
 }
 

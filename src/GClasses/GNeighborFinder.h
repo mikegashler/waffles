@@ -235,10 +235,10 @@ public:
 
 	/// Specify the max number of point-vectors to store in each leaf node.
 	void setMaxLeafSize(size_t n) { m_maxLeafSize = n; }
-	
+
 	/// Returns the root node of the kd-tree.
 	GKdNode* root() { return m_pRoot; }
-	
+
 	/// Build the tree
 	GKdNode* buildTree(size_t count, size_t* pIndexes);
 
@@ -442,7 +442,7 @@ protected:
 
 	/// This method uses PCA to reduce pObs to maxDims dimensions.
 	/// (If pObs is already small enough, it just returns pObs.)
-	GMatrix* preprocessObservations(GMatrix* pObs, size_t maxDims, GRand* pRand);
+	GMatrix* preprocessObservations(GMatrix* pObs, size_t maxDims);
 };
 
 

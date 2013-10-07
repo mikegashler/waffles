@@ -37,8 +37,8 @@ namespace GClasses {
 
   namespace SOM{
 
-    //virtual 
-    void GridTopology::setLocations(std::vector<double> outputAxesMax, 
+    //virtual
+    void GridTopology::setLocations(std::vector<double> outputAxesMax,
 				    std::vector<Node>& nodes){
       //Calculate the integer versions of the axes
       std::vector<unsigned> intAxesMax(outputAxesMax.size());
@@ -52,17 +52,17 @@ namespace GClasses {
 	  intAxesMax[dim] = lower;
 	}
       }
-      
+
       //Calculate the number of nodes needed and reallocate
       double natsRequired = 0; //Information content in nats rather than bits
-      double natsAvailable = 
+      double natsAvailable =
 	std::log((double)std::numeric_limits<std::size_t>::max());
       for(std::size_t dim = 0; dim < intAxesMax.size();++dim){
 	natsRequired += std::log((double)intAxesMax[dim]);
       }
       if(natsRequired > natsAvailable){
 	std::stringstream needed; needed << std::exp(natsRequired);
-	throw Ex("Not enough bits to index an array of ", needed.str(), 
+	throw Ex("Not enough bits to index an array of ", needed.str(),
 		   " nodes in SOM::GridTopology.");
       }else{
 	std::size_t nodesNeeded = 1;
@@ -73,7 +73,7 @@ namespace GClasses {
 	  nodes.resize(nodesNeeded);
 	}
       }
-      
+
       //Initialize the node locations
       for(std::size_t n = 0; n < nodes.size(); ++n){
 	Node& node = nodes[n];
@@ -86,15 +86,15 @@ namespace GClasses {
 	node.outputLocation = loc;
       }
     }
-    
+
 
     NodeWeightInitializationTrainingSetSample::
-    NodeWeightInitializationTrainingSetSample(GRand* pRand)
-	:pRand(pRand==NULL?&(GRand::global()):pRand){}
+    NodeWeightInitializationTrainingSetSample(GRand& rand)
+	:pRand(&rand){}
 
     //virtual
     void NodeWeightInitializationTrainingSetSample::
-    setWeights(std::vector<Node>& nodes, 
+    setWeights(std::vector<Node>& nodes,
 	       GDistanceMetric& weightDistance,
 	       const GMatrix* pIn) const{
       assert(pRand != NULL);
@@ -103,8 +103,8 @@ namespace GClasses {
 
       //Set the weight distance function's relation metadata
       weightDistance.init(pIn->relation().clone(), true);
-      
-      //Generate a sample of indices 
+
+      //Generate a sample of indices
       std::set<std::size_t> used;
       std::list<std::size_t> inOrder;
       while(used.size() < nodes.size()){
@@ -114,11 +114,11 @@ namespace GClasses {
 	  inOrder.push_back(index);
 	}
       }
-      
-      //Copy that sample of indices 
+
+      //Copy that sample of indices
       std::list<std::size_t>::const_iterator sourceIdx;
       std::size_t destIdx;
-      for(destIdx = 0, sourceIdx = inOrder.begin(); 
+      for(destIdx = 0, sourceIdx = inOrder.begin();
 	  sourceIdx != inOrder.end(); ++sourceIdx, ++destIdx){
 	const double *begin = pIn->row(*sourceIdx);
 	const double *end = begin + pIn->cols();
@@ -126,32 +126,32 @@ namespace GClasses {
       }
     }
 
-    
+
     //virtual
     void ReporterChain::add(Reporter*toAdd){ m_reporters.push_back(toAdd); }
-      
-    //virtual 
-    void ReporterChain::start(const GMatrix* trainingData, 
+
+    //virtual
+    void ReporterChain::start(const GMatrix* trainingData,
 			      int maxIterations, int maxSubIterations){
       for(iterator r = m_reporters.begin(); r != m_reporters.end(); ++r){
 	(*r)->start(trainingData, maxIterations, maxSubIterations);
       }
     }
 
-    //virtual 
-    void ReporterChain::newStatus(unsigned iteration, unsigned subIteration, 
+    //virtual
+    void ReporterChain::newStatus(unsigned iteration, unsigned subIteration,
 				  const GSelfOrganizingMap& map){
       for(iterator r = m_reporters.begin(); r != m_reporters.end(); ++r){
 	(*r)->newStatus(iteration, subIteration, map);
       }
     }
 
-    //virtual 
-    void ReporterChain::stop(unsigned iteration, unsigned subIteration, 
+    //virtual
+    void ReporterChain::stop(unsigned iteration, unsigned subIteration,
 			     const GSelfOrganizingMap& map){
       for(iterator r = m_reporters.begin(); r != m_reporters.end(); ++r){
 	(*r)->stop(iteration, subIteration, map);
-      }      
+      }
     }
 
     //virtual
@@ -161,19 +161,19 @@ namespace GClasses {
       }
     }
 
-    //virtual 
-    void SVG2DWeightReporter::start(const GMatrix* trainingData, 
+    //virtual
+    void SVG2DWeightReporter::start(const GMatrix* trainingData,
 				    int maxIterations, int maxSubIterations){
       double log10 = std::log(10.0);
       double iterDigits, subIterDigits;
       if(maxIterations < 0){
 	iterDigits = 6;
-      }else{ 
+      }else{
 	iterDigits = std::log((double)maxIterations)/log10;
       }
       if(maxSubIterations < 0){
 	subIterDigits = 4;
-      }else{ 
+      }else{
 	subIterDigits = std::log((double)maxSubIterations)/log10;
       }
       m_totalDigits = std::min(std::numeric_limits<unsigned>::digits10,
@@ -229,24 +229,24 @@ namespace GClasses {
 
       ///Print the svg code for the given line
       std::ostream& operator<<(std::ostream& out, const SVG2DLine& l){
-	return 
-	  out << "<line x1=\"" << l.x1 << "\" y1=\"" << l.y1 
-	      <<    "\" x2=\"" << l.x2 << "\" y2=\"" << l.y2 
+	return
+	  out << "<line x1=\"" << l.x1 << "\" y1=\"" << l.y1
+	      <<    "\" x2=\"" << l.x2 << "\" y2=\"" << l.y2
 	      << "\"/>";
       }
 
       class BoundingBox{
 	inline double inf() const{
 	  return std::numeric_limits<double>::infinity();
-	}      
+	}
       public:
 	///Coordinates of the axis aligned 2D bounding box
 	double minX; double minY; double maxX; double maxY;
 
-	///Create an uninitialized bounding box 
+	///Create an uninitialized bounding box
 	BoundingBox():
 	  minX(inf()), minY(inf()), maxX(-inf()), maxY(-inf()){}
-	
+
 	double height(){ return (maxY >= minY)?maxY-minY:0; }
 	double width(){ return (maxX >= minX)?maxX-minX:0; }
 
@@ -258,7 +258,7 @@ namespace GClasses {
 	    if(minY > begin->y1){ minY = begin->y1; }
 	    if(minX > begin->x2){ minX = begin->x2; }
 	    if(minY > begin->y2){ minY = begin->y2; }
-	    
+
 	    if(maxX < begin->x1){ maxX = begin->x1; }
 	    if(maxY < begin->y1){ maxY = begin->y1; }
 	    if(maxX < begin->x2){ maxX = begin->x2; }
@@ -278,9 +278,9 @@ namespace GClasses {
 	    ++begin;
 	  }
 	}
-	
+
       };
-      
+
     }
 
     unsigned SVG2DWeightReporter::neighborsNeeded
@@ -290,24 +290,24 @@ namespace GClasses {
     }
 
 
-    //virtual 
-    void SVG2DWeightReporter::newStatus(unsigned iteration, 
-					unsigned subIteration, 
+    //virtual
+    void SVG2DWeightReporter::newStatus(unsigned iteration,
+					unsigned subIteration,
 					const GSelfOrganizingMap& map){
       //Create the output file (and update the next number to use)
       std::stringstream fnBuf;
-      fnBuf << m_baseFilename << "_" 
-	    << std::setfill('0') << std::setw(m_totalDigits) 
+      fnBuf << m_baseFilename << "_"
+	    << std::setfill('0') << std::setw(m_totalDigits)
 	    << (m_nextNumberToOutput++) << ".svg";
       const std::string filename = fnBuf.str();
       std::ofstream out(filename.c_str());
-      if(!out){ 
+      if(!out){
 	std::cerr << "Warning: Self-organizing map reporter could not write "
-		  << "to the file named \"" << filename 
+		  << "to the file named \"" << filename
 		  << "\".  Continuing anyway." << std::endl;
 	return;
       }
-      
+
       //For each node, add a line between it and its nearest neighbors
       //to the set of lines to draw.
       std::vector<Node> nodes = map.nodes();
@@ -327,9 +327,9 @@ namespace GClasses {
       for(std::size_t i = 0; i < nodes.size(); ++i){
 	double x1 = nodes.at(i).weights.at(m_xDim);
 	double y1 = nodes.at(i).weights.at(m_yDim);
-	std::vector<std::size_t> neighbors = 
+	std::vector<std::size_t> neighbors =
 	  map.nearestNeighbors(i, neighborsToReq);
-	for(std::vector<std::size_t>::const_iterator n = neighbors.begin(); 
+	for(std::vector<std::size_t>::const_iterator n = neighbors.begin();
 	    n != neighbors.end(); ++n){
 	  double x2 = nodes.at(*n).weights.at(m_xDim);
 	  double y2 = nodes.at(*n).weights.at(m_yDim);
@@ -351,21 +351,21 @@ namespace GClasses {
 	  << "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n"
 	  << "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
 	  << "<svg viewbox=\""<< bb.minX << " " << bb.minY << " "
-	  << bb.width() << " " << bb.height() 
+	  << bb.width() << " " << bb.height()
 	  << "\" preserveAspectRatio=\"xMinYMin\"\n"
-	  << "     width=\""<< bb.width() << "px\" height=\"" 
+	  << "     width=\""<< bb.width() << "px\" height=\""
 	  << bb.height() << "px\"\n"
 	  << "     xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">\n"
 	  << "<desc>Self organizing map training visualization using a \n"
-	  << "      2D mesh.  Iteration:" << iteration 
+	  << "      2D mesh.  Iteration:" << iteration
 	  << " Sub-iteration:" << subIteration << "\n"
 	  << "      Original filename: \"" << filename << "\"\n"
-	  << "      Plotting input dimensions " << m_xDim << " and " 
+	  << "      Plotting input dimensions " << m_xDim << " and "
 	  << m_yDim << " as (x,y) coordinates.\n"
 	  << "</desc>\n";
 
       //Translate the data so it is all positive
-      out << "<g transform=\"translate(" << -bb.minX <<","<< -bb.minY 
+      out << "<g transform=\"translate(" << -bb.minX <<","<< -bb.minY
 	  << ")\">\n";
 
       //If show training data, write the points.  Give them radius of bb/100
@@ -376,9 +376,9 @@ namespace GClasses {
 	std::string r = rBuf.str();
 	for(std::vector<Point>::const_iterator it = m_trainingData.begin();
 	    it != m_trainingData.end(); ++it){
-	  out << "<circle cx=\"" << it->x << "\"" 
-	      << " cy=\"" << it->y << "\"" 
-	      << " r=\"" << r << "\"" 
+	  out << "<circle cx=\"" << it->x << "\""
+	      << " cy=\"" << it->y << "\""
+	      << " r=\"" << r << "\""
 	      << "/>\n";
 	}
 	out << "</g>\n";
@@ -400,25 +400,25 @@ namespace GClasses {
       out << "</svg>\n";
     }
 
-    //virtual 
-    void SVG2DWeightReporter::stop(unsigned iteration, unsigned subIteration, 
+    //virtual
+    void SVG2DWeightReporter::stop(unsigned iteration, unsigned subIteration,
 				   const GSelfOrganizingMap& map){
       newStatus(iteration, subIteration, map);
     }
-      
 
-    //virtual 
+
+    //virtual
     double GaussianWindowFunction::
     operator()(double width, double distance) const{
       const double stddev = distance/width;
-      return (stddev < truncationSigmas)? 
+      return (stddev < truncationSigmas)?
 	std::exp(-0.5*(stddev)*(stddev))
 	:0;
     }
 
 
     BatchTraining::BatchTraining
-    (double initialNeighborhoodSize, 
+    (double initialNeighborhoodSize,
      double finalNeighborhoodSize,
      unsigned numIterations,
      unsigned maxSubIterationsBeforeChangingNeighborhood,
@@ -477,10 +477,10 @@ namespace GClasses {
 	}
 
 	///Set the sums and weights to 0
-	void reset(){ 
+	void reset(){
 	  sameSinceLastReset = true;
-	  totalWeights = 0; 
-	  std::fill(weightedSum.begin(), weightedSum.end(), 0); 
+	  totalWeights = 0;
+	  std::fill(weightedSum.begin(), weightedSum.end(), 0);
 	}
 
 	///Return true if add has been called since the last reset (or
@@ -506,8 +506,8 @@ namespace GClasses {
 	void operator()(IncrementalWeightedAverage& a){ a.reset(); }
       };
     }//anonymous namespace
-    
-    //virtual 
+
+    //virtual
     void BatchTraining::train(GSelfOrganizingMap& map, const GMatrix* pIn){
       assert(pIn != NULL);
       //Report start
@@ -543,7 +543,7 @@ namespace GClasses {
       }
 #endif
       //Create weighted averages for each node
-      std::vector<IncrementalWeightedAverage> 
+      std::vector<IncrementalWeightedAverage>
 	aves(map.nodes().size(), IncrementalWeightedAverage(pIn->cols()));
 
       //Create list of which node was closest to a given data point
@@ -561,8 +561,8 @@ namespace GClasses {
 	double width = m_initialNeighborhoodSize*
 	  std::exp(m_timeFactor*(superepoch-1));
 	//update weights until convergence or run out of time
-	for(unsigned epoch = 0; 
-	    epoch < m_maxSubIterationsBeforeChangingNeighborhood; ++epoch){ 
+	for(unsigned epoch = 0;
+	    epoch < m_maxSubIterationsBeforeChangingNeighborhood; ++epoch){
 	  //assume that converged
 	  bool hasConverged = true;
 	  //For each input point
@@ -582,7 +582,7 @@ namespace GClasses {
 	    //For each neighbor within range of best so that the
 	    //window function is non-zero, add weighted input point to
 	    //incremental weighted average
-	    std::vector<SOM::NodeAndDistance> nbrs = 
+	    std::vector<SOM::NodeAndDistance> nbrs =
 	      map.neighborsInCircle(best, m_windowFunc->minZeroDistance(width));
 	    std::vector<SOM::NodeAndDistance>::const_iterator nItr;
 	    for(nItr = nbrs.begin(); nItr != nbrs.end(); ++nItr){
@@ -596,14 +596,14 @@ namespace GClasses {
 	  //averages for next pass.  Any nodes that were not in the
 	  //neighborhood of any winners are left unchanged.
 	  std::vector<SOM::Node>::iterator nIter = map.nodes().begin();
-	  std::vector<IncrementalWeightedAverage>::iterator aIter 
+	  std::vector<IncrementalWeightedAverage>::iterator aIter
 	    = aves.begin();
 	  for(; aIter != aves.end(); ++nIter, ++aIter){
 	    if(aIter->changedSinceLastReset()){
 	      nIter->weights = aIter->average();
 	      aIter->reset();
 	    }
-	  } 
+	  }
 	  //Report end of iteration.
 	  m_reporter->newStatus(superepoch, epoch, map);
 	  //if converged, start another major iteration
@@ -614,7 +614,7 @@ namespace GClasses {
       m_reporter->newStatus(m_numIterations+1, 0, map);
     }
 
-    //virtual 
+    //virtual
     BatchTraining::~BatchTraining(){
       delete m_weightInitialization;
       delete m_windowFunc;
@@ -623,12 +623,13 @@ namespace GClasses {
 
 
     TraditionalTraining::TraditionalTraining
-    (double initialWidth, double finalWidth, 
+    (double initialWidth, double finalWidth,
      double initialRate, double finalRate,
      unsigned numIterations,
      NodeWeightInitialization* weightInitialization,
      NeighborhoodWindowFunction* windowFunc,
      Reporter* reporter):
+      m_rand(0),
       m_initialWidth(initialWidth), m_finalWidth(finalWidth),
       m_widthFactor(std::log(finalWidth/initialWidth)/(numIterations-1)),
       m_initialRate(initialRate), m_finalRate(finalRate),
@@ -651,7 +652,7 @@ namespace GClasses {
     namespace{
       ///Increment the given weights by a scale factor times a vector
       ///from the weights to their destination
-      void moveWeightsCloser(std::vector<double>&weights, 
+      void moveWeightsCloser(std::vector<double>&weights,
 			    const double* destination, double scale){
 	std::vector<double>::iterator w = weights.begin();
 	while(w != weights.end()){
@@ -666,14 +667,14 @@ namespace GClasses {
     //TODO: make all training algorithms take a pointer to a const
     //GMatrix (this will require making GMatrix const-correct)
 
-    //virtual 
+    //virtual
     void TraditionalTraining::train(GSelfOrganizingMap& map, const GMatrix* pInput){
       assert(pInput != NULL);
       //Report start
       m_reporter->start(pInput, m_numIterations, 1);
 
       //Initialize weights
-      m_weightInitialization->setWeights(map.nodes(), weightDistance(map), 
+      m_weightInitialization->setWeights(map.nodes(), weightDistance(map),
 					 pInput);
 
       //Set the before relation
@@ -695,15 +696,15 @@ namespace GClasses {
 
 	//If starting a run through the list of input points, shuffle
 	//them
-	if(iteration % inputCopy->rows() == 0){ 
-	  inputCopy->shuffle(GRand::global()); }
+	if(iteration % inputCopy->rows() == 0){
+	  inputCopy->shuffle(m_rand); }
 	const double* point = inputCopy->row(iteration % inputCopy->rows());
-	
+
 	//Find the best match to the current input point
 	std::size_t best = map.bestMatch(point);
 
 	//Move the best match and its neighbors closer to the input
-	std::vector<SOM::NodeAndDistance> nbrs = 
+	std::vector<SOM::NodeAndDistance> nbrs =
 	  map.neighborsInCircle(best, m_windowFunc->minZeroDistance(width));
 	std::vector<SOM::NodeAndDistance>::const_iterator nItr;
 	for(nItr = nbrs.begin(); nItr != nbrs.end(); ++nItr){
@@ -721,7 +722,7 @@ namespace GClasses {
     }
 
 
-    //virtual 
+    //virtual
     TraditionalTraining::~TraditionalTraining(){
       delete m_weightInitialization;
       delete m_windowFunc;
@@ -753,7 +754,7 @@ namespace{
     assert(out.size() == size);
     return out;
   }
-  
+
   ///Serialize a vector containing some object that has a serialize method
   template<class vectortype>
   GDomNode* objVectorSerialize(GDom* pDoc, const vectortype& v){
@@ -787,16 +788,16 @@ SOM::Node::Node(GDomNode* pNode)
 
 GDomNode* SOM::Node::serialize(GDom*pDoc) const{
   GDomNode* pNode = pDoc->newObj();
-  pNode->addField(pDoc, "outputLocation", 
+  pNode->addField(pDoc, "outputLocation",
 		  doubleVectorSerialize(pDoc, outputLocation));
-  pNode->addField(pDoc, "weights", doubleVectorSerialize(pDoc, weights));  
+  pNode->addField(pDoc, "weights", doubleVectorSerialize(pDoc, weights));
   return pNode;
 }
 
-//virtual 
+//virtual
 GDomNode* SOM::TrainingAlgorithm::serialize(GDom* pDoc) const{
   GDomNode* pNode = pDoc->newObj();
-  pNode->addField(pDoc, "class", 
+  pNode->addField(pDoc, "class",
 		  pDoc->newString("DummyTrainingAlgorithm"));
   return pNode;
 }
@@ -806,7 +807,7 @@ SOM::TrainingAlgorithm* SOM::TrainingAlgorithm::deserialize(GDomNode* pNode){
 }
 
 
-//virtual 
+//virtual
 GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
   GDomNode* pNode = pDoc->newObj();
   pNode->addField(pDoc, "inputDims", pDoc->newInt(m_nInputDims));
@@ -815,7 +816,7 @@ GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
   pNode->addField(pDoc, "weightDistance",m_pWeightDistance->serialize(pDoc));
   pNode->addField(pDoc, "nodeDistance", m_pNodeDistance->serialize(pDoc));
   pNode->addField(pDoc, "nodes", objVectorSerialize(pDoc, m_nodes));
-  
+
   //Do not serialize sorted neighbors, just mark as invalid on
   //deserialization
   return pNode;
@@ -837,13 +838,13 @@ GSelfOrganizingMap::GSelfOrganizingMap(GDomNode* pNode){
 
 
 GSelfOrganizingMap::GSelfOrganizingMap
-(int nMapDims, int nMapWidth, GRand* pRand, SOM::Reporter *r)
-  : GIncrementalTransform(), 
+(int nMapDims, int nMapWidth, GRand& rand, SOM::Reporter *r)
+  : GIncrementalTransform(),
     m_nInputDims(0), //Initialized in training
     m_outputAxes(nMapDims, nMapWidth-1),
     m_pTrainer(new SOM::BatchTraining
 	       (2*nMapWidth, 1, 100, 1, //DEBUG Change subiterations back to 100, iterations back to 100 and min neighborhood back to 1 after debugging
-		new SOM::NodeWeightInitializationTrainingSetSample(pRand),
+		new SOM::NodeWeightInitializationTrainingSetSample(rand),
 		new SOM::GaussianWindowFunction(), r)),
     m_pWeightDistance(new GRowDistance()),
     m_pNodeDistance(new GRowDistance()),
@@ -858,7 +859,7 @@ GSelfOrganizingMap::GSelfOrganizingMap
   //training algorithms will change this, but I'd like transform on
   //untrained networks just to return nonsense, not blow up.
   std::vector<double> initialWeights(1,0);
-  for(std::vector<SOM::Node>::iterator it = m_nodes.begin(); 
+  for(std::vector<SOM::Node>::iterator it = m_nodes.begin();
       it != m_nodes.end(); ++it){
     it->weights = initialWeights;
   }
@@ -883,22 +884,22 @@ GSelfOrganizingMap::GSelfOrganizingMap(const std::vector<double>& outputAxes,
   //Set the topology
   topology->setLocations(outputAxes, m_nodes);
   delete topology;
-  
+
   //Set the weight vectors to have one identical 0 value each - the
   //training algorithms will change this, but I'd like transform on
   //untrained networks just to return nonsense, not blow up.
   std::vector<double> initialWeights(1,0);
-  for(std::vector<SOM::Node>::iterator it = m_nodes.begin(); 
+  for(std::vector<SOM::Node>::iterator it = m_nodes.begin();
       it != m_nodes.end(); ++it){
     it->weights = initialWeights;
   }
-  
+
   //Initialize the distance metrics to use all continuous attributes
   m_pNodeDistance->init(new GUniformRelation(m_outputAxes.size()), true);
   m_pWeightDistance->init(new GUniformRelation(1), true);
-  
+
 }
-  
+
 
 GSelfOrganizingMap::~GSelfOrganizingMap()
 {
@@ -907,7 +908,7 @@ GSelfOrganizingMap::~GSelfOrganizingMap()
   delete m_pNodeDistance;
 }
 
-  
+
 GMatrix* GSelfOrganizingMap::doit(GMatrix& in)
 {
   // Train the map on the input
@@ -998,14 +999,14 @@ void GSelfOrganizingMap::regenerateSortedNeighbors() const{
   //node's distances before they are sorted and added to the end of
   //m_sortedNeighbors
   std::vector<NodeAndDistance> curDists(m_nodes.size()-1,NodeAndDistance(0,-1));
-  
+
   //For each node, loop through all other nodes, filling in curDists
   //one entry at a time (through dist).  Then sort curDists and add a
   //copy to the end of m_sortedNeighbors
   for(std::size_t curIdx = 0; curIdx < m_nodes.size(); ++curIdx){
     //Fill curDists
     std::vector<NodeAndDistance>::iterator dist = curDists.begin();
-    if(dist != curDists.end()){ 
+    if(dist != curDists.end()){
       for(std::size_t other = 0; other < m_nodes.size(); ++other){
 	if(other == curIdx) continue;
 	dist->nodeIdx = other;
@@ -1027,8 +1028,8 @@ void GSelfOrganizingMap::regenerateSortedNeighbors() const{
 
 
 std::vector<std::size_t> GSelfOrganizingMap::nearestNeighbors
-(unsigned nodeIdx, 
- unsigned numNeighbors, 
+(unsigned nodeIdx,
+ unsigned numNeighbors,
  double epsilon) const{
   std::vector<std::size_t> out;
   //Take care of border cases in numNeighbors that would produce an
@@ -1040,9 +1041,9 @@ std::vector<std::size_t> GSelfOrganizingMap::nearestNeighbors
   //Reserve space for the returned neighbors -- take care of up to
   //hexagonal neighborhoods with 1 neighbor requested but 6 returned
   //without a reallocation
-  out.reserve(numNeighbors+5); 
+  out.reserve(numNeighbors+5);
 
-  const std::vector<SOM::NodeAndDistance>& neighbors = 
+  const std::vector<SOM::NodeAndDistance>& neighbors =
     sortedNeighbors().at(nodeIdx);
   assert(numNeighbors <neighbors.size());
   {
@@ -1068,11 +1069,11 @@ std::vector<std::size_t> GSelfOrganizingMap::nearestNeighbors
   return out;
 }
 
-std::vector<SOM::NodeAndDistance> 
+std::vector<SOM::NodeAndDistance>
 GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
   //Get the neighbors of this node sorted by their distance from it
   assert(nodeIdx < sortedNeighbors().size());
-  const std::vector<SOM::NodeAndDistance>& neighbors = 
+  const std::vector<SOM::NodeAndDistance>& neighbors =
     sortedNeighbors()[nodeIdx];
 
   //Find the first entry in neighbors that does not have a qualifying
@@ -1106,11 +1107,11 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
 	  pVec[1] = prng.uniform();
 	  pVec[2] = prng.uniform();
 	}
-      
+
       // Make the map
-      GSelfOrganizingMap som(2, 30, &prng);
+      GSelfOrganizingMap som(2, 30, prng);
       som.train(dataIn);
-      
+
       // Make an image of the map
       GImage image;
       image.setSize(30, 30);
@@ -1123,22 +1124,22 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
       }
       //image.SavePNGFile("som.png");
     }
-    
+
     #include "GSelfOrganizingMapTestData.cpp"
 
   }//Anonymous namespace
 
 void GSelfOrganizingMap::test(){
   bool generateReports = false;
-  GRand::global().setSeed(1212);
+  GRand rand(1212);
   SOM::Reporter* pReporter;
   if(generateReports)
     pReporter = new SOM::SVG2DWeightReporter("square_som_test",0,1,true);
   else
     pReporter = new SOM::ReporterChain();
-  GSelfOrganizingMap squareSom(2, 10, &(GRand::global()), pReporter);
+  GSelfOrganizingMap squareSom(2, 10, rand, pReporter);
   GMatrix uniformSquareMat(0,2);
-  for(unsigned i = 0; i < 170; ++i){ 
+  for(unsigned i = 0; i < 170; ++i){
     uniformSquareMat.copyRow(uniformSquare[i]);
   }
   squareSom.train(uniformSquareMat);
@@ -1149,15 +1150,15 @@ void GSelfOrganizingMap::test(){
     cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_02",0,2,true));
     cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_12",1,2,true));
   }
-  GSelfOrganizingMap cylinderSom(2, 10, &(GRand::global()), cr.release());
-			       
+  GSelfOrganizingMap cylinderSom(2, 10, rand, cr.release());
+
   GMatrix uniformCylinderMat(0,3);
-  for(unsigned i = 0; i < 170; ++i){ 
+  for(unsigned i = 0; i < 170; ++i){
     uniformCylinderMat.copyRow(uniformCylinder[i]);
   }
   cylinderSom.train(uniformCylinderMat);
 
-  
+
 }
 #endif // !NO_TEST_CODE
 

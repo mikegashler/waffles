@@ -20,6 +20,7 @@
 #define __GLEARNER_H__
 
 #include "GMatrix.h"
+#include "GRand.h"
 
 namespace GClasses {
 
@@ -105,10 +106,11 @@ typedef void (*RepValidateCallback)(void* pThis, size_t nRep, size_t nFold, doub
 class GTransducer
 {
 protected:
-	GRand& m_rand;
+	GRand m_rand;
 
 public:
-	GTransducer(GRand& rand);
+	/// General-purpose constructor.
+	GTransducer();
 	virtual ~GTransducer();
 #ifndef MIN_PREDICT
 
@@ -146,6 +148,8 @@ public:
 #endif // MIN_PREDICT
 
 	/// Returns a reference to the random number generator associated with this object.
+	/// For example, you could use it to change the random seed, to make this algorithm behave differently.
+	/// This might be important, for example, in an ensemble of learners.
 	GRand& rand() { return m_rand; }
 
 protected:
@@ -206,8 +210,8 @@ protected:
 	GNeuralNet** m_pCalibrations;
 
 public:
-	/// General-purpose constructor
-	GSupervisedLearner(GRand& rand);
+	/// General-purpose constructor.
+	GSupervisedLearner();
 
 	/// Deserialization constructor
 	GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll);
@@ -382,9 +386,9 @@ std::string to_str(const GSupervisedLearner& learner);
 class GIncrementalLearner : public GSupervisedLearner
 {
 public:
-	/// General-purpose constructor
-	GIncrementalLearner(GRand& rand)
-	: GSupervisedLearner(rand)
+	/// General-purpose constructor.
+	GIncrementalLearner()
+	: GSupervisedLearner()
 	{
 	}
 
@@ -448,15 +452,14 @@ class GLearnerLoader
 {
 protected:
 	bool m_throwIfClassNotFound;
-	GRand& m_rand;
 
 public:
 	/// Constructor. If throwIfClassNotFound is true, then all of the methods in this
 	/// class will throw an exception of the DOM refers to an unrecognized class.
 	/// If throwIfClassNotFound is false, then NULL will be returned if the class
 	/// is not recognized.
-	GLearnerLoader(GRand& rand, bool throwIfClassNotFound = true)
-	: m_throwIfClassNotFound(throwIfClassNotFound), m_rand(rand)
+	GLearnerLoader(bool throwIfClassNotFound = true)
+	: m_throwIfClassNotFound(throwIfClassNotFound)
 	{
 	}
 
@@ -475,9 +478,6 @@ public:
 	/// Loads a collaborative filtering algorithm from a DOM.
 	virtual GCollaborativeFilter* loadCollaborativeFilter(GDomNode* pNode);
 #endif // MIN_PREDICT
-
-	/// Returns the random number generator associated with this object.
-	GRand& rand() { return m_rand; }
 };
 
 
@@ -491,7 +491,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GBaselineLearner(GRand& rand);
+	GBaselineLearner();
 
 	/// Deserialization constructor
 	GBaselineLearner(GDomNode* pNode, GLearnerLoader& ll);
@@ -535,7 +535,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GIdentityFunction(GRand& rand);
+	GIdentityFunction();
 
 	/// Deserialization constructor
 	GIdentityFunction(GDomNode* pNode, GLearnerLoader& ll);

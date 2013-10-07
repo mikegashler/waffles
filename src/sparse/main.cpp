@@ -27,6 +27,7 @@
 #include "../GClasses/GDistance.h"
 #include "../GClasses/GDistribution.h"
 #include "../GClasses/GFile.h"
+#include "../GClasses/GHolders.h"
 #include "../GClasses/GImage.h"
 #include "../GClasses/GKNN.h"
 #include "../GClasses/GLinear.h"
@@ -79,20 +80,20 @@ void loadData(GMatrix& data, const char* szFilename)
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 }
 
-GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args);
+GTransducer* InstantiateAlgorithm(GArgReader& args);
 
-GBaselineLearner* InstantiateBaseline(GRand& rand, GArgReader& args)
+GBaselineLearner* InstantiateBaseline(GArgReader& args)
 {
-	GBaselineLearner* pModel = new GBaselineLearner(rand);
+	GBaselineLearner* pModel = new GBaselineLearner();
 	return pModel;
 }
 
-GKNN* InstantiateKNN(GRand& rand, GArgReader& args)
+GKNN* InstantiateKNN(GArgReader& args)
 {
 	if(args.size() < 1)
 		throw Ex("The number of neighbors must be specified for knn");
 	int neighborCount = args.pop_uint();
-	GKNN* pModel = new GKNN(rand);
+	GKNN* pModel = new GKNN();
 	pModel->setNeighborCount(neighborCount);
 	while(args.next_is_flag())
 	{
@@ -110,15 +111,15 @@ GKNN* InstantiateKNN(GRand& rand, GArgReader& args)
 	return pModel;
 }
 
-GLinearRegressor* InstantiateLinearRegressor(GRand& rand, GArgReader& args)
+GLinearRegressor* InstantiateLinearRegressor(GArgReader& args)
 {
-	GLinearRegressor* pModel = new GLinearRegressor(rand);
+	GLinearRegressor* pModel = new GLinearRegressor();
 	return pModel;
 }
 
-GNaiveBayes* InstantiateNaiveBayes(GRand& rand, GArgReader& args)
+GNaiveBayes* InstantiateNaiveBayes(GArgReader& args)
 {
-	GNaiveBayes* pModel = new GNaiveBayes(rand);
+	GNaiveBayes* pModel = new GNaiveBayes();
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-ess"))
@@ -129,9 +130,9 @@ GNaiveBayes* InstantiateNaiveBayes(GRand& rand, GArgReader& args)
 	return pModel;
 }
 
-GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args)
+GNaiveInstance* InstantiateNaiveInstance(GArgReader& args)
 {
-	GNaiveInstance* pModel = new GNaiveInstance(rand);
+	GNaiveInstance* pModel = new GNaiveInstance();
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-neighbors"))
@@ -142,9 +143,9 @@ GNaiveInstance* InstantiateNaiveInstance(GRand& rand, GArgReader& args)
 	return pModel;
 }
 
-GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
+GNeuralNet* InstantiateNeuralNet(GArgReader& args)
 {
-	GNeuralNet* pModel = new GNeuralNet(rand);
+	GNeuralNet* pModel = new GNeuralNet();
 	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
@@ -195,9 +196,9 @@ GNeuralNet* InstantiateNeuralNet(GRand& rand, GArgReader& args)
 	return pModel;
 }
 /*
-GNeuralTransducer* InstantiateNeuralTransducer(GRand* pRand, GArgReader& args)
+GNeuralTransducer* InstantiateNeuralTransducer(GArgReader& args)
 {
-	GNeuralTransducer* pTransducer = new GNeuralTransducer(pRand);
+	GNeuralTransducer* pTransducer = new GNeuralTransducer();
 	vector<size_t> paramDims;
 	while(args.next_is_flag())
 	{
@@ -247,7 +248,7 @@ void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 	cerr.flush();
 }
 
-GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args)
+GTransducer* InstantiateAlgorithm(GArgReader& args)
 {
 	int argPos = args.get_pos();
 	if(args.size() < 1)
@@ -255,17 +256,17 @@ GTransducer* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 	try
 	{
 		if(args.if_pop("baseline"))
-			return InstantiateBaseline(rand, args);
+			return InstantiateBaseline(args);
 		else if(args.if_pop("knn"))
-			return InstantiateKNN(rand, args);
+			return InstantiateKNN(args);
 		else if(args.if_pop("linear"))
-			return InstantiateLinearRegressor(rand, args);
+			return InstantiateLinearRegressor(args);
 		else if(args.if_pop("naivebayes"))
-			return InstantiateNaiveBayes(rand, args);
+			return InstantiateNaiveBayes(args);
 //		else if(args.if_pop("naiveinstance"))
-//			return InstantiateNaiveInstance(rand, args);
+//			return InstantiateNaiveInstance(args);
 		else if(args.if_pop("neuralnet"))
-			return InstantiateNeuralNet(rand, args);
+			return InstantiateNeuralNet(args);
 		throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
@@ -362,13 +363,13 @@ void train(GArgReader& args)
 	labels.loadArff(args.pop_string());
 
 	// Instantiate the modeler
-	GRand prng(seed);
-	GTransducer* pSupLearner = InstantiateAlgorithm(prng, args);
+	GTransducer* pSupLearner = InstantiateAlgorithm(args);
 	Holder<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
 	if(!pSupLearner->canTrainIncrementally())
 		throw Ex("This algorithm cannot be trained with a sparse matrix. Only incremental learners (such as naivebayes, knn, and neuralnet) support this functionality.");
+	pSupLearner->rand().setSeed(seed);
 	GIncrementalLearner* pModel = (GIncrementalLearner*)pSupLearner;
 
 	// Train the modeler
@@ -394,14 +395,14 @@ void predict(GArgReader& args)
 	}
 
 	// Load the model
-	GRand prng(seed);
 	GDom doc;
 	if(args.size() < 1)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(prng, true);
+	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
+	pModeler->rand().setSeed(seed);
 
 	// Load the sparse features
 	if(args.size() < 1)
@@ -440,14 +441,14 @@ void test(GArgReader& args)
 	}
 
 	// Load the model
-	GRand prng(seed);
 	GDom doc;
 	if(args.size() < 1)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
-	GLearnerLoader ll(prng, true);
+	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
+	pModeler->rand().setSeed(seed);
 
 	// Load the sparse features
 	if(args.size() < 1)

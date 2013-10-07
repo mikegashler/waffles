@@ -77,7 +77,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GGaussianProcess(GRand& rand);
+	GGaussianProcess();
 
 	/// Deserialization constructor
 	GGaussianProcess(GDomNode* pNode, GLearnerLoader& ll);

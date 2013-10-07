@@ -137,7 +137,7 @@ protected:
 	bool m_ownMetric;
 
 public:
-	GAgglomerativeTransducer(GRand& rand);
+	GAgglomerativeTransducer();
 	virtual ~GAgglomerativeTransducer();
 
 	/// Specify the metric to use to determine the distance between points.
@@ -330,7 +330,7 @@ protected:
 	double* m_pDistances;
 
 public:
-	GGraphCutTransducer(GRand& rand);
+	GGraphCutTransducer();
 	virtual ~GGraphCutTransducer();
 
 	/// Sets the number of neighbors to use to form the graph. The default is 12

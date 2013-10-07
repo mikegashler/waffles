@@ -2,7 +2,6 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
-    Eric Moyer,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -24,6 +23,7 @@
 #include "GNeuralNet.h"
 #include "GManifold.h"
 #include "GActivation.h"
+#include "GHolders.h"
 
 using std::vector;
 
@@ -421,9 +421,9 @@ GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations)
 		throw Ex("Expected ", to_str(m_visibleCount), " cols. Got ", to_str(observations.cols()));
 
 	// Reduce dimensionality while training a neural network to do the encoding
-	GScalingUnfolder su(m_rand);
+	GScalingUnfolder su;
 	GUniformRelation rel(m_visibleCount);
-	GNeuralNet nnEncoder(m_rand);
+	GNeuralNet nnEncoder;
 	nnEncoder.setTopology(m_hiddenCount);
 	nnEncoder.beginIncrementalLearning(rel, rel);
 	nnEncoder.getLayer(1)->setActivationFunction(new GActivationIdentity());
@@ -446,7 +446,7 @@ GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations)
 	Holder<GMatrix> hEncoding(pEncoding);
 
 	// Train a decoder network
-	GNeuralNet nnDecoder(m_rand);
+	GNeuralNet nnDecoder;
 	nnDecoder.train(*pEncoding, observations);
 
 	// Copy the weights into the decoder
@@ -580,7 +580,7 @@ void GDeepNet::test()
 	dn.addLayer(new GStackableAutoencoder(2, 3, rand));
 
 	// Make a neural net
-	GNeuralNet nn(rand);
+	GNeuralNet nn;
 	nn.setLearningRate(0.8);
 	vector<size_t> topo;
 	topo.push_back(3);

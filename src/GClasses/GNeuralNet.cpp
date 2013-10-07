@@ -37,6 +37,7 @@
 #include "GDistance.h"
 #include "GAssignment.h"
 #endif // MIN_PREDICT
+#include "GHolders.h"
 
 using std::vector;
 
@@ -637,8 +638,8 @@ void GBackProp::gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGr
 
 // ----------------------------------------------------------------------
 
-GNeuralNet::GNeuralNet(GRand& rand)
-: GIncrementalLearner(rand),
+GNeuralNet::GNeuralNet()
+: GIncrementalLearner(),
 m_pBackProp(NULL),
 m_learningRate(0.1),
 m_momentum(0.0),
@@ -852,7 +853,7 @@ void GNeuralNet::copyWeights(GNeuralNet* pOther)
 	{
 		GNeuralNetLayer& src = *pOther->m_layers[i];
 		GNeuralNetLayer& dest = *m_layers[i];
-		dest.m_weights.copyBlock(src.m_weights, 0, 0, (size_t)-1, (size_t)-1, 0, 0, false);
+		dest.m_weights.copyBlock(src.m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 		GVec::copy(dest.bias(), src.bias(), src.outputs());
 	}
 }
@@ -1232,7 +1233,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 		{
 			features.fullRow(pFullRow, indexes[i]);
 			forwardProp(pFullRow);
-			m_pBackProp->computeBlame(labels.row(indexes[i]), (size_t)-1, m_backPropTargetFunction);
+			m_pBackProp->computeBlame(labels.row(indexes[i]), INVALID_INDEX, m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
 			m_pBackProp->descendGradient(pFullRow, m_learningRate, m_momentum);
 		}
@@ -1277,7 +1278,7 @@ size_t GNeuralNet::trainWithValidation(const GMatrix& trainFeatures, const GMatr
 		{
 			const double* pFeatures = trainFeatures[*pIndex];
 			forwardProp(pFeatures);
-			m_pBackProp->computeBlame(trainLabels[*pIndex], (size_t)-1, m_backPropTargetFunction);
+			m_pBackProp->computeBlame(trainLabels[*pIndex], INVALID_INDEX, m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
 			m_pBackProp->descendGradient(pFeatures, m_learningRate, m_momentum);
 			pIndex++;
@@ -1333,7 +1334,7 @@ void GNeuralNet::trainIncrementalInner(const double* pIn, const double* pOut)
 	if(!hasTrainingBegun())
 		throw Ex("train or beginIncrementalLearning must be called before this method");
 	forwardProp(pIn);
-	m_pBackProp->computeBlame(pOut, (size_t)-1, m_backPropTargetFunction);
+	m_pBackProp->computeBlame(pOut, INVALID_INDEX, m_backPropTargetFunction);
 	m_pBackProp->backpropagate();
 	m_pBackProp->descendGradient(pIn, m_learningRate, m_momentum);
 }
@@ -1344,7 +1345,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Try a plain-old single-layer network
 	size_t hidden = std::max((size_t)4, (features.cols() + 3) / 4);
-	Holder<GNeuralNet> hCand0(new GNeuralNet(m_rand));
+	Holder<GNeuralNet> hCand0(new GNeuralNet());
 	Holder<GNeuralNet> hCand1;
 	double scores[2];
 	scores[0] = hCand0.get()->crossValidate(features, labels, 2);
@@ -1354,7 +1355,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	size_t failures = 0;
 	while(true)
 	{
-		GNeuralNet* cand = new GNeuralNet(m_rand);
+		GNeuralNet* cand = new GNeuralNet();
 		vector<size_t> topology;
 		topology.push_back(hidden);
 		cand->setTopology(topology);
@@ -1390,7 +1391,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 		if(dif <= 1)
 			break;
 		size_t c = (a + b) / 2;
-		GNeuralNet* cand = new GNeuralNet(m_rand);
+		GNeuralNet* cand = new GNeuralNet();
 		vector<size_t> topology;
 		topology.push_back(c);
 		cand->setTopology(topology);
@@ -1439,7 +1440,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 			c1 = 16;
 			c2 = 16;
 		}
-		GNeuralNet* cand = new GNeuralNet(m_rand);
+		GNeuralNet* cand = new GNeuralNet();
 		vector<size_t> topology;
 		topology.push_back(c1);
 		topology.push_back(c2);
@@ -1458,7 +1459,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 
 	// Try with momentum
 	{
-		GNeuralNet* cand = new GNeuralNet(m_rand);
+		GNeuralNet* cand = new GNeuralNet();
 		vector<size_t> topology;
 		if(hu1 > 0) topology.push_back(hu1);
 		if(hu2 > 0) topology.push_back(hu2);
@@ -1528,7 +1529,7 @@ GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 	GNeuralNetLayer& lay = *getLayer(0);
 	if(lay.inputs() != features.cols())
 		throw Ex("mismatching number of data columns and layer units");
-	GPCA pca(lay.inputs(), &m_rand);
+	GPCA pca(lay.inputs());
 	pca.train(features);
 	GMatrix* pBasis = pca.basis();//->transpose();
 //	Holder<GMatrix> hBasis(pBasis);
@@ -1553,8 +1554,7 @@ void GNeuralNet_testMath()
 	labels.newRow()[0] = 1.0;
 
 	// Make the Neural Network
-	GRand prng(0);
-	GNeuralNet nn(prng);
+	GNeuralNet nn;
 	nn.setLearningRate(0.175);
 	nn.setMomentum(0.9);
 	vector<size_t> topology;
@@ -1679,7 +1679,7 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 	for(int i = 0; i < 20; i++)
 	{
 		// Make the neural net
-		GNeuralNet nn(*pRand);
+		GNeuralNet nn;
 //		nn.addLayer(5);
 //		nn.addLayer(10);
 		GUniformRelation featureRel(5);
@@ -1747,7 +1747,7 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 		features.newRow()[0] = d;
 		labels.newRow()[0] = 1.0 - d;
 	}
-	GNeuralNet nn(*pRand);
+	GNeuralNet nn;
 	nn.train(features, labels);
 	double r = nn.sumSquaredError(features, labels);
 	if(r > 0.0)
@@ -1767,7 +1767,7 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 	double outAfter[TEST_INVERT_INPUTS];
 	for(size_t i = 0; i < 30; i++)
 	{
-		GNeuralNet nn(rand);
+		GNeuralNet nn;
 		vector<size_t> topology;
 		for(size_t j = 0; j < layers; j++)
 			topology.push_back(layerSize);
@@ -1792,8 +1792,8 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 	for(size_t i = 0; i < 30; i++)
 	{
 		// Generate two identical neural networks
-		GNeuralNet nn1(rand);
-		GNeuralNet nn2(rand);
+		GNeuralNet nn1;
+		GNeuralNet nn2;
 		vector<size_t> topology;
 		for(size_t j = 0; j < layers; j++)
 			topology.push_back(layerSize);
@@ -1862,7 +1862,7 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 	double in[5];
 	for(size_t i = 0; i < 20; i++)
 	{
-		GNeuralNet nn(rand);
+		GNeuralNet nn;
 		vector<size_t> topology;
 		topology.push_back(5);
 		nn.setTopology(topology);
@@ -1896,7 +1896,7 @@ void GNeuralNet_testTrainOneLayer(GRand& rand)
 	rand.spherical(in, 5);
 	double out[5];
 	rand.spherical(out, 5);
-	GNeuralNet nn1(rand);
+	GNeuralNet nn1;
 	vector<size_t> topology;
 	topology.push_back(5);
 	topology.push_back(5);
@@ -1906,7 +1906,7 @@ void GNeuralNet_testTrainOneLayer(GRand& rand)
 	GUniformRelation rel(5, 0);
 	nn1.beginIncrementalLearning(rel, rel);
 	nn1.perturbAllWeights(3.0);
-	GNeuralNet nn2(rand);
+	GNeuralNet nn2;
 	nn2.copyStructure(&nn1);
 	nn2.copyWeights(&nn1);
 	size_t wc = nn1.countWeights();
@@ -1934,9 +1934,9 @@ void GNeuralNet_testTrainOneLayer(GRand& rand)
 		throw Ex("problem with descendGradientOneLayer");
 }
 
-void GNeuralNet_testBleedWeights(GRand& rand)
+void GNeuralNet_testBleedWeights()
 {
-	GNeuralNet nn(rand);
+	GNeuralNet nn;
 	vector<size_t> topology;
 	topology.push_back(2);
 	topology.push_back(2);
@@ -1972,7 +1972,7 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 	for(size_t i = 0; i < 10; i++)
 	{
 		// Set up
-		GNeuralNet nn(prng);
+		GNeuralNet nn;
 		GUniformRelation in(2);
 		GUniformRelation out(3);
 		nn.beginIncrementalLearning(in, out);
@@ -2018,13 +2018,13 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 		prng.spherical(feat[i], dims);
 
 	// Set up
-	GNeuralNet nn1(prng);
+	GNeuralNet nn1;
 	vector<size_t> topology;
 	topology.push_back(dims * 2);
 	nn1.setTopology(topology);
 	nn1.beginIncrementalLearning(feat.relation(), feat.relation());
 	nn1.perturbAllWeights(1.0);
-	GNeuralNet nn2(prng);
+	GNeuralNet nn2;
 	nn2.copyStructure(&nn1);
 	nn2.copyWeights(&nn1);
 
@@ -2052,23 +2052,23 @@ void GNeuralNet::test()
 	GNeuralNet_testInvertAndSwap(prng);
 	GNeuralNet_testNormalizeInput(prng);
 	GNeuralNet_testTrainOneLayer(prng);
-	GNeuralNet_testBleedWeights(prng);
+	GNeuralNet_testBleedWeights();
 	GNeuralNet_testTransformWeights(prng);
 	GNeuralNet_testCompressFeatures(prng);
 
 	// Test with no hidden layers (logistic regression)
 	{
-		GNeuralNet nn(prng);
-		nn.basicTest(0.74, 0.77);
+		GNeuralNet nn;
+		nn.basicTest(0.74, 0.85);
 	}
 
 	// Test NN with one hidden layer
 	{
-		GNeuralNet nn(prng);
+		GNeuralNet nn;
 		vector<size_t> topology;
 		topology.push_back(3);
 		nn.setTopology(topology);
-		nn.basicTest(0.76, 0.75);
+		nn.basicTest(0.76, 0.9);
 	}
 }
 
@@ -2172,8 +2172,7 @@ void GNeuralNetPseudoInverse::computeFeatures(const double* pLabels, double* pFe
 // static
 void GNeuralNetPseudoInverse::test()
 {
-	GRand prng(0);
-	GNeuralNet nn(prng);
+	GNeuralNet nn;
 	vector<size_t> topology;
 	topology.push_back(5);
 	topology.push_back(7);
@@ -2184,7 +2183,7 @@ void GNeuralNetPseudoInverse::test()
 	for(size_t i = 0; i < nn.layerCount(); i++)
 	{
 		nn.getLayer(i)->setToWeaklyApproximateIdentity();
-		nn.getLayer(i)->perturbWeights(prng, 0.5);
+		nn.getLayer(i)->perturbWeights(nn.rand(), 0.5);
 	}
 	GNeuralNetPseudoInverse nni(&nn, 0.001);
 	double labels[12];
@@ -2193,7 +2192,7 @@ void GNeuralNetPseudoInverse::test()
 	for(size_t i = 0; i < 20; i++)
 	{
 		for(size_t j = 0; j < 3; j++)
-			features[j] = prng.uniform() * 0.98 + 0.01;
+			features[j] = nn.rand().uniform() * 0.98 + 0.01;
 		nn.predict(features, labels);
 		nni.computeFeatures(labels, features2);
 		if(GVec::squaredDistance(features, features2, 3) > 1e-8)
@@ -2210,8 +2209,8 @@ void GNeuralNetPseudoInverse::test()
 
 
 
-GReservoirNet::GReservoirNet(GRand& rand)
-: GNeuralNet(rand), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)
+GReservoirNet::GReservoirNet()
+: GNeuralNet(), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)
 {
 	clearFeatureFilter();
 }
@@ -2239,16 +2238,15 @@ GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 void GReservoirNet::clearFeatureFilter()
 {
 	delete(m_pFilterFeatures);
-	m_pFilterFeatures = new GDataAugmenter(new GReservoir(m_rand, m_weightDeviation, m_augments, m_reservoirLayers));
+	m_pFilterFeatures = new GDataAugmenter(new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers));
 }
 
 
 // static
 void GReservoirNet::test()
 {
-	GRand prng(0);
-	GReservoirNet lr(prng);
-	lr.basicTest(0.68, 0.68);
+	GReservoirNet lr;
+	lr.basicTest(0.628, 0.84);
 }
 #endif // MIN_PREDICT
 

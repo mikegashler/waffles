@@ -37,6 +37,7 @@
 #include "GTransform.h"
 #include "GDom.h"
 #include "GVec.h"
+#include "GHolders.h"
 #include <deque>
 #include <set>
 #include <map>
@@ -488,7 +489,7 @@ void GManifoldSculpting::beginTransform(const GMatrix* pRealSpaceData)
 			size_t preserveDims = m_nTargetDims * 6;
 			preserveDims = std::max((size_t)30, preserveDims);
 			preserveDims = std::min(pRealSpaceData->relation().size(), preserveDims);
-			GPCA pca(preserveDims, m_pRand);
+			GPCA pca(preserveDims);
 			pca.train(*pRealSpaceData);
 			m_pData = pca.transformBatch(*pRealSpaceData);
 		}
@@ -1244,13 +1245,13 @@ GMatrix* GLLE::doit(const GMatrix& in)
 
 
 
-GBreadthFirstUnfolding::GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims, GRand* pRand)
-: m_reps(reps), m_neighborCount(neighborCount), m_targetDims(targetDims), m_pNF(NULL), m_useMds(true), m_pRand(pRand)
+GBreadthFirstUnfolding::GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims)
+: m_reps(reps), m_neighborCount(neighborCount), m_targetDims(targetDims), m_pNF(NULL), m_useMds(true), m_rand(0)
 {
 }
 
 GBreadthFirstUnfolding::GBreadthFirstUnfolding(GDomNode* pNode, GLearnerLoader& ll)
-: m_reps((size_t)pNode->field("reps")->asInt()), m_neighborCount((size_t)pNode->field("neighbors")->asInt()), m_targetDims((size_t)pNode->field("targetDims")->asInt()), m_pNF(NULL), m_useMds(pNode->field("useMds")->asBool()), m_pRand(&ll.rand())
+: m_reps((size_t)pNode->field("reps")->asInt()), m_neighborCount((size_t)pNode->field("neighbors")->asInt()), m_targetDims((size_t)pNode->field("targetDims")->asInt()), m_pNF(NULL), m_useMds(pNode->field("useMds")->asBool()), m_rand(0)
 {
 }
 
@@ -1310,13 +1311,13 @@ GMatrix* GBreadthFirstUnfolding::doit(const GMatrix& in)
 	Holder<GMatrix> hFinal(NULL);
 	for(size_t i = 0; i < m_reps; i++)
 	{
-		GMatrix* pRep = unfold(pData, pNeighborTable, pSquaredDistances, (size_t)m_pRand->next(pData->rows()), pLocalWeights);
+		GMatrix* pRep = unfold(pData, pNeighborTable, pSquaredDistances, (size_t)m_rand.next(pData->rows()), pLocalWeights);
 		if(hFinal.get())
 		{
 			GVec::add(pGlobalWeights, pLocalWeights, in.rows());
 			GVec::pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
 			Holder<GMatrix> hRep(pRep);
-			hFinal.reset(GManifold::blendEmbeddings(pRep, pLocalWeights, hFinal.get(), m_neighborCount, pNeighborTable, (size_t)m_pRand->next(pData->rows())));
+			hFinal.reset(GManifold::blendEmbeddings(pRep, pLocalWeights, hFinal.get(), m_neighborCount, pNeighborTable, (size_t)m_rand.next(pData->rows())));
 		}
 		else
 		{
@@ -1393,7 +1394,7 @@ void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootInde
 			for(size_t i = 0; i < pLocal->rows(); i++)
 			{
 				if(*pTablePos != UNKNOWN_REAL_VALUE)
-					err += GVec::refinePoint(pLocal->row(i), pLocal->row(j), m_targetDims, *pTablePos, 0.1, m_pRand);
+					err += GVec::refinePoint(pLocal->row(i), pLocal->row(j), m_targetDims, *pTablePos, 0.1, &m_rand);
 				pTablePos++;
 			}
 		}
@@ -1448,7 +1449,7 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t i
 		GAssert(graph.isConnected());
 
 		// Use MDS to reduce the neighborhood
-		pReducedNeighborhood = GManifold::multiDimensionalScaling(graph.costMatrix(), m_targetDims, m_pRand, false);
+		pReducedNeighborhood = GManifold::multiDimensionalScaling(graph.costMatrix(), m_targetDims, &m_rand, false);
 	}
 	else
 	{
@@ -1464,7 +1465,7 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t i
 		}
 
 		// Use PCA to reduce the neighborhood
-		GPCA pca(m_targetDims, m_pRand);
+		GPCA pca(m_targetDims);
 		pca.train(local);
 		pReducedNeighborhood = pca.transformBatch(local);
 	}
@@ -1884,8 +1885,8 @@ GMatrix* GDynamicSystemStateAligner::doit(const GMatrix& in)
 	}
 
 	// Train the linear regression models
-	GLinearRegressor lrA(m_rand);
-	GLinearRegressor lrB(m_rand);
+	GLinearRegressor lrA;
+	GLinearRegressor lrB;
 	lrA.train(aFeatures, aLabels);
 	lrB.train(bFeatures, bLabels);
 
@@ -2219,13 +2220,13 @@ void GImageJitterer::test(const char* filename)
 
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_pRand(pRand), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL), m_onePass(false)
+: m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL), m_onePass(false)
 {
-	m_pNN = new GNeuralNet(*m_pRand);
+	m_pNN = new GNeuralNet();
 }
 
 GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll)
-: GTransform(pNode, ll), m_pRand(&ll.rand()), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL)
+: GTransform(pNode, ll), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL)
 {
 	GDomListIterator it(pNode->field("params"));
 	m_paramDims = it.remaining();
@@ -2233,7 +2234,6 @@ GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll
 	GIndexVec::deserialize(m_pParamRanges, it);
 	m_cvi.reset(m_paramDims, m_pParamRanges);
 	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
-//	m_pRevNN = new GNeuralNet(pNode->field("rev"), ll);
 	m_useInputBias = pNode->field("bias")->asBool();
 	GDomNode* pJitterer = pNode->fieldIfExists("jitterer");
 	if(pJitterer)
@@ -2375,7 +2375,7 @@ GMatrix* GUnsupervisedBackProp::doit(const GMatrix& in)
 	GUniformRelation labelRel(channels);
 	m_pNN->setUseInputBias(m_useInputBias);
 	m_pNN->beginIncrementalLearning(featureRel, labelRel);
-	GNeuralNet nn(*m_pRand);
+	GNeuralNet nn;
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
 
@@ -2405,7 +2405,7 @@ GMatrix* GUnsupervisedBackProp::doit(const GMatrix& in)
 			{
 				double* pVec = m_pIntrinsic->row(i);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
-					*(pVec++) = 0.1 * m_pRand->normal();
+					*(pVec++) = 0.1 * nn.rand().normal();
 			}
 		}
 
@@ -2435,21 +2435,21 @@ GMatrix* GUnsupervisedBackProp::doit(const GMatrix& in)
 			for(size_t j = 0; j < 200 * batchSize; j++)
 			{
 				// Pick a row
-				size_t r = (size_t)m_pRand->next(in.rows());
+				size_t r = (size_t)nn.rand().next(in.rows());
 				const double* pIn = in[r];
 				double* pInt = m_pIntrinsic->row(r);
 				for(size_t k = 0; k < sampleSize; k++) // use the same row for a few iterations to reduce page swaps
 				{
 					// Pick a row, pixel, and channel
-					m_cvi.setRandom(m_pRand);
-					size_t c = (size_t)m_pRand->next(channels);
+					m_cvi.setRandom(&nn.rand());
+					size_t c = (size_t)nn.rand().next(channels);
 					m_cvi.currentNormalized(pParams);
 
 					// Get the pixel
 					const double* pPix;
 					if(m_pJitterer)
 					{
-						GVec::copy(pJitters, m_pJitterer->pickParams(*m_pRand), m_jitterDims);
+						GVec::copy(pJitters, m_pJitterer->pickParams(nn.rand()), m_jitterDims);
 						m_pJitterer->transformedPix(pIn, m_cvi.current()[0], m_cvi.current()[1], pixBuf);
 						pPix = pixBuf;
 					}
@@ -2683,7 +2683,7 @@ size_t GUnsupervisedBackProp::labelDims()
 
 
 
-GScalingUnfolder::GScalingUnfolder(GRand& rand)
+GScalingUnfolder::GScalingUnfolder()
 : m_neighborCount(14),
 m_targetDims(2),
 m_passes(50),
@@ -2691,7 +2691,7 @@ m_learningRate(0.1),
 m_scaleRate(0.9),
 m_keepRatio(0.9),
 m_reduce(true),
-m_rand(rand),
+m_rand(0),
 m_encoderTrainIters(0),
 m_pEncoder(NULL)
 {
@@ -2699,7 +2699,7 @@ m_pEncoder(NULL)
 
 GScalingUnfolder::GScalingUnfolder(GDomNode* pNode, GLearnerLoader& ll)
 : GTransform(pNode, ll),
-m_rand(ll.rand())
+m_rand(0)
 {
 	throw Ex("Sorry, this method is not implemented yet");
 }
@@ -2755,7 +2755,7 @@ GMatrix* GScalingUnfolder::doit(const GMatrix& in)
 		if(m_reduce)
 		{
 			// Shift the variance into the first few dimensions
-			GPCA pca(intrinsicDims, &m_rand);
+			GPCA pca(intrinsicDims);
 			pca.computeEigVals();
 			pca.train(*pIntrinsic);
 			pIntrinsic = pca.transformBatch(*pIntrinsic);
@@ -2792,7 +2792,7 @@ GMatrix* GScalingUnfolder::doit(const GMatrix& in)
 			pIntrinsic->multiply(scaleUpRate);
 
 			// Restore local relationships
-			size_t bestViolators = (size_t)-1;
+			size_t bestViolators = INVALID_INDEX;
 			size_t tolerance = 0;
 			while(true)
 			{
@@ -2804,7 +2804,7 @@ GMatrix* GScalingUnfolder::doit(const GMatrix& in)
 				{
 					size_t a = ind / m_neighborCount;
 					size_t b = nf.cache()[ind];
-					if(b != (size_t)-1)
+					if(b != INVALID_INDEX)
 					{
 						double dTarget = std::max(1e-12, nf.squaredDistanceTable()[ind]);
 						double* pA = pIntrinsic->row(a);

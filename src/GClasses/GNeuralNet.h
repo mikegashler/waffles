@@ -165,11 +165,11 @@ public:
 	/// After calling this method, it is typical to call backpropagate(), to compute the error on
 	/// the hidden nodes, and then to call backProp()->descendGradient to update
 	/// the weights. pTarget contains the target values for the output nodes.
-	void computeBlame(const double* pTarget, size_t layer = (size_t)-1, TargetFunction eTargetFunction = squared_error);
+	void computeBlame(const double* pTarget, size_t layer = INVALID_INDEX, TargetFunction eTargetFunction = squared_error);
 
 	/// This is the same as computeBlame, except that it only sets
 	/// the error on a single output node.
-	void computeBlameSingleOutput(double target, size_t output, size_t layer = (size_t)-1, TargetFunction eTargetFunction = squared_error);
+	void computeBlameSingleOutput(double target, size_t output, size_t layer = INVALID_INDEX, TargetFunction eTargetFunction = squared_error);
 
 	/// Backpropagates the error from the downstream layer to the upstream layer.
 	static void backPropLayer(GNeuralNetLayer* pNNDownStreamLayer, GNeuralNetLayer* pNNUpStreamLayer, GBackPropLayer* pBPDownStreamLayer, GBackPropLayer* pBPUpStreamLayer);
@@ -179,11 +179,11 @@ public:
 
 	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
-	void backpropagate(size_t startLayer = (size_t)-1);
+	void backpropagate(size_t startLayer = INVALID_INDEX);
 
 	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
 	/// the specified output node.)
-	void backpropagateSingleOutput(size_t outputNode, size_t startLayer = (size_t)-1);
+	void backpropagateSingleOutput(size_t outputNode, size_t startLayer = INVALID_INDEX);
 
 	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights to descend the
 	/// gradient of the error surface with respect to the weights.
@@ -241,7 +241,7 @@ protected:
 	bool m_useInputBias;
 
 public:
-	GNeuralNet(GRand& rand);
+	GNeuralNet();
 
 	/// Load from a text-format
 	GNeuralNet(GDomNode* pNode, GLearnerLoader& ll);
@@ -407,7 +407,7 @@ public:
 
 	/// Evaluates a feature vector. (The results will be in the nodes of the output layer.)
 	/// The maxLayers parameter can limit how far into the network values are propagated.
-	void forwardProp(const double* pInputs, size_t maxLayers = (size_t)-1);
+	void forwardProp(const double* pInputs, size_t maxLayers = INVALID_INDEX);
 
 	/// This is the same as forwardProp, except it only propagates to a single output node.
 	/// It returns the value that this node outputs.
@@ -573,7 +573,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GReservoirNet(GRand& rand);
+	GReservoirNet();
 
 	/// Deserializing constructor
 	GReservoirNet(GDomNode* pNode, GLearnerLoader& ll);

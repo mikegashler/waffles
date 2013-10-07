@@ -26,6 +26,7 @@
 #include "../GClasses/GDistance.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GError.h"
+#include "../GClasses/GHolders.h"
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GRecommender.h"
@@ -50,7 +51,7 @@ using std::string;
 using std::vector;
 using std::set;
 
-GCollaborativeFilter* InstantiateAlgorithm(GRand& rand, GArgReader& args);
+GCollaborativeFilter* InstantiateAlgorithm(GArgReader& args);
 
 void loadData(GMatrix& data, const char* szFilename)
 {
@@ -119,14 +120,14 @@ GSparseMatrix* loadSparseData(const char* szFilename)
 	return NULL;
 }
 
-GBaselineRecommender* InstantiateBaselineRecommender(GRand& rand, GArgReader& args)
+GBaselineRecommender* InstantiateBaselineRecommender(GArgReader& args)
 {
-	return new GBaselineRecommender(rand);
+	return new GBaselineRecommender();
 }
 
-GBagOfRecommenders* InstantiateBagOfRecommenders(GRand& rand, GArgReader& args)
+GBagOfRecommenders* InstantiateBagOfRecommenders(GArgReader& args)
 {
-	GBagOfRecommenders* pEnsemble = new GBagOfRecommenders(rand);
+	GBagOfRecommenders* pEnsemble = new GBagOfRecommenders();
 	while(args.size() > 0)
 	{
 		if(args.if_pop("end"))
@@ -136,14 +137,14 @@ GBagOfRecommenders* InstantiateBagOfRecommenders(GRand& rand, GArgReader& args)
 		for(int i = 0; i < instance_count; i++)
 		{
 			args.set_pos(arg_pos);
-			GCollaborativeFilter* pRecommender = InstantiateAlgorithm(rand, args);
+			GCollaborativeFilter* pRecommender = InstantiateAlgorithm(args);
 			pEnsemble->addRecommender(pRecommender);
 		}
 	}
 	return pEnsemble;
 }
 
-GInstanceRecommender* InstantiateInstanceRecommender(GRand& rand, GArgReader& args)
+GInstanceRecommender* InstantiateInstanceRecommender(GArgReader& args)
 {
 	if(args.size() < 1)
 		throw Ex("The number of neighbors must be specified for this algorithm");
@@ -159,14 +160,14 @@ GInstanceRecommender* InstantiateInstanceRecommender(GRand& rand, GArgReader& ar
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	GInstanceRecommender* pModel = new GInstanceRecommender(neighborCount, rand);
+	GInstanceRecommender* pModel = new GInstanceRecommender(neighborCount);
 	if(pearson)
 		pModel->setMetric(new GPearsonCorrelation(), true);
 	pModel->metric()->setRegularizer(regularizer);
 	return pModel;
 }
 
-GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgReader& args)
+GDenseClusterRecommender* InstantiateDenseClusterRecommender(GArgReader& args)
 {
 	if(args.size() < 1)
 		throw Ex("The number of clusters must be specified for this algorithm");
@@ -186,12 +187,12 @@ GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgRe
 			throw Ex("Invalid option: ", args.peek());
 		// todo: allow the user to specify the clustering algorithm. (Currently, it uses k-means, but k-medoids and agglomerativeclusterer should also be an option)
 	}
-	GDenseClusterRecommender* pModel = new GDenseClusterRecommender(clusterCount, rand);
+	GDenseClusterRecommender* pModel = new GDenseClusterRecommender(clusterCount);
 	if(norm == 2.0)
 	{
 		if(missingPenalty != 1.0)
 		{
-			GFuzzyKMeans* pClusterer = new GFuzzyKMeans(clusterCount, &rand);
+			GFuzzyKMeans* pClusterer = new GFuzzyKMeans(clusterCount, &pModel->rand());
 			pModel->setClusterer(pClusterer, true);
 			GRowDistance* pMetric = new GRowDistance();
 			pClusterer->setMetric(pMetric, true);
@@ -200,7 +201,7 @@ GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgRe
 	}
 	else
 	{
-		GFuzzyKMeans* pClusterer = new GFuzzyKMeans(clusterCount, &rand);
+		GFuzzyKMeans* pClusterer = new GFuzzyKMeans(clusterCount, &pModel->rand());
 		pModel->setClusterer(pClusterer, true);
 		GLNormDistance* pMetric = new GLNormDistance(norm);
 		pClusterer->setMetric(pMetric, true);
@@ -211,7 +212,7 @@ GDenseClusterRecommender* InstantiateDenseClusterRecommender(GRand& rand, GArgRe
 	return pModel;
 }
 
-GSparseClusterRecommender* InstantiateSparseClusterRecommender(GRand& rand, GArgReader& args)
+GSparseClusterRecommender* InstantiateSparseClusterRecommender(GArgReader& args)
 {
 	if(args.size() < 1)
 		throw Ex("The number of clusters must be specified for this algorithm");
@@ -225,22 +226,22 @@ GSparseClusterRecommender* InstantiateSparseClusterRecommender(GRand& rand, GArg
 			throw Ex("Invalid option: ", args.peek());
 		// todo: allow the user to specify the clustering algorithm. (Currently, it uses k-means, but k-medoids should also be an option)
 	}
-	GSparseClusterRecommender* pModel = new GSparseClusterRecommender(clusterCount, rand);
+	GSparseClusterRecommender* pModel = new GSparseClusterRecommender(clusterCount);
 	if(pearson)
 	{
-		GKMeansSparse* pClusterer = new GKMeansSparse(clusterCount, &rand);
+		GKMeansSparse* pClusterer = new GKMeansSparse(clusterCount, &pModel->rand());
 		pClusterer->setMetric(new GPearsonCorrelation(), true);
 		pModel->setClusterer(pClusterer, true);
 	}
 	return pModel;
 }
 
-GMatrixFactorization* InstantiateMatrixFactorization(GRand& rand, GArgReader& args)
+GMatrixFactorization* InstantiateMatrixFactorization(GArgReader& args)
 {
 	if(args.size() < 1)
 		throw Ex("The number of intrinsic dims must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
-	GMatrixFactorization* pModel = new GMatrixFactorization(intrinsicDims, rand);
+	GMatrixFactorization* pModel = new GMatrixFactorization(intrinsicDims);
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-regularize"))
@@ -251,12 +252,12 @@ GMatrixFactorization* InstantiateMatrixFactorization(GRand& rand, GArgReader& ar
 	return pModel;
 }
 
-GNonlinearPCA* InstantiateNonlinearPCA(GRand& rand, GArgReader& args)
+GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args)
 {
 	if(args.size() < 1)
 		throw Ex("The number of intrinsic dims must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
-	GNonlinearPCA* pModel = new GNonlinearPCA(intrinsicDims, rand);
+	GNonlinearPCA* pModel = new GNonlinearPCA(intrinsicDims);
 	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
@@ -344,7 +345,7 @@ void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 	cerr.flush();
 }
 
-GCollaborativeFilter* InstantiateAlgorithm(GRand& rand, GArgReader& args)
+GCollaborativeFilter* InstantiateAlgorithm(GArgReader& args)
 {
 	int argPos = args.get_pos();
 	if(args.size() < 1)
@@ -352,19 +353,19 @@ GCollaborativeFilter* InstantiateAlgorithm(GRand& rand, GArgReader& args)
 	try
 	{
 		if(args.if_pop("baseline"))
-			return InstantiateBaselineRecommender(rand, args);
+			return InstantiateBaselineRecommender(args);
 		else if(args.if_pop("bag"))
-			return InstantiateBagOfRecommenders(rand, args);
+			return InstantiateBagOfRecommenders(args);
 		else if(args.if_pop("instance"))
-			return InstantiateInstanceRecommender(rand, args);
+			return InstantiateInstanceRecommender(args);
 		else if(args.if_pop("clusterdense"))
-			return InstantiateDenseClusterRecommender(rand, args);
+			return InstantiateDenseClusterRecommender(args);
 		else if(args.if_pop("clustersparse"))
-			return InstantiateSparseClusterRecommender(rand, args);
+			return InstantiateSparseClusterRecommender(args);
 		else if(args.if_pop("matrix"))
-			return InstantiateMatrixFactorization(rand, args);
+			return InstantiateMatrixFactorization(args);
 		else if(args.if_pop("nlpca"))
-			return InstantiateNonlinearPCA(rand, args);
+			return InstantiateNonlinearPCA(args);
 		else
 			throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
@@ -401,11 +402,11 @@ void crossValidate(GArgReader& args)
 	loadData(data, args.pop_string());
 
 	// Instantiate the recommender
-	GRand prng(seed);
-	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
+	GCollaborativeFilter* pModel = InstantiateAlgorithm(args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
+	pModel->rand().setSeed(seed);
 
 	// Do cross-validation
 	double mae;
@@ -435,11 +436,11 @@ void precisionRecall(GArgReader& args)
 	loadData(data, args.pop_string());
 
 	// Instantiate the recommender
-	GRand prng(seed);
-	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
+	GCollaborativeFilter* pModel = InstantiateAlgorithm(args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
+	pModel->rand().setSeed(seed);
 
 	// Generate precision-recall data
 	GMatrix* pResults = pModel->precisionRecall(data, ideal);
@@ -470,11 +471,11 @@ void ROC(GArgReader& args)
 	loadData(data, args.pop_string());
 
 	// Instantiate the recommender
-	GRand prng(seed);
-	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
+	GCollaborativeFilter* pModel = InstantiateAlgorithm(args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
+	pModel->rand().setSeed(seed);
 
 	// Generate ROC data
 	GMatrix* pResults = pModel->precisionRecall(data, ideal);
@@ -509,11 +510,11 @@ void transacc(GArgReader& args)
 	loadData(test, args.pop_string());
 
 	// Instantiate the recommender
-	GRand prng(seed);
-	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
+	GCollaborativeFilter* pModel = InstantiateAlgorithm(args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
+	pModel->rand().setSeed(seed);
 
 	// Do cross-validation
 	double mae;
@@ -537,11 +538,11 @@ void fillMissingValues(GArgReader& args)
 	dataOrig.loadArff(args.pop_string());
 	GRelation* pOrigRel = dataOrig.relation().clone();
 	Holder<GRelation> hOrigRel(pOrigRel);
-	GRand prng(seed);
-	GCollaborativeFilter* pModel = InstantiateAlgorithm(prng, args);
+	GCollaborativeFilter* pModel = InstantiateAlgorithm(args);
 	Holder<GCollaborativeFilter> hModel(pModel);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
+	pModel->rand().setSeed(seed);
 
 	// Convert to all normalized real values
 	GNominalToCat* pNtc = new GNominalToCat();

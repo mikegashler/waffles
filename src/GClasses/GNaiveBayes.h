@@ -38,7 +38,7 @@ protected:
 	double m_equivalentSampleSize;
 
 public:
-	GNaiveBayes(GRand& rand);
+	GNaiveBayes();
 
 	/// Load from a DOM.
 	GNaiveBayes(GDomNode* pNode, GLearnerLoader& ll);

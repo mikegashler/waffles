@@ -20,6 +20,7 @@
 #define __GRECOMMENDER_H__
 
 #include "GError.h"
+#include "GRand.h"
 #include <vector>
 
 namespace GClasses {
@@ -41,10 +42,10 @@ class GLearnerLoader;
 class GCollaborativeFilter
 {
 protected:
-	GRand& m_rand;
+	GRand m_rand;
 
 public:
-	GCollaborativeFilter(GRand& rand) : m_rand(rand) {}
+	GCollaborativeFilter();
 	GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GCollaborativeFilter() {}
 
@@ -113,6 +114,9 @@ public:
 	/// this will compute the area under the ROC curve.
 	static double areaUnderCurve(GMatrix& data);
 
+	/// Returns a reference to the pseudo-random number generator associated with this object.
+	GRand& rand() { return m_rand; }
+
 #ifndef NO_TEST_CODE
 	/// Performs a basic unit test on this collaborative filter
 	void basicTest(double minMSE);
@@ -135,7 +139,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GBaselineRecommender(GRand& rand);
+	GBaselineRecommender();
 
 	/// Deserialization constructor
 	GBaselineRecommender(GDomNode* pNode, GLearnerLoader& ll);
@@ -175,7 +179,7 @@ protected:
 	GBaselineRecommender* m_pBaseline;
 
 public:
-	GInstanceRecommender(size_t neighbors, GRand& rand);
+	GInstanceRecommender(size_t neighbors);
 	GInstanceRecommender(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GInstanceRecommender();
 
@@ -218,7 +222,7 @@ protected:
 	size_t m_users, m_items;
 
 public:
-	GSparseClusterRecommender(size_t clusters, GRand& rand);
+	GSparseClusterRecommender(size_t clusters);
 	virtual ~GSparseClusterRecommender();
 
 	/// Returns the number of clusters
@@ -259,7 +263,7 @@ protected:
 	size_t m_users, m_items;
 
 public:
-	GDenseClusterRecommender(size_t clusters, GRand& rand);
+	GDenseClusterRecommender(size_t clusters);
 	virtual ~GDenseClusterRecommender();
 
 	/// Returns the number of clusters
@@ -313,7 +317,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GMatrixFactorization(size_t intrinsicDims, GRand& rand);
+	GMatrixFactorization(size_t intrinsicDims);
 
 	/// Deserialization constructor
 	GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll);
@@ -378,7 +382,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GNonlinearPCA(size_t intrinsicDims, GRand& rand);
+	GNonlinearPCA(size_t intrinsicDims);
 
 	/// Deserialization constructor
 	GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll);
@@ -433,7 +437,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GBagOfRecommenders(GRand& rand);
+	GBagOfRecommenders();
 
 	/// Deserialization constructor
 	GBagOfRecommenders(GDomNode* pNode, GLearnerLoader& ll);

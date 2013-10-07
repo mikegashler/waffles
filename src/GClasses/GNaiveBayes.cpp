@@ -27,6 +27,7 @@
 #include "GRand.h"
 #include "GTransform.h"
 #include "GSparseMatrix.h"
+#include "GHolders.h"
 #include <cmath>
 
 namespace GClasses {
@@ -151,9 +152,9 @@ struct GNaiveBayesOutputValue
 		{
 			dLogProb += log(std::max(1e-300,
 					(
-						(double)m_pInputs[n]->eval((int)pInputVector[n]) + 
+						(double)m_pInputs[n]->eval((int)pInputVector[n]) +
 						(equivalentSampleSize / m_pInputs[n]->m_nValues)
-					) / 
+					) /
 					(equivalentSampleSize + m_nCount)
 				));
 		}
@@ -231,8 +232,8 @@ struct GNaiveBayesOutputAttr
 
 // --------------------------------------------------------------------
 
-GNaiveBayes::GNaiveBayes(GRand& rand)
-: GIncrementalLearner(rand), m_pInnerRelFeatures(NULL), m_pInnerRelLabels(NULL)
+GNaiveBayes::GNaiveBayes()
+: GIncrementalLearner(), m_pInnerRelFeatures(NULL), m_pInnerRelLabels(NULL)
 {
 	m_pOutputs = NULL;
 	m_equivalentSampleSize = 0.5;
@@ -401,7 +402,7 @@ void GNaiveBayes_CheckResults(double yprior, double ycond, double nprior, double
 		throw Ex("wrong");
 }
 
-void GNaiveBayes_testMath(GRand* pRand)
+void GNaiveBayes_testMath()
 {
 	const char* trainFile =
 	"@RELATION test\n"
@@ -427,7 +428,7 @@ void GNaiveBayes_testMath(GRand* pRand)
 	Holder<GMatrix> hFeatures(pFeatures);
 	GMatrix* pLabels = train.cloneSub(0, 2, train.rows(), 1);
 	Holder<GMatrix> hLabels(pLabels);
-	GNaiveBayes nb(*pRand);
+	GNaiveBayes nb;
 	nb.setEquivalentSampleSize(0.0);
 	nb.train(*pFeatures, *pLabels);
 	GPrediction out;
@@ -455,10 +456,9 @@ void GNaiveBayes_testMath(GRand* pRand)
 // static
 void GNaiveBayes::test()
 {
-	GRand prng(0);
-	GNaiveBayes_testMath(&prng);
-	GNaiveBayes nb(prng);
-	nb.basicTest(0.77, 0.77);
+	GNaiveBayes_testMath();
+	GNaiveBayes nb;
+	nb.basicTest(0.77, 0.94);
 }
 #endif // !NO_TEST_CODE
 

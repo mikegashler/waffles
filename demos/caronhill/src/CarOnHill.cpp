@@ -35,7 +35,7 @@ protected:
 
 public:
 	CarQAgent(const GRelation& obsControlRelation, double* pInitialState, GRand* prng, GAgentActionIterator* pActionIterator)
-	: GIncrementalLearnerQAgent(obsControlRelation, MakeQTable(prng), 1/*actionDims*/, pInitialState, prng, pActionIterator, 0.97/*softMaxThresh*/)
+	: GIncrementalLearnerQAgent(obsControlRelation, MakeQTable(), 1/*actionDims*/, pInitialState, prng, pActionIterator, 0.97/*softMaxThresh*/)
 	{
 		m_lastReward = UNKNOWN_REAL_VALUE;
 	}
@@ -45,13 +45,13 @@ public:
 		delete(m_pQTable);
 	}
 
-	GIncrementalLearner* MakeQTable(GRand* pRand)
+	GIncrementalLearner* MakeQTable()
 	{
 		size_t dims[3];
 		dims[0] = 50; // position
 		dims[1] = 50; // velocity
 		dims[2] = 2; // actions
-		m_pQTable = new GInstanceTable(3, dims, *pRand);
+		m_pQTable = new GInstanceTable(3, dims);
 		return m_pQTable;
 	}
 

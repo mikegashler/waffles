@@ -569,7 +569,7 @@ void MySession::doNext(const char* szParams)
 	// Find the page ID
 	GHttpParamParser pp(szParams);
 	const char* szPageId = pp.find("pageid");
-	size_t pageId = (size_t)-1;
+	size_t pageId = INVALID_INDEX;
 	if(szPageId)
 		pageId = atoi(szPageId);
 
@@ -586,7 +586,7 @@ void MySession::doNext(const char* szParams)
 
 	// Check if the start-over button was pressed
 	if(szBtn && _stricmp(szBtn, "Start Over") == 0)
-		pageId = (size_t)-1;
+		pageId = INVALID_INDEX;
 
 	// Check the page id. Start over if it is not what is expected.
 	if(pageId != m_page || !m_pCurrentPage || !m_pRootPage)
@@ -642,7 +642,7 @@ void MySession::doNext(const char* szParams)
 					Page* pParPar = pPar->parent();
 					if(!pParPar)
 						break;
-					
+
 					// Find the parent page
 					size_t i;
 					for(i = 0; i < pParPar->children().size(); i++)

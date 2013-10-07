@@ -28,11 +28,11 @@
    This is a 64-bit version of Mersenne Twister pseudorandom number
    generator.
 
-   Before using, initialize the state by using init_genrand64(seed)  
+   Before using, initialize the state by using init_genrand64(seed)
    or init_by_array64(init_key, key_length).
 
    Copyright (C) 2004, Makoto Matsumoto and Takuji Nishimura,
-   All rights reserved.                          
+   All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -45,8 +45,8 @@
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
 
-     3. The names of its contributors may not be used to endorse or promote 
-        products derived from this software without specific prior written 
+     3. The names of its contributors may not be used to endorse or promote
+        products derived from this software without specific prior written
         permission.
 
    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -63,12 +63,12 @@
 
    References:
    T. Nishimura, ``Tables of 64-bit Mersenne Twisters''
-     ACM Transactions on Modeling and 
+     ACM Transactions on Modeling and
      Computer Simulation 10. (2000) 348--357.
    M. Matsumoto and T. Nishimura,
      ``Mersenne Twister: a 623-dimensionally equidistributed
        uniform pseudorandom number generator''
-     ACM Transactions on Modeling and 
+     ACM Transactions on Modeling and
      Computer Simulation 8. (Jan. 1998) 3--30.
 
    Any feedback is very welcome.
@@ -141,24 +141,24 @@ public:
 	/// (The following was pasted from wikipedia with a little editing)
 	///
 	/// The probability density function of the beta distribution is:
-	/// 
+	///
 	/// \f{align}{
 	/// f(x;\alpha,\beta) & = \frac{x^{\alpha-1}(1-x)^{\beta-1}}{\int_0^1 u^{\alpha-1} (1-u)^{\beta-1}\, du} \\[6pt]
 	/// & = \frac{\Gamma(\alpha+\beta)}{\Gamma(\alpha)\Gamma(\beta)}\, x^{\alpha-1}(1-x)^{\beta-1} \\[6pt]
 	/// & = \frac{1}{\mathrm{B}(\alpha,\beta)}\, x
 	/// ^{\alpha-1}(1-x)^{\beta-1}
 	///  \f}
-	/// 
+	///
 	/// where \f$\Gamma(z)$f$ is the gamma function.  The beta function,
 	/// \b B, appears as a normalization constant to ensure that the
 	/// total probability integrates to unity.
-	/// 
+	///
 	/// A random variable \b X that is Beta-distributed with shape \b α
 	/// and \b β is denoted
-	/// 
+	///
 	/// \f[ X \sim \textrm{Be}(\alpha, \beta)\f]
-	/// 
-	/// 
+	///
+	///
 	///
 	/// \param alpha The \b α parameter (see above)
 	///
@@ -210,10 +210,10 @@ public:
 	/// multiply the value this returns by theta).
 	virtual double gamma(double alpha);
 
-	/// \brief Returns a random value from a geometric distribution 
+	/// \brief Returns a random value from a geometric distribution
 	/// with support for {0, 1, 2, ...}.
 	///
-	/// \param p the probability of success in the underlying 
+	/// \param p the probability of success in the underlying
 	///          bernoulli trials.  0 < p < 1
 	virtual int geometric(double p);
 
@@ -278,18 +278,6 @@ public:
 	/// Returns a random value from a Weibull distribution with lambda=1.
 	virtual double weibull(double gamma);
 
-	/// \brief Returns a reference to the global random number generator.  
-	///
-	/// Useful as a default parameter to constructors so that only users
-	/// who have particular needs will need to construct a new GRand
-	/// object.
-	///
-	/// Initializes the seed based on the time and some other system
-	/// parameters the first time it is called.
-	///
-	/// \returns a reference to the global random number generator.  
-	static GRand& global();
-
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
@@ -339,12 +327,12 @@ public:
 ///
 /// References:
 /// T. Nishimura, ``Tables of 64-bit Mersenne Twisters''
-///   ACM Transactions on Modeling and 
+///   ACM Transactions on Modeling and
 ///   Computer Simulation 10. (2000) 348--357.
 /// M. Matsumoto and T. Nishimura,
 ///   ``Mersenne Twister: a 623-dimensionally equidistributed
 ///     uniform pseudorandom number generator''
-///   ACM Transactions on Modeling and 
+///   ACM Transactions on Modeling and
 ///   Computer Simulation 8. (Jan. 1998) 3--30.
 ///
 /// Any feedback is very welcome.
@@ -363,9 +351,9 @@ private:
 	const static uint64_t LM=0x7FFFFFFFULL; /* Least significant 31 bits */
 
 	/// The array for the state vector
-	uint64_t mt[NN]; 
-	
-	unsigned int mti; 
+	uint64_t mt[NN];
+
+	unsigned int mti;
 
 	/// A state variable used by the number generation
 	uint64_t mag01[2];

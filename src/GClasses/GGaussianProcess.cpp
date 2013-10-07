@@ -23,6 +23,7 @@
 #include "GVec.h"
 #include "GDistribution.h"
 #include "GKernelTrick.h"
+#include "GHolders.h"
 #include <cmath>
 
 namespace GClasses {
@@ -105,8 +106,8 @@ void GRunningCovariance::test()
 
 
 
-GGaussianProcess::GGaussianProcess(GRand& rand)
-: GSupervisedLearner(rand), m_noiseVar(1.0), m_weightsPriorVar(1024.0), m_maxSamples(350), m_pLInv(NULL), m_pAlpha(NULL), m_pStoredFeatures(NULL), m_pBuf(NULL)
+GGaussianProcess::GGaussianProcess()
+: GSupervisedLearner(), m_noiseVar(1.0), m_weightsPriorVar(1024.0), m_maxSamples(350), m_pLInv(NULL), m_pAlpha(NULL), m_pStoredFeatures(NULL), m_pBuf(NULL)
 {
 	m_pKernel = new GKernelIdentity();
 }
@@ -134,13 +135,12 @@ GGaussianProcess::~GGaussianProcess()
 // static
 void GGaussianProcess::test()
 {
-	GRand prng(0);
-	GGaussianProcess gp(prng);
-	gp.basicTest(0.693, 0.776);
+	GGaussianProcess gp;
+	gp.basicTest(0.693, 0.94);
 	gp.clear();
-	GGaussianProcess gp2(prng);
+	GGaussianProcess gp2;
 	gp2.setKernel(new GKernelGaussianRBF(0.2));
-	gp.basicTest(0.680, 0.774);
+	gp.basicTest(0.67, 0.95);
 }
 #endif
 

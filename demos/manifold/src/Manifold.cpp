@@ -12,6 +12,7 @@
 #include <GClasses/GBits.h>
 #include <GClasses/GFile.h>
 #include <GClasses/GTime.h>
+#include <GClasses/GHolders.h>
 #include <GClasses/GThread.h>
 #include <GClasses/GVec.h>
 #include <GClasses/GMath.h>

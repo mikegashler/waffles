@@ -37,7 +37,7 @@ protected:
 
 public:
 	/// It will have the same number of control points in every feature dimension
-	GPolynomial(GRand& rand);
+	GPolynomial();
 
 	/// Load from a DOM.
 	GPolynomial(GDomNode* pNode, GLearnerLoader& ll);

@@ -39,7 +39,7 @@ protected:
 	double* m_pEpsilon;
 
 public:
-	GLinearRegressor(GRand& rand);
+	GLinearRegressor();
 
 	/// Load from a text-format
 	GLinearRegressor(GDomNode* pNode, GLearnerLoader& ll);
@@ -107,7 +107,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GLinearDistribution(GRand& rand);
+	GLinearDistribution();
 
 	/// Deserialization constructor
 	GLinearDistribution(GDomNode* pNode, GLearnerLoader& ll);
@@ -187,7 +187,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GHingedLinear(GRand& rand);
+	GHingedLinear();
 
 	/// Load from a text-format
 	GHingedLinear(GDomNode* pNode, GLearnerLoader& ll);

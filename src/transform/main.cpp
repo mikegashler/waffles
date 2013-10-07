@@ -34,6 +34,7 @@
 #include "../GClasses/GTransform.h"
 #include "../GClasses/GVec.h"
 #include "../GClasses/GHashTable.h"
+#include "../GClasses/GHolders.h"
 #include "../GClasses/GHillClimber.h"
 #include "../GClasses/GNeighborFinder.h"
 #include "../GClasses/GNeuralNet.h"

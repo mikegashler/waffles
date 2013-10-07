@@ -33,6 +33,7 @@
 #ifndef MIN_PREDICT
 #include "GRecommender.h"
 #endif // MIN_PREDICT
+#include "GHolders.h"
 #include <stdlib.h>
 #include <vector>
 #include <algorithm>
@@ -202,7 +203,7 @@ void GIncrementalTransform::test()
 	GDom doc;
 	GDomNode* pNode = trans.serialize(&doc);
 	GRand rand(0);
-	GLearnerLoader ll(rand);
+	GLearnerLoader ll;
 	GIncrementalTransform* pTrans = ll.loadIncrementalTransform(pNode);
 	Holder<GIncrementalTransform> hTrans(pTrans);
 
@@ -309,13 +310,13 @@ void GIncrementalTransformChainer::untransformToDistribution(const double* pIn, 
 
 // ---------------------------------------------------------------
 
-GPCA::GPCA(size_t targetDims, GRand* pRand)
-: GIncrementalTransform(), m_targetDims(targetDims), m_pBasisVectors(NULL), m_pCentroid(NULL), m_pEigVals(NULL), m_aboutOrigin(false), m_pRand(pRand)
+GPCA::GPCA(size_t targetDims)
+: GIncrementalTransform(), m_targetDims(targetDims), m_pBasisVectors(NULL), m_pCentroid(NULL), m_pEigVals(NULL), m_aboutOrigin(false), m_rand(0)
 {
 }
 
 GPCA::GPCA(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll), m_pEigVals(NULL), m_pRand(&ll.rand())
+: GIncrementalTransform(pNode, ll), m_pEigVals(NULL), m_rand(0)
 {
 	m_targetDims = before().size();
 	m_pBasisVectors = new GMatrix(pNode->field("basis"));
@@ -378,7 +379,7 @@ GRelation* GPCA::trainInner(const GMatrix& data)
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
 		double* pVector = m_pBasisVectors->row(i);
-		tmpData.principalComponentIgnoreUnknowns(pVector, pMean, m_pRand);
+		tmpData.principalComponentIgnoreUnknowns(pVector, pMean, &m_rand);
 		tmpData.removeComponent(pMean, pVector);
 		if(m_pEigVals)
 		{
@@ -608,13 +609,13 @@ void GPCARotateOnly::test()
 
 // --------------------------------------------------------------------------
 
-GNoiseGenerator::GNoiseGenerator(GRand* pRand)
-: GIncrementalTransform(), m_pRand(pRand), m_mean(0), m_deviation(1)
+GNoiseGenerator::GNoiseGenerator()
+: GIncrementalTransform(), m_rand(0), m_mean(0), m_deviation(1)
 {
 }
 
 GNoiseGenerator::GNoiseGenerator(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll), m_pRand(&ll.rand())
+: GIncrementalTransform(pNode, ll), m_rand(0)
 {
 	m_mean = pNode->field("mean")->asDouble();
 	m_deviation = pNode->field("dev")->asDouble();
@@ -653,9 +654,9 @@ void GNoiseGenerator::transform(const double* pIn, double* pOut)
 	{
 		size_t vals = before().valueCount(i);
 		if(vals == 0)
-			pOut[i] = m_pRand->normal() * m_deviation + m_mean;
+			pOut[i] = m_rand.normal() * m_deviation + m_mean;
 		else
-			pOut[i] = (double)m_pRand->next(vals);
+			pOut[i] = (double)m_rand.next(vals);
 	}
 }
 
@@ -717,10 +718,10 @@ void GPairProduct::transform(const double* pIn, double* pOut)
 
 // --------------------------------------------------------------------------
 
-GReservoir::GReservoir(GRand& rand, double weightDeviation, size_t outputs, size_t hiddenLayers)
+GReservoir::GReservoir(double weightDeviation, size_t outputs, size_t hiddenLayers)
 : GIncrementalTransform(), m_outputs(outputs), m_deviation(weightDeviation)
 {
-	m_pNN = new GNeuralNet(rand);
+	m_pNN = new GNeuralNet();
 	vector<size_t> topology;
 	for(size_t i = 0; i < hiddenLayers; i++)
 		topology.push_back(outputs);
@@ -851,7 +852,7 @@ void GDataAugmenter::untransformToDistribution(const double* pIn, GPrediction* p
 #ifndef MIN_PREDICT
 
 GAttributeSelector::GAttributeSelector(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll), m_pRand(&ll.rand())
+: GIncrementalTransform(pNode, ll), m_seed(1234567)
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();
 	m_targetFeatures = (size_t)pNode->field("target")->asInt();
@@ -922,7 +923,10 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		Holder<GMatrix> hFeatures2(pFeatures2);
 
 		// Train a single-layer neural network with the normalized remaining data
-		GNeuralNet nn(*m_pRand);
+		GNeuralNet nn;
+		nn.rand().setSeed(m_seed);
+		m_seed += 77152487;
+		m_seed *= 37152487;
 		nn.setWindowSize(30);
 		nn.setImprovementThresh(0.002);
 		nn.train(*pFeatures2, *pLabels);
@@ -990,7 +994,7 @@ void GAttributeSelector::test()
 		prng.cubical(pVec, 20);
 		pVec[20] = 0.2 * pVec[3] * pVec[3] * - 7.0 * pVec[3] * pVec[13] + pVec[17];
 	}
-	GAttributeSelector as(1, 3, &prng);
+	GAttributeSelector as(1, 3);
 	as.train(data);
 	std::vector<size_t>& r = as.ranks();
 	if(r[1] == r[0] || r[2] == r[0] || r[2] == r[1])
@@ -1539,13 +1543,13 @@ void GDiscretize::untransformToDistribution(const double* pIn, GPrediction* pOut
 
 #ifndef MIN_PREDICT
 
-GImputeMissingVals::GImputeMissingVals(GRand& rand)
-: m_pCF(NULL), m_pNTC(NULL), m_rand(rand), m_pLabels(NULL), m_pBatch(NULL)
+GImputeMissingVals::GImputeMissingVals()
+: m_pCF(NULL), m_pNTC(NULL), m_pLabels(NULL), m_pBatch(NULL)
 {
 }
 
 GImputeMissingVals::GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll), m_rand(ll.rand()), m_pLabels(NULL), m_pBatch(NULL)
+: GIncrementalTransform(pNode, ll), m_pLabels(NULL), m_pBatch(NULL)
 {
 	m_pCF = ll.loadCollaborativeFilter(pNode->field("cf"));
 	GDomNode* pNTC = pNode->fieldIfExists("ntc");
@@ -1607,7 +1611,7 @@ GRelation* GImputeMissingVals::trainInner(const GMatrix& data)
 
 	// Train the collaborative filter
 	if(!m_pCF)
-		m_pCF = new GMatrixFactorization(std::max(size_t(2), std::min(size_t(8), data.cols() / 3)), m_rand);
+		m_pCF = new GMatrixFactorization(std::max(size_t(2), std::min(size_t(8), data.cols() / 3)));
 	m_pCF->trainDenseMatrix(*pData, m_pLabels);
 	return before().clone();
 }

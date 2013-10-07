@@ -326,7 +326,7 @@ double GPGMMetropolisNode::currentValue()
 
 
 
-#define SQRT_2PI 2.506628275
+#define SQRT_2PI 2.50662827463
 
 GPGMNormal::GPGMNormal(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
 : GPGMMetropolisNode(priorMean, priorDeviation)

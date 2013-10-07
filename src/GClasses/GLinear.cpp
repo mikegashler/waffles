@@ -24,13 +24,14 @@
 #include "GVec.h"
 #include "GOptimizer.h"
 #include "GHillClimber.h"
+#include "GHolders.h"
 #include <cmath>
 #include <math.h>
 
 namespace GClasses {
 
-GLinearRegressor::GLinearRegressor(GRand& rand)
-: GSupervisedLearner(rand), m_pBeta(NULL), m_pEpsilon(NULL)
+GLinearRegressor::GLinearRegressor()
+: GSupervisedLearner(), m_pBeta(NULL), m_pEpsilon(NULL)
 {
 }
 
@@ -69,9 +70,9 @@ public:
 	GLinearRegressorTargetFunction(size_t dims, GLinearRegressor* pLR, GMatrix& feat, GMatrix& lab) : GTargetFunction(dims), m_pLR(pLR), m_feat(feat), m_lab(lab)
 	{
 	}
-	
+
 	virtual ~GLinearRegressorTargetFunction() {}
-	
+
 	virtual bool isStable() { return true; }
 	virtual bool isConstrained() { return false; }
 
@@ -158,7 +159,7 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 	clear();
 	GMatrix* pAll = GMatrix::mergeHoriz(&features, &labels);
 	Holder<GMatrix> hAll(pAll);
-	GPCA pca(features.cols(), &m_rand);
+	GPCA pca(features.cols());
 	pca.train(*pAll);
 	size_t inputs = features.cols();
 	size_t outputs = labels.cols();
@@ -223,7 +224,7 @@ void GLinearRegressor_linear_test(GRand& prng)
 		pVec[2] = prng.uniform();
 		labels1.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
 	}
-	GLinearRegressor lr(prng);
+	GLinearRegressor lr;
 	lr.train(features1, labels1);
 
 	// Check some values
@@ -259,8 +260,8 @@ void GLinearRegressor::test()
 {
 	GRand prng(0);
 	GLinearRegressor_linear_test(prng);
-	GLinearRegressor lr(prng);
-	lr.basicTest(0.75, 0.78);
+	GLinearRegressor lr;
+	lr.basicTest(0.76, 0.93);
 }
 #endif
 
@@ -269,8 +270,8 @@ void GLinearRegressor::test()
 
 
 
-GLinearDistribution::GLinearDistribution(GRand& rand)
-: GSupervisedLearner(rand), m_noiseDev(1.0), m_pAInv(NULL), m_pWBar(NULL), m_pBuf(NULL)
+GLinearDistribution::GLinearDistribution()
+: GSupervisedLearner(), m_noiseDev(1.0), m_pAInv(NULL), m_pWBar(NULL), m_pBuf(NULL)
 {
 }
 
@@ -294,8 +295,8 @@ GLinearDistribution::~GLinearDistribution()
 void GLinearDistribution::test()
 {
 	GRand prng(0);
-	GLinearDistribution gp(prng);
-	gp.basicTest(0.69, 0.77);
+	GLinearDistribution gp;
+	gp.basicTest(0.69, 0.95);
 }
 #endif
 
@@ -412,14 +413,14 @@ On 07/28/2010 06:58 AM, Jean-Pierre Moreau wrote:
 >Jean-Pierre Moreau, Paris.
 >
 -----Message d'origine-----
-De : Mike Gashler [mailto:mikegashler@gmail.com] 
+De : Mike Gashler [mailto:mikegashler@gmail.com]
 Envoyé : mercredi 14 juillet 2010 20:42
 À : jpmoreau@wanadoo.fr
 Objet : numerical analysis code licensing
 
 Dr. Moreau,
 
-    Thank you for the useful code that you have shared on your web site. 
+    Thank you for the useful code that you have shared on your web site.
 I would like to know if I may use some of your code in my open source
 projects. Your site does not mention any particular license. Since you
 posted it on the web, I assume you would like other people to use your code,
@@ -504,11 +505,11 @@ e10:
 				} //pivot element in row.
 		ir=0;
 		m12=m12-1;
-		if (m1+1 > m12) goto e30; 
+		if (m1+1 > m12) goto e30;
 		for (i=m1+1; i<=m1+m2; i++)     //Change sign of row for any m2 constraints
 		if(l3[i-m1] == 1)             //still present from the initial basis.
-		for (k=1; k<=n+1; k++) 
-			a[i + 1][k] *= -1.0; 
+		for (k=1; k<=n+1; k++)
+			a[i + 1][k] *= -1.0;
 		goto e30;                       //Go to phase two.
 	}
 	simp2(a,m,n,l2,nl2,&ip,kp,&q1); //Locate a pivot element (phase one).
@@ -516,11 +517,11 @@ e10:
 	if(ip == 0)
 	{                         //Maximum of auxiliary objective function is
 		*icase=-1;                          //unbounded, so no feasible solution exists
-		return; 
-	} 
+		return;
+	}
 e1:
 	simp3(a, m + 1, n, ip, kp);
-	//Exchange a left- and a right-hand variable (phase one), then update lists. 
+	//Exchange a left- and a right-hand variable (phase one), then update lists.
 	if(iposv[ip] >= n + m1 + m2 + 1)
 	{ //Exchanged out an artificial variable for an equality constraint. Make sure it stays out by removing it from the l1 list.
 		for (k=1; k<=nl1; k++)
@@ -533,22 +534,22 @@ e1:
 	else
 	{
 		if(iposv[ip] < n+m1+1) goto e20;
-		kh=iposv[ip]-m1-n; 
-		if(l3[kh] == 0) goto e20;  //Exchanged out an m2 type constraint. 
-		l3[kh]=0;                  //If it's the first time, correct the pivot column 
-					//or the minus sign and the implicit 
-					//artificial variable. 
+		kh=iposv[ip]-m1-n;
+		if(l3[kh] == 0) goto e20;  //Exchanged out an m2 type constraint.
+		l3[kh]=0;                  //If it's the first time, correct the pivot column
+					//or the minus sign and the implicit
+					//artificial variable.
 	}
 	a[m + 2][kp + 1] += 1.0;
 	for (i=1; i<=m+2; i++)
 		a[i][kp + 1] *= -1.0;
 e20:
-	is=izrov[kp];             //Update lists of left- and right-hand variables. 
+	is=izrov[kp];             //Update lists of left- and right-hand variables.
 	izrov[kp]=iposv[ip];
 	iposv[ip]=is;
-	if (ir != 0) goto e10;       //if still in phase one, go back to 10. 
+	if (ir != 0) goto e10;       //if still in phase one, go back to 10.
 
-	//End of phase one code for finding an initial feasible solution. Now, in phase two, optimize it. 
+	//End of phase one code for finding an initial feasible solution. Now, in phase two, optimize it.
 e30:
 	simp1(a,0,l1,nl1,0,&kp,&bmax); //Test the z-row for doneness.
 	if(bmax <= EPS)
@@ -561,7 +562,7 @@ e30:
 	{             //Objective function is unbounded. Report and return.
 		*icase=1;
 		return;
-	} 
+	}
 	simp3(a,m,n,ip,kp);       //Exchange a left- and a right-hand variable (phase two),
 	goto e20;                 //update lists of left- and right-hand variables and
 }                           //return for another iteration.
@@ -570,7 +571,7 @@ e30:
 void simp1(GMatrix& a, int mm, int* ll, int nll, int iabf, int* kp, double* bmax)
 {
 //Determines the maximum of those elements whose index is contained in the supplied list
-//ll, either with or without taking the absolute value, as flagged by iabf. 
+//ll, either with or without taking the absolute value, as flagged by iabf.
 	int k;
 	double test;
 	*kp=ll[1];
@@ -583,7 +584,7 @@ void simp1(GMatrix& a, int mm, int* ll, int nll, int iabf, int* kp, double* bmax
 		else
 			test=fabs(a[mm + 1][ll[k] + 1]) - fabs(*bmax);
 		if(test > 0.0)
-		{ 
+		{
 			*bmax=a[mm + 1][ll[k]+1];
 			*kp=ll[k];
 		}
@@ -756,7 +757,7 @@ public:
 		m_pBiasA = m_pBuf + outSize;
 		m_pBiasB = m_pBiasA + outSize;
 	}
-	
+
 	GHingedLinearLayer(GDomNode* pNode)
 	: m_a(pNode->field("a")), m_b(pNode->field("b"))
 	{
@@ -769,12 +770,12 @@ public:
 		GVec::deserialize(m_pBiasA, it);
 		m_max = pNode->field("m")->asBool();
 	}
-	
+
 	~GHingedLinearLayer()
 	{
 		delete[] m_pBuf;
 	}
-	
+
 	GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pNode = pDoc->newObj();
@@ -784,9 +785,9 @@ public:
 		pNode->addField(pDoc, "m", pDoc->newBool(m_max));
 		return pNode;
 	}
-	
+
 	size_t outSize() { return m_a.rows(); }
-	
+
 	void map(const double* pIn, double* pOut)
 	{
 		m_a.multiply(pIn, pOut);
@@ -804,12 +805,12 @@ public:
 				pOut[i] = std::min(pOut[i], m_pBuf[i]);
 		}
 	}
-	
+
 	size_t weightCount()
 	{
 		return (2 * m_inSize + 2) * m_a.rows();
 	}
-	
+
 	void setWeights(const double* pWeights)
 	{
 		m_a.fromVector(pWeights, m_a.rows()); pWeights += (m_a.rows() * m_inSize);
@@ -823,8 +824,8 @@ public:
 
 
 
-GHingedLinear::GHingedLinear(GRand& rand)
-: GSupervisedLearner(rand), m_pBuf(NULL)
+GHingedLinear::GHingedLinear()
+: GSupervisedLearner(), m_pBuf(NULL)
 {
 }
 
@@ -850,7 +851,7 @@ GHingedLinear::GHingedLinear(GDomNode* pNode, GLearnerLoader& ll)
 		m_layers.push_back(pL);
 		it2.advance();
 	}
-	
+
 	m_pBuf = maxSize > 0 ? new double[maxSize] : NULL;
 }
 
@@ -884,9 +885,9 @@ public:
 	GHingedLinearTargetFunction(size_t dims, GHingedLinear* pHL, const GMatrix& feat, const GMatrix& lab) : GTargetFunction(dims), m_pHL(pHL), m_feat(feat), m_lab(lab)
 	{
 	}
-	
+
 	virtual ~GHingedLinearTargetFunction() {}
-	
+
 	virtual bool isStable() { return true; }
 	virtual bool isConstrained() { return false; }
 
@@ -929,7 +930,7 @@ void GHingedLinear::trainInner(const GMatrix& features, const GMatrix& labels)
 	}
 	m_layers.push_back(new GHingedLinearLayer(inSize, labels.cols(), max));
 	m_pBuf = maxSize > 0 ? new double[maxSize] : NULL;
-	
+
 	// Count the weights
 	size_t dims = 0;
 	for(std::vector<GHingedLinearLayer*>::iterator it = m_layers.begin(); it != m_layers.end(); it++)
@@ -939,7 +940,7 @@ void GHingedLinear::trainInner(const GMatrix& features, const GMatrix& labels)
 	GHingedLinearTargetFunction tf(dims, this, features, labels);
 	GHillClimber hc(&tf);
 	hc.searchUntil(30, 30, 0.01);
-	
+
 	// Keep the best weights yet found
 	double* pVector = hc.currentVector();
 	for(std::vector<GHingedLinearLayer*>::iterator it = m_layers.begin(); it != m_layers.end(); it++)
@@ -984,18 +985,17 @@ void GHingedLinear::clear()
 // static
 void GHingedLinear::test()
 {
-	GRand prng(0);
 	{
-		GHingedLinear hl(prng);
-		hl.basicTest(0.78, 0.77);
+		GHingedLinear hl;
+		hl.basicTest(0.78, 0.954);
 	}
 /*	{
-		GHingedLinear hl(prng);
+		GHingedLinear hl();
 		std::vector<size_t> topo;
 		topo.push_back(3);
 		topo.push_back(3);
 		hl.setTopology(topo);
-		hl.basicTest(0.76, 0.77);
+		hl.basicTest(0.76, 0.0);
 	}*/
 }
 #endif

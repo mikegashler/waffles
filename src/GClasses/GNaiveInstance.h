@@ -54,7 +54,7 @@ protected:
 public:
 	/// nNeighbors is the number of neighbors (in each dimension)
 	/// that will contribute to the output value.
-	GNaiveInstance(GRand& rand);
+	GNaiveInstance();
 
 	/// Deserializing constructor
 	GNaiveInstance(GDomNode* pNode, GLearnerLoader& ll);

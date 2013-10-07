@@ -67,8 +67,8 @@ protected:
 	double* m_pAccumulator; // a buffer for tallying votes (ballot box?)
 
 public:
-	/// General-purpose constructor.
-	GEnsemble(GRand& rand);
+	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
+	GEnsemble();
 
 	/// Deserializing constructor.
 	GEnsemble(GDomNode* pNode, GLearnerLoader& ll);
@@ -131,8 +131,8 @@ protected:
 	double m_trainSize;
 
 public:
-	/// General-purpose constructor.
-	GBag(GRand& rand);
+	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
+	GBag();
 
 	/// Deserializing constructor.
 	GBag(GDomNode* pNode, GLearnerLoader& ll);
@@ -180,8 +180,8 @@ protected:
 	size_t m_samples;
 
 public:
-	/// General-purpose constructor
-	GBomb(GRand& rand) : GBag(rand), m_samples(100) {}
+	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
+	GBomb() : GBag(), m_samples(100) {}
 
 	/// Deserializing constructor.
 	GBomb(GDomNode* pNode, GLearnerLoader& ll);
@@ -219,8 +219,8 @@ protected:
 class GBayesianModelAveraging : public GBag
 {
 public:
-	/// General-purpose constructor
-	GBayesianModelAveraging(GRand& rand) : GBag(rand) {}
+	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
+	GBayesianModelAveraging() : GBag() {}
 
 	/// Deserializing constructor.
 	GBayesianModelAveraging(GDomNode* pNode, GLearnerLoader& ll) : GBag(pNode, ll) {}
@@ -252,8 +252,8 @@ protected:
 	size_t m_samples;
 
 public:
-	/// General-purpose constructor
-	GBayesianModelCombination(GRand& rand) : GBag(rand), m_samples(100) {}
+	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
+	GBayesianModelCombination() : GBag(), m_samples(100) {}
 
 	/// Deserializing constructor.
 	GBayesianModelCombination(GDomNode* pNode, GLearnerLoader& ll);
@@ -350,7 +350,7 @@ protected:
 public:
 	/// General-purpose constructor. size specifies the number of
 	/// models to train and then average together.
-	GWag(size_t size, GRand& rand);
+	GWag(size_t size);
 
 	/// Deserializing constructor
 	GWag(GDomNode* pNode, GLearnerLoader& ll);
@@ -404,8 +404,8 @@ protected:
 	std::vector<GSupervisedLearner*> m_models;
 
 public:
-	/// General-purpose constructor
-	GBucket(GRand& rand);
+	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
+	GBucket();
 
 	/// Deserializing constructor
 	GBucket(GDomNode* pNode, GLearnerLoader& ll);

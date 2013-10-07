@@ -35,6 +35,7 @@
 #include "GTime.h"
 #include "GEvolutionary.h"
 #include "GApp.h"
+#include "GHolders.h"
 #include <deque>
 #include <math.h>
 #include <iostream>
@@ -94,7 +95,7 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 : GSystemLearner(pNode), m_pRand(pRand)
 {
 	// Load the models
-	GLearnerLoader ll(*m_pRand);
+	GLearnerLoader ll;
 	m_pTransitionFunc = ll.loadSupervisedLearner(pNode->field("trans"));
 	m_pObservationFunc = ll.loadSupervisedLearner(pNode->field("obs"));
 
@@ -189,7 +190,7 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 {
 	// Estimate the state
 	int neighbors = 256;
-	GPCA pca(12, m_pRand);
+	GPCA pca(12);
 	pca.train(*pObservations);
 	GMatrix* pReducedObs = pca.transformBatch(*pObservations);
 	Holder<GMatrix> hReducedObs(pReducedObs);
@@ -207,7 +208,7 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 	}
 	else
 	{
-		pML = new GBreadthFirstUnfolding(1/*reps*/, neighbors, (int)m_contextDims, m_pRand);
+		pML = new GBreadthFirstUnfolding(1/*reps*/, neighbors, (int)m_contextDims);
 		((GBreadthFirstUnfolding*)pML)->setNeighborFinder(&nf);
 	}
 	Holder<GTransform> hML(pML);

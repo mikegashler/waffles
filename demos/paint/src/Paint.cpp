@@ -19,6 +19,7 @@
 #include <GClasses/GImage.h>
 #include <GClasses/GBits.h>
 #include <GClasses/GThread.h>
+#include <GClasses/GHolders.h>
 #include <GClasses/GRegion.h>
 #include <GClasses/GGraph.h>
 #include <GClasses/GKNN.h>

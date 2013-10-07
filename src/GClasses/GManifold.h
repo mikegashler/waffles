@@ -251,12 +251,12 @@ protected:
 	size_t m_targetDims;
 	GNeighborFinder* m_pNF;
 	bool m_useMds;
-	GRand* m_pRand;
+	GRand m_rand;
 
 public:
 	/// reps specifies the number of times to compute the embedding, and blend the
 	/// results together. If you just want fast results, use reps=1.
-	GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims, GRand* pRand);
+	GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims);
 	GBreadthFirstUnfolding(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GBreadthFirstUnfolding();
 
@@ -271,6 +271,9 @@ public:
 
 	/// Specify to use multi-dimensional scaling instead of PCA to reduce in local patches.
 	void useMds(bool b) { m_useMds = b; }
+
+	/// Returns a reference to the pseudo-random number generator used by this object
+	GRand& rand() { return m_rand; }
 
 protected:
 	void refineNeighborhood(GMatrix* pLocal, size_t rootIndex, size_t* pNeighborTable, double* pDistanceTable);
@@ -431,8 +434,6 @@ protected:
 	size_t m_jitterDims;
 	size_t m_intrinsicDims;
 	GNeuralNet* m_pNN;
-//	GNeuralNet* m_pRevNN;
-	GRand* m_pRand;
 	GCoordVectorIterator m_cvi;
 	bool m_useInputBias;
 	GImageJitterer* m_pJitterer;
@@ -522,12 +523,12 @@ protected:
 	double m_scaleRate;
 	double m_keepRatio;
 	bool m_reduce;
-	GRand& m_rand;
+	GRand m_rand;
 	size_t m_encoderTrainIters;
 	GNeuralNet* m_pEncoder;
 
 public:
-	GScalingUnfolder(GRand& m_rand);
+	GScalingUnfolder();
 	GScalingUnfolder(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GScalingUnfolder();
 
@@ -547,6 +548,9 @@ public:
 	/// pEncoder and pDecoder should already be initialized to approximate the identity function with some perturbation.
 	/// In both cases, the number of inputs and outputs should be set to the number of cols in the observation matrix.
 	void trainEncoder(GNeuralNet* pEncoder, size_t encoderTrainIters = 5);
+
+	/// Returns a reference to the pseudo-random number generator used by this object
+	GRand& rand() { return m_rand; }
 
 	virtual GMatrix* doit(const GMatrix& in);
 };

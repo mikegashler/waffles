@@ -19,6 +19,7 @@
 #include "GKalman.h"
 #include "GMatrix.h"
 #include "GVec.h"
+#include "GHolders.h"
 
 using namespace GClasses;
 

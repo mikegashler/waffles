@@ -54,7 +54,8 @@ protected:
 	bool m_binaryDivisions;
 
 public:
-	GDecisionTree(GRand& rand);
+	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
+	GDecisionTree();
 
 	/// Loads from a DOM.
 	GDecisionTree(GDomNode* pNode, GLearnerLoader& ll);
@@ -166,8 +167,8 @@ protected:
 	GMeanMarginsTreeNode* m_pRoot;
 
 public:
-	/// nOutputs specifies the number of output dimensions
-	GMeanMarginsTree(GRand& rand);
+	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
+	GMeanMarginsTree();
 
 	/// Load from a DOM.
 	GMeanMarginsTree(GDomNode* pNode, GLearnerLoader& ll);
@@ -214,7 +215,7 @@ protected:
 	GBag* m_pEnsemble;
 
 public:
-	GRandomForest(GRand& rand, size_t trees, size_t samples = 1);
+	GRandomForest(size_t trees, size_t samples = 1);
 	GRandomForest(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GRandomForest();
 

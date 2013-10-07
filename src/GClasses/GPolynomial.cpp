@@ -27,6 +27,7 @@
 #include "GMath.h"
 #include "GHillClimber.h"
 #include "GDom.h"
+#include "GHolders.h"
 
 using std::vector;
 
@@ -46,7 +47,7 @@ public:
 	GPolynomialSingleLabel(size_t nControlPoints);
 
 	/// Load from a DOM.
-	GPolynomialSingleLabel(GDomNode* pNode, GRand& rand);
+	GPolynomialSingleLabel(GDomNode* pNode);
 
 	virtual ~GPolynomialSingleLabel();
 
@@ -85,7 +86,7 @@ public:
 	void setCoefficient(size_t* pCoords, double dVal);
 
 	/// Copies pOther into this polynomial. Both polynomials must have the
-	/// same dimensionality, and this polynomial must have >= 
+	/// same dimensionality, and this polynomial must have >=
 	void copy(GPolynomialSingleLabel* pOther);
 
 	/// See the comment for GSupervisedLearner::clear
@@ -182,7 +183,7 @@ GPolynomialSingleLabel::GPolynomialSingleLabel(size_t controlPoints)
 	GAssert(controlPoints > 0);
 }
 
-GPolynomialSingleLabel::GPolynomialSingleLabel(GDomNode* pNode, GRand& rand)
+GPolynomialSingleLabel::GPolynomialSingleLabel(GDomNode* pNode)
 {
 	m_nControlPoints = (int)pNode->field("controlPoints")->asInt();
 	m_nCoefficients = 1;
@@ -331,7 +332,7 @@ double GPolynomialSingleLabel::predict(const double* pIn)
 	if(m_featureDims == 0)
 		throw Ex("init has not been called");
 	GTEMPBUF(size_t, pCoords, m_featureDims);
-	GPolynomialLatticeIterator iter(pCoords, m_featureDims, m_nControlPoints, (size_t)-1);
+	GPolynomialLatticeIterator iter(pCoords, m_featureDims, m_nControlPoints, INVALID_INDEX);
 	double dSum = 0;
 	double dVar;
 	for(size_t nCoeff = m_nCoefficients - 1; nCoeff < m_nCoefficients; nCoeff--)
@@ -523,7 +524,7 @@ void GPolynomialSingleLabel::copy(GPolynomialSingleLabel* pOther)
 	if(controlPointCount() > pOther->controlPointCount())
 		GVec::setAll(m_pCoefficients, 0.0, m_nCoefficients);
 	GTEMPBUF(size_t, pCoords, m_featureDims);
-	GPolynomialLatticeIterator iter(pCoords, m_featureDims, pOther->m_nControlPoints, (size_t)-1);
+	GPolynomialLatticeIterator iter(pCoords, m_featureDims, pOther->m_nControlPoints, INVALID_INDEX);
 	while(true)
 	{
 		m_pCoefficients[calcIndex(pCoords)] = pOther->m_pCoefficients[pOther->calcIndex(pCoords)];
@@ -599,8 +600,8 @@ void GPolynomialSingleLabel::test()
 
 
 
-GPolynomial::GPolynomial(GRand& rand)
-: GSupervisedLearner(rand), m_controlPoints(3)
+GPolynomial::GPolynomial()
+: GSupervisedLearner(), m_controlPoints(3)
 {
 }
 
@@ -610,7 +611,7 @@ GPolynomial::GPolynomial(GDomNode* pNode, GLearnerLoader& ll)
 	m_controlPoints = (size_t)pNode->field("controlPoints")->asInt();
 	GDomNode* pPolys = pNode->field("polys");
 	for(GDomListIterator it(pPolys); it.current(); it.advance())
-		m_polys.push_back(new GPolynomialSingleLabel(it.current(), ll.rand()));
+		m_polys.push_back(new GPolynomialSingleLabel(it.current()));
 }
 
 // virtual
@@ -702,8 +703,7 @@ void GPolynomial::autoTune(GMatrix& features, GMatrix& labels)
 void GPolynomial::test()
 {
 	GPolynomialSingleLabel::test();
-	GRand prng(0);
-	GPolynomial poly(prng);
+	GPolynomial poly;
 	poly.basicTest(0.78, -1.0/*skip it*/);
 }
 #endif // NO_TEST_CODE

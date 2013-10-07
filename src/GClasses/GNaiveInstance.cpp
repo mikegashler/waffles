@@ -83,8 +83,8 @@ public:
 
 // -----------------------------------------------------------
 
-GNaiveInstance::GNaiveInstance(GRand& rand)
-: GIncrementalLearner(rand), m_pHeap(NULL)
+GNaiveInstance::GNaiveInstance()
+: GIncrementalLearner(), m_pHeap(NULL)
 {
 	m_nNeighbors = 12;
 	m_pAttrs = NULL;
@@ -327,10 +327,9 @@ void GNaiveInstance::predictInner(const double* pIn, double* pOut)
 //static
 void GNaiveInstance::test()
 {
-	GRand prng(0);
-	GNaiveInstance ni(prng);
+	GNaiveInstance ni;
 	ni.setNeighbors(8);
-	ni.basicTest(0.72, 0.55, 0.02);
+	ni.basicTest(0.72, 0.44, 0.02);
 }
 #endif
 

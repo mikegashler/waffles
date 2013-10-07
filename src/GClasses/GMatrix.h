@@ -26,7 +26,6 @@
 #include <iostream>
 
 #include "GError.h"
-#include "GHolders.h"
 
 
 namespace GClasses {
@@ -81,11 +80,11 @@ public:
 
 	/// \brief Returns true of all of the attributes in the specified
 	/// range are continuous
-	virtual bool areContinuous(size_t first = 0, size_t count = (size_t)-1) const = 0;
+	virtual bool areContinuous(size_t first = 0, size_t count = INVALID_INDEX) const = 0;
 
 	/// \brief Returns true of all of the attributes in the specified
 	/// range are nominal
-	virtual bool areNominal(size_t first = 0, size_t count = (size_t)-1) const = 0;
+	virtual bool areNominal(size_t first = 0, size_t count = INVALID_INDEX) const = 0;
 
 	/// \brief Makes a deep copy of this relation
 	virtual GRelation* clone() const = 0;
@@ -180,7 +179,7 @@ public:
 	GUniformRelation(GDomNode* pNode);
 
 	virtual RelationType type() const { return UNIFORM; }
-	
+
 	/// \brief Serializes this object
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
@@ -192,10 +191,10 @@ public:
 	virtual size_t valueCount(size_t) const { return m_valueCount; }
 
 	/// \brief See the comment for GRelation::areContinuous
-	virtual bool areContinuous(size_t first = 0, size_t count = (size_t)-1) const { return m_valueCount == 0; }
+	virtual bool areContinuous(size_t first = 0, size_t count = INVALID_INDEX) const { return m_valueCount == 0; }
 
 	/// \brief See the comment for GRelation::areNominal
-	virtual bool areNominal(size_t first = 0, size_t count = (size_t)-1) const { return m_valueCount != 0; }
+	virtual bool areNominal(size_t first = 0, size_t count = INVALID_INDEX) const { return m_valueCount != 0; }
 
 	/// \brief Returns a copy of this object
 	virtual GRelation* clone() const { return new GUniformRelation(m_attrCount, m_valueCount); }
@@ -206,7 +205,7 @@ public:
 
 	/// \brief Drop the specified attribute
 	virtual void deleteAttribute(size_t index);
-	
+
 	/// \brief Swap two attributes (since all attributes are identical, does nothing)
 	virtual void swapAttributes(size_t, size_t) {}
 
@@ -269,7 +268,7 @@ public:
 	/// \brief Copies the specified attributes and adds them to this
 	/// relation.  If attrCount < 0, then it will copy all attributes
 	/// from firstAttr to the end.
-	void addAttrs(const GRelation& copyMe, size_t firstAttr = 0, size_t attrCount = (size_t)-1);
+	void addAttrs(const GRelation& copyMe, size_t firstAttr = 0, size_t attrCount = INVALID_INDEX);
 
 	/// \brief Flushes this relation and then copies all of the
 	/// attributes from pCopyMe
@@ -295,10 +294,10 @@ public:
 	virtual void setAttrValueCount(size_t nAttr, size_t nValues);
 
 	/// \brief Returns true iff all attributes in the specified range are continuous
-	virtual bool areContinuous(size_t first = 0, size_t count = (size_t)-1) const;
+	virtual bool areContinuous(size_t first = 0, size_t count = INVALID_INDEX) const;
 
 	/// \brief Returns true iff all attributes in the specified range are nominal
-	virtual bool areNominal(size_t first = 0, size_t count = (size_t)-1) const;
+	virtual bool areNominal(size_t first = 0, size_t count = INVALID_INDEX) const;
 
 	/// \brief Swaps two columns
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2);
@@ -391,7 +390,7 @@ public:
 	///
 	/// \return the name of the attribute with index \a nAttr as a
 	/// standard string object or "" if the atribute has no name
-	virtual std::string attrNameStr(std::size_t nAttr) const { 
+	virtual std::string attrNameStr(std::size_t nAttr) const {
 		return attrName(nAttr); }
 
 #ifndef MIN_PREDICT
@@ -429,7 +428,7 @@ public:
 #endif // MIN_PREDICT
 };
 
-/// \brief Represents a matrix or a database table. 
+/// \brief Represents a matrix or a database table.
 ///
 /// Elements can be discrete or continuous.
 ///
@@ -690,20 +689,20 @@ public:
 	/// get pVectorOut.
 	///
 	/// (If transpose is true, then it multiplies the transpose of this
-	/// matrix by pVectorIn to get pVectorOut.) 
+	/// matrix by pVectorIn to get pVectorOut.)
 	///
 	/// pVectorIn should have
 	/// the same number of elements as columns (or rows if transpose is
-	/// true) 
+	/// true)
 	///
 	/// pVectorOut should have the same number of elements as
-	/// rows (or cols, if transpose is true.) 
+	/// rows (or cols, if transpose is true.)
 	///
 	/// \note if transpose is true, then pVectorIn is treated as a
 	/// row vector and is multiplied by this matrix to get pVectorOut.
 	void multiply(const double* pVectorIn, double* pVectorOut, bool transpose = false) const;
 
-	/// \brief Matrix multiply. 
+	/// \brief Matrix multiply.
 	///
 	/// For convenience, you can also specify that neither, one, or both
 	/// of the inputs are virtually transposed prior to the
@@ -756,7 +755,7 @@ public:
 	///                 the SVD solver
 	void singularValueDecomposition(GMatrix** ppU, double** ppDiag, GMatrix** ppV, bool throwIfNoConverge = false, size_t maxIters = 80);
 
-	/// \brief Matrix subtract. Subtracts the values in *pThat from *this. 
+	/// \brief Matrix subtract. Subtracts the values in *pThat from *this.
 	///
 	/// (If transpose is true, subtracts the transpose of *pThat from
 	/// this.) Both datasets must have the same dimensions. Behavior is
@@ -778,7 +777,7 @@ public:
 	/// \brief Converts the matrix to reduced row echelon form
 	size_t toReducedRowEchelonForm();
 
-	/// \brief Copies all the data from this dataset into pVector. 
+	/// \brief Copies all the data from this dataset into pVector.
 	///
 	/// pVector must be big enough to hold rows() * cols() doubles.
 	void toVector(double* pVector);
@@ -803,7 +802,7 @@ public:
 	///         returned dataset.
 	GMatrix* transpose();
 
-	/// \brief Copies the data from pVector over this dataset. 
+	/// \brief Copies the data from pVector over this dataset.
 	///
 	/// nRows specifies the number of rows of data in pVector.
 	void fromVector(const double* pVector, size_t nRows);
@@ -822,7 +821,7 @@ public:
 
 	/// \brief Sets all elements in the specified range of columns to the specified value.
 	/// If no column ranges are specified, the default is to set all of them.
-	void setAll(double val, size_t colStart = 0, size_t colCount = (size_t)-1);
+	void setAll(double val, size_t colStart = 0, size_t colCount = INVALID_INDEX);
 
 	/// \brief Copies pVector over the specified column
 	void setCol(size_t index, const double* pVector);
@@ -864,7 +863,7 @@ public:
 	/// \brief Abandons (leaks) all the rows in this matrix.
 	void releaseAllRows();
 
-	/// \brief Randomizes the order of the rows. 
+	/// \brief Randomizes the order of the rows.
 	///
 	/// If pExtension is non-NULL, then it will also be shuffled such
 	/// that corresponding rows are preserved.
@@ -1086,7 +1085,7 @@ public:
 	double linearCorrelationCoefficient(size_t attr1, double attr1Origin, size_t attr2, double attr2Origin) const;
 
 	/// \brief Finds a sphere that bounds all the row-points in this matrix.
-	/// 
+	///
 	/// Returns the squared radius of the sphere, and stores its center in pOutCenter.
 	double boundingSphere(double* pOutCenter) const;
 
@@ -1135,7 +1134,7 @@ public:
 	/// \brief Computes the vector in this subspace that has the
 	/// greatest distance from its projection into pThat subspace.
 	///
-	/// Returns true if the results are computed. 
+	/// Returns true if the results are computed.
 	///
 	/// Returns false if the subspaces are so nearly parallel that pOut
 	/// cannot be computed with accuracy.
@@ -1198,7 +1197,7 @@ public:
 	/// The wid and hgt values are clipped if they exceed the size of the source matrix.
 	/// An exception is thrown if the destination is not big enough to hold the values at the specified location.
 	/// If checkMetaData is true, then this will throw an exception if the data types are incompatible.
-	void copyBlock(const GMatrix& source, size_t srcRow = 0, size_t srcCol = 0, size_t hgt = (size_t)-1, size_t wid = (size_t)-1, size_t destRow = 0, size_t destCol = 0, bool checkMetaData = true);
+	void copyBlock(const GMatrix& source, size_t srcRow = 0, size_t srcCol = 0, size_t hgt = INVALID_INDEX, size_t wid = INVALID_INDEX, size_t destRow = 0, size_t destCol = 0, bool checkMetaData = true);
 
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception

@@ -79,8 +79,8 @@ protected:
 	GNeighborFinderGeneralizing* m_pNeighborFinder;
 
 public:
-	/// nNeighbors specifies the number of neighbors to evaluate in order to make a prediction.
-	GKNN(GRand& rand);
+	/// General-purpose constructor
+	GKNN();
 
 	/// Load from a DOM.
 	GKNN(GDomNode* pNode, GLearnerLoader& ll);
@@ -207,7 +207,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GNeighborTransducer(GRand& rand);
+	GNeighborTransducer();
 
 	/// Returns the number of neighbors.
 	size_t neighbors() { return m_friendCount; }
@@ -244,7 +244,7 @@ protected:
 public:
 	/// dims specifies the number of feature dimensions.
 	/// pDims specifies the number of discrete zero-based values for each feature dim.
-	GInstanceTable(size_t dims, size_t* pDims, GRand& rand);
+	GInstanceTable(size_t dims, size_t* pDims);
 	virtual ~GInstanceTable();
 
 	/// Serialize this table
