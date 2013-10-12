@@ -931,18 +931,13 @@ public:
 
 	/// \brief Measures the entropy of the specified attribute
 	double entropy(size_t nColumn) const;
-/*
-	/// \brief Finds the min and the range of the values of the
-	/// specified attribute
-	void minAndRange(size_t nAttribute, double* pMin, double* pRange);
 
-	/// \brief Estimates the actual min and range based on a random sample
-	void minAndRangeUnbiased(size_t nAttribute, double* pMin, double* pRange);
-*/
-	/// \brief Returns the minimum value in the specified column (not counting UNKNOWN_REAL_VALUE), or 1e300 if there are no values.
+	/// \brief Returns the minimum value in the specified column (not counting UNKNOWN_REAL_VALUE).
+	/// Returns 1e300 if there are no known values in the column.
 	double columnMin(size_t nAttribute) const;
 
-	/// \brief Returns the maximum value in the specified column (not counting UNKNOWN_REAL_VALUE), or -1e300 if there are no values.
+	/// \brief Returns the maximum value in the specified column (not counting UNKNOWN_REAL_VALUE).
+	/// Returns -1e300 if there are no known values in the column.
 	double columnMax(size_t nAttribute) const;
 
 	/// \brief Computes the arithmetic mean of the values in the specified column

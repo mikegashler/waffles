@@ -27,7 +27,7 @@ else
 	CFLAGS = -Wall
 	OPT_LFLAGS = ../../lib/GClasses.a -lpthread
 	DBG_LFLAGS = ../../lib/GClassesDbg.a -lpthread
-	GCOV_LFLAGS = -fprofile-arcs ../../lib/GClassesGcov.a -lpng -lpthread
+	GCOV_LFLAGS = -fprofile-arcs ../../lib/GClassesGcov.a -lpthread
 endif
 
 OPT_CFLAGS = $(CFLAGS) -O3

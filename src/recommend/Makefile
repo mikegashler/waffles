@@ -24,8 +24,8 @@ ifeq ($(UNAME),Darwin)
 	OPT_LFLAGS = -framework AppKit ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a
 else
 	CFLAGS = -Wall
-	DBG_LFLAGS = ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a
-	OPT_LFLAGS = ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a
+	DBG_LFLAGS = ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a -lpthread
+	OPT_LFLAGS = ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a -lpthread
 endif
 
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG

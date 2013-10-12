@@ -70,7 +70,6 @@
 #include "../GClasses/GSelfOrganizingMap.h"
 #include "../GClasses/GSocket.h"
 #include "../GClasses/GSparseMatrix.h"
-#include "../GClasses/GSpinLock.h"
 #include "../GClasses/GGridSearch.h"
 #include "../GClasses/GThread.h"
 #include "../GClasses/GTime.h"
@@ -1087,7 +1086,7 @@ public:
 #endif
 			cout << " environment variable.\n\n";
 		}
-		
+
 		cout << "Done.\n";
 		cout.flush();
 	}

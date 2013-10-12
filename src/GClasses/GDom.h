@@ -234,8 +234,8 @@ public:
 	/// Saves to a file in JSON format. (See http://json.org.)
 	void saveJson(const char* szFilename) const;
 
-	/// Parses JSON format from a tokenizer (which wraps a stream).
-	void parseJson(const char* pFile, size_t len);
+	/// Parses a JSON string. The resulting DOM can be retrieved by calling root().
+	void parseJson(const char* pJsonString, size_t len);
 
 	/// Writes this doc to the specified stream in JSON format. (See http://json.org.)
 	/// (If you want to write to a memory buffer, you can use open_memstream.)
@@ -276,7 +276,9 @@ public:
 	/// Makes a new double node
 	GDomNode* newDouble(double d);
 
-	/// Makes a new string node from a null-terminated string
+	/// Makes a new string node from a null-terminated string. (If you want
+	/// to parse a JSON string, call parseJson instead. This method just wraps
+	/// the string in a node.)
 	GDomNode* newString(const char* szString);
 
 	/// Makes a new string node from the specified string segment

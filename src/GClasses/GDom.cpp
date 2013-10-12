@@ -855,9 +855,9 @@ GDomNode* GDom::loadJsonValue(GJsonTokenizer& tok)
 	}
 }
 
-void GDom::parseJson(const char* pFile, size_t len)
+void GDom::parseJson(const char* pJsonString, size_t len)
 {
-	GJsonTokenizer tok(pFile, len);
+	GJsonTokenizer tok(pJsonString, len);
 	tok.skip(tok.m_whitespace);
 	setRoot(loadJsonValue(tok));
 }

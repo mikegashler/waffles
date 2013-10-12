@@ -105,7 +105,6 @@ CPP_FILES = \
 	GSmtp.cpp\
 	GSocket.cpp\
 	GSparseMatrix.cpp\
-	GSpinLock.cpp\
 	GGridSearch.cpp\
 	GStemmer.cpp\
 	GString.cpp\

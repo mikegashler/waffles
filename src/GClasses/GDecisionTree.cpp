@@ -1385,7 +1385,7 @@ void GRandomForest::clear()
 
 void GRandomForest::print(std::ostream& stream, GArffRelation* pFeatureRel, GArffRelation* pLabelRel)
 {
-	std::vector<GWeightedModel*> models = m_pEnsemble->getInner();
+	std::vector<GWeightedModel*>& models = m_pEnsemble->models();
 	size_t nModels = models.size();
 	for (size_t i = 0; i < nModels; i++)
 	{

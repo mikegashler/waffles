@@ -27,7 +27,7 @@ namespace GClasses {
 
 class GRelation;
 class GRand;
-
+class GMasterThread;
 
 typedef void (*EnsembleProgressCallback)(void* pThis, size_t i, size_t n);
 
@@ -66,17 +66,40 @@ protected:
 	size_t m_nAccumulatorDims;
 	double* m_pAccumulator; // a buffer for tallying votes (ballot box?)
 
+	size_t m_workerThreads;
+	GMasterThread* m_pPredictMaster;
 public:
+	volatile const double* m_pPredictInput;
+
 	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
 	GEnsemble();
 
 	/// Deserializing constructor.
 	GEnsemble(GDomNode* pNode, GLearnerLoader& ll);
 
-	/// Getter for models in ensemble.
-	std::vector<GWeightedModel*> getInner() { return m_models; }
-
 	virtual ~GEnsemble();
+
+	/// Returns a reference to the models in the ensemble
+	std::vector<GWeightedModel*>& models() { return m_models; }
+
+	/// Adds the vote from one of the models. (This is called internally. Users typically
+	/// do not need to call it.)
+	void castVote(double weight, const double* pOut);
+
+	/// Specify the number of worker threads to use. If count is 1,
+	/// then no additional threads will be spawned, but the work will
+	/// all be done by the same thread. If count is 2 or more, that
+	/// number of worker threads will be spawned. (Note that with fast models,
+	/// the overhead associated with worker threads is often too high to be
+	/// worthwhile.) The worker threads are spawned when the first prediction
+	/// is made. They are kept alive until clear() is called or this object is
+	/// deleted. If you only want to use worker threads during training, but
+	/// not when making predictions, you can call this method again to set it back
+	/// to 1 after training is complete. Since the inheriting class is
+	/// responsible to implement the train method, some child classes may not
+	/// implement multi-threaded training. GBag, GBomb, GBayesianModelAveraging,
+	/// and GBayesianModelCombination all implement multi-threaded training.
+	void setWorkerThreads(size_t count) { m_workerThreads = count; }
 
 protected:
 	/// Base classes should call this method to serialize the base object
@@ -101,9 +124,6 @@ protected:
 	/// Scales the weights of all the models so they sum to 1.0.
 	void normalizeWeights();
 
-	/// Adds the vote from one of the models.
-	void castVote(double weight, const double* pOut);
-
 	/// Counts all the votes from the models in the bag, assuming you are
 	/// interested in knowing the distribution.
 	void tally(GPrediction* pOut);
@@ -111,9 +131,6 @@ protected:
 	/// Counts all the votes from the models in the bag, assuming you only
 	/// care to know the winner, and do not care about the distribution.
 	void tally(double* pOut);
-
-
-
 };
 
 

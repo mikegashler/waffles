@@ -24,6 +24,7 @@
 #include "GDom.h"
 #include "GRand.h"
 #include "GHolders.h"
+#include "GThread.h"
 
 using namespace GClasses;
 using std::vector;
@@ -53,16 +54,17 @@ GDomNode* GWeightedModel::serialize(GDom* pDoc) const
 
 
 GEnsemble::GEnsemble()
-: GSupervisedLearner(), m_pLabelRel(NULL), m_nAccumulatorDims(0), m_pAccumulator(NULL)
+: GSupervisedLearner(), m_pLabelRel(NULL), m_nAccumulatorDims(0), m_pAccumulator(NULL), m_workerThreads(1), m_pPredictMaster(NULL)
 {
 }
 
 GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+: GSupervisedLearner(pNode, ll), m_pPredictMaster(NULL)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	m_nAccumulatorDims = (size_t)pNode->field("accum")->asInt();
 	m_pAccumulator = new double[m_nAccumulatorDims];
+	m_workerThreads = pNode->field("threads")->asInt();
 	GDomNode* pModels = pNode->field("models");
 	GDomListIterator it(pModels);
 	size_t modelCount = it.remaining();
@@ -80,6 +82,7 @@ GEnsemble::~GEnsemble()
 		delete(*it);
 	delete[] m_pAccumulator;
 	delete(m_pLabelRel);
+	delete(m_pPredictMaster);
 }
 
 // virtual
@@ -87,6 +90,7 @@ void GEnsemble::serializeBase(GDom* pDoc, GDomNode* pNode) const
 {
 	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
 	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
+	pNode->addField(pDoc, "threads", pDoc->newInt(m_workerThreads));
 	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
 	for(size_t i = 0; i < m_models.size(); i++)
 		pModels->addItem(pDoc, m_models[i]->serialize(pDoc));
@@ -101,6 +105,8 @@ void GEnsemble::clearBase()
 	delete[] m_pAccumulator;
 	m_pAccumulator = NULL;
 	m_nAccumulatorDims = 0;
+	delete(m_pPredictMaster);
+	m_pPredictMaster = NULL;
 }
 
 // virtual
@@ -139,7 +145,7 @@ void GEnsemble::normalizeWeights()
 void GEnsemble::castVote(double weight, const double* pOut)
 {
 	size_t labelDims = m_pLabelRel->size();
-	size_t nDims = 0;
+	double* pAcc = m_pAccumulator;
 	for(size_t i = 0; i < labelDims; i++)
 	{
 		size_t nValues = m_pLabelRel->valueCount(i);
@@ -147,17 +153,18 @@ void GEnsemble::castVote(double weight, const double* pOut)
 		{
 			int nVal = (int)pOut[i];
 			if(nVal >= 0 && nVal < (int)nValues)
-				m_pAccumulator[nDims + nVal] += weight;
-			nDims += nValues;
+				pAcc[nVal] += weight;
+			pAcc += nValues;
 		}
 		else
 		{
 			double dVal = pOut[i];
-			m_pAccumulator[nDims++] += weight * dVal;
-			m_pAccumulator[nDims++] += weight * (dVal * dVal);
+			*pAcc = weight * dVal;
+			pAcc++;
+			*pAcc = weight * (dVal * dVal);
+			pAcc++;
 		}
 	}
-	GAssert(nDims == m_nAccumulatorDims); // invalid dim count
 }
 
 void GEnsemble::tally(GPrediction* pOut)
@@ -204,9 +211,38 @@ void GEnsemble::tally(double* pOut)
 	GAssert(nDims == m_nAccumulatorDims); // invalid dim count
 }
 
+class GEnsemblePredictWorker : public GWorkerThread
+{
+protected:
+	GEnsemble* m_pEnsemble;
+	double* m_pOutBuf;
+
+public:
+	GEnsemblePredictWorker(GMasterThread& master, GEnsemble* pEnsemble, size_t outDims)
+	: GWorkerThread(master), m_pEnsemble(pEnsemble)
+	{
+		m_pOutBuf = new double[outDims];
+	}
+
+	virtual ~GEnsemblePredictWorker()
+	{
+		delete[] m_pOutBuf;
+	}
+
+	virtual void doJob(size_t jobId)
+	{
+		const double* pIn = (const double*)m_pEnsemble->m_pPredictInput;
+		GWeightedModel* pWM = m_pEnsemble->models()[jobId];
+		pWM->m_pModel->predict(pIn, m_pOutBuf);
+		GSpinLockHolder lockHolder(m_master.getLock(), "GEnsemblePredictWorker::doJob");
+		m_pEnsemble->castVote(pWM->m_weight, m_pOutBuf);
+	}
+};
+
 // virtual
 void GEnsemble::predictInner(const double* pIn, double* pOut)
 {
+/*
 	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 	{
@@ -215,6 +251,19 @@ void GEnsemble::predictInner(const double* pIn, double* pOut)
 		castVote(pWM->m_weight, pOut);
 	}
 	tally(pOut);
+*/
+
+	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
+	m_pPredictInput = pIn;
+	if(!m_pPredictMaster)
+	{
+		m_pPredictMaster = new GMasterThread();
+		for(size_t i = 0; i < m_workerThreads; i++)
+			m_pPredictMaster->addWorker(new GEnsemblePredictWorker(*m_pPredictMaster, this, m_models[0]->m_pModel->relLabels().size()));
+	}
+	m_pPredictMaster->doJobs(m_models.size());
+	tally(pOut);
+
 }
 
 // virtual
@@ -281,9 +330,58 @@ void GBag::addLearner(GSupervisedLearner* pLearner)
 	m_models.push_back(pWM);
 }
 
+class GBagTrainWorker : public GWorkerThread
+{
+protected:
+	GBag* m_pBag;
+	const GMatrix& m_features;
+	const GMatrix& m_labels;
+	GMatrix m_drawnFeatures;
+	GMatrix m_drawnLabels;
+	size_t m_drawSize;
+	GRand m_rand;
+
+public:
+	GBagTrainWorker(GMasterThread& master, GBag* pBag, const GMatrix& features, const GMatrix& labels, size_t trainSize, size_t seed)
+	: GWorkerThread(master),
+	m_pBag(pBag),
+	m_features(features),
+	m_labels(labels),
+	m_drawnFeatures(features.relation().clone()),
+	m_drawnLabels(labels.relation().clone()),
+	m_rand(seed)
+	{
+		GAssert(m_features.rows() > 0);
+		m_drawSize = size_t(trainSize * features.rows());
+		m_drawnFeatures.reserve(m_drawSize);
+		m_drawnLabels.reserve(m_drawSize);
+	}
+
+	virtual ~GBagTrainWorker()
+	{
+	}
+
+	virtual void doJob(size_t jobId)
+	{
+		// Randomly draw some data (with replacement)
+		GReleaseDataHolder hDrawnFeatures(&m_drawnFeatures);
+		GReleaseDataHolder hDrawnLabels(&m_drawnLabels);
+		for(size_t j = 0; j < m_drawSize; j++)
+		{
+			size_t r = (size_t)m_rand.next(m_features.rows());
+			m_drawnFeatures.takeRow((double*)m_features[r]); // This case is only okay because we only use drawFeatures as a const GMatrix
+			m_drawnLabels.takeRow((double*)m_labels[r]); // This case is only okay because we only use drawnLabels as a const GMatrix
+		}
+
+		// Train the learner with the drawn data
+		m_pBag->models()[jobId]->m_pModel->train(m_drawnFeatures, m_drawnLabels);
+	}
+};
+
 // virtual
 void GBag::trainInnerInner(const GMatrix& features, const GMatrix& labels)
 {
+/*
 	// Train all the models
 	size_t nLearnerCount = m_models.size();
 	size_t nDrawSize = size_t(m_trainSize * features.rows());
@@ -315,6 +413,14 @@ void GBag::trainInnerInner(const GMatrix& features, const GMatrix& labels)
 	}
 
 	// Determine the weights
+	determineWeights(features, labels);
+	normalizeWeights();
+*/
+
+	GMasterThread trainMaster;
+	for(size_t i = 0; i < m_workerThreads; i++)
+		trainMaster.addWorker(new GBagTrainWorker(trainMaster, this, features, labels, m_trainSize, m_rand.next()));
+	trainMaster.doJobs(m_models.size());
 	determineWeights(features, labels);
 	normalizeWeights();
 }
@@ -467,7 +573,7 @@ void GBayesianModelAveraging::test()
 		pTree->useRandomDivisions();
 		bma.addLearner(pTree);
 	}
-	bma.basicTest(0.755, 0.944, 0.01);
+	bma.basicTest(0.755, 0.939, 0.01);
 }
 #endif
 
@@ -547,7 +653,7 @@ void GBayesianModelCombination::test()
 		pTree->useRandomDivisions();
 		bmc.addLearner(pTree);
 	}
-	bmc.basicTest(0.76, 0.944, 0.01);
+	bmc.basicTest(0.76, 0.939, 0.01);
 }
 #endif
 
