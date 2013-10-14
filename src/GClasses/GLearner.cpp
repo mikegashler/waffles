@@ -350,13 +350,13 @@ double GTransducer::crossValidate(const GMatrix& features, const GMatrix& labels
 		throw Ex("Expected the features and labels to have the same number of rows");
 
 	// Do cross-validation
-	GMatrix trainFeatures(features.relation().clone());
+	GMatrix trainFeatures(features.relation().cloneMinimal());
 	trainFeatures.reserve(features.rows());
-	GMatrix testFeatures(features.relation().clone());
+	GMatrix testFeatures(features.relation().cloneMinimal());
 	testFeatures.reserve(features.rows() / folds + 1);
-	GMatrix trainLabels(labels.relation().clone());
+	GMatrix trainLabels(labels.relation().cloneMinimal());
 	trainLabels.reserve(labels.rows());
-	GMatrix testLabels(labels.relation().clone());
+	GMatrix testLabels(labels.relation().cloneMinimal());
 	testLabels.reserve(labels.rows() / folds + 1);
 	double sse = 0.0;
 	for(size_t i = 0; i < folds; i++)
@@ -397,9 +397,9 @@ double GTransducer::repValidate(const GMatrix& features, const GMatrix& labels, 
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
-	GMatrix f(features.relation().clone());
+	GMatrix f(features.relation().cloneMinimal());
 	GReleaseDataHolder hF(&f);
-	GMatrix l(labels.relation().clone());
+	GMatrix l(labels.relation().cloneMinimal());
 	GReleaseDataHolder hL(&l);
 	for(size_t i = 0; i < features.rows(); i++)
 	{
@@ -1090,8 +1090,8 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 #else
 	GPrediction out[labels.cols()];
 #endif
-	GMatrix otherFeatures(features.relation().clone());
-	GMatrix otherLabels(labels.relation().clone());
+	GMatrix otherFeatures(features.relation().cloneMinimal());
+	GMatrix otherLabels(labels.relation().cloneMinimal());
 	size_t valueCount = labels.relation().valueCount(label);
 	for(size_t nRep = 0; nRep < nReps; nRep++)
 	{

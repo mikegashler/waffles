@@ -89,6 +89,11 @@ public:
 	/// \brief Makes a deep copy of this relation
 	virtual GRelation* clone() const = 0;
 
+	/// \brief Returns a relation containing the same value counts as this object, but
+	/// not containing superfluous things, such as human-readable strings. (The returned
+	/// relation may be of a different type.)
+	virtual GRelation* cloneMinimal() const = 0;
+
 	/// \brief Makes a deep copy of the specified subset of this relation
 	virtual GRelation* cloneSub(size_t start, size_t count) const = 0;
 
@@ -199,6 +204,9 @@ public:
 	/// \brief Returns a copy of this object
 	virtual GRelation* clone() const { return new GUniformRelation(m_attrCount, m_valueCount); }
 
+	/// \brief Returns a copy of this object
+	virtual GRelation* cloneMinimal() const { return clone(); }
+
 	/// \brief Returns a deep copy of the specified subset of this
 	/// relation
 	virtual GRelation* cloneSub(size_t, size_t count) const { return new GUniformRelation(count, m_valueCount); }
@@ -249,6 +257,11 @@ public:
 
 	/// \brief Makes a deep copy of this relation
 	virtual GRelation* clone() const;
+
+	/// \brief Returns a relation containing the same value counts as this object, but
+	/// not containing superfluous things, such as human-readable strings. (The returned
+	/// relation may be of a different type.)
+	virtual GRelation* cloneMinimal() const;
 
 	/// \brief Makes a deep copy of the specified subset of this
 	/// relation
@@ -344,6 +357,11 @@ public:
 
 	/// \brief Returns a deep copy of this object
 	virtual GRelation* clone() const;
+
+	/// \brief Returns a relation containing the same value counts as this object, but
+	/// not containing superfluous things, such as human-readable strings. (The returned
+	/// relation will be of a different type.)
+	virtual GRelation* cloneMinimal() const;
 
 	/// \brief Makes a deep copy of the specified subset of this relation
 	virtual GRelation* cloneSub(size_t start, size_t count) const;
@@ -541,8 +559,7 @@ public:
 	/// replacing all data currently in this matrix.
 	void copyCols(const GMatrix& that, size_t firstCol, size_t colCount);
 
-	/// \brief Copies all the data from pThat. (Just references the same
-	/// relation)
+	/// \brief Copies (deep) all the data and metadata from pThat.
 	void copy(const GMatrix* pThat);
 
 	/// \brief This computes the square root of this matrix. (If you

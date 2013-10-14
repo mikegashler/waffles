@@ -259,6 +259,8 @@ GSparseSimilarity* GSparseSimilarity::deserialize(GDomNode* pNode)
 	GSparseSimilarity* pObj = NULL;
 	if(strcmp(szClass, "GCosineSimilarity") == 0)
 		return new GCosineSimilarity(pNode);
+	else if(strcmp(szClass, "GEulcidSimilarity") == 0)
+		return new GEulcidSimilarity(pNode);
 	else if(strcmp(szClass, "GPearsonCorrelation") == 0)
 		return new GPearsonCorrelation(pNode);
 	else
@@ -469,5 +471,72 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const double
 	else
 		return 0.0;
 }
+
+// --------------------------------------------------------------------
+
+// virtual
+GDomNode* GEulcidSimilarity::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GEulcidSimilarity");
+	return pNode;
+}
+
+// virtual
+double GEulcidSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b)
+{
+	map<size_t,double>::const_iterator itA = a.begin();
+	map<size_t,double>::const_iterator itB = b.begin();
+	if(itA == a.end())
+		return 0.0;
+	if(itB == b.end())
+		return 0.0;
+	double sum_sq = 0.0;
+	while(true)
+	{
+		if(itA->first < itB->first)
+		{
+			if(++itA == a.end())
+				break;
+		}
+		else if(itB->first < itA->first)
+		{
+			if(++itB == b.end())
+				break;
+		}
+		else
+		{
+			double d = (itB->second - itA->second);
+			sum_sq += (d * d);
+			if(++itA == a.end())
+				break;
+			if(++itB == b.end())
+				break;
+		}
+	}
+	if(sum_sq > 0.0)
+		return 1.0 / sum_sq;
+	else
+		return 1e12;
+}
+
+// virtual
+double GEulcidSimilarity::similarity(const map<size_t,double>& a, const double* pB)
+{
+	map<size_t,double>::const_iterator itA = a.begin();
+	if(itA == a.end())
+		return 0.0;
+	double sum_sq = 0.0;
+	while(itA != a.end())
+	{
+		double d = (pB[itA->first] - itA->second);
+		sum_sq += (d * d);
+		itA++;
+	}
+	if(sum_sq > 0.0)
+		return 1.0 / sum_sq;
+	else
+		return 1e12;
+}
+
 
 } // namespace GClasses

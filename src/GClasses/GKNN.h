@@ -29,6 +29,7 @@ class GKnnScaleFactorCritic;
 class GOptimizer;
 class GRowDistanceScaled;
 class GSparseSimilarity;
+class GBitTable;
 
 
 /// The k-Nearest Neighbor learning algorithm
@@ -274,6 +275,67 @@ protected:
 
 	/// See the comment for GIncrementalLearner::trainIncrementalInner
 	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
+};
+
+
+/// An experimental instance-based learner that prunes attribute-values (or predicates) instead of entire instances.
+/// This may be viewed as a form of rule-learning that beings with instance-based learning and then prunes.
+class GSparseInstance : public GSupervisedLearner
+{
+protected:
+	size_t m_neighborCount;
+	GSparseMatrix* m_pInstanceFeatures;
+	GMatrix* m_pInstanceLabels;
+	GSparseSimilarity* m_pMetric;
+	GBitTable* m_pSkipRows;
+
+public:
+	/// General-purpose constructor
+	GSparseInstance();
+
+	/// Load from a DOM.
+	GSparseInstance(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GSparseInstance();
+
+	/// Returns the number of neighbors
+	size_t neighborCount() { return m_neighborCount; }
+
+	/// Specify the number of neighbors to use. (The default is 1.)
+	void setNeighborCount(size_t k);
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests for this class. Throws an exception if there is a failure.
+	static void test();
+#endif
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Discard any training (but not any settings) so it can be trained again
+	virtual void clear();
+
+	/// Sets the distance metric. Takes ownership of pMetric.
+	void setMetric(GSparseSimilarity* pMetric);
+
+protected:
+	/// Throw out elements and/or entire instances one at-a-time until no improvements can be found
+	void prune(const GMatrix& holdOutFeatures, const GMatrix& holdOutLabels);
+
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
+
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predictInner(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
+	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
+
+	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalLabels
+	virtual bool canImplicitlyHandleNominalLabels() { return false; }
 };
 
 } // namespace GClasses

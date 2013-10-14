@@ -67,10 +67,10 @@ public:
 	double defaultValue() { return m_defaultValue; }
 
 	/// Returns the number of rows (as if this matrix were dense)
-	size_t rows() { return m_rows.size(); }
+	size_t rows() const { return m_rows.size(); }
 
 	/// Returns the number of columns (as if this matrix were dense)
-	size_t cols() { return m_cols; }
+	size_t cols() const { return m_cols; }
 
 	/// Copies a row into a non-sparse vector
 	void fullRow(double* pOutFullRow, size_t row);
@@ -91,7 +91,7 @@ public:
 
 	/// Returns the value at the specified position in the matrix. Returns the
 	/// default value if no element is stored at that position.
-	double get(size_t row, size_t col);
+	double get(size_t row, size_t col) const;
 
 	/// Sets a value at the specified position in the matrix. (If val is the default
 	/// value, it removes the element from the matrix.)
@@ -102,11 +102,11 @@ public:
 	/// copied over the value in this. If the matrices are different
 	/// sizes, any non-overlapping elements will be left at the default value,
 	/// no-matter what value it has in that.
-	void copyFrom(GSparseMatrix* that);
+	void copyFrom(const GSparseMatrix* that);
 
 	/// Copies values from "that" into "this". If the matrices are different
 	/// sizes, any non-overlapping elements will be left at the default value.
-	void copyFrom(GMatrix* that);
+	void copyFrom(const GMatrix* that);
 
 	/// Adds a new empty row to this matrix
 	void newRow();
@@ -134,7 +134,7 @@ public:
 	void swapRows(size_t a, size_t b);
 
 	/// Shuffles the rows in this matrix. If pLabels is non-NULL, then it
-	/// will be shuffled in a manner that preserves corresponding rows with this sparse matrix.
+	/// will also be shuffled in a manner that preserves corresponding rows with this sparse matrix.
 	void shuffle(GRand* pRand, GMatrix* pLabels = NULL);
 
 	/// Returns a sub-matrix of this matrix
@@ -160,6 +160,10 @@ public:
 
 	/// Returns a k-row dense matrix containing the first k principal components of this sparse matrix.
 	GMatrix* firstPrincipalComponents(size_t k, GRand& rand);
+
+	/// Delete the last row in this sparse matrix. (Note that you can call swapRows to move any row
+	/// you want into the last position before you call this method.)
+	void deleteLastRow();
 
 protected:
 	void singularValueDecompositionHelper(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters);

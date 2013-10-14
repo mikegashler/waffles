@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include "GDom.h"
 #include "GDistribution.h"
-#include "GRand.h"
 #include "GHeap.h"
 #include "GNeighborFinder.h"
 #include "GVec.h"
@@ -32,11 +31,15 @@
 #include "GDistance.h"
 #include "GSparseMatrix.h"
 #include "GHolders.h"
+#include "GBitTable.h"
 #include <map>
+#include <queue>
 
 using std::multimap;
 using std::map;
 using std::pair;
+using std::priority_queue;
+using std::vector;
 
 
 namespace GClasses {
@@ -316,7 +319,7 @@ void GKNN::beginIncrementalLearningInner(const GRelation& featureRel, const GRel
 		setMetric(new GRowDistanceScaled(), true);
 	if(m_pDistanceMetric)
 	{
-		m_pFeatures = new GMatrix(featureRel.clone());
+		m_pFeatures = new GMatrix(featureRel.cloneMinimal());
 		m_pDistanceMetric->init(&m_pFeatures->relation(), false);
 
 		// Scale factor optimization
@@ -335,7 +338,7 @@ void GKNN::beginIncrementalLearningInner(const GRelation& featureRel, const GRel
 	else
 		throw Ex("Some sort of distance or similarity metric is required");
 
-	m_pLabels = new GMatrix(labelRel.clone());
+	m_pLabels = new GMatrix(labelRel.cloneMinimal());
 
 	// Allocate a buffer for counting values
 	size_t maxOutputValueCount = 0;
@@ -630,10 +633,10 @@ void GKNN::interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2
 void GKNN::interpolateLearner(const double* pIn, GPrediction* pOut, double* pOut2)
 {
 	GAssert(m_pLearner); // no learner is set
-	GMatrix dataFeatures(m_pFeatures->relation().clone());
+	GMatrix dataFeatures(m_pFeatures->relation().cloneMinimal());
 	GReleaseDataHolder hDataFeatures(&dataFeatures);
 	dataFeatures.reserve(m_nNeighbors);
-	GMatrix dataLabels(m_pLabels->relation().clone());
+	GMatrix dataLabels(m_pLabels->relation().cloneMinimal());
 	GReleaseDataHolder hDataLabels(&dataLabels);
 	dataLabels.reserve(m_nNeighbors);
 	for(size_t i = 0; i < m_nNeighbors; i++)
@@ -738,7 +741,7 @@ void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels)
 GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Make a dataset containing all rows
-	GMatrix featuresAll(features1.relation().clone());
+	GMatrix featuresAll(features1.relation().cloneMinimal());
 	featuresAll.reserve(features1.rows() + features2.rows());
 	GReleaseDataHolder hFeaturesAll(&featuresAll);
 	for(size_t i = 0; i < features2.rows(); i++)
@@ -952,4 +955,250 @@ void GInstanceTable::trainIncrementalInner(const double* pIn, const double* pOut
 	GVec::copy(m_pTable + pos * labelDims, pOut, labelDims);
 }
 
+
+
+
+
+
+
+
+
+
+
+GSparseInstance::GSparseInstance()
+: GSupervisedLearner(), m_neighborCount(1), m_pInstanceFeatures(NULL), m_pInstanceLabels(NULL), m_pMetric(NULL), m_pSkipRows(NULL)
+{
 }
+
+GSparseInstance::GSparseInstance(GDomNode* pNode, GLearnerLoader& ll)
+: GSupervisedLearner(pNode, ll)
+{
+	m_neighborCount = (size_t)pNode->field("neighbors")->asInt();
+	m_pInstanceFeatures = new GSparseMatrix(pNode->field("if"));
+	m_pInstanceLabels = new GMatrix(pNode->field("il"));
+	m_pMetric = GSparseSimilarity::deserialize(pNode->field("metric"));
+}
+
+GSparseInstance::~GSparseInstance()
+{
+	clear();
+}
+
+// virtual
+GDomNode* GSparseInstance::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GSparseInstance");
+	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_neighborCount));
+	pNode->addField(pDoc, "if", m_pInstanceFeatures->serialize(pDoc));
+	pNode->addField(pDoc, "il", m_pInstanceLabels->serialize(pDoc));
+	pNode->addField(pDoc, "metric", m_pMetric->serialize(pDoc));
+	return pNode;
+}
+
+void GSparseInstance::setNeighborCount(size_t k)
+{
+	m_neighborCount = k;
+}
+
+void GSparseInstance::trainInner(const GMatrix& features, const GMatrix& labels)
+{
+	// Split the training data into two parts
+	if(features.rows() != labels.rows())
+		throw Ex("Expected the same number of rows in the features and labels");
+	clear();
+	GMatrix f1(features.relation().clone());
+	GMatrix f2(features.relation().clone());
+	GMatrix l1(labels.relation().clone());
+	GMatrix l2(labels.relation().clone());
+	GReleaseDataHolder hf1(&f1);
+	GReleaseDataHolder hf2(&f2);
+	GReleaseDataHolder hl1(&l1);
+	GReleaseDataHolder hl2(&l2);
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		if(i & 1)
+		{
+			f2.takeRow((double*)features[i]);
+			l2.takeRow((double*)labels[i]);
+		}
+		else
+		{
+			f1.takeRow((double*)features[i]);
+			l1.takeRow((double*)labels[i]);
+		}
+	}
+
+	// Copy the training portion of the data to be the stored instances
+	m_pInstanceFeatures = new GSparseMatrix(f1.rows(), f1.cols(), UNKNOWN_REAL_VALUE);
+	m_pInstanceFeatures->copyFrom(&f1);
+	m_pInstanceLabels = new GMatrix();
+	m_pInstanceLabels->copy(&l1);
+
+	// Prune the instances
+	prune(f2, l2);
+}
+
+void GSparseInstance::prune(const GMatrix& holdOutFeatures, const GMatrix& holdOutLabels)
+{
+	// Make a list of all known elements
+	vector< std::pair<size_t,size_t> > elements;
+	for(size_t i = 0; i < m_pInstanceFeatures->rows(); i++)
+	{
+		SparseVec::const_iterator endit = m_pInstanceFeatures->rowEnd(i);
+		for(SparseVec::const_iterator it = m_pInstanceFeatures->rowBegin(i); it != endit; it++)
+			elements.push_back( std::pair<size_t,size_t>(i, it->first) );
+	}
+
+	// Prune the stored instances
+	m_pSkipRows = new GBitTable(m_pInstanceFeatures->rows());
+	double bestErr = sumSquaredErrorInternal(holdOutFeatures, holdOutLabels);
+	while(elements.size() > 0)
+	{
+		bool improved = false;
+		std::random_shuffle(elements.begin(), elements.end());
+		vector< std::pair<size_t,size_t> >::iterator it;
+		for(it = elements.begin(); it != elements.end(); it++)
+		{
+			if(m_pSkipRows->bit(it->first))
+			{
+				// drop the element from the list
+				std::swap(*it, *(elements.end() - 1));
+				it--;
+				elements.pop_back();
+			}
+			else
+			{
+				// Try dropping an element
+				double oldVal = m_pInstanceFeatures->get(it->first, it->second);
+				m_pInstanceFeatures->set(it->first, it->second, UNKNOWN_REAL_VALUE);
+				double candErr = sumSquaredErrorInternal(holdOutFeatures, holdOutLabels);
+				if(candErr <= bestErr)
+				{
+					bestErr = candErr;
+					improved = true;
+
+					// Drop the element from the list of elements to consider removing
+					std::swap(*it, *(elements.end() - 1));
+					it--;
+					elements.pop_back();
+				}
+				else
+				{
+					// Put it back
+					m_pInstanceFeatures->set(it->first, it->second, oldVal);
+
+					// Try dropping the whole row
+					m_pSkipRows->set(it->first);
+					candErr = sumSquaredErrorInternal(holdOutFeatures, holdOutLabels);
+					if(candErr <= bestErr)
+					{
+						bestErr = candErr;
+						improved = true;
+					}
+					else
+						m_pSkipRows->unset(it->first); // Put it back
+				}
+			}
+		}
+		if(!improved)
+			break;
+	}
+
+	// Get rid of the black list
+	for(size_t i = m_pInstanceFeatures->rows() - 1; i < m_pInstanceFeatures->rows(); i--)
+	{
+		if(m_pSkipRows->bit(i))
+		{
+			m_pInstanceFeatures->swapRows(i, m_pInstanceFeatures->rows() - 1);
+			m_pInstanceFeatures->deleteLastRow();
+			m_pInstanceLabels->swapRows(i, m_pInstanceFeatures->rows() - 1);
+			m_pInstanceLabels->deleteRow(m_pInstanceLabels->rows() - 1);
+		}
+	}
+	delete(m_pSkipRows);
+	m_pSkipRows = NULL;
+}
+
+void GSparseInstance::setMetric(GSparseSimilarity* pMetric)
+{
+	delete(m_pMetric);
+	m_pMetric = pMetric;
+}
+
+// virtual
+void GSparseInstance::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	throw Ex("Sorry, this learner cannot predict ditributions");
+}
+
+class GSparseInstance_comparator
+{
+public:
+	bool operator()(const std::pair<double,size_t>& a, const std::pair<double,size_t>& b)
+	{
+		return a.first > b.first;
+	}
+};
+
+// virtual
+void GSparseInstance::predictInner(const double* pIn, double* pOut)
+{
+	// Make sure we have a metric to use
+	if(!m_pMetric)
+		setMetric(new GEulcidSimilarity());
+
+	// Find the k-nearest neighbors
+	priority_queue< std::pair<double,size_t>, std::vector<std::pair<double,size_t> >, GSparseInstance_comparator > neighbors;
+	for(size_t i = 0; i < m_pInstanceFeatures->rows(); i++)
+	{
+		if(!m_pSkipRows || !m_pSkipRows->bit(i))
+		{
+			double similarity = m_pMetric->similarity(m_pInstanceFeatures->row(i), pIn);
+			neighbors.push( std::pair<double,size_t>(similarity, i) );
+			if(neighbors.size() > m_neighborCount)
+				neighbors.pop();
+		}
+	}
+
+	// Combine the labels of the neighbors, weighted by similarity
+	size_t labelDims = m_pInstanceLabels->cols();
+	GVec::setAll(pOut, 0.0, labelDims);
+	double sumWeight = 0.0;
+	while(neighbors.size() > 0)
+	{
+		size_t index = neighbors.top().second;
+		double similarity = neighbors.top().first;
+		GVec::addScaled(pOut, similarity, m_pInstanceLabels->row(index), labelDims);
+		sumWeight += similarity;
+		neighbors.pop();
+	}
+	GVec::multiply(pOut, 1.0 / std::max(1e-12, sumWeight), labelDims);
+}
+
+// virtual
+void GSparseInstance::clear()
+{
+	delete(m_pInstanceFeatures);
+	m_pInstanceFeatures = NULL;
+	delete(m_pInstanceLabels);
+	m_pInstanceLabels = NULL;
+	delete(m_pMetric);
+	m_pMetric = NULL;
+	delete(m_pSkipRows);
+	m_pSkipRows = NULL;
+}
+
+#ifndef NO_TEST_CODE
+//static
+void GSparseInstance::test()
+{
+	GSparseInstance learner;
+	learner.setNeighborCount(3);
+	learner.basicTest(0.0, 0.0);
+}
+#endif
+
+
+
+
+} // namespace GClasses

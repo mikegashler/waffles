@@ -1188,10 +1188,10 @@ void GNeuralNet::trainInner(const GMatrix& features, const GMatrix& labels)
 	size_t trainRows = features.rows() - validationRows;
 	if(validationRows > 0)
 	{
-		GMatrix trainFeatures(features.relation().clone());
-		GMatrix trainLabels(labels.relation().clone());
-		GMatrix validateFeatures(features.relation().clone());
-		GMatrix validateLabels(labels.relation().clone());
+		GMatrix trainFeatures(features.relation().cloneMinimal());
+		GMatrix trainLabels(labels.relation().cloneMinimal());
+		GMatrix validateFeatures(features.relation().cloneMinimal());
+		GMatrix validateLabels(labels.relation().cloneMinimal());
 		{
 			GReleaseDataHolder hTrainFeatures(&trainFeatures);
 			GReleaseDataHolder hTrainLabels(&trainLabels);

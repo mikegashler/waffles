@@ -94,10 +94,10 @@ void GSparseMatrix::fullRow(double* pOutFullRow, size_t row)
 		pOutFullRow[it->first] = it->second;
 }
 
-double GSparseMatrix::get(size_t row, size_t col)
+double GSparseMatrix::get(size_t row, size_t col) const
 {
 	GAssert(row < m_rows.size() && col < m_cols); // out of range
-	SparseVec::iterator it = m_rows[row].find(col);
+	SparseVec::const_iterator it = m_rows[row].find(col);
 	if(it == m_rows[row].end())
 		return m_defaultValue;
 	return it->second;
@@ -165,7 +165,7 @@ GMatrix* GSparseMatrix::firstPrincipalComponents(size_t k, GRand& rand)
 	return pResult;
 }
 
-void GSparseMatrix::copyFrom(GSparseMatrix* that)
+void GSparseMatrix::copyFrom(const GSparseMatrix* that)
 {
 	size_t rows = std::min(m_rows.size(), that->rows());
 	for(size_t r = 0; r < rows; r++)
@@ -180,13 +180,13 @@ void GSparseMatrix::copyFrom(GSparseMatrix* that)
 	}
 }
 
-void GSparseMatrix::copyFrom(GMatrix* that)
+void GSparseMatrix::copyFrom(const GMatrix* that)
 {
 	size_t rows = std::min(m_rows.size(), that->rows());
 	size_t cols = std::min(m_cols, (size_t)that->cols());
 	for(size_t r = 0; r < rows; r++)
 	{
-		double* pRow = that->row(r);
+		const double* pRow = that->row(r);
 		for(size_t c = 0; c < cols; c++)
 		{
 			set(r, c, *pRow);
@@ -840,6 +840,11 @@ void GSparseMatrix::removeComponentAboutOrigin(const double* pComponent)
 		for(SparseVec::iterator it = m_rows[i].begin(); it != itEnd; it++)
 			it->second -= d * pComponent[it->first];
 	}
+}
+
+void GSparseMatrix::deleteLastRow()
+{
+	m_rows.pop_back();
 }
 
 #ifndef NO_TEST_CODE

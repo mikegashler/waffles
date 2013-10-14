@@ -395,6 +395,28 @@ GRelation* GMixedRelation::clone() const
 }
 
 // virtual
+GRelation* GMixedRelation::cloneMinimal() const
+{
+	if(m_valueCounts.size() == 0)
+		return new GUniformRelation(0, 0);
+	bool allSame = true;
+	size_t vals = m_valueCounts[0];
+	for(vector<size_t>::const_iterator it = m_valueCounts.begin(); it != m_valueCounts.end(); it++)
+	{
+		if(*it != vals)
+		{
+			allSame = false;
+			break;
+		}
+	}
+	if(allSame)
+		return new GUniformRelation(m_valueCounts.size(), vals);
+	GMixedRelation* pNewRelation = new GMixedRelation();
+	pNewRelation->addAttrs(*this, 0, size());
+	return pNewRelation;
+}
+
+// virtual
 GRelation* GMixedRelation::cloneSub(size_t start, size_t count) const
 {
 	GMixedRelation* pNewRelation = new GMixedRelation();
@@ -585,6 +607,12 @@ GRelation* GArffRelation::clone() const
 	pNewRelation->addAttrs(*this);
 	pNewRelation->setName(name());
 	return pNewRelation;
+}
+
+// virtual
+GRelation* GArffRelation::cloneMinimal() const
+{
+	return GMixedRelation::cloneMinimal();
 }
 
 // virtual
@@ -1854,7 +1882,7 @@ GMatrix* GMatrix::cholesky(bool tolerant)
 {
 	size_t rowCount = rows();
 	size_t colCount = (size_t)cols();
-	GMatrix* pOut = new GMatrix(m_pRelation->clone());
+	GMatrix* pOut = new GMatrix(m_pRelation->cloneMinimal());
 	pOut->newRows(rowCount);
 	double d;
 	for(size_t j = 0; j < rowCount; j++)
@@ -2632,7 +2660,7 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 	}
 
 	// Extract the principle components
-	GMatrix* pOut = new GMatrix(m_pRelation->clone());
+	GMatrix* pOut = new GMatrix(m_pRelation->cloneMinimal());
 	pOut->newRows(nCount);
 	for(size_t i = 0; i < nCount; i++)
 	{
@@ -2642,7 +2670,7 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 */
 
 	// Use the power method to compute the first few eigenvectors. todo: we really should use the Lanczos method instead
-	GMatrix* pOut = new GMatrix(m_pRelation->clone());
+	GMatrix* pOut = new GMatrix(m_pRelation->cloneMinimal());
 	pOut->newRows(nCount);
 	GMatrix* pA;
 	if(mostSignificant)
@@ -2688,7 +2716,7 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 /*
 GMatrix* GMatrix::leastSignificantEigenVectors(size_t nCount, GRand* pRand)
 {
-	GMatrix* pInv = clone();
+	GMatrix* pInv = cloneMinimal();
 	Holder<GMatrix> hInv(pInv);
 	pInv->invert();
 	GMatrix* pOut = pInv->mostSignificantEigenVectors(nCount, pRand);
@@ -2696,7 +2724,7 @@ GMatrix* GMatrix::leastSignificantEigenVectors(size_t nCount, GRand* pRand)
 	for(size_t i = 0; i < nCount; i++)
 	{
 		eigenvalue = 1.0 / pInv->eigenValue(pOut->row(i));
-		GMatrix* cp = clone();
+		GMatrix* cp = cloneMinimal();
 		Holder<GMatrix> hCp(cp);
 		cp->eigenVector(eigenvalue, pOut->row(i));
 	}
@@ -3642,7 +3670,7 @@ void GMatrix::centerMeanAtOrigin()
 size_t GMatrix::countPrincipalComponents(double d, GRand* pRand) const
 {
 	size_t dims = cols();
-	GMatrix tmpData(relation().clone());
+	GMatrix tmpData(relation().cloneMinimal());
 	tmpData.copy(this);
 	tmpData.centerMeanAtOrigin();
 	GTEMPBUF(double, vec, dims);

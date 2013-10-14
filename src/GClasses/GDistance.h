@@ -267,6 +267,28 @@ public:
 };
 
 
+/// This computes the reciprocal of Euclidean distance, where all missing values are simply ignored.
+class GEulcidSimilarity : public GSparseSimilarity
+{
+protected:
+	double m_squaredMissingPenalty;
+
+public:
+	GEulcidSimilarity() : GSparseSimilarity() {}
+	GEulcidSimilarity(GDomNode* pNode) : GSparseSimilarity() {}
+	virtual ~GEulcidSimilarity() {}
+
+	/// See the comment for GSparseSimilarity::serialize
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Computes the similarity between two sparse vectors
+	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
+
+	/// Computes the similarity between a sparse and a dense vector
+	virtual double similarity(const std::map<size_t,double>& a, const double* pB);
+};
+
+
 } // namespace GClasses
 
 #endif // __GDISTANCE_H__
