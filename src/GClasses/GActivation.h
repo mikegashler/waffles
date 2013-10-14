@@ -224,7 +224,7 @@ public:
 	virtual GActivationFunction* clone() { return new GActivationTanH(); }
 };
 
-/// The hyperbolic tangent activation function
+/// An algebraic activation function. (This is a hyperbola divided by x.)
 class GActivationAlgebraic : public GActivationFunction
 {
 public:
@@ -284,7 +284,9 @@ public:
 
 /// This provides an alternative to using GActivationIdentity on the output layer
 /// for regression problems. It may add more power because it is non-linear, but
-/// like the identity function, its co-domain is the same as its domain.
+/// like the identity function, its co-domain is the same as its domain. At
+/// very positive values, this is shaped like y=sqrt(x). At very negative values,
+/// this is shaped like y=-(x*x).
 class GActivationBend : public GActivationFunction
 {
 public:
@@ -325,7 +327,9 @@ public:
 
 /// This is an output-layer activation function shaped
 /// like a sigmoid, but with both a co-domain and domain
-/// that spans the continuous values.
+/// that spans the continuous values. At very negative values,
+/// this is shaped like y=-sqrt(-x). Near zero, it is shaped
+/// like y=x. At very positive values, it is shaped like y=sqrt(x).
 class GActivationBiDir : public GActivationFunction
 {
 public:
@@ -430,7 +434,32 @@ public:
 
 
 
-/// This is a canonical wavelet.
+/// The sine wave.
+class GActivationSin : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "sin"; }
+
+	virtual double squash(double x) { return sin(x); }
+
+	virtual double derivative(double x) { return cos(x); }
+
+	virtual double inverse(double y) { return asin(y); }
+
+	/// Returns 0.0
+	virtual double center() { return 0.0; }
+
+	/// Returns 1.0
+	virtual double halfRange() { return 1.0; }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationSin(); }
+};
+
+
+
+/// This is a canonical wavelet. Has a "Mexican-hat" shape.
 class GActivationSinc : public GActivationFunction
 {
 public:
@@ -458,7 +487,7 @@ public:
 };
 
 
-/// Uses the derivative of the logistic function as an activation function.
+/// Uses the derivative of the logistic function as an activation function. This is shaped somewhat like a bell-curve.
 class GActivationLogisticDerivative : public GActivationFunction
 {
 public:
@@ -500,6 +529,30 @@ public:
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationLogisticDerivative(); }
+};
+
+
+/// The integral of the logsitic function. At very negative values, this converges toward y=0. At very positive values, this converges to y=x.
+class GActivationLogisticIntegral : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "logisticint"; }
+
+	virtual double squash(double x) { return log(1.0 + 1.0 / exp(-x)); }
+
+	virtual double derivative(double x) { return 1.0 / (1.0 + exp(-x)); }
+
+	virtual double inverse(double y) { return log(exp(y) - 1.0); }
+
+	/// Returns 50.0
+	virtual double center() { return 50.0; }
+
+	/// Returns 50.0
+	virtual double halfRange() { return 50.0; }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationLogisticIntegral(); }
 };
 
 

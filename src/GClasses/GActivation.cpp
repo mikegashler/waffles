@@ -52,12 +52,16 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 		return new GActivationBiDir();
 	else if(strcmp(szName, "bend") == 0)
 		return new GActivationBend();
+	else if(strcmp(szName, "sin") == 0)
+		return new GActivationSin();
 	else if(strcmp(szName, "sinc") == 0)
 		return new GActivationSinc();
 	else if(strcmp(szName, "piecewise") == 0)
 		return new GActivationPiecewise();
 	else if(strcmp(szName, "logisticderiv") == 0)
 		return new GActivationLogisticDerivative();
+	else if(strcmp(szName, "logisticint") == 0)
+		return new GActivationLogisticIntegral();
 	else
 		throw Ex("Unrecognized activation function: ", szName);
 	return NULL;

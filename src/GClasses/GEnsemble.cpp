@@ -444,7 +444,7 @@ void GBag::test()
 		pTree->useRandomDivisions();
 		bag.addLearner(pTree);
 	}
-	bag.basicTest(0.767, 0.93, 0.01);
+	bag.basicTest(0.765, 0.93, 0.01);
 }
 #endif
 

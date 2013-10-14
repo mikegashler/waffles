@@ -593,11 +593,9 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 			double info;
 			if(features.relation().valueCount(attr) == 0)
 			{
-				// Pick a random pivot. (Note that this is not a uniform distribution. This
-				// distribution is biased in favor of pivots that will divide the data well.)
-				double a = features[(size_t)m_rand.next(features.rows())][attr];
-				double b = features[(size_t)m_rand.next(features.rows())][attr];
-				pivot = 0.5 * (a + b);
+				pivot = features[(size_t)m_rand.next(features.rows())][attr];
+				if(pivot == UNKNOWN_REAL_VALUE)
+					pivot = features.columnMedian(attr);
 				if(m_randomDraws > 1)
 					info = GDecisionTree_measureRealSplitInfo(features, labels, tmpFeatures, tmpLabels, attr, pivot);
 				else
@@ -605,7 +603,9 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 			}
 			else if(m_binaryDivisions)
 			{
-				pivot = (double)m_rand.next(features.relation().valueCount(attr));
+				pivot = features[m_rand.next(features.rows())][attr];
+				if(pivot == UNKNOWN_DISCRETE_VALUE)
+					pivot = features.baselineValue(attr);
 				if(m_randomDraws > 1)
 					info = GDecisionTree_measureBinarySplitInfo(features, labels, tmpFeatures, tmpLabels, attr, (int)pivot);
 				else

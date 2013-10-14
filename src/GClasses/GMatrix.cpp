@@ -3339,14 +3339,15 @@ double GMatrix::baselineValue(size_t nAttribute) const
 	int j;
 	int val;
 	int nValues = (int)m_pRelation->valueCount(nAttribute);
-	GTEMPBUF(size_t, counts, nValues + 1);
+	GTEMPBUF(size_t, counts, nValues + 1); // We add 1 here so that UNKNOWN_DISCRETE_VALUE, which is -1, will be counted as a unique value, so we don't have to test for it
 	memset(counts, '\0', sizeof(size_t) * (nValues + 1));
 	for(vector<double*>::const_iterator it = m_rows.begin(); it != m_rows.end(); it++)
 	{
 		val = (int)(*it)[nAttribute] + 1;
+		GAssert(val > 0 && val < nValues);
 		counts[val]++;
 	}
-	val = 1;
+	val = 1; // We ignore element 0 because we don't care whether UNKNOWN_DISCRETE_VALUE is the most common value
 	for(j = 2; j <= nValues; j++)
 	{
 		if(counts[j] > counts[val])
