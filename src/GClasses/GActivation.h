@@ -328,8 +328,8 @@ public:
 /// This is an output-layer activation function shaped
 /// like a sigmoid, but with both a co-domain and domain
 /// that spans the continuous values. At very negative values,
-/// this is shaped like y=-sqrt(-x). Near zero, it is shaped
-/// like y=x. At very positive values, it is shaped like y=sqrt(x).
+/// this is shaped like y=-sqrt(-2x). Near zero, it is shaped
+/// like y=x. At very positive values, it is shaped like y=sqrt(2x).
 class GActivationBiDir : public GActivationFunction
 {
 public:
@@ -347,7 +347,8 @@ public:
 		if(std::abs(x) > 1e7)
 			return 0.0;
 		double d = sqrt(x * x + 1.0);
-		return (x / d + 1.0) / (2.0 * sqrt(d + x)) - (x / d - 1.0) / (2.0 * sqrt(d - x));
+		double t = x / d;
+		return (t + 1.0) / (2.0 * sqrt(d + x)) - (t - 1.0) / (2.0 * sqrt(d - x));
 	}
 
 	virtual double inverse(double y)
@@ -539,7 +540,7 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "logisticint"; }
 
-	virtual double squash(double x) { return log(1.0 + 1.0 / exp(-x)); }
+	virtual double squash(double x) { return x > 500 ? x : log(1.0 + 1.0 / exp(-x)); }
 
 	virtual double derivative(double x) { return 1.0 / (1.0 + exp(-x)); }
 

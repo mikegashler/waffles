@@ -489,7 +489,7 @@ void GBackProp::adjustWeights(GNeuralNetLayer* pNNDownStreamLayer, const double*
 		{
 			*pD *= momentum;
 			*pD += (*(pB++) * learningRate * act);
-			GAssert(*pD * *pD < 1.0 / (1.0 - momentum)); // Either the blame, rate, or activation is unreasonable
+			GAssert(*pD * *pD < 2.0 * pNNDownStreamLayer->m_pActivationFunction->halfRange() / (1.0 - momentum)); // Either the blame, rate, or activation is unreasonable
 			*(pW++) += *(pD++);
 		}
 	}
@@ -1188,27 +1188,8 @@ void GNeuralNet::trainInner(const GMatrix& features, const GMatrix& labels)
 	size_t trainRows = features.rows() - validationRows;
 	if(validationRows > 0)
 	{
-		GMatrix trainFeatures(features.relation().cloneMinimal());
-		GMatrix trainLabels(labels.relation().cloneMinimal());
-		GMatrix validateFeatures(features.relation().cloneMinimal());
-		GMatrix validateLabels(labels.relation().cloneMinimal());
-		{
-			GReleaseDataHolder hTrainFeatures(&trainFeatures);
-			GReleaseDataHolder hTrainLabels(&trainLabels);
-			GReleaseDataHolder hValidateFeatures(&validateFeatures);
-			GReleaseDataHolder hValidateLabels(&validateLabels);
-			for(size_t i = 0; i < trainRows; i++)
-			{
-				trainFeatures.takeRow((double*)features[i]);
-				trainLabels.takeRow((double*)labels[i]);
-			}
-			for(size_t i = trainRows; i < features.rows(); i++)
-			{
-				validateFeatures.takeRow((double*)features[i]);
-				validateLabels.takeRow((double*)labels[i]);
-			}
-			trainWithValidation(trainFeatures, trainLabels, validateFeatures, validateLabels);
-		}
+		GDataSplitter splitter(features, labels, m_rand, trainRows);
+		trainWithValidation(splitter.features1(), splitter.labels1(), splitter.features2(), splitter.labels2());
 	}
 	else
 		trainWithValidation(features, labels, features, labels);
@@ -1259,29 +1240,23 @@ size_t GNeuralNet::trainWithValidation(const GMatrix& trainFeatures, const GMatr
 		throw Ex("Expected the features and labels to have the same number of rows");
 	beginIncrementalLearningInner(trainFeatures.relation(), trainLabels.relation());
 
-	// Make a random ordering
-	size_t rowCount = trainFeatures.rows();
-	size_t* pIndexes = new size_t[rowCount];
-	ArrayHolder<size_t> hIndexes(pIndexes);
-	GIndexVec::makeIndexVec(pIndexes, rowCount);
-
 	// Do the epochs
 	size_t nEpochs;
 	double dBestError = 1e308;
 	size_t nEpochsSinceValidationCheck = 0;
 	double dSumSquaredError;
+	GRandomIndexIterator ii(trainFeatures.rows(), m_rand);
 	for(nEpochs = 0; true; nEpochs++)
 	{
-		GIndexVec::shuffle(pIndexes, rowCount, &m_rand);
-		size_t* pIndex = pIndexes;
-		for(size_t n = 0; n < rowCount; n++)
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
 		{
-			const double* pFeatures = trainFeatures[*pIndex];
+			const double* pFeatures = trainFeatures[index];
 			forwardProp(pFeatures);
-			m_pBackProp->computeBlame(trainLabels[*pIndex], INVALID_INDEX, m_backPropTargetFunction);
+			m_pBackProp->computeBlame(trainLabels[index], INVALID_INDEX, m_backPropTargetFunction);
 			m_pBackProp->backpropagate();
 			m_pBackProp->descendGradient(pFeatures, m_learningRate, m_momentum);
-			pIndex++;
 		}
 
 		// Check for termination condition
@@ -2059,7 +2034,7 @@ void GNeuralNet::test()
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn;
-		nn.basicTest(0.74, 0.85);
+		nn.basicTest(0.74, 0.89);
 	}
 
 	// Test NN with one hidden layer
@@ -2246,7 +2221,7 @@ void GReservoirNet::clearFeatureFilter()
 void GReservoirNet::test()
 {
 	GReservoirNet lr;
-	lr.basicTest(0.628, 0.84);
+	lr.basicTest(0.73, 0.801);
 }
 #endif // MIN_PREDICT
 

@@ -2742,6 +2742,8 @@ GMatrix* GScalingUnfolder::doit(const GMatrix& in)
 	Holder<GMatrix> hIntrinsic(pIntrinsic);
 	pIntrinsic->copy(&in);
 	GRandomIndexIterator ii(in.rows() * m_neighborCount, m_rand);
+	GRandomIndexIterator* ii2 = m_pEncoder ? new GRandomIndexIterator(in.rows(), m_rand) : NULL;
+	Holder<GRandomIndexIterator> hII2(ii2);
 
 	// Reduce dimensionality
 	double scaleUpRate = 1.0 / m_scaleRate;
@@ -2836,14 +2838,14 @@ GMatrix* GScalingUnfolder::doit(const GMatrix& in)
 				}
 			}
 
-			// Train the encoder and decoder
+			// Train the encoder
 			if(m_pEncoder)
 			{
 				for(size_t i = 0; i < m_encoderTrainIters; i++)
 				{
-					ii.reset();
+					ii2->reset();
 					size_t ind;
-					while(ii.next(ind))
+					while(ii2->next(ind))
 						m_pEncoder->trainIncremental(in[ind], pIntrinsic->row(ind));
 				}
 			}

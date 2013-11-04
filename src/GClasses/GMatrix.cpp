@@ -3344,7 +3344,7 @@ double GMatrix::baselineValue(size_t nAttribute) const
 	for(vector<double*>::const_iterator it = m_rows.begin(); it != m_rows.end(); it++)
 	{
 		val = (int)(*it)[nAttribute] + 1;
-		GAssert(val > 0 && val < nValues);
+		GAssert(val >= 0 && val <= nValues);
 		counts[val]++;
 	}
 	val = 1; // We ignore element 0 because we don't care whether UNKNOWN_DISCRETE_VALUE is the most common value
@@ -4900,6 +4900,44 @@ std::string to_str(const GMatrix& m){
   return out.str();
 }
 
+
+
+
+GDataSplitter::GDataSplitter(const GMatrix& features, const GMatrix& labels, GRand& rand, size_t part1Rows)
+: m_f1(features.relation().cloneMinimal()),
+m_f2(features.relation().cloneMinimal()),
+m_l1(labels.relation().cloneMinimal()),
+m_l2(labels.relation().cloneMinimal())
+{
+	if(features.rows() != labels.rows())
+		throw Ex("Expected features and labels to have the same number of rows");
+	if(part1Rows > features.rows())
+		throw Ex("part1Rows out of range");
+	size_t part2Rows = features.rows() - part1Rows;
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		if(rand.next(part1Rows + part2Rows) < part1Rows)
+		{
+			m_f1.takeRow((double*)features[i]);
+			m_l1.takeRow((double*)labels[i]);
+			part1Rows--;
+		}
+		else
+		{
+			m_f2.takeRow((double*)features[i]);
+			m_l2.takeRow((double*)labels[i]);
+			part2Rows--;
+		}
+	}
+}
+
+GDataSplitter::~GDataSplitter()
+{
+	m_f1.releaseAllRows();
+	m_l1.releaseAllRows();
+	m_f2.releaseAllRows();
+	m_l2.releaseAllRows();
+}
 
 
 

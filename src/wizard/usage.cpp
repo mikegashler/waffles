@@ -1098,6 +1098,9 @@ UsageNode* makeLearnUsageTree()
 		pOpt->add("[equation]=\"f(x1,x2,p1,p2,p3)=p1*x1+p2*x2+p3\"", "An equation to regress to fit the data. The equation must be named 'f'. It can call helper-equations, separated by semicolons, if needed. Example: \"f(x1,x2,p1,p2,p3)=s(p1*x1+p2*x2+p3);s(x)=1/(1+e^(-x))\"");
 	}
 	{
+		pRoot->add("metadata [data] <data_opts>", "Generate a vector of metadata values for the given dataset. This might be useful for meta-analysis. The resulting vector is printed to stdout in ARFF format.");
+	}
+	{
 		pRoot->add("usage", "Print usage information.");
 	}
 	return pRoot;

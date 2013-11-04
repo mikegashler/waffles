@@ -32,13 +32,13 @@ using std::vector;
 #define MIN_LOG_PROB -1e300
 
 
-GPGMNode::GPGMNode()
+GBNNode::GBNNode()
 : m_observed(false)
 {
 }
 
 // virtual
-GPGMNode::~GPGMNode()
+GBNNode::~GBNNode()
 {
 }
 
@@ -46,40 +46,125 @@ GPGMNode::~GPGMNode()
 
 
 
+void GBNSum::addParent(GBNNode* pNode)
+{
+	if(m_gotChildren)
+		throw Ex("GBNSum nodes require all parents to be added before any children are added");
+	m_parents.push_back(pNode);
+}
+
+// virtual
+double GBNSum::currentValue()
+{
+	double sum = 0.0;
+	for(vector<GBNNode*>::iterator it = m_parents.begin(); it != m_parents.end(); it++)
+		sum += (*it)->currentValue();
+	return sum;
+}
+
+// virtual
+void GBNSum::onNewChild(GBNVariable* pChild)
+{
+	m_gotChildren = true;
+	for(vector<GBNNode*>::iterator it = m_parents.begin(); it != m_parents.end(); it++)
+		(*it)->onNewChild(pChild);
+}
 
 
-GPGMVariable::GPGMVariable()
-: GPGMNode()
+
+
+void GBNProduct::addParent(GBNNode* pNode)
+{
+	if(m_gotChildren)
+		throw Ex("GBNProduct nodes require all parents to be added before any children are added");
+	m_parents.push_back(pNode);
+}
+
+// virtual
+double GBNProduct::currentValue()
+{
+	double prod = 1.0;
+	for(vector<GBNNode*>::iterator it = m_parents.begin(); it != m_parents.end(); it++)
+		prod *= (*it)->currentValue();
+	return prod;
+}
+
+// virtual
+void GBNProduct::onNewChild(GBNVariable* pChild)
+{
+	m_gotChildren = true;
+	for(vector<GBNNode*>::iterator it = m_parents.begin(); it != m_parents.end(); it++)
+		(*it)->onNewChild(pChild);
+}
+
+
+
+
+
+// virtual
+double GBNMath::currentValue()
+{
+	double val = m_parent->currentValue();
+	switch(m_op)
+	{
+		case NEGATE: return -val;
+		case RECIPROCAL: return 1.0 / val;
+		case SQUARE_ROOT: return sqrt(val);
+		case SQUARE: return val * val;
+		case LOG_E: return log(val);
+		case EXP: return exp(val);
+		case TANH: return tanh(val);
+		case GAMMA: return GMath::gamma(val);
+		case ABS: return std::abs(val);
+		default:
+			throw Ex("Unexpected operator");
+	}
+	return 0.0;
+}
+
+// virtual
+void GBNMath::onNewChild(GBNVariable* pChild)
+{
+	m_parent->onNewChild(pChild);
+}
+
+
+
+
+
+
+GBNVariable::GBNVariable()
+: GBNNode()
 {
 
 }
 
 // virtual
-GPGMVariable::~GPGMVariable()
+GBNVariable::~GBNVariable()
 {
 }
 
 // virtual
-void GPGMVariable::onNewChild(GPGMVariable* pChild)
+void GBNVariable::onNewChild(GBNVariable* pChild)
 {
 	m_children.push_back(pChild);
 }
 
-size_t GPGMVariable::catCount()
+size_t GBNVariable::catCount()
 {
 	size_t cats = 1;
-	for(vector<GPGMCategorical*>::iterator it = m_catParents.begin(); it != m_catParents.end(); it++)
+	for(vector<GBNCategorical*>::iterator it = m_catParents.begin(); it != m_catParents.end(); it++)
 		cats *= (*it)->categories();
 	return cats;
 }
 
-size_t GPGMVariable::currentCatIndex()
+size_t GBNVariable::currentCatIndex()
 {
 	size_t mult = 1;
 	size_t ind = 0;
-	for(vector<GPGMCategorical*>::iterator it = m_catParents.begin(); it != m_catParents.end(); it++)
+	for(vector<GBNCategorical*>::iterator it = m_catParents.begin(); it != m_catParents.end(); it++)
 	{
-		GPGMCategorical* pPar = *it;
+		GBNCategorical* pPar = *it;
 		size_t val = (size_t)pPar->currentValue();
 		ind += mult * val;
 		if(pPar->categories() == 0)
@@ -97,22 +182,22 @@ size_t GPGMVariable::currentCatIndex()
 
 
 
-GPGMCategorical::GPGMCategorical(size_t categories, GPGMNode* pDefaultWeight)
-: GPGMVariable(), m_categories(categories), m_val(0)
+GBNCategorical::GBNCategorical(size_t categories, GBNNode* pDefaultWeight)
+: GBNVariable(), m_categories(categories), m_val(0)
 {
 	if(categories < 2)
 		throw Ex("Expected at least 2 categories. Got ", to_str(categories));
 	m_weights.resize(categories, pDefaultWeight);
 }
 
-void GPGMCategorical::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultWeight)
+void GBNCategorical::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultWeight)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_weights.resize(m_categories * catCount(), pDefaultWeight);
 }
 
-void GPGMCategorical::setWeights(size_t cat, GPGMNode* pW1, GPGMNode* pW2, GPGMNode* pW3, GPGMNode* pW4, GPGMNode* pW5, GPGMNode* pW6, GPGMNode* pW7, GPGMNode* pW8)
+void GBNCategorical::setWeights(size_t cat, GBNNode* pW1, GBNNode* pW2, GBNNode* pW3, GBNNode* pW4, GBNNode* pW5, GBNNode* pW6, GBNNode* pW7, GBNNode* pW8)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
@@ -157,7 +242,7 @@ void GPGMCategorical::setWeights(size_t cat, GPGMNode* pW1, GPGMNode* pW2, GPGMN
 }
 
 // virtual
-double GPGMCategorical::currentValue()
+double GBNCategorical::currentValue()
 {
 	if(m_observed)
 		return m_observedValue;
@@ -166,7 +251,7 @@ double GPGMCategorical::currentValue()
 }
 
 // virtual
-void GPGMCategorical::sample(GRand* pRand)
+void GBNCategorical::sample(GRand* pRand)
 {
 	if(m_observed)
 		return;
@@ -177,9 +262,9 @@ void GPGMCategorical::sample(GRand* pRand)
 	for(size_t i = 0; i < m_categories; i++)
 	{
 		double catProb = m_weights[base + i]->currentValue();
-		for(vector<GPGMVariable*>::const_iterator it = children().begin(); it != children().end(); it++)
+		for(vector<GBNVariable*>::const_iterator it = children().begin(); it != children().end(); it++)
 		{
-			GPGMVariable* pChildNode = *it;
+			GBNVariable* pChildNode = *it;
 			double oldVal = m_val;
 			m_val = (double)i;
 			catProb *= pChildNode->likelihood(pChildNode->currentValue());
@@ -194,9 +279,9 @@ void GPGMCategorical::sample(GRand* pRand)
 	for(size_t i = 0; i < m_categories; i++)
 	{
 		double catProb = m_weights[base + i]->currentValue();
-		for(vector<GPGMVariable*>::const_iterator it = children().begin(); it != children().end(); it++)
+		for(vector<GBNVariable*>::const_iterator it = children().begin(); it != children().end(); it++)
 		{
-			GPGMVariable* pChildNode = *it;
+			GBNVariable* pChildNode = *it;
 			double oldVal = m_val;
 			m_val = (double)i;
 			catProb *= pChildNode->likelihood(pChildNode->currentValue());
@@ -210,7 +295,7 @@ void GPGMCategorical::sample(GRand* pRand)
 }
 
 // virtual
-double GPGMCategorical::likelihood(double x)
+double GBNCategorical::likelihood(double x)
 {
 	size_t base = m_categories * currentCatIndex();
 	double sumWeight = 0.0;
@@ -218,7 +303,7 @@ double GPGMCategorical::likelihood(double x)
 		sumWeight += m_weights[base + i]->currentValue();
 	size_t xx = (size_t)x;
 	GAssert(xx >= 0 && xx < m_categories);
-	GPGMNode* pX = m_weights[base + xx];
+	GBNNode* pX = m_weights[base + xx];
 	double num = pX->currentValue();
 	if(num > 0.0 && sumWeight > 0.0)
 		return num / sumWeight;
@@ -234,21 +319,21 @@ double GPGMCategorical::likelihood(double x)
 
 
 
-GPGMMetropolisNode::GPGMMetropolisNode(double priorMean, double priorDeviation)
-: GPGMVariable(), m_currentMean(priorMean), m_currentDeviation(priorDeviation), m_nSamples(0), m_nNewValues(0), m_sumOfValues(0), m_sumOfSquaredValues(0)
+GBNMetropolisNode::GBNMetropolisNode(double priorMean, double priorDeviation)
+: GBNVariable(), m_currentMean(priorMean), m_currentDeviation(priorDeviation), m_nSamples(0), m_nNewValues(0), m_sumOfValues(0), m_sumOfSquaredValues(0)
 {
 }
 
-double GPGMMetropolisNode::gibbs(double x)
+double GBNMetropolisNode::gibbs(double x)
 {
 	double d;
 	double logSum = log(likelihood(x));
 	if(logSum >= MIN_LOG_PROB)
 	{
-		const vector<GPGMVariable*>& kids = children();
-		for(vector<GPGMVariable*>::const_iterator it = kids.begin(); it != kids.end(); it++)
+		const vector<GBNVariable*>& kids = children();
+		for(vector<GBNVariable*>::const_iterator it = kids.begin(); it != kids.end(); it++)
 		{
-			GPGMVariable* pChildNode = *it;
+			GBNVariable* pChildNode = *it;
 			double oldVal = m_currentMean;
 			m_currentMean = x;
 			d = log(pChildNode->likelihood(pChildNode->currentValue()));
@@ -264,7 +349,7 @@ double GPGMMetropolisNode::gibbs(double x)
 		return MIN_LOG_PROB;
 }
 
-bool GPGMMetropolisNode::metropolis(GRand* pRand)
+bool GBNMetropolisNode::metropolis(GRand* pRand)
 {
 	double dCandidateValue = pRand->normal() * m_currentDeviation + m_currentMean;
 	if(isDiscrete())
@@ -292,15 +377,15 @@ bool GPGMMetropolisNode::metropolis(GRand* pRand)
 		return false;
 }
 
-void GPGMMetropolisNode::sample(GRand* pRand)
+void GBNMetropolisNode::sample(GRand* pRand)
 {
 	if(metropolis(pRand))
 	{
 		if(++m_nNewValues >= 10)
 		{
-			double dMean = m_sumOfValues / m_nSamples;
-			m_currentDeviation = sqrt(m_sumOfSquaredValues / m_nSamples - (dMean * dMean));
-			m_nNewValues = 0;
+			//double dMean = m_sumOfValues / m_nSamples;
+			//m_currentDeviation = sqrt(m_sumOfSquaredValues / m_nSamples - (dMean * dMean));
+			//m_nNewValues = 0;
 		}
 	}
 	if(m_nSamples < 0xffffffff)
@@ -312,7 +397,7 @@ void GPGMMetropolisNode::sample(GRand* pRand)
 }
 
 // virtual
-double GPGMMetropolisNode::currentValue()
+double GBNMetropolisNode::currentValue()
 {
 	if(m_observed)
 		return m_observedValue;
@@ -328,23 +413,24 @@ double GPGMMetropolisNode::currentValue()
 
 #define SQRT_2PI 2.50662827463
 
-GPGMNormal::GPGMNormal(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
-: GPGMMetropolisNode(priorMean, priorDeviation)
+GBNNormal::GBNNormal(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation), m_devIsVariance(false)
 {
 	m_meanAndDev.resize(2, pDefaultVal);
 }
 
-void GPGMNormal::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNNormal::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_meanAndDev.resize(2 * catCount(), pDefaultVal);
 }
 
-void GPGMNormal::setMeanAndDev(size_t cat, GPGMNode* pMean, GPGMNode* pDeviation)
+void GBNNormal::setMeanAndDev(size_t cat, GBNNode* pMean, GBNNode* pDeviation)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
+	m_devIsVariance = false;
 	size_t base = 2 * cat;
 	m_meanAndDev[base] = pMean;
 	pMean->onNewChild(this);
@@ -352,14 +438,29 @@ void GPGMNormal::setMeanAndDev(size_t cat, GPGMNode* pMean, GPGMNode* pDeviation
 	pDeviation->onNewChild(this);
 }
 
+void GBNNormal::setMeanAndVariance(size_t cat, GBNNode* pMean, GBNNode* pVariance)
+{
+	if(cat >= catCount())
+		throw Ex("out of range");
+	m_devIsVariance = true;
+	size_t base = 2 * cat;
+	m_meanAndDev[base] = pMean;
+	pMean->onNewChild(this);
+	m_meanAndDev[base + 1] = pVariance;
+	pVariance->onNewChild(this);
+}
+
 // virtual
-double GPGMNormal::likelihood(double x)
+double GBNNormal::likelihood(double x)
 {
 	size_t base = 2 * currentCatIndex();
 	double mean = m_meanAndDev[base]->currentValue();
 	double dev = m_meanAndDev[base + 1]->currentValue();
 	double t = x - mean;
-	return 1.0 / (dev * SQRT_2PI) * exp(-(t * t) / (2.0 * dev * dev));
+	if(m_devIsVariance)
+		return 1.0 / (sqrt(dev * 2.0 * M_PI)) * exp(-(t * t) / (2.0 * dev));
+	else
+		return 1.0 / (dev * SQRT_2PI) * exp(-(t * t) / (2.0 * dev * dev));
 }
 
 
@@ -370,20 +471,20 @@ double GPGMNormal::likelihood(double x)
 
 
 
-GPGMLogNormal::GPGMLogNormal(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
-: GPGMMetropolisNode(priorMean, priorDeviation)
+GBNLogNormal::GBNLogNormal(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation)
 {
 	m_meanAndDev.resize(2, pDefaultVal);
 }
 
-void GPGMLogNormal::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNLogNormal::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_meanAndDev.resize(2 * catCount(), pDefaultVal);
 }
 
-void GPGMLogNormal::setMeanAndDev(size_t cat, GPGMNode* pMean, GPGMNode* pDeviation)
+void GBNLogNormal::setMeanAndDev(size_t cat, GBNNode* pMean, GBNNode* pDeviation)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
@@ -395,7 +496,7 @@ void GPGMLogNormal::setMeanAndDev(size_t cat, GPGMNode* pMean, GPGMNode* pDeviat
 }
 
 // virtual
-double GPGMLogNormal::likelihood(double x)
+double GBNLogNormal::likelihood(double x)
 {
 	size_t base = 2 * currentCatIndex();
 	double mean = m_meanAndDev[base]->currentValue();
@@ -412,20 +513,20 @@ double GPGMLogNormal::likelihood(double x)
 
 
 
-GPGMPareto::GPGMPareto(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
-: GPGMMetropolisNode(priorMean, priorDeviation)
+GBNPareto::GBNPareto(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation)
 {
 	m_alphaAndM.resize(2, pDefaultVal);
 }
 
-void GPGMPareto::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNPareto::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_alphaAndM.resize(2 * catCount(), pDefaultVal);
 }
 
-void GPGMPareto::setAlphaAndM(size_t cat, GPGMNode* pAlpha, GPGMNode* pM)
+void GBNPareto::setAlphaAndM(size_t cat, GBNNode* pAlpha, GBNNode* pM)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
@@ -437,7 +538,7 @@ void GPGMPareto::setAlphaAndM(size_t cat, GPGMNode* pAlpha, GPGMNode* pM)
 }
 
 // virtual
-double GPGMPareto::likelihood(double x)
+double GBNPareto::likelihood(double x)
 {
 	size_t base = 2 * currentCatIndex();
 	double alpha = m_alphaAndM[base]->currentValue();
@@ -455,20 +556,20 @@ double GPGMPareto::likelihood(double x)
 
 
 
-GPGMUniformDiscrete::GPGMUniformDiscrete(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
-: GPGMMetropolisNode(priorMean, priorDeviation)
+GBNUniformDiscrete::GBNUniformDiscrete(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation)
 {
 	m_minAndMax.resize(2, pDefaultVal);
 }
 
-void GPGMUniformDiscrete::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNUniformDiscrete::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_minAndMax.resize(2 * catCount(), pDefaultVal);
 }
 
-void GPGMUniformDiscrete::setMinAndMax(size_t cat, GPGMNode* pMin, GPGMNode* pMax)
+void GBNUniformDiscrete::setMinAndMax(size_t cat, GBNNode* pMin, GBNNode* pMax)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
@@ -480,7 +581,7 @@ void GPGMUniformDiscrete::setMinAndMax(size_t cat, GPGMNode* pMin, GPGMNode* pMa
 }
 
 // virtual
-double GPGMUniformDiscrete::likelihood(double x)
+double GBNUniformDiscrete::likelihood(double x)
 {
 	size_t base = 2 * currentCatIndex();
 	double a = std::ceil(m_minAndMax[base]->currentValue());
@@ -500,20 +601,20 @@ double GPGMUniformDiscrete::likelihood(double x)
 
 
 
-GPGMUniformContinuous::GPGMUniformContinuous(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
-: GPGMMetropolisNode(priorMean, priorDeviation)
+GBNUniformContinuous::GBNUniformContinuous(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation)
 {
 	m_minAndMax.resize(2, pDefaultVal);
 }
 
-void GPGMUniformContinuous::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNUniformContinuous::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_minAndMax.resize(2 * catCount(), pDefaultVal);
 }
 
-void GPGMUniformContinuous::setMinAndMax(size_t cat, GPGMNode* pMin, GPGMNode* pMax)
+void GBNUniformContinuous::setMinAndMax(size_t cat, GBNNode* pMin, GBNNode* pMax)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
@@ -525,7 +626,7 @@ void GPGMUniformContinuous::setMinAndMax(size_t cat, GPGMNode* pMin, GPGMNode* p
 }
 
 // virtual
-double GPGMUniformContinuous::likelihood(double x)
+double GBNUniformContinuous::likelihood(double x)
 {
 	size_t base = 2 * currentCatIndex();
 	double a = m_minAndMax[base]->currentValue();
@@ -545,20 +646,20 @@ double GPGMUniformContinuous::likelihood(double x)
 
 
 
-GPGMPoisson::GPGMPoisson(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
-: GPGMMetropolisNode(priorMean, priorDeviation)
+GBNPoisson::GBNPoisson(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation)
 {
 	m_lambda.resize(1, pDefaultVal);
 }
 
-void GPGMPoisson::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNPoisson::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_lambda.resize(1 * catCount(), pDefaultVal);
 }
 
-void GPGMPoisson::setLambda(size_t cat, GPGMNode* pLambda)
+void GBNPoisson::setLambda(size_t cat, GBNNode* pLambda)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
@@ -568,7 +669,7 @@ void GPGMPoisson::setLambda(size_t cat, GPGMNode* pLambda)
 }
 
 // virtual
-double GPGMPoisson::likelihood(double x)
+double GBNPoisson::likelihood(double x)
 {
 	size_t base = 1 * currentCatIndex();
 	double l = m_lambda[base]->currentValue();
@@ -585,20 +686,20 @@ double GPGMPoisson::likelihood(double x)
 
 
 
-GPGMExponential::GPGMExponential(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
-: GPGMMetropolisNode(priorMean, priorDeviation)
+GBNExponential::GBNExponential(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation)
 {
 	m_lambda.resize(1, pDefaultVal);
 }
 
-void GPGMExponential::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNExponential::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_lambda.resize(1 * catCount(), pDefaultVal);
 }
 
-void GPGMExponential::setLambda(size_t cat, GPGMNode* pLambda)
+void GBNExponential::setLambda(size_t cat, GBNNode* pLambda)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
@@ -608,7 +709,7 @@ void GPGMExponential::setLambda(size_t cat, GPGMNode* pLambda)
 }
 
 // virtual
-double GPGMExponential::likelihood(double x)
+double GBNExponential::likelihood(double x)
 {
 	size_t base = 1 * currentCatIndex();
 	double l = m_lambda[base]->currentValue();
@@ -625,20 +726,20 @@ double GPGMExponential::likelihood(double x)
 
 
 
-GPGMBeta::GPGMBeta(double priorMean, double priorDeviation, GPGMNode* pDefaultVal)
-: GPGMMetropolisNode(priorMean, priorDeviation)
+GBNBeta::GBNBeta(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation)
 {
 	m_alphaAndBeta.resize(2, pDefaultVal);
 }
 
-void GPGMBeta::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNBeta::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_alphaAndBeta.resize(2 * catCount(), pDefaultVal);
 }
 
-void GPGMBeta::setAlphaAndBeta(size_t cat, GPGMNode* pAlpha, GPGMNode* pBeta)
+void GBNBeta::setAlphaAndBeta(size_t cat, GBNNode* pAlpha, GBNNode* pBeta)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
@@ -650,7 +751,7 @@ void GPGMBeta::setAlphaAndBeta(size_t cat, GPGMNode* pAlpha, GPGMNode* pBeta)
 }
 
 // virtual
-double GPGMBeta::likelihood(double x)
+double GBNBeta::likelihood(double x)
 {
 	if(x < 0.0 || x > 1.0)
 		return 0.0;
@@ -671,23 +772,24 @@ double GPGMBeta::likelihood(double x)
 
 
 
-GPGMGamma::GPGMGamma(double priorMean, double priorDeviation, GPGMNode* pDefaultVal, bool betaIsScaleInsteadOfRate)
-: GPGMMetropolisNode(priorMean, priorDeviation), m_betaIsScaleInsteadOfRate(betaIsScaleInsteadOfRate)
+GBNGamma::GBNGamma(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation), m_betaIsScaleInsteadOfRate(false)
 {
 	m_alphaAndBeta.resize(2, pDefaultVal);
 }
 
-void GPGMGamma::addCatParent(GPGMCategorical* pNode, GPGMNode* pDefaultVal)
+void GBNGamma::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
 {
 	m_catParents.push_back(pNode);
 	pNode->onNewChild(this);
 	m_alphaAndBeta.resize(2 * catCount(), pDefaultVal);
 }
 
-void GPGMGamma::setAlphaAndBeta(size_t cat, GPGMNode* pAlpha, GPGMNode* pBeta)
+void GBNGamma::setAlphaAndBeta(size_t cat, GBNNode* pAlpha, GBNNode* pBeta)
 {
 	if(cat >= catCount())
 		throw Ex("out of range");
+	m_betaIsScaleInsteadOfRate = false;
 	size_t base = 2 * cat;
 	m_alphaAndBeta[base] = pAlpha;
 	pAlpha->onNewChild(this);
@@ -695,8 +797,20 @@ void GPGMGamma::setAlphaAndBeta(size_t cat, GPGMNode* pAlpha, GPGMNode* pBeta)
 	pBeta->onNewChild(this);
 }
 
+void GBNGamma::setShapeAndScale(size_t cat, GBNNode* pK, GBNNode* pTheta)
+{
+	if(cat >= catCount())
+		throw Ex("out of range");
+	m_betaIsScaleInsteadOfRate = true;
+	size_t base = 2 * cat;
+	m_alphaAndBeta[base] = pK;
+	pK->onNewChild(this);
+	m_alphaAndBeta[base + 1] = pTheta;
+	pTheta->onNewChild(this);
+}
+
 // virtual
-double GPGMGamma::likelihood(double x)
+double GBNGamma::likelihood(double x)
 {
 	if(x < 0.0)
 		return 0.0;
@@ -716,6 +830,48 @@ double GPGMGamma::likelihood(double x)
 
 
 
+GBNInverseGamma::GBNInverseGamma(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
+: GBNMetropolisNode(priorMean, priorDeviation)
+{
+	m_alphaAndBeta.resize(2, pDefaultVal);
+}
+
+void GBNInverseGamma::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultVal)
+{
+	m_catParents.push_back(pNode);
+	pNode->onNewChild(this);
+	m_alphaAndBeta.resize(2 * catCount(), pDefaultVal);
+}
+
+void GBNInverseGamma::setAlphaAndBeta(size_t cat, GBNNode* pAlpha, GBNNode* pBeta)
+{
+	if(cat >= catCount())
+		throw Ex("out of range");
+	size_t base = 2 * cat;
+	m_alphaAndBeta[base] = pAlpha;
+	pAlpha->onNewChild(this);
+	m_alphaAndBeta[base + 1] = pBeta;
+	pBeta->onNewChild(this);
+}
+
+// virtual
+double GBNInverseGamma::likelihood(double x)
+{
+	if(x < 0.0)
+		return 0.0;
+	size_t base = 2 * currentCatIndex();
+	double alpha = m_alphaAndBeta[base]->currentValue();
+	double beta = m_alphaAndBeta[base + 1]->currentValue();
+	return pow(beta, alpha) / GMath::gamma(alpha) * pow(x, -alpha - 1.0) * exp(-beta / x);
+}
+
+
+
+
+
+
+
+
 GBayesNet::GBayesNet(size_t seed)
 : m_heap(2048), m_rand(seed)
 {
@@ -726,95 +882,126 @@ GBayesNet::~GBayesNet()
 {
 }
 
-GPGMConstant* GBayesNet::newConst(double val)
+GBNConstant* GBayesNet::newConst(double val)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMConstant));
-	return new (pDest) GPGMConstant(val);
+	char* pDest = m_heap.allocAligned(sizeof(GBNConstant));
+	return new (pDest) GBNConstant(val);
 }
 
-GPGMCategorical* GBayesNet::newCat(size_t categories)
+GBNSum* GBayesNet::newSum()
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMCategorical));
-	GPGMCategorical* pNode = new (pDest) GPGMCategorical(categories, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNSum));
+	return new (pDest) GBNSum();
+}
+
+GBNProduct* GBayesNet::newProduct()
+{
+	char* pDest = m_heap.allocAligned(sizeof(GBNProduct));
+	return new (pDest) GBNProduct();
+}
+
+GBNMath* GBayesNet::newMath(GBNNode* pParent, GBNMath::math_op operation)
+{
+	char* pDest = m_heap.allocAligned(sizeof(GBNMath));
+	return new (pDest) GBNMath(pParent, operation);
+}
+
+GBNCategorical* GBayesNet::newCat(size_t categories)
+{
+	char* pDest = m_heap.allocAligned(sizeof(GBNCategorical));
+	GBNCategorical* pNode = new (pDest) GBNCategorical(categories, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMNormal* GBayesNet::newNormal(double priorMean, double priorDev)
+GBNNormal* GBayesNet::newNormal(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMNormal));
-	GPGMNormal* pNode = new (pDest) GPGMNormal(priorMean, priorDev, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNNormal));
+	GBNNormal* pNode = new (pDest) GBNNormal(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMLogNormal* GBayesNet::newLogNormal(double priorMean, double priorDev)
+GBNLogNormal* GBayesNet::newLogNormal(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMLogNormal));
-	GPGMLogNormal* pNode = new (pDest) GPGMLogNormal(priorMean, priorDev, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNLogNormal));
+	GBNLogNormal* pNode = new (pDest) GBNLogNormal(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMPareto* GBayesNet::newPareto(double priorMean, double priorDev)
+GBNPareto* GBayesNet::newPareto(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMPareto));
-	GPGMPareto* pNode = new (pDest) GPGMPareto(priorMean, priorDev, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNPareto));
+	GBNPareto* pNode = new (pDest) GBNPareto(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMUniformDiscrete* GBayesNet::newUniformDiscrete(double priorMean, double priorDev)
+GBNUniformDiscrete* GBayesNet::newUniformDiscrete(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMUniformDiscrete));
-	GPGMUniformDiscrete* pNode = new (pDest) GPGMUniformDiscrete(priorMean, priorDev, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNUniformDiscrete));
+	GBNUniformDiscrete* pNode = new (pDest) GBNUniformDiscrete(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMUniformContinuous* GBayesNet::newUniformContinuous(double priorMean, double priorDev)
+GBNUniformContinuous* GBayesNet::newUniformContinuous(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMUniformContinuous));
-	GPGMUniformContinuous* pNode = new (pDest) GPGMUniformContinuous(priorMean, priorDev, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNUniformContinuous));
+	GBNUniformContinuous* pNode = new (pDest) GBNUniformContinuous(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMPoisson* GBayesNet::newPoisson(double priorMean, double priorDev)
+GBNPoisson* GBayesNet::newPoisson(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMPoisson));
-	GPGMPoisson* pNode = new (pDest) GPGMPoisson(priorMean, priorDev, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNPoisson));
+	GBNPoisson* pNode = new (pDest) GBNPoisson(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMExponential* GBayesNet::newExponential(double priorMean, double priorDev)
+GBNExponential* GBayesNet::newExponential(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMExponential));
-	GPGMExponential* pNode = new (pDest) GPGMExponential(priorMean, priorDev, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNExponential));
+	GBNExponential* pNode = new (pDest) GBNExponential(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMBeta* GBayesNet::newBeta(double priorMean, double priorDev)
+GBNBeta* GBayesNet::newBeta(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMBeta));
-	GPGMBeta* pNode = new (pDest) GPGMBeta(priorMean, priorDev, m_pConstOne);
+	char* pDest = m_heap.allocAligned(sizeof(GBNBeta));
+	GBNBeta* pNode = new (pDest) GBNBeta(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GPGMGamma* GBayesNet::newGamma(double priorMean, double priorDev, bool useScaleInsteadOfRate)
+GBNGamma* GBayesNet::newGamma(double priorMean, double priorDev)
 {
-	char* pDest = m_heap.allocAligned(sizeof(GPGMGamma));
-	GPGMGamma* pNode = new (pDest) GPGMGamma(priorMean, priorDev, m_pConstOne, useScaleInsteadOfRate);
+	char* pDest = m_heap.allocAligned(sizeof(GBNGamma));
+	GBNGamma* pNode = new (pDest) GBNGamma(priorMean, priorDev, m_pConstOne);
+	m_sampleNodes.push_back(pNode);
+	return pNode;
+}
+
+GBNInverseGamma* GBayesNet::newInverseGamma(double priorMean, double priorDev)
+{
+	char* pDest = m_heap.allocAligned(sizeof(GBNInverseGamma));
+	GBNInverseGamma* pNode = new (pDest) GBNInverseGamma(priorMean, priorDev, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
 void GBayesNet::sample()
 {
-	for(vector<GPGMVariable*>::iterator it = m_sampleNodes.begin(); it != m_sampleNodes.end(); it++)
+	// Shuffle the order of the nodes
+	for(size_t i = m_sampleNodes.size(); i > 1; i--)
+		std::swap(m_sampleNodes[i - 1], m_sampleNodes[m_rand.next(i)]);
+
+	// Sample each node
+	for(vector<GBNVariable*>::iterator it = m_sampleNodes.begin(); it != m_sampleNodes.end(); it++)
 		(*it)->sample(&m_rand);
 }
 
@@ -822,10 +1009,10 @@ void GBayesNet::sample()
 void GBayesNet_simpleTest()
 {
 	GBayesNet bn;
-	GPGMCategorical* pPar = bn.newCat(2);
+	GBNCategorical* pPar = bn.newCat(2);
 	pPar->setWeights(0, bn.newConst(0.4), bn.newConst(0.6));
 
-	GPGMNormal* pChild = bn.newNormal(1.0, 3.0);
+	GBNNormal* pChild = bn.newNormal(1.0, 3.0);
 	pChild->addCatParent(pPar, bn.def());
 	pChild->setMeanAndDev(0, bn.newConst(0.0), bn.newConst(1.0));
 	pChild->setMeanAndDev(1, bn.newConst(3.0), bn.newConst(2.0));
@@ -844,22 +1031,22 @@ void GBayesNet_simpleTest()
 		sampleCount++;
 	}
 
-	if(std::abs((double)parCount / sampleCount - 0.5714286) > 0.001)
+	if(std::abs((double)parCount / sampleCount - 0.5714286) > 0.003)
 		throw Ex("Not close enough");
 }
 
 void GBayesNet_threeTest()
 {
 	GBayesNet bn;
-	GPGMCategorical* pA = bn.newCat(2);
+	GBNCategorical* pA = bn.newCat(2);
 	pA->setWeights(0, bn.newConst(2.0 / 5.0), bn.newConst(3.0 / 5.0));
 
-	GPGMCategorical* pB = bn.newCat(2);
+	GBNCategorical* pB = bn.newCat(2);
 	pB->addCatParent(pA, bn.def());
 	pB->setWeights(0, bn.newConst(2.0 / 3.0), bn.newConst(1.0 / 3.0));
 	pB->setWeights(1, bn.newConst(3.0 / 7.0), bn.newConst(4.0 / 7.0));
 
-	GPGMCategorical* pC = bn.newCat(2);
+	GBNCategorical* pC = bn.newCat(2);
 	pC->addCatParent(pB, bn.def());
 	pC->setWeights(0, bn.newConst(1.0 / 2.0), bn.newConst(1.0 / 2.0));
 	pC->setWeights(1, bn.newConst(1.0 / 3.0), bn.newConst(2.0 / 3.0));
@@ -887,13 +1074,13 @@ void GBayesNet_alarmTest()
 {
 	// This example is given in Russell and Norvig page 504. (See also http://www.d.umn.edu/~rmaclin/cs8751/Notes/chapter14a.pdf)
 	GBayesNet bn;
-	GPGMCategorical* pBurglary = bn.newCat(2);
+	GBNCategorical* pBurglary = bn.newCat(2);
 	pBurglary->setWeights(0, bn.newConst(0.001), bn.newConst(0.999));
 
-	GPGMCategorical* pEarthquake = bn.newCat(2);
+	GBNCategorical* pEarthquake = bn.newCat(2);
 	pEarthquake->setWeights(0, bn.newConst(0.002), bn.newConst(0.998));
 
-	GPGMCategorical* pAlarm = bn.newCat(2);
+	GBNCategorical* pAlarm = bn.newCat(2);
 	pAlarm->addCatParent(pBurglary, bn.def());
 	pAlarm->addCatParent(pEarthquake, bn.def());
 	pAlarm->setWeights(0, bn.newConst(0.95), bn.newConst(0.05));
@@ -901,12 +1088,12 @@ void GBayesNet_alarmTest()
 	pAlarm->setWeights(2, bn.newConst(0.94), bn.newConst(0.06));
 	pAlarm->setWeights(3, bn.newConst(0.001), bn.newConst(0.999));
 
-	GPGMCategorical* pJohnCalls = bn.newCat(2);
+	GBNCategorical* pJohnCalls = bn.newCat(2);
 	pJohnCalls->addCatParent(pAlarm, bn.def());
 	pJohnCalls->setWeights(0, bn.newConst(0.9), bn.newConst(0.1));
 	pJohnCalls->setWeights(1, bn.newConst(0.05), bn.newConst(0.95));
 
-	GPGMCategorical* pMaryCalls = bn.newCat(2);
+	GBNCategorical* pMaryCalls = bn.newCat(2);
 	pMaryCalls->addCatParent(pAlarm, bn.def());
 	pMaryCalls->setWeights(0, bn.newConst(0.7), bn.newConst(0.3));
 	pMaryCalls->setWeights(1, bn.newConst(0.01), bn.newConst(0.99));

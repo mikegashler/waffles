@@ -1268,6 +1268,40 @@ public:
 };
 
 
+
+/// This class divides a features and labels matrix into two parts
+/// by randomly assigning each row to one of the two parts, keeping the corresponding
+/// rows together. The rows are shallow-copied. The destructor of this class releases
+/// all of the row references.
+class GDataSplitter
+{
+protected:
+	GMatrix m_f1;
+	GMatrix m_f2;
+	GMatrix m_l1;
+	GMatrix m_l2;
+
+public:
+	/// features and labels are expected to remain valid for the duration of this object.
+	/// proportion specifies the proportion of rows that will be referenced
+	/// by part 1 of the data. (In case of an exact tie, part 2 gets the extra row.)
+	GDataSplitter(const GMatrix& features, const GMatrix& labels, GRand& rand, size_t part1Rows);
+	~GDataSplitter();
+
+	/// Returns a reference to the first part of the features matrix
+	const GMatrix& features1() { return m_f1; }
+
+	/// Returns a reference to the second part of the features matrix
+	const GMatrix& features2() { return m_f2; }
+
+	/// Returns a reference to the first part of the labels matrix
+	const GMatrix& labels1() { return m_l1; }
+
+	/// returns a reference to the second part of the labels matrix
+	const GMatrix& labels2() { return m_l2; }
+};
+
+
 } // namespace GClasses
 
 #endif // __GMATRIX_H__
