@@ -1501,6 +1501,10 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-aboutorigin", "Compute the correlation about the origin. (The default is to compute it about the mean.)");
 	}
 	{
+		UsageNode* pNode = pRoot->add("colstats [dataset]", "Generates a 4-row table. Row 0 contains the min value of each column in [dataset]. Row 1 contains the max value of each column in [dataset]. Row 2 contains the mean value of each column in [dataset]. Row 3 contains the median value of each column in [dataset].");
+		pNode->add("[dataset]=data.arff", "The filename of a dataset.");
+	}
+	{
 		UsageNode* pCumCols = pRoot->add("cumulativecolumns [dataset] [column-list]", "Accumulates the values in the specified columns. For example, a column that contains the values 2,1,3,2 would be changed to 2,3,6,8. This might be useful for converting a histogram of some distribution into a histogram of the cumulative disribution.");
 		pCumCols->add("[dataset]=data.arff", "The filename of a dataset.");
 		pCumCols->add("[column-list]=0", "A comma-separated list of zero-indexed columns to transform. A hypen may be used to specify a range of columns. Example: 0,2-5,7");

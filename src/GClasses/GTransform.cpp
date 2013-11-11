@@ -1535,7 +1535,17 @@ void GDiscretize::untransform(const double* pIn, double* pOut)
 // virtual
 void GDiscretize::untransformToDistribution(const double* pIn, GPrediction* pOut)
 {
-	throw Ex("Sorry, cannot undiscretize to a distribution");
+	if(!m_pMins)
+		throw Ex("Train was not called");
+	size_t attrCount = before().size();
+	for(size_t i = 0; i < attrCount; i++)
+	{
+		size_t nValues = before().valueCount(i);
+		if(nValues > 0)
+			pOut[i].makeCategorical()->setSpike(nValues, pIn[i], 0);
+		else
+			pOut[i].makeNormal()->setMeanAndVariance((((double)pIn[i] + .5) * m_pRanges[i]) / m_bucketsOut + m_pMins[i], m_pRanges[i] * m_pRanges[i]);
+	}
 }
 
 

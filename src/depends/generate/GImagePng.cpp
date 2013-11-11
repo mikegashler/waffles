@@ -13,11 +13,11 @@
 #	include <png.h>
 #	include <zlib.h>
 #endif
-#include <GClasses/GError.h>
-#include <GClasses/GImage.h>
-#include <GClasses/GHolders.h>
-#include <GClasses/GFile.h>
-#include <GClasses/GBits.h>
+#include "../../GClasses/GError.h"
+#include "../../GClasses/GImage.h"
+#include "../../GClasses/GHolders.h"
+#include "../../GClasses/GFile.h"
+#include "../../GClasses/GBits.h"
 
 namespace GClasses {
 

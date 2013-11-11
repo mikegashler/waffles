@@ -2366,7 +2366,7 @@ GRayTraceTriangle::GRayTraceTriangle(GDomNode* pNode, GRayTraceScene* pScene)
 {
 	m_pMesh = pScene->mesh((size_t)pNode->field("mesh")->asInt());
 	m_nIndex = (size_t)pNode->field("index")->asInt();
-	if(m_nIndex < 0 || m_nIndex >= m_pMesh->triangleCount())
+	if(m_nIndex >= m_pMesh->triangleCount())
 		throw Ex("out of range");
 }
 

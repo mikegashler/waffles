@@ -57,7 +57,7 @@ GDomNode* GCategoricalDistribution::serialize(GDom* pDoc) const
 bool GCategoricalDistribution::isSupported(double x) const
 {
 	size_t nIndex = (size_t)floor(x + 0.5);
-	return (nIndex >= 0 && nIndex < m_nValueCount);
+	return (nIndex < m_nValueCount);
 }
 
 // virtual

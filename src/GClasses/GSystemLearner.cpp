@@ -62,8 +62,6 @@ GDomNode* GSystemLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 GRecurrentModel::GRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, size_t actionDims, size_t contextDims, size_t obsDims, GRand* pRand, std::vector<size_t>* pParamDims)
 : GSystemLearner(), m_actionDims(actionDims), m_contextDims(contextDims), m_obsDims(obsDims)
 {
-	if(m_actionDims < 0)
-		throw Ex("Invalid number of action dims");
 	m_pixels = 1;
 	size_t paramDims = pParamDims ? pParamDims->size() : 0;
 	for(size_t i = 0; i < paramDims; i++)
@@ -119,7 +117,7 @@ GRecurrentModel::GRecurrentModel(GDomNode* pNode, GRand* pRand)
 
 	// Infer other stuff
 	m_actionDims = m_pTransitionFunc->relFeatures().size() - m_contextDims;
-	if(m_actionDims < 0)
+	if(m_actionDims > m_pTransitionFunc->relFeatures().size())
 		throw Ex("invalid model");
 	m_channels = m_pObservationFunc->relLabels().size();
 	m_pixels = 1;

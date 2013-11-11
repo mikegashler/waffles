@@ -1242,12 +1242,12 @@ void GMatrix::loadArff(const char* szFilename)
 }
 
 // static
-void GMatrix::loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, bool tolerant)
+void GMatrix::loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, std::vector<size_t>* pOutAmbiguousCols, bool tolerant)
 {
 	size_t nLen;
 	char* szFile = GFile::loadFile(szFilename, &nLen);
 	ArrayHolder<char> hFile(szFile);
-	parseCsv(szFile, nLen, separator, columnNamesInFirstRow, tolerant);
+	parseCsv(szFile, nLen, separator, columnNamesInFirstRow, pOutAmbiguousCols, tolerant);
 }
 
 void GMatrix::saveArff(const char* szFilename)
@@ -1262,6 +1262,22 @@ void GMatrix::parseArff(const char* szFile, size_t nLen)
 	parseArff(tok);
 }
 
+size_t GMatrix::countUniqueValues(size_t col, size_t maxCount) const
+{
+	size_t unique = 0;
+	std::set<double> seen;
+	for(size_t i = 0; i < m_rows.size(); i++)
+	{
+		if(seen.find(m_rows[i][col]) == seen.end())
+		{
+			seen.insert(m_rows[i][col]);
+			if(++unique >= maxCount)
+				return maxCount;
+		}
+	}
+	return unique;
+}
+
 
 class ImportRow
 {
@@ -1270,7 +1286,7 @@ public:
 };
 
 // static
-void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, bool tolerant)
+void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, std::vector<size_t>* pOutAmbiguousCols, bool tolerant)
 {
 	// Extract the elements
 	GHeap heap(2048);
@@ -1479,6 +1495,10 @@ void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool colum
 				row(i)[attr] = val;
 				i++;
 			}
+
+			// If this column type was ambiguous, then tell the caller
+			if(pOutAmbiguousCols && countUniqueValues(attr, 10) < 10)
+				pOutAmbiguousCols->push_back(attr);
 		}
 		else
 		{

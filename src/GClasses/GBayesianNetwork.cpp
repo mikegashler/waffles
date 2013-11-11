@@ -703,7 +703,7 @@ double GPGMGamma::likelihood(double x)
 	size_t base = 2 * currentCatIndex();
 	double alpha = m_alphaAndBeta[base]->currentValue();
 	double beta = m_alphaAndBeta[base + 1]->currentValue();
-	if(m_betaIsScaleInsteadOfRate);
+	if(m_betaIsScaleInsteadOfRate)
 		beta = 1.0 / beta;
 	return pow(beta, alpha) * pow(x, alpha - 1.0) * exp(-beta * x) / GMath::gamma(alpha);
 }

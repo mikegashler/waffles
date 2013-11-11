@@ -28,7 +28,6 @@
 #include "../GClasses/GDom.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GMatrix.h"
-#include "../GClasses/GImage.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GTransform.h"
@@ -158,14 +157,33 @@ GMatrix* loadData(const char* szFilename)
 	GFile::parsePath(szFilename, &pd);
 	GMatrix* pData = new GMatrix();
 	Holder<GMatrix> hData(pData);
+	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData->loadCsv(szFilename, ',', false, false);
+		pData->loadCsv(szFilename, ',', false, &ambiguousCols, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData->loadCsv(szFilename, '\0', false, false);
+		pData->loadCsv(szFilename, '\0', false, &ambiguousCols, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+	if(ambiguousCols.size() > 0)
+	{
+		cerr << "WARNING: column";
+		if(ambiguousCols.size() > 1)
+			cerr << "s";
+		cerr << " ";
+		for(size_t i = 0; i < ambiguousCols.size(); i++)
+		{
+			if(i > 0)
+			{
+				cerr << ", ";
+				if(i + 1 == ambiguousCols.size())
+					cerr << "and ";
+			}
+			cerr << to_str(ambiguousCols);
+		}
+		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
+	}
 	return hData.release();
 }
 
@@ -416,6 +434,22 @@ void cholesky(GArgReader& args)
 	pB->print(cout);
 }
 
+void colstats(GArgReader& args)
+{
+	GMatrix* pA = loadData(args.pop_string());
+	Holder<GMatrix> hA(pA);
+	GMatrix stats(pA->relation().clone());
+	stats.newRows(4);
+	for(size_t i = 0; i < pA->cols(); i++)
+	{
+		stats[0][i] = pA->columnMin(i);
+		stats[1][i] = pA->columnMax(i);
+		stats[2][i] = pA->columnMean(i);
+		stats[3][i] = pA->columnMedian(i);
+	}
+	stats.print(cout);
+}
+
 void correlation(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -497,7 +531,7 @@ void Discretize(GArgReader& args)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	if(nFirst < 0 || nLast >= pData->relation().size() || nLast < nFirst)
+	if(nLast >= pData->relation().size() || nLast < nFirst)
 		throw Ex("column index out of range");
 
 	// Discretize the continuous attributes in the specified range
@@ -830,9 +864,28 @@ void Import(GArgReader& args)
 	}
 
 	// Parse the file
+	vector<size_t> ambiguousCols;
 	GMatrix data;
-	data.parseCsv(pFile, len, separator, columnNamesInFirstRow, tolerant);
+	data.parseCsv(pFile, len, separator, columnNamesInFirstRow, &ambiguousCols, tolerant);
 	((GArffRelation*)&data.relation())->setName(filename);
+	if(ambiguousCols.size() > 0)
+	{
+		cerr << "WARNING: column";
+		if(ambiguousCols.size() > 1)
+			cerr << "s";
+		cerr << " ";
+		for(size_t i = 0; i < ambiguousCols.size(); i++)
+		{
+			if(i > 0)
+			{
+				cerr << ", ";
+				if(i + 1 == ambiguousCols.size())
+					cerr << "and ";
+			}
+			cerr << to_str(ambiguousCols);
+		}
+		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
+	}
 
 	// Print the data
 	data.print(cout);
@@ -1925,6 +1978,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("autocorrelation")) autoCorrelation(args);
 		else if(args.if_pop("center")) center(args);
 		else if(args.if_pop("cholesky")) cholesky(args);
+		else if(args.if_pop("colstats")) colstats(args);
 		else if(args.if_pop("correlation")) correlation(args);
 		else if(args.if_pop("cumulativecolumns")) cumulativeColumns(args);
 		else if(args.if_pop("determinant")) determinant(args);
