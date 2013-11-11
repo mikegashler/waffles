@@ -544,9 +544,10 @@ public:
 	/// Just unfold the data, don't reduce dimensionality
 	void noReduce() { m_reduce = false; }
 
-	/// Provide neural nets to train to do the mapping. (Does not take ownership of these, just trains them.)
-	/// pEncoder and pDecoder should already be initialized to approximate the identity function with some perturbation.
+	/// Provide a neural net to train to do the encoding. (Does not take ownership of this neural net.)
+	/// pEncoder should already be initialized to approximate the identity function with some perturbation.
 	/// In both cases, the number of inputs and outputs should be set to the number of cols in the observation matrix.
+	/// The encoder is expected to support any output value as well as any input value.
 	void trainEncoder(GNeuralNet* pEncoder, size_t encoderTrainIters = 5);
 
 	/// Returns a reference to the pseudo-random number generator used by this object

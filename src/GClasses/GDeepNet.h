@@ -53,27 +53,27 @@ public:
 	GMatrix* mapToHidden(const GMatrix& observations);
 
 	/// Return a vector of hidden activation values
-	virtual double* activationHidden() = 0;
+	virtual double* activationEncode() = 0;
 
 	/// Return a vector of visible activation values
-	virtual double* activationVisible() = 0;
+	virtual double* activationDecode() = 0;
 
 	/// Return a vector of hidden blame values
-	virtual double* blameHidden() = 0;
+	virtual double* blameEncode() = 0;
 
 	/// Return a vector of visible blame values
-	virtual double* blameVisible() = 0;
+	virtual double* blameDecode() = 0;
 
 	/// Feeds pVisible backward through this layer to generate a hidden vector
-	/// The result can be retrieved by calling activationHidden().
+	/// The result can be retrieved by calling activationEncode().
 	virtual void propToHidden(const double* pVisible) = 0;
 
 	/// Feeds pHidden forward through this layer to generate a predicted visible vector
-	/// The result can be retrieved by calling activationVisible().
+	/// The result can be retrieved by calling activationDecode().
 	virtual void propToVisible(const double* pHidden) = 0;
 
 	/// Draws a sample from this layer at the end of an MCMC chain of length iters.
-	/// The result can be retrieved by calling activationVisible().
+	/// The result can be retrieved by calling activationDecode().
 	virtual void draw(size_t iters) = 0;
 
 	/// Present pVisible to this layer for training in an on-line manner.
@@ -107,16 +107,16 @@ public:
 	~GRestrictedBoltzmannMachine();
 
 	/// Returns the vector of blame terms
-	virtual double* blameHidden() { return m_blameHidden; }
+	virtual double* blameEncode() { return m_blameHidden; }
 
 	/// Returns the vector of blame terms
-	virtual double* blameVisible() { return m_blameVisible; }
+	virtual double* blameDecode() { return m_blameVisible; }
 
 	/// Returns the vector of hidden activation values.
-	virtual double* activationHidden() { return m_activationHidden; }
+	virtual double* activationEncode() { return m_activationHidden; }
 
 	/// Returns the vector of hidden activation values.
-	virtual double* activationVisible() { return m_activationVisible; }
+	virtual double* activationDecode() { return m_activationVisible; }
 
 	/// Propagates to compute the hidden activations.
 	virtual void propToHidden(const double* pObserved);
@@ -163,8 +163,8 @@ class GStackableAutoencoder : public GDeepNetLayer
 protected:
 	GMatrix m_weightsEncode; // The weights that map from the input to the hidden layer
 	GMatrix m_weightsDecode; // The weights that map from the hidden to the output layer
-	GMatrix m_biasHidden; // The bias and activation values for the hidden layer
-	GMatrix m_biasVisible; // The bias and activation values for the output layer
+	GMatrix m_biasEncode; // The bias and activation values for the hidden layer
+	GMatrix m_biasDecode; // The bias and activation values for the output layer
 	double m_noiseDeviation;
 
 public:
@@ -183,10 +183,10 @@ public:
 	void denoise(double deviation) { m_noiseDeviation = deviation; }
 
 	/// Returns the vector of hidden biases.
-	double* biasHidden() { return m_biasHidden[0]; }
+	double* biasEncode() { return m_biasEncode[0]; }
 
 	/// Returns the vector of visible biases.
-	double* biasVisible() { return m_biasVisible[0]; }
+	double* biasDecode() { return m_biasDecode[0]; }
 
 	/// Returns the weights for the encoder
 	GMatrix& weightsEncode() { return m_weightsEncode; }
@@ -195,16 +195,16 @@ public:
 	GMatrix& weightsDecode() { return m_weightsDecode; }
 
 	/// Returns the vector of blame terms
-	virtual double* blameHidden() { return m_biasHidden[2]; }
+	virtual double* blameEncode() { return m_biasEncode[2]; }
 
 	/// Returns the vector of blame terms
-	virtual double* blameVisible() { return m_biasVisible[2]; }
+	virtual double* blameDecode() { return m_biasDecode[2]; }
 
 	/// Returns the vector of hidden activation values.
-	virtual double* activationHidden() { return m_biasHidden[1]; }
+	virtual double* activationEncode() { return m_biasEncode[1]; }
 
 	/// Returns the vector of hidden activation values.
-	virtual double* activationVisible() { return m_biasVisible[1]; }
+	virtual double* activationDecode() { return m_biasDecode[1]; }
 
 	/// Computes a hidden vector from the given visible vector
 	virtual void propToHidden(const double* pVisible);
@@ -229,6 +229,70 @@ public:
 	GMatrix* trainDimRed(const GMatrix& observations);
 };
 
+
+/*
+class G2DConvolutionalLayer : public GDeepNetLayer
+{
+protected:
+	size_t m_visibleWidth, m_visibleHeight, m_visibleChannels, m_kernelCount;
+	GMatrix* m_pWeightsEncode; // Array of weights that map from the input to the hidden layer
+	GMatrix* m_pWeightsDecode; // Array of weights that map from the hidden to the output layer
+	double* m_pBiasEncode;
+	double* m_pBiasDecode;
+	double* m_pActivationEncode;
+	double* m_pActivationDecode;
+	double* m_pBlameEncode;
+	double* m_pBlameDecode;
+
+public:
+	/// General-purpose constructor.
+	/// visibleWidth, visibleHeight, and visibleChannels all specify the dimensions of the visible image.
+	/// kernelSize specifies both the width and height of the convolutional kernel.
+	/// kernelCount specifies the number of convolutional kernels to train.
+	/// The Each hidden mapping will have a width of (visibleWidth + kernelSize - 1) and a
+	/// height of (visibleHeight + kernelSize - 1). There will be (visibleChannels * kernelCount)
+	/// hidden channels.
+	G2DConvolutionalLayer(size_t visibleWidth, size_t visibleHeight, size_t visibleChannels, size_t kernelSize, size_t kernelCount, GRand& rand);
+	~G2DConvolutionalLayer();
+
+	/// Returns the number of visible units
+	virtual size_t visibleCount() { return m_visibleWidth * m_visibleHeight * m_visibleChannels; }
+
+	/// Returns the number of hidden units
+	virtual size_t hiddenCount() { return m_hiddenCount; }
+
+	/// Returns the vector of blame terms
+	virtual double* blameEncode() { return m_pBlameEncode; }
+
+	/// Returns the vector of blame terms
+	virtual double* blameDecode() { return m_pBlameDecode; }
+
+	/// Returns the vector of hidden activation values.
+	virtual double* activationEncode() { return m_pActivationEncode; }
+
+	/// Returns the vector of hidden activation values.
+	virtual double* activationDecode() { return m_pActivationDecode; }
+/ *
+	/// Computes a hidden vector from the given visible vector
+	virtual void propToHidden(const double* pVisible);
+
+	/// Computes a visible vector from the given hidden vector
+	virtual void propToVisible(const double* pHidden);
+
+	/// Draws a random sample from this layer
+	virtual void draw(size_t iters);
+
+	/// Present a single visible vector, and update all the weights by on-line gradient descent.
+	virtual void update(const double* pVisible, double learningRate);
+
+	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
+	virtual void backpropHelper1(const double* pInputs, double* pInputBlame, double learningRate);
+
+	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
+	virtual void backpropHelper2(const double* pInputs, double* pInputBlame, double learningRate);
+* /
+};
+*/
 
 
 /// A collection of GDeepNetLayer instances.

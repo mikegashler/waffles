@@ -19,8 +19,8 @@ else
 CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = -lGClassesDbg -lpng
-OPT_LFLAGS = -lGClasses -lpng
+DBG_LFLAGS = -lGClassesDbg -lpthread
+OPT_LFLAGS = -lGClasses -lpthread
 endif
 
 ################

@@ -251,86 +251,6 @@ std::string run_dimred_attributeselector(std::string dataset,
 }
 
 
-void test_dimred_attributeselector()
-{
-  int retval;
-  TestContains
-    ("\nAttribute rankings from most salient to least salient. "
-     "(Attributes are zero-indexed.)\n"
-     "1 Outlook\n"
-     "0 Play\n",
-     run_dimred_attributeselector(golf_arff_dataset(),".arff",
-				  (Seq<int>()).asVector(),
-				  Seq<int>().asVector(),retval),
-     "Unexpected output from golf dataset with no labels and no ignored");
-  TestEqual
-    (0, retval, "Golf dataset with no labels and no ignored "
-     "failed command execution");
-
-  TestContains
-    ("\nAttribute rankings from most salient to least salient. "
-     "(Attributes are zero-indexed.)\n"
-     "1 Outlook\n"
-     "0 Play\n",
-     run_dimred_attributeselector(golf_arff_dataset(),".arff",
-				  (Seq<int>()+4).asVector(),
-				  Seq<int>().asVector(),retval),
-     "Unexpected output from golf dataset with labels=4 and no ignored");
-  TestEqual
-    (0, retval, "Golf dataset with no labels=4 and no ignored "
-     "failed command execution");
-
-
-  TestEqual
-    ("\nAttribute rankings from most salient to least salient. "
-     "(Attributes are zero-indexed.)\n"
-     "1 Outlook\n"
-     "3 Humidity\n"
-     "2 Temperature\n"
-     "4 Wind\n",
-     run_dimred_attributeselector(golf_arff_dataset(),".arff",
-				  (Seq<int>()+0).asVector(),
-				  Seq<int>().asVector(),retval),
-     "Unexpected output from golf dataset with labels=0 and no ignored");
-  TestEqual
-    (0, retval, "Golf dataset with no labels=0 and no ignored "
-     "failed command execution");
-
-  TestEqual
-    ("\nAttribute rankings from most salient to least salient. "
-     "(Attributes are zero-indexed.)\n"
-     "3 Humidity\n"
-     "4 Wind\n",
-     run_dimred_attributeselector(golf_arff_dataset(),".arff",
-				  (Seq<int>()+0).asVector(),
-				  (Seq<int>()+1+2).asVector(),retval),
-     "Unexpected output from golf dataset with labels=0 and ignored=1,2");
-  TestEqual
-    (0, retval, "Golf dataset with no labels=0 and ignored=1,2 "
-     "failed command execution");
-
-  TestContains
-    ("is both ignored and used as a label",
-     run_dimred_attributeselector(golf_arff_dataset(),".arff",
-				  (Seq<int>()+1).asVector(),
-				  (Seq<int>()+1+2).asVector(),retval),
-     "Unexpected output from golf dataset with labels=1 and ignored=1,2");
-  TestEqual
-    (1, retval, "Golf dataset with no labels=1 and ignored=1,2 "
-     "unexpectedly succeeded command execution");
-
-
-  TestContains
-    ("Unsupported file format",
-     run_dimred_attributeselector(golf_arff_dataset(),".mat",
-				  (Seq<int>()).asVector(),
-				  (Seq<int>()).asVector(),retval),
-     "Unexpected output from golf dataset with .mat input file");
-  TestEqual
-    (1, retval, "Golf dataset .mat input file "
-     "unexpectedly succeeded command execution");
-}
-
 ///Runs the command line waffles_transform keeponlycolumns and returns the
 ///output that was printed to stdout
 ///
@@ -1072,7 +992,6 @@ public:
 			runTest("waffles_recommend fillmissingvalues", test_recommend_fillmissingvalues);
 //#ifndef WINDOWS
 			runTest("waffles_transform keeponlycolumns", test_transform_keeponly);
-			runTest("waffles_dimred attributeselector", test_dimred_attributeselector);
 			runTest("document classification", test_document_classification);
 //#endif
 		}

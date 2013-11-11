@@ -440,11 +440,20 @@ void GDecisionTree::trainInner(const GMatrix& features, const GMatrix& labels)
 
 void GDecisionTree::autoTune(GMatrix& features, GMatrix& labels)
 {
+	// Try binary splits
+	m_binaryDivisions = false;
+	double bestErr = crossValidate(features, labels, 2);
+	m_binaryDivisions = true;
+	double d = crossValidate(features, labels, 2);
+	if(d < bestErr)
+		bestErr = d;
+	else
+		m_binaryDivisions = false;
+
 	// Find the best leaf threshold
 	size_t cap = size_t(floor(sqrt(double(features.rows()))));
 	size_t bestLeafThresh = 1;
-	double bestErr = 1e308;
-	for(size_t i = 1; i < cap; i = std::max(i + 1, size_t(i * 1.5)))
+	for(size_t i = 2; i < cap; i = std::max(i + 1, size_t(i * 1.5)))
 	{
 		m_leafThresh = i;
 		double d = crossValidate(features, labels, 2);

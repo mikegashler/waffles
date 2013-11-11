@@ -981,6 +981,8 @@ void autoTuneDecisionTree(GMatrix& features, GMatrix& labels)
 	cout << "decisiontree";
 	if(dt.leafThresh() != 1)
 		cout << " -leafthresh " << dt.leafThresh();
+	if(dt.isBinary())
+		cout << " -binary";
 	cout << "\n";
 }
 
@@ -2206,6 +2208,177 @@ void optimize(GArgReader& args)
 	cout << "\n";
 }
 
+void metaData(GArgReader& args)
+{
+	// Load the data
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
+
+	// Make the relation
+	GArffRelation* pRel = new GArffRelation();
+	pRel->addAttribute("log_rows", 0, NULL);
+	pRel->addAttribute("log_feature_dims", 0, NULL);
+	pRel->addAttribute("log_label_dims", 0, NULL);
+	pRel->addAttribute("log_feature_elements", 0, NULL);
+	pRel->addAttribute("log_sum_feature_vals", 0, NULL);
+	pRel->addAttribute("mean_feature_vals", 0, NULL);
+	pRel->addAttribute("feature_range_deviation", 0, NULL);
+	pRel->addAttribute("feature_portion_real", 0, NULL);
+	pRel->addAttribute("label_portion_real", 0, NULL);
+	pRel->addAttribute("feature_is_missing_values", 0, NULL);
+	pRel->addAttribute("label_entropy", 0, NULL);
+	pRel->addAttribute("label_skew", 0, NULL);
+	pRel->addAttribute("landmark_baseline", 0, NULL);
+	pRel->addAttribute("landmark_linear", 0, NULL);
+	pRel->addAttribute("landmark_decisiontree", 0, NULL);
+	pRel->addAttribute("landmark_shallowtree", 0, NULL);
+	pRel->addAttribute("landmark_meanmarginstree", 0, NULL);
+	pRel->addAttribute("landmark_naivebayes", 0, NULL);
+
+	// Make the meta-data
+	GMatrix meta(pRel);
+	double* pRow = meta.newRow();
+
+	// log_rows
+	*(pRow++) = log(pFeatures->rows());
+
+	// log_feature_dims
+	*(pRow++) = log(pFeatures->cols());
+
+	// log_label_dims
+	*(pRow++) = log(pLabels->cols());
+
+	// log_feature_elements
+	*(pRow++) = log(pFeatures->rows() * pFeatures->cols());
+
+	// log_sum_feature_vals
+	size_t sum = 0;
+	for(size_t i = 0; i < pFeatures->cols(); i++)
+		sum += pFeatures->relation().valueCount(i);
+	*(pRow++) = log(sum + 1);
+
+	// mean_feature_vals
+	*(pRow++) = (double)sum / pFeatures->cols();
+
+	// feature_range_deviation
+	{
+		double s = 0.0;
+		double ss = 0.0;
+		for(size_t i = 0; i < pFeatures->cols(); i++)
+		{
+			double range = pFeatures->columnMax(i) - pFeatures->columnMin(i);
+			s += range;
+			ss += (range * range);
+		}
+		s /= pFeatures->cols();
+		ss /= pFeatures->cols();
+		*(pRow++) = (double)(pFeatures->cols() - 1) / pFeatures->cols() * sqrt(ss - (s * s));
+	}
+
+	// feature_portion_real
+	size_t realCount = 0;
+	for(size_t i = 0; i < pFeatures->cols(); i++)
+	{
+		if(pFeatures->relation().valueCount(i) == 0)
+			realCount++;
+	}
+	*(pRow++) = (double)realCount / pFeatures->cols();
+
+	// label_portion_real
+	realCount = 0;
+	for(size_t i = 0; i < pLabels->cols(); i++)
+	{
+		if(pLabels->relation().valueCount(i) == 0)
+			realCount++;
+	}
+	*(pRow++) = (double)realCount / pLabels->cols();
+
+	// features_is_missing_values
+	*(pRow++) = pFeatures->doesHaveAnyMissingValues() ? 1.0 : 0.0;
+
+	// label_entropy
+	sum = 0.0;
+	for(size_t i = 0; i < pLabels->cols(); i++)
+	{
+		if(pLabels->relation().valueCount(i) == 0)
+		{
+			double mean = pLabels->columnMean(i);
+			sum += log(1.0 + sqrt(pLabels->columnVariance(i, mean)));
+		}
+		else
+			sum += pLabels->entropy(i);
+	}
+	*(pRow++) = sum / pLabels->cols();
+
+	// label_skew
+	sum = 0.0;
+	for(size_t i = 0; i < pLabels->cols(); i++)
+	{
+		if(pLabels->relation().valueCount(i) == 0)
+		{
+			double mean = pLabels->columnMean(i);
+			double median = pLabels->columnMedian(i);
+			sum += log(1.0 + std::abs(mean - median));
+		}
+		else
+		{
+			double mostCommonValue = pLabels->baselineValue(i);
+			size_t count = 0;
+			for(size_t j = 0; j < pLabels->rows(); j++)
+			{
+				if(pLabels->row(j)[i] == mostCommonValue)
+					count++;
+			}
+			sum += (double)count / pLabels->rows();
+		}
+	}
+	*(pRow++) = sum / pLabels->cols();
+
+	// landmark_baseline
+	{
+		GBaselineLearner model;
+		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+	}
+
+	// landmark_linear
+	{
+		GLinearRegressor model;
+		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+	}
+
+	// landmark_decisiontree
+	{
+		GDecisionTree model;
+		model.useBinaryDivisions();
+		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+	}
+
+	// landmark_shallowtree
+	{
+		GDecisionTree model;
+		model.useBinaryDivisions();
+		model.setLeafThresh(24);
+		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+	}
+
+	// landmark_meanmarginstree
+	{
+		GMeanMarginsTree model;
+		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+	}
+
+	// landmark_naivebayes
+	{
+		GNaiveBayes model;
+		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+	}
+
+	// Print the results
+	meta.print(cout);
+}
+
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -2303,6 +2476,8 @@ int main(int argc, char *argv[])
 				trainRecurrent(args);
 			else if(args.if_pop("optimize"))
 				optimize(args);
+			else if(args.if_pop("metadata"))
+				metaData(args);
 			else
 			{
 				nRet = 1;

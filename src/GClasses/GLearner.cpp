@@ -1188,7 +1188,7 @@ void GSupervisedLearner::test()
 	d = 1;
 	model.predictDistribution(&d, &out);
 	prob = out.asCategorical()->values(2)[0];
-	if(std::abs(prob - 0.30) > .11)
+	if(std::abs(prob - 0.30) > .16)
 		throw Ex("failed");
 	d = 2;
 	model.predictDistribution(&d, &out);
@@ -1306,9 +1306,9 @@ void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, dou
 void GIncrementalLearner::beginIncrementalLearning(const GRelation& featureRel, const GRelation& labelRel)
 {
 	delete(m_pRelFeatures);
-	m_pRelFeatures = featureRel.clone();
+	m_pRelFeatures = featureRel.cloneMinimal();
 	delete(m_pRelLabels);
-	m_pRelLabels = labelRel.clone();
+	m_pRelLabels = labelRel.cloneMinimal();
 	if(m_pFilterFeatures)
 		m_pFilterFeatures->train(featureRel);
 	if(m_pFilterLabels)

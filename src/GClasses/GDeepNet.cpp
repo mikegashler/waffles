@@ -67,7 +67,7 @@ GMatrix* GDeepNetLayer::mapToHidden(const GMatrix& observations)
 	for(size_t i = 0; i < observations.rows(); i++)
 	{
 		propToHidden(observations[i]);
-		GVec::copy(pHidden->row(i), activationHidden(), m_hiddenCount);
+		GVec::copy(pHidden->row(i), activationEncode(), m_hiddenCount);
 	}
 	return hHidden.release();
 }
@@ -264,8 +264,8 @@ GStackableAutoencoder::GStackableAutoencoder(size_t hidden, size_t visible, GRan
 : GDeepNetLayer(hidden, visible, rand),
 m_weightsEncode(hidden, visible),
 m_weightsDecode(visible, hidden),
-m_biasHidden(3, hidden),
-m_biasVisible(3, visible)
+m_biasEncode(3, hidden),
+m_biasDecode(3, visible)
 {
 	// Initialize the weights
 	for(size_t i = 0; i < hidden; i++)
@@ -277,7 +277,7 @@ m_biasVisible(3, visible)
 			pRow++;
 		}
 	}
-	double* pB = biasVisible();
+	double* pB = biasDecode();
 	for(size_t j = 0; j < visible; j++)
 		*(pB++) = 0.01 * m_rand.normal();
 	for(size_t i = 0; i < visible; i++)
@@ -289,7 +289,7 @@ m_biasVisible(3, visible)
 			pRow++;
 		}
 	}
-	pB = biasHidden();
+	pB = biasEncode();
 	for(size_t j = 0; j < hidden; j++)
 		*(pB++) = 0.01 * m_rand.normal();
 }
@@ -301,9 +301,9 @@ GStackableAutoencoder::~GStackableAutoencoder()
 // virtual
 void GStackableAutoencoder::propToHidden(const double* pVisible)
 {
-	double* pA = activationHidden();
+	double* pA = activationEncode();
 	m_weightsEncode.multiply(pVisible, pA);
-	GVec::add(pA, biasHidden(), m_hiddenCount);
+	GVec::add(pA, biasEncode(), m_hiddenCount);
 	for(size_t i = 0; i < m_hiddenCount; i++)
 	{
 		*pA = tanh(*pA);
@@ -314,9 +314,9 @@ void GStackableAutoencoder::propToHidden(const double* pVisible)
 // virtual
 void GStackableAutoencoder::propToVisible(const double* pHidden)
 {
-	double* pA = activationVisible();
+	double* pA = activationDecode();
 	m_weightsDecode.multiply(pHidden, pA);
-	GVec::add(pA, biasVisible(), m_visibleCount);
+	GVec::add(pA, biasDecode(), m_visibleCount);
 	for(size_t i = 0; i < m_visibleCount; i++)
 	{
 		*pA = tanh(*pA);
@@ -327,15 +327,15 @@ void GStackableAutoencoder::propToVisible(const double* pHidden)
 // virtual
 void GStackableAutoencoder::draw(size_t iters)
 {
-	double* pH = activationHidden();
+	double* pH = activationEncode();
 	for(size_t i = 0; i < m_hiddenCount; i++)
 		*(pH++) = 0.01 * m_rand.normal();
 	for(size_t i = 0; i < iters; i++)
 	{
-		propToVisible(activationHidden());
-		propToHidden(activationVisible());
+		propToVisible(activationEncode());
+		propToHidden(activationDecode());
 	}
-	propToVisible(activationHidden());
+	propToVisible(activationEncode());
 }
 
 // virtual
@@ -344,19 +344,19 @@ void GStackableAutoencoder::update(const double* pVisible, double learningRate)
 	// Compute net and activation values
 	if(m_noiseDeviation > 0.0)
 	{
-		double* pAV = activationVisible();
+		double* pAV = activationDecode();
 		GVec::copy(pAV, pVisible, m_visibleCount);
 		GVec::perturb(pAV, m_noiseDeviation, m_visibleCount, m_rand);
 		propToHidden(pAV);
 	}
 	else
 		propToHidden(pVisible);
-	propToVisible(activationHidden());
+	propToVisible(activationEncode());
 
 	// Convert visible blame term
-	double* pBlame = blameVisible();
+	double* pBlame = blameDecode();
 	const double* pV = pVisible;
-	double* pAV = activationVisible();
+	double* pAV = activationDecode();
 	for(size_t i = 0; i < m_visibleCount; i++)
 	{
 		*(pBlame++) = (*pV - *pAV) * (*pAV) * (1.0 - *pAV);
@@ -365,15 +365,15 @@ void GStackableAutoencoder::update(const double* pVisible, double learningRate)
 	}
 
 	// Backpropagate
-	backpropHelper1(activationHidden(), blameHidden(), learningRate);
-	backpropHelper2(pVisible, blameVisible(), learningRate);
+	backpropHelper1(activationEncode(), blameEncode(), learningRate);
+	backpropHelper2(pVisible, blameDecode(), learningRate);
 }
 
 // virtual
 void GStackableAutoencoder::backpropHelper1(const double* pInputs, double* pInputBlame, double learningRate)
 {
 	// Backpropagate the blame
-	double* pBlame = blameVisible();
+	double* pBlame = blameDecode();
 	m_weightsDecode.multiply(pBlame, pInputBlame, true);
 	const double* pInp = pInputs;
 	for(size_t i = 0; i < m_hiddenCount; i++)
@@ -383,7 +383,7 @@ void GStackableAutoencoder::backpropHelper1(const double* pInputs, double* pInpu
 	}
 
 	// Update weights
-	double* pBias = biasVisible();
+	double* pBias = biasDecode();
 	for(size_t i = 0; i < m_visibleCount; i++)
 	{
 		GVec::addScaled(m_weightsDecode[i], learningRate * (*pBlame), pInputs, m_hiddenCount);
@@ -396,7 +396,7 @@ void GStackableAutoencoder::backpropHelper1(const double* pInputs, double* pInpu
 void GStackableAutoencoder::backpropHelper2(const double* pInputs, double* pInputBlame, double learningRate)
 {
 	// Backpropagate the blame
-	double* pBlame = blameHidden();
+	double* pBlame = blameEncode();
 	m_weightsEncode.multiply(pBlame, pInputBlame, true);
 	const double* pInp = pInputs;
 	for(size_t i = 0; i < m_visibleCount; i++)
@@ -406,7 +406,7 @@ void GStackableAutoencoder::backpropHelper2(const double* pInputs, double* pInpu
 	}
 
 	// Update weights
-	double* pBias = biasHidden();
+	double* pBias = biasEncode();
 	for(size_t i = 0; i < m_hiddenCount; i++)
 	{
 		GVec::addScaled(m_weightsEncode[i], learningRate * (*pBlame), pInputs, m_visibleCount);
@@ -439,7 +439,7 @@ GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations)
 	Holder<GMatrix> hEncTranspose(pEncTranspose);
 	m_weightsEncode.copy(pEncTranspose);
 	hEncTranspose.reset();
-	GVec::copy(biasHidden(), nnEncoder.getLayer(0)->bias(), m_hiddenCount);
+	GVec::copy(biasEncode(), nnEncoder.getLayer(0)->bias(), m_hiddenCount);
 
 	// Initialize the decoder
 	GMatrix* pEncoding = mapToHidden(observations);
@@ -453,9 +453,61 @@ GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations)
 	GMatrix* pDecTranspose = nnDecoder.getLayer(0)->m_weights.transpose();
 	Holder<GMatrix> hDecTranspose(pDecTranspose);
 	m_weightsDecode.copy(pDecTranspose);
-	GVec::copy(biasVisible(), nnDecoder.getLayer(0)->bias(), m_visibleCount);
+	GVec::copy(biasDecode(), nnDecoder.getLayer(0)->bias(), m_visibleCount);
 	return hEncoding.release();
 }
+
+
+
+
+/*
+G2DConvolutionalLayer::G2DConvolutionalLayer(size_t visibleWidth, size_t visibleHeight, size_t visibleChannels, size_t kernelSize, size_t kernelCount, GRand& rand)
+: GDeepNetLayer((visibleWidth + 2 * kernelSize - 2) * (visibleHeight + 2 * kernelSize - 2) * visibleChannels * kernelCount, visibleWidth * visibleHeight * visibleChannels, rand),
+m_visibleWidth(visibleWidth),
+m_visibleHeight(visibleHeight),
+m_visibleChannels(visibleChannels),
+m_kernelCount(kernelCount)
+{
+	m_pWeightsEncode = new GMatrix[m_visibleChannels * m_kernelCount];
+	m_pWeightsDecode = new GMatrix[m_visibleChannels * m_kernelCount];
+	m_pBiasEncode = new double[m_visibleChannels * m_kernelCount];
+	m_pBiasDecode = new double[m_visibleChannels * m_kernelCount];
+	m_pActivationEncode = new double[m_visibleCount];
+	m_pActivationDecode = new double[m_hiddenCount];
+	m_pBlameEncode = new double[m_visibleCount];
+	m_pBlameDecode = new double[m_hiddenCount];
+	for(size_t k = 0; k < m_visibleChannels * m_kernelCount; k++)
+	{
+		m_pWeightsEncode[k].resize(kernelSize, kernelSize);
+		m_pWeightsDecode[k].resize(kernelSize, kernelSize);
+		for(size_t i = 0; i < kernelSize; i++)
+		{
+			double* pRowEnc = m_pWeightsEncode[k][i];
+			double* pRowDec = m_pWeightsDecode[k][i];
+			for(size_t j = 0; j < kernelSize; j++)
+			{
+				*(pRowEnc++) = 0.01 * m_rand.normal();
+				*(pRowDec++) = 0.01 * m_rand.normal();
+			}
+		}
+		m_pBiasEncode[k] = 0.01 * m_rand.normal();
+		m_pBiasDecode[k] = 0.01 * m_rand.normal();
+	}
+}
+
+G2DConvolutionalLayer::~G2DConvolutionalLayer()
+{
+	delete[] m_pWeightsEncode;
+	delete[] m_pWeightsDecode;
+	delete[] m_pBiasEncode;
+	delete[] m_pBiasDecode;
+	delete[] m_pActivationEncode;
+	delete[] m_pActivationDecode;
+	delete[] m_pBlameEncode;
+	delete[] m_pBlameDecode;
+}
+*/
+
 
 
 
@@ -492,22 +544,22 @@ double* GDeepNet::draw(size_t iters)
 	for(size_t layer = 1; layer < m_layers.size(); layer++)
 	{
 		GDeepNetLayer* pNextLayer = m_layers[layer];
-		pNextLayer->propToVisible(pLayer->activationVisible());
+		pNextLayer->propToVisible(pLayer->activationDecode());
 		pLayer = pNextLayer;
 	}
-	return pLayer->activationVisible();
+	return pLayer->activationDecode();
 }
 
 double* GDeepNet::forward(const double* pIntrinsic)
 {
 	GDeepNetLayer* pLayer = m_layers[0];
 	pLayer->propToVisible(pIntrinsic);
-	double* pIn = pLayer->activationVisible();
+	double* pIn = pLayer->activationDecode();
 	for(size_t i = 1; i < m_layers.size(); i++)
 	{
 		pLayer = m_layers[i];
 		pLayer->propToVisible(pIn);
-		pIn = pLayer->activationVisible();
+		pIn = pLayer->activationDecode();
 	}
 	return pIn;
 }
@@ -517,12 +569,12 @@ double* GDeepNet::backward(const double* pObserved)
 	size_t i = m_layers.size() - 1;
 	GDeepNetLayer* pLayer = m_layers[i];
 	pLayer->propToHidden(pObserved);
-	double* pIn = pLayer->activationHidden();
+	double* pIn = pLayer->activationEncode();
 	for(i--; i < m_layers.size(); i--)
 	{
 		pLayer = m_layers[i];
 		pLayer->propToHidden(pIn);
-		pIn = pLayer->activationHidden();
+		pIn = pLayer->activationEncode();
 	}
 	return pIn;
 }
@@ -550,8 +602,8 @@ void GDeepNet::refineBackprop(const double* pObservation, double learningRate)
 	// Compute blame term on the visible layer
 	forward(backward(pObservation));
 	GDeepNetLayer* pVisibleLayer = m_layers[m_layers.size() - 1];
-	double* pAct = pVisibleLayer->activationVisible();
-	double* pBlame = pVisibleLayer->blameVisible();
+	double* pAct = pVisibleLayer->activationDecode();
+	double* pBlame = pVisibleLayer->blameDecode();
 	const double* pObs = pObservation;
 	for(size_t i = 0; i < pVisibleLayer->visibleCount(); i++)
 	{
@@ -562,11 +614,11 @@ void GDeepNet::refineBackprop(const double* pObservation, double learningRate)
 
 	// Backpropagate blame and update weights
 	for(size_t i = m_layers.size() - 1; i > 0; i--)
-		m_layers[i]->backpropHelper1(m_layers[i - 1]->activationVisible(), m_layers[i - 1]->blameVisible(), learningRate);
-	m_layers[0]->backpropHelper1(m_layers[0]->activationHidden(), m_layers[0]->blameHidden(), learningRate);
+		m_layers[i]->backpropHelper1(m_layers[i - 1]->activationDecode(), m_layers[i - 1]->blameDecode(), learningRate);
+	m_layers[0]->backpropHelper1(m_layers[0]->activationEncode(), m_layers[0]->blameEncode(), learningRate);
 	for(size_t i = 0; i + 1 < m_layers.size(); i++)
-		m_layers[i]->backpropHelper2(m_layers[i + 1]->activationHidden(), m_layers[i + 1]->blameHidden(), learningRate);
-	m_layers[m_layers.size() - 1]->backpropHelper2(pObservation, m_layers[m_layers.size() - 1]->blameVisible(), learningRate);
+		m_layers[i]->backpropHelper2(m_layers[i + 1]->activationEncode(), m_layers[i + 1]->blameEncode(), learningRate);
+	m_layers[m_layers.size() - 1]->backpropHelper2(pObservation, m_layers[m_layers.size() - 1]->blameDecode(), learningRate);
 }
 
 #ifndef MIN_PREDICT
@@ -594,19 +646,19 @@ void GDeepNet::test()
 	Holder<GMatrix> h(NULL);
 	h.reset(((GStackableAutoencoder*)dn.m_layers[1])->weightsEncode().transpose());
 	nn.getLayer(0)->m_weights.copy(h.get());
-	GVec::copy(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasHidden(), 3);
+	GVec::copy(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasEncode(), 3);
 
 	h.reset(((GStackableAutoencoder*)dn.m_layers[0])->weightsEncode().transpose());
 	nn.getLayer(1)->m_weights.copy(h.get());
-	GVec::copy(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasHidden(), 2);
+	GVec::copy(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasEncode(), 2);
 
 	h.reset(((GStackableAutoencoder*)dn.m_layers[0])->weightsDecode().transpose());
 	nn.getLayer(2)->m_weights.copy(h.get());
-	GVec::copy(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasVisible(), 3);
+	GVec::copy(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasDecode(), 3);
 
 	h.reset(((GStackableAutoencoder*)dn.m_layers[1])->weightsDecode().transpose());
 	nn.getLayer(3)->m_weights.copy(h.get());
-	GVec::copy(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasVisible(), 4);
+	GVec::copy(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasDecode(), 4);
 
 	// Train both of them with a phony observation
 	double obs[4];
@@ -620,10 +672,10 @@ void GDeepNet::test()
 	err += nn.getLayer(1)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.m_layers[0])->weightsEncode(), true);
 	err += nn.getLayer(2)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.m_layers[0])->weightsDecode(), true);
 	err += nn.getLayer(3)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.m_layers[1])->weightsDecode(), true);
-	err += GVec::squaredDistance(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasHidden(), 3);
-	err += GVec::squaredDistance(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasHidden(), 2);
-	err += GVec::squaredDistance(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasVisible(), 3);
-	err += GVec::squaredDistance(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasVisible(), 4);
+	err += GVec::squaredDistance(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasEncode(), 3);
+	err += GVec::squaredDistance(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasEncode(), 2);
+	err += GVec::squaredDistance(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasDecode(), 3);
+	err += GVec::squaredDistance(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasDecode(), 4);
 	if(err > 1e-12)
 		throw Ex("failed");
 }
