@@ -179,7 +179,7 @@ public:
 	/// Return the most recent value sampled from this node.
 	virtual double currentValue() = 0;
 
-	/// Draw a new value for this node given the current values of all other nodes
+	/// Draw a new Gibbs sample for this node given the current values of all other nodes
 	/// it its Markov blanket.
 	virtual void sample(GRand* pRand) = 0;
 
@@ -247,7 +247,7 @@ public:
 	/// categorical parent distributions for which this categorical distribution is being specified.
 	void setWeights(size_t cat, GBNNode* pW1, GBNNode* pW2, GBNNode* pW3 = NULL, GBNNode* pW4 = NULL, GBNNode* pW5 = NULL, GBNNode* pW6 = NULL, GBNNode* pW7 = NULL, GBNNode* pW8 = NULL);
 
-	/// Draws a new value for this node given the current values of all other nodes
+	/// Draws a new Gibbs sample for this node given the current values of all other nodes
 	/// it its Markov blanket.
 	virtual void sample(GRand* pRand);
 
@@ -279,7 +279,7 @@ public:
 	/// Returns the most recent value sampled from this node.
 	virtual double currentValue();
 
-	/// Draws a new value for this node given the current values of all other nodes
+	/// Draws a new Gibbs sample for this node given the current values of all other nodes
 	/// it its Markov blanket. Uses the Metropolis algorithm to do so.
 	void sample(GRand* pRand);
 
@@ -289,10 +289,9 @@ public:
 protected:
 	/// Computes the log-probability of x (as a value for this node) given
 	/// the current values for the entire rest of the network (aka the
-	/// complete conditional), which according to Gibbs, is equal to
-	/// the log-probability of x given the Markov-Blanket of this node,
-	/// which we can compute efficiently.
-	double gibbs(double x);
+	/// complete conditional), which is equal to the log-probability of
+	/// x given the Markov-Blanket of this node, which we can compute efficiently.
+	double markovBlanket(double x);
 
 	/// Sample the network in a manner that can be proven to converge to a
 	/// true joint distribution for the network. Returns true if the new candidate
@@ -699,6 +698,10 @@ public:
 	/// Performs unit tests for this class. Throws an exception if any tests fail.
 	static void test();
 #endif
+	/// Returns a reference to the pseudo-random number generator used by this network.
+	/// You might use this, for example, to change the random seed.
+	GRand& rand() { return m_rand; }
+
 	/// Return a constant value that can be used as a default parameter for various nodes.
 	GBNConstant* def() { return m_pConstOne; }
 
@@ -747,7 +750,7 @@ public:
 	/// Return a pointer to a node that represents an Inverse-Gamma distribution.
 	GBNInverseGamma* newInverseGamma(double priorMean, double priorDev);
 
-	/// Sample each node in the graph one time
+	/// Draw a Gibbs sample for each node in the graph in random order.
 	void sample();
 };
 

@@ -339,6 +339,9 @@ public:
 	/// to the next index, and returns true. (Note that you should call reset() before
 	/// the first call to this method. The constructor does not call reset() for you.)
 	bool next(size_t& outIndex);
+
+	/// Returns a reference to the random number generator.
+	GRand& rand() { return m_rand; }
 };
 
 

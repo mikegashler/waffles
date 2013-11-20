@@ -23,6 +23,7 @@
 #include <stddef.h>
 #include <math.h>
 #include <map>
+#include "GVec.h"
 #include "GError.h"
 
 namespace GClasses {
@@ -234,8 +235,7 @@ class GCategoricalSamplerBatch
 protected:
 	size_t m_categories;
 	const double* m_pDistribution;
-	size_t* m_pIndexes;
-	GRand& m_rand;
+	GRandomIndexIterator m_ii;
 
 public:
 	/// categories specifies the number of categories.
@@ -534,7 +534,7 @@ public:
 
 	/// See the comment for GUnivariateDistribution::logLikelihood
 	virtual double logLikelihood(double x);
-	
+
 	/// See the comment for GUnivariateDistribution::likelihood
 	virtual double likelihood(double x);
 
@@ -660,7 +660,7 @@ public:
 
 	/// See the comment for GUnivariateDistribution::logLikelihood
 	virtual double logLikelihood(double x);
-	
+
 	/// See the comment for GUnivariateDistribution::likelihood
 	virtual double likelihood(double x);
 
@@ -719,7 +719,7 @@ public:
 
 	/// See the comment for GUnivariateDistribution::logLikelihood
 	virtual double likelihood(double x);
-	
+
 	/// See the comment for GUnivariateDistribution::likelihood
 	virtual double logLikelihood(double x);
 

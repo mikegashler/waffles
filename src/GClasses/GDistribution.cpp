@@ -195,28 +195,25 @@ size_t GCategoricalSampler::draw(double d)
 
 
 GCategoricalSamplerBatch::GCategoricalSamplerBatch(size_t categories, const double* pDistribution, GRand& rand)
-: m_categories(categories), m_pDistribution(pDistribution), m_rand(rand)
+: m_categories(categories), m_pDistribution(pDistribution), m_ii(m_categories, rand)
 {
-	m_pIndexes = new size_t[m_categories];
-	GIndexVec::makeIndexVec(m_pIndexes, m_categories);
 }
 
 GCategoricalSamplerBatch::~GCategoricalSamplerBatch()
 {
-	delete[] m_pIndexes;
 }
 
 void GCategoricalSamplerBatch::draw(size_t samples, size_t* pOutBatch)
 {
 	double probRemaining = 1.0;
-	GIndexVec::shuffle(m_pIndexes, m_categories, &m_rand);
+	m_ii.reset();
+	size_t index;
 	size_t* pOut = pOutBatch;
 	size_t n = samples;
-	for(size_t i = 0; i < m_categories; i++)
+	while(m_ii.next(index))
 	{
-		size_t index = m_pIndexes[i];
 		double prob = m_pDistribution[index];
-		size_t k = m_rand.binomial_approx(n, prob / probRemaining);
+		size_t k = m_ii.rand().binomial_approx(n, prob / probRemaining);
 		GAssert(k <= n);
 		for(size_t j = 0; j < k; j++)
 		{
@@ -228,7 +225,7 @@ void GCategoricalSamplerBatch::draw(size_t samples, size_t* pOutBatch)
 	}
 	GAssert(n == 0);
 	GAssert(std::abs(probRemaining) < 1e-6);
-	GIndexVec::shuffle(pOutBatch, samples, &m_rand);
+	GIndexVec::shuffle(pOutBatch, samples, &m_ii.rand());
 }
 
 #ifndef MIN_PREDICT

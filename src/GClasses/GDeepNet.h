@@ -46,7 +46,7 @@ public:
 	size_t hiddenCount() { return m_hiddenCount; }
 
 	/// Trains this layer in an unsupervised manner
-	void trainUnsupervised(const GMatrix& observations, size_t epochs = 100, double initialLearningRate = 0.1, double decay = 0.97);
+	void trainUnsupervised(const GMatrix& observations, size_t epochs = 100, double startLearningRate = 0.1, double endLearningRate = 0.01);
 
 	/// Map observations through this layer to generate a matrix suitable for training the layer that feeds into this layer.
 	/// The caller is responsible to delete the returned matrix.
@@ -313,28 +313,30 @@ public:
 
 	/// Adds a new layer to this deep net. Takes ownership of pNewLayer.
 	/// The first layer added is the visible layer. The last layer added
-	/// is the intrinsic or input layer.
+	/// is the intrinsic or input layer. (The layers are stored internally
+	/// in decoding order.)
 	void addLayer(GDeepNetLayer* pNewLayer);
 
-	/// Draw a sample from the hidden-most layer, then feed it forward through
+	/// Returns a reference to the vector of layers. (The layers are stored in decoding order.)
+	std::vector<GDeepNetLayer*>& layers() { return m_layers; }
+
+	/// Draw a sample from the hidden-most layer, then decode it through
 	/// all the layers to return a sample predicted observation.
 	double* draw(size_t iters);
 
 	/// Feed pIntrinsic forward through all the layers to return a predicted observation.
-	double* forward(const double* pIntrinsic);
+	double* decode(const double* pIntrinsic);
 
 	/// Feed pObserved backward through all the layers to return a predicted intrinsic representation.
-	double* backward(const double* pObserved);
+	double* encode(const double* pObserved);
 
 	/// This performs greedy layer-wise training. That is, it trains each layer (starting with the
 	/// visible end) for many epochs, then maps the data through the layer, and trains the next layer,
 	/// until all layers have been trained. Typically, this is done as a pre-processing step to find
 	/// a good set of initial weights for the deep network.
-	void trainLayerwise(GMatrix& observations, size_t epochs = 100, double initialLearningRate = 0.1, double decay = 0.97);
+	void trainLayerwise(GMatrix& observations, size_t epochs = 100, double startLearningRate = 0.1, double endLearningRate = 0.01);
 
-	/// Present a single observation to refine all of the layers by backpropagation. (Note that this only
-	/// refines the forward-direction component of the layers. Its effect on backward-direction effectiveness
-	/// may not be good.)
+	/// Present a single observation to refine all of the layers by backpropagation.
 	void refineBackprop(const double* pObservation, double learningRate);
 };
 
