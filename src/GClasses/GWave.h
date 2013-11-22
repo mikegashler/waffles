@@ -132,7 +132,7 @@ public:
 	virtual ~GFourierWaveProcessor();
 
 	/// Transforms signal
-	void doit(GWave& signal);
+	void reduce(GWave& signal);
 
 protected:
 	/// pBuf represents a block of m_blockSize complex numbers in Fourier space.

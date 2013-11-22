@@ -543,7 +543,7 @@ void breadthFirstUnfolding(GArgReader& args)
 	GBreadthFirstUnfolding transform(reps, pNF->neighborCount(), targetDims);
 	transform.rand().setSeed(nSeed);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -558,7 +558,7 @@ void curviness2(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	GNormalize norm;
-	GMatrix* pDataNormalized = norm.doit(*pData);
+	GMatrix* pDataNormalized = norm.reduce(*pData);
 	Holder<GMatrix> hDataNormalized(pDataNormalized);
 	hData.reset();
 	pData = NULL;
@@ -584,7 +584,7 @@ void curviness2(GArgReader& args)
 	GNeuroPCA np1(targetDims, &rand);
 	np1.setActivation(new GActivationIdentity());
 	np1.computeEigVals();
-	GMatrix* pResults1 = np1.doit(*pDataNormalized);
+	GMatrix* pResults1 = np1.reduce(*pDataNormalized);
 	Holder<GMatrix> hResults1(pResults1);
 	double* pEigVals1 = np1.eigVals();
 	for(size_t i = 0; i + 1 < targetDims; i++)
@@ -598,7 +598,7 @@ void curviness2(GArgReader& args)
 	GNeuroPCA np2(targetDims, &rand);
 	np1.setActivation(new GActivationLogistic());
 	np2.computeEigVals();
-	GMatrix* pResults2 = np2.doit(*pDataNormalized);
+	GMatrix* pResults2 = np2.reduce(*pDataNormalized);
 	Holder<GMatrix> hResults2(pResults2);
 	double* pEigVals2 = np2.eigVals();
 	for(size_t i = 0; i + 1 < targetDims; i++)
@@ -641,7 +641,7 @@ void isomap(GArgReader& args)
 	transform.setNeighborFinder(pNF);
 	if(tolerant)
 		transform.dropDisconnectedPoints();
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -669,7 +669,7 @@ void lle(GArgReader& args)
 	// Transform the data
 	GLLE transform(pNF->neighborCount(), targetDims, &prng);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -719,7 +719,7 @@ void ManifoldSculpting(GArgReader& args)
 	if(pDataHint)
 		transform.setPreprocessedData(hDataHint.release());
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -776,7 +776,7 @@ void manifoldSculptingForControl(GArgReader& args)
 	GNeighborFinder* pNF = new GDynamicSystemNeighborFinder(pDataObs, pDataControl, false, neighbors, &prng);
 	Holder<GNeighborFinder> hNF(pNF);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pDataObs);
+	GMatrix* pDataAfter = transform.reduce(pDataObs);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -804,7 +804,7 @@ void manifoldUnfolder(GArgReader& args)
 	// Transform the data
 	GManifoldUnfolder transform(pNF->neighborCount(), targetDims, &prng);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pData);
+	GMatrix* pDataAfter = transform.reduce(pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -867,7 +867,7 @@ void neuroPCA(GArgReader& args)
 		transform.setActivation(new GActivationIdentity());
 	if(eigenvalues.length() > 0)
 		transform.computeEigVals();
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 
 	// Save the eigenvalues
@@ -1020,7 +1020,7 @@ void scalingUnfolder(GArgReader& args)
 	transform.setNeighborCount(pNF->neighborCount());
 	transform.setTargetDims(targetDims);
 	//transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -1147,7 +1147,7 @@ void selfOrganizingMap(GArgReader& args){
       (netDims, numNodes, topology.release(), algo.release(),
        weightDist.release(), nodeDist.release()));
     //Train the network and transform the data in place
-    out.reset(som->doit(*pData));
+    out.reset(som->reduce(*pData));
   }else{
     //Create map from file
     GDom source;
@@ -1294,7 +1294,7 @@ void unsupervisedBackProp(GArgReader& args)
 	pUBP->neuralNet()->setTopology(topology);
 
 	// Transform the data
-	GMatrix* pDataAfter = pUBP->doit(*pData);
+	GMatrix* pDataAfter = pUBP->reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 

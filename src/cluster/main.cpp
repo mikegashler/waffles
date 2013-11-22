@@ -105,7 +105,7 @@ void agglomerativeclusterer(GArgReader& args)
 
 	// Do the clustering
 	GAgglomerativeClusterer clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(data);
+	GMatrix* pOut = clusterer.reduce(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -138,7 +138,7 @@ void fuzzykmeans(GArgReader& args)
 	GFuzzyKMeans clusterer(clusters, &prng);
 	clusterer.setFuzzifier(fuzzifier);
 	clusterer.setReps(reps);
-	GMatrix* pOut = clusterer.doit(data);
+	GMatrix* pOut = clusterer.reduce(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -167,7 +167,7 @@ void kmeans(GArgReader& args)
 	GRand prng(nSeed);
 	GKMeans clusterer(clusters, &prng);
 	clusterer.setReps(reps);
-	GMatrix* pOut = clusterer.doit(data);
+	GMatrix* pOut = clusterer.reduce(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -181,7 +181,7 @@ void kmedoids(GArgReader& args)
 
 	// Do the clustering
 	GKMedoids clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(data);
+	GMatrix* pOut = clusterer.reduce(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }

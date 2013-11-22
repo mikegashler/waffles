@@ -121,7 +121,7 @@ void GIncrementalTransform::train(const GRelation& relation)
 }
 
 // virtual
-GMatrix* GIncrementalTransform::doit(const GMatrix& in)
+GMatrix* GIncrementalTransform::reduce(const GMatrix& in)
 {
 	train(in);
 	return transformBatch(in);

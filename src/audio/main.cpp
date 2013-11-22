@@ -366,7 +366,7 @@ void pitchShift(GArgReader& args)
 	GWave wSignal;
 	wSignal.load(inputFilename);
 	PitchShifter ps(blockSize, halfSteps);
-	ps.doit(wSignal);
+	ps.reduce(wSignal);
 	wSignal.save(outputFilename);
 }
 
@@ -396,7 +396,7 @@ void reduceAmbientNoise(GArgReader& args)
 	GWave wSignal;
 	wSignal.load(signalFilename);
 	AmbientNoiseReducer denoiser(wNoise, blockSize, deviations);
-	denoiser.doit(wSignal);
+	denoiser.reduce(wSignal);
 	wSignal.save(outputFilename);
 }
 

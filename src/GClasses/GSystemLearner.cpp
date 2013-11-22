@@ -210,7 +210,7 @@ GMatrix* GRecurrentModel::mosesEstimateState(GMatrix* pActions, GMatrix* pObserv
 		((GBreadthFirstUnfolding*)pML)->setNeighborFinder(&nf);
 	}
 	Holder<GTransform> hML(pML);
-	GMatrix* pEstState = pML->doit(*pObservations);
+	GMatrix* pEstState = pML->reduce(*pObservations);
 
 	// Center the first state estimate at the origin
 	double* pRow = pEstState->row(0);
@@ -250,7 +250,7 @@ GMatrix* GRecurrentModel::joshuaEstimateState(GMatrix* pActions, GMatrix* pObser
 throw Ex("out of order");/*
 	// Convert actions to a categorical distribution
 	GNominalToCat cat;
-	GMatrix* pActionsCat = cat.doit(*pActions);
+	GMatrix* pActionsCat = cat.reduce(*pActions);
 	Holder<GMatrix> hActionsCat(pActionsCat);
 
 	// Use PCA to reduce the data

@@ -434,7 +434,7 @@ GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations)
 	nnEncoder.getLayer(1)->setToWeaklyApproximateIdentity();
 	nnEncoder.getLayer(1)->perturbWeights(m_rand, 0.03);
 	su.trainEncoder(&nnEncoder, 5);
-	delete(su.doit(observations)); // This line trains nnEncoder
+	delete(su.reduce(observations)); // This line trains nnEncoder
 
 	// Copy the weights into the encoder
 	GMatrix* pEncTranspose = nnEncoder.getLayer(0)->m_weights.transpose();

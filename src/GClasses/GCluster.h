@@ -53,7 +53,7 @@ public:
 
 	/// Clusters pIn and outputs a dataset with one column that specifies
 	/// the cluster number for each row.
-	virtual GMatrix* doit(const GMatrix& in)
+	virtual GMatrix* reduce(const GMatrix& in)
 	{
 		cluster(&in);
 		GMatrix* pOut = new GMatrix(new GUniformRelation(1, m_clusterCount));
