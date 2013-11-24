@@ -1,0 +1,87 @@
+<html><body bgcolor=#404040><br><br><br><br>
+<table align=center cellpadding=50 border=1 bgcolor=#e0e0d0 width=1000><tr><td>
+<a href="../index.html#toc">Back to the table of contents</a><br>
+
+<br>
+Previous&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="linux.html">Next</a>
+
+
+
+
+
+
+
+<h2>Overview of Waffles</h2>
+
+<p>Waffles may be described as "machine learning meets the Unix philosophy." In contrast with other
+machine learning toolkits...
+
+<ul>
+	<li>We don't want to convert you to a new paradigm. We just want to provide useful tools for you to use however you want.</li>
+	<li>Waffles is distributed under the CC0 (public domain) license.</li>
+	<li>Waffles apps are thin wrappers around functionality in a well-documented C++ class library.</li>
+	<li>Waffles apps are script-friendly, and are designed to be used with automated processes.</li>
+	<li>Waffles tools are fast because they are developed as native applications.</li>
+	<li>Our main library has no external dependencies (except for the standard C++ libraries).</li>
+	<li>Waffles does not depend on any platform or virtual machine, so it will not limit your distribution options.</li>
+	<li>Waffles algorithms can automatically tune their own parameters.</li>
+	<li>Waffles <i>just works</i> in more situations:
+		<ul>
+			<li>All of our supervised learners support both classification and regression.</li>
+			<li>All of them implicitly support multi-dimensional labels.</li>
+			<li>Developing learning algorithms for <b><i>Waffles</i></b> is easier because:
+				<ul>
+					<li>It automatically imputes missing values if your algorithm is not robust to missing values.</li>
+					<li>It automatically discretizes data if your algorithm only supports discrete values.</li>
+					<li>It automatically converts nominal values to categorical distributions if your algorithm only supports continuous values.</li>
+					<li>When necessary, Waffles algorithms automatically normalize and denormalize data to fall within the ranges expected by particular algorithms.</li>
+					<li>It automatically converts predicted values back to their original form, so the user can freely operate on arbitrary data with any algorithm.</li>
+				</ul>
+			</li>
+		</ul>
+	</li>
+</ul></p>
+
+<br><br><br>
+<p>Waffles provides the following command-line applications, each containing several tools for performing machine learning operations:</p>
+
+<ul>
+	<li><b>waffles_audio</b> contains tools for processing audio files.</li>
+	<li><b>waffles_cluster</b> contains tools for clustering.</li>
+	<li><b>waffles_dimred</b> contains tools for dimensionality reduction, attribute selection, etc.</li>
+	<li><b>waffles_generate</b> contains tools to sample distributions, sample manifolds, and generate certain types of data.</li>
+	<li><b>waffles_learn</b> contains tools for supervised learning.</li>
+	<li><b>waffles_plot</b> contains tools for visualizing data.</li>
+	<li><b>waffles_recommend</b> contains tools for collaborative filtering, recommendation systems, imputation, etc.</li>
+	<li><b>waffles_sparse</b> contains tools to learning from sparse data, document classification, etc.</li>
+	<li><b>waffles_transform</b> contains tools for manipulating data, shuffling rows, swapping columns, matrix operations, etc.</li>
+</ul>
+
+<p>For people who prefer not to have to remember commands, waffles also includes a graphical tool called
+<ul>
+	<li><b>waffles_wizard</b></li>
+</ul>
+. This application opens a web browser and guides the user through a series of forms to create a command that will perform the desired task. This provides all the convenience of a GUI interface, but without locking the user in. That is, since it generates a command-line command for you to use, it becomes easy to perform the same operations without the GUI. Thus, the Waffles tools are particularly well-suited for experiments that need to be automated.</p>
+
+<p>All of the functionality of the waffles tools is provided in an object-oriented C++ class library called
+<ul>
+	<li><b>GClasses</b></li>
+</ul>
+. In other words, the command-line tools are just thin wrappers around functionality implemented in the GClasses library. Thus, if you find any of the operations performed by the Waffles command-line tools to be useful, it is easy to incorporate the same functionality into your C++ programs.</p>
+
+Finally, in order to fully demonstrate how to use the GClasses library, several <a href="demos.html">demo applications</a> are also included with Waffles.</p>
+
+
+
+
+<br>
+Previous&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="linux.html">Next</a>
+
+<br><br><a href="../index.html#toc">Back to the table of contents</a><br>
+</td></tr></table>
+<center><br><br><br>
+Hosting for this project generously provided by:<br>
+<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
+</center>
+</td></tr></table><br><br><br><br><br>
+</body></html>
