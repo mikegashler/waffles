@@ -12,18 +12,23 @@
 
 
 <h2>Building on Mac</h2>
+<ol>
+	<li>Install clang or g++. Also install Gnu Make.<br>
+		<ol>
+			<li>Install Xcode</li>
+			<li>Click Xcode->Preferences->Downloads</li>
+			<li>Click the down arrow to install the "Command Line Tools"</li>
+			(If you do not want to install Xcode, there are other ways
+			 to install g++, such as with Fink or MacPorts.)
+		</ol>
+	<li>Open a terminal</li>
+	<li>cd waffles/src</li>
+	<li>make opt</li>
+</ol>
+
+
 
 <ol>
-	<li>Install the following dependency packages:
-		<ul>
-			<li>g++</li>
-			<li>make</li>
-		</ul>
-	<li>Next, build the Waffles tools:
-<pre>
-	cd waffles/src
-	make opt
-</pre></li>
 	<li>If you want to build the demo apps, then also install these packages:
 		<ul>
 			<li>libpng3-dev</li>
