@@ -791,7 +791,7 @@ public:
 #endif
 
   /// Transforms pIn after training on it
-  virtual GMatrix* doit(GMatrix& in);
+  virtual GMatrix* reduce(GMatrix& in);
 
   /// Add this map to a dom document and return the pointer to the
   /// tree added.

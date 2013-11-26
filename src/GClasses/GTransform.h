@@ -34,11 +34,8 @@ public:
 	GTransform(GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GTransform();
 
-	/// Applies the transformation to pIn and returns the results. For
-	/// transformations with an internal model (including all transforms
-	/// that inherit from GIncrementalTransform), this is equivalent to calling
-	/// train, and then calling transformBatch.
-	virtual GMatrix* doit(const GMatrix& in) = 0;
+	/// Applies the transformation to pIn and returns the results.
+	virtual GMatrix* reduce(const GMatrix& in) = 0;
 
 protected:
 	/// Child classes should use this in their implementation of serialize
@@ -105,10 +102,8 @@ public:
 	/// is used
 	virtual void transform(const double* pIn, double* pOut) = 0;
 
-	/// This calls Train with in, then transforms in and returns
-	/// the results.  The caller is responsible for deleting the
-	/// new matrix.
-	virtual GMatrix* doit(const GMatrix& in);
+	/// This calls train, then calls transformBatch, and returns the result.
+	virtual GMatrix* reduce(const GMatrix& in);
 
 	/// This assumes that train has already been called, and
 	/// transforms all the rows in in returning the resulting

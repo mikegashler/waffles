@@ -339,6 +339,16 @@ public:
 	/// to the next index, and returns true. (Note that you should call reset() before
 	/// the first call to this method. The constructor does not call reset() for you.)
 	bool next(size_t& outIndex);
+
+	/// Returns the length of the list of indexes.
+	size_t length() { return m_length; }
+
+	/// Returns the current position in the list of indexes. (This might be used, for example,
+	/// to identify progress.)
+	size_t pos() { return m_pCur - m_pIndexes; }
+
+	/// Returns a reference to the random number generator.
+	GRand& rand() { return m_rand; }
 };
 
 

@@ -98,7 +98,7 @@ public:
 	virtual ~GManifoldSculpting();
 
 	/// Perform NLDR.
-	virtual GMatrix* doit(const GMatrix& in);
+	virtual GMatrix* reduce(const GMatrix& in);
 
 	const GRelation& relationAfter() { return *m_pRelationAfter; }
 
@@ -207,7 +207,7 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Performs NLDR
-	virtual GMatrix* doit(const GMatrix& in);
+	virtual GMatrix* reduce(const GMatrix& in);
 };
 
 
@@ -236,7 +236,7 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Performs NLDR
-	virtual GMatrix* doit(const GMatrix& in);
+	virtual GMatrix* reduce(const GMatrix& in);
 };
 
 
@@ -267,7 +267,7 @@ public:
 	void setNeighborFinder(GNeighborFinder* pNF);
 
 	/// Perform NLDR
-	virtual GMatrix* doit(const GMatrix& in);
+	virtual GMatrix* reduce(const GMatrix& in);
 
 	/// Specify to use multi-dimensional scaling instead of PCA to reduce in local patches.
 	void useMds(bool b) { m_useMds = b; }
@@ -309,7 +309,7 @@ public:
 	GMatrix* weights() { return m_pWeights; }
 
 	/// Specify to compute the eigenvalues during training. This
-	/// method must be called before doIt is called.
+	/// method must be called before reduce is called.
 	void computeEigVals();
 
 	/// Returns the eigenvalues. Returns NULL if computeEigVals was not called.
@@ -324,8 +324,8 @@ public:
 	/// Sets the activation function. (Takes ownership of pActivation.)
 	void setActivation(GActivationFunction* pActivation);
 
-	/// See the comment for GTransform::doIt
-	virtual GMatrix* doit(const GMatrix& in);
+	/// See the comment for GTransform::reduce
+	virtual GMatrix* reduce(const GMatrix& in);
 
 protected:
 	void computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess);
@@ -354,7 +354,7 @@ public:
 	virtual ~GDynamicSystemStateAligner();
 
 	/// Perform the transformation
-	virtual GMatrix* doit(const GMatrix& in);
+	virtual GMatrix* reduce(const GMatrix& in);
 
 	/// Specify the source and sink points for dividing the data into two clusters
 	void setSeeds(size_t a, size_t b);
@@ -453,14 +453,14 @@ public:
 
 	/// Returns a pointer to the neural network used to model the manifold. Typically, this
 	/// is used to add layers to the neural network, or set the learning rate (etc.) before
-	/// calling doit.
+	/// calling reduce.
 	GNeuralNet* neuralNet() { return m_pNN; }
 
 	/// Takes ownership of pNN. Replaces the internal neural net with the one specified.
 	/// This method assumes that pNN has already been trained. If m_updateWeights is true,
-	/// then it will further-refinde this model when doit is called.
+	/// then it will further-refinde this model when reduce is called.
 	/// (You can pass NULL to this method to discard the current model, so that a new model
-	/// will be trained next time doit is called.)
+	/// will be trained next time reduce is called.)
 	void setNeuralNet(GNeuralNet* pNN);
 
 	/// Parameterize the output values. This feature is typically used when the output is an image,
@@ -468,14 +468,14 @@ public:
 	void setParams(std::vector<size_t>& paramRanges);
 
 	/// Specify initial values for the intrinsic variables. This method takes ownership of pIntrinsic.
-	/// If this method is not called prior to "doit", then the intrinsic variables will be initialized
+	/// If this method is not called prior to "reduce", then the intrinsic variables will be initialized
 	/// with small random values.
 	void setIntrinsic(GMatrix* pIntrinsic);
 
 	/// Perform NLDR. (This also trains the internal neural network to map from
 	/// low-dimensional space to high-dimensional space.) Returns a pointer to
 	/// the intrinsic values (which you are responsible to delete).
-	virtual GMatrix* doit(const GMatrix& in);
+	virtual GMatrix* reduce(const GMatrix& in);
 
 	/// Specify whether to use one of the input values as a bias
 	void setUseInputBias(bool b) { m_useInputBias = b; }
@@ -553,7 +553,7 @@ public:
 	/// Returns a reference to the pseudo-random number generator used by this object
 	GRand& rand() { return m_rand; }
 
-	virtual GMatrix* doit(const GMatrix& in);
+	virtual GMatrix* reduce(const GMatrix& in);
 };
 
 

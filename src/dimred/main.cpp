@@ -179,12 +179,13 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t& pLabelDims,
 	const char* szFilename = args.pop_string();
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
+	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		data.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		data.loadCsv(szFilename, ',', false, false);
+		data.loadCsv(szFilename, ',', false, &ambiguousCols, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		data.loadCsv(szFilename, '\0', false, false);
+		data.loadCsv(szFilename, '\0', false, &ambiguousCols, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 
@@ -211,6 +212,15 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t& pLabelDims,
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
+		for(size_t j = 0; j < ambiguousCols.size(); j++)
+		{
+			if(ambiguousCols[j] == ignore[i])
+			{
+				ambiguousCols.erase(ambiguousCols.begin() + j);
+				break;
+			}
+		}
+
 		data.deleteColumn(ignore[i]);
 		originalIndices.erase(originalIndices.begin()+ignore[i]);
 		for(size_t j = 0; j < labels.size(); j++)
@@ -245,6 +255,25 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t& pLabelDims,
 			}
 		}
 	}
+
+	if(ambiguousCols.size() > 0)
+	{
+		cerr << "WARNING: column";
+		if(ambiguousCols.size() > 1)
+			cerr << "s";
+		cerr << " ";
+		for(size_t i = 0; i < ambiguousCols.size(); i++)
+		{
+			if(i > 0)
+			{
+				cerr << ", ";
+				if(i + 1 == ambiguousCols.size())
+					cerr << "and ";
+			}
+			cerr << to_str(ambiguousCols);
+		}
+		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
+	}
 }
 
 GMatrix* loadData(const char* szFilename)
@@ -253,14 +282,33 @@ GMatrix* loadData(const char* szFilename)
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
 	GMatrix* pData = new GMatrix();
+	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData->loadCsv(szFilename, ',', false, false);
+		pData->loadCsv(szFilename, ',', false, &ambiguousCols, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData->loadCsv(szFilename, '\0', false, false);
+		pData->loadCsv(szFilename, '\0', false, &ambiguousCols, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+	if(ambiguousCols.size() > 0)
+	{
+		cerr << "WARNING: column";
+		if(ambiguousCols.size() > 1)
+			cerr << "s";
+		cerr << " ";
+		for(size_t i = 0; i < ambiguousCols.size(); i++)
+		{
+			if(i > 0)
+			{
+				cerr << ", ";
+				if(i + 1 == ambiguousCols.size())
+					cerr << "and ";
+			}
+			cerr << to_str(ambiguousCols);
+		}
+		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
+	}
 	return pData;
 }
 
@@ -495,7 +543,7 @@ void breadthFirstUnfolding(GArgReader& args)
 	GBreadthFirstUnfolding transform(reps, pNF->neighborCount(), targetDims);
 	transform.rand().setSeed(nSeed);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -510,7 +558,7 @@ void curviness2(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	GNormalize norm;
-	GMatrix* pDataNormalized = norm.doit(*pData);
+	GMatrix* pDataNormalized = norm.reduce(*pData);
 	Holder<GMatrix> hDataNormalized(pDataNormalized);
 	hData.reset();
 	pData = NULL;
@@ -536,7 +584,7 @@ void curviness2(GArgReader& args)
 	GNeuroPCA np1(targetDims, &rand);
 	np1.setActivation(new GActivationIdentity());
 	np1.computeEigVals();
-	GMatrix* pResults1 = np1.doit(*pDataNormalized);
+	GMatrix* pResults1 = np1.reduce(*pDataNormalized);
 	Holder<GMatrix> hResults1(pResults1);
 	double* pEigVals1 = np1.eigVals();
 	for(size_t i = 0; i + 1 < targetDims; i++)
@@ -550,7 +598,7 @@ void curviness2(GArgReader& args)
 	GNeuroPCA np2(targetDims, &rand);
 	np1.setActivation(new GActivationLogistic());
 	np2.computeEigVals();
-	GMatrix* pResults2 = np2.doit(*pDataNormalized);
+	GMatrix* pResults2 = np2.reduce(*pDataNormalized);
 	Holder<GMatrix> hResults2(pResults2);
 	double* pEigVals2 = np2.eigVals();
 	for(size_t i = 0; i + 1 < targetDims; i++)
@@ -593,7 +641,7 @@ void isomap(GArgReader& args)
 	transform.setNeighborFinder(pNF);
 	if(tolerant)
 		transform.dropDisconnectedPoints();
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -621,7 +669,7 @@ void lle(GArgReader& args)
 	// Transform the data
 	GLLE transform(pNF->neighborCount(), targetDims, &prng);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -671,7 +719,7 @@ void ManifoldSculpting(GArgReader& args)
 	if(pDataHint)
 		transform.setPreprocessedData(hDataHint.release());
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -728,7 +776,7 @@ void manifoldSculptingForControl(GArgReader& args)
 	GNeighborFinder* pNF = new GDynamicSystemNeighborFinder(pDataObs, pDataControl, false, neighbors, &prng);
 	Holder<GNeighborFinder> hNF(pNF);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pDataObs);
+	GMatrix* pDataAfter = transform.reduce(pDataObs);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -756,7 +804,7 @@ void manifoldUnfolder(GArgReader& args)
 	// Transform the data
 	GManifoldUnfolder transform(pNF->neighborCount(), targetDims, &prng);
 	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(pData);
+	GMatrix* pDataAfter = transform.reduce(pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -819,7 +867,7 @@ void neuroPCA(GArgReader& args)
 		transform.setActivation(new GActivationIdentity());
 	if(eigenvalues.length() > 0)
 		transform.computeEigVals();
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 
 	// Save the eigenvalues
@@ -972,7 +1020,7 @@ void scalingUnfolder(GArgReader& args)
 	transform.setNeighborCount(pNF->neighborCount());
 	transform.setTargetDims(targetDims);
 	//transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.doit(*pData);
+	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
@@ -1099,7 +1147,7 @@ void selfOrganizingMap(GArgReader& args){
       (netDims, numNodes, topology.release(), algo.release(),
        weightDist.release(), nodeDist.release()));
     //Train the network and transform the data in place
-    out.reset(som->doit(*pData));
+    out.reset(som->reduce(*pData));
   }else{
     //Create map from file
     GDom source;
@@ -1246,7 +1294,7 @@ void unsupervisedBackProp(GArgReader& args)
 	pUBP->neuralNet()->setTopology(topology);
 
 	// Transform the data
-	GMatrix* pDataAfter = pUBP->doit(*pData);
+	GMatrix* pDataAfter = pUBP->reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 

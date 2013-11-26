@@ -1346,7 +1346,7 @@ void makeHistogram(GArgReader& args)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	if(attr < 0 || attr >= pData->relation().size())
+	if(attr >= pData->relation().size())
 		throw Ex("attr out of range");
 
 	// Make the histogram

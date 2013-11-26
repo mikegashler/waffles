@@ -902,7 +902,7 @@ void GWag::predictDistributionInner(const double* pIn, GPrediction* pOut)
 GBucket::GBucket()
 : GSupervisedLearner()
 {
-	m_nBestLearner = -1;
+	m_nBestLearner = INVALID_INDEX;
 }
 
 GBucket::GBucket(GDomNode* pNode, GLearnerLoader& ll)
@@ -987,7 +987,7 @@ void GBucket::trainInner(const GMatrix& features, const GMatrix& labels)
 
 GSupervisedLearner* GBucket::releaseBestModeler()
 {
-	if(m_nBestLearner < 0)
+	if(m_nBestLearner == INVALID_INDEX)
 		throw Ex("Not trained yet");
 	GSupervisedLearner* pModeler = m_models[m_nBestLearner];
 	m_models[m_nBestLearner] = m_models[m_models.size() - 1];
@@ -999,7 +999,7 @@ GSupervisedLearner* GBucket::releaseBestModeler()
 // virtual
 void GBucket::predictInner(const double* pIn, double* pOut)
 {
-	if(m_nBestLearner < 0)
+	if(m_nBestLearner == INVALID_INDEX)
 		throw Ex("not trained yet");
 	m_models[m_nBestLearner]->predict(pIn, pOut);
 }
@@ -1007,7 +1007,7 @@ void GBucket::predictInner(const double* pIn, double* pOut)
 // virtual
 void GBucket::predictDistributionInner(const double* pIn, GPrediction* pOut)
 {
-	if(m_nBestLearner < 0)
+	if(m_nBestLearner == INVALID_INDEX)
 		throw Ex("not trained yet");
 	m_models[m_nBestLearner]->predictDistribution(pIn, pOut);
 }

@@ -170,17 +170,18 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
 	GMatrix data;
+	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		data.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
 	{
-		data.loadCsv(szFilename, ',', false, false);
+		data.loadCsv(szFilename, ',', false, &ambiguousCols, false);
 		if(requireMetadata && !data.relation().areContinuous())
 			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
 	{
-		data.loadCsv(szFilename, '\0', false, false);
+		data.loadCsv(szFilename, '\0', false, &ambiguousCols, false);
 		if(requireMetadata && !data.relation().areContinuous())
 			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
@@ -204,6 +205,15 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
+		for(size_t j = 0; j < ambiguousCols.size(); j++)
+		{
+			if(ambiguousCols[j] == ignore[i])
+			{
+				ambiguousCols.erase(ambiguousCols.begin() + j);
+				break;
+			}
+		}
+
 		data.deleteColumn(ignore[i]);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
@@ -241,6 +251,26 @@ void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& 
 	hFeaturesOut.reset(pFeatures);
 	GMatrix* pLabels = data.cloneSub(0, data.cols() - labelDims, data.rows(), labelDims);
 	hLabelsOut.reset(pLabels);
+
+	// Report ambiguous cols
+	if(ambiguousCols.size() > 0)
+	{
+		cerr << "WARNING: column";
+		if(ambiguousCols.size() > 1)
+			cerr << "s";
+		cerr << " ";
+		for(size_t i = 0; i < ambiguousCols.size(); i++)
+		{
+			if(i > 0)
+			{
+				cerr << ", ";
+				if(i + 1 == ambiguousCols.size())
+					cerr << "and ";
+			}
+			cerr << to_str(ambiguousCols);
+		}
+		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
+	}
 }
 
 GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)

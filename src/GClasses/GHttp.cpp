@@ -951,22 +951,14 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 		}
 		else if(pConn->m_eRequestType == GHttpConnection::Post)
 		{
-			if(pConn->m_nContentLength >= 0)
-			{
-				if(pConn->m_nContentLength > 0)
-					pConn->m_pPostBuffer = new unsigned char[pConn->m_nContentLength + 1];
-				else
-				{
-					pConn->m_pPostBuffer = NULL;
-					onReceiveFullPostRequest(pConn);
-				}
-				pConn->m_nPos = 0;
-			}
+			if(pConn->m_nContentLength > 0)
+				pConn->m_pPostBuffer = new unsigned char[pConn->m_nContentLength + 1];
 			else
 			{
-				GAssert(false); // bad post data size
-				m_pSocket->disconnect(pConn);
+				pConn->m_pPostBuffer = NULL;
+				onReceiveFullPostRequest(pConn);
 			}
+			pConn->m_nPos = 0;
 		}
 	}
 	else if(_strnicmp(szLine, "GET ", 4) == 0)

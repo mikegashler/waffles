@@ -647,10 +647,15 @@ public:
 	void parseArff(GArffTokenizer& tok);
 
 	/// \brief Loads a file in CSV format.
-	void loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, bool tolerant);
+	void loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, std::vector<size_t>* pOutAmbiguousColumns, bool tolerant = false);
 
 	///\brief Imports data from a text file. Determines the meta-data
 	///automatically.
+	///
+	/// If pAmbiguousColumns is non-NULL, then it will be filled with a
+	/// list of the column indexes where the type was determined to be
+	/// continuous, but that column has fewer than 10 unique values,
+	/// suggesting that a nominal attribute could possibly have been intended.
 	///
 	///\note This method does not support Mac line-endings. You should
 	///      first replace all '\\r' with '\\n' if your data comes from
@@ -660,7 +665,7 @@ public:
 	///      contain no whitespace, and that there are no missing
 	///      elements. (This is the case when you save a Matlab matrix
 	///      to an ascii file.)
-	void parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, bool tolerant = false);
+	void parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, std::vector<size_t>* pOutAmbiguousColumns, bool tolerant = false);
 #endif // MIN_PREDICT
 
 
@@ -1210,6 +1215,10 @@ public:
 	/// An exception is thrown if the destination is not big enough to hold the values at the specified location.
 	/// If checkMetaData is true, then this will throw an exception if the data types are incompatible.
 	void copyBlock(const GMatrix& source, size_t srcRow = 0, size_t srcCol = 0, size_t hgt = INVALID_INDEX, size_t wid = INVALID_INDEX, size_t destRow = 0, size_t destCol = 0, bool checkMetaData = true);
+
+	/// Counts the number of unique values in the specified column. If maxCount
+	/// unique values are found, it immediately returns maxCount.
+	size_t countUniqueValues(size_t col, size_t maxCount = (size_t)-1) const;
 
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception

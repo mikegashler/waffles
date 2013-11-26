@@ -255,7 +255,7 @@ GFourierWaveProcessor::~GFourierWaveProcessor()
 	delete[] m_pBufFinal;
 }
 
-void GFourierWaveProcessor::doit(GWave& signal)
+void GFourierWaveProcessor::reduce(GWave& signal)
 {
 	for(unsigned short chan = 0; chan < signal.channels(); chan++)
 	{

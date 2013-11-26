@@ -40,20 +40,19 @@ GDeepNetLayer::~GDeepNetLayer()
 {
 }
 
-void GDeepNetLayer::trainUnsupervised(const GMatrix& observations, size_t epochs, double initialLearningRate, double decay)
+void GDeepNetLayer::trainUnsupervised(const GMatrix& observations, size_t epochs, double startLearningRate, double endLearningRate)
 {
+	double decay = pow(endLearningRate / startLearningRate, 1.0 / epochs);
 	if(observations.cols() != m_visibleCount)
 		throw Ex("Expected ", to_str(m_visibleCount), " columns. Got ", to_str(observations.cols()));
-	size_t* pIndexes = new size_t[observations.rows()];
-	ArrayHolder<size_t> hIndexes(pIndexes);
-	GIndexVec::makeIndexVec(pIndexes, observations.rows());
-	double learningRate = initialLearningRate;
+	GRandomIndexIterator ii(observations.rows(), m_rand);
+	size_t index;
+	double learningRate = startLearningRate;
 	for(size_t ep = 0; ep < epochs; ep++)
 	{
-		GIndexVec::shuffle(pIndexes, observations.rows(), &m_rand);
-		size_t* pInd = pIndexes;
-		for(size_t i = 0; i < observations.rows(); i++)
-			update(observations[*(pInd++)], learningRate);
+		ii.reset();
+		while(ii.next(index))
+			update(observations[index], learningRate);
 		learningRate *= decay;
 	}
 }
@@ -265,33 +264,36 @@ GStackableAutoencoder::GStackableAutoencoder(size_t hidden, size_t visible, GRan
 m_weightsEncode(hidden, visible),
 m_weightsDecode(visible, hidden),
 m_biasEncode(3, hidden),
-m_biasDecode(3, visible)
+m_biasDecode(3, visible),
+m_noiseDeviation(0.0)
 {
+	double perturbation = 0.01;
+
 	// Initialize the weights
 	for(size_t i = 0; i < hidden; i++)
 	{
 		double* pRow = m_weightsEncode[i];
 		for(size_t j = 0; j < visible; j++)
 		{
-			*pRow = 0.01 * m_rand.normal();
+			*pRow = perturbation * m_rand.normal();
 			pRow++;
 		}
 	}
 	double* pB = biasDecode();
 	for(size_t j = 0; j < visible; j++)
-		*(pB++) = 0.01 * m_rand.normal();
+		*(pB++) = perturbation * m_rand.normal();
 	for(size_t i = 0; i < visible; i++)
 	{
 		double* pRow = m_weightsDecode[i];
 		for(size_t j = 0; j < hidden; j++)
 		{
-			*pRow = 0.01 * m_rand.normal();
+			*pRow = perturbation * m_rand.normal();
 			pRow++;
 		}
 	}
 	pB = biasEncode();
 	for(size_t j = 0; j < hidden; j++)
-		*(pB++) = 0.01 * m_rand.normal();
+		*(pB++) = perturbation * m_rand.normal();
 }
 
 GStackableAutoencoder::~GStackableAutoencoder()
@@ -353,13 +355,13 @@ void GStackableAutoencoder::update(const double* pVisible, double learningRate)
 		propToHidden(pVisible);
 	propToVisible(activationEncode());
 
-	// Convert visible blame term
+	// Compute visible blame term
 	double* pBlame = blameDecode();
 	const double* pV = pVisible;
 	double* pAV = activationDecode();
 	for(size_t i = 0; i < m_visibleCount; i++)
 	{
-		*(pBlame++) = (*pV - *pAV) * (*pAV) * (1.0 - *pAV);
+		*(pBlame++) = (*pV - *pAV) * (1.0 - *pAV * *pAV);
 		pAV++;
 		pV++;
 	}
@@ -432,7 +434,7 @@ GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations)
 	nnEncoder.getLayer(1)->setToWeaklyApproximateIdentity();
 	nnEncoder.getLayer(1)->perturbWeights(m_rand, 0.03);
 	su.trainEncoder(&nnEncoder, 5);
-	delete(su.doit(observations)); // This line trains nnEncoder
+	delete(su.reduce(observations)); // This line trains nnEncoder
 
 	// Copy the weights into the encoder
 	GMatrix* pEncTranspose = nnEncoder.getLayer(0)->m_weights.transpose();
@@ -550,7 +552,7 @@ double* GDeepNet::draw(size_t iters)
 	return pLayer->activationDecode();
 }
 
-double* GDeepNet::forward(const double* pIntrinsic)
+double* GDeepNet::decode(const double* pIntrinsic)
 {
 	GDeepNetLayer* pLayer = m_layers[0];
 	pLayer->propToVisible(pIntrinsic);
@@ -564,7 +566,7 @@ double* GDeepNet::forward(const double* pIntrinsic)
 	return pIn;
 }
 
-double* GDeepNet::backward(const double* pObserved)
+double* GDeepNet::encode(const double* pObserved)
 {
 	size_t i = m_layers.size() - 1;
 	GDeepNetLayer* pLayer = m_layers[i];
@@ -579,14 +581,14 @@ double* GDeepNet::backward(const double* pObserved)
 	return pIn;
 }
 
-void GDeepNet::trainLayerwise(GMatrix& observations, size_t epochs, double initialLearningRate, double decay)
+void GDeepNet::trainLayerwise(GMatrix& observations, size_t epochs, double startLearningRate, double endLearningRate)
 {
 	GMatrix* pObs = &observations;
 	Holder<GMatrix> hObs(NULL);
 	for(size_t i = m_layers.size() - 1; i < m_layers.size(); i--)
 	{
 		// Train the layer
-		m_layers[i]->trainUnsupervised(*pObs, epochs, initialLearningRate, decay);
+		m_layers[i]->trainUnsupervised(*pObs, epochs, startLearningRate, endLearningRate);
 
 		// Map the observations for the next layer
 		if(i > 0)
@@ -600,7 +602,7 @@ void GDeepNet::trainLayerwise(GMatrix& observations, size_t epochs, double initi
 void GDeepNet::refineBackprop(const double* pObservation, double learningRate)
 {
 	// Compute blame term on the visible layer
-	forward(backward(pObservation));
+	decode(encode(pObservation));
 	GDeepNetLayer* pVisibleLayer = m_layers[m_layers.size() - 1];
 	double* pAct = pVisibleLayer->activationDecode();
 	double* pBlame = pVisibleLayer->blameDecode();
@@ -622,8 +624,47 @@ void GDeepNet::refineBackprop(const double* pObservation, double learningRate)
 }
 
 #ifndef MIN_PREDICT
-// static
-void GDeepNet::test()
+void GDeepNet_testUpdate()
+{
+	// Make a deep net
+	GRand rand(0);
+	GDeepNet dn(rand);
+	dn.addLayer(new GStackableAutoencoder(3, 4, rand));
+
+	// Make a neural net
+	GNeuralNet nn;
+	nn.setLearningRate(0.8);
+	nn.setTopology(3);
+	GUniformRelation ends(4);
+	nn.beginIncrementalLearning(ends, ends);
+
+	// Copy the weights from the deep network to the neural net
+	Holder<GMatrix> h(NULL);
+	h.reset(((GStackableAutoencoder*)dn.layers()[0])->weightsEncode().transpose());
+	nn.getLayer(0)->m_weights.copy(h.get());
+	GVec::copy(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.layers()[0])->biasEncode(), 3);
+
+	h.reset(((GStackableAutoencoder*)dn.layers()[0])->weightsDecode().transpose());
+	nn.getLayer(1)->m_weights.copy(h.get());
+	GVec::copy(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.layers()[0])->biasDecode(), 4);
+
+	// Train both of them with a phony observation
+	double obs[4];
+	rand.cubical(obs, 4);
+	nn.trainIncremental(obs, obs);
+	((GStackableAutoencoder*)dn.layers()[0])->update(obs, 0.8);
+
+	// Check that the weights were updated identically
+	double err = 0.0;
+	err += nn.getLayer(0)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.layers()[0])->weightsEncode(), true);
+	err += nn.getLayer(1)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.layers()[0])->weightsDecode(), true);
+	err += GVec::squaredDistance(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.layers()[0])->biasEncode(), 3);
+	err += GVec::squaredDistance(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.layers()[0])->biasDecode(), 4);
+	if(err > 1e-12)
+		throw Ex("failed");
+}
+
+void GDeepNet_testBackprop()
 {
 	// Make a deep net
 	GRand rand(0);
@@ -634,31 +675,27 @@ void GDeepNet::test()
 	// Make a neural net
 	GNeuralNet nn;
 	nn.setLearningRate(0.8);
-	vector<size_t> topo;
-	topo.push_back(3);
-	topo.push_back(2);
-	topo.push_back(3);
-	nn.setTopology(topo);
+	nn.setTopology(3, 2, 3);
 	GUniformRelation ends(4);
 	nn.beginIncrementalLearning(ends, ends);
 
 	// Copy the weights from the deep network to the neural net
 	Holder<GMatrix> h(NULL);
-	h.reset(((GStackableAutoencoder*)dn.m_layers[1])->weightsEncode().transpose());
+	h.reset(((GStackableAutoencoder*)dn.layers()[1])->weightsEncode().transpose());
 	nn.getLayer(0)->m_weights.copy(h.get());
-	GVec::copy(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasEncode(), 3);
+	GVec::copy(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.layers()[1])->biasEncode(), 3);
 
-	h.reset(((GStackableAutoencoder*)dn.m_layers[0])->weightsEncode().transpose());
+	h.reset(((GStackableAutoencoder*)dn.layers()[0])->weightsEncode().transpose());
 	nn.getLayer(1)->m_weights.copy(h.get());
-	GVec::copy(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasEncode(), 2);
+	GVec::copy(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.layers()[0])->biasEncode(), 2);
 
-	h.reset(((GStackableAutoencoder*)dn.m_layers[0])->weightsDecode().transpose());
+	h.reset(((GStackableAutoencoder*)dn.layers()[0])->weightsDecode().transpose());
 	nn.getLayer(2)->m_weights.copy(h.get());
-	GVec::copy(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasDecode(), 3);
+	GVec::copy(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.layers()[0])->biasDecode(), 3);
 
-	h.reset(((GStackableAutoencoder*)dn.m_layers[1])->weightsDecode().transpose());
+	h.reset(((GStackableAutoencoder*)dn.layers()[1])->weightsDecode().transpose());
 	nn.getLayer(3)->m_weights.copy(h.get());
-	GVec::copy(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasDecode(), 4);
+	GVec::copy(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.layers()[1])->biasDecode(), 4);
 
 	// Train both of them with a phony observation
 	double obs[4];
@@ -668,16 +705,23 @@ void GDeepNet::test()
 
 	// Check that the weights were updated identically
 	double err = 0.0;
-	err += nn.getLayer(0)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.m_layers[1])->weightsEncode(), true);
-	err += nn.getLayer(1)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.m_layers[0])->weightsEncode(), true);
-	err += nn.getLayer(2)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.m_layers[0])->weightsDecode(), true);
-	err += nn.getLayer(3)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.m_layers[1])->weightsDecode(), true);
-	err += GVec::squaredDistance(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasEncode(), 3);
-	err += GVec::squaredDistance(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasEncode(), 2);
-	err += GVec::squaredDistance(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.m_layers[0])->biasDecode(), 3);
-	err += GVec::squaredDistance(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.m_layers[1])->biasDecode(), 4);
+	err += nn.getLayer(0)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.layers()[1])->weightsEncode(), true);
+	err += nn.getLayer(1)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.layers()[0])->weightsEncode(), true);
+	err += nn.getLayer(2)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.layers()[0])->weightsDecode(), true);
+	err += nn.getLayer(3)->m_weights.sumSquaredDifference(((GStackableAutoencoder*)dn.layers()[1])->weightsDecode(), true);
+	err += GVec::squaredDistance(nn.getLayer(0)->bias(), ((GStackableAutoencoder*)dn.layers()[1])->biasEncode(), 3);
+	err += GVec::squaredDistance(nn.getLayer(1)->bias(), ((GStackableAutoencoder*)dn.layers()[0])->biasEncode(), 2);
+	err += GVec::squaredDistance(nn.getLayer(2)->bias(), ((GStackableAutoencoder*)dn.layers()[0])->biasDecode(), 3);
+	err += GVec::squaredDistance(nn.getLayer(3)->bias(), ((GStackableAutoencoder*)dn.layers()[1])->biasDecode(), 4);
 	if(err > 1e-12)
 		throw Ex("failed");
+}
+
+// static
+void GDeepNet::test()
+{
+	GDeepNet_testUpdate();
+	GDeepNet_testBackprop();
 }
 #endif // MIN_PREDICT
 

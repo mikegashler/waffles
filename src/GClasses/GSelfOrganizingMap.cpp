@@ -909,7 +909,7 @@ GSelfOrganizingMap::~GSelfOrganizingMap()
 }
 
 
-GMatrix* GSelfOrganizingMap::doit(GMatrix& in)
+GMatrix* GSelfOrganizingMap::reduce(GMatrix& in)
 {
   // Train the map on the input
   train(in);

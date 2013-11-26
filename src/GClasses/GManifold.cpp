@@ -431,7 +431,7 @@ void GManifoldSculpting::setPreprocessedData(GMatrix* pData)
 }
 
 // virtual
-GMatrix* GManifoldSculpting::doit(const GMatrix& in)
+GMatrix* GManifoldSculpting::reduce(const GMatrix& in)
 {
 	beginTransform(&in);
 
@@ -913,7 +913,7 @@ void GIsomap::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GIsomap::doit(const GMatrix& in)
+GMatrix* GIsomap::reduce(const GMatrix& in)
 {
 	GNeighborFinder* pNF = m_pNF;
 	Holder<GNeighborFinder> hNF(NULL);
@@ -1221,7 +1221,7 @@ void GLLE::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GLLE::doit(const GMatrix& in)
+GMatrix* GLLE::reduce(const GMatrix& in)
 {
 	GNeighborFinder* pNF = m_pNF;
 	Holder<GNeighborFinder> hNF(NULL);
@@ -1278,7 +1278,7 @@ void GBreadthFirstUnfolding::setNeighborFinder(GNeighborFinder* pNF)
 }
 
 // virtual
-GMatrix* GBreadthFirstUnfolding::doit(const GMatrix& in)
+GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 {
 	// Obtain the neighbor finder
 	GNeighborFinder* pNF = m_pNF;
@@ -1723,7 +1723,7 @@ double GNeuroPCA::computeSumSquaredErr(const GMatrix* pIn, GMatrix* pOut, size_t
 }
 
 // virtual
-GMatrix* GNeuroPCA::doit(const GMatrix& in)
+GMatrix* GNeuroPCA::reduce(const GMatrix& in)
 {
 	if(!in.relation().areContinuous())
 		throw Ex("GNeuroPCA doesn't support nominal values. You should filter with nominaltocat to make them real.");
@@ -1805,7 +1805,7 @@ void GDynamicSystemStateAligner::setSeeds(size_t a, size_t b)
 }
 
 // virtual
-GMatrix* GDynamicSystemStateAligner::doit(const GMatrix& in)
+GMatrix* GDynamicSystemStateAligner::reduce(const GMatrix& in)
 {
 	if(!in.relation().areContinuous())
 		throw Ex("Only continuous attributes are supported");
@@ -2012,7 +2012,7 @@ void GDynamicSystemStateAligner::test()
 	// Do the transformation it
 	GDynamicSystemStateAligner dssa(16, inputs, prng);
 	dssa.setSeeds(seedA, seedB);
-	GMatrix* pStateOut = dssa.doit(state);
+	GMatrix* pStateOut = dssa.reduce(state);
 	Holder<GMatrix> hStateOut(pStateOut);
 
 	// Check results
@@ -2323,7 +2323,7 @@ void GUnsupervisedBackProp::setJitterer(GImageJitterer* pJitterer)
 }
 
 // virtual
-GMatrix* GUnsupervisedBackProp::doit(const GMatrix& in)
+GMatrix* GUnsupervisedBackProp::reduce(const GMatrix& in)
 {
 	// Compute pixels and channels
 	size_t pixels = 1;
@@ -2729,7 +2729,7 @@ void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double c
 }
 
 // virtual
-GMatrix* GScalingUnfolder::doit(const GMatrix& in)
+GMatrix* GScalingUnfolder::reduce(const GMatrix& in)
 {
 	// Find neighbors
 	GKdTree kdtree(&in, m_neighborCount, NULL, false);

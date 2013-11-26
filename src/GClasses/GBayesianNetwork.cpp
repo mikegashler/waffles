@@ -324,7 +324,7 @@ GBNMetropolisNode::GBNMetropolisNode(double priorMean, double priorDeviation)
 {
 }
 
-double GBNMetropolisNode::gibbs(double x)
+double GBNMetropolisNode::markovBlanket(double x)
 {
 	double d;
 	double logSum = log(likelihood(x));
@@ -356,10 +356,10 @@ bool GBNMetropolisNode::metropolis(GRand* pRand)
 		dCandidateValue = floor(dCandidateValue + 0.5);
 	if(dCandidateValue == m_currentMean)
 		return false;
-	double cand = gibbs(dCandidateValue);
+	double cand = markovBlanket(dCandidateValue);
 	if(cand >= MIN_LOG_PROB)
 	{
-		double curr = gibbs(m_currentMean);
+		double curr = markovBlanket(m_currentMean);
 		if(curr >= MIN_LOG_PROB)
 		{
 			if(log(pRand->uniform()) < cand - curr)
@@ -817,7 +817,7 @@ double GBNGamma::likelihood(double x)
 	size_t base = 2 * currentCatIndex();
 	double alpha = m_alphaAndBeta[base]->currentValue();
 	double beta = m_alphaAndBeta[base + 1]->currentValue();
-	if(m_betaIsScaleInsteadOfRate);
+	if(m_betaIsScaleInsteadOfRate)
 		beta = 1.0 / beta;
 	return pow(beta, alpha) * pow(x, alpha - 1.0) * exp(-beta * x) / GMath::gamma(alpha);
 }

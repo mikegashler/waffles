@@ -817,7 +817,7 @@ void split(GArgReader& args)
 	Holder<GSparseMatrix> hData(pData);
 	size_t pats1 = args.pop_uint();
 	size_t pats2 = pData->rows() - pats1;
-	if(pats2 < 0)
+	if(pats2 >= pData->rows())
 		throw Ex("out of range. The data only has ", to_str(pData->rows()), " rows.");
 	const char* szFilename1 = args.pop_string();
 	const char* szFilename2 = args.pop_string();

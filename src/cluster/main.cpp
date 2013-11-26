@@ -67,14 +67,33 @@ void loadData(GMatrix& m, const char* szFilename)
 	// Load the dataset by extension
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
+	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		m.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		m.loadCsv(szFilename, ',', false, false);
+		m.loadCsv(szFilename, ',', false, &ambiguousCols, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		m.loadCsv(szFilename, '\0', false, false);
+		m.loadCsv(szFilename, '\0', false, &ambiguousCols, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+	if(ambiguousCols.size() > 0)
+	{
+		cerr << "WARNING: column";
+		if(ambiguousCols.size() > 1)
+			cerr << "s";
+		cerr << " ";
+		for(size_t i = 0; i < ambiguousCols.size(); i++)
+		{
+			if(i > 0)
+			{
+				cerr << ", ";
+				if(i + 1 == ambiguousCols.size())
+					cerr << "and ";
+			}
+			cerr << to_str(ambiguousCols);
+		}
+		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
+	}
 }
 
 void agglomerativeclusterer(GArgReader& args)
@@ -86,7 +105,7 @@ void agglomerativeclusterer(GArgReader& args)
 
 	// Do the clustering
 	GAgglomerativeClusterer clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(data);
+	GMatrix* pOut = clusterer.reduce(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -119,7 +138,7 @@ void fuzzykmeans(GArgReader& args)
 	GFuzzyKMeans clusterer(clusters, &prng);
 	clusterer.setFuzzifier(fuzzifier);
 	clusterer.setReps(reps);
-	GMatrix* pOut = clusterer.doit(data);
+	GMatrix* pOut = clusterer.reduce(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -148,7 +167,7 @@ void kmeans(GArgReader& args)
 	GRand prng(nSeed);
 	GKMeans clusterer(clusters, &prng);
 	clusterer.setReps(reps);
-	GMatrix* pOut = clusterer.doit(data);
+	GMatrix* pOut = clusterer.reduce(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
@@ -162,7 +181,7 @@ void kmedoids(GArgReader& args)
 
 	// Do the clustering
 	GKMedoids clusterer(clusters);
-	GMatrix* pOut = clusterer.doit(data);
+	GMatrix* pOut = clusterer.reduce(data);
 	Holder<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
