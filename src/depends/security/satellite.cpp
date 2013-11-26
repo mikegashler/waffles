@@ -6,14 +6,14 @@
 // -------------------------------------------------------------
 
 #include "satellite.h"
-#include <GClasses/GSocket.h>
-#include <GClasses/GDirList.h>
-#include <GClasses/GThread.h>
-#include <GClasses/GApp.h>
-#include <GClasses/sha1.h>
-#include <GClasses/GFile.h>
-#include <GClasses/GError.h>
-#include <GClasses/GHolders.h>
+#include "../../GClasses/GSocket.h"
+#include "../../GClasses/GDirList.h"
+#include "../../GClasses/GThread.h"
+#include "../../GClasses/GApp.h"
+#include "../../GClasses/sha1.h"
+#include "../../GClasses/GFile.h"
+#include "../../GClasses/GError.h"
+#include "../../GClasses/GHolders.h"
 #include <string>
 #include <vector>
 #ifdef WINDOWS

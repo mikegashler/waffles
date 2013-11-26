@@ -9,7 +9,7 @@
 #define SATELLITE_H
 
 #include <time.h>
-#include <GClasses/GBlob.h>
+#include "../../GClasses/GBlob.h"
 
 #define MAX_PACKET_SIZE 16384
 #define BUF_SIZE 4096
