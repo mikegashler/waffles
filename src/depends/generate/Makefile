@@ -20,12 +20,12 @@ endif
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-	DBG_LFLAGS = $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a
-	OPT_LFLAGS = $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a
+	DBG_LFLAGS = $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpthread
+	OPT_LFLAGS = $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a -lpthread
 else
 	CFLAGS = -Wall
-	DBG_LFLAGS = ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpng
-	OPT_LFLAGS = ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a -lpng
+	DBG_LFLAGS = ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpng -lpthread
+	OPT_LFLAGS = ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a -lpng -lpthread
 endif
 
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG

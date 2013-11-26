@@ -15,8 +15,25 @@ Build Instructions:
 		To build optimized binaries without installing them:
 			make opt
 
+		To build unoptimized binaries with debug symbols:
+			make dbg
+
 		To build demo apps and additional tools:
-			see web/docs.html
+			see web/docs/linux.html
+
+	OSX:
+		1- Install clang or g++. Also install Gnu Make.
+			a- Install Xcode
+			b- Click Xcode->Preferences->Downloads
+			c- Click the down arrow to install the "Command Line Tools".
+			(If you do not want to install Xcode, there are other ways
+			 to install g++, such as with Fink or MacPorts.)
+		2- Open a terminal
+		3- cd waffles/src
+		4- make opt
+
+		To build demo apps and additional tools:
+			see web/docs/mac.html
 
 	Windows:
 		1- Install Microsoft Visual C++ 2010 Express Edition.
@@ -30,22 +47,8 @@ Build Instructions:
 		8- Run it (F5).
 
 		If you also want to try the demo apps:
-		9- Open waffles\demos\demos.sln in Visual C++.
-		10- Build (F7).
-		11- Set the startup app to the app you want to try.
-		12- Run it (F5).
-
-	OSX:
-		1- Install Fink or some other UNIX package manager.
-		2- Install the following packages.
-			g++
-			make
-		3- cd waffles/src
-		4- make opt
-
-		To build demo apps and additional tools:
-			see web/docs.html
+			see web/docs/windows.html.
 
 For more detailed instructions, troubleshooting help, an overview of this
-toolkit, and instructions for using it, see web/docs.html.
+toolkit, and instructions for using it, see web/index.html.
 
