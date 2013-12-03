@@ -22,6 +22,7 @@
 #include "GError.h"
 #include "GMath.h"
 #include "GHolders.h"
+#include "GMatrix.h"
 #include <stddef.h>
 #include <cmath>
 
@@ -317,10 +318,12 @@ double GBNCategorical::likelihood(double x)
 
 
 
+#define DEV_SAMPLES 100
+#define DEV_DECAY ((double)(DEV_SAMPLES - 1) / DEV_SAMPLES)
 
 
-GBNMetropolisNode::GBNMetropolisNode(double priorMean, double priorDeviation)
-: GBNVariable(), m_currentMean(priorMean), m_currentDeviation(priorDeviation), m_nSamples(0), m_nNewValues(0), m_sumOfValues(0), m_sumOfSquaredValues(0)
+GBNMetropolisNode::GBNMetropolisNode()
+: GBNVariable(), m_currentMean(UNKNOWN_REAL_VALUE), m_sumOfValues(UNKNOWN_REAL_VALUE), m_sumOfSquaredValues(UNKNOWN_REAL_VALUE)
 {
 }
 
@@ -349,51 +352,31 @@ double GBNMetropolisNode::markovBlanket(double x)
 		return MIN_LOG_PROB;
 }
 
-bool GBNMetropolisNode::metropolis(GRand* pRand)
+void GBNMetropolisNode::metropolis(GRand* pRand)
 {
-	double dCandidateValue = pRand->normal() * m_currentDeviation + m_currentMean;
+	currentValue(); // (This needs to be called to potentially initialize m_sumOfValues and m_sumOfSquaredValues)
+	double sampleMean = m_sumOfValues / DEV_SAMPLES;
+	double sampleVariance = ((double)DEV_SAMPLES / (DEV_SAMPLES - 1)) * (m_sumOfSquaredValues / DEV_SAMPLES - (sampleMean * sampleMean));
+	double dCandidateValue = pRand->normal() * sqrt(sampleVariance) + m_currentMean;
 	if(isDiscrete())
 		dCandidateValue = floor(dCandidateValue + 0.5);
-	if(dCandidateValue == m_currentMean)
-		return false;
 	double cand = markovBlanket(dCandidateValue);
 	if(cand >= MIN_LOG_PROB)
 	{
-		double curr = markovBlanket(m_currentMean);
-		if(curr >= MIN_LOG_PROB)
-		{
-			if(log(pRand->uniform()) < cand - curr)
-			{
-				m_currentMean = dCandidateValue;
-				return true;
-			}
-			else
-				return false;
-		}
-		else
-			return false;
+		if(log(pRand->uniform()) < cand - markovBlanket(m_currentMean))
+			m_currentMean = dCandidateValue;
 	}
-	else
-		return false;
 }
 
 void GBNMetropolisNode::sample(GRand* pRand)
 {
-	if(metropolis(pRand))
-	{
-		if(++m_nNewValues >= 10)
-		{
-			//double dMean = m_sumOfValues / m_nSamples;
-			//m_currentDeviation = sqrt(m_sumOfSquaredValues / m_nSamples - (dMean * dMean));
-			//m_nNewValues = 0;
-		}
-	}
-	if(m_nSamples < 0xffffffff)
-	{
-		m_sumOfValues += m_currentMean;
-		m_sumOfSquaredValues += (m_currentMean * m_currentMean);
-		m_nSamples++;
-	}
+	if(m_observed)
+		return;
+	metropolis(pRand);
+	m_sumOfValues *= DEV_DECAY;
+	m_sumOfSquaredValues *= DEV_DECAY;
+	m_sumOfValues += m_currentMean;
+	m_sumOfSquaredValues += (m_currentMean * m_currentMean);
 }
 
 // virtual
@@ -401,6 +384,13 @@ double GBNMetropolisNode::currentValue()
 {
 	if(m_observed)
 		return m_observedValue;
+	else if(m_currentMean == UNKNOWN_REAL_VALUE)
+	{
+		m_currentMean = initMean();
+		m_sumOfValues = DEV_SAMPLES * m_currentMean;
+		m_sumOfSquaredValues = DEV_SAMPLES * (m_currentMean * m_currentMean + 1.0);
+		return m_currentMean;
+	}
 	else
 		return m_currentMean;
 }
@@ -413,8 +403,8 @@ double GBNMetropolisNode::currentValue()
 
 #define SQRT_2PI 2.50662827463
 
-GBNNormal::GBNNormal(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation), m_devIsVariance(false)
+GBNNormal::GBNNormal(GBNNode* pDefaultVal)
+: GBNMetropolisNode(), m_devIsVariance(false)
 {
 	m_meanAndDev.resize(2, pDefaultVal);
 }
@@ -463,6 +453,10 @@ double GBNNormal::likelihood(double x)
 		return 1.0 / (dev * SQRT_2PI) * exp(-(t * t) / (2.0 * dev * dev));
 }
 
+double GBNNormal::initMean()
+{
+	return m_meanAndDev[0]->currentValue();
+}
 
 
 
@@ -470,9 +464,8 @@ double GBNNormal::likelihood(double x)
 
 
 
-
-GBNLogNormal::GBNLogNormal(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation)
+GBNLogNormal::GBNLogNormal(GBNNode* pDefaultVal)
+: GBNMetropolisNode()
 {
 	m_meanAndDev.resize(2, pDefaultVal);
 }
@@ -505,6 +498,10 @@ double GBNLogNormal::likelihood(double x)
 	return 1.0 / (x * dev * SQRT_2PI) * exp(-(t * t) / (2.0 * dev * dev));
 }
 
+double GBNLogNormal::initMean()
+{
+	return exp(m_meanAndDev[0]->currentValue());
+}
 
 
 
@@ -513,8 +510,8 @@ double GBNLogNormal::likelihood(double x)
 
 
 
-GBNPareto::GBNPareto(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation)
+GBNPareto::GBNPareto(GBNNode* pDefaultVal)
+: GBNMetropolisNode()
 {
 	m_alphaAndM.resize(2, pDefaultVal);
 }
@@ -548,6 +545,10 @@ double GBNPareto::likelihood(double x)
 	return alpha * pow(m, alpha) / pow(x, alpha + 1.0);
 }
 
+double GBNPareto::initMean()
+{
+	return m_alphaAndM[1]->currentValue();
+}
 
 
 
@@ -556,8 +557,8 @@ double GBNPareto::likelihood(double x)
 
 
 
-GBNUniformDiscrete::GBNUniformDiscrete(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation)
+GBNUniformDiscrete::GBNUniformDiscrete(GBNNode* pDefaultVal)
+: GBNMetropolisNode()
 {
 	m_minAndMax.resize(2, pDefaultVal);
 }
@@ -593,6 +594,10 @@ double GBNUniformDiscrete::likelihood(double x)
 	return 1.0 / (b - a + 1.0);
 }
 
+double GBNUniformDiscrete::initMean()
+{
+	return std::floor(0.5 * (m_minAndMax[0]->currentValue() + m_minAndMax[1]->currentValue()));
+}
 
 
 
@@ -601,8 +606,8 @@ double GBNUniformDiscrete::likelihood(double x)
 
 
 
-GBNUniformContinuous::GBNUniformContinuous(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation)
+GBNUniformContinuous::GBNUniformContinuous(GBNNode* pDefaultVal)
+: GBNMetropolisNode()
 {
 	m_minAndMax.resize(2, pDefaultVal);
 }
@@ -638,6 +643,10 @@ double GBNUniformContinuous::likelihood(double x)
 	return 1.0 / (b - a);
 }
 
+double GBNUniformContinuous::initMean()
+{
+	return 0.5 * (m_minAndMax[0]->currentValue() + m_minAndMax[1]->currentValue());
+}
 
 
 
@@ -646,8 +655,8 @@ double GBNUniformContinuous::likelihood(double x)
 
 
 
-GBNPoisson::GBNPoisson(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation)
+GBNPoisson::GBNPoisson(GBNNode* pDefaultVal)
+: GBNMetropolisNode()
 {
 	m_lambda.resize(1, pDefaultVal);
 }
@@ -678,6 +687,10 @@ double GBNPoisson::likelihood(double x)
 	return pow(l, x) * exp(-l) / GMath::gamma(x + 1);
 }
 
+double GBNPoisson::initMean()
+{
+	return m_lambda[0]->currentValue();
+}
 
 
 
@@ -686,8 +699,8 @@ double GBNPoisson::likelihood(double x)
 
 
 
-GBNExponential::GBNExponential(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation)
+GBNExponential::GBNExponential(GBNNode* pDefaultVal)
+: GBNMetropolisNode()
 {
 	m_lambda.resize(1, pDefaultVal);
 }
@@ -718,6 +731,10 @@ double GBNExponential::likelihood(double x)
 	return l * exp(-l * x);
 }
 
+double GBNExponential::initMean()
+{
+	return 0.0;
+}
 
 
 
@@ -726,8 +743,8 @@ double GBNExponential::likelihood(double x)
 
 
 
-GBNBeta::GBNBeta(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation)
+GBNBeta::GBNBeta(GBNNode* pDefaultVal)
+: GBNMetropolisNode()
 {
 	m_alphaAndBeta.resize(2, pDefaultVal);
 }
@@ -764,6 +781,12 @@ double GBNBeta::likelihood(double x)
 	return GMath::gamma(alpha + beta) / denom * pow(x, alpha - 1.0) * pow(1.0 - x, beta - 1.0);
 }
 
+double GBNBeta::initMean()
+{
+	double alpha = m_alphaAndBeta[0]->currentValue();
+	double beta = m_alphaAndBeta[1]->currentValue();
+	return std::max(0.0, std::min(1.0, alpha / std::max(0.01, alpha + beta)));
+}
 
 
 
@@ -772,8 +795,8 @@ double GBNBeta::likelihood(double x)
 
 
 
-GBNGamma::GBNGamma(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation), m_betaIsScaleInsteadOfRate(false)
+GBNGamma::GBNGamma(GBNNode* pDefaultVal)
+: GBNMetropolisNode(), m_betaIsScaleInsteadOfRate(false)
 {
 	m_alphaAndBeta.resize(2, pDefaultVal);
 }
@@ -822,6 +845,14 @@ double GBNGamma::likelihood(double x)
 	return pow(beta, alpha) * pow(x, alpha - 1.0) * exp(-beta * x) / GMath::gamma(alpha);
 }
 
+double GBNGamma::initMean()
+{
+	double alpha = m_alphaAndBeta[0]->currentValue();
+	double beta = m_alphaAndBeta[1]->currentValue();
+	if(m_betaIsScaleInsteadOfRate)
+		beta = 1.0 / beta;
+	return std::max(0.0, alpha / std::max(.01, beta));
+}
 
 
 
@@ -830,8 +861,8 @@ double GBNGamma::likelihood(double x)
 
 
 
-GBNInverseGamma::GBNInverseGamma(double priorMean, double priorDeviation, GBNNode* pDefaultVal)
-: GBNMetropolisNode(priorMean, priorDeviation)
+GBNInverseGamma::GBNInverseGamma(GBNNode* pDefaultVal)
+: GBNMetropolisNode()
 {
 	m_alphaAndBeta.resize(2, pDefaultVal);
 }
@@ -865,6 +896,12 @@ double GBNInverseGamma::likelihood(double x)
 	return pow(beta, alpha) / GMath::gamma(alpha) * pow(x, -alpha - 1.0) * exp(-beta / x);
 }
 
+double GBNInverseGamma::initMean()
+{
+	double alpha = m_alphaAndBeta[0]->currentValue();
+	double beta = m_alphaAndBeta[1]->currentValue();
+	return std::max(0.0, beta / (std::max(0.5, alpha - 1.0)));
+}
 
 
 
@@ -914,82 +951,82 @@ GBNCategorical* GBayesNet::newCat(size_t categories)
 	return pNode;
 }
 
-GBNNormal* GBayesNet::newNormal(double priorMean, double priorDev)
+GBNNormal* GBayesNet::newNormal()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNNormal));
-	GBNNormal* pNode = new (pDest) GBNNormal(priorMean, priorDev, m_pConstOne);
+	GBNNormal* pNode = new (pDest) GBNNormal(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNLogNormal* GBayesNet::newLogNormal(double priorMean, double priorDev)
+GBNLogNormal* GBayesNet::newLogNormal()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNLogNormal));
-	GBNLogNormal* pNode = new (pDest) GBNLogNormal(priorMean, priorDev, m_pConstOne);
+	GBNLogNormal* pNode = new (pDest) GBNLogNormal(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNPareto* GBayesNet::newPareto(double priorMean, double priorDev)
+GBNPareto* GBayesNet::newPareto()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNPareto));
-	GBNPareto* pNode = new (pDest) GBNPareto(priorMean, priorDev, m_pConstOne);
+	GBNPareto* pNode = new (pDest) GBNPareto(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNUniformDiscrete* GBayesNet::newUniformDiscrete(double priorMean, double priorDev)
+GBNUniformDiscrete* GBayesNet::newUniformDiscrete()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNUniformDiscrete));
-	GBNUniformDiscrete* pNode = new (pDest) GBNUniformDiscrete(priorMean, priorDev, m_pConstOne);
+	GBNUniformDiscrete* pNode = new (pDest) GBNUniformDiscrete(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNUniformContinuous* GBayesNet::newUniformContinuous(double priorMean, double priorDev)
+GBNUniformContinuous* GBayesNet::newUniformContinuous()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNUniformContinuous));
-	GBNUniformContinuous* pNode = new (pDest) GBNUniformContinuous(priorMean, priorDev, m_pConstOne);
+	GBNUniformContinuous* pNode = new (pDest) GBNUniformContinuous(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNPoisson* GBayesNet::newPoisson(double priorMean, double priorDev)
+GBNPoisson* GBayesNet::newPoisson()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNPoisson));
-	GBNPoisson* pNode = new (pDest) GBNPoisson(priorMean, priorDev, m_pConstOne);
+	GBNPoisson* pNode = new (pDest) GBNPoisson(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNExponential* GBayesNet::newExponential(double priorMean, double priorDev)
+GBNExponential* GBayesNet::newExponential()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNExponential));
-	GBNExponential* pNode = new (pDest) GBNExponential(priorMean, priorDev, m_pConstOne);
+	GBNExponential* pNode = new (pDest) GBNExponential(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNBeta* GBayesNet::newBeta(double priorMean, double priorDev)
+GBNBeta* GBayesNet::newBeta()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNBeta));
-	GBNBeta* pNode = new (pDest) GBNBeta(priorMean, priorDev, m_pConstOne);
+	GBNBeta* pNode = new (pDest) GBNBeta(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNGamma* GBayesNet::newGamma(double priorMean, double priorDev)
+GBNGamma* GBayesNet::newGamma()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNGamma));
-	GBNGamma* pNode = new (pDest) GBNGamma(priorMean, priorDev, m_pConstOne);
+	GBNGamma* pNode = new (pDest) GBNGamma(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
 
-GBNInverseGamma* GBayesNet::newInverseGamma(double priorMean, double priorDev)
+GBNInverseGamma* GBayesNet::newInverseGamma()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNInverseGamma));
-	GBNInverseGamma* pNode = new (pDest) GBNInverseGamma(priorMean, priorDev, m_pConstOne);
+	GBNInverseGamma* pNode = new (pDest) GBNInverseGamma(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
 	return pNode;
 }
@@ -1012,7 +1049,7 @@ void GBayesNet_simpleTest()
 	GBNCategorical* pPar = bn.newCat(2);
 	pPar->setWeights(0, bn.newConst(0.4), bn.newConst(0.6));
 
-	GBNNormal* pChild = bn.newNormal(1.0, 3.0);
+	GBNNormal* pChild = bn.newNormal();
 	pChild->addCatParent(pPar, bn.def());
 	pChild->setMeanAndDev(0, bn.newConst(0.0), bn.newConst(1.0));
 	pChild->setMeanAndDev(1, bn.newConst(3.0), bn.newConst(2.0));

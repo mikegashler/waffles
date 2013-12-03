@@ -264,16 +264,12 @@ public:
 class GBNMetropolisNode : public GBNVariable
 {
 protected:
-	double m_currentMean, m_currentDeviation;
-	unsigned int m_nSamples;
-	unsigned int m_nNewValues;
+	double m_currentMean;
 	double m_sumOfValues, m_sumOfSquaredValues;
 
 public:
-	/// General-purpose constructor. The parameters priorMean and priorDeviation
-	/// are for the normal distribution used by the Metropolis algorithm to draw
-	/// candidate values.
-	GBNMetropolisNode(double priorMean, double priorDeviation);
+	/// General-purpose constructor.
+	GBNMetropolisNode();
 	virtual ~GBNMetropolisNode() {}
 
 	/// Returns the most recent value sampled from this node.
@@ -286,6 +282,10 @@ public:
 	/// This should return true iff this node supports only discrete values
 	virtual bool isDiscrete() = 0;
 
+	/// This should return a value suitable to initialize the mean of the
+	/// sampling distribution. It need only return any value with non-negligible probability.
+	virtual double initMean() = 0;
+
 protected:
 	/// Computes the log-probability of x (as a value for this node) given
 	/// the current values for the entire rest of the network (aka the
@@ -294,9 +294,8 @@ protected:
 	double markovBlanket(double x);
 
 	/// Sample the network in a manner that can be proven to converge to a
-	/// true joint distribution for the network. Returns true if the new candidate
-	/// value is selected.
-	bool metropolis(GRand* pRand);
+	/// true joint distribution for the network.
+	void metropolis(GRand* pRand);
 };
 
 
@@ -313,7 +312,7 @@ public:
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMeanAndDev) after constructing this node.
-	GBNNormal(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNNormal(GBNNode* pDefaultVal);
 	~GBNNormal() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -338,6 +337,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -354,7 +356,7 @@ public:
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMeanAndDev) after constructing this node.
-	GBNLogNormal(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNLogNormal(GBNNode* pDefaultVal);
 	~GBNLogNormal() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -374,6 +376,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -390,7 +395,7 @@ public:
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setAlphaAndM) after constructing this node.
-	GBNPareto(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNPareto(GBNNode* pDefaultVal);
 	~GBNPareto() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -410,6 +415,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -426,7 +434,7 @@ public:
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMinAndMax) after constructing this node.
-	GBNUniformDiscrete(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNUniformDiscrete(GBNNode* pDefaultVal);
 	~GBNUniformDiscrete() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -446,6 +454,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -462,7 +473,7 @@ public:
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMinAndMax) after constructing this node.
-	GBNUniformContinuous(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNUniformContinuous(GBNNode* pDefaultVal);
 	~GBNUniformContinuous() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -482,6 +493,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -498,7 +512,7 @@ public:
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
 	/// used for the parameter of this distribution. Typically, you will
 	/// change this value (by calling setLambda) after constructing this node.
-	GBNPoisson(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNPoisson(GBNNode* pDefaultVal);
 	~GBNPoisson() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -518,6 +532,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -534,7 +551,7 @@ public:
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
 	/// used for the parameter of this distribution. Typically, you will
 	/// change this value (by calling setLambda) after constructing this node.
-	GBNExponential(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNExponential(GBNNode* pDefaultVal);
 	~GBNExponential() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -554,6 +571,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -570,7 +590,7 @@ public:
 	/// for the Metropolis algorithm. pDefaultVal specifies a bogus value to be
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setAlphaAndBeta) after constructing this node.
-	GBNBeta(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNBeta(GBNNode* pDefaultVal);
 	~GBNBeta() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -590,6 +610,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -609,7 +632,7 @@ public:
 	/// change these values (by calling setAlphaAndBeta or setShapeAndScale) after constructing this node.
 	/// If the "beta" parameter is scale (typically denoted with theta) instead of rate,
 	/// then betaIsScaleInsteadOfRate should be set to true.
-	GBNGamma(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNGamma(GBNNode* pDefaultVal);
 	~GBNGamma() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -634,6 +657,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -652,7 +678,7 @@ public:
 	/// change these values (by calling setAlphaAndBeta) after constructing this node.
 	/// If the "beta" parameter is scale (typically denoted with theta) instead of rate,
 	/// then betaIsScaleInsteadOfRate should be set to true.
-	GBNInverseGamma(double priorMean, double priorDeviation, GBNNode* pDefaultVal);
+	GBNInverseGamma(GBNNode* pDefaultVal);
 	~GBNInverseGamma() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
@@ -672,6 +698,9 @@ public:
 	/// Returns the likelihood that the value x would be drawn from this distribution given
 	/// the current values of all the parent nodes.
 	virtual double likelihood(double x);
+
+	/// See the comment for GBNMetropolisNode::initMean()
+	virtual double initMean();
 };
 
 
@@ -721,34 +750,34 @@ public:
 	GBNCategorical* newCat(size_t categories);
 
 	/// Return a pointer to a node that represents a normal distribution.
-	GBNNormal* newNormal(double priorMean, double priorDev);
+	GBNNormal* newNormal();
 
 	/// Return a pointer to a node that represents a lognormal distribution.
-	GBNLogNormal* newLogNormal(double priorMean, double priorDev);
+	GBNLogNormal* newLogNormal();
 
 	/// Return a pointer to a node that represents a Pareto distribution.
-	GBNPareto* newPareto(double priorMean, double priorDev);
+	GBNPareto* newPareto();
 
 	/// Return a pointer to a node that represents a uniform discrete distribution.
-	GBNUniformDiscrete* newUniformDiscrete(double priorMean, double priorDev);
+	GBNUniformDiscrete* newUniformDiscrete();
 
 	/// Return a pointer to a node that represents a uniform continuous distribution.
-	GBNUniformContinuous* newUniformContinuous(double priorMean, double priorDev);
+	GBNUniformContinuous* newUniformContinuous();
 
 	/// Return a pointer to a node that represents a Poisson distribution.
-	GBNPoisson* newPoisson(double priorMean, double priorDev);
+	GBNPoisson* newPoisson();
 
 	/// Return a pointer to a node that represents an Exponential distribution.
-	GBNExponential* newExponential(double priorMean, double priorDev);
+	GBNExponential* newExponential();
 
 	/// Return a pointer to a node that represents a Beta distribution.
-	GBNBeta* newBeta(double priorMean, double priorDev);
+	GBNBeta* newBeta();
 
 	/// Return a pointer to a node that represents a Gamma distribution.
-	GBNGamma* newGamma(double priorMean, double priorDev);
+	GBNGamma* newGamma();
 
 	/// Return a pointer to a node that represents an Inverse-Gamma distribution.
-	GBNInverseGamma* newInverseGamma(double priorMean, double priorDev);
+	GBNInverseGamma* newInverseGamma();
 
 	/// Draw a Gibbs sample for each node in the graph in random order.
 	void sample();
