@@ -15,43 +15,31 @@
 
 <p>The GMatrix class is a container for a two-dimensional array of values. These values can be continuous (real-valued) or nominal (categorical). This class provides many useful operations for matrices, tables, datasets, ordered sets of vectors, etc.</p>
 
-<p>If you are going to work with the GMatrix class, you need to include GMatrix.h. For reasons we will describe below, it is also a good idea to include GHolders.h:</p>
+<p>If you are going to work with the GMatrix class, you need to include GMatrix.h.</p>
 <pre>
 	#include &lt;GClasses/GMatrix.h&gt;
-	#include &lt;GClasses/GHolders.h&gt;
 </pre>
 
 <p>Then, you can load a GMatrix from <a href="http://www.cs.waikato.ac.nz/~ml/weka/arff.html">ARFF</a> format as follows:</p>
 <pre>
-	GMatrix* pM = GMatrix::loadArff("mydata.arff");
+	GMatrix M;
+	M.loadArff("mydata.arff");
 </pre>
 
 <p>You can also load from a text file of comma-separated values (a CSV file):</p>
 <pre>
-	GMatrix* pM = GMatrix::loadCsv("mydata.csv", ',', false, false);
+	M.loadCsv("mydata.csv", ',');
 </pre>
 
 <p>or tab-separated values:</p>
 <pre>
-	GMatrix* pM = GMatrix::loadCsv("mydata.csv", '\t', false, false);
+	M.loadCsv("mydata.csv", '\t');
 </pre>
 
 <p>or space-separated values:</p>
 <pre>
-	GMatrix* pM = GMatrix::loadCsv("mydata.csv", ' ', false, false);
+	M.loadCsv("mydata.csv", ' ');
 </pre>
-
-<p>When you are done with the matrix, it needs to be deleted. You might be tempted to do it like this:</p>
-<pre>
-	delete(pM);         *** BAD PRACTICE ***
-</pre>
-
-<p>A better way is to use a holder:</p>
-<pre>
-	Holder&lt;GMatrix&gt; hM(pM);
-</pre>
-
-<p>A holder is a class that "holds" the pointer that you pass to its constructor. When the holder is deleted, its destructor will delete the pointer. Holders are a better way to go because they are exception-safe. If an exception is thrown, the holder will still delete the pointer. Also, they are convenient because you can return from anywhere you want inside your methods without having to remember to clean anything up--the holder will remember for you. Our library uses exceptions all over the place. It is generally a good practice to never call "delete", except in a destructor.</p>
 
 <p>You can also construct an uninitialized GMatrix of continuous values by specifying the number of rows and columns:</p>
 <pre>
@@ -100,9 +88,8 @@
 
 	int main(int argc, char *argv[])
 	{
-		GMatrix* pM = GMatrix::loadArff("mydata.arff"); // load some data
-		Holder<GMatrix> hM(pM); // make sure it will be cleaned up later
-		GMatrix&amp; M = *pM; // I prefer to work with refs instead of pointers
+		GMatrix M; // make a matrix
+		M.loadArff("mydata.arff"); // load some data
 		GRand rand(0); // construct a random number generator with seed 0
 		M.shuffle(&amp;rand); // shuffle the row order
 		M.sort(2); // sort rows by column 2 in ascending order

@@ -647,7 +647,7 @@ public:
 	void parseArff(GArffTokenizer& tok);
 
 	/// \brief Loads a file in CSV format.
-	void loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, std::vector<size_t>* pOutAmbiguousColumns, bool tolerant = false);
+	void loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow = false, std::vector<size_t>* pOutAmbiguousColumns = NULL, bool tolerant = false);
 
 	///\brief Imports data from a text file. Determines the meta-data
 	///automatically.
@@ -665,7 +665,7 @@ public:
 	///      contain no whitespace, and that there are no missing
 	///      elements. (This is the case when you save a Matlab matrix
 	///      to an ascii file.)
-	void parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, std::vector<size_t>* pOutAmbiguousColumns, bool tolerant = false);
+	void parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow = false, std::vector<size_t>* pOutAmbiguousColumns = NULL, bool tolerant = false);
 #endif // MIN_PREDICT
 
 
