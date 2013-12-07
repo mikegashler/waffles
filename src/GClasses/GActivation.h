@@ -534,13 +534,13 @@ public:
 
 
 /// The integral of the logsitic function. At very negative values, this converges toward y=0. At very positive values, this converges to y=x.
-class GActivationLogisticIntegral : public GActivationFunction
+class GActivationSoftPlus : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
-	virtual const char* name() const { return "logisticint"; }
+	virtual const char* name() const { return "softplus"; }
 
-	virtual double squash(double x) { return x > 500 ? x : log(1.0 + 1.0 / exp(-x)); }
+	virtual double squash(double x) { return x > 500 ? x : log(1.0 + exp(x)); }
 
 	virtual double derivative(double x) { return 1.0 / (1.0 + exp(-x)); }
 
@@ -553,7 +553,7 @@ public:
 	virtual double halfRange() { return 50.0; }
 
 	/// See the comment for GActivationFunction::clone
-	virtual GActivationFunction* clone() { return new GActivationLogisticIntegral(); }
+	virtual GActivationFunction* clone() { return new GActivationSoftPlus(); }
 };
 
 

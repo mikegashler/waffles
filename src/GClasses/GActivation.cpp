@@ -60,8 +60,8 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 		return new GActivationPiecewise();
 	else if(strcmp(szName, "logisticderiv") == 0)
 		return new GActivationLogisticDerivative();
-	else if(strcmp(szName, "logisticint") == 0)
-		return new GActivationLogisticIntegral();
+	else if(strcmp(szName, "softplus") == 0)
+		return new GActivationSoftPlus();
 	else
 		throw Ex("Unrecognized activation function: ", szName);
 	return NULL;
