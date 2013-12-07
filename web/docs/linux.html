@@ -45,8 +45,9 @@
 </pre>
 
 	</li>
-	<br><li>There are also some additional tools and demo apps that are not built by default. If you want to build
-			these, you need to install some additional dependency packages:
+	<br><li>There are also some additional tools and demo apps that are not built by default
+			because they require some dependency libraries. If you want to build
+			these, install:
 			<table align=center>
 				<tr><td><b><i><u>Debian/Ubuntu</u></i></b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td><b><i><u>Red Hat/Fedora</u></i></b></td></tr>
 				<tr><td>libpng12-dev</td><td>libpng-devel</td></tr>
@@ -54,16 +55,17 @@
 				<tr><td>freeglut3-dev</td><td>freeglut-devel</td></tr>
 				<tr><td>libx11-dev</td><td>X11-devel</td></tr>
 			</table>
-	To build the additional tools:
+	Then, to build the additional tools:
 <pre>
-	cd depends
+	cd waffles/src/depends
 	sudo make install
 </pre>
 	<br>To build the demo apps:
 <pre>
-	cd ../demos
+	cd waffles/demos
 	make opt
 </pre>
+	(Some of the demos do not require any dependencies. If you prefer, you can install the dependencies only as needed.)
 	</li>
 </ol>
 
@@ -77,10 +79,10 @@
 		<li>make</li>
 	</ol>
 	<br>
-(Disclaimer: The Waffles developers are currently more familiar with Gnu Make. CMake is still somewhat new to us,
-and we don't use it very much, so our CMakeLists.txt files may not be very polished. For example, they do not
-currently install the binaries after building them. If any CMake experts out there want to help clean it up, that
-would be appreciated.)</p>
+(Disclaimer: The Waffles developers are currently more familiar with Gnu Make than CMake,
+so our CMakeLists.txt files may not be as polished as they should be. For example, they do not
+currently install the binaries after building them. If any CMake experts out there want to
+help polish these up, that would be appreciated.)</p>
 
 
 <br><br><br>

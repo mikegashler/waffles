@@ -13,45 +13,44 @@
 
 <h2>Building on Mac</h2>
 <ol>
-	<li>Install clang or g++. Also install Gnu Make.<br>
+	<li>Install clang or g++. Also install Gnu Make. One way to do this is:<br>
 		<ol>
 			<li>Install Xcode</li>
 			<li>Click Xcode->Preferences->Downloads</li>
 			<li>Click the down arrow to install the "Command Line Tools"</li>
-			(If you do not want to install Xcode, there are other ways
-			 to install g++, such as with Fink or MacPorts.)
+			(If you prefer not to install Xcode, there are other ways
+			 to install these tools, such as with Fink or MacPorts.)
 		</ol>
-	<li>Open a terminal</li>
-	<li>cd waffles/src</li>
-	<li>make opt</li>
-</ol>
+	</li><br>
+	<li>Open a terminal</li><br>
+	<li>cd waffles/src</li><br>
+	<li>make opt</li><br>
 
-
-
-<ol>
-	<li>If you want to build the demo apps, then also install these packages:
-		<ul>
-			<li>libpng3-dev</li>
-			<li>libsdl1.2-dev</li>
-			<li>freeglut3-dev</li>
-		</ul>
-	and then do:
+	<li>There are also some additional tools and demo apps that are not built by default because they require
+			some dependency libraries to be installed. If you want to build
+			these, first install:
 <pre>
-	cd ../demos
+	sudo port install libpng
+	sudo port install libsdl2
+	sudo port install libx11
+</pre>
+	Then, to build the additional tools:
+<pre>
+	cd waffles/src/depends
 	make opt
-</pre></li>
+</pre>
+	<br>To build the demo apps:
+<pre>
+	cd waffles/demos
+	make opt
+</pre>
+	(Some of the demos do not require any dependencies. If you prefer, you can install the dependencies only as needed.)
+	</li>
 </ol>
+
 
 <br><br><br>
 <h3>Troubleshooting</h3>
-
-<span style="font-weight: bold;">
-	I don't know how to install dependency packages.
-</span><br><div style="margin-left: 40px;">
-	Neither do I. (I don't have a Mac.) I have been told that Fink is a good package installer. I have also been
-	told that it can be done via MacPorts. You can also build the dependencies yourself from tarballs. Good luck!
-	(Hey, any Mac experts out there want to help clean this up with more specific instructions?)
-</div><br><br>
 
 <span style="font-weight: bold;">
 	How do I build optimized binaries?

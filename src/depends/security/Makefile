@@ -19,9 +19,9 @@ endif
 # Set platform-specific compiler and linker flags
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
-	CFLAGS = -I/opt/local/include -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-	DBG_LFLAGS = -L/opt/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpthread -lX11 -lssl
-	OPT_LFLAGS = -L/opt/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a -lpthread -lX11 -lssl
+	CFLAGS = -I/opt/local/include -I/usr/local/include -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
+	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpthread -lX11 -lssl
+	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a -lpthread -lX11 -lssl
 else
 	CFLAGS = -Wall
 	DBG_LFLAGS = ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpng -lpthread -lX11

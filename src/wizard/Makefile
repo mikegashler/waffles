@@ -19,9 +19,9 @@ endif
 # Set platform-specific compiler and linker flags
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
-	CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-	DBG_LFLAGS = -framework AppKit ../../lib/GClassesDbg.a
-	OPT_LFLAGS = -framework AppKit ../../lib/GClasses.a
+	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I$(INSTALL_LOCATION_INCLUDE) -I$(DARWIN_BASE)/include -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
+	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/GClassesDbg.a -lpthread
+	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/GClasses.a -lpthread
 else
 	CFLAGS = -Wall
 	DBG_LFLAGS = ../../lib/GClassesDbg.a -lpthread

@@ -136,7 +136,7 @@ void GCategoricalDistribution::setSpike(size_t nValueCount, size_t nValue, size_
 {
 	GAssert(nDepth > 0); // nDepth should be at least 1
 	values(nValueCount); // Make sure the right amount of space is allocated
-	if(nValue < 0 || nValue >= nValueCount)
+	if(nValue >= nValueCount)
 	{
 		m_nMode = -1;
 		for(size_t i = 0; i < nValueCount; i++)

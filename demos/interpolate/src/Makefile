@@ -9,18 +9,17 @@ OBJ_PATH = ../obj
 INSTALL_LOCATION_INCLUDE ?= /usr/local/include
 UNAME = $(shell uname -s)
 ifeq ($(UNAME),Darwin)
-#CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -I../../../src -DBYTE_ORDER_BIG_ENDIAN -no-cpp-precomp
-CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE -DDARWIN -I/sw/include -I../../../src -no-cpp-precomp
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
-OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) /sw/lib/libSDLmain.a /sw/lib/libSDL.dylib /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GClassesDbg.a
-OPT_LFLAGS = $(OPT_LIBRARIES) /sw/lib/libSDLmain.a /sw/lib/libSDL.dylib /sw/lib/libpng.dylib -lz -framework AppKit ../../../lib/GClasses.a
+	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
+	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
+	OPT_CFLAGS = $(CFLAGS) -O3
+	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) $(shell sdl-config --libs) -lpng -lz -lpthread -framework AppKit ../../../lib/GClassesDbg.a
+	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) $(shell sdl-config --libs) -lpng -lz -lpthread -framework AppKit ../../../lib/GClasses.a
 else
-CFLAGS = -Wall $(shell sdl-config --cflags) -I$(INSTALL_LOCATION_INCLUDE)
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
-OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = -lGClassesDbg $(shell sdl-config --libs) -lpng -lpthread
-OPT_LFLAGS = -lGClasses $(shell sdl-config --libs) -lpng -lpthread
+	CFLAGS = -Wall $(shell sdl-config --cflags) -I$(INSTALL_LOCATION_INCLUDE)
+	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
+	OPT_CFLAGS = $(CFLAGS) -O3
+	DBG_LFLAGS = -lGClassesDbg $(shell sdl-config --libs) -lpng -lpthread
+	OPT_LFLAGS = -lGClasses $(shell sdl-config --libs) -lpng -lpthread
 endif
 
 ################

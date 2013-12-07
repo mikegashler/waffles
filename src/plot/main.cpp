@@ -156,12 +156,13 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t* pLabelDims)
 	const char* szFilename = args.pop_string();
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
+	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		data.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		data.loadCsv(szFilename, ',', false, false);
+		data.loadCsv(szFilename, ',', false, &ambiguousCols, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		data.loadCsv(szFilename, '\0', false, false);
+		data.loadCsv(szFilename, '\0', false, &ambiguousCols, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 
@@ -222,14 +223,33 @@ GMatrix* loadData(const char* szFilename)
 	GFile::parsePath(szFilename, &pd);
 	GMatrix* pData = new GMatrix();
 	Holder<GMatrix> hData(pData);
+	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData->loadCsv(szFilename, ',', false, false);
+		pData->loadCsv(szFilename, ',', false, &ambiguousCols, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData->loadCsv(szFilename, '\0', false, false);
+		pData->loadCsv(szFilename, '\0', false, &ambiguousCols, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+	if(ambiguousCols.size() > 0)
+	{
+		cerr << "WARNING: column";
+		if(ambiguousCols.size() > 1)
+			cerr << "s";
+		cerr << " ";
+		for(size_t i = 0; i < ambiguousCols.size(); i++)
+		{
+			if(i > 0)
+			{
+				cerr << ", ";
+				if(i + 1 == ambiguousCols.size())
+					cerr << "and ";
+			}
+			cerr << to_str(ambiguousCols);
+		}
+		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
+	}
 	return hData.release();
 }
 
