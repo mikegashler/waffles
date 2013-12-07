@@ -1,0 +1,156 @@
+<html><body bgcolor=#404040><br><br><br><br>
+<table align=center cellpadding=50 border=1 bgcolor=#e0e0d0 width=1000><tr><td>
+<a href="../index.html#toc">Back to the table of contents</a><br>
+
+<br>
+<a href="look_around.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
+
+
+
+
+
+
+
+<h2>Bayesian belief network example</h2>
+<p>This document shows an example of how to use MCMC to do Bayesian inference with a belief network in Waffles.</p>
+
+<p>As an example, we will build a belief network for ranking professional golfers. Let's start by
+downloading the <a href="http://mldata.org/repository/data/download/arff/golfdata/">golf dataset</a> from mldata.org.
+This dataset records the number of swings used by 604 professional golfers at 42 different tournaments.
+Ranking the golfers is a challenging problem because not every golfer participated in every tournament, and
+not every tournament has the same difficulty.</p>
+
+<p>We can rank a golfer by attributing the number of swings used by each golfer to two causes: 1- the difficulty of the
+tournament, and 2- error on the part of the golfer. Here is a belief network that was designed for this purpose:<br>
+<center><img src="golf.svg"></center><br>
+</p>
+
+<p>Our first task is to instantiate this network. Here is some code to do this:
+<pre>
+	GBayesNet bn;
+
+	// Make the 4 nodes that are not on a plate
+	GBNNormal* pTournMean = bn.newNormal();
+	pTournMean-&gt;setMeanAndVariance(0, bn.newConst(72.0), bn.newConst(2.0));
+	GBNInverseGamma* pTournVar = bn.newInverseGamma();
+	pTournVar-&gt;setAlphaAndBeta(0, bn.newConst(18), bn.newConst(66.667));
+	GBNInverseGamma* pGolferVar = bn.newInverseGamma();
+	pGolferVar-&gt;setAlphaAndBeta(0, bn.newConst(18), bn.newConst(66.667));
+	GBNInverseGamma* pInstVar = bn.newInverseGamma();
+	pInstVar-&gt;setAlphaAndBeta(0, bn.newConst(83), bn.newConst(714.29));
+
+	// Make the 42 tournament nodes
+	vector&lt;GBNNormal*&gt; tourns;
+	for(size_t i = 0; i &lt; 42; i++)
+	{
+		GBNNormal* pTourn = bn.newNormal();
+		pTourn-&gt;setMeanAndVariance(0, pTournMean, pTournVar);
+		tourns.push_back(pTourn);
+	}
+
+	// Make the 604 golfer nodes
+	vector&lt;GBNNormal*&gt; golfers;
+	for(size_t i = 0; i &lt; 604; i++)
+	{
+		GBNNormal* pGolfer = bn.newNormal();
+		pGolfer-&gt;setMeanAndVariance(0, bn.newConst(0), pGolferVar);
+		golfers.push_back(pGolfer);
+	}
+
+	// Make the 5700 swing nodes
+	GMatrix data;
+	data.loadArff("golfdata.arff");
+	for(size_t i = 0; i &lt; data.rows(); i++)
+	{
+		double* pRow = data[i];
+		GBNSum* pSum = bn.newSum();
+		size_t tourn = (size_t)pRow[2] - 1;
+		if(tourn &gt;= 42)
+			throw Ex("tournament out of range");
+		size_t golfer = (size_t)pRow[0];
+		if(golfer &gt;= 604)
+			throw Ex("golfer out of range");
+		pSum-&gt;addParent(tourns[tourn]);
+		pSum-&gt;addParent(golfers[golfer]);
+		GBNNormal* pInst = bn.newNormal();
+		pInst-&gt;setMeanAndVariance(0, pSum, pInstVar);
+		pInst-&gt;setObserved(pRow[1]);
+	}
+</pre>
+
+Now, we are ready to use MCMC to do some inference. We will begin by doing some burn-in iterations:
+<pre>
+	for(size_t i = 0; i &lt; 50000; i++)
+		bn.sample();
+</pre>
+
+Then, we can draw some samples to represent the joint distribution. We will store these samples in a matrix:
+<pre>
+	GMatrix results(0, 604);
+	for(size_t i = 0; i &lt; 50000; i++)
+	{
+		bn.sample();
+		double* pRow = results.newRow();
+		for(size_t j = 0; j &lt; 604; j++)
+			*(pRow++) = golfers[j]->currentValue();
+	}
+</pre>
+
+Finally, let's examine the results. I computed the median "error" of each golfer,
+then sorted by this value, and printed the first 10 lines.
+<pre>
+	GMatrix digest(604, 2);
+	for(size_t i = 0; i &lt; 604; i++)
+	{
+		digest[i][0] = i;
+		digest[i][1] = results.columnMedian(i);
+	}
+	digest.sort(1);
+	for(size_t i = 0; i &lt; 10; i++)
+	{
+		((const GArffRelation&amp;)data.relation()).printAttrValue(cout, 0, digest[i][0]);
+		cout &lt;&lt; "	" &lt;&lt; digest[i][1] &lt;&lt; "\n";
+	}
+</pre>
+
+Here are my results:
+<pre>
+	VijaySingh	-3.89276
+	TigerWoods	-3.7662
+	ErnieEls	-3.39097
+	PhilMickelson	-3.38151
+	StewartCink	-3.04885
+	JayHaas  	-2.92062
+	SergioGarcia	-2.89011
+	ScottVerplank	-2.81684
+	RetiefGoosen	-2.77541
+	PadraigHaringtn	-2.76943
+</pre>
+
+Some Wikipedia searches confirm that these guys are pretty-good golfers,
+so I think these results are approximately correct. I probably didn't need
+to do so many iterations, but I find it is often easier to just use overkill
+rather than to make mixing plots to figure out the minimum number of
+iterations that are really necessary.
+
+</p>
+
+
+
+
+
+
+
+
+
+<br>
+<a href="look_around.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
+
+<br><br><a href="../index.html#toc">Back to the table of contents</a><br>
+</td></tr></table>
+<center><br><br><br>
+Hosting for this project generously provided by:<br>
+<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
+</center>
+</td></tr></table><br><br><br><br><br>
+</body></html>
