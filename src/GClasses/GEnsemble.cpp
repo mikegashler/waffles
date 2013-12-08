@@ -64,7 +64,7 @@ GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	m_nAccumulatorDims = (size_t)pNode->field("accum")->asInt();
 	m_pAccumulator = new double[m_nAccumulatorDims];
-	m_workerThreads = pNode->field("threads")->asInt();
+	m_workerThreads = (size_t)pNode->field("threads")->asInt();
 	GDomNode* pModels = pNode->field("models");
 	GDomListIterator it(pModels);
 	size_t modelCount = it.remaining();
@@ -159,9 +159,9 @@ void GEnsemble::castVote(double weight, const double* pOut)
 		else
 		{
 			double dVal = pOut[i];
-			*pAcc = weight * dVal;
+			*pAcc += weight * dVal;
 			pAcc++;
-			*pAcc = weight * (dVal * dVal);
+			*pAcc += weight * (dVal * dVal);
 			pAcc++;
 		}
 	}
@@ -342,7 +342,7 @@ protected:
 	GRand m_rand;
 
 public:
-	GBagTrainWorker(GMasterThread& master, GBag* pBag, const GMatrix& features, const GMatrix& labels, size_t trainSize, size_t seed)
+	GBagTrainWorker(GMasterThread& master, GBag* pBag, const GMatrix& features, const GMatrix& labels, double trainSize, size_t seed)
 	: GWorkerThread(master),
 	m_pBag(pBag),
 	m_features(features),
@@ -419,7 +419,7 @@ void GBag::trainInnerInner(const GMatrix& features, const GMatrix& labels)
 
 	GMasterThread trainMaster;
 	for(size_t i = 0; i < m_workerThreads; i++)
-		trainMaster.addWorker(new GBagTrainWorker(trainMaster, this, features, labels, m_trainSize, m_rand.next()));
+		trainMaster.addWorker(new GBagTrainWorker(trainMaster, this, features, labels, m_trainSize, (size_t)m_rand.next()));
 	trainMaster.doJobs(m_models.size());
 	determineWeights(features, labels);
 	normalizeWeights();
@@ -444,7 +444,7 @@ void GBag::test()
 		pTree->useRandomDivisions();
 		bag.addLearner(pTree);
 	}
-	bag.basicTest(0.765, 0.93, 0.01);
+	bag.basicTest(0.764, 0.93, 0.01);
 }
 #endif
 
@@ -573,7 +573,7 @@ void GBayesianModelAveraging::test()
 		pTree->useRandomDivisions();
 		bma.addLearner(pTree);
 	}
-	bma.basicTest(0.755, 0.939, 0.01);
+	bma.basicTest(0.755, 0.928, 0.01);
 }
 #endif
 
@@ -653,7 +653,7 @@ void GBayesianModelCombination::test()
 		pTree->useRandomDivisions();
 		bmc.addLearner(pTree);
 	}
-	bmc.basicTest(0.76, 0.939, 0.01);
+	bmc.basicTest(0.76, 0.928, 0.01);
 }
 #endif
 

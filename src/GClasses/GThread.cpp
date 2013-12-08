@@ -19,6 +19,7 @@
 
 #include "GThread.h"
 #include "GError.h"
+#include <time.h>
 #ifdef WINDOWS
 #	include <windows.h>
 #else

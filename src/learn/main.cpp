@@ -2272,22 +2272,22 @@ void metaData(GArgReader& args)
 	double* pRow = meta.newRow();
 
 	// log_rows
-	*(pRow++) = log(pFeatures->rows());
+	*(pRow++) = log((double)pFeatures->rows());
 
 	// log_feature_dims
-	*(pRow++) = log(pFeatures->cols());
+	*(pRow++) = log((double)pFeatures->cols());
 
 	// log_label_dims
-	*(pRow++) = log(pLabels->cols());
+	*(pRow++) = log((double)pLabels->cols());
 
 	// log_feature_elements
-	*(pRow++) = log(pFeatures->rows() * pFeatures->cols());
+	*(pRow++) = log((double)(pFeatures->rows() * pFeatures->cols()));
 
 	// log_sum_feature_vals
 	size_t sum = 0;
 	for(size_t i = 0; i < pFeatures->cols(); i++)
 		sum += pFeatures->relation().valueCount(i);
-	*(pRow++) = log(sum + 1);
+	*(pRow++) = log((double)(sum + 1));
 
 	// mean_feature_vals
 	*(pRow++) = (double)sum / pFeatures->cols();
@@ -2329,28 +2329,28 @@ void metaData(GArgReader& args)
 	*(pRow++) = pFeatures->doesHaveAnyMissingValues() ? 1.0 : 0.0;
 
 	// label_entropy
-	sum = 0.0;
+	double dsum = 0.0;
 	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
 		if(pLabels->relation().valueCount(i) == 0)
 		{
 			double mean = pLabels->columnMean(i);
-			sum += log(1.0 + sqrt(pLabels->columnVariance(i, mean)));
+			dsum += log(1.0 + sqrt(pLabels->columnVariance(i, mean)));
 		}
 		else
-			sum += pLabels->entropy(i);
+			dsum += pLabels->entropy(i);
 	}
-	*(pRow++) = sum / pLabels->cols();
+	*(pRow++) = dsum / pLabels->cols();
 
 	// label_skew
-	sum = 0.0;
+	dsum = 0.0;
 	for(size_t i = 0; i < pLabels->cols(); i++)
 	{
 		if(pLabels->relation().valueCount(i) == 0)
 		{
 			double mean = pLabels->columnMean(i);
 			double median = pLabels->columnMedian(i);
-			sum += log(1.0 + std::abs(mean - median));
+			dsum += log(1.0 + std::abs(mean - median));
 		}
 		else
 		{
@@ -2361,10 +2361,10 @@ void metaData(GArgReader& args)
 				if(pLabels->row(j)[i] == mostCommonValue)
 					count++;
 			}
-			sum += (double)count / pLabels->rows();
+			dsum += (double)count / pLabels->rows();
 		}
 	}
-	*(pRow++) = sum / pLabels->cols();
+	*(pRow++) = dsum / pLabels->cols();
 
 	// landmark_baseline
 	{

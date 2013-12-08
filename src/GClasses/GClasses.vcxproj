@@ -93,7 +93,6 @@
     </Bscmake>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="findAugMatrix.cpp" />
     <ClCompile Include="G3D.cpp" />
     <ClCompile Include="GActivation.cpp" />
     <ClCompile Include="GApp.cpp">
@@ -133,6 +132,7 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ClCompile Include="GDeepNet.cpp" />
     <ClCompile Include="GDiff.cpp" />
     <ClCompile Include="GDirList.cpp" />
     <ClCompile Include="GDistance.cpp" />
@@ -274,12 +274,6 @@
     <ClCompile Include="GSmtp.cpp" />
     <ClCompile Include="GSocket.cpp" />
     <ClCompile Include="GSparseMatrix.cpp" />
-    <ClCompile Include="GSpinLock.cpp">
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
     <ClCompile Include="GStemmer.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -330,6 +324,7 @@
     <ClInclude Include="GCluster.h" />
     <ClInclude Include="GCrypto.h" />
     <ClInclude Include="GDecisionTree.h" />
+    <ClInclude Include="GDeepNet.h" />
     <ClInclude Include="GDiff.h" />
     <ClInclude Include="GDirList.h" />
     <ClInclude Include="GDistance.h" />
@@ -387,7 +382,6 @@
     <ClInclude Include="GSmtp.h" />
     <ClInclude Include="GSocket.h" />
     <ClInclude Include="GSparseMatrix.h" />
-    <ClInclude Include="GSpinLock.h" />
     <ClInclude Include="GStemmer.h" />
     <ClInclude Include="GString.h" />
     <ClInclude Include="GSystemLearner.h" />

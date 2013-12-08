@@ -974,7 +974,7 @@ public:
 			if(strstr(buf, "waffles_transform [command]"))
 				runCommandLineTests = true;
 		}
-		catch(const std::exception& e)
+		catch(const std::exception&)
 		{
 		}
 

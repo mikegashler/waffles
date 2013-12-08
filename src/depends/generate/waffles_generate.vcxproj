@@ -122,7 +122,7 @@
     <ClInclude Include="GImagePng.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GClasses\GClasses.vcxproj">
+    <ProjectReference Include="..\..\GClasses\GClasses.vcxproj">
       <Project>{e9f67748-e716-4f28-b096-44343a8e28b3}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>

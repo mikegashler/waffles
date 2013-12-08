@@ -612,7 +612,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 			}
 			else if(m_binaryDivisions)
 			{
-				pivot = features[m_rand.next(features.rows())][attr];
+				pivot = features[(size_t)m_rand.next(features.rows())][attr];
 				if(pivot == UNKNOWN_DISCRETE_VALUE)
 					pivot = features.baselineValue(attr);
 				if(m_randomDraws > 1)

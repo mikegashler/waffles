@@ -418,7 +418,7 @@ void randomWalk(GArgReader& args)
 				if(rand.uniform() >= d)
 				{
 					// Pick a new direction
-					dir = rand.next(2 * dims);
+					dir = (size_t)rand.next(2 * dims);
 				}
 
 				// Take the step
@@ -2738,7 +2738,7 @@ void model(GArgReader& args)
 				pModeler->predict(features, labels);
 				unsigned int hue;
 				if(continuous)
-					hue = MixColors(gARGB(0xff, 0, 0x80, 0x80), gARGB(0xff, 0x80, 0, 0), 256.0 * (labels[labelDim] - labelMin) / labelRange);
+					hue = MixColors(gARGB(0xff, 0, 0x80, 0x80), gARGB(0xff, 0x80, 0, 0), (int)(256.0 * (labels[labelDim] - labelMin) / labelRange));
 				else
 					hue = gAHSV(0xff, std::max(0.0f, std::min(1.0f, (float)((labels[labelDim] - labelMin) / labelRange))), 1.0f, 0.5f);
 				r += gRed(hue);
@@ -2762,7 +2762,7 @@ void model(GArgReader& args)
 		double* pRow = pData->row(i);
 		unsigned int hue;
 		if(continuous)
-			hue = MixColors(gARGB(0xff, 0, 0xff, 0xff), gARGB(0xff, 0xff, 0, 0), 256.0 * (pRow[featureDims + labelDim] - labelMin) / labelRange);
+			hue = MixColors(gARGB(0xff, 0, 0xff, 0xff), gARGB(0xff, 0xff, 0, 0), (int)(256.0 * (pRow[featureDims + labelDim] - labelMin) / labelRange));
 		else
 			hue = gAHSV(0xff, std::max(0.0f, std::min(1.0f, (float)((pRow[featureDims + labelDim] - labelMin) / labelRange))), 1.0f, 1.0f);
 

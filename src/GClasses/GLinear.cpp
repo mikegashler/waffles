@@ -836,7 +836,7 @@ GHingedLinear::GHingedLinear(GDomNode* pNode, GLearnerLoader& ll)
 	GDomListIterator it1(pTopo);
 	while(it1.remaining() > 0)
 	{
-		m_topology.push_back(it1.current()->asInt());
+		m_topology.push_back((size_t)it1.current()->asInt());
 		it1.advance();
 	}
 

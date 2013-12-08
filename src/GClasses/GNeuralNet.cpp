@@ -1985,17 +1985,18 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 	}
 }
 
+#define NN_TEST_DIMS 5
+
 void GNeuralNet_testCompressFeatures(GRand& prng)
 {
-	size_t dims = 5;
-	GMatrix feat(50, dims);
+	GMatrix feat(50, NN_TEST_DIMS);
 	for(size_t i = 0; i < feat.rows(); i++)
-		prng.spherical(feat[i], dims);
+		prng.spherical(feat[i], NN_TEST_DIMS);
 
 	// Set up
 	GNeuralNet nn1;
 	vector<size_t> topology;
-	topology.push_back(dims * 2);
+	topology.push_back(NN_TEST_DIMS * 2);
 	nn1.setTopology(topology);
 	nn1.beginIncrementalLearning(feat.relation(), feat.relation());
 	nn1.perturbAllWeights(1.0);
@@ -2006,13 +2007,13 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 	// Test
 	GMatrix* pNewFeat = nn1.compressFeatures(feat);
 	Holder<GMatrix> hNewFeat(pNewFeat);
-	double out1[dims];
-	double out2[dims];
+	double out1[NN_TEST_DIMS];
+	double out2[NN_TEST_DIMS];
 	for(size_t i = 0; i < feat.rows(); i++)
 	{
 		nn1.predict(pNewFeat->row(i), out1);
 		nn2.predict(feat[i], out2);
-		if(GVec::squaredDistance(out1, out2, dims) > 1e-14)
+		if(GVec::squaredDistance(out1, out2, NN_TEST_DIMS) > 1e-14)
 			throw Ex("failed");
 	}
 }

@@ -33,7 +33,6 @@
 #include <GClasses/GNaiveInstance.h>
 #include <GClasses/GNeuralNet.h>
 #include <GClasses/GRand.h>
-#include <GClasses/GSpinLock.h>
 #include <GClasses/GTime.h>
 #include <GClasses/GVec.h>
 #include <GClasses/GWidgets.h>
@@ -355,6 +354,7 @@ public:
 			for(int i = 0; i < 30; i++)
 			{
 				GDecisionTree* pTree = new GDecisionTree();
+				pTree->rand().setSeed(i);
 				pTree->useRandomDivisions();
 				pBag->addLearner(pTree);
 			}
@@ -366,6 +366,7 @@ public:
 			for(int i = 0; i < 30; i++)
 			{
 				GMeanMarginsTree* pTree = new GMeanMarginsTree();
+				pTree->rand().setSeed(i);
 				pBag->addLearner(pTree);
 			}
 			doSupervisedLearner(pBag);

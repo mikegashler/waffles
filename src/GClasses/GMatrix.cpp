@@ -4850,8 +4850,8 @@ void GMatrix_testBoundingSphere(GRand& rand)
 	GTEMPBUF(double, center, 10);
 	for(size_t i = 0; i < 30; i++)
 	{
-		size_t points = rand.next(48) + 2;
-		size_t dims = rand.next(8) + 2;
+		size_t points = (size_t)rand.next(48) + 2;
+		size_t dims = (size_t)rand.next(8) + 2;
 		GMatrix m(points, dims);
 		for(size_t j = 0; j < points; j++)
 			rand.spherical(m[j], dims);

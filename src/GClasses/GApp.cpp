@@ -492,7 +492,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 		CloseHandle(hChildStderrWr);
 
 	// Wait for the child process
-	DWORD ret = piProcInfo.hProcess;
+	DWORD ret = 0;//piProcInfo.hProcess; // Todo: BUG: Fix this line
 	if(wait)
 	{
 		WaitForSingleObject(piProcInfo.hProcess, 10000/*INFINITE*/);

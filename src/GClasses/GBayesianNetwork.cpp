@@ -266,8 +266,8 @@ void GBNCategorical::sample(GRand* pRand)
 		for(vector<GBNVariable*>::const_iterator it = children().begin(); it != children().end(); it++)
 		{
 			GBNVariable* pChildNode = *it;
-			double oldVal = m_val;
-			m_val = (double)i;
+			size_t oldVal = m_val;
+			m_val = i;
 			catProb *= pChildNode->likelihood(pChildNode->currentValue());
 			m_val = oldVal;
 		}
@@ -283,8 +283,8 @@ void GBNCategorical::sample(GRand* pRand)
 		for(vector<GBNVariable*>::const_iterator it = children().begin(); it != children().end(); it++)
 		{
 			GBNVariable* pChildNode = *it;
-			double oldVal = m_val;
-			m_val = (double)i;
+			size_t oldVal = m_val;
+			m_val = i;
 			catProb *= pChildNode->likelihood(pChildNode->currentValue());
 			m_val = oldVal;
 		}
@@ -1035,7 +1035,7 @@ void GBayesNet::sample()
 {
 	// Shuffle the order of the nodes
 	for(size_t i = m_sampleNodes.size(); i > 1; i--)
-		std::swap(m_sampleNodes[i - 1], m_sampleNodes[m_rand.next(i)]);
+		std::swap(m_sampleNodes[i - 1], m_sampleNodes[(size_t)m_rand.next(i)]);
 
 	// Sample each node
 	for(vector<GBNVariable*>::iterator it = m_sampleNodes.begin(); it != m_sampleNodes.end(); it++)
