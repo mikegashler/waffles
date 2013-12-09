@@ -748,7 +748,7 @@ public:
 #else
 							size_t itemId = (size_t)strtoull(szName + 6, NULL, 10);
 #endif
-							if(itemId < 0 && itemId >= m_pServer->topics().size())
+							if(itemId >= m_pServer->topics().size())
 							{
 								response << "[url id " << itemId << " out of range.]<br>\n";
 								continue;
@@ -1129,7 +1129,7 @@ public:
 	virtual void makeBody(GDynamicPageSession* pSession, ostream& response)
 	{
 		Account* pAccount = getAccount(pSession);
-		if(pSession->paramsLen() >= 0)
+		if(pSession->paramsLen() > 0)
 		{
 			// See if the user wants to log out
 			GHttpParamParser params(pSession->params());
@@ -1649,7 +1649,7 @@ void Server::trainPersonality(Account* pAccount, size_t iters)
 	std::vector<pair<size_t, float> >& v = pAccount->ratings()[topic].m_vec;
 	if(v.size() > 0)
 	{
-		for(size_t iters = 0; iters < iters; iters++)
+		for(size_t i = 0; i < iters; i++)
 		{
 			size_t index = (size_t)prng()->next(v.size());
 			Item& item = pCurrentTopic->item(v[index].first);

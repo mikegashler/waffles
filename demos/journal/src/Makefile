@@ -6,6 +6,7 @@ TARGET_PATH = ../bin
 TARGET_NAME_OPT = journal
 TARGET_NAME_DBG = $(TARGET_NAME_OPT)dbg
 OBJ_PATH = ../obj
+INSTALL_LOCATION_INCLUDE ?= /usr/local/include
 UNAME = $(shell uname -s)
 ifeq ($(UNAME),Darwin)
 	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp

@@ -31,13 +31,13 @@ INCLUDE_DIRECTORIES(../wizard)
 #And build a static library
 SET (LIBRARY_OUTPUT_PATH ../../lib/ CACHE PATH "Output directory libraries.")
 SET (EXECUTABLE_OUTPUT_PATH ../../bin/ CACHE PATH "Output directory for executables.")
-ADD_EXECUTABLE(waffles_test ../wizard/usage.cpp ${SOURCE_FILES} ../wizard/usage.h ${HEADER_FILES})
-TARGET_LINK_LIBRARIES(waffles_test GClasses pthread)
+ADD_EXECUTABLE(test ../wizard/usage.cpp ${SOURCE_FILES} ../wizard/usage.h ${HEADER_FILES})
+TARGET_LINK_LIBRARIES(test GClasses pthread)
 
 #-------------------------------------------------------------------------------
 INSTALL(
   TARGETS
-    waffles_test
+    test
   ARCHIVE DESTINATION 
     lib
   RUNTIME DESTINATION

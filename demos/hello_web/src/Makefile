@@ -12,8 +12,8 @@ ifeq ($(UNAME),Darwin)
 	CFLAGS = -I/opt/local/include -I/usr/local/include -D_THREAD_SAFE -DDARWIN -I/sw/include -I../../../src -no-cpp-precomp
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
-	DBG_LFLAGS = $(DBG_LIBRARIES) -lpng -lz -lpthread -framework AppKit ../../../lib/GClassesDbg.a
-	OPT_LFLAGS = $(OPT_LIBRARIES) -lpng -lz -lpthread -framework AppKit ../../../lib/GClasses.a
+	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) -lpng -lz -lpthread -framework AppKit ../../../lib/GClassesDbg.a
+	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) -lpng -lz -lpthread -framework AppKit ../../../lib/GClasses.a
 else
 	CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE)
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG

@@ -353,10 +353,7 @@ public:
 				}
 				else
 				{
-					if(nameStart >= 0)
-						meta.append(pSession->params() + nameStart, nameLen);
-					else
-						meta += "?";
+					meta.append(pSession->params() + nameStart, nameLen);
 					meta += "=";
 					meta.append(pSession->params() + valueStart, valueLen);
 				}
@@ -390,7 +387,7 @@ public:
 	virtual void makeBody(GDynamicPageSession* pSession, ostream& response)
 	{
 		Account* pAccount = getAccount(pSession);
-		if(pSession->paramsLen() >= 0)
+		if(pSession->paramsLen() > 0)
 		{
 			// See if the user wants to log out
 			GHttpParamParser params(pSession->params());
