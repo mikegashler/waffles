@@ -32,7 +32,7 @@ INCLUDE_DIRECTORIES(../wizard)
 SET (LIBRARY_OUTPUT_PATH ../../lib/ CACHE PATH "Output directory libraries.")
 SET (EXECUTABLE_OUTPUT_PATH ../../bin/ CACHE PATH "Output directory for executables.")
 ADD_EXECUTABLE(waffles_plot ../wizard/usage.cpp ${SOURCE_FILES} ../wizard/usage.h ${HEADER_FILES})
-TARGET_LINK_LIBRARIES(waffles_plot GClasses)
+TARGET_LINK_LIBRARIES(waffles_plot GClasses pthread)
 
 #-------------------------------------------------------------------------------
 INSTALL(
