@@ -602,9 +602,22 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 			double info;
 			if(features.relation().valueCount(attr) == 0)
 			{
-				pivot = features[(size_t)m_rand.next(features.rows())][attr];
-				if(pivot == UNKNOWN_REAL_VALUE)
-					pivot = features.columnMedian(attr);
+				double a = features[(size_t)m_rand.next(features.rows())][attr];
+				double b = features[(size_t)m_rand.next(features.rows())][attr];
+				if(a == UNKNOWN_REAL_VALUE)
+				{
+					if(b == UNKNOWN_REAL_VALUE)
+						pivot = features.columnMedian(attr);
+					else
+						pivot = b;
+				}
+				else
+				{
+					if(b == UNKNOWN_REAL_VALUE)
+						pivot = a;
+					else
+						pivot = 0.5 * (a + b);
+				}
 				if(m_randomDraws > 1)
 					info = GDecisionTree_measureRealSplitInfo(features, labels, tmpFeatures, tmpLabels, attr, pivot);
 				else
