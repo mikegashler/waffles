@@ -3214,26 +3214,50 @@ void GMatrix::mergeVert(GMatrix* pData)
 	}
 }
 
-double GMatrix::columnMean(size_t nAttribute) const
+double GMatrix::columnMean(size_t nAttribute, const double* pWeights) const
 {
 	if(nAttribute >= cols())
 		throw Ex("attribute index out of range");
-	double sum = 0;
-	size_t missing = 0;
-	for(vector<double*>::const_iterator it = m_rows.begin(); it != m_rows.end(); it++)
+	if(pWeights)
 	{
-		if((*it)[nAttribute] == UNKNOWN_REAL_VALUE)
-			missing++;
+		double sum = 0.0;
+		double sumWeight = 0.0;
+		for(vector<double*>::const_iterator it = m_rows.begin(); it != m_rows.end(); it++)
+		{
+			if((*it)[nAttribute] != UNKNOWN_REAL_VALUE)
+			{
+				sum += *pWeights * (*it)[nAttribute];
+				sumWeight += *pWeights;
+			}
+			pWeights++;
+		}
+		if(sumWeight > 0.0)
+			return sum / sumWeight;
 		else
-			sum += (*it)[nAttribute];
+		{
+			throw Ex("No values have any weight while computing mean");
+			return 0.0;
+		}
 	}
-	size_t count = m_rows.size() - missing;
-	if(count > 0)
-		return sum / count;
 	else
 	{
-		throw Ex("at least one value is required to compute a mean");
-		return 0.0;
+		double sum = 0;
+		size_t missing = 0;
+		for(vector<double*>::const_iterator it = m_rows.begin(); it != m_rows.end(); it++)
+		{
+			if((*it)[nAttribute] == UNKNOWN_REAL_VALUE)
+				missing++;
+			else
+				sum += (*it)[nAttribute];
+		}
+		size_t count = m_rows.size() - missing;
+		if(count > 0)
+			return sum / count;
+		else
+		{
+			throw Ex("At least one value is required to compute a mean");
+			return 0.0;
+		}
 	}
 }
 
@@ -3268,11 +3292,11 @@ double GMatrix::columnMedian(size_t nAttribute) const
 }
 #endif // MIN_PREDICT
 
-void GMatrix::centroid(double* pOutMeans) const
+void GMatrix::centroid(double* pOutMeans, const double* pWeights) const
 {
 	size_t c = cols();
 	for(size_t n = 0; n < c; n++)
-		pOutMeans[n] = columnMean(n);
+		pOutMeans[n] = columnMean(n, pWeights);
 }
 
 double GMatrix::columnVariance(size_t nAttr, double mean) const
@@ -3823,17 +3847,31 @@ double GMatrix::linearCorrelationCoefficient(size_t attr1, double attr1Origin, s
 	return (sxy / j) / (sqrt(sx / j) * sqrt(sy / j));
 }
 
-double GMatrix::covariance(size_t nAttr1, double dMean1, size_t nAttr2, double dMean2) const
+double GMatrix::covariance(size_t nAttr1, double dMean1, size_t nAttr2, double dMean2, const double* pWeights) const
 {
-	size_t nRowCount = rows();
-	const double* pVector;
-	double dSum = 0;
-	for(size_t i = 0; i < nRowCount; i++)
+	if(pWeights)
 	{
-		pVector = row(i);
-		dSum += ((pVector[nAttr1] - dMean1) * (pVector[nAttr2] - dMean2));
+		double sum = 0;
+		double sumWeight = 0.0;
+		for(size_t i = 0; i < rows(); i++)
+		{
+			const double* pVector = row(i);
+			sum += ((pVector[nAttr1] - dMean1) * (pVector[nAttr2] - dMean2) * (*pWeights) * (*pWeights));
+			sumWeight += (*pWeights);
+			pWeights++;
+		}
+		return sum / std::max(1e-6, sumWeight - 1.0);
 	}
-	return dSum / (nRowCount - 1);
+	else
+	{
+		double sum = 0;
+		for(size_t i = 0; i < rows(); i++)
+		{
+			const double* pVector = row(i);
+			sum += ((pVector[nAttr1] - dMean1) * (pVector[nAttr2] - dMean2));
+		}
+		return sum / (rows() - 1);
+	}
 }
 
 GMatrix* GMatrix::covarianceMatrix() const

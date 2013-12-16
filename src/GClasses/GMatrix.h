@@ -963,7 +963,8 @@ public:
 	double columnMax(size_t nAttribute) const;
 
 	/// \brief Computes the arithmetic mean of the values in the specified column
-	double columnMean(size_t nAttribute) const;
+	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
+	double columnMean(size_t nAttribute, const double* pWeights = NULL) const;
 
 	/// \brief Computes the average variance of a single attribute
 	double columnVariance(size_t nAttr, double mean) const;
@@ -979,7 +980,8 @@ public:
 	void centerMeanAtOrigin();
 
 	/// \brief Computes the arithmetic means of all attributes
-	void centroid(double* pOutCentroid) const;
+	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
+	void centroid(double* pOutCentroid, const double* pWeights = NULL) const;
 
 	/// \brief Normalizes the specified column
 	void normalizeColumn(size_t col, double dInMin, double dInMax, double dOutMin = 0.0, double dOutMax = 1.0);
@@ -1106,8 +1108,10 @@ public:
 	/// Returns the squared radius of the sphere, and stores its center in pOutCenter.
 	double boundingSphere(double* pOutCenter) const;
 
-	/// \brief Computes the covariance between two attributes
-	double covariance(size_t nAttr1, double dMean1, size_t nAttr2, double dMean2) const;
+	/// \brief Computes the covariance between two attributes.
+	/// If pWeights is NULL, each row is given a weight of 1.
+	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
+	double covariance(size_t nAttr1, double dMean1, size_t nAttr2, double dMean2, const double* pWeights = NULL) const;
 
 	/// \brief Computes the covariance matrix of the data
 	GMatrix* covarianceMatrix() const;

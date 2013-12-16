@@ -37,11 +37,13 @@ class GNeuralNetLayer
 {
 friend class GBackProp;
 friend class GNeuralNet;
+friend class GNeuralNetPseudoInverse;
 public:
 	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
 protected:
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation.
-	GActivationFunction* m_pActivationFunction;
+	GActivationFunction** m_activationFunctions;
+	std::vector<GActivationFunction*> m_activationFunctionCache;
 
 public:
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
@@ -93,17 +95,15 @@ public:
 	/// Perturbs all the weights in this layer with Gaussian noise.
 	void perturbWeights(GRand& rand, double deviation);
 
+	/// Takes ownership of pActivation function. Sets all of the units in the specified range to use the given activation function.
+	void setActivationFunction(GActivationFunction* pActivationFunction, size_t first = 0, size_t count = INVALID_INDEX);
+
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
 	void setToWeaklyApproximateIdentity();
 
 	/// An experimental thing--needs more testing
-	void outputGradient(const double* pIn); // Initially, pass in direction. Assumes logistic activation. Puts results in net(). Leaves activation() alone.
-
-	/// Returns the activation function used in this layer
-	GActivationFunction* activationFunction() { return m_pActivationFunction; }
-
-	/// Takes ownership of pAF
-	void setActivationFunction(GActivationFunction* pAF);
+	/// Initially, pass in direction. Assumes logistic or tanh activation function. Puts results in net(). Leaves activation() alone.
+	void outputGradient(const double* pIn);
 
 	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
@@ -535,6 +535,8 @@ public:
 /// example, if the neural network only deviates a little from
 /// the identity function, then this will work well. With many
 /// interesting problems, this gives very poor results.)
+/// Note: This class assumes that the activation functions used
+/// within each layer of the neural network are homogeneous.
 class GNeuralNetPseudoInverse
 {
 protected:
