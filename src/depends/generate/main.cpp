@@ -63,7 +63,7 @@ GMatrix* loadData(const char* szFilename)
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
 		pData->loadCsv(szFilename, ',', false, &ambiguousCols, false);
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData->loadCsv(szFilename, '\0', false, false);
+		pData->loadCsv(szFilename, '\0', false, &ambiguousCols, false);
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	if(ambiguousCols.size() > 0)

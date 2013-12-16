@@ -654,7 +654,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 		}
 
 		// We failed to find a useful attribute with random draws. (This may happen if there is a large
-		// ratio of homogenous attributes.) Now, we need to be a little more systematic about finding a good
+		// ratio of homogeneous attributes.) Now, we need to be a little more systematic about finding a good
 		// attribute. (This is not specified in the random forest algorithm, but it can make a big difference
 		// with some problems.)
 		size_t k = (size_t)m_rand.next(attrPool.size());
