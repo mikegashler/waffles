@@ -380,6 +380,19 @@ void GVec::multiply(double* pVector, double dScalar, size_t nDims)
 	}
 }
 
+// static
+void GVec::diminish(double* pVector, double amount, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		if(*pVector < 0.0)
+			*pVector += amount;
+		else
+			*pVector -= amount;
+		pVector++;
+	}
+}
+
 //static
 void GVec::pow(double* pVector, double dScalar, size_t nDims)
 {

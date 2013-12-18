@@ -32,6 +32,7 @@ struct GManifoldSculptingNeighbor;
 class GNeighborFinder;
 class GNeuralNet;
 class GNeuralNetLayer;
+class GNeighborFinderCacheWrapper;
 
 
 /// This class stores static methods that are useful for manifold learning
@@ -519,13 +520,8 @@ protected:
 	size_t m_neighborCount;
 	size_t m_targetDims;
 	size_t m_passes;
-	double m_learningRate;
 	double m_scaleRate;
-	double m_keepRatio;
-	bool m_reduce;
 	GRand m_rand;
-	size_t m_encoderTrainIters;
-	GNeuralNet* m_pEncoder;
 
 public:
 	GScalingUnfolder();
@@ -541,19 +537,15 @@ public:
 	/// Specify the number of times to 'scale the data then recover local relationships'.
 	void setPasses(size_t n ) { m_passes = n; }
 
-	/// Just unfold the data, don't reduce dimensionality
-	void noReduce() { m_reduce = false; }
-
-	/// Provide a neural net to train to do the encoding. (Does not take ownership of this neural net.)
-	/// pEncoder should already be initialized to approximate the identity function with some perturbation.
-	/// In both cases, the number of inputs and outputs should be set to the number of cols in the observation matrix.
-	/// The encoder is expected to support any output value as well as any input value.
-	void trainEncoder(GNeuralNet* pEncoder, size_t encoderTrainIters = 5);
-
 	/// Returns a reference to the pseudo-random number generator used by this object
 	GRand& rand() { return m_rand; }
 
+	/// Reduces the dimensionality of "in".
 	virtual GMatrix* reduce(const GMatrix& in);
+
+	/// Unfolds the points in intrinsic, such that distances specified in nf are preserved.
+	/// If pVisible is non-NULL, then pEncoder will be incrementally trained to encode pVisible to intrinsic.
+	void unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, const GMatrix* pVisible = NULL);
 };
 
 

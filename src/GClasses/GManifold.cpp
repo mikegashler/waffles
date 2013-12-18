@@ -2687,13 +2687,8 @@ GScalingUnfolder::GScalingUnfolder()
 : m_neighborCount(14),
 m_targetDims(2),
 m_passes(50),
-m_learningRate(0.1),
 m_scaleRate(0.9),
-m_keepRatio(0.9),
-m_reduce(true),
-m_rand(0),
-m_encoderTrainIters(0),
-m_pEncoder(NULL)
+m_rand(0)
 {
 }
 
@@ -2710,13 +2705,6 @@ GScalingUnfolder::~GScalingUnfolder()
 
 }
 
-void GScalingUnfolder::trainEncoder(GNeuralNet* pEncoder, size_t encoderTrainIters)
-{
-	noReduce();
-	m_pEncoder = pEncoder;
-	m_encoderTrainIters = encoderTrainIters;
-}
-
 void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double curSqDist, double tarSqDist)
 {
 	double scal = sqrt(tarSqDist) / sqrt(curSqDist);
@@ -2728,6 +2716,82 @@ void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double c
 	}
 }
 
+void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& nf, size_t encoderTrainIters, GNeuralNet* pEncoder, const GMatrix* pVisible)
+{
+	size_t dims = intrinsic.cols();
+	double scaleUpRate = 1.0 / m_scaleRate;
+	double scaleUp2 = scaleUpRate * scaleUpRate;
+	double scaleUp4 = scaleUp2 * scaleUp2;
+	double scaleDown2 = m_scaleRate * m_scaleRate;
+	double scaleDown4 = scaleDown2 * scaleDown2;
+	size_t neighborCount = nf.neighborCount();
+	GRandomIndexIterator ii(intrinsic.rows() * neighborCount, m_rand);
+	GRandomIndexIterator* ii2 = pEncoder ? new GRandomIndexIterator(intrinsic.rows(), m_rand) : NULL;
+	Holder<GRandomIndexIterator> hII2(ii2);
+	for(size_t pass = 0; pass < m_passes; pass++)
+	{
+		// Scale up the data
+		intrinsic.multiply(scaleUpRate);
+
+		// Restore local relationships
+		size_t bestViolators = INVALID_INDEX;
+		size_t tolerance = 0;
+		while(true)
+		{
+			// Do a training epoch
+			ii.reset();
+			size_t ind;
+			size_t violators = 0;
+			while(ii.next(ind))
+			{
+				size_t a = ind / neighborCount;
+				size_t b = nf.cache()[ind];
+				if(b != INVALID_INDEX)
+				{
+					double dTarget = std::max(1e-12, nf.squaredDistanceTable()[ind]);
+					double* pA = intrinsic.row(a);
+					double* pB = intrinsic.row(b);
+					double dCur = GVec::squaredDistance(pA, pB, dims);
+					if(dCur * scaleUp4 < dTarget)
+					{
+						GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget * scaleDown2);
+						violators++;
+					}
+					else if(dCur * scaleDown4 > dTarget)
+					{
+						GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget * scaleUp2);
+						violators++;
+					}
+				}
+			}
+			if(violators < bestViolators)
+			{
+				if(violators == 0)
+					break;
+				bestViolators = violators;
+				tolerance = 0;
+			}
+			else
+			{
+				if(++tolerance > 100)
+					break;
+			}
+		}
+
+		// Train the encoder
+		if(pVisible)
+		{
+			for(size_t i = 0; i < encoderTrainIters; i++)
+			{
+				ii2->reset();
+				size_t ind;
+				while(ii2->next(ind))
+					pEncoder->trainIncremental(pVisible->row(ind), intrinsic[ind]);
+			}
+		}
+	}
+}
+
 // virtual
 GMatrix* GScalingUnfolder::reduce(const GMatrix& in)
 {
@@ -2736,132 +2800,15 @@ GMatrix* GScalingUnfolder::reduce(const GMatrix& in)
 	GNeighborFinderCacheWrapper nf(&kdtree, false);
 	nf.fillCache();
 
-	// Start with a copy of the data
-	size_t intrinsicDims = in.cols();
-	GMatrix* pIntrinsic = new GMatrix();
-	Holder<GMatrix> hIntrinsic(pIntrinsic);
-	pIntrinsic->copy(&in);
-	GRandomIndexIterator ii(in.rows() * m_neighborCount, m_rand);
-	GRandomIndexIterator* ii2 = m_pEncoder ? new GRandomIndexIterator(in.rows(), m_rand) : NULL;
-	Holder<GRandomIndexIterator> hII2(ii2);
+	// Make a copy of the data
+	GMatrix intrinsic;
+	intrinsic.copy(&in);
+	unfold(intrinsic, nf);
 
-	// Reduce dimensionality
-	double scaleUpRate = 1.0 / m_scaleRate;
-	double scaleUp2 = scaleUpRate * scaleUpRate;
-	double scaleUp4 = scaleUp2 * scaleUp2;
-	double scaleDown2 = m_scaleRate * m_scaleRate;
-	double scaleDown4 = scaleDown2 * scaleDown2;
-	size_t dropAtLeast = 0;
-	while(true)
-	{
-		if(m_reduce)
-		{
-			// Shift the variance into the first few dimensions
-			GPCA pca(intrinsicDims);
-			pca.computeEigVals();
-			pca.train(*pIntrinsic);
-			pIntrinsic = pca.transformBatch(*pIntrinsic);
-			hIntrinsic.reset(pIntrinsic);
-
-			// Drop as many dimensions as possible without losing much information
-			double var = GVec::sumElements(pca.eigVals(), intrinsicDims);
-			double sum = var;
-			while(intrinsicDims > m_targetDims)
-			{
-				if(dropAtLeast > 0 || (sum - pca.eigVals()[intrinsicDims - 1]) / var >= m_keepRatio * m_keepRatio)
-				{
-					intrinsicDims--;
-					sum -= pca.eigVals()[intrinsicDims - 1];
-					if(dropAtLeast > 0)
-						dropAtLeast--;
-				}
-				else
-					break;
-			}
-			if(pIntrinsic->cols() > intrinsicDims)
-			{
-				GMatrix* pNew = new GMatrix(pIntrinsic->rows(), intrinsicDims);
-				pNew->copyBlock(*pIntrinsic, 0, 0, pIntrinsic->rows(), intrinsicDims, 0, 0, false);
-				pIntrinsic = pNew;
-				hIntrinsic.reset(pIntrinsic);
-			}
-		}
-
-		// Try to unfold the data
-		for(size_t pass = 0; pass < m_passes; pass++)
-		{
-			// Scale up the data
-			pIntrinsic->multiply(scaleUpRate);
-
-			// Restore local relationships
-			size_t bestViolators = INVALID_INDEX;
-			size_t tolerance = 0;
-			while(true)
-			{
-				// Do a training epoch
-				ii.reset();
-				size_t ind;
-				size_t violators = 0;
-				while(ii.next(ind))
-				{
-					size_t a = ind / m_neighborCount;
-					size_t b = nf.cache()[ind];
-					if(b != INVALID_INDEX)
-					{
-						double dTarget = std::max(1e-12, nf.squaredDistanceTable()[ind]);
-						double* pA = pIntrinsic->row(a);
-						double* pB = pIntrinsic->row(b);
-						double dCur = GVec::squaredDistance(pA, pB, intrinsicDims);
-						if(dCur * scaleUp4 < dTarget)
-						{
-							GScalingUnfolder_adjustPoints(pA, pB, intrinsicDims, dCur, dTarget * scaleDown2);
-							violators++;
-						}
-						else if(dCur * scaleDown4 > dTarget)
-						{
-							GScalingUnfolder_adjustPoints(pA, pB, intrinsicDims, dCur, dTarget * scaleUp2);
-							violators++;
-						}
-					}
-				}
-				if(violators < bestViolators)
-				{
-					if(violators == 0)
-						break;
-					bestViolators = violators;
-					tolerance = 0;
-				}
-				else
-				{
-					if(++tolerance > 100)
-						break;
-				}
-			}
-
-			// Train the encoder
-			if(m_pEncoder)
-			{
-				for(size_t i = 0; i < m_encoderTrainIters; i++)
-				{
-					ii2->reset();
-					size_t ind;
-					while(ii2->next(ind))
-						m_pEncoder->trainIncremental(in[ind], pIntrinsic->row(ind));
-				}
-			}
-		}
-
-		// Determine when to stop
-		if(m_reduce)
-		{
-			if(intrinsicDims == m_targetDims)
-				break;
-			dropAtLeast = std::max((size_t)1, intrinsicDims / 10);
-		}
-		else
-			break;
-	}
-	return hIntrinsic.release();
+	// Shift the variance into the first few dimensions
+	GPCA pca(m_targetDims);
+	pca.train(intrinsic);
+	return pca.transformBatch(intrinsic);
 }
 
 

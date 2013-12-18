@@ -137,6 +137,9 @@ public:
 	/// Multiplies pVector by dScalar
 	static void multiply(double* pVector, double dScalar, size_t nDims);
 
+	/// Adjusts each element in the direction toward 0 by the specified amount.
+	static void diminish(double* pVector, double amount, size_t nDims);
+
 	/// Raises each element of pVector to the exponent dScalar
 	static void pow(double* pVector, double dScalar, size_t nDims);
 

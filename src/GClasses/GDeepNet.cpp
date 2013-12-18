@@ -417,13 +417,12 @@ void GStackableAutoencoder::backpropHelper2(const double* pInputs, double* pInpu
 	}
 }
 
-GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations)
+GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations, GNeighborFinderCacheWrapper& nf)
 {
 	if(observations.cols() != m_visibleCount)
 		throw Ex("Expected ", to_str(m_visibleCount), " cols. Got ", to_str(observations.cols()));
 
 	// Reduce dimensionality while training a neural network to do the encoding
-	GScalingUnfolder su;
 	GUniformRelation rel(m_visibleCount);
 	GNeuralNet nnEncoder;
 	nnEncoder.setTopology(m_hiddenCount);
@@ -433,8 +432,10 @@ GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations)
 	nnEncoder.getLayer(0)->perturbWeights(m_rand, 0.03);
 	nnEncoder.getLayer(1)->setToWeaklyApproximateIdentity();
 	nnEncoder.getLayer(1)->perturbWeights(m_rand, 0.03);
-	su.trainEncoder(&nnEncoder, 5);
-	delete(su.reduce(observations)); // This line trains nnEncoder
+	GMatrix intrinsic;
+	intrinsic.copy(&observations);
+	GScalingUnfolder su;
+	su.unfold(intrinsic, nf, 5, &nnEncoder, &observations); // This line trains nnEncoder
 
 	// Copy the weights into the encoder
 	GMatrix* pEncTranspose = nnEncoder.getLayer(0)->m_weights.transpose();

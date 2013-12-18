@@ -24,6 +24,7 @@
 namespace GClasses {
 
 class GRand;
+class GNeighborFinderCacheWrapper;
 
 
 /// Abstract parent class of network layers that are suitable for stacking to form a deep network
@@ -226,7 +227,7 @@ public:
 
 	/// Trains the layer using a dimensionality reduction technique.
 	/// Returns the data as mapped through to the input of this layer.
-	GMatrix* trainDimRed(const GMatrix& observations);
+	GMatrix* trainDimRed(const GMatrix& observations, GNeighborFinderCacheWrapper& nf);
 };
 
 

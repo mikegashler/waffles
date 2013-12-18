@@ -175,7 +175,7 @@ void GNeuralNetLayer::resizePreserve(size_t inputCount, size_t outputCount, GRan
 	pB += fewerOutputs;
 	for(size_t j = fewerOutputs; j < outputCount; j++)
 		*(pB++) = 0.01 * rand.normal();
-	
+
 	// Activation functions
 	GActivationFunction** ppActFunc2 = new GActivationFunction*[outputCount];
 	memcpy(ppActFunc2, m_activationFunctions, sizeof(GActivationFunction*) * fewerOutputs);
@@ -282,6 +282,22 @@ void GNeuralNetLayer::outputGradient(const double* pIn)
 	GActivationFunction** ppActFunc = m_activationFunctions;
 	for(size_t i = 0; i < outputs; i++)
 		*(pNet++) *= (*(ppActFunc++))->derivativeOfNet(0.0, *(pAct++)); // NOTE: This assumes the logistic or tanh activation function. Others cannot compute derivativeOfNet without the prior net
+}
+
+void GNeuralNetLayer::scaleWeights(double factor)
+{
+	size_t outputs = m_weights.cols();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+		GVec::multiply(m_weights[i], factor, outputs);
+	GVec::multiply(bias(), factor, outputs);
+}
+
+void GNeuralNetLayer::diminishWeights(double amount)
+{
+	size_t outputs = m_weights.cols();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+		GVec::diminish(m_weights[i], amount, outputs);
+	GVec::diminish(bias(), amount, outputs);
 }
 
 void GNeuralNetLayer::transformWeights(GMatrix& transform, const double* pOffset)
@@ -1140,17 +1156,14 @@ void GNeuralNet::scaleWeights(double factor)
 {
 	GAssert(hasTrainingBegun());
 	for(size_t i = m_layers.size() - 1; i < m_layers.size(); i--)
-		scaleWeightsOneLayer(factor, i);
+		m_layers[i]->scaleWeights(factor);
 }
 
-void GNeuralNet::scaleWeightsOneLayer(double factor, size_t lay)
+void GNeuralNet::diminishWeights(double amount)
 {
-	GNeuralNetLayer& l = *m_layers[lay];
-	GMatrix& m = l.m_weights;
-	size_t outputs = m.cols();
-	for(size_t i = 0; i < m.rows(); i++)
-		GVec::multiply(m[i], factor, outputs);
-	GVec::multiply(l.bias(), factor, outputs);
+	GAssert(hasTrainingBegun());
+	for(size_t i = m_layers.size() - 1; i < m_layers.size(); i--)
+		m_layers[i]->diminishWeights(amount);
 }
 
 void GNeuralNet::scaleWeightsSingleOutput(size_t output, double factor)

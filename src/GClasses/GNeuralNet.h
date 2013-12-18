@@ -105,6 +105,12 @@ public:
 	/// Initially, pass in direction. Assumes logistic or tanh activation function. Puts results in net(). Leaves activation() alone.
 	void outputGradient(const double* pIn);
 
+	/// Multiplies all the weights in this layer by the specified factor.
+	void scaleWeights(double factor);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	void diminishWeights(double amount);
+
 	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
@@ -306,14 +312,17 @@ public:
 	/// Clips all non-bias weights to fall within the range [-max, max].
 	void clipWeights(double max);
 
-	/// Multiplies all weights in the network by the specified factor.
+	/// Multiplies all weights in the network by the specified factor. This can be used
+	/// to implement L2 regularization, which prevents weight saturation.
 	void scaleWeights(double factor);
+
+	/// Diminishes all weights in the network by the specified amount. This can be used
+	/// to implemnet L1 regularization, which promotes sparse representations. That is,
+	/// it makes many of the weights approach zero.
+	void diminishWeights(double amount);
 
 	/// Just like scaleWeights, except it only scales the weights in one of the output units.
 	void scaleWeightsSingleOutput(size_t output, double lambda);
-
-	/// Multiplies all weights (including biases) in the specified layer by "factor".
-	void scaleWeightsOneLayer(double factor, size_t lay);
 
 	/// Adjust the magnitudes of the incoming and outgoing connections by amount alpha,
 	/// such that sum-squared magnitude remains constant. A small value for alpha, such as
