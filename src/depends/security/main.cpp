@@ -154,7 +154,11 @@ bool shredFile(const char* szFilename)
 	return DeleteFile(szFilename) ? true : false;
 #else
 	GTEMPBUF(char, szTmp, strlen(szFilename) + 32);
+#	ifdef DARWIN
+	strcpy(szTmp, "srm -s ");
+#	else
 	strcpy(szTmp, "shred -fun1 ");
+#	endif
 	strcat(szTmp, szFilename);
 	bool bOK = (system(szTmp) == 0);
 	return bOK;
