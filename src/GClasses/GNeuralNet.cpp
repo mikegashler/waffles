@@ -398,6 +398,8 @@ void GBackProp::computeBlame(const double* pTarget, size_t layer, TargetFunction
 			{
 				for(size_t i = 0; i < outputs; i++)
 				{
+					GAssert(*pTarget >= (*ppActFunc)->center() - (*ppActFunc)->halfRange() - 0.001);
+					GAssert(*pTarget <= (*ppActFunc)->center() + (*ppActFunc)->halfRange() + 0.001);
 					if(*pTarget == UNKNOWN_REAL_VALUE)
 						*pBlame = 0.0;
 					else
@@ -423,6 +425,8 @@ void GBackProp::computeBlame(const double* pTarget, size_t layer, TargetFunction
 			{
 				for(size_t i = 0; i < outputs; i++)
 				{
+					GAssert(*pTarget >= (*ppActFunc)->center() - (*ppActFunc)->halfRange() - 0.001);
+					GAssert(*pTarget <= (*ppActFunc)->center() + (*ppActFunc)->halfRange() + 0.001);
 					if(*pTarget == UNKNOWN_REAL_VALUE)
 						*pBlame = 0.0;
 					else
@@ -447,6 +451,8 @@ void GBackProp::computeBlame(const double* pTarget, size_t layer, TargetFunction
 			{
 				for(size_t i = 0; i < outputs; i++)
 				{
+					GAssert(*pTarget >= (*ppActFunc)->center() - (*ppActFunc)->halfRange() - 0.001);
+					GAssert(*pTarget <= (*ppActFunc)->center() + (*ppActFunc)->halfRange() + 0.001);
 					if(*pTarget == UNKNOWN_REAL_VALUE)
 						*pBlame = 0.0;
 					else
@@ -1621,14 +1627,11 @@ GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 		throw Ex("mismatching number of data columns and layer units");
 	GPCA pca(lay.inputs());
 	pca.train(features);
-	GMatrix* pBasis = pca.basis();//->transpose();
-//	Holder<GMatrix> hBasis(pBasis);
-	double* pOff = new double[lay.inputs()];
-	ArrayHolder<double> hOff(pOff);
-	pBasis->multiply(pca.centroid(), pOff);
-	GMatrix* pInvTransform = pBasis->pseudoInverse();
+	GVec off(lay.inputs());
+	pca.basis()->multiply(pca.centroid(), off.v);
+	GMatrix* pInvTransform = pca.basis()->pseudoInverse();
 	Holder<GMatrix> hInvTransform(pInvTransform);
-	lay.transformWeights(*pInvTransform, pOff);
+	lay.transformWeights(*pInvTransform, off.v);
 	return pca.transformBatch(features);
 }
 

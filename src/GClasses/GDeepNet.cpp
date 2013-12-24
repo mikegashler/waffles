@@ -417,48 +417,6 @@ void GStackableAutoencoder::backpropHelper2(const double* pInputs, double* pInpu
 	}
 }
 
-GMatrix* GStackableAutoencoder::trainDimRed(const GMatrix& observations, GNeighborFinderCacheWrapper& nf)
-{
-	if(observations.cols() != m_visibleCount)
-		throw Ex("Expected ", to_str(m_visibleCount), " cols. Got ", to_str(observations.cols()));
-
-	// Reduce dimensionality while training a neural network to do the encoding
-	GUniformRelation rel(m_visibleCount);
-	GNeuralNet nnEncoder;
-	nnEncoder.setTopology(m_hiddenCount);
-	nnEncoder.beginIncrementalLearning(rel, rel);
-	nnEncoder.getLayer(1)->setActivationFunction(new GActivationIdentity());
-	nnEncoder.getLayer(0)->setToWeaklyApproximateIdentity();
-	nnEncoder.getLayer(0)->perturbWeights(m_rand, 0.03);
-	nnEncoder.getLayer(1)->setToWeaklyApproximateIdentity();
-	nnEncoder.getLayer(1)->perturbWeights(m_rand, 0.03);
-	GMatrix intrinsic;
-	intrinsic.copy(&observations);
-	GScalingUnfolder su;
-	su.unfold(intrinsic, nf, 5, &nnEncoder, &observations); // This line trains nnEncoder
-
-	// Copy the weights into the encoder
-	GMatrix* pEncTranspose = nnEncoder.getLayer(0)->m_weights.transpose();
-	Holder<GMatrix> hEncTranspose(pEncTranspose);
-	m_weightsEncode.copy(pEncTranspose);
-	hEncTranspose.reset();
-	GVec::copy(biasEncode(), nnEncoder.getLayer(0)->bias(), m_hiddenCount);
-
-	// Initialize the decoder
-	GMatrix* pEncoding = mapToHidden(observations);
-	Holder<GMatrix> hEncoding(pEncoding);
-
-	// Train a decoder network
-	GNeuralNet nnDecoder;
-	nnDecoder.train(*pEncoding, observations);
-
-	// Copy the weights into the decoder
-	GMatrix* pDecTranspose = nnDecoder.getLayer(0)->m_weights.transpose();
-	Holder<GMatrix> hDecTranspose(pDecTranspose);
-	m_weightsDecode.copy(pDecTranspose);
-	GVec::copy(biasDecode(), nnDecoder.getLayer(0)->bias(), m_visibleCount);
-	return hEncoding.release();
-}
 
 
 

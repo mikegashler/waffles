@@ -39,6 +39,18 @@ namespace GClasses {
 
 using std::vector;
 
+GVec::GVec(size_t n)
+{
+	v = new double[n];
+}
+
+GVec::~GVec()
+{
+	delete[] v;
+}
+
+
+
 // static
 bool GVec::doesContainUnknowns(const double* pVector, size_t nSize)
 {

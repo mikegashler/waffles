@@ -224,10 +224,6 @@ public:
 
 	/// A helper method called by GDeepNet::refineBackprop. You should probably not call this method directly.
 	virtual void backpropHelper2(const double* pInputs, double* pInputBlame, double learningRate);
-
-	/// Trains the layer using a dimensionality reduction technique.
-	/// Returns the data as mapped through to the input of this layer.
-	GMatrix* trainDimRed(const GMatrix& observations, GNeighborFinderCacheWrapper& nf);
 };
 
 

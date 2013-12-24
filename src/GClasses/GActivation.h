@@ -557,6 +557,12 @@ public:
 };
 
 
+//#define SQRT_1_8 0.35355339059327
+//y = 0.25 * (3.0 * sqrt((x - SQRT_1_8) * (x - SQRT_1_8) + 1.0) + 5.0 * x - 9.0 * SQRT_1_8);
+//dx = (3.0 * (x - SQRT_1_8)) / (4.0 * sqrt((x - SQRT_1_8) * (x - SQRT_1_8) + 1.0)) + 1.25;
+// x = -0.0625 * (3.0 * sqrt(16.0 * y * y + 2^(7/2) * y + 18.0) - 20.0 * y - 9 * sqrt(2.0));
+
+
 } // namespace GClasses
 
 #endif // __GACTIVATION_H__

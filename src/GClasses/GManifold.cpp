@@ -2716,7 +2716,7 @@ void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double c
 	}
 }
 
-void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& nf, size_t encoderTrainIters, GNeuralNet* pEncoder, const GMatrix* pVisible)
+void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& nf, size_t encoderTrainIters, GNeuralNet* pEncoder, GNeuralNet* pDecoder, const GMatrix* pVisible)
 {
 	size_t dims = intrinsic.cols();
 	double scaleUpRate = 1.0 / m_scaleRate;
@@ -2781,12 +2781,16 @@ void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& n
 		// Train the encoder
 		if(pVisible)
 		{
+			intrinsic.centerMeanAtOrigin();
 			for(size_t i = 0; i < encoderTrainIters; i++)
 			{
 				ii2->reset();
 				size_t ind;
 				while(ii2->next(ind))
+				{
 					pEncoder->trainIncremental(pVisible->row(ind), intrinsic[ind]);
+					pDecoder->trainIncremental(intrinsic[ind], pVisible->row(ind));
+				}
 			}
 		}
 	}

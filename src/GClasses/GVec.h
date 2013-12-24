@@ -36,6 +36,10 @@ class GDomListIterator;
 class GVec
 {
 public:
+	double* v;
+	GVec(size_t n);
+	~GVec();
+
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();

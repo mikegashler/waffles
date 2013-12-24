@@ -545,7 +545,7 @@ public:
 
 	/// Unfolds the points in intrinsic, such that distances specified in nf are preserved.
 	/// If pVisible is non-NULL, then pEncoder will be incrementally trained to encode pVisible to intrinsic.
-	void unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, const GMatrix* pVisible = NULL);
+	void unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, GNeuralNet* pDecoder = NULL, const GMatrix* pVisible = NULL);
 };
 
 
