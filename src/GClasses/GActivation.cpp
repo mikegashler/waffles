@@ -56,8 +56,6 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 		return new GActivationSin();
 	else if(strcmp(szName, "sinc") == 0)
 		return new GActivationSinc();
-	else if(strcmp(szName, "piecewise") == 0)
-		return new GActivationPiecewise();
 	else if(strcmp(szName, "logisticderiv") == 0)
 		return new GActivationLogisticDerivative();
 	else if(strcmp(szName, "softplus") == 0)
@@ -179,21 +177,6 @@ double GActivationArcTan::halfRange()
 	return M_PI / 2;
 }
 
-
-
-
-// virtual
-double GActivationPiecewise::squash(double x)
-{
-	double d = floor(log(std::max(1.0, std::abs(x))) * 2.46630346237643166848294787835207968);
-	double a = pow(1.5, d);
-	double b = pow(1.5, d + 1);
-	if(b >= 700.0)
-		return (x >= 0 ? 1.0 : 0.0);
-	double t = (std::abs(x) - a) / (b - a);
-	double v = (1.0 - t) / (exp(-a) + 1.0) + t / (exp(-b) + 1.0);
-	return (x >= 0 ? v : 1.0 - v);
-}
 
 
 

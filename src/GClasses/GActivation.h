@@ -60,6 +60,20 @@ public:
 	/// The absolute difference between the max (or min) output value and the center
 	virtual double halfRange() = 0;
 
+	/// Returns a value to use for the diagonal elements when initializing this unit
+	/// to approximate the identity function.
+	virtual double identityDiag() = 0;
+	//{
+	//	return 1.0 / m_activationFunctions[i]->derivative(0.0);
+	//}
+
+	/// Returns a value to use for the bias when initializing this unit to approximate
+	/// the identity function.
+	virtual double identityBias() = 0;
+	//{
+	//	return -m_activationFunctions[i]->center() * identityDiag();
+	//}
+
 	/// Returns a clone of this object
 	virtual GActivationFunction* clone() = 0;
 
@@ -113,6 +127,12 @@ public:
 
 	/// Returns 0.5
 	virtual double halfRange() { return 0.5; }
+
+	/// Returns 4.0
+	virtual double identityDiag() { return 4.0; }
+
+	/// Returns -2.0
+	virtual double identityBias() { return -2.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationLogistic(); }
@@ -180,6 +200,12 @@ public:
 	/// Returns PI / 2
 	virtual double halfRange();
 
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 0.0
+	virtual double identityBias() { return 0.0; }
+
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationArcTan(); }
 };
@@ -220,6 +246,12 @@ public:
 	/// Returns 1.0
 	virtual double halfRange() { return 1.0; }
 
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 0.0
+	virtual double identityBias() { return 0.0; }
+
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationTanH(); }
 };
@@ -245,6 +277,12 @@ public:
 
 	/// Returns 1.0
 	virtual double halfRange() { return 1.0; }
+
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 0.0
+	virtual double identityBias() { return 0.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationAlgebraic(); }
@@ -278,15 +316,24 @@ public:
 	/// Returns 1e308
 	virtual double halfRange() { return 1e308; }
 
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 0.0
+	virtual double identityBias() { return 0.0; }
+
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationIdentity(); }
 };
 
+
+#define SQRT_1_8 0.35355339059327
+
 /// This provides an alternative to using GActivationIdentity on the output layer
 /// for regression problems. It may add more power because it is non-linear, but
 /// like the identity function, its co-domain is the same as its domain. At
-/// very positive values, this is shaped like y=sqrt(x). At very negative values,
-/// this is shaped like y=-(x*x).
+/// very positive values, this is shaped like y=2*x. At very negative values,
+/// this is shaped like y=0.5*x. Around 0, it is shaped like y=x.
 class GActivationBend : public GActivationFunction
 {
 public:
@@ -296,30 +343,34 @@ public:
 	/// Returns the bend function of x
 	virtual double squash(double x)
 	{
-		double d = sqrt(x * x + 1);
-		return sqrt(0.5 * (d + x)) - (0.25 * (d - x) * (d - x));
+		double t = x - SQRT_1_8;
+		return 0.75 * sqrt(t * t + 1.0) + 1.25 * t - SQRT_1_8;
 	}
 
 	/// Returns the derivative of the bend function
 	virtual double derivative(double x)
 	{
-		double d = sqrt(x * x + 1);
-		double t = x / d;
-		return 0.5 * (M_SQRT1_2 * (t + 1) / sqrt(d + x) - (t - 1) * (d - x));
+		double t = x - SQRT_1_8;
+		return (3.0 * t) / (4.0 * sqrt(t * t + 1.0)) + 1.25;
 	}
 
-	/// Throws an exception
+	/// Returns the inverse of the bend function
 	virtual double inverse(double y)
 	{
-		throw Ex("inverse unknown");
-		return 0;
+		return -0.0625 * (3.0 * sqrt(16.0 * y * y + 11.313708499/*pow(2.0, 3.5)*/ * y + 18.0) - 20.0 * y - 9.0 * M_SQRT2);
 	}
 
 	/// Returns 0.0
 	virtual double center() { return 0.0; }
 
-	/// Returns 1e308
-	virtual double halfRange() { return 1e308; }
+	/// Returns 10000
+	virtual double halfRange() { return 10000; }
+
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 0.0
+	virtual double identityBias() { return 0.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationBend(); }
@@ -366,45 +417,15 @@ public:
 	/// Returns 1e308
 	virtual double halfRange() { return 1e308; }
 
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 0.0
+	virtual double identityBias() { return 0.0; }
+
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationBiDir(); }
 };
-
-/// This is an experimental activation function intended to
-/// reduce the required computation involved in inverting neural networks.
-class GActivationPiecewise : public GActivationFunction
-{
-public:
-	/// Returns the name of this activation function
-	virtual const char* name() const { return "piecewise"; }
-
-	virtual double squash(double x);
-
-	virtual double derivative(double x)
-	{
-		throw Ex("Not implemented yet");
-		return 0;
-	}
-
-	virtual double inverse(double y)
-	{
-		throw Ex("Not implemented yet");
-		return 0;
-	}
-
-	/// Returns y*(1.0-y)
-	virtual double derivativeOfNet(double net, double activation) { return activation * (1.0 - activation); }
-
-	/// Returns 0.5
-	virtual double center() { return 0.5; }
-
-	/// Returns 0.5
-	virtual double halfRange() { return 0.5; }
-
-	/// See the comment for GActivationFunction::clone
-	virtual GActivationFunction* clone() { return new GActivationPiecewise(); }
-};
-
 
 /// This is a simple Gaussian function.
 class GActivationGaussian : public GActivationFunction
@@ -428,6 +449,12 @@ public:
 
 	/// Returns 0.6
 	virtual double halfRange() { return 0.5; }
+
+	/// Throws an exception
+	virtual double identityDiag() { throw Ex("Not supported"); }
+
+	/// Throws an exception
+	virtual double identityBias() { throw Ex("Not supported"); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationGaussian(); }
@@ -453,6 +480,12 @@ public:
 
 	/// Returns 1.0
 	virtual double halfRange() { return 1.0; }
+
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 0.0
+	virtual double identityBias() { return 0.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationSin(); }
@@ -482,6 +515,12 @@ public:
 
 	/// Returns 0.6
 	virtual double halfRange() { return 0.6; }
+
+	/// Throws an exception
+	virtual double identityDiag() { throw Ex("Not supported"); }
+
+	/// Throws an exception
+	virtual double identityBias() { throw Ex("Not supported"); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationSinc(); }
@@ -528,6 +567,12 @@ public:
 	/// Returns 0.5
 	virtual double halfRange() { return 0.5; }
 
+	/// Throws an exception
+	virtual double identityDiag() { throw Ex("Not supported"); }
+
+	/// Throws an exception
+	virtual double identityBias() { throw Ex("Not supported"); }
+
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationLogisticDerivative(); }
 };
@@ -551,6 +596,12 @@ public:
 
 	/// Returns 50.0
 	virtual double halfRange() { return 50.0; }
+
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 1.0
+	virtual double identityBias() { return 0.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationSoftPlus(); }

@@ -102,16 +102,19 @@ ssize_t GPipe::read(char* buf, size_t bufSize)
 #endif
 }
 
-std::string GPipe::read()
+std::string GPipe::read(size_t maxSize)
 {
 	const unsigned bufsize = 256;
 	char buf[bufsize];
 	std::ostringstream out;
+	size_t size = 0;
 	while(true)
 	{
 		size_t bytes = read(buf, bufsize);
 		out.write(buf, bytes);
-		if(bytes < bufsize){ break;}
+		size += bytes;
+		if(bytes < bufsize || size >= maxSize)
+			break;
 	}
 	return out.str();
 }

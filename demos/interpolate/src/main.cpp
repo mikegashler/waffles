@@ -255,6 +255,9 @@ public:
 			delete(m_pNNForTraining);
 			m_pNNForTraining = pNN;
 			pNN->beginIncrementalLearning(featureRel, labelRel);
+/*			for(size_t i = 0; i < pNN->layerCount(); i++)
+				pNN->getLayer(i)->setActivationFunction(new GActivationSoftPlus());
+			pNN->setLearningRate(0.005);*/
 			delete(m_pNNCopyForVisualizing);
 			m_pNNCopyForVisualizing = new GNeuralNet();
 			m_pNNCopyForVisualizing->copyStructure(pNN);
@@ -277,7 +280,7 @@ public:
 		addModel("Bag of 30 Decision trees"); // 10
 		addModel("Bag of 30 MeanMargins trees"); // 11
 		addModel("Logistic regression"); // 12
-		addModel("Neural Net, 2-15-60-3, logistic, online back-prop"); // 13
+		addModel("Neural Net, 2-30-256-3, tanh, online back-prop"); // 13
 		addModel("Naive Instance 20"); // 14
 		addModel("Mean label (a.k.a. baseline)"); // 15
 	}

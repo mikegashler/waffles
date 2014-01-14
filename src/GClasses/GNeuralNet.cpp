@@ -38,6 +38,7 @@
 #include "GAssignment.h"
 #endif // MIN_PREDICT
 #include "GHolders.h"
+#include "GBits.h"
 
 using std::vector;
 
@@ -300,6 +301,26 @@ void GNeuralNetLayer::diminishWeights(double amount)
 	GVec::diminish(bias(), amount, outputs);
 }
 
+void GNeuralNetLayer::regularizeWeights(double factor, double power)
+{
+	size_t outputs = m_weights.cols();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		double* pW = m_weights[i];
+		for(size_t j = 0; j < outputs; j++)
+		{
+			*pW -= GBits::sign(*pW) * factor * pow(std::abs(*pW), power);
+			pW++;
+		}
+	}
+	double* pW = bias();
+	for(size_t j = 0; j < outputs; j++)
+	{
+		*pW -= GBits::sign(*pW) * factor * pow(std::abs(*pW), power);
+		pW++;
+	}
+}
+
 void GNeuralNetLayer::transformWeights(GMatrix& transform, const double* pOffset)
 {
 	if(transform.rows() != inputs())
@@ -331,10 +352,8 @@ void GNeuralNetLayer::setToWeaklyApproximateIdentity()
 	size_t n = std::min(inputs(), outputs());
 	for(size_t i = 0; i < n; i++)
 	{
-		double d = 1.0 / m_activationFunctions[i]->derivative(0.0);
-		double b = -m_activationFunctions[i]->center() * d;
-		m_weights[i][i] = d;
-		bias()[i] = b;
+		m_weights[i][i] = m_activationFunctions[i]->identityDiag();
+		bias()[i] = m_activationFunctions[i]->identityBias();
 	}
 }
 

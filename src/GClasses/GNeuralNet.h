@@ -111,6 +111,11 @@ public:
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
 	void diminishWeights(double amount);
 
+	/// Adjusts the value of each weight to, w = w - factor * pow(w, power).
+	/// If power is 1, this is the same as calling scaleWeights.
+	/// If power is 0, this is the same as calling diminishWeights.
+	void regularizeWeights(double factor, double power);
+
 	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset

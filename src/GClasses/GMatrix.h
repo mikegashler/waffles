@@ -534,7 +534,8 @@ public:
 	/// Takes ownership of pRelation. That is, the destructor will delete it.
 	void setRelation(GRelation* pRelation);
 
-	/// \brief Resizes this matrix. (Assumes that all columns have continuous values.)
+	/// \brief Resizes this matrix. Assigns all columns to be continuous, and
+	/// replaces all element values with garbage.
 	void resize(size_t rows, size_t cols);
 
 	/// \brief Adds a new row to the matrix. (The values in the row are
@@ -854,7 +855,10 @@ public:
 	/// \brief Swaps two columns
 	void swapColumns(size_t nAttr1, size_t nAttr2);
 
-	/// \brief Deletes a column
+	/// \brief Deletes a column.
+	/// This does not reallocate the rows, but it does shift the elements,
+	/// which is a slow operation, especially if there are many columns
+	/// that follow the one being deleted.
 	void deleteColumn(size_t index);
 
 	/// \brief Swaps the specified row with the last row, and then

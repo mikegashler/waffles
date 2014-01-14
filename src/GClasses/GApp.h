@@ -71,8 +71,7 @@ public:
 
 	/// Read from the pipe until there is nothing else to read
 	/// \return the data read from the pipe
-	std::string read();
-
+	std::string read(size_t maxSize = (size_t)-1);
 
 	/// Write to the pipe.
 	void write(const char* buf, size_t bufSize);

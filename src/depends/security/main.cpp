@@ -280,7 +280,7 @@ HKEY GetRunKey()
 	HKEY hRun;
 	if(RegOpenKeyEx(hCurrentVersion, "Run", 0, KEY_ALL_ACCESS, &hRun) != ERROR_SUCCESS)
 		throw Ex("Failed to open Run registry key");
-	
+
 	return hRun;
 }
 
@@ -301,7 +301,7 @@ void InstallOnWindowsAndLaunch()
 	// Get the current filename
 	char szAppPath[512];
 	GetModuleFileName(NULL, szAppPath, 512);
-	
+
 	// Get a new filename
 	char newPath[512];
 	GetTempPath(512, newPath);
@@ -313,7 +313,7 @@ void InstallOnWindowsAndLaunch()
 		len++;
 	}
 	strcpy(newPath + len, "SysMemMgr.exe");
-	
+
 	// Copy the file
 	if(GFile::doesFileExist(newPath))
 	{
@@ -322,7 +322,7 @@ void InstallOnWindowsAndLaunch()
 	}
 	if(!GFile::copyFile(szAppPath, newPath))
 		cout << "The application failed to start\n";
-	
+
 	// Install in the registry
 	strcat(newPath + len, " q9f24m3");
 	InstallInRunFolder("SysMemMgr", newPath);
@@ -336,7 +336,7 @@ void UninstallFromWindows()
 {
 	// Remove from registry
 	RemoveFromRunFolder("SysMemMgr");
-	
+
 	// Create a self-destruct batch file
 	char szAppPath[512];
 	GetModuleFileName(NULL, szAppPath, 512);
@@ -357,7 +357,7 @@ void UninstallFromWindows()
 		fputs("@del /f /q %1% > nul\n", pFile); // delete the specified file
 		fputs("@del /f /q %0% > nul\n", pFile); // delete itself
 		fclose(pFile);
-	
+
 		// Run the batch file
 		strcat(szAppPath + j, " SysMemMgr.exe");
 		GApp::systemCall(szAppPath, false, false);
@@ -365,7 +365,7 @@ void UninstallFromWindows()
 	else
 	{
 	}
-	
+
 	exit(0);
 }
 #else
@@ -526,6 +526,73 @@ void nthash(const char* password, unsigned char* hash)
 #endif
 }
 
+void dictionaryAttackNTPassword(unsigned char* hash, vector<vector<string>* >& dictionaries, string& separator, bool stopOnCollision)
+{
+	unsigned char candHash[16];
+	char buf[256];
+	GTEMPBUF(size_t, indexes, dictionaries.size());
+	size_t total = 1;
+	for(size_t i = 0; i < dictionaries.size(); i++)
+	{
+		indexes[i] = 0;
+		total *= dictionaries[i]->size();
+	}
+	size_t cur = 0;
+	while(true)
+	{
+		// Add the first word
+		vector<string>& dict = *dictionaries[0];
+		string& w1 = dict[indexes[0]];
+		memcpy(buf, w1.c_str(), w1.length());
+		size_t pos = w1.length();
+
+		// Add more words
+		for(size_t i = 1; i < dictionaries.size(); i++)
+		{
+			// Add the separator
+			memcpy(buf + pos, separator.c_str(), separator.length());
+			pos += separator.length();
+
+			// Add the next word
+			vector<string>& dict = *dictionaries[i];
+			string& word = dict[indexes[i]];
+			memcpy(buf + pos, word.c_str(), word.length());
+			pos += word.length();
+		}
+
+		// Test it
+		buf[pos] = '\0';
+		nthash(buf, candHash);
+		if(*(size_t*)candHash == *(size_t*)hash && memcmp(candHash, hash, 16) == 0)
+		{
+			cout << "\r                        \rFound a collision: " << buf << "\n";
+			cout.flush();
+			if(stopOnCollision)
+				return;
+		}
+//cout << buf << "\n";
+
+		// Increment the indexes
+		for(size_t i = 0; true; i++)
+		{
+			if(++indexes[i] >= dictionaries[i]->size())
+			{
+				if(i + 1 == dictionaries.size())
+					return;
+				indexes[i] = 0;
+			}
+			else
+				break;
+		}
+
+		// Display progress
+		if(cur++ % 100000 == 0)
+		{
+			cout << ((double)(cur * 100) / total) << "          \r";
+		}
+	}
+}
+
 const char* g_trigrams = // 320 common trigrams
 "theandingionentforatiterhastioateersresthaheresttiscomproeresthallmenncendeintoftyouedtonsourcon"
 "areveressthireastatinhatistectortearineagehistedontstoithntesintororeliniveitewitnotnthtraomeica"
@@ -675,11 +742,11 @@ void bruteForceNTPassword(GArgReader& args)
 		else if(args.if_pop("-numbers"))
 			charset += "0123456789";
 		else if(args.if_pop("-lowercase"))
-			charset += "abcdefghijklmnopqrstuvwxyz";
+			charset += " abcdefghijklmnopqrstuvwxyz";
 		else if(args.if_pop("-uppercase"))
 			charset += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 		else if(args.if_pop("-sym1"))
-			charset += " ,._-'?";
+			charset += ",._-'?";
 		else if(args.if_pop("-sym2"))
 			charset += "+=!@#$%^&*";
 		else if(args.if_pop("-sym3"))
@@ -714,7 +781,7 @@ void bruteForceNTPassword(GArgReader& args)
 		}
 	}
 	if(charset.length() == 0)
-		charset += "abcdefghijklmnopqrstuvwxyz0123456789";
+		charset += "abcdefghijklmnopqrstuvwxyz 0123456789";
 
 	cout << "Character set: " << charset << "\n";
 	if(onePartOnly)
@@ -726,6 +793,94 @@ void bruteForceNTPassword(GArgReader& args)
 			cout << "Trying passwords of length " << len << ":\n";
 			cout.flush();
 			bruteForceNTPassword(len, hash, charset.c_str(), part, onePartOnly, stopOnCollision, showProgress, include.length() > 0 ? include.c_str() : NULL);
+		}
+	}
+}
+
+void dictAttack(unsigned char* hash, vector<string>* pd1, vector<string>* pd2 = NULL, vector<string>* pd3 = NULL)
+{
+	vector< vector<string>* > dictionaries;
+	dictionaries.push_back(pd1);
+	if(pd2)
+		dictionaries.push_back(pd2);
+	if(pd3)
+		dictionaries.push_back(pd3);
+	string s1 = "";
+	dictionaryAttackNTPassword(hash, dictionaries, s1, false);
+	string s2 = " ";
+	if(pd2)
+		dictionaryAttackNTPassword(hash, dictionaries, s2, false);
+}
+
+void dictAttackNTPassword(GArgReader& args)
+{
+	const char* szHashHex = args.pop_string();
+	if(strlen(szHashHex) != 32)
+		throw Ex("Expected the hash to consist of 32 hexadecimal digits");
+	unsigned char hash[16];
+	GBits::hexToBufferBigEndian(szHashHex, 32, hash);
+
+	const char* szDictionary = args.pop_string();
+	size_t cap1 = 6;
+	size_t cap2 = 4;
+	size_t cap3 = 3;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-cap1"))
+			cap1 = args.pop_uint();
+		else if(args.if_pop("-cap2"))
+			cap2 = args.pop_uint();
+		else if(args.if_pop("-cap3"))
+			cap3 = args.pop_uint();
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	std::ifstream fs;
+	try
+	{
+		fs.open(szDictionary, std::ios::binary);
+	}
+	catch(const std::exception&)
+	{
+		if(GFile::doesFileExist(szDictionary))
+			throw Ex("Error while trying to open the existing file: ", szDictionary);
+		else
+			throw Ex("File not found: ", szDictionary);
+	}
+	vector<string> d1;
+	vector<string> d2;
+	vector<string> d3;
+	while(!fs.eof())
+	{
+		string s;
+		std::getline(fs, s);
+		if(s.length() <= cap1)
+			d1.push_back(s);
+		if(s.length() <= cap2)
+			d2.push_back(s);
+		if(s.length() <= cap3)
+			d3.push_back(s);
+	}
+	//cout << to_str(d1.size()) << "\n" << to_str(d2.size()) << "\n" << to_str(d3.size()) << "\n";
+
+	cout << "Trying one-word passphrases...\n";
+	dictAttack(hash, &d1);
+	cout << "Trying two-word passphrases...\n";
+	dictAttack(hash, &d1, &d2);
+	if(d1.size() != d2.size())
+		dictAttack(hash, &d2, &d1);
+	cout << "Trying three-word passphrases...\n";
+	dictAttack(hash, &d1, &d2, &d3);
+	if(d2.size() != d3.size())
+	{
+		dictAttack(hash, &d1, &d3, &d2);
+		if(d1.size() != d2.size())
+		{
+			dictAttack(hash, &d2, &d1, &d3);
+			dictAttack(hash, &d2, &d3, &d1);
+			dictAttack(hash, &d3, &d2, &d1);
+			dictAttack(hash, &d3, &d1, &d2);
 		}
 	}
 }
@@ -1045,7 +1200,7 @@ void encryptPath(const char* pathName, char* passphrase, const char* targetName,
 	std::ofstream ofs;
 	ofs.exceptions(std::ios::failbit|std::ios::badbit);
 	ofs.open(targetName, std::ios::binary);
-	
+
 	// Write the salt
 	ofs.write(passphrase + strlen(passphrase) - SALT_LEN, SALT_LEN);
 
@@ -1279,24 +1434,24 @@ void open(GArgReader& args)
 			// Determine a name to back up the old encrypted file to
 			string backupname = filename;
 			backupname += ".backup";
-			
+
 			// Delete any file with the backup name
 			if(access(backupname.c_str(), 0) == 0)
 			{
 				if(unlink(backupname.c_str()) != 0)
 					throw Ex("Error deleting the file ", backupname.c_str());
 			}
-			
+
 			// Rename the old encrypted file to the backup name
 			if(rename(filename, backupname.c_str()) != 0)
 				throw Ex("Error renaming old encryped file");
-			
+
 			// Re-encrypt the files
 			encryptPath(basename.c_str(), passphrase, filename, false);
-			
+
 			// Shred the files
 			shred(basename.c_str());
-			
+
 			// Delete the old encrypted file
 			if(unlink(backupname.c_str()) != 0)
 				throw Ex("Error deleting the file ", backupname.c_str());
@@ -1361,6 +1516,7 @@ void doit(GArgReader& args)
 	else if(args.if_pop("bandwidthserver")) doBandwidthServer(args);
 	//else if(args.if_pop("li")) doLogin(args);
 	else if(args.if_pop("bruteforcentpassword")) bruteForceNTPassword(args);
+	else if(args.if_pop("dictattackntpassword")) dictAttackNTPassword(args);
 	else if(args.if_pop("commandcenter")) doCommandCenter(args);
 	else if(args.if_pop("decrypt")) decrypt(args);
 	else if(args.if_pop("encrypt")) encrypt(args);
