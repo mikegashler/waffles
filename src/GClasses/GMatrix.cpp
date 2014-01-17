@@ -3214,7 +3214,7 @@ void GMatrix::mergeVert(GMatrix* pData)
 	}
 }
 
-double GMatrix::columnMean(size_t nAttribute, const double* pWeights) const
+double GMatrix::columnMean(size_t nAttribute, const double* pWeights, bool throwIfEmpty) const
 {
 	if(nAttribute >= cols())
 		throw Ex("attribute index out of range");
@@ -3235,8 +3235,10 @@ double GMatrix::columnMean(size_t nAttribute, const double* pWeights) const
 			return sum / sumWeight;
 		else
 		{
-			throw Ex("No values have any weight while computing mean");
-			return 0.0;
+			if(throwIfEmpty)
+				throw Ex("No values have any weight while computing mean");
+			else
+				return UNKNOWN_REAL_VALUE;
 		}
 	}
 	else
@@ -3255,14 +3257,16 @@ double GMatrix::columnMean(size_t nAttribute, const double* pWeights) const
 			return sum / count;
 		else
 		{
-			throw Ex("At least one value is required to compute a mean");
-			return 0.0;
+			if(throwIfEmpty)
+				throw Ex("At least one value is required to compute a mean");
+			else
+				return UNKNOWN_REAL_VALUE;
 		}
 	}
 }
 
 #ifndef MIN_PREDICT
-double GMatrix::columnMedian(size_t nAttribute) const
+double GMatrix::columnMedian(size_t nAttribute, bool throwIfEmpty) const
 {
 	if(nAttribute >= cols())
 		throw Ex("attribute index out of range");
@@ -3275,7 +3279,12 @@ double GMatrix::columnMedian(size_t nAttribute) const
 			vals.push_back(d);
 	}
 	if(vals.size() < 1)
-		throw Ex("at least one value is required to compute a median");
+	{
+		if(throwIfEmpty)
+			throw Ex("at least one value is required to compute a median");
+		else
+			return UNKNOWN_REAL_VALUE;
+	}
 	if(vals.size() & 1)
 	{
 		vector<double>::iterator med = vals.begin() + (vals.size() / 2);

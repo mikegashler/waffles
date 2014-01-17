@@ -967,15 +967,20 @@ public:
 	double columnMax(size_t nAttribute) const;
 
 	/// \brief Computes the arithmetic mean of the values in the specified column
+	/// If pWeights is NULL, then each row is given equal weight.
 	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
-	double columnMean(size_t nAttribute, const double* pWeights = NULL) const;
+	/// If there are no values in this column with any weight, then it will throw an exception if throwIfEmpty is true,
+	/// or else return UNKNOWN_REAL_VALUE.
+	double columnMean(size_t nAttribute, const double* pWeights = NULL, bool throwIfEmpty = true) const;
 
 	/// \brief Computes the average variance of a single attribute
 	double columnVariance(size_t nAttr, double mean) const;
 
 #ifndef MIN_PREDICT
 	/// \brief Computes the median of the values in the specified column
-	double columnMedian(size_t nAttribute) const;
+	/// If there are no values in this column, then it will throw an exception if throwIfEmpty is true,
+	/// or else return UNKNOWN_REAL_VALUE.
+	double columnMedian(size_t nAttribute, bool throwIfEmpty = true) const;
 #endif // MIN_PREDICT
 
 	/// \brief Shifts the data such that the mean occurs at the origin.

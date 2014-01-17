@@ -608,10 +608,37 @@ public:
 };
 
 
-//#define SQRT_1_8 0.35355339059327
-//y = 0.25 * (3.0 * sqrt((x - SQRT_1_8) * (x - SQRT_1_8) + 1.0) + 5.0 * x - 9.0 * SQRT_1_8);
-//dx = (3.0 * (x - SQRT_1_8)) / (4.0 * sqrt((x - SQRT_1_8) * (x - SQRT_1_8) + 1.0)) + 1.25;
-// x = -0.0625 * (3.0 * sqrt(16.0 * y * y + 2^(7/2) * y + 18.0) - 20.0 * y - 9 * sqrt(2.0));
+/// The integral of the logsitic function. At very negative values, this converges toward y=0. At very positive values, this converges to y=x.
+class GActivationSoftPlus2 : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "softplus2"; }
+
+	virtual double squash(double x) { return 0.5 * (sqrt(x * x + 1) + x); }
+
+	virtual double derivative(double x) { return 0.5 * (x / sqrt(x * x + 1) + 1.0); }
+
+	virtual double inverse(double y) { return (2 * y - 1) * (2 * y + 1) / (4 * y); }
+
+	/// Returns 50.0
+	virtual double center() { return 500.0; }
+
+	/// Returns 50.0
+	virtual double halfRange() { return 500.0; }
+
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 1.0
+	virtual double identityBias() { return 0.0; }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationSoftPlus2(); }
+};
+
+
+// y=(0.25*sqrt(x * x + 1)+x-0.25)
 
 
 } // namespace GClasses

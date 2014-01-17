@@ -474,6 +474,8 @@ void GDecisionTree::autoTune(GMatrix& features, GMatrix& labels)
 double GDecisionTree_measureRealSplitInfo(GMatrix& features, GMatrix& labels, GMatrix& tmpFeatures, GMatrix& tmpLabels, size_t attr, double pivot)
 {
 	GAssert(tmpFeatures.rows() == 0 && tmpLabels.rows() == 0);
+	if(pivot == UNKNOWN_REAL_VALUE)
+		return 1e308;
 	size_t rowCount = features.rows();
 	features.splitByPivot(&tmpFeatures, attr, pivot, &labels, &tmpLabels);
 	double dInfo;
@@ -513,6 +515,8 @@ double GDecisionTree_pickPivotToReduceInfo(GMatrix& features, GMatrix& labels, G
 		{
 			double* pRow1 = features.row((size_t)pRand->next(features.rows()));
 			double* pRow2 = features.row((size_t)pRand->next(features.rows()));
+			if(pRow1[attr] == UNKNOWN_REAL_VALUE || pRow2[attr] == UNKNOWN_REAL_VALUE)
+				continue;
 			double pivot = 0.5 * (pRow1[attr] + pRow2[attr]);
 			double info = GDecisionTree_measureRealSplitInfo(features, labels, tmpFeatures, tmpLabels, attr, pivot);
 			if(info + 1e-14 < bestInfo) // the small value makes it deterministic across hardware
@@ -607,7 +611,7 @@ size_t GDecisionTree::pickDivision(GMatrix& features, GMatrix& labels, double* p
 				if(a == UNKNOWN_REAL_VALUE)
 				{
 					if(b == UNKNOWN_REAL_VALUE)
-						pivot = features.columnMedian(attr);
+						pivot = features.columnMedian(attr, false);
 					else
 						pivot = b;
 				}

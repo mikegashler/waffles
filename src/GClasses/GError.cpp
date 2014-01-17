@@ -45,7 +45,7 @@ void Ex::setMessage(std::string message)
 	if(g_exceptionExpected)
 		m_message = message;
 	else
-		m_message = message; // (This is a good place to put a breakpoint. All unexpected exceptions pass through here.)
+		m_message = message; // (This is a good place to put a breakpoint. All unexpected exceptions thrown from this library pass through here.)
 }
 
 const char* Ex::what() const throw()
