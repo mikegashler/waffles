@@ -190,7 +190,7 @@ void GNeuralNetLayer::resizePreserve(size_t inputCount, size_t outputCount, GRan
 void GNeuralNetLayer::setActivationFunction(GActivationFunction* pActivationFunction, size_t first, size_t count)
 {
 	size_t units = m_weights.cols();
-	if(first >= units)
+	if(first > units)
 		throw Ex("out of range");
 	count = std::min(count, units - first);
 	if(count >= units)

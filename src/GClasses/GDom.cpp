@@ -60,7 +60,7 @@ public:
 GDomListIterator::GDomListIterator(GDomNode* pNode)
 {
 	if(pNode->m_type != GDomNode::type_list)
-		throw Ex("Not a list type");
+		throw Ex("\"", to_str(pNode), "\" is not a list type");
 	m_pList = pNode;
 	m_remaining = m_pList->reverseItemOrder();
 	m_pCurrent = m_pList->m_value.m_pLastItem;
@@ -91,7 +91,7 @@ size_t GDomListIterator::remaining()
 GDomNode* GDomNode::fieldIfExists(const char* szName)
 {
 	if(m_type != type_obj)
-		throw Ex("not an obj");
+		throw Ex("\"", to_str(this), "\" is not an obj");
 	GDomObjField* pField;
 	for(pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
 	{
@@ -138,7 +138,7 @@ size_t GDomNode::reverseItemOrder() const
 GDomNode* GDomNode::addField(GDom* pDoc, const char* szName, GDomNode* pNode)
 {
 	if(m_type != type_obj)
-		throw Ex("not an obj");
+		throw Ex("\"", to_str(this), "\" is not an obj");
 	GDomObjField* pField = pDoc->newField();
 	pField->m_pPrev = m_value.m_pLastField;
 	m_value.m_pLastField = pField;
@@ -151,7 +151,7 @@ GDomNode* GDomNode::addField(GDom* pDoc, const char* szName, GDomNode* pNode)
 GDomNode* GDomNode::addItem(GDom* pDoc, GDomNode* pNode)
 {
 	if(m_type != type_list)
-		throw Ex("not a list");
+		throw Ex("\"", to_str(this), "\" is not a list");
 	GDomListItem* pItem = pDoc->newItem();
 	pItem->m_pPrev = m_value.m_pLastItem;
 	m_value.m_pLastItem = pItem;
