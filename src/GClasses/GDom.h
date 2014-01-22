@@ -38,6 +38,12 @@ class GJsonTokenizer;
 #	pragma pack(1)
 #endif
 
+///\brief Converts a GDomNode to a string
+std::string to_str(const GDomNode& node);
+
+///\brief Converts a GDom to a string
+std::string to_str(const GDom& doc);
+
 /// This class iterates over the items in a list node
 class GDomListIterator
 {
@@ -106,7 +112,7 @@ public:
 	bool asBool()
 	{
 		if(m_type != type_bool)
-			throw Ex("not an bool");
+			throw Ex("\"", to_str(this), "\" is not a bool");
 		return m_value.m_bool;
 	}
 
@@ -114,7 +120,7 @@ public:
 	long long asInt()
 	{
 		if(m_type != type_int)
-			throw Ex("not an int");
+			throw Ex("\"", to_str(this), "\" is not an int");
 		return m_value.m_int;
 	}
 
@@ -126,7 +132,7 @@ public:
 		else if(m_type == type_int)
 			return (double)m_value.m_int;
 		else
-			throw Ex("not a double");
+			throw Ex("\"", to_str(this), "\" is not a double");
 		return 0.0;
 	}
 
@@ -134,7 +140,7 @@ public:
 	const char* asString()
 	{
 		if(m_type != type_string)
-			throw Ex("not a string");
+			throw Ex("\"", to_str(this), "\" is not a string");
 		return m_value.m_string;
 	}
 
@@ -296,12 +302,6 @@ protected:
 	GDomNode* loadJsonValue(GJsonTokenizer& tok);
 	char* loadJsonString(GJsonTokenizer& tok);
 };
-
-///\brief Converts a GDomNode to a string
-std::string to_str(const GDomNode& node);
-
-///\brief Converts a GDom to a string
-std::string to_str(const GDom& doc);
 
 } // namespace GClasses
 
