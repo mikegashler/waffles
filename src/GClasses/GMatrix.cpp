@@ -50,7 +50,7 @@ using std::ostringstream;
 namespace GClasses {
 
 // static
-GUniformRelation* GUniformRelation::s_pEmptyRelation = new GUniformRelation(0, 0);
+GUniformRelation g_emptyRelation(0, 0);
 
 // static
 GRelation* GRelation::deserialize(GDomNode* pNode)
@@ -959,7 +959,7 @@ void GArffRelation::dropValue(size_t attr, int val)
 // ------------------------------------------------------------------
 
 GMatrix::GMatrix()
-: m_pRelation(GUniformRelation::s_pEmptyRelation)
+: m_pRelation(&g_emptyRelation)
 {
 }
 
@@ -1048,7 +1048,7 @@ void GMatrix::setRelation(GRelation* pRelation)
 		throw Ex("Existing data incompatible with new relation");
 	if(m_pRelation != pRelation)
 	{
-		if(m_pRelation != GUniformRelation::s_pEmptyRelation)
+		if(m_pRelation != &g_emptyRelation)
 			delete(m_pRelation);
 		m_pRelation = pRelation;
 	}
