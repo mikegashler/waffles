@@ -93,13 +93,17 @@ public:
 	void feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias);
 
 	/// Perturbs all the weights in this layer with Gaussian noise.
-	void perturbWeights(GRand& rand, double deviation);
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = (size_t)-1);
 
 	/// Takes ownership of pActivation function. Sets all of the units in the specified range to use the given activation function.
 	void setActivationFunction(GActivationFunction* pActivationFunction, size_t first = 0, size_t count = INVALID_INDEX);
 
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
-	void setToWeaklyApproximateIdentity();
+	/// start specifies the first unit whose incoming weights will be adjusted.
+	/// count specifies the maximum number of units whose incoming weights are adjusted.
+	void setToWeaklyApproximateIdentity(size_t start = 0, size_t count = (size_t)-1);
 
 	/// An experimental thing--needs more testing
 	/// Initially, pass in direction. Assumes logistic or tanh activation function. Puts results in net(). Leaves activation() alone.

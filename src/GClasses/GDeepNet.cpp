@@ -423,7 +423,7 @@ void GStackableAutoencoder::backpropHelper2(const double* pInputs, double* pInpu
 
 /*
 G2DConvolutionalLayer::G2DConvolutionalLayer(size_t visibleWidth, size_t visibleHeight, size_t visibleChannels, size_t kernelSize, size_t kernelCount, GRand& rand)
-: GDeepNetLayer((visibleWidth + 2 * kernelSize - 2) * (visibleHeight + 2 * kernelSize - 2) * visibleChannels * kernelCount, visibleWidth * visibleHeight * visibleChannels, rand),
+: GDeepNetLayer((visibleWidth - kernelSize + 1) * (visibleHeight - kernelSize + 1) * visibleChannels * kernelCount, visibleWidth * visibleHeight * visibleChannels, rand),
 m_visibleWidth(visibleWidth),
 m_visibleHeight(visibleHeight),
 m_visibleChannels(visibleChannels),

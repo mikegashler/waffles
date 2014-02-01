@@ -84,8 +84,8 @@ public:
 	/// in a loop until your stopping criteria has been met.)
 	virtual double iterate() = 0;
 
-	/// Returns the current vector of the optimizer. In most cases,
-	/// this is the best vector yet found.
+	/// Returns the current vector of the optimizer. For greedy search
+	/// methods, this will be the best vector yet found.
 	virtual double* currentVector() = 0;
 
 	/// This will first call iterate() nBurnInIterations times,

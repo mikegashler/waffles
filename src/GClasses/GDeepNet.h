@@ -246,8 +246,8 @@ public:
 	/// visibleWidth, visibleHeight, and visibleChannels all specify the dimensions of the visible image.
 	/// kernelSize specifies both the width and height of the convolutional kernel.
 	/// kernelCount specifies the number of convolutional kernels to train.
-	/// The Each hidden mapping will have a width of (visibleWidth + kernelSize - 1) and a
-	/// height of (visibleHeight + kernelSize - 1). There will be (visibleChannels * kernelCount)
+	/// The Each hidden mapping will have a width of (visibleWidth - kernelSize + 1) and a
+	/// height of (visibleHeight - kernelSize + 1). There will be (visibleChannels * kernelCount)
 	/// hidden channels.
 	G2DConvolutionalLayer(size_t visibleWidth, size_t visibleHeight, size_t visibleChannels, size_t kernelSize, size_t kernelCount, GRand& rand);
 	~G2DConvolutionalLayer();

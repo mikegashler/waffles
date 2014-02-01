@@ -210,12 +210,13 @@ void GNeuralNetLayer::resetWeights(GRand* pRand)
 {
 	size_t outputs = m_weights.cols();
 	size_t inputs = m_weights.rows();
+	double mag = 1.0 / inputs;
 	double* pB = bias();
 	for(size_t i = 0; i < outputs; i++)
 	{
-		*pB = pRand->normal() * 0.1;
+		*pB = pRand->normal() * mag;
 		for(size_t j = 0; j < inputs; j++)
-			m_weights[j][i] = pRand->normal() * 0.1;
+			m_weights[j][i] = pRand->normal() * mag;
 		pB++;
 	}
 }
@@ -338,22 +339,30 @@ void GNeuralNetLayer::transformWeights(GMatrix& transform, const double* pOffset
 	GVec::add(bias(), pNet, outputs);
 }
 
-void GNeuralNetLayer::perturbWeights(GRand& rand, double deviation)
+void GNeuralNetLayer::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
 {
-	size_t outs = outputs();
+	size_t n = std::min(outputs() - start, count);
 	for(size_t j = 0; j < m_weights.rows(); j++)
-		GVec::perturb(m_weights[j], deviation, outs, rand);
-	GVec::perturb(bias(), deviation, outs, rand);
+		GVec::perturb(m_weights[j] + start, deviation, n, rand);
+	GVec::perturb(bias() + start, deviation, n, rand);
 }
 
-void GNeuralNetLayer::setToWeaklyApproximateIdentity()
+void GNeuralNetLayer::setToWeaklyApproximateIdentity(size_t start, size_t count)
 {
-	m_weights.setAll(0.0);
-	size_t n = std::min(inputs(), outputs());
-	for(size_t i = 0; i < n; i++)
+	size_t end = std::min(start + count, outputs());
+	for(size_t i = start; i < end; i++)
 	{
-		m_weights[i][i] = m_activationFunctions[i]->identityDiag();
-		bias()[i] = m_activationFunctions[i]->identityBias();
+		bias()[i] = 0.0;
+		for(size_t j = 0; j < inputs(); j++)
+		{
+			if(j == i)
+			{
+				m_weights[j][i] = m_activationFunctions[i]->identityDiag();
+				bias()[i] = m_activationFunctions[i]->identityBias();
+			}
+			else
+				m_weights[j][i] = 0.0;
+		}
 	}
 }
 
@@ -555,7 +564,10 @@ void GBackProp::backPropLayer(GNeuralNetLayer* pNNDownStreamLayer, GNeuralNetLay
 	double* pAct = pNNUpStreamLayer->activation();
 	GActivationFunction** ppActFunc = pNNUpStreamLayer->m_activationFunctions;
 	for(size_t i = 0; i < w.rows(); i++)
-		*(pOut++) = GVec::dotProduct(pIn, w[i], outputs) * (*(ppActFunc++))->derivativeOfNet(*(pNet++), *(pAct++));
+	{
+		*pOut = GVec::dotProduct(pIn, w[i], outputs) * (*(ppActFunc++))->derivativeOfNet(*(pNet++), *(pAct++));
+		pOut++;
+	}
 }
 
 void GBackProp::backpropagate(size_t startLayer)
@@ -2359,7 +2371,7 @@ void GReservoirNet::clearFeatureFilter()
 void GReservoirNet::test()
 {
 	GReservoirNet lr;
-	lr.basicTest(0.73, 0.801);
+	lr.basicTest(0.73, 0.76);
 }
 #endif // MIN_PREDICT
 

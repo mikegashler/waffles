@@ -1539,7 +1539,7 @@ void GBagOfRecommenders::test()
 	rec.addRecommender(new GBaselineRecommender());
 	rec.addRecommender(new GMatrixFactorization(3));
 	rec.addRecommender(new GNonlinearPCA(3));
-	rec.basicTest(0.60);
+	rec.basicTest(0.65);
 }
 #endif
 
