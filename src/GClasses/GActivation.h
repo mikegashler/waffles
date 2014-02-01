@@ -638,8 +638,8 @@ public:
 };
 
 
-// y=(0.25*sqrt(x * x + 1)+x-0.25)
-
+// y=0.25*sqrt(x * x + 1)+x-0.25
+// dy/dx = 0.25 * x / sqrt(x * x + 1) + 1
 
 } // namespace GClasses
 

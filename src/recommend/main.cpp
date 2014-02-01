@@ -525,10 +525,13 @@ void transacc(GArgReader& args)
 void fillMissingValues(GArgReader& args)
 {
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
+	bool normalize = true;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
+		else if(args.if_pop("-nonormalize"))
+			normalize = false;
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -546,10 +549,17 @@ void fillMissingValues(GArgReader& args)
 
 	// Convert to all normalized real values
 	GNominalToCat* pNtc = new GNominalToCat();
-	GIncrementalTransformChainer filter(new GNormalize(), pNtc);
+	GIncrementalTransform* pFilter = pNtc;
+	Holder<GIncrementalTransformChainer> hChainer;
+	if(normalize)
+	{
+		GIncrementalTransformChainer* pChainer = new GIncrementalTransformChainer(new GNormalize(), pNtc);
+		hChainer.reset(pChainer);
+		pFilter = pChainer;
+	}
 	pNtc->preserveUnknowns();
-	filter.train(dataOrig);
-	GMatrix* pData = filter.transformBatch(dataOrig);
+	pFilter->train(dataOrig);
+	GMatrix* pData = pFilter->transformBatch(dataOrig);
 	Holder<GMatrix> hData(pData);
 
 	// Convert to 3-column form
@@ -591,7 +601,7 @@ void fillMissingValues(GArgReader& args)
 	}
 
 	// Convert the data back to its original form
-	GMatrix* pOut = filter.untransformBatch(*pData);
+	GMatrix* pOut = pFilter->untransformBatch(*pData);
 	pOut->setRelation(hOrigRel.release());
 	pOut->print(cout);
 }

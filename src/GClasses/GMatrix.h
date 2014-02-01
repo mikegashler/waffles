@@ -168,9 +168,6 @@ public:
 /// same number of possible values.
 class GUniformRelation : public GRelation
 {
-public:
-	static GUniformRelation* s_pEmptyRelation;
-
 protected:
 	size_t m_attrCount;
 	size_t m_valueCount;

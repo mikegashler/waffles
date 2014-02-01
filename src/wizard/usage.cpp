@@ -1338,9 +1338,10 @@ UsageNode* makeRecommendUsageTree()
 		pCV->add("[3col-data]=ratings.arff", "The filename of 3-column (user, item, rating) dataset. Column 0 contains a user ID. Column 1 contains an item ID. Column 2 contains the known rating for that user-item pair.");
 	}
 	{
-		UsageNode* pFMV = pRoot->add("fillmissingvalues <options> [data] [collab-filter]", "Fill in the missing values in an ARFF file with predicted values and print the resulting full dataset to stdout.");
+		UsageNode* pFMV = pRoot->add("fillmissingvalues <options> [data] [collab-filter]", "Fill in the missing values in an ARFF file with predicted values and print the resulting full dataset to stdout. ([data] is in full users*items or patterns*attributes format, not the dense 3-column format.)");
 		UsageNode* pOpts = pFMV->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+		pOpts->add("-nonormalize", "Do not normalize all of the columns to fall between 0 and 1 before imputing the missing values. (The default is to normalize first.)");
 		pFMV->add("[data]=data.arff", "The filename of a dataset with missing values to impute.");
 	}
 	{
