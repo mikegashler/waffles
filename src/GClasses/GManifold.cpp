@@ -2463,16 +2463,15 @@ GMatrix* GUnsupervisedBackProp::reduce(const GMatrix& in)
 					GAssert(target >= 0.0 && target <= 1.0 && prediction >= 0.0 && prediction <= 1.0);
 					double err = target - prediction;
 					sse += (err * err);
-					pNN->backProp()->computeBlameSingleOutput(target, c);
-					pNN->backProp()->backpropagateSingleOutput(c);
+					pNN->backpropagateSingleOutput(c, target);
 
 					// Calculate the gradient of the inputs
 					if(pass != 1)
-						pNN->backProp()->gradientOfInputsSingleOutput(c, pGradientOfInputs);
+						pNN->gradientOfInputsSingleOutput(c, pGradientOfInputs);
 
 					// Update weights
 					pNN->scaleWeightsSingleOutput(c, 1.0 - (learningRate * regularizer));
-					pNN->backProp()->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum());
+					pNN->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum());
 
 					// Update inputs
 					if(pass != 1)

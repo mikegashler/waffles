@@ -206,8 +206,6 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args)
 				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
 		}*/
-		else if(args.if_pop("-crossentropy"))
-			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
 		else
 			throw Ex("Invalid neuralnet option: ", args.peek());
 	}

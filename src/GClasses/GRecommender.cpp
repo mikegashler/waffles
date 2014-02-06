@@ -1171,7 +1171,7 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 	m_useInputBias = pNode->field("uib")->asBool();
 	m_pUsers = new GMatrix(pNode->field("users"));
 	m_pModel = new GNeuralNet(pNode->field("model"), ll);
-	m_items = m_pModel->getLayer(m_pModel->layerCount() - 1)->outputs();
+	m_items = m_pModel->layer(m_pModel->layerCount() - 1).outputs();
 	m_pMins = new double[m_items];
 	GDomListIterator it1(pNode->field("mins"));
 	if(it1.remaining() != m_items)
@@ -1182,7 +1182,7 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 	if(it2.remaining() != m_items)
 		throw Ex("invalid number of elements");
 	GVec::deserialize(m_pMaxs, it2);
-	m_intrinsicDims = m_pModel->getLayer(0)->outputs();
+	m_intrinsicDims = m_pModel->layer(0).outputs();
 }
 
 // virtual
@@ -1201,7 +1201,7 @@ GDomNode* GNonlinearPCA::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
 	pNode->addField(pDoc, "users", m_pUsers->serialize(pDoc));
 	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
-	size_t itemCount = m_pModel->getLayer(m_pModel->layerCount() - 1)->outputs();
+	size_t itemCount = m_pModel->outputLayer().outputs();
 	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, itemCount));
 	pNode->addField(pDoc, "maxs", GVec::serialize(pDoc, m_pMaxs, itemCount));
 	return pNode;
@@ -1312,14 +1312,12 @@ void GNonlinearPCA::train(GMatrix& data)
 					pNN->forwardPropSingleOutput(pPrefs, item);
 
 					// Update weights
-					pNN->backProp()->computeBlameSingleOutput(pVec[2], item, INVALID_INDEX,
-								      pNN->backPropTargetFunction());
-					pNN->backProp()->backpropagateSingleOutput(item);
+					pNN->backpropagateSingleOutput(item, pVec[2]);
 					if(pass < 2)
 						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * regularizer));
 					if(pass != 1)
-						pNN->backProp()->gradientOfInputsSingleOutput(item, pPrefGradient);
-					pNN->backProp()->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
+						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
+					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
 					if(pass != 1)
 					{
 						// Update inputs
@@ -1539,7 +1537,7 @@ void GBagOfRecommenders::test()
 	rec.addRecommender(new GBaselineRecommender());
 	rec.addRecommender(new GMatrixFactorization(3));
 	rec.addRecommender(new GNonlinearPCA(3));
-	rec.basicTest(0.65);
+	rec.basicTest(0.57);
 }
 #endif
 

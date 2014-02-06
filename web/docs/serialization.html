@@ -45,6 +45,21 @@ Here is some code that will marshall this object into a DOM:
 </pre>
 This code will create a DOM with a structure like this:<br>
 <center><img src="dom.png"></center></p>
+
+Here is a <a href="http://json.org">JSON</a> encoding of this DOM:
+<pre>
+		{
+			"name":"bob",
+			"age":21
+			"height":5.9
+			"admin":false
+			"friends":[
+				"al",
+				"charlie",
+				"dave"
+			]
+		}
+</pre>
 <p>By design, each node in the DOM may have child nodes, or it may contain a value, but not both. This forms a natural separation between data (in the leaf nodes) and meta-data (represented by the interior nodes). Since it is bad practice to stuff data values into interior nodes in a DOM anyway, this is a good limitation.</p>
 
 <p>Next, let's write some code that will unmarshall the object from the DOM

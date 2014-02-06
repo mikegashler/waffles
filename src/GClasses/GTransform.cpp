@@ -934,7 +934,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		ntc.reverseAttrMap(rmap);
 
 		// Identify the weakest attribute
-		GNeuralNetLayer& layer = *nn.getLayer(nn.layerCount() - 1);
+		GNeuralNetLayerClassic& layer = *(GNeuralNetLayerClassic*)&nn.layer(nn.layerCount() - 1);
 		size_t pos = 0;
 		double weakest = 1e308;
 		size_t weakestIndex = 0;

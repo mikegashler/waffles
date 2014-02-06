@@ -303,10 +303,6 @@ GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args)
 				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->model()->setActivationFunction(pSF, true);
 		}*/
-		else if(args.if_pop("-crossentropy"))
-			pModel->model()->setBackPropTargetFunction(GBackProp::cross_entropy);
-		else if(args.if_pop("-sign"))
-			pModel->model()->setBackPropTargetFunction(GBackProp::sign);
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}

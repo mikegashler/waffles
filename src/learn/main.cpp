@@ -803,10 +803,6 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* 
 				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
 		}*/
-		else if(args.if_pop("-crossentropy"))
-			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
-		else if(args.if_pop("-sign"))
-			pModel->setBackPropTargetFunction(GBackProp::sign);
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -896,10 +892,6 @@ GWag* InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 				throw Ex("Unrecognized activation function: ", szSF);
 			pModel->setActivationFunction(pSF, true);
 		}*/
-		else if(args.if_pop("-crossentropy"))
-			pModel->setBackPropTargetFunction(GBackProp::cross_entropy);
-		else if(args.if_pop("-sign"))
-			pModel->setBackPropTargetFunction(GBackProp::sign);
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -1043,7 +1035,7 @@ void autoTuneNeuralNet(GMatrix& features, GMatrix& labels)
 			szCurrent = szActivationName;
 		}*/
 		if(i < nn.layerCount() - 1)
-			cout << " -addlayer " << nn.getLayer(i)->outputs();
+			cout << " -addlayer " << nn.layer(i).outputs();
 	}
 	if(nn.momentum() > 0.0)
 		cout << " -momentum " << nn.momentum();

@@ -31,9 +31,80 @@ class GImage;
 class GActivationFunction;
 class LagrangeVals;
 
-
 /// Represents a layer of neurons in a neural network
 class GNeuralNetLayer
+{
+public:
+	GNeuralNetLayer() {}
+	virtual ~GNeuralNetLayer() {}
+
+	/// Returns the type of this layer
+	virtual const char* type() = 0;
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
+
+	/// Unmarshalls the specified DOM node into a layer object.
+	static GNeuralNetLayer* deserialize(GDomNode* pNode);
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() const = 0;
+
+	/// Returns the number of values that this layer outputs.
+	virtual size_t outputs() const = 0;
+
+	/// Returns a buffer where the activation from the most-recent call to feedForward is stored.
+	virtual double* activation() = 0;
+
+	/// Returns a buffer where the error terms for each unit are stored.
+	virtual double* error() = 0;
+
+	/// Feeds pIn through this layer to compute the activation.
+	virtual void feedForward(const double* pIn) = 0;
+
+	/// Computes the error term of the activation.
+	virtual void computeError(const double* pTarget) = 0;
+
+	/// Converts the error term to refer to the net input.
+	virtual void deactivateError() = 0;
+
+	/// Computes the activation error of the layer that feeds into this one.
+	virtual void backPropError(double* pUpStreamError) = 0;
+
+	/// Refines the weights by gradient descent.
+	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum) = 0;
+
+	/// Multiplies all the weights by the specified factor.
+	virtual void scaleWeights(double factor) = 0;
+
+	/// Moves all weights in the direction of zero by the specified amount.
+	virtual void diminishWeights(double amount) = 0;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights() = 0;
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector) = 0;
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector) = 0;
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource) = 0;
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise. The
+	/// default values apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) = 0;
+
+	/// Clips all the weights in this layer to fall in the range [-max, max].
+	virtual void clipWeights(double max) = 0;
+
+protected:
+	GDomNode* baseDomNode(GDom* pDoc);
+};
+
+
+class GNeuralNetLayerClassic : public GNeuralNetLayer
 {
 friend class GBackProp;
 friend class GNeuralNet;
@@ -41,18 +112,81 @@ friend class GNeuralNetPseudoInverse;
 public:
 	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
 protected:
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation.
+	GMatrix m_delta; // Used to implement momentum
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack.
 	GActivationFunction** m_activationFunctions;
 	std::vector<GActivationFunction*> m_activationFunctionCache;
 
 public:
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
-	GNeuralNetLayer(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
-	GNeuralNetLayer(GDomNode* pNode);
-	~GNeuralNetLayer();
+	GNeuralNetLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
+	GNeuralNetLayerClassic(GDomNode* pNode);
+	~GNeuralNetLayerClassic();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "classic"; }
 
 	/// Marshall this layer into a DOM.
-	GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() const { return m_weights.rows(); }
+
+	/// Returns the number of nodes or units in this layer.
+	virtual size_t outputs() const { return m_weights.cols(); }
+
+	/// Returns the activation values from the most recent call to feedForward().
+	virtual double* activation() { return m_bias[2]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual double* error() { return m_bias[3]; }
+
+	/// Feed a vector forward through this layer. The results are placed in activation();
+	virtual void feedForward(const double* pIn);
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const double* pTarget);
+
+	/// Multiplies each element in the error vector by the derivative of the activation function.
+	/// This results in the error having meaning with respect to the weights, instead of the output.
+	virtual void deactivateError();
+
+	/// Backpropagates the error from this layer into the upstream error vector.
+	/// (Assumes that the error in this layer has already been deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	virtual void backPropError(double* pUpStreamError);
+
+	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
+	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum);
+
+	/// Multiplies all the weights in this layer by the specified factor.
+	virtual void scaleWeights(double factor);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	virtual void diminishWeights(double amount);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	/// The default values for these parameters apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+
+	/// Clips all the weights in this layer to fall in the range [-max, max].
+	virtual void clipWeights(double max);
 
 	/// Resizes this layer. Does not initialize the new weights in any way.
 	void resize(size_t inputs, size_t outputs);
@@ -64,12 +198,6 @@ public:
 	/// Initialize the weights with small random values.
 	void resetWeights(GRand* pRand);
 
-	/// Returns the number of values expected to be fed as input into this layer.
-	size_t inputs() const { return m_weights.rows(); }
-
-	/// Returns the number of nodes or units in this layer.
-	size_t outputs() const { return m_weights.cols(); }
-
 	/// Returns the bias vector of this layer.
 	double* bias() { return m_bias[0]; }
 
@@ -80,11 +208,11 @@ public:
 	/// from the most recent call to feedForward().
 	double* net() { return m_bias[1]; }
 
-	/// Returns the activation values from the most recent call to feedForward().
-	double* activation() { return m_bias[2]; }
+	/// Returns a buffer used to store delta values for each bias in this layer.
+	double* biasDelta() { return m_bias[4]; }
 
-	/// Feed a vector forward through this layer. The results are placed in activation();
-	void feedForward(const double* pIn);
+	/// Returns a vector used to specify slack terms for each unit in this layer.
+	double* slack() { return m_bias[5]; }
 
 	/// Feeds a vector forward through this layer. Uses the first value in pIn as an input bias.
 	void feedForwardWithInputBias(const double* pIn);
@@ -92,10 +220,19 @@ public:
 	/// Feeds a vector forward through this layer to compute only the one specified output value.
 	void feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias);
 
-	/// Perturbs all the weights in this layer with Gaussian noise.
-	/// start specifies the first unit whose incoming weights are perturbed.
-	/// count specifies the maximum number of units whose incoming weights are perturbed.
-	void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = (size_t)-1);
+	/// This is the same as computeError, except that it only computes the error of a single unit.
+	void computeErrorSingleOutput(double target, size_t output);
+
+	/// Same as deactivateError, but only applies to a single unit in this layer.
+	void deactivateErrorSingleOutput(size_t output);
+
+	/// Backpropagates the error from a single output node to a hidden layer.
+	/// (Assumes that the error in the output node has already been deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	void backPropErrorSingleOutput(size_t output, double* pUpStreamError);
+
+	/// Adjust the weights of a single neuron. (Assumes the error has already been deactivated.)
+	void adjustWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum);
 
 	/// Takes ownership of pActivation function. Sets all of the units in the specified range to use the given activation function.
 	void setActivationFunction(GActivationFunction* pActivationFunction, size_t first = 0, size_t count = INVALID_INDEX);
@@ -104,16 +241,6 @@ public:
 	/// start specifies the first unit whose incoming weights will be adjusted.
 	/// count specifies the maximum number of units whose incoming weights are adjusted.
 	void setToWeaklyApproximateIdentity(size_t start = 0, size_t count = (size_t)-1);
-
-	/// An experimental thing--needs more testing
-	/// Initially, pass in direction. Assumes logistic or tanh activation function. Puts results in net(). Leaves activation() alone.
-	void outputGradient(const double* pIn);
-
-	/// Multiplies all the weights in this layer by the specified factor.
-	void scaleWeights(double factor);
-
-	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	void diminishWeights(double amount);
 
 	/// Adjusts the value of each weight to, w = w - factor * pow(w, power).
 	/// If power is 1, this is the same as calling scaleWeights.
@@ -125,116 +252,6 @@ public:
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
 	/// that is added before the transform.
 	void transformWeights(GMatrix& transform, const double* pOffset);
-
-	/// Clips all non-bias weights to fall within the range [-max, max].
-	void clipWeights(double max);
-};
-
-
-/// An internal class used by GBackProp
-class GBackPropLayer
-{
-public:
-	GMatrix m_delta;
-	GMatrix m_blame;
-
-	void resize(size_t inputs, size_t outputs);
-	double* blame() { return m_blame[0]; }
-	double* biasDelta() { return m_blame[1]; }
-	double* slack() { return m_blame[2]; }
-};
-
-/// This class performs backpropagation on a neural network. (I made it a separate
-/// class because it is only needed during training. There is no reason to waste
-/// this space after training is complete, or if you choose to use a different
-/// technique to train the neural network.)
-class GBackProp
-{
-friend class GNeuralNet;
-public:
-	enum TargetFunction
-	{
-		squared_error, /// (default) best for regression
-		cross_entropy, /// best for classification
-		sign, /// uses the sign of the error, as in the perceptron training rule
-	};
-
-protected:
-	GNeuralNet* m_pNN;
-	std::vector<GBackPropLayer> m_layers;
-
-public:
-	/// This class will adjust the weights in pNN
-	GBackProp(GNeuralNet* pNN);
-
-	~GBackProp();
-
-	/// Returns a layer (not a layer of the neural network, but a corresponding layer of values used for back-prop)
-	GBackPropLayer& layer(size_t layer)
-	{
-		return m_layers[layer];
-	}
-
-	/// This method computes the error terms for each node in the output layer.
-	/// It assumes that forwardProp has already been called.
-	/// After calling this method, it is typical to call backpropagate(), to compute the error on
-	/// the hidden nodes, and then to call backProp()->descendGradient to update
-	/// the weights. pTarget contains the target values for the output nodes.
-	void computeBlame(const double* pTarget, size_t layer = INVALID_INDEX, TargetFunction eTargetFunction = squared_error);
-
-	/// This is the same as computeBlame, except that it only sets
-	/// the error on a single output node.
-	void computeBlameSingleOutput(double target, size_t output, size_t layer = INVALID_INDEX, TargetFunction eTargetFunction = squared_error);
-
-	/// Backpropagates the error from the downstream layer to the upstream layer.
-	static void backPropLayer(GNeuralNetLayer* pNNDownStreamLayer, GNeuralNetLayer* pNNUpStreamLayer, GBackPropLayer* pBPDownStreamLayer, GBackPropLayer* pBPUpStreamLayer);
-
-	/// Backpropagates the error from a single output node to a hidden layer.
-	void backPropFromSingleNode(size_t outputNode, GNeuralNetLayer* pNNDownStreamLayer, GNeuralNetLayer* pNNUpStreamLayer, GBackPropLayer* pBPDownStreamLayer, GBackPropLayer* pBPUpStreamLayer);
-
-	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
-	/// to compute the error term at every hidden unit. (It does not update any weights.)
-	void backpropagate(size_t startLayer = INVALID_INDEX);
-
-	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
-	/// the specified output node.)
-	void backpropagateSingleOutput(size_t outputNode, size_t startLayer = INVALID_INDEX);
-
-	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights to descend the
-	/// gradient of the error surface with respect to the weights.
-	void descendGradient(const double* pFeatures, double learningRate, double momentum);
-
-	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
-	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
-	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum);
-
-	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights on the specified layer
-	/// to descend the gradient of the error surface with respect to the weights.
-	/// Returns the sum-squared delta.
-	void descendGradientOneLayer(size_t layer, const double* pFeatures, double learningRate, double momentum);
-
-	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
-	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
-	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradient.
-	/// Also, note that descendGradient depends on the input features, so be sure not to update them until after you call descendGradient.)
-	void gradientOfInputs(double* pOutGradient);
-
-	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
-	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
-	/// This method assumes that error is computed for only one output neuron, which is specified.
-	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradientSingleOutput.)
-	/// Also, note that descendGradientSingleOutput depends on the input features, so be sure not to update them until after you call descendGradientSingleOutput.)
-	void gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient);
-
-protected:
-	/// Adjust weights in pNNDownStreamLayer. (The error for pNNDownStreamLayer layer must have already been computed.)
-	static void adjustWeights(GNeuralNetLayer* pNNDownStreamLayer, const double* pUpStreamActivation, GBackPropLayer* pBPDownStreamLayer, double learningRate, double momentum);
-
-	/// Adjust the weights of a single neuron that follows a hidden layer. (Assumes the error of this neuron has already been computed).
-	static void adjustWeightsSingleNeuron(size_t outputNode, GNeuralNetLayer* pNNDownStreamLayer, const double* pUpStreamActivation, GBackPropLayer* pBPDownStreamLayer, double learningRate, double momentum);
-
-	/// Adjust the weights in a manner that uses Lagrange multipliers to regularize the weights. (Experimental.)
-	void adjustWeightsLagrange(GNeuralNetLayer* pNNDownStreamLayer, const double* pUpStreamActivation, GBackPropLayer* pBPDownStreamLayer, LagrangeVals& lv);
 };
 
 
@@ -246,13 +263,11 @@ friend class GBackProp;
 protected:
 	std::vector<size_t> m_topology;
 	std::vector<GNeuralNetLayer*> m_layers;
-	GBackProp* m_pBackProp;
 	double m_learningRate;
 	double m_momentum;
 	double m_validationPortion;
 	double m_minImprovement;
 	size_t m_epochsPerValidationCheck;
-	GBackProp::TargetFunction m_backPropTargetFunction;
 	bool m_useInputBias;
 
 public:
@@ -291,8 +306,11 @@ public:
 	/// layers and the output layer. (The input vector does not count as a layer.)
 	size_t layerCount() const { return m_layers.size(); }
 
-	/// Returns a pointer to the specified layer.
-	GNeuralNetLayer* getLayer(size_t n) { return m_layers[n]; }
+	/// Returns a reference to the specified layer.
+	GNeuralNetLayer& layer(size_t n) { return *m_layers[n]; }
+
+	/// Returns a reference to the last layer.
+	GNeuralNetLayer& outputLayer() { return *m_layers[m_layers.size() - 1]; }
 
 	/// Adds new nodes at the end of the specified layer. (The new nodes are initialized
 	/// with small random weights, so this operation should initially have little impact on
@@ -302,9 +320,6 @@ public:
 	/// Removes the specified node from the specified layer. (An exception will be thrown
 	/// the layer only has one node.)
 	void dropNode(size_t layer, size_t node);
-
-	/// Returns the backprop object associated with this neural net (if there is one)
-	GBackProp* backProp() { return m_pBackProp; }
 
 	/// Set the portion of the data that will be used for validation. If the
 	/// value is 0, then all of the data is used for both training and validation.
@@ -374,13 +389,6 @@ public:
 	/// the training set.)
 	void setWindowSize(size_t n) { m_epochsPerValidationCheck = n; }
 
-	/// Specify the target function to use for back-propagation. The default is squared_error.
-	/// cross_entropy tends to be faster, and is well-suited for classification tasks.
-	void setBackPropTargetFunction(GBackProp::TargetFunction eTF) { m_backPropTargetFunction = eTF; }
-
-	/// Returns the enumeration of the target function used for backpropagation
-	GBackProp::TargetFunction backPropTargetFunction() { return m_backPropTargetFunction; }
-
 #ifndef MIN_PREDICT
 	/// See the comment for GIncrementalLearner::trainSparse
 	/// Assumes all attributes are continuous.
@@ -393,11 +401,6 @@ public:
 	/// Train the network until the termination condition is met.
 	/// Returns the number of epochs required to train it.
 	size_t trainWithValidation(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& validateFeatures, const GMatrix& validateLabels);
-
-	/// Some extra junk is allocated when training to make it efficient.
-	/// This method is called when training is done to get rid of that
-	/// extra junk.
-	void releaseTrainingJunk();
 
 	/// Gets the internal training data set
 	GMatrix* internalTraininGMatrix();
@@ -488,6 +491,35 @@ public:
 	/// variance of the data to the first few columns. Adjusts the weights on the input layer accordingly,
 	/// such that the network output remains the same. Returns the transformed feature matrix.
 	GMatrix* compressFeatures(GMatrix& features);
+
+	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
+	/// to compute the error term at every hidden unit. (It does not update any weights.)
+	void backpropagate(const double* pTarget, size_t startLayer = INVALID_INDEX);
+
+	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
+	/// the specified output node.)
+	void backpropagateSingleOutput(size_t outputNode, double target, size_t startLayer = INVALID_INDEX);
+
+	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights to descend the
+	/// gradient of the error surface with respect to the weights.
+	void descendGradient(const double* pFeatures, double learningRate, double momentum);
+
+	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
+	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
+	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum);
+
+	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
+	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
+	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradient.
+	/// Also, note that descendGradient depends on the input features, so be sure not to update them until after you call descendGradient.)
+	void gradientOfInputs(double* pOutGradient);
+
+	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
+	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
+	/// This method assumes that error is computed for only one output neuron, which is specified.
+	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradientSingleOutput.)
+	/// Also, note that descendGradientSingleOutput depends on the input features, so be sure not to update them until after you call descendGradientSingleOutput.)
+	void gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient);
 
 protected:
 #ifndef MIN_PREDICT
