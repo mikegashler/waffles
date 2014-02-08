@@ -380,8 +380,9 @@ public:
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
 
-	/// Returns a pointer to the internal neural network. (You may use this method to
-	/// specify training parameters before training, or to obtain the average
+	/// Returns a pointer to the internal neural network. (You must add at least one
+	/// layer to this model before training, and you should probably add at least two.
+	/// Wagging only works with classic layers. You may also use this method to obtain the average
 	/// neural network after training.)
 	GNeuralNet* model() { return m_pNN; }
 

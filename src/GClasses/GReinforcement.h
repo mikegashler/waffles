@@ -25,7 +25,6 @@
 namespace GClasses {
 
 class GRand;
-class GNeuralNet;
 class GKNN;
 class Bogie;
 

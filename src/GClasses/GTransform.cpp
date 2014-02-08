@@ -722,10 +722,9 @@ GReservoir::GReservoir(double weightDeviation, size_t outputs, size_t hiddenLaye
 : GIncrementalTransform(), m_outputs(outputs), m_deviation(weightDeviation)
 {
 	m_pNN = new GNeuralNet();
-	vector<size_t> topology;
 	for(size_t i = 0; i < hiddenLayers; i++)
-		topology.push_back(outputs);
-	m_pNN->setTopology(topology);
+		m_pNN->addLayerClassic(outputs);
+	m_pNN->addLayerClassic(0);
 }
 
 GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
@@ -924,6 +923,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn;
+		nn.addLayerClassic(0);
 		nn.rand().setSeed(m_seed);
 		m_seed += 77152487;
 		m_seed *= 37152487;
@@ -944,7 +944,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 			while(pos < nn.relFeatures().size() && rmap[pos] == i)
 			{
 				for(size_t neuron = 0; neuron < layer.outputs(); neuron++)
-					w = std::max(w, std::abs(layer.m_weights[pos][neuron]));
+					w = std::max(w, std::abs(layer.weights()[pos][neuron]));
 				pos++;
 			}
 			if(w < weakest)

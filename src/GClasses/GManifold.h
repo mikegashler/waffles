@@ -454,7 +454,7 @@ public:
 
 	/// Returns a pointer to the neural network used to model the manifold. Typically, this
 	/// is used to add layers to the neural network, or set the learning rate (etc.) before
-	/// calling reduce.
+	/// calling reduce. (You must add at least one layer.)
 	GNeuralNet* neuralNet() { return m_pNN; }
 
 	/// Takes ownership of pNN. Replaces the internal neural net with the one specified.

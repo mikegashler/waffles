@@ -18,7 +18,6 @@
 */
 
 #include "GPolicyLearner.h"
-#include "GNeuralNet.h"
 #include "GKNN.h"
 #include "GDecisionTree.h"
 #include "GNeighborFinder.h"

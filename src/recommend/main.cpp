@@ -258,11 +258,10 @@ GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args)
 		throw Ex("The number of intrinsic dims must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
 	GNonlinearPCA* pModel = new GNonlinearPCA(intrinsicDims);
-	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-addlayer"))
-			topology.push_back(args.pop_uint());
+			pModel->model()->addLayerClassic(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			pModel->model()->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -306,7 +305,7 @@ GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->model()->setTopology(topology);
+	pModel->model()->addLayerClassic(0);
 	return pModel;
 }
 

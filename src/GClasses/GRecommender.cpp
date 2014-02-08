@@ -1161,7 +1161,7 @@ void GMatrixFactorization::test()
 GNonlinearPCA::GNonlinearPCA(size_t intrinsicDims)
 : GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_items(0), m_pMins(NULL), m_pMaxs(NULL), m_useInputBias(true), m_useThreePass(true)
 {
-	m_pModel = new GNeuralNet;
+	m_pModel = new GNeuralNet();
 	m_pUsers = NULL;
 }
 
@@ -1263,6 +1263,7 @@ void GNonlinearPCA::train(GMatrix& data)
 	m_pModel->setUseInputBias(m_useInputBias);
 	m_pModel->beginIncrementalLearning(featureRel, labelRel);
 	GNeuralNet nn;
+	nn.addLayerClassic(0);
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
 	double* pPrefGradient = new double[m_intrinsicDims];
@@ -1412,9 +1413,8 @@ void GNonlinearPCA::impute(double* pVec, size_t dims)
 void GNonlinearPCA::test()
 {
 	GNonlinearPCA rec(3);
-	vector<size_t> topology;
-	topology.push_back(3);
-	rec.model()->setTopology(topology);
+	rec.model()->addLayerClassic(3);
+	rec.model()->addLayerClassic(0);
 	rec.basicTest(0.258);
 }
 #endif
@@ -1536,7 +1536,9 @@ void GBagOfRecommenders::test()
 	GBagOfRecommenders rec;
 	rec.addRecommender(new GBaselineRecommender());
 	rec.addRecommender(new GMatrixFactorization(3));
-	rec.addRecommender(new GNonlinearPCA(3));
+	GNonlinearPCA* nlpca = new GNonlinearPCA(3);
+	nlpca->model()->addLayerClassic(0);
+	rec.addRecommender(nlpca);
 	rec.basicTest(0.57);
 }
 #endif

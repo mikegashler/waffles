@@ -391,7 +391,8 @@ public:
 	virtual ~GNonlinearPCA();
 
 	/// Returns a pointer to the neural net that is used to model the recommendation space.
-	/// You may want to use this method to add hidden layers, set the learning rate, or change
+	/// You may want to use this method to add layers to the network. (At least one layer
+	/// is necessary). You may also use it to set the learning rate, or change
 	/// activation functions before the model is trained.
 	GNeuralNet* model() { return m_pModel; }
 

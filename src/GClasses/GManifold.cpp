@@ -2376,6 +2376,7 @@ GMatrix* GUnsupervisedBackProp::reduce(const GMatrix& in)
 	m_pNN->setUseInputBias(m_useInputBias);
 	m_pNN->beginIncrementalLearning(featureRel, labelRel);
 	GNeuralNet nn;
+	nn.addLayerClassic(0);
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
 

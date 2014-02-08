@@ -535,6 +535,10 @@ public:
 	/// replaces all element values with garbage.
 	void resize(size_t rows, size_t cols);
 
+	/// \brief Resizes this matrix, preserving the values of all elements that
+	/// exist in both instances, and initializing all others with garbage.
+	void resizePreserve(size_t rowCount, size_t colCount);
+
 	/// \brief Adds a new row to the matrix. (The values in the row are
 	/// not initialized.) Returns a pointer to the new row.
 	double* newRow();

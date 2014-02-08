@@ -165,11 +165,10 @@ GNaiveInstance* InstantiateNaiveInstance(GArgReader& args)
 GNeuralNet* InstantiateNeuralNet(GArgReader& args)
 {
 	GNeuralNet* pModel = new GNeuralNet();
-	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-addlayer"))
-			topology.push_back(args.pop_uint());
+			pModel->addLayerClassic(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -209,7 +208,7 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args)
 		else
 			throw Ex("Invalid neuralnet option: ", args.peek());
 	}
-	pModel->setTopology(topology);
+	pModel->addLayerClassic(0);
 	return pModel;
 }
 /*

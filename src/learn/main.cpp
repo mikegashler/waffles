@@ -754,7 +754,6 @@ GNeighborTransducer* InstantiateNeighborTransducer(GArgReader& args, GMatrix* pF
 GNeuralNet* InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GNeuralNet* pModel = new GNeuralNet();
-	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-autotune"))
@@ -764,7 +763,7 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* 
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-addlayer"))
-			topology.push_back(args.pop_uint());
+			pModel->addLayerClassic(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -806,7 +805,7 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* 
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->setTopology(topology);
+	pModel->addLayerClassic(0);
 	return pModel;
 }
 
@@ -847,13 +846,12 @@ GWag* InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 	GWag* pWag = new GWag(0);
 	GNeuralNet* pModel = pWag->model();
 	size_t modelCount = 10;
-	vector<size_t> topology;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-noalign"))
 			pWag->noAlign();
 		else if(args.if_pop("-addlayer"))
-			topology.push_back(args.pop_uint());
+			pModel->addLayerClassic(args.pop_uint());
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -895,7 +893,7 @@ GWag* InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->setTopology(topology);
+	pModel->addLayerClassic(0);
 	pWag->setModelCount(modelCount);
 	return pWag;
 }

@@ -38,7 +38,6 @@
 #include <sstream>
 #include <string>
 #include <iostream>
-#include "GNeuralNet.h"
 #include "GDistance.h"
 #include <cmath>
 #include <map>

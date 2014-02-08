@@ -818,7 +818,8 @@ void GSupervisedLearner::calibrate(GMatrix& features, GMatrix& labels)
 		}
 
 		// Train a layer of logistic units to map from the before distribution to the after distribution
-		GNeuralNet* pNN = new GNeuralNet;
+		GNeuralNet* pNN = new GNeuralNet();
+		pNN->addLayerClassic(0);
 		calibrations.push_back(pNN);
 		pNN->train(tmpBefore, tmpAfter);
 	}
@@ -1161,6 +1162,7 @@ void GSupervisedLearner::test()
 
 	// Train the model
 	GNeuralNet model;
+	model.addLayerClassic(0);
 	model.train(f, l);
 	GPrediction out;
 	double d, prob;
