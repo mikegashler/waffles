@@ -64,6 +64,17 @@ GNeuralNetLayer* GNeuralNetLayer::deserialize(GDomNode* pNode)
 		throw Ex("Unrecognized neural network layer type: ", szType);
 }
 
+GMatrix* GNeuralNetLayer::feedThrough(GMatrix& data)
+{
+	size_t outputCount = outputs();
+	GMatrix* pResults = new GMatrix(0, outputCount);
+	for(size_t i = 0; i < data.rows(); i++)
+	{
+		feedForward(data[i]);
+		GVec::copy(pResults->newRow(), activation(), outputCount);
+	}
+	return pResults;
+}
 
 
 
@@ -1456,7 +1467,7 @@ void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
 	{
 		if(m_layers[position - 1]->outputs() != pLayer->inputs())
 		{
-			if(pLayer->inputs() == 0)
+			if(pLayer->inputs() == FLEXIBLE_SIZE)
 				pLayer->resize(m_layers[position - 1]->outputs(), pLayer->outputs());
 			else
 				m_layers[position - 1]->resize(m_layers[position - 1]->inputs(), pLayer->inputs());
@@ -1466,13 +1477,20 @@ void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
 	{
 		if(m_layers[position]->inputs() != pLayer->outputs())
 		{
-			if(pLayer->outputs() == 0)
+			if(pLayer->outputs() == FLEXIBLE_SIZE)
 				pLayer->resize(pLayer->inputs(), m_layers[position]->inputs());
 			else
 				m_layers[position]->resize(pLayer->outputs(), m_layers[position]->outputs());
 		}
 	}
 	m_layers.insert(m_layers.begin() + position, pLayer);
+}
+
+GNeuralNetLayer* GNeuralNet::releaseLayer(size_t index)
+{
+	GNeuralNetLayer* pLayer = m_layers[index];
+	m_layers.erase(m_layers.begin() + index);
+	return pLayer;
 }
 
 #ifndef MIN_PREDICT
@@ -1925,8 +1943,8 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	while(true)
 	{
 		GNeuralNet* cand = new GNeuralNet();
-		cand->addLayer(new GNeuralNetLayerClassic(0, hidden));
-		cand->addLayer(new GNeuralNetLayerClassic(hidden, 0));
+		cand->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, hidden));
+		cand->addLayer(new GNeuralNetLayerClassic(hidden, FLEXIBLE_SIZE));
 		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
@@ -1960,8 +1978,8 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 			break;
 		size_t c = (a + b) / 2;
 		GNeuralNet* cand = new GNeuralNet();
-		cand->addLayer(new GNeuralNetLayerClassic(0, c));
-		cand->addLayer(new GNeuralNetLayerClassic(c, 0));
+		cand->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, c));
+		cand->addLayer(new GNeuralNetLayerClassic(c, FLEXIBLE_SIZE));
 		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
@@ -2009,9 +2027,9 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 		}
 		GNeuralNet* cand = new GNeuralNet();
 		vector<size_t> topology;
-		cand->addLayer(new GNeuralNetLayerClassic(0, c1));
+		cand->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, c1));
 		cand->addLayer(new GNeuralNetLayerClassic(c1, c2));
-		cand->addLayer(new GNeuralNetLayerClassic(c2, 0));
+		cand->addLayer(new GNeuralNetLayerClassic(c2, FLEXIBLE_SIZE));
 		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
@@ -2028,9 +2046,9 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	{
 		GNeuralNet* cand = new GNeuralNet();
 		vector<size_t> topology;
-		if(hu1 > 0) cand->addLayer(new GNeuralNetLayerClassic(0, hu1));
+		if(hu1 > 0) cand->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, hu1));
 		if(hu2 > 0) cand->addLayer(new GNeuralNetLayerClassic(hu1, hu2));
-		cand->addLayer(new GNeuralNetLayerClassic(0, 0));
+		cand->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		cand->setMomentum(0.8);
 		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
@@ -2120,8 +2138,8 @@ void GNeuralNet_testMath()
 
 	// Make the Neural Network
 	GNeuralNet nn;
-	nn.addLayer(new GNeuralNetLayerClassic(0, 3));
-	nn.addLayer(new GNeuralNetLayerClassic(3, 0));
+	nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 3));
+	nn.addLayer(new GNeuralNetLayerClassic(3, FLEXIBLE_SIZE));
 	nn.setLearningRate(0.175);
 	nn.setMomentum(0.9);
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
@@ -2244,9 +2262,9 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 	{
 		// Make the neural net
 		GNeuralNet nn;
-		nn.addLayer(new GNeuralNetLayerClassic(0, 5));
+		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 5));
 		nn.addLayer(new GNeuralNetLayerClassic(5, 10));
-		nn.addLayer(new GNeuralNetLayerClassic(10, 0));
+		nn.addLayer(new GNeuralNetLayerClassic(10, FLEXIBLE_SIZE));
 		GUniformRelation featureRel(5);
 		GUniformRelation labelRel(10);
 		nn.beginIncrementalLearning(featureRel, labelRel);
@@ -2312,7 +2330,7 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 		labels.newRow()[0] = 1.0 - d;
 	}
 	GNeuralNet nn;
-	nn.addLayer(new GNeuralNetLayerClassic(0, 0));
+	nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	nn.train(features, labels);
 	double r = nn.sumSquaredError(features, labels);
 	if(r > 0.0)
@@ -2334,8 +2352,8 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 	{
 		GNeuralNet nn;
 		for(size_t j = 0; j < layers; j++)
-			nn.addLayer(new GNeuralNetLayerClassic(0, layerSize));
-		nn.addLayer(new GNeuralNetLayerClassic(0, 0));
+			nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, layerSize));
+		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		GUniformRelation rel(TEST_INVERT_INPUTS);
 		nn.beginIncrementalLearning(rel, rel);
 		nn.perturbAllWeights(0.5);
@@ -2360,11 +2378,11 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		GNeuralNet nn2;
 		for(size_t j = 0; j < layers; j++)
 		{
-			nn1.addLayer(new GNeuralNetLayerClassic(0, layerSize));
-			nn2.addLayer(new GNeuralNetLayerClassic(0, layerSize));
+			nn1.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, layerSize));
+			nn2.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, layerSize));
 		}
-		nn1.addLayer(new GNeuralNetLayerClassic(0, 0));
-		nn2.addLayer(new GNeuralNetLayerClassic(0, 0));
+		nn1.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		nn2.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		GUniformRelation rel(TEST_INVERT_INPUTS);
 		nn1.beginIncrementalLearning(rel, rel);
 		nn2.beginIncrementalLearning(rel, rel);
@@ -2429,8 +2447,8 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 	for(size_t i = 0; i < 20; i++)
 	{
 		GNeuralNet nn;
-		nn.addLayer(new GNeuralNetLayerClassic(0, 5));
-		nn.addLayer(new GNeuralNetLayerClassic(5, 0));
+		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 5));
+		nn.addLayer(new GNeuralNetLayerClassic(5, FLEXIBLE_SIZE));
 		GUniformRelation relIn(5);
 		GUniformRelation relOut(1);
 		nn.beginIncrementalLearning(relIn, relOut);
@@ -2458,9 +2476,9 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 void GNeuralNet_testBleedWeights()
 {
 	GNeuralNet nn;
-	nn.addLayer(new GNeuralNetLayerClassic(0, 2));
+	nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 2));
 	nn.addLayer(new GNeuralNetLayerClassic(2, 2));
-	nn.addLayer(new GNeuralNetLayerClassic(2, 0));
+	nn.addLayer(new GNeuralNetLayerClassic(2, FLEXIBLE_SIZE));
 	GUniformRelation rel(2, 0);
 	nn.beginIncrementalLearning(rel, rel);
 	((GNeuralNetLayerClassic*)&nn.layer(2))->weights()[0][0] = 1.0;
@@ -2493,7 +2511,7 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 	{
 		// Set up
 		GNeuralNet nn;
-		nn.addLayer(new GNeuralNetLayerClassic(0, 0));
+		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		GUniformRelation in(2);
 		GUniformRelation out(3);
 		nn.beginIncrementalLearning(in, out);
@@ -2541,7 +2559,7 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 
 	// Set up
 	GNeuralNet nn1;
-	nn1.addLayer(new GNeuralNetLayerClassic(0, NN_TEST_DIMS * 2));
+	nn1.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, NN_TEST_DIMS * 2));
 	nn1.beginIncrementalLearning(feat.relation(), feat.relation());
 	nn1.perturbAllWeights(1.0);
 	GNeuralNet nn2;
@@ -2578,15 +2596,15 @@ void GNeuralNet::test()
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn;
-		nn.addLayer(new GNeuralNetLayerClassic(0, 0));
+		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		nn.basicTest(0.74, 0.89);
 	}
 
 	// Test NN with one hidden layer
 	{
 		GNeuralNet nn;
-		nn.addLayer(new GNeuralNetLayerClassic(0, 3));
-		nn.addLayer(new GNeuralNetLayerClassic(3, 0));
+		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 3));
+		nn.addLayer(new GNeuralNetLayerClassic(3, FLEXIBLE_SIZE));
 		nn.basicTest(0.76, 0.9);
 	}
 }
@@ -2692,9 +2710,9 @@ void GNeuralNetPseudoInverse::computeFeatures(const double* pLabels, double* pFe
 void GNeuralNetPseudoInverse::test()
 {
 	GNeuralNet nn;
-	nn.addLayer(new GNeuralNetLayerClassic(0, 5));
+	nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 5));
 	nn.addLayer(new GNeuralNetLayerClassic(5, 7));
-	nn.addLayer(new GNeuralNetLayerClassic(7, 0));
+	nn.addLayer(new GNeuralNetLayerClassic(7, FLEXIBLE_SIZE));
 	GUniformRelation featureRel(3);
 	GUniformRelation labelRel(12);
 	nn.beginIncrementalLearning(featureRel, labelRel);
@@ -2731,7 +2749,7 @@ GReservoirNet::GReservoirNet()
 : GNeuralNet(), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)
 {
 	clearFeatureFilter();
-	addLayer(new GNeuralNetLayerClassic(0, 0));
+	addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 }
 
 GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)

@@ -49,7 +49,6 @@ CPP_FILES = \
 	GCluster.cpp\
 	GCrypto.cpp\
 	GDecisionTree.cpp\
-	GDeepNet.cpp\
 	GDiff.cpp\
 	GDirList.cpp\
 	GDistance.cpp\

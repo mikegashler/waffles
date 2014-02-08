@@ -38,7 +38,6 @@
 #include "../GClasses/GCluster.h"
 #include "../GClasses/GCrypto.h"
 #include "../GClasses/GDecisionTree.h"
-#include "../GClasses/GDeepNet.h"
 #include "../GClasses/GDiff.h"
 #include "../GClasses/GDistribution.h"
 #include "../GClasses/GEnsemble.h"
@@ -901,7 +900,6 @@ public:
 		runTest("GCrypto", GCrypto::test);
 		runTest("GCycleCut", GCycleCut::test);
 		runTest("GDecisionTree", GDecisionTree::test);
-		runTest("GDeepNet", GDeepNet::test);
 		runTest("GDiff", GDiff::test);
 		runTest("GDijkstra", GDijkstra::test);
 		runTest("GDom", GDom::test);

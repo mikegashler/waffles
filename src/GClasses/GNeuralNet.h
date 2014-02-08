@@ -24,6 +24,15 @@
 
 namespace GClasses {
 
+/// This value is used for the number of inputs or outputs of a neural net layer when
+/// you do not wish to specify a fixed size. For example, it may be used for the inputs
+/// of the first layer or the outputs of the last layer, because the training data will
+/// provide these sizes. (In fact, those ends will be resized to fit the data whether or
+/// not FLEXIBLE_SIZE is used.) FLEXIBLE_SIZE should probably not be used on an end that
+/// will be connected to another end with FLEXIBLE_SIZE because then both ends will stay
+/// at a size of zero, which will result in approximately baseline predictions.
+#define FLEXIBLE_SIZE 0
+
 class GNeuralNet;
 class GRand;
 class GBackProp;
@@ -105,6 +114,9 @@ public:
 
 	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
 	virtual void clipWeights(double max) = 0;
+
+	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
+	GMatrix* feedThrough(GMatrix& data);
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc);
@@ -559,13 +571,15 @@ public:
 	/// (The default position is at the end in feed-forward order.)
 	/// Takes ownership of pLayer.
 	/// If the number of inputs and/or outputs do not align with the
-	/// previous and/or next layers, then any layers with 0 inputs or
-	/// 0 outputs will be resized to accomodate. If they still do not
-	/// align (because both layers have non-zero ends of different sizes),
-	/// then the sizes of pLayer takes precedence, and the other
-	/// layers will be resized to accomodate pLayer. (In other words,
-	/// using 0 as the number of inputs or outputs of a layer means "be flexible".)
+	/// previous and/or next layers, then any layers with FLEXIBLE_SIZE inputs or
+	/// FLEXIBLE_SIZE outputs will be resized to accomodate. If both layers have
+	/// fixed sizes that do not align, then the sizes of pLayer takes precedence,
+	/// and the other layer(s) will be resized to accomodate the sizes of pLayer.
 	void addLayer(GNeuralNetLayer* pLayer, size_t position = INVALID_INDEX);
+
+	/// Drops the layer at the specified index. Returns a pointer to
+	/// the layer. You are then responsible to delete it.
+	GNeuralNetLayer* releaseLayer(size_t index);
 
 	/// Set the portion of the data that will be used for validation. If the
 	/// value is 0, then all of the data is used for both training and validation.
