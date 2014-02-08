@@ -1240,7 +1240,7 @@ void unsupervisedBackProp(GArgReader& args)
 		if(args.if_pop("-seed"))
 			prng.setSeed(args.pop_uint());
 		else if(args.if_pop("-addlayer"))
-			pUBP->neuralNet()->addLayerClassic(args.pop_uint());
+			pUBP->neuralNet()->addLayer(new GNeuralNetLayerClassic(0, args.pop_uint()));
 		else if(args.if_pop("-params"))
 		{
 			if(pUBP->jitterer())
@@ -1290,7 +1290,7 @@ void unsupervisedBackProp(GArgReader& args)
 	}
 	pUBP->setParams(paramRanges);
 	pUBP->setUseInputBias(inputBias);
-	pUBP->neuralNet()->addLayerClassic(0);
+	pUBP->neuralNet()->addLayer(new GNeuralNetLayerClassic(0, 0));
 
 	// Transform the data
 	GMatrix* pDataAfter = pUBP->reduce(*pData);

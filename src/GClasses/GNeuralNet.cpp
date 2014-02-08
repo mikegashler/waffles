@@ -56,6 +56,10 @@ GNeuralNetLayer* GNeuralNetLayer::deserialize(GDomNode* pNode)
 	const char* szType = pNode->field("type")->asString();
 	if(strcmp(szType, "classic") == 0)
 		return new GNeuralNetLayerClassic(pNode);
+	if(strcmp(szType, "alt") == 0)
+		return new GNeuralNetLayerAlt(pNode);
+	if(strcmp(szType, "rbm") == 0)
+		return new GNeuralNetLayerRestrictedBoltzmannMachine(pNode);
 	else
 		throw Ex("Unrecognized neural network layer type: ", szType);
 }
@@ -830,7 +834,7 @@ void GNeuralNetLayerAlt::adjustWeights(const double* pUpStreamActivation, double
 		pErr++;
 	}
 	m_weights.add(&m_delta, false);
-	GVec::add(bias(), biasDelta(), outputCount);	
+	GVec::add(bias(), biasDelta(), outputCount);
 }
 
 void GNeuralNetLayerAlt::scaleWeights(double factor)
@@ -888,6 +892,357 @@ size_t GNeuralNetLayerAlt::vectorToWeights(const double* pVector)
 void GNeuralNetLayerAlt::copyWeights(const GNeuralNetLayer* pSource)
 {
 	GNeuralNetLayerAlt* src = (GNeuralNetLayerAlt*)pSource;
+	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+	GVec::copy(bias(), src->bias(), src->outputs());
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+GNeuralNetLayerRestrictedBoltzmannMachine::GNeuralNetLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction)
+{
+	m_pActivationFunction = pActivationFunction;
+	if(!m_pActivationFunction)
+		m_pActivationFunction = new GActivationLogistic();
+	resize(inputs, outputs, NULL);
+}
+
+GNeuralNetLayerRestrictedBoltzmannMachine::GNeuralNetLayerRestrictedBoltzmannMachine(GDomNode* pNode)
+: m_weights(pNode->field("weights")), m_bias(4, m_weights.rows()), m_biasReverse(4, m_weights.cols())
+{
+	GDomListIterator it(pNode->field("bias"));
+	GVec::deserialize(bias(), it);
+	GDomListIterator itRev(pNode->field("biasRev"));
+	GVec::deserialize(biasReverse(), itRev);
+
+	// Unmarshall the activation function
+	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
+}
+
+GNeuralNetLayerRestrictedBoltzmannMachine::~GNeuralNetLayerRestrictedBoltzmannMachine()
+{
+	delete(m_pActivationFunction);
+}
+
+GDomNode* GNeuralNetLayerRestrictedBoltzmannMachine::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
+	pNode->addField(pDoc, "bias", GVec::serialize(pDoc, bias(), outputs()));
+	pNode->addField(pDoc, "biasRev", GVec::serialize(pDoc, biasReverse(), inputs()));
+
+	// Marshall the activation function
+	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
+
+	return pNode;
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCount, GRand* pRand)
+{
+	if(inputCount == inputs() && outputCount == outputs())
+		return;
+	size_t oldInputs = inputs();
+	size_t oldOutputs = outputs();
+	size_t fewerInputs = std::min(oldInputs, inputCount);
+	size_t fewerOutputs = std::min(oldOutputs, outputCount);
+
+	// Weights
+	m_weights.resizePreserve(outputCount, inputCount);
+	if(pRand)
+	{
+		for(size_t i = 0; i < fewerOutputs; i++)
+		{
+			double* pRow = m_weights[i] + fewerInputs;
+			for(size_t j = fewerInputs; j < inputCount; j++)
+				*(pRow++) = 0.01 * pRand->normal();
+		}
+		for(size_t i = fewerOutputs; i < outputCount; i++)
+		{
+			double* pRow = m_weights[i];
+			for(size_t j = 0; j < inputCount; j++)
+				*(pRow++) = 0.01 * pRand->normal();
+		}
+	}
+
+	// Bias
+	m_bias.resizePreserve(4, outputCount);
+	double* pB = bias() + fewerOutputs;
+	if(pRand)
+	{
+		for(size_t j = fewerOutputs; j < outputCount; j++)
+			*(pB++) = 0.01 * pRand->normal();
+	}
+
+	// BiasReverse
+	m_biasReverse.resizePreserve(4, inputCount);
+	pB = biasReverse() + fewerInputs;
+	if(pRand)
+	{
+		for(size_t j = fewerInputs; j < inputCount; j++)
+			*(pB++) = 0.01 * pRand->normal();
+	}
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::setActivationFunction(GActivationFunction* pActivationFunction)
+{
+	delete(m_pActivationFunction);
+	m_pActivationFunction = pActivationFunction;
+}
+
+// virtual
+void GNeuralNetLayerRestrictedBoltzmannMachine::resetWeights(GRand& rand)
+{
+	size_t outputCount = outputs();
+	size_t inputCount = inputs();
+	double mag = 1.0 / inputCount;
+	double* pB = bias();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		*pB = rand.normal() * mag;
+		for(size_t j = 0; j < inputCount; j++)
+			m_weights[i][j] = rand.normal() * mag;
+		pB++;
+	}
+}
+
+// virtual
+void GNeuralNetLayerRestrictedBoltzmannMachine::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+{
+	size_t n = std::min(outputs() - start, count);
+	for(size_t i = start; i < n; i++)
+		GVec::perturb(m_weights[i], deviation, inputs(), rand);
+	GVec::perturb(bias() + start, deviation, n, rand);
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::feedForward(const double* pIn)
+{
+	// Feed through the weights
+	double* pNet = net();
+	m_weights.multiply(pIn, pNet);
+	size_t outputCount = outputs();
+	GVec::add(pNet, bias(), outputCount);
+
+	// Squash it
+	double* pAct = activation();
+	for(size_t i = 0; i < outputCount; i++)
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::feedBackward(const double* pIn)
+{
+	// Feed through the weights
+	double* pNet = netReverse();
+	m_weights.multiply(pIn, pNet, true);
+	size_t inputCount = inputs();
+	GVec::add(pNet, biasReverse(), inputCount);
+
+	// Squash it
+	double* pAct = activationReverse();
+	for(size_t i = 0; i < inputCount; i++)
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::resampleHidden(GRand& rand)
+{
+	double* pH = activation();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		*pH = rand.uniform() < *pH ? 1.0 : 0.0;
+		pH++;
+	}
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::resampleVisible(GRand& rand)
+{
+	double* pV = activationReverse();
+	size_t inputCount = inputs();
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		*pV = rand.uniform() < *pV ? 1.0 : 0.0;
+		pV++;
+	}
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::drawSample(GRand& rand, size_t iters)
+{
+	double* pH = activation();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		*pH = ((rand.next() & 1) == 0 ? 0.0 : 1.0);
+		pH++;
+	}
+	for(size_t i = 0; i < iters; i++)
+	{
+		feedBackward(activation());
+		feedForward(activationReverse());
+		resampleHidden(rand);
+	}
+	feedBackward(activation());
+}
+
+double GNeuralNetLayerRestrictedBoltzmannMachine::freeEnergy(const double* pVisibleSample)
+{
+	feedForward(pVisibleSample);
+	double* pBuf = error();
+	m_weights.multiply(activationReverse(), pBuf, false);
+	return -GVec::dotProduct(activation(), pBuf, outputs()) -
+		GVec::dotProduct(biasReverse(), activationReverse(), inputs()) -
+		GVec::dotProduct(bias(), activation(), outputs());
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::contrastiveDivergence(GRand& rand, const double* pVisibleSample, double learningRate, size_t gibbsSamples)
+{
+	// Details of this implementation were guided by http://axon.cs.byu.edu/~martinez/classes/678/Papers/guideTR.pdf, particularly Sections 3.2 and 3.3.
+
+	// Sample hidden vector
+	feedForward(pVisibleSample);
+
+	// Compute positive gradient
+	size_t outputCount = outputs();
+	size_t inputCount = inputs();
+	for(size_t i = 0; i < outputCount; i++)
+		GVec::addScaled(m_weights[i], activation()[i], pVisibleSample, inputCount);
+
+	// Add positive gradient to the biases
+	GVec::addScaled(biasReverse(), learningRate, pVisibleSample, inputCount);
+	GVec::addScaled(bias(), learningRate, activation(), outputCount);
+
+	// Resample
+	for(size_t i = 1; i < gibbsSamples; i++)
+	{
+		feedBackward(activation());
+		feedForward(activationReverse());
+		resampleHidden(rand);
+	}
+	feedBackward(activation());
+	feedForward(activationReverse());
+
+	// Compute negative gradient
+	for(size_t i = 0; i < outputCount; i++)
+		GVec::addScaled(m_weights[i], activation()[i], activationReverse(), inputCount);
+
+	// Subtract negative gradient from biases
+	GVec::addScaled(biasReverse(), -learningRate, activationReverse(), inputCount);
+	GVec::addScaled(bias(), -learningRate, activation(), outputCount);
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::computeError(const double* pTarget)
+{
+	size_t outputUnits = outputs();
+	double* pAct = activation();
+	double* pErr = error();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		if(*pTarget == UNKNOWN_REAL_VALUE)
+			*pErr = 0.0;
+		else
+			*pErr = *pTarget - *pAct;
+		pTarget++;
+		pAct++;
+		pErr++;
+	}
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::deactivateError()
+{
+	size_t outputUnits = outputs();
+	double* pErr = error();
+	double* pNet = net();
+	double* pAct = activation();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct);
+		pNet++;
+		pAct++;
+		pErr++;
+	}
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::backPropError(double* pUpStreamError)
+{
+	m_weights.multiply(error(), pUpStreamError, true);
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum)
+{
+	size_t outputCount = outputs();
+	size_t inputCount = inputs();
+	double* pErr = error();
+	double* pBias = bias();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		GVec::addScaled(m_weights[i], learningRate * (*pErr), pUpStreamActivation, inputCount);
+		*(pBias++) += learningRate * (*pErr);
+		pErr++;
+	}
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::scaleWeights(double factor)
+{
+	size_t inputCount = inputs();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+		GVec::multiply(m_weights[i], factor, inputCount);
+	GVec::multiply(bias(), factor, outputs());
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::diminishWeights(double amount)
+{
+	size_t inputCount = outputs();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+		GVec::diminish(m_weights[i], amount, inputCount);
+	GVec::diminish(bias(), amount, outputs());
+}
+
+// virtual
+void GNeuralNetLayerRestrictedBoltzmannMachine::clipWeights(double max)
+{
+	size_t inputCount = inputs();
+	for(size_t j = 0; j < m_weights.rows(); j++)
+	{
+		GVec::floorValues(m_weights[j], -max, inputCount);
+		GVec::capValues(m_weights[j], max, inputCount);
+	}
+}
+
+// virtual
+size_t GNeuralNetLayerRestrictedBoltzmannMachine::countWeights()
+{
+	return (inputs() + 1) * outputs();
+}
+
+// virtual
+size_t GNeuralNetLayerRestrictedBoltzmannMachine::weightsToVector(double* pOutVector)
+{
+	GVec::copy(pOutVector, bias(), outputs());
+	pOutVector += outputs();
+	m_weights.toVector(pOutVector);
+	return (inputs() + 1) * outputs();
+}
+
+// virtual
+size_t GNeuralNetLayerRestrictedBoltzmannMachine::vectorToWeights(const double* pVector)
+{
+	GVec::copy(bias(), pVector, outputs());
+	pVector += outputs();
+	m_weights.fromVector(pVector, inputs());
+	return (inputs() + 1) * outputs();
+}
+
+// virtual
+void GNeuralNetLayerRestrictedBoltzmannMachine::copyWeights(const GNeuralNetLayer* pSource)
+{
+	GNeuralNetLayerRestrictedBoltzmannMachine* src = (GNeuralNetLayerRestrictedBoltzmannMachine*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	GVec::copy(bias(), src->bias(), src->outputs());
 }
@@ -1091,64 +1446,33 @@ void GNeuralNet::swapNodes(size_t layer, size_t a, size_t b)
 	}
 }
 
-void GNeuralNet::addLayerClassic(size_t nodeCount, size_t position)
+void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
 {
 	if(position == INVALID_INDEX)
 		position = m_layers.size();
 	if(position > m_layers.size())
 		throw Ex("Invalid layer position");
-
-	// Determine the number of inputs into this layer
-	size_t inputs;
 	if(position > 0)
-		inputs = m_layers[position - 1]->outputs();
-	else if(m_layers.size() > 0)
-		inputs = m_layers[0]->inputs();
-	else
-		inputs = 0; // will be resized when beginIncrementalLearning is called
-
-	// Make the new layer
-	GNeuralNetLayer* pNewLayer = new GNeuralNetLayerClassic(inputs, nodeCount);
-
-	// Make sure the next layer is ready for it
+	{
+		if(m_layers[position - 1]->outputs() != pLayer->inputs())
+		{
+			if(pLayer->inputs() == 0)
+				pLayer->resize(m_layers[position - 1]->outputs(), pLayer->outputs());
+			else
+				m_layers[position - 1]->resize(m_layers[position - 1]->inputs(), pLayer->inputs());
+		}
+	}
 	if(position < m_layers.size())
 	{
-		GNeuralNetLayer* pDownStreamLayer = m_layers[position];
-		pDownStreamLayer->resize(nodeCount, pDownStreamLayer->outputs(), &m_rand);
+		if(m_layers[position]->inputs() != pLayer->outputs())
+		{
+			if(pLayer->outputs() == 0)
+				pLayer->resize(pLayer->inputs(), m_layers[position]->inputs());
+			else
+				m_layers[position]->resize(pLayer->outputs(), m_layers[position]->outputs());
+		}
 	}
-
-	// Insert the layer
-	m_layers.insert(m_layers.begin() + position, pNewLayer);
-}
-
-void GNeuralNet::addLayerAlt(size_t nodeCount, size_t position)
-{
-	if(position == INVALID_INDEX)
-		position = m_layers.size();
-	if(position > m_layers.size())
-		throw Ex("Invalid layer position");
-
-	// Determine the number of inputs into this layer
-	size_t inputs;
-	if(position > 0)
-		inputs = m_layers[position - 1]->outputs();
-	else if(m_layers.size() > 0)
-		inputs = m_layers[0]->inputs();
-	else
-		inputs = 0; // will be resized when beginIncrementalLearning is called
-
-	// Make the new layer
-	GNeuralNetLayer* pNewLayer = new GNeuralNetLayerAlt(inputs, nodeCount);
-
-	// Make sure the next layer is ready for it
-	if(position < m_layers.size())
-	{
-		GNeuralNetLayer* pDownStreamLayer = m_layers[position];
-		pDownStreamLayer->resize(nodeCount, pDownStreamLayer->outputs(), &m_rand);
-	}
-
-	// Insert the layer
-	m_layers.insert(m_layers.begin() + position, pNewLayer);
+	m_layers.insert(m_layers.begin() + position, pLayer);
 }
 
 #ifndef MIN_PREDICT
@@ -1601,8 +1925,8 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	while(true)
 	{
 		GNeuralNet* cand = new GNeuralNet();
-		cand->addLayerClassic(hidden);
-		cand->addLayerClassic(0);
+		cand->addLayer(new GNeuralNetLayerClassic(0, hidden));
+		cand->addLayer(new GNeuralNetLayerClassic(hidden, 0));
 		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
@@ -1636,8 +1960,8 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 			break;
 		size_t c = (a + b) / 2;
 		GNeuralNet* cand = new GNeuralNet();
-		cand->addLayerClassic(c);
-		cand->addLayerClassic(0);
+		cand->addLayer(new GNeuralNetLayerClassic(0, c));
+		cand->addLayer(new GNeuralNetLayerClassic(c, 0));
 		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
@@ -1685,9 +2009,9 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 		}
 		GNeuralNet* cand = new GNeuralNet();
 		vector<size_t> topology;
-		cand->addLayerClassic(c1);
-		cand->addLayerClassic(c2);
-		cand->addLayerClassic(0);
+		cand->addLayer(new GNeuralNetLayerClassic(0, c1));
+		cand->addLayer(new GNeuralNetLayerClassic(c1, c2));
+		cand->addLayer(new GNeuralNetLayerClassic(c2, 0));
 		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
 		{
@@ -1704,9 +2028,9 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	{
 		GNeuralNet* cand = new GNeuralNet();
 		vector<size_t> topology;
-		if(hu1 > 0) cand->addLayerClassic(hu1);
-		if(hu2 > 0) cand->addLayerClassic(hu2);
-		cand->addLayerClassic(0);
+		if(hu1 > 0) cand->addLayer(new GNeuralNetLayerClassic(0, hu1));
+		if(hu2 > 0) cand->addLayer(new GNeuralNetLayerClassic(hu1, hu2));
+		cand->addLayer(new GNeuralNetLayerClassic(0, 0));
 		cand->setMomentum(0.8);
 		double d = cand->crossValidate(features, labels, 2);
 		if(d < scores[0])
@@ -1796,8 +2120,8 @@ void GNeuralNet_testMath()
 
 	// Make the Neural Network
 	GNeuralNet nn;
-	nn.addLayerClassic(3);
-	nn.addLayerClassic(0);
+	nn.addLayer(new GNeuralNetLayerClassic(0, 3));
+	nn.addLayer(new GNeuralNetLayerClassic(3, 0));
 	nn.setLearningRate(0.175);
 	nn.setMomentum(0.9);
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
@@ -1920,9 +2244,9 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 	{
 		// Make the neural net
 		GNeuralNet nn;
-		nn.addLayerClassic(5);
-		nn.addLayerClassic(10);
-		nn.addLayerClassic(0);
+		nn.addLayer(new GNeuralNetLayerClassic(0, 5));
+		nn.addLayer(new GNeuralNetLayerClassic(5, 10));
+		nn.addLayer(new GNeuralNetLayerClassic(10, 0));
 		GUniformRelation featureRel(5);
 		GUniformRelation labelRel(10);
 		nn.beginIncrementalLearning(featureRel, labelRel);
@@ -1988,7 +2312,7 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 		labels.newRow()[0] = 1.0 - d;
 	}
 	GNeuralNet nn;
-	nn.addLayerClassic(0);
+	nn.addLayer(new GNeuralNetLayerClassic(0, 0));
 	nn.train(features, labels);
 	double r = nn.sumSquaredError(features, labels);
 	if(r > 0.0)
@@ -2010,8 +2334,8 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 	{
 		GNeuralNet nn;
 		for(size_t j = 0; j < layers; j++)
-			nn.addLayerClassic(layerSize);
-		nn.addLayerClassic(0);
+			nn.addLayer(new GNeuralNetLayerClassic(0, layerSize));
+		nn.addLayer(new GNeuralNetLayerClassic(0, 0));
 		GUniformRelation rel(TEST_INVERT_INPUTS);
 		nn.beginIncrementalLearning(rel, rel);
 		nn.perturbAllWeights(0.5);
@@ -2036,11 +2360,11 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		GNeuralNet nn2;
 		for(size_t j = 0; j < layers; j++)
 		{
-			nn1.addLayerClassic(layerSize);
-			nn2.addLayerClassic(layerSize);
+			nn1.addLayer(new GNeuralNetLayerClassic(0, layerSize));
+			nn2.addLayer(new GNeuralNetLayerClassic(0, layerSize));
 		}
-		nn1.addLayerClassic(0);
-		nn2.addLayerClassic(0);
+		nn1.addLayer(new GNeuralNetLayerClassic(0, 0));
+		nn2.addLayer(new GNeuralNetLayerClassic(0, 0));
 		GUniformRelation rel(TEST_INVERT_INPUTS);
 		nn1.beginIncrementalLearning(rel, rel);
 		nn2.beginIncrementalLearning(rel, rel);
@@ -2105,8 +2429,8 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 	for(size_t i = 0; i < 20; i++)
 	{
 		GNeuralNet nn;
-		nn.addLayerClassic(5);
-		nn.addLayerClassic(0);
+		nn.addLayer(new GNeuralNetLayerClassic(0, 5));
+		nn.addLayer(new GNeuralNetLayerClassic(5, 0));
 		GUniformRelation relIn(5);
 		GUniformRelation relOut(1);
 		nn.beginIncrementalLearning(relIn, relOut);
@@ -2134,9 +2458,9 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 void GNeuralNet_testBleedWeights()
 {
 	GNeuralNet nn;
-	nn.addLayerClassic(2);
-	nn.addLayerClassic(2);
-	nn.addLayerClassic(0);
+	nn.addLayer(new GNeuralNetLayerClassic(0, 2));
+	nn.addLayer(new GNeuralNetLayerClassic(2, 2));
+	nn.addLayer(new GNeuralNetLayerClassic(2, 0));
 	GUniformRelation rel(2, 0);
 	nn.beginIncrementalLearning(rel, rel);
 	((GNeuralNetLayerClassic*)&nn.layer(2))->weights()[0][0] = 1.0;
@@ -2169,7 +2493,7 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 	{
 		// Set up
 		GNeuralNet nn;
-		nn.addLayerClassic(0);
+		nn.addLayer(new GNeuralNetLayerClassic(0, 0));
 		GUniformRelation in(2);
 		GUniformRelation out(3);
 		nn.beginIncrementalLearning(in, out);
@@ -2217,7 +2541,7 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 
 	// Set up
 	GNeuralNet nn1;
-	nn1.addLayerClassic(NN_TEST_DIMS * 2);
+	nn1.addLayer(new GNeuralNetLayerClassic(0, NN_TEST_DIMS * 2));
 	nn1.beginIncrementalLearning(feat.relation(), feat.relation());
 	nn1.perturbAllWeights(1.0);
 	GNeuralNet nn2;
@@ -2254,15 +2578,15 @@ void GNeuralNet::test()
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNet nn;
-		nn.addLayerClassic(0);
+		nn.addLayer(new GNeuralNetLayerClassic(0, 0));
 		nn.basicTest(0.74, 0.89);
 	}
 
 	// Test NN with one hidden layer
 	{
 		GNeuralNet nn;
-		nn.addLayerClassic(3);
-		nn.addLayerClassic(0);
+		nn.addLayer(new GNeuralNetLayerClassic(0, 3));
+		nn.addLayer(new GNeuralNetLayerClassic(3, 0));
 		nn.basicTest(0.76, 0.9);
 	}
 }
@@ -2368,9 +2692,9 @@ void GNeuralNetPseudoInverse::computeFeatures(const double* pLabels, double* pFe
 void GNeuralNetPseudoInverse::test()
 {
 	GNeuralNet nn;
-	nn.addLayerClassic(5);
-	nn.addLayerClassic(7);
-	nn.addLayerClassic(0);
+	nn.addLayer(new GNeuralNetLayerClassic(0, 5));
+	nn.addLayer(new GNeuralNetLayerClassic(5, 7));
+	nn.addLayer(new GNeuralNetLayerClassic(7, 0));
 	GUniformRelation featureRel(3);
 	GUniformRelation labelRel(12);
 	nn.beginIncrementalLearning(featureRel, labelRel);
@@ -2407,7 +2731,7 @@ GReservoirNet::GReservoirNet()
 : GNeuralNet(), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)
 {
 	clearFeatureFilter();
-	addLayerClassic(0);
+	addLayer(new GNeuralNetLayerClassic(0, 0));
 }
 
 GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)

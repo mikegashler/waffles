@@ -723,8 +723,8 @@ GReservoir::GReservoir(double weightDeviation, size_t outputs, size_t hiddenLaye
 {
 	m_pNN = new GNeuralNet();
 	for(size_t i = 0; i < hiddenLayers; i++)
-		m_pNN->addLayerClassic(outputs);
-	m_pNN->addLayerClassic(0);
+		m_pNN->addLayer(new GNeuralNetLayerClassic(0, outputs));
+	m_pNN->addLayer(new GNeuralNetLayerClassic(0, 0));
 }
 
 GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
@@ -923,7 +923,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn;
-		nn.addLayerClassic(0);
+		nn.addLayer(new GNeuralNetLayerClassic(0, 0));
 		nn.rand().setSeed(m_seed);
 		m_seed += 77152487;
 		m_seed *= 37152487;

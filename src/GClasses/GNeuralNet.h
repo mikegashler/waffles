@@ -279,7 +279,7 @@ public:
 	~GNeuralNetLayerAlt();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "gpu"; }
+	virtual const char* type() { return "alt"; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc);
@@ -378,6 +378,144 @@ public:
 
 
 
+class GNeuralNetLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
+{
+protected:
+	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error.
+	GMatrix m_biasReverse; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error.
+	GActivationFunction* m_pActivationFunction;
+
+public:
+	/// General-purpose constructor. Takes ownership of pActivationFunction.
+	GNeuralNetLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
+	GNeuralNetLayerRestrictedBoltzmannMachine(GDomNode* pNode);
+	~GNeuralNetLayerRestrictedBoltzmannMachine();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "rbm"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Returns the number of visible units.
+	virtual size_t inputs() const { return m_weights.cols(); }
+
+	/// Returns the number of hidden units.
+	virtual size_t outputs() const { return m_weights.rows(); }
+
+	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
+	/// and initializes any others to small random values.
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+
+	/// Returns the activation values on the hidden end.
+	virtual double* activation() { return m_bias[2]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual double* error() { return m_bias[3]; }
+
+	/// Feed a vector from the visible end to the hidden end. The results are placed in activation();
+	virtual void feedForward(const double* pIn);
+
+	/// Feed a vector from the hidden end to the visible end. The results are placed in activationReverse();
+	virtual void feedBackward(const double* pIn);
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const double* pTarget);
+
+	/// Multiplies each element in the error vector by the derivative of the activation function.
+	/// This results in the error having meaning with respect to the weights, instead of the output.
+	virtual void deactivateError();
+
+	/// Backpropagates the error from this layer into the upstream error vector.
+	/// (Assumes that the error in this layer has already been deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	virtual void backPropError(double* pUpStreamError);
+
+	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
+	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum);
+
+	/// Multiplies all the weights in this layer by the specified factor.
+	virtual void scaleWeights(double factor);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	virtual void diminishWeights(double amount);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand);
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	/// The default values for these parameters apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+
+	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
+	virtual void clipWeights(double max);
+
+	/// Returns a reference to the weights matrix of this layer
+	GMatrix& weights() { return m_weights; }
+
+	/// Returns the bias for the hidden end of this layer.
+	double* bias() { return m_bias[0]; }
+
+	/// Returns the bias for the hidden end of this layer.
+	const double* bias() const { return m_bias[0]; }
+
+	/// Returns the net vector (that is, the values computed before the activation function was applied)
+	/// from the most recent call to feedForward().
+	double* net() { return m_bias[1]; }
+
+	/// Returns the bias for the visible end of this layer.
+	double* biasReverse() { return m_biasReverse[0]; }
+
+	/// Returns the net for the visible end of this layer.
+	double* netReverse() { return m_biasReverse[1]; }
+
+	/// Returns the activation for the visible end of this layer.
+	double* activationReverse() { return m_biasReverse[2]; }
+
+	/// Returns the error term for the visible end of this layer.
+	double* errorReverse() { return m_biasReverse[3]; }
+
+	/// Performs binomial resampling of the activation values on the output end of this layer.
+	void resampleHidden(GRand& rand);
+
+	/// Performs binomial resampling of the activation values on the input end of this layer.
+	void resampleVisible(GRand& rand);
+
+	/// Takes ownership of pActivation function.
+	void setActivationFunction(GActivationFunction* pActivationFunction);
+
+	/// Draws a sample observation from "iters" iterations of Gibbs sampling.
+	/// The resulting sample is placed in activationReverse(), and the corresponding
+	/// encoding will be in activation().
+	void drawSample(GRand& rand, size_t iters);
+
+	/// Returns the free energy of this layer.
+	double freeEnergy(const double* pVisibleSample);
+
+	/// Refines this layer by contrastive divergence.
+	/// pVisibleSample should point to a vector of inputs that will be presented to this layer.
+	void contrastiveDivergence(GRand& rand, const double* pVisibleSample, double learningRate, size_t gibbsSamples = 1);
+};
+
+
+
 /// A feed-forward artificial neural network, or multi-layer perceptron.
 class GNeuralNet : public GIncrementalLearner
 {
@@ -417,14 +555,17 @@ public:
 	/// Returns a reference to the last layer.
 	GNeuralNetLayer& outputLayer() { return *m_layers[m_layers.size() - 1]; }
 
-	/// Adds a classic layer of neurons to this network at the specified position.
-	/// (Each layer in the network must now be added explicitly. No layers are implicit.)
-	/// The default position is for this to become the last layer in feed-forward order.
-	/// (Note that when training begins, the first and last layers may be resized as necessary
-	/// to fit the training data.)
-	void addLayerClassic(size_t nodeCount, size_t position = INVALID_INDEX);
-
-	void addLayerAlt(size_t nodeCount, size_t position = INVALID_INDEX);
+	/// Adds pLayer to the network at the specified position.
+	/// (The default position is at the end in feed-forward order.)
+	/// Takes ownership of pLayer.
+	/// If the number of inputs and/or outputs do not align with the
+	/// previous and/or next layers, then any layers with 0 inputs or
+	/// 0 outputs will be resized to accomodate. If they still do not
+	/// align (because both layers have non-zero ends of different sizes),
+	/// then the sizes of pLayer takes precedence, and the other
+	/// layers will be resized to accomodate pLayer. (In other words,
+	/// using 0 as the number of inputs or outputs of a layer means "be flexible".)
+	void addLayer(GNeuralNetLayer* pLayer, size_t position = INVALID_INDEX);
 
 	/// Set the portion of the data that will be used for validation. If the
 	/// value is 0, then all of the data is used for both training and validation.

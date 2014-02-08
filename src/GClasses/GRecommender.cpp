@@ -1263,7 +1263,7 @@ void GNonlinearPCA::train(GMatrix& data)
 	m_pModel->setUseInputBias(m_useInputBias);
 	m_pModel->beginIncrementalLearning(featureRel, labelRel);
 	GNeuralNet nn;
-	nn.addLayerClassic(0);
+	nn.addLayer(new GNeuralNetLayerClassic(0, 0));
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
 	double* pPrefGradient = new double[m_intrinsicDims];
@@ -1413,8 +1413,8 @@ void GNonlinearPCA::impute(double* pVec, size_t dims)
 void GNonlinearPCA::test()
 {
 	GNonlinearPCA rec(3);
-	rec.model()->addLayerClassic(3);
-	rec.model()->addLayerClassic(0);
+	rec.model()->addLayer(new GNeuralNetLayerClassic(0, 3));
+	rec.model()->addLayer(new GNeuralNetLayerClassic(3, 0));
 	rec.basicTest(0.258);
 }
 #endif
@@ -1537,7 +1537,7 @@ void GBagOfRecommenders::test()
 	rec.addRecommender(new GBaselineRecommender());
 	rec.addRecommender(new GMatrixFactorization(3));
 	GNonlinearPCA* nlpca = new GNonlinearPCA(3);
-	nlpca->model()->addLayerClassic(0);
+	nlpca->model()->addLayer(new GNeuralNetLayerClassic(0, 0));
 	rec.addRecommender(nlpca);
 	rec.basicTest(0.57);
 }
