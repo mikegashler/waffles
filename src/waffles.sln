@@ -22,8 +22,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_dimred", "dimred\wa
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_generate", "depends\generate\waffles_generate.vcxproj", "{8D17740E-2F67-4E8E-8EB9-9D5CAA574FEE}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_security", "depends\security\waffles_security.vcxproj", "{77021AC6-0B36-46A4-AF17-BA924E807564}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waffles_audio", "audio\waffles_audio.vcxproj", "{5F64187D-C4DF-4565-B1CC-9D5CE4C94462}"
 	ProjectSection(ProjectDependencies) = postProject
 		{E9F67748-E716-4F28-B096-44343A8E28B3} = {E9F67748-E716-4F28-B096-44343A8E28B3}
