@@ -255,6 +255,9 @@ public:
 	/// Clears the filter for labels.
 	virtual void clearLabelFilter();
 
+	/// Returns false
+	virtual bool isFilter() { return false; }
+
 #ifndef MIN_PREDICT
 	/// Wrap whatever label filter is currently set with the specified filter.
 	/// Takes ownership of the filter.
@@ -479,6 +482,116 @@ public:
 	virtual GCollaborativeFilter* loadCollaborativeFilter(GDomNode* pNode);
 #endif // MIN_PREDICT
 };
+
+
+
+class GFilter : public GIncrementalLearner
+{
+protected:
+	GSupervisedLearner* m_pLearner;
+	GIncrementalLearner* m_pIncrementalLearner;
+
+
+	GFilter(GSupervisedLearner* pLearner);
+
+	/// Deserialization constructor
+	GFilter(GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GFilter();
+
+	/// See the comment for GSupervisedLearner::clear
+	virtual void clear();
+
+	/// Returns true
+	virtual bool isFilter() { return true; }
+
+	/// Releases the learner that this filter wraps
+	virtual GSupervisedLearner* releaseLearner();
+
+	/// Helper function for serialization
+	GDomNode* domNode(GDom* pDoc, const char* szClassName) const;
+
+#ifndef MIN_PREDICT
+	/// Throws an exception
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
+#endif // MIN_PREDICT
+};
+
+
+class GFeatureFilter : public GFilter
+{
+protected:
+	GIncrementalTransform* m_pTransform;
+
+public:
+	/// This takes ownership of pLearner and pTransform.
+	/// (If you wish to transform both inputs and outputs, you can wrap a filter in a filter.)
+	GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform);
+
+	/// Deserialization constructor
+	GFeatureFilter(GDomNode* pNode, GLearnerLoader& ll);
+
+	/// Deletes the supervised learner and the transform
+	virtual ~GFeatureFilter();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+protected:
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
+
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predictInner(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+
+	/// See the comment for GIncrementalLearner::trainIncrementalInner
+	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
+};
+
+
+
+class GLabelFilter : public GFilter
+{
+protected:
+	GIncrementalTransform* m_pTransform;
+
+public:
+	/// This takes ownership of pLearner and pTransform.
+	/// (If you wish to transform both inputs and outputs, you can wrap a filter in a filter.)
+	GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform);
+
+	/// Deserialization constructor
+	GLabelFilter(GDomNode* pNode, GLearnerLoader& ll);
+
+	/// Deletes the supervised learner and the transform
+	virtual ~GLabelFilter();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+protected:
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
+
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predictInner(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+
+	/// See the comment for GIncrementalLearner::trainIncrementalInner
+	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
+};
+
 
 
 

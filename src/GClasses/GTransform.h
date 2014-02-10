@@ -112,9 +112,8 @@ public:
 	virtual GMatrix* transformBatch(const GMatrix& in);
 
 	/// Returns a buffer of sufficient size to store an inner
-	/// (transformed) vector.  The caller does not have to delete
-	/// the buffer, but the same buffer will be returned each
-	/// time.
+	/// (transformed) vector. The caller should not to delete
+	/// the buffer. The same buffer will be returned each time.
 	double* innerBuf();
 
 	/// pIn is a previously transformed row, and pOut is a buffer that will hold the untransformed row.

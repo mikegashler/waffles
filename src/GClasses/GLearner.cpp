@@ -1465,14 +1465,23 @@ GIncrementalLearner* GLearnerLoader::loadIncrementalLearner(GDomNode* pNode)
 	const char* szClass = pNode->field("class")->asString();
 	if(szClass[0] == 'G')
 	{
+		if(strcmp(szClass, "GFeatureFilter") == 0)
+			return new GFeatureFilter(pNode, *this);
+		else
 #ifndef MIN_PREDICT
 		if(strcmp(szClass, "GKNN") == 0)
 			return new GKNN(pNode, *this);
-		else if(strcmp(szClass, "GNaiveBayes") == 0)
+		else
+#endif // MIN_PREDICT
+		if(strcmp(szClass, "GLabelFilter") == 0)
+			return new GLabelFilter(pNode, *this);
+		else
+#ifndef MIN_PREDICT
+		if(strcmp(szClass, "GNaiveBayes") == 0)
 			return new GNaiveBayes(pNode, *this);
 		else if(strcmp(szClass, "GNaiveInstance") == 0)
 			return new GNaiveInstance(pNode, *this);
-        else
+        	else
 #endif // MIN_PREDICT
 		if(strcmp(szClass, "GNeuralNet") == 0)
 			return new GNeuralNet(pNode, *this);
@@ -1503,6 +1512,201 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode)
 	if(m_throwIfClassNotFound)
 		throw Ex("Unrecognized class: ", szClass);
 	return NULL;
+}
+
+// ---------------------------------------------------------------
+
+GFilter::GFilter(GSupervisedLearner* pLearner)
+: m_pLearner(pLearner), m_pIncrementalLearner(NULL)
+{
+	if(pLearner->canTrainIncrementally())
+		m_pIncrementalLearner = (GIncrementalLearner*)pLearner;
+}
+
+GFilter::GFilter(GDomNode* pNode, GLearnerLoader& ll)
+: m_pIncrementalLearner(NULL)
+{
+	m_pLearner = ll.loadIncrementalLearner(pNode->field("learner"));
+	if(m_pLearner->canTrainIncrementally())
+		m_pIncrementalLearner = (GIncrementalLearner*)m_pLearner;
+}
+
+// virtual
+GFilter::~GFilter()
+{
+	delete(m_pLearner);
+}
+
+// virtual
+void GFilter::clear()
+{
+	m_pLearner->clear();
+}
+
+// virtual
+GSupervisedLearner* GFilter::releaseLearner()
+{
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->releaseLearner();
+	else
+	{
+		GSupervisedLearner* pLearner = m_pLearner;
+		m_pLearner = NULL;
+		m_pIncrementalLearner = NULL;
+		return pLearner;
+	}
+}
+
+GDomNode* GFilter::domNode(GDom* pDoc, const char* szClassName) const
+{
+	GDomNode* pNode = baseDomNode(pDoc, szClassName);
+	pNode->addField(pDoc, "learner", m_pLearner->serialize(pDoc));
+	return pNode;
+}
+
+#ifndef MIN_PREDICT
+// virtual
+void GFilter::trainSparse(GSparseMatrix& features, GMatrix& labels)
+{
+	throw Ex("Sorry, this method has not been implemented");
+}
+#endif // MIN_PREDICT
+
+// ---------------------------------------------------------------
+
+GFeatureFilter::GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform)
+: GFilter(pLearner), m_pTransform(pTransform)
+{
+}
+
+GFeatureFilter::GFeatureFilter(GDomNode* pNode, GLearnerLoader& ll)
+: GFilter(pNode, ll)
+{
+	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
+}
+
+// virtual
+GFeatureFilter::~GFeatureFilter()
+{
+	delete(m_pTransform);
+}
+
+// virtual
+GDomNode* GFeatureFilter::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = domNode(pDoc, "GFeatureFilter");
+	pNode->addField(pDoc, "trans", m_pTransform->serialize(pDoc));
+	return pNode;
+}
+
+// virtual
+void GFeatureFilter::trainInner(const GMatrix& features, const GMatrix& labels)
+{
+	if(features.rows() != labels.rows())
+		throw Ex("Expected features and labels to have the same number of rows");
+	m_pTransform->train(features);
+	GMatrix temp(m_pTransform->after().clone());
+	temp.newRows(features.rows());
+	for(size_t i = 0; i < features.rows(); i++)
+		m_pTransform->transform(features[i], temp[i]);
+	m_pLearner->train(temp, labels);
+}
+
+// virtual
+void GFeatureFilter::predictInner(const double* pIn, double* pOut)
+{
+	m_pTransform->transform(pIn, m_pTransform->innerBuf());
+	m_pLearner->predict(m_pTransform->innerBuf(), pOut);
+}
+
+// virtual
+void GFeatureFilter::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	m_pTransform->transform(pIn, m_pTransform->innerBuf());
+	m_pLearner->predictDistribution(m_pTransform->innerBuf(), pOut);
+}
+
+// virtual
+void GFeatureFilter::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
+{
+	m_pTransform->train(featureRel);
+	m_pIncrementalLearner->beginIncrementalLearning(m_pTransform->after(), labelRel);
+}
+
+// virtual
+void GFeatureFilter::trainIncrementalInner(const double* pIn, const double* pOut)
+{
+	m_pTransform->transform(pIn, m_pTransform->innerBuf());
+	m_pIncrementalLearner->trainIncremental(m_pTransform->innerBuf(), pOut);
+}
+
+
+// ---------------------------------------------------------------
+
+GLabelFilter::GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform)
+: GFilter(pLearner), m_pTransform(pTransform)
+{
+}
+
+GLabelFilter::GLabelFilter(GDomNode* pNode, GLearnerLoader& ll)
+: GFilter(pNode, ll)
+{
+	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
+}
+
+// virtual
+GLabelFilter::~GLabelFilter()
+{
+	delete(m_pTransform);
+}
+
+// virtual
+GDomNode* GLabelFilter::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = domNode(pDoc, "GLabelFilter");
+	pNode->addField(pDoc, "trans", m_pTransform->serialize(pDoc));
+	return pNode;
+}
+
+// virtual
+void GLabelFilter::trainInner(const GMatrix& features, const GMatrix& labels)
+{
+	if(features.rows() != labels.rows())
+		throw Ex("Expected features and labels to have the same number of rows");
+	m_pTransform->train(labels);
+	GMatrix temp(m_pTransform->after().clone());
+	temp.newRows(labels.rows());
+	for(size_t i = 0; i < labels.rows(); i++)
+		m_pTransform->transform(labels[i], temp[i]);
+	m_pLearner->train(features, temp);
+}
+
+// virtual
+void GLabelFilter::predictInner(const double* pIn, double* pOut)
+{
+	m_pLearner->predict(pIn, m_pTransform->innerBuf());
+	m_pTransform->untransform(m_pTransform->innerBuf(), pOut);
+}
+
+// virtual
+void GLabelFilter::predictDistributionInner(const double* pIn, GPrediction* pOut)
+{
+	m_pLearner->predict(pIn, m_pTransform->innerBuf());
+	m_pTransform->untransformToDistribution(m_pTransform->innerBuf(), pOut);
+}
+
+// virtual
+void GLabelFilter::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
+{
+	m_pTransform->train(labelRel);
+	m_pIncrementalLearner->beginIncrementalLearning(featureRel, m_pTransform->after());
+}
+
+// virtual
+void GLabelFilter::trainIncrementalInner(const double* pIn, const double* pOut)
+{
+	m_pTransform->transform(pOut, m_pTransform->innerBuf());
+	m_pIncrementalLearner->trainIncremental(pIn, m_pTransform->innerBuf());
 }
 
 
