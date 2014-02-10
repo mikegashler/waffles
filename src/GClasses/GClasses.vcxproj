@@ -132,7 +132,6 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="GDeepNet.cpp" />
     <ClCompile Include="GDiff.cpp" />
     <ClCompile Include="GDirList.cpp" />
     <ClCompile Include="GDistance.cpp" />
@@ -324,7 +323,6 @@
     <ClInclude Include="GCluster.h" />
     <ClInclude Include="GCrypto.h" />
     <ClInclude Include="GDecisionTree.h" />
-    <ClInclude Include="GDeepNet.h" />
     <ClInclude Include="GDiff.h" />
     <ClInclude Include="GDirList.h" />
     <ClInclude Include="GDistance.h" />
