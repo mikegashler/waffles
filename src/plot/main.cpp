@@ -1592,7 +1592,7 @@ void printDecisionTree(GArgReader& args)
 	GLearnerLoader ll(true);
 	if(_stricmp(doc.root()->field("class")->asString(), "GDecisionTree") != 0)
 		throw Ex("That model is not a decision tree");
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	if(args.size() > 0)
@@ -1624,7 +1624,7 @@ void printRandomForest(GArgReader& args)
 	GLearnerLoader ll(true);
 	if(_stricmp(doc.root()->field("class")->asString(), "GRandomForest") != 0)
 		throw Ex("That model is not Random Forest");
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	if(args.size() > 0)

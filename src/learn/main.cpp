@@ -934,55 +934,57 @@ GTransducer* InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatures, GMatrix*
 	int argPos = args.get_pos();
 	if(args.size() < 1)
 		throw Ex("No algorithm specified.");
+	GTransducer* pAlg = NULL;
 	try
 	{
 		if(args.if_pop("agglomerativetransducer"))
-			return InstantiateAgglomerativeTransducer(args, pFeatures, pLabels);
+			pAlg = InstantiateAgglomerativeTransducer(args, pFeatures, pLabels);
 		else if(args.if_pop("bag"))
-			return InstantiateBag(args, pFeatures, pLabels);
+			pAlg = InstantiateBag(args, pFeatures, pLabels);
 		else if(args.if_pop("baseline"))
-			return InstantiateBaseline(args, pFeatures, pLabels);
+			pAlg = InstantiateBaseline(args, pFeatures, pLabels);
 		else if(args.if_pop("bma"))
-			return InstantiateBMA(args, pFeatures, pLabels);
+			pAlg = InstantiateBMA(args, pFeatures, pLabels);
 		else if(args.if_pop("bmc"))
-			return InstantiateBMC(args, pFeatures, pLabels);
+			pAlg = InstantiateBMC(args, pFeatures, pLabels);
 		else if(args.if_pop("bomb"))
-			return InstantiateBomb(args, pFeatures, pLabels);
+			pAlg = InstantiateBomb(args, pFeatures, pLabels);
 		else if(args.if_pop("boost"))
-			return InstantiateBoost(args, pFeatures, pLabels);
+			pAlg = InstantiateBoost(args, pFeatures, pLabels);
 		else if(args.if_pop("bucket"))
-			return InstantiateBucket(args, pFeatures, pLabels);
+			pAlg = InstantiateBucket(args, pFeatures, pLabels);
 		else if(args.if_pop("cvdt"))
-			return InstantiateCvdt(args);
+			pAlg = InstantiateCvdt(args);
 		else if(args.if_pop("decisiontree"))
-			return InstantiateDecisionTree(args, pFeatures, pLabels);
+			pAlg = InstantiateDecisionTree(args, pFeatures, pLabels);
 		else if(args.if_pop("gaussianprocess"))
-			return InstantiateGaussianProcess(args, pFeatures, pLabels);
+			pAlg = InstantiateGaussianProcess(args, pFeatures, pLabels);
 		else if(args.if_pop("graphcuttransducer"))
-			return InstantiateGraphCutTransducer(args, pFeatures, pLabels);
+			pAlg = InstantiateGraphCutTransducer(args, pFeatures, pLabels);
 		else if(args.if_pop("hodgepodge"))
-			return InstantiateHodgePodge(args, pFeatures, pLabels);
+			pAlg = InstantiateHodgePodge(args, pFeatures, pLabels);
 		else if(args.if_pop("knn"))
-			return InstantiateKNN(args, pFeatures, pLabels);
+			pAlg = InstantiateKNN(args, pFeatures, pLabels);
 		else if(args.if_pop("linear"))
-			return InstantiateLinearRegressor(args, pFeatures, pLabels);
+			pAlg = InstantiateLinearRegressor(args, pFeatures, pLabels);
 		else if(args.if_pop("meanmarginstree"))
-			return InstantiateMeanMarginsTree(args, pFeatures, pLabels);
+			pAlg = InstantiateMeanMarginsTree(args, pFeatures, pLabels);
 		else if(args.if_pop("naivebayes"))
-			return InstantiateNaiveBayes(args, pFeatures, pLabels);
+			pAlg = InstantiateNaiveBayes(args, pFeatures, pLabels);
 		else if(args.if_pop("naiveinstance"))
-			return InstantiateNaiveInstance(args, pFeatures, pLabels);
+			pAlg = InstantiateNaiveInstance(args, pFeatures, pLabels);
 		else if(args.if_pop("neighbortransducer"))
-			return InstantiateNeighborTransducer(args, pFeatures, pLabels);
+			pAlg = InstantiateNeighborTransducer(args, pFeatures, pLabels);
 		else if(args.if_pop("neuralnet"))
-			return InstantiateNeuralNet(args, pFeatures, pLabels);
+			pAlg = InstantiateNeuralNet(args, pFeatures, pLabels);
 		else if(args.if_pop("randomforest"))
-			return InstantiateRandomForest(args);
+			pAlg = InstantiateRandomForest(args);
 		else if(args.if_pop("reservoir"))
-			return InstantiateReservoirNet(args, pFeatures, pLabels);
+			pAlg = InstantiateReservoirNet(args, pFeatures, pLabels);
 		else if(args.if_pop("wag"))
-			return InstantiateWag(args, pFeatures, pLabels);
-		throw Ex("Unrecognized algorithm name: ", args.peek());
+			pAlg = InstantiateWag(args, pFeatures, pLabels);
+		else
+			throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
 	{
@@ -991,7 +993,12 @@ GTransducer* InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatures, GMatrix*
 			showInstantiateAlgorithmError(e.what(), args);
 		throw Ex("nevermind"); // this means "don't display another error message"
 	}
-	return NULL;
+	if(pAlg->canGeneralize())
+	{
+		GSupervisedLearner* pLearner = (GSupervisedLearner*)pAlg;
+		pAlg = new GAutoFilter(pLearner);
+	}
+	return pAlg;
 }
 
 void autoTuneDecisionTree(GMatrix& features, GMatrix& labels)
@@ -1130,11 +1137,15 @@ void Train(GArgReader& args)
 	if(!pSupLearner->canGeneralize())
 		throw Ex("This algorithm cannot be \"trained\". It can only be used to \"transduce\".");
 	GSupervisedLearner* pModel = (GSupervisedLearner*)pSupLearner;
+	if(calibrate)
+	{
+		GCalibrator* pCal = new GCalibrator(pModel);
+		pModel = pCal;
+		hModel.reset(pCal);
+	}
 
 	// Train the modeler
 	pModel->train(*pFeatures, *pLabels);
-	if(calibrate)
-		pModel->calibrate(*pFeatures, *pLabels);
 
 	// Output the trained model
 	GDom doc;
@@ -1164,7 +1175,7 @@ void predict(GArgReader& args)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
@@ -1209,7 +1220,7 @@ void predictDistribution(GArgReader& args)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
@@ -1485,7 +1496,7 @@ void Test(GArgReader& args)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 

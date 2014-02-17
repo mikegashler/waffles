@@ -31,8 +31,6 @@ struct GNaiveBayesOutputAttr;
 class GNaiveBayes : public GIncrementalLearner
 {
 protected:
-	GRelation* m_pInnerRelFeatures;
-	GRelation* m_pInnerRelLabels;
 	size_t m_nSampleCount;
 	GNaiveBayesOutputAttr** m_pOutputs;
 	double m_equivalentSampleSize;
@@ -74,15 +72,18 @@ public:
 	/// the provided data.
 	void autoTune(GMatrix& features, GMatrix& labels);
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
+	/// Adds a single training sample to the collection
+	virtual void trainIncremental(const double* pIn, const double* pOut);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
 	/// See the comment for GTransducer::canImplicitlyHandleContinuousFeatures
 	virtual bool canImplicitlyHandleContinuousFeatures() { return false; }
@@ -92,9 +93,6 @@ protected:
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
-
-	/// Adds a single training sample to the collection
-	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 };
 
 } // namespace GClasses

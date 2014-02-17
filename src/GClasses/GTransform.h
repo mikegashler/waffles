@@ -379,9 +379,10 @@ protected:
 class GReservoir : public GIncrementalTransform
 {
 protected:
-	GNeuralNet* m_pNN;
+	GIncrementalLearner* m_pNN;
 	size_t m_outputs;
 	double m_deviation;
+	size_t m_hiddenLayers;
 
 public:
 	GReservoir(double weightDeviation = 2.0, size_t outputs = 64, size_t hiddenLayers = 2);

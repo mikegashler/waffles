@@ -1316,12 +1316,7 @@ void GNeuralNet::clear()
 // virtual
 GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 {
-	return serializeInner(pDoc, "GNeuralNet");
-}
-
-GDomNode* GNeuralNet::serializeInner(GDom* pDoc, const char* szClassName) const
-{
-	GDomNode* pNode = baseDomNode(pDoc, szClassName);
+	GDomNode* pNode = baseDomNode(pDoc, "GNeuralNet");
 
 	// Add the layers
 	GDomNode* pLayerList = pNode->addField(pDoc, "layers", pDoc->newList());
@@ -1675,7 +1670,7 @@ double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 
 #ifndef MIN_PREDICT
 // virtual
-void GNeuralNet::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GNeuralNet::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model does not predict a distribution");
 }
@@ -1694,7 +1689,7 @@ double GNeuralNet::sumSquaredPredictionError(const double* pTarget)
 }
 
 // virtual
-void GNeuralNet::predictInner(const double* pIn, double* pOut)
+void GNeuralNet::predict(const double* pIn, double* pOut)
 {
 	forwardProp(pIn);
 	copyPrediction(pOut);
@@ -1703,6 +1698,10 @@ void GNeuralNet::predictInner(const double* pIn, double* pOut)
 // virtual
 void GNeuralNet::trainInner(const GMatrix& features, const GMatrix& labels)
 {
+	if(!features.relation().areContinuous())
+		throw Ex("GNeuralNet only supports continuous features. Perhaps you should wrap it in a GAutoFilter.");
+	if(!labels.relation().areContinuous())
+		throw Ex("GNeuralNet only supports continuous labels. Perhaps you should wrap it in a GAutoFilter.");
 	size_t validationRows = (size_t)(m_validationPortion * features.rows());
 	size_t trainRows = features.rows() - validationRows;
 	if(validationRows > 0)
@@ -1818,7 +1817,7 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 }
 
 // virtual
-void GNeuralNet::trainIncrementalInner(const double* pIn, const double* pOut)
+void GNeuralNet::trainIncremental(const double* pIn, const double* pOut)
 {
 	forwardProp(pIn);
 	backpropagate(pOut);
@@ -2329,10 +2328,11 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 		features.newRow()[0] = d;
 		labels.newRow()[0] = 1.0 - d;
 	}
-	GNeuralNet nn;
-	nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	nn.train(features, labels);
-	double r = nn.sumSquaredError(features, labels);
+	GNeuralNet* pNN = new GNeuralNet();
+	pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	GAutoFilter af(pNN);
+	af.train(features, labels);
+	double r = af.sumSquaredError(features, labels);
 	if(r > 0.0)
 		throw Ex("Failed simple sanity test");
 }
@@ -2595,17 +2595,19 @@ void GNeuralNet::test()
 
 	// Test with no hidden layers (logistic regression)
 	{
-		GNeuralNet nn;
-		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-		nn.basicTest(0.74, 0.89);
+		GNeuralNet* pNN = new GNeuralNet();
+		pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		GAutoFilter af(pNN);
+		af.basicTest(0.75, 0.86);
 	}
 
 	// Test NN with one hidden layer
 	{
-		GNeuralNet nn;
-		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 3));
-		nn.addLayer(new GNeuralNetLayerClassic(3, FLEXIBLE_SIZE));
-		nn.basicTest(0.76, 0.9);
+		GNeuralNet* pNN = new GNeuralNet();
+		pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 3));
+		pNN->addLayer(new GNeuralNetLayerClassic(3, FLEXIBLE_SIZE));
+		GAutoFilter af(pNN);
+		af.basicTest(0.76, 0.92);
 	}
 }
 
@@ -2746,44 +2748,109 @@ void GNeuralNetPseudoInverse::test()
 
 
 GReservoirNet::GReservoirNet()
-: GNeuralNet(), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)
+: GIncrementalLearner(), m_pModel(NULL), m_pNN(NULL), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)
 {
-	clearFeatureFilter();
-	addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 }
 
 GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
-: GNeuralNet(pNode, ll)
+: GIncrementalLearner(pNode, ll)
 {
+	m_pModel = (GIncrementalLearner*)ll.loadLearner(pNode->field("model"));
 	m_weightDeviation = pNode->field("wdev")->asDouble();
 	m_augments = (size_t)pNode->field("augs")->asInt();
 	m_reservoirLayers = (size_t)pNode->field("reslays")->asInt();
+}
+
+// virtual
+void GReservoirNet::predict(const double* pIn, double* pOut)
+{
+	m_pModel->predict(pIn, pOut);
+}
+
+// virtual
+void GReservoirNet::predictDistribution(const double* pIn, GPrediction* pOut)
+{
+	m_pModel->predictDistribution(pIn, pOut);
+}
+
+// virtual
+void GReservoirNet::clear()
+{
+	m_pModel->clear();
+}
+
+// virtual
+void GReservoirNet::trainInner(const GMatrix& features, const GMatrix& labels)
+{
+	if(!features.relation().areContinuous())
+		throw Ex("GReservoirNet only supports continuous features. Perhaps you should wrap it in a GAutoFilter.");
+	if(!labels.relation().areContinuous())
+		throw Ex("GReservoirNet only supports continuous labels. Perhaps you should wrap it in a GAutoFilter.");
+
+	delete(m_pModel);
+	GNeuralNet* pNN = new GNeuralNet();
+	pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	GDataAugmenter* pAug = new GDataAugmenter(new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers));
+	m_pModel = new GFeatureFilter(pNN, pAug);
+	m_pModel->train(features, labels);
+}
+
+// virtual
+void GReservoirNet::trainIncremental(const double* pIn, const double* pOut)
+{
+	m_pModel->trainIncremental(pIn, pOut);
+}
+
+// virtual
+void GReservoirNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
+{
+	m_pModel->trainSparse(features, labels);
+}
+
+// virtual
+void GReservoirNet::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
+{
+	delete(m_pModel);
+	m_pNN = new GNeuralNet();
+	m_pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	GDataAugmenter* pAug = new GDataAugmenter(new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers));
+	m_pModel = new GFeatureFilter(m_pNN, pAug);
+	m_pModel->beginIncrementalLearning(featureRel, labelRel);
+}
+
+// virtual
+bool GReservoirNet::supportedFeatureRange(double* pOutMin, double* pOutMax)
+{
+	*pOutMin = -1.0;
+	*pOutMax = 1.0;
+	return false;
+}
+
+// virtual
+bool GReservoirNet::supportedLabelRange(double* pOutMin, double* pOutMax)
+{
+	*pOutMin = -1.0;
+	*pOutMax = 1.0;
+	return false;
 }
 
 #ifndef MIN_PREDICT
 // virtual
 GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 {
-	GDomNode* pNode = serializeInner(pDoc, "GReservoirNet");
+	GDomNode* pNode = baseDomNode(pDoc, "GReservoirNet");
+	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
 	pNode->addField(pDoc, "wdev", pDoc->newDouble(m_weightDeviation));
 	pNode->addField(pDoc, "augs", pDoc->newInt(m_augments));
 	pNode->addField(pDoc, "reslays", pDoc->newInt(m_reservoirLayers));
 	return pNode;
 }
 
-// virtual
-void GReservoirNet::clearFeatureFilter()
-{
-	delete(m_pFilterFeatures);
-	m_pFilterFeatures = new GDataAugmenter(new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers));
-}
-
-
 // static
 void GReservoirNet::test()
 {
-	GReservoirNet lr;
-	lr.basicTest(0.73, 0.76);
+	GAutoFilter af(new GReservoirNet());
+	af.basicTest(0.75, 0.84);
 }
 #endif // MIN_PREDICT
 

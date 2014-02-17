@@ -87,8 +87,6 @@ GNaiveInstance::GNaiveInstance()
 {
 	m_nNeighbors = 12;
 	m_pAttrs = NULL;
-	m_internalLabelDims = 0;
-	m_internalFeatureDims = 0;
 	m_pValueSums = NULL;
 }
 
@@ -98,20 +96,16 @@ GNaiveInstance::GNaiveInstance(GDomNode* pNode, GLearnerLoader& ll)
 	m_pAttrs = NULL;
 	m_pValueSums = NULL;
 	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
-	m_internalFeatureDims = (size_t)pNode->field("ifd")->asInt();
-	m_internalLabelDims = (size_t)pNode->field("ild")->asInt();
-	GUniformRelation featureRel(m_internalFeatureDims);
-	GUniformRelation labelRel(m_internalLabelDims);
-	beginIncrementalLearningInner(featureRel, labelRel);
+	beginIncrementalLearningInner(*m_pRelFeatures, *m_pRelLabels);
 	GDomNode* pAttrs = pNode->field("attrs");
 	GDomListIterator it(pAttrs);
-	if(it.remaining() != m_internalFeatureDims)
-		throw Ex("Expected ", to_str(m_internalFeatureDims), " attrs, got ", to_str(it.remaining()), " attrs");
+	if(it.remaining() != m_pRelFeatures->size())
+		throw Ex("Expected ", to_str(m_pRelFeatures->size()), " attrs, got ", to_str(it.remaining()), " attrs");
 	m_pHeap = new GHeap(1024);
-	for(size_t i = 0; i < m_internalFeatureDims; i++)
+	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 	{
 		delete(m_pAttrs[i]);
-		m_pAttrs[i] = new GNaiveInstanceAttr(it.current(), m_internalLabelDims, m_pHeap);
+		m_pAttrs[i] = new GNaiveInstanceAttr(it.current(), m_pRelLabels->size(), m_pHeap);
 		it.advance();
 	}
 }
@@ -126,15 +120,13 @@ void GNaiveInstance::clear()
 {
 	if(m_pAttrs)
 	{
-		for(size_t i = 0; i < m_internalFeatureDims; i++)
+		for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 			delete(m_pAttrs[i]);
 		delete[] m_pAttrs;
 	}
 	m_pAttrs = NULL;
 	delete[] m_pValueSums;
 	m_pValueSums = NULL;
-	m_internalLabelDims = 0;
-	m_internalFeatureDims = 0;
 	delete(m_pHeap);
 	m_pHeap = NULL;
 }
@@ -143,12 +135,10 @@ void GNaiveInstance::clear()
 GDomNode* GNaiveInstance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNaiveInstance");
-	pNode->addField(pDoc, "ifd", pDoc->newInt(m_internalFeatureDims));
-	pNode->addField(pDoc, "ild", pDoc->newInt(m_internalLabelDims));
 	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_nNeighbors));
 	GDomNode* pAttrs = pNode->addField(pDoc, "attrs", pDoc->newList());
-	for(size_t i = 0; i < m_internalFeatureDims; i++)
-		pAttrs->addItem(pDoc, m_pAttrs[i]->serialize(pDoc, m_internalLabelDims));
+	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
+		pAttrs->addItem(pDoc, m_pAttrs[i]->serialize(pDoc, m_pRelLabels->size()));
 	return pNode;
 }
 
@@ -181,25 +171,23 @@ void GNaiveInstance::beginIncrementalLearningInner(const GRelation& featureRel, 
 	if(!featureRel.areContinuous() || !labelRel.areContinuous())
 		throw Ex("Only continuous attributes are supported.");
 	clear();
-	m_internalFeatureDims = featureRel.size();
-	m_internalLabelDims = labelRel.size();
-	m_pAttrs = new GNaiveInstanceAttr*[m_internalFeatureDims];
-	for(size_t i = 0; i < m_internalFeatureDims; i++)
+	m_pAttrs = new GNaiveInstanceAttr*[m_pRelFeatures->size()];
+	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 		m_pAttrs[i] = new GNaiveInstanceAttr();
-	m_pValueSums = new double[4 * m_internalLabelDims + m_internalFeatureDims];
-	m_pWeightSums = &m_pValueSums[m_internalLabelDims];
-	m_pSumBuffer = &m_pValueSums[2 * m_internalLabelDims];
-	m_pSumOfSquares = &m_pValueSums[3 * m_internalLabelDims];
+	m_pValueSums = new double[4 * m_pRelLabels->size() + m_pRelFeatures->size()];
+	m_pWeightSums = &m_pValueSums[m_pRelLabels->size()];
+	m_pSumBuffer = &m_pValueSums[2 * m_pRelLabels->size()];
+	m_pSumOfSquares = &m_pValueSums[3 * m_pRelLabels->size()];
 }
 
 // virtual
-void GNaiveInstance::trainIncrementalInner(const double* pIn, const double* pOut)
+void GNaiveInstance::trainIncremental(const double* pIn, const double* pOut)
 {
 	if(!m_pHeap)
 		m_pHeap = new GHeap(1024);
-	double* pOutputs = (double*)m_pHeap->allocAligned(sizeof(double) * m_internalLabelDims);
-	GVec::copy(pOutputs, pOut, m_internalLabelDims);
-	for(size_t i = 0; i < m_internalFeatureDims; i++)
+	double* pOutputs = (double*)m_pHeap->allocAligned(sizeof(double) * m_pRelLabels->size());
+	GVec::copy(pOutputs, pOut, m_pRelLabels->size());
+	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 	{
 		if(*pIn != UNKNOWN_REAL_VALUE)
 			m_pAttrs[i]->addInstance(*(pIn++), pOutputs);
@@ -209,9 +197,14 @@ void GNaiveInstance::trainIncrementalInner(const double* pIn, const double* pOut
 // virtual
 void GNaiveInstance::trainInner(const GMatrix& features, const GMatrix& labels)
 {
+	if(!features.relation().areContinuous())
+		throw Ex("GNaiveInstance only supports continuous features. Perhaps you should wrap it in a GAutoFilter.");
+	if(!labels.relation().areContinuous())
+		throw Ex("GNaiveInstance only supports continuous labels. Perhaps you should wrap it in a GAutoFilter.");
+
 	beginIncrementalLearningInner(features.relation(), labels.relation());
 	for(size_t i = 0; i < features.rows(); i++)
-		trainIncrementalInner(features[i], labels[i]);
+		trainIncremental(features[i], labels[i]);
 }
 
 // virtual
@@ -223,8 +216,8 @@ void GNaiveInstance::trainSparse(GSparseMatrix& features, GMatrix& labels)
 void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 {
 	// Init the accumulators
-	GVec::setAll(m_pSumBuffer, 0.0, m_internalLabelDims);
-	GVec::setAll(m_pSumOfSquares, 0.0, m_internalLabelDims);
+	GVec::setAll(m_pSumBuffer, 0.0, m_pRelLabels->size());
+	GVec::setAll(m_pSumOfSquares, 0.0, m_pRelLabels->size());
 
 	// Find the nodes on either side of dInput
 	GNaiveInstanceAttr* pAttr = m_pAttrs[nInputDim];
@@ -263,8 +256,8 @@ void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 
 		// Accumulate values
 		const double* pOutputVec = goRight ? itRight->second : itLeft->second;
-		GVec::add(m_pSumBuffer, pOutputVec, m_internalLabelDims);
-		for(size_t j = 0; j < m_internalLabelDims; j++)
+		GVec::add(m_pSumBuffer, pOutputVec, m_pRelLabels->size());
+		for(size_t j = 0; j < m_pRelLabels->size(); j++)
 			m_pSumOfSquares[j] += (pOutputVec[j] * pOutputVec[j]);
 
 		// See if we're done
@@ -282,13 +275,13 @@ void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 				itLeft--;
 		}
 	}
-	GVec::multiply(m_pSumBuffer, 1.0 / nNeighbors, m_internalLabelDims);
-	GVec::multiply(m_pSumOfSquares, 1.0 / nNeighbors, m_internalLabelDims);
+	GVec::multiply(m_pSumBuffer, 1.0 / nNeighbors, m_pRelLabels->size());
+	GVec::multiply(m_pSumOfSquares, 1.0 / nNeighbors, m_pRelLabels->size());
 
 	// Accumulate the predictions across all dimensions
 	int dims = 0;
 	double weight;
-	for(size_t i = 0; i < m_internalLabelDims; i++)
+	for(size_t i = 0; i < m_pRelLabels->size(); i++)
 	{
 		weight = 1.0 / std::max(m_pSumOfSquares[i] - (m_pSumBuffer[i] * m_pSumBuffer[i]), 1e-5);
 		m_pWeightSums[dims] += weight;
@@ -298,13 +291,13 @@ void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 }
 
 // virtual
-void GNaiveInstance::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GNaiveInstance::predictDistribution(const double* pIn, GPrediction* pOut)
 {
-	GVec::setAll(m_pWeightSums, 0.0, m_internalLabelDims);
-	GVec::setAll(m_pValueSums, 0.0, m_internalLabelDims);
-	for(size_t i = 0; i < m_internalFeatureDims; i++)
+	GVec::setAll(m_pWeightSums, 0.0, m_pRelLabels->size());
+	GVec::setAll(m_pValueSums, 0.0, m_pRelLabels->size());
+	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 		evalInput(i, pIn[i]);
-	for(size_t i = 0; i < m_internalLabelDims; i++)
+	for(size_t i = 0; i < m_pRelLabels->size(); i++)
 	{
 		GNormalDistribution* pNorm = pOut[i].makeNormal();
 		pNorm->setMeanAndVariance(m_pValueSums[i] / m_pWeightSums[i], 1.0 / m_pWeightSums[i]);
@@ -312,13 +305,13 @@ void GNaiveInstance::predictDistributionInner(const double* pIn, GPrediction* pO
 }
 
 // virtual
-void GNaiveInstance::predictInner(const double* pIn, double* pOut)
+void GNaiveInstance::predict(const double* pIn, double* pOut)
 {
-	GVec::setAll(m_pWeightSums, 0.0, m_internalLabelDims);
-	GVec::setAll(m_pValueSums, 0.0, m_internalLabelDims);
-	for(size_t i = 0; i < m_internalFeatureDims; i++)
+	GVec::setAll(m_pWeightSums, 0.0, m_pRelLabels->size());
+	GVec::setAll(m_pValueSums, 0.0, m_pRelLabels->size());
+	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 		evalInput(i, pIn[i]);
-	for(size_t i = 0; i < m_internalLabelDims; i++)
+	for(size_t i = 0; i < m_pRelLabels->size(); i++)
 		pOut[i] = m_pValueSums[i] / m_pWeightSums[i];
 }
 
@@ -326,9 +319,11 @@ void GNaiveInstance::predictInner(const double* pIn, double* pOut)
 //static
 void GNaiveInstance::test()
 {
-	GNaiveInstance ni;
-	ni.setNeighbors(8);
-	ni.basicTest(0.72, 0.44, 0.02);
+
+	GNaiveInstance* pNI = new GNaiveInstance();
+	GAutoFilter af(pNI);
+	pNI->setNeighbors(8);
+	af.basicTest(0.72, 0.44, 0.02);
 }
 #endif
 

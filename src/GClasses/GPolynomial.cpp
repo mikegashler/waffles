@@ -652,6 +652,10 @@ void GPolynomial::clear()
 // virtual
 void GPolynomial::trainInner(const GMatrix& features, const GMatrix& labels)
 {
+	if(!features.relation().areContinuous())
+		throw Ex("GPolynomial only supports continuous features. Perhaps you should wrap it in a GAutoFilter.");
+	if(!labels.relation().areContinuous())
+		throw Ex("GPolynomial only supports continuous labels. Perhaps you should wrap it in a GAutoFilter.");
 	GMatrix labelCol(labels.rows(), 1);
 	clear();
 	for(size_t i = 0; i < labels.cols(); i++)
@@ -664,14 +668,14 @@ void GPolynomial::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GPolynomial::predictInner(const double* pIn, double* pOut)
+void GPolynomial::predict(const double* pIn, double* pOut)
 {
 	for(size_t i = 0; i < m_polys.size(); i++)
 		pOut[i] = m_polys[i]->predict(pIn);
 }
 
 // virtual
-void GPolynomial::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GPolynomial::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model cannot predict a distribution");
 }
@@ -703,8 +707,8 @@ void GPolynomial::autoTune(GMatrix& features, GMatrix& labels)
 void GPolynomial::test()
 {
 	GPolynomialSingleLabel::test();
-	GPolynomial poly;
-	poly.basicTest(0.78, -1.0/*skip it*/);
+	GAutoFilter af(new GPolynomial());
+	af.basicTest(0.78, -1.0/*skip it*/);
 }
 #endif // NO_TEST_CODE
 

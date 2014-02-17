@@ -102,6 +102,12 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
 	/// See the comment for GIncrementalLearner::trainSparse
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
@@ -161,12 +167,6 @@ protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
-
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
@@ -179,7 +179,7 @@ protected:
 	/// Also, If you make this decision based on a closer neighbor, then big
 	/// holes may form in the model if points are sampled in a poor order.)
 	/// Call SetElbowRoom to specify the elbow room distance.
-	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const double* pIn, const double* pOut);
 
 	/// Finds the nearest neighbors of pVector
 	void findNeighbors(const double* pVector);
@@ -257,15 +257,15 @@ public:
 	/// Clears the internal model
 	virtual void clear();
 
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
@@ -273,8 +273,8 @@ protected:
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
-	/// See the comment for GIncrementalLearner::trainIncrementalInner
-	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
+	/// See the comment for GIncrementalLearner::trainIncremental
+	virtual void trainIncremental(const double* pIn, const double* pOut);
 };
 
 
@@ -325,11 +325,11 @@ protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
 
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 
 	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }

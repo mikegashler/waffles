@@ -104,9 +104,8 @@ public:
 			pPred[3] = 0.8 * i / m_pred.rows();
 			pPred[4] = 10.0;
 		}
-		vector<size_t> topo;
-		topo.push_back(36);
-		m_nn.setTopology(topo);
+		m_nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 36));
+		m_nn.addLayer(new GNeuralNetLayerClassic(36, FLEXIBLE_SIZE));
 		m_nn.setLearningRate(0.1);
 		GUniformRelation featureRel(2);
 		GUniformRelation labelRel(3);
@@ -135,7 +134,6 @@ public:
 		double minAboveThresh = 1e308;
 		double cumErr = 0.0;
 		size_t activeCount = 0;
-		GBackProp* pBP = m_nn.backProp();
 //		GBackPropLayer& bpLayer = pBP->layer(m_nn.layerCount() - 1);
 		GIndexVec::shuffle(m_pIndexes, m_tar.rows(), &m_rand);
 		size_t* pInd = m_pIndexes;
@@ -148,17 +146,16 @@ public:
 			double* pContext = m_context.row(index);
 			m_nn.forwardProp(pContext);
 			m_nn.copyPrediction(pPred);
-			pBP->computeBlame(pTar);
-			
+			m_nn.backpropagate(pTar);
+
 			double err = m_nn.sumSquaredPredictionError(pTar);
 			if(err < m_errorThresh)
 			{
 				pPred[4] = 10.0; // big radius
-				pBP->backpropagate();
 				activeCount++;
 				maxBelowThresh = std::max(maxBelowThresh, err);
-				pBP->gradientOfInputs(inputGradient);
-				pBP->descendGradient(pContext, m_nn.learningRate(), 0.0);
+				m_nn.gradientOfInputs(inputGradient);
+				m_nn.descendGradient(pContext, m_nn.learningRate(), 0.0);
 				GVec::addScaled(pContext, -m_nn.learningRate(), inputGradient, 2);
 
 				// See if we can improve the spotlight point

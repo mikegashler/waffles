@@ -115,11 +115,11 @@ protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
 
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }

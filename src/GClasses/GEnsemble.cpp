@@ -33,7 +33,7 @@ using std::vector;
 GWeightedModel::GWeightedModel(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_weight = pNode->field("w")->asDouble();
-	m_pModel = ll.loadSupervisedLearner(pNode->field("m"));
+	m_pModel = ll.loadLearner(pNode->field("m"));
 }
 
 GWeightedModel::~GWeightedModel()
@@ -240,19 +240,8 @@ public:
 };
 
 // virtual
-void GEnsemble::predictInner(const double* pIn, double* pOut)
+void GEnsemble::predict(const double* pIn, double* pOut)
 {
-/*
-	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
-	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-	{
-		GWeightedModel* pWM = *it;
-		pWM->m_pModel->predict(pIn, pOut);
-		castVote(pWM->m_weight, pOut);
-	}
-	tally(pOut);
-*/
-
 	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
 	m_pPredictInput = pIn;
 	if(!m_pPredictMaster)
@@ -263,11 +252,10 @@ void GEnsemble::predictInner(const double* pIn, double* pOut)
 	}
 	m_pPredictMaster->doJobs(m_models.size());
 	tally(pOut);
-
 }
 
 // virtual
-void GEnsemble::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GEnsemble::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	GTEMPBUF(double, pTmp, m_pLabelRel->size());
 	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
@@ -739,7 +727,7 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 		// Train an instance of the model and store a clone of it
 		m_pLearner->train(drawnFeatures, drawnLabels);
 		GDom doc;
-		GSupervisedLearner* pClone = m_pLoader->loadSupervisedLearner(m_pLearner->serialize(&doc));
+		GSupervisedLearner* pClone = m_pLoader->loadLearner(m_pLearner->serialize(&doc));
 
 		// Compute model weight
 		double err = 0.5;
@@ -881,13 +869,13 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GWag::predictInner(const double* pIn, double* pOut)
+void GWag::predict(const double* pIn, double* pOut)
 {
 	m_pNN->predict(pIn, pOut);
 }
 
 // virtual
-void GWag::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GWag::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	m_pNN->predictDistribution(pIn, pOut);
 }
@@ -913,7 +901,7 @@ GBucket::GBucket(GDomNode* pNode, GLearnerLoader& ll)
 	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
 	{
-		m_models.push_back(ll.loadSupervisedLearner(it.current()));
+		m_models.push_back(ll.loadLearner(it.current()));
 		it.advance();
 	}
 	m_nBestLearner = (size_t)pNode->field("best")->asInt();
@@ -965,15 +953,7 @@ void GBucket::trainInner(const GMatrix& features, const GMatrix& labels)
 	for(size_t i = 0; i < nLearnerCount; i++)
 	{
 		pLearner = m_models[i];
-		try
-		{
-			err = pLearner->crossValidate(features, labels, 2);
-		}
-		catch(std::exception& e)
-		{
-			onError(e);
-			continue;
-		}
+		err = pLearner->crossValidate(features, labels, 2);
 		if(err < dBestError)
 		{
 			dBestError = err;
@@ -997,7 +977,7 @@ GSupervisedLearner* GBucket::releaseBestModeler()
 }
 
 // virtual
-void GBucket::predictInner(const double* pIn, double* pOut)
+void GBucket::predict(const double* pIn, double* pOut)
 {
 	if(m_nBestLearner == INVALID_INDEX)
 		throw Ex("not trained yet");
@@ -1005,17 +985,11 @@ void GBucket::predictInner(const double* pIn, double* pOut)
 }
 
 // virtual
-void GBucket::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GBucket::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	if(m_nBestLearner == INVALID_INDEX)
 		throw Ex("not trained yet");
 	m_models[m_nBestLearner]->predictDistribution(pIn, pOut);
-}
-
-// virtual
-void GBucket::onError(std::exception& e)
-{
-	//cout << e.what() << "\n";
 }
 
 #ifndef NO_TEST_CODE
@@ -1026,7 +1000,7 @@ void GBucket::test()
 	GBucket bucket;
 	bucket.addLearner(new GBaselineLearner());
 	bucket.addLearner(new GDecisionTree());
-	bucket.addLearner(new GMeanMarginsTree());
+	bucket.addLearner(new GAutoFilter(new GMeanMarginsTree()));
 	bucket.basicTest(0.695, 0.918);
 }
 #endif

@@ -416,7 +416,7 @@ void predict(GArgReader& args)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
@@ -462,7 +462,7 @@ void test(GArgReader& args)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 

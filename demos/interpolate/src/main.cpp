@@ -382,7 +382,9 @@ public:
 		else if(index == 13)
 		{
 			GNeuralNet* pNN = new GNeuralNet();
-			pNN->setTopology(30, 256);
+			pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 30));
+			pNN->addLayer(new GNeuralNetLayerClassic(30, 256));
+			pNN->addLayer(new GNeuralNetLayerClassic(256, FLEXIBLE_SIZE));
 			doBackProp(pNN);
 		}
 		else if(index == 14)
@@ -451,7 +453,7 @@ public:
 				int r = ClipChan((int)(row[2] * 255.0));
 				int g = ClipChan((int)(row[3] * 255.0));
 				int b = ClipChan((int)(row[4] * 255.0));
-				*pPix = gARGB(0xff, r, g, b);			
+				*pPix = gARGB(0xff, r, g, b);
 				if(!m_pCvi->advance())
 					break;
 				pPix++;

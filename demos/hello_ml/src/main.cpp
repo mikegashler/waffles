@@ -42,12 +42,14 @@ void do_decision_tree(GMatrix& features, GMatrix& labels, double* test_features,
 
 void do_neural_network(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GNeuralNet model;
-	model.setTopology(3); // add one hidden layer of 3 nodes
-	model.setLearningRate(0.1);
-	model.setMomentum(0.1);
-	model.train(features, labels);
-	model.predict(test_features, predicted_labels);
+	GNeuralNet* pNN = new GNeuralNet();
+	pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 3));
+	pNN->addLayer(new GNeuralNetLayerClassic(3, FLEXIBLE_SIZE));
+	pNN->setLearningRate(0.1);
+	pNN->setMomentum(0.1);
+	GAutoFilter af(pNN);
+	af.train(features, labels);
+	af.predict(test_features, predicted_labels);
 }
 
 void do_knn(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
@@ -61,7 +63,7 @@ void do_knn(GMatrix& features, GMatrix& labels, double* test_features, double* p
 
 void do_naivebayes(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
-	GNaiveBayes model;
+	GAutoFilter model(new GNaiveBayes());
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);
 }

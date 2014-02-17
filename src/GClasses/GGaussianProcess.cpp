@@ -135,12 +135,13 @@ GGaussianProcess::~GGaussianProcess()
 // static
 void GGaussianProcess::test()
 {
-	GGaussianProcess gp;
-	gp.basicTest(0.693, 0.94);
-	gp.clear();
-	GGaussianProcess gp2;
-	gp2.setKernel(new GKernelGaussianRBF(0.2));
-	gp.basicTest(0.67, 0.95);
+	GAutoFilter af(new GGaussianProcess());
+	af.basicTest(0.693, 0.94);
+	af.clear();
+	GGaussianProcess* pGP = new GGaussianProcess();
+	pGP->setKernel(new GKernelGaussianRBF(0.2));
+	GAutoFilter af2(pGP);
+	af2.basicTest(0.67, 0.93);
 }
 #endif
 
@@ -174,6 +175,10 @@ void GGaussianProcess::clear()
 // virtual
 void GGaussianProcess::trainInner(const GMatrix& features, const GMatrix& labels)
 {
+	if(!features.relation().areContinuous())
+		throw Ex("GGaussianProcess only supports continuous features. Perhaps you should wrap it in a GAutoFilter.");
+	if(!labels.relation().areContinuous())
+		throw Ex("GGaussianProcess only supports continuous labels. Perhaps you should wrap it in a GAutoFilter.");
 	if(features.rows() <= m_maxSamples)
 	{
 		trainInnerInner(features, labels);
@@ -243,7 +248,7 @@ void GGaussianProcess::trainInnerInner(const GMatrix& features, const GMatrix& l
 }
 
 // virtual
-void GGaussianProcess::predictInner(const double* pIn, double* pOut)
+void GGaussianProcess::predict(const double* pIn, double* pOut)
 {
 	if(!m_pBuf)
 		m_pBuf = new GMatrix(1, m_pStoredFeatures->rows());
@@ -259,7 +264,7 @@ void GGaussianProcess::predictInner(const double* pIn, double* pOut)
 }
 
 // virtual
-void GGaussianProcess::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GGaussianProcess::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	if(!m_pBuf)
 		m_pBuf = new GMatrix(2, m_pStoredFeatures->rows());

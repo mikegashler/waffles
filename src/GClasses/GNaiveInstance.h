@@ -42,7 +42,6 @@ class GHeap;
 class GNaiveInstance : public GIncrementalLearner
 {
 protected:
-	size_t m_internalLabelDims, m_internalFeatureDims;
 	size_t m_nNeighbors;
 	GNaiveInstanceAttr** m_pAttrs;
 	double* m_pValueSums;
@@ -84,17 +83,20 @@ public:
 	/// the provided data.
 	void autoTune(GMatrix& features, GMatrix& labels);
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
+	/// Incrementally train with a single instance
+	virtual void trainIncremental(const double* pIn, const double* pOut);
+
 protected:
 	void evalInput(size_t nInputDim, double dInput);
 
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
@@ -104,9 +106,6 @@ protected:
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
-
-	/// Incrementally train with a single instance
-	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 };
 
 } // namespace GClasses

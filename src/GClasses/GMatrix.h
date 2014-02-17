@@ -78,12 +78,12 @@ public:
 	/// attribute. (Returns 0 for continuous attributes.)
 	virtual size_t valueCount(size_t nAttr) const = 0;
 
-	/// \brief Returns true of all of the attributes in the specified
-	/// range are continuous
+	/// \brief Returns true iff all of the attributes in the specified
+	/// range are continuous. The default range is all of them.
 	virtual bool areContinuous(size_t first = 0, size_t count = INVALID_INDEX) const = 0;
 
-	/// \brief Returns true of all of the attributes in the specified
-	/// range are nominal
+	/// \brief Returns true iff all of the attributes in the specified
+	/// range are nominal. The default range is all of them.
 	virtual bool areNominal(size_t first = 0, size_t count = INVALID_INDEX) const = 0;
 
 	/// \brief Makes a deep copy of this relation

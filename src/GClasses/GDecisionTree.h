@@ -117,15 +117,15 @@ public:
 	/// the provided data.
 	void autoTune(GMatrix& features, GMatrix& labels);
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
 	/// Finds the leaf node that corresponds with the specified feature vector
 	GDecisionTreeLeafNode* findLeaf(const double* pIn, size_t* pDepth);
@@ -182,6 +182,12 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
 
@@ -193,12 +199,6 @@ protected:
 
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
@@ -234,15 +234,15 @@ public:
 	/// better meta-data to make the print-out richer.
 	void print(std::ostream& stream, GArffRelation* pFeatureRel = NULL, GArffRelation* pLabelRel = NULL);
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 };
 
 } // namespace GClasses

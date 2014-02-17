@@ -119,6 +119,7 @@ UsageNode* makeCryptoUsageTree()
 	pRoot->add("makegarbage", "Generates a bunch of 2GB files named garb#.tmp full of random garbage. It will keep generating them until you stop the program, or it crashes (perhaps due to the hard drive being full). The purpose of this tool is to fill the available areas of your hard drive so that previously deleted files will be more difficult to recover. When it is done, you can delete all the garb#.tmp files. This might also be useful for wiping a hard drive prior to discarding it.");
 	pRoot->add("nthash [password]", "Computes the NT hash of [password]. (This feature does not yet build on Windows because I used libssl to supply the MD4 algorithm, and I have not yet bothered to find a Windows version of the libssl library. It would not take much effort to get it working on Windows, I just have not done it yet.)");
 	pRoot->add("open [filename]", "A convenient interactive version of decrypt that prompts you to shred the files after you are done with them.");
+	pRoot->add("grep [filename] [needle]", "Decrypt [filename], print every line containing [needle], then shred the decrypted files.");
 	UsageNode* pSatellite = pRoot->add("satellite <options>", "Run a satellite program that periodically phones home to receive directions.");
 	{
 		UsageNode* pOpts = pSatellite->add("<options>");
@@ -1417,19 +1418,19 @@ void open(GArgReader& args)
 #endif
 		cout << "When you are done with the files, please close any programs that\n";
 		cout << "were used to view or edit them, then choose one of these options:\n";
-		cout << "	1) Shred the decrypted files.\n";
-		cout << "	2) Re-encrypt to save any changes, then shred the decrypted files.\n";
-		cout << "	3) Leave the files decrypted.\n";
+		cout << "	q) Quit (Just shred any changes).\n";
+		cout << "	s) Save changes and re-encrypt.\n";
+		//cout << "	l) Leave the files decrypted. (Never choose this option.)\n";
 		cout << "Enter your choice (1,2, or 3)? ";
 		cout.flush();
 		char choice[2];
-		cin.getline(choice,2);
-		if(strcmp(choice, "1") == 0)
+		cin.getline(choice, 2);
+		if(_stricmp(choice, "q") == 0)
 		{
 			shred(basename.c_str());
 			break;
 		}
-		else if(strcmp(choice, "2") == 0)
+		else if(_stricmp(choice, "s") == 0)
 		{
 			// Determine a name to back up the old encrypted file to
 			string backupname = filename;
@@ -1457,10 +1458,33 @@ void open(GArgReader& args)
 				throw Ex("Error deleting the file ", backupname.c_str());
 			break;
 		}
-		else if(strcmp(choice, "3") == 0)
+		else if(_stricmp(choice, "l") == 0)
 			break;
 		cout << "\n\nInvalid choice.\n\n";
 	}
+}
+
+void grep(GArgReader& args)
+{
+	const char* filename = args.pop_string();
+	const char* needle = args.pop_string();
+	char passphrase[MAX_PASSPHRASE_LEN];
+	readInPassphrase(passphrase, MAX_PASSPHRASE_LEN);
+	PassphraseWiper pw(passphrase);
+	string basename;
+	char salt[SALT_LEN];
+	decryptFile(filename, passphrase, salt, &basename);
+	char buf[8192];
+	std::ifstream ifs(basename.c_str());
+	while(true)
+	{
+		ifs.getline(buf, 8192);
+		if(ifs.eof())
+			break;
+		if(strstr(buf, needle))
+			cout << buf << "\n";
+	}
+	shred(basename.c_str());
 }
 
 void ShowUsage()
@@ -1524,6 +1548,7 @@ void doit(GArgReader& args)
 	else if(args.if_pop("makegarbage")) makeGarbage(args);
 	else if(args.if_pop("nthash")) nthash(args);
 	else if(args.if_pop("open")) open(args);
+	else if(args.if_pop("grep")) grep(args);
 	else if(args.if_pop("satellite")) doSatellite(args);
 	else if(args.if_pop("shred")) shred(args);
 	else if(args.if_pop("wget")) wget(args);

@@ -348,7 +348,7 @@ void GKNN::beginIncrementalLearningInner(const GRelation& featureRel, const GRel
 }
 
 // virtual
-void GKNN::trainIncrementalInner(const double* pIn, const double* pOut)
+void GKNN::trainIncremental(const double* pIn, const double* pOut)
 {
 	// Make a copy of the vector
 	GAssert(m_pDistanceMetric);
@@ -656,7 +656,7 @@ void GKNN::interpolateLearner(const double* pIn, GPrediction* pOut, double* pOut
 }
 
 // virtual
-void GKNN::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GKNN::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	findNeighbors(pIn);
 	switch(m_eInterpolationMethod)
@@ -671,7 +671,7 @@ void GKNN::predictDistributionInner(const double* pIn, GPrediction* pOut)
 }
 
 // virtual
-void GKNN::predictInner(const double* pIn, double* pOut)
+void GKNN::predict(const double* pIn, double* pOut)
 {
 	findNeighbors(pIn);
 	switch(m_eInterpolationMethod)
@@ -893,17 +893,17 @@ void GInstanceTable::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	beginIncrementalLearningInner(features.relation(), labels.relation());
 	for(size_t i = 0; i < features.rows(); i++)
-		trainIncrementalInner(features[i], labels[i]);
+		trainIncremental(features[i], labels[i]);
 }
 
 // virtual
-void GInstanceTable::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GInstanceTable::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model cannot predict a distribution");
 }
 
 // virtual
-void GInstanceTable::predictInner(const double* pIn, double* pOut)
+void GInstanceTable::predict(const double* pIn, double* pOut)
 {
 	size_t pos = 0;
 	for(size_t i = 0; i < m_dims; i++)
@@ -941,7 +941,7 @@ void GInstanceTable::beginIncrementalLearningInner(const GRelation& featureRel, 
 }
 
 // virtual
-void GInstanceTable::trainIncrementalInner(const double* pIn, const double* pOut)
+void GInstanceTable::trainIncremental(const double* pIn, const double* pOut)
 {
 	size_t pos = 0;
 	for(size_t i = 0; i < m_dims; i++)
@@ -1051,7 +1051,7 @@ void GSparseInstance::prune(const GMatrix& holdOutFeatures, const GMatrix& holdO
 
 	// Prune the stored instances
 	m_pSkipRows = new GBitTable(m_pInstanceFeatures->rows());
-	double bestErr = sumSquaredErrorInternal(holdOutFeatures, holdOutLabels);
+	double bestErr = sumSquaredError(holdOutFeatures, holdOutLabels);
 	while(elements.size() > 0)
 	{
 		bool improved = false;
@@ -1071,7 +1071,7 @@ void GSparseInstance::prune(const GMatrix& holdOutFeatures, const GMatrix& holdO
 				// Try dropping an element
 				double oldVal = m_pInstanceFeatures->get(it->first, it->second);
 				m_pInstanceFeatures->set(it->first, it->second, UNKNOWN_REAL_VALUE);
-				double candErr = sumSquaredErrorInternal(holdOutFeatures, holdOutLabels);
+				double candErr = sumSquaredError(holdOutFeatures, holdOutLabels);
 				if(candErr <= bestErr)
 				{
 					bestErr = candErr;
@@ -1089,7 +1089,7 @@ void GSparseInstance::prune(const GMatrix& holdOutFeatures, const GMatrix& holdO
 
 					// Try dropping the whole row
 					m_pSkipRows->set(it->first);
-					candErr = sumSquaredErrorInternal(holdOutFeatures, holdOutLabels);
+					candErr = sumSquaredError(holdOutFeatures, holdOutLabels);
 					if(candErr <= bestErr)
 					{
 						bestErr = candErr;
@@ -1126,7 +1126,7 @@ void GSparseInstance::setMetric(GSparseSimilarity* pMetric)
 }
 
 // virtual
-void GSparseInstance::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GSparseInstance::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	throw Ex("Sorry, this learner cannot predict ditributions");
 }
@@ -1141,7 +1141,7 @@ public:
 };
 
 // virtual
-void GSparseInstance::predictInner(const double* pIn, double* pOut)
+void GSparseInstance::predict(const double* pIn, double* pOut)
 {
 	// Make sure we have a metric to use
 	if(!m_pMetric)

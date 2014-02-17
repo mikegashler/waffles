@@ -233,7 +233,7 @@ struct GNaiveBayesOutputAttr
 // --------------------------------------------------------------------
 
 GNaiveBayes::GNaiveBayes()
-: GIncrementalLearner(), m_pInnerRelFeatures(NULL), m_pInnerRelLabels(NULL)
+: GIncrementalLearner()
 {
 	m_pOutputs = NULL;
 	m_equivalentSampleSize = 0.5;
@@ -243,18 +243,16 @@ GNaiveBayes::GNaiveBayes()
 GNaiveBayes::GNaiveBayes(GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalLearner(pNode, ll)
 {
-	m_pInnerRelFeatures = GRelation::deserialize(pNode->field("irf"));
-	m_pInnerRelLabels = GRelation::deserialize(pNode->field("irl"));
 	m_nSampleCount = (size_t)pNode->field("sampleCount")->asInt();
 	m_equivalentSampleSize = pNode->field("ess")->asDouble();
 	GDomNode* pOutputs = pNode->field("outputs");
 	GDomListIterator it(pOutputs);
-	if(it.remaining() != m_pInnerRelLabels->size())
+	if(it.remaining() != m_pRelLabels->size())
 		throw Ex("Wrong number of outputs");
-	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pInnerRelLabels->size()];
-	for(size_t i = 0; i < m_pInnerRelLabels->size(); i++)
+	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pRelLabels->size()];
+	for(size_t i = 0; i < m_pRelLabels->size(); i++)
 	{
-		m_pOutputs[i] = new struct GNaiveBayesOutputAttr(it.current(), m_pInnerRelFeatures->size(), m_pInnerRelLabels->valueCount(i));
+		m_pOutputs[i] = new struct GNaiveBayesOutputAttr(it.current(), m_pRelFeatures->size(), m_pRelLabels->valueCount(i));
 		it.advance();
 	}
 }
@@ -268,12 +266,10 @@ GNaiveBayes::~GNaiveBayes()
 GDomNode* GNaiveBayes::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNaiveBayes");
-	pNode->addField(pDoc, "irf", m_pInnerRelFeatures->serialize(pDoc));
-	pNode->addField(pDoc, "irl", m_pInnerRelLabels->serialize(pDoc));
 	pNode->addField(pDoc, "sampleCount", pDoc->newInt(m_nSampleCount));
 	pNode->addField(pDoc, "ess", pDoc->newDouble(m_equivalentSampleSize));
 	GDomNode* pOutputs = pNode->addField(pDoc, "outputs", pDoc->newList());
-	for(size_t i = 0; i < m_pInnerRelLabels->size(); i++)
+	for(size_t i = 0; i < m_pRelLabels->size(); i++)
 		pOutputs->addItem(pDoc, m_pOutputs[i]->serialize(pDoc));
 	return pNode;
 }
@@ -284,32 +280,26 @@ void GNaiveBayes::clear()
 	m_nSampleCount = 0;
 	if(m_pOutputs)
 	{
-		for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
+		for(size_t n = 0; n < m_pRelLabels->size(); n++)
 			delete(m_pOutputs[n]);
 		delete[] m_pOutputs;
 	}
 	m_pOutputs = NULL;
-	delete(m_pInnerRelFeatures);
-	m_pInnerRelFeatures = NULL;
-	delete(m_pInnerRelLabels);
-	m_pInnerRelLabels = NULL;
 }
 
 // virtual
 void GNaiveBayes::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
 {
 	clear();
-	m_pInnerRelFeatures = featureRel.clone();
-	m_pInnerRelLabels = labelRel.clone();
-	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pInnerRelLabels->size()];
-	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
-		m_pOutputs[n] = new struct GNaiveBayesOutputAttr(m_pInnerRelFeatures, m_pInnerRelFeatures->size(), m_pInnerRelLabels->valueCount(n));
+	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_pRelLabels->size()];
+	for(size_t n = 0; n < m_pRelLabels->size(); n++)
+		m_pOutputs[n] = new struct GNaiveBayesOutputAttr(m_pRelFeatures, m_pRelFeatures->size(), m_pRelLabels->valueCount(n));
 }
 
 // virtual
-void GNaiveBayes::trainIncrementalInner(const double* pIn, const double* pOut)
+void GNaiveBayes::trainIncremental(const double* pIn, const double* pOut)
 {
-	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
+	for(size_t n = 0; n < m_pRelLabels->size(); n++)
 		m_pOutputs[n]->AddTrainingSample(pIn, (int)pOut[n]);
 	m_nSampleCount++;
 }
@@ -317,9 +307,13 @@ void GNaiveBayes::trainIncrementalInner(const double* pIn, const double* pOut)
 // virtual
 void GNaiveBayes::trainInner(const GMatrix& features, const GMatrix& labels)
 {
+	if(!features.relation().areNominal())
+		throw Ex("GNaiveBayes only supports nominal features. Perhaps you should wrap it in a GAutoFilter.");
+	if(!labels.relation().areNominal())
+		throw Ex("GNaiveBayes only supports nominal labels. Perhaps you should wrap it in a GAutoFilter.");
 	beginIncrementalLearningInner(features.relation(), labels.relation());
 	for(size_t n = 0; n < features.rows(); n++)
-		trainIncrementalInner(features[n], labels[n]);
+		trainIncremental(features[n], labels[n]);
 }
 
 // virtual
@@ -348,19 +342,19 @@ void GNaiveBayes::trainSparse(GSparseMatrix& features, GMatrix& labels)
 	}
 }
 
-void GNaiveBayes::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GNaiveBayes::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	if(m_nSampleCount <= 0)
 		throw Ex("You must call train before you call eval");
-	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
+	for(size_t n = 0; n < m_pRelLabels->size(); n++)
 		m_pOutputs[n]->eval(pIn, &pOut[n], m_equivalentSampleSize);
 }
 
-void GNaiveBayes::predictInner(const double* pIn, double* pOut)
+void GNaiveBayes::predict(const double* pIn, double* pOut)
 {
 	if(m_nSampleCount <= 0)
 		throw Ex("You must call train before you call eval");
-	for(size_t n = 0; n < m_pInnerRelLabels->size(); n++)
+	for(size_t n = 0; n < m_pRelLabels->size(); n++)
 		pOut[n] = m_pOutputs[n]->predict(pIn, m_equivalentSampleSize, &m_rand);
 }
 
@@ -457,8 +451,8 @@ void GNaiveBayes_testMath()
 void GNaiveBayes::test()
 {
 	GNaiveBayes_testMath();
-	GNaiveBayes nb;
-	nb.basicTest(0.77, 0.94);
+	GAutoFilter af(new GNaiveBayes());
+	af.basicTest(0.77, 0.94);
 }
 #endif // !NO_TEST_CODE
 

@@ -436,7 +436,7 @@ void randomWalk(GArgReader& args)
 				if(++safety > 100)
 					throw Ex("Failed to find a legal action in 100 attempts");
 			}
-			
+
 			// Perturb
 			if(perturb > 0.0)
 			{
@@ -2651,7 +2651,7 @@ void model(GArgReader& args)
 		throw Ex("Model not specified");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 
 	// Load the data
@@ -2781,7 +2781,7 @@ void rayTraceManifoldModel(GArgReader& args)
 		throw Ex("Model not specified");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	GSupervisedLearner* pModeler = ll.loadSupervisedLearner(doc.root());
+	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	if(pModeler->relFeatures().size() != 2 || pModeler->relLabels().size() != 3)
 		throw Ex("The model has ", to_str(pModeler->relFeatures().size()), " inputs and ", to_str(pModeler->relLabels().size()), " outputs. 2 real inputs and 3 real outputs are expected");

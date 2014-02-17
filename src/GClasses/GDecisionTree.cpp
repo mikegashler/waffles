@@ -945,7 +945,7 @@ GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth
 }
 
 // virtual
-void GDecisionTree::predictInner(const double* pIn, double* pOut)
+void GDecisionTree::predict(const double* pIn, double* pOut)
 {
 	size_t depth;
 	GDecisionTreeLeafNode* pLeaf = findLeaf(pIn, &depth);
@@ -953,7 +953,7 @@ void GDecisionTree::predictInner(const double* pIn, double* pOut)
 }
 
 // virtual
-void GDecisionTree::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GDecisionTree::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	// Copy the output values into the row
 	size_t depth;
@@ -1192,6 +1192,10 @@ GDomNode* GMeanMarginsTree::serialize(GDom* pDoc) const
 // virtual
 void GMeanMarginsTree::trainInner(const GMatrix& features, const GMatrix& labels)
 {
+	if(!features.relation().areContinuous())
+		throw Ex("GMeanMarginsTree only supports continuous features. Perhaps you should wrap it in a GAutoFilter.");
+	if(!labels.relation().areContinuous())
+		throw Ex("GMeanMarginsTree only supports continuous labels. Perhaps you should wrap it in a GAutoFilter.");
 	clear();
 	m_internalFeatureDims = features.cols();
 	m_internalLabelDims = labels.cols();
@@ -1323,13 +1327,13 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 }
 
 // virtual
-void GMeanMarginsTree::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GMeanMarginsTree::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model cannot predict a distribution");
 }
 
 // virtual
-void GMeanMarginsTree::predictInner(const double* pIn, double* pOut)
+void GMeanMarginsTree::predict(const double* pIn, double* pOut)
 {
 	GMeanMarginsTreeNode* pNode = m_pRoot;
 	size_t nDepth = 1;
@@ -1357,8 +1361,8 @@ void GMeanMarginsTree::clear()
 // static
 void GMeanMarginsTree::test()
 {
-	GMeanMarginsTree mm;
-	mm.basicTest(0.70, 0.9);
+	GAutoFilter af(new GMeanMarginsTree());
+	af.basicTest(0.70, 0.9);
 }
 #endif
 
@@ -1427,13 +1431,13 @@ void GRandomForest::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GRandomForest::predictInner(const double* pIn, double* pOut)
+void GRandomForest::predict(const double* pIn, double* pOut)
 {
 	m_pEnsemble->predict(pIn, pOut);
 }
 
 // virtual
-void GRandomForest::predictDistributionInner(const double* pIn, GPrediction* pOut)
+void GRandomForest::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	m_pEnsemble->predictDistribution(pIn, pOut);
 }

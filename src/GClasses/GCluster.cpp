@@ -26,7 +26,6 @@
 #include "GVec.h"
 #include <math.h>
 #include <stdlib.h>
-#include "GNeuralNet.h"
 #include "GHillClimber.h"
 #include "GBitTable.h"
 #include "GSparseMatrix.h"

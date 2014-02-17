@@ -27,7 +27,6 @@
 namespace GClasses {
 
 class GDistanceMetric;
-class GNeuralNet;
 class GSparseSimilarity;
 
 /// The base class for clustering algorithms. Classes that inherit from this

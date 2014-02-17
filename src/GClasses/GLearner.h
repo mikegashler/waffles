@@ -24,9 +24,6 @@
 
 namespace GClasses {
 
-class GNeuralNet;
-
-
 class GDom;
 class GDomNode;
 class GDistribution;
@@ -152,12 +149,6 @@ public:
 	/// This might be important, for example, in an ensemble of learners.
 	GRand& rand() { return m_rand; }
 
-protected:
-#ifndef MIN_PREDICT
-	/// This is the algorithm's implementation of transduction. (It is called by the transduce method.)
-	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2) = 0;
-#endif // MIN_PREDICT
-
 	/// Returns true iff this algorithm can implicitly handle nominal features. If it
 	/// cannot, then the GNominalToCat transform will be used to convert nominal
 	/// features to continuous values before passing them to it.
@@ -194,6 +185,12 @@ protected:
 	/// implicitly handle continuous labels. If a limited range of continuous values is
 	/// supported, returns false and sets pOutMin and pOutMax to specify the range.
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) { return true; }
+
+protected:
+#ifndef MIN_PREDICT
+	/// This is the algorithm's implementation of transduction. (It is called by the transduce method.)
+	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2) = 0;
+#endif // MIN_PREDICT
 };
 
 
@@ -203,11 +200,8 @@ protected:
 class GSupervisedLearner : public GTransducer
 {
 protected:
-	GIncrementalTransform* m_pFilterFeatures;
-	GIncrementalTransform* m_pFilterLabels;
 	GRelation* m_pRelFeatures;
 	GRelation* m_pRelLabels;
-	GNeuralNet** m_pCalibrations;
 
 public:
 	/// General-purpose constructor.
@@ -230,44 +224,18 @@ public:
 	virtual bool canGeneralize() { return true; }
 
 	/// Returns a reference to the feature relation (meta-data about the input attributes).
-	/// (Note that this relation describes outer data, and may contain types that are not
-	/// supported by the inner algorithm.)
 	const GRelation& relFeatures() { return *m_pRelFeatures; }
 
 	/// Returns a reference to the label relation (meta-data about the output attributes).
-	/// (Note that this relation describes outer data, and may contain types that are not
-	/// supported by the inner algorithm.)
 	const GRelation& relLabels() { return *m_pRelLabels; }
-
-	/// Returns the current feature filter (or NULL if none has been set).
-	GIncrementalTransform* featureFilter() { return m_pFilterFeatures; }
-
-	/// Returns the current label filter (or NULL if none has been set).
-	GIncrementalTransform* labelFilter() { return m_pFilterLabels; }
-
-	/// Clears the filter for features.
-	virtual void clearFeatureFilter();
-
-	/// Wrap whatever feature filter is currently set with the specified filter.
-	/// Takes ownership of the filter.
-	void wrapFeatures(GIncrementalTransform* pFilter);
-
-	/// Clears the filter for labels.
-	virtual void clearLabelFilter();
 
 	/// Returns false
 	virtual bool isFilter() { return false; }
 
 #ifndef MIN_PREDICT
-	/// Wrap whatever label filter is currently set with the specified filter.
-	/// Takes ownership of the filter.
-	void wrapLabels(GIncrementalTransform* pFilter);
-
-	/// Call this method to train the model. It automatically determines which
-	/// filters are needed to convert the training features and labels into
-	/// a form that the model's training algorithm can handle, and then calls
-	/// trainInner to do the actual training.
+	/// Call this method to train the model.
 	void train(const GMatrix& features, const GMatrix& labels);
+
 #endif // MIN_PREDICT
 
 	/// Evaluate pIn to compute a prediction for pOut. The model must be trained
@@ -275,32 +243,15 @@ public:
 	/// pIn and pOut should point to arrays of doubles of the same size as the
 	/// number of columns in the training matrices that were passed to the train
 	/// method.
-	void predict(const double* pIn, double* pOut);
+	virtual void predict(const double* pIn, double* pOut) = 0;
 
 #ifndef MIN_PREDICT
-	/// Calibrate the model to make predicted distributions reflect the training
-	/// data. This method should be called after train is called, but before
-	/// the first time predictDistribution is called. Typically, the same matrices
-	/// passed as parameters to the train method are also passed as parameters
-	/// to this method. By default, the mean of
-	/// continuous labels is predicted as accurately as possible, but the variance
-	/// only reflects a heuristic measure of confidence. If calibrate is called, however,
-	/// then logistic regression will be used to map from the heuristic variance estimates
-	/// to the actual variance as measured in the training data, such that the
-	/// predicted variance becomes more reliable. Likewise with categorical
-	/// labels, the mode is predicted as accurately as possible, but the
-	/// distribution of probability among the categories may not be a very good
-	/// prediction of the actual distribution of probability unless this method
-	/// has been called to calibrate them. If you never plan to call predictDistribution,
-	/// there is no reason to ever call this method.
-	void calibrate(GMatrix& features, GMatrix& labels);
-
 	/// Evaluate pIn and compute a prediction for pOut. pOut is expected
 	/// to point to an array of GPrediction objects which have already been
 	/// allocated. There should be labelDims() elements in this array.
 	/// The distributions will be more accurate if the model is calibrated
 	/// before the first time that this method is called.
-	void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut) = 0;
 #endif // MIN_PREDICT
 
 	/// Discards all training for the purpose of freeing memory.
@@ -346,13 +297,7 @@ protected:
 	/// This is the implementation of the model's training algorithm. (This method is called by train).
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels) = 0;
 
-	/// This is the implementation of the model's prediction algorithm. (This method is called by predict).
-	virtual void predictInner(const double* pIn, double* pOut) = 0;
-
 #ifndef MIN_PREDICT
-	/// This is the implementation of the model's prediction algorithm. (This method is called by predictDistribution).
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut) = 0;
-
 	/// See GTransducer::transduce
 	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 #endif // MIN_PREDICT
@@ -371,10 +316,6 @@ protected:
 	/// Child classes should use this in their implementation of serialize
 	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
 #endif // MIN_PREDICT
-
-protected:
-	/// Used to measure SSE with data that has already been converted to the internal format.
-	double sumSquaredErrorInternal(const GMatrix& features, const GMatrix& labels);
 };
 
 ///\brief Converts a GSupervisedLearner to a string
@@ -413,15 +354,11 @@ public:
 	virtual bool canTrainIncrementally() { return true; }
 
 	/// You must call this method before you call trainIncremental.
-	/// Unlike "train", this method does not automatically set up any filters (even
-	/// if you have automatic filter setup enabled). Rather,
-	/// it assumes that you have already set up any filters that you wish to use.
-	/// Behavior is undefined if you change the filters after this method is called.
 	void beginIncrementalLearning(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// Pass a single input row and the corresponding label to
 	/// incrementally train this model
-	void trainIncremental(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
 
 #ifndef MIN_PREDICT
 	/// Train using a sparse feature matrix. (A Typical implementation of this
@@ -435,9 +372,6 @@ public:
 protected:
 	/// Prepare the model for incremental learning.
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel) = 0;
-
-	/// Refine the model with the specified pattern.
-	virtual void trainIncrementalInner(const double* pIn, const double* pOut) = 0;
 };
 
 
@@ -471,11 +405,8 @@ public:
 	/// Loads an incremental transform (or a two-way incremental transform) from a DOM.
 	virtual GIncrementalTransform* loadIncrementalTransform(GDomNode* pNode);
 
-	/// Loads a supervised learning algorithm (or an incremental learner) from a DOM.
-	virtual GSupervisedLearner* loadSupervisedLearner(GDomNode* pNode);
-
-	/// Loads an incremental learner from a DOM.
-	virtual GIncrementalLearner* loadIncrementalLearner(GDomNode* pNode);
+	/// Loads a learning algorithm from a DOM.
+	virtual GSupervisedLearner* loadLearner(GDomNode* pNode);
 
 #ifndef MIN_PREDICT
 	/// Loads a collaborative filtering algorithm from a DOM.
@@ -499,17 +430,18 @@ protected:
 
 	virtual ~GFilter();
 
-	/// See the comment for GSupervisedLearner::clear
-	virtual void clear();
-
-	/// Returns true
-	virtual bool isFilter() { return true; }
-
 	/// Releases the learner that this filter wraps
 	virtual GSupervisedLearner* releaseLearner();
 
 	/// Helper function for serialization
 	GDomNode* domNode(GDom* pDoc, const char* szClassName) const;
+
+public:
+	/// See the comment for GSupervisedLearner::clear
+	virtual void clear();
+
+	/// Returns true
+	virtual bool isFilter() { return true; }
 
 #ifndef MIN_PREDICT
 	/// Throws an exception
@@ -525,7 +457,6 @@ protected:
 
 public:
 	/// This takes ownership of pLearner and pTransform.
-	/// (If you wish to transform both inputs and outputs, you can wrap a filter in a filter.)
 	GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform);
 
 	/// Deserialization constructor
@@ -537,21 +468,21 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
+	/// See the comment for GSupervisedLearner::predictInner
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistributionInner
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GIncrementalLearner::trainIncremental
+	virtual void trainIncremental(const double* pIn, const double* pOut);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
-
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
-
-	/// See the comment for GIncrementalLearner::trainIncrementalInner
-	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 };
 
 
@@ -563,7 +494,6 @@ protected:
 
 public:
 	/// This takes ownership of pLearner and pTransform.
-	/// (If you wish to transform both inputs and outputs, you can wrap a filter in a filter.)
 	GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform);
 
 	/// Deserialization constructor
@@ -575,21 +505,100 @@ public:
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GIncrementalLearner::trainIncremental
+	virtual void trainIncremental(const double* pIn, const double* pOut);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+};
 
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+
+
+
+class GAutoFilter : public GFilter
+{
+public:
+	/// This takes ownership of pLearner.
+	GAutoFilter(GSupervisedLearner* pLearner);
+
+	/// Deserialization constructor
+	GAutoFilter(GDomNode* pNode, GLearnerLoader& ll);
+
+	/// Deletes the supervised learner and the transform
+	virtual ~GAutoFilter();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GIncrementalLearner::trainIncremental
+	virtual void trainIncremental(const double* pIn, const double* pOut);
+
+protected:
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
-	/// See the comment for GIncrementalLearner::trainIncrementalInner
-	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
+	void whatTypesAreNeeded(const GRelation& featureRel, const GRelation& labelRel, bool& hasNominalFeatures, bool& hasContinuousFeatures, bool& hasNominalLabels, bool& hasContinuousLabels);
+	void setupDataDependentFilters(GSupervisedLearner* pLearner, const GMatrix& features, const GMatrix& labels, bool hasNominalFeatures, bool hasContinuousFeatures, bool hasNominalLabels, bool hasContinuousLabels);
+	void setupBasicFilters(GSupervisedLearner* pLearner, bool hasNominalFeatures, bool hasContinuousFeatures, bool hasNominalLabels, bool hasContinuousLabels);
+	void resetFilters(const GMatrix& features, const GMatrix& labels);
+	void resetFilters(const GRelation& features, const GRelation& labels);
+};
+
+
+
+
+class GCalibrator : public GFilter
+{
+protected:
+	GNeuralNet** m_pCalibrations;
+
+public:
+	/// This takes ownership of pLearner.
+	GCalibrator(GSupervisedLearner* pLearner);
+
+	/// Deserialization constructor
+	GCalibrator(GDomNode* pNode, GLearnerLoader& ll);
+
+	/// Deletes the supervised learner and the transform
+	virtual ~GCalibrator();
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GIncrementalLearner::trainIncremental
+	virtual void trainIncremental(const double* pIn, const double* pOut);
+
+protected:
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 };
 
 
@@ -625,15 +634,15 @@ public:
 	/// This model has no parameters to tune, so this method is a noop.
 	void autoTune(GMatrix& features, GMatrix& labels);
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 };
 
 
@@ -662,15 +671,15 @@ public:
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 };
 
 

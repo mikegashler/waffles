@@ -770,24 +770,15 @@ public:
 	/// Also, note that descendGradientSingleOutput depends on the input features, so be sure not to update them until after you call descendGradientSingleOutput.)
 	void gradientOfInputsSingleOutput(size_t outputNeuron, double* pOutGradient);
 
-protected:
-#ifndef MIN_PREDICT
-	/// A helper method used by serialize.
-	GDomNode* serializeInner(GDom* pDoc, const char* szClassName) const;
-#endif // MIN_PREDICT
+	/// See the comment for GIncrementalLearner::trainIncremental
+	virtual void trainIncremental(const double* pIn, const double* pOut);
 
-	/// Measures the sum squared error against the specified dataset
-	double validationSquaredError(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
 
 #ifndef MIN_PREDICT
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 #endif // MIN_PREDICT
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
@@ -805,11 +796,15 @@ protected:
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
 
+protected:
+	/// Measures the sum squared error against the specified dataset
+	double validationSquaredError(const GMatrix& features, const GMatrix& labels);
+
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
+
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
-
-	/// See the comment for GIncrementalLearner::trainIncrementalInner
-	virtual void trainIncrementalInner(const double* pIn, const double* pOut);
 };
 
 
@@ -865,9 +860,11 @@ public:
 /// This model uses a randomely-initialized network to map the inputs into
 /// a higher-dimensional space, and it uses a layer of perceptrons to learn
 /// in this augmented space.
-class GReservoirNet : public GNeuralNet
+class GReservoirNet : public GIncrementalLearner
 {
 protected:
+	GIncrementalLearner* m_pModel;
+	GNeuralNet* m_pNN;
 	double m_weightDeviation;
 	size_t m_augments;
 	size_t m_reservoirLayers;
@@ -897,10 +894,44 @@ public:
 #ifndef MIN_PREDICT
 	/// Marshall this object to a DOM
 	virtual GDomNode* serialize(GDom* pDoc) const;
-
-	/// See the comment for GSupervisedLearner::clearFeatureFilter.
-	virtual void clearFeatureFilter();
 #endif // MIN_PREDICT
+
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
+	/// See the comment for GSupervisedLearner::clear
+	virtual void clear();
+
+	/// See the comment for GSupervisedLearner::trainInner
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
+
+	/// See the comment for GIncrementalLearner::trainIncremental
+	virtual void trainIncremental(const double* pIn, const double* pOut);
+
+	/// See the comment for GIncrementalLearner::trainSparse
+	/// Assumes all attributes are continuous.
+	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+
+	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
+	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
+
+	/// See the comment for GTransducer::supportedFeatureRange
+	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax);
+
+	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
+	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
+
+	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
+	virtual bool canImplicitlyHandleNominalLabels() { return false; }
+
+	/// See the comment for GTransducer::supportedFeatureRange
+	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
 };
 
 

@@ -719,12 +719,8 @@ void GPairProduct::transform(const double* pIn, double* pOut)
 // --------------------------------------------------------------------------
 
 GReservoir::GReservoir(double weightDeviation, size_t outputs, size_t hiddenLayers)
-: GIncrementalTransform(), m_outputs(outputs), m_deviation(weightDeviation)
+: GIncrementalTransform(), m_pNN(NULL), m_outputs(outputs), m_deviation(weightDeviation), m_hiddenLayers(hiddenLayers)
 {
-	m_pNN = new GNeuralNet();
-	for(size_t i = 0; i < hiddenLayers; i++)
-		m_pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, outputs));
-	m_pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 }
 
 GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
@@ -732,6 +728,7 @@ GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
 	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
 	m_outputs = m_pNN->relLabels().size();
 	m_deviation = pNode->field("dev")->asDouble();
+	m_hiddenLayers = pNode->field("hl")->asInt();
 }
 
 // virtual
@@ -747,6 +744,7 @@ GDomNode* GReservoir::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GReservoir");
 	pNode->addField(pDoc, "nn", m_pNN->serialize(pDoc));
 	pNode->addField(pDoc, "dev", pDoc->newDouble(m_deviation));
+	pNode->addField(pDoc, "hl", pDoc->newInt(m_hiddenLayers));
 	return pNode;
 }
 #endif // MIN_PREDICT
@@ -761,14 +759,17 @@ GRelation* GReservoir::trainInner(const GMatrix& data)
 // virtual
 GRelation* GReservoir::trainInner(const GRelation& relation)
 {
+	delete(m_pNN);
+	GNeuralNet* pNN = new GNeuralNet();
+	for(size_t i = 0; i < m_hiddenLayers; i++)
+		pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, m_outputs));
+	pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	GUniformRelation* pRel = new GUniformRelation(m_outputs);
+	m_pNN = pNN;
 	if(!relation.areContinuous())
-	{
-		m_pNN->clearFeatureFilter();
-		m_pNN->wrapFeatures(new GNominalToCat());
-	}
+		m_pNN = new GFeatureFilter(m_pNN, new GNominalToCat());
 	m_pNN->beginIncrementalLearning(relation, *pRel);
-	m_pNN->perturbAllWeights(m_deviation);
+	pNN->perturbAllWeights(m_deviation);
 	return pRel;
 }
 

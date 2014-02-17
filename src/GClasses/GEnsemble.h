@@ -101,6 +101,12 @@ public:
 	/// and GBayesianModelCombination all implement multi-threaded training.
 	void setWorkerThreads(size_t count) { m_workerThreads = count; }
 
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+
 protected:
 	/// Base classes should call this method to serialize the base object
 	/// as part of their implementation of the serialize method.
@@ -114,12 +120,6 @@ protected:
 
 	/// Implement this method to train the ensemble.
 	virtual void trainInnerInner(const GMatrix& features, const GMatrix& labels) = 0;
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 
 	/// Scales the weights of all the models so they sum to 1.0.
 	void normalizeWeights();
@@ -397,11 +397,11 @@ protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
 
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 
 	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
@@ -452,20 +452,15 @@ public:
 	/// you haven't trained yet.
 	GSupervisedLearner* releaseBestModeler();
 
-	/// If one of the algorithms throws during training,
-	/// it will catch it and call this no-op method. Overload
-	/// this method if you don't want to ignore exceptions.
-	virtual void onError(std::exception& e);
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const double* pIn, double* pOut);
+
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predictInner
-	virtual void predictInner(const double* pIn, double* pOut);
-
-	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistributionInner(const double* pIn, GPrediction* pOut);
 };
 
 
