@@ -1611,16 +1611,19 @@ void GNeuralNet::bleedWeights(double alpha)
 			// Compute scaling factors
 			double t1 = sqrt(sswDownStream);
 			double t2 = sqrt(sswUpStream);
-			double t3 = 4.0 * t1 * t2 * alpha;
-			double t4 = sswUpStream + sswDownStream;
-			double beta = (-t3 + sqrt(t3 * t3 - 4.0 * t4 * t4 * (alpha * alpha - 1.0))) / (2.0 * t4);
-			double facDS = (beta * t1 + alpha * t2) / t1;
-			double facUS = (beta * t2 + alpha * t1) / t2;
+			if(t1 > 1e-10 && t2 > 1e-10) // if we have enough precision to do something meaningful
+			{
+				double t3 = 4.0 * t1 * t2 * alpha;
+				double t4 = sswUpStream + sswDownStream;
+				double beta = (-t3 + sqrt(t3 * t3 - 4.0 * t4 * t4 * (alpha * alpha - 1.0))) / (2.0 * t4);
+				double facDS = (beta * t1 + alpha * t2) / t1;
+				double facUS = (beta * t2 + alpha * t1) / t2;
 
-			// Scale the weights in both layers
-			GVec::multiply(dsW[j], facDS, dsOutputs);
-			for(size_t k = 0; k < usInputs; k++)
-				usW[k][j] *= facUS;
+				// Scale the weights in both layers
+				GVec::multiply(dsW[j], facDS, dsOutputs);
+				for(size_t k = 0; k < usInputs; k++)
+					usW[k][j] *= facUS;
+			}
 		}
 	}
 }
