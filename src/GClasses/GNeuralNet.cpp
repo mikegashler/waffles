@@ -257,7 +257,7 @@ void GNeuralNetLayerClassic::resetWeights(GRand& rand)
 	for(size_t i = 0; i < inputCount; i++)
 	{
 		double* pW = m_weights[i];
-		for(size_t j = 0; j < inputCount; j++)
+		for(size_t j = 0; j < outputCount; j++)
 			*(pW++) = rand.normal() * mag;
 	}
 	m_delta.setAll(0.0);

@@ -1543,7 +1543,7 @@ void GDiscretize::untransformToDistribution(const double* pIn, GPrediction* pOut
 	{
 		size_t nValues = before().valueCount(i);
 		if(nValues > 0)
-			pOut[i].makeCategorical()->setSpike(nValues, (size_t)pIn[i], 0);
+			pOut[i].makeCategorical()->setSpike(nValues, (size_t)pIn[i], 1);
 		else
 			pOut[i].makeNormal()->setMeanAndVariance((((double)pIn[i] + .5) * m_pRanges[i]) / m_bucketsOut + m_pMins[i], m_pRanges[i] * m_pRanges[i]);
 	}
