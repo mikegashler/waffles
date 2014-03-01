@@ -50,6 +50,9 @@ public:
 	/// Returns the type of this layer
 	virtual const char* type() = 0;
 
+	/// Returns true iff this layer does its computations in parallel on a GPU.
+	virtual bool usesGPU() { return false; }
+
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
@@ -72,8 +75,25 @@ public:
 	/// Returns a buffer where the error terms for each unit are stored.
 	virtual double* error() = 0;
 
-	/// Feeds pIn through this layer to compute the activation.
-	virtual void feedForward(const double* pIn) = 0;
+	/// Copies the bias vector into the net vector.
+	virtual void copyBiasToNet() = 0;
+
+	/// Feeds a portion of the inputs through the weights and updates the net.
+	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount) = 0;
+
+	/// Feeds the previous layer's activation into this layer. (Implementations
+	/// for specialized hardware may override this method to avoid shuttling the previous
+	/// layer's activation back to host memory.)
+	virtual void feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+	{
+		feedIn(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs());
+	}
+
+	/// Applies the activation function to the net vector to compute the activation vector.
+	virtual void activate() = 0;
+
+	/// Feeds in the bias and pIn, then computes the activation of this layer.
+	void feedForward(const double* pIn);
 
 	/// Computes the error term of the activation.
 	virtual void computeError(const double* pTarget) = 0;
@@ -82,10 +102,18 @@ public:
 	virtual void deactivateError() = 0;
 
 	/// Computes the activation error of the layer that feeds into this one.
-	virtual void backPropError(double* pUpStreamError) = 0;
+	/// inputStart is used if multiple layers feed into this one. It specifies
+	/// the starting index of all the inputs where this layer feeds in.
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0) = 0;
 
 	/// Refines the weights by gradient descent.
 	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum) = 0;
+
+	/// Refines the weights by gradient descent.
+	virtual void adjustWeights(GNeuralNetLayer* pUpStreamLayer, double learningRate, double momentum)
+	{
+		adjustWeights(pUpStreamLayer->activation(), learningRate, momentum);
+	}
 
 	/// Multiplies all the weights by the specified factor.
 	virtual void scaleWeights(double factor) = 0;
@@ -161,8 +189,14 @@ public:
 	/// Returns a buffer used to store error terms for each unit in this layer.
 	virtual double* error() { return m_bias[3]; }
 
-	/// Feed a vector forward through this layer. The results are placed in activation();
-	virtual void feedForward(const double* pIn);
+	/// Copies the bias vector into the net vector.
+	virtual void copyBiasToNet();
+
+	/// Feeds a portion of the inputs through the weights and updates the net.
+	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
+
+	/// Applies the activation function to the net vector to compute the activation vector.
+	virtual void activate();
 
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
@@ -173,10 +207,10 @@ public:
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	virtual void deactivateError();
 
-	/// Backpropagates the error from this layer into the upstream error vector.
+	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(double* pUpStreamError);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
 	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
 	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum);
@@ -275,121 +309,6 @@ public:
 
 
 
-class GNeuralNetLayerAlt : public GNeuralNetLayer
-{
-protected:
-	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
-	GMatrix m_delta; // Used to implement momentum
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack.
-	GActivationFunction** m_activationFunctions;
-	std::vector<GActivationFunction*> m_activationFunctionCache;
-
-public:
-	/// General-purpose constructor. Takes ownership of pActivationFunction.
-	GNeuralNetLayerAlt(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
-	GNeuralNetLayerAlt(GDomNode* pNode);
-	~GNeuralNetLayerAlt();
-
-	/// Returns the type of this layer
-	virtual const char* type() { return "alt"; }
-
-	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
-
-	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_weights.cols(); }
-
-	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const { return m_weights.rows(); }
-
-	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
-	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
-
-	/// Returns the activation values from the most recent call to feedForward().
-	virtual double* activation() { return m_bias[2]; }
-
-	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual double* error() { return m_bias[3]; }
-
-	/// Feed a vector forward through this layer. The results are placed in activation();
-	virtual void feedForward(const double* pIn);
-
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const double* pTarget);
-
-	/// Multiplies each element in the error vector by the derivative of the activation function.
-	/// This results in the error having meaning with respect to the weights, instead of the output.
-	virtual void deactivateError();
-
-	/// Backpropagates the error from this layer into the upstream error vector.
-	/// (Assumes that the error in this layer has already been deactivated.
-	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(double* pUpStreamError);
-
-	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
-	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum);
-
-	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor);
-
-	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount);
-
-	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
-
-	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
-
-	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
-
-	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
-
-	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
-
-	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
-	/// start specifies the first unit whose incoming weights are perturbed.
-	/// count specifies the maximum number of units whose incoming weights are perturbed.
-	/// The default values for these parameters apply the perturbation to all units.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
-
-	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
-	virtual void clipWeights(double max);
-
-	/// Returns a reference to the weights matrix of this layer
-	GMatrix& weights() { return m_weights; }
-
-	/// Returns the bias vector of this layer.
-	double* bias() { return m_bias[0]; }
-
-	/// Returns the bias vector of this layer.
-	const double* bias() const { return m_bias[0]; }
-
-	/// Returns the net vector (that is, the values computed before the activation function was applied)
-	/// from the most recent call to feedForward().
-	double* net() { return m_bias[1]; }
-
-	/// Returns a buffer used to store delta values for each bias in this layer.
-	double* biasDelta() { return m_bias[4]; }
-
-	/// Returns a vector used to specify slack terms for each unit in this layer.
-	double* slack() { return m_bias[5]; }
-
-	/// Returns a pointer to an array of pointers to the activation functions used in this layer
-	GActivationFunction** activationFunctions() { return m_activationFunctions; }
-
-	/// Takes ownership of pActivation function. Sets all of the units in the specified range to use the given activation function.
-	void setActivationFunction(GActivationFunction* pActivationFunction, size_t first = 0, size_t count = INVALID_INDEX);
-};
-
-
-
 class GNeuralNetLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
 {
 protected:
@@ -426,8 +345,14 @@ public:
 	/// Returns a buffer used to store error terms for each unit in this layer.
 	virtual double* error() { return m_bias[3]; }
 
-	/// Feed a vector from the visible end to the hidden end. The results are placed in activation();
-	virtual void feedForward(const double* pIn);
+	/// Copies the bias vector into the net vector.
+	virtual void copyBiasToNet();
+
+	/// Feeds a portion of the inputs through the weights and updates the net.
+	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
+
+	/// Applies the activation function to the net vector to compute the activation vector.
+	virtual void activate();
 
 	/// Feed a vector from the hidden end to the visible end. The results are placed in activationReverse();
 	virtual void feedBackward(const double* pIn);
@@ -441,10 +366,10 @@ public:
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	virtual void deactivateError();
 
-	/// Backpropagates the error from this layer into the upstream error vector.
+	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(double* pUpStreamError);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
 	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
 	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum);

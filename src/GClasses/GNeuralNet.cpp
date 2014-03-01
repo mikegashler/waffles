@@ -56,8 +56,6 @@ GNeuralNetLayer* GNeuralNetLayer::deserialize(GDomNode* pNode)
 	const char* szType = pNode->field("type")->asString();
 	if(strcmp(szType, "classic") == 0)
 		return new GNeuralNetLayerClassic(pNode);
-	if(strcmp(szType, "alt") == 0)
-		return new GNeuralNetLayerAlt(pNode);
 	if(strcmp(szType, "rbm") == 0)
 		return new GNeuralNetLayerRestrictedBoltzmannMachine(pNode);
 	else
@@ -74,6 +72,13 @@ GMatrix* GNeuralNetLayer::feedThrough(GMatrix& data)
 		GVec::copy(pResults->newRow(), activation(), outputCount);
 	}
 	return pResults;
+}
+
+void GNeuralNetLayer::feedForward(const double* pIn)
+{
+	copyBiasToNet();
+	feedIn(pIn, 0, inputs());
+	activate();
 }
 
 
@@ -249,15 +254,17 @@ void GNeuralNetLayerClassic::resetWeights(GRand& rand)
 	size_t outputCount = outputs();
 	size_t inputCount = inputs();
 	double mag = 1.0 / inputCount;
-	double* pB = bias();
-	for(size_t i = 0; i < outputCount; i++)
+	for(size_t i = 0; i < inputCount; i++)
 	{
-		*pB = rand.normal() * mag;
+		double* pW = m_weights[i];
 		for(size_t j = 0; j < inputCount; j++)
-			m_weights[j][i] = rand.normal() * mag;
-		pB++;
+			*(pW++) = rand.normal() * mag;
 	}
 	m_delta.setAll(0.0);
+	double* pB = bias();
+	for(size_t i = 0; i < outputCount; i++)
+		*(pB++) = rand.normal() * mag;
+	GVec::setAll(biasDelta(), 0.0, outputCount);
 }
 
 // virtual
@@ -269,19 +276,30 @@ void GNeuralNetLayerClassic::perturbWeights(GRand& rand, double deviation, size_
 	GVec::perturb(bias() + start, deviation, n, rand);
 }
 
-void GNeuralNetLayerClassic::feedForward(const double* pIn)
+// virtual
+void GNeuralNetLayerClassic::copyBiasToNet()
 {
-	// Compute net = pIn * m_weights + bias
+	GVec::copy(net(), bias(), outputs());
+}
+
+// virtual
+void GNeuralNetLayerClassic::feedIn(const double* pIn, size_t inputStart, size_t inputCount)
+{
+	inputCount += inputStart;
+	GAssert(inputCount <= m_weights.rows());
 	size_t outputCount = outputs();
 	double* pNet = net();
-	GVec::setAll(pNet, 0.0, outputCount);
-	for(size_t i = 0; i < m_weights.rows(); i++)
+	for(size_t i = inputStart; i < inputCount; i++)
 		GVec::addScaled(pNet, *(pIn++), m_weights.row(i), outputCount);
-	GVec::add(pNet, bias(), outputCount);
+}
 
-	// Apply the activation function
+// virtual
+void GNeuralNetLayerClassic::activate()
+{
 	double* pAct = activation();
 	GActivationFunction** ppActFunc = m_activationFunctions;
+	size_t outputCount = outputs();
+	double* pNet = net();
 	for(size_t i = 0; i < outputCount; i++)
 		*(pAct++) = (*(ppActFunc++))->squash(*(pNet++));
 }
@@ -382,13 +400,16 @@ void GNeuralNetLayerClassic::deactivateErrorSingleOutput(size_t output)
 	(*pErr) *= pAF->derivativeOfNet(netVal, act);
 }
 
-void GNeuralNetLayerClassic::backPropError(double* pUpStreamError)
+void GNeuralNetLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
 {
+	double* pUpStreamError = pUpStreamLayer->error();
+	size_t inputCount = pUpStreamLayer->outputs();
+	GAssert(inputStart + inputCount <= m_weights.rows());
 	size_t outputCount = outputs();
 	const double* pSource = error();
-	for(size_t i = 0; i < m_weights.rows(); i++)
+	for(size_t i = 0; i < inputCount; i++)
 	{
-		*pUpStreamError = GVec::dotProduct(pSource, m_weights[i], outputCount);
+		*pUpStreamError = GVec::dotProduct(pSource, m_weights[inputStart + i], outputCount);
 		pUpStreamError++;
 	}
 }
@@ -582,339 +603,6 @@ void GNeuralNetLayerClassic::copyWeights(const GNeuralNetLayer* pSource)
 
 
 
-GNeuralNetLayerAlt::GNeuralNetLayerAlt(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction)
-{
-	m_activationFunctions = NULL;
-	if(!pActivationFunction)
-		pActivationFunction = new GActivationTanH();
-	m_activationFunctionCache.push_back(pActivationFunction);
-	resize(inputs, outputs, NULL);
-}
-
-GNeuralNetLayerAlt::GNeuralNetLayerAlt(GDomNode* pNode)
-: m_weights(pNode->field("weights")), m_delta(m_weights.rows(), m_weights.cols()), m_bias(6, m_weights.rows())
-{
-	GDomListIterator it(pNode->field("bias"));
-	GVec::deserialize(bias(), it);
-
-	GDomListIterator itSlack(pNode->field("slack"));
-	GVec::deserialize(slack(), itSlack);
-
-	// Unmarshall the cache of activation functions
-	GDomListIterator it3(pNode->field("act_funcs"));
-	while(it3.remaining() > 0)
-	{
-		m_activationFunctionCache.push_back(GActivationFunction::deserialize(it3.current()));
-		it3.advance();
-	}
-
-	// Unmarshall the acivation function pointers from a list of indexes
-	GDomListIterator it2(pNode->field("act_indxs"));
-	size_t outputCount = outputs();
-	m_activationFunctions = NULL;
-	if(it2.remaining() != outputCount)
-		throw Ex("The number of activation functions does not match the number of units");
-	m_activationFunctions = new GActivationFunction*[outputCount];
-	GActivationFunction** ppActFunc = m_activationFunctions;
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		size_t index = (size_t)it2.current()->asInt();
-		if(index >= m_activationFunctionCache.size())
-			throw Ex("Activation function index out of range");
-		*ppActFunc = m_activationFunctionCache[index];
-		it2.advance();
-		ppActFunc++;
-	}
-}
-
-GNeuralNetLayerAlt::~GNeuralNetLayerAlt()
-{
-	delete[] m_activationFunctions;
-	while(m_activationFunctionCache.size() > 0)
-	{
-		delete(m_activationFunctionCache.back());
-		m_activationFunctionCache.pop_back();
-	}
-}
-
-GDomNode* GNeuralNetLayerAlt::serialize(GDom* pDoc)
-{
-	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
-	pNode->addField(pDoc, "bias", GVec::serialize(pDoc, bias(), outputs()));
-	pNode->addField(pDoc, "slack", GVec::serialize(pDoc, slack(), outputs()));
-
-	// Marshall the cache of activation functions
-	GDomNode* pActFuncs = pNode->addField(pDoc, "act_funcs", pDoc->newList());
-	for(size_t i = 0; i < m_activationFunctionCache.size(); i++)
-		pActFuncs->addItem(pDoc, m_activationFunctionCache[i]->serialize(pDoc));
-
-	// Marshall the activation functions into an array of cache indexes
-	GDomNode* pActIndxs = pNode->addField(pDoc, "act_indxs", pDoc->newList());
-	GActivationFunction* pFunc = NULL;
-	size_t index = INVALID_INDEX;
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		if(m_activationFunctions[i] != pFunc)
-		{
-			pFunc = m_activationFunctions[i];
-			vector<GActivationFunction*>::const_iterator it = std::find(m_activationFunctionCache.begin(), m_activationFunctionCache.end(), pFunc);
-			if(it == m_activationFunctionCache.end())
-				throw Ex("Activation function not found in the cache");
-			index = it - m_activationFunctionCache.begin();
-		}
-		pActIndxs->addItem(pDoc, pDoc->newInt(index));
-	}
-
-	return pNode;
-}
-
-void GNeuralNetLayerAlt::resize(size_t inputCount, size_t outputCount, GRand* pRand)
-{
-	if(inputCount == inputs() && outputCount == outputs())
-		return;
-	size_t oldInputs = inputs();
-	size_t oldOutputs = outputs();
-	size_t fewerInputs = std::min(oldInputs, inputCount);
-	size_t fewerOutputs = std::min(oldOutputs, outputCount);
-
-	// Weights
-	m_weights.resizePreserve(outputCount, inputCount);
-	m_delta.resizePreserve(outputCount, inputCount);
-	if(pRand)
-	{
-		for(size_t i = 0; i < fewerOutputs; i++)
-		{
-			double* pRow = m_weights[i] + fewerInputs;
-			for(size_t j = fewerInputs; j < inputCount; j++)
-				*(pRow++) = 0.01 * pRand->normal();
-		}
-		for(size_t i = fewerOutputs; i < outputCount; i++)
-		{
-			double* pRow = m_weights[i];
-			for(size_t j = 0; j < inputCount; j++)
-				*(pRow++) = 0.01 * pRand->normal();
-		}
-	}
-
-	// Bias
-	m_bias.resizePreserve(6, outputCount);
-	double* pB = bias() + fewerOutputs;
-	if(pRand)
-	{
-		for(size_t j = fewerOutputs; j < outputCount; j++)
-			*(pB++) = 0.01 * pRand->normal();
-	}
-
-	// Slack
-	double* pS = slack() + fewerOutputs;
-	for(size_t j = fewerOutputs; j < outputCount; j++)
-		*(pS++) = 0.0;
-
-	// Activation functions
-	GActivationFunction** ppActFunc2 = new GActivationFunction*[outputCount];
-	memcpy(ppActFunc2, m_activationFunctions, sizeof(GActivationFunction*) * fewerOutputs);
-	GActivationFunction* pFillerFunc = (fewerOutputs > 0 ? m_activationFunctions[fewerOutputs - 1] : m_activationFunctionCache.back());
-	for(size_t i = fewerOutputs; i < outputCount; i++)
-		ppActFunc2[i] = pFillerFunc;
-	delete[] m_activationFunctions;
-	m_activationFunctions = ppActFunc2;
-}
-
-void GNeuralNetLayerAlt::setActivationFunction(GActivationFunction* pActivationFunction, size_t first, size_t count)
-{
-	size_t units = outputs();
-	if(first > units)
-		throw Ex("out of range");
-	count = std::min(count, units - first);
-	if(count >= units)
-	{
-		while(m_activationFunctionCache.size() > 0)
-		{
-			delete(m_activationFunctionCache.back());
-			m_activationFunctionCache.pop_back();
-		}
-	}
-	m_activationFunctionCache.push_back(pActivationFunction);
-	for(size_t i = 0; i < count; i++)
-		m_activationFunctions[first + i] = pActivationFunction;
-}
-
-// virtual
-void GNeuralNetLayerAlt::resetWeights(GRand& rand)
-{
-	size_t outputCount = outputs();
-	size_t inputCount = inputs();
-	double mag = 1.0 / inputCount;
-	double* pB = bias();
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		*pB = rand.normal() * mag;
-		for(size_t j = 0; j < inputCount; j++)
-			m_weights[i][j] = rand.normal() * mag;
-		pB++;
-	}
-	m_delta.setAll(0.0);
-}
-
-// virtual
-void GNeuralNetLayerAlt::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
-{
-	size_t n = std::min(outputs() - start, count);
-	for(size_t i = start; i < n; i++)
-		GVec::perturb(m_weights[i], deviation, inputs(), rand);
-	GVec::perturb(bias() + start, deviation, n, rand);
-}
-
-void GNeuralNetLayerAlt::feedForward(const double* pIn)
-{
-	// Feed through the weights
-	double* pNet = net();
-	m_weights.multiply(pIn, pNet);
-	size_t outputCount = outputs();
-	GVec::add(pNet, bias(), outputCount);
-
-	// Squash it
-	double* pAct = activation();
-	GActivationFunction** ppActFunc = m_activationFunctions;
-	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = (*(ppActFunc++))->squash(*(pNet++));
-}
-
-void GNeuralNetLayerAlt::computeError(const double* pTarget)
-{
-	size_t outputUnits = outputs();
-	double* pAct = activation();
-	double* pSlack = slack();
-	double* pErr = error();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(*pTarget == UNKNOWN_REAL_VALUE)
-			*pErr = 0.0;
-		else
-		{
-			if(*pTarget > *pAct + *pSlack)
-				*pErr = (*pTarget - *pAct - *pSlack);
-			else if(*pTarget < *pAct - *pSlack)
-				*pErr = (*pTarget - *pAct + *pSlack);
-			else
-				*pErr = 0.0;
-		}
-		pTarget++;
-		pSlack++;
-		pAct++;
-		pErr++;
-	}
-}
-
-void GNeuralNetLayerAlt::deactivateError()
-{
-	size_t outputUnits = outputs();
-	double* pErr = error();
-	double* pNet = net();
-	double* pAct = activation();
-	GActivationFunction** pAF = m_activationFunctions;
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		(*pErr) *= (*pAF)->derivativeOfNet(*pNet, *pAct);
-		pNet++;
-		pAct++;
-		pErr++;
-		pAF++;
-	}
-}
-
-void GNeuralNetLayerAlt::backPropError(double* pUpStreamError)
-{
-	m_weights.multiply(error(), pUpStreamError, true);
-}
-
-void GNeuralNetLayerAlt::adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum)
-{
-	size_t outputCount = outputs();
-	size_t inputCount = inputs();
-	double* pErr = error();
-	double* pBias = biasDelta();
-	m_delta.multiply(momentum);
-	GVec::multiply(biasDelta(), momentum, outputCount);
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		GVec::addScaled(m_delta[i], learningRate * (*pErr), pUpStreamActivation, inputCount);
-		*(pBias++) += learningRate * (*pErr);
-		pErr++;
-	}
-	m_weights.add(&m_delta, false);
-	GVec::add(bias(), biasDelta(), outputCount);
-}
-
-void GNeuralNetLayerAlt::scaleWeights(double factor)
-{
-	size_t inputCount = inputs();
-	for(size_t i = 0; i < m_weights.rows(); i++)
-		GVec::multiply(m_weights[i], factor, inputCount);
-	GVec::multiply(bias(), factor, outputs());
-}
-
-void GNeuralNetLayerAlt::diminishWeights(double amount)
-{
-	size_t inputCount = outputs();
-	for(size_t i = 0; i < m_weights.rows(); i++)
-		GVec::diminish(m_weights[i], amount, inputCount);
-	GVec::diminish(bias(), amount, outputs());
-}
-
-// virtual
-void GNeuralNetLayerAlt::clipWeights(double max)
-{
-	size_t inputCount = inputs();
-	for(size_t j = 0; j < m_weights.rows(); j++)
-	{
-		GVec::floorValues(m_weights[j], -max, inputCount);
-		GVec::capValues(m_weights[j], max, inputCount);
-	}
-}
-
-// virtual
-size_t GNeuralNetLayerAlt::countWeights()
-{
-	return (inputs() + 1) * outputs();
-}
-
-// virtual
-size_t GNeuralNetLayerAlt::weightsToVector(double* pOutVector)
-{
-	GVec::copy(pOutVector, bias(), outputs());
-	pOutVector += outputs();
-	m_weights.toVector(pOutVector);
-	return (inputs() + 1) * outputs();
-}
-
-// virtual
-size_t GNeuralNetLayerAlt::vectorToWeights(const double* pVector)
-{
-	GVec::copy(bias(), pVector, outputs());
-	pVector += outputs();
-	m_weights.fromVector(pVector, inputs());
-	return (inputs() + 1) * outputs();
-}
-
-// virtual
-void GNeuralNetLayerAlt::copyWeights(const GNeuralNetLayer* pSource)
-{
-	GNeuralNetLayerAlt* src = (GNeuralNetLayerAlt*)pSource;
-	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
-	GVec::copy(bias(), src->bias(), src->outputs());
-}
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1034,6 +722,31 @@ void GNeuralNetLayerRestrictedBoltzmannMachine::perturbWeights(GRand& rand, doub
 	GVec::perturb(bias() + start, deviation, n, rand);
 }
 
+// virtual
+void GNeuralNetLayerRestrictedBoltzmannMachine::copyBiasToNet()
+{
+	GVec::copy(net(), bias(), outputs());
+}
+
+// virtual
+void GNeuralNetLayerRestrictedBoltzmannMachine::feedIn(const double* pIn, size_t inputStart, size_t inputCount)
+{
+	size_t outputCount = outputs();
+	double* pNet = net();
+	for(size_t i = 0; i < outputCount; i++)
+		*(pNet++) += GVec::dotProduct(pIn, m_weights[i] + inputStart, inputCount);
+}
+
+// virtual
+void GNeuralNetLayerRestrictedBoltzmannMachine::activate()
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	double* pNet = net();
+	for(size_t i = 0; i < outputCount; i++)
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+}
+/*
 void GNeuralNetLayerRestrictedBoltzmannMachine::feedForward(const double* pIn)
 {
 	// Feed through the weights
@@ -1047,7 +760,7 @@ void GNeuralNetLayerRestrictedBoltzmannMachine::feedForward(const double* pIn)
 	for(size_t i = 0; i < outputCount; i++)
 		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
 }
-
+*/
 void GNeuralNetLayerRestrictedBoltzmannMachine::feedBackward(const double* pIn)
 {
 	// Feed through the weights
@@ -1180,9 +893,17 @@ void GNeuralNetLayerRestrictedBoltzmannMachine::deactivateError()
 	}
 }
 
-void GNeuralNetLayerRestrictedBoltzmannMachine::backPropError(double* pUpStreamError)
+void GNeuralNetLayerRestrictedBoltzmannMachine::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
 {
-	m_weights.multiply(error(), pUpStreamError, true);
+	double* pDownStreamError = error();
+	double* pUpStreamError = pUpStreamLayer->error();
+	size_t inputCount = pUpStreamLayer->outputs();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		*pUpStreamError = GVec::dotProduct(pDownStreamError, m_weights[inputStart + i], outputCount);
+		pUpStreamError++;
+	}
 }
 
 void GNeuralNetLayerRestrictedBoltzmannMachine::adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum)
@@ -1634,12 +1355,18 @@ void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 	if(m_useInputBias)
 		((GNeuralNetLayerClassic*)pLay)->feedForwardWithInputBias(pRow);
 	else
-		pLay->feedForward(pRow);
+	{
+		pLay->copyBiasToNet();
+		pLay->feedIn(pRow, 0, pLay->inputs());
+		pLay->activate();
+	}
 	maxLayers = std::min(m_layers.size(), maxLayers);
 	for(size_t i = 1; i < maxLayers; i++)
 	{
 		GNeuralNetLayer* pDS = m_layers[i];
-		pDS->feedForward(pLay->activation());
+		pDS->copyBiasToNet();
+		pDS->feedIn(pLay, 0);
+		pDS->activate();
 		pLay = pDS;
 	}
 }
@@ -1836,7 +1563,7 @@ void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)
 	while(i > 0)
 	{
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
-		pLay->backPropError(pUpStream->error());
+		pLay->backPropError(pUpStream);
 		pUpStream->deactivateError();
 		pLay = pUpStream;
 		i--;
@@ -1859,7 +1586,7 @@ void GNeuralNet::backpropagateSingleOutput(size_t outputNode, double target, siz
 		while(i > 0)
 		{
 			GNeuralNetLayerClassic* pUpStream = (GNeuralNetLayerClassic*)m_layers[i - 1];
-			pLay->backPropError(pUpStream->error());
+			pLay->backPropError(pUpStream);
 			pUpStream->deactivateError();
 			pLay = pUpStream;
 			i--;
@@ -1875,7 +1602,7 @@ void GNeuralNet::descendGradient(const double* pFeatures, double learningRate, d
 	for(size_t i = 1; i < m_layers.size(); i++)
 	{
 		pLay = m_layers[i];
-		pLay->adjustWeights(pUpStream->activation(), learningRate, momentum);
+		pLay->adjustWeights(pUpStream, learningRate, momentum);
 		pUpStream = pLay;
 	}
 }

@@ -3,8 +3,8 @@
 ################
 SHELL = /bin/bash
 TARGET_PATH = ../../../lib
-TARGET_NAME_OPT = GCuda.a
-TARGET_NAME_DBG = GCudaDbg.a
+TARGET_NAME_OPT = libGCuda.a
+TARGET_NAME_DBG = libGCudaDbg.a
 OBJ_PATH = ../../../obj/GCuda
 INSTALL_LOCATION_LIB ?= /usr/local/lib
 INSTALL_LOCATION_INCLUDE ?= /usr/local/include
@@ -33,6 +33,7 @@ OPT_CFLAGS = $(CFLAGS) -O3
 ################
 
 CU_FILES = \
+	GCudaLayers.cu\
 	GCudaMatrix.cu\
 	GCudaMatrixHelper.cu\
 
@@ -108,13 +109,13 @@ install:
 	@sudo -u $${SUDO_USER} $(MAKE) -C . opt
 	mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
 	mkdir -m 0755 -p $(INSTALL_LOCATION_INCLUDE)/depends/GCuda
-	install $(TARGET_PATH)/GCuda.a $(INSTALL_LOCATION_LIB)/libGCuda.a
-	install $(TARGET_PATH)/GCudaDbg.a $(INSTALL_LOCATION_LIB)/libGCudaDbg.a
+	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_OPT)
+	install $(TARGET_PATH)/$(TARGET_NAME_DBG) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_DBG)
 	install *.h $(INSTALL_LOCATION_INCLUDE)/depends/GCuda
 
 uninstall:
-	rm -f $(INSTALL_LOCATION_LIB)/libGCuda.a
-	rm -f $(INSTALL_LOCATION_LIB)/libGCudaDbg.a
+	rm -f $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_OPT)
+	rm -f $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_DBG)
 	rm -rf $(INSTALL_LOCATION_INCLUDE)/depends/GCuda
 
 .PHONY: clean partialcleandbg partialcleanopt install uninstall dbg opt

@@ -41,10 +41,11 @@ public:
 /// Represents a vector on the GPU. Performs operations in parallel.
 class GCudaVector
 {
-public:
+protected:
 	size_t m_size;
 	double* d_vals;
 
+public:
 	/// Makes a vector of size 0.
 	GCudaVector();
 	~GCudaVector();
@@ -65,8 +66,18 @@ public:
 	/// Copies that into this. (Resizes this vector if necessary.)
 	void copy(GCudaEngine& engine, const GCudaVector& that);
 
-	/// Adds that vector to this vector, then applies the tanh function element-wise to this vector.
-	void addAndApplyTanh(GCudaEngine& engine, const GCudaVector& that);
+	/// Applies the tanh function element-wise to this vector.
+	void activateTanh(GCudaEngine& engine);
+
+	/// Multiplies each element in this vector by (1.0-(a*a)), where a is the corresponding element in activation.
+	void deactivateTanh(GCudaEngine& engine, const GCudaVector& activation);
+
+	/// Adds thatScalar * that vector to this vector.
+	/// For example, if thatScalar is -1, then this method will subtract that vector from this vector.
+	void add(GCudaEngine& engine, GCudaVector& that, double thatScalar = 1.0);
+
+	/// Multiplies this vector by scalar
+	void scale(double scalar);
 };
 
 
@@ -74,14 +85,21 @@ public:
 /// Represents a matrix on the GPU. Performs operations in parallel.
 class GCudaMatrix
 {
-public:
+protected:
 	size_t m_rows;
 	size_t m_cols;
 	double* d_vals;
 
+public:
 	/// Makes a 0x0 matrix.
 	GCudaMatrix();
 	~GCudaMatrix();
+
+	/// Returns the number of rows in this matrix
+	size_t rows() { return m_rows; }
+
+	/// Returns the number of columns in this matrix
+	size_t cols() { return m_cols; }
 
 	/// Resizes this matrix
 	void resize(size_t rows, size_t cols);
@@ -94,12 +112,25 @@ public:
 	/// Resizes m if necessary.
 	void download(GMatrix& m);
 
+	/// Multiplies this matrix by scalar
+	void scale(double scalar);
+
 	/// Vector-matrix multiply
 	void rowVectorTimesThis(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out);
 
 	/// Matrix-vector multiply
 	void thisTimesColumnVector(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out);
 
+	/// Multiplies a row-vector, in, times the sub-matrix from (inputStart,0) to (inputStart + in.size(), cols()),
+	/// and adds the result to whatever is in out.
+	void feedIn(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out, size_t inputStart);
+
+	/// Multiplies the sub-matrix from (0,inputStart) to (rows(), inputStart + in.size()) times a column vector, in.
+	/// Puts the results in out.
+	void backPropError(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out, size_t inputStart);
+
+	/// This method is used by implementations of gradient descent to update the weights
+	void updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, GCudaVector& downStreamError, double learningRate);
 };
 
 

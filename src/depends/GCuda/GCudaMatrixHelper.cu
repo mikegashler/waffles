@@ -22,23 +22,38 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 
-__global__ void cuda_addAndApplyTanh(double* pA, const double* pB, int n)
+__global__ void cuda_activateTanh(double* pA, int n)
 {
-        int id = blockIdx.x * blockDim.x + threadIdx.x;
-        if (id < n) {
-                pA[id] = pA[id] + pB[id];
-                pA[id] = tanh(pA[id]);
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	if (id < n) {
+		pA[id] = tanh(pA[id]);
 	}
 }
 
+__global__ void cuda_deactivateTanh(double* pE, const double* pA, int n)
+{
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	if (id < n) {
+		pE[id] *= (1.0 - (pA[id] * pA[id]));
+	}
+}
+
+
 namespace GClasses {
 
-void GCudaVector::addAndApplyTanh(GCudaEngine& engine, const GCudaVector& that)
+void GCudaVector::activateTanh(GCudaEngine& engine)
 {
-	GAssert(that.m_size == m_size);
 	size_t blockSize = engine.m_blockSize;
 	size_t gridSize = (m_size + blockSize - 1) / blockSize;
-	cuda_addAndApplyTanh<<<gridSize, blockSize>>>(this->d_vals, that.d_vals, (int)m_size);
+	cuda_activateTanh<<<gridSize, blockSize>>>(this->d_vals, (int)m_size);
+}
+
+void GCudaVector::deactivateTanh(GCudaEngine& engine, const GCudaVector& activation)
+{
+	GAssert(activation.m_size == m_size);
+	size_t blockSize = engine.m_blockSize;
+	size_t gridSize = (m_size + blockSize - 1) / blockSize;
+	cuda_deactivateTanh<<<gridSize, blockSize>>>(this->d_vals, activation.d_vals, (int)m_size);
 }
 
 } // namespace GClasses

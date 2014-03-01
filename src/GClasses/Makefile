@@ -3,8 +3,8 @@
 ################
 SHELL = /bin/bash
 TARGET_PATH = ../../lib
-TARGET_NAME_OPT = GClasses.a
-TARGET_NAME_DBG = GClassesDbg.a
+TARGET_NAME_OPT = libGClasses.a
+TARGET_NAME_DBG = libGClassesDbg.a
 TARGET_NAME_GCOV= GClassesGcov.a
 OBJ_PATH = ../../obj/GClasses
 INSTALL_LOCATION_LIB ?= /usr/local/lib
@@ -148,9 +148,6 @@ opt : $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
 gcov: $(TARGET_PATH)/$(TARGET_NAME_GCOV)
 
-fam: findAugMatrix.cpp ../../lib/GClassesDbg.a
-	g++ -o fam findAugMatrix.cpp ../../lib/GClassesDbg.a -lpng -lz
-
 usage:
 	#
 	# Usage:
@@ -241,9 +238,6 @@ clean : partialcleandbg partialcleanopt partialcleangcov
 	rm -f $(DEPS_OPT)
 	rm -f $(DEPS_DBG)
 	rm -f $(DEPS_GCOV)
-	rm -f $(OBJ_PATH)/opt/*.lock
-	rm -f $(OBJ_PATH)/dbg/*.lock
-	rm -f $(OBJ_PATH)/gcov/*.lock
 
 install:
 	@if [ "$${SUDO_USER}" == "" ]; then echo "You must use sudo to install"; false; fi
@@ -251,13 +245,13 @@ install:
 	@sudo -u $${SUDO_USER} $(MAKE) -C . opt
 	mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
 	mkdir -m 0755 -p $(INSTALL_LOCATION_INCLUDE)/GClasses
-	install $(TARGET_PATH)/GClasses.a $(INSTALL_LOCATION_LIB)/libGClasses.a
-	install $(TARGET_PATH)/GClassesDbg.a $(INSTALL_LOCATION_LIB)/libGClassesDbg.a
+	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_OPT)
+	install $(TARGET_PATH)/$(TARGET_NAME_DBG) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_DBG)
 	install *.h $(INSTALL_LOCATION_INCLUDE)/GClasses
 
 uninstall:
-	rm -f $(INSTALL_LOCATION_LIB)/libGClasses.a
-	rm -f $(INSTALL_LOCATION_LIB)/libGClassesDbg.a
+	rm -f $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_OPT)
+	rm -f $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_DBG)
 	rm -rf $(INSTALL_LOCATION_INCLUDE)/GClasses
 
 .PHONY: clean partialcleandbg partialcleanopt install uninstall dbg opt
