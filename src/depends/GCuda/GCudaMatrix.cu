@@ -90,11 +90,12 @@ void GCudaVector::copy(GCudaEngine& engine, const GCudaVector& that)
 void GCudaVector::add(GCudaEngine& engine, GCudaVector& that, double thatScalar)
 {
 	GAssert(m_size == that.m_size);
-	if(cublasDaxpy((cublasHandle_t)engine.m_handle, m_size, thatScalar, that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
+	if(cublasDaxpy((cublasHandle_t)engine.m_handle, m_size, &thatScalar,
+		that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDaxpy failed");
 }
 
-void GCudaVector::scale(double scalar)
+void GCudaVector::scale(GCudaEngine& engine, double scalar)
 {
 	if(cublasDscal((cublasHandle_t)engine.m_handle, m_size, &scalar, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDscal failed");
@@ -153,7 +154,7 @@ void GCudaMatrix::download(GMatrix& m)
 	}
 }
 
-void GCudaMatrix::scale(double scalar)
+void GCudaMatrix::scale(GCudaEngine& engine, double scalar)
 {
 	if(cublasDscal((cublasHandle_t)engine.m_handle, m_rows * m_cols, &scalar, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDscal failed");
@@ -162,7 +163,7 @@ void GCudaMatrix::scale(double scalar)
 void GCudaMatrix::rowVectorTimesThis(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out)
 {
 	GAssert(in.m_size == m_rows);
-	if(out.m_size != m_cols)
+	if(out.size() != m_cols)
 		out.resize(m_cols);
 	double alpha = 1.0f;
 	double beta = 0.0f;
@@ -210,8 +211,8 @@ void GCudaMatrix::backPropError(GCudaEngine& engine, const GCudaVector& in, GCud
 
 void GCudaMatrix::updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, GCudaVector& downStreamError, double learningRate)
 {
-	if(cublasDger((cublasHandle_t)engine.m_handle, m_cols, m_rows, learningRate,
-		downStreamError.d_vals, 1, upStreamInput, 1,
+	if(cublasDger((cublasHandle_t)engine.m_handle, m_cols, m_rows, &learningRate,
+		downStreamError.d_vals, 1, upStreamInput.d_vals, 1,
 		d_vals, m_cols) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDger failed");
 }

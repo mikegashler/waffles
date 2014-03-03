@@ -41,11 +41,10 @@ public:
 /// Represents a vector on the GPU. Performs operations in parallel.
 class GCudaVector
 {
-protected:
+public:
 	size_t m_size;
 	double* d_vals;
 
-public:
 	/// Makes a vector of size 0.
 	GCudaVector();
 	~GCudaVector();
@@ -77,7 +76,7 @@ public:
 	void add(GCudaEngine& engine, GCudaVector& that, double thatScalar = 1.0);
 
 	/// Multiplies this vector by scalar
-	void scale(double scalar);
+	void scale(GCudaEngine& engine, double scalar);
 };
 
 
@@ -85,12 +84,11 @@ public:
 /// Represents a matrix on the GPU. Performs operations in parallel.
 class GCudaMatrix
 {
-protected:
+public:
 	size_t m_rows;
 	size_t m_cols;
 	double* d_vals;
 
-public:
 	/// Makes a 0x0 matrix.
 	GCudaMatrix();
 	~GCudaMatrix();
@@ -113,7 +111,7 @@ public:
 	void download(GMatrix& m);
 
 	/// Multiplies this matrix by scalar
-	void scale(double scalar);
+	void scale(GCudaEngine& engine, double scalar);
 
 	/// Vector-matrix multiply
 	void rowVectorTimesThis(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out);

@@ -154,6 +154,8 @@ protected:
 class GNeuralNetLayerClassic : public GNeuralNetLayer
 {
 friend class GNeuralNet;
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::adjustWeights;
 protected:
 	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
 	GMatrix m_delta; // Used to implement momentum
@@ -311,6 +313,8 @@ public:
 
 class GNeuralNetLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
 {
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::adjustWeights;
 protected:
 	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error.

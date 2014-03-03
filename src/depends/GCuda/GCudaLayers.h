@@ -92,6 +92,12 @@ public:
 
 	virtual void copyBiasToNet();
 
+	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
+
+	virtual void feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputStart);
+
+	virtual void activate();
+
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)

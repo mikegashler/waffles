@@ -341,6 +341,7 @@ public:
 ///
 class GRandMersenneTwister:public GRand
 {
+using GRand::next;
 private:
 	///Number of elements in the state-vector array
 	const static uint64_t NN=312;
