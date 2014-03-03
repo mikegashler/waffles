@@ -20,6 +20,9 @@
 #define __GCUDALAYERS_H__
 
 #include "GCudaMatrix.h"
+#include "../../GClasses/GNeuralNet.h"
+
+namespace GClasses {
 
 class GCudaLayer : public GNeuralNetLayer
 {
@@ -28,11 +31,14 @@ protected:
 
 public:
 	/// Standard constructor
-	GCudaLayer(GCudaEngine engine) : GNeuralNetLayer(), m_engine(engine) {}
+	GCudaLayer(GCudaEngine& engine) : GNeuralNetLayer(), m_engine(engine) {}
 
 	/// Throws an exception.
-	GCudaLayer(GDomNode* pNode);
+	GCudaLayer(GDomNode* pNode, GCudaEngine& engine);
 	virtual ~GCudaLayer();
+	
+	/// Throws an exception
+	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Returns true
 	virtual bool usesGPU() { return true; }
@@ -83,6 +89,8 @@ public:
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
 	virtual double* error();
+
+	virtual void copyBiasToNet();
 
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
@@ -137,5 +145,6 @@ public:
 	virtual void clipWeights(double max);
 };
 
+} // namespace GClasses
 
 #endif // __GCUDALAYERS_H__

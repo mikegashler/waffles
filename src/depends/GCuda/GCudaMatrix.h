@@ -54,7 +54,7 @@ public:
 	void resize(size_t size);
 
 	/// Returns the size of this vector.
-	size_t size() { return m_size; }
+	size_t size() const { return m_size; }
 
 	/// Copies a vector from the host (CPU memory) to the device (GPU memory).
 	/// Resizes this vector if necessary.
@@ -96,10 +96,10 @@ public:
 	~GCudaMatrix();
 
 	/// Returns the number of rows in this matrix
-	size_t rows() { return m_rows; }
+	size_t rows() const { return m_rows; }
 
 	/// Returns the number of columns in this matrix
-	size_t cols() { return m_cols; }
+	size_t cols() const { return m_cols; }
 
 	/// Resizes this matrix
 	void resize(size_t rows, size_t cols);

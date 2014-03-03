@@ -18,9 +18,12 @@
 
 #include "GCudaLayers.h"
 #include "../../GClasses/GNeuralNet.h"
+#include "../../GClasses/GVec.h"
 
-GCudaLayer::GCudaLayer(GDomNode* pNode)
-: GNeuralNetLayer()
+namespace GClasses {
+
+GCudaLayer::GCudaLayer(GDomNode* pNode, GCudaEngine& engine)
+: GNeuralNetLayer(), m_engine(engine)
 {
 	throw Ex("Sorry, GCudaLayer does not support serialization");
 }
@@ -28,7 +31,7 @@ GCudaLayer::GCudaLayer(GDomNode* pNode)
 GDomNode* GCudaLayer::serialize(GDom* pDoc)
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda does not support serialization");
-	return NULL;
+	//return NULL;
 }
 
 
@@ -60,12 +63,9 @@ void GNeuralNetLayerCuda::resize(size_t inputCount, size_t outputCount, GRand* p
 		throw Ex("Sorry, GNeuralNetLayerCuda does not support preserving resizes");
 
 	m_weights.resize(inputCount, outputCount);
-	m_delta.resize(inputCount, outputCount);
-	m_bias.resize(6, outputCount);
-	m_net.resize(6, outputCount);
-	m_activation.resize(6, outputCount);
-	m_error.resize(6, outputCount);
-	m_biasDelta.resize(6, outputCount);
+	m_bias.resize(outputCount);
+	m_activation.resize(outputCount);
+	m_error.resize(outputCount);
 	delete[] m_pOutgoing;
 	m_pOutgoing = NULL;
 }
@@ -84,15 +84,11 @@ void GNeuralNetLayerCuda::resetWeights(GRand& rand)
 			*(pW++) = rand.normal() * mag;
 	}
 	m_weights.upload(mTmp);
-	mTmp.setAll(0.0);
-	m_delta.upload(mTmp);
 	GVec vTmp(outputCount);
 	double* pB = vTmp.v;
 	for(size_t i = 0; i < outputCount; i++)
 		*(pB++) = rand.normal() * mag;
 	m_bias.upload(vTmp.v, outputCount);
-	GVec::setAll(vTmp.v, 0.0, outputCount);
-	m_biasDelta.upload(vTmp.v, outputCount);
 }
 
 // virtual
@@ -107,18 +103,18 @@ void GNeuralNetLayerCuda::perturbWeights(GRand& rand, double deviation, size_t s
 	m_weights.upload(m);
 
 	// Perturb biases
-	GVec v(outputCount());
+	GVec v(outputs());
 	m_bias.download(v.v);
 	GVec::perturb(v.v + start, deviation, n, rand);
-	m_bias.upload(v.v, outputCount());
+	m_bias.upload(v.v, outputs());
 }
 
 // virtual
 double* GNeuralNetLayerCuda::activation()
 {
 	if(!m_pOutgoing)
-		m_pOutgoing = new double[outputCount()];
-	m_activation.download(m_pOutgoing, outputCount());
+		m_pOutgoing = new double[outputs()];
+	m_activation.download(m_pOutgoing);
 	return m_pOutgoing;
 }
 
@@ -126,8 +122,8 @@ double* GNeuralNetLayerCuda::activation()
 double* GNeuralNetLayerCuda::error()
 {
 	if(!m_pOutgoing)
-		m_pOutgoing = new double[outputCount()];
-	m_error.download(m_pOutgoing, outputCount());
+		m_pOutgoing = new double[outputs()];
+	m_error.download(m_pOutgoing);
 	return m_pOutgoing;
 }
 
@@ -278,4 +274,6 @@ void GNeuralNetLayerCuda::copyWeights(const GNeuralNetLayer* pSource)
 	throw Ex("Sorry, GNeuralNetLayerCuda::copyWeights is not yet implemented");
 	return 0;
 }
+
+} // namespace GClasses
 
