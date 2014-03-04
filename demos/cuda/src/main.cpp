@@ -22,13 +22,16 @@
 #include <GClasses/GError.h>
 #include <GClasses/GVec.h>
 #include <GClasses/GMatrix.h>
+#include <GClasses/GNeuralNet.h>
+#include <GClasses/GTime.h>
 #include <depends/GCuda/GCudaMatrix.h>
+#include <depends/GCuda/GCudaLayers.h>
 
 using namespace GClasses;
 using std::cerr;
 using std::cout;
 
-void doit(GArgReader& args)
+void test_GCudaMatrix(GCudaEngine& e)
 {
 	GVec v1(2);
 	v1.v[0] = 1.0;
@@ -37,7 +40,6 @@ void doit(GArgReader& args)
 	m[0][0] = 1.0; m[0][1] = 2.0; m[0][2] = 3.0;
 	m[1][0] = 4.0; m[1][1] = 5.0; m[1][2] = 6.0;
 
-	GCudaEngine e;
 	GCudaVector cv1;
 	cv1.upload(v1.v, 2);
 	GCudaMatrix cm;
@@ -45,19 +47,106 @@ void doit(GArgReader& args)
 	GCudaVector cv2;
 	cm.rowVectorTimesThis(e, cv1, cv2);
 
+	cout << "Testing Matrix-vector multiplication...\n";
 	GVec v2(3);
 	cv2.download(v2.v);
-	std::cout << "This should print 9, 12, 15\n";
-	std::cout << to_str(v2.v[0]) << ", " << to_str(v2.v[1]) << ", " << to_str(v2.v[2]) << "\n";
+	std::cout << "Expected: 9, 12, 15\n";
+	std::cout << "  Actual: " << to_str(v2.v[0]) << ", " << to_str(v2.v[1]) << ", " << to_str(v2.v[2]) << "\n";
 
+	cout << "Testing the tanh activation kernel...\n";
 	v2.v[0] = 1.0; v2.v[1] = 2.0; v2.v[2] = 3.0;
-	GCudaVector cv3;
 	cv2.upload(v2.v, 3);
-	cv3.upload(v2.v, 3);
-	cv2.addAndApplyTanh(e, cv3);
+	cv2.activateTanh(e);
 	cv2.download(v2.v);
-	std::cout << "This should print 0.96402758007582, 0.99932929973907, 0.9999877116508\n";
-	std::cout << to_str(v2.v[0]) << ", " << to_str(v2.v[1]) << ", " << to_str(v2.v[2]) << "\n";
+	std::cout << "Expected: 0.76159415595576, 0.96402758007582, 0.99505475368673\n";
+	std::cout << "  Actual: " << to_str(v2.v[0]) << ", " << to_str(v2.v[1]) << ", " << to_str(v2.v[2]) << "\n";
+}
+
+void test_GCudaLayer(GCudaEngine& e)
+{
+	GUniformRelation rel(3);
+	size_t width = 1000;
+
+	cout << "Making a classic neural net...\n";
+	GNeuralNet nn1;
+	nn1.addLayer(new GNeuralNetLayerClassic(3, width));
+	nn1.addLayer(new GNeuralNetLayerClassic(width, width));
+	nn1.addLayer(new GNeuralNetLayerClassic(width, width));
+	nn1.addLayer(new GNeuralNetLayerClassic(width, 3));
+	nn1.beginIncrementalLearning(rel, rel);
+
+	cout << "Making a parallel neural net...\n";
+	GNeuralNet nn2;
+	nn2.addLayer(new GNeuralNetLayerCuda(e, 3, width));
+	nn2.addLayer(new GNeuralNetLayerCuda(e, width, width));
+	nn2.addLayer(new GNeuralNetLayerCuda(e, width, width));
+	nn2.addLayer(new GNeuralNetLayerCuda(e, width, 3));
+	nn2.beginIncrementalLearning(rel, rel);
+
+	cout << "Copying (so they will have identical weights)...\n";
+	for(size_t i = 0; i < nn1.layerCount(); i++)
+		((GNeuralNetLayerCuda*)&nn2.layer(i))->upload(*(GNeuralNetLayerClassic*)&nn1.layer(i));
+
+	cout << "Testing to make sure they make identical predictions (before training)...\n";
+	double vec[3];
+	vec[0] = 0.2;
+	vec[1] = 0.4;
+	vec[2] = 0.6;
+	double out[3];
+	cout << "  Input: " << to_str(vec[0]) << ",	" << to_str(vec[1]) << ",	" << to_str(vec[2]) << "\n";
+	nn1.predict(vec, out);
+	cout << "Classic: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
+	nn2.predict(vec, out);
+	cout << "   Cuda: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
+
+
+	GRand r(0);
+
+	cout << "Training the classic network...\n";
+	double timeBef1 = GTime::seconds();
+	for(size_t i = 0; i < 1000; i++)
+	{
+		vec[0] = 0.2 * r.normal();
+		vec[1] = 0.2 * r.normal();
+		vec[1] = 0.2 * r.normal();
+		nn1.trainIncremental(vec, vec);
+	}
+	double timeAft1 = GTime::seconds();
+
+	r.setSeed(0);
+
+	cout << "Training the parallel network...\n";
+	double timeBef2 = GTime::seconds();
+	for(size_t i = 0; i < 1000; i++)
+	{
+		vec[0] = 0.2 * r.normal();
+		vec[1] = 0.2 * r.normal();
+		vec[1] = 0.2 * r.normal();
+		nn2.trainIncremental(vec, vec);
+	}
+	double timeAft2 = GTime::seconds();
+
+	cout << "Classic training time: " << to_str(timeAft1 - timeBef1) << " seconds\n";
+	cout << "   Cuda training time: " << to_str(timeAft2 - timeBef2) << " seconds\n";
+	cout << "Speedup: " << to_str((timeAft1 - timeBef1) / (timeAft2 - timeBef2)) << "\n";
+
+	cout << "Testing to make sure both networks still make the same predictions...\n";
+	vec[0] = 0.2;
+	vec[1] = 0.4;
+	vec[2] = 0.6;
+	cout << "  Input: " << to_str(vec[0]) << ",	" << to_str(vec[1]) << ",	" << to_str(vec[2]) << "\n";
+	nn1.predict(vec, out);
+	cout << "Classic: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
+	nn2.predict(vec, out);
+	cout << "   Cuda: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
+
+}
+
+void doit()
+{
+	GCudaEngine e;
+	test_GCudaMatrix(e);
+	test_GCudaLayer(e);
 }
 
 int main(int argc, char *argv[])
@@ -68,8 +157,7 @@ int main(int argc, char *argv[])
 	int nRet = 0;
 	try
 	{
-		GArgReader args(argc, argv);
-		doit(args);
+		doit();
 	}
 	catch(const std::exception& e)
 	{

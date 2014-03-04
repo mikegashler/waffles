@@ -44,7 +44,7 @@ GDomNode* GCudaLayer::serialize(GDom* pDoc)
 
 
 
-GNeuralNetLayerCuda::GNeuralNetLayerCuda(GCudaEngine engine, size_t inputs, size_t outputs)
+GNeuralNetLayerCuda::GNeuralNetLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs)
 : GCudaLayer(engine), m_pOutgoing(NULL)
 {
 	resize(inputs, outputs, NULL);
@@ -80,7 +80,7 @@ void GNeuralNetLayerCuda::resetWeights(GRand& rand)
 	for(size_t i = 0; i < inputCount; i++)
 	{
 		double* pW = mTmp[i];
-		for(size_t j = 0; j < inputCount; j++)
+		for(size_t j = 0; j < outputCount; j++)
 			*(pW++) = rand.normal() * mag;
 	}
 	m_weights.upload(mTmp);
@@ -273,6 +273,19 @@ void GNeuralNetLayerCuda::copyWeights(const GNeuralNetLayer* pSource)
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::copyWeights is not yet implemented");
 }
+
+void GNeuralNetLayerCuda::upload(GNeuralNetLayerClassic& source)
+{
+	m_weights.upload(source.weights());
+	m_bias.upload(source.bias(), source.outputs());
+}
+
+void GNeuralNetLayerCuda::download(GNeuralNetLayerClassic& dest)
+{
+	m_weights.download(dest.weights());
+	m_bias.download(dest.bias());
+}
+
 
 } // namespace GClasses
 

@@ -25,8 +25,13 @@
 
 namespace GClasses {
 
+bool g_haveEngine = false;
+
 GCudaEngine::GCudaEngine()
 {
+	if(g_haveEngine)
+		throw Ex("There should only be one GCudaEngine in existence at any time");
+	g_haveEngine = true;
 	if(cublasCreate((cublasHandle_t*)&m_handle) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasCreate failed");
 	m_blockSize = 1024;
@@ -36,6 +41,7 @@ GCudaEngine::~GCudaEngine()
 {
 	if(cublasDestroy((cublasHandle_t)m_handle) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDestroy failed");
+	g_haveEngine = false;
 }
 
 
@@ -54,12 +60,14 @@ GCudaVector::GCudaVector()
 
 GCudaVector::~GCudaVector()
 {
-	cudaFree(d_vals);
+	if(d_vals)
+		cudaFree(d_vals);
 }
 
 void GCudaVector::resize(size_t size)
 {
-	cudaFree(d_vals);
+	if(d_vals)
+		cudaFree(d_vals);
 	if(cudaMalloc((void**)&d_vals, size * sizeof(double)) != cudaSuccess)
 		throw Ex(cudaGetErrorString(cudaGetLastError()));
 	m_size = size;
@@ -116,12 +124,14 @@ GCudaMatrix::GCudaMatrix()
 
 GCudaMatrix::~GCudaMatrix()
 {
-	cudaFree(d_vals);
+	if(d_vals)
+		cudaFree(d_vals);
 }
 
 void GCudaMatrix::resize(size_t rows, size_t cols)
 {
-	cudaFree(d_vals);
+	if(d_vals)
+		cudaFree(d_vals);
 	if(cudaMalloc((void**)&d_vals, rows * cols * sizeof(double)) != cudaSuccess)
 		throw Ex(cudaGetErrorString(cudaGetLastError()));
 	m_rows = rows;

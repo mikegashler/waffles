@@ -35,8 +35,8 @@ public:
 
 	/// Throws an exception.
 	GCudaLayer(GDomNode* pNode, GCudaEngine& engine);
-	virtual ~GCudaLayer();
-	
+	virtual ~GCudaLayer() {}
+
 	/// Throws an exception
 	virtual GDomNode* serialize(GDom* pDoc);
 
@@ -63,7 +63,7 @@ protected:
 
 public:
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
-	GNeuralNetLayerCuda(GCudaEngine engine, size_t inputs, size_t outputs);
+	GNeuralNetLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
 	virtual ~GNeuralNetLayerCuda();
 
 	/// Returns the type of this layer
@@ -149,6 +149,12 @@ public:
 
 	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
 	virtual void clipWeights(double max);
+
+	/// Copies the weights and bias vector from this layer into a GNeuralNetLayerClassic layer.
+	void upload(GNeuralNetLayerClassic& source);
+
+	/// Copies the weights and bias vector from GNeuralNetLayerClassic layer into this layer.
+	void download(GNeuralNetLayerClassic& dest);
 };
 
 } // namespace GClasses
