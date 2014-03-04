@@ -131,8 +131,7 @@ double* GNeuralNetLayerCuda::error()
 void GNeuralNetLayerCuda::copyBiasToNet()
 {
 	m_activation.copy(m_engine, m_bias);
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	m_engine.sync();
 }
 
 // virtual
@@ -140,8 +139,7 @@ void GNeuralNetLayerCuda::feedIn(const double* pIn, size_t inputStart, size_t in
 {
 	m_incoming.upload(pIn, inputs());
 	m_weights.feedIn(m_engine, m_incoming, m_activation, inputStart);
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	m_engine.sync();
 }
 
 // virtual
@@ -150,8 +148,7 @@ void GNeuralNetLayerCuda::feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputSt
 	if(pUpStreamLayer->usesGPU())
 	{
 		m_weights.feedIn(m_engine, ((GCudaLayer*)pUpStreamLayer)->deviceActivation(), m_activation, inputStart);
-		if(cudaDeviceSynchronize() != cudaSuccess)
-			throw Ex(cudaGetErrorString(cudaGetLastError()));
+		m_engine.sync();
 	}
 	else
 		feedIn(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs());
@@ -161,23 +158,20 @@ void GNeuralNetLayerCuda::feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputSt
 void GNeuralNetLayerCuda::activate()
 {
 	m_activation.activateTanh(m_engine);
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	m_engine.sync();
 }
 
 void GNeuralNetLayerCuda::computeError(const double* pTarget)
 {
 	m_error.upload(pTarget, outputs());
 	m_error.add(m_engine, m_activation, -1.0);
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	m_engine.sync();
 }
 
 void GNeuralNetLayerCuda::deactivateError()
 {
 	m_error.deactivateTanh(m_engine, m_activation);
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	m_engine.sync();
 }
 
 void GNeuralNetLayerCuda::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
@@ -185,16 +179,14 @@ void GNeuralNetLayerCuda::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t 
 	if(pUpStreamLayer->usesGPU())
 	{
 		m_weights.backPropError(m_engine, m_error, ((GCudaLayer*)pUpStreamLayer)->deviceError(), inputStart);
-		if(cudaDeviceSynchronize() != cudaSuccess)
-			throw Ex(cudaGetErrorString(cudaGetLastError()));
+		m_engine.sync();
 	}
 	else
 	{
 		if(m_incoming.size() != inputs())
 			m_incoming.resize(inputs());
 		m_weights.backPropError(m_engine, m_error, m_incoming, inputStart);
-		if(cudaDeviceSynchronize() != cudaSuccess)
-			throw Ex(cudaGetErrorString(cudaGetLastError()));
+		m_engine.sync();
 		m_incoming.download(pUpStreamLayer->error());
 	}
 }
@@ -205,8 +197,7 @@ void GNeuralNetLayerCuda::adjustWeights(const double* pUpStreamActivation, doubl
 	// Assume that the input was already uploaded into m_incoming when feedForward was called
 	m_weights.updateWeights(m_engine, m_incoming, m_error, learningRate);
 	m_bias.add(m_engine, m_error, learningRate);
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	m_engine.sync();
 }
 
 // virtual
@@ -223,8 +214,7 @@ void GNeuralNetLayerCuda::adjustWeights(GNeuralNetLayer* pUpStreamLayer, double 
 		m_weights.updateWeights(m_engine, m_incoming, m_error, learningRate);
 		m_bias.add(m_engine, m_error, learningRate);
 	}
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	m_engine.sync();
 }
 
 void GNeuralNetLayerCuda::scaleWeights(double factor)
@@ -232,8 +222,7 @@ void GNeuralNetLayerCuda::scaleWeights(double factor)
 	m_weights.scale(m_engine, factor);
 	m_bias.scale(m_engine, factor);
 	size_t outputCount = outputs();
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	m_engine.sync();
 }
 
 void GNeuralNetLayerCuda::diminishWeights(double amount)

@@ -35,7 +35,7 @@ OPT_CFLAGS = $(CFLAGS) -O3
 CU_FILES = \
 	GCudaLayers.cu\
 	GCudaMatrix.cu\
-	GCudaMatrixHelper.cu\
+	GCudaMatrixKernels.cu\
 
 ################
 # Lists

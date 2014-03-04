@@ -35,10 +35,17 @@ public:
 	GCudaEngine();
 	~GCudaEngine();
 
+	/// Synchronizes the GPU with the CPU. That is, block until all of the GPU processors complete
+	/// the most-recent operation.
+	static void sync();
 };
 
 
-/// Represents a vector on the GPU. Performs operations in parallel.
+/// Represents a vector on the GPU. The methods in this class perform
+/// operations asynchronously on the GPU. That is, they return immediately
+/// and begin processing in parallel on the GPU. Before you can rely on
+/// any results, you must call GCudaEngine::sync(), which blocks until
+/// all of the GPU processors are ready again.
 class GCudaVector
 {
 public:
@@ -81,7 +88,11 @@ public:
 
 
 
-/// Represents a matrix on the GPU. Performs operations in parallel.
+/// Represents a matrix on the GPU. The methods in this class perform
+/// operations asynchronously on the GPU. That is, they return immediately
+/// and begin processing in parallel on the GPU. Before you can rely on
+/// any results, you must call GCudaEngine::sync(), which blocks until
+/// all of the GPU processors are ready again.
 class GCudaMatrix
 {
 public:

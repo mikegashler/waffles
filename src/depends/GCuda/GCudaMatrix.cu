@@ -34,7 +34,7 @@ GCudaEngine::GCudaEngine()
 	g_haveEngine = true;
 	if(cublasCreate((cublasHandle_t*)&m_handle) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasCreate failed");
-	m_blockSize = 1024;
+	m_blockSize = 64;
 }
 
 GCudaEngine::~GCudaEngine()
@@ -44,7 +44,11 @@ GCudaEngine::~GCudaEngine()
 	g_haveEngine = false;
 }
 
-
+void GCudaEngine::sync()
+{
+	if(cudaDeviceSynchronize() != cudaSuccess)
+		throw Ex(cudaGetErrorString(cudaGetLastError()));
+}
 
 
 

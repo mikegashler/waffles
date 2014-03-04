@@ -66,6 +66,7 @@ void test_GCudaLayer(GCudaEngine& e)
 {
 	GUniformRelation rel(3);
 	size_t width = 1000;
+	size_t epochs = 2000;
 
 	cout << "Making a classic neural net...\n";
 	GNeuralNet nn1;
@@ -104,7 +105,7 @@ void test_GCudaLayer(GCudaEngine& e)
 
 	cout << "Training the classic network...\n";
 	double timeBef1 = GTime::seconds();
-	for(size_t i = 0; i < 1000; i++)
+	for(size_t i = 0; i < epochs; i++)
 	{
 		vec[0] = 0.2 * r.normal();
 		vec[1] = 0.2 * r.normal();
@@ -117,7 +118,7 @@ void test_GCudaLayer(GCudaEngine& e)
 
 	cout << "Training the parallel network...\n";
 	double timeBef2 = GTime::seconds();
-	for(size_t i = 0; i < 1000; i++)
+	for(size_t i = 0; i < epochs; i++)
 	{
 		vec[0] = 0.2 * r.normal();
 		vec[1] = 0.2 * r.normal();
