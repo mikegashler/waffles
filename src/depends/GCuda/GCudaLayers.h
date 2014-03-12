@@ -30,6 +30,8 @@ protected:
 	GCudaEngine& m_engine;
 
 public:
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::updateWeights;
 	/// Standard constructor
 	GCudaLayer(GCudaEngine& engine) : GNeuralNetLayer(), m_engine(engine) {}
 
@@ -62,6 +64,8 @@ protected:
 	double* m_pOutgoing;
 
 public:
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GNeuralNetLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
 	virtual ~GNeuralNetLayerCuda();

@@ -106,13 +106,17 @@ public:
 	/// the starting index of all the inputs where this layer feeds in.
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0) = 0;
 
-	/// Refines the weights by gradient descent.
-	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum) = 0;
+	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
+	virtual void updateBias(double learningRate, double momentum) = 0;
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum) = 0;
 
 	/// Refines the weights by gradient descent.
-	virtual void adjustWeights(GNeuralNetLayer* pUpStreamLayer, double learningRate, double momentum)
+	virtual void updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
 	{
-		adjustWeights(pUpStreamLayer->activation(), learningRate, momentum);
+		updateWeights(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, momentum);
 	}
 
 	/// Multiplies all the weights by the specified factor.
@@ -154,8 +158,6 @@ protected:
 class GNeuralNetLayerClassic : public GNeuralNetLayer
 {
 friend class GNeuralNet;
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::adjustWeights;
 protected:
 	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
 	GMatrix m_delta; // Used to implement momentum
@@ -164,6 +166,8 @@ protected:
 	std::vector<GActivationFunction*> m_activationFunctionCache;
 
 public:
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GNeuralNetLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
 	GNeuralNetLayerClassic(GDomNode* pNode);
@@ -207,15 +211,20 @@ public:
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
+	/// (Assumes the error for this layer has already been computed.)
 	virtual void deactivateError();
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
-	/// (Assumes that the error in this layer has already been deactivated.
+	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
-	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
-	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum);
+	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
+	void updateBias(double learningRate, double momentum);
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor);
@@ -286,8 +295,8 @@ public:
 	/// The error this computes is with respect to the output of the upstream layer.)
 	void backPropErrorSingleOutput(size_t output, double* pUpStreamError);
 
-	/// Adjust the weights of a single neuron. (Assumes the error has already been deactivated.)
-	void adjustWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum);
+	/// Updates the weights and bias of a single neuron. (Assumes the error has already been computed and deactivated.)
+	void updateWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum);
 
 	/// Takes ownership of pActivation function. Sets all of the units in the specified range to use the given activation function.
 	void setActivationFunction(GActivationFunction* pActivationFunction, size_t first = 0, size_t count = INVALID_INDEX);
@@ -313,8 +322,6 @@ public:
 
 class GNeuralNetLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
 {
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::adjustWeights;
 protected:
 	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error.
@@ -322,6 +329,8 @@ protected:
 	GActivationFunction* m_pActivationFunction;
 
 public:
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GNeuralNetLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
 	GNeuralNetLayerRestrictedBoltzmannMachine(GDomNode* pNode);
@@ -375,8 +384,11 @@ public:
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
+	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
+	void updateBias(double learningRate, double momentum);
+
 	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
-	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum);
+	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor);

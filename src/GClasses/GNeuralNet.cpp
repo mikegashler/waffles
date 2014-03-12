@@ -425,12 +425,26 @@ void GNeuralNetLayerClassic::backPropErrorSingleOutput(size_t outputNode, double
 	}
 }
 
-void GNeuralNetLayerClassic::adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum)
+void GNeuralNetLayerClassic::updateBias(double learningRate, double momentum)
 {
-	// Adjust the weights
+	double* pB = error();
+	double* pD = biasDelta();
+	double* pW = bias();
+	size_t outputCount = outputs();
+	for(size_t down = 0; down < outputCount; down++)
+	{
+		*pD *= momentum;
+		*pD += (*(pB++) * learningRate);
+		*(pW++) += *(pD++);
+	}
+}
+
+void GNeuralNetLayerClassic::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
 	double* pErr = error();
 	size_t outputCount = outputs();
-	for(size_t up = 0; up < m_weights.rows(); up++)
+	size_t inputEnd = inputStart + inputCount;
+	for(size_t up = inputStart; up < inputEnd; up++)
 	{
 		double* pB = pErr;
 		double* pD = m_delta[up];
@@ -443,20 +457,9 @@ void GNeuralNetLayerClassic::adjustWeights(const double* pUpStreamActivation, do
 			*(pW++) += *(pD++);
 		}
 	}
-
-	// Adjust the bias
-	double* pB = pErr;
-	double* pD = biasDelta();
-	double* pW = bias();
-	for(size_t down = 0; down < outputCount; down++)
-	{
-		*pD *= momentum;
-		*pD += (*(pB++) * learningRate);
-		*(pW++) += *(pD++);
-	}
 }
 
-void GNeuralNetLayerClassic::adjustWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum)
+void GNeuralNetLayerClassic::updateWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum)
 {
 	// Adjust the weights
 	double err = error()[outputNode];
@@ -906,16 +909,27 @@ void GNeuralNetLayerRestrictedBoltzmannMachine::backPropError(GNeuralNetLayer* p
 	}
 }
 
-void GNeuralNetLayerRestrictedBoltzmannMachine::adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum)
+void GNeuralNetLayerRestrictedBoltzmannMachine::updateBias(double learningRate, double momentum)
 {
 	size_t outputCount = outputs();
-	size_t inputCount = inputs();
 	double* pErr = error();
 	double* pBias = bias();
 	for(size_t i = 0; i < outputCount; i++)
 	{
-		GVec::addScaled(m_weights[i], learningRate * (*pErr), pUpStreamActivation, inputCount);
 		*(pBias++) += learningRate * (*pErr);
+		pErr++;
+	}
+}
+
+void GNeuralNetLayerRestrictedBoltzmannMachine::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	if(inputStart != 0 || inputCount != inputs())
+		throw Ex("Sorry, updating only a portion of the weights is not yet implemented");
+	size_t outputCount = outputs();
+	double* pErr = error();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		GVec::addScaled(m_weights[i], learningRate * (*pErr), pUpStreamActivation, inputCount);
 		pErr++;
 	}
 }
@@ -1597,12 +1611,14 @@ void GNeuralNet::backpropagateSingleOutput(size_t outputNode, double target, siz
 void GNeuralNet::descendGradient(const double* pFeatures, double learningRate, double momentum)
 {
 	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->adjustWeights(pFeatures + (useInputBias() ? 1 : 0), learningRate, momentum);
+	pLay->updateBias(learningRate, momentum);
+	pLay->updateWeights(pFeatures + (useInputBias() ? 1 : 0), 0, pLay->inputs(), learningRate, momentum);
 	GNeuralNetLayer* pUpStream = pLay;
 	for(size_t i = 1; i < m_layers.size(); i++)
 	{
 		pLay = m_layers[i];
-		pLay->adjustWeights(pUpStream, learningRate, momentum);
+		pLay->updateBias(learningRate, momentum);
+		pLay->updateWeights(pUpStream, 0, learningRate, momentum);
 		pUpStream = pLay;
 	}
 }
@@ -1612,19 +1628,21 @@ void GNeuralNet::descendGradientSingleOutput(size_t outputNeuron, const double* 
 	size_t i = m_layers.size() - 1;
 	GNeuralNetLayerClassic* pLay = (GNeuralNetLayerClassic*)m_layers[i];
 	if(i == 0)
-		pLay->adjustWeightsSingleNeuron(outputNeuron, pFeatures, learningRate, momentum);
+		pLay->updateWeightsSingleNeuron(outputNeuron, pFeatures, learningRate, momentum);
 	else
 	{
 		GNeuralNetLayerClassic* pUpStream = (GNeuralNetLayerClassic*)m_layers[i - 1];
-		pLay->adjustWeightsSingleNeuron(outputNeuron, pUpStream->activation(), learningRate, momentum);
+		pLay->updateWeightsSingleNeuron(outputNeuron, pUpStream->activation(), learningRate, momentum);
 		for(i--; i > 0; i--)
 		{
 			pLay = pUpStream;
 			pUpStream = (GNeuralNetLayerClassic*)m_layers[i - 1];
-			pLay->adjustWeights(pUpStream->activation(), learningRate, momentum);
+			pLay->updateBias(learningRate, momentum);
+			pLay->updateWeights(pUpStream->activation(), 0, pLay->inputs(), learningRate, momentum);
 		}
 		pLay = (GNeuralNetLayerClassic*)m_layers[0];
-		pLay->adjustWeights(pFeatures, learningRate, momentum);
+		pLay->updateBias(learningRate, momentum);
+		pLay->updateWeights(pFeatures, 0, pLay->inputs(), learningRate, momentum);
 	}
 }
 

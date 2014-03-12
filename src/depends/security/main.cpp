@@ -1421,7 +1421,7 @@ void open(GArgReader& args)
 		cout << "	q) Quit (Just shred any changes).\n";
 		cout << "	s) Save changes and re-encrypt.\n";
 		//cout << "	l) Leave the files decrypted. (Never choose this option.)\n";
-		cout << "Enter your choice (1,2, or 3)? ";
+		cout << "Enter your choice (q or s)? ";
 		cout.flush();
 		char choice[2];
 		cin.getline(choice, 2);
