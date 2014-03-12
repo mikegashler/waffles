@@ -223,11 +223,11 @@ void GCudaMatrix::backPropError(GCudaEngine& engine, const GCudaVector& in, GCud
 		throw Ex("cublasDgemv failed");
 }
 
-void GCudaMatrix::updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, GCudaVector& downStreamError, double learningRate)
+void GCudaMatrix::updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, size_t inputStart, GCudaVector& downStreamError, double learningRate)
 {
-	if(cublasDger((cublasHandle_t)engine.m_handle, m_cols, m_rows, &learningRate,
+	if(cublasDger((cublasHandle_t)engine.m_handle, m_cols, upStreamInput.size(), &learningRate,
 		downStreamError.d_vals, 1, upStreamInput.d_vals, 1,
-		d_vals, m_cols) != CUBLAS_STATUS_SUCCESS)
+		d_vals + inputStart * m_cols, m_cols) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDger failed");
 }
 

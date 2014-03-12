@@ -139,7 +139,7 @@ public:
 	void backPropError(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out, size_t inputStart);
 
 	/// This method is used by implementations of gradient descent to update the weights
-	void updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, GCudaVector& downStreamError, double learningRate);
+	void updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, size_t inputStart, GCudaVector& downStreamError, double learningRate);
 };
 
 

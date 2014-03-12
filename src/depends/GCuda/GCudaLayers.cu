@@ -204,22 +204,22 @@ void GNeuralNetLayerCuda::updateWeights(const double* pUpStreamActivation, size_
 	// Assume that the input was already uploaded into m_incoming when feedForward was called
 	if(inputStart != 0 || inputCount != m_weights.rows())
 		throw Ex("Sorry, partial weight updates are not yet supported in GNeuralNetLayerCuda");
-	m_weights.updateWeights(m_engine, m_incoming, m_error, learningRate);
+	m_weights.updateWeights(m_engine, m_incoming, inputStart, m_error, learningRate);
 }
 
 // virtual
 void GNeuralNetLayerCuda::updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
 {
-	if(inputStart != 0)
-		throw Ex("Sorry, partial weight updates are not yet supported in GNeuralNetLayerCuda");
 	if(pUpStreamLayer->usesGPU())
 	{
-		m_weights.updateWeights(m_engine, ((GCudaLayer*)pUpStreamLayer)->deviceActivation(), m_error, learningRate);
+		m_weights.updateWeights(m_engine, ((GCudaLayer*)pUpStreamLayer)->deviceActivation(), inputStart, m_error, learningRate);
 	}
 	else
 	{
 		// Assume that the input was already uploaded into m_incoming when feedForward was called
-		m_weights.updateWeights(m_engine, m_incoming, m_error, learningRate);
+		if(inputStart != 0)
+			throw Ex("Sorry, partial weight updates are not yet supported in GNeuralNetLayerCuda");
+		m_weights.updateWeights(m_engine, m_incoming, inputStart, m_error, learningRate);
 	}
 }
 
