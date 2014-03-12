@@ -1611,14 +1611,14 @@ void GNeuralNet::backpropagateSingleOutput(size_t outputNode, double target, siz
 void GNeuralNet::descendGradient(const double* pFeatures, double learningRate, double momentum)
 {
 	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->updateBias(learningRate, momentum);
 	pLay->updateWeights(pFeatures + (useInputBias() ? 1 : 0), 0, pLay->inputs(), learningRate, momentum);
+	pLay->updateBias(learningRate, momentum);
 	GNeuralNetLayer* pUpStream = pLay;
 	for(size_t i = 1; i < m_layers.size(); i++)
 	{
 		pLay = m_layers[i];
-		pLay->updateBias(learningRate, momentum);
 		pLay->updateWeights(pUpStream, 0, learningRate, momentum);
+		pLay->updateBias(learningRate, momentum);
 		pUpStream = pLay;
 	}
 }
@@ -1637,12 +1637,12 @@ void GNeuralNet::descendGradientSingleOutput(size_t outputNeuron, const double* 
 		{
 			pLay = pUpStream;
 			pUpStream = (GNeuralNetLayerClassic*)m_layers[i - 1];
-			pLay->updateBias(learningRate, momentum);
 			pLay->updateWeights(pUpStream->activation(), 0, pLay->inputs(), learningRate, momentum);
+			pLay->updateBias(learningRate, momentum);
 		}
 		pLay = (GNeuralNetLayerClassic*)m_layers[0];
-		pLay->updateBias(learningRate, momentum);
 		pLay->updateWeights(pFeatures, 0, pLay->inputs(), learningRate, momentum);
+		pLay->updateBias(learningRate, momentum);
 	}
 }
 

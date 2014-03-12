@@ -30,8 +30,6 @@ protected:
 	GCudaEngine& m_engine;
 
 public:
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::updateWeights;
 	/// Standard constructor
 	GCudaLayer(GCudaEngine& engine) : GNeuralNetLayer(), m_engine(engine) {}
 
@@ -64,8 +62,6 @@ protected:
 	double* m_pOutgoing;
 
 public:
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GNeuralNetLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
 	virtual ~GNeuralNetLayerCuda();
@@ -116,13 +112,21 @@ using GNeuralNetLayer::updateWeights;
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
-	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
-	/// This method currently ignores the momentum term.
-	virtual void adjustWeights(const double* pUpStreamActivation, double learningRate, double momentum);
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	/// Note that this method does not sync with the GPU. It assumes that you will yet call
+	/// updateBias, which does sync with the GPU.
+	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
-	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
-	/// This method currently ignores the momentum term.
-	virtual void adjustWeights(GNeuralNetLayer* pUpStreamLayer, double learningRate, double momentum);
+	/// Refines the weights by gradient descent.
+	/// Note that this method does not sync with the GPU. It assumes that you will yet call
+	/// updateBias, which does sync with the GPU.
+	virtual void updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum);
+
+	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been
+	/// computed and deactivated.) This method also syncs with the GPU, so it should be
+	/// called after updateWeights.
+	virtual void updateBias(double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor);
