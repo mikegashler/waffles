@@ -370,6 +370,21 @@ bool GFile::localStorageDirectory(char *toHere)
 	s.write(pBuf, size);
 }
 
+/*static*/ void GFile::appendToFile(const char* szFilename, const char* szString)
+{
+	std::ofstream s;
+	s.exceptions(std::ios::failbit | std::ios::badbit);
+	try
+	{
+		s.open(szFilename, std::ios::binary | std::ios::app);
+	}
+	catch(const std::exception&)
+	{
+		throw Ex("Error creating file: ", szFilename);
+	}
+	s << szString;
+}
+
 void GFile::condensePath(char* szPath)
 {
 	int n;

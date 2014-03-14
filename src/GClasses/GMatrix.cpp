@@ -994,7 +994,7 @@ GMatrix& GMatrix::operator=(const GMatrix& orig)
 GMatrix::GMatrix(GDomNode* pNode)
 {
 	m_pRelation = GRelation::deserialize(pNode->field("rel"));
-	GDomNode* pRows = pNode->field("pats");
+	GDomNode* pRows = pNode->field("vals");
 	GDomListIterator it(pRows);
 	reserve(it.remaining());
 	size_t dims = (size_t)m_pRelation->size();
@@ -1572,7 +1572,7 @@ GDomNode* GMatrix::serialize(GDom* pDoc) const
 	GDomNode* pData = pDoc->newObj();
 	size_t attrCount = m_pRelation->size();
 	pData->addField(pDoc, "rel", m_pRelation->serialize(pDoc));
-	GDomNode* pPats = pData->addField(pDoc, "pats", pDoc->newList());
+	GDomNode* pPats = pData->addField(pDoc, "vals", pDoc->newList());
 	GDomNode* pRow;
 	for(size_t i = 0; i < rows(); i++)
 	{

@@ -132,6 +132,9 @@ GNeuralNetLayerClassic::GNeuralNetLayerClassic(GDomNode* pNode)
 		it2.advance();
 		ppActFunc++;
 	}
+
+	m_delta.setAll(0.0);
+	GVec::setAll(biasDelta(), 0.0, outputCount);
 }
 
 GNeuralNetLayerClassic::~GNeuralNetLayerClassic()

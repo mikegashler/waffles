@@ -647,7 +647,7 @@ GDomNode* GDom::newDouble(double d)
 	}
 	else
 	{
-		throw Ex("invalid value");
+		throw Ex("Invalid value: ", to_str(d));
 		return NULL;
 	}
 }

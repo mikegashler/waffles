@@ -80,6 +80,10 @@ public:
 	/// Saves a buffer as a file.  Returns true on success
 	static void saveFile(const char* pBuf, size_t nSize, const char* szFilename);
 
+	/// Appends szString to the specified file. (This is a convenient method
+	/// for logging. It is not efficient, because it does not keep the file open.)
+	static void appendToFile(const char* szFilename, const char* szString);
+
 	/// Fills "list" with the names of all the files (excluding folders)
 	/// in the specified directory.
 	static void fileList(std::vector<std::string>& list, const char* dir = ".");
