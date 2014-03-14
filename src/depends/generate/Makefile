@@ -20,12 +20,12 @@ endif
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS = -I/opt/local/include -I/usr/local/include -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpthread
-	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a -lpthread
+	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/libGClassesDbg.a -lpthread
+	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/libGClasses.a -lpthread
 else
 	CFLAGS = -Wall
-	DBG_LFLAGS = ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a -lpng -lpthread
-	OPT_LFLAGS = ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a -lpng -lpthread
+	DBG_LFLAGS = ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/libGClassesDbg.a -lpng -lpthread
+	OPT_LFLAGS = ../../../obj/waffles_wizard/opt/usage.o ../../../lib/libGClasses.a -lpng -lpthread
 endif
 
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
@@ -76,19 +76,19 @@ usage:
 ../../../obj/waffles_wizard/opt/usage.o :
 	$(MAKE) -C ../../wizard opt
 
-../../../lib/GClassesDbg.a :
+../../../lib/libGClassesDbg.a :
 	$(MAKE) -C ../../GClasses dbg
 
-../../../lib/GClasses.a :
+../../../lib/libGClasses.a :
 	$(MAKE) -C ../../GClasses opt
 
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../../obj/waffles_wizard/opt/usage.o ../../../lib/GClasses.a
+$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../../obj/waffles_wizard/opt/usage.o ../../../lib/libGClasses.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
 
 # This rule makes the debug binary by using g++ with the debug ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/GClassesDbg.a
+$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/libGClassesDbg.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 

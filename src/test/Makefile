@@ -20,14 +20,14 @@ endif
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I$(INSTALL_LOCATION_INCLUDE) -I$(DARWIN_BASE)/include -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
-	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/GClasses.a -lpthread
-	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/GClassesDbg.a -lpthread
-	GCOV_LFLAGS = -fprofile-arcs $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../lib/GClassesGcov.a
+	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/libGClasses.a -lpthread
+	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/libGClassesDbg.a -lpthread
+	GCOV_LFLAGS = -fprofile-arcs $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../lib/libGClassesGcov.a
 else
 	CFLAGS = -Wall
-	OPT_LFLAGS = ../../lib/GClasses.a -lpthread
-	DBG_LFLAGS = ../../lib/GClassesDbg.a -lpthread
-	GCOV_LFLAGS = -fprofile-arcs ../../lib/GClassesGcov.a -lpthread
+	OPT_LFLAGS = ../../lib/libGClasses.a -lpthread
+	DBG_LFLAGS = ../../lib/libGClassesDbg.a -lpthread
+	GCOV_LFLAGS = -fprofile-arcs ../../lib/libGClassesGcov.a -lpthread
 endif
 
 OPT_CFLAGS = $(CFLAGS) -O3
@@ -101,13 +101,13 @@ usage:
 	#                after running ../../bin/testgcov)
 	#
 
-../../lib/GClasses.a :
+../../lib/libGClasses.a :
 	$(MAKE) -C ../GClasses opt
 
-../../lib/GClassesDbg.a :
+../../lib/libGClassesDbg.a :
 	$(MAKE) -C ../GClasses dbg
 
-../../lib/GClassesGcov.a :
+../../lib/libGClassesGcov.a :
 	$(MAKE) -C ../GClasses gcov
 
 ../../obj/waffles_wizard/opt/usage.o:
@@ -118,17 +118,17 @@ usage:
 
 
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waffles_wizard/opt/usage.o ../../lib/GClasses.a
+$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waffles_wizard/opt/usage.o ../../lib/libGClasses.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
 
 # This rule makes the debug binary by using g++ with the debug ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesDbg.a
+$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../obj/waffles_wizard/dbg/usage.o ../../lib/libGClassesDbg.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 
 # This rule makes the gcov binary by using g++ with the gcov ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV) ../../obj/waffles_wizard/dbg/usage.o ../../lib/GClassesGcov.a
+$(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV) ../../obj/waffles_wizard/dbg/usage.o ../../lib/libGClassesGcov.a
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_GCOV) $(OBJECTS_GCOV) $(GCOV_LFLAGS)
 
 # This includes all of the ".d" files. Each ".d" file contains a

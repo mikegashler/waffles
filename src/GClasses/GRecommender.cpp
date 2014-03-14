@@ -1415,7 +1415,7 @@ void GNonlinearPCA::test()
 	GNonlinearPCA rec(3);
 	rec.model()->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 3));
 	rec.model()->addLayer(new GNeuralNetLayerClassic(3, FLEXIBLE_SIZE));
-	rec.basicTest(0.258);
+	rec.basicTest(0.261);
 }
 #endif
 
