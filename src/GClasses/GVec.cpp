@@ -614,6 +614,18 @@ double GVec::sumElements(const double* pVec, size_t dims)
 	return sum;
 }
 
+double GVec::sumAbsoluteValues(const double* pVec, size_t dims)
+{
+	double sum = 0;
+	while(dims > 0)
+	{
+		sum += std::abs(*pVec);
+		pVec++;
+		dims--;
+	}
+	return sum;
+}
+
 
 void GVec_InsertionSort(double* pVec, size_t size, double* pParallel1, size_t* pParallel2, double* pParallel3)
 {

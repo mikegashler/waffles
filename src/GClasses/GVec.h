@@ -199,6 +199,9 @@ public:
 	/// Returns the sum of all the elements
 	static double sumElements(const double* pVec, size_t dims);
 
+	/// Returns the sum of the absolute values of all the elements
+	static double sumAbsoluteValues(const double* pVec, size_t dims);
+
 	/// Moves the smallest k values to the front of the vector, and the biggest (size - k) values
 	/// to the end of the vector. (For efficiency, no other guarantees about ordering are made.)
 	/// This has an average-case runtime that is linear with respect to size.

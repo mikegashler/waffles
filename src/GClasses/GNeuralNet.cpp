@@ -1129,6 +1129,10 @@ void GNeuralNet::copyWeights(GNeuralNet* pOther)
 void GNeuralNet::copyStructure(GNeuralNet* pOther)
 {
 	clear();
+	delete(m_pRelFeatures);
+	m_pRelFeatures = pOther->m_pRelFeatures->cloneMinimal();
+	delete(m_pRelLabels);
+	m_pRelLabels = pOther->m_pRelLabels->cloneMinimal();
 	for(size_t i = 0; i < pOther->m_layers.size(); i++)
 	{
 		// todo: this is not a very efficient way to copy a layer
@@ -1325,7 +1329,43 @@ void GNeuralNet::scaleWeightsSingleOutput(size_t output, double factor)
 }
 #endif // MIN_PREDICT
 
-void GNeuralNet::bleedWeights(double alpha)
+void GNeuralNet::bleedWeightsL1(double beta)
+{
+	for(size_t i = m_layers.size() - 2; i < m_layers.size(); i--)
+	{
+		size_t layerSize = m_layers[i]->outputs();
+		for(size_t j = 0; j < layerSize; j++)
+		{
+			// Compute sum-squared weights in next layer
+			GNeuralNetLayerClassic& layDownStream = *(GNeuralNetLayerClassic*)m_layers[i + 1];
+			size_t dsOutputs = layDownStream.outputs();
+			GMatrix& dsW = layDownStream.m_weights;
+			double sawDownStream = GVec::sumAbsoluteValues(dsW[j], dsOutputs);
+
+			// Compute sum-squared weights in this layer
+			double sawUpStream = 0.0;
+			GNeuralNetLayerClassic& layUpStream = *(GNeuralNetLayerClassic*)m_layers[i];
+			size_t usInputs = layUpStream.inputs();
+			GMatrix& usW = layUpStream.m_weights;
+			for(size_t k = 0; k < usInputs; k++)
+				sawUpStream += std::abs(usW[k][j]);
+
+			// Compute scaling factors
+			double sawAverage = 0.5 * (sawDownStream + sawUpStream);
+			double sawNewDownStream = beta * sawAverage + (1.0 - beta) * sawDownStream;
+			double sawNewUpStream = beta * sawAverage + (1.0 - beta) * sawUpStream;
+			double facDownStream = sawNewDownStream / sawDownStream;
+			double facUpStream = sawNewUpStream / sawUpStream;
+
+			// Scale the weights in both layers
+			GVec::multiply(dsW[j], facDownStream, dsOutputs);
+			for(size_t k = 0; k < usInputs; k++)
+				usW[k][j] *= facUpStream;
+		}
+	}
+}
+
+void GNeuralNet::bleedWeightsL2(double beta)
 {
 	for(size_t i = m_layers.size() - 2; i < m_layers.size(); i--)
 	{
@@ -1347,21 +1387,16 @@ void GNeuralNet::bleedWeights(double alpha)
 				sswUpStream += (usW[k][j] * usW[k][j]);
 
 			// Compute scaling factors
-			double t1 = sqrt(sswDownStream);
-			double t2 = sqrt(sswUpStream);
-			if(t1 > 1e-10 && t2 > 1e-10) // if we have enough precision to do something meaningful
-			{
-				double t3 = 4.0 * t1 * t2 * alpha;
-				double t4 = sswUpStream + sswDownStream;
-				double beta = (-t3 + sqrt(t3 * t3 - 4.0 * t4 * t4 * (alpha * alpha - 1.0))) / (2.0 * t4);
-				double facDS = (beta * t1 + alpha * t2) / t1;
-				double facUS = (beta * t2 + alpha * t1) / t2;
+			double sswAverage = 0.5 * (sswDownStream + sswUpStream);
+			double sswNewDownStream = beta * sswAverage + (1.0 - beta) * sswDownStream;
+			double sswNewUpStream = beta * sswAverage + (1.0 - beta) * sswUpStream;
+			double facDownStream = sqrt(sswNewDownStream) / sqrt(sswDownStream);
+			double facUpStream = sqrt(sswNewUpStream) / sqrt(sswUpStream);
 
-				// Scale the weights in both layers
-				GVec::multiply(dsW[j], facDS, dsOutputs);
-				for(size_t k = 0; k < usInputs; k++)
-					usW[k][j] *= facUS;
-			}
+			// Scale the weights in both layers
+			GVec::multiply(dsW[j], facDownStream, dsOutputs);
+			for(size_t k = 0; k < usInputs; k++)
+				usW[k][j] *= facUpStream;
 		}
 	}
 }
@@ -2250,7 +2285,7 @@ void GNeuralNet_testBleedWeights()
 	double* pAfter = new double[wc];
 	ArrayHolder<double> hAfter(pAfter);
 	nn.weights(pBefore);
-	nn.bleedWeights(0.1);
+	nn.bleedWeightsL2(0.1);
 	nn.weights(pAfter);
 	if(std::abs(GVec::squaredMagnitude(pBefore, wc) - GVec::squaredMagnitude(pAfter, wc)) > 0.000001)
 		throw Ex("failed");

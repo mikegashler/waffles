@@ -549,11 +549,21 @@ public:
 	/// Just like scaleWeights, except it only scales the weights in one of the output units.
 	void scaleWeightsSingleOutput(size_t output, double lambda);
 
-	/// Adjust the magnitudes of the incoming and outgoing connections by amount alpha,
-	/// such that sum-squared magnitude remains constant. A small value for alpha, such as
-	/// 0.0001, will bring the magnitudes closer together by a small amount (so the bigger
-	/// one will be scaled down, and the smaller one will be scaled up).
-	void bleedWeights(double alpha);
+	/// Adjust the magnitudes of the incoming and outgoing connections by amount beta,
+	/// such that sum of the absolute values of the weights remains constant. If beta
+	/// is 0, no bleeding will occur. If beta is 1, total bleeding will occur, such that
+	/// the sum of the absolute values of the input and output weights are the same. Typically,
+	/// only a small amount of bleeding is desirable, so values close to 0 (like 0.00001)
+	/// are used.
+	void bleedWeightsL1(double beta);
+
+	/// Adjust the magnitudes of the incoming and outgoing connections by amount beta,
+	/// such that sum-squared-weights remains constant. If beta
+	/// is 0, no bleeding will occur. If beta is 1, total bleeding will occur, such that
+	/// the sum of the squares of the input and output weights are the same. Typically,
+	/// only a small amount of bleeding is desirable, so values close to 0 (like 0.00001)
+	/// are used.
+	void bleedWeightsL2(double beta);
 
 	/// Returns the current learning rate
 	double learningRate() const { return m_learningRate; }
