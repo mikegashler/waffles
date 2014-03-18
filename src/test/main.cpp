@@ -881,6 +881,7 @@ public:
 		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);
 		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
 		runTest("GAttributeSelector", GAttributeSelector::test);
+		runTest("GAutoFilter", GAutoFilter::test);
 		runTest("GBag", GBag::test);
 		runTest("GBagOfRecommenders", GBagOfRecommenders::test);
 		runTest("GBaselineLearner", GBaselineLearner::test);

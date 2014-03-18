@@ -430,6 +430,8 @@ protected:
 
 	virtual ~GFilter();
 
+	virtual bool canTrainIncrementally() { return m_pLearner->canTrainIncrementally(); }
+
 	/// Releases the learner that this filter wraps
 	virtual GSupervisedLearner* releaseLearner();
 
@@ -536,6 +538,10 @@ public:
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GAutoFilter();
+
+#ifndef MIN_PREDICT
+	static void test();
+#endif // MIN_PREDICT
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;

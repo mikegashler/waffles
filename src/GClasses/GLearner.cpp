@@ -1416,6 +1416,11 @@ void GAutoFilter::resetFilters(const GMatrix& features, const GMatrix& labels)
 	whatTypesAreNeeded(features.relation(), labels.relation(), hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
 	setupDataDependentFilters(pLearner, features, labels, hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
 	setupBasicFilters(pLearner, hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
+
+	if(m_pLearner->canTrainIncrementally())
+		m_pIncrementalLearner = (GIncrementalLearner*)m_pLearner;
+	else
+		m_pIncrementalLearner = NULL;
 }
 
 void GAutoFilter::resetFilters(const GRelation& features, const GRelation& labels)
@@ -1429,6 +1434,11 @@ void GAutoFilter::resetFilters(const GRelation& features, const GRelation& label
 	bool hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels;
 	whatTypesAreNeeded(features, labels, hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
 	setupBasicFilters(pLearner, hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
+
+	if(m_pLearner->canTrainIncrementally())
+		m_pIncrementalLearner = (GIncrementalLearner*)m_pLearner;
+	else
+		m_pIncrementalLearner = NULL;
 }
 
 // virtual
@@ -1464,6 +1474,36 @@ void GAutoFilter::trainIncremental(const double* pIn, const double* pOut)
 {
 	m_pIncrementalLearner->trainIncremental(pIn, pOut);
 }
+
+#ifndef MIN_PREDICT
+void GAutoFilter::test()
+{
+	// This test trains a neural network (which only handles continuous values)
+	// in an incremental manner to implement a simple autoencoder for categorical values.
+	// This demonstrates that GAutoFilter picks the right filters, applies them, and
+	// works with incremental learning.
+	GNeuralNet* pNN = new GNeuralNet();
+	pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	GAutoFilter af(pNN);
+	GUniformRelation rel(1, 3);
+	af.beginIncrementalLearning(rel, rel);
+	GRand rand(0);
+	double pat[1];
+	for(size_t i = 0; i < 500; i++)
+	{
+		pat[0] = rand.next(3);
+		af.trainIncremental(pat, pat);
+	}
+	double pred[1];
+	for(size_t i = 0; i < 10; i++)
+	{
+		pat[0] = rand.next(3);
+		af.predict(pat, pred);
+		if(std::abs(pred[0] - pat[0]) > 1e-12)
+			throw Ex("failed");
+	}
+}
+#endif // MIN_PREDICT
 
 
 
