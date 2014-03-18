@@ -271,15 +271,6 @@ void GNeuralNetLayerClassic::resetWeights(GRand& rand)
 }
 
 // virtual
-void GNeuralNetLayerClassic::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
-{
-	size_t n = std::min(outputs() - start, count);
-	for(size_t j = 0; j < m_weights.rows(); j++)
-		GVec::perturb(m_weights[j] + start, deviation, n, rand);
-	GVec::perturb(bias() + start, deviation, n, rand);
-}
-
-// virtual
 void GNeuralNetLayerClassic::copyBiasToNet()
 {
 	GVec::copy(net(), bias(), outputs());
@@ -594,9 +585,18 @@ size_t GNeuralNetLayerClassic::vectorToWeights(const double* pVector)
 // virtual
 void GNeuralNetLayerClassic::copyWeights(const GNeuralNetLayer* pSource)
 {
-	GNeuralNetLayerClassic* src = (GNeuralNetLayerClassic*)pSource;
+	const GNeuralNetLayerClassic* src = (const GNeuralNetLayerClassic*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	GVec::copy(bias(), src->bias(), src->outputs());
+}
+
+// virtual
+void GNeuralNetLayerClassic::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+{
+	size_t n = std::min(outputs() - start, count);
+	for(size_t j = 0; j < m_weights.rows(); j++)
+		GVec::perturb(m_weights[j] + start, deviation, n, rand);
+	GVec::perturb(bias() + start, deviation, n, rand);
 }
 
 
@@ -991,7 +991,7 @@ size_t GNeuralNetLayerRestrictedBoltzmannMachine::vectorToWeights(const double* 
 // virtual
 void GNeuralNetLayerRestrictedBoltzmannMachine::copyWeights(const GNeuralNetLayer* pSource)
 {
-	GNeuralNetLayerRestrictedBoltzmannMachine* src = (GNeuralNetLayerRestrictedBoltzmannMachine*)pSource;
+	const GNeuralNetLayerRestrictedBoltzmannMachine* src = (const GNeuralNetLayerRestrictedBoltzmannMachine*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	GVec::copy(bias(), src->bias(), src->outputs());
 }
@@ -1002,6 +1002,291 @@ void GNeuralNetLayerRestrictedBoltzmannMachine::copyWeights(const GNeuralNetLaye
 
 
 
+
+GNeuralNetLayerConvolutional1D::GNeuralNetLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction)
+: m_inputSamples(inputSamples), m_inputChannels(inputChannels), m_outputSamples(inputSamples - kernelSize + 1), m_kernelsPerChannel(kernelsPerChannel), m_kernels(inputChannels * kernelsPerChannel, kernelSize), m_pBias(NULL)
+{
+	m_pActivationFunction = pActivationFunction;
+	if(!m_pActivationFunction)
+		m_pActivationFunction = new GActivationLogistic();
+	size_t totalOutputs = inputChannels * kernelsPerChannel * m_outputSamples;
+	m_activation.resize(3, totalOutputs);
+	m_pBias = new double[m_kernels.rows()];
+}
+
+GNeuralNetLayerConvolutional1D::GNeuralNetLayerConvolutional1D(GDomNode* pNode)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+GNeuralNetLayerConvolutional1D::~GNeuralNetLayerConvolutional1D()
+{
+	delete[] m_pBias;
+}
+
+// virtual
+GDomNode* GNeuralNetLayerConvolutional1D::serialize(GDom* pDoc)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::resize(size_t inputs, size_t outputs, GRand* pRand)
+{
+	if(inputs != m_inputSamples * m_inputChannels)
+		throw Ex("Changing the size of GNeuralNetLayerConvolutional1D is not supported");
+	size_t kernelSize = m_kernels.cols();
+	size_t outputSamples = m_inputSamples - kernelSize + 1;
+	size_t totalOutputs = m_inputChannels * m_kernelsPerChannel * outputSamples;
+	if(outputs != totalOutputs)
+		throw Ex("Changing the size of GNeuralNetLayerConvolutional1D is not supported");
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::resetWeights(GRand& rand)
+{
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+	{
+		double* pW = m_kernels[i];
+		for(size_t j = 0; j < kernelSize; j++)
+			*(pW++) = rand.normal() * 0.03;
+	}
+	double* pB = m_pBias;
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+		*(pB++) = rand.normal() * 0.03;
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::copyBiasToNet()
+{
+	double* pNet = net();
+	double* pB = m_pBias;
+	for(size_t i = 0; i < m_outputSamples; i++)
+	{
+		GVec::copy(pNet, pB, m_kernels.rows());
+		pNet += m_kernels.rows();
+	}
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::feedIn(const double* pIn, size_t inputStart, size_t inputCount)
+{
+	GAssert(inputStart == 0);
+	if(inputCount != m_inputSamples * m_inputChannels)
+		throw Ex("Sorry, partial feeding not supported in GNeuralNetLayerConvolutional1D");
+	size_t kernelSize = m_kernels.cols();
+	double* pNet = net();
+	for(size_t i = 0; i < m_outputSamples; i++) // for each output sample...
+	{
+		size_t kern = 0;
+		for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+		{
+			for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+			{
+				double* pW = m_kernels[kern++];
+				double d = 0.0;
+				const double* pInput = pIn;
+				for(size_t l = 0; l < kernelSize; l++) // for each connection...
+				{
+					d += *(pW++) * *pInput;
+					pInput += m_inputChannels;
+				}
+				*(pNet++) += d;
+			}
+			pIn++;
+		}
+	}
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::activate()
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	double* pNet = net();
+	for(size_t i = 0; i < outputCount; i++)
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::computeError(const double* pTarget)
+{
+	size_t outputUnits = outputs();
+	double* pAct = activation();
+	double* pErr = error();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		if(*pTarget == UNKNOWN_REAL_VALUE)
+			*pErr = 0.0;
+		else
+			*pErr = *pTarget - *pAct;
+		pTarget++;
+		pAct++;
+		pErr++;
+	}
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::deactivateError()
+{
+	size_t outputUnits = outputs();
+	double* pErr = error();
+	double* pNet = net();
+	double* pAct = activation();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct);
+		pNet++;
+		pAct++;
+		pErr++;
+	}
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+{
+	GAssert(inputStart == 0);
+	GAssert(pUpStreamLayer->outputs() == inputs());
+	double* pUpStreamErr = pUpStreamLayer->error();
+	double* pDownStreamErr = error();
+	size_t kernelSize = m_kernels.cols();
+	GVec::setAll(pUpStreamErr, 0.0, inputs());
+	for(size_t i = 0; i < m_outputSamples; i++) // for each sample...
+	{
+		size_t kern = 0;
+		for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+		{
+			for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+			{
+				double* pW = m_kernels[kern++];
+				double* pUp = pUpStreamErr;
+				for(size_t l = 0; l < kernelSize; l++) // for each connection...
+				{
+					(*pUp) += *(pW++) * *pDownStreamErr;
+					pUp += m_inputChannels;
+				}
+				pDownStreamErr++;
+			}
+			pUpStreamErr++;
+		}
+	}
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::updateBias(double learningRate, double momentum)
+{
+	double* pErr = error();
+	for(size_t i = 0; i < m_outputSamples; i++)
+	{
+		double* pB = m_pBias;
+		for(size_t j = 0; j < m_inputChannels; j++)
+		{
+			for(size_t k = 0; k < m_kernelsPerChannel; k++)
+				*(pB++) += learningRate * *(pErr++);
+		}
+	}
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	GAssert(inputStart == 0);
+	GAssert(inputCount == inputs());
+	double* pErr = error();
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_outputSamples; i++) // for each sample...
+	{
+		size_t kern = 0;
+		for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+		{
+			for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+			{
+				double* pW = m_kernels[kern++];
+				const double* pIn = pUpStreamActivation;
+				for(size_t l = 0; l < kernelSize; l++) // for each connection...
+				{
+					*(pW++) += learningRate * *pErr * *pIn;
+					pIn += m_inputChannels;
+				}
+				pErr ++;
+			}
+			pUpStreamActivation++;
+		}
+	}
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::scaleWeights(double factor)
+{
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+		GVec::multiply(m_kernels[i], factor, kernelSize);
+	GVec::multiply(m_pBias, factor, m_kernels.rows());
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::diminishWeights(double amount)
+{
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+		GVec::diminish(m_kernels[i], amount, kernelSize);
+	GVec::diminish(m_pBias, amount, m_kernels.rows());
+}
+
+// virtual
+size_t GNeuralNetLayerConvolutional1D::countWeights()
+{
+	return (m_kernels.rows() + 1) * m_kernels.cols();
+}
+
+// virtual
+size_t GNeuralNetLayerConvolutional1D::weightsToVector(double* pOutVector)
+{
+	GVec::copy(pOutVector, m_pBias, m_kernels.rows());
+	pOutVector += m_kernels.rows();
+	m_kernels.toVector(pOutVector);
+	return (m_kernels.rows() + 1) * m_kernels.cols();
+}
+
+// virtual
+size_t GNeuralNetLayerConvolutional1D::vectorToWeights(const double* pVector)
+{
+	GVec::copy(m_pBias, pVector, m_kernels.rows());
+	pVector += m_kernels.rows();
+	m_kernels.fromVector(pVector, m_kernels.rows());
+	return (m_kernels.rows() + 1) * m_kernels.cols();
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::copyWeights(const GNeuralNetLayer* pSource)
+{
+	const GNeuralNetLayerConvolutional1D* src = (const GNeuralNetLayerConvolutional1D*)pSource;
+	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+	GVec::copy(m_pBias, src->m_pBias, src->m_kernels.rows());
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+{
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+		GVec::perturb(m_kernels[i], deviation, kernelSize, rand);
+	GVec::perturb(m_pBias, deviation, m_kernels.rows(), rand);
+}
+
+// virtual
+void GNeuralNetLayerConvolutional1D::clipWeights(double max)
+{
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+	{
+		GVec::capValues(m_kernels[i], max, kernelSize);
+		GVec::floorValues(m_kernels[i], -max, kernelSize);
+	}
+	GVec::capValues(m_pBias, max, m_kernels.rows());
+	GVec::floorValues(m_pBias, -max, m_kernels.rows());
+}
 
 
 
@@ -2041,6 +2326,52 @@ void GNeuralNet_testMath()
 	}
 }
 
+void GNeuralNet_testConvolutionalLayerMath()
+{
+	GNeuralNetLayerConvolutional1D layer(4, 2, 3, 2, new GActivationIdentity());
+	layer.bias()[0] = 0.0;
+	layer.bias()[1] = -1.0;
+	layer.bias()[2] = 2.0;
+	layer.bias()[3] = 1.0;
+	GMatrix& k = layer.kernels();
+	k[0][0] = 0.0;	k[0][1] = 1.0;	k[0][2] = 2.0;
+	k[1][0] = 2.0;	k[1][1] = 1.0;	k[1][2] = 0.0;
+	k[2][0] = 0.0;	k[2][1] = 2.0;	k[2][2] = 1.0;
+	k[3][0] = 1.0;	k[3][1] = 1.0;	k[3][2] = 1.0;
+	const double in[] = { 0.0, 1.0, 0.0, 2.0, 1.0, 3.0, 2.0, 2.0 };
+	double learning_rate = 2.0;
+	layer.copyBiasToNet();
+	layer.feedIn(in, 0, 8);
+	layer.activate();
+	const double expected_activation[] = { 2.0, -1.0, 9.0, 7.0, 5.0, 0.0, 10.0, 8.0 };
+	if(GVec::squaredDistance(layer.activation(), expected_activation, 8) > 1e-9)
+		throw Ex("incorrect activation");
+	const double target[] = { 2.0, 0.0, 11.0, 10.0, 9.0, 5.0, 16.0, 15.0 };
+	layer.computeError(target);
+	const double expected_err[] = { 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0 };
+	if(GVec::squaredDistance(layer.error(), expected_err, 8) > 1e-9)
+		throw Ex("incorrect error");
+	layer.deactivateError();
+	// Note that this test does not cover backPropError().
+	layer.updateWeights(in, 0, 8, learning_rate, 0.0);
+	const double expected_k1[] = { 0.0, 9.0, 18.0 };
+	const double expected_k2[] = { 2.0, 11.0, 22.0 };
+	const double expected_k3[] = { 28.0, 46.0, 37.0 };
+	const double expected_k4[] = { 35.0, 55.0, 47.0 };
+	if(GVec::squaredDistance(k[0], expected_k1, 3) > 1e-9)
+		throw Ex("incorrect weights");
+	if(GVec::squaredDistance(k[1], expected_k2, 3) > 1e-9)
+		throw Ex("incorrect weights");
+	if(GVec::squaredDistance(k[2], expected_k3, 3) > 1e-9)
+		throw Ex("incorrect weights");
+	if(GVec::squaredDistance(k[3], expected_k4, 3) > 1e-9)
+		throw Ex("incorrect weights");
+	layer.updateBias(learning_rate, 0.0);
+	const double expected_bias[] = { 8.0, 11.0, 18.0, 21.0 };
+	if(GVec::squaredDistance(layer.bias(), expected_bias, 4) > 1e-9)
+		throw Ex("incorrect bias");
+}
+
 void GNeuralNet_testInputGradient(GRand* pRand)
 {
 	for(int i = 0; i < 20; i++)
@@ -2378,6 +2709,7 @@ void GNeuralNet::test()
 	GNeuralNet_testBleedWeights();
 	GNeuralNet_testTransformWeights(prng);
 	GNeuralNet_testCompressFeatures(prng);
+	GNeuralNet_testConvolutionalLayerMath();
 
 	// Test with no hidden layers (logistic regression)
 	{

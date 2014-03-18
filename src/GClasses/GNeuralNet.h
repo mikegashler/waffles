@@ -170,6 +170,8 @@ using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GNeuralNetLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
+
+	/// Deserializing constructor
 	GNeuralNetLayerClassic(GDomNode* pNode);
 	~GNeuralNetLayerClassic();
 
@@ -333,7 +335,10 @@ using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GNeuralNetLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
+
+	/// Deserializing constructor
 	GNeuralNetLayerRestrictedBoltzmannMachine(GDomNode* pNode);
+
 	~GNeuralNetLayerRestrictedBoltzmannMachine();
 
 	/// Returns the type of this layer
@@ -466,6 +471,125 @@ using GNeuralNetLayer::updateWeights;
 	/// pVisibleSample should point to a vector of inputs that will be presented to this layer.
 	void contrastiveDivergence(GRand& rand, const double* pVisibleSample, double learningRate, size_t gibbsSamples = 1);
 };
+
+
+
+class GNeuralNetLayerConvolutional1D : public GNeuralNetLayer
+{
+friend class GNeuralNet;
+protected:
+	size_t m_inputSamples;
+	size_t m_inputChannels;
+	size_t m_outputSamples;
+	size_t m_kernelsPerChannel;
+	GMatrix m_kernels;
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the net. Row 2 is the error.
+	double* m_pBias;
+	GActivationFunction* m_pActivationFunction;
+
+public:
+	/// General-purpose constructor.
+	/// For example, if you collect 19 samples from 3 sensors, then the total input size will be 57 (19*3=57).
+	/// The three values collected at time 0 will come first, followed by the three values collected at
+	/// time 1, and so forth. If kernelSize is 5 and kernelsPerChannel is 2, then the output will consist of
+	/// 15 (19-5+1=15) samples of 6 (3*2=6) channels, for a total of 90 (15*6=90) output values. The first
+	/// six channel values will appear first in the output vector, followed by the next six, and so forth.
+	GNeuralNetLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction = NULL);
+
+	/// Deserializing constructor
+	GNeuralNetLayerConvolutional1D(GDomNode* pNode);
+
+	virtual ~GNeuralNetLayerConvolutional1D();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "conv1"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() const { return m_inputSamples * m_inputChannels; }
+
+	/// Returns the number of nodes or units in this layer.
+	virtual size_t outputs() const { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
+
+	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+
+	/// Returns the activation values from the most recent call to feedForward().
+	virtual double* activation() { return m_activation[0]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual double* error() { return m_activation[2]; }
+
+	/// Copies the bias vector into the net vector.
+	virtual void copyBiasToNet();
+
+	/// Feeds a portion of the inputs through the weights and updates the net.
+	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
+
+	/// Applies the activation function to the net vector to compute the activation vector.
+	virtual void activate();
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const double* pTarget);
+
+	/// Multiplies each element in the error vector by the derivative of the activation function.
+	/// This results in the error having meaning with respect to the weights, instead of the output.
+	/// (Assumes the error for this layer has already been computed.)
+	virtual void deactivateError();
+
+	/// Backpropagates the error from this layer into the upstream layer's error vector.
+	/// (Assumes that the error in this layer has already been computed and deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+
+	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
+	void updateBias(double learningRate, double momentum);
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Multiplies all the weights in this layer by the specified factor.
+	virtual void scaleWeights(double factor);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	virtual void diminishWeights(double amount);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand);
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
+
+	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
+	virtual void clipWeights(double max);
+
+	/// Returns the net vector (that is, the values computed before the activation function was applied)
+	/// from the most recent call to feedForward().
+	double* net() { return m_activation[1]; }
+
+	double* bias() { return m_pBias; }
+	GMatrix& kernels() { return m_kernels; }
+};
+
 
 
 
