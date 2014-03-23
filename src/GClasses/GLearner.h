@@ -445,6 +445,11 @@ public:
 	/// Returns true
 	virtual bool isFilter() { return true; }
 
+	/// Initialize (or train) this filter without calling train on any of the
+	/// interior components. (This might be used when filtering a learner that
+	/// has already been trained with a transform that has also already been trained.)
+	void initShellOnly(const GRelation& featureRel, const GRelation& labelRel);
+
 #ifndef MIN_PREDICT
 	/// Throws an exception
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);

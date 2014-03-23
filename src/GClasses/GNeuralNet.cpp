@@ -1006,6 +1006,8 @@ void GNeuralNetLayerRestrictedBoltzmannMachine::copyWeights(const GNeuralNetLaye
 GNeuralNetLayerConvolutional1D::GNeuralNetLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction)
 : m_inputSamples(inputSamples), m_inputChannels(inputChannels), m_outputSamples(inputSamples - kernelSize + 1), m_kernelsPerChannel(kernelsPerChannel), m_kernels(inputChannels * kernelsPerChannel, kernelSize), m_pBias(NULL)
 {
+	if(kernelSize > inputSamples)
+		throw Ex("kernelSize must be <= inputSamples");
 	m_pActivationFunction = pActivationFunction;
 	if(!m_pActivationFunction)
 		m_pActivationFunction = new GActivationLogistic();

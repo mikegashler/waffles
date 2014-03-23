@@ -417,6 +417,7 @@ using GNeuralNetLayer::updateWeights;
 	virtual void resetWeights(GRand& rand);
 
 	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// Also perturbs the bias.
 	/// start specifies the first unit whose incoming weights are perturbed.
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
 	/// The default values for these parameters apply the perturbation to all units.
@@ -491,9 +492,10 @@ public:
 	/// General-purpose constructor.
 	/// For example, if you collect 19 samples from 3 sensors, then the total input size will be 57 (19*3=57).
 	/// The three values collected at time 0 will come first, followed by the three values collected at
-	/// time 1, and so forth. If kernelSize is 5 and kernelsPerChannel is 2, then the output will consist of
-	/// 15 (19-5+1=15) samples of 6 (3*2=6) channels, for a total of 90 (15*6=90) output values. The first
-	/// six channel values will appear first in the output vector, followed by the next six, and so forth.
+	/// time 1, and so forth. If kernelSize is 5, then the output will consist of 15 (19-5+1=15) samples.
+	/// If kernelsPerChannel is 2, then there will be 6 (3*2=6) channels in the output, for a total of 90 (15*6=90)
+	/// output values. The first six channel values will appear first in the output vector, followed by the next six,
+	/// and so forth. (kernelSize must be <= inputSamples.)
 	GNeuralNetLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction = NULL);
 
 	/// Deserializing constructor

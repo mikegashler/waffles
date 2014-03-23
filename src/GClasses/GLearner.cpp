@@ -465,9 +465,9 @@ void GSupervisedLearner::train(const GMatrix& features, const GMatrix& labels)
 	if(labels.cols() == 0)
 		throw Ex("Expected at least one label dimension");
 	delete(m_pRelFeatures);
-	m_pRelFeatures = features.relation().clone();
+	m_pRelFeatures = features.relation().cloneMinimal();
 	delete(m_pRelLabels);
-	m_pRelLabels = labels.relation().clone();
+	m_pRelLabels = labels.relation().cloneMinimal();
 	trainInner(features, labels);
 }
 
@@ -1061,6 +1061,14 @@ GFilter::~GFilter()
 void GFilter::clear()
 {
 	m_pLearner->clear();
+}
+
+void GFilter::initShellOnly(const GRelation& featureRel, const GRelation& labelRel)
+{
+	delete(m_pRelFeatures);
+	m_pRelFeatures = featureRel.cloneMinimal();
+	delete(m_pRelLabels);
+	m_pRelLabels = labelRel.cloneMinimal();
 }
 
 // virtual

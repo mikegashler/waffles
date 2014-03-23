@@ -15,11 +15,12 @@ ifeq ($(UNAME),Darwin)
 	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) $(shell sdl-config --libs) -lpng -lz -lpthread -framework AppKit ../../../lib/GClassesDbg.a
 	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) $(shell sdl-config --libs) -lpng -lz -lpthread -framework AppKit ../../../lib/GClasses.a
 else
-	CFLAGS = -Wall $(shell sdl-config --cflags) -I$(INSTALL_LOCATION_INCLUDE)
+	CFLAGS = -Wall $(shell sdl-config --cflags) -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
-	DBG_LFLAGS = -lGClassesDbg $(shell sdl-config --libs) -lpthread
-	OPT_LFLAGS = -lGClasses $(shell sdl-config --libs) -lpthread
+	LFLAGS = -L../../../lib $(shell sdl-config --libs)
+	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lpthread
+	OPT_LFLAGS = $(LFLAGS) -lGClasses -lpthread
 endif
 
 ################

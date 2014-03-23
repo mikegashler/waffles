@@ -1239,12 +1239,21 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 				pRow++;
 				col++;
 				char c = tok.peek();
-				if(c == ',' || c == '\t')
+				while(c == '\t' || c == ' ')
+				{
+					tok.advance(1);
+					c = tok.peek();
+				}
+				if(c == ',')
 					tok.advance(1);
 				else if(c == '\n' || c == '\0')
 					break;
-				else
-					throw Ex("inconsistency");
+				else if(c == '%')
+				{
+					tok.advance(1);
+					tok.skipTo(tok.m_newline);
+					break;
+				}
 			}
 			if(col < cols)
 				throw Ex("Not enough values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
