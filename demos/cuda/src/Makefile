@@ -18,9 +18,9 @@ else
 	CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
-	LFLAGS = -L../../../lib -lpthread -L /usr/local/cuda-5.0/lib64/ -lcublas -lcudart
-	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lGCudaDbg
-	OPT_LFLAGS = $(LFLAGS) -lGClasses -lGCuda
+	LFLAGS = -L../../../lib -lpthread -L/usr/local/cuda-5.0/lib64/
+	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lGCudaDbg -lcublas -lcudart
+	OPT_LFLAGS = $(LFLAGS) -lGClasses -lGCuda -lcublas -lcudart
 endif
 
 ################
