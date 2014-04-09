@@ -168,7 +168,7 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args)
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
+			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -208,7 +208,7 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args)
 		else
 			throw Ex("Invalid neuralnet option: ", args.peek());
 	}
-	pModel->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	return pModel;
 }
 /*

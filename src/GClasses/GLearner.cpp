@@ -1036,15 +1036,15 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode)
 
 // ---------------------------------------------------------------
 
-GFilter::GFilter(GSupervisedLearner* pLearner)
-: GIncrementalLearner(), m_pLearner(pLearner), m_pIncrementalLearner(NULL)
+GFilter::GFilter(GSupervisedLearner* pLearner, bool ownLearner)
+: GIncrementalLearner(), m_pLearner(pLearner), m_pIncrementalLearner(NULL), m_ownLearner(ownLearner)
 {
 	if(pLearner->canTrainIncrementally())
 		m_pIncrementalLearner = (GIncrementalLearner*)pLearner;
 }
 
 GFilter::GFilter(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll), m_pIncrementalLearner(NULL)
+: GIncrementalLearner(pNode, ll), m_pIncrementalLearner(NULL), m_ownLearner(true)
 {
 	m_pLearner = ll.loadLearner(pNode->field("learner"));
 	if(m_pLearner->canTrainIncrementally())
@@ -1054,7 +1054,8 @@ GFilter::GFilter(GDomNode* pNode, GLearnerLoader& ll)
 // virtual
 GFilter::~GFilter()
 {
-	delete(m_pLearner);
+	if(m_ownLearner)
+		delete(m_pLearner);
 }
 
 // virtual
@@ -1071,17 +1072,21 @@ void GFilter::initShellOnly(const GRelation& featureRel, const GRelation& labelR
 	m_pRelLabels = labelRel.cloneMinimal();
 }
 
-// virtual
-GSupervisedLearner* GFilter::releaseLearner()
+void GFilter::discardIntermediateFilters()
 {
 	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->releaseLearner();
-	else
 	{
-		GSupervisedLearner* pLearner = m_pLearner;
-		m_pLearner = NULL;
-		m_pIncrementalLearner = NULL;
-		return pLearner;
+		GFilter* pIntermediateFilter = (GFilter*)m_pLearner;
+		pIntermediateFilter->discardIntermediateFilters();
+		GSupervisedLearner* pTemp = pIntermediateFilter->m_pLearner;
+		pIntermediateFilter->m_pLearner = NULL;
+		pIntermediateFilter->m_pIncrementalLearner = NULL;
+		delete(m_pLearner);
+		m_pLearner = pTemp;
+		if(m_pLearner->canTrainIncrementally())
+			m_pIncrementalLearner = (GIncrementalLearner*)m_pLearner;
+		else
+			m_pIncrementalLearner = NULL;
 	}
 }
 
@@ -1102,13 +1107,13 @@ void GFilter::trainSparse(GSparseMatrix& features, GMatrix& labels)
 
 // ---------------------------------------------------------------
 
-GFeatureFilter::GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform)
-: GFilter(pLearner), m_pTransform(pTransform)
+GFeatureFilter::GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner, bool ownTransform)
+: GFilter(pLearner, ownLearner), m_pTransform(pTransform), m_ownTransform(ownTransform)
 {
 }
 
 GFeatureFilter::GFeatureFilter(GDomNode* pNode, GLearnerLoader& ll)
-: GFilter(pNode, ll)
+: GFilter(pNode, ll), m_ownTransform(true)
 {
 	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
 }
@@ -1116,7 +1121,8 @@ GFeatureFilter::GFeatureFilter(GDomNode* pNode, GLearnerLoader& ll)
 // virtual
 GFeatureFilter::~GFeatureFilter()
 {
-	delete(m_pTransform);
+	if(m_ownTransform)
+		delete(m_pTransform);
 }
 
 // virtual
@@ -1171,13 +1177,13 @@ void GFeatureFilter::trainIncremental(const double* pIn, const double* pOut)
 
 // ---------------------------------------------------------------
 
-GLabelFilter::GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform)
-: GFilter(pLearner), m_pTransform(pTransform)
+GLabelFilter::GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner, bool ownTransform)
+: GFilter(pLearner, ownLearner), m_pTransform(pTransform), m_ownTransform(ownTransform)
 {
 }
 
 GLabelFilter::GLabelFilter(GDomNode* pNode, GLearnerLoader& ll)
-: GFilter(pNode, ll)
+: GFilter(pNode, ll), m_ownTransform(true)
 {
 	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
 }
@@ -1185,7 +1191,8 @@ GLabelFilter::GLabelFilter(GDomNode* pNode, GLearnerLoader& ll)
 // virtual
 GLabelFilter::~GLabelFilter()
 {
-	delete(m_pTransform);
+	if(m_ownTransform)
+		delete(m_pTransform);
 }
 
 // virtual
@@ -1240,8 +1247,8 @@ void GLabelFilter::trainIncremental(const double* pIn, const double* pOut)
 
 // ---------------------------------------------------------------
 
-GAutoFilter::GAutoFilter(GSupervisedLearner* pLearner)
-: GFilter(pLearner)
+GAutoFilter::GAutoFilter(GSupervisedLearner* pLearner, bool ownLearner)
+: GFilter(pLearner, ownLearner)
 {
 }
 
@@ -1414,12 +1421,8 @@ void GAutoFilter::setupBasicFilters(GSupervisedLearner* pLearner, bool hasNomina
 
 void GAutoFilter::resetFilters(const GMatrix& features, const GMatrix& labels)
 {
-	// Delete existing filters
-	GSupervisedLearner* pLearner = releaseLearner();
-	delete(m_pLearner);
-	m_pLearner = pLearner;
-
-	// Set up new filters
+	discardIntermediateFilters();
+	GSupervisedLearner* pLearner = m_pLearner;
 	bool hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels;
 	whatTypesAreNeeded(features.relation(), labels.relation(), hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
 	setupDataDependentFilters(pLearner, features, labels, hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
@@ -1433,12 +1436,8 @@ void GAutoFilter::resetFilters(const GMatrix& features, const GMatrix& labels)
 
 void GAutoFilter::resetFilters(const GRelation& features, const GRelation& labels)
 {
-	// Delete existing filters
-	GSupervisedLearner* pLearner = releaseLearner();
-	delete(m_pLearner);
-	m_pLearner = pLearner;
-
-	// Set up new filters
+	discardIntermediateFilters();
+	GSupervisedLearner* pLearner = m_pLearner;
 	bool hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels;
 	whatTypesAreNeeded(features, labels, hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
 	setupBasicFilters(pLearner, hasNominalFeatures, hasContinuousFeatures, hasNominalLabels, hasContinuousLabels);
@@ -1491,7 +1490,7 @@ void GAutoFilter::test()
 	// This demonstrates that GAutoFilter picks the right filters, applies them, and
 	// works with incremental learning.
 	GNeuralNet* pNN = new GNeuralNet();
-	pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	GAutoFilter af(pNN);
 	GUniformRelation rel(1, 3);
 	af.beginIncrementalLearning(rel, rel);
@@ -1608,7 +1607,7 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 
 		// Train a layer of logistic units to map from the before distribution to the after distribution
 		GNeuralNet* pNN = new GNeuralNet();
-		pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		calibrations.push_back(pNN);
 		pNN->train(tmpBefore, tmpAfter);
 	}

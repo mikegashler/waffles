@@ -261,7 +261,7 @@ GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args)
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-addlayer"))
-			pModel->model()->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
+			pModel->model()->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
 		else if(args.if_pop("-learningrate"))
 			pModel->model()->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -305,7 +305,7 @@ GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->model()->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	pModel->model()->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	return pModel;
 }
 

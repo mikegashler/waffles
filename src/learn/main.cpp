@@ -763,7 +763,7 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* 
 			pModel->autoTune(*pFeatures, *pLabels);
 		}
 		else if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
+			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -805,7 +805,7 @@ GNeuralNet* InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* 
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	return pModel;
 }
 
@@ -851,7 +851,7 @@ GWag* InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 		if(args.if_pop("-noalign"))
 			pWag->noAlign();
 		else if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
+			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
 		else if(args.if_pop("-learningrate"))
 			pModel->setLearningRate(args.pop_double());
 		else if(args.if_pop("-momentum"))
@@ -893,7 +893,7 @@ GWag* InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	pWag->setModelCount(modelCount);
 	return pWag;
 }
@@ -2201,7 +2201,7 @@ public:
 	}
 };
 
-void optimize(GArgReader& args)
+void regress(GArgReader& args)
 {
 	// Load the data
 	Holder<GMatrix> hFeatures, hLabels;
@@ -2505,8 +2505,8 @@ int main(int argc, char *argv[])
  				sterilize(args);
 			else if(args.if_pop("trainrecurrent"))
 				trainRecurrent(args);
-			else if(args.if_pop("optimize"))
-				optimize(args);
+			else if(args.if_pop("regress"))
+				regress(args);
 			else if(args.if_pop("metadata"))
 				metaData(args);
 			else

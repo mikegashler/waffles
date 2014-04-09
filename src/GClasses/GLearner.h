@@ -421,9 +421,10 @@ class GFilter : public GIncrementalLearner
 protected:
 	GSupervisedLearner* m_pLearner;
 	GIncrementalLearner* m_pIncrementalLearner;
+	bool m_ownLearner;
 
 
-	GFilter(GSupervisedLearner* pLearner);
+	GFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
 	/// Deserialization constructor
 	GFilter(GDomNode* pNode, GLearnerLoader& ll);
@@ -432,8 +433,8 @@ protected:
 
 	virtual bool canTrainIncrementally() { return m_pLearner->canTrainIncrementally(); }
 
-	/// Releases the learner that this filter wraps
-	virtual GSupervisedLearner* releaseLearner();
+	/// Discards any filters between this filter and the base learner
+	void discardIntermediateFilters();
 
 	/// Helper function for serialization
 	GDomNode* domNode(GDom* pDoc, const char* szClassName) const;
@@ -461,10 +462,11 @@ class GFeatureFilter : public GFilter
 {
 protected:
 	GIncrementalTransform* m_pTransform;
+	bool m_ownTransform;
 
 public:
 	/// This takes ownership of pLearner and pTransform.
-	GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform);
+	GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner = true, bool ownTransform = true);
 
 	/// Deserialization constructor
 	GFeatureFilter(GDomNode* pNode, GLearnerLoader& ll);
@@ -498,10 +500,11 @@ class GLabelFilter : public GFilter
 {
 protected:
 	GIncrementalTransform* m_pTransform;
+	bool m_ownTransform;
 
 public:
 	/// This takes ownership of pLearner and pTransform.
-	GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform);
+	GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner = true, bool ownTransform = true);
 
 	/// Deserialization constructor
 	GLabelFilter(GDomNode* pNode, GLearnerLoader& ll);
@@ -536,7 +539,7 @@ class GAutoFilter : public GFilter
 {
 public:
 	/// This takes ownership of pLearner.
-	GAutoFilter(GSupervisedLearner* pLearner);
+	GAutoFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
 	/// Deserialization constructor
 	GAutoFilter(GDomNode* pNode, GLearnerLoader& ll);

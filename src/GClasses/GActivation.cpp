@@ -36,34 +36,44 @@ GDomNode* GActivationFunction::serialize(GDom* pDoc) const
 GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 {
 	const char* szName = pNode->asString();
-	if(strcmp(szName, "logistic") == 0)
-		return new GActivationLogistic();
-	else if(strcmp(szName, "arctan") == 0)
-		return new GActivationArcTan();
-	else if(strcmp(szName, "tanh") == 0)
-		return new GActivationTanH();
-	else if(strcmp(szName, "algebraic") == 0)
-		return new GActivationAlgebraic();
-	else if(strcmp(szName, "identity") == 0)
-		return new GActivationIdentity();
-	else if(strcmp(szName, "gaussian") == 0)
-		return new GActivationGaussian();
-	else if(strcmp(szName, "bidir") == 0)
-		return new GActivationBiDir();
-	else if(strcmp(szName, "bend") == 0)
-		return new GActivationBend();
-	else if(strcmp(szName, "sin") == 0)
-		return new GActivationSin();
-	else if(strcmp(szName, "sinc") == 0)
-		return new GActivationSinc();
-	else if(strcmp(szName, "logisticderiv") == 0)
-		return new GActivationLogisticDerivative();
-	else if(strcmp(szName, "softplus") == 0)
-		return new GActivationSoftPlus();
-	else if(strcmp(szName, "softplus2") == 0)
-		return new GActivationSoftPlus2();
+	if(*szName < 'm')
+	{
+		if(strcmp(szName, "logistic") == 0)
+			return new GActivationLogistic();
+		else if(strcmp(szName, "identity") == 0)
+			return new GActivationIdentity();
+		else if(strcmp(szName, "arctan") == 0)
+			return new GActivationArcTan();
+		else if(strcmp(szName, "algebraic") == 0)
+			return new GActivationAlgebraic();
+		else if(strcmp(szName, "gaussian") == 0)
+			return new GActivationGaussian();
+		else if(strcmp(szName, "bidir") == 0)
+			return new GActivationBiDir();
+		else if(strcmp(szName, "bend") == 0)
+			return new GActivationBend();
+		else if(strcmp(szName, "logisticderiv") == 0)
+			return new GActivationLogisticDerivative();
+		else
+			throw Ex("Unrecognized activation function: ", szName);
+	}
 	else
-		throw Ex("Unrecognized activation function: ", szName);
+	{
+		if(strcmp(szName, "tanh") == 0)
+			return new GActivationTanH();
+		else if(strcmp(szName, "relu") == 0)
+			return new GActivationRectifiedLinear();
+		else if(strcmp(szName, "softplus") == 0)
+			return new GActivationSoftPlus();
+		else if(strcmp(szName, "sin") == 0)
+			return new GActivationSin();
+		else if(strcmp(szName, "sinc") == 0)
+			return new GActivationSinc();
+		else if(strcmp(szName, "softplus2") == 0)
+			return new GActivationSoftPlus2();
+		else
+			throw Ex("Unrecognized activation function: ", szName);
+	}
 	return NULL;
 }
 

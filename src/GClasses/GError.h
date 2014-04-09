@@ -94,7 +94,8 @@ void GAssertFailed();
 
 
 
-///\brief Instantiating an object of this class specifies that an exception is expected during the life of the object.
+///\brief Instantiating an object of this class specifies that any exceptions thrown
+/// during the life of this object should be treated as "expected".
 class GExpectException
 {
 protected:

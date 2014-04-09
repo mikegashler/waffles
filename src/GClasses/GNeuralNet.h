@@ -60,10 +60,10 @@ public:
 	static GNeuralNetLayer* deserialize(GDomNode* pNode);
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const = 0;
+	virtual size_t inputs() = 0;
 
 	/// Returns the number of values that this layer outputs.
-	virtual size_t outputs() const = 0;
+	virtual size_t outputs() = 0;
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
@@ -135,7 +135,7 @@ public:
 	virtual size_t vectorToWeights(const double* pVector) = 0;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource) = 0;
+	virtual void copyWeights(GNeuralNetLayer* pSource) = 0;
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand) = 0;
@@ -148,14 +148,14 @@ public:
 	virtual void clipWeights(double max) = 0;
 
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
-	GMatrix* feedThrough(GMatrix& data);
+	GMatrix* feedThrough(const GMatrix& data);
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc);
 };
 
 
-class GNeuralNetLayerClassic : public GNeuralNetLayer
+class GLayerClassic : public GNeuralNetLayer
 {
 friend class GNeuralNet;
 protected:
@@ -169,11 +169,11 @@ public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
-	GNeuralNetLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
+	GLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
 
 	/// Deserializing constructor
-	GNeuralNetLayerClassic(GDomNode* pNode);
-	~GNeuralNetLayerClassic();
+	GLayerClassic(GDomNode* pNode);
+	~GLayerClassic();
 
 	/// Returns the type of this layer
 	virtual const char* type() { return "classic"; }
@@ -182,10 +182,10 @@ using GNeuralNetLayer::updateWeights;
 	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_weights.rows(); }
+	virtual size_t inputs() { return m_weights.rows(); }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const { return m_weights.cols(); }
+	virtual size_t outputs() { return m_weights.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
@@ -222,7 +222,7 @@ using GNeuralNetLayer::updateWeights;
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
-	void updateBias(double learningRate, double momentum);
+	virtual void updateBias(double learningRate, double momentum);
 
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -244,7 +244,7 @@ using GNeuralNetLayer::updateWeights;
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(GNeuralNetLayer* pSource);
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand);
@@ -322,7 +322,111 @@ using GNeuralNetLayer::updateWeights;
 
 
 
-class GNeuralNetLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
+/// Facilitates mixing multiple types of layers side-by-side into a single layer.
+class GLayerMixed : public GNeuralNetLayer
+{
+protected:
+	GMatrix m_inputError;
+	GMatrix m_activation;
+	std::vector<GNeuralNetLayer*> m_components;
+
+public:
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::updateWeights;
+	/// General-purpose constructor. (You should call addComponent at least twice to mix some layers, after constructing this object.)
+	GLayerMixed();
+
+	/// Deserializing constructor
+	GLayerMixed(GDomNode* pNode);
+	~GLayerMixed();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "mixed"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Adds another component of this layer. In other words, make this layer bigger by adding pComponent to it,
+	/// as a peer beside the other components in this layer.
+	void addComponent(GNeuralNetLayer* pComponent);
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs();
+
+	/// Returns the number of nodes or units in this layer.
+	virtual size_t outputs();
+
+	/// Throws an exception if the specified dimensions would change anything. Also
+	/// throws an exception if pRand is not NULL.
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+
+	/// Returns the activation values from the most recent call to feedForward().
+	virtual double* activation() { return m_activation[0]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual double* error() { return m_activation[1]; }
+
+	/// Calls copyBiasToNet for each component.
+	virtual void copyBiasToNet();
+
+	/// Feeds a portion of the inputs through the weights and updates the net for each component.
+	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
+
+	/// Applies the activation function to the net vector to compute the activation vector
+	/// in each component, then aggregates all the activation vectors into a single activation for this layer.
+	virtual void activate();
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const double* pTarget);
+
+	/// Copies the error vector into the corresponding buffer for each component,
+	/// then calls deactivateError for each component.
+	virtual void deactivateError();
+
+	/// Calls backPropError for each component, and adds them up into the upstreams error buffer.
+	/// (Note that the current implementation of this method may not be compatible with GPU-optimized layers.
+	/// This method still needs to be audited for compatibility with such layers.)
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+
+	/// Calls updateBias for each component.
+	virtual void updateBias(double learningRate, double momentum);
+
+	/// Calls updateWeights for each component.
+	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Calls scaleWeights for each component.
+	virtual void scaleWeights(double factor);
+
+	/// Calls diminishWeights for each component.
+	virtual void diminishWeights(double amount);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(GNeuralNetLayer* pSource);
+
+	/// Calls resetWeights for each component.
+	virtual void resetWeights(GRand& rand);
+
+	/// Calls perturbWeights for each component.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+
+	/// Calls clipWeights for each component.
+	virtual void clipWeights(double max);
+};
+
+
+
+class GLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
 {
 protected:
 	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
@@ -334,12 +438,12 @@ public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
-	GNeuralNetLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
+	GLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
 
 	/// Deserializing constructor
-	GNeuralNetLayerRestrictedBoltzmannMachine(GDomNode* pNode);
+	GLayerRestrictedBoltzmannMachine(GDomNode* pNode);
 
-	~GNeuralNetLayerRestrictedBoltzmannMachine();
+	~GLayerRestrictedBoltzmannMachine();
 
 	/// Returns the type of this layer
 	virtual const char* type() { return "rbm"; }
@@ -348,10 +452,10 @@ using GNeuralNetLayer::updateWeights;
 	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Returns the number of visible units.
-	virtual size_t inputs() const { return m_weights.cols(); }
+	virtual size_t inputs() { return m_weights.cols(); }
 
 	/// Returns the number of hidden units.
-	virtual size_t outputs() const { return m_weights.rows(); }
+	virtual size_t outputs() { return m_weights.rows(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
@@ -390,7 +494,7 @@ using GNeuralNetLayer::updateWeights;
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
-	void updateBias(double learningRate, double momentum);
+	virtual void updateBias(double learningRate, double momentum);
 
 	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
@@ -411,7 +515,7 @@ using GNeuralNetLayer::updateWeights;
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(GNeuralNetLayer* pSource);
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand);
@@ -475,7 +579,7 @@ using GNeuralNetLayer::updateWeights;
 
 
 
-class GNeuralNetLayerConvolutional1D : public GNeuralNetLayer
+class GLayerConvolutional1D : public GNeuralNetLayer
 {
 friend class GNeuralNet;
 protected:
@@ -496,12 +600,12 @@ public:
 	/// If kernelsPerChannel is 2, then there will be 6 (3*2=6) channels in the output, for a total of 90 (15*6=90)
 	/// output values. The first six channel values will appear first in the output vector, followed by the next six,
 	/// and so forth. (kernelSize must be <= inputSamples.)
-	GNeuralNetLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction = NULL);
+	GLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction = NULL);
 
 	/// Deserializing constructor
-	GNeuralNetLayerConvolutional1D(GDomNode* pNode);
+	GLayerConvolutional1D(GDomNode* pNode);
 
-	virtual ~GNeuralNetLayerConvolutional1D();
+	virtual ~GLayerConvolutional1D();
 
 	/// Returns the type of this layer
 	virtual const char* type() { return "conv1"; }
@@ -510,10 +614,10 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc);
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_inputSamples * m_inputChannels; }
+	virtual size_t inputs() { return m_inputSamples * m_inputChannels; }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
+	virtual size_t outputs() { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
@@ -549,7 +653,7 @@ public:
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
-	void updateBias(double learningRate, double momentum);
+	virtual void updateBias(double learningRate, double momentum);
 
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -571,7 +675,7 @@ public:
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(GNeuralNetLayer* pSource);
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand);
@@ -852,6 +956,16 @@ public:
 
 	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const double* pIn, double* pOut);
+
+	/// Pretrains the network using the method of stacked autoencoders.
+	/// This method performs the following steps: 1- Start with the first
+	/// layer. 2- Create an autoencoder using the current layer as the
+	/// encoder and a temporary layer as the decoder. 3- Train the
+	/// autoencoder with the features. 4- Discard the decoder. 5- Map the
+	/// features through the encoder to obtain a set of features for
+	/// training the next layer, and go to step 2 until all (or maxLayers)
+	/// layers have been pretrained in this manner.
+	void pretrainWithAutoencoders(const GMatrix& features, size_t maxLayers = INVALID_INDEX);
 
 #ifndef MIN_PREDICT
 	/// See the comment for GSupervisedLearner::predictDistribution

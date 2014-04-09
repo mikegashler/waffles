@@ -762,8 +762,8 @@ GRelation* GReservoir::trainInner(const GRelation& relation)
 	delete(m_pNN);
 	GNeuralNet* pNN = new GNeuralNet();
 	for(size_t i = 0; i < m_hiddenLayers; i++)
-		pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, m_outputs));
-	pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, m_outputs));
+	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	GUniformRelation* pRel = new GUniformRelation(m_outputs);
 	m_pNN = pNN;
 	if(!relation.areContinuous())
@@ -924,7 +924,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn;
-		nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		nn.rand().setSeed(m_seed);
 		m_seed += 77152487;
 		m_seed *= 37152487;
@@ -935,7 +935,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		ntc.reverseAttrMap(rmap);
 
 		// Identify the weakest attribute
-		GNeuralNetLayerClassic& layer = *(GNeuralNetLayerClassic*)&nn.layer(nn.layerCount() - 1);
+		GLayerClassic& layer = *(GLayerClassic*)&nn.layer(nn.layerCount() - 1);
 		size_t pos = 0;
 		double weakest = 1e308;
 		size_t weakestIndex = 0;

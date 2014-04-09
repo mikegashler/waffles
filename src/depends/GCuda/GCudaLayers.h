@@ -70,10 +70,10 @@ public:
 	virtual const char* type() { return "cuda"; }
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_weights.rows(); }
+	virtual size_t inputs() { return m_weights.rows(); }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const { return m_weights.cols(); }
+	virtual size_t outputs() { return m_weights.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it throws an exception.
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
@@ -144,7 +144,7 @@ public:
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(GNeuralNetLayer* pSource);
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand);

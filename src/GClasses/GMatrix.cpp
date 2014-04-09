@@ -5002,7 +5002,26 @@ std::string to_str(const GMatrix& m){
 
 
 
-GDataSplitter::GDataSplitter(const GMatrix& features, const GMatrix& labels, GRand& rand, size_t part1Rows)
+GDataColSplitter::GDataColSplitter(const GMatrix& data, size_t labels)
+{
+	m_pFeatures = new GMatrix();
+	m_pFeatures->copyCols(data, 0, data.cols() - labels);
+	m_pLabels = new GMatrix();
+	m_pLabels->copyCols(data, data.cols() - labels, labels);
+}
+
+GDataColSplitter::~GDataColSplitter()
+{
+	delete(m_pFeatures);
+	delete(m_pLabels);
+}
+
+
+
+
+
+
+GDataRowSplitter::GDataRowSplitter(const GMatrix& features, const GMatrix& labels, GRand& rand, size_t part1Rows)
 : m_f1(features.relation().cloneMinimal()),
 m_f2(features.relation().cloneMinimal()),
 m_l1(labels.relation().cloneMinimal()),
@@ -5030,7 +5049,7 @@ m_l2(labels.relation().cloneMinimal())
 	}
 }
 
-GDataSplitter::~GDataSplitter()
+GDataRowSplitter::~GDataRowSplitter()
 {
 	m_f1.releaseAllRows();
 	m_l1.releaseAllRows();

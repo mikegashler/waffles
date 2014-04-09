@@ -1292,11 +1292,36 @@ public:
 
 
 
+/// This class divides a matrix into two parts. The left-most columns are the features.
+/// The right-most columns are the labels.
+class GDataColSplitter
+{
+protected:
+	GMatrix* m_pFeatures;
+	GMatrix* m_pLabels;
+
+public:
+	/// Splits a dataset into a feature matrix and a label matrix. The right-most "labels" columns
+	/// are put in the label matrix
+	GDataColSplitter(const GMatrix& data, size_t labels);
+	~GDataColSplitter();
+
+	/// Returns a reference to the feature matrix
+	const GMatrix& features() { return *m_pFeatures; }
+
+	/// Returns a reference to the label matrix
+	const GMatrix& labels() { return *m_pLabels; }
+};
+
+
+
+
+
 /// This class divides a features and labels matrix into two parts
 /// by randomly assigning each row to one of the two parts, keeping the corresponding
 /// rows together. The rows are shallow-copied. The destructor of this class releases
 /// all of the row references.
-class GDataSplitter
+class GDataRowSplitter
 {
 protected:
 	GMatrix m_f1;
@@ -1308,8 +1333,8 @@ public:
 	/// features and labels are expected to remain valid for the duration of this object.
 	/// proportion specifies the proportion of rows that will be referenced
 	/// by part 1 of the data. (In case of an exact tie, part 2 gets the extra row.)
-	GDataSplitter(const GMatrix& features, const GMatrix& labels, GRand& rand, size_t part1Rows);
-	~GDataSplitter();
+	GDataRowSplitter(const GMatrix& features, const GMatrix& labels, GRand& rand, size_t part1Rows);
+	~GDataRowSplitter();
 
 	/// Returns a reference to the first part of the features matrix
 	const GMatrix& features1() { return m_f1; }

@@ -578,6 +578,36 @@ public:
 };
 
 
+/// The activation function for rectified linear units (ReLU).
+class GActivationRectifiedLinear : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "relu"; }
+
+	virtual double squash(double x) { return std::max(0.0, x); }
+
+	virtual double derivative(double x) { return (x >= 0.0 ? 1.0 : 0.0); }
+
+	virtual double inverse(double y) { return y; }
+
+	/// Returns 50.0
+	virtual double center() { return 50.0; }
+
+	/// Returns 50.0
+	virtual double halfRange() { return 50.0; }
+
+	/// Returns 1.0
+	virtual double identityDiag() { return 1.0; }
+
+	/// Returns 1.0
+	virtual double identityBias() { return 0.0; }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationRectifiedLinear(); }
+};
+
+
 /// The integral of the logsitic function. At very negative values, this converges toward y=0. At very positive values, this converges to y=x.
 class GActivationSoftPlus : public GActivationFunction
 {
