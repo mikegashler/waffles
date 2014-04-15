@@ -581,7 +581,6 @@ using GNeuralNetLayer::updateWeights;
 
 class GLayerConvolutional1D : public GNeuralNetLayer
 {
-friend class GNeuralNet;
 protected:
 	size_t m_inputSamples;
 	size_t m_inputChannels;
@@ -593,6 +592,8 @@ protected:
 	GActivationFunction* m_pActivationFunction;
 
 public:
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor.
 	/// For example, if you collect 19 samples from 3 sensors, then the total input size will be 57 (19*3=57).
 	/// The three values collected at time 0 will come first, followed by the three values collected at
@@ -702,7 +703,6 @@ public:
 /// A feed-forward artificial neural network, or multi-layer perceptron.
 class GNeuralNet : public GIncrementalLearner
 {
-friend class GBackProp;
 protected:
 	std::vector<GNeuralNetLayer*> m_layers;
 	double m_learningRate;
