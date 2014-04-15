@@ -260,7 +260,7 @@ void GLayerClassic::resetWeights(GRand& rand)
 {
 	size_t outputCount = outputs();
 	size_t inputCount = inputs();
-	double mag = 1.0 / inputCount;
+	double mag = std::max(0.01, 1.0 / inputCount); // maxing with 0.01 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
 	for(size_t i = 0; i < inputCount; i++)
 	{
 		double* pW = m_weights[i];
@@ -552,13 +552,23 @@ void GLayerClassic::setToWeaklyApproximateIdentity(size_t start, size_t count)
 }
 
 // virtual
-void GLayerClassic::clipWeights(double max)
+void GLayerClassic::maxNorm(double max)
 {
 	size_t outputCount = outputs();
-	for(size_t j = 0; j < m_weights.rows(); j++)
+	for(size_t i = 0; i < outputCount; i++)
 	{
-		GVec::floorValues(m_weights[j], -max, outputCount);
-		GVec::capValues(m_weights[j], max, outputCount);
+		double squaredMag = 0;
+		for(size_t j = 0; j < m_weights.rows(); j++)
+		{
+			double d = m_weights[j][i];
+			squaredMag += (d * d);
+		}
+		if(squaredMag > max * max)
+		{
+			double scal = max / sqrt(squaredMag);
+			for(size_t j = 0; j < m_weights.rows(); j++)
+				m_weights[j][i] *= scal;
+		}
 	}
 }
 
@@ -831,10 +841,10 @@ void GLayerMixed::perturbWeights(GRand& rand, double deviation, size_t start, si
 }
 
 // virtual
-void GLayerMixed::clipWeights(double max)
+void GLayerMixed::maxNorm(double max)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->clipWeights(max);
+		m_components[i]->maxNorm(max);
 }
 
 
@@ -1138,8 +1148,6 @@ void GLayerRestrictedBoltzmannMachine::backPropError(GNeuralNetLayer* pUpStreamL
 {
 	double* pDownStreamError = error();
 	double* pUpStreamError = pUpStreamLayer->error();
-	size_t inputCount = pUpStreamLayer->outputs();
-	size_t outputCount = outputs();
 	m_weights.multiply(pDownStreamError, pUpStreamError, true);
 }
 
@@ -1185,13 +1193,18 @@ void GLayerRestrictedBoltzmannMachine::diminishWeights(double amount)
 }
 
 // virtual
-void GLayerRestrictedBoltzmannMachine::clipWeights(double max)
+void GLayerRestrictedBoltzmannMachine::maxNorm(double max)
 {
 	size_t inputCount = inputs();
-	for(size_t j = 0; j < m_weights.rows(); j++)
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
 	{
-		GVec::floorValues(m_weights[j], -max, inputCount);
-		GVec::capValues(m_weights[j], max, inputCount);
+		double squaredMag = GVec::squaredMagnitude(m_weights[i], inputCount);
+		if(squaredMag > max * max)
+		{
+			double scal = max / sqrt(squaredMag);
+			GVec::multiply(m_weights[i], scal, inputCount);
+		}
 	}
 }
 
@@ -1511,7 +1524,7 @@ void GLayerConvolutional1D::perturbWeights(GRand& rand, double deviation, size_t
 }
 
 // virtual
-void GLayerConvolutional1D::clipWeights(double max)
+void GLayerConvolutional1D::maxNorm(double max)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
@@ -1519,8 +1532,6 @@ void GLayerConvolutional1D::clipWeights(double max)
 		GVec::capValues(m_kernels[i], max, kernelSize);
 		GVec::floorValues(m_kernels[i], -max, kernelSize);
 	}
-	GVec::capValues(m_pBias, max, m_kernels.rows());
-	GVec::floorValues(m_pBias, -max, m_kernels.rows());
 }
 
 
@@ -1674,10 +1685,10 @@ void GNeuralNet::perturbAllWeights(double deviation)
 		m_layers[i]->perturbWeights(m_rand, deviation);
 }
 
-void GNeuralNet::clipWeights(double max)
+void GNeuralNet::maxNorm(double max)
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->clipWeights(max);
+		m_layers[i]->maxNorm(max);
 }
 
 void GNeuralNet::invertNode(size_t layer, size_t node)

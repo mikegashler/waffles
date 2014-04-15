@@ -75,10 +75,10 @@ public:
 	/// Returns a buffer where the error terms for each unit are stored.
 	virtual double* error() = 0;
 
-	/// Copies the bias vector into the net vector.
+	/// Copies the bias vector into the net vector. (This should be done before feedIn is called.)
 	virtual void copyBiasToNet() = 0;
 
-	/// Feeds a portion of the inputs through the weights and updates the net.
+	/// Feeds the inputs (or a portion of the inputs) through the weights and updates the net.
 	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount) = 0;
 
 	/// Feeds the previous layer's activation into this layer. (Implementations
@@ -144,8 +144,8 @@ public:
 	/// default values apply the perturbation to all units.
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) = 0;
 
-	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
-	virtual void clipWeights(double max) = 0;
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
+	virtual void maxNorm(double max) = 0;
 
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
@@ -255,8 +255,8 @@ using GNeuralNetLayer::updateWeights;
 	/// The default values for these parameters apply the perturbation to all units.
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 
-	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
-	virtual void clipWeights(double max);
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
+	virtual void maxNorm(double max);
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
@@ -420,8 +420,8 @@ using GNeuralNetLayer::updateWeights;
 	/// Calls perturbWeights for each component.
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 
-	/// Calls clipWeights for each component.
-	virtual void clipWeights(double max);
+	/// Calls maxNorm for each component.
+	virtual void maxNorm(double max);
 };
 
 
@@ -527,8 +527,8 @@ using GNeuralNetLayer::updateWeights;
 	/// The default values for these parameters apply the perturbation to all units.
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 
-	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
-	virtual void clipWeights(double max);
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
+	virtual void maxNorm(double max);
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
@@ -685,8 +685,8 @@ public:
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
 
-	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
-	virtual void clipWeights(double max);
+	/// Clips each kernel weight (not including the bias) to fall between -max and max.
+	virtual void maxNorm(double max);
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
@@ -764,8 +764,8 @@ public:
 	/// specified deviation.
 	void perturbAllWeights(double deviation);
 
-	/// Clips all non-bias weights to fall within the range [-max, max].
-	void clipWeights(double max);
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
+	virtual void maxNorm(double max);
 
 	/// Multiplies all weights in the network by the specified factor. This can be used
 	/// to implement L2 regularization, which prevents weight saturation.
