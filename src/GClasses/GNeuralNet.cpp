@@ -1140,11 +1140,7 @@ void GLayerRestrictedBoltzmannMachine::backPropError(GNeuralNetLayer* pUpStreamL
 	double* pUpStreamError = pUpStreamLayer->error();
 	size_t inputCount = pUpStreamLayer->outputs();
 	size_t outputCount = outputs();
-	for(size_t i = 0; i < inputCount; i++)
-	{
-		*pUpStreamError = GVec::dotProduct(pDownStreamError, m_weights[inputStart + i], outputCount);
-		pUpStreamError++;
-	}
+	m_weights.multiply(pDownStreamError, pUpStreamError, true);
 }
 
 void GLayerRestrictedBoltzmannMachine::updateBias(double learningRate, double momentum)
@@ -1763,7 +1759,7 @@ void GNeuralNet::align(const GNeuralNet& that)
 	{
 		// Copy weights into matrices
 		GLayerClassic& layerThisCur = *(GLayerClassic*)m_layers[i];
-		
+
 		GLayerClassic& layerThatCur = *(GLayerClassic*)that.m_layers[i];
 		if(layerThisCur.outputs() != layerThatCur.outputs())
 			throw Ex("mismatching layer size");
