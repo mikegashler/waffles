@@ -70,23 +70,23 @@ void test_GCudaLayer(GCudaEngine& e)
 
 	cout << "Making a classic neural net...\n";
 	GNeuralNet nn1;
-	nn1.addLayer(new GNeuralNetLayerClassic(3, width));
-	nn1.addLayer(new GNeuralNetLayerClassic(width, width));
-	nn1.addLayer(new GNeuralNetLayerClassic(width, width));
-	nn1.addLayer(new GNeuralNetLayerClassic(width, 3));
+	nn1.addLayer(new GLayerClassic(3, width));
+	nn1.addLayer(new GLayerClassic(width, width));
+	nn1.addLayer(new GLayerClassic(width, width));
+	nn1.addLayer(new GLayerClassic(width, 3));
 	nn1.beginIncrementalLearning(rel, rel);
 
 	cout << "Making a parallel neural net...\n";
 	GNeuralNet nn2;
-	nn2.addLayer(new GNeuralNetLayerCuda(e, 3, width));
-	nn2.addLayer(new GNeuralNetLayerCuda(e, width, width));
-	nn2.addLayer(new GNeuralNetLayerCuda(e, width, width));
-	nn2.addLayer(new GNeuralNetLayerCuda(e, width, 3));
+	nn2.addLayer(new GLayerCuda(e, 3, width));
+	nn2.addLayer(new GLayerCuda(e, width, width));
+	nn2.addLayer(new GLayerCuda(e, width, width));
+	nn2.addLayer(new GLayerCuda(e, width, 3));
 	nn2.beginIncrementalLearning(rel, rel);
 
 	cout << "Copying (so they will have identical weights)...\n";
 	for(size_t i = 0; i < nn1.layerCount(); i++)
-		((GNeuralNetLayerCuda*)&nn2.layer(i))->upload(*(GNeuralNetLayerClassic*)&nn1.layer(i));
+		((GLayerCuda*)&nn2.layer(i))->upload(*(GLayerClassic*)&nn1.layer(i));
 
 	cout << "Testing to make sure they make identical predictions (before training)...\n";
 	double vec[3];

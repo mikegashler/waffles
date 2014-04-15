@@ -44,23 +44,23 @@ GDomNode* GCudaLayer::serialize(GDom* pDoc)
 
 
 
-GNeuralNetLayerCuda::GNeuralNetLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs)
+GLayerCuda::GLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs)
 : GCudaLayer(engine), m_pOutgoing(NULL)
 {
 	resize(inputs, outputs, NULL);
 }
 
-GNeuralNetLayerCuda::~GNeuralNetLayerCuda()
+GLayerCuda::~GLayerCuda()
 {
 	delete[] m_pOutgoing;
 }
 
-void GNeuralNetLayerCuda::resize(size_t inputCount, size_t outputCount, GRand* pRand)
+void GLayerCuda::resize(size_t inputCount, size_t outputCount, GRand* pRand)
 {
 	if(inputCount == inputs() && outputCount == outputs())
 		return;
 	if(pRand)
-		throw Ex("Sorry, GNeuralNetLayerCuda does not support preserving resizes");
+		throw Ex("Sorry, GLayerCuda does not support preserving resizes");
 
 	m_weights.resize(inputCount, outputCount);
 	m_bias.resize(outputCount);
@@ -71,7 +71,7 @@ void GNeuralNetLayerCuda::resize(size_t inputCount, size_t outputCount, GRand* p
 }
 
 // virtual
-void GNeuralNetLayerCuda::resetWeights(GRand& rand)
+void GLayerCuda::resetWeights(GRand& rand)
 {
 	size_t inputCount = inputs();
 	size_t outputCount = outputs();
@@ -92,7 +92,7 @@ void GNeuralNetLayerCuda::resetWeights(GRand& rand)
 }
 
 // virtual
-void GNeuralNetLayerCuda::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+void GLayerCuda::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
 {
 	// Perturb weights
 	GMatrix m;
@@ -110,7 +110,7 @@ void GNeuralNetLayerCuda::perturbWeights(GRand& rand, double deviation, size_t s
 }
 
 // virtual
-double* GNeuralNetLayerCuda::activation()
+double* GLayerCuda::activation()
 {
 	if(!m_pOutgoing)
 		m_pOutgoing = new double[outputs()];
@@ -119,7 +119,7 @@ double* GNeuralNetLayerCuda::activation()
 }
 
 // virtual
-double* GNeuralNetLayerCuda::error()
+double* GLayerCuda::error()
 {
 	if(!m_pOutgoing)
 		m_pOutgoing = new double[outputs()];
@@ -128,14 +128,14 @@ double* GNeuralNetLayerCuda::error()
 }
 
 // virtual
-void GNeuralNetLayerCuda::copyBiasToNet()
+void GLayerCuda::copyBiasToNet()
 {
 	m_activation.copy(m_engine, m_bias);
 	m_engine.sync();
 }
 
 // virtual
-void GNeuralNetLayerCuda::feedIn(const double* pIn, size_t inputStart, size_t inputCount)
+void GLayerCuda::feedIn(const double* pIn, size_t inputStart, size_t inputCount)
 {
 	m_incoming.upload(pIn, inputs());
 	m_weights.feedIn(m_engine, m_incoming, m_activation, inputStart);
@@ -143,7 +143,7 @@ void GNeuralNetLayerCuda::feedIn(const double* pIn, size_t inputStart, size_t in
 }
 
 // virtual
-void GNeuralNetLayerCuda::feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerCuda::feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
 {
 	if(pUpStreamLayer->usesGPU())
 	{
@@ -155,26 +155,26 @@ void GNeuralNetLayerCuda::feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputSt
 }
 
 // virtual
-void GNeuralNetLayerCuda::activate()
+void GLayerCuda::activate()
 {
 	m_activation.activateTanh(m_engine);
 	m_engine.sync();
 }
 
-void GNeuralNetLayerCuda::computeError(const double* pTarget)
+void GLayerCuda::computeError(const double* pTarget)
 {
 	m_error.upload(pTarget, outputs());
 	m_error.add(m_engine, m_activation, -1.0);
 	m_engine.sync();
 }
 
-void GNeuralNetLayerCuda::deactivateError()
+void GLayerCuda::deactivateError()
 {
 	m_error.deactivateTanh(m_engine, m_activation);
 	m_engine.sync();
 }
 
-void GNeuralNetLayerCuda::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerCuda::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
 {
 	if(pUpStreamLayer->usesGPU())
 	{
@@ -192,14 +192,14 @@ void GNeuralNetLayerCuda::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t 
 }
 
 // virtual
-void GNeuralNetLayerCuda::updateBias(double learningRate, double momentum)
+void GLayerCuda::updateBias(double learningRate, double momentum)
 {
 	m_bias.add(m_engine, m_error, learningRate);
 	m_engine.sync();
 }
 
 // virtual
-void GNeuralNetLayerCuda::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+void GLayerCuda::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
 {
 	// Assume that the input was already uploaded into m_incoming when feedForward was called
 	if(inputStart != 0 || inputCount != m_weights.rows())
@@ -208,7 +208,7 @@ void GNeuralNetLayerCuda::updateWeights(const double* pUpStreamActivation, size_
 }
 
 // virtual
-void GNeuralNetLayerCuda::updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
+void GLayerCuda::updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
 {
 	if(pUpStreamLayer->usesGPU())
 	{
@@ -223,7 +223,7 @@ void GNeuralNetLayerCuda::updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t 
 	}
 }
 
-void GNeuralNetLayerCuda::scaleWeights(double factor)
+void GLayerCuda::scaleWeights(double factor)
 {
 	m_weights.scale(m_engine, factor);
 	m_bias.scale(m_engine, factor);
@@ -231,51 +231,51 @@ void GNeuralNetLayerCuda::scaleWeights(double factor)
 	m_engine.sync();
 }
 
-void GNeuralNetLayerCuda::diminishWeights(double amount)
+void GLayerCuda::diminishWeights(double amount)
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::diminishWeights is not yet implemented");
 }
 
 // virtual
-void GNeuralNetLayerCuda::clipWeights(double max)
+void GLayerCuda::maxNorm(double max)
 {
-	throw Ex("Sorry, GNeuralNetLayerCuda::clipWeights is not yet implemented");
+	throw Ex("Sorry, GNeuralNetLayerCuda::maxNorm is not yet implemented");
 }
 
 // virtual
-size_t GNeuralNetLayerCuda::countWeights()
+size_t GLayerCuda::countWeights()
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::countWeights is not yet implemented");
 	//return 0;
 }
 
 // virtual
-size_t GNeuralNetLayerCuda::weightsToVector(double* pOutVector)
+size_t GLayerCuda::weightsToVector(double* pOutVector)
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::weightsToVector is not yet implemented");
 	//return 0;
 }
 
 // virtual
-size_t GNeuralNetLayerCuda::vectorToWeights(const double* pVector)
+size_t GLayerCuda::vectorToWeights(const double* pVector)
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::vectorToWeights is not yet implemented");
 	//return 0;
 }
 
 // virtual
-void GNeuralNetLayerCuda::copyWeights(const GNeuralNetLayer* pSource)
+void GLayerCuda::copyWeights(GNeuralNetLayer* pSource)
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::copyWeights is not yet implemented");
 }
 
-void GNeuralNetLayerCuda::upload(GNeuralNetLayerClassic& source)
+void GLayerCuda::upload(GLayerClassic& source)
 {
 	m_weights.upload(source.weights());
 	m_bias.upload(source.bias(), source.outputs());
 }
 
-void GNeuralNetLayerCuda::download(GNeuralNetLayerClassic& dest)
+void GLayerCuda::download(GLayerClassic& dest)
 {
 	m_weights.download(dest.weights());
 	m_bias.download(dest.bias());

@@ -51,7 +51,7 @@ public:
 };
 
 
-class GNeuralNetLayerCuda : public GCudaLayer
+class GLayerCuda : public GCudaLayer
 {
 protected:
 	GCudaMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
@@ -63,8 +63,8 @@ protected:
 
 public:
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
-	GNeuralNetLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
-	virtual ~GNeuralNetLayerCuda();
+	GLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
+	virtual ~GLayerCuda();
 
 	/// Returns the type of this layer
 	virtual const char* type() { return "cuda"; }
@@ -155,14 +155,14 @@ public:
 	/// The default values for these parameters apply the perturbation to all units.
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 
-	/// Clips all the weights in this layer (not including the biases) to fall in the range [-max, max].
-	virtual void clipWeights(double max);
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
+	virtual void maxNorm(double max);
 
-	/// Copies the weights and bias vector from this layer into a GNeuralNetLayerClassic layer.
-	void upload(GNeuralNetLayerClassic& source);
+	/// Copies the weights and bias vector from this layer into a GLayerClassic layer.
+	void upload(GLayerClassic& source);
 
-	/// Copies the weights and bias vector from GNeuralNetLayerClassic layer into this layer.
-	void download(GNeuralNetLayerClassic& dest);
+	/// Copies the weights and bias vector from GLayerClassic layer into this layer.
+	void download(GLayerClassic& dest);
 };
 
 } // namespace GClasses
