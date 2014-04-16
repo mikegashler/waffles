@@ -15,10 +15,10 @@ ifeq ($(UNAME),Darwin)
 	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) -lpthread -framework AppKit ../../../lib/libGClassesDbg.a
 	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) -lpthread -framework AppKit ../../../lib/libGClasses.a
 else
-	CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
+	CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../../src -I/usr/local/cuda/include
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
-	LFLAGS = -L../../../lib -lpthread -L/usr/local/cuda-5.0/lib64/
+	LFLAGS = -L../../../lib -lpthread -L/usr/local/cuda/lib64/
 	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lGCudaDbg -lcurand -lcublas -lcudart
 	OPT_LFLAGS = $(LFLAGS) -lGClasses -lGCuda -lcurand -lcublas -lcudart
 endif

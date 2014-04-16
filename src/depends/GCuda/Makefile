@@ -10,11 +10,10 @@ INSTALL_LOCATION_LIB ?= /usr/local/lib
 INSTALL_LOCATION_INCLUDE ?= /usr/local/include
 UNAME = $(shell uname -s)
 
-# If colorgcc is installed, use it, otherwise use g++
-ifeq ($(wildcard /usr/bin/colorgcc),)
-	COMPILER=g++
+ifeq ($(wildcard /usr/local/cuda/bin/nvcc),)
+	COMPILER=nvcc
 else
-	COMPILER=colorgcc
+	COMPILER=/usr/local/cuda/bin/nvcc
 endif
 
 # Set platform-specific compiler flags
@@ -79,19 +78,19 @@ $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) $(OBJ_PATH)/d
 
 $(OBJ_PATH)/opt/dlink.o :
 	@if [ ! -d "$(OBJ_PATH)/opt" ]; then mkdir -p "$(OBJ_PATH)/opt"; fi
-	nvcc -arch=sm_20 -O3 -dlink $(OBJECTS_OPT) -o $(OBJ_PATH)/opt/dlink.o
+	$(COMPILER) -arch=sm_20 -O3 -dlink $(OBJECTS_OPT) -o $(OBJ_PATH)/opt/dlink.o
 
 $(OBJ_PATH)/dbg/dlink.o :
 	@if [ ! -d "$(OBJ_PATH)/dbg" ]; then mkdir -p "$(OBJ_PATH)/dbg"; fi
-	nvcc -arch=sm_20 -g -dlink $(OBJECTS_DBG) -o $(OBJ_PATH)/dbg/dlink.o
+	$(COMPILER) -arch=sm_20 -g -dlink $(OBJECTS_DBG) -o $(OBJ_PATH)/dbg/dlink.o
 
 $(OBJECTS_OPT) : $(CU_FILES)
 	@if [ ! -d "$(OBJ_PATH)/opt" ]; then mkdir -p "$(OBJ_PATH)/opt"; fi
-	nvcc -O3 -c $(subst .o,.cu,$(subst $(OBJ_PATH)/opt/,,$@)) -o $@ -arch=sm_20
+	$(COMPILER) -O3 -c $(subst .o,.cu,$(subst $(OBJ_PATH)/opt/,,$@)) -o $@ -arch=sm_20
 
 $(OBJECTS_DBG) : $(CU_FILES)
 	@if [ ! -d "$(OBJ_PATH)/dbg" ]; then mkdir -p "$(OBJ_PATH)/dbg"; fi
-	nvcc -g -c $(subst .o,.cu,$(subst $(OBJ_PATH)/dbg/,,$@)) -o $@ -arch=sm_20
+	$(COMPILER) -g -c $(subst .o,.cu,$(subst $(OBJ_PATH)/dbg/,,$@)) -o $@ -arch=sm_20
 
 partialcleanopt :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
