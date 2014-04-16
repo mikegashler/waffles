@@ -22,6 +22,7 @@
 #include <cuda.h>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
+#include <curand.h>
 
 namespace GClasses {
 
@@ -35,6 +36,10 @@ GCudaEngine::GCudaEngine()
 	if(cublasCreate((cublasHandle_t*)&m_handle) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasCreate failed");
 	m_blockSize = 64;
+	if(curandCreateGenerator((curandGenerator_t*)&m_prng, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS)
+		throw Ex("curandCreateGenerator failed");
+	if(curandSetPseudoRandomGeneratorSeed((curandGenerator_t)m_prng, 1234ULL) != CURAND_STATUS_SUCCESS)
+		throw Ex("curandSetPseudoRandomGeneratorSeed failed");
 }
 
 GCudaEngine::~GCudaEngine()
@@ -113,6 +118,17 @@ void GCudaVector::scale(GCudaEngine& engine, double scalar)
 		throw Ex("cublasDscal failed");
 }
 
+void GCudaVector::randomUniform(GCudaEngine& engine)
+{
+	if(curandGenerateUniformDouble((curandGenerator_t)engine.m_prng, d_vals, m_size) != CURAND_STATUS_SUCCESS)
+		throw Ex("curandGenerateUniformDouble failed");
+}
+
+void GCudaVector::randomNormal(GCudaEngine& engine, double mean, double dev)
+{
+	if(curandGenerateNormalDouble((curandGenerator_t)engine.m_prng, d_vals, m_size, mean, dev) != CURAND_STATUS_SUCCESS)
+		throw Ex("curandGenerateNormalDouble failed");
+}
 
 
 

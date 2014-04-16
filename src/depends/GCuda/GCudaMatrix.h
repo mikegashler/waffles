@@ -31,6 +31,7 @@ class GCudaEngine
 public:
 	void* m_handle; // This should really be a cublasHandle_t, but I would rather not include <cublas_v2.h> in this file, and C++ does not provide a mechanism to forward-declare typedefs.
 	size_t m_blockSize;
+	void* m_prng; // This should be a curandGenerator_t.
 
 	GCudaEngine();
 	~GCudaEngine();
@@ -84,6 +85,12 @@ public:
 
 	/// Multiplies this vector by scalar
 	void scale(GCudaEngine& engine, double scalar);
+
+	/// Fills this vector with random values from a standard uniform distribution.
+	void randomUniform(GCudaEngine& engine);
+
+	/// Fills this vector with random values from a Normal distribution.
+	void randomNormal(GCudaEngine& engine, double mean, double dev);
 };
 
 
