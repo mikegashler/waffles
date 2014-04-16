@@ -573,6 +573,52 @@ void GLayerClassic::maxNorm(double max)
 }
 
 // virtual
+double GLayerClassic::unitIncomingWeightsL1Norm(size_t unit)
+{
+	double norm = 0.0;
+	size_t inputCount = inputs();
+	for(size_t i = 0; i < inputCount; i++)
+		norm += std::abs(m_weights[i][unit]);
+	return norm;
+}
+
+// virtual
+double GLayerClassic::unitIncomingWeightsL2Norm(size_t unit)
+{
+	double norm = 0.0;
+	size_t inputCount = inputs();
+	for(size_t i = 0; i < inputCount; i++)
+		norm += m_weights[i][unit] * m_weights[i][unit];
+	return norm;
+}
+
+// virtual
+double GLayerClassic::unitOutgoingWeightsL1Norm(size_t input)
+{
+	return GVec::sumAbsoluteValues(m_weights[input], outputs());
+}
+
+// virtual
+double GLayerClassic::unitOutgoingWeightsL2Norm(size_t input)
+{
+	return GVec::squaredMagnitude(m_weights[input], outputs());
+}
+
+// virtual
+void GLayerClassic::scaleUnitIncomingWeights(size_t unit, double scalar)
+{
+	size_t inputCount = inputs();
+	for(size_t i = 0; i < inputCount; i++)
+		m_weights[i][unit] *= scalar;
+}
+
+// virtual
+void GLayerClassic::scaleUnitOutgoingWeights(size_t input, double scalar)
+{
+	GVec::multiply(m_weights[input], scalar, inputs());
+}
+
+// virtual
 size_t GLayerClassic::countWeights()
 {
 	return (inputs() + 1) * outputs();
@@ -845,6 +891,73 @@ void GLayerMixed::maxNorm(double max)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->maxNorm(max);
+}
+
+// virtual
+double GLayerMixed::unitIncomingWeightsL1Norm(size_t unit)
+{
+	size_t n = 0;
+	for(size_t i = 0; i < m_components.size(); i++)
+	{
+		if(n + m_components[i]->outputs() > unit)
+			return m_components[i]->unitIncomingWeightsL1Norm(unit - n);
+		n += m_components[i]->outputs();
+	}
+	throw Ex("out or range");
+}
+
+// virtual
+double GLayerMixed::unitIncomingWeightsL2Norm(size_t unit)
+{
+	size_t n = 0;
+	for(size_t i = 0; i < m_components.size(); i++)
+	{
+		if(n + m_components[i]->outputs() > unit)
+			return m_components[i]->unitIncomingWeightsL2Norm(unit - n);
+		n += m_components[i]->outputs();
+	}
+	throw Ex("out or range");
+}
+
+// virtual
+double GLayerMixed::unitOutgoingWeightsL1Norm(size_t input)
+{
+	double norm = 0.0;
+	for(size_t i = 0; i < m_components.size(); i++)
+		norm += m_components[i]->unitOutgoingWeightsL1Norm(input);
+	return norm;
+}
+
+// virtual
+double GLayerMixed::unitOutgoingWeightsL2Norm(size_t input)
+{
+	double norm = 0.0;
+	for(size_t i = 0; i < m_components.size(); i++)
+		norm += m_components[i]->unitOutgoingWeightsL2Norm(input);
+	return norm;
+}
+
+// virtual
+void GLayerMixed::scaleUnitIncomingWeights(size_t unit, double scalar)
+{
+	size_t n = 0;
+	for(size_t i = 0; i < m_components.size(); i++)
+	{
+		if(n + m_components[i]->outputs() > unit)
+		{
+			m_components[i]->scaleUnitIncomingWeights(unit - n, scalar);
+			return;
+		}
+		n += m_components[i]->outputs();
+	}
+	throw Ex("out or range");
+}
+
+// virtual
+void GLayerMixed::scaleUnitOutgoingWeights(size_t input, double scalar)
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->scaleUnitOutgoingWeights(input, scalar);
 }
 
 
@@ -1240,6 +1353,51 @@ void GLayerRestrictedBoltzmannMachine::copyWeights(GNeuralNetLayer* pSource)
 	GVec::copy(bias(), src->bias(), src->outputs());
 }
 
+// virtual
+double GLayerRestrictedBoltzmannMachine::unitIncomingWeightsL1Norm(size_t unit)
+{
+	return GVec::sumAbsoluteValues(m_weights[unit], inputs());
+}
+
+// virtual
+double GLayerRestrictedBoltzmannMachine::unitIncomingWeightsL2Norm(size_t unit)
+{
+	return GVec::squaredMagnitude(m_weights[unit], inputs());
+}
+
+// virtual
+double GLayerRestrictedBoltzmannMachine::unitOutgoingWeightsL1Norm(size_t input)
+{
+	double norm = 0.0;
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+		norm += std::abs(m_weights[i][input]);
+	return norm;
+}
+
+// virtual
+double GLayerRestrictedBoltzmannMachine::unitOutgoingWeightsL2Norm(size_t input)
+{
+	double norm = 0.0;
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+		norm += m_weights[i][input] * m_weights[i][input];
+	return norm;
+}
+
+// virtual
+void GLayerRestrictedBoltzmannMachine::scaleUnitIncomingWeights(size_t unit, double scalar)
+{
+	GVec::multiply(m_weights[unit], scalar, outputs());
+}
+
+// virtual
+void GLayerRestrictedBoltzmannMachine::scaleUnitOutgoingWeights(size_t input, double scalar)
+{
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+		m_weights[i][input] *= scalar;
+}
 
 
 
@@ -1533,6 +1691,43 @@ void GLayerConvolutional1D::maxNorm(double max)
 		GVec::floorValues(m_kernels[i], -max, kernelSize);
 	}
 }
+
+// virtual
+double GLayerConvolutional1D::unitIncomingWeightsL1Norm(size_t unit)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+double GLayerConvolutional1D::unitIncomingWeightsL2Norm(size_t unit)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+double GLayerConvolutional1D::unitOutgoingWeightsL1Norm(size_t input)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+double GLayerConvolutional1D::unitOutgoingWeightsL2Norm(size_t input)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+void GLayerConvolutional1D::scaleUnitIncomingWeights(size_t unit, double scalar)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+void GLayerConvolutional1D::scaleUnitOutgoingWeights(size_t input, double scalar)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
 
 
 
@@ -1868,31 +2063,15 @@ void GNeuralNet::bleedWeightsL1(double beta)
 		size_t layerSize = m_layers[i]->outputs();
 		for(size_t j = 0; j < layerSize; j++)
 		{
-			// Compute sum-squared weights in next layer
-			GLayerClassic& layDownStream = *(GLayerClassic*)m_layers[i + 1];
-			size_t dsOutputs = layDownStream.outputs();
-			GMatrix& dsW = layDownStream.m_weights;
-			double sawDownStream = GVec::sumAbsoluteValues(dsW[j], dsOutputs);
-
-			// Compute sum-squared weights in this layer
-			double sawUpStream = 0.0;
-			GLayerClassic& layUpStream = *(GLayerClassic*)m_layers[i];
-			size_t usInputs = layUpStream.inputs();
-			GMatrix& usW = layUpStream.m_weights;
-			for(size_t k = 0; k < usInputs; k++)
-				sawUpStream += std::abs(usW[k][j]);
-
-			// Compute scaling factors
+			double sawDownStream = m_layers[i + 1]->unitOutgoingWeightsL1Norm(j);
+			double sawUpStream = m_layers[i]->unitIncomingWeightsL1Norm(j);
 			double sawAverage = 0.5 * (sawDownStream + sawUpStream);
 			double sawNewDownStream = beta * sawAverage + (1.0 - beta) * sawDownStream;
 			double sawNewUpStream = beta * sawAverage + (1.0 - beta) * sawUpStream;
 			double facDownStream = sawNewDownStream / sawDownStream;
 			double facUpStream = sawNewUpStream / sawUpStream;
-
-			// Scale the weights in both layers
-			GVec::multiply(dsW[j], facDownStream, dsOutputs);
-			for(size_t k = 0; k < usInputs; k++)
-				usW[k][j] *= facUpStream;
+			m_layers[i + 1]->scaleUnitOutgoingWeights(j, facDownStream);
+			m_layers[i]->scaleUnitIncomingWeights(j, facUpStream);
 		}
 	}
 }
@@ -1904,31 +2083,15 @@ void GNeuralNet::bleedWeightsL2(double beta)
 		size_t layerSize = m_layers[i]->outputs();
 		for(size_t j = 0; j < layerSize; j++)
 		{
-			// Compute sum-squared weights in next layer
-			GLayerClassic& layDownStream = *(GLayerClassic*)m_layers[i + 1];
-			size_t dsOutputs = layDownStream.outputs();
-			GMatrix& dsW = layDownStream.m_weights;
-			double sswDownStream = GVec::squaredMagnitude(dsW[j], dsOutputs);
-
-			// Compute sum-squared weights in this layer
-			double sswUpStream = 0.0;
-			GLayerClassic& layUpStream = *(GLayerClassic*)m_layers[i];
-			size_t usInputs = layUpStream.inputs();
-			GMatrix& usW = layUpStream.m_weights;
-			for(size_t k = 0; k < usInputs; k++)
-				sswUpStream += (usW[k][j] * usW[k][j]);
-
-			// Compute scaling factors
+			double sswDownStream = m_layers[i + 1]->unitOutgoingWeightsL2Norm(j);
+			double sswUpStream = m_layers[i]->unitIncomingWeightsL2Norm(j);
 			double sswAverage = 0.5 * (sswDownStream + sswUpStream);
 			double sswNewDownStream = beta * sswAverage + (1.0 - beta) * sswDownStream;
 			double sswNewUpStream = beta * sswAverage + (1.0 - beta) * sswUpStream;
 			double facDownStream = sqrt(sswNewDownStream) / sqrt(sswDownStream);
 			double facUpStream = sqrt(sswNewUpStream) / sqrt(sswUpStream);
-
-			// Scale the weights in both layers
-			GVec::multiply(dsW[j], facDownStream, dsOutputs);
-			for(size_t k = 0; k < usInputs; k++)
-				usW[k][j] *= facUpStream;
+			m_layers[i + 1]->scaleUnitOutgoingWeights(j, facDownStream);
+			m_layers[i]->scaleUnitIncomingWeights(j, facUpStream);
 		}
 	}
 }

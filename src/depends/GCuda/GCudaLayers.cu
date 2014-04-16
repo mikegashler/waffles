@@ -243,6 +243,42 @@ void GLayerCuda::maxNorm(double max)
 }
 
 // virtual
+double unitIncomingWeightsL1Norm(size_t unit)
+{
+	return m_weights.colSumAbs(m_engine, unit);
+}
+
+// virtual
+double unitIncomingWeightsL2Norm(size_t unit)
+{
+	return m_weights.colSumSquare(m_engine, unit);
+}
+
+// virtual
+double unitOutgoingWeightsL1Norm(size_t input)
+{
+	return m_weights.rowSumAbs(m_engine, input);
+}
+
+// virtual
+double unitOutgoingWeightsL2Norm(size_t input)
+{
+	return m_weights.rowSumSquare(m_engine, input);
+}
+
+// virtual
+void scaleUnitIncomingWeights(size_t unit, double scalar)
+{
+	m_weights.scaleCol(m_engine, unit, scalar);
+}
+
+// virtual
+void scaleUnitOutgoingWeights(size_t input, double scalar)
+{
+	m_weights.scaleRow(m_engine, input, scalar);
+}
+
+// virtual
 size_t GLayerCuda::countWeights()
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::countWeights is not yet implemented");

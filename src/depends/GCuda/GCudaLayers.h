@@ -158,6 +158,24 @@ public:
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double max);
 
+        /// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+        virtual double unitIncomingWeightsL1Norm(size_t unit);
+
+        /// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+        virtual double unitIncomingWeightsL2Norm(size_t unit);
+
+        /// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+        virtual double unitOutgoingWeightsL1Norm(size_t input);
+
+        /// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+        virtual double unitOutgoingWeightsL2Norm(size_t input);
+
+        /// Scale weights that feed into the specified unit
+        virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
+
+        /// Scale weights that feed into this layer from the specified input
+        virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
+
 	/// Copies the weights and bias vector from this layer into a GLayerClassic layer.
 	void upload(GLayerClassic& source);
 

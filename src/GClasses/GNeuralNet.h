@@ -147,6 +147,24 @@ public:
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double max) = 0;
 
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL1Norm(size_t unit) = 0;
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL2Norm(size_t unit) = 0;
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL1Norm(size_t input) = 0;
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL2Norm(size_t input) = 0;
+
+	/// Scale weights that feed into the specified unit
+	virtual void scaleUnitIncomingWeights(size_t unit, double scalar) = 0;
+
+	/// Scale weights that feed into this layer from the specified input
+	virtual void scaleUnitOutgoingWeights(size_t input, double scalar) = 0;
+
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
 
@@ -257,6 +275,24 @@ using GNeuralNetLayer::updateWeights;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double max);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL1Norm(size_t unit);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL2Norm(size_t unit);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL1Norm(size_t input);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL2Norm(size_t input);
+
+	/// Scale weights that feed into the specified unit
+	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
+
+	/// Scale weights that feed into this layer from the specified input
+	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
@@ -422,6 +458,24 @@ using GNeuralNetLayer::updateWeights;
 
 	/// Calls maxNorm for each component.
 	virtual void maxNorm(double max);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL1Norm(size_t unit);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL2Norm(size_t unit);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL1Norm(size_t input);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL2Norm(size_t input);
+
+	/// Scale weights that feed into the specified unit
+	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
+
+	/// Scale weights that feed into this layer from the specified input
+	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
 };
 
 
@@ -529,6 +583,24 @@ using GNeuralNetLayer::updateWeights;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double max);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL1Norm(size_t unit);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL2Norm(size_t unit);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL1Norm(size_t input);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL2Norm(size_t input);
+
+	/// Scale weights that feed into the specified unit
+	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
+
+	/// Scale weights that feed into this layer from the specified input
+	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
@@ -688,6 +760,24 @@ using GNeuralNetLayer::updateWeights;
 
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
 	virtual void maxNorm(double max);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL1Norm(size_t unit);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL2Norm(size_t unit);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL1Norm(size_t input);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL2Norm(size_t input);
+
+	/// Scale weights that feed into the specified unit
+	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
+
+	/// Scale weights that feed into this layer from the specified input
+	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
