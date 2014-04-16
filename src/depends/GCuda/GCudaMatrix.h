@@ -147,6 +147,24 @@ public:
 
 	/// This method is used by implementations of gradient descent to update the weights
 	void updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, size_t inputStart, GCudaVector& downStreamError, double learningRate);
+
+	/// Returns the sum of absolute values of elements in the specified row.
+	double rowSumAbs(GCudaEngine& engine, size_t row);
+
+	/// Returns the sum of squared values of elements in the specified row.
+	double rowSumSquare(GCudaEngine& engine, size_t row);
+
+	/// Returns the sum of absolute values of elements in the specified column.
+	double colSumAbs(GCudaEngine& engine, size_t col);
+
+	/// Returns the sum of squared values of elements in the specified column.
+	double colSumSquare(GCudaEngine& engine, size_t col);
+
+	/// Scales the values in the specified row.
+	void scaleRow(GCudaEngine& engine, size_t row, double scalar);
+
+	/// Scales the values in the specified column.
+	void scaleCol(GCudaEngine& engine, size_t col, double scalar);
 };
 
 

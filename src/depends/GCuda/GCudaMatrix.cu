@@ -247,6 +247,50 @@ void GCudaMatrix::updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput,
 		throw Ex("cublasDger failed");
 }
 
+double GCudaMatrix::rowSumAbs(GCudaEngine& engine, size_t row)
+{
+	double res;
+	if(cublasDasum((cublasHandle_t)engine.m_handle, m_cols, d_vals + row * m_cols, 1, &res) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDasum failed");	
+	return res;
+}
+
+double GCudaMatrix::rowSumSquare(GCudaEngine& engine, size_t row)
+{
+	double res;
+	if(cublasDdot((cublasHandle_t)engine.m_handle, m_cols, d_vals + row * m_cols, 1, d_vals + row * m_cols, 1, &res) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDdot failed");
+	return res;
+}
+
+double GCudaMatrix::colSumAbs(GCudaEngine& engine, size_t col)
+{
+	double res;
+	if(cublasDasum((cublasHandle_t)engine.m_handle, m_rows, d_vals + col, m_cols, &res) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDasum failed");
+	return res;
+}
+
+double GCudaMatrix::colSumSquare(GCudaEngine& engine, size_t col)
+{
+	double res;
+	if(cublasDdot((cublasHandle_t)engine.m_handle, m_rows, d_vals + col, m_cols, d_vals + col, m_cols, &res) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDdot failed");
+	return res;
+}
+
+void GCudaMatrix::scaleRow(GCudaEngine& engine, size_t row, double scalar)
+{
+	if(cublasDscal((cublasHandle_t)engine.m_handle, m_cols, &scalar, d_vals + row * m_cols, 1) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDscal failed");
+}
+
+void GCudaMatrix::scaleCol(GCudaEngine& engine, size_t col, double scalar)
+{
+	if(cublasDscal((cublasHandle_t)engine.m_handle, m_rows, &scalar, d_vals + col, m_cols) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDscal failed");
+}
 
 
 } // namespace GClasses
+
