@@ -223,15 +223,15 @@ void GLayerCuda::updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStar
 	}
 }
 
-void GLayerCuda::scaleWeights(double factor)
+void GLayerCuda::scaleWeights(double factor, bool scaleBiases)
 {
 	m_weights.scale(m_engine, factor);
-	m_bias.scale(m_engine, factor);
-	size_t outputCount = outputs();
+	if(scaleBiases)
+		m_bias.scale(m_engine, factor);
 	m_engine.sync();
 }
 
-void GLayerCuda::diminishWeights(double amount)
+void GLayerCuda::diminishWeights(double amount, bool diminishBiases)
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::diminishWeights is not yet implemented");
 }

@@ -302,6 +302,18 @@ void GLayerClassic::activate()
 		*(pAct++) = (*(ppActFunc++))->squash(*(pNet++));
 }
 
+// virtual
+void GLayerClassic::dropOut(GRand& rand, double probOfDrop)
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		if(rand.uniform() < probOfDrop)
+			pAct[i] = 0.0;
+	}
+}
+
 void GLayerClassic::feedForwardWithInputBias(const double* pIn)
 {
 	size_t outputCount = outputs();
@@ -479,20 +491,22 @@ void GLayerClassic::updateWeightsSingleNeuron(size_t outputNode, const double* p
 	*pW = std::max(-1e12, std::min(1e12, *pW + *pD));
 }
 
-void GLayerClassic::scaleWeights(double factor)
+void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 {
 	size_t outputCount = outputs();
 	for(size_t i = 0; i < m_weights.rows(); i++)
 		GVec::multiply(m_weights[i], factor, outputCount);
-	GVec::multiply(bias(), factor, outputCount);
+	if(scaleBiases)
+		GVec::multiply(bias(), factor, outputCount);
 }
 
-void GLayerClassic::diminishWeights(double amount)
+void GLayerClassic::diminishWeights(double amount, bool diminishBiases)
 {
 	size_t outputCount = outputs();
 	for(size_t i = 0; i < m_weights.rows(); i++)
 		GVec::diminish(m_weights[i], amount, outputCount);
-	GVec::diminish(bias(), amount, outputCount);
+	if(diminishBiases)
+		GVec::diminish(bias(), amount, outputCount);
 }
 
 void GLayerClassic::regularizeWeights(double factor, double power)
@@ -758,6 +772,13 @@ void GLayerMixed::activate()
 }
 
 // virtual
+void GLayerMixed::dropOut(GRand& rand, double probOfDrop)
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->dropOut(rand, probOfDrop);
+}
+
+// virtual
 void GLayerMixed::computeError(const double* pTarget)
 {
 	size_t outputUnits = outputs();
@@ -816,17 +837,17 @@ void GLayerMixed::updateWeights(const double* pUpStreamActivation, size_t inputS
 }
 
 // virtual
-void GLayerMixed::scaleWeights(double factor)
+void GLayerMixed::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->scaleWeights(factor);
+		m_components[i]->scaleWeights(factor, scaleBiases);
 }
 
 // virtual
-void GLayerMixed::diminishWeights(double amount)
+void GLayerMixed::diminishWeights(double amount, bool diminishBiases)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->diminishWeights(amount);
+		m_components[i]->diminishWeights(amount, diminishBiases);
 }
 
 // virtual
@@ -1110,6 +1131,20 @@ void GLayerRestrictedBoltzmannMachine::activate()
 	for(size_t i = 0; i < outputCount; i++)
 		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
 }
+
+// virtual
+void GLayerRestrictedBoltzmannMachine::dropOut(GRand& rand, double probOfDrop)
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		if(rand.uniform() < probOfDrop)
+			pAct[i] = 0.0;
+	}
+}
+
+
 /*
 void GLayerRestrictedBoltzmannMachine::feedForward(const double* pIn)
 {
@@ -1289,20 +1324,22 @@ void GLayerRestrictedBoltzmannMachine::updateWeights(const double* pUpStreamActi
 	}
 }
 
-void GLayerRestrictedBoltzmannMachine::scaleWeights(double factor)
+void GLayerRestrictedBoltzmannMachine::scaleWeights(double factor, bool scaleBiases)
 {
 	size_t inputCount = inputs();
 	for(size_t i = 0; i < m_weights.rows(); i++)
 		GVec::multiply(m_weights[i], factor, inputCount);
-	GVec::multiply(bias(), factor, outputs());
+	if(scaleBiases)
+		GVec::multiply(bias(), factor, outputs());
 }
 
-void GLayerRestrictedBoltzmannMachine::diminishWeights(double amount)
+void GLayerRestrictedBoltzmannMachine::diminishWeights(double amount, bool diminishBiases)
 {
 	size_t inputCount = outputs();
 	for(size_t i = 0; i < m_weights.rows(); i++)
 		GVec::diminish(m_weights[i], amount, inputCount);
-	GVec::diminish(bias(), amount, outputs());
+	if(diminishBiases)
+		GVec::diminish(bias(), amount, outputs());
 }
 
 // virtual
@@ -1514,6 +1551,18 @@ void GLayerConvolutional1D::activate()
 }
 
 // virtual
+void GLayerConvolutional1D::dropOut(GRand& rand, double probOfDrop)
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		if(rand.uniform() < probOfDrop)
+			pAct[i] = 0.0;
+	}
+}
+
+// virtual
 void GLayerConvolutional1D::computeError(const double* pTarget)
 {
 	size_t outputUnits = outputs();
@@ -1621,21 +1670,23 @@ void GLayerConvolutional1D::updateWeights(const double* pUpStreamActivation, siz
 }
 
 // virtual
-void GLayerConvolutional1D::scaleWeights(double factor)
+void GLayerConvolutional1D::scaleWeights(double factor, bool scaleBiases)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		GVec::multiply(m_kernels[i], factor, kernelSize);
-	GVec::multiply(m_pBias, factor, m_kernels.rows());
+	if(scaleBiases)
+		GVec::multiply(m_pBias, factor, m_kernels.rows());
 }
 
 // virtual
-void GLayerConvolutional1D::diminishWeights(double amount)
+void GLayerConvolutional1D::diminishWeights(double amount, bool diminishBiases)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		GVec::diminish(m_kernels[i], amount, kernelSize);
-	GVec::diminish(m_pBias, amount, m_kernels.rows());
+	if(diminishBiases)
+		GVec::diminish(m_pBias, amount, m_kernels.rows());
 }
 
 // virtual
@@ -2025,16 +2076,18 @@ void GNeuralNet::align(const GNeuralNet& that)
 	}
 }
 
-void GNeuralNet::scaleWeights(double factor)
+void GNeuralNet::scaleWeights(double factor, bool scaleBiases, size_t startLayer, size_t layerCount)
 {
-	for(size_t i = m_layers.size() - 1; i < m_layers.size(); i--)
-		m_layers[i]->scaleWeights(factor);
+	size_t end = std::min(startLayer + layerCount, m_layers.size());
+	for(size_t i = startLayer; i < end; i++)
+		m_layers[i]->scaleWeights(factor, scaleBiases);
 }
 
-void GNeuralNet::diminishWeights(double amount)
+void GNeuralNet::diminishWeights(double amount, bool diminishBiases, size_t startLayer, size_t layerCount)
 {
-	for(size_t i = m_layers.size() - 1; i < m_layers.size(); i--)
-		m_layers[i]->diminishWeights(amount);
+	size_t end = std::min(startLayer + layerCount, m_layers.size());
+	for(size_t i = startLayer; i < end; i++)
+		m_layers[i]->diminishWeights(amount, diminishBiases);
 }
 
 void GNeuralNet::scaleWeightsSingleOutput(size_t output, double factor)
@@ -2115,6 +2168,28 @@ void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 		pDS->feedIn(pLay, 0);
 		pDS->activate();
 		pLay = pDS;
+	}
+}
+
+void GNeuralNet::forwardPropWithDropout(const double* pRow, double probOfDrop, size_t maxLayers)
+{
+	GNeuralNetLayer* pLay = m_layers[0];
+	pLay->copyBiasToNet();
+	pLay->feedIn(pRow, 0, pLay->inputs());
+	pLay->activate();
+	pLay->dropOut(m_rand, probOfDrop);
+	maxLayers = std::min(m_layers.size(), maxLayers);
+	for(size_t i = 1; i < maxLayers; i++)
+	{
+		GNeuralNetLayer* pDS = m_layers[i];
+		pDS->copyBiasToNet();
+		pDS->feedIn(pLay, 0);
+		pDS->activate();
+		if(i + 1 < maxLayers)
+		{
+			pLay->dropOut(m_rand, probOfDrop);
+			pLay = pDS;
+		}
 	}
 }
 
@@ -2245,12 +2320,7 @@ size_t GNeuralNet::trainWithValidation(const GMatrix& trainFeatures, const GMatr
 		ii.reset();
 		size_t index;
 		while(ii.next(index))
-		{
-			const double* pFeatures = trainFeatures[index];
-			forwardProp(pFeatures);
-			backpropagate(trainLabels[index]);
-			descendGradient(pFeatures, m_learningRate, m_momentum);
-		}
+			trainIncremental(trainFeatures[index], trainLabels[index]);
 
 		// Check for termination condition
 		if(nEpochsSinceValidationCheck >= m_epochsPerValidationCheck)
@@ -2297,6 +2367,29 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 void GNeuralNet::trainIncremental(const double* pIn, const double* pOut)
 {
 	forwardProp(pIn);
+	backpropagate(pOut);
+	descendGradient(pIn, m_learningRate, m_momentum);
+}
+
+void GNeuralNet::trainIncrementalWithDropout(const double* pIn, const double* pOut, double probOfDrop, double* pBuf)
+{
+	if(pBuf)
+	{
+		const double* pI = pIn;
+		double* pB = pBuf;
+		size_t inputCount = layer(0).inputs();
+		for(size_t i = 0; i < inputCount; i++)
+		{
+			if(m_rand.uniform() < probOfDrop)
+				*pB = 0.0;
+			else
+				*pB = *pI;
+			pB++;
+			pI++;
+		}
+		pIn = pBuf;
+	}
+	forwardPropWithDropout(pIn, probOfDrop);
 	backpropagate(pOut);
 	descendGradient(pIn, m_learningRate, m_momentum);
 }
