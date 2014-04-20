@@ -92,6 +92,9 @@ public:
 	/// Applies the activation function to the net vector to compute the activation vector.
 	virtual void activate() = 0;
 
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop) = 0;
+
 	/// Feeds in the bias and pIn, then computes the activation of this layer.
 	void feedForward(const double* pIn);
 
@@ -120,10 +123,10 @@ public:
 	}
 
 	/// Multiplies all the weights by the specified factor.
-	virtual void scaleWeights(double factor) = 0;
+	virtual void scaleWeights(double factor, bool scaleBiases) = 0;
 
 	/// Moves all weights in the direction of zero by the specified amount.
-	virtual void diminishWeights(double amount) = 0;
+	virtual void diminishWeights(double amount, bool diminishBiases) = 0;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights() = 0;
@@ -224,6 +227,9 @@ using GNeuralNetLayer::updateWeights;
 	/// Applies the activation function to the net vector to compute the activation vector.
 	virtual void activate();
 
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
@@ -247,10 +253,10 @@ using GNeuralNetLayer::updateWeights;
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor);
+	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount);
+	virtual void diminishWeights(double amount, bool diminishBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
@@ -430,6 +436,9 @@ using GNeuralNetLayer::updateWeights;
 	/// in each component, then aggregates all the activation vectors into a single activation for this layer.
 	virtual void activate();
 
+	/// Calls dropOut for each component.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
@@ -451,10 +460,10 @@ using GNeuralNetLayer::updateWeights;
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Calls scaleWeights for each component.
-	virtual void scaleWeights(double factor);
+	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Calls diminishWeights for each component.
-	virtual void diminishWeights(double amount);
+	virtual void diminishWeights(double amount, bool diminishBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
@@ -548,8 +557,11 @@ using GNeuralNetLayer::updateWeights;
 	/// Applies the activation function to the net vector to compute the activation vector.
 	virtual void activate();
 
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
 	/// Feed a vector from the hidden end to the visible end. The results are placed in activationReverse();
-	virtual void feedBackward(const double* pIn);
+	void feedBackward(const double* pIn);
 
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
@@ -572,10 +584,10 @@ using GNeuralNetLayer::updateWeights;
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor);
+	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount);
+	virtual void diminishWeights(double amount, bool diminishBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
@@ -728,6 +740,9 @@ using GNeuralNetLayer::updateWeights;
 	/// Applies the activation function to the net vector to compute the activation vector.
 	virtual void activate();
 
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
@@ -751,10 +766,10 @@ using GNeuralNetLayer::updateWeights;
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor);
+	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount);
+	virtual void diminishWeights(double amount, bool diminishBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
@@ -877,12 +892,12 @@ public:
 
 	/// Multiplies all weights in the network by the specified factor. This can be used
 	/// to implement L2 regularization, which prevents weight saturation.
-	void scaleWeights(double factor);
+	void scaleWeights(double factor, bool scaleBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
 
 	/// Diminishes all weights in the network by the specified amount. This can be used
 	/// to implemnet L1 regularization, which promotes sparse representations. That is,
 	/// it makes many of the weights approach zero.
-	void diminishWeights(double amount);
+	void diminishWeights(double amount, bool diminishBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
 
 	/// Just like scaleWeights, except it only scales the weights in one of the output units.
 	void scaleWeightsSingleOutput(size_t output, double lambda);
@@ -979,6 +994,10 @@ public:
 	/// The maxLayers parameter can limit how far into the network values are propagated.
 	void forwardProp(const double* pInputs, size_t maxLayers = INVALID_INDEX);
 
+	/// Same as forwardProp, except it randomly drops values from the activations of hidden layers.
+	/// (Does not drop any values from pRow, or from the final layer.)
+	void forwardPropWithDropout(const double* pRow, double probOfDrop, size_t maxLayers = INVALID_INDEX);
+
 	/// This is the same as forwardProp, except it only propagates to a single output node.
 	/// It returns the value that this node outputs.
 	double forwardPropSingleOutput(const double* pInputs, size_t output);
@@ -1061,6 +1080,13 @@ public:
 
 	/// See the comment for GIncrementalLearner::trainIncremental
 	virtual void trainIncremental(const double* pIn, const double* pOut);
+
+	/// Presents a pattern for training. Applies dropout to the activations of hidden layers.
+	/// If pBuf is non-NULL, then it also applies dropout to the input.
+	/// Note that when training with dropout is complete, you should call
+	/// scaleWeights(1.0 - probOfDrop, false, pBuf ? 0 : 1) to compensate for the scaling effect
+	/// dropout has on the weights.
+	void trainIncrementalWithDropout(const double* pIn, const double* pOut, double probOfDrop, double* pBuf = NULL);
 
 	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const double* pIn, double* pOut);

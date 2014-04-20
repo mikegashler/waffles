@@ -129,10 +129,10 @@ public:
 	virtual void updateBias(double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor);
+	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount);
+	virtual void diminishWeights(double amount, bool diminishBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
