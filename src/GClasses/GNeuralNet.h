@@ -180,13 +180,13 @@ protected:
 	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
 	GMatrix m_delta; // Used to implement momentum
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack.
-	GActivationFunction** m_activationFunctions;
-	std::vector<GActivationFunction*> m_activationFunctionCache;
+	GActivationFunction* m_pActivationFunction;
 
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
+	/// If pActivationFunction is NULL, then GActivationTanH is used.
 	GLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
 
 	/// Deserializing constructor
@@ -313,8 +313,8 @@ using GNeuralNetLayer::updateWeights;
 	/// Returns a vector used to specify slack terms for each unit in this layer.
 	double* slack() { return m_bias[5]; }
 
-	/// Returns a pointer to an array of pointers to the activation functions used in this layer
-	GActivationFunction** activationFunctions() { return m_activationFunctions; }
+	/// Returns a pointer to the activation function used in this layer
+	GActivationFunction* activationFunction() { return m_pActivationFunction; }
 
 	/// Feeds a vector forward through this layer. Uses the first value in pIn as an input bias.
 	void feedForwardWithInputBias(const double* pIn);
@@ -336,9 +336,6 @@ using GNeuralNetLayer::updateWeights;
 	/// Updates the weights and bias of a single neuron. (Assumes the error has already been computed and deactivated.)
 	void updateWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum);
 
-	/// Takes ownership of pActivation function. Sets all of the units in the specified range to use the given activation function.
-	void setActivationFunction(GActivationFunction* pActivationFunction, size_t first = 0, size_t count = INVALID_INDEX);
-
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
 	/// start specifies the first unit whose incoming weights will be adjusted.
 	/// count specifies the maximum number of units whose incoming weights are adjusted.
@@ -355,6 +352,27 @@ using GNeuralNetLayer::updateWeights;
 	/// that is added before the transform.
 	void transformWeights(GMatrix& transform, const double* pOffset);
 };
+
+
+
+class GLayerSoftMax : public GLayerClassic
+{
+public:
+	GLayerSoftMax(size_t inputs, size_t outputs);
+	GLayerSoftMax(GDomNode* pNode);
+	virtual ~GLayerSoftMax() {}
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "softmax"; }
+
+	/// Applies the logistic activation function to the net vector to compute the activation vector,
+	/// and also adjusts the weights so that the activations sum to 1.
+	virtual void activate();
+
+	/// This method is a no-op, since cross-entropy training does not multiply by the derivative of the logistic function.
+	virtual void deactivateError() {}
+};
+
 
 
 

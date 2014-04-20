@@ -60,6 +60,8 @@ GNeuralNetLayer* GNeuralNetLayer::deserialize(GDomNode* pNode)
 		return new GLayerMixed(pNode);
 	if(strcmp(szType, "rbm") == 0)
 		return new GLayerRestrictedBoltzmannMachine(pNode);
+	if(strcmp(szType, "softmax") == 0)
+		return new GLayerSoftMax(pNode);
 	if(strcmp(szType, "conv1") == 0)
 		return new GLayerConvolutional1D(pNode);
 	else
@@ -95,10 +97,9 @@ void GNeuralNetLayer::feedForward(const double* pIn)
 
 GLayerClassic::GLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction)
 {
-	m_activationFunctions = NULL;
-	if(!pActivationFunction)
-		pActivationFunction = new GActivationTanH();
-	m_activationFunctionCache.push_back(pActivationFunction);
+	m_pActivationFunction = pActivationFunction;
+	if(!m_pActivationFunction)
+		m_pActivationFunction = new GActivationTanH();
 	resize(inputs, outputs, NULL);
 }
 
@@ -107,48 +108,16 @@ GLayerClassic::GLayerClassic(GDomNode* pNode)
 {
 	GDomListIterator it(pNode->field("bias"));
 	GVec::deserialize(bias(), it);
-
 	GDomListIterator itSlack(pNode->field("slack"));
 	GVec::deserialize(slack(), itSlack);
-
-	// Unmarshall the cache of activation functions
-	GDomListIterator it3(pNode->field("act_funcs"));
-	while(it3.remaining() > 0)
-	{
-		m_activationFunctionCache.push_back(GActivationFunction::deserialize(it3.current()));
-		it3.advance();
-	}
-
-	// Unmarshall the acivation function pointers from a list of indexes
-	GDomListIterator it2(pNode->field("act_indxs"));
-	size_t outputCount = outputs();
-	m_activationFunctions = NULL;
-	if(it2.remaining() != outputCount)
-		throw Ex("The number of activation functions does not match the number of units");
-	m_activationFunctions = new GActivationFunction*[outputCount];
-	GActivationFunction** ppActFunc = m_activationFunctions;
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		size_t index = (size_t)it2.current()->asInt();
-		if(index >= m_activationFunctionCache.size())
-			throw Ex("Activation function index out of range");
-		*ppActFunc = m_activationFunctionCache[index];
-		it2.advance();
-		ppActFunc++;
-	}
-
+	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 	m_delta.setAll(0.0);
-	GVec::setAll(biasDelta(), 0.0, outputCount);
+	GVec::setAll(biasDelta(), 0.0, m_weights.cols());
 }
 
 GLayerClassic::~GLayerClassic()
 {
-	delete[] m_activationFunctions;
-	while(m_activationFunctionCache.size() > 0)
-	{
-		delete(m_activationFunctionCache.back());
-		m_activationFunctionCache.pop_back();
-	}
+	delete(m_pActivationFunction);
 }
 
 GDomNode* GLayerClassic::serialize(GDom* pDoc)
@@ -157,30 +126,7 @@ GDomNode* GLayerClassic::serialize(GDom* pDoc)
 	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
 	pNode->addField(pDoc, "bias", GVec::serialize(pDoc, bias(), outputs()));
 	pNode->addField(pDoc, "slack", GVec::serialize(pDoc, slack(), outputs()));
-
-	// Marshall the cache of activation functions
-	GDomNode* pActFuncs = pNode->addField(pDoc, "act_funcs", pDoc->newList());
-	for(size_t i = 0; i < m_activationFunctionCache.size(); i++)
-		pActFuncs->addItem(pDoc, m_activationFunctionCache[i]->serialize(pDoc));
-
-	// Marshall the activation functions into an array of cache indexes
-	GDomNode* pActIndxs = pNode->addField(pDoc, "act_indxs", pDoc->newList());
-	GActivationFunction* pFunc = NULL;
-	size_t index = INVALID_INDEX;
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		if(m_activationFunctions[i] != pFunc)
-		{
-			pFunc = m_activationFunctions[i];
-			vector<GActivationFunction*>::const_iterator it = std::find(m_activationFunctionCache.begin(), m_activationFunctionCache.end(), pFunc);
-			if(it == m_activationFunctionCache.end())
-				throw Ex("Activation function not found in the cache");
-			index = it - m_activationFunctionCache.begin();
-		}
-		pActIndxs->addItem(pDoc, pDoc->newInt(index));
-	}
-
+	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 	return pNode;
 }
 
@@ -225,34 +171,6 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand)
 	double* pS = slack() + fewerOutputs;
 	for(size_t j = fewerOutputs; j < outputCount; j++)
 		*(pS++) = 0.0;
-
-	// Activation functions
-	GActivationFunction** ppActFunc2 = new GActivationFunction*[outputCount];
-	memcpy(ppActFunc2, m_activationFunctions, sizeof(GActivationFunction*) * fewerOutputs);
-	GActivationFunction* pFillerFunc = (fewerOutputs > 0 ? m_activationFunctions[fewerOutputs - 1] : m_activationFunctionCache.back());
-	for(size_t i = fewerOutputs; i < outputCount; i++)
-		ppActFunc2[i] = pFillerFunc;
-	delete[] m_activationFunctions;
-	m_activationFunctions = ppActFunc2;
-}
-
-void GLayerClassic::setActivationFunction(GActivationFunction* pActivationFunction, size_t first, size_t count)
-{
-	size_t units = outputs();
-	if(first > units)
-		throw Ex("out of range");
-	count = std::min(count, units - first);
-	if(count >= units)
-	{
-		while(m_activationFunctionCache.size() > 0)
-		{
-			delete(m_activationFunctionCache.back());
-			m_activationFunctionCache.pop_back();
-		}
-	}
-	m_activationFunctionCache.push_back(pActivationFunction);
-	for(size_t i = 0; i < count; i++)
-		m_activationFunctions[first + i] = pActivationFunction;
 }
 
 // virtual
@@ -295,11 +213,10 @@ void GLayerClassic::feedIn(const double* pIn, size_t inputStart, size_t inputCou
 void GLayerClassic::activate()
 {
 	double* pAct = activation();
-	GActivationFunction** ppActFunc = m_activationFunctions;
 	size_t outputCount = outputs();
 	double* pNet = net();
 	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = (*(ppActFunc++))->squash(*(pNet++));
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
 }
 
 void GLayerClassic::feedForwardWithInputBias(const double* pIn)
@@ -313,9 +230,8 @@ void GLayerClassic::feedForwardWithInputBias(const double* pIn)
 
 	// Apply the activation function
 	double* pAct = activation();
-	GActivationFunction** ppActFunc = m_activationFunctions;
 	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = (*(ppActFunc++))->squash(*(pNet++));
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
 }
 
 void GLayerClassic::feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias)
@@ -330,7 +246,7 @@ void GLayerClassic::feedForwardToOneOutput(const double* pIn, size_t output, boo
 
 	// Apply the activation function
 	double* pAct = activation() + output;
-	*pAct = m_activationFunctions[output]->squash(*pNet);
+	*pAct = m_pActivationFunction->squash(*pNet);
 }
 
 void GLayerClassic::computeError(const double* pTarget)
@@ -378,14 +294,12 @@ void GLayerClassic::deactivateError()
 	double* pErr = error();
 	double* pNet = net();
 	double* pAct = activation();
-	GActivationFunction** pAF = m_activationFunctions;
 	for(size_t i = 0; i < outputUnits; i++)
 	{
-		(*pErr) *= (*pAF)->derivativeOfNet(*pNet, *pAct);
+		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct);
 		pNet++;
 		pAct++;
 		pErr++;
-		pAF++;
 	}
 }
 
@@ -394,8 +308,7 @@ void GLayerClassic::deactivateErrorSingleOutput(size_t output)
 	double* pErr = &error()[output];
 	double netVal = net()[output];
 	double act = activation()[output];
-	GActivationFunction* pAF = m_activationFunctions[output];
-	(*pErr) *= pAF->derivativeOfNet(netVal, act);
+	(*pErr) *= m_pActivationFunction->derivativeOfNet(netVal, act);
 }
 
 void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
@@ -542,8 +455,8 @@ void GLayerClassic::setToWeaklyApproximateIdentity(size_t start, size_t count)
 		{
 			if(j == i)
 			{
-				m_weights[j][i] = m_activationFunctions[i]->identityDiag();
-				bias()[i] = m_activationFunctions[i]->identityBias();
+				m_weights[j][i] = m_pActivationFunction->identityDiag();
+				bias()[i] = m_pActivationFunction->identityBias();
 			}
 			else
 				m_weights[j][i] = 0.0;
@@ -666,6 +579,39 @@ void GLayerClassic::perturbWeights(GRand& rand, double deviation, size_t start, 
 
 
 
+GLayerSoftMax::GLayerSoftMax(size_t inputs, size_t outputs)
+: GLayerClassic(inputs, outputs, new GActivationLogistic())
+{
+}
+
+GLayerSoftMax::GLayerSoftMax(GDomNode* pNode)
+: GLayerClassic(pNode)
+{
+}
+
+// virtual
+void GLayerSoftMax::activate()
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	double* pNet = net();
+	double sum = 0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double d = m_pActivationFunction->squash(*(pNet++));
+		sum += d;
+		*(pAct++) = d;
+	}
+	if(sum > 1e-12)
+	{
+		double fac = 1.0 / sum;
+		m_weights.multiply(fac);
+		GVec::multiply(bias(), fac, outputCount);
+		GVec::multiply(activation(), fac, outputCount);
+	}
+}
+
+
 
 
 
@@ -677,7 +623,12 @@ GLayerMixed::GLayerMixed()
 
 GLayerMixed::GLayerMixed(GDomNode* pNode)
 {
-	throw Ex("Sorry, not implemented yet");
+	GDomListIterator it(pNode->field("comps"));
+	while(it.remaining() > 0)
+	{
+		m_components.push_back(GNeuralNetLayer::deserialize(it.current()));
+		it.advance();
+	}
 }
 
 GLayerMixed::~GLayerMixed()
@@ -689,7 +640,11 @@ GLayerMixed::~GLayerMixed()
 // virtual
 GDomNode* GLayerMixed::serialize(GDom* pDoc)
 {
-	throw Ex("Sorry, not implemented yet");
+	GDomNode* pNode = baseDomNode(pDoc);
+	GDomNode* pList = pNode->addField(pDoc, "comps", pDoc->newList());
+	for(size_t i = 0; i < m_components.size(); i++)
+		pList->addItem(pDoc, m_components[i]->serialize(pDoc));
+	return pNode;
 }
 
 void GLayerMixed::addComponent(GNeuralNetLayer* pComponent)
@@ -1809,7 +1764,7 @@ bool GNeuralNet::supportedLabelRange(double* pOutMin, double* pOutMax)
 {
 	if(m_layers.size() > 0)
 	{
-		GActivationFunction* pAct = ((GLayerClassic*)&outputLayer())->m_activationFunctionCache.back(); // TODO: This is a HACK
+		GActivationFunction* pAct = ((GLayerClassic*)&outputLayer())->m_pActivationFunction; // TODO: This is a HACK
 		double hr = pAct->halfRange();
 		if(hr >= 1e50)
 			return true;
@@ -1896,13 +1851,13 @@ void GNeuralNet::invertNode(size_t layer, size_t node)
 	if(layer + 1 < m_layers.size())
 	{
 		GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[layer + 1];
-		GActivationFunction** ppActFunc = layerDownStream.m_activationFunctions;
+		GActivationFunction* pActFunc = layerDownStream.m_pActivationFunction;
 		size_t downOuts = layerDownStream.outputs();
 		double* pW = layerDownStream.m_weights[node];
 		double* pB = layerDownStream.bias();
 		for(size_t i = 0; i < downOuts; i++)
 		{
-			pB[i] += 2 * (*(ppActFunc++))->center() * pW[i];
+			pB[i] += 2 * pActFunc->center() * pW[i];
 			pW[i] = -pW[i];
 		}
 	}
@@ -3192,7 +3147,7 @@ GNeuralNetPseudoInverse::GNeuralNetPseudoInverse(GNeuralNet* pNN, double padding
 		GNeuralNetInverseLayer* pLayer = new GNeuralNetInverseLayer();
 		m_layers.push_back(pLayer);
 		delete(pLayer->m_pActivationFunction);
-		pLayer->m_pActivationFunction = nnLayer.activationFunctions()[0]->clone(); // NOTE: this assumes the entire layer has a homogeneous activation function
+		pLayer->m_pActivationFunction = nnLayer.activationFunction()->clone();
 		GMatrix weights(nnLayer.outputs(), nnLayer.inputs());
 		double* pBias = nnLayer.bias();
 		GMatrix& weightsIn = nnLayer.weights();
@@ -3203,7 +3158,7 @@ GNeuralNetPseudoInverse::GNeuralNetPseudoInverse(GNeuralNet* pNN, double padding
 			for(size_t k = 0; k < nnLayer.inputs(); k++)
 			{
 				*(pRow++) = weightsIn[k][j];
-				unbias -= nnLayer.activationFunctions()[0]->center() * weightsIn[k][j]; // NOTE: this assumes the entire layer has a homogeneous activation function
+				unbias -= nnLayer.activationFunction()->center() * weightsIn[k][j];
 			}
 			pLayer->m_unbias.push_back(unbias);
 		}
