@@ -39,6 +39,7 @@
 #endif // MIN_PREDICT
 #include "GHolders.h"
 #include "GBits.h"
+#include "GFourier.h"
 
 using std::vector;
 
@@ -1029,12 +1030,6 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 		for(size_t j = fewerInputs; j < inputCount; j++)
 			*(pB++) = 0.01 * pRand->normal();
 	}
-}
-
-void GLayerRestrictedBoltzmannMachine::setActivationFunction(GActivationFunction* pActivationFunction)
-{
-	delete(m_pActivationFunction);
-	m_pActivationFunction = pActivationFunction;
 }
 
 // virtual
@@ -2675,6 +2670,67 @@ GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 	return pca.transformBatch(features);
 }
 
+// static
+GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
+{
+	if(!GBits::isPowerOfTwo(series.rows()))
+		throw Ex("The time series data has ", to_str(series.rows()), " rows. Expected a power of 2.");
+
+	// Make a neural network that combines sine units in the same manner as the Fourier transform
+	GNeuralNet* pNN = new GNeuralNet();
+	GLayerClassic* pLayerSin = new GLayerClassic(1, series.rows(), new GActivationSin());
+	GLayerClassic* pLayerIdent = new GLayerClassic(FLEXIBLE_SIZE, series.cols(), new GActivationIdentity());
+	pNN->addLayer(pLayerSin);
+	pNN->addLayer(pLayerIdent);
+	GUniformRelation relIn(1);
+	GUniformRelation relOut(series.cols());
+	pNN->beginIncrementalLearning(relIn, relOut);
+
+	// Initialize the weights of the sine units to match the frequencies used by the Fourier transform.
+	GMatrix& wSin = pLayerSin->weights();
+	double* bSin = pLayerSin->bias();
+	for(size_t i = 0; i < series.rows() / 2; i++)
+	{
+		wSin[0][2 * i] = 2.0 * M_PI * (i + 1) / period;
+		bSin[2 * i] = 0.5 * M_PI;
+		wSin[0][2 * i + 1] = 2.0 * M_PI * (i + 1) / period;
+		bSin[2 * i + 1] = M_PI;
+	}
+
+	// Initialize the output layer
+	struct ComplexNumber* pFourier = new struct ComplexNumber[series.rows()];
+	Holder<struct ComplexNumber> hIn(pFourier);
+	GMatrix& wIdent = pLayerIdent->weights();
+	double* bIdent = pLayerIdent->bias();
+	for(size_t j = 0; j < series.cols(); j++)
+	{
+		// Convert column j to the Fourier domain
+		struct ComplexNumber* pF = pFourier;
+		for(size_t i = 0; i < series.rows(); i++)
+		{
+			pF->real = series[i][j];
+			pF->imag = 0.0;
+			pF++;
+		}
+		GFourier::fft(series.rows(), pFourier, true);
+
+		// Initialize the weights of the identity output units to combine the sine units with the weights
+		// specified by the Fourier transform
+		for(size_t i = 0; i < series.rows() / 2; i++)
+		{
+			wIdent[2 * i][j] = pFourier[1 + i].real / (series.rows() / 2);
+			wIdent[2 * i + 1][j] = pFourier[1 + i].imag / (series.rows() / 2);
+		}
+		bIdent[j] = pFourier[0].real / (series.rows());
+
+		// Compensate for the way the FFT doubles-up the values in the last complex element
+		wIdent[series.rows() - 2][j] *= 0.5;
+		wIdent[series.rows() - 1][j] *= 0.5;
+	}
+
+	return pNN;
+}
+
 
 #ifndef MIN_PREDICT
 void GNeuralNet_testMath()
@@ -3177,6 +3233,30 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 	}
 }
 
+void GNeuralNet_testFourier()
+{
+	GMatrix m(8, 2);
+	m[0][0] = 2.7; m[0][1] = 1.0;
+	m[1][0] = 3.1; m[1][1] = 1.3;
+	m[2][0] = 0.1; m[2][1] = 1.0;
+	m[3][0] = 0.7; m[3][1] = 0.7;
+	m[4][0] = 2.4; m[4][1] = 0.4;
+	m[5][0] = 3.0; m[5][1] = 0.8;
+	m[6][0] = 3.8; m[6][1] = 1.3;
+	m[7][0] = 2.9; m[7][1] = 1.2;
+	double period = 3.0;
+	GNeuralNet* pNN = GNeuralNet::fourier(m, period);
+	Holder<GNeuralNet> hNN(pNN);
+	double out[2];
+	for(size_t i = 0; i < m.rows(); i++)
+	{
+		double in = (double)i * period / m.rows();
+		pNN->predict(&in, out);
+		if(GVec::squaredDistance(out, m[i], m.cols()) > 1e-9)
+			throw Ex("failed");
+	}
+}
+
 // static
 void GNeuralNet::test()
 {
@@ -3190,6 +3270,7 @@ void GNeuralNet::test()
 	GNeuralNet_testTransformWeights(prng);
 	GNeuralNet_testCompressFeatures(prng);
 	GNeuralNet_testConvolutionalLayerMath();
+	GNeuralNet_testFourier();
 
 	// Test with no hidden layers (logistic regression)
 	{

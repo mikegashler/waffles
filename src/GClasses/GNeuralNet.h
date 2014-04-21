@@ -663,9 +663,6 @@ using GNeuralNetLayer::updateWeights;
 	/// Performs binomial resampling of the activation values on the input end of this layer.
 	void resampleVisible(GRand& rand);
 
-	/// Takes ownership of pActivation function.
-	void setActivationFunction(GActivationFunction* pActivationFunction);
-
 	/// Draws a sample observation from "iters" iterations of Gibbs sampling.
 	/// The resulting sample is placed in activationReverse(), and the corresponding
 	/// encoding will be in activation().
@@ -1105,6 +1102,16 @@ public:
 	/// See the comment for GSupervisedLearner::predictDistribution
 	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 #endif // MIN_PREDICT
+
+	/// Generate a neural network that is initialized with the Fourier transform
+	/// to reconstruct the given time-series data. The number of rows in the given
+	/// time-series data is expected to be a power of 2. The resulting neural network will
+	/// accept one input, representing time. The outputs will match the number of columns
+	/// in the given time-series data. The series is assumed to represent one period
+	/// of time in a repeating cycle. The duration of this period is specified as the
+	/// parameter, period. The returned network has already had
+	/// beginIncrementalLearning called.
+	static GNeuralNet* fourier(GMatrix& series, double period = 1.0);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
