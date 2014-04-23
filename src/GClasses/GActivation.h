@@ -327,12 +327,10 @@ public:
 };
 
 
-#define SQRT_1_8 0.35355339059327
-
 /// This provides an alternative to using GActivationIdentity on the output layer
 /// for regression problems. It may add more power because it is non-linear, but
 /// like the identity function, its co-domain is the same as its domain. At
-/// very positive values, this is shaped like y=2*x. At very negative values,
+/// very positive values, this is shaped like y=1.5*x. At very negative values,
 /// this is shaped like y=0.5*x. Around 0, it is shaped like y=x.
 class GActivationBend : public GActivationFunction
 {
@@ -343,21 +341,19 @@ public:
 	/// Returns the bend function of x
 	virtual double squash(double x)
 	{
-		double t = x - SQRT_1_8;
-		return 0.75 * sqrt(t * t + 1.0) + 1.25 * t - SQRT_1_8;
+		return 0.5 * (sqrt(x * x + 1) + x + x - 1);
 	}
 
 	/// Returns the derivative of the bend function
 	virtual double derivative(double x)
 	{
-		double t = x - SQRT_1_8;
-		return (3.0 * t) / (4.0 * sqrt(t * t + 1.0)) + 1.25;
+		return 0.5 * (x / sqrt(x * x + 1)) + 1;
 	}
 
 	/// Returns the inverse of the bend function
 	virtual double inverse(double y)
 	{
-		return -0.0625 * (3.0 * sqrt(16.0 * y * y + 11.313708499/*pow(2.0, 3.5)*/ * y + 18.0) - 20.0 * y - 9.0 * M_SQRT2);
+		return -(2 * sqrt(y * y + y + 1) - 4 * y - 2) / 3.0;
 	}
 
 	/// Returns 0.0
