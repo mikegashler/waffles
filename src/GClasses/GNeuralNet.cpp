@@ -232,6 +232,31 @@ void GLayerClassic::dropOut(GRand& rand, double probOfDrop)
 	}
 }
 
+// virtual
+void GLayerClassic::dropConnect(GRand& rand, double probOfDrop)
+{
+	size_t outputCount = m_weights.cols();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		double* pW = m_weights[i];
+		double* pD = m_delta[i];
+		for(size_t j = 0; j < outputCount; j++)
+		{
+			if(rand.uniform() < probOfDrop)
+			{
+				*pD = *pW;
+				*pW = 0.0;
+			}
+			else
+			{
+				*pD = UNKNOWN_REAL_VALUE;
+			}
+			pD++;
+			pW++;
+		}
+	}
+}
+
 void GLayerClassic::feedForwardWithInputBias(const double* pIn)
 {
 	size_t outputCount = outputs();
@@ -379,6 +404,29 @@ void GLayerClassic::updateWeights(const double* pUpStreamActivation, size_t inpu
 			*pD *= momentum;
 			*pD += (*(pB++) * learningRate * act);
 			*(pW++) += *(pD++);
+		}
+	}
+}
+
+void GLayerClassic::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	double* pErr = error();
+	size_t outputCount = outputs();
+	size_t inputEnd = inputStart + inputCount;
+	for(size_t up = inputStart; up < inputEnd; up++)
+	{
+		double* pB = pErr;
+		double* pD = m_delta[up];
+		double* pW = m_weights[up];
+		double act = *(pUpStreamActivation++);
+		for(size_t down = 0; down < outputCount; down++)
+		{
+			if(*pD == UNKNOWN_REAL_VALUE)
+				*pW += (*(pB++) * learningRate * act);
+			else
+				*pW = *pD;
+			pW++;
+			pD++;
 		}
 	}
 }
@@ -735,6 +783,13 @@ void GLayerMixed::dropOut(GRand& rand, double probOfDrop)
 }
 
 // virtual
+void GLayerMixed::dropConnect(GRand& rand, double probOfDrop)
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->dropConnect(rand, probOfDrop);
+}
+
+// virtual
 void GLayerMixed::computeError(const double* pTarget)
 {
 	size_t outputUnits = outputs();
@@ -790,6 +845,12 @@ void GLayerMixed::updateWeights(const double* pUpStreamActivation, size_t inputS
 {
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->updateWeights(pUpStreamActivation, inputStart, inputCount, learningRate, momentum);
+}
+
+void GLayerMixed::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->updateWeightsAndRestoreDroppedOnes(pUpStreamActivation, inputStart, inputCount, learningRate, momentum);
 }
 
 // virtual
@@ -1012,9 +1073,10 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 				*(pRow++) = 0.01 * pRand->normal();
 		}
 	}
+	m_delta.resize(outputCount, inputCount);
 
 	// Bias
-	m_bias.resizePreserve(4, outputCount);
+	m_bias.resizePreserve(5, outputCount);
 	double* pB = bias() + fewerOutputs;
 	if(pRand)
 	{
@@ -1023,7 +1085,7 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 	}
 
 	// BiasReverse
-	m_biasReverse.resizePreserve(4, inputCount);
+	m_biasReverse.resizePreserve(5, inputCount);
 	pB = biasReverse() + fewerInputs;
 	if(pRand)
 	{
@@ -1037,7 +1099,7 @@ void GLayerRestrictedBoltzmannMachine::resetWeights(GRand& rand)
 {
 	size_t outputCount = outputs();
 	size_t inputCount = inputs();
-	double mag = 1.0 / inputCount;
+	double mag = std::max(0.01, 1.0 / inputCount);
 	double* pB = bias();
 	for(size_t i = 0; i < outputCount; i++)
 	{
@@ -1046,6 +1108,12 @@ void GLayerRestrictedBoltzmannMachine::resetWeights(GRand& rand)
 			m_weights[i][j] = rand.normal() * mag;
 		pB++;
 	}
+	pB = biasReverse();
+	for(size_t i = 0; i < inputCount; i++)
+		*(pB++) = rand.normal() * mag;
+	m_delta.setAll(0.0);
+	GVec::setAll(biasDelta(), 0.0, outputCount);
+	GVec::setAll(biasReverseDelta(), 0.0, inputCount);
 }
 
 // virtual
@@ -1094,6 +1162,30 @@ void GLayerRestrictedBoltzmannMachine::dropOut(GRand& rand, double probOfDrop)
 	}
 }
 
+// virtual
+void GLayerRestrictedBoltzmannMachine::dropConnect(GRand& rand, double probOfDrop)
+{
+	size_t cols = m_weights.cols();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		double* pW = m_weights[i];
+		double* pD = m_delta[i];
+		for(size_t j = 0; j < cols; j++)
+		{
+			if(rand.uniform() < probOfDrop)
+			{
+				*pD = *pW;
+				*pW = 0.0;
+			}
+			else
+			{
+				*pD = UNKNOWN_REAL_VALUE;
+			}
+			pD++;
+			pW++;
+		}
+	}
+}
 
 /*
 void GLayerRestrictedBoltzmannMachine::feedForward(const double* pIn)
@@ -1274,6 +1366,32 @@ void GLayerRestrictedBoltzmannMachine::updateWeights(const double* pUpStreamActi
 	}
 }
 
+void GLayerRestrictedBoltzmannMachine::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	if(inputStart != 0 || inputCount != inputs())
+		throw Ex("Sorry, updating only a portion of the weights is not yet implemented");
+	size_t inpCount = inputs();
+	size_t outputCount = outputs();
+	double* pErr = error();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double* pW = m_weights[i];
+		double* pD = m_delta[i];
+		const double* pA = pUpStreamActivation;
+		for(size_t j = 0; j < inpCount; i++)
+		{
+			if(*pD == UNKNOWN_REAL_VALUE)
+				*pW += learningRate * (*pErr) * *pA;
+			else
+				*pW = *pD;
+			pW++;
+			pD++;
+			pA++;
+		}
+		pErr++;
+	}
+}
+
 void GLayerRestrictedBoltzmannMachine::scaleWeights(double factor, bool scaleBiases)
 {
 	size_t inputCount = inputs();
@@ -1393,7 +1511,13 @@ void GLayerRestrictedBoltzmannMachine::scaleUnitOutgoingWeights(size_t input, do
 
 
 GLayerConvolutional1D::GLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction)
-: m_inputSamples(inputSamples), m_inputChannels(inputChannels), m_outputSamples(inputSamples - kernelSize + 1), m_kernelsPerChannel(kernelsPerChannel), m_kernels(inputChannels * kernelsPerChannel, kernelSize), m_pBias(NULL)
+: m_inputSamples(inputSamples),
+m_inputChannels(inputChannels),
+m_outputSamples(inputSamples - kernelSize + 1),
+m_kernelsPerChannel(kernelsPerChannel),
+m_kernels(inputChannels * kernelsPerChannel, kernelSize),
+m_delta(inputChannels * kernelsPerChannel, kernelSize),
+m_bias(2, inputChannels * kernelsPerChannel)
 {
 	if(kernelSize > inputSamples)
 		throw Ex("kernelSize must be <= inputSamples");
@@ -1402,7 +1526,6 @@ GLayerConvolutional1D::GLayerConvolutional1D(size_t inputSamples, size_t inputCh
 		m_pActivationFunction = new GActivationLogistic();
 	size_t totalOutputs = inputChannels * kernelsPerChannel * m_outputSamples;
 	m_activation.resize(3, totalOutputs);
-	m_pBias = new double[m_kernels.rows()];
 }
 
 GLayerConvolutional1D::GLayerConvolutional1D(GDomNode* pNode)
@@ -1412,7 +1535,6 @@ GLayerConvolutional1D::GLayerConvolutional1D(GDomNode* pNode)
 
 GLayerConvolutional1D::~GLayerConvolutional1D()
 {
-	delete[] m_pBias;
 }
 
 // virtual
@@ -1437,25 +1559,27 @@ void GLayerConvolutional1D::resize(size_t inputs, size_t outputs, GRand* pRand)
 void GLayerConvolutional1D::resetWeights(GRand& rand)
 {
 	size_t kernelSize = m_kernels.cols();
+	double mag = std::max(0.01, 1.0 / kernelSize); // maxing with 0.01 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 	{
 		double* pW = m_kernels[i];
 		for(size_t j = 0; j < kernelSize; j++)
-			*(pW++) = rand.normal() * 0.03;
+			*(pW++) = rand.normal() * mag;
 	}
-	double* pB = m_pBias;
+	m_delta.setAll(0.0);
+	double* pB = bias();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		*(pB++) = rand.normal() * 0.03;
+	GVec::setAll(biasDelta(), 0.0, m_kernels.rows());
 }
 
 // virtual
 void GLayerConvolutional1D::copyBiasToNet()
 {
 	double* pNet = net();
-	double* pB = m_pBias;
 	for(size_t i = 0; i < m_outputSamples; i++)
 	{
-		GVec::copy(pNet, pB, m_kernels.rows());
+		GVec::copy(pNet, bias(), m_kernels.rows());
 		pNet += m_kernels.rows();
 	}
 }
@@ -1510,6 +1634,12 @@ void GLayerConvolutional1D::dropOut(GRand& rand, double probOfDrop)
 		if(rand.uniform() < probOfDrop)
 			pAct[i] = 0.0;
 	}
+}
+
+// virtual
+void GLayerConvolutional1D::dropConnect(GRand& rand, double probOfDrop)
+{
+	throw Ex("Sorry, convolutional layers do not support dropConnect");
 }
 
 // virtual
@@ -1582,7 +1712,7 @@ void GLayerConvolutional1D::updateBias(double learningRate, double momentum)
 	double* pErr = error();
 	for(size_t i = 0; i < m_outputSamples; i++)
 	{
-		double* pB = m_pBias;
+		double* pB = bias();
 		for(size_t j = 0; j < m_inputChannels; j++)
 		{
 			for(size_t k = 0; k < m_kernelsPerChannel; k++)
@@ -1619,6 +1749,11 @@ void GLayerConvolutional1D::updateWeights(const double* pUpStreamActivation, siz
 	}
 }
 
+void GLayerConvolutional1D::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	throw Ex("Sorry, convolutional layers do not support dropConnect");
+}
+
 // virtual
 void GLayerConvolutional1D::scaleWeights(double factor, bool scaleBiases)
 {
@@ -1626,7 +1761,7 @@ void GLayerConvolutional1D::scaleWeights(double factor, bool scaleBiases)
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		GVec::multiply(m_kernels[i], factor, kernelSize);
 	if(scaleBiases)
-		GVec::multiply(m_pBias, factor, m_kernels.rows());
+		GVec::multiply(bias(), factor, m_kernels.rows());
 }
 
 // virtual
@@ -1636,7 +1771,7 @@ void GLayerConvolutional1D::diminishWeights(double amount, bool diminishBiases)
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		GVec::diminish(m_kernels[i], amount, kernelSize);
 	if(diminishBiases)
-		GVec::diminish(m_pBias, amount, m_kernels.rows());
+		GVec::diminish(bias(), amount, m_kernels.rows());
 }
 
 // virtual
@@ -1648,7 +1783,7 @@ size_t GLayerConvolutional1D::countWeights()
 // virtual
 size_t GLayerConvolutional1D::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, m_pBias, m_kernels.rows());
+	GVec::copy(pOutVector, bias(), m_kernels.rows());
 	pOutVector += m_kernels.rows();
 	m_kernels.toVector(pOutVector);
 	return (m_kernels.rows() + 1) * m_kernels.cols();
@@ -1657,7 +1792,7 @@ size_t GLayerConvolutional1D::weightsToVector(double* pOutVector)
 // virtual
 size_t GLayerConvolutional1D::vectorToWeights(const double* pVector)
 {
-	GVec::copy(m_pBias, pVector, m_kernels.rows());
+	GVec::copy(bias(), pVector, m_kernels.rows());
 	pVector += m_kernels.rows();
 	m_kernels.fromVector(pVector, m_kernels.rows());
 	return (m_kernels.rows() + 1) * m_kernels.cols();
@@ -1666,9 +1801,9 @@ size_t GLayerConvolutional1D::vectorToWeights(const double* pVector)
 // virtual
 void GLayerConvolutional1D::copyWeights(GNeuralNetLayer* pSource)
 {
-	const GLayerConvolutional1D* src = (const GLayerConvolutional1D*)pSource;
+	GLayerConvolutional1D* src = (GLayerConvolutional1D*)pSource;
 	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
-	GVec::copy(m_pBias, src->m_pBias, src->m_kernels.rows());
+	GVec::copy(bias(), src->bias(), src->m_kernels.rows());
 }
 
 // virtual
@@ -1679,7 +1814,7 @@ void GLayerConvolutional1D::perturbWeights(GRand& rand, double deviation, size_t
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		GVec::perturb(m_kernels[i], deviation, kernelSize, rand);
-	GVec::perturb(m_pBias, deviation, m_kernels.rows(), rand);
+	GVec::perturb(bias(), deviation, m_kernels.rows(), rand);
 }
 
 // virtual
@@ -2121,28 +2256,6 @@ void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 	}
 }
 
-void GNeuralNet::forwardPropWithDropout(const double* pRow, double probOfDrop, size_t maxLayers)
-{
-	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->copyBiasToNet();
-	pLay->feedIn(pRow, 0, pLay->inputs());
-	pLay->activate();
-	pLay->dropOut(m_rand, probOfDrop);
-	maxLayers = std::min(m_layers.size(), maxLayers);
-	for(size_t i = 1; i < maxLayers; i++)
-	{
-		GNeuralNetLayer* pDS = m_layers[i];
-		pDS->copyBiasToNet();
-		pDS->feedIn(pLay, 0);
-		pDS->activate();
-		if(i + 1 < maxLayers)
-		{
-			pLay->dropOut(m_rand, probOfDrop);
-			pLay = pDS;
-		}
-	}
-}
-
 double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
 {
 	if(m_layers.size() == 1)
@@ -2321,27 +2434,71 @@ void GNeuralNet::trainIncremental(const double* pIn, const double* pOut)
 	descendGradient(pIn, m_learningRate, m_momentum);
 }
 
-void GNeuralNet::trainIncrementalWithDropout(const double* pIn, const double* pOut, double probOfDrop, double* pBuf)
+void GNeuralNet::trainIncrementalWithDropout(const double* pIn, const double* pOut, double probOfDrop)
 {
-	if(pBuf)
+	if(m_momentum != 0.0)
+		throw Ex("Sorry, this implementation is not compatible with momentum");
+
+	// Forward prop with dropout
+	GNeuralNetLayer* pLay = m_layers[0];
+	pLay->copyBiasToNet();
+	pLay->feedIn(pIn, 0, pLay->inputs());
+	pLay->activate();
+	pLay->dropOut(m_rand, probOfDrop);
+	size_t maxLayers = m_layers.size();
+	for(size_t i = 1; i < maxLayers; i++)
 	{
-		const double* pI = pIn;
-		double* pB = pBuf;
-		size_t inputCount = layer(0).inputs();
-		for(size_t i = 0; i < inputCount; i++)
+		GNeuralNetLayer* pDS = m_layers[i];
+		pDS->copyBiasToNet();
+		pDS->feedIn(pLay, 0);
+		pDS->activate();
+		if(i + 1 < maxLayers)
 		{
-			if(m_rand.uniform() < probOfDrop)
-				*pB = 0.0;
-			else
-				*pB = *pI;
-			pB++;
-			pI++;
+			pLay->dropOut(m_rand, probOfDrop);
+			pLay = pDS;
 		}
-		pIn = pBuf;
 	}
-	forwardPropWithDropout(pIn, probOfDrop);
+
 	backpropagate(pOut);
-	descendGradient(pIn, m_learningRate, m_momentum);
+	descendGradient(pIn, m_learningRate, 0.0);
+}
+
+void GNeuralNet::trainIncrementalWithDropConnect(const double* pIn, const double* pOut, double probOfDrop)
+{
+	if(m_momentum != 0.0)
+		throw Ex("Sorry, this implementation is not compatible with momentum");
+
+	// Forward prop with dropConnect
+	GNeuralNetLayer* pLay = m_layers[0];
+	pLay->dropConnect(m_rand, probOfDrop);
+	pLay->copyBiasToNet();
+	pLay->feedIn(pIn, 0, pLay->inputs());
+	pLay->activate();
+	size_t maxLayers = m_layers.size();
+	for(size_t i = 1; i < maxLayers; i++)
+	{
+		GNeuralNetLayer* pDS = m_layers[i];
+		pDS->dropConnect(m_rand, probOfDrop);
+		pDS->copyBiasToNet();
+		pDS->feedIn(pLay, 0);
+		pDS->activate();
+		pLay = pDS;
+	}
+
+	backpropagate(pOut);
+
+	// Descend gradient with dropConnect
+	pLay = m_layers[0];
+	pLay->updateWeightsAndRestoreDroppedOnes(pIn, 0, pLay->inputs(), m_learningRate, 0.0);
+	pLay->updateBias(m_learningRate, 0.0);
+	GNeuralNetLayer* pUpStream = pLay;
+	for(size_t i = 1; i < m_layers.size(); i++)
+	{
+		pLay = m_layers[i];
+		pLay->updateWeightsAndRestoreDroppedOnes(pUpStream, 0, m_learningRate, 0.0);
+		pLay->updateBias(m_learningRate, 0.0);
+		pUpStream = pLay;
+	}
 }
 
 void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)

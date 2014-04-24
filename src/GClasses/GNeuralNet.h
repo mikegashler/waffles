@@ -95,6 +95,9 @@ public:
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop) = 0;
 
+	/// Randomly sets some of the weights to 0. (The dropped weights are restored when you call updateWeightsAndRestoreDroppedOnes.)
+	virtual void dropConnect(GRand& rand, double probOfDrop) = 0;
+
 	/// Feeds in the bias and pIn, then computes the activation of this layer.
 	void feedForward(const double* pIn);
 
@@ -120,6 +123,16 @@ public:
 	virtual void updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
 	{
 		updateWeights(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, momentum);
+	}
+
+	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
+	/// the weights that were previously dropped by a call to dropConnect.
+	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum) = 0;
+
+	/// Refines the weights by gradient descent.
+	virtual void updateWeightsAndRestoreDroppedOnes(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
+	{
+		updateWeightsAndRestoreDroppedOnes(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, momentum);
 	}
 
 	/// Multiplies all the weights by the specified factor.
@@ -188,6 +201,8 @@ protected:
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	/// If pActivationFunction is NULL, then GActivationTanH is used.
 	GLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
@@ -230,6 +245,9 @@ using GNeuralNetLayer::updateWeights;
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
 
+	/// Randomly sets some of the weights to 0. (The dropped weights are restored when you call updateWeightsAndRestoreDroppedOnes.)
+	virtual void dropConnect(GRand& rand, double probOfDrop);
+
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
@@ -251,6 +269,10 @@ using GNeuralNetLayer::updateWeights;
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
+	/// the weights that were previously dropped by a call to dropConnect.
+	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -393,6 +415,8 @@ protected:
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+
 	/// General-purpose constructor. (You should call addComponent at least twice to mix some layers, after constructing this object.)
 	GLayerMixed();
 
@@ -439,6 +463,9 @@ using GNeuralNetLayer::updateWeights;
 	/// Calls dropOut for each component.
 	virtual void dropOut(GRand& rand, double probOfDrop);
 
+	/// Randomly sets some of the weights to 0. (The dropped weights are restored when you call updateWeightsAndRestoreDroppedOnes.)
+	virtual void dropConnect(GRand& rand, double probOfDrop);
+
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
@@ -458,6 +485,10 @@ using GNeuralNetLayer::updateWeights;
 
 	/// Calls updateWeights for each component.
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
+	/// the weights that were previously dropped by a call to dropConnect.
+	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Calls scaleWeights for each component.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -511,13 +542,16 @@ class GLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
 {
 protected:
 	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error.
-	GMatrix m_biasReverse; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error.
+	GMatrix m_delta;
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the delta.
+	GMatrix m_biasReverse; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the delta.
 	GActivationFunction* m_pActivationFunction;
 
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
 
@@ -560,6 +594,9 @@ using GNeuralNetLayer::updateWeights;
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
 
+	/// Randomly sets some of the weights to 0. (The dropped weights are restored when you call updateWeightsAndRestoreDroppedOnes.)
+	virtual void dropConnect(GRand& rand, double probOfDrop);
+
 	/// Feed a vector from the hidden end to the visible end. The results are placed in activationReverse();
 	void feedBackward(const double* pIn);
 
@@ -582,6 +619,10 @@ using GNeuralNetLayer::updateWeights;
 
 	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
+	/// the weights that were previously dropped by a call to dropConnect.
+	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -645,8 +686,14 @@ using GNeuralNetLayer::updateWeights;
 	/// from the most recent call to feedForward().
 	double* net() { return m_bias[1]; }
 
+	/// Returns the delta vector for the bias.
+	double* biasDelta() { return m_bias[4]; }
+
 	/// Returns the bias for the visible end of this layer.
 	double* biasReverse() { return m_biasReverse[0]; }
+
+	/// Returns the delta vector for the reverse bias.
+	double* biasReverseDelta() { return m_biasReverse[4]; }
 
 	/// Returns the net for the visible end of this layer.
 	double* netReverse() { return m_biasReverse[1]; }
@@ -686,13 +733,16 @@ protected:
 	size_t m_outputSamples;
 	size_t m_kernelsPerChannel;
 	GMatrix m_kernels;
+	GMatrix m_delta;
 	GMatrix m_activation; // Row 0 is the activation. Row 1 is the net. Row 2 is the error.
-	double* m_pBias;
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the bias delta.
 	GActivationFunction* m_pActivationFunction;
 
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+
 	/// General-purpose constructor.
 	/// For example, if you collect 19 samples from 3 sensors, then the total input size will be 57 (19*3=57).
 	/// The three values collected at time 0 will come first, followed by the three values collected at
@@ -740,6 +790,9 @@ using GNeuralNetLayer::updateWeights;
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
 
+	/// Throws an exception, because convolutional layers do not support dropConnect.
+	virtual void dropConnect(GRand& rand, double probOfDrop);
+
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
@@ -761,6 +814,10 @@ using GNeuralNetLayer::updateWeights;
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
+	/// the weights that were previously dropped by a call to dropConnect.
+	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -813,7 +870,8 @@ using GNeuralNetLayer::updateWeights;
 	/// from the most recent call to feedForward().
 	double* net() { return m_activation[1]; }
 
-	double* bias() { return m_pBias; }
+	double* bias() { return m_bias[0]; }
+	double* biasDelta() { return m_bias[0]; }
 	GMatrix& kernels() { return m_kernels; }
 };
 
@@ -991,10 +1049,6 @@ public:
 	/// The maxLayers parameter can limit how far into the network values are propagated.
 	void forwardProp(const double* pInputs, size_t maxLayers = INVALID_INDEX);
 
-	/// Same as forwardProp, except it randomly drops values from the activations of hidden layers.
-	/// (Does not drop any values from pRow, or from the final layer.)
-	void forwardPropWithDropout(const double* pRow, double probOfDrop, size_t maxLayers = INVALID_INDEX);
-
 	/// This is the same as forwardProp, except it only propagates to a single output node.
 	/// It returns the value that this node outputs.
 	double forwardPropSingleOutput(const double* pInputs, size_t output);
@@ -1079,11 +1133,16 @@ public:
 	virtual void trainIncremental(const double* pIn, const double* pOut);
 
 	/// Presents a pattern for training. Applies dropout to the activations of hidden layers.
-	/// If pBuf is non-NULL, then it also applies dropout to the input.
 	/// Note that when training with dropout is complete, you should call
-	/// scaleWeights(1.0 - probOfDrop, false, pBuf ? 0 : 1) to compensate for the scaling effect
+	/// scaleWeights(1.0 - probOfDrop, false, 1) to compensate for the scaling effect
 	/// dropout has on the weights.
-	void trainIncrementalWithDropout(const double* pIn, const double* pOut, double probOfDrop, double* pBuf = NULL);
+	void trainIncrementalWithDropout(const double* pIn, const double* pOut, double probOfDrop);
+
+	/// Presents a pattern for training. Applies dropConnect to the weights.
+	/// Note that when training with dropConnect is complete, you should call
+	/// scaleWeights(1.0 - probOfDrop, false, 0) to compensate for the scaling effect
+	/// dropConnect has on the weights.
+	void trainIncrementalWithDropConnect(const double* pIn, const double* pOut, double probOfDrop);
 
 	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const double* pIn, double* pOut);

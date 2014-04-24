@@ -123,6 +123,14 @@ public:
 	/// updateBias, which does sync with the GPU.
 	virtual void updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum);
 
+	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
+	/// the weights that were previously dropped by a call to dropConnect.
+	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
+	/// the weights that were previously dropped by a call to dropConnect.
+	virtual void updateWeightsAndRestoreDroppedOnes(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum);
+
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been
 	/// computed and deactivated.) This method also syncs with the GPU, so it should be
 	/// called after updateWeights.

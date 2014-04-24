@@ -223,6 +223,18 @@ void GLayerCuda::updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStar
 	}
 }
 
+// virtual
+void GLayerCuda::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+void GLayerCuda::updateWeightsAndRestoreDroppedOnes(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
 void GLayerCuda::scaleWeights(double factor, bool scaleBiases)
 {
 	m_weights.scale(m_engine, factor);
