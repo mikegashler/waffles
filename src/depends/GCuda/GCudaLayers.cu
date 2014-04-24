@@ -161,6 +161,18 @@ void GLayerCuda::activate()
 	m_engine.sync();
 }
 
+// virtual
+void GLayerCuda::dropOut(GRand& rand, double probOfDrop)
+{
+	throw Ex("sorry, not implemented yet");
+}
+
+// virtual
+void GLayerCuda::dropConnect(GRand& rand, double probOfDrop)
+{
+	throw Ex("sorry, not implemented yet");
+}
+
 void GLayerCuda::computeError(const double* pTarget)
 {
 	m_error.upload(pTarget, outputs());
@@ -255,37 +267,37 @@ void GLayerCuda::maxNorm(double max)
 }
 
 // virtual
-double unitIncomingWeightsL1Norm(size_t unit)
+double GLayerCuda::unitIncomingWeightsL1Norm(size_t unit)
 {
 	return m_weights.colSumAbs(m_engine, unit);
 }
 
 // virtual
-double unitIncomingWeightsL2Norm(size_t unit)
+double GLayerCuda::unitIncomingWeightsL2Norm(size_t unit)
 {
 	return m_weights.colSumSquare(m_engine, unit);
 }
 
 // virtual
-double unitOutgoingWeightsL1Norm(size_t input)
+double GLayerCuda::unitOutgoingWeightsL1Norm(size_t input)
 {
 	return m_weights.rowSumAbs(m_engine, input);
 }
 
 // virtual
-double unitOutgoingWeightsL2Norm(size_t input)
+double GLayerCuda::unitOutgoingWeightsL2Norm(size_t input)
 {
 	return m_weights.rowSumSquare(m_engine, input);
 }
 
 // virtual
-void scaleUnitIncomingWeights(size_t unit, double scalar)
+void GLayerCuda::scaleUnitIncomingWeights(size_t unit, double scalar)
 {
 	m_weights.scaleCol(m_engine, unit, scalar);
 }
 
 // virtual
-void scaleUnitOutgoingWeights(size_t input, double scalar)
+void GLayerCuda::scaleUnitOutgoingWeights(size_t input, double scalar)
 {
 	m_weights.scaleRow(m_engine, input, scalar);
 }

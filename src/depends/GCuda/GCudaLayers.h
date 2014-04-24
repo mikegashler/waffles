@@ -98,6 +98,10 @@ public:
 
 	virtual void activate();
 
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
+	virtual void dropConnect(GRand& rand, double probOfDrop);
+
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
