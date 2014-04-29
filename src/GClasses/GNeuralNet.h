@@ -878,6 +878,161 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 
 
+class GLayerConvolutional2D : public GNeuralNetLayer
+{
+protected:
+	size_t m_inputCols;
+	size_t m_inputRows;
+	size_t m_inputChannels;
+	size_t m_outputCols;
+	size_t m_outputRows;
+	size_t m_kernelsPerChannel;
+	size_t m_kernelCount;
+	GMatrix m_kernels;
+	GMatrix m_delta;
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the net. Row 2 is the error.
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the bias delta.
+	GActivationFunction* m_pActivationFunction;
+
+public:
+using GNeuralNetLayer::feedIn;
+using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+
+	/// General-purpose constructor.
+	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
+	/// and inputChannels will be 3. The total input size will be 9216 (64*48*3=9216).
+	/// If kernelSize is 5, then the output will consist of 60 columns (64-5+1=60) and 44 rows (48-5+1=44).
+	/// If kernelsPerChannel is 2, then there will be 6 (3*2=6) channels in the output, for a total of
+	/// 15840 (60*44*6=15840) output values. (kernelSize must be <= inputSamples.)
+	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction = NULL);
+
+	/// Deserializing constructor
+	GLayerConvolutional2D(GDomNode* pNode);
+
+	virtual ~GLayerConvolutional2D();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "conv2"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() { return m_inputRows * m_inputCols * m_inputChannels; }
+
+	/// Returns the number of nodes or units in this layer.
+	virtual size_t outputs() { return m_outputRows * m_outputCols * m_inputChannels * m_kernelsPerChannel; }
+
+	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+
+	/// Returns the activation values from the most recent call to feedForward().
+	virtual double* activation() { return m_activation[0]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual double* error() { return m_activation[2]; }
+
+	/// Copies the bias vector into the net vector.
+	virtual void copyBiasToNet();
+
+	/// Feeds a portion of the inputs through the weights and updates the net.
+	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
+
+	/// Applies the activation function to the net vector to compute the activation vector.
+	virtual void activate();
+
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
+	/// Throws an exception, because convolutional layers do not support dropConnect.
+	virtual void dropConnect(GRand& rand, double probOfDrop);
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const double* pTarget);
+
+	/// Multiplies each element in the error vector by the derivative of the activation function.
+	/// This results in the error having meaning with respect to the weights, instead of the output.
+	/// (Assumes the error for this layer has already been computed.)
+	virtual void deactivateError();
+
+	/// Backpropagates the error from this layer into the upstream layer's error vector.
+	/// (Assumes that the error in this layer has already been computed and deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+
+	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
+	virtual void updateBias(double learningRate, double momentum);
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
+	/// the weights that were previously dropped by a call to dropConnect.
+	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Multiplies all the weights in this layer by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	virtual void diminishWeights(double amount, bool diminishBiases);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(GNeuralNetLayer* pSource);
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand);
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
+
+	/// Clips each kernel weight (not including the bias) to fall between -max and max.
+	virtual void maxNorm(double max);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL1Norm(size_t unit);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+	virtual double unitIncomingWeightsL2Norm(size_t unit);
+
+	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL1Norm(size_t input);
+
+	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+	virtual double unitOutgoingWeightsL2Norm(size_t input);
+
+	/// Scale weights that feed into the specified unit
+	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
+
+	/// Scale weights that feed into this layer from the specified input
+	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
+
+	/// Returns the net vector (that is, the values computed before the activation function was applied)
+	/// from the most recent call to feedForward().
+	double* net() { return m_activation[1]; }
+
+	double* bias() { return m_bias[0]; }
+	double* biasDelta() { return m_bias[0]; }
+	GMatrix& kernels() { return m_kernels; }
+};
+
+
+
+
 /// A feed-forward artificial neural network, or multi-layer perceptron.
 class GNeuralNet : public GIncrementalLearner
 {

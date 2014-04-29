@@ -1548,10 +1548,7 @@ void GLayerConvolutional1D::resize(size_t inputs, size_t outputs, GRand* pRand)
 {
 	if(inputs != m_inputSamples * m_inputChannels)
 		throw Ex("Changing the size of GLayerConvolutional1D is not supported");
-	size_t kernelSize = m_kernels.cols();
-	size_t outputSamples = m_inputSamples - kernelSize + 1;
-	size_t totalOutputs = m_inputChannels * m_kernelsPerChannel * outputSamples;
-	if(outputs != totalOutputs)
+	if(outputs != m_inputChannels * m_kernelsPerChannel * m_outputSamples)
 		throw Ex("Changing the size of GLayerConvolutional1D is not supported");
 }
 
@@ -1569,7 +1566,7 @@ void GLayerConvolutional1D::resetWeights(GRand& rand)
 	m_delta.setAll(0.0);
 	double* pB = bias();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-		*(pB++) = rand.normal() * 0.03;
+		*(pB++) = rand.normal() * mag;
 	GVec::setAll(biasDelta(), 0.0, m_kernels.rows());
 }
 
@@ -1860,6 +1857,393 @@ void GLayerConvolutional1D::scaleUnitIncomingWeights(size_t unit, double scalar)
 
 // virtual
 void GLayerConvolutional1D::scaleUnitOutgoingWeights(size_t input, double scalar)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+
+
+
+
+
+
+GLayerConvolutional2D::GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction)
+: m_inputCols(inputCols),
+m_inputRows(inputRows),
+m_inputChannels(inputChannels),
+m_outputCols(inputCols - kernelSize + 1),
+m_outputRows(inputRows - kernelSize + 1),
+m_kernelsPerChannel(kernelsPerChannel),
+m_kernelCount(inputChannels * kernelsPerChannel),
+m_kernels(m_kernelCount * kernelSize, kernelSize),
+m_delta(m_kernelCount * kernelSize, kernelSize),
+m_bias(2, m_kernelCount)
+{
+	if(kernelSize > inputCols)
+		throw Ex("kernelSize must be <= inputCols");
+	if(kernelSize > inputRows)
+		throw Ex("kernelSize must be <= inputRows");
+	m_pActivationFunction = pActivationFunction;
+	if(!m_pActivationFunction)
+		m_pActivationFunction = new GActivationLogistic();
+	size_t totalOutputs = m_kernelCount * m_outputCols * m_outputRows;
+	m_activation.resize(3, totalOutputs);
+}
+
+GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+GLayerConvolutional2D::~GLayerConvolutional2D()
+{
+}
+
+// virtual
+GDomNode* GLayerConvolutional2D::serialize(GDom* pDoc)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+void GLayerConvolutional2D::resize(size_t inputs, size_t outputs, GRand* pRand)
+{
+	if(inputs != m_inputCols * m_inputRows * m_inputChannels)
+		throw Ex("Changing the size of GLayerConvolutional2D is not supported");
+	if(outputs != m_inputChannels * m_kernelsPerChannel * m_outputCols * m_outputRows)
+		throw Ex("Changing the size of GLayerConvolutional2D is not supported");
+}
+
+// virtual
+void GLayerConvolutional2D::resetWeights(GRand& rand)
+{
+	size_t kernelSize = m_kernels.cols();
+	double mag = std::max(0.01, 1.0 / (kernelSize * kernelSize)); // maxing with 0.01 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+	{
+		double* pW = m_kernels[i];
+		for(size_t j = 0; j < kernelSize; j++)
+			*(pW++) = rand.normal() * mag;
+	}
+	m_delta.setAll(0.0);
+	double* pB = bias();
+	for(size_t i = 0; i < m_kernelCount; i++)
+		*(pB++) = rand.normal() * mag;
+	GVec::setAll(biasDelta(), 0.0, m_kernelCount);
+}
+
+// virtual
+void GLayerConvolutional2D::copyBiasToNet()
+{
+	double* pNet = net();
+	double* pBias = bias();
+	for(size_t j = 0; j < m_outputRows; j++)
+	{
+		for(size_t i = 0; i < m_outputCols; i++)
+		{
+			GVec::copy(pNet, pBias, m_kernelCount);
+			pNet += m_kernelCount;
+		}
+	}
+}
+
+// virtual
+void GLayerConvolutional2D::feedIn(const double* pIn, size_t inputStart, size_t inputCount)
+{
+	GAssert(inputStart == 0);
+	if(inputCount != m_inputRows * m_inputCols * m_inputChannels)
+		throw Ex("Sorry, partial feeding not supported in GLayerConvolutional2D");
+	size_t kernelSize = m_kernels.cols();
+	double* pNet = net();
+	for(size_t h = 0; h < m_outputRows; h++) // for each output row...
+	{
+		for(size_t i = 0; i < m_outputCols; i++) // for each output column...
+		{
+			size_t kern = 0;
+			for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+			{
+				for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+				{
+					double d = 0.0;
+					const double* pInput = pIn;
+					for(size_t l = 0; l < kernelSize; l++) // for each kernel row...
+					{
+						double* pW = m_kernels[kern++];
+						for(size_t m = 0; m < kernelSize; m++) // for each kernel column... todo: the cyclomatic complexity of this method is ridiculous!
+						{
+							d += *(pW++) * *pInput;
+							pInput += m_inputChannels;
+						}
+					}
+					*(pNet++) += d;
+				}
+				pIn++;
+			}
+		}
+	}
+}
+
+// virtual
+void GLayerConvolutional2D::activate()
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	double* pNet = net();
+	for(size_t i = 0; i < outputCount; i++)
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+}
+
+// virtual
+void GLayerConvolutional2D::dropOut(GRand& rand, double probOfDrop)
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		if(rand.uniform() < probOfDrop)
+			pAct[i] = 0.0;
+	}
+}
+
+// virtual
+void GLayerConvolutional2D::dropConnect(GRand& rand, double probOfDrop)
+{
+	throw Ex("Sorry, convolutional layers do not support dropConnect");
+}
+
+// virtual
+void GLayerConvolutional2D::computeError(const double* pTarget)
+{
+	size_t outputUnits = outputs();
+	double* pAct = activation();
+	double* pErr = error();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		if(*pTarget == UNKNOWN_REAL_VALUE)
+			*pErr = 0.0;
+		else
+			*pErr = *pTarget - *pAct;
+		pTarget++;
+		pAct++;
+		pErr++;
+	}
+}
+
+// virtual
+void GLayerConvolutional2D::deactivateError()
+{
+	size_t outputUnits = outputs();
+	double* pErr = error();
+	double* pNet = net();
+	double* pAct = activation();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct);
+		pNet++;
+		pAct++;
+		pErr++;
+	}
+}
+
+// virtual
+void GLayerConvolutional2D::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+{
+	GAssert(inputStart == 0);
+	GAssert(pUpStreamLayer->outputs() == inputs());
+	double* pUpStreamErr = pUpStreamLayer->error();
+	double* pDownStreamErr = error();
+	size_t kernelSize = m_kernels.cols();
+	GVec::setAll(pUpStreamErr, 0.0, inputs());
+	for(size_t h = 0; h < m_outputRows; h++) // for each output row...
+	{
+		for(size_t i = 0; i < m_outputCols; i++) // for each output column...
+		{
+			size_t kern = 0;
+			for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+			{
+				for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+				{
+					double* pUp = pUpStreamErr;
+					for(size_t l = 0; l < kernelSize; l++) // for each kernel row...
+					{
+						double* pW = m_kernels[kern++];
+						for(size_t m = 0; m < kernelSize; m++) // for each kernel column...
+						{
+							(*pUp) += *(pW++) * *pDownStreamErr;
+							pUp += m_inputChannels;
+						}
+					}
+					pDownStreamErr++;
+				}
+				pUpStreamErr++;
+			}
+		}
+	}
+}
+
+// virtual
+void GLayerConvolutional2D::updateBias(double learningRate, double momentum)
+{
+	double* pErr = error();
+	for(size_t h = 0; h < m_outputRows; h++)
+	{
+		for(size_t i = 0; i < m_outputCols; i++)
+		{
+			double* pB = bias();
+			for(size_t j = 0; j < m_inputChannels; j++)
+			{
+				for(size_t k = 0; k < m_kernelsPerChannel; k++)
+					*(pB++) += learningRate * *(pErr++);
+			}
+		}
+	}
+}
+
+// virtual
+void GLayerConvolutional2D::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	GAssert(inputStart == 0);
+	GAssert(inputCount == inputs());
+	double* pErr = error();
+	size_t kernelSize = m_kernels.cols();
+	for(size_t h = 0; h < m_outputRows; h++) // for each sample row...
+	{
+		for(size_t i = 0; i < m_outputCols; i++) // for each sample column...
+		{
+			size_t kern = 0;
+			for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+			{
+				for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+				{
+					const double* pIn = pUpStreamActivation;
+					for(size_t l = 0; l < kernelSize; l++) // for each kernel row...
+					{
+						double* pW = m_kernels[kern++];
+						for(size_t m = 0; m < kernelSize; m++) // for each kernel column...
+						{
+							*(pW++) += learningRate * *pErr * *pIn;
+							pIn += m_inputChannels;
+						}
+					}
+					pErr++;
+				}
+				pUpStreamActivation++;
+			}
+		}
+	}
+}
+
+void GLayerConvolutional2D::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+{
+	throw Ex("Sorry, convolutional layers do not support dropConnect");
+}
+
+// virtual
+void GLayerConvolutional2D::scaleWeights(double factor, bool scaleBiases)
+{
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+		GVec::multiply(m_kernels[i], factor, kernelSize);
+	if(scaleBiases)
+		GVec::multiply(bias(), factor, m_kernelCount);
+}
+
+// virtual
+void GLayerConvolutional2D::diminishWeights(double amount, bool diminishBiases)
+{
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+		GVec::diminish(m_kernels[i], amount, kernelSize);
+	if(diminishBiases)
+		GVec::diminish(bias(), amount, m_kernelCount);
+}
+
+// virtual
+size_t GLayerConvolutional2D::countWeights()
+{
+	return m_kernels.rows() * m_kernels.cols() + m_kernelCount;
+}
+
+// virtual
+size_t GLayerConvolutional2D::weightsToVector(double* pOutVector)
+{
+	GVec::copy(pOutVector, bias(), m_kernelCount);
+	pOutVector += m_kernelCount;
+	m_kernels.toVector(pOutVector);
+	return m_kernels.rows() * m_kernels.cols() + m_kernelCount;
+}
+
+// virtual
+size_t GLayerConvolutional2D::vectorToWeights(const double* pVector)
+{
+	GVec::copy(bias(), pVector, m_kernelCount);
+	pVector += m_kernelCount;
+	m_kernels.fromVector(pVector, m_kernels.rows());
+	return m_kernels.rows() * m_kernels.cols() + m_kernelCount;
+}
+
+// virtual
+void GLayerConvolutional2D::copyWeights(GNeuralNetLayer* pSource)
+{
+	GLayerConvolutional2D* src = (GLayerConvolutional2D*)pSource;
+	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+	GVec::copy(bias(), src->bias(), src->m_kernelCount);
+}
+
+// virtual
+void GLayerConvolutional2D::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+{
+	if(start != 0)
+		throw Ex("Sorry, convolutional layers do not support perturbing weights for a subset of units");
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+		GVec::perturb(m_kernels[i], deviation, kernelSize, rand);
+	GVec::perturb(bias(), deviation, m_kernelCount, rand);
+}
+
+// virtual
+void GLayerConvolutional2D::maxNorm(double max)
+{
+	size_t kernelSize = m_kernels.cols();
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+	{
+		GVec::capValues(m_kernels[i], max, kernelSize);
+		GVec::floorValues(m_kernels[i], -max, kernelSize);
+	}
+}
+
+// virtual
+double GLayerConvolutional2D::unitIncomingWeightsL1Norm(size_t unit)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+double GLayerConvolutional2D::unitIncomingWeightsL2Norm(size_t unit)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+double GLayerConvolutional2D::unitOutgoingWeightsL1Norm(size_t input)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+double GLayerConvolutional2D::unitOutgoingWeightsL2Norm(size_t input)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+void GLayerConvolutional2D::scaleUnitIncomingWeights(size_t unit, double scalar)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
+
+// virtual
+void GLayerConvolutional2D::scaleUnitOutgoingWeights(size_t input, double scalar)
 {
 	throw Ex("Sorry, convolutional layers do not support this method");
 }
