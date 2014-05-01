@@ -1,9 +1,19 @@
-<html><body bgcolor=#404040><br><br><br><br>
+<html>
+<head>
+	<style>
+		.code {
+			margin-left: 30px;
+			color:#000000;
+			background-color:#ffffff;
+		}
+	</style>
+</head>
+<body bgcolor=#404040><br><br><br><br>
 <table align=center cellpadding=50 border=1 bgcolor=#e0e0d0 width=1000><tr><td>
 <a href="../index.html#toc">Back to the table of contents</a><br>
 
 <br>
-<a href="look_around.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
+<a href="look_around.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="neuralnet.html">Next</a>
 
 
 
@@ -26,7 +36,7 @@ tournament, and 2- error on the part of the golfer. Here is a belief network tha
 </p>
 
 <p>Our first task is to instantiate this network. Here is some code to do this:
-<pre>
+<pre class="code">
 	GBayesNet bn;
 
 	// Make the 4 nodes that are not on a plate
@@ -79,13 +89,13 @@ tournament, and 2- error on the part of the golfer. Here is a belief network tha
 </pre>
 
 Now, we are ready to use MCMC to do some inference. We will begin by doing some burn-in iterations:
-<pre>
+<pre class="code">
 	for(size_t i = 0; i &lt; 50000; i++)
 		bn.sample();
 </pre>
 
 Then, we can draw some samples to represent the joint distribution. We will store these samples in a matrix:
-<pre>
+<pre class="code">
 	GMatrix results(0, 604);
 	for(size_t i = 0; i &lt; 50000; i++)
 	{
@@ -98,7 +108,7 @@ Then, we can draw some samples to represent the joint distribution. We will stor
 
 Finally, let's examine the results. I computed the median "error" of each golfer,
 then sorted by this value, and printed the first 10 lines.
-<pre>
+<pre class="code">
 	GMatrix digest(604, 2);
 	for(size_t i = 0; i &lt; 604; i++)
 	{
@@ -114,7 +124,7 @@ then sorted by this value, and printed the first 10 lines.
 </pre>
 
 Here are my results:
-<pre>
+<pre class="code">
 	VijaySingh	-3.89276
 	TigerWoods	-3.7662
 	ErnieEls	-3.39097
@@ -144,7 +154,7 @@ iterations that are really necessary.
 
 
 <br>
-<a href="look_around.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
+<a href="look_around.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="neuralnet.html">Next</a>
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>

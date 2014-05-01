@@ -382,9 +382,17 @@ public:
 		else if(index == 13)
 		{
 			GNeuralNet* pNN = new GNeuralNet();
-			pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 30));
-			pNN->addLayer(new GNeuralNetLayerClassic(30, 256));
-			pNN->addLayer(new GNeuralNetLayerClassic(256, FLEXIBLE_SIZE));
+
+			pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, 30));
+			pNN->addLayer(new GLayerClassic(30, 256));
+			pNN->addLayer(new GLayerClassic(256, FLEXIBLE_SIZE));
+
+/*
+			pNN->setLearningRate(0.0001);
+			pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, 80, new GActivationSoftPlus()));
+			pNN->addLayer(new GLayerClassic(80, 80, new GActivationSoftPlus()));
+			pNN->addLayer(new GLayerClassic(80, FLEXIBLE_SIZE, new GActivationSoftPlus()));
+*/
 			doBackProp(pNN);
 		}
 		else if(index == 14)

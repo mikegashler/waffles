@@ -1,0 +1,152 @@
+<html>
+<head>
+	<style>
+		.code {
+			margin-left: 30px;
+			color:#000000;
+			background-color:#ffffff;
+		}
+	</style>
+</head>
+<body bgcolor=#404040><br><br><br><br>
+<table align=center cellpadding=50 border=1 bgcolor=#e0e0d0 width=1000><tr><td>
+<a href="../index.html#toc">Back to the table of contents</a><br>
+
+<br>
+<a href="bayesnet.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
+
+
+
+
+
+
+
+<h2>Neural network examples</h2>
+<p>This document gives examples of using neural networks in Waffles.</p>
+
+<br><br>
+<h3>Logistic regression (a slow-and-easy example)</h3>
+
+<p>Logistic regression is fitting your data with a single layer of logistic units. Here are the #includes that we are going to need for this example:</p>
+
+<pre class="code">
+#include &lt;GClasses/GActivation.h&gt;
+#include &lt;GClasses/GHolders.h&gt;
+#include &lt;GClasses/GMatrix.h&gt;
+#include &lt;GClasses/GNeuralNet.h&gt;
+#include &lt;GClasses/GRand.h&gt;
+#include &lt;GClasses/GTransform.h&gt;
+</pre>
+
+<p>We are going to need some data, so let's load some data from an ARFF file. Let's use <a href="http://mldata.org/repository/data/download/arff/datasets-uci-iris/">Iris</a>,
+a well-known dataset for machine learning examples:</p>
+
+<pre class="code">
+GMatrix data;
+data.loadArff("iris.arff");
+</pre>
+
+<p>"data" is a 150x5 matrix. Next, we need to divide this data into a feature matrix (the inputs) and a label matrix (the outputs):</p>
+
+<pre class="code">
+GDataColSplitter cs(data, 1); // the "iris" dataset has only 1 column of "labels"
+const GMatrix&amp; inputs = cs.features();
+const GMatrix&amp; outputs = cs.labels();
+</pre>
+
+<p>"inputs" is a 150x4 matrix of real values, and "outputs" is a 150x1 matrix of categorical values.
+Neural networks typically only support continuous values, but the labels in the iris dataset are categorical, so we will convert them to use a real-valued representation
+(also known as a categorical distribution, a one-hot representation, or binarized representation):</p>
+
+<pre class="code">
+GNominalToCat nc;
+nc.train(outputs);
+GMatrix* pRealOutputs = nc.transformBatch(outputs);
+</pre>
+
+<p>pRealOutputs points to a 150x3 matrix of real values. Now, lets further divide our data into a training portion and a testing portion:</p>
+
+<pre class="code">
+GRand r(0);
+GDataRowSplitter rs(inputs, *pRealOutputs, r, 75);
+const GMatrix&amp; trainingFeatures = rs.features1();
+const GMatrix&amp; trainingLabels = rs.labels1();
+const GMatrix&amp; testingFeatures = rs.features2();
+const GMatrix&amp; testingLabels = rs.labels2();
+</pre>
+
+Now, we are ready to train a layer of logistic units that takes 4 inputs and gives 3 outputs. In this example, we will also specify the learning rate:</p>
+
+<pre class="code">
+GNeuralNet nn;
+nn.addLayer(new GLayerClassic(4, 3, new GActivationLogistic()));
+nn.setLearningRate(0.05);
+nn.train(trainingFeatures, trainingLabels);
+</pre>
+
+<p>Let's test our model to see how well it performs:</p>
+
+<pre class="code">
+double sse = nn.sumSquaredError(testingFeatures, testingLabels);
+double mse = sse / testingLabels.rows();
+double rmse = sqrt(mse);
+std::cout &lt;&lt; "The root-mean-squared test error is " &lt;&lt; to_str(rmse) &lt;&lt; "\n";
+</pre>
+
+<p>Finally, don't forget to delete pRealOutputs:</p>
+
+<pre class="code">
+delete(pRealOutputs);
+</pre>
+
+<p>Or, preferably:</p>
+
+<pre class="code">
+Holder&lt;GMatrix&gt; hRealOutputs(pRealOutputs);
+</pre>
+
+
+
+
+
+<br><br>
+<h3>Classification</h3>
+
+<p>(This example builds on the previous one.)</p>
+
+<p>The previous example was not actually very useful because root-mean-squared error does not really tell us how accurately the neural
+network classifies this data. Instead of transforming the data to meet the model, we can transform the model to meet the data. That is,
+we can use the GAutoFilter class to turn a regrssion model into a classifier:</p>
+
+<pre class="code">
+GAutoFilter af(&amp;nn, false); // false means the auto-filter does not need to do "delete(&amp;nn)" when it is destroyed.
+</pre>
+
+<p>Now, we can train the auto-filter using the original data, which internally train the neural network.</p>
+
+<pre class="code">
+af.train(inputs, outputs);
+</pre>
+
+<p>The auto-filter automatically filters the data as needed for its inner model, but ultimately behaves as if that inner model was
+able to handle whatever types of data you have available. In this case, it turns a neural network into a classifier, since "outputs"
+contains 1 column of categorical values. So we can obtain the misclassification rate as follows:</p>
+
+<pre class="code">
+double mis = af.sumSquaredError(inputs, outputs);
+std::cout &lt;&lt; "The model misclassified " &lt;&lt; to_str(mis)  &lt;&lt; " out of " &lt;&lt; to_str(outputs.rows()) &lt;&lt; " instances.\n";
+</pre>
+
+
+
+<br>
+<a href="bayesnet.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
+
+<br><br><a href="../index.html#toc">Back to the table of contents</a><br>
+</td></tr></table>
+<center><br><br><br>
+Hosting for this project generously provided by:<br>
+<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
+</center>
+</td></tr></table><br><br><br><br><br>
+</body></html>
