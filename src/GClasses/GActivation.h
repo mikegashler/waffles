@@ -341,7 +341,7 @@ public:
 	/// Returns the bend function of x
 	virtual double squash(double x)
 	{
-		return 0.5 * (sqrt(x * x + 1) + x + x - 1);
+		return 0.5 * sqrt(x * x + 1) + x - 0.5;
 	}
 
 	/// Returns the derivative of the bend function

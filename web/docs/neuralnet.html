@@ -22,36 +22,36 @@
 
 
 <h2>Neural network examples</h2>
-<p>This document gives examples of using neural networks in Waffles.</p>
+<p>This document gives examples for writing code to use the neural network class in Waffles.</p>
 
 <br><br>
-<h3>Logistic regression (a slow-and-easy example)</h3>
+<h3>Logistic regression</h3>
 
 <p>Logistic regression is fitting your data with a single layer of logistic units. Here are the #includes that we are going to need for this example:</p>
 
 <pre class="code">
-#include &lt;GClasses/GActivation.h&gt;
-#include &lt;GClasses/GHolders.h&gt;
-#include &lt;GClasses/GMatrix.h&gt;
-#include &lt;GClasses/GNeuralNet.h&gt;
-#include &lt;GClasses/GRand.h&gt;
-#include &lt;GClasses/GTransform.h&gt;
+	#include &lt;GClasses/GActivation.h&gt;
+	#include &lt;GClasses/GHolders.h&gt;
+	#include &lt;GClasses/GMatrix.h&gt;
+	#include &lt;GClasses/GNeuralNet.h&gt;
+	#include &lt;GClasses/GRand.h&gt;
+	#include &lt;GClasses/GTransform.h&gt;
 </pre>
 
 <p>We are going to need some data, so let's load some data from an ARFF file. Let's use <a href="http://mldata.org/repository/data/download/arff/datasets-uci-iris/">Iris</a>,
 a well-known dataset for machine learning examples:</p>
 
 <pre class="code">
-GMatrix data;
-data.loadArff("iris.arff");
+	GMatrix data;
+	data.loadArff("iris.arff");
 </pre>
 
 <p>"data" is a 150x5 matrix. Next, we need to divide this data into a feature matrix (the inputs) and a label matrix (the outputs):</p>
 
 <pre class="code">
-GDataColSplitter cs(data, 1); // the "iris" dataset has only 1 column of "labels"
-const GMatrix&amp; inputs = cs.features();
-const GMatrix&amp; outputs = cs.labels();
+	GDataColSplitter cs(data, 1); // the "iris" dataset has only 1 column of "labels"
+	const GMatrix&amp; inputs = cs.features();
+	const GMatrix&amp; outputs = cs.labels();
 </pre>
 
 <p>"inputs" is a 150x4 matrix of real values, and "outputs" is a 150x1 matrix of categorical values.
@@ -59,52 +59,51 @@ Neural networks typically only support continuous values, but the labels in the 
 (also known as a categorical distribution, a one-hot representation, or binarized representation):</p>
 
 <pre class="code">
-GNominalToCat nc;
-nc.train(outputs);
-GMatrix* pRealOutputs = nc.transformBatch(outputs);
+	GNominalToCat nc;
+	nc.train(outputs);
+	GMatrix* pRealOutputs = nc.transformBatch(outputs);
 </pre>
 
 <p>pRealOutputs points to a 150x3 matrix of real values. Now, lets further divide our data into a training portion and a testing portion:</p>
 
 <pre class="code">
-GRand r(0);
-GDataRowSplitter rs(inputs, *pRealOutputs, r, 75);
-const GMatrix&amp; trainingFeatures = rs.features1();
-const GMatrix&amp; trainingLabels = rs.labels1();
-const GMatrix&amp; testingFeatures = rs.features2();
-const GMatrix&amp; testingLabels = rs.labels2();
+	GRand r(0);
+	GDataRowSplitter rs(inputs, *pRealOutputs, r, 75);
+	const GMatrix&amp; trainingFeatures = rs.features1();
+	const GMatrix&amp; trainingLabels = rs.labels1();
+	const GMatrix&amp; testingFeatures = rs.features2();
+	const GMatrix&amp; testingLabels = rs.labels2();
 </pre>
 
 Now, we are ready to train a layer of logistic units that takes 4 inputs and gives 3 outputs. In this example, we will also specify the learning rate:</p>
 
 <pre class="code">
-GNeuralNet nn;
-nn.addLayer(new GLayerClassic(4, 3, new GActivationLogistic()));
-nn.setLearningRate(0.05);
-nn.train(trainingFeatures, trainingLabels);
+	GNeuralNet nn;
+	nn.addLayer(new GLayerClassic(4, 3, new GActivationLogistic()));
+	nn.setLearningRate(0.05);
+	nn.train(trainingFeatures, trainingLabels);
 </pre>
 
 <p>Let's test our model to see how well it performs:</p>
 
 <pre class="code">
-double sse = nn.sumSquaredError(testingFeatures, testingLabels);
-double mse = sse / testingLabels.rows();
-double rmse = sqrt(mse);
-std::cout &lt;&lt; "The root-mean-squared test error is " &lt;&lt; to_str(rmse) &lt;&lt; "\n";
+	double sse = nn.sumSquaredError(testingFeatures, testingLabels);
+	double mse = sse / testingLabels.rows();
+	double rmse = sqrt(mse);
+	std::cout &lt;&lt; "The root-mean-squared test error is " &lt;&lt; to_str(rmse) &lt;&lt; "\n";
 </pre>
 
 <p>Finally, don't forget to delete pRealOutputs:</p>
 
 <pre class="code">
-delete(pRealOutputs);
+	delete(pRealOutputs);
 </pre>
 
 <p>Or, preferably:</p>
 
 <pre class="code">
-Holder&lt;GMatrix&gt; hRealOutputs(pRealOutputs);
+	Holder&lt;GMatrix&gt; hRealOutputs(pRealOutputs);
 </pre>
-
 
 
 
@@ -114,28 +113,176 @@ Holder&lt;GMatrix&gt; hRealOutputs(pRealOutputs);
 
 <p>(This example builds on the previous one.)</p>
 
-<p>The previous example was not actually very useful because root-mean-squared error does not really tell us how accurately the neural
-network classifies this data. Instead of transforming the data to meet the model, we can transform the model to meet the data. That is,
-we can use the GAutoFilter class to turn a regrssion model into a classifier:</p>
+<p>The previous example was not actually very useful because root-mean-squared only tells us how poorly the neural network fit to our
+continuous representation of the data. It does not really tell us how accurate the neural network is for classifying this data.
+So, instead of transforming the data to meet the model, we can transform the model to meet the data. Specifically,
+we can use the GAutoFilter class to turn the neural network into a classifier:</p>
 
 <pre class="code">
-GAutoFilter af(&amp;nn, false); // false means the auto-filter does not need to do "delete(&amp;nn)" when it is destroyed.
+	GAutoFilter af(&amp;nn, false); // false means the auto-filter does not need to "delete(&amp;nn)" when it is destroyed.
 </pre>
 
-<p>Now, we can train the auto-filter using the original data, which internally train the neural network.</p>
+<p>Now, we can train the auto-filter using the original data (with nominal labels). We no longer need to explicitly train
+the neural network because when we train the auto-filter, it trains the inner model.</p>
 
 <pre class="code">
-af.train(inputs, outputs);
+	af.train(inputs, outputs);
 </pre>
 
-<p>The auto-filter automatically filters the data as needed for its inner model, but ultimately behaves as if that inner model was
-able to handle whatever types of data you have available. In this case, it turns a neural network into a classifier, since "outputs"
-contains 1 column of categorical values. So we can obtain the misclassification rate as follows:</p>
+<p>The auto-filter automatically filters the data as needed for its inner model, but ultimately behaves as a model that can
+handle whatever types of data you have available. In this case, it turns a neural network into a classifier, since "outputs"
+contains 1 column of categorical values. So, now we can obtain the misclassification rate as follows:</p>
 
 <pre class="code">
-double mis = af.sumSquaredError(inputs, outputs);
-std::cout &lt;&lt; "The model misclassified " &lt;&lt; to_str(mis)  &lt;&lt; " out of " &lt;&lt; to_str(outputs.rows()) &lt;&lt; " instances.\n";
+	double mis = af.sumSquaredError(inputs, outputs);
+	std::cout &lt;&lt; "The model misclassified " &lt;&lt; to_str(mis)  &lt;&lt;
+		" out of " &lt;&lt; to_str(outputs.rows()) &lt;&lt; " instances.\n";
 </pre>
+
+<p>Why does a method named "sumSquaredError" return the total number of misclassifications? Because it uses Hamming distance for
+categorical labels, which reports a squared-error of 1 for each misclassification.</p>
+
+<p>(Note that if you are training a big network with big data, then efficiency may be critical. In such cases, it is generally better
+to use the approach of transforming the data to meet the model, so that it does not waste a lot of time transformaing data during
+training.)</p>
+
+
+
+<br><br>
+<h3>Adding layers</h3>
+
+<p>To make a deeper neural network, you add more layers prior to training. For example:</p>
+
+<pre class="code">
+	nn.addLayer(new GLayerClassic(784, 1000));
+	nn.addLayer(new GLayerClassic(1000, 300));
+	nn.addLayer(new GLayerClassic(300, 90));
+	nn.addLayer(new GLayerClassic(90, 10));
+</pre>
+
+<p>The layers are added in feed-forward order. The first layer added is the input layer. The last layer added is the output layer.
+Notice how the number of inputs into each layer should be the same as the number of outputs in the previous layer.
+If they do not line up, then the existing layer will be resized to fit with the newly added layer. In other words, if
+there is a conflict, the last one added to the neural network wins. Alternatively, you can also use the constant "FLEXIBLE_SIZE" to
+indicate that you want the adjacent layer to determine the size. For example, following code results in the very same topology:</p>
+
+<pre class="code">
+	nn.addLayer(new GLayerClassic(784, 1000));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 300));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 90));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 10));
+</pre>
+
+<p>When training begins, the number of inputs and outputs will also be resized to fit the training data. So, you can
+use FLEXIBLE_SIZE for those too:</p>
+
+<pre class="code">
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 300));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 90));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+</pre>
+
+
+
+<br><br>
+<h3>Activation functions</h3>
+
+<p>If no activation function is specified, then the layer uses a default activation function. The default activation function for
+GLayerClassic is GActivationTanH, which implements the tanh activation function. Many other activation functions are also available:</p>
+
+<pre class="code">
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000, new GActivationRectifiedLinear()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 300, new GActivationSoftPlus()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 90, new GActivationGaussian()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationIdentity()));
+</pre>
+
+<p>You can use the GLayerMixed class to make layers that contain a mixture of activation functions. In the following example,
+the second layer has a size of 300, but it uses the softplus activation function for 150 of its units, and a sinusoid
+activation function for the other 150 units:</p>
+
+<pre class="code">
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000, new GActivationRectifiedLinear()));
+	GLayerMixed* pMix = new GLayerMixed();
+	pMix->addComponent(new GLayerClassic(1000, 150, new GActivationSoftPlus()));
+	pMix->addComponent(new GLayerClassic(1000, 150, new GActivationSin()));
+	nn.addLayer(new GLayerClassic(300, 90, new GActivationSinc()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationBend()));
+</pre>
+
+
+
+<br><br>
+<h3>Layer types</h3>
+
+<p>There are several types of layers that you can use in your neural networks:
+<ul>
+	<li><b>GLayerClassic</b> - A traditional fully-connected feed-forward layer.</li>
+	<li><b>GLayerMixed</b> - Allows you to combine multiple layers of different types into a single layer.</li>
+	<li><b>GLayerRestrictedBoltzmannMachine</b>: A restricted boltzmann machine layer.</li>
+	<li><b>GLayerConvolutional1D</b> - A 1-dimensional convolutional layer.</li>
+	<li><b>GLayerConvolutional2D</b> - A 2-dimensional convolutional layer.</li>
+	<li><b>GLayerSoftMax</b> - A soft-max layer, trained with cross-entropy.</li>
+	<li><b>GLayerCuda</b> - A GPU-optimized classic layer. Requires linking with the GCuda library.</li>
+	<li>(Other layer types are currently under passive development...)</li>
+</ul>
+
+
+
+<br><br>
+<h3>Stopping criteria</h3>
+
+<p>The GNeuralNet::train method divides the training data into a training portion and a validation
+portion. The default uses 65% for training and 35% for validation. Suppose you wanted to change this
+ratio to 60/40. This would be done as follows:</p>
+
+<pre class="code">
+	nn.setValidationPortion(0.4);
+</pre>
+
+<p>By default, training continues until validation accuracy does not improve by 0.2% over a window
+of 100 epochs. If you wanted to change this to 0.1% over a window of 10 epochs, then you could do:
+
+<pre class="code">
+	nn.setImprovementThresh(0.001);
+	nn.setWindowSize(10);
+</pre>
+
+
+
+
+<br><br>
+<h3>Training incrementally</h3>
+
+<p>Sometimes, it is preferable to train your neural network incrementally, instead of simply calling the "train" method.
+For example, you might want to use a custom stopping criteria, you might want to report validation accuracy before
+each training epoch, you might want to decay the learning rate in a particular manner, etc. The following example
+shows how such things can be implemented:
+
+<pre class="code">
+	nn.beginIncrementalLearning(trainingFeatures.relation(), trainingLabels.relation());
+	GRandomIndexIterator ii(trainingFeatures.rows(), nn.rand());
+	for(size_t epoch = 0; epoch &lt; total_epochs; epoch++)
+	{
+		// Report validation accuracy
+		double rmse = sqrt(nn1.sumSquaredError(validateFeatures, validateLabels) / validateLabels.rows());
+		std::cout &lt;&lt; to_str(rmse) &lt;&lt; "\n";
+		std::cout.flush();
+	
+		// Train
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+		{
+			nn.trainIncremental(trainingFeatures[index], trainingLabels[index]);
+		}
+	
+		// Decay the learning rate
+		nn.setLearningRate(nn.learningRate() * 0.98);
+	}
+</pre>
+
 
 
 
