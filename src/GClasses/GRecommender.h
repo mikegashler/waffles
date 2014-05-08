@@ -2,6 +2,7 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
+    Michael R. Smith,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -21,7 +22,10 @@
 
 #include "GError.h"
 #include "GRand.h"
+#include "GLearner.h"
+#include "GApp.h"
 #include <vector>
+#include <map>
 
 namespace GClasses {
 
@@ -36,6 +40,8 @@ class GClusterer;
 class GDom;
 class GDomNode;
 class GLearnerLoader;
+
+using std::multimap;
 
 
 /// The base class for collaborative filtering recommender systems.
@@ -177,6 +183,7 @@ protected:
 	bool m_ownMetric;
 	GSparseMatrix* m_pData;
 	GBaselineRecommender* m_pBaseline;
+	size_t m_significanceWeight;
 
 public:
 	GInstanceRecommender(size_t neighbors);
@@ -202,6 +209,20 @@ public:
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Set the value for significance weighting. The default value is zero. If there
+	/// are fewer matching items between users than the specified values, the
+	/// similarity is scaled by numMathces/sigWeight
+	void setSigWeight(size_t sig){ m_significanceWeight = sig; }
+
+	/// This is the same function as predict except that it returns the
+	/// the priority queue for the nearest neigbors. The values are further user 
+	/// by the content-boosted cf prediction method to combine the content-based
+	/// and cf predictions.
+	multimap<double,size_t> getNeighbors(size_t user, size_t item);
+
+	/// Get the rating of an item for a user
+	double getRating(size_t user, size_t item); //{ return m_pData->get(user, item); }
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
@@ -314,6 +335,8 @@ protected:
 	GMatrix* m_pP;
 	GMatrix* m_pQ;
 	bool m_useInputBias;
+	size_t m_minIters;
+	double m_decayRate;
 
 public:
 	/// General-purpose constructor
@@ -349,6 +372,12 @@ public:
 	/// Specify to use no bias value with the inputs
 	void noInputBias() { m_useInputBias = false; }
 
+	/// Set the min number of iterations to train
+	void setMinIters(size_t i) { m_minIters = i; }
+
+	/// Set the rate to decay the learning rate
+	void setDecayRate(double d) { m_decayRate = d; }
+
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
@@ -379,6 +408,9 @@ protected:
 	GMatrix* m_pUsers;
 	bool m_useInputBias;
 	bool m_useThreePass;
+	size_t m_minIters;
+	double m_decayRate;
+	double m_regularizer;
 
 public:
 	/// General-purpose constructor
@@ -417,6 +449,15 @@ public:
 	/// Specify not to use three-pass training. (It will just use one pass instead.)
 	void noThreePass() { m_useThreePass = false; }
 
+	/// Sset the min number of iterations to train
+	void setMinIters(size_t i) { m_minIters = i; }
+
+	/// Set the rate to decay the learning rate
+	void setDecayRate(double d) { m_decayRate = d; }
+
+	/// Set the regularization value
+	void setRegularizer(double d) { m_regularizer = d; }
+
 #ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
@@ -426,6 +467,79 @@ protected:
 	/// Returns the sum-squared error for the specified set of ratings
 	double validate(GNeuralNet* pNN, GMatrix& data);
 };
+
+
+
+
+/// This class trains a neural network to fit to the ratings. Although the name
+/// implies that it is an extension of PCA, I think it is better described as a
+/// non-linear generalization of matrix factorization. This algorithm was published
+/// in Scholz, M. Kaplan, F. Guy, C. L. Kopka, J. Selbig, J., Non-linear PCA: a missing
+/// data approach, In Bioinformatics, Vol. 21, Number 20, pp. 3887-3895, Oxford
+/// University Press, 2005.
+class GHybridNonlinearPCA : public GNonlinearPCA
+{
+protected:
+        GMatrix* m_itemAttrs;
+
+public:
+        /// General-purpose constructor
+        GHybridNonlinearPCA(size_t intrinsicDims);
+
+//        /// Deserialization constructor
+//        GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll);
+
+        /// Destructor
+        virtual ~GHybridNonlinearPCA();
+/*
+        /// Returns a pointer to the neural net that is used to model the recommendation space.
+        /// You may want to use this method to add hidden layers, set the learning rate, or change
+        /// activation functions before the model is trained.
+        GNeuralNet* model() { return m_pModel; }
+
+        /// Returns a pointer to the matrix of user preference vectors.
+        GMatrix* users() { return m_pUsers; }
+*/
+        /// See the comment for GCollaborativeFilter::train
+        virtual void train(GMatrix& data);
+
+        /// See the comment for GCollaborativeFilter::predict
+        virtual double predict(size_t user, size_t item);
+/*
+        /// See the comment for GCollaborativeFilter::impute
+        virtual void impute(double* pVec, size_t dims);
+
+        /// See the comment for GCollaborativeFilter::serialize
+        virtual GDomNode* serialize(GDom* pDoc) const;
+
+        /// Specify to use no bias value with the inputs
+        void noInputBias() { m_useInputBias = false; }
+
+        /// Specify not to use three-pass training. (It will just use one pass instead.)
+        void noThreePass() { m_useThreePass = false; }
+
+#ifndef NO_TEST_CODE
+        /// Performs unit tests. Throws if a failure occurs. Returns if successful.
+        static void test();
+#endif
+
+	/// This randomly assigns each rating to one of the folds. Then,
+	/// for each fold, it calls train with a dataset that contains
+	/// everything except for the ratings in that fold. It predicts
+	/// values for the items in the fold, and returns the mean-squared
+	/// difference between the predictions and the actual ratings.
+	/// If pOutMAE is non-NULL, it will be set to the mean-absolute error.
+	double crossValidate(GMatrix& data, size_t folds, double* pOutMAE = NULL);
+*/
+	void setItemAttributes(GMatrix& itemAttrs);
+
+
+protected:
+        /// Returns the sum-squared error for the specified set of ratings
+        double validate(GNeuralNet* pNN, GMatrix& data);
+
+};
+
 
 
 
@@ -473,6 +587,78 @@ public:
 #endif
 };
 
+class GContentBasedFilter : public GCollaborativeFilter
+{
+protected:
+	std::vector<GSupervisedLearner*> m_learners;
+	std::map<size_t, size_t> m_itemMap;
+	std::map<size_t, size_t> m_userMap;
+	std::multimap<size_t, size_t> m_userRatings;
+        GMatrix* m_itemAttrs;
+	size_t m_items, m_users;
+	GArgReader m_args;
+	int m_init_pos;
+
+public:
+	/// General-purpose constructor
+	GContentBasedFilter(GArgReader copy)
+	: GCollaborativeFilter(), m_args(copy)
+	{
+		m_init_pos = copy.get_pos();
+	}
+
+	/// Destructor
+	virtual ~GContentBasedFilter();
+
+	virtual void train(GMatrix& data);
+
+	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec, size_t dims);
+
+	/// Delete all of the learners
+	void clear();
+
+	void setItemAttributes(GMatrix& itemAttrs);
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	std::map<size_t, size_t> getUserMap(){ return m_userMap; }
+
+	std::map<size_t, size_t> getItemMap(){ return m_itemMap; }
+
+	std::multimap<size_t, size_t> getUserRatings(){ return m_userRatings; }
+};
+
+class GContentBoostedCF : public GCollaborativeFilter
+{
+protected:
+	GContentBasedFilter* m_cbf;
+	GInstanceRecommender* m_cf;
+	std::map<size_t, size_t> m_userMap;
+	size_t* m_ratingCounts;
+	double* m_pseudoRatingSum;
+
+public:
+	//// General-purpose constructor
+	GContentBoostedCF(GArgReader copy);
+
+	/// Destructor
+	virtual ~GContentBoostedCF();
+
+	virtual void train(GMatrix& data);
+
+	virtual double predict(size_t user, size_t item);
+
+	virtual void impute(double* pVec, size_t dims);
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc) const { return NULL; };
+
+	
+};
 
 } // namespace GClasses
 

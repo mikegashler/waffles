@@ -29,7 +29,7 @@
 #include "../GClasses/GVec.h"
 #include "../GClasses/GWave.h"
 #include <cmath>
-#include "../wizard/usage.h"
+#include "../GClasses/usage.h"
 
 using namespace GClasses;
 using std::cerr;

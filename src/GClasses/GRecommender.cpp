@@ -2,6 +2,7 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
+    Michael R. Smith,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -17,6 +18,7 @@
 */
 
 #include "GRecommender.h"
+#include "GRecommenderLib.h"
 #include "GSparseMatrix.h"
 #include "GCluster.h"
 #include "GMatrix.h"
@@ -33,8 +35,15 @@
 #include "GDom.h"
 #include "GTime.h"
 #include "GHolders.h"
+#include "GApp.h"
+#include "GLearner.h"
+#include "GLearnerLib.h"
+#include "usage.h"
 
+using std::map;
 using std::multimap;
+using std::pair;
+using std::set;
 using std::vector;
 
 namespace GClasses {
@@ -172,6 +181,10 @@ double GCollaborativeFilter::trainAndTest(GMatrix& dataTrain, GMatrix& dataTest,
 	{
 		double* pVec = dataTest[j];
 		double prediction = predict(size_t(pVec[0]), size_t(pVec[1]));
+		if (prediction < -1e100 || prediction > 1e100)
+		{
+			throw Ex("Unreasonable prediction");
+		}
 		double err = pVec[2] - prediction;
 		se += std::abs(err);
 		sse += (err * err);
@@ -467,7 +480,7 @@ void GBaselineRecommender::test()
 
 
 GInstanceRecommender::GInstanceRecommender(size_t neighbors)
-: GCollaborativeFilter(), m_neighbors(neighbors), m_ownMetric(true), m_pData(NULL), m_pBaseline(NULL)
+: GCollaborativeFilter(), m_neighbors(neighbors), m_ownMetric(true), m_pData(NULL), m_pBaseline(NULL), m_significanceWeight(0)
 {
 	m_pMetric = new GCosineSimilarity();
 }
@@ -480,6 +493,7 @@ GInstanceRecommender::GInstanceRecommender(GDomNode* pNode, GLearnerLoader& ll)
 	m_ownMetric = true;
 	m_pData = new GSparseMatrix(pNode->field("data"));
 	m_pBaseline = new GBaselineRecommender(pNode->field("bl"), ll);
+	m_significanceWeight = (size_t)pNode->field("sigWeight")->asInt();
 }
 
 // virtual
@@ -525,10 +539,57 @@ void GInstanceRecommender::train(GMatrix& data)
 // virtual
 double GInstanceRecommender::predict(size_t user, size_t item)
 {
+        if(!m_pData)
+                throw Ex("This model has not been trained");
+        if(user >= m_pData->rows() || item >= m_pData->cols())
+                return 0.0;
+
+        // Find the k-nearest neighbors
+        multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
+        for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
+        {
+                // Only consider other users that have rated this item
+                if(neigh == user)
+                        continue;
+                double rating = m_pData->get(neigh, item);
+                if(rating == UNKNOWN_REAL_VALUE)
+                        continue;
+
+                // Compute the similarity
+                size_t count = 0;
+                double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh), count);
+
+                if(count < m_significanceWeight)
+                        similarity *= count / m_significanceWeight;
+
+                // If the queue is overfull, drop the worst item
+                depq.insert(std::make_pair(similarity, neigh));
+                if(depq.size() > m_neighbors)
+                        depq.erase(depq.begin());
+        }
+
+        // Combine the ratings of the nearest neighbors to make a prediction
+        double weighted_sum = 0.0;
+        double sum_weight = 0.0;
+        for(multimap<double,size_t>::iterator it = depq.begin(); it != depq.end(); it++)
+        {
+                double weight = std::max(0.0, std::min(1.0, it->first));
+                double val = m_pData->get(it->second, item);
+                weighted_sum += weight * val;
+                sum_weight += weight;
+        }
+        if(sum_weight > 0.0)
+                return weighted_sum / sum_weight;
+        else
+                return m_pBaseline->predict(user, item);
+}
+
+multimap<double,size_t> GInstanceRecommender::getNeighbors(size_t user, size_t item)
+{
 	if(!m_pData)
 		throw Ex("This model has not been trained");
 	if(user >= m_pData->rows() || item >= m_pData->cols())
-		return 0.0;
+		throw Ex("User and/or item not in the provided data set");
 
 	// Find the k-nearest neighbors
 	multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
@@ -542,7 +603,11 @@ double GInstanceRecommender::predict(size_t user, size_t item)
 			continue;
 
 		// Compute the similarity
-		double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh));
+		size_t count = 0;
+		double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh), count);
+
+		if(count < m_significanceWeight)
+			similarity *= count / m_significanceWeight;
 
 		// If the queue is overfull, drop the worst item
 		depq.insert(std::make_pair(similarity, neigh));
@@ -550,20 +615,7 @@ double GInstanceRecommender::predict(size_t user, size_t item)
 			depq.erase(depq.begin());
 	}
 
-	// Combine the ratings of the nearest neighbors to make a prediction
-	double weighted_sum = 0.0;
-	double sum_weight = 0.0;
-	for(multimap<double,size_t>::iterator it = depq.begin(); it != depq.end(); it++)
-	{
-		double weight = std::max(0.0, std::min(1.0, it->first));
-		double val = m_pData->get(it->second, item);
-		weighted_sum += weight * val;
-		sum_weight += weight;
-	}
-	if(sum_weight > 0.0)
-		return weighted_sum / sum_weight;
-	else
-		return m_pBaseline->predict(user, item);
+	return depq;
 }
 
 // virtual
@@ -579,7 +631,11 @@ void GInstanceRecommender::impute(double* pVec, size_t dims)
 	for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
 	{
 		// Compute the similarity
-		double similarity = m_pMetric->similarity(m_pData->row(neigh), pVec);
+		size_t count = 0;
+		double similarity = m_pMetric->similarity(m_pData->row(neigh), pVec, count);
+
+		if(count < m_significanceWeight)
+			similarity *= count / m_significanceWeight;
 
 		// If the queue is overfull, drop the worst item
 		depq.insert(std::make_pair(similarity, neigh));
@@ -620,7 +676,13 @@ GDomNode* GInstanceRecommender::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "metric", m_pMetric->serialize(pDoc));
 	pNode->addField(pDoc, "data", m_pData->serialize(pDoc));
 	pNode->addField(pDoc, "bl", m_pBaseline->serialize(pDoc));
+	pNode->addField(pDoc, "sigWeight", pDoc->newInt(m_significanceWeight));
 	return pNode;
+}
+
+double GInstanceRecommender::getRating(size_t user, size_t item)
+{
+	return m_pData->get(user, item);
 }
 
 #ifndef NO_TEST_CODE
@@ -870,7 +932,7 @@ void GDenseClusterRecommender::test()
 
 
 GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_useInputBias(true)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_useInputBias(true), m_minIters(1), m_decayRate(0.97)
 {
 }
 
@@ -959,7 +1021,7 @@ void GMatrixFactorization::train(GMatrix& data)
 	size_t epochs = 0;
 	while(learningRate >= 0.001)
 	{
-		for(size_t j = 0; j < 30; j++)
+		for(size_t iter = 0; iter < m_minIters; iter++)
 		{
 			// Shuffle the ratings
 			dataCopy.shuffle(m_rand);
@@ -1014,7 +1076,7 @@ void GMatrixFactorization::train(GMatrix& data)
 		// Stopping criteria
 		double rsse = sqrt(validate(data));
 		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.001) // If the amount of improvement is small
-			learningRate *= 0.5; // decay the learning rate
+			learningRate *= m_decayRate; // decay the learning rate
 		prevErr = rsse;
 	}
 }
@@ -1111,7 +1173,7 @@ void GMatrixFactorization::impute(double* pVec, size_t dims)
 		// Stopping criteria
 		double rsse = sqrt(validate(data));
 		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.001) // If the amount of improvement is less than 0.1%
-			learningRate *= 0.7; // decay the learning rate
+			learningRate *= m_decayRate; // decay the learning rate
 		prevErr = rsse;
 	}
 
@@ -1157,9 +1219,183 @@ void GMatrixFactorization::test()
 
 
 
+GHybridNonlinearPCA::GHybridNonlinearPCA(size_t intrinsicDims)
+: GNonlinearPCA(intrinsicDims)
+{
+}
+
+// virtual
+GHybridNonlinearPCA::~GHybridNonlinearPCA()
+{
+}
+
+// virtual
+void GHybridNonlinearPCA::train(GMatrix& data)
+{
+	size_t users, items;
+	GCollaborativeFilter_dims(data, &items, &users);
+	m_items = items;
+
+	// Copy and normalize the ratings
+	GMatrix* pClone = new GMatrix();
+	pClone->copy(&data);
+	Holder<GMatrix> hClone(pClone);
+	delete[] m_pMins;
+	m_pMins = new double[items];
+	delete[] m_pMaxs;
+	m_pMaxs = new double[items];
+	GVec::setAll(m_pMins, 1e200, items);
+	GVec::setAll(m_pMaxs, -1e200, items);
+	for(size_t i = 0; i < pClone->rows(); i++)
+	{
+		double* pVec = pClone->row(i);
+		m_pMins[size_t(pVec[0])] = std::min(m_pMins[size_t(pVec[0])], pVec[2]);
+		m_pMaxs[size_t(pVec[0])] = std::max(m_pMaxs[size_t(pVec[0])], pVec[2]);
+	}
+	for(size_t i = 0; i < items; i++)
+	{
+		if(m_pMins[i] >= 1e200)
+			m_pMins[i] = 0.0;
+		if(m_pMaxs[i] < m_pMins[i] + 1e-12)
+			m_pMaxs[i] = m_pMins[i] + 1.0;
+	}
+	for(size_t i = 0; i < pClone->rows(); i++)
+	{
+		double*  pVec = pClone->row(i);
+		pVec[2] = (pVec[2] - m_pMins[size_t(pVec[0])]) / (m_pMaxs[size_t(pVec[0])] - m_pMins[size_t(pVec[0])]);
+	}
+
+	// Prep the model for incremental training
+	size_t numAttr = m_itemAttrs->cols() - 1;
+	GUniformRelation featureRel(m_intrinsicDims + numAttr);
+	GUniformRelation labelRel(items);
+	m_pModel->setUseInputBias(m_useInputBias);
+	m_pModel->beginIncrementalLearning(featureRel, labelRel);
+	GNeuralNet nn;
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	nn.setUseInputBias(m_useInputBias);
+	nn.beginIncrementalLearning(featureRel, labelRel);
+	double* pPrefGradient = new double[m_intrinsicDims + numAttr];
+	ArrayHolder<double> hPrefGradient(pPrefGradient);
+
+	// Train
+	size_t startPass = 0;
+	if(!m_useThreePass)
+		startPass = 2;
+	else if(m_pModel->layerCount() == 1)
+		startPass = 2;
+	for(size_t pass = startPass; pass < 3; pass++)
+	{
+		GNeuralNet* pNN = (pass == 0 ? &nn : m_pModel);
+		if(pass == startPass)
+		{
+			// Initialize the user matrix
+			delete(m_pUsers);
+			m_pUsers = new GMatrix(users, m_intrinsicDims + numAttr);
+			size_t count = 0;
+			double* itemVec = m_itemAttrs->row(count);
+			for(size_t i = 0; i < users; i++)
+			{
+				double* pVec = m_pUsers->row(i);
+				GVec::setAll(pVec, 0, m_intrinsicDims + numAttr);
+				for(size_t j = 0; j < m_intrinsicDims; j++)
+					*(pVec++) = 0.01 * m_rand.normal();
+				if(*itemVec == i)
+				{
+					itemVec++;
+					for(size_t j = 1; j < numAttr; j++)
+						*(pVec++) = *(itemVec++) * 0.01;
+					itemVec = m_itemAttrs->row(++count);
+				}
+				
+			}
+		}
+		double rateBegin = 0.1;
+		double rateEnd = 0.001;
+		double prevErr = 1e308;
+		for(double learningRate = rateBegin; learningRate > rateEnd; )
+		{
+			for(size_t j = 0; j < m_minIters; j++)
+			{
+				// Shuffle the ratings
+				pClone->shuffle(m_rand);
+
+				// Do an epoch of training
+				m_pModel->setLearningRate(learningRate);
+				for(size_t i = 0; i < pClone->rows(); i++)
+				{
+					// Forward-prop
+					double* pVec = pClone->row(i);
+					size_t user = size_t(pVec[1]);
+					size_t item = size_t(pVec[0]);
+					double* pPrefs = m_pUsers->row(user);
+					pNN->forwardPropSingleOutput(pPrefs, item);
+
+					// Update weights
+					pNN->backpropagateSingleOutput(item, pVec[2]);
+					if(pass < 2)
+						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * m_regularizer));
+					if(pass != 1)
+						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
+					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
+					if(pass != 1)
+					{
+						// Update inputs
+						if(pass == 0)
+							GVec::multiply(pPrefs, 1.0 - (learningRate * m_regularizer), m_intrinsicDims);
+						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
+//						GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
+//						GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
+					}
+				}
+			}
+
+			// Stopping criteria
+			double rmse = sqrt(validate(pNN, *pClone));
+			if(rmse < 1e-12 || 1.0 - (rmse / prevErr) < 0.001) // If the amount of improvement is small
+				learningRate *= m_decayRate; // decay the learning rate
+			prevErr = rmse;
+		}
+	}
+}
+
+// virtual
+double GHybridNonlinearPCA::predict(size_t item, size_t user)
+{
+	if(user >= m_pUsers->rows() || item >= m_items)
+		return 0.0;
+	else
+		return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_pMins[item];
+}
+
+double GHybridNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
+{
+	double sse = 0;
+	for(size_t i = 0; i < data.rows(); i++)
+	{
+		double* pVec = data[i];
+		double* pPrefs = m_pUsers->row(size_t(pVec[1]));
+		double predictedRating = pNN->forwardPropSingleOutput(pPrefs, size_t(pVec[0]));
+		double d = pVec[2] - predictedRating;
+		sse += (d * d);
+	}
+	return sse / data.rows();
+}
+
+void GHybridNonlinearPCA::setItemAttributes(GMatrix& itemAttrs)
+{
+	m_itemAttrs = new GMatrix();
+	m_itemAttrs->copy(&itemAttrs);
+}
+
+
+
+
+
+
 
 GNonlinearPCA::GNonlinearPCA(size_t intrinsicDims)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_items(0), m_pMins(NULL), m_pMaxs(NULL), m_useInputBias(true), m_useThreePass(true)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_items(0), m_pMins(NULL), m_pMaxs(NULL), m_useInputBias(true), m_useThreePass(true), m_minIters(1), m_decayRate(0.97), m_regularizer(0.0001)
 {
 	m_pModel = new GNeuralNet();
 	m_pUsers = NULL;
@@ -1290,13 +1526,12 @@ void GNonlinearPCA::train(GMatrix& data)
 					*(pVec++) = 0.01 * m_rand.normal();
 			}
 		}
-		double regularizer = 0.0001;
 		double rateBegin = 0.1;
 		double rateEnd = 0.001;
 		double prevErr = 1e308;
 		for(double learningRate = rateBegin; learningRate > rateEnd; )
 		{
-			for(size_t j = 0; j < 100; j++)
+			for(size_t j = 0; j < m_minIters; j++)
 			{
 				// Shuffle the ratings
 				pClone->shuffle(m_rand);
@@ -1315,7 +1550,7 @@ void GNonlinearPCA::train(GMatrix& data)
 					// Update weights
 					pNN->backpropagateSingleOutput(item, pVec[2]);
 					if(pass < 2)
-						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * regularizer));
+						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * m_regularizer));
 					if(pass != 1)
 						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
 					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
@@ -1323,7 +1558,7 @@ void GNonlinearPCA::train(GMatrix& data)
 					{
 						// Update inputs
 						if(pass == 0)
-							GVec::multiply(pPrefs, 1.0 - (learningRate * regularizer), m_intrinsicDims);
+							GVec::multiply(pPrefs, 1.0 - (learningRate * m_regularizer), m_intrinsicDims);
 						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
 //						GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
 //						GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
@@ -1334,7 +1569,7 @@ void GNonlinearPCA::train(GMatrix& data)
 			// Stopping criteria
 			double rmse = sqrt(validate(pNN, *pClone));
 			if(rmse < 1e-12 || 1.0 - (rmse / prevErr) < 0.001) // If the amount of improvement is small
-				learningRate *= 0.5; // decay the learning rate
+				learningRate *= m_decayRate; // decay the learning rate
 			prevErr = rmse;
 		}
 	}
@@ -1542,6 +1777,233 @@ void GBagOfRecommenders::test()
 	rec.basicTest(0.57);
 }
 #endif
+
+
+
+
+
+
+//virtual
+GContentBasedFilter::~GContentBasedFilter()
+{
+	delete(m_itemAttrs);
+	clear();
+}
+
+//virtual
+void GContentBasedFilter::train(GMatrix& data)
+{
+	size_t users, items;
+        GCollaborativeFilter_dims(data, &users, &items);
+        m_items = items;
+	m_users = users;
+	std::set<size_t> userSet;
+	
+
+	if(m_itemAttrs == NULL)
+		throw Ex("The items attributes has to be set");	
+
+	//create a training set and learning algorithm for each user
+	for(size_t i = 0; i < data.rows(); i++)
+	{
+		double* pVec = data.row(i);
+		m_userRatings.insert(std::make_pair(pVec[0], pVec[1]));
+		userSet.insert(pVec[0]);
+	}
+
+	//Loop through the set of users
+	for(std::set<size_t>::iterator it = userSet.begin(); it != userSet.end(); ++it)
+	{
+		m_args.set_pos(m_init_pos);
+		pair<multimap<size_t, size_t>::iterator, multimap<size_t, size_t>::iterator> ratedItems;
+		ratedItems = m_userRatings.equal_range(*it);
+
+		//create the training data for the user
+		GMatrix* trainingData = new GMatrix(m_itemAttrs->relation().clone());
+		GRelation* relation = data.relation().cloneSub(data.cols() - 1, 1);
+		GMatrix* labels = new GMatrix(relation);
+		for(multimap<size_t, size_t>::iterator ratings = ratedItems.first; ratings != ratedItems.second; ++ratings)
+		{
+			trainingData->copyRow(m_itemAttrs->row(m_itemMap[(*ratings).second]));
+
+			double* temp = labels->newRow();
+			temp[0] = data[(*ratings).second][2];
+		}
+
+		//train a learning algorithm for each user
+		GSupervisedLearner* pLearn = (GSupervisedLearner*)GLearnerLib::InstantiateAlgorithm(m_args, trainingData, labels);
+	        if(m_args.size() > 0)
+	                throw Ex("Superfluous argument: ", m_args.peek());
+		pLearn->train(*trainingData, *labels);
+		m_userMap[(*it)] = m_learners.size();
+		m_learners.push_back(pLearn);
+	}
+}
+
+//virtual
+double GContentBasedFilter::predict(size_t user, size_t item)
+{
+	if(user >= m_users || item >= m_items)
+                return 0.0;
+	double pOut[1];
+	m_learners[m_userMap[user]]->predict(m_itemAttrs->row(m_itemMap[item]), pOut);
+	return pOut[0];
+}
+
+//virtual
+void GContentBasedFilter::impute(double* pVec, size_t dims)
+{
+/*
+	for(size_t i = 0; i < dims; i++)
+	{
+		if(*pVec == UNKNOWN_REAL_VALUE)
+			(*pVec) = m_learners[]
+	}
+*/
+	std::cerr << "Not yet implemented\n";
+}
+
+//virtual
+GDomNode* GContentBasedFilter::serialize(GDom* pDoc) const
+{
+	return NULL;
+}
+
+void GContentBasedFilter::clear()
+{
+        for(vector<GSupervisedLearner*>::iterator it = m_learners.begin(); it != m_learners.end(); it++)
+                delete(*it);
+        m_learners.clear();
+}
+
+void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
+{
+	m_itemAttrs = new GMatrix();
+	m_itemAttrs->copy(&itemAttrs);
+	for(size_t i = 0; i < m_itemAttrs->rows(); i++)
+	{
+		double* pVec = m_itemAttrs->row(i);
+		m_itemMap[pVec[0]] = i;
+	}
+	m_itemAttrs->swapColumns(0,m_itemAttrs->cols()-1);
+	m_itemAttrs->deleteColumn(m_itemAttrs->cols()-1);
+}
+
+
+
+GContentBoostedCF::GContentBoostedCF(GArgReader copy)
+: GCollaborativeFilter(), m_ratingCounts(NULL), m_pseudoRatingSum(NULL)
+{
+	int orig_argc = copy.get_argc();
+	int orig_pos = copy.get_pos();
+	while(strcmp(copy.pop_string(), "--") != 0)
+		if(copy.size() == 0)
+			throw Ex("Expecting \"--\" to denote the parameters for the instance-based CF\n");
+	int dashLoc = copy.get_pos() - 1;
+	copy.set_argc(dashLoc);
+	copy.set_pos(orig_pos);
+	m_cbf = GRecommenderLib::InstantiateContentBasedFilter(copy);
+	copy.set_pos(dashLoc + 1);
+	copy.set_argc(orig_argc);
+	m_cf = GRecommenderLib::InstantiateInstanceRecommender(copy);
+}
+
+GContentBoostedCF::~GContentBoostedCF()
+{
+	delete(m_cbf);
+	delete(m_cf);
+}
+
+void GContentBoostedCF::train(GMatrix& data)
+{
+	//make a copy of the training data
+	GMatrix* pClone = new GMatrix();
+        pClone->copy(&data);
+        Holder<GMatrix> hClone(pClone);
+	m_cbf->train(*pClone);
+
+	//Create the psuedo user-ratings vector for every user
+	m_userMap = m_cbf->getUserMap();
+	map<size_t, size_t> items = m_cbf->getItemMap();
+	multimap<size_t, size_t> userRatings = m_cbf->getUserRatings();
+	delete(m_ratingCounts);
+	delete(m_pseudoRatingSum);
+	m_ratingCounts = new size_t[m_userMap.size()];
+	GIndexVec::setAll(m_ratingCounts, 0, m_userMap.size());
+
+	m_pseudoRatingSum = new double[m_userMap.size()];
+	GVec::setAll(m_pseudoRatingSum, 0.0, m_userMap.size());
+
+	for(size_t i = 0; i < pClone->rows(); i++)
+        {
+		double* pVec = pClone->row(i);
+		m_pseudoRatingSum[m_userMap[pVec[0]]] += pVec[2];
+	}
+
+	//Loop through all of the users
+	for(map<size_t, size_t>::iterator user=m_userMap.begin(); user!=m_userMap.end(); ++user)
+	{
+		pair<multimap<size_t, size_t>::iterator, multimap<size_t, size_t>::iterator> ratings;
+		ratings = userRatings.equal_range(user->first);
+
+		//Loop through all of the items
+		for(map<size_t, size_t>::iterator item=items.begin(); item!=items.end(); ++item)
+		{
+			//Check if user has rated item
+			bool isRated = false;
+			multimap<size_t, size_t>::iterator rating;
+			for(rating=ratings.first; rating!=ratings.second; ++rating)
+			{
+				if(rating->second == item->first)
+					isRated = true;
+				m_ratingCounts[m_userMap[user->first]]++;
+			}
+			if(!isRated)
+			{
+				//make prediction
+				double* pRating = pClone->newRow();
+				pRating[0] = user->first;
+				pRating[1] = item->first;
+				pRating[2] = m_cbf->predict(user->first, item->first);
+				GAssert(pRating[2] != UNKNOWN_REAL_VALUE);
+				m_pseudoRatingSum[m_userMap[user->first]] += pRating[2];
+			}
+		}
+	}
+
+	//Train CF on the psuedo user-ratings
+	m_cf->train(*pClone);
+}
+
+double GContentBoostedCF::predict(size_t user, size_t item)
+{
+	double max = 2;
+	multimap<double,size_t> neighbors = m_cf->getNeighbors(user, item);
+
+        // Combine the ratings of the nearest neighbors to make a prediction
+	size_t num = m_ratingCounts[m_userMap[user]];
+	double sigWeight = (num > 50) ? 1 : num / 50;
+        double weighted_sum = max * sigWeight * (m_cbf->predict(user, item) - (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]));
+        double sum_weight = max * sigWeight;
+        for(multimap<double,size_t>::iterator it = neighbors.begin(); it != neighbors.end(); it++)
+        {
+                double weight = std::max(0.0, std::min(1.0, it->first));
+		size_t neighNum = m_ratingCounts[m_userMap[it->first]];
+		double neighSigWeight = (neighNum > 50) ? 1 : neighNum / 50;
+		weight *= (2 * sigWeight * neighSigWeight) / (sigWeight + neighSigWeight) + sigWeight;
+                double val = m_cf->getRating(it->second, item);
+                weighted_sum += weight * val;
+                sum_weight += weight;
+        }
+
+	return 0.0;
+}
+
+void GContentBoostedCF::impute(double* pVec, size_t dims)
+{
+	std::cerr << "Not yet implemented\n";
+}
+
 
 
 

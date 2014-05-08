@@ -31,7 +31,8 @@ INCLUDE_DIRECTORIES(../wizard)
 #And build a static library
 SET (LIBRARY_OUTPUT_PATH ../../lib/ CACHE PATH "Output directory libraries.")
 SET (EXECUTABLE_OUTPUT_PATH ../../bin/ CACHE PATH "Output directory for executables.")
-ADD_EXECUTABLE(waffles_wizard ../wizard/usage.cpp ${SOURCE_FILES} ../wizard/usage.h ${HEADER_FILES})
+ADD_EXECUTABLE(waffles_wizard ../GClasses/usage.cpp ${SOURCE_FILES} ../GClasses/usage.h ${HEADER_FILES})
+#DD_EXECUTABLE(waffles_wizard ${SOURCE_FILES} ${HEADER_FILES})
 TARGET_LINK_LIBRARIES(waffles_wizard GClasses pthread)
 
 #-------------------------------------------------------------------------------

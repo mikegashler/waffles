@@ -26,12 +26,13 @@ FILE(GLOB HEADER_FILES *.h)
 
 #Add the include directores
 INCLUDE_DIRECTORIES(../GClasses)
-INCLUDE_DIRECTORIES(../wizard)
+#INCLUDE_DIRECTORIES(../wizard)
 
 #And build a static library
 SET (LIBRARY_OUTPUT_PATH ../../lib/ CACHE PATH "Output directory libraries.")
 SET (EXECUTABLE_OUTPUT_PATH ../../bin/ CACHE PATH "Output directory for executables.")
-ADD_EXECUTABLE(waffles_recommend ../wizard/usage.cpp ${SOURCE_FILES} ../wizard/usage.h ${HEADER_FILES})
+ADD_EXECUTABLE(waffles_recommend ../GClasses/usage.cpp ${SOURCE_FILES} ../GClasses/usage.h ${HEADER_FILES})
+#ADD_EXECUTABLE(waffles_recommend ${SOURCE_FILES} ${HEADER_FILES})
 TARGET_LINK_LIBRARIES(waffles_recommend GClasses pthread)
 
 #-------------------------------------------------------------------------------

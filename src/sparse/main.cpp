@@ -46,7 +46,7 @@
 #include "../GClasses/GTransform.h"
 #include "../GClasses/GDom.h"
 #include "../GClasses/GVec.h"
-#include "../wizard/usage.h"
+#include "../GClasses/usage.h"
 #include <time.h>
 #include <iostream>
 #ifdef WINDOWS

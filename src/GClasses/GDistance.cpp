@@ -3,6 +3,7 @@
 
     Michael S. Gashler,
     Eric Moyer,
+    Michael R. Smith,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -287,7 +288,7 @@ GDomNode* GCosineSimilarity::serialize(GDom* pDoc) const
 }
 
 // virtual
-double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b)
+double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b, size_t& count)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	map<size_t,double>::const_iterator itB = b.begin();
@@ -312,6 +313,7 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size
 		}
 		else
 		{
+			count++;
 			sum_sq_a += (itA->second * itA->second);
 			sum_sq_b += (itB->second * itB->second);
 			sum_co_prod += (itA->second * itB->second);
@@ -329,7 +331,7 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size
 }
 
 // virtual
-double GCosineSimilarity::similarity(const map<size_t,double>& a, const double* pB)
+double GCosineSimilarity::similarity(const map<size_t,double>& a, const double* pB, size_t& count)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	if(itA == a.end())
@@ -339,6 +341,7 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const double* 
 	double sum_co_prod = 0.0;
 	while(itA != a.end())
 	{
+		count++;
 		sum_sq_a += (itA->second * itA->second);
 		sum_sq_b += (pB[itA->first] * pB[itA->first]);
 		sum_co_prod += (itA->second * pB[itA->first]);
@@ -361,7 +364,7 @@ GDomNode* GPearsonCorrelation::serialize(GDom* pDoc) const
 }
 
 // virtual
-double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<size_t,double>& b)
+double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<size_t,double>& b, size_t& count)
 {
 	// Compute the mean of the overlapping portions
 	map<size_t,double>::const_iterator itA = a.begin();
@@ -372,7 +375,7 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<si
 		return 0.0;
 	double mean_a = 0.0;
 	double mean_b = 0.0;
-	size_t count = 0;
+//	size_t count = 0;
 	while(true)
 	{
 		if(itA->first < itB->first)
@@ -436,13 +439,13 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<si
 }
 
 // virtual
-double GPearsonCorrelation::similarity(const map<size_t,double>& a, const double* pB)
+double GPearsonCorrelation::similarity(const map<size_t,double>& a, const double* pB, size_t& count)
 {
 	// Compute the mean of the overlapping portions
 	map<size_t,double>::const_iterator itA = a.begin();
 	double mean_a = 0.0;
 	double mean_b = 0.0;
-	size_t count = 0;
+//	size_t count = 0;
 	while(itA != a.end())
 	{
 		mean_a += itA->second;
@@ -482,7 +485,7 @@ GDomNode* GEulcidSimilarity::serialize(GDom* pDoc) const
 }
 
 // virtual
-double GEulcidSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b)
+double GEulcidSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b, size_t& count)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	map<size_t,double>::const_iterator itB = b.begin();
@@ -504,7 +507,8 @@ double GEulcidSimilarity::similarity(const map<size_t,double>& a, const map<size
 				break;
 		}
 		else
-		{
+		{	
+			count++;
 			double d = (itB->second - itA->second);
 			sum_sq += (d * d);
 			if(++itA == a.end())
@@ -520,7 +524,7 @@ double GEulcidSimilarity::similarity(const map<size_t,double>& a, const map<size
 }
 
 // virtual
-double GEulcidSimilarity::similarity(const map<size_t,double>& a, const double* pB)
+double GEulcidSimilarity::similarity(const map<size_t,double>& a, const double* pB, size_t& count)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	if(itA == a.end())
@@ -528,6 +532,7 @@ double GEulcidSimilarity::similarity(const map<size_t,double>& a, const double* 
 	double sum_sq = 0.0;
 	while(itA != a.end())
 	{
+		count++;
 		double d = (pB[itA->first] - itA->second);
 		sum_sq += (d * d);
 		itA++;

@@ -42,7 +42,7 @@
 #include "../GClasses/GManifold.h"
 #include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GSelfOrganizingMap.h"
-#include "../wizard/usage.h"
+#include "../GClasses/usage.h"
 #include <time.h>
 #include <iostream>
 #ifdef WIN32

@@ -32,7 +32,7 @@
 #include "../../GClasses/GRect.h"
 #include "../../GClasses/GSystemLearner.h"
 #include "../../GClasses/GDom.h"
-#include "../../wizard/usage.h"
+#include "../../GClasses/usage.h"
 #include <time.h>
 #include <iostream>
 #include <sstream>

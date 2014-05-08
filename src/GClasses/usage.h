@@ -24,7 +24,7 @@
 #include <vector>
 #include <stdlib.h>
 #include <iostream>
-#include "../GClasses/GError.h"
+#include "GError.h"
 
 //#define DEBUG_HELPERS
 

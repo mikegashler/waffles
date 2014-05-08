@@ -110,25 +110,19 @@ usage:
 ../../lib/libGClassesGcov.a :
 	$(MAKE) -C ../GClasses gcov
 
-../../obj/waffles_wizard/opt/usage.o:
-	$(MAKE) -C ../wizard ../../obj/waffles_wizard/opt/usage.o
-
-../../obj/waffles_wizard/dbg/usage.o:
-	$(MAKE) -C ../wizard ../../obj/waffles_wizard/dbg/usage.o
-
 
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../obj/waffles_wizard/opt/usage.o ../../lib/libGClasses.a
+$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../lib/libGClasses.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
 
 # This rule makes the debug binary by using g++ with the debug ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../obj/waffles_wizard/dbg/usage.o ../../lib/libGClassesDbg.a
+$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../lib/libGClassesDbg.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 
 # This rule makes the gcov binary by using g++ with the gcov ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV) ../../obj/waffles_wizard/dbg/usage.o ../../lib/libGClassesGcov.a
+$(TARGET_PATH)/$(TARGET_NAME_GCOV) : partialcleangcov $(OBJECTS_GCOV) ../../lib/libGClassesGcov.a
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_GCOV) $(OBJECTS_GCOV) $(GCOV_LFLAGS)
 
 # This includes all of the ".d" files. Each ".d" file contains a

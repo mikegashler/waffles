@@ -3,6 +3,7 @@
 
     Michael S. Gashler,
     Eric Moyer,
+    Michael R. Smith,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -811,6 +812,11 @@ GArgReader::GArgReader(int argc, char* argv[])
 {
 }
 
+GArgReader::GArgReader(GArgReader& other)
+: m_argc(other.m_argc), m_argv(other.m_argv), m_argPos(other.m_argPos)
+{
+}
+
 int GArgReader::get_pos()
 {
 	return m_argPos;
@@ -877,17 +883,23 @@ bool GArgReader::next_is_flag()
 
 bool GArgReader::next_is_uint()
 {
-  if(size() == 0){
-    return false;
-  }
-  const char* s = peek();
-  if (s == NULL || *s == '\0'){
-      return 0;
-  }
-  char * p;
-  if(strtoul (s, &p, 10) == 0)
-  {
+	if(size() == 0){
+	return false;
+	}
+	const char* s = peek();
+	if (s == NULL || *s == '\0'){
+		return 0;
+  	}
+  	char * p;
+  	if(strtoul (s, &p, 10) == 0)
+  	{
 	  // no-op to circumvent a g++ warning
-  }
-  return *p == '\0';
+ 	}
+  	return *p == '\0';
+
+}
+
+void GArgReader::clear_args()
+{
+	m_argPos = m_argc;
 }

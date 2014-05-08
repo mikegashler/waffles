@@ -3,6 +3,7 @@
 
     Michael S. Gashler,
     Eric Moyer,
+    Michael R. Smith,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -209,6 +210,15 @@ public:
 	/// Pass the args that are passed in to main
 	GArgReader(int argc, char* argv[]);
 
+	/// copy constructor
+	GArgReader(GArgReader& other);
+
+	/// Returns the value of argc
+	int get_argc() { return m_argc; }
+
+	/// Returns the value of argc
+	void set_argc(int argc) { m_argc = argc; }
+
 	/// Returns the current position--that is, the argument number.
 	int get_pos();
 
@@ -246,6 +256,9 @@ public:
 	/// Returns true if there is another arg, and it would parse
 	/// accurately as an unsigned integer
 	bool next_is_uint();
+
+	/// Clears the args
+	void clear_args();
 };
 
 } // namespace GClasses

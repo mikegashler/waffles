@@ -77,6 +77,7 @@ CPP_FILES = \
 	GKeyPair.cpp\
 	GKNN.cpp\
 	GLearner.cpp\
+	GLearnerLib.cpp\
 	GLinear.cpp\
 	GManifold.cpp\
 	GMath.cpp\
@@ -97,6 +98,7 @@ CPP_FILES = \
 	GRect.cpp\
 	GRand.cpp\
 	GRecommender.cpp\
+	GRecommenderLib.cpp\
 	GRegion.cpp\
 	GReinforcement.cpp\
 	GSDL.cpp\
@@ -119,6 +121,7 @@ CPP_FILES = \
 	GWindows.cpp\
 	sha1.cpp\
 	sha2.cpp\
+	usage.cpp\
 
 ################
 # Lists

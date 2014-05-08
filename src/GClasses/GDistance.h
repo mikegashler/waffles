@@ -3,6 +3,7 @@
 
     Michael S. Gashler,
     Eric Moyer,
+    Michael R. Smith,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -25,6 +26,8 @@
 #include <vector>
 
 namespace GClasses {
+
+static size_t _dummy_var = 0;
 
 /// This class enables you to define a distance (or dissimilarity) metric between two vectors.
 /// pScaleFactors is an optional parameter (it can be NULL) that lets the calling class
@@ -215,10 +218,10 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
 	/// Computes the similarity between two sparse vectors
-	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b) = 0;
+	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b, size_t &count=_dummy_var) = 0;
 
 	/// Computes the similarity between a sparse and a dense vector
-	virtual double similarity(const std::map<size_t,double>& a, const double* pB) = 0;
+	virtual double similarity(const std::map<size_t,double>& a, const double* pB, size_t &count=_dummy_var) = 0;
 
 	/// Load from a DOM.
 	static GSparseSimilarity* deserialize(GDomNode* pNode);
@@ -241,10 +244,10 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Computes the similarity between two sparse vectors
-	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
+	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b, size_t &count=_dummy_var);
 
 	/// Computes the similarity between a sparse and a dense vector
-	virtual double similarity(const std::map<size_t,double>& a, const double* pB);
+	virtual double similarity(const std::map<size_t,double>& a, const double* pB, size_t &count=_dummy_var);
 };
 
 
@@ -260,10 +263,10 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Computes the similarity between two sparse vectors
-	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
+	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b, size_t &count=_dummy_var);
 
 	/// Computes the similarity between a sparse and a dense vector
-	virtual double similarity(const std::map<size_t,double>& a, const double* pB);
+	virtual double similarity(const std::map<size_t,double>& a, const double* pB, size_t &count=_dummy_var);
 };
 
 
@@ -282,10 +285,10 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Computes the similarity between two sparse vectors
-	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b);
+	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b, size_t& count=_dummy_var);
 
 	/// Computes the similarity between a sparse and a dense vector
-	virtual double similarity(const std::map<size_t,double>& a, const double* pB);
+	virtual double similarity(const std::map<size_t,double>& a, const double* pB, size_t& count=_dummy_var);
 };
 
 

@@ -54,7 +54,7 @@
 #	include <process.h>
 #endif
 #include <exception>
-#include "../wizard/usage.h"
+#include "../GClasses/usage.h"
 
 using namespace GClasses;
 using std::cout;

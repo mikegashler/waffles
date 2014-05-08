@@ -2,7 +2,8 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
-    Eric Moyer
+    Eric Moyer,
+    Michael R. Smith,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -18,8 +19,8 @@
 */
 
 #include "usage.h"
-#include "../GClasses/GError.h"
-#include "../GClasses/GString.h"
+#include "GError.h"
+#include "GString.h"
 #include <cstring>
 
 using namespace GClasses;
@@ -510,13 +511,16 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		UsageNode* pOpts = pInst->add("<options>");
 		pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
 		pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
+		pOpts->add("-sigWeight [value]=0", "Scale the significane weighting of the items based on how many items two users have rated. The default value of 0 indicates the no significance weightig will be done. The significance is scaled as numItemsRatedByBotheUSers/sigWeight.");
 	}
 	{
 		UsageNode* pMF = pRoot->add("matrix [intrinsic] <options>", "A matrix factorization collaborative-filtering algorithm. (Implemented according to the specification on page 631 in Takacs, G., Pilaszy, I., Nemeth, B., and Tikk, D. Scalable collaborative "
 										"filtering approaches for large recommender systems. The Journal of Machine Learning Research, 10:623-656, 2009. ISSN 1532-4435., except with the addition of learning-rate decay and a different stopping criteria.)");
 		pMF->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
 		UsageNode* pOpts = pMF->add("<options>");
-		pOpts->add("-regularize [value]=0.0001", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small values in the matrix factors.");
+		pOpts->add("-regularize [value]=0.01", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small values in the matrix factors.");
+		pOpts->add("-miniters [value]=1", "Specify a the minimum number of iterations to train the model before checking its validation error. This ensures that model does at least a certain amount of training before converging.");
+		pOpts->add("-decayrate [value]=0.97", "Specify a decay rate in the range of (0-1) for the learning rate parameter. Value closer to 1 will cause the rate the decay slower while rate closer to 0 cause the a faster decay.");
 	}
 	{
 		UsageNode* pNLPCA = pRoot->add("nlpca [intrinsic] <options>", "A non-linear PCA collaborative-filtering algorithm. This algorithm was published in Scholz, M. Kaplan, F. Guy, C. L. Kopka, J. Selbig, J., Non-linear PCA: a missing data approach, In Bioinformatics,"
@@ -532,6 +536,9 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
 		pOpts->add("-noinputbias", "Do not use an input bias.");
 		pOpts->add("-nothreepass", "Use one-pass training instead of three-pass training.");
+		pOpts->add("-regularize [value]=0.0001", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small values in the matrix factors. Note that is only used if three-pass training is being used and there is at least on hidden layer.");
+		pOpts->add("-miniters [value]=1", "Specify a the minimum number of iterations to train the model before checking its validation error. This ensures that model does at least a certain amount of training before converging.");
+		pOpts->add("-decayrate [value]=0.97", "Specify a decay rate in the range of (0-1) for the learning rate parameter. Value closer to 1 will cause the rate the decay slower while rate closer to 0 cause the a faster decay.");
 /*		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will"
 			" only apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
 		{
@@ -544,6 +551,53 @@ UsageNode* makeCollaborativeFilterUsageTree()
 			pAct->add("gaussian", "A gaussian activation function");
 			pAct->add("sinc", "A sinc wavelet activation function");
 		}*/
+	}
+	{
+		UsageNode* pHybridNLPCA = pRoot->add("hybridnlpca [intrinsic] [item_dataset] <data_opts> <options>", "A hybrid content-based recommendation and collaborative filter based on NLPCA. This approach uses collaborative filtering and content-based recommendation DUDE.");
+		pHybridNLPCA->add("[intrinsic]=2", "The number of intrinsic (or latent) feature dims to use to represent each user's preferences.");
+		pHybridNLPCA->add("[items_dataset] <data_opts>", "The dataset representing the item attributes. It is assumed that the item dataset matrix is in the form of item id followed by the attribute values for each item. It assumes that the item corresponds with the first column in the 3-col data.");
+		UsageNode* pDO = pHybridNLPCA->add("<data_opts>");
+		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+		UsageNode* pOpts = pHybridNLPCA->add("<options>");
+                pOpts->add("-addlayer [size]=8", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
+                pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
+                pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
+                pOpts->add("-windowepochs [value]=10", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
+                pOpts->add("-minwindowimprovement [value]=0.0001", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02,"
+                        " then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
+                pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
+                pOpts->add("-crossentropy", "Use cross-entropy instead of squared-error for the error signal.");
+                pOpts->add("-noinputbias", "Do not use an input bias.");
+                pOpts->add("-nothreepass", "Use one-pass training instead of three-pass training.");
+		pOpts->add("-regularize [value]=0.0001", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small weight values. Note that is only used if three-pass training is being used and there is at least on hidden layer.");
+		pOpts->add("-miniters [value]=1", "Specify a the minimum number of iterations to train the model before checking its validation error. This ensures that model does at least a certain amount of training before converging.");
+		pOpts->add("-decayrate [value]=0.97", "Specify a decay rate in the range of (0-1) for the learning rate parameter. Value closer to 1 will cause the rate the decay slower while rate closer to 0 cause the a faster decay.");
+	}
+	{
+		UsageNode* pCBFilter = pRoot->add("contentbased [item_dataset] <data_opts> [learning_algorithm] <learning_opts>", "A content-based filter. A content-based recommendation filter is build using the supervised learning algorithms provided in the Waffles toolkit.");
+		pCBFilter->add("[items_dataset] <data_opts>", "The dataset representing the item attributes. It is assumed that the item dataset matrix is in the form of item id followed by the attribute values for each item. It assumes that the item corresponds with the first column in the 3-col data.");
+		UsageNode* pDO = pCBFilter->add("<data_opts>");
+                pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+                pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+		 pCBFilter->add("[learning_algorithm] <learning_opts>", "See the usage statement for the desired learning algorithm using \"waffles_learn usage\".");
+	}
+	{
+		UsageNode* pCBCF = pRoot->add("cbcf [item_dataset] <data_opts> [learning_algorithm] <learning_opts> -- [k] <inst_options>", "A content-boosted collaborative filter. This algorithm was published in P. Melville, R. Mooney, and R. Nagarajan,"
+			" Content-Boosted Collaborative Filtering for Improved Recommendations, in Proceedings of the 18th National Conference on Artificial Intelligence (AAAI-02), pp. 187-192, 2002. It uses a content-based filter to "
+			"fill in the sparse matrix before giving it to a collaborative filter. We followed the Author's implementation and used an instance-based collaborative filter. Note that this algorithm often takes a while to run.");
+		pCBCF->add("[items_dataset] <data_opts>", "The dataset representing the item attributes. It is assumed that the item dataset matrix is in the form of item id followed by the attribute values for each item. It assumes that the item corresponds with the first column in the 3-col data.");
+                UsageNode* pDO = pCBCF->add("<data_opts>");
+                pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+                pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+                pCBCF->add("[learning_algorithm] <learning_opts>", "See the usage statement for the desired learning algorithm using \"waffles_learn usage\".");
+		pCBCF->add("--", "Denotes the ending of the learning algorithm parameters and the parameters for the collaborative filter.");
+		pCBCF->add("[k]=256", "The number of neighbors to use.");
+                UsageNode* pOpts = pCBCF->add("<inst_options>");
+                pOpts->add("-pearson", "Use Pearson Correlation to compute the similarity between users. (The default is to use the cosine method.)");
+                pOpts->add("-regularize [value]=0.5", "Add [value] to the denominator in order to regularize the results. This ensures that recommendations will not be dominated when a small number of overlapping items occurs. Typically, [value] will be a small number, like 0.5 or 1.5.");
+                pOpts->add("-sigWeight [value]=0", "Scale the significane weighting of the items based on how many items two users have rated. The default value of 0 indicates the no significance weightig will be done. The significance is scaled as numItemsRatedByBotheUSers/sigWeight.");
+
 	}
 	return pRoot;
 }

@@ -37,7 +37,7 @@ OPT_CFLAGS = $(CFLAGS) -O3
 
 CPP_FILES =\
 	main.cpp\
-	usage.cpp\
+#	usage.cpp\
 
 ################
 # Lists
