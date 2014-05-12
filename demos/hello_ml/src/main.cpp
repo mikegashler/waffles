@@ -43,8 +43,8 @@ void do_decision_tree(GMatrix& features, GMatrix& labels, double* test_features,
 void do_neural_network(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
 {
 	GNeuralNet* pNN = new GNeuralNet();
-	pNN->addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 3));
-	pNN->addLayer(new GNeuralNetLayerClassic(3, FLEXIBLE_SIZE));
+	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, 3));
+	pNN->addLayer(new GLayerClassic(3, FLEXIBLE_SIZE));
 	pNN->setLearningRate(0.1);
 	pNN->setMomentum(0.1);
 	GAutoFilter af(pNN);

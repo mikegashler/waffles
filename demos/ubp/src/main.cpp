@@ -104,8 +104,8 @@ public:
 			pPred[3] = 0.8 * i / m_pred.rows();
 			pPred[4] = 10.0;
 		}
-		m_nn.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, 36));
-		m_nn.addLayer(new GNeuralNetLayerClassic(36, FLEXIBLE_SIZE));
+		m_nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 36));
+		m_nn.addLayer(new GLayerClassic(36, FLEXIBLE_SIZE));
 		m_nn.setLearningRate(0.1);
 		GUniformRelation featureRel(2);
 		GUniformRelation labelRel(3);
