@@ -184,6 +184,7 @@ protected:
 	GSparseMatrix* m_pData;
 	GBaselineRecommender* m_pBaseline;
 	size_t m_significanceWeight;
+	std::map<size_t, std::multimap<double,size_t> > m_user_depq;
 
 public:
 	GInstanceRecommender(size_t neighbors);
@@ -220,6 +221,12 @@ public:
 	/// by the content-boosted cf prediction method to combine the content-based
 	/// and cf predictions.
 	multimap<double,size_t> getNeighbors(size_t user, size_t item);
+
+	/// This method clears the priority queue that keeps track of the neighbors for
+	/// a user. This will help speed up the search for each neighbor. It is used in
+	/// the content-boosted filter since it is a dense matrix and should not change
+	/// based on which item a rating is being asked for.
+	void clearUserDEPQ(){ m_user_depq.clear(); }
 
 	/// Get the rating of an item for a user
 	double getRating(size_t user, size_t item); //{ return m_pData->get(user, item); }
@@ -602,7 +609,7 @@ protected:
 public:
 	/// General-purpose constructor
 	GContentBasedFilter(GArgReader copy)
-	: GCollaborativeFilter(), m_args(copy)
+	: GCollaborativeFilter(), m_itemAttrs(NULL), m_args(copy)
 	{
 		m_init_pos = copy.get_pos();
 	}

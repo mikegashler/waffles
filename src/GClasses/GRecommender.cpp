@@ -592,30 +592,34 @@ multimap<double,size_t> GInstanceRecommender::getNeighbors(size_t user, size_t i
 		throw Ex("User and/or item not in the provided data set");
 
 	// Find the k-nearest neighbors
-	multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
-	for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
-	{
-		// Only consider other users that have rated this item
-		if(neigh == user)
-			continue;
-		double rating = m_pData->get(neigh, item);
-		if(rating == UNKNOWN_REAL_VALUE)
-			continue;
+        if(m_user_depq.find(user) == m_user_depq.end())
+        {
+		multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
+		for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
+		{
+			// Only consider other users that have rated this item
+			if(neigh == user)
+				continue;
+			double rating = m_pData->get(neigh, item);
+			if(rating == UNKNOWN_REAL_VALUE)
+				continue;
 
-		// Compute the similarity
-		size_t count = 0;
-		double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh), count);
+			// Compute the similarity
+			size_t count = 0;
+			double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh), count);
 
-		if(count < m_significanceWeight)
-			similarity *= count / m_significanceWeight;
+			if(count < m_significanceWeight)
+				similarity *= count / m_significanceWeight;
 
-		// If the queue is overfull, drop the worst item
-		depq.insert(std::make_pair(similarity, neigh));
-		if(depq.size() > m_neighbors)
-			depq.erase(depq.begin());
-	}
+			// If the queue is overfull, drop the worst item
+			depq.insert(std::make_pair(similarity, neigh));
+			if(depq.size() > m_neighbors)
+				depq.erase(depq.begin());
+		}
+                m_user_depq[user] = depq;
+        }
 
-	return depq;
+	return m_user_depq[user];
 }
 
 // virtual
@@ -1384,6 +1388,7 @@ double GHybridNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 
 void GHybridNonlinearPCA::setItemAttributes(GMatrix& itemAttrs)
 {
+	delete(m_itemAttrs);
 	m_itemAttrs = new GMatrix();
 	m_itemAttrs->copy(&itemAttrs);
 }
@@ -1793,6 +1798,10 @@ GContentBasedFilter::~GContentBasedFilter()
 //virtual
 void GContentBasedFilter::train(GMatrix& data)
 {
+	clear();
+	m_userMap.clear();
+	m_userRatings.clear();
+
 	size_t users, items;
         GCollaborativeFilter_dims(data, &users, &items);
         m_items = items;
@@ -1871,13 +1880,14 @@ GDomNode* GContentBasedFilter::serialize(GDom* pDoc) const
 
 void GContentBasedFilter::clear()
 {
-        for(vector<GSupervisedLearner*>::iterator it = m_learners.begin(); it != m_learners.end(); it++)
-                delete(*it);
+//        for(vector<GSupervisedLearner*>::iterator it = m_learners.begin(); it != m_learners.end(); it++)
+//                delete(*it);
         m_learners.clear();
 }
 
 void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
 {
+	delete(m_itemAttrs);
 	m_itemAttrs = new GMatrix();
 	m_itemAttrs->copy(&itemAttrs);
 	for(size_t i = 0; i < m_itemAttrs->rows(); i++)
@@ -1888,6 +1898,9 @@ void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
 	m_itemAttrs->swapColumns(0,m_itemAttrs->cols()-1);
 	m_itemAttrs->deleteColumn(m_itemAttrs->cols()-1);
 }
+
+
+
 
 
 
@@ -1912,6 +1925,8 @@ GContentBoostedCF::~GContentBoostedCF()
 {
 	delete(m_cbf);
 	delete(m_cf);
+	delete[] m_ratingCounts;
+	delete[] m_pseudoRatingSum;
 }
 
 void GContentBoostedCF::train(GMatrix& data)
@@ -1926,8 +1941,8 @@ void GContentBoostedCF::train(GMatrix& data)
 	m_userMap = m_cbf->getUserMap();
 	map<size_t, size_t> items = m_cbf->getItemMap();
 	multimap<size_t, size_t> userRatings = m_cbf->getUserRatings();
-	delete(m_ratingCounts);
-	delete(m_pseudoRatingSum);
+	delete[] m_ratingCounts;
+	delete[] m_pseudoRatingSum;
 	m_ratingCounts = new size_t[m_userMap.size()];
 	GIndexVec::setAll(m_ratingCounts, 0, m_userMap.size());
 
@@ -1973,6 +1988,7 @@ void GContentBoostedCF::train(GMatrix& data)
 
 	//Train CF on the psuedo user-ratings
 	m_cf->train(*pClone);
+	m_cf->clearUserDEPQ();
 }
 
 double GContentBoostedCF::predict(size_t user, size_t item)
@@ -1996,7 +2012,7 @@ double GContentBoostedCF::predict(size_t user, size_t item)
                 sum_weight += weight;
         }
 
-	return 0.0;
+	return (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]) + (weighted_sum / sum_weight);
 }
 
 void GContentBoostedCF::impute(double* pVec, size_t dims)
