@@ -584,7 +584,7 @@ double GInstanceRecommender::predict(size_t user, size_t item)
                 return m_pBaseline->predict(user, item);
 }
 
-multimap<double,size_t> GInstanceRecommender::getNeighbors(size_t user, size_t item)
+multimap<double,ArrayWrapper> GInstanceRecommender::getNeighbors(size_t user, size_t item)
 {
 	if(!m_pData)
 		throw Ex("This model has not been trained");
@@ -594,7 +594,7 @@ multimap<double,size_t> GInstanceRecommender::getNeighbors(size_t user, size_t i
 	// Find the k-nearest neighbors
         if(m_user_depq.find(user) == m_user_depq.end())
         {
-		multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
+		multimap<double,ArrayWrapper> depq; // double-ended priority-queue that maps from similarity to user-id
 		for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
 		{
 			// Only consider other users that have rated this item
@@ -612,7 +612,8 @@ multimap<double,size_t> GInstanceRecommender::getNeighbors(size_t user, size_t i
 				similarity *= count / m_significanceWeight;
 
 			// If the queue is overfull, drop the worst item
-			depq.insert(std::make_pair(similarity, neigh));
+			ArrayWrapper temp = {{neigh, count}};
+			depq.insert(std::make_pair(similarity, temp));
 			if(depq.size() > m_neighbors)
 				depq.erase(depq.begin());
 		}
@@ -1994,25 +1995,27 @@ void GContentBoostedCF::train(GMatrix& data)
 double GContentBoostedCF::predict(size_t user, size_t item)
 {
 	double max = 2;
-	multimap<double,size_t> neighbors = m_cf->getNeighbors(user, item);
+	multimap<double,ArrayWrapper> neighbors = m_cf->getNeighbors(user, item);
 
         // Combine the ratings of the nearest neighbors to make a prediction
 	size_t num = m_ratingCounts[m_userMap[user]];
-	double sigWeight = (num > 50) ? 1 : num / 50;
-        double weighted_sum = max * sigWeight * (m_cbf->predict(user, item) - (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]));
-        double sum_weight = max * sigWeight;
-        for(multimap<double,size_t>::iterator it = neighbors.begin(); it != neighbors.end(); it++)
+	double selfWeight = (num > 50) ? 1 : num / 50;
+        double weighted_sum = max * selfWeight * (m_cbf->predict(user, item)); // - (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]));
+        double sum_weight = max * selfWeight;
+        for(multimap<double,ArrayWrapper>::iterator it = neighbors.begin(); it != neighbors.end(); it++)
         {
                 double weight = std::max(0.0, std::min(1.0, it->first));
 		size_t neighNum = m_ratingCounts[m_userMap[it->first]];
-		double neighSigWeight = (neighNum > 50) ? 1 : neighNum / 50;
-		weight *= (2 * sigWeight * neighSigWeight) / (sigWeight + neighSigWeight) + sigWeight;
-                double val = m_cf->getRating(it->second, item);
+		double neighWeight = (neighNum > 50) ? 1 : neighNum / 50;
+		double sigWeight = (it->second.values[1] > 50) ? 1 : it->second.values[1] / 50;
+		weight *= ((2 * selfWeight * neighWeight) / (selfWeight + neighWeight)) + sigWeight;
+                double val = m_cf->getRating(it->second.values[0], item);
                 weighted_sum += weight * val;
                 sum_weight += weight;
         }
 
-	return (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]) + (weighted_sum / sum_weight);
+//	return (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]) + (weighted_sum / sum_weight);
+	return weighted_sum / sum_weight;
 }
 
 void GContentBoostedCF::impute(double* pVec, size_t dims)

@@ -43,6 +43,8 @@ class GLearnerLoader;
 
 using std::multimap;
 
+struct ArrayWrapper { size_t values[2]; };
+
 
 /// The base class for collaborative filtering recommender systems.
 class GCollaborativeFilter
@@ -184,7 +186,7 @@ protected:
 	GSparseMatrix* m_pData;
 	GBaselineRecommender* m_pBaseline;
 	size_t m_significanceWeight;
-	std::map<size_t, std::multimap<double,size_t> > m_user_depq;
+	std::map<size_t, std::multimap<double,ArrayWrapper> > m_user_depq;
 
 public:
 	GInstanceRecommender(size_t neighbors);
@@ -220,7 +222,7 @@ public:
 	/// the priority queue for the nearest neigbors. The values are further user 
 	/// by the content-boosted cf prediction method to combine the content-based
 	/// and cf predictions.
-	multimap<double,size_t> getNeighbors(size_t user, size_t item);
+	multimap<double,ArrayWrapper> getNeighbors(size_t user, size_t item);
 
 	/// This method clears the priority queue that keeps track of the neighbors for
 	/// a user. This will help speed up the search for each neighbor. It is used in
