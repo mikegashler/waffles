@@ -1225,7 +1225,7 @@ void GMatrixFactorization::test()
 
 
 GHybridNonlinearPCA::GHybridNonlinearPCA(size_t intrinsicDims)
-: GNonlinearPCA(intrinsicDims)
+: GNonlinearPCA(intrinsicDims), m_itemAttrs(NULL)
 {
 }
 
