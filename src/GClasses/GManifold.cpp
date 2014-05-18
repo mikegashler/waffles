@@ -2505,7 +2505,8 @@ GMatrix* GUnsupervisedBackProp::reduce(const GMatrix& in)
 		double _max = m_pIntrinsic->columnMax(i);
 		if(_max - _min < 1e-12)
 			_max = _min + 1e-6;
-		m_pNN->normalizeInput(m_paramDims + m_jitterDims + i, _min, _max);
+		GNeuralNetLayer* pInputLayer = &m_pNN->layer(0);
+		pInputLayer->renormalizeInput(m_paramDims + m_jitterDims + i, _min, _max);
 		m_pIntrinsic->normalizeColumn(i, _min, _max);
 		//std::cerr << " After intrinsic dim=" << to_str(i) << ", min=" << to_str(m_pIntrinsic->columnMin(i)) << ", max=" << to_str(m_pIntrinsic->columnMax(i)) << "\n";
 	}

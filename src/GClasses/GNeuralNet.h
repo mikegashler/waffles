@@ -181,6 +181,10 @@ public:
 	/// Scale weights that feed into this layer from the specified input
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar) = 0;
 
+	/// Adjusts weights such that values in the new range will result in the
+	/// same behavior that previously resulted from values in the old range.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0) = 0;
+
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
 
@@ -379,6 +383,10 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
 	/// that is added before the transform.
 	void transformWeights(GMatrix& transform, const double* pOffset);
+
+	/// Adjusts weights such that values in the new range will result in the
+	/// same behavior that previously resulted from values in the old range.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 };
 
 
@@ -534,6 +542,10 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Scale weights that feed into this layer from the specified input
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
+
+	/// Adjusts weights such that values in the new range will result in the
+	/// same behavior that previously resulted from values in the old range.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 };
 
 
@@ -721,6 +733,10 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Refines this layer by contrastive divergence.
 	/// pVisibleSample should point to a vector of inputs that will be presented to this layer.
 	void contrastiveDivergence(GRand& rand, const double* pVisibleSample, double learningRate, size_t gibbsSamples = 1);
+
+	/// Adjusts weights such that values in the new range will result in the
+	/// same behavior that previously resulted from values in the old range.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 };
 
 
@@ -848,23 +864,26 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
 	virtual void maxNorm(double max);
 
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+	/// Throws an exception.
 	virtual double unitIncomingWeightsL1Norm(size_t unit);
 
-	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+	/// Throws an exception.
 	virtual double unitIncomingWeightsL2Norm(size_t unit);
 
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+	/// Throws an exception.
 	virtual double unitOutgoingWeightsL1Norm(size_t input);
 
-	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+	/// Throws an exception.
 	virtual double unitOutgoingWeightsL2Norm(size_t input);
 
-	/// Scale weights that feed into the specified unit
+	/// Throws an exception.
 	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
 
-	/// Scale weights that feed into this layer from the specified input
+	/// Throws an exception.
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
+
+	/// Throws an exception.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
@@ -1003,23 +1022,26 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
 	virtual void maxNorm(double max);
 
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
+	/// Throws an exception.
 	virtual double unitIncomingWeightsL1Norm(size_t unit);
 
-	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
+	/// Throws an exception.
 	virtual double unitIncomingWeightsL2Norm(size_t unit);
 
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
+	/// Throws an exception.
 	virtual double unitOutgoingWeightsL1Norm(size_t input);
 
-	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
+	/// Throws an exception.
 	virtual double unitOutgoingWeightsL2Norm(size_t input);
 
-	/// Scale weights that feed into the specified unit
+	/// Throws an exception.
 	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
 
-	/// Scale weights that feed into this layer from the specified input
+	/// Throws an exception.
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
+
+	/// Throws an exception.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
@@ -1082,7 +1104,10 @@ public:
 	void addLayer(GNeuralNetLayer* pLayer, size_t position = INVALID_INDEX);
 
 	/// Drops the layer at the specified index. Returns a pointer to
-	/// the layer. You are then responsible to delete it.
+	/// the layer. You are then responsible to delete it. (This doesn't
+	/// resize the remaining layers to fit with each other, so the caller
+	/// is responsible to repair any such issues before using the neural
+	/// network again.)
 	GNeuralNetLayer* releaseLayer(size_t index);
 
 	/// Set the portion of the data that will be used for validation. If the
@@ -1245,10 +1270,6 @@ public:
 
 	/// Prints weights in a human-readable format
 	void printWeights(std::ostream& stream);
-
-	/// Adjusts weights on the first layer such that new inputs will be expected to fall in
-	/// the new range instead of the old range.
-	void normalizeInput(size_t index, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
 	/// variance of the data to the first few columns. Adjusts the weights on the input layer accordingly,

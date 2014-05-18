@@ -635,6 +635,23 @@ void GLayerClassic::perturbWeights(GRand& rand, double deviation, size_t start, 
 	GVec::perturb(bias() + start, deviation, n, rand);
 }
 
+// virtual
+void GLayerClassic::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
+{
+	size_t outputCount = outputs();
+	double* pW = m_weights[input];
+	double* pB = bias();
+	double f = (oldMax - oldMin) / (newMax - newMin);
+	double g = (oldMin - newMin * f);
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		*pB += (*pW * g);
+		*pW *= f;
+		pW++;
+		pB++;
+	}
+}
+
 
 
 
@@ -745,8 +762,10 @@ size_t GLayerMixed::outputs()
 // virtual
 void GLayerMixed::resize(size_t inputs, size_t outputs, GRand* pRand)
 {
-	if(inputs != m_inputError.cols() || outputs != m_activation.cols() || pRand)
+	if(outputs != m_activation.cols() || pRand)
 		throw Ex("Sorry, GLayerMixed does not support resizing");
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->resize(inputs, m_components[i]->outputs(), pRand);
 }
 
 // virtual
@@ -998,6 +1017,12 @@ void GLayerMixed::scaleUnitOutgoingWeights(size_t input, double scalar)
 		m_components[i]->scaleUnitOutgoingWeights(input, scalar);
 }
 
+// virtual
+void GLayerMixed::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->renormalizeInput(input, oldMin, oldMax, newMin, newMax);
+}
 
 
 
@@ -1504,6 +1529,20 @@ void GLayerRestrictedBoltzmannMachine::scaleUnitOutgoingWeights(size_t input, do
 		m_weights[i][input] *= scalar;
 }
 
+// virtual
+void GLayerRestrictedBoltzmannMachine::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
+{
+	size_t outputCount = outputs();
+	double* pB = bias();
+	double f = (oldMax - oldMin) / (newMax - newMin);
+	double g = (oldMin - newMin * f);
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		*pB += m_weights[i][input] * g;
+		m_weights[i][input] *= f;
+	}
+}
+
 
 
 
@@ -1861,7 +1900,11 @@ void GLayerConvolutional1D::scaleUnitOutgoingWeights(size_t input, double scalar
 	throw Ex("Sorry, convolutional layers do not support this method");
 }
 
-
+// virtual
+void GLayerConvolutional1D::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
 
 
 
@@ -2248,6 +2291,11 @@ void GLayerConvolutional2D::scaleUnitOutgoingWeights(size_t input, double scalar
 	throw Ex("Sorry, convolutional layers do not support this method");
 }
 
+// virtual
+void GLayerConvolutional2D::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
+{
+	throw Ex("Sorry, convolutional layers do not support this method");
+}
 
 
 
@@ -2621,6 +2669,8 @@ void GNeuralNet::bleedWeightsL2(double beta)
 void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 {
 	GNeuralNetLayer* pLay = m_layers[0];
+	if(!pLay)
+		throw Ex("No layers have been added to this neural network");
 	if(m_useInputBias)
 		((GLayerClassic*)pLay)->feedForwardWithInputBias(pRow);
 	else
@@ -2798,11 +2848,9 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 	// Resize the input and output layers to fit the data
 	size_t inputs = featureRel.size() - (m_useInputBias ? 1 : 0);
 	size_t outputs = labelRel.size();
-	if(m_layers.size() == 0)
-		throw Ex("At least one layer must be added before training begins");
-	else if(m_layers.size() == 1)
+	if(m_layers.size() == 1)
 		m_layers[0]->resize(inputs, outputs);
-	else
+	else if(m_layers.size() > 1)
 	{
 		m_layers[0]->resize(inputs, m_layers[0]->outputs());
 		m_layers[m_layers.size() - 1]->resize(m_layers[m_layers.size() - 1]->inputs(), outputs);
@@ -3130,25 +3178,6 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	copyStructure(hCand0.get());
 }
 #endif // MIN_PREDICT
-
-void GNeuralNet::normalizeInput(size_t index, double oldMin, double oldMax, double newMin, double newMax)
-{
-	if(m_useInputBias)
-		throw Ex("normalizing input not supported with bias inputs");
-	GLayerClassic& layer = *(GLayerClassic*)m_layers[0];
-	size_t outputs = layer.outputs();
-	double* pW = layer.m_weights[index];
-	double* pB = layer.bias();
-	double f = (oldMax - oldMin) / (newMax - newMin);
-	double g = (oldMin - newMin * f);
-	for(size_t i = 0; i < outputs; i++)
-	{
-		*pB += (*pW * g);
-		*pW *= f;
-		pW++;
-		pB++;
-	}
-}
 
 void GNeuralNet::pretrainWithAutoencoders(const GMatrix& features, size_t maxLayers)
 {
@@ -3662,7 +3691,8 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 		if(d < c)
 			std::swap(c, d);
 		size_t ind = (size_t)rand.next(5);
-		nn.normalizeInput(ind, a, b, c, d);
+		GNeuralNetLayer* pInputLayer = &nn.layer(0);
+		pInputLayer->renormalizeInput(ind, a, b, c, d);
 		in[ind] = GMatrix::normalizeValue(in[ind], a, b, c, d);
 		nn.predict(in, &after);
 		if(std::abs(after - before) > 1e-9)
@@ -3779,19 +3809,27 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 
 void GNeuralNet_testFourier()
 {
-	GMatrix m(8, 2);
-	m[0][0] = 2.7; m[0][1] = 1.0;
-	m[1][0] = 3.1; m[1][1] = 1.3;
-	m[2][0] = 0.1; m[2][1] = 1.0;
-	m[3][0] = 0.7; m[3][1] = 0.7;
-	m[4][0] = 2.4; m[4][1] = 0.4;
-	m[5][0] = 3.0; m[5][1] = 0.8;
-	m[6][0] = 3.8; m[6][1] = 1.3;
-	m[7][0] = 2.9; m[7][1] = 1.2;
+	GMatrix m(16, 3);
+	m[0][0] = 2.7; m[0][1] = 1.0; m[0][2] = 2.0;
+	m[1][0] = 3.1; m[1][1] = 1.3; m[1][2] = 2.0;
+	m[2][0] = 0.1; m[2][1] = 1.0; m[2][2] = 6.0;
+	m[3][0] = 0.7; m[3][1] = 0.7; m[3][2] = 2.0;
+	m[4][0] = 2.4; m[4][1] = 0.4; m[4][2] = 0.0;
+	m[5][0] = 3.0; m[5][1] = 0.8; m[5][2] = 2.0;
+	m[6][0] = 3.8; m[6][1] = 1.3; m[6][2] = 2.0;
+	m[7][0] = 2.9; m[7][1] = 1.2; m[7][2] = 2.0;
+	m[8][0] = 2.7; m[8][1] = 1.0; m[8][2] = 3.0;
+	m[9][0] = 3.1; m[9][1] = 1.3; m[9][2] = 3.0;
+	m[10][0] = 0.1; m[10][1] = 1.0; m[10][2] = 7.0;
+	m[11][0] = 0.7; m[11][1] = 0.7; m[11][2] = 3.0;
+	m[12][0] = 2.4; m[12][1] = 0.4; m[12][2] = 1.0;
+	m[13][0] = 3.0; m[13][1] = 0.8; m[13][2] = 3.0;
+	m[14][0] = 3.8; m[14][1] = 1.3; m[14][2] = 3.0;
+	m[15][0] = 2.9; m[15][1] = 1.2; m[15][2] = 3.0;
 	double period = 3.0;
 	GNeuralNet* pNN = GNeuralNet::fourier(m, period);
 	Holder<GNeuralNet> hNN(pNN);
-	double out[2];
+	double out[3];
 	for(size_t i = 0; i < m.rows(); i++)
 	{
 		double in = (double)i * period / m.rows();

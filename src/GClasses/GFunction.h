@@ -31,7 +31,6 @@ class GFunctionNode;
 class GFunctionCall;
 class GFunctionBuiltIn;
 class GFunctionStub;
-class GHeap;
 
 struct strCmp
 {
