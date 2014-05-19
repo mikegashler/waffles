@@ -591,7 +591,7 @@ void GLayerClassic::scaleUnitIncomingWeights(size_t unit, double scalar)
 // virtual
 void GLayerClassic::scaleUnitOutgoingWeights(size_t input, double scalar)
 {
-	GVec::multiply(m_weights[input], scalar, inputs());
+	GVec::multiply(m_weights[input], scalar, outputs());
 }
 
 // virtual
