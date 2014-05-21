@@ -67,7 +67,7 @@ public:
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL) = 0;
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03) = 0;
 
 	/// Returns a buffer where the activation from the most-recent call to feedForward is stored.
 	virtual double* activation() = 0;
@@ -229,7 +229,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
 	virtual double* activation() { return m_bias[2]; }
@@ -371,7 +371,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
 	/// start specifies the first unit whose incoming weights will be adjusted.
 	/// count specifies the maximum number of units whose incoming weights are adjusted.
-	void setToWeaklyApproximateIdentity(size_t start = 0, size_t count = (size_t)-1);
+	void setWeightsToIdentity(size_t start = 0, size_t count = (size_t)-1);
 
 	/// Adjusts the value of each weight to, w = w - factor * pow(w, power).
 	/// If power is 1, this is the same as calling scaleWeights.
@@ -450,7 +450,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Throws an exception if the specified dimensions would change anything. Also
 	/// throws an exception if pRand is not NULL.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
 	virtual double* activation() { return m_activation[0]; }
@@ -586,7 +586,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values on the hidden end.
 	virtual double* activation() { return m_bias[2]; }
@@ -786,7 +786,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual size_t outputs() { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
 	virtual double* activation() { return m_activation[0]; }
@@ -944,7 +944,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual size_t outputs() { return m_outputRows * m_outputCols * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
 	virtual double* activation() { return m_activation[0]; }

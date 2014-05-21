@@ -131,7 +131,7 @@ GDomNode* GLayerClassic::serialize(GDom* pDoc)
 	return pNode;
 }
 
-void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand)
+void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
 {
 	if(inputCount == inputs() && outputCount == outputs())
 		return;
@@ -149,13 +149,13 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand)
 		{
 			double* pRow = m_weights[i] + fewerOutputs;
 			for(size_t j = fewerOutputs; j < outputCount; j++)
-				*(pRow++) = 0.01 * pRand->normal();
+				*(pRow++) = deviation * pRand->normal();
 		}
 		for(size_t i = fewerInputs; i < inputCount; i++)
 		{
 			double* pRow = m_weights[i];
 			for(size_t j = 0; j < outputCount; j++)
-				*(pRow++) = 0.01 * pRand->normal();
+				*(pRow++) = deviation * pRand->normal();
 		}
 	}
 
@@ -165,7 +165,7 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand)
 	if(pRand)
 	{
 		for(size_t j = fewerOutputs; j < outputCount; j++)
-			*(pB++) = 0.01 * pRand->normal();
+			*(pB++) = deviation * pRand->normal();
 	}
 
 	// Slack
@@ -196,6 +196,7 @@ void GLayerClassic::resetWeights(GRand& rand)
 // virtual
 void GLayerClassic::copyBiasToNet()
 {
+	GAssert(bias()[outputs() - 1] > -1e100 && bias()[outputs() - 1] < 1e100);
 	GVec::copy(net(), bias(), outputs());
 }
 
@@ -206,8 +207,12 @@ void GLayerClassic::feedIn(const double* pIn, size_t inputStart, size_t inputCou
 	GAssert(inputCount <= m_weights.rows());
 	size_t outputCount = outputs();
 	double* pNet = net();
+	GAssert(pNet[outputCount - 1] > -1e100 && pNet[outputCount - 1] < 1e100);
 	for(size_t i = inputStart; i < inputCount; i++)
+	{
+		GAssert(m_weights.row(i)[outputCount - 1] > -1e100 && m_weights.row(i)[outputCount - 1] < 1e100);
 		GVec::addScaled(pNet, *(pIn++), m_weights.row(i), outputCount);
+	}
 }
 
 // virtual
@@ -217,7 +222,10 @@ void GLayerClassic::activate()
 	size_t outputCount = outputs();
 	double* pNet = net();
 	for(size_t i = 0; i < outputCount; i++)
+	{
+		GAssert(*pNet < 1e100 && *pNet > -1e100);
 		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+	}
 }
 
 // virtual
@@ -508,7 +516,7 @@ void GLayerClassic::transformWeights(GMatrix& transform, const double* pOffset)
 	GVec::add(bias(), pNet, outputCount);
 }
 
-void GLayerClassic::setToWeaklyApproximateIdentity(size_t start, size_t count)
+void GLayerClassic::setWeightsToIdentity(size_t start, size_t count)
 {
 	size_t end = std::min(start + count, outputs());
 	for(size_t i = start; i < end; i++)
@@ -760,12 +768,12 @@ size_t GLayerMixed::outputs()
 }
 
 // virtual
-void GLayerMixed::resize(size_t inputs, size_t outputs, GRand* pRand)
+void GLayerMixed::resize(size_t inputs, size_t outputs, GRand* pRand, double deviation)
 {
-	if(outputs != m_activation.cols() || pRand)
-		throw Ex("Sorry, GLayerMixed does not support resizing");
+	if(outputs != m_activation.cols())
+		throw Ex("Sorry, GLayerMixed does not support resizing the number of outputs");
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->resize(inputs, m_components[i]->outputs(), pRand);
+		m_components[i]->resize(inputs, m_components[i]->outputs(), pRand, deviation);
 }
 
 // virtual
@@ -847,7 +855,7 @@ void GLayerMixed::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputSta
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
 		m_components[i]->backPropError(pUpStreamLayer, inputStart);
-		GVec::add(pBuf, m_components[i]->error(), inps);
+		GVec::add(pBuf, pUpStreamLayer->error(), inps);
 	}
 	GVec::copy(pUpStreamLayer->error(), pBuf, inps);
 }
@@ -1072,7 +1080,7 @@ GDomNode* GLayerRestrictedBoltzmannMachine::serialize(GDom* pDoc)
 	return pNode;
 }
 
-void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCount, GRand* pRand)
+void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
 {
 	if(inputCount == inputs() && outputCount == outputs())
 		return;
@@ -1089,13 +1097,13 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 		{
 			double* pRow = m_weights[i] + fewerInputs;
 			for(size_t j = fewerInputs; j < inputCount; j++)
-				*(pRow++) = 0.01 * pRand->normal();
+				*(pRow++) = deviation * pRand->normal();
 		}
 		for(size_t i = fewerOutputs; i < outputCount; i++)
 		{
 			double* pRow = m_weights[i];
 			for(size_t j = 0; j < inputCount; j++)
-				*(pRow++) = 0.01 * pRand->normal();
+				*(pRow++) = deviation * pRand->normal();
 		}
 	}
 	m_delta.resize(outputCount, inputCount);
@@ -1106,7 +1114,7 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 	if(pRand)
 	{
 		for(size_t j = fewerOutputs; j < outputCount; j++)
-			*(pB++) = 0.01 * pRand->normal();
+			*(pB++) = deviation * pRand->normal();
 	}
 
 	// BiasReverse
@@ -1115,7 +1123,7 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 	if(pRand)
 	{
 		for(size_t j = fewerInputs; j < inputCount; j++)
-			*(pB++) = 0.01 * pRand->normal();
+			*(pB++) = deviation * pRand->normal();
 	}
 }
 
@@ -1583,7 +1591,7 @@ GDomNode* GLayerConvolutional1D::serialize(GDom* pDoc)
 }
 
 // virtual
-void GLayerConvolutional1D::resize(size_t inputs, size_t outputs, GRand* pRand)
+void GLayerConvolutional1D::resize(size_t inputs, size_t outputs, GRand* pRand, double deviation)
 {
 	if(inputs != m_inputSamples * m_inputChannels)
 		throw Ex("Changing the size of GLayerConvolutional1D is not supported");
@@ -1949,7 +1957,7 @@ GDomNode* GLayerConvolutional2D::serialize(GDom* pDoc)
 }
 
 // virtual
-void GLayerConvolutional2D::resize(size_t inputs, size_t outputs, GRand* pRand)
+void GLayerConvolutional2D::resize(size_t inputs, size_t outputs, GRand* pRand, double deviation)
 {
 	if(inputs != m_inputCols * m_inputRows * m_inputChannels)
 		throw Ex("Changing the size of GLayerConvolutional2D is not supported");
@@ -3272,7 +3280,7 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 
 	// Initialize the output layer
 	struct ComplexNumber* pFourier = new struct ComplexNumber[series.rows()];
-	Holder<struct ComplexNumber> hIn(pFourier);
+	ArrayHolder<struct ComplexNumber> hIn(pFourier);
 	GMatrix& wIdent = pLayerIdent->weights();
 	double* bIdent = pLayerIdent->bias();
 	for(size_t j = 0; j < series.cols(); j++)
@@ -3981,7 +3989,7 @@ void GNeuralNetPseudoInverse::test()
 	nn.beginIncrementalLearning(featureRel, labelRel);
 	for(size_t i = 0; i < nn.layerCount(); i++)
 	{
-		((GLayerClassic*)&nn.layer(i))->setToWeaklyApproximateIdentity();
+		((GLayerClassic*)&nn.layer(i))->setWeightsToIdentity();
 		((GLayerClassic*)&nn.layer(i))->perturbWeights(nn.rand(), 0.5);
 	}
 	GNeuralNetPseudoInverse nni(&nn, 0.001);
