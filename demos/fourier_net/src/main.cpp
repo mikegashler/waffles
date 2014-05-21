@@ -43,7 +43,7 @@ using std::string;
 #define IDENTITY_NODES 12
 #define SOFTPLUS_SHIFT 10
 #define PERTURBATION 1e-4
-#define TRAINING_EPOCHS 10000000 // yeah, this will take several hours
+#define TRAINING_EPOCHS 100000
 #define TIGHTNESS 0.05
 
 
@@ -55,7 +55,7 @@ void plot_it(const char* filename, GNeuralNet& nn, GMatrix& trainFeat, GMatrix& 
 	svg.vertMarks(20);
 	double prevx = 0.0;
 	double prevy = 0.0;
-	for(double x = prevx; x < 2.0; x += 0.01)
+	for(double x = prevx; x < 2.0; x += 0.002)
 	{
 		double y;
 		nn.predict(&x, &y);
@@ -80,6 +80,13 @@ void plot_it(const char* filename, GNeuralNet& nn, GMatrix& trainFeat, GMatrix& 
 
 void doit(GArgReader& args)
 {
+	cout << "\n\nThis demo is described at http://arxiv.org/abs/1405.2262\n\n";
+	
+	cout << "For efficiency reasons, this demo differs from the paper the following ways:\n";
+	cout << " * It uses one fewer layers.\n";
+	cout << " * It trains for 100 times fewer training epochs.\n";
+	cout << " * It only uses L1 regularization during the last 20% of training.\n\n";
+	
 	// Make some data
 	GMatrix trainFeat(TRAIN_SIZE, 1);
 	GMatrix trainLab(TRAIN_SIZE, 1);
@@ -98,12 +105,12 @@ void doit(GArgReader& args)
 		testLab[i][0] = sin(x / 3.0) + x * 0.03;
 	}
 
-	// Use the Fourier transform to initialize a neural  network
+	// Use the Fourier transform to initialize a neural network
 	GNeuralNet* pNN = GNeuralNet::fourier(trainLab);
 	Holder<GNeuralNet> hNN(pNN);
 	plot_it("fourier.svg", *pNN, trainFeat, trainLab, testFeat, testLab);
 
-	// Ensure that we fit to the training data
+	// Test that it fits to the training data
 	double fourier_rmse = sqrt(pNN->sumSquaredError(trainFeat, trainLab) / trainLab.rows());
 	if(fourier_rmse >= 1e-9)
 		throw Ex("Fourier transform failed to fit the training data. (This should never happen.)");
@@ -137,28 +144,31 @@ void doit(GArgReader& args)
 	pIdentity3->resize(pMix2->outputs(), pIdentity3->outputs(), &nn.rand(), PERTURBATION);
 	nn.addLayer(pIdentity3);
 
-	// Initialize the softplus and identity nodes to approximate the identity function
+	// Initialize all the softplus nodes to approximate the identity function
 	pSoftPlus1->setWeightsToIdentity();
-	pSoftPlus1->perturbWeights(nn.rand(), PERTURBATION);
 	for(size_t i = 0; i < SOFTPLUS_NODES; i++)
 	{
 		pSoftPlus1->bias()[i] += SOFTPLUS_SHIFT;
 		pMix2->renormalizeInput(i, 0.0, 1.0, SOFTPLUS_SHIFT, SOFTPLUS_SHIFT + 1.0);
 	}
-	pIdentity1->setWeightsToIdentity();
-	pIdentity1->perturbWeights(nn.rand(), PERTURBATION);
 	pSoftPlus2->setWeightsToIdentity();
-	pSoftPlus2->perturbWeights(nn.rand(), PERTURBATION);
 	for(size_t i = 0; i < SOFTPLUS_NODES; i++)
 	{
 		pSoftPlus2->bias()[i] += SOFTPLUS_SHIFT;
 		pIdentity3->renormalizeInput(pSine2->outputs() + i, 0.0, 1.0, SOFTPLUS_SHIFT, SOFTPLUS_SHIFT + 1.0);
 	}
+
+	// Initialize all the identity nodes to approximate the identity function
+	pIdentity1->setWeightsToIdentity();
 	pIdentity2->setWeightsToIdentity();
+
+	// Perturb the weights a little bit
+	pSoftPlus1->perturbWeights(nn.rand(), PERTURBATION);
+	pSoftPlus2->perturbWeights(nn.rand(), PERTURBATION);
+	pIdentity1->perturbWeights(nn.rand(), PERTURBATION);
 	pIdentity2->perturbWeights(nn.rand(), PERTURBATION);
 
-	// Ensure that we still fit to the training data well enough
-	plot_it("before.svg", nn, trainFeat, trainLab, testFeat, testLab);
+	// Test that we still fit to the training data well enough
 	double labMean = trainLab.columnMean(0);
 	double labDev = sqrt(trainLab.columnVariance(0, labMean));
 	cout << "dev=" << to_str(labDev) << "\n";
@@ -177,12 +187,15 @@ void doit(GArgReader& args)
 	{
 		nn.setLearningRate(learningRate);
 
+		// Visit each training value in random order
 		ii.reset();
 		size_t i;
 		while(ii.next(i))
 		{
-			if(epoch < TRAINING_EPOCHS / 2)
+			// Regularize
+			if(epoch < TRAINING_EPOCHS * 8 / 10)
 			{
+				// L2 regularization
 				pSoftPlus1->scaleWeights(1.0 - 0.1 * learningRate * lambda, true);
 				pIdentity1->scaleWeights(1.0 - 0.01 * learningRate * lambda, true);
 				pSine2->scaleWeights(1.0 - learningRate * lambda, true);
@@ -192,6 +205,7 @@ void doit(GArgReader& args)
 			}
 			else
 			{
+				// L1 regularization
 				pSoftPlus1->diminishWeights(0.1 * learningRate * lambda, true);
 				pIdentity1->diminishWeights(0.01 * learningRate * lambda, true);
 				pSine2->diminishWeights(learningRate * lambda, true);
@@ -200,19 +214,23 @@ void doit(GArgReader& args)
 				pIdentity3->diminishWeights(0.01 * learningRate * lambda, true);
 			}
 
+			// Train
 			nn.trainIncremental(trainFeat[i], trainLab[i]);
 		}
 
-		// Report some progress
+		// Report progress
 		double rmse = sqrt(nn.sumSquaredError(trainFeat, trainLab) / trainLab.rows());
-		if(epoch % (TRAINING_EPOCHS / 1000) == 0)
+		if(epoch % (TRAINING_EPOCHS / 100) == 0)
 		{
 			double val = sqrt(nn.sumSquaredError(testFeat, testLab) / testLab.rows());
-			cout << "prog=" << to_str((double)epoch * 100.0 / TRAINING_EPOCHS) << "%	rmse/dev=" << to_str(rmse / labDev) << "	val=" << to_str(val) << "	eta=" << to_str(learningRate) << "	lambda=" << to_str(lambda) << "\n";
-			if(epoch > 0 && epoch % 1000000 == 0)
+			cout << "prog=" << to_str((double)epoch * 100.0 / TRAINING_EPOCHS) << "%	rmse/dev=" << to_str(rmse / labDev) << "	val=" << to_str(val);
+			// cout << "	eta=" << to_str(learningRate) << "	lambda=" << to_str(lambda);
+			cout << "\n";
+			cout.flush();
+			if(epoch % (TRAINING_EPOCHS / 10) == 0)
 			{
 				string s = "progress";
-				s += epoch / 1000000;
+				s += to_str(epoch / (TRAINING_EPOCHS / 10));
 				s += ".svg";
 				plot_it(s.c_str(), nn, trainFeat, trainLab, testFeat, testLab);
 			}
@@ -239,9 +257,6 @@ void doit(GArgReader& args)
 			}
 		}
 	}
-
-	// Plot the final model
-	plot_it("after.svg", nn, trainFeat, trainLab, testFeat, testLab);
 }
 
 int main(int argc, char *argv[])
