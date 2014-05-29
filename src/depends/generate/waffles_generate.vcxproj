@@ -110,7 +110,6 @@
     </Bscmake>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\wizard\usage.cpp" />
     <ClCompile Include="GImagePng.cpp" />
     <ClCompile Include="main.cpp">
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -118,7 +117,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\wizard\usage.h" />
     <ClInclude Include="GImagePng.h" />
   </ItemGroup>
   <ItemGroup>

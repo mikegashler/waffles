@@ -4119,7 +4119,11 @@ GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 void GReservoirNet::test()
 {
 	GAutoFilter af(new GReservoirNet());
-	af.basicTest(0.75, 0.84);
+#ifdef WINDOWS
+	af.basicTest(0.733, 0.801);
+#else
+	af.basicTest(0.733, 0.82);
+#endif
 }
 #endif // MIN_PREDICT
 

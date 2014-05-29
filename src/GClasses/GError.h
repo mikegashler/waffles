@@ -22,7 +22,12 @@
 
 
 #ifdef WINDOWS
+// Throw out the min and max macros supplied by Microsoft that collide with std::min and std::max
+#	define NOMINMAX
+#	undef min
+#	undef max
 #	include <BaseTsd.h>
+#	include <algorithm>
 #endif
 #include <string>
 #include <sstream>
@@ -35,12 +40,6 @@
 #include <utility> //for pair
 
 
-#ifdef WINDOWS
-// Throw out the min and max macros supplied by Microsoft that collide with std::min and std::max
-#	define NOMINMAX
-#	undef min
-#	undef max
-#endif
 
 namespace GClasses {
 

@@ -1817,8 +1817,8 @@ void GContentBasedFilter::train(GMatrix& data)
 	for(size_t i = 0; i < data.rows(); i++)
 	{
 		double* pVec = data.row(i);
-		m_userRatings.insert(std::make_pair(pVec[0], pVec[1]));
-		userSet.insert(pVec[0]);
+		m_userRatings.insert(std::make_pair((size_t)pVec[0], (size_t)pVec[1]));
+		userSet.insert((size_t)pVec[0]);
 	}
 
 	//Loop through the set of users
@@ -1894,7 +1894,7 @@ void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
 	for(size_t i = 0; i < m_itemAttrs->rows(); i++)
 	{
 		double* pVec = m_itemAttrs->row(i);
-		m_itemMap[pVec[0]] = i;
+		m_itemMap[(size_t)pVec[0]] = i;
 	}
 	m_itemAttrs->swapColumns(0,m_itemAttrs->cols()-1);
 	m_itemAttrs->deleteColumn(m_itemAttrs->cols()-1);
@@ -1953,7 +1953,7 @@ void GContentBoostedCF::train(GMatrix& data)
 	for(size_t i = 0; i < pClone->rows(); i++)
         {
 		double* pVec = pClone->row(i);
-		m_pseudoRatingSum[m_userMap[pVec[0]]] += pVec[2];
+		m_pseudoRatingSum[m_userMap[(size_t)pVec[0]]] += pVec[2];
 	}
 
 	//Loop through all of the users
@@ -2005,7 +2005,7 @@ double GContentBoostedCF::predict(size_t user, size_t item)
         for(multimap<double,ArrayWrapper>::iterator it = neighbors.begin(); it != neighbors.end(); it++)
         {
                 double weight = std::max(0.0, std::min(1.0, it->first));
-		size_t neighNum = m_ratingCounts[m_userMap[it->first]];
+		size_t neighNum = m_ratingCounts[m_userMap[(size_t)it->first]];
 		double neighWeight = (neighNum > 50) ? 1 : neighNum / 50;
 		double sigWeight = (it->second.values[1] > 50) ? 1 : it->second.values[1] / 50;
 		weight *= ((2 * selfWeight * neighWeight) / (selfWeight + neighWeight)) + sigWeight;

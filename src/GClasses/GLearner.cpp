@@ -1498,13 +1498,13 @@ void GAutoFilter::test()
 	double pat[1];
 	for(size_t i = 0; i < 500; i++)
 	{
-		pat[0] = rand.next(3);
+		pat[0] = (double)rand.next(3);
 		af.trainIncremental(pat, pat);
 	}
 	double pred[1];
 	for(size_t i = 0; i < 10; i++)
 	{
-		pat[0] = rand.next(3);
+		pat[0] = (double)rand.next(3);
 		af.predict(pat, pred);
 		if(std::abs(pred[0] - pat[0]) > 1e-12)
 			throw Ex("failed");

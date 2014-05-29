@@ -233,6 +233,9 @@ void doit(GArgReader& args)
 				s += to_str(epoch / (TRAINING_EPOCHS / 10));
 				s += ".svg";
 				plot_it(s.c_str(), nn, trainFeat, trainLab, testFeat, testLab);
+//				string cmd = "firefox ";
+//				cmd += s;
+//				GApp::systemCall(cmd.c_str(), false, true);
 			}
 		}
 

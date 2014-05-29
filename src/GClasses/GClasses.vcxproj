@@ -201,6 +201,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="GLearner.cpp" />
+    <ClCompile Include="GLearnerLib.cpp" />
     <ClCompile Include="GLinear.cpp" />
     <ClCompile Include="GManifold.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -259,6 +260,7 @@
     </ClCompile>
     <ClCompile Include="GRayTrace.cpp" />
     <ClCompile Include="GRecommender.cpp" />
+    <ClCompile Include="GRecommenderLib.cpp" />
     <ClCompile Include="GRect.cpp" />
     <ClCompile Include="GRegion.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -307,6 +309,7 @@
     <ClCompile Include="GWindows.cpp" />
     <ClCompile Include="sha1.cpp" />
     <ClCompile Include="sha2.cpp" />
+    <ClCompile Include="usage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="G3D.h" />
@@ -353,6 +356,7 @@
     <ClInclude Include="GKeyPair.h" />
     <ClInclude Include="GKNN.h" />
     <ClInclude Include="GLearner.h" />
+    <ClInclude Include="GLearnerLib.h" />
     <ClInclude Include="GLinear.h" />
     <ClInclude Include="GManifold.h" />
     <ClInclude Include="GMath.h" />
@@ -371,6 +375,7 @@
     <ClInclude Include="GRand.h" />
     <ClInclude Include="GRayTrace.h" />
     <ClInclude Include="GRecommender.h" />
+    <ClInclude Include="GRecommenderLib.h" />
     <ClInclude Include="GRect.h" />
     <ClInclude Include="GRegion.h" />
     <ClInclude Include="GReinforcement.h" />
@@ -395,6 +400,7 @@
     <ClInclude Include="sha1.h" />
     <ClInclude Include="sha2.h" />
     <ClInclude Include="uitypes.h" />
+    <ClInclude Include="usage.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

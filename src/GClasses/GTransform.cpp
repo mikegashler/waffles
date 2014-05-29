@@ -728,7 +728,7 @@ GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
 	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
 	m_outputs = m_pNN->relLabels().size();
 	m_deviation = pNode->field("dev")->asDouble();
-	m_hiddenLayers = pNode->field("hl")->asInt();
+	m_hiddenLayers = (size_t)pNode->field("hl")->asInt();
 }
 
 // virtual
