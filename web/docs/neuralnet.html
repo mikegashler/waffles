@@ -8,7 +8,7 @@
 		}
 	</style>
 </head>
-<body bgcolor=#404040><br><br><br><br>
+<body bgcolor=#d0d0a0><br><br><br><br>
 <table align=center cellpadding=50 border=1 bgcolor=#e0e0d0 width=1000><tr><td>
 <a href="../index.html#toc">Back to the table of contents</a><br>
 
@@ -183,6 +183,9 @@ use FLEXIBLE_SIZE for those too:</p>
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 </pre>
 
+<p>That is as far as you can use FLEXIBLE_SIZE. If you use FLEXIBLE_SIZE anywhere else, then the size of one of the layers would be
+ambiguous, which would be problematic.</p>
+
 
 
 <br><br>
@@ -225,7 +228,7 @@ activation function for the other 150 units:</p>
 	<li><b>GLayerConvolutional2D</b> - A 2-dimensional convolutional layer.</li>
 	<li><b>GLayerSoftMax</b> - A soft-max layer, trained with cross-entropy.</li>
 	<li><b>GLayerCuda</b> - A GPU-optimized classic layer. Requires linking with the GCuda library.</li>
-	<li>(Other layer types are currently under passive development...)</li>
+	<li>(Other layer types are currently under development...)</li>
 </ul>
 
 
