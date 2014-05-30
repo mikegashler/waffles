@@ -55,7 +55,7 @@ GLayerCuda::~GLayerCuda()
 	delete[] m_pOutgoing;
 }
 
-void GLayerCuda::resize(size_t inputCount, size_t outputCount, GRand* pRand)
+void GLayerCuda::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
 {
 	if(inputCount == inputs() && outputCount == outputs())
 		return;
@@ -327,6 +327,12 @@ size_t GLayerCuda::vectorToWeights(const double* pVector)
 void GLayerCuda::copyWeights(GNeuralNetLayer* pSource)
 {
 	throw Ex("Sorry, GNeuralNetLayerCuda::copyWeights is not yet implemented");
+}
+
+// virtual
+void GLayerCuda::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
+{
+	throw Ex("Sorry, GNeuralNetLayerCuda::renormalizeInput is not yet implemented");
 }
 
 void GLayerCuda::upload(GLayerClassic& source)

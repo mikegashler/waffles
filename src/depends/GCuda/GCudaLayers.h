@@ -76,7 +76,7 @@ public:
 	virtual size_t outputs() { return m_weights.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it throws an exception.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL);
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation vector in device memory.
 	virtual GCudaVector& deviceActivation() { return m_activation; }
@@ -187,6 +187,10 @@ public:
 
         /// Scale weights that feed into this layer from the specified input
         virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
+
+	/// Adjusts weights such that values in the new range will result in the
+	/// same behavior that previously resulted from values in the old range.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	/// Copies the weights and bias vector from this layer into a GLayerClassic layer.
 	void upload(GLayerClassic& source);
