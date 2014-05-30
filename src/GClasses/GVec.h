@@ -37,9 +37,12 @@ class GVec
 {
 public:
 	double* v;
-	GVec(size_t n);
+	GVec(size_t n = 0);
 	~GVec();
 
+	/// Resizes this vector
+	void resize(size_t n);
+	
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();

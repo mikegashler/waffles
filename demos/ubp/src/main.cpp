@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <GClasses/GApp.h>
+#include <GClasses/GActivation.h>
 #include <GClasses/G3D.h>
 #include <GClasses/GMatrix.h>
 #include <GClasses/GError.h>
@@ -65,9 +66,10 @@ public:
 class UBPModel
 {
 protected:
-	GMatrix m_tar;
-	GMatrix m_context;
-	GMatrix m_pred;
+	GMatrix m_target;
+	GMatrix m_intrinsic;
+	GMatrix m_predicted;
+
 	GRand m_rand;
 	GNeuralNet m_nn;
 	size_t* m_pIndexes;
@@ -78,46 +80,33 @@ protected:
 
 public:
 	UBPModel()
-	: m_tar(0, 5), m_context(0, 2), m_pred(0, 5), m_rand(0), m_errorThresh(0.0), m_targetActive(1.0)
+	: m_rand(0), m_errorThresh(0.0), m_targetActive(1.0)
 	{
+		m_target.loadArff("in.arff");
+		if(m_target.cols() != 3)
+			throw Ex("unexpected number of columns");
+		m_predicted.resize(m_target.rows(), 3);
+		m_intrinsic.resize(m_target.rows(), 2);
+		for(size_t i = 0; i < m_intrinsic.rows(); i++)
 		{
-			GMatrix tmp;
-			tmp.loadArff("in.arff");
-			if(tmp.cols() != 3)
-				throw Ex("unexpected number of columns");
-			m_tar.newRows(tmp.rows());
-			m_tar.copyBlock(tmp, 0, 0, tmp.rows(), 3);
+			double* pRow = m_intrinsic.row(i);
+			pRow[0] = 0.5; //0.1 * m_rand.normal();
+			pRow[1] = 0.5; //0.1 * m_rand.normal();
 		}
-		m_pred.newRows(m_tar.rows());
-		m_context.newRows(m_tar.rows());
-		for(size_t i = 0; i < m_tar.rows(); i++)
-		{
-			double* pContext = m_context.row(i);
-			//pContext[0] = 0.1 * m_rand.normal();
-			//pContext[1] = 0.1 * m_rand.normal();
-			GVec::setAll(pContext, 0.5, 2);
-			//m_rand.cubical(pContext, 2);
-			double* pTar = m_tar.row(i);
-			pTar[3] = 0.8 * i / m_tar.rows();
-			pTar[4] = 3.0;
-			double* pPred = m_pred.row(i);
-			pPred[3] = 0.8 * i / m_pred.rows();
-			pPred[4] = 10.0;
-		}
-		m_nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 36));
-		m_nn.addLayer(new GLayerClassic(36, FLEXIBLE_SIZE));
+		m_nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 50));
+		m_nn.addLayer(new GLayerClassic(50, FLEXIBLE_SIZE));
 		m_nn.setLearningRate(0.1);
 		GUniformRelation featureRel(2);
 		GUniformRelation labelRel(3);
 		m_nn.beginIncrementalLearning(featureRel, labelRel);
-		m_pIndexes = new size_t[m_tar.rows()];
-		GIndexVec::makeIndexVec(m_pIndexes, m_tar.rows());
+		m_pIndexes = new size_t[m_target.rows()];
+		GIndexVec::makeIndexVec(m_pIndexes, m_target.rows());
 		m_nextSpotlight = 0;
 	}
 
 	~UBPModel()
 	{
-		m_context.saveArff("out.arff");
+		m_intrinsic.saveArff("out.arff");
 		delete[] m_pIndexes;
 	}
 
@@ -126,37 +115,34 @@ public:
 	void update()
 	{
 		double inputGradient[2];
-		double* pSpotlightTarget = m_tar.row(m_nextSpotlight);
-		double* pSpotlightContext = m_context.row(m_nextSpotlight);
+		double* pSpotlightTarget = m_target.row(m_nextSpotlight);
+		double* pSpotlightContext = m_intrinsic.row(m_nextSpotlight);
 		m_nn.forwardProp(pSpotlightContext);
 		double spotlightErr = m_nn.sumSquaredPredictionError(pSpotlightTarget);
 		double maxBelowThresh = 0.0;
 		double minAboveThresh = 1e308;
 		double cumErr = 0.0;
 		size_t activeCount = 0;
-//		GBackPropLayer& bpLayer = pBP->layer(m_nn.layerCount() - 1);
-		GIndexVec::shuffle(m_pIndexes, m_tar.rows(), &m_rand);
+		GIndexVec::shuffle(m_pIndexes, m_target.rows(), &m_rand);
 		size_t* pInd = m_pIndexes;
-		for(size_t i = 0; i < m_tar.rows(); i++)
+		for(size_t i = 0; i < m_target.rows(); i++)
 		{
 			// Adjust the weights
 			size_t index = *(pInd++);
-			double* pTar = m_tar.row(index);
-			double* pPred = m_pred.row(index);
-			double* pContext = m_context.row(index);
-			m_nn.forwardProp(pContext);
-			m_nn.copyPrediction(pPred);
+			double* pTar = m_target.row(index);
+			double* pPred = m_predicted.row(index);
+			double* pIntrinsic = m_intrinsic.row(index);
+			m_nn.predict(pIntrinsic, pPred);
 			m_nn.backpropagate(pTar);
 
 			double err = m_nn.sumSquaredPredictionError(pTar);
 			if(err < m_errorThresh)
 			{
-				pPred[4] = 10.0; // big radius
 				activeCount++;
 				maxBelowThresh = std::max(maxBelowThresh, err);
 				m_nn.gradientOfInputs(inputGradient);
-				m_nn.descendGradient(pContext, m_nn.learningRate(), 0.0);
-				GVec::addScaled(pContext, -m_nn.learningRate(), inputGradient, 2);
+				m_nn.descendGradient(pIntrinsic, m_nn.learningRate(), 0.0);
+				GVec::addScaled(pIntrinsic, -m_nn.learningRate(), inputGradient, 2);
 
 				// See if we can improve the spotlight point
 				double sse = m_nn.sumSquaredPredictionError(pTar);
@@ -167,46 +153,48 @@ public:
 				if(err2 < spotlightErr)
 				{
 					spotlightErr = err2;
-					GVec::copy(pSpotlightContext, pContext, 2);
+					GVec::copy(pSpotlightContext, pIntrinsic, 2);
 				}
 			}
 			else
 			{
-				pPred[4] = 0.0; // no radius
 				minAboveThresh = std::min(minAboveThresh, err);
-				GVec::copy(pContext, m_context.row((size_t)m_rand.next(m_context.rows())), 2);
+				GVec::copy(pIntrinsic, m_intrinsic.row((size_t)m_rand.next(m_intrinsic.rows())), 2);
 			}
 		}
 		if(activeCount <= (size_t)floor(m_targetActive))
 			m_errorThresh = minAboveThresh + 1e-9;
 		else
 			m_errorThresh = maxBelowThresh;
-		m_targetActive += 0.4;
+		m_targetActive += 0.2;
 
 		// Update the threshold
 //		cout << "target active: " << m_targetActive << ", active: " << activeCount << ", thresh: " << m_errorThresh << "\n";
 	}
 
-	GMatrix& pred() { return m_pred; }
-
-	GMatrix& tar() { return m_tar; }
-	GMatrix& context() { return m_context; }
+	GMatrix& pred() { return m_predicted; }
+	GMatrix& tar() { return m_target; }
+	GMatrix& intrinsic() { return m_intrinsic; }
 };
 
 class Compare3DPointsByDistanceFromCameraFunctor
 {
 protected:
 	GCamera* m_pCamera;
+	const GMatrix& m_target;
+	const GMatrix& m_predicted;
 
 public:
-	Compare3DPointsByDistanceFromCameraFunctor(GCamera* pCamera)
-	: m_pCamera(pCamera)
+	Compare3DPointsByDistanceFromCameraFunctor(GCamera* pCamera, const GMatrix& target, const GMatrix& predicted)
+	: m_pCamera(pCamera), m_target(target), m_predicted(predicted)
 	{
 	}
 
 	// returns false if pA is closer than pB
-	bool operator() (const double* pA, const double* pB) const
+	bool operator() (size_t aa, size_t bb) const
 	{
+		const double* pA = aa < 1000000 ? m_target[aa] : m_predicted[aa - 1000000];
+		const double* pB = bb < 1000000 ? m_target[bb] : m_predicted[bb - 1000000];
 		G3DVector a, b, c, d;
 		a.m_vals[0] = pA[0];
 		a.m_vals[1] = pA[1];
@@ -237,7 +225,7 @@ protected:
 	GWidgetCanvas* m_pCanvas;
 	GWidgetCanvas* m_pCanvas2;
 	GCamera* m_pCamera;
-	GMatrix* m_pDataSorter;
+	vector<size_t> m_indexesSortedByCameraDistance;
 	G3DReal m_cameraDist;
 	G3DVector m_cameraDirection;
 	G3DVector m_centroid;
@@ -260,7 +248,6 @@ public:
 		m_pCanvas = new GWidgetCanvas(this, 20, 100, m_pImage->width(), m_pImage->height(), m_pImage);
 		m_pCanvas2 = new GWidgetCanvas(this, 620, 300, m_pImage2->width(), m_pImage2->height(), m_pImage2);
 		m_pCamera = NULL;
-		m_pDataSorter = NULL;
 		m_pButtonYawN = new GWidgetTextButton(this, 600, 150, 50, 30, "-Yaw");
 		m_pButtonYawP = new GWidgetTextButton(this, 700, 150, 50, 30, "+Yaw");
 		m_pButtonPitN = new GWidgetTextButton(this, 650, 100, 50, 30, "+Pit");
@@ -279,8 +266,6 @@ public:
 		delete(m_pImage);
 		delete(m_pImage2);
 		delete(m_pCamera);
-		m_pDataSorter->releaseAllRows();
-		delete(m_pDataSorter);
 	}
 
 	void makeCamera(GImage* pImage, GMatrix* pDataTar, GMatrix* pDataPred)
@@ -301,12 +286,12 @@ public:
 		max.add(&min);
 		updateCameraDirection();
 
-		m_pDataSorter = new GMatrix(pDataTar->relation().clone());
-		m_pDataSorter->reserve(pDataTar->rows() + pDataPred->rows());
+		m_indexesSortedByCameraDistance.clear();
+		m_indexesSortedByCameraDistance.reserve(pDataTar->rows() + pDataPred->rows());
 		for(size_t i = 0; i < pDataTar->rows(); i++)
-			m_pDataSorter->takeRow(pDataTar->row(i));
+			m_indexesSortedByCameraDistance.push_back(i);
 		for(size_t i = 0; i < pDataPred->rows(); i++)
-			m_pDataSorter->takeRow(pDataPred->row(i));
+			m_indexesSortedByCameraDistance.push_back(1000000 + i);
 	}
 
 	void updateCameraDirection()
@@ -321,35 +306,6 @@ public:
 		m_pCamera->setDirection(&m_cameraDirection, 0.0/*roll*/);
 	}
 
-	void makeImage(GImage* pImage, GMatrix* pDataTar, GMatrix* pDataPred)
-	{
-		m_pImage->clear(0xffffffff);
-		G3DVector point, coords, point2, coords2;
-		Compare3DPointsByDistanceFromCameraFunctor comparator(m_pCamera);
-		m_pDataSorter->sort(comparator);
-		for(size_t i = 0; i < m_pDataSorter->rows(); i++)
-		{
-			double* pVec = m_pDataSorter->row(i);
-			point.set(pVec[0], pVec[1], pVec[2]);
-			toImageCoords(pImage, m_pCamera, &point, &coords);
-			float radius = (float)pVec[4] / (float)coords.m_vals[2];
-			pImage->dot((float)coords.m_vals[0], (float)coords.m_vals[1], radius, gAHSV(0xff, (float)pVec[3], 1.0f, 0.5f), 0xffffffff);
-		}
-	}
-
-	void makeImage2(GImage* pImage, GMatrix* pData, GMatrix* pDataPred)
-	{
-		pImage->clear(0xffffffff);
-		GPlotWindow pw(pImage, m_viewRect.x, m_viewRect.y, m_viewRect.x + m_viewRect.w, m_viewRect.y + m_viewRect.h);
-		for(size_t i = 0; i < pData->rows(); i++)
-		{
-			double* pVec = pData->row(i);
-			double* pPred = pDataPred->row(i);
-			pw.dot(pVec[0], pVec[1], 0.3f * (float)pPred[4], gAHSV(0xff, 0.8f * (float)i / pData->rows(), 1.0f, 0.5f), 0xffffffff);
-			m_viewRect.include(pVec[0], pVec[1]);
-		}
-	}
-
 	void update()
 	{
 		UBPModel* pModel = m_pController->model();
@@ -357,10 +313,46 @@ public:
 		GMatrix& pred = pModel->pred();
 		if(!m_pCamera)
 			makeCamera(m_pImage, &tar, &pred);
-		makeImage(m_pImage, &tar, &pred);
+		m_pImage->clear(0xffffffff);
+		G3DVector point, coords, point2, coords2;
+		Compare3DPointsByDistanceFromCameraFunctor comparator(m_pCamera, tar, pred);
+		
+		std::sort(m_indexesSortedByCameraDistance.begin(), m_indexesSortedByCameraDistance.end(), comparator);
+		for(size_t i = 0; i < m_indexesSortedByCameraDistance.size(); i++)
+		{
+			size_t index = m_indexesSortedByCameraDistance[i];
+			if(index < 1000000)
+			{
+				// Draw target point
+				double* pVec = tar[index];
+				point.set(pVec[0], pVec[1], pVec[2]);
+				toImageCoords(m_pImage, m_pCamera, &point, &coords);
+				float radius = (float)3.0 / (float)coords.m_vals[2];
+				m_pImage->dot((float)coords.m_vals[0], (float)coords.m_vals[1], radius, gAHSV(0xff, (float)(0.8 * index / tar.rows()), 1.0f, 0.5f), 0xffffffff);
+			}
+			else
+			{
+				// Draw predicted point
+				index -= 1000000;
+				double* pVec = pred[index];
+				point.set(pVec[0], pVec[1], pVec[2]);
+				toImageCoords(m_pImage, m_pCamera, &point, &coords);
+				float radius = (float)6.0 / (float)coords.m_vals[2];
+				m_pImage->dot((float)coords.m_vals[0], (float)coords.m_vals[1], radius, gAHSV(0xff, (float)(0.8 * index / pred.rows()), 1.0f, 0.5f), 0xffffffff);
+			}
+		}
 		m_pCanvas->setImage(m_pImage);
-		GMatrix& context = pModel->context();
-		makeImage2(m_pImage2, &context, &pred);
+		GMatrix& intrinsic = pModel->intrinsic();
+
+		// Make intrinsic image
+		m_pImage2->clear(0xffffffff);
+		GPlotWindow pw(m_pImage2, m_viewRect.x, m_viewRect.y, m_viewRect.x + m_viewRect.w, m_viewRect.y + m_viewRect.h);
+		for(size_t i = 0; i < intrinsic.rows(); i++)
+		{
+			double* pVec = intrinsic.row(i);
+			pw.dot(pVec[0], pVec[1], 2.5f, gAHSV(0xff, 0.8f * (float)i / intrinsic.rows(), 1.0f, 0.5f), 0xffffffff);
+			m_viewRect.include(pVec[0], pVec[1]);
+		}
 		m_pCanvas2->setImage(m_pImage2);
 	}
 

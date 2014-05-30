@@ -41,12 +41,24 @@ using std::vector;
 
 GVec::GVec(size_t n)
 {
-	v = new double[n];
+	if(n > 0)
+		v = new double[n];
+	else
+		v = NULL;
 }
 
 GVec::~GVec()
 {
 	delete[] v;
+}
+
+void GVec::resize(size_t n)
+{
+	delete[] v;
+	if(n > 0)
+		v = new double[n];
+	else
+		v = NULL;
 }
 
 
