@@ -1382,6 +1382,7 @@ GRandomForest::GRandomForest(size_t trees, size_t samples)
 	for(size_t i = 0; i < trees; i++)
 	{
 		GDecisionTree* pTree = new GDecisionTree();
+		pTree->useBinaryDivisions();
 		pTree->useRandomDivisions(samples);
 		m_pEnsemble->addLearner(pTree);
 	}
@@ -1447,6 +1448,6 @@ void GRandomForest::predictDistribution(const double* pIn, GPrediction* pOut)
 void GRandomForest::test()
 {
 	GRandomForest rf(30);
-	rf.basicTest(0.762, 0.93, 0.01);
+	rf.basicTest(0.762, 0.925, 0.01);
 }
 #endif

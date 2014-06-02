@@ -753,7 +753,7 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 	Holder<GMatrix> hOut(pOut);
 
 	// Find friends
-	GNeighborFinder* pNF = new GNeighborFinderCacheWrapper(new GKdTree(&featuresAll, m_friendCount, NULL, true), true);
+	GNeighborFinder* pNF = new GNeighborGraph(new GKdTree(&featuresAll, m_friendCount, NULL, true), true);
 	Holder<GNeighborFinder> hNF(pNF);
 	GTEMPBUF(size_t, neighbors, m_friendCount);
 

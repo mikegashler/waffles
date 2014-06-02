@@ -274,7 +274,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		// Normalize
 		if(normalize)
 		{
-			GNeighborFinderCacheWrapper* pNF2 = new GNeighborFinderCacheWrapper(pNF, true);
+			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
 			pNF2->fillCache();
 			pNF2->normalizeDistances();
 			pNF = pNF2;
@@ -283,7 +283,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		// Apply CycleCut
 		if(cutCycleLen > 0)
 		{
-			GNeighborFinderCacheWrapper* pNF2 = new GNeighborFinderCacheWrapper(pNF, true);
+			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
 			pNF2->fillCache();
 			pNF2->cutShortcuts(cutCycleLen);
 			pNF = pNF2;

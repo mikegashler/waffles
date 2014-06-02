@@ -1290,14 +1290,14 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 	}
 
 	// Make sure the neighbor finder is cached
-	Holder<GNeighborFinderCacheWrapper> hNF2(NULL);
+	Holder<GNeighborGraph> hNF2(NULL);
 	if(!pNF->isCached())
 	{
-		GNeighborFinderCacheWrapper* pNF2 = new GNeighborFinderCacheWrapper(pNF, false);
+		GNeighborGraph* pNF2 = new GNeighborGraph(pNF, false);
 		hNF2.reset(pNF2);
 		pNF = pNF2;
 	}
-	GNeighborFinderCacheWrapper* pCachedNF = (GNeighborFinderCacheWrapper*)pNF;
+	GNeighborGraph* pCachedNF = (GNeighborGraph*)pNF;
 	pCachedNF->fillCache();
 	size_t* pNeighborTable = pCachedNF->cache();
 	double* pSquaredDistances = pCachedNF->squaredDistanceTable();
@@ -2688,6 +2688,7 @@ GScalingUnfolder::GScalingUnfolder()
 : m_neighborCount(14),
 m_targetDims(2),
 m_passes(50),
+m_refines_per_scale(100),
 m_scaleRate(0.9),
 m_rand(0)
 {
@@ -2706,9 +2707,23 @@ GScalingUnfolder::~GScalingUnfolder()
 
 }
 
-void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double curSqDist, double tarSqDist)
+void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double curSqDist, double tarSqDist, GRand& rand)
 {
-	double scal = sqrt(tarSqDist) / sqrt(curSqDist);
+	if(curSqDist == 0.0)
+	{
+		if(tarSqDist > 0.0)
+		{
+			// Perturb A and B by a small random amount to separate them
+			double d = 0.01 * sqrt(tarSqDist);
+			for(size_t i = 0; i < dims; i++)
+			{
+				*(pA++) += d * rand.normal();
+				*(pB++) += d * rand.normal();
+			}
+		}
+		return; // It is easier to just return than to recalculate curSqDist. This edge will probably be visited again soon anyway.
+	}
+	double scal = std::max(0.5, std::min(2.0, sqrt(tarSqDist) / sqrt(curSqDist)));
 	for(size_t i = 0; i < dims; i++)
 	{
 		double t = 0.5 * (*pB * (1.0 + scal) + *pA * (1.0 - scal)) - *pB;
@@ -2717,67 +2732,39 @@ void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double c
 	}
 }
 
-void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& nf, size_t encoderTrainIters, GNeuralNet* pEncoder, GNeuralNet* pDecoder, const GMatrix* pVisible)
+// static
+void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, GRand& rand)
 {
 	size_t dims = intrinsic.cols();
-	double scaleUpRate = 1.0 / m_scaleRate;
-	double scaleUp2 = scaleUpRate * scaleUpRate;
-	double scaleUp4 = scaleUp2 * scaleUp2;
-	double scaleDown2 = m_scaleRate * m_scaleRate;
-	double scaleDown4 = scaleDown2 * scaleDown2;
-	size_t neighborCount = nf.neighborCount();
-	GRandomIndexIterator ii(intrinsic.rows() * neighborCount, m_rand);
-	GRandomIndexIterator* ii2 = pEncoder ? new GRandomIndexIterator(intrinsic.rows(), m_rand) : NULL;
-	Holder<GRandomIndexIterator> hII2(ii2);
+	GRandomIndexIterator& ii = ng.randomEdgeIterator(rand);
+	ii.reset();
+	size_t ind;
+	while(ii.next(ind))
+	{
+		size_t a = ind / ng.neighborCount();
+		size_t b = ng.cache()[ind];
+		if(b != INVALID_INDEX)
+		{
+			double dTarget = ng.squaredDistanceTable()[ind];
+			double* pA = intrinsic.row(a);
+			double* pB = intrinsic.row(b);
+			double dCur = GVec::squaredDistance(pA, pB, dims);
+			GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget, rand);
+		}
+	}
+}
+
+void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters, GNeuralNet* pEncoder, GNeuralNet* pDecoder, const GMatrix* pVisible)
+{
+	GRandomIndexIterator* ii = pEncoder ? new GRandomIndexIterator(intrinsic.rows(), m_rand) : NULL;
+	Holder<GRandomIndexIterator> hII2(ii);
 	for(size_t pass = 0; pass < m_passes; pass++)
 	{
 		// Scale up the data
-		intrinsic.multiply(scaleUpRate);
+		intrinsic.multiply(1.0 / m_scaleRate);
 
-		// Restore local relationships
-		size_t bestViolators = INVALID_INDEX;
-		size_t tolerance = 0;
-		while(true)
-		{
-			// Do a training epoch
-			ii.reset();
-			size_t ind;
-			size_t violators = 0;
-			while(ii.next(ind))
-			{
-				size_t a = ind / neighborCount;
-				size_t b = nf.cache()[ind];
-				if(b != INVALID_INDEX)
-				{
-					double dTarget = std::max(1e-12, nf.squaredDistanceTable()[ind]);
-					double* pA = intrinsic.row(a);
-					double* pB = intrinsic.row(b);
-					double dCur = GVec::squaredDistance(pA, pB, dims);
-					if(dCur * scaleUp4 < dTarget)
-					{
-						GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget * scaleDown2);
-						violators++;
-					}
-					else if(dCur * scaleDown4 > dTarget)
-					{
-						GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget * scaleUp2);
-						violators++;
-					}
-				}
-			}
-			if(violators < bestViolators)
-			{
-				if(violators == 0)
-					break;
-				bestViolators = violators;
-				tolerance = 0;
-			}
-			else
-			{
-				if(++tolerance > 100)
-					break;
-			}
-		}
+		for(size_t i = 0; i < m_refines_per_scale; i++)
+			restore_local_distances_pass(intrinsic, nf, m_rand);
 
 		// Train the encoder
 		if(pVisible)
@@ -2785,9 +2772,9 @@ void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& n
 			intrinsic.centerMeanAtOrigin();
 			for(size_t i = 0; i < encoderTrainIters; i++)
 			{
-				ii2->reset();
+				ii->reset();
 				size_t ind;
-				while(ii2->next(ind))
+				while(ii->next(ind))
 				{
 					pEncoder->trainIncremental(pVisible->row(ind), intrinsic[ind]);
 					pDecoder->trainIncremental(intrinsic[ind], pVisible->row(ind));
@@ -2797,12 +2784,39 @@ void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& n
 	}
 }
 
+// static
+void GScalingUnfolder::unfold_iter(GMatrix& intrinsic, GRand& rand, size_t neighborCount, double scaleFactor, size_t refinements)
+{
+	while(true)
+	{
+		// Find neighbors
+		GKdTree kdtree(&intrinsic, neighborCount, NULL, false);
+		GNeighborGraph ng(&kdtree, false);
+		ng.fillCache();
+		if(!ng.isConnected())
+		{
+			if(neighborCount < 1 || neighborCount >= intrinsic.rows() - 1)
+				throw Ex("Invalid neighborCount");
+			neighborCount *= std::min(intrinsic.rows() - 1, std::max(neighborCount + 1, neighborCount * 3 / 2));
+			continue;
+		}
+
+		// Scale up the data
+		intrinsic.multiply(scaleFactor);
+
+		// Refine the points to restore distances in local neighborhoods
+		for(size_t i = 0; i < refinements; i++)
+			restore_local_distances_pass(intrinsic, ng, rand);
+		return;
+	}
+}
+
 // virtual
 GMatrix* GScalingUnfolder::reduce(const GMatrix& in)
 {
 	// Find neighbors
 	GKdTree kdtree(&in, m_neighborCount, NULL, false);
-	GNeighborFinderCacheWrapper nf(&kdtree, false);
+	GNeighborGraph nf(&kdtree, false);
 	nf.fillCache();
 
 	// Make a copy of the data

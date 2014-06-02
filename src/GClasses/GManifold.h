@@ -32,7 +32,7 @@ struct GManifoldSculptingNeighbor;
 class GNeighborFinder;
 class GNeuralNet;
 class GNeuralNetLayer;
-class GNeighborFinderCacheWrapper;
+class GNeighborGraph;
 
 
 /// This class stores static methods that are useful for manifold learning
@@ -520,6 +520,7 @@ protected:
 	size_t m_neighborCount;
 	size_t m_targetDims;
 	size_t m_passes;
+	size_t m_refines_per_scale;
 	double m_scaleRate;
 	GRand m_rand;
 
@@ -535,7 +536,13 @@ public:
 	void setTargetDims(size_t n) { m_targetDims = n; }
 
 	/// Specify the number of times to 'scale the data then recover local relationships'.
-	void setPasses(size_t n ) { m_passes = n; }
+	void setPasses(size_t n) { m_passes = n; }
+
+	/// Specify the number of times to refine the points after each scaling.
+	void setRefinesPerScale(size_t n) { m_refines_per_scale = n; }
+
+	/// Specify the scaling rate. The default is 0.9.
+	void setScaleRate(double d) { m_scaleRate = d; }
 
 	/// Returns a reference to the pseudo-random number generator used by this object
 	GRand& rand() { return m_rand; }
@@ -545,7 +552,18 @@ public:
 
 	/// Unfolds the points in intrinsic, such that distances specified in nf are preserved.
 	/// If pVisible is non-NULL, then pEncoder will be incrementally trained to encode pVisible to intrinsic.
-	void unfold(GMatrix& intrinsic, GNeighborFinderCacheWrapper& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, GNeuralNet* pDecoder = NULL, const GMatrix* pVisible = NULL);
+	void unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, GNeuralNet* pDecoder = NULL, const GMatrix* pVisible = NULL);
+
+	/// Perform a single pass over all the edges and attempt to restore local relationships
+	static void restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, GRand& rand);
+
+	/// A convenience method for iteratively unfolding the manifold sampled by a matrix.
+	/// (This method is not used within this class.) It finds the k-nearest neighbors within
+	/// the matrix. (If the neighbor-graph is not connected, it doubles k until it is connected.)
+	/// Next, this method multiplies the matrix by scaleFactor. Finally, it refines the points to
+	/// restore local distances. (It would not typically be efficient to call this in a tight loop,
+	/// because that would perform the neighbor-finding step each time.)
+	static void unfold_iter(GMatrix& intrinsic, GRand& rand, size_t neighborCount = 12, double scaleFactor = 1.01, size_t refinements = 100);
 };
 
 

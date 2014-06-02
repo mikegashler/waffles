@@ -3236,6 +3236,24 @@ void GNeuralNet::printWeights(std::ostream& stream)
 	}
 }
 
+void GNeuralNet::containIntrinsics(GMatrix& intrinsics)
+{
+	size_t dims = intrinsics.cols();
+	GNeuralNetLayer& lay = layer(0);
+	if(lay.inputs() != dims)
+		throw Ex("Mismatching number of columns and inputs");
+	GTEMPBUF(double, pCentroid, dims);
+	intrinsics.centroid(pCentroid);
+	double maxDev = 0.0;
+	for(size_t i = 0; i < dims; i++)
+	{
+		double dev = sqrt(intrinsics.columnVariance(i, pCentroid[i]));
+		maxDev = std::max(maxDev, dev);
+		intrinsics.normalizeColumn(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
+		lay.renormalizeInput(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
+	}
+}
+
 GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 {
 	GLayerClassic& lay = *(GLayerClassic*)&layer(0);

@@ -33,6 +33,7 @@ class GKdNode;
 class GBitTable;
 class GDistanceMetric;
 class GSupervisedLearner;
+class GRandomIndexIterator;
 
 
 /// Finds the k-nearest neighbors of any vector in a dataset.
@@ -93,32 +94,36 @@ public:
 
 /// This wraps a neighbor finding algorithm. It caches the queries for neighbors
 /// for the purpose of improving runtime performance.
-class GNeighborFinderCacheWrapper : public GNeighborFinder
+class GNeighborGraph : public GNeighborFinder
 {
 protected:
 	GNeighborFinder* m_pNF;
 	bool m_own;
 	size_t* m_pCache;
 	double* m_pDissims;
+	GRandomIndexIterator* m_pRandomEdgeIterator;
 
 public:
 	/// If own is true, then this will take ownership of pNF
-	GNeighborFinderCacheWrapper(GNeighborFinder* pNF, bool own);
-	virtual ~GNeighborFinderCacheWrapper();
+	GNeighborGraph(GNeighborFinder* pNF, bool own);
+	virtual ~GNeighborGraph();
 	virtual void neighbors(size_t* pOutNeighbors, size_t index);
 	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
 
-	/// See the comment for GNeighborFinder::isCached
+	/// See the comment for GNeighborFinder::isCached.
 	virtual bool isCached() { return true; }
 
-	/// Returns a pointer to the neighbor finder that this wraps
+	/// Returns a pointer to the neighbor finder that this wraps.
 	GNeighborFinder* wrappedNeighborFinder() { return m_pNF; }
 
 	/// Returns the cache of neighbors. (You should probably call fillCache before calling this.)
 	size_t* cache() { return m_pCache; }
 
-	/// Returns the table of squared dissimilarities
+	/// Returns the table of squared dissimilarities.
 	double* squaredDistanceTable() { return m_pDissims; }
+
+	/// Returns an iterator that can visit each edge in random order.
+	GRandomIndexIterator& randomEdgeIterator(GRand& rand);
 
 	/// Ensures that the cache is populated with data for every index in the dataset
 	void fillCache();

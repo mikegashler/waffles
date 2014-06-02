@@ -160,8 +160,8 @@ void GNeighborFinder::sortNeighbors(size_t* pNeighbors, double* pDistances)
 
 
 
-GNeighborFinderCacheWrapper::GNeighborFinderCacheWrapper(GNeighborFinder* pNF, bool own)
-: GNeighborFinder(pNF->data(), pNF->neighborCount()), m_pNF(pNF), m_own(own)
+GNeighborGraph::GNeighborGraph(GNeighborFinder* pNF, bool own)
+: GNeighborFinder(pNF->data(), pNF->neighborCount()), m_pNF(pNF), m_own(own), m_pRandomEdgeIterator(NULL)
 {
 	m_pCache = new size_t[m_pData->rows() * m_neighborCount];
 	m_pDissims = new double[m_pData->rows() * m_neighborCount];
@@ -170,16 +170,24 @@ GNeighborFinderCacheWrapper::GNeighborFinderCacheWrapper(GNeighborFinder* pNF, b
 }
 
 // virtual
-GNeighborFinderCacheWrapper::~GNeighborFinderCacheWrapper()
+GNeighborGraph::~GNeighborGraph()
 {
 	delete[] m_pCache;
 	delete[] m_pDissims;
 	if(m_own)
 		delete(m_pNF);
+	delete(m_pRandomEdgeIterator);
+}
+
+GRandomIndexIterator& GNeighborGraph::randomEdgeIterator(GRand& rand)
+{
+	if(!m_pRandomEdgeIterator)
+		m_pRandomEdgeIterator = new GRandomIndexIterator(data()->rows() * neighborCount(), rand);
+	return *m_pRandomEdgeIterator;
 }
 
 // virtual
-void GNeighborFinderCacheWrapper::neighbors(size_t* pOutNeighbors, size_t index)
+void GNeighborGraph::neighbors(size_t* pOutNeighbors, size_t index)
 {
 	size_t* pCache = m_pCache + m_neighborCount * index;
 	if(*pCache == m_pData->rows())
@@ -191,7 +199,7 @@ void GNeighborFinderCacheWrapper::neighbors(size_t* pOutNeighbors, size_t index)
 }
 
 // virtual
-void GNeighborFinderCacheWrapper::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
+void GNeighborGraph::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
 {
 	size_t* pCache = m_pCache + m_neighborCount * index;
 	double* pDissims = m_pDissims + m_neighborCount * index;
@@ -201,7 +209,7 @@ void GNeighborFinderCacheWrapper::neighbors(size_t* pOutNeighbors, double* pOutD
 	memcpy(pOutDistances, pDissims, sizeof(double) * m_neighborCount);
 }
 
-void GNeighborFinderCacheWrapper::fillCache()
+void GNeighborGraph::fillCache()
 {
 	size_t rowCount = m_pData->rows();
 	size_t* pCache = m_pCache;
@@ -215,7 +223,7 @@ void GNeighborFinderCacheWrapper::fillCache()
 	}
 }
 
-void GNeighborFinderCacheWrapper::fillDistances(GDistanceMetric* pMetric)
+void GNeighborGraph::fillDistances(GDistanceMetric* pMetric)
 {
 	pMetric->init(&m_pData->relation(), false);
 	double* pDissim = m_pDissims;
@@ -233,14 +241,14 @@ void GNeighborFinderCacheWrapper::fillDistances(GDistanceMetric* pMetric)
 	}
 }
 
-size_t GNeighborFinderCacheWrapper::cutShortcuts(size_t cycleLen)
+size_t GNeighborGraph::cutShortcuts(size_t cycleLen)
 {
 	GCycleCut cc(m_pCache, m_pData, m_neighborCount);
 	cc.setCycleThreshold(cycleLen);
 	return cc.cut();
 }
 
-void GNeighborFinderCacheWrapper::patchMissingSpots(GRand* pRand)
+void GNeighborGraph::patchMissingSpots(GRand* pRand)
 {
 	size_t rowCount = m_pData->rows();
 	size_t* pCache = m_pCache;
@@ -280,7 +288,7 @@ void GNeighborFinderCacheWrapper::patchMissingSpots(GRand* pRand)
 	}
 }
 
-void GNeighborFinderCacheWrapper::normalizeDistances()
+void GNeighborGraph::normalizeDistances()
 {
 	size_t rowCount = m_pData->rows();
 	size_t* pCache = m_pCache;
@@ -322,7 +330,7 @@ void GNeighborFinderCacheWrapper::normalizeDistances()
 	}
 }
 
-bool GNeighborFinderCacheWrapper::isConnected()
+bool GNeighborGraph::isConnected()
 {
 	// Make a table containing bi-directional neighbor connections
 	vector< vector<size_t> > bidirTable;
@@ -344,7 +352,7 @@ bool GNeighborFinderCacheWrapper::isConnected()
 		}
 	}
 
-	// Use a breadth-first search to determine of the graph is fully connected
+	// Use a breadth-first search to determine if the graph is fully connected
 	GBitTable bt(m_pData->rows());
 	deque<size_t> q;
 	bt.set(0);

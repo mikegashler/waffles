@@ -112,13 +112,13 @@ void GAgglomerativeClusterer::cluster(const GMatrix* pData)
 	m_pMetric->init(&pData->relation(), false);
 
 	// Find enough neighbors to form a connected graph
-	GNeighborFinderCacheWrapper* pNF = NULL;
-	Holder<GNeighborFinderCacheWrapper> hNF;
+	GNeighborGraph* pNF = NULL;
+	Holder<GNeighborGraph> hNF;
 	size_t neighbors = 6;
 	while(true)
 	{
 		GKdTree* pKdTree = new GKdTree(pData, neighbors, m_pMetric, false);
-		pNF = new GNeighborFinderCacheWrapper(pKdTree, true);
+		pNF = new GNeighborGraph(pKdTree, true);
 		hNF.reset(pNF);
 		pNF->fillCache();
 		if(pNF->isConnected())
@@ -379,12 +379,12 @@ GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, cons
 		featuresAll.takeRow((double*)features2[i]);
 
 	// Find enough neighbors to form a connected graph
-	GNeighborFinderCacheWrapper* pNF = NULL;
+	GNeighborGraph* pNF = NULL;
 	size_t neighbors = 6;
 	while(true)
 	{
 		GKdTree* pKdTree = new GKdTree(&featuresAll, neighbors, m_pMetric, false);
-		pNF = new GNeighborFinderCacheWrapper(pKdTree, true);
+		pNF = new GNeighborGraph(pKdTree, true);
 		pNF->fillCache();
 		if(pNF->isConnected())
 			break;

@@ -1333,6 +1333,11 @@ public:
 	/// layers have been pretrained in this manner.
 	void pretrainWithAutoencoders(const GMatrix& features, size_t maxLayers = INVALID_INDEX);
 
+	/// Finds the column in the intrinsic matrix with the largest deviation, then
+	/// centers the matrix at the origin and renormalizes so the largest deviation
+	/// is 1. Also renormalizes the input layer so these changes will have no effect.
+	void containIntrinsics(GMatrix& intrinsics);
+
 #ifndef MIN_PREDICT
 	/// See the comment for GSupervisedLearner::predictDistribution
 	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
