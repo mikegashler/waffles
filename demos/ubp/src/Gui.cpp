@@ -26,7 +26,6 @@
 #include <GClasses/GBits.h>
 #include <GClasses/GString.h>
 #include <GClasses/GApp.h>
-#include <GClasses/GBits.h>
 #include <stdarg.h>
 #include <math.h>
 #ifdef WINDOWS
