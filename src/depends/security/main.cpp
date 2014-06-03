@@ -37,7 +37,7 @@
 #endif
 #include <exception>
 #include <fstream>
-#include "../../../src/wizard/usage.h"
+#include "../../GClasses/usage.h"
 #include "satellite.h"
 #include <math.h>
 #include <sstream>

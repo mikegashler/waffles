@@ -26,6 +26,7 @@
 #include <GClasses/GBits.h>
 #include <GClasses/GString.h>
 #include <GClasses/GApp.h>
+#include <GClasses/GBits.h>
 #include <stdarg.h>
 #include <math.h>
 #ifdef WINDOWS
@@ -119,7 +120,13 @@ void ViewBase::captureScreen(GImage* pImage)
 		for(yy = 0; yy < h; yy++)
 		{
 			pPix = getPixMem32(pScreen, x, y);
+#ifdef DARWIN
+			unsigned int* pRaw = &pRGB[yy * w];
+			for(size_t i = 0; i < w; i++)
+				*(pPix++) = ntohl(*(pRaw++));
+#else
 			memcpy(pPix, &pRGB[yy * w], w * sizeof(unsigned int));
+#endif
 			y++;
 		}
 	}

@@ -20,12 +20,12 @@ endif
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS = -I/opt/local/include -I/usr/local/include -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/libGClassesDbg.a -lpthread -lX11 -lssl
-	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../obj/waffles_wizard/opt/usage.o ../../../lib/libGClasses.a -lpthread -lX11 -lssl
+	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClassesDbg.a -lpthread -lX11 -lssl
+	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClasses.a -lpthread -lX11 -lssl
 else
 	CFLAGS = -Wall
-	DBG_LFLAGS = ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/libGClassesDbg.a -lpng -lpthread -lX11
-	OPT_LFLAGS = ../../../obj/waffles_wizard/opt/usage.o ../../../lib/libGClasses.a -lpng -lpthread -lX11
+	DBG_LFLAGS = ../../../lib/libGClassesDbg.a -lpng -lpthread -lX11
+	OPT_LFLAGS = ../../../lib/libGClasses.a -lpng -lpthread -lX11
 endif
 
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
@@ -85,12 +85,12 @@ usage:
 	$(MAKE) -C ../../GClasses opt
 
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../../obj/waffles_wizard/opt/usage.o ../../../lib/libGClasses.a
+$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../../lib/libGClasses.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
 
 # This rule makes the debug binary by using g++ with the debug ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../../obj/waffles_wizard/dbg/usage.o ../../../lib/libGClassesDbg.a
+$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../../lib/libGClassesDbg.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 
