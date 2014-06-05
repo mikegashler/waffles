@@ -1225,8 +1225,9 @@ void GMatrixFactorization::test()
 
 
 GHybridNonlinearPCA::GHybridNonlinearPCA(size_t intrinsicDims)
-: GNonlinearPCA(intrinsicDims), m_itemAttrs(NULL)
+: GNonlinearPCA(intrinsicDims), m_itemAttrs(NULL), m_itemMax(NULL), m_itemMin(NULL), m_itemMap(NULL), m_numNeighbors(100), m_pRatingCount(NULL)
 {
+	m_neighbors = NULL;
 }
 
 // virtual
@@ -1249,8 +1250,11 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	m_pMins = new double[items];
 	delete[] m_pMaxs;
 	m_pMaxs = new double[items];
+	delete[] m_pRatingCount;
+	m_pRatingCount = new size_t[items];
 	GVec::setAll(m_pMins, 1e200, items);
 	GVec::setAll(m_pMaxs, -1e200, items);
+	GIndexVec::setAll(m_pRatingCount, 0, items);
 	for(size_t i = 0; i < pClone->rows(); i++)
 	{
 		double* pVec = pClone->row(i);
@@ -1268,6 +1272,8 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	{
 		double*  pVec = pClone->row(i);
 		pVec[2] = (pVec[2] - m_pMins[size_t(pVec[0])]) / (m_pMaxs[size_t(pVec[0])] - m_pMins[size_t(pVec[0])]);
+		m_itemSet.insert(pVec[1]);
+		m_pRatingCount[(size_t)pVec[1]]++;
 	}
 
 	// Prep the model for incremental training
@@ -1297,23 +1303,30 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 			// Initialize the user matrix
 			delete(m_pUsers);
 			m_pUsers = new GMatrix(users, m_intrinsicDims + numAttr);
-			size_t count = 0;
-			double* itemVec = m_itemAttrs->row(count);
-			for(size_t i = 0; i < users; i++)
-			{
+			delete[] m_itemMap;
+                        m_itemMap = new size_t[m_itemAttrs->rows()];
+                        GIndexVec::setAll(m_itemMap, 0, m_itemAttrs->rows());
+                        size_t count = 0;
+                        double* itemVec = m_itemAttrs->row(count);
+                        for(size_t i = 0; i < users; i++)
+                        {
 				double* pVec = m_pUsers->row(i);
 				GVec::setAll(pVec, 0, m_intrinsicDims + numAttr);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
 					*(pVec++) = 0.01 * m_rand.normal();
-				if(*itemVec == i)
-				{
-					itemVec++;
-					for(size_t j = 1; j < numAttr; j++)
-						*(pVec++) = *(itemVec++) * 0.01;
-					itemVec = m_itemAttrs->row(++count);
-				}
-				
-			}
+                                if(*itemVec == i)
+                                {
+                                        m_itemMap[count]=i;
+                                        *(itemVec) = 0;
+                                        itemVec++;
+                                        for(size_t j = 1; j < numAttr+1; j++)
+                                        {
+                                                *(pVec++) = *(itemVec++) * 0.01;
+                                        }
+                                        itemVec = m_itemAttrs->row(++count);
+                                }
+
+                        }
 		}
 		double rateBegin = 0.1;
 		double rateEnd = 0.001;
@@ -1343,7 +1356,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 					if(pass != 1)
 						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
 					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
-					if(pass != 1)
+					if(pass != 1 && pass != -1)
 					{
 						// Update inputs
 						if(pass == 0)
@@ -1362,15 +1375,76 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 			prevErr = rmse;
 		}
 	}
+	//Insert neighbors here after 0 out all of their indexes
+	m_neighbors = new GKdTree(m_itemAttrs, m_numNeighbors);
 }
 
 // virtual
 double GHybridNonlinearPCA::predict(size_t item, size_t user)
 {
+	//The user and item are reversed (the item is the user and user is the item)
+	//If the user is new
 	if(user >= m_pUsers->rows() || item >= m_items)
 		return 0.0;
-	else
-		return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_pMins[item];
+
+
+	//If the item has not yet been rated but has item features
+	if(m_itemSet.find(user) == m_itemSet.end())
+	{
+		//find closest instances
+		double* pVec = m_pUsers->row(user);
+		double features[m_pUsers->cols() - m_intrinsicDims + 1];
+		features[0] = 0;
+		for(size_t i = m_intrinsicDims; i < m_pUsers->cols(); i++)
+		{
+			features[i-m_intrinsicDims+1] = pVec[i] / 0.01;
+		}
+		size_t neighbors[m_numNeighbors];
+		double distances[m_numNeighbors];
+		m_neighbors->neighbors(neighbors, distances, features);
+
+		//sort the neighbors based on distance
+		m_neighbors->sortNeighbors(m_numNeighbors, neighbors, distances);
+/// Commentted out portion is for returning a weighted average instead of a weighted mode
+//		double sum =0;
+//		double denom = 0;
+
+		size_t counts [11];
+		GIndexVec::setAll(counts, 0, 11);
+		size_t i = 0;
+		while(distances[i] == 0 && i < m_numNeighbors)
+		{
+			size_t neighbor = m_itemMap[neighbors[i]];
+			if(m_pRatingCount[neighbor] > 50)
+			{
+				double prediction = round(((m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(neighbor), item) + m_pMins[item])* 2.0) / 2.0;
+//			double prediction = (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(neighbor), item) + m_pMins[item];
+				if(prediction > m_pMaxs[item])
+					prediction = m_pMaxs[item];
+				if(prediction <  m_pMins[item])
+					prediction =  m_pMins[item];
+				counts[(size_t) (prediction * 2)] += m_pRatingCount[neighbor];
+			}
+			i++;
+/*
+			if(m_pRatingCount[neighbor] > 50)
+			{
+				sum+=prediction * m_pRatingCount[neighbor];
+				denom+=m_pRatingCount[neighbor];
+			}
+*/
+		}
+//		return sum / denom;
+		size_t predMode = 0;
+		for(size_t i = 1; i < 11; i++)
+		{
+			if(counts[i] > counts[predMode])
+				predMode = i;
+		}
+		return predMode / 2.0;
+	}
+
+	return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_pMins[item];
 }
 
 double GHybridNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
@@ -1392,6 +1466,24 @@ void GHybridNonlinearPCA::setItemAttributes(GMatrix& itemAttrs)
 	delete(m_itemAttrs);
 	m_itemAttrs = new GMatrix();
 	m_itemAttrs->copy(&itemAttrs);
+	delete(m_itemMax);
+	m_itemMax = new double[m_itemAttrs->cols()-1];
+	delete(m_itemMin);
+	m_itemMin = new double[m_itemAttrs->cols()-1];
+	GVec::setAll(m_itemMin, 1e200, m_itemAttrs->cols() - 1);
+	GVec::setAll(m_itemMax, -1e200, m_itemAttrs->cols() - 1);
+
+	//Normalize the item attributes
+	for(size_t i = 1; i < m_itemAttrs->cols(); i++)
+	{
+		if (m_itemAttrs->relation().areContinuous(i, 1))
+		{
+			m_itemMax[i-1] = m_itemAttrs->columnMax(i);
+			m_itemMin[i-1] = m_itemAttrs->columnMin(i);
+			if (m_itemMax[i-1] > 1 || m_itemMin[i-1] < 0)
+				m_itemAttrs->normalizeColumn(i, m_itemMax[i-1], m_itemMin[i-1]);
+		}
+	}
 }
 
 

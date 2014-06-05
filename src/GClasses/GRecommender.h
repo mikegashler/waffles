@@ -24,6 +24,7 @@
 #include "GRand.h"
 #include "GLearner.h"
 #include "GApp.h"
+#include "GNeighborFinder.h"
 #include <vector>
 #include <map>
 
@@ -490,6 +491,13 @@ class GHybridNonlinearPCA : public GNonlinearPCA
 {
 protected:
         GMatrix* m_itemAttrs;
+	std::set<size_t> m_itemSet;
+	double* m_itemMax;
+	double* m_itemMin;
+	GKdTree* m_neighbors;
+	size_t* m_itemMap;
+	size_t m_numNeighbors;
+	size_t* m_pRatingCount;
 
 public:
         /// General-purpose constructor
