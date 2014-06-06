@@ -141,7 +141,7 @@ void GPipe::toFile(const char* szFilename)
 	}
 	catch(const std::exception&)
 	{
-		throw Ex("Error creating file: ", szFilename);
+		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
 	}
 	char buf[256];
 	while(true)

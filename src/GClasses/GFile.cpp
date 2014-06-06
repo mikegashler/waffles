@@ -42,6 +42,7 @@
 #include <string.h>
 #include <sstream>
 #include <fstream>
+#include <errno.h>
 
 
 using namespace GClasses;
@@ -343,10 +344,7 @@ bool GFile::localStorageDirectory(char *toHere)
 	}
 	catch(const std::exception&)
 	{
-		if(GFile::doesFileExist(szFilename))
-			throw Ex("Error while trying to open the existing file: ", szFilename);
-		else
-			throw Ex("File not found: ", szFilename);
+		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
 	}
 	char* pBuf = new char[*pnSize + 1];
 	ArrayHolder<char> hBuf(pBuf);
@@ -365,7 +363,7 @@ bool GFile::localStorageDirectory(char *toHere)
 	}
 	catch(const std::exception&)
 	{
-		throw Ex("Error creating file: ", szFilename);
+		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
 	}
 	s.write(pBuf, size);
 }
@@ -380,7 +378,7 @@ bool GFile::localStorageDirectory(char *toHere)
 	}
 	catch(const std::exception&)
 	{
-		throw Ex("Error creating file: ", szFilename);
+		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
 	}
 	s << szString;
 }

@@ -29,6 +29,7 @@
 #include <deque>
 #include <sstream>
 #include <fstream>
+#include <errno.h>
 #include "GTokenizer.h"
 
 
@@ -905,7 +906,7 @@ void GDom::saveJson(const char* szFilename) const
 	}
 	catch(const std::exception&)
 	{
-		throw Ex("Error creating file: ", szFilename);
+		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
 	}
 	writeJson(os);
 }

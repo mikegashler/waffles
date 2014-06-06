@@ -41,6 +41,7 @@
 #include <sstream>
 #include <cmath>
 #include <set>
+#include <errno.h>
 
 using std::vector;
 using std::string;
@@ -280,7 +281,7 @@ void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precis
 	}
 	catch(const std::exception&)
 	{
-		throw Ex("Error creating file: ", szFilename);
+		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
 	}
 	print(stream, pData, precision);
 }

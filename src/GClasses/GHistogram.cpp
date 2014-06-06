@@ -21,6 +21,8 @@
 #include "GError.h"
 #include <math.h>
 #include <fstream>
+#include <errno.h>
+#include <string.h>
 #include "GVec.h"
 
 using namespace GClasses;
@@ -126,7 +128,7 @@ void GHistogram::toFile(const char* filename)
 	}
 	catch(const std::exception&)
 	{
-		throw Ex("Error creating file: ", filename);
+		throw Ex("Error while trying to create the file, ", filename, ". ", strerror(errno));
 	}
 	os.precision(5);
 	for(size_t i = 0; i < m_binCount; i++)

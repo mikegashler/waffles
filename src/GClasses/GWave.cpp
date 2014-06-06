@@ -21,6 +21,7 @@
 #include "GError.h"
 #include "GMath.h"
 #include <fstream>
+#include <errno.h>
 #include "math.h"
 #include "GFourier.h"
 
@@ -92,7 +93,7 @@ void GWave::load(const char* szFilename)
 	}
 	catch(const std::exception&)
 	{
-		throw Ex("Failed to open file: ", szFilename);
+		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
 	}
 	struct WaveHeader waveHeader;
 	s.read((char*)&waveHeader, sizeof(struct WaveHeader));
@@ -149,7 +150,7 @@ void GWave::save(const char* szFilename)
 	}
 	catch(const std::exception&)
 	{
-		throw Ex("Error creating file: ", szFilename);
+		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
 	}
 	os.write((const char*)&waveHeader, sizeof(struct WaveHeader));
 	os.write((const char*)m_pData, size);

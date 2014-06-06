@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fstream>
+#include <errno.h>
 #ifdef WINDOWS
 	#include <io.h>
 #else
@@ -88,14 +89,7 @@ GTokenizer::GTokenizer(const char* szFilename)
 	}
 	catch(const std::exception&)
 	{
-#ifdef WINDOWS
-		if (_access(szFilename, 0) == 0)
-#else
-		if (access(szFilename, 0) == 0)
-#endif
-			throw Ex("Error while trying to open the existing file: ", szFilename);
-		else
-			throw Ex("File not found: ", szFilename);
+		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
 	}
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
