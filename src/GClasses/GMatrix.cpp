@@ -1399,8 +1399,6 @@ void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool colum
 					break;
 				nPos++;
 			}
-			if(nPos >= len || pFile[nPos] == '\n')
-				break;
 
 			// Extract the element
 			size_t i, l;
@@ -1445,6 +1443,8 @@ void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool colum
 			if(row.m_elements.size() > elementCount)
 				break;
 			nPos += i;
+			if(nPos >= len || pFile[nPos] == '\n')
+				break;
 			if(separator != '\0' && pFile[nPos] == separator)
 				nPos++;
 		}

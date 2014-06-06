@@ -1356,7 +1356,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 					if(pass != 1)
 						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
 					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
-					if(pass != 1 && pass != -1)
+					if(pass != 1)
 					{
 						// Update inputs
 						if(pass == 0)
@@ -1900,10 +1900,10 @@ void GContentBasedFilter::train(GMatrix& data)
         m_items = items;
 	m_users = users;
 	std::set<size_t> userSet;
-	
+
 
 	if(m_itemAttrs == NULL)
-		throw Ex("The items attributes has to be set");	
+		throw Ex("The items attributes has to be set");
 
 	//create a training set and learning algorithm for each user
 	for(size_t i = 0; i < data.rows(); i++)
