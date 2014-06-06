@@ -108,6 +108,13 @@ protected:
 public:
 	/// General-purpose constructor.
 	GTransducer();
+
+	/// Copy-constructor. Throws an exception to prevent models from being copied by value.
+	GTransducer(const GTransducer& that) : m_rand(0)
+	{
+		throw Ex("This object is not intended to be copied by value");
+	}
+
 	virtual ~GTransducer();
 #ifndef MIN_PREDICT
 

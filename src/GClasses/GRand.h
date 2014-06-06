@@ -103,6 +103,9 @@ public:
 	///        random number generator
 	GRand(uint64_t seed);
 
+	/// Copy constructor. Throws an exception to prevent copying this object by value.
+	GRand(const GRand& that);
+
 	/// Destructor
 	virtual ~GRand();
 

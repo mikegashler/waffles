@@ -647,27 +647,6 @@ public:
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
 	void parseArff(GArffTokenizer& tok);
-
-	/// \brief Loads a file in CSV format.
-	void loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow = false, std::vector<size_t>* pOutAmbiguousColumns = NULL, bool tolerant = false);
-
-	///\brief Imports data from a text file. Determines the meta-data
-	///automatically.
-	///
-	/// If pAmbiguousColumns is non-NULL, then it will be filled with a
-	/// list of the column indexes where the type was determined to be
-	/// continuous, but that column has fewer than 10 unique values,
-	/// suggesting that a nominal attribute could possibly have been intended.
-	///
-	///\note This method does not support Mac line-endings. You should
-	///      first replace all '\\r' with '\\n' if your data comes from
-	///      a Mac. As a special case, if separator is '\\0', then it
-	///      assumes data elements are separated by any number of
-	///      whitespace characters, that element values themselves
-	///      contain no whitespace, and that there are no missing
-	///      elements. (This is the case when you save a Matlab matrix
-	///      to an ascii file.)
-	void parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow = false, std::vector<size_t>* pOutAmbiguousColumns = NULL, bool tolerant = false);
 #endif // MIN_PREDICT
 
 
@@ -1243,6 +1222,51 @@ protected:
 	double determinantHelper(size_t nEndRow, size_t* pColumnList);
 	void inPlaceSquareTranspose();
 	void singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, GMatrix** ppV, bool throwIfNoConverge, size_t maxIters);
+};
+
+
+
+/// A class for parsing CSV files (or tab-separated files, or whitespace separated files, etc.).
+/// (This class does not support Mac line endings, so you should replace all '\r' with '\n' before using this class if your
+/// data comes from a Mac.)
+class GCSVParser
+{
+protected:
+	char m_separator;
+	bool m_columnNamesInFirstRow;
+	bool m_tolerant;
+	size_t m_clearlyNumericalThreshold;
+	size_t m_maxVals;
+	std::vector<std::string> m_report;
+
+public:
+	GCSVParser();
+	~GCSVParser();
+
+	/// Specify the separating character. '\0' indicates that an arbitrary amount of whitespace is used for separation.
+	void setSeparator(char c) { m_separator = c; }
+	
+	/// Indicate that the first row specifies column names
+	void columnNamesInFirstRow() { m_columnNamesInFirstRow = true; }
+
+	/// Specify to ignore inconsistencies in the number of values in each row. (Using this is very dangerous.)
+	void tolerant() { m_tolerant = true; }
+
+	/// Specify the number of unique numerical values before a column is deemed to be clearly numerical.
+	void setClearlyNumericalThreshold(size_t n) { m_clearlyNumericalThreshold = n; }
+
+	/// Specify the maximum number of values to allow in a categorical attribute. The parsing of any columns that
+	/// contain non-numerical values, and contain more than this number of unique values, will be aborted.
+	void setMaxVals(size_t n) { m_maxVals = n; }
+
+	/// Load the specified file, and parse it.
+	void parse(GMatrix& outMatrix, const char* szFilename);
+
+	/// Parse the given string.
+	void parse(GMatrix& outMatrix, const char* pString, size_t len);
+
+	/// Return a string that reports the status of the specified column. (This should only be called after parsing.)
+	std::string& report(size_t column) { return m_report[column]; }
 };
 
 

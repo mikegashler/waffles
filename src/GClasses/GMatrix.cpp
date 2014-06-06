@@ -1267,20 +1267,10 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 	}
 }
 
-// static
 void GMatrix::loadArff(const char* szFilename)
 {
 	GArffTokenizer tok(szFilename);
 	parseArff(tok);
-}
-
-// static
-void GMatrix::loadCsv(const char* szFilename, char separator, bool columnNamesInFirstRow, std::vector<size_t>* pOutAmbiguousCols, bool tolerant)
-{
-	size_t nLen;
-	char* szFile = GFile::loadFile(szFilename, &nLen);
-	ArrayHolder<char> hFile(szFile);
-	parseCsv(szFile, nLen, separator, columnNamesInFirstRow, pOutAmbiguousCols, tolerant);
 }
 
 void GMatrix::saveArff(const char* szFilename)
@@ -1309,272 +1299,6 @@ size_t GMatrix::countUniqueValues(size_t col, size_t maxCount) const
 		}
 	}
 	return unique;
-}
-
-
-class ImportRow
-{
-public:
-	vector<const char*> m_elements;
-};
-
-// static
-void GMatrix::parseCsv(const char* pFile, size_t len, char separator, bool columnNamesInFirstRow, std::vector<size_t>* pOutAmbiguousCols, bool tolerant)
-{
-	// Extract the elements
-	GHeap heap(2048);
-	vector<ImportRow> rows;
-	size_t elementCount = INVALID_INDEX;
-	size_t nFirstDataLine = 1;
-	size_t nLine = 1;
-	size_t nPos = 0;
-	while(true)
-	{
-		// Skip Whitespace
-		while(nPos < len && pFile[nPos] <= ' ' && pFile[nPos] != separator)
-		{
-			if(pFile[nPos] == '\n')
-				nLine++;
-			nPos++;
-		}
-		if(nPos >= len)
-			break;
-
-		// Count the elements
-		if(elementCount == INVALID_INDEX && (!columnNamesInFirstRow || nLine > 1))
-		{
-			if(separator == '\0')
-			{
-				// Elements are separated by an arbitrary amount of whitespace, element values contain no whitespace, and there are no missing elements
-				size_t i = nPos;
-				elementCount = 0;
-				while(true)
-				{
-					elementCount++;
-					while(i < len && pFile[i] > ' ')
-						i++;
-					while(i < len && pFile[i] <= ' ' && pFile[i] != '\n')
-						i++;
-					if(pFile[i] == '\n')
-						break;
-				}
-			}
-			else
-			{
-				// Elements are separated by the specified character
-				nFirstDataLine = nLine;
-				elementCount = 1;
-				bool quo = false;
-				bool quoquo = false;
-				for(size_t i = 0; pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
-				{
-					if(quoquo)
-					{
-						if(pFile[nPos + i] == '"')
-							quoquo = false;
-					}
-					else if(quo)
-					{
-						if(pFile[nPos + i] == '\'')
-							quo = false;
-					}
-					else if(pFile[nPos + i] == '"')
-						quoquo = true;
-					else if(pFile[nPos + i] == '\'')
-						quo = true;
-					else if(pFile[nPos + i] == separator)
-						elementCount++;
-				}
-			}
-		}
-
-		// Extract the elements from the row
-		rows.resize(rows.size() + 1);
-		ImportRow& row = rows[rows.size() - 1];
-		while(true)
-		{
-			// Skip Whitespace
-			while(nPos < len && pFile[nPos] <= ' ' && pFile[nPos] != separator)
-			{
-				if(pFile[nPos] == '\n')
-					break;
-				nPos++;
-			}
-
-			// Extract the element
-			size_t i, l;
-			if(separator == '\0')
-			{
-				for(l = 0; pFile[nPos + l] > ' '; l++)
-				{
-				}
-				for(i = l; pFile[nPos + i] <= ' ' && pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
-				{
-				}
-			}
-			else
-			{
-				bool quo = false;
-				bool quoquo = false;
-				for(i = 0; pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
-				{
-					if(quoquo)
-					{
-						if(pFile[nPos + i] == '"')
-							quoquo = false;
-					}
-					else if(quo)
-					{
-						if(pFile[nPos + i] == '\'')
-							quo = false;
-					}
-					else if(pFile[nPos + i] == '"')
-						quoquo = true;
-					else if(pFile[nPos + i] == '\'')
-						quo = true;
-					else if(pFile[nPos + i] == separator)
-						break;
-				}
-				for(l = i; l > 0 && pFile[nPos + l - 1] <= ' '; l--)
-				{
-				}
-			}
-			char* el = heap.add(pFile + nPos, l);
-			row.m_elements.push_back(el);
-			if(row.m_elements.size() > elementCount)
-				break;
-			nPos += i;
-			if(nPos >= len || pFile[nPos] == '\n')
-				break;
-			if(separator != '\0' && pFile[nPos] == separator)
-				nPos++;
-		}
-		if(tolerant)
-		{
-			if(!columnNamesInFirstRow || nLine > 1)
-			{
-				while(row.m_elements.size() < elementCount)
-					row.m_elements.push_back("?");
-			}
-		}
-		else
-		{
-			if(row.m_elements.size() != (size_t)elementCount && elementCount != INVALID_INDEX)
-				throw Ex("Line ", to_str(nLine), " has a different number of elements than line ", to_str(nFirstDataLine));
-		}
-
-		// Move to next line
-		for(; nPos < len && pFile[nPos] != '\n'; nPos++)
-		{
-		}
-		continue;
-	}
-	if(columnNamesInFirstRow && tolerant)
-	{
-		ImportRow& row = rows[0];
-		while(row.m_elements.size() < elementCount)
-			row.m_elements.push_back("attr");
-	}
-
-	// Parse it all
-	flush();
-	GArffRelation* pRelation = new GArffRelation();
-	setRelation(pRelation);
-	size_t rowCount = rows.size();
-	if(columnNamesInFirstRow)
-		rowCount--;
-	reserve(rowCount);
-	for(size_t i = 0; i < rowCount; i++)
-		m_rows.push_back(new double[elementCount]);
-	for(size_t attr = 0; attr < elementCount; attr++)
-	{
-		// Determine if the attribute can be real
-		bool real = true;
-		for(size_t pat = columnNamesInFirstRow ? 1 : 0; pat < rows.size(); pat++)
-		{
-			const char* el = rows[pat].m_elements[attr];
-			if(el[0] == '\0')
-				continue; // unknown value
-			if(strcmp(el, "?") == 0)
-				continue; // unknown value
-			if(GBits::isValidFloat(el, strlen(el)))
-				continue;
-			real = false;
-			break;
-		}
-
-		// Make the attribute
-		if(real)
-		{
-			if(columnNamesInFirstRow)
-				pRelation->addAttribute(rows[0].m_elements[attr], 0, NULL);
-			else
-			{
-				string attrName = "attr";
-				attrName += to_str(attr);
-				pRelation->addAttribute(attrName.c_str(), 0, NULL);
-			}
-			size_t i = 0;
-			for(size_t pat = columnNamesInFirstRow ? 1 : 0; pat < rows.size(); pat++)
-			{
-				const char* el = rows[pat].m_elements[attr];
-				double val;
-				if(el[0] == '\0')
-					val = UNKNOWN_REAL_VALUE;
-				else if(strcmp(el, "?") == 0)
-					val = UNKNOWN_REAL_VALUE;
-				else
-					val = atof(el);
-				row(i)[attr] = val;
-				i++;
-			}
-
-			// If this column type was ambiguous, then tell the caller
-			if(pOutAmbiguousCols && countUniqueValues(attr, 10) < 10)
-				pOutAmbiguousCols->push_back(attr);
-		}
-		else
-		{
-			// Make the data
-			vector<const char*> values;
-			GConstStringHashTable ht(31, true);
-			void* pVal;
-			uintptr_t n;
-			size_t i = 0;
-			size_t valueCount = 0;
-			for(size_t pat = columnNamesInFirstRow ? 1 : 0; pat < rows.size(); pat++)
-			{
-				const char* el = rows[pat].m_elements[attr];
-				if(el[0] == '\0')
-					row(i)[attr] = UNKNOWN_DISCRETE_VALUE;
-				else if(strcmp(el, "?") == 0)
-					row(i)[attr] = UNKNOWN_DISCRETE_VALUE;
-				else
-				{
-					if(ht.get(el, &pVal))
-						n = (uintptr_t)pVal;
-					else
-					{
-						values.push_back(el);
-						n = valueCount++;
-						ht.add(el, (const void*)n);
-					}
-					row(i)[attr] = (double)n;
-				}
-				i++;
-			}
-
-			// Make the attribute
-			if(columnNamesInFirstRow)
-				pRelation->addAttribute(rows[0].m_elements[attr], valueCount, &values);
-			else
-			{
-				string attrName = "attr";
-				attrName += to_str(attr);
-				pRelation->addAttribute(attrName.c_str(), valueCount, &values);
-			}
-		}
-	}
 }
 
 GDomNode* GMatrix::serialize(GDom* pDoc) const
@@ -5015,6 +4739,354 @@ GDataColSplitter::~GDataColSplitter()
 {
 	delete(m_pFeatures);
 	delete(m_pLabels);
+}
+
+
+
+
+
+
+
+
+
+
+GCSVParser::GCSVParser()
+: m_separator(','),
+m_columnNamesInFirstRow(false),
+m_tolerant(false),
+m_clearlyNumericalThreshold(10),
+m_maxVals(200)
+{
+
+}
+
+GCSVParser::~GCSVParser()
+{
+}
+
+class ImportRow
+{
+public:
+	vector<const char*> m_elements;
+};
+
+void GCSVParser::parse(GMatrix& outMatrix, const char* szFilename)
+{
+	size_t nLen;
+	char* szFile = GFile::loadFile(szFilename, &nLen);
+	ArrayHolder<char> hFile(szFile);
+	parse(outMatrix, szFile, nLen);
+}
+
+void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
+{
+	// Extract the elements
+	GHeap heap(2048);
+	vector<ImportRow> rows;
+	size_t columnCount = INVALID_INDEX;
+	size_t nFirstDataLine = 1;
+	size_t nLine = 1;
+	size_t nPos = 0;
+	while(true)
+	{
+		// Skip Whitespace
+		while(nPos < len && pFile[nPos] <= ' ' && pFile[nPos] != m_separator)
+		{
+			if(pFile[nPos] == '\n')
+				nLine++;
+			nPos++;
+		}
+		if(nPos >= len)
+			break;
+
+		// Count the elements
+		if(columnCount == INVALID_INDEX && (!m_columnNamesInFirstRow || nLine > 1))
+		{
+			if(m_separator == '\0')
+			{
+				// Elements are separated by an arbitrary amount of whitespace, element values contain no whitespace, and there are no missing elements
+				size_t i = nPos;
+				columnCount = 0;
+				while(true)
+				{
+					columnCount++;
+					while(i < len && pFile[i] > ' ')
+						i++;
+					while(i < len && pFile[i] <= ' ' && pFile[i] != '\n')
+						i++;
+					if(pFile[i] == '\n')
+						break;
+				}
+			}
+			else
+			{
+				// Elements are separated by the specified character
+				nFirstDataLine = nLine;
+				columnCount = 1;
+				bool quo = false;
+				bool quoquo = false;
+				for(size_t i = 0; pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
+				{
+					if(quoquo)
+					{
+						if(pFile[nPos + i] == '"')
+							quoquo = false;
+					}
+					else if(quo)
+					{
+						if(pFile[nPos + i] == '\'')
+							quo = false;
+					}
+					else if(pFile[nPos + i] == '"')
+						quoquo = true;
+					else if(pFile[nPos + i] == '\'')
+						quo = true;
+					else if(pFile[nPos + i] == m_separator)
+						columnCount++;
+				}
+			}
+		}
+
+		// Extract the elements from the row
+		rows.resize(rows.size() + 1);
+		ImportRow& row = rows[rows.size() - 1];
+		while(true)
+		{
+			// Skip Whitespace
+			while(nPos < len && pFile[nPos] <= ' ' && pFile[nPos] != m_separator)
+			{
+				if(pFile[nPos] == '\n')
+					break;
+				nPos++;
+			}
+
+			// Extract the element
+			size_t i, l;
+			if(m_separator == '\0')
+			{
+				for(l = 0; pFile[nPos + l] > ' '; l++)
+				{
+				}
+				for(i = l; pFile[nPos + i] <= ' ' && pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
+				{
+				}
+			}
+			else
+			{
+				bool quo = false;
+				bool quoquo = false;
+				for(i = 0; pFile[nPos + i] != '\n' && pFile[nPos + i] != '\0'; i++)
+				{
+					if(quoquo)
+					{
+						if(pFile[nPos + i] == '"')
+							quoquo = false;
+					}
+					else if(quo)
+					{
+						if(pFile[nPos + i] == '\'')
+							quo = false;
+					}
+					else if(pFile[nPos + i] == '"')
+						quoquo = true;
+					else if(pFile[nPos + i] == '\'')
+						quo = true;
+					else if(pFile[nPos + i] == m_separator)
+						break;
+				}
+				if(quo)
+					throw Ex("Line ", to_str(nLine), " contains an unmatched apostrophe.");
+				if(quoquo)
+					throw Ex("Line ", to_str(nLine), " contains unmatched quotation marks.");
+				for(l = i; l > 0 && pFile[nPos + l - 1] <= ' '; l--)
+				{
+				}
+			}
+			char* el = heap.add(pFile + nPos, l);
+			row.m_elements.push_back(el);
+			if(row.m_elements.size() > columnCount)
+				break;
+			nPos += i;
+			if(nPos >= len || pFile[nPos] == '\n')
+				break;
+			if(m_separator != '\0' && pFile[nPos] == m_separator)
+				nPos++;
+		}
+		if(m_tolerant)
+		{
+			if(!m_columnNamesInFirstRow || nLine > 1)
+			{
+				while(row.m_elements.size() < columnCount)
+					row.m_elements.push_back("?");
+			}
+		}
+		else
+		{
+			if(row.m_elements.size() != (size_t)columnCount && columnCount != INVALID_INDEX)
+				throw Ex("Line ", to_str(nLine), " has a different number of elements than line ", to_str(nFirstDataLine));
+		}
+
+		// Move to next line
+		for(; nPos < len && pFile[nPos] != '\n'; nPos++)
+		{
+		}
+		continue;
+	}
+	if(m_columnNamesInFirstRow && m_tolerant)
+	{
+		ImportRow& row = rows[0];
+		while(row.m_elements.size() < columnCount)
+			row.m_elements.push_back("attr");
+	}
+
+	// Parse it all
+	size_t rowCount = rows.size();
+	outMatrix.flush();
+	GArffRelation* pRelation = new GArffRelation();
+	outMatrix.setRelation(pRelation);
+	for(size_t i = 0; i < rowCount; i++)
+		outMatrix.takeRow(new double[columnCount]);
+	m_report.resize(columnCount);
+	if(m_columnNamesInFirstRow)
+		rowCount--;
+	for(size_t attr = 0; attr < columnCount; attr++)
+	{
+		// Determine if the attribute can be real
+		bool real = true;
+		string firstNonNumericalValue;
+		for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
+		{
+			const char* el = rows[rowNum].m_elements[attr];
+			if(el[0] == '\0')
+				continue; // unknown value
+			if(strcmp(el, "?") == 0)
+				continue; // unknown value
+			if(GBits::isValidFloat(el, strlen(el)))
+				continue;
+			firstNonNumericalValue = el;
+			real = false;
+			break;
+		}
+
+		// Make the attribute
+		if(real)
+		{
+			if(m_columnNamesInFirstRow)
+				pRelation->addAttribute(rows[0].m_elements[attr], 0, NULL);
+			else
+			{
+				string attrName = "attr";
+				attrName += to_str(attr);
+				pRelation->addAttribute(attrName.c_str(), 0, NULL);
+			}
+			size_t i = 0;
+			for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
+			{
+				const char* el = rows[rowNum].m_elements[attr];
+				double val;
+				if(el[0] == '\0')
+					val = UNKNOWN_REAL_VALUE;
+				else if(strcmp(el, "?") == 0)
+					val = UNKNOWN_REAL_VALUE;
+				else
+					val = atof(el);
+				outMatrix[i][attr] = val;
+				i++;
+			}
+
+			// Report this column
+			if(m_columnNamesInFirstRow)
+			{
+				m_report[attr] = rows[0].m_elements[attr];
+				m_report[attr] += ": ";
+			}
+			else
+				m_report[attr] = "";
+			size_t uniqueVals = outMatrix.countUniqueValues(attr, m_clearlyNumericalThreshold);
+			if(uniqueVals < m_clearlyNumericalThreshold)
+			{
+				m_report[attr] += "Ambiguous type. All values in this column are numerical, but there are only ";
+				m_report[attr] += to_str(uniqueVals);
+				m_report[attr] += " unique values. Assuming a numerical attribute was intended.";
+			}
+			else
+				m_report[attr] = "Clearly numerical.";
+		}
+		else
+		{
+			// Make the data
+			vector<const char*> values;
+			GConstStringHashTable ht(31, true);
+			void* pVal;
+			uintptr_t n;
+			size_t i = 0;
+			size_t valueCount = 0;
+			for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
+			{
+				const char* el = rows[rowNum].m_elements[attr];
+				if(el[0] == '\0')
+					outMatrix[i][attr] = UNKNOWN_DISCRETE_VALUE;
+				else if(strcmp(el, "?") == 0)
+					outMatrix[i][attr] = UNKNOWN_DISCRETE_VALUE;
+				else
+				{
+					if(valueCount <= m_maxVals)
+					{
+						if(ht.get(el, &pVal))
+							n = (uintptr_t)pVal;
+						else
+						{
+							values.push_back(el);
+							n = valueCount++;
+							ht.add(el, (const void*)n);
+						}
+						outMatrix[i][attr] = (double)n;
+					}
+					else
+						outMatrix[i][attr] = 0;
+				}
+				i++;
+			}
+
+			// Make the attribute
+			if(m_columnNamesInFirstRow)
+			{
+				m_report[attr] = rows[0].m_elements[attr];
+				m_report[attr] += ": ";
+			}
+			else
+				m_report[attr] = "";
+			if(valueCount <= m_maxVals)
+				m_report[attr] += "Clearly categorical.";
+			else
+			{
+				m_report[attr] += "Problematic column!!! Contains non-numerical values, such as \"";
+				m_report[attr] += firstNonNumericalValue;
+				m_report[attr] += "\", but contains more than ";
+				m_report[attr] += to_str(m_maxVals);
+				m_report[attr] += " unique values. Parsing of this column was aborted!!!";
+			}
+			if(m_columnNamesInFirstRow)
+			{
+				if(valueCount > m_maxVals)
+				{
+					string s = rows[0].m_elements[attr];
+					s += "_aborted_due_to_too_many_vals";
+					pRelation->addAttribute(s.c_str(), valueCount, &values);
+				}
+				else
+					pRelation->addAttribute(rows[0].m_elements[attr], valueCount, &values);
+			}
+			else
+			{
+				string attrName = "attr";
+				attrName += to_str(attr);
+				if(valueCount > m_maxVals)
+					attrName += "_aborted_due_to_too_many_vals";
+				pRelation->addAttribute(attrName.c_str(), valueCount, &values);
+			}
+		}
+	}
 }
 
 

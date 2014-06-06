@@ -52,6 +52,11 @@ public:
 		m_nCurrentPos = nMinBlockSize;
 	}
 
+	GHeap(const GHeap& that)
+	{
+		throw Ex("This object is not intended to be copied by value");
+	}
+
 	virtual ~GHeap();
 
 	/// Deletes all the blocks and frees up memory

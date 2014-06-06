@@ -70,33 +70,27 @@ void loadData(GMatrix& data, const char* szFilename)
 	// Load the dataset by extension
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
-	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		data.loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		data.loadCsv(szFilename, ',', false, &ambiguousCols, false);
+	{
+		GCSVParser parser;
+		parser.parse(data, szFilename);
+		cerr << "\nParsing Report:\n";
+		for(size_t i = 0; i < data.cols(); i++)
+			cerr << to_str(i) << ") " << parser.report(i) << "\n";
+	}
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		data.loadCsv(szFilename, '\0', false, &ambiguousCols, false);
+	{
+		GCSVParser parser;
+		parser.setSeparator('\0');
+		parser.parse(data, szFilename);
+		cerr << "\nParsing Report:\n";
+		for(size_t i = 0; i < data.cols(); i++)
+			cerr << to_str(i) << ") " << parser.report(i) << "\n";
+	}
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	if(ambiguousCols.size() > 0)
-	{
-		cerr << "WARNING: column";
-		if(ambiguousCols.size() > 1)
-			cerr << "s";
-		cerr << " ";
-		for(size_t i = 0; i < ambiguousCols.size(); i++)
-		{
-			if(i > 0)
-			{
-				cerr << ", ";
-				if(i + 1 == ambiguousCols.size())
-					cerr << "and ";
-			}
-			cerr << to_str(ambiguousCols);
-		}
-		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
-	}
 }
 
 GTransducer* InstantiateAlgorithm(GArgReader& args);

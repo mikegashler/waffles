@@ -157,33 +157,27 @@ GMatrix* loadData(const char* szFilename)
 	GFile::parsePath(szFilename, &pd);
 	GMatrix* pData = new GMatrix();
 	Holder<GMatrix> hData(pData);
-	vector<size_t> ambiguousCols;
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData->loadCsv(szFilename, ',', false, &ambiguousCols, false);
+	{
+		GCSVParser parser;
+		parser.parse(*pData, szFilename);
+		cerr << "\nParsing Report:\n";
+		for(size_t i = 0; i < pData->cols(); i++)
+			cerr << to_str(i) << ") " << parser.report(i) << "\n";
+	}
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData->loadCsv(szFilename, '\0', false, &ambiguousCols, false);
+	{
+		GCSVParser parser;
+		parser.setSeparator('\0');
+		parser.parse(*pData, szFilename);
+		cerr << "\nParsing Report:\n";
+		for(size_t i = 0; i < pData->cols(); i++)
+			cerr << to_str(i) << ") " << parser.report(i) << "\n";
+	}
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
-	if(ambiguousCols.size() > 0)
-	{
-		cerr << "WARNING: column";
-		if(ambiguousCols.size() > 1)
-			cerr << "s";
-		cerr << " ";
-		for(size_t i = 0; i < ambiguousCols.size(); i++)
-		{
-			if(i > 0)
-			{
-				cerr << ", ";
-				if(i + 1 == ambiguousCols.size())
-					cerr << "and ";
-			}
-			cerr << to_str(ambiguousCols);
-		}
-		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
-	}
 	return hData.release();
 }
 
@@ -843,6 +837,7 @@ void Import(GArgReader& args)
 	char separator = ',';
 	bool tolerant = false;
 	bool columnNamesInFirstRow = false;
+	size_t maxVals = 200;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-tab"))
@@ -859,33 +854,26 @@ void Import(GArgReader& args)
 			tolerant = true;
 		else if(args.if_pop("-columnnames"))
 			columnNamesInFirstRow = true;
+		else if(args.if_pop("-maxvals"))
+			maxVals = args.pop_uint();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Parse the file
-	vector<size_t> ambiguousCols;
 	GMatrix data;
-	data.parseCsv(pFile, len, separator, columnNamesInFirstRow, &ambiguousCols, tolerant);
+	GCSVParser parser;
+	parser.setSeparator(separator);
+	parser.setMaxVals(maxVals);
+	if(tolerant)
+		parser.tolerant();
+	if(columnNamesInFirstRow)
+		parser.columnNamesInFirstRow();
+	parser.parse(data, filename);
+	cerr << "\nParsing Report:\n";
+	for(size_t i = 0; i < data.cols(); i++)
+		cerr << to_str(i) << ") " << parser.report(i) << "\n";
 	((GArffRelation*)&data.relation())->setName(filename);
-	if(ambiguousCols.size() > 0)
-	{
-		cerr << "WARNING: column";
-		if(ambiguousCols.size() > 1)
-			cerr << "s";
-		cerr << " ";
-		for(size_t i = 0; i < ambiguousCols.size(); i++)
-		{
-			if(i > 0)
-			{
-				cerr << ", ";
-				if(i + 1 == ambiguousCols.size())
-					cerr << "and ";
-			}
-			cerr << to_str(ambiguousCols);
-		}
-		cerr << " could reasonably be interpreted as either continuous or nominal. Assuming continuous was intended.\n";
-	}
 
 	// Print the data
 	data.print(cout);

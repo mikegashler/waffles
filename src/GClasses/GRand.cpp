@@ -109,6 +109,11 @@ GRand::GRand(uint64_t seed)
 	setSeed(seed);
 }
 
+GRand::GRand(const GRand& that)
+{
+	throw Ex("This object is not intended to be copied by value");
+}
+
 GRand::~GRand()
 {
 }
