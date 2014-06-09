@@ -231,10 +231,10 @@ public:
 	virtual bool canGeneralize() { return true; }
 
 	/// Returns a reference to the feature relation (meta-data about the input attributes).
-	const GRelation& relFeatures() { return *m_pRelFeatures; }
+	const GRelation& relFeatures();
 
 	/// Returns a reference to the label relation (meta-data about the output attributes).
-	const GRelation& relLabels() { return *m_pRelLabels; }
+	const GRelation& relLabels();
 
 	/// Returns false
 	virtual bool isFilter() { return false; }
@@ -458,6 +458,18 @@ public:
 	/// has already been trained with a transform that has also already been trained.)
 	void initShellOnly(const GRelation& featureRel, const GRelation& labelRel);
 
+	/// Transform a feature vector to the form for presenting to the inner learner
+	virtual const double* prefilterFeatures(const double* pIn) = 0;
+
+	/// Transform a label vector to the form for presenting to the inner learner
+	virtual const double* prefilterLabels(const double* pIn) = 0;
+
+	/// Transform a feature matrix to the form for presenting to the inner learner
+	GMatrix* prefilterFeatures(const GMatrix& in);
+
+	/// Transform a label matrix to the form for presenting to the inner learner
+	GMatrix* prefilterLabels(const GMatrix& in);
+
 #ifndef MIN_PREDICT
 	/// Throws an exception
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
@@ -472,6 +484,8 @@ protected:
 	bool m_ownTransform;
 
 public:
+using GFilter::prefilterFeatures;
+using GFilter::prefilterLabels;
 	/// This takes ownership of pLearner and pTransform.
 	GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner = true, bool ownTransform = true);
 
@@ -493,6 +507,12 @@ public:
 	/// See the comment for GIncrementalLearner::trainIncremental
 	virtual void trainIncremental(const double* pIn, const double* pOut);
 
+	/// Transform a feature vector to the form for presenting to the inner learner
+	virtual const double* prefilterFeatures(const double* pIn);
+
+	/// Transform a label vector to the form for presenting to the inner learner
+	virtual const double* prefilterLabels(const double* pIn);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
@@ -510,6 +530,8 @@ protected:
 	bool m_ownTransform;
 
 public:
+using GFilter::prefilterFeatures;
+using GFilter::prefilterLabels;
 	/// This takes ownership of pLearner and pTransform.
 	GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner = true, bool ownTransform = true);
 
@@ -531,6 +553,12 @@ public:
 	/// See the comment for GIncrementalLearner::trainIncremental
 	virtual void trainIncremental(const double* pIn, const double* pOut);
 
+	/// Transform a feature vector to the form for presenting to the inner learner
+	virtual const double* prefilterFeatures(const double* pIn);
+
+	/// Transform a label vector to the form for presenting to the inner learner
+	virtual const double* prefilterLabels(const double* pIn);
+
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
@@ -545,6 +573,9 @@ protected:
 class GAutoFilter : public GFilter
 {
 public:
+using GFilter::prefilterFeatures;
+using GFilter::prefilterLabels;
+
 	/// This takes ownership of pLearner.
 	GAutoFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
@@ -569,6 +600,12 @@ public:
 
 	/// See the comment for GIncrementalLearner::trainIncremental
 	virtual void trainIncremental(const double* pIn, const double* pOut);
+
+	/// Transform a feature vector to the form for presenting to the inner learner
+	virtual const double* prefilterFeatures(const double* pIn);
+
+	/// Transform a label vector to the form for presenting to the inner learner
+	virtual const double* prefilterLabels(const double* pIn);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -613,6 +650,12 @@ public:
 
 	/// See the comment for GIncrementalLearner::trainIncremental
 	virtual void trainIncremental(const double* pIn, const double* pOut);
+
+	/// Transform a feature vector to the form for presenting to the inner learner
+	virtual const double* prefilterFeatures(const double* pIn);
+
+	/// Transform a label vector to the form for presenting to the inner learner
+	virtual const double* prefilterLabels(const double* pIn);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

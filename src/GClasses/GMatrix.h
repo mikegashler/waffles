@@ -1238,6 +1238,7 @@ protected:
 	size_t m_clearlyNumericalThreshold;
 	size_t m_maxVals;
 	std::vector<std::string> m_report;
+	std::map<size_t, std::string> m_formats;
 
 public:
 	GCSVParser();
@@ -1245,7 +1246,7 @@ public:
 
 	/// Specify the separating character. '\0' indicates that an arbitrary amount of whitespace is used for separation.
 	void setSeparator(char c) { m_separator = c; }
-	
+
 	/// Indicate that the first row specifies column names
 	void columnNamesInFirstRow() { m_columnNamesInFirstRow = true; }
 
@@ -1258,6 +1259,9 @@ public:
 	/// Specify the maximum number of values to allow in a categorical attribute. The parsing of any columns that
 	/// contain non-numerical values, and contain more than this number of unique values, will be aborted.
 	void setMaxVals(size_t n) { m_maxVals = n; }
+
+	/// Specify that a certain attribute should be expected to be a date or time stamp that follows a given format.
+	void setTimeFormat(size_t attr, const char* szFormat);
 
 	/// Load the specified file, and parse it.
 	void parse(GMatrix& outMatrix, const char* szFilename);
@@ -1331,10 +1335,10 @@ public:
 	~GDataColSplitter();
 
 	/// Returns a reference to the feature matrix
-	const GMatrix& features() { return *m_pFeatures; }
+	GMatrix& features() { return *m_pFeatures; }
 
 	/// Returns a reference to the label matrix
-	const GMatrix& labels() { return *m_pLabels; }
+	GMatrix& labels() { return *m_pLabels; }
 };
 
 

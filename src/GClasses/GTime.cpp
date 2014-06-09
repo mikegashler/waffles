@@ -99,30 +99,80 @@ void GTime_printTwoDigits(std::ostream& os, unsigned int n)
 	(*pS).append(os.str());
 }
 
-/*
-#include <tcl.h>
-
-class GStopWatch
+int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
 {
-protected:
-	struct Tcl_Time m_begin;
-	struct Tcl_Time m_end;
-
-public:
-	void start()
+	for(size_t i = 0; buf[i] != '\0'; i++)
 	{
-		Tcl_GetTime(&m_begin);
+		if(buf[i] < '0' || buf[i] > '9')
+			*pOk = false;
 	}
+	int val = atoi(buf);
+	if(val < min || val > max)
+		*pOk = false;
+	return val;
+}
 
-	double stop()
+/*static*/ bool GTime::fromString(time_t* pOutTime, const char* szData, const char* szFormat)
+{
+	struct tm ts;
+	ts.tm_sec = 0;
+	ts.tm_min = 0;
+	ts.tm_hour = 0;
+	ts.tm_mday = 1;
+	ts.tm_mon = 0;
+	ts.tm_year = 70;
+	ts.tm_wday = 0;
+	ts.tm_yday = 0;
+	ts.tm_isdst = 0;
+	char buf[32];
+	while(szFormat)
 	{
-		Tcl_GetTime(&m_end);
-		double secs = m_end.secs - m_begin.secs;
-		double usecs = m_end.usecs - m_begin.usecs;
-		return secs + 1e-6 * usecs;
+		size_t i;
+		for(i = 0; i < 30; i++)
+		{
+			if(szFormat[i] != szFormat[0])
+				break;
+			if(szData[i] == '\0')
+				return false;
+			buf[i] = szData[i];
+		}
+		buf[i] = '\0';
+		bool ok = true;
+		switch(szFormat[0])
+		{
+			case 'Y':
+				ts.tm_year = GTime_parseVal(buf, 1000, 3000, &ok) - 1900;
+				break;
+			case 'M':
+				ts.tm_mon = GTime_parseVal(buf, 1, 12, &ok) - 1;
+				break;
+			case 'D':
+				ts.tm_mday = GTime_parseVal(buf, 1, 31, &ok);
+				break;
+			case 'h':
+				ts.tm_hour = GTime_parseVal(buf, 0, 23, &ok);
+				break;
+			case 'm':
+				ts.tm_min = GTime_parseVal(buf, 0, 59, &ok);
+				break;
+			case 's':
+				ts.tm_sec = GTime_parseVal(buf, 0, 61, &ok);
+				break;
+			default:
+				for(size_t j = 0; j < i; j++)
+				{
+					if(buf[j] != szFormat[0])
+						return false;
+				}
+				break;
+		}
+		if(!ok)
+			return false;
+		szData += i;
+		szFormat += i;
 	}
-};
-*/
+	return mktime(&ts);
+}
 
 } // namespace GClasses
 

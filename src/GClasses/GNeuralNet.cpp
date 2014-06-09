@@ -179,7 +179,7 @@ void GLayerClassic::resetWeights(GRand& rand)
 {
 	size_t outputCount = outputs();
 	size_t inputCount = inputs();
-	double mag = std::max(0.01, 1.0 / inputCount); // maxing with 0.01 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
+	double mag = std::max(0.03, 1.0 / inputCount); // maxing with 0.03 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
 	for(size_t i = 0; i < inputCount; i++)
 	{
 		double* pW = m_weights[i];
@@ -1132,7 +1132,7 @@ void GLayerRestrictedBoltzmannMachine::resetWeights(GRand& rand)
 {
 	size_t outputCount = outputs();
 	size_t inputCount = inputs();
-	double mag = std::max(0.01, 1.0 / inputCount);
+	double mag = std::max(0.03, 1.0 / inputCount);
 	double* pB = bias();
 	for(size_t i = 0; i < outputCount; i++)
 	{
@@ -1603,7 +1603,7 @@ void GLayerConvolutional1D::resize(size_t inputs, size_t outputs, GRand* pRand, 
 void GLayerConvolutional1D::resetWeights(GRand& rand)
 {
 	size_t kernelSize = m_kernels.cols();
-	double mag = std::max(0.01, 1.0 / kernelSize); // maxing with 0.01 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
+	double mag = std::max(0.03, 1.0 / kernelSize);
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 	{
 		double* pW = m_kernels[i];
@@ -1969,7 +1969,7 @@ void GLayerConvolutional2D::resize(size_t inputs, size_t outputs, GRand* pRand, 
 void GLayerConvolutional2D::resetWeights(GRand& rand)
 {
 	size_t kernelSize = m_kernels.cols();
-	double mag = std::max(0.01, 1.0 / (kernelSize * kernelSize)); // maxing with 0.01 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
+	double mag = std::max(0.03, 1.0 / (kernelSize * kernelSize));
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 	{
 		double* pW = m_kernels[i];
@@ -3199,6 +3199,8 @@ void GNeuralNet::pretrainWithAutoencoders(const GMatrix& features, size_t maxLay
 		tmp.addLayer(&encoder);
 		GLayerClassic* pDecoder = new GLayerClassic(encoder.outputs(), encoder.inputs());
 		tmp.addLayer(pDecoder);
+		tmp.setWindowSize(1);
+		tmp.setImprovementThresh(0.05);
 		tmp.train(*pFeat, *pFeat);
 		tmp.releaseLayer(0);
 		if(i + 1 < maxLayers)
@@ -4140,7 +4142,7 @@ void GReservoirNet::test()
 #ifdef WINDOWS
 	af.basicTest(0.733, 0.801);
 #else
-	af.basicTest(0.733, 0.82);
+	af.basicTest(0.773, 0.801);
 #endif
 }
 #endif // MIN_PREDICT

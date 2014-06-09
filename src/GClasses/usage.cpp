@@ -1627,6 +1627,7 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-separator [char]='#'", "Data elements are separated with the specified character.");
 		pOpts->add("-columnnames", "Use the first row of data for column names.");
 		pOpts->add("-maxvals [n]=200", "Specify the maximum number of unique values in a categorical attribute before parsing of that attribute will be aborted.");
+		pOpts->add("-time [attr] [format]", "Specify that a particular attribute is a date or time stamp in a particular format. Example format: \"YYYY-MM-DD hh:mm:ss\".");
 	}
 	{
 		UsageNode* pEV = pRoot->add("enumeratevalues [dataset] [col]", "Enumerates all of the unique values in the specified column, and replaces each value with its enumeration. (For example, if you have a column that contains the social-security-number of each user, this will change them to numbers from 0 to n-1, where n is the number of unique users.)");

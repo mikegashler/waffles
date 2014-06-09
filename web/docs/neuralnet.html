@@ -289,6 +289,216 @@ shows how such things can be implemented:
 
 
 
+
+<br><br>
+<h3>MNIST</h3>
+
+<p>These days, it has become very popular to test deep neural networks with the <a href="http://uaf46365.ddns.uark.edu/data/mnist/">MNIST dataset</a>.
+So, let's do an example with it. First, some heading code:</p>
+
+<pre class="code">
+#include &lt;exception&gt;
+#include &lt;iostream&gt;
+#include &lt;GClasses/GApp.h&gt;
+#include &lt;GClasses/GError.h&gt;
+#include &lt;GClasses/GNeuralNet.h&gt;
+#include &lt;GClasses/GActivation.h&gt;
+#include &lt;GClasses/GTransform.h&gt;
+#include &lt;GClasses/GHolders.h&gt;
+#include &lt;GClasses/GVec.h&gt;
+#include &lt;GClasses/GTime.h&gt;
+#include &lt;GClasses/GDom.h&gt;
+
+using namespace GClasses;
+using std::cerr;
+using std::cout;
+
+int main(int argc, char *argv[])
+{
+</pre>
+
+<p>Now, let's load the dataset and divide it into features and labels. I am
+also going to scale all the features by 1/256. (Note that manually scaling the features
+in this way is not the same as applying normalizing transform to the features.
+A normalizing transform would compute a unique range for each column, which would
+cause background pixels with little variance to be scaled to fill the full range of values.
+In this case, that would augment the noise in the features. Since all of the pixels have
+meaning with respect to each other, we don't want to mess up those relationships.)</p>
+
+<pre class="code">
+	// Load and prep the training data
+	GRand rand(0);
+	GMatrix train;
+	train.loadArff("mnist/train.arff");
+	GDataColSplitter trainSplit(train, 1);
+	trainSplit.features().multiply(1.0 / 256.0);
+	GMatrix test;
+	test.loadArff("mnist/test.arff");
+	GDataColSplitter testSplit(test, 1);
+	testSplit.features().multiply(1.0 / 256.0);
+</pre>
+
+<p>Now, let's make a neural network. One of my favorite activation functions is
+GActivationBend, so I will use it. This activation function requires a smaller
+learning rate, because its derivative is never close to zero. I will use a regular
+sigmoidal layer in the output layer, however, because that tends to stabilize
+training. Note that this is actually a really small network for this problem.
+We could get much better results with a bigger network, but it is a good practice
+to keep your initial experiments fast and simple, so you can make adjustments
+without paying a heavy cost. Notice how I alternate between big and small
+layers--that is a good trick for keeping the total number of network weights small.</p>
+
+<pre class="code">
+	// Make the networks
+	GNeuralNet nn;
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 40, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 120, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 40, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 120, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	nn.setLearningRate(0.01);
+	GAutoFilter af(&amp;nn, false);
+	af.beginIncrementalLearning(trainSplit.features().relation(), trainSplit.labels().relation());
+	cout &lt;&lt; "Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
+</pre>
+
+<p>Now, let's train it. I don't really do anything fancy here.</p>
+
+<pre class="code">
+	// Train
+	GRandomIndexIterator ii(trainSplit.features().rows(), rand);
+	for(size_t epoch = 0; epoch &lt; 10; epoch++)
+	{
+		// Validate
+		double mis = af.sumSquaredError(testSplit.features(), testSplit.labels());
+		cout &lt;&lt; "Misclassifications: " &lt;&lt; to_str(mis) &lt;&lt; "/" &lt;&lt; to_str(testSplit.labels().rows()) &lt;&lt; "\n";
+
+		// Train
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+			af.trainIncremental(trainSplit.features()[index], trainSplit.labels()[index]);
+	}
+	return 0;
+}
+</pre>
+
+<p>Training takes less than 2 minutes on a modest laptop computer. Here are the results that I get:</p>
+
+<pre class="code">
+Total weights: 47290
+Misclassifications: 8865/10000
+Misclassifications: 807/10000
+Misclassifications: 649/10000
+Misclassifications: 488/10000
+Misclassifications: 512/10000
+Misclassifications: 494/10000
+Misclassifications: 412/10000
+Misclassifications: 360/10000
+Misclassifications: 346/10000
+Misclassifications: 306/10000
+</pre>
+
+<p>Okay, now let's throw some more tricks onto the pile. Instead of going through the GAutoFilter
+class, we will want to fiddle with the neural network directly, so we can access some of its more
+specialized methods. Therefore, we will prefilter the labels, to get them in the right format
+for the neural network (a representation consisting of all continuous values). There is no need
+to prefilter the features in this case, because they are already in a form that neural networks can
+handle. (We could if we wanted to, but it would be a no-op.)</p>
+
+<p>So, let's use a convolutional input layer, and add two types of regularization: Dropout and Max-Norm.
+I will highlight changes from the previous example in red:</p>
+
+<pre class="code">
+#include &lt;exception&gt;
+#include &lt;iostream&gt;
+#include &lt;GClasses/GApp.h&gt;
+#include &lt;GClasses/GError.h&gt;
+#include &lt;GClasses/GNeuralNet.h&gt;
+#include &lt;GClasses/GActivation.h&gt;
+#include &lt;GClasses/GTransform.h&gt;
+#include &lt;GClasses/GHolders.h&gt;
+#include &lt;GClasses/GVec.h&gt;
+#include &lt;GClasses/GTime.h&gt;
+#include &lt;GClasses/GDom.h&gt;
+
+using namespace GClasses;
+using std::cerr;
+using std::cout;
+
+int main(int argc, char *argv[])
+{
+	// Load and prep the training data
+	GRand rand(0);
+	GMatrix train;
+	train.loadArff("mnist/train.arff");
+	GDataColSplitter trainSplit(train, 1);
+	trainSplit.features().multiply(1.0 / 256.0);
+	GMatrix test;
+	test.loadArff("mnist/test.arff");
+	GDataColSplitter testSplit(test, 1);
+	testSplit.features().multiply(1.0 / 256.0);
+
+	// Make the networks
+	GNeuralNet nn;
+	nn.addLayer(new <font color="red">GLayerConvolutional2D(28, 28, 1, 7, 5,</font> new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, <font color="red">60</font>, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 40, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 120, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	nn.setLearningRate(0.01);
+	GAutoFilter af(&amp;nn, false);
+	af.beginIncrementalLearning(trainSplit.features().relation(), trainSplit.labels().relation());
+	cout &lt;&lt; "Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
+	<font color="red">GMatrix* pInnerLabels = af.prefilterLabels(trainSplit.labels());
+	Holder&lt;GMatrix&gt; hInnerLabels(pInnerLabels);</font>
+
+	// Train
+	GRandomIndexIterator ii(trainSplit.features().rows(), rand);
+	for(size_t epoch = 0; epoch &lt; 10; epoch++)
+	{
+		// Validate
+		<font color="red">nn.scaleWeights(1.0 - 0.35, false, 1);</font>
+		double mis = af.sumSquaredError(testSplit.features(), testSplit.labels());
+		<font color="red">nn.scaleWeights(1.0 / (1.0 - 0.35), false, 1);</font>
+		cout &lt;&lt; "Misclassifications: " &lt;&lt; to_str(mis) &lt;&lt; "/" &lt;&lt; to_str(testSplit.labels().rows()) &lt;&lt; "\n";
+
+		// Train
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+		{
+			<font color="red">for(size_t i = 0; i &lt; nn.layerCount(); i++)
+				nn.layer(i).maxNorm(2.0);
+			nn.trainIncrementalWithDropout</font>(trainSplit.features()[index], <font color="red">pInnerLabels-&gt;row(index), 0.35</font>);
+		}
+	}
+	return 0;
+}
+</pre>
+
+<p>And here are some results. Notice they are not actually better. Is that because these tricks are no good? Is it
+because this network has more weights and I didn't train for long enough? (Notice the accuracy is still improving.)
+Is it because those tricks are really designed for larger networks, and this one is still so very small?
+Is it because I didn't tune my hyperparameters at all? I will leave answering such questions as an exercize for
+the reader--I'm just trying to show you how to use my code =).</p>
+
+<pre class="code">
+Total weights: 154080
+Misclassifications: 8968/10000
+Misclassifications: 812/10000
+Misclassifications: 659/10000
+Misclassifications: 551/10000
+Misclassifications: 572/10000
+Misclassifications: 609/10000
+Misclassifications: 503/10000
+Misclassifications: 563/10000
+Misclassifications: 464/10000
+Misclassifications: 414/10000
+</pre>
+
+
+
 <br>
 <a href="bayesnet.html">Previous</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="bugs.html">Next</a>
 

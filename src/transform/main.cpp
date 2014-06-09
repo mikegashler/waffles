@@ -834,6 +834,7 @@ void Import(GArgReader& args)
 	ArrayHolder<char> hFile(pFile);
 
 	// Parse Options
+	GCSVParser parser;
 	char separator = ',';
 	bool tolerant = false;
 	bool columnNamesInFirstRow = false;
@@ -856,13 +857,18 @@ void Import(GArgReader& args)
 			columnNamesInFirstRow = true;
 		else if(args.if_pop("-maxvals"))
 			maxVals = args.pop_uint();
+		else if(args.if_pop("-time"))
+		{
+			size_t attr = args.pop_uint();
+			const char* szFormat = args.pop_string();
+			parser.setTimeFormat(attr, szFormat);
+		}
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Parse the file
 	GMatrix data;
-	GCSVParser parser;
 	parser.setSeparator(separator);
 	parser.setMaxVals(maxVals);
 	if(tolerant)

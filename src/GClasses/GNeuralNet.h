@@ -1317,7 +1317,7 @@ public:
 
 	/// Presents a pattern for training. Applies dropConnect to the weights.
 	/// Note that when training with dropConnect is complete, you should call
-	/// scaleWeights(1.0 - probOfDrop, false, 0) to compensate for the scaling effect
+	/// scaleWeights(1.0 - probOfDrop, false) to compensate for the scaling effect
 	/// dropConnect has on the weights.
 	void trainIncrementalWithDropConnect(const double* pIn, const double* pOut, double probOfDrop);
 

@@ -436,6 +436,20 @@ GSupervisedLearner::~GSupervisedLearner()
 	delete(m_pRelLabels);
 }
 
+const GRelation& GSupervisedLearner::relFeatures()
+{
+	if(!m_pRelFeatures)
+		throw Ex("Training has not begun yet");
+	return *m_pRelFeatures;
+}
+
+const GRelation& GSupervisedLearner::relLabels()
+{
+	if(!m_pRelLabels)
+		throw Ex("Training has not begun yet");
+	return *m_pRelLabels;
+}
+
 #ifndef MIN_PREDICT
 GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
@@ -454,9 +468,7 @@ std::string to_str(const GSupervisedLearner& learner)
 	learner.serialize(&doc);
 	return to_str(doc);
 }
-#endif // MIN_PREDICT
 
-#ifndef MIN_PREDICT
 void GSupervisedLearner::train(const GMatrix& features, const GMatrix& labels)
 {
 	// Check assumptions
@@ -507,7 +519,7 @@ void GSupervisedLearner::confusion(GMatrix& features, GMatrix& labels, std::vect
 double GSupervisedLearner::sumSquaredError(const GMatrix& features, const GMatrix& labels)
 {
 	if(features.rows() != labels.rows())
-		throw Ex("Expected the features and rows to have the same number of rows");
+		throw Ex("Expected the features and labels to have the same number of rows");
 	if(!m_pRelFeatures->isCompatible(features.relation()))
 		throw Ex("Features incompatible with this learner");
 	if(!m_pRelLabels->isCompatible(labels.relation()))
@@ -1097,6 +1109,30 @@ GDomNode* GFilter::domNode(GDom* pDoc, const char* szClassName) const
 	return pNode;
 }
 
+GMatrix* GFilter::prefilterFeatures(const GMatrix& in)
+{
+	GSupervisedLearner* pInnerLearner = m_pLearner;
+	while(pInnerLearner->isFilter())
+		pInnerLearner = ((GFilter*)pInnerLearner)->m_pLearner;
+	GMatrix* pOut = new GMatrix(pInnerLearner->relFeatures().clone());
+	pOut->newRows(in.rows());
+	for(size_t i = 0; i < in.rows(); i++)
+		GVec::copy(pOut->row(i), prefilterFeatures(in[i]), pOut->cols());
+	return pOut;
+}
+
+GMatrix* GFilter::prefilterLabels(const GMatrix& in)
+{
+	GSupervisedLearner* pInnerLearner = m_pLearner;
+	while(pInnerLearner->isFilter())
+		pInnerLearner = ((GFilter*)pInnerLearner)->m_pLearner;
+	GMatrix* pOut = new GMatrix(pInnerLearner->relLabels().clone());
+	pOut->newRows(in.rows());
+	for(size_t i = 0; i < in.rows(); i++)
+		GVec::copy(pOut->row(i), prefilterLabels(in[i]), pOut->cols());
+	return pOut;
+}
+
 #ifndef MIN_PREDICT
 // virtual
 void GFilter::trainSparse(GSparseMatrix& features, GMatrix& labels)
@@ -1174,6 +1210,24 @@ void GFeatureFilter::trainIncremental(const double* pIn, const double* pOut)
 	m_pIncrementalLearner->trainIncremental(m_pTransform->innerBuf(), pOut);
 }
 
+// virtual
+const double* GFeatureFilter::prefilterFeatures(const double* pIn)
+{
+	m_pTransform->transform(pIn, m_pTransform->innerBuf());
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->prefilterFeatures(m_pTransform->innerBuf());
+	else
+		return m_pTransform->innerBuf();
+}
+
+// virtual
+const double* GFeatureFilter::prefilterLabels(const double* pIn)
+{
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->prefilterLabels(pIn);
+	else
+		return pIn;
+}
 
 // ---------------------------------------------------------------
 
@@ -1244,6 +1298,24 @@ void GLabelFilter::trainIncremental(const double* pIn, const double* pOut)
 	m_pIncrementalLearner->trainIncremental(pIn, m_pTransform->innerBuf());
 }
 
+// virtual
+const double* GLabelFilter::prefilterFeatures(const double* pIn)
+{
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->prefilterFeatures(pIn);
+	else
+		return pIn;
+}
+
+// virtual
+const double* GLabelFilter::prefilterLabels(const double* pIn)
+{
+	m_pTransform->transform(pIn, m_pTransform->innerBuf());
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->prefilterLabels(m_pTransform->innerBuf());
+	else
+		return m_pTransform->innerBuf();
+}
 
 // ---------------------------------------------------------------
 
@@ -1446,6 +1518,24 @@ void GAutoFilter::resetFilters(const GRelation& features, const GRelation& label
 		m_pIncrementalLearner = (GIncrementalLearner*)m_pLearner;
 	else
 		m_pIncrementalLearner = NULL;
+}
+
+// virtual
+const double* GAutoFilter::prefilterFeatures(const double* pIn)
+{
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->prefilterFeatures(pIn);
+	else
+		return pIn;
+}
+
+// virtual
+const double* GAutoFilter::prefilterLabels(const double* pIn)
+{
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->prefilterLabels(pIn);
+	else
+		return pIn;
 }
 
 // virtual
@@ -1671,7 +1761,23 @@ void GCalibrator::trainIncremental(const double* pIn, const double* pOut)
 	throw Ex("Sorry, GCalibrator does not support incremental learning");
 }
 
+// virtual
+const double* GCalibrator::prefilterFeatures(const double* pIn)
+{
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->prefilterFeatures(pIn);
+	else
+		return pIn;
+}
 
+// virtual
+const double* GCalibrator::prefilterLabels(const double* pIn)
+{
+	if(m_pLearner->isFilter())
+		return ((GFilter*)m_pLearner)->prefilterLabels(pIn);
+	else
+		return pIn;
+}
 
 // ---------------------------------------------------------------
 

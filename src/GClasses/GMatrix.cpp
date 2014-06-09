@@ -36,6 +36,7 @@
 #include "GLearner.h"
 #include "GRand.h"
 #include "GTokenizer.h"
+#include "GTime.h"
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -4764,6 +4765,11 @@ GCSVParser::~GCSVParser()
 {
 }
 
+void GCSVParser::setTimeFormat(size_t attr, const char* szFormat)
+{
+	m_formats.insert(std::pair<size_t,string>(attr, szFormat));
+}
+
 class ImportRow
 {
 public:
@@ -4951,6 +4957,57 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 		rowCount--;
 	for(size_t attr = 0; attr < columnCount; attr++)
 	{
+		std::map<size_t, string>::iterator itFormat = m_formats.find(attr);
+		if(itFormat != m_formats.end())
+		{
+			const char* szFormat = itFormat->second.c_str();
+			if(m_columnNamesInFirstRow)
+				pRelation->addAttribute(rows[0].m_elements[attr], 0, NULL);
+			else
+			{
+				string attrName = "attr";
+				attrName += to_str(attr);
+				pRelation->addAttribute(attrName.c_str(), 0, NULL);
+			}
+
+			size_t i = 0;
+			size_t errs = 0;
+			string firstErr;
+			for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
+			{
+				const char* el = rows[rowNum].m_elements[attr];
+				time_t t;
+				if(GTime::fromString(&t, el, szFormat))
+					outMatrix[i][attr] = (double)t;
+				else
+				{
+					outMatrix[i][attr] = UNKNOWN_REAL_VALUE;
+					if(errs == 0)
+						firstErr = el;
+					errs++;
+				}
+				i++;
+			}
+
+			if(m_columnNamesInFirstRow)
+			{
+				m_report[attr] = rows[0].m_elements[attr];
+				m_report[attr] += ": ";
+			}
+			else
+				m_report[attr] = "";
+			m_report[attr] += "Formatted. ";
+			m_report[attr] += to_str(errs);
+			m_report[attr] += " errors";
+			if(errs > 0)
+			{
+				m_report[attr] += ", such as \"";
+				m_report[attr] += firstErr;
+				m_report[attr] += "\".";
+			}
+			continue;
+		}
+
 		// Determine if the attribute can be real
 		bool real = true;
 		string firstNonNumericalValue;
