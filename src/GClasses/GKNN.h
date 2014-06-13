@@ -257,10 +257,10 @@ public:
 	/// Clears the internal model
 	virtual void clear();
 
-	/// See the comment for GSupervisedLearner::predictInner
+	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const double* pIn, double* pOut);
 
-	/// See the comment for GSupervisedLearner::predictDistributionInner
+	/// See the comment for GSupervisedLearner::predictDistribution
 	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
 
 protected:

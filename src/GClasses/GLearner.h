@@ -470,6 +470,8 @@ public:
 	/// Transform a label matrix to the form for presenting to the inner learner
 	GMatrix* prefilterLabels(const GMatrix& in);
 
+	/// Returns a pointer to the inner learner
+	GSupervisedLearner* innerLearner() { return m_pLearner; }
 #ifndef MIN_PREDICT
 	/// Throws an exception
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
@@ -498,7 +500,7 @@ using GFilter::prefilterLabels;
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// See the comment for GSupervisedLearner::predictInner
+// 	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const double* pIn, double* pOut);
 
 	/// See the comment for GSupervisedLearner::predictDistributionInner

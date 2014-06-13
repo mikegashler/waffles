@@ -25,25 +25,44 @@
 </pre>
 It will output the following:
 <pre>
-	What is the value of milk?
-	  false -> What is the value of feathers?
-	    false -> What is the value of backbone?
-	      false -> What is the value of airborne?
-	        false -> What is the value of predator?
-	          false -> Is legs &lt; 3?
-	            Yes -> type=invertebrate
-	            No -> type=insect
-	          true -> type=invertebrate
-	        true -> type=insect
-	      true -> What is the value of fins?
-	        false -> What is the value of aquatic?
-	          false -> type=reptile
-	          true -> What is the value of eggs?
-	            false -> type=reptile
-	            true -> type=amphibian
-	        true -> type=fish
-	    true -> type=bird
-	  true -> type=mammal
+|
+milk?
+   |
+   +false->feathers?
+   |   |
+   |   +false->backbone?
+   |   |   |
+   |   |   +false->airborne?
+   |   |   |   |
+   |   |   |   +false->predator?
+   |   |   |   |   |
+   |   |   |   |   +false->Is legs &lt; 3?
+   |   |   |   |   |   |
+   |   |   |   |   |   +Yes->type=invertebrate
+   |   |   |   |   |   |
+   |   |   |   |   |   +No->type=insect
+   |   |   |   |   |
+   |   |   |   |   +true->type=invertebrate
+   |   |   |   |
+   |   |   |   +true->type=insect
+   |   |   |
+   |   |   +true->fins?
+   |   |       |
+   |   |       +false->aquatic?
+   |   |       |   |
+   |   |       |   +false->type=reptile
+   |   |       |   |
+   |   |       |   +true->eggs?
+   |   |       |       |
+   |   |       |       +false->type=reptile
+   |   |       |       |
+   |   |       |       +true->type=amphibian
+   |   |       |
+   |   |       +true->type=fish
+   |   |
+   |   +true->type=bird
+   |
+   +true->type=mammal
 </pre>
 
 <h3>Cross validation</h3>
@@ -52,10 +71,7 @@ It will output the following:
 the predictive accuracy of various models on the iris dataset. We'll do it with
 baseline (which always predicts the most common class), a decision tree,
 an ensemble of 30 decision trees, a 3-NN instance learner, a 5-NN instance learner,
-naive bayes, a perceptron, and a neural network with one hidden layer of 4 nodes.
-(Some other models are available that are not demonstrated here. Some of our models are
-better than others for certain tasks, but all of them can be used for classification
-or regression, and all of them will support nominal and/or continuous values automatically.)</p>
+naive bayes, a perceptron, and a neural network with one hidden layer of 4 nodes.</p>
 
 <pre>
 	waffles_learn crossvalidate -reps 50 -folds 2 iris.arff baseline

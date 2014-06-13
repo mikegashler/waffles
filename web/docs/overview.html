@@ -25,21 +25,8 @@ machine learning toolkits...
 	<li>Our main library has no external dependencies (except for the standard C++ libraries).</li>
 	<li>Waffles does not depend on any platform or virtual machine, so it will not limit your distribution options.</li>
 	<li>Waffles algorithms can automatically tune their own parameters.</li>
-	<li>Waffles <i>just works</i> in more situations:
-		<ul>
-			<li>All of our supervised learners support both classification and regression.</li>
-			<li>All of them implicitly support multi-dimensional labels.</li>
-			<li>Developing learning algorithms for <b><i>Waffles</i></b> is easier because:
-				<ul>
-					<li>It automatically imputes missing values if your algorithm is not robust to missing values.</li>
-					<li>It automatically discretizes data if your algorithm only supports discrete values.</li>
-					<li>It automatically converts nominal values to categorical distributions if your algorithm only supports continuous values.</li>
-					<li>When necessary, Waffles algorithms automatically normalize and denormalize data to fall within the ranges expected by particular algorithms.</li>
-					<li>It automatically converts predicted values back to their original form, so the user can freely operate on arbitrary data with any algorithm.</li>
-				</ul>
-			</li>
-		</ul>
-	</li>
+	<li>All of our learners implicitly support multi-dimensional labels.</li>
+	<li>Our tools automatically filter data types, so you can use any supervised learner for classification or regression, and you don't need to worry about the data types in the input patterns.</li>
 </ul></p>
 
 <br><br><br>

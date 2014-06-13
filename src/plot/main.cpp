@@ -1598,10 +1598,10 @@ void printDecisionTree(GArgReader& args)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	if(_stricmp(doc.root()->field("class")->asString(), "GDecisionTree") != 0)
-		throw Ex("That model is not a decision tree");
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
+	while(pModeler->isFilter())
+		pModeler = ((GFilter*)pModeler)->innerLearner();
 
 	if(args.size() > 0)
 	{
@@ -1630,10 +1630,10 @@ void printRandomForest(GArgReader& args)
 		throw Ex("Model not specified.");
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
-	if(_stricmp(doc.root()->field("class")->asString(), "GRandomForest") != 0)
-		throw Ex("That model is not Random Forest");
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
 	Holder<GSupervisedLearner> hModeler(pModeler);
+	while(pModeler->isFilter())
+		pModeler = ((GFilter*)pModeler)->innerLearner();
 
 	if(args.size() > 0)
 	{

@@ -13,62 +13,74 @@
 
 <h2>Coding With Supervised Learners</h2>
 
-<p>Supervised learning algorithms seem to be the hammer of machine learning (meaning a basic tool useful for a diversity of tasks), so we'll look at those now.</p>
-
-<p>The GSupervisedLearner class is declared in Learner.h. The two most significant methods in this class are:
+<p>The GSupervisedLearner class is declared in Learner.h. All classes that inherit from GSupervisedLearner must implement a method named
 <pre>
 	void train(GMatrix&amp; features, GMatrix&amp; labels);
 </pre>
-and
+and one named
 <pre>
 	void predict(const double* pIn, double* pOut);
 </pre>
-. As you might expect, the train method trains the model, and the predict method makes a prediction.</p>
+. As you might expect, the train method trains the model, and the predict method uses a trained model to make a prediction.</p>
 
-<p>The train method expects two matrices to be passed in as parameters. The first parameter contains the features (or inputs), and the second parameter contains the corresponding labels (or outputs). These two matrices are expected to have the same number of rows.</p>
+<p>The train method expects two matrices to be passed in as parameters. The first parameter contains the features (or input patterns),
+and the second parameter contains the corresponding labels (or target outputs). These two matrices are expected to have the same number of rows.</p>
 
-<p>If your data is stored in one table that contains both features and labels, then you will need to divide it into two separate matrices before you call the train method. Here is an example that will load an ARFF file, and then split it into a feature matrix and a label matrix. In this case, the last 3 columns will be used for the labels:</p>
+<p>If your data is stored in one table that contains both features and labels, then you will need to divide it into two separate matrices before
+you call the train method. Here is an example that will load an ARFF file, swap the first column with the last one, then split it into a feature
+matrix and a label matrix. In this case, the last 2 columns will be used for the label matrix:</p>
+
 <pre>
 	GMatrix data;
 	data.loadArff("mydata.arff");
-	GMatrix* pFeatures = data.cloneSub(0, 0, pData->rows(), pData->cols() - 3);
-	Holder&lt;GMatrix&gt; hFeatures(pFeatures);
-	GMatrix* pLabels = data.cloneSub(0, pData->cols() - 3, pData->rows(), 3);
-	Holder&lt;GMatrix&gt; hLabels(pLabels);
+	data.swapColumns(1, data.cols() - 1);
+	GDataColSplitter splitter(data, 2);
+	GMatrix&amp; features = splitter.features();
+	GMatrix&amp; labels = splitter.labels();
 </pre>
 
-<p>(The GHolder objects are used in this example to delete pFeatures and pLabels when they go out of scope. This is preferable to calling "delete(pFeatures)" and "delete(pLabels)" manually, because the holder will cleans up memory even if you return in the middle of the function, or if an exception is called. To use the GHolder class, you need to #include &lt;GHolders.h&gt;.)</p>
-
-<p>Notice that you are not restricted to having one-dimensional labels. Our supervised learning algorithms can implicitly handle labels of arbitrary dimensionality. This is particularly convenient when you need to predict things like pixel colors (which are generally comprised of 3 channel values), or points in <i>n</i>-dimensional space, or control vectors for systems with several knobs and levers, etc.</p>
-
-<p>All of our supervised learning algorithms will automatically handle classification and/or regression. (Yes, you can even have label vectors that contain a mixture of continuous and categorical values.) How is this possible with algorithms that do not implicitly handle these types? Internally, each model reports its capabilites to the GSupervisedLearner class, and it automatically converts the data into a form that it can handle. For example, if you pass continuous values to GNaiveBayes, it will automatically discretize them, and if you pass nominal values to GNeuralNet, it will automatically represent them with a categorical distribution of real values, and it will also automatically normalize the continuous values to fall within a range that the GNeuralNet model can handle.</p>
+<p>Notice that you are not restricted to having one-dimensional labels. Our supervised learning algorithms can implicitly handle labels
+of arbitrary dimensionality. This is particularly convenient when you need to predict things like pixel colors (which are generally
+comprised of 3 channel values), or points in <i>n</i>-dimensional space, or control vectors for systems with several knobs and levers, etc.</p>
 
 <p>So, training a model is as simple as calling the train method.</p>
 <pre>
 	GDecisionTree model;
-	model.train(*pFeatures, *pLabels);
+	model.train(features, labels);
 </pre>
 or
 <pre>
 	GKNN model;
 	model.setNeighborCount(3);
-	model.train(*pFeatures, *pLabels);
+	model.train(features, labels);
 </pre>
-or
+etc. For a full list of all of our supervised learning algorithms, take a look in the <a href="../apidoc/html/index.html">API docs</a> at
+the class hierarchy. Expand GTransducer to show all the classes that inherit from it.
+Then, expand GSupervisedLearner (which inherits from GTransducer) to show all the classes that inherit from it.
+Also, expand GIncrementalLearner.</p>
+
+<p>To make a prediction using a trained model, just pass one row of features in to the predict method, and the predicted label
+vector will come out. (pOut must point to an array of doubles big enough to hold the label vector.) Example:</p>
 <pre>
-	GNeuralNet model;
-	model.setTopology(16);
-	model.train(*pFeatures, *pLabels);
+	double pOut[2];
+	model.predict(features[10], pOut);
 </pre>
-etc. For a full list of all of our supervised learning algorithms, take a look in the <a href="../apidoc/html/index.html">API docs</a> at the class hierarchy. Expand GTransducer to show all the classes that inherit from it. Then, expand GSupervisedLearner (which inherits from GTransducer) to show all the classes that inherit from it. Also, expand GIncrementalLearner.</p>
 
-<p>To make a prediction using a trained model, just pass one row of features in to the predict method, and the predicted label vector will come out. (pOut must point to an array of doubles big enough to hold the label vector.) Example:</p>
+<p>Note that some learning algorithms may not implicitly support all types of data. This problem can be solved by wrapping
+the learning algorithm in a filter. A filter is a class that converts the data to a suitable type before passing it to
+the learning algorithm. Perhaps, the easiest filter to use is GAutoFilter. Example:</p>
+
 <pre>
-	double pOut[3];
-	model.predict(pFeatures->row(10), pOut);
+	GNaiveBayes model;
+	GAutoFilter af(&amp;model, false);
+	af.train(features, labels); // It is okay if features and/or labels contains continuous values,
+	                            // even though naive Bayes only supports categorical values. The
+	                            // GAutoFilter class will take care of type conversions as needed.
+
+	...
+
+	af.predict(pattern, prediction);
 </pre>
-
-
 
 
 
