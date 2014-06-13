@@ -440,7 +440,7 @@ void GTCPServer::checkForNewConnections()
 	SOCKET s = accept(m_sock, (struct sockaddr*)&sHostAddrIn, &nStructSize);
 	if(s < 0)
 	{
-#ifdef WIN32
+#ifdef WINDOWS
 		if(WSAGetLastError() == WSAEWOULDBLOCK) // no connections are ready to be accepted
 			return;
 #else

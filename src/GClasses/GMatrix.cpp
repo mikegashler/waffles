@@ -1201,7 +1201,7 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 				if(c >= '0' && c <= '9')
 				{
 					const char* szTok = tok.nextUntil(tok.m_valEnder);
-#ifdef WIN32
+#ifdef WINDOWS
 					size_t col = (size_t)_strtoui64(szTok, (char**)NULL, 10);
 #else
 					size_t col = strtoull(szTok, (char**)NULL, 10);

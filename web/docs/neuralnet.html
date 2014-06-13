@@ -227,7 +227,7 @@ activation function for the other 150 units:</p>
 	<li><b>GLayerConvolutional1D</b> - A 1-dimensional convolutional layer.</li>
 	<li><b>GLayerConvolutional2D</b> - A 2-dimensional convolutional layer.</li>
 	<li><b>GLayerSoftMax</b> - A soft-max layer, trained with cross-entropy.</li>
-	<li><b>GLayerCuda</b> - A GPU-optimized classic layer. Requires linking with the GCuda library.</li>
+	<li><b>GLayerClassicCuda</b> - A GPU-optimized classic layer. Requires linking with the GCuda library.</li>
 	<li>(Other layer types are currently under development...)</li>
 </ul>
 
@@ -285,6 +285,70 @@ shows how such things can be implemented:
 		nn.setLearningRate(nn.learningRate() * 0.98);
 	}
 </pre>
+
+
+
+
+
+<br><br>
+<h3>Serialization</h3>
+
+<p>You can write your neural network to a file:</p>
+
+<pre class="code">
+GDom doc;
+doc.setRoot(nn.serialize(&amp;doc));
+doc.saveJson("my_neural_net.json");
+</pre>
+
+<p>Then, you can load it from the file again:</p>
+
+<pre class="code">
+GDom doc;
+doc.loadJson("my_neural_net.json");
+GLearnerLoader ll;
+GNeuralNet* pNN = (GNeuralNet*)ll.loadLearner(doc.root());
+</pre>
+
+
+<br><br>
+<h3>GPU Parallelization</h3>
+
+<p>Suppose you want to train your neural network in parallel on a GPU. For
+class neural network layers, this is done by simply replacing GLayerClassic with GLayerClassicCuda.</p>
+
+<p>For example, if you make your neural network like this,</p>
+
+<pre class="code">
+	GNeuralNet nn;
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 2000));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 5000));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000));
+</pre>
+
+<p>then all you need to do to parallelize it is change these lines to:</p>
+
+<pre class="code">
+	GCudaEngine e;
+	GNeuralNet nn;
+	nn.addLayer(new GLayerClassicCuda(e, FLEXIBLE_SIZE, 2000));
+	nn.addLayer(new GLayerClassicCuda(e, FLEXIBLE_SIZE, 5000));
+	nn.addLayer(new GLayerClassicCuda(e, FLEXIBLE_SIZE, 1000));
+</pre>
+
+<p>The GLayerClassicCuda class is not in the GClasses library. It is in the
+GCuda library. To build this library, go into "src/depends/GCuda" and do
+"sudo make install". (Subfolders of "depends" are not built by default
+because they depend on things that some users may not have installed.)
+Of course, you also need to have an NVIDIA GPGPU, and you have to link to a few
+extra libraries: GCuda, curand, cublas, and cudart. The latter three
+can all be obtained by installing the Cuda SDK. To help you get started,
+there is a demo app in demos/cuda, which shows how this is done.</p>
+
+<p>Currently only classic layers have a GPU-counterpart, but I am working
+on parallelizig the other layer types too. I plan to have all functionality
+available on the GPU ...eventually. (If you would like to help with this
+effort, I would very much appreciate it.)</p>
 
 
 
@@ -496,6 +560,71 @@ Misclassifications: 563/10000
 Misclassifications: 464/10000
 Misclassifications: 414/10000
 </pre>
+
+
+
+
+<br><br>
+<h3>Generative Backpropagation</h3>
+
+<p>Generative backpropagation enables feed-forward neural networks to be used for dimensionality
+reduction, <a href="http://arxiv.org/pdf/1312.5394v1.pdf">imputation</a>, or collaborative filtering.
+Unlike the more traditional supervised training, which requires a given set of inputs and a corresponding set of
+outputs, generative backpropagation requires only a given set of outputs. The corresponding inputs
+are latent. In other words, they are intialized with small random values (just like the weights), and
+they are updated during training (just like the weights).</p>
+
+<p>Let's start with a simple example of using generative backpropagation for dimensionality
+reduction. First, let's generate some data. Here is a shell command to generate points in three
+dimensions on a Swiss-roll manifold:</p>
+
+<pre class="code">
+	waffles_generate swissroll 1000 > swissroll.arff
+</pre>
+
+<p>Now, let's write some code to use generative backpropagation to reduce the dimensionality of this
+data. We start by loading the data and making a neural network:</p>
+
+<pre class="code">
+	GMatrix data;
+	data.loadArff("swissroll.arff");
+	GNeuralNet decoder;
+	decoder.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 24));
+	decoder.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationIdentity()));
+	decoder.beginIncrementalLearning(data.relation(), data.relation());
+	decoder.setLearningRate(0.001);
+</pre>
+
+<p>Using GActivationIdentity in the output layer will enable the network to support any range
+of output values, but it also makes the network very volatile, so we need to use a very small
+learning rate.</p>
+
+<p>Next, we initialize a latent matrix of inputs that correspond with each of the observed
+points. These are the intrinsic variables, or low-dimensional encoding of the data.</p>
+
+<pre class="code">
+	size_t dims = data.cols();
+	GMatrix intrinsics(data.rows(), dims);
+	for(size_t i = 0; i &lt; intrinsics.rows(); i++)
+	{
+		double* pRow = intrinsics[i];
+		for(size_t j = 0; j &lt; dims; j++)
+			*(pRow++) = 0.03 * decoder.rand().normal();
+	}
+</pre>
+
+<p>We will also need one extra layer to facilitate updating the intrinsic vectors.
+In this case, we do not add it to the neural network. We just use it as a stand-alone layer.</p>
+
+<pre class="code">
+	GLayerClassic intrinsicLayer(FLEXIBLE_SIZE, 3, new GActivationIdentity());
+</pre>
+
+<p>Now, we are ready to start training:</p>
+
+
+
+Now for a little secret sauce (well, open sauce, actually). The problem with
 
 
 

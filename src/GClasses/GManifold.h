@@ -562,8 +562,9 @@ public:
 	/// the matrix. (If the neighbor-graph is not connected, it doubles k until it is connected.)
 	/// Next, this method multiplies the matrix by scaleFactor. Finally, it refines the points to
 	/// restore local distances. (It would not typically be efficient to call this in a tight loop,
-	/// because that would perform the neighbor-finding step each time.)
-	static void unfold_iter(GMatrix& intrinsic, GRand& rand, size_t neighborCount = 12, double scaleFactor = 1.01, size_t refinements = 100);
+	/// because that would perform the neighbor-finding step each time.) Returns the number of neighbors
+	/// actually used to find a connected graph.
+	static size_t unfold_iter(GMatrix& intrinsic, GRand& rand, size_t neighborCount = 12, double scaleFactor = 1.01, size_t refinements = 100);
 };
 
 

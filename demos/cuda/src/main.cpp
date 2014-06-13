@@ -78,15 +78,15 @@ void test_GCudaLayer(GCudaEngine& e)
 
 	cout << "Making a parallel neural net...\n";
 	GNeuralNet nn2;
-	nn2.addLayer(new GLayerCuda(e, 3, width));
-	nn2.addLayer(new GLayerCuda(e, width, width));
-	nn2.addLayer(new GLayerCuda(e, width, width));
-	nn2.addLayer(new GLayerCuda(e, width, 3));
+	nn2.addLayer(new GLayerClassicCuda(e, 3, width));
+	nn2.addLayer(new GLayerClassicCuda(e, width, width));
+	nn2.addLayer(new GLayerClassicCuda(e, width, width));
+	nn2.addLayer(new GLayerClassicCuda(e, width, 3));
 	nn2.beginIncrementalLearning(rel, rel);
 
 	cout << "Copying (so they will have identical weights)...\n";
 	for(size_t i = 0; i < nn1.layerCount(); i++)
-		((GLayerCuda*)&nn2.layer(i))->upload(*(GLayerClassic*)&nn1.layer(i));
+		((GLayerClassicCuda*)&nn2.layer(i))->upload(*(GLayerClassic*)&nn1.layer(i));
 
 	cout << "Testing to make sure they make identical predictions (before training)...\n";
 	double vec[3];

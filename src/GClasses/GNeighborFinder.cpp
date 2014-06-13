@@ -1294,6 +1294,8 @@ void GKdTree::test()
 		{
 			if(bfNeighbors[j] != kdNeighbors[j])
 				throw Ex("wrong answer!");
+			if(kdNeighbors[j] != INVALID_INDEX && j > 0 && kdDistances[j] < kdDistances[j - 1])
+				throw Ex("Neighbors out of order");
 		}
 	}
 }

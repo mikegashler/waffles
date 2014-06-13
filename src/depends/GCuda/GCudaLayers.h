@@ -51,7 +51,7 @@ public:
 };
 
 
-class GLayerCuda : public GCudaLayer
+class GLayerClassicCuda : public GCudaLayer
 {
 protected:
 	GCudaMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
@@ -63,8 +63,8 @@ protected:
 
 public:
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
-	GLayerCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
-	virtual ~GLayerCuda();
+	GLayerClassicCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
+	virtual ~GLayerClassicCuda();
 
 	/// Returns the type of this layer
 	virtual const char* type() { return "cuda"; }

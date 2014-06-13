@@ -66,26 +66,32 @@ public:
 	/// Returns true iff the neighbors and distances are pre-computed
 	virtual bool isCached() { return false; }
 
+	/// Returns the k-nearest neighbors of the point specified by index.
+	/// The neighbors are sorted such that the nearest one comes first.
 	/// pOutNeighbors should be an array of size neighborCount.
 	/// index refers to the point/vector whose neighbors you want to obtain.
 	/// The value INVALID_INDEX may be used to fill slots with no point
 	/// if necessary.
 	virtual void neighbors(size_t* pOutNeighbors, size_t index) = 0;
 
+	/// Returns the k-nearest neighbors of the point specified by index.
+	/// The neighbors are sorted such that the nearest one comes first.
 	/// pOutNeighbors and pOutDistances should both be arrays of size neighborCount.
 	/// index refers to the point/vector whose neighbors you want to obtain.
-	/// The neighbors are not necessarily sorted, but you can call GNeighborFinder::sortNeighbors
-	/// if you want them to be sorted.
 	/// If there are not enough points in the data set to fill the
 	/// neighbor array, the empty ones will have an index of INVALID_INDEX.
 	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index) = 0;
 
 	/// Uses Quick Sort to sort the neighbors from least to most
 	/// dissimilar, followed by any slots for with INVALID_INDEX for the index.
+	/// (Note: This method is pointless, since the neighors are already guaranteed to
+	/// come in sorted order. Todo: figure out why it is still here)
 	static void sortNeighbors(size_t neighborCount, size_t* pNeighbors, double* pDistances);
 
 	/// Uses Quick Sort to sort the neighbors from least to most
 	/// dissimilar, followed by any slots for with INVALID_INDEX for the index.
+	/// (Note: This method is pointless, since the neighors are already guaranteed to
+	/// come in sorted order. Todo: figure out why it is still here)
 	void sortNeighbors(size_t* pNeighbors, double* pDistances);
 };
 

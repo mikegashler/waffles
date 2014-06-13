@@ -234,7 +234,7 @@ GDynamicPageSession* GDynamicPageServer::establishSession(const char* szCookie)
 		if(szCookie && *szCookie >= '0' && *szCookie <= '9')
 		{
 			// It's an old session of which we no longer have record
-#ifdef WIN32
+#ifdef WINDOWS
 			nSessionID = _strtoui64(szCookie, NULL, 10);
 #else
 			nSessionID = strtoull(szCookie, NULL, 10);

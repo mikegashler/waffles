@@ -28,7 +28,7 @@
 #ifndef WINDOWS
 #include <sys/types.h>
 typedef int64_t __int64;
-#endif // not WIN32
+#endif // not WINDOWS
 
 namespace GClasses {
 
@@ -714,11 +714,11 @@ void GBigInt::euclid(GBigInt* pA1, GBigInt* pB1, GBigInt* pOutX/*=NULL*/, GBigIn
 		q.divide(&a, &b, &r);
 		a.copy(&b);
 		b.copy(&r);
-		
+
 		x.multiply(&x1, &q);
 		x.negate();
 		x.add(&x0);
-		
+
 		x0.copy(&x1);
 		x1.copy(&x);
 

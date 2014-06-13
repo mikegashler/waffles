@@ -53,7 +53,7 @@ struct WaveHeader
 	unsigned int dwDSize; // Number of bytes of data
 };
 
-#ifdef WIN32
+#ifdef WINDOWS
 #	pragma pack()
 #endif
 

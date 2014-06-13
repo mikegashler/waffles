@@ -53,7 +53,7 @@ size_t GLearnerLib::getAttrVal(const char* szString, size_t attrCount)
 	}
 	if(*szString < '0' || *szString > '9')
 		throw Ex("Expected a digit while parsing attribute list");
-#ifdef WIN32
+#ifdef WINDOWS
 	size_t val = (size_t)_strtoui64(szString, (char**)NULL, 10);
 #else
 	size_t val = strtoull(szString, (char**)NULL, 10);

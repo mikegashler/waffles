@@ -2785,7 +2785,7 @@ void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t enc
 }
 
 // static
-void GScalingUnfolder::unfold_iter(GMatrix& intrinsic, GRand& rand, size_t neighborCount, double scaleFactor, size_t refinements)
+size_t GScalingUnfolder::unfold_iter(GMatrix& intrinsic, GRand& rand, size_t neighborCount, double scaleFactor, size_t refinements)
 {
 	while(true)
 	{
@@ -2797,7 +2797,7 @@ void GScalingUnfolder::unfold_iter(GMatrix& intrinsic, GRand& rand, size_t neigh
 		{
 			if(neighborCount < 1 || neighborCount >= intrinsic.rows() - 1)
 				throw Ex("Invalid neighborCount");
-			neighborCount *= std::min(intrinsic.rows() - 1, std::max(neighborCount + 1, neighborCount * 3 / 2));
+			neighborCount = std::min(intrinsic.rows() - 1, std::max(neighborCount + 1, neighborCount * 3 / 2));
 			continue;
 		}
 
@@ -2807,7 +2807,7 @@ void GScalingUnfolder::unfold_iter(GMatrix& intrinsic, GRand& rand, size_t neigh
 		// Refine the points to restore distances in local neighborhoods
 		for(size_t i = 0; i < refinements; i++)
 			restore_local_distances_pass(intrinsic, ng, rand);
-		return;
+		return neighborCount;
 	}
 }
 

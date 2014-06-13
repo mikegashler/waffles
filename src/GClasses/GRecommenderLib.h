@@ -36,7 +36,7 @@
 #include "usage.h"
 #include <time.h>
 #include <iostream>
-#ifdef WIN32
+#ifdef WINDOWS
 #	include <direct.h>
 #	include <process.h>
 #endif
