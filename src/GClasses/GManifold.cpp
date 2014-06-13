@@ -43,6 +43,7 @@
 #include <map>
 #include <iostream>
 #include <string>
+#include <queue>
 
 namespace GClasses {
 
@@ -2735,6 +2736,8 @@ void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double c
 // static
 void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, GRand& rand)
 {
+/*
+	// Do it in random order
 	size_t dims = intrinsic.cols();
 	GRandomIndexIterator& ii = ng.randomEdgeIterator(rand);
 	ii.reset();
@@ -2752,6 +2755,54 @@ void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighbo
 			GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget, rand);
 		}
 	}
+*/
+
+	// Do it in breadth-first order
+	size_t dims = intrinsic.cols();
+	size_t edgeCount = ng.data()->rows() * ng.neighborCount();
+	std::queue<size_t> q;
+	GBitTable used(ng.data()->rows());
+	size_t seed = INVALID_INDEX;
+	while(seed == INVALID_INDEX)
+	{
+		seed = rand.next(edgeCount);
+		if(ng.cache()[seed] == INVALID_INDEX)
+			seed = INVALID_INDEX;
+	}
+	q.push(seed);
+	while(q.size() > 0)
+	{
+		// Get the next edge from the queue
+		size_t edge = q.front();
+		q.pop();
+		size_t a = edge / ng.neighborCount();
+		size_t b = ng.cache()[edge];
+		if(b == INVALID_INDEX)
+			continue;
+
+		// add all edges that connect to either end of this edge
+		if(!used.bit(a))
+		{
+			used.set(a);
+			size_t ed = ng.neighborCount() * a;
+			for(size_t i = 0; i < ng.neighborCount(); i++)
+				q.push(ed++);
+		}
+		if(!used.bit(b))
+		{
+			used.set(b);
+			size_t ed = ng.neighborCount() * b;
+			for(size_t i = 0; i < ng.neighborCount(); i++)
+				q.push(ed++);
+		}
+
+		double dTarget = ng.squaredDistanceTable()[edge];
+		double* pA = intrinsic.row(a);
+		double* pB = intrinsic.row(b);
+		double dCur = GVec::squaredDistance(pA, pB, dims);
+		GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget, rand);
+	}
+
 }
 
 void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters, GNeuralNet* pEncoder, GNeuralNet* pDecoder, const GMatrix* pVisible)
