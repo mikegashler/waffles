@@ -442,6 +442,9 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// as a peer beside the other components in this layer.
 	void addComponent(GNeuralNetLayer* pComponent);
 
+	/// Returns the specified component.
+	GNeuralNetLayer& component(size_t i) { return *m_components[i]; }
+
 	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs();
 

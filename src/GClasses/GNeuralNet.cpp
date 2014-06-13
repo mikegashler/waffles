@@ -143,6 +143,7 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, 
 	// Weights
 	m_weights.resizePreserve(inputCount, outputCount);
 	m_delta.resizePreserve(inputCount, outputCount);
+	m_delta.setAll(0.0);
 	if(pRand)
 	{
 		for(size_t i = 0; i < fewerInputs; i++)
@@ -161,9 +162,10 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, 
 
 	// Bias
 	m_bias.resizePreserve(6, outputCount);
-	double* pB = bias() + fewerOutputs;
+	GVec::setAll(biasDelta(), 0.0, outputCount);
 	if(pRand)
 	{
+		double* pB = bias() + fewerOutputs;
 		for(size_t j = fewerOutputs; j < outputCount; j++)
 			*(pB++) = deviation * pRand->normal();
 	}
@@ -1107,21 +1109,23 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 		}
 	}
 	m_delta.resize(outputCount, inputCount);
+	m_delta.setAll(0.0);
 
 	// Bias
 	m_bias.resizePreserve(5, outputCount);
-	double* pB = bias() + fewerOutputs;
+	GVec::setAll(biasDelta(), 0.0, outputCount);
 	if(pRand)
 	{
+		double* pB = bias() + fewerOutputs;
 		for(size_t j = fewerOutputs; j < outputCount; j++)
 			*(pB++) = deviation * pRand->normal();
 	}
 
 	// BiasReverse
 	m_biasReverse.resizePreserve(5, inputCount);
-	pB = biasReverse() + fewerInputs;
 	if(pRand)
 	{
+		double* pB = biasReverse() + fewerInputs;
 		for(size_t j = fewerInputs; j < inputCount; j++)
 			*(pB++) = deviation * pRand->normal();
 	}
@@ -1573,6 +1577,8 @@ m_bias(2, inputChannels * kernelsPerChannel)
 		m_pActivationFunction = new GActivationLogistic();
 	size_t totalOutputs = inputChannels * kernelsPerChannel * m_outputSamples;
 	m_activation.resize(3, totalOutputs);
+	m_delta.setAll(0.0);
+	GVec::setAll(biasDelta(), 0.0, inputChannels * kernelsPerChannel);
 }
 
 GLayerConvolutional1D::GLayerConvolutional1D(GDomNode* pNode)
@@ -1939,6 +1945,8 @@ m_bias(2, m_kernelCount)
 		m_pActivationFunction = new GActivationLogistic();
 	size_t totalOutputs = m_kernelCount * m_outputCols * m_outputRows;
 	m_activation.resize(3, totalOutputs);
+	m_delta.setAll(0.0);
+	GVec::setAll(biasDelta(), 0.0, m_kernelCount);
 }
 
 GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
