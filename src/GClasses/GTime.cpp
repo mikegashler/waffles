@@ -125,7 +125,7 @@ int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
 	ts.tm_yday = 0;
 	ts.tm_isdst = 0;
 	char buf[32];
-	while(szFormat)
+	while(*szFormat)
 	{
 		size_t i;
 		for(i = 0; i < 30; i++)
@@ -171,7 +171,8 @@ int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
 		szData += i;
 		szFormat += i;
 	}
-	return mktime(&ts);
+	*pOutTime = mktime(&ts);
+	return true;
 }
 
 } // namespace GClasses

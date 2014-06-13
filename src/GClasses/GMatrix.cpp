@@ -4977,7 +4977,9 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			{
 				const char* el = rows[rowNum].m_elements[attr];
 				time_t t;
-				if(GTime::fromString(&t, el, szFormat))
+				if(*el == '\0')
+					outMatrix[i][attr] = UNKNOWN_REAL_VALUE;
+				else if(GTime::fromString(&t, el, szFormat))
 					outMatrix[i][attr] = (double)t;
 				else
 				{
