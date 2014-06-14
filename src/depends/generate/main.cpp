@@ -61,9 +61,22 @@ GMatrix* loadData(const char* szFilename)
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		pData->loadArff(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
-		pData->loadCsv(szFilename, ',', false, &ambiguousCols, false);
+	{
+		GCSVParser parser;
+		parser.parse(*pData, szFilename);
+		cerr << "\nParsing Report:\n";
+		for(size_t i = 0; i < pData->cols(); i++)
+			cerr << to_str(i) << ") " << parser.report(i) << "\n";
+	}
 	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
-		pData->loadCsv(szFilename, '\0', false, &ambiguousCols, false);
+	{
+		GCSVParser parser;
+		parser.setSeparator('\0');
+		parser.parse(*pData, szFilename);
+		cerr << "\nParsing Report:\n";
+		for(size_t i = 0; i < pData->cols(); i++)
+			cerr << to_str(i) << ") " << parser.report(i) << "\n";
+	}
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	if(ambiguousCols.size() > 0)
