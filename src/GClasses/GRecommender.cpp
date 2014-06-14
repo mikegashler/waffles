@@ -1393,14 +1393,14 @@ double GHybridNonlinearPCA::predict(size_t item, size_t user)
 	{
 		//find closest instances
 		double* pVec = m_pUsers->row(user);
-		double features[m_pUsers->cols() - m_intrinsicDims + 1];
+		GTEMPBUF(double, features, m_pUsers->cols() - m_intrinsicDims + 1);
 		features[0] = 0;
 		for(size_t i = m_intrinsicDims; i < m_pUsers->cols(); i++)
 		{
 			features[i-m_intrinsicDims+1] = pVec[i] / 0.01;
 		}
-		size_t neighbors[m_numNeighbors];
-		double distances[m_numNeighbors];
+		GTEMPBUF(size_t, neighbors, m_numNeighbors);
+		GTEMPBUF(double, distances, m_numNeighbors);
 		m_neighbors->neighbors(neighbors, distances, features);
 
 		//sort the neighbors based on distance
