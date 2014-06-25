@@ -2127,7 +2127,7 @@ void GImageJitterer::interpolate(const double* pRow, double x, double y, double*
 	else if(x + 1 >= m_wid)
 	{
 		xx = m_wid - 2;
-		x = m_wid - 1;
+		x = (double)(m_wid - 1);
 	}
 	else
 		xx = size_t(floor(x));
@@ -2139,7 +2139,7 @@ void GImageJitterer::interpolate(const double* pRow, double x, double y, double*
 	else if(y + 1 >= m_hgt)
 	{
 		yy = m_hgt - 2;
-		y = m_hgt - 1;
+		y = (double)(m_hgt - 1);
 	}
 	else
 		yy = size_t(floor(y));
@@ -2488,7 +2488,7 @@ GMatrix* GUnsupervisedBackProp::reduce(const GMatrix& in)
 			if(m_pProgress)
 			{
 				double* pProg = m_pProgress->newRow();
-				pProg[0] = batches * pass + i;
+				pProg[0] = (double)(batches * pass + i);
 				pProg[1] = rmse;
 			}
 
@@ -2765,7 +2765,7 @@ void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighbo
 	size_t seed = INVALID_INDEX;
 	while(seed == INVALID_INDEX)
 	{
-		seed = rand.next(edgeCount);
+		seed = (size_t)rand.next(edgeCount);
 		if(ng.cache()[seed] == INVALID_INDEX)
 			seed = INVALID_INDEX;
 	}

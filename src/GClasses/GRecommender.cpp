@@ -93,8 +93,8 @@ void GCollaborativeFilter::trainDenseMatrix(const GMatrix& data, const GMatrix* 
 			if(*pRow != UNKNOWN_REAL_VALUE)
 			{
 				double* pVec = pMatrix->newRow();
-				pVec[0] = i;
-				pVec[1] = j;
+				pVec[0] = (double)i;
+				pVec[1] = (double)j;
 				pVec[2] = *pRow;
 			}
 			pRow++;
@@ -112,8 +112,8 @@ void GCollaborativeFilter::trainDenseMatrix(const GMatrix& data, const GMatrix* 
 				if(*pRow != UNKNOWN_REAL_VALUE)
 				{
 					double* pVec = pMatrix->newRow();
-					pVec[0] = i;
-					pVec[1] = dims + j;
+					pVec[0] = (double)i;
+					pVec[1] = (double)(dims + j);
 					pVec[2] = *pRow;
 				}
 				pRow++;
@@ -332,23 +332,23 @@ void GCF_basicTest_makeData(GMatrix& m, GRand& rand)
 		double userBias = rand.normal();
 		double* pVec;
 		pVec = m.newRow();
-		pVec[0] = i; // user
+		pVec[0] = (double)i; // user
 		pVec[1] = 0; // item
 		pVec[2] = a + 0.0 + 0.2 * c + userBias; // rating
 		pVec = m.newRow();
-		pVec[0] = i; // user
+		pVec[0] = (double)i; // user
 		pVec[1] = 1; // item
 		pVec[2] = 0.2 * a + 0.2 * b + c * c + 0.2 + userBias; // rating
 		pVec = m.newRow();
-		pVec[0] = i; // user
+		pVec[0] = (double)i; // user
 		pVec[1] = 2; // item
 		pVec[2] = 0.6 * a + 0.1 * b + 0.2 * c * c * c - 0.3 + userBias; // rating
 		pVec = m.newRow();
-		pVec[0] = i; // user
+		pVec[0] = (double)i; // user
 		pVec[1] = 3; // item
 		pVec[2] = 0.5 * a + 0.5 * b - 0.5 * c + 0.0 + userBias; // rating
 		pVec = m.newRow();
-		pVec[0] = i; // user
+		pVec[0] = (double)i; // user
 		pVec[1] = 4; // item
 		pVec[2] = -0.2 * a + 0.4 * b - 0.3 * sin(c) + 0.1 + userBias; // rating
 	}
@@ -1112,7 +1112,7 @@ void GMatrixFactorization_vectorToRatings(const double* pVec, size_t dims, GMatr
 			double* pRow = data.newRow();
 			*pRow = 0.0;
 			pRow++;
-			*pRow = i;
+			*pRow = (double)i;
 			pRow++;
 			*pRow = *pVec;
 		}
@@ -1272,7 +1272,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	{
 		double*  pVec = pClone->row(i);
 		pVec[2] = (pVec[2] - m_pMins[size_t(pVec[0])]) / (m_pMaxs[size_t(pVec[0])] - m_pMins[size_t(pVec[0])]);
-		m_itemSet.insert(pVec[1]);
+		m_itemSet.insert((size_t)pVec[1]);
 		m_pRatingCount[(size_t)pVec[1]]++;
 	}
 
@@ -2070,8 +2070,8 @@ void GContentBoostedCF::train(GMatrix& data)
 			{
 				//make prediction
 				double* pRating = pClone->newRow();
-				pRating[0] = user->first;
-				pRating[1] = item->first;
+				pRating[0] = (double)user->first;
+				pRating[1] = (double)item->first;
 				pRating[2] = m_cbf->predict(user->first, item->first);
 				GAssert(pRating[2] != UNKNOWN_REAL_VALUE);
 				m_pseudoRatingSum[m_userMap[user->first]] += pRating[2];
@@ -2091,15 +2091,15 @@ double GContentBoostedCF::predict(size_t user, size_t item)
 
         // Combine the ratings of the nearest neighbors to make a prediction
 	size_t num = m_ratingCounts[m_userMap[user]];
-	double selfWeight = (num > 50) ? 1 : num / 50;
+	double selfWeight = (num > 50) ? 1.0 : num / 50.0;
         double weighted_sum = max * selfWeight * (m_cbf->predict(user, item)); // - (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]));
         double sum_weight = max * selfWeight;
         for(multimap<double,ArrayWrapper>::iterator it = neighbors.begin(); it != neighbors.end(); it++)
         {
                 double weight = std::max(0.0, std::min(1.0, it->first));
 		size_t neighNum = m_ratingCounts[m_userMap[(size_t)it->first]];
-		double neighWeight = (neighNum > 50) ? 1 : neighNum / 50;
-		double sigWeight = (it->second.values[1] > 50) ? 1 : it->second.values[1] / 50;
+		double neighWeight = (neighNum > 50) ? 1.0 : neighNum / 50.0;
+		double sigWeight = (it->second.values[1] > 50) ? 1.0 : it->second.values[1] / 50.0;
 		weight *= ((2 * selfWeight * neighWeight) / (selfWeight + neighWeight)) + sigWeight;
                 double val = m_cf->getRating(it->second.values[0], item);
                 weighted_sum += weight * val;

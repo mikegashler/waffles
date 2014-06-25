@@ -248,7 +248,7 @@ double GBNCategorical::currentValue()
 	if(m_observed)
 		return m_observedValue;
 	else
-		return m_val;
+		return (double)m_val;
 }
 
 // virtual

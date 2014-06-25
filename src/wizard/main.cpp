@@ -352,7 +352,7 @@ public:
 			{
 				if(strcmp(m_pEffectiveNode->choices()[i]->tok(), pBtn) == 0)
 				{
-					m_selection = i;
+					m_selection = (int)i;
 					break;
 				}
 			}
@@ -1324,7 +1324,7 @@ void complete_command(int nArgs, char* pArgs[])
 	{
 		string s = "Error: ";
 		s += e.what();
-		for(int i = s.length() - 1; i >= 0; i--)
+		for(int i = (int)s.length() - 1; i >= 0; i--)
 		{
 			if(s[i] == ' ')
 				s[i] = '_';

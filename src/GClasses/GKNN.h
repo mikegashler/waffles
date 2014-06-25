@@ -160,7 +160,7 @@ public:
 	void drawRandom(size_t n)
 	{
 		m_eTrainMethod = DrawRandom;
-		m_trainParam = n;
+		m_trainParam = (double)n;
 	}
 
 protected:

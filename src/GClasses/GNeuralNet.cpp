@@ -2580,18 +2580,18 @@ void GNeuralNet::align(const GNeuralNet& that)
 		// Align this layer with that layer
 		for(size_t j = 0; j < layerThisCur.outputs(); j++)
 		{
-			size_t k = indexes(j);
+			size_t k = (size_t)indexes((unsigned int)j);
 			if(k != j)
 			{
 				// Fix up the indexes
 				size_t m = j + 1;
 				for( ; m < layerThisCur.outputs(); m++)
 				{
-					if((size_t)indexes(m) == j)
+					if((size_t)indexes((unsigned int)m) == j)
 						break;
 				}
 				GAssert(m < layerThisCur.outputs());
-				indexes.assign(m, k);
+				indexes.assign((unsigned int)m, (unsigned int)k);
 
 				// Swap nodes j and k
 				swapNodes(i, j, k);
@@ -3282,7 +3282,7 @@ GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 // static
 GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 {
-	if(!GBits::isPowerOfTwo(series.rows()))
+	if(!GBits::isPowerOfTwo((unsigned int)series.rows()))
 		throw Ex("The time series data has ", to_str(series.rows()), " rows. Expected a power of 2.");
 
 	// Make a neural network that combines sine units in the same manner as the Fourier transform

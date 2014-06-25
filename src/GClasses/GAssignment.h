@@ -153,7 +153,7 @@ public:
 		:aForB(bSize, -1), bForA(bForA){
 		for(std::size_t i = 0; i < bForA.size(); ++i){
 			int match = bForA.at(i);
-			if(match >= 0) { aForB.at(match) = i; }
+			if(match >= 0) { aForB.at(match) = (int)i; }
 		}
 	}
 
@@ -199,7 +199,7 @@ public:
 		std::fill(aForB.begin(), aForB.end(), -1);
 		for(std::size_t i = 0; i < bForA.size(); ++i){
 			int match = bForA.at(i);
-			if(match >= 0) { aForB.at(match) = i; }
+			if(match >= 0) { aForB.at(match) = (int)i; }
 		}
 	}
 

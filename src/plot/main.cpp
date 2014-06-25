@@ -469,7 +469,7 @@ void PlotBar(GArgReader& args)
 	GSVG svg(width, height);
 	svg.newChart(0, ymin, pData->cols() * thickness + (pData->cols() + 1) * spacing, ymax);
 	if(marks > 0)
-		svg.vertMarks(marks);
+		svg.vertMarks((int)marks);
 	double x = spacing;
 	double base = std::max(ymin, 0.0);
 	for(size_t i = 0; i < pData->cols(); i++)
@@ -499,7 +499,7 @@ void PlotEquation(GArgReader& args)
 	// Parse options
 	size_t width = 960;
 	size_t height = 540;
-	size_t margin = 100;
+	double margin = 100.0;
 	size_t maxHorizMarks = 30;
 	size_t maxVertMarks = size_t(-1);
 	double xmin = -10;
@@ -519,7 +519,7 @@ void PlotEquation(GArgReader& args)
 			height = args.pop_uint();
 		}
 		else if(args.if_pop("-margin"))
-			margin = args.pop_uint();
+			margin = args.pop_double();
 		else if(args.if_pop("-horizmarks"))
 			maxHorizMarks = args.pop_uint();
 		else if(args.if_pop("-vertmarks"))
@@ -756,7 +756,7 @@ public:
 		if(attr < pData->cols())
 			return pData->row(i)[attr];
 		else
-			return i;
+			return (double)i;
 	}
 
 	void plot(GSVG& svg, GMatrix* pData, double xmin, double xmax, size_t width)
@@ -1152,7 +1152,7 @@ void PlotScatter(GArgReader& args)
 			{
 				if(maxVertMarks == INVALID_INDEX)
 					maxVertMarks = maxHorizMarks * height / width;
-				svg.vertMarks(maxVertMarks);
+				svg.vertMarks((int)maxVertMarks);
 			}
 
 			// Draw the axis labels
@@ -1207,7 +1207,7 @@ void semanticMap(GArgReader& args){
   GSelfOrganizingMap som(doc.root());
   // Parse the options
   string outFilename="semantic_map.svg";
-  unsigned labelCol = hData->cols()-1;
+  unsigned labelCol = (unsigned int)hData->cols()-1;
   //Set to true to use the variance in the label column among rows
   //where a given node is the winner as the label.  Lower variance
   //means a better approximation.
@@ -1413,7 +1413,7 @@ void makeHistogram(GArgReader& args)
 
 		// Plot it
 		GSVG svg(wid, hgt);
-		svg.newChart(0.0, 0.0, buckets, 1.0);
+		svg.newChart(0.0, 0.0, (double)buckets, 1.0);
 		for(size_t i = 0; i < buckets; i++)
 			svg.rect(i, 0, 1, hist[i] / pData->rows(), (((i & 1) == 0) ? 0xff400000 : 0xff008040));
 
@@ -1457,7 +1457,7 @@ void PrintStats(GArgReader& args)
 	{
 		size_t vals = pRel->valueCount(i);
 		size_t a = vals < 3 ? 1 : vals;
-		arity[i][0] = a;
+		arity[i][0] = (double)a;
 		maxArity = std::max(maxArity, a);
 		sumArity += a;
 	}

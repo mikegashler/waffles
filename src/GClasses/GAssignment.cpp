@@ -468,7 +468,7 @@ void LAPVJRCT(GMatrix c, std::vector<int>& x, std::vector<int>& y,
 		//end for
 
 		//Start at the last unassigned row
-		f = n;
+		f = (int)n;
 		for(int cnt = 0; cnt < 2; ++cnt){ 
 			int k = 1;
 			//f0 is number of unassigned rows in "free"
@@ -879,7 +879,7 @@ namespace{
 						//For each unused element fill the next element of perm
 						if(! *isUsed ){
 							--it;
-							*it = isUsed - used.begin();
+							*it = (int)(isUsed - used.begin());
 							*isUsed = true; //isUsed doesn't need to be updated, but
 															//I want to keep the data structure
 															//consistent with reality
@@ -896,7 +896,7 @@ namespace{
 		//No replacement existed for any element of perm, thus, we were
 		//already at the maximum permutation, start over at the beginning
 		for(std::size_t i = 0; i < perm.size(); ++i){
-			perm.at(i) = i;
+			perm.at(i) = (int)i;
 		}
 		return false;
 	}
@@ -1021,7 +1021,7 @@ linearAssignmentBruteForce(GMatrix costs, ShouldMinimize /*not used*/){
 	//Initialize the current assignment to 0...n-1 where n is the number
 	//of rows
 	for(std::size_t i = 0; i < cur.size(); ++i){
-		cur.at(i) = i;
+		cur.at(i) = (int)i;
 	}
 
 	//Set minCost to the cost of the current assignment
@@ -1040,7 +1040,7 @@ linearAssignmentBruteForce(GMatrix costs, ShouldMinimize /*not used*/){
 	//cost equal to the current minimum.  If the current assignment has
 	//a lower cost, make it the current element in the list and set the
 	//minimum cost to its cost
-	while(nextKPermutation(cur, costs.cols())){
+	while(nextKPermutation(cur, (int)costs.cols())){
 		double curCost = 0;
 		for(std::size_t i = 0; i < cur.size(); ++i){
 			curCost += costs[i][cur.at(i)];
@@ -1096,7 +1096,7 @@ linearAssignmentBruteForce(GMatrix benefits, ShouldMaximize /*not used*/){
 	//Initialize the current assignment to 0...n-1 where n is the number
 	//of rows
 	for(std::size_t i = 0; i < cur.size(); ++i){
-		cur.at(i) = i;
+		cur.at(i) = (int)i;
 	}
 
 	//Set maxBenefit to the benefit of the current assignment
@@ -1115,7 +1115,7 @@ linearAssignmentBruteForce(GMatrix benefits, ShouldMaximize /*not used*/){
 	//benefit equal to the current maximum.  If the current assignment has
 	//a greater benefit, make it the current element in the list and set the
 	//maximum benefit to its benefit
-	while(nextKPermutation(cur, benefits.cols())){
+	while(nextKPermutation(cur, (int)benefits.cols())){
 		double curBenefit = 0;
 		for(std::size_t i = 0; i < cur.size(); ++i){
 			curBenefit += benefits[i][cur.at(i)];

@@ -862,7 +862,7 @@ public:
   unsigned inputDimensions() const { return m_nInputDims; }
 
   /// Return the number of dimensions this returns as output
-  unsigned outputDimensions() const { return m_outputAxes.size(); }
+  size_t outputDimensions() const { return m_outputAxes.size(); }
 
   /// Return the maximum for each output axis
   std::vector<double> outputAxes() const{ return m_outputAxes; }

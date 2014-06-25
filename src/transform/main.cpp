@@ -745,7 +745,7 @@ void dropUnusedValues(GArgReader& args)
 			}
 			if(!gotOne)
 			{
-				pData->dropValue(i, j);
+				pData->dropValue(i, (int)j);
 				j--;
 				valCount--;
 				GAssert(valCount == pData->relation().valueCount(i));

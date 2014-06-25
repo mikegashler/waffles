@@ -3876,7 +3876,7 @@ void GMatrix::wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double toleran
 			b += 0.5 * pStat[0];
 		}
 	}
-	*pNum = tmp.rows();
+	*pNum = (int)tmp.rows();
 	*pWMinus = b;
 	*pWPlus = a;
 }

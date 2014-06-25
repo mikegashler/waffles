@@ -80,7 +80,7 @@ namespace GClasses {
 	std::vector<double> loc(intAxesMax.size());
 	std::size_t n_quotient = n;
 	for(std::size_t dim = 0; dim < loc.size(); ++dim){
-	  loc[dim] = n_quotient % intAxesMax[dim];
+	  loc[dim] = (double)(n_quotient % intAxesMax[dim]);
 	  n_quotient = n_quotient / intAxesMax[dim];
 	}
 	node.outputLocation = loc;
@@ -328,7 +328,7 @@ namespace GClasses {
 	double x1 = nodes.at(i).weights.at(m_xDim);
 	double y1 = nodes.at(i).weights.at(m_yDim);
 	std::vector<std::size_t> neighbors =
-	  map.nearestNeighbors(i, neighborsToReq);
+	  map.nearestNeighbors((unsigned int)i, neighborsToReq);
 	for(std::vector<std::size_t>::const_iterator n = neighbors.begin();
 	    n != neighbors.end(); ++n){
 	  double x2 = nodes.at(*n).weights.at(m_xDim);
@@ -544,7 +544,7 @@ namespace GClasses {
 #endif
       //Create weighted averages for each node
       std::vector<IncrementalWeightedAverage>
-	aves(map.nodes().size(), IncrementalWeightedAverage(pIn->cols()));
+	aves(map.nodes().size(), IncrementalWeightedAverage((unsigned int)pIn->cols()));
 
       //Create list of which node was closest to a given data point
       //last time - initializing to a non-existent node index
@@ -583,7 +583,7 @@ namespace GClasses {
 	    //window function is non-zero, add weighted input point to
 	    //incremental weighted average
 	    std::vector<SOM::NodeAndDistance> nbrs =
-	      map.neighborsInCircle(best, m_windowFunc->minZeroDistance(width));
+	      map.neighborsInCircle((unsigned int)best, m_windowFunc->minZeroDistance(width));
 	    std::vector<SOM::NodeAndDistance>::const_iterator nItr;
 	    for(nItr = nbrs.begin(); nItr != nbrs.end(); ++nItr){
 	      double weight = (*m_windowFunc)(width, nItr->distance);
@@ -705,7 +705,7 @@ namespace GClasses {
 
 	//Move the best match and its neighbors closer to the input
 	std::vector<SOM::NodeAndDistance> nbrs =
-	  map.neighborsInCircle(best, m_windowFunc->minZeroDistance(width));
+	  map.neighborsInCircle((unsigned int)best, m_windowFunc->minZeroDistance(width));
 	std::vector<SOM::NodeAndDistance>::const_iterator nItr;
 	for(nItr = nbrs.begin(); nItr != nbrs.end(); ++nItr){
 	  moveWeightsCloser(map.nodes()[nItr->nodeIdx].weights, point,
@@ -928,7 +928,7 @@ GMatrix* GSelfOrganizingMap::reduce(GMatrix& in)
 
 
 void GSelfOrganizingMap::transform(const double*in, double*out){
-  unsigned idx = bestMatch(in);
+  unsigned int idx = (unsigned int)bestMatch(in);
   const SOM::Node& n = nodes().at(idx);
   std::copy(n.outputLocation.begin(), n.outputLocation.end(), out);
 }
@@ -1035,7 +1035,7 @@ std::vector<std::size_t> GSelfOrganizingMap::nearestNeighbors
   //Take care of border cases in numNeighbors that would produce an
   //empty list or out-of-bounds array accesses
   if(numNeighbors == 0){  return out; }
-  if(numNeighbors >= nodes().size()){ numNeighbors = nodes().size()-1; }
+  if(numNeighbors >= nodes().size()){ numNeighbors = (unsigned int)nodes().size()-1; }
   if(numNeighbors == 0){  return out; }
 
   //Reserve space for the returned neighbors -- take care of up to

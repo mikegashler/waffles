@@ -532,7 +532,7 @@ void GWavelet::test()
 		double* pR = pRow;
 		for(size_t x = 0; x < im.width(); x++)
 		{
-			*pR = gGreen(im.pixel(x, y));
+			*pR = gGreen(im.pixel((int)x, (int)y));
 			pR++;
 		}
 		w.transform(pRow, im.width());
@@ -546,7 +546,7 @@ void GWavelet::test()
 		double* pR = pRow;
 		for(size_t y = 0; y < im.height(); y++)
 		{
-			im.setPixel(x, y, gARGB(0xff, ClipChan((int)*pR), ClipChan((int)*pR), ClipChan((int)*pR)));
+			im.setPixel((int)x, (int)y, gARGB(0xff, ClipChan((int)*pR), ClipChan((int)*pR), ClipChan((int)*pR)));
 			pR++;
 		}
 	}
@@ -569,7 +569,7 @@ void GWavelet::test()
 		double* pR = pRow;
 		for(size_t y = 0; y < im.height(); y++)
 		{
-			im.setPixel(x, y, gARGB(0xff, ClipChan((int)*pR), ClipChan((int)*pR), ClipChan((int)*pR)));
+			im.setPixel((int)x, (int)y, gARGB(0xff, ClipChan((int)*pR), ClipChan((int)*pR), ClipChan((int)*pR)));
 			pR++;
 		}
 	}

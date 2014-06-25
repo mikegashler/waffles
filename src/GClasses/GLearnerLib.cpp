@@ -1299,11 +1299,11 @@ std::string GLearnerLib::machineReadableConfusionHeader(std::size_t variable_idx
   std::size_t n = pRelation->valueCount(variable_idx);
   for(std::size_t r = 0; r < n; ++r){
     std::ostringstream expected_name;
-    pRelation->printAttrValue(expected_name, variable_idx, r);
+    pRelation->printAttrValue(expected_name, variable_idx, (double)r);
     std::string e = expected_name.str();
     for(std::size_t c = 0; c < n; ++c){
       std::ostringstream got_name;
-      pRelation->printAttrValue(got_name, variable_idx, c);
+      pRelation->printAttrValue(got_name, variable_idx, (double)c);
       std::string g = got_name.str();
       out << ",\"Expected:" << e <<" Got:" << g << "\"";
     }

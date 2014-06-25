@@ -150,7 +150,7 @@ size_t GSocket_send(SOCKET s, const char* buf, size_t len)
 {
 	if(s == INVALID_SOCKET)
 		throw Ex("Tried to send over a socket that was not connected");
-	ssize_t bytesSent = ::send(s, buf, len, 0);
+	ssize_t bytesSent = ::send(s, buf, (int)len, 0);
 	if(bytesSent < 0)
 	{
 #ifdef WINDOWS
@@ -343,7 +343,7 @@ size_t GTCPClient::receive(char* buf, size_t len)
 	size_t bytesReady = GSocket_bytesReady(m_sock);
 	if(bytesReady > 0)
 	{
-		ssize_t bytesReceived = recv(m_sock, buf, len, 0);
+		ssize_t bytesReceived = recv(m_sock, buf, (int)len, 0);
 		if(bytesReceived > 0)
 			return size_t(bytesReceived);
 		else if(bytesReceived == 0)
@@ -468,7 +468,7 @@ size_t GTCPServer::receive(char* buf, size_t len, GTCPConnection** pOutConn)
 		GTCPConnection* pConn = *it;
 		if(GSocket_bytesReady(pConn->socket()) > 0)
 		{
-			ssize_t bytesReceived = recv(pConn->socket(), buf, len, 0);
+			ssize_t bytesReceived = recv(pConn->socket(), buf, (int)len, 0);
 			if(bytesReceived > 0)
 			{
 				*pOutConn = pConn;
@@ -521,7 +521,7 @@ void GTCPServer::send(const char* buf, size_t len, GTCPConnection* pConn)
 // static
 void GTCPServer::hostName(char* buf, size_t len)
 {
-	if(gethostname(buf, len) == SOCKET_ERROR)
+	if(gethostname(buf, (int)len) == SOCKET_ERROR)
 		throw Ex("failed to get host noame");
 }
 
@@ -577,7 +577,7 @@ int GPackageConnection::receive(unsigned int maxBufSize, unsigned int maxPackage
 		ssize_t bytesReceived = recv(m_sock, ((char*)m_header) + m_headerBytes, 2 * sizeof(unsigned int) - m_headerBytes, 0);
 		if(bytesReceived > 0) // if we successfully received something...
 		{
-			m_headerBytes += bytesReceived;
+			m_headerBytes += (unsigned int)bytesReceived;
 			if(m_headerBytes >= 2 * sizeof(unsigned int))
 			{
 				if(m_header[0] == MAGIC_VALUE)
@@ -626,7 +626,7 @@ int GPackageConnection::receive(unsigned int maxBufSize, unsigned int maxPackage
 		ssize_t bytesReceived = recv(m_sock, m_pBuf + m_payloadBytes, m_header[1] - m_payloadBytes, 0);
 		if(bytesReceived > 0) // if we successfully received something...
 		{
-			m_payloadBytes += bytesReceived;
+			m_payloadBytes += (unsigned int)bytesReceived;
 			if(m_payloadBytes >= m_header[1])
 			{
 				m_q.push(GPackageConnectionBuf(m_pBuf, m_bufSize, m_payloadBytes));

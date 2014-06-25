@@ -132,8 +132,8 @@ void GRecommenderLib::loadData(GMatrix& data, const char* szFilename)
 			for(GSparseMatrix::Iter it = sm.rowBegin(i); it != rowEnd; it++)
 			{
 				double* pVec = data.newRow();
-				pVec[0] = i;
-				pVec[1] = it->first;
+				pVec[0] = (double)i;
+				pVec[1] = (double)it->first;
 				pVec[2] = it->second;
 			}
 		}
@@ -768,8 +768,8 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 			if(*pRow != UNKNOWN_REAL_VALUE)
 			{
 				double* pVec = pMatrix->newRow();
-				pVec[0] = i;
-				pVec[1] = j;
+				pVec[0] = (double)i;
+				pVec[1] = (double)j;
 				pVec[2] = *pRow;
 			}
 			pRow++;
