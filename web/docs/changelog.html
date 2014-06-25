@@ -12,6 +12,21 @@
 <h2>Change log</h2>
 <p>This file describes the most-significant changes in each major release.</p>
 
+<br><br><br><b>2014-07-04</b><br><br>
+Separated the automatic data filtering from the supervised learners. Now, use the GAutoFilter class for that functionality.
+Improved neural net documentation.
+Added support for CUDA GPU-parallelized neural network layers.
+Added several regularization method for neural networks, including drop-out, drop-connect, max-norm, L2, and L1 regularization.
+Added a convolutional neural network layers for 1D and 2D inputs.
+Added a method to initialize a neural network with the fast Fourier transform to model time-series data, amd added the fourier_net demo.
+Added a method to pretrain neural network layers by stacking autoencoders.
+Added softmax layers.
+Add support for heterogeneous activation functions within each neural network layer.
+Added a rectified linear activation function.
+Added the hybrid NLPCA, content-based filter, and content-boosted collaborative filter recommendation systems.
+Improved Mac support.
+Port to VC++2013. Drop support for VC++2010. target 64-bit builds on Windows by default.
+Improved CSV parsing.
 
 <br><br><br><b>2013-12-09</b><br><br>
 Changed the license from LGPL to CC0.

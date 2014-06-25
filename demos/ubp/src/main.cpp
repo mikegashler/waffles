@@ -252,7 +252,7 @@ public:
 		m_pButtonYawP = new GWidgetTextButton(this, 700, 150, 50, 30, "+Yaw");
 		m_pButtonPitN = new GWidgetTextButton(this, 650, 100, 50, 30, "+Pit");
 		m_pButtonPitP = new GWidgetTextButton(this, 650, 200, 50, 30, "-Pit");
-		new GWidgetTextLabel(this, 200, 5, 600, 40, "Unsupervised Back-Propagation", 0xff000000, 0, 3.0f);
+		//new GWidgetTextLabel(this, 200, 5, 600, 40, "Unsupervised Back-Propagation", 0xff000000, 0, 3.0f);
 		new GWidgetTextLabel(this, 200, 45, 600, 16, "(In this case, the model contains two inputs, one hidden layer with 36 units, and 3 outputs.)", 0xff000000, 0, 1.0f);
 		new GWidgetTextLabel(this, 20, 80, 600, 24, "Training vectors are shown with small dots. Predicted output vectors are shown with big dots.", 0xff000000, 0, 1.0f);
 		new GWidgetTextLabel(this, 620, 276, 300, 24, "Latent input vectors (not given in the training data).", 0xff000000, 0, 1.0f);
