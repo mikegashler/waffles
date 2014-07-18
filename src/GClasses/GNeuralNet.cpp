@@ -2820,6 +2820,8 @@ size_t GNeuralNet::trainWithValidation(const GMatrix& trainFeatures, const GMatr
 {
 	if(trainFeatures.rows() != trainLabels.rows() || validateFeatures.rows() != validateLabels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
+	if(m_layers.size() == 0)
+		throw Ex("At least one layer must be added to a neural network before it can be trained");
 	beginIncrementalLearningInner(trainFeatures.relation(), trainLabels.relation());
 
 	// Do the epochs

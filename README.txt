@@ -36,7 +36,7 @@ Build Instructions:
 			see web/docs/mac.html
 
 	Windows:
-		1- Install Microsoft Visual C++ 2010 Express Edition.
+		1- Install Microsoft Visual C++ 2013 Express Edition.
 		2- File->Open->Project/Solution
 		3- Open waffles\src\waffles.sln
 		4- Change to Release mode.

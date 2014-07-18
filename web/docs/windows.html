@@ -14,7 +14,7 @@
 
 <h2>Building on Windows</h2>
 <ol>
-	<li>Install Microsoft Visual C++ 2013 Express Edition.</li>
+	<li>Install Microsoft Visual C++ 2013 Express Edition. (Sorry, earlier versions are no longer supported.)</li>
 	<li>File->Open->Project/Solution</li>
 	<li>Open waffles/src/waffles.sln</li>
 	<li>Build (F7)</li>
@@ -33,6 +33,21 @@
 <h3>Troubleshooting</h3>
 
 <span style="font-weight: bold;">
+	Where did all the demo apps go?
+</span><br><div style="margin-left: 40px;">
+	They are still in the demos folder, but the demos.sln file no longer includes the demos that have dependencies on external libraries.
+	If you want to build the other demos, you will have to build each of them separately.
+	Unfortunately, we are not aware of any simple mechanism for resolving dependencies in Windows. In previous versions of Waffles, we solved
+	this problem by including binary versions of those libraries with Waffles. However, this is a bad practice. It promotes the use of outdated
+	libraries, bloats our distribution package, complicates deep debugging by making users hunt down the corresponding source code, etc.
+	So, now you have to take care of dependencies yourself. For example, if your linker reports an error message, such as
+	"error LNK1181: cannot open input file 'somelibrary.lib'", use your favorite search engine to find and install that library.
+	Then, right-click on the project in the Solution Explorer, click Properties, Linker,
+	Input, and examine the list of libraries in "Additional dependencies". Make sure it correctly refers to the library you just installed.
+	Also, examine "Linker->General->Additional Library Directories", and make sure the path to that library is included in the list.
+</div><br><br>
+
+<span style="font-weight: bold;">
 	When I run one of the apps, a black window appears for just a split second, then disappears, and nothing else happens.
 </span><br><div style="margin-left: 40px;">
 	Most of these apps are command-line applications that are meant to be run in a terminal or command shell. They do not open up a graphical interface for you.
@@ -41,19 +56,6 @@
 	If this is confusing to you, then you might want to learn about <a href="http://www.c3scripts.com/tutorials/msdos/">using the command shell</a>.
 </div><br><br>
 
-<span style="font-weight: bold;">
-	When I switch between Debug and Release mode, it doesn't rebuild everything like it should.
-</span><br><div style="margin-left: 40px;">
-	Due to a series of unfortunate design decisions by Microsoft, we have been forced to make both Debug and Release modes target the same filename.
-	Hence, whenever you switch between the two, you must do a clean build, or else it will see the one it already built and think it does not need to build anything.
-	Why don't we just put them in different folders, as is the default in VC++? Because several of our apps rely on external files--imagine that.
-	Why not just duplicate those external files? Because keeping the size of our archive small is important to us.
-	Further, redundant files is bad practice because it propagates bugs. Why not just use a symbolic link? Not all versions of Windows support those.
-	Why not just require everyone to have the latest version of Windows? Because Windows is not free, and I will not be evil.
-	Why not use different names for the Debug and Release versions?
-	That's how we used to do it, but it turns out that the tool that converts VC++ 2008 project files to VC++ 2010 project files makes the assumption that
-	your target file has the same name as the project, and the project has the same name in both Debug and Release mode.
-</div><br><br>
 
 <span style="font-weight: bold;">
 	When I link the GClasses library to my project, I get a bunch of linker errors saying msvcrt.lib and libcmt.lib are fighting with each other.
@@ -67,26 +69,19 @@
 	runtime libraries. You can't mix static and dynamic
 	libraries on Windows. If that doesn't help, you need to be careful to
 	make sure that you build all of your libraries with the same settings.
-	To do this, open your solution in VC++. In the Solution Explorer, right-click on GClasses, then click "Properties". Check the following settings, and make sure that they match the settings for your libraries and project: Configuration Properties->General->Use of MFC, Configuration Properties->C/C++->Code Generation->Basic Runtime Checks, and Configuration Propterties->C/C++->Code Generation->Runtime Library. If those all match and you still have problems, try use a diffing program to examine everything that differs between the GClasses.vcproj file and the .vcproj files for your program.
+	To do this, open your solution in VC++. In the Solution Explorer, right-click on GClasses, then click "Properties".
+	Check the following settings, and make sure that they match the settings for your libraries and project: Configuration Properties->General->Use of MFC,
+	Configuration Properties->C/C++->Code Generation->Basic Runtime Checks, and Configuration Propterties->C/C++->Code Generation->Runtime Library.
+	If those all match and you still have problems, try use a diffing program to examine everything that differs between the GClasses.vcxproj file and the .vcxproj files for your program.
 </div><br><br>
 
-<span style="font-weight: bold;">
-	When building for 64-bit architectures, some of the demo apps give a linker error about SDL.
-</span><br><div style="margin-left: 40px;">
-	We included a 32-bit version of the SDL library for Windows with Waffles for convenience, but we did not include a 64-bit version of this library. If you want to build the demos that use SDL for a 64-bit architecture, you will need to download a 64-bit version of the SDL library.
-</div><br><br>
-
-<span style="font-weight: bold;">
-	I get errors while building GSocket.cpp.
-</span><br><div style="margin-left: 40px;">
-	You probably have an outdated Windows SDK installed. The solution is to download and install the latest Windows SDK.
-</div><br><br>
 
 <span style="font-weight: bold;">
 	How do I install Waffles?
 </span><br><div style="margin-left: 40px;">
 	There is no install process for Windows. Just manually copy the executables that you use into some folder in your environment's path.
 </div><br><br>
+
 
 <span style="font-weight: bold;">
 	Where can I get more specific help?

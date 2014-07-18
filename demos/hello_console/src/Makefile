@@ -13,8 +13,8 @@ ifeq ($(UNAME),Darwin)
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
 	LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -L../../../lib -framework AppKit
-	DBG_LFLAGS = $(LFLAGS) -lpthread ../../../lib/libGClassesDbg.a
-	OPT_LFLAGS = $(LFLAGS) -lpthread ../../../lib/libGClasses.a
+	DBG_LFLAGS = $(LFLAGS) -lpthread -lGClassesDbg
+	OPT_LFLAGS = $(LFLAGS) -lpthread -lGClasses
 else
 	CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG

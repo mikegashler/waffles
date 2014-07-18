@@ -337,7 +337,7 @@ public:
 		}
 		else if(index == 7)
 		{
-			GNaiveBayes* pModel = new GNaiveBayes();
+			GSupervisedLearner* pModel = new GAutoFilter(new GNaiveBayes(), true);
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 8)
@@ -377,6 +377,7 @@ public:
 		else if(index == 12)
 		{
 			GNeuralNet* pModel = new GNeuralNet();
+			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 13)
