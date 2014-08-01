@@ -1235,7 +1235,6 @@ GHybridNonlinearPCA::~GHybridNonlinearPCA()
 {
 }
 
-// virtual
 void GHybridNonlinearPCA::train(GMatrix& data)
 {
 	size_t users, items;
@@ -1290,17 +1289,16 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	ArrayHolder<double> hPrefGradient(pPrefGradient);
 
 	// Train
-	size_t startPass = 0;
+	int startPass = 0;
 	if(!m_useThreePass)
 		startPass = 2;
 	else if(m_pModel->layerCount() == 1)
 		startPass = 2;
-	for(size_t pass = startPass; pass < 3; pass++)
+	for(int pass = startPass; pass < 3; pass++)
 	{
 		GNeuralNet* pNN = (pass == 0 ? &nn : m_pModel);
-		if(pass == startPass)
+		if(pass == startPass) //-1)
 		{
-			// Initialize the user matrix
 			delete(m_pUsers);
 			m_pUsers = new GMatrix(users, m_intrinsicDims + numAttr);
 			delete[] m_itemMap;

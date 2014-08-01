@@ -188,6 +188,24 @@ public:
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
 
+	/// Gets the weights and bias of a single neuron.
+	virtual void setWeightsSingleNeuron(size_t outputNode, const double* weights)
+	{
+		throw Ex("Not yet implemented");
+	}
+
+	/// Gets the weights and bias of a single neuron.
+	virtual void getWeightsSingleNeuron(size_t outputNode, double*& weights)
+	{
+		throw Ex("Not yet implemented");
+	}
+
+	virtual void copySingleNeuronWeights(size_t source, size_t dest)
+	{
+		throw Ex("Not yet implemented");
+	}
+	
+
 protected:
 	GDomNode* baseDomNode(GDom* pDoc);
 };
@@ -365,6 +383,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// The error this computes is with respect to the output of the upstream layer.)
 	void backPropErrorSingleOutput(size_t output, double* pUpStreamError);
 
+	/// Gets the weights and bias of a single neuron.
+	void setWeightsSingleNeuron(size_t outputNode, const double* weights);
+
+	/// Gets the weights and bias of a single neuron.
+	void getWeightsSingleNeuron(size_t outputNode, double*& weights);
+
 	/// Updates the weights and bias of a single neuron. (Assumes the error has already been computed and deactivated.)
 	void updateWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum);
 
@@ -387,6 +411,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Adjusts weights such that values in the new range will result in the
 	/// same behavior that previously resulted from values in the old range.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
+	void copySingleNeuronWeights(size_t source, size_t dest);
 };
 
 
@@ -1214,6 +1239,7 @@ public:
 	/// Sets all the weights from an array of doubles. The number of
 	/// doubles in the array can be determined by calling countWeights().
 	void setWeights(const double* pWeights);
+	void setWeights(const double* pWeights, size_t layer);
 
 	/// Copy the weights from pOther. It is assumed (but not checked) that
 	/// pOther has the same network structure as this neural network.
@@ -1228,6 +1254,7 @@ public:
 	/// number of doubles in the array can be determined by calling
 	/// countWeights().
 	void weights(double* pOutWeights) const;
+	void weights(double* pOutWeights, size_t layer) const;
 
 	/// Evaluates a feature vector. (The results will be in the nodes of the output layer.)
 	/// The maxLayers parameter can limit how far into the network values are propagated.
