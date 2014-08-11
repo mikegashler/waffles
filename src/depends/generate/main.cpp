@@ -2158,7 +2158,7 @@ void MakeAttributeSummaryGraph(const GRelation* pRelation, GMatrix* pData, GImag
 		pImage->clear(0xffffffff);
 		GHistogram hist(*pData, attr, UNKNOWN_REAL_VALUE, UNKNOWN_REAL_VALUE, (size_t)pImage->width());
 		double height = hist.binLikelihood(hist.modeBin());
-		GPlotWindow pw(pImage, hist.xmin(), 0.0, hist.xmax(), height);
+		GPlotWindow pw(pImage, hist.xmin(), 0.0, std::max(hist.xmin() + 1e-6, hist.xmax()), height);
 		for(int i = 0; i < (int)pImage->width(); i++)
 		{
 			double x, y;
@@ -2225,6 +2225,10 @@ void MakeCorrelationGraph(const GRelation* pRelation, GMatrix* pData, GImage* pI
 		ymin = -0.5;
 		ymax = pRelation->valueCount(attry) - 0.5;
 	}
+	if(xmax <= xmin)
+		xmax = xmin + 1e-6;
+	if(ymax <= ymin)
+		ymax = ymin + 1e-6;
 	if(bothNominal)
 	{
 		GPlotWindow pw(pImage, 0.0, 0.0, 1.0, 1.0);

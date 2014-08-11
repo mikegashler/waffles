@@ -116,6 +116,13 @@ public:
 	}
 
 	virtual ~GTransducer();
+
+	/// Throws an exception to prevent models from being copied by value.
+	GTransducer& operator=(const GTransducer& other)
+	{
+		throw Ex("This object is not intended to be copied by value");
+	}
+
 #ifndef MIN_PREDICT
 
 	/// Returns false because semi-supervised learners have no internal

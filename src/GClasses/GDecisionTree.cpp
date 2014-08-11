@@ -709,7 +709,11 @@ double* GDecisionTreeNode_labelVec(GMatrix& labels)
 	size_t n = labels.cols();
 	double* pVec = new double[n];
 	for(size_t i = 0; i < n; i++)
+	{
 		pVec[i] = labels.baselineValue(i);
+		if(pVec[i] == UNKNOWN_REAL_VALUE) // This can happen if there are no known values in a real column
+			pVec[i] = 0.0;
+	}
 	return pVec;
 }
 

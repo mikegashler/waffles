@@ -52,7 +52,7 @@ GHistogram::GHistogram(GMatrix& data, size_t col, double xmin, double xmax, size
 		m_max = std::min(dataMin + dataRange, median + 4 * dev);
 	else
 		m_max = xmax;
-	m_binCount = std::min(maxBuckets, (size_t)floor(sqrt((double)data.rows())));
+	m_binCount = std::max((size_t)1, std::min(maxBuckets, (size_t)floor(sqrt((double)data.rows()))));
 	m_bins = new double[m_binCount];
 	GVec::setAll(m_bins, 0.0, m_binCount);
 	m_sum = 0.0;
@@ -95,6 +95,8 @@ size_t GHistogram::xToBin(double x)
 
 double GHistogram::binLikelihood(size_t n)
 {
+	if(m_max - m_min == 0.0 || m_sum == 0.0)
+		return 1.0 / m_binCount;
 	return m_bins[n] * m_binCount / ((m_max - m_min) * m_sum);
 }
 

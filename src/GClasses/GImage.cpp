@@ -1464,6 +1464,8 @@ void GImage::boxFill(int x, int y, int w, int h, unsigned int c)
 	y = std::max(0, y);
 	w = std::min((int)m_width - x, w);
 	h = std::min((int)m_height - y, h);
+	if(w == 0)
+		return;
 	unsigned int* pPixels;
 	int xx, yy;
 	for(yy = 0; yy < h; yy++)

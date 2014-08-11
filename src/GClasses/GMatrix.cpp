@@ -3146,7 +3146,7 @@ void GMatrix::clipColumn(size_t col, double dMin, double dMax)
 double GMatrix::baselineValue(size_t nAttribute) const
 {
 	if(m_pRelation->valueCount(nAttribute) == 0)
-		return columnMean(nAttribute);
+		return columnMean(nAttribute, NULL, false);
 	int j;
 	int val;
 	int nValues = (int)m_pRelation->valueCount(nAttribute);
