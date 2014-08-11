@@ -2,6 +2,7 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
+    Michael R. Smith,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -439,6 +440,34 @@ void GLayerClassic::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamAc
 			pD++;
 		}
 	}
+}
+
+void GLayerClassic::copySingleNeuronWeights(size_t source, size_t dest)
+{
+	for(size_t up = 0; up < m_weights.rows(); up++)
+	{
+		m_weights[up][dest] = m_weights[up][source];
+	}
+	bias()[dest] = bias()[source];
+}
+
+void GLayerClassic::setWeightsSingleNeuron(size_t outputNode, const double* weights)
+{
+	for(size_t up = 0; up < m_weights.rows(); up++)
+	{
+		m_weights[up][outputNode] = weights[up];
+	}
+	bias()[outputNode] = weights[m_weights.rows()];
+}
+
+void GLayerClassic::getWeightsSingleNeuron(size_t outputNode, double*& weights)
+{
+//	weights = new double(m_weights.rows() + 1);
+	for(size_t up = 0; up < m_weights.rows(); up++)
+	{
+		weights[up] = m_weights[up][outputNode];
+	}
+	weights[m_weights.rows()] = bias()[outputNode];
 }
 
 void GLayerClassic::updateWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum)
@@ -2410,6 +2439,13 @@ bool GNeuralNet::supportedLabelRange(double* pOutMin, double* pOutMax)
 	return false;
 }
 
+size_t GNeuralNet::countWeights(size_t layer) const
+{
+	size_t wc = 0;
+	wc += m_layers[layer]->countWeights();
+	return wc;
+}
+
 size_t GNeuralNet::countWeights() const
 {
 	size_t wc = 0;
@@ -2418,10 +2454,20 @@ size_t GNeuralNet::countWeights() const
 	return wc;
 }
 
+void GNeuralNet::weights(double* pOutWeights, size_t layer) const
+{
+	pOutWeights += m_layers[layer]->weightsToVector(pOutWeights);
+}
+
 void GNeuralNet::weights(double* pOutWeights) const
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
 		pOutWeights += m_layers[i]->weightsToVector(pOutWeights);
+}
+
+void GNeuralNet::setWeights(const double* pWeights, size_t layer)
+{
+	pWeights += m_layers[layer]->vectorToWeights(pWeights);
 }
 
 void GNeuralNet::setWeights(const double* pWeights)
