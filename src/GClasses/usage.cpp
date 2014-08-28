@@ -1362,8 +1362,10 @@ UsageNode* makePlotUsageTree()
 		       "power.");
 	  }
 	}
-		UsageNode* pStats = pRoot->add("stats [dataset]", "Prints some basic stats about the dataset to stdout.");
+		UsageNode* pStats = pRoot->add("stats [dataset] <options>", "Prints some basic stats about the dataset to stdout.");
 		pStats->add("[dataset]=data.arff", "The filename of a dataset.");
+		UsageNode* pOpts = pStats->add("<options>");
+		pOpts->add("-all", "Print stats for all attributes, even if there are a lot of them.");
 	}
 	{
 		pRoot->add("usage", "Print usage information.");
@@ -1617,6 +1619,39 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-random", "Replace each missing value with a randomly chosen non-missing value from the same attribute. (The default is to use the baseline value. That is, the mean for continuous attributes, and the most-common value for nominal attributes.)");
 	}
 	{
+		UsageNode* pGD = pRoot->add("filterelements [dataset] [attr] [min] [max] <options>", "Remove each element in the specified attribute that does not fall in a certain range.");
+		pGD->add("[dataset]=data.arff", "The filename of a dataset");
+		pGD->add("[attr]=0", "A zero-indexed column number");
+		pGD->add("[min]=0.0", "The minimum acceptable value");
+		pGD->add("[max]=1.0", "The maximum acceptable value");
+		UsageNode* pOpts = pGD->add("<options>");
+		pOpts->add("-invert", "Drop elements that fall within the range instead of elements that do not fall within the range.");
+	}
+	{
+		UsageNode* pGD = pRoot->add("filterrows [dataset] [attr] [min] [max] <options>", "Remove each row where the value of the specified attribute does not fall in a certain range. Rows with unknown values in the specified attribute will also be deleted.");
+		pGD->add("[dataset]=data.arff", "The filename of a dataset");
+		pGD->add("[attr]=0", "A zero-indexed column number");
+		pGD->add("[min]=0.0", "The minimum acceptable value");
+		pGD->add("[max]=1.0", "The maximum acceptable value");
+		UsageNode* pOpts = pGD->add("<options>");
+		pOpts->add("-invert", "Drop the row if the value falls within the range instead of dropping it if the value does not fall within the range.");
+	}
+	{
+		UsageNode* pGD = pRoot->add("function [dataset] [equations]", "Compute new data as a function of some existing data. Each row in the output is computed from the corresponding row of the input dataset. Each equation, f1, f2, f3, ... will produce one column in the output data.");
+		pGD->add("[dataset]=data.arff", "The filename of a dataset");
+		pGD->add("[equations]=\"f1(x0,x1,x2)=(x0+x1)/x2;f2(x0,x1,x2)=tanh(x1)^2\"", "A set of equations to compute the output data. The equations must be named f1, f2, f3, etc. The parameters to these equations may have any name, but will correspond with the columns of the input data in order.");
+	}
+	{
+		UsageNode* pGD = pRoot->add("geodistance [dataset] [lat1] [lon1] [lat2] [lon2] <options>", "For each row in [dataset], compute the distance (in kilometers) between two points (specified in latitude and longitude) by following a great circle on the surface of a perfectly spherical Earth, using the haversine formula.");
+		pGD->add("[dataset]=data.arff", "The filename of a dataset");
+		pGD->add("[lat1]=37.3", "The latitude of point 1 in degrees.");
+		pGD->add("[lon1]=-79.1", "The longitude of point 2 in degrees.");
+		pGD->add("[lat2]=37.4", "The latitude of point 1 in degrees.");
+		pGD->add("[lon2]=-79.2", "The longitude of point 2 in degrees.");
+		UsageNode* pOpts = pGD->add("<options>");
+		pOpts->add("-radius [r]=6371.0", "Specify the radius of the Earth (or the sphere upon which the points occur). The results will have the same units as the radius specified. The default is 6371.0, which is approximately the radius of the Earth in kilometers.");
+	}
+	{
 		UsageNode* pIm = pRoot->add("import [dataset] <options>", "Convert a text file of comma separated (or otherwise separated) values to a .arff file. The meta-data is automatically determined. The .arff file is printed to stdout. This makes it easy to operate on structured data from a spreadsheet, database, or pretty-much any other source.");
 		pIm->add("[dataset]=in.arff", "The filename of a dataset.");
 		UsageNode* pOpts = pIm->add("<options>");
@@ -1628,6 +1663,8 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-columnnames", "Use the first row of data for column names.");
 		pOpts->add("-maxvals [n]=200", "Specify the maximum number of unique values in a categorical attribute before parsing of that attribute will be aborted.");
 		pOpts->add("-time [attr] [format]", "Specify that a particular attribute is a date or time stamp in a particular format. Example format: \"YYYY-MM-DD hh:mm:ss\".");
+		pOpts->add("-nominal [attr]=0", "Indiciate that the specified attribute should be treated as nominal.");
+		pOpts->add("-real [attr]=0", "Indiciate that the specified attribute should be treated as real.");
 	}
 	{
 		UsageNode* pEV = pRoot->add("enumeratevalues [dataset] [col]", "Enumerates all of the unique values in the specified column, and replaces each value with its enumeration. (For example, if you have a column that contains the social-security-number of each user, this will change them to numbers from 0 to n-1, where n is the number of unique users.)");

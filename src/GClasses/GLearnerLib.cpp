@@ -1264,10 +1264,17 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 
 void GLearnerLib::leftJustifiedString(const char* pIn, char* pOut, size_t outLen)
 {
-	size_t inLen = std::min(outLen, strlen(pIn));
-	memcpy(pOut, pIn, inLen);
-	memset(pOut + inLen, ' ', outLen - inLen);
-	pOut[outLen] = '\0';
+	for(size_t i = 0; outLen > 0 && *pIn != '\0'; i++)
+	{
+		*(pOut++) = *(pIn++);
+		outLen--;
+	}
+	while(outLen > 0)
+	{
+		*(pOut++) = ' ';
+		outLen--;
+	}
+	*pOut = '\0';
 }
 
 void GLearnerLib::rightJustifiedString(const char* pIn, char* pOut, size_t outLen)
@@ -2082,7 +2089,8 @@ void GLearnerLib::regress(GArgReader& args)
 	string expr;
 	while(args.size() > 0)
 		expr += args.pop_string();
-	GFunctionParser fp(expr.c_str());
+	GFunctionParser fp;
+	fp.add(expr.c_str());
 	GFunction* pFunc = fp.getFunctionNoThrow("f");
 	if(!pFunc)
 		throw Ex("Expected a function named \"f\".");
@@ -2090,7 +2098,7 @@ void GLearnerLib::regress(GArgReader& args)
 		throw Ex("Expected more than", to_str(pFeatures->cols()), " params. Got only ", to_str(pFunc->m_expectedParams));
 
 	// Optimize
-	OptimizerTargetFunc tf(pFeatures, pLabels, pFunc);
+	OptimizerTargetFunc tf(pFeatures, pLabels, pFunc, &fp);
 	GHillClimber hc(&tf);
 	hc.searchUntil(10000, 200, 0.01);
 	double err = hc.currentError();

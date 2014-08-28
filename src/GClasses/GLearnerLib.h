@@ -284,8 +284,9 @@ public:
 	GMatrix* m_pIn;
 	GMatrix* m_pOut;
 	GFunction* m_pFunc;
+	GFunctionParser* m_pParser;
 
-	OptimizerTargetFunc(GMatrix* pIn, GMatrix* pOut, GFunction* pFunc) : GTargetFunction(pFunc->m_expectedParams - pIn->cols()), m_pIn(pIn), m_pOut(pOut), m_pFunc(pFunc)
+	OptimizerTargetFunc(GMatrix* pIn, GMatrix* pOut, GFunction* pFunc, GFunctionParser* pParser) : GTargetFunction(pFunc->m_expectedParams - pIn->cols()), m_pIn(pIn), m_pOut(pOut), m_pFunc(pFunc), m_pParser(pParser)
 	{
 	}
 
@@ -314,7 +315,7 @@ public:
 			double* pIn = m_pIn->row(i);
 			for(size_t j = 0; j < inDims; j++)
 				params[j] = pIn[j];
-			double pred = m_pFunc->call(params);
+			double pred = m_pFunc->call(params, *m_pParser);
 			double* pOut = m_pOut->row(i);
 			double d = *pOut - pred;
 			sse += d * d;

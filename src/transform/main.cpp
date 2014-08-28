@@ -30,6 +30,7 @@
 #include "../GClasses/GMatrix.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GFile.h"
+#include "../GClasses/GFunction.h"
 #include "../GClasses/GTransform.h"
 #include "../GClasses/GVec.h"
 #include "../GClasses/GHashTable.h"
@@ -862,6 +863,16 @@ void Import(GArgReader& args)
 			size_t attr = args.pop_uint();
 			const char* szFormat = args.pop_string();
 			parser.setTimeFormat(attr, szFormat);
+		}
+		else if(args.if_pop("-nominal"))
+		{
+			size_t attr = args.pop_uint();
+			parser.setNominalAttr(attr);
+		}
+		else if(args.if_pop("-real"))
+		{
+			size_t attr = args.pop_uint();
+			parser.setRealAttr(attr);
 		}
 		else
 			throw Ex("Invalid option: ", args.peek());
@@ -1741,6 +1752,289 @@ void fillMissingValues(GArgReader& args)
 	pData->print(cout);
 }
 
+void filterElements(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	size_t attr = args.pop_uint();
+	double dmin = args.pop_double();
+	double dmax = args.pop_double();
+
+	bool invert = false;
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-invert"))
+			invert = true;
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	if(invert)
+	{
+		for(size_t i = 0; i < pData->rows(); i++)
+		{
+			double val = pData->row(i)[attr];
+			if(val >= dmin && val <= dmax)
+				pData->row(i)[attr] = UNKNOWN_REAL_VALUE;
+		}
+	}
+	else
+	{
+		for(size_t i = 0; i < pData->rows(); i++)
+		{
+			double val = pData->row(i)[attr];
+			if(val < dmin || val > dmax)
+				pData->row(i)[attr] = UNKNOWN_REAL_VALUE;
+		}
+	}
+	pData->print(cout);
+}
+
+void filterRows(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	size_t attr = args.pop_uint();
+	double dmin = args.pop_double();
+	double dmax = args.pop_double();
+
+	bool invert = false;
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-invert"))
+			invert = true;
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	if(invert)
+	{
+		for(size_t i = pData->rows() - 1; i < pData->rows(); i--)
+		{
+			double val = pData->row(i)[attr];
+			if(val >= dmin && val <= dmax)
+				pData->deleteRow(i);
+		}
+	}
+	else
+	{
+		for(size_t i = pData->rows() - 1; i < pData->rows(); i--)
+		{
+			double val = pData->row(i)[attr];
+			if(val == UNKNOWN_REAL_VALUE || val < dmin || val > dmax)
+				pData->deleteRow(i);
+		}
+	}
+	pData->print(cout);
+}
+
+void _function(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+
+	// Accumulate the expression
+	string expr;
+	while(args.size() > 0)
+		expr += args.pop_string();
+
+	// Parse the expression
+	GFunctionParser mfp;
+	mfp.add(expr.c_str());
+
+	// Count the functions
+	char szFuncName[32];
+	size_t funcCount = 0;
+	for(int i = 1; true; i++)
+	{
+		// Find the function
+		sprintf(szFuncName, "f%d", i);
+		GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
+		if(!pFunc)
+		{
+			if(i == 1)
+				throw Ex("There is no function named \"f1\". Nothing to do.");
+			break;
+		}
+		if((size_t)pFunc->m_expectedParams > pData->cols())
+			throw Ex("The function ", szFuncName, " takes ", to_str(pFunc->m_expectedParams), " parameters, but the input data has only ", to_str(pData->cols()), " columns.");
+		funcCount++;
+	}
+
+	// Compute the output matrix
+	GMatrix out(pData->rows(), funcCount);
+	vector<double> params;
+	for(int i = 1; true; i++)
+	{
+		sprintf(szFuncName, "f%d", i);
+		GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
+		if(!pFunc)
+			break;
+		params.resize(pFunc->m_expectedParams);
+		for(size_t j = 0; j < pData->rows(); j++)
+		{
+			double* pIn = pData->row(j);
+			for(size_t k = 0; k < (size_t)pFunc->m_expectedParams; k++)
+				params[k] = pIn[k];
+			out[j][i - 1] = pFunc->call(params, mfp);
+		}
+	}
+	out.print(cout);
+}
+
+void _function2(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+
+	// Accumulate the expression
+	string expr;
+	while(args.size() > 0)
+		expr += args.pop_string();
+
+	// Parse the expression
+	GFunctionParser mfp;
+	mfp.add(expr.c_str());
+
+	// Count the functions
+	char szFuncName[32];
+	size_t fCount = 0;
+	for(int i = 1; true; i++)
+	{
+		// Find the function
+		sprintf(szFuncName, "f%d", i);
+		GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
+		if(!pFunc)
+		{
+			if(i == 1)
+				throw Ex("There is no function named \"f1\". Nothing to do.");
+			break;
+		}
+		if((size_t)pFunc->m_expectedParams > pData->cols())
+			throw Ex("The function ", szFuncName, " takes ", to_str(pFunc->m_expectedParams), " parameters, but the input data has only ", to_str(pData->cols()), " columns.");
+		fCount++;
+	}
+	size_t gCount = 0;
+	for(int i = 1; true; i++)
+	{
+		// Find the function
+		sprintf(szFuncName, "g%d", i);
+		GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
+		if(!pFunc)
+			break;
+		if((size_t)pFunc->m_expectedParams > 2 * pData->cols()) // The first half of the parameters are the current row. The second half are the iterated row.
+			throw Ex("The function ", szFuncName, " takes ", to_str(pFunc->m_expectedParams), " parameters, but the input data has only ", to_str(pData->cols()), " columns.");
+		gCount++;
+	}
+
+	// Compute the output matrix
+	char buf[256];
+	vector<double> params;
+	vector<double> gsum;
+	gsum.resize(gCount);
+	GMatrix out(pData->rows(), fCount);
+	for(size_t j = 0; j < pData->rows(); j++)
+	{
+		for(size_t i = 0; i < gCount; i++)
+			gsum[i] = 0.0;
+		double* pCur = pData->row(j);
+
+		// Compute the gsum vector, which applies all the "g" functions to every row and sums the returned values
+		for(size_t k = 0; k < pData->rows(); k++)
+		{
+			double* pItt = pData->row(k);
+			{
+				for(int i = 1; true; i++)
+				{
+					sprintf(szFuncName, "g%d", i);
+					GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
+					if(!pFunc)
+						break;
+					params.resize(pFunc->m_expectedParams);
+					for(size_t m = 0; m < (size_t)pFunc->m_expectedParams / 2; m++)
+						params[m] = pCur[m];
+					size_t half = pFunc->m_expectedParams / 2;
+					for(size_t m = half; m < (size_t)pFunc->m_expectedParams; m++)
+						params[m] = pItt[m - half];
+					gsum[i - 1] += pFunc->call(params, mfp);
+				}
+			}
+		}
+
+		// Add "h#" constants to represent the gsum values
+		for(int i = 1; true; i++)
+		{
+			sprintf(szFuncName, "g%d", i);
+			GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
+			if(!pFunc)
+				break;
+			sprintf(buf, "h%d=%f", i, gsum[i - 1]);
+			mfp.add(buf);
+		}
+
+		// Compute the "f" functions for this row
+		for(int i = 1; true; i++)
+		{
+			sprintf(szFuncName, "f%d", i);
+			GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
+			if(!pFunc)
+				break;
+			params.resize(pFunc->m_expectedParams);
+			for(size_t k = 0; k < (size_t)pFunc->m_expectedParams; k++)
+				params[k] = pCur[k];
+			out[j][i - 1] = pFunc->call(params, mfp);
+		}
+	}
+	out.print(cout);
+}
+
+void geodistance(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	size_t lat1 = args.pop_double();
+	size_t lon1 = args.pop_double();
+	size_t lat2 = args.pop_double();
+	size_t lon2 = args.pop_double();
+
+	double radius = 6371.0; // Approximate radius of the Earth in kilometers
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-radius"))
+			radius = args.pop_double();
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	GArffRelation* pRel = new GArffRelation();
+	pRel->addAttribute("geodistance", 0, NULL);
+	GMatrix tmp(pRel);
+	tmp.newRows(pData->rows());
+
+	for(size_t i = 0; i < pData->rows(); i++)
+	{
+		double degLat1 = pData->row(i)[lat1];
+		double degLon1 = pData->row(i)[lon1];
+		double degLat2 = pData->row(i)[lat2];
+		double degLon2 = pData->row(i)[lon2];
+		if(degLat1 == UNKNOWN_REAL_VALUE || degLon1 == UNKNOWN_REAL_VALUE || degLat2 == UNKNOWN_REAL_VALUE || degLon2 == UNKNOWN_REAL_VALUE)
+		{
+			tmp[i][0] = UNKNOWN_REAL_VALUE;
+			continue;
+		}
+		double psi1 = degLat1 * M_PI / 180.0;
+		double psi2 = degLat2 * M_PI / 180.0;
+		double deltapsi = (degLat2 - degLat1) * M_PI / 180.0;
+		double deltalambda = (degLon2 - degLon1) * M_PI / 180.0;
+		double a = sin(deltapsi * 0.5) * sin(deltapsi * 0.5) +
+		        cos(psi1) * cos(psi2) *
+		        sin(deltalambda * 0.5) * sin(deltalambda * 0.5);
+		double c = 2 * atan2(sqrt(a), sqrt(1.0 - a));
+		tmp[i][0] = radius * c;
+	}
+	tmp.print(cout);
+}
+
 void Shuffle(GArgReader& args)
 {
 	// Load
@@ -1987,6 +2281,11 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("enumeratevalues")) enumerateValues(args);
 		else if(args.if_pop("export")) Export(args);
 		else if(args.if_pop("fillmissingvalues")) fillMissingValues(args);
+		else if(args.if_pop("filterelements")) filterElements(args);
+		else if(args.if_pop("filterrows")) filterRows(args);
+		else if(args.if_pop("function")) _function(args);
+		else if(args.if_pop("function2")) _function2(args);
+		else if(args.if_pop("geodistance")) geodistance(args);
 		else if(args.if_pop("import")) Import(args);
 		else if(args.if_pop("keeponlycolumns")) keepOnlyColumns(args);
 		else if(args.if_pop("measuremeansquarederror")) MeasureMeanSquaredError(args);

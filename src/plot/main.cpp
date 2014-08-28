@@ -556,7 +556,8 @@ void PlotEquation(GArgReader& args)
 		expr += args.pop_string();
 
 	// Parse the expression
-	GFunctionParser mfp(expr.c_str());
+	GFunctionParser mfp;
+	mfp.add(expr.c_str());
 
 	// Make the chart
 	if(aspect)
@@ -611,14 +612,14 @@ void PlotEquation(GArgReader& args)
 		vector<double> params;
 		double x = xmin;
 		params.push_back(x);
-		double y = pFunc->call(params);
+		double y = pFunc->call(params, mfp);
 		while(x <= xmax)
 		{
 			double xPrev = x;
 			double yPrev = y;
 			x += dx;
 			params[0] = x;
-			y = pFunc->call(params);
+			y = pFunc->call(params, mfp);
 			if(y > -1e100 && y < 1e100 && yPrev > -1e100 && yPrev < 1e100)
 				svg.line(xPrev, yPrev, x, y, thickness, col);
 		}
@@ -710,7 +711,8 @@ public:
 				throw Ex("Sorry, only fixed colors are compatible with equations");
 			m_attrX = 0;
 			m_attrY = 0;
-			m_pFP = new GFunctionParser(args.pop_string());
+			m_pFP = new GFunctionParser();
+			m_pFP->add(args.pop_string());
 			m_pFunc = m_pFP->getFunctionNoThrow("f");
 			if(!m_pFunc)
 				throw Ex("Expected a function named \"f\"");
@@ -780,14 +782,14 @@ public:
 			x = xmin;
 			vector<double> params;
 			params.push_back(x);
-			y = m_pFunc->call(params);
+			y = m_pFunc->call(params, *m_pFP);
 			while(x <= xmax)
 			{
 				xPrev = x;
 				yPrev = y;
 				x += dx;
 				params[0] = x;
-				y = m_pFunc->call(params);
+				y = m_pFunc->call(params, *m_pFP);
 				if(y > -1e100 && y < 1e100 && yPrev > -1e100 && yPrev < 1e100)
 					svg.line(xPrev, yPrev, x, y, m_thickness, m_color);
 			}
@@ -1434,6 +1436,16 @@ void PrintStats(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	GArffRelation* pRel = (GArffRelation*)&pData->relation();
 
+	// Options
+	bool printAll = false;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-all"))
+			printAll = true;
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
 	// Print some quick stats
 	cout.precision(8);
 	cout << "Filename: " << szFilename << "\n";
@@ -1447,6 +1459,8 @@ void PrintStats(GArgReader& args)
 	cout << "Attributes: " << pRel->size() << " (Continuous:" << continuousAttrs << ", Nominal:" << pRel->size() - continuousAttrs << ")\n";
 	size_t stepSize = pRel->size() / 10;
 	if(stepSize < 4)
+		stepSize = 1;
+	if(printAll)
 		stepSize = 1;
 
 	// Print the arity

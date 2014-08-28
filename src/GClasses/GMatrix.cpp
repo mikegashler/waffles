@@ -4770,6 +4770,16 @@ void GCSVParser::setTimeFormat(size_t attr, const char* szFormat)
 	m_formats.insert(std::pair<size_t,string>(attr, szFormat));
 }
 
+void GCSVParser::setNominalAttr(size_t attr)
+{
+	m_specifiedNominal.insert(std::pair<size_t,size_t>(attr, 0));
+}
+
+void GCSVParser::setRealAttr(size_t attr)
+{
+	m_specifiedReal.insert(std::pair<size_t,size_t>(attr, 0));
+}
+
 class ImportRow
 {
 public:
@@ -5013,23 +5023,34 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 		// Determine if the attribute can be real
 		bool real = true;
 		string firstNonNumericalValue;
-		for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
-		{
-			const char* el = rows[rowNum].m_elements[attr];
-			if(el[0] == '\0')
-				continue; // unknown value
-			if(strcmp(el, "?") == 0)
-				continue; // unknown value
-			if(GBits::isValidFloat(el, strlen(el)))
-				continue;
-			firstNonNumericalValue = el;
+		std::map<size_t, size_t>::iterator itSpecifiedReal = m_specifiedReal.find(attr);
+		std::map<size_t, size_t>::iterator itSpecifiedNominal = m_specifiedNominal.find(attr);
+		if(itSpecifiedReal != m_specifiedReal.end())
+			real = true;
+		else if(itSpecifiedNominal != m_specifiedNominal.end())
 			real = false;
-			break;
+		else
+		{
+			for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
+			{
+				const char* el = rows[rowNum].m_elements[attr];
+				if(el[0] == '\0')
+					continue; // unknown value
+				if(strcmp(el, "?") == 0)
+					continue; // unknown value
+				if(GBits::isValidFloat(el, strlen(el)))
+					continue;
+				firstNonNumericalValue = el;
+				real = false;
+				break;
+			}
 		}
 
 		// Make the attribute
 		if(real)
 		{
+			string firstRealError = "";
+			size_t realErrs = 0;
 			if(m_columnNamesInFirstRow)
 				pRelation->addAttribute(rows[0].m_elements[attr], 0, NULL);
 			else
@@ -5047,6 +5068,13 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					val = UNKNOWN_REAL_VALUE;
 				else if(strcmp(el, "?") == 0)
 					val = UNKNOWN_REAL_VALUE;
+				else if(!GBits::isValidFloat(el, strlen(el)))
+				{
+					val = UNKNOWN_REAL_VALUE;
+					if(firstRealError.length() < 1)
+						firstRealError = el;
+					realErrs++;
+				}
 				else
 					val = atof(el);
 				outMatrix[i][attr] = val;
@@ -5062,14 +5090,27 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			else
 				m_report[attr] = "";
 			size_t uniqueVals = outMatrix.countUniqueValues(attr, m_clearlyNumericalThreshold);
-			if(uniqueVals < m_clearlyNumericalThreshold)
+			if(itSpecifiedReal != m_specifiedReal.end())
+			{
+				m_report[attr] += "Constrained to be real. ";
+				m_report[attr] += to_str(realErrs);
+				m_report[attr] += " errors";
+				if(realErrs > 0)
+				{
+					m_report[attr] += ", such as \"";
+					m_report[attr] += firstRealError;
+					m_report[attr] += "\"";
+				}
+				m_report[attr] += ".";
+			}
+			else if(uniqueVals < m_clearlyNumericalThreshold)
 			{
 				m_report[attr] += "Ambiguous type. All values in this column are numerical, but there are only ";
 				m_report[attr] += to_str(uniqueVals);
 				m_report[attr] += " unique values. Assuming a numerical attribute was intended.";
 			}
 			else
-				m_report[attr] = "Clearly numerical.";
+				m_report[attr] += "Clearly numerical.";
 		}
 		else
 		{
@@ -5102,7 +5143,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 						outMatrix[i][attr] = (double)n;
 					}
 					else
-						outMatrix[i][attr] = 0;
+						outMatrix[i][attr] = UNKNOWN_DISCRETE_VALUE;
 				}
 				i++;
 			}

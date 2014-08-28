@@ -1239,6 +1239,9 @@ protected:
 	size_t m_maxVals;
 	std::vector<std::string> m_report;
 	std::map<size_t, std::string> m_formats;
+	std::map<size_t, size_t> m_specifiedReal;
+	std::map<size_t, size_t> m_specifiedNominal;
+
 
 public:
 	GCSVParser();
@@ -1262,6 +1265,12 @@ public:
 
 	/// Specify that a certain attribute should be expected to be a date or time stamp that follows a given format.
 	void setTimeFormat(size_t attr, const char* szFormat);
+
+	/// Indiciate that the specified attribute should be treated as nominal.
+	void setNominalAttr(size_t attr);
+
+	/// Indiciate that the specified attribute should be treated as real.
+	void setRealAttr(size_t attr);
 
 	/// Load the specified file, and parse it.
 	void parse(GMatrix& outMatrix, const char* szFilename);

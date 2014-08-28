@@ -31,6 +31,7 @@ class GFunctionNode;
 class GFunctionCall;
 class GFunctionBuiltIn;
 class GFunctionStub;
+class GFunctionParser;
 
 struct strCmp
 {
@@ -42,7 +43,7 @@ class GFunction
 {
 public:
 	GFunctionNode* m_pRoot;
-	int m_expectedParams;
+	int m_expectedParams; // an "int" because negative values are used to indicate variable numbers of parameters, such as in a "max" function.
 
 	/// This constructor is used internally by GFunctionParser. Typically you
 	/// will call GFunctionParser::GetFunction to obtain a pointer to one of these.
@@ -53,19 +54,14 @@ public:
 	/// that the right number of parameters are passed in, so be sure that
 	/// the number of parameters matches m_expectedParams before you call
 	/// this method.)
-	double call(std::vector<double>& params);
-
-	/// This method is used internally by GFunctionParser. You don't need to call it.
-	void set(GFunctionNode* pRoot, int expectedParams);
+	double call(std::vector<double>& params, GFunctionParser& parser);
 };
 
 /// This class parses math equations. (This is useful, for example, for plotting tools.)
 class GFunctionParser
 {
 protected:
-	std::vector<GFunctionStub*> m_stubs;
-	std::vector<std::string> m_tokens;
-	std::map<const char*, GFunction*, strCmp> m_functions;
+	std::map<std::string, GFunction*> m_functions;
 	GFunctionBuiltIn* m_pNegate;
 	GFunctionBuiltIn* m_pPlus;
 	GFunctionBuiltIn* m_pMinus;
@@ -83,7 +79,11 @@ public:
 	/// atan, atanh, ceil, cos, cosh, erf, floor, gamma, lgamma, log, max, min,
 	/// sin, sinh, sqrt, tan, and tanh. These generally have the same meaning as in C,
 	/// except '^' means exponent, "gamma" is the gamma function, and max and min
-	/// can support any number of parameters >= 1. (Some of these functions may not
+	/// can support any number of parameters >= 1. "ifzero" returns its second
+	/// parameter if its first parameter is zero (when rounded), otherwise returns
+	/// its third parameter. "ifnegative" returns its second parameter if its first
+	/// parameter is negative, otherwise returns its third parameter.
+	/// (Some of these functions may not
 	/// not be available on Windows, but most of them are.)
 	/// You can override any built in constants or functions with your own variables
 	/// or functions, so you don't need to worry too much about name collisions.
@@ -92,13 +92,21 @@ public:
 	/// Whitespace is ignored. If it can't parse something, it will throw an exception.
 	/// Linking is done lazily, so it won't complain about undefined identifiers
 	/// until you try to call the function.
-	GFunctionParser(const char* szEquations);
-	~GFunctionParser();
+	GFunctionParser();
+	virtual ~GFunctionParser();
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
 #endif
+
+	/// Parses the given string and adds its contents to the set of known functions and values.
+	void add(const char* szEquations);
+
+	/// This method is called whenever a function is added with the same name as an existing function,
+	/// replacing its functionality. For example, if you want to disallow function overriding,
+	/// you could override this method to throw an exception.
+	virtual void onOverride(const char* name) {}
 
 	/// Returns a pointer to the specified function. (Don't include any
 	/// parentheses in the function name.) Throws if it is not found.
@@ -117,8 +125,6 @@ protected:
 	void parseFunctionList(std::vector<std::string>& tokens);
 	int findOperatorWithLowestPrecidence(std::vector<std::string>& tokens, int start, int count);
 	void addFunction(const char* name, GFunctionNode* pRoot, int expectedParams);
-	GFunctionCall* makeStubbedOperator(const char* szName);
-	void flushStubs();
 };
 
 } // namespace GClasses

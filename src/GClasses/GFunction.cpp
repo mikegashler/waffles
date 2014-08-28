@@ -24,6 +24,7 @@
 #include "GMath.h"
 #include <stdlib.h>
 #include <cmath>
+#include <string>
 
 using namespace GClasses;
 using std::vector;
@@ -44,9 +45,8 @@ public:
 	{
 	}
 
-	virtual void Link(GFunctionParser* pMaster) = 0;
-	virtual double Call(vector<double>& params) = 0;
-	virtual bool IsStub() { return false; }
+	virtual double eval(vector<double>& params, GFunctionParser& parser) = 0;
+	virtual void unlink(const char* szName) = 0;
 };
 }
 
@@ -60,16 +60,9 @@ GFunction::~GFunction()
 	delete(m_pRoot);
 }
 
-void GFunction::set(GFunctionNode* pRoot, int expectedParams)
+double GFunction::call(std::vector<double>& params, GFunctionParser& parser)
 {
-	delete(m_pRoot);
-	m_pRoot = pRoot;
-	m_expectedParams = expectedParams;
-}
-
-double GFunction::call(std::vector<double>& params)
-{
-	return m_pRoot->Call(params);
+	return m_pRoot->eval(params, parser);
 }
 
 
@@ -87,12 +80,12 @@ public:
 	{
 	}
 
-	virtual void Link(GFunctionParser* pMaster) {}
-
-	double Call(vector<double>& params)
+	virtual double eval(vector<double>& params, GFunctionParser& parser)
 	{
 		return m_pFunc(params);
 	}
+
+	virtual void unlink(const char* szName) {}
 
 	// The operators
 	static double plus(vector<double>& params) { return params[0] + params[1]; }
@@ -125,6 +118,8 @@ public:
 #endif
 	static double _floor(vector<double>& params) { return floor(params[0]); }
 	static double _gamma(vector<double>& params) { return GMath::gamma(params[0]); }
+	static double _ifzero(vector<double>& params) { return (std::abs(params[0]) < 0.5) ? params[1] : params[2]; }
+	static double _ifnegative(vector<double>& params) { return (params[0] < 0) ? params[1] : params[2]; }
 	static double _lgamma(vector<double>& params) { return GMath::logGamma(params[0]); }
 	static double _log(vector<double>& params) { return log(params[0]); }
 	static double _max(vector<double>& params)
@@ -152,41 +147,20 @@ public:
 	static double _tanh(vector<double>& params) { return tanh(params[0]); }
 };
 
-class GFunctionStub : public GFunctionNode
-{
-public:
-	string m_name;
-
-	GFunctionStub(const char* szName) : GFunctionNode(), m_name(szName)
-	{
-	}
-
-	virtual ~GFunctionStub()
-	{
-	}
-
-	virtual bool IsStub() { return true; }
-
-	virtual void Link(GFunctionParser* pMaster)
-	{
-		GAssert(false); // This should never be called.
-	}
-
-	virtual double Call(vector<double>& params)
-	{
-		throw Ex("GFunctionStub::Eval should never be called. Was Link called?");
-		return -1e308;
-	}
-};
-
 class GFunctionCall : public GFunctionNode
 {
-public:
+private:
+	string m_name;
 	GFunctionNode* m_pFunction;
 	vector<GFunctionNode*> m_children;
-	vector<double> m_params;
+	vector<double> m_params; // a buffer to hold the result from evaluating each parameter expression, then used to call this function
 
+public:
 	GFunctionCall(GFunctionNode* pFunction) : GFunctionNode(), m_pFunction(pFunction)
+	{
+	}
+
+	GFunctionCall(string name) : GFunctionNode(), m_name(name), m_pFunction(NULL)
 	{
 	}
 
@@ -202,41 +176,36 @@ public:
 		m_params.push_back(0.0);
 	}
 
-	virtual void Link(GFunctionParser* pMaster)
+	virtual double eval(vector<double>& params, GFunctionParser& parser)
 	{
-		if(m_pFunction->IsStub())
+		for(size_t i = 0; i < m_children.size(); i++)
+			m_params[i] = m_children[i]->eval(params, parser); // "params" holds the parameters to the root function. They are used when a leaf turns out to be one of the variables of the root function.
+		if(!m_pFunction)
 		{
-			GFunctionStub* pStub = (GFunctionStub*)m_pFunction;
-			GFunction* pFunc = pMaster->getFunction(pStub->m_name.c_str());
+			GFunction* pFunc = parser.getFunction(m_name.c_str());
 			if(pFunc->m_expectedParams >= 0)
 			{
 				// An exact number of parameters is expected
 				if((int)m_children.size() != pFunc->m_expectedParams)
-					throw Ex("The function ", pStub->m_name.c_str(), " expects ", to_str(pFunc->m_expectedParams), " parameters. (Got ", to_str(m_children.size()), ").");
+					throw Ex("The function ", m_name, " expects ", to_str(pFunc->m_expectedParams), " parameters. (Trying to call it with ", to_str(m_children.size()), ").");
 			}
 			else
 			{
 				// A minimum number of parameters is expected
 				if((int)m_children.size() < -pFunc->m_expectedParams - 1)
-					throw Ex("The function ", pStub->m_name.c_str(), " expects at least ", to_str(-pFunc->m_expectedParams - 1), " parameters. (Got ", to_str(m_children.size()), ".)");
+					throw Ex("The function ", m_name, " expects at least ", to_str(-pFunc->m_expectedParams - 1), " parameters. (Trying to call it with ", to_str(m_children.size()), ".)");
 			}
 			m_pFunction = pFunc->m_pRoot;
 		}
-		for(vector<GFunctionNode*>::iterator it = m_children.begin(); it != m_children.end(); it++)
-			(*it)->Link(pMaster);
+		return m_pFunction->eval(m_params, parser);
 	}
 
-	virtual double Call(vector<double>& params)
+	virtual void unlink(const char* szName)
 	{
-		vector<GFunctionNode*>::iterator itChild = m_children.begin();
-		vector<double>::iterator itParam = m_params.begin();
-		while(itChild != m_children.end())
-		{
-			*itParam = (*itChild)->Call(params);
-			itChild++;
-			itParam++;
-		}
-		return m_pFunction->Call(m_params);
+		for(vector<GFunctionNode*>::iterator it = m_children.begin(); it != m_children.end(); it++)
+			(*it)->unlink(szName);
+		if(m_name.compare(szName) == 0)
+			m_pFunction = NULL;
 	}
 };
 
@@ -253,12 +222,12 @@ public:
 	{
 	}
 
-	virtual void Link(GFunctionParser* pMaster) {}
-
-	virtual double Call(vector<double>& params)
+	virtual double eval(vector<double>& params, GFunctionParser& parser)
 	{
 		return params[m_index];
 	}
+
+	virtual void unlink(const char* szName) {}
 };
 
 class GFunctionConstant : public GFunctionNode
@@ -274,12 +243,12 @@ public:
 	{
 	}
 
-	virtual void Link(GFunctionParser* pMaster) {}
-
-	virtual double Call(vector<double>& params)
+	virtual double eval(vector<double>& params, GFunctionParser& parser)
 	{
 		return m_value;
 	}
+
+	virtual void unlink(const char* szName) {}
 };
 
 // --------------------------------------------------------------
@@ -383,7 +352,7 @@ public:
 
 // --------------------------------------------------------------
 
-GFunctionParser::GFunctionParser(const char* szEquations)
+GFunctionParser::GFunctionParser()
 {
 	// Operators
 	m_pNegate = new GFunctionBuiltIn(GFunctionBuiltIn::negate);
@@ -419,6 +388,8 @@ GFunctionParser::GFunctionParser(const char* szEquations)
 	addFunction("erf", new GFunctionBuiltIn(GFunctionBuiltIn::_erf), 1);
 #endif
 	addFunction("floor", new GFunctionBuiltIn(GFunctionBuiltIn::_floor), 1);
+	addFunction("ifzero", new GFunctionBuiltIn(GFunctionBuiltIn::_ifzero), 3);
+	addFunction("ifnegative", new GFunctionBuiltIn(GFunctionBuiltIn::_ifnegative), 3);
 	addFunction("gamma", new GFunctionBuiltIn(GFunctionBuiltIn::_gamma), 1);
 	addFunction("lgamma", new GFunctionBuiltIn(GFunctionBuiltIn::_lgamma), 1);
 	addFunction("log", new GFunctionBuiltIn(GFunctionBuiltIn::_log), 1);
@@ -431,23 +402,12 @@ GFunctionParser::GFunctionParser(const char* szEquations)
 	addFunction("sqrt", new GFunctionBuiltIn(GFunctionBuiltIn::_sqrt), 1);
 	addFunction("tan", new GFunctionBuiltIn(GFunctionBuiltIn::_tan), 1);
 	addFunction("tanh", new GFunctionBuiltIn(GFunctionBuiltIn::_tanh), 1);
-
-
-	GFunctionTokenizer tokenizer(szEquations);
-	while(tokenizer.Next())
-	{
-		size_t len = m_tokens.size();
-		m_tokens.resize(len + 1);
-		m_tokens[len] = string(tokenizer.m_pNext, tokenizer.m_len);
-	}
-	parseFunctionList(m_tokens);
 }
 
 GFunctionParser::~GFunctionParser()
 {
-	for(map<const char*, GFunction*, strCmp>::iterator it = m_functions.begin(); it != m_functions.end(); it++)
+	for(map<string, GFunction*>::iterator it = m_functions.begin(); it != m_functions.end(); it++)
 		delete(it->second);
-	flushStubs();
 	delete(m_pNegate);
 	delete(m_pPlus);
 	delete(m_pMinus);
@@ -457,28 +417,35 @@ GFunctionParser::~GFunctionParser()
 	delete(m_pExponent);
 }
 
-void GFunctionParser::flushStubs()
+void GFunctionParser::add(const char* szEquations)
 {
-	for(vector<GFunctionStub*>::iterator it = m_stubs.begin(); it != m_stubs.end(); it++)
-		delete(*it);
-	m_stubs.clear();
+	vector<string> tokens;
+	GFunctionTokenizer tokenizer(szEquations);
+	while(tokenizer.Next())
+	{
+		size_t len = tokens.size();
+		tokens.resize(len + 1);
+		tokens[len] = string(tokenizer.m_pNext, tokenizer.m_len);
+	}
+	parseFunctionList(tokens);
 }
 
 void GFunctionParser::addFunction(const char* name, GFunctionNode* pRoot, int expectedParams)
 {
 	GFunction* pFunc = m_functions[name];
 	if(pFunc)
-		pFunc->set(pRoot, expectedParams);
-	else
 	{
-		pFunc = new GFunction(pRoot, expectedParams);
-		m_functions[name] = pFunc;
+		onOverride(name);
+		for(map<string, GFunction*>::iterator it = m_functions.begin(); it != m_functions.end(); it++)
+			it->second->m_pRoot->unlink(name);
+		delete(pFunc);
 	}
+	m_functions[name] = new GFunction(pRoot, expectedParams);
 }
 
 GFunction* GFunctionParser::getFunctionNoThrow(const char* name)
 {
-	map<const char*, GFunction*, strCmp>::iterator it = m_functions.find(name);
+	map<string, GFunction*>::iterator it = m_functions.find(name);
 	if(it == m_functions.end())
 		return NULL;
 	return it->second;
@@ -641,13 +608,6 @@ void GFunctionParser::parseCommaSeparatedChildren(std::vector<std::string>& vari
 	pFunc->AddChild(parseFunctionBody(variables, tokens, childBegin, start + count - childBegin, depth));
 }
 
-GFunctionCall* GFunctionParser::makeStubbedOperator(const char* szName)
-{
-	GFunctionStub* pStub = new GFunctionStub(szName);
-	m_stubs.push_back(pStub);
-	return new GFunctionCall(pStub);
-}
-
 GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& variables, vector<string>& tokens, int start, int count, int depth)
 {
 	// Protect against maliciously designed formulas
@@ -693,7 +653,7 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 			}
 
 			// It must be a constant (parameterless function), so make a stub
-			return makeStubbedOperator(tokens[start].c_str());
+			return new GFunctionCall(tokens[start].c_str());
 		}
 		else
 		{
@@ -718,7 +678,7 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 					s += tokens[start + i];
 				throw Ex("Cannot parse this portion of the expression: ", s.c_str());
 			}
-			GFunctionCall* pFunc = makeStubbedOperator(tokens[start].c_str());
+			GFunctionCall* pFunc = new GFunctionCall(tokens[start].c_str());
 			Holder<GFunctionCall> hFunc(pFunc);
 			parseCommaSeparatedChildren(variables, pFunc, tokens, start + 2, count - 3, depth + 1);
 			return hFunc.release();
@@ -733,7 +693,7 @@ void GFunctionParser::parseVariableNames(vector<string>& variables, vector<strin
 		char c = tokens[start + i][0];
 		if(!GFunctionTokenizer::IsNameChar(c))
 			throw Ex("Expected a variable name to start with a letter or '_'");
-		variables.push_back(tokens[start + i].c_str());
+		variables.push_back(tokens[start + i]);
 		if(i + 1 < count && tokens[start + i + 1].compare(",") != 0)
 			throw Ex("Expected a comma between variable declarations");
 		i++;
@@ -789,14 +749,6 @@ void GFunctionParser::parseFunctionList(vector<string>& tokens)
 		}
 	}
 	functions.push_back(parseFunction(tokens, start, (int)tokens.size() - start));
-
-	// Link all the functions
-	for(vector<GFunctionNode*>::iterator it = functions.begin(); it != functions.end(); it++)
-	{
-		if(*it != NULL)
-			(*it)->Link(this);
-	}
-	flushStubs();
 }
 
 #ifndef NO_TEST_CODE
@@ -805,27 +757,29 @@ void GFunctionParser::parseFunctionList(vector<string>& tokens)
 void GFunctionParser::test()
 {
 	{
-		GFunctionParser mfp("f(x)=1/(1+e^-x)");
+		GFunctionParser mfp;
+		mfp.add("f(x)=1/(1+e^-x)");
 		GFunction* pFunc = mfp.getFunction("f");
 		if(pFunc->m_expectedParams != 1)
 			throw Ex("Wrong number of expected parameters");
 		double x = 1.23456789;
 		vector<double> params;
 		params.push_back(x);
-		double y = pFunc->call(params);
+		double y = pFunc->call(params, mfp);
 		if(std::abs(y - GMath::logistic(x)) > 1e-12)
 			throw Ex("Wrong answer");
 	}
 
 	{
-		GFunctionParser mfp("h(bob)=bob^2;somefunc(x)=3+blah(x,5)*h(x)-(x/foo);blah(a,b)=a*b-b;foo=3.2");
+		GFunctionParser mfp;
+		mfp.add("h(bob)=bob^2;somefunc(x)=3+blah(x,5)*h(x)-(x/foo);blah(a,b)=a*b-b;foo=3.2");
 		GFunction* pFunc = mfp.getFunction("somefunc");
 		if(pFunc->m_expectedParams != 1)
 			throw Ex("Wrong number of expected parameters");
 		double x = 1.1;
 		vector<double> params;
 		params.push_back(x);
-		double y = pFunc->call(params);
+		double y = pFunc->call(params, mfp);
 		if(std::abs(y - 3.26125) > 1e-12)
 			throw Ex("Wrong answer");
 	}
