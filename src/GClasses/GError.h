@@ -80,12 +80,12 @@ public:
 
 
 
-void GAssertFailed();
+void GAssertFailed(const char* filename, int line);
 #ifdef _DEBUG
 #define GAssert(x)\
 	{\
 		if(!(x))\
-			GAssertFailed();\
+			GAssertFailed(__FILE__, __LINE__);\
 	}
 #else // _DEBUG
 #define GAssert(x)	((void)0)
@@ -169,12 +169,12 @@ std::string to_str(T begin, T end, std::string spec = "")
 {
 	std::ostringstream os;
 	os.precision(14);
-	os << "[" << spec; 
+	os << "[" << spec;
 	if(spec != ""){
 	  os << ":";
-	} 
-	while(begin != end){ 
-	  os << to_str(*begin); ++begin; 
+	}
+	while(begin != end){
+	  os << to_str(*begin); ++begin;
 	  if(begin != end){ os << ","; }
 	}
 	os << "]";

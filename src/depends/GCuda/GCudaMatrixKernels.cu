@@ -37,7 +37,25 @@ __global__ void cuda_deactivateTanh(double* pE, const double* pA, int n)
 		pE[id] *= (1.0 - (pA[id] * pA[id]));
 	}
 }
+/*
+__global__ void cuda_activateBend(double* pA, int n)
+{
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	if (id < n) {
+		double x = pA[id];
+		pA[id] = 0.5 * sqrt(x * x + 1) + x - 0.5
+	}
+}
 
+__global__ void cuda_deactivateBend(double* pE, const double* pA, int n)
+{
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	if (id < n) {
+		double x = pE[id];
+		pE[id] *= 0.5 * (x / sqrt(x * x + 1)) + 1;
+	}
+}
+*/
 
 namespace GClasses {
 
@@ -55,5 +73,20 @@ void GCudaVector::deactivateTanh(GCudaEngine& engine, const GCudaVector& activat
 	size_t gridSize = (m_size + blockSize - 1) / blockSize;
 	cuda_deactivateTanh<<<gridSize, blockSize>>>(this->d_vals, activation.d_vals, (int)m_size);
 }
+/*
+void GCudaVector::activateBend(GCudaEngine& engine)
+{
+	size_t blockSize = engine.m_blockSize;
+	size_t gridSize = (m_size + blockSize - 1) / blockSize;
+	cuda_activateBend<<<gridSize, blockSize>>>(this->d_vals, (int)m_size);
+}
 
+void GCudaVector::deactivateBend(GCudaEngine& engine, const GCudaVector& activation)
+{
+	GAssert(activation.m_size == m_size);
+	size_t blockSize = engine.m_blockSize;
+	size_t gridSize = (m_size + blockSize - 1) / blockSize;
+	cuda_deactivateBend<<<gridSize, blockSize>>>(this->d_vals, activation.d_vals, (int)m_size);
+}
+*/
 } // namespace GClasses

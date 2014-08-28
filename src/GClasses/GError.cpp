@@ -49,7 +49,7 @@ void Ex::setMessage(std::string message)
 }
 
 const char* Ex::what() const throw()
-{ 
+{
 	return m_message.c_str();
 }
 
@@ -104,16 +104,16 @@ void TestContains(std::string expectedSubstring, std::string got,
 
 
 #ifdef WINDOWS
-void GAssertFailed()
+void GAssertFailed(const char* filename, int line)
 {
-	cerr << "Debug Assert Failed!\n";
+	cerr << "Debug Assert Failed in " << filename << ":" << line << std::endl;
 	cerr.flush();
 	__debugbreak();
 }
 #else
-void GAssertFailed()
+void GAssertFailed(const char* filename, int line)
 {
-	cerr << "Debug Assert Failed!\n";
+	cerr << "Debug Assert Failed in " << filename << ":" << line << std::endl;
 	cerr.flush();
 	raise(SIGINT);
 }

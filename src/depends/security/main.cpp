@@ -42,6 +42,7 @@
 #include <math.h>
 #include <sstream>
 #include <fstream>
+#include <errno.h>
 
 using namespace GClasses;
 using std::cout;
@@ -95,24 +96,32 @@ UsageNode* makeCryptoUsageTree()
 		pOpts->add("-noprogress", "Do not display progress percentage. (It might be preferable not to display progress, for example, if you are going to pipe the output to a file.)");
 		pOpts->add("-include [substr]", "Specify a substring that is suspected to occur within the password. Each candidate password will be attempted with this substring insterted at every possible position. (This substring is not counted as part of the password length by the -startlen or -maxlen options.)");
 	}
-	UsageNode* pCC = pRoot->add("commandcenter <options>", "Run an inter-active command-center program that enables you to direct your satellites.");
 	{
+		UsageNode* pCC = pRoot->add("commandcenter <options>", "Run an inter-active command-center program that enables you to direct your satellites.");
 		UsageNode* pOpts = pCC->add("<options>");
 		pOpts->add("-port [n]", "Specify the port to listen on. The default is 6831.");
 	}
-	UsageNode* pDecrypt = pRoot->add("decrypt [filename]", "Decrypt the specified file. (It will prompt you to enter the passphrase.)");
 	{
+		UsageNode* pDecrypt = pRoot->add("decrypt [filename]", "Decrypt the specified file. (It will prompt you to enter the passphrase.)");
 		pDecrypt->add("[filename]", "The name of a file that was encrypted using the encrypt command.");
 	}
-	UsageNode* pEncrypt = pRoot->add("encrypt [path] <options>", "Encrypt [path] to create a single encrypted archive file. (It will prompt you to enter a passphrase.)");
 	{
+		UsageNode* pDump = pRoot->add("dump [filename] [offset] [length]", "Print the specified portion of a file.");
+	}
+	{
+		UsageNode* pFind = pRoot->add("find [filename] [needle]", "Print all the offsets where [needle] occurs in the specified file. (This could be used, for example, with /dev/sda* to scan an entire hard drive, including deleted files. After you find what you want, it is typical to use \"dump\" to retrieve the region around it.)");
+	}
+	{
+		UsageNode* pEncrypt = pRoot->add("encrypt [path] <options>", "Encrypt [path] to create a single encrypted archive file. (It will prompt you to enter a passphrase.)");
 		pEncrypt->add("[path]", "A file name or a folder name. If it is a folder, then all of the contents recursively will be included.");
 		UsageNode* pOpts = pEncrypt->add("<options>");
 		pOpts->add("-out [filename]", "Specify the name of the output file. (The default is to use the name of the path with the extension changed to .encrypted.)");
 		pOpts->add("-compress", "Take a lot longer, but produce a smaller encrypted archive file. (This feature really isn't very usable yet.)");
 	}
-	UsageNode* pLogKeys = pRoot->add("logkeys [filename] <options>", "Log key-strokes to the specified file. (The program will exit if the panic-sequence \"xqwertx\" is detected.)");
 	{
+	}
+	{
+		UsageNode* pLogKeys = pRoot->add("logkeys [filename] <options>", "Log key-strokes to the specified file. (The program will exit if the panic-sequence \"xqwertx\" is detected.)");
 		UsageNode* pOpts = pLogKeys->add("<options>");
 		pOpts->add("-daemon", "Launch as a daemon. (Forks off a daemon that keeps running in the background and immediately exits.)");
 	}
@@ -886,6 +895,117 @@ void dictAttackNTPassword(GArgReader& args)
 	}
 }
 
+void dump(GArgReader& args)
+{
+	const char* szFilename = args.pop_string();
+	size_t startPos = args.pop_uint();
+	size_t length = args.pop_uint();
+
+	size_t fileSize;
+	std::ifstream ifs;
+	ifs.exceptions(std::ios::failbit|std::ios::badbit);
+	try
+	{
+		ifs.open(szFilename, std::ios::binary);
+		ifs.seekg(0, std::ios::end);
+		fileSize = (size_t)ifs.tellg();
+		ifs.seekg(startPos, std::ios::beg);
+	}
+	catch(const std::exception&)
+	{
+		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
+	}
+
+	length = std::min(length, fileSize - startPos);
+	if(startPos >= fileSize)
+		length = 0;
+	size_t bufSize = std::min((size_t)8192, length);
+	char* pBuf = new char[bufSize + 1];
+	ArrayHolder<char> hBuf(pBuf);
+	while(length > 0)
+	{
+		size_t blockLen = std::min(length, bufSize);
+		ifs.read(pBuf, blockLen);
+		char* pB = pBuf;
+		for(size_t i = 0; i < blockLen; i++)
+		{
+			if(*pB < ' ' && *pB != '\n')
+				*pB = '~';
+			else if(*pB > '~')
+				*pB = '~';
+			pB++;
+		}
+		pBuf[blockLen] = '\0';
+		cout << pBuf;
+		length -= blockLen;
+	}
+}
+
+void find(GArgReader& args)
+{
+	const char* szFilename = args.pop_string();
+	const char* szNeedle = args.pop_string();
+
+	size_t fileSize;
+	std::ifstream ifs;
+	ifs.exceptions(std::ios::failbit|std::ios::badbit);
+	try
+	{
+		ifs.open(szFilename, std::ios::binary);
+		ifs.seekg(0, std::ios::end);
+		fileSize = (size_t)ifs.tellg();
+		ifs.seekg(0, std::ios::beg);
+	}
+	catch(const std::exception&)
+	{
+		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
+	}
+
+	size_t needleLen = strlen(szNeedle);
+	size_t bulkSize = 8192;
+	if(needleLen > bulkSize)
+		throw Ex("big needle");
+	size_t bufSize = bulkSize + needleLen;
+	char* pBuf = new char[bufSize + 1];
+	ArrayHolder<char> hBuf(pBuf);
+	size_t overflow = 0;
+	size_t pos = 0;
+	while(fileSize > 0)
+	{
+		memcpy(pBuf, pBuf + bulkSize, overflow);
+		size_t readLen = std::min(fileSize, bufSize - overflow);
+		ifs.read(pBuf + overflow, readLen);
+		size_t dataLen = overflow + readLen;
+		overflow = dataLen - bulkSize;
+		size_t searchSize = dataLen - std::min(dataLen, needleLen);
+		fileSize -= readLen;
+
+		char* pB = pBuf;
+		for(size_t i = 0; i < searchSize; i++)
+		{
+			bool found = true;
+			char* pBB = pB;
+			const char* pNeed = szNeedle;
+			for(size_t j = 0; j < needleLen; j++)
+			{
+				if(*pBB != *pNeed)
+				{
+					found = false;
+					break;
+				}
+				pBB++;
+				pNeed++;
+			}
+			if(found)
+			{
+				cout << to_str(pos + i) << "\n";
+			}
+			pB++;
+		}
+		pos += searchSize;
+	}
+}
+
 void nthash(GArgReader& args)
 {
 	unsigned char hash[16];
@@ -1541,6 +1661,8 @@ void doit(GArgReader& args)
 	//else if(args.if_pop("li")) doLogin(args);
 	else if(args.if_pop("bruteforcentpassword")) bruteForceNTPassword(args);
 	else if(args.if_pop("dictattackntpassword")) dictAttackNTPassword(args);
+	else if(args.if_pop("dump")) dump(args);
+	else if(args.if_pop("find")) find(args);
 	else if(args.if_pop("commandcenter")) doCommandCenter(args);
 	else if(args.if_pop("decrypt")) decrypt(args);
 	else if(args.if_pop("encrypt")) encrypt(args);
