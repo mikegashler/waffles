@@ -29,6 +29,7 @@ endif
 # GCOV_CFLAGS = $(CFLAGS) -g -fprofile-arcs -ftest-coverage
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
+#OPT_CFLAGS = $(CFLAGS)  -Ofast -ffp-contract=fast -floop-parallelize-all -funroll-loops -falign-loops -ffast-math -msse -msse2 -msse3 -mfpmath=sse
 
 ################
 # Source
@@ -63,6 +64,7 @@ CPP_FILES = \
 	GFunction.cpp\
 	GGaussianProcess.cpp\
 	GGraph.cpp\
+	GGridSearch.cpp\
 	GHashTable.cpp\
 	GHeap.cpp\
 	GHiddenMarkovModel.cpp\
@@ -106,7 +108,6 @@ CPP_FILES = \
 	GSmtp.cpp\
 	GSocket.cpp\
 	GSparseMatrix.cpp\
-	GGridSearch.cpp\
 	GStemmer.cpp\
 	GString.cpp\
 	GSystemLearner.cpp\

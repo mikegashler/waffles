@@ -78,7 +78,13 @@ public:
 
 	/// Multiplies each element in this vector by (1.0-(a*a)), where a is the corresponding element in activation.
 	void deactivateTanh(GCudaEngine& engine, const GCudaVector& activation);
+/*
+	/// Applies the bend function element-wise to this vector.
+	void activateBend(GCudaEngine& engine);
 
+	/// Multiplies each element in this vector by the derivative of the bend function.
+	void deactivateBend(GCudaEngine& engine, const GCudaVector& activation);
+*/
 	/// Adds thatScalar * that vector to this vector.
 	/// For example, if thatScalar is -1, then this method will subtract that vector from this vector.
 	void add(GCudaEngine& engine, GCudaVector& that, double thatScalar = 1.0);

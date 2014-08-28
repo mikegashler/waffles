@@ -30,6 +30,7 @@
 #include <vector>
 #include <iostream>
 #include "GImagePng.h"
+#include "GImageJpeg.h"
 
 using namespace GClasses;
 using std::cerr;
@@ -1122,7 +1123,7 @@ void PaintController::SetCurrentTool(PaintTool* pTool)
 
 void PaintController::OpenFile()
 {
-	GetOpenFilenameDialog dialog("Please select a file to open", ".png");
+	GetOpenFilenameDialog dialog("Please select a file to open", ".png;.jpg;.jpeg;.ppm;.pgm");
 	RunPopup(&dialog);
 	const char* szFilename = dialog.filename();
 	if(!szFilename)
@@ -1131,6 +1132,10 @@ void PaintController::OpenFile()
 	GFile::parsePath(szFilename, &pd);
 	if(_stricmp(szFilename + pd.extStart, ".png") == 0)
 		loadPng(m_pImage, szFilename);
+	else if(_stricmp(szFilename + pd.extStart, ".jpg") == 0)
+		loadJpeg(m_pImage, szFilename);
+	else if(_stricmp(szFilename + pd.extStart, ".jpeg") == 0)
+		loadJpeg(m_pImage, szFilename);
 	else
 		m_pImage->loadByExtension(szFilename);
 	m_pSelection->setSize(m_pImage->width(), m_pImage->height());

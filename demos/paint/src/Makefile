@@ -18,7 +18,7 @@ else
 	CFLAGS = -Wall $(shell sdl-config --cflags) -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
-	LFLAGS = -L../../../lib $(shell sdl-config --libs) -lpng
+	LFLAGS = -L../../../lib $(shell sdl-config --libs) -lpng -ljpeg
 	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lpthread
 	OPT_LFLAGS = $(LFLAGS) -lGClasses -lpthread
 endif
@@ -31,6 +31,7 @@ CPP_FILES =\
 	main.cpp\
 	Paint.cpp\
 	GImagePng.cpp\
+	GImageJpeg.cpp\
 	Gui.cpp\
 
 ################
