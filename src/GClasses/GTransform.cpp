@@ -901,13 +901,20 @@ GRelation* GAttributeSelector::setTargetFeatures(size_t n)
 // virtual
 GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 {
+	// Normalize all the data
 	if(m_labelDims > data.cols())
 		throw Ex("label dims is greater than the number of columns in the data");
+	GNormalize norm;
+	norm.train(data);
+	GMatrix* pNormData = norm.transformBatch(data);
+	Holder<GMatrix> hNormData(pNormData);
+
+	// Divide into features and labels
 	size_t curDims = data.cols() - m_labelDims;
 	m_ranks.resize(curDims);
-	GMatrix* pFeatures = data.cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
+	GMatrix* pFeatures = pNormData->cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
 	Holder<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = data.cloneSub(0, data.cols() - m_labelDims, data.rows(), m_labelDims);
+	GMatrix* pLabels = pNormData->cloneSub(0, data.cols() - m_labelDims, data.rows(), m_labelDims);
 	Holder<GMatrix> hLabels(pLabels);
 	vector<size_t> indexMap;
 	for(size_t i = 0; i < curDims; i++)
@@ -921,6 +928,12 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		ntc.train(*pFeatures);
 		GMatrix* pFeatures2 = ntc.transformBatch(*pFeatures);
 		Holder<GMatrix> hFeatures2(pFeatures2);
+		vector<size_t> rmap;
+		ntc.reverseAttrMap(rmap);
+		GNominalToCat ntc2;
+		ntc2.train(*pLabels);
+		GMatrix* pLabels2 = ntc2.transformBatch(*pLabels);
+		Holder<GMatrix> hLabels2(pLabels2);
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn;
@@ -930,9 +943,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		m_seed *= 37152487;
 		nn.setWindowSize(30);
 		nn.setImprovementThresh(0.002);
-		nn.train(*pFeatures2, *pLabels);
-		vector<size_t> rmap;
-		ntc.reverseAttrMap(rmap);
+		nn.train(*pFeatures2, *pLabels2);
 
 		// Identify the weakest attribute
 		GLayerClassic& layer = *(GLayerClassic*)&nn.layer(nn.layerCount() - 1);

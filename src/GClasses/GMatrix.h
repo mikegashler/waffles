@@ -1242,7 +1242,6 @@ protected:
 	std::map<size_t, size_t> m_specifiedReal;
 	std::map<size_t, size_t> m_specifiedNominal;
 
-
 public:
 	GCSVParser();
 	~GCSVParser();
