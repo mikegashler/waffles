@@ -204,7 +204,6 @@ public:
 	{
 		throw Ex("Not yet implemented");
 	}
-	
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc);
@@ -365,6 +364,9 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Returns a pointer to the activation function used in this layer
 	GActivationFunction* activationFunction() { return m_pActivationFunction; }
+
+	/// Activates an external net vector into this layer's activation buffer.
+	void activate(const double* pNet);
 
 	/// Feeds a vector forward through this layer. Uses the first value in pIn as an input bias.
 	void feedForwardWithInputBias(const double* pIn);
@@ -1261,8 +1263,10 @@ public:
 	void forwardProp(const double* pInputs, size_t maxLayers = INVALID_INDEX);
 
 	/// This is the same as forwardProp, except it only propagates to a single output node.
-	/// It returns the value that this node outputs.
-	double forwardPropSingleOutput(const double* pInputs, size_t output);
+	/// It returns the value that this node outputs. If bypassInputWeights is true, then
+	/// pInputs is assumed to have the same size as the first layer, and it is fed into the
+	/// net of this layer, instead of the inputs.
+	double forwardPropSingleOutput(const double* pInputs, size_t output, bool bypassInputWeights);
 
 	/// This method assumes forwardProp has been called. It copies the predicted vector into pOut.
 	void copyPrediction(double* pOut);

@@ -129,8 +129,8 @@ UsageNode* makeCryptoUsageTree()
 	pRoot->add("nthash [password]", "Computes the NT hash of [password]. (This feature does not yet build on Windows because I used libssl to supply the MD4 algorithm, and I have not yet bothered to find a Windows version of the libssl library. It would not take much effort to get it working on Windows, I just have not done it yet.)");
 	pRoot->add("open [filename]", "A convenient interactive version of decrypt that prompts you to shred the files after you are done with them.");
 	pRoot->add("grep [filename] [needle]", "Decrypt [filename], print every line containing [needle], then shred the decrypted files.");
-	UsageNode* pSatellite = pRoot->add("satellite <options>", "Run a satellite program that periodically phones home to receive directions.");
 	{
+		UsageNode* pSatellite = pRoot->add("satellite <options>", "Run a satellite program that periodically phones home to receive directions.");
 		UsageNode* pOpts = pSatellite->add("<options>");
 		pOpts->add("-connectinterval [seconds]", "Specify the time in seconds between attempts to phone home. The default is 600 seconds");
 		pOpts->add("-addr [address]", "Specify the address to phone home to. The default is 'localhost', which is only useful for testing purposes.");

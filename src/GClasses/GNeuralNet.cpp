@@ -231,6 +231,17 @@ void GLayerClassic::activate()
 	}
 }
 
+void GLayerClassic::activate(const double* pNet)
+{
+	double* pAct = activation();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		GAssert(*pNet < 1e100 && *pNet > -1e100);
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+	}
+}
+
 // virtual
 void GLayerClassic::dropOut(GRand& rand, double probOfDrop)
 {
@@ -2752,30 +2763,77 @@ void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 	}
 }
 
-double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output)
+double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output, bool bypassInputWeights)
 {
 	if(m_layers.size() == 1)
 	{
+		if(bypassInputWeights)
+			throw Ex("At least one hidden layer is required to bypass the input weights");
 		GLayerClassic& layer = *(GLayerClassic*)m_layers[0];
 		layer.feedForwardToOneOutput(pRow, output, m_useInputBias);
 		return layer.activation()[output];
 	}
 	else
 	{
-		GLayerClassic* pLay = (GLayerClassic*)m_layers[0];
-		if(m_useInputBias)
-			pLay->feedForwardWithInputBias(pRow);
-		else
-			pLay->feedForward(pRow);
-		for(size_t i = 1; i + 1 < m_layers.size(); i++)
+		if(bypassInputWeights)
 		{
-			GLayerClassic* pDS = (GLayerClassic*)m_layers[i];
-			pDS->feedForward(pLay->activation());
-			pLay = pDS;
+			GLayerClassic* pLay = (GLayerClassic*)m_layers[0];
+			pLay->activate(pRow);
+			if(m_useInputBias)
+			{
+				GLayerClassic* pLayer2 = (GLayerClassic*)m_layers[1];
+				if(m_layers.size() == 2)
+				{
+					pLayer2->feedForwardToOneOutput(pLay->activation(), output, m_useInputBias);
+					return pLayer2->activation()[output];
+				}
+				else
+				{
+					if(m_useInputBias)
+						pLayer2->feedForwardWithInputBias(pLay->activation());
+					else
+						pLayer2->feedForward(pLay->activation());
+					for(size_t i = 2; i + 1 < m_layers.size(); i++)
+					{
+						GLayerClassic* pDS = (GLayerClassic*)m_layers[i];
+						pDS->feedForward(pLayer2->activation());
+						pLayer2 = pDS;
+					}
+					GLayerClassic* pDS = (GLayerClassic*)m_layers[m_layers.size() - 1];
+					pDS->feedForwardToOneOutput(pLay->activation(), output, false);
+					return pDS->activation()[output];
+				}
+			}
+			else
+			{
+				for(size_t i = 1; i + 1 < m_layers.size(); i++)
+				{
+					GLayerClassic* pDS = (GLayerClassic*)m_layers[i];
+					pDS->feedForward(pLay->activation());
+					pLay = pDS;
+				}
+				GLayerClassic* pDS = (GLayerClassic*)m_layers[m_layers.size() - 1];
+				pDS->feedForwardToOneOutput(pLay->activation(), output, false);
+				return pDS->activation()[output];
+			}
 		}
-		GLayerClassic* pDS = (GLayerClassic*)m_layers[m_layers.size() - 1];
-		pDS->feedForwardToOneOutput(pLay->activation(), output, false);
-		return pDS->activation()[output];
+		else
+		{
+			GLayerClassic* pLay = (GLayerClassic*)m_layers[0];
+			if(m_useInputBias)
+				pLay->feedForwardWithInputBias(pRow);
+			else
+				pLay->feedForward(pRow);
+			for(size_t i = 1; i + 1 < m_layers.size(); i++)
+			{
+				GLayerClassic* pDS = (GLayerClassic*)m_layers[i];
+				pDS->feedForward(pLay->activation());
+				pLay = pDS;
+			}
+			GLayerClassic* pDS = (GLayerClassic*)m_layers[m_layers.size() - 1];
+			pDS->feedForwardToOneOutput(pLay->activation(), output, false);
+			return pDS->activation()[output];
+		}
 	}
 }
 
