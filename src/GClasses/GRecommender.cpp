@@ -1250,10 +1250,10 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	delete[] m_pMaxs;
 	m_pMaxs = new double[items];
 	delete[] m_pRatingCount;
-	m_pRatingCount = new size_t[items];
+	m_pRatingCount = new size_t[users];
 	GVec::setAll(m_pMins, 1e200, items);
 	GVec::setAll(m_pMaxs, -1e200, items);
-	GIndexVec::setAll(m_pRatingCount, 0, items);
+	GIndexVec::setAll(m_pRatingCount, 0, users);
 	for(size_t i = 0; i < pClone->rows(); i++)
 	{
 		double* pVec = pClone->row(i);
@@ -1384,7 +1384,6 @@ double GHybridNonlinearPCA::predict(size_t item, size_t user)
 	//If the user is new
 	if(user >= m_pUsers->rows() || item >= m_items)
 		return 0.0;
-
 
 	//If the item has not yet been rated but has item features
 	if(m_itemSet.find(user) == m_itemSet.end())
