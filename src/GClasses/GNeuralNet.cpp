@@ -2763,6 +2763,23 @@ void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 	}
 }
 
+void GNeuralNet::forwardPropIntoNet(const double* pRow)
+{
+	GNeuralNetLayer* pLay = m_layers[0];
+	if(!pLay)
+		throw Ex("No layers have been added to this neural network");
+	GAssert(!m_useInputBias);
+	((GLayerClassic*)pLay)->activate(pRow);
+	for(size_t i = 1; i < m_layers.size(); i++)
+	{
+		GNeuralNetLayer* pDS = m_layers[i];
+		pDS->copyBiasToNet();
+		pDS->feedIn(pLay, 0);
+		pDS->activate();
+		pLay = pDS;
+	}
+}
+
 double GNeuralNet::forwardPropSingleOutput(const double* pRow, size_t output, bool bypassInputWeights)
 {
 	if(m_layers.size() == 1)
