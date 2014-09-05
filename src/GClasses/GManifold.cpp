@@ -2460,7 +2460,7 @@ GMatrix* GUnsupervisedBackProp::reduce(const GMatrix& in)
 
 					// Do backprop
 					GVec::copy(pIntrinsic, pInt, m_intrinsicDims);
-					double prediction = pNN->forwardPropSingleOutput(pParams, c, false);
+					double prediction = pNN->forwardPropSingleOutput(pParams, c);
 					double target = (pPix[c] - m_pMins[c]) / m_pRanges[c];
 					GAssert(target >= 0.0 && target <= 1.0 && prediction >= 0.0 && prediction <= 1.0);
 					double err = target - prediction;

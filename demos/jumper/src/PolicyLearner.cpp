@@ -96,17 +96,17 @@ void GenerateSeedTrainingSet(GMatrix* pFeatures, GMatrix* pLabels, GRand* pRand)
 void Train()
 {
 	printf("Learning the seed policy...\n");
-	GRand prng(0);
 	GMatrix features(0, FEATURE_DIMS);
 	GMatrix labels(0, LABEL_DIMS);
+	GNeuralNet nn;
+	GRand& prng = nn.rand();
 	GenerateSeedTrainingSet(&features, &labels, &prng);
-	GNeuralNet nn(prng);
-	nn.addLayer(8);
-	nn.setActivationFunction(new GActivationBiDir(), true);
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 8, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationBend()));
 	nn.train(features, labels);
-	nn.clipWeights(36.0); // ensure that the network is still somewhat malleable
 	int weightCount = nn.countWeights();
-	GTEMPBUF(double, hintVec, weightCount);
+	double hintVec[weightCount];
+	//	GTEMPBUF(double, hintVec, weightCount);
 	nn.weights(hintVec);
 
 	printf("Initializing a population for the evolutionary search...\n");
@@ -138,7 +138,7 @@ GNeuralNet* LoadPolicy(const char* szFilename, GRand* pRand)
 {
 	GDom doc;
 	doc.loadJson(szFilename);
-	GLearnerLoader ll(*pRand);
+	GLearnerLoader ll;
 	return new GNeuralNet(doc.root(), ll);
 }
 
@@ -148,10 +148,11 @@ GNeuralNet* TrainPolicy()
 	GMatrix features(0, FEATURE_DIMS);
 	GMatrix labels(0, LABEL_DIMS);
 	GenerateSeedTrainingSet(&features, &labels, pRand);
-	GNeuralNet* pNN = new GNeuralNet(*pRand);
+	GNeuralNet* pNN = new GNeuralNet();
 	//pNN->SetMinImprovement(0.01);
 	//pNN->SetIterationsPerValidationCheck(600);
-	pNN->addLayer(4);
+	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, 8, new GActivationBend()));
+	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationBend()));
 	pNN->train(features, labels);
 	return pNN;
 }

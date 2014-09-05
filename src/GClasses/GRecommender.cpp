@@ -1345,7 +1345,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 					size_t user = size_t(pVec[1]);
 					size_t item = size_t(pVec[0]);
 					double* pPrefs = m_pUsers->row(user);
-					pNN->forwardPropSingleOutput(pPrefs, item, false);
+					pNN->forwardPropSingleOutput(pPrefs, item);
 
 					// Update weights
 					pNN->backpropagateSingleOutput(item, pVec[2]);
@@ -1385,6 +1385,7 @@ double GHybridNonlinearPCA::predict(size_t item, size_t user)
 	if(user >= m_pUsers->rows() || item >= m_items)
 		return 0.0;
 
+
 	//If the item has not yet been rated but has item features
 	if(m_itemSet.find(user) == m_itemSet.end())
 	{
@@ -1414,7 +1415,7 @@ double GHybridNonlinearPCA::predict(size_t item, size_t user)
 			size_t neighbor = m_itemMap[neighbors[i]];
 			if(m_pRatingCount[neighbor] > 50)
 			{
-				double prediction = round(((m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(neighbor), item, false) + m_pMins[item])* 2.0) / 2.0;
+				double prediction = round(((m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(neighbor), item) + m_pMins[item])* 2.0) / 2.0;
 //			double prediction = (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(neighbor), item) + m_pMins[item];
 				if(prediction > m_pMaxs[item])
 					prediction = m_pMaxs[item];
@@ -1441,7 +1442,7 @@ double GHybridNonlinearPCA::predict(size_t item, size_t user)
 		return predMode / 2.0;
 	}
 
-	return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item, false) + m_pMins[item];
+	return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_pMins[item];
 }
 
 double GHybridNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
@@ -1451,7 +1452,7 @@ double GHybridNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 	{
 		double* pVec = data[i];
 		double* pPrefs = m_pUsers->row(size_t(pVec[1]));
-		double predictedRating = pNN->forwardPropSingleOutput(pPrefs, size_t(pVec[0]), true);
+		double predictedRating = pNN->forwardPropSingleOutput(pPrefs, size_t(pVec[0]));
 		double d = pVec[2] - predictedRating;
 		sse += (d * d);
 	}
@@ -1545,7 +1546,7 @@ double GNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 	{
 		double* pVec = data[i];
 		double* pPrefs = m_pUsers->row(size_t(pVec[0]));
-		double predictedRating = pNN->forwardPropSingleOutput(pPrefs, size_t(pVec[1]), false);
+		double predictedRating = pNN->forwardPropSingleOutput(pPrefs, size_t(pVec[1]));
 		double d = pVec[2] - predictedRating;
 		sse += (d * d);
 	}
@@ -1640,7 +1641,7 @@ void GNonlinearPCA::train(GMatrix& data)
 					size_t user = size_t(pVec[0]);
 					size_t item = size_t(pVec[1]);
 					double* pPrefs = m_pUsers->row(user);
-					pNN->forwardPropSingleOutput(pPrefs, item, false);
+					pNN->forwardPropSingleOutput(pPrefs, item);
 
 					// Update weights
 					pNN->backpropagateSingleOutput(item, pVec[2]);
@@ -1676,7 +1677,7 @@ double GNonlinearPCA::predict(size_t user, size_t item)
 	if(user >= m_pUsers->rows() || item >= m_items)
 		return 0.0;
 	else
-		return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item, false) + m_pMins[item];
+		return (m_pMaxs[item] - m_pMins[item]) * m_pModel->forwardPropSingleOutput(m_pUsers->row(user), item) + m_pMins[item];
 }
 
 // virtual

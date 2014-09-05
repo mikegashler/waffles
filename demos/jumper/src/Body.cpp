@@ -388,7 +388,8 @@ void RagDoll::makeFeatureVector(double* pFeatures, double time)
 void RagDoll::DoAction(GSupervisedLearner* pPolicy, double time)
 {
 	// Make a feature vector
-	GTEMPBUF(double, pPat, FEATURE_DIMS + LABEL_DIMS);
+	double pPat[FEATURE_DIMS + LABEL_DIMS];
+	//	GTEMPBUF(double, pPat, FEATURE_DIMS + LABEL_DIMS);
 	makeFeatureVector(pPat, time);
 
 	// Decide how to move the joints

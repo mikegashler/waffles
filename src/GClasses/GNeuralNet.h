@@ -365,9 +365,6 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Returns a pointer to the activation function used in this layer
 	GActivationFunction* activationFunction() { return m_pActivationFunction; }
 
-	/// Activates an external net vector into this layer's activation buffer.
-	void activate(const double* pNet);
-
 	/// Feeds a vector forward through this layer. Uses the first value in pIn as an input bias.
 	void feedForwardWithInputBias(const double* pIn);
 
@@ -1262,15 +1259,11 @@ public:
 	/// The maxLayers parameter can limit how far into the network values are propagated.
 	void forwardProp(const double* pInputs, size_t maxLayers = INVALID_INDEX);
 
-	/// Feeds pRow directly into the net buffer of the first layer (bypassing its weights),
-	/// then propagates forward through the network. Assumes the first layer is a GLayerClassic.
-	void forwardPropIntoNet(const double* pRow);
-
 	/// This is the same as forwardProp, except it only propagates to a single output node.
 	/// It returns the value that this node outputs. If bypassInputWeights is true, then
 	/// pInputs is assumed to have the same size as the first layer, and it is fed into the
 	/// net of this layer, instead of the inputs.
-	double forwardPropSingleOutput(const double* pInputs, size_t output, bool bypassInputWeights);
+	double forwardPropSingleOutput(const double* pInputs, size_t output);
 
 	/// This method assumes forwardProp has been called. It copies the predicted vector into pOut.
 	void copyPrediction(double* pOut);

@@ -7,6 +7,7 @@
 #include <GClasses/GNeuralNet.h>
 #include <GClasses/GRand.h>
 #include <GClasses/GImage.h>
+#include <GClasses/GHolders.h>
 #include "PolicyLearner.h"
 #include <iostream>
 
