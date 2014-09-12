@@ -220,7 +220,7 @@ public:
 	void setSigWeight(size_t sig){ m_significanceWeight = sig; }
 
 	/// This is the same function as predict except that it returns the
-	/// the priority queue for the nearest neigbors. The values are further user 
+	/// the priority queue for the nearest neigbors. The values are further user
 	/// by the content-boosted cf prediction method to combine the content-based
 	/// and cf predictions.
 	multimap<double,ArrayWrapper> getNeighbors(size_t user, size_t item);
@@ -344,6 +344,8 @@ protected:
 	double m_regularizer;
 	GMatrix* m_pP;
 	GMatrix* m_pQ;
+	GMatrix* m_pPMask;
+	GMatrix* m_pQMask;
 	bool m_useInputBias;
 	size_t m_minIters;
 	double m_decayRate;
@@ -360,6 +362,12 @@ public:
 
 	/// Set the regularization value
 	void setRegularizer(double d) { m_regularizer = d; }
+
+	/// Specify that a certain attribute of a certain user profile has a fixed value.
+	void clampUserElement(size_t user, size_t attr, double val);
+
+	/// Specify that a certain attribute of a certain item profile has a fixed value.
+	void clampItemElement(size_t item, size_t attr, double val);
 
 	/// See the comment for GCollaborativeFilter::train
 	virtual void train(GMatrix& data);
@@ -416,6 +424,8 @@ protected:
 	double* m_pMaxs;
 	GNeuralNet* m_pModel;
 	GMatrix* m_pUsers;
+	GMatrix* m_pUserMask;
+	GMatrix* m_pItemMask;
 	bool m_useInputBias;
 	bool m_useThreePass;
 	size_t m_minIters;
@@ -440,6 +450,13 @@ public:
 
 	/// Returns a pointer to the matrix of user preference vectors.
 	GMatrix* users() { return m_pUsers; }
+
+	/// Specify that a certain attribute of a certain user profile has a fixed value.
+	/// (In this one case only, attr 0 refers to the bias input.)
+	void clampUserElement(size_t user, size_t attr, double val);
+
+	/// Specify that a certain attribute of a certain item profile has a fixed value.
+	void clampItemElement(size_t item, size_t attr, double val);
 
 	/// See the comment for GCollaborativeFilter::train
 	virtual void train(GMatrix& data);
@@ -674,7 +691,6 @@ public:
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const { return NULL; };
 
-	
 };
 
 } // namespace GClasses

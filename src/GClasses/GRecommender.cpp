@@ -937,7 +937,7 @@ void GDenseClusterRecommender::test()
 
 
 GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_useInputBias(true), m_minIters(1), m_decayRate(0.97)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_pPMask(NULL), m_pQMask(NULL), m_useInputBias(true), m_minIters(1), m_decayRate(0.97)
 {
 }
 
@@ -948,6 +948,16 @@ GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll)
 	m_useInputBias = pNode->field("uib")->asBool();
 	m_pP = new GMatrix(pNode->field("p"));
 	m_pQ = new GMatrix(pNode->field("q"));
+	GDomNode* pPMask = pNode->fieldIfExists("pm");
+	if(pPMask)
+		m_pPMask = new GMatrix(pPMask);
+	else
+		m_pPMask = NULL;
+	GDomNode* pQMask = pNode->fieldIfExists("qm");
+	if(pQMask)
+		m_pQMask = new GMatrix(pQMask);
+	else
+		m_pQMask = NULL;
 	if(m_pP->cols() != m_pQ->cols())
 		throw Ex("Mismatching matrix sizes");
 	m_intrinsicDims = m_pP->cols() - 1;
@@ -958,6 +968,8 @@ GMatrixFactorization::~GMatrixFactorization()
 {
 	delete(m_pQ);
 	delete(m_pP);
+	delete(m_pPMask);
+	delete(m_pQMask);
 }
 
 // virtual
@@ -968,7 +980,29 @@ GDomNode* GMatrixFactorization::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
 	pNode->addField(pDoc, "p", m_pP->serialize(pDoc));
 	pNode->addField(pDoc, "q", m_pQ->serialize(pDoc));
+	if(m_pPMask)
+		pNode->addField(pDoc, "pm", m_pPMask->serialize(pDoc));
+	if(m_pQMask)
+		pNode->addField(pDoc, "pq", m_pQMask->serialize(pDoc));
 	return pNode;
+}
+
+void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val)
+{
+	if(!m_pPMask)
+		m_pPMask = new GMatrix(0, m_intrinsicDims);
+	while(m_pPMask->rows() <= user)
+		GVec::setAll(m_pPMask->newRow(), UNKNOWN_REAL_VALUE, m_intrinsicDims);
+	m_pPMask->row(user)[attr] = val;
+}
+
+void GMatrixFactorization::clampItemElement(size_t item, size_t attr, double val)
+{
+	if(!m_pQMask)
+		m_pQMask = new GMatrix(0, m_intrinsicDims);
+	while(m_pQMask->rows() <= item)
+		GVec::setAll(m_pQMask->newRow(), UNKNOWN_REAL_VALUE, m_intrinsicDims);
+	m_pQMask->row(item)[attr] = val;
 }
 
 double GMatrixFactorization::validate(GMatrix& data)
@@ -1058,6 +1092,18 @@ void GMatrixFactorization::train(GMatrix& data)
 					pPref++;
 					pWeights++;
 				}
+				if(m_pQMask)
+				{
+					pWeights = m_pQ->row(size_t(pVec[1])) + 1;
+					const double* pMask = m_pQMask->row(size_t(pVec[1]));
+					for(size_t k = 0; k < m_intrinsicDims; k++)
+					{
+						if(*pMask != UNKNOWN_REAL_VALUE)
+							*pWeights = *pMask;
+						pWeights++;
+						pMask++;
+					}
+				}
 
 				// Update P
 				pWeights = temp_weights;
@@ -1073,6 +1119,18 @@ void GMatrixFactorization::train(GMatrix& data)
 					*pPref += learningRate * (err * (*pWeights) - m_regularizer * (*pPref));
 					pWeights++;
 					pPref++;
+				}
+				if(m_pPMask)
+				{
+					pPref = m_pP->row(size_t(pVec[0])) + (m_useInputBias ? 1 : 0);
+					const double* pMask = m_pPMask->row(size_t(pVec[0]));
+					for(size_t k = 0; k < m_intrinsicDims; k++)
+					{
+						if(*pMask != UNKNOWN_REAL_VALUE)
+							*pPref = *pMask;
+						pPref++;
+						pMask++;
+					}
 				}
 			}
 			epochs++;
@@ -1494,6 +1552,8 @@ GNonlinearPCA::GNonlinearPCA(size_t intrinsicDims)
 : GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_items(0), m_pMins(NULL), m_pMaxs(NULL), m_useInputBias(true), m_useThreePass(true), m_minIters(1), m_decayRate(0.97), m_regularizer(0.0001)
 {
 	m_pModel = new GNeuralNet();
+	m_pUserMask = NULL;
+	m_pItemMask = NULL;
 	m_pUsers = NULL;
 }
 
@@ -1503,6 +1563,16 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 	m_useInputBias = pNode->field("uib")->asBool();
 	m_pUsers = new GMatrix(pNode->field("users"));
 	m_pModel = new GNeuralNet(pNode->field("model"), ll);
+	GDomNode* pUserMask = pNode->fieldIfExists("usermask");
+	if(pUserMask)
+		m_pUserMask = new GMatrix(pUserMask);
+	else
+		m_pUserMask = NULL;
+	GDomNode* pItemMask = pNode->fieldIfExists("itemmask");
+	if(pItemMask)
+		m_pItemMask = new GMatrix(pItemMask);
+	else
+		m_pItemMask = NULL;
 	m_items = m_pModel->layer(m_pModel->layerCount() - 1).outputs();
 	m_pMins = new double[m_items];
 	GDomListIterator it1(pNode->field("mins"));
@@ -1524,6 +1594,8 @@ GNonlinearPCA::~GNonlinearPCA()
 	delete[] m_pMaxs;
 	delete(m_pModel);
 	delete(m_pUsers);
+	delete(m_pUserMask);
+	delete(m_pItemMask);
 }
 
 // virtual
@@ -1533,6 +1605,10 @@ GDomNode* GNonlinearPCA::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
 	pNode->addField(pDoc, "users", m_pUsers->serialize(pDoc));
 	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
+	if(m_pUserMask)
+		pNode->addField(pDoc, "usermask", m_pUserMask->serialize(pDoc));
+	if(m_pItemMask)
+		pNode->addField(pDoc, "itemmask", m_pItemMask->serialize(pDoc));
 	size_t itemCount = m_pModel->outputLayer().outputs();
 	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, itemCount));
 	pNode->addField(pDoc, "maxs", GVec::serialize(pDoc, m_pMaxs, itemCount));
@@ -1551,6 +1627,24 @@ double GNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 		sse += (d * d);
 	}
 	return sse / data.rows();
+}
+
+void GNonlinearPCA::clampUserElement(size_t user, size_t attr, double val)
+{
+	if(!m_pUserMask)
+		m_pUserMask = new GMatrix(0, m_intrinsicDims);
+	while(m_pUserMask->rows() <= user)
+		GVec::setAll(m_pUserMask->newRow(), UNKNOWN_REAL_VALUE, m_intrinsicDims);
+	m_pUserMask->row(user)[attr] = val;
+}
+
+void GNonlinearPCA::clampItemElement(size_t item, size_t attr, double val)
+{
+	if(!m_pItemMask)
+		m_pItemMask = new GMatrix(0, m_pModel->outputLayer().inputs());
+	while(m_pItemMask->rows() <= item)
+		GVec::setAll(m_pItemMask->newRow(), UNKNOWN_REAL_VALUE, m_pModel->outputLayer().inputs());
+	m_pItemMask->row(item)[attr] = val;
 }
 
 // virtual
@@ -1650,14 +1744,37 @@ void GNonlinearPCA::train(GMatrix& data)
 					if(pass != 1)
 						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
 					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
+					if(m_pItemMask)
+					{
+						double* pProfile = ((GLayerClassic*)&m_pModel->outputLayer())->weights()[item];
+						const double* pMask = m_pItemMask->row(item);
+						size_t dims = m_pModel->outputLayer().inputs();
+						for(size_t k = 0; k < dims; k++)
+						{
+							if(*pMask != UNKNOWN_REAL_VALUE)
+								*pProfile = *pMask;
+							pProfile++;
+							pMask++;
+						}
+					}
 					if(pass != 1)
 					{
 						// Update inputs
 						if(pass == 0)
 							GVec::multiply(pPrefs, 1.0 - (learningRate * m_regularizer), m_intrinsicDims);
 						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
-//						GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
-//						GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
+						if(m_pUserMask)
+						{
+							double* pProfile = m_pUsers->row(user);
+							const double* pMask = m_pUserMask->row(user);
+							for(size_t k = 0; k < m_intrinsicDims; k++)
+							{
+								if(*pMask != UNKNOWN_REAL_VALUE)
+									*pProfile = *pMask;
+								pProfile++;
+								pMask++;
+							}
+						}
 					}
 				}
 			}
