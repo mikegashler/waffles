@@ -510,6 +510,25 @@ void GLayerClassic::diminishWeights(double amount, bool diminishBiases)
 		GVec::diminish(bias(), amount, outputCount);
 }
 
+void GLayerClassic::contractWeights(double factor, bool contractBiases)
+{
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		double* pRow = m_weights[i];
+		double* pErr = error();
+		for(size_t j = 0; j < outputCount; j++)
+			*(pRow++) *= (1.0 - factor * *(pErr++));
+	}
+	if(contractBiases)
+	{
+		double* pRow = bias();
+		double* pErr = error();
+		for(size_t j = 0; j < outputCount; j++)
+			*(pRow++) *= (1.0 - factor * *(pErr++));
+	}
+}
+
 void GLayerClassic::regularizeWeights(double factor, double power)
 {
 	size_t outputCount = outputs();
@@ -2685,6 +2704,24 @@ void GNeuralNet::scaleWeightsSingleOutput(size_t output, double factor)
 			GVec::multiply(m[i], factor, outputs);
 		GVec::multiply(((GLayerClassic*)m_layers[lay])->bias(), factor, outputs);
 	}
+}
+
+void GNeuralNet::contractWeights(double factor, bool contractBiases)
+{
+	size_t i = m_layers.size() - 1;
+	GNeuralNetLayer* pLay = m_layers[i];
+	GVec::setAll(pLay->error(), 1.0, pLay->outputs());
+	pLay->deactivateError();
+	while(i > 0)
+	{
+		GNeuralNetLayer* pUpStream = m_layers[i - 1];
+		pLay->backPropError(pUpStream);
+		pUpStream->deactivateError();
+		((GLayerClassic*)pLay)->contractWeights(factor, contractBiases);
+		pLay = pUpStream;
+		i--;
+	}
+	((GLayerClassic*)pLay)->contractWeights(factor, contractBiases);
 }
 #endif // MIN_PREDICT
 

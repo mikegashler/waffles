@@ -301,6 +301,9 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
 	virtual void diminishWeights(double amount, bool diminishBiases);
 
+	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
+	void contractWeights(double factor, bool contractBiases);
+
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
 
@@ -1164,6 +1167,9 @@ public:
 
 	/// Just like scaleWeights, except it only scales the weights in one of the output units.
 	void scaleWeightsSingleOutput(size_t output, double lambda);
+
+	/// Contract all the weights in this network by the specified factor.
+	void contractWeights(double factor, bool contractBiases);
 
 	/// Adjust the magnitudes of the incoming and outgoing connections by amount beta,
 	/// such that sum of the absolute values of the weights remains constant. If beta
