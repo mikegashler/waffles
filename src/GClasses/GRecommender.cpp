@@ -989,6 +989,8 @@ GDomNode* GMatrixFactorization::serialize(GDom* pDoc) const
 
 void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val)
 {
+	if(attr > m_intrinsicDims)
+		throw Ex("out of range");
 	if(!m_pPMask)
 		m_pPMask = new GMatrix(0, m_intrinsicDims);
 	while(m_pPMask->rows() <= user)
@@ -998,11 +1000,39 @@ void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val
 
 void GMatrixFactorization::clampItemElement(size_t item, size_t attr, double val)
 {
+	if(attr > m_intrinsicDims)
+		throw Ex("out of range");
 	if(!m_pQMask)
 		m_pQMask = new GMatrix(0, m_intrinsicDims);
 	while(m_pQMask->rows() <= item)
 		GVec::setAll(m_pQMask->newRow(), UNKNOWN_REAL_VALUE, m_intrinsicDims);
 	m_pQMask->row(item)[attr] = val;
+}
+
+void GMatrixFactorization::clampUsers(GMatrix& data, size_t offset)
+{
+	size_t vals = data.cols() - 1;
+	for(size_t i = 0; i < data.rows(); i++)
+	{
+		double* pRow = data[i];
+		size_t index = (size_t)*pRow;
+		pRow++;
+		for(size_t j = 0; j < vals; j++)
+			clampUserElement(index, offset + j, *(pRow++));
+	}
+}
+
+void GMatrixFactorization::clampItems(GMatrix& data, size_t offset)
+{
+	size_t vals = data.cols() - 1;
+	for(size_t i = 0; i < data.rows(); i++)
+	{
+		double* pRow = data[i];
+		size_t index = (size_t)*pRow;
+		pRow++;
+		for(size_t j = 0; j < vals; j++)
+			clampItemElement(index, offset + j, *(pRow++));
+	}
 }
 
 double GMatrixFactorization::validate(GMatrix& data)
@@ -1631,6 +1661,8 @@ double GNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 
 void GNonlinearPCA::clampUserElement(size_t user, size_t attr, double val)
 {
+	if(attr >= m_intrinsicDims)
+		throw Ex("out of range"); // 0=bias. 1 through (m_intrinsicDims-1) are weights.
 	if(!m_pUserMask)
 		m_pUserMask = new GMatrix(0, m_intrinsicDims);
 	while(m_pUserMask->rows() <= user)
@@ -1640,11 +1672,39 @@ void GNonlinearPCA::clampUserElement(size_t user, size_t attr, double val)
 
 void GNonlinearPCA::clampItemElement(size_t item, size_t attr, double val)
 {
+	if(attr >= m_pModel->outputLayer().inputs())
+		throw Ex("out of range"); // 0 through (m_pModel->outputLayer().inputs()-1) are weights.
 	if(!m_pItemMask)
 		m_pItemMask = new GMatrix(0, m_pModel->outputLayer().inputs());
 	while(m_pItemMask->rows() <= item)
 		GVec::setAll(m_pItemMask->newRow(), UNKNOWN_REAL_VALUE, m_pModel->outputLayer().inputs());
 	m_pItemMask->row(item)[attr] = val;
+}
+
+void GNonlinearPCA::clampUsers(GMatrix& data, size_t offset)
+{
+	size_t vals = data.cols() - 1;
+	for(size_t i = 0; i < data.rows(); i++)
+	{
+		double* pRow = data[i];
+		size_t index = (size_t)*pRow;
+		pRow++;
+		for(size_t j = 0; j < vals; j++)
+			clampUserElement(index, offset + j, *(pRow++));
+	}
+}
+
+void GNonlinearPCA::clampItems(GMatrix& data, size_t offset)
+{
+	size_t vals = data.cols() - 1;
+	for(size_t i = 0; i < data.rows(); i++)
+	{
+		double* pRow = data[i];
+		size_t index = (size_t)*pRow;
+		pRow++;
+		for(size_t j = 0; j < vals; j++)
+			clampItemElement(index, offset + j, *(pRow++));
+	}
 }
 
 // virtual

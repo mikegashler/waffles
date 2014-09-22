@@ -317,6 +317,20 @@ GMatrixFactorization* GRecommenderLib::InstantiateMatrixFactorization(GArgReader
 			pModel->setMinIters(args.pop_uint());
 		else if(args.if_pop("-decayrate"))
 			pModel->setDecayRate(args.pop_double());
+		else if(args.if_pop("-clampusers"))
+		{
+			GMatrix tmp;
+			tmp.loadArff(args.pop_string());
+			size_t offset = args.pop_uint();
+			pModel->clampUsers(tmp, offset);
+		}
+		else if(args.if_pop("-clampitems"))
+		{
+			GMatrix tmp;
+			tmp.loadArff(args.pop_string());
+			size_t offset = args.pop_uint();
+			pModel->clampItems(tmp, offset);
+		}
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -354,34 +368,20 @@ GNonlinearPCA* GRecommenderLib::InstantiateNonlinearPCA(GArgReader& args)
 			pModel->setRegularizer(args.pop_double());
 		else if(args.if_pop("-dontsquashoutputs"))
 			pAF = new GActivationIdentity();
-/*		else if(args.if_pop("-activation"))
+		else if(args.if_pop("-clampusers"))
 		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else
-				throw Ex("Unrecognized activation function: ", szSF);
-			pModel->model()->setActivationFunction(pSF, true);
-		}*/
+			GMatrix tmp;
+			tmp.loadArff(args.pop_string());
+			size_t offset = args.pop_uint();
+			pModel->clampUsers(tmp, offset);
+		}
+		else if(args.if_pop("-clampitems"))
+		{
+			GMatrix tmp;
+			tmp.loadArff(args.pop_string());
+			size_t offset = args.pop_uint();
+			pModel->clampItems(tmp, offset);
+		}
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -719,19 +719,19 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 	dataOrig.loadArff(args.pop_string());
 
 	// Parse params
-        vector<size_t> ignore;
-        while(args.next_is_flag())
-        {
-                if(args.if_pop("-ignore"))
-                        parseAttributeList(ignore, args, dataOrig.cols());
-                else
-                        throw Ex("Invalid option: ", args.peek());
-        }
+	vector<size_t> ignore;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-ignore"))
+			parseAttributeList(ignore, args, dataOrig.cols());
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
 
-        // Throw out the ignored attributes
-        std::sort(ignore.begin(), ignore.end());
-        for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
-                dataOrig.deleteColumn(ignore[i]);
+	// Throw out the ignored attributes
+	std::sort(ignore.begin(), ignore.end());
+	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
+		dataOrig.deleteColumn(ignore[i]);
 
 	GRelation* pOrigRel = dataOrig.relation().clone();
 	Holder<GRelation> hOrigRel(pOrigRel);

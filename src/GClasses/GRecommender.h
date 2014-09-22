@@ -364,10 +364,20 @@ public:
 	void setRegularizer(double d) { m_regularizer = d; }
 
 	/// Specify that a certain attribute of a certain user profile has a fixed value.
+	/// (Values for attr are from 1 to m_intrinsicDims. 0 is the user bias, which one would not typically clamp.)
 	void clampUserElement(size_t user, size_t attr, double val);
 
 	/// Specify that a certain attribute of a certain item profile has a fixed value.
+	/// (Values for attr are from 1 to m_intrinsicDims. 0 is the user bias, which one would not typically clamp.)
 	void clampItemElement(size_t item, size_t attr, double val);
+
+	/// Assumes that column 0 of data is a user ID, and all other columns specify
+	/// profile values to clamp beginning at the specifed profile offset.
+	void clampUsers(GMatrix& data, size_t offset = 1);
+
+	/// Assumes that column 0 of data is an item ID, and all other columns specify
+	/// profile values to clamp beginning at the specifed profile offset.
+	void clampItems(GMatrix& data, size_t offset = 1);
 
 	/// See the comment for GCollaborativeFilter::train
 	virtual void train(GMatrix& data);
@@ -452,11 +462,20 @@ public:
 	GMatrix* users() { return m_pUsers; }
 
 	/// Specify that a certain attribute of a certain user profile has a fixed value.
-	/// (In this one case only, attr 0 refers to the bias input.)
+	/// (Values for attr are from 1 to m_intrinsicDims-1. 0 is the user bias, if used, which one would not typically clamp.)
 	void clampUserElement(size_t user, size_t attr, double val);
 
 	/// Specify that a certain attribute of a certain item profile has a fixed value.
+	/// (Values for attr are from 0 to m_pModel->outputLayer().inputs()-1. There is no mechanism provided to clamp the item bias.)
 	void clampItemElement(size_t item, size_t attr, double val);
+
+	/// Assumes that column 0 of data is a user ID, and all other columns specify
+	/// profile values to clamp beginning at the specifed profile offset.
+	void clampUsers(GMatrix& data, size_t offset = 1);
+
+	/// Assumes that column 0 of data is an item ID, and all other columns specify
+	/// profile values to clamp beginning at the specifed profile offset.
+	void clampItems(GMatrix& data, size_t offset = 0);
 
 	/// See the comment for GCollaborativeFilter::train
 	virtual void train(GMatrix& data);
@@ -498,12 +517,7 @@ protected:
 
 
 
-/// This class trains a neural network to fit to the ratings. Although the name
-/// implies that it is an extension of PCA, I think it is better described as a
-/// non-linear generalization of matrix factorization. This algorithm was published
-/// in Scholz, M. Kaplan, F. Guy, C. L. Kopka, J. Selbig, J., Non-linear PCA: a missing
-/// data approach, In Bioinformatics, Vol. 21, Number 20, pp. 3887-3895, Oxford
-/// University Press, 2005.
+/// A collaborative filtering algorithm invented by Mike Smith.
 class GHybridNonlinearPCA : public GNonlinearPCA
 {
 protected:

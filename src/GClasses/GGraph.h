@@ -243,7 +243,8 @@ public:
 	void addDirectedEdgeIfNotDupe(size_t from, size_t to);
 
 	/// Computes the betweenness for all nodes. (You must add all the edges
-	/// before calling this.)
+	/// before calling this.) This takes O(VE) time, where V is the number of
+	/// vertices, and E is the number of edges.
 	void compute();
 
 	/// Returns the betweenness of the specified vertex. (You must call compute
