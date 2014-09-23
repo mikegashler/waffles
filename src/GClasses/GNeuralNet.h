@@ -1247,12 +1247,11 @@ public:
 	void setWeights(const double* pWeights, size_t layer);
 
 	/// Copy the weights from pOther. It is assumed (but not checked) that
-	/// pOther has the same network structure as this neural network.
+	/// pOther already has the same network structure as this neural network.
+	/// This method is faster than copyStructure.
 	void copyWeights(GNeuralNet* pOther);
 
-	/// Copies the layers, nodes, and settings from pOther (but not the
-	/// weights). beginIncrementalLearning must have been called on pOther
-	/// so that it has a complete structure.
+	/// Makes this neural network into a deep copy of pOther, including layers, nodes, settings and weights.
 	void copyStructure(GNeuralNet* pOther);
 
 	/// Serializes the network weights into an array of doubles. The

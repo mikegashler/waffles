@@ -1084,12 +1084,14 @@ void GMatrixFactorization::train(GMatrix& data)
 		dataCopy.takeRow(data[i]);
 
 	// Train
-	double prevErr = 1e308;
+	double prevErr = 1e10;
 	double learningRate = 0.01;
 	GTEMPBUF(double, temp_weights, m_intrinsicDims);
 	size_t epochs = 0;
 	while(learningRate >= 0.001)
 	{
+		GMatrix backupP(*m_pP);
+		GMatrix backupQ(*m_pQ);
 		for(size_t iter = 0; iter < m_minIters; iter++)
 		{
 			// Shuffle the ratings
@@ -1170,11 +1172,16 @@ void GMatrixFactorization::train(GMatrix& data)
 
 		// Stopping criteria
 		double rsse = sqrt(validate(data));
-		if(rsse >= 1e-12 && 1.0 - (rsse / prevErr) >= 0.001) // If the amount of improvement is large
+		if(rsse >= 1e-12 && 1.0 - (rsse / prevErr) >= 0.001) {} else // This awkward if/else structure causes "nan" to be handled in a useful way
 		{
-		}
-		else
+			if(rsse <= prevErr) {} else // This awkward if/else structure causes "nan" to be handled in a useful way
+			{
+				// We didn't even get better, so restore from backup
+				m_pP->copyBlock(backupP, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+				m_pQ->copyBlock(backupQ, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+			}
 			learningRate *= m_decayRate; // decay the learning rate
+		}
 		prevErr = rsse;
 	}
 }
@@ -1398,35 +1405,38 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 			delete(m_pUsers);
 			m_pUsers = new GMatrix(users, m_intrinsicDims + numAttr);
 			delete[] m_itemMap;
-                        m_itemMap = new size_t[m_itemAttrs->rows()];
-                        GIndexVec::setAll(m_itemMap, 0, m_itemAttrs->rows());
-                        size_t count = 0;
-                        double* itemVec = m_itemAttrs->row(count);
-                        for(size_t i = 0; i < users; i++)
-                        {
+			m_itemMap = new size_t[m_itemAttrs->rows()];
+			GIndexVec::setAll(m_itemMap, 0, m_itemAttrs->rows());
+			size_t count = 0;
+			double* itemVec = m_itemAttrs->row(count);
+			for(size_t i = 0; i < users; i++)
+			{
 				double* pVec = m_pUsers->row(i);
 				GVec::setAll(pVec, 0, m_intrinsicDims + numAttr);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
 					*(pVec++) = 0.01 * m_rand.normal();
-                                if(*itemVec == i)
-                                {
-                                        m_itemMap[count]=i;
-                                        *(itemVec) = 0;
-                                        itemVec++;
-                                        for(size_t j = 1; j < numAttr+1; j++)
-                                        {
-                                                *(pVec++) = *(itemVec++) * 0.01;
-                                        }
-                                        itemVec = m_itemAttrs->row(++count);
-                                }
-
-                        }
+				if(*itemVec == i)
+				{
+					m_itemMap[count]=i;
+					*(itemVec) = 0;
+					itemVec++;
+					for(size_t j = 1; j < numAttr+1; j++)
+					{
+						*(pVec++) = *(itemVec++) * 0.01;
+					}
+					itemVec = m_itemAttrs->row(++count);
+				}
+			}
 		}
 		double rateBegin = 0.1;
 		double rateEnd = 0.001;
-		double prevErr = 1e308;
+		double prevErr = 1e10;
 		for(double learningRate = rateBegin; learningRate > rateEnd; )
 		{
+			GNeuralNet backupNet;
+			backupNet.copyStructure(pNN);
+			GMatrix backupUsers(m_pUsers->rows(), m_intrinsicDims);
+			backupUsers.copyBlock(*m_pUsers, 0, 0, INVALID_INDEX, m_intrinsicDims, 0, 0, false);
 			for(size_t j = 0; j < m_minIters; j++)
 			{
 				// Shuffle the ratings
@@ -1456,19 +1466,21 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 						if(pass == 0)
 							GVec::multiply(pPrefs, 1.0 - (learningRate * m_regularizer), m_intrinsicDims);
 						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
-//						GVec::floorValues(pPrefs, -1.0, m_intrinsicDims);
-//						GVec::capValues(pPrefs, 1.0, m_intrinsicDims);
 					}
 				}
 			}
 
 			// Stopping criteria
 			double rmse = sqrt(validate(pNN, *pClone));
-			if(rmse >= 1e-12 && 1.0 - (rmse / prevErr) >= 0.001) // If the amount of improvement is large
+			if(rmse >= 1e-12 && 1.0 - (rmse / prevErr) >= 0.001) {} else // this awkward if/else structure causes "nan" values to be handled in a useful way
 			{
-			}
-			else
+				if(rmse <= prevErr) {} else // this awkward if/else structure causes "nan" values to be handled in a useful way
+				{
+					pNN->copyWeights(&backupNet);
+					m_pUsers->copyBlock(backupUsers, 0, 0, INVALID_INDEX, m_intrinsicDims, 0, 0, false);
+				}
 				learningRate *= m_decayRate; // decay the learning rate
+			}
 			prevErr = rmse;
 		}
 	}
@@ -1789,9 +1801,12 @@ void GNonlinearPCA::train(GMatrix& data)
 		}
 		double rateBegin = 0.1;
 		double rateEnd = 0.001;
-		double prevErr = 1e308;
+		double prevErr = 1e10;
 		for(double learningRate = rateBegin; learningRate > rateEnd; )
 		{
+			GNeuralNet backupNet;
+			backupNet.copyStructure(pNN);
+			GMatrix backupUsers(*m_pUsers);
 			for(size_t j = 0; j < m_minIters; j++)
 			{
 				// Shuffle the ratings
@@ -1851,11 +1866,15 @@ void GNonlinearPCA::train(GMatrix& data)
 
 			// Stopping criteria
 			double rmse = sqrt(validate(pNN, *pClone));
-			if(rmse >= 1e-12 && 1.0 - (rmse / prevErr) >= 0.001) // If the amount of improvement is large
+			if(rmse >= 1e-12 && 1.0 - (rmse / prevErr) >= 0.001) {} else // this awkward if/else structure causes "nan" values to be handled in a useful way
 			{
-			}
-			else
+				if(rmse <= prevErr) {} else // this awkward if/else structure causes "nan" values to be handled in a useful way
+				{
+					pNN->copyWeights(&backupNet);
+					m_pUsers->copyBlock(backupUsers, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+				}
 				learningRate *= m_decayRate; // decay the learning rate
+			}
 			prevErr = rmse;
 		}
 	}
@@ -1939,7 +1958,7 @@ void GNonlinearPCA::test()
 	GNonlinearPCA rec(3);
 	rec.model()->addLayer(new GLayerClassic(FLEXIBLE_SIZE, 3));
 	rec.model()->addLayer(new GLayerClassic(3, FLEXIBLE_SIZE));
-	rec.basicTest(0.261);
+	rec.basicTest(0.18);
 }
 #endif
 
