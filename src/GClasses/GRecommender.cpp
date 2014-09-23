@@ -983,13 +983,13 @@ GDomNode* GMatrixFactorization::serialize(GDom* pDoc) const
 	if(m_pPMask)
 		pNode->addField(pDoc, "pm", m_pPMask->serialize(pDoc));
 	if(m_pQMask)
-		pNode->addField(pDoc, "pq", m_pQMask->serialize(pDoc));
+		pNode->addField(pDoc, "qm", m_pQMask->serialize(pDoc));
 	return pNode;
 }
 
 void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val)
 {
-	if(attr > m_intrinsicDims)
+	if(attr >= m_intrinsicDims)
 		throw Ex("out of range");
 	if(!m_pPMask)
 		m_pPMask = new GMatrix(0, m_intrinsicDims);
@@ -1000,7 +1000,7 @@ void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val
 
 void GMatrixFactorization::clampItemElement(size_t item, size_t attr, double val)
 {
-	if(attr > m_intrinsicDims)
+	if(attr >= m_intrinsicDims)
 		throw Ex("out of range");
 	if(!m_pQMask)
 		m_pQMask = new GMatrix(0, m_intrinsicDims);
@@ -1009,12 +1009,12 @@ void GMatrixFactorization::clampItemElement(size_t item, size_t attr, double val
 	m_pQMask->row(item)[attr] = val;
 }
 
-void GMatrixFactorization::clampUsers(GMatrix& data, size_t offset)
+void GMatrixFactorization::clampUsers(const GMatrix& data, size_t offset)
 {
 	size_t vals = data.cols() - 1;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		double* pRow = data[i];
+		const double* pRow = data[i];
 		size_t index = (size_t)*pRow;
 		pRow++;
 		for(size_t j = 0; j < vals; j++)
@@ -1022,12 +1022,12 @@ void GMatrixFactorization::clampUsers(GMatrix& data, size_t offset)
 	}
 }
 
-void GMatrixFactorization::clampItems(GMatrix& data, size_t offset)
+void GMatrixFactorization::clampItems(const GMatrix& data, size_t offset)
 {
 	size_t vals = data.cols() - 1;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		double* pRow = data[i];
+		const double* pRow = data[i];
 		size_t index = (size_t)*pRow;
 		pRow++;
 		for(size_t j = 0; j < vals; j++)
@@ -1122,11 +1122,12 @@ void GMatrixFactorization::train(GMatrix& data)
 					pPref++;
 					pWeights++;
 				}
-				if(m_pQMask)
+				if(m_pQMask && size_t(pVec[1]) < m_pQMask->rows())
 				{
-					pWeights = m_pQ->row(size_t(pVec[1])) + 1;
+					// Clamp fixed values over the item profile vector
+					pWeights = m_pQ->row(size_t(pVec[1])) + 1; // skip the bias
 					const double* pMask = m_pQMask->row(size_t(pVec[1]));
-					for(size_t k = 0; k < m_intrinsicDims; k++)
+					for(size_t i = 0; i < m_intrinsicDims; i++)
 					{
 						if(*pMask != UNKNOWN_REAL_VALUE)
 							*pWeights = *pMask;
@@ -1150,11 +1151,12 @@ void GMatrixFactorization::train(GMatrix& data)
 					pWeights++;
 					pPref++;
 				}
-				if(m_pPMask)
+				if(m_pPMask && size_t(pVec[0]) < m_pPMask->rows())
 				{
+					// Clamp fixed values over the item profile vector
 					pPref = m_pP->row(size_t(pVec[0])) + (m_useInputBias ? 1 : 0);
 					const double* pMask = m_pPMask->row(size_t(pVec[0]));
-					for(size_t k = 0; k < m_intrinsicDims; k++)
+					for(size_t i = 0; i < m_intrinsicDims; i++)
 					{
 						if(*pMask != UNKNOWN_REAL_VALUE)
 							*pPref = *pMask;
@@ -1168,7 +1170,10 @@ void GMatrixFactorization::train(GMatrix& data)
 
 		// Stopping criteria
 		double rsse = sqrt(validate(data));
-		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.001) // If the amount of improvement is small
+		if(rsse >= 1e-12 && 1.0 - (rsse / prevErr) >= 0.001) // If the amount of improvement is large
+		{
+		}
+		else
 			learningRate *= m_decayRate; // decay the learning rate
 		prevErr = rsse;
 	}
@@ -1265,7 +1270,10 @@ void GMatrixFactorization::impute(double* pVec, size_t dims)
 
 		// Stopping criteria
 		double rsse = sqrt(validate(data));
-		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.001) // If the amount of improvement is less than 0.1%
+		if(rsse >= 1e-12 && 1.0 - (rsse / prevErr) >= 0.001) // If the amount of improvement is large
+		{
+		}
+		else
 			learningRate *= m_decayRate; // decay the learning rate
 		prevErr = rsse;
 	}
@@ -1456,7 +1464,10 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 
 			// Stopping criteria
 			double rmse = sqrt(validate(pNN, *pClone));
-			if(rmse < 1e-12 || 1.0 - (rmse / prevErr) < 0.001) // If the amount of improvement is small
+			if(rmse >= 1e-12 && 1.0 - (rmse / prevErr) >= 0.001) // If the amount of improvement is large
+			{
+			}
+			else
 				learningRate *= m_decayRate; // decay the learning rate
 			prevErr = rmse;
 		}
@@ -1603,7 +1614,7 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 		m_pItemMask = new GMatrix(pItemMask);
 	else
 		m_pItemMask = NULL;
-	m_items = m_pModel->layer(m_pModel->layerCount() - 1).outputs();
+	m_items = m_pModel->outputLayer().outputs();
 	m_pMins = new double[m_items];
 	GDomListIterator it1(pNode->field("mins"));
 	if(it1.remaining() != m_items)
@@ -1614,7 +1625,7 @@ GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
 	if(it2.remaining() != m_items)
 		throw Ex("invalid number of elements");
 	GVec::deserialize(m_pMaxs, it2);
-	m_intrinsicDims = m_pModel->layer(0).outputs();
+	m_intrinsicDims = m_pModel->layer(0).inputs();
 }
 
 // virtual
@@ -1661,19 +1672,19 @@ double GNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 
 void GNonlinearPCA::clampUserElement(size_t user, size_t attr, double val)
 {
-	if(attr >= m_intrinsicDims)
-		throw Ex("out of range"); // 0=bias. 1 through (m_intrinsicDims-1) are weights.
+	if(attr >= m_intrinsicDims - (m_useInputBias ? 1 : 0))
+		throw Ex("out of range");
 	if(!m_pUserMask)
-		m_pUserMask = new GMatrix(0, m_intrinsicDims);
+		m_pUserMask = new GMatrix(0, m_intrinsicDims - (m_useInputBias ? 1 : 0));
 	while(m_pUserMask->rows() <= user)
-		GVec::setAll(m_pUserMask->newRow(), UNKNOWN_REAL_VALUE, m_intrinsicDims);
+		GVec::setAll(m_pUserMask->newRow(), UNKNOWN_REAL_VALUE, m_intrinsicDims - (m_useInputBias ? 1 : 0));
 	m_pUserMask->row(user)[attr] = val;
 }
 
 void GNonlinearPCA::clampItemElement(size_t item, size_t attr, double val)
 {
 	if(attr >= m_pModel->outputLayer().inputs())
-		throw Ex("out of range"); // 0 through (m_pModel->outputLayer().inputs()-1) are weights.
+		throw Ex("out of range");
 	if(!m_pItemMask)
 		m_pItemMask = new GMatrix(0, m_pModel->outputLayer().inputs());
 	while(m_pItemMask->rows() <= item)
@@ -1681,12 +1692,12 @@ void GNonlinearPCA::clampItemElement(size_t item, size_t attr, double val)
 	m_pItemMask->row(item)[attr] = val;
 }
 
-void GNonlinearPCA::clampUsers(GMatrix& data, size_t offset)
+void GNonlinearPCA::clampUsers(const GMatrix& data, size_t offset)
 {
 	size_t vals = data.cols() - 1;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		double* pRow = data[i];
+		const double* pRow = data[i];
 		size_t index = (size_t)*pRow;
 		pRow++;
 		for(size_t j = 0; j < vals; j++)
@@ -1694,12 +1705,12 @@ void GNonlinearPCA::clampUsers(GMatrix& data, size_t offset)
 	}
 }
 
-void GNonlinearPCA::clampItems(GMatrix& data, size_t offset)
+void GNonlinearPCA::clampItems(const GMatrix& data, size_t offset)
 {
 	size_t vals = data.cols() - 1;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		double* pRow = data[i];
+		const double* pRow = data[i];
 		size_t index = (size_t)*pRow;
 		pRow++;
 		for(size_t j = 0; j < vals; j++)
@@ -1804,16 +1815,15 @@ void GNonlinearPCA::train(GMatrix& data)
 					if(pass != 1)
 						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
 					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
-					if(m_pItemMask)
+					if(m_pItemMask && item < m_pItemMask->rows())
 					{
-						double* pProfile = ((GLayerClassic*)&m_pModel->outputLayer())->weights()[item];
+						GMatrix& itemWeights = ((GLayerClassic*)&m_pModel->outputLayer())->weights();
 						const double* pMask = m_pItemMask->row(item);
 						size_t dims = m_pModel->outputLayer().inputs();
 						for(size_t k = 0; k < dims; k++)
 						{
 							if(*pMask != UNKNOWN_REAL_VALUE)
-								*pProfile = *pMask;
-							pProfile++;
+								itemWeights[k][item] = *pMask;
 							pMask++;
 						}
 					}
@@ -1823,11 +1833,11 @@ void GNonlinearPCA::train(GMatrix& data)
 						if(pass == 0)
 							GVec::multiply(pPrefs, 1.0 - (learningRate * m_regularizer), m_intrinsicDims);
 						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
-						if(m_pUserMask)
+						if(m_pUserMask && user < m_pUserMask->rows())
 						{
-							double* pProfile = m_pUsers->row(user);
+							double* pProfile = m_pUsers->row(user) + (m_useInputBias ? 1 : 0);
 							const double* pMask = m_pUserMask->row(user);
-							for(size_t k = 0; k < m_intrinsicDims; k++)
+							for(size_t k = (m_useInputBias ? 1 : 0); k < m_intrinsicDims; k++)
 							{
 								if(*pMask != UNKNOWN_REAL_VALUE)
 									*pProfile = *pMask;
@@ -1841,7 +1851,10 @@ void GNonlinearPCA::train(GMatrix& data)
 
 			// Stopping criteria
 			double rmse = sqrt(validate(pNN, *pClone));
-			if(rmse < 1e-12 || 1.0 - (rmse / prevErr) < 0.001) // If the amount of improvement is small
+			if(rmse >= 1e-12 && 1.0 - (rmse / prevErr) >= 0.001) // If the amount of improvement is large
+			{
+			}
+			else
 				learningRate *= m_decayRate; // decay the learning rate
 			prevErr = rmse;
 		}
@@ -1903,7 +1916,10 @@ void GNonlinearPCA::impute(double* pVec, size_t dims)
 
 		// Stopping criteria
 		double rsse = sqrt(sse);
-		if(rsse < 1e-12 || 1.0 - (rsse / prevErr) < 0.0001) // If the amount of improvement is less than 0.01%
+		if(rsse >= 1e-12 && 1.0 - (rsse / prevErr) >= 0.0001) // If the amount of improvement is large
+		{
+		}
+		else
 			learningRate *= 0.8; // decay the learning rate
 		prevErr = rsse;
 	}

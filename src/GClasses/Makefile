@@ -116,6 +116,7 @@ CPP_FILES = \
 	GTime.cpp\
 	GTokenizer.cpp\
 	GTransform.cpp\
+	GTree.cpp\
 	GVec.cpp\
 	GWave.cpp\
 	GWidgets.cpp\

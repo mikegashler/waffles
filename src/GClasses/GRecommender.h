@@ -364,20 +364,20 @@ public:
 	void setRegularizer(double d) { m_regularizer = d; }
 
 	/// Specify that a certain attribute of a certain user profile has a fixed value.
-	/// (Values for attr are from 1 to m_intrinsicDims. 0 is the user bias, which one would not typically clamp.)
+	/// (Values for attr are from 0 to m_intrinsicDims-1. No mechanism is provided to clamp the bias value.)
 	void clampUserElement(size_t user, size_t attr, double val);
 
 	/// Specify that a certain attribute of a certain item profile has a fixed value.
-	/// (Values for attr are from 1 to m_intrinsicDims. 0 is the user bias, which one would not typically clamp.)
+	/// (Values for attr are from 0 to m_intrinsicDims-1. No mechanism is provided to clamp the bias value.)
 	void clampItemElement(size_t item, size_t attr, double val);
 
 	/// Assumes that column 0 of data is a user ID, and all other columns specify
 	/// profile values to clamp beginning at the specifed profile offset.
-	void clampUsers(GMatrix& data, size_t offset = 1);
+	void clampUsers(const GMatrix& data, size_t offset = 0);
 
 	/// Assumes that column 0 of data is an item ID, and all other columns specify
 	/// profile values to clamp beginning at the specifed profile offset.
-	void clampItems(GMatrix& data, size_t offset = 1);
+	void clampItems(const GMatrix& data, size_t offset = 0);
 
 	/// See the comment for GCollaborativeFilter::train
 	virtual void train(GMatrix& data);
@@ -419,10 +419,13 @@ protected:
 
 
 
-/// This class trains a neural network to fit to the ratings. Although the name
-/// implies that it is an extension of PCA, I think it is better described as a
-/// non-linear generalization of matrix factorization. This algorithm was published
-/// in Scholz, M. Kaplan, F. Guy, C. L. Kopka, J. Selbig, J., Non-linear PCA: a missing
+/// This class implements the Unsupervised Backpropagation algorithm, as described in
+/// Gashler, Michael S. and Smith, Michael R. and Morris, Richard and Martinez, Tony.
+/// Missing Value Imputation With Unsupervised Backpropagation. Computational Intelligence,
+/// Wiley Online Library. 2014. This algorithm is very similar to an earlier algorithm
+/// called NonlinearPCA, except with the addition of a three-pass training approach that yields
+/// better accuracy. If you call noThreePass() before you call train(), then this class implements
+/// NonlinearPCA, as published in Scholz, M. Kaplan, F. Guy, C. L. Kopka, J. Selbig, J., Non-linear PCA: a missing
 /// data approach, In Bioinformatics, Vol. 21, Number 20, pp. 3887-3895, Oxford
 /// University Press, 2005.
 class GNonlinearPCA : public GCollaborativeFilter
@@ -462,20 +465,20 @@ public:
 	GMatrix* users() { return m_pUsers; }
 
 	/// Specify that a certain attribute of a certain user profile has a fixed value.
-	/// (Values for attr are from 1 to m_intrinsicDims-1. 0 is the user bias, if used, which one would not typically clamp.)
+	/// (Values for attr are from 0 to m_intrinsicDims-2. No mechanism is provided to clamp the input bias.)
 	void clampUserElement(size_t user, size_t attr, double val);
 
 	/// Specify that a certain attribute of a certain item profile has a fixed value.
-	/// (Values for attr are from 0 to m_pModel->outputLayer().inputs()-1. There is no mechanism provided to clamp the item bias.)
+	/// (Values for attr are from 0 to m_pModel->outputLayer().inputs()-1. No mechanism is provided to clamp the item bias.)
 	void clampItemElement(size_t item, size_t attr, double val);
 
 	/// Assumes that column 0 of data is a user ID, and all other columns specify
 	/// profile values to clamp beginning at the specifed profile offset.
-	void clampUsers(GMatrix& data, size_t offset = 1);
+	void clampUsers(const GMatrix& data, size_t offset = 0);
 
 	/// Assumes that column 0 of data is an item ID, and all other columns specify
 	/// profile values to clamp beginning at the specifed profile offset.
-	void clampItems(GMatrix& data, size_t offset = 0);
+	void clampItems(const GMatrix& data, size_t offset = 0);
 
 	/// See the comment for GCollaborativeFilter::train
 	virtual void train(GMatrix& data);

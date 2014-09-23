@@ -175,5 +175,82 @@ int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
 	return true;
 }
 
+
+
+
+
+GProgressEstimator::GProgressEstimator(size_t totalIters, size_t sampleSize)
+: m_totalIters(totalIters), m_sampleSize(sampleSize)
+{
+	m_startTime = GTime::seconds();
+	m_iterStartTime = m_startTime;
+	m_queue.resize(sampleSize);
+	m_queuePos = 0;
+}
+
+GProgressEstimator::~GProgressEstimator()
+{
+}
+
+const char* GProgressEstimator::estimate(size_t iter)
+{
+	// Measure the duration of the last iteration
+	double timeNow = GTime::seconds();
+	double iterDuration = timeNow - m_iterStartTime;
+	if(m_samples.size() >= m_sampleSize)
+		m_samples.drop_by_value(m_queue[m_queuePos]);
+	m_samples.insert(iterDuration);
+	m_queue[m_queuePos] = iterDuration;
+	m_queuePos++;
+	if(m_queuePos >= m_sampleSize)
+		m_queuePos = 0;
+	m_iterStartTime = timeNow;
+
+	// Generate an estimate string
+	double median = m_samples.get(m_samples.size() / 2);
+	m_prevMedian = median;
+	double elapsed = timeNow - m_startTime;
+	m_message = "Elapsed=";
+	m_message += to_str(elapsed);
+	m_message += ",	ETA=";
+	m_message += to_str(m_totalIters - iter);
+	m_message += " remaining iters * ";
+	m_message += to_str(median);
+	m_message += " s/iter = ";
+	size_t secs = (size_t)(median * (m_totalIters - iter));
+	if(secs > 60)
+	{
+		size_t mins = secs / 60;
+		secs -= 60 * mins;
+		if(mins > 60)
+		{
+			size_t hours = mins / 60;
+			mins -= 60 * hours;
+			if(hours > 24)
+			{
+				size_t days = hours / 24;
+				hours -= 24 * hours;
+				if(days > 365)
+				{
+					size_t years = days / 365;
+					days -= years * 365;
+					m_message += to_str(years);
+					m_message += "y";
+				}
+				m_message += to_str(days);
+				m_message += "d";
+			}
+			m_message += to_str(hours);
+			m_message += "h";
+		}
+		m_message += to_str(mins);
+		m_message += "m";
+	}
+	m_message += to_str(secs);
+	m_message += "s";
+	return m_message.c_str();
+}
+
+
 } // namespace GClasses
 

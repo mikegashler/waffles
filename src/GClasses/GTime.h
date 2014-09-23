@@ -21,6 +21,8 @@
 #define __GTIME_H__
 
 #include <string>
+#include "GTree.h"
+#include <vector>
 
 namespace GClasses {
 
@@ -47,6 +49,30 @@ public:
 	/// "2014-04-01 23:59:59". If the string fits, then *pOutTime will be set to the parsed time,
 	/// and true is returned. Otherwise, *pOutTime is unchanged, and false is returned.
 	static bool fromString(time_t* pOutTime, const char* szData, const char* szFormat);
+};
+
+
+/// This class is used with big loops to estimate the wall-clock time until completion.
+/// It works by computing the running median of the duration of recent iterations,
+/// and projecting that duration across the remaining iterations.
+class GProgressEstimator
+{
+protected:
+	size_t m_totalIters;
+	size_t m_sampleSize;
+	double m_startTime;
+	double m_iterStartTime;
+	double m_prevMedian;
+	GIndexedMultiSet<double> m_samples;
+	std::vector<double> m_queue;
+	size_t m_queuePos;
+	std::string m_message;
+
+public:
+	GProgressEstimator(size_t total_iters, size_t sampleSize = 13);
+	~GProgressEstimator();
+
+	const char* estimate(size_t iter);
 };
 
 } // namespace GClasses
