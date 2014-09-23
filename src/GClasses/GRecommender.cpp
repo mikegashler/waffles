@@ -989,6 +989,7 @@ GDomNode* GMatrixFactorization::serialize(GDom* pDoc) const
 
 void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val)
 {
+val *= 0.01;
 	if(attr >= m_intrinsicDims)
 		throw Ex("out of range");
 	if(!m_pPMask)
@@ -1000,6 +1001,7 @@ void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val
 
 void GMatrixFactorization::clampItemElement(size_t item, size_t attr, double val)
 {
+val *= 0.01;
 	if(attr >= m_intrinsicDims)
 		throw Ex("out of range");
 	if(!m_pQMask)
@@ -1052,13 +1054,39 @@ double GMatrixFactorization::validate(GMatrix& data)
 	return sse;
 }
 
+void GMatrixFactorization::clampP(size_t i)
+{
+	double* pP = m_pP->row(i) + (m_useInputBias ? 1 : 0);
+	double* pMask = m_pPMask->row(i);
+	for(size_t i = 0; i < m_intrinsicDims; i++)
+	{
+		if(*pMask != UNKNOWN_REAL_VALUE)
+			*pP = *pMask;
+		pMask++;
+		pP++;
+	}
+}
+
+void GMatrixFactorization::clampQ(size_t i)
+{
+	double* pQ = m_pQ->row(i) + 1;
+	double* pMask = m_pQMask->row(i);
+	for(size_t i = 0; i < m_intrinsicDims; i++)
+	{
+		if(*pMask != UNKNOWN_REAL_VALUE)
+			*pQ = *pMask;
+		pMask++;
+		pQ++;
+	}
+}
+
 // virtual
 void GMatrixFactorization::train(GMatrix& data)
 {
 	size_t users, items;
 	GCollaborativeFilter_dims(data, &users, &items);
 
-	// Initialize P with small random values, and Q with zeros
+	// Initialize P and Q with small random values
 	delete(m_pP);
 	size_t colsP = (m_useInputBias ? 1 : 0) + m_intrinsicDims;
 	m_pP = new GMatrix(users, colsP);
@@ -1075,6 +1103,18 @@ void GMatrixFactorization::train(GMatrix& data)
 		double* pVec = m_pQ->row(i);
 		for(size_t j = 0; j <= m_intrinsicDims; j++)
 			*(pVec++) = 0.02 * m_rand.normal();
+	}
+
+	// Clamp fixed values over P and Q
+	if(m_pPMask)
+	{
+		for(size_t i = 0; i < m_pPMask->rows(); i++)
+			clampP(i);
+	}
+	if(m_pQMask)
+	{
+		for(size_t i = 0; i < m_pPMask->rows(); i++)
+			clampQ(i);
 	}
 
 	// Make a shallow copy of the data (so we can shuffle it)
@@ -1125,18 +1165,7 @@ void GMatrixFactorization::train(GMatrix& data)
 					pWeights++;
 				}
 				if(m_pQMask && size_t(pVec[1]) < m_pQMask->rows())
-				{
-					// Clamp fixed values over the item profile vector
-					pWeights = m_pQ->row(size_t(pVec[1])) + 1; // skip the bias
-					const double* pMask = m_pQMask->row(size_t(pVec[1]));
-					for(size_t i = 0; i < m_intrinsicDims; i++)
-					{
-						if(*pMask != UNKNOWN_REAL_VALUE)
-							*pWeights = *pMask;
-						pWeights++;
-						pMask++;
-					}
-				}
+					clampQ(size_t(pVec[1]));
 
 				// Update P
 				pWeights = temp_weights;
@@ -1154,18 +1183,7 @@ void GMatrixFactorization::train(GMatrix& data)
 					pPref++;
 				}
 				if(m_pPMask && size_t(pVec[0]) < m_pPMask->rows())
-				{
-					// Clamp fixed values over the item profile vector
-					pPref = m_pP->row(size_t(pVec[0])) + (m_useInputBias ? 1 : 0);
-					const double* pMask = m_pPMask->row(size_t(pVec[0]));
-					for(size_t i = 0; i < m_intrinsicDims; i++)
-					{
-						if(*pMask != UNKNOWN_REAL_VALUE)
-							*pPref = *pMask;
-						pPref++;
-						pMask++;
-					}
-				}
+					clampP(size_t(pVec[0]));
 			}
 			epochs++;
 		}
@@ -1684,6 +1702,7 @@ double GNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 
 void GNonlinearPCA::clampUserElement(size_t user, size_t attr, double val)
 {
+val *= 0.01;
 	if(attr >= m_intrinsicDims - (m_useInputBias ? 1 : 0))
 		throw Ex("out of range");
 	if(!m_pUserMask)
@@ -1695,6 +1714,7 @@ void GNonlinearPCA::clampUserElement(size_t user, size_t attr, double val)
 
 void GNonlinearPCA::clampItemElement(size_t item, size_t attr, double val)
 {
+val *= 0.01;
 	if(attr >= m_pModel->outputLayer().inputs())
 		throw Ex("out of range");
 	if(!m_pItemMask)
@@ -1729,6 +1749,33 @@ void GNonlinearPCA::clampItems(const GMatrix& data, size_t offset)
 			clampItemElement(index, offset + j, *(pRow++));
 	}
 }
+
+void GNonlinearPCA::clampUsersInternal(size_t i)
+{
+	double* pProfile = m_pUsers->row(i) + (m_useInputBias ? 1 : 0);
+	const double* pMask = m_pUserMask->row(i);
+	for(size_t k = (m_useInputBias ? 1 : 0); k < m_intrinsicDims; k++)
+	{
+		if(*pMask != UNKNOWN_REAL_VALUE)
+			*pProfile = *pMask;
+		pProfile++;
+		pMask++;
+	}
+}
+
+void GNonlinearPCA::clampItemsInternal(size_t i)
+{
+	GMatrix& itemWeights = ((GLayerClassic*)&m_pModel->outputLayer())->weights();
+	const double* pMask = m_pItemMask->row(i);
+	size_t dims = m_pModel->outputLayer().inputs();
+	for(size_t k = 0; k < dims; k++)
+	{
+		if(*pMask != UNKNOWN_REAL_VALUE)
+			itemWeights[k][i] = *pMask;
+		pMask++;
+	}
+}
+
 
 // virtual
 void GNonlinearPCA::train(GMatrix& data)
@@ -1797,7 +1844,14 @@ void GNonlinearPCA::train(GMatrix& data)
 				double* pVec = m_pUsers->row(i);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
 					*(pVec++) = 0.01 * m_rand.normal();
+				if(m_pUserMask && i < m_pUserMask->rows())
+					clampUsersInternal(i);
 			}
+		}
+		if(m_pItemMask)
+		{
+			for(size_t i = 0; i < m_pItemMask->rows(); i++)
+				clampItemsInternal(i);
 		}
 		double rateBegin = 0.1;
 		double rateEnd = 0.001;
@@ -1831,17 +1885,7 @@ void GNonlinearPCA::train(GMatrix& data)
 						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
 					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
 					if(m_pItemMask && item < m_pItemMask->rows())
-					{
-						GMatrix& itemWeights = ((GLayerClassic*)&m_pModel->outputLayer())->weights();
-						const double* pMask = m_pItemMask->row(item);
-						size_t dims = m_pModel->outputLayer().inputs();
-						for(size_t k = 0; k < dims; k++)
-						{
-							if(*pMask != UNKNOWN_REAL_VALUE)
-								itemWeights[k][item] = *pMask;
-							pMask++;
-						}
-					}
+						clampItemsInternal(item);
 					if(pass != 1)
 					{
 						// Update inputs
@@ -1849,17 +1893,7 @@ void GNonlinearPCA::train(GMatrix& data)
 							GVec::multiply(pPrefs, 1.0 - (learningRate * m_regularizer), m_intrinsicDims);
 						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
 						if(m_pUserMask && user < m_pUserMask->rows())
-						{
-							double* pProfile = m_pUsers->row(user) + (m_useInputBias ? 1 : 0);
-							const double* pMask = m_pUserMask->row(user);
-							for(size_t k = (m_useInputBias ? 1 : 0); k < m_intrinsicDims; k++)
-							{
-								if(*pMask != UNKNOWN_REAL_VALUE)
-									*pProfile = *pMask;
-								pProfile++;
-								pMask++;
-							}
-						}
+							clampUsersInternal(user);
 					}
 				}
 			}

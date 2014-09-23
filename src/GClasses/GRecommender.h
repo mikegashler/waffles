@@ -415,6 +415,8 @@ protected:
 	/// Returns the sum-squared error for the specified set of ratings
 	double validate(GMatrix& data);
 
+	void clampP(size_t i);
+	void clampQ(size_t i);
 };
 
 
@@ -515,6 +517,9 @@ public:
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
 	double validate(GNeuralNet* pNN, GMatrix& data);
+
+	void clampUsersInternal(size_t i);
+	void clampItemsInternal(size_t i);
 };
 
 
