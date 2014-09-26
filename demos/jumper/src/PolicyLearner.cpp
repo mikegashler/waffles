@@ -103,6 +103,7 @@ void Train()
 	GenerateSeedTrainingSet(&features, &labels, &prng);
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 8, new GActivationBend()));
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationBend()));
+	nn.setLearningRate(0.01);
 	nn.train(features, labels);
 	int weightCount = nn.countWeights();
 	double hintVec[weightCount];

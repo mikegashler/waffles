@@ -397,8 +397,8 @@ void RagDoll::DoAction(GSupervisedLearner* pPolicy, double time)
 	if(pPolicy)
 	{
 		// Use the policy
-		GAssert(pPolicy->featureDims() == FEATURE_DIMS);
-		GAssert(pPolicy->labelDims() == LABEL_DIMS);
+		GAssert(pPolicy->relFeatures().size() == FEATURE_DIMS);
+		GAssert(pPolicy->relLabels().size() == LABEL_DIMS);
 		pPolicy->predict(pPat, pPat + FEATURE_DIMS);
 	}
 	else
