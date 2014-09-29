@@ -245,8 +245,6 @@ void test_to_str();
 // ----------------------------
 
 #ifdef WINDOWS
-typedef UINT_PTR uintptr_t;
-// typedef INT_PTR ptrdiff_t;
 #else
 int _stricmp(const char* szA, const char* szB);
 int _strnicmp(const char* szA, const char* szB, int len);
