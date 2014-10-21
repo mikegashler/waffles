@@ -937,7 +937,7 @@ void GDenseClusterRecommender::test()
 
 
 GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_pPMask(NULL), m_pQMask(NULL), m_useInputBias(true), m_minIters(1), m_decayRate(0.97)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_pPMask(NULL), m_pQMask(NULL), m_pPWeights(NULL), m_pQWeights(NULL), m_useInputBias(true), m_minIters(1), m_decayRate(0.97)
 {
 }
 
@@ -970,6 +970,8 @@ GMatrixFactorization::~GMatrixFactorization()
 	delete(m_pP);
 	delete(m_pPMask);
 	delete(m_pQMask);
+	delete(m_pPWeights);
+	delete(m_pQWeights);
 }
 
 // virtual
@@ -989,11 +991,14 @@ GDomNode* GMatrixFactorization::serialize(GDom* pDoc) const
 
 void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val)
 {
-val *= 0.01;
 	if(attr >= m_intrinsicDims)
 		throw Ex("out of range");
 	if(!m_pPMask)
+	{
 		m_pPMask = new GMatrix(0, m_intrinsicDims);
+		m_pPWeights = new GMatrix(2, m_intrinsicDims);
+		m_pPWeights->setAll(0.0);
+	}
 	while(m_pPMask->rows() <= user)
 		GVec::setAll(m_pPMask->newRow(), UNKNOWN_REAL_VALUE, m_intrinsicDims);
 	m_pPMask->row(user)[attr] = val;
@@ -1001,11 +1006,14 @@ val *= 0.01;
 
 void GMatrixFactorization::clampItemElement(size_t item, size_t attr, double val)
 {
-val *= 0.01;
 	if(attr >= m_intrinsicDims)
 		throw Ex("out of range");
 	if(!m_pQMask)
+	{
 		m_pQMask = new GMatrix(0, m_intrinsicDims);
+		m_pQWeights = new GMatrix(2, m_intrinsicDims);
+		m_pQWeights->setAll(0.0);
+	}
 	while(m_pQMask->rows() <= item)
 		GVec::setAll(m_pQMask->newRow(), UNKNOWN_REAL_VALUE, m_intrinsicDims);
 	m_pQMask->row(item)[attr] = val;
@@ -1058,12 +1066,16 @@ void GMatrixFactorization::clampP(size_t i)
 {
 	double* pP = m_pP->row(i) + (m_useInputBias ? 1 : 0);
 	double* pMask = m_pPMask->row(i);
+	double* pBias = m_pPWeights->row(0);
+	double* pWeights = m_pPWeights->row(1);
 	for(size_t i = 0; i < m_intrinsicDims; i++)
 	{
 		if(*pMask != UNKNOWN_REAL_VALUE)
-			*pP = *pMask;
-		pMask++;
+			*pP = *pBias + *pWeights * *pMask;
 		pP++;
+		pBias++;
+		pWeights++;
+		pMask++;
 	}
 }
 
@@ -1071,12 +1083,16 @@ void GMatrixFactorization::clampQ(size_t i)
 {
 	double* pQ = m_pQ->row(i) + 1;
 	double* pMask = m_pQMask->row(i);
+	double* pBias = m_pQWeights->row(0);
+	double* pWeights = m_pQWeights->row(1);
 	for(size_t i = 0; i < m_intrinsicDims; i++)
 	{
 		if(*pMask != UNKNOWN_REAL_VALUE)
-			*pQ = *pMask;
-		pMask++;
+			*pQ = *pBias + *pWeights * *pMask;
 		pQ++;
+		pBias++;
+		pWeights++;
+		pMask++;
 	}
 }
 
@@ -1105,18 +1121,6 @@ void GMatrixFactorization::train(GMatrix& data)
 			*(pVec++) = 0.02 * m_rand.normal();
 	}
 
-	// Clamp fixed values over P and Q
-	if(m_pPMask)
-	{
-		for(size_t i = 0; i < m_pPMask->rows(); i++)
-			clampP(i);
-	}
-	if(m_pQMask)
-	{
-		for(size_t i = 0; i < m_pPMask->rows(); i++)
-			clampQ(i);
-	}
-
 	// Make a shallow copy of the data (so we can shuffle it)
 	GMatrix dataCopy(data.relation().clone());
 	GReleaseDataHolder hDataCopy(&dataCopy);
@@ -1140,50 +1144,93 @@ void GMatrixFactorization::train(GMatrix& data)
 			// Do an epoch of training
 			for(size_t j = 0; j < dataCopy.rows(); j++)
 			{
-				// Compute the error for this rating
 				double* pVec = dataCopy[j];
-				double* pPref = m_pP->row(size_t(pVec[0]));
-				double* pWeights = m_pQ->row(size_t(pVec[1]));
-				double pred = *(pWeights++);
+				size_t user = (size_t)pVec[0];
+				size_t item = (size_t)pVec[1];
+				if(m_pPMask && user < m_pPMask->rows())
+					clampP(user);
+				if(m_pQMask && item < m_pQMask->rows())
+					clampQ(item);
+
+				// Compute the error for this rating
+				double* pP = m_pP->row(user);
+				double* pQ = m_pQ->row(item);
+				double pred = *(pQ++);
 				if(m_useInputBias)
-					pred += *(pPref++);
+					pred += *(pP++);
 				for(size_t i = 0; i < m_intrinsicDims; i++)
-					pred += *(pPref++) * (*pWeights++);
+					pred += *(pP++) * (*pQ++);
 				double err = pVec[2] - pred;
 
 				// Update Q
-				pPref = m_pP->row(size_t(pVec[0])) + (m_useInputBias ? 1 : 0);
+				pP = m_pP->row(user) + (m_useInputBias ? 1 : 0);
 				double* pT = temp_weights;
-				pWeights = m_pQ->row(size_t(pVec[1]));
-				*pWeights += learningRate * (err - m_regularizer * (*pWeights));
-				pWeights++;
+				pQ = m_pQ->row(item);
+				*pQ += learningRate * (err - m_regularizer * (*pQ));
+				pQ++;
 				for(size_t i = 0; i < m_intrinsicDims; i++)
 				{
-					*(pT++) = *pWeights;
-					*pWeights += learningRate * (err * (*pPref) - m_regularizer * (*pWeights));
-					pPref++;
-					pWeights++;
+					*(pT++) = *pQ;
+					(*pQ) += learningRate * (err * (*pP) - m_regularizer * (*pQ));
+					pP++;
+					pQ++;
 				}
-				if(m_pQMask && size_t(pVec[1]) < m_pQMask->rows())
-					clampQ(size_t(pVec[1]));
+				if(m_pQMask && item < m_pQMask->rows())
+				{
+					// Update the bias and weights for clamped values
+					double* pMask = m_pQMask->row(item);
+					double* pB = m_pQWeights->row(0);
+					double* pW = m_pQWeights->row(1);
+					pP = m_pP->row(user) + (m_useInputBias ? 1 : 0);
+					for(size_t i = 0; i < m_intrinsicDims; i++)
+					{
+						if(*pMask != UNKNOWN_REAL_VALUE)
+						{
+//							(*pB) += 0.1 * learningRate * err * (*pP);
+//							(*pW) += 0.1 * learningRate * err * (*pP) * (*pMask);
+						}
+						pMask++;
+						pP++;
+						pW++;
+						pB++;
+					}
+				}
 
 				// Update P
-				pWeights = temp_weights;
-				double* pPrefRow = m_pP->row(size_t(pVec[0]));
-				pPref = pPrefRow;
+				pQ = temp_weights;
+				double* pPRow = m_pP->row(user);
+				pP = pPRow;
 				if(m_useInputBias)
 				{
-					*pPref += learningRate * (err - m_regularizer * (*pPref));
-					pPref++;
+					(*pP) += learningRate * (err - m_regularizer * (*pP));
+					pP++;
 				}
 				for(size_t i = 0; i < m_intrinsicDims; i++)
 				{
-					*pPref += learningRate * (err * (*pWeights) - m_regularizer * (*pPref));
-					pWeights++;
-					pPref++;
+					(*pP) += learningRate * (err * (*pQ) - m_regularizer * (*pP));
+					pQ++;
+					pP++;
 				}
-				if(m_pPMask && size_t(pVec[0]) < m_pPMask->rows())
-					clampP(size_t(pVec[0]));
+				if(m_pPMask && user < m_pPMask->rows())
+				{
+					// Update the bias and weights for clamped values
+					double* pMask = m_pPMask->row(user);
+					double* pB = m_pPWeights->row(0);
+					double* pW = m_pPWeights->row(1);
+					pQ = temp_weights;
+					for(size_t i = 0; i < m_intrinsicDims; i++)
+					{
+						if(*pMask != UNKNOWN_REAL_VALUE)
+						{
+//							(*pB) += 0.1 * learningRate * err * (*pQ);
+//							(*pW) += 0.1 * learningRate * err * (*pQ) * (*pMask);
+						}
+						pMask++;
+						pP++;
+						pW++;
+						pB++;
+					}
+				}
 			}
 			epochs++;
 		}
@@ -1211,13 +1258,13 @@ double GMatrixFactorization::predict(size_t user, size_t item)
 		throw Ex("Not trained yet");
 	if(user >= m_pP->rows() || item >= m_pQ->rows())
 		return 0.0;
-	double* pWeights = m_pQ->row(item);
-	double* pPref = m_pP->row(user);
-	double pred = *(pWeights++);
+	double* pQ = m_pQ->row(item);
+	double* pP = m_pP->row(user);
+	double pred = *(pQ++);
 	if(m_useInputBias)
-		pred += *(pPref++);
+		pred += *(pP++);
 	for(size_t i = 0; i < m_intrinsicDims; i++)
-		pred += *(pPref++) * (*pWeights++);
+		pred += *(pP++) * (*pQ++);
 	return pred;
 }
 
@@ -1266,28 +1313,28 @@ void GMatrixFactorization::impute(double* pVec, size_t dims)
 		{
 			// Compute the error for this rating
 			double* pVec = data[i];
-			double* pPref = pPrefVec;
-			double* pWeights = m_pQ->row(size_t(pVec[1]));
-			double pred = *(pWeights++);
+			double* pP = pPrefVec;
+			double* pQ = m_pQ->row(size_t(pVec[1]));
+			double pred = *(pQ++);
 			if(m_useInputBias)
-				pred += *(pPref++);
+				pred += *(pP++);
 			for(size_t i = 0; i < m_intrinsicDims; i++)
-				pred += *(pPref++) * (*pWeights++);
+				pred += *(pP++) * (*pQ++);
 			double err = pVec[2] - pred;
 
 			// Update the preference vec
-			pWeights = m_pQ->row(size_t(pVec[1])) + 1;
-			pPref = pPrefVec;
+			pQ = m_pQ->row(size_t(pVec[1])) + 1;
+			pP = pPrefVec;
 			if(m_useInputBias)
 			{
-				*pPref += learningRate * err; // regularization is intentionally not used here
-				pPref++;
+				(*pP) += learningRate * (err - m_regularizer * (*pP));
+				pP++;
 			}
 			for(size_t i = 0; i < m_intrinsicDims; i++)
 			{
-				*pPref += learningRate * err * (*pWeights); // regularization is intentionally not used here
-				pWeights++;
-				pPref++;
+				(*pP) += learningRate * (err * (*pQ) - m_regularizer * (*pP));
+				pQ++;
+				pP++;
 			}
 			GVec::floorValues(pPrefVec + (m_useInputBias ? 1 : 0), -1.8, m_intrinsicDims);
 			GVec::capValues(pPrefVec + (m_useInputBias ? 1 : 0), 1.8, m_intrinsicDims);
@@ -1310,13 +1357,13 @@ void GMatrixFactorization::impute(double* pVec, size_t dims)
 	{
 		if(*pVec == UNKNOWN_REAL_VALUE)
 		{
-			double* pWeights = m_pQ->row(i);
+			double* pQ = m_pQ->row(i);
 			double* pPref = pPrefVec;
-			double pred = *(pWeights++);
+			double pred = *(pQ++);
 			if(m_useInputBias)
 				pred += *(pPref++);
 			for(size_t j = 0; j < m_intrinsicDims; j++)
-				pred += *(pPref++) * (*pWeights++);
+				pred += *(pPref++) * (*pQ++);
 			*pVec = pred;
 		}
 		pVec++;

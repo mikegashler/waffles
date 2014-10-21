@@ -316,6 +316,7 @@ void GLayerClassic::computeError(const double* pTarget)
 				*pErr = (*pTarget - *pAct + *pSlack);
 			else
 				*pErr = 0.0;
+			GAssert(std::abs(*pErr) < m_pActivationFunction->halfRange() * 2.0);
 		}
 		pTarget++;
 		pSlack++;

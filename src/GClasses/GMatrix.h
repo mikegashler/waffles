@@ -46,6 +46,8 @@ class GDomNode;
 class GArffTokenizer;
 class GDistanceMetric;
 class GSimpleAssignment;
+class GDistanceMetric;
+
 
 /// \brief Holds the metadata for a dataset.
 ///
@@ -832,6 +834,9 @@ public:
 	/// \brief Swaps the two specified rows
 	void swapRows(size_t a, size_t b);
 
+	/// \brief Swap pNewRow in for row i, and return row i. The caller is then responsible to delete the row that is returned.
+	double* swapRow(size_t i, double* pNewRow);
+
 	/// \brief Swaps two columns
 	void swapColumns(size_t nAttr1, size_t nAttr2);
 
@@ -1092,10 +1097,10 @@ public:
 	/// and attr2Origin.
 	double linearCorrelationCoefficient(size_t attr1, double attr1Origin, size_t attr2, double attr2Origin) const;
 
-	/// \brief Finds a sphere that bounds all the row-points in this matrix.
+	/// \brief Finds a sphere that tightly bounds all the points in the specified vector of row-indexes.
 	///
 	/// Returns the squared radius of the sphere, and stores its center in pOutCenter.
-	double boundingSphere(double* pOutCenter) const;
+	double boundingSphere(double* pOutCenter, size_t* pIndexes, size_t indexCount, GDistanceMetric* pMetric) const;
 
 	/// \brief Computes the covariance between two attributes.
 	/// If pWeights is NULL, each row is given a weight of 1.
@@ -1212,6 +1217,12 @@ public:
 	/// Counts the number of unique values in the specified column. If maxCount
 	/// unique values are found, it immediately returns maxCount.
 	size_t countUniqueValues(size_t col, size_t maxCount = (size_t)-1) const;
+
+	/// Traverse the points in a breadth-first manner, starting with row seed,
+	/// and ensure that every point is within maxDist units of the centroid of
+	/// its k-nearest neighbors among the points that have already been visited
+	/// by the traversal.
+	void unstretch(size_t seed, size_t neighbors, double maxDist, GRand& rand);
 
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception

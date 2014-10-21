@@ -30,6 +30,7 @@ class GMatrix;
 class GRelation;
 class GRand;
 class GKdNode;
+class GBallNode;
 class GBitTable;
 class GDistanceMetric;
 class GSupervisedLearner;
@@ -67,7 +68,8 @@ public:
 	virtual bool isCached() { return false; }
 
 	/// Returns the k-nearest neighbors of the point specified by index.
-	/// The neighbors are sorted such that the nearest one comes first.
+	/// The neighbors are not necessarily sorted, but you can call GNeighborFinder::sortNeighbors
+	/// if you want them to be sorted.
 	/// pOutNeighbors should be an array of size neighborCount.
 	/// index refers to the point/vector whose neighbors you want to obtain.
 	/// The value INVALID_INDEX may be used to fill slots with no point
@@ -75,7 +77,8 @@ public:
 	virtual void neighbors(size_t* pOutNeighbors, size_t index) = 0;
 
 	/// Returns the k-nearest neighbors of the point specified by index.
-	/// The neighbors are sorted such that the nearest one comes first.
+	/// The neighbors are not necessarily sorted, but you can call GNeighborFinder::sortNeighbors
+	/// if you want them to be sorted.
 	/// pOutNeighbors and pOutDistances should both be arrays of size neighborCount.
 	/// index refers to the point/vector whose neighbors you want to obtain.
 	/// If there are not enough points in the data set to fill the
@@ -274,6 +277,67 @@ protected:
 	/// the number of rows with a value less than the pivot. For nominal values, not-equal
 	/// values are moved to the beginning, and equal values are moved to the end.
 	size_t splitIndexes(size_t count, size_t* pIndexes, size_t attr, double pivot);
+};
+
+
+
+
+/// An efficient algorithm for finding neighbors. Empirically, this class seems to be a little bit slower than GKdTree.
+class GBallTree : public GNeighborFinderGeneralizing
+{
+protected:
+	size_t m_maxLeafSize;
+	size_t m_size;
+	GBallNode* m_pRoot;
+
+public:
+	GBallTree(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
+	virtual ~GBallTree();
+
+#ifndef NO_TEST_CODE
+	/// Performs unit tests for this class. Throws an exception if there is a failure.
+	static void test();
+#endif
+
+	/// Rebuilds the tree to improve subsequent performance. This should be called after
+	/// a significant number of point-vectors are added to or released from the internal set.
+	virtual void reoptimize();
+
+	/// See the comment for GNeighborFinder::neighbors
+	virtual void neighbors(size_t* pOutNeighbors, size_t index);
+
+	/// See the comment for GNeighborFinder::neighbors
+	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
+
+	/// See the comment for GNeighborFinderGeneralizing::neighbors
+	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const double* pInputVector);
+
+	/// Specify the max number of point-vectors to store in each leaf node.
+	void setMaxLeafSize(size_t n) { m_maxLeafSize = n; }
+
+	/// Inserts a new point into this ball tree. This method assumes you have already added a new
+	/// row to the dataset that was used to construct this tree. Calling this method informs this structure
+	/// that it should also index the new point. Note that this method may reduce the efficiency
+	/// of the tree by a small amount, so you might want to call reoptimize after several points are added.
+	void insert(size_t index);
+
+	/// Drops the specified index from this ball tree. Throws an exception of the specified index is not found
+	/// in the tree. Note that the tree still assumes that the other
+	/// indexes still retain their relationship with the points in the dataset that was used to construct
+	/// this object, so you should not move the rows in that dataset around. Also note that before
+	/// you call reoptimize, you need to delete any rows that were dropped, or else they will then be added back in.
+	void drop(size_t index);
+
+	/// Drops all of the leaf point indexes, but retains the interior structure. (This might be useful
+	/// if you know in advance which points will be inserted, but you don't want them to be in the tree yet.)
+	void dropAll();
+
+protected:
+	/// Build the tree
+	GBallNode* buildTree(size_t count, size_t* pIndexes);
+
+	/// This is the helper method that finds the neighbors
+	void findNeighbors(size_t* pOutNeighbors, double* pOutDistances, const double* pInputVector, size_t nExclude);
 };
 
 

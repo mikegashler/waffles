@@ -860,6 +860,29 @@ void GVec::test()
 
 
 
+
+GIndexVec::GIndexVec(size_t n)
+{
+	if(n > 0)
+		v = new size_t[n];
+	else
+		v = NULL;
+}
+
+GIndexVec::~GIndexVec()
+{
+	delete[] v;
+}
+
+void GIndexVec::resize(size_t n)
+{
+	delete[] v;
+	if(n > 0)
+		v = new size_t[n];
+	else
+		v = NULL;
+}
+
 // static
 void GIndexVec::makeIndexVec(size_t* pVec, size_t size)
 {
@@ -949,6 +972,21 @@ void GIndexVec::deserialize(size_t* pVec, GDomListIterator& it)
 	{
 		*(pVec++) = size_t(it.current()->asInt());
 		it.advance();
+	}
+}
+
+// static
+void GIndexVec::print(std::ostream& stream, size_t* pVec, size_t dims)
+{
+	if(dims == 0)
+		return;
+	stream << *pVec;
+	pVec++;
+	for(size_t i = 1; i < dims; i++)
+	{
+		stream << ", ";
+		stream << *pVec;
+		pVec++;
 	}
 }
 

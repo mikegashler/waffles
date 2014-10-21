@@ -93,6 +93,97 @@ protected:
 	void maxHeapBubbleDown(int index);
 };
 
+
+
+
+
+
+
+/// Implements a simple priority queue of objects sorted by a double-precision value
+template <typename T>
+class GSimplePriorityQueue
+{
+protected:
+	std::vector<T*> m_objects;
+	std::vector<double> m_values;
+
+public:
+	GSimplePriorityQueue()
+	{
+	}
+
+	~GSimplePriorityQueue()
+	{
+	}
+
+	void insert(T* pObject, double value)
+	{
+		m_objects.push_back(pObject);
+		m_values.push_back(value);
+		size_t heapPos = m_objects.size();
+		while(heapPos > 1 && m_values[heapPos - 1] < m_values[heapPos / 2 - 1])
+		{
+			std::swap(m_objects[heapPos / 2 - 1], m_objects[heapPos - 1]);
+			std::swap(m_values[heapPos / 2 - 1], m_values[heapPos - 1]);
+			heapPos /= 2;
+		}
+	}
+
+	T* peekObject()
+	{
+		return m_objects[0];
+	}
+
+	double peekValue()
+	{
+		return m_values[0];
+	}
+
+	void pop()
+	{
+		m_values[0] = m_values[m_values.size() - 1];
+		m_objects[0] = m_objects[m_objects.size() - 1];
+		m_values.pop_back();
+		m_objects.pop_back();
+		size_t heapPos = 1;
+		while(true)
+		{
+			if(heapPos * 2 - 1 >= m_values.size())
+				break;
+			if(heapPos * 2 >= m_values.size() || m_values[heapPos * 2 - 1] < m_values[heapPos * 2])
+			{
+				if(m_values[heapPos * 2 - 1] < m_values[heapPos - 1])
+				{
+					std::swap(m_values[heapPos - 1], m_values[heapPos * 2 - 1]);
+					std::swap(m_objects[heapPos - 1], m_objects[heapPos * 2 - 1]);
+					heapPos = heapPos * 2;
+				}
+				else
+					break;
+			}
+			else
+			{
+				if(m_values[heapPos * 2] < m_values[heapPos - 1])
+				{
+					std::swap(m_values[heapPos - 1], m_values[heapPos * 2]);
+					std::swap(m_objects[heapPos - 1], m_objects[heapPos * 2]);
+					heapPos = heapPos * 2 + 1;
+				}
+				else
+					break;
+			}
+		}
+	}
+
+	size_t size()
+	{
+		return m_values.size();
+	}
+};
+
+
+
+
 } // namespace GClasses
 
 #endif // __GPRIORITYQUEUE_H__

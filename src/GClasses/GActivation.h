@@ -313,8 +313,8 @@ public:
 	/// Returns 0.0
 	virtual double center() { return 0.0; }
 
-	/// Returns 1e308
-	virtual double halfRange() { return 1e308; }
+	/// Returns 10000
+	virtual double halfRange() { return 10000; }
 
 	/// Returns 1.0
 	virtual double identityDiag() { return 1.0; }
@@ -410,8 +410,8 @@ public:
 	/// Returns 0.0
 	virtual double center() { return 0.0; }
 
-	/// Returns 1e308
-	virtual double halfRange() { return 1e308; }
+	/// Returns 10000
+	virtual double halfRange() { return 10000; }
 
 	/// Returns 1.0
 	virtual double identityDiag() { return 1.0; }

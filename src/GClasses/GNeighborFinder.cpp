@@ -41,6 +41,7 @@
 #include "GDistance.h"
 #include <cmath>
 #include <map>
+#include "GPriorityQueue.h"
 
 namespace GClasses {
 
@@ -1302,6 +1303,401 @@ void GKdTree::test()
 #endif // !NO_TEST_CODE
 
 // --------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+class GBallNode
+{
+public:
+	GVec m_center;
+	double m_radius;
+
+	GBallNode(size_t count, size_t* pIndexes, const GMatrix* pData, GDistanceMetric* pMetric)
+	: m_center(pData->cols())
+	{
+		m_radius = sqrt(pData->boundingSphere(m_center.v, pIndexes, count, pMetric));
+	}
+
+	virtual ~GBallNode()
+	{
+	}
+
+	virtual bool isLeaf() = 0;
+
+	double distance(GDistanceMetric* pMetric, const double* pVec)
+	{
+		return sqrt(pMetric->squaredDistance(m_center.v, pVec)) - m_radius;
+	}
+
+	/// Move the center and radius just enough to enclose both pVec and the previous ball
+	void enclose(GDistanceMetric* pMetric, const double* pVec)
+	{
+		double d = distance(pMetric, pVec) + 1e-9;
+		if(d > 0)
+		{
+			size_t dims = pMetric->relation()->size();
+			double s = 0.5 * d / (m_radius + d);
+			for(size_t i = 0; i < dims; i++)
+				m_center.v[i] += s * (pVec[i] - m_center.v[i]);
+			m_radius += 0.5 * d;
+		}
+	}
+
+	virtual void insert(size_t index, GDistanceMetric* pMetric, const double* pVec) = 0;
+
+	virtual bool drop(size_t index, GDistanceMetric* pMetric, const double* pVec) = 0;
+
+	virtual void dropAll() = 0;
+
+	virtual void print(std::ostream& stream, size_t depth, GDistanceMetric* pMetric, const double* pVec, const GMatrix* pData) = 0;
+};
+
+class GBallInterior : public GBallNode
+{
+public:
+	GBallNode* m_pLeft;
+	GBallNode* m_pRight;
+
+	GBallInterior(size_t count, size_t* pIndexes, const GMatrix* pData, GDistanceMetric* pMetric)
+	: GBallNode(count, pIndexes, pData, pMetric), m_pLeft(NULL), m_pRight(NULL)
+	{
+	}
+
+	virtual ~GBallInterior()
+	{
+		delete(m_pLeft);
+		delete(m_pRight);
+	}
+
+	virtual bool isLeaf() { return false; }
+
+	virtual void insert(size_t index, GDistanceMetric* pMetric, const double* pVec)
+	{
+		enclose(pMetric, pVec);
+		if(m_pLeft->distance(pMetric, pVec) < m_pRight->distance(pMetric, pVec))
+			m_pLeft->insert(index, pMetric, pVec);
+		else
+			m_pRight->insert(index, pMetric, pVec);
+	}
+
+	virtual bool drop(size_t index, GDistanceMetric* pMetric, const double* pVec)
+	{
+		if(m_pLeft->distance(pMetric, pVec) <= 0.0)
+		{
+			if(m_pLeft->drop(index, pMetric, pVec))
+				return true;
+		}
+		if(m_pRight->distance(pMetric, pVec) <= 0.0)
+		{
+			if(m_pRight->drop(index, pMetric, pVec))
+				return true;
+		}
+		return false;
+	}
+
+	virtual void dropAll()
+	{
+		m_pLeft->dropAll();
+		m_pRight->dropAll();
+	}
+
+	virtual void print(std::ostream& stream, size_t depth, GDistanceMetric* pMetric, const double* pVec, const GMatrix* pData)
+	{
+		m_pRight->print(stream, depth + 1, pMetric, pVec, pData);
+		for(size_t i = 0; i < depth; i++)
+			stream << "  ";
+		stream << to_str(distance(pMetric, pVec));
+		stream << "\n";
+		m_pLeft->print(stream, depth + 1, pMetric, pVec, pData);
+	}
+};
+
+class GBallLeaf : public GBallNode
+{
+public:
+	std::vector<size_t> m_indexes;
+
+	GBallLeaf(size_t count, size_t* pIndexes, const GMatrix* pData, GDistanceMetric* pMetric)
+	: GBallNode(count, pIndexes, pData, pMetric)
+	{
+		m_indexes.reserve(count);
+		for(size_t i = 0; i < count; i++)
+			m_indexes.push_back(pIndexes[i]);
+	}
+
+	virtual ~GBallLeaf()
+	{
+	}
+
+	virtual bool isLeaf() { return true; }
+
+	virtual void insert(size_t index, GDistanceMetric* pMetric, const double* pVec)
+	{
+		enclose(pMetric, pVec);
+		m_indexes.push_back(index);
+	}
+
+	virtual bool drop(size_t index, GDistanceMetric* pMetric, const double* pVec)
+	{
+		for(size_t i = 0; i < m_indexes.size(); i++)
+		{
+			if(m_indexes[i] == index)
+			{
+				std::swap(m_indexes[i], m_indexes[m_indexes.size() - 1]);
+				m_indexes.pop_back();
+				return true;
+			}
+		}
+		return false;
+	}
+
+	virtual void dropAll()
+	{
+		m_indexes.clear();
+	}
+
+	virtual void print(std::ostream& stream, size_t depth, GDistanceMetric* pMetric, const double* pVec, const GMatrix* pData)
+	{
+		for(size_t i = 0; i < depth; i++)
+			stream << "  ";
+		stream << to_str(distance(pMetric, pVec)) << "\n";
+		for(size_t j = 0; j < m_indexes.size(); j++)
+		{
+			for(size_t i = 0; i <= depth; i++)
+				stream << "  ";
+			size_t index = m_indexes[j];
+			double val = pData->row(index)[0];
+			stream << to_str(index) << " (" << to_str(val) << ")\n";
+		}
+	}
+};
+
+
+GBallTree::GBallTree(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinderGeneralizing(pData, neighborCount, pMetric, ownMetric),
+m_maxLeafSize(6),
+m_pRoot(NULL)
+{
+	reoptimize();
+}
+
+// virtual
+GBallTree::~GBallTree()
+{
+	delete(m_pRoot);
+}
+
+void GBallTree::reoptimize()
+{
+	if(m_pRoot && m_pRoot->isLeaf())
+		return;
+	delete(m_pRoot);
+	GIndexVec indexes(m_pData->rows());
+	GIndexVec::makeIndexVec(indexes.v, m_pData->rows());
+	m_pRoot = buildTree(m_pData->rows(), indexes.v);
+	m_size = m_pData->rows();
+}
+
+// virtual
+void GBallTree::neighbors(size_t* pOutNeighbors, size_t index)
+{
+	GTEMPBUF(double, distances, m_neighborCount);
+	neighbors(pOutNeighbors, distances, index);
+}
+
+// virtual
+void GBallTree::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
+{
+	findNeighbors(pOutNeighbors, pOutDistances, m_pData->row(index), index);
+}
+
+// virtual
+void GBallTree::neighbors(size_t* pOutNeighbors, double* pOutDistances, const double* pInputVector)
+{
+	findNeighbors(pOutNeighbors, pOutDistances, pInputVector, INVALID_INDEX);
+}
+
+GBallNode* GBallTree::buildTree(size_t count, size_t* pIndexes)
+{
+	if(count > m_maxLeafSize)
+	{
+		// Find the two farthest points
+		const double* pA = m_pData->row(pIndexes[0]);
+		size_t b = 1;
+		double sdist = m_pMetric->squaredDistance(pA, m_pData->row(pIndexes[b]));
+		for(size_t i = 2; i < count; i++)
+		{
+			double cand = m_pMetric->squaredDistance(pA, m_pData->row(pIndexes[i]));
+			if(cand > sdist)
+			{
+				sdist = cand;
+				b = i;
+			}
+		}
+		const double* pB = m_pData->row(pIndexes[b]);
+		size_t c = 0;
+		sdist = m_pMetric->squaredDistance(pB, m_pData->row(pIndexes[c]));
+		for(size_t i = 1; i < count; i++)
+		{
+			if(i == b)
+				continue;
+			double cand = m_pMetric->squaredDistance(pB, m_pData->row(pIndexes[i]));
+			if(cand > sdist)
+			{
+				sdist = cand;
+				c = i;
+			}
+		}
+		const double* pC = m_pData->row(pIndexes[c]);
+
+		// Split based on closeness to b or c
+		size_t leftCount = 0;
+		for(size_t i = 0; i < count; i++)
+		{
+			double dB = m_pMetric->squaredDistance(m_pData->row(pIndexes[i]), pB);
+			double dC = m_pMetric->squaredDistance(m_pData->row(pIndexes[i]), pC);
+			if(dB < dC)
+			{
+				std::swap(pIndexes[leftCount], pIndexes[i]);
+				leftCount++;
+			}
+		}
+		if(leftCount == 0 || leftCount == count) // If we could not separate any of the points (which may occur if they are all the same point)...
+			return new GBallLeaf(count, pIndexes, m_pData, m_pMetric);
+		GBallInterior* pInterior = new GBallInterior(count, pIndexes, m_pData, m_pMetric);
+		Holder<GBallInterior> hInterior(pInterior);
+		pInterior->m_pLeft = buildTree(leftCount, pIndexes);
+		GAssert(pInterior->m_pLeft);
+		pInterior->m_pRight = buildTree(count - leftCount, pIndexes + leftCount);
+		GAssert(pInterior->m_pRight);
+		return hInterior.release();
+	}
+	else
+		return new GBallLeaf(count, pIndexes, m_pData, m_pMetric);
+}
+
+
+void GBallTree::findNeighbors(size_t* pOutNeighbors, double* pOutDistances, const double* pInputVector, size_t nExclude)
+{
+	GClosestNeighborFindingHelper helper(m_neighborCount, pOutNeighbors, pOutDistances);
+	GSimplePriorityQueue<GBallNode> q;
+	q.insert(m_pRoot, m_pRoot->distance(m_pMetric, pInputVector));
+	while(q.size() > 0)
+	{
+		double dist = q.peekValue();
+		if(helper.GetWorstDist() < dist * dist)
+			break;
+		GBallNode* pBall = q.peekObject();
+		q.pop();
+		if(pBall->isLeaf())
+		{
+			GBallLeaf* pLeaf = (GBallLeaf*)pBall;
+			for(size_t i = 0; i < pLeaf->m_indexes.size(); i++)
+			{
+				size_t index = pLeaf->m_indexes[i];
+				if(index != nExclude)
+					helper.TryPoint(pLeaf->m_indexes[i], m_pMetric->squaredDistance(m_pData->row(index), pInputVector));
+			}
+		}
+		else
+		{
+			GBallInterior* pInt = (GBallInterior*)pBall;
+			q.insert(pInt->m_pLeft, pInt->m_pLeft->distance(m_pMetric, pInputVector));
+			q.insert(pInt->m_pRight, pInt->m_pRight->distance(m_pMetric, pInputVector));
+		}
+	}
+}
+
+void GBallTree::insert(size_t index)
+{
+	m_pRoot->insert(index, m_pMetric, m_pData->row(index));
+	m_size++;
+}
+
+void GBallTree::drop(size_t index)
+{
+	if(!m_pRoot->drop(index, m_pMetric, m_pData->row(index)))
+		throw Ex("Could not find the specified index in this structure. (This could happen if the corresponding point in the dataset has changed.)");
+	m_size--;
+}
+
+void GBallTree::dropAll()
+{
+	m_pRoot->dropAll();
+	m_size = 0;
+}
+
+#ifndef NO_TEST_CODE
+#define TEST_BALLTREE_ITERS 100
+#define TEST_BALLTREE_ROWS 200
+#define TEST_BALLTREE_DIMS 7
+#define TEST_BALLTREE_NEIGHBORS 17
+// static
+void GBallTree::test()
+{
+	double kdDist[TEST_BALLTREE_NEIGHBORS];
+	size_t kdInd[TEST_BALLTREE_NEIGHBORS];
+	double ballDist[TEST_BALLTREE_NEIGHBORS];
+	size_t ballInd[TEST_BALLTREE_NEIGHBORS];
+	GRand r(0);
+	for(size_t i = 0; i < TEST_BALLTREE_ITERS; i++)
+	{
+		GMatrix m(TEST_BALLTREE_ROWS, TEST_BALLTREE_DIMS);
+		for(size_t j = 0; j < TEST_BALLTREE_ROWS; j++)
+			r.cubical(m[j], TEST_BALLTREE_DIMS);
+		GKdTree kd(&m, TEST_BALLTREE_NEIGHBORS);
+		GBallTree ball(&m, TEST_BALLTREE_NEIGHBORS);
+		kd.neighbors(kdInd, kdDist, (size_t)0);
+		kd.sortNeighbors(kdInd, kdDist);
+		ball.neighbors(ballInd, ballDist, (size_t)0);
+		ball.sortNeighbors(ballInd, ballDist);
+		for(size_t j = 0; j < TEST_BALLTREE_NEIGHBORS; j++)
+		{
+			if(kdInd[j] != ballInd[j])
+			{
+				/*
+				std::cout << "\nIter: " << to_str(i) << "\n";
+				std::cout << "Matrix:\n";
+				m.print(std::cout);
+				std::cout << "kdTree:\n";
+				GIndexVec::print(std::cout, kdInd, TEST_BALLTREE_NEIGHBORS);
+				std::cout << "\nballTree:\n";
+				GIndexVec::print(std::cout, ballInd, TEST_BALLTREE_NEIGHBORS);
+				std::cout << "\nkdTree distances:\n";
+				GVec::print(std::cout, 8, kdDist, TEST_BALLTREE_NEIGHBORS);
+				std::cout << "\nballTree distances:\n";
+				GVec::print(std::cout, 8, ballDist, TEST_BALLTREE_NEIGHBORS);
+				std::cout << "\nTree:\n";
+				ball.m_pRoot->print(std::cout, 0, ball.m_pMetric, m[0], &m);
+				*/
+				throw Ex("indexes differ");
+			}
+			if(kdDist[j] != ballDist[j])
+				throw Ex("distances differ");
+		}
+	}
+}
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+// --------------------------------------------------------------------------------------------------------
+
 
 
 

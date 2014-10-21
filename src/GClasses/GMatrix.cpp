@@ -3670,38 +3670,38 @@ GMatrix* GMatrix::covarianceMatrix() const
 	return pOut;
 }
 
-double GMatrix::boundingSphere(double* pCenter) const
+double GMatrix::boundingSphere(double* pCenter, size_t* pIndexes, size_t indexCount, GDistanceMetric* pMetric) const
 {
 	size_t dims = cols();
-	if(rows() < 2)
+	if(indexCount < 2)
 	{
-		if(rows() < 1)
-			throw Ex("Empty matrix");
-		GVec::copy(pCenter, row(0), dims);
+		if(indexCount < 1)
+			throw Ex("Need at least one point");
+		GVec::copy(pCenter, row(pIndexes[0]), dims);
 		return 1e-18;
 	}
 
 	// Find the two farthest points
-	const double* pA = row(0);
+	const double* pA = row(pIndexes[0]);
 	size_t b = 1;
-	double sdist = GVec::squaredDistance(pA, row(b), dims);
-	for(size_t i = 2; i < rows(); i++)
+	double sdist = pMetric->squaredDistance(pA, row(pIndexes[b]));
+	for(size_t i = 2; i < indexCount; i++)
 	{
-		double cand = GVec::squaredDistance(pA, row(i), dims);
+		double cand = pMetric->squaredDistance(pA, row(pIndexes[i]));
 		if(cand > sdist)
 		{
 			sdist = cand;
 			b = i;
 		}
 	}
-	const double* pB = row(b);
+	const double* pB = row(pIndexes[b]);
 	size_t c = 0;
-	sdist = GVec::squaredDistance(pB, row(c), dims);
-	for(size_t i = 1; i < rows(); i++)
+	sdist = pMetric->squaredDistance(pB, row(pIndexes[c]));
+	for(size_t i = 1; i < indexCount; i++)
 	{
 		if(i == b)
 			continue;
-		double cand = GVec::squaredDistance(pB, row(i), dims);
+		double cand = pMetric->squaredDistance(pB, row(pIndexes[i]));
 		if(cand > sdist)
 		{
 			sdist = cand;
@@ -3711,26 +3711,41 @@ double GMatrix::boundingSphere(double* pCenter) const
 
 	// Compute initial center and radius
 	double sradius = 0.25 * sdist;
-	GVec::copy(pCenter, row(b), dims);
-	GVec::add(pCenter, row(c), dims);
+	GVec::copy(pCenter, row(pIndexes[b]), dims);
+	GVec::add(pCenter, row(pIndexes[c]), dims);
 	GVec::multiply(pCenter, 0.5, dims);
 
-	// Refine and grow the bounding sphere until it definitely includes all points
+	// Refine and grow the bounding sphere until it definitely includes all the points
 	while(true)
 	{
 		size_t externals = 0;
-		for(size_t i = 0; i < rows(); i++)
+		for(size_t i = 0; i < indexCount; i++)
 		{
-			const double* pCand = row(i);
-			sdist = GVec::squaredDistance(pCand, pCenter, dims);
+			const double* pCand = row(pIndexes[i]);
+			sdist = pMetric->squaredDistance(pCand, pCenter);
 			if(sdist > sradius)
 			{
 				externals++;
-				double scale = sradius / (2.0 * sdist) + 0.5;
-				for(size_t j = 0; j < dims; j++)
-					pCenter[j] = pCand[j] + scale * (pCenter[j] - pCand[j]);
+
+				// This is supposed to be the ideal way to grow the radius, but it doesn't actually seem to work very well
+				//sradius = 0.25 * (sradius * sradius / sdist + sradius + sradius + sdist);
+
+				// This is a simpler way to increase the radius
+				//sradius *= 1.02;
+
+				// Increase the radius using some magical heuristic I invented, but cannot remember how it works anymore
 				double tmp = (sradius + sdist) * 1.01; // This is the grow rate for the radius
 				sradius = tmp * tmp / (4.0 * sdist);
+
+				// Move the center just enough to enclose the candidate point
+				double dist = sqrt(sdist);
+				double stepFac = (dist - sqrt(sradius)) / dist;
+				for(size_t j = 0; j < dims; j++)
+					pCenter[j] += stepFac * (pCand[j] - pCenter[j]);
+
+				// Increase the radius slightly to prevent precision issues
+				sradius += 1e-9;
+
 			}
 		}
 		if(externals == 0)
@@ -3949,6 +3964,60 @@ void GMatrix::ensureDataHasNoMissingNominals() const
 	}
 }
 
+void GMatrix::unstretch(size_t seed, size_t neighbors, double maxDist, GRand& rand)
+{
+	size_t dims = cols();
+	GTEMPBUF(size_t, hood, neighbors);
+	GTEMPBUF(double, dists, neighbors);
+	GTEMPBUF(double, pC, dims);
+	GBallTree btSrc(this, neighbors);
+	GBallTree btDest(this, neighbors);
+	btDest.dropAll();
+	btSrc.drop(seed);
+	btDest.insert(seed);
+	vector<size_t> dest;
+	dest.push_back(seed);
+	while(dest.size() < rows())
+	{
+		// Pick arbitrary point in dest
+		size_t a = dest[rand.next(dest.size())];
+
+		// Find the closest point in src
+		btSrc.neighbors(hood, dists, a);
+		GNeighborFinder::sortNeighbors(neighbors, hood, dists);
+		size_t b = hood[0];
+
+		// Find the k-nearest points in dest
+		btDest.neighbors(hood, dists, b);
+		GNeighborFinder::sortNeighbors(neighbors, hood, dists);
+
+		// Compute the centroid of the k neighbors
+		size_t validNeighbors = 0;
+		GVec::setAll(pC, 0.0, dims);
+		for(size_t i = 0; i < neighbors; i++)
+		{
+			if(hood[i] != INVALID_INDEX)
+			{
+				GVec::add(pC, row(hood[i]), dims);
+				validNeighbors++;
+			}
+		}
+		GVec::multiply(pC, 1.0 / validNeighbors, dims);
+
+		// Move b to within maxDist of the centroid of its neighbors, and transfer it to the dest list
+		double* pB = row(b);
+		double dist = sqrt(GVec::squaredDistance(pC, pB, dims));
+		btSrc.drop(b);
+		if(dist > maxDist)
+		{
+			for(size_t i = 0; i < dims; i++)
+				pB[i] += ((pC[i] - pB[i]) * (dist - maxDist) / dist);
+		}
+		btDest.insert(b);
+		dest.push_back(b);
+	}
+}
+
 void GMatrix::print(ostream& stream) const
 {
 	m_pRelation->print(stream, this, 14);
@@ -4071,6 +4140,13 @@ void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin
 		const double* pBasis = row(i);
 		GVec::addScaled(pDest, GVec::dotProduct(pOrigin, pPoint, pBasis, dims), pBasis, dims);
 	}
+}
+
+double* GMatrix::swapRow(size_t i, double* pNewRow)
+{
+	double* pRow = m_rows[i];
+	m_rows[i] = pNewRow;
+	return pRow;
 }
 
 #ifndef MIN_PREDICT
@@ -4658,9 +4734,16 @@ void GMatrix_testBoundingSphere(GRand& rand)
 		size_t points = (size_t)rand.next(48) + 2;
 		size_t dims = (size_t)rand.next(8) + 2;
 		GMatrix m(points, dims);
+		vector<size_t> indexes;
+		indexes.reserve(points);
 		for(size_t j = 0; j < points; j++)
+		{
+			indexes.push_back(j);
 			rand.spherical(m[j], dims);
-		double r2 = m.boundingSphere(center);
+		}
+		GRowDistance metric;
+		metric.init(&m.relation(), false);
+		double r2 = m.boundingSphere(center, indexes.data(), indexes.size(), &metric);
 		if(sqrt(r2) > 1.1)
 			throw Ex("radius ", to_str(sqrt(r2)), " too large");
 		for(size_t j = 0; j < points; j++)

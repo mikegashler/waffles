@@ -301,6 +301,13 @@ public:
 class GIndexVec
 {
 public:
+	size_t* v;
+	GIndexVec(size_t n = 0);
+	~GIndexVec();
+
+	/// Resizes this vector
+	void resize(size_t n);
+
 	/// Makes a vector of ints where each element contains its index (starting with zero, of course)
 	static void makeIndexVec(size_t* pVec, size_t size);
 
@@ -326,6 +333,9 @@ public:
 	/// Load the vector from a text format. pVec must be large enough to contain all of the
 	/// elements that remain in "it".
 	static void deserialize(size_t* pVec, GDomListIterator& it);
+
+	/// Prints the values in the vector separated by ", ".
+	static void print(std::ostream& stream, size_t* pVec, size_t dims);
 };
 
 

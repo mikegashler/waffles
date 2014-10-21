@@ -884,6 +884,7 @@ public:
 		runTest("GAutoFilter", GAutoFilter::test);
 		runTest("GBag", GBag::test);
 		runTest("GBagOfRecommenders", GBagOfRecommenders::test);
+		runTest("GBallTree", GBallTree::test);
 		runTest("GBaselineLearner", GBaselineLearner::test);
 		runTest("GBaselineRecommender", GBaselineRecommender::test);
 		runTest("GBayesianModelAveraging", GBayesianModelAveraging::test);

@@ -346,6 +346,8 @@ protected:
 	GMatrix* m_pQ;
 	GMatrix* m_pPMask;
 	GMatrix* m_pQMask;
+	GMatrix* m_pPWeights;
+	GMatrix* m_pQWeights;
 	bool m_useInputBias;
 	size_t m_minIters;
 	double m_decayRate;
