@@ -1258,7 +1258,7 @@ void overlay(GArgReader& args)
 			else
 			{
 				if(*pVecOver == UNKNOWN_DISCRETE_VALUE)
-					*pVecOver = std::max((size_t)0, std::min(vals - 1, (size_t)floor(*pVecBase + 0.5)));
+					*pVecOver = (double)std::max((size_t)0, std::min(vals - 1, (size_t)floor(*pVecBase + 0.5)));
 			}
 			pVecBase++;
 			pVecOver++;
@@ -1992,10 +1992,10 @@ void geodistance(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	size_t lat1 = args.pop_double();
-	size_t lon1 = args.pop_double();
-	size_t lat2 = args.pop_double();
-	size_t lon2 = args.pop_double();
+	size_t lat1 = args.pop_uint();
+	size_t lon1 = args.pop_uint();
+	size_t lat2 = args.pop_uint();
+	size_t lon2 = args.pop_uint();
 
 	double radius = 6371.0; // Approximate radius of the Earth in kilometers
 	while(args.size() > 0)
@@ -2187,7 +2187,7 @@ void wilcoxon(GArgReader& args)
 {
 	size_t n = args.pop_uint();
 	double w = args.pop_double();
-	double p = GMath::wilcoxonPValue(n, w);
+	double p = GMath::wilcoxonPValue((int)n, w);
 	cout << p << "\n";
 }
 

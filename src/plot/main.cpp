@@ -578,12 +578,12 @@ void PlotEquation(GArgReader& args)
 	GSVG svg(width, height);
 	svg.newChart(xmin, ymin, xmax, ymax, 0, 0, margin);
 	if(horizMarks)
-		svg.horizMarks(maxHorizMarks);
+		svg.horizMarks((int)maxHorizMarks);
 	if(vertMarks)
 	{
 		if(maxVertMarks == INVALID_INDEX)
 			maxVertMarks = maxHorizMarks * height / width;
-		svg.vertMarks(maxVertMarks);
+		svg.vertMarks((int)maxVertMarks);
 	}
 
 	// Draw the equation as the label under the graph
@@ -806,7 +806,7 @@ public:
 				params[0] = x;
 				y = m_pFunc->call(params, *m_pFP);
 				if(y > -1e100 && y < 1e100 && yPrev > -1e100 && yPrev < 1e100)
-					svg.line(xPrev, yPrev, x, y, m_thickness, m_color);
+					svg.line(xPrev, yPrev, x, y, m_thickness, (unsigned int)m_color);
 			}
 		}
 		else
@@ -827,8 +827,8 @@ public:
 				if(x != UNKNOWN_REAL_VALUE && y != UNKNOWN_REAL_VALUE)
 				{
 					if(m_thickness > 0.0 && xPrev != UNKNOWN_REAL_VALUE && yPrev != UNKNOWN_REAL_VALUE)
-						svg.line(xPrev, yPrev, x, y, m_thickness, col);
-					svg.dot(x, y, m_radius, col);
+						svg.line(xPrev, yPrev, x, y, m_thickness, (unsigned int)col);
+					svg.dot(x, y, m_radius, (unsigned int)col);
 				}
 				xPrev = x;
 				yPrev = y;
@@ -953,7 +953,7 @@ void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axis
 		if(cols[i].m_type == ScatterCol::Fixed)
 		{
 			if(i + 1 == cols.size() || (horiz && cols[i].m_attrX != cols[i + 1].m_attrX) || (!horiz && cols[i].m_attrY != cols[i + 1].m_attrY))
-				c = cols[i].m_color;
+				c = (unsigned int)cols[i].m_color;
 		}
 
 		// Draw the label
@@ -1162,9 +1162,9 @@ void PlotScatter(GArgReader& args)
 	{
 		for(size_t horiz = 0; horiz < horizCharts; horiz++)
 		{
-			svg.newChart(xmin, ymin, xmax, ymax, horiz, vert, margin);
+			svg.newChart(xmin, ymin, xmax, ymax, horiz, vert, (double)margin);
 			if(horizMarks)
-				svg.horizMarks(maxHorizMarks);
+				svg.horizMarks((int)maxHorizMarks);
 			if(vertMarks)
 			{
 				if(maxVertMarks == INVALID_INDEX)
@@ -1432,7 +1432,7 @@ void makeHistogram(GArgReader& args)
 		GSVG svg(wid, hgt);
 		svg.newChart(0.0, 0.0, (double)buckets, 1.0);
 		for(size_t i = 0; i < buckets; i++)
-			svg.rect(i, 0, 1, hist[i] / pData->rows(), (((i & 1) == 0) ? 0xff400000 : 0xff008040));
+			svg.rect((double)i, 0, 1, hist[i] / pData->rows(), (((i & 1) == 0) ? 0xff400000 : 0xff008040));
 
 		// Draw the grid
 		svg.horizMarks(30);

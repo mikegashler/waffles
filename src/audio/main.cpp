@@ -235,7 +235,7 @@ void makeSilence(GArgReader& args)
 	size_t samples = (size_t)(sampleRate * seconds);
 	GWave w;
 	unsigned char* pData = new unsigned char[channels * samples * bitsPerSample];
-	w.setData(pData, bitsPerSample, samples, channels, sampleRate);
+	w.setData(pData, bitsPerSample, (int)samples, channels, sampleRate);
 	for(GWaveIterator it(w); it.remaining() > 0; it.advance())
 	{
 		double* pSample = it.current();
@@ -273,7 +273,7 @@ void makeSine(GArgReader& args)
 	size_t samples = (size_t)(sampleRate * seconds);
 	GWave w;
 	unsigned char* pData = new unsigned char[samples * bitsPerSample];
-	w.setData(pData, bitsPerSample, samples, 1/*channels*/, sampleRate);
+	w.setData(pData, bitsPerSample, (int)samples, 1/*channels*/, sampleRate);
 	GWaveIterator it(w);
 	size_t i = 0;
 	size_t total = it.remaining();
@@ -359,7 +359,7 @@ void pitchShift(GArgReader& args)
 		else
 			throw Ex("Unrecognized option: ", args.pop_string());
 	}
-	if(!GBits::isPowerOfTwo(blockSize))
+	if(!GBits::isPowerOfTwo((unsigned int)blockSize))
 		throw Ex("the block size must be a power of 2");
 
 	// Shift pitch
@@ -388,7 +388,7 @@ void reduceAmbientNoise(GArgReader& args)
 		else
 			throw Ex("Unrecognized option: ", args.pop_string());
 	}
-	if(!GBits::isPowerOfTwo(blockSize))
+	if(!GBits::isPowerOfTwo((unsigned int)blockSize))
 		throw Ex("the block size must be a power of 2");
 
 	GWave wNoise;
@@ -488,7 +488,7 @@ void spectral(GArgReader& args)
 		else
 			throw Ex("Unrecognized option: ", args.pop_string());
 	}
-	if(!GBits::isPowerOfTwo(size))
+	if(!GBits::isPowerOfTwo((unsigned int)size))
 		throw Ex("the size must be a power of 2");
 
 	// Convert to the Fourier domain
@@ -523,20 +523,20 @@ void spectral(GArgReader& args)
 
 	// Plot the frequency lines
 	GImage image;
-	image.setSize(size, height);
+	image.setSize((unsigned int)size, (unsigned int)height);
 	image.clear(0xffffffff);
 	for(double i = 13.75; true; i *= 2)
 	{
 		size_t x = size_t(floor(i * size / w.sampleRate() + 0.5));
 		if(x >= size / 2)
 			break;
-		image.line(x, 0, x, height - 1, 0xff808080);
-		image.line(size - x, 0, size - x, height - 1, 0xff808080);
+		image.line((int)x, 0, (int)x, (int)height - 1, 0xff808080);
+		image.line((int)(size - x), 0, (int)(size - x), (int)height - 1, 0xff808080);
 		string s = to_str(i);
 		s += "Hz";
 		int tw = image.measureTextWidth(s.c_str(), 1.0);
-		image.text(s.c_str(), x - tw / 2, 10, 1.0, 0xff404040);
-		image.text(s.c_str(), (size - x) - tw / 2, 10, 1.0, 0xff404040);
+		image.text(s.c_str(), (int)(x - tw / 2), 10, 1.0, 0xff404040);
+		image.text(s.c_str(), (int)((size - x) - tw / 2), 10, 1.0, 0xff404040);
 	}
 
 	// Plot the Fourier magnitude
@@ -544,7 +544,7 @@ void spectral(GArgReader& args)
 	for(size_t i = 0; i < size; i++)
 	{
 		double mag = sqrt(p->squaredMagnitude());
-		image.line(i, height - 1, i, height - 1 - (int)(mag * height / max), 0xff000080);
+		image.line((int)i, (int)height - 1, (int)i, (int)(height - 1 - (int)(mag * height / max)), 0xff000080);
 		p++;
 	}
 	image.savePpm(outFilename.c_str());
