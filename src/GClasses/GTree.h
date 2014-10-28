@@ -19,7 +19,7 @@
 #ifndef GTREE_H
 #define GTREE_H
 
-#include <GClasses/GError.h>
+#include "GError.h"
 
 using namespace GClasses;
 

@@ -1186,8 +1186,8 @@ void GMatrixFactorization::train(GMatrix& data)
 					{
 						if(*pMask != UNKNOWN_REAL_VALUE)
 						{
-//							(*pB) += 0.1 * learningRate * err * (*pP);
-//							(*pW) += 0.1 * learningRate * err * (*pP) * (*pMask);
+							(*pB) += 0.1 * learningRate * err * (*pP);
+							(*pW) += 0.1 * learningRate * err * (*pP) * (*pMask);
 						}
 						pMask++;
 						pP++;
@@ -1222,8 +1222,8 @@ void GMatrixFactorization::train(GMatrix& data)
 					{
 						if(*pMask != UNKNOWN_REAL_VALUE)
 						{
-//							(*pB) += 0.1 * learningRate * err * (*pQ);
-//							(*pW) += 0.1 * learningRate * err * (*pQ) * (*pMask);
+							(*pB) += 0.1 * learningRate * err * (*pQ);
+							(*pW) += 0.1 * learningRate * err * (*pQ) * (*pMask);
 						}
 						pMask++;
 						pP++;

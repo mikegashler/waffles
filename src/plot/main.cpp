@@ -589,13 +589,12 @@ void PlotEquation(GArgReader& args)
 	// Draw the equation as the label under the graph
 	svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), expr.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
 
-	// Plot all the functions
-	svg.clip();
+	// Count the equations
+	size_t equationCount = 0;
 	char szFuncName[32];
-	for(int i = 1; true; i++)
+	for(size_t i = 1; true; i++)
 	{
-		// Find the function
-		sprintf(szFuncName, "f%d", i);
+		sprintf(szFuncName, "f%d", (int)i);
 		GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
 		if(!pFunc)
 		{
@@ -603,11 +602,27 @@ void PlotEquation(GArgReader& args)
 				throw Ex("There is no function named \"f1\". Nothing to plot.");
 			break;
 		}
+		equationCount++;
+	}
+
+	// Plot all the functions
+	svg.clip();
+	for(size_t i = 0; i < equationCount; i++)
+	{
+		// Find the function
+		sprintf(szFuncName, "f%d", (int)i + 1);
+		GFunction* pFunc = mfp.getFunctionNoThrow(szFuncName);
+		if(!pFunc)
+			break;
 		if(pFunc->m_expectedParams != 1)
 			throw Ex("The function ", szFuncName, " takes ", to_str(pFunc->m_expectedParams), " parameters. Expected a function with 1 parameter");
 
 		// Plot it
-		unsigned int col = gAHSV(0xff, (i - 1) / 6.0f, 1.0f, 0.5f);
+		unsigned int col;
+		if(equationCount < 6)
+			col = gAHSV(0xff, i / 6.0f, 1.0f, 0.5f);
+		else
+			col = gAHSV(0xff, i / ((float)equationCount * 1.25f), 1.0f, 0.5f);
 		double dx = 2.0 * svg.hunit();
 		vector<double> params;
 		double x = xmin;

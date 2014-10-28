@@ -327,6 +327,8 @@ public:
 };
 
 
+#define BEND_AMOUNT 0.5
+
 /// This provides an alternative to using GActivationIdentity on the output layer
 /// for regression problems. It may add more power because it is non-linear, but
 /// like the identity function, its co-domain is the same as its domain. At
@@ -341,19 +343,19 @@ public:
 	/// Returns the bend function of x
 	virtual double squash(double x)
 	{
-		return 0.5 * sqrt(x * x + 1) + x - 0.5;
+		return BEND_AMOUNT * (sqrt(x * x + 1) - 1) + x;
 	}
 
 	/// Returns the derivative of the bend function
 	virtual double derivative(double x)
 	{
-		return 0.5 * (x / sqrt(x * x + 1)) + 1;
+		return BEND_AMOUNT * x / sqrt(x * x + 1) + 1;
 	}
 
 	/// Returns the inverse of the bend function
 	virtual double inverse(double y)
 	{
-		return -(2 * sqrt(y * y + y + 1) - 4 * y - 2) / 3.0;
+		return (BEND_AMOUNT * sqrt(y * y + 2.0 * BEND_AMOUNT * y + 1) - y - BEND_AMOUNT) / (BEND_AMOUNT * BEND_AMOUNT - 1);
 	}
 
 	/// Returns 0.0
