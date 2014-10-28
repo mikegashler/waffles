@@ -946,6 +946,8 @@ GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_regularizer = pNode->field("reg")->asDouble();
 	m_useInputBias = pNode->field("uib")->asBool();
+	m_minIters = pNode->field("mi")->asInt();
+	m_decayRate = pNode->field("dr")->asDouble();
 	m_pP = new GMatrix(pNode->field("p"));
 	m_pQ = new GMatrix(pNode->field("q"));
 	GDomNode* pPMask = pNode->fieldIfExists("pm");
@@ -953,11 +955,21 @@ GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll)
 		m_pPMask = new GMatrix(pPMask);
 	else
 		m_pPMask = NULL;
+	GDomNode* pPWeights = pNode->fieldIfExists("pw");
+	if(pPWeights)
+		m_pPWeights = new GMatrix(pPWeights);
+	else
+		m_pPWeights = NULL;
 	GDomNode* pQMask = pNode->fieldIfExists("qm");
 	if(pQMask)
 		m_pQMask = new GMatrix(pQMask);
 	else
 		m_pQMask = NULL;
+	GDomNode* pQWeights = pNode->fieldIfExists("qw");
+	if(pQWeights)
+		m_pQWeights = new GMatrix(pQWeights);
+	else
+		m_pQWeights = NULL;
 	if(m_pP->cols() != m_pQ->cols())
 		throw Ex("Mismatching matrix sizes");
 	m_intrinsicDims = m_pP->cols() - 1;
@@ -980,12 +992,20 @@ GDomNode* GMatrixFactorization::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GMatrixFactorization");
 	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
 	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
+	pNode->addField(pDoc, "mi", pDoc->newInt(m_minIters));
+	pNode->addField(pDoc, "dr", pDoc->newDouble(m_decayRate));
 	pNode->addField(pDoc, "p", m_pP->serialize(pDoc));
 	pNode->addField(pDoc, "q", m_pQ->serialize(pDoc));
 	if(m_pPMask)
+	{
 		pNode->addField(pDoc, "pm", m_pPMask->serialize(pDoc));
+		pNode->addField(pDoc, "pw", m_pPWeights->serialize(pDoc));
+	}
 	if(m_pQMask)
+	{
 		pNode->addField(pDoc, "qm", m_pQMask->serialize(pDoc));
+		pNode->addField(pDoc, "qw", m_pQWeights->serialize(pDoc));
+	}
 	return pNode;
 }
 
