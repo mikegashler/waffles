@@ -1015,6 +1015,8 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 						return new GResamplingAdaBoost(pNode, *this);
 					else if(strcmp(szClass, "GReservoirNet") == 0)
 						return new GReservoirNet(pNode, *this);
+					else if(strcmp(szClass, "GWag") == 0)
+						return new GWag(pNode, *this);
 				}
 			}
 		}
