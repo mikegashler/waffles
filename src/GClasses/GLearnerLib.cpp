@@ -142,9 +142,22 @@ void GLearnerLib::loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Hold
 	GMatrix data;
 	vector<size_t> abortedCols;
 	vector<size_t> ambiguousCols;
-	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
+	const char *input_type;
+	if (args.next_is_flag() && args.if_pop("-input_type")) {
+		input_type = args.pop_string();
+	} else { /* deduce it from extension (if any) */
+		input_type = szFilename + pd.extStart;
+		if (*input_type != '.') /* no extension - assume ARFF */
+			input_type = "arff";
+		else
+			input_type++;
+	}
+	// Now load the data
+	if(_stricmp(input_type, "arff") == 0)
+	{
 		data.loadArff(szFilename);
-	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
+	}
+	else if(_stricmp(input_type, "csv") == 0)
 	{
 		GCSVParser parser;
 		parser.parse(data, szFilename);
@@ -154,7 +167,7 @@ void GLearnerLib::loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Hold
 		if(requireMetadata && !data.relation().areContinuous())
 			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
 	}
-	else if(_stricmp(szFilename + pd.extStart, ".dat") == 0)
+	else if(_stricmp(input_type, "dat") == 0)
 	{
 		GCSVParser parser;
 		parser.setSeparator('\0');
@@ -164,9 +177,9 @@ void GLearnerLib::loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Hold
 			cerr << to_str(i) << ") " << parser.report(i) << "\n";
 		if(requireMetadata && !data.relation().areContinuous())
 			throw Ex("A data format containing meta-data (such as ARFF) is necessary for this operation.");
-	}
-	else
+	} else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+
 
 	// Parse params
 	vector<size_t> ignore;

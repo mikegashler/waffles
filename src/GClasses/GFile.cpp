@@ -271,7 +271,7 @@ bool GFile::copyFile(const char* szSrcPath, const char* szDestPath)
 	strcpy(szSubdirectoryString, szDestPath);
 	clipFilename(szSubdirectoryString);
 	makeDir(szSubdirectoryString);
-	
+
 	FILE* pDest = fopen(szDestPath, "wb");
 	if(!pDest)
 	{
@@ -301,11 +301,11 @@ bool GFile::localStorageDirectory(char *toHere)
 	toHere[0] = '\0';
 #ifdef WINDOWS
 	TCHAR szPath[MAX_PATH];
-	if(SUCCEEDED(SHGetFolderPath(NULL, 
-				CSIDL_LOCAL_APPDATA, 
-				NULL, 
-				0, 
-				szPath))) 
+	if(SUCCEEDED(SHGetFolderPath(NULL,
+				CSIDL_LOCAL_APPDATA,
+				NULL,
+				0,
+				szPath)))
 	{
 		strcpy(toHere, szPath);
 		return true;
@@ -334,23 +334,30 @@ bool GFile::localStorageDirectory(char *toHere)
 /*static*/ char* GFile::loadFile(const char* szFilename, size_t* pnSize)
 {
 	std::ifstream s;
+	char* pBuf;
 	s.exceptions(std::ios::failbit|std::ios::badbit);
 	try
 	{
+		// NB: we double copy the content of the file!
+		// Once in a std::string and then to final destination
+		// We do this so it will work with named pipes, which
+		// do not permit seeking to the end of the file to determine
+		// the file length.
 		s.open(szFilename, std::ios::binary);
-		s.seekg(0, std::ios::end);
-		*pnSize = (size_t)s.tellg();
-		s.seekg(0, std::ios::beg);
+		std::stringstream buffer;
+		buffer << s.rdbuf();
+		std::string content = buffer.str();
+		*pnSize = content.size();
+		pBuf = new char[*pnSize + 1];
+		memcpy(pBuf, content.data(), *pnSize);
+		pBuf[*pnSize] = '\0'; // null terminate the file. todo: this is unnecessary. Make sure nothing relies on it, and remove it.
+		s.close();
 	}
 	catch(const std::exception&)
 	{
 		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
 	}
-	char* pBuf = new char[*pnSize + 1];
-	ArrayHolder<char> hBuf(pBuf);
-	s.read(pBuf, *pnSize);
-	pBuf[*pnSize] = '\0'; // null terminate the file. todo: this is unnecessary. Make sure nothing relies on it, and remove it.
-	return hBuf.release();
+	return pBuf;
 }
 
 /*static*/ void GFile::saveFile(const char* pBuf, size_t size, const char* szFilename)
@@ -412,7 +419,7 @@ void GFile::condensePath(char* szPath)
 						break;
 				}
 				n--; // so we'll catch the current slash the next time around the loop -- handle it next time!
-				
+
 			}
 			else if(nPrevPrevSlash >= 0 && strncmp(szPath + n, "/../", 4) == 0)
 			{
@@ -917,4 +924,3 @@ void GCompressor::test()
 		throw Ex("not the same");
 }
 #endif
-

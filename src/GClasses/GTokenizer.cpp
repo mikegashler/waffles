@@ -79,13 +79,10 @@ GTokenizer::GTokenizer(const char* szFilename)
 {
 	std::ifstream* pStream = new std::ifstream();
 	m_pStream = pStream;
-	pStream->exceptions(std::ios::failbit|std::ios::badbit);
+	pStream->exceptions(std::ios::badbit);
 	try
 	{
 		pStream->open(szFilename, std::ios::binary);
-		pStream->seekg(0, std::ios::end);
-		m_len = (size_t)pStream->tellg();
-		pStream->seekg(0, std::ios::beg);
 	}
 	catch(const std::exception&)
 	{
@@ -94,7 +91,7 @@ GTokenizer::GTokenizer(const char* szFilename)
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
-	m_lineStart = m_len;
+	m_lineCol = 0;
 	m_line = 1;
 }
 
@@ -103,18 +100,15 @@ GTokenizer::GTokenizer(const char* pFile, size_t len)
 	if(len > 0)
 	{
 		m_pStream = new std::istringstream(string(pFile, len));
-		m_len = len;
 	}
 	else
 	{
-		string s(pFile);
-		m_len = s.length();
-		m_pStream = new std::istringstream(s);
+		m_pStream = new std::istringstream(pFile);
 	}
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
-	m_lineStart = m_len;
+	m_lineCol = 0;
 	m_line = 1;
 }
 
@@ -138,11 +132,12 @@ void GTokenizer::growBuf()
 char GTokenizer::get()
 {
 	char c = m_pStream->get();
-	m_len--;
 	if(c == '\n')
 	{
 		m_line++;
-		m_lineStart = m_len;
+		m_lineCol = 0;
+	} else {
+		m_lineCol++;
 	}
 	return c;
 }
@@ -176,7 +171,7 @@ char* GTokenizer::appendToToken(const char* string)
 char* GTokenizer::nextUntil(GCharSet& delimeters, size_t minLen)
 {
 	m_pBufPos = m_pBufStart;
-	while(m_len > 0)
+	while(has_more())
 	{
 		char c = m_pStream->peek();
 		if(delimeters.find(c))
@@ -193,7 +188,7 @@ char* GTokenizer::nextUntilNotEscaped(char escapeChar, GCharSet& delimeters)
 {
 	m_pBufPos = m_pBufStart;
 	char cCur = '\0';
-	while(m_len > 0)
+	while(has_more())
 	{
 		char c = m_pStream->peek();
 		if(delimeters.find(c) && cCur != escapeChar)
@@ -208,7 +203,7 @@ char* GTokenizer::nextUntilNotEscaped(char escapeChar, GCharSet& delimeters)
 char* GTokenizer::nextWhile(GCharSet& set, size_t minLen)
 {
 	m_pBufPos = m_pBufStart;
-	while(m_len > 0)
+	while(has_more())
 	{
 		char c = m_pStream->peek();
 		if(!set.find(c))
@@ -223,7 +218,7 @@ char* GTokenizer::nextWhile(GCharSet& set, size_t minLen)
 
 void GTokenizer::skip(GCharSet& delimeters)
 {
-	while(m_len > 0)
+	while(has_more())
 	{
 		char c = m_pStream->peek();
 		if(!delimeters.find(c))
@@ -234,7 +229,7 @@ void GTokenizer::skip(GCharSet& delimeters)
 
 void GTokenizer::skipTo(GCharSet& delimeters)
 {
-	while(m_len > 0)
+	while(has_more())
 	{
 		char c = m_pStream->peek();
 		if(delimeters.find(c))
@@ -252,7 +247,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 		bufferChar('"');
 		advance(1);
 		GCharSet cs("\"\n");
-		while(m_len > 0)
+		while(has_more())
 		{
 			char c = m_pStream->peek();
 			if(cs.find(c))
@@ -261,7 +256,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 			bufferChar(c);
 		}
 		if(peek() != '"')
-			throw Ex("Expected matching double-quotes on line ", 
+			throw Ex("Expected matching double-quotes on line ",
 								 to_str(m_line), ", col ", to_str(col()));
 		bufferChar('"');
 		advance(1);
@@ -274,7 +269,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 		bufferChar('\'');
 		advance(1);
 		GCharSet cs("'\n");
-		while(m_len > 0)
+		while(has_more())
 		{
 			char c = m_pStream->peek();
 			if(cs.find(c))
@@ -283,7 +278,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 			bufferChar(c);
 		}
 		if(peek() != '\'')
-			throw Ex("Expected a matching single-quote on line ", to_str(m_line), 
+			throw Ex("Expected a matching single-quote on line ", to_str(m_line),
 								 ", col ", to_str(col()));
 		bufferChar('\'');
 		advance(1);
@@ -293,7 +288,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 	}
 
 	bool inEscapeMode = false;
-	while(m_len > 0)
+	while(has_more())
 	{
 		char c = m_pStream->peek();
 		if(inEscapeMode)
@@ -302,12 +297,12 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 			{
 				throw Ex("Error: '", to_str(escapeChar), "' character used as "
 									 "last character on a line to attempt to extend string over "
-									 "two lines on line" , to_str(m_line), ", col ", 
+									 "two lines on line" , to_str(m_line), ", col ",
 									 to_str(col()) );
 			}
 			c = get();
 			bufferChar(c);
-			inEscapeMode = false;			
+			inEscapeMode = false;
 		}
 		else
 		{
@@ -323,7 +318,7 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 
 void GTokenizer::advance(size_t n)
 {
-	while(n > 0 && m_len > 0)
+	while(n > 0 && has_more())
 	{
 		get();
 		n--;
@@ -332,7 +327,7 @@ void GTokenizer::advance(size_t n)
 
 char GTokenizer::peek()
 {
-	if(m_len > 0)
+	if(has_more())
 		return m_pStream->peek();
 	else
 		return '\0';
@@ -343,14 +338,14 @@ size_t GTokenizer::line()
 	return m_line;
 }
 
-size_t GTokenizer::remaining()
+bool GTokenizer::has_more()
 {
-	return m_len;
+	return (m_pStream->peek() != EOF);
 }
 
 void GTokenizer::expect(const char* szString)
 {
-	while(*szString != '\0' && m_len > 0)
+	while(*szString != '\0' && has_more())
 	{
 		char c = get();
 		if(c != *szString)
@@ -378,7 +373,7 @@ char* GTokenizer::trim(GCharSet& set)
 
 size_t GTokenizer::col()
 {
-	return m_lineStart - m_len + 1;
+	return m_lineCol;
 }
 
 } // namespace GClasses

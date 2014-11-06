@@ -63,17 +63,17 @@ public:
 /// {
 /// public:
 /// 	GCharSet m_whitespace, m_alphanum, m_float, m_commanewline;
-/// 
+///
 /// 	MyTokenizer(const char* szFilename) : GTokenizer(szFilename),
 /// 		m_whitespace("\t\n\r "),
 /// 		m_alphanum("a-zA-Z0-9"),
 /// 		m_float("-.,0-9e"),
 /// 		m_commanewline(",\n")
 /// 		{}
-/// 
+///
 /// 	virtual ~MyTokenizer() {}
 /// };
-/// 
+///
 class GTokenizer
 {
 protected:
@@ -81,8 +81,7 @@ protected:
 	char* m_pBufPos;
 	char* m_pBufEnd;
 	std::istream* m_pStream;
-	size_t m_lineStart;
-	size_t m_len;
+	size_t m_lineCol;
 	size_t m_line;
 
 public:
@@ -115,7 +114,7 @@ public:
 	char* nextUntil(GCharSet& delimeters, size_t minLen = 1);
 
 	/// Reads until the next character would be one of the specified delimeters,
-	/// and the current character is not escapeChar. 
+	/// and the current character is not escapeChar.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
 	char* nextUntilNotEscaped(char escapeChar, GCharSet& delimeters);
@@ -198,8 +197,8 @@ public:
 	/// been read since the last newline character, plus 1.
 	size_t col();
 
-	/// Returns the number of remaining bytes to be read from the file.
-	size_t remaining();
+	/// Returns whether there is more data to be read
+	bool has_more();
 
 	/// Returns the length of the last token that was returned.
 	size_t tokenLength();

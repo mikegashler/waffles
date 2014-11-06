@@ -722,7 +722,7 @@ GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 	GDomNode* pNewObj = newObj();
 	bool readyForField = true;
 	GCharSet& whitespace = tok.m_whitespace;
-	while(tok.remaining() > 0)
+	while(tok.has_more())
 	{
 		tok.skip(whitespace);
 		char c = tok.peek();
@@ -765,7 +765,7 @@ GDomNode* GDom::loadJsonArray(GJsonTokenizer& tok)
 	tok.expect("[");
 	GDomNode* pNewList = newList();
 	bool readyForValue = true;
-	while(tok.remaining() > 0)
+	while(tok.has_more())
 	{
 		tok.skip(tok.m_whitespace);
 		char c = tok.peek();
@@ -973,4 +973,3 @@ void GDom::test()
 #endif // MIN_PREDICT
 
 } // namespace GClasses
-
