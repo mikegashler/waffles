@@ -55,6 +55,7 @@ public:
 
 
 
+#define GTOKENIZER_MAX_LOOKAHEAD 8
 
 /// This is a simple tokenizer that reads a file, one token at-a-time.
 /// To use it, you should make a child class that defines several character sets. Example:
@@ -77,12 +78,15 @@ public:
 class GTokenizer
 {
 protected:
-	char* m_pBufStart;
-	char* m_pBufPos;
-	char* m_pBufEnd;
-	std::istream* m_pStream;
-	size_t m_lineCol;
-	size_t m_line;
+	char m_q[GTOKENIZER_MAX_LOOKAHEAD]; // a look-ahead character queue for the stream
+	size_t m_qPos; // the current head of the queue (it is a revolving queue)
+	size_t m_qCount; // the number of characters in the queue
+	char* m_pBufStart; // a buffer where the most-recently read token is stored
+	char* m_pBufPos; // the current tail of the token buffer
+	char* m_pBufEnd; // the end of the capacity of the token buffer
+	std::istream* m_pStream; // the stream that is the source of the data
+	size_t m_lineCol; // column number
+	size_t m_line; // line number
 
 public:
 	/// Opens the specified filename.
@@ -95,12 +99,20 @@ public:
 
 	virtual ~GTokenizer();
 
+	/// Returns whether there is more data to be read
+	bool has_more();
+
 	/// Returns the next character in the stream. Returns '\0' if there are
 	/// no more characters in the stream. (This could theoretically be ambiguous if the
 	/// the next character in the stream is '\0', but presumably this class
 	/// is mostly used for parsing text files, and that character should not
 	/// occur in a text file.)
 	char peek();
+
+	/// Peek up to GTOKENIZER_MAX_LOOKAHEAD characters ahead. If n=0, returns the next character to be read.
+	/// If n=1, retuns the second character ahead to be read, and so on.
+	/// If n>=GTOKENIZER_MAX_LOOKAHEAD, throws an exception.
+	char peek(size_t n);
 
 	/// Appends a string to the current token (without modifying the file), and returns
 	/// the full modified token.
@@ -197,16 +209,20 @@ public:
 	/// been read since the last newline character, plus 1.
 	size_t col();
 
-	/// Returns whether there is more data to be read
-	bool has_more();
-
 	/// Returns the length of the last token that was returned.
 	size_t tokenLength();
 
 protected:
+	/// Double the size of the token buffer.
 	void growBuf();
+
+	/// Returns the next character in the stream. If the next character is EOF, then it returns '\0'.
 	char get();
+
+	/// Read the next character into the token buffer.
 	void bufferChar(char c);
+
+	/// Add a '\0' to the end of the token buffer and return the token buffer.
 	char* nullTerminate();
 };
 

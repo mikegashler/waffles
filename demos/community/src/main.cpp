@@ -36,11 +36,13 @@
 #include <GClasses/GHttp.h>
 #include <GClasses/GFile.h>
 #include <GClasses/GTime.h>
+#include <GClasses/GPlot.h>
 #include <GClasses/GThread.h>
 #include <GClasses/GRand.h>
 #include <GClasses/GHashTable.h>
 #include <GClasses/sha1.h>
 #include <GClasses/GVec.h>
+#include <GClasses/GHolders.h>
 #include <GClasses/GBitTable.h>
 #include <wchar.h>
 #include <math.h>
@@ -68,11 +70,12 @@ using std::multimap;
 class ViewFile;
 class View;
 class Account;
+class ViewStats;
 
-#define PERSONALITY_DIMS 4 // (one of these is used for the bias)
+#define PERSONALITY_DIMS 3 // (one of these is used for the bias)
 #define ON_RATE_TRAINING_ITERS 5000
 #define ON_STARTUP_TRAINING_ITERS 250000
-#define LEARNING_RATE 0.02
+#define LEARNING_RATE 0.01
 
 
 class Item
@@ -91,7 +94,7 @@ public:
 		m_date = date;
 		m_weights.resize(PERSONALITY_DIMS);
 		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-			m_weights[i] = 0.02 * pRand->normal();
+			m_weights[i] = 0.01 * pRand->normal();
 	}
 
 	Item(GDomNode* pNode, GRand* pRand)
@@ -113,6 +116,7 @@ public:
 	}
 
 	const char* title() { return m_title.c_str(); }
+	std::vector<double>& weights() { return m_weights; }
 
 	GDomNode* toDom(GDom* pDoc)
 	{
@@ -139,7 +143,8 @@ public:
 			d += *(itW++) * *(itP++);
 
 		// Squash with the logistic function
-		return 1.0 / (1.0 + exp(-d));
+		//return 1.0 / (1.0 + exp(-d));
+		return d;
 	}
 
 	// This method adjusts the weights in the opposite direction of the gradient of
@@ -148,7 +153,7 @@ public:
 	{
 		GAssert(target >= 0.0 && target <= 1.0);
 		double prediction = predictRating(personality);
-		double err = learningRate * (target - prediction) * prediction * (1.0 - prediction);
+		double err = learningRate * (target - prediction);// * prediction * (1.0 - prediction);
 		vector<double>::iterator itW = m_weights.begin();
 		vector<double>::const_iterator itP = personality.begin();
 
@@ -159,7 +164,8 @@ public:
 		// Update the other weights
 		while(itW != m_weights.end())
 		{
-			*itW = std::max(-8.0, std::min(8.0, *itW + err * *(itP++)));
+			//*itW = std::max(-8.0, std::min(8.0, *itW + err * *(itP++)));
+			*itW += err * *(itP++);
 			itW++;
 		}
 #ifdef _DEBUG
@@ -174,7 +180,7 @@ public:
 	{
 		GAssert(target >= 0.0 && target <= 1.0);
 		double prediction = predictRating(personality);
-		double err = learningRate * (target - prediction) * prediction * (1.0 - prediction);
+		double err = learningRate * (target - prediction);// * prediction * (1.0 - prediction);
 		vector<double>::const_iterator itW = m_weights.begin();
 		vector<double>::iterator itP = personality.begin();
 
@@ -186,7 +192,8 @@ public:
 		// Update the personality vector
 		while(itW != m_weights.end())
 		{
-			*itP = std::max(-1.0, std::min(1.0, *itP + err * *itW));
+			//*itP = std::max(-1.0, std::min(1.0, *itP + err * *itW));
+			*itP += err * *itW;
 			itW++;
 			itP++;
 		}
@@ -268,7 +275,7 @@ class Server : public GDynamicPageServer
 protected:
 	std::string m_basePath;
 	View* m_pViewSurvey;
-	View* m_pViewStats;
+	ViewStats* m_pViewStats;
 	View* m_pViewSubmit;
 	View* m_pViewUpdate;
 	View* m_pViewAdmin;
@@ -942,7 +949,7 @@ public:
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/update\">My opinions</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Tree</a>\n";
+			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
 
 /*
 			response << "Stats:<br>\n";
@@ -1031,7 +1038,7 @@ public:
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Tree</a>\n";
+			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
 		}
 	}
 };
@@ -1411,7 +1418,12 @@ public:
 			delete(*it);
 		}
 		response << "</table><br><br>\n";
-		
+
+		response << "<h3>A vizualization of the users in this community:</h3>\n";
+		response << "<img src=\"users.svg\"><br><br>\n";
+		response << "<h3>A vizualization of the items in this community:</h3>\n";
+		response << "<img src=\"items.svg\"><br><br>\n";
+
 		// The choices links at the bottom of the page
 		response << "<a href=\"/submit\">Submit a new statement</a>";
 		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -1420,7 +1432,102 @@ public:
 		response << "<a href=\"/update\">My opinions</a>\n";
 		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 		response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
+	}
 
+	void plotUsers(GDynamicPageSession* pSession, ostream& response)
+	{
+		m_pServer->setContentType("image/svg+xml");
+		GSVG svg(800, 800);
+
+		vector<Account*>& accounts = m_pServer->accounts();
+		double xmin = 0;
+		double ymin = 0;
+		double xmax = 0;
+		double ymax = 0;
+		for(size_t i = 0; i < accounts.size(); i++)
+		{
+			Account* pAcc = accounts[i];
+			const char* szUsername = pAcc->username();
+			if(*szUsername == '_')
+				continue;
+			vector<double>& profile = pAcc->personality();
+			xmin = std::min(xmin, profile[1]);
+			xmax = std::max(xmax, profile[1]);
+			ymin = std::min(ymin, profile[2]);
+			ymax = std::max(ymax, profile[2]);
+		}
+		double wid = xmax - xmin;
+		double hgt = ymax - ymin;
+		xmin -= 0.1 * wid;
+		xmax += 0.1 * wid;
+		ymin -= 0.1 * hgt;
+		ymax += 0.1 * hgt;
+		if(xmax - xmin < 1e-4)
+			xmax += 1e-4;
+		if(ymax - ymin < 1e-4)
+			ymax += 1e-4;
+		svg.newChart(xmin, ymin, xmax, ymax, 0, 0, 0);
+		for(size_t i = 0; i < accounts.size(); i++)
+		{
+			Account* pAcc = accounts[i];
+			const char* szUsername = pAcc->username();
+			if(*szUsername == '_')
+				continue;
+			vector<double>& profile = pAcc->personality();
+			svg.dot(profile[1], profile[2], 0.75, 0x008080);
+			svg.text(profile[1], profile[2], szUsername, 0.75);
+		}
+		svg.print(response);
+	}
+
+	void plotItems(GDynamicPageSession* pSession, ostream& response)
+	{
+		// Get the topic
+		Account* pAccount = getAccount(pSession);
+		size_t currentTopic = pAccount->currentTopic();
+		if(currentTopic >= m_pServer->topics().size())
+		{
+			response << "Unrecognized topic.";
+			return;
+		}
+		Topic& topic = *m_pServer->topics()[currentTopic];
+
+		m_pServer->setContentType("image/svg+xml");
+		GSVG svg(800, 800);
+
+		double xmin = 0;
+		double ymin = 0;
+		double xmax = 0;
+		double ymax = 0;
+		for(size_t i = 0; i < topic.size(); i++)
+		{
+			Item& item = topic.item(i);
+			vector<double>& weights = item.weights();
+			xmin = std::min(xmin, weights[1]);
+			xmax = std::max(xmax, weights[1]);
+			ymin = std::min(ymin, weights[2]);
+			ymax = std::max(ymax, weights[2]);
+		}
+		double wid = xmax - xmin;
+		double hgt = ymax - ymin;
+		xmin -= 0.1 * wid;
+		xmax += 0.1 * wid;
+		ymin -= 0.1 * hgt;
+		ymax += 0.1 * hgt;
+		if(xmax - xmin < 1e-4)
+			xmax += 1e-4;
+		if(ymax - ymin < 1e-4)
+			ymax += 1e-4;
+		svg.newChart(xmin, ymin, xmax, ymax, 0, 0, 0);
+		for(size_t i = 0; i < topic.size(); i++)
+		{
+			Item& item = topic.item(i);
+			const char* szTitle = item.title();
+			vector<double>& weights = item.weights();
+			svg.dot(weights[1], weights[2], 0.75, 0x008080);
+			svg.text(weights[1], weights[2], szTitle, 0.75);
+		}
+		svg.print(response);
 	}
 };
 
@@ -1502,7 +1609,7 @@ public:
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Tree</a>\n";
+			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
 		}
 	}
 };
@@ -1919,6 +2026,16 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 		pView = m_pViewAdmin;
 	else if(strncmp(szUrl, "/newaccount", 11) == 0)
 		pView = m_pViewNewAccount;
+	else if(strncmp(szUrl, "/users.svg", 10) == 0)
+	{
+		m_pViewStats->plotUsers(pSession, response);
+		return;
+	}
+	else if(strncmp(szUrl, "/items.svg", 10) == 0)
+	{
+		m_pViewStats->plotItems(pSession, response);
+		return;
+	}
 	if(pView)
 		pView->makePage(pSession, response);
 	else
