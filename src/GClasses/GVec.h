@@ -185,7 +185,7 @@ public:
 
 	/// Prints the values in the vector separated by ", ".
 	/// precision specifies the number of digits to print
-	static void print(std::ostream& stream, int precision, double* pVec, size_t dims);
+	static void print(std::ostream& stream, int precision, const double* pVec, size_t dims);
 
 	/// Projects pPoint onto the hyperplane defined by pOrigin onto the basisCount basis vectors
 	/// specified by pBasis. (The basis vectors are assumed to be chained end-to-end in a big vector.)

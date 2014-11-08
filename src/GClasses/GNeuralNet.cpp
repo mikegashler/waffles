@@ -4144,6 +4144,11 @@ GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
 	m_reservoirLayers = (size_t)pNode->field("reslays")->asInt();
 }
 
+GReservoirNet::~GReservoirNet()
+{
+	delete(m_pModel);
+}
+
 // virtual
 void GReservoirNet::predict(const double* pIn, double* pOut)
 {
@@ -4173,7 +4178,8 @@ void GReservoirNet::trainInner(const GMatrix& features, const GMatrix& labels)
 	delete(m_pModel);
 	GNeuralNet* pNN = new GNeuralNet();
 	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	GDataAugmenter* pAug = new GDataAugmenter(new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers));
+	GReservoir* pRes = new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers);
+	GDataAugmenter* pAug = new GDataAugmenter(pRes);
 	m_pModel = new GFeatureFilter(pNN, pAug);
 	m_pModel->train(features, labels);
 }
@@ -4233,11 +4239,7 @@ GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 void GReservoirNet::test()
 {
 	GAutoFilter af(new GReservoirNet());
-#ifdef WINDOWS
-	af.basicTest(0.733, 0.801);
-#else
-	af.basicTest(0.773, 0.801);
-#endif
+	af.basicTest(0.7, 0.801, 0.001, false, 0.9);
 }
 #endif // MIN_PREDICT
 

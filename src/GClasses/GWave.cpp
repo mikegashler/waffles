@@ -86,7 +86,7 @@ void GWave::load(const char* szFilename)
 {
 	// Read in the wave header
 	std::ifstream s;
-	s.exceptions(std::ios::failbit|std::ios::badbit);
+	s.exceptions(std::ios::badbit);
 	try
 	{
 		s.open(szFilename, std::ios::binary);
@@ -143,7 +143,7 @@ void GWave::save(const char* szFilename)
 
 	// Make the file
 	std::ofstream os;
-	os.exceptions(std::ios::failbit|std::ios::badbit);
+	os.exceptions(std::ios::badbit);
 	try
 	{
 		os.open(szFilename, std::ios::binary);

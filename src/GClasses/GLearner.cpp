@@ -768,7 +768,7 @@ void GSupervisedLearner::test()
 		throw Ex("failed");*/
 }
 
-void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& features, GMatrix& labels, GMatrix& testFeatures, GMatrix& testLabels, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
+void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& features, GMatrix& labels, GMatrix& testFeatures, GMatrix& testLabels, double minAccuracy, GRand* pRand, double warnRange, double deviation, bool printAccuracy)
 {
 	// Train the model
 	pLearner->train(features, labels);
@@ -784,7 +784,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	}
 	if(resultsBefore < minAccuracy)
 		throw Ex("accuracy has regressed. Expected at least ", to_str(minAccuracy), ". Only got ", to_str(resultsBefore), ". (Sometimes, harmless changes that affect random orderings can trigger small regressions, so don't panic yet.)");
-	if(resultsBefore >= minAccuracy + 0.035)
+	if(resultsBefore >= minAccuracy + warnRange)
 		std::cout << "\nThe measured accuracy (" << resultsBefore << ") is much better than expected (" << minAccuracy << "). Please increase the expected accuracy value so that any future regressions will be caught.\n";
 
 	// Roundtrip the model through serialization
@@ -807,7 +807,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 		throw Ex("serialization shouldn't influence accuracy this much");
 }
 
-void GSupervisedLearner_basicTest1(GSupervisedLearner* pLearner, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
+void GSupervisedLearner_basicTest1(GSupervisedLearner* pLearner, double minAccuracy, GRand* pRand, double warnRange, double deviation, bool printAccuracy)
 {
 	GMatrix features(0, 2);
 	vector<size_t> vals;
@@ -827,10 +827,10 @@ void GSupervisedLearner_basicTest1(GSupervisedLearner* pLearner, double minAccur
 	features.splitBySize(testFeatures, testSize);
 	GMatrix testLabels(labels.relation().clone());
 	labels.splitBySize(testLabels, testSize);
-	GSupervisedLearner_basicTestEngine(pLearner, features, labels, testFeatures, testLabels, minAccuracy, pRand, deviation, printAccuracy);
+	GSupervisedLearner_basicTestEngine(pLearner, features, labels, testFeatures, testLabels, minAccuracy, pRand, warnRange, deviation, printAccuracy);
 }
 
-void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccuracy, GRand* pRand, double deviation, bool printAccuracy)
+void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccuracy, GRand* pRand, double warnRange, double deviation, bool printAccuracy)
 {
 	if(minAccuracy == -1.0)
 		return; // skip this test
@@ -862,13 +862,13 @@ void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccur
 	features.splitBySize(testFeatures, testSize);
 	GMatrix testLabels(labels.relation().clone());
 	labels.splitBySize(testLabels, testSize);
-	GSupervisedLearner_basicTestEngine(pLearner, features, labels, testFeatures, testLabels, minAccuracy, pRand, deviation, printAccuracy);
+	GSupervisedLearner_basicTestEngine(pLearner, features, labels, testFeatures, testLabels, minAccuracy, pRand, warnRange, deviation, printAccuracy);
 }
 
-void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, double deviation, bool printAccuracy)
+void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, double deviation, bool printAccuracy, double warnRange)
 {
-	GSupervisedLearner_basicTest1(this, minAccuracy1, &m_rand, deviation, printAccuracy);
-	GSupervisedLearner_basicTest2(this, minAccuracy2, &m_rand, deviation * 2, printAccuracy);
+	GSupervisedLearner_basicTest1(this, minAccuracy1, &m_rand, warnRange, deviation, printAccuracy);
+	GSupervisedLearner_basicTest2(this, minAccuracy2, &m_rand, warnRange, deviation * 2, printAccuracy);
 }
 #endif // MIN_PREDICT
 

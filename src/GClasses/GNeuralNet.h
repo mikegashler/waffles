@@ -1485,7 +1485,7 @@ public:
 	/// Deserializing constructor
 	GReservoirNet(GDomNode* pNode, GLearnerLoader& ll);
 
-	virtual ~GReservoirNet() {}
+	virtual ~GReservoirNet();
 
 #ifndef MIN_PREDICT
 	static void test();
