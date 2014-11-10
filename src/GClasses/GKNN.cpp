@@ -703,7 +703,7 @@ void GKNN::test()
 {
 	GKNN knn;
 	knn.setNeighborCount(3);
-	knn.basicTest(0.72, 0.924);
+	knn.basicTest(0.72, 0.924, 0.1);
 }
 #endif
 
