@@ -566,7 +566,7 @@ void GVec::deserialize(double* pVec, GDomListIterator& it)
 }
 
 // static
-void GVec::print(std::ostream& stream, int precision, double* pVec, size_t dims)
+void GVec::print(std::ostream& stream, int precision, const double* pVec, size_t dims)
 {
 	if(dims == 0)
 		return;

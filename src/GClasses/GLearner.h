@@ -302,7 +302,7 @@ public:
 
 #ifndef MIN_PREDICT
 	/// This is a helper method used by the unit tests of several model learners
-	void basicTest(double minAccuracy1, double minAccuracy2, double deviation = 1e-6, bool printAccuracy = false);
+	void basicTest(double minAccuracy1, double minAccuracy2, double deviation = 1e-6, bool printAccuracy = false, double warnRange = 0.035);
 
 	/// Runs some unit tests related to supervised learning. Throws an exception if any problems are found.
 	static void test();

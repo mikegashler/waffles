@@ -134,7 +134,7 @@ void GPipe::write(const char* buf, size_t bufSize)
 void GPipe::toFile(const char* szFilename)
 {
 	std::ofstream s;
-	s.exceptions(std::ios::failbit|std::ios::badbit);
+	s.exceptions(std::ios::badbit);
 	try
 	{
 		s.open(szFilename, std::ios::binary);
