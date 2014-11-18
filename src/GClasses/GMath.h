@@ -157,20 +157,6 @@ public:
 	/// Omega function, or the Lambert W function. x must be > -1/e.
 	static double productLog(double x);
 
-	/// When l is somewhere between 0 and 1, it will do something in between "add"
-	/// and "multiply" with a and b. When l is close to 0, this returns a value
-	/// close to a + b. When l is close to 1, this returns a value close to a * b.
-	/// When l is exactly 0 or 1, results are undefined, so you special-case those
-	/// values to just call add or multiply.
-	static double limboAdd(double l, double a, double b)
-	{
-		//l = sqrt(l) - 1;
-		//l = 1.0 - (l * l);
-		double t = (1.0 - l) * a + l * log(a) + (1.0 - l) * b + l * log(b);
-		double v = -(l - 1.0) * exp(t / l) / l;
-		return -l * GMath::productLog(v) / (l - 1.0);
-	}
-
 	/// This implements Newton's method for determining a
 	/// polynomial f(t) that goes through all the control points
 	/// pFuncValues at pTValues.  (You could then convert to a
@@ -215,6 +201,17 @@ public:
 	/// This computes the Wilcoxon P-value assuming n is large
 	/// enough that the Normal approximation will suffice.
 	static double wilcoxonPValue(int n, double t);
+
+	/// Inverts a function using linear interpolation to iteratively find the target output.
+	/// Assumes the function is monotonic in the region it will explore
+	/// func gives the function to invert. params specifies parameters to the function. y is the target output.
+	/// x1 and x2 are two initial estimates to seed the search. The search is complete when the output
+	/// is within epsilon of the target. Throws an exception if progress stalls.
+	static double functionInverse(double (*func)(const double* params, double x), const double* params, double y, double x1, double x2, double epsilon);
+
+	/// If alpha=1, returns exp(x)-1. If alpha = 0, returns x. If alpha = -1, returns log_e(x+1).
+	/// Alpha can be any continuous value from -1 to 1 to continuously interpolate among these functions.
+	static double logExp(double alpha, double x);
 
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.

@@ -502,13 +502,13 @@ void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 		GVec::multiply(bias(), factor, outputCount);
 }
 
-void GLayerClassic::diminishWeights(double amount, bool diminishBiases)
+void GLayerClassic::diminishWeights(double amount, bool regularizeBiases)
 {
 	size_t outputCount = outputs();
 	for(size_t i = 0; i < m_weights.rows(); i++)
-		GVec::diminish(m_weights[i], amount, outputCount);
-	if(diminishBiases)
-		GVec::diminish(bias(), amount, outputCount);
+		GVec::regularize_1(m_weights[i], amount, outputCount);
+	if(regularizeBiases)
+		GVec::regularize_1(bias(), amount, outputCount);
 }
 
 void GLayerClassic::contractWeights(double factor, bool contractBiases)
@@ -1491,9 +1491,9 @@ void GLayerRestrictedBoltzmannMachine::diminishWeights(double amount, bool dimin
 {
 	size_t inputCount = outputs();
 	for(size_t i = 0; i < m_weights.rows(); i++)
-		GVec::diminish(m_weights[i], amount, inputCount);
+		GVec::regularize_1(m_weights[i], amount, inputCount);
 	if(diminishBiases)
-		GVec::diminish(bias(), amount, outputs());
+		GVec::regularize_1(bias(), amount, outputs());
 }
 
 // virtual
@@ -1868,9 +1868,9 @@ void GLayerConvolutional1D::diminishWeights(double amount, bool diminishBiases)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-		GVec::diminish(m_kernels[i], amount, kernelSize);
+		GVec::regularize_1(m_kernels[i], amount, kernelSize);
 	if(diminishBiases)
-		GVec::diminish(bias(), amount, m_kernels.rows());
+		GVec::regularize_1(bias(), amount, m_kernels.rows());
 }
 
 // virtual
@@ -2261,9 +2261,9 @@ void GLayerConvolutional2D::diminishWeights(double amount, bool diminishBiases)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-		GVec::diminish(m_kernels[i], amount, kernelSize);
+		GVec::regularize_1(m_kernels[i], amount, kernelSize);
 	if(diminishBiases)
-		GVec::diminish(bias(), amount, m_kernelCount);
+		GVec::regularize_1(bias(), amount, m_kernelCount);
 }
 
 // virtual
@@ -2581,9 +2581,15 @@ void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
 		if(m_layers[position - 1]->outputs() != pLayer->inputs())
 		{
 			if(pLayer->inputs() == FLEXIBLE_SIZE)
+			{
+				if(m_layers[position - 1]->outputs() == FLEXIBLE_SIZE)
+					throw Ex("Two FLEXIBLE_SIZE ends cannot be connected");
 				pLayer->resize(m_layers[position - 1]->outputs(), pLayer->outputs());
-			else
+			}
+			else if(m_layers[position - 1]->outputs() == FLEXIBLE_SIZE)
 				m_layers[position - 1]->resize(m_layers[position - 1]->inputs(), pLayer->inputs());
+			else
+				throw Ex("Mismatching layers. The previous layer outputs ", to_str(m_layers[position - 1]->outputs()), " values. The added layer inputs ", to_str(pLayer->inputs()));
 		}
 	}
 	if(position < m_layers.size())
@@ -2591,9 +2597,15 @@ void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
 		if(m_layers[position]->inputs() != pLayer->outputs())
 		{
 			if(pLayer->outputs() == FLEXIBLE_SIZE)
+			{
+				if(m_layers[position]->inputs() == FLEXIBLE_SIZE)
+					throw Ex("Two FLEXIBLE_SIZE ends cannot be connected");
 				pLayer->resize(pLayer->inputs(), m_layers[position]->inputs());
-			else
+			}
+			else if(m_layers[position]->inputs() == FLEXIBLE_SIZE)
 				m_layers[position]->resize(pLayer->outputs(), m_layers[position]->outputs());
+			else
+				throw Ex("Mismatching layers. The next layer inputs ", to_str(m_layers[position]->inputs()), " values. The added layer outputs ", to_str(pLayer->outputs()));
 		}
 	}
 	m_layers.insert(m_layers.begin() + position, pLayer);

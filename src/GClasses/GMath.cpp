@@ -371,6 +371,7 @@ double GMath::approximateInverseErf(double x)
 // static
 double GMath::productLog(double x)
 {
+/*
 	if(x < -1.0 / M_E)
 		throw Ex("undefined");
 
@@ -402,7 +403,112 @@ double GMath::productLog(double x)
 	}
 	else
 		return w;
+*/
+	double w;
+	if (x < 0.5) {
+		if (fabs(x) < 1e-10) return x; // exp(x)==1 for small x.
+		if (x <= -1.0/M_E) {
+			if (x == -1.0/M_E) return -1; // avoid div by zero
+			throw Ex("undefined");
+			return -1; // no solution
+		}
+		double p = sqrt( 2.0 * ( M_E*x + 1.0 ) );
+         w=-1.0+p*(1.0+p*(-1/3.0 + p*11.0/72.0));
+	} else {
+	   //if (isnan(x)) return x.nan;
+		w = log(x);
+		if (x > 3)
+		{
+			w = w-log(w);
+			//if (x==x.infinity) return x.infinity;
+		}
+	}
+	double e,t,w2=w;
+	
+	int kount=0;
+	do { // Halley iterations. Never requires more than 4 iterations.
+		w = w2;
+		e = exp(w);
+		t = w*e - x;
+		t /= e*(w+1.0) - 0.5*(w+2.0)*t / (w+1.0);
+		w2 -= t;
+		kount++;
+		if (kount>20)
+		{
+			//writefln(x);
+			return x;
+		}
+	} while (fabs(t)>=1e-10*(1.0+fabs(w2)));
+	return w2;
 }
+
+/*
+double GMath_logexp(const double* params, double x)
+{
+	return exp(*params * x) - 1.0 + (1.0 - *params) * x;
+}
+*/
+
+// static
+double GMath::logExp(double alpha, double x)
+{
+	if(alpha >= 0.0)
+		return exp(alpha * x) - 1.0 + (1.0 - alpha) * x;
+	else
+	{
+/*
+		// Use an iterative hack to invert the case where alpha >= 0.0
+		double x1 = log(std::max(1.0, x)) + x * (1.0 - alpha);
+		double params = -alpha;
+		return functionInverse(GMath_logexp, &params, x, x1, x1 + 1e-3, 1e-9);
+*/
+		// An inverse that depends on productLog (which is calculated iteratively)
+		alpha = -alpha;
+		if(alpha >= 1.0)
+			return log(x + 1.0);
+		double t1 = alpha - 1.0;
+		double t2 = x + 1.0;
+		double t3 = -alpha * exp(-alpha * t2 / t1) / t1;
+		if(t3 < -1.0 / M_E)
+			return -1.0 / 0.0;
+		return -(t1 * productLog(t3) + alpha * t2) / (alpha * t1);
+	}
+}
+
+// static
+double GMath::functionInverse(double (*func)(const double* params, double x), const double* params, double y, double x1, double x2, double epsilon)
+{
+	double y1 = func(params, x1);
+	double y2 = func(params, x2);
+	double prevDelta = 1e300;
+	while(true)
+	{
+		double denom = (y2 - y1);
+		if(std::abs(denom) < 1e-6)
+			denom = (denom < 0 ? -1e-6 : 1e-6);
+		double xCand = (y - y1) * std::max(-8.0, std::min(8.0, (x2 - x1) / denom)) + x1;
+		double yCand = func(params, xCand);
+		double delta = std::abs(y - yCand);
+		if(delta < epsilon || delta >= prevDelta || isnan(delta))
+			return xCand;
+		prevDelta = delta;
+		if(std::abs(y - y1) < std::abs(y - y2))
+		{
+			if(x2 == xCand)
+				throw Ex("stalled");
+			x2 = xCand;
+			y2 = yCand;
+		}
+		else
+		{
+			if(x1 == xCand)
+				throw Ex("stalled");
+			x1 = xCand;
+			y1 = yCand;
+		}
+	}
+}
+
 
 // Evaluates the integral of (ax^2+bx+c)/(dx^2+ex+f) at x=1, assuming an integration constant of zero
 double integralOfRatioOfQuadraticPolynomials(double a, double b, double c, double d, double e, double f)

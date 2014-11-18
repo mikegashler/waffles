@@ -1729,6 +1729,9 @@ void showError(GArgReader& args, const char* szAppName, const char* szMessage)
 
 int main(int argc, char *argv[])
 {
+#ifdef _DEBUG
+	GApp::enableFloatingPointExceptions();
+#endif
 	PathData pd;
 	GFile::parsePath(argv[0], &pd);
 	const char* appName = argv[0] + pd.fileStart;

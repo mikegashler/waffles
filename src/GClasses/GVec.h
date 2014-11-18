@@ -144,8 +144,11 @@ public:
 	/// Multiplies pVector by dScalar
 	static void multiply(double* pVector, double dScalar, size_t nDims);
 
+	/// Apply L^(1.5) regularization to the specified vector.
+	static void regularize_1_5(double* pVector, double amount, size_t nDims);
+
 	/// Adjusts each element in the direction toward 0 by the specified amount.
-	static void diminish(double* pVector, double amount, size_t nDims);
+	static void regularize_1(double* pVector, double amount, size_t nDims);
 
 	/// Raises each element of pVector to the exponent dScalar
 	static void pow(double* pVector, double dScalar, size_t nDims);
@@ -367,7 +370,8 @@ public:
 	size_t length() { return m_length; }
 
 	/// Returns the current position in the list of indexes. (This might be used, for example,
-	/// to identify progress.)
+	/// to identify progress.) Note that you need to subtract 1 to obtain the position of the
+	/// value from the most recent call to "next".
 	size_t pos() { return m_pCur - m_pIndexes; }
 
 	/// Returns a reference to the random number generator.

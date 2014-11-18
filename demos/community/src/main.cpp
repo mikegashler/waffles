@@ -298,6 +298,7 @@ public:
 	virtual void onShutDown();
 	void addItem(size_t topic, const char* szTitle, const char* szUsername);
 	std::vector<Topic*>& topics() { return m_topics; }
+	std::string& basePath() { return m_basePath; }
 	Account* loadAccount(const char* szUsername, const char* szPasswordHash);
 	Account* newAccount(const char* szUsername, const char* szPasswordHash);
 	void deleteAccount(Account* pAccount);
@@ -548,7 +549,7 @@ public:
 
 	void updateRating(size_t topic, size_t itemId, float rating)
 	{
-		GAssert(rating >= 0.0f && rating <= 1.0f);
+		GAssert(rating >= -1.0f && rating <= 1.0f);
 		if(topic >= m_ratings.size())
 			m_ratings.resize(topic + 1);
 		m_ratings[topic].updateRating(itemId, rating);
@@ -638,6 +639,7 @@ void makeHeader(GDynamicPageSession* pSession, ostream& response)
 	response << "	<a href=\"/admin\">Options</a><br>\n";
 	response << "	<br><br><br>\n";
 	response << "</div>\n\n\n\n\n<!-- Main Body Area --><div id=\"mainbody\">\n";
+//	response << "<!--basePath=" << ((Server*)pSession->server())->basePath() << "-->\n";
 }
 
 void makeFooter(GDynamicPageSession* pSession, ostream& response)
@@ -676,12 +678,12 @@ public:
 		float score;
 		if(!pAccount->getRating(currentTopic, itemId, &score))
 			score = pAccount->predictRating(item);
-		score = 0.1 * floor(score * 1000);
+		score *= 500.0;
+		score += 500.0;
+		score = 0.1 * floor(score);
 
 		// Display the slider
 		response << "<table cellpadding=0 cellspacing=0><tr><td width=430>\n	";
-// uncomment the next line to always display the predicted score in brackets
-//response << "[" << 0.1 * floor(pAccount->predictRating(item) * 1000) << "] ";
 		response << item.title();
 		response << "\n";
 		response << "</td><td>\n";
@@ -868,7 +870,7 @@ public:
 								float score = (float)atof(it->second);
 								if(score >= 0.0f && score <= 100.0f)
 								{
-									pAccount->updateRating(currentTopic, itemId, 0.01 * score);
+									pAccount->updateRating(currentTopic, itemId, 0.02 * score - 1.0);
 									response << "[Rating recorded. Thank you.]<br>\n";
 								}
 								else
@@ -918,7 +920,7 @@ public:
 				if(sliderCount == 0)
 				{
 					response << "<h3>A few statements for your evaluation:</h3>\n";
-					response << "<p>It is okay to skip statements you find ambiguous, invasive, or uninteresting. Responding implies that you find the statement comprehensible and somewhat interesting. For your convenience, the sliders have been set to reflect predictions of your opinions. As you express more opinions, these predictions should improve.</p>\n";
+					response << "<p>It is okay to skip statements you find ambiguous, invasive, or uninteresting. For your convenience, the sliders have been set to reflect predictions of your opinions. As you express more opinions, these predictions should improve.</p>\n";
 				}
 				makeUrlSlider(pAccount, itemId, response);
 				sliderCount++;
@@ -1070,13 +1072,13 @@ public:
 			{
 				mean += rating;
 				count++;
-				if(rating < 0.333334)
+				if(rating < -0.33333)
 					m_disagree++;
-				else if(rating > 0.666666)
+				else if(rating >= 0.33333)
 					m_agree++;
 				else
 					m_uncertain++;
-				if(rating < 0.5)
+				if(rating < 0.0)
 					m_dis++;
 				else
 					m_agg++;
@@ -1173,7 +1175,7 @@ public:
 			float rating;
 			if(!pAccs[head]->getRating(topicId, itm, &rating))
 				rating = pAccs[head]->predictRating(topic.item(itm));
-			if(rating < 0.5)
+			if(rating < 0.0)
 			{
 				tail--;
 				std::swap(pAccs[head], pAccs[tail]);
@@ -1274,7 +1276,8 @@ public:
 			float rating;
 			if((*pAccs)->getRating(topicId, itemId, &rating))
 			{
-				double clipped = 0.001 * (double)floor(rating * 100000 + 0.5f);
+				double r = rating * 50000 + 50000;
+				double clipped = 0.001 * (double)floor(r + 0.5f);
 				mm.insert(std::pair<double,Account*>(clipped,*pAccs));
 			}
 			accCount--;
@@ -1333,7 +1336,7 @@ public:
 		{
 			pA->getRating(topicId, it->second, &rA);
 			pB->getRating(topicId, it->second, &rB);
-			response << "<tr><td>" << to_str(0.1 * floor(rA * 1000)) << "</td><td>" << to_str(0.1 * floor(rB * 1000)) << "</td><td>" << to_str(0.1 * floor(std::abs(rA - rB) * 1000)) << "</td><td>" << topic.item(it->second).title() << "</td></tr>\n";
+			response << "<tr><td>" << to_str(0.1 * floor(rA * 500 + 500)) << "</td><td>" << to_str(0.1 * floor(rB * 500 + 500)) << "</td><td>" << to_str(0.1 * floor(std::abs(rA - rB) * 500)) << "</td><td>" << topic.item(it->second).title() << "</td></tr>\n";
 		}
 		response << "</table>\n";
 	}
@@ -1939,6 +1942,7 @@ Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
 	strcat(buf, "web/");
 	GFile::condensePath(buf);
 	m_basePath = buf;
+	cout << "Base path: " << m_basePath << "\n";
 	m_pViewSurvey = new ViewSurvey(this);
 	m_pViewStats = new ViewStats(this);
 	m_pViewSubmit = new ViewSubmit(this);
@@ -2336,10 +2340,13 @@ void doItAsDaemon()
 	string s2 = path;
 	s2 += "stderr.log";
 	if(chdir(path) != 0)
+		throw Ex("Failed to change dir to ", path);
+	cout << "Launching daemon...\n";
+	GApp::launchDaemon(doit, path, s1.c_str(), s2.c_str());
+	if(!getcwd(path, 300))
 	{
 	}
-	GApp::launchDaemon(doit, path, s1.c_str(), s2.c_str());
-	cout << "Daemon running.\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
+	cout << "Daemon running in " << path << ".\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
 }
 
 unsigned int clientThread(void* pObj)
@@ -2365,8 +2372,8 @@ int main(int nArgs, char* pArgs[])
 	int nRet = 1;
 	try
 	{
-		doit(NULL);
-		//doItAsDaemon();
+		//doit(NULL);
+ 		doItAsDaemon();
 	}
 	catch(std::exception& e)
 	{
