@@ -327,6 +327,7 @@ ControllerBase::ControllerBase()
 	m_mouseY = 0;
 	m_eKeyState = Normal;
 	m_lastPressedKey = SDLK_UNKNOWN;
+	m_dKeyRepeatTimer = 0;
 #endif
 }
 

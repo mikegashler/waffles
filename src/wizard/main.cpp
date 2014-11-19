@@ -109,25 +109,44 @@ MySession* getSession(GDynamicPageSession* pDPSession)
 	return pSess;
 }
 
+class Connection : public GDynamicPageConnection
+{
+public:
+	Connection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
+	{
+	}
+	
+	virtual ~Connection()
+	{
+	}
+
+	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
+
+protected:
+	void addScript(std::ostream& response);
+};
+
 class Server : public GDynamicPageServer
 {
 protected:
-	std::string m_basePath;
 	vector<UsageNode*> m_globals;
 	int m_port;
 
 public:
+	std::string m_basePath;
+
 	Server(int port, GRand* pRand);
 	virtual ~Server();
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
 	UsageNode* globalUsageNode(const char* name, UsageNode* pDefaultNode);
 	virtual void onEverySixHours() {}
 	virtual void onStateChange() {}
 	virtual void onShutDown() {}
 	void pump();
 
-protected:
-	void addScript(std::ostream& response);
+	virtual GDynamicPageConnection* makeConnection(SOCKET sock)
+	{
+		return new Connection(sock, this);
+	}
 };
 
 
@@ -729,7 +748,7 @@ UsageNode* Server::globalUsageNode(const char* name, UsageNode* pDefaultNode)
 	return pDefaultNode;
 }
 
-void Server::addScript(std::ostream& response)
+void Connection::addScript(std::ostream& response)
 {
 	response << "<script type=\"text/javascript\">\n";
 	response << "var g_httpClient = null\n";
@@ -810,7 +829,7 @@ void Server::addScript(std::ostream& response)
 }
 
 // virtual
-void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pDPSession, std::ostream& response)
+void Connection::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pDPSession, std::ostream& response)
 {
 	if(strcmp(szUrl, "/") == 0)
 		szUrl = "/wizard";
@@ -884,10 +903,13 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 	else if(strncmp(szUrl, "/shutdown", 9) == 0)
 	{
 		response << "<html><head></head><body onLoad=\"var closure=function() { window.top.opener = null; window.open('','_parent',''); window.close()}; setTimeout(closure,500)\"><h3>Goodbye!</h3></body></html>\n";
-		shutDown();
+		m_pServer->shutDown();
 	}
 	else
-		sendFileSafe(m_basePath.c_str(), szUrl + 1, response);
+	{
+		const char* szBasePath = ((Server*)m_pServer)->m_basePath.c_str();
+		sendFileSafe(szBasePath, szUrl + 1, response);
+	}
 }
 
 void Server::pump()

@@ -48,35 +48,41 @@ using std::string;
 using std::ostream;
 
 
+class Connection : public GDynamicPageConnection
+{
+public:
+	Connection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
+	{
+	}
+	
+	virtual ~Connection()
+	{
+	}
+
+	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
+
+};
 
 class Server : public GDynamicPageServer
 {
-protected:
+public:
 	std::string m_basePath;
 
-public:
 	Server(int port, GRand* pRand);
 	virtual ~Server() {}
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
 	virtual void onEverySixHours() {}
 	virtual void onStateChange() {}
 	virtual void onShutDown() {}
+
+	virtual GDynamicPageConnection* makeConnection(SOCKET sock)
+	{
+		return new Connection(sock, this);
+	}
 };
 
 
-Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
-{
-	char buf[300];
-	GTime::asciiTime(buf, 256, false);
-	cout << "Server starting at: " << buf << "\n";
-	GApp::appPath(buf, 256, true);
-	strcat(buf, "web/");
-	GFile::condensePath(buf);
-	m_basePath = buf;
-}
-
 // virtual
-void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response)
+void Connection::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response)
 {
 	if(strcmp(szUrl, "/favicon.ico") == 0)
 		return;
@@ -90,9 +96,21 @@ void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsL
 		response << "</body></html>\n";
 	}
 	else if(strcmp(szUrl, "/smiley.png") == 0)
-		sendFileSafe(m_basePath.c_str(), szUrl + 1, response);
+		sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), szUrl + 1, response);
 	else
 		response << "<h1>404 - Not found!</h1>";
+}
+
+
+Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
+{
+	char buf[300];
+	GTime::asciiTime(buf, 256, false);
+	cout << "Server starting at: " << buf << "\n";
+	GApp::appPath(buf, 256, true);
+	strcat(buf, "web/");
+	GFile::condensePath(buf);
+	m_basePath = buf;
 }
 
 void getLocalStorageFolder(char* buf)

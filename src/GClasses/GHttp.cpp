@@ -710,54 +710,58 @@ void GWebSocketClient::onLoseConnection()
 
 
 
-
-class GHttpConnection : public 	GTCPConnection
+GHttpConnection::GHttpConnection(SOCKET sock) : GTCPConnection(sock), m_pPostBuffer(NULL)
 {
-public:
-	enum RequestType
-	{
-		None,
-		Get,
-		Head,
-		Post,
-	};
+	reset();
+}
 
-	size_t m_nPos;
-	char m_szLine[MAX_SERVER_LINE_SIZE];
-	char m_szUrl[MAX_SERVER_LINE_SIZE];
-	char m_szParams[MAX_SERVER_LINE_SIZE];
-	char m_szDate[MAX_SERVER_LINE_SIZE];
-	char m_szCookie[MAX_COOKIE_SIZE];
-	unsigned char* m_pPostBuffer;
-	RequestType m_eRequestType;
-	size_t m_nContentLength;
+// virtual
+GHttpConnection::~GHttpConnection()
+{
+	delete[] m_pPostBuffer;
+}
 
-	GHttpConnection(SOCKET sock) : GTCPConnection(sock), m_nPos(0), m_pPostBuffer(NULL), m_eRequestType(None), m_nContentLength(0)
-	{
-	}
+void GHttpConnection::reset()
+{
+	m_nPos = 0;
+	m_eRequestType = None;
+	m_szUrl[0] = '\0';
+	m_szParams[0] = '\0';
+	m_szDate[0] = '\0';
+	m_szCookieIncoming[0] = '\0';
+	m_nContentLength = 0;
+	delete[] m_pPostBuffer;
+	m_pPostBuffer = NULL;
+	setContentType("text/html");
+	setCookie("", false);
+	m_modifiedTime = 0;
+}
 
-	virtual ~GHttpConnection()
-	{
-		delete[] m_pPostBuffer;
-	}
+void GHttpConnection::setContentType(const char* szContentType)
+{
+	safe_strcpy(m_szContentType, szContentType, 64);
+}
 
-	void reset()
-	{
-		m_szUrl[0] = '\0';
-		m_szParams[0] = '\0';
-		m_szDate[0] = '\0';
-		m_szCookie[0] = '\0';
-		m_nContentLength = 0;
-		delete[] m_pPostBuffer;
-		m_pPostBuffer = NULL;
-	}
-};
+void GHttpConnection::setCookie(const char* szPayload, bool bPersist)
+{
+	m_bPersistCookie = bPersist;
+	safe_strcpy(m_szCookieOutgoing, szPayload, MAX_COOKIE_SIZE);
+}
+
+
+
+
+
+
 
 
 class GHttpServerSocket : public GTCPServer
 {
+protected:
+	GHttpServer* m_pServer;
+
 public:
-	GHttpServerSocket(unsigned short port) : GTCPServer(port)
+	GHttpServerSocket(unsigned short port, GHttpServer* pServer) : GTCPServer(port), m_pServer(pServer)
 	{
 	}
 
@@ -768,19 +772,16 @@ public:
 protected:
 	virtual GTCPConnection* makeConnection(SOCKET s)
 	{
-		return new GHttpConnection(s);
+		return m_pServer->makeConnection(s);
 	}
 };
 
 GHttpServer::GHttpServer(int nPort)
 {
 	m_pReceiveBuf = new char[2048];
-	m_pSocket = new GHttpServerSocket(nPort);
+	m_pSocket = new GHttpServerSocket(nPort, this);
 	if(!m_pSocket)
 		throw("failed to open port");
-	setContentType("text/html");
-	setCookie("", false);
-	m_modifiedTime = 0;
 }
 
 GHttpServer::~GHttpServer()
@@ -864,10 +865,10 @@ void GHttpServer::beginRequest(GHttpConnection* pConn, int eType, const char* sz
 void GHttpServer::onReceiveFullPostRequest(GHttpConnection* pConn)
 {
 	char* szCookie = NULL;
-	if(pConn->m_szCookie[0] != '\0')
-		szCookie = pConn->m_szCookie;
-	m_modifiedTime = 0;
-	doPost(pConn->m_szUrl, pConn->m_pPostBuffer, pConn->m_nContentLength, szCookie, m_stream);
+	if(pConn->m_szCookieIncoming[0] != '\0')
+		szCookie = pConn->m_szCookieIncoming;
+	pConn->m_modifiedTime = 0;
+	pConn->doPost(pConn->m_szUrl, pConn->m_pPostBuffer, pConn->m_nContentLength, szCookie, m_stream);
 	pConn->m_pPostBuffer = NULL;
 	pConn->m_nPos = 0;
 	try
@@ -907,14 +908,14 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 		{
 			bool bModified = true;
 			if(pConn->m_szDate[0] != '\0')
-				bModified = hasBeenModifiedSince(pConn->m_szUrl, pConn->m_szDate);
+				bModified = pConn->hasBeenModifiedSince(pConn->m_szUrl, pConn->m_szDate);
 			if(bModified)
 			{
 				char* szCookie = NULL;
-				if(pConn->m_szCookie[0] != '\0')
-					szCookie = pConn->m_szCookie;
-				m_modifiedTime = 0;
-				doGet(pConn->m_szUrl, pConn->m_szParams, (int)strlen(pConn->m_szParams), szCookie, m_stream);
+				if(pConn->m_szCookieIncoming[0] != '\0')
+					szCookie = pConn->m_szCookieIncoming;
+				pConn->m_modifiedTime = 0;
+				pConn->doGet(pConn->m_szUrl, pConn->m_szParams, (int)strlen(pConn->m_szParams), szCookie, m_stream);
 				try
 				{
 					sendResponse(pConn);
@@ -938,8 +939,8 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 		}
 		else if(pConn->m_eRequestType == GHttpConnection::Head)
 		{
-			m_modifiedTime = 0;
-			setHeaders(pConn->m_szUrl, pConn->m_szParams);
+			pConn->m_modifiedTime = 0;
+			pConn->setHeaders(pConn->m_szUrl, pConn->m_szParams);
 			try
 			{
 				sendResponse(pConn);
@@ -976,7 +977,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 			i++;
 		if(szLine[i] == '=')
 			i++;
-		strcpy(pConn->m_szCookie, szLine + i);
+		strcpy(pConn->m_szCookieIncoming, szLine + i);
 	}
 	else if(_strnicmp(szLine, "If-Modified-Since: ", 19) == 0)
 	{
@@ -990,17 +991,6 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 		}
 		*szOut = '\0';
 	}
-}
-
-void GHttpServer::setContentType(const char* szContentType)
-{
-	safe_strcpy(m_szContentType, szContentType, 64);
-}
-
-void GHttpServer::setCookie(const char* szPayload, bool bPersist)
-{
-	m_bPersistCookie = bPersist;
-	safe_strcpy(m_szCookie, szPayload, MAX_COOKIE_SIZE);
 }
 
 void AscTimeToGMT(const char* szIn, char* szOut)
@@ -1059,7 +1049,7 @@ void GHttpServer::sendResponse(GHttpConnection* pConn)
 	// Make the header
 	const char pTmp1[] = "HTTP/1.1 200 OK\r\nContent-Type: ";
 	m_pSocket->send(pTmp1, sizeof(pTmp1) - 1, pConn);
-	m_pSocket->send(m_szContentType, strlen(m_szContentType), pConn);
+	m_pSocket->send(pConn->m_szContentType, strlen(pConn->m_szContentType), pConn);
 
 	if(pConn->m_eRequestType != GHttpConnection::Head)
 	{
@@ -1093,11 +1083,11 @@ void GHttpServer::sendResponse(GHttpConnection* pConn)
 	}
 
 	// Set the last-modified header
-	if(m_modifiedTime != 0)
+	if(pConn->m_modifiedTime != 0)
 	{
 		std::ostringstream os;
 		os << "Last-Modified: ";
-		struct tm* pTime = gmtime(&m_modifiedTime);
+		struct tm* pTime = gmtime(&pConn->m_modifiedTime);
 		const char* szAscTime = asctime(pTime);
 		char szGMT[40];
 		AscTimeToGMT(szAscTime, szGMT);
@@ -1108,13 +1098,13 @@ void GHttpServer::sendResponse(GHttpConnection* pConn)
 	}
 
 	// Set cookie
-	if(m_szCookie[0] != '\0')
+	if(pConn->m_szCookieOutgoing[0] != '\0')
 	{
 		std::ostringstream os;
 		os << "Set-Cookie: attribute=";
-		os << m_szCookie;
+		os << pConn->m_szCookieOutgoing;
 		os << "; path=/";
-		if(m_bPersistCookie)
+		if(pConn->m_bPersistCookie)
 			os << "; expires=Sat, 01-Jan-2060 00:00:00 GMT";
 		os << "\r\n";
 		string s = os.str();

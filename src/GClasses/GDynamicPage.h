@@ -102,6 +102,37 @@ public:
 
 
 
+class GDynamicPageConnection : public GHttpConnection
+{
+protected:
+	GDynamicPageServer* m_pServer;
+
+public:
+	GDynamicPageConnection(SOCKET sock, GDynamicPageServer* pServer);
+	virtual ~GDynamicPageConnection();
+
+	virtual void doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, std::ostream& response);
+	virtual void doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, std::ostream& response);
+protected:
+	/// This method is called by doGet or doPost when a client requests something from the server
+	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response) = 0;
+
+	virtual bool hasBeenModifiedSince(const char* szUrl, const char* szDate);
+	virtual void setHeaders(const char* szUrl, const char* szParams);
+	GDynamicPageSession* establishSession(const char* szCookie);
+
+	void sendFile(const char* szMimeType, const char* szFilename, std::ostream& response);
+
+	/// Concatenates szJailPath+szLocalPath, and makes sure that the result is within szJailPath, then
+	/// it automatically determines the mime type from the extension, and sends the file.
+	void sendFileSafe(const char* szJailPath, const char* localPath, std::ostream& response);
+
+	/// Determines an appropriate mime type for the given filename based on its extension.
+	/// (Currently only recognizes a very small number of extensions.)
+	static const char* extensionToMimeType(const char* szFilename);
+};
+
+
 
 class GDynamicPageServer : public GHttpServer
 {
@@ -117,39 +148,29 @@ public:
 	GDynamicPageServer(int port, GRand* pRand);
 	virtual ~GDynamicPageServer();
 
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response) = 0;
 	virtual void onStateChange() {}
 	virtual void onEverySixHours() {}
 	virtual void onShutDown() {}
 	void go();
 	void shutDown();
 	void flushSessions();
+	
+	/// Returns the session with the specified id. If no session is found with that id, returns NULL.
+	GDynamicPageSession* findSession(unsigned long long id);
+
+	/// Makes a new session with the specified id.
+	GDynamicPageSession* makeNewSession(unsigned long long id);
 
 	/// Returns the account if the password is correct. Returns NULL if not.
 	const char* myAddress();
 	void setDaemonSalt(const char* szSalt);
 	const char* daemonSalt();
 	const char* passwordSalt();
-	void sendFile(const char* szMimeType, const char* szFilename, std::ostream& response);
-
-	/// Concatenates szJailPath+szLocalPath, and makes sure that the result is within szJailPath, then
-	/// it automatically determines the mime type from the extension, and sends the file.
-	void sendFileSafe(const char* szJailPath, const char* localPath, std::ostream& response);
-
-	/// Determines an appropriate mime type for the given filename based on its extension.
-	/// (Currently only recognizes a very small number of extensions.)
-	const char* extensionToMimeType(const char* szFilename);
 
 	GRand* prng() { return m_pRand; }
 	void redirect(std::ostream& response, const char* szUrl);
 
 protected:
-	virtual void doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, std::ostream& response);
-	virtual void doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, std::ostream& response);
-	virtual bool hasBeenModifiedSince(const char* szUrl, const char* szDate);
-	virtual void setHeaders(const char* szUrl, const char* szParams);
-
-	GDynamicPageSession* establishSession(const char* szCookie);
 	void doMaintenance();
 	void computePasswordSalt();
 };

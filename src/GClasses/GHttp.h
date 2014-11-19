@@ -24,6 +24,7 @@
 #include <sstream>
 #include <map>
 #include <string.h>
+#include "GSocket.h"
 
 namespace GClasses {
 
@@ -32,7 +33,6 @@ class GWebSocketClientSocket;
 class GHttpServerSocket;
 class GTCPServer;
 class GHttpConnection;
-class GHttpServerBuffer;
 class GHeap;
 class GConstStringHashTable;
 
@@ -142,18 +142,79 @@ public:
 #define MAX_SERVER_LINE_SIZE 300
 #define MAX_COOKIE_SIZE 300
 
+/// Each GHttpConnection represents an HTTP connection between a client and the server.
+/// A GHTTPServer is a collection of GHTTPConnection objects.
+/// To implement a HTTP server, you will typically override the doGet and doPost methods of this class to generate web pages.
+class GHttpConnection : public GTCPConnection
+{
+public:
+	enum RequestType
+	{
+		None,
+		Get,
+		Head,
+		Post,
+	};
+
+	size_t m_nPos;
+	char m_szLine[MAX_SERVER_LINE_SIZE];
+	char m_szUrl[MAX_SERVER_LINE_SIZE];
+	char m_szParams[MAX_SERVER_LINE_SIZE];
+	char m_szDate[MAX_SERVER_LINE_SIZE];
+	char m_szContentType[64];
+	char m_szCookieIncoming[MAX_COOKIE_SIZE];
+	char m_szCookieOutgoing[MAX_COOKIE_SIZE];
+	bool m_bPersistCookie;
+	unsigned char* m_pPostBuffer;
+	RequestType m_eRequestType;
+	size_t m_nContentLength;
+	time_t m_modifiedTime;
+
+	/// General-purpose constructor
+	GHttpConnection(SOCKET sock);
+
+	virtual ~GHttpConnection();
+
+	/// Clear all the buffers in this object.
+	void reset();
+
+	/// Specify the type of the content that is being sent to the client.
+	void setContentType(const char* szContentType);
+
+	/// Specify a cookie to send to the client with this response.
+	void setCookie(const char* szPayload, bool bPersist);
+
+	/// The primary purpose of this method is to push a response into pResponse.
+	/// Typically this method will call SetHeaders.
+	virtual void doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, std::ostream& response) = 0;
+
+	/// This method takes ownership of pData. Don't forget to delete it. When the POST is
+	/// caused by an HTML form, it's common for this method to just call DoGet (passing
+	/// pData for szParams) and then delete pData. (For convenience, a '\0' is already appended
+	/// at the end of pData.)
+	virtual void doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, std::ostream& response) = 0;
+
+	/// This is called when the client does a conditional GET. It should return true
+	/// if you wish to re-send the file, and DoGet will be called.
+	virtual bool hasBeenModifiedSince(const char* szUrl, const char* szDate) = 0;
+
+	/// This method should set the content type and the date headers, and any other
+	/// headers deemed necessary
+	virtual void setHeaders(const char* szUrl, const char* szParams) = 0;
+
+	/// Sets the date (modified time) to be sent with the file so the client can cache it
+	void setModifiedTime(time_t t) { m_modifiedTime = t; }
+};
+
+
+
 /// This class allows you to implement a simple HTTP daemon
 class GHttpServer
 {
 protected:
 	char* m_pReceiveBuf;
 	GHttpServerSocket* m_pSocket;
-	std::vector<GHttpServerBuffer*> m_buffers;
 	std::ostringstream m_stream;
-	char m_szContentType[64];
-	char m_szCookie[MAX_COOKIE_SIZE];
-	bool m_bPersistCookie;
-	time_t m_modifiedTime;
 
 public:
 	GHttpServer(int nPort);
@@ -174,17 +235,11 @@ public:
 	/// This is a rather hacky method that parses the parameters of a specific upload-file form
 	static bool parseFileParam(const char* pParams, size_t nParamsLen, const char** ppFilename, size_t* pFilenameLen, const unsigned char** ppFile, size_t* pFileLen);
 
-	/// Specifies the content-type of the response
-	void setContentType(const char* szContentType);
-
-	/// Specifies the set-cookie header to be sent with the response
-	void setCookie(const char* szPayload, bool bPersist);
-
-	/// Sets the date (modified time) to be sent with the file so the client can cache it
-	void setModifiedTime(time_t t) { m_modifiedTime = t; }
-
 	/// Returns a reference to the socket on which this server listens
 	GTCPServer* socket() { return (GTCPServer*)m_pSocket; }
+
+	/// This method should return a new instance of an object that inherrits from GHttpConnection.
+	virtual GHttpConnection* makeConnection(SOCKET s) = 0;
 
 protected:
 	virtual void onProcessLine(GHttpConnection* pConn, const char* szLine) {}
@@ -194,24 +249,6 @@ protected:
 	void sendResponse(GHttpConnection* pConn);
 	void sendNotModifiedResponse(GHttpConnection* pConn);
 	void onReceiveFullPostRequest(GHttpConnection* pConn);
-
-	/// This method should set the content type and the date headers, and any other
-	/// headers deemed necessary
-	virtual void setHeaders(const char* szUrl, const char* szParams) = 0;
-
-	/// The primary purpose of this method is to push a response into pResponse.
-	/// Typically this method will call SetHeaders.
-	virtual void doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, std::ostream& response) = 0;
-
-	/// This method takes ownership of pData. Don't forget to delete it. When the POST is
-	/// caused by an HTML form, it's common for this method to just call DoGet (passing
-	/// pData for szParams) and then delete pData. (For convenience, a '\0' is already appended
-	/// at the end of pData.)
-	virtual void doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, std::ostream& response) = 0;
-
-	/// This is called when the client does a conditional GET. It should return true
-	/// if you wish to re-send the file, and DoGet will be called.
-	virtual bool hasBeenModifiedSince(const char* szUrl, const char* szDate) = 0;
 };
 
 
