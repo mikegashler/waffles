@@ -59,7 +59,7 @@ public:
 	{
 	}
 
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
+	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
 
 };
 
@@ -82,11 +82,11 @@ public:
 
 
 // virtual
-void Connection::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response)
+void Connection::handleRequest(GDynamicPageSession* pSession, std::ostream& response)
 {
-	if(strcmp(szUrl, "/favicon.ico") == 0)
+	if(strcmp(m_szUrl, "/favicon.ico") == 0)
 		return;
-	else if(strncmp(szUrl, "/hello", 6) == 0)
+	else if(strncmp(m_szUrl, "/hello", 6) == 0)
 	{
 		response << "<html><head>\n";
 		response << "	<title>My Hello Site</title>\n";
@@ -95,8 +95,8 @@ void Connection::handleRequest(const char* szUrl, const char* szParams, int nPar
 		response << "	Hello Web! <img src=\"smiley.png\"><br>\n";
 		response << "</body></html>\n";
 	}
-	else if(strcmp(szUrl, "/smiley.png") == 0)
-		sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), szUrl + 1, response);
+	else if(strcmp(m_szUrl, "/smiley.png") == 0)
+		sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
 	else
 		response << "<h1>404 - Not found!</h1>";
 }

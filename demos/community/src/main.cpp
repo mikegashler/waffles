@@ -739,7 +739,7 @@ public:
 	{
 	}
 
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
+	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
 
 	void makeUrlSlider(Account* pAccount, size_t itemId, ostream& response)
 	{
@@ -1874,41 +1874,39 @@ void Connection::newAccountMakePage(GDynamicPageSession* pSession, ostream& resp
 }
 
 // virtual
-void Connection::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, ostream& response)
+void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 {
-	if(strcmp(szUrl, "/") == 0)
-		szUrl = "/survey";
-	if(strcmp(szUrl, "/favicon.ico") == 0)
+	if(strcmp(m_szUrl, "/favicon.ico") == 0)
 		return;
-	if(strncmp(szUrl, "/login", 6) == 0)
+	if(strncmp(m_szUrl, "/login", 6) == 0)
 		loginMakePage(pSession, response);
-	else if(strncmp(szUrl, "/survey", 4) == 0)
+	else if(strcmp(m_szUrl, "/") == 0 || strncmp(m_szUrl, "/survey", 4) == 0)
 		surveyMakePage(pSession, response);
-	else if(strncmp(szUrl, "/submit", 7) == 0)
+	else if(strncmp(m_szUrl, "/submit", 7) == 0)
 		submitMakePage(pSession, response);
-	else if(strncmp(szUrl, "/stats", 6) == 0)
+	else if(strncmp(m_szUrl, "/stats", 6) == 0)
 		statsMakePage(pSession, response);
-	else if(strncmp(szUrl, "/update", 7) == 0)
+	else if(strncmp(m_szUrl, "/update", 7) == 0)
 		updateMakePage(pSession, response);
-	else if(strncmp(szUrl, "/admin", 6) == 0)
+	else if(strncmp(m_szUrl, "/admin", 6) == 0)
 		adminMakePage(pSession, response);
-	else if(strncmp(szUrl, "/newaccount", 11) == 0)
+	else if(strncmp(m_szUrl, "/newaccount", 11) == 0)
 		newAccountMakePage(pSession, response);
-	else if(strncmp(szUrl, "/users.svg", 10) == 0)
+	else if(strncmp(m_szUrl, "/users.svg", 10) == 0)
 		plotUsers(pSession, response);
-	else if(strncmp(szUrl, "/items.svg", 10) == 0)
+	else if(strncmp(m_szUrl, "/items.svg", 10) == 0)
 		plotItems(pSession, response);
 	else
 	{
-		size_t len = strlen(szUrl);
-		if(len > 6 && strcmp(szUrl + len - 6, ".hbody") == 0)
+		size_t len = strlen(m_szUrl);
+		if(len > 6 && strcmp(m_szUrl + len - 6, ".hbody") == 0)
 		{
 			makeHeader(pSession, response);
-			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), szUrl + 1, response);
+			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
 			makeFooter(pSession, response);
 		}
 		else
-			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), szUrl + 1, response);
+			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
 	}
 }
 
@@ -2055,6 +2053,8 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 	Account* pAccount = new Account(szUsername, szPasswordHash, *m_pRand);
 	m_accountsVec.push_back(pAccount);
 	m_accountsMap.insert(make_pair(string(szUsername), pAccount));
+	cout << "Made new account for " << szUsername << "\n";
+	cout.flush();
 	return pAccount;
 }
 
@@ -2161,7 +2161,8 @@ GDomNode* Server::serializeState(GDom* pDoc)
 	for(map<string,Account*>::iterator it = m_accountsMap.begin(); it != m_accountsMap.end(); it++)
 	{
 		Account* pAccount = it->second;
-		pAccounts->addItem(pDoc, pAccount->toDom(pDoc));
+		if(pAccount->username()[0] != '_') // Don't bother persisting anonymous accounts
+			pAccounts->addItem(pDoc, pAccount->toDom(pDoc));
 	}
 
 	return pNode;
@@ -2278,8 +2279,10 @@ int main(int nArgs, char* pArgs[])
 	int nRet = 1;
 	try
 	{
-		doit(NULL);
-		//doItAsDaemon();
+		if(nArgs > 1 && strcmp(pArgs[1], "daemon") == 0)
+			doItAsDaemon();
+		else
+			doit(NULL);
 	}
 	catch(std::exception& e)
 	{

@@ -120,7 +120,7 @@ public:
 	{
 	}
 
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
+	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
 
 protected:
 	void addScript(std::ostream& response);
@@ -829,16 +829,14 @@ void Connection::addScript(std::ostream& response)
 }
 
 // virtual
-void Connection::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pDPSession, std::ostream& response)
+void Connection::handleRequest(GDynamicPageSession* pDPSession, std::ostream& response)
 {
-	if(strcmp(szUrl, "/") == 0)
-		szUrl = "/wizard";
-	if(strcmp(szUrl, "/favicon.ico") == 0)
+	if(strcmp(m_szUrl, "/favicon.ico") == 0)
 		return;
-	if(strncmp(szUrl, "/wizard", 6) == 0)
+	if(strcmp(m_szUrl, "/") == 0 || strncmp(m_szUrl, "/wizard", 6) == 0)
 	{
 		MySession* pSession = getSession(pDPSession);
-		pSession->doNext(szParams);
+		pSession->doNext(m_pContent);
 		response << "<html><head>\n";
 		addScript(response);
 		response << "</head><body>\n";
@@ -855,15 +853,15 @@ void Connection::handleRequest(const char* szUrl, const char* szParams, int nPar
 		pSession->currentPage()->makeBody(response, pSession);
 		response << "</body></html>\n";
 	}
-	else if(strncmp(szUrl, "/listfiles", 10) == 0)
+	else if(strncmp(m_szUrl, "/listfiles", 10) == 0)
 	{
 		char buf[300];
 		if(!getcwd(buf, 300))
 			throw Ex("getcwd failed");
-		if(nParamsLen >= 3 && strncmp(szParams, "cd=", 3) == 0)
+		if(m_nContentLength >= 3 && strncmp(m_pContent, "cd=", 3) == 0)
 		{
-			if(chdir(szParams + 3) != 0)
-				cerr << "Failed to change dir from " << buf << " to " << szUrl << "\n";
+			if(chdir(m_pContent + 3) != 0)
+				cerr << "Failed to change dir from " << buf << " to " << m_szUrl << "\n";
 		}
 		response << "[";
 		bool first = true;
@@ -900,7 +898,7 @@ void Connection::handleRequest(const char* szUrl, const char* szParams, int nPar
 		}
 		response << "]";
 	}
-	else if(strncmp(szUrl, "/shutdown", 9) == 0)
+	else if(strncmp(m_szUrl, "/shutdown", 9) == 0)
 	{
 		response << "<html><head></head><body onLoad=\"var closure=function() { window.top.opener = null; window.open('','_parent',''); window.close()}; setTimeout(closure,500)\"><h3>Goodbye!</h3></body></html>\n";
 		m_pServer->shutDown();
@@ -908,7 +906,7 @@ void Connection::handleRequest(const char* szUrl, const char* szParams, int nPar
 	else
 	{
 		const char* szBasePath = ((Server*)m_pServer)->m_basePath.c_str();
-		sendFileSafe(szBasePath, szUrl + 1, response);
+		sendFileSafe(szBasePath, m_szUrl + 1, response);
 	}
 }
 

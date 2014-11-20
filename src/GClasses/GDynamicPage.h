@@ -111,15 +111,15 @@ public:
 	GDynamicPageConnection(SOCKET sock, GDynamicPageServer* pServer);
 	virtual ~GDynamicPageConnection();
 
-	virtual void doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, std::ostream& response);
-	virtual void doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, std::ostream& response);
+	virtual void doGet(std::ostream& response);
+	virtual void doPost(std::ostream& response);
 protected:
 	/// This method is called by doGet or doPost when a client requests something from the server
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response) = 0;
+	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response) = 0;
 
 	virtual bool hasBeenModifiedSince(const char* szUrl, const char* szDate);
 	virtual void setHeaders(const char* szUrl, const char* szParams);
-	GDynamicPageSession* establishSession(const char* szCookie);
+	GDynamicPageSession* establishSession();
 
 	void sendFile(const char* szMimeType, const char* szFilename, std::ostream& response);
 
@@ -160,6 +160,9 @@ public:
 
 	/// Makes a new session with the specified id.
 	GDynamicPageSession* makeNewSession(unsigned long long id);
+
+	/// Prints all known session ids to the stream. (This is used for debugging purposes.)
+	void printSessionIds(std::ostream& stream);
 
 	/// Returns the account if the password is correct. Returns NULL if not.
 	const char* myAddress();

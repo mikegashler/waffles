@@ -96,27 +96,32 @@ bool GDynamicPageConnection::hasBeenModifiedSince(const char* szUrl, const char*
 	return true;
 }
 
-GDynamicPageSession* GDynamicPageConnection::establishSession(const char* szCookie)
+GDynamicPageSession* GDynamicPageConnection::establishSession()
 {
 	// Find existing session
 	unsigned long long nSessionID;
 	GDynamicPageSession* pSession = NULL;
-	if(szCookie)
+	if(m_szCookieIncoming[0] != '\0')
 	{
-		const char* crumb = strstr(szCookie, "GDPSI=");
+		const char* crumb = strstr(m_szCookieIncoming, "GDPSI=");
 		if(crumb)
 		{
 			crumb += 6;
 #ifdef WINDOWS
-			nSessionID = _strtoui64(szCookie, NULL, 10);
+			nSessionID = _strtoui64(crumb, NULL, 10);
 #else
-			nSessionID = strtoull(szCookie, NULL, 10);
+			nSessionID = strtoull(crumb, NULL, 10);
 #endif
 			pSession = m_pServer->findSession(nSessionID);
+			if(!pSession)
+			{
+				cout << "Unrecognized session id cookie crumb from " << inet_ntoa(ipAddr()) << ": " << crumb << "\n";
+				cout.flush();
+			}
 		}
 		else
 		{
-			cout << "Cookie with no GDPSI crumb from " << inet_ntoa(ipAddr()) << ": " << szCookie << "\n";
+			cout << "Cookie with no GDPSI cookie crumb from " << inet_ntoa(ipAddr()) << ": " << m_szCookieIncoming << "\n";
 			cout.flush();
 		}
 	}
@@ -138,22 +143,21 @@ GDynamicPageSession* GDynamicPageConnection::establishSession(const char* szCook
 }
 
 // virtual
-void GDynamicPageConnection::doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, ostream& response)
+void GDynamicPageConnection::doGet(ostream& response)
 {
 	// Set up the session
-	GDynamicPageSession* pSession = establishSession(szCookie);
-	pSession->setCurrentUrl(szUrl, szParams, nParamsLen);
+	GDynamicPageSession* pSession = establishSession();
+	pSession->setCurrentUrl(m_szUrl, m_pContent, m_nContentLength);
 
 	// Handle the request
 	setContentType("text/html");
-	handleRequest(szUrl, szParams, (int)nParamsLen, pSession, response);
+	handleRequest(pSession, response);
 }
 
 // virtual
-void GDynamicPageConnection::doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, ostream& pResponse)
+void GDynamicPageConnection::doPost(ostream& response)
 {
-	doGet(szUrl, (const char*)pData, nDataSize, szCookie, pResponse);
-	delete[] pData;
+	doGet(response);
 }
 
 // virtual
@@ -306,6 +310,16 @@ GDynamicPageSession* GDynamicPageServer::findSession(unsigned long long id)
 		return NULL;
 	else
 		return it->second;
+}
+
+void GDynamicPageServer::printSessionIds(std::ostream& stream)
+{
+	map<unsigned long long, GDynamicPageSession*>::iterator it;
+	for(it = m_sessions.begin(); it != m_sessions.end(); it++)
+	{
+		stream << "	" << it->first << "\n";
+	}
+	stream.flush();
 }
 
 void GDynamicPageServer::go()

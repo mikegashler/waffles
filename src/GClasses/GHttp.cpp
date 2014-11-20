@@ -864,11 +864,10 @@ void GHttpServer::beginRequest(GHttpConnection* pConn, int eType, const char* sz
 
 void GHttpServer::onReceiveFullPostRequest(GHttpConnection* pConn)
 {
-	char* szCookie = NULL;
-	if(pConn->m_szCookieIncoming[0] != '\0')
-		szCookie = pConn->m_szCookieIncoming;
 	pConn->m_modifiedTime = 0;
-	pConn->doPost(pConn->m_szUrl, pConn->m_pPostBuffer, pConn->m_nContentLength, szCookie, m_stream);
+	pConn->m_pContent = pConn->m_pPostBuffer;
+	pConn->doPost(m_stream);
+	delete(pConn->m_pPostBuffer);
 	pConn->m_pPostBuffer = NULL;
 	pConn->m_nPos = 0;
 	try
@@ -911,11 +910,10 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 				bModified = pConn->hasBeenModifiedSince(pConn->m_szUrl, pConn->m_szDate);
 			if(bModified)
 			{
-				char* szCookie = NULL;
-				if(pConn->m_szCookieIncoming[0] != '\0')
-					szCookie = pConn->m_szCookieIncoming;
 				pConn->m_modifiedTime = 0;
-				pConn->doGet(pConn->m_szUrl, pConn->m_szParams, (int)strlen(pConn->m_szParams), szCookie, m_stream);
+				pConn->m_nContentLength = strlen(pConn->m_szParams);
+				pConn->m_pContent = pConn->m_szParams;
+				pConn->doGet(m_stream);
 				try
 				{
 					sendResponse(pConn);
@@ -953,7 +951,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 		else if(pConn->m_eRequestType == GHttpConnection::Post)
 		{
 			if(pConn->m_nContentLength > 0)
-				pConn->m_pPostBuffer = new unsigned char[pConn->m_nContentLength + 1];
+				pConn->m_pPostBuffer = new char[pConn->m_nContentLength + 1];
 			else
 			{
 				pConn->m_pPostBuffer = NULL;

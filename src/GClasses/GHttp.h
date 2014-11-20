@@ -168,7 +168,8 @@ public:
 	char m_szCookieIncoming[MAX_COOKIE_SIZE];
 	char m_szCookieOutgoing[MAX_COOKIE_SIZE];
 	bool m_bPersistCookie;
-	unsigned char* m_pPostBuffer;
+	char* m_pPostBuffer;
+	char* m_pContent; // points to m_pPostBuffer when a POST is invoked. points to m_szParams when a GET is invoked.
 	RequestType m_eRequestType;
 	size_t m_nContentLength;
 	time_t m_modifiedTime;
@@ -189,13 +190,13 @@ public:
 
 	/// The primary purpose of this method is to push a response into pResponse.
 	/// Typically this method will call SetHeaders.
-	virtual void doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, std::ostream& response) = 0;
+	virtual void doGet(std::ostream& response) = 0;
 
 	/// This method takes ownership of pData. Don't forget to delete it. When the POST is
 	/// caused by an HTML form, it's common for this method to just call DoGet (passing
 	/// pData for szParams) and then delete pData. (For convenience, a '\0' is already appended
 	/// at the end of pData.)
-	virtual void doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, std::ostream& response) = 0;
+	virtual void doPost(std::ostream& response) = 0;
 
 	/// This is called when the client does a conditional GET. It should return true
 	/// if you wish to re-send the file, and DoGet will be called.
