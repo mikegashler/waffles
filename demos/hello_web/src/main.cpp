@@ -144,6 +144,8 @@ void doit(void* pArg)
 	Server server(port, &prng);
 	LaunchBrowser(server.myAddress());
 	// Pump incoming HTTP requests (this is the main loop)
+	cout << "Server is up\n";
+	cout.flush();
 	server.go();
 	cout << "Goodbye.\n";
 }

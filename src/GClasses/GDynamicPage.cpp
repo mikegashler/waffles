@@ -103,8 +103,10 @@ GDynamicPageSession* GDynamicPageConnection::establishSession(const char* szCook
 	GDynamicPageSession* pSession = NULL;
 	if(szCookie)
 	{
-		if(szCookie && *szCookie >= '0' && *szCookie <= '9')
+		const char* crumb = strstr(szCookie, "GDPSI=");
+		if(crumb)
 		{
+			crumb += 6;
 #ifdef WINDOWS
 			nSessionID = _strtoui64(szCookie, NULL, 10);
 #else
@@ -113,7 +115,10 @@ GDynamicPageSession* GDynamicPageConnection::establishSession(const char* szCook
 			pSession = m_pServer->findSession(nSessionID);
 		}
 		else
-			cout << "Bogus cookie from " << inet_ntoa(ipAddr()) << ": " << szCookie << "\n";
+		{
+			cout << "Cookie with no GDPSI crumb from " << inet_ntoa(ipAddr()) << ": " << szCookie << "\n";
+			cout.flush();
+		}
 	}
 
 	// Make a new session
@@ -122,6 +127,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession(const char* szCook
 		// Make a new cookie
 		nSessionID = (unsigned long long)m_pServer->prng()->next() ^ (unsigned long long)(GTime::seconds() * 10000);
 		std::ostringstream os;
+		os << "GDPSI=";
 		os << nSessionID;
 		string tmp = os.str();
 		setCookie(tmp.c_str(), true);

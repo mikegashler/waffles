@@ -2246,7 +2246,7 @@ void doit(void* pArg)
 #else
 		int port = 8988;
 #endif
-		size_t seed = 0;//getpid() * (size_t)time(NULL);
+		size_t seed = getpid() * (size_t)time(NULL);
 		GRand prng(seed);
 		Server server(port, &prng);
 		LaunchBrowser(server.myAddress(), &prng);
@@ -2271,24 +2271,6 @@ void doItAsDaemon()
 	{
 	}
 	cout << "Daemon running in " << path << ".\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
-}
-
-unsigned int clientThread(void* pObj)
-{
-	for(size_t i = 0; i < 100; i++)
-	{
-		
-	}
-	return 0;
-}
-
-void hammerServer()
-{
-	for(size_t i = 0; i < 10; i++)
-	{
-		void* pObj = NULL;
-		GThread::spawnThread(clientThread, pObj);
-	}
 }
 
 int main(int nArgs, char* pArgs[])

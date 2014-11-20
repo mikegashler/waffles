@@ -139,8 +139,11 @@ public:
 
 
 
-#define MAX_SERVER_LINE_SIZE 300
-#define MAX_COOKIE_SIZE 300
+#define MAX_HEADER_LEN 8192
+#define MAX_URL_LEN 2048
+#define MAX_COOKIE_SIZE 4096
+#define MAX_DATE_LEN 128
+#define MAX_MIME_LEN 64
 
 /// Each GHttpConnection represents an HTTP connection between a client and the server.
 /// A GHTTPServer is a collection of GHTTPConnection objects.
@@ -157,11 +160,11 @@ public:
 	};
 
 	size_t m_nPos;
-	char m_szLine[MAX_SERVER_LINE_SIZE];
-	char m_szUrl[MAX_SERVER_LINE_SIZE];
-	char m_szParams[MAX_SERVER_LINE_SIZE];
-	char m_szDate[MAX_SERVER_LINE_SIZE];
-	char m_szContentType[64];
+	char m_szLine[MAX_HEADER_LEN];
+	char m_szUrl[MAX_URL_LEN];
+	char m_szParams[MAX_URL_LEN];
+	char m_szDate[MAX_DATE_LEN];
+	char m_szContentType[MAX_MIME_LEN];
 	char m_szCookieIncoming[MAX_COOKIE_SIZE];
 	char m_szCookieOutgoing[MAX_COOKIE_SIZE];
 	bool m_bPersistCookie;

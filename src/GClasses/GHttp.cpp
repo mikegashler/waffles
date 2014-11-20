@@ -820,7 +820,7 @@ bool GHttpServer::process()
 					pConn->m_szLine[pConn->m_nPos++] = c;
 					pIn++;
 					nMessageSize--;
-					if(c == '\n' || pConn->m_nPos >= MAX_SERVER_LINE_SIZE - 1)
+					if(c == '\n' || pConn->m_nPos >= MAX_HEADER_LEN - 1)
 					{
 						pConn->m_szLine[pConn->m_nPos] = '\0';
 						processHeaderLine(pConn, pConn->m_szLine);
@@ -971,14 +971,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 	else if(_strnicmp(szLine, "Content-Length: ", 16) == 0)
 		pConn->m_nContentLength = atoi(szLine + 16);
 	else if(_strnicmp(szLine, "Cookie: ", 8) == 0)
-	{
-		int i = 17; // strlen("Cookie: attribute")
-		while(szLine[i] != '=' && szLine[i] != '\0')
-			i++;
-		if(szLine[i] == '=')
-			i++;
-		strcpy(pConn->m_szCookieIncoming, szLine + i);
-	}
+		strcpy(pConn->m_szCookieIncoming, szLine + 8);
 	else if(_strnicmp(szLine, "If-Modified-Since: ", 19) == 0)
 	{
 		const char* szIn = szLine + 19;
@@ -1101,7 +1094,7 @@ void GHttpServer::sendResponse(GHttpConnection* pConn)
 	if(pConn->m_szCookieOutgoing[0] != '\0')
 	{
 		std::ostringstream os;
-		os << "Set-Cookie: attribute=";
+		os << "Set-Cookie: ";
 		os << pConn->m_szCookieOutgoing;
 		os << "; path=/";
 		if(pConn->m_bPersistCookie)
