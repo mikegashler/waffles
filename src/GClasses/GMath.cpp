@@ -63,7 +63,7 @@ using namespace GClasses;
 	};
 
 	if(x > 171.0)
-		return 1e308; // This value is an overflow flag.
+		return INFINITY;
 	if(x == (int)x)
 	{
 		if(x > 0.0)
@@ -73,7 +73,7 @@ using namespace GClasses;
 				ga *= i;
 		}
 		else
-			ga = 1e308;
+			ga = INFINITY;
 	}
 	else
 	{
@@ -128,7 +128,7 @@ double GMath::logGamma(double x)
 
 	x0 = x;
 	if (x <= 0.0)
-		return 1e308;
+		return INFINITY;
 	else if ((x == 1.0) || (x == 2.0))
 		return 0.0;
 	else if (x <= 7.0)
@@ -470,7 +470,7 @@ double GMath::logExp(double alpha, double x)
 		double t2 = x + 1.0;
 		double t3 = -alpha * exp(-alpha * t2 / t1) / t1;
 		if(t3 < -1.0 / M_E)
-			return -1.0 / 0.0;
+			return -INFINITY;
 		return -(t1 * productLog(t3) + alpha * t2) / (alpha * t1);
 	}
 }

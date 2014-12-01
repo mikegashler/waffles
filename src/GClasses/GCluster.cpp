@@ -640,6 +640,7 @@ void GKMeans::cluster(const GMatrix* pData)
 		if(d < bestErr)
 		{
 			bestErr = d;
+			delete[] pBest;
 			pBest = m_pClusters;
 			m_pClusters = NULL;
 		}

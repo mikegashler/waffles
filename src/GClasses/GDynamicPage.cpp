@@ -32,13 +32,13 @@
 #include "sha1.h"
 #ifndef WINDOWS
 #	include <unistd.h>
+#	include <arpa/inet.h>
 #endif
 #include <stdlib.h>
 #include <algorithm>
 #include <string>
 #include <sstream>
 #include <iostream>
-#include <arpa/inet.h>
 
 using namespace GClasses;
 using std::vector;
