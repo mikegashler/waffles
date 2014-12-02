@@ -21,7 +21,8 @@
 
 #include "GError.h"
 
-using namespace GClasses;
+namespace GClasses
+{
 
 /// This is a helper class used by GIndexedMultiSet
 template <typename T>
@@ -33,7 +34,7 @@ public:
 	GTreeNode* right;
 	size_t size;
 
-	GTreeNode(T k) : key(k)
+	GTreeNode(const T& k) : key(k)
 	{
 		isolate();
 	}
@@ -146,7 +147,7 @@ public:
 			return this;
 	}
 
-	GTreeNode<T>* find(T k, size_t start, size_t* outIndex)
+	GTreeNode<T>* find(const T& k, size_t start, size_t* outIndex)
 	{
 		if(k < key)
 			return left ? left->find(k, start, outIndex) : NULL;
@@ -179,7 +180,7 @@ public:
 		return balance();
 	}
 
-	GTreeNode<T>* remove_by_value(T k, GTreeNode<T>** outNode)
+	GTreeNode<T>* remove_by_value(const T& k, GTreeNode<T>** outNode)
 	{
 		if(k < key)
 		{
@@ -238,7 +239,7 @@ public:
 	}
 
 	/// Insert a value into the multiset.
-	void insert(T key)
+	void insert(const T& key)
 	{
 		if(spare)
 			spare->key = key;
@@ -263,7 +264,7 @@ public:
 
 	/// Drop one occurrence of the specified value from this multiset.
 	/// An exception is thrown if the value does not occur in the multiset.
-	void drop_by_value(T key)
+	void drop_by_value(const T& key)
 	{
 		if(!root)
 			throw Ex("Not found");
@@ -281,7 +282,7 @@ public:
 	}
 
 	/// Returns the index of one occurrence of the specified value in this multiset.
-	/// The the value occurs multiple times, the returned index is arbitrarily chosen from among them.
+	/// If the value occurs multiple times, the returned index is arbitrarily chosen from among them.
 	size_t find(T key)
 	{
 		size_t outIndex;
@@ -298,5 +299,399 @@ public:
 		return root ? root->size : 0;
 	}
 };
+
+
+template <typename T> class GRelationalRow;
+
+
+template <typename T>
+class GRelationalElement
+{
+public:
+	GRelationalRow<T>* par;
+	GRelationalRow<T>* left;
+	GRelationalRow<T>* right;
+	size_t size;
+
+	GRelationalElement()
+	{
+	}
+
+	~GRelationalElement()
+	{
+	}
+
+	void isolate()
+	{
+		par = NULL;
+		left = NULL;
+		right = NULL;
+		size = 1;
+	}
+
+};
+
+
+template <typename T>
+class GRelationalRow
+{
+public:
+	T row;
+	GRelationalElement<T>* el;
+
+	GRelationalRow(const T& k, size_t columnCount) : row(k)
+	{
+		el = new GRelationalElement<T>[columnCount];
+		for(size_t i = 0; i < columnCount; i++)
+			el[i].isolate();
+	}
+
+	~GRelationalRow()
+	{
+		delete(el[0].left);
+		delete(el[0].right);
+		delete[] el;
+	}
+
+	void recount(size_t c)
+	{
+		el[c].size = 1 + (el[c].left ? el[c].left->el[c].size : 0) + (el[c].right ? el[c].right->el[c].size : 0);
+	}
+
+	GRelationalRow<T>* rotateLeft(size_t c)
+	{
+		GRelationalRow<T>* t = el[c].right;
+		GRelationalRow<T>* g = t->el[c].left;
+		GRelationalRow<T>* p = el[c].par;
+		el[c].right = g;
+		t->el[c].left = this;
+		t->el[c].par = p;
+		if(g)
+			g->el[c].par = this;
+		el[c].par = t;
+		recount(c);
+		t->recount(c);
+		return t;
+	}
+
+	GRelationalRow<T>* rotateRight(size_t c)
+	{
+		GRelationalRow<T>* t = el[c].left;
+		GRelationalRow<T>* g = t->el[c].right;
+		GRelationalRow<T>* p = el[c].par;
+		el[c].left = g;
+		t->el[c].right = this;
+		t->el[c].par = p;
+		if(g)
+			g->el[c].par = this;
+		el[c].par = t;
+		recount(c);
+		t->recount(c);
+		return t;
+	}
+
+	GRelationalRow<T>* balance(size_t c)
+	{
+		size_t lcount = el[c].left ? el[c].left->el[c].size : 0;
+		size_t rcount = el[c].right ? el[c].right->el[c].size : 0;
+		if((lcount + 1) * 2 < (rcount + 1))
+		{
+			size_t lcount2 = el[c].right->el[c].left ? el[c].right->el[c].left->el[c].size : 0;
+			size_t rcount2 = el[c].right->el[c].right ? el[c].right->el[c].right->el[c].size : 0;
+			if(lcount2 > rcount2)
+				el[c].right = el[c].right->rotateRight(c);
+			return rotateLeft(c);
+		}
+		else if((rcount + 1) * 2 <= (lcount + 1))
+		{
+			size_t lcount2 = el[c].left->el[c].left ? el[c].left->el[c].left->el[c].size : 0;
+			size_t rcount2 = el[c].left->el[c].right ? el[c].left->el[c].right->el[c].size : 0;
+			if(lcount2 < rcount2)
+				el[c].left = el[c].left->rotateLeft(c);
+			return rotateRight(c);
+		}
+		else
+		{
+			recount(c);
+			return this;
+		}
+	}
+
+	template<typename Comp>
+	GRelationalRow<T>* insert(GRelationalRow<T>* newNode, size_t c, Comp& comp)
+	{
+		if(comp(newNode->row, row, c))
+		{
+			if(el[c].left)
+				el[c].left = el[c].left->insert(newNode, c, comp);
+			else
+			{
+				el[c].left = newNode;
+				newNode->el[c].par = this;
+			}
+		}
+		else
+		{
+			if(el[c].right)
+				el[c].right = el[c].right->insert(newNode, c, comp);
+			else
+			{
+				el[c].right = newNode;
+				newNode->el[c].par = this;
+			}
+		}
+		return balance(c);
+	}
+
+	GRelationalRow<T>* get(size_t index, size_t c)
+	{
+		size_t lcount = el[c].left ? el[c].left->el[c].size : 0;
+		if(index < lcount)
+			return el[c].left->get(index, c);
+		else if(index > lcount)
+			return el[c].right ? el[c].right->get(index - lcount - 1, c) : NULL;
+		else
+			return this;
+	}
+
+	template<typename Comp>
+	GRelationalRow<T>* find(T r, size_t start, size_t* outIndex, size_t c, Comp& comp)
+	{
+		if(comp(r, row, c))
+			return el[c].left ? el[c].left->find(r, start, outIndex, c, comp) : NULL;
+		else if(r > row)
+			return el[c].right ? el[c].right->find(r, el[c].left ? start + el[c].left->size + 1 : start + 1, outIndex, c, comp) : NULL;
+		else
+		{
+			if(outIndex)
+				*outIndex = start + (el[c].left ? el[c].left->size : 0);
+			return this;
+		}
+	}
+
+	template<typename Comp>
+	GRelationalRow<T>* approximate(T r, size_t start, size_t* outIndex, size_t c, Comp& comp)
+	{
+		if(comp(r, row, c))
+			return el[c].left ? el[c].left->find(r, start, outIndex, c, comp) : this;
+		else if(r > row)
+			return el[c].right ? el[c].right->find(r, el[c].left ? start + el[c].left->size + 1 : start + 1, outIndex, c, comp) : this;
+		else
+		{
+			if(outIndex)
+				*outIndex = start + (el[c].left ? el[c].left->size : 0);
+			return this;
+		}
+	}
+
+	template<typename Comp>
+	GRelationalRow<T>* remove(size_t c, Comp& comp)
+	{
+		size_t lcount = el[c].left ? el[c].left->el[c].size : 0;
+		size_t rcount = el[c].right ? el[c].right->el[c].size : 0;
+		GRelationalRow<T>* child;
+		if(lcount < rcount)
+			child = el[c].left ? el[c].right->insert(el[c].left, c, comp) : el[c].right;
+		else
+			child = el[c].right ? el[c].left->insert(el[c].right, c, comp) : el[c].left;
+		GRelationalRow<T>* par = el[c].par;
+		if(child)
+			child->el[c].par = par;
+		if(par)
+		{
+			if(par->el[c].left == this)
+				par->el[c].left = child ? child->balance(c) : NULL;
+			else
+			{
+				GAssert(par->el[c].right == this);
+				par->el[c].right = child ? child->balance(c) : NULL;
+			}
+			child = par;
+			par = child->el[c].par;
+			while(par)
+			{
+				if(par->el[c].left == child)
+					par->el[c].left = child->balance(c);
+				else
+				{
+					GAssert(par->el[c].right == child);
+					par->el[c].right = child->balance(c);
+				}
+				child = par;
+				par = child->el[c].par;
+			}
+		}
+		if(child)
+			return child->balance(c);
+		else
+			return NULL;
+	}
+
+	GRelationalRow<T>* next(size_t c)
+	{
+		GRelationalRow<T>* r = el[c].right;
+		if(r)
+		{
+			while(r->el[c].left)
+				r = r->el[c].left;
+			return r;
+		}
+		else
+		{
+			r = this;
+			GRelationalRow<T>* p = el[c].par;
+			while(p)
+			{
+				if(p->el[c].left == r)
+					return p;
+				r = p;
+				p = r->el[c].par;
+			}
+			return NULL;
+		}
+	}
+
+	GRelationalRow<T>* prev(size_t c)
+	{
+		GRelationalRow<T>* l = el[c].left;
+		if(l)
+		{
+			while(l->el[c].right)
+				l = l->el[c].right;
+			return l;
+		}
+		else
+		{
+			l = this;
+			GRelationalRow<T>* p = el[c].par;
+			while(p)
+			{
+				if(p->el[c].right == l)
+					return p;
+				l = p;
+				p = l->el[c].par;
+			}
+			return NULL;
+		}
+	}
+};
+
+
+template <typename T, typename Comp>
+class GRelationalTable
+{
+protected:
+	const Comp& comp;
+	GRelationalRow<T>** roots;
+	GRelationalRow<T>* spare;
+
+public:
+	GRelationalTable(const Comp& c) : comp(c), spare(NULL)
+	{
+		roots = new GRelationalRow<T>*[c.cols()];
+		for(size_t i = 0; i < c.cols(); i++)
+			roots[i] = NULL;
+	}
+
+	~GRelationalTable()
+	{
+		delete(spare);
+		delete(roots[0]);
+		delete[] roots;
+	}
+
+	/// Inserts a row into this relational table.
+	void insert(const T& row)
+	{
+		if(spare)
+			spare->row = row;
+		else
+			spare = new GRelationalRow<T>(row, comp.cols());
+		if(roots[0])
+		{
+			for(size_t i = 0; i < comp.cols(); i++)
+				roots[i] = roots[i]->insert(spare, i, comp);
+		}
+		else
+		{
+			for(size_t i = 0; i < comp.cols(); i++)
+			roots[i] = spare;
+		}
+		spare = NULL;
+	}
+
+	/// Returns the number of rows in this relational table.
+	size_t size()
+	{
+		if(roots[0])
+			return roots[0]->el[0].size;
+		else
+			return 0;
+	}
+
+	/// Returns the nth row when the rows are sorted by column col.
+	GRelationalRow<T>* get(size_t n, size_t col)
+	{
+		return roots[col]->get(n, col);
+	}
+
+	/// Returns a row where the element in column col matches the one in the provided row.
+	/// Returns NULL if no matches exist. If outIndex is non-NULL, it will be made to point
+	/// to the index of the returned row when sorted in column col.
+	GRelationalRow<T>* find(const T& row, size_t col, size_t* outIndex = NULL)
+	{
+		if(roots[col])
+			return roots[col]->find(row, 0, outIndex, col, comp);
+		else
+			return NULL;
+	}
+
+	/// Returns the first occurrence of a row where the element in column col is equal or
+	/// greater than the one in the provided row. Returns NULL if no rows contain an element
+	/// in column col greater than the one in row. If outIndex is non-NULL, it will be made to point
+	/// to the index of the returned row when sorted in column col.
+	GRelationalRow<T>* firstEqualOrGreater(const T& row, size_t col, size_t* outIndex = NULL)
+	{
+		if(!roots[col])
+			return NULL;
+		GRelationalRow<T>* node = roots[col].approximate(row, 0, outIndex, col, comp);
+		while(true)
+		{
+			GRelationalRow<T>* prev = node->prev(col);
+			if(!prev)
+				break;
+			if(comp(prev->row, row, col))
+				break;
+			node = prev;
+			if(*outIndex)
+				(*outIndex)--;
+		}
+		while(true)
+		{
+			if(!comp(node->row, row, col))
+				break;
+			node = node->next(col);
+			if(*outIndex)
+				(*outIndex)++;
+			if(!node)
+				break;
+		}
+		return node;
+	}
+
+	/// Removes the specified row from this relational table.
+	/// (Behavior is undefined if the specified row is not actually in the table.)
+	void remove(GRelationalRow<T>* row)
+	{
+		for(size_t i = 0; i < comp.cols(); i++)
+			roots[i] = row->remove(i, comp);
+	}
+};
+
+#ifndef MIN_PREDICT
+void GRelationalTable_test();
+#endif // !MIN_PREDICT
+
+} // namespace GClasses
 
 #endif // GTREE_H

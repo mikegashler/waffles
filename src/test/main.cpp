@@ -40,6 +40,7 @@
 #include "../GClasses/GDecisionTree.h"
 #include "../GClasses/GDiff.h"
 #include "../GClasses/GDistribution.h"
+#include "../GClasses/GDom.h"
 #include "../GClasses/GEnsemble.h"
 #include "../GClasses/GError.h"
 #include "../GClasses/GFile.h"
@@ -73,7 +74,7 @@
 #include "../GClasses/GThread.h"
 #include "../GClasses/GTime.h"
 #include "../GClasses/GTransform.h"
-#include "../GClasses/GDom.h"
+#include "../GClasses/GTree.h"
 #include "../GClasses/GVec.h"
 #include "../GClasses/GReverseBits.h"
 
@@ -942,6 +943,7 @@ public:
 		runTest("GRandMersenneTwister", GRandMersenneTwister::test);
 		runTest("GRandomForest", GRandomForest::test);
 		runTest("GRelation", GRelation::test);
+		runTest("GRelationalTable", GRelationalTable_test);
 		runTest("GResamplingAdaBoost", GResamplingAdaBoost::test);
 		runTest("GReservoirNet", GReservoirNet::test);
 		runTest("GRunningCovariance", GRunningCovariance::test);
