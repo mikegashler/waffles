@@ -2010,7 +2010,20 @@ GLayerConvolutional2D::~GLayerConvolutional2D()
 // virtual
 GDomNode* GLayerConvolutional2D::serialize(GDom* pDoc)
 {
-	throw Ex("Sorry, not implemented yet");
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "icol", pDoc->newInt(m_inputCols));
+	pNode->addField(pDoc, "irow", pDoc->newInt(m_inputRows));
+	pNode->addField(pDoc, "ichan", pDoc->newInt(m_inputChannels));
+	pNode->addField(pDoc, "ocol", pDoc->newInt(m_outputCols));
+	pNode->addField(pDoc, "orow", pDoc->newInt(m_outputRows));
+	pNode->addField(pDoc, "kpc", pDoc->newInt(m_kernelsPerChannel));
+	pNode->addField(pDoc, "kc", pDoc->newInt(m_kernelCount));
+	pNode->addField(pDoc, "kern", m_kernels.serialize(pDoc));
+	pNode->addField(pDoc, "delt", m_delta.serialize(pDoc));
+	pNode->addField(pDoc, "act", m_activation.serialize(pDoc));
+	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
+	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
+	return pNode;
 }
 
 // virtual

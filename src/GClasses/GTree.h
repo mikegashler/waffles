@@ -342,8 +342,7 @@ public:
 	GRelationalRow(const T& k, size_t columnCount) : row(k)
 	{
 		el = new GRelationalElement<T>[columnCount];
-		for(size_t i = 0; i < columnCount; i++)
-			el[i].isolate();
+		isolate(columnCount);
 	}
 
 	~GRelationalRow()
@@ -351,6 +350,12 @@ public:
 		delete(el[0].left);
 		delete(el[0].right);
 		delete[] el;
+	}
+
+	void isolate(size_t cols)
+	{
+		for(size_t i = 0; i < cols; i++)
+			el[i].isolate();
 	}
 
 	void recount(size_t c)
@@ -615,7 +620,7 @@ public:
 		else
 		{
 			for(size_t i = 0; i < comp.cols(); i++)
-			roots[i] = spare;
+				roots[i] = spare;
 		}
 		spare = NULL;
 	}
@@ -685,6 +690,9 @@ public:
 	{
 		for(size_t i = 0; i < comp.cols(); i++)
 			roots[i] = row->remove(i, comp);
+		delete(spare);
+		spare = row;
+		spare->isolate(comp.cols());
 	}
 };
 
