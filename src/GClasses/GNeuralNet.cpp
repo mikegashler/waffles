@@ -1631,8 +1631,15 @@ m_bias(2, inputChannels * kernelsPerChannel)
 }
 
 GLayerConvolutional1D::GLayerConvolutional1D(GDomNode* pNode)
+: m_inputSamples(pNode->field("isam")->asInt()),
+m_inputChannels(pNode->field("ichan")->asInt()),
+m_outputSamples(pNode->field("osam")->asInt()),
+m_kernelsPerChannel(pNode->field("kpc")->asInt()),
+m_kernels(pNode->field("kern")),
+m_delta(pNode->field("delt")),
+m_activation(pNode->field("act")),
+m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
 {
-	throw Ex("Sorry, not implemented yet");
 }
 
 GLayerConvolutional1D::~GLayerConvolutional1D()
@@ -1642,7 +1649,17 @@ GLayerConvolutional1D::~GLayerConvolutional1D()
 // virtual
 GDomNode* GLayerConvolutional1D::serialize(GDom* pDoc)
 {
-	throw Ex("Sorry, not implemented yet");
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "isam", pDoc->newInt(m_inputSamples));
+	pNode->addField(pDoc, "ichan", pDoc->newInt(m_inputChannels));
+	pNode->addField(pDoc, "osam", pDoc->newInt(m_outputSamples));
+	pNode->addField(pDoc, "kpc", pDoc->newInt(m_kernelsPerChannel));
+	pNode->addField(pDoc, "kern", m_kernels.serialize(pDoc));
+	pNode->addField(pDoc, "delt", m_delta.serialize(pDoc));
+	pNode->addField(pDoc, "act", m_activation.serialize(pDoc));
+	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
+	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
+	return pNode;
 }
 
 // virtual
@@ -1999,8 +2016,18 @@ m_bias(2, m_kernelCount)
 }
 
 GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
+: m_inputCols(pNode->field("icol")->asInt()),
+m_inputRows(pNode->field("irow")->asInt()),
+m_inputChannels(pNode->field("ichan")->asInt()),
+m_outputCols(pNode->field("ocol")->asInt()),
+m_outputRows(pNode->field("orow")->asInt()),
+m_kernelsPerChannel(pNode->field("kpc")->asInt()),
+m_kernelCount(m_inputChannels * m_kernelsPerChannel),
+m_kernels(pNode->field("kern")),
+m_delta(pNode->field("delt")),
+m_activation(pNode->field("act")),
+m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
 {
-	throw Ex("Sorry, not implemented yet");
 }
 
 GLayerConvolutional2D::~GLayerConvolutional2D()
@@ -2017,7 +2044,6 @@ GDomNode* GLayerConvolutional2D::serialize(GDom* pDoc)
 	pNode->addField(pDoc, "ocol", pDoc->newInt(m_outputCols));
 	pNode->addField(pDoc, "orow", pDoc->newInt(m_outputRows));
 	pNode->addField(pDoc, "kpc", pDoc->newInt(m_kernelsPerChannel));
-	pNode->addField(pDoc, "kc", pDoc->newInt(m_kernelCount));
 	pNode->addField(pDoc, "kern", m_kernels.serialize(pDoc));
 	pNode->addField(pDoc, "delt", m_delta.serialize(pDoc));
 	pNode->addField(pDoc, "act", m_activation.serialize(pDoc));
