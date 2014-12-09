@@ -221,6 +221,10 @@ public:
 	virtual double squash(double x)
 	{
 		//return tanh(x);
+		if(x >= 700.0)
+			return 1.0;
+		if(x < -700.0)
+			return -1.0;
 		double a = exp(x);
 		double b = 1.0 / a;
 		return (a - b) / (a + b);
@@ -229,6 +233,10 @@ public:
 	/// Returns sech(x)*sech(x)
 	virtual double derivative(double x)
 	{
+		if(x >= 700.0)
+			return 1.0;
+		if(x < -700.0)
+			return 0.0;
 		double a = exp(x);
 		double b = 1.0 / a;
 		double d = 2.0 / (a + b); // sech(x)

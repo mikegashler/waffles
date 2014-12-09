@@ -104,7 +104,7 @@ template <typename T>
 class GSimplePriorityQueue
 {
 protected:
-	std::vector<T*> m_objects;
+	std::vector<T> m_objects;
 	std::vector<double> m_values;
 
 public:
@@ -116,9 +116,9 @@ public:
 	{
 	}
 
-	void insert(T* pObject, double value)
+	void insert(T obj, double value)
 	{
-		m_objects.push_back(pObject);
+		m_objects.push_back(obj);
 		m_values.push_back(value);
 		size_t heapPos = m_objects.size();
 		while(heapPos > 1 && m_values[heapPos - 1] < m_values[heapPos / 2 - 1])
@@ -129,7 +129,7 @@ public:
 		}
 	}
 
-	T* peekObject()
+	T peekObject()
 	{
 		return m_objects[0];
 	}
