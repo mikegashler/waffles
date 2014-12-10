@@ -1586,7 +1586,7 @@ GBallNode* GBallTree::buildTree(size_t count, size_t* pIndexes)
 void GBallTree::findNeighbors(size_t* pOutNeighbors, double* pOutDistances, const double* pInputVector, size_t nExclude)
 {
 	GClosestNeighborFindingHelper helper(m_neighborCount, pOutNeighbors, pOutDistances);
-	GSimplePriorityQueue<GBallNode> q;
+	GSimplePriorityQueue<GBallNode*> q;
 	q.insert(m_pRoot, m_pRoot->distance(m_pMetric, pInputVector));
 	while(q.size() > 0)
 	{
