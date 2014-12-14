@@ -489,7 +489,7 @@ double GMath::functionInverse(double (*func)(const double* params, double x), co
 		double xCand = (y - y1) * std::max(-8.0, std::min(8.0, (x2 - x1) / denom)) + x1;
 		double yCand = func(params, xCand);
 		double delta = std::abs(y - yCand);
-		if(delta < epsilon || delta >= prevDelta || isnan(delta))
+		if(delta < epsilon || delta >= prevDelta || std::isnan(delta))
 			return xCand;
 		prevDelta = delta;
 		if(std::abs(y - y1) < std::abs(y - y2))
