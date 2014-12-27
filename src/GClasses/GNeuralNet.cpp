@@ -145,19 +145,33 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, 
 	m_weights.resizePreserve(inputCount, outputCount);
 	m_delta.resizePreserve(inputCount, outputCount);
 	m_delta.setAll(0.0);
+	double dev = deviation;
 	if(pRand)
 	{
+		if(fewerInputs * fewerOutputs >= 8)
+		{
+			double d = 0.0;
+			for(size_t i = 0; i < fewerInputs; i++)
+			{
+				double* pRow = m_weights[i];
+				for(size_t j = 0; j < fewerOutputs; j++)
+					d += (*pRow) * (*pRow);
+			}
+			dev *= sqrt(d / (fewerInputs * fewerOutputs));
+			if(inputCount * outputCount - fewerInputs * fewerOutputs > fewerInputs * fewerOutputs)
+				dev *= fewerInputs * fewerOutputs / (inputCount * outputCount - fewerInputs * fewerOutputs);
+		}
 		for(size_t i = 0; i < fewerInputs; i++)
 		{
 			double* pRow = m_weights[i] + fewerOutputs;
 			for(size_t j = fewerOutputs; j < outputCount; j++)
-				*(pRow++) = deviation * pRand->normal();
+				*(pRow++) = dev * pRand->normal();
 		}
 		for(size_t i = fewerInputs; i < inputCount; i++)
 		{
 			double* pRow = m_weights[i];
 			for(size_t j = 0; j < outputCount; j++)
-				*(pRow++) = deviation * pRand->normal();
+				*(pRow++) = dev * pRand->normal();
 		}
 	}
 
@@ -168,7 +182,7 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, 
 	{
 		double* pB = bias() + fewerOutputs;
 		for(size_t j = fewerOutputs; j < outputCount; j++)
-			*(pB++) = deviation * pRand->normal();
+			*(pB++) = dev * pRand->normal();
 	}
 
 	// Slack
