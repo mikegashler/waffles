@@ -218,12 +218,28 @@ public:
 	virtual const char* name() const { return "tanh"; }
 
 	/// Returns tanh(x). The result is in the range -1 <= y <= 1
-	virtual double squash(double x) { return tanh(x); }
+	virtual double squash(double x)
+	{
+		//return tanh(x);
+		if(x >= 700.0)
+			return 1.0;
+		if(x < -700.0)
+			return -1.0;
+		double a = exp(x);
+		double b = 1.0 / a;
+		return (a - b) / (a + b);
+	}
 
 	/// Returns sech(x)*sech(x)
 	virtual double derivative(double x)
 	{
-		double d = 2.0 / (exp(x) + exp(-x)); // sech(x)
+		if(x >= 700.0)
+			return 1.0;
+		if(x < -700.0)
+			return 0.0;
+		double a = exp(x);
+		double b = 1.0 / a;
+		double d = 2.0 / (a + b); // sech(x)
 		return d * d;
 	}
 

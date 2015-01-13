@@ -2048,7 +2048,8 @@ void manifold(GArgReader& args)
 	string expr;
 	while(args.size() > 0)
 		expr += args.pop_string();
-	GFunctionParser mfp(expr.c_str());
+	GFunctionParser mfp;
+	mfp.add(expr.c_str());
 
 	// Parse the equations
 	vector<GFunction*> funcs;
@@ -2088,7 +2089,7 @@ void manifold(GArgReader& args)
 			params[j] = prng.uniform();
 		double* pRow = data[i];
 		for(size_t j = 0; j < funcs.size(); j++)
-			pRow[j] = funcs[j]->call(params);
+			pRow[j] = funcs[j]->call(params, mfp);
 		pRow[funcs.size()] = params[0];
 	}
 
@@ -2110,7 +2111,8 @@ void mapEquations(GArgReader& args)
 	string expr;
 	while(args.size() > 0)
 		expr += args.pop_string();
-	GFunctionParser mfp(expr.c_str());
+	GFunctionParser mfp;
+	mfp.add(expr.c_str());
 
 	// Parse the equations
 	vector<GFunction*> funcs;
@@ -2144,7 +2146,7 @@ void mapEquations(GArgReader& args)
 		for(size_t j = 0; j < dims; j++)
 			params[j] = pIn[j];
 		for(size_t j = 0; j < funcs.size(); j++)
-			pOut[j] = funcs[j]->call(params);
+			pOut[j] = funcs[j]->call(params, mfp);
 	}
 
 	// Print results

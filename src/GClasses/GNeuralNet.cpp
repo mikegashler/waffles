@@ -145,19 +145,33 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, 
 	m_weights.resizePreserve(inputCount, outputCount);
 	m_delta.resizePreserve(inputCount, outputCount);
 	m_delta.setAll(0.0);
+	double dev = deviation;
 	if(pRand)
 	{
+		if(fewerInputs * fewerOutputs >= 8)
+		{
+			double d = 0.0;
+			for(size_t i = 0; i < fewerInputs; i++)
+			{
+				double* pRow = m_weights[i];
+				for(size_t j = 0; j < fewerOutputs; j++)
+					d += (*pRow) * (*pRow);
+			}
+			dev *= sqrt(d / (fewerInputs * fewerOutputs));
+			if(inputCount * outputCount - fewerInputs * fewerOutputs > fewerInputs * fewerOutputs)
+				dev *= fewerInputs * fewerOutputs / (inputCount * outputCount - fewerInputs * fewerOutputs);
+		}
 		for(size_t i = 0; i < fewerInputs; i++)
 		{
 			double* pRow = m_weights[i] + fewerOutputs;
 			for(size_t j = fewerOutputs; j < outputCount; j++)
-				*(pRow++) = deviation * pRand->normal();
+				*(pRow++) = dev * pRand->normal();
 		}
 		for(size_t i = fewerInputs; i < inputCount; i++)
 		{
 			double* pRow = m_weights[i];
 			for(size_t j = 0; j < outputCount; j++)
-				*(pRow++) = deviation * pRand->normal();
+				*(pRow++) = dev * pRand->normal();
 		}
 	}
 
@@ -168,7 +182,7 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, 
 	{
 		double* pB = bias() + fewerOutputs;
 		for(size_t j = fewerOutputs; j < outputCount; j++)
-			*(pB++) = deviation * pRand->normal();
+			*(pB++) = dev * pRand->normal();
 	}
 
 	// Slack
@@ -502,13 +516,13 @@ void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 		GVec::multiply(bias(), factor, outputCount);
 }
 
-void GLayerClassic::diminishWeights(double amount, bool diminishBiases)
+void GLayerClassic::diminishWeights(double amount, bool regularizeBiases)
 {
 	size_t outputCount = outputs();
 	for(size_t i = 0; i < m_weights.rows(); i++)
-		GVec::diminish(m_weights[i], amount, outputCount);
-	if(diminishBiases)
-		GVec::diminish(bias(), amount, outputCount);
+		GVec::regularize_1(m_weights[i], amount, outputCount);
+	if(regularizeBiases)
+		GVec::regularize_1(bias(), amount, outputCount);
 }
 
 void GLayerClassic::contractWeights(double factor, bool contractBiases)
@@ -1491,9 +1505,9 @@ void GLayerRestrictedBoltzmannMachine::diminishWeights(double amount, bool dimin
 {
 	size_t inputCount = outputs();
 	for(size_t i = 0; i < m_weights.rows(); i++)
-		GVec::diminish(m_weights[i], amount, inputCount);
+		GVec::regularize_1(m_weights[i], amount, inputCount);
 	if(diminishBiases)
-		GVec::diminish(bias(), amount, outputs());
+		GVec::regularize_1(bias(), amount, outputs());
 }
 
 // virtual
@@ -1631,8 +1645,15 @@ m_bias(2, inputChannels * kernelsPerChannel)
 }
 
 GLayerConvolutional1D::GLayerConvolutional1D(GDomNode* pNode)
+: m_inputSamples(pNode->field("isam")->asInt()),
+m_inputChannels(pNode->field("ichan")->asInt()),
+m_outputSamples(pNode->field("osam")->asInt()),
+m_kernelsPerChannel(pNode->field("kpc")->asInt()),
+m_kernels(pNode->field("kern")),
+m_delta(pNode->field("delt")),
+m_activation(pNode->field("act")),
+m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
 {
-	throw Ex("Sorry, not implemented yet");
 }
 
 GLayerConvolutional1D::~GLayerConvolutional1D()
@@ -1642,7 +1663,17 @@ GLayerConvolutional1D::~GLayerConvolutional1D()
 // virtual
 GDomNode* GLayerConvolutional1D::serialize(GDom* pDoc)
 {
-	throw Ex("Sorry, not implemented yet");
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "isam", pDoc->newInt(m_inputSamples));
+	pNode->addField(pDoc, "ichan", pDoc->newInt(m_inputChannels));
+	pNode->addField(pDoc, "osam", pDoc->newInt(m_outputSamples));
+	pNode->addField(pDoc, "kpc", pDoc->newInt(m_kernelsPerChannel));
+	pNode->addField(pDoc, "kern", m_kernels.serialize(pDoc));
+	pNode->addField(pDoc, "delt", m_delta.serialize(pDoc));
+	pNode->addField(pDoc, "act", m_activation.serialize(pDoc));
+	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
+	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
+	return pNode;
 }
 
 // virtual
@@ -1868,9 +1899,9 @@ void GLayerConvolutional1D::diminishWeights(double amount, bool diminishBiases)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-		GVec::diminish(m_kernels[i], amount, kernelSize);
+		GVec::regularize_1(m_kernels[i], amount, kernelSize);
 	if(diminishBiases)
-		GVec::diminish(bias(), amount, m_kernels.rows());
+		GVec::regularize_1(bias(), amount, m_kernels.rows());
 }
 
 // virtual
@@ -1999,8 +2030,18 @@ m_bias(2, m_kernelCount)
 }
 
 GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
+: m_inputCols(pNode->field("icol")->asInt()),
+m_inputRows(pNode->field("irow")->asInt()),
+m_inputChannels(pNode->field("ichan")->asInt()),
+m_outputCols(pNode->field("ocol")->asInt()),
+m_outputRows(pNode->field("orow")->asInt()),
+m_kernelsPerChannel(pNode->field("kpc")->asInt()),
+m_kernelCount(m_inputChannels * m_kernelsPerChannel),
+m_kernels(pNode->field("kern")),
+m_delta(pNode->field("delt")),
+m_activation(pNode->field("act")),
+m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
 {
-	throw Ex("Sorry, not implemented yet");
 }
 
 GLayerConvolutional2D::~GLayerConvolutional2D()
@@ -2010,7 +2051,19 @@ GLayerConvolutional2D::~GLayerConvolutional2D()
 // virtual
 GDomNode* GLayerConvolutional2D::serialize(GDom* pDoc)
 {
-	throw Ex("Sorry, not implemented yet");
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "icol", pDoc->newInt(m_inputCols));
+	pNode->addField(pDoc, "irow", pDoc->newInt(m_inputRows));
+	pNode->addField(pDoc, "ichan", pDoc->newInt(m_inputChannels));
+	pNode->addField(pDoc, "ocol", pDoc->newInt(m_outputCols));
+	pNode->addField(pDoc, "orow", pDoc->newInt(m_outputRows));
+	pNode->addField(pDoc, "kpc", pDoc->newInt(m_kernelsPerChannel));
+	pNode->addField(pDoc, "kern", m_kernels.serialize(pDoc));
+	pNode->addField(pDoc, "delt", m_delta.serialize(pDoc));
+	pNode->addField(pDoc, "act", m_activation.serialize(pDoc));
+	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
+	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
+	return pNode;
 }
 
 // virtual
@@ -2261,9 +2314,9 @@ void GLayerConvolutional2D::diminishWeights(double amount, bool diminishBiases)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-		GVec::diminish(m_kernels[i], amount, kernelSize);
+		GVec::regularize_1(m_kernels[i], amount, kernelSize);
 	if(diminishBiases)
-		GVec::diminish(bias(), amount, m_kernelCount);
+		GVec::regularize_1(bias(), amount, m_kernelCount);
 }
 
 // virtual
@@ -2581,9 +2634,15 @@ void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
 		if(m_layers[position - 1]->outputs() != pLayer->inputs())
 		{
 			if(pLayer->inputs() == FLEXIBLE_SIZE)
+			{
+				if(m_layers[position - 1]->outputs() == FLEXIBLE_SIZE)
+					throw Ex("Two FLEXIBLE_SIZE ends cannot be connected");
 				pLayer->resize(m_layers[position - 1]->outputs(), pLayer->outputs());
-			else
+			}
+			else if(m_layers[position - 1]->outputs() == FLEXIBLE_SIZE)
 				m_layers[position - 1]->resize(m_layers[position - 1]->inputs(), pLayer->inputs());
+			else
+				throw Ex("Mismatching layers. The previous layer outputs ", to_str(m_layers[position - 1]->outputs()), " values. The added layer inputs ", to_str(pLayer->inputs()));
 		}
 	}
 	if(position < m_layers.size())
@@ -2591,9 +2650,15 @@ void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
 		if(m_layers[position]->inputs() != pLayer->outputs())
 		{
 			if(pLayer->outputs() == FLEXIBLE_SIZE)
+			{
+				if(m_layers[position]->inputs() == FLEXIBLE_SIZE)
+					throw Ex("Two FLEXIBLE_SIZE ends cannot be connected");
 				pLayer->resize(pLayer->inputs(), m_layers[position]->inputs());
-			else
+			}
+			else if(m_layers[position]->inputs() == FLEXIBLE_SIZE)
 				m_layers[position]->resize(pLayer->outputs(), m_layers[position]->outputs());
+			else
+				throw Ex("Mismatching layers. The next layer inputs ", to_str(m_layers[position]->inputs()), " values. The added layer outputs ", to_str(pLayer->outputs()));
 		}
 	}
 	m_layers.insert(m_layers.begin() + position, pLayer);
@@ -4239,7 +4304,7 @@ GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 void GReservoirNet::test()
 {
 	GAutoFilter af(new GReservoirNet());
-	af.basicTest(0.7, 0.801, 0.001, false, 0.9);
+	af.basicTest(0.7, 0.74, 0.001, false, 0.9);
 }
 #endif // MIN_PREDICT
 

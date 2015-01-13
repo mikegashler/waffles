@@ -67,7 +67,6 @@ using std::pair;
 using std::make_pair;
 using std::multimap;
 
-class ViewFile;
 class View;
 class Account;
 class ViewStats;
@@ -269,29 +268,20 @@ public:
 	}
 };
 
-
 class Server : public GDynamicPageServer
 {
 protected:
-	std::string m_basePath;
-	View* m_pViewSurvey;
-	ViewStats* m_pViewStats;
-	View* m_pViewSubmit;
-	View* m_pViewUpdate;
-	View* m_pViewAdmin;
-	View* m_pViewLogin;
-	View* m_pViewNewAccount;
-
 	std::vector<Topic*> m_topics;
 	std::map<std::string,Account*> m_accountsMap;
 	std::vector<Account*> m_accountsVec;
 
 public:
+	std::string m_basePath;
+
 	Server(int port, GRand* pRand);
 	virtual ~Server();
 	void loadState();
 	void saveState();
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
 	void getStatePath(char* buf);
 	virtual void onEverySixHours();
 	virtual void onStateChange();
@@ -310,6 +300,8 @@ public:
 	void trainModel(size_t topic, size_t iters);
 	void trainPersonality(Account* pAccount, size_t iters);
 	std::vector<Account*>& accounts() { return m_accountsVec; }
+
+	virtual GDynamicPageConnection* makeConnection(SOCKET sock);
 };
 
 class Ratings
@@ -548,7 +540,7 @@ public:
 
 	void updateRating(size_t topic, size_t itemId, float rating)
 	{
-		GAssert(rating >= 0.0f && rating <= 1.0f);
+		GAssert(rating >= -1.0f && rating <= 1.0f);
 		if(topic >= m_ratings.size())
 			m_ratings.resize(topic + 1);
 		m_ratings[topic].updateRating(itemId, rating);
@@ -604,447 +596,6 @@ Account* getAccount(GDynamicPageSession* pSession)
 	return pAccount;
 }
 
-void makeHeader(GDynamicPageSession* pSession, ostream& response)
-{
-	Account* pAccount = getAccount(pSession);
-	response << "<html><head>\n";
-	response << "	<title>Community Modeler</title>\n";
-	response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/style/style.css\" />\n";
-	response << "</head><body><div id=\"wholepage\">\n";
-	response << "\n\n\n\n\n<!-- Header Area --><div id=\"header\">\n";
-	response << "	Community Modeler\n";
-	response << "</div>\n\n\n\n\n<!-- Left Bar Area --><div id=\"sidebar\">\n";
-	response << "	<center>";//<img src=\"style/logo.png\"><br>\n";
-	bool loggedin = false;
-	if(pAccount)
-	{
-		response << "Welcome, ";
-		const char* szUsername = pAccount->username();
-		if(*szUsername == '_')
-			response << "anonymous";
-		else
-		{
-			response << szUsername;
-			loggedin = true;
-		}
-		response << ".<br><br>\n";
-	}
-	response << "	</center>\n";
-	if(loggedin)
-		response << "	<a href=\"/login?action=logout\">log out</a><br>\n";
-	response << "	<a href=\"/survey?nc=" << to_str((size_t)pSession->server()->prng()->next()) << "\">Survey</a><br>\n";
-//	response << "	<a href=\"/login\">Switch user</a><br>\n";
-//	response << "	<a href=\"/main.hbody\">Overview</a><br>\n";
-	response << "	<a href=\"/admin\">Options</a><br>\n";
-	response << "	<br><br><br>\n";
-	response << "</div>\n\n\n\n\n<!-- Main Body Area --><div id=\"mainbody\">\n";
-}
-
-void makeFooter(GDynamicPageSession* pSession, ostream& response)
-{
-	response << "</div>\n\n\n\n\n<!-- Footer Area --><div id=\"footer\">\n";
-//	response << "	The contents of this page are distributed under the <a href=\"http://creativecommons.org/publicdomain/zero/1.0/\">CC0 license</a>. <img src=\"http://i.creativecommons.org/l/zero/1.0/80x15.png\" border=\"0\" alt=\"CC0\" />\n";
-	response << "<br>";
-	response << "</div>\n\n\n\n\n";
-	response << "</div></body></html>\n";
-}
-
-class View
-{
-protected:
-	Server* m_pServer;
-
-public:
-	View(Server* pServer) : m_pServer(pServer) {}
-	virtual ~View() {}
-
-	virtual void makePage(GDynamicPageSession* pSession, ostream& response)
-	{
-		makeHeader(pSession, response);
-		makeBody(pSession, response);
-		makeFooter(pSession, response);
-	}
-
-	virtual void makeBody(GDynamicPageSession* pSession, ostream& response) = 0;
-
-	void makeUrlSlider(Account* pAccount, size_t itemId, ostream& response)
-	{
-		// Compute the rating (or predicted rating if this item has not been rated)
-		size_t currentTopic = pAccount->currentTopic();
-		Topic* pCurrentTopic = m_pServer->topics()[currentTopic];
-		Item& item = pCurrentTopic->item(itemId);
-		float score;
-		if(!pAccount->getRating(currentTopic, itemId, &score))
-			score = pAccount->predictRating(item);
-		score = 0.1 * floor(score * 1000);
-
-		// Display the slider
-		response << "<table cellpadding=0 cellspacing=0><tr><td width=430>\n	";
-// uncomment the next line to always display the predicted score in brackets
-//response << "[" << 0.1 * floor(pAccount->predictRating(item) * 1000) << "] ";
-		response << item.title();
-		response << "\n";
-		response << "</td><td>\n";
-		response << "	<input type=checkbox name=\"check_slider" << itemId << "\" id=\"check_slider" << itemId << "\">\n";
-		response << "	<input name=\"slider" << itemId << "\" id=\"slider" << itemId << "\" type=\"Text\" size=\"3\">\n";
-		response << "</td><td>\n";
-		response << "<script language=\"JavaScript\">\n";
-		response << "	var A_INIT1 = { 's_checkname': 'check_slider" << itemId << "', 's_name': 'slider" << itemId << "', 'n_minValue' : 0, 'n_maxValue' : 100, 'n_value' : " << score << ", 'n_step' : 0.1 }\n";
-		response << "	new slider(A_INIT1, A_TPL);\n";
-		response << "</script>\n";
-		response << "</td></tr></table>\n";
-	}
-};
-
-
-// ------------------------------------------------------
-
-class ViewSurvey : public View
-{
-public:
-	ViewSurvey(Server* pServer) : View(pServer) {}
-	virtual ~ViewSurvey() {}
-
-	void makeLoginBody(GDynamicPageSession* pSession, ostream& response, Account* pAccount)
-	{
-		if(pSession->paramsLen() >= 0)
-		{
-			// Check the password
-			GHttpParamParser params(pSession->params());
-			const char* szUsername = params.find("username");
-			const char* szPasswordHash = params.find("password");
-			if(szUsername)
-			{
-				Account* pNewAccount = m_pServer->loadAccount(szUsername, szPasswordHash);
-				if(pNewAccount)
-				{
-					string s;
-					if(pAccount)
-					{
-						if(strlen(pAccount->afterLoginUrl()) > 0)
-							s = pAccount->afterLoginUrl();
-						if(strlen(pAccount->afterLoginParams()) > 0)
-						{
-							s += "?";
-							s += pAccount->afterLoginParams();
-						}
-						if(s.length() < 1)
-						{
-							s = "/survey?nc=";
-							s += to_str((size_t)m_pServer->prng()->next());
-						}
-					}
-					else
-					{
-						s = "/survey?nc=";
-						s += to_str((size_t)m_pServer->prng()->next());
-					}
-
-					// Log in with the new account
-					pSession->setExtension(pNewAccount);
-					m_pServer->redirect(response, s.c_str());
-				}
-				else
-					response << "<big><big>Incorrect Password! Please try again</big></big><br><br>\n";
-			}
-		}
-
-		response << "<br><br>\n";
-		response << "<SCRIPT language=\"JavaScript\" src=\"/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
-		response << "Please log in:<br><br>\n";
-		response << "<form name=\"loginform\" action=\"/login\" method=\"get\" onsubmit=\"return HashPassword('";
-		response << m_pServer->passwordSalt();
-		response << "')\">\n";
-		response << "	Username:<input type=\"text\" name=\"username\" ><br>\n";
-		response << "	Password:<input type=\"password\" name=\"password\" ><br>\n";
-		response << "	<input type=\"submit\" value=\"Log In\">\n";
-		response << "</form><br>\n\n";
-
-		response << "or <a href=\"/newaccount\">create a new account</a><br><br><br>\n";
-	}
-
-	virtual void makeBody(GDynamicPageSession* pSession, ostream& response)
-	{
-		// Check whether the user is logged in
-		Account* pAccount = getAccount(pSession);
-		if(!pAccount)
-		{
-			makeLoginBody(pSession, response, pAccount);
-			return;
-		}
-		const char* szUsername = pAccount->username();
-		if(*szUsername == '_')
-		{
-			makeLoginBody(pSession, response, pAccount);
-			return;
-		}
-
-		size_t currentTopic = pAccount->currentTopic();
-		if(pSession->paramsLen() > 0)
-		{
-			// Get the topic
-			GHttpParamParser params(pSession->params());
-			const char* szTopic = params.find("topic");
-			if(szTopic)
-			{
-				vector<Topic*>& topics = m_pServer->topics();
-#ifdef WINDOWS
-				size_t i = (size_t)_strtoui64(szTopic, NULL, 10);
-#else
-				size_t i = (size_t)strtoull(szTopic, NULL, 10);
-#endif
-				if(i < topics.size())
-					pAccount->setCurrentTopic(i);
-				else
-					pAccount->setCurrentTopic((size_t)-1);
-				currentTopic = pAccount->currentTopic();
-			}
-
-			// Check for topic proposals
-			const char* szProposal = NULL;
-			if(pAccount->doesHavePassword())
-				szProposal = params.find("proposal");
-			if(szProposal)
-				m_pServer->proposeTopic(pAccount, szProposal);
-
-			// Do the action
-			if(currentTopic < m_pServer->topics().size())
-			{
-				const char* szAction = params.find("action");
-				if(!szAction)
-				{
-				}
-				else if(_stricmp(szAction, "add") == 0)
-				{
-					const char* szTitle = params.find("title");
-					if(!szTitle)
-						response << "[invalid params]<br>\n";
-					else
-					{
-						m_pServer->addItem(currentTopic, szTitle, pAccount->username());
-						response << "[The new statement has been added. Thank you.]<br>\n";
-						cout << "added " << szTitle << "\n";
-						m_pServer->saveState();
-					}
-				}
-				else if(_stricmp(szAction, "rate") == 0)
-				{
-					// Make an set of all the checked ids
-					set<size_t> checks;
-					map<const char*, const char*, strComp>& paramMap = params.map();
-					for(map<const char*, const char*, strComp>::iterator it = paramMap.begin(); it != paramMap.end(); it++)
-					{
-						const char* szName = it->first;
-						if(_strnicmp(szName, "check_slider", 12) == 0)
-						{
-#ifdef WINDOWS
-							size_t itemId = (size_t)_strtoui64(szName + 12, NULL, 10);
-#else
-							size_t itemId = (size_t)strtoull(szName + 12, NULL, 10);
-#endif
-							checks.insert(itemId);
-						}
-					}
-
-					// find the corresponding scores for each topic id, and add the rating
-					for(map<const char*, const char*, strComp>::iterator it = paramMap.begin(); it != paramMap.end(); it++)
-					{
-						const char* szName = it->first;
-						if(_strnicmp(szName, "slider", 6) == 0)
-						{
-#ifdef WINDOWS
-							size_t itemId = (size_t)_strtoui64(szName + 6, NULL, 10);
-#else
-							size_t itemId = (size_t)strtoull(szName + 6, NULL, 10);
-#endif
-							if(itemId < 0 && itemId >= m_pServer->topics().size())
-							{
-								response << "[statement id " << itemId << " out of range.]<br>\n";
-								continue;
-							}
-							set<size_t>::iterator tmp = checks.find(itemId);
-							if(tmp != checks.end())
-							{
-								float score = (float)atof(it->second);
-								if(score >= 0.0f && score <= 100.0f)
-								{
-									pAccount->updateRating(currentTopic, itemId, 0.01 * score);
-									response << "[Rating recorded. Thank you.]<br>\n";
-								}
-								else
-									response << "[the rating of " << score << " is out of range.]<br>\n";
-							}
-						}
-					}
-
-					// Do some training
-					m_pServer->trainPersonality(pAccount, ON_RATE_TRAINING_ITERS);
-					m_pServer->trainModel(currentTopic, ON_RATE_TRAINING_ITERS);
-					m_pServer->saveState();
-				}
-			}
-		}
-
-		if(currentTopic < m_pServer->topics().size()) // if a topic has been selected...
-		{
-			Topic* pCurrentTopic = m_pServer->topics()[currentTopic];
-			
-			// The slider-bar script
-			response << "<script language=\"JavaScript\" src=\"style/slider.js\"></script>\n";
-			response << "<script language=\"JavaScript\">\n";
-			response << "	var A_TPL = { 'b_vertical' : false, 'b_watch': true, 'n_controlWidth': 321, 'n_controlHeight': 22, 'n_sliderWidth': 19, 'n_sliderHeight': 20, 'n_pathLeft' : 1, 'n_pathTop' : 1, 'n_pathLength' : 300, 's_imgControl': 'style/slider_bg.png', 's_imgSlider': 'style/slider_tab.png', 'n_zIndex': 1 }\n";
-			response << "</script>\n";
-
-			// Display the topic
-			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
-			response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
-			response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
-			response << "	<input type=\"hidden\" name=\"nc\" value=\"" << to_str((size_t)m_pServer->prng()->next()) << "\" />\n";
-
-			// Random picks
-			size_t* pIndexes = new size_t[pCurrentTopic->size()];
-			Holder<size_t> hIndexes(pIndexes);
-			GIndexVec::makeIndexVec(pIndexes, pCurrentTopic->size());
-			GIndexVec::shuffle(pIndexes, pCurrentTopic->size(), m_pServer->prng());
-			size_t sliderCount = 0;
-			for(size_t i = 0; i < pCurrentTopic->size(); i++)
-			{
-				if(sliderCount >= 8)
-					break;
-				size_t itemId = pIndexes[i];
-				float rating;
-				if(pAccount->getRating(currentTopic, itemId, &rating))
-					continue;
-				if(sliderCount == 0)
-				{
-					response << "<h3>A few statements for your evaluation:</h3>\n";
-					response << "<p>It is okay to skip statements you find ambiguous, invasive, or uninteresting. Responding implies that you find the statement comprehensible and somewhat interesting. For your convenience, the sliders have been set to reflect predictions of your opinions. As you express more opinions, these predictions should improve.</p>\n";
-				}
-				makeUrlSlider(pAccount, itemId, response);
-				sliderCount++;
-			}
-
-			// The update ratings button
-			if(sliderCount > 0)
-			{
-				response << "<br><table><tr><td width=330></td><td>";
-				response << "<input type=\"submit\" value=\"Update opinions\">";
-				response << "</td></tr><tr><td></td><td>";
-				response << "(Only checked items will be updated.)";
-				response << "</td></tr></table>\n";
-			}
-			else
-			{
-				response << "Thank you. You have expressed your opinion about all ";
-				response << to_str(pCurrentTopic->size());
-				response << " survey statements in this topic.<br><br>\n";
-			}
-
-			response << "</form><br><br>\n\n";
-
-			// The choices links at the bottom of the page
-			response << "<a href=\"/submit\">Submit a new statement</a>";
-			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/survey?topic=-1&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Change topic</a>\n";
-			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/update\">My opinions</a>\n";
-			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
-
-/*
-			response << "Stats:<br>\n";
-			response << "Total Number of users: " << m_pServer->accounts().size() << "<br>\n";
-			response << "Number of items in this topic: " << pCurrentTopic->size() << "<br>\n";
-			std::map<size_t, float>* pMap = currentTopic < pAccount->ratings().size() ? pAccount->ratings()[currentTopic] : NULL;
-			response << "Number of items you have rated in this topic: " << (pMap ? pMap->size() : (size_t)0) << "<br>\n<br>\n";
-*/
-		}
-		else
-		{
-			vector<Topic*>& topics = m_pServer->topics();
-			response << "<h3>Choose a topic:</h3>\n";
-			if(topics.size() > 0)
-			{
-				response << "<ul>\n";
-				size_t i = 0;
-				for(vector<Topic*>::iterator it = topics.begin(); it != topics.end(); it++)
-				{
-					response << "	<li><a href=\"/survey?topic=" << i << "&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << (*it)->descr() << "</a></li>\n";
-					i++;
-				}
-				response << "</ul><br><br><br>\n";
-			}
-			else
-			{
-				response << "There are currently no topics. Please ";
-				if(_stricmp(pAccount->username(), "root") != 0)
-					response << "ask the administrator to ";
-				response << "go to the <a href=\"/admin\">admin</a> page and add at least one topic.<br><br><br>";
-			}
-			response << "<br><br>\n";
-/*
-			// Make the form to propose new topics
-			if(pAccount->doesHavePassword() && _stricmp(pAccount->username(), "root") != 0)
-			{
-				response << "<form name=\"propose\" action=\"/survey\" method=\"get\">\n";
-				response << "	<h3>Propose a new topic:</h3>\n";
-				response << "	<input type=\"text\" name=\"proposal\" size=\"55\"><input type=\"submit\" value=\"Submit\"><br>\n";
-				response << "	(Your proposed topic will be added to a log file. Hopefully, someone actually reads the log file.)\n";
-				response << "</form><br>\n\n";
-			}
-*/
-		}
-	}
-};
-
-// ------------------------------------------------------
-
-class ViewSubmit : public View
-{
-public:
-	ViewSubmit(Server* pServer) : View(pServer) {}
-	virtual ~ViewSubmit() {}
-
-	virtual void makeBody(GDynamicPageSession* pSession, ostream& response)
-	{
-		Account* pAccount = getAccount(pSession);
-		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= m_pServer->topics().size())
-		{
-			string s = "/survey?nc=";
-			s += to_str((size_t)m_pServer->prng()->next());
-			m_pServer->redirect(response, s.c_str());
-		}
-		else
-		{
-			// Display the topic
-			Topic* pCurrentTopic = m_pServer->topics()[currentTopic];
-			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
-
-			// Make the form to submit a new item
-			response << "<h3>Submit a new statement to this topic</h3>\n";
-			response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
-			response << "	<input type=\"hidden\" name=\"action\" value=\"add\" />\n";
-			response << "	<input type=\"hidden\" name=\"nc\" value=\"" << to_str((size_t)m_pServer->prng()->next()) << "\" />\n";
-			response << "Statement: <input type=\"text\" name=\"title\" size=\"55\"><br>\n";
-			response << "	<input type=\"submit\" value=\"Submit\">";
-			response << "</form><br><br>\n\n";
-
-			// The choices links at the bottom of the page
-			response << "<br>\n";
-			response << "<a href=\"/survey?topic=-1&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Change topic</a>\n";
-			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/update\">My opinions</a>\n";
-			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
-			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
-		}
-	}
-};
-
-
-// ------------------------------------------------------
 
 class ItemStats
 {
@@ -1118,11 +669,441 @@ public:
 	}
 };
 
-class ViewStats : public View
+class UpdateComparer
 {
 public:
-	ViewStats(Server* pServer) : View(pServer) {}
-	virtual ~ViewStats() {}
+	UpdateComparer()
+	{
+	}
+
+	bool operator() (const pair<size_t,float>& a, const pair<size_t,float>& b) const
+	{
+		return a.second > b.second;
+	}
+};
+
+
+void makeHeader(GDynamicPageSession* pSession, ostream& response)
+{
+	Account* pAccount = getAccount(pSession);
+	response << "<html><head>\n";
+	response << "	<title>Community Modeler</title>\n";
+	response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/style/style.css\" />\n";
+	response << "</head><body><div id=\"wholepage\">\n";
+	response << "\n\n\n\n\n<!-- Header Area --><div id=\"header\">\n";
+	response << "	Community Modeler\n";
+	response << "</div>\n\n\n\n\n<!-- Left Bar Area --><div id=\"sidebar\">\n";
+	response << "	<center>";//<img src=\"style/logo.png\"><br>\n";
+	bool loggedin = false;
+	if(pAccount)
+	{
+		response << "Welcome, ";
+		const char* szUsername = pAccount->username();
+		if(*szUsername == '_')
+			response << "anonymous";
+		else
+		{
+			response << szUsername;
+			loggedin = true;
+		}
+		response << ".<br><br>\n";
+	}
+	response << "	</center>\n";
+	if(loggedin)
+		response << "	<a href=\"/login?action=logout\">log out</a><br>\n";
+	response << "	<a href=\"/survey?nc=" << to_str((size_t)pSession->server()->prng()->next()) << "\">Survey</a><br>\n";
+//	response << "	<a href=\"/login\">Switch user</a><br>\n";
+//	response << "	<a href=\"/main.hbody\">Overview</a><br>\n";
+	response << "	<a href=\"/admin\">Options</a><br>\n";
+	response << "	<br><br><br>\n";
+	response << "</div>\n\n\n\n\n<!-- Main Body Area --><div id=\"mainbody\">\n";
+}
+
+void makeFooter(GDynamicPageSession* pSession, ostream& response)
+{
+	response << "</div>\n\n\n\n\n<!-- Footer Area --><div id=\"footer\">\n";
+//	response << "	The contents of this page are distributed under the <a href=\"http://creativecommons.org/publicdomain/zero/1.0/\">CC0 license</a>. <img src=\"http://i.creativecommons.org/l/zero/1.0/80x15.png\" border=\"0\" alt=\"CC0\" />\n";
+	response << "<br>";
+	response << "</div>\n\n\n\n\n";
+	response << "</div></body></html>\n";
+}
+
+class Connection : public GDynamicPageConnection
+{
+public:
+	Connection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
+	{
+	}
+	
+	virtual ~Connection()
+	{
+	}
+
+	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
+
+	void makeUrlSlider(Account* pAccount, size_t itemId, ostream& response)
+	{
+		// Compute the rating (or predicted rating if this item has not been rated)
+		size_t currentTopic = pAccount->currentTopic();
+		Topic* pCurrentTopic = ((Server*)m_pServer)->topics()[currentTopic];
+		Item& item = pCurrentTopic->item(itemId);
+		float score;
+		if(!pAccount->getRating(currentTopic, itemId, &score))
+			score = pAccount->predictRating(item);
+		score *= 500.0;
+		score += 500.0;
+		score = 0.1 * floor(score);
+
+		// Display the slider
+		response << "<table cellpadding=0 cellspacing=0><tr><td width=430>\n	";
+// uncomment the next line to always display the predicted score in brackets
+//response << "[" << 0.1 * floor(pAccount->predictRating(item) * 1000) << "] ";
+		response << item.title();
+		response << "\n";
+		response << "</td><td>\n";
+		response << "	<input type=checkbox name=\"check_slider" << itemId << "\" id=\"check_slider" << itemId << "\">\n";
+		response << "	<input name=\"slider" << itemId << "\" id=\"slider" << itemId << "\" type=\"Text\" size=\"3\">\n";
+		response << "</td><td>\n";
+		response << "<script language=\"JavaScript\">\n";
+		response << "	var A_INIT1 = { 's_checkname': 'check_slider" << itemId << "', 's_name': 'slider" << itemId << "', 'n_minValue' : 0, 'n_maxValue' : 100, 'n_value' : " << score << ", 'n_step' : 0.1 }\n";
+		response << "	new slider(A_INIT1, A_TPL);\n";
+		response << "</script>\n";
+		response << "</td></tr></table>\n";
+	}
+
+
+	void makeLoginBody(GDynamicPageSession* pSession, ostream& response, Account* pAccount)
+	{
+		if(pSession->paramsLen() >= 0)
+		{
+			// Check the password
+			GHttpParamParser params(pSession->params());
+			const char* szUsername = params.find("username");
+			const char* szPasswordHash = params.find("password");
+			if(szUsername)
+			{
+				Account* pNewAccount = ((Server*)m_pServer)->loadAccount(szUsername, szPasswordHash);
+				if(pNewAccount)
+				{
+					string s;
+					if(pAccount)
+					{
+						if(strlen(pAccount->afterLoginUrl()) > 0)
+							s = pAccount->afterLoginUrl();
+						if(strlen(pAccount->afterLoginParams()) > 0)
+						{
+							s += "?";
+							s += pAccount->afterLoginParams();
+						}
+						if(s.length() < 1)
+						{
+							s = "/survey?nc=";
+							s += to_str((size_t)m_pServer->prng()->next());
+						}
+					}
+					else
+					{
+						s = "/survey?nc=";
+						s += to_str((size_t)m_pServer->prng()->next());
+					}
+
+					// Log in with the new account
+					pSession->setExtension(pNewAccount);
+					m_pServer->redirect(response, s.c_str());
+				}
+				else
+					response << "<big><big>Incorrect Password! Please try again</big></big><br><br>\n";
+			}
+		}
+
+		response << "<br><br>\n";
+		response << "<SCRIPT language=\"JavaScript\" src=\"/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
+		response << "Please log in:<br><br>\n";
+		response << "<form name=\"loginform\" action=\"/login\" method=\"get\" onsubmit=\"return HashPassword('";
+		response << ((Server*)m_pServer)->passwordSalt();
+		response << "')\">\n";
+		response << "	Username:<input type=\"text\" name=\"username\" ><br>\n";
+		response << "	Password:<input type=\"password\" name=\"password\" ><br>\n";
+		response << "	<input type=\"submit\" value=\"Log In\">\n";
+		response << "</form><br>\n\n";
+
+		response << "or <a href=\"/newaccount\">create a new account</a><br><br><br>\n";
+	}
+
+	virtual void surveyMakePage(GDynamicPageSession* pSession, ostream& response)
+	{
+		makeHeader(pSession, response);
+
+		// Check whether the user is logged in
+		Account* pAccount = getAccount(pSession);
+		if(!pAccount)
+		{
+			makeLoginBody(pSession, response, pAccount);
+			return;
+		}
+		const char* szUsername = pAccount->username();
+		if(*szUsername == '_')
+		{
+			makeLoginBody(pSession, response, pAccount);
+			return;
+		}
+
+		size_t currentTopic = pAccount->currentTopic();
+		if(pSession->paramsLen() > 0)
+		{
+			// Get the topic
+			GHttpParamParser params(pSession->params());
+			const char* szTopic = params.find("topic");
+			if(szTopic)
+			{
+				vector<Topic*>& topics = ((Server*)m_pServer)->topics();
+#ifdef WINDOWS
+				size_t i = (size_t)_strtoui64(szTopic, NULL, 10);
+#else
+				size_t i = (size_t)strtoull(szTopic, NULL, 10);
+#endif
+				if(i < topics.size())
+					pAccount->setCurrentTopic(i);
+				else
+					pAccount->setCurrentTopic((size_t)-1);
+				currentTopic = pAccount->currentTopic();
+			}
+
+			// Check for topic proposals
+			const char* szProposal = NULL;
+			if(pAccount->doesHavePassword())
+				szProposal = params.find("proposal");
+			if(szProposal)
+				((Server*)m_pServer)->proposeTopic(pAccount, szProposal);
+
+			// Do the action
+			if(currentTopic < ((Server*)m_pServer)->topics().size())
+			{
+				const char* szAction = params.find("action");
+				if(!szAction)
+				{
+				}
+				else if(_stricmp(szAction, "add") == 0)
+				{
+					const char* szTitle = params.find("title");
+					if(!szTitle)
+						response << "[invalid params]<br>\n";
+					else
+					{
+						((Server*)m_pServer)->addItem(currentTopic, szTitle, pAccount->username());
+						response << "[The new statement has been added. Thank you.]<br>\n";
+						cout << "added " << szTitle << "\n";
+						((Server*)m_pServer)->saveState();
+					}
+				}
+				else if(_stricmp(szAction, "rate") == 0)
+				{
+					// Make an set of all the checked ids
+					set<size_t> checks;
+					map<const char*, const char*, strComp>& paramMap = params.map();
+					for(map<const char*, const char*, strComp>::iterator it = paramMap.begin(); it != paramMap.end(); it++)
+					{
+						const char* szName = it->first;
+						if(_strnicmp(szName, "check_slider", 12) == 0)
+						{
+#ifdef WINDOWS
+							size_t itemId = (size_t)_strtoui64(szName + 12, NULL, 10);
+#else
+							size_t itemId = (size_t)strtoull(szName + 12, NULL, 10);
+#endif
+							checks.insert(itemId);
+						}
+					}
+
+					// find the corresponding scores for each topic id, and add the rating
+					for(map<const char*, const char*, strComp>::iterator it = paramMap.begin(); it != paramMap.end(); it++)
+					{
+						const char* szName = it->first;
+						if(_strnicmp(szName, "slider", 6) == 0)
+						{
+#ifdef WINDOWS
+							size_t itemId = (size_t)_strtoui64(szName + 6, NULL, 10);
+#else
+							size_t itemId = (size_t)strtoull(szName + 6, NULL, 10);
+#endif
+							if(itemId < 0 && itemId >= ((Server*)m_pServer)->topics().size())
+							{
+								response << "[statement id " << itemId << " out of range.]<br>\n";
+								continue;
+							}
+							set<size_t>::iterator tmp = checks.find(itemId);
+							if(tmp != checks.end())
+							{
+								float score = (float)atof(it->second);
+								if(score >= 0.0f && score <= 100.0f)
+								{
+									pAccount->updateRating(currentTopic, itemId, 0.02 * score - 1.0);
+									response << "[Rating recorded. Thank you.]<br>\n";
+								}
+								else
+									response << "[the rating of " << score << " is out of range.]<br>\n";
+							}
+						}
+					}
+
+					// Do some training
+					((Server*)m_pServer)->trainPersonality(pAccount, ON_RATE_TRAINING_ITERS);
+					((Server*)m_pServer)->trainModel(currentTopic, ON_RATE_TRAINING_ITERS);
+					((Server*)m_pServer)->saveState();
+				}
+			}
+		}
+
+		if(currentTopic < ((Server*)m_pServer)->topics().size()) // if a topic has been selected...
+		{
+			Topic* pCurrentTopic = ((Server*)m_pServer)->topics()[currentTopic];
+			
+			// The slider-bar script
+			response << "<script language=\"JavaScript\" src=\"style/slider.js\"></script>\n";
+			response << "<script language=\"JavaScript\">\n";
+			response << "	var A_TPL = { 'b_vertical' : false, 'b_watch': true, 'n_controlWidth': 321, 'n_controlHeight': 22, 'n_sliderWidth': 19, 'n_sliderHeight': 20, 'n_pathLeft' : 1, 'n_pathTop' : 1, 'n_pathLength' : 300, 's_imgControl': 'style/slider_bg.png', 's_imgSlider': 'style/slider_tab.png', 'n_zIndex': 1 }\n";
+			response << "</script>\n";
+
+			// Display the topic
+			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
+			response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
+			response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
+			response << "	<input type=\"hidden\" name=\"nc\" value=\"" << to_str((size_t)m_pServer->prng()->next()) << "\" />\n";
+
+			// Random picks
+			size_t* pIndexes = new size_t[pCurrentTopic->size()];
+			Holder<size_t> hIndexes(pIndexes);
+			GIndexVec::makeIndexVec(pIndexes, pCurrentTopic->size());
+			GIndexVec::shuffle(pIndexes, pCurrentTopic->size(), m_pServer->prng());
+			size_t sliderCount = 0;
+			for(size_t i = 0; i < pCurrentTopic->size(); i++)
+			{
+				if(sliderCount >= 8)
+					break;
+				size_t itemId = pIndexes[i];
+				float rating;
+				if(pAccount->getRating(currentTopic, itemId, &rating))
+					continue;
+				if(sliderCount == 0)
+				{
+					response << "<h3>A few statements for your evaluation:</h3>\n";
+					response << "<p>It is okay to skip statements you find ambiguous, invasive, or uninteresting. For your convenience, the sliders have been set to reflect predictions of your opinions. As you express more opinions, these predictions should improve.</p>\n";
+				}
+				makeUrlSlider(pAccount, itemId, response);
+				sliderCount++;
+			}
+
+			// The update ratings button
+			if(sliderCount > 0)
+			{
+				response << "<br><table><tr><td width=330></td><td>";
+				response << "<input type=\"submit\" value=\"Update opinions\">";
+				response << "</td></tr><tr><td></td><td>";
+				response << "(Only checked items will be updated.)";
+				response << "</td></tr></table>\n";
+			}
+			else
+			{
+				response << "Thank you. You have expressed your opinion about all ";
+				response << to_str(pCurrentTopic->size());
+				response << " survey statements in this topic.<br><br>\n";
+			}
+
+			response << "</form><br><br>\n\n";
+
+			// The choices links at the bottom of the page
+			response << "<a href=\"/submit\">Submit a new statement</a>";
+			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+			response << "<a href=\"/survey?topic=-1&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Change topic</a>\n";
+			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+			response << "<a href=\"/update\">My opinions</a>\n";
+			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
+
+/*
+			response << "Stats:<br>\n";
+			response << "Total Number of users: " << ((Server*)m_pServer)->accounts().size() << "<br>\n";
+			response << "Number of items in this topic: " << pCurrentTopic->size() << "<br>\n";
+			std::map<size_t, float>* pMap = currentTopic < pAccount->ratings().size() ? pAccount->ratings()[currentTopic] : NULL;
+			response << "Number of items you have rated in this topic: " << (pMap ? pMap->size() : (size_t)0) << "<br>\n<br>\n";
+*/
+		}
+		else
+		{
+			vector<Topic*>& topics = ((Server*)m_pServer)->topics();
+			response << "<h3>Choose a topic:</h3>\n";
+			if(topics.size() > 0)
+			{
+				response << "<ul>\n";
+				size_t i = 0;
+				for(vector<Topic*>::iterator it = topics.begin(); it != topics.end(); it++)
+				{
+					response << "	<li><a href=\"/survey?topic=" << i << "&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << (*it)->descr() << "</a></li>\n";
+					i++;
+				}
+				response << "</ul><br><br><br>\n";
+			}
+			else
+			{
+				response << "There are currently no topics. Please ";
+				if(_stricmp(pAccount->username(), "root") != 0)
+					response << "ask the administrator to ";
+				response << "go to the <a href=\"/admin\">admin</a> page and add at least one topic.<br><br><br>";
+			}
+			response << "<br><br>\n";
+/*
+			// Make the form to propose new topics
+			if(pAccount->doesHavePassword() && _stricmp(pAccount->username(), "root") != 0)
+			{
+				response << "<form name=\"propose\" action=\"/survey\" method=\"get\">\n";
+				response << "	<h3>Propose a new topic:</h3>\n";
+				response << "	<input type=\"text\" name=\"proposal\" size=\"55\"><input type=\"submit\" value=\"Submit\"><br>\n";
+				response << "	(Your proposed topic will be added to a log file. Hopefully, someone actually reads the log file.)\n";
+				response << "</form><br>\n\n";
+			}
+*/
+		}
+		makeFooter(pSession, response);
+	}
+
+	virtual void submitMakePage(GDynamicPageSession* pSession, ostream& response)
+	{
+		makeHeader(pSession, response);
+		Account* pAccount = getAccount(pSession);
+		size_t currentTopic = pAccount->currentTopic();
+		if(currentTopic >= ((Server*)m_pServer)->topics().size())
+		{
+			string s = "/survey?nc=";
+			s += to_str((size_t)m_pServer->prng()->next());
+			m_pServer->redirect(response, s.c_str());
+		}
+		else
+		{
+			// Display the topic
+			Topic* pCurrentTopic = ((Server*)m_pServer)->topics()[currentTopic];
+			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
+
+			// Make the form to submit a new item
+			response << "<h3>Submit a new statement to this topic</h3>\n";
+			response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
+			response << "	<input type=\"hidden\" name=\"action\" value=\"add\" />\n";
+			response << "	<input type=\"hidden\" name=\"nc\" value=\"" << to_str((size_t)m_pServer->prng()->next()) << "\" />\n";
+			response << "Statement: <input type=\"text\" name=\"title\" size=\"55\"><br>\n";
+			response << "	<input type=\"submit\" value=\"Submit\">";
+			response << "</form><br><br>\n\n";
+
+			// The choices links at the bottom of the page
+			response << "<br>\n";
+			response << "<a href=\"/survey?topic=-1&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Change topic</a>\n";
+			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+			response << "<a href=\"/update\">My opinions</a>\n";
+			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+			response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
+			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
+		}
+		makeFooter(pSession, response);
+	}
 
 	double computeVariance(double* pCentroid, Topic& topic, size_t topicId, Account** pAccs, size_t accCount)
 	{
@@ -1173,7 +1154,7 @@ public:
 			float rating;
 			if(!pAccs[head]->getRating(topicId, itm, &rating))
 				rating = pAccs[head]->predictRating(topic.item(itm));
-			if(rating < 0.5)
+			if(rating < 0.0)
 			{
 				tail--;
 				std::swap(pAccs[head], pAccs[tail]);
@@ -1274,7 +1255,8 @@ public:
 			float rating;
 			if((*pAccs)->getRating(topicId, itemId, &rating))
 			{
-				double clipped = 0.001 * (double)floor(rating * 100000 + 0.5f);
+				double r = rating * 50000 + 50000;
+				double clipped = 0.001 * (double)floor(r + 0.5f);
 				mm.insert(std::pair<double,Account*>(clipped,*pAccs));
 			}
 			accCount--;
@@ -1333,25 +1315,27 @@ public:
 		{
 			pA->getRating(topicId, it->second, &rA);
 			pB->getRating(topicId, it->second, &rB);
-			response << "<tr><td>" << to_str(0.1 * floor(rA * 1000)) << "</td><td>" << to_str(0.1 * floor(rB * 1000)) << "</td><td>" << to_str(0.1 * floor(std::abs(rA - rB) * 1000)) << "</td><td>" << topic.item(it->second).title() << "</td></tr>\n";
+			response << "<tr><td>" << to_str(0.1 * floor(rA * 500 + 500)) << "</td><td>" << to_str(0.1 * floor(rB * 500 + 500)) << "</td><td>" << to_str(0.1 * floor(std::abs(rA - rB) * 500)) << "</td><td>" << topic.item(it->second).title() << "</td></tr>\n";
 		}
 		response << "</table>\n";
 	}
 
-	virtual void makeBody(GDynamicPageSession* pSession, ostream& response)
+	void statsMakePage(GDynamicPageSession* pSession, ostream& response)
 	{
+		makeHeader(pSession, response);
+
 		// Get the topic
 		Account* pAccount = getAccount(pSession);
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= m_pServer->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->topics().size())
 		{
 			response << "Unrecognized topic.";
 			return;
 		}
-		Topic& topic = *m_pServer->topics()[currentTopic];
+		Topic& topic = *((Server*)m_pServer)->topics()[currentTopic];
 
 		// Copy the account pointers into an array
-		std::vector<Account*>& accs = m_pServer->accounts();
+		std::vector<Account*>& accs = ((Server*)m_pServer)->accounts();
 		Account** pAccs = new Account*[accs.size()];
 		ArrayHolder<Account*> hAccs(pAccs);
 		Account** pAc = pAccs;
@@ -1377,7 +1361,7 @@ public:
 		const char* szOtherUser = params.find("user");
 		if(szOtherUser)
 		{
-			Account* pOther = m_pServer->findAccount(szOtherUser);
+			Account* pOther = ((Server*)m_pServer)->findAccount(szOtherUser);
 			if(!pOther)
 				response << "[No such user]<br><br>\n";
 			else
@@ -1432,14 +1416,16 @@ public:
 		response << "<a href=\"/update\">My opinions</a>\n";
 		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 		response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
+
+		makeFooter(pSession, response);
 	}
 
 	void plotUsers(GDynamicPageSession* pSession, ostream& response)
 	{
-		m_pServer->setContentType("image/svg+xml");
+		setContentType("image/svg+xml");
 		GSVG svg(800, 800);
 
-		vector<Account*>& accounts = m_pServer->accounts();
+		vector<Account*>& accounts = ((Server*)m_pServer)->accounts();
 		double xmin = 0;
 		double ymin = 0;
 		double xmax = 0;
@@ -1485,14 +1471,14 @@ public:
 		// Get the topic
 		Account* pAccount = getAccount(pSession);
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= m_pServer->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->topics().size())
 		{
 			response << "Unrecognized topic.";
 			return;
 		}
-		Topic& topic = *m_pServer->topics()[currentTopic];
+		Topic& topic = *((Server*)m_pServer)->topics()[currentTopic];
 
-		m_pServer->setContentType("image/svg+xml");
+		setContentType("image/svg+xml");
 		GSVG svg(800, 800);
 
 		double xmin = 0;
@@ -1529,35 +1515,14 @@ public:
 		}
 		svg.print(response);
 	}
-};
 
-
-// ------------------------------------------------------
-
-class UpdateComparer
-{
-public:
-	UpdateComparer()
+	virtual void updateMakePage(GDynamicPageSession* pSession, ostream& response)
 	{
-	}
+		makeHeader(pSession, response);
 
-	bool operator() (const pair<size_t,float>& a, const pair<size_t,float>& b) const
-	{
-		return a.second > b.second;
-	}
-};
-
-class ViewUpdate : public View
-{
-public:
-	ViewUpdate(Server* pServer) : View(pServer) {}
-	virtual ~ViewUpdate() {}
-
-	virtual void makeBody(GDynamicPageSession* pSession, ostream& response)
-	{
 		Account* pAccount = getAccount(pSession);
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= m_pServer->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->topics().size())
 		{
 			string s = "/survey?nc=";
 			s += to_str((size_t)m_pServer->prng()->next());
@@ -1572,7 +1537,7 @@ public:
 			response << "</script>\n";
 
 			// Display the topic
-			Topic* pCurrentTopic = m_pServer->topics()[currentTopic];
+			Topic* pCurrentTopic = ((Server*)m_pServer)->topics()[currentTopic];
 			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
 
 			// Display the items you have rated
@@ -1611,20 +1576,12 @@ public:
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
 		}
+		makeFooter(pSession, response);
 	}
-};
 
-
-// ------------------------------------------------------
-
-class ViewAdmin : public View
-{
-public:
-	ViewAdmin(Server* pServer) : View(pServer) {}
-	virtual ~ViewAdmin() {}
-
-	virtual void makeBody(GDynamicPageSession* pSession, ostream& response)
+	virtual void adminMakePage(GDynamicPageSession* pSession, ostream& response)
 	{
+		makeHeader(pSession, response);
 		Account* pAccount = getAccount(pSession);
 		if(pSession->paramsLen() > 0)
 		{
@@ -1650,7 +1607,7 @@ public:
 						const char* szDescr = params.find("descr");
 						if(szDescr && strlen(szDescr) > 0)
 						{
-							m_pServer->newTopic(szDescr);
+							((Server*)m_pServer)->newTopic(szDescr);
 							response << "[The new topic has been added]<br>\n";
 						}
 						else
@@ -1659,7 +1616,7 @@ public:
 				}
 				else if(_stricmp(szAction, "nukeself") == 0)
 				{
-					m_pServer->deleteAccount(pAccount);
+					((Server*)m_pServer)->deleteAccount(pAccount);
 					string s = "/survey?nc=";
 					s += to_str((size_t)m_pServer->prng()->next());
 					m_pServer->redirect(response, s.c_str());
@@ -1673,13 +1630,13 @@ public:
 			if(szDel)
 			{
 				size_t currentTopic = pAccount->currentTopic();
-				if(currentTopic >= m_pServer->topics().size())
+				if(currentTopic >= ((Server*)m_pServer)->topics().size())
 					response << "[invalid topic id]<br><br>\n";
 				else
 				{
 					size_t index = atoi(szDel);
-					std::vector<Account*>& accs = m_pServer->accounts();
-					Topic& topic = *m_pServer->topics()[currentTopic];
+					std::vector<Account*>& accs = ((Server*)m_pServer)->accounts();
+					Topic& topic = *((Server*)m_pServer)->topics()[currentTopic];
 					if(index >= topic.size())
 						response << "[invalid item index]<br><br>\n";
 					else
@@ -1722,12 +1679,12 @@ public:
 		// Form to delete a statement
 		response << "<h2>Delete Statements</h2>\n\n";
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= m_pServer->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->topics().size())
 			response << "<p>No topic has been selected. If you want to delete one or more statements, please click on \"Survey\", choose a topic, then return to here.</p>\n";
 		else
 		{
 			response << "<p>If a statement can be corrected, it is courteous to submit a corrected version after you delete it. Valid reasons to delete a statement include: not controversial enough, too long-winded, confusing, difficult to negate, ambiguous, off-topic, etc.</p>";
-			Topic& topic = *m_pServer->topics()[currentTopic];
+			Topic& topic = *((Server*)m_pServer)->topics()[currentTopic];
 			response << "<table>\n";
 			for(size_t i = 0; i < topic.size(); i++)
 			{
@@ -1747,19 +1704,13 @@ public:
 		response << "<input type=\"hidden\" name=\"action\" value=\"nukeself\">\n";
 		response << "<input type=\"submit\" value=\"Nuke My Account\">\n";
 		response << "</form>\n";
+		
+		makeFooter(pSession, response);
 	}
-};
 
-// ------------------------------------------------------
-
-class ViewLogin : public View
-{
-public:
-	ViewLogin(Server* pServer) : View(pServer) {}
-	virtual ~ViewLogin() {}
-
-	virtual void makeBody(GDynamicPageSession* pSession, ostream& response)
+	virtual void loginMakePage(GDynamicPageSession* pSession, ostream& response)
 	{
+		makeHeader(pSession, response);
 		Account* pAccount = getAccount(pSession);
 		if(pSession->paramsLen() >= 0)
 		{
@@ -1785,7 +1736,7 @@ public:
 			const char* szPasswordHash = params.find("password");
 			if(szUsername)
 			{
-				Account* pNewAccount = m_pServer->loadAccount(szUsername, szPasswordHash);
+				Account* pNewAccount = ((Server*)m_pServer)->loadAccount(szUsername, szPasswordHash);
 				if(pNewAccount)
 				{
 					string s;
@@ -1835,7 +1786,7 @@ public:
 		else
 			response << "Please log in:<br><br>\n";
 		response << "<form name=\"loginform\" action=\"/login\" method=\"get\" onsubmit=\"return HashPassword('";
-		response << m_pServer->passwordSalt();
+		response << ((Server*)m_pServer)->passwordSalt();
 		response << "')\">\n";
 		response << "	Username:<input type=\"text\" name=\"username\" ><br>\n";
 		response << "	Password:<input type=\"password\" name=\"password\" ><br>\n";
@@ -1843,22 +1794,15 @@ public:
 		response << "</form><br>\n\n";
 
 		response << "or <a href=\"/newaccount\">create a new account</a><br><br><br>\n";
+		makeFooter(pSession, response);
 	}
+
+	void newAccountMakePage(GDynamicPageSession* pSession, ostream& response);
 };
 
-// ------------------------------------------------------
-
-class ViewNewAccount : public View
+void Connection::newAccountMakePage(GDynamicPageSession* pSession, ostream& response)
 {
-public:
-	ViewNewAccount(Server* pServer) : View(pServer) {}
-	virtual ~ViewNewAccount() {}
-
-	virtual void makeBody(GDynamicPageSession* pSession, ostream& response);
-};
-
-/*virtual*/ void ViewNewAccount::makeBody(GDynamicPageSession* pSession, ostream& response)
-{
+	makeHeader(pSession, response);
 	const char* szUsername = "";
 	const char* szPassword = "";
 	const char* szPWAgain = "";
@@ -1887,12 +1831,12 @@ public:
 		if(!szError)
 		{
 			// Create the account
-			Account* pAccount = m_pServer->newAccount(szUsername, szPassword);
+			Account* pAccount = ((Server*)m_pServer)->newAccount(szUsername, szPassword);
 			if(!pAccount)
 				szError = "That username is already taken.";
 			else
 			{
-				m_pServer->saveState();
+				((Server*)m_pServer)->saveState();
 				response << "<big>An account has been successfully created.</big><br><br> Click here to <a href=\"/login\">log in</a><br>\n";
 				return;
 			}
@@ -1911,7 +1855,7 @@ public:
 	response << "<SCRIPT language=\"JavaScript\" src=\"/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
 	response << "	<big><big><b>Create a new account</b></big></big><br><br>\n";
 	response << "	<form name=\"newaccountform\" action=\"/newaccount\" method=\"post\" onsubmit=\"return HashNewAccount('";
-	response << m_pServer->passwordSalt();
+	response << ((Server*)m_pServer)->passwordSalt();
 	response << "')\">\n";
 	response << "		<input type=\"hidden\" name=\"action\" value=\"newaccount\" />\n";
 	response << "		Username: <input type=\"text\" size=\"15\" name=\"username\" value=\"";
@@ -1926,6 +1870,44 @@ public:
 	response << "		<input type=\"submit\" value=\"Submit\">\n";
 	response << "	</form><br>\n\n";
 	response << "</tr></td></table></center>\n";
+	makeFooter(pSession, response);
+}
+
+// virtual
+void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
+{
+	if(strcmp(m_szUrl, "/favicon.ico") == 0)
+		return;
+	if(strncmp(m_szUrl, "/login", 6) == 0)
+		loginMakePage(pSession, response);
+	else if(strcmp(m_szUrl, "/") == 0 || strncmp(m_szUrl, "/survey", 4) == 0)
+		surveyMakePage(pSession, response);
+	else if(strncmp(m_szUrl, "/submit", 7) == 0)
+		submitMakePage(pSession, response);
+	else if(strncmp(m_szUrl, "/stats", 6) == 0)
+		statsMakePage(pSession, response);
+	else if(strncmp(m_szUrl, "/update", 7) == 0)
+		updateMakePage(pSession, response);
+	else if(strncmp(m_szUrl, "/admin", 6) == 0)
+		adminMakePage(pSession, response);
+	else if(strncmp(m_szUrl, "/newaccount", 11) == 0)
+		newAccountMakePage(pSession, response);
+	else if(strncmp(m_szUrl, "/users.svg", 10) == 0)
+		plotUsers(pSession, response);
+	else if(strncmp(m_szUrl, "/items.svg", 10) == 0)
+		plotItems(pSession, response);
+	else
+	{
+		size_t len = strlen(m_szUrl);
+		if(len > 6 && strcmp(m_szUrl + len - 6, ".hbody") == 0)
+		{
+			makeHeader(pSession, response);
+			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
+			makeFooter(pSession, response);
+		}
+		else
+			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
+	}
 }
 
 // ------------------------------------------------------
@@ -1939,13 +1921,7 @@ Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
 	strcat(buf, "web/");
 	GFile::condensePath(buf);
 	m_basePath = buf;
-	m_pViewSurvey = new ViewSurvey(this);
-	m_pViewStats = new ViewStats(this);
-	m_pViewSubmit = new ViewSubmit(this);
-	m_pViewUpdate = new ViewUpdate(this);
-	m_pViewAdmin = new ViewAdmin(this);
-	m_pViewLogin = new ViewLogin(this);
-	m_pViewNewAccount = new ViewNewAccount(this);
+	cout << "Base path: " << m_basePath << "\n";
 	loadState();
 }
 
@@ -1953,13 +1929,6 @@ Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
 Server::~Server()
 {
 	saveState();
-	delete(m_pViewSurvey);
-	delete(m_pViewStats);
-	delete(m_pViewSubmit);
-	delete(m_pViewUpdate);
-	delete(m_pViewAdmin);
-	delete(m_pViewLogin);
-	delete(m_pViewNewAccount);
 
 	// Delete all the accounts
 	flushSessions(); // ensure that there are no sessions referencing the accounts
@@ -2002,54 +1971,6 @@ void Server::saveState()
 	char szTime[256];
 	GTime::asciiTime(szTime, 256, false);
 	cout << "Server state saved at: " << szTime << "\n";
-}
-
-// virtual
-void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, ostream& response)
-{
-	View* pView = NULL;
-	if(strcmp(szUrl, "/") == 0)
-		szUrl = "/survey";
-	else if(strcmp(szUrl, "/favicon.ico") == 0)
-		return;
-	else if(strncmp(szUrl, "/login", 6) == 0)
-		pView = m_pViewLogin;
-	else if(strncmp(szUrl, "/survey", 4) == 0)
-		pView = m_pViewSurvey;
-	else if(strncmp(szUrl, "/submit", 7) == 0)
-		pView = m_pViewSubmit;
-	else if(strncmp(szUrl, "/stats", 6) == 0)
-		pView = m_pViewStats;
-	else if(strncmp(szUrl, "/update", 7) == 0)
-		pView = m_pViewUpdate;
-	else if(strncmp(szUrl, "/admin", 6) == 0)
-		pView = m_pViewAdmin;
-	else if(strncmp(szUrl, "/newaccount", 11) == 0)
-		pView = m_pViewNewAccount;
-	else if(strncmp(szUrl, "/users.svg", 10) == 0)
-	{
-		m_pViewStats->plotUsers(pSession, response);
-		return;
-	}
-	else if(strncmp(szUrl, "/items.svg", 10) == 0)
-	{
-		m_pViewStats->plotItems(pSession, response);
-		return;
-	}
-	if(pView)
-		pView->makePage(pSession, response);
-	else
-	{
-		size_t len = strlen(szUrl);
-		if(len > 6 && strcmp(szUrl + len - 6, ".hbody") == 0)
-		{
-			makeHeader(pSession, response);
-			sendFileSafe(m_basePath.c_str(), szUrl + 1, response);
-			makeFooter(pSession, response);
-		}
-		else
-			sendFileSafe(m_basePath.c_str(), szUrl + 1, response);
-	}
 }
 
 void Server::addItem(size_t topic, const char* szTitle, const char* szUsername)
@@ -2132,6 +2053,8 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 	Account* pAccount = new Account(szUsername, szPasswordHash, *m_pRand);
 	m_accountsVec.push_back(pAccount);
 	m_accountsMap.insert(make_pair(string(szUsername), pAccount));
+	cout << "Made new account for " << szUsername << "\n";
+	cout.flush();
 	return pAccount;
 }
 
@@ -2238,7 +2161,8 @@ GDomNode* Server::serializeState(GDom* pDoc)
 	for(map<string,Account*>::iterator it = m_accountsMap.begin(); it != m_accountsMap.end(); it++)
 	{
 		Account* pAccount = it->second;
-		pAccounts->addItem(pDoc, pAccount->toDom(pDoc));
+		if(pAccount->username()[0] != '_') // Don't bother persisting anonymous accounts
+			pAccounts->addItem(pDoc, pAccount->toDom(pDoc));
 	}
 
 	return pNode;
@@ -2272,6 +2196,11 @@ void Server::deserializeState(GDomNode* pNode)
 	}
 }
 
+// virtual
+GDynamicPageConnection* Server::makeConnection(SOCKET sock)
+{
+	return new Connection(sock, this);
+}
 
 
 
@@ -2318,7 +2247,7 @@ void doit(void* pArg)
 #else
 		int port = 8988;
 #endif
-		size_t seed = 0;//getpid() * (size_t)time(NULL);
+		size_t seed = getpid() * (size_t)time(NULL);
 		GRand prng(seed);
 		Server server(port, &prng);
 		LaunchBrowser(server.myAddress(), &prng);
@@ -2336,28 +2265,13 @@ void doItAsDaemon()
 	string s2 = path;
 	s2 += "stderr.log";
 	if(chdir(path) != 0)
-	{
-	}
+		throw Ex("Failed to change dir to ", path);
+	cout << "Launching daemon...\n";
 	GApp::launchDaemon(doit, path, s1.c_str(), s2.c_str());
-	cout << "Daemon running.\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
-}
-
-unsigned int clientThread(void* pObj)
-{
-	for(size_t i = 0; i < 100; i++)
+	if(!getcwd(path, 300))
 	{
-		
 	}
-	return 0;
-}
-
-void hammerServer()
-{
-	for(size_t i = 0; i < 10; i++)
-	{
-		void* pObj = NULL;
-		GThread::spawnThread(clientThread, pObj);
-	}
+	cout << "Daemon running in " << path << ".\n	stdout >> " << s1.c_str() << "\n	stderr >> " << s2.c_str() << "\n";
 }
 
 int main(int nArgs, char* pArgs[])
@@ -2365,8 +2279,10 @@ int main(int nArgs, char* pArgs[])
 	int nRet = 1;
 	try
 	{
-		doit(NULL);
-		//doItAsDaemon();
+		if(nArgs > 1 && strcmp(pArgs[1], "daemon") == 0)
+			doItAsDaemon();
+		else
+			doit(NULL);
 	}
 	catch(std::exception& e)
 	{

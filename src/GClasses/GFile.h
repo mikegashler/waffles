@@ -84,12 +84,14 @@ public:
 	/// for logging. It is not efficient, because it does not keep the file open.)
 	static void appendToFile(const char* szFilename, const char* szString);
 
-	/// Fills "list" with the names of all the files (excluding folders)
-	/// in the specified directory.
+	/// Adds the names of all the files (excluding folders)
+	/// in the specified directory to "list".
+	/// The filenames do not include any path information.
 	static void fileList(std::vector<std::string>& list, const char* dir = ".");
 
-	/// Fills "list" with the names of all the folders in the specified directory.
+	/// Adds the names of all the folders in the specified directory to "list".
 	/// If excludeDots is true, then folders named "." or ".." will be excluded.
+	/// The folder names do not include any path information.
 	static void folderList(std::vector<std::string>& list, const char* dir = ".", bool excludeDots = true);
 
 	/// This is a brute force way to make a directory.  It

@@ -48,20 +48,58 @@ using std::string;
 using std::ostream;
 
 
+class Connection : public GDynamicPageConnection
+{
+public:
+	Connection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
+	{
+	}
+	
+	virtual ~Connection()
+	{
+	}
+
+	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
+
+};
 
 class Server : public GDynamicPageServer
 {
-protected:
+public:
 	std::string m_basePath;
 
-public:
 	Server(int port, GRand* pRand);
 	virtual ~Server() {}
-	virtual void handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response);
 	virtual void onEverySixHours() {}
 	virtual void onStateChange() {}
 	virtual void onShutDown() {}
+
+	virtual GDynamicPageConnection* makeConnection(SOCKET sock)
+	{
+		return new Connection(sock, this);
+	}
 };
+
+
+// virtual
+void Connection::handleRequest(GDynamicPageSession* pSession, std::ostream& response)
+{
+	if(strcmp(m_szUrl, "/favicon.ico") == 0)
+		return;
+	else if(strncmp(m_szUrl, "/hello", 6) == 0)
+	{
+		response << "<html><head>\n";
+		response << "	<title>My Hello Site</title>\n";
+		response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n";
+		response << "</head><body>\n";
+		response << "	Hello Web! <img src=\"smiley.png\"><br>\n";
+		response << "</body></html>\n";
+	}
+	else if(strcmp(m_szUrl, "/smiley.png") == 0)
+		sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
+	else
+		response << "<h1>404 - Not found!</h1>";
+}
 
 
 Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
@@ -73,26 +111,6 @@ Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
 	strcat(buf, "web/");
 	GFile::condensePath(buf);
 	m_basePath = buf;
-}
-
-// virtual
-void Server::handleRequest(const char* szUrl, const char* szParams, int nParamsLen, GDynamicPageSession* pSession, std::ostream& response)
-{
-	if(strcmp(szUrl, "/favicon.ico") == 0)
-		return;
-	else if(strncmp(szUrl, "/hello", 6) == 0)
-	{
-		response << "<html><head>\n";
-		response << "	<title>My Hello Site</title>\n";
-		response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n";
-		response << "</head><body>\n";
-		response << "	Hello Web! <img src=\"smiley.png\"><br>\n";
-		response << "</body></html>\n";
-	}
-	else if(strcmp(szUrl, "/smiley.png") == 0)
-		sendFileSafe(m_basePath.c_str(), szUrl + 1, response);
-	else
-		response << "<h1>404 - Not found!</h1>";
 }
 
 void getLocalStorageFolder(char* buf)
@@ -126,6 +144,8 @@ void doit(void* pArg)
 	Server server(port, &prng);
 	LaunchBrowser(server.myAddress());
 	// Pump incoming HTTP requests (this is the main loop)
+	cout << "Server is up\n";
+	cout.flush();
 	server.go();
 	cout << "Goodbye.\n";
 }

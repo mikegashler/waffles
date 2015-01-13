@@ -32,6 +32,7 @@
 #include "sha1.h"
 #ifndef WINDOWS
 #	include <unistd.h>
+#	include <arpa/inet.h>
 #endif
 #include <stdlib.h>
 #include <algorithm>
@@ -76,6 +77,169 @@ void GDynamicPageSession::setExtension(GDynamicPageSessionExtension* pExtension)
 		m_pExtension->onDisown();
 	m_pExtension = pExtension;
 }
+
+// ------------------------------------------------------
+
+GDynamicPageConnection::GDynamicPageConnection(SOCKET sock, GDynamicPageServer* pServer)
+: GHttpConnection(sock), m_pServer(pServer)
+{
+}
+
+// virtual
+GDynamicPageConnection::~GDynamicPageConnection()
+{
+}
+
+// virtual
+bool GDynamicPageConnection::hasBeenModifiedSince(const char* szUrl, const char* szDate)
+{
+	return true;
+}
+
+GDynamicPageSession* GDynamicPageConnection::establishSession()
+{
+	// Find existing session
+	unsigned long long nSessionID;
+	GDynamicPageSession* pSession = NULL;
+	if(m_szCookieIncoming[0] != '\0')
+	{
+		const char* crumb = strstr(m_szCookieIncoming, "GDPSI=");
+		if(crumb)
+		{
+			crumb += 6;
+#ifdef WINDOWS
+			nSessionID = _strtoui64(crumb, NULL, 10);
+#else
+			nSessionID = strtoull(crumb, NULL, 10);
+#endif
+			pSession = m_pServer->findSession(nSessionID);
+			if(!pSession)
+			{
+				cout << "Unrecognized session id cookie crumb from " << inet_ntoa(ipAddr()) << ": " << crumb << "\n";
+				cout.flush();
+			}
+		}
+		else
+		{
+			cout << "Cookie with no GDPSI cookie crumb from " << inet_ntoa(ipAddr()) << ": " << m_szCookieIncoming << "\n";
+			cout.flush();
+		}
+	}
+
+	// Make a new session
+	if(!pSession)
+	{
+		// Make a new cookie
+		nSessionID = (unsigned long long)m_pServer->prng()->next() ^ (unsigned long long)(GTime::seconds() * 10000);
+		std::ostringstream os;
+		os << "GDPSI=";
+		os << nSessionID;
+		string tmp = os.str();
+		setCookie(tmp.c_str(), true);
+		pSession = m_pServer->makeNewSession(nSessionID);
+	}
+
+	return pSession;
+}
+
+// virtual
+void GDynamicPageConnection::doGet(ostream& response)
+{
+	// Set up the session
+	GDynamicPageSession* pSession = establishSession();
+	pSession->setCurrentUrl(m_szUrl, m_pContent, m_nContentLength);
+
+	// Handle the request
+	setContentType("text/html");
+	handleRequest(pSession, response);
+}
+
+// virtual
+void GDynamicPageConnection::doPost(ostream& response)
+{
+	doGet(response);
+}
+
+// virtual
+void GDynamicPageConnection::setHeaders(const char* szUrl, const char* szParams)
+{
+	// todo: write me
+}
+
+void GDynamicPageConnection::sendFile(const char* szMimeType, const char* szFilename, ostream& response)
+{
+	// Load the file
+	size_t nSize;
+	char* pFile = GFile::loadFile(szFilename, &nSize);
+	ArrayHolder<char> hFile(pFile);
+
+	// Set the headers
+	setContentType(szMimeType);
+	setModifiedTime(GFile::modifiedTime(szFilename));
+
+	// Send the file
+	response.write(pFile, nSize);
+}
+
+void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* szLocalPath, ostream& response)
+{
+	// Make sure the file is within the jail
+	size_t jailLen = strlen(szJailPath);
+	size_t localLen = strlen(szLocalPath);
+	GTEMPBUF(char, buf, jailLen + localLen + 1);
+	strcpy(buf, szJailPath);
+	strcpy(buf + jailLen, szLocalPath);
+	GFile::condensePath(buf);
+	if(strncmp(buf, szJailPath, jailLen) != 0)
+		return;
+
+	// Send the file
+	if(GFile::doesFileExist(buf))
+	{
+		// Send the file
+		try
+		{
+			sendFile(extensionToMimeType(buf), buf, response);
+		}
+		catch(const char* szError)
+		{
+			cout << "Error sending file: " << buf << "\n" << szError;
+			return;
+		}
+	}
+	else
+	{
+		cout << "Not found: " << szJailPath << szLocalPath << "\n";
+		response << "404 - not found.<br><br>\n";
+	}
+}
+
+const char* g_pExtensionToMimeTypeHackTable[] =
+{
+	".png", "image/png",
+	".js", "text/javascript",
+	".jpg", "image/jpeg",
+	".gif", "image/gif",
+};
+
+// static
+const char* GDynamicPageConnection::extensionToMimeType(const char* szFilename)
+{
+	PathData pd;
+	GFile::parsePath(szFilename, &pd);
+	const char* szExt = szFilename + pd.extStart;
+	const char* szMimeType = "text/html";
+	for(size_t i = 0; i < sizeof(g_pExtensionToMimeTypeHackTable) / sizeof(const char*); i += 2)
+	{
+		if(_stricmp(szExt, g_pExtensionToMimeTypeHackTable[i]) == 0)
+		{
+			szMimeType = g_pExtensionToMimeTypeHackTable[i + 1];
+			break;
+		}
+	}
+	return szMimeType;
+}
+
 
 // ------------------------------------------------------
 
@@ -130,6 +294,32 @@ void GDynamicPageServer::flushSessions()
 	for(map<unsigned long long, GDynamicPageSession*>::iterator it = m_sessions.begin(); it != m_sessions.end(); it++)
 		delete(it->second);
 	m_sessions.clear();
+}
+
+GDynamicPageSession* GDynamicPageServer::makeNewSession(unsigned long long id)
+{
+	GDynamicPageSession* pSession = new GDynamicPageSession(this, id);
+	m_sessions.insert(make_pair(id, pSession));
+	return pSession;
+}
+
+GDynamicPageSession* GDynamicPageServer::findSession(unsigned long long id)
+{
+	map<unsigned long long, GDynamicPageSession*>::iterator it = m_sessions.find(id);
+	if(it == m_sessions.end())
+		return NULL;
+	else
+		return it->second;
+}
+
+void GDynamicPageServer::printSessionIds(std::ostream& stream)
+{
+	map<unsigned long long, GDynamicPageSession*>::iterator it;
+	for(it = m_sessions.begin(); it != m_sessions.end(); it++)
+	{
+		stream << "	" << it->first << "\n";
+	}
+	stream.flush();
 }
 
 void GDynamicPageServer::go()
@@ -205,97 +395,6 @@ void GDynamicPageServer::computePasswordSalt()
 	m_passwordSalt[14] = '\0';
 }
 
-// virtual
-bool GDynamicPageServer::hasBeenModifiedSince(const char* szUrl, const char* szDate)
-{
-	return true;
-}
-
-GDynamicPageSession* GDynamicPageServer::establishSession(const char* szCookie)
-{
-	// Find existing session
-	unsigned long long nSessionID;
-	GDynamicPageSession* pSession = NULL;
-	if(szCookie)
-	{
-#ifdef WINDOWS
-		nSessionID = _strtoui64(szCookie, NULL, 10);
-#else
-		nSessionID = strtoull(szCookie, NULL, 10);
-#endif
-		map<unsigned long long, GDynamicPageSession*>::iterator it = m_sessions.find(nSessionID);
-		if(it != m_sessions.end())
-			pSession = it->second;
-	}
-
-	// Make a new session
-	if(!pSession)
-	{
-		if(szCookie && *szCookie >= '0' && *szCookie <= '9')
-		{
-			// It's an old session of which we no longer have record
-#ifdef WINDOWS
-			nSessionID = _strtoui64(szCookie, NULL, 10);
-#else
-			nSessionID = strtoull(szCookie, NULL, 10);
-#endif
-		}
-		else
-		{
-			// Make a new cookie
-			nSessionID = (unsigned long long)m_pRand->next();
-			std::ostringstream os;
-			os << nSessionID;
-			string tmp = os.str();
-			setCookie(tmp.c_str(), true);
-		}
-		pSession = new GDynamicPageSession(this, nSessionID);
-		m_sessions.insert(make_pair(nSessionID, pSession));
-	}
-
-	return pSession;
-}
-
-// virtual
-void GDynamicPageServer::doGet(const char* szUrl, const char* szParams, size_t nParamsLen, const char* szCookie, ostream& response)
-{
-	// Set up the session
-	GDynamicPageSession* pSession = establishSession(szCookie);
-	pSession->setCurrentUrl(szUrl, szParams, nParamsLen);
-
-	// Handle the request
-	setContentType("text/html");
-	handleRequest(szUrl, szParams, (int)nParamsLen, pSession, response);
-}
-
-// virtual
-void GDynamicPageServer::doPost(const char* szUrl, unsigned char* pData, size_t nDataSize, const char* szCookie, ostream& pResponse)
-{
-	doGet(szUrl, (const char*)pData, nDataSize, szCookie, pResponse);
-	delete[] pData;
-}
-
-void GDynamicPageServer::sendFile(const char* szMimeType, const char* szFilename, ostream& response)
-{
-	// Load the file
-	size_t nSize;
-	char* pFile = GFile::loadFile(szFilename, &nSize);
-	ArrayHolder<char> hFile(pFile);
-
-	// Set the headers
-	setContentType(szMimeType);
-	setModifiedTime(GFile::modifiedTime(szFilename));
-
-	// Send the file
-	response.write(pFile, nSize);
-}
-
-// virtual
-void GDynamicPageServer::setHeaders(const char* szUrl, const char* szParams)
-{
-	// todo: write me
-}
-
 void GDynamicPageServer::redirect(std::ostream& response, const char* szUrl)
 {
 	ostringstream& r = reinterpret_cast<ostringstream&>(response);
@@ -308,60 +407,3 @@ void GDynamicPageServer::redirect(std::ostream& response, const char* szUrl)
 	r << "\">here</a>\n";
 }
 
-const char* g_pExtensionToMimeTypeHackTable[] =
-{
-	".png", "image/png",
-	".js", "text/javascript",
-	".jpg", "image/jpeg",
-	".gif", "image/gif",
-};
-
-const char* GDynamicPageServer::extensionToMimeType(const char* szFilename)
-{
-	PathData pd;
-	GFile::parsePath(szFilename, &pd);
-	const char* szExt = szFilename + pd.extStart;
-	const char* szMimeType = "text/html";
-	for(size_t i = 0; i < sizeof(g_pExtensionToMimeTypeHackTable) / sizeof(const char*); i += 2)
-	{
-		if(_stricmp(szExt, g_pExtensionToMimeTypeHackTable[i]) == 0)
-		{
-			szMimeType = g_pExtensionToMimeTypeHackTable[i + 1];
-			break;
-		}
-	}
-	return szMimeType;
-}
-
-void GDynamicPageServer::sendFileSafe(const char* szJailPath, const char* szLocalPath, ostream& response)
-{
-	// Make sure the file is within the jail
-	size_t jailLen = strlen(szJailPath);
-	size_t localLen = strlen(szLocalPath);
-	GTEMPBUF(char, buf, jailLen + localLen + 1);
-	strcpy(buf, szJailPath);
-	strcpy(buf + jailLen, szLocalPath);
-	GFile::condensePath(buf);
-	if(strncmp(buf, szJailPath, jailLen) != 0)
-		return;
-
-	// Send the file
-	if(GFile::doesFileExist(buf))
-	{
-		// Send the file
-		try
-		{
-			sendFile(extensionToMimeType(buf), buf, response);
-		}
-		catch(const char* szError)
-		{
-			cout << "Error sending file: " << buf << "\n" << szError;
-			return;
-		}
-	}
-	else
-	{
-		cout << "Not found: " << szJailPath << szLocalPath << "\n";
-		response << "404 - not found.<br><br>\n";
-	}
-}

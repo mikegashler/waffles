@@ -139,7 +139,7 @@ public:
 	virtual void scaleWeights(double factor, bool scaleBiases) = 0;
 
 	/// Moves all weights in the direction of zero by the specified amount.
-	virtual void diminishWeights(double amount, bool diminishBiases) = 0;
+	virtual void diminishWeights(double amount, bool regularizeBiases) = 0;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights() = 0;
@@ -299,7 +299,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool diminishBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases);
 
 	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
 	void contractWeights(double factor, bool contractBiases);
@@ -532,7 +532,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Calls diminishWeights for each component.
-	virtual void diminishWeights(double amount, bool diminishBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
@@ -670,7 +670,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool diminishBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
@@ -869,7 +869,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool diminishBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
@@ -1027,7 +1027,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool diminishBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
@@ -1129,8 +1129,7 @@ public:
 	/// If the number of inputs and/or outputs do not align with the
 	/// previous and/or next layers, then any layers with FLEXIBLE_SIZE inputs or
 	/// FLEXIBLE_SIZE outputs will be resized to accomodate. If both layers have
-	/// fixed sizes that do not align, then the sizes of pLayer takes precedence,
-	/// and the other layer(s) will be resized to accomodate the sizes of pLayer.
+	/// fixed sizes that do not align, then an exception will be thrown.
 	void addLayer(GNeuralNetLayer* pLayer, size_t position = INVALID_INDEX);
 
 	/// Drops the layer at the specified index. Returns a pointer to
@@ -1163,7 +1162,7 @@ public:
 	/// Diminishes all weights in the network by the specified amount. This can be used
 	/// to implemnet L1 regularization, which promotes sparse representations. That is,
 	/// it makes many of the weights approach zero.
-	void diminishWeights(double amount, bool diminishBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
+	void diminishWeights(double amount, bool regularizeBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
 
 	/// Just like scaleWeights, except it only scales the weights in one of the output units.
 	void scaleWeightsSingleOutput(size_t output, double lambda);
