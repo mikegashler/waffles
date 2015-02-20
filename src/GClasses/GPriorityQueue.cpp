@@ -21,6 +21,10 @@
 #include "GError.h"
 #include "GHolders.h"
 #include "GRand.h"
+#include <functional>
+#include <queue>
+
+using std::priority_queue;
 
 namespace GClasses {
 
@@ -254,6 +258,68 @@ void GPriorityQueue::test()
 	}
 }
 #endif
+
+
+
+
+
+
+
+
+
+#ifndef NO_TEST_CODE
+#define TEST_PQ_SIZE 8192
+void GSimplePriorityQueue_test()
+{
+	GRand r(0);
+	priority_queue<double> stdq;
+	GSimplePriorityQueue<double*> q;
+	double stoof[7];
+	for(size_t i = 0; i < 2 * TEST_PQ_SIZE; i++)
+	{
+		double d = r.uniform();
+		size_t n = (size_t)(7.0 * d);
+		q.insert(&stoof[n], d);
+		stdq.push(-d);
+	}
+	for(size_t i = 0; i < TEST_PQ_SIZE; i++)
+	{
+		double stdval = stdq.top();
+		stdq.pop();
+		double val = q.peekValue();
+		double* obj = q.peekObject();
+		q.pop();
+		if(val != -stdval)
+			throw Ex("misorder");
+		size_t n = (size_t)(7.0 * val);
+		if(obj != &stoof[n])
+			throw Ex("mismatch");
+	}
+	for(size_t i = 2 * TEST_PQ_SIZE; i < 4 * TEST_PQ_SIZE; i++)
+	{
+		double d = r.uniform();
+		size_t n = (size_t)(7.0 * d);
+		q.insert(&stoof[n], d);
+		stdq.push(-d);
+	}
+	for(size_t i = TEST_PQ_SIZE; i < 4 * TEST_PQ_SIZE; i++)
+	{
+		double stdval = stdq.top();
+		stdq.pop();
+		double val = q.peekValue();
+		double* obj = q.peekObject();
+		q.pop();
+		if(val != -stdval)
+			throw Ex("misorder");
+		size_t n = (size_t)(7.0 * val);
+		if(obj != &stoof[n])
+			throw Ex("mismatch");
+	}
+}
+#endif //!NO_TEST_CODE
+
+
+
 
 } // namespace GClasses
 

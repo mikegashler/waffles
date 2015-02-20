@@ -46,7 +46,6 @@ CPP_FILES = \
 	GBits.cpp\
 	GBitTable.cpp\
 	GBlob.cpp\
-	GChess.cpp\
 	GCluster.cpp\
 	GCrypto.cpp\
 	GDecisionTree.cpp\

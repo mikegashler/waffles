@@ -25,7 +25,7 @@
 #include <GClasses/GWidgets.h>
 #include <GClasses/GThread.h>
 #include "Gui.h"
-#include <GClasses/GChess.h>
+#include "GChess.h"
 #ifdef WINDOWS
 #	include <direct.h>
 #endif
@@ -279,7 +279,7 @@ public:
 		int ySrcPicked = 0;
 		int xDestPicked = 0;
 		int yDestPicked = 0;
-		m_pMoveIterators[0].reset(&m_board, m_whitesTurn, m_prng);
+		m_pMoveIterators[0].reset(&m_board, m_whitesTurn);
 		int moves = 0;
 		while(m_pMoveIterators[0].nextMove(&xSrc, &ySrc, &xDest, &yDest))
 		{
@@ -305,7 +305,7 @@ public:
 			return EvaluateBoard(&board);
 		int score;
 		int bestScore = (white ? -1000 : 1000);
-		m_pMoveIterators[depth].reset(&board, white, m_prng);
+		m_pMoveIterators[depth].reset(&board, white);
 		while(m_pMoveIterators[depth].nextMove(&xSrc, &ySrc, &xDest, &yDest))
 		{
 			score = ComputeConservativePayoff(!white, board, xSrc, ySrc, xDest, yDest, bestScore, depth + 1);
@@ -337,7 +337,7 @@ public:
 		int xSrc, ySrc, xDest, yDest, score;
 		int bestScore = (white ? -1000 : 1000);
 		bool bGotOne = false;
-		m_pMoveIterators[0].reset(&m_board, white, m_prng);
+		m_pMoveIterators[0].reset(&m_board, white);
 		while(m_pMoveIterators[0].nextMove(&xSrc, &ySrc, &xDest, &yDest))
 		{
 			if(IsRepeatAggressiveMove(xSrc, ySrc, xDest, yDest))

@@ -493,6 +493,7 @@
     </ClCompile>
     <ClCompile Include="GTokenizer.cpp" />
     <ClCompile Include="GTransform.cpp" />
+    <ClCompile Include="GTree.cpp" />
     <ClCompile Include="GVec.cpp" />
     <ClCompile Include="GWave.cpp" />
     <ClCompile Include="GWidgets.cpp" />
@@ -583,6 +584,7 @@
     <ClInclude Include="GTime.h" />
     <ClInclude Include="GTokenizer.h" />
     <ClInclude Include="GTransform.h" />
+    <ClInclude Include="GTree.h" />
     <ClInclude Include="GVec.h" />
     <ClInclude Include="GWave.h" />
     <ClInclude Include="GWidgets.h" />

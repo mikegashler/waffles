@@ -949,6 +949,7 @@ public:
 		runTest("GRunningCovariance", GRunningCovariance::test);
 		runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 		runTest("GShortcutPruner", GShortcutPruner::test);
+		runTest("GSimplePriorityQueue", GSimplePriorityQueue_test);
 		runTest("GSparseClusterRecommender", GSparseClusterRecommender::test);
 		runTest("GSparseMatrix", GSparseMatrix::test);
 		runTest("GSpinLock", GSpinLock::test);

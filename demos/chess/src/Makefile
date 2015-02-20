@@ -30,6 +30,7 @@ endif
 CPP_FILES =\
 	main.cpp\
 	GImagePng.cpp\
+	GChess.cpp\
 	Gui.cpp\
 
 ################

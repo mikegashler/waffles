@@ -1481,7 +1481,11 @@ void GLearnerLib::Test(GArgReader& args)
 
 	// Test
 	double mse = pModeler->sumSquaredError(*pFeatures, *pLabels) / pFeatures->rows();
-	cout << "Mean squared error: " << to_str(mse) << "\n";
+	if(pLabels->cols() == 1 && pLabels->relation().valueCount(0) > 0)
+		cout << "Misclassification rate: ";
+	else
+		cout << "Mean squared error: ";
+	cout << to_str(mse) << "\n";
 
 	if(confusion || confusioncsv)
 	{
@@ -1582,7 +1586,11 @@ void GLearnerLib::TransductiveAccuracy(GArgReader& args)
 	vector<GMatrix*> confusionMatrices;
 	double mse = pSupLearner->trainAndTest(*pFeatures1, *pLabels1, *pFeatures2, *pLabels2) / pFeatures2->rows();
 	GVec::print(cout, 14, results, pLabels1->cols());
-	cout << "Mean squared error: " << to_str(mse) << "\n";
+	if(pLabels2->cols() == 1 && pLabels2->relation().valueCount(0) > 0)
+		cout << "Misclassification rate: ";
+	else
+		cout << "Mean squared error: ";
+	cout << to_str(mse) << "\n";
 /*
 	// Print the confusion matrix
 	if(confusion){
@@ -1677,14 +1685,19 @@ void GLearnerLib::SplitTest(GArgReader& args)
 				}
 			}
 			cout << "rep " << i << ") ";
-			cout << "Mean squared error: " << to_str(mse) << "\n";
+			if(testLabels.cols() == 1 && testLabels.relation().valueCount(0) > 0)
+				cout << "Misclassification rate: ";
+			else
+				cout << "Mean squared error: ";
+			cout << to_str(mse) << "\n";
 			sumMSE += mse;
 		}
 	}
-	if(pLabels->cols() > 1){
-	  cout << "-----Average-----\n";
-	}
-	cout << "Mean squared error: " << to_str(sumMSE / reps) << "\n";
+	if(pLabels->cols() == 1 && pLabels->relation().valueCount(0) > 0)
+		cout << "Average misclassification rate: ";
+	else
+		cout << "Average mean squared error: ";
+	cout << to_str(sumMSE / reps) << "\n";
 }
 
 void GLearnerLib::CrossValidateCallback(void* pSupLearner, size_t nRep, size_t nFold, double foldSSE, size_t rows)
@@ -1734,10 +1747,19 @@ void GLearnerLib::CrossValidate(GArgReader& args)
 	cout.precision(8);
 	double sse = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, succinct ? NULL : CrossValidateCallback, pSupLearner);
 	if(!succinct)
-		cout << "Mean squared error: ";
+	{
+		if(pLabels->cols() == 1 && pLabels->relation().valueCount(0) > 0)
+			cout << "Misclassification rate: ";
+		else
+			cout << "Mean squared error: ";
+	}
 	cout << to_str(sse / pFeatures->rows());
 	if(!succinct)
+	{
+		if(pLabels->cols() == 1 && pLabels->relation().valueCount(0) > 0)
+			cout << "\nPredictive accuracy: " << to_str(1.0 - (sse / pFeatures->rows()));
 		cout << "\n";
+	}
 }
 
 void GLearnerLib::vette(string& s)
