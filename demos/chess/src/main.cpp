@@ -91,19 +91,19 @@ public:
 		m_pImage->clear(0xff000000);
 		m_pCanvas = new GWidgetCanvas(this, 10, 30, m_pImage->width(), m_pImage->height(), m_pImage);
 
-		m_pLightStrategy = new GWidgetBulletGroup(this, 620, 68, 14, 14, 4, 30, true);
-		new GWidgetTextLabel(this, 640, 70, 150, 20, "Human", 0xff306000);
-		new GWidgetTextLabel(this, 640, 100, 150, 20, "Random", 0xff306000);
-		new GWidgetTextLabel(this, 640, 130, 250, 20, "Alpha Beta Pruning (look ahead 3 moves)", 0xff306000);
-		new GWidgetTextLabel(this, 640, 160, 250, 20, "Alpha Beta Pruning (look ahead 6 moves)", 0xff306000);
-		m_pLightStrategy->setSelection(0);
-
-		m_pDarkStrategy = new GWidgetBulletGroup(this, 620, 488, 14, 14, 4, 30, true);
+		m_pDarkStrategy = new GWidgetBulletGroup(this, 620, 68, 14, 14, 4, 30, true);
 		new GWidgetTextLabel(this, 640, 490, 150, 20, "Human", 0xff306000);
 		new GWidgetTextLabel(this, 640, 520, 150, 20, "Random", 0xff306000);
 		new GWidgetTextLabel(this, 640, 550, 250, 20, "Alpha Beta Pruning (look ahead 3 moves)", 0xff306000);
 		new GWidgetTextLabel(this, 640, 580, 250, 20, "Alpha Beta Pruning (look ahead 6 moves)", 0xff306000);
 		m_pDarkStrategy->setSelection(0);
+
+		m_pLightStrategy = new GWidgetBulletGroup(this, 620, 488, 14, 14, 4, 30, true);
+		new GWidgetTextLabel(this, 640, 70, 150, 20, "Human", 0xff306000);
+		new GWidgetTextLabel(this, 640, 100, 150, 20, "Random", 0xff306000);
+		new GWidgetTextLabel(this, 640, 130, 250, 20, "Alpha Beta Pruning (look ahead 3 moves)", 0xff306000);
+		new GWidgetTextLabel(this, 640, 160, 250, 20, "Alpha Beta Pruning (look ahead 6 moves)", 0xff306000);
+		m_pLightStrategy->setSelection(0);
 
 		m_pPieces = new GImage();
 		loadPng(m_pPieces, "pieces.png");
@@ -170,12 +170,12 @@ public:
 		{
 			for(x = 0; x < 8; x++)
 			{
-				m_pImage->boxFill(70 * x, 70 * y, 70, 70, (x & 1) ^ (y & 1) ? 0xff80a0c0 : 0xffa0c0f0);
+				m_pImage->boxFill(70 * x, 490 - 70 * y, 70, 70, (x & 1) ^ (y & 1) ? 0xffa0c0f0 : 0xff80a0c0);
 				piece = m_board.piece(x, y, &white);
 				if(piece)
 				{
 					GRect r(white ? 50 : 0, 50 * (piece - 1), 50, 50);
-					m_pImage->blitAlpha(70 * x + 10, 70 * y + 10, m_pPieces, &r);
+					m_pImage->blitAlpha(70 * x + 10, 500 - 70 * y, m_pPieces, &r);
 				}
 			}
 		}
@@ -188,7 +188,7 @@ public:
 			yDest = (yDest - ySrc) / 8;
 			int xDest = yDest % 8;
 			yDest = (yDest - xDest) / 8;
-			m_pImage->arrow(70 * xSrc + 35, 70 * ySrc + 35, 70 * xDest + 35, 70 * yDest + 35, 0xff90b0d8, 10);
+			m_pImage->arrow(70 * xSrc + 35, 525 - 70 * ySrc, 70 * xDest + 35, 525 - 70 * yDest, 0xff90b0d8, 10);
 		}
 		if(m_pieceInHand != GChessBoard::None)
 		{
@@ -202,7 +202,7 @@ public:
 		for(i = 0; i < m_hintMoveCount; i++)
 		{
 			x = 70 * m_hintMoves[2 * i] + 3;
-			y = 70 * m_hintMoves[2 * i + 1] + 3;
+			y = 490 - 70 * m_hintMoves[2 * i + 1] + 3;
 			m_pImage->box(x, y, x + 63, y + 63, 0xffff0000);
 		}
 	}
@@ -242,6 +242,7 @@ public:
 		y -= m_pCanvas->rect()->y;
 		x /= 70;
 		y /= 70;
+		y = 7 - y;
 		if(x >= 0 && x < 8 && y >= 0 && y < 8)
 		{
 			m_pieceInHandX = x;
@@ -264,6 +265,7 @@ public:
 		y -= m_pCanvas->rect()->y;
 		x /= 70;
 		y /= 70;
+		y = 7 - y;
 		if(m_pieceInHand != GChessBoard::None)
 			m_board.setPiece(m_pieceInHandX, m_pieceInHandY, m_pieceInHand, m_pieceInHandWhite);
 		if(x >= 0 && x < 8 && y >= 0 && y < 8 && m_pieceInHandWhite == m_whitesTurn && m_board.isValidMove(m_pieceInHandX, m_pieceInHandY, x, y) && !IsRepeatAggressiveMove(m_pieceInHandX, m_pieceInHandY, x, y))
@@ -409,34 +411,8 @@ public:
 
 	int EvaluateBoard(GChessBoard* pBoard)
 	{
-		bool white;
-		int score = 0;
-		int x, y, value;
-		GChessBoard::Piece piece;
-		for(y = 0; y < 8; y++)
-		{
-			for(x = 0; x < 8; x++)
-			{
-				piece = pBoard->piece(x, y, &white);
-				switch(piece)
-				{
-					case GChessBoard::None: value = 0; break;
-					case GChessBoard::Pawn: value = 1; break;
-					case GChessBoard::Rook: value = 5; break;
-					case GChessBoard::Knight: value = 3; break;
-					case GChessBoard::Bishop: value = 4; break;
-					case GChessBoard::Queen: value = 9; break;
-					case GChessBoard::King: value = 25; break;
-					default: GAssert(false); value = 0; break;
-				}
-				if(white)
-					score += value;
-				else
-					score -= value;
-			}
-		}
 		m_boardEvals++;
-		return score;
+		return pBoard->heuristic();
 	}
 };
 

@@ -28,8 +28,8 @@ void GChessBoard::resetBoard()
 	setPiece(0, 0, Rook, true);
 	setPiece(1, 0, Knight, true);
 	setPiece(2, 0, Bishop, true);
-	setPiece(3, 0, King, true);
-	setPiece(4, 0, Queen, true);
+	setPiece(3, 0, Queen, true);
+	setPiece(4, 0, King, true);
 	setPiece(5, 0, Bishop, true);
 	setPiece(6, 0, Knight, true);
 	setPiece(7, 0, Rook, true);
@@ -45,11 +45,42 @@ void GChessBoard::resetBoard()
 	setPiece(0, 7, Rook, false);
 	setPiece(1, 7, Knight, false);
 	setPiece(2, 7, Bishop, false);
-	setPiece(3, 7, King, false);
-	setPiece(4, 7, Queen, false);
+	setPiece(3, 7, Queen, false);
+	setPiece(4, 7, King, false);
 	setPiece(5, 7, Bishop, false);
 	setPiece(6, 7, Knight, false);
 	setPiece(7, 7, Rook, false);
+}
+
+int GChessBoard::heuristic()
+{
+	bool white;
+	int score = 0;
+	int x, y, value;
+	GChessBoard::Piece p;
+	for(y = 0; y < 8; y++)
+	{
+		for(x = 0; x < 8; x++)
+		{
+			p = piece(x, y, &white);
+			switch(p)
+			{
+				case GChessBoard::None: value = 0; break;
+				case GChessBoard::Pawn: value = 10; break;
+				case GChessBoard::Rook: value = 63; break;
+				case GChessBoard::Knight: value = 31; break;
+				case GChessBoard::Bishop: value = 36; break;
+				case GChessBoard::Queen: value = 88; break;
+				case GChessBoard::King: value = 500; break;
+				default: GAssert(false); value = 0; break;
+			}
+			if(white)
+				score += value;
+			else
+				score -= value;
+		}
+	}
+	return score;
 }
 
 bool GChessBoard::checkMove(int* pOutMoves, int* pnMoves, int col, int row, bool bWhite)
@@ -215,7 +246,7 @@ void GChessBoard::printBoard(ostream& stream)
 	stream << " +";
 	for(j = 0; j < 8; j++)
 		stream << "--+";
-	for(j = 0; j < 8; j++)
+	for(j = 7; j >= 0; j--)
 	{
 		stream << ('1' + j) << "|";
 		for(i = 0; i < 8; i++)
@@ -241,11 +272,12 @@ void GChessBoard::printBoard(ostream& stream)
 			}
 			stream << "|";
 		}
-		stream << " +";
+		stream << ('1' + j) << "\n +";
 		for(j = 0; j < 8; j++)
 			stream << "--+";
 		stream << "\n";
 	}
+	stream << "  A  B  C  D  E  F  G  H\n";
 }
 
 bool GChessBoard::move(int xSrc, int ySrc, int xDest, int yDest)

@@ -87,6 +87,9 @@ public:
 	/// Sets up the board for a new game
 	void resetBoard();
 
+	/// Evaluates the board without looking any deeper
+	int heuristic();
+
 	/// Returns true iff the parameters represent a valid move
 	bool isValidMove(int xSrc, int ySrc, int xDest, int yDest);
 
