@@ -87,6 +87,9 @@ public:
 	/// Sets up the board for a new game
 	void resetBoard();
 
+	/// Evaluates the board without looking any deeper
+	int heuristic();
+
 	/// Returns true iff the parameters represent a valid move
 	bool isValidMove(int xSrc, int ySrc, int xDest, int yDest);
 
@@ -126,18 +129,14 @@ protected:
 };
 
 
-/// Iterates through all the possible moves for the specified color. It iterates through the pieces in
-/// a random order. It also iterates through the moves for each piece in a random order, but it will
-/// visit each move for the current piece before considering the next piece.
+/// Iterates through all the possible moves for the specified color.
 class GChessMoveIterator
 {
 protected:
 	int m_n, m_move, m_moveCount;
 	int m_moves[2 * MAX_PIECE_MOVES];
-	int m_order[64];
 	GChessBoard* m_pBoard;
 	bool m_white;
-	GRand* m_pRand;
 
 public:
 	/// Constructs a move iterator. (Doesn't call Reset, so you must still call Reset before you call GetNextMove).
@@ -145,7 +144,7 @@ public:
 	~GChessMoveIterator();
 
 	/// Resets the iterator and specifies the color whose moves you wish to iterate.
-	void reset(GChessBoard* pBoard, bool white, GRand* pRand);
+	void reset(GChessBoard* pBoard, bool white);
 
 	/// Gets the next possible move for the specified color. Returns false if there are no more moves (so the
 	/// values in xSrc, ySrc, xDest, and yDest are bogus)

@@ -24,6 +24,8 @@
 #include "GDom.h"
 #include "GRand.h"
 #include "GTime.h"
+#include "GNeuralNet.h"
+#include "GVec.h"
 
 namespace GClasses {
 
@@ -76,6 +78,81 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 	}
 	return NULL;
 }
+
+double GActivationFunction::measureWeightScale(size_t width, size_t depth, size_t seed)
+{
+	GUniformRelation rel(width);
+	GNeuralNet nn;
+	nn.rand().setSeed(seed);
+	for(size_t i = 0; i < depth; i++)
+		nn.addLayer(new GLayerClassic(width, width, clone()));
+	GLayerClassic scratch(0, width, clone());
+	nn.beginIncrementalLearning(rel, rel);
+	GRand& rand = nn.rand();
+	double step = 0.5;
+	double scale = 1.0;
+	double recipWid = 1.0 / sqrt((double)width);
+for(scale = 0.95; scale < 1.05; scale += 0.01)
+//	for(size_t iters = 0; iters < 1000; iters++)
+	{
+double t0 = 0.0;
+double t1 = 0.0;
+for(size_t q = 0; q < 400; q++)
+{
+		// Re-initialize the weights with the candidate scale
+		for(size_t i = 0; i < depth; i++)
+		{
+			GLayerClassic* pLayer = (GLayerClassic*)&nn.layer(i);
+			GVec::setAll(pLayer->bias(), 0.0, width);
+			GMatrix& w = pLayer->weights();
+			for(size_t j = 0; j < width; j++)
+			{
+				double* pRow = w[j];
+rand.spherical(pRow, width);
+GVec::multiply(pRow, scale, width);
+//				for(size_t k = 0; k < width; k++)
+//					*(pRow++) = scale * recipWid * rand.normal();
+			}
+		}
+
+		// Feed a in a random vector and target a random vector
+		double* pScratch = scratch.activation();
+		rand.spherical(pScratch, width);
+		nn.forwardProp(pScratch);
+double mag0 = GVec::squaredMagnitude(nn.outputLayer().activation(), width);
+t0 += sqrt(mag0);
+		rand.spherical(pScratch, width);
+		size_t i = nn.layerCount() - 1;
+		GNeuralNetLayer* pLay = &nn.layer(i);
+		pLay->computeError(pScratch);
+		pLay->deactivateError();
+		GVec::normalize(pLay->error(), width);
+		while(i > 0)
+		{
+			GNeuralNetLayer* pUpStream = &nn.layer(i - 1);
+			pLay->backPropError(pUpStream);
+			pUpStream->deactivateError();
+			pLay = pUpStream;
+			i--;
+		}
+
+		// Adjust the scale to make the magnitude of the error on layer 1 approach 1
+		double mag = GVec::squaredMagnitude(nn.layer(0).error(), width);
+/*		if(mag < 1.0)
+			scale += step;
+		else
+			scale -= step;
+		step *= 0.9863;*/
+
+t1 += sqrt(mag);
+}
+
+std::cout << to_str(scale) << "," << to_str(log(t0 / 400.0) * M_LOG10E) << "," << to_str(log(t1 / 400.0) * M_LOG10E) << "\n";
+	}
+	return scale;
+}
+
+
 
 /*
 double logisticLookup[64] = {

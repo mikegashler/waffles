@@ -12,7 +12,7 @@ ifeq ($(UNAME),Darwin)
 	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
-	LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -L../../../lib -framework AppKit
+	LFLAGS = -L../../../lib -L/opt/local/lib -L/usr/local/lib -L/sw/lib -L../../../lib -framework AppKit
 	DBG_LFLAGS = $(LFLAGS) -lpthread -lGClassesDbg
 	OPT_LFLAGS = $(LFLAGS) -lpthread -lGClasses
 else

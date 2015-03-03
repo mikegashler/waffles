@@ -12,8 +12,8 @@ ifeq ($(UNAME),Darwin)
 	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
-	DBG_LFLAGS = -L../../../lib -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) $(shell sdl-config --libs) -lpng -lz -lpthread -framework AppKit -lGClassesDbg
-	OPT_LFLAGS = -L../../../lib -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) $(shell sdl-config --libs) -lpng -lz -lpthread -framework AppKit -lGClasses
+	DBG_LFLAGS = -L../../../lib -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) $(shell sdl-config --libs) -lpng -lz -ljpeg -lpthread -framework AppKit -lGClassesDbg
+	OPT_LFLAGS = -L../../../lib -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) $(shell sdl-config --libs) -lpng -lz -ljpeg -lpthread -framework AppKit -lGClasses
 else
 	CFLAGS = -Wall $(shell sdl-config --cflags) -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG

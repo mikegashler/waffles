@@ -17,8 +17,7 @@
 */
 
 #include "GChess.h"
-#include "GError.h"
-#include "GRand.h"
+#include <GClasses/GError.h>
 
 using namespace GClasses;
 using std::ostream;
@@ -29,8 +28,8 @@ void GChessBoard::resetBoard()
 	setPiece(0, 0, Rook, true);
 	setPiece(1, 0, Knight, true);
 	setPiece(2, 0, Bishop, true);
-	setPiece(3, 0, King, true);
-	setPiece(4, 0, Queen, true);
+	setPiece(3, 0, Queen, true);
+	setPiece(4, 0, King, true);
 	setPiece(5, 0, Bishop, true);
 	setPiece(6, 0, Knight, true);
 	setPiece(7, 0, Rook, true);
@@ -46,11 +45,42 @@ void GChessBoard::resetBoard()
 	setPiece(0, 7, Rook, false);
 	setPiece(1, 7, Knight, false);
 	setPiece(2, 7, Bishop, false);
-	setPiece(3, 7, King, false);
-	setPiece(4, 7, Queen, false);
+	setPiece(3, 7, Queen, false);
+	setPiece(4, 7, King, false);
 	setPiece(5, 7, Bishop, false);
 	setPiece(6, 7, Knight, false);
 	setPiece(7, 7, Rook, false);
+}
+
+int GChessBoard::heuristic()
+{
+	bool white;
+	int score = 0;
+	int x, y, value;
+	GChessBoard::Piece p;
+	for(y = 0; y < 8; y++)
+	{
+		for(x = 0; x < 8; x++)
+		{
+			p = piece(x, y, &white);
+			switch(p)
+			{
+				case GChessBoard::None: value = 0; break;
+				case GChessBoard::Pawn: value = 10; break;
+				case GChessBoard::Rook: value = 63; break;
+				case GChessBoard::Knight: value = 31; break;
+				case GChessBoard::Bishop: value = 36; break;
+				case GChessBoard::Queen: value = 88; break;
+				case GChessBoard::King: value = 500; break;
+				default: GAssert(false); value = 0; break;
+			}
+			if(white)
+				score += value;
+			else
+				score -= value;
+		}
+	}
+	return score;
 }
 
 bool GChessBoard::checkMove(int* pOutMoves, int* pnMoves, int col, int row, bool bWhite)
@@ -212,8 +242,13 @@ void GChessBoard::printBoard(ostream& stream)
 {
 	int i, j;
 	bool white;
+	stream << "  A  B  C  D  E  F  G  H\n";
+	stream << " +";
 	for(j = 0; j < 8; j++)
+		stream << "--+";
+	for(j = 7; j >= 0; j--)
 	{
+		stream << ('1' + j) << "|";
 		for(i = 0; i < 8; i++)
 		{
 			Piece p = piece(i, j, &white);
@@ -229,15 +264,20 @@ void GChessBoard::printBoard(ostream& stream)
 				case None: stream << "[]"; break;
 				case Pawn: stream << "p"; break;
 				case Rook: stream << "r"; break;
-				case Knight: stream << "k"; break;
+				case Knight: stream << "n"; break;
 				case Bishop: stream << "b"; break;
 				case Queen: stream << "q"; break;
 				case King: stream << "K"; break;
 				default: stream << "?"; break;
 			}
+			stream << "|";
 		}
+		stream << ('1' + j) << "\n +";
+		for(j = 0; j < 8; j++)
+			stream << "--+";
 		stream << "\n";
 	}
+	stream << "  A  B  C  D  E  F  G  H\n";
 }
 
 bool GChessBoard::move(int xSrc, int ySrc, int xDest, int yDest)
@@ -249,6 +289,8 @@ bool GChessBoard::move(int xSrc, int ySrc, int xDest, int yDest)
 	GChessBoard::Piece p = piece(xSrc, ySrc, &white);
 	GAssert(p != None);
 	GAssert(target == None || white != targetWhite); // can't take your own piece
+	if(p == GChessBoard::Pawn && (yDest == 0 || yDest == 7))
+		p = GChessBoard::Queen; // a pawn that crosses the board becomes a queen
 	setPiece(xDest, yDest, p, white);
 	setPiece(xSrc, ySrc, GChessBoard::None, true);
 	if(target == King)
@@ -276,34 +318,19 @@ GChessMoveIterator::GChessMoveIterator()
 {
 	m_pBoard = NULL;
 	m_white = true;
-	m_pRand = NULL;
-	m_n = 64;
 }
 
 GChessMoveIterator::~GChessMoveIterator()
 {
 }
 
-void GChessMoveIterator::reset(GChessBoard* pBoard, bool white, GRand* pRand)
+void GChessMoveIterator::reset(GChessBoard* pBoard, bool white)
 {
-	m_pRand = pRand;
 	m_pBoard = pBoard;
 	m_white = white;
 	m_n = -1;
 	m_move = 0;
 	m_moveCount = 0;
-
-	// Shuffle the order in which board spots are visited
-	int i, n, t;
-	for(i = 0; i < 64; i++)
-		m_order[i] = i;
-	for(i = 63; i > 0; i--)
-	{
-		n = (int)pRand->next(i + 1);
-		t = m_order[n];
-		m_order[n] = m_order[i];
-		m_order[i] = t;
-	}
 }
 
 bool GChessMoveIterator::nextMove(int* xSrc, int* ySrc, int* xDest, int* yDest)
@@ -311,13 +338,13 @@ bool GChessMoveIterator::nextMove(int* xSrc, int* ySrc, int* xDest, int* yDest)
 	if(m_n >= 64)
 		return false;
 	bool white;
-	int x, y, i, n, t;
+	int x, y;
 	while(true)
 	{
 		if(m_move < m_moveCount)
 		{
-			*xSrc = m_order[m_n] % 8;
-			*ySrc = m_order[m_n] / 8;
+			*xSrc = m_n % 8;
+			*ySrc = m_n / 8;
 			*xDest = m_moves[2 * m_move];
 			*yDest = m_moves[2 * m_move + 1];
 			GAssert(*xSrc >= 0 && *xSrc < 8 && *ySrc >= 0 && *ySrc < 8); // out of range
@@ -329,24 +356,12 @@ bool GChessMoveIterator::nextMove(int* xSrc, int* ySrc, int* xDest, int* yDest)
 		{
 			if(++m_n >= 64)
 				return false;
-			x = m_order[m_n] % 8;
-			y = m_order[m_n] / 8;
+			x = m_n % 8;
+			y = m_n / 8;
 			if(m_pBoard->piece(x, y, &white) != GChessBoard::None && white == m_white)
 			{
 				m_move = 0;
 				m_moveCount = m_pBoard->moves(m_moves, x, y);
-
-				// Shuffle the move order
-				for(i = m_moveCount - 1; i > 0; i--)
-				{
-					n = (int)m_pRand->next(i + 1);
-					t = m_moves[2 * n];
-					m_moves[2 * n] = m_moves[2 * i];
-					m_moves[2 * i] = t;
-					t = m_moves[2 * n + 1];
-					m_moves[2 * n + 1] = m_moves[2 * i + 1];
-					m_moves[2 * i + 1] = t;
-				}
 			}
 		}
 	}

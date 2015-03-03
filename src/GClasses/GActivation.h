@@ -87,6 +87,9 @@ public:
 
 	/// Deserialize this object
 	static GActivationFunction* deserialize(GDomNode* pNode);
+
+	/// Calculate the scaling factor for this activation function that minimizes the vanishing gradient
+	double measureWeightScale(size_t width, size_t depth, size_t seed);
 };
 
 /// The logistic activation function

@@ -181,7 +181,9 @@ public:
 	}
 };
 
-
+#ifndef NO_TEST_CODE
+void GSimplePriorityQueue_test();
+#endif
 
 
 } // namespace GClasses
