@@ -838,7 +838,10 @@ void GLayerMixed::resize(size_t inputs, size_t outputs, GRand* pRand, double dev
 	if(outputs != m_activation.cols())
 		throw Ex("Sorry, GLayerMixed does not support resizing the number of outputs");
 	for(size_t i = 0; i < m_components.size(); i++)
+	{
 		m_components[i]->resize(inputs, m_components[i]->outputs(), pRand, deviation);
+		m_inputError.resize(1, inputs);
+	}
 }
 
 // virtual
