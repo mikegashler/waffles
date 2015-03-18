@@ -546,7 +546,7 @@ public:
 	double* newRow();
 
 	/// \brief Adds 'n' new columns to the matrix. (This resizes every row and copies all the
-	/// existing data, which is very inefficient.) The values in the new columns are not initialized.
+	/// existing data, which is rather inefficient.) The values in the new columns are not initialized.
 	void newColumns(size_t n);
 
 	/// \brief Adds "nRows" uninitialized rows to this matrix.

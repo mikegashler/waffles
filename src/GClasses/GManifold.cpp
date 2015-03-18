@@ -1594,7 +1594,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 GNeuroPCA::GNeuroPCA(size_t targetDims, GRand* pRand)
 : GTransform(), m_targetDims(targetDims), m_pWeights(NULL), m_pEigVals(NULL), m_pRand(pRand)
 {
-	m_pActivation = new GActivationLogistic();
+	m_pActivation = new GActivationTanH();
 }
 
 // virtual
@@ -1664,10 +1664,10 @@ void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, 
 					{
 						// Compute the predicted output
 						double net = *pBias + *pPre + *pW * (*pX);
-						double pred = m_pActivation->squash(net);
+						double pred = m_pActivation->squash(net, 0);
 
 						// Compute the error (pIn gives the target)
-						double err = learningRate * (*pTar - pred) * m_pActivation->derivativeOfNet(net, pred);
+						double err = learningRate * (*pTar - pred) * m_pActivation->derivativeOfNet(net, pred, 0);
 						sse += (err * err);
 
 						// Adjust the bias and weight
@@ -1716,7 +1716,7 @@ double GNeuroPCA::computeSumSquaredErr(const GMatrix* pIn, GMatrix* pOut, size_t
 			double net = *(pBias++);
 			for(size_t k = 0; k < cols; k++)
 				net += *(pX++) * m_pWeights->row(k + 1)[j];
-			double d = *(pTar++) - m_pActivation->squash(net);
+			double d = *(pTar++) - m_pActivation->squash(net, 0);
 			sse += (d * d);
 		}
 	}
@@ -1739,9 +1739,9 @@ GMatrix* GNeuroPCA::reduce(const GMatrix& in)
 		for(size_t i = 0; i < dims; i++)
 		{
 			double mean = in.columnMean(i);
-			if((mean < m_pActivation->center() - m_pActivation->halfRange()) || (mean > m_pActivation->center() + m_pActivation->halfRange()))
-				throw Ex("The data is expected to fall within the range of the activation function");
-			*(pBiases++) = m_pActivation->inverse(mean);
+//			if((mean < m_pActivation->center() - m_pActivation->halfRange()) || (mean > m_pActivation->center() + m_pActivation->halfRange()))
+//				throw Ex("The data is expected to fall within the range of the activation function");
+			*(pBiases++) = m_pActivation->inverse(mean, 0);
 		}
 	}
 

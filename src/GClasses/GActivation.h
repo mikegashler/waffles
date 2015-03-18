@@ -25,6 +25,7 @@
 #include "GError.h"
 #ifndef MIN_PREDICT
 #include "GMath.h"
+#include "GVec.h"
 #endif // MIN_PREDICT
 namespace GClasses {
 
@@ -45,34 +46,14 @@ public:
 	virtual const char* name() const = 0;
 
 	/// The activation function
-	virtual double squash(double x) = 0;
+	virtual double squash(double x, int index) = 0;
 
 	/// The derivative of the activation function
-	virtual double derivative(double x) = 0;
+	virtual double derivative(double x, int index) = 0;
 
 	/// The inverse of the activation function. (This function may throw an exception
 	/// if the activation function cannot be inverted.)
-	virtual double inverse(double y) = 0;
-
-	/// The center output value. This should return the value of squash(0.0).
-	virtual double center() = 0;
-
-	/// The absolute difference between the max (or min) output value and the center
-	virtual double halfRange() = 0;
-
-	/// Returns a value to use for the diagonal elements when initializing this unit
-	/// to approximate the identity function.
-	virtual double identityDiag() = 0;
-	//{
-	//	return 1.0 / m_activationFunctions[i]->derivative(0.0);
-	//}
-
-	/// Returns a value to use for the bias when initializing this unit to approximate
-	/// the identity function.
-	virtual double identityBias() = 0;
-	//{
-	//	return -m_activationFunctions[i]->center() * identityDiag();
-	//}
+	virtual double inverse(double y, int index) = 0;
 
 	/// Returns a clone of this object
 	virtual GActivationFunction* clone() = 0;
@@ -80,16 +61,22 @@ public:
 	/// This computes the derivative of the net value. (Sometimes, such as with
 	/// GActivationLogistic, it is more efficient to compute this from the activation
 	/// value, so both are provided.)
-	virtual double derivativeOfNet(double net, double activation) { return derivative(net); }
+	virtual double derivativeOfNet(double net, double activation, int index) { return derivative(net, index); }
 
 	/// Serialize this object
-	GDomNode* serialize(GDom* pDoc) const;
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Refines the parameters of this activation function by stochastic gradient descent
+	virtual void refine(const double* pNet, const double* pError, double learningRate) {}
+
+	/// Regularizes the parameters of this activation function
+	virtual void regularize(double lambda) {}
 
 	/// Deserialize this object
 	static GActivationFunction* deserialize(GDomNode* pNode);
 
-	/// Calculate the scaling factor for this activation function that minimizes the vanishing gradient
-	double measureWeightScale(size_t width, size_t depth, size_t seed);
+//	/// Calculate the scaling factor for this activation function that minimizes the vanishing gradient
+//	double measureWeightScale(size_t width, size_t depth, size_t seed);
 };
 
 /// The logistic activation function
@@ -100,7 +87,7 @@ public:
 	virtual const char* name() const { return "logistic"; }
 
 	/// The logistic function. Returns 1.0/(e^(-x)+1.0)
-	virtual double squash(double x)
+	virtual double squash(double x, int index)
 	{
 		if(x >= 700.0) // Don't trigger a floating point exception
 			return 1.0;
@@ -110,10 +97,10 @@ public:
 	}
 
 	/// Returns d*(1.0-d), where d=squash(x)
-	virtual double derivative(double x) { double d = squash(x); return d * (1.0 - d); }
+	virtual double derivative(double x, int index) { double d = squash(x, index); return d * (1.0 - d); }
 
 	/// The logit function. Returns log(y)-log(1.0-y)
-	virtual double inverse(double y)
+	virtual double inverse(double y, int index)
 	{
 		if(y >= 1.0)
 			return 700.0;
@@ -123,64 +110,12 @@ public:
 	}
 
 	/// Returns y*(1.0-y)
-	virtual double derivativeOfNet(double net, double activation) { return activation * (1.0 - activation); }
-
-	/// Returns 0.5
-	virtual double center() { return 0.5; }
-
-	/// Returns 0.5
-	virtual double halfRange() { return 0.5; }
-
-	/// Returns 4.0
-	virtual double identityDiag() { return 4.0; }
-
-	/// Returns -2.0
-	virtual double identityBias() { return -2.0; }
+	virtual double derivativeOfNet(double net, double activation, int index) { return activation * (1.0 - activation); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationLogistic(); }
 };
-/*
-/// The logistic activation function implemented with a lookup table
-class GActivationLogisticLookup : public GActivationFunction
-{
-public:
-	/// Returns the name of this activation function
-	virtual const char* name() const { return "logisticlookup"; }
 
-	/// The logistic function. Returns 1.0/(e^(-x)+1.0)
-	virtual double squash(double x);
-
-	/// Returns d*(1.0-d), where d=squash(x)
-	virtual double derivative(double x)
-	{
-		throw Ex("Sorry, inverse is not implemented yet");
-	}
-
-	/// The logit function. Returns log(y)-log(1.0-y)
-	virtual double inverse(double y)
-	{
-		throw Ex("Sorry, inverse is not implemented yet");
-	}
-
-	/// Returns y*(1.0-y)
-	virtual double derivativeOfNet(double net, double activation) { return activation * (1.0 - activation); }
-
-	/// Returns 0.5
-	virtual double center() { return 0.5; }
-
-	/// Returns 0.5
-	virtual double halfRange() { return 0.5; }
-
-	/// See the comment for GActivationFunction::clone
-	virtual GActivationFunction* clone() { return new GActivationLogisticLookup(); }
-
-#ifndef MIN_PREDICT
-	/// Performs unit tests. Throws an exception if any tests fail.
-	static void test();
-#endif
-};
-*/
 /// The arctan activation function
 class GActivationArcTan : public GActivationFunction
 {
@@ -189,25 +124,13 @@ public:
 	virtual const char* name() const { return "arctan"; }
 
 	/// Returns atan(x). The result will be in the range -PI/2 <= y <= PI/2
-	virtual double squash(double x) { return atan(x); }
+	virtual double squash(double x, int index) { return atan(x); }
 
 	/// Returns 1/(x*x+1.0)
-	virtual double derivative(double x) { return 1.0 / (x * x + 1.0); }
+	virtual double derivative(double x, int index) { return 1.0 / (x * x + 1.0); }
 
 	/// Returns tan(y), where -PI/2 <= y <= PI/2
-	virtual double inverse(double y) { return tan(y); }
-
-	/// Returns 0
-	virtual double center() { return 0.0; }
-
-	/// Returns PI / 2
-	virtual double halfRange();
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 0.0
-	virtual double identityBias() { return 0.0; }
+	virtual double inverse(double y, int index) { return tan(y); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationArcTan(); }
@@ -221,7 +144,7 @@ public:
 	virtual const char* name() const { return "tanh"; }
 
 	/// Returns tanh(x). The result is in the range -1 <= y <= 1
-	virtual double squash(double x)
+	virtual double squash(double x, int index)
 	{
 		//return tanh(x);
 		if(x >= 700.0)
@@ -234,7 +157,7 @@ public:
 	}
 
 	/// Returns sech(x)*sech(x)
-	virtual double derivative(double x)
+	virtual double derivative(double x, int index)
 	{
 		if(x >= 700.0)
 			return 1.0;
@@ -247,7 +170,7 @@ public:
 	}
 
 	/// Returns atanh(y), where -1 <= y <= 1
-	virtual double inverse(double y)
+	virtual double inverse(double y, int index)
 	{
 #ifdef WINDOWS
 		return 0.5 * (log(1.0 + y) - log(1.0 - y));
@@ -258,18 +181,6 @@ public:
 
 	/// Returns 1-(y*y)
 	virtual double derivativeOfNet(double net, double activation) { return 1.0 - (activation * activation); }
-
-	/// Returns 0.0
-	virtual double center() { return 0.0; }
-
-	/// Returns 1.0
-	virtual double halfRange() { return 1.0; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 0.0
-	virtual double identityBias() { return 0.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationTanH(); }
@@ -283,25 +194,13 @@ public:
 	virtual const char* name() const { return "algebraic"; }
 
 	/// Returns x/(sqrt(x*x+1.0). The result is in the range -1 <= y <= 1
-	virtual double squash(double x) { return x / (sqrt(x * x + 1.0)); }
+	virtual double squash(double x, int index) { return x / (sqrt(x * x + 1.0)); }
 
 	/// Returns 1.0/(sqrt(x*x+1))-(x*x)/pow(x*x+1,1.5)
-	virtual double derivative(double x) { return 1.0 / (sqrt(x * x + 1)) - (x * x) / pow(x * x + 1, 1.5); }
+	virtual double derivative(double x, int index) { return 1.0 / (sqrt(x * x + 1)) - (x * x) / pow(x * x + 1, 1.5); }
 
 	/// Returns y / (sqrt(1.0 - (y * y)))
-	virtual double inverse(double y) { return y / (sqrt(1.0 - (y * y))); }
-
-	/// Returns 0.0
-	virtual double center() { return 0.0; }
-
-	/// Returns 1.0
-	virtual double halfRange() { return 1.0; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 0.0
-	virtual double identityBias() { return 0.0; }
+	virtual double inverse(double y, int index) { return y / (sqrt(1.0 - (y * y))); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationAlgebraic(); }
@@ -318,28 +217,16 @@ public:
 	virtual const char* name() const { return "identity"; }
 
 	/// Returns x
-	virtual double squash(double x) { return x; }
+	virtual double squash(double x, int index) { return x; }
 
 	/// Returns 1.0
-	virtual double derivative(double x) { return 1.0; }
+	virtual double derivative(double x, int index) { return 1.0; }
 
 	/// Returns y
-	virtual double inverse(double y) { return y; }
+	virtual double inverse(double y, int index) { return y; }
 
 	/// Returns 1.0
-	virtual double derivativeOfNet(double net, double activation) { return 1.0; }
-
-	/// Returns 0.0
-	virtual double center() { return 0.0; }
-
-	/// Returns 10000
-	virtual double halfRange() { return 10000; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 0.0
-	virtual double identityBias() { return 0.0; }
+	virtual double derivativeOfNet(double net, double activation, int index) { return 1.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationIdentity(); }
@@ -360,38 +247,82 @@ public:
 	virtual const char* name() const { return "bend"; }
 
 	/// Returns the bend function of x
-	virtual double squash(double x)
+	virtual double squash(double x, int index)
 	{
 		return BEND_AMOUNT * (sqrt(x * x + 1) - 1) + x;
 	}
 
 	/// Returns the derivative of the bend function
-	virtual double derivative(double x)
+	virtual double derivative(double x, int index)
 	{
 		return BEND_AMOUNT * x / sqrt(x * x + 1) + 1;
 	}
 
 	/// Returns the inverse of the bend function
-	virtual double inverse(double y)
+	virtual double inverse(double y, int index)
 	{
 		return (BEND_AMOUNT * sqrt(y * y + 2.0 * BEND_AMOUNT * y + 1) - y - BEND_AMOUNT) / (BEND_AMOUNT * BEND_AMOUNT - 1);
 	}
 
-	/// Returns 0.0
-	virtual double center() { return 0.0; }
-
-	/// Returns 10000
-	virtual double halfRange() { return 10000; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 0.0
-	virtual double identityBias() { return 0.0; }
-
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationBend(); }
 };
+
+
+
+class GActivationHinge : public GActivationFunction
+{
+protected:
+	size_t m_units;
+	GVec m_hinges;
+
+public:
+	/// General-purpose constructor
+	GActivationHinge(size_t units);
+
+	/// Unmarshaling constructor
+	GActivationHinge(GDomNode* pNode);
+
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "hinge"; }
+
+	/// Marshals this object to a JSON DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Returns the bend function of x
+	virtual double squash(double x, int index)
+	{
+		return m_hinges.v[index] * (sqrt(x * x + 1) - 1) + x;
+	}
+
+	/// Returns the derivative of the bend function
+	virtual double derivative(double x, int index)
+	{
+		return m_hinges.v[index] * x / sqrt(x * x + 1) + 1;
+	}
+
+	/// Returns the inverse of the bend function
+	virtual double inverse(double y, int index)
+	{
+		double v = m_hinges.v[index];
+		return (v * sqrt(y * y + 2.0 * v * y + 1) - y - v) / (v * v - 1);
+	}
+
+	/// Refines the hinge values by stochastic gradient descent
+	virtual void refine(const double* pNet, const double* pError, double learningRate);
+
+	/// Regularizes the parameters of this activation function
+	virtual void regularize(double lambda);
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone()
+	{
+		GActivationHinge* pClone = new GActivationHinge(m_units);
+		GVec::copy(pClone->m_hinges.v, m_hinges.v, m_units);
+		return pClone;
+	}
+};
+
 
 /// This is an output-layer activation function shaped
 /// like a sigmoid, but with both a co-domain and domain
@@ -404,13 +335,13 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "bidir"; }
 
-	virtual double squash(double x)
+	virtual double squash(double x, int index)
 	{
 		double d = sqrt(x * x + 1.0);
 		return sqrt(d + x) - sqrt(d - x);
 	}
 
-	virtual double derivative(double x)
+	virtual double derivative(double x, int index)
 	{
 		if(std::abs(x) > 1e7)
 			return 0.0;
@@ -419,7 +350,7 @@ public:
 		return (t + 1.0) / (2.0 * sqrt(d + x)) - (t - 1.0) / (2.0 * sqrt(d - x));
 	}
 
-	virtual double inverse(double y)
+	virtual double inverse(double y, int index)
 	{
 		double d = y * y;
 		if(y >= 0.0)
@@ -427,18 +358,6 @@ public:
 		else
 			return -0.5 * sqrt(d * d + 4.0 * d);
 	}
-
-	/// Returns 0.0
-	virtual double center() { return 0.0; }
-
-	/// Returns 10000
-	virtual double halfRange() { return 10000; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 0.0
-	virtual double identityBias() { return 0.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationBiDir(); }
@@ -451,27 +370,15 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "gaussian"; }
 
-	virtual double squash(double x) { return exp(-(x * x)); }
+	virtual double squash(double x, int index) { return exp(-(x * x)); }
 
-	virtual double derivative(double x) { return -2.0 * x * exp(-(x * x)); }
+	virtual double derivative(double x, int index) { return -2.0 * x * exp(-(x * x)); }
 
-	virtual double inverse(double y)
+	virtual double inverse(double y, int index)
 	{
 		throw Ex("Not invertible");
 		return 0;
 	}
-
-	/// Returns 0.4
-	virtual double center() { return 0.5; }
-
-	/// Returns 0.6
-	virtual double halfRange() { return 0.5; }
-
-	/// Throws an exception
-	virtual double identityDiag() { throw Ex("Not supported"); }
-
-	/// Throws an exception
-	virtual double identityBias() { throw Ex("Not supported"); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationGaussian(); }
@@ -486,23 +393,11 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "sin"; }
 
-	virtual double squash(double x) { return sin(x); }
+	virtual double squash(double x, int index) { return sin(x); }
 
-	virtual double derivative(double x) { return cos(x); }
+	virtual double derivative(double x, int index) { return cos(x); }
 
-	virtual double inverse(double y) { return asin(y); }
-
-	/// Returns 0.0
-	virtual double center() { return 0.0; }
-
-	/// Returns 1.0
-	virtual double halfRange() { return 1.0; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 0.0
-	virtual double identityBias() { return 0.0; }
+	virtual double inverse(double y, int index) { return asin(y); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationSin(); }
@@ -517,27 +412,15 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "sinc"; }
 
-	virtual double squash(double x) { return x == 0 ? 1.0 : sin(x) / x; }
+	virtual double squash(double x, int index) { return x == 0 ? 1.0 : sin(x) / x; }
 
-	virtual double derivative(double x) { return x == 0 ? 0.0 : cos(x) / x - sin(x) / (x * x); }
+	virtual double derivative(double x, int index) { return x == 0 ? 0.0 : cos(x) / x - sin(x) / (x * x); }
 
-	virtual double inverse(double y)
+	virtual double inverse(double y, int index)
 	{
 		throw Ex("The Sinc function cannot be inverted");
 		return 0;
 	}
-
-	/// Returns 0.4
-	virtual double center() { return 0.4; }
-
-	/// Returns 0.6
-	virtual double halfRange() { return 0.6; }
-
-	/// Throws an exception
-	virtual double identityDiag() { throw Ex("Not supported"); }
-
-	/// Throws an exception
-	virtual double identityBias() { throw Ex("Not supported"); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationSinc(); }
@@ -552,7 +435,7 @@ public:
 	virtual const char* name() const { return "logisticderiv"; }
 
 	/// The derivative of the logistic function.
-	virtual double squash(double x)
+	virtual double squash(double x, int index)
 	{
 		if(x >= 700.0) // Don't trigger a floating point exception
 			return 0.0;
@@ -563,32 +446,20 @@ public:
 	}
 
 	/// Returns d*(1.0-d), where d=squash(x)
-	virtual double derivative(double x) { double d = squash(x); return d * (1.0 - d) * (1.0 - 2.0 * d); }
+	virtual double derivative(double x, int index) { double d = squash(x, index); return d * (1.0 - d) * (1.0 - 2.0 * d); }
 
 	/// The logit function. Returns log(y)-log(1.0-y)
-	virtual double inverse(double y)
+	virtual double inverse(double y, int index)
 	{
 		throw Ex("This function is not easily invertible");
 	}
 
 	/// Returns y*(1.0-y)
-	virtual double derivativeOfNet(double net, double activation)
+	virtual double derivativeOfNet(double net, double activation, int index)
 	{
 		double t = 1.0 - 2.0 / (exp(-net) + 1.0);
 		return activation * t;
 	}
-
-	/// Returns 0.5
-	virtual double center() { return 0.5; }
-
-	/// Returns 0.5
-	virtual double halfRange() { return 0.5; }
-
-	/// Throws an exception
-	virtual double identityDiag() { throw Ex("Not supported"); }
-
-	/// Throws an exception
-	virtual double identityBias() { throw Ex("Not supported"); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationLogisticDerivative(); }
@@ -602,23 +473,11 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "relu"; }
 
-	virtual double squash(double x) { return std::max(0.0, x); }
+	virtual double squash(double x, int index) { return std::max(0.0, x); }
 
-	virtual double derivative(double x) { return (x >= 0.0 ? 1.0 : 0.0); }
+	virtual double derivative(double x, int index) { return (x >= 0.0 ? 1.0 : 0.0); }
 
-	virtual double inverse(double y) { return y; }
-
-	/// Returns 50.0
-	virtual double center() { return 50.0; }
-
-	/// Returns 50.0
-	virtual double halfRange() { return 50.0; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 1.0
-	virtual double identityBias() { return 0.0; }
+	virtual double inverse(double y, int index) { return y; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationRectifiedLinear(); }
@@ -632,23 +491,11 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "softplus"; }
 
-	virtual double squash(double x) { return x > 500 ? x : log(1.0 + exp(x)); }
+	virtual double squash(double x, int index) { return x > 500 ? x : log(1.0 + exp(x)); }
 
-	virtual double derivative(double x) { return 1.0 / (1.0 + exp(-x)); }
+	virtual double derivative(double x, int index) { return 1.0 / (1.0 + exp(-x)); }
 
-	virtual double inverse(double y) { return log(exp(y) - 1.0); }
-
-	/// Returns 50.0
-	virtual double center() { return 50.0; }
-
-	/// Returns 50.0
-	virtual double halfRange() { return 50.0; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 1.0
-	virtual double identityBias() { return 0.0; }
+	virtual double inverse(double y, int index) { return log(exp(y) - 1.0); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationSoftPlus(); }
@@ -662,23 +509,11 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "softplus2"; }
 
-	virtual double squash(double x) { return 0.5 * (sqrt(x * x + 1) + x); }
+	virtual double squash(double x, int index) { return 0.5 * (sqrt(x * x + 1) + x); }
 
-	virtual double derivative(double x) { return 0.5 * (x / sqrt(x * x + 1) + 1.0); }
+	virtual double derivative(double x, int index) { return 0.5 * (x / sqrt(x * x + 1) + 1.0); }
 
-	virtual double inverse(double y) { return (2 * y - 1) * (2 * y + 1) / (4 * y); }
-
-	/// Returns 50.0
-	virtual double center() { return 500.0; }
-
-	/// Returns 50.0
-	virtual double halfRange() { return 500.0; }
-
-	/// Returns 1.0
-	virtual double identityDiag() { return 1.0; }
-
-	/// Returns 1.0
-	virtual double identityBias() { return 0.0; }
+	virtual double inverse(double y, int index) { return (2 * y - 1) * (2 * y + 1) / (4 * y); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationSoftPlus2(); }

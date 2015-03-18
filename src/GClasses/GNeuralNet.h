@@ -181,6 +181,12 @@ public:
 	/// Scale weights that feed into this layer from the specified input
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar) = 0;
 
+	/// Refines the activation function by stochastic gradient descent
+	virtual void refineActivationFunction(double learningRate) = 0;
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda) = 0;
+
 	/// Adjusts weights such that values in the new range will result in the
 	/// same behavior that previously resulted from values in the old range.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0) = 0;
@@ -345,6 +351,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Scale weights that feed into this layer from the specified input
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
+
+	/// Refines the activation function by stochastic gradient descent
+	virtual void refineActivationFunction(double learningRate);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
@@ -573,6 +585,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Scale weights that feed into this layer from the specified input
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
 
+	/// Refines the activation function by stochastic gradient descent
+	virtual void refineActivationFunction(double learningRate);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
+
 	/// Adjusts weights such that values in the new range will result in the
 	/// same behavior that previously resulted from values in the old range.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
@@ -714,6 +732,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Scale weights that feed into this layer from the specified input
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
+
+	/// Refines the activation function by stochastic gradient descent
+	virtual void refineActivationFunction(double learningRate);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
@@ -912,6 +936,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Throws an exception.
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
 
+	/// Refines the activation function by stochastic gradient descent
+	virtual void refineActivationFunction(double learningRate);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
+
 	/// Throws an exception.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
@@ -1070,6 +1100,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Throws an exception.
 	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
 
+	/// Refines the activation function by stochastic gradient descent
+	virtual void refineActivationFunction(double learningRate);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
+
 	/// Throws an exception.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
@@ -1166,6 +1202,9 @@ public:
 
 	/// Just like scaleWeights, except it only scales the weights in one of the output units.
 	void scaleWeightsSingleOutput(size_t output, double lambda);
+
+	/// Regularizes all the activation functions
+	void regularizeActivationFunctions(double lambda);
 
 	/// Contract all the weights in this network by the specified factor.
 	void contractWeights(double factor, bool contractBiases);
@@ -1315,6 +1354,9 @@ public:
 	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
 	void backpropagate(const double* pTarget, size_t startLayer = INVALID_INDEX);
+
+	/// Backpropagates the error and refines the activation function in each layer by stochastic gradient descent.
+	void backpropagateAndRefineActivationFunction(const double* pTarget, double learningRate);
 
 	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
 	/// the specified output node.)

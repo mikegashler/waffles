@@ -38,6 +38,10 @@ namespace GClasses {
 	struct timeval tp;
 	gettimeofday(&tp, NULL);
 	return ((double)tp.tv_sec + (double)tp.tv_usec * 1e-6);
+
+// 	struct timespec ts;
+// 	clock_gettime(CLOCK_MONOTONIC, &ts);
+// 	return (double)ts.tv_sec + (double)tv_nsec * 1e-9;
 #endif
 }
 

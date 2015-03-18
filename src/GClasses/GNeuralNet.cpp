@@ -241,7 +241,7 @@ void GLayerClassic::activate()
 	for(size_t i = 0; i < outputCount; i++)
 	{
 		GAssert(*pNet < 1e100 && *pNet > -1e100);
-		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++), i);
 	}
 }
 
@@ -294,7 +294,7 @@ void GLayerClassic::feedForwardWithInputBias(const double* pIn)
 	// Apply the activation function
 	double* pAct = activation();
 	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++), i);
 }
 
 void GLayerClassic::feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias)
@@ -309,7 +309,7 @@ void GLayerClassic::feedForwardToOneOutput(const double* pIn, size_t output, boo
 
 	// Apply the activation function
 	double* pAct = activation() + output;
-	*pAct = m_pActivationFunction->squash(*pNet);
+	*pAct = m_pActivationFunction->squash(*pNet, output);
 }
 
 void GLayerClassic::computeError(const double* pTarget)
@@ -330,7 +330,6 @@ void GLayerClassic::computeError(const double* pTarget)
 				*pErr = (*pTarget - *pAct + *pSlack);
 			else
 				*pErr = 0.0;
-			GAssert(std::abs(*pErr) < m_pActivationFunction->halfRange() * 2.0);
 		}
 		pTarget++;
 		pSlack++;
@@ -360,7 +359,7 @@ void GLayerClassic::deactivateError()
 	double* pAct = activation();
 	for(size_t i = 0; i < outputUnits; i++)
 	{
-		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct);
+		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct, i);
 		pNet++;
 		pAct++;
 		pErr++;
@@ -372,7 +371,7 @@ void GLayerClassic::deactivateErrorSingleOutput(size_t output)
 	double* pErr = &error()[output];
 	double netVal = net()[output];
 	double act = activation()[output];
-	(*pErr) *= m_pActivationFunction->derivativeOfNet(netVal, act);
+	(*pErr) *= m_pActivationFunction->derivativeOfNet(netVal, act, output);
 }
 
 void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
@@ -590,10 +589,7 @@ void GLayerClassic::setWeightsToIdentity(size_t start, size_t count)
 		for(size_t j = 0; j < inputs(); j++)
 		{
 			if(j == i)
-			{
-				m_weights[j][i] = m_pActivationFunction->identityDiag();
-				bias()[i] = m_pActivationFunction->identityBias();
-			}
+				m_weights[j][i] = 1.0;
 			else
 				m_weights[j][i] = 0.0;
 		}
@@ -665,6 +661,18 @@ void GLayerClassic::scaleUnitIncomingWeights(size_t unit, double scalar)
 void GLayerClassic::scaleUnitOutgoingWeights(size_t input, double scalar)
 {
 	GVec::multiply(m_weights[input], scalar, outputs());
+}
+
+// virtual
+void GLayerClassic::refineActivationFunction(double learningRate)
+{
+	m_pActivationFunction->refine(net(), error(), learningRate);
+}
+
+// virtual
+void GLayerClassic::regularizeActivationFunction(double lambda)
+{
+	m_pActivationFunction->regularize(lambda);
 }
 
 // virtual
@@ -751,7 +759,7 @@ void GLayerSoftMax::activate()
 	double sum = 0;
 	for(size_t i = 0; i < outputCount; i++)
 	{
-		double d = m_pActivationFunction->squash(*(pNet++));
+		double d = m_pActivationFunction->squash(*(pNet++), i);
 		sum += d;
 		*(pAct++) = d;
 	}
@@ -960,6 +968,25 @@ void GLayerMixed::diminishWeights(double amount, bool diminishBiases)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->diminishWeights(amount, diminishBiases);
+}
+
+// virtual
+void GLayerMixed::refineActivationFunction(double learningRate)
+{
+	double* pErr = error();
+	for(size_t i = 0; i < m_components.size(); i++)
+	{
+		GVec::copy(m_components[i]->error(), pErr, m_components[i]->outputs()); // todo: fix: this work will be repeated when the error is deactivated
+		m_components[i]->refineActivationFunction(learningRate);
+		pErr += m_components[i]->outputs();
+	}
+}
+
+// virtual
+void GLayerMixed::regularizeActivationFunction(double lambda)
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->regularizeActivationFunction(lambda);
 }
 
 // virtual
@@ -1250,7 +1277,7 @@ void GLayerRestrictedBoltzmannMachine::activate()
 	size_t outputCount = outputs();
 	double* pNet = net();
 	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++), i);
 }
 
 // virtual
@@ -1316,7 +1343,7 @@ void GLayerRestrictedBoltzmannMachine::feedBackward(const double* pIn)
 	// Squash it
 	double* pAct = activationReverse();
 	for(size_t i = 0; i < inputCount; i++)
-		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++), i);
 }
 
 void GLayerRestrictedBoltzmannMachine::resampleHidden(GRand& rand)
@@ -1430,7 +1457,7 @@ void GLayerRestrictedBoltzmannMachine::deactivateError()
 	double* pAct = activation();
 	for(size_t i = 0; i < outputUnits; i++)
 	{
-		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct);
+		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct, i);
 		pNet++;
 		pAct++;
 		pErr++;
@@ -1527,6 +1554,18 @@ void GLayerRestrictedBoltzmannMachine::maxNorm(double max)
 			GVec::multiply(m_weights[i], scal, inputCount);
 		}
 	}
+}
+
+// virtual
+void GLayerRestrictedBoltzmannMachine::refineActivationFunction(double learningRate)
+{
+	m_pActivationFunction->refine(net(), error(), learningRate);
+}
+
+// virtual
+void GLayerRestrictedBoltzmannMachine::regularizeActivationFunction(double lambda)
+{
+	m_pActivationFunction->regularize(lambda);
 }
 
 // virtual
@@ -1754,7 +1793,7 @@ void GLayerConvolutional1D::activate()
 	size_t outputCount = outputs();
 	double* pNet = net();
 	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++), i);
 }
 
 // virtual
@@ -1802,7 +1841,7 @@ void GLayerConvolutional1D::deactivateError()
 	double* pAct = activation();
 	for(size_t i = 0; i < outputUnits; i++)
 	{
-		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct);
+		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct, i);
 		pNet++;
 		pAct++;
 		pErr++;
@@ -1905,6 +1944,18 @@ void GLayerConvolutional1D::diminishWeights(double amount, bool diminishBiases)
 		GVec::regularize_1(m_kernels[i], amount, kernelSize);
 	if(diminishBiases)
 		GVec::regularize_1(bias(), amount, m_kernels.rows());
+}
+
+// virtual
+void GLayerConvolutional1D::refineActivationFunction(double learningRate)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+void GLayerConvolutional1D::regularizeActivationFunction(double lambda)
+{
+	m_pActivationFunction->regularize(lambda);
 }
 
 // virtual
@@ -2154,7 +2205,7 @@ void GLayerConvolutional2D::activate()
 	size_t outputCount = outputs();
 	double* pNet = net();
 	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
+		*(pAct++) = m_pActivationFunction->squash(*(pNet++), i);
 }
 
 // virtual
@@ -2202,7 +2253,7 @@ void GLayerConvolutional2D::deactivateError()
 	double* pAct = activation();
 	for(size_t i = 0; i < outputUnits; i++)
 	{
-		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct);
+		(*pErr) *= m_pActivationFunction->derivativeOfNet(*pNet, *pAct, i);
 		pNet++;
 		pAct++;
 		pErr++;
@@ -2320,6 +2371,18 @@ void GLayerConvolutional2D::diminishWeights(double amount, bool diminishBiases)
 		GVec::regularize_1(m_kernels[i], amount, kernelSize);
 	if(diminishBiases)
 		GVec::regularize_1(bias(), amount, m_kernelCount);
+}
+
+// virtual
+void GLayerConvolutional2D::refineActivationFunction(double learningRate)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+void GLayerConvolutional2D::regularizeActivationFunction(double lambda)
+{
+	m_pActivationFunction->regularize(lambda);
 }
 
 // virtual
@@ -2499,12 +2562,8 @@ bool GNeuralNet::supportedLabelRange(double* pOutMin, double* pOutMax)
 	if(m_layers.size() > 0)
 	{
 		GActivationFunction* pAct = ((GLayerClassic*)&outputLayer())->m_pActivationFunction; // TODO: This is a HACK
-		double hr = pAct->halfRange();
-		if(hr >= 1e50)
-			return true;
-		double c = pAct->center();
-		*pOutMin = c - hr;
-		*pOutMax = c + hr;
+		*pOutMin = pAct->squash(-400.0, 0);
+		*pOutMax = pAct->squash(400.0, 0);
 	}
 	else
 	{
@@ -2608,7 +2667,7 @@ void GNeuralNet::invertNode(size_t layer, size_t node)
 		double* pB = layerDownStream.bias();
 		for(size_t i = 0; i < downOuts; i++)
 		{
-			pB[i] += 2 * pActFunc->center() * pW[i];
+			pB[i] += 2 * pActFunc->squash(0.0, i) * pW[i];
 			pW[i] = -pW[i];
 		}
 	}
@@ -2773,6 +2832,12 @@ void GNeuralNet::scaleWeightsSingleOutput(size_t output, double factor)
 			GVec::multiply(m[i], factor, outputs);
 		GVec::multiply(((GLayerClassic*)m_layers[lay])->bias(), factor, outputs);
 	}
+}
+
+void GNeuralNet::regularizeActivationFunctions(double lambda)
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+		m_layers[i]->regularizeActivationFunction(lambda);
 }
 
 void GNeuralNet::contractWeights(double factor, bool contractBiases)
@@ -3116,6 +3181,24 @@ void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)
 	{
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
 		pLay->backPropError(pUpStream);
+		pUpStream->deactivateError();
+		pLay = pUpStream;
+		i--;
+	}
+}
+
+void GNeuralNet::backpropagateAndRefineActivationFunction(const double* pTarget, double learningRate)
+{
+	size_t i = m_layers.size() - 1;
+	GNeuralNetLayer* pLay = m_layers[i];
+	pLay->computeError(pTarget);
+	pLay->refineActivationFunction(learningRate);
+	pLay->deactivateError();
+	while(i > 0)
+	{
+		GNeuralNetLayer* pUpStream = m_layers[i - 1];
+		pLay->backPropError(pUpStream);
+		pLay->refineActivationFunction(learningRate);
 		pUpStream->deactivateError();
 		pLay = pUpStream;
 		i--;
@@ -4104,7 +4187,7 @@ GNeuralNetPseudoInverse::GNeuralNetPseudoInverse(GNeuralNet* pNN, double padding
 			for(size_t k = 0; k < nnLayer.inputs(); k++)
 			{
 				*(pRow++) = weightsIn[k][j];
-				unbias -= nnLayer.activationFunction()->center() * weightsIn[k][j];
+				unbias -= nnLayer.activationFunction()->squash(0.0, 0) * weightsIn[k][j];
 			}
 			pLayer->m_unbias.push_back(unbias);
 		}
@@ -4136,15 +4219,15 @@ void GNeuralNetPseudoInverse::computeFeatures(const double* pLabels, double* pFe
 		double* pT = m_pBuf1;
 		for(vector<double>::iterator ub = pLayer->m_unbias.begin(); ub != pLayer->m_unbias.end(); ub++)
 		{
-			*pT = pLayer->m_pActivationFunction->inverse(*pT) + *ub;
+			*pT = pLayer->m_pActivationFunction->inverse(*pT, 0) + *ub;
 			pT++;
 		}
 		pLayer->m_pInverseWeights->multiply(m_pBuf1, m_pBuf2);
 
 		// Clip and uncenter the value
 		pLayer = *it;
-		double halfRange = pLayer->m_pActivationFunction->halfRange();
-		double center = pLayer->m_pActivationFunction->center();
+		double halfRange = 0.5 * (pLayer->m_pActivationFunction->squash(400.0, 0) - pLayer->m_pActivationFunction->squash(-400.0, 0));
+		double center = pLayer->m_pActivationFunction->squash(0.0, 0);
 		pT = m_pBuf2;
 		for(size_t i = 0; i < inCount; i++)
 		{
