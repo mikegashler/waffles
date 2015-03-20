@@ -27,11 +27,11 @@
 #include "GGaussianProcess.h"
 #include "GImage.h"
 #endif // MIN_PREDICT
-#include "GNeuralNet.h"
 #ifndef MIN_PREDICT
 #include "GKNN.h"
 #include "GDecisionTree.h"
 #include "GNaiveInstance.h"
+#include "GNeuralNet.h"
 #include "GLinear.h"
 #include "GNaiveBayes.h"
 #include "GEnsemble.h"

@@ -66,8 +66,11 @@ public:
 	/// Serialize this object
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
+	/// Resizes the layer
+	virtual void resize(size_t units) {}
+
 	/// Refines the parameters of this activation function by stochastic gradient descent
-	virtual void refine(const double* pNet, const double* pError, double learningRate) {}
+	virtual void refine(const double* pNet, const double* pActivation, const double* pError, double learningRate) {}
 
 	/// Regularizes the parameters of this activation function
 	virtual void regularize(double lambda) {}
@@ -278,7 +281,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GActivationHinge(size_t units);
+	GActivationHinge();
 
 	/// Unmarshaling constructor
 	GActivationHinge(GDomNode* pNode);
@@ -308,20 +311,90 @@ public:
 		return (v * sqrt(y * y + 2.0 * v * y + 1) - y - v) / (v * v - 1);
 	}
 
+	/// Resizes the layer
+	virtual void resize(size_t units);
+
 	/// Refines the hinge values by stochastic gradient descent
-	virtual void refine(const double* pNet, const double* pError, double learningRate);
+	virtual void refine(const double* pNet, const double* pActivation, const double* pError, double learningRate);
 
 	/// Regularizes the parameters of this activation function
 	virtual void regularize(double lambda);
 
 	/// See the comment for GActivationFunction::clone
-	virtual GActivationFunction* clone()
-	{
-		GActivationHinge* pClone = new GActivationHinge(m_units);
-		GVec::copy(pClone->m_hinges.v, m_hinges.v, m_units);
-		return pClone;
-	}
+	virtual GActivationFunction* clone();
 };
+
+
+
+
+class GActivationLogExp : public GActivationFunction
+{
+protected:
+	size_t m_units;
+	GVec m_alphas;
+
+public:
+	/// General-purpose constructor
+	GActivationLogExp();
+
+	/// Unmarshaling constructor
+	GActivationLogExp(GDomNode* pNode);
+
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "logexp"; }
+
+	/// Marshals this object to a JSON DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Returns the logexp function of x with the parameterized alpha value
+	virtual double squash(double x, int index)
+	{
+		return GMath::logExp(m_alphas.v[index], x);
+	}
+
+	virtual double derivativeOfNet(double net, double activation, int index)
+	{
+		double a = m_alphas.v[index];
+		if(a >= 0)
+			return a * exp(a * net) - a + 1.0;
+		else
+			return 1.0 / (a * exp(a * activation) - a + 1.0);
+	}
+
+	/// Returns the derivative of the bend function
+	virtual double derivative(double x, int index)
+	{
+		double a = m_alphas.v[index];
+		if(a >= 0)
+			return a * exp(a * x) - a + 1.0;
+		else
+		{
+			double t = GMath::logExp(a, x);
+			return 1.0 / (a * exp(a * t) - a + 1.0);
+		}
+	}
+
+	/// Returns the inverse of the bend function
+	virtual double inverse(double y, int index)
+	{
+		double a = m_alphas.v[index];
+		return GMath::logExp(-a, y);
+	}
+
+	/// Resizes the layer
+	virtual void resize(size_t units);
+
+	/// Refines the hinge values by stochastic gradient descent
+	virtual void refine(const double* pNet, const double* pActivation, const double* pError, double learningRate);
+
+	/// Regularizes the parameters of this activation function
+	virtual void regularize(double lambda);
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone();
+};
+
+
 
 
 /// This is an output-layer activation function shaped

@@ -77,6 +77,7 @@ CPP_FILES = \
 	GKernelTrick.cpp\
 	GKeyPair.cpp\
 	GKNN.cpp\
+	GLayer.cpp\
 	GLearner.cpp\
 	GLearnerLib.cpp\
 	GLinear.cpp\

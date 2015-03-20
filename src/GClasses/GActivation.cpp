@@ -162,10 +162,9 @@ std::cout << to_str(scale) << "," << to_str(log(t0 / 400.0) * M_LOG10E) << "," <
 
 
 
-GActivationHinge::GActivationHinge(size_t units)
-: GActivationFunction(), m_units(units), m_hinges(units)
+GActivationHinge::GActivationHinge()
+: GActivationFunction(), m_units(0), m_hinges(0)
 {
-	GVec::setAll(m_hinges.v, 0.0, units);
 }
 
 GActivationHinge::GActivationHinge(GDomNode* pNode)
@@ -184,7 +183,15 @@ GDomNode* GActivationHinge::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GActivationHinge::refine(const double* pNet, const double* pError, double learningRate)
+void GActivationHinge::resize(size_t units)
+{
+	m_units = units;
+	m_hinges.resize(units);
+	GVec::setAll(m_hinges.v, 0.0, units);
+}
+
+// virtual
+void GActivationHinge::refine(const double* pNet, const double* pActivation, const double* pError, double learningRate)
 {
 	double* pHinge = m_hinges.v;
 	const double* pErr = pError;
@@ -209,6 +216,91 @@ void GActivationHinge::regularize(double lambda)
 		else
 			*pHinge = std::min(0.0, *pHinge + lambda);
 	}
+}
+
+// virtual
+GActivationFunction* GActivationHinge::clone()
+{
+	GActivationHinge* pClone = new GActivationHinge();
+	pClone->resize(m_units);
+	GVec::copy(pClone->m_hinges.v, m_hinges.v, m_units);
+	return pClone;
+}
+
+
+
+
+
+
+
+GActivationLogExp::GActivationLogExp()
+: GActivationFunction(), m_units(0), m_alphas(0)
+{
+}
+
+GActivationLogExp::GActivationLogExp(GDomNode* pNode)
+{
+	GDomListIterator it(pNode->field("alphas"));
+	GVec::deserialize(m_alphas.v, it);
+}
+
+// virtual
+GDomNode* GActivationLogExp::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "name", pDoc->newString(name()));
+	pNode->addField(pDoc, "alphas", GVec::serialize(pDoc, m_alphas.v, m_units));
+	return pNode;
+}
+
+// virtual
+void GActivationLogExp::resize(size_t units)
+{
+	m_units = units;
+	m_alphas.resize(units);
+	GVec::setAll(m_alphas.v, 0.0, units);
+}
+
+// virtual
+void GActivationLogExp::refine(const double* pNet, const double* pActivation, const double* pError, double learningRate)
+{
+	double* pAlpha = m_alphas.v;
+	const double* pErr = pError;
+	const double* pN = pNet;
+	const double* pAct = pActivation;
+	for(size_t i = 0; i < m_units; i++)
+	{
+		if(*pAlpha >= 0)
+			*pAlpha = std::max(-1.0, std::min(1.0, *pAlpha + learningRate * (*pErr) * ((*pN) * exp(*pAlpha * (*pN)) - (*pN))));
+		else
+			*pAlpha = std::max(-1.0, std::min(1.0, *pAlpha + learningRate * 1.0 / (*pErr) * ((*pAct) * exp(-(*pAlpha) * (*pAct)) - (*pAct))));
+		pN++;
+		pAct++;
+		pErr++;
+		pAlpha++;
+	}
+}
+
+// virtual
+void GActivationLogExp::regularize(double lambda)
+{
+	double* pAlpha = m_alphas.v;
+	for(size_t i = 0; i < m_units; i++)
+	{
+		if(*pAlpha >= 0.0)
+			*pAlpha = std::max(0.0, *pAlpha - lambda);
+		else
+			*pAlpha = std::min(0.0, *pAlpha + lambda);
+	}
+}
+
+// virtual
+GActivationFunction* GActivationLogExp::clone()
+{
+	GActivationLogExp* pClone = new GActivationLogExp();
+	pClone->resize(m_units);
+	GVec::copy(pClone->m_alphas.v, m_alphas.v, m_units);
+	return pClone;
 }
 
 
