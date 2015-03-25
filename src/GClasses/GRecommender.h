@@ -25,6 +25,7 @@
 #include "GLearner.h"
 #include "GApp.h"
 #include "GNeighborFinder.h"
+#include "GVec.h"
 #include <vector>
 #include <map>
 
@@ -349,6 +350,7 @@ protected:
 	GMatrix* m_pPWeights;
 	GMatrix* m_pQWeights;
 	bool m_useInputBias;
+	bool m_nonNeg;
 	size_t m_minIters;
 	double m_decayRate;
 
@@ -381,6 +383,9 @@ public:
 	/// profile values to clamp beginning at the specifed profile offset.
 	void clampItems(const GMatrix& data, size_t offset = 0);
 
+	/// Constrain all non-bias weights to be non-negative during training.
+	void nonNegative() { m_nonNeg = true; }
+
 	/// See the comment for GCollaborativeFilter::train
 	virtual void train(GMatrix& data);
 
@@ -395,6 +400,12 @@ public:
 
 	/// Returns the matrix of item weight vectors
 	GMatrix* getQ() { return m_pQ; }
+
+	/// Returns the matrix of user preference vectors, and gives ownership to the caller.
+	GMatrix* dropP() { GMatrix* tmp = m_pP; m_pP = NULL; return tmp; }
+
+	/// Returns the matrix of item weight vectors, and gives ownership to the caller.
+	GMatrix* dropQ() { GMatrix* tmp = m_pQ; m_pQ = NULL; return tmp; }
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -424,9 +435,9 @@ protected:
 
 
 /// This class implements the Unsupervised Backpropagation algorithm, as described in
-/// Gashler, Michael S. and Smith, Michael R. and Morris, Richard and Martinez, Tony.
-/// Missing Value Imputation With Unsupervised Backpropagation. Computational Intelligence,
-/// Wiley Online Library. 2014. This algorithm is very similar to an earlier algorithm
+/// Gashler, Michael S. and Smith, Michael R. and Morris, Richard and Martinez, T. (2014),
+/// Missing Value Imputation With Unsupervised Backpropagation. Computational Intelligence. doi: 10.1111/coin.12048.
+/// This algorithm is very similar to an earlier algorithm
 /// called NonlinearPCA, except with the addition of a three-pass training approach that yields
 /// better accuracy. If you call noThreePass() before you call train(), then this class implements
 /// NonlinearPCA, as published in Scholz, M. Kaplan, F. Guy, C. L. Kopka, J. Selbig, J., Non-linear PCA: a missing
@@ -531,7 +542,7 @@ protected:
 class GHybridNonlinearPCA : public GNonlinearPCA
 {
 protected:
-        GMatrix* m_itemAttrs;
+	GMatrix* m_itemAttrs;
 	std::set<size_t> m_itemSet;
 	double* m_itemMax;
 	double* m_itemMin;
@@ -598,6 +609,47 @@ protected:
 
 };
 
+
+
+
+/// An experimental collaborative filtering algorithm
+class GLogNet : public GCollaborativeFilter
+{
+protected:
+	size_t m_intrinsicDims;
+	GNeuralNet* m_pModel;
+	GMatrix* m_pP;
+	GMatrix* m_pQ;
+	GVec m_input;
+
+public:
+	/// General-purpose constructor
+	GLogNet(size_t intrinsicDims);
+
+	/// Deserialization constructor
+	GLogNet(GDomNode* pNode, GLearnerLoader& ll);
+
+	/// Destructor
+	virtual ~GLogNet();
+
+	/// Returns a pointer to the neural net that is used to model the recommendation space.
+	/// You may want to use this method to add layers to the network. (At least one layer
+	/// is necessary). You may also use it to set the learning rate, or change
+	/// activation functions before the model is trained.
+	GNeuralNet* model() { return m_pModel; }
+
+	/// See the comment for GCollaborativeFilter::train
+	virtual void train(GMatrix& data);
+
+	/// See the comment for GCollaborativeFilter::predict
+	virtual double predict(size_t user, size_t item);
+
+	/// See the comment for GCollaborativeFilter::impute
+	virtual void impute(double* pVec, size_t dims);
+
+	/// See the comment for GCollaborativeFilter::serialize
+	virtual GDomNode* serialize(GDom* pDoc) const;
+};
 
 
 
