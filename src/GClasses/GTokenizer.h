@@ -50,7 +50,7 @@ public:
 	GCharSet(const char* szChars);
 
 	/// Returns true iff c is in the character set
-	inline bool find(char c);
+	bool find(char c);
 };
 
 

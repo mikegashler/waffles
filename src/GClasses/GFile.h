@@ -94,6 +94,15 @@ public:
 	/// The folder names do not include any path information.
 	static void folderList(std::vector<std::string>& list, const char* dir = ".", bool excludeDots = true);
 
+	/// Produces a list of all the folders in "dir" recursively, including "dir".
+	/// Relative paths to all the folders will be added to the list.
+	/// "dir" is guaranteed to be the first item in the list.
+	static void folderListRecursive(std::vector<std::string>& list, const char* dir = ".");
+
+	/// Produces a list of all the files in "dir" recursively.
+	/// Relative paths to all the files will be added to the list.
+	static void fileListRecursive(std::vector<std::string>& list, const char* dir = ".");
+
 	/// This is a brute force way to make a directory.  It
 	/// iterates through each subdir in szDir and calls mkdir
 	/// until it has created the complete set of nested directories.

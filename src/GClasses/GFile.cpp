@@ -260,6 +260,40 @@ void GFile::folderList(std::vector<std::string>& list, const char* dir, bool exc
 #endif
 }
 
+// static
+void GFile::folderListRecursive(std::vector<std::string>& list, const char* dir)
+{
+	list.push_back(dir);
+	std::vector<std::string> folders;
+	folderList(folders, dir, true);
+	for(size_t i = 0; i < folders.size(); i++)
+	{
+		string sDir = dir;
+		sDir += "/";
+		sDir += folders[i];
+		folderListRecursive(list, sDir.c_str());
+	}
+}
+
+// static
+void GFile::fileListRecursive(std::vector<std::string>& list, const char* dir)
+{
+	std::vector<std::string> folders;
+	folderListRecursive(folders, dir);
+	for(size_t i = 0; i < folders.size(); i++)
+	{
+		std::vector<std::string> files;
+		fileList(files, folders[i].c_str());
+		for(size_t j = 0; j < files.size(); j++)
+		{
+			string s = folders[i];
+			s += "/";
+			s += files[j];
+			list.push_back(s);
+		}
+	}
+}
+
 bool GFile::copyFile(const char* szSrcPath, const char* szDestPath)
 {
 	FILE* pSrc = fopen(szSrcPath, "rb");
