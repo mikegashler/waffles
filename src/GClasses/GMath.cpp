@@ -465,7 +465,7 @@ double GMath::logExp(double alpha, double x)
 		// An inverse that depends on productLog (which is calculated iteratively)
 		alpha = -alpha;
 		if(alpha >= 1.0)
-			return log(x + 1.0);
+			return log(std::max(1e-14, x + 1.0));
 		double t1 = alpha - 1.0;
 		double t2 = x + 1.0;
 		double t3 = -alpha * exp(-alpha * t2 / t1) / t1;

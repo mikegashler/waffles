@@ -27,7 +27,6 @@
 #include "GRand.h"
 #include "GNeuralNet.h"
 #include "GDistance.h"
-#include "GVec.h"
 #include <math.h>
 #include <map>
 #include <vector>
@@ -937,7 +936,7 @@ void GDenseClusterRecommender::test()
 
 
 GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims)
-: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_pPMask(NULL), m_pQMask(NULL), m_pPWeights(NULL), m_pQWeights(NULL), m_useInputBias(true), m_minIters(1), m_decayRate(0.97)
+: GCollaborativeFilter(), m_intrinsicDims(intrinsicDims), m_regularizer(0.01), m_pP(NULL), m_pQ(NULL), m_pPMask(NULL), m_pQMask(NULL), m_pPWeights(NULL), m_pQWeights(NULL), m_useInputBias(true), m_nonNeg(false), m_minIters(1), m_decayRate(0.97)
 {
 }
 
@@ -1192,6 +1191,8 @@ void GMatrixFactorization::train(GMatrix& data)
 				{
 					*(pT++) = *pQ;
 					(*pQ) += learningRate * (err * (*pP) - m_regularizer * (*pQ));
+					if(m_nonNeg)
+						*pQ = std::max(0.0, *pQ);
 					pP++;
 					pQ++;
 				}
@@ -1228,6 +1229,8 @@ void GMatrixFactorization::train(GMatrix& data)
 				for(size_t i = 0; i < m_intrinsicDims; i++)
 				{
 					(*pP) += learningRate * (err * (*pQ) - m_regularizer * (*pP));
+					if(m_nonNeg)
+						*pP = std::max(0.0, *pP);
 					pQ++;
 					pP++;
 				}
@@ -2063,6 +2066,116 @@ void GNonlinearPCA::test()
 }
 #endif
 
+
+
+
+
+
+
+
+GLogNet::GLogNet(size_t intrinsicDims)
+: m_intrinsicDims(intrinsicDims), m_pModel(NULL), m_pP(NULL), m_pQ(NULL), m_input(2 * (intrinsicDims + 1))
+{
+}
+
+GLogNet::GLogNet(GDomNode* pNode, GLearnerLoader& ll)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+GLogNet::~GLogNet()
+{
+	delete(m_pModel);
+	delete(m_pP);
+	delete(m_pQ);
+}
+
+// virtual
+void GLogNet::train(GMatrix& data)
+{
+	// Use matrix factorization to compute user and item profile matrices
+	GMatrixFactorization mf(m_intrinsicDims);
+	mf.nonNegative();
+	mf.train(data);
+	delete(m_pP);
+	m_pP = mf.dropP();
+	delete(m_pQ);
+	m_pQ = mf.dropQ();
+	delete(m_pModel);
+	m_pModel = new GNeuralNet();
+
+	// Add a layer that just takes the logarithm of the inputs
+	GActivationLogExp* pAct1 = new GActivationLogExp();
+	size_t totalInputs = 2 * (m_intrinsicDims + 1);
+	GLayerClassic* pLay1 = new GLayerClassic(totalInputs, totalInputs, pAct1);
+	double* a1 = pAct1->alphas();
+	for(size_t i = 0; i < totalInputs; i++)
+		a1[i] = -1.0;
+	a1[0] = 0.0; // user bias
+	a1[m_intrinsicDims + 1] = 0.0; // item bias
+	m_pModel->addLayer(pLay1);
+	GMatrix& w1 = pLay1->weights();
+	w1.makeIdentity();
+	double* b1 = pLay1->bias();
+	GVec::setAll(b1, -1.0, totalInputs); // balance the +1 in logexp(-1,x)=ln(x+1)
+	b1[0] = 0.0; // user bias
+	b1[m_intrinsicDims + 1] = 0.0; // item bias
+
+	// Add a layer that computes the pair-wise products of the user and item profile elements
+	GActivationLogExp* pAct2 = new GActivationLogExp();
+	size_t totalTerms = m_intrinsicDims + 2;
+	GLayerClassic* pLay2 = new GLayerClassic(totalInputs, totalTerms, pAct2);
+	double* a2 = pAct2->alphas();
+	a2[0] = 0.0;
+	a2[1] = 0.0;
+	for(size_t i = 2; i < totalTerms; i++)
+		a2[i] = 1.0;
+	m_pModel->addLayer(pLay2);
+	GMatrix& w2 = pLay2->weights();
+	w2.setAll(0.0);
+	w2[0][0] = 1.0; // user bias
+	w2[m_intrinsicDims + 1][1] = 1.0; // item bias
+	for(size_t i = 0; i < m_intrinsicDims; i++)
+	{
+		w2[1 + i][2 + i] = 1.0; // user part of the term
+		w2[m_intrinsicDims + 2 + i][2 + i] = 1.0; // item part of the term
+	}
+	double* b2 = pLay2->bias();
+	GVec::setAll(b2, 0.0, totalTerms);
+
+	// Add a layer that sums the pair-wise products
+	GActivationLogExp* pAct3 = new GActivationLogExp();
+	GLayerClassic* pLay3 = new GLayerClassic(totalTerms, 1, pAct3);
+	double* a3 = pAct3->alphas();
+	a3[0] = 0.0;
+	m_pModel->addLayer(pLay3);
+	GMatrix& w3 = pLay3->weights();
+	w3.setAll(1.0);
+	double* b3 = pLay3->bias();
+	b3[0] = m_intrinsicDims; // balance the -1 in logexp(1,x)=exp(x)-1
+}
+
+// virtual
+double GLogNet::predict(size_t user, size_t item)
+{
+	GVec::copy(m_input.v, m_pP->row(user), m_intrinsicDims + 1);
+	GVec::copy(m_input.v + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
+	m_pModel->forwardProp(m_input.v);
+	return m_pModel->outputLayer().activation()[0];
+}
+
+// virtual
+void GLogNet::impute(double* pVec, size_t dims)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+GDomNode* GLogNet::serialize(GDom* pDoc) const
+{
+	throw Ex("Sorry, not implemented yet");
+}
 
 
 

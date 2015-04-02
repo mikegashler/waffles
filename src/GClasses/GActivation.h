@@ -289,6 +289,9 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "hinge"; }
 
+	/// Returns the internal vector of hinge values
+	double* hinges() { return m_hinges.v; }
+
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
@@ -342,6 +345,9 @@ public:
 
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "logexp"; }
+
+	/// Returns the internal vector of parameter values
+	double* alphas() { return m_alphas.v; }
 
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;

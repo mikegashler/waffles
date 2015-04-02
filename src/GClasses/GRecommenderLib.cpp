@@ -303,6 +303,15 @@ GSparseClusterRecommender* GRecommenderLib::InstantiateSparseClusterRecommender(
 	return pModel;
 }
 
+GLogNet* GRecommenderLib::InstantiateLogNet(GArgReader& args)
+{
+	if(args.size() < 1)
+		throw Ex("The number of intrinsic dims must be specified for this algorithm");
+	size_t intrinsicDims = args.pop_uint();
+	GLogNet* pModel = new GLogNet(intrinsicDims);
+	return pModel;
+}
+
 GMatrixFactorization* GRecommenderLib::InstantiateMatrixFactorization(GArgReader& args)
 {
 	if(args.size() < 1)
@@ -317,6 +326,10 @@ GMatrixFactorization* GRecommenderLib::InstantiateMatrixFactorization(GArgReader
 			pModel->setMinIters(args.pop_uint());
 		else if(args.if_pop("-decayrate"))
 			pModel->setDecayRate(args.pop_double());
+		else if(args.if_pop("-noinputbias"))
+			pModel->noInputBias();
+		else if(args.if_pop("-nonneg"))
+			pModel->nonNegative();
 		else if(args.if_pop("-clampusers"))
 		{
 			GMatrix tmp;
@@ -533,6 +546,8 @@ GCollaborativeFilter* GRecommenderLib::InstantiateAlgorithm(GArgReader& args)
 			return InstantiateDenseClusterRecommender(args);
 		else if(args.if_pop("clustersparse"))
 			return InstantiateSparseClusterRecommender(args);
+		else if(args.if_pop("lognet"))
+			return InstantiateLogNet(args);
 		else if(args.if_pop("matrix"))
 			return InstantiateMatrixFactorization(args);
 		else if(args.if_pop("nlpca"))
