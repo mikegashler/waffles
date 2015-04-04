@@ -1025,11 +1025,11 @@ UsageNode* makeLearnUsageTree()
 			"A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
-		UsageNode* pPOP = pRoot->add("predictdistribution <options> [model-file] <data_opts> [pattern]", "Predict a distribution for a single feature vector and print it to stdout. (Typically, the '-calibrate' switch should be used when training the model. If the model is not calibrated, then the predicted distribution may not be a very good estimated distribution. Also, some models cannot be used to predict a distribution.)");
+		UsageNode* pPOP = pRoot->add("predictdistribution <options> [model-file] [dataset] <data_opts>", "Predict a distribution for all of the patterns in [dataset]. Results are printed in the form of a \".arff\" file. (Typically, the '-calibrate' switch should be used when training the model. If the model is not calibrated, then the predicted distribution may not be a very good estimated distribution. Also, some models cannot be used to predict a distribution.)");
 		UsageNode* pOpts = pPOP->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pPOP->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
-		pPOP->add("[pattern]", "A list of feature values separated by spaces. (A \"?\" may be used for unknown feature values if the model supports using unknown feature values.)");
+		pPOP->add("[dataset]=test.arff", "The filename of a dataset. (There should already be placeholder labels in this dataset. The placeholder labels will be replaced in the output by the labels that the model predicts.)");
 		UsageNode* pDO = pPOP->add("<data_opts>");
 		pDO->add("-labels [attr_list]=0", "Specify which attributes to use as labels. (If not specified, the default is to use the last attribute for the label.) [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
@@ -1858,5 +1858,3 @@ UsageNode* makeTransformUsageTree()
 	}
 	return pRoot;
 }
-
-

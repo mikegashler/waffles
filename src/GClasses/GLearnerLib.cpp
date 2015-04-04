@@ -37,6 +37,7 @@
 using namespace GClasses;
 
 using std::cout;
+using std::endl;
 using std::cerr;
 using std::string;
 using std::vector;
@@ -1175,7 +1176,7 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
 		else
-			throw Ex("Invalid option: ", args.peek());
+			throw Ex("Invalid predict option: ", args.peek());
 	}
 
 	// Load the model
@@ -1188,90 +1189,78 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 	Holder<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
-	// Parse the pattern
-	if(pModeler->relFeatures().type() != GRelation::ARFF)
-		throw Ex("meta data is missing");
-	GArffRelation* pFeatureRel = (GArffRelation*)&pModeler->relFeatures();
-	if(pModeler->relLabels().type() != GRelation::ARFF)
-		throw Ex("meta data is missing");
-	GArffRelation* pLabelRel = (GArffRelation*)&pModeler->relLabels();
-	size_t featureDims = pModeler->relFeatures().size();
-	GTEMPBUF(double, pattern, featureDims);
-	for(size_t i = 0; i < featureDims; i++)
-		pattern[i] = pFeatureRel->parseValue(i, args.pop_string());
+	// Load the data
+	Holder<GMatrix> hFeatures, hLabels;
+	loadData(args, hFeatures, hLabels, true);
+	GMatrix* pFeatures = hFeatures.get();
+	GMatrix* pLabels = hLabels.get();
+	if(pLabels->cols() != pModeler->relLabels().size())
+		throw Ex("The model was trained with ", to_str(pModeler->relLabels().size()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
+	if(!pFeatures->relation().isCompatible(pModeler->relFeatures()) || !pLabels->relation().isCompatible(pModeler->relLabels()))
+		throw Ex("This data is not compatible with the data that was used to train the model. (The column meta-data is different.)");
 
 	// Predict
-	GPrediction* out = new GPrediction[pLabelRel->size()];
-	ArrayHolder<GPrediction> hOut(out);
-	bool gotPrediction = false;
-	try
-	{
-		pModeler->predictDistribution(pattern, out);
-		gotPrediction = true;
-	}
-	catch(const std::exception& e)
-	{
-		cout << e.what() << "\n";
-	}
 
-	if(gotPrediction)
-	{
-		// Display the prediction
-		cout.precision(8);
-		for(size_t i = 0; i < pLabelRel->size(); i++)
-		{
-			if(i > 0)
-				cout << ", ";
-			if(pLabelRel->valueCount(i) == 0)
-				cout << out[i].mode();
-			else
-				pLabelRel->printAttrValue(cout, i, (int)out[i].mode());
-		}
-		cout << "\n\n";
+	// If the model doesn't support probability distribution and  we'd like to
+	// return result we should wrap it with GLabelFilter like it's done
+	// with the GLinearRegressor
 
-		// Display the distribution
-		for(size_t i = 0; i < pLabelRel->size(); i++)
+	// Set ARFF header
+
+	// TODO: Not nice! Better have all GRelation type implement attrName().
+	GArffRelation *pModelRelLabels = (GArffRelation *) &pModeler->relLabels();
+	const size_t modelRelLabelsSize = pModelRelLabels->size();
+
+	cout << "@RELATION" << " " <<  pModelRelLabels->name() << endl;
+	cout << endl;
+	for(size_t i = 0; i < modelRelLabelsSize; ++i)
+	{
+		if(pModelRelLabels->valueCount(i) > 0) // categorical column
 		{
-			if(out[i].isContinuous())
+			for(size_t j = 0; j < pModelRelLabels->valueCount(i); ++j)
 			{
-				GNormalDistribution* pNorm = out[i].asNormal();
-				cout << pLabelRel->attrName(i) << ") Normal: predicted mean=" << pNorm->mean() << " predicted variance=" << pNorm->variance() << "\n";
+				cout << "@ATTRIBUTE" << " ";
+				pModelRelLabels->printAttrValue(cout, i, j);
+				cout << " " << "numeric" << endl;
+			}
+		}
+		else // value column
+		{
+			cout << "@ATTRIBUTE" << " " << pModelRelLabels->attrName(i) << "-mean" << " " << "numeric" << endl;
+			cout << "@ATTRIBUTE" << " " << pModelRelLabels->attrName(i) << "-variance" << " " << "numeric" << endl;
+		}
+	}
+
+	cout << "\n" << "@data" << "\n" << endl;
+
+        GPrediction* p = new GPrediction[modelRelLabelsSize];
+	ArrayHolder<GPrediction> hp(p);
+	for(size_t i = 0; i < pFeatures->rows(); ++i)
+	{
+		pModeler->predictDistribution(pFeatures->row(i), p);
+		for(size_t j = 0; j < modelRelLabelsSize; ++j)
+		{
+			if(j > 0)
+				cout << ",";
+
+			if(p[j].isContinuous())
+			{
+				GNormalDistribution* pNorm = p[j].asNormal();
+				cout << pNorm->mean() << "," << pNorm->variance();
 			}
 			else
 			{
-				GCategoricalDistribution* pCat = out[i].asCategorical();
-				cout << pLabelRel->attrName(i) << ") Categorical confidences: {";
+				GCategoricalDistribution* pCat = p[j].asCategorical();
 				double* pValues = pCat->values(pCat->valueCount());
-				for(size_t j = 0; j < pCat->valueCount(); j++)
+				for(size_t k = 0; k < pCat->valueCount(); ++k)
 				{
-					if(j > 0)
-						cout << ", ";
-					pLabelRel->printAttrValue(cout, i, (int)j);
-					cout << "=" << pValues[j];
+					if(k > 0)
+						cout << ",";
+					cout << pValues[k];
 				}
-				cout << "}\n";
 			}
 		}
-	}
-	else
-	{
-		// This model apparently cannot predict distributions, so let's just predict normally
-		double* out2 = new double[pLabelRel->size()];
-		ArrayHolder<double> hOut2(out2);
-		pModeler->predict(pattern, out2);
-
-		// Display the prediction
-		cout.precision(8);
-		for(size_t i = 0; i < pLabelRel->size(); i++)
-		{
-			if(i > 0)
-				cout << ", ";
-			if(pLabelRel->valueCount(i) == 0)
-				cout << out2[i];
-			else
-				pLabelRel->printAttrValue(cout, i, (int)out2[i]);
-		}
-		cout << "\n\n";
+		cout << endl;
 	}
 }
 

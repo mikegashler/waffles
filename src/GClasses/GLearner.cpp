@@ -479,7 +479,9 @@ void GSupervisedLearner::train(const GMatrix& features, const GMatrix& labels)
 	delete(m_pRelFeatures);
 	m_pRelFeatures = features.relation().cloneMinimal();
 	delete(m_pRelLabels);
-	m_pRelLabels = labels.relation().cloneMinimal();
+	m_pRelLabels = labels.relation().clone(); // not cloneMinimal() because
+                                                  // we need the columns's data
+                                                  // when doing 'predictdistribution'
 	trainInner(features, labels);
 }
 
