@@ -24,6 +24,7 @@
 <h2>Neural network examples</h2>
 <p>This document gives examples for writing code to use the neural network class in Waffles.</p>
 
+
 <br><br>
 <h3>Logistic regression</h3>
 
@@ -562,6 +563,68 @@ Misclassifications: 414/10000
 </pre>
 
 
+
+<br><br>
+<h3>General-purpose code</h3>
+
+<p>Here is some code for training a neural network on some arbitrary data.
+This code may be a good starting point for many problems involving neural networks:</p>
+
+<pre class="code">
+#include &lt;iostream&gt;
+#include &lt;GClasses/GApp.h&gt;
+#include &lt;GClasses/GError.h&gt;
+#include &lt;GClasses/GNeuralNet.h&gt;
+#include &lt;GClasses/GActivation.h&gt;
+#include &lt;GClasses/GTransform.h&gt;
+#include &lt;GClasses/GVec.h&gt;
+
+using namespace GClasses;
+using std::cerr;
+using std::cout;
+
+int main(int argc, char *argv[])
+{
+	// Load and prep the training data
+	GRand rand(0);
+	GMatrix raw;
+	raw.loadArff("some_data.arff");
+	GDataColSplitter s1(raw, 1);
+	GDataRowSplitter s2(s1.features(), s1.labels(), rand, s1.labels().rows() / 2);
+
+	// Make the network
+	GNeuralNet nn;
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 80);
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 30);
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	nn.setLearningRate(0.01);
+	GAutoFilter af(&amp;nn, false);
+	af.beginIncrementalLearning(s2.features1().relation(), s2.labels1().relation());
+	cout &lt;&lt; "Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
+
+	// Train
+	GRandomIndexIterator ii(s2.features1().rows(), nn.rand());
+	for(size_t epoch = 0; epoch &lt; 50000; epoch++)
+	{
+		// Validate
+		double mis = af.sumSquaredError(s2.features2(), s2.labels2());
+		cout &lt;&lt; "Misclassifications: " &lt;&lt; to_str(mis) &lt;&lt; "/" &lt;&lt; to_str(s2.labels2().rows()) &lt;&lt; "\n";
+
+		// Train
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+		{
+			const double* pIn = af.prefilterFeatures(s2.features1()[index]);
+			const double* pTarg = af.prefilterLabels(s2.labels1()[index]);
+			nn.forwardProp(pIn);
+			nn.backpropagate(pTarg);
+			nn.descendGradient(pIn, nn.learningRate(), 0.0);
+		}
+	}
+	return 0;
+}
+</pre>
 
 <!--
 <br><br>

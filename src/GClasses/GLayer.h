@@ -110,6 +110,9 @@ public:
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
 	virtual void updateBias(double learningRate, double momentum) = 0;
 
+	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
+	virtual void updateBiasClipped(double learningRate, double max) = 0;
+
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum) = 0;
@@ -118,6 +121,16 @@ public:
 	virtual void updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
 	{
 		updateWeights(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, momentum);
+	}
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
+	/// but does not change any element by more than learningRate * max.
+	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max) = 0;
+
+	/// Wraps the other updateWeightsClipped.
+	virtual void updateWeightsClipped(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double max)
+	{
+		updateWeightsClipped(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, max);
 	}
 
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
@@ -288,9 +301,16 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
 	virtual void updateBias(double learningRate, double momentum);
 
+	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
+	virtual void updateBiasClipped(double learningRate, double max);
+
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
+	/// but does not change any element by more than learningRate * max.
+	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
 
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
@@ -528,8 +548,15 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Calls updateBias for each component.
 	virtual void updateBias(double learningRate, double momentum);
 
+	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
+	virtual void updateBiasClipped(double learningRate, double max);
+
 	/// Calls updateWeights for each component.
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
+	/// but does not change any element by more than learningRate * max.
+	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
 
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
@@ -672,8 +699,15 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
 	virtual void updateBias(double learningRate, double momentum);
 
+	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
+	virtual void updateBiasClipped(double learningRate, double max);
+
 	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
+	/// but does not change any element by more than learningRate * max.
+	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
 
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
@@ -876,9 +910,16 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
 	virtual void updateBias(double learningRate, double momentum);
 
+	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
+	virtual void updateBiasClipped(double learningRate, double max);
+
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
+	/// but does not change any element by more than learningRate * max.
+	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
 
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
@@ -1040,9 +1081,16 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
 	virtual void updateBias(double learningRate, double momentum);
 
+	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
+	virtual void updateBiasClipped(double learningRate, double max);
+
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
+	/// but does not change any element by more than learningRate * max.
+	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
 
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.

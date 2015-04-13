@@ -273,7 +273,7 @@ void GActivationLogExp::refine(const double* pNet, const double* pActivation, co
 		if(*pAlpha >= 0)
 			*pAlpha = std::max(-1.0, std::min(1.0, *pAlpha + learningRate * (*pErr) * ((*pN) * exp(*pAlpha * (*pN)) - (*pN))));
 		else
-			*pAlpha = std::max(-1.0, std::min(1.0, *pAlpha + learningRate * 1.0 / (*pErr) * ((*pAct) * exp(-(*pAlpha) * (*pAct)) - (*pAct))));
+			*pAlpha = std::max(-1.0, std::min(1.0, *pAlpha + learningRate * 1.0 / (*pErr) * ((*pAct) * exp(std::min(300.0, -(*pAlpha) * (*pAct))) - (*pAct))));
 		pN++;
 		pAct++;
 		pErr++;

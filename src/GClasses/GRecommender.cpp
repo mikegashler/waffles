@@ -2107,6 +2107,7 @@ void GLogNet::train(GMatrix& data)
 
 	// Add a layer that just takes the logarithm of the inputs
 	GActivationLogExp* pAct1 = new GActivationLogExp();
+	//GActivationHinge* pAct1 = new GActivationHinge();
 	size_t totalInputs = 2 * (m_intrinsicDims + 1);
 	GLayerClassic* pLay1 = new GLayerClassic(totalInputs, totalInputs, pAct1);
 	double* a1 = pAct1->alphas();
@@ -2124,6 +2125,7 @@ void GLogNet::train(GMatrix& data)
 
 	// Add a layer that computes the pair-wise products of the user and item profile elements
 	GActivationLogExp* pAct2 = new GActivationLogExp();
+	//GActivationHinge* pAct2 = new GActivationHinge();
 	size_t totalTerms = m_intrinsicDims + 2;
 	GLayerClassic* pLay2 = new GLayerClassic(totalInputs, totalTerms, pAct2);
 	double* a2 = pAct2->alphas();
@@ -2146,6 +2148,7 @@ void GLogNet::train(GMatrix& data)
 
 	// Add a layer that sums the pair-wise products
 	GActivationLogExp* pAct3 = new GActivationLogExp();
+	//GActivationHinge* pAct3 = new GActivationHinge();
 	GLayerClassic* pLay3 = new GLayerClassic(totalTerms, 1, pAct3);
 	double* a3 = pAct3->alphas();
 	a3[0] = 0.0;
@@ -2154,6 +2157,22 @@ void GLogNet::train(GMatrix& data)
 	w3.setAll(1.0);
 	double* b3 = pLay3->bias();
 	b3[0] = m_intrinsicDims; // balance the -1 in logexp(1,x)=exp(x)-1
+
+	// Relax
+	double learningRate = 0.001;
+	for(size_t i = 0; i < 100000; i++)
+	{
+		size_t index = m_pModel->rand().next(data.rows());
+		double* pRow = data[index];
+		size_t user = (size_t)pRow[0];
+		size_t item = (size_t)pRow[1];
+		GVec::copy(m_input.v, m_pP->row(user), m_intrinsicDims + 1);
+		GVec::copy(m_input.v + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
+		m_pModel->regularizeActivationFunctions(0.001);
+		m_pModel->forwardProp(m_input.v);
+		m_pModel->backpropagateAndRefineActivationFunction(&pRow[2], learningRate);
+		m_pModel->descendGradientClipped(m_input.v, learningRate, 0.01);
+	}
 }
 
 // virtual

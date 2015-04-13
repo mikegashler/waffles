@@ -263,6 +263,9 @@ public:
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
 	void backpropagate(const double* pTarget, size_t startLayer = INVALID_INDEX);
 
+	/// Backpropagate from a downstream layer
+	void backpropagateFromLayer(GNeuralNetLayer* pDownstream);
+
 	/// Backpropagates the error and refines the activation function in each layer by stochastic gradient descent.
 	void backpropagateAndRefineActivationFunction(const double* pTarget, double learningRate);
 
@@ -273,6 +276,10 @@ public:
 	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights to descend the
 	/// gradient of the error surface with respect to the weights.
 	void descendGradient(const double* pFeatures, double learningRate, double momentum);
+
+	/// Same as descendGradient, except it doesn't support momentum, and it never updates any element by an amount more
+	/// than learningRate * max. (Uses tanh to squash the update value to fall within the specified max.)
+	void descendGradientClipped(const double* pFeatures, double learningRate, double max);
 
 	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
 	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.

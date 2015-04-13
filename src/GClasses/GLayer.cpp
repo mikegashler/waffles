@@ -416,6 +416,17 @@ void GLayerClassic::updateBias(double learningRate, double momentum)
 	}
 }
 
+void GLayerClassic::updateBiasClipped(double learningRate, double max)
+{
+	double* pB = error();
+	double* pW = bias();
+	size_t outputCount = outputs();
+	for(size_t down = 0; down < outputCount; down++)
+	{
+		*(pW++) += (tanh(*(pB++) / max) * max * learningRate);
+	}
+}
+
 void GLayerClassic::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
 {
 	double* pErr = error();
@@ -432,6 +443,23 @@ void GLayerClassic::updateWeights(const double* pUpStreamActivation, size_t inpu
 			*pD *= momentum;
 			*pD += (*(pB++) * learningRate * act);
 			*(pW++) += *(pD++);
+		}
+	}
+}
+
+void GLayerClassic::updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max)
+{
+	double* pErr = error();
+	size_t outputCount = outputs();
+	size_t inputEnd = inputStart + inputCount;
+	for(size_t up = inputStart; up < inputEnd; up++)
+	{
+		double* pB = pErr;
+		double* pW = m_weights[up];
+		double act = *(pUpStreamActivation++);
+		for(size_t down = 0; down < outputCount; down++)
+		{
+			*(pW++) += (tanh(*(pB++) * act / max) * max * learningRate);
 		}
 	}
 }
@@ -947,10 +975,24 @@ void GLayerMixed::updateBias(double learningRate, double momentum)
 }
 
 // virtual
+void GLayerMixed::updateBiasClipped(double learningRate, double max)
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->updateBiasClipped(learningRate, max);
+}
+
+// virtual
 void GLayerMixed::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->updateWeights(pUpStreamActivation, inputStart, inputCount, learningRate, momentum);
+}
+
+// virtual
+void GLayerMixed::updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max)
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->updateWeightsClipped(pUpStreamActivation, inputStart, inputCount, learningRate, max);
 }
 
 void GLayerMixed::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
@@ -1489,6 +1531,11 @@ void GLayerRestrictedBoltzmannMachine::updateBias(double learningRate, double mo
 	}
 }
 
+void GLayerRestrictedBoltzmannMachine::updateBiasClipped(double learningRate, double max)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
 void GLayerRestrictedBoltzmannMachine::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
 {
 	if(inputStart != 0 || inputCount != inputs())
@@ -1500,6 +1547,11 @@ void GLayerRestrictedBoltzmannMachine::updateWeights(const double* pUpStreamActi
 		GVec::addScaled(m_weights[i], learningRate * (*pErr), pUpStreamActivation, inputCount);
 		pErr++;
 	}
+}
+
+void GLayerRestrictedBoltzmannMachine::updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max)
+{
+	throw Ex("Sorry, not implemented yet");
 }
 
 void GLayerRestrictedBoltzmannMachine::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
@@ -1903,6 +1955,12 @@ void GLayerConvolutional1D::updateBias(double learningRate, double momentum)
 }
 
 // virtual
+void GLayerConvolutional1D::updateBiasClipped(double learningRate, double max)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
 void GLayerConvolutional1D::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
 {
 	GAssert(inputStart == 0);
@@ -1928,6 +1986,12 @@ void GLayerConvolutional1D::updateWeights(const double* pUpStreamActivation, siz
 			pUpStreamActivation++;
 		}
 	}
+}
+
+// virtual
+void GLayerConvolutional1D::updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max)
+{
+	throw Ex("Sorry, not implemented yet");
 }
 
 void GLayerConvolutional1D::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
@@ -2329,6 +2393,12 @@ void GLayerConvolutional2D::updateBias(double learningRate, double momentum)
 }
 
 // virtual
+void GLayerConvolutional2D::updateBiasClipped(double learningRate, double max)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
 void GLayerConvolutional2D::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
 {
 	GAssert(inputStart == 0);
@@ -2360,6 +2430,12 @@ void GLayerConvolutional2D::updateWeights(const double* pUpStreamActivation, siz
 			}
 		}
 	}
+}
+
+// virtual
+void GLayerConvolutional2D::updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max)
+{
+	throw Ex("Sorry, not implemented yet");
 }
 
 void GLayerConvolutional2D::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)

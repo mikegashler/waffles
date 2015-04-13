@@ -748,6 +748,18 @@ void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)
 	}
 }
 
+void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream)
+{
+	GNeuralNetLayer* pLay = pDownstream;
+	for(size_t i = m_layers.size(); i > 0; i--)
+	{
+		GNeuralNetLayer* pUpStream = m_layers[i - 1];
+		pLay->backPropError(pUpStream);
+		pUpStream->deactivateError();
+		pLay = pUpStream;
+	}
+}
+
 void GNeuralNet::backpropagateAndRefineActivationFunction(const double* pTarget, double learningRate)
 {
 	size_t i = m_layers.size() - 1;
@@ -801,6 +813,21 @@ void GNeuralNet::descendGradient(const double* pFeatures, double learningRate, d
 		pLay = m_layers[i];
 		pLay->updateWeights(pUpStream, 0, learningRate, momentum);
 		pLay->updateBias(learningRate, momentum);
+		pUpStream = pLay;
+	}
+}
+
+void GNeuralNet::descendGradientClipped(const double* pFeatures, double learningRate, double max)
+{
+	GNeuralNetLayer* pLay = m_layers[0];
+	pLay->updateWeightsClipped(pFeatures + (useInputBias() ? 1 : 0), 0, pLay->inputs(), learningRate, max);
+	pLay->updateBiasClipped(learningRate, max);
+	GNeuralNetLayer* pUpStream = pLay;
+	for(size_t i = 1; i < m_layers.size(); i++)
+	{
+		pLay = m_layers[i];
+		pLay->updateWeightsClipped(pUpStream, 0, learningRate, max);
+		pLay->updateBiasClipped(learningRate, max);
 		pUpStream = pLay;
 	}
 }

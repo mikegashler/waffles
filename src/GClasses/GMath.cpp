@@ -468,7 +468,8 @@ double GMath::logExp(double alpha, double x)
 			return log(std::max(1e-14, x + 1.0));
 		double t1 = alpha - 1.0;
 		double t2 = x + 1.0;
-		double t3 = -alpha * exp(-alpha * t2 / t1) / t1;
+		double t4 = -alpha / t1;
+		double t3 = t4 * exp(std::min(300.0, t4 * t2));
 		if(t3 < -1.0 / M_E)
 			return -INFINITY;
 		return -(t1 * productLog(t3) + alpha * t2) / (alpha * t1);

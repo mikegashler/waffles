@@ -290,7 +290,7 @@ public:
 	virtual const char* name() const { return "hinge"; }
 
 	/// Returns the internal vector of hinge values
-	double* hinges() { return m_hinges.v; }
+	double* alphas() { return m_hinges.v; }
 
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -360,11 +360,15 @@ public:
 
 	virtual double derivativeOfNet(double net, double activation, int index)
 	{
+		return 1.0;
+/*
 		double a = m_alphas.v[index];
 		if(a >= 0)
-			return a * exp(a * net) - a + 1.0;
+			return tanh(std::max(-30.0, std::min(30.0, a * exp(a * net) - a + 1.0)));
 		else
-			return 1.0 / (a * exp(a * activation) - a + 1.0);
+			return tanh(std::max(-30.0, std::min(30.0, 1.0 / (a * exp(std::min(300.0, a * activation)) - a + 1.0))));
+*/
+
 	}
 
 	/// Returns the derivative of the bend function
