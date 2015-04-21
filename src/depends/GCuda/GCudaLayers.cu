@@ -230,9 +230,15 @@ void GLayerClassicCuda::updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t in
 	{
 		// Assume that the input was already uploaded into m_incoming when feedForward was called
 		if(inputStart != 0)
-			throw Ex("Sorry, partial weight updates are not yet supported in GNeuralNetLayerCuda");
+			throw Ex("Sorry, partial weight updates are not yet supported in GLayerClassicCuda");
 		m_weights.updateWeights(m_engine, m_incoming, inputStart, m_error, learningRate);
 	}
+}
+
+// virtual
+void GLayerClassicCuda::updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max)
+{
+	throw Ex("Sorry, updateWeightsClipped is not yet supported in GLayerClassicCuda");
 }
 
 // virtual
@@ -332,8 +338,27 @@ void GLayerClassicCuda::copyWeights(GNeuralNetLayer* pSource)
 // virtual
 void GLayerClassicCuda::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
 {
-	throw Ex("Sorry, GNeuralNetLayerCuda::renormalizeInput is not yet implemented");
+	throw Ex("Sorry, GLayerClassicCuda::renormalizeInput is not yet implemented");
 }
+
+// virtual
+void GLayerClassicCuda::updateBiasClipped(double learningRate, double max)
+{
+	throw Ex("Sorry, GLayerClassicCuda::renormalizeInput does not yet support this method");
+}
+
+// virtual
+void GLayerClassicCuda::refineActivationFunction(double learningRate)
+{
+	throw Ex("Sorry, GLayerClassicCuda::renormalizeInput does not yet support this method");
+}
+
+// virtual
+void GLayerClassicCuda::regularizeActivationFunction(double lambda)
+{
+	throw Ex("Sorry, GLayerClassicCuda::renormalizeInput does not yet support this method");
+}
+
 
 void GLayerClassicCuda::upload(GLayerClassic& source)
 {
