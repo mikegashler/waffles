@@ -216,7 +216,6 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="GBlob.cpp" />
-    <ClCompile Include="GChess.cpp" />
     <ClCompile Include="GCluster.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -338,6 +337,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ClCompile Include="GLayer.cpp" />
     <ClCompile Include="GLearner.cpp" />
     <ClCompile Include="GLearnerLib.cpp" />
     <ClCompile Include="GLinear.cpp" />
@@ -513,7 +513,6 @@
     <ClInclude Include="GBits.h" />
     <ClInclude Include="GBitTable.h" />
     <ClInclude Include="GBlob.h" />
-    <ClInclude Include="GChess.h" />
     <ClInclude Include="GCluster.h" />
     <ClInclude Include="GCrypto.h" />
     <ClInclude Include="GDecisionTree.h" />

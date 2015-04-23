@@ -29,6 +29,9 @@
 #include <GClasses/GHillClimber.h>
 #include <math.h>
 #include <fstream>
+#ifdef WINDOWS
+#include	<direct.h>
+#endif
 
 using namespace GClasses;
 using std::cerr;
@@ -76,6 +79,9 @@ void doit()
 	// Load the data
 	GMatrix trainLab;
 	GMatrix testLab;
+	if (chdir("../bin") != 0)
+	{
+	}
 	trainLab.loadArff("train.arff");
 	testLab.loadArff("test.arff");
 	GMatrix trainFeat(trainLab.rows(), 1);

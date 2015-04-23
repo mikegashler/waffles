@@ -1220,7 +1220,7 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 			for(size_t j = 0; j < pModelRelLabels->valueCount(i); ++j)
 			{
 				cout << "@ATTRIBUTE" << " ";
-				pModelRelLabels->printAttrValue(cout, i, j);
+				pModelRelLabels->printAttrValue(cout, i, (double)j);
 				cout << " " << "numeric" << endl;
 			}
 		}

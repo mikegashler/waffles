@@ -945,7 +945,7 @@ GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_regularizer = pNode->field("reg")->asDouble();
 	m_useInputBias = pNode->field("uib")->asBool();
-	m_minIters = pNode->field("mi")->asInt();
+	m_minIters = (size_t)pNode->field("mi")->asInt();
 	m_decayRate = pNode->field("dr")->asDouble();
 	m_pP = new GMatrix(pNode->field("p"));
 	m_pQ = new GMatrix(pNode->field("q"));
@@ -2156,13 +2156,13 @@ void GLogNet::train(GMatrix& data)
 	GMatrix& w3 = pLay3->weights();
 	w3.setAll(1.0);
 	double* b3 = pLay3->bias();
-	b3[0] = m_intrinsicDims; // balance the -1 in logexp(1,x)=exp(x)-1
+	b3[0] = (double)m_intrinsicDims; // balance the -1 in logexp(1,x)=exp(x)-1
 
 	// Relax
 	double learningRate = 0.001;
 	for(size_t i = 0; i < 100000; i++)
 	{
-		size_t index = m_pModel->rand().next(data.rows());
+		size_t index = (size_t)m_pModel->rand().next(data.rows());
 		double* pRow = data[index];
 		size_t user = (size_t)pRow[0];
 		size_t item = (size_t)pRow[1];
