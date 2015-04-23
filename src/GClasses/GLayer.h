@@ -236,6 +236,7 @@ protected:
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsClipped;
 using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
@@ -477,6 +478,7 @@ protected:
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsClipped;
 using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// General-purpose constructor. (You should call addComponent at least twice to mix some layers, after constructing this object.)
@@ -632,6 +634,7 @@ protected:
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsClipped;
 using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
@@ -840,6 +843,7 @@ protected:
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsClipped;
 using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// General-purpose constructor.
@@ -1012,6 +1016,7 @@ protected:
 public:
 using GNeuralNetLayer::feedIn;
 using GNeuralNetLayer::updateWeights;
+using GNeuralNetLayer::updateWeightsClipped;
 using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// General-purpose constructor.

@@ -62,6 +62,8 @@ protected:
 	double* m_pOutgoing;
 
 public:
+using GNeuralNetLayer::updateWeightsClipped;
+
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GLayerClassicCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
 	virtual ~GLayerClassicCuda();
@@ -127,6 +129,9 @@ public:
 	/// updateBias, which does sync with the GPU.
 	virtual void updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum);
 
+	/// Throws an exception
+	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
+
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
 	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
@@ -191,6 +196,15 @@ public:
 	/// Adjusts weights such that values in the new range will result in the
 	/// same behavior that previously resulted from values in the old range.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
+
+	/// Throws an exception
+	virtual void updateBiasClipped(double learningRate, double max);
+
+	/// Throws an exception
+	virtual void refineActivationFunction(double learningRate);
+
+	/// Throws an exception
+	virtual void regularizeActivationFunction(double lambda);
 
 	/// Copies the weights and bias vector from this layer into a GLayerClassic layer.
 	void upload(GLayerClassic& source);
