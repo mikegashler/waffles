@@ -829,7 +829,8 @@ public:
 				{
 					if(m_thickness > 0.0 && xPrev != UNKNOWN_REAL_VALUE && yPrev != UNKNOWN_REAL_VALUE)
 						svg.line(xPrev, yPrev, x, y, m_thickness, (unsigned int)col);
-					svg.dot(x, y, m_radius, (unsigned int)col);
+					if(m_radius > 0.0)
+						svg.dot(x, y, m_radius, (unsigned int)col);
 				}
 				xPrev = x;
 				yPrev = y;

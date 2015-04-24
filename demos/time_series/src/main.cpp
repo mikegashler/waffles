@@ -38,11 +38,11 @@ using std::cerr;
 using std::cout;
 using std::string;
 
-#define SOFTPLUS_NODES 12
-#define IDENTITY_NODES 12
+#define SOFTPLUS_NODES 2
+#define IDENTITY_NODES 4
 #define SOFTPLUS_SHIFT 10
 #define PERTURBATION 1e-4
-#define TRAINING_EPOCHS 20000
+#define TRAINING_EPOCHS 6000
 #define REGULARIZATION_TERM 0.01
 #define LEARNING_RATE 1e-3
 
@@ -100,12 +100,11 @@ void doit()
 	GLayerClassic* pSine2 = new GLayerClassic(1, trainLab.rows(), new GActivationSin());
 	GMatrix& wSin = pSine2->weights();
 	double* bSin = pSine2->bias();
-	double period = 1.0;
 	for(size_t i = 0; i < trainLab.rows() / 2; i++)
 	{
-		wSin[0][2 * i] = 2.0 * M_PI * (i + 1) / period;
+		wSin[0][2 * i] = 2.0 * M_PI * (i + 1);
 		bSin[2 * i] = 0.5 * M_PI;
-		wSin[0][2 * i + 1] = 2.0 * M_PI * (i + 1) / period;
+		wSin[0][2 * i + 1] = 2.0 * M_PI * (i + 1);
 		bSin[2 * i + 1] = M_PI;
 	}
 
