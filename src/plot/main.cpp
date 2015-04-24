@@ -778,6 +778,7 @@ public:
 
 	void plot(GSVG& svg, GMatrix* pData, double xmin, double xmax, size_t width)
 	{
+		svg.add_raw("<g>");
 		double x, y;
 		double xPrev = UNKNOWN_REAL_VALUE;
 		double yPrev = UNKNOWN_REAL_VALUE;
@@ -836,6 +837,7 @@ public:
 			xPrev = x;
 			yPrev = y;
 		}
+		svg.add_raw("</g>");
 	}
 };
 

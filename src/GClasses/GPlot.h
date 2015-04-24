@@ -209,6 +209,9 @@ public:
 	/// Returns (ymax - ymin) / height, which is often a useful size.
 	double vunit() { return m_vunit; }
 
+	/// Writes some raw SVG code to the stream
+	void add_raw(const char* string);
+
 	/// Draw a dot
 	void dot(double x, double y, double r = 1.0, unsigned int col = 0x000080);
 

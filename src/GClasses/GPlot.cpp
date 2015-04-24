@@ -442,6 +442,11 @@ void GSVG::color(unsigned int c)
 	m_ss << g_hexChars[(c >> 4) & 0xf] << g_hexChars[c & 0xf];
 }
 
+void GSVG::add_raw(const char* string)
+{
+	m_ss << string;
+}
+
 void GSVG::dot(double x, double y, double r, unsigned int col)
 {
 	m_ss << "<ellipse cx=\"" << svg_to_str(x) << "\" cy=\"" << svg_to_str(y) << "\" rx=\"" << svg_to_str(r * 4 * m_hunit) << "\" ry=\"" << svg_to_str(r * 4 * m_vunit) << "\" fill=\"";

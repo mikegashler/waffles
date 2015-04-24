@@ -42,8 +42,8 @@ using std::string;
 #define IDENTITY_NODES 12
 #define SOFTPLUS_SHIFT 10
 #define PERTURBATION 1e-4
-#define TRAINING_EPOCHS 100000
-#define REGULARIZATION_TERM 0.5
+#define TRAINING_EPOCHS 20000
+#define REGULARIZATION_TERM 0.01
 #define LEARNING_RATE 1e-3
 
 void plot_it(const char* filename, GNeuralNet& nn, GMatrix& trainFeat, GMatrix& trainLab, GMatrix& testFeat, GMatrix& testLab)
@@ -139,6 +139,9 @@ void doit()
 	pIdentity3->weights().setAll(0.0);
 	pIdentity3->perturbWeights(nn.rand(), PERTURBATION);
 
+	// Open Firefox to view the progress
+	GApp::systemCall("firefox view.html#progress.svg", false, true);
+
 	// Do some training
 	GRandomIndexIterator ii(trainLab.rows(), nn.rand());
 	nn.setLearningRate(LEARNING_RATE);
@@ -150,8 +153,8 @@ void doit()
 		while(ii.next(i))
 		{
 			// Regularize
-			pIdentity3->scaleWeights(1.0 - 0.01 * nn.learningRate() * REGULARIZATION_TERM, true);
-			pIdentity3->diminishWeights(0.01 * nn.learningRate() * REGULARIZATION_TERM, true);
+			pIdentity3->scaleWeights(1.0 - nn.learningRate() * REGULARIZATION_TERM, true);
+			pIdentity3->diminishWeights(nn.learningRate() * REGULARIZATION_TERM, true);
 
 			// Train
 			nn.trainIncremental(trainFeat[i], trainLab[i]); // One iteration of stochastic gradient descent
