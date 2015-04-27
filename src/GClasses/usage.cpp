@@ -1370,6 +1370,18 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-all", "Print stats for all attributes, even if there are a lot of them.");
 	}
 	{
+		UsageNode* pCalcErr = pRoot->add("calcerror [dataset] <options> <col1-col2>", "Prints an error metric between two columns.");
+		pCalcErr->add("[dataset]=data.arff", "The filename of a dataset.");
+		UsageNode* pOpts = pCalcErr->add("<options>");
+		UsageNode* pMetric = pOpts->add("-m [metric]", "The error metric to use.");
+		pMetric->add("SSE", "Sum-squared error metric.");
+		pMetric->add("MAPE", "Mean absolute percent error metric.");
+		UsageNode* pCols = pCalcErr->add("<col1-col2>");
+		UsageNode* pCols2 = pCols->add("[col1] [col2]");
+		pCols2->add("[col1]=0", "The zero-based index of the attribute to use as the actual value.");
+		pCols2->add("[col2]=1", "The zero-based index of the attribute to use as the predicted value.");
+	}
+	{
 		pRoot->add("usage", "Print usage information.");
 	}
 	return pRoot;

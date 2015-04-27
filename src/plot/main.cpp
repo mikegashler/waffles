@@ -1568,6 +1568,48 @@ void PrintStats(GArgReader& args)
 	}
 }
 
+void calcError(GArgReader& args){
+	GMatrix loader;
+	loader.loadArff(args.pop_string());
+	
+	GMatrix output(0, 1);
+	
+	int SSE = 0;
+	int MAPE = 1;
+	int metric = SSE;
+	
+	if(args.if_pop("-m")){
+		if(args.if_pop("SSE"))
+			metric = SSE;
+		else if(args.if_pop("MAPE"))
+			metric = MAPE;
+		else
+			throw Ex("Invalid metric.");
+	}
+	
+	while(args.size() > 0){
+		double *row = output.newRow();
+		*row = 0.0;
+		
+		int col1 = args.pop_uint();
+		int col2 = args.pop_uint();
+		
+		for(int i = 0; i < loader.rows(); i++){
+			if(metric == SSE){
+				*row += (loader[i][col1] - loader[i][col2]) * (loader[i][col1] - loader[i][col2]);
+			}
+			else if(metric == MAPE){
+				*row += fabs((loader[i][col1] - loader[i][col2]) / loader[i][col1]);
+			}
+		}
+		
+		if(metric == MAPE)
+			*row /= loader.rows();
+	}
+	
+	output.print(std::cout);
+}
+
 void percentSame(GArgReader& args){
   Holder<GMatrix> hData1(loadData(args.pop_string()));
   Holder<GMatrix> hData2(loadData(args.pop_string()));
@@ -1764,6 +1806,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("scatter")) PlotScatter(args);
 		else if(args.if_pop("semanticmap")) semanticMap(args);
 		else if(args.if_pop("stats")) PrintStats(args);
+		else if(args.if_pop("calcerror")) calcError(args);
 		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
