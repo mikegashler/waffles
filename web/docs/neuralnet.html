@@ -465,11 +465,10 @@ Misclassifications: 306/10000
 </pre>
 
 <p>Okay, now let's throw some more tricks onto the pile. Instead of going through the GAutoFilter
-class, we will want to fiddle with the neural network directly, so we can access some of its more
-specialized methods. Therefore, we will prefilter the labels, to get them in the right format
-for the neural network (a representation consisting of all continuous values). There is no need
+class each time turing training, we may prefer to prefilter the labels, to get them in the right format
+up front. This way we don't have to filter any of the labels more than once. (There is no need
 to prefilter the features in this case, because they are already in a form that neural networks can
-handle. (We could if we wanted to, but it would be a no-op.)</p>
+handle. We could if we wanted to, but it would be a no-op.)</p>
 
 <p>So, let's use a convolutional input layer, and add two types of regularization: Dropout and Max-Norm.
 I will highlight changes from the previous example in red:</p>

@@ -748,13 +748,14 @@ void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)
 	}
 }
 
-void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream)
+void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream, double learningRate)
 {
 	GNeuralNetLayer* pLay = pDownstream;
 	for(size_t i = m_layers.size(); i > 0; i--)
 	{
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
 		pLay->backPropError(pUpStream);
+		pUpStream->refineActivationFunction(learningRate);
 		pUpStream->deactivateError();
 		pLay = pUpStream;
 	}
@@ -771,7 +772,7 @@ void GNeuralNet::backpropagateAndRefineActivationFunction(const double* pTarget,
 	{
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
 		pLay->backPropError(pUpStream);
-		pLay->refineActivationFunction(learningRate);
+		pUpStream->refineActivationFunction(learningRate);
 		pUpStream->deactivateError();
 		pLay = pUpStream;
 		i--;

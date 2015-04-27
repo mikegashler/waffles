@@ -1288,7 +1288,88 @@ void unsupervisedBackProp(GArgReader& args)
 	if(sProgress.length() > 0)
 		pUBP->progress().saveArff(sProgress.c_str());
 }
+/*
+void autoencoder(GArgReader& args)
+{
+	// Load the file
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	int targetDims = args.pop_uint();
 
+	// Parse options
+	string roundTrip;
+	size_t seed = getpid() * (unsigned int)time(NULL);
+	string eigenvalues;
+	string components;
+	string modelIn;
+	string modelOut;
+	bool aboutOrigin = false;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-seed"))
+			seed = args.pop_uint();
+		else if(args.if_pop("-roundtrip"))
+			roundTrip = args.pop_string();
+		else if(args.if_pop("-eigenvalues"))
+			eigenvalues = args.pop_string();
+		else if(args.if_pop("-components"))
+			components = args.pop_string();
+		else if(args.if_pop("-aboutorigin"))
+			aboutOrigin = true;
+		else if(args.if_pop("-modelin"))
+			modelIn = args.pop_string();
+		else if(args.if_pop("-modelout"))
+			modelOut = args.pop_string();
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+
+	// Make the encoder
+	GNeuralNet encoder;
+	encoder.addLayer(new GLayerClassic(FLEXIBLE_SIZE, std::max(pData->cols() / 2, targetDims * 2), new GActivationHinge()));
+	encoder.addLayer(new GLayerClassic(FLEXIBLE_SIZE, targetDims * 2, new GActivationHinge()));
+	encoder.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationHinge()));
+	encoder.setLearningRate(0.01);
+	GUniformRelation relObs(pData->cols());
+	GUniformRelation relInt(targetDims);
+	encoder.beginIncrementalLearning(relObs, relInt);
+
+	// Make the decoder
+	GNeuralNet decoder;
+	decoder.addLayer(new GLayerClassic(FLEXIBLE_SIZE, targetDims * 2, new GActivationHinge()));
+	decoder.addLayer(new GLayerClassic(FLEXIBLE_SIZE, std::max(pData->cols() / 2, targetDims * 2), new GActivationHinge()));
+	decoder.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationHinge()));
+	decoder.setLearningRate(0.01);
+	encoder.beginIncrementalLearning(relInt, relObs);
+
+	// Train
+	GRandomIndexIterator ii(pData->rows(), encoder.rand());
+	double prevRmse = 1e200;
+	while(true)
+	{
+		double sse = 0.0;
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+		{
+			const double* pIn = observations[index];
+			encoder.forwardProp(pIn);
+			decoder.forwardProp(encoder.outputLayer().activation());
+			sse += decoder.sumSquaredPredictionError(pIn);
+			decoder.backpropagateAndRefineActivationFunction(pIn, decoder.learningRate());
+			encoder.backpropagateFromLayer(&decoder.layer(0), encoder.learningRate());
+			encoder.descendGradient(pIn, encoder.learningRate(), 0.0);
+			decoder.descendGradient(encoder.outputLayer().activation(), decoder.learningRate(), 0.0);
+		}
+		double rmse = sqrt(sse / observations.rows());
+		cout << "RMSE = " << to_str(rmse) << "\n";
+		if(1.0 - (rmse / prevRmse) < 0.001)
+			break;
+		prevRmse = rmse;
+	}
+}
+*/
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -1369,6 +1450,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("svd")) singularValueDecomposition(args);
 		else if(args.if_pop("som")) selfOrganizingMap(args);
 		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
+//		else if(args.if_pop("autoencoder")) autoencoder(args);
 		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)

@@ -264,7 +264,7 @@ public:
 	void backpropagate(const double* pTarget, size_t startLayer = INVALID_INDEX);
 
 	/// Backpropagate from a downstream layer
-	void backpropagateFromLayer(GNeuralNetLayer* pDownstream);
+	void backpropagateFromLayer(GNeuralNetLayer* pDownstream, double learningRate);
 
 	/// Backpropagates the error and refines the activation function in each layer by stochastic gradient descent.
 	void backpropagateAndRefineActivationFunction(const double* pTarget, double learningRate);

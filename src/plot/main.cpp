@@ -768,6 +768,14 @@ public:
 		}
 	}
 
+	string attrName()
+	{
+		string s;
+		s = "col ";
+		s += to_str(m_attrY);
+		return s;
+	}
+
 	static double attrVal(GMatrix* pData, size_t i, size_t attr)
 	{
 		if(attr < pData->cols())
@@ -778,7 +786,9 @@ public:
 
 	void plot(GSVG& svg, GMatrix* pData, double xmin, double xmax, size_t width)
 	{
-		svg.add_raw("<g>");
+		svg.add_raw("<g><!-- ");
+		svg.add_raw(attrName().c_str());
+		svg.add_raw(" -->\n");
 		double x, y;
 		double xPrev = UNKNOWN_REAL_VALUE;
 		double yPrev = UNKNOWN_REAL_VALUE;
@@ -838,7 +848,7 @@ public:
 			xPrev = x;
 			yPrev = y;
 		}
-		svg.add_raw("</g>");
+		svg.add_raw("</g>\n\n");
 	}
 };
 
