@@ -2907,7 +2907,7 @@ void GMatrix::splitBySize(GMatrix& other, size_t nOtherRows)
 	}
 }
 
-void GMatrix::mergeVert(GMatrix* pData)
+void GMatrix::mergeVert(GMatrix* pData, bool ignoreMismatchingName)
 {
 	if(relation().type() == GRelation::ARFF && pData->relation().type() == GRelation::ARFF)
 	{
@@ -2920,7 +2920,7 @@ void GMatrix::mergeVert(GMatrix* pData)
 		valueMap.resize(a.size());
 		for(size_t i = 0; i < a.size(); i++)
 		{
-			if(strcmp(a.attrName(i), b.attrName(i)) != 0)
+			if(!ignoreMismatchingName && strcmp(a.attrName(i), b.attrName(i)) != 0)
 				throw Ex("The name of attribute ", to_str(i), " does not match");
 			if(a.valueCount(i) == 0 && b.valueCount(i) != 0)
 				throw Ex("Attribute ", to_str(i), " is continuous in one matrix and nominal in the other");

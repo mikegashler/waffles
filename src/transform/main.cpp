@@ -1074,7 +1074,14 @@ void mergeVert(GArgReader& args)
 	Holder<GMatrix> hData1(pData1);
 	GMatrix* pData2 = loadData(args.pop_string());
 	Holder<GMatrix> hData2(pData2);
-	pData1->mergeVert(pData2);
+	
+	bool ignoreMismatchingName = false;
+	if(args.if_pop("-f"))
+	{
+		ignoreMismatchingName = true;
+	}
+	
+	pData1->mergeVert(pData2, ignoreMismatchingName);
 	pData1->print(cout);
 }
 

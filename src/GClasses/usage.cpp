@@ -1692,9 +1692,11 @@ UsageNode* makeTransformUsageTree()
 		pMH->add("[dataset2]=b.arff", "The filename of a dataset");
 	}
 	{
-		UsageNode* pNode = pRoot->add("mergevert [dataset1] [dataset2]", "Merge two datasets vertically. Both datasets must already have the same number of columns. The resulting dataset will have all the rows of both datasets.");
+		UsageNode* pNode = pRoot->add("mergevert [dataset1] [dataset2] <options>", "Merge two datasets vertically. Both datasets must already have the same number of columns. The resulting dataset will have all the rows of both datasets.");
 		pNode->add("[dataset1]=a.arff", "The filename of a dataset");
 		pNode->add("[dataset2]=b.arff", "The filename of a dataset");
+		UsageNode* pOpts = pNode->add("<options>");
+		pOpts->add("-f", "Force merge, even if attribute names do not match.");
 	}
 	{
 		UsageNode* pMult1 = pRoot->add("multiply [a] [b] <options>", "Matrix multiply [a] x [b]. Both arguments are the filenames of .arff files. Results are printed to stdout.");

@@ -675,7 +675,7 @@ public:
 	/// \brief Steals all the rows from pData and adds them to this set.
 	/// (You still have to delete pData.) Both datasets must have the
 	/// same number of columns.
-	void mergeVert(GMatrix* pData);
+	void mergeVert(GMatrix* pData, bool ignoreMismatchingName = false);
 
 	/// \brief Computes nCount eigenvectors and the corresponding
 	/// eigenvalues using the power method (which is only accurate if a
