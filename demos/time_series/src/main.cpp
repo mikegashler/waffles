@@ -49,12 +49,15 @@ using std::string;
 void plot_it(const char* filename, GNeuralNet& nn, GMatrix& trainFeat, GMatrix& trainLab, GMatrix& testFeat, GMatrix& testLab)
 {
 	GSVG svg(1000, 500);
-	svg.newChart(0.0, std::min(trainLab.columnMin(0), testLab.columnMin(0)), 2.0, std::max(trainLab.columnMax(0), testLab.columnMax(0)));
+	double xmin = trainFeat[0][0];
+	double xmax = testFeat[testFeat.rows() - 1][0];
+	svg.newChart(xmin, std::min(trainLab.columnMin(0), testLab.columnMin(0)), xmax, std::max(trainLab.columnMax(0), testLab.columnMax(0)));
 	svg.horizMarks(20);
 	svg.vertMarks(20);
-	double prevx = 0.0;
+	double prevx = xmin;
 	double prevy = 0.0;
-	for(double x = prevx; x < 2.0; x += 0.002)
+	double step = (xmax - xmin) / 500.0;
+	for(double x = prevx; x < xmax; x += step)
 	{
 		double y;
 		nn.predict(&x, &y);

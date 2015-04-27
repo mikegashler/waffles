@@ -28,9 +28,13 @@
 #include <GClasses/GPlot.h>
 #include <GClasses/GBits.h>
 #include <GClasses/GVec.h>
+#include <GClasses/GTime.h>
 #include <GClasses/GHillClimber.h>
 #include <math.h>
 #include <fstream>
+#ifdef WINDOWS
+#include	<direct.h>
+#endif
 
 using namespace GClasses;
 using std::cerr;
@@ -39,23 +43,26 @@ using std::string;
 
 #define TRAIN_SIZE 64 // must be a power of 2
 #define TEST_SIZE 64 // does not need not be a power of 2. I just like symmetry.
-#define SOFTPLUS_NODES 12
-#define IDENTITY_NODES 12
+#define SOFTPLUS_NODES 2
+#define IDENTITY_NODES 2
 #define SOFTPLUS_SHIFT 10
 #define PERTURBATION 1e-4
-#define TRAINING_EPOCHS 100000
-#define TIGHTNESS 0.05
+#define TIGHTNESS_GOOD 0.05
+#define TIGHTNESS_BAD 0.25
 
 
 void plot_it(const char* filename, GNeuralNet& nn, GMatrix& trainFeat, GMatrix& trainLab, GMatrix& testFeat, GMatrix& testLab)
 {
 	GSVG svg(1000, 500);
-	svg.newChart(0.0, -1.0, 2.0, 5.0);
+	double xmin = trainFeat[0][0];
+	double xmax = testFeat[testFeat.rows() - 1][0];
+	svg.newChart(xmin, std::min(trainLab.columnMin(0), testLab.columnMin(0)), xmax, std::max(trainLab.columnMax(0), testLab.columnMax(0)));
 	svg.horizMarks(20);
 	svg.vertMarks(20);
-	double prevx = 0.0;
+	double prevx = xmin;
 	double prevy = 0.0;
-	for(double x = prevx; x < 2.0; x += 0.002)
+	double step = (xmax - xmin) / 500.0;
+	for(double x = prevx; x < xmax; x += step)
 	{
 		double y;
 		nn.predict(&x, &y);
@@ -66,7 +73,7 @@ void plot_it(const char* filename, GNeuralNet& nn, GMatrix& trainFeat, GMatrix& 
 	}
 	for(size_t i = 0; i < trainLab.rows(); i++)
 		svg.dot(trainFeat[i][0], trainLab[i][0], 0.4, 0xff000080);
-	for(size_t i = 0; i < TEST_SIZE; i++)
+	for(size_t i = 0; i < testLab.rows(); i++)
 		svg.dot(testFeat[i][0], testLab[i][0], 0.4, 0xff800000);
 
 	std::ofstream ofs;
@@ -75,35 +82,28 @@ void plot_it(const char* filename, GNeuralNet& nn, GMatrix& trainFeat, GMatrix& 
 }
 
 
-
-
-
-void doit(GArgReader& args)
+void doit()
 {
 	cout << "\n\nThis demo is described at http://arxiv.org/abs/1405.2262\n\n";
 	
 	cout << "For efficiency reasons, this demo differs from the paper the following ways:\n";
 	cout << " * It uses one fewer layers.\n";
-	cout << " * It trains for 100 times fewer training epochs.\n";
 	cout << " * It only uses L1 regularization during the last 20% of training.\n\n";
-	
-	// Make some data
-	GMatrix trainFeat(TRAIN_SIZE, 1);
-	GMatrix trainLab(TRAIN_SIZE, 1);
-	GMatrix testFeat(TEST_SIZE, 1);
-	GMatrix testLab(TEST_SIZE, 1);
-	for(size_t i = 0; i < TRAIN_SIZE; i++)
+
+	// Load the data
+	GMatrix trainLab;
+	GMatrix testLab;
+	if (chdir("../bin") != 0)
 	{
-		double x = i;
-		trainFeat[i][0] = x / TRAIN_SIZE;
-		trainLab[i][0] = sin(x / 3.0) + x * 0.03;
 	}
-	for(size_t i = 0; i < TEST_SIZE; i++)
-	{
-		double x = i + TRAIN_SIZE;
-		testFeat[i][0] = x / TRAIN_SIZE;
-		testLab[i][0] = sin(x / 3.0) + x * 0.03;
-	}
+	trainLab.loadArff("train.arff");
+	testLab.loadArff("test.arff");
+	GMatrix trainFeat(trainLab.rows(), 1);
+	for(size_t i = 0; i < trainLab.rows(); i++)
+		trainFeat[i][0] = (double)i / trainLab.rows();
+	GMatrix testFeat(testLab.rows(), 1);
+	for(size_t i = 0; i < testLab.rows(); i++)
+		testFeat[i][0] = (double)(i + trainLab.rows()) / trainLab.rows();
 
 	// Use the Fourier transform to initialize a neural network
 	GNeuralNet* pNN = GNeuralNet::fourier(trainLab);
@@ -174,90 +174,105 @@ void doit(GArgReader& args)
 	cout << "dev=" << to_str(labDev) << "\n";
 	double rmse = sqrt(nn.sumSquaredError(trainFeat, trainLab) / trainLab.rows());
 	cout << "initial rmse/dev=" << to_str(rmse / labDev) << "\n";
-	if(rmse >= TIGHTNESS * labDev)
+	if(rmse >= TIGHTNESS_GOOD * labDev)
 		throw Ex("Already above threshold on initialization. This probably means PERTURBATION is too high or SOFTPLUS_SHIFT is too low.");
+
+	// Open Firefox to view the progress
+	GApp::systemCall("firefox view.html#progress.svg", false, true);
 
 	// Do some training
 	GNeuralNet backup;
 	backup.copyStructure(&nn);
+	GNeuralNet nn2;
+	nn2.copyStructure(&nn);
 	GRandomIndexIterator ii(trainLab.rows(), nn.rand());
 	double learningRate = 1e-8;
-	double lambda = 1.0;
-	for(size_t epoch = 0; epoch < TRAINING_EPOCHS; epoch++)
+	double lambda = 0.001;
+	for(size_t epoch = 0; true; epoch++)
 	{
-		nn.setLearningRate(learningRate);
-
-		// Visit each training value in random order
-		ii.reset();
-		size_t i;
-		while(ii.next(i))
+		// Regularize until it reaches TIGHTNESS_BAD
+		double rmse;
+		size_t regularize_count = 0;
+		while(true)
 		{
-			// Regularize
-			if(epoch < TRAINING_EPOCHS * 8 / 10)
-			{
-				// L2 regularization
-				pSoftPlus1->scaleWeights(1.0 - 0.1 * learningRate * lambda, true);
-				pIdentity1->scaleWeights(1.0 - 0.01 * learningRate * lambda, true);
-				pSine2->scaleWeights(1.0 - learningRate * lambda, true);
-				pSoftPlus2->scaleWeights(1.0 - 0.1 * learningRate * lambda, true);
-				pIdentity2->scaleWeights(1.0 - 0.01 * learningRate * lambda, true);
-				pIdentity3->scaleWeights(1.0 - 0.01 * learningRate * lambda, true);
-			}
-			else
-			{
-				// L1 regularization
-				pSoftPlus1->diminishWeights(0.1 * learningRate * lambda, true);
-				pIdentity1->diminishWeights(0.01 * learningRate * lambda, true);
-				pSine2->diminishWeights(learningRate * lambda, true);
-				pSoftPlus2->diminishWeights(0.1 * learningRate * lambda, true);
-				pIdentity2->diminishWeights(0.01 * learningRate * lambda, true);
-				pIdentity3->diminishWeights(0.01 * learningRate * lambda, true);
-			}
+			// L2 regularization
+			pSoftPlus1->scaleWeights(1.0 - 0.1 * lambda, true);
+			pIdentity1->scaleWeights(1.0 - 0.01 * lambda, true);
+			pSine2->scaleWeights(1.0 - lambda, true);
+			pSoftPlus2->scaleWeights(1.0 - 0.1 * lambda, true);
+			pIdentity2->scaleWeights(1.0 - 0.01 * lambda, true);
+			pIdentity3->scaleWeights(1.0 - lambda, true);
 
-			// Train
-			nn.trainIncremental(trainFeat[i], trainLab[i]);
+			// L1 regularization
+			pSoftPlus1->diminishWeights(0.1 * lambda, true);
+			pIdentity1->diminishWeights(0.01 * lambda, true);
+			pSine2->diminishWeights(lambda, true);
+			pSoftPlus2->diminishWeights(0.1 * lambda, true);
+			pIdentity2->diminishWeights(0.01 * lambda, true);
+			pIdentity3->diminishWeights(lambda, true);
+
+			// Test whether we are there yet
+			regularize_count++;
+			rmse = sqrt(nn.sumSquaredError(trainFeat, trainLab) / trainLab.rows());
+			if(rmse / labDev >= TIGHTNESS_BAD)
+				break;
 		}
-
-		// Report progress
-		double rmse = sqrt(nn.sumSquaredError(trainFeat, trainLab) / trainLab.rows());
-		if(epoch % (TRAINING_EPOCHS / 100) == 0)
-		{
-			double val = sqrt(nn.sumSquaredError(testFeat, testLab) / testLab.rows());
-			cout << "prog=" << to_str((double)epoch * 100.0 / TRAINING_EPOCHS) << "%	rmse/dev=" << to_str(rmse / labDev) << "	val=" << to_str(val);
-			// cout << "	eta=" << to_str(learningRate) << "	lambda=" << to_str(lambda);
-			cout << "\n";
-			cout.flush();
-			if(epoch % (TRAINING_EPOCHS / 10) == 0)
-			{
-				string s = "progress";
-				s += to_str(epoch / (TRAINING_EPOCHS / 10));
-				s += ".svg";
-				plot_it(s.c_str(), nn, trainFeat, trainLab, testFeat, testLab);
-//				string cmd = "firefox ";
-//				cmd += s;
-//				GApp::systemCall(cmd.c_str(), false, true);
-			}
-		}
-
-		// Dynamically adjust the learning rate and regularization term
-		learningRate *= 1.01;
-		if(rmse < TIGHTNESS * labDev)
-			lambda *= 1.001;
+		if(regularize_count < 5)
+			lambda *= 0.1;
 		else
+			lambda *= 1.2;
+		cout << "rmse/dev=" << to_str(rmse / labDev) << "	lambda=" << to_str(lambda) << "	regularization iters=" << to_str(regularize_count) << "\n";
+
+		// Train until it reaches TIGHTNESS_GOOD
+		double timeStart = 0.0;
+		while(true)
 		{
-			if(rmse < 2 * TIGHTNESS * labDev)
+			nn.setLearningRate(learningRate * 1.25);
+			nn2.setLearningRate(learningRate * 0.8);
+			backup.copyWeights(&nn);
+			nn2.copyWeights(&nn);
+
+			// Visit each sample in random order
+			ii.reset();
+			size_t i;
+			while(ii.next(i))
 			{
-				if(rmse < 1.5 * TIGHTNESS * labDev)
-					backup.copyWeights(&nn); // make a backup copy of the weights
-				lambda /= 1.001;
+				nn.trainIncremental(trainFeat[i], trainLab[i]); // One iteration of stochastic gradient descent
+				nn2.trainIncremental(trainFeat[i], trainLab[i]); // One iteration of stochastic gradient descent
+			}
+
+			// Adjust the learning rate
+			double rmse1 = sqrt(nn.sumSquaredError(trainFeat, trainLab) / trainLab.rows());
+			double rmse2 = sqrt(nn2.sumSquaredError(trainFeat, trainLab) / trainLab.rows());
+			if(rmse1 <= rmse2 && rmse1 <= rmse)
+			{
+				rmse = rmse1;
+				learningRate = nn.learningRate();
+			}
+			else if(rmse2 <= rmse1 && rmse2 <= rmse)
+			{
+				rmse = rmse2;
+				learningRate = nn2.learningRate();
+				nn.copyWeights(&nn2);
 			}
 			else
 			{
-				nn.copyWeights(&backup); // restore the weights from backup
 				learningRate *= 0.1;
-				if(learningRate < 1e-100)
-					throw Ex("Repeatedly failing to recover");
+				nn.copyWeights(&backup);
 			}
+
+			// Report progress
+			double timeNow = GTime::seconds();
+			if(timeNow - timeStart >= 0.5)
+			{
+				timeStart = timeNow;
+				double val = sqrt(nn.sumSquaredError(testFeat, testLab) / testLab.rows());
+				cout << "rmse/dev=" << to_str(rmse / labDev) << "	eta=" << to_str(learningRate)  << "	val=" << to_str(val) << "\n";
+				plot_it("progress.svg", nn, trainFeat, trainLab, testFeat, testLab);
+			}
+
+			if(rmse / labDev <= TIGHTNESS_GOOD)
+				break;
 		}
 	}
 }
@@ -270,8 +285,7 @@ int main(int argc, char *argv[])
 	int nRet = 0;
 	try
 	{
-		GArgReader args(argc, argv);
-		doit(args);
+		doit();
 	}
 	catch(const std::exception& e)
 	{
@@ -281,4 +295,3 @@ int main(int argc, char *argv[])
 
 	return nRet;
 }
-

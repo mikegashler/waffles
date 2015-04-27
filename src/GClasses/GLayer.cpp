@@ -821,6 +821,8 @@ GLayerMixed::GLayerMixed(GDomNode* pNode)
 		m_components.push_back(GNeuralNetLayer::deserialize(it.current()));
 		it.advance();
 	}
+	m_inputError.resize(1, m_components[0]->inputs());
+	outputs(); // Causes a buffer to be allocated
 }
 
 GLayerMixed::~GLayerMixed()

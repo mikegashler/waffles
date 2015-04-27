@@ -1107,23 +1107,35 @@ GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 // static
 GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 {
+	// Pad until the number of rows in series is a power of 2
+	GMatrix* pSeries = &series;
+	Holder<GMatrix> hSeries(NULL);
 	if(!GBits::isPowerOfTwo((unsigned int)series.rows()))
-		throw Ex("The time series data has ", to_str(series.rows()), " rows. Expected a power of 2.");
+	{
+		pSeries = new GMatrix(series);
+		hSeries.reset(pSeries);
+		while(pSeries->rows() & (pSeries->rows() - 1)) // Pad until the number of rows is a power of 2
+		{
+			double* pNewRow = pSeries->newRow();
+			GVec::copy(pNewRow, pSeries->row(0), pSeries->cols());
+		}
+		period *= ((double)pSeries->rows() / series.rows());
+	}
 
 	// Make a neural network that combines sine units in the same manner as the Fourier transform
 	GNeuralNet* pNN = new GNeuralNet();
-	GLayerClassic* pLayerSin = new GLayerClassic(1, series.rows(), new GActivationSin());
-	GLayerClassic* pLayerIdent = new GLayerClassic(FLEXIBLE_SIZE, series.cols(), new GActivationIdentity());
+	GLayerClassic* pLayerSin = new GLayerClassic(1, pSeries->rows(), new GActivationSin());
+	GLayerClassic* pLayerIdent = new GLayerClassic(FLEXIBLE_SIZE, pSeries->cols(), new GActivationIdentity());
 	pNN->addLayer(pLayerSin);
 	pNN->addLayer(pLayerIdent);
 	GUniformRelation relIn(1);
-	GUniformRelation relOut(series.cols());
+	GUniformRelation relOut(pSeries->cols());
 	pNN->beginIncrementalLearning(relIn, relOut);
 
 	// Initialize the weights of the sine units to match the frequencies used by the Fourier transform.
 	GMatrix& wSin = pLayerSin->weights();
 	double* bSin = pLayerSin->bias();
-	for(size_t i = 0; i < series.rows() / 2; i++)
+	for(size_t i = 0; i < pSeries->rows() / 2; i++)
 	{
 		wSin[0][2 * i] = 2.0 * M_PI * (i + 1) / period;
 		bSin[2 * i] = 0.5 * M_PI;
@@ -1132,34 +1144,34 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 	}
 
 	// Initialize the output layer
-	struct ComplexNumber* pFourier = new struct ComplexNumber[series.rows()];
+	struct ComplexNumber* pFourier = new struct ComplexNumber[pSeries->rows()];
 	ArrayHolder<struct ComplexNumber> hIn(pFourier);
 	GMatrix& wIdent = pLayerIdent->weights();
 	double* bIdent = pLayerIdent->bias();
-	for(size_t j = 0; j < series.cols(); j++)
+	for(size_t j = 0; j < pSeries->cols(); j++)
 	{
 		// Convert column j to the Fourier domain
 		struct ComplexNumber* pF = pFourier;
-		for(size_t i = 0; i < series.rows(); i++)
+		for(size_t i = 0; i < pSeries->rows(); i++)
 		{
-			pF->real = series[i][j];
+			pF->real = pSeries->row(i)[j];
 			pF->imag = 0.0;
 			pF++;
 		}
-		GFourier::fft(series.rows(), pFourier, true);
+		GFourier::fft(pSeries->rows(), pFourier, true);
 
 		// Initialize the weights of the identity output units to combine the sine units with the weights
 		// specified by the Fourier transform
-		for(size_t i = 0; i < series.rows() / 2; i++)
+		for(size_t i = 0; i < pSeries->rows() / 2; i++)
 		{
-			wIdent[2 * i][j] = pFourier[1 + i].real / (series.rows() / 2);
-			wIdent[2 * i + 1][j] = pFourier[1 + i].imag / (series.rows() / 2);
+			wIdent[2 * i][j] = pFourier[1 + i].real / (pSeries->rows() / 2);
+			wIdent[2 * i + 1][j] = pFourier[1 + i].imag / (pSeries->rows() / 2);
 		}
-		bIdent[j] = pFourier[0].real / (series.rows());
+		bIdent[j] = pFourier[0].real / (pSeries->rows());
 
 		// Compensate for the way the FFT doubles-up the values in the last complex element
-		wIdent[series.rows() - 2][j] *= 0.5;
-		wIdent[series.rows() - 1][j] *= 0.5;
+		wIdent[pSeries->rows() - 2][j] *= 0.5;
+		wIdent[pSeries->rows() - 1][j] *= 0.5;
 	}
 
 	return pNN;
