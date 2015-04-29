@@ -1608,6 +1608,9 @@ void calcError(GArgReader& args){
 		int col1 = args.pop_uint();
 		int col2 = args.pop_uint();
 		
+		if(col1 >= loader.cols() || col2 >= loader.cols())
+			throw Ex("Invalid column.");
+		
 		int dropped = 0;
 		
 		for(int i = 0; i < loader.rows(); i++){
