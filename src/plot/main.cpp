@@ -852,7 +852,7 @@ public:
 	}
 };
 
-void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, double pad, bool x, double& axisMin, double& axisMax)
+void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, bool forcePad, double pad, bool x, double& axisMin, double& axisMax)
 {
 	// Determine the range
 	if(logx)
@@ -911,6 +911,12 @@ void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, double 
 				axisMax = axisMin + 1e-9;
 				axisMin -= 1e-9;
 			}
+			double d = pad * (axisMax - axisMin);
+			axisMin -= d;
+			axisMax += d;
+		}
+		else if(forcePad)
+		{
 			double d = pad * (axisMax - axisMin);
 			axisMin -= d;
 			axisMax += d;
@@ -1072,6 +1078,7 @@ void PlotScatter(GArgReader& args)
 	double ymax = UNKNOWN_REAL_VALUE;
 	bool logx = false;
 	bool logy = false;
+	bool forcePad = false;
 	bool horizMarks = true;
 	bool vertMarks = true;
 	bool serifs = true;
@@ -1105,7 +1112,10 @@ void PlotScatter(GArgReader& args)
 		else if(args.if_pop("-vertmarks"))
 			maxVertMarks = args.pop_uint();
 		else if(args.if_pop("-pad"))
+		{
 			pad = args.pop_double();
+			forcePad = true;
+		}
 		else if(args.if_pop("-range"))
 		{
 			xmin = args.pop_double();
@@ -1151,8 +1161,8 @@ void PlotScatter(GArgReader& args)
 	}
 
 	// Draw the grid
-	determineRange(pData, cols, logx, pad, true, xmin, xmax);
-	determineRange(pData, cols, logy, pad, false, ymin, ymax);
+	determineRange(pData, cols, logx, forcePad, pad, true, xmin, xmax);
+	determineRange(pData, cols, logy, forcePad, pad, false, ymin, ymax);
 	if(aspect)
 	{
 		if(logx || logy)
@@ -1576,6 +1586,8 @@ void calcError(GArgReader& args){
 	
 	int SSE = 0;
 	int MAPE = 1;
+	int RMSE = 2;
+	
 	int metric = SSE;
 	
 	if(args.if_pop("-m")){
@@ -1583,6 +1595,8 @@ void calcError(GArgReader& args){
 			metric = SSE;
 		else if(args.if_pop("MAPE"))
 			metric = MAPE;
+		else if(args.if_pop("RMSE"))
+			metric = RMSE;
 		else
 			throw Ex("Invalid metric.");
 	}
@@ -1594,8 +1608,15 @@ void calcError(GArgReader& args){
 		int col1 = args.pop_uint();
 		int col2 = args.pop_uint();
 		
+		int dropped = 0;
+		
 		for(int i = 0; i < loader.rows(); i++){
-			if(metric == SSE){
+			if(loader[i][col1] == UNKNOWN_REAL_VALUE){
+				dropped++;
+				continue;
+			}
+			
+			if(metric == SSE || metric == RMSE){
 				*row += (loader[i][col1] - loader[i][col2]) * (loader[i][col1] - loader[i][col2]);
 			}
 			else if(metric == MAPE){
@@ -1603,8 +1624,16 @@ void calcError(GArgReader& args){
 			}
 		}
 		
-		if(metric == MAPE)
-			*row /= loader.rows();
+		if(dropped == loader.rows())
+			throw Ex("Invalid data set!");
+		
+		if(metric == MAPE || metric == RMSE)
+			*row /= (loader.rows() - dropped);
+		
+		if(metric == RMSE)
+		{
+			*row = sqrt(*row);
+		}
 	}
 	
 	output.print(std::cout);
