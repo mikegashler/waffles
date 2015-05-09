@@ -28,20 +28,21 @@
 
 <p>You can also load from a text file of comma-separated values (a CSV file):</p>
 <pre>
-	M.loadCsv("mydata.csv", ',');
+	GCSVParser p;
+	p.parse(M, "mydata.csv");
 </pre>
 
 <p>or tab-separated values:</p>
 <pre>
-	M.loadCsv("mydata.csv", '\t');
+	GCSVParser p;
+	p.setSeparator('\t');
+	p.parse(M, "mydata.tsv");
 </pre>
 
-<p>or space-separated values:</p>
-<pre>
-	M.loadCsv("mydata.csv", ' ');
-</pre>
+<p>(The GCSVParser class also provides functionality to specify the format for date-stamp columns, to specify the type of ambiguous columns,
+to generate a report of parsing errors, etc. For more details, see the GCSVParser class in the GClasses API docs.)</p>
 
-<p>You can also construct an uninitialized GMatrix of continuous values by specifying the number of rows and columns:</p>
+<p>You can construct an uninitialized GMatrix of continuous values by specifying the number of rows and columns:</p>
 <pre>
 	GMatrix M(5, 7); // 5 rows, 7 columns
 </pre>

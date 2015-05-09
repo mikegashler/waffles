@@ -1417,27 +1417,98 @@ void makeHistogram(GArgReader& args)
 	if(attr >= pData->relation().size())
 		throw Ex("attr out of range");
 
+	// Drop any rows with missing values in column attr
+	for(size_t i = pData->rows() - 1; i < pData->rows(); i--)
+	{
+		if(pData->row(i)[attr] == UNKNOWN_REAL_VALUE)
+			pData->deleteRow(i);
+	}
+
 	// Make the histogram
 	if(pData->relation().valueCount(attr) == 0)
 	{
-		GHistogram hist(*pData, attr, xmin, xmax, wid);
-		double height = (ymax == UNKNOWN_REAL_VALUE ? hist.binLikelihood(hist.modeBin()) * 1.5 : ymax);
-		GSVG svg(wid, hgt);
-		svg.newChart(hist.xmin(), 0.0, hist.xmax(), height);
-		for(double x = hist.xmin(); x <= hist.xmax(); x += svg.hunit())
+		bool use_density_estimation = false;
+		if(pData->rows() < 10000)
+			use_density_estimation = true;
+		
+		if(use_density_estimation)
 		{
-			size_t bin = hist.xToBin(x);
-			double likelihood = hist.binLikelihood(bin);
-			if(likelihood > 0.0)
-				svg.rect(x, 0.0, svg.hunit(), likelihood, 0xff000080);
+			size_t k = std::max((size_t)3, (size_t)sqrt(pData->rows()));
+
+			// Estimate the inverse density at each point
+			pData->sort(attr);
+			double laplace = 2.0 * (pData->row(pData->rows() - 1)[attr] - pData->row(0)[attr]) / pData->rows();
+			GMatrix invDensity(0, 2);
+			double* pBlock = invDensity.newRow();
+			pBlock[0] = pData->row(0)[attr];
+			pBlock[1] = 0.0;
+			for(size_t i = k - 1; i < pData->rows(); i++)
+			{
+				double xBegin = pData->row(i + 1 - k)[attr];
+				double xEnd = pData->row(i)[attr];
+				double* pBlock = invDensity.newRow();
+				pBlock[0] = 0.5 * (xBegin + xEnd);
+				pBlock[1] = (double)k / ((xEnd - xBegin + laplace) * pData->rows());
+			}
+			pBlock = invDensity.newRow();
+			pBlock[0] = pData->row(pData->rows() - 1)[attr];
+			pBlock[1] = 0.0;
+
+			// Plot it
+			double maxHeight = invDensity.columnMax(1);
+			GSVG svg(wid, hgt);
+			svg.newChart(invDensity[0][0], 0.0, invDensity[invDensity.rows() - 1][0], maxHeight);
+			svg.add_raw("<path d=\"m "); // Start a path
+			svg.add_raw(to_str(invDensity[0][0]).c_str());
+			svg.add_raw(",0 c "); // Turn on control points
+			for(size_t i = 1; i < invDensity.rows(); i++)
+			{
+				// Add the leaving direction control point
+				svg.add_raw(to_str(0.5 * (invDensity[i][0] - invDensity[i - 1][0])).c_str()); // half way to the destination
+				svg.add_raw(",0 "); // horizontal
+
+				// Add the arriving direction control point
+				svg.add_raw(to_str(0.5 * (invDensity[i][0] - invDensity[i - 1][0])).c_str()); // half way to the destination
+				svg.add_raw(",");
+				svg.add_raw(to_str(invDensity[i][1] - invDensity[i - 1][1]).c_str()); // horizontal
+				svg.add_raw(" ");
+
+				// Add the destination point
+				svg.add_raw(to_str(invDensity[i][0] - invDensity[i - 1][0]).c_str());
+				svg.add_raw(",");
+				svg.add_raw(to_str(invDensity[i][1] - invDensity[i - 1][1]).c_str());
+				svg.add_raw(" ");
+			}
+			svg.add_raw("z\" style=\"fill:#0000ff;fill-opacity:0.2\" />\n");
+
+			// Draw the grid
+			svg.horizMarks(30);
+			svg.vertMarks(20);
+
+			// Print it
+			svg.print(cout);
 		}
+		else
+		{
+			GHistogram hist(*pData, attr, xmin, xmax, wid);
+			double height = (ymax == UNKNOWN_REAL_VALUE ? hist.binLikelihood(hist.modeBin()) * 1.5 : ymax);
+			GSVG svg(wid, hgt);
+			svg.newChart(hist.xmin(), 0.0, hist.xmax(), height);
+			for(double x = hist.xmin(); x <= hist.xmax(); x += svg.hunit())
+			{
+				size_t bin = hist.xToBin(x);
+				double likelihood = hist.binLikelihood(bin);
+				if(likelihood > 0.0)
+					svg.rect(x, 0.0, svg.hunit(), likelihood, 0xff000080);
+			}
 
-		// Draw the grid
-		svg.horizMarks(30);
-		svg.vertMarks(20);
+			// Draw the grid
+			svg.horizMarks(30);
+			svg.vertMarks(20);
 
-		// Print it
-		svg.print(cout);
+			// Print it
+			svg.print(cout);
+		}
 	}
 	else
 	{
@@ -1605,15 +1676,15 @@ void calcError(GArgReader& args){
 		double *row = output.newRow();
 		*row = 0.0;
 		
-		int col1 = args.pop_uint();
-		int col2 = args.pop_uint();
+		size_t col1 = args.pop_uint();
+		size_t col2 = args.pop_uint();
 		
 		if(col1 >= loader.cols() || col2 >= loader.cols())
 			throw Ex("Invalid column.");
 		
-		int dropped = 0;
+		size_t dropped = 0;
 		
-		for(int i = 0; i < loader.rows(); i++){
+		for(size_t i = 0; i < loader.rows(); i++){
 			if(loader[i][col1] == UNKNOWN_REAL_VALUE){
 				dropped++;
 				continue;
