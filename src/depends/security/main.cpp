@@ -23,6 +23,7 @@
 #include "GKeyboard.h"
 #include <time.h>
 #include <iostream>
+#include <cmath>
 #include <string>
 #include <set>
 #ifdef WINDOWS
@@ -106,10 +107,10 @@ UsageNode* makeCryptoUsageTree()
 		pDecrypt->add("[filename]", "The name of a file that was encrypted using the encrypt command.");
 	}
 	{
-		UsageNode* pDump = pRoot->add("dump [filename] [offset] [length]", "Print the specified portion of a file.");
+		pRoot->add("dump [filename] [offset] [length]", "Print the specified portion of a file.");
 	}
 	{
-		UsageNode* pFind = pRoot->add("find [filename] [needle]", "Print all the offsets where [needle] occurs in the specified file. (This could be used, for example, with /dev/sda* to scan an entire hard drive, including deleted files. After you find what you want, it is typical to use \"dump\" to retrieve the region around it.)");
+		pRoot->add("find [filename] [needle]", "Print all the offsets where [needle] occurs in the specified file. (This could be used, for example, with /dev/sda* to scan an entire hard drive, including deleted files. After you find what you want, it is typical to use \"dump\" to retrieve the region around it.)");
 	}
 	{
 		UsageNode* pEncrypt = pRoot->add("encrypt [path] <options>", "Encrypt [path] to create a single encrypted archive file. (It will prompt you to enter a passphrase.)");
@@ -941,6 +942,203 @@ void dump(GArgReader& args)
 	}
 }
 
+unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutSize)
+{
+	GHttpClient client;
+	if(!client.sendGetRequest(szAddr))
+		throw Ex("Error connecting");
+	float fProgress;
+	time_t start = time(NULL);
+	while(client.status(&fProgress) == GHttpClient::Downloading)
+	{
+		if((size_t)(time(NULL) - start) > timeout)
+			break;
+		GThread::sleep(50);
+	}
+	if(client.status(&fProgress) != GHttpClient::Done)
+		throw Ex("Error downloading page");
+	return client.releaseData(pOutSize);
+}
+
+#define MAX_PASSPHRASE_LEN 1024
+#define SALT_LEN 32
+
+/// Assumes salt of length SALT_LEN has already been concatenated to passphrase
+void encryptPath(const char* pathName, char* passphrase, const char* targetName, bool compress)
+{
+	// Encrypt the path
+	GFolderSerializer fs(pathName, compress);
+	GCrypto crypto(passphrase, strlen(passphrase));
+	std::ofstream ofs;
+	ofs.exceptions(std::ios::failbit|std::ios::badbit);
+	ofs.open(targetName, std::ios::binary);
+
+	// Write the salt
+	ofs.write(passphrase + strlen(passphrase) - SALT_LEN, SALT_LEN);
+
+	size_t prevProg = 0;
+	while(true)
+	{
+		size_t len;
+		char* chunk = fs.next(&len);
+		if(!chunk)
+			break;
+		crypto.doChunk(chunk, len);
+		try
+		{
+			ofs.write(chunk, len);
+			size_t prog = fs.bytesOut();
+			if(prog >= prevProg + 100000)
+			{
+				cout << "          \r" << 0.01 * floor((float)prog * 0.0001) << "MB";
+				cout.flush();
+			}
+		}
+		catch(const std::exception&)
+		{
+			throw Ex("Error writing to file ", targetName);
+		}
+	}
+	cout << "\rDone.               \n";
+}
+
+void appendSalt(char* passphrase, const char* salt)
+{
+	size_t len = strlen(passphrase);
+	size_t sl = std::min((unsigned int)(MAX_PASSPHRASE_LEN - 1 - len), (unsigned int)SALT_LEN);
+	memcpy(passphrase + len, salt, sl);
+	passphrase[len + sl] = '\0';
+}
+
+#define DECRYPT_BLOCK_SIZE 2048
+
+void decryptFile(const char* source, char* passphrase, char* outSalt, std::string* pBaseName)
+{
+	// Open the file and measure its length
+	std::ifstream ifs;
+	ifs.exceptions(std::ios::failbit|std::ios::badbit);
+	ifs.open(source, std::ios::binary);
+	ifs.seekg(0, std::ios::end);
+	size_t len = (size_t)ifs.tellg();
+	ifs.seekg(0, std::ios::beg);
+
+	// Read the salt
+	ifs.read(outSalt, SALT_LEN);
+	len -= SALT_LEN;
+	appendSalt(passphrase, outSalt);
+
+	// Decrypt it
+	size_t origLen = len;
+	size_t prevLen = len;
+	GFolderDeserializer fd(pBaseName);
+	GCrypto crypto(passphrase, strlen(passphrase));
+	char* pBuf = new char[DECRYPT_BLOCK_SIZE];
+	ArrayHolder<char> hBuf(pBuf);
+	bool first = true;
+	while(len > 0)
+	{
+		size_t chunkSize = std::min(len, (size_t)DECRYPT_BLOCK_SIZE);
+		ifs.read(pBuf, chunkSize);
+		len -= chunkSize;
+		crypto.doChunk(pBuf, chunkSize);
+		if(first)
+		{
+			first = false;
+			if(memcmp(pBuf, "ugfs", 4) != 0 && memcmp(pBuf, "cgfs", 4) != 0)
+				throw Ex("The passphrase is incorrect");
+		}
+		fd.doNext(pBuf, chunkSize);
+		if(prevLen - len >= 10000)
+		{
+			cout << "      \r" << (0.01 * floor(float(origLen - len) * 10000 / origLen)) << "%";
+			cout.flush();
+			prevLen = len;
+		}
+	}
+	cout << "\rDone.          \n";
+}
+
+void fast(GArgReader& args)
+{
+	// Read the args
+	const char* pathName = args.pop_string();
+	double duration = args.pop_double();
+	const char* szServer = args.pop_string();
+	const char* szName = args.pop_string();
+
+	// Measure the clock skew
+	const char* szpretime = "name=\"date\" value=\"";
+	size_t resp1Size;
+	unsigned char* pResp1 = downloadFromWeb(szServer, 60, &resp1Size);
+	ArrayHolder<unsigned char> hResp1(pResp1);
+	char* pServerTime = strstr((char*)pResp1, szpretime);
+	size_t servertime = atol(pServerTime + strlen(szpretime));
+	time_t timenow = time(NULL);
+	ssize_t skew = (ssize_t)servertime - (ssize_t)timenow;
+	cout << "Clock skew: " << to_str(skew) << "\n";
+
+	// Generate a password
+	char pw[33 + SALT_LEN];
+	GRand rand(getpid() * time(NULL));
+	for(size_t i = 0; i < 32 + SALT_LEN; i++)
+		pw[i] = 'a' + rand.next(26);
+	pw[32] = '\0';
+
+	// Notify the server
+	size_t responseSize;
+	string query = szServer;
+	query += "?put=";
+	query += szName;
+	query += "&value=";
+	query += pw;
+	query += "&date=";
+	query += to_str(timenow + duration + skew);
+	unsigned char* pResponse = downloadFromWeb(query.c_str(), 60, &responseSize);
+	ArrayHolder<unsigned char> hResponse(pResponse);
+	char* pUntil = strstr((char*)pResponse, "until ");
+	if(!pUntil)
+		throw Ex("Unexpected response from server: ", (char*)pResponse);
+
+	// Encrypt the path
+	string s = pathName;
+	s += ".encrypted";
+	encryptPath(pathName, pw, s.c_str(), false);
+	if(unlink(pathName) != 0)
+		throw Ex("Error deleting the file ", pathName);
+}
+
+void feast(GArgReader& args)
+{
+	// Read the args
+	const char* pathName = args.pop_string();
+	const char* szServer = args.pop_string();
+	const char* szName = args.pop_string();
+
+	// Notify the server
+	size_t responseSize;
+	string query = szServer;
+	query += "?get=";
+	query += szName;
+	unsigned char* pResponse = downloadFromWeb(query.c_str(), 60, &responseSize);
+	ArrayHolder<unsigned char> hResponse(pResponse);
+	char* pUntil = strstr((char*)pResponse, "until ");
+	if(pUntil)
+	{
+		cout << pResponse << "\n\n";
+		return;
+	}
+
+	// Decrypt
+	char passphrase[MAX_PASSPHRASE_LEN];
+	strcpy(passphrase, (char*)pResponse);
+	string basename;
+	char salt[SALT_LEN];
+	salt[0] = '\0';
+	decryptFile(pathName, passphrase, salt, &basename);
+	if(unlink(pathName) != 0)
+		throw Ex("Error deleting the file ", pathName);
+}
+
 void find(GArgReader& args)
 {
 	const char* szFilename = args.pop_string();
@@ -1110,24 +1308,6 @@ public:
 
 
 
-unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutSize)
-{
-	GHttpClient client;
-	if(!client.sendGetRequest(szAddr))
-		throw Ex("Error connecting");
-	float fProgress;
-	time_t start = time(NULL);
-	while(client.status(&fProgress) == GHttpClient::Downloading)
-	{
-		if((size_t)(time(NULL) - start) > timeout)
-			break;
-		GThread::sleep(50);
-	}
-	if(client.status(&fProgress) != GHttpClient::Done)
-		throw Ex("Error downloading page");
-	return client.releaseData(pOutSize);
-}
-
 int wget(GArgReader& args)
 {
 	const char* url = args.pop_string();
@@ -1182,9 +1362,6 @@ int doLogin(GArgReader& args)
 }
 */
 
-#define MAX_PASSPHRASE_LEN 1024
-#define SALT_LEN 32
-
 void readInPassphrase(char* pBuf, size_t len, char* pSalt = NULL)
 {
 	cout << "Please enter the passphrase: ";
@@ -1236,62 +1413,6 @@ void readInPassphrase(char* pBuf, size_t len, char* pSalt = NULL)
 	}
 }
 
-void appendSalt(char* passphrase, const char* salt)
-{
-	size_t len = strlen(passphrase);
-	size_t sl = std::min((unsigned int)(MAX_PASSPHRASE_LEN - 1 - len), (unsigned int)SALT_LEN);
-	memcpy(passphrase + len, salt, sl);
-	passphrase[len + sl] = '\0';
-}
-
-#define DECRYPT_BLOCK_SIZE 2048
-
-void decryptFile(const char* source, char* passphrase, char* outSalt, std::string* pBaseName)
-{
-	// Open the file and measure its length
-	std::ifstream ifs;
-	ifs.exceptions(std::ios::failbit|std::ios::badbit);
-	ifs.open(source, std::ios::binary);
-	ifs.seekg(0, std::ios::end);
-	size_t len = (size_t)ifs.tellg();
-	ifs.seekg(0, std::ios::beg);
-
-	// Read the salt
-	ifs.read(outSalt, SALT_LEN);
-	len -= SALT_LEN;
-	appendSalt(passphrase, outSalt);
-
-	// Decrypt it
-	size_t origLen = len;
-	size_t prevLen = len;
-	GFolderDeserializer fd(pBaseName);
-	GCrypto crypto(passphrase, strlen(passphrase));
-	char* pBuf = new char[DECRYPT_BLOCK_SIZE];
-	ArrayHolder<char> hBuf(pBuf);
-	bool first = true;
-	while(len > 0)
-	{
-		size_t chunkSize = std::min(len, (size_t)DECRYPT_BLOCK_SIZE);
-		ifs.read(pBuf, chunkSize);
-		len -= chunkSize;
-		crypto.doChunk(pBuf, chunkSize);
-		if(first)
-		{
-			first = false;
-			if(memcmp(pBuf, "ugfs", 4) != 0 && memcmp(pBuf, "cgfs", 4) != 0)
-				throw Ex("The passphrase is incorrect");
-		}
-		fd.doNext(pBuf, chunkSize);
-		if(prevLen - len >= 10000)
-		{
-			cout << "      \r" << (0.01 * floor(float(origLen - len) * 10000 / origLen)) << "%";
-			cout.flush();
-			prevLen = len;
-		}
-	}
-	cout << "\rDone.          \n";
-}
-
 class PassphraseWiper
 {
 public:
@@ -1311,44 +1432,6 @@ void decrypt(GArgReader& args)
 	PassphraseWiper pw(passphrase);
 	char salt[SALT_LEN];
 	decryptFile(filename, passphrase, salt, NULL);
-}
-
-void encryptPath(const char* pathName, char* passphrase, const char* targetName, bool compress)
-{
-	// Encrypt the path
-	GFolderSerializer fs(pathName, compress);
-	GCrypto crypto(passphrase, strlen(passphrase));
-	std::ofstream ofs;
-	ofs.exceptions(std::ios::failbit|std::ios::badbit);
-	ofs.open(targetName, std::ios::binary);
-
-	// Write the salt
-	ofs.write(passphrase + strlen(passphrase) - SALT_LEN, SALT_LEN);
-
-	size_t prevProg = 0;
-	while(true)
-	{
-		size_t len;
-		char* chunk = fs.next(&len);
-		if(!chunk)
-			break;
-		crypto.doChunk(chunk, len);
-		try
-		{
-			ofs.write(chunk, len);
-			size_t prog = fs.bytesOut();
-			if(prog >= prevProg + 100000)
-			{
-				cout << "          \r" << 0.01 * floor((float)prog * 0.0001) << "MB";
-				cout.flush();
-			}
-		}
-		catch(const std::exception&)
-		{
-			throw Ex("Error writing to file ", targetName);
-		}
-	}
-	cout << "\rDone.               \n";
 }
 
 void encrypt(GArgReader& args)
@@ -1662,6 +1745,8 @@ void doit(GArgReader& args)
 	else if(args.if_pop("bruteforcentpassword")) bruteForceNTPassword(args);
 	else if(args.if_pop("dictattackntpassword")) dictAttackNTPassword(args);
 	else if(args.if_pop("dump")) dump(args);
+	else if(args.if_pop("fast")) fast(args);
+	else if(args.if_pop("feast")) feast(args);
 	else if(args.if_pop("find")) find(args);
 	else if(args.if_pop("commandcenter")) doCommandCenter(args);
 	else if(args.if_pop("decrypt")) decrypt(args);
