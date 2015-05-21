@@ -238,8 +238,11 @@ bool GHttpClient::sendGetRequest(const char* szUrl, bool headersOnly)
 	s += " HTTP/1.1\r\n";
 	s += "Host: ";
 	s += szHost;
-	s += ":";
-	s += nPort;
+	if(nPort != 80)
+	{
+		s += ":";
+		s += to_str(nPort);
+	}
 // todo: undo the next line
 //	s += "\r\nUser-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.12) Gecko/20051010 Firefox/1.0.7 (Ubuntu package 1.0.7)\r\nAccept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5\r\nAccept-Language: en-us,en;q=0.5\r\nAccept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\nKeep-Alive: 300\r\nConnection: keep-alive\r\n\r\n";
 	s += "\r\nUser-Agent: ";
