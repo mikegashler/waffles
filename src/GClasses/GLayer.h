@@ -159,7 +159,7 @@ public:
 	virtual size_t vectorToWeights(const double* pVector) = 0;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(GNeuralNetLayer* pSource) = 0;
+	virtual void copyWeights(const GNeuralNetLayer* pSource) = 0;
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand) = 0;
@@ -336,7 +336,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand);
@@ -580,7 +580,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
 
 	/// Calls resetWeights for each component.
 	virtual void resetWeights(GRand& rand);
@@ -732,7 +732,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand);
@@ -945,7 +945,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand);
@@ -1117,7 +1117,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	virtual size_t vectorToWeights(const double* pVector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
 
 	/// Initialize the weights with small random values.
 	virtual void resetWeights(GRand& rand);

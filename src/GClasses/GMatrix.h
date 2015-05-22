@@ -1274,6 +1274,7 @@ public:
 	void setMaxVals(size_t n) { m_maxVals = n; }
 
 	/// Specify that a certain attribute should be expected to be a date or time stamp that follows a given format.
+	/// For example, szFormat might be "YYYY-MM-DD hh:mm:ss".
 	void setTimeFormat(size_t attr, const char* szFormat);
 
 	/// Indiciate that the specified attribute should be treated as nominal.

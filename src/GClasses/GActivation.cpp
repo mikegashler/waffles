@@ -227,6 +227,33 @@ GActivationFunction* GActivationHinge::clone()
 	return pClone;
 }
 
+// virtual
+double GActivationHinge::countWeights()
+{
+	return m_units;
+}
+
+// virtual
+size_t GActivationHinge::weightsToVector(double* pOutVector)
+{
+	GVec::copy(pOutVector, m_hinges.v, m_units);
+	return m_units;
+}
+
+// virtual
+size_t GActivationHinge::vectorToWeights(const double* pVector)
+{
+	GVec::copy(m_hinges.v, pVector, m_units);
+	return m_units;
+}
+
+// virtual
+void GActivationHinge::copyWeights(const GActivationFunction* pOther)
+{
+	GVec::copy(m_hinges.v, ((GActivationHinge*)pOther)->m_hinges.v, m_units);
+}
+
+
 
 
 
@@ -303,6 +330,31 @@ GActivationFunction* GActivationLogExp::clone()
 	return pClone;
 }
 
+// virtual
+double GActivationLogExp::countWeights()
+{
+	return m_units;
+}
+
+// virtual
+size_t GActivationLogExp::weightsToVector(double* pOutVector)
+{
+	GVec::copy(pOutVector, m_alphas.v, m_units);
+	return m_units;
+}
+
+// virtual
+size_t GActivationLogExp::vectorToWeights(const double* pVector)
+{
+	GVec::copy(m_alphas.v, pVector, m_units);
+	return m_units;
+}
+
+// virtual
+void GActivationLogExp::copyWeights(const GActivationFunction* pOther)
+{
+	GVec::copy(m_alphas.v, ((GActivationLogExp*)pOther)->m_alphas.v, m_units);
+}
 
 } // namespace GClasses
 

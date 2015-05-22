@@ -90,7 +90,6 @@ public:
 	/// Counts the number of weights in the network. (This value is not cached, so
 	/// you should cache it rather than frequently call this method.)
 	size_t countWeights() const;
-	size_t countWeights(size_t layer) const;
 
 	/// Perturbs all weights in the network by a random normal offset with the
 	/// specified deviation.
