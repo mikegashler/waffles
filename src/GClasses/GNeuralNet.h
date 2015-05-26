@@ -285,6 +285,18 @@ public:
 	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
 	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum);
 
+	/// Update the delta buffer in each layer with the gradient for a single pattern presentation.
+	void batchUpdate(const double* pFeatures);
+
+	/// Tell each layer to update its weights with the contents of the delta buffer.
+	void batchApply(double learningRate);
+
+	/// Tell each layer to reset its deltas. (That is, set all values in the buffer that stores gradient direction to zero.)
+	void resetDeltas();
+
+	/// Tell each layer to apply its deltas. (That is, take a step in the direction specified in the delta buffer.)
+	void applyDeltas(double learningRate);
+
 	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
 	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
 	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradient.
@@ -300,6 +312,9 @@ public:
 
 	/// See the comment for GIncrementalLearner::trainIncremental
 	virtual void trainIncremental(const double* pIn, const double* pOut);
+
+	/// Performs a single step of batch gradient descent.
+	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels);
 
 	/// Presents a pattern for training. Applies dropout to the activations of hidden layers.
 	/// Note that when training with dropout is complete, you should call

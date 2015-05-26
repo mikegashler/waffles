@@ -665,6 +665,20 @@ void GNeuralNet::trainIncremental(const double* pIn, const double* pOut)
 	descendGradient(pIn, m_learningRate, m_momentum);
 }
 
+void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels)
+{
+	resetDeltas();
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		const double* pFeat = features[i];
+		const double* pTarg = labels[i];
+		forwardProp(pFeat);
+		backpropagate(pTarg);
+		batchUpdate(pFeat);
+	}
+	applyDeltas(m_learningRate / features.rows());
+}
+
 void GNeuralNet::trainIncrementalWithDropout(const double* pIn, const double* pOut, double probOfDrop)
 {
 	if(m_momentum != 0.0)
@@ -854,6 +868,33 @@ void GNeuralNet::descendGradientSingleOutput(size_t outputNeuron, const double* 
 		pLay->updateWeights(pFeatures, 0, pLay->inputs(), learningRate, momentum);
 		pLay->updateBias(learningRate, momentum);
 	}
+}
+
+void GNeuralNet::batchUpdate(const double* pFeatures)
+{
+	GNeuralNetLayer* pLay = m_layers[0];
+	pLay->batchUpdateWeights(pFeatures + (useInputBias() ? 1 : 0));
+	pLay->batchUpdateBias();
+	GNeuralNetLayer* pUpStream = pLay;
+	for(size_t i = 1; i < m_layers.size(); i++)
+	{
+		pLay = m_layers[i];
+		pLay->batchUpdateWeights(pUpStream->activation());
+		pLay->batchUpdateBias();
+		pUpStream = pLay;
+	}
+}
+
+void GNeuralNet::resetDeltas()
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+		m_layers[i]->resetDeltas();
+}
+
+void GNeuralNet::applyDeltas(double learningRate)
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+		m_layers[i]->applyDeltas(learningRate);
 }
 
 void GNeuralNet::gradientOfInputs(double* pOutGradient)

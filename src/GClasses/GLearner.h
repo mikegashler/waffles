@@ -370,8 +370,7 @@ public:
 	/// You must call this method before you call trainIncremental.
 	void beginIncrementalLearning(const GRelation& featureRel, const GRelation& labelRel);
 
-	/// Pass a single input row and the corresponding label to
-	/// incrementally train this model
+	/// Pass a single input row and the corresponding label to incrementally train this model.
 	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
 
 #ifndef MIN_PREDICT

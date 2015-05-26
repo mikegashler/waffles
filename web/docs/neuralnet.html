@@ -593,8 +593,8 @@ int main(int argc, char *argv[])
 
 	// Make the network
 	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 80);
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 30);
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 80));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 30));
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	nn.setLearningRate(0.01);
 	GAutoFilter af(&amp;nn, false);

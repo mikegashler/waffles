@@ -143,6 +143,18 @@ public:
 		updateWeightsAndRestoreDroppedOnes(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, momentum);
 	}
 
+	/// Zero out the weight and bias deltas.
+	virtual void resetDeltas() = 0;
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate) = 0;
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateBias() = 0;
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateWeights(const double* pFeat) = 0;
+
 	/// Multiplies all the weights by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) = 0;
 
@@ -316,6 +328,18 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
 	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Zero out the weight and bias deltas.
+	virtual void resetDeltas();
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate);
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateBias();
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateWeights(const double* pFeat);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -564,6 +588,18 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// the weights that were previously dropped by a call to dropConnect.
 	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
+	/// Zero out the weight and bias deltas.
+	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
+
 	/// Calls scaleWeights for each component.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
@@ -715,6 +751,18 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
 	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Zero out the weight and bias deltas.
+	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -929,6 +977,18 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// the weights that were previously dropped by a call to dropConnect.
 	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
+	/// Zero out the weight and bias deltas.
+	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
+
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
@@ -1100,6 +1160,18 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
 	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+
+	/// Zero out the weight and bias deltas.
+	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);

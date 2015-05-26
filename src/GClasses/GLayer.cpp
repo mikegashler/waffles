@@ -537,6 +537,48 @@ void GLayerClassic::updateWeightsSingleNeuron(size_t outputNode, const double* p
 	*pW = std::max(-1e12, std::min(1e12, *pW + *pD));
 }
 
+// virtual
+void GLayerClassic::resetDeltas()
+{
+	m_delta.setAll(0.0);
+	GVec::setAll(biasDelta(), 0.0, outputs());
+}
+
+// virtual
+void GLayerClassic::applyDeltas(double learningRate)
+{
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < inputs(); i++)
+		GVec::addScaled(m_weights[i], learningRate, m_delta[i], outputCount);
+	GVec::addScaled(bias(), learningRate, biasDelta(), outputCount);
+}
+
+// virtual
+void GLayerClassic::batchUpdateBias()
+{
+	double* pB = error();
+	double* pD = biasDelta();
+	size_t outputCount = outputs();
+	for(size_t down = 0; down < outputCount; down++)
+		*(pD++) += (*(pB++));
+}
+
+// virtual
+void GLayerClassic::batchUpdateWeights(const double* pUpStreamActivation)
+{
+	double* pErr = error();
+	size_t outputCount = outputs();
+	size_t inputCount = inputs();
+	for(size_t up = 0; up < inputCount; up++)
+	{
+		double* pB = pErr;
+		double* pD = m_delta[up];
+		double act = *(pUpStreamActivation++);
+		for(size_t down = 0; down < outputCount; down++)
+			*(pD++) += (*(pB++) * act);
+	}
+}
+
 void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 {
 	size_t outputCount = outputs();

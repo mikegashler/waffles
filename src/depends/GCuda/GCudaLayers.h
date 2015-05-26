@@ -145,6 +145,18 @@ using GNeuralNetLayer::updateWeightsClipped;
 	/// called after updateWeights.
 	virtual void updateBias(double learningRate, double momentum);
 
+	/// Zero out the weight and bias deltas.
+	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
+
+	/// Add to the delta buffer for batch updating.
+	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
+
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
