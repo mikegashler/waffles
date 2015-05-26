@@ -78,6 +78,18 @@ public:
 	/// Deserialize this object
 	static GActivationFunction* deserialize(GDomNode* pNode);
 
+	/// Returns the number of weights in this activation function. (Most activation functions have none, so the default implementation returns 0.)
+	virtual double countWeights() { return 0; }
+
+	/// Serialize the weights in this activation function. (Most activation functions have none, so the default implementation is a noop.)
+	virtual size_t weightsToVector(double* pOutVector) { return 0; }
+
+	/// Serialize the weights in this activation function. (Most activation functions have none, so the default implementation is a noop.)
+	virtual size_t vectorToWeights(const double* pVector) { return 0; }
+
+	/// Copies the weights from another instance. (Most activation functions have no weights, so the default implementation is a noop.)
+	virtual void copyWeights(const GActivationFunction* pOther) {}
+
 //	/// Calculate the scaling factor for this activation function that minimizes the vanishing gradient
 //	double measureWeightScale(size_t width, size_t depth, size_t seed);
 };
@@ -325,6 +337,18 @@ public:
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone();
+
+	/// Returns the number of weights in this activation function.
+	virtual double countWeights();
+
+	/// Serialize the weights in this activation function.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Serialize the weights in this activation function.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copies the weights from another instance.
+	virtual void copyWeights(const GActivationFunction* pOther);
 };
 
 
@@ -402,6 +426,18 @@ public:
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone();
+
+	/// Returns the number of weights in this activation function.
+	virtual double countWeights();
+
+	/// Serialize the weights in this activation function.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Serialize the weights in this activation function.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copies the weights from another instance.
+	virtual void copyWeights(const GActivationFunction* pOther);
 };
 
 

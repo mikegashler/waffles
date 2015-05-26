@@ -135,13 +135,6 @@ bool GNeuralNet::supportedLabelRange(double* pOutMin, double* pOutMax)
 	return false;
 }
 
-size_t GNeuralNet::countWeights(size_t layer) const
-{
-	size_t wc = 0;
-	wc += m_layers[layer]->countWeights();
-	return wc;
-}
-
 size_t GNeuralNet::countWeights() const
 {
 	size_t wc = 0;
