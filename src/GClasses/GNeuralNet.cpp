@@ -413,46 +413,6 @@ void GNeuralNet::contractWeights(double factor, bool contractBiases)
 }
 #endif // MIN_PREDICT
 
-void GNeuralNet::bleedWeightsL1(double beta)
-{
-	for(size_t i = m_layers.size() - 2; i < m_layers.size(); i--)
-	{
-		size_t layerSize = m_layers[i]->outputs();
-		for(size_t j = 0; j < layerSize; j++)
-		{
-			double sawDownStream = m_layers[i + 1]->unitOutgoingWeightsL1Norm(j);
-			double sawUpStream = m_layers[i]->unitIncomingWeightsL1Norm(j);
-			double sawAverage = 0.5 * (sawDownStream + sawUpStream);
-			double sawNewDownStream = beta * sawAverage + (1.0 - beta) * sawDownStream;
-			double sawNewUpStream = beta * sawAverage + (1.0 - beta) * sawUpStream;
-			double facDownStream = sawNewDownStream / sawDownStream;
-			double facUpStream = sawNewUpStream / sawUpStream;
-			m_layers[i + 1]->scaleUnitOutgoingWeights(j, facDownStream);
-			m_layers[i]->scaleUnitIncomingWeights(j, facUpStream);
-		}
-	}
-}
-
-void GNeuralNet::bleedWeightsL2(double beta)
-{
-	for(size_t i = m_layers.size() - 2; i < m_layers.size(); i--)
-	{
-		size_t layerSize = m_layers[i]->outputs();
-		for(size_t j = 0; j < layerSize; j++)
-		{
-			double sswDownStream = m_layers[i + 1]->unitOutgoingWeightsL2Norm(j);
-			double sswUpStream = m_layers[i]->unitIncomingWeightsL2Norm(j);
-			double sswAverage = 0.5 * (sswDownStream + sswUpStream);
-			double sswNewDownStream = beta * sswAverage + (1.0 - beta) * sswDownStream;
-			double sswNewUpStream = beta * sswAverage + (1.0 - beta) * sswUpStream;
-			double facDownStream = sqrt(sswNewDownStream) / sqrt(sswDownStream);
-			double facUpStream = sqrt(sswNewUpStream) / sqrt(sswUpStream);
-			m_layers[i + 1]->scaleUnitOutgoingWeights(j, facDownStream);
-			m_layers[i]->scaleUnitIncomingWeights(j, facUpStream);
-		}
-	}
-}
-
 void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 {
 	GNeuralNetLayer* pLay = m_layers[0];
@@ -461,18 +421,12 @@ void GNeuralNet::forwardProp(const double* pRow, size_t maxLayers)
 	if(m_useInputBias)
 		((GLayerClassic*)pLay)->feedForwardWithInputBias(pRow);
 	else
-	{
-		pLay->copyBiasToNet();
-		pLay->feedIn(pRow, 0, pLay->inputs());
-		pLay->activate();
-	}
+		pLay->feedForward(pRow);
 	maxLayers = std::min(m_layers.size(), maxLayers);
 	for(size_t i = 1; i < maxLayers; i++)
 	{
 		GNeuralNetLayer* pDS = m_layers[i];
-		pDS->copyBiasToNet();
-		pDS->feedIn(pLay, 0);
-		pDS->activate();
+		pDS->feedForward(pLay);
 		pLay = pDS;
 	}
 }
@@ -660,14 +614,18 @@ void GNeuralNet::trainIncremental(const double* pIn, const double* pOut)
 
 void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels)
 {
-	resetDeltas();
-	for(size_t i = 0; i < features.rows(); i++)
+	const double* pFeat = features[0];
+	const double* pTarg = labels[0];
+	forwardProp(pFeat);
+	backpropagate(pTarg);
+	updateDeltas(pFeat, 0.0);
+	for(size_t i = 1; i < features.rows(); i++)
 	{
-		const double* pFeat = features[i];
-		const double* pTarg = labels[i];
+		pFeat = features[i];
+		pTarg = labels[i];
 		forwardProp(pFeat);
 		backpropagate(pTarg);
-		batchUpdate(pFeat);
+		updateDeltas(pFeat, 1.0);
 	}
 	applyDeltas(m_learningRate / features.rows());
 }
@@ -679,17 +637,13 @@ void GNeuralNet::trainIncrementalWithDropout(const double* pIn, const double* pO
 
 	// Forward prop with dropout
 	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->copyBiasToNet();
-	pLay->feedIn(pIn, 0, pLay->inputs());
-	pLay->activate();
+	pLay->feedForward(pIn);
 	pLay->dropOut(m_rand, probOfDrop);
 	size_t maxLayers = m_layers.size();
 	for(size_t i = 1; i < maxLayers; i++)
 	{
 		GNeuralNetLayer* pDS = m_layers[i];
-		pDS->copyBiasToNet();
-		pDS->feedIn(pLay, 0);
-		pDS->activate();
+		pDS->feedForward(pLay);
 		if(i + 1 < maxLayers)
 		{
 			pLay->dropOut(m_rand, probOfDrop);
@@ -699,44 +653,6 @@ void GNeuralNet::trainIncrementalWithDropout(const double* pIn, const double* pO
 
 	backpropagate(pOut);
 	descendGradient(pIn, m_learningRate, 0.0);
-}
-
-void GNeuralNet::trainIncrementalWithDropConnect(const double* pIn, const double* pOut, double probOfDrop)
-{
-	if(m_momentum != 0.0)
-		throw Ex("Sorry, this implementation is not compatible with momentum");
-
-	// Forward prop with dropConnect
-	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->dropConnect(m_rand, probOfDrop);
-	pLay->copyBiasToNet();
-	pLay->feedIn(pIn, 0, pLay->inputs());
-	pLay->activate();
-	size_t maxLayers = m_layers.size();
-	for(size_t i = 1; i < maxLayers; i++)
-	{
-		GNeuralNetLayer* pDS = m_layers[i];
-		pDS->dropConnect(m_rand, probOfDrop);
-		pDS->copyBiasToNet();
-		pDS->feedIn(pLay, 0);
-		pDS->activate();
-		pLay = pDS;
-	}
-
-	backpropagate(pOut);
-
-	// Descend gradient with dropConnect
-	pLay = m_layers[0];
-	pLay->updateWeightsAndRestoreDroppedOnes(pIn, 0, pLay->inputs(), m_learningRate, 0.0);
-	pLay->updateBias(m_learningRate, 0.0);
-	GNeuralNetLayer* pUpStream = pLay;
-	for(size_t i = 1; i < m_layers.size(); i++)
-	{
-		pLay = m_layers[i];
-		pLay->updateWeightsAndRestoreDroppedOnes(pUpStream, 0, m_learningRate, 0.0);
-		pLay->updateBias(m_learningRate, 0.0);
-		pUpStream = pLay;
-	}
 }
 
 void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)
@@ -762,27 +678,8 @@ void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream, double lea
 	{
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
 		pLay->backPropError(pUpStream);
-		pUpStream->refineActivationFunction(learningRate);
 		pUpStream->deactivateError();
 		pLay = pUpStream;
-	}
-}
-
-void GNeuralNet::backpropagateAndRefineActivationFunction(const double* pTarget, double learningRate)
-{
-	size_t i = m_layers.size() - 1;
-	GNeuralNetLayer* pLay = m_layers[i];
-	pLay->computeError(pTarget);
-	pLay->refineActivationFunction(learningRate);
-	pLay->deactivateError();
-	while(i > 0)
-	{
-		GNeuralNetLayer* pUpStream = m_layers[i - 1];
-		pLay->backPropError(pUpStream);
-		pUpStream->refineActivationFunction(learningRate);
-		pUpStream->deactivateError();
-		pLay = pUpStream;
-		i--;
 	}
 }
 
@@ -812,30 +709,17 @@ void GNeuralNet::backpropagateSingleOutput(size_t outputNode, double target, siz
 
 void GNeuralNet::descendGradient(const double* pFeatures, double learningRate, double momentum)
 {
+	if(useInputBias())
+		pFeatures++; // Ignore the bias feature because it has no corresponding weights
 	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->updateWeights(pFeatures + (useInputBias() ? 1 : 0), 0, pLay->inputs(), learningRate, momentum);
-	pLay->updateBias(learningRate, momentum);
+	pLay->updateDeltas(pFeatures, momentum);
+	pLay->applyDeltas(learningRate);
 	GNeuralNetLayer* pUpStream = pLay;
 	for(size_t i = 1; i < m_layers.size(); i++)
 	{
 		pLay = m_layers[i];
-		pLay->updateWeights(pUpStream, 0, learningRate, momentum);
-		pLay->updateBias(learningRate, momentum);
-		pUpStream = pLay;
-	}
-}
-
-void GNeuralNet::descendGradientClipped(const double* pFeatures, double learningRate, double max)
-{
-	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->updateWeightsClipped(pFeatures + (useInputBias() ? 1 : 0), 0, pLay->inputs(), learningRate, max);
-	pLay->updateBiasClipped(learningRate, max);
-	GNeuralNetLayer* pUpStream = pLay;
-	for(size_t i = 1; i < m_layers.size(); i++)
-	{
-		pLay = m_layers[i];
-		pLay->updateWeightsClipped(pUpStream, 0, learningRate, max);
-		pLay->updateBiasClipped(learningRate, max);
+		pLay->updateDeltas(pUpStream, momentum);
+		pLay->applyDeltas(learningRate);
 		pUpStream = pLay;
 	}
 }
@@ -854,34 +738,28 @@ void GNeuralNet::descendGradientSingleOutput(size_t outputNeuron, const double* 
 		{
 			pLay = pUpStream;
 			pUpStream = (GLayerClassic*)m_layers[i - 1];
-			pLay->updateWeights(pUpStream->activation(), 0, pLay->inputs(), learningRate, momentum);
-			pLay->updateBias(learningRate, momentum);
+			pLay->updateDeltas(pUpStream->activation(), momentum);
+			pLay->applyDeltas(learningRate);
 		}
 		pLay = (GLayerClassic*)m_layers[0];
-		pLay->updateWeights(pFeatures, 0, pLay->inputs(), learningRate, momentum);
-		pLay->updateBias(learningRate, momentum);
+		pLay->updateDeltas(pFeatures, momentum);
+		pLay->applyDeltas(learningRate);
 	}
 }
 
-void GNeuralNet::batchUpdate(const double* pFeatures)
+void GNeuralNet::updateDeltas(const double* pFeatures, double momentum)
 {
+	if(useInputBias())
+		pFeatures++; // ignore the bias feature because it has no associated weights
 	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->batchUpdateWeights(pFeatures + (useInputBias() ? 1 : 0));
-	pLay->batchUpdateBias();
+	pLay->updateDeltas(pFeatures, momentum);
 	GNeuralNetLayer* pUpStream = pLay;
 	for(size_t i = 1; i < m_layers.size(); i++)
 	{
 		pLay = m_layers[i];
-		pLay->batchUpdateWeights(pUpStream->activation());
-		pLay->batchUpdateBias();
+		pLay->updateDeltas(pUpStream, momentum);
 		pUpStream = pLay;
 	}
-}
-
-void GNeuralNet::resetDeltas()
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->resetDeltas();
 }
 
 void GNeuralNet::applyDeltas(double learningRate)
@@ -1357,9 +1235,7 @@ void GNeuralNet_testConvolutionalLayerMath()
 	k[3][0] = 1.0;	k[3][1] = 1.0;	k[3][2] = 1.0;
 	const double in[] = { 0.0, 1.0, 0.0, 2.0, 1.0, 3.0, 2.0, 2.0 };
 	double learning_rate = 2.0;
-	layer.copyBiasToNet();
-	layer.feedIn(in, 0, 8);
-	layer.activate();
+	layer.feedForward(in);
 	const double expected_activation[] = { 2.0, -1.0, 9.0, 7.0, 5.0, 0.0, 10.0, 8.0 };
 	if(GVec::squaredDistance(layer.activation(), expected_activation, 8) > 1e-9)
 		throw Ex("incorrect activation");
@@ -1370,7 +1246,8 @@ void GNeuralNet_testConvolutionalLayerMath()
 		throw Ex("incorrect error");
 	layer.deactivateError();
 	// Note that this test does not cover backPropError().
-	layer.updateWeights(in, 0, 8, learning_rate, 0.0);
+	layer.updateDeltas(in, 0.0);
+	layer.applyDeltas(learning_rate);
 	const double expected_k1[] = { 0.0, 9.0, 18.0 };
 	const double expected_k2[] = { 2.0, 11.0, 22.0 };
 	const double expected_k3[] = { 28.0, 46.0, 37.0 };
@@ -1383,7 +1260,6 @@ void GNeuralNet_testConvolutionalLayerMath()
 		throw Ex("incorrect weights");
 	if(GVec::squaredDistance(k[3], expected_k4, 3) > 1e-9)
 		throw Ex("incorrect weights");
-	layer.updateBias(learning_rate, 0.0);
 	const double expected_bias[] = { 8.0, 11.0, 18.0, 21.0 };
 	if(GVec::squaredDistance(layer.bias(), expected_bias, 4) > 1e-9)
 		throw Ex("incorrect bias");
@@ -1608,38 +1484,6 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 	}
 }
 
-void GNeuralNet_testBleedWeights()
-{
-	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 2));
-	nn.addLayer(new GLayerClassic(2, 2));
-	nn.addLayer(new GLayerClassic(2, FLEXIBLE_SIZE));
-	GUniformRelation rel(2, 0);
-	nn.beginIncrementalLearning(rel, rel);
-	((GLayerClassic*)&nn.layer(2))->weights()[0][0] = 1.0;
-	((GLayerClassic*)&nn.layer(2))->weights()[1][0] = 1.0;
-	((GLayerClassic*)&nn.layer(2))->weights()[0][1] = 1.0;
-	((GLayerClassic*)&nn.layer(2))->weights()[1][1] = 1.0;
-	((GLayerClassic*)&nn.layer(1))->weights()[0][0] = 5.0;
-	((GLayerClassic*)&nn.layer(1))->weights()[1][0] = 2.0;
-	((GLayerClassic*)&nn.layer(1))->weights()[0][1] = 3.0;
-	((GLayerClassic*)&nn.layer(1))->weights()[1][1] = 1.0;
-	((GLayerClassic*)&nn.layer(0))->weights()[0][0] = 0.5;
-	((GLayerClassic*)&nn.layer(0))->weights()[1][0] = 0.2;
-	((GLayerClassic*)&nn.layer(0))->weights()[0][1] = 0.3;
-	((GLayerClassic*)&nn.layer(0))->weights()[1][1] = 0.1;
-	size_t wc = nn.countWeights();
-	double* pBefore = new double[wc];
-	ArrayHolder<double> hBefore(pBefore);
-	double* pAfter = new double[wc];
-	ArrayHolder<double> hAfter(pAfter);
-	nn.weights(pBefore);
-	nn.bleedWeightsL2(0.1);
-	nn.weights(pAfter);
-	if(std::abs(GVec::squaredMagnitude(pBefore, wc) - GVec::squaredMagnitude(pAfter, wc)) > 0.000001)
-		throw Ex("failed");
-}
-
 void GNeuralNet_testTransformWeights(GRand& prng)
 {
 	for(size_t i = 0; i < 10; i++)
@@ -1756,7 +1600,6 @@ void GNeuralNet::test()
 	GNeuralNet_testInputGradient(&prng);
 	GNeuralNet_testInvertAndSwap(prng);
 	GNeuralNet_testNormalizeInput(prng);
-	GNeuralNet_testBleedWeights();
 	GNeuralNet_testTransformWeights(prng);
 	GNeuralNet_testCompressFeatures(prng);
 	GNeuralNet_testConvolutionalLayerMath();

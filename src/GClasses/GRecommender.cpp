@@ -2170,8 +2170,8 @@ void GLogNet::train(GMatrix& data)
 		GVec::copy(m_input.v + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
 		m_pModel->regularizeActivationFunctions(0.001);
 		m_pModel->forwardProp(m_input.v);
-		m_pModel->backpropagateAndRefineActivationFunction(&pRow[2], learningRate);
-		m_pModel->descendGradientClipped(m_input.v, learningRate, 0.01);
+		m_pModel->backpropagate(&pRow[2], learningRate);
+		m_pModel->descendGradient(m_input.v, learningRate, 0.0);
 	}
 }
 

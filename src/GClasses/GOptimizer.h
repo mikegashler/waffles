@@ -66,6 +66,16 @@ public:
 };
 
 
+#ifndef MIN_PREDICT
+class GOptimizerBasicTestTargetFunction : public GTargetFunction
+{
+public:
+	GOptimizerBasicTestTargetFunction() : GTargetFunction(3) {}
+
+	virtual double computeError(const double* pVector);
+};
+#endif // MIN_PREDICT
+
 
 /// This is the base class of all search algorithms
 /// that can jump to any vector in the search space
@@ -97,6 +107,12 @@ public:
 	/// if dImprovement is > 0.02.) If the error heuristic is not
 	/// stable, then the value of nIterations should be large.
 	double searchUntil(size_t nBurnInIterations, size_t nIterations, double dImprovement);
+
+#ifndef MIN_PREDICT
+	/// This is a helper method used by the unit tests of several model learners
+	void basicTest(double minAccuracy, double warnRange = 0.001);
+#endif // MIN_PREDICT
+
 };
 
 

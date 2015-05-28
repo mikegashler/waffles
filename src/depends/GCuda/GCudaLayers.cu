@@ -263,13 +263,13 @@ void GLayerClassicCuda::scaleWeights(double factor, bool scaleBiases)
 
 void GLayerClassicCuda::diminishWeights(double amount, bool diminishBiases)
 {
-	throw Ex("Sorry, GNeuralNetLayerCuda::diminishWeights is not yet implemented");
+	throw Ex("Sorry, GLayerClassicCuda::diminishWeights is not yet implemented");
 }
 
 // virtual
 void GLayerClassicCuda::maxNorm(double max)
 {
-	throw Ex("Sorry, GNeuralNetLayerCuda::maxNorm is not yet implemented");
+	throw Ex("Sorry, GLayerClassicCuda::maxNorm is not yet implemented");
 }
 
 // virtual
@@ -311,28 +311,28 @@ void GLayerClassicCuda::scaleUnitOutgoingWeights(size_t input, double scalar)
 // virtual
 size_t GLayerClassicCuda::countWeights()
 {
-	throw Ex("Sorry, GNeuralNetLayerCuda::countWeights is not yet implemented");
+	throw Ex("Sorry, GLayerClassicCuda::countWeights is not yet implemented");
 	//return 0;
 }
 
 // virtual
 size_t GLayerClassicCuda::weightsToVector(double* pOutVector)
 {
-	throw Ex("Sorry, GNeuralNetLayerCuda::weightsToVector is not yet implemented");
+	throw Ex("Sorry, GLayerClassicCuda::weightsToVector is not yet implemented");
 	//return 0;
 }
 
 // virtual
 size_t GLayerClassicCuda::vectorToWeights(const double* pVector)
 {
-	throw Ex("Sorry, GNeuralNetLayerCuda::vectorToWeights is not yet implemented");
+	throw Ex("Sorry, GLayerClassicCuda::vectorToWeights is not yet implemented");
 	//return 0;
 }
 
 // virtual
 void GLayerClassicCuda::copyWeights(GNeuralNetLayer* pSource)
 {
-	throw Ex("Sorry, GNeuralNetLayerCuda::copyWeights is not yet implemented");
+	throw Ex("Sorry, GLayerClassicCuda::copyWeights is not yet implemented");
 }
 
 // virtual
@@ -342,21 +342,15 @@ void GLayerClassicCuda::renormalizeInput(size_t input, double oldMin, double old
 }
 
 // virtual
-void GLayerClassicCuda::updateBiasClipped(double learningRate, double max)
-{
-	throw Ex("Sorry, GLayerClassicCuda::renormalizeInput does not yet support this method");
-}
-
-// virtual
 void GLayerClassicCuda::refineActivationFunction(double learningRate)
 {
-	throw Ex("Sorry, GLayerClassicCuda::renormalizeInput does not yet support this method");
+	throw Ex("Sorry, GLayerClassicCuda::refineActivationFunction does not yet support this method");
 }
 
 // virtual
 void GLayerClassicCuda::regularizeActivationFunction(double lambda)
 {
-	throw Ex("Sorry, GLayerClassicCuda::renormalizeInput does not yet support this method");
+	throw Ex("Sorry, GLayerClassicCuda::regularizeActivationFunction does not yet support this method");
 }
 
 

@@ -98,6 +98,15 @@ double GMomentumGreedySearch::iterateOneDim()
 	return iterateOneDim();
 }
 
+#ifndef MIN_PREDICT
+// static
+void GMomentumGreedySearch::test()
+{
+	GOptimizerBasicTestTargetFunction target;
+	GMomentumGreedySearch opt(&target);
+	opt.basicTest(1e-32);
+}
+#endif
 
 // --------------------------------------------------------------------------------
 
@@ -241,6 +250,16 @@ double GHillClimber::anneal(double dev, GRand* pRand)
 	return m_dError;
 }
 
+#ifndef MIN_PREDICT
+// static
+void GHillClimber::test()
+{
+	GOptimizerBasicTestTargetFunction target;
+	GHillClimber opt(&target);
+	opt.basicTest(1.39e-17);
+}
+#endif
+
 
 // --------------------------------------------------------------------------------
 
@@ -285,6 +304,87 @@ void GAnnealing::reset()
 	m_deviation *= m_decay;
 	return m_dError;
 }
+
+#ifndef MIN_PREDICT
+// static
+void GAnnealing::test()
+{
+	GRand rand(0);
+	GOptimizerBasicTestTargetFunction target;
+	GAnnealing opt(&target, 5.0, 0.96, &rand);
+	opt.basicTest(0.00017);
+}
+#endif
+
+// --------------------------------------------------------------------------------
+
+
+GRandomDirectionBinarySearch::GRandomDirectionBinarySearch(GTargetFunction* pTargetFunc, GRand* pRand)
+: GOptimizer(pTargetFunc), m_stepSize(1e-6), m_pRand(pRand)
+{
+	if(!pTargetFunc->relation()->areContinuous(0, pTargetFunc->relation()->size()))
+		throw Ex("Discrete attributes are not supported");
+	m_dims = pTargetFunc->relation()->size();
+	m_current.resize(m_dims);
+	m_direction.resize(m_dims);
+	GVec::setAll(m_current.v, 0.0, m_dims);
+	m_err = m_pCritic->computeError(m_current.v);
+}
+
+// virtual
+GRandomDirectionBinarySearch::~GRandomDirectionBinarySearch()
+{
+}
+
+// virtual
+double GRandomDirectionBinarySearch::iterate()
+{
+	m_pRand->spherical(m_direction.v, m_dims);
+	double sum = 0.0;
+	for(size_t i = 0; i < 16; i++)
+	{
+		GVec::addScaled(m_current.v, m_stepSize, m_direction.v, m_dims);
+		double pos = m_pCritic->computeError(m_current.v);
+		if(pos < m_err)
+		{
+			sum += m_stepSize;
+			m_stepSize *= 1.189207115; // pow(2.0, 0.25)
+			m_err = pos;
+		}
+		else
+		{
+			GVec::addScaled(m_current.v, -2.0 * m_stepSize, m_direction.v, m_dims);
+			double neg = m_pCritic->computeError(m_current.v);
+			if(neg < m_err)
+			{
+				sum -= m_stepSize;
+				m_stepSize *= -1.189207115; // pow(2.0, 0.25)
+				m_err = neg;
+			}
+			else
+			{
+				GVec::addScaled(m_current.v, m_stepSize, m_direction.v, m_dims);
+				m_stepSize *= 0.5;
+				if(m_stepSize < 1e-20)
+					m_stepSize = 1.0; // No progress. Might as well try something new.
+			}
+		}
+	}
+	m_stepSize = sum;
+	return m_err;
+}
+
+#ifndef MIN_PREDICT
+// static
+void GRandomDirectionBinarySearch::test()
+{
+	GRand rand(0);
+	GOptimizerBasicTestTargetFunction target;
+	GRandomDirectionBinarySearch opt(&target, &rand);
+	opt.basicTest(1.92e-05);
+}
+#endif
+
 
 
 // --------------------------------------------------------------------------------

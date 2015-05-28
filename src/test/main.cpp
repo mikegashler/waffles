@@ -878,6 +878,7 @@ public:
 	{
 		// Class tests
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
+		runTest("GAnnealing", GAnnealing::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);
 		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);
 		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
@@ -914,6 +915,7 @@ public:
 		runTest("GGraphCut", GGraphCut::test);
 		runTest("GHashTable", GHashTable::test);
 		runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);
+		runTest("GHillClimber", GHillClimber::test);
 		runTest("GIncrementalTransform", GIncrementalTransform::test);
 		runTest("GInstanceRecommender", GInstanceRecommender::test);
 		runTest("GKdTree", GKdTree::test);
@@ -929,6 +931,7 @@ public:
 		runTest("GMatrixFactorization", GMatrixFactorization::test);
 		runTest("GMeanMarginsTree", GMeanMarginsTree::test);
 		runTest("GMixtureOfGaussians", GMixtureOfGaussians::test);
+		runTest("GMomentumGreedySearch", GMomentumGreedySearch::test);
 		runTest("GNaiveBayes", GNaiveBayes::test);
 		runTest("GNaiveInstance", GNaiveInstance::test);
 		runTest("GNeuralNet", GNeuralNet::test);
@@ -940,6 +943,7 @@ public:
 		runTest("GPriorityQueue", GPriorityQueue::test);
 		runTest("GProbeSearch", GProbeSearch::test);
 		runTest("GRand", GRand::test);
+		runTest("GRandomDirectionBinarySearch", GRandomDirectionBinarySearch::test);
 		runTest("GRandMersenneTwister", GRandMersenneTwister::test);
 		runTest("GRandomForest", GRandomForest::test);
 		runTest("GRelation", GRelation::test);

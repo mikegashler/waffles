@@ -69,8 +69,14 @@ public:
 	/// Resizes the layer
 	virtual void resize(size_t units) {}
 
-	/// Refines the parameters of this activation function by stochastic gradient descent
-	virtual void refine(const double* pNet, const double* pActivation, const double* pError, double learningRate) {}
+	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
+	virtual void setError(const double* pError) {}
+
+	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
+	virtual void updateDeltas(const double* pNet, const double* pActivation, double momentum) {}
+
+	/// Applies the deltas to refine the parameters of this activation function by gradient descent
+	virtual void applyDeltas(double learningRate) {}
 
 	/// Regularizes the parameters of this activation function
 	virtual void regularize(double lambda) {}
@@ -209,10 +215,16 @@ public:
 	virtual const char* name() const { return "algebraic"; }
 
 	/// Returns x/(sqrt(x*x+1.0). The result is in the range -1 <= y <= 1
-	virtual double squash(double x, size_t index) { return x / (sqrt(x * x + 1.0)); }
+	virtual double squash(double x, size_t index) { return x / (sqrt(x * x + 0.25)); }
 
 	/// Returns 1.0/(sqrt(x*x+1))-(x*x)/pow(x*x+1,1.5)
-	virtual double derivative(double x, size_t index) { return 1.0 / (sqrt(x * x + 1)) - (x * x) / pow(x * x + 1, 1.5); }
+	virtual double derivative(double x, size_t index)
+	{
+		x *= x;
+		return (1.0 - (x / (x + 0.25))) / sqrt(x + 0.25);
+	}
+
+	virtual double derivativeOfNet(double net, double activation) { return activation / (net * (net * net + 0.25)); }
 
 	/// Returns y / (sqrt(1.0 - (y * y)))
 	virtual double inverse(double y, size_t index) { return y / (sqrt(1.0 - (y * y))); }
@@ -249,6 +261,7 @@ public:
 
 
 #define BEND_AMOUNT 0.5
+#define BEND_SIZE 0.5
 
 /// This provides an alternative to using GActivationIdentity on the output layer
 /// for regression problems. It may add more power because it is non-linear, but
@@ -264,19 +277,20 @@ public:
 	/// Returns the bend function of x
 	virtual double squash(double x, size_t index)
 	{
-		return BEND_AMOUNT * (sqrt(x * x + 1) - 1) + x;
+		return BEND_AMOUNT * (sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x;
 	}
 
 	/// Returns the derivative of the bend function
 	virtual double derivative(double x, size_t index)
 	{
-		return BEND_AMOUNT * x / sqrt(x * x + 1) + 1;
+		return BEND_AMOUNT * x / sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0;
 	}
 
 	/// Returns the inverse of the bend function
 	virtual double inverse(double y, size_t index)
 	{
-		return (BEND_AMOUNT * sqrt(y * y + 2.0 * BEND_AMOUNT * y + 1) - y - BEND_AMOUNT) / (BEND_AMOUNT * BEND_AMOUNT - 1);
+		//return (BEND_AMOUNT * sqrt(y * y + 2.0 * BEND_AMOUNT * y + 1.0) - y - BEND_AMOUNT) / (BEND_AMOUNT * BEND_AMOUNT - 1);
+		return BEND_SIZE * (BEND_AMOUNT * sqrt(y * y / (BEND_SIZE * BEND_SIZE) + 2.0 * BEND_AMOUNT / BEND_SIZE * y + 1.0) - y / BEND_SIZE - BEND_AMOUNT) / (BEND_AMOUNT * BEND_AMOUNT - 1.0);
 	}
 
 	/// See the comment for GActivationFunction::clone
@@ -289,7 +303,9 @@ class GActivationHinge : public GActivationFunction
 {
 protected:
 	size_t m_units;
+	GVec m_error;
 	GVec m_hinges;
+	GVec m_delta;
 
 public:
 	/// General-purpose constructor
@@ -310,27 +326,33 @@ public:
 	/// Returns the bend function of x
 	virtual double squash(double x, size_t index)
 	{
-		return m_hinges.v[index] * (sqrt(x * x + 1) - 1) + x;
+		return m_hinges.v[index] * (sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x;
 	}
 
 	/// Returns the derivative of the bend function
 	virtual double derivative(double x, size_t index)
 	{
-		return m_hinges.v[index] * x / sqrt(x * x + 1) + 1;
+		return m_hinges.v[index] * x / sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0;
 	}
 
 	/// Returns the inverse of the bend function
 	virtual double inverse(double y, size_t index)
 	{
 		double v = m_hinges.v[index];
-		return (v * sqrt(y * y + 2.0 * v * y + 1) - y - v) / (v * v - 1);
+		return BEND_SIZE * (v * sqrt(y * y / (BEND_SIZE * BEND_SIZE) + 2.0 * v / BEND_SIZE * y + 1.0) - y / BEND_SIZE - v) / (v * v - 1.0);
 	}
 
 	/// Resizes the layer
 	virtual void resize(size_t units);
 
-	/// Refines the hinge values by stochastic gradient descent
-	virtual void refine(const double* pNet, const double* pActivation, const double* pError, double learningRate);
+	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
+	virtual void setError(const double* pError);
+
+	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
+	virtual void updateDeltas(const double* pNet, const double* pActivation, double momentum);
+
+	/// Applies the deltas to refine the parameters of this activation function by gradient descent
+	virtual void applyDeltas(double learningRate);
 
 	/// Regularizes the parameters of this activation function
 	virtual void regularize(double lambda);
@@ -358,7 +380,9 @@ class GActivationLogExp : public GActivationFunction
 {
 protected:
 	size_t m_units;
+	GVec m_error;
 	GVec m_alphas;
+	GVec m_delta;
 
 public:
 	/// General-purpose constructor
@@ -418,8 +442,14 @@ public:
 	/// Resizes the layer
 	virtual void resize(size_t units);
 
-	/// Refines the hinge values by stochastic gradient descent
-	virtual void refine(const double* pNet, const double* pActivation, const double* pError, double learningRate);
+	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
+	virtual void setError(const double* pError);
+
+	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
+	virtual void updateDeltas(const double* pNet, const double* pActivation, double momentum);
+
+	/// Applies the deltas to refine the parameters of this activation function by gradient descent
+	virtual void applyDeltas(double learningRate);
 
 	/// Regularizes the parameters of this activation function
 	virtual void regularize(double lambda);

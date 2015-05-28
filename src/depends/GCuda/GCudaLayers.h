@@ -210,9 +210,6 @@ using GNeuralNetLayer::updateWeightsClipped;
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	/// Throws an exception
-	virtual void updateBiasClipped(double learningRate, double max);
-
-	/// Throws an exception
 	virtual void refineActivationFunction(double learningRate);
 
 	/// Throws an exception

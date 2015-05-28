@@ -116,22 +116,6 @@ public:
 	/// Contract all the weights in this network by the specified factor.
 	void contractWeights(double factor, bool contractBiases);
 
-	/// Adjust the magnitudes of the incoming and outgoing connections by amount beta,
-	/// such that sum of the absolute values of the weights remains constant. If beta
-	/// is 0, no bleeding will occur. If beta is 1, total bleeding will occur, such that
-	/// the sum of the absolute values of the input and output weights are the same. Typically,
-	/// only a small amount of bleeding is desirable, so values close to 0 (like 0.00001)
-	/// are used.
-	void bleedWeightsL1(double beta);
-
-	/// Adjust the magnitudes of the incoming and outgoing connections by amount beta,
-	/// such that sum-squared-weights remains constant. If beta
-	/// is 0, no bleeding will occur. If beta is 1, total bleeding will occur, such that
-	/// the sum of the squares of the input and output weights are the same. Typically,
-	/// only a small amount of bleeding is desirable, so values close to 0 (like 0.00001)
-	/// are used.
-	void bleedWeightsL2(double beta);
-
 	/// Returns the current learning rate
 	double learningRate() const { return m_learningRate; }
 
@@ -265,9 +249,6 @@ public:
 	/// Backpropagate from a downstream layer
 	void backpropagateFromLayer(GNeuralNetLayer* pDownstream, double learningRate);
 
-	/// Backpropagates the error and refines the activation function in each layer by stochastic gradient descent.
-	void backpropagateAndRefineActivationFunction(const double* pTarget, double learningRate);
-
 	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
 	/// the specified output node.)
 	void backpropagateSingleOutput(size_t outputNode, double target, size_t startLayer = INVALID_INDEX);
@@ -276,22 +257,12 @@ public:
 	/// gradient of the error surface with respect to the weights.
 	void descendGradient(const double* pFeatures, double learningRate, double momentum);
 
-	/// Same as descendGradient, except it doesn't support momentum, and it never updates any element by an amount more
-	/// than learningRate * max. (Uses tanh to squash the update value to fall within the specified max.)
-	void descendGradientClipped(const double* pFeatures, double learningRate, double max);
-
 	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
 	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
 	void descendGradientSingleOutput(size_t outputNeuron, const double* pFeatures, double learningRate, double momentum);
 
 	/// Update the delta buffer in each layer with the gradient for a single pattern presentation.
-	void batchUpdate(const double* pFeatures);
-
-	/// Tell each layer to update its weights with the contents of the delta buffer.
-	void batchApply(double learningRate);
-
-	/// Tell each layer to reset its deltas. (That is, set all values in the buffer that stores gradient direction to zero.)
-	void resetDeltas();
+	void updateDeltas(const double* pFeatures, double momentum);
 
 	/// Tell each layer to apply its deltas. (That is, take a step in the direction specified in the delta buffer.)
 	void applyDeltas(double learningRate);
@@ -320,12 +291,6 @@ public:
 	/// scaleWeights(1.0 - probOfDrop, false, 1) to compensate for the scaling effect
 	/// dropout has on the weights.
 	void trainIncrementalWithDropout(const double* pIn, const double* pOut, double probOfDrop);
-
-	/// Presents a pattern for training. Applies dropConnect to the weights.
-	/// Note that when training with dropConnect is complete, you should call
-	/// scaleWeights(1.0 - probOfDrop, false) to compensate for the scaling effect
-	/// dropConnect has on the weights.
-	void trainIncrementalWithDropConnect(const double* pIn, const double* pOut, double probOfDrop);
 
 	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const double* pIn, double* pOut);

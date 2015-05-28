@@ -20,6 +20,7 @@
 #include <string.h>
 #include "GVec.h"
 #include "GRand.h"
+#include <math.h>
 
 namespace GClasses {
 
@@ -42,6 +43,16 @@ void GTargetFunction::initVector(double* pVector)
 	GVec::setAll(pVector, 0.0, m_pRelation->size());
 }
 
+// -------------------------------------------------------
+
+// virtual
+double GOptimizerBasicTestTargetFunction::computeError(const double* pVector)
+{
+	double a = pVector[0] - 0.123456789;
+	double b = pVector[1] + 9.876543210;
+	double c = pVector[2] - 3.333333333;
+	return sqrt(a * a + b * b + c * c);
+}
 
 // -------------------------------------------------------
 
@@ -77,6 +88,16 @@ double GOptimizer::searchUntil(size_t nBurnInIterations, size_t nIterations, dou
 	return dError;
 }
 
+#ifndef MIN_PREDICT
+void GOptimizer::basicTest(double minAccuracy, double warnRange)
+{
+	double d = searchUntil(5, 20, 0.001);
+	if(d > minAccuracy)
+		throw Ex("Optimizer accuracy has regressed. Expected ", to_str(minAccuracy), ". Got ", to_str(d));
+	if(d < minAccuracy - warnRange)
+		std::cout << "Accuracy is much better than expected. Expected " << to_str(minAccuracy) << ". Got " << to_str(d) << ". Please tighten the expected accuracy for this test.\n";
+}
+#endif
 // -------------------------------------------------------
 
 GParallelOptimizers::GParallelOptimizers(size_t dims)

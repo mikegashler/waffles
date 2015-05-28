@@ -70,31 +70,17 @@ public:
 	/// Returns a buffer where the error terms for each unit are stored.
 	virtual double* error() = 0;
 
-	/// Copies the bias vector into the net vector. (This should be done before feedIn is called.)
-	virtual void copyBiasToNet() = 0;
-
-	/// Feeds the inputs (or a portion of the inputs) through the weights and updates the net.
-	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount) = 0;
-
-	/// Feeds the previous layer's activation into this layer. (Implementations
-	/// for specialized hardware may override this method to avoid shuttling the previous
-	/// layer's activation back to host memory.)
-	virtual void feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
-	{
-		feedIn(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs());
-	}
-
-	/// Applies the activation function to the net vector to compute the activation vector.
-	virtual void activate() = 0;
-
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop) = 0;
 
-	/// Randomly sets some of the weights to 0. (The dropped weights are restored when you call updateWeightsAndRestoreDroppedOnes.)
-	virtual void dropConnect(GRand& rand, double probOfDrop) = 0;
+	/// Feeds an input vector through this layer to compute the output of this layer.
+	virtual void feedForward(const double* pIn) = 0;
 
-	/// Feeds in the bias and pIn, then computes the activation of this layer.
-	void feedForward(const double* pIn);
+	/// Feeds the activation of the previous layer through this layer to compute the output of this layer.
+	virtual void feedForward(GNeuralNetLayer* pUpStreamLayer)
+	{
+		feedForward(pUpStreamLayer->activation());
+	}
 
 	/// Computes the error term of the activation.
 	virtual void computeError(const double* pTarget) = 0;
@@ -107,53 +93,18 @@ public:
 	/// the starting index of all the inputs where this layer feeds in.
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0) = 0;
 
-	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
-	virtual void updateBias(double learningRate, double momentum) = 0;
-
-	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
-	virtual void updateBiasClipped(double learningRate, double max) = 0;
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum) = 0;
+	virtual void updateDeltas(const double* pUpStreamActivation, double momentum) = 0;
 
-	/// Refines the weights by gradient descent.
-	virtual void updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
+	/// Updates the deltas for updating the weights by gradient descent.
+	virtual void updateDeltas(GNeuralNetLayer* pUpStreamLayer, double momentum)
 	{
-		updateWeights(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, momentum);
+		updateDeltas(pUpStreamLayer->activation(), momentum);
 	}
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
-	/// but does not change any element by more than learningRate * max.
-	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max) = 0;
-
-	/// Wraps the other updateWeightsClipped.
-	virtual void updateWeightsClipped(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double max)
-	{
-		updateWeightsClipped(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, max);
-	}
-
-	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
-	/// the weights that were previously dropped by a call to dropConnect.
-	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum) = 0;
-
-	/// Refines the weights by gradient descent.
-	virtual void updateWeightsAndRestoreDroppedOnes(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
-	{
-		updateWeightsAndRestoreDroppedOnes(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs(), learningRate, momentum);
-	}
-
-	/// Zero out the weight and bias deltas.
-	virtual void resetDeltas() = 0;
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate) = 0;
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateBias() = 0;
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateWeights(const double* pFeat) = 0;
 
 	/// Multiplies all the weights by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) = 0;
@@ -183,27 +134,6 @@ public:
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double max) = 0;
 
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
-	virtual double unitIncomingWeightsL1Norm(size_t unit) = 0;
-
-	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
-	virtual double unitIncomingWeightsL2Norm(size_t unit) = 0;
-
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
-	virtual double unitOutgoingWeightsL1Norm(size_t input) = 0;
-
-	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
-	virtual double unitOutgoingWeightsL2Norm(size_t input) = 0;
-
-	/// Scale weights that feed into the specified unit
-	virtual void scaleUnitIncomingWeights(size_t unit, double scalar) = 0;
-
-	/// Scale weights that feed into this layer from the specified input
-	virtual void scaleUnitOutgoingWeights(size_t input, double scalar) = 0;
-
-	/// Refines the activation function by stochastic gradient descent
-	virtual void refineActivationFunction(double learningRate) = 0;
-
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda) = 0;
 
@@ -213,23 +143,6 @@ public:
 
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
-
-	/// Gets the weights and bias of a single neuron.
-	virtual void setWeightsSingleNeuron(size_t outputNode, const double* weights)
-	{
-		throw Ex("Not yet implemented");
-	}
-
-	/// Gets the weights and bias of a single neuron.
-	virtual void getWeightsSingleNeuron(size_t outputNode, double*& weights)
-	{
-		throw Ex("Not yet implemented");
-	}
-
-	virtual void copySingleNeuronWeights(size_t source, size_t dest)
-	{
-		throw Ex("Not yet implemented");
-	}
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc);
@@ -246,10 +159,8 @@ protected:
 	GActivationFunction* m_pActivationFunction;
 
 public:
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::updateWeights;
-using GNeuralNetLayer::updateWeightsClipped;
-using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
 
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	/// If pActivationFunction is NULL, then GActivationTanH is used.
@@ -281,20 +192,11 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Returns a buffer used to store error terms for each unit in this layer.
 	virtual double* error() { return m_bias[3]; }
 
-	/// Copies the bias vector into the net vector.
-	virtual void copyBiasToNet();
-
-	/// Feeds a portion of the inputs through the weights and updates the net.
-	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
-
-	/// Applies the activation function to the net vector to compute the activation vector.
-	virtual void activate();
+	/// Feeds a the inputs through this layer.
+	virtual void feedForward(const double* pIn);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Randomly sets some of the weights to 0. (The dropped weights are restored when you call updateWeightsAndRestoreDroppedOnes.)
-	virtual void dropConnect(GRand& rand, double probOfDrop);
 
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
@@ -311,35 +213,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
-	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
-	virtual void updateBias(double learningRate, double momentum);
-
-	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
-	virtual void updateBiasClipped(double learningRate, double max);
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
-	/// but does not change any element by more than learningRate * max.
-	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
-
-	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
-	/// the weights that were previously dropped by a call to dropConnect.
-	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Zero out the weight and bias deltas.
-	virtual void resetDeltas();
+	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateBias();
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateWeights(const double* pFeat);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -373,27 +252,6 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double max);
-
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
-	virtual double unitIncomingWeightsL1Norm(size_t unit);
-
-	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
-	virtual double unitIncomingWeightsL2Norm(size_t unit);
-
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
-	virtual double unitOutgoingWeightsL1Norm(size_t input);
-
-	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
-	virtual double unitOutgoingWeightsL2Norm(size_t input);
-
-	/// Scale weights that feed into the specified unit
-	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
-
-	/// Scale weights that feed into this layer from the specified input
-	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
-
-	/// Refines the activation function by stochastic gradient descent
-	virtual void refineActivationFunction(double learningRate);
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
@@ -436,12 +294,6 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// (Assumes that the error in the output node has already been deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
 	void backPropErrorSingleOutput(size_t output, double* pUpStreamError);
-
-	/// Gets the weights and bias of a single neuron.
-	void setWeightsSingleNeuron(size_t outputNode, const double* weights);
-
-	/// Gets the weights and bias of a single neuron.
-	void getWeightsSingleNeuron(size_t outputNode, double*& weights);
 
 	/// Updates the weights and bias of a single neuron. (Assumes the error has already been computed and deactivated.)
 	void updateWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum);
@@ -500,10 +352,8 @@ protected:
 	std::vector<GNeuralNetLayer*> m_components;
 
 public:
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::updateWeights;
-using GNeuralNetLayer::updateWeightsClipped;
-using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
 
 	/// General-purpose constructor. (You should call addComponent at least twice to mix some layers, after constructing this object.)
 	GLayerMixed();
@@ -541,21 +391,11 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Returns a buffer used to store error terms for each unit in this layer.
 	virtual double* error() { return m_activation[1]; }
 
-	/// Calls copyBiasToNet for each component.
-	virtual void copyBiasToNet();
-
-	/// Feeds a portion of the inputs through the weights and updates the net for each component.
-	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
-
-	/// Applies the activation function to the net vector to compute the activation vector
-	/// in each component, then aggregates all the activation vectors into a single activation for this layer.
-	virtual void activate();
+	/// Feeds the inputs through each component to compute an aggregated activation
+	virtual void feedForward(const double* pIn);
 
 	/// Calls dropOut for each component.
 	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Randomly sets some of the weights to 0. (The dropped weights are restored when you call updateWeightsAndRestoreDroppedOnes.)
-	virtual void dropConnect(GRand& rand, double probOfDrop);
 
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
@@ -571,34 +411,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// This method still needs to be audited for compatibility with such layers.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
-	/// Calls updateBias for each component.
-	virtual void updateBias(double learningRate, double momentum);
-
-	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
-	virtual void updateBiasClipped(double learningRate, double max);
-
-	/// Calls updateWeights for each component.
-	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
-	/// but does not change any element by more than learningRate * max.
-	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
-
-	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
-	/// the weights that were previously dropped by a call to dropConnect.
-	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Zero out the weight and bias deltas.
-	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
+	virtual void applyDeltas(double learningRate);
 
 	/// Calls scaleWeights for each component.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -627,27 +445,6 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Calls maxNorm for each component.
 	virtual void maxNorm(double max);
 
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
-	virtual double unitIncomingWeightsL1Norm(size_t unit);
-
-	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
-	virtual double unitIncomingWeightsL2Norm(size_t unit);
-
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
-	virtual double unitOutgoingWeightsL1Norm(size_t input);
-
-	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
-	virtual double unitOutgoingWeightsL2Norm(size_t input);
-
-	/// Scale weights that feed into the specified unit
-	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
-
-	/// Scale weights that feed into this layer from the specified input
-	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
-
-	/// Refines the activation function by stochastic gradient descent
-	virtual void refineActivationFunction(double learningRate);
-
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
 
@@ -668,10 +465,8 @@ protected:
 	GActivationFunction* m_pActivationFunction;
 
 public:
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::updateWeights;
-using GNeuralNetLayer::updateWeightsClipped;
-using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
 
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
@@ -703,20 +498,11 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Returns a buffer used to store error terms for each unit in this layer.
 	virtual double* error() { return m_bias[3]; }
 
-	/// Copies the bias vector into the net vector.
-	virtual void copyBiasToNet();
-
-	/// Feeds a portion of the inputs through the weights and updates the net.
-	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
-
-	/// Applies the activation function to the net vector to compute the activation vector.
-	virtual void activate();
+	/// Feeds pIn forward through this layer.
+	virtual void feedForward(const double* pIn);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Randomly sets some of the weights to 0. (The dropped weights are restored when you call updateWeightsAndRestoreDroppedOnes.)
-	virtual void dropConnect(GRand& rand, double probOfDrop);
 
 	/// Feed a vector from the hidden end to the visible end. The results are placed in activationReverse();
 	void feedBackward(const double* pIn);
@@ -735,34 +521,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
-	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
-	virtual void updateBias(double learningRate, double momentum);
-
-	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
-	virtual void updateBiasClipped(double learningRate, double max);
-
-	/// Adjust weights that feed into this layer. (Assumes the error has already been deactivated.)
-	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
-	/// but does not change any element by more than learningRate * max.
-	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
-
-	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
-	/// the weights that were previously dropped by a call to dropConnect.
-	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Zero out the weight and bias deltas.
-	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
+	virtual void applyDeltas(double learningRate);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -794,27 +558,6 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double max);
-
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into the specified unit
-	virtual double unitIncomingWeightsL1Norm(size_t unit);
-
-	/// Compute the L2 norm (sum of squares) of weights feeding into the specified unit
-	virtual double unitIncomingWeightsL2Norm(size_t unit);
-
-	/// Compute the L1 norm (sum of absolute values) of weights feeding into this layer from the specified input
-	virtual double unitOutgoingWeightsL1Norm(size_t input);
-
-	/// Compute the L2 norm (sum of squares) of weights feeding into this layer from the specified input
-	virtual double unitOutgoingWeightsL2Norm(size_t input);
-
-	/// Scale weights that feed into the specified unit
-	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
-
-	/// Scale weights that feed into this layer from the specified input
-	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
-
-	/// Refines the activation function by stochastic gradient descent
-	virtual void refineActivationFunction(double learningRate);
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
@@ -889,10 +632,8 @@ protected:
 	GActivationFunction* m_pActivationFunction;
 
 public:
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::updateWeights;
-using GNeuralNetLayer::updateWeightsClipped;
-using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
 
 	/// General-purpose constructor.
 	/// For example, if you collect 19 samples from 3 sensors, then the total input size will be 57 (19*3=57).
@@ -929,14 +670,8 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Returns a buffer used to store error terms for each unit in this layer.
 	virtual double* error() { return m_activation[2]; }
 
-	/// Copies the bias vector into the net vector.
-	virtual void copyBiasToNet();
-
-	/// Feeds a portion of the inputs through the weights and updates the net.
-	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
-
-	/// Applies the activation function to the net vector to compute the activation vector.
-	virtual void activate();
+	/// Feeds a the inputs through this layer.
+	virtual void feedForward(const double* pIn);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
@@ -959,35 +694,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
-	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
-	virtual void updateBias(double learningRate, double momentum);
-
-	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
-	virtual void updateBiasClipped(double learningRate, double max);
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
-	/// but does not change any element by more than learningRate * max.
-	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
-
-	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
-	/// the weights that were previously dropped by a call to dropConnect.
-	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Zero out the weight and bias deltas.
-	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
+	virtual void applyDeltas(double learningRate);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -1018,27 +730,6 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
 	virtual void maxNorm(double max);
 
-	/// Throws an exception.
-	virtual double unitIncomingWeightsL1Norm(size_t unit);
-
-	/// Throws an exception.
-	virtual double unitIncomingWeightsL2Norm(size_t unit);
-
-	/// Throws an exception.
-	virtual double unitOutgoingWeightsL1Norm(size_t input);
-
-	/// Throws an exception.
-	virtual double unitOutgoingWeightsL2Norm(size_t input);
-
-	/// Throws an exception.
-	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
-
-	/// Throws an exception.
-	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
-
-	/// Refines the activation function by stochastic gradient descent
-	virtual void refineActivationFunction(double learningRate);
-
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
 
@@ -1050,7 +741,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	double* net() { return m_activation[1]; }
 
 	double* bias() { return m_bias[0]; }
-	double* biasDelta() { return m_bias[0]; }
+	double* biasDelta() { return m_bias[1]; }
 	GMatrix& kernels() { return m_kernels; }
 };
 
@@ -1074,10 +765,8 @@ protected:
 	GActivationFunction* m_pActivationFunction;
 
 public:
-using GNeuralNetLayer::feedIn;
-using GNeuralNetLayer::updateWeights;
-using GNeuralNetLayer::updateWeightsClipped;
-using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
 
 	/// General-purpose constructor.
 	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
@@ -1113,14 +802,8 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Returns a buffer used to store error terms for each unit in this layer.
 	virtual double* error() { return m_activation[2]; }
 
-	/// Copies the bias vector into the net vector.
-	virtual void copyBiasToNet();
-
-	/// Feeds a portion of the inputs through the weights and updates the net.
-	virtual void feedIn(const double* pIn, size_t inputStart, size_t inputCount);
-
-	/// Applies the activation function to the net vector to compute the activation vector.
-	virtual void activate();
+	/// Feeds a the inputs through this layer.
+	virtual void feedForward(const double* pIn);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
@@ -1143,35 +826,12 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
 
-	/// Updates the bias of this layer by gradient descent. (Assumes the error has already been computed and deactivated.)
-	virtual void updateBias(double learningRate, double momentum);
-
-	/// Updates the bias of this layer by gradient descent, but does not change any element by more than learningRate * max.
-	virtual void updateBiasClipped(double learningRate, double max);
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
+	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Updates the weights that feed into this layer (not including the bias) by gradient descent,
-	/// but does not change any element by more than learningRate * max.
-	virtual void updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max);
-
-	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
-	/// the weights that were previously dropped by a call to dropConnect.
-	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
-
-	/// Zero out the weight and bias deltas.
-	virtual void resetDeltas() { throw Ex("Sorry, not implemented yet"); }
+	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate) { throw Ex("Sorry, not implemented yet"); }
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateBias() { throw Ex("Sorry, not implemented yet"); }
-
-	/// Add to the delta buffer for batch updating.
-	virtual void batchUpdateWeights(const double* pFeat) { throw Ex("Sorry, not implemented yet"); }
+	virtual void applyDeltas(double learningRate);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -1202,27 +862,6 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
 	virtual void maxNorm(double max);
 
-	/// Throws an exception.
-	virtual double unitIncomingWeightsL1Norm(size_t unit);
-
-	/// Throws an exception.
-	virtual double unitIncomingWeightsL2Norm(size_t unit);
-
-	/// Throws an exception.
-	virtual double unitOutgoingWeightsL1Norm(size_t input);
-
-	/// Throws an exception.
-	virtual double unitOutgoingWeightsL2Norm(size_t input);
-
-	/// Throws an exception.
-	virtual void scaleUnitIncomingWeights(size_t unit, double scalar);
-
-	/// Throws an exception.
-	virtual void scaleUnitOutgoingWeights(size_t input, double scalar);
-
-	/// Refines the activation function by stochastic gradient descent
-	virtual void refineActivationFunction(double learningRate);
-
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
 
@@ -1234,7 +873,7 @@ using GNeuralNetLayer::updateWeightsAndRestoreDroppedOnes;
 	double* net() { return m_activation[1]; }
 
 	double* bias() { return m_bias[0]; }
-	double* biasDelta() { return m_bias[0]; }
+	double* biasDelta() { return m_bias[1]; }
 	GMatrix& kernels() { return m_kernels; }
 };
 

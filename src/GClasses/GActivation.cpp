@@ -163,14 +163,18 @@ std::cout << to_str(scale) << "," << to_str(log(t0 / 400.0) * M_LOG10E) << "," <
 
 
 GActivationHinge::GActivationHinge()
-: GActivationFunction(), m_units(0), m_hinges(0)
+: GActivationFunction(), m_units(0), m_error(0), m_hinges(0), m_delta(0)
 {
 }
 
 GActivationHinge::GActivationHinge(GDomNode* pNode)
 {
 	GDomListIterator it(pNode->field("hinges"));
+	m_units = it.remaining();
+	m_error.resize(m_units);
 	GVec::deserialize(m_hinges.v, it);
+	m_delta.resize(m_units);
+	GVec::setAll(m_delta.v, 0.0, m_units);
 }
 
 // virtual
@@ -186,22 +190,55 @@ GDomNode* GActivationHinge::serialize(GDom* pDoc) const
 void GActivationHinge::resize(size_t units)
 {
 	m_units = units;
+	m_error.resize(units);
 	m_hinges.resize(units);
 	GVec::setAll(m_hinges.v, 0.0, units);
+	m_delta.resize(units);
+	GVec::setAll(m_delta.v, 0.0, units);
 }
 
 // virtual
-void GActivationHinge::refine(const double* pNet, const double* pActivation, const double* pError, double learningRate)
+void GActivationHinge::setError(const double* pError)
 {
-	double* pHinge = m_hinges.v;
-	const double* pErr = pError;
+	GVec::copy(m_error.v, pError, m_units);
+}
+
+// virtual
+void GActivationHinge::updateDeltas(const double* pNet, const double* pActivation, double momentum)
+{
+	const double* pErr = m_error.v;
 	const double* pN = pNet;
+	double* pD = m_delta.v;
 	for(size_t i = 0; i < m_units; i++)
 	{
-		*pHinge = std::max(-1.0, std::min(1.0, *pHinge + learningRate * (*pErr) * (sqrt(*pN * *pN + 1.0) - 1.0)));
+		*pD *= momentum;
+		*pD += (*pErr) * (sqrt(*pN * *pN + BEND_SIZE * BEND_SIZE) - BEND_SIZE);
 		pN++;
 		pErr++;
+		pD++;
+	}
+}
+
+// virtual
+void GActivationHinge::applyDeltas(double learningRate)
+{
+	double* pD = m_delta.v;
+	double* pHinge = m_hinges.v;
+	for(size_t i = 0; i < m_units; i++)
+	{
+		*pHinge = *pHinge + learningRate * *pD;
+		if(*pHinge < -1.0)
+		{
+			*pHinge = -1.0;
+			*pD = 0.0;
+		}
+		if(*pHinge > 1.0)
+		{
+			*pHinge = 1.0;
+			*pD = 0.0;
+		}
 		pHinge++;
+		pD++;
 	}
 }
 
@@ -261,14 +298,18 @@ void GActivationHinge::copyWeights(const GActivationFunction* pOther)
 
 
 GActivationLogExp::GActivationLogExp()
-: GActivationFunction(), m_units(0), m_alphas(0)
+: GActivationFunction(), m_units(0), m_error(0), m_alphas(0), m_delta(0)
 {
 }
 
 GActivationLogExp::GActivationLogExp(GDomNode* pNode)
 {
 	GDomListIterator it(pNode->field("alphas"));
+	m_units = it.remaining();
+	m_error.resize(m_units);
 	GVec::deserialize(m_alphas.v, it);
+	m_delta.resize(m_units);
+	GVec::setAll(m_delta.v, 0.0, m_units);
 }
 
 // virtual
@@ -284,27 +325,62 @@ GDomNode* GActivationLogExp::serialize(GDom* pDoc) const
 void GActivationLogExp::resize(size_t units)
 {
 	m_units = units;
+	m_error.resize(units);
 	m_alphas.resize(units);
 	GVec::setAll(m_alphas.v, 0.0, units);
+	m_delta.resize(units);
+	GVec::setAll(m_delta.v, 0.0, units);
 }
 
 // virtual
-void GActivationLogExp::refine(const double* pNet, const double* pActivation, const double* pError, double learningRate)
+void GActivationLogExp::setError(const double* pError)
+{
+	GVec::copy(m_error.v, pError, m_units);
+}
+
+// virtual
+void GActivationLogExp::updateDeltas(const double* pNet, const double* pActivation, double momentum)
 {
 	double* pAlpha = m_alphas.v;
-	const double* pErr = pError;
+	const double* pErr = m_error.v;
 	const double* pN = pNet;
 	const double* pAct = pActivation;
+	double* pD = m_delta.v;
 	for(size_t i = 0; i < m_units; i++)
 	{
+		*pD *= momentum;
 		if(*pAlpha >= 0)
-			*pAlpha = std::max(-1.0, std::min(1.0, *pAlpha + learningRate * (*pErr) * ((*pN) * exp(*pAlpha * (*pN)) - (*pN))));
+			*pD += (*pErr) * ((*pN) * exp(*pAlpha * (*pN)) - (*pN));
 		else
-			*pAlpha = std::max(-1.0, std::min(1.0, *pAlpha + learningRate * 1.0 / (*pErr) * ((*pAct) * exp(std::min(300.0, -(*pAlpha) * (*pAct))) - (*pAct))));
+			*pD += 1.0 / (*pErr) * ((*pAct) * exp(std::min(300.0, -(*pAlpha) * (*pAct))) - (*pAct));
 		pN++;
 		pAct++;
 		pErr++;
 		pAlpha++;
+		pD++;
+	}
+}
+
+// virtual
+void GActivationLogExp::applyDeltas(double learningRate)
+{
+	double* pD = m_delta.v;
+	double* pAlpha = m_alphas.v;
+	for(size_t i = 0; i < m_units; i++)
+	{
+		*pAlpha = *pAlpha + learningRate * *pD;
+		if(*pAlpha < -1.0)
+		{
+			*pAlpha = -1.0;
+			*pD = 0.0;
+		}
+		if(*pAlpha > 1.0)
+		{
+			*pAlpha = 1.0;
+			*pD = 0.0;
+		}
+		pAlpha++;
+		pD++;
 	}
 }
 
