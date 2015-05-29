@@ -84,9 +84,19 @@ void test_GCudaLayer(GCudaEngine& e)
 	nn2.addLayer(new GLayerClassicCuda(e, width, 3));
 	nn2.beginIncrementalLearning(rel, rel);
 
+	cout << "Making another parallel neural net...\n";
+	GNeuralNet nn3;
+	nn3.addLayer(new GLayerClassicCuda(e, 3, width));
+	nn3.addLayer(new GLayerClassicCuda(e, width, width));
+	nn3.addLayer(new GLayerClassicCuda(e, width, width));
+	nn3.addLayer(new GLayerClassicCuda(e, width, 3));
+	nn3.beginIncrementalLearning(rel, rel);
+
 	cout << "Copying (so they will have identical weights)...\n";
 	for(size_t i = 0; i < nn1.layerCount(); i++)
 		((GLayerClassicCuda*)&nn2.layer(i))->upload(*(GLayerClassic*)&nn1.layer(i));
+	for(size_t i = 0; i < nn1.layerCount(); i++)
+		((GLayerClassicCuda*)&nn3.layer(i))->upload(*(GLayerClassic*)&nn1.layer(i));
 
 	cout << "Testing to make sure they make identical predictions (before training)...\n";
 	double vec[3];
@@ -98,12 +108,13 @@ void test_GCudaLayer(GCudaEngine& e)
 	nn1.predict(vec, out);
 	cout << "Classic: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
 	nn2.predict(vec, out);
-	cout << "   Cuda: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
+	cout << "  Cuda1: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
+	nn3.predict(vec, out);
+	cout << "  Cuda2: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
 
-
-	GRand r(0);
 
 	cout << "Training the classic network...\n";
+	GRand r(0);
 	double timeBef1 = GTime::seconds();
 	for(size_t i = 0; i < epochs; i++)
 	{
@@ -114,9 +125,9 @@ void test_GCudaLayer(GCudaEngine& e)
 	}
 	double timeAft1 = GTime::seconds();
 
-	r.setSeed(0);
 
-	cout << "Training the parallel network...\n";
+	cout << "Training the first parallel network...\n";
+	r.setSeed(0);
 	double timeBef2 = GTime::seconds();
 	for(size_t i = 0; i < epochs; i++)
 	{
@@ -127,9 +138,24 @@ void test_GCudaLayer(GCudaEngine& e)
 	}
 	double timeAft2 = GTime::seconds();
 
+	cout << "Training the second parallel network without synchronization...\n";
+	e.setHogWild(true);
+	r.setSeed(0);
+	double timeBef3 = GTime::seconds();
+	for(size_t i = 0; i < epochs; i++)
+	{
+		vec[0] = 0.2 * r.normal();
+		vec[1] = 0.2 * r.normal();
+		vec[1] = 0.2 * r.normal();
+		nn3.trainIncremental(vec, vec);
+	}
+	double timeAft3 = GTime::seconds();
+
 	cout << "Classic training time: " << to_str(timeAft1 - timeBef1) << " seconds\n";
-	cout << "   Cuda training time: " << to_str(timeAft2 - timeBef2) << " seconds\n";
-	cout << "Speedup: " << to_str((timeAft1 - timeBef1) / (timeAft2 - timeBef2)) << "\n";
+	cout << "  Cuda1 training time: " << to_str(timeAft2 - timeBef2) << " seconds\n";
+	cout << "  Cuda2 training time: " << to_str(timeAft3 - timeBef3) << " seconds\n";
+	cout << "Speedup1: " << to_str((timeAft1 - timeBef1) / (timeAft2 - timeBef2)) << "\n";
+	cout << "Speedup2: " << to_str((timeAft1 - timeBef1) / (timeAft3 - timeBef3)) << "\n";
 
 	cout << "Testing to make sure both networks still make the same predictions...\n";
 	vec[0] = 0.2;
@@ -139,7 +165,9 @@ void test_GCudaLayer(GCudaEngine& e)
 	nn1.predict(vec, out);
 	cout << "Classic: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
 	nn2.predict(vec, out);
-	cout << "   Cuda: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
+	cout << "  Cuda1: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
+	nn3.predict(vec, out);
+	cout << "  Cuda2: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
 
 }
 

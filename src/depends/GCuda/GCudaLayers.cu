@@ -63,7 +63,9 @@ void GLayerClassicCuda::resize(size_t inputCount, size_t outputCount, GRand* pRa
 		throw Ex("Sorry, GLayerClassicCuda does not support preserving resizes");
 
 	m_weights.resize(inputCount, outputCount);
+	m_delta.resize(inputCount, outputCount);
 	m_bias.resize(outputCount);
+	m_biasDelta.resize(outputCount);
 	m_activation.resize(outputCount);
 	m_error.resize(outputCount);
 	delete[] m_pOutgoing;
@@ -89,6 +91,8 @@ void GLayerClassicCuda::resetWeights(GRand& rand)
 	for(size_t i = 0; i < outputCount; i++)
 		*(pB++) = rand.normal() * mag;
 	m_bias.upload(vTmp.v, outputCount);
+	m_delta.scale(m_engine, 0.0);
+	m_biasDelta.scale(m_engine, 0.0);
 }
 
 // virtual
@@ -135,23 +139,23 @@ void GLayerClassicCuda::copyBiasToNet()
 }
 
 // virtual
-void GLayerClassicCuda::feedIn(const double* pIn, size_t inputStart, size_t inputCount)
+void GLayerClassicCuda::feedIn(const double* pIn)
 {
 	m_incoming.upload(pIn, inputs());
-	m_weights.feedIn(m_engine, m_incoming, m_activation, inputStart);
+	m_weights.feedIn(m_engine, m_incoming, m_activation, 0);
 	m_engine.sync();
 }
 
 // virtual
-void GLayerClassicCuda::feedIn(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerClassicCuda::feedIn(GNeuralNetLayer* pUpStreamLayer)
 {
 	if(pUpStreamLayer->usesGPU())
 	{
-		m_weights.feedIn(m_engine, ((GCudaLayer*)pUpStreamLayer)->deviceActivation(), m_activation, inputStart);
+		m_weights.feedIn(m_engine, ((GCudaLayer*)pUpStreamLayer)->deviceActivation(), m_activation, 0);
 		m_engine.sync();
 	}
 	else
-		feedIn(pUpStreamLayer->activation(), inputStart, pUpStreamLayer->outputs());
+		feedIn(pUpStreamLayer->activation());
 }
 
 // virtual
@@ -162,13 +166,25 @@ void GLayerClassicCuda::activate()
 }
 
 // virtual
-void GLayerClassicCuda::dropOut(GRand& rand, double probOfDrop)
+void GLayerClassicCuda::feedForward(const double* pIn)
 {
-	throw Ex("sorry, not implemented yet");
+	copyBiasToNet();
+	m_incoming.upload(pIn, inputs());
+	m_weights.feedIn(m_engine, m_incoming, m_activation, 0);
+	m_engine.sync();
+	activate();
 }
 
 // virtual
-void GLayerClassicCuda::dropConnect(GRand& rand, double probOfDrop)
+void GLayerClassicCuda::feedForward(GNeuralNetLayer* pUpStreamLayer)
+{
+	copyBiasToNet();
+	feedIn(pUpStreamLayer);
+	activate();
+}
+
+// virtual
+void GLayerClassicCuda::dropOut(GRand& rand, double probOfDrop)
 {
 	throw Ex("sorry, not implemented yet");
 }
@@ -211,34 +227,44 @@ void GLayerClassicCuda::updateBias(double learningRate, double momentum)
 }
 
 // virtual
-void GLayerClassicCuda::updateWeights(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+void GLayerClassicCuda::updateDeltas(const double* pUpStreamActivation, double momentum)
 {
 	// Assume that the input was already uploaded into m_incoming when feedForward was called
-	if(inputStart != 0 || inputCount != m_weights.rows())
-		throw Ex("Sorry, partial weight updates are not yet supported in GNeuralNetLayerCuda");
-	m_weights.updateWeights(m_engine, m_incoming, inputStart, m_error, learningRate);
+	if(momentum != 1.0)
+	{
+		m_delta.scale(m_engine, momentum);
+		m_engine.sync();
+	}
+	m_delta.addOuterProduct(m_engine, m_incoming, m_error, 1.0);
+ 	m_biasDelta.add(m_engine, m_error, 1.0);
+	m_engine.sync();
 }
 
 // virtual
-void GLayerClassicCuda::updateWeights(GNeuralNetLayer* pUpStreamLayer, size_t inputStart, double learningRate, double momentum)
+void GLayerClassicCuda::updateDeltas(GNeuralNetLayer* pUpStreamLayer, double momentum)
 {
+	if(momentum != 1.0)
+	{
+		m_delta.scale(m_engine, momentum);
+		m_engine.sync();
+	}
 	if(pUpStreamLayer->usesGPU())
 	{
-		m_weights.updateWeights(m_engine, ((GCudaLayer*)pUpStreamLayer)->deviceActivation(), inputStart, m_error, learningRate);
+		m_delta.addOuterProduct(m_engine, ((GCudaLayer*)pUpStreamLayer)->deviceActivation(), m_error, 1.0);
 	}
 	else
 	{
 		// Assume that the input was already uploaded into m_incoming when feedForward was called
-		if(inputStart != 0)
-			throw Ex("Sorry, partial weight updates are not yet supported in GLayerClassicCuda");
-		m_weights.updateWeights(m_engine, m_incoming, inputStart, m_error, learningRate);
+		m_delta.addOuterProduct(m_engine, m_incoming, m_error, 1.0);
 	}
+	m_biasDelta.add(m_engine, m_error, 1.0);
+	m_engine.sync();
 }
 
-// virtual
-void GLayerClassicCuda::updateWeightsClipped(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double max)
+void GLayerClassicCuda::applyDeltas(double learningRate)
 {
-	throw Ex("Sorry, updateWeightsClipped is not yet supported in GLayerClassicCuda");
+	m_weights.add(m_engine, m_delta, learningRate);
+	m_engine.sync();
 }
 
 // virtual
@@ -273,42 +299,6 @@ void GLayerClassicCuda::maxNorm(double max)
 }
 
 // virtual
-double GLayerClassicCuda::unitIncomingWeightsL1Norm(size_t unit)
-{
-	return m_weights.colSumAbs(m_engine, unit);
-}
-
-// virtual
-double GLayerClassicCuda::unitIncomingWeightsL2Norm(size_t unit)
-{
-	return m_weights.colSumSquare(m_engine, unit);
-}
-
-// virtual
-double GLayerClassicCuda::unitOutgoingWeightsL1Norm(size_t input)
-{
-	return m_weights.rowSumAbs(m_engine, input);
-}
-
-// virtual
-double GLayerClassicCuda::unitOutgoingWeightsL2Norm(size_t input)
-{
-	return m_weights.rowSumSquare(m_engine, input);
-}
-
-// virtual
-void GLayerClassicCuda::scaleUnitIncomingWeights(size_t unit, double scalar)
-{
-	m_weights.scaleCol(m_engine, unit, scalar);
-}
-
-// virtual
-void GLayerClassicCuda::scaleUnitOutgoingWeights(size_t input, double scalar)
-{
-	m_weights.scaleRow(m_engine, input, scalar);
-}
-
-// virtual
 size_t GLayerClassicCuda::countWeights()
 {
 	throw Ex("Sorry, GLayerClassicCuda::countWeights is not yet implemented");
@@ -330,7 +320,7 @@ size_t GLayerClassicCuda::vectorToWeights(const double* pVector)
 }
 
 // virtual
-void GLayerClassicCuda::copyWeights(GNeuralNetLayer* pSource)
+void GLayerClassicCuda::copyWeights(const GNeuralNetLayer* pSource)
 {
 	throw Ex("Sorry, GLayerClassicCuda::copyWeights is not yet implemented");
 }

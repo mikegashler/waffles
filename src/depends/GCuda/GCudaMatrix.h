@@ -32,13 +32,19 @@ public:
 	void* m_handle; // This should really be a cublasHandle_t, but I would rather not include <cublas_v2.h> in this file, and C++ does not provide a mechanism to forward-declare typedefs.
 	size_t m_blockSize;
 	void* m_prng; // This should be a curandGenerator_t.
+	bool m_hogWild;
 
 	GCudaEngine();
 	~GCudaEngine();
 
 	/// Synchronizes the GPU with the CPU. That is, block until all of the GPU processors complete
 	/// the most-recent operation.
-	static void sync();
+	void sync();
+
+	/// Specify whether to use hog wild.
+	/// if b is true, then no synchronization will be used.
+	/// if b is false, then synchronization will be used again.
+	void setHogWild(bool b) { m_hogWild = b; }
 };
 
 
@@ -134,6 +140,9 @@ public:
 	/// Resizes m if necessary.
 	void download(GMatrix& m);
 
+	/// Adds that multipled by thatScalar to this.
+	void add(GCudaEngine& engine, GCudaMatrix& that, double thatScalar);
+
 	/// Multiplies this matrix by scalar
 	void scale(GCudaEngine& engine, double scalar);
 
@@ -151,8 +160,8 @@ public:
 	/// Puts the results in out.
 	void backPropError(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out, size_t inputStart);
 
-	/// This method is used by implementations of gradient descent to update the weights
-	void updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, size_t inputStart, GCudaVector& downStreamError, double learningRate);
+	/// Adds the outer product of upStreamInput and downStreamError, multiplied by learningRate, to this matrix.
+	void addOuterProduct(GCudaEngine& engine, GCudaVector& upStreamInput, GCudaVector& downStreamError, double learningRate);
 
 	/// Returns the sum of absolute values of elements in the specified row.
 	double rowSumAbs(GCudaEngine& engine, size_t row);

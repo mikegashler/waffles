@@ -40,6 +40,7 @@ GCudaEngine::GCudaEngine()
 		throw Ex("curandCreateGenerator failed");
 	if(curandSetPseudoRandomGeneratorSeed((curandGenerator_t)m_prng, 1234ULL) != CURAND_STATUS_SUCCESS)
 		throw Ex("curandSetPseudoRandomGeneratorSeed failed");
+	m_hogWild = false;
 }
 
 GCudaEngine::~GCudaEngine()
@@ -51,8 +52,11 @@ GCudaEngine::~GCudaEngine()
 
 void GCudaEngine::sync()
 {
-	if(cudaDeviceSynchronize() != cudaSuccess)
-		throw Ex(cudaGetErrorString(cudaGetLastError()));
+	if(!m_hogWild)
+	{
+		if(cudaDeviceSynchronize() != cudaSuccess)
+			throw Ex(cudaGetErrorString(cudaGetLastError()));
+	}
 }
 
 
@@ -190,6 +194,14 @@ void GCudaMatrix::scale(GCudaEngine& engine, double scalar)
 		throw Ex("cublasDscal failed");
 }
 
+void GCudaMatrix::add(GCudaEngine& engine, GCudaMatrix& that, double thatScalar)
+{
+	GAssert(m.rows() == m_rows && m.cols() == m_cols);
+	if(cublasDaxpy((cublasHandle_t)engine.m_handle, m_rows * m_cols, &thatScalar,
+		that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDaxpy failed");
+}
+
 void GCudaMatrix::rowVectorTimesThis(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out)
 {
 	GAssert(in.m_size == m_rows);
@@ -239,11 +251,11 @@ void GCudaMatrix::backPropError(GCudaEngine& engine, const GCudaVector& in, GCud
 		throw Ex("cublasDgemv failed");
 }
 
-void GCudaMatrix::updateWeights(GCudaEngine& engine, GCudaVector& upStreamInput, size_t inputStart, GCudaVector& downStreamError, double learningRate)
+void GCudaMatrix::addOuterProduct(GCudaEngine& engine, GCudaVector& upStreamInput, GCudaVector& downStreamError, double learningRate)
 {
 	if(cublasDger((cublasHandle_t)engine.m_handle, m_cols, upStreamInput.size(), &learningRate,
 		downStreamError.d_vals, 1, upStreamInput.d_vals, 1,
-		d_vals + inputStart * m_cols, m_cols) != CUBLAS_STATUS_SUCCESS)
+		d_vals, m_cols) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDger failed");
 }
 
