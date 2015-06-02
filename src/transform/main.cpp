@@ -1422,6 +1422,55 @@ void sampleRows(GArgReader& args)
 	}
 }
 
+void sampleRowsRegularly(GArgReader& args)
+{
+	const char* filename = args.pop_string();
+	size_t freq = args.pop_uint();
+	PathData pd;
+	GFile::parsePath(filename, &pd);
+	bool arff = false;
+	if(_stricmp(filename + pd.extStart, ".arff") == 0)
+		arff = true;
+
+	size_t size = 0;
+	std::ifstream s;
+	s.exceptions(std::ios::failbit|std::ios::badbit);
+	try
+	{
+		s.open(filename, std::ios::binary);
+		s.seekg(0, std::ios::end);
+		size = (size_t)s.tellg();
+		s.seekg(0, std::ios::beg);
+	}
+	catch(const std::exception&)
+	{
+		if(GFile::doesFileExist(filename))
+			throw Ex("Error while trying to open the existing file: ", filename);
+		else
+			throw Ex("File not found: ", filename);
+	}
+	char* pLine = new char[MAX_LINE_LENGTH];
+	ArrayHolder<char> hLine(pLine);
+	size_t line = 1;
+	while(size > 0)
+	{
+		s.getline(pLine, std::min(size + 1, size_t(MAX_LINE_LENGTH)));
+		size_t linelen = std::min(size, size_t(s.gcount()));
+		if(linelen >= MAX_LINE_LENGTH - 1)
+			throw Ex("Line ", to_str(line), " is too long"); // todo: just resize the buffer here
+		if(arff)
+		{
+			if(_strnicmp(pLine, "@DATA", 5) == 0)
+				arff = false;
+			cout << pLine << "\n";
+		}
+		else if(line % freq == 0)
+			cout << pLine << "\n";
+		size -= linelen;
+		line++;
+	}
+}
+
 void scaleColumns(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -2312,6 +2361,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
 		else if(args.if_pop("rotate")) rotate(args);
 		else if(args.if_pop("samplerows")) sampleRows(args);
+		else if(args.if_pop("samplerowsregularly")) sampleRowsRegularly(args);
 		else if(args.if_pop("scalecolumns")) scaleColumns(args);
 		else if(args.if_pop("shiftcolumns")) shiftColumns(args);
 		else if(args.if_pop("shuffle")) Shuffle(args);

@@ -1765,11 +1765,16 @@ UsageNode* makeTransformUsageTree()
 		pRotate->add("[angle_degrees]=90.0","The angle in degrees to rotate around the origin in the col_x,col_y plane.");
 	}
 	{
-		UsageNode* pSampRows = pRoot->add("samplerows [dataset] [portion]", "Samples from the rows in the specified dataset and prints them to stdout. This tool reads each row one-at-a-time, so it is well-suited for reducing the size of datasets that are too big to fit into memory. (Note that unlike most other tools, this one does not convert CSV to ARFF format internally. If the input is CSV, the output will be CSV too.)");
+		UsageNode* pSampRows = pRoot->add("samplerows [dataset] [portion]", "Randomly samples from the rows in the specified dataset and prints them to stdout. This tool reads each row one-at-a-time, so it is well-suited for reducing the size of datasets that are too big to fit into memory. (Note that unlike most other tools, this one does not convert CSV to ARFF format internally. If the input is CSV, the output will be CSV too.)");
 		pSampRows->add("[dataset]=in.arff", "The filename of a dataset. ARFF, CSV, and a few other formats are supported.");
 		pSampRows->add("[portion]=0.1", "A value between 0 and 1 that specifies the likelihood that each row will be printed to stdout.");
 		UsageNode* pOpts = pSampRows->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
+	}
+	{
+		UsageNode* pSampRows = pRoot->add("samplerowsregularly [dataset] [freq]", "Samples from the rows in the specified dataset at regular intervals and prints them to stdout. This tool reads each row one-at-a-time, so it is well-suited for reducing the size of datasets that are too big to fit into memory. (Note that unlike most other tools, this one does not convert CSV to ARFF format internally. If the input is CSV, the output will be CSV too.)");
+		pSampRows->add("[dataset]=in.arff", "The filename of a dataset. ARFF, CSV, and a few other formats are supported.");
+		pSampRows->add("[freq]=10", "The number of rows read for each row printed.");
 	}
 	{
 		UsageNode* pScaleCols = pRoot->add("scalecolumns [dataset] [column-list] [scalar]", "Multiply the values in the specified columns by a scalar.");
