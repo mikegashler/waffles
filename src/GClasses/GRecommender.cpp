@@ -2158,7 +2158,9 @@ void GLogNet::train(GMatrix& data)
 	double* b3 = pLay3->bias();
 	b3[0] = (double)m_intrinsicDims; // balance the -1 in logexp(1,x)=exp(x)-1
 
-	// Relax
+	GLayerClassic inputLayer(0, totalInputs, new GActivationIdentity());
+/*
+	// Relax by stochastic gradient descent
 	double learningRate = 0.001;
 	for(size_t i = 0; i < 100000; i++)
 	{
@@ -2171,8 +2173,48 @@ void GLogNet::train(GMatrix& data)
 		m_pModel->regularizeActivationFunctions(0.001);
 		m_pModel->forwardProp(m_input.v);
 		m_pModel->backpropagate(&pRow[2], learningRate);
+		m_pModel->layer(0).backPropError(&inputLayer);
 		m_pModel->descendGradient(m_input.v, learningRate, 0.0);
+		GVec::addScaled(m_input.v, learningRate, inputLayer.error(), totalInputs);
+		GVec::copy(m_pP->row(user), m_input.v, m_intrinsicDims + 1);
+		GVec::copy(m_pQ->row(item), m_input.v + m_intrinsicDims + 1, m_intrinsicDims + 1);
 	}
+*/
+
+	// Relax by batch gradient descent
+	double learningRate = 0.00001;
+	double* pFeat = inputLayer.activation();
+	for(size_t i = 0; i < 1000; i++)
+	{
+		double* pRow = data[0];
+		size_t user = (size_t)pRow[0];
+		size_t item = (size_t)pRow[1];
+		GVec::copy(pFeat, m_pP->row(user), m_intrinsicDims + 1);
+		GVec::copy(pFeat + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
+		double targ = pRow[2];
+		m_pModel->forwardProp(pFeat);
+		m_pModel->backpropagate(&targ);
+		m_pModel->layer(0).backPropError(&inputLayer);
+		m_pModel->updateDeltas(pFeat, 0.0);
+
+		for(size_t j = 1; j < data.rows(); j++)
+		{
+			pRow = data[j];
+			user = (size_t)pRow[0];
+			item = (size_t)pRow[1];
+			GVec::copy(pFeat, m_pP->row(user), m_intrinsicDims + 1);
+			GVec::copy(pFeat + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
+			double targ = pRow[2];
+			m_pModel->forwardProp(pFeat);
+			m_pModel->backpropagate(&targ);
+			m_pModel->layer(0).backPropError(&inputLayer);
+			m_pModel->updateDeltas(pFeat, 1.0);
+			
+		}
+		m_pModel->applyDeltas(learningRate / data.rows());
+		//m_pModel->regularizeActivationFunctions(learningRate * 0.000);
+	}
+
 }
 
 // virtual

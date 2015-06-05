@@ -202,18 +202,18 @@ void GLayerClassicCuda::deactivateError()
 	m_engine.sync();
 }
 
-void GLayerClassicCuda::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerClassicCuda::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	if(pUpStreamLayer->usesGPU())
 	{
-		m_weights.backPropError(m_engine, m_error, ((GCudaLayer*)pUpStreamLayer)->deviceError(), inputStart);
+		m_weights.backPropError(m_engine, m_error, ((GCudaLayer*)pUpStreamLayer)->deviceError());
 		m_engine.sync();
 	}
 	else
 	{
 		if(m_incoming.size() != inputs())
 			m_incoming.resize(inputs());
-		m_weights.backPropError(m_engine, m_error, m_incoming, inputStart);
+		m_weights.backPropError(m_engine, m_error, m_incoming);
 		m_engine.sync();
 		m_incoming.download(pUpStreamLayer->error());
 	}

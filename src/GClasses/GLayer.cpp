@@ -338,16 +338,16 @@ void GLayerClassic::deactivateErrorSingleOutput(size_t output)
 	(*pErr) *= m_pActivationFunction->derivativeOfNet(netVal, act, output);
 }
 
-void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	double* pUpStreamError = pUpStreamLayer->error();
 	size_t inputCount = pUpStreamLayer->outputs();
-	GAssert(inputStart + inputCount <= m_weights.rows());
+	GAssert(inputCount <= m_weights.rows());
 	size_t outputCount = outputs();
 	const double* pSource = error();
 	for(size_t i = 0; i < inputCount; i++)
 	{
-		*pUpStreamError = GVec::dotProduct(pSource, m_weights[inputStart + i], outputCount);
+		*pUpStreamError = GVec::dotProduct(pSource, m_weights[i], outputCount);
 		pUpStreamError++;
 	}
 }
@@ -553,7 +553,7 @@ void GLayerClassic::regularizeActivationFunction(double lambda)
 // virtual
 size_t GLayerClassic::countWeights()
 {
-	return (inputs() + 1) * outputs();
+	return (inputs() + 1) * outputs() + m_pActivationFunction->countWeights();
 }
 
 // virtual
@@ -584,6 +584,7 @@ void GLayerClassic::copyWeights(const GNeuralNetLayer* pSource)
 	GLayerClassic* src = (GLayerClassic*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	GVec::copy(bias(), src->bias(), src->outputs());
+	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
 // virtual
@@ -783,14 +784,14 @@ void GLayerMixed::deactivateError()
 }
 
 // virtual
-void GLayerMixed::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerMixed::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	double* pBuf = m_inputError[0];
 	size_t inps = pUpStreamLayer->outputs();
 	GVec::setAll(pBuf, 0.0, inps);
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
-		m_components[i]->backPropError(pUpStreamLayer, inputStart);
+		m_components[i]->backPropError(pUpStreamLayer);
 		GVec::add(pBuf, pUpStreamLayer->error(), inps);
 	}
 	GVec::copy(pUpStreamLayer->error(), pBuf, inps);
@@ -1210,7 +1211,7 @@ void GLayerRestrictedBoltzmannMachine::deactivateError()
 	}
 }
 
-void GLayerRestrictedBoltzmannMachine::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerRestrictedBoltzmannMachine::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	double* pDownStreamError = error();
 	double* pUpStreamError = pUpStreamLayer->error();
@@ -1317,6 +1318,7 @@ void GLayerRestrictedBoltzmannMachine::copyWeights(const GNeuralNetLayer* pSourc
 	GLayerRestrictedBoltzmannMachine* src = (GLayerRestrictedBoltzmannMachine*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	GVec::copy(bias(), src->bias(), src->outputs());
+	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
 // virtual
@@ -1518,9 +1520,8 @@ void GLayerConvolutional1D::deactivateError()
 }
 
 // virtual
-void GLayerConvolutional1D::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerConvolutional1D::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
-	GAssert(inputStart == 0);
 	GAssert(pUpStreamLayer->outputs() == inputs());
 	double* pUpStreamErr = pUpStreamLayer->error();
 	double* pDownStreamErr = error();
@@ -1655,6 +1656,7 @@ void GLayerConvolutional1D::copyWeights(const GNeuralNetLayer* pSource)
 	GLayerConvolutional1D* src = (GLayerConvolutional1D*)pSource;
 	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	GVec::copy(bias(), src->bias(), src->m_kernels.rows());
+	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
 // virtual
@@ -1890,9 +1892,8 @@ void GLayerConvolutional2D::deactivateError()
 }
 
 // virtual
-void GLayerConvolutional2D::backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart)
+void GLayerConvolutional2D::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
-	GAssert(inputStart == 0);
 	GAssert(pUpStreamLayer->outputs() == inputs());
 	double* pUpStreamErr = pUpStreamLayer->error();
 	double* pDownStreamErr = error();
@@ -2042,6 +2043,7 @@ void GLayerConvolutional2D::copyWeights(const GNeuralNetLayer* pSource)
 	GLayerConvolutional2D* src = (GLayerConvolutional2D*)pSource;
 	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	GVec::copy(bias(), src->bias(), src->m_kernelCount);
+	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
 // virtual

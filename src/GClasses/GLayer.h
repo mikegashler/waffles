@@ -89,9 +89,7 @@ public:
 	virtual void deactivateError() = 0;
 
 	/// Computes the activation error of the layer that feeds into this one.
-	/// inputStart is used if multiple layers feed into this one. It specifies
-	/// the starting index of all the inputs where this layer feeds in.
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0) = 0;
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) = 0;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -211,7 +209,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -409,7 +407,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Calls backPropError for each component, and adds them up into the upstreams error buffer.
 	/// (Note that the current implementation of this method may not be compatible with GPU-optimized layers.
 	/// This method still needs to be audited for compatibility with such layers.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -519,7 +517,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -692,7 +690,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -824,7 +822,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)

@@ -115,7 +115,7 @@ public:
 	/// Backpropagates the error from this layer into the upstream error vector.
 	/// (Assumes that the error in this layer has already been deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer, size_t inputStart = 0);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
 
 	/// Updates the weights that feed into this layer (not including the bias) by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)

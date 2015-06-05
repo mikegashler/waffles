@@ -1221,6 +1221,73 @@ void GNeuralNet_testMath()
 	}
 }
 
+void GNeuralNet_testHingeMath()
+{
+	GMatrix features(1, 2);
+	GMatrix labels(1, 2);
+	GNeuralNet nn;
+	GActivationHinge* pAct1 = new GActivationHinge();
+	nn.addLayer(new GLayerClassic(2, 3, pAct1));
+	GActivationHinge* pAct2 = new GActivationHinge();
+	nn.addLayer(new GLayerClassic(3, 2, pAct2));
+	nn.setLearningRate(0.1);
+	nn.beginIncrementalLearning(features.relation(), labels.relation());
+	if(nn.countWeights() != 22)
+		throw Ex("Wrong number of weights");
+	GLayerClassic& layerHidden = *(GLayerClassic*)&nn.layer(0);
+	layerHidden.bias()[0] = 0.1;
+	layerHidden.weights()[0][0] = 0.1;
+	layerHidden.weights()[1][0] = 0.1;
+	layerHidden.bias()[1] = 0.1;
+	layerHidden.weights()[0][1] = 0.0;
+	layerHidden.weights()[1][1] = 0.0;
+	layerHidden.bias()[2] = 0.0;
+	layerHidden.weights()[0][2] = 0.1;
+	layerHidden.weights()[1][2] = -0.1;
+	GLayerClassic& layerOut = *(GLayerClassic*)&nn.layer(1);
+	layerOut.bias()[0] = 0.1;
+	layerOut.weights()[0][0] = 0.1;
+	layerOut.weights()[1][0] = 0.1;
+	layerOut.weights()[2][0] = 0.1;
+	layerOut.bias()[1] = -0.2;
+	layerOut.weights()[0][1] = 0.1;
+	layerOut.weights()[1][1] = 0.3;
+	layerOut.weights()[2][1] = -0.1;
+	features[0][0] = 0.3;
+	features[0][1] = -0.2;
+	labels[0][0] = 0.1;
+	labels[0][1] = 0.0;
+	double* pHinge1 = pAct1->alphas();
+	double* pHinge2 = pAct2->alphas();
+	GVec::setAll(pHinge1, 0.0, 3);
+	GVec::setAll(pHinge2, 0.0, 2);
+	nn.trainIncremental(features[0], labels[0]);
+	if(std::abs(layerHidden.activation()[0] - 0.11) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(layerHidden.activation()[1] - 0.1) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(layerHidden.activation()[2] - 0.05) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(layerOut.activation()[0] - 0.126) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(layerOut.activation()[1] + 0.164) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(layerOut.error()[0] + 0.025999999999999995) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(layerOut.error()[1] - 0.164) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(pHinge1[0] - 1.6500700636595332E-5) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(pHinge1[1] - 4.614309333423788E-5) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(pHinge1[2] + 4.738184006484504E-6) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(pHinge2[0] + 4.064229382785025E-5) > 1e-9)
+		throw Ex("failed");
+	if(std::abs(pHinge2[1] - 4.2982897628915964E-4) > 1e-9)
+		throw Ex("failed");
+}
+
 void GNeuralNet_testConvolutionalLayerMath()
 {
 	GLayerConvolutional1D layer(4, 2, 3, 2, new GActivationIdentity());
@@ -1596,6 +1663,7 @@ void GNeuralNet::test()
 {
 	GRand prng(0);
 	GNeuralNet_testMath();
+	GNeuralNet_testHingeMath();
 	GNeuralNet_testBinaryClassification(&prng);
 	GNeuralNet_testInputGradient(&prng);
 	GNeuralNet_testInvertAndSwap(prng);

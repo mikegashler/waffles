@@ -85,7 +85,7 @@ public:
 	static GActivationFunction* deserialize(GDomNode* pNode);
 
 	/// Returns the number of weights in this activation function. (Most activation functions have none, so the default implementation returns 0.)
-	virtual double countWeights() { return 0; }
+	virtual size_t countWeights() { return 0; }
 
 	/// Serialize the weights in this activation function. (Most activation functions have none, so the default implementation is a noop.)
 	virtual size_t weightsToVector(double* pOutVector) { return 0; }
@@ -361,7 +361,7 @@ public:
 	virtual GActivationFunction* clone();
 
 	/// Returns the number of weights in this activation function.
-	virtual double countWeights();
+	virtual size_t countWeights();
 
 	/// Serialize the weights in this activation function.
 	virtual size_t weightsToVector(double* pOutVector);
@@ -458,7 +458,7 @@ public:
 	virtual GActivationFunction* clone();
 
 	/// Returns the number of weights in this activation function.
-	virtual double countWeights();
+	virtual size_t countWeights();
 
 	/// Serialize the weights in this activation function.
 	virtual size_t weightsToVector(double* pOutVector);

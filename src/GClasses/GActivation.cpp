@@ -192,7 +192,7 @@ void GActivationHinge::resize(size_t units)
 	m_units = units;
 	m_error.resize(units);
 	m_hinges.resize(units);
-	GVec::setAll(m_hinges.v, 0.0, units);
+	GVec::setAll(m_hinges.v, 0.5, units);
 	m_delta.resize(units);
 	GVec::setAll(m_delta.v, 0.0, units);
 }
@@ -265,7 +265,7 @@ GActivationFunction* GActivationHinge::clone()
 }
 
 // virtual
-double GActivationHinge::countWeights()
+size_t GActivationHinge::countWeights()
 {
 	return m_units;
 }
@@ -407,7 +407,7 @@ GActivationFunction* GActivationLogExp::clone()
 }
 
 // virtual
-double GActivationLogExp::countWeights()
+size_t GActivationLogExp::countWeights()
 {
 	return m_units;
 }
