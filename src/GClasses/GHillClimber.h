@@ -230,6 +230,7 @@ public:
 
 	/// Sets the momentum value
 	void setMomentum(double d) { m_dMomentum = d; }
+
 protected:
 	void reset();
 };

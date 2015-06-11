@@ -844,6 +844,17 @@ void GVec::floorValues(double* pVec, double floor, size_t dims)
 	}
 }
 
+// static
+void GVec::absValues(double* pVec, size_t dims)
+{
+	while(true)
+	{
+		*pVec = std::abs(*pVec);
+		if(--dims == 0)
+			return;
+	}
+}
+
 #ifndef MIN_PREDICT
 // static
 void GVec::test()

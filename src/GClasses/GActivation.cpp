@@ -172,6 +172,7 @@ GActivationHinge::GActivationHinge(GDomNode* pNode)
 	GDomListIterator it(pNode->field("hinges"));
 	m_units = it.remaining();
 	m_error.resize(m_units);
+	m_hinges.resize(m_units);
 	GVec::deserialize(m_hinges.v, it);
 	m_delta.resize(m_units);
 	GVec::setAll(m_delta.v, 0.0, m_units);
@@ -307,6 +308,7 @@ GActivationLogExp::GActivationLogExp(GDomNode* pNode)
 	GDomListIterator it(pNode->field("alphas"));
 	m_units = it.remaining();
 	m_error.resize(m_units);
+	m_alphas.resize(m_units);
 	GVec::deserialize(m_alphas.v, it);
 	m_delta.resize(m_units);
 	GVec::setAll(m_delta.v, 0.0, m_units);
@@ -349,10 +351,11 @@ void GActivationLogExp::updateDeltas(const double* pNet, const double* pActivati
 	for(size_t i = 0; i < m_units; i++)
 	{
 		*pD *= momentum;
-		if(*pAlpha >= 0)
-			*pD += (*pErr) * ((*pN) * exp(*pAlpha * (*pN)) - (*pN));
+		double t1 = (*pAlpha) * (*pN);
+		if(*pAlpha >= 0.0)
+			*pD += *pErr * (exp(t1) * (t1 - 1.0) + 1.0) / (*pAlpha * *pAlpha);
 		else
-			*pD += 1.0 / (*pErr) * ((*pAct) * exp(std::min(300.0, -(*pAlpha) * (*pAct))) - (*pAct));
+			*pD += *pErr * (t1 / (1.0 - t1) + log(1.0 - t1)) / (*pAlpha * *pAlpha);
 		pN++;
 		pAct++;
 		pErr++;

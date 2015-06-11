@@ -1130,6 +1130,8 @@ void GMatrixFactorization::train(GMatrix& data)
 		double* pVec = m_pP->row(i);
 		for(size_t j = 0; j < colsP; j++)
 			*(pVec++) = 0.02 * m_rand.normal();
+		if(m_nonNeg)
+			GVec::absValues(m_pP->row(i) + 1, m_intrinsicDims);
 	}
 	delete(m_pQ);
 	m_pQ = new GMatrix(items, 1 + m_intrinsicDims);
@@ -1138,6 +1140,8 @@ void GMatrixFactorization::train(GMatrix& data)
 		double* pVec = m_pQ->row(i);
 		for(size_t j = 0; j <= m_intrinsicDims; j++)
 			*(pVec++) = 0.02 * m_rand.normal();
+		if(m_nonNeg)
+			GVec::absValues(m_pQ->row(i) + 1, m_intrinsicDims);
 	}
 
 	// Make a shallow copy of the data (so we can shuffle it)
@@ -2161,8 +2165,8 @@ void GLogNet::train(GMatrix& data)
 	GLayerClassic inputLayer(0, totalInputs, new GActivationIdentity());
 /*
 	// Relax by stochastic gradient descent
-	double learningRate = 0.001;
-	for(size_t i = 0; i < 100000; i++)
+	double learningRate = 0.0001;
+	for(size_t i = 0; i < 10000; i++)
 	{
 		size_t index = (size_t)m_pModel->rand().next(data.rows());
 		double* pRow = data[index];
@@ -2182,10 +2186,20 @@ void GLogNet::train(GMatrix& data)
 */
 
 	// Relax by batch gradient descent
+	GMatrix PDelta(m_pP->rows(), m_pP->cols());
+	GMatrix QDelta(m_pQ->rows(), m_pQ->cols());
 	double learningRate = 0.00001;
 	double* pFeat = inputLayer.activation();
 	for(size_t i = 0; i < 1000; i++)
 	{
+		// Regularize
+		m_pP->multiply(1.0 - learningRate * 0.0001);
+		m_pQ->multiply(1.0 - learningRate * 0.0001);
+		m_pModel->scaleWeights(1.0 - learningRate * 0.0001);
+		m_pModel->regularizeActivationFunctions(1.0 - learningRate * 0.01);
+
+		PDelta.setAll(0.0);
+		QDelta.setAll(0.0);
 		double* pRow = data[0];
 		size_t user = (size_t)pRow[0];
 		size_t item = (size_t)pRow[1];
@@ -2196,7 +2210,8 @@ void GLogNet::train(GMatrix& data)
 		m_pModel->backpropagate(&targ);
 		m_pModel->layer(0).backPropError(&inputLayer);
 		m_pModel->updateDeltas(pFeat, 0.0);
-
+		GVec::add(PDelta[user], inputLayer.error(), m_intrinsicDims + 1);
+		GVec::add(QDelta[item], inputLayer.error() + m_intrinsicDims + 1, m_intrinsicDims + 1);
 		for(size_t j = 1; j < data.rows(); j++)
 		{
 			pRow = data[j];
@@ -2209,10 +2224,15 @@ void GLogNet::train(GMatrix& data)
 			m_pModel->backpropagate(&targ);
 			m_pModel->layer(0).backPropError(&inputLayer);
 			m_pModel->updateDeltas(pFeat, 1.0);
-			
+			GVec::add(PDelta[user], inputLayer.error(), m_intrinsicDims + 1);
+			GVec::add(QDelta[item], inputLayer.error() + m_intrinsicDims + 1, m_intrinsicDims + 1);
 		}
-		m_pModel->applyDeltas(learningRate / data.rows());
-		//m_pModel->regularizeActivationFunctions(learningRate * 0.000);
+		double lr = learningRate / data.rows();
+		m_pModel->applyDeltas(lr);
+		PDelta.multiply(lr);
+		m_pP->add(&PDelta);
+		QDelta.multiply(lr);
+		m_pQ->add(&QDelta);
 	}
 
 }

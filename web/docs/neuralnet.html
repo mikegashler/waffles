@@ -625,6 +625,84 @@ int main(int argc, char *argv[])
 }
 </pre>
 
+<br><br>
+<h3>Adaptive learning rate</h3>
+
+<p>As an example, let's suppose you wanted to make a neural network with an adaptive learning rate.
+Here's an example of how you could do something like that. It trains two neural networks,
+one with a larger learning rate, and one with a smaller learning rate. At periodic intervals,
+the learning rate is updated from the one that is doing better:</p>
+
+<pre class="code">
+class AdaptiveLearner
+{
+public:
+	GNeuralNet nn1;
+	GNeuralNet nn2;
+	GAutoFilter af;
+	double learningRate;
+	const GMatrix&amp; features;
+	const GMatrix&amp; labels;
+	GRandomIndexIterator ii;
+
+
+	AdaptiveLearner(const GMatrix&amp; feat, const GMatrix&amp; lab)
+	: af(&amp;nn1, false), features(feat), labels(lab), ii(feat.rows(), nn1.rand())
+	{
+		learningRate = 1e-8;
+		nn1.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1500));
+		nn1.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000));
+		nn1.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 500));
+		nn1.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		af.beginIncrementalLearning(feat.relation(), lab.relation());
+		nn2.copyStructure(&amp;nn1);
+	}
+
+	double validate(const GMatrix&amp; feat, const GMatrix&amp; lab)
+	{
+		return af.sumSquaredError(feat, lab) / lab.rows();
+	}
+
+	void trainEpoch()
+	{
+		ii.reset();
+		size_t index;
+		double sse1 = 0.0;
+		double sse2 = 0.0;
+		size_t counter = 0;
+		nn1.setLearningRate(learningRate * 0.8);
+		nn2.setLearningRate(learningRate * 1.25);
+		while(ii.next(index))
+		{
+			const double* pIn = af.prefilterFeatures(features[index]);
+			const double* pTarg = af.prefilterLabels(labels[index]);
+			nn1.trainIncremental(pIn, pTarg);
+			nn2.trainIncremental(pIn, pTarg);
+			sse1 += GVec::squaredDistance(nn1.outputLayer().activation(), pTarg, nn1.outputLayer().outputs());
+			sse2 += GVec::squaredDistance(nn2.outputLayer().activation(), pTarg, nn2.outputLayer().outputs());
+			if(++counter &gt;= 2000)
+			{
+				// Dynamically tune the learning rate
+				counter = 0;
+				if(sse1 &lt; sse2)
+				{
+					nn1.copyWeights(&amp;nn2);
+					learningRate = std::max(1e-8, learningRate * 0.8);
+				}
+				else if(sse2 &lt; sse1)
+				{
+					nn2.copyWeights(&amp;nn1);
+					learningRate = std::min(0.1, learningRate * 1.25);
+				}
+				sse1 = 0.0;
+				sse2 = 0.0;
+			}
+		}
+	}
+};
+</pre>
+
+
 <!--
 <br><br>
 <h3>Inference with Generative Backpropagation</h3>

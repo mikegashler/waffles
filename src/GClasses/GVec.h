@@ -238,6 +238,9 @@ public:
 
 	/// Sets each value, v, to MAX(floor, v)
 	static void floorValues(double* pVec, double floor, size_t dims);
+
+	/// Sets each value, v, to ABS(v)
+	static void absValues(double* pVec, size_t dims);
 };
 
 

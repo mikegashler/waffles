@@ -557,7 +557,7 @@ public:
 	/// Adds the values in pThat to this. (If transpose is true, adds
 	/// the transpose of pThat to this.) Both datasets must have the
 	/// same dimensions. Behavior is undefined for nominal columns.
-	void add(const GMatrix* pThat, bool transpose);
+	void add(const GMatrix* pThat, bool transpose = false);
 
 	/// \brief Copies the specified range of columns (including meta-data) from that matrix into this matrix,
 	/// replacing all data currently in this matrix.

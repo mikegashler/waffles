@@ -442,38 +442,15 @@ double GMath::productLog(double x)
 	return w2;
 }
 
-/*
-double GMath_logexp(const double* params, double x)
-{
-	return exp(*params * x) - 1.0 + (1.0 - *params) * x;
-}
-*/
-
 // static
 double GMath::logExp(double alpha, double x)
 {
-	if(alpha >= 0.0)
-		return exp(alpha * x) - 1.0 + (1.0 - alpha) * x;
+	if(alpha > 1e-12)
+		return (exp(std::min(300.0, alpha * x)) - 1.0) / alpha;
+	else if(alpha < -1e-12)
+		return -(log(std::max(1e-130, 1.0 - alpha * x))) / alpha;
 	else
-	{
-/*
-		// Use an iterative hack to invert the case where alpha >= 0.0
-		double x1 = log(std::max(1.0, x)) + x * (1.0 - alpha);
-		double params = -alpha;
-		return functionInverse(GMath_logexp, &params, x, x1, x1 + 1e-3, 1e-9);
-*/
-		// An inverse that depends on productLog (which is calculated iteratively)
-		alpha = -alpha;
-		if(alpha >= 1.0)
-			return log(std::max(1e-14, x + 1.0));
-		double t1 = alpha - 1.0;
-		double t2 = x + 1.0;
-		double t4 = -alpha / t1;
-		double t3 = t4 * exp(std::min(300.0, t4 * t2));
-		if(t3 < -1.0 / M_E)
-			return -INFINITY;
-		return -(t1 * productLog(t3) + alpha * t2) / (alpha * t1);
-	}
+		return x;
 }
 
 // static
