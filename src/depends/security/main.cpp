@@ -121,8 +121,6 @@ UsageNode* makeCryptoUsageTree()
 		pOpts->add("-compress", "Take a lot longer, but produce a smaller encrypted archive file. (This feature really isn't very usable yet.)");
 	}
 	{
-	}
-	{
 		UsageNode* pLogKeys = pRoot->add("logkeys [filename] <options>", "Log key-strokes to the specified file. (The program will exit if the panic-sequence \"xqwertx\" is detected.)");
 		UsageNode* pOpts = pLogKeys->add("<options>");
 		pOpts->add("-daemon", "Launch as a daemon. (Forks off a daemon that keeps running in the background and immediately exits.)");
