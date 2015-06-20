@@ -144,22 +144,26 @@ int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
 		bool ok = true;
 		switch(szFormat[0])
 		{
+			case 'y':
 			case 'Y':
 				ts.tm_year = GTime_parseVal(buf, 1000, 3000, &ok) - 1900;
 				break;
 			case 'M':
 				ts.tm_mon = GTime_parseVal(buf, 1, 12, &ok) - 1;
 				break;
+			case 'd':
 			case 'D':
 				ts.tm_mday = GTime_parseVal(buf, 1, 31, &ok);
 				break;
 			case 'h':
+			case 'H':
 				ts.tm_hour = GTime_parseVal(buf, 0, 23, &ok);
 				break;
 			case 'm':
 				ts.tm_min = GTime_parseVal(buf, 0, 59, &ok);
 				break;
 			case 's':
+			case 'S':
 				ts.tm_sec = GTime_parseVal(buf, 0, 61, &ok);
 				break;
 			default:

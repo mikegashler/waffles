@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Output</title>
+	</head>
+	<body>
+		<script type="text/javascript">
+			var hash = window.location.hash.substr(1);
+			var locs = hash.split(";");
+			
+			for(var i = 0; i < locs.length; i++)
+			{
+				//locs[i] = locs[i] + ".svg";
+				
+				var id = "iframe" + i;
+				document.write("<iframe id='" + id + "' style='border: 0' src='" + locs[i] + "' width=1200 height=900></iframe><br />" + locs[i] + "<br /><br />");
+			}
+			
+			setInterval(function()
+			{
+				for(var i = 0; i < locs.length; i++)
+				{
+					document.getElementById("iframe" + i).contentWindow.location.reload();
+				}
+			}, 500);
+		</script>
+	</body>
+</html>

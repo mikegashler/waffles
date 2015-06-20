@@ -83,9 +83,10 @@ void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) c
 		stream << "@ATTRIBUTE ";
 		printAttrName(stream, i);
 		stream << "\t";
-		if(valueCount(i) == 0)
+		size_t vals = valueCount(i);
+		if(vals == 0) // continuous
 			stream << "real";
-		else
+		else if(vals < (size_t)10) // nominal
 		{
 			stream << "{";
 			for(size_t j = 0; j < valueCount(i); j++)
@@ -96,6 +97,10 @@ void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) c
 			}
 			stream << "}";
 		}
+		else if(vals == (size_t)-1) // string
+			stream << "string";
+		else if(vals == (size_t)-2) // date
+			stream << "real";
 		stream << "\n";
 	}
 
@@ -117,14 +122,14 @@ void GRelation::printAttrName(std::ostream& stream, size_t column) const
 void GRelation::printAttrValue(ostream& stream, size_t column, double value, const char* missing) const
 {
 	size_t valCount = valueCount(column);
-	if(valCount == 0)
+	if(valCount == 0) // continuous
 	{
 		if(value == UNKNOWN_REAL_VALUE)
 			stream << "?";
 		else
 			stream << value;
 	}
-	else
+	else if(valCount < (size_t)-10) // nominal
 	{
 		int val = (int)value;
 		if(val < 0)
@@ -141,6 +146,14 @@ void GRelation::printAttrValue(ostream& stream, size_t column, double value, con
 		else
 			stream << "_" << val;
 	}
+	else if(valCount == (size_t)-1) // string
+	{
+		stream << "<string>";
+	}
+	else if(valCount == (size_t)-2) // date
+		stream << value;
+	else
+		throw Ex("Unexpected attribute type");
 }
 
 // virtual
@@ -724,7 +737,21 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 			addAttribute(name.c_str(), 0, NULL);
 		}
 		else if(_stricmp(szType, "STRING") == 0)
-			addAttribute(name.c_str(), -1, NULL);
+			addAttribute(name.c_str(), (size_t)-1, NULL);
+		else if(_stricmp(szType, "DATE") == 0)
+		{
+			name += ":";
+			tok.skip(tok.m_spaces);
+			while(true)
+			{
+				char c = tok.peek();
+				if(c == '\n' || c == '\r')
+					break;
+				name += c;
+				tok.advance(1);
+			}
+			addAttribute(name.c_str(), (size_t)-2, NULL);
+		}
 		else
 			throw Ex("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
 	}
@@ -742,14 +769,14 @@ void GArffRelation::printAttrName(std::ostream& stream, size_t column) const
 void GArffRelation::printAttrValue(ostream& stream, size_t column, double value, const char* missing) const
 {
 	size_t valCount = valueCount(column);
-	if(valCount == 0)
+	if(valCount == 0) // continuous
 	{
 		if(value == UNKNOWN_REAL_VALUE)
 			stream << missing;
 		else
 			stream << value;
 	}
-	else
+	else if(valCount < (size_t)-10) // nominal
 	{
 		int val = (int)value;
 		if(val < 0)
@@ -768,6 +795,14 @@ void GArffRelation::printAttrValue(ostream& stream, size_t column, double value,
 		else
 			stream << "_" << val;
 	}
+	else if(valCount == (size_t)-1) // string
+	{
+		stream << "<string>";
+	}
+	else if(valCount == (size_t)-2) // date
+		stream << value;
+	else
+		throw Ex("Unexpected attribute type");
 }
 
 // virtual
@@ -1107,7 +1142,7 @@ inline bool IsRealValue(const char* szValue)
 double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVal, GTokenizer& tok)
 {
 	size_t vals = pRelation->valueCount(col);
-	if(vals == 0)
+	if(vals == 0) // Continuous
 	{
 		// Continuous attribute
 		if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
@@ -1119,7 +1154,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 			return atof(szVal);
 		}
 	}
-	else if(vals != INVALID_INDEX)
+	else if(vals < (size_t)-10) // Nominal
 	{
 		// Nominal attribute
 		if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
@@ -1132,8 +1167,23 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 			return (double)nVal;
 		}
 	}
-	else
+	else if(vals == (size_t)-1) // String
 		return 0.0;
+	else if(vals == (size_t)-2) // Date
+	{
+		const char* szFormat = pRelation->attrName(col);
+		while(*szFormat != ':' && *szFormat != '\0')
+			szFormat++;
+		if(*szFormat == '\0')
+			throw Ex("Invalid date format string");
+		szFormat++;
+		time_t t;
+		if(!GTime::fromString(&t, szVal, szFormat))
+			throw Ex("The string, ", szVal, " does not fit the specified date format, ", szFormat);
+		return (double)t;
+	}
+	else
+		throw Ex("Unexpected attribute type, ", to_str(vals));
 }
 
 #ifndef MIN_PREDICT
@@ -1191,6 +1241,7 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 		}
 		else if(c == '{')
 		{
+			// Parse ARFF sparse data format
 			tok.advance(1);
 			double* pRow = newRow();
 			GVec::setAll(pRow, 0.0, cols);
@@ -1229,6 +1280,7 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 		}
 		else
 		{
+			// Parse ARFF dense data format
 			double* pRow = newRow();
 			size_t col = 0;
 			while(true)

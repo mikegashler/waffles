@@ -1590,7 +1590,8 @@ void PrintStats(GArgReader& args)
 	for(size_t i = 0; i < pRel->size();)
 	{
 		cout << "  " << i << ") " << pRel->attrName(i) << ", ";
-		if(pRel->valueCount(i) == 0)
+		size_t vals = pRel->valueCount(i);
+		if(vals == 0) // continuous
 		{
 			cout << "Type: Continuous, ";
 			try
@@ -1608,7 +1609,7 @@ void PrintStats(GArgReader& args)
 			}
 			cout << "Missing:" << pData->countValue(i, UNKNOWN_REAL_VALUE) << "\n";
 		}
-		else
+		else if(vals < (size_t)-10)
 		{
 			cout << "Type: Nominal, ";
 			cout << "Values:" << pRel->valueCount(i) << ", ";
@@ -1637,6 +1638,16 @@ void PrintStats(GArgReader& args)
 				cout << " (" << ((double)mostCommonOccurrences * 100.0 / pData->rows()) << "%)\n";
 			}
 		}
+		else if(vals == (size_t)-1) // string;
+		{
+			cout << "Type: String\n";
+		}
+		else if(vals == (size_t)-2) // date;
+		{
+			cout << "Type: Date\n";
+		}
+		else
+			throw Ex("Unexpected number of values");
 		size_t prevI = i;
 		if(i < 2)
 			i++;
