@@ -18,6 +18,7 @@
 */
 
 // todo: add a unit test for waffles_ts and GNeuralDecomposition
+// todo: add a way to feed in features and labels at the same time
 
 #include <iostream>
 #include <vector>

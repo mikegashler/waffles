@@ -227,8 +227,11 @@ void GNeuralDecomposition::trainIncremental(const double *pIn, const double *pOu
 	// L1 regularization
 	m_nn->outputLayer().diminishWeights(m_learningRate * m_regularization, true);
 	
+	// Filter input
+	double in = (*pIn - m_featureBias) / m_featureScale;
+	
 	// Backpropagation
-	m_nn->trainIncremental(pIn, pOut);
+	m_nn->trainIncremental(&in, pOut);
 }
 
 void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)

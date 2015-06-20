@@ -99,8 +99,9 @@ GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 	GDomNode* pLayerList = pNode->addField(pDoc, "layers", pDoc->newList());
 	for(size_t i = 0; i < m_layers.size(); i++)
 		pLayerList->addItem(pDoc, m_layers[i]->serialize(pDoc));
-
+	
 	// Add other settings
+	
 	pNode->addField(pDoc, "learningRate", pDoc->newDouble(m_learningRate));
 	pNode->addField(pDoc, "momentum", pDoc->newDouble(m_momentum));
 	pNode->addField(pDoc, "ib", pDoc->newBool(m_useInputBias));
