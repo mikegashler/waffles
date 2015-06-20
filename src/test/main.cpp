@@ -2,7 +2,8 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
-    Eric Moyer
+    Luke B. Godfrey,
+    Eric Moyer,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -60,6 +61,7 @@
 #include "../GClasses/GNaiveBayes.h"
 #include "../GClasses/GNaiveInstance.h"
 #include "../GClasses/GNeighborFinder.h"
+#include "../GClasses/GNeuralDecomposition.h"
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GPolynomial.h"
 #include "../GClasses/GPriorityQueue.h"
@@ -934,6 +936,7 @@ public:
 		runTest("GMomentumGreedySearch", GMomentumGreedySearch::test);
 		runTest("GNaiveBayes", GNaiveBayes::test);
 		runTest("GNaiveInstance", GNaiveInstance::test);
+		runTest("GNeuralDecomposition", GNeuralDecomposition::test);
 		runTest("GNeuralNet", GNeuralNet::test);
 		runTest("GNeuralNetPseudoInverse", GNeuralNetPseudoInverse::test);
 		runTest("GNonlinearPCA", GNonlinearPCA::test);

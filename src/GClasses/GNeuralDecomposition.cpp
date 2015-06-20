@@ -125,11 +125,6 @@ void GNeuralDecomposition::predictDistribution(const double *pIn, GPrediction *p
 	m_nn->predictDistribution(pIn, pOut);
 }
 
-void GNeuralDecomposition::clear()
-{
-	// intentionally empty
-}
-
 void GNeuralDecomposition::trainInner(const GMatrix &features, const GMatrix &labels)
 {
 	if(features.cols() != 1)
@@ -238,6 +233,48 @@ void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)
 {
 	// todo: implement this
 	throw Ex("Neural decomposition does not work with trainSparse!");
+}
+
+// static
+// todo: determine why the threshold has to be so high
+void GNeuralDecomposition::test()
+{
+	double step = 0.02;
+	double threshold = 0.5;
+	
+	size_t testSize = 1.0 / step;
+	
+	GMatrix series(testSize, 1), test(testSize, 1);
+	for(size_t i = 0; i < testSize * 2; i++)
+	{
+		double x = i / (double) testSize;
+		double y = sin(4.1 * M_PI * x) + x;
+		
+		if(i < testSize)
+			series[i][0] = y;
+		else
+			test[i - testSize][0] = y;
+	}
+	
+	GNeuralDecomposition nd;
+	nd.setEpochs(10000);
+	nd.trainOnSeries(series);
+	GMatrix *out = nd.extrapolate(1.0, 1.0, 1.0 / testSize);
+	
+	double rmse = 0.0;
+	for(size_t i = 0; i < testSize; i++)
+	{
+		double err = test[i][0] - out->row(i)[0];
+		rmse += err * err;
+	}
+	rmse = sqrt(rmse / testSize);
+	
+	delete out;
+	
+	if(rmse > threshold)
+	{
+		throw Ex("Neural decomposition failed to extrapolate toy problem.");
+	}
 }
 
 }

@@ -56,11 +56,13 @@ class GNeuralDecomposition: public GIncrementalLearner
 		virtual GDomNode *serialize(GDom *pDoc) const;
 		virtual void predict(const double *pIn, double *pOut);
 		virtual void predictDistribution(const double *pIn, GPrediction *pOut);
-		virtual void clear();
+		virtual void clear() {}
 		
 		// GIncrementalLearner
 		virtual void trainIncremental(const double *pIn, const double *pOut);
 		virtual void trainSparse(GSparseMatrix &features, GMatrix &labels);
+		
+		static void test();
 	
 	protected:
 		virtual void trainInner(const GMatrix &features, const GMatrix &labels);
