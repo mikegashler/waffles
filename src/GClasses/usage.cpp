@@ -170,6 +170,7 @@ UsageNode* makeMasterUsageTree()
 	pRoot->choices().push_back(makeRecommendUsageTree());
 	pRoot->choices().push_back(makeSparseUsageTree());
 	pRoot->choices().push_back(makeTransformUsageTree());
+	pRoot->choices().push_back(makeTimeSeriesUsageTree());
 	return pRoot;
 };
 
@@ -1874,6 +1875,41 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		pRoot->add("usage", "Print usage information.");
+	}
+	return pRoot;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+UsageNode* makeTimeSeriesUsageTree()
+{
+	UsageNode* pRoot = new UsageNode("waffles_ts [command]", "Analyze and extrapolate time-series data.");
+	{
+		UsageNode *pAdd = pRoot->add("train [dataset] <options>", "Trains an instance of Neural Decomposition on a time-series dataset.");
+		pAdd->add("[dataset]=time-series.arff", "The filename of the dataset.");
+		UsageNode *pOpts = pAdd->add("<options>");
+		pOpts->add("-regularization [value]=0.01", "Specify the L1 regularization amount.");
+		pOpts->add("-learningRate [value]=0.001", "Specify the learning rate.");
+		pOpts->add("-linearUnits [value]=1", "Specify the number of linear units to use to augment sinusoid units.");
+		pOpts->add("-epochs [value]=1000", "Specify the number of epochs to train the model.");
+		pOpts->add("-features [dataset]", "Specify a features matrix instead of generating one automatically. Must be a single-column matrix in arff format.");
+	}
+	{
+		UsageNode *pPredict = pRoot->add("extrapolate [model-file] <options>", "Use a trained model to extrapolate time-series data.");
+		UsageNode *pOpts = pPredict->add("<options>");
+		pOpts->add("-start [value]=1.0", "Specify where to begin extrapolation. 0 represents the beginning of the training data, 1 represents the beginning of the testing data.");
+		pOpts->add("-length [value]=1.0", "Specify how far into the future to extrapolate. 1 represents the length of the training data.");
+		pOpts->add("-step [value]=0.0002", "Specify how tight to make predictions.");
+		pOpts->add("-features [dataset]", "Specify a features matrix instead of generating one automatically. Must be a single-column matrix in arff format. If this is set, then start, length, and step will be ignored.");
 	}
 	return pRoot;
 }

@@ -5,12 +5,12 @@ export INSTALL_LOCATION_BIN="/usr/local/bin"
 ifeq ($(UNAME),Darwin)
 	export DARWIN_BASE="/usr/X11"
 endif
-SUBDIRS= _GClasses _wizard _audio _cluster _dimred _learn _plot _recommend _sparse _test _transform
+SUBDIRS= _GClasses _wizard _audio _cluster _dimred _learn _plot _recommend _sparse _test _transform _ts
 DBG_SUBDIRS= $(SUBDIRS:_%=DBG_%)
 OPT_SUBDIRS= $(SUBDIRS:_%=OPT_%)
 CLEAN_SUBDIRS= $(SUBDIRS:_%=CLEAN_%)
-INSTALL_SUBDIRS= INSTALL_GClasses INSTALL_wizard INSTALL_audio INSTALL_cluster INSTALL_dimred INSTALL_learn INSTALL_plot INSTALL_recommend INSTALL_sparse INSTALL_transform INSTALL_test
-UNINSTALL_SUBDIRS= UNINSTALL_GClasses UNINSTALL_wizard UNINSTALL_audio UNINSTALL_cluster UNINSTALL_dimred UNINSTALL_learn UNINSTALL_plot UNINSTALL_recommend UNINSTALL_sparse UNINSTALL_transform UNINSTALL_test
+INSTALL_SUBDIRS= INSTALL_GClasses INSTALL_wizard INSTALL_audio INSTALL_cluster INSTALL_dimred INSTALL_learn INSTALL_plot INSTALL_recommend INSTALL_sparse INSTALL_transform INSTALL_ts INSTALL_test
+UNINSTALL_SUBDIRS= UNINSTALL_GClasses UNINSTALL_wizard UNINSTALL_audio UNINSTALL_cluster UNINSTALL_dimred UNINSTALL_learn UNINSTALL_plot UNINSTALL_recommend UNINSTALL_sparse UNINSTALL_transform UNINSTALL_ts UNINSTALL_test
 
 .PHONY: dbg opt install uninstall $(DBG_SUBDIRS) $(OPT_SUBDIRS)
 

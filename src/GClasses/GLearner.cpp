@@ -31,6 +31,7 @@
 #include "GKNN.h"
 #include "GDecisionTree.h"
 #include "GNaiveInstance.h"
+#include "GNeuralDecomposition.h"
 #include "GNeuralNet.h"
 #include "GLinear.h"
 #include "GNaiveBayes.h"
@@ -1004,6 +1005,8 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 						return new GNaiveBayes(pNode, *this);
 					else if(strcmp(szClass, "GNaiveInstance") == 0)
 						return new GNaiveInstance(pNode, *this);
+					else if(strcmp(szClass, "GNeuralDecomposition") == 0)
+						return new GNeuralDecomposition(pNode, *this);
 					else if(strcmp(szClass, "GNeuralNet") == 0)
 						return new GNeuralNet(pNode, *this);
 				}

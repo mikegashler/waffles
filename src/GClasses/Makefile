@@ -88,6 +88,7 @@ CPP_FILES = \
 	GNaiveBayes.cpp\
 	GNaiveInstance.cpp\
 	GNeighborFinder.cpp\
+	GNeuralDecomposition.cpp\
 	GNeuralNet.cpp\
 	GOptimizer.cpp\
 	GParticleSwarm.cpp\
