@@ -107,6 +107,20 @@ void Train(GArgReader &args)
 	LoadData(args, hSeries);
 	GMatrix *pSeries = hSeries.get();
 	
+	// Split features/labels
+	if(pSeries->cols() == 2)
+	{
+		GMatrix *pFeatures = pSeries->cloneSub(0, 0, pSeries->rows(), 1);
+		GMatrix *pLabels = pSeries->cloneSub(0, 1, pSeries->rows(), 1);
+		hFeatures.reset(pFeatures);
+		hSeries.reset(pLabels);
+		pSeries = pLabels;
+	}
+	else if(pSeries->cols() > 2)
+	{
+		throw Ex("Too many columns!");
+	}
+	
 	// Parse options
 	GNeuralDecomposition *nd = new GNeuralDecomposition();
 	while(args.next_is_flag())
