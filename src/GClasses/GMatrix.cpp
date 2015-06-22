@@ -82,7 +82,7 @@ void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) c
 	{
 		stream << "@ATTRIBUTE ";
 		printAttrName(stream, i);
-		stream << "\t";
+		stream << " ";
 		size_t vals = valueCount(i);
 		if(vals == 0) // continuous
 			stream << "real";
