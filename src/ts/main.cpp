@@ -157,6 +157,10 @@ void Train(GArgReader &args)
 		nd->setFeatureBias(pFeatures->columnMin(0));
 	}
 	
+	// Preprocess series
+	nd->setOutputScale(pSeries->columnMax(0) - pSeries->columnMin(0));
+	nd->setOutputBias(pSeries->columnMin(0));
+	
 	// Train
 	GMatrix *pFeatures = hFeatures.get();
 	nd->train(*pFeatures, *pSeries);

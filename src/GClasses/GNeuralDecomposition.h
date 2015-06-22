@@ -41,6 +41,8 @@ class GNeuralDecomposition: public GIncrementalLearner
 		void setLearningRate(double learningRate) { m_learningRate = learningRate; }
 		void setFeatureScale(double featureScale) { m_featureScale = featureScale; }
 		void setFeatureBias(double featureBias) { m_featureBias = featureBias; }
+		void setOutputScale(double outputScale) { m_outputScale = outputScale; }
+		void setOutputBias(double outputBias) { m_outputBias = outputBias; }
 		void setLinearUnits(size_t linearUnits) { m_linearUnits = linearUnits; }
 		void setSinusoidUnits(size_t sinusoidUnits) { m_sinusoidUnits = sinusoidUnits; }
 		void setEpochs(size_t epochs) { m_epochs = epochs; }
@@ -50,6 +52,8 @@ class GNeuralDecomposition: public GIncrementalLearner
 		double learningRate() const { return m_learningRate; }
 		double featureScale() const { return m_featureScale; }
 		double featureBias() const { return m_featureBias; }
+		double outputScale() const { return m_outputScale; }
+		double outputBias() const { return m_outputBias; }
 		size_t epochs() const { return m_epochs; }
 		
 		// GSupervisedLearner
@@ -70,7 +74,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 	
 	private:
 		GNeuralNet *m_nn;
-		double m_regularization, m_learningRate, m_featureScale, m_featureBias;
+		double m_regularization, m_learningRate, m_featureScale, m_featureBias, m_outputScale, m_outputBias;
 		size_t m_linearUnits, m_sinusoidUnits, m_epochs;
 };
 

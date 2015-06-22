@@ -17,6 +17,8 @@
   our code to be useful, the Waffles team would love to hear how you use it.
 */
 
+// todo: don't assume single column features/labels
+
 #include "GNeuralDecomposition.h"
 #include "GActivation.h"
 #include "GDom.h"
@@ -24,7 +26,7 @@
 namespace GClasses {
 
 GNeuralDecomposition::GNeuralDecomposition()
-: GIncrementalLearner(), m_regularization(0.01), m_learningRate(0.001), m_featureScale(1.0), m_featureBias(0.0), m_linearUnits(1), m_sinusoidUnits(0), m_epochs(1000)
+: GIncrementalLearner(), m_regularization(0.01), m_learningRate(0.001), m_featureScale(1.0), m_featureBias(0.0), m_outputScale(1.0), m_outputBias(0.0), m_linearUnits(1), m_sinusoidUnits(0), m_epochs(1000)
 {
 	m_nn = new GNeuralNet();
 }
@@ -37,6 +39,8 @@ GNeuralDecomposition::GNeuralDecomposition(GDomNode *pNode, GLearnerLoader &ll)
 	m_learningRate = pNode->field("learningRate")->asDouble();
 	m_featureScale = pNode->field("featureScale")->asDouble();
 	m_featureBias = pNode->field("featureBias")->asDouble();
+	m_outputScale = pNode->field("outputScale")->asDouble();
+	m_outputBias = pNode->field("outputBias")->asDouble();
 	m_linearUnits = pNode->field("linearUnits")->asInt();
 	m_sinusoidUnits = pNode->field("sinusoidUnits")->asInt();
 	m_epochs = pNode->field("epochs")->asInt();
@@ -109,6 +113,8 @@ GDomNode *GNeuralDecomposition::serialize(GDom *pDoc) const
 	pNode->addField(pDoc, "learningRate", pDoc->newDouble(m_learningRate));
 	pNode->addField(pDoc, "featureScale", pDoc->newDouble(m_featureScale));
 	pNode->addField(pDoc, "featureBias", pDoc->newDouble(m_featureBias));
+	pNode->addField(pDoc, "outputScale", pDoc->newDouble(m_outputScale));
+	pNode->addField(pDoc, "outputBias", pDoc->newDouble(m_outputBias));
 	pNode->addField(pDoc, "linearUnits", pDoc->newInt(m_linearUnits));
 	pNode->addField(pDoc, "sinusoidUnits", pDoc->newInt(m_sinusoidUnits));
 	pNode->addField(pDoc, "epochs", pDoc->newInt(m_epochs));
@@ -118,6 +124,7 @@ GDomNode *GNeuralDecomposition::serialize(GDom *pDoc) const
 void GNeuralDecomposition::predict(const double *pIn, double *pOut)
 {
 	m_nn->predict(pIn, pOut);
+	*pOut = *pOut * 0.1 * m_outputScale + m_outputBias;
 }
 
 void GNeuralDecomposition::predictDistribution(const double *pIn, GPrediction *pOut)
@@ -225,8 +232,11 @@ void GNeuralDecomposition::trainIncremental(const double *pIn, const double *pOu
 	// Filter input
 	double in = (*pIn - m_featureBias) / m_featureScale;
 	
+	// Filter output
+	double out = 10.0 * (*pOut - m_outputBias) / m_outputScale;
+	
 	// Backpropagation
-	m_nn->trainIncremental(&in, pOut);
+	m_nn->trainIncremental(&in, &out);
 }
 
 void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)
