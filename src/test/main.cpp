@@ -30,6 +30,7 @@
 #ifdef WINDOWS
 #	include <direct.h>
 #endif
+#include "../GClasses/GActivation.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GAssignment.h"
 #include "../GClasses/GBayesianNetwork.h"
@@ -879,6 +880,8 @@ public:
 	void runAllTests()
 	{
 		// Class tests
+		runTest("GActivationHinge", GActivationHinge::test);
+		runTest("GActivationLogExp", GActivationLogExp::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAnnealing", GAnnealing::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);

@@ -314,6 +314,11 @@ public:
 	/// Unmarshaling constructor
 	GActivationHinge(GDomNode* pNode);
 
+#ifndef MIN_PREDICT
+	/// Performs unit testing. Throws an exception if any test fails.
+	static void test();
+#endif
+
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "hinge"; }
 
@@ -391,6 +396,11 @@ public:
 	/// Unmarshaling constructor
 	GActivationLogExp(GDomNode* pNode);
 
+#ifndef MIN_PREDICT
+	/// Performs unit testing. Throws an exception if any test fails.
+	static void test();
+#endif
+
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "logexp"; }
 
@@ -410,12 +420,14 @@ public:
 	virtual double derivative(double x, size_t index)
 	{
 		double a = m_alphas.v[index];
-		if(a > 1e-12)
-			return exp(a * x);
-		else if(a < -1e-12)
-			return 1.0 / (1.0 - a * x);
+		double d;
+		if(a < -1e-12)
+			d = 1.0 / std::max(0.0033, 1.0 - a * x);
+		else if(a > 1e-12)
+			d = exp(std::min(5.8/*300.0*/, a * x));
 		else
-			return 1.0;
+			d = 1.0;
+		return d;//tanh(d);
 	}
 
 	/// Returns the inverse of the bend function

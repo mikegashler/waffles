@@ -264,8 +264,8 @@ void GHillClimber::test()
 // --------------------------------------------------------------------------------
 
 
-GAnnealing::GAnnealing(GTargetFunction* pTargetFunc, double initialDeviation, double decay, GRand* pRand)
-: GOptimizer(pTargetFunc), m_initialDeviation(initialDeviation), m_decay(decay), m_pRand(pRand)
+GAnnealing::GAnnealing(GTargetFunction* pTargetFunc, GRand* pRand)
+: GOptimizer(pTargetFunc), m_initialDeviation(1.0), m_pRand(pRand)
 {
 	if(!pTargetFunc->relation()->areContinuous(0, pTargetFunc->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
@@ -291,17 +291,23 @@ void GAnnealing::reset()
 
 /*virtual*/ double GAnnealing::iterate()
 {
-	if(!m_pCritic->isStable())
-		m_dError = m_pCritic->computeError(m_pVector);
-	for(size_t i = 0; i < m_dims; i++)
-		m_pCandidate[i] = m_pVector[i] + m_pRand->normal() * m_deviation;
-	double cand = m_pCritic->computeError(m_pCandidate);
-	if(cand < m_dError)
+	for(size_t j = 0; j < 5; j++)
 	{
-		std::swap(m_pVector, m_pCandidate);
-		m_dError = cand;
+		if(!m_pCritic->isStable())
+			m_dError = m_pCritic->computeError(m_pVector);
+		for(size_t i = 0; i < m_dims; i++)
+			m_pCandidate[i] = m_pVector[i] + m_pRand->normal() * m_deviation;
+		double cand = m_pCritic->computeError(m_pCandidate);
+		if(cand < m_dError)
+		{
+			std::swap(m_pVector, m_pCandidate);
+			m_dError = cand;
+			m_deviation *= 1.5;
+		}
+		m_deviation *= 0.95;
+		if(m_deviation < 1e-14)
+			m_deviation = m_initialDeviation;
 	}
-	m_deviation *= m_decay;
 	return m_dError;
 }
 
@@ -311,7 +317,7 @@ void GAnnealing::test()
 {
 	GRand rand(0);
 	GOptimizerBasicTestTargetFunction target;
-	GAnnealing opt(&target, 5.0, 0.96, &rand);
+	GAnnealing opt(&target, &rand);
 	opt.basicTest(0.00017);
 }
 #endif
@@ -341,7 +347,7 @@ double GRandomDirectionBinarySearch::iterate()
 {
 	m_pRand->spherical(m_direction.v, m_dims);
 	double sum = 0.0;
-	for(size_t i = 0; i < 16; i++)
+	for(size_t i = 0; i < 20; i++)
 	{
 		GVec::addScaled(m_current.v, m_stepSize, m_direction.v, m_dims);
 		double pos = m_pCritic->computeError(m_current.v);
@@ -365,7 +371,7 @@ double GRandomDirectionBinarySearch::iterate()
 			{
 				GVec::addScaled(m_current.v, m_stepSize, m_direction.v, m_dims);
 				m_stepSize *= 0.5;
-				if(m_stepSize < 1e-20)
+				if(m_stepSize < 1e-16)
 					m_stepSize = 1.0; // No progress. Might as well try something new.
 			}
 		}

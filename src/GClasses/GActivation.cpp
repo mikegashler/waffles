@@ -291,6 +291,80 @@ void GActivationHinge::copyWeights(const GActivationFunction* pOther)
 	GVec::copy(m_hinges.v, ((GActivationHinge*)pOther)->m_hinges.v, m_units);
 }
 
+#ifndef MIN_PREDICT
+// static
+void GActivationHinge::test()
+{
+	// Make a neural network
+	GNeuralNet nn;
+	GActivationHinge* pAct1 = new GActivationHinge();
+	GLayerClassic* pLay1 = new GLayerClassic(2, 3, pAct1);
+	GActivationHinge* pAct2 = new GActivationHinge();
+	GLayerClassic* pLay2 = new GLayerClassic(3, 2, pAct2);
+	GActivationHinge* pAct3 = new GActivationHinge();
+	GLayerClassic* pLay3 = new GLayerClassic(2, 2, pAct3);
+	nn.addLayer(pLay1);
+	nn.addLayer(pLay2);
+	nn.addLayer(pLay3);
+	nn.setLearningRate(0.1);
+	nn.setMomentum(0.0);
+	GUniformRelation rel(2);
+	nn.beginIncrementalLearning(rel, rel);
+	pLay1->perturbWeights(nn.rand(), 0.03);
+	pLay2->perturbWeights(nn.rand(), 0.1);
+	pLay3->perturbWeights(nn.rand(), 0.3);
+	GVec::perturb(pAct1->alphas(), 0.1, pLay1->outputs(), nn.rand());
+	GVec::perturb(pAct2->alphas(), 0.1, pLay2->outputs(), nn.rand());
+	GVec::perturb(pAct3->alphas(), 0.1, pLay3->outputs(), nn.rand());
+	double in[2];
+	double out[2];
+	nn.rand().spherical(in, 2);
+	nn.rand().spherical(out, 2);
+
+	// Measure baseline error
+	nn.forwardProp(in);
+	double errBase = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double epsilon = 1e-6;
+
+	// Empirically measure gradient of a weight
+	double beforeWeight = pLay2->weights()[1][1];
+	pLay2->weights()[1][1] += epsilon;
+	nn.forwardProp(in);
+	double errWeight = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	pLay2->weights()[1][1] = beforeWeight;
+	
+	// Empirically measure gradient of a bias
+	double beforeBias = pLay2->bias()[1];
+	pLay2->bias()[1] += epsilon;
+	nn.forwardProp(in);
+	double errBias = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	pLay2->bias()[1] = beforeBias;
+
+	// Empirically measure gradient of an alpha
+	double beforeAlpha = pAct2->alphas()[1];
+	pAct2->alphas()[1] += epsilon;
+	nn.forwardProp(in);
+	double errAlpha = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	pAct2->alphas()[1] = beforeAlpha;
+
+	// Update the weights by gradient descent
+	nn.trainIncremental(in, out);
+
+	// Check the result
+	double empiricalGradientWeight = (errWeight - errBase) / epsilon;
+	double computedGradientWeight = -2.0 * (pLay2->weights()[1][1] - beforeWeight) / nn.learningRate();
+	double empiricalGradientBias = (errBias - errBase) / epsilon;
+	double computedGradientBias = -2.0 * (pLay2->bias()[1] - beforeBias) / nn.learningRate();
+	double empiricalGradientAlpha = (errAlpha - errBase) / epsilon;
+	double computedGradientAlpha = -2.0 * (pAct2->alphas()[1] - beforeAlpha) / nn.learningRate();
+	if(std::abs(empiricalGradientWeight - computedGradientWeight) > 1e-5)
+		throw Ex("failed");
+	if(std::abs(empiricalGradientBias - computedGradientBias) > 1e-5)
+		throw Ex("failed");
+	if(std::abs(empiricalGradientAlpha - computedGradientAlpha) > 1e-5)
+		throw Ex("failed");
+}
+#endif
 
 
 
@@ -352,10 +426,14 @@ void GActivationLogExp::updateDeltas(const double* pNet, const double* pActivati
 	{
 		*pD *= momentum;
 		double t1 = (*pAlpha) * (*pN);
-		if(*pAlpha >= 0.0)
-			*pD += *pErr * (exp(t1) * (t1 - 1.0) + 1.0) / (*pAlpha * *pAlpha);
+		double delta;
+		if(*pAlpha < 1e-8)
+			delta = (t1 / (std::max(1e-12, 1.0 - t1)) + log(std::max(1e-12, 1.0 - t1))) / (*pAlpha * *pAlpha);
+		else if(*pAlpha > 1e-8)
+			delta = (exp(std::min(300.0, t1)) * (t1 - 1.0) + 1.0) / (*pAlpha * *pAlpha);
 		else
-			*pD += *pErr * (t1 / (1.0 - t1) + log(1.0 - t1)) / (*pAlpha * *pAlpha);
+			delta += 0.5 * (*pN) * (*pN);
+		*pD += *pErr * tanh(delta); // The tanh is not really part of the derivative, but it helps to ensure that no single pattern will have too much influence on the whole model.
 		pN++;
 		pAct++;
 		pErr++;
@@ -434,6 +512,81 @@ void GActivationLogExp::copyWeights(const GActivationFunction* pOther)
 {
 	GVec::copy(m_alphas.v, ((GActivationLogExp*)pOther)->m_alphas.v, m_units);
 }
+
+#ifndef MIN_PREDICT
+// static
+void GActivationLogExp::test()
+{
+	// Make a neural network
+	GNeuralNet nn;
+	GActivationLogExp* pAct1 = new GActivationLogExp();
+	GLayerClassic* pLay1 = new GLayerClassic(2, 3, pAct1);
+	GActivationLogExp* pAct2 = new GActivationLogExp();
+	GLayerClassic* pLay2 = new GLayerClassic(3, 2, pAct2);
+	GActivationLogExp* pAct3 = new GActivationLogExp();
+	GLayerClassic* pLay3 = new GLayerClassic(2, 2, pAct3);
+	nn.addLayer(pLay1);
+	nn.addLayer(pLay2);
+	nn.addLayer(pLay3);
+	nn.setLearningRate(0.1);
+	nn.setMomentum(0.0);
+	GUniformRelation rel(2);
+	nn.beginIncrementalLearning(rel, rel);
+	pLay1->perturbWeights(nn.rand(), 0.03);
+	pLay2->perturbWeights(nn.rand(), 0.1);
+	pLay3->perturbWeights(nn.rand(), 0.3);
+	GVec::perturb(pAct1->alphas(), 0.1, pLay1->outputs(), nn.rand());
+	GVec::perturb(pAct2->alphas(), 0.1, pLay2->outputs(), nn.rand());
+	GVec::perturb(pAct3->alphas(), 0.1, pLay3->outputs(), nn.rand());
+	double in[2];
+	double out[2];
+	nn.rand().spherical(in, 2);
+	nn.rand().spherical(out, 2);
+
+	// Measure baseline error
+	nn.forwardProp(in);
+	double errBase = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double epsilon = 1e-6;
+
+	// Empirically measure gradient of a weight
+	double beforeWeight = pLay2->weights()[1][1];
+	pLay2->weights()[1][1] += epsilon;
+	nn.forwardProp(in);
+	double errWeight = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	pLay2->weights()[1][1] = beforeWeight;
+	
+	// Empirically measure gradient of a bias
+	double beforeBias = pLay2->bias()[1];
+	pLay2->bias()[1] += epsilon;
+	nn.forwardProp(in);
+	double errBias = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	pLay2->bias()[1] = beforeBias;
+
+	// Empirically measure gradient of an alpha
+	double beforeAlpha = pAct2->alphas()[1];
+	pAct2->alphas()[1] += epsilon;
+	nn.forwardProp(in);
+	double errAlpha = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	pAct2->alphas()[1] = beforeAlpha;
+
+	// Update the weights by gradient descent
+	nn.trainIncremental(in, out);
+
+	// Check the result
+	double empiricalGradientWeight = (errWeight - errBase) / epsilon;
+	double computedGradientWeight = -2.0 * (pLay2->weights()[1][1] - beforeWeight) / nn.learningRate();
+	double empiricalGradientBias = (errBias - errBase) / epsilon;
+	double computedGradientBias = -2.0 * (pLay2->bias()[1] - beforeBias) / nn.learningRate();
+	double empiricalGradientAlpha = (errAlpha - errBase) / epsilon;
+	double computedGradientAlpha = -2.0 * (pAct2->alphas()[1] - beforeAlpha) / nn.learningRate();
+	if(std::abs(empiricalGradientWeight - computedGradientWeight) > 1e-5)
+		throw Ex("failed");
+	if(std::abs(empiricalGradientBias - computedGradientBias) > 1e-5)
+		throw Ex("failed");
+	if(std::abs(empiricalGradientAlpha - computedGradientAlpha) > 1e-5)
+		throw Ex("failed");
+}
+#endif
 
 } // namespace GClasses
 
