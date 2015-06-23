@@ -478,6 +478,15 @@ void correlation(GArgReader& args)
 	cout << corr << "\n";
 }
 
+void covariance(GArgReader& args)
+{
+	GMatrix* pA = loadData(args.pop_string());
+	Holder<GMatrix> hA(pA);
+	GMatrix* pB = pA->covarianceMatrix();
+	Holder<GMatrix> hB(pB);
+	pB->print(cout);
+}
+
 void cumulativeColumns(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -2324,6 +2333,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("cholesky")) cholesky(args);
 		else if(args.if_pop("colstats")) colstats(args);
 		else if(args.if_pop("correlation")) correlation(args);
+		else if(args.if_pop("covariance")) covariance(args);
 		else if(args.if_pop("cumulativecolumns")) cumulativeColumns(args);
 		else if(args.if_pop("determinant")) determinant(args);
 		else if(args.if_pop("discretize")) Discretize(args);

@@ -574,7 +574,7 @@ public:
 	/// Behavior is undefined if there are nominal attributes. If
 	/// tolerant is true, it will return even if it cannot compute
 	/// accurate results. If tolerant is false (the default) and this
-	/// matrix is not positive definate, it will throw an exception.
+	/// matrix is not positive definite, it will throw an exception.
 	GMatrix* cholesky(bool tolerant = false);
 
 	/// \brief Makes a deep copy of the specified rectangular region of
@@ -958,7 +958,7 @@ public:
 	/// or else return UNKNOWN_REAL_VALUE.
 	double columnMean(size_t nAttribute, const double* pWeights = NULL, bool throwIfEmpty = true) const;
 
-	/// \brief Computes the average variance of a single attribute
+	/// \brief Computes the sample variance of a single attribute
 	double columnVariance(size_t nAttr, double mean) const;
 
 #ifndef MIN_PREDICT
