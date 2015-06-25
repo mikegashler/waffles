@@ -410,9 +410,9 @@ void GVec::regularize_1_5(double* pVector, double amount, size_t nDims)
 	for(size_t i = 0; i < nDims; i++)
 	{
 		if(*pVector < 0.0)
-			*pVector += amount * sqrt(-*pVector);
+			*pVector = std::min(0.0, *pVector + amount * sqrt(-*pVector));
 		else
-			*pVector -= amount * sqrt(*pVector);
+			*pVector = std::max(0.0, *pVector - amount * sqrt(*pVector));
 		pVector++;
 	}
 }
@@ -423,9 +423,9 @@ void GVec::regularize_1(double* pVector, double amount, size_t nDims)
 	for(size_t i = 0; i < nDims; i++)
 	{
 		if(*pVector < 0.0)
-			*pVector += amount;
+			*pVector = std::min(0.0, *pVector + amount);
 		else
-			*pVector -= amount;
+			*pVector = std::max(0.0, *pVector - amount);
 		pVector++;
 	}
 }

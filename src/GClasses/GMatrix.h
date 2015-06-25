@@ -958,6 +958,9 @@ public:
 	/// or else return UNKNOWN_REAL_VALUE.
 	double columnMean(size_t nAttribute, const double* pWeights = NULL, bool throwIfEmpty = true) const;
 
+	/// Returns the squared magnitude of the vector in the specified column.
+	double columnSquaredMagnitude(size_t col) const;
+
 	/// \brief Computes the sample variance of a single attribute
 	double columnVariance(size_t nAttr, double mean) const;
 

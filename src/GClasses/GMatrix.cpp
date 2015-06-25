@@ -86,7 +86,7 @@ void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) c
 		size_t vals = valueCount(i);
 		if(vals == 0) // continuous
 			stream << "real";
-		else if(vals < (size_t)10) // nominal
+		else if(vals < (size_t)-10) // nominal
 		{
 			stream << "{";
 			for(size_t j = 0; j < valueCount(i); j++)
@@ -3116,6 +3116,19 @@ void GMatrix::centroid(double* pOutMeans, const double* pWeights) const
 	size_t c = cols();
 	for(size_t n = 0; n < c; n++)
 		pOutMeans[n] = columnMean(n, pWeights);
+}
+
+double GMatrix::columnSquaredMagnitude(size_t col) const
+{
+	double dSum = 0;
+	for(vector<double*>::const_iterator it = m_rows.begin(); it != m_rows.end(); it++)
+	{
+		if((*it)[col] == UNKNOWN_REAL_VALUE)
+			continue;
+		double d = (*it)[col];
+		dSum += (d * d);
+	}
+	return dSum;
 }
 
 double GMatrix::columnVariance(size_t nAttr, double mean) const
