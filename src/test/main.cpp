@@ -30,6 +30,7 @@
 #ifdef WINDOWS
 #	include <direct.h>
 #endif
+#include "../GClasses/GActivation.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GAssignment.h"
 #include "../GClasses/GBayesianNetwork.h"
@@ -168,11 +169,11 @@ std::string golf_arff_dataset(){
 return
   "@RELATION Golf\n"
   "\n"
-  "@ATTRIBUTE Play\treal\n"
-  "@ATTRIBUTE Outlook\treal\n"
-  "@ATTRIBUTE Temperature\treal\n"
-  "@ATTRIBUTE Humidity\treal\n"
-  "@ATTRIBUTE Wind\treal\n"
+  "@ATTRIBUTE Play real\n"
+  "@ATTRIBUTE Outlook real\n"
+  "@ATTRIBUTE Temperature real\n"
+  "@ATTRIBUTE Humidity real\n"
+  "@ATTRIBUTE Wind real\n"
   "\n"
   "@DATA\n"
   "-1,1,1,1,-1\n"
@@ -328,7 +329,7 @@ void test_transform_keeponly()
     (
      "@RELATION Golf\n"
      "\n"
-     "@ATTRIBUTE Outlook\treal\n"
+     "@ATTRIBUTE Outlook real\n"
      "\n"
      "@DATA\n"
      "1\n"
@@ -356,7 +357,7 @@ void test_transform_keeponly()
     (
      "@RELATION Golf\n"
      "\n"
-     "@ATTRIBUTE Wind\treal\n"
+     "@ATTRIBUTE Wind real\n"
      "\n"
      "@DATA\n"
      "-1\n"
@@ -384,8 +385,8 @@ void test_transform_keeponly()
     (
      "@RELATION Golf\n"
      "\n"
-     "@ATTRIBUTE Play\treal\n"
-     "@ATTRIBUTE Wind\treal\n"
+     "@ATTRIBUTE Play real\n"
+     "@ATTRIBUTE Wind real\n"
      "\n"
      "@DATA\n"
      "-1,-1\n"
@@ -413,11 +414,11 @@ void test_transform_keeponly()
     (
      "@RELATION Golf\n"
      "\n"
-     "@ATTRIBUTE Play\treal\n"
-     "@ATTRIBUTE Outlook\treal\n"
-     "@ATTRIBUTE Temperature\treal\n"
-     "@ATTRIBUTE Humidity\treal\n"
-     "@ATTRIBUTE Wind\treal\n"
+     "@ATTRIBUTE Play real\n"
+     "@ATTRIBUTE Outlook real\n"
+     "@ATTRIBUTE Temperature real\n"
+     "@ATTRIBUTE Humidity real\n"
+     "@ATTRIBUTE Wind real\n"
      "\n"
      "@DATA\n"
      "-1,1,1,1,-1\n"
@@ -879,6 +880,8 @@ public:
 	void runAllTests()
 	{
 		// Class tests
+		runTest("GActivationHinge", GActivationHinge::test);
+		runTest("GActivationLogExp", GActivationLogExp::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAnnealing", GAnnealing::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);

@@ -138,7 +138,7 @@ protected:
 	GRand* m_pRand;
 
 public:
-	GAnnealing(GTargetFunction* pTargetFunc, double initialDeviation, double decay, GRand* pRand);
+	GAnnealing(GTargetFunction* pTargetFunc, GRand* pRand);
 	virtual ~GAnnealing();
 
 #ifndef MIN_PREDICT

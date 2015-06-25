@@ -1572,6 +1572,7 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pCorr->add("<options>");
 		pOpts->add("-aboutorigin", "Compute the correlation about the origin. (The default is to compute it about the mean.)");
 	}
+	pRoot->add("covariance [dataset]=in.arff", "Compute the covariance matrix of the specified matrix.");
 	{
 		UsageNode* pNode = pRoot->add("colstats [dataset]", "Generates a 4-row table. Row 0 contains the min value of each column in [dataset]. Row 1 contains the max value of each column in [dataset]. Row 2 contains the mean value of each column in [dataset]. Row 3 contains the median value of each column in [dataset].");
 		pNode->add("[dataset]=data.arff", "The filename of a dataset.");

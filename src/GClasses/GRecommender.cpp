@@ -2165,21 +2165,41 @@ void GLogNet::train(GMatrix& data)
 	GLayerClassic inputLayer(0, totalInputs, new GActivationIdentity());
 /*
 	// Relax by stochastic gradient descent
-	double learningRate = 0.0001;
+	double learningRate = 0.00001;
 	for(size_t i = 0; i < 10000; i++)
 	{
+		// Stochastically choose a pattern
 		size_t index = (size_t)m_pModel->rand().next(data.rows());
 		double* pRow = data[index];
 		size_t user = (size_t)pRow[0];
 		size_t item = (size_t)pRow[1];
 		GVec::copy(m_input.v, m_pP->row(user), m_intrinsicDims + 1);
 		GVec::copy(m_input.v + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
-		m_pModel->regularizeActivationFunctions(0.001);
+		
+		// Regularize everything
+		m_pModel->regularizeActivationFunctions(learningRate * 0.0001);
+		m_pModel->scaleWeights(1.0 - learningRate * 0.0001);
+		GVec::multiply(m_input.v, 1.0 - learningRate * 0.0001, totalInputs);
+		
+		// Update everything
 		m_pModel->forwardProp(m_input.v);
 		m_pModel->backpropagate(&pRow[2], learningRate);
 		m_pModel->layer(0).backPropError(&inputLayer);
 		m_pModel->descendGradient(m_input.v, learningRate, 0.0);
 		GVec::addScaled(m_input.v, learningRate, inputLayer.error(), totalInputs);
+		
+		// Clip everything
+		GVec::floorValues(m_input.v, 0.0, totalInputs);
+		for(size_t i = 0; i < m_pModel->layerCount(); i++)
+		{
+			GLayerClassic* pLay = (GLayerClassic*)&m_pModel->layer(i);
+			GMatrix& w = pLay->weights();
+			for(size_t j = 0; j < w.rows(); j++)
+				GVec::floorValues(w[j], 0.0, w.cols());
+			GVec::floorValues(pLay->bias(), 0.0, w.cols());
+		}
+		
+		// Store the updated profiles
 		GVec::copy(m_pP->row(user), m_input.v, m_intrinsicDims + 1);
 		GVec::copy(m_pQ->row(item), m_input.v + m_intrinsicDims + 1, m_intrinsicDims + 1);
 	}
@@ -2188,7 +2208,7 @@ void GLogNet::train(GMatrix& data)
 	// Relax by batch gradient descent
 	GMatrix PDelta(m_pP->rows(), m_pP->cols());
 	GMatrix QDelta(m_pQ->rows(), m_pQ->cols());
-	double learningRate = 0.00001;
+	double learningRate = 0.001;
 	double* pFeat = inputLayer.activation();
 	for(size_t i = 0; i < 1000; i++)
 	{
@@ -2196,7 +2216,7 @@ void GLogNet::train(GMatrix& data)
 		m_pP->multiply(1.0 - learningRate * 0.0001);
 		m_pQ->multiply(1.0 - learningRate * 0.0001);
 		m_pModel->scaleWeights(1.0 - learningRate * 0.0001);
-		m_pModel->regularizeActivationFunctions(1.0 - learningRate * 0.01);
+		m_pModel->regularizeActivationFunctions(learningRate * 0.0001);
 
 		PDelta.setAll(0.0);
 		QDelta.setAll(0.0);
