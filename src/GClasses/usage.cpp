@@ -1650,6 +1650,7 @@ UsageNode* makeTransformUsageTree()
 		pGD->add("[max]=1.0", "The maximum acceptable value");
 		UsageNode* pOpts = pGD->add("<options>");
 		pOpts->add("-invert", "Drop the row if the value falls within the range instead of dropping it if the value does not fall within the range.");
+		pOpts->add("-preserveOrder", "Preserve the order of the input matrix. By default, the delete operation does not guarantee the order will be preserved.");
 	}
 	{
 		UsageNode* pGD = pRoot->add("function [dataset] [equations]", "Compute new data as a function of some existing data. Each row in the output is computed from the corresponding row of the input dataset. Each equation, f1, f2, f3, ... will produce one column in the output data.");

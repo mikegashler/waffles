@@ -1855,10 +1855,13 @@ void filterRows(GArgReader& args)
 	double dmax = args.pop_double();
 
 	bool invert = false;
+	bool preserveOrder = false;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-invert"))
 			invert = true;
+		else if(args.if_pop("-preserveOrder"))
+			preserveOrder = true;
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -1869,7 +1872,12 @@ void filterRows(GArgReader& args)
 		{
 			double val = pData->row(i)[attr];
 			if(val >= dmin && val <= dmax)
-				pData->deleteRow(i);
+			{
+				if(preserveOrder)
+					pData->deleteRowPreserveOrder(i);
+				else
+					pData->deleteRow(i);
+			}
 		}
 	}
 	else
@@ -1878,7 +1886,12 @@ void filterRows(GArgReader& args)
 		{
 			double val = pData->row(i)[attr];
 			if(val == UNKNOWN_REAL_VALUE || val < dmin || val > dmax)
-				pData->deleteRow(i);
+			{
+				if(preserveOrder)
+					pData->deleteRowPreserveOrder(i);
+				else
+					pData->deleteRow(i);
+			}
 		}
 	}
 	pData->print(cout);
