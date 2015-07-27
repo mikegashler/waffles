@@ -1815,8 +1815,8 @@ void open(GArgReader& args)
 		//cout << "	l) Leave the files decrypted. (Never choose this option.)\n";
 		cout << "Enter your choice (q or s)? ";
 		cout.flush();
-		char choice[2];
-		cin.getline(choice, 2);
+		char choice[1024];
+		cin.getline(choice, 1023);
 		if(_stricmp(choice, "q") == 0)
 		{
 			shred(basename.c_str());
@@ -1852,7 +1852,7 @@ void open(GArgReader& args)
 		}
 		else if(_stricmp(choice, "l") == 0)
 			break;
-		cout << "\n\nInvalid choice.\n\n";
+		cout << "\n\nInvalid choice: \"" << choice << "\".\n\n";
 	}
 }
 

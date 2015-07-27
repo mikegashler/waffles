@@ -422,9 +422,9 @@ public:
 		double a = m_alphas.v[index];
 		double d;
 		if(a < -1e-12)
-			d = 1.0 / std::max(0.0033, 1.0 - a * x);
+			d = 1.0 / std::max(0.0033, 1.0 - a * (a + x)); // maxes out at about 300
 		else if(a > 1e-12)
-			d = exp(std::min(5.8/*300.0*/, a * x));
+			d = exp(std::min(5.8/*300.0*/, a * x)); // maxes out at about 300
 		else
 			d = 1.0;
 		return d;//tanh(d);

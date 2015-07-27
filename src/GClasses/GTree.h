@@ -459,36 +459,41 @@ public:
 			return this;
 	}
 
+	/// This should typically only be called through one of the methods in GRelationalTable.
+	/// Returns a row that matches in the specified column, or NULL if there is no match.
 	template<typename Comp>
 	GRelationalRow<T>* find(T r, size_t start, size_t* outIndex, size_t c, Comp& comp)
 	{
 		if(comp(r, row, c))
 			return el[c].left ? el[c].left->find(r, start, outIndex, c, comp) : NULL;
-		else if(r > row)
-			return el[c].right ? el[c].right->find(r, el[c].left ? start + el[c].left->size + 1 : start + 1, outIndex, c, comp) : NULL;
+		else if(comp(row, r, c))
+			return el[c].right ? el[c].right->find(r, el[c].left ? start + el[c].left->el[c].size + 1 : start + 1, outIndex, c, comp) : NULL;
 		else
 		{
 			if(outIndex)
-				*outIndex = start + (el[c].left ? el[c].left->size : 0);
+				*outIndex = start + (el[c].left ? el[c].left->el[c].size : 0);
 			return this;
 		}
 	}
 
+	/// This should typically only be called through one of the methods in GRelationalTable.
+	/// Returns a row that matches in the specified column, or an adjacent row if there is no exact match.
 	template<typename Comp>
 	GRelationalRow<T>* approximate(T r, size_t start, size_t* outIndex, size_t c, Comp& comp)
 	{
 		if(comp(r, row, c))
-			return el[c].left ? el[c].left->find(r, start, outIndex, c, comp) : this;
-		else if(r > row)
-			return el[c].right ? el[c].right->find(r, el[c].left ? start + el[c].left->size + 1 : start + 1, outIndex, c, comp) : this;
+			return el[c].left ? el[c].left->approximate(r, start, outIndex, c, comp) : this;
+		else if(comp(row, r, c))
+			return el[c].right ? el[c].right->approximate(r, el[c].left ? start + el[c].left->el[c].size + 1 : start + 1, outIndex, c, comp) : this;
 		else
 		{
 			if(outIndex)
-				*outIndex = start + (el[c].left ? el[c].left->size : 0);
+				*outIndex = start + (el[c].left ? el[c].left->el[c].size : 0);
 			return this;
 		}
 	}
 
+	/// This should typically only be called through GRelationalTable::remove.
 	template<typename Comp>
 	GRelationalRow<T>* remove(size_t c, Comp& comp)
 	{
@@ -582,6 +587,7 @@ public:
 };
 
 
+/// See GTree.cpp for an example of how to use this class.
 template <typename T, typename Comp>
 class GRelationalTable
 {
@@ -659,7 +665,7 @@ public:
 	{
 		if(!roots[col])
 			return NULL;
-		GRelationalRow<T>* node = roots[col].approximate(row, 0, outIndex, col, comp);
+		GRelationalRow<T>* node = roots[col]->approximate(row, 0, outIndex, col, comp);
 		while(true)
 		{
 			GRelationalRow<T>* prev = node->prev(col);

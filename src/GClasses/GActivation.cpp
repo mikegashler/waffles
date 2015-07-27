@@ -425,15 +425,16 @@ void GActivationLogExp::updateDeltas(const double* pNet, const double* pActivati
 	for(size_t i = 0; i < m_units; i++)
 	{
 		*pD *= momentum;
-		double t1 = (*pAlpha) * (*pN);
+		double t1 = (*pAlpha * *pAlpha);
+		double t2 = (*pAlpha * *pN);
 		double delta;
 		if(*pAlpha < 1e-8)
-			delta = (t1 / (std::max(1e-12, 1.0 - t1)) + log(std::max(1e-12, 1.0 - t1))) / (*pAlpha * *pAlpha);
+			delta = (log(std::max(1e-12, 1.0 - (t1 + t2))) - (t1 + t1 + t2) / (t1 + t2 - 1.0)) / t1;
 		else if(*pAlpha > 1e-8)
-			delta = (exp(std::min(300.0, t1)) * (t1 - 1.0) + 1.0) / (*pAlpha * *pAlpha);
+			delta = (t1 + (t2 - 1.0) * exp(std::min(300.0, t2)) + 1.0) / t1;
 		else
-			delta += 0.5 * (*pN) * (*pN);
-		*pD += *pErr * tanh(delta); // The tanh is not really part of the derivative, but it helps to ensure that no single pattern will have too much influence on the whole model.
+			delta = 0.5 * (*pN) * (*pN) + 1.0;
+		*pD += *pErr * delta;
 		pN++;
 		pAct++;
 		pErr++;
@@ -579,11 +580,11 @@ void GActivationLogExp::test()
 	double computedGradientBias = -2.0 * (pLay2->bias()[1] - beforeBias) / nn.learningRate();
 	double empiricalGradientAlpha = (errAlpha - errBase) / epsilon;
 	double computedGradientAlpha = -2.0 * (pAct2->alphas()[1] - beforeAlpha) / nn.learningRate();
-	if(std::abs(empiricalGradientWeight - computedGradientWeight) > 1e-5)
+	if(std::abs(empiricalGradientWeight - computedGradientWeight) > 1e-6)
 		throw Ex("failed");
-	if(std::abs(empiricalGradientBias - computedGradientBias) > 1e-5)
+	if(std::abs(empiricalGradientBias - computedGradientBias) > 1e-6)
 		throw Ex("failed");
-	if(std::abs(empiricalGradientAlpha - computedGradientAlpha) > 1e-5)
+	if(std::abs(empiricalGradientAlpha - computedGradientAlpha) > 1e-6)
 		throw Ex("failed");
 }
 #endif

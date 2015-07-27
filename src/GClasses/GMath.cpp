@@ -446,9 +446,9 @@ double GMath::productLog(double x)
 double GMath::logExp(double alpha, double x)
 {
 	if(alpha < -1e-12)
-		return -(log(std::max(1e-12, 1.0 - alpha * x))) / alpha;
+		return -(log(std::max(1e-12, 1.0 - alpha * (x + alpha)))) / alpha;
 	else if(alpha > 1e-12)
-		return (exp(std::min(300.0, alpha * x)) - 1.0) / alpha;
+		return (exp(std::min(300.0, alpha * x)) - 1.0) / alpha + alpha;
 	else
 		return x;
 }

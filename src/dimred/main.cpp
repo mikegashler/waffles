@@ -1133,7 +1133,8 @@ void selfOrganizingMap(GArgReader& args){
     //Create map from file
     GDom source;
     source.loadJson(loadFrom.c_str());
-    som.reset(new GSelfOrganizingMap(source.root()));
+    GLearnerLoader ll;
+    som.reset(new GSelfOrganizingMap(source.root(), ll));
     //Transform using the loaded network
     out.reset(som->transformBatch(*pData));
   }

@@ -70,6 +70,7 @@ CPP_FILES = \
 	GHillClimber.cpp\
 	GHistogram.cpp\
 	GHolders.cpp\
+	GHopfield.cpp\
 	GHtml.cpp\
 	GHttp.cpp\
 	GImage.cpp\
