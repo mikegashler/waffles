@@ -1574,7 +1574,7 @@ void significance(GArgReader& args)
 		cout << "v=" << v << ", t=" << t << ", p=" << p << "\n";
 	}
 	{
-		cout << "\n### Wilcoxon Signed Ranks Test";
+		cout << "\n### Wilcoxon Signed Ranks Test\n";
 		int num;
 		double wMinus, wPlus;
 		pData->wilcoxonSignedRanksTest(attr1, attr2, tolerance, &num, &wMinus, &wPlus);
@@ -1586,8 +1586,8 @@ void significance(GArgReader& args)
 		double p_min = 0.5 * GMath::wilcoxonPValue(num, w_min);
 		if(num < 10)
 			cout << "Because the number of signed ranks is small, you should use a lookup table, rather than rely on the normal approximation for the P-value.\n";
-		cout << "One-tailed P-value (for directional comparisons) computed with a normal approximation using W_min = " << 0.5 * p_min << "\n";
-		cout << "Two-tailed P-value (for non-directional comparisons) computed with a normal approximation using W_min = " << p_min << "\n";
+		cout << "One-tailed P-value (for directional comparisons--is A better than B?) computed with a normal approximation using W_min = " << 0.5 * p_min << "\n";
+		cout << "Two-tailed P-value (for non-directional comparisons--is A different than B?) computed with a normal approximation using W_min = " << p_min << "\n";
 		cout << "To show that something is \"better\" than something else, use the one-tailed P-value.\n";
 		cout << "Commonly, a P-value less that 0.05 is considered to be significant.\n";
 /*

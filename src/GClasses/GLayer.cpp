@@ -453,20 +453,17 @@ void GLayerClassic::diminishWeights(double amount, bool regularizeBiases)
 
 void GLayerClassic::contractWeights(double factor, bool contractBiases)
 {
+	double* pNet = net();
+	double* pAct = activation();
+	double* pB = bias();
 	size_t outputCount = outputs();
-	for(size_t i = 0; i < m_weights.rows(); i++)
+	for(size_t i = 0; i < outputCount; i++)
 	{
-		double* pRow = m_weights[i];
-		double* pErr = error();
-		for(size_t j = 0; j < outputCount; j++)
-			*(pRow++) *= (1.0 - factor * *(pErr++));
-	}
-	if(contractBiases)
-	{
-		double* pRow = bias();
-		double* pErr = error();
-		for(size_t j = 0; j < outputCount; j++)
-			*(pRow++) *= (1.0 - factor * *(pErr++));
+		double f = 1.0 - factor * m_pActivationFunction->derivativeOfNet(*(pNet++), *(pAct++), i);
+		for(size_t j = 0; j < m_weights.rows(); j++)
+			m_weights[j][i] *= f;
+		if(contractBiases)
+			*(pB++) *= f;
 	}
 }
 

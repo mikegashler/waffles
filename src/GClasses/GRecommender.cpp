@@ -2113,6 +2113,9 @@ void GLogNet::train(GMatrix& data)
 	GActivationLogExp* pAct1 = new GActivationLogExp();
 	//GActivationHinge* pAct1 = new GActivationHinge();
 	size_t totalInputs = 2 * (m_intrinsicDims + 1);
+	GUniformRelation relIn(totalInputs);
+	GUniformRelation relOut(1);
+	m_pModel->beginIncrementalLearning(relIn, relOut);
 	GLayerClassic* pLay1 = new GLayerClassic(totalInputs, totalInputs, pAct1);
 	double* a1 = pAct1->alphas();
 	for(size_t i = 0; i < totalInputs; i++)

@@ -59,6 +59,8 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 			return new GActivationBend();
 		else if(strcmp(szName, "hinge") == 0)
 			return new GActivationHinge(pNode);
+		else if(strcmp(szName, "logexp") == 0)
+			return new GActivationLogExp(pNode);
 		else if(strcmp(szName, "logisticderiv") == 0)
 			return new GActivationLogisticDerivative();
 		else
