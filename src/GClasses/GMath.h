@@ -209,7 +209,7 @@ public:
 	/// is within epsilon of the target. Throws an exception if progress stalls.
 	static double functionInverse(double (*func)(const double* params, double x), const double* params, double y, double x1, double x2, double epsilon);
 
-	/// If alpha=1, returns exp(x)-1. If alpha = 0, returns x. If alpha = -1, returns log_e(x+1).
+	/// If alpha=1, returns exp(x). If alpha = 0, returns x. If alpha = -1, returns log_e(x).
 	/// Alpha can be any continuous value from -1 to 1 to continuously interpolate among these functions.
 	static double logExp(double alpha, double x);
 

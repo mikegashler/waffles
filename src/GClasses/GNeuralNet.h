@@ -242,12 +242,15 @@ public:
 	/// such that the network output remains the same. Returns the transformed feature matrix.
 	GMatrix* compressFeatures(GMatrix& features);
 
+	/// Backpropagates, assuming the error has already been computed for the output layer
+	void backpropageteErrorAlreadySet();
+
 	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
 	void backpropagate(const double* pTarget, size_t startLayer = INVALID_INDEX);
 
 	/// Backpropagate from a downstream layer
-	void backpropagateFromLayer(GNeuralNetLayer* pDownstream, double learningRate);
+	void backpropagateFromLayer(GNeuralNetLayer* pDownstream);
 
 	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
 	/// the specified output node.)

@@ -656,6 +656,21 @@ void GNeuralNet::trainIncrementalWithDropout(const double* pIn, const double* pO
 	descendGradient(pIn, m_learningRate, 0.0);
 }
 
+void GNeuralNet::backpropageteErrorAlreadySet()
+{
+	size_t i = m_layers.size() - 1;
+	GNeuralNetLayer* pLay = m_layers[i];
+	pLay->deactivateError();
+	while(i > 0)
+	{
+		GNeuralNetLayer* pUpStream = m_layers[i - 1];
+		pLay->backPropError(pUpStream);
+		pUpStream->deactivateError();
+		pLay = pUpStream;
+		i--;
+	}
+}
+
 void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)
 {
 	size_t i = std::min(startLayer, m_layers.size() - 1);
@@ -672,7 +687,7 @@ void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)
 	}
 }
 
-void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream, double learningRate)
+void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream)
 {
 	GNeuralNetLayer* pLay = pDownstream;
 	for(size_t i = m_layers.size(); i > 0; i--)
