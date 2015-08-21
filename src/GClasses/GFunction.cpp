@@ -610,13 +610,21 @@ void GFunctionParser::parseCommaSeparatedChildren(std::vector<std::string>& vari
 	pFunc->AddChild(parseFunctionBody(variables, tokens, childBegin, start + count - childBegin, depth));
 }
 
+std::string GFunctionParser_joinTokens(std::vector<std::string>& tokens, int start)
+{
+	string s;
+	for(int i = 0; i < start; i++)
+		s += tokens[i];
+	return s;
+}
+
 GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& variables, vector<string>& tokens, int start, int count, int depth)
 {
 	// Protect against maliciously designed formulas
 	if(depth > 10000)
 		throw Ex("Pathologically deep nesting");
 	if(count <= 0)
-		throw Ex("Empty expression");
+		throw Ex("Empty expression following ", GFunctionParser_joinTokens(tokens, start));
 
 	// Handle enclosing parens
 	if(tokens[start].compare("(") == 0 && tokens[start + count - 1].compare(")") == 0)

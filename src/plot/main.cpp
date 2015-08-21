@@ -1244,7 +1244,8 @@ void semanticMap(GArgReader& args){
   // Load the self organizing map
   GDom doc;
   doc.loadJson(somFile.c_str());
-  GSelfOrganizingMap som(doc.root());
+  GLearnerLoader ll;
+  GSelfOrganizingMap som(doc.root(), ll);
   // Parse the options
   string outFilename="semantic_map.svg";
   unsigned labelCol = (unsigned int)hData->cols()-1;

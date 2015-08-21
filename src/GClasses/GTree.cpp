@@ -96,6 +96,28 @@ void GRelationalTable_test()
 	if(table.get(3, 2)->row->m_n != 9)
 		throw Ex("failed");
 
+	// Test find and findGreaterOrEqual
+	MyRelationalObject t1(4, "banana");
+	MyRelationalObject t2(5, "banana");
+	GRelationalRow<MyRelationalObject*>* ta = table.find(&t1, 0);
+	if(!ta)
+		throw Ex("failed");
+	if(ta->row->m_n != 4)
+		throw Ex("failed");
+	GRelationalRow<MyRelationalObject*>* tb = table.find(&t2, 0);
+	if(tb)
+		throw Ex("failed");
+	GRelationalRow<MyRelationalObject*>* tc = table.firstEqualOrGreater(&t1, 0);
+	if(!tc)
+		throw Ex("failed");
+	if(tc->row->m_n != 4)
+		throw Ex("failed");
+	GRelationalRow<MyRelationalObject*>* td = table.firstEqualOrGreater(&t2, 0);
+	if(!td)
+		throw Ex("failed");
+	if(td->row->m_n != 9)
+		throw Ex("failed");
+
 	// Remove two items
 	table.remove(table.get(0, 2)); // remove {4, "yo"}
 	table.remove(table.get(1, 2)); // remove {1, "abcdefghijklmnopqrstuvwxyz"}

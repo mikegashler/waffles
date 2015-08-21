@@ -2113,6 +2113,9 @@ void GLogNet::train(GMatrix& data)
 	GActivationLogExp* pAct1 = new GActivationLogExp();
 	//GActivationHinge* pAct1 = new GActivationHinge();
 	size_t totalInputs = 2 * (m_intrinsicDims + 1);
+	GUniformRelation relIn(totalInputs);
+	GUniformRelation relOut(1);
+	m_pModel->beginIncrementalLearning(relIn, relOut);
 	GLayerClassic* pLay1 = new GLayerClassic(totalInputs, totalInputs, pAct1);
 	double* a1 = pAct1->alphas();
 	for(size_t i = 0; i < totalInputs; i++)
@@ -2123,7 +2126,7 @@ void GLogNet::train(GMatrix& data)
 	GMatrix& w1 = pLay1->weights();
 	w1.makeIdentity();
 	double* b1 = pLay1->bias();
-	GVec::setAll(b1, -1.0, totalInputs); // balance the +1 in logexp(-1,x)=ln(x+1)
+	GVec::setAll(b1, 0.0, totalInputs);
 	b1[0] = 0.0; // user bias
 	b1[m_intrinsicDims + 1] = 0.0; // item bias
 
@@ -2160,7 +2163,7 @@ void GLogNet::train(GMatrix& data)
 	GMatrix& w3 = pLay3->weights();
 	w3.setAll(1.0);
 	double* b3 = pLay3->bias();
-	b3[0] = (double)m_intrinsicDims; // balance the -1 in logexp(1,x)=exp(x)-1
+	b3[0] = 0.0;
 
 	GLayerClassic inputLayer(0, totalInputs, new GActivationIdentity());
 /*

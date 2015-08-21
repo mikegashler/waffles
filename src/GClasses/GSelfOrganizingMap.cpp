@@ -809,7 +809,7 @@ SOM::TrainingAlgorithm* SOM::TrainingAlgorithm::deserialize(GDomNode* pNode){
 
 //virtual
 GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
-  GDomNode* pNode = pDoc->newObj();
+  GDomNode* pNode = baseDomNode(pDoc, "GSelfOrganizingMap");
   pNode->addField(pDoc, "inputDims", pDoc->newInt(m_nInputDims));
   pNode->addField(pDoc, "outputAxes",doubleVectorSerialize(pDoc, m_outputAxes));
   pNode->addField(pDoc, "trainer",m_pTrainer->serialize(pDoc));
@@ -822,7 +822,7 @@ GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
   return pNode;
 }
 
-GSelfOrganizingMap::GSelfOrganizingMap(GDomNode* pNode){
+GSelfOrganizingMap::GSelfOrganizingMap(GDomNode* pNode, GLearnerLoader& ll) : GIncrementalTransform(pNode, ll) {
   m_nInputDims=(unsigned int)pNode->field("inputDims")->asInt();
   m_outputAxes=doubleVectorDeserialize(pNode->field("outputAxes"));
   m_pTrainer=SOM::TrainingAlgorithm::deserialize(pNode->field("trainer"));
