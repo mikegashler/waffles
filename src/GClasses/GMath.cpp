@@ -454,6 +454,12 @@ double GMath::logExp(double alpha, double x)
 }
 
 // static
+double GMath::mackeyGlass(double x, double xt, double beta, double gamma, double n)
+{
+	return x + beta * (x / (1 + std::pow(xt, n))) - gamma * xt;
+}
+
+// static
 double GMath::functionInverse(double (*func)(const double* params, double x), const double* params, double y, double x1, double x2, double epsilon)
 {
 	double y1 = func(params, x1);

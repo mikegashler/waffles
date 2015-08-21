@@ -213,6 +213,11 @@ public:
 	/// Alpha can be any continuous value from -1 to 1 to continuously interpolate among these functions.
 	static double logExp(double alpha, double x);
 
+	/// Given x(t), returns x(t + 1) in the Mackey-Glass series.
+	/// x is x(t), xt is x(t - TAO), and beta, gamma, and n are other Mackey-Glass parameters.
+	/// Call this in a loop to get a series.
+	static double mackeyGlass(double x, double xt, double beta = 0.2, double gamma = 0.1, double n = 10);
+
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();

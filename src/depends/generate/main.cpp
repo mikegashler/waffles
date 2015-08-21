@@ -3119,6 +3119,79 @@ void showError(GArgReader& args, const char* szAppName, const char* szMessage)
 	cerr.flush();
 }
 
+void mackeyGlass(GArgReader &args)
+{
+	double initX	= 0.5;
+	double beta		= 0.25;
+	double gamma	= 0.1;
+	double n		= 10.0;
+	size_t tao		= 17;
+	size_t count	= 100;
+	
+	if(args.next_is_uint())
+	{
+		count = args.pop_uint();
+	}
+	
+	while(args.size() > 1)
+	{
+		if(args.if_pop("-initX"))
+		{
+			initX = args.pop_double();
+		}
+		else if(args.if_pop("-beta"))
+		{
+			beta = args.pop_double();
+		}
+		else if(args.if_pop("-gamma"))
+		{
+			gamma = args.pop_double();
+		}
+		else if(args.if_pop("-n"))
+		{
+			n = args.pop_double();
+		}
+		else if(args.if_pop("-tao"))
+		{
+			tao = args.pop_uint();
+		}
+		else
+		{
+			throw Ex("Unrecognized option: ", args.peek());
+		}
+	}
+	
+	double x, xt;
+	double *row;
+	
+	GMatrix m(0, 1);
+	for(size_t i = 0; i < count; i++)
+	{
+		if(m.rows() > 0)
+		{
+			x = *m[m.rows() - 1];
+		}
+		else
+		{
+			x = initX;
+		}
+		
+		if(m.rows() >= tao)
+		{
+			xt = *m[i - tao];
+		}
+		else
+		{
+			xt = initX;
+		}
+		
+		row = m.newRow();
+		*row = GMath::mackeyGlass(x, xt, beta, gamma, n);
+	}
+	
+	m.print(cout);
+}
+
 int main(int argc, char *argv[])
 {
 	PathData pd;
@@ -3141,6 +3214,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("gridrandomwalk")) gridRandomWalk(args);
 		else if(args.if_pop("imagestoarff")) imagesToArff(args);
 		else if(args.if_pop("imagetranslatedovernoise")) ImageTranslatedOverNoise(args);
+		else if(args.if_pop("mackeyglass")) mackeyGlass(args);
 		else if(args.if_pop("manifold")) manifold(args);
 		else if(args.if_pop("map")) mapEquations(args);
 		else if(args.if_pop("mechanicalrabbit")) mechanicalRabbit(args);
