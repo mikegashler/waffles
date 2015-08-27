@@ -129,8 +129,8 @@ public:
 	/// default values apply the perturbation to all units.
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) = 0;
 
-	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double max) = 0;
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	virtual void maxNorm(double min, double max) = 0;
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda) = 0;
@@ -249,7 +249,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double max);
+	virtual void maxNorm(double min, double max);
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
@@ -441,7 +441,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 
 	/// Calls maxNorm for each component.
-	virtual void maxNorm(double max);
+	virtual void maxNorm(double min, double max);
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
@@ -555,7 +555,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double max);
+	virtual void maxNorm(double min, double max);
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
@@ -726,7 +726,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
 
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
-	virtual void maxNorm(double max);
+	virtual void maxNorm(double min, double max);
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
@@ -769,6 +769,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// General-purpose constructor.
 	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
 	/// and inputChannels will be 3. The total input size will be 9216 (64*48*3=9216).
+	/// The values should be presented in the following order: c1x1y1, c2x1y1, c1x2y1, c2x2y1, c1x1y2, ...
 	/// If kernelSize is 5, then the output will consist of 60 columns (64-5+1=60) and 44 rows (48-5+1=44).
 	/// If kernelsPerChannel is 2, then there will be 6 (3*2=6) channels in the output, for a total of
 	/// 15840 (60*44*6=15840) output values. (kernelSize must be <= inputSamples.)
@@ -858,7 +859,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
 
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
-	virtual void maxNorm(double max);
+	virtual void maxNorm(double min, double max);
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
@@ -873,6 +874,123 @@ using GNeuralNetLayer::updateDeltas;
 	double* bias() { return m_bias[0]; }
 	double* biasDelta() { return m_bias[1]; }
 	GMatrix& kernels() { return m_kernels; }
+};
+
+
+
+class GMaxPooling2D : public GNeuralNetLayer
+{
+protected:
+	size_t m_inputCols;
+	size_t m_inputRows;
+	size_t m_inputChannels;
+	size_t m_regionSize;
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
+
+public:
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
+
+	/// General-purpose constructor.
+	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
+	/// and inputChannels will be 3. The total input size will be 9216 (64*48*3=9216).
+	/// The values should be presented in the following order: c1x1y1, c2x1y1, c1x2y1, c2x2y1, c1x1y2, ...
+	/// If kernelSize is 5, then the output will consist of 60 columns (64-5+1=60) and 44 rows (48-5+1=44).
+	/// If kernelsPerChannel is 2, then there will be 6 (3*2=6) channels in the output, for a total of
+	/// 15840 (60*44*6=15840) output values. (kernelSize must be <= inputSamples.)
+	GMaxPooling2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t regionSize = 2);
+
+	/// Deserializing constructor
+	GMaxPooling2D(GDomNode* pNode);
+
+	virtual ~GMaxPooling2D();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "maxpool2"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() { return m_inputRows * m_inputCols * m_inputChannels; }
+
+	/// Returns the number of nodes or units in this layer.
+	virtual size_t outputs() { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
+
+	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
+	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
+
+	/// Returns the activation values from the most recent call to feedForward().
+	virtual double* activation() { return m_activation[0]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual double* error() { return m_activation[1]; }
+
+	/// Feeds a the inputs through this layer.
+	virtual void feedForward(const double* pIn);
+
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
+	/// Throws an exception, because convolutional layers do not support dropConnect.
+	virtual void dropConnect(GRand& rand, double probOfDrop);
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const double* pTarget);
+
+	/// Multiplies each element in the error vector by the derivative of the activation function.
+	/// This results in the error having meaning with respect to the weights, instead of the output.
+	/// (Assumes the error for this layer has already been computed.)
+	virtual void deactivateError();
+
+	/// Backpropagates the error from this layer into the upstream layer's error vector.
+	/// (Assumes that the error in this layer has already been computed and deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate);
+
+	/// Multiplies all the weights in this layer by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand);
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
+
+	/// Clips each kernel weight (not including the bias) to fall between -max and max.
+	virtual void maxNorm(double min, double max);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
+
+	/// Throws an exception.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 };
 
 

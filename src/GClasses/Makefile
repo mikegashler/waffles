@@ -40,6 +40,7 @@ CPP_FILES = \
 	GActivation.cpp\
 	GApp.cpp\
 	GAssignment.cpp\
+	GAssociative.cpp\
 	GBayesianNetwork.cpp\
 	GBezier.cpp\
 	GBigInt.cpp\
@@ -70,7 +71,6 @@ CPP_FILES = \
 	GHillClimber.cpp\
 	GHistogram.cpp\
 	GHolders.cpp\
-	GHopfield.cpp\
 	GHtml.cpp\
 	GHttp.cpp\
 	GImage.cpp\

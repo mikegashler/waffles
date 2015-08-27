@@ -521,7 +521,7 @@ void GLayerClassic::setWeightsToIdentity(size_t start, size_t count)
 }
 
 // virtual
-void GLayerClassic::maxNorm(double max)
+void GLayerClassic::maxNorm(double min, double max)
 {
 	size_t outputCount = outputs();
 	for(size_t i = 0; i < outputCount; i++)
@@ -535,6 +535,18 @@ void GLayerClassic::maxNorm(double max)
 		if(squaredMag > max * max)
 		{
 			double scal = max / sqrt(squaredMag);
+			for(size_t j = 0; j < m_weights.rows(); j++)
+				m_weights[j][i] *= scal;
+		}
+		else if(squaredMag < min * min)
+		{
+			if(squaredMag == 0.0)
+			{
+				for(size_t j = 0; j < m_weights.rows(); j++)
+					m_weights[j][i] = 1.0;
+				squaredMag = m_weights.rows();
+			}
+			double scal = min / sqrt(squaredMag);
 			for(size_t j = 0; j < m_weights.rows(); j++)
 				m_weights[j][i] *= scal;
 		}
@@ -887,10 +899,10 @@ void GLayerMixed::perturbWeights(GRand& rand, double deviation, size_t start, si
 }
 
 // virtual
-void GLayerMixed::maxNorm(double max)
+void GLayerMixed::maxNorm(double min, double max)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->maxNorm(max);
+		m_components[i]->maxNorm(min, max);
 }
 
 // virtual
@@ -1260,7 +1272,7 @@ void GLayerRestrictedBoltzmannMachine::diminishWeights(double amount, bool dimin
 }
 
 // virtual
-void GLayerRestrictedBoltzmannMachine::maxNorm(double max)
+void GLayerRestrictedBoltzmannMachine::maxNorm(double min, double max)
 {
 	size_t inputCount = inputs();
 	size_t outputCount = outputs();
@@ -1270,6 +1282,11 @@ void GLayerRestrictedBoltzmannMachine::maxNorm(double max)
 		if(squaredMag > max * max)
 		{
 			double scal = max / sqrt(squaredMag);
+			GVec::multiply(m_weights[i], scal, inputCount);
+		}
+		else if(squaredMag < min * min)
+		{
+			double scal = min / sqrt(squaredMag);
 			GVec::multiply(m_weights[i], scal, inputCount);
 		}
 	}
@@ -1668,7 +1685,7 @@ void GLayerConvolutional1D::perturbWeights(GRand& rand, double deviation, size_t
 }
 
 // virtual
-void GLayerConvolutional1D::maxNorm(double max)
+void GLayerConvolutional1D::maxNorm(double min, double max)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
@@ -2055,7 +2072,7 @@ void GLayerConvolutional2D::perturbWeights(GRand& rand, double deviation, size_t
 }
 
 // virtual
-void GLayerConvolutional2D::maxNorm(double max)
+void GLayerConvolutional2D::maxNorm(double min, double max)
 {
 	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
@@ -2070,6 +2087,232 @@ void GLayerConvolutional2D::renormalizeInput(size_t input, double oldMin, double
 {
 	throw Ex("Sorry, convolutional layers do not support this method");
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GMaxPooling2D::GMaxPooling2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t regionSize)
+: m_inputCols(inputCols),
+m_inputRows(inputRows),
+m_inputChannels(inputChannels)
+{
+	if(inputCols % regionSize != 0)
+		throw Ex("inputCols is not a multiple of regionSize");
+	if(inputRows % regionSize != 0)
+		throw Ex("inputRows is not a multiple of regionSize");
+	m_activation.resize(2, m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize));
+}
+
+GMaxPooling2D::GMaxPooling2D(GDomNode* pNode)
+: m_inputCols(pNode->field("icol")->asInt()),
+m_inputRows(pNode->field("irow")->asInt()),
+m_inputChannels(pNode->field("ichan")->asInt()),
+m_regionSize(pNode->field("size")->asInt())
+{
+}
+
+GMaxPooling2D::~GMaxPooling2D()
+{
+}
+
+// virtual
+GDomNode* GMaxPooling2D::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "icol", pDoc->newInt(m_inputCols));
+	pNode->addField(pDoc, "irow", pDoc->newInt(m_inputRows));
+	pNode->addField(pDoc, "ichan", pDoc->newInt(m_inputChannels));
+	pNode->addField(pDoc, "size", pDoc->newInt(m_regionSize));
+	return pNode;
+}
+
+// virtual
+void GMaxPooling2D::resize(size_t inputs, size_t outputs, GRand* pRand, double deviation)
+{
+	if(inputs != m_inputCols * m_inputRows * m_inputChannels)
+		throw Ex("Changing the size of GMaxPooling2D is not supported");
+	if(outputs != m_inputChannels * m_inputCols * m_inputRows / (m_regionSize * m_regionSize))
+		throw Ex("Changing the size of GMaxPooling2D is not supported");
+}
+
+// virtual
+void GMaxPooling2D::resetWeights(GRand& rand)
+{
+}
+
+// virtual
+void GMaxPooling2D::feedForward(const double* pIn)
+{
+	double* pAct = activation();
+	for(size_t yy = 0; yy < m_inputRows; yy += m_regionSize)
+	{
+		for(size_t xx = 0; xx < m_inputCols; xx += m_regionSize)
+		{
+			for(size_t c = 0; c < m_inputChannels; c++)
+			{
+				double m = -1e100;
+				size_t yStep = m_inputCols * m_inputChannels;
+				size_t yStart = yy * yStep;
+				size_t yEnd = yStart + m_regionSize * yStep;
+				for(size_t y = yStart; y < yEnd; y += yStep)
+				{
+					size_t xStart = yStart + xx * m_inputChannels + c;
+					size_t xEnd = xStart + m_regionSize * m_inputChannels + c;
+					for(size_t x = xStart; x < xEnd; x += m_inputChannels)
+						m = std::max(m, pIn[x]);
+				}
+				*(pAct++) = m;
+			}
+		}
+	}
+}
+
+// virtual
+void GMaxPooling2D::dropOut(GRand& rand, double probOfDrop)
+{
+}
+
+// virtual
+void GMaxPooling2D::dropConnect(GRand& rand, double probOfDrop)
+{
+}
+
+// virtual
+void GMaxPooling2D::computeError(const double* pTarget)
+{
+	size_t outputUnits = outputs();
+	double* pAct = activation();
+	double* pErr = error();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		if(*pTarget == UNKNOWN_REAL_VALUE)
+			*pErr = 0.0;
+		else
+			*pErr = *pTarget - *pAct;
+		pTarget++;
+		pAct++;
+		pErr++;
+	}
+}
+
+// virtual
+void GMaxPooling2D::deactivateError()
+{
+}
+
+// virtual
+void GMaxPooling2D::backPropError(GNeuralNetLayer* pUpStreamLayer)
+{
+	double* pDownStreamErr = error();
+	double* pAct = pUpStreamLayer->activation();
+	double* pUpStreamErr = pUpStreamLayer->error();
+	for(size_t yy = 0; yy < m_inputRows; yy += m_regionSize)
+	{
+		for(size_t xx = 0; xx < m_inputCols; xx += m_regionSize)
+		{
+			for(size_t c = 0; c < m_inputChannels; c++)
+			{
+				double m = -1e100;
+				size_t maxIndex = 0;
+				size_t yStep = m_inputCols * m_inputChannels;
+				size_t yStart = yy * yStep;
+				size_t yEnd = yStart + m_regionSize * yStep;
+				for(size_t y = yStart; y < yEnd; y += yStep)
+				{
+					size_t xStart = yStart + xx * m_inputChannels + c;
+					size_t xEnd = xStart + m_regionSize * m_inputChannels + c;
+					for(size_t x = xStart; x < xEnd; x += m_inputChannels)
+					{
+						if(pAct[x] > m)
+						{
+							m = pAct[x];
+							maxIndex = x;
+						}
+						pUpStreamErr[x] = 0.0;
+					}
+				}
+				pUpStreamErr[maxIndex] = *(pDownStreamErr++);
+			}
+		}
+	}
+}
+
+// virtual
+void GMaxPooling2D::updateDeltas(const double* pUpStreamActivation, double momentum)
+{
+}
+
+// virtual
+void GMaxPooling2D::applyDeltas(double learningRate)
+{
+}
+
+// virtual
+void GMaxPooling2D::scaleWeights(double factor, bool scaleBiases)
+{
+}
+
+// virtual
+void GMaxPooling2D::diminishWeights(double amount, bool diminishBiases)
+{
+}
+
+// virtual
+void GMaxPooling2D::regularizeActivationFunction(double lambda)
+{
+}
+
+// virtual
+size_t GMaxPooling2D::countWeights()
+{
+	return 0;
+}
+
+// virtual
+size_t GMaxPooling2D::weightsToVector(double* pOutVector)
+{
+	return 0;
+}
+
+// virtual
+size_t GMaxPooling2D::vectorToWeights(const double* pVector)
+{
+	return 0;
+}
+
+// virtual
+void GMaxPooling2D::copyWeights(const GNeuralNetLayer* pSource)
+{
+}
+
+// virtual
+void GMaxPooling2D::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+{
+}
+
+// virtual
+void GMaxPooling2D::maxNorm(double min, double max)
+{
+}
+
+// virtual
+void GMaxPooling2D::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
+{
+	throw Ex("Sorry, max poolings layers do not support this method");
+}
+
 
 
 

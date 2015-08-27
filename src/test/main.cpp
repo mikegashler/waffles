@@ -33,6 +33,7 @@
 #include "../GClasses/GActivation.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GAssignment.h"
+#include "../GClasses/GAssociative.h"
 #include "../GClasses/GBayesianNetwork.h"
 #include "../GClasses/GBezier.h"
 #include "../GClasses/GBits.h"
@@ -886,6 +887,7 @@ public:
 		runTest("GAnnealing", GAnnealing::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);
 		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);
+		runTest("GAssociative", GAssociative::test);
 		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
 		runTest("GAttributeSelector", GAttributeSelector::test);
 		runTest("GAutoFilter", GAutoFilter::test);

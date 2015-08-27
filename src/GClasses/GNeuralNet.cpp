@@ -200,10 +200,10 @@ void GNeuralNet::perturbAllWeights(double deviation)
 		m_layers[i]->perturbWeights(m_rand, deviation);
 }
 
-void GNeuralNet::maxNorm(double max)
+void GNeuralNet::maxNorm(double min, double max)
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->maxNorm(max);
+		m_layers[i]->maxNorm(min, max);
 }
 
 void GNeuralNet::invertNode(size_t layer, size_t node)

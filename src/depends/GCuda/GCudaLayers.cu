@@ -293,7 +293,7 @@ void GLayerClassicCuda::diminishWeights(double amount, bool diminishBiases)
 }
 
 // virtual
-void GLayerClassicCuda::maxNorm(double max)
+void GLayerClassicCuda::maxNorm(double min, double max)
 {
 	throw Ex("Sorry, GLayerClassicCuda::maxNorm is not yet implemented");
 }

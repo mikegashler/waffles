@@ -95,8 +95,8 @@ public:
 	/// specified deviation.
 	void perturbAllWeights(double deviation);
 
-	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double max);
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	virtual void maxNorm(double min, double max);
 
 	/// Multiplies all weights in the network by the specified factor. This can be used
 	/// to implement L2 regularization, which prevents weight saturation.
@@ -459,7 +459,6 @@ public:
 	virtual void trainIncremental(const double* pIn, const double* pOut);
 
 	/// See the comment for GIncrementalLearner::trainSparse
-	/// Assumes all attributes are continuous.
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner

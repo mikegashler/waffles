@@ -20,6 +20,7 @@
 #define GTREE_H
 
 #include "GError.h"
+#include <iostream>
 
 namespace GClasses
 {
@@ -584,6 +585,19 @@ public:
 			return NULL;
 		}
 	}
+
+	template <typename Comp>
+	void print(const Comp& comp, std::ostream& stream, size_t col, size_t columnCount, size_t depth)
+	{
+		if(el[col].left)
+			el[col].left->print(comp, stream, col, columnCount, depth + 1);
+		for(size_t i = 0; i < depth; i++)
+			stream << "  ";
+		comp.print(stream, row);
+		stream << "\n";
+		if(el[col].right)
+			el[col].right->print(comp, stream, col, columnCount, depth + 1);
+	}
 };
 
 
@@ -609,6 +623,14 @@ public:
 		delete(spare);
 		delete(roots[0]);
 		delete[] roots;
+	}
+
+	/// Drops all content from this table
+	void clear()
+	{
+		delete(roots[0]);
+		for(size_t i = 0; i < comp.cols(); i++)
+			roots[i] = NULL;
 	}
 
 	/// Inserts a row into this relational table.
@@ -699,6 +721,16 @@ public:
 		delete(spare);
 		spare = row;
 		spare->isolate(comp.cols());
+	}
+
+	/// Prints a simple representation of the tree in the specified column.
+	/// This method assumes that the Comp object has a method with the signature "void print(std::ostream& stream, T) const".
+	void print(std::ostream& stream, size_t col)
+	{
+		if(roots[col])
+			roots[col]->print(comp, stream, col, comp.cols(), 0);
+		else
+			stream << "[empty]\n";
 	}
 };
 
