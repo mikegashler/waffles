@@ -243,7 +243,7 @@ public:
 	GMatrix* compressFeatures(GMatrix& features);
 
 	/// Backpropagates, assuming the error has already been computed for the output layer
-	void backpropageteErrorAlreadySet();
+	void backpropagateErrorAlreadySet();
 
 	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
 	/// to compute the error term at every hidden unit. (It does not update any weights.)

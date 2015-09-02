@@ -656,7 +656,7 @@ void GNeuralNet::trainIncrementalWithDropout(const double* pIn, const double* pO
 	descendGradient(pIn, m_learningRate, 0.0);
 }
 
-void GNeuralNet::backpropageteErrorAlreadySet()
+void GNeuralNet::backpropagateErrorAlreadySet()
 {
 	size_t i = m_layers.size() - 1;
 	GNeuralNetLayer* pLay = m_layers[i];
