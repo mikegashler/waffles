@@ -35,7 +35,7 @@ protected:
 
 public:
 	CarQAgent(const GRelation& obsControlRelation, double* pInitialState, GRand* prng, GAgentActionIterator* pActionIterator)
-	: GIncrementalLearnerQAgent(obsControlRelation, MakeQTable(), 1/*actionDims*/, pInitialState, prng, pActionIterator, 0.97/*softMaxThresh*/)
+	: GIncrementalLearnerQAgent(obsControlRelation, MakeQTable(), 1/*actionDims*/, pInitialState, prng, pActionIterator, 0.99/*softMaxThresh*/)
 	{
 		m_lastReward = UNKNOWN_REAL_VALUE;
 	}
@@ -112,7 +112,7 @@ public:
 		m_pActionIterator = new GDiscreteActionIterator(2);
 		m_pAgents[0] = new CarQAgent(relAgent, initialState, m_prng, m_pActionIterator);
 		((GQLearner*)m_pAgents[0])->setLearningRate(.9);
-		((GQLearner*)m_pAgents[0])->setDiscountFactor(0.999);
+		((GQLearner*)m_pAgents[0])->setDiscountFactor(0.98);
 	}
 
 	virtual ~CarOnHillModel()
@@ -178,7 +178,7 @@ public:
 			m_carPos = -.4;
 			m_velocity = 0;
 		}
-		else if(m_carPos > .8)
+		else if(m_carPos > 1.0)
 		{
 			m_carPos = 0;
 			m_velocity = 0;
@@ -266,7 +266,7 @@ public:
 	void Iterate(bool forw)
 	{
 		g_updateView = m_pUpdateDisplay->isChecked();
-		if(!g_updateView && m_prng->next(8192) == 0)
+		if(!g_updateView && m_prng->next(100000) == 0)
 			g_updateView = true;
 		m_pModel->IterateModel(m_pBullets->selection(), forw);
 		m_pCanvas->setImage(m_pImage);
@@ -361,7 +361,10 @@ void CarOnHillController::RunModal()
 	{
 		time = GTime::seconds();
 		if(handleEvents(time - timeOld) || g_updateView)
+		{
 			m_pView->update();
+			GThread::sleep(20);
+		}
 		else
 			((CarOnHillView*)m_pView)->iterate();
 		timeOld = time;
