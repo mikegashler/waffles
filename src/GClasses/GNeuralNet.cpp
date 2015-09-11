@@ -200,9 +200,12 @@ void GNeuralNet::perturbAllWeights(double deviation)
 		m_layers[i]->perturbWeights(m_rand, deviation);
 }
 
-void GNeuralNet::maxNorm(double min, double max)
+void GNeuralNet::maxNorm(double min, double max, bool outputLayer)
 {
-	for(size_t i = 0; i < m_layers.size(); i++)
+	size_t layerCount = m_layers.size();
+	if(!outputLayer)
+		layerCount--;
+	for(size_t i = 0; i < layerCount; i++)
 		m_layers[i]->maxNorm(min, max);
 }
 

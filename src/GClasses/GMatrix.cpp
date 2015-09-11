@@ -5120,7 +5120,18 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 		{
 			const char* szFormat = itFormat->second.c_str();
 			if(m_columnNamesInFirstRow)
-				pRelation->addAttribute(rows[0].m_elements[attr], 0, NULL);
+			{
+				bool quot = false;
+				if(rows[0].m_elements[attr][0] != '"' && rows[0].m_elements[attr][0] != '\'')
+					quot = true;
+				string attrName = "";
+				if(quot)
+					attrName += "\"";
+				attrName += rows[0].m_elements[attr];
+				if(quot)
+					attrName += "\"";
+				pRelation->addAttribute(attrName.c_str(), 0, NULL);
+			}
 			else
 			{
 				string attrName = "attr";
@@ -5200,7 +5211,18 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			string firstRealError = "";
 			size_t realErrs = 0;
 			if(m_columnNamesInFirstRow)
-				pRelation->addAttribute(rows[0].m_elements[attr], 0, NULL);
+			{
+				bool quot = false;
+				if(rows[0].m_elements[attr][0] != '"' && rows[0].m_elements[attr][0] != '\'')
+					quot = true;
+				string attrName = "";
+				if(quot)
+					attrName += "\"";
+				attrName += rows[0].m_elements[attr];
+				if(quot)
+					attrName += "\"";
+				pRelation->addAttribute(attrName.c_str(), 0, NULL);
+			}
 			else
 			{
 				string attrName = "attr";
@@ -5316,14 +5338,22 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			}
 			if(m_columnNamesInFirstRow)
 			{
+				bool quot = false;
+				if(rows[0].m_elements[attr][0] != '"' && rows[0].m_elements[attr][0] != '\'')
+					quot = true;
+				string attrName = "";
+				if(quot)
+					attrName += "\"";
+				attrName += rows[0].m_elements[attr];
+				if(quot)
+					attrName += "\"";
 				if(valueCount > m_maxVals)
 				{
-					string s = rows[0].m_elements[attr];
-					s += "_aborted_due_to_too_many_vals";
-					pRelation->addAttribute(s.c_str(), valueCount, &values);
+					attrName += "_aborted_due_to_too_many_vals";
+					pRelation->addAttribute(attrName.c_str(), valueCount, &values);
 				}
 				else
-					pRelation->addAttribute(rows[0].m_elements[attr], valueCount, &values);
+					pRelation->addAttribute(attrName.c_str(), valueCount, &values);
 			}
 			else
 			{

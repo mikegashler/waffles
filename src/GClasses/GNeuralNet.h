@@ -95,8 +95,8 @@ public:
 	/// specified deviation.
 	void perturbAllWeights(double deviation);
 
-	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
-	virtual void maxNorm(double min, double max);
+	/// Scales weights if necessary such that the magnitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	virtual void maxNorm(double min, double max, bool outputLayer = false);
 
 	/// Multiplies all weights in the network by the specified factor. This can be used
 	/// to implement L2 regularization, which prevents weight saturation.
