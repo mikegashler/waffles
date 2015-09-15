@@ -119,10 +119,11 @@ public:
 				m_curState[1] = 0;
 			}
 			m_journeyCount++;
-			if(m_journeyCount % 1000 == 0)
+			if(m_journeyCount % 1000 == 0 || m_journeyCount < 100)
 			{
 				PrintPolicy(this);
 				printf("Journey: %d\n", m_journeyCount);
+				//PrintQTable(this);
 			}
 			return UNKNOWN_REAL_VALUE; // don't update the q-table when we teleport to a new spot
 		}
@@ -311,7 +312,7 @@ void DoIt()
 	// penalty: the penalty for hitting a wall or a #.
 	// soft_max_thresh: 100 = always exploit. 0 = always explore.
 	// warpRandom: true = teleport to a random spot after hitting the goal. false = teleport to (0,0) after goal.
-	DoTest(&prng, 85/*rcoeff*/, .03/*alpha*/, .99/*gamma*/, 1/*reward*/, .5/*penalty*/, 95/*soft_max_thresh*/, true/*warpRandom*/);
+	DoTest(&prng, 80/*rcoeff*/, .03/*alpha*/, .98/*gamma*/, 1/*reward*/, .5/*penalty*/, 98/*soft_max_thresh*/, false/*warpRandom*/);
 }
 
 int main(int argc, char *argv[])
