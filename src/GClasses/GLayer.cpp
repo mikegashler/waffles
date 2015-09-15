@@ -659,6 +659,10 @@ void GLayerSoftMax::activate()
 		GVec::multiply(bias(), fac, outputCount);
 		GVec::multiply(activation(), fac, outputCount);
 	}
+	else
+	{
+		GVec::setAll(activation(), 1.0 / outputCount, outputCount);
+	}
 }
 
 
@@ -1383,6 +1387,7 @@ m_kernelsPerChannel(pNode->field("kpc")->asInt()),
 m_kernels(pNode->field("kern")),
 m_delta(pNode->field("delt")),
 m_activation(pNode->field("act")),
+m_bias(pNode->field("bias")),
 m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
 {
 }
@@ -1741,6 +1746,7 @@ m_kernelCount(m_inputChannels * m_kernelsPerChannel),
 m_kernels(pNode->field("kern")),
 m_delta(pNode->field("delt")),
 m_activation(pNode->field("act")),
+m_bias(pNode->field("bias")),
 m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
 {
 }
