@@ -123,7 +123,7 @@ size_t GHistogram::modeBin()
 void GHistogram::toFile(const char* filename)
 {
 	std::ofstream os;
-	os.exceptions(std::ios::badbit);
+	os.exceptions(std::ios::badbit | std::ios::failbit);
 	try
 	{
 		os.open(filename, std::ios::binary);

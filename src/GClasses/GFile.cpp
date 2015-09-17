@@ -369,7 +369,7 @@ bool GFile::localStorageDirectory(char *toHere)
 {
 	std::ifstream s;
 	char* pBuf;
-	s.exceptions(std::ios::badbit);
+	s.exceptions(std::ios::badbit | std::ios::failbit);
 	try
 	{
 		// NB: we double copy the content of the file!
@@ -397,7 +397,7 @@ bool GFile::localStorageDirectory(char *toHere)
 /*static*/ void GFile::saveFile(const char* pBuf, size_t size, const char* szFilename)
 {
 	std::ofstream s;
-	s.exceptions(std::ios::badbit);
+	s.exceptions(std::ios::badbit | std::ios::failbit);
 	try
 	{
 		s.open(szFilename, std::ios::binary);
@@ -412,7 +412,7 @@ bool GFile::localStorageDirectory(char *toHere)
 /*static*/ void GFile::appendToFile(const char* szFilename, const char* szString)
 {
 	std::ofstream s;
-	s.exceptions(std::ios::badbit);
+	s.exceptions(std::ios::badbit | std::ios::failbit);
 	try
 	{
 		s.open(szFilename, std::ios::binary | std::ios::app);

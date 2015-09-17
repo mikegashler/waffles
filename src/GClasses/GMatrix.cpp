@@ -288,7 +288,7 @@ void GRelation::fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirs
 void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precision) const
 {
 	std::ofstream stream;
-	stream.exceptions(std::ios::badbit);
+	stream.exceptions(std::ios::badbit | std::ios::failbit);
 	try
 	{
 		stream.open(szFilename, std::ios::binary);

@@ -235,7 +235,7 @@ void GFolderSerializer::startFile(const char* szFilename)
 	unsigned long long size = 0;
 	try
 	{
-		m_pInStream->exceptions(std::ios::badbit);
+		m_pInStream->exceptions(std::ios::badbit | std::ios::failbit);
 		m_pInStream->open(szFilename, std::ios::binary);
 		m_pInStream->seekg(0, std::ios::end);
 		size = m_pInStream->tellg();
@@ -405,7 +405,7 @@ void GFolderDeserializer::pump1()
 				if(m_depth == 0 && access(sFilename.c_str(), 0 ) == 0)
 					throw Ex("There is already a file or folder named \"", sFilename.c_str(), "\"");
 				m_pOutStream = new std::ofstream();
-				m_pOutStream->exceptions(std::ios::badbit);
+				m_pOutStream->exceptions(std::ios::badbit | std::ios::failbit);
 				m_pOutStream->open(sFilename.c_str(), std::ios::binary);
 				m_state = 4;
 			}

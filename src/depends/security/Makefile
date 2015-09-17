@@ -37,6 +37,7 @@ OPT_CFLAGS = $(CFLAGS) -O3
 
 CPP_FILES =\
 	GKeyboard.cpp\
+	crawler.cpp\
 	main.cpp\
 	satellite.cpp\
 	md4.cpp\

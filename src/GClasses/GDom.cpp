@@ -899,7 +899,7 @@ void GDom::writeJsonCpp(std::ostream& stream) const
 void GDom::saveJson(const char* szFilename) const
 {
 	std::ofstream os;
-	os.exceptions(std::ios::badbit);
+	os.exceptions(std::ios::badbit | std::ios::failbit);
 	try
 	{
 		os.open(szFilename, std::ios::binary);

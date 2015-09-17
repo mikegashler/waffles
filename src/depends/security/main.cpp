@@ -45,6 +45,7 @@
 #include <sstream>
 #include <fstream>
 #include <errno.h>
+#include "crawler.h"
 
 using namespace GClasses;
 using std::cout;
@@ -939,24 +940,6 @@ void dump(GArgReader& args)
 		cout << pBuf;
 		length -= blockLen;
 	}
-}
-
-unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutSize)
-{
-	GHttpClient client;
-	if(!client.sendGetRequest(szAddr))
-		throw Ex("Error connecting");
-	float fProgress;
-	time_t start = time(NULL);
-	while(client.status(&fProgress) == GHttpClient::Downloading)
-	{
-		if((size_t)(time(NULL) - start) > timeout)
-			break;
-		GThread::sleep(50);
-	}
-	if(client.status(&fProgress) != GHttpClient::Done)
-		throw Ex("Error downloading page");
-	return client.releaseData(pOutSize);
 }
 
 #define MAX_PASSPHRASE_LEN 1024
@@ -1980,6 +1963,7 @@ void doit(GArgReader& args)
 	else if(args.if_pop("bandwidthserver")) doBandwidthServer(args);
 	//else if(args.if_pop("li")) doLogin(args);
 	else if(args.if_pop("bruteforcentpassword")) bruteForceNTPassword(args);
+	else if(args.if_pop("findbrokenlinks")) findbrokenlinks(args);
 	else if(args.if_pop("dictattackntpassword")) dictAttackNTPassword(args);
 	else if(args.if_pop("dump")) dump(args);
 	else if(args.if_pop("fast")) fast(args);

@@ -79,7 +79,7 @@ GTokenizer::GTokenizer(const char* szFilename)
 {
 	std::ifstream* pStream = new std::ifstream();
 	m_pStream = pStream;
-	pStream->exceptions(std::ios::badbit);
+	pStream->exceptions(std::ios::badbit); // don't include std::ios::failbit here because the has_more method reads first, then checks for EOF.
 	try
 	{
 		pStream->open(szFilename, std::ios::binary);
