@@ -178,10 +178,13 @@ public:
 	/// Copy the weights from pOther. It is assumed (but not checked) that
 	/// pOther already has the same network structure as this neural network.
 	/// This method is faster than copyStructure.
-	void copyWeights(GNeuralNet* pOther);
+	void copyWeights(const GNeuralNet* pOther);
 
 	/// Makes this neural network into a deep copy of pOther, including layers, nodes, settings and weights.
-	void copyStructure(GNeuralNet* pOther);
+	void copyStructure(const GNeuralNet* pOther);
+
+	/// Copy the errors from pOther into this neural network.
+	void copyErrors(const GNeuralNet* pOther);
 
 	/// Serializes the network weights into an array of doubles. The
 	/// number of doubles in the array can be determined by calling
@@ -249,8 +252,12 @@ public:
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
 	void backpropagate(const double* pTarget, size_t startLayer = INVALID_INDEX);
 
+	double backpropagateAndNormalizeErrors(const double* pTarget, double alpha);
+
 	/// Backpropagate from a downstream layer
 	void backpropagateFromLayer(GNeuralNetLayer* pDownstream);
+
+	void backpropagateFromLayerAndNormalizeErrors(GNeuralNetLayer* pDownstream, double errMag, double alpha);
 
 	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
 	/// the specified output node.)

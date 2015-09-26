@@ -886,6 +886,15 @@ void GIncrementalLearner::beginIncrementalLearning(const GRelation& featureRel, 
 	beginIncrementalLearningInner(featureRel, labelRel);
 }
 
+void GIncrementalLearner::beginIncrementalLearning(const GMatrix& features, const GMatrix& labels)
+{
+	delete(m_pRelFeatures);
+	m_pRelFeatures = features.relation().cloneMinimal();
+	delete(m_pRelLabels);
+	m_pRelLabels = labels.relation().cloneMinimal();
+	beginIncrementalLearningInner(features, labels);
+}
+
 // ---------------------------------------------------------------
 
 // virtual
@@ -1211,6 +1220,13 @@ void GFeatureFilter::beginIncrementalLearningInner(const GRelation& featureRel, 
 }
 
 // virtual
+void GFeatureFilter::beginIncrementalLearningInner(const GMatrix& features, const GMatrix& labels)
+{
+	m_pTransform->train(features);
+	m_pIncrementalLearner->beginIncrementalLearning(m_pTransform->after(), labels.relation());
+}
+
+// virtual
 void GFeatureFilter::trainIncremental(const double* pIn, const double* pOut)
 {
 	m_pTransform->transform(pIn, m_pTransform->innerBuf());
@@ -1296,6 +1312,15 @@ void GLabelFilter::beginIncrementalLearningInner(const GRelation& featureRel, co
 {
 	m_pTransform->train(labelRel);
 	m_pIncrementalLearner->beginIncrementalLearning(featureRel, m_pTransform->after());
+}
+
+// virtual
+void GLabelFilter::beginIncrementalLearningInner(const GMatrix& features, const GMatrix& labels)
+{
+	m_pTransform->train(labels);
+	GMatrix* pNewLabels = m_pTransform->transformBatch(labels);
+	Holder<GMatrix> hNewLabels(pNewLabels);
+	m_pIncrementalLearner->beginIncrementalLearning(features, *pNewLabels);
 }
 
 // virtual
@@ -1564,6 +1589,13 @@ void GAutoFilter::predict(const double* pIn, double* pOut)
 void GAutoFilter::predictDistribution(const double* pIn, GPrediction* pOut)
 {
 	m_pLearner->predictDistribution(pIn, pOut);
+}
+
+// virtual
+void GAutoFilter::beginIncrementalLearningInner(const GMatrix& features, const GMatrix& labels)
+{
+	resetFilters(features, labels);
+	m_pIncrementalLearner->beginIncrementalLearning(features, labels);
 }
 
 // virtual

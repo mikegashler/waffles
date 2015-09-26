@@ -370,6 +370,9 @@ public:
 	/// You must call this method before you call trainIncremental.
 	void beginIncrementalLearning(const GRelation& featureRel, const GRelation& labelRel);
 
+	/// A version of beginIncrementalLearning that supports data-dependent filters.
+	void beginIncrementalLearning(const GMatrix& features, const GMatrix& labels);
+
 	/// Pass a single input row and the corresponding label to incrementally train this model.
 	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
 
@@ -385,6 +388,11 @@ public:
 protected:
 	/// Prepare the model for incremental learning.
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel) = 0;
+
+	virtual void beginIncrementalLearningInner(const GMatrix& features, const GMatrix& labels)
+	{
+		beginIncrementalLearningInner(features.relation(), labels.relation());
+	}
 };
 
 
@@ -527,6 +535,9 @@ protected:
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(const GMatrix& features, const GMatrix& labels);
 };
 
 
@@ -573,6 +584,9 @@ protected:
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(const GMatrix& features, const GMatrix& labels);
 };
 
 
@@ -621,6 +635,9 @@ protected:
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+
+	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
+	virtual void beginIncrementalLearningInner(const GMatrix& features, const GMatrix& labels);
 
 	void whatTypesAreNeeded(const GRelation& featureRel, const GRelation& labelRel, bool& hasNominalFeatures, bool& hasContinuousFeatures, bool& hasNominalLabels, bool& hasContinuousLabels);
 	void setupDataDependentFilters(GSupervisedLearner* pLearner, const GMatrix& features, const GMatrix& labels, bool hasNominalFeatures, bool hasContinuousFeatures, bool hasNominalLabels, bool hasContinuousLabels);

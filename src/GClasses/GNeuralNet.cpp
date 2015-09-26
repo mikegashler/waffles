@@ -166,13 +166,13 @@ void GNeuralNet::setWeights(const double* pWeights)
 		pWeights += m_layers[i]->vectorToWeights(pWeights);
 }
 
-void GNeuralNet::copyWeights(GNeuralNet* pOther)
+void GNeuralNet::copyWeights(const GNeuralNet* pOther)
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
 		m_layers[i]->copyWeights(pOther->m_layers[i]);
 }
 
-void GNeuralNet::copyStructure(GNeuralNet* pOther)
+void GNeuralNet::copyStructure(const GNeuralNet* pOther)
 {
 	clear();
 	delete(m_pRelFeatures);
@@ -192,6 +192,16 @@ void GNeuralNet::copyStructure(GNeuralNet* pOther)
 	m_minImprovement = pOther->m_minImprovement;
 	m_epochsPerValidationCheck = pOther->m_epochsPerValidationCheck;
 	m_useInputBias = pOther->m_useInputBias;
+}
+
+void GNeuralNet::copyErrors(const GNeuralNet* pOther)
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		GNeuralNetLayer* pLay = m_layers[i];
+		GNeuralNetLayer* pOth = pOther->m_layers[i];
+		GVec::copy(pLay->error(), pOth->error(), pLay->outputs());
+	}
 }
 
 void GNeuralNet::perturbAllWeights(double deviation)
@@ -690,6 +700,26 @@ void GNeuralNet::backpropagate(const double* pTarget, size_t startLayer)
 	}
 }
 
+double GNeuralNet::backpropagateAndNormalizeErrors(const double* pTarget, double alpha)
+{
+	size_t i = m_layers.size() - 1;
+	GNeuralNetLayer* pLay = m_layers[i];
+	pLay->computeError(pTarget);
+	pLay->deactivateError();
+	double errMag = sqrt(GVec::squaredMagnitude(pLay->error(), pLay->outputs()));
+	while(i > 0)
+	{
+		GNeuralNetLayer* pUpStream = m_layers[i - 1];
+		pLay->backPropError(pUpStream);
+		pUpStream->deactivateError();
+		double mag = std::sqrt(GVec::squaredMagnitude(pUpStream->error(), pUpStream->outputs()));
+		pLay->scaleWeights(1.0 - alpha + alpha * errMag / mag, true);
+		pLay = pUpStream;
+		i--;
+	}
+	return errMag;
+}
+
 void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream)
 {
 	GNeuralNetLayer* pLay = pDownstream;
@@ -698,6 +728,20 @@ void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream)
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
 		pLay->backPropError(pUpStream);
 		pUpStream->deactivateError();
+		pLay = pUpStream;
+	}
+}
+
+void GNeuralNet::backpropagateFromLayerAndNormalizeErrors(GNeuralNetLayer* pDownstream, double errMag, double alpha)
+{
+	GNeuralNetLayer* pLay = pDownstream;
+	for(size_t i = m_layers.size(); i > 0; i--)
+	{
+		GNeuralNetLayer* pUpStream = m_layers[i - 1];
+		pLay->backPropError(pUpStream);
+		pUpStream->deactivateError();
+		double mag = std::sqrt(GVec::squaredMagnitude(pUpStream->error(), pUpStream->outputs()));
+		pLay->scaleWeights(1.0 - alpha + alpha * errMag / mag, true);
 		pLay = pUpStream;
 	}
 }

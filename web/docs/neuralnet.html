@@ -571,12 +571,14 @@ This code may be a good starting point for many problems involving neural networ
 
 <pre class="code">
 #include &lt;iostream&gt;
+#include &lt;cmath&gt;
 #include &lt;GClasses/GApp.h&gt;
 #include &lt;GClasses/GError.h&gt;
 #include &lt;GClasses/GNeuralNet.h&gt;
 #include &lt;GClasses/GActivation.h&gt;
 #include &lt;GClasses/GTransform.h&gt;
 #include &lt;GClasses/GVec.h&gt;
+#include &lt;GClasses/GHolders.h&gt;
 
 using namespace GClasses;
 using std::cerr;
@@ -598,24 +600,41 @@ int main(int argc, char *argv[])
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	nn.setLearningRate(0.01);
 	GAutoFilter af(&amp;nn, false);
-	af.beginIncrementalLearning(s2.features1().relation(), s2.labels1().relation());
-	cout &lt;&lt; "Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
+	af.beginIncrementalLearning(s2.features1(), s2.labels1());
+	GMatrix* filteredFeatures1 = af.prefilterFeatures(s2.features1());
+	Holder&lt;GMatrix&gt; hFilteredFeatures1(filteredFeatures1);
+	GMatrix* filteredLabels1 = af.prefilterLabels(s2.labels1());
+	Holder&lt;GMatrix&gt; hFilteredLabels1(filteredLabels1);
+	GMatrix* filteredFeatures2 = af.prefilterFeatures(s2.features2());
+	Holder&lt;GMatrix&gt; hFilteredFeatures2(filteredFeatures2);
+	GMatrix* filteredLabels2 = af.prefilterLabels(s2.labels2());
+	Holder&lt;GMatrix&gt; hFilteredLabels2(filteredLabels2);
+	size_t n = s2.features2().rows();
+	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(n) &lt;&lt; "\n";
+	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
 
 	// Train
+	cout &lt;&lt; "@RELATION neural_net_training\n";
+	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
+	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
+	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	GRandomIndexIterator ii(s2.features1().rows(), nn.rand());
 	for(size_t epoch = 0; epoch &lt; 50000; epoch++)
 	{
 		// Validate
+		double sseTrain = nn.sumSquaredError(*filteredFeatures1, *filteredLabels1);
+		double sseTest = nn.sumSquaredError(*filteredFeatures2, *filteredLabels2);
 		double mis = af.sumSquaredError(s2.features2(), s2.labels2());
-		cout &lt;&lt; "Misclassifications: " &lt;&lt; to_str(mis) &lt;&lt; "/" &lt;&lt; to_str(s2.labels2().rows()) &lt;&lt; "\n";
+		cout &lt;&lt; to_str(std::sqrt(sseTrain / n)) &lt;&lt; ", " &lt;&lt; to_str(std::sqrt(sseTest / n) &lt;&lt; ", " &lt;&lt; to_str((double)mis / n) &lt;&lt; "\n";
+		cout.flush();
 
 		// Train
 		ii.reset();
 		size_t index;
 		while(ii.next(index))
 		{
-			const double* pIn = af.prefilterFeatures(s2.features1()[index]);
-			const double* pTarg = af.prefilterLabels(s2.labels1()[index]);
+			const double* pIn = filteredFeatures1-&gt;row(index);
+			const double* pTarg = filteredLabels1-&gt;row(index);
 			nn.forwardProp(pIn);
 			nn.backpropagate(pTarg);
 			nn.descendGradient(pIn, nn.learningRate(), 0.0);
