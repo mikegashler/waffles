@@ -23,7 +23,7 @@ ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS = -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
 else
-	CFLAGS = -Wall
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11
 endif
 
 # GCOV_CFLAGS = $(CFLAGS) -g -fprofile-arcs -ftest-coverage

@@ -121,11 +121,11 @@ void GKeyPair::generateKeyPair(unsigned int uintCount, const unsigned int* pRawC
 	// Find two primes
 	GBigInt p;
 	GBigInt q;
-	int n;
-	for(n = (int)uintCount - 1; n >= 0; n--)
-		p.setUInt(n, pRawCryptographicBytes1[n]);
-	for(n = uintCount - 1; n >= 0; n--)
-		q.setUInt(n, pRawCryptographicBytes2[n]);
+	int i;
+	for(i = (int)uintCount - 1; i >= 0; i--)
+		p.setUInt(i, pRawCryptographicBytes1[i]);
+	for(i = uintCount - 1; i >= 0; i--)
+		q.setUInt(i, pRawCryptographicBytes2[i]);
 	p.setBit(0, true);
 	q.setBit(0, true);
 	int nTries = 0;

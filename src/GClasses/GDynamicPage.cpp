@@ -50,9 +50,9 @@ using std::ostream;
 using std::ostringstream;
 
 
-GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long id)
+GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long ident)
 {
-	m_id = id;
+	m_id = ident;
 	m_pServer = pServer;
 	onAccess();
 	m_pExtension = NULL;

@@ -71,8 +71,8 @@ class GDistanceMetric;
 
       ///Create a NodeAndDistance object with the given index and
       ///distance
-      NodeAndDistance(std::size_t nodeIdx, double distance)
-	:nodeIdx(nodeIdx),distance(distance){}
+      NodeAndDistance(std::size_t nodeIndex, double dist)
+	:nodeIdx(nodeIndex),distance(dist){}
 
       ///Return true if this node has a smaller distance than rhs, or
       ///on equal distance compares their indices, breaking ties.

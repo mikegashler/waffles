@@ -314,11 +314,11 @@ public:
 	}
 
 	/// Sets the mean and variance of this distribution
-	void setMeanAndVariance(double mean, double variance)
+	void setMeanAndVariance(double newmean, double newvariance)
 	{
-		GAssert(mean > -1e308 && variance > -1e-5);
-		m_mean = mean;
-		m_variance = variance;
+		GAssert(newmean > -1e308 && newvariance > -1e-5);
+		m_mean = newmean;
+		m_variance = newvariance;
 		m_height = 0;
 	}
 
@@ -665,10 +665,10 @@ public:
 	virtual double likelihood(double x);
 
 	/// Sets the parameters of this distribution
-	void setParams(double alpha, double beta)
+	void setParams(double newalpha, double newbeta)
 	{
-		m_alpha = alpha;
-		m_beta = beta;
+		m_alpha = newalpha;
+		m_beta = newbeta;
 	}
 
 	/// Returns the mean

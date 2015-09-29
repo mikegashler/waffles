@@ -1250,13 +1250,13 @@ namespace{
 		///               k'th solution is given by correct[k*rows + i].
 		///               If row i should be unassigned, then the correct
 		///               assignment is -1
-		void init(double const* input, 
+		void init(double const* inp, 
 							const std::size_t numSolutions,
 							int const*correct){
 			const std::size_t rows = this->input.rows();
 			const std::size_t cols = this->input.cols();
 
-			this->input.fromVector(input, rows);
+			this->input.fromVector(inp, rows);
 			for(std::size_t curSol = 0; curSol < numSolutions; ++curSol){
 				int const* start = correct + curSol * rows;
 				std::vector<int> tmp(start, start+rows);
@@ -1284,12 +1284,12 @@ namespace{
 		///               If row i should be unassigned, then the correct
 		///               assignment is -1
 		LinearAssignmentTestCase(const std::size_t rows, const std::size_t cols, 
-														 double const* input, 
+														 double const* inp, 
 														 const std::size_t numSolutions,
 														 int const*correct, 
 														 ShouldMinimize):
 			input(rows, cols), isMinimization(true){
-			init(input, numSolutions, correct);
+			init(inp, numSolutions, correct);
 		}
 		///\brief Make a test case for a linear assignment maximization problem
 		///
@@ -1298,11 +1298,11 @@ namespace{
 		///
 		///\see LinearAssignmentTestCase(const std::size_t rows, const std::size_t cols, double const* input, const std::size_t numSolutions, int const*correct, ShouldMinimize);
 		LinearAssignmentTestCase(const std::size_t rows, const std::size_t cols, 
-														 double const* input, 
+														 double const* inp, 
 														 const std::size_t numSolutions,
 														 int const*correct, ShouldMaximize):
 			input(rows, cols), isMinimization(false){
-			init(input, numSolutions, correct);
+			init(inp, numSolutions, correct);
 		}
 
 		///\brief Runs this test case for the brute-force linear

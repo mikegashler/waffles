@@ -557,11 +557,11 @@ GMatrix* GFloydWarshall::releaseCostMatrix()
 	return m_pCosts;
 }
 
-void GFloydWarshall::addDirectedEdge(size_t from, size_t to, double cost)
+void GFloydWarshall::addDirectedEdge(size_t from, size_t to, double edgecost)
 {
-	if(cost < m_pCosts->row(from)[to])
+	if(edgecost < m_pCosts->row(from)[to])
 	{
-		m_pCosts->row(from)[to] = cost;
+		m_pCosts->row(from)[to] = edgecost;
 		m_pPaths[from * m_nodes + to] = to;
 	}
 }
@@ -671,10 +671,10 @@ GDijkstra::~GDijkstra()
 	delete[] m_pPrevious;
 }
 
-void GDijkstra::addDirectedEdge(size_t from, size_t to, double cost)
+void GDijkstra::addDirectedEdge(size_t from, size_t to, double edgecost)
 {
 	m_pNeighbors[from].push_back(to);
-	m_pEdgeCosts[from].push_back(cost);
+	m_pEdgeCosts[from].push_back(edgecost);
 }
 
 void GDijkstra::compute(size_t origin)
@@ -886,7 +886,7 @@ void GBrandesBetweennessCentrality::compute()
 			size_t v = q.front();
 			q.pop_front();
 			stack.push_back(v);
-			size_t neighborIndex = 0;
+			size_t neighIndex = 0;
 			for(vector<size_t>::iterator it = m_pNeighbors[v].begin(); it != m_pNeighbors[v].end(); it++)
 			{
 				size_t w = *it;
@@ -899,9 +899,9 @@ void GBrandesBetweennessCentrality::compute()
 				{
 					sigma[w] += sigma[v];
 					lists[w].push_back(v);
-					lists[w].push_back(neighborIndex);
+					lists[w].push_back(neighIndex);
 				}
-				neighborIndex++;
+				neighIndex++;
 			}
 		}
 
@@ -914,10 +914,10 @@ void GBrandesBetweennessCentrality::compute()
 			for(size_t i = 0; i < lists[w].size(); i += 2)
 			{
 				size_t v = lists[w][i];
-				size_t neighborIndex = lists[w][i + 1];
+				size_t neighIndex = lists[w][i + 1];
 				double f = (sigma[v] / sigma[w]) * (1.0 + d[w]);
 				d[v] += f;
-				m_pEdgeBetweenness[v][neighborIndex] += f;
+				m_pEdgeBetweenness[v][neighIndex] += f;
 			}
 			if(w != s)
 				m_pVertexBetweenness[w] += d[w];
@@ -942,9 +942,9 @@ size_t GBrandesBetweennessCentrality::neighborIndex(size_t from, size_t to)
 	return INVALID_INDEX;
 }
 
-double GBrandesBetweennessCentrality::edgeBetweennessByNeighbor(size_t vertex, size_t neighborIndex)
+double GBrandesBetweennessCentrality::edgeBetweennessByNeighbor(size_t vertex, size_t neighIndex)
 {
-	return m_pEdgeBetweenness[vertex][neighborIndex];
+	return m_pEdgeBetweenness[vertex][neighIndex];
 }
 
 double GBrandesBetweennessCentrality::edgeBetweennessByVertex(size_t vertex1, size_t vertex2)

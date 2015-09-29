@@ -273,21 +273,21 @@ public:
 	}
 
 	/// Resizes the array, nomatter what, and destroys any existing contents
-	void resize(size_t size)
+	void resize(size_t n)
 	{
 		delete[] m_pBuf;
-		m_pBuf = new double[size];
-		m_size = size;
+		m_pBuf = new double[n];
+		m_size = n;
 	}
 
 	/// Resizes the array if necessary, preserving the contents
-	void grow(size_t size)
+	void grow(size_t n)
 	{
-		if(size > m_size)
+		if(n > m_size)
 		{
-			double* pNew = new double[size];
+			double* pNew = new double[n];
 			GVec::copy(pNew, m_pBuf, m_size);
-			m_size = size;
+			m_size = n;
 			delete[] m_pBuf;
 			m_pBuf = pNew;
 		}
@@ -295,10 +295,10 @@ public:
 
 	/// Ensures that the array is at least the specified size. Resizes
 	/// (destroying the contents) if it is not.
-	void reserve(size_t size)
+	void reserve(size_t n)
 	{
-		if(size > m_size)
-			resize(size);
+		if(n > m_size)
+			resize(n);
 	}
 };
 

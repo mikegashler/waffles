@@ -489,8 +489,8 @@ public:
 
 // --------------------------------------------------------------------------------
 
-GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
-: GNeighborFinder(pData, neighborCount), m_pMetric(pMetric), m_ownMetric(ownMetric)
+GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(const GMatrix* pData, size_t neighbor_count, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinder(pData, neighbor_count), m_pMetric(pMetric), m_ownMetric(ownMetric)
 {
 	if(!m_pMetric)
 	{
@@ -509,8 +509,8 @@ GNeighborFinderGeneralizing::~GNeighborFinderGeneralizing()
 
 // --------------------------------------------------------------------------------
 
-GBruteForceNeighborFinder::GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
-: GNeighborFinderGeneralizing(pData, neighborCount, pMetric, ownMetric)
+GBruteForceNeighborFinder::GBruteForceNeighborFinder(GMatrix* pData, size_t neighbor_count, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinderGeneralizing(pData, neighbor_count, pMetric, ownMetric)
 {
 }
 
@@ -803,8 +803,8 @@ public:
 
 // --------------------------------------------------------------------------------------------------------
 
-GKdTree::GKdTree(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
-: GNeighborFinderGeneralizing(pData, neighborCount, pMetric, ownMetric)
+GKdTree::GKdTree(const GMatrix* pData, size_t neighbor_count, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinderGeneralizing(pData, neighbor_count, pMetric, ownMetric)
 {
 	m_maxLeafSize = 6;
 	size_t count = pData->rows();
@@ -1479,8 +1479,8 @@ public:
 };
 
 
-GBallTree::GBallTree(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric, bool ownMetric)
-: GNeighborFinderGeneralizing(pData, neighborCount, pMetric, ownMetric),
+GBallTree::GBallTree(const GMatrix* pData, size_t neighbor_count, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinderGeneralizing(pData, neighbor_count, pMetric, ownMetric),
 m_maxLeafSize(6),
 m_pRoot(NULL)
 {
@@ -2228,7 +2228,7 @@ void GCycleCut::test()
 	// Make some random data
 	GMatrix data(0, 5);
 	GRand prng(0);
-	for(size_t i = 0; i < n; i++)
+	for(size_t ii = 0; ii < n; ii++)
 	{
 		double* pRow = data.newRow();
 		prng.spherical(pRow, 5);
@@ -2258,8 +2258,8 @@ void GCycleCut::test()
 
 
 
-GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t tangentDims, double sqCorrCap, GRand* pRand)
-: GNeighborFinder(pData, neighbors), m_rows(pData->rows())
+GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbor_count, size_t tangentDims, double sqCorrCap, GRand* pRand)
+: GNeighborFinder(pData, neighbor_count), m_rows(pData->rows())
 {
 	double radius = GKdTree::medianDistanceToNeighbor(*pData, medianCands);
 	double squaredRadius = radius * radius;
@@ -2331,8 +2331,8 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 
 		// Refine the weights
 		pHoodWeights = pWeights;
-		size_t* pHoodIndexes = pCandIndexes;
-		double* pHoodDists = pCandDists;
+		size_t* pHoodIndxs = pCandIndexes;
+		double* pHoodDsts = pCandDists;
 		double goodness = 0.0;
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
@@ -2341,7 +2341,7 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 			GMatrix* pMyTan = &tanSpaces[i];
 			for(size_t j = 0; j < maxCandidates; j++)
 			{
-				size_t neighIndex = pHoodIndexes[j];
+				size_t neighIndex = pHoodIndxs[j];
 				if(neighIndex >= pData->rows())
 				{
 					pSquaredCorr[j] = 0.0;
@@ -2366,16 +2366,16 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t 
 			}
 
 			// Adjust the weights
-			GVec::smallestToFront(pSquaredCorr, maxCandidates - neighbors, maxCandidates, pHoodWeights, pHoodIndexes, pHoodDists);
-			for(size_t j = 0; j < maxCandidates - neighbors; j++)
+			GVec::smallestToFront(pSquaredCorr, maxCandidates - neighbor_count, maxCandidates, pHoodWeights, pHoodIndxs, pHoodDsts);
+			for(size_t j = 0; j < maxCandidates - neighbor_count; j++)
 				pHoodWeights[j] = 0.9 * pHoodWeights[j];
 			GVec::sumToOne(pHoodWeights, maxCandidates);
 			goodness += GVec::dotProduct(pHoodWeights, pSquaredCorr, maxCandidates);
 
 			// Advance
 			pHoodWeights += maxCandidates;
-			pHoodIndexes += maxCandidates;
-			pHoodDists += maxCandidates;
+			pHoodIndxs += maxCandidates;
+			pHoodDsts += maxCandidates;
 		}
 		if(prevGoodness > 0.0 && (goodness / prevGoodness - 1.0) < 0.0001)
 			break;
@@ -2463,7 +2463,7 @@ double GSaffron::meanNeighborCount(double* pDeviation)
 	for(size_t i = 0; i < m_rows; i++)
 	{
 		size_t n = 0;
-		for(size_t i = 0; i < m_neighborCount; i++)
+		for(size_t j = 0; j < m_neighborCount; j++)
 		{
 			if(*pPos < m_rows)
 				n++;
@@ -2483,8 +2483,8 @@ double GSaffron::meanNeighborCount(double* pDeviation)
 
 
 
-GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand, size_t maxDims)
-: GNeighborFinder(preprocessObservations(pObservations, maxDims), neighborCount),
+GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighbor_count, GRand* pRand, size_t maxDims)
+: GNeighborFinder(preprocessObservations(pObservations, maxDims), neighbor_count),
 m_pPreprocessed(m_pPreprocessed + 0), // don't panic, this is intentional. m_pPreprocessed is initialized in the previous line, and we do this so that its value will not be stomped over.
 m_pActions(pActions),
 m_ownActionsData(ownActionsData),
@@ -2663,8 +2663,8 @@ void GTemporalNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDista
 
 
 
-GSequenceNeighborFinder::GSequenceNeighborFinder(GMatrix* pData, int neighborCount)
-: GNeighborFinder(pData, neighborCount)
+GSequenceNeighborFinder::GSequenceNeighborFinder(GMatrix* pData, int neighbor_count)
+: GNeighborFinder(pData, neighbor_count)
 {
 }
 
@@ -2710,8 +2710,8 @@ void GSequenceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDista
 	}
 	if(pOutDistances)
 	{
-		for(size_t i = 0; i < m_neighborCount; i++)
-			pOutDistances[i] = (double)((i + 2) / 2);
+		for(size_t ii = 0; ii < m_neighborCount; ii++)
+			pOutDistances[ii] = (double)((ii + 2) / 2);
 	}
 }
 

@@ -355,9 +355,9 @@ void GCF_basicTest_makeData(GMatrix& m, GRand& rand)
 
 void GCollaborativeFilter::basicTest(double maxMSE)
 {
-	GRand rand(0);
+	GRand rnd(0);
 	GMatrix m(0, 3);
-	GCF_basicTest_makeData(m, rand);
+	GCF_basicTest_makeData(m, rnd);
 	double mse = crossValidate(m, 2);
 	if(mse > maxMSE)
 		throw Ex("Failed. Expected MSE=", to_str(maxMSE), ". Actual MSE=", to_str(mse), ".");
@@ -1073,7 +1073,7 @@ double GMatrixFactorization::validate(GMatrix& data)
 		double* pPref = m_pP->row(size_t(pVec[0]));
 		double* pWeights = m_pQ->row(size_t(pVec[1]));
 		double pred = *(pWeights++) + *(pPref++);
-		for(size_t i = 0; i < m_intrinsicDims; i++)
+		for(size_t j = 0; j < m_intrinsicDims; j++)
 			pred += *(pPref++) * (*pWeights++);
 		double err = pVec[2] - pred;
 		sse += (err * err);
@@ -1087,7 +1087,7 @@ void GMatrixFactorization::clampP(size_t i)
 	double* pMask = m_pPMask->row(i);
 	double* pBias = m_pPWeights->row(0);
 	double* pWeights = m_pPWeights->row(1);
-	for(size_t i = 0; i < m_intrinsicDims; i++)
+	for(size_t j = 0; j < m_intrinsicDims; j++)
 	{
 		if(*pMask != UNKNOWN_REAL_VALUE)
 			*pP = *pBias + *pWeights * *pMask;
@@ -1104,7 +1104,7 @@ void GMatrixFactorization::clampQ(size_t i)
 	double* pMask = m_pQMask->row(i);
 	double* pBias = m_pQWeights->row(0);
 	double* pWeights = m_pQWeights->row(1);
-	for(size_t i = 0; i < m_intrinsicDims; i++)
+	for(size_t j = 0; j < m_intrinsicDims; j++)
 	{
 		if(*pMask != UNKNOWN_REAL_VALUE)
 			*pQ = *pBias + *pWeights * *pMask;
@@ -1339,25 +1339,25 @@ void GMatrixFactorization::impute(double* pVec, size_t dims)
 		for(size_t i = 0; i < data.rows(); i++)
 		{
 			// Compute the error for this rating
-			double* pVec = data[i];
+			double* pV = data[i];
 			double* pP = pPrefVec;
-			double* pQ = m_pQ->row(size_t(pVec[1]));
+			double* pQ = m_pQ->row(size_t(pV[1]));
 			double pred = *(pQ++);
 			if(m_useInputBias)
 				pred += *(pP++);
-			for(size_t i = 0; i < m_intrinsicDims; i++)
+			for(size_t j = 0; j < m_intrinsicDims; j++)
 				pred += *(pP++) * (*pQ++);
-			double err = pVec[2] - pred;
+			double err = pV[2] - pred;
 
 			// Update the preference vec
-			pQ = m_pQ->row(size_t(pVec[1])) + 1;
+			pQ = m_pQ->row(size_t(pV[1])) + 1;
 			pP = pPrefVec;
 			if(m_useInputBias)
 			{
 				(*pP) += learningRate * (err - m_regularizer * (*pP));
 				pP++;
 			}
-			for(size_t i = 0; i < m_intrinsicDims; i++)
+			for(size_t j = 0; j < m_intrinsicDims; j++)
 			{
 				(*pP) += learningRate * (err * (*pQ) - m_regularizer * (*pP));
 				pQ++;
@@ -1432,8 +1432,8 @@ GHybridNonlinearPCA::~GHybridNonlinearPCA()
 
 void GHybridNonlinearPCA::train(GMatrix& data)
 {
-	size_t users, items;
-	GCollaborativeFilter_dims(data, &items, &users);
+	size_t usrs, items;
+	GCollaborativeFilter_dims(data, &items, &usrs);
 	m_items = items;
 
 	// Copy and normalize the ratings
@@ -1445,10 +1445,10 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	delete[] m_pMaxs;
 	m_pMaxs = new double[items];
 	delete[] m_pRatingCount;
-	m_pRatingCount = new size_t[users];
+	m_pRatingCount = new size_t[usrs];
 	GVec::setAll(m_pMins, 1e200, items);
 	GVec::setAll(m_pMaxs, -1e200, items);
-	GIndexVec::setAll(m_pRatingCount, 0, users);
+	GIndexVec::setAll(m_pRatingCount, 0, usrs);
 	for(size_t i = 0; i < pClone->rows(); i++)
 	{
 		double* pVec = pClone->row(i);
@@ -1495,13 +1495,13 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 		if(pass == startPass) //-1)
 		{
 			delete(m_pUsers);
-			m_pUsers = new GMatrix(users, m_intrinsicDims + numAttr);
+			m_pUsers = new GMatrix(usrs, m_intrinsicDims + numAttr);
 			delete[] m_itemMap;
 			m_itemMap = new size_t[m_itemAttrs->rows()];
 			GIndexVec::setAll(m_itemMap, 0, m_itemAttrs->rows());
 			size_t count = 0;
 			double* itemVec = m_itemAttrs->row(count);
-			for(size_t i = 0; i < users; i++)
+			for(size_t i = 0; i < usrs; i++)
 			{
 				double* pVec = m_pUsers->row(i);
 				GVec::setAll(pVec, 0, m_intrinsicDims + numAttr);
@@ -1637,10 +1637,10 @@ double GHybridNonlinearPCA::predict(size_t item, size_t user)
 		}
 //		return sum / denom;
 		size_t predMode = 0;
-		for(size_t i = 1; i < 11; i++)
+		for(size_t j = 1; j < 11; j++)
 		{
-			if(counts[i] > counts[predMode])
-				predMode = i;
+			if(counts[j] > counts[predMode])
+				predMode = j;
 		}
 		return predMode / 2.0;
 	}
@@ -1854,8 +1854,8 @@ void GNonlinearPCA::clampItemsInternal(size_t i)
 // virtual
 void GNonlinearPCA::train(GMatrix& data)
 {
-	size_t users, items;
-	GCollaborativeFilter_dims(data, &users, &items);
+	size_t usrs, items;
+	GCollaborativeFilter_dims(data, &usrs, &items);
 	m_items = items;
 
 	// Copy and normalize the ratings
@@ -1912,8 +1912,8 @@ void GNonlinearPCA::train(GMatrix& data)
 		{
 			// Initialize the user matrix
 			delete(m_pUsers);
-			m_pUsers = new GMatrix(users, m_intrinsicDims);
-			for(size_t i = 0; i < users; i++)
+			m_pUsers = new GMatrix(usrs, m_intrinsicDims);
+			for(size_t i = 0; i < usrs; i++)
 			{
 				double* pVec = m_pUsers->row(i);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
@@ -2242,9 +2242,9 @@ void GLogNet::train(GMatrix& data)
 			item = (size_t)pRow[1];
 			GVec::copy(pFeat, m_pP->row(user), m_intrinsicDims + 1);
 			GVec::copy(pFeat + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
-			double targ = pRow[2];
+			double targ2 = pRow[2];
 			m_pModel->forwardProp(pFeat);
-			m_pModel->backpropagate(&targ);
+			m_pModel->backpropagate(&targ2);
 			m_pModel->layer(0).backPropError(&inputLayer);
 			m_pModel->updateDeltas(pFeat, 1.0);
 			GVec::add(PDelta[user], inputLayer.error(), m_intrinsicDims + 1);

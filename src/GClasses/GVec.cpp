@@ -1017,14 +1017,14 @@ void GIndexVec::print(std::ostream& stream, size_t* pVec, size_t dims)
 
 
 
-GRandomIndexIterator::GRandomIndexIterator(size_t length, GRand& rand)
-: m_length(length), m_rand(rand)
+GRandomIndexIterator::GRandomIndexIterator(size_t len, GRand& rnd)
+: m_length(len), m_rand(rnd)
 {
-	m_pIndexes = new size_t[length];
+	m_pIndexes = new size_t[len];
 	size_t* pInd = m_pIndexes;
-	for(size_t i = 0; i < length; i++)
+	for(size_t i = 0; i < len; i++)
 		*(pInd++) = i;
-	m_pEnd = m_pIndexes + length;
+	m_pEnd = m_pIndexes + len;
 	m_pCur = m_pEnd;
 }
 
@@ -1052,16 +1052,16 @@ bool GRandomIndexIterator::next(size_t& outIndex)
 
 
 
-GCoordVectorIterator::GCoordVectorIterator(size_t dims, size_t* pRanges)
+GCoordVectorIterator::GCoordVectorIterator(size_t dimCount, size_t* pRanges)
 {
 	m_pCoords = NULL;
-	reset(dims, pRanges);
+	reset(dimCount, pRanges);
 }
 
-GCoordVectorIterator::GCoordVectorIterator(vector<size_t>& ranges)
+GCoordVectorIterator::GCoordVectorIterator(vector<size_t>& range)
 {
 	m_pCoords = NULL;
-	reset(ranges);
+	reset(range);
 }
 
 GCoordVectorIterator::~GCoordVectorIterator()
@@ -1075,19 +1075,19 @@ void GCoordVectorIterator::reset()
 	m_sampleShift = INVALID_INDEX;
 }
 
-void GCoordVectorIterator::reset(size_t dims, size_t* pRanges)
+void GCoordVectorIterator::reset(size_t dimCount, size_t* pRanges)
 {
-	m_dims = dims;
+	m_dims = dimCount;
 	delete[] m_pCoords;
-	if(dims > 0)
+	if(dimCount > 0)
 	{
-		m_pCoords = new size_t[2 * dims];
-		m_pRanges = m_pCoords + dims;
+		m_pCoords = new size_t[2 * dimCount];
+		m_pRanges = m_pCoords + dimCount;
 		if(pRanges)
-			memcpy(m_pRanges, pRanges, sizeof(size_t) * dims);
+			memcpy(m_pRanges, pRanges, sizeof(size_t) * dimCount);
 		else
 		{
-			for(size_t i = 0; i < dims; i++)
+			for(size_t i = 0; i < dimCount; i++)
 				m_pRanges[i] = 1;
 		}
 	}
@@ -1099,16 +1099,16 @@ void GCoordVectorIterator::reset(size_t dims, size_t* pRanges)
 	reset();
 }
 
-void GCoordVectorIterator::reset(vector<size_t>& ranges)
+void GCoordVectorIterator::reset(vector<size_t>& range)
 {
-	m_dims = ranges.size();
+	m_dims = range.size();
 	delete[] m_pCoords;
 	if(m_dims > 0)
 	{
 		m_pCoords = new size_t[2 * m_dims];
 		m_pRanges = m_pCoords + m_dims;
 		for(size_t i = 0; i < m_dims; i++)
-			m_pRanges[i] = ranges[i];
+			m_pRanges[i] = range[i];
 	}
 	else
 	{

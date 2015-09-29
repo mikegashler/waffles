@@ -34,10 +34,10 @@ using std::cout;
 
 namespace GClasses {
 
-GSparseMatrix::GSparseMatrix(size_t rows, size_t cols, double defaultValue)
-: m_cols(cols), m_defaultValue(defaultValue)
+GSparseMatrix::GSparseMatrix(size_t rowCount, size_t colCount, double def_Value)
+: m_cols(colCount), m_defaultValue(def_Value)
 {
-	m_rows.resize(rows);
+	m_rows.resize(rowCount);
 }
 
 GSparseMatrix::GSparseMatrix(GDomNode* pNode)
@@ -46,9 +46,9 @@ GSparseMatrix::GSparseMatrix(GDomNode* pNode)
 	m_cols = (size_t)pNode->field("cols")->asInt();
 	GDomNode* pRows = pNode->field("rows");
 	GDomListIterator it1(pRows);
-	size_t rows = it1.remaining();
-	m_rows.resize(rows);
-	for(size_t i = 0; i < rows; i++)
+	size_t rowCount = it1.remaining();
+	m_rows.resize(rowCount);
+	for(size_t i = 0; i < rowCount; i++)
 	{
 		GDomNode* pElements = it1.current();
 		for(GDomListIterator it2(pElements); it2.current(); it2.advance())
@@ -86,30 +86,30 @@ GDomNode* GSparseMatrix::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-void GSparseMatrix::fullRow(double* pOutFullRow, size_t row)
+void GSparseMatrix::fullRow(double* pOutFullRow, size_t r)
 {
 	GVec::setAll(pOutFullRow, m_defaultValue, m_cols);
-	Iter end = rowEnd(row);
-	for(Iter it = rowBegin(row); it != end; it++)
+	Iter end = rowEnd(r);
+	for(Iter it = rowBegin(r); it != end; it++)
 		pOutFullRow[it->first] = it->second;
 }
 
-double GSparseMatrix::get(size_t row, size_t col) const
+double GSparseMatrix::get(size_t rowIndex, size_t colIndex) const
 {
-	GAssert(row < m_rows.size() && col < m_cols); // out of range
-	SparseVec::const_iterator it = m_rows[row].find(col);
-	if(it == m_rows[row].end())
+	GAssert(rowIndex < m_rows.size() && colIndex < m_cols); // out of range
+	SparseVec::const_iterator it = m_rows[rowIndex].find(colIndex);
+	if(it == m_rows[rowIndex].end())
 		return m_defaultValue;
 	return it->second;
 }
 
-void GSparseMatrix::set(size_t row, size_t col, double val)
+void GSparseMatrix::set(size_t rowIndex, size_t colIndex, double val)
 {
-	GAssert(row < m_rows.size() && col < m_cols); // out of range
+	GAssert(rowIndex < m_rows.size() && colIndex < m_cols); // out of range
 	if(val == m_defaultValue)
-		m_rows[row].erase(col);
+		m_rows[rowIndex].erase(colIndex);
 	else
-		m_rows[row][col] = val;
+		m_rows[rowIndex][colIndex] = val;
 }
 
 void GSparseMatrix::multiply(double scalar)
@@ -167,8 +167,8 @@ GMatrix* GSparseMatrix::firstPrincipalComponents(size_t k, GRand& rand)
 
 void GSparseMatrix::copyFrom(const GSparseMatrix* that)
 {
-	size_t rows = std::min(m_rows.size(), that->rows());
-	for(size_t r = 0; r < rows; r++)
+	size_t rowCount = std::min(m_rows.size(), that->rows());
+	for(size_t r = 0; r < rowCount; r++)
 	{
 		Iter end = that->rowEnd(r);
 		size_t pos = 0;
@@ -182,12 +182,12 @@ void GSparseMatrix::copyFrom(const GSparseMatrix* that)
 
 void GSparseMatrix::copyFrom(const GMatrix* that)
 {
-	size_t rows = std::min(m_rows.size(), that->rows());
-	size_t cols = std::min(m_cols, (size_t)that->cols());
-	for(size_t r = 0; r < rows; r++)
+	size_t rowCount = std::min(m_rows.size(), that->rows());
+	size_t colCount = std::min(m_cols, (size_t)that->cols());
+	for(size_t r = 0; r < rowCount; r++)
 	{
 		const double* pRow = that->row(r);
-		for(size_t c = 0; c < cols; c++)
+		for(size_t c = 0; c < colCount; c++)
 		{
 			set(r, c, *pRow);
 			pRow++;
@@ -205,12 +205,12 @@ void GSparseMatrix::newRows(size_t n)
 	m_rows.resize(m_rows.size() + n);
 }
 
-void GSparseMatrix::copyRow(SparseVec& row)
+void GSparseMatrix::copyRow(SparseVec& r)
 {
 	size_t n = m_rows.size();
 	newRow();
 	SparseVec& m = m_rows[n];
-	m = row;
+	m = r;
 }
 
 GMatrix* GSparseMatrix::toFullMatrix()
@@ -261,15 +261,15 @@ void GSparseMatrix::shuffle(GRand* pRand, GMatrix* pLabels)
 	}
 }
 
-GSparseMatrix* GSparseMatrix::subMatrix(size_t row, size_t col, size_t height, size_t width)
+GSparseMatrix* GSparseMatrix::subMatrix(size_t r, size_t c, size_t height, size_t width)
 {
-	if(row + height >= m_rows.size() || col + width >= m_cols)
+	if(r + height >= m_rows.size() || c + width >= m_cols)
 		throw Ex("out of range");
 	GSparseMatrix* pSub = new GSparseMatrix(height, width, m_defaultValue);
 	for(size_t y = 0; y < height; y++)
 	{
 		for(size_t x = 0; x < width; x++)
-			pSub->set(y, x, get(row + y, col + x));
+			pSub->set(y, x, get(r + y, c + x));
 	}
 	return pSub;
 }
@@ -352,7 +352,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	int n = (int)cols();
 	if(m < n)
 		throw Ex("Expected at least as many rows as columns");
-	int i, j, k, q;
+	int j, k, q;
 	int l = 0;
 	double c, f, h, s, x, y, z;
 	double norm = 0.0;
@@ -561,7 +561,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	}
 
 	// Accumulate left-hand transform
-	for(i = n - 1; i >= 0; i--)
+	for(int i = n - 1; i >= 0; i--)
 	{
 		l = i + 1;
 		g = pSigma[i];
@@ -651,7 +651,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 			{
 				c = 0.0;
 				s = 1.0;
-				for(i = l; i <= k; i++)
+				for(int i = l; i <= k; i++)
 				{
 					f = s * temp[i];
 					temp[i] *= c;
@@ -713,7 +713,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 			s = 1.0;
 			for(j = l; j <= q; j++)
 			{
-				i = j + 1;
+				int i = j + 1;
 				g = temp[i];
 				y = pSigma[i];
 				h = s * g;
@@ -774,7 +774,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	}
 
 	// Sort the singular values from largest to smallest
-	for(i = 1; i < n; i++)
+	for(int i = 1; i < n; i++)
 	{
 		for(j = i; j > 0; j--)
 		{
@@ -812,11 +812,11 @@ void GSparseMatrix::principalComponentAboutOrigin(double* pOutVector, GRand* pRa
 		for(size_t n = 0; n < nCount; n++)
 		{
 			Iter itEnd = rowEnd(n);
-			double d = 0.0;
+			double dd = 0.0;
 			for(Iter it = rowBegin(n); it != itEnd; it++)
-				d += pOutVector[it->first] * it->second;
+				dd += pOutVector[it->first] * it->second;
 			for(Iter it = rowBegin(n); it != itEnd; it++)
-				pAccumulator[it->first] += d * it->second;
+				pAccumulator[it->first] += dd * it->second;
 		}
 		GVec::copy(pOutVector, pAccumulator, dims);
 		GVec::safeNormalize(pOutVector, dims, pRand);

@@ -322,11 +322,11 @@ double GRand::softImpulse(double s)
 	return 1.0 / (1.0 + pow(1.0 / y - 1.0, 1.0 / s));
 }
 
-double GRand::weibull(double gamma)
+double GRand::weibull(double gammaVal)
 {
-	if(gamma <= 0)
+	if(gammaVal <= 0)
 		throw Ex("invalid parameter");
-	return pow(exponential(), (1.0 / gamma));
+	return pow(exponential(), (1.0 / gammaVal));
 }
 
 void GRand::dirichlet(double* pOutVec, const double* pParams, int dims)
@@ -370,12 +370,12 @@ double GRand::logNormal(double mean, double dev)
 	return exp(normal() * dev + mean);
 }
 
-double GRand::beta(double alpha, double beta)
+double GRand::beta(double alphaVal, double betaVal)
 {
-	if(alpha <= 0 || beta <= 0)
+	if(alphaVal <= 0 || betaVal <= 0)
 		throw Ex("invalid parameters");
-	double r = gamma(alpha);
-	return r / (r + gamma(beta));
+	double r = gamma(alphaVal);
+	return r / (r + gamma(betaVal));
 }
 
 void GRand::spherical(double* pOutVec, size_t dims)

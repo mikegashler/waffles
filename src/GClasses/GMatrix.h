@@ -175,8 +175,8 @@ protected:
 	size_t m_valueCount;
 
 public:
-	GUniformRelation(size_t attrCount, size_t valueCount = 0)
-	: m_attrCount(attrCount), m_valueCount(valueCount)
+	GUniformRelation(size_t attrCount, size_t values = 0)
+	: m_attrCount(attrCount), m_valueCount(values)
 	{
 	}
 

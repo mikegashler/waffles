@@ -197,8 +197,8 @@ namespace GClasses {
 	double y1;
 	double x2;
 	double y2;
-	SVG2DLine(double x1, double y1, double x2, double y2)
-	  :x1(x1),y1(y1),x2(x2),y2(y2){
+	SVG2DLine(double x_1, double y_1, double x_2, double y_2)
+	  :x1(x_1),y1(y_1),x2(x_2),y2(y_2){
 	  //Sort the points involved in the line lexically so that the
 	  //line becomes undirected
 	  if(x1 < x2 || (x1 == x2 && y1 < y2)){
@@ -869,20 +869,20 @@ GSelfOrganizingMap::GSelfOrganizingMap
   m_pWeightDistance->init(new GUniformRelation(1), true);
 }
 
-GSelfOrganizingMap::GSelfOrganizingMap(const std::vector<double>& outputAxes,
+GSelfOrganizingMap::GSelfOrganizingMap(const std::vector<double>& output_Axes,
 				       std::size_t numNodes,
 				       SOM::NodeLocationInitialization
 				       *topology,
 				       SOM::TrainingAlgorithm* trainer,
-				       GDistanceMetric* weightDistance,
-				       GDistanceMetric* nodeDistance)
-  :m_nInputDims(0), m_outputAxes(outputAxes), m_pTrainer(trainer),
-   m_pWeightDistance(weightDistance), m_pNodeDistance(nodeDistance),
+				       GDistanceMetric* weightDist,
+				       GDistanceMetric* nodeDist)
+  :m_nInputDims(0), m_outputAxes(output_Axes), m_pTrainer(trainer),
+   m_pWeightDistance(weightDist), m_pNodeDistance(nodeDist),
    m_nodes(numNodes),
    m_sortedNeighborsIsValid(false){
 
   //Set the topology
-  topology->setLocations(outputAxes, m_nodes);
+  topology->setLocations(output_Axes, m_nodes);
   delete topology;
 
   //Set the weight vectors to have one identical 0 value each - the
@@ -941,17 +941,17 @@ std::size_t GSelfOrganizingMap::bestMatch(const double*in) const{
   using SOM::Node;
   typedef std::vector<Node>::const_iterator NIter;
   assert(nodes().size() > 0);
-  std::size_t bestMatch = nodes().size() + 1;
+  std::size_t best_Match = nodes().size() + 1;
   double bestDistance = std::numeric_limits<double>::infinity();
   for(NIter cur = nodes().begin(); cur != nodes().end(); ++cur){
     const double *weights = &(cur->weights.front());
     double dissim = (*m_pWeightDistance)(weights, in);
-    if(dissim < bestDistance || bestMatch >= nodes().size()){
-      bestMatch = cur - nodes().begin();
+    if(dissim < bestDistance || best_Match >= nodes().size()){
+      best_Match = cur - nodes().begin();
       bestDistance = dissim;
     }
   }
-  return bestMatch;
+  return best_Match;
 }
 
 std::vector<std::size_t> GSelfOrganizingMap::bestData

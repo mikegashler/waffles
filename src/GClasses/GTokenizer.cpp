@@ -305,11 +305,11 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 		GCharSet cs("\"\n");
 		while(has_more())
 		{
-			char c = peek();
-			if(cs.find(c))
+			char c2 = peek();
+			if(cs.find(c2))
 				break;
-			c = get();
-			bufferChar(c);
+			c2 = get();
+			bufferChar(c2);
 		}
 		if(peek() != '"')
 			throw Ex("Expected matching double-quotes on line ",
@@ -327,11 +327,11 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 		GCharSet cs("'\n");
 		while(has_more())
 		{
-			char c = peek();
-			if(cs.find(c))
+			char c2 = peek();
+			if(cs.find(c2))
 				break;
-			c = get();
-			bufferChar(c);
+			c2 = get();
+			bufferChar(c2);
 		}
 		if(peek() != '\'')
 			throw Ex("Expected a matching single-quote on line ", to_str(m_line),
@@ -346,26 +346,26 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 	bool inEscapeMode = false;
 	while(has_more())
 	{
-		char c = peek();
+		char c2 = peek();
 		if(inEscapeMode)
 		{
-			if(c == '\n')
+			if(c2 == '\n')
 			{
 				throw Ex("Error: '", to_str(escapeChar), "' character used as "
 									 "last character on a line to attempt to extend string over "
 									 "two lines on line" , to_str(m_line), ", col ",
 									 to_str(col()) );
 			}
-			c = get();
-			bufferChar(c);
+			c2 = get();
+			bufferChar(c2);
 			inEscapeMode = false;
 		}
 		else
 		{
-			if(c == '\n' || delimiters.find(c)){ break; }
-			c = get();
-			if(c == escapeChar)	{	inEscapeMode = true;	}
-			else { bufferChar(c);	}
+			if(c2 == '\n' || delimiters.find(c2)){ break; }
+			c2 = get();
+			if(c2 == escapeChar)	{	inEscapeMode = true;	}
+			else { bufferChar(c2);	}
 		}
 	}
 

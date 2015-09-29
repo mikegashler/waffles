@@ -55,13 +55,13 @@ GBezier::GBezier(GBezier* pThat)
 {
 	m_nControlPoints = pThat->m_nControlPoints;
 	m_pPoints = new GBezierPoint[m_nControlPoints];
-	G3DVector point;
+	G3DVector pnt;
 	double weight;
 	int n;
 	for(n = 0; n < m_nControlPoints; n++)
 	{
-		pThat->controlPoint(&point, &weight, n);
-		setControlPoint(n, &point, weight);
+		pThat->controlPoint(&pnt, &weight, n);
+		setControlPoint(n, &pnt, weight);
 	}
 }
 
@@ -73,13 +73,13 @@ GBezier::~GBezier()
 GBezier* GBezier::copy()
 {
 	GBezier* pNewBezier = new GBezier(m_nControlPoints);
-	G3DVector point;
+	G3DVector pnt;
 	double weight;
 	int n;
 	for(n = 0; n < m_nControlPoints; n++)
 	{
-		controlPoint(&point, &weight, n);
-		pNewBezier->setControlPoint(n, &point, weight);
+		controlPoint(&pnt, &weight, n);
+		pNewBezier->setControlPoint(n, &pnt, weight);
 	}
 	return pNewBezier;
 }

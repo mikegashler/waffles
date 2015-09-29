@@ -49,12 +49,12 @@ public:
 	void print(std::ostream& stream, int depth, int tabSize, int maxWidth, int maxDepth, bool descriptions);
 
 	const char* tok() { return m_parts[0].c_str(); }
-	void setTok(const char* tok)
+	void setTok(const char* token)
 	{
 		if(m_parts.size() < 1)
-			m_parts.push_back(tok);
+			m_parts.push_back(token);
 		else
-			m_parts[0] = tok;
+			m_parts[0] = token;
 	}
 
 	const char* descr() { return m_description.c_str(); }

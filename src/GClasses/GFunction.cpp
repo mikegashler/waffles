@@ -629,16 +629,16 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 	// Handle enclosing parens
 	if(tokens[start].compare("(") == 0 && tokens[start + count - 1].compare(")") == 0)
 	{
-		int depth = 1;
+		int dep = 1;
 		int i;
 		for(i = 1; i < count - 1; i++)
 		{
 			if(tokens[start + i].compare("(") == 0)
-				depth++;
+				dep++;
 			else if(tokens[start + i].compare(")") == 0)
 			{
-				depth--;
-				if(depth == 0)
+				dep--;
+				if(dep == 0)
 					break;
 			}
 		}

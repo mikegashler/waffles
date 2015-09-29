@@ -452,10 +452,10 @@ void GMixedRelation::addAttrs(const GRelation& copyMe, size_t firstAttr, size_t 
 		copyAttr(&copyMe, firstAttr + i);
 }
 
-void GMixedRelation::addAttrs(size_t attrCount, size_t valueCount)
+void GMixedRelation::addAttrs(size_t attrCount, size_t vals)
 {
 	for(size_t i = 0; i < attrCount; i++)
-		addAttr(valueCount);
+		addAttr(vals);
 }
 
 void GMixedRelation::copy(const GRelation* pCopyMe)
@@ -688,8 +688,8 @@ void GArffRelation::setName(const char* szName)
 void GArffRelation::parseAttribute(GArffTokenizer& tok)
 {
 	tok.skip(tok.m_spaces);
-	string name = tok.nextArg(tok.m_argEnd);
-	//std::cerr << "Attr:" << name << "\n"; //DEBUG
+	string dataname = tok.nextArg(tok.m_argEnd);
+	//std::cerr << "Attr:" << dataname << "\n"; //DEBUG
 	tok.skip(tok.m_spaces);
 	char c = tok.peek();
 	if(c == '{')
@@ -705,19 +705,19 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 			if(*szVal == '\0')
 				throw Ex("Empty value specified on line ", to_str(tok.line()));
 			m_attrs[index].m_values.push_back(szVal);
-			char c = tok.peek();
-			if(c == ',')
+			char c2 = tok.peek();
+			if(c2 == ',')
 				tok.advance(1);
-			else if(c == '}')
+			else if(c2 == '}')
 				break;
-			else if(c == '\n')
+			else if(c2 == '\n')
 				throw Ex("Expected a '}' but got new-line on line ", to_str(tok.line()));
 			else
 				throw Ex("inconsistency");
 		}
 		m_valueCounts.push_back(m_attrs[index].m_values.size());
-		if(name.length() > 0)
-			m_attrs[index].m_name = name;
+		if(dataname.length() > 0)
+			m_attrs[index].m_name = dataname;
 		else
 		{
 			m_attrs[index].m_name = "attr_";
@@ -734,23 +734,23 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 			_stricmp(szType, "NUMERIC") == 0 ||
 			_stricmp(szType, "INTEGER") == 0)
 		{
-			addAttribute(name.c_str(), 0, NULL);
+			addAttribute(dataname.c_str(), 0, NULL);
 		}
 		else if(_stricmp(szType, "STRING") == 0)
-			addAttribute(name.c_str(), (size_t)-1, NULL);
+			addAttribute(dataname.c_str(), (size_t)-1, NULL);
 		else if(_stricmp(szType, "DATE") == 0)
 		{
-			name += ":";
+			dataname += ":";
 			tok.skip(tok.m_spaces);
 			while(true)
 			{
-				char c = tok.peek();
-				if(c == '\n' || c == '\r')
+				char c2 = tok.peek();
+				if(c2 == '\n' || c2 == '\r')
 					break;
-				name += c;
+				dataname += c2;
 				tok.advance(1);
 			}
-			addAttribute(name.c_str(), (size_t)-2, NULL);
+			addAttribute(dataname.c_str(), (size_t)-2, NULL);
 		}
 		else
 			throw Ex("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
@@ -1005,10 +1005,10 @@ GMatrix::GMatrix(GRelation* pRelation)
 {
 }
 
-GMatrix::GMatrix(size_t rows, size_t cols)
+GMatrix::GMatrix(size_t rowCount, size_t colCount)
 {
-	m_pRelation = new GUniformRelation(cols, 0);
-	newRows(rows);
+	m_pRelation = new GUniformRelation(colCount, 0);
+	newRows(rowCount);
 }
 
 GMatrix::GMatrix(vector<size_t>& attrValues)
@@ -1091,11 +1091,11 @@ void GMatrix::setRelation(GRelation* pRelation)
 	}
 }
 
-void GMatrix::resize(size_t rows, size_t cols)
+void GMatrix::resize(size_t rowCount, size_t colCount)
 {
 	flush();
-	setRelation(new GUniformRelation(cols, 0));
-	newRows(rows);
+	setRelation(new GUniformRelation(colCount, 0));
+	newRows(rowCount);
 }
 
 void GMatrix::resizePreserve(size_t rowCount, size_t colCount)
@@ -1106,10 +1106,10 @@ void GMatrix::resizePreserve(size_t rowCount, size_t colCount)
 		size_t lesserCols = std::min(cols(), colCount);
 		for(size_t i = 0; i < lesserRows; i++)
 		{
-			double* newRow = new double[colCount];
-			GVec::copy(newRow, row(i), lesserCols);
+			double* newrow = new double[colCount];
+			GVec::copy(newrow, row(i), lesserCols);
 			delete[] m_rows[i];
-			m_rows[i] = newRow;
+			m_rows[i] = newrow;
 		}
 	}
 	while(rows() > rowCount)
@@ -1227,7 +1227,7 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 
 	flush();
 	setRelation(pRelation);
-	size_t cols = pRelation->size();
+	size_t colCount = pRelation->size();
 	while(true)
 	{
 		tok.skip(tok.m_whitespace);
@@ -1244,35 +1244,35 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 			// Parse ARFF sparse data format
 			tok.advance(1);
 			double* pRow = newRow();
-			GVec::setAll(pRow, 0.0, cols);
+			GVec::setAll(pRow, 0.0, colCount);
 			while(true)
 			{
 				tok.skip(tok.m_space);
-				char c = tok.peek();
-				if(c >= '0' && c <= '9')
+				char c2 = tok.peek();
+				if(c2 >= '0' && c2 <= '9')
 				{
 					const char* szTok = tok.nextUntil(tok.m_valEnder);
 #ifdef WINDOWS
-					size_t col = (size_t)_strtoui64(szTok, (char**)NULL, 10);
+					size_t column = (size_t)_strtoui64(szTok, (char**)NULL, 10);
 #else
-					size_t col = strtoull(szTok, (char**)NULL, 10);
+					size_t column = strtoull(szTok, (char**)NULL, 10);
 #endif
-					if(col >= cols)
+					if(column >= colCount)
 						throw Ex("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 					tok.skip(tok.m_spaces);
 					const char* szVal = tok.nextArg(tok.m_valEnder);
-					pRow[col] = GMatrix_parseValue(pRelation, col, szVal, tok);
+					pRow[column] = GMatrix_parseValue(pRelation, column, szVal, tok);
 					tok.skipTo(tok.m_valHardEnder);
-					c = tok.peek();
-					if(c == ',' || c == '\t')
+					c2 = tok.peek();
+					if(c2 == ',' || c2 == '\t')
 						tok.advance(1);
 				}
-				else if(c == '}')
+				else if(c2 == '}')
 				{
 					tok.advance(1);
 					break;
 				}
-				else if(c == '\n' || c == '\0')
+				else if(c2 == '\n' || c2 == '\0')
 					throw Ex("Expected a matching '}' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 				else
 					throw Ex("Unexpected token at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
@@ -1282,38 +1282,38 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 		{
 			// Parse ARFF dense data format
 			double* pRow = newRow();
-			size_t col = 0;
+			size_t column = 0;
 			while(true)
 			{
-				if(col >= cols)
+				if(column >= colCount)
 					throw Ex("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 				tok.nextArg(tok.m_commaNewlineTab);
 				const char* szVal = tok.trim(tok.m_whitespace);
-				*pRow = GMatrix_parseValue(pRelation, col, szVal, tok);
+				*pRow = GMatrix_parseValue(pRelation, column, szVal, tok);
 				pRow++;
-				col++;
-				char c = tok.peek();
-				while(c == '\t' || c == ' ')
+				column++;
+				char c2 = tok.peek();
+				while(c2 == '\t' || c2 == ' ')
 				{
 					tok.advance(1);
-					c = tok.peek();
+					c2 = tok.peek();
 				}
-				if(c == ',')
+				if(c2 == ',')
 					tok.advance(1);
-				else if(c == '\n' || c == '\0')
+				else if(c2 == '\n' || c2 == '\0')
 					break;
-				else if(c == '%')
+				else if(c2 == '%')
 				{
 					tok.advance(1);
 					tok.skipTo(tok.m_newline);
 					break;
 				}
 			}
-			if(col < cols)
+			if(column < colCount)
 				throw Ex("Not enough values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
 		}
 	}
-	for(size_t i = 0; i < cols; i++)
+	for(size_t i = 0; i < colCount; i++)
 	{
 		if(pRelation->valueCount(i) == INVALID_INDEX)
 			pRelation->setAttrValueCount(i, 0);
@@ -1338,15 +1338,15 @@ void GMatrix::parseArff(const char* szFile, size_t nLen)
 	parseArff(tok);
 }
 
-size_t GMatrix::countUniqueValues(size_t col, size_t maxCount) const
+size_t GMatrix::countUniqueValues(size_t column, size_t maxCount) const
 {
 	size_t unique = 0;
 	std::set<double> seen;
 	for(size_t i = 0; i < m_rows.size(); i++)
 	{
-		if(seen.find(m_rows[i][col]) == seen.end())
+		if(seen.find(m_rows[i][column]) == seen.end())
 		{
-			seen.insert(m_rows[i][col]);
+			seen.insert(m_rows[i][column]);
 			if(++unique >= maxCount)
 				return maxCount;
 		}
@@ -1385,9 +1385,9 @@ void GMatrix::setCol(size_t index, const double* pVector)
 		row(i)[index] = *(pVector++);
 }
 
-void GMatrix::add(const GMatrix* pThat, bool transpose)
+void GMatrix::add(const GMatrix* pThat, bool transposeThat)
 {
-	if(transpose)
+	if(transposeThat)
 	{
 		size_t c = (size_t)cols();
 		if(rows() != (size_t)pThat->cols() || c != pThat->rows())
@@ -1439,9 +1439,9 @@ void GMatrix::dropValue(size_t attr, int val)
 }
 #endif // MIN_PREDICT
 
-void GMatrix::subtract(const GMatrix* pThat, bool transpose)
+void GMatrix::subtract(const GMatrix* pThat, bool transposeThat)
 {
-	if(transpose)
+	if(transposeThat)
 	{
 		size_t c = (size_t)cols();
 		if(rows() != (size_t)pThat->cols() || c != pThat->rows())
@@ -1470,11 +1470,11 @@ void GMatrix::multiply(double scalar)
 		GVec::multiply(row(i), scalar, c);
 }
 
-void GMatrix::multiply(const double* pVectorIn, double* pVectorOut, bool transpose) const
+void GMatrix::multiply(const double* pVectorIn, double* pVectorOut, bool transposeFirst) const
 {
 	size_t rowCount = rows();
 	size_t colCount = cols();
-	if(transpose)
+	if(transposeFirst)
 	{
 		GVec::setAll(pVectorOut, 0.0, colCount);
 		for(size_t i = 0; i < rowCount; i++)
@@ -1938,7 +1938,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	int n = (int)cols();
 	if(m < n)
 		throw Ex("Expected at least as many rows as columns");
-	int i, j, k;
+	int j, k;
 	int l = 0;
 	int p, q;
 	double c, f, h, s, x, y, z;
@@ -2069,7 +2069,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	}
 
 	// Accumulate left-hand transform
-	for(i = n - 1; i >= 0; i--)
+	for(int i = n - 1; i >= 0; i--)
 	{
 		l = i + 1;
 		g = pSigma[i];
@@ -2127,7 +2127,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 			{
 				c = 0.0;
 				s = 1.0;
-				for(i = l; i <= k; i++)
+				for(int i = l; i <= k; i++)
 				{
 					f = s * temp[i];
 					temp[i] *= c;
@@ -2180,7 +2180,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 			s = 1.0;
 			for(j = l; j <= q; j++)
 			{
-				i = j + 1;
+				int i = j + 1;
 				g = temp[i];
 				y = pSigma[i];
 				h = s * g;
@@ -2225,7 +2225,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	}
 
 	// Sort the singular values from largest to smallest
-	for(i = 1; i < n; i++)
+	for(int i = 1; i < n; i++)
 	{
 		for(j = i; j > 0; j--)
 		{
@@ -3118,14 +3118,14 @@ void GMatrix::centroid(double* pOutMeans, const double* pWeights) const
 		pOutMeans[n] = columnMean(n, pWeights);
 }
 
-double GMatrix::columnSquaredMagnitude(size_t col) const
+double GMatrix::columnSquaredMagnitude(size_t column) const
 {
 	double dSum = 0;
 	for(vector<double*>::const_iterator it = m_rows.begin(); it != m_rows.end(); it++)
 	{
-		if((*it)[col] == UNKNOWN_REAL_VALUE)
+		if((*it)[column] == UNKNOWN_REAL_VALUE)
 			continue;
-		double d = (*it)[col];
+		double d = (*it)[column];
 		dSum += (d * d);
 	}
 	return dSum;
@@ -3179,23 +3179,23 @@ double GMatrix::columnMax(size_t nAttribute) const
 	return d;
 }
 
-void GMatrix::normalizeColumn(size_t col, double dInMin, double dInMax, double dOutMin, double dOutMax)
+void GMatrix::normalizeColumn(size_t column, double dInMin, double dInMax, double dOutMin, double dOutMax)
 {
 	GAssert(dInMax > dInMin);
 	double dScale = (dOutMax - dOutMin) / (dInMax - dInMin);
 	for(vector<double*>::const_iterator it = m_rows.begin(); it != m_rows.end(); it++)
 	{
-		(*it)[col] -= dInMin;
-		(*it)[col] *= dScale;
-		(*it)[col] += dOutMin;
+		(*it)[column] -= dInMin;
+		(*it)[column] *= dScale;
+		(*it)[column] += dOutMin;
 	}
 }
 
-void GMatrix::clipColumn(size_t col, double dMin, double dMax)
+void GMatrix::clipColumn(size_t column, double dMin, double dMax)
 {
 	GAssert(dMax > dMin);
 	for(vector<double*>::iterator it = m_rows.begin(); it != m_rows.end(); it++)
-		(*it)[col] = std::max(dMin, std::min(dMax, (*it)[col]));
+		(*it)[column] = std::max(dMin, std::min(dMax, (*it)[column]));
 }
 
 /*static*/ double GMatrix::normalizeValue(double dVal, double dInMin, double dInMax, double dOutMin, double dOutMax)
@@ -3232,15 +3232,15 @@ double GMatrix::baselineValue(size_t nAttribute) const
 	return (double)(val - 1);
 }
 
-bool GMatrix::isAttrHomogenous(size_t col) const
+bool GMatrix::isAttrHomogenous(size_t column) const
 {
-	if(m_pRelation->valueCount(col) > 0)
+	if(m_pRelation->valueCount(column) > 0)
 	{
 		int d;
 		vector<double*>::const_iterator it = m_rows.begin();
 		for( ; it != m_rows.end(); it++)
 		{
-			d = (int)(*it)[col];
+			d = (int)(*it)[column];
 			if(d != UNKNOWN_DISCRETE_VALUE)
 			{
 				it++;
@@ -3249,7 +3249,7 @@ bool GMatrix::isAttrHomogenous(size_t col) const
 		}
 		for( ; it != m_rows.end(); it++)
 		{
-			int t = (int)(*it)[col];
+			int t = (int)(*it)[column];
 			if(t != d && t != UNKNOWN_DISCRETE_VALUE)
 				return false;
 		}
@@ -3260,7 +3260,7 @@ bool GMatrix::isAttrHomogenous(size_t col) const
 		vector<double*>::const_iterator it = m_rows.begin();
 		for( ; it != m_rows.end(); it++)
 		{
-			d = (*it)[col];
+			d = (*it)[column];
 			if(d != UNKNOWN_REAL_VALUE)
 			{
 				it++;
@@ -3269,7 +3269,7 @@ bool GMatrix::isAttrHomogenous(size_t col) const
 		}
 		for( ; it != m_rows.end(); it++)
 		{
-			double t = (*it)[col];
+			double t = (*it)[column];
 			if(t != d && t != UNKNOWN_REAL_VALUE)
 				return false;
 		}
@@ -3580,18 +3580,18 @@ double GMatrix::sumSquaredDistance(const double* pPoint) const
 	return err;
 }
 
-double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t col) const
+double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column) const
 {
 	if(that.rows() != rows())
 		throw Ex("Mismatching number of rows");
-	if(col >= cols() || col >= that.cols())
+	if(column >= cols() || column >= that.cols())
 		throw Ex("column index out of range");
 	double sse = 0.0;
-	if(relation().valueCount(col) == 0)
+	if(relation().valueCount(column) == 0)
 	{
 		for(size_t i = 0; i < rows(); i++)
 		{
-			double d = row(i)[col] - that.row(i)[col];
+			double d = row(i)[column] - that.row(i)[column];
 			sse += (d * d);
 		}
 	}
@@ -3599,16 +3599,16 @@ double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t col) cons
 	{
 		for(size_t i = 0; i < rows(); i++)
 		{
-			if((int)row(i)[col] != (int)that.row(i)[col])
+			if((int)row(i)[column] != (int)that.row(i)[column])
 				sse++;
 		}
 	}
 	return sse;
 }
 
-double GMatrix::sumSquaredDifference(const GMatrix& that, bool transpose) const
+double GMatrix::sumSquaredDifference(const GMatrix& that, bool transposeThat) const
 {
-	if(transpose)
+	if(transposeThat)
 	{
 		size_t colCount = (size_t)cols();
 		if(rows() != (size_t)that.cols() || colCount != that.rows())
@@ -3841,10 +3841,10 @@ void GMatrix::sort(size_t dim)
 	std::sort(m_rows.begin(), m_rows.end(), comparer);
 }
 
-void GMatrix::sortPartial(size_t row, size_t col)
+void GMatrix::sortPartial(size_t rowIndex, size_t colIndex)
 {
-	Row_Binary_Predicate_Functor comparer(col);
-	vector<double*>::iterator targ = m_rows.begin() + row;
+	Row_Binary_Predicate_Functor comparer(colIndex);
+	vector<double*>::iterator targ = m_rows.begin() + rowIndex;
 	std::nth_element(m_rows.begin(), targ, m_rows.end(), comparer);
 }
 
@@ -4876,12 +4876,12 @@ std::string to_str(const GMatrix& m){
 
 
 
-GDataColSplitter::GDataColSplitter(const GMatrix& data, size_t labels)
+GDataColSplitter::GDataColSplitter(const GMatrix& data, size_t labelCount)
 {
 	m_pFeatures = new GMatrix();
-	m_pFeatures->copyCols(data, 0, data.cols() - labels);
+	m_pFeatures->copyCols(data, 0, data.cols() - labelCount);
 	m_pLabels = new GMatrix();
-	m_pLabels->copyCols(data, data.cols() - labels, labels);
+	m_pLabels->copyCols(data, data.cols() - labelCount, labelCount);
 }
 
 GDataColSplitter::~GDataColSplitter()

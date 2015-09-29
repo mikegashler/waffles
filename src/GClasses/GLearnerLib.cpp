@@ -1649,8 +1649,8 @@ void GLearnerLib::SplitTest(GArgReader& args)
 		GMatrix testFeatures(pFeatures->relation().clone());
 		GMatrix testLabels(pLabels->relation().clone());
 		{
-			GMergeDataHolder hFeatures(*pFeatures, testFeatures);
-			GMergeDataHolder hLabels(*pLabels, testLabels);
+			GMergeDataHolder hFeatures2(*pFeatures, testFeatures);
+			GMergeDataHolder hLabels2(*pLabels, testLabels);
 			testFeatures.reserve(testPatterns);
 			testLabels.reserve(testPatterns);
 			pFeatures->splitBySize(testFeatures, testPatterns);

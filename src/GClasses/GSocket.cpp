@@ -234,14 +234,14 @@ SOCKET GSocket_connect(const char* addr, unsigned short port, int timeoutSecs)
 				FD_SET(sock, &socketSet);
 #ifdef WINDOWS
 				GWindows::yield();
-				int res = select((int)sock + 1, NULL, &socketSet, NULL, &timeout);
-				if(res < 0 && WSAGetLastError() != WSAEINTR)
+				int result = select((int)sock + 1, NULL, &socketSet, NULL, &timeout);
+				if(result < 0 && WSAGetLastError() != WSAEINTR)
 #else
-				int res = select(sock + 1, NULL, &socketSet, NULL, &timeout);
-				if(res < 0 && errno != EINTR)
+				int result = select(sock + 1, NULL, &socketSet, NULL, &timeout);
+				if(result < 0 && errno != EINTR)
 #endif
 					throw Ex("Failed to connect to ", addr, " on port ", to_str(port));
-				else if(res > 0)
+				else if(result > 0)
 				{
 					// Socket selected for write
 					socklen_t lon = sizeof(int);
@@ -447,13 +447,13 @@ void GTCPServer::checkForNewConnections()
 		if(errno == EAGAIN) // no connections are ready to be accepted
 			return;
 #endif
-		string s = "Received bad data while trying to accept a connection: ";
+		string s2 = "Received bad data while trying to accept a connection: ";
 #ifdef WINDOWS
-		s += winstrerror(WSAGetLastError());
+		s2 += winstrerror(WSAGetLastError());
 #else
-		s += strerror(errno);
+		s2 += strerror(errno);
 #endif
-		onReceiveBadData(s.c_str());
+		onReceiveBadData(s2.c_str());
 		return;
 	}
 	GSocket_setSocketMode(s, false);
@@ -881,13 +881,13 @@ void GPackageServer::checkForNewConnections()
 		if(errno == EAGAIN) // no connections are ready to be accepted
 			return;
 #endif
-		string s = "Received bad data while trying to accept a connection: ";
+		string s2 = "Received bad data while trying to accept a connection: ";
 #ifdef WINDOWS
-		s += winstrerror(WSAGetLastError());
+		s2 += winstrerror(WSAGetLastError());
 #else
-		s += strerror(errno);
+		s2 += strerror(errno);
 #endif
-		onReceiveBadData(s.c_str());
+		onReceiveBadData(s2.c_str());
 		return;
 	}
 	GSocket_setSocketMode(s, false);

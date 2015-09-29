@@ -141,7 +141,7 @@ void GGaussianProcess::test()
 	GGaussianProcess* pGP = new GGaussianProcess();
 	pGP->setKernel(new GKernelGaussianRBF(0.2));
 	GAutoFilter af2(pGP);
-	af2.basicTest(0.67, 0.93);
+	af2.basicTest(0.67, 0.92);
 }
 #endif
 
@@ -193,10 +193,9 @@ void GGaussianProcess::trainInner(const GMatrix& features, const GMatrix& labels
 		f.takeRow((double*)features[i]);
 		l.takeRow((double*)labels[i]);
 	}
-	GRand rand(0);
 	while(f.rows() > m_maxSamples)
 	{
-		size_t i = (size_t)rand.next(f.rows());
+		size_t i = (size_t)m_rand.next(f.rows());
 		f.releaseRow(i);
 		l.releaseRow(i);
 	}

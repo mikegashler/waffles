@@ -27,31 +27,31 @@
 
 using namespace GClasses;
 
-GHistogram::GHistogram(double xmin, double xmax, size_t binCount)
+GHistogram::GHistogram(double xMin, double xMax, size_t bins)
 {
-	m_min = xmin;
-	m_max = xmax;
-	m_binCount = binCount;
-	m_bins = new double[binCount];
-	GVec::setAll(m_bins, 0.0, binCount);
+	m_min = xMin;
+	m_max = xMax;
+	m_binCount = bins;
+	m_bins = new double[bins];
+	GVec::setAll(m_bins, 0.0, bins);
 	m_sum = 0.0;
 }
 
-GHistogram::GHistogram(GMatrix& data, size_t col, double xmin, double xmax, size_t maxBuckets)
+GHistogram::GHistogram(GMatrix& data, size_t col, double xMin, double xMax, size_t maxBuckets)
 {
 	double dataMin = data.columnMin(col);
 	double dataRange = data.columnMax(col) - dataMin;
 	double mean = data.columnMean(col);
 	double median = data.columnMedian(col);
 	double dev = sqrt(data.columnVariance(col, mean));
-	if(xmin == UNKNOWN_REAL_VALUE)
+	if(xMin == UNKNOWN_REAL_VALUE)
 		m_min = std::max(dataMin, median - 4 * dev);
 	else
-		m_min = xmin;
-	if(xmax == UNKNOWN_REAL_VALUE)
+		m_min = xMin;
+	if(xMax == UNKNOWN_REAL_VALUE)
 		m_max = std::min(dataMin + dataRange, median + 4 * dev);
 	else
-		m_max = xmax;
+		m_max = xMax;
 	m_binCount = std::max((size_t)1, std::min(maxBuckets, (size_t)floor(sqrt((double)data.rows()))));
 	m_bins = new double[m_binCount];
 	GVec::setAll(m_bins, 0.0, m_binCount);

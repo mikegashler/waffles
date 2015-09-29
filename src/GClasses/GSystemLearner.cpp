@@ -59,21 +59,21 @@ GDomNode* GSystemLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 
 // ------------------------------------------------------------------------------------------
 
-GRecurrentModel::GRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, size_t actionDims, size_t contextDims, size_t obsDims, GRand* pRand, std::vector<size_t>* pParamDims)
-: GSystemLearner(), m_actionDims(actionDims), m_contextDims(contextDims), m_obsDims(obsDims)
+GRecurrentModel::GRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, size_t actionDims, size_t context_Dims, size_t obs_Dims, GRand* pRand, std::vector<size_t>* pParamDims)
+: GSystemLearner(), m_actionDims(actionDims), m_contextDims(context_Dims), m_obsDims(obs_Dims)
 {
 	m_pixels = 1;
-	size_t paramDims = pParamDims ? pParamDims->size() : 0;
-	for(size_t i = 0; i < paramDims; i++)
+	size_t param_Dims = pParamDims ? pParamDims->size() : 0;
+	for(size_t i = 0; i < param_Dims; i++)
 		m_pixels *= (*pParamDims)[i];
 	m_channels = m_obsDims / m_pixels;
 	if(m_obsDims != m_channels * m_pixels)
 		throw Ex("Invalid observation dims");
 	m_pTransitionFunc = pTransition;
 	m_pObservationFunc = pObservation;
-	m_paramDims = paramDims;
+	m_paramDims = param_Dims;
 	m_pRand = pRand;
-	m_pParamRanges = new size_t[paramDims];
+	m_pParamRanges = new size_t[param_Dims];
 	for(size_t i = 0; i < pParamDims->size(); i++)
 		m_pParamRanges[i] = (*pParamDims)[i];
 	size_t bufDims = std::max(m_channels + m_contextDims, m_actionDims + m_contextDims + m_contextDims);

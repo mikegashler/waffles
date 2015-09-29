@@ -45,8 +45,8 @@ protected:
 	size_t m_neighborCount;
 
 public:
-	GNeighborFinder(const GMatrix* pData, size_t neighborCount)
-	: m_pData(pData), m_neighborCount(neighborCount)
+	GNeighborFinder(const GMatrix* pData, size_t neighs)
+	: m_pData(pData), m_neighborCount(neighs)
 	{
 	}
 

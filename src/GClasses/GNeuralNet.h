@@ -240,6 +240,9 @@ public:
 	/// Prints weights in a human-readable format
 	void printWeights(std::ostream& stream);
 
+	/// Prints a summary of this neural network. Assumes all layers are GLayerClassic.
+	void printSummary(std::ostream& stream);
+
 	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
 	/// variance of the data to the first few columns. Adjusts the weights on the input layer accordingly,
 	/// such that the network output remains the same. Returns the transformed feature matrix.
@@ -252,11 +255,13 @@ public:
 	/// to compute the error term at every hidden unit. (It does not update any weights.)
 	void backpropagate(const double* pTarget, size_t startLayer = INVALID_INDEX);
 
+	/// Backpropagates, and adjusts weights to keep errors from diminishing or exploding
 	double backpropagateAndNormalizeErrors(const double* pTarget, double alpha);
 
 	/// Backpropagate from a downstream layer
 	void backpropagateFromLayer(GNeuralNetLayer* pDownstream);
 
+	/// Backpropagates from a layer, and adjusts weights to keep errors from diminishing or exploding
 	void backpropagateFromLayerAndNormalizeErrors(GNeuralNetLayer* pDownstream, double errMag, double alpha);
 
 	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on

@@ -104,8 +104,6 @@ GParallelOptimizers::GParallelOptimizers(size_t dims)
 {
 	if(dims > 0)
 		m_pRelation = new GUniformRelation(dims, 0);
-	std::vector<GTargetFunction*> m_targetFunctions;
-	std::vector<GOptimizer*> m_optimizers;
 }
 
 GParallelOptimizers::~GParallelOptimizers()

@@ -37,15 +37,15 @@ class GNeuralDecomposition: public GIncrementalLearner
 		virtual GMatrix *extrapolate(double start = 1.0, double length = 1.0, double step = 0.0002);
 		virtual GMatrix *extrapolate(const GMatrix &features);
 		
-		void setRegularization(double regularization) { m_regularization = regularization; }
-		void setLearningRate(double learningRate) { m_learningRate = learningRate; }
-		void setFeatureScale(double featureScale) { m_featureScale = featureScale; }
-		void setFeatureBias(double featureBias) { m_featureBias = featureBias; }
-		void setOutputScale(double outputScale) { m_outputScale = outputScale; }
-		void setOutputBias(double outputBias) { m_outputBias = outputBias; }
+		void setRegularization(double newregularization) { m_regularization = newregularization; }
+		void setLearningRate(double newlearningRate) { m_learningRate = newlearningRate; }
+		void setFeatureScale(double newfeatureScale) { m_featureScale = newfeatureScale; }
+		void setFeatureBias(double newfeatureBias) { m_featureBias = newfeatureBias; }
+		void setOutputScale(double newoutputScale) { m_outputScale = newoutputScale; }
+		void setOutputBias(double newoutputBias) { m_outputBias = newoutputBias; }
 		void setLinearUnits(size_t linearUnits) { m_linearUnits = linearUnits; }
 		void setSinusoidUnits(size_t sinusoidUnits) { m_sinusoidUnits = sinusoidUnits; }
-		void setEpochs(size_t epochs) { m_epochs = epochs; }
+		void setEpochs(size_t newepochs) { m_epochs = newepochs; }
 		
 		GNeuralNet &nn() const { return *m_nn; }
 		double regularization() const { return m_regularization; }

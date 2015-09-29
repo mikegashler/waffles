@@ -21,6 +21,7 @@
 
 #include <vector>
 #include "GMatrix.h"
+#include <ostream>
 
 namespace GClasses {
 
@@ -316,6 +317,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// same behavior that previously resulted from values in the old range.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 	void copySingleNeuronWeights(size_t source, size_t dest);
+	void printSummary(std::ostream& stream);
 };
 
 

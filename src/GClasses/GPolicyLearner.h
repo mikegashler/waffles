@@ -79,7 +79,7 @@ protected:
 	int m_count;
 
 public:
-	GDiscreteActionIterator(int actionCount) : GAgentActionIterator(), m_count(actionCount) {}
+	GDiscreteActionIterator(int action_count) : GAgentActionIterator(), m_count(action_count) {}
 	virtual ~GDiscreteActionIterator() {}
 
 	/// Returns the total number of action values

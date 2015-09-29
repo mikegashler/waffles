@@ -533,7 +533,7 @@ int main(int argc, char *argv[])
 		while(ii.next(index))
 		{
 			<font color="red">for(size_t i = 0; i &lt; nn.layerCount(); i++)
-				nn.layer(i).maxNorm(2.0);
+				nn.layer(i).maxNorm(0.0, 2.0);
 			nn.trainIncrementalWithDropout</font>(trainSplit.features()[index], <font color="red">pInnerLabels-&gt;row(index), 0.35</font>);
 		}
 	}

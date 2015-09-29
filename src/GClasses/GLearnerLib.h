@@ -247,8 +247,8 @@ protected:
 	double m_dStart;
 
 public:
-	MyRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, size_t actionDims, size_t contextDims, size_t obsDims, GRand* pRand, std::vector<size_t>* pParamDims, const char* stateFilename, double validateInterval)
-	: GRecurrentModel(pTransition, pObservation, actionDims, contextDims, obsDims, pRand, pParamDims), m_stateFilename(stateFilename), m_validateInterval(validateInterval)
+	MyRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, size_t actionDims, size_t ctxtDims, size_t observationDims, GRand* pRand, std::vector<size_t>* pParamDims, const char* stateFilename, double validateInterval)
+	: GRecurrentModel(pTransition, pObservation, actionDims, ctxtDims, observationDims, pRand, pParamDims), m_stateFilename(stateFilename), m_validateInterval(validateInterval)
 	{
 		m_dStart = GTime::seconds();
 	}

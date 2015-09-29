@@ -2204,8 +2204,8 @@ void GWidgetGrid::flushItems(bool deleteWidgets)
 			return (GWidgetAtomic*)pWidget;
 		else
 		{
-			GRect* pRect = pWidget->rect();
-			return ((GWidgetGroup*)pWidget)->findAtomicWidget(xOrig - pRect->x, yOrig - pRect->y);
+			GRect* pRectangle = pWidget->rect();
+			return ((GWidgetGroup*)pWidget)->findAtomicWidget(xOrig - pRectangle->x, yOrig - pRectangle->y);
 		}
 	}
 	return NULL;
@@ -2792,10 +2792,10 @@ void GWidgetWave::setWave(GWave* pWave)
 	m_pParent->tattle(this);
 }
 
-void GWidgetWave::setRange(int pos, int width)
+void GWidgetWave::setRange(int position, int wid)
 {
-	m_pos = pos;
-	m_width = width;
+	m_pos = position;
+	m_width = wid;
 	m_pParent->tattle(this);
 }
 

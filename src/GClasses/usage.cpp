@@ -27,7 +27,7 @@ using namespace GClasses;
 using std::string;
 using std::vector;
 
-UsageNode::UsageNode(const char* templ, const char* descr)
+UsageNode::UsageNode(const char* templ, const char* descrip)
 {
 #ifdef DEBUG_HELPERS
 	p0 = NULL; p1 = NULL; p2 = NULL; p3 = NULL;
@@ -63,7 +63,7 @@ UsageNode::UsageNode(const char* templ, const char* descr)
 			templ += i;
 		}
 	}
-	m_description = descr;
+	m_description = descrip;
 #ifdef DEBUG_HELPERS
 	if(m_parts.size() > 0) p0 = m_parts[0].c_str();
 	if(m_parts.size() > 1) p1 = m_parts[1].c_str();
@@ -78,9 +78,9 @@ UsageNode::~UsageNode()
 		delete(*it);
 }
 
-UsageNode* UsageNode::add(const char* templ, const char* descr)
+UsageNode* UsageNode::add(const char* templ, const char* descrip)
 {
-	UsageNode* pNode = new UsageNode(templ, descr);
+	UsageNode* pNode = new UsageNode(templ, descrip);
 	m_choices.push_back(pNode);
 	return pNode;
 }
@@ -153,8 +153,8 @@ void UsageNode::print(std::ostream& stream, int depth, int tabSize, int maxWidth
 	// Print the children
 	if(depth < maxDepth)
 	{
-		for(vector<UsageNode*>::iterator it = m_choices.begin(); it != m_choices.end(); it++)
-			(*it)->print(stream, depth + 1, tabSize, maxWidth, maxDepth, descriptions);
+		for(vector<UsageNode*>::iterator it2 = m_choices.begin(); it2 != m_choices.end(); it2++)
+			(*it2)->print(stream, depth + 1, tabSize, maxWidth, maxDepth, descriptions);
 	}
 }
 
@@ -172,7 +172,7 @@ UsageNode* makeMasterUsageTree()
 	pRoot->choices().push_back(makeTransformUsageTree());
 	pRoot->choices().push_back(makeTimeSeriesUsageTree());
 	return pRoot;
-};
+}
 
 
 

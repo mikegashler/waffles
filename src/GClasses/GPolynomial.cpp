@@ -299,9 +299,9 @@ void GPolynomialSingleLabel::clear()
 	m_pCoefficients = NULL;
 }
 
-void GPolynomialSingleLabel::init(size_t featureDims)
+void GPolynomialSingleLabel::init(size_t feature_dims)
 {
-	m_featureDims = featureDims;
+	m_featureDims = feature_dims;
 	m_nCoefficients = 1;
 	size_t i = m_featureDims;
 	while(i > 0)

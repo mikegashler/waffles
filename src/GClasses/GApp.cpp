@@ -518,7 +518,7 @@ int GApp::systemExecute(const char* szCommand, bool wait, GPipe* pStdOut, GPipe*
 	int argc = GApp_CountArgs(szCopy);
 	if(argc == 0)
 		return 0;
-	char* argv[argc + 1];
+	GTEMPBUF(char*, argv, argc + 1);
 	GApp_ParseArgs(szCopy, argv, 0x7fffffff);
 
 	// Create a pipe for stdout

@@ -206,16 +206,16 @@ GDomNode* GKNN::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-void GKNN::autoTune(GMatrix& features, GMatrix& labels)
+void GKNN::autoTune(GMatrix& feats, GMatrix& labs)
 {
 	// Find the best value for k
-	size_t cap = size_t(floor(sqrt(double(features.rows()))));
+	size_t cap = size_t(floor(sqrt(double(feats.rows()))));
 	size_t bestK = 1;
 	double bestErr = 1e308;
 	for(size_t i = 1; i < cap; i *= 3)
 	{
 		setNeighborCount(i);
-		double d = crossValidate(features, labels, 2);
+		double d = crossValidate(feats, labs, 2);
 		if(d < bestErr)
 		{
 			bestErr = d;
@@ -230,7 +230,7 @@ void GKNN::autoTune(GMatrix& features, GMatrix& labels)
 
 	// Try without normalization
 	m_normalizeScaleFactors = false;
-	double d = crossValidate(features, labels, 2);
+	double d = crossValidate(feats, labs, 2);
 	if(d >= bestErr)
 		m_normalizeScaleFactors = true;
 }
@@ -362,22 +362,22 @@ void GKNN::trainIncremental(const double* pIn, const double* pOut)
 	}
 }
 
-void GKNN::trainInner(const GMatrix& features, const GMatrix& labels)
+void GKNN::trainInner(const GMatrix& feats, const GMatrix& labs)
 {
 	if(m_pSparseMetric)
 		throw Ex("This method is not compatible with sparse similarity metrics. You should either use trainSparse instead, or use a dense dissimilarity metric.");
-	beginIncrementalLearningInner(features.relation(), labels.relation());
+	beginIncrementalLearningInner(feats.relation(), labs.relation());
 
 	// Give each attribute an equal chance by scaling out the deviation
 	double* pScaleFactors = m_pDistanceMetric->scaleFactors();
 	if(m_normalizeScaleFactors)
 	{
-		for(size_t i = 0; i < features.cols(); i++)
+		for(size_t i = 0; i < feats.cols(); i++)
 		{
-			if(features.relation().valueCount(i) == 0)
+			if(feats.relation().valueCount(i) == 0)
 			{
-				double m = features.columnMean(i);
-				double d = sqrt(features.columnVariance(i, m));
+				double m = feats.columnMean(i);
+				double d = sqrt(feats.columnVariance(i, m));
 				if(d >= 1e-8)
 					pScaleFactors[i] = 1.0 / (2.0 * d);
 				else
@@ -388,14 +388,14 @@ void GKNN::trainInner(const GMatrix& features, const GMatrix& labels)
 		}
 	}
 	else
-		GVec::setAll(pScaleFactors, 1.0, features.cols());
+		GVec::setAll(pScaleFactors, 1.0, feats.cols());
 
 	if(m_eTrainMethod == StoreAll)
 	{
-		m_pFeatures->reserve(features.rows());
-		m_pLabels->reserve(features.rows());
-		for(size_t i = 0; i < features.rows(); i++)
-			addVector(features[i], labels[i]);
+		m_pFeatures->reserve(feats.rows());
+		m_pLabels->reserve(feats.rows());
+		for(size_t i = 0; i < feats.rows(); i++)
+			addVector(feats[i], labs[i]);
 	}
 	else if(m_eTrainMethod == ValidationPrune)
 	{
@@ -408,8 +408,8 @@ void GKNN::trainInner(const GMatrix& features, const GMatrix& labels)
 		m_pLabels->reserve(n);
 		for(size_t i = 0; i < n; i++)
 		{
-			size_t index = (size_t)m_rand.next(features.rows());
-			addVector(features[index], labels[index]);
+			size_t index = (size_t)m_rand.next(feats.rows());
+			addVector(feats[index], labs[index]);
 		}
 	}
 
@@ -425,26 +425,26 @@ void GKNN::trainInner(const GMatrix& features, const GMatrix& labels)
 			m_pScaleFactorOptimizer->iterate();
 			m_pNeighborFinder->reoptimize();
 		}
-		GVec::copy(pScaleFactors, m_pScaleFactorOptimizer->currentVector(), features.cols());
+		GVec::copy(pScaleFactors, m_pScaleFactorOptimizer->currentVector(), feats.cols());
 	}
 }
 
 // virtual
-void GKNN::trainSparse(GSparseMatrix& features, GMatrix& labels)
+void GKNN::trainSparse(GSparseMatrix& feats, GMatrix& labs)
 {
-	if(features.rows() != labels.rows())
+	if(feats.rows() != labs.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
 	if(m_pDistanceMetric)
 		throw Ex("This method is not compatible with dense dissimilarity metrics. You should either use the train method instead, or use a sparse similarity metric.");
 	if(!m_pSparseMetric)
 		setMetric(new GCosineSimilarity(), true);
-	GUniformRelation featureRel(features.cols(), 0);
-	beginIncrementalLearning(featureRel, labels.relation());
+	GUniformRelation featureRel(feats.cols(), 0);
+	beginIncrementalLearning(featureRel, labs.relation());
 
 	// Copy the training data
-	m_pSparseFeatures->newRows(features.rows());
-	m_pSparseFeatures->copyFrom(&features);
-	m_pLabels->copy(&labels);
+	m_pSparseFeatures->newRows(feats.rows());
+	m_pSparseFeatures->copyFrom(&feats);
+	m_pLabels->copy(&labs);
 }
 
 void GKNN::findNeighbors(const double* pVector)
@@ -755,7 +755,7 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 	// Find friends
 	GNeighborFinder* pNF = new GNeighborGraph(new GKdTree(&featuresAll, m_friendCount, NULL, true), true);
 	Holder<GNeighborFinder> hNF(pNF);
-	GTEMPBUF(size_t, neighbors, m_friendCount);
+	GTEMPBUF(size_t, neighs, m_friendCount);
 
 	// Transduce
 	for(size_t lab = 0; lab < labels1.cols(); lab++)
@@ -777,21 +777,21 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 				// Find the most common label
 				double* pRow = labelList.row(i);
 				size_t index = (size_t)pRow[0];
-				pNF->neighbors(neighbors, index);
+				pNF->neighbors(neighs, index);
 				GVec::setAll(tallys, 0.0, labelValues);
 				for(size_t j = 0; j < m_friendCount; j++)
 				{
-					if(neighbors[j] >= featuresAll.rows())
+					if(neighs[j] >= featuresAll.rows())
 						continue;
-					if(neighbors[j] >= features2.rows())
+					if(neighs[j] >= features2.rows())
 					{
-						int label = (int)labels1[neighbors[j] - features2.rows()][lab];
+						int label = (int)labels1[neighs[j] - features2.rows()][lab];
 						if(label >= 0 && label < (int)labelValues)
 							tallys[label]++;
 					}
-					else if(labeled.bit(neighbors[j]))
+					else if(labeled.bit(neighs[j]))
 					{
-						int label = (int)pOut->row(neighbors[j])[lab];
+						int label = (int)pOut->row(neighs[j])[lab];
 						if(label >= 0 && label < (int)labelValues)
 							tallys[label] += 0.6;
 					}
@@ -802,17 +802,17 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 				// Penalize for dissenting votes
 				for(size_t j = 0; j < m_friendCount; j++)
 				{
-					if(neighbors[j] >= featuresAll.rows())
+					if(neighs[j] >= featuresAll.rows())
 						continue;
-					if(neighbors[j] >= features2.rows())
+					if(neighs[j] >= features2.rows())
 					{
-						int l2 = (int)labels1[neighbors[j] - features2.rows()][lab];
+						int l2 = (int)labels1[neighs[j] - features2.rows()][lab];
 						if(l2 != label)
 							conf *= 0.5;
 					}
-					else if(labeled.bit(neighbors[j]))
+					else if(labeled.bit(neighs[j]))
 					{
-						int l2 = (int)pOut->row(neighbors[j])[lab];
+						int l2 = (int)pOut->row(neighs[j])[lab];
 						if(l2 != label)
 							conf *= 0.8;
 					}

@@ -2340,17 +2340,17 @@ void GRayTraceSphere::adjustBoundingBox(G3DVector* pMin, G3DVector* pMax)
 
 void GRayTraceSphere::drawWireFrame(GCamera* pCamera, GImage* pImage)
 {
-	G3DVector center, perim, tmp;
+	G3DVector centr, perim, tmp;
 	tmp.copy(pCamera->viewSideVector());
 	tmp.multiply(m_radius);
 	tmp.add(&m_center);
-	pCamera->project(&m_center, &center);
-	if(center.m_vals[2] < 0)
+	pCamera->project(&m_center, &centr);
+	if(centr.m_vals[2] < 0)
 		return; // behind the camera
 	pCamera->project(&tmp, &perim);
-	double radius = sqrt((perim.m_vals[0] - center.m_vals[0]) * (perim.m_vals[0] - center.m_vals[0]) + (perim.m_vals[1] - center.m_vals[1]) * (perim.m_vals[1] - center.m_vals[1]));
+	double rad = sqrt((perim.m_vals[0] - centr.m_vals[0]) * (perim.m_vals[0] - centr.m_vals[0]) + (perim.m_vals[1] - centr.m_vals[1]) * (perim.m_vals[1] - centr.m_vals[1]));
 	int bot = pImage->height() - 1;
-	pImage->circle((int)floor(center.m_vals[0] + 0.5), bot - (int)floor(center.m_vals[1] + 0.5), (float)radius, 0xff00ffff);
+	pImage->circle((int)floor(centr.m_vals[0] + 0.5), bot - (int)floor(centr.m_vals[1] + 0.5), (float)rad, 0xff00ffff);
 }
 
 // virtual

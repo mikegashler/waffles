@@ -1112,8 +1112,8 @@ void GSubImageFinder2::findSubImage(int* pOutX, int* pOutY, GImage* pNeedle, GRe
 		for(vector<GSIFStats*>::iterator it = cands.begin(); it != cands.end(); it++)
 		{
 			GSIFStats* pStats = *it;
-			size_t* pCoords = cvi.current();
-			unsigned int h = m_pHaystack->pixel((int)pStats->m_x + (int)pCoords[0], (int)pStats->m_y + (int)pCoords[1]);
+			size_t* pCoords2 = cvi.current();
+			unsigned int h = m_pHaystack->pixel((int)pStats->m_x + (int)pCoords2[0], (int)pStats->m_y + (int)pCoords2[1]);
 			int dif;
 			dif = gRed(h) - gRed(n);
 			pStats->m_sse += (dif * dif);

@@ -72,14 +72,14 @@ GWave::~GWave()
 	delete[] m_pData;
 }
 
-void GWave::setData(unsigned char* pData, int bitsPerSample, int sampleCount, int channels, int sampleRate)
+void GWave::setData(unsigned char* pData, int bps, int sample_Count, int chans, int sample_Rate)
 {
 	delete[] m_pData;
 	m_pData = pData;
-	m_sampleCount = sampleCount;
-	m_bitsPerSample = bitsPerSample;
-	m_channels = channels;
-	m_sampleRate = sampleRate;
+	m_sampleCount = sample_Count;
+	m_bitsPerSample = bps;
+	m_channels = chans;
+	m_sampleRate = sample_Rate;
 }
 
 void GWave::load(const char* szFilename)

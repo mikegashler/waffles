@@ -661,8 +661,8 @@ protected:
 	G3DReal m_radius;
 
 public:
-	GRayTraceSphere(GRayTraceMaterial* pMaterial, G3DReal x, G3DReal y, G3DReal z, G3DReal radius)
-	: GRayTraceObject(), m_pMaterial(pMaterial), m_center(x, y, z), m_radius(radius)
+	GRayTraceSphere(GRayTraceMaterial* pMaterial, G3DReal x, G3DReal y, G3DReal z, G3DReal rad)
+	: GRayTraceObject(), m_pMaterial(pMaterial), m_center(x, y, z), m_radius(rad)
 	{
 	}
 

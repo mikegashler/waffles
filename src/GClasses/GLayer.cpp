@@ -43,6 +43,7 @@
 #include "GFourier.h"
 
 using std::vector;
+using std::ostream;
 
 namespace GClasses {
 
@@ -90,12 +91,12 @@ GMatrix* GNeuralNetLayer::feedThrough(const GMatrix& data)
 
 
 
-GLayerClassic::GLayerClassic(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction)
+GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pActivationFunction)
 {
 	m_pActivationFunction = pActivationFunction;
 	if(!m_pActivationFunction)
 		m_pActivationFunction = new GActivationTanH();
-	resize(inputs, outputs, NULL);
+	resize(inps, outs, NULL);
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
@@ -622,6 +623,20 @@ void GLayerClassic::renormalizeInput(size_t input, double oldMin, double oldMax,
 	}
 }
 
+void GLayerClassic::printSummary(ostream& stream)
+{
+	size_t inps = m_weights.rows();
+	size_t outs = m_weights.cols();
+	stream << " ( " << to_str(inps) << " -> " << to_str(outs) << " )\n";
+	stream << "    Bias Mag: " << std::sqrt(GVec::squaredMagnitude(bias(), outs)) << "\n";
+	double sum = 0.0;
+	for(size_t i = 0; i < outs; i++)
+		sum += std::sqrt(m_weights.columnVariance(i, 0.0));
+	stream << "    Ave Weight Mag: " << to_str(sum / outs) << "\n";
+	stream << "    Net Mag: " << std::sqrt(GVec::squaredMagnitude(net(), outs)) << "\n";
+	stream << "    Act Mag: " << std::sqrt(GVec::squaredMagnitude(activation(), outs)) << "\n";
+	stream << "    Err Mag: " << std::sqrt(GVec::squaredMagnitude(error(), outs)) << "\n";
+}
 
 
 
@@ -629,8 +644,9 @@ void GLayerClassic::renormalizeInput(size_t input, double oldMin, double oldMax,
 
 
 
-GLayerSoftMax::GLayerSoftMax(size_t inputs, size_t outputs)
-: GLayerClassic(inputs, outputs, new GActivationLogistic())
+
+GLayerSoftMax::GLayerSoftMax(size_t inputSize, size_t outputSize)
+: GLayerClassic(inputSize, outputSize, new GActivationLogistic())
 {
 }
 
@@ -736,14 +752,14 @@ size_t GLayerMixed::outputs()
 }
 
 // virtual
-void GLayerMixed::resize(size_t inputs, size_t outputs, GRand* pRand, double deviation)
+void GLayerMixed::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
 {
-	if(outputs != m_activation.cols())
+	if(outputSize != m_activation.cols())
 		throw Ex("Sorry, GLayerMixed does not support resizing the number of outputs");
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
-		m_components[i]->resize(inputs, m_components[i]->outputs(), pRand, deviation);
-		m_inputError.resize(1, inputs);
+		m_components[i]->resize(inputSize, m_components[i]->outputs(), pRand, deviation);
+		m_inputError.resize(1, inputSize);
 	}
 }
 
@@ -926,12 +942,12 @@ void GLayerMixed::renormalizeInput(size_t input, double oldMin, double oldMax, d
 
 
 
-GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction)
+GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(size_t inputSize, size_t outputSize, GActivationFunction* pActivationFunction)
 {
 	m_pActivationFunction = pActivationFunction;
 	if(!m_pActivationFunction)
 		m_pActivationFunction = new GActivationLogistic();
-	resize(inputs, outputs, NULL);
+	resize(inputSize, outputSize, NULL);
 }
 
 GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(GDomNode* pNode)
@@ -1413,11 +1429,11 @@ GDomNode* GLayerConvolutional1D::serialize(GDom* pDoc)
 }
 
 // virtual
-void GLayerConvolutional1D::resize(size_t inputs, size_t outputs, GRand* pRand, double deviation)
+void GLayerConvolutional1D::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
 {
-	if(inputs != m_inputSamples * m_inputChannels)
+	if(inputSize != m_inputSamples * m_inputChannels)
 		throw Ex("Changing the size of GLayerConvolutional1D is not supported");
-	if(outputs != m_inputChannels * m_kernelsPerChannel * m_outputSamples)
+	if(outputSize != m_inputChannels * m_kernelsPerChannel * m_outputSamples)
 		throw Ex("Changing the size of GLayerConvolutional1D is not supported");
 }
 
@@ -1774,11 +1790,11 @@ GDomNode* GLayerConvolutional2D::serialize(GDom* pDoc)
 }
 
 // virtual
-void GLayerConvolutional2D::resize(size_t inputs, size_t outputs, GRand* pRand, double deviation)
+void GLayerConvolutional2D::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
 {
-	if(inputs != m_inputCols * m_inputRows * m_inputChannels)
+	if(inputSize != m_inputCols * m_inputRows * m_inputChannels)
 		throw Ex("Changing the size of GLayerConvolutional2D is not supported");
-	if(outputs != m_inputChannels * m_kernelsPerChannel * m_outputCols * m_outputRows)
+	if(outputSize != m_inputChannels * m_kernelsPerChannel * m_outputCols * m_outputRows)
 		throw Ex("Changing the size of GLayerConvolutional2D is not supported");
 }
 
@@ -2145,11 +2161,11 @@ GDomNode* GMaxPooling2D::serialize(GDom* pDoc)
 }
 
 // virtual
-void GMaxPooling2D::resize(size_t inputs, size_t outputs, GRand* pRand, double deviation)
+void GMaxPooling2D::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
 {
-	if(inputs != m_inputCols * m_inputRows * m_inputChannels)
+	if(inputSize != m_inputCols * m_inputRows * m_inputChannels)
 		throw Ex("Changing the size of GMaxPooling2D is not supported");
-	if(outputs != m_inputChannels * m_inputCols * m_inputRows / (m_regionSize * m_regionSize))
+	if(outputSize != m_inputChannels * m_inputCols * m_inputRows / (m_regionSize * m_regionSize))
 		throw Ex("Changing the size of GMaxPooling2D is not supported");
 }
 

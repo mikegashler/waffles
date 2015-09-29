@@ -149,8 +149,8 @@ public:
 	///
 	///\see GSimpleAssignment(std::size_t, std::size_t)
 	///\see bForA(const std::vector<int>&)
-	GSimpleAssignment(std::size_t bSize, const std::vector<int>& bForA)
-		:aForB(bSize, -1), bForA(bForA){
+	GSimpleAssignment(std::size_t bSize, const std::vector<int>& bfA)
+		:aForB(bSize, -1), bForA(bfA){
 		for(std::size_t i = 0; i < bForA.size(); ++i){
 			int match = bForA.at(i);
 			if(match >= 0) { aForB.at(match) = (int)i; }
@@ -193,12 +193,12 @@ public:
 	///\param bForA bForA[i] gives the assignment for element i in set
 	///             A.  It is the index of the corresponding element of
 	///             set B or -1 if there is no corresponding element.
-	virtual void setBForA(const std::vector<int>& bForA){
-		assert(bForA.size() == this->bForA.size());
-		this->bForA = bForA; 
+	virtual void setBForA(const std::vector<int>& bfA){
+		assert(bfA.size() == this->bForA.size());
+		this->bForA = bfA; 
 		std::fill(aForB.begin(), aForB.end(), -1);
-		for(std::size_t i = 0; i < bForA.size(); ++i){
-			int match = bForA.at(i);
+		for(std::size_t i = 0; i < bfA.size(); ++i){
+			int match = bfA.at(i);
 			if(match >= 0) { aForB.at(match) = (int)i; }
 		}
 	}

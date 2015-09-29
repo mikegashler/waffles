@@ -413,7 +413,7 @@ public:
 	/// Returns the logexp function of x with the parameterized alpha value
 	virtual double squash(double x, size_t index)
 	{
-		return GMath::logExp(m_alphas.v[index], x);
+		return std::max(-500.0, std::min(500.0, GMath::logExp(m_alphas.v[index], x)));
 	}
 
 	/// Returns the derivative of the logexp function

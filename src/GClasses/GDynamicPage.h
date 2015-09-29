@@ -87,11 +87,11 @@ public:
 	/// session by a call to setExtension.
 	GDynamicPageSessionExtension* extension() { return m_pExtension; }
 
-	void setCurrentUrl(const char* szUrl, const char* szParams, size_t paramsLen)
+	void setCurrentUrl(const char* szUrl, const char* szParams, size_t paramsLength)
 	{
 		m_szUrl = szUrl;
 		m_szParams = szParams;
-		m_paramsLen = paramsLen;
+		m_paramsLen = paramsLength;
 	}
 
 	const char* url() { return m_szUrl; }

@@ -67,8 +67,8 @@ void GClusterer::setMetric(GDistanceMetric* pMetric, bool own)
 
 
 
-GSparseClusterer::GSparseClusterer(size_t clusterCount)
-: m_clusterCount(clusterCount)
+GSparseClusterer::GSparseClusterer(size_t clusters)
+: m_clusterCount(clusters)
 {
 	m_pMetric = NULL;
 	m_ownMetric = false;
@@ -927,7 +927,7 @@ void GKMedoids::cluster(const GMatrix* pData)
 size_t GKMedoids::whichCluster(size_t nVector)
 {
 	const double* pVec = m_pData->row(nVector);
-	size_t cluster = 0;
+	size_t clust = 0;
 	m_d = m_pMetric->squaredDistance(pVec, m_pData->row(m_pMedoids[0]));
 	for(size_t i = 1; i < m_clusterCount; i++)
 	{
@@ -935,10 +935,10 @@ size_t GKMedoids::whichCluster(size_t nVector)
 		if(d < m_d)
 		{
 			m_d = d;
-			cluster = i;
+			clust = i;
 		}
 	}
-	return cluster;
+	return clust;
 }
 
 
@@ -1019,7 +1019,7 @@ void GKMedoidsSparse::cluster(GSparseMatrix* pData)
 size_t GKMedoidsSparse::whichCluster(size_t nVector)
 {
 	std::map<size_t,double>& vec = m_pData->row(nVector);
-	size_t cluster = 0;
+	size_t clust = 0;
 	m_d = m_pMetric->similarity(vec, m_pData->row(m_pMedoids[0]));
 	for(size_t i = 1; i < m_clusterCount; i++)
 	{
@@ -1027,10 +1027,10 @@ size_t GKMedoidsSparse::whichCluster(size_t nVector)
 		if(d > m_d)
 		{
 			m_d = d;
-			cluster = i;
+			clust = i;
 		}
 	}
-	return cluster;
+	return clust;
 }
 
 
@@ -1131,11 +1131,11 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 		for(size_t j = 0; j < m_nClusters; j++)
 		{
 			memset(pCounts, '\0', sizeof(size_t) * pData->cols());
-			size_t* pClust = m_pClusters;
+			size_t* pClusts = m_pClusters;
 			double* pMean = means.row(j);
 			for(size_t i = 0; i < pData->rows(); i++)
 			{
-				if(*pClust != j)
+				if(*pClusts != j)
 					continue;
 
 				// Update only the mean of the elements that this row specifies
@@ -1146,7 +1146,7 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 					pMean[it->first] += (1.0 / (pCounts[it->first] + 1) * it->second);
 					pCounts[it->first]++;
 				}
-				pClust++;
+				pClusts++;
 			}
 		}
 	}

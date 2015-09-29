@@ -310,8 +310,8 @@ void GIncrementalTransformChainer::untransformToDistribution(const double* pIn, 
 
 // ---------------------------------------------------------------
 
-GPCA::GPCA(size_t targetDims)
-: GIncrementalTransform(), m_targetDims(targetDims), m_pBasisVectors(NULL), m_pCentroid(NULL), m_pEigVals(NULL), m_aboutOrigin(false), m_rand(0)
+GPCA::GPCA(size_t target_Dims)
+: GIncrementalTransform(), m_targetDims(target_Dims), m_pBasisVectors(NULL), m_pCentroid(NULL), m_pEigVals(NULL), m_aboutOrigin(false), m_rand(0)
 {
 }
 
@@ -1175,12 +1175,12 @@ void GNominalToCat::untransform(const double* pIn, double* pOut)
 		{
 			double max = *(pIn++);
 			*pOut = 0.0;
-			for(size_t i = 1; i < nValues; i++)
+			for(size_t j = 1; j < nValues; j++)
 			{
 				if(*pIn > max)
 				{
 					max = *pIn;
-					*pOut = (double)i;
+					*pOut = (double)j;
 				}
 				pIn++;
 			}

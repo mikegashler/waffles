@@ -183,12 +183,12 @@ size_t GBNVariable::currentCatIndex()
 
 
 
-GBNCategorical::GBNCategorical(size_t categories, GBNNode* pDefaultWeight)
-: GBNVariable(), m_categories(categories), m_val(0)
+GBNCategorical::GBNCategorical(size_t categors, GBNNode* pDefaultWeight)
+: GBNVariable(), m_categories(categors), m_val(0)
 {
-	if(categories < 2)
-		throw Ex("Expected at least 2 categories. Got ", to_str(categories));
-	m_weights.resize(categories, pDefaultWeight);
+	if(categors < 2)
+		throw Ex("Expected at least 2 categories. Got ", to_str(categors));
+	m_weights.resize(categors, pDefaultWeight);
 }
 
 void GBNCategorical::addCatParent(GBNCategorical* pNode, GBNNode* pDefaultWeight)

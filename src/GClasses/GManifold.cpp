@@ -203,7 +203,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		GReleaseDataHolder hTentativeD(&tentativeD);
 		GVec::copy(tentativeC.newRow(), pC->row(par), colCount);
 		tentativeD.takeRow(pD->row(0));
-		size_t i = 1;
+		size_t ii = 1;
 		for(size_t j = 0; j < neighborCount; j++)
 		{
 			if(pHood[j] >= rowCount)
@@ -211,9 +211,9 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 			if(visited.bit(pHood[j]))
 			{
 				GVec::copy(tentativeC.newRow(), pC->row(pHood[j]), colCount);
-				tentativeD.takeRow(pD->row(i));
+				tentativeD.takeRow(pD->row(ii));
 			}
-			i++;
+			ii++;
 		}
 
 		// Subtract the means
@@ -237,19 +237,19 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		// Accept the new points
 		GVec::copy(pC->row(par), pAligned->row(0), colCount);
 		established.set(par);
-		i = 1;
+		ii = 1;
 		for(size_t j = 0; j < neighborCount; j++)
 		{
 			if(pHood[j] >= rowCount)
 				continue;
 			if(!established.bit(pHood[j]))
-				GVec::copy(pC->row(pHood[j]), pAligned->row(i), colCount);
+				GVec::copy(pC->row(pHood[j]), pAligned->row(ii), colCount);
 			if(!visited.bit(pHood[j]))
 			{
 				visited.set(pHood[j]);
 				q.push_back(pHood[j]);
 			}
-			i++;
+			ii++;
 		}
 	}
 	return pC;
@@ -1525,7 +1525,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		GVec::copy(tentativeC.newRow(), pOut->row(par), m_targetDims);
 		tentativeD.takeRow(pLocal->row(0));
 		size_t* pHood = pNeighborTable + m_neighborCount * par;
-		size_t i = 1;
+		size_t ii = 1;
 		for(size_t j = 0; j < m_neighborCount; j++)
 		{
 			if(pHood[j] >= pIn->rows())
@@ -1533,9 +1533,9 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 			if(visited.bit(pHood[j]))
 			{
 				GVec::copy(tentativeC.newRow(), pOut->row(pHood[j]), m_targetDims);
-				tentativeD.takeRow(pLocal->row(i));
+				tentativeD.takeRow(pLocal->row(ii));
 			}
-			i++;
+			ii++;
 		}
 
 		// Subtract the means
@@ -1559,20 +1559,20 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		// Accept the new points
 		GVec::copy(pOut->row(par), pAligned->row(0), m_targetDims);
 		established.set(par);
-		i = 1;
+		ii = 1;
 		for(size_t j = 0; j < m_neighborCount; j++)
 		{
 			if(pHood[j] >= pIn->rows())
 				continue;
 			if(!established.bit(pHood[j]))
-				GVec::copy(pOut->row(pHood[j]), pAligned->row(i), m_targetDims);
+				GVec::copy(pOut->row(pHood[j]), pAligned->row(ii), m_targetDims);
 			if(!visited.bit(pHood[j]))
 			{
 				visited.set(pHood[j]);
 				q.push_back(pHood[j]);
 				q.push_back(depth + 1);
 			}
-			i++;
+			ii++;
 		}
 	}
 	return hOut.release();
@@ -1591,8 +1591,8 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 
 
 
-GNeuroPCA::GNeuroPCA(size_t targetDims, GRand* pRand)
-: GTransform(), m_targetDims(targetDims), m_pWeights(NULL), m_pEigVals(NULL), m_pRand(pRand)
+GNeuroPCA::GNeuroPCA(size_t targDims, GRand* pRand)
+: GTransform(), m_targetDims(targDims), m_pWeights(NULL), m_pEigVals(NULL), m_pRand(pRand)
 {
 	m_pActivation = new GActivationTanH();
 }
@@ -2062,8 +2062,8 @@ void GDynamicSystemStateAligner::test()
 
 
 
-GImageJitterer::GImageJitterer(size_t wid, size_t hgt, size_t channels, double rotateDegrees, double translateWidths, double zoomFactor)
-: m_wid(wid), m_hgt(hgt), m_channels(channels), m_rotateRads(rotateDegrees * M_PI / 180.0), m_translatePixels(translateWidths * wid), m_zoomFactor(zoomFactor), m_cx(0.5 * double(wid - 1)), m_cy(0.5 * double(hgt - 1))
+GImageJitterer::GImageJitterer(size_t width, size_t height, size_t chans, double rotateDegrees, double translateWidths, double zoomFactor)
+: m_wid(width), m_hgt(height), m_channels(chans), m_rotateRads(rotateDegrees * M_PI / 180.0), m_translatePixels(translateWidths * width), m_zoomFactor(zoomFactor), m_cx(0.5 * double(width - 1)), m_cy(0.5 * double(height - 1))
 {
 }
 
