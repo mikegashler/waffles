@@ -865,6 +865,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 	// Try a plain-old single-layer network
 	size_t hidden = std::max((size_t)4, (features.cols() + 3) / 4);
 	Holder<GNeuralNet> hCand0(new GNeuralNet());
+	hCand0->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	Holder<GNeuralNet> hCand1;
 	double scores[2];
 	scores[0] = hCand0.get()->crossValidate(features, labels, 2);
