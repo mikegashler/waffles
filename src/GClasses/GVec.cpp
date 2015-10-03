@@ -40,40 +40,32 @@ namespace GClasses {
 using std::vector;
 
 GVec::GVec(size_t n)
+: m_size(n)
 {
 	if(n == 0)
 		m_data = NULL;
 	else
-	{
-		m_data = new double[n + 1];
-		*m_data = (double)n;
-	}
+		m_data = new double[n];
 }
 
 GVec::GVec(const GVec& orig)
 {
-	size_t n = orig.size();
-	if(n == 0)
+	m_size = orig.m_size;
+	if(m_size == 0)
 		m_data = NULL;
 	else
 	{
-		m_data = new double[n + 1];
-		*m_data = (double)n;
-		const double* pSrc = orig.m_data + 1;
-		double* pDest = m_data + 1;
-		for(size_t i = 0; i < n; i++)
-			*(pDest++) = *(pSrc++);
+		m_data = new double[m_size];
+		for(size_t i = 0; i < m_size; i++)
+			m_data[i] = orig.m_data[i];
 	}
 }
 
 GVec& GVec::operator=(const GVec& orig)
 {
-	size_t n = orig.size();
-	resize(n);
-	const double* pSrc = orig.m_data + 1;
-	double* pDest = m_data + 1;
-	for(size_t i = 0; i < n; i++)
-		*(pDest++) = *(pSrc++);
+	resize(orig.m_size);
+	for(size_t i = 0; i < m_size; i++)
+		m_data[i] = orig.m_data[i];
 	return *this;
 }
 
@@ -84,73 +76,63 @@ GVec::~GVec()
 
 void GVec::resize(size_t n)
 {
-	if(size() == n)
+	if(m_size == n)
 		return;
 	delete[] m_data;
+	m_size = n;
 	if(n == 0)
 		m_data = NULL;
 	else
-	{
-		m_data = new double[n + 1];
-		*m_data = (double)n;
-	}
+		m_data = new double[n];
 }
 
 void GVec::fill(const double val)
 {
-	size_t n = size();
-	double* pDest = m_data + 1;
-	for(size_t i = 0; i < n; i++)
-		*(pDest++) = val;
+	for(size_t i = 0; i < m_size; i++)
+		m_data[i] = val;
 }
 
 GVec GVec::operator+(const GVec& that)
 {
-	size_t n = size();
-	GVec v(n);
-	for(size_t i = 0; i < n; i++)
+	GVec v(m_size);
+	for(size_t i = 0; i < m_size; i++)
 		v[i] = (*this)[i] + that[i];
 	return v;
 }
 
 GVec& GVec::operator+=(const GVec& that)
 {
-	size_t n = size();
-	for(size_t i = 0; i < n; i++)
+	for(size_t i = 0; i < m_size; i++)
 		(*this)[i] += that[i];
 	return *this;
 }
 
 GVec GVec::operator-(const GVec& that)
 {
-	size_t n = size();
-	GVec v(n);
-	for(size_t i = 0; i < n; i++)
+	GVec v(m_size);
+	for(size_t i = 0; i < m_size; i++)
 		v[i] = (*this)[i] - that[i];
 	return v;
 }
 
 GVec& GVec::operator-=(const GVec& that)
 {
-	size_t n = size();
-	for(size_t i = 0; i < n; i++)
+	for(size_t i = 0; i < m_size; i++)
 		(*this)[i] -= that[i];
 	return *this;
 }
 
 GVec GVec::operator*(double scalar)
 {
-	size_t n = size();
-	GVec v(n);
-	for(size_t i = 0; i < n; i++)
+	GVec v(m_size);
+	for(size_t i = 0; i < m_size; i++)
 		v[i] = (*this)[i] * scalar;
 	return v;
 }
 
 GVec& GVec::operator*=(double scalar)
 {
-	size_t n = size();
-	for(size_t i = 0; i < n; i++)
+	for(size_t i = 0; i < m_size; i++)
 		(*this)[i] *= scalar;
 	return *this;
 }
@@ -164,9 +146,8 @@ void GVec::set(const double* pSource, size_t n)
 
 double GVec::squaredMagnitude()
 {
-	size_t n = size();
 	double s = 0.0;
-	for(size_t i = 0; i < n; i++)
+	for(size_t i = 0; i < m_size; i++)
 	{
 		double d = (*this)[i];
 		s += (d * d);
@@ -176,9 +157,8 @@ double GVec::squaredMagnitude()
 
 double GVec::squaredDistance(const GVec& that)
 {
-	size_t n = size();
 	double s = 0.0;
-	for(size_t i = 0; i < n; i++)
+	for(size_t i = 0; i < m_size; i++)
 	{
 		double d = (*this)[i] - that[i];
 		s += (d * d);

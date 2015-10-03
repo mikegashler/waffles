@@ -38,6 +38,7 @@ class GVec
 {
 protected:
 	double* m_data;
+	size_t m_size;
 
 public:
 	/// General-purpose constructor. n specifies the initial size of the vector.
@@ -51,7 +52,7 @@ public:
 	~GVec();
 
 	/// Returns the size of this vector.
-	size_t size() const { return m_data ? (size_t)*m_data : 0; }
+	size_t size() const { return m_size; }
 
 	/// Resizes this vector
 	void resize(size_t n);
@@ -60,16 +61,16 @@ public:
 	void fill(const double val);
 
 	/// \brief Returns a reference to the specified element.
-	inline double& operator [](size_t index) { return m_data[index + 1]; }
+	inline double& operator [](size_t index) { return m_data[index]; }
 
 	/// \brief Returns a const reference to the specified element
-	inline const double& operator [](size_t index) const { return m_data[index + 1]; }
+	inline const double& operator [](size_t index) const { return m_data[index]; }
 
 	/// Returns a pointer to the raw element values.
-	double* data() { return m_data + 1; }
+	double* data() { return m_data; }
 
 	/// Returns a const pointer to the raw element values.
-	const double* data() const { return m_data + 1; }
+	const double* data() const { return m_data; }
 
 	/// Adds two vectors to make a new one.
 	GVec operator+(const GVec& that);
@@ -297,7 +298,6 @@ public:
 	static void absValues(double* pVec, size_t dims);
 };
 
-static_assert(sizeof(GVec) == sizeof(double*), "unexpected size");
 
 
 /// Holds an array of doubles that can be resized. This class is
