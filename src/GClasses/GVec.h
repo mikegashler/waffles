@@ -71,6 +71,24 @@ public:
 	/// Returns a const pointer to the raw element values.
 	const double* data() const { return m_data + 1; }
 
+	/// Adds two vectors to make a new one.
+	GVec operator+(const GVec& that);
+
+	/// Adds another vector to this one.
+	GVec& operator+=(const GVec& that);
+
+	/// Subtracts a vector from this one to make a new one.
+	GVec operator-(const GVec& that);
+
+	/// Subtracts another vector from this one.
+	GVec& operator-=(const GVec& that);
+
+	/// Makes a scaled version of this vector.
+	GVec operator*(double scalar);
+
+	/// Scales this vector.
+	GVec& operator*=(double scalar);
+
 	/// Sets the data in this vector.
 	void set(const double* pSource, size_t size);
 

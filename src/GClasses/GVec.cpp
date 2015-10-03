@@ -104,6 +104,57 @@ void GVec::fill(const double val)
 		*(pDest++) = val;
 }
 
+GVec GVec::operator+(const GVec& that)
+{
+	size_t n = size();
+	GVec v(n);
+	for(size_t i = 0; i < n; i++)
+		v[i] = (*this)[i] + that[i];
+	return v;
+}
+
+GVec& GVec::operator+=(const GVec& that)
+{
+	size_t n = size();
+	for(size_t i = 0; i < n; i++)
+		(*this)[i] += that[i];
+	return *this;
+}
+
+GVec GVec::operator-(const GVec& that)
+{
+	size_t n = size();
+	GVec v(n);
+	for(size_t i = 0; i < n; i++)
+		v[i] = (*this)[i] - that[i];
+	return v;
+}
+
+GVec& GVec::operator-=(const GVec& that)
+{
+	size_t n = size();
+	for(size_t i = 0; i < n; i++)
+		(*this)[i] -= that[i];
+	return *this;
+}
+
+GVec GVec::operator*(double scalar)
+{
+	size_t n = size();
+	GVec v(n);
+	for(size_t i = 0; i < n; i++)
+		v[i] = (*this)[i] * scalar;
+	return v;
+}
+
+GVec& GVec::operator*=(double scalar)
+{
+	size_t n = size();
+	for(size_t i = 0; i < n; i++)
+		(*this)[i] *= scalar;
+	return *this;
+}
+
 void GVec::set(const double* pSource, size_t n)
 {
 	resize(n);
@@ -965,7 +1016,7 @@ void GVec::test()
 		}
 	}
 
-	// Test the GVec object
+	// Test the basic operations of the GVec object
 	GVec v1(2);
 	v1[0] = 2.0;
 	v1[1] = 7.0;
@@ -983,6 +1034,27 @@ void GVec::test()
 		throw Ex("failed");
 	if(v1.data()[0] != 3.0 || v1.data()[1] != 3.0)
 		throw Ex("failed");
+
+	// Test overloaded operators
+	v1[0] = 1.0;
+	v1[1] = 2.0;
+	v2[0] = 3.0;
+	v2[1] = 4.0;
+	GVec v3 = v1 + v2;
+	if(v3.squaredMagnitude() != 52.0)
+		throw Ex("failed");
+	v3 += v1;
+	if(v3.squaredMagnitude() != 89.0)
+		throw Ex("failed");
+	v1 *= 2.0;
+	if(v1.squaredMagnitude() != 20.0)
+		throw Ex("failed");
+	v1 -= v2;
+	if(v1[0] != -1.0)
+		throw Ex("failed");
+	if(v1[1] != 0.0)
+		throw Ex("failed");
+	
 }
 #endif // MIN_PREDICT
 
