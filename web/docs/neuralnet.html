@@ -601,6 +601,8 @@ int main(int argc, char *argv[])
 	nn.setLearningRate(0.01);
 	GAutoFilter af(&amp;nn, false);
 	af.beginIncrementalLearning(s2.features1(), s2.labels1());
+
+	// Prep the data
 	GMatrix* filteredFeatures1 = af.prefilterFeatures(s2.features1());
 	Holder&lt;GMatrix&gt; hFilteredFeatures1(filteredFeatures1);
 	GMatrix* filteredLabels1 = af.prefilterLabels(s2.labels1());
@@ -609,8 +611,16 @@ int main(int argc, char *argv[])
 	Holder&lt;GMatrix&gt; hFilteredFeatures2(filteredFeatures2);
 	GMatrix* filteredLabels2 = af.prefilterLabels(s2.labels2());
 	Holder&lt;GMatrix&gt; hFilteredLabels2(filteredLabels2);
-	size_t n = s2.features2().rows();
-	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(n) &lt;&lt; "\n";
+
+	// Print some stats
+	size_t nTrain = s2.features1().rows();
+	size_t nTest = s2.features2().rows();
+	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(nTrain) &lt;&lt; "\n";
+	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(nTest) &lt;&lt; "\n";
+	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.layer(0).inputs());
+	for(size_t i = 0; i &lt; nn.layerCount(); i++)
+		cout &lt;&lt; " -> " + to_str(nn.layer(i).outputs());
+	cout &lt;&lt; "\n";
 	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
 
 	// Train
@@ -618,6 +628,7 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
 	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
+	cout &lt;&lt; "@DATA\n";
 	GRandomIndexIterator ii(s2.features1().rows(), nn.rand());
 	for(size_t epoch = 0; epoch &lt; 50000; epoch++)
 	{
@@ -625,7 +636,7 @@ int main(int argc, char *argv[])
 		double sseTrain = nn.sumSquaredError(*filteredFeatures1, *filteredLabels1);
 		double sseTest = nn.sumSquaredError(*filteredFeatures2, *filteredLabels2);
 		double mis = af.sumSquaredError(s2.features2(), s2.labels2());
-		cout &lt;&lt; to_str(std::sqrt(sseTrain / n)) &lt;&lt; ", " &lt;&lt; to_str(std::sqrt(sseTest / n)) &lt;&lt; ", " &lt;&lt; to_str((double)mis / n) &lt;&lt; "\n";
+		cout &lt;&lt; to_str(std::sqrt(sseTrain / nTrain)) &lt;&lt; ", " &lt;&lt; to_str(std::sqrt(sseTest / nTest)) &lt;&lt; ", " &lt;&lt; to_str((double)mis / nTrain) &lt;&lt; "\n";
 		cout.flush();
 
 		// Train

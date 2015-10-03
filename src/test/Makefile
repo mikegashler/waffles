@@ -24,7 +24,7 @@ ifeq ($(UNAME),Darwin)
 	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/libGClassesDbg.a -lpthread
 	GCOV_LFLAGS = -fprofile-arcs $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../lib/libGClassesGcov.a
 else
-	CFLAGS = -Wall
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11
 	OPT_LFLAGS = ../../lib/libGClasses.a -lpthread
 	DBG_LFLAGS = ../../lib/libGClassesDbg.a -lpthread
 	GCOV_LFLAGS = -fprofile-arcs ../../lib/libGClassesGcov.a -lpthread

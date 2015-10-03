@@ -1084,10 +1084,10 @@ GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 	GPCA pca(lay.inputs());
 	pca.train(features);
 	GVec off(lay.inputs());
-	pca.basis()->multiply(pca.centroid(), off.v);
+	pca.basis()->multiply(pca.centroid(), off.data());
 	GMatrix* pInvTransform = pca.basis()->pseudoInverse();
 	Holder<GMatrix> hInvTransform(pInvTransform);
-	lay.transformWeights(*pInvTransform, off.v);
+	lay.transformWeights(*pInvTransform, off.data());
 	return pca.transformBatch(features);
 }
 

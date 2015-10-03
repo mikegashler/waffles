@@ -420,9 +420,9 @@ void predict(GArgReader& args)
 	GSparseMatrix* pData;
 	Holder<GSparseMatrix> hData(NULL);
 	{
-		GDom doc;
-		doc.loadJson(args.pop_string());
-		pData = new GSparseMatrix(doc.root());
+		GDom doc2;
+		doc2.loadJson(args.pop_string());
+		pData = new GSparseMatrix(doc2.root());
 		hData.reset(pData);
 	}
 
@@ -466,9 +466,9 @@ void test(GArgReader& args)
 	GSparseMatrix* pData;
 	Holder<GSparseMatrix> hData(NULL);
 	{
-		GDom doc;
-		doc.loadJson(args.pop_string());
-		pData = new GSparseMatrix(doc.root());
+		GDom doc2;
+		doc2.loadJson(args.pop_string());
+		pData = new GSparseMatrix(doc2.root());
 		hData.reset(pData);
 	}
 

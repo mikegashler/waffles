@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <vector>
+#include "GError.h"
 
 namespace GClasses {
 
@@ -35,13 +36,48 @@ class GDomListIterator;
 /// Contains some useful functions for operating on vectors
 class GVec
 {
+protected:
+	double* m_data;
+
 public:
-	double* v;
+	/// General-purpose constructor. n specifies the initial size of the vector.
 	GVec(size_t n = 0);
+	
+	/// Copy constructor. Copies all the values in orig.
+	GVec(const GVec& orig);
+
+	/// Copies all the values in orig.
+	GVec& operator=(const GVec& orig);
 	~GVec();
+
+	/// Returns the size of this vector.
+	size_t size() const { return m_data ? (size_t)*m_data : 0; }
 
 	/// Resizes this vector
 	void resize(size_t n);
+
+	/// Sets all the elements in this vector to val.
+	void fill(const double val);
+
+	/// \brief Returns a reference to the specified element.
+	inline double& operator [](size_t index) { return m_data[index + 1]; }
+
+	/// \brief Returns a const reference to the specified element
+	inline const double& operator [](size_t index) const { return m_data[index + 1]; }
+
+	/// Returns a pointer to the raw element values.
+	double* data() { return m_data + 1; }
+
+	/// Returns a const pointer to the raw element values.
+	const double* data() const { return m_data + 1; }
+
+	/// Sets the data in this vector.
+	void set(const double* pSource, size_t size);
+
+
+	double squaredMagnitude();
+	double squaredDistance(const GVec& that);
+
 
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
@@ -242,6 +278,8 @@ public:
 	/// Sets each value, v, to ABS(v)
 	static void absValues(double* pVec, size_t dims);
 };
+
+static_assert(sizeof(GVec) == sizeof(double*), "unexpected size");
 
 
 /// Holds an array of doubles that can be resized. This class is

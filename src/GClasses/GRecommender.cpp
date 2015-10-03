@@ -2265,9 +2265,9 @@ double GLogNet::predict(size_t user, size_t item)
 {
 	if(user >= m_pP->rows() || item >= m_pQ->rows())
 		return 0.0;
-	GVec::copy(m_input.v, m_pP->row(user), m_intrinsicDims + 1);
-	GVec::copy(m_input.v + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
-	m_pModel->forwardProp(m_input.v);
+	GVec::copy(m_input.data(), m_pP->row(user), m_intrinsicDims + 1);
+	GVec::copy(m_input.data() + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
+	m_pModel->forwardProp(m_input.data());
 	return m_pModel->outputLayer().activation()[0];
 }
 

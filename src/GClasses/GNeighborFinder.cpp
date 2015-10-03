@@ -1321,7 +1321,7 @@ public:
 	GBallNode(size_t count, size_t* pIndexes, const GMatrix* pData, GDistanceMetric* pMetric)
 	: m_center(pData->cols())
 	{
-		m_radius = sqrt(pData->boundingSphere(m_center.v, pIndexes, count, pMetric));
+		m_radius = sqrt(pData->boundingSphere(m_center.data(), pIndexes, count, pMetric));
 	}
 
 	virtual ~GBallNode()
@@ -1332,7 +1332,7 @@ public:
 
 	double distance(GDistanceMetric* pMetric, const double* pVec)
 	{
-		return sqrt(pMetric->squaredDistance(m_center.v, pVec)) - m_radius;
+		return sqrt(pMetric->squaredDistance(m_center.data(), pVec)) - m_radius;
 	}
 
 	/// Move the center and radius just enough to enclose both pVec and the previous ball
@@ -1344,7 +1344,7 @@ public:
 			size_t dims = pMetric->relation()->size();
 			double s = 0.5 * d / (m_radius + d);
 			for(size_t i = 0; i < dims; i++)
-				m_center.v[i] += s * (pVec[i] - m_center.v[i]);
+				m_center[i] += s * (pVec[i] - m_center[i]);
 			m_radius += 0.5 * d;
 		}
 	}

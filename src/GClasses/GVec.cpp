@@ -41,25 +41,111 @@ using std::vector;
 
 GVec::GVec(size_t n)
 {
-	if(n > 0)
-		v = new double[n];
+	if(n == 0)
+		m_data = NULL;
 	else
-		v = NULL;
+	{
+		m_data = new double[n + 1];
+		*m_data = (double)n;
+	}
+}
+
+GVec::GVec(const GVec& orig)
+{
+	size_t n = orig.size();
+	if(n == 0)
+		m_data = NULL;
+	else
+	{
+		m_data = new double[n + 1];
+		*m_data = (double)n;
+		const double* pSrc = orig.m_data + 1;
+		double* pDest = m_data + 1;
+		for(size_t i = 0; i < n; i++)
+			*(pDest++) = *(pSrc++);
+	}
+}
+
+GVec& GVec::operator=(const GVec& orig)
+{
+	size_t n = orig.size();
+	resize(n);
+	const double* pSrc = orig.m_data + 1;
+	double* pDest = m_data + 1;
+	for(size_t i = 0; i < n; i++)
+		*(pDest++) = *(pSrc++);
+	return *this;
 }
 
 GVec::~GVec()
 {
-	delete[] v;
+	delete[] m_data;
 }
 
 void GVec::resize(size_t n)
 {
-	delete[] v;
-	if(n > 0)
-		v = new double[n];
+	if(size() == n)
+		return;
+	delete[] m_data;
+	if(n == 0)
+		m_data = NULL;
 	else
-		v = NULL;
+	{
+		m_data = new double[n + 1];
+		*m_data = (double)n;
+	}
 }
+
+void GVec::fill(const double val)
+{
+	size_t n = size();
+	double* pDest = m_data + 1;
+	for(size_t i = 0; i < n; i++)
+		*(pDest++) = val;
+}
+
+void GVec::set(const double* pSource, size_t n)
+{
+	resize(n);
+	for(size_t i = 0; i < n; i++)
+		(*this)[i] = *(pSource++);
+}
+
+double GVec::squaredMagnitude()
+{
+	size_t n = size();
+	double s = 0.0;
+	for(size_t i = 0; i < n; i++)
+	{
+		double d = (*this)[i];
+		s += (d * d);
+	}
+	return s;
+}
+
+double GVec::squaredDistance(const GVec& that)
+{
+	size_t n = size();
+	double s = 0.0;
+	for(size_t i = 0; i < n; i++)
+	{
+		double d = (*this)[i] - that[i];
+		s += (d * d);
+	}
+	return s;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -859,22 +945,44 @@ void GVec::absValues(double* pVec, size_t dims)
 // static
 void GVec::test()
 {
-	GRand prng(0);
-	GTEMPBUF(double, v1, 200);
-	double* v2 = v1 + 100;
-	for(int i = 0; i < 10; i++)
 	{
-		prng.spherical(v1, 100);
-		prng.spherical(v2, 100);
-		GVec::subtractComponent(v2, v1, 100);
-		GVec::normalize(v2, 100);
-		if(std::abs(GVec::correlation(v1, v2, 100)) > 1e-4)
-			throw Ex("Failed");
-		if(std::abs(GVec::squaredMagnitude(v1, 100) - 1) > 1e-4)
-			throw Ex("Failed");
-		if(std::abs(GVec::squaredMagnitude(v2, 100) - 1) > 1e-4)
-			throw Ex("Failed");
+		// Test some static methods
+		GRand prng(0);
+		GTEMPBUF(double, v1, 200);
+		double* v2 = v1 + 100;
+		for(int i = 0; i < 10; i++)
+		{
+			prng.spherical(v1, 100);
+			prng.spherical(v2, 100);
+			GVec::subtractComponent(v2, v1, 100);
+			GVec::normalize(v2, 100);
+			if(std::abs(GVec::correlation(v1, v2, 100)) > 1e-4)
+				throw Ex("Failed");
+			if(std::abs(GVec::squaredMagnitude(v1, 100) - 1) > 1e-4)
+				throw Ex("Failed");
+			if(std::abs(GVec::squaredMagnitude(v2, 100) - 1) > 1e-4)
+				throw Ex("Failed");
+		}
 	}
+
+	// Test the GVec object
+	GVec v1(2);
+	v1[0] = 2.0;
+	v1[1] = 7.0;
+	GVec v2(v1);
+	if(v2.size() != 2)
+		throw Ex("failed");
+	if(v1.squaredDistance(v2) != 0.0)
+		throw Ex("failed");
+	std::swap(v1[0], v1[1]);
+	if(v1.squaredDistance(v2) != 50.0)
+		throw Ex("failed");
+	v2.fill(3.0);
+	v1 = v2;
+	if(v1.squaredMagnitude() != 18.0)
+		throw Ex("failed");
+	if(v1.data()[0] != 3.0 || v1.data()[1] != 3.0)
+		throw Ex("failed");
 }
 #endif // MIN_PREDICT
 

@@ -663,19 +663,19 @@ void MySession::doNext(const char* szParams)
 						break;
 
 					// Find the parent page
-					size_t i;
-					for(i = 0; i < pParPar->children().size(); i++)
+					size_t i2;
+					for(i2 = 0; i2 < pParPar->children().size(); i2++)
 					{
-						if(pParPar->children()[i] == pPar)
+						if(pParPar->children()[i2] == pPar)
 							break;
 					}
-					if(i >= pParPar->children().size())
+					if(i2 >= pParPar->children().size())
 						throw Ex("internal error"); // failed to find pPar page
 
 					// Pick the next sibling of pPar
-					if(i + 1 < pParPar->children().size())
+					if(i2 + 1 < pParPar->children().size())
 					{
-						pNext = pParPar->children()[i + 1];
+						pNext = pParPar->children()[i2 + 1];
 						break;
 					}
 					pPar = pParPar;

@@ -323,7 +323,7 @@ public:
 	virtual const char* name() const { return "hinge"; }
 
 	/// Returns the internal vector of hinge values
-	double* alphas() { return m_hinges.v; }
+	double* alphas() { return m_hinges.data(); }
 
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -331,19 +331,19 @@ public:
 	/// Returns the bend function of x
 	virtual double squash(double x, size_t index)
 	{
-		return m_hinges.v[index] * (sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x;
+		return m_hinges[index] * (sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x;
 	}
 
 	/// Returns the derivative of the bend function
 	virtual double derivative(double x, size_t index)
 	{
-		return m_hinges.v[index] * x / sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0;
+		return m_hinges[index] * x / sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0;
 	}
 
 	/// Returns the inverse of the bend function
 	virtual double inverse(double y, size_t index)
 	{
-		double v = m_hinges.v[index];
+		double v = m_hinges[index];
 		return BEND_SIZE * (v * sqrt(y * y / (BEND_SIZE * BEND_SIZE) + 2.0 * v / BEND_SIZE * y + 1.0) - y / BEND_SIZE - v) / (v * v - 1.0);
 	}
 
@@ -405,7 +405,7 @@ public:
 	virtual const char* name() const { return "logexp"; }
 
 	/// Returns the internal vector of parameter values
-	double* alphas() { return m_alphas.v; }
+	double* alphas() { return m_alphas.data(); }
 
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -413,13 +413,13 @@ public:
 	/// Returns the logexp function of x with the parameterized alpha value
 	virtual double squash(double x, size_t index)
 	{
-		return std::max(-500.0, std::min(500.0, GMath::logExp(m_alphas.v[index], x)));
+		return std::max(-500.0, std::min(500.0, GMath::logExp(m_alphas[index], x)));
 	}
 
 	/// Returns the derivative of the logexp function
 	virtual double derivative(double x, size_t index)
 	{
-		double a = m_alphas.v[index];
+		double a = m_alphas[index];
 		double d;
 		if(a < -1e-12)
 			d = 1.0 / std::max(0.0033, 1.0 - a * (a + x)); // maxes out at about 300
@@ -433,7 +433,7 @@ public:
 	/// Returns the inverse of the bend function
 	virtual double inverse(double y, size_t index)
 	{
-		double a = m_alphas.v[index];
+		double a = m_alphas[index];
 		return GMath::logExp(-a, y);
 	}
 

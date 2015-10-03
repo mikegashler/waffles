@@ -1447,9 +1447,9 @@ void makeHistogram(GArgReader& args)
 			{
 				double xBegin = pData->row(i + 1 - k)[attr];
 				double xEnd = pData->row(i)[attr];
-				double* pBlock = invDensity.newRow();
-				pBlock[0] = 0.5 * (xBegin + xEnd);
-				pBlock[1] = (double)k / ((xEnd - xBegin + laplace) * pData->rows());
+				double* pBlock2 = invDensity.newRow();
+				pBlock2[0] = 0.5 * (xBegin + xEnd);
+				pBlock2[1] = (double)k / ((xEnd - xBegin + laplace) * pData->rows());
 			}
 			pBlock = invDensity.newRow();
 			pBlock[0] = pData->row(pData->rows() - 1)[attr];

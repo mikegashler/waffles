@@ -159,7 +159,7 @@ namespace{
   };
 
 
-};
+}
 
 
 ///Return the golf dataset used in Mark Hall's dissertation
