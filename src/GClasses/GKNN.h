@@ -103,10 +103,10 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
@@ -131,7 +131,7 @@ public:
 	void setInterpolationLearner(GSupervisedLearner* pLearner, bool bTakeOwnership);
 
 	/// Adds a copy of pVector to the internal set.
-	size_t addVector(const double* pIn, const double* pOut);
+	size_t addVector(const GVec& in, const GVec& out);
 
 	/// Returns the dissimilarity metric
 	GRowDistanceScaled* metric() { return m_pDistanceMetric; }
@@ -179,21 +179,21 @@ protected:
 	/// Also, If you make this decision based on a closer neighbor, then big
 	/// holes may form in the model if points are sampled in a poor order.)
 	/// Call SetElbowRoom to specify the elbow room distance.
-	virtual void trainIncremental(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 	/// Finds the nearest neighbors of pVector
-	void findNeighbors(const double* pVector);
+	void findNeighbors(const GVec& vector);
 
 	/// Interpolate with each neighbor having equal vote
-	void interpolateMean(const double* pIn, GPrediction* pOut, double* pOut2);
+	void interpolateMean(const GVec& in, GPrediction* pOut, GVec* pOut2);
 
 	/// Interpolate with each neighbor having a linear vote. (Actually it's linear with
 	/// respect to the squared distance instead of the distance, because this is faster
 	/// to compute.)
-	void interpolateLinear(const double* pIn, GPrediction* pOut, double* pOut2);
+	void interpolateLinear(const GVec& pIn, GPrediction* pOut, GVec* pOut2);
 
 	/// Interpolates with the provided supervised learning algorithm
-	void interpolateLearner(const double* pIn, GPrediction* pOut, double* pOut2);
+	void interpolateLearner(const GVec& pIn, GPrediction* pOut, GVec* pOut2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
 	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
@@ -258,10 +258,10 @@ public:
 	virtual void clear();
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& pIn, GVec& pOut);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -274,7 +274,7 @@ protected:
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const GVec& pIn, const GVec& pOut);
 };
 
 
@@ -326,10 +326,10 @@ protected:
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& pIn, GVec& pOut);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
 
 	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }

@@ -72,10 +72,10 @@ protected:
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& pIn, GVec& pOut);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }

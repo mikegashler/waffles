@@ -215,7 +215,7 @@ struct GNaiveBayesOutputAttr
 	void eval(const double* pIn, GPrediction* pOut, double equivalentSampleSize)
 	{
 		GCategoricalDistribution* pDist = pOut->makeCategorical();
-		double* pValues = pDist->values(m_nValueCount);
+		GVec& pValues = pDist->values(m_nValueCount);
 		for(size_t n = 0; n < m_nValueCount; n++)
 			pValues[n] = m_pValues[n]->eval(pIn, equivalentSampleSize);
 		pDist->normalizeFromLogSpace();
@@ -297,10 +297,10 @@ void GNaiveBayes::beginIncrementalLearningInner(const GRelation& featureRel, con
 }
 
 // virtual
-void GNaiveBayes::trainIncremental(const double* pIn, const double* pOut)
+void GNaiveBayes::trainIncremental(const GVec& pIn, const GVec& pOut)
 {
 	for(size_t n = 0; n < m_pRelLabels->size(); n++)
-		m_pOutputs[n]->AddTrainingSample(pIn, (int)pOut[n]);
+		m_pOutputs[n]->AddTrainingSample(pIn.data(), (int)pOut[n]);
 	m_nSampleCount++;
 }
 
@@ -324,38 +324,35 @@ void GNaiveBayes::trainSparse(GSparseMatrix& features, GMatrix& labels)
 	size_t featureDims = features.cols();
 	GUniformRelation featureRel(featureDims, 2);
 	beginIncrementalLearning(featureRel, labels.relation());
-	double* pFullRow = new double[featureDims];
-	ArrayHolder<double> hFullRow(pFullRow);
+	GVec fullRow(featureDims);
 	for(size_t n = 0; n < features.rows(); n++)
 	{
-		features.fullRow(pFullRow, n);
-		double* pEl = pFullRow;
+		features.fullRow(fullRow, n);
 		for(size_t i = 0; i < featureDims; i++)
 		{
-			if(*pEl < 1e-6)
-				*pEl = 0.0;
+			if(fullRow[i] < 1e-6)
+				fullRow[i] = 0.0;
 			else
-				*pEl = 1.0;
-			pEl++;
+				fullRow[i] = 1.0;
 		}
-		trainIncremental(pFullRow, labels[n]);
+		trainIncremental(fullRow, labels[n]);
 	}
 }
 
-void GNaiveBayes::predictDistribution(const double* pIn, GPrediction* pOut)
+void GNaiveBayes::predictDistribution(const GVec& pIn, GPrediction* pOut)
 {
 	if(m_nSampleCount <= 0)
 		throw Ex("You must call train before you call eval");
 	for(size_t n = 0; n < m_pRelLabels->size(); n++)
-		m_pOutputs[n]->eval(pIn, &pOut[n], m_equivalentSampleSize);
+		m_pOutputs[n]->eval(pIn.data(), &pOut[n], m_equivalentSampleSize);
 }
 
-void GNaiveBayes::predict(const double* pIn, double* pOut)
+void GNaiveBayes::predict(const GVec& pIn, GVec& pOut)
 {
 	if(m_nSampleCount <= 0)
 		throw Ex("You must call train before you call eval");
 	for(size_t n = 0; n < m_pRelLabels->size(); n++)
-		pOut[n] = m_pOutputs[n]->predict(pIn, m_equivalentSampleSize, &m_rand);
+		pOut[n] = m_pOutputs[n]->predict(pIn.data(), m_equivalentSampleSize, &m_rand);
 }
 
 void GNaiveBayes::autoTune(GMatrix& features, GMatrix& labels)
@@ -389,7 +386,7 @@ void GNaiveBayes_CheckResults(double yprior, double ycond, double nprior, double
 	py /= sum;
 	pn /= sum;
 	GCategoricalDistribution* pCat = out->asCategorical();
-	double* pVals = pCat->values(2);
+	GVec& pVals = pCat->values(2);
 	if(std::abs(pVals[0] - py) > 1e-8)
 		throw Ex("wrong");
 	if(std::abs(pVals[1] - pn) > 1e-8)
@@ -426,7 +423,7 @@ void GNaiveBayes_testMath()
 	nb.setEquivalentSampleSize(0.0);
 	nb.train(*pFeatures, *pLabels);
 	GPrediction out;
-	double pat[2];
+	GVec pat(2);
 	pat[0] = 0; pat[1] = 0;
 	nb.predictDistribution(pat, &out);
 	GNaiveBayes_CheckResults(7.0/12.0, 4.0/7.0*3.0/7.0, 5.0/12.0, 2.0/5.0*3.0/5.0, &out);

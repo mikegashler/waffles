@@ -86,9 +86,10 @@ GDomNode* GSparseMatrix::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-void GSparseMatrix::fullRow(double* pOutFullRow, size_t r)
+void GSparseMatrix::fullRow(GVec& pOutFullRow, size_t r)
 {
-	GVec::setAll(pOutFullRow, m_defaultValue, m_cols);
+	pOutFullRow.resize(m_cols);
+	pOutFullRow.fill(m_defaultValue);
 	Iter end = rowEnd(r);
 	for(Iter it = rowBegin(r); it != end; it++)
 		pOutFullRow[it->first] = it->second;
@@ -142,11 +143,11 @@ GMatrix* GSparseMatrix::multiply(GMatrix* pThat, bool transposeThat)
 	for(size_t r = 0; r < rows(); r++)
 	{
 		SparseVec& a = row(r);
-		double* pOut = pResult->row(r);
+		GVec& pOut = pResult->row(r);
 		for(size_t c = 0; c < pOther->rows(); c++)
 		{
-			double* pB = pOther->row(c);
-			*(pOut++) = GSparseVec::dotProduct(a, pB);
+			GVec& pB = pOther->row(c);
+			pOut[c] = GSparseVec::dotProduct(a, pB);
 		}
 	}
 	return pResult;
@@ -186,12 +187,9 @@ void GSparseMatrix::copyFrom(const GMatrix* that)
 	size_t colCount = std::min(m_cols, (size_t)that->cols());
 	for(size_t r = 0; r < rowCount; r++)
 	{
-		const double* pRow = that->row(r);
+		const GVec& pRow = that->row(r);
 		for(size_t c = 0; c < colCount; c++)
-		{
-			set(r, c, *pRow);
-			pRow++;
-		}
+			set(r, c, pRow[c]);
 	}
 }
 
@@ -218,8 +216,8 @@ GMatrix* GSparseMatrix::toFullMatrix()
 	GMatrix* pData = new GMatrix(m_rows.size(), m_cols);
 	for(size_t r = 0; r < m_rows.size(); r++)
 	{
-		double* pRow = pData->row(r);
-		GVec::setAll(pRow, 0.0, m_cols);
+		GVec& pRow = pData->row(r);
+		pRow.fill(m_defaultValue);
 		Iter end = rowEnd(r);
 		for(Iter it = rowBegin(r); it != end; it++)
 			pRow[it->first] = it->second;
@@ -792,23 +790,24 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	*ppV = hV.release();
 }
 
-void GSparseMatrix::principalComponentAboutOrigin(double* pOutVector, GRand* pRand)
+void GSparseMatrix::principalComponentAboutOrigin(GVec& pOutVector, GRand* pRand)
 {
 	if(m_defaultValue != 0.0)
 		throw Ex("Expected the default value to be 0");
 
 	// Initialize the out-vector to a random direction
 	size_t dims = cols();
-	pRand->spherical(pOutVector, dims);
+	pOutVector.resize(dims);
+	pOutVector.fillSphericalShell(*pRand);
 
 	// Iterate
 	size_t nCount = rows();
-	GTEMPBUF(double, pAccumulator, dims);
+	GVec pAccumulator(dims);
 	double d;
 	double mag = 0;
 	for(size_t iters = 0; iters < 200; iters++)
 	{
-		GVec::setAll(pAccumulator, 0.0, dims);
+		pAccumulator.fill(0.0);
 		for(size_t n = 0; n < nCount; n++)
 		{
 			Iter itEnd = rowEnd(n);
@@ -818,9 +817,9 @@ void GSparseMatrix::principalComponentAboutOrigin(double* pOutVector, GRand* pRa
 			for(Iter it = rowBegin(n); it != itEnd; it++)
 				pAccumulator[it->first] += dd * it->second;
 		}
-		GVec::copy(pOutVector, pAccumulator, dims);
-		GVec::safeNormalize(pOutVector, dims, pRand);
-		d = GVec::squaredMagnitude(pAccumulator, dims);
+		pOutVector = pAccumulator;
+		pOutVector.normalize();
+		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
 			mag = d;
 		else
@@ -828,7 +827,7 @@ void GSparseMatrix::principalComponentAboutOrigin(double* pOutVector, GRand* pRa
 	}
 }
 
-void GSparseMatrix::removeComponentAboutOrigin(const double* pComponent)
+void GSparseMatrix::removeComponentAboutOrigin(const GVec& pComponent)
 {
 	size_t nCount = rows();
 	for(size_t i = 0; i < nCount; i++)
@@ -908,7 +907,7 @@ void GSparseMatrix::test()
 
 
 // static
-double GSparseVec::dotProduct(SparseVec& sparse, double* pDense)
+double GSparseVec::dotProduct(SparseVec& sparse, GVec& pDense)
 {
 	double d = 0.0;
 	for(SparseVec::iterator it = sparse.begin(); it != sparse.end(); it++)

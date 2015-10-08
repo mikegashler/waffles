@@ -513,8 +513,8 @@ double GDecisionTree_pickPivotToReduceInfo(GMatrix& features, GMatrix& labels, G
 		size_t attempts = std::min(features.rows() - 1, (features.rows() * features.cols() > 100000 ? (size_t)1 : (size_t)8));
 		for(size_t n = 0; n < attempts; n++)
 		{
-			double* pRow1 = features.row((size_t)pRand->next(features.rows()));
-			double* pRow2 = features.row((size_t)pRand->next(features.rows()));
+			GVec& pRow1 = features.row((size_t)pRand->next(features.rows()));
+			GVec& pRow2 = features.row((size_t)pRand->next(features.rows()));
 			if(pRow1[attr] == UNKNOWN_REAL_VALUE || pRow2[attr] == UNKNOWN_REAL_VALUE)
 				continue;
 			double pivot = 0.5 * (pRow1[attr] + pRow2[attr]);
@@ -898,7 +898,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	return hNode.release();
 }
 
-GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth)
+GDecisionTreeLeafNode* GDecisionTree::findLeaf(const GVec& pIn, size_t* pDepth)
 {
 	if(!m_pRoot)
 		throw Ex("Not trained yet");
@@ -949,15 +949,15 @@ GDecisionTreeLeafNode* GDecisionTree::findLeaf(const double* pIn, size_t* pDepth
 }
 
 // virtual
-void GDecisionTree::predict(const double* pIn, double* pOut)
+void GDecisionTree::predict(const GVec& pIn, GVec& pOut)
 {
 	size_t depth;
 	GDecisionTreeLeafNode* pLeaf = findLeaf(pIn, &depth);
-	GVec::copy(pOut, pLeaf->m_pOutputValues, m_pRelLabels->size());
+	pOut.set(pLeaf->m_pOutputValues, m_pRelLabels->size());
 }
 
 // virtual
-void GDecisionTree::predictDistribution(const double* pIn, GPrediction* pOut)
+void GDecisionTree::predictDistribution(const GVec& pIn, GPrediction* pOut)
 {
 	// Copy the output values into the row
 	size_t depth;
@@ -1026,19 +1026,17 @@ public:
 class GMeanMarginsTreeInteriorNode : public GMeanMarginsTreeNode
 {
 protected:
-	double* m_pCenter;
-	double* m_pNormal;
+	GVec m_pCenter;
+	GVec m_pNormal;
 	GMeanMarginsTreeNode* m_pLeft;
 	GMeanMarginsTreeNode* m_pRight;
 
 public:
-	GMeanMarginsTreeInteriorNode(size_t featureDims, const double* pCenter, const double* pNormal)
+	GMeanMarginsTreeInteriorNode(size_t featureDims, const GVec& pCenter, const GVec& pNormal)
 	: GMeanMarginsTreeNode()
 	{
-		m_pCenter = new double[featureDims];
-		GVec::copy(m_pCenter, pCenter, featureDims);
-		m_pNormal = new double[featureDims];
-		GVec::copy(m_pNormal, pNormal, featureDims);
+		m_pCenter = pCenter;
+		m_pNormal = pNormal;
 		m_pLeft = NULL;
 		m_pRight = NULL;
 	}
@@ -1046,23 +1044,16 @@ public:
 	GMeanMarginsTreeInteriorNode(GDomNode* pNode)
 	: GMeanMarginsTreeNode()
 	{
-		GDomNode* pCenter = pNode->field("center");
-		GDomListIterator it(pCenter);
-		size_t dims = it.remaining();
-		m_pCenter = new double[dims];
-		GVec::deserialize(m_pCenter, it);
-		GDomListIterator it2(pNode->field("normal"));
-		m_pNormal = new double[it2.remaining()];
-		GAssert(it2.remaining() == dims);
-		GVec::deserialize(m_pNormal, it2);
+		m_pCenter.deserialize(pNode->field("center"));
+		m_pNormal.deserialize(pNode->field("normal"));
+		if(m_pNormal.size() != m_pCenter.size())
+			throw Ex("mismatching sizes");
 		m_pLeft = GMeanMarginsTreeNode::deserialize(pNode->field("left"));
 		m_pRight = GMeanMarginsTreeNode::deserialize(pNode->field("right"));
 	}
 
 	virtual ~GMeanMarginsTreeInteriorNode()
 	{
-		delete[] m_pCenter;
-		delete[] m_pNormal;
 		delete(m_pLeft);
 		delete(m_pRight);
 	}
@@ -1070,8 +1061,8 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc, size_t nInputs, size_t nOutputs)
 	{
 		GDomNode* pNode = pDoc->newObj();
-		pNode->addField(pDoc, "center", GVec::serialize(pDoc, m_pCenter, nInputs));
-		pNode->addField(pDoc, "normal", GVec::serialize(pDoc, m_pNormal, nInputs));
+		pNode->addField(pDoc, "center", m_pCenter.serialize(pDoc));
+		pNode->addField(pDoc, "normal", m_pNormal.serialize(pDoc));
 		pNode->addField(pDoc, "left", m_pLeft->serialize(pDoc, nInputs, nOutputs));
 		pNode->addField(pDoc, "right", m_pRight->serialize(pDoc, nInputs, nOutputs));
 		return pNode;
@@ -1082,9 +1073,9 @@ public:
 		return false;
 	}
 
-	bool Test(const double* pInputVector, size_t nInputs)
+	bool Test(const GVec& pInputVector, size_t nInputs)
 	{
-		return GVec::dotProductIgnoringUnknowns(m_pCenter, pInputVector, m_pNormal, nInputs) >= 0;
+		return (pInputVector - m_pCenter).dotProductIgnoringUnknowns(m_pNormal) >= 0;
 	}
 
 	void SetLeft(GMeanMarginsTreeNode* pNode)
@@ -1111,33 +1102,28 @@ public:
 class GMeanMarginsTreeLeafNode : public GMeanMarginsTreeNode
 {
 protected:
-	double* m_pOutputs;
+	GVec m_pOutputs;
 
 public:
-	GMeanMarginsTreeLeafNode(size_t nOutputCount, const double* pOutputs)
+	GMeanMarginsTreeLeafNode(size_t nOutputCount, const GVec& pOutputs)
 	: GMeanMarginsTreeNode()
 	{
-		m_pOutputs = new double[nOutputCount];
-		GVec::copy(m_pOutputs, pOutputs, nOutputCount);
+		m_pOutputs = pOutputs;
 	}
 
 	GMeanMarginsTreeLeafNode(GDomNode* pNode)
 	: GMeanMarginsTreeNode()
 	{
-		GDomListIterator it(pNode);
-		size_t dims = it.remaining();
-		m_pOutputs = new double[dims];
-		GVec::deserialize(m_pOutputs, it);
+		m_pOutputs.deserialize(pNode);
 	}
 
 	virtual ~GMeanMarginsTreeLeafNode()
 	{
-		delete[] m_pOutputs;
 	}
 
 	virtual GDomNode* serialize(GDom* pDoc, size_t nInputs, size_t nOutputs)
 	{
-		return GVec::serialize(pDoc, m_pOutputs, nOutputs);
+		return m_pOutputs.serialize(pDoc);
 	}
 
 	virtual bool IsLeaf()
@@ -1145,7 +1131,7 @@ public:
 		return true;
 	}
 
-	double* GetOutputs()
+	GVec& GetOutputs()
 	{
 		return m_pOutputs;
 	}
@@ -1203,13 +1189,11 @@ void GMeanMarginsTree::trainInner(const GMatrix& features, const GMatrix& labels
 	clear();
 	m_internalFeatureDims = features.cols();
 	m_internalLabelDims = labels.cols();
-	double* pBuf = new double[m_internalLabelDims * 2 + m_internalFeatureDims * 2];
-	ArrayHolder<double> hBuf(pBuf);
 	size_t* pBuf2 = new size_t[m_internalFeatureDims * 2];
 	ArrayHolder<size_t> hBuf2(pBuf2);
 	GMatrix fTmp(features);
 	GMatrix lTmp(labels);
-	m_pRoot = buildNode(fTmp, lTmp, pBuf, pBuf2);
+	m_pRoot = buildNode(fTmp, lTmp, pBuf2);
 }
 
 void GMeanMarginsTree::autoTune(GMatrix& features, GMatrix& labels)
@@ -1217,7 +1201,7 @@ void GMeanMarginsTree::autoTune(GMatrix& features, GMatrix& labels)
 	// This model has no parameters to tune
 }
 
-GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& labels, double* pBuf, size_t* pBuf2)
+GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& labels, size_t* pBuf2)
 {
 	// Check for a leaf node
 	GAssert(features.rows() == labels.rows());
@@ -1229,73 +1213,67 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 	}
 
 	// Compute the centroid and principal component of the labels
-	double* pLabelCentroid = pBuf;
+	GVec pLabelCentroid;
 	labels.centroid(pLabelCentroid);
-	double* pPrincipalComponent = pLabelCentroid + m_internalLabelDims;
+	GVec pPrincipalComponent;
 	labels.principalComponentIgnoreUnknowns(pPrincipalComponent, pLabelCentroid, &m_rand);
 
 	// Compute the centroid of each feature cluster in a manner tolerant of unknown values
-	double* pFeatureCentroid1 = pPrincipalComponent + m_internalLabelDims;
-	double* pFeatureCentroid2 = pFeatureCentroid1 + m_internalFeatureDims;
-	GVec::setAll(pFeatureCentroid1, 0.0, m_internalFeatureDims);
-	GVec::setAll(pFeatureCentroid2, 0.0, m_internalFeatureDims);
+	GVec pFeatureCentroid1;
+	pFeatureCentroid1.resize(features.cols());
+	pFeatureCentroid1.fill(0.0);
+	GVec pFeatureCentroid2;
+	pFeatureCentroid2.resize(features.cols());
+	pFeatureCentroid2.fill(0.0);
 	size_t* pCounts1 = pBuf2;
 	size_t* pCounts2 = pCounts1 + m_internalFeatureDims;
 	memset(pCounts1, '\0', sizeof(size_t) * m_internalFeatureDims);
 	memset(pCounts2, '\0', sizeof(size_t) * m_internalFeatureDims);
 	for(size_t i = 0; i < nCount; i++)
 	{
-		const double* pF = features[i];
-		if(GVec::dotProductIgnoringUnknowns(pLabelCentroid, labels[i], pPrincipalComponent, m_internalLabelDims) >= 0)
+		const GVec& pF = features[i];
+		if((labels[i] - pLabelCentroid).dotProductIgnoringUnknowns(pPrincipalComponent) >= 0)
 		{
-			double* pM = pFeatureCentroid2;
 			size_t* pC = pCounts2;
 			for(size_t j = 0; j < m_internalFeatureDims; j++)
 			{
-				if(*pF != UNKNOWN_REAL_VALUE)
+				if(pF[j] != UNKNOWN_REAL_VALUE)
 				{
-					*pM += *pF;
+					pFeatureCentroid2[j] += pF[j];
 					(*pC)++;
 				}
-				pF++;
-				pM++;
 				pC++;
 			}
 		}
 		else
 		{
-			double* pM = pFeatureCentroid1;
 			size_t* pC = pCounts1;
 			for(size_t j = 0; j < m_internalFeatureDims; j++)
 			{
-				if(*pF != UNKNOWN_REAL_VALUE)
+				if(pF[j] != UNKNOWN_REAL_VALUE)
 				{
-					*pM += *pF;
+					pFeatureCentroid1[j] += pF[j];
 					(*pC)++;
 				}
-				pF++;
-				pM++;
 				pC++;
 			}
 		}
 	}
 	size_t* pC1 = pCounts1;
 	size_t* pC2 = pCounts2;
-	double* pF1 = pFeatureCentroid1;
-	double* pF2 = pFeatureCentroid2;
 	for(size_t j = 0; j < m_internalFeatureDims; j++)
 	{
 		if(*pC1 == 0 || *pC2 == 0)
 			return new GMeanMarginsTreeLeafNode(m_internalLabelDims, pLabelCentroid);
-		*(pF1++) /= *(pC1++);
-		*(pF2++) /= *(pC2++);
+		pFeatureCentroid1[j] /= *(pC1++);
+		pFeatureCentroid2[j] /= *(pC2++);
 	}
 
 	// Compute the feature center and normal
-	GVec::add(pFeatureCentroid1, pFeatureCentroid2, m_internalFeatureDims);
-	GVec::multiply(pFeatureCentroid1, 0.5, m_internalFeatureDims);
-	GVec::subtract(pFeatureCentroid2, pFeatureCentroid1, m_internalFeatureDims);
-	GVec::safeNormalize(pFeatureCentroid2, m_internalFeatureDims, &m_rand);
+	pFeatureCentroid1 += pFeatureCentroid2;
+	pFeatureCentroid1 *= 0.5;
+	pFeatureCentroid2 -= pFeatureCentroid1;
+	pFeatureCentroid2.normalize();
 
 	// Make the interior node
 	GMeanMarginsTreeInteriorNode* pNode = new GMeanMarginsTreeInteriorNode(m_internalFeatureDims, pFeatureCentroid1, pFeatureCentroid2);
@@ -1323,21 +1301,21 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 			return new GMeanMarginsTreeLeafNode(m_internalLabelDims, pLabelCentroid);
 
 		// Build the child nodes
-		pNode->SetLeft(buildNode(features, labels, pBuf, pBuf2));
-		pNode->SetRight(buildNode(otherFeatures, otherLabels, pBuf, pBuf2));
+		pNode->SetLeft(buildNode(features, labels, pBuf2));
+		pNode->SetRight(buildNode(otherFeatures, otherLabels, pBuf2));
 	}
 	GAssert(otherFeatures.rows() == 0 && otherLabels.rows() == 0);
 	return hNode.release();
 }
 
 // virtual
-void GMeanMarginsTree::predictDistribution(const double* pIn, GPrediction* pOut)
+void GMeanMarginsTree::predictDistribution(const GVec& pIn, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model cannot predict a distribution");
 }
 
 // virtual
-void GMeanMarginsTree::predict(const double* pIn, double* pOut)
+void GMeanMarginsTree::predict(const GVec& pIn, GVec& pOut)
 {
 	GMeanMarginsTreeNode* pNode = m_pRoot;
 	size_t nDepth = 1;
@@ -1349,7 +1327,7 @@ void GMeanMarginsTree::predict(const double* pIn, double* pOut)
 			pNode = ((GMeanMarginsTreeInteriorNode*)pNode)->GetLeft();
 		nDepth++;
 	}
-	GVec::copy(pOut, ((GMeanMarginsTreeLeafNode*)pNode)->GetOutputs(), m_internalLabelDims);
+	pOut = ((GMeanMarginsTreeLeafNode*)pNode)->GetOutputs();
 }
 
 // virtual
@@ -1436,13 +1414,13 @@ void GRandomForest::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GRandomForest::predict(const double* pIn, double* pOut)
+void GRandomForest::predict(const GVec& pIn, GVec& pOut)
 {
 	m_pEnsemble->predict(pIn, pOut);
 }
 
 // virtual
-void GRandomForest::predictDistribution(const double* pIn, GPrediction* pOut)
+void GRandomForest::predictDistribution(const GVec& pIn, GPrediction* pOut)
 {
 	m_pEnsemble->predictDistribution(pIn, pOut);
 }

@@ -70,10 +70,10 @@ public:
 	virtual void resize(size_t units) {}
 
 	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
-	virtual void setError(const double* pError) {}
+	virtual void setError(const GVec& pError) {}
 
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
-	virtual void updateDeltas(const double* pNet, const double* pActivation, double momentum) {}
+	virtual void updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum) {}
 
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate) {}
@@ -323,7 +323,7 @@ public:
 	virtual const char* name() const { return "hinge"; }
 
 	/// Returns the internal vector of hinge values
-	double* alphas() { return m_hinges.data(); }
+	GVec& alphas() { return m_hinges; }
 
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -351,10 +351,10 @@ public:
 	virtual void resize(size_t units);
 
 	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
-	virtual void setError(const double* pError);
+	virtual void setError(const GVec& pError);
 
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
-	virtual void updateDeltas(const double* pNet, const double* pActivation, double momentum);
+	virtual void updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum);
 
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate);
@@ -405,7 +405,7 @@ public:
 	virtual const char* name() const { return "logexp"; }
 
 	/// Returns the internal vector of parameter values
-	double* alphas() { return m_alphas.data(); }
+	GVec& alphas() { return m_alphas; }
 
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -441,10 +441,10 @@ public:
 	virtual void resize(size_t units);
 
 	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
-	virtual void setError(const double* pError);
+	virtual void setError(const GVec& pError);
 
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
-	virtual void updateDeltas(const double* pNet, const double* pActivation, double momentum);
+	virtual void updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum);
 
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate);

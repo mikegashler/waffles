@@ -231,26 +231,25 @@ void GAgglomerativeClusterer::test()
 	GMatrix data(0, 3);
 	data.reserve(3 * SPIRAL_POINTS);
 	double dThirdCircle = M_PI * 2 / 3;
-	double* pVector;
 	double rads;
 	for(size_t i = 0; i < SPIRAL_POINTS; i += 3)
 	{
 		rads = (double)i * 2 * M_PI / SPIRAL_POINTS;
 
-		pVector = data.newRow();
-		pVector[0] = cos(rads);
-		pVector[2] = sin(rads);
-		pVector[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
+		GVec& pVector1 = data.newRow();
+		pVector1[0] = cos(rads);
+		pVector1[2] = sin(rads);
+		pVector1[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 
-		pVector = data.newRow();
-		pVector[0] = cos(rads + dThirdCircle);
-		pVector[2] = sin(rads + dThirdCircle);
-		pVector[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
+		GVec& pVector2 = data.newRow();
+		pVector2[0] = cos(rads + dThirdCircle);
+		pVector2[2] = sin(rads + dThirdCircle);
+		pVector2[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 
-		pVector = data.newRow();
-		pVector[0] = cos(rads + dThirdCircle + dThirdCircle);
-		pVector[2] = sin(rads + dThirdCircle + dThirdCircle);
-		pVector[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
+		GVec& pVector3 = data.newRow();
+		pVector3[0] = cos(rads + dThirdCircle + dThirdCircle);
+		pVector3[2] = sin(rads + dThirdCircle + dThirdCircle);
+		pVector3[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 	}
 
 	// Cluster the points
@@ -371,12 +370,9 @@ GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, cons
 
 	// Make a dataset with all featuers
 	GMatrix featuresAll(features1.relation().clone());
-	featuresAll.reserve(features1.rows() + features2.rows());
-	GReleaseDataHolder hFeaturesAll(&featuresAll);
-	for(size_t i = 0; i < features1.rows(); i++)
-		featuresAll.takeRow((double*)features1[i]);
-	for(size_t i = 0; i < features2.rows(); i++)
-		featuresAll.takeRow((double*)features2[i]);
+	featuresAll.newRows(features1.rows() + features2.rows());
+	featuresAll.copyBlock(features1, 0, 0, features1.rows(), features1.cols(), 0, 0, false);
+	featuresAll.copyBlock(features2, 0, 0, features2.rows(), features2.cols(), features1.rows(), 0, false);
 
 	// Find enough neighbors to form a connected graph
 	GNeighborGraph* pNF = NULL;
@@ -500,7 +496,7 @@ void GKMeans::init(const GMatrix* pData)
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
 		size_t index = (size_t)m_pRand->next(m_clusterCount);
-		GVec::copy(m_pCentroids->row(i), pData->row(index), pData->cols());
+		m_pCentroids->row(i) = pData->row(index);
 	}
 
 	// Initialize the clusters
@@ -544,7 +540,7 @@ void GKMeans::recomputeCentroids(const GMatrix* pData)
 {
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
-		double* pCentroid = m_pCentroids->row(i);
+		GVec& pCentroid = m_pCentroids->row(i);
 		size_t unknownCount = 0;
 		for(size_t j = 0; j < pData->cols(); j++)
 		{
@@ -599,21 +595,20 @@ void GKMeans::recomputeCentroids(const GMatrix* pData)
 		}
 		if(unknownCount > 0)
 		{
-			const double* pRow = pData->row((size_t)m_pRand->next(pData->rows()));
+			const GVec& pRow = pData->row((size_t)m_pRand->next(pData->rows()));
 			for(size_t j = 0; j < pData->cols(); j++)
 			{
 				size_t vals = pData->relation().valueCount(j);
 				if(vals == 0)
 				{
 					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
-						pCentroid[j] = *pRow;
+						pCentroid[j] = pRow[j];
 				}
 				else
 				{
 					if(pCentroid[j] == UNKNOWN_DISCRETE_VALUE)
-						pCentroid[j] = *pRow;
+						pCentroid[j] = pRow[j];
 				}
-				pRow++;
 			}
 		}
 	}
@@ -690,7 +685,7 @@ void GFuzzyKMeans::init(const GMatrix* pData)
 		for(size_t i = 0; i < m_clusterCount; i++)
 		{
 			size_t index = (size_t)m_pRand->next(m_clusterCount);
-			GVec::copy(m_pCentroids->row(i), pData->row(index), pData->cols());
+			m_pCentroids->row(i) = pData->row(index);
 		}
 
 		// Test whether the centroids are all unique
@@ -701,7 +696,7 @@ void GFuzzyKMeans::init(const GMatrix* pData)
 			size_t k;
 			for(k = 0; k < i; k++)
 			{
-				if(GVec::squaredDistance(m_pCentroids->row(i), m_pCentroids->row(k), pData->cols()) == 0)
+				if(m_pCentroids->row(i).squaredDistance(m_pCentroids->row(k)) == 0)
 				{
 					unique = false;
 					break;
@@ -722,17 +717,16 @@ double GFuzzyKMeans::recomputeWeights(const GMatrix* pData)
 	double sumError = 0.0;
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		double* pWeights = m_pWeights->row(i);
-		double* pW = pWeights;
+		GVec& pWeights = m_pWeights->row(i);
 		for(size_t j = 0; j < m_clusterCount; j++)
 		{
 			double e = -2.0 / (m_fuzzifier - 1.0);
 			double b = std::max(1e-6, sqrt(m_pMetric->squaredDistance(pData->row(i), m_pCentroids->row(j))));
-			*(pW++) = pow(b, e);
+			pWeights[j] = pow(b, e);
 		}
-		double scale = 1.0 / GVec::sumElements(pWeights, m_clusterCount);
+		double scale = 1.0 / pWeights.sum();
 		sumError += scale;
-		GVec::multiply(pWeights, scale, m_clusterCount);
+		pWeights *= scale;
 	}
 	return sumError;
 }
@@ -741,7 +735,7 @@ void GFuzzyKMeans::recomputeCentroids(const GMatrix* pData)
 {
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
-		double* pCentroid = m_pCentroids->row(i);
+		GVec& pCentroid = m_pCentroids->row(i);
 		size_t unknownCount = 0;
 		for(size_t j = 0; j < pData->cols(); j++)
 		{
@@ -791,21 +785,20 @@ void GFuzzyKMeans::recomputeCentroids(const GMatrix* pData)
 		}
 		if(unknownCount > 0)
 		{
-			const double* pRow = pData->row((size_t)m_pRand->next(pData->rows()));
+			const GVec& pRow = pData->row((size_t)m_pRand->next(pData->rows()));
 			for(size_t j = 0; j < pData->cols(); j++)
 			{
 				size_t vals = pData->relation().valueCount(j);
 				if(vals == 0)
 				{
 					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
-						pCentroid[j] = *pRow;
+						pCentroid[j] = pRow[j];
 				}
 				else
 				{
 					if(pCentroid[j] == UNKNOWN_DISCRETE_VALUE)
-						pCentroid[j] = *pRow;
+						pCentroid[j] = pRow[j];
 				}
-				pRow++;
 			}
 		}
 	}
@@ -846,7 +839,7 @@ void GFuzzyKMeans::cluster(const GMatrix* pData)
 // virtual
 size_t GFuzzyKMeans::whichCluster(size_t index)
 {
-	return GVec::indexOfMax(m_pWeights->row(index), m_clusterCount, m_pRand);
+	return m_pWeights->row(index).indexOfMax();
 }
 
 
@@ -926,7 +919,7 @@ void GKMedoids::cluster(const GMatrix* pData)
 // virtual
 size_t GKMedoids::whichCluster(size_t nVector)
 {
-	const double* pVec = m_pData->row(nVector);
+	const GVec& pVec = m_pData->row(nVector);
 	size_t clust = 0;
 	m_d = m_pMetric->squaredDistance(pVec, m_pData->row(m_pMedoids[0]));
 	for(size_t i = 1; i < m_clusterCount; i++)
@@ -1066,7 +1059,7 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 			size_t* pC = pCounts;
 			for(size_t j = 0; j < pData->cols(); j++)
 				*(pC++) = 0;
-			double* pMean = means.row(i);
+			GVec& pMean = means.row(i);
 			for(size_t k = 0; k < pData->rows(); k++)
 			{
 				GSparseMatrix::Iter it;
@@ -1132,7 +1125,7 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 		{
 			memset(pCounts, '\0', sizeof(size_t) * pData->cols());
 			size_t* pClusts = m_pClusters;
-			double* pMean = means.row(j);
+			GVec& pMean = means.row(j);
 			for(size_t i = 0; i < pData->rows(); i++)
 			{
 				if(*pClusts != j)
@@ -1271,12 +1264,9 @@ GMatrix* GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMa
 
 	// Merge the features into one dataset and build a kd-tree
 	GMatrix both(features1.relation().clone());
-	GReleaseDataHolder hBoth(&both);
-	both.reserve(features1.rows() + features2.rows());
-	for(size_t i = 0; i < features1.rows(); i++)
-		both.takeRow((double*)features1[i]);
-	for(size_t i = 0; i < features2.rows(); i++)
-		both.takeRow((double*)features2[i]);
+	both.newRows(features1.rows() + features2.rows());
+	both.copyBlock(features1, 0, 0, features1.rows(), features1.cols(), 0, 0, false);
+	both.copyBlock(features2, 0, 0, features2.rows(), features2.cols(), features1.rows(), 0, false);
 	GRowDistanceScaled metric2;
 	GKdTree neighborFinder(&both, m_neighborCount, &metric2, false);
 	GVec::copy(metric2.scaleFactors(), pMetric->scaleFactors(), features1.cols());

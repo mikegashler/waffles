@@ -69,16 +69,16 @@ GMatrix *GNeuralDecomposition::extrapolate(double start, double length, double s
 	// note: this method assumes the network was trained with single-column features
 	
 	size_t rows = (size_t) (length / step);
-	double x = start;
+	GVec x(1);
+	x[0] = start;
 	
 	GMatrix *output = new GMatrix(rows, m_nn->outputLayer().outputs());
-	double *out;
 	
 	for(size_t i = 0; i < rows; i++)
 	{
-		out = output->row(i);
-		predict(&x, out);
-		x += step;
+		GVec& out = output->row(i);
+		predict(x, out);
+		x[0] += step;
 	}
 	
 	return output;
@@ -90,14 +90,13 @@ GMatrix *GNeuralDecomposition::extrapolate(const GMatrix &features)
 	// note: this method uses featureBias and featureScale to normalize features
 	
 	GMatrix *output = new GMatrix(features.rows(), m_nn->outputLayer().outputs());
-	double *out;
-	double in;
+	GVec in(1);
 	
 	for(size_t i = 0; i < features.rows(); i++)
 	{
-		in = (features[i][0] - m_featureBias) / m_featureScale;
-		out = output->row(i);
-		predict(&in, out);
+		in[0] = (features[i][0] - m_featureBias) / m_featureScale;
+		GVec& out = output->row(i);
+		predict(in, out);
 	}
 	
 	return output;
@@ -121,13 +120,13 @@ GDomNode *GNeuralDecomposition::serialize(GDom *pDoc) const
 	return pNode;
 }
 
-void GNeuralDecomposition::predict(const double *pIn, double *pOut)
+void GNeuralDecomposition::predict(const GVec& pIn, GVec& pOut)
 {
 	m_nn->predict(pIn, pOut);
-	*pOut = *pOut * 0.1 * m_outputScale + m_outputBias;
+	pOut[0] = pOut[0] * 0.1 * m_outputScale + m_outputBias;
 }
 
-void GNeuralDecomposition::predictDistribution(const double *pIn, GPrediction *pOut)
+void GNeuralDecomposition::predictDistribution(const GVec& pIn, GPrediction *pOut)
 {
 	m_nn->predictDistribution(pIn, pOut);
 }
@@ -188,8 +187,8 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 		GLayerClassic *pSine = new GLayerClassic(featureRel.size(), m_sinusoidUnits, new GActivationSin());
 		{
 			// initialize sinusoid nodes inspired by the DFT
-			double *bias = pSine->bias();
-			GMatrix &weights = pSine->weights();
+			GVec& bias = pSine->bias();
+			GMatrix& weights = pSine->weights();
 			for(size_t i = 0; i < pSine->outputs() / 2; i++)
 			{
 				for(size_t j = 0; j < pSine->inputs(); j++)
@@ -217,26 +216,28 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 	GLayerClassic *pOutput = new GLayerClassic(pMix->outputs(), labelRel.size(), new GActivationIdentity());
 	{
 		// initialize output weights near zero
-		GVec::setAll(pOutput->bias(), 0.0, pOutput->outputs());
+		pOutput->bias().fill(0.0);
 		pOutput->weights().setAll(0.0);
 		pOutput->perturbWeights(m_nn->rand(), 0.001);
 	}
 	m_nn->addLayer(pOutput);
 }
 
-void GNeuralDecomposition::trainIncremental(const double *pIn, const double *pOut)
+void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 {
 	// L1 regularization
 	m_nn->outputLayer().diminishWeights(m_learningRate * m_regularization, true);
 	
 	// Filter input
-	double in = (*pIn - m_featureBias) / m_featureScale;
+	GVec in(1);
+	in[0] = (pIn[0] - m_featureBias) / m_featureScale;
 	
 	// Filter output
-	double out = 10.0 * (*pOut - m_outputBias) / m_outputScale;
+	GVec out(1);
+	out[0] = 10.0 * (pOut[0] - m_outputBias) / m_outputScale;
 	
 	// Backpropagation
-	m_nn->trainIncremental(&in, &out);
+	m_nn->trainIncremental(in, out);
 }
 
 void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)

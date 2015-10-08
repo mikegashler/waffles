@@ -32,10 +32,12 @@ class GDom;
 class GDomNode;
 class GImage;
 class GDomListIterator;
+class GVecWrapper;
 
 /// Contains some useful functions for operating on vectors
 class GVec
 {
+friend class GVecWrapper;
 protected:
 	double* m_data;
 	size_t m_size;
@@ -43,7 +45,9 @@ protected:
 public:
 	/// General-purpose constructor. n specifies the initial size of the vector.
 	GVec(size_t n = 0);
-	
+
+	GVec(int n);
+
 	/// Copy constructor. Copies all the values in orig.
 	GVec(const GVec& orig);
 
@@ -58,7 +62,7 @@ public:
 	void resize(size_t n);
 
 	/// Sets all the elements in this vector to val.
-	void fill(const double val);
+	void fill(const double val, size_t startPos = 0, size_t endPos = (size_t)-1);
 
 	/// \brief Returns a reference to the specified element.
 	inline double& operator [](size_t index) { return m_data[index]; }
@@ -73,19 +77,19 @@ public:
 	const double* data() const { return m_data; }
 
 	/// Adds two vectors to make a new one.
-	GVec operator+(const GVec& that);
+	GVec operator+(const GVec& that) const;
 
 	/// Adds another vector to this one.
 	GVec& operator+=(const GVec& that);
 
 	/// Subtracts a vector from this one to make a new one.
-	GVec operator-(const GVec& that);
+	GVec operator-(const GVec& that) const;
 
 	/// Subtracts another vector from this one.
 	GVec& operator-=(const GVec& that);
 
 	/// Makes a scaled version of this vector.
-	GVec operator*(double scalar);
+	GVec operator*(double scalar) const;
 
 	/// Scales this vector.
 	GVec& operator*=(double scalar);
@@ -93,11 +97,98 @@ public:
 	/// Sets the data in this vector.
 	void set(const double* pSource, size_t size);
 
+	/// Returns the squared Euclidean magnitude of this vector.
+	double squaredMagnitude() const;
 
-	double squaredMagnitude();
-	double squaredDistance(const GVec& that);
+	/// Scales this vector to have a magnitude of 1.0.
+	void normalize();
 
+	/// Returns the squared Euclidean distance between this and that vector.
+	double squaredDistance(const GVec& that) const;
 
+	/// Fills with random values from a uniform distribution.
+	void fillUniform(GRand& rand, double min = 0.0, double max = 1.0);
+
+	/// Fills with random values from a Normal distribution.
+	void fillNormal(GRand& rand, double deviation = 1.0);
+
+	/// Fills with random values on the surface of a sphere.
+	void fillSphericalShell(GRand& rand, double radius = 1.0);
+
+	/// Fills with random values uniformly distributed within a sphere of radius 1.
+	void fillSphericalVolume(GRand& rand);
+
+	/// Fills with random values uniformly distributed within a probability simplex.
+	/// In other words, the values will sum to 1, will all be non-negative,
+	/// and will not be biased toward or away from any of the extreme corners.
+	void fillSimplex(GRand& rand);
+
+	/// Prints a representation of this vector to the specified stream.
+	void print(std::ostream& stream = std::cout) const;
+
+	/// Returns the sum of the elements in this vector
+	double sum() const;
+
+	/// Returns the index of the max element.
+	/// The returned value will be >= startPos.
+	/// The returned value will be < endPos.
+	size_t indexOfMax(size_t startPos = 0, size_t endPos = (size_t)-1) const;
+
+	/// Marshals this vector into a DOM node.
+	GDomNode* serialize(GDom* pDoc) const;
+
+	/// Unmarshals this vector from a DOM.
+	void deserialize(GDomNode* pNode);
+
+	/// Returns the dot product of this and that.
+	double dotProduct(const GVec& that) const;
+
+	/// Returns the dot product of this and that, ignoring elements in which either vector has UNKNOWN_REAL_VALUE.
+	double dotProductIgnoringUnknowns(const GVec& that) const;
+
+	/// Estimates the squared distance between two points that may have some missing values. It assumes
+	/// the distance in missing dimensions is approximately the same as the average distance in other
+	/// dimensions. If there are no known dimensions that overlap between the two points, it returns
+	/// 1e50.
+	double estimateSquaredDistanceWithUnknowns(const GVec& that) const;
+
+	/// Adds scalar * that to this vector.
+	void addScaled(double scalar, const GVec& that);
+
+	/// Applies L1 regularization to this vector.
+	void regularize_L1(double amount);
+
+	/// Puts a copy of that at the specified location in this.
+	/// Throws an exception if it does not fit there.
+	void put(size_t pos, const GVec& that);
+
+	/// Erases the specified elements. The remaining elements are shifted over.
+	/// The size of the vector is decreased, but the buffer is not reallocated
+	/// (so this operation wastes some memory to save a little time).
+	void erase(size_t start, size_t count = 1);
+
+	/// Returns the cosine of the angle between this and that (with the origin as the common vertex).
+	double correlation(const GVec& that) const;
+
+private:
+	/// This method is deliberately private, so calling it will trigger a compiler error.
+	GVec(double d);
+
+public:
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
@@ -299,6 +390,34 @@ public:
 };
 
 
+/// This class temporarily wraps a GVec around a const array of doubles.
+/// You should take care to ensure this object is destroyed before the array it wraps.
+class GVecWrapper
+{
+protected:
+	GVec m_v;
+
+public:
+
+	GVecWrapper(const double* buf, size_t size)
+	{
+		m_v.m_data = (double*)buf;
+		m_v.m_size = size;
+	}
+
+	~GVecWrapper()
+	{
+		m_v.m_data = NULL;
+		m_v.m_size = 0;
+	}
+
+	const GVec& vec()
+	{
+		return m_v;
+	}
+};
+
+
 
 /// Holds an array of doubles that can be resized. This class is
 /// slightly lighter-weight than the C++ vector class, and it
@@ -306,6 +425,8 @@ public:
 /// Basically, it is useful when working with C-style functions
 /// that expect parameters in the form of an array of doubles, rather
 /// than as a vector of doubles.
+///
+/// todo: This is exactly the same as GVec. This class should be nuked.
 class GVecBuf
 {
 public:

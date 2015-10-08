@@ -164,7 +164,7 @@ void GMixtureOfGaussians::test()
 	// Randomly pick target weights
 	GRand prng(3);
 	GCategoricalDistribution cat;
-	double* pWeights = cat.values(KERNEL_COUNT);
+	GVec& pWeights = cat.values(KERNEL_COUNT);
 	int i;
 	vector<double> probs;
 	for(i = 0; i < KERNEL_COUNT; i++)
@@ -188,7 +188,7 @@ void GMixtureOfGaussians::test()
 	GMatrix data(0, 1);
 	for(i = 0; i < SAMPLE_COUNT; i++)
 	{
-		double* pVec = data.newRow();
+		GVec& pVec = data.newRow();
 		size_t j = prng.categorical(probs);
 		pVec[0] = prng.normal() * sqrt(dists[j].variance()) + dists[j].mean();
 	}

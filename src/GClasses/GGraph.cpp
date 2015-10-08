@@ -591,12 +591,11 @@ bool GFloydWarshall::isConnected()
 {
 	for(size_t i = 0; i < m_nodes; i++)
 	{
-		double* pRow = m_pCosts->row(i);
+		GVec& pRow = m_pCosts->row(i);
 		for(size_t j = 0; j < m_nodes; j++)
 		{
-			if(*pRow == 1e300)
+			if(pRow[j] == 1e300)
 				return false;
-			pRow++;
 		}
 	}
 	return true;

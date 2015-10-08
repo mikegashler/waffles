@@ -201,24 +201,18 @@ void GActivationHinge::resize(size_t units)
 }
 
 // virtual
-void GActivationHinge::setError(const double* pError)
+void GActivationHinge::setError(const GVec& pError)
 {
-	m_error.set(pError, m_units);
+	m_error = pError;
 }
 
 // virtual
-void GActivationHinge::updateDeltas(const double* pNet, const double* pActivation, double momentum)
+void GActivationHinge::updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum)
 {
-	const double* pErr = m_error.data();
-	const double* pN = pNet;
-	double* pD = m_delta.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
-		*pD *= momentum;
-		*pD += (*pErr) * (sqrt(*pN * *pN + BEND_SIZE * BEND_SIZE) - BEND_SIZE);
-		pN++;
-		pErr++;
-		pD++;
+		m_delta[i] *= momentum;
+		m_delta[i] += m_error[i] * (sqrt(pNet[i] * pNet[i] + BEND_SIZE * BEND_SIZE) - BEND_SIZE);
 	}
 }
 
@@ -315,38 +309,40 @@ void GActivationHinge::test()
 	pLay1->perturbWeights(nn.rand(), 0.03);
 	pLay2->perturbWeights(nn.rand(), 0.1);
 	pLay3->perturbWeights(nn.rand(), 0.3);
-	GVec::perturb(pAct1->alphas(), 0.1, pLay1->outputs(), nn.rand());
-	GVec::perturb(pAct2->alphas(), 0.1, pLay2->outputs(), nn.rand());
-	GVec::perturb(pAct3->alphas(), 0.1, pLay3->outputs(), nn.rand());
-	double in[2];
-	double out[2];
-	nn.rand().spherical(in, 2);
-	nn.rand().spherical(out, 2);
+	GVec::perturb(pAct1->alphas().data(), 0.1, pLay1->outputs(), nn.rand());
+	GVec::perturb(pAct2->alphas().data(), 0.1, pLay2->outputs(), nn.rand());
+	GVec::perturb(pAct3->alphas().data(), 0.1, pLay3->outputs(), nn.rand());
+	GVec in(2);
+	GVec out(2);
+	in.fillNormal(nn.rand());
+	in.normalize();
+	out.fillNormal(nn.rand());
+	out.normalize();
 
 	// Measure baseline error
 	nn.forwardProp(in);
-	double errBase = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errBase = out.squaredDistance(nn.outputLayer().activation());
 	double epsilon = 1e-6;
 
 	// Empirically measure gradient of a weight
 	double beforeWeight = pLay2->weights()[1][1];
 	pLay2->weights()[1][1] += epsilon;
 	nn.forwardProp(in);
-	double errWeight = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errWeight = out.squaredDistance(nn.outputLayer().activation());
 	pLay2->weights()[1][1] = beforeWeight;
 	
 	// Empirically measure gradient of a bias
 	double beforeBias = pLay2->bias()[1];
 	pLay2->bias()[1] += epsilon;
 	nn.forwardProp(in);
-	double errBias = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errBias = out.squaredDistance(nn.outputLayer().activation());
 	pLay2->bias()[1] = beforeBias;
 
 	// Empirically measure gradient of an alpha
 	double beforeAlpha = pAct2->alphas()[1];
 	pAct2->alphas()[1] += epsilon;
 	nn.forwardProp(in);
-	double errAlpha = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errAlpha = out.squaredDistance(nn.outputLayer().activation());
 	pAct2->alphas()[1] = beforeAlpha;
 
 	// Update the weights by gradient descent
@@ -411,18 +407,18 @@ void GActivationLogExp::resize(size_t units)
 }
 
 // virtual
-void GActivationLogExp::setError(const double* pError)
+void GActivationLogExp::setError(const GVec& pError)
 {
-	m_error.set(pError, m_units);
+	m_error = pError;
 }
 
 // virtual
-void GActivationLogExp::updateDeltas(const double* pNet, const double* pActivation, double momentum)
+void GActivationLogExp::updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum)
 {
 	double* pAlpha = m_alphas.data();
 	const double* pErr = m_error.data();
-	const double* pN = pNet;
-	const double* pAct = pActivation;
+	const double* pN = pNet.data();
+	const double* pAct = pActivation.data();
 	double* pD = m_delta.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
@@ -538,38 +534,40 @@ void GActivationLogExp::test()
 	pLay1->perturbWeights(nn.rand(), 0.03);
 	pLay2->perturbWeights(nn.rand(), 0.1);
 	pLay3->perturbWeights(nn.rand(), 0.3);
-	GVec::perturb(pAct1->alphas(), 0.1, pLay1->outputs(), nn.rand());
-	GVec::perturb(pAct2->alphas(), 0.1, pLay2->outputs(), nn.rand());
-	GVec::perturb(pAct3->alphas(), 0.1, pLay3->outputs(), nn.rand());
-	double in[2];
-	double out[2];
-	nn.rand().spherical(in, 2);
-	nn.rand().spherical(out, 2);
+	GVec::perturb(pAct1->alphas().data(), 0.1, pLay1->outputs(), nn.rand());
+	GVec::perturb(pAct2->alphas().data(), 0.1, pLay2->outputs(), nn.rand());
+	GVec::perturb(pAct3->alphas().data(), 0.1, pLay3->outputs(), nn.rand());
+	GVec in(2);
+	GVec out(2);
+	in.fillNormal(nn.rand());
+	in.normalize();
+	out.fillNormal(nn.rand());
+	out.normalize();
 
 	// Measure baseline error
 	nn.forwardProp(in);
-	double errBase = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errBase = out.squaredDistance(nn.outputLayer().activation());
 	double epsilon = 1e-6;
 
 	// Empirically measure gradient of a weight
 	double beforeWeight = pLay2->weights()[1][1];
 	pLay2->weights()[1][1] += epsilon;
 	nn.forwardProp(in);
-	double errWeight = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errWeight = out.squaredDistance(nn.outputLayer().activation());
 	pLay2->weights()[1][1] = beforeWeight;
 	
 	// Empirically measure gradient of a bias
 	double beforeBias = pLay2->bias()[1];
 	pLay2->bias()[1] += epsilon;
 	nn.forwardProp(in);
-	double errBias = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errBias = out.squaredDistance(nn.outputLayer().activation());
 	pLay2->bias()[1] = beforeBias;
 
 	// Empirically measure gradient of an alpha
 	double beforeAlpha = pAct2->alphas()[1];
 	pAct2->alphas()[1] += epsilon;
 	nn.forwardProp(in);
-	double errAlpha = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errAlpha = out.squaredDistance(nn.outputLayer().activation());
 	pAct2->alphas()[1] = beforeAlpha;
 
 	// Update the weights by gradient descent

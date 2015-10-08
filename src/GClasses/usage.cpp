@@ -522,7 +522,6 @@ UsageNode* makeCollaborativeFilterUsageTree()
 		pOpts->add("-regularize [value]=0.01", "Specify a regularization value. Typically, this is a small value. Larger values will put more pressure on the system to use small values in the matrix factors.");
 		pOpts->add("-miniters [value]=1", "Specify a the minimum number of iterations to train the model before checking its validation error. This ensures that model does at least a certain amount of training before converging.");
 		pOpts->add("-decayrate [value]=0.97", "Specify a decay rate in the range of (0-1) for the learning rate parameter. Value closer to 1 will cause the rate the decay slower while rate closer to 0 cause the a faster decay.");
-		pOpts->add("-noinputbias", "Do not use an input bias.");
 		pOpts->add("-nonneg", "Constrain all non-bias weights to be non-negative");
 	}
 	{

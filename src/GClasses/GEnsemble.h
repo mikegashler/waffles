@@ -63,13 +63,12 @@ class GEnsemble : public GSupervisedLearner
 protected:
 	GRelation* m_pLabelRel;
 	std::vector<GWeightedModel*> m_models;
-	size_t m_nAccumulatorDims;
-	double* m_pAccumulator; // a buffer for tallying votes (ballot box?)
+	GVec m_pAccumulator; // a buffer for tallying votes (ballot box?)
 
 	size_t m_workerThreads;
 	GMasterThread* m_pPredictMaster;
 public:
-	volatile const double* m_pPredictInput;
+	volatile const GVec* m_pPredictInput;
 
 	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
 	GEnsemble();
@@ -84,7 +83,7 @@ public:
 
 	/// Adds the vote from one of the models. (This is called internally. Users typically
 	/// do not need to call it.)
-	void castVote(double weight, const double* pOut);
+	void castVote(double weight, const GVec& label);
 
 	/// Specify the number of worker threads to use. If count is 1,
 	/// then no additional threads will be spawned, but the work will
@@ -102,10 +101,10 @@ public:
 	void setWorkerThreads(size_t count) { m_workerThreads = count; }
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
 
 protected:
 	/// Base classes should call this method to serialize the base object
@@ -130,7 +129,7 @@ protected:
 
 	/// Counts all the votes from the models in the bag, assuming you only
 	/// care to know the winner, and do not care about the distribution.
-	void tally(double* pOut);
+	void tally(GVec& label);
 };
 
 
@@ -398,10 +397,10 @@ protected:
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
@@ -453,10 +452,10 @@ public:
 	GSupervisedLearner* releaseBestModeler();
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

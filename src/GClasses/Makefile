@@ -112,7 +112,6 @@ CPP_FILES = \
 	GSparseMatrix.cpp\
 	GStemmer.cpp\
 	GString.cpp\
-	GSystemLearner.cpp\
 	GText.cpp\
 	GThread.cpp\
 	GTime.cpp\

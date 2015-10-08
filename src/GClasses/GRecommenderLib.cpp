@@ -131,7 +131,7 @@ void GRecommenderLib::loadData(GMatrix& data, const char* szFilename)
 			GSparseMatrix::Iter rowEnd = sm.rowEnd(i);
 			for(GSparseMatrix::Iter it = sm.rowBegin(i); it != rowEnd; it++)
 			{
-				double* pVec = data.newRow();
+				GVec& pVec = data.newRow();
 				pVec[0] = (double)i;
 				pVec[1] = (double)it->first;
 				pVec[2] = it->second;
@@ -168,7 +168,7 @@ GSparseMatrix* GRecommenderLib::loadSparseData(const char* szFilename)
 		Holder<GSparseMatrix> hMatrix(pMatrix);
 		for(size_t i = 0; i < data.rows(); i++)
 		{
-			double* pRow = data.row(i);
+			GVec& pRow = data.row(i);
 			pMatrix->set(size_t(pRow[0]), size_t(pRow[1]), pRow[2]);
 		}
 		return hMatrix.release();
@@ -326,8 +326,6 @@ GMatrixFactorization* GRecommenderLib::InstantiateMatrixFactorization(GArgReader
 			pModel->setMinIters(args.pop_uint());
 		else if(args.if_pop("-decayrate"))
 			pModel->setDecayRate(args.pop_double());
-		else if(args.if_pop("-noinputbias"))
-			pModel->noInputBias();
 		else if(args.if_pop("-nonneg"))
 			pModel->nonNegative();
 		else if(args.if_pop("-clampusers"))
@@ -349,7 +347,7 @@ GMatrixFactorization* GRecommenderLib::InstantiateMatrixFactorization(GArgReader
 	}
 	return pModel;
 }
-
+/*
 GNonlinearPCA* GRecommenderLib::InstantiateNonlinearPCA(GArgReader& args)
 {
 	if(args.size() < 1)
@@ -401,7 +399,8 @@ GNonlinearPCA* GRecommenderLib::InstantiateNonlinearPCA(GArgReader& args)
 	pModel->model()->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, pAF));
 	return pModel;
 }
-
+*/
+/*
 GHybridNonlinearPCA* GRecommenderLib::InstantiateHybridNonlinearPCA(GArgReader& args)
 {
 	if(args.size() < 2)
@@ -437,41 +436,13 @@ GHybridNonlinearPCA* GRecommenderLib::InstantiateHybridNonlinearPCA(GArgReader& 
 			pModel->setRegularizer(args.pop_double());
 		else if(args.if_pop("-dontsquashoutputs"))
 			pAF = new GActivationIdentity();
-/*		else if(args.if_pop("-activation"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else
-				throw Ex("Unrecognized activation function: ", szSF);
-			pModel->model()->setActivationFunction(pSF, true);
-		}*/
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
 	pModel->model()->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, pAF));
 	return pModel;
 }
-
+*/
 GContentBasedFilter* GRecommenderLib::InstantiateContentBasedFilter(GArgReader& args)
 {
 	if(args.size() < 2)
@@ -550,10 +521,10 @@ GCollaborativeFilter* GRecommenderLib::InstantiateAlgorithm(GArgReader& args)
 			return InstantiateLogNet(args);
 		else if(args.if_pop("matrix"))
 			return InstantiateMatrixFactorization(args);
-		else if(args.if_pop("nlpca"))
-			return InstantiateNonlinearPCA(args);
-		else if(args.if_pop("hybridnlpca"))
-			return InstantiateHybridNonlinearPCA(args);
+//		else if(args.if_pop("nlpca"))
+//			return InstantiateNonlinearPCA(args);
+//		else if(args.if_pop("hybridnlpca"))
+//			return InstantiateHybridNonlinearPCA(args);
 		else if(args.if_pop("contentbased"))
 			return InstantiateContentBasedFilter(args);
 		else if(args.if_pop("cbcf"))
@@ -777,17 +748,16 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 	size_t dims = pData->cols();
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		double* pRow = pData->row(i);
+		GVec& pRow = pData->row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
-			if(*pRow != UNKNOWN_REAL_VALUE)
+			if(pRow[j] != UNKNOWN_REAL_VALUE)
 			{
-				double* pVec = pMatrix->newRow();
+				GVec& pVec = pMatrix->newRow();
 				pVec[0] = (double)i;
 				pVec[1] = (double)j;
-				pVec[2] = *pRow;
+				pVec[2] = pRow[j];
 			}
-			pRow++;
 		}
 	}
 
@@ -799,13 +769,12 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 	// Predict values for missing elements
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		double* pRow = pData->row(i);
+		GVec& pRow = pData->row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
-			if(*pRow == UNKNOWN_REAL_VALUE)
-				*pRow = pModel->predict(i, j);
-			GAssert(*pRow != UNKNOWN_REAL_VALUE);
-			pRow++;
+			if(pRow[j] == UNKNOWN_REAL_VALUE)
+				pRow[j] = pModel->predict(i, j);
+			GAssert(pRow[j] != UNKNOWN_REAL_VALUE);
 		}
 	}
 

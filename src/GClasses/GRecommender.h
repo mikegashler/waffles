@@ -89,7 +89,7 @@ public:
 	/// be trained before this method is called. Unlike the predict method,
 	/// this method can operate on row-vectors that were not part of the training
 	/// data.)
-	virtual void impute(double* pVec, size_t dims) = 0;
+	virtual void impute(GVec& pVec, size_t dims) = 0;
 
 	/// Marshal this object into a DOM that can be converted to a variety
 	/// of formats. (Implementations of this method should use baseDomNode.)
@@ -144,7 +144,7 @@ protected:
 class GBaselineRecommender : public GCollaborativeFilter
 {
 protected:
-	double* m_pRatings;
+	GVec m_pRatings;
 	size_t m_items;
 
 public:
@@ -164,7 +164,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -210,7 +210,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -270,7 +270,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -311,7 +311,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -349,7 +349,6 @@ protected:
 	GMatrix* m_pQMask;
 	GMatrix* m_pPWeights;
 	GMatrix* m_pQWeights;
-	bool m_useInputBias;
 	bool m_nonNeg;
 	size_t m_minIters;
 	double m_decayRate;
@@ -393,7 +392,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// Returns the matrix of user preference vectors
 	GMatrix* getP() { return m_pP; }
@@ -409,9 +408,6 @@ public:
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
-
-	/// Specify to use no bias value with the inputs
-	void noInputBias() { m_useInputBias = false; }
 
 	/// Set the min number of iterations to train
 	void setMinIters(size_t i) { m_minIters = i; }
@@ -433,7 +429,7 @@ protected:
 };
 
 
-
+/*
 /// This class implements the Unsupervised Backpropagation algorithm, as described in
 /// Gashler, Michael S. and Smith, Michael R. and Morris, Richard and Martinez, T. (2014),
 /// Missing Value Imputation With Unsupervised Backpropagation. Computational Intelligence. doi: 10.1111/coin.12048.
@@ -502,7 +498,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -534,10 +530,10 @@ protected:
 	void clampUsersInternal(size_t i);
 	void clampItemsInternal(size_t i);
 };
+*/
 
 
-
-
+/*
 /// A collaborative filtering algorithm invented by Mike Smith.
 class GHybridNonlinearPCA : public GNonlinearPCA
 {
@@ -560,46 +556,13 @@ public:
 
         /// Destructor
         virtual ~GHybridNonlinearPCA();
-/*
-        /// Returns a pointer to the neural net that is used to model the recommendation space.
-        /// You may want to use this method to add hidden layers, set the learning rate, or change
-        /// activation functions before the model is trained.
-        GNeuralNet* model() { return m_pModel; }
 
-        /// Returns a pointer to the matrix of user preference vectors.
-        GMatrix* users() { return m_pUsers; }
-*/
         /// See the comment for GCollaborativeFilter::train
         virtual void train(GMatrix& data);
 
         /// See the comment for GCollaborativeFilter::predict
         virtual double predict(size_t user, size_t item);
-/*
-        /// See the comment for GCollaborativeFilter::impute
-        virtual void impute(double* pVec, size_t dims);
 
-        /// See the comment for GCollaborativeFilter::serialize
-        virtual GDomNode* serialize(GDom* pDoc) const;
-
-        /// Specify to use no bias value with the inputs
-        void noInputBias() { m_useInputBias = false; }
-
-        /// Specify not to use three-pass training. (It will just use one pass instead.)
-        void noThreePass() { m_useThreePass = false; }
-
-#ifndef NO_TEST_CODE
-        /// Performs unit tests. Throws if a failure occurs. Returns if successful.
-        static void test();
-#endif
-
-	/// This randomly assigns each rating to one of the folds. Then,
-	/// for each fold, it calls train with a dataset that contains
-	/// everything except for the ratings in that fold. It predicts
-	/// values for the items in the fold, and returns the mean-squared
-	/// difference between the predictions and the actual ratings.
-	/// If pOutMAE is non-NULL, it will be set to the mean-absolute error.
-	double crossValidate(GMatrix& data, size_t folds, double* pOutMAE = NULL);
-*/
 	void setItemAttributes(GMatrix& itemAttrs);
 
 
@@ -608,7 +571,7 @@ protected:
         double validate(GNeuralNet* pNN, GMatrix& data);
 
 };
-
+*/
 
 
 
@@ -645,7 +608,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -683,7 +646,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// Delete all of the filters
 	void clear();
@@ -725,7 +688,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// Delete all of the learners
 	void clear();
@@ -762,7 +725,7 @@ public:
 
 	virtual double predict(size_t user, size_t item);
 
-	virtual void impute(double* pVec, size_t dims);
+	virtual void impute(GVec& pVec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const { return NULL; };

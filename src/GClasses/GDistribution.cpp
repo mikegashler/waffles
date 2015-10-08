@@ -33,8 +33,7 @@ void GCategoricalDistribution::deserialize(GDomNode* pNode)
 {
 	GDomListIterator it(pNode);
 	m_nValueCount = it.remaining();
-	delete[] m_pValues;
-	m_pValues = new double[m_nValueCount];
+	m_pValues.resize(m_nValueCount);
 	m_nMode = 0;
 	for(size_t i = 0; i < m_nValueCount; i++)
 	{
@@ -114,14 +113,14 @@ void GCategoricalDistribution::normalizeFromLogSpace()
 void GCategoricalDistribution::setValues(size_t nValueCount, const double* pValues)
 {
 	values(nValueCount); // Make sure the right amount of space is allocated
-	GVec::copy(m_pValues, pValues, nValueCount);
+	m_pValues.set(pValues, nValueCount);
 	normalize();
 }
 
 void GCategoricalDistribution::setValuesInferLast(size_t nValueCount, const double* pValues)
 {
 	values(nValueCount + 1); // Make sure the right amount of space is allocated
-	double* pV = m_pValues;
+	double* pV = m_pValues.data();
 	double rem = 1.0;
 	for(size_t i = 0; i < nValueCount; i++)
 	{
@@ -337,24 +336,24 @@ double GSoftImpulseDistribution::cdf(double x) const
 }
 
 
-GMultivariateNormalDistribution::GMultivariateNormalDistribution(const double* pMean, GMatrix* pCovariance)
+GMultivariateNormalDistribution::GMultivariateNormalDistribution(const GVec& pMean, GMatrix* pCovariance)
 : GDistribution()
 {
 	GAssert(pCovariance->rows() == (size_t)pCovariance->cols()); // pCovariance should be a square matrix
 	m_nDims = pCovariance->rows();
-	m_pMean = new double[3 * m_nDims];
-	m_pVector1 = &m_pMean[m_nDims];
-	m_pVector2 = &m_pMean[2 * m_nDims];
-	memcpy(m_pMean, pMean, sizeof(double) * m_nDims);
+	m_pMean.resize(m_nDims);
+	m_pVector1.resize(m_nDims);
+	m_pVector2.resize(m_nDims);
+	m_pMean = pMean;
 	precompute(pCovariance);
 }
 
 GMultivariateNormalDistribution::GMultivariateNormalDistribution(GMatrix* pData, size_t nDims)
 {
 	m_nDims = nDims;
-	m_pMean = new double[3 * m_nDims];
-	m_pVector1 = &m_pMean[m_nDims];
-	m_pVector2 = &m_pMean[2 * m_nDims];
+	m_pMean.resize(m_nDims);
+	m_pVector1.resize(m_nDims);
+	m_pVector2.resize(m_nDims);
 	for(size_t i = 0; i < nDims; i++)
 		m_pMean[i] = pData->columnMean(i);
 	GMatrix* pCov = pData->covarianceMatrix();
@@ -366,24 +365,21 @@ GMultivariateNormalDistribution::~GMultivariateNormalDistribution()
 {
 	delete(m_pInverseCovariance);
 	delete(m_pCholesky);
-	delete[] m_pMean;
 }
 
-double GMultivariateNormalDistribution::likelihood(const double* pParams)
+double GMultivariateNormalDistribution::likelihood(const GVec& x)
 {
-	for(size_t i = 0; i < m_nDims; i++)
-		m_pVector1[i] = pParams[i] - m_pMean[i];
+	m_pVector1 = x - m_pMean;
 	m_pInverseCovariance->multiply(m_pVector1/*in*/, m_pVector2/*out*/, false);
-	return m_dScale * exp(-0.5 * GVec::dotProduct(m_pVector1, m_pVector2, m_nDims));
+	return m_dScale * exp(-0.5 * m_pVector1.dotProduct(m_pVector2));
 }
 
-double* GMultivariateNormalDistribution::randomVector(GRand* pRand)
+void GMultivariateNormalDistribution::randomVector(GRand* pRand, GVec& out)
 {
 	for(size_t i = 0; i < m_nDims; i++)
 		m_pVector1[i] = pRand->normal();
-	m_pCholesky->multiply(m_pVector1, m_pVector2, false);
-	GVec::add(m_pVector2, m_pMean, m_nDims);
-	return m_pVector2;
+	m_pCholesky->multiply(m_pVector1, out, false);
+	out += m_pMean;
 }
 
 void GMultivariateNormalDistribution::precompute(GMatrix* pCovariance)

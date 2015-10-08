@@ -120,7 +120,7 @@ namespace GClasses {
       std::size_t destIdx;
       for(destIdx = 0, sourceIdx = inOrder.begin();
 	  sourceIdx != inOrder.end(); ++sourceIdx, ++destIdx){
-	const double *begin = pIn->row(*sourceIdx);
+	const double *begin = pIn->row(*sourceIdx).data();
 	const double *end = begin + pIn->cols();
 	nodes[destIdx].weights = std::vector<double>(begin, end);
       }
@@ -182,7 +182,7 @@ namespace GClasses {
       if(m_showTrainingData){
 	Point p;
 	for(unsigned i = 0; i < trainingData->rows(); ++i){
-	  const double* d = trainingData->row(i);
+	  const double* d = trainingData->row(i).data();
 	  p.x = d[m_xDim]; p.y = d[m_yDim];
 	  m_trainingData.push_back(p);
 	}
@@ -567,7 +567,7 @@ namespace GClasses {
 	  bool hasConverged = true;
 	  //For each input point
 	  for(std::size_t rIdx = 0; rIdx < pIn->rows(); ++rIdx){
-	    const double * pRow = pIn->row(rIdx);
+	    const GVec& pRow = pIn->row(rIdx);
 	    //Find the closest node
 	    std::size_t best = map.bestMatch(pRow);
 	    //compare to closest last time - if different, not converged
@@ -587,10 +587,10 @@ namespace GClasses {
 	    std::vector<SOM::NodeAndDistance>::const_iterator nItr;
 	    for(nItr = nbrs.begin(); nItr != nbrs.end(); ++nItr){
 	      double weight = (*m_windowFunc)(width, nItr->distance);
-	      aves[nItr->nodeIdx].add(weight, pRow);
+	      aves[nItr->nodeIdx].add(weight, pRow.data());
 	    }
 	    //Add the point to the best point's average also
-	    aves[best].add((*m_windowFunc)(width, 0), pRow);
+	    aves[best].add((*m_windowFunc)(width, 0), pRow.data());
 	  }
 	  //Set all nodes' weights to final weighted average and zero
 	  //averages for next pass.  Any nodes that were not in the
@@ -698,7 +698,7 @@ namespace GClasses {
 	//them
 	if(iteration % inputCopy->rows() == 0){
 	  inputCopy->shuffle(m_rand); }
-	const double* point = inputCopy->row(iteration % inputCopy->rows());
+	const GVec& point = inputCopy->row(iteration % inputCopy->rows());
 
 	//Find the best match to the current input point
 	std::size_t best = map.bestMatch(point);
@@ -708,10 +708,10 @@ namespace GClasses {
 	  map.neighborsInCircle((unsigned int)best, m_windowFunc->minZeroDistance(width));
 	std::vector<SOM::NodeAndDistance>::const_iterator nItr;
 	for(nItr = nbrs.begin(); nItr != nbrs.end(); ++nItr){
-	  moveWeightsCloser(map.nodes()[nItr->nodeIdx].weights, point,
+	  moveWeightsCloser(map.nodes()[nItr->nodeIdx].weights, point.data(),
 			   rate*(*m_windowFunc)(width, nItr->distance));
 	}
-	moveWeightsCloser(map.nodes()[best].weights, point,
+	moveWeightsCloser(map.nodes()[best].weights, point.data(),
 			 rate*(*m_windowFunc)(width, 0));
 
 	//Report iteration
@@ -927,15 +927,15 @@ GMatrix* GSelfOrganizingMap::reduce(GMatrix& in)
 
 
 
-void GSelfOrganizingMap::transform(const double*in, double*out){
+void GSelfOrganizingMap::transform(const GVec& in, GVec& out){
   unsigned int idx = (unsigned int)bestMatch(in);
   const SOM::Node& n = nodes().at(idx);
-  std::copy(n.outputLocation.begin(), n.outputLocation.end(), out);
+  std::copy(n.outputLocation.begin(), n.outputLocation.end(), out.data());
 }
 
 
 
-std::size_t GSelfOrganizingMap::bestMatch(const double*in) const{
+std::size_t GSelfOrganizingMap::bestMatch(const GVec& in) const{
   //Eventually this should use a cached k-d tree for low dimensional
   //spaces
   using SOM::Node;
@@ -945,10 +945,13 @@ std::size_t GSelfOrganizingMap::bestMatch(const double*in) const{
   double bestDistance = std::numeric_limits<double>::infinity();
   for(NIter cur = nodes().begin(); cur != nodes().end(); ++cur){
     const double *weights = &(cur->weights.front());
-    double dissim = (*m_pWeightDistance)(weights, in);
-    if(dissim < bestDistance || best_Match >= nodes().size()){
-      best_Match = cur - nodes().begin();
-      bestDistance = dissim;
+    {
+      GVecWrapper w(weights, cur->weights.size());
+      double dissim = (*m_pWeightDistance)(w.vec(), in);
+      if(dissim < bestDistance || best_Match >= nodes().size()){
+        best_Match = cur - nodes().begin();
+        bestDistance = dissim;
+      }
     }
   }
   return best_Match;
@@ -968,10 +971,11 @@ std::vector<std::size_t> GSelfOrganizingMap::bestData
   vector<size_t> out; out.reserve(nodes().size());
   for(NIter cur = nodes().begin(); cur != nodes().end(); ++cur){
     const double *weights = &(cur->weights.front());
-    double bestDist=(*m_pWeightDistance)(weights, data->row(0));
+    GVecWrapper w(weights, cur->weights.size());
+    double bestDist=(*m_pWeightDistance)(w.vec(), data->row(0));
     size_t bestIdx=0;
     for(unsigned dataIdx = 1; dataIdx < data->rows(); ++dataIdx){
-      double dist = (*m_pWeightDistance)(weights, data->row(dataIdx));
+      double dist = (*m_pWeightDistance)(w.vec(), data->row(dataIdx));
       if(dist < bestDist){
 	bestIdx = dataIdx;
 	bestDist = dist;
@@ -1010,8 +1014,9 @@ void GSelfOrganizingMap::regenerateSortedNeighbors() const{
       for(std::size_t other = 0; other < m_nodes.size(); ++other){
 	if(other == curIdx) continue;
 	dist->nodeIdx = other;
-	dist->distance = (*metric)(m_nodes[curIdx].outputLocation,
-				   m_nodes[other].outputLocation);
+	GVecWrapper a(m_nodes[curIdx].outputLocation.data(), m_nodes[curIdx].outputLocation.size());
+	GVecWrapper b(m_nodes[other].outputLocation.data(), m_nodes[other].outputLocation.size());
+	dist->distance = (*metric)(a.vec(), b.vec());
 	++dist;
       }
     }
@@ -1099,10 +1104,9 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
       GRand prng(0);
       GMatrix dataIn(1000, 3);
       int i;
-      double* pVec;
       for(i = 0; i < 1000; i++)
 	{
-	  pVec = dataIn[i];
+	  GVec& pVec = dataIn[i];
 	  pVec[0] = prng.uniform();
 	  pVec[1] = prng.uniform();
 	  pVec[2] = prng.uniform();
@@ -1118,7 +1122,7 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
       int x, y;
       for(y = 0; y < 30; y++) {
 	for(x = 0; x < 30; x++){
-	  pVec = &(som.nodes()[30 * y + x].weights.front());
+	  double* pVec = &(som.nodes()[30 * y + x].weights.front());
 	  image.setPixel(x, y, gARGB(0xff, ClipChan((int)(pVec[0] * 256)), ClipChan((int)(pVec[1] * 256)), ClipChan((int)(pVec[2] * 256))));
 	}
       }
@@ -1140,7 +1144,7 @@ void GSelfOrganizingMap::test(){
   GSelfOrganizingMap squareSom(2, 10, rand, pReporter);
   GMatrix uniformSquareMat(0,2);
   for(unsigned i = 0; i < 170; ++i){
-    uniformSquareMat.copyRow(uniformSquare[i]);
+    uniformSquareMat.newRow().set(uniformSquare[i], 2);
   }
   squareSom.train(uniformSquareMat);
 
@@ -1154,7 +1158,7 @@ void GSelfOrganizingMap::test(){
 
   GMatrix uniformCylinderMat(0,3);
   for(unsigned i = 0; i < 170; ++i){
-    uniformCylinderMat.copyRow(uniformCylinder[i]);
+    uniformCylinderMat.newRow().set(uniformCylinder[i], 3);
   }
   cylinderSom.train(uniformCylinderMat);
 

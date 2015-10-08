@@ -102,33 +102,24 @@ void GAssociativeLayer::clipWeightMagnitudes(double min, double max)
 void GAssociativeLayer::init(GRand& rand)
 {
 	size_t bef = m_forw.rows();
-	size_t cur = m_forw.cols();
 	size_t aft = m_back.rows();
 	for(size_t i = 0; i < bef; i++)
-	{
-		double* pRow = m_forw[i];
-		for(size_t j = 0; j < cur; j++)
-			*(pRow++) = rand.normal();
-	}
+		m_forw[i].fillNormal(rand);
 	for(size_t i = 0; i < aft; i++)
-	{
-		double* pRow = m_back[i];
-		for(size_t j = 0; j < cur; j++)
-			*(pRow++) = rand.normal();
-	}
+		m_back[i].fillNormal(rand);
 	clipWeightMagnitudes(0.8, 0.8);
 	m_bias.setAll(0.0);
-	GVec::setAll(clamp(), UNKNOWN_REAL_VALUE, cur);
+	clamp().fill(UNKNOWN_REAL_VALUE);
 }
 
 void GAssociativeLayer::print(std::ostream& stream, size_t i)
 {
-	stream << "act: "; GVec::print(stream, 8, activation(), units()); stream << "\n";
-	stream << "bias: "; GVec::print(stream, 8, bias(), units()); stream << "\n";
-	stream << "clamp: "; GVec::print(stream, 8, clamp(), units()); stream << "\n";
-	stream << "delta: "; GVec::print(stream, 8, delta(), units()); stream << "\n";
-	stream << "err: "; GVec::print(stream, 8, error(), units()); stream << "\n";
-	stream << "net: "; GVec::print(stream, 8, net(), units()); stream << "\n";
+	stream << "act: "; activation().print(stream); stream << "\n";
+	stream << "bias: "; bias().print(stream); stream << "\n";
+	stream << "clamp: "; clamp().print(stream); stream << "\n";
+	stream << "delta: "; delta().print(stream); stream << "\n";
+	stream << "err: "; error().print(stream); stream << "\n";
+	stream << "net: "; net().print(stream); stream << "\n";
 	stream << "Weights " << to_str(i - 1) << " -> " << to_str(i) << ": "; m_forw.print(stream);
 	stream << "Weights " << to_str(i + 1) << " -> " << to_str(i) << ": "; m_back.print(stream);
 }
@@ -283,10 +274,10 @@ double GAssociative::seedBlame()
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
 		GAssociativeLayer* pLay = m_layers[i];
-		double* pAct = pLay->activation();
-		double* pClamp = pLay->clamp();
-		double* pDelta = pLay->delta();
-		double* pErr = pLay->error();
+		GVec& pAct = pLay->activation();
+		GVec& pClamp = pLay->clamp();
+		GVec& pDelta = pLay->delta();
+		GVec& pErr = pLay->error();
 		for(size_t j = 0; j < pLay->units(); j++)
 		{
 			pErr[j] = 0.0;
@@ -351,16 +342,16 @@ void GAssociative::activatePull(GAssociativeLayer* pLay, size_t lay, size_t unit
 	if(lay > 0)
 	{
 		GAssociativeLayer* pLaySrc = m_layers[lay - 1];
-		double* pAct = pLaySrc->activation();
-		double* pClamp = pLaySrc->clamp();
+		GVec& pAct = pLaySrc->activation();
+		GVec& pClamp = pLaySrc->clamp();
 		for(size_t i = 0; i < pLaySrc->units(); i++)
 			net += (pClamp[i] == UNKNOWN_REAL_VALUE ? pAct[i] : pClamp[i]) * pLay->m_forw[i][unit];
 	}
 	if(lay < m_layers.size() - 1)
 	{
 		GAssociativeLayer* pLaySrc = m_layers[lay + 1];
-		double* pAct = pLaySrc->activation();
-		double* pClamp = pLaySrc->clamp();
+		GVec& pAct = pLaySrc->activation();
+		GVec& pClamp = pLaySrc->clamp();
 		for(size_t i = 0; i < pLaySrc->units(); i++)
 			net += (pClamp[i] == UNKNOWN_REAL_VALUE ? pAct[i] : pClamp[i]) * pLay->m_back[i][unit];
 	}
@@ -372,8 +363,8 @@ void GAssociative::updateWeights(double learningRate)
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
 		GAssociativeLayer* pLay = m_layers[i];
-		double* pErr = pLay->error();
-		double* pDelta = pLay->delta();
+		GVec& pErr = pLay->error();
+		GVec& pDelta = pLay->delta();
 		for(size_t j = 0; j < pLay->units(); j++)
 		{
 			if(pErr[j] != 0.0)
@@ -420,7 +411,7 @@ void GAssociative::clamp(GAssociativeLayer* pLayer, size_t layer, size_t unit, d
 	updateDelta(pLayer, layer, unit, value - oldValue);
 }
 
-void GAssociative::clampValues(const double* pIn, const double* pOut)
+void GAssociative::clampValues(const GVec& pIn, const GVec& pOut)
 {
 	// Features
 	GAssociativeLayer* pLayIn = m_layers[0];
@@ -435,7 +426,7 @@ void GAssociative::clampValues(const double* pIn, const double* pOut)
 }
 
 // virtual
-void GAssociative::trainIncremental(const double* pIn, const double* pOut)
+void GAssociative::trainIncremental(const GVec& pIn, const GVec& pOut)
 {
 	double learningRate = 0.02;
 	clampValues(pIn, pOut);
@@ -449,7 +440,7 @@ void GAssociative::trainIncremental(const double* pIn, const double* pOut)
 }
 
 // virtual
-void GAssociative::predict(const double* pIn, double* pOut)
+void GAssociative::predict(const GVec& pIn, GVec& pOut)
 {
 	// Clamp the input values
 	GAssociativeLayer* pLayIn = m_layers[0];
@@ -464,11 +455,11 @@ void GAssociative::predict(const double* pIn, double* pOut)
 	propagateActivation();
 
 	// Retrieve the activations of the output units
-	GVec::copy(pOut, pLayOut->activation(), pLayOut->units());
+	pOut = pLayOut->activation();
 }
 
 // virtual
-void GAssociative::predictDistribution(const double* pIn, GPrediction* pOut)
+void GAssociative::predictDistribution(const GVec& pIn, GPrediction* pOut)
 {
 	throw new Ex("Sorry, not implemented yet");
 }
@@ -496,8 +487,8 @@ void GAssociative::test()
 	GUniformRelation relTwo(2);
 	GUniformRelation relFour(4);
 	model.beginIncrementalLearning(relTwo, relFour);
-	double in[2];
-	double out[4];
+	GVec in(2);
+	GVec out(4);
 	for(size_t i = 0; i < 5000; i++)
 	{
 		in[0] = model.rand().uniform() - 0.5;
@@ -508,7 +499,7 @@ void GAssociative::test()
 		out[3] = 0.5 * (in[0] * in[0] - in[1] * in[1]);
 		model.trainIncremental(in, out);
 	}
-	double pred[4];
+	GVec pred(4);
 	double sumDist = 0.0;
 	for(size_t i = 0; i < 100; i++)
 	{
@@ -519,7 +510,7 @@ void GAssociative::test()
 		out[2] = 0.5 * (in[0] + in[1]);
 		out[3] = 0.5 * (in[0] * in[0] - in[1] * in[1]);
 		model.predict(in, pred);
-		double dist = sqrt(GVec::squaredDistance(out, pred, 4));
+		double dist = sqrt(out.squaredDistance(pred));
 		sumDist += dist;
 	}
 	sumDist *= 0.01;

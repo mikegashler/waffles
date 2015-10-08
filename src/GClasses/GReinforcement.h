@@ -106,7 +106,7 @@ class GIncrementalLearnerQAgent : public GQLearner
 {
 protected:
 	GIncrementalLearner* m_pQTable;
-	double* m_pBuf;
+	GVec m_pBuf;
 	double m_softMaxThresh;
 
 public:

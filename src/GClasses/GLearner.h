@@ -55,14 +55,14 @@ public:
 	~GPrediction();
 
 	/// Converts an array of prediction objects to a vector of most-likely values.
-	static void predictionArrayToVector(size_t nOutputCount, GPrediction* pOutputs, double* pVector);
+	static void predictionArrayToVector(size_t nOutputCount, GPrediction* pOutputs, GVec& pVector);
 
 	/// Converts an array of values to an array of predictions. There's not really
 	/// enough information for this conversion, so it simply fabricates the variance
 	/// and class-probability information as needed. Only the mean (for normal distributions)
 	/// and the most-likely class (for categorical distributions) is reliable after this
 	/// conversion.
-	static void vectorToPredictionArray(GRelation* pRelation, size_t nOutputCount, double* pVector, GPrediction* pOutputs);
+	static void vectorToPredictionArray(GRelation* pRelation, size_t nOutputCount, GVec& pVector, GPrediction* pOutputs);
 
 	/// Returns true if this wraps a normal distribution, false otherwise
 	bool isContinuous();
@@ -257,7 +257,7 @@ public:
 	/// pIn and pOut should point to arrays of doubles of the same size as the
 	/// number of columns in the training matrices that were passed to the train
 	/// method.
-	virtual void predict(const double* pIn, double* pOut) = 0;
+	virtual void predict(const GVec& in, GVec& out) = 0;
 
 #ifndef MIN_PREDICT
 	/// Evaluate pIn and compute a prediction for pOut. pOut is expected
@@ -265,7 +265,7 @@ public:
 	/// allocated. There should be labelDims() elements in this array.
 	/// The distributions will be more accurate if the model is calibrated
 	/// before the first time that this method is called.
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut) = 0;
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut) = 0;
 #endif // MIN_PREDICT
 
 	/// Discards all training for the purpose of freeing memory.
@@ -374,7 +374,7 @@ public:
 	void beginIncrementalLearning(const GMatrix& features, const GMatrix& labels);
 
 	/// Pass a single input row and the corresponding label to incrementally train this model.
-	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
+	virtual void trainIncremental(const GVec& in, const GVec& out) = 0;
 
 #ifndef MIN_PREDICT
 	/// Train using a sparse feature matrix. (A Typical implementation of this
@@ -473,10 +473,10 @@ public:
 	void initShellOnly(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// Transform a feature vector to the form for presenting to the inner learner
-	virtual const double* prefilterFeatures(const double* pIn) = 0;
+	virtual const GVec& prefilterFeatures(const GVec& in) = 0;
 
 	/// Transform a label vector to the form for presenting to the inner learner
-	virtual const double* prefilterLabels(const double* pIn) = 0;
+	virtual const GVec& prefilterLabels(const GVec& in) = 0;
 
 	/// Transform a feature matrix to the form for presenting to the inner learner
 	GMatrix* prefilterFeatures(const GMatrix& in);
@@ -515,19 +515,19 @@ using GFilter::prefilterLabels;
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 // 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistributionInner
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 	/// Transform a feature vector to the form for presenting to the inner learner
-	virtual const double* prefilterFeatures(const double* pIn);
+	virtual const GVec& prefilterFeatures(const GVec& in);
 
 	/// Transform a label vector to the form for presenting to the inner learner
-	virtual const double* prefilterLabels(const double* pIn);
+	virtual const GVec& prefilterLabels(const GVec& in);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -564,19 +564,19 @@ using GFilter::prefilterLabels;
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 	/// Transform a feature vector to the form for presenting to the inner learner
-	virtual const double* prefilterFeatures(const double* pIn);
+	virtual const GVec& prefilterFeatures(const GVec& in);
 
 	/// Transform a label vector to the form for presenting to the inner learner
-	virtual const double* prefilterLabels(const double* pIn);
+	virtual const GVec& prefilterLabels(const GVec& in);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -615,19 +615,19 @@ using GFilter::prefilterLabels;
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 	/// Transform a feature vector to the form for presenting to the inner learner
-	virtual const double* prefilterFeatures(const double* pIn);
+	virtual const GVec& prefilterFeatures(const GVec& in);
 
 	/// Transform a label vector to the form for presenting to the inner learner
-	virtual const double* prefilterLabels(const double* pIn);
+	virtual const GVec& prefilterLabels(const GVec& in);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -668,19 +668,19 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 	/// Transform a feature vector to the form for presenting to the inner learner
-	virtual const double* prefilterFeatures(const double* pIn);
+	virtual const GVec& prefilterFeatures(const GVec& in);
 
 	/// Transform a label vector to the form for presenting to the inner learner
-	virtual const double* prefilterLabels(const double* pIn);
+	virtual const GVec& prefilterLabels(const GVec& in);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -724,10 +724,10 @@ public:
 	void autoTune(GMatrix& features, GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -761,10 +761,10 @@ public:
 	virtual void clear();
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

@@ -115,7 +115,7 @@ public:
 
 	void train(const GMatrix& features, const GMatrix& labels);
 
-	double predict(const double* pIn);
+	double predict(const GVec& pIn);
 
 protected:
 	/// This converts from control-point-lattice coordinates to an array index.
@@ -277,7 +277,7 @@ protected:
 		double dSumSquaredError = 0;
 		for(size_t i = 0; i < m_features.rows(); i++)
 		{
-			const double* pVec = m_features[i];
+			const GVec& pVec = m_features[i];
 			double prediction = m_pPolynomial->predict(pVec);
 			d = m_labels[i][0] - prediction;
 			dSumSquaredError += (d * d);
@@ -327,7 +327,7 @@ void GPolynomialSingleLabel::train(const GMatrix& features, const GMatrix& label
 
 // (Warning: this method relies on the order in which GPolynomialLatticeIterator
 // visits coefficients in the lattice)
-double GPolynomialSingleLabel::predict(const double* pIn)
+double GPolynomialSingleLabel::predict(const GVec& pIn)
 {
 	if(m_featureDims == 0)
 		throw Ex("init has not been called");
@@ -570,7 +570,7 @@ void GPolynomialSingleLabel::test()
 	degrees[0] = 2;
 	degrees[1] = 2;
 	gp.setCoefficient(degrees, 9);
-	double vars[2];
+	GVec vars(2);
 	vars[0] = 7;
 	vars[1] = 11;
 	double prediction = gp.predict(vars);
@@ -668,14 +668,14 @@ void GPolynomial::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GPolynomial::predict(const double* pIn, double* pOut)
+void GPolynomial::predict(const GVec& pIn, GVec& pOut)
 {
 	for(size_t i = 0; i < m_polys.size(); i++)
 		pOut[i] = m_polys[i]->predict(pIn);
 }
 
 // virtual
-void GPolynomial::predictDistribution(const double* pIn, GPrediction* pOut)
+void GPolynomial::predictDistribution(const GVec& pIn, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model cannot predict a distribution");
 }

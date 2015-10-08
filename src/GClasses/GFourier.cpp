@@ -528,26 +528,21 @@ void GWavelet::test()
 	GWavelet w;
 	for(size_t y = 0; y < im.height(); y++)
 	{
-		double* pRow = m[y];
-		double* pR = pRow;
+		GVec& pRow = m[y];
 		for(size_t x = 0; x < im.width(); x++)
-		{
-			*pR = gGreen(im.pixel((int)x, (int)y));
-			pR++;
-		}
-		w.transform(pRow, im.width());
+			pRow[x] = gGreen(im.pixel((int)x, (int)y));
+		w.transform(pRow.data(), im.width());
 	}
 	GMatrix* pT = m.transpose();
 	Holder<GMatrix> hT(pT);
 	for(size_t x = 0; x < im.width(); x++)
 	{
-		double* pRow = pT->row(x);
-		w.transform(pRow, im.height());
-		double* pR = pRow;
+		GVec& pRow = pT->row(x);
+		w.transform(pRow.data(), im.height());
 		for(size_t y = 0; y < im.height(); y++)
 		{
-			im.setPixel((int)x, (int)y, gARGB(0xff, ClipChan((int)*pR), ClipChan((int)*pR), ClipChan((int)*pR)));
-			pR++;
+			int g = ClipChan((int)pRow[y]);
+			im.setPixel((int)x, (int)y, gARGB(0xff, g, g, g));
 		}
 	}
 	im.savePgm("/home/mike/tmp/mike2.pgm");
@@ -557,20 +552,19 @@ void GWavelet::test()
 	Holder<GMatrix> hM(pM);
 	for(size_t y = 0; y < im.height(); y++)
 	{
-		double* pRow = pM->row(y);
-		w.inverse(pRow, im.width());
+		GVec& pRow = pM->row(y);
+		w.inverse(pRow.data(), im.width());
 	}
 	GMatrix* pTT = pM->transpose();
 	Holder<GMatrix> hTT(pTT);
 	for(size_t x = 0; x < im.width(); x++)
 	{
-		double* pRow = pTT->row(x);
-		w.inverse(pRow, im.height());
-		double* pR = pRow;
+		GVec& pRow = pTT->row(x);
+		w.inverse(pRow.data(), im.height());
 		for(size_t y = 0; y < im.height(); y++)
 		{
-			im.setPixel((int)x, (int)y, gARGB(0xff, ClipChan((int)*pR), ClipChan((int)*pR), ClipChan((int)*pR)));
-			pR++;
+			int g = ClipChan((int)pRow[y]);
+			im.setPixel((int)x, (int)y, gARGB(0xff, g, g, g));
 		}
 	}
 	im.savePgm("/home/mike/tmp/mike3.pgm");
