@@ -588,9 +588,6 @@ public:
 	/// \brief Returns the number of columns in the dataset
 	size_t cols() const { return m_pRelation->size(); }
 
-	/// \brief Adds a copy of the row to the data set
-	void copyRow(const GVec& pRow);
-
 	/// \brief Computes the determinant of this matrix
 	double determinant();
 

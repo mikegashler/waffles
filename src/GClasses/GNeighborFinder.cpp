@@ -2312,7 +2312,7 @@ GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbor_count, si
 			{
 				size_t neigh = pCandIndexes[maxCandidates * i + j];
 				if(neigh < pData->rows())
-					neighborhood.copyRow(pData->row(neigh));
+					neighborhood.newRow() = pData->row(neigh);
 			}
 
 			// Compute the tangeant hyperplane

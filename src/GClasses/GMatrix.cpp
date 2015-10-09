@@ -2647,12 +2647,6 @@ GMatrix* GMatrix::cloneSub(size_t rowStart, size_t colStart, size_t rowCount, si
 	return pThat;
 }
 
-void GMatrix::copyRow(const GVec& pRow)
-{
-	GVec& pNewRow = newRow();
-	pNewRow = pRow;
-}
-
 void GMatrix::copyBlock(const GMatrix& source, size_t srcRow, size_t srcCol, size_t hgt, size_t wid, size_t destRow, size_t destCol, bool checkMetaData)
 {
 	wid = std::min(wid, std::max((size_t)0, source.cols() - srcCol));

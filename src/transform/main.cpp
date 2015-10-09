@@ -356,9 +356,9 @@ void addNoise(GArgReader& args)
 	size_t cols = pData->cols() - excludeLast;
 	for(size_t r = 0; r < pData->rows(); r++)
 	{
-		double* pRow = pData->row(r);
+		GVec& pRow = pData->row(r);
 		for(size_t c = 0; c < cols; c++)
-			*(pRow++) += dev * prng.normal();
+			pRow[c] += dev * prng.normal();
 	}
 	pData->print(cout);
 }
@@ -380,25 +380,24 @@ void autoCorrelation(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	size_t lag = std::min((size_t)256, pData->rows() / 2);
 	size_t dims = pData->cols();
-	GTEMPBUF(double, mean, dims);
+	GVec mean(dims);
 	pData->centroid(mean);
 	GMatrix ac(0, dims + 1);
 	for(size_t i = 1; i <= lag; i++)
 	{
-		double* pRow = ac.newRow();
-		*(pRow++) = (double)i;
+		GVec& pRow = ac.newRow();
+		pRow[0] = (double)i;
 		for(size_t j = 0; j < dims; j++)
 		{
-			*pRow = 0;
+			pRow[j + 1] = 0;
 			size_t k;
 			for(k = 0; k + i < pData->rows(); k++)
 			{
-				double* pA = pData->row(k);
-				double* pB = pData->row(k + i);
-				*pRow += (pA[j] - mean[j]) * (pB[j] - mean[j]);
+				GVec& pA = pData->row(k);
+				GVec& pB = pData->row(k + i);
+				pRow[j + 1] += (pA[j] - mean[j]) * (pB[j] - mean[j]);
 			}
-			*pRow /= k;
-			pRow++;
+			pRow[j + 1] /= k;
 		}
 	}
 	ac.print(cout);
@@ -410,13 +409,12 @@ void center(GArgReader& args)
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
 	unsigned int r = args.pop_uint();
-	size_t cols = pData->cols();
-	double* pRow = pData->row(r);
+	GVec& pRow = pData->row(r);
 	for(size_t i = 0; i < r; ++i)
-		GVec::subtract(pData->row(i), pRow, cols);
+		pData->row(i) -= pRow;
 	for(size_t i = r + 1; i < pData->rows(); ++i)
-		GVec::subtract(pData->row(i), pRow, cols);
-	GVec::setAll(pRow, 0.0, cols);
+		pData->row(i) -= pRow;
+	pRow.fill(0.0);
 	pData->print(cout);
 }
 
@@ -493,10 +491,10 @@ void cumulativeColumns(GArgReader& args)
 	Holder<GMatrix> hA(pA);
 	vector<size_t> cols;
 	parseAttributeList(cols, args, pA->cols());
-	double* pPrevRow = pA->row(0);
+	GVec& pPrevRow = pA->row(0);
 	for(size_t i = 1; i < pA->rows(); i++)
 	{
-		double* pRow = pA->row(i);
+		GVec& pRow = pA->row(i);
 		for(vector<size_t>::iterator it = cols.begin(); it != cols.end(); it++)
 			pRow[*it] += pPrevRow[*it];
 		pPrevRow = pRow;
@@ -547,7 +545,7 @@ void Discretize(GArgReader& args)
 		double range = pData->columnMax(i) - min;
 		for(size_t j = 0; j < pData->rows(); j++)
 		{
-			double* pPat = pData->row(j);
+			GVec& pPat = pData->row(j);
 			pPat[i] = (double)std::max((size_t)0, std::min(nBuckets - 1, (size_t)floor(((pPat[i] - min) * nBuckets) / range)));
 		}
 		((GArffRelation*)&pData->relation())->setAttrValueCount(i, nBuckets);
@@ -624,7 +622,7 @@ void DropMissingValues(GArgReader& args)
 	size_t dims = pRelation->size();
 	for(size_t i = pData->rows() - 1; i < pData->rows(); i--)
 	{
-		double* pPat = pData->row(i);
+		GVec& pPat = pData->row(i);
 		bool drop = false;
 		for(size_t j = 0; j < dims; j++)
 		{
@@ -720,14 +718,14 @@ void dropIfTooClose(GArgReader& args)
 	{
 		GMatrix keep(pData->relation().clone());
 		GReleaseDataHolder hKeep(&keep);
-		keep.takeRow(pData->row(0));
-		double* pLastKept = pData->row(0);
+		keep.takeRow(&pData->row(0));
+		GVec& pLastKept = pData->row(0);
 		for(size_t i = 1; i < pData->rows(); i++)
 		{
-			double* pCand = pData->row(i);
+			GVec& pCand = pData->row(i);
 			if(pCand[col] - pLastKept[col] >= minGap)
 			{
-				keep.takeRow(pCand);
+				keep.takeRow(&pCand);
 				pLastKept = pCand;
 			}
 		}
@@ -778,7 +776,7 @@ void enumerateValues(GArgReader& args)
 		map<double,size_t> themap;
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
-			double* pRow = pData->row(i);
+			GVec& pRow = pData->row(i);
 			map<double,size_t>::iterator it = themap.find(pRow[col]);
 			if(it == themap.end())
 			{
@@ -832,7 +830,7 @@ void Export(GArgReader& args)
 
 	// Print data
 	for(size_t i = 0; i < pData->rows(); i++)
-		pData->relation().printRow(cout, pData->row(i), separator, missing);
+		pData->relation().printRow(cout, pData->row(i).data(), separator, missing);
 }
 
 void Import(GArgReader& args)
@@ -910,16 +908,14 @@ void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, doub
 	GVec::setAll(pResults, 0.0, dims);
 	for(size_t i = 0; i < pData1->rows(); i++)
 	{
-		double* pPat1 = pData1->row(i);
-		double* pPat2 = pData2->row(i);
+		GVec& pPat1 = pData1->row(i);
+		GVec& pPat2 = pData2->row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
-			if(*pPat1 != UNKNOWN_REAL_VALUE && *pPat2 != UNKNOWN_REAL_VALUE)
+			if(pPat1[j] != UNKNOWN_REAL_VALUE && pPat2[j] != UNKNOWN_REAL_VALUE)
 			{
-				double d = (*pPat1 - *pPat2);
+				double d = (pPat1[j] - pPat2[j]);
 				pResults[j] += (d * d);
-				pPat1++;
-				pPat2++;
 			}
 		}
 	}
@@ -963,10 +959,10 @@ public:
 		m_transform.fromVector(pVector + m_attrs, m_attrs);
 		for(size_t i = 0; i < m_pData2->rows(); i++)
 		{
-			double* pPatIn = m_pData2->row(i);
-			double* pPatOut = m_transformed.row(i);
+			GVec& pPatIn = m_pData2->row(i);
+			GVec& pPatOut = m_transformed.row(i);
 			m_transform.multiply(pPatIn, pPatOut);
-			GVec::add(pPatOut, pVector, m_attrs);
+			GVec::add(pPatOut.data(), pVector, m_attrs);
 		}
 	}
 
@@ -1170,10 +1166,8 @@ void normalizeMagnitude(GArgReader& args)
 {
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	GRand rand(0);
-	size_t cols = pData->cols();
 	for(size_t i = 0; i < pData->rows(); i++)
-		GVec::safeNormalize(pData->row(i), cols, &rand);
+		pData->row(i).normalize();
 	pData->print(cout);
 }
 
@@ -1261,23 +1255,21 @@ void overlay(GArgReader& args)
 	const GRelation* pRelOver = &pOver->relation();
 	for(size_t i = 0; i < pOver->rows(); i++)
 	{
-		double* pVecBase = pBase->row(i);
-		double* pVecOver = pOver->row(i);
+		GVec& pVecBase = pBase->row(i);
+		GVec& pVecOver = pOver->row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
 			size_t vals = pRelOver->valueCount(j);
 			if(vals == 0)
 			{
-				if(*pVecOver == UNKNOWN_REAL_VALUE)
-					*pVecOver = *pVecBase;
+				if(pVecOver[j] == UNKNOWN_REAL_VALUE)
+					pVecOver[j] = pVecBase[j];
 			}
 			else
 			{
-				if(*pVecOver == UNKNOWN_DISCRETE_VALUE)
-					*pVecOver = (double)std::max((size_t)0, std::min(vals - 1, (size_t)floor(*pVecBase + 0.5)));
+				if(pVecOver[j] == UNKNOWN_DISCRETE_VALUE)
+					pVecOver[j] = (double)std::max((size_t)0, std::min(vals - 1, (size_t)floor(pVecBase[j] + 0.5)));
 			}
-			pVecBase++;
-			pVecOver++;
 		}
 	}
 	pOver->print(cout);
@@ -1292,7 +1284,7 @@ void powerColumns(GArgReader& args)
 	double exponent = args.pop_double();
 	for(size_t i = 0; i < pA->rows(); i++)
 	{
-		double* pRow = pA->row(i);
+		GVec& pRow = pA->row(i);
 		for(vector<size_t>::iterator it = cols.begin(); it != cols.end(); it++)
 			pRow[*it] = pow(pRow[*it], exponent);
 	}
@@ -1358,11 +1350,11 @@ void rotate(GArgReader& args)
 	double cosAngle = std::cos(angle);
 	double sinAngle = std::sin(angle);
 	for(std::size_t rowIdx = 0; rowIdx < pA->rows(); ++rowIdx){
-	  double* row = (*pA)[rowIdx];
-	  double x = row[colx];
-	  double y = row[coly];
-	  row[colx]=x*cosAngle-y*sinAngle;
-	  row[coly]=x*sinAngle+y*cosAngle;
+		GVec& row = (*pA)[rowIdx];
+		double x = row[colx];
+		double y = row[coly];
+		row[colx]=x*cosAngle-y*sinAngle;
+		row[coly]=x*sinAngle+y*cosAngle;
 	}
 	pA->print(cout);
 }
@@ -1489,7 +1481,7 @@ void scaleColumns(GArgReader& args)
 	double scalar = args.pop_double();
 	for(size_t i = 0; i < pA->rows(); i++)
 	{
-		double* pRow = pA->row(i);
+		GVec& pRow = pA->row(i);
 		for(vector<size_t>::iterator it = cols.begin(); it != cols.end(); it++)
 			pRow[*it] *= scalar;
 	}
@@ -1505,7 +1497,7 @@ void shiftColumns(GArgReader& args)
 	double offset = args.pop_double();
 	for(size_t i = 0; i < pA->rows(); i++)
 	{
-		double* pRow = pA->row(i);
+		GVec& pRow = pA->row(i);
 		for(vector<size_t>::iterator it = cols.begin(); it != cols.end(); it++)
 			pRow[*it] += offset;
 	}
@@ -1545,7 +1537,7 @@ void significance(GArgReader& args)
 		int more = 0;
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
-			double* pRow = pData->row(i);
+			GVec& pRow = pData->row(i);
 			if(std::abs(pRow[attr1] - pRow[attr2]) < tolerance)
 				eq++;
 			else if(pRow[attr1] < pRow[attr2])
@@ -1714,11 +1706,11 @@ void splitFold(GArgReader& args)
 	size_t begin = pData->rows() * fold / folds;
 	size_t end = pData->rows() * (fold + 1) / folds;
 	for(size_t i = 0; i < begin; i++)
-		train.copyRow(pData->row(i));
+		train.newRow() = pData->row(i);
 	for(size_t i = begin; i < end; i++)
-		test.copyRow(pData->row(i));
+		test.newRow() = pData->row(i);
 	for(size_t i = end; i < pData->rows(); i++)
-		train.copyRow(pData->row(i));
+		train.newRow() = pData->row(i);
 	train.saveArff(filenameTrain.c_str());
 	test.saveArff(filenameTest.c_str());
 }
@@ -1951,7 +1943,7 @@ void _function(GArgReader& args)
 		params.resize(pFunc->m_expectedParams);
 		for(size_t j = 0; j < pData->rows(); j++)
 		{
-			double* pIn = pData->row(j);
+			GVec& pIn = pData->row(j);
 			for(size_t k = 0; k < (size_t)pFunc->m_expectedParams; k++)
 				params[k] = pIn[k];
 			out[j][i - 1] = pFunc->call(params, mfp);
@@ -2015,12 +2007,12 @@ void _function2(GArgReader& args)
 	{
 		for(size_t i = 0; i < gCount; i++)
 			gsum[i] = 0.0;
-		double* pCur = pData->row(j);
+		GVec& pCur = pData->row(j);
 
 		// Compute the gsum vector, which applies all the "g" functions to every row and sums the returned values
 		for(size_t k = 0; k < pData->rows(); k++)
 		{
-			double* pItt = pData->row(k);
+			GVec& pItt = pData->row(k);
 			{
 				for(int i = 1; true; i++)
 				{
@@ -2244,12 +2236,12 @@ void transition(GArgReader& args)
 	pTransition->newRows(pActions->rows() - 1);
 	for(size_t i = 0; i < pActions->rows() - 1; i++)
 	{
-		double* pOut = pTransition->row(i);
-		GVec::copy(pOut, pActions->row(i), actionDims);
-		GVec::copy(pOut + actionDims, pState->row(i), stateDims);
-		GVec::copy(pOut + actionDims + stateDims, pState->row(i + 1), stateDims);
+		GVec& pOut = pTransition->row(i);
+		GVec::copy(pOut.data(), pActions->row(i).data(), actionDims);
+		GVec::copy(pOut.data() + actionDims, pState->row(i).data(), stateDims);
+		GVec::copy(pOut.data() + actionDims + stateDims, pState->row(i + 1).data(), stateDims);
 		if(delta)
-			GVec::subtract(pOut + actionDims + stateDims, pState->row(i), stateDims);
+			GVec::subtract(pOut.data() + actionDims + stateDims, pState->row(i).data(), stateDims);
 	}
 	pTransition->print(cout);
 }

@@ -61,8 +61,8 @@ int main(int argc, char *argv[])
 				GLearnerLib::PrecisionRecall(args);
  			else if(args.if_pop("sterilize"))
  				GLearnerLib::sterilize(args);
-			else if(args.if_pop("trainrecurrent"))
-				GLearnerLib::trainRecurrent(args);
+//			else if(args.if_pop("trainrecurrent"))
+//				GLearnerLib::trainRecurrent(args);
 			else if(args.if_pop("regress"))
 				GLearnerLib::regress(args);
 			else if(args.if_pop("metadata"))

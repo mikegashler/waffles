@@ -15,11 +15,11 @@
 
 <p>The GSupervisedLearner class is declared in Learner.h. All classes that inherit from GSupervisedLearner must implement a method named
 <pre>
-	void train(GMatrix&amp; features, GMatrix&amp; labels);
+	void train(const GMatrix&amp; features, const GMatrix&amp; labels);
 </pre>
 and one named
 <pre>
-	void predict(const double* pIn, double* pOut);
+	void predict(const GVec&amp; in, GVec&amp; out);
 </pre>
 . As you might expect, the train method trains the model, and the predict method uses a trained model to make a prediction.</p>
 
@@ -60,10 +60,10 @@ Then, expand GSupervisedLearner (which inherits from GTransducer) to show all th
 Also, expand GIncrementalLearner.</p>
 
 <p>To make a prediction using a trained model, just pass one row of features in to the predict method, and the predicted label
-vector will come out. (pOut must point to an array of doubles big enough to hold the label vector.) Example:</p>
+vector will come out. Example:</p>
 <pre>
-	double pOut[2];
-	model.predict(features[10], pOut);
+	GVec out(2);
+	model.predict(features[10], out);
 </pre>
 
 <p>Note that some learning algorithms may not implicitly support all types of data. This problem can be solved by wrapping

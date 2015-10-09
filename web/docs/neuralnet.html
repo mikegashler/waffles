@@ -636,7 +636,9 @@ int main(int argc, char *argv[])
 		double sseTrain = nn.sumSquaredError(*filteredFeatures1, *filteredLabels1);
 		double sseTest = nn.sumSquaredError(*filteredFeatures2, *filteredLabels2);
 		double mis = af.sumSquaredError(s2.features2(), s2.labels2());
-		cout &lt;&lt; to_str(std::sqrt(sseTrain / nTrain)) &lt;&lt; ", " &lt;&lt; to_str(std::sqrt(sseTest / nTest)) &lt;&lt; ", " &lt;&lt; to_str((double)mis / nTrain) &lt;&lt; "\n";
+		cout &lt;&lt; to_str(std::sqrt(sseTrain / nTrain)) &lt;&lt; ", ";
+		cout &lt;&lt; to_str(std::sqrt(sseTest / nTest)) &lt;&lt; ", ";
+		cout &lt;&lt; to_str((double)mis / nTrain) &lt;&lt; "\n";
 		cout.flush();
 
 		// Train

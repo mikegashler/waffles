@@ -77,10 +77,11 @@ protected:
 	double m_errorThresh;
 	double m_targetActive;
 	size_t m_epochs;
+	GVec m_inputGradient;
 
 public:
 	UBPModel()
-	: m_rand(0), m_errorThresh(0.0), m_targetActive(1.0)
+	: m_rand(0), m_errorThresh(0.0), m_targetActive(1.0), m_inputGradient(2)
 	{
 		m_target.loadArff("in.arff");
 		if(m_target.cols() != 3)
@@ -89,7 +90,7 @@ public:
 		m_intrinsic.resize(m_target.rows(), 2);
 		for(size_t i = 0; i < m_intrinsic.rows(); i++)
 		{
-			double* pRow = m_intrinsic.row(i);
+			GVec& pRow = m_intrinsic.row(i);
 			pRow[0] = 0.5; //0.1 * m_rand.normal();
 			pRow[1] = 0.5; //0.1 * m_rand.normal();
 		}
@@ -114,9 +115,8 @@ public:
 
 	void update()
 	{
-		double inputGradient[2];
-		double* pSpotlightTarget = m_target.row(m_nextSpotlight);
-		double* pSpotlightContext = m_intrinsic.row(m_nextSpotlight);
+		GVec& pSpotlightTarget = m_target.row(m_nextSpotlight);
+		GVec& pSpotlightContext = m_intrinsic.row(m_nextSpotlight);
 		m_nn.forwardProp(pSpotlightContext);
 		double spotlightErr = m_nn.sumSquaredPredictionError(pSpotlightTarget);
 		double maxBelowThresh = 0.0;
@@ -129,9 +129,9 @@ public:
 		{
 			// Adjust the weights
 			size_t index = *(pInd++);
-			double* pTar = m_target.row(index);
-			double* pPred = m_predicted.row(index);
-			double* pIntrinsic = m_intrinsic.row(index);
+			GVec& pTar = m_target.row(index);
+			GVec& pPred = m_predicted.row(index);
+			GVec& pIntrinsic = m_intrinsic.row(index);
 			m_nn.predict(pIntrinsic, pPred);
 			m_nn.backpropagate(pTar);
 
@@ -140,9 +140,9 @@ public:
 			{
 				activeCount++;
 				maxBelowThresh = std::max(maxBelowThresh, err);
-				m_nn.gradientOfInputs(inputGradient);
+				m_nn.gradientOfInputs(m_inputGradient);
 				m_nn.descendGradient(pIntrinsic, m_nn.learningRate(), 0.0);
-				GVec::addScaled(pIntrinsic, -m_nn.learningRate(), inputGradient, 2);
+				GVec::addScaled(pIntrinsic.data(), -m_nn.learningRate(), m_inputGradient.data(), 2);
 
 				// See if we can improve the spotlight point
 				double sse = m_nn.sumSquaredPredictionError(pTar);
@@ -153,13 +153,13 @@ public:
 				if(err2 < spotlightErr)
 				{
 					spotlightErr = err2;
-					GVec::copy(pSpotlightContext, pIntrinsic, 2);
+					GVec::copy(pSpotlightContext.data(), pIntrinsic.data(), 2);
 				}
 			}
 			else
 			{
 				minAboveThresh = std::min(minAboveThresh, err);
-				GVec::copy(pIntrinsic, m_intrinsic.row((size_t)m_rand.next(m_intrinsic.rows())), 2);
+				GVec::copy(pIntrinsic.data(), m_intrinsic.row((size_t)m_rand.next(m_intrinsic.rows())).data(), 2);
 			}
 		}
 		if(activeCount <= (size_t)floor(m_targetActive))
@@ -193,8 +193,8 @@ public:
 	// returns false if pA is closer than pB
 	bool operator() (size_t aa, size_t bb) const
 	{
-		const double* pA = aa < 1000000 ? m_target[aa] : m_predicted[aa - 1000000];
-		const double* pB = bb < 1000000 ? m_target[bb] : m_predicted[bb - 1000000];
+		const GVec& pA = aa < 1000000 ? m_target[aa] : m_predicted[aa - 1000000];
+		const GVec& pB = bb < 1000000 ? m_target[bb] : m_predicted[bb - 1000000];
 		G3DVector a, b, c, d;
 		a.m_vals[0] = pA[0];
 		a.m_vals[1] = pA[1];
@@ -252,7 +252,6 @@ public:
 		m_pButtonYawP = new GWidgetTextButton(this, 700, 150, 50, 30, "+Yaw");
 		m_pButtonPitN = new GWidgetTextButton(this, 650, 100, 50, 30, "+Pit");
 		m_pButtonPitP = new GWidgetTextButton(this, 650, 200, 50, 30, "-Pit");
-		//new GWidgetTextLabel(this, 200, 5, 600, 40, "Unsupervised Back-Propagation", 0xff000000, 0, 3.0f);
 		new GWidgetTextLabel(this, 200, 45, 600, 16, "(In this case, the model contains two inputs, one hidden layer with 36 units, and 3 outputs.)", 0xff000000, 0, 1.0f);
 		new GWidgetTextLabel(this, 20, 80, 600, 24, "Training vectors are shown with small dots. Predicted output vectors are shown with big dots.", 0xff000000, 0, 1.0f);
 		new GWidgetTextLabel(this, 620, 276, 300, 24, "Latent input vectors (not given in the training data).", 0xff000000, 0, 1.0f);
@@ -324,7 +323,7 @@ public:
 			if(index < 1000000)
 			{
 				// Draw target point
-				double* pVec = tar[index];
+				GVec& pVec = tar[index];
 				point.set(pVec[0], pVec[1], pVec[2]);
 				toImageCoords(m_pImage, m_pCamera, &point, &coords);
 				float radius = (float)3.0 / (float)coords.m_vals[2];
@@ -334,7 +333,7 @@ public:
 			{
 				// Draw predicted point
 				index -= 1000000;
-				double* pVec = pred[index];
+				GVec& pVec = pred[index];
 				point.set(pVec[0], pVec[1], pVec[2]);
 				toImageCoords(m_pImage, m_pCamera, &point, &coords);
 				float radius = (float)6.0 / (float)coords.m_vals[2];
@@ -349,7 +348,7 @@ public:
 		GPlotWindow pw(m_pImage2, m_viewRect.x, m_viewRect.y, m_viewRect.x + m_viewRect.w, m_viewRect.y + m_viewRect.h);
 		for(size_t i = 0; i < intrinsic.rows(); i++)
 		{
-			double* pVec = intrinsic.row(i);
+			GVec& pVec = intrinsic.row(i);
 			pw.dot(pVec[0], pVec[1], 2.5f, gAHSV(0xff, 0.8f * (float)i / intrinsic.rows(), 1.0f, 0.5f), 0xffffffff);
 			m_viewRect.include(pVec[0], pVec[1]);
 		}

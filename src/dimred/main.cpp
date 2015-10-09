@@ -871,7 +871,7 @@ void neuroPCA(GArgReader& args)
 		GAssert(pWeights->cols() == pData->cols());
 		for(int i = 0; i < nTargetDims; i++)
 		{
-			double scal = sqrt(GVec::squaredMagnitude(pWeights->row(i + 1), pWeights->cols()));
+			double scal = sqrt(pWeights->row(i + 1).squaredMagnitude());
 			for(size_t j = 0; j < pDataAfter->rows(); j++)
 				pDataAfter->row(j)[i] *= scal;
 		}
@@ -946,7 +946,7 @@ void principalComponentAnalysis(GArgReader& args)
 		pRelation->addAttribute("eigenvalues", 0, NULL);
 		GMatrix dataEigenvalues(pRelation);
 		dataEigenvalues.newRows(nTargetDims);
-		double* pEigVals = pTransform->eigVals();
+		GVec& pEigVals = pTransform->eigVals();
 		for(int i = 0; i < nTargetDims; i++)
 			dataEigenvalues[i][0] = pEigVals[i];
 		dataEigenvalues.saveArff(eigenvalues.c_str());
@@ -1200,7 +1200,7 @@ void singularValueDecomposition(GArgReader& args)
 		cout << "\n";
 	}
 }
-
+/*
 void unsupervisedBackProp(GArgReader& args)
 {
 	// Load the file and params
@@ -1289,6 +1289,7 @@ void unsupervisedBackProp(GArgReader& args)
 	if(sProgress.length() > 0)
 		pUBP->progress().saveArff(sProgress.c_str());
 }
+*/
 /*
 void autoencoder(GArgReader& args)
 {
@@ -1450,7 +1451,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("scalingunfolder")) scalingUnfolder(args);
 		else if(args.if_pop("svd")) singularValueDecomposition(args);
 		else if(args.if_pop("som")) selfOrganizingMap(args);
-		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
+//		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
 //		else if(args.if_pop("autoencoder")) autoencoder(args);
 		else throw Ex("Unrecognized command: ", args.peek());
 	}

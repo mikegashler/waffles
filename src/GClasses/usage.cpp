@@ -1131,7 +1131,7 @@ UsageNode* makeLearnUsageTree()
 					" columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
-	{
+/*	{
 		UsageNode* pTR = pRoot->add("trainrecurrent <options> [method] [obs-data] [action-data] [context-dims] [algorithm] [algorithm]", "Train a recurrent model of a dynamical system with the specified training [method]. The training data is specified by [obs-data], which specifies the sequence of observations, and [action-data], which specifies the sequence of actions. "
 			"[context-dims] specifies the number of dimensions in the state-space of the system. The two algorithms specify the two functions of a model of a dynamical system. The first [algorithm] models the transition function. The second [algorithm] models the observation function.");
 		UsageNode* pOpts = pTR->add("<options>");
@@ -1150,7 +1150,7 @@ UsageNode* makeLearnUsageTree()
 		pMeth->add("evolutionary", "Train with evoluationary optimization");
 		pMeth->add("hillclimber", "Train with a hill-climbing algorithm.");
 		pMeth->add("annealing [deviation] [decay] [window]", "Train with simulated annealing. Good values might be 2.0 0.5 300");
-	}
+	}*/
 	{
 		UsageNode* pOpt = pRoot->add("regress [data] <data_opts> [equation]", "Use a hill climbing algorithm to optimize the parameters of [equation] to fit to the [data]. If [data] has d feature dimensions, then [equation] must have more than d parameters. The equation must be named f. The first d arguments to f are supplied by the data features. The remaining arguments are optimized by the hill climber. The data must have exactly 1 label dimension, which the equation will attempt to predict. The sum-squared error and parameter values are printed to stdout.");
 		pOpt->add("[dataset]=data.arff", "The filename of a dataset.");

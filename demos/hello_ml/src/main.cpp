@@ -33,14 +33,14 @@ using std::cerr;
 using std::cout;
 using std::vector;
 
-void do_decision_tree(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_decision_tree(GMatrix& features, GMatrix& labels, GVec& test_features, GVec& predicted_labels)
 {
 	GDecisionTree model;
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);
 }
 
-void do_neural_network(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_neural_network(GMatrix& features, GMatrix& labels, GVec& test_features, GVec& predicted_labels)
 {
 	GNeuralNet* pNN = new GNeuralNet();
 	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, 3));
@@ -52,7 +52,7 @@ void do_neural_network(GMatrix& features, GMatrix& labels, double* test_features
 	af.predict(test_features, predicted_labels);
 }
 
-void do_knn(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_knn(GMatrix& features, GMatrix& labels, GVec& test_features, GVec& predicted_labels)
 {
 	GKNN model;
 	model.setNeighborCount(3); // use the 3-nearest neighbors
@@ -61,14 +61,14 @@ void do_knn(GMatrix& features, GMatrix& labels, double* test_features, double* p
 	model.predict(test_features, predicted_labels);
 }
 
-void do_naivebayes(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_naivebayes(GMatrix& features, GMatrix& labels, GVec& test_features, GVec& predicted_labels)
 {
 	GAutoFilter model(new GNaiveBayes());
 	model.train(features, labels);
 	model.predict(test_features, predicted_labels);
 }
 
-void do_ensemble(GMatrix& features, GMatrix& labels, double* test_features, double* predicted_labels)
+void do_ensemble(GMatrix& features, GMatrix& labels, GVec& test_features, GVec& predicted_labels)
 {
 	GBag ensemble;
 	for(size_t i = 0; i < 50; i++)
@@ -96,46 +96,46 @@ void doit()
 	label_values.push_back(0); // cost = continuous
 
 	// Make some contrived hard-coded training data
-	GMatrix features(feature_values);
-	GMatrix labels(label_values);
-	double* f;
-	double* l;
-	//                     diameter     crust     meatiness presentation                   taste     cost
-	f = features.newRow(); f[0] = 14.0; f[1] = 1; f[2] = 1; f[3] = 0; l = labels.newRow(); l[0] = 1; l[1] = 22.95;
-	f = features.newRow(); f[0] = 12.0; f[1] = 0; f[2] = 0; f[3] = 3; l = labels.newRow(); l[0] = 0; l[1] = 3.29;
-	f = features.newRow(); f[0] = 14.0; f[1] = 1; f[2] = 1; f[3] = 2; l = labels.newRow(); l[0] = 1; l[1] = 15.49;
-	f = features.newRow(); f[0] = 12.0; f[1] = 2; f[2] = 0; f[3] = 0; l = labels.newRow(); l[0] = 1; l[1] = 16.65;
-	f = features.newRow(); f[0] = 18.0; f[1] = 1; f[2] = 1; f[3] = 3; l = labels.newRow(); l[0] = 0; l[1] = 9.99;
-	f = features.newRow(); f[0] = 14.0; f[1] = 1; f[2] = 1; f[3] = 0; l = labels.newRow(); l[0] = 1; l[1] = 14.49;
-	f = features.newRow(); f[0] = 12.0; f[1] = 2; f[2] = 0; f[3] = 2; l = labels.newRow(); l[0] = 1; l[1] = 19.65;
-	f = features.newRow(); f[0] = 14.0; f[1] = 0; f[2] = 1; f[3] = 1; l = labels.newRow(); l[0] = 0; l[1] = 6.99;
-	f = features.newRow(); f[0] = 14.0; f[1] = 1; f[2] = 1; f[3] = 2; l = labels.newRow(); l[0] = 1; l[1] = 19.95;
-	f = features.newRow(); f[0] = 14.0; f[1] = 2; f[2] = 0; f[3] = 3; l = labels.newRow(); l[0] = 0; l[1] = 12.99;
-	f = features.newRow(); f[0] = 16.0; f[1] = 0; f[2] = 1; f[3] = 0; l = labels.newRow(); l[0] = 0; l[1] = 12.20;
-	f = features.newRow(); f[0] = 14.0; f[1] = 1; f[2] = 1; f[3] = 1; l = labels.newRow(); l[0] = 1; l[1] = 15.01;
+	GMatrix feat(feature_values);
+	feat.newRows(12);
+	GMatrix lab(label_values);
+	lab.newRows(12);
+	//        diameter            crust        meatiness     presentation           taste               cost
+	feat[0][0] = 14.0;  feat[0][1] = 1;  feat[0][2] = 1;  feat[0][3] = 0;   lab[0][0] = 1;  lab[0][1] = 22.95;
+	feat[1][0] = 12.0;  feat[1][1] = 0;  feat[1][2] = 0;  feat[1][3] = 3;   lab[1][0] = 0;  lab[1][1] = 3.29;
+	feat[2][0] = 14.0;  feat[2][1] = 1;  feat[2][2] = 1;  feat[2][3] = 2;   lab[2][0] = 1;  lab[2][1] = 15.49;
+	feat[3][0] = 12.0;  feat[3][1] = 2;  feat[3][2] = 0;  feat[3][3] = 0;   lab[3][0] = 1;  lab[3][1] = 16.65;
+	feat[4][0] = 18.0;  feat[4][1] = 1;  feat[4][2] = 1;  feat[4][3] = 3;   lab[4][0] = 0;  lab[4][1] = 9.99;
+	feat[5][0] = 14.0;  feat[5][1] = 1;  feat[5][2] = 1;  feat[5][3] = 0;   lab[5][0] = 1;  lab[5][1] = 14.49;
+	feat[6][0] = 12.0;  feat[6][1] = 2;  feat[6][2] = 0;  feat[6][3] = 2;   lab[6][0] = 1;  lab[6][1] = 19.65;
+	feat[7][0] = 14.0;  feat[7][1] = 0;  feat[7][2] = 1;  feat[7][3] = 1;   lab[7][0] = 0;  lab[7][1] = 6.99;
+	feat[8][0] = 14.0;  feat[8][1] = 1;  feat[8][2] = 1;  feat[8][3] = 2;   lab[8][0] = 1;  lab[8][1] = 19.95;
+	feat[9][0] = 14.0;  feat[9][1] = 2;  feat[9][2] = 0;  feat[9][3] = 3;   lab[9][0] = 0;  lab[9][1] = 12.99;
+	feat[10][0] = 16.0; feat[10][1] = 0; feat[10][2] = 1; feat[10][3] = 0;  lab[10][0] = 0; lab[10][1] = 12.20;
+	feat[11][0] = 14.0; feat[11][1] = 1; feat[11][2] = 1; feat[11][3] = 1;  lab[11][0] = 1; lab[11][1] = 15.01;
 
 	// Make a test vector
-	double test_features[4];
-	double predicted_labels[2];
+	GVec test_features(4);
+	GVec predicted_labels(2);
 	cout << "This demo trains and tests several supervised learning models using some contrived hard-coded training data to predict the tastiness and cost of a pizza.\n\n";
 	test_features[0] = 15.0; test_features[1] = 2; test_features[2] = 0; test_features[3] = 0;
 	cout << "Predicting labels for a 15 inch pizza with a Neapolitan-style crust, no meat, for dine-in.\n\n";
 
 	// Use several models to make predictions
 	cout.precision(4);
-	do_decision_tree(features, labels, test_features, predicted_labels);
+	do_decision_tree(feat, lab, test_features, predicted_labels);
 	cout << "The decision tree predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 
-	do_neural_network(features, labels, test_features, predicted_labels);
+	do_neural_network(feat, lab, test_features, predicted_labels);
 	cout << "The neural network predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 
-	do_knn(features, labels, test_features, predicted_labels);
+	do_knn(feat, lab, test_features, predicted_labels);
 	cout << "The knn model predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 
-	do_naivebayes(features, labels, test_features, predicted_labels);
+	do_naivebayes(feat, lab, test_features, predicted_labels);
 	cout << "The naive Bayes model predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 
-	do_ensemble(features, labels, test_features, predicted_labels);
+	do_ensemble(feat, lab, test_features, predicted_labels);
 	cout << "Random forest predicts the taste is " << (predicted_labels[0] == 0 ? "lousy" : "delicious") << ", and the cost is $" << predicted_labels[1] << ".\n";
 }
 

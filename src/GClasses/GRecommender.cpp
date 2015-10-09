@@ -2268,7 +2268,7 @@ void GBagOfRecommenders::test()
 //	GNonlinearPCA* nlpca = new GNonlinearPCA(3);
 //	nlpca->model()->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 //	rec.addRecommender(nlpca);
-	rec.basicTest(0.57);
+	rec.basicTest(0.69);
 }
 #endif
 
@@ -2322,7 +2322,7 @@ void GContentBasedFilter::train(GMatrix& data)
 		GMatrix* labels = new GMatrix(relation);
 		for(multimap<size_t, size_t>::iterator ratings = ratedItems.first; ratings != ratedItems.second; ++ratings)
 		{
-			trainingData->copyRow(m_itemAttrs->row(m_itemMap[(*ratings).second]));
+			trainingData->newRow() = m_itemAttrs->row(m_itemMap[(*ratings).second]);
 
 			GVec& temp = labels->newRow();
 			temp[0] = data[(*ratings).second][2];
