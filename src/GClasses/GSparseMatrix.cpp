@@ -86,13 +86,13 @@ GDomNode* GSparseMatrix::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-void GSparseMatrix::fullRow(GVec& pOutFullRow, size_t r)
+void GSparseMatrix::fullRow(GVec& outFullRow, size_t r)
 {
-	pOutFullRow.resize(m_cols);
-	pOutFullRow.fill(m_defaultValue);
+	outFullRow.resize(m_cols);
+	outFullRow.fill(m_defaultValue);
 	Iter end = rowEnd(r);
 	for(Iter it = rowBegin(r); it != end; it++)
-		pOutFullRow[it->first] = it->second;
+		outFullRow[it->first] = it->second;
 }
 
 double GSparseMatrix::get(size_t rowIndex, size_t colIndex) const
@@ -143,11 +143,11 @@ GMatrix* GSparseMatrix::multiply(GMatrix* pThat, bool transposeThat)
 	for(size_t r = 0; r < rows(); r++)
 	{
 		SparseVec& a = row(r);
-		GVec& pOut = pResult->row(r);
+		GVec& out = pResult->row(r);
 		for(size_t c = 0; c < pOther->rows(); c++)
 		{
-			GVec& pB = pOther->row(c);
-			pOut[c] = GSparseVec::dotProduct(a, pB);
+			GVec& b = pOther->row(c);
+			out[c] = GSparseVec::dotProduct(a, b);
 		}
 	}
 	return pResult;
@@ -187,9 +187,9 @@ void GSparseMatrix::copyFrom(const GMatrix* that)
 	size_t colCount = std::min(m_cols, (size_t)that->cols());
 	for(size_t r = 0; r < rowCount; r++)
 	{
-		const GVec& pRow = that->row(r);
+		const GVec& rr = that->row(r);
 		for(size_t c = 0; c < colCount; c++)
-			set(r, c, pRow[c]);
+			set(r, c, rr[c]);
 	}
 }
 
@@ -216,11 +216,11 @@ GMatrix* GSparseMatrix::toFullMatrix()
 	GMatrix* pData = new GMatrix(m_rows.size(), m_cols);
 	for(size_t r = 0; r < m_rows.size(); r++)
 	{
-		GVec& pRow = pData->row(r);
-		pRow.fill(m_defaultValue);
+		GVec& rr = pData->row(r);
+		rr.fill(m_defaultValue);
 		Iter end = rowEnd(r);
 		for(Iter it = rowBegin(r); it != end; it++)
-			pRow[it->first] = it->second;
+			rr[it->first] = it->second;
 	}
 	return pData;
 }
@@ -790,15 +790,15 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	*ppV = hV.release();
 }
 
-void GSparseMatrix::principalComponentAboutOrigin(GVec& pOutVector, GRand* pRand)
+void GSparseMatrix::principalComponentAboutOrigin(GVec& outVector, GRand* pRand)
 {
 	if(m_defaultValue != 0.0)
 		throw Ex("Expected the default value to be 0");
 
 	// Initialize the out-vector to a random direction
 	size_t dims = cols();
-	pOutVector.resize(dims);
-	pOutVector.fillSphericalShell(*pRand);
+	outVector.resize(dims);
+	outVector.fillSphericalShell(*pRand);
 
 	// Iterate
 	size_t nCount = rows();
@@ -813,12 +813,12 @@ void GSparseMatrix::principalComponentAboutOrigin(GVec& pOutVector, GRand* pRand
 			Iter itEnd = rowEnd(n);
 			double dd = 0.0;
 			for(Iter it = rowBegin(n); it != itEnd; it++)
-				dd += pOutVector[it->first] * it->second;
+				dd += outVector[it->first] * it->second;
 			for(Iter it = rowBegin(n); it != itEnd; it++)
 				pAccumulator[it->first] += dd * it->second;
 		}
-		pOutVector = pAccumulator;
-		pOutVector.normalize();
+		outVector = pAccumulator;
+		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
 			mag = d;
@@ -827,7 +827,7 @@ void GSparseMatrix::principalComponentAboutOrigin(GVec& pOutVector, GRand* pRand
 	}
 }
 
-void GSparseMatrix::removeComponentAboutOrigin(const GVec& pComponent)
+void GSparseMatrix::removeComponentAboutOrigin(const GVec& component)
 {
 	size_t nCount = rows();
 	for(size_t i = 0; i < nCount; i++)
@@ -835,9 +835,9 @@ void GSparseMatrix::removeComponentAboutOrigin(const GVec& pComponent)
 		Iter itEnd = rowEnd(i);
 		double d = 0.0;
 		for(Iter it = rowBegin(i); it != itEnd; it++)
-			d += pComponent[it->first] * it->second;
+			d += component[it->first] * it->second;
 		for(SparseVec::iterator it = m_rows[i].begin(); it != itEnd; it++)
-			it->second -= d * pComponent[it->first];
+			it->second -= d * component[it->first];
 	}
 }
 
@@ -907,11 +907,11 @@ void GSparseMatrix::test()
 
 
 // static
-double GSparseVec::dotProduct(SparseVec& sparse, GVec& pDense)
+double GSparseVec::dotProduct(SparseVec& sparse, GVec& dense)
 {
 	double d = 0.0;
 	for(SparseVec::iterator it = sparse.begin(); it != sparse.end(); it++)
-		d += pDense[it->first] * it->second;
+		d += dense[it->first] * it->second;
 	return d;
 }
 

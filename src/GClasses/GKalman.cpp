@@ -41,13 +41,13 @@ GExtendedKalmanFilter::~GExtendedKalmanFilter()
 	delete(m_pP);
 }
 
-void GExtendedKalmanFilter::advance(const GVec& pControl, GMatrix* pA)
+void GExtendedKalmanFilter::advance(const GVec& control, GMatrix* pA)
 {
 	// Check values
 	GAssert(pA->rows() == m_stateDims && pA->cols() == m_stateDims); // transition Jacobian wrong size
 
 	// Compute uncorrected next estimated state
-	transition(m_x, pControl);
+	transition(m_x, control);
 
 	// Compute uncorrected next estimated covariance of state
 	GMatrix* pTemp = GMatrix::multiply(*m_pP, *pA, false, true);
@@ -57,7 +57,7 @@ void GExtendedKalmanFilter::advance(const GVec& pControl, GMatrix* pA)
 	addTransitionNoise(m_pP);
 }
 
-void GExtendedKalmanFilter::correct(const GVec& pObservation, GMatrix* pH)
+void GExtendedKalmanFilter::correct(const GVec& obs, GMatrix* pH)
 {
 	// Check values
 	GAssert(pH->rows() == m_obsDims && pH->cols() == m_stateDims); // observation Jacobian wrong size
@@ -79,7 +79,7 @@ void GExtendedKalmanFilter::correct(const GVec& pObservation, GMatrix* pH)
 	// Correct the estimated state
 	observation(m_z, m_x);
 	m_z *= -1.0;
-	m_z += pObservation;
+	m_z += obs;
 	pK->multiply(m_z, m_zz, false);
 	m_x += m_zz;
 

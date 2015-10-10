@@ -201,18 +201,18 @@ void GActivationHinge::resize(size_t units)
 }
 
 // virtual
-void GActivationHinge::setError(const GVec& pError)
+void GActivationHinge::setError(const GVec& error)
 {
-	m_error = pError;
+	m_error = error;
 }
 
 // virtual
-void GActivationHinge::updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum)
+void GActivationHinge::updateDeltas(const GVec& net, const GVec& activation, double momentum)
 {
 	for(size_t i = 0; i < m_units; i++)
 	{
 		m_delta[i] *= momentum;
-		m_delta[i] += m_error[i] * (sqrt(pNet[i] * pNet[i] + BEND_SIZE * BEND_SIZE) - BEND_SIZE);
+		m_delta[i] += m_error[i] * (sqrt(net[i] * net[i] + BEND_SIZE * BEND_SIZE) - BEND_SIZE);
 	}
 }
 
@@ -407,18 +407,18 @@ void GActivationLogExp::resize(size_t units)
 }
 
 // virtual
-void GActivationLogExp::setError(const GVec& pError)
+void GActivationLogExp::setError(const GVec& error)
 {
-	m_error = pError;
+	m_error = error;
 }
 
 // virtual
-void GActivationLogExp::updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum)
+void GActivationLogExp::updateDeltas(const GVec& net, const GVec& activation, double momentum)
 {
 	double* pAlpha = m_alphas.data();
 	const double* pErr = m_error.data();
-	const double* pN = pNet.data();
-	const double* pAct = pActivation.data();
+	const double* pN = net.data();
+	const double* pAct = activation.data();
 	double* pD = m_delta.data();
 	for(size_t i = 0; i < m_units; i++)
 	{

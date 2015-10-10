@@ -215,9 +215,9 @@ struct GNaiveBayesOutputAttr
 	void eval(const double* pIn, GPrediction* pOut, double equivalentSampleSize)
 	{
 		GCategoricalDistribution* pDist = pOut->makeCategorical();
-		GVec& pValues = pDist->values(m_nValueCount);
+		GVec& values = pDist->values(m_nValueCount);
 		for(size_t n = 0; n < m_nValueCount; n++)
-			pValues[n] = m_pValues[n]->eval(pIn, equivalentSampleSize);
+			values[n] = m_pValues[n]->eval(pIn, equivalentSampleSize);
 		pDist->normalizeFromLogSpace();
 	}
 
@@ -297,10 +297,10 @@ void GNaiveBayes::beginIncrementalLearningInner(const GRelation& featureRel, con
 }
 
 // virtual
-void GNaiveBayes::trainIncremental(const GVec& pIn, const GVec& pOut)
+void GNaiveBayes::trainIncremental(const GVec& in, const GVec& out)
 {
 	for(size_t n = 0; n < m_pRelLabels->size(); n++)
-		m_pOutputs[n]->AddTrainingSample(pIn.data(), (int)pOut[n]);
+		m_pOutputs[n]->AddTrainingSample(in.data(), (int)out[n]);
 	m_nSampleCount++;
 }
 
@@ -339,20 +339,20 @@ void GNaiveBayes::trainSparse(GSparseMatrix& features, GMatrix& labels)
 	}
 }
 
-void GNaiveBayes::predictDistribution(const GVec& pIn, GPrediction* pOut)
+void GNaiveBayes::predictDistribution(const GVec& in, GPrediction* out)
 {
 	if(m_nSampleCount <= 0)
 		throw Ex("You must call train before you call eval");
 	for(size_t n = 0; n < m_pRelLabels->size(); n++)
-		m_pOutputs[n]->eval(pIn.data(), &pOut[n], m_equivalentSampleSize);
+		m_pOutputs[n]->eval(in.data(), &out[n], m_equivalentSampleSize);
 }
 
-void GNaiveBayes::predict(const GVec& pIn, GVec& pOut)
+void GNaiveBayes::predict(const GVec& in, GVec& out)
 {
 	if(m_nSampleCount <= 0)
 		throw Ex("You must call train before you call eval");
 	for(size_t n = 0; n < m_pRelLabels->size(); n++)
-		pOut[n] = m_pOutputs[n]->predict(pIn.data(), m_equivalentSampleSize, &m_rand);
+		out[n] = m_pOutputs[n]->predict(in.data(), m_equivalentSampleSize, &m_rand);
 }
 
 void GNaiveBayes::autoTune(GMatrix& features, GMatrix& labels)
@@ -386,10 +386,10 @@ void GNaiveBayes_CheckResults(double yprior, double ycond, double nprior, double
 	py /= sum;
 	pn /= sum;
 	GCategoricalDistribution* pCat = out->asCategorical();
-	GVec& pVals = pCat->values(2);
-	if(std::abs(pVals[0] - py) > 1e-8)
+	GVec& vals = pCat->values(2);
+	if(std::abs(vals[0] - py) > 1e-8)
 		throw Ex("wrong");
-	if(std::abs(pVals[1] - pn) > 1e-8)
+	if(std::abs(vals[1] - pn) > 1e-8)
 		throw Ex("wrong");
 }
 

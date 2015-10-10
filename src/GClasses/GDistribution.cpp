@@ -336,7 +336,7 @@ double GSoftImpulseDistribution::cdf(double x) const
 }
 
 
-GMultivariateNormalDistribution::GMultivariateNormalDistribution(const GVec& pMean, GMatrix* pCovariance)
+GMultivariateNormalDistribution::GMultivariateNormalDistribution(const GVec& mean, GMatrix* pCovariance)
 : GDistribution()
 {
 	GAssert(pCovariance->rows() == (size_t)pCovariance->cols()); // pCovariance should be a square matrix
@@ -344,7 +344,7 @@ GMultivariateNormalDistribution::GMultivariateNormalDistribution(const GVec& pMe
 	m_pMean.resize(m_nDims);
 	m_pVector1.resize(m_nDims);
 	m_pVector2.resize(m_nDims);
-	m_pMean = pMean;
+	m_pMean = mean;
 	precompute(pCovariance);
 }
 

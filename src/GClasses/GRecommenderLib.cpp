@@ -131,10 +131,10 @@ void GRecommenderLib::loadData(GMatrix& data, const char* szFilename)
 			GSparseMatrix::Iter rowEnd = sm.rowEnd(i);
 			for(GSparseMatrix::Iter it = sm.rowBegin(i); it != rowEnd; it++)
 			{
-				GVec& pVec = data.newRow();
-				pVec[0] = (double)i;
-				pVec[1] = (double)it->first;
-				pVec[2] = it->second;
+				GVec& vec = data.newRow();
+				vec[0] = (double)i;
+				vec[1] = (double)it->first;
+				vec[2] = it->second;
 			}
 		}
 	}
@@ -168,8 +168,8 @@ GSparseMatrix* GRecommenderLib::loadSparseData(const char* szFilename)
 		Holder<GSparseMatrix> hMatrix(pMatrix);
 		for(size_t i = 0; i < data.rows(); i++)
 		{
-			GVec& pRow = data.row(i);
-			pMatrix->set(size_t(pRow[0]), size_t(pRow[1]), pRow[2]);
+			GVec& row = data.row(i);
+			pMatrix->set(size_t(row[0]), size_t(row[1]), row[2]);
 		}
 		return hMatrix.release();
 	}
@@ -748,15 +748,15 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 	size_t dims = pData->cols();
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		GVec& pRow = pData->row(i);
+		GVec& row = pData->row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
-			if(pRow[j] != UNKNOWN_REAL_VALUE)
+			if(row[j] != UNKNOWN_REAL_VALUE)
 			{
-				GVec& pVec = pMatrix->newRow();
-				pVec[0] = (double)i;
-				pVec[1] = (double)j;
-				pVec[2] = pRow[j];
+				GVec& vec = pMatrix->newRow();
+				vec[0] = (double)i;
+				vec[1] = (double)j;
+				vec[2] = row[j];
 			}
 		}
 	}
@@ -769,12 +769,12 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 	// Predict values for missing elements
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		GVec& pRow = pData->row(i);
+		GVec& row = pData->row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
-			if(pRow[j] == UNKNOWN_REAL_VALUE)
-				pRow[j] = pModel->predict(i, j);
-			GAssert(pRow[j] != UNKNOWN_REAL_VALUE);
+			if(row[j] == UNKNOWN_REAL_VALUE)
+				row[j] = pModel->predict(i, j);
+			GAssert(row[j] != UNKNOWN_REAL_VALUE);
 		}
 	}
 

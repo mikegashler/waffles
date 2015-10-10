@@ -236,20 +236,20 @@ void GAgglomerativeClusterer::test()
 	{
 		rads = (double)i * 2 * M_PI / SPIRAL_POINTS;
 
-		GVec& pVector1 = data.newRow();
-		pVector1[0] = cos(rads);
-		pVector1[2] = sin(rads);
-		pVector1[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
+		GVec& vector1 = data.newRow();
+		vector1[0] = cos(rads);
+		vector1[2] = sin(rads);
+		vector1[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 
-		GVec& pVector2 = data.newRow();
-		pVector2[0] = cos(rads + dThirdCircle);
-		pVector2[2] = sin(rads + dThirdCircle);
-		pVector2[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
+		GVec& vector2 = data.newRow();
+		vector2[0] = cos(rads + dThirdCircle);
+		vector2[2] = sin(rads + dThirdCircle);
+		vector2[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 
-		GVec& pVector3 = data.newRow();
-		pVector3[0] = cos(rads + dThirdCircle + dThirdCircle);
-		pVector3[2] = sin(rads + dThirdCircle + dThirdCircle);
-		pVector3[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
+		GVec& vector3 = data.newRow();
+		vector3[0] = cos(rads + dThirdCircle + dThirdCircle);
+		vector3[2] = sin(rads + dThirdCircle + dThirdCircle);
+		vector3[1] = (double)i * SPIRAL_HEIGHT / SPIRAL_POINTS;
 	}
 
 	// Cluster the points
@@ -540,7 +540,7 @@ void GKMeans::recomputeCentroids(const GMatrix* pData)
 {
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
-		GVec& pCentroid = m_pCentroids->row(i);
+		GVec& centroid = m_pCentroids->row(i);
 		size_t unknownCount = 0;
 		for(size_t j = 0; j < pData->cols(); j++)
 		{
@@ -562,10 +562,10 @@ void GKMeans::recomputeCentroids(const GMatrix* pData)
 					}
 				}
 				if(count > 0)
-					pCentroid[j] = sum / count;
+					centroid[j] = sum / count;
 				else
 				{
-					pCentroid[j] = UNKNOWN_REAL_VALUE;
+					centroid[j] = UNKNOWN_REAL_VALUE;
 					unknownCount++;
 				}
 			}
@@ -586,28 +586,28 @@ void GKMeans::recomputeCentroids(const GMatrix* pData)
 				size_t index = GIndexVec::indexOfMax(pFreq, vals);
 				if(pFreq[index] == 0)
 				{
-					pCentroid[j] = UNKNOWN_DISCRETE_VALUE;
+					centroid[j] = UNKNOWN_DISCRETE_VALUE;
 					unknownCount++;
 				}
 				else
-					pCentroid[j] = (double)index;
+					centroid[j] = (double)index;
 			}
 		}
 		if(unknownCount > 0)
 		{
-			const GVec& pRow = pData->row((size_t)m_pRand->next(pData->rows()));
+			const GVec& row = pData->row((size_t)m_pRand->next(pData->rows()));
 			for(size_t j = 0; j < pData->cols(); j++)
 			{
 				size_t vals = pData->relation().valueCount(j);
 				if(vals == 0)
 				{
-					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
-						pCentroid[j] = pRow[j];
+					if(centroid[j] == UNKNOWN_REAL_VALUE)
+						centroid[j] = row[j];
 				}
 				else
 				{
-					if(pCentroid[j] == UNKNOWN_DISCRETE_VALUE)
-						pCentroid[j] = pRow[j];
+					if(centroid[j] == UNKNOWN_DISCRETE_VALUE)
+						centroid[j] = row[j];
 				}
 			}
 		}
@@ -717,16 +717,16 @@ double GFuzzyKMeans::recomputeWeights(const GMatrix* pData)
 	double sumError = 0.0;
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		GVec& pWeights = m_pWeights->row(i);
+		GVec& weights = m_pWeights->row(i);
 		for(size_t j = 0; j < m_clusterCount; j++)
 		{
 			double e = -2.0 / (m_fuzzifier - 1.0);
 			double b = std::max(1e-6, sqrt(m_pMetric->squaredDistance(pData->row(i), m_pCentroids->row(j))));
-			pWeights[j] = pow(b, e);
+			weights[j] = pow(b, e);
 		}
-		double scale = 1.0 / pWeights.sum();
+		double scale = 1.0 / weights.sum();
 		sumError += scale;
-		pWeights *= scale;
+		weights *= scale;
 	}
 	return sumError;
 }
@@ -735,7 +735,7 @@ void GFuzzyKMeans::recomputeCentroids(const GMatrix* pData)
 {
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
-		GVec& pCentroid = m_pCentroids->row(i);
+		GVec& centroid = m_pCentroids->row(i);
 		size_t unknownCount = 0;
 		for(size_t j = 0; j < pData->cols(); j++)
 		{
@@ -755,10 +755,10 @@ void GFuzzyKMeans::recomputeCentroids(const GMatrix* pData)
 					}
 				}
 				if(sumWeight > 0.0)
-					pCentroid[j] = sum / sumWeight;
+					centroid[j] = sum / sumWeight;
 				else
 				{
-					pCentroid[j] = UNKNOWN_REAL_VALUE;
+					centroid[j] = UNKNOWN_REAL_VALUE;
 					unknownCount++;
 				}
 			}
@@ -775,29 +775,29 @@ void GFuzzyKMeans::recomputeCentroids(const GMatrix* pData)
 				}
 				size_t index = GVec::indexOfMax(pFreq, vals, m_pRand);
 				if(pFreq[index] > 0.0)
-					pCentroid[j] = (double)index;
+					centroid[j] = (double)index;
 				else
 				{
-					pCentroid[j] = UNKNOWN_DISCRETE_VALUE;
+					centroid[j] = UNKNOWN_DISCRETE_VALUE;
 					unknownCount++;
 				}
 			}
 		}
 		if(unknownCount > 0)
 		{
-			const GVec& pRow = pData->row((size_t)m_pRand->next(pData->rows()));
+			const GVec& row = pData->row((size_t)m_pRand->next(pData->rows()));
 			for(size_t j = 0; j < pData->cols(); j++)
 			{
 				size_t vals = pData->relation().valueCount(j);
 				if(vals == 0)
 				{
-					if(pCentroid[j] == UNKNOWN_REAL_VALUE)
-						pCentroid[j] = pRow[j];
+					if(centroid[j] == UNKNOWN_REAL_VALUE)
+						centroid[j] = row[j];
 				}
 				else
 				{
-					if(pCentroid[j] == UNKNOWN_DISCRETE_VALUE)
-						pCentroid[j] = pRow[j];
+					if(centroid[j] == UNKNOWN_DISCRETE_VALUE)
+						centroid[j] = row[j];
 				}
 			}
 		}
@@ -919,12 +919,12 @@ void GKMedoids::cluster(const GMatrix* pData)
 // virtual
 size_t GKMedoids::whichCluster(size_t nVector)
 {
-	const GVec& pVec = m_pData->row(nVector);
+	const GVec& vec = m_pData->row(nVector);
 	size_t clust = 0;
-	m_d = m_pMetric->squaredDistance(pVec, m_pData->row(m_pMedoids[0]));
+	m_d = m_pMetric->squaredDistance(vec, m_pData->row(m_pMedoids[0]));
 	for(size_t i = 1; i < m_clusterCount; i++)
 	{
-		double d = m_pMetric->squaredDistance(pVec, m_pData->row(m_pMedoids[i]));
+		double d = m_pMetric->squaredDistance(vec, m_pData->row(m_pMedoids[i]));
 		if(d < m_d)
 		{
 			m_d = d;
@@ -1059,7 +1059,7 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 			size_t* pC = pCounts;
 			for(size_t j = 0; j < pData->cols(); j++)
 				*(pC++) = 0;
-			GVec& pMean = means.row(i);
+			GVec& mean = means.row(i);
 			for(size_t k = 0; k < pData->rows(); k++)
 			{
 				GSparseMatrix::Iter it;
@@ -1068,7 +1068,7 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 					if(m_pRand->next(pCounts[it->first] + 1) == 0)
 					{
 						pCounts[it->first]++;
-						pMean[it->first] = it->second;
+						mean[it->first] = it->second;
 					}
 				}
 			}
@@ -1125,7 +1125,7 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 		{
 			memset(pCounts, '\0', sizeof(size_t) * pData->cols());
 			size_t* pClusts = m_pClusters;
-			GVec& pMean = means.row(j);
+			GVec& mean = means.row(j);
 			for(size_t i = 0; i < pData->rows(); i++)
 			{
 				if(*pClusts != j)
@@ -1135,8 +1135,8 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 				GSparseMatrix::Iter it;
 				for(it = pData->rowBegin(i); it != pData->rowEnd(i); it++)
 				{
-					pMean[it->first] *= (pCounts[it->first] / (pCounts[it->first] + 1));
-					pMean[it->first] += (1.0 / (pCounts[it->first] + 1) * it->second);
+					mean[it->first] *= (pCounts[it->first] / (pCounts[it->first] + 1));
+					mean[it->first] += (1.0 / (pCounts[it->first] + 1) * it->second);
 					pCounts[it->first]++;
 				}
 				pClusts++;

@@ -114,24 +114,24 @@ void GLinearRegressor::refine(const GMatrix& features, const GMatrix& labels, do
 		size_t* pIndex = pIndexes;
 		for(size_t j = 0; j < features.rows(); j++)
 		{
-			const GVec& pFeat = features[*pIndex];
-			const GVec& pLab = labels[*pIndex];
+			const GVec& feat = features[*pIndex];
+			const GVec& lab = labels[*pIndex];
 			for(size_t k = 0; k < lDims; k++)
 			{
-				double err = pLab[k] - (pFeat.dotProduct(m_pBeta->row(k)) + m_pEpsilon[k]);
+				double err = lab[k] - (feat.dotProduct(m_pBeta->row(k)) + m_pEpsilon[k]);
 				double lr = learningRate;
 				double mag = 0.0;
 				for(size_t l = 0; l < fDims; l++)
 				{
-					double d = pFeat[l] * err;
+					double d = feat[l] * err;
 					mag += (d * d);
 				}
 				mag += err * err;
 				if(mag > 1.0)
 					lr /= mag;
-				GVec& pW = m_pBeta->row(k);
+				GVec& w = m_pBeta->row(k);
 				for(size_t l = 0; l < fDims; l++)
-					pW[l] += pFeat[l] * lr * err;
+					w[l] += feat[l] * lr * err;
 				m_pEpsilon[k] += learningRate * err;
 			}
 			pIndex++;
@@ -178,16 +178,16 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 }
 
 // virtual
-void GLinearRegressor::predictDistribution(const GVec& pIn, GPrediction* pOut)
+void GLinearRegressor::predictDistribution(const GVec& in, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model cannot predict a distribution.");
 }
 
 // virtual
-void GLinearRegressor::predict(const GVec& pIn, GVec& pOut)
+void GLinearRegressor::predict(const GVec& in, GVec& out)
 {
-	m_pBeta->multiply(pIn, pOut, false);
-	pOut += m_pEpsilon;
+	m_pBeta->multiply(in, out, false);
+	out += m_pEpsilon;
 }
 
 // virtual
@@ -210,11 +210,11 @@ void GLinearRegressor_linear_test(GRand& prng)
 	GMatrix labels1(0, 1);
 	for(size_t i = 0; i < 1000; i++)
 	{
-		GVec& pVec = features1.newRow();
-		pVec[0] = prng.uniform();
-		pVec[1] = prng.uniform(); // irrelevant attribute
-		pVec[2] = prng.uniform();
-		labels1.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
+		GVec& vec = features1.newRow();
+		vec[0] = prng.uniform();
+		vec[1] = prng.uniform(); // irrelevant attribute
+		vec[2] = prng.uniform();
+		labels1.newRow()[0] = 0.3 * vec[0] + 2.0 * vec[2] + 5.0;
 	}
 	GLinearRegressor lr;
 	lr.train(features1, labels1);
@@ -236,11 +236,11 @@ void GLinearRegressor_linear_test(GRand& prng)
 	GMatrix labels2(0, 1);
 	for(size_t i = 0; i < 1000; i++)
 	{
-		GVec& pVec = features2.newRow();
-		pVec[0] = prng.uniform();
-		pVec[1] = prng.uniform(); // irrelevant attribute
-		pVec[2] = prng.uniform();
-		labels2.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
+		GVec& vec = features2.newRow();
+		vec[0] = prng.uniform();
+		vec[1] = prng.uniform(); // irrelevant attribute
+		vec[2] = prng.uniform();
+		labels2.newRow()[0] = 0.3 * vec[0] + 2.0 * vec[2] + 5.0;
 	}
 	double rmse = sqrt(lr.sumSquaredError(features2, labels2) / features2.rows());
 	if(rmse > 0.0224)
@@ -334,21 +334,21 @@ void GLinearDistribution::trainInner(const GMatrix& features, const GMatrix& lab
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		// Update A
-		const GVec& pFeat = features[i];
+		const GVec& feat = features[i];
 		for(size_t j = 0; j < dims; j++)
 		{
-			GVec& pEl = a[j];
+			GVec& el = a[j];
 			for(size_t k = 0; k < dims; k++)
-				pEl[k] += pFeat[j] * pFeat[k];
+				el[k] += feat[j] * feat[k];
 		}
 
 		// Update XY
-		const GVec& pLab = labels[i];
+		const GVec& lab = labels[i];
 		for(size_t j = 0; j < dims; j++)
 		{
-			GVec& pEl = xy[j];
+			GVec& el = xy[j];
 			for(size_t k = 0; k < labelDims; k++)
-				pEl[k] += pFeat[j] * pLab[k];
+				el[k] += feat[j] * lab[k];
 		}
 	}
 	a.multiply(w);
@@ -366,22 +366,22 @@ void GLinearDistribution::trainInner(const GMatrix& features, const GMatrix& lab
 }
 
 // virtual
-void GLinearDistribution::predict(const GVec& pIn, GVec& pOut)
+void GLinearDistribution::predict(const GVec& in, GVec& out)
 {
-	m_pWBar->multiply(pIn, pOut);
+	m_pWBar->multiply(in, out);
 }
 
 // virtual
-void GLinearDistribution::predictDistribution(const GVec& pIn, GPrediction* pOut)
+void GLinearDistribution::predictDistribution(const GVec& in, GPrediction* out)
 {
-	m_pAInv->multiply(pIn, m_pBuf);
-	double v = pIn.dotProduct(m_pBuf);
+	m_pAInv->multiply(in, m_pBuf);
+	double v = in.dotProduct(m_pBuf);
 	for(size_t i = 0; i < m_pWBar->rows(); i++)
 	{
-		GNormalDistribution* pNorm = (*pOut).makeNormal();
-		double m = m_pWBar->row(i).dotProduct(pIn);
+		GNormalDistribution* pNorm = (*out).makeNormal();
+		double m = m_pWBar->row(i).dotProduct(in);
 		pNorm->setMeanAndVariance(m, v);
-		pOut++;
+		out++;
 	}
 }
 

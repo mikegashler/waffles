@@ -65,20 +65,20 @@ void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_
 	// Create a matrix of all the neighbors normalized around the origin
 	size_t colCount = pData->cols();
 	GMatrix z(pData->relation().clone());
-	const GVec& pRow = pData->row(point);
+	const GVec& row = pData->row(point);
 	for(size_t i = 0; i < k; i++)
 	{
 		if(*pNeighbors < pData->rows())
 		{
-			GVec& pTarget = z.newRow();
-			pTarget = pData->row(*pNeighbors);
-			pTarget -= pRow;
+			GVec& target = z.newRow();
+			target = pData->row(*pNeighbors);
+			target -= row;
 			pNeighbors++;
 		}
 		else
 		{
-			GVec& pTarget = z.newRow();
-			pTarget.fill(1e12);
+			GVec& target = z.newRow();
+			target.fill(1e12);
 		}
 	}
 
@@ -268,18 +268,18 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 	pD->newRows(n);
 	for(size_t i = 0; i < n; i++)
 	{
-		GVec& pIn = pDistances->row(i);
-		GVec& pOut = pD->row(i);
-		pOut[i] = 0.0;
+		GVec& in = pDistances->row(i);
+		GVec& out = pD->row(i);
+		out[i] = 0.0;
 		if(useSquaredDistances)
 		{
 			for(size_t j = i + 1; j < n; j++)
-				pOut[j] = pIn[j];
+				out[j] = in[j];
 		}
 		else
 		{
 			for(size_t j = i + 1; j < n; j++)
-				pOut[j] = (pIn[j] * pIn[j]);
+				out[j] = (in[j] * in[j]);
 		}
 	}
 	pD->mirrorTriangle(true);
@@ -293,9 +293,9 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 	double t = z * GVec::sumElements(rowsum, n);
 	for(size_t i = 0; i < n; i++)
 	{
-		GVec& pRow = pD->row(i);
+		GVec& row = pD->row(i);
 		for(size_t j = 0; j < n; j++)
-			pRow[j] = -0.5 * (pRow[j] + (z * (t - rowsum[i] - rowsum[j])));
+			row[j] = -0.5 * (row[j] + (z * (t - rowsum[i] - rowsum[j])));
 	}
 
 	// Compute eigenvectors
@@ -336,9 +336,9 @@ void GManifold_testMultiDimensionalScaling()
 	GMatrix dst(POINT_COUNT, POINT_COUNT);
 	for(size_t i = 0; i < POINT_COUNT; i++)
 	{
-		GVec& pRow = dst.row(i);
+		GVec& row = dst.row(i);
 		for(size_t j = i + 1; j < POINT_COUNT; j++)
-			pRow[j] = foo.row(i).squaredDistance(foo.row(j));
+			row[j] = foo.row(i).squaredDistance(foo.row(j));
 	}
 
 	// Do MDS
@@ -1611,20 +1611,20 @@ void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, 
 		pPreprocess->setAll(0.0);
 	for(size_t i = 0; i < pOut->rows(); i++)
 	{
-		GVec& pX = pOut->row(i);
-		pX[col] = 0.5;
+		GVec& x = pOut->row(i);
+		x[col] = 0.5;
 		if(col > 0)
 		{
-			GVec& pPrevWeights = m_pWeights->row(col);
-			GVec& pPre = pPreprocess->row(i);
+			GVec& prevWeights = m_pWeights->row(col);
+			GVec& pre = pPreprocess->row(i);
 			for(size_t j = 0; j < dims; j++)
-				pPre[j] += pPrevWeights[j] * pX[col - 1];
+				pre[j] += prevWeights[j] * x[col - 1];
 		}
 	}
-	GVec& pBiases = m_pWeights->row(0);
-	GVec& pWeights = m_pWeights->row(1 + col);
+	GVec& bss = m_pWeights->row(0);
+	GVec& wts = m_pWeights->row(1 + col);
 	for(size_t i = 0; i < dims; i++)
-		pWeights[i] = 0.1 * m_pRand->normal();
+		wts[i] = 0.1 * m_pRand->normal();
 	size_t* pIndexes = new size_t[pOut->rows()];
 	GIndexVec::makeIndexVec(pIndexes, pOut->rows());
 	double learningRate = 0.05;
@@ -1640,34 +1640,34 @@ void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, 
 			for(size_t i = 0; i < pOut->rows(); i++)
 			{
 				size_t index = pIndexes[i];
-				GVec& pBias = pBiases;
-				GVec& pPre = pPreprocess->row(index);
-				GVec& pX = pOut->row(index);
-				GVec& pW = pWeights;
-				const GVec& pTar = pIn->row(index);
+				GVec& b = bss;
+				GVec& pre = pPreprocess->row(index);
+				GVec& x = pOut->row(index);
+				GVec& ww = wts;
+				const GVec& tar = pIn->row(index);
 				for(size_t j = 0; j < dims; j++)
 				{
-					if(pTar[j] != UNKNOWN_REAL_VALUE)
+					if(tar[j] != UNKNOWN_REAL_VALUE)
 					{
 						// Compute the predicted output
-						double net = pBias[j] + pPre[j] + pW[j] * pX[col];
+						double net = b[j] + pre[j] + ww[j] * x[col];
 						double pred = m_pActivation->squash(net, 0);
 
 						// Compute the error (pIn gives the target)
-						double err = learningRate * (pTar[j] - pred) * m_pActivation->derivativeOfNet(net, pred, 0);
+						double err = learningRate * (tar[j] - pred) * m_pActivation->derivativeOfNet(net, pred, 0);
 						sse += (err * err);
 
 						// Adjust the bias and weight
 						if(m_updateBias)
-							pBias[j] += err;
-						double w = pW[j];
-						pW[j] += err * pX[col];
+							b[j] += err;
+						double w = ww[j];
+						ww[j] += err * x[col];
 
 						// Adjust x
-						pX[col] += err * w;
+						x[col] += err * w;
 
 						// Clip x
-//						pX[col] = std::max(0.0, std::min(1.0, pX[col));
+//						x[col] = std::max(0.0, std::min(1.0, x[col));
 					}
 				}
 			}
@@ -1690,15 +1690,15 @@ double GNeuroPCA::computeSumSquaredErr(const GMatrix* pIn, GMatrix* pOut, size_t
 	double sse = 0.0;
 	for(size_t i = 0; i < pIn->rows(); i++)
 	{
-		const GVec& pTar = pIn->row(i);
-		GVec& pBias = m_pWeights->row(0);
+		const GVec& tar = pIn->row(i);
+		GVec& b = m_pWeights->row(0);
 		for(size_t j = 0; j < dims; j++)
 		{
-			GVec& pX = pOut->row(i);
-			double net = pBias[j];
+			GVec& x = pOut->row(i);
+			double net = b[j];
 			for(size_t k = 0; k < cols; k++)
-				net += pX[k] * m_pWeights->row(k + 1)[j];
-			double d = pTar[j] - m_pActivation->squash(net, 0);
+				net += x[k] * m_pWeights->row(k + 1)[j];
+			double d = tar[j] - m_pActivation->squash(net, 0);
 			sse += (d * d);
 		}
 	}
@@ -1717,13 +1717,13 @@ GMatrix* GNeuroPCA::reduce(const GMatrix& in)
 	// Initialize the biases
 	size_t dims = (size_t)in.cols();
 	{
-		GVec& pBiases = m_pWeights->row(0);
+		GVec& bss = m_pWeights->row(0);
 		for(size_t i = 0; i < dims; i++)
 		{
 			double mean = in.columnMean(i);
 //			if((mean < m_pActivation->center() - m_pActivation->halfRange()) || (mean > m_pActivation->center() + m_pActivation->halfRange()))
 //				throw Ex("The data is expected to fall within the range of the activation function");
-			pBiases[i] = m_pActivation->inverse(mean, 0);
+			bss[i] = m_pActivation->inverse(mean, 0);
 		}
 	}
 
@@ -2317,10 +2317,10 @@ void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighbo
 		}
 
 		double dTarget = ng.squaredDistanceTable()[edge];
-		GVec& pA = intrinsic.row(a);
-		GVec& pB = intrinsic.row(b);
-		double dCur = pA.squaredDistance(pB);
-		GScalingUnfolder_adjustPoints(pA.data(), pB.data(), dims, dCur, dTarget, rand);
+		GVec& aa = intrinsic.row(a);
+		GVec& bb = intrinsic.row(b);
+		double dCur = aa.squaredDistance(bb);
+		GScalingUnfolder_adjustPoints(aa.data(), bb.data(), dims, dCur, dTarget, rand);
 	}
 
 }

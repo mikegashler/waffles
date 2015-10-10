@@ -86,15 +86,15 @@ void GCollaborativeFilter::trainDenseMatrix(const GMatrix& data, const GMatrix* 
 	size_t dims = data.cols();
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		const GVec& pRow = data.row(i);
+		const GVec& row = data.row(i);
 		for(size_t j = 0; j < dims; j++)
 		{
-			if(pRow[j] != UNKNOWN_REAL_VALUE)
+			if(row[j] != UNKNOWN_REAL_VALUE)
 			{
-				GVec& pVec = pMatrix->newRow();
-				pVec[0] = (double)i;
-				pVec[1] = (double)j;
-				pVec[2] = pRow[j];
+				GVec& vec = pMatrix->newRow();
+				vec[0] = (double)i;
+				vec[1] = (double)j;
+				vec[2] = row[j];
 			}
 		}
 	}
@@ -104,15 +104,15 @@ void GCollaborativeFilter::trainDenseMatrix(const GMatrix& data, const GMatrix* 
 		size_t labelDims = pLabels->cols();
 		for(size_t i = 0; i < pLabels->rows(); i++)
 		{
-			const GVec& pRow = pLabels->row(i);
+			const GVec& row = pLabels->row(i);
 			for(size_t j = 0; j < labelDims; j++)
 			{
-				if(pRow[j] != UNKNOWN_REAL_VALUE)
+				if(row[j] != UNKNOWN_REAL_VALUE)
 				{
-					GVec& pVec = pMatrix->newRow();
-					pVec[0] = (double)i;
-					pVec[1] = (double)(dims + j);
-					pVec[2] = pRow[j];
+					GVec& vec = pMatrix->newRow();
+					vec[0] = (double)i;
+					vec[1] = (double)(dims + j);
+					vec[2] = row[j];
 				}
 			}
 		}
@@ -176,13 +176,13 @@ double GCollaborativeFilter::trainAndTest(GMatrix& dataTrain, GMatrix& dataTest,
 	size_t hits = 0;
 	for(size_t j = 0; j < dataTest.rows(); j++)
 	{
-		GVec& pVec = dataTest[j];
-		double prediction = predict(size_t(pVec[0]), size_t(pVec[1]));
+		GVec& vec = dataTest[j];
+		double prediction = predict(size_t(vec[0]), size_t(vec[1]));
 		if (prediction < -1e100 || prediction > 1e100)
 		{
 			throw Ex("Unreasonable prediction");
 		}
-		double err = pVec[2] - prediction;
+		double err = vec[2] - prediction;
 		se += std::abs(err);
 		sse += (err * err);
 		hits++;
@@ -249,8 +249,8 @@ GMatrix* GCollaborativeFilter::precisionRecall(GMatrix& data, bool ideal)
 		// Simulate perfect predictions
 		for(size_t i = 0; i < dataTest.rows(); i++)
 		{
-			GVec& pVec = dataTest[i];
-			tarPred.push_back(std::make_pair(pVec[2], pVec[2]));
+			GVec& vec = dataTest[i];
+			tarPred.push_back(std::make_pair(vec[2], vec[2]));
 		}
 	}
 	else
@@ -261,10 +261,10 @@ GMatrix* GCollaborativeFilter::precisionRecall(GMatrix& data, bool ideal)
 		// Predict the ratings in the test data
 		for(size_t i = 0; i < dataTest.rows(); i++)
 		{
-			GVec& pVec = dataTest[i];
-			double prediction = predict(size_t(pVec[0]), size_t(pVec[1]));
+			GVec& vec = dataTest[i];
+			double prediction = predict(size_t(vec[0]), size_t(vec[1]));
 			GAssert(prediction != UNKNOWN_REAL_VALUE);
-			tarPred.push_back(std::make_pair(pVec[2], prediction));
+			tarPred.push_back(std::make_pair(vec[2], prediction));
 		}
 	}
 
@@ -288,10 +288,10 @@ GMatrix* GCollaborativeFilter::precisionRecall(GMatrix& data, bool ideal)
 		double precision = retrievedRelevant / (retrievedRelevant + retrievedIrrelevant);
 		double recall = retrievedRelevant / totalRelevant; // recall is the same as the truePositiveRate
 		double falsePositiveRate = retrievedIrrelevant / totalIrrelevant;
-		GVec& pRow = pResults->newRow();
-		pRow[0] = recall;
-		pRow[1] = precision;
-		pRow[2] = falsePositiveRate;
+		GVec& row = pResults->newRow();
+		row[0] = recall;
+		row[1] = precision;
+		row[2] = falsePositiveRate;
 	}
 	return pResults;
 }
@@ -305,11 +305,11 @@ double GCollaborativeFilter::areaUnderCurve(GMatrix& data)
 	double prevY = 0.0;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		GVec& pRow = data[i];
-		a += (pRow[2] - prevX) * pRow[0];
-		b += (pRow[2] - prevX) * prevY;
-		prevX = pRow[2];
-		prevY = pRow[0];
+		GVec& row = data[i];
+		a += (row[2] - prevX) * row[0];
+		b += (row[2] - prevX) * prevY;
+		prevX = row[2];
+		prevY = row[0];
 	}
 	a += 1.0 - prevX;
 	b += (1.0 - prevX) * prevY;
@@ -327,26 +327,26 @@ void GCF_basicTest_makeData(GMatrix& m, GRand& rand)
 		double b = rand.normal();
 		double c = rand.uniform();
 		double userBias = rand.normal();
-		GVec& pVec1 = m.newRow();
-		pVec1[0] = (double)i; // user
-		pVec1[1] = 0; // item
-		pVec1[2] = a + 0.0 + 0.2 * c + userBias; // rating
-		GVec& pVec2 = m.newRow();
-		pVec2[0] = (double)i; // user
-		pVec2[1] = 1; // item
-		pVec2[2] = 0.2 * a + 0.2 * b + c * c + 0.2 + userBias; // rating
-		GVec& pVec3 = m.newRow();
-		pVec3[0] = (double)i; // user
-		pVec3[1] = 2; // item
-		pVec3[2] = 0.6 * a + 0.1 * b + 0.2 * c * c * c - 0.3 + userBias; // rating
-		GVec& pVec4 = m.newRow();
-		pVec4[0] = (double)i; // user
-		pVec4[1] = 3; // item
-		pVec4[2] = 0.5 * a + 0.5 * b - 0.5 * c + 0.0 + userBias; // rating
-		GVec& pVec5 = m.newRow();
-		pVec5[0] = (double)i; // user
-		pVec5[1] = 4; // item
-		pVec5[2] = -0.2 * a + 0.4 * b - 0.3 * sin(c) + 0.1 + userBias; // rating
+		GVec& vec1 = m.newRow();
+		vec1[0] = (double)i; // user
+		vec1[1] = 0; // item
+		vec1[2] = a + 0.0 + 0.2 * c + userBias; // rating
+		GVec& vec2 = m.newRow();
+		vec2[0] = (double)i; // user
+		vec2[1] = 1; // item
+		vec2[2] = 0.2 * a + 0.2 * b + c * c + 0.2 + userBias; // rating
+		GVec& vec3 = m.newRow();
+		vec3[0] = (double)i; // user
+		vec3[1] = 2; // item
+		vec3[2] = 0.6 * a + 0.1 * b + 0.2 * c * c * c - 0.3 + userBias; // rating
+		GVec& vec4 = m.newRow();
+		vec4[0] = (double)i; // user
+		vec4[1] = 3; // item
+		vec4[2] = 0.5 * a + 0.5 * b - 0.5 * c + 0.0 + userBias; // rating
+		GVec& vec5 = m.newRow();
+		vec5[0] = (double)i; // user
+		vec5[1] = 4; // item
+		vec5[2] = -0.2 * a + 0.4 * b - 0.3 * sin(c) + 0.1 + userBias; // rating
 	}
 }
 
@@ -400,18 +400,18 @@ void GBaselineRecommender::train(GMatrix& data)
 	size_t* pCounts = new size_t[m_items];
 	ArrayHolder<size_t> hCounts(pCounts);
 	size_t* pC = pCounts;
-	GVec& pR = m_pRatings;
+	GVec& rr = m_pRatings;
 	for(size_t i = 0; i < m_items; i++)
 	{
 		pC[i] = 0;
-		pR[i] = 0.0;
+		rr[i] = 0.0;
 	}
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		GVec& pVec = data[i];
-		size_t c = size_t(pVec[1]);
-		pR[c] *= ((double)pCounts[c] / (pCounts[c] + 1));
-		pR[c] += (pVec[2] / (pCounts[c] + 1));
+		GVec& vec = data[i];
+		size_t c = size_t(vec[1]);
+		rr[c] *= ((double)pCounts[c] / (pCounts[c] + 1));
+		rr[c] += (vec[2] / (pCounts[c] + 1));
 		pCounts[c]++;
 	}
 }
@@ -425,19 +425,19 @@ double GBaselineRecommender::predict(size_t user, size_t item)
 }
 
 // virtual
-void GBaselineRecommender::impute(GVec& pVec, size_t dims)
+void GBaselineRecommender::impute(GVec& vec, size_t dims)
 {
 	size_t n = std::min(dims, m_items);
 	size_t i;
 	for(i = 0; i < n; i++)
 	{
-		if(pVec[i] == UNKNOWN_REAL_VALUE)
-			pVec[i] = m_pRatings[i];
+		if(vec[i] == UNKNOWN_REAL_VALUE)
+			vec[i] = m_pRatings[i];
 	}
 	for( ; i < dims; i++)
 	{
-		if(pVec[i] == UNKNOWN_REAL_VALUE)
-			pVec[i] = 0.0;
+		if(vec[i] == UNKNOWN_REAL_VALUE)
+			vec[i] = 0.0;
 	}
 }
 
@@ -516,8 +516,8 @@ void GInstanceRecommender::train(GMatrix& data)
 	m_pData = new GSparseMatrix(users, items, UNKNOWN_REAL_VALUE);
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		GVec& pVec = data[i];
-		m_pData->set(size_t(pVec[0]), size_t(pVec[1]), pVec[2]);
+		GVec& vec = data[i];
+		m_pData->set(size_t(vec[0]), size_t(vec[1]), vec[2]);
 	}
 }
 
@@ -609,7 +609,7 @@ multimap<double,ArrayWrapper> GInstanceRecommender::getNeighbors(size_t user, si
 }
 
 // virtual
-void GInstanceRecommender::impute(GVec& pVec, size_t dims)
+void GInstanceRecommender::impute(GVec& vec, size_t dims)
 {
 	if(!m_pData)
 		throw Ex("This model has not been trained");
@@ -622,7 +622,7 @@ void GInstanceRecommender::impute(GVec& pVec, size_t dims)
 	{
 		// Compute the similarity
 		size_t count = 0;
-		double similarity = m_pMetric->similarity(m_pData->row(neigh), pVec, count);
+		double similarity = m_pMetric->similarity(m_pData->row(neigh), vec, count);
 
 		if(count < m_significanceWeight)
 			similarity *= count / m_significanceWeight;
@@ -636,7 +636,7 @@ void GInstanceRecommender::impute(GVec& pVec, size_t dims)
 	// Impute missing values by combining the ratings from the neighbors
 	for(size_t i = 0; i < m_pData->cols(); i++)
 	{
-		if(pVec[i] == UNKNOWN_REAL_VALUE)
+		if(vec[i] == UNKNOWN_REAL_VALUE)
 		{
 			double weighted_sum = 0.0;
 			double sum_weight = 0.0;
@@ -651,9 +651,9 @@ void GInstanceRecommender::impute(GVec& pVec, size_t dims)
 				}
 			}
 			if(sum_weight > 0.0)
-				pVec[i] = weighted_sum / sum_weight;
+				vec[i] = weighted_sum / sum_weight;
 			else
-				pVec[i] = m_pBaseline->predict(0, i); // baseline ignores the user
+				vec[i] = m_pBaseline->predict(0, i); // baseline ignores the user
 		}
 	}
 }
@@ -725,8 +725,8 @@ void GSparseClusterRecommender::train(GMatrix& data)
 	GSparseMatrix sm(users, items, UNKNOWN_REAL_VALUE);
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		GVec& pVec = data.row(i);
-		sm.set(size_t(pVec[0]), size_t(pVec[1]), pVec[2]);
+		GVec& vec = data.row(i);
+		sm.set(size_t(vec[0]), size_t(vec[1]), vec[2]);
 	}
 
 	// Make sure we have a clusterer
@@ -746,12 +746,12 @@ void GSparseClusterRecommender::train(GMatrix& data)
 	for(size_t i = 0; i < sm.rows(); i++)
 	{
 		size_t clust = m_pClusterer->whichCluster(i);
-		GVec& pRow = m_pPredictions->row(clust);
+		GVec& row = m_pPredictions->row(clust);
 		size_t* pRowCounts = pCounts + (sm.cols() * clust);
 		for(GSparseMatrix::Iter it = sm.rowBegin(i); it != sm.rowEnd(i); it++)
 		{
-			pRow[it->first] *= ((double)pRowCounts[it->first] / (pRowCounts[it->first] + 1));
-			pRow[it->first] += (it->second / (pRowCounts[it->first] + 1));
+			row[it->first] *= ((double)pRowCounts[it->first] / (pRowCounts[it->first] + 1));
+			row[it->first] += (it->second / (pRowCounts[it->first] + 1));
 			pRowCounts[it->first]++;
 		}
 	}
@@ -761,12 +761,12 @@ void GSparseClusterRecommender::train(GMatrix& data)
 double GSparseClusterRecommender::predict(size_t user, size_t item)
 {
 	size_t clust = m_pClusterer->whichCluster(user);
-	GVec& pRow = m_pPredictions->row(clust);
-	return pRow[item];
+	GVec& row = m_pPredictions->row(clust);
+	return row[item];
 }
 
 // virtual
-void GSparseClusterRecommender::impute(GVec& pVec, size_t dims)
+void GSparseClusterRecommender::impute(GVec& vec, size_t dims)
 {
 	throw Ex("Sorry, GSparseClusterRecommender::impute is not yet implemented");
 	// todo: Find the closest centroid, and use it to impute all values
@@ -850,8 +850,8 @@ void GDenseClusterRecommender::train(GMatrix& data)
 		GMatrix dense(users, items);
 		for(size_t i = 0; i < data.rows(); i++)
 		{
-			GVec& pVec = data.row(i);
-			dense[size_t(pVec[0])][size_t(pVec[1])] = pVec[2];
+			GVec& vec = data.row(i);
+			dense[size_t(vec[0])][size_t(vec[1])] = vec[2];
 		}
 		m_pClusterer->cluster(&dense);
 	}
@@ -865,14 +865,14 @@ void GDenseClusterRecommender::train(GMatrix& data)
 	memset(pCounts, '\0', sizeof(size_t) * items * m_clusters);
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		GVec& pVec = data.row(i);
-		size_t user = size_t(pVec[0]);
-		size_t item = size_t(pVec[1]);
+		GVec& vec = data.row(i);
+		size_t user = size_t(vec[0]);
+		size_t item = size_t(vec[1]);
 		size_t clust = m_pClusterer->whichCluster(user);
-		GVec& pRow = m_pPredictions->row(clust);
+		GVec& row = m_pPredictions->row(clust);
 		size_t* pRowCounts = pCounts + (items * clust);
-		pRow[item] *= ((double)pRowCounts[item] / (pRowCounts[item] + 1));
-		pRow[item] += (pVec[2] / (pRowCounts[item] + 1));
+		row[item] *= ((double)pRowCounts[item] / (pRowCounts[item] + 1));
+		row[item] += (vec[2] / (pRowCounts[item] + 1));
 		pRowCounts[item]++;
 	}
 }
@@ -883,12 +883,12 @@ double GDenseClusterRecommender::predict(size_t user, size_t item)
 	if(user >= m_users || item >= m_items)
 		return 0.0;
 	size_t clust = m_pClusterer->whichCluster(user);
-	GVec& pRow = m_pPredictions->row(clust);
-	return pRow[item];
+	GVec& row = m_pPredictions->row(clust);
+	return row[item];
 }
 
 // virtual
-void GDenseClusterRecommender::impute(GVec& pVec, size_t dims)
+void GDenseClusterRecommender::impute(GVec& vec, size_t dims)
 {
 	throw Ex("Sorry, GDenseClusterRecommender::impute is not yet implemented");
 	// todo: Find the closest centroid, and use it to impute all values
@@ -1025,11 +1025,11 @@ void GMatrixFactorization::clampUsers(const GMatrix& data, size_t offset)
 	size_t vals = data.cols() - 1;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		const GVec& pRow = data[i];
-		size_t index = (size_t)pRow[0];
+		const GVec& row = data[i];
+		size_t index = (size_t)row[0];
 		offset--;
 		for(size_t j = 1; j <= vals; j++)
-			clampUserElement(index, offset + j, pRow[j]);
+			clampUserElement(index, offset + j, row[j]);
 	}
 }
 
@@ -1038,11 +1038,11 @@ void GMatrixFactorization::clampItems(const GMatrix& data, size_t offset)
 	size_t vals = data.cols() - 1;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		const GVec& pRow = data[i];
-		size_t index = (size_t)pRow[0];
+		const GVec& row = data[i];
+		size_t index = (size_t)row[0];
 		offset--;
 		for(size_t j = 1; j <= vals; j++)
-			clampItemElement(index, offset + j, pRow[j]);
+			clampItemElement(index, offset + j, row[j]);
 	}
 }
 
@@ -1051,13 +1051,13 @@ double GMatrixFactorization::validate(GMatrix& data)
 	double sse = 0;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		GVec& pVec = data[i];
-		GVec& pPref = m_pP->row(size_t(pVec[0]));
-		GVec& pWeights = m_pQ->row(size_t(pVec[1]));
-		double pred = pWeights[0] + pPref[0];
+		GVec& vec = data[i];
+		GVec& pref = m_pP->row(size_t(vec[0]));
+		GVec& weights = m_pQ->row(size_t(vec[1]));
+		double pred = weights[0] + pref[0];
 		for(size_t j = 1; j <= m_intrinsicDims; j++)
-			pred += pPref[j] * pWeights[j];
-		double err = pVec[2] - pred;
+			pred += pref[j] * weights[j];
+		double err = vec[2] - pred;
 		sse += (err * err);
 	}
 	return sse;
@@ -1065,27 +1065,27 @@ double GMatrixFactorization::validate(GMatrix& data)
 
 void GMatrixFactorization::clampP(size_t i)
 {
-	GVec& pP = m_pP->row(i);
-	GVec& pMask = m_pPMask->row(i);
-	GVec& pBias = m_pPWeights->row(0);
-	GVec& pWeights = m_pPWeights->row(1);
+	GVec& p = m_pP->row(i);
+	GVec& mask = m_pPMask->row(i);
+	GVec& bias = m_pPWeights->row(0);
+	GVec& weights = m_pPWeights->row(1);
 	for(size_t j = 0; j < m_intrinsicDims; j++)
 	{
-		if(pMask[j] != UNKNOWN_REAL_VALUE)
-			pP[j + 1] = pBias[j] + pWeights[j] * pMask[j];
+		if(mask[j] != UNKNOWN_REAL_VALUE)
+			p[j + 1] = bias[j] + weights[j] * mask[j];
 	}
 }
 
 void GMatrixFactorization::clampQ(size_t i)
 {
-	GVec& pQ = m_pQ->row(i);
-	GVec& pMask = m_pQMask->row(i);
-	GVec& pBias = m_pQWeights->row(0);
-	GVec& pWeights = m_pQWeights->row(1);
+	GVec& q = m_pQ->row(i);
+	GVec& mask = m_pQMask->row(i);
+	GVec& bias = m_pQWeights->row(0);
+	GVec& weights = m_pQWeights->row(1);
 	for(size_t j = 0; j < m_intrinsicDims; j++)
 	{
-		if(pMask[j] != UNKNOWN_REAL_VALUE)
-			pQ[j + 1] = pBias[j] + pWeights[j] * pMask[j];
+		if(mask[j] != UNKNOWN_REAL_VALUE)
+			q[j + 1] = bias[j] + weights[j] * mask[j];
 	}
 }
 
@@ -1101,8 +1101,8 @@ void GMatrixFactorization::train(GMatrix& data)
 	m_pP = new GMatrix(users, colsP);
 	for(size_t i = 0; i < m_pP->rows(); i++)
 	{
-		GVec& pVec = m_pP->row(i);
-		pVec.fillNormal(m_rand, 0.02);
+		GVec& vec = m_pP->row(i);
+		vec.fillNormal(m_rand, 0.02);
 		if(m_nonNeg)
 			GVec::absValues(m_pP->row(i).data() + 1, m_intrinsicDims);
 	}
@@ -1110,8 +1110,8 @@ void GMatrixFactorization::train(GMatrix& data)
 	m_pQ = new GMatrix(items, 1 + m_intrinsicDims);
 	for(size_t i = 0; i < m_pQ->rows(); i++)
 	{
-		GVec& pVec = m_pQ->row(i);
-		pVec.fillNormal(m_rand, 0.02);
+		GVec& vec = m_pQ->row(i);
+		vec.fillNormal(m_rand, 0.02);
 		if(m_nonNeg)
 			GVec::absValues(m_pQ->row(i).data() + 1, m_intrinsicDims);
 	}
@@ -1139,67 +1139,67 @@ void GMatrixFactorization::train(GMatrix& data)
 			// Do an epoch of training
 			for(size_t j = 0; j < dataCopy.rows(); j++)
 			{
-				GVec& pVec = dataCopy[j];
-				size_t user = (size_t)pVec[0];
-				size_t item = (size_t)pVec[1];
+				GVec& vec = dataCopy[j];
+				size_t user = (size_t)vec[0];
+				size_t item = (size_t)vec[1];
 				if(m_pPMask && user < m_pPMask->rows())
 					clampP(user);
 				if(m_pQMask && item < m_pQMask->rows())
 					clampQ(item);
 
 				// Compute the error for this rating
-				GVec& pP = m_pP->row(user);
-				GVec& pQ = m_pQ->row(item);
-				double pred = pQ[0] + pP[0];
+				GVec& p = m_pP->row(user);
+				GVec& q = m_pQ->row(item);
+				double pred = q[0] + p[0];
 				for(size_t i = 1; i <= m_intrinsicDims; i++)
-					pred += pP[i] * pQ[i];
-				double err = pVec[2] - pred;
+					pred += p[i] * q[i];
+				double err = vec[2] - pred;
 
 				// Update Q
-				pQ[0] += learningRate * (err - m_regularizer * (pQ[0]));
+				q[0] += learningRate * (err - m_regularizer * (q[0]));
 				for(size_t i = 1; i <= m_intrinsicDims; i++)
 				{
-					pT[i] = pQ[i];
-					pQ[i] += learningRate * (err * pP[i] - m_regularizer * pQ[i]);
+					pT[i] = q[i];
+					q[i] += learningRate * (err * p[i] - m_regularizer * q[i]);
 					if(m_nonNeg)
-						pQ[i] = std::max(0.0, pQ[i]);
+						q[i] = std::max(0.0, q[i]);
 				}
 				if(m_pQMask && item < m_pQMask->rows())
 				{
 					// Update the bias and weights for clamped values
-					GVec& pMask = m_pQMask->row(item);
-					GVec& pB = m_pQWeights->row(0);
-					GVec& pW = m_pQWeights->row(1);
+					GVec& mask = m_pQMask->row(item);
+					GVec& bb = m_pQWeights->row(0);
+					GVec& w = m_pQWeights->row(1);
 					for(size_t i = 0; i < m_intrinsicDims; i++)
 					{
-						if(pMask[i] != UNKNOWN_REAL_VALUE)
+						if(mask[i] != UNKNOWN_REAL_VALUE)
 						{
-							pB[i] += 0.1 * learningRate * err * pP[i + 1];
-							pW[i] += 0.1 * learningRate * err * pP[i + 1] * pMask[i];
+							bb[i] += 0.1 * learningRate * err * p[i + 1];
+							w[i] += 0.1 * learningRate * err * p[i + 1] * mask[i];
 						}
 					}
 				}
 
 				// Update P
-				pP[0] += learningRate * (err - m_regularizer * pP[0]);
+				p[0] += learningRate * (err - m_regularizer * p[0]);
 				for(size_t i = 1; i <= m_intrinsicDims; i++)
 				{
-					pP[i] += learningRate * (err * pT[i] - m_regularizer * pP[i]);
+					p[i] += learningRate * (err * pT[i] - m_regularizer * p[i]);
 					if(m_nonNeg)
-						pP[i] = std::max(0.0, pP[i]);
+						p[i] = std::max(0.0, p[i]);
 				}
 				if(m_pPMask && user < m_pPMask->rows())
 				{
 					// Update the bias and weights for clamped values
-					GVec& pMask = m_pPMask->row(user);
-					GVec& pB = m_pPWeights->row(0);
-					GVec& pW = m_pPWeights->row(1);
+					GVec& mask = m_pPMask->row(user);
+					GVec& bb = m_pPWeights->row(0);
+					GVec& w = m_pPWeights->row(1);
 					for(size_t i = 0; i < m_intrinsicDims; i++)
 					{
-						if(pMask[i] != UNKNOWN_REAL_VALUE)
+						if(mask[i] != UNKNOWN_REAL_VALUE)
 						{
-							pB[i] += 0.1 * learningRate * err * pT[i + 1];
-							pW[i] += 0.1 * learningRate * err * pT[i + 1] * pMask[i];
+							bb[i] += 0.1 * learningRate * err * pT[i + 1];
+							w[i] += 0.1 * learningRate * err * pT[i + 1] * mask[i];
 						}
 					}
 				}
@@ -1230,37 +1230,37 @@ double GMatrixFactorization::predict(size_t user, size_t item)
 		throw Ex("Not trained yet");
 	if(user >= m_pP->rows() || item >= m_pQ->rows())
 		return 0.0;
-	GVec& pQ = m_pQ->row(item);
-	GVec& pP = m_pP->row(user);
-	double pred = pP[0] + pQ[0];
+	GVec& q = m_pQ->row(item);
+	GVec& p = m_pP->row(user);
+	double pred = p[0] + q[0];
 	for(size_t i = 1; i <= m_intrinsicDims; i++)
-		pred += pP[i] * pQ[i];
+		pred += p[i] * q[i];
 	return pred;
 }
 
-void GMatrixFactorization_vectorToRatings(const GVec& pVec, size_t dims, GMatrix& data)
+void GMatrixFactorization_vectorToRatings(const GVec& vec, size_t dims, GMatrix& data)
 {
 	for(size_t i = 0; i < dims; i++)
 	{
-		if(pVec[i] != UNKNOWN_REAL_VALUE)
+		if(vec[i] != UNKNOWN_REAL_VALUE)
 		{
-			GVec& pRow = data.newRow();
-			pRow[0] = 0.0;
-			pRow[1] = (double)i;
-			pRow[2] = pVec[i];
+			GVec& row = data.newRow();
+			row[0] = 0.0;
+			row[1] = (double)i;
+			row[2] = vec[i];
 		}
 	}
 }
 
 // virtual
-void GMatrixFactorization::impute(GVec& pVec, size_t dims)
+void GMatrixFactorization::impute(GVec& vec, size_t dims)
 {
 	if(!m_pP)
 		throw Ex("Not trained yet");
 
 	// Convert the vector to a set of ratings
 	GMatrix data(0, 3);
-	GMatrixFactorization_vectorToRatings(pVec, std::min(dims, m_pQ->rows()), data);
+	GMatrixFactorization_vectorToRatings(vec, std::min(dims, m_pQ->rows()), data);
 
 	// Initialize a preference vector
 	GVec pP(1 + m_intrinsicDims);
@@ -1278,17 +1278,17 @@ void GMatrixFactorization::impute(GVec& pVec, size_t dims)
 		for(size_t i = 0; i < data.rows(); i++)
 		{
 			// Compute the error for this rating
-			GVec& pV = data[i];
-			GVec& pQ = m_pQ->row(size_t(pV[1]));
-			double pred = pP[0] + pQ[0];
+			GVec& v = data[i];
+			GVec& q = m_pQ->row(size_t(v[1]));
+			double pred = pP[0] + q[0];
 			for(size_t j = 1; j <= m_intrinsicDims; j++)
-				pred += pP[j] * pQ[j];
-			double err = pV[2] - pred;
+				pred += pP[j] * q[j];
+			double err = v[2] - pred;
 
 			// Update the preference vec
 			pP[0] += learningRate * (err - m_regularizer * pP[0]);
 			for(size_t j = 1; j <= m_intrinsicDims; j++)
-				pP[j] += learningRate * (err * pQ[j] - m_regularizer * pP[j]);
+				pP[j] += learningRate * (err * q[j] - m_regularizer * pP[j]);
 			GVec::floorValues(pP.data() + 1, -1.8, m_intrinsicDims);
 			GVec::capValues(pP.data() + 1, 1.8, m_intrinsicDims);
 		}
@@ -1308,19 +1308,19 @@ void GMatrixFactorization::impute(GVec& pVec, size_t dims)
 	size_t i;
 	for(i = 0; i < n; i++)
 	{
-		if(pVec[i] == UNKNOWN_REAL_VALUE)
+		if(vec[i] == UNKNOWN_REAL_VALUE)
 		{
-			GVec& pQ = m_pQ->row(i);
-			double pred = pP[0] + pQ[0];
+			GVec& q = m_pQ->row(i);
+			double pred = pP[0] + q[0];
 			for(size_t j = 1; j <= m_intrinsicDims; j++)
-				pred += pP[j] * pQ[j];
-			pVec[i] = pred;
+				pred += pP[j] * q[j];
+			vec[i] = pred;
 		}
 	}
 	for( ; i < dims; i++)
 	{
-		if(pVec[i] == UNKNOWN_REAL_VALUE)
-			pVec[i] = 0.0;
+		if(vec[i] == UNKNOWN_REAL_VALUE)
+			vec[i] = 0.0;
 	}
 }
 
@@ -1372,9 +1372,9 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	GIndexVec::setAll(m_pRatingCount, 0, usrs);
 	for(size_t i = 0; i < pClone->rows(); i++)
 	{
-		GVec& pVec = pClone->row(i);
-		m_pMins[size_t(pVec[0])] = std::min(m_pMins[size_t(pVec[0])], pVec[2]);
-		m_pMaxs[size_t(pVec[0])] = std::max(m_pMaxs[size_t(pVec[0])], pVec[2]);
+		GVec& vec = pClone->row(i);
+		m_pMins[size_t(vec[0])] = std::min(m_pMins[size_t(vec[0])], vec[2]);
+		m_pMaxs[size_t(vec[0])] = std::max(m_pMaxs[size_t(vec[0])], vec[2]);
 	}
 	for(size_t i = 0; i < items; i++)
 	{
@@ -1385,10 +1385,10 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	}
 	for(size_t i = 0; i < pClone->rows(); i++)
 	{
-		GVec&  pVec = pClone->row(i);
-		pVec[2] = (pVec[2] - m_pMins[size_t(pVec[0])]) / (m_pMaxs[size_t(pVec[0])] - m_pMins[size_t(pVec[0])]);
-		m_itemSet.insert((size_t)pVec[1]);
-		m_pRatingCount[(size_t)pVec[1]]++;
+		GVec&  vec = pClone->row(i);
+		vec[2] = (vec[2] - m_pMins[size_t(vec[0])]) / (m_pMaxs[size_t(vec[0])] - m_pMins[size_t(vec[0])]);
+		m_itemSet.insert((size_t)vec[1]);
+		m_pRatingCount[(size_t)vec[1]]++;
 	}
 
 	// Prep the model for incremental training
@@ -1424,10 +1424,10 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 			double* itemVec = m_itemAttrs->row(count);
 			for(size_t i = 0; i < usrs; i++)
 			{
-				double* pVec = m_pUsers->row(i);
-				GVec::setAll(pVec, 0, m_intrinsicDims + numAttr);
+				double* vec = m_pUsers->row(i);
+				GVec::setAll(vec, 0, m_intrinsicDims + numAttr);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
-					*(pVec++) = 0.01 * m_rand.normal();
+					*(vec++) = 0.01 * m_rand.normal();
 				if(*itemVec == i)
 				{
 					m_itemMap[count]=i;
@@ -1435,7 +1435,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 					itemVec++;
 					for(size_t j = 1; j < numAttr+1; j++)
 					{
-						*(pVec++) = *(itemVec++) * 0.01;
+						*(vec++) = *(itemVec++) * 0.01;
 					}
 					itemVec = m_itemAttrs->row(++count);
 				}
@@ -1460,14 +1460,14 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 				for(size_t i = 0; i < pClone->rows(); i++)
 				{
 					// Forward-prop
-					double* pVec = pClone->row(i);
-					size_t user = size_t(pVec[1]);
-					size_t item = size_t(pVec[0]);
+					double* vec = pClone->row(i);
+					size_t user = size_t(vec[1]);
+					size_t item = size_t(vec[0]);
 					double* pPrefs = m_pUsers->row(user);
 					pNN->forwardPropSingleOutput(pPrefs, item);
 
 					// Update weights
-					pNN->backpropagateSingleOutput(item, pVec[2]);
+					pNN->backpropagateSingleOutput(item, vec[2]);
 					if(pass < 2)
 						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * m_regularizer));
 					if(pass != 1)
@@ -1514,12 +1514,12 @@ double GHybridNonlinearPCA::predict(size_t item, size_t user)
 	if(m_itemSet.find(user) == m_itemSet.end())
 	{
 		//find closest instances
-		double* pVec = m_pUsers->row(user);
+		double* vec = m_pUsers->row(user);
 		GTEMPBUF(double, features, m_pUsers->cols() - m_intrinsicDims + 1);
 		features[0] = 0;
 		for(size_t i = m_intrinsicDims; i < m_pUsers->cols(); i++)
 		{
-			features[i-m_intrinsicDims+1] = pVec[i] / 0.01;
+			features[i-m_intrinsicDims+1] = vec[i] / 0.01;
 		}
 		GTEMPBUF(size_t, neighbors, m_numNeighbors);
 		GTEMPBUF(double, distances, m_numNeighbors);
@@ -1568,10 +1568,10 @@ double GHybridNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 	double sse = 0;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		double* pVec = data[i];
-		double* pPrefs = m_pUsers->row(size_t(pVec[1]));
-		double predictedRating = pNN->forwardPropSingleOutput(pPrefs, size_t(pVec[0]));
-		double d = pVec[2] - predictedRating;
+		double* vec = data[i];
+		double* pPrefs = m_pUsers->row(size_t(vec[1]));
+		double predictedRating = pNN->forwardPropSingleOutput(pPrefs, size_t(vec[0]));
+		double d = vec[2] - predictedRating;
 		sse += (d * d);
 	}
 	return sse / data.rows();
@@ -1680,10 +1680,10 @@ double GNonlinearPCA::validate(GNeuralNet* pNN, GMatrix& data)
 	double sse = 0;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		GVec& pVec = data[i];
-		GVec& pPrefs = m_pUsers->row(size_t(pVec[0]));
-		double predictedRating = pNN->forwardPropSingleOutput(pPrefs, size_t(pVec[1]));
-		double d = pVec[2] - predictedRating;
+		GVec& vec = data[i];
+		GVec& prefs = m_pUsers->row(size_t(vec[0]));
+		double predictedRating = pNN->forwardPropSingleOutput(prefs, size_t(vec[1]));
+		double d = vec[2] - predictedRating;
 		sse += (d * d);
 	}
 	return sse / data.rows();
@@ -1718,11 +1718,11 @@ void GNonlinearPCA::clampUsers(const GMatrix& data, size_t offset)
 	size_t vals = data.cols() - 1;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		const GVec& pRow = data[i];
-		size_t index = (size_t)*pRow;
-		pRow++;
+		const GVec& row = data[i];
+		size_t index = (size_t)*row;
+		row++;
 		for(size_t j = 0; j < vals; j++)
-			clampUserElement(index, offset + j, *(pRow++));
+			clampUserElement(index, offset + j, *(row++));
 	}
 }
 
@@ -1731,37 +1731,37 @@ void GNonlinearPCA::clampItems(const GMatrix& data, size_t offset)
 	size_t vals = data.cols() - 1;
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		const GVec& pRow = data[i];
-		size_t index = (size_t)*pRow;
-		pRow++;
+		const GVec& row = data[i];
+		size_t index = (size_t)*row;
+		row++;
 		for(size_t j = 0; j < vals; j++)
-			clampItemElement(index, offset + j, *(pRow++));
+			clampItemElement(index, offset + j, *(row++));
 	}
 }
 
 void GNonlinearPCA::clampUsersInternal(size_t i)
 {
-	GVec& pProfile = m_pUsers->row(i) + (m_useInputBias ? 1 : 0);
-	const GVec& pMask = m_pUserMask->row(i);
+	GVec& profile = m_pUsers->row(i) + (m_useInputBias ? 1 : 0);
+	const GVec& mask = m_pUserMask->row(i);
 	for(size_t k = (m_useInputBias ? 1 : 0); k < m_intrinsicDims; k++)
 	{
-		if(*pMask != UNKNOWN_REAL_VALUE)
-			*pProfile = *pMask;
-		pProfile++;
-		pMask++;
+		if(*mask != UNKNOWN_REAL_VALUE)
+			*profile = *mask;
+		profile++;
+		mask++;
 	}
 }
 
 void GNonlinearPCA::clampItemsInternal(size_t i)
 {
 	GMatrix& itemWeights = ((GLayerClassic*)&m_pModel->outputLayer())->weights();
-	const GVec& pMask = m_pItemMask->row(i);
+	const GVec& mask = m_pItemMask->row(i);
 	size_t dims = m_pModel->outputLayer().inputs();
 	for(size_t k = 0; k < dims; k++)
 	{
-		if(*pMask != UNKNOWN_REAL_VALUE)
-			itemWeights[k][i] = *pMask;
-		pMask++;
+		if(*mask != UNKNOWN_REAL_VALUE)
+			itemWeights[k][i] = *mask;
+		mask++;
 	}
 }
 
@@ -1785,9 +1785,9 @@ void GNonlinearPCA::train(GMatrix& data)
 	GVec::setAll(m_pMaxs, -1e200, items);
 	for(size_t i = 0; i < pClone->rows(); i++)
 	{
-		GVec& pVec = pClone->row(i);
-		m_pMins[size_t(pVec[1])] = std::min(m_pMins[size_t(pVec[1])], pVec[2]);
-		m_pMaxs[size_t(pVec[1])] = std::max(m_pMaxs[size_t(pVec[1])], pVec[2]);
+		GVec& vec = pClone->row(i);
+		m_pMins[size_t(vec[1])] = std::min(m_pMins[size_t(vec[1])], vec[2]);
+		m_pMaxs[size_t(vec[1])] = std::max(m_pMaxs[size_t(vec[1])], vec[2]);
 	}
 	for(size_t i = 0; i < items; i++)
 	{
@@ -1798,8 +1798,8 @@ void GNonlinearPCA::train(GMatrix& data)
 	}
 	for(size_t i = 0; i < pClone->rows(); i++)
 	{
-		GVec&  pVec = pClone->row(i);
-		pVec[2] = (pVec[2] - m_pMins[size_t(pVec[1])]) / (m_pMaxs[size_t(pVec[1])] - m_pMins[size_t(pVec[1])]);
+		GVec&  vec = pClone->row(i);
+		vec[2] = (vec[2] - m_pMins[size_t(vec[1])]) / (m_pMaxs[size_t(vec[1])] - m_pMins[size_t(vec[1])]);
 	}
 
 	// Prep the model for incremental training
@@ -1811,8 +1811,8 @@ void GNonlinearPCA::train(GMatrix& data)
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
-	GVec& pPrefGradient = new double[m_intrinsicDims];
-	ArrayHolder<double> hPrefGradient(pPrefGradient);
+	GVec& prefGradient = new double[m_intrinsicDims];
+	ArrayHolder<double> hPrefGradient(prefGradient);
 
 	// Train
 	size_t startPass = 0;
@@ -1830,9 +1830,9 @@ void GNonlinearPCA::train(GMatrix& data)
 			m_pUsers = new GMatrix(usrs, m_intrinsicDims);
 			for(size_t i = 0; i < usrs; i++)
 			{
-				GVec& pVec = m_pUsers->row(i);
+				GVec& vec = m_pUsers->row(i);
 				for(size_t j = 0; j < m_intrinsicDims; j++)
-					*(pVec++) = 0.01 * m_rand.normal();
+					*(vec++) = 0.01 * m_rand.normal();
 				if(m_pUserMask && i < m_pUserMask->rows())
 					clampUsersInternal(i);
 			}
@@ -1860,27 +1860,27 @@ void GNonlinearPCA::train(GMatrix& data)
 				for(size_t i = 0; i < pClone->rows(); i++)
 				{
 					// Forward-prop
-					GVec& pVec = pClone->row(i);
-					size_t user = size_t(pVec[0]);
-					size_t item = size_t(pVec[1]);
-					GVec& pPrefs = m_pUsers->row(user);
-					pNN->forwardPropSingleOutput(pPrefs, item);
+					GVec& vec = pClone->row(i);
+					size_t user = size_t(vec[0]);
+					size_t item = size_t(vec[1]);
+					GVec& prefs = m_pUsers->row(user);
+					pNN->forwardPropSingleOutput(prefs, item);
 
 					// Update weights
-					pNN->backpropagateSingleOutput(item, pVec[2]);
+					pNN->backpropagateSingleOutput(item, vec[2]);
 					if(pass < 2)
 						pNN->scaleWeightsSingleOutput(item, 1.0 - (learningRate * m_regularizer));
 					if(pass != 1)
-						pNN->gradientOfInputsSingleOutput(item, pPrefGradient);
-					pNN->descendGradientSingleOutput(item, pPrefs, learningRate, pNN->momentum());
+						pNN->gradientOfInputsSingleOutput(item, prefGradient);
+					pNN->descendGradientSingleOutput(item, prefs, learningRate, pNN->momentum());
 					if(m_pItemMask && item < m_pItemMask->rows())
 						clampItemsInternal(item);
 					if(pass != 1)
 					{
 						// Update inputs
 						if(pass == 0)
-							GVec::multiply(pPrefs, 1.0 - (learningRate * m_regularizer), m_intrinsicDims);
-						GVec::addScaled(pPrefs, -learningRate, pPrefGradient, m_intrinsicDims);
+							GVec::multiply(prefs, 1.0 - (learningRate * m_regularizer), m_intrinsicDims);
+						GVec::addScaled(prefs, -learningRate, prefGradient, m_intrinsicDims);
 						if(m_pUserMask && user < m_pUserMask->rows())
 							clampUsersInternal(user);
 					}
@@ -1913,7 +1913,7 @@ double GNonlinearPCA::predict(size_t user, size_t item)
 }
 
 // virtual
-void GNonlinearPCA::impute(GVec& pVec, size_t dims)
+void GNonlinearPCA::impute(GVec& vec, size_t dims)
 {
 	throw Ex("Sorry, GNonlinearPCA::impute is not implemented yet");
 }
@@ -2032,9 +2032,9 @@ void GLogNet::train(GMatrix& data)
 	{
 		// Stochastically choose a pattern
 		size_t index = (size_t)m_pModel->rand().next(data.rows());
-		GVec& pRow = data[index];
-		size_t user = (size_t)pRow[0];
-		size_t item = (size_t)pRow[1];
+		GVec& row = data[index];
+		size_t user = (size_t)row[0];
+		size_t item = (size_t)row[1];
 		GVec::copy(m_input.v, m_pP->row(user), m_intrinsicDims + 1);
 		GVec::copy(m_input.v + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
 		
@@ -2045,7 +2045,7 @@ void GLogNet::train(GMatrix& data)
 		
 		// Update everything
 		m_pModel->forwardProp(m_input.v);
-		m_pModel->backpropagate(&pRow[2], learningRate);
+		m_pModel->backpropagate(&row[2], learningRate);
 		m_pModel->layer(0).backPropError(&inputLayer);
 		m_pModel->descendGradient(m_input.v, learningRate, 0.0);
 		GVec::addScaled(m_input.v, learningRate, inputLayer.error(), totalInputs);
@@ -2073,7 +2073,7 @@ void GLogNet::train(GMatrix& data)
 	GMatrix PDelta(m_pP->rows(), m_pP->cols());
 	GMatrix QDelta(m_pQ->rows(), m_pQ->cols());
 	double learningRate = 0.001;
-	GVec& pFeat = inputLayer.activation();
+	GVec& feat = inputLayer.activation();
 	for(size_t i = 0; i < 1000; i++)
 	{
 		// Regularize
@@ -2084,30 +2084,30 @@ void GLogNet::train(GMatrix& data)
 
 		PDelta.setAll(0.0);
 		QDelta.setAll(0.0);
-		GVec& pRow = data[0];
-		size_t user = (size_t)pRow[0];
-		size_t item = (size_t)pRow[1];
-		GVec::copy(pFeat, m_pP->row(user), m_intrinsicDims + 1);
-		GVec::copy(pFeat + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
-		double targ = pRow[2];
-		m_pModel->forwardProp(pFeat);
+		GVec& row = data[0];
+		size_t user = (size_t)row[0];
+		size_t item = (size_t)row[1];
+		GVec::copy(feat, m_pP->row(user), m_intrinsicDims + 1);
+		GVec::copy(feat + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
+		double targ = row[2];
+		m_pModel->forwardProp(feat);
 		m_pModel->backpropagate(&targ);
 		m_pModel->layer(0).backPropError(&inputLayer);
-		m_pModel->updateDeltas(pFeat, 0.0);
+		m_pModel->updateDeltas(feat, 0.0);
 		GVec::add(PDelta[user], inputLayer.error(), m_intrinsicDims + 1);
 		GVec::add(QDelta[item], inputLayer.error() + m_intrinsicDims + 1, m_intrinsicDims + 1);
 		for(size_t j = 1; j < data.rows(); j++)
 		{
-			pRow = data[j];
-			user = (size_t)pRow[0];
-			item = (size_t)pRow[1];
-			GVec::copy(pFeat, m_pP->row(user), m_intrinsicDims + 1);
-			GVec::copy(pFeat + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
-			double targ2 = pRow[2];
-			m_pModel->forwardProp(pFeat);
+			row = data[j];
+			user = (size_t)row[0];
+			item = (size_t)row[1];
+			GVec::copy(feat, m_pP->row(user), m_intrinsicDims + 1);
+			GVec::copy(feat + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
+			double targ2 = row[2];
+			m_pModel->forwardProp(feat);
 			m_pModel->backpropagate(&targ2);
 			m_pModel->layer(0).backPropError(&inputLayer);
-			m_pModel->updateDeltas(pFeat, 1.0);
+			m_pModel->updateDeltas(feat, 1.0);
 			GVec::add(PDelta[user], inputLayer.error(), m_intrinsicDims + 1);
 			GVec::add(QDelta[item], inputLayer.error() + m_intrinsicDims + 1, m_intrinsicDims + 1);
 		}
@@ -2135,7 +2135,7 @@ double GLogNet::predict(size_t user, size_t item)
 }
 
 // virtual
-void GLogNet::impute(GVec& pVec, size_t dims)
+void GLogNet::impute(GVec& vec, size_t dims)
 {
 	throw Ex("Sorry, not implemented yet");
 }
@@ -2214,7 +2214,7 @@ double GBagOfRecommenders::predict(size_t user, size_t item)
 }
 
 // virtual
-void GBagOfRecommenders::impute(GVec& pVec, size_t dims)
+void GBagOfRecommenders::impute(GVec& vec, size_t dims)
 {
 	throw Ex("Sorry, not implemented yet");
 	/*
@@ -2225,7 +2225,7 @@ void GBagOfRecommenders::impute(GVec& pVec, size_t dims)
 	double count = 0.0;
 	for(vector<GCollaborativeFilter*>::iterator it = m_filters.begin(); it != m_filters.end(); it++)
 	{
-		GVec::copy(pBuf1, pVec, n);
+		GVec::copy(pBuf1, vec, n);
 		(*it)->impute(pBuf1, dims);
 		GVec::multiply(pBuf2, count / (count + 1), n);
 		GVec::addScaled(pBuf2, 1.0 / (count + 1), pBuf1, n);
@@ -2234,15 +2234,15 @@ void GBagOfRecommenders::impute(GVec& pVec, size_t dims)
 	size_t i;
 	for(i = 0; i < n; i++)
 	{
-		if(*pVec == UNKNOWN_REAL_VALUE)
-			*pVec = pBuf2[i];
-		pVec++;
+		if(*vec == UNKNOWN_REAL_VALUE)
+			*vec = pBuf2[i];
+		vec++;
 	}
 	for( ; i < dims; i++)
 	{
-		if(*pVec == UNKNOWN_REAL_VALUE)
-			*pVec = 0.0;
-		pVec++;
+		if(*vec == UNKNOWN_REAL_VALUE)
+			*vec = 0.0;
+		vec++;
 	}
 	*/
 }
@@ -2304,9 +2304,9 @@ void GContentBasedFilter::train(GMatrix& data)
 	//create a training set and learning algorithm for each user
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		GVec& pVec = data.row(i);
-		m_userRatings.insert(std::make_pair((size_t)pVec[0], (size_t)pVec[1]));
-		userSet.insert((size_t)pVec[0]);
+		GVec& vec = data.row(i);
+		m_userRatings.insert(std::make_pair((size_t)vec[0], (size_t)vec[1]));
+		userSet.insert((size_t)vec[0]);
 	}
 
 	//Loop through the set of users
@@ -2349,13 +2349,13 @@ double GContentBasedFilter::predict(size_t user, size_t item)
 }
 
 //virtual
-void GContentBasedFilter::impute(GVec& pVec, size_t dims)
+void GContentBasedFilter::impute(GVec& vec, size_t dims)
 {
 /*
 	for(size_t i = 0; i < dims; i++)
 	{
-		if(*pVec == UNKNOWN_REAL_VALUE)
-			(*pVec) = m_learners[]
+		if(*vec == UNKNOWN_REAL_VALUE)
+			(*vec) = m_learners[]
 	}
 */
 	std::cerr << "Not yet implemented\n";
@@ -2381,8 +2381,8 @@ void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
 	m_itemAttrs->copy(&itemAttrs);
 	for(size_t i = 0; i < m_itemAttrs->rows(); i++)
 	{
-		GVec& pVec = m_itemAttrs->row(i);
-		m_itemMap[(size_t)pVec[0]] = i;
+		GVec& vec = m_itemAttrs->row(i);
+		m_itemMap[(size_t)vec[0]] = i;
 	}
 	m_itemAttrs->swapColumns(0,m_itemAttrs->cols()-1);
 	m_itemAttrs->deleteColumn(m_itemAttrs->cols()-1);
@@ -2440,8 +2440,8 @@ void GContentBoostedCF::train(GMatrix& data)
 
 	for(size_t i = 0; i < pClone->rows(); i++)
         {
-		GVec& pVec = pClone->row(i);
-		m_pseudoRatingSum[m_userMap[(size_t)pVec[0]]] += pVec[2];
+		GVec& vec = pClone->row(i);
+		m_pseudoRatingSum[m_userMap[(size_t)vec[0]]] += vec[2];
 	}
 
 	//Loop through all of the users
@@ -2465,12 +2465,12 @@ void GContentBoostedCF::train(GMatrix& data)
 			if(!isRated)
 			{
 				//make prediction
-				GVec& pRating = pClone->newRow();
-				pRating[0] = (double)user->first;
-				pRating[1] = (double)item->first;
-				pRating[2] = m_cbf->predict(user->first, item->first);
-				GAssert(pRating[2] != UNKNOWN_REAL_VALUE);
-				m_pseudoRatingSum[m_userMap[user->first]] += pRating[2];
+				GVec& rat = pClone->newRow();
+				rat[0] = (double)user->first;
+				rat[1] = (double)item->first;
+				rat[2] = m_cbf->predict(user->first, item->first);
+				GAssert(rat[2] != UNKNOWN_REAL_VALUE);
+				m_pseudoRatingSum[m_userMap[user->first]] += rat[2];
 			}
 		}
 	}
@@ -2506,7 +2506,7 @@ double GContentBoostedCF::predict(size_t user, size_t item)
 	return weighted_sum / sum_weight;
 }
 
-void GContentBoostedCF::impute(GVec& pVec, size_t dims)
+void GContentBoostedCF::impute(GVec& vec, size_t dims)
 {
 	std::cerr << "Not yet implemented\n";
 }

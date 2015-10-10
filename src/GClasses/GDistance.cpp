@@ -107,7 +107,7 @@ void GRowDistance::init(const GRelation* pRelation, bool own)
 }
 
 // virtual
-double GRowDistance::squaredDistance(const GVec& pA, const GVec& pB) const
+double GRowDistance::squaredDistance(const GVec& a, const GVec& b) const
 {
 	double sum = 0;
 	size_t count = m_pRelation->size();
@@ -116,17 +116,17 @@ double GRowDistance::squaredDistance(const GVec& pA, const GVec& pB) const
 	{
 		if(m_pRelation->valueCount(i) == 0)
 		{
-			if(pA[i] == UNKNOWN_REAL_VALUE || pB[i] == UNKNOWN_REAL_VALUE)
+			if(a[i] == UNKNOWN_REAL_VALUE || b[i] == UNKNOWN_REAL_VALUE)
 				d = m_diffWithUnknown;
 			else
-				d = pB[i] - pA[i];
+				d = b[i] - a[i];
 		}
 		else
 		{
-			if((int)pA[i] == UNKNOWN_DISCRETE_VALUE || (int)pB[i] == UNKNOWN_DISCRETE_VALUE)
+			if((int)a[i] == UNKNOWN_DISCRETE_VALUE || (int)b[i] == UNKNOWN_DISCRETE_VALUE)
 				d = 1;
 			else
-				d = ((int)pB[i] == (int)pA[i] ? 0 : 1);
+				d = ((int)b[i] == (int)a[i] ? 0 : 1);
 		}
 		sum += (d * d);
 	}
@@ -172,7 +172,7 @@ void GRowDistanceScaled::init(const GRelation* pRelation, bool own)
 }
 
 // virtual
-double GRowDistanceScaled::squaredDistance(const GVec& pA, const GVec& pB) const
+double GRowDistanceScaled::squaredDistance(const GVec& a, const GVec& b) const
 {
 	double sum = 0;
 	size_t count = m_pRelation->size();
@@ -181,9 +181,9 @@ double GRowDistanceScaled::squaredDistance(const GVec& pA, const GVec& pB) const
 	for(size_t i = 0; i < count; i++)
 	{
 		if(m_pRelation->valueCount(i) == 0)
-			d = (pB[i] - pA[i]) * (*pSF);
+			d = (b[i] - a[i]) * (*pSF);
 		else
-			d = ((int)pB[i] == (int)pA[i] ? 0 : *pSF);
+			d = ((int)b[i] == (int)a[i] ? 0 : *pSF);
 		pSF++;
 		sum += (d * d);
 	}
@@ -218,7 +218,7 @@ void GLNormDistance::init(const GRelation* pRelation, bool own)
 }
 
 // virtual
-double GLNormDistance::squaredDistance(const GVec& pA, const GVec& pB) const
+double GLNormDistance::squaredDistance(const GVec& a, const GVec& b) const
 {
 	double sum = 0;
 	size_t count = m_pRelation->size();
@@ -227,17 +227,17 @@ double GLNormDistance::squaredDistance(const GVec& pA, const GVec& pB) const
 	{
 		if(m_pRelation->valueCount(i) == 0)
 		{
-			if(pA[i] == UNKNOWN_REAL_VALUE || pB[i] == UNKNOWN_REAL_VALUE)
+			if(a[i] == UNKNOWN_REAL_VALUE || b[i] == UNKNOWN_REAL_VALUE)
 				d = m_diffWithUnknown;
 			else
-				d = pB[i] - pA[i];
+				d = b[i] - a[i];
 		}
 		else
 		{
-			if((int)pA[i] == UNKNOWN_DISCRETE_VALUE || (int)pB[i] == UNKNOWN_DISCRETE_VALUE)
+			if((int)a[i] == UNKNOWN_DISCRETE_VALUE || (int)b[i] == UNKNOWN_DISCRETE_VALUE)
 				d = 1;
 			else
-				d = ((int)pB[i] == (int)pA[i] ? 0 : 1);
+				d = ((int)b[i] == (int)a[i] ? 0 : 1);
 		}
 		sum += pow(abs(d), m_norm);
 	}
@@ -325,7 +325,7 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size
 }
 
 // virtual
-double GCosineSimilarity::similarity(const map<size_t,double>& a, const GVec& pB, size_t& count)
+double GCosineSimilarity::similarity(const map<size_t,double>& a, const GVec& b, size_t& count)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	if(itA == a.end())
@@ -337,8 +337,8 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const GVec& pB
 	{
 		count++;
 		sum_sq_a += (itA->second * itA->second);
-		sum_sq_b += (pB[itA->first] * pB[itA->first]);
-		sum_co_prod += (itA->second * pB[itA->first]);
+		sum_sq_b += (b[itA->first] * b[itA->first]);
+		sum_co_prod += (itA->second * b[itA->first]);
 		itA++;
 	}
 	double denom = sqrt(sum_sq_a * sum_sq_b) + m_regularizer;
@@ -433,7 +433,7 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<si
 }
 
 // virtual
-double GPearsonCorrelation::similarity(const map<size_t,double>& a, const GVec& pB, size_t& count)
+double GPearsonCorrelation::similarity(const map<size_t,double>& a, const GVec& b, size_t& count)
 {
 	// Compute the mean of the overlapping portions
 	map<size_t,double>::const_iterator itA = a.begin();
@@ -443,7 +443,7 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const GVec& 
 	while(itA != a.end())
 	{
 		mean_a += itA->second;
-		mean_b += pB[itA->first];
+		mean_b += b[itA->first];
 		count++;
 		itA++;
 	}
@@ -457,7 +457,7 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const GVec& 
 	double sum_of_sq = 0.0;
 	while(itA != a.end())
 	{
-		d = (itA->second - mean_a) * (pB[itA->first] - mean_b);
+		d = (itA->second - mean_a) * (b[itA->first] - mean_b);
 		sum += d;
 		sum_of_sq += (d * d);
 		itA++;
@@ -518,7 +518,7 @@ double GEuclidSimilarity::similarity(const map<size_t,double>& a, const map<size
 }
 
 // virtual
-double GEuclidSimilarity::similarity(const map<size_t,double>& a, const GVec& pB, size_t& count)
+double GEuclidSimilarity::similarity(const map<size_t,double>& a, const GVec& b, size_t& count)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	if(itA == a.end())
@@ -527,7 +527,7 @@ double GEuclidSimilarity::similarity(const map<size_t,double>& a, const GVec& pB
 	while(itA != a.end())
 	{
 		count++;
-		double d = (pB[itA->first] - itA->second);
+		double d = (b[itA->first] - itA->second);
 		sum_sq += (d * d);
 		itA++;
 	}

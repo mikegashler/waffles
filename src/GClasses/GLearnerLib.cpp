@@ -1158,9 +1158,9 @@ void GLearnerLib::predict(GArgReader& args)
 	// Test
 	for(size_t i = 0; i < pFeatures->rows(); i++)
 	{
-		GVec& pFeatureVec = pFeatures->row(i);
-		GVec& pLabelVec = pLabels->row(i);
-		pModeler->predict(pFeatureVec, pLabelVec);
+		GVec& featureVec = pFeatures->row(i);
+		GVec& labelVec = pLabels->row(i);
+		pModeler->predict(featureVec, labelVec);
 	}
 
 	// Print results
@@ -1251,12 +1251,12 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 			else
 			{
 				GCategoricalDistribution* pCat = p[j].asCategorical();
-				GVec& pValues = pCat->values(pCat->valueCount());
+				GVec& values = pCat->values(pCat->valueCount());
 				for(size_t k = 0; k < pCat->valueCount(); ++k)
 				{
 					if(k > 0)
 						cout << ",";
-					cout << pValues[k];
+					cout << values[k];
 				}
 			}
 		}
@@ -1919,20 +1919,20 @@ void GLearnerLib::sterilize(GArgReader& args)
 		// Keep only the correct predictions
 		for(size_t j = 0; j < testLabels.rows(); j++)
 		{
-			GVec& pTarget = testLabels[j];
-			GVec& pPredicted = pPredictedLabels->row(j);
+			GVec& target = testLabels[j];
+			GVec& predicted = pPredictedLabels->row(j);
 			for(size_t i = 0; i < testLabels.cols(); i++)
 			{
 				size_t vals = testLabels.relation().valueCount(i);
 				bool goodEnough = false;
 				if(vals == 0)
 				{
-					if(std::abs(pTarget[i] - pPredicted[i]) < diffThresh)
+					if(std::abs(target[i] - predicted[i]) < diffThresh)
 						goodEnough = true;
 				}
 				else
 				{
-					if(pTarget[i] == pPredicted[i])
+					if(target[i] == predicted[i])
 						goodEnough = true;
 				}
 				if(goodEnough)
@@ -2155,29 +2155,29 @@ void GLearnerLib::metaData(GArgReader& args)
 
 	// Make the meta-data
 	GMatrix meta(pRel);
-	GVec& pRow = meta.newRow();
+	GVec& row = meta.newRow();
 	size_t r = 0;
 
 	// log_rows
-	pRow[r++] = log((double)pFeatures->rows());
+	row[r++] = log((double)pFeatures->rows());
 
 	// log_feature_dims
-	pRow[r++] = log((double)pFeatures->cols());
+	row[r++] = log((double)pFeatures->cols());
 
 	// log_label_dims
-	pRow[r++] = log((double)pLabels->cols());
+	row[r++] = log((double)pLabels->cols());
 
 	// log_feature_elements
-	pRow[r++] = log((double)(pFeatures->rows() * pFeatures->cols()));
+	row[r++] = log((double)(pFeatures->rows() * pFeatures->cols()));
 
 	// log_sum_feature_vals
 	size_t sum = 0;
 	for(size_t i = 0; i < pFeatures->cols(); i++)
 		sum += pFeatures->relation().valueCount(i);
-	pRow[r++] = log((double)(sum + 1));
+	row[r++] = log((double)(sum + 1));
 
 	// mean_feature_vals
-	pRow[r++] = (double)sum / pFeatures->cols();
+	row[r++] = (double)sum / pFeatures->cols();
 
 	// feature_range_deviation
 	{
@@ -2191,7 +2191,7 @@ void GLearnerLib::metaData(GArgReader& args)
 		}
 		s /= pFeatures->cols();
 		ss /= pFeatures->cols();
-		pRow[r++] = (double)(pFeatures->cols() - 1) / pFeatures->cols() * sqrt(ss - (s * s));
+		row[r++] = (double)(pFeatures->cols() - 1) / pFeatures->cols() * sqrt(ss - (s * s));
 	}
 
 	// feature_portion_real
@@ -2201,7 +2201,7 @@ void GLearnerLib::metaData(GArgReader& args)
 		if(pFeatures->relation().valueCount(i) == 0)
 			realCount++;
 	}
-	pRow[r++] = (double)realCount / pFeatures->cols();
+	row[r++] = (double)realCount / pFeatures->cols();
 
 	// label_portion_real
 	realCount = 0;
@@ -2210,10 +2210,10 @@ void GLearnerLib::metaData(GArgReader& args)
 		if(pLabels->relation().valueCount(i) == 0)
 			realCount++;
 	}
-	pRow[r++] = (double)realCount / pLabels->cols();
+	row[r++] = (double)realCount / pLabels->cols();
 
 	// features_is_missing_values
-	pRow[r++] = pFeatures->doesHaveAnyMissingValues() ? 1.0 : 0.0;
+	row[r++] = pFeatures->doesHaveAnyMissingValues() ? 1.0 : 0.0;
 
 	// label_entropy
 	double dsum = 0.0;
@@ -2227,7 +2227,7 @@ void GLearnerLib::metaData(GArgReader& args)
 		else
 			dsum += pLabels->entropy(i);
 	}
-	pRow[r++] = dsum / pLabels->cols();
+	row[r++] = dsum / pLabels->cols();
 
 	// label_skew
 	dsum = 0.0;
@@ -2251,25 +2251,25 @@ void GLearnerLib::metaData(GArgReader& args)
 			dsum += (double)count / pLabels->rows();
 		}
 	}
-	pRow[r++] = dsum / pLabels->cols();
+	row[r++] = dsum / pLabels->cols();
 
 	// landmark_baseline
 	{
 		GBaselineLearner model;
-		pRow[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_linear
 	{
 		GLinearRegressor model;
-		pRow[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_decisiontree
 	{
 		GDecisionTree model;
 		model.useBinaryDivisions();
-		pRow[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_shallowtree
@@ -2277,19 +2277,19 @@ void GLearnerLib::metaData(GArgReader& args)
 		GDecisionTree model;
 		model.useBinaryDivisions();
 		model.setLeafThresh(24);
-		pRow[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_meanmarginstree
 	{
 		GMeanMarginsTree model;
-		pRow[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_naivebayes
 	{
 		GNaiveBayes model;
-		pRow[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// Print the results
