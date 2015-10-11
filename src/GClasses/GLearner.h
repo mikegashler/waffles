@@ -55,14 +55,14 @@ public:
 	~GPrediction();
 
 	/// Converts an array of prediction objects to a vector of most-likely values.
-	static void predictionArrayToVector(size_t nOutputCount, GPrediction* pOutputs, GVec& pVector);
+	static void predictionArrayToVector(size_t nOutputCount, GPrediction* pOutputs, GVec& vec);
 
 	/// Converts an array of values to an array of predictions. There's not really
 	/// enough information for this conversion, so it simply fabricates the variance
 	/// and class-probability information as needed. Only the mean (for normal distributions)
 	/// and the most-likely class (for categorical distributions) is reliable after this
 	/// conversion.
-	static void vectorToPredictionArray(GRelation* pRelation, size_t nOutputCount, GVec& pVector, GPrediction* pOutputs);
+	static void vectorToPredictionArray(GRelation* pRelation, size_t nOutputCount, GVec& vec, GPrediction* pOutputs);
 
 	/// Returns true if this wraps a normal distribution, false otherwise
 	bool isContinuous();

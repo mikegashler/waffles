@@ -70,10 +70,10 @@ public:
 	virtual void resize(size_t units) {}
 
 	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
-	virtual void setError(const GVec& pError) {}
+	virtual void setError(const GVec& error) {}
 
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
-	virtual void updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum) {}
+	virtual void updateDeltas(const GVec& net, const GVec& activation, double momentum) {}
 
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate) {}
@@ -351,10 +351,10 @@ public:
 	virtual void resize(size_t units);
 
 	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
-	virtual void setError(const GVec& pError);
+	virtual void setError(const GVec& error);
 
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
-	virtual void updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum);
+	virtual void updateDeltas(const GVec& net, const GVec& activation, double momentum);
 
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate);
@@ -441,10 +441,10 @@ public:
 	virtual void resize(size_t units);
 
 	/// Sets the error term for this activation function. Used in stochastic gradient descent. (The default behavior is nothing because most activation functions have no parameters to refine.)
-	virtual void setError(const GVec& pError);
+	virtual void setError(const GVec& error);
 
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
-	virtual void updateDeltas(const GVec& pNet, const GVec& pActivation, double momentum);
+	virtual void updateDeltas(const GVec& net, const GVec& activation, double momentum);
 
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate);

@@ -104,7 +104,7 @@ public:
 	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 protected:
 	/// Base classes should call this method to serialize the base object

@@ -48,7 +48,7 @@ public:
 	/// about the origin, not the centroid. If pVec comes from a distribution with a
 	/// non-zero mean, then you may need to subtract the mean before calling this method.)
 	/// It is okay for some elements of pVec to be UNKNOWN_REAL_VALUE.
-	void add(const GVec& pVec);
+	void add(const GVec& vec);
 
 	/// Multiplies relevant internal counts and sums by gamma. (This is used
 	/// for computing "moving covariance" instead of "running covariance".)
@@ -116,10 +116,10 @@ protected:
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& pIn, GVec& pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }

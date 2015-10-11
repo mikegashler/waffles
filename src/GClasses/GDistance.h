@@ -266,7 +266,7 @@ public:
 	virtual double similarity(const std::map<size_t,double>& a, const std::map<size_t,double>& b, size_t &count=_dummy_var);
 
 	/// Computes the similarity between a sparse and a dense vector
-	virtual double similarity(const std::map<size_t,double>& a, const GVec& pB, size_t &count=_dummy_var);
+	virtual double similarity(const std::map<size_t,double>& a, const GVec& b, size_t &count=_dummy_var);
 };
 
 

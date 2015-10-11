@@ -200,7 +200,7 @@ public:
 	/// It returns the value that this node outputs. If bypassInputWeights is true, then
 	/// pInputs is assumed to have the same size as the first layer, and it is fed into the
 	/// net of this layer, instead of the inputs.
-	double forwardPropSingleOutput(const GVec& pInputs, size_t output);
+	double forwardPropSingleOutput(const GVec& inputs, size_t output);
 
 	/// This method assumes forwardProp has been called. It copies the predicted vector into pOut.
 	void copyPrediction(GVec& out);
@@ -401,10 +401,10 @@ public:
 #endif // MIN_PREDICT
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& pIn, GVec& pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
@@ -413,7 +413,7 @@ public:
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const GVec& pIn, const GVec& pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);

@@ -190,10 +190,10 @@ protected:
 	/// Interpolate with each neighbor having a linear vote. (Actually it's linear with
 	/// respect to the squared distance instead of the distance, because this is faster
 	/// to compute.)
-	void interpolateLinear(const GVec& pIn, GPrediction* pOut, GVec* pOut2);
+	void interpolateLinear(const GVec& in, GPrediction* pOut, GVec* pOut2);
 
 	/// Interpolates with the provided supervised learning algorithm
-	void interpolateLearner(const GVec& pIn, GPrediction* pOut, GVec* pOut2);
+	void interpolateLearner(const GVec& in, GPrediction* pOut, GVec* pOut2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
 	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
@@ -258,10 +258,10 @@ public:
 	virtual void clear();
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& pIn, GVec& pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -274,7 +274,7 @@ protected:
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
 	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const GVec& pIn, const GVec& pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 };
 
 
@@ -326,10 +326,10 @@ protected:
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& pIn, GVec& pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }

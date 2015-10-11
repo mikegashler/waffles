@@ -73,13 +73,13 @@ public:
 	void autoTune(GMatrix& features, GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& pIn, GVec& pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// Adds a single training sample to the collection
-	virtual void trainIncremental(const GVec& pIn, const GVec& pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

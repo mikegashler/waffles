@@ -54,7 +54,7 @@ public:
 	/// change in f(x,u) over the change in one of the dimensions of
 	/// x, where f is the transition function, x is the state, and u
 	/// is the control vector.
-	void advance(const GVec& pControl, GMatrix* pA);
+	void advance(const GVec& control, GMatrix* pA);
 
 	/// Correct the estimates of state and covariance based on the
 	/// observations made in the new state (and assuming the observation function
@@ -63,14 +63,14 @@ public:
 	/// state. Each column in pH represents the change in h(x) over the change
 	/// in one of the dimensions of x, where h is the observation function,
 	/// and x is the state.
-	void correct(const GVec& pObservation, GMatrix* pH);
+	void correct(const GVec& observation, GMatrix* pH);
 
 	/// Computes the transition function. (Adjust the values in pInOutState
 	/// as directed by pControl.)
-	virtual void transition(GVec& pInOutState, const GVec& pControl) = 0;
+	virtual void transition(GVec& inOutState, const GVec& control) = 0;
 
 	/// Computes the observation function. Put results in pOutObs.
-	virtual void observation(GVec& pOutObs, const GVec& pState) = 0;
+	virtual void observation(GVec& outObs, const GVec& state) = 0;
 
 	/// pInOutCov is a nxn matrix, where n is the number of state dims.
 	/// This method should add the covariance of the transition noise to pInOutCov.

@@ -751,7 +751,7 @@ protected:
 	GMatrix* m_pCholesky;
 
 public:
-	GMultivariateNormalDistribution(const GVec& pMean, GMatrix* pCovariance);
+	GMultivariateNormalDistribution(const GVec& mean, GMatrix* pCovariance);
 	GMultivariateNormalDistribution(GMatrix* pData, size_t nDims);
 	~GMultivariateNormalDistribution();
 

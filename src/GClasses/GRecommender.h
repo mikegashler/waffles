@@ -89,7 +89,7 @@ public:
 	/// be trained before this method is called. Unlike the predict method,
 	/// this method can operate on row-vectors that were not part of the training
 	/// data.)
-	virtual void impute(GVec& pVec, size_t dims) = 0;
+	virtual void impute(GVec& vec, size_t dims) = 0;
 
 	/// Marshal this object into a DOM that can be converted to a variety
 	/// of formats. (Implementations of this method should use baseDomNode.)
@@ -164,7 +164,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -210,7 +210,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -270,7 +270,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -311,7 +311,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -392,7 +392,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// Returns the matrix of user preference vectors
 	GMatrix* getP() { return m_pP; }
@@ -498,7 +498,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -608,7 +608,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -646,7 +646,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// Delete all of the filters
 	void clear();
@@ -688,7 +688,7 @@ public:
 	virtual double predict(size_t user, size_t item);
 
 	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// Delete all of the learners
 	void clear();
@@ -725,7 +725,7 @@ public:
 
 	virtual double predict(size_t user, size_t item);
 
-	virtual void impute(GVec& pVec, size_t dims);
+	virtual void impute(GVec& vec, size_t dims);
 
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const { return NULL; };

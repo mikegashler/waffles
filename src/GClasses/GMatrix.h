@@ -598,7 +598,7 @@ public:
 
 	/// \brief Computes the eigenvalue that corresponds to the specified
 	/// eigenvector of this matrix
-	double eigenValue(const GVec& pEigenVector);
+	double eigenValue(const GVec& eigenVector);
 
 	/// \brief Computes the eigenvector that corresponds to the
 	/// specified eigenvalue of this matrix. Note that this method
@@ -703,7 +703,7 @@ public:
 	///
 	/// \note if transpose is true, then pVectorIn is treated as a
 	/// row vector and is multiplied by this matrix to get pVectorOut.
-	void multiply(const GVec& pVectorIn, GVec& pVectorOut, bool transpose = false) const;
+	void multiply(const GVec& vectorIn, GVec& vectorOut, bool transpose = false) const;
 
 	/// \brief Matrix multiply.
 	///
@@ -1028,7 +1028,7 @@ public:
 
 	/// \brief Computes the first principal component assuming the mean
 	/// is already subtracted out of the data
-	void principalComponentAboutOrigin(GVec& pOutVector, GRand* pRand) const;
+	void principalComponentAboutOrigin(GVec& outVector, GRand* pRand) const;
 
 	/// \brief Computes principal components, while ignoring missing
 	/// values
@@ -1037,7 +1037,7 @@ public:
 	/// \brief Computes the first principal component of the data with
 	/// each row weighted according to the vector pWeights. (pWeights
 	/// must have an element for each row.)
-	void weightedPrincipalComponent(GVec& pOutVector, const GVec& centroid, const double* pWeights, GRand* pRand) const;
+	void weightedPrincipalComponent(GVec& outVector, const GVec& centroid, const double* pWeights, GRand* pRand) const;
 
 	/// \brief Computes the eigenvalue that corresponds to \a *pEigenvector.
 	///
@@ -1078,7 +1078,7 @@ public:
 	///       the mean after removing the corresponding component, and
 	///       then dividing by the number of dimensions. This is more
 	///       efficient than calling eigenValue.
-	double sumSquaredDistance(const GVec& pPoint) const;
+	double sumSquaredDistance(const GVec& point) const;
 
 	/// \brief Computes the sum-squared distance between the specified
 	/// column of this and that. If the column is a nominal attribute,
@@ -1101,7 +1101,7 @@ public:
 	/// \brief Finds a sphere that tightly bounds all the points in the specified vector of row-indexes.
 	///
 	/// Returns the squared radius of the sphere, and stores its center in pOutCenter.
-	double boundingSphere(GVec& pOutCenter, size_t* pIndexes, size_t indexCount, GDistanceMetric* pMetric) const;
+	double boundingSphere(GVec& outCenter, size_t* pIndexes, size_t indexCount, GDistanceMetric* pMetric) const;
 
 	/// \brief Computes the covariance between two attributes.
 	/// If pWeights is NULL, each row is given a weight of 1.
@@ -1154,7 +1154,7 @@ public:
 	///
 	/// Returns false if the subspaces are so nearly parallel that pOut
 	/// cannot be computed with accuracy.
-	bool leastCorrelatedVector(GVec& pOut, const GMatrix* pThat, GRand* pRand) const;
+	bool leastCorrelatedVector(GVec& out, const GMatrix* pThat, GRand* pRand) const;
 
 	/// \brief Computes the cosine of the dihedral angle between this
 	/// subspace and pThat subspace

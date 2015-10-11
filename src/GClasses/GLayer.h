@@ -214,7 +214,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
@@ -410,7 +410,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
@@ -520,7 +520,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);

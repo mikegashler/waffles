@@ -187,7 +187,7 @@ public:
 	/// if you want them to be sorted.
 	/// If there are not enough points in the data set to fill the
 	/// neighbor array, the empty ones will have an index of INVALID_INDEX.
-	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector) = 0;
+	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& inputVector) = 0;
 
 	using GNeighborFinder::neighbors;
 };
@@ -211,7 +211,7 @@ public:
 	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
 
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
-	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector);
+	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& inputVector);
 };
 
 
@@ -245,7 +245,7 @@ public:
 	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
 
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
-	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector);
+	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& inputVector);
 
 	/// Specify the max number of point-vectors to store in each leaf node.
 	void setMaxLeafSize(size_t n) { m_maxLeafSize = n; }
@@ -264,7 +264,7 @@ public:
 
 protected:
 	/// This is the helper method that finds the neighbors
-	void findNeighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector, size_t nExclude);
+	void findNeighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& inputVector, size_t nExclude);
 
 	/// Computes a good pivot for the specified attribute, and the goodness of splitting on
 	/// that attribute. For continuous attributes, the pivot is the (not scaled) mean and the goodness is
@@ -310,7 +310,7 @@ public:
 	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
 
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
-	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector);
+	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& inputVector);
 
 	/// Specify the max number of point-vectors to store in each leaf node.
 	void setMaxLeafSize(size_t n) { m_maxLeafSize = n; }
@@ -337,7 +337,7 @@ protected:
 	GBallNode* buildTree(size_t count, size_t* pIndexes);
 
 	/// This is the helper method that finds the neighbors
-	void findNeighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector, size_t nExclude);
+	void findNeighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& inputVector, size_t nExclude);
 };
 
 
