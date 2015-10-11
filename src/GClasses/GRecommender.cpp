@@ -375,7 +375,7 @@ GBaselineRecommender::GBaselineRecommender()
 GBaselineRecommender::GBaselineRecommender(GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
-	m_pRatings.deserialize(pNode->field("ratings"));
+	m_ratings.deserialize(pNode->field("ratings"));
 }
 
 // virtual
@@ -396,11 +396,11 @@ void GBaselineRecommender::train(GMatrix& data)
 		throw Ex("column 1 (item) indexes out of range");
 
 	// Allocate space
-	m_pRatings.resize(m_items);
+	m_ratings.resize(m_items);
 	size_t* pCounts = new size_t[m_items];
 	ArrayHolder<size_t> hCounts(pCounts);
 	size_t* pC = pCounts;
-	GVec& rr = m_pRatings;
+	GVec& rr = m_ratings;
 	for(size_t i = 0; i < m_items; i++)
 	{
 		pC[i] = 0;
@@ -421,7 +421,7 @@ double GBaselineRecommender::predict(size_t user, size_t item)
 {
 	if(item >= m_items)
 		return 0.0;
-	return m_pRatings[item];
+	return m_ratings[item];
 }
 
 // virtual
@@ -432,7 +432,7 @@ void GBaselineRecommender::impute(GVec& vec, size_t dims)
 	for(i = 0; i < n; i++)
 	{
 		if(vec[i] == UNKNOWN_REAL_VALUE)
-			vec[i] = m_pRatings[i];
+			vec[i] = m_ratings[i];
 	}
 	for( ; i < dims; i++)
 	{
@@ -445,7 +445,7 @@ void GBaselineRecommender::impute(GVec& vec, size_t dims)
 GDomNode* GBaselineRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBaselineRecommender");
-	pNode->addField(pDoc, "ratings", m_pRatings.serialize(pDoc));
+	pNode->addField(pDoc, "ratings", m_ratings.serialize(pDoc));
 	return pNode;
 }
 

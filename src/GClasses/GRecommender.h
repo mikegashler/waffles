@@ -144,7 +144,7 @@ protected:
 class GBaselineRecommender : public GCollaborativeFilter
 {
 protected:
-	GVec m_pRatings;
+	GVec m_ratings;
 	size_t m_items;
 
 public:

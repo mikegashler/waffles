@@ -39,7 +39,7 @@ GLinearRegressor::GLinearRegressor(GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode, ll)
 {
 	m_pBeta = new GMatrix(pNode->field("beta"));
-	m_pEpsilon.deserialize(pNode->field("epsilon"));
+	m_epsilon.deserialize(pNode->field("epsilon"));
 }
 
 // virtual
@@ -53,7 +53,7 @@ GDomNode* GLinearRegressor::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GLinearRegressor");
 	pNode->addField(pDoc, "beta", m_pBeta->serialize(pDoc));
-	pNode->addField(pDoc, "epsilon", m_pEpsilon.serialize(pDoc));
+	pNode->addField(pDoc, "epsilon", m_epsilon.serialize(pDoc));
 	return pNode;
 }
 /*
@@ -81,7 +81,7 @@ public:
 
 	virtual double computeError(const double* pVector)
 	{
-		GVec::copy(m_pLR->m_pEpsilon, pVector, m_pLR->m_pBeta->rows());
+		GVec::copy(m_pLR->m_epsilon, pVector, m_pLR->m_pBeta->rows());
 		pVector += m_pLR->m_pBeta->rows();
 		m_pLR->m_pBeta->fromVector(pVector, m_pLR->m_pBeta->rows());
 		double sse = m_pLR->sumSquaredErrorInternal(m_feat, m_lab);
@@ -95,7 +95,7 @@ void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learnin
 	GMomentumGreedySearch hc(&tf);
 	hc.searchUntil(100, 100, 0.0001);
 	double* pVector = hc.currentVector();
-	GVec::copy(m_pEpsilon, pVector, m_pBeta->rows());
+	GVec::copy(m_epsilon, pVector, m_pBeta->rows());
 	pVector += m_pBeta->rows();
 	m_pBeta->fromVector(pVector, m_pBeta->rows());
 }
@@ -118,7 +118,7 @@ void GLinearRegressor::refine(const GMatrix& features, const GMatrix& labels, do
 			const GVec& lab = labels[*pIndex];
 			for(size_t k = 0; k < lDims; k++)
 			{
-				double err = lab[k] - (feat.dotProduct(m_pBeta->row(k)) + m_pEpsilon[k]);
+				double err = lab[k] - (feat.dotProduct(m_pBeta->row(k)) + m_epsilon[k]);
 				double lr = learningRate;
 				double mag = 0.0;
 				for(size_t l = 0; l < fDims; l++)
@@ -132,7 +132,7 @@ void GLinearRegressor::refine(const GMatrix& features, const GMatrix& labels, do
 				GVec& w = m_pBeta->row(k);
 				for(size_t l = 0; l < fDims; l++)
 					w[l] += feat[l] * lr * err;
-				m_pEpsilon[k] += learningRate * err;
+				m_epsilon[k] += learningRate * err;
 			}
 			pIndex++;
 		}
@@ -167,11 +167,11 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 		l[i].set(pca.basis()->row(i).data() + inputs, outputs);
 	}
 	m_pBeta = GMatrix::multiply(l, f, true, false);
-	m_pEpsilon.resize(outputs);
+	m_epsilon.resize(outputs);
 	GVecWrapper vw(pca.centroid().data(), m_pBeta->cols());
-	m_pBeta->multiply(vw.vec(), m_pEpsilon, false);
-	m_pEpsilon *= -1.0;
-	GVec::add(m_pEpsilon.data(), pca.centroid().data() + inputs, outputs);
+	m_pBeta->multiply(vw.vec(), m_epsilon, false);
+	m_epsilon *= -1.0;
+	GVec::add(m_epsilon.data(), pca.centroid().data() + inputs, outputs);
 
 	// Refine the results using gradient descent
 	refine(features, labels, 0.06, 20, 0.75);
@@ -187,7 +187,7 @@ void GLinearRegressor::predictDistribution(const GVec& in, GPrediction* pOut)
 void GLinearRegressor::predict(const GVec& in, GVec& out)
 {
 	m_pBeta->multiply(in, out, false);
-	out += m_pEpsilon;
+	out += m_epsilon;
 }
 
 // virtual
@@ -273,7 +273,7 @@ GLinearDistribution::GLinearDistribution(GDomNode* pNode, GLearnerLoader& ll)
 	m_noiseDev = pNode->field("nd")->asDouble();
 	m_pWBar = new GMatrix(pNode->field("w"));
 	m_pAInv = new GMatrix(pNode->field("a"));
-	m_pBuf.resize(m_pAInv->rows());
+	m_buf.resize(m_pAInv->rows());
 }
 
 // virtual
@@ -362,7 +362,7 @@ void GLinearDistribution::trainInner(const GMatrix& features, const GMatrix& lab
 	m_pWBar = GMatrix::multiply(xy, *m_pAInv, true, true);
 	GAssert(m_pWBar->cols() == dims);
 	GAssert(m_pWBar->rows() == labelDims);
-	m_pBuf.resize(dims);
+	m_buf.resize(dims);
 }
 
 // virtual
@@ -374,8 +374,8 @@ void GLinearDistribution::predict(const GVec& in, GVec& out)
 // virtual
 void GLinearDistribution::predictDistribution(const GVec& in, GPrediction* out)
 {
-	m_pAInv->multiply(in, m_pBuf);
-	double v = in.dotProduct(m_pBuf);
+	m_pAInv->multiply(in, m_buf);
+	double v = in.dotProduct(m_buf);
 	for(size_t i = 0; i < m_pWBar->rows(); i++)
 	{
 		GNormalDistribution* pNorm = (*out).makeNormal();

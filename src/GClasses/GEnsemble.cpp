@@ -63,7 +63,7 @@ GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	size_t accumulatorDims = (size_t)pNode->field("accum")->asInt();
-	m_pAccumulator.resize(accumulatorDims);
+	m_accumulator.resize(accumulatorDims);
 	m_workerThreads = (size_t)pNode->field("threads")->asInt();
 	GDomNode* pModels = pNode->field("models");
 	GDomListIterator it(pModels);
@@ -88,7 +88,7 @@ GEnsemble::~GEnsemble()
 void GEnsemble::serializeBase(GDom* pDoc, GDomNode* pNode) const
 {
 	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
-	pNode->addField(pDoc, "accum", pDoc->newInt(m_pAccumulator.size()));
+	pNode->addField(pDoc, "accum", pDoc->newInt(m_accumulator.size()));
 	pNode->addField(pDoc, "threads", pDoc->newInt(m_workerThreads));
 	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
 	for(size_t i = 0; i < m_models.size(); i++)
@@ -101,7 +101,7 @@ void GEnsemble::clearBase()
 		(*it)->m_pModel->clear();
 	delete(m_pLabelRel);
 	m_pLabelRel = NULL;
-	m_pAccumulator.resize(0);
+	m_accumulator.resize(0);
 	delete(m_pPredictMaster);
 	m_pPredictMaster = NULL;
 }
@@ -123,7 +123,7 @@ void GEnsemble::trainInner(const GMatrix& features, const GMatrix& labels)
 		else
 			nAccumulatorDims += 2; // mean and variance
 	}
-	m_pAccumulator.resize(nAccumulatorDims);
+	m_accumulator.resize(nAccumulatorDims);
 
 	trainInnerInner(features, labels);
 }
@@ -149,15 +149,15 @@ void GEnsemble::castVote(double weight, const GVec& out)
 		{
 			int nVal = (int)out[i];
 			if(nVal >= 0 && nVal < (int)nValues)
-				m_pAccumulator[pos + nVal] += weight;
+				m_accumulator[pos + nVal] += weight;
 			pos += nValues;
 		}
 		else
 		{
 			double dVal = out[i];
-			m_pAccumulator[pos] += (weight * dVal);
+			m_accumulator[pos] += (weight * dVal);
 			pos++;
-			m_pAccumulator[pos] += (weight * (dVal * dVal));
+			m_accumulator[pos] += (weight * (dVal * dVal));
 			pos++;
 		}
 	}
@@ -173,17 +173,17 @@ void GEnsemble::tally(GPrediction* out)
 		size_t nValues = m_pLabelRel->valueCount(i);
 		if(nValues > 0)
 		{
-			out[i].makeCategorical()->setValues(nValues, &m_pAccumulator[nDims]);
+			out[i].makeCategorical()->setValues(nValues, &m_accumulator[nDims]);
 			nDims += nValues;
 		}
 		else
 		{
-			mean = m_pAccumulator[nDims];
-			out[i].makeNormal()->setMeanAndVariance(mean, m_pAccumulator[nDims + 1] - (mean * mean));
+			mean = m_accumulator[nDims];
+			out[i].makeNormal()->setMeanAndVariance(mean, m_accumulator[nDims + 1] - (mean * mean));
 			nDims += 2;
 		}
 	}
-	GAssert(nDims == m_pAccumulator.size()); // invalid dim count
+	GAssert(nDims == m_accumulator.size()); // invalid dim count
 }
 
 void GEnsemble::tally(GVec& out)
@@ -195,16 +195,16 @@ void GEnsemble::tally(GVec& out)
 		size_t nValues = m_pLabelRel->valueCount(i);
 		if(nValues > 0)
 		{
-			out[i] = (double)m_pAccumulator.indexOfMax(nDims, nDims + nValues) - nDims;
+			out[i] = (double)m_accumulator.indexOfMax(nDims, nDims + nValues) - nDims;
 			nDims += nValues;
 		}
 		else
 		{
-			out[i] = m_pAccumulator[nDims];
+			out[i] = m_accumulator[nDims];
 			nDims += 2;
 		}
 	}
-	GAssert(nDims == m_pAccumulator.size()); // invalid dim count
+	GAssert(nDims == m_accumulator.size()); // invalid dim count
 }
 
 class GEnsemblePredictWorker : public GWorkerThread
@@ -237,7 +237,7 @@ public:
 // virtual
 void GEnsemble::predict(const GVec& in, GVec& out)
 {
-	m_pAccumulator.fill(0.0);
+	m_accumulator.fill(0.0);
 	m_pPredictInput = &in;
 	if(!m_pPredictMaster)
 	{
@@ -253,7 +253,7 @@ void GEnsemble::predict(const GVec& in, GVec& out)
 void GEnsemble::predictDistribution(const GVec& in, GPrediction* out)
 {
 	GVec tmp(m_pLabelRel->size());
-	m_pAccumulator.fill(0.0);
+	m_accumulator.fill(0.0);
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 	{
 		GWeightedModel* pWM = *it;

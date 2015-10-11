@@ -46,7 +46,6 @@
 #include "GOptimizer.h"
 #include "GRand.h"
 #include "GSparseMatrix.h"
-#include "GSystemLearner.h"
 #include "GTime.h"
 #include "GTransform.h"
 #include "GDom.h"

@@ -341,21 +341,21 @@ GMultivariateNormalDistribution::GMultivariateNormalDistribution(const GVec& mea
 {
 	GAssert(pCovariance->rows() == (size_t)pCovariance->cols()); // pCovariance should be a square matrix
 	m_nDims = pCovariance->rows();
-	m_pMean.resize(m_nDims);
-	m_pVector1.resize(m_nDims);
-	m_pVector2.resize(m_nDims);
-	m_pMean = mean;
+	m_mean.resize(m_nDims);
+	m_vector1.resize(m_nDims);
+	m_vector2.resize(m_nDims);
+	m_mean = mean;
 	precompute(pCovariance);
 }
 
 GMultivariateNormalDistribution::GMultivariateNormalDistribution(GMatrix* pData, size_t nDims)
 {
 	m_nDims = nDims;
-	m_pMean.resize(m_nDims);
-	m_pVector1.resize(m_nDims);
-	m_pVector2.resize(m_nDims);
+	m_mean.resize(m_nDims);
+	m_vector1.resize(m_nDims);
+	m_vector2.resize(m_nDims);
 	for(size_t i = 0; i < nDims; i++)
-		m_pMean[i] = pData->columnMean(i);
+		m_mean[i] = pData->columnMean(i);
 	GMatrix* pCov = pData->covarianceMatrix();
 	Holder<GMatrix> hCov(pCov);
 	precompute(pCov);
@@ -369,17 +369,17 @@ GMultivariateNormalDistribution::~GMultivariateNormalDistribution()
 
 double GMultivariateNormalDistribution::likelihood(const GVec& x)
 {
-	m_pVector1 = x - m_pMean;
-	m_pInverseCovariance->multiply(m_pVector1/*in*/, m_pVector2/*out*/, false);
-	return m_dScale * exp(-0.5 * m_pVector1.dotProduct(m_pVector2));
+	m_vector1 = x - m_mean;
+	m_pInverseCovariance->multiply(m_vector1/*in*/, m_vector2/*out*/, false);
+	return m_dScale * exp(-0.5 * m_vector1.dotProduct(m_vector2));
 }
 
 void GMultivariateNormalDistribution::randomVector(GRand* pRand, GVec& out)
 {
 	for(size_t i = 0; i < m_nDims; i++)
-		m_pVector1[i] = pRand->normal();
-	m_pCholesky->multiply(m_pVector1, out, false);
-	out += m_pMean;
+		m_vector1[i] = pRand->normal();
+	m_pCholesky->multiply(m_vector1, out, false);
+	out += m_mean;
 }
 
 void GMultivariateNormalDistribution::precompute(GMatrix* pCovariance)

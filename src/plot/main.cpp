@@ -40,7 +40,6 @@
 #include "../GClasses/GNeighborFinder.h"
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GManifold.h"
-#include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GSelfOrganizingMap.h"
 #include "../GClasses/usage.h"
 #include <time.h>

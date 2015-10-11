@@ -92,7 +92,7 @@ void GQLearner::refinePolicyAndChooseNextAction(const double* pSenses, double* p
 // -----------------------------------------------------------------
 
 GIncrementalLearnerQAgent::GIncrementalLearnerQAgent(const GRelation& obsControlRelation, GIncrementalLearner* pQTable, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator, double softMaxThresh)
-: GQLearner(obsControlRelation, actionDims, pInitialState, pRand, pActionIterator), m_pBuf(m_senseDims + m_actionDims)
+: GQLearner(obsControlRelation, actionDims, pInitialState, pRand, pActionIterator), m_buf(m_senseDims + m_actionDims)
 {
 	// Enable incremental learning
 	m_pQTable = pQTable;
@@ -113,10 +113,10 @@ GIncrementalLearnerQAgent::~GIncrementalLearnerQAgent()
 // virtual
 double GIncrementalLearnerQAgent::getQValue(const double* pState, const double* pAction)
 {
-	GVec::copy(m_pBuf.data(), pState, m_senseDims);
-	GVec::copy(m_pBuf.data() + m_senseDims, pAction, m_actionDims);
+	GVec::copy(m_buf.data(), pState, m_senseDims);
+	GVec::copy(m_buf.data() + m_senseDims, pAction, m_actionDims);
 	GVec out(1);
-	m_pQTable->predict(m_pBuf, out);
+	m_pQTable->predict(m_buf, out);
 	GAssert(out[0] > -1e200);
 	return out[0];
 }
@@ -124,11 +124,11 @@ double GIncrementalLearnerQAgent::getQValue(const double* pState, const double* 
 // virtual
 void GIncrementalLearnerQAgent::setQValue(const double* pState, const double* pAction, double qValue)
 {
-	GVec::copy(m_pBuf.data(), pState, m_senseDims);
-	GVec::copy(m_pBuf.data() + m_senseDims, pAction, m_actionDims);
+	GVec::copy(m_buf.data(), pState, m_senseDims);
+	GVec::copy(m_buf.data() + m_senseDims, pAction, m_actionDims);
 	GVec tmp(1);
 	tmp[0] = qValue;
-	m_pQTable->trainIncremental(m_pBuf, tmp);
+	m_pQTable->trainIncremental(m_buf, tmp);
 }
 
 // virtual

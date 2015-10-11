@@ -63,7 +63,7 @@ class GEnsemble : public GSupervisedLearner
 protected:
 	GRelation* m_pLabelRel;
 	std::vector<GWeightedModel*> m_models;
-	GVec m_pAccumulator; // a buffer for tallying votes (ballot box?)
+	GVec m_accumulator; // a buffer for tallying votes (ballot box?)
 
 	size_t m_workerThreads;
 	GMasterThread* m_pPredictMaster;

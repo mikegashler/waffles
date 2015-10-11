@@ -744,9 +744,9 @@ class GMultivariateNormalDistribution : public GDistribution
 protected:
 	size_t m_nDims;
 	double m_dScale;
-	GVec m_pMean;
-	GVec m_pVector1;
-	GVec m_pVector2;
+	GVec m_mean;
+	GVec m_vector1;
+	GVec m_vector2;
 	GMatrix* m_pInverseCovariance;
 	GMatrix* m_pCholesky;
 

@@ -36,7 +36,7 @@ class GLinearRegressor : public GSupervisedLearner
 {
 protected:
 	GMatrix* m_pBeta;
-	GVec m_pEpsilon;
+	GVec m_epsilon;
 
 public:
 	GLinearRegressor();
@@ -63,7 +63,7 @@ public:
 	GMatrix* beta() { return m_pBeta; }
 
 	/// Returns the vector that is added to the results after the linear transformation is applied.
-	GVec& epsilon() { return m_pEpsilon; }
+	GVec& epsilon() { return m_epsilon; }
 
 	/// Performs on-line gradient descent to refine the model
 	void refine(const GMatrix& features, const GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor);
@@ -103,7 +103,7 @@ protected:
 	double m_noiseDev;
 	GMatrix* m_pAInv;
 	GMatrix* m_pWBar;
-	GVec m_pBuf;
+	GVec m_buf;
 
 public:
 	/// General-purpose constructor

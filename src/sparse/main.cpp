@@ -41,7 +41,6 @@
 #include "../GClasses/GHtml.h"
 #include "../GClasses/GText.h"
 #include "../GClasses/GDirList.h"
-#include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GTime.h"
 #include "../GClasses/GTransform.h"
 #include "../GClasses/GDom.h"

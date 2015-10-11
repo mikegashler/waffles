@@ -1392,8 +1392,8 @@ GDiscretize::GDiscretize(GDomNode* pNode, GLearnerLoader& ll)
 {
 	m_bucketsIn = (size_t)pNode->field("bucketsIn")->asInt();
 	m_bucketsOut = (size_t)pNode->field("bucketsOut")->asInt();
-	m_pMins.deserialize(pNode->field("mins"));
-	m_pRanges.deserialize(pNode->field("ranges"));
+	m_mins.deserialize(pNode->field("mins"));
+	m_ranges.deserialize(pNode->field("ranges"));
 }
 
 // virtual
@@ -1407,8 +1407,8 @@ GDomNode* GDiscretize::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GDiscretize");
 	pNode->addField(pDoc, "bucketsIn", pDoc->newInt(m_bucketsIn));
 	pNode->addField(pDoc, "bucketsOut", pDoc->newInt(m_bucketsOut));
-	pNode->addField(pDoc, "mins", m_pMins.serialize(pDoc));
-	pNode->addField(pDoc, "ranges", m_pRanges.serialize(pDoc));
+	pNode->addField(pDoc, "mins", m_mins.serialize(pDoc));
+	pNode->addField(pDoc, "ranges", m_ranges.serialize(pDoc));
 	return pNode;
 }
 
@@ -1431,21 +1431,21 @@ GRelation* GDiscretize::trainInner(const GMatrix& data)
 	}
 
 	// Determine the boundaries
-	m_pMins.resize(nAttrCount);
-	m_pRanges.resize(nAttrCount);
+	m_mins.resize(nAttrCount);
+	m_ranges.resize(nAttrCount);
 	for(size_t i = 0; i < nAttrCount; i++)
 	{
 		size_t nValues = before().valueCount(i);
 		if(nValues > 0)
 		{
-			m_pMins[i] = 0;
-			m_pRanges[i] = 0;
+			m_mins[i] = 0;
+			m_ranges[i] = 0;
 		}
 		else
 		{
-			m_pMins[i] = data.columnMin(i);
-			m_pRanges[i] = data.columnMax(i) - m_pMins[i];
-			m_pRanges[i] = std::max(m_pRanges[i], 1e-9);
+			m_mins[i] = data.columnMin(i);
+			m_ranges[i] = data.columnMax(i) - m_mins[i];
+			m_ranges[i] = std::max(m_ranges[i], 1e-9);
 		}
 	}
 	return pRelationAfter;
@@ -1461,7 +1461,7 @@ GRelation* GDiscretize::trainInner(const GRelation& relation)
 // virtual
 void GDiscretize::transform(const GVec& in, GVec& out)
 {
-	if(m_pMins.size() == 0)
+	if(m_mins.size() == 0)
 		throw Ex("Train was not called");
 	size_t nAttrCount = before().size();
 	for(size_t i = 0; i < nAttrCount; i++)
@@ -1470,14 +1470,14 @@ void GDiscretize::transform(const GVec& in, GVec& out)
 		if(nValues > 0)
 			out[i] = in[i];
 		else
-			out[i] = std::max(0, std::min((int)(m_bucketsOut - 1), (int)(((in[i] - m_pMins[i]) * m_bucketsOut) / m_pRanges[i])));
+			out[i] = std::max(0, std::min((int)(m_bucketsOut - 1), (int)(((in[i] - m_mins[i]) * m_bucketsOut) / m_ranges[i])));
 	}
 }
 
 // virtual
 void GDiscretize::untransform(const GVec& in, GVec& out)
 {
-	if(m_pMins.size() == 0)
+	if(m_mins.size() == 0)
 		throw Ex("Train was not called");
 	size_t nAttrCount = before().size();
 	for(size_t i = 0; i < nAttrCount; i++)
@@ -1486,14 +1486,14 @@ void GDiscretize::untransform(const GVec& in, GVec& out)
 		if(nValues > 0)
 			out[i] = in[i];
 		else
-			out[i] = (((double)in[i] + .5) * m_pRanges[i]) / m_bucketsOut + m_pMins[i];
+			out[i] = (((double)in[i] + .5) * m_ranges[i]) / m_bucketsOut + m_mins[i];
 	}
 }
 
 // virtual
 void GDiscretize::untransformToDistribution(const GVec& in, GPrediction* out)
 {
-	if(m_pMins.size() == 0)
+	if(m_mins.size() == 0)
 		throw Ex("Train was not called");
 	size_t attrCount = before().size();
 	for(size_t i = 0; i < attrCount; i++)
@@ -1502,7 +1502,7 @@ void GDiscretize::untransformToDistribution(const GVec& in, GPrediction* out)
 		if(nValues > 0)
 			out[i].makeCategorical()->setSpike(nValues, (size_t)in[i], 1);
 		else
-			out[i].makeNormal()->setMeanAndVariance((((double)in[i] + .5) * m_pRanges[i]) / m_bucketsOut + m_pMins[i], m_pRanges[i] * m_pRanges[i]);
+			out[i].makeNormal()->setMeanAndVariance((((double)in[i] + .5) * m_ranges[i]) / m_bucketsOut + m_mins[i], m_ranges[i] * m_ranges[i]);
 	}
 }
 

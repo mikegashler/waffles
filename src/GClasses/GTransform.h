@@ -626,8 +626,8 @@ class GDiscretize : public GIncrementalTransform
 {
 protected:
 	size_t m_bucketsIn, m_bucketsOut;
-	GVec m_pMins;
-	GVec m_pRanges;
+	GVec m_mins;
+	GVec m_ranges;
 
 public:
 	/// if buckets is less than 0, then it will use the floor of the square root of the number of rows in the data
