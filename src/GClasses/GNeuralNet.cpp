@@ -1775,6 +1775,95 @@ void GNeuralNet::test()
 
 
 
+GBackPropThroughTime::GBackPropThroughTime(GNeuralNet& transition, GNeuralNet& observation, size_t unfoldDepth)
+: m_transition(transition), m_observation(observation), m_unfoldDepth(unfoldDepth), m_errorNormalizationTerm(0.0)
+{
+	/// Check parameters
+	if(unfoldDepth < 1)
+		throw Ex("unfoldDepth must be > 0");
+	if(observation.layer(0).inputs() < transition.outputLayer().outputs())
+		throw Ex("The observation function must accept at least as many inputs as the transition function outputs");
+	m_obsParamCount = observation.layer(0).inputs() - transition.outputLayer().outputs();
+
+	/// Create the unfolded instances
+	for(size_t i = 0; i < m_unfoldDepth; i++)
+	{
+		GNeuralNet* pNN = new GNeuralNet();
+		m_parts.push_back(pNN);
+		pNN->copyStructure(&transition);
+	}
+
+	// Allocate a buffer
+	m_buf = new double[std::max(transition.layer(0).inputs(), observation.layer(0).inputs())];
+	m_unfoldReciprocal = 1.0 / m_unfoldDepth;
+}
+
+GBackPropThroughTime::~GBackPropThroughTime()
+{
+	for(size_t i = 0; i < m_parts.size(); i++)
+		delete(m_parts[i]);
+	delete[] m_buf;
+}
+
+void GBackPropThroughTime::trainIncremental(const GVec& initialState, const GMatrix& controls, const GVec& obsParams, const GVec& targetObs)
+{
+	size_t transInputs = m_transition.layer(0).inputs();
+	size_t transOutputs = m_transition.outputLayer().outputs();
+	size_t obsInputs = m_observation.layer(0).inputs();
+	GAssert(initialState.size() == transOutputs);
+	GAssert(initialState.size() + controls.cols() == transInputs);
+	GAssert(controls.rows() == m_unfoldDepth);
+	GAssert(obsParams.size() == m_obsParamCount);
+	GAssert(targetObs.size() == m_observation.outputLayer().outputs());
+	GVecWrapper vwTrans(m_buf, transInputs);
+	GVecWrapper vwObs(m_buf, obsInputs);
+
+	// Forward Prop
+	GVec::copy(m_buf, initialState.data(), transOutputs);
+	for(size_t i = 0; i < m_unfoldDepth; i++)
+	{
+		GVec::copy(m_buf + transOutputs, controls[i].data(), transInputs - transOutputs);
+		m_parts[i]->forwardProp(vwTrans.vec());
+		GVec::copy(m_buf, m_parts[i]->outputLayer().activation().data(), transOutputs);
+	}
+	GVec::copy(m_buf + transOutputs, obsParams.data(), obsInputs - transOutputs);
+	m_observation.forwardProp(vwObs.vec());
+
+	// Back Prop
+	double errMag = m_observation.backpropagateAndNormalizeErrors(targetObs, m_errorNormalizationTerm);
+	GNeuralNet* pDownStreamNet = &m_observation;
+	for(size_t i = m_unfoldDepth - 1; i < m_unfoldDepth; i--)
+	{
+		pDownStreamNet->layer(0).backPropError(&m_parts[i]->outputLayer());
+		m_parts[i]->backpropagateFromLayerAndNormalizeErrors(&pDownStreamNet->layer(0), errMag, m_errorNormalizationTerm);
+		pDownStreamNet = m_parts[i];
+	}
+
+	// Update weights
+	GVec::copy(m_buf, initialState.data(), transOutputs);
+	for(size_t i = 0; i < m_unfoldDepth; i++)
+	{
+		m_transition.copyErrors(m_parts[i]);
+		GVec::copy(m_buf + transOutputs, controls[i].data(), transInputs - transOutputs);
+		m_transition.descendGradient(vwTrans.vec(), m_transition.learningRate() * m_unfoldReciprocal, m_transition.momentum());
+		GVec::copy(m_buf, m_parts[i]->outputLayer().activation().data(), transOutputs);
+	}
+	GVec::copy(m_buf + transOutputs, obsParams.data(), obsInputs - transOutputs);
+	m_observation.descendGradient(vwObs.vec(), m_observation.learningRate(), m_observation.momentum());
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 GReservoirNet::GReservoirNet()
 : GIncrementalLearner(), m_pModel(NULL), m_pNN(NULL), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)

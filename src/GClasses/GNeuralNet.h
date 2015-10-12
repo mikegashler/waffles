@@ -361,6 +361,44 @@ protected:
 
 
 
+/// Trains an Elman-style recurrent neural network.
+class GBackPropThroughTime
+{
+protected:
+	GNeuralNet& m_transition;
+	GNeuralNet& m_observation;
+	size_t m_unfoldDepth;
+	double m_unfoldReciprocal;
+	size_t m_obsParamCount;
+	std::vector<GNeuralNet*> m_parts;
+	double* m_buf;
+	double m_errorNormalizationTerm;
+
+public:
+	/// The purpose of this class is to train "transition" and "observation".
+	/// transition provides the layers in the recurrent portion of the Elman-style network.
+	/// observation provides the layers that follow the recurrent portion of the Elman-style network.
+	/// k is the number of times the transition portion will occur in the unfolded network.
+	/// It is assumed that transition.beginIncrementalLearning and observation.beginIncrementalLearning
+	/// have already been called before they were passed to this class.
+	GBackPropThroughTime(GNeuralNet& transition, GNeuralNet& observation, size_t unfoldDepth);
+	~GBackPropThroughTime();
+
+	void setErrorNormalizationTerm(double d)
+	{
+		m_errorNormalizationTerm = d;
+	}
+
+	/// initialState is the initial values for the first part of the input into the transition function.
+	/// controls should provide a control vector (concatenated after the state) for each unfolding of the transition function.
+	/// obsParams provides any additional values fed into the observation function. In most cases, it will be NULL.
+	/// targetObs provides the target outputs, or labels.
+	void trainIncremental(const GVec& initialState, const GMatrix& controls, const GVec& obsParams, const GVec& targetObs);
+};
+
+
+
+
 /// This model uses a randomely-initialized network to map the inputs into
 /// a higher-dimensional space, and it uses a layer of perceptrons to learn
 /// in this augmented space.
