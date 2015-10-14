@@ -26,7 +26,7 @@
 namespace GClasses {
 
 GNeuralDecomposition::GNeuralDecomposition()
-: GIncrementalLearner(), m_regularization(0.01), m_learningRate(0.001), m_featureScale(1.0), m_featureBias(0.0), m_outputScale(1.0), m_outputBias(0.0), m_linearUnits(1), m_sinusoidUnits(0), m_epochs(1000)
+: GIncrementalLearner(), m_regularization(0.01), m_learningRate(0.001), m_featureScale(1.0), m_featureBias(0.0), m_outputScale(1.0), m_outputBias(0.0), m_linearUnits(10), m_softplusUnits(10), m_sigmoidUnits(10), m_sinusoidUnits(0), m_epochs(1000), m_filterLogarithm(false)
 {
 	m_nn = new GNeuralNet();
 }
@@ -43,7 +43,10 @@ GNeuralDecomposition::GNeuralDecomposition(GDomNode *pNode, GLearnerLoader &ll)
 	m_outputBias = pNode->field("outputBias")->asDouble();
 	m_linearUnits = pNode->field("linearUnits")->asInt();
 	m_sinusoidUnits = pNode->field("sinusoidUnits")->asInt();
+	m_softplusUnits = pNode->field("softplusUnits")->asInt();
+	m_sigmoidUnits = pNode->field("sigmoidUnits")->asInt();
 	m_epochs = pNode->field("epochs")->asInt();
+	m_filterLogarithm = pNode->field("filterLogarithm")->asBool();
 }
 
 GNeuralDecomposition::~GNeuralDecomposition()
@@ -122,14 +125,24 @@ GDomNode *GNeuralDecomposition::serialize(GDom *pDoc) const
 	pNode->addField(pDoc, "outputBias", pDoc->newDouble(m_outputBias));
 	pNode->addField(pDoc, "linearUnits", pDoc->newInt(m_linearUnits));
 	pNode->addField(pDoc, "sinusoidUnits", pDoc->newInt(m_sinusoidUnits));
+	pNode->addField(pDoc, "softplusUnits", pDoc->newInt(m_softplusUnits));
+	pNode->addField(pDoc, "sigmoidUnits", pDoc->newInt(m_sigmoidUnits));
 	pNode->addField(pDoc, "epochs", pDoc->newInt(m_epochs));
+	pNode->addField(pDoc, "filterLogarithm", pDoc->newBool(m_filterLogarithm));
 	return pNode;
 }
 
 void GNeuralDecomposition::predict(const GVec& pIn, GVec& pOut)
 {
 	m_nn->predict(pIn, pOut);
-	pOut[0] = pOut[0] * 0.1 * m_outputScale + m_outputBias;
+	if(m_filterLogarithm)
+	{
+		pOut[0] = exp((pOut[0] * 0.1 * m_outputScale + m_outputBias) * log(10));
+	}
+	else
+	{
+		pOut[0] = pOut[0] * 0.1 * m_outputScale + m_outputBias;
+	}
 }
 
 void GNeuralDecomposition::predictDistribution(const GVec& pIn, GPrediction *pOut)
@@ -208,13 +221,28 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 		}
 		pMix->addComponent(pSine);
 		
-		// g(t); todo: add more than linear
+		// g(t)
+		
 		GLayerClassic *pLinear = new GLayerClassic(featureRel.size(), m_linearUnits, new GActivationIdentity());
 		{
 			// initialize g(t) weights near identity
 			pLinear->setWeightsToIdentity();
 		}
 		pMix->addComponent(pLinear);
+		
+		GLayerClassic *pSoftplus = new GLayerClassic(featureRel.size(), m_softplusUnits, new GActivationSoftPlus());
+		{
+			// initialize g(t) weights near identity
+			pSoftplus->setWeightsToIdentity();
+		}
+		pMix->addComponent(pSoftplus);
+		
+		GLayerClassic *pSigmoid = new GLayerClassic(featureRel.size(), m_sigmoidUnits, new GActivationTanH());
+		{
+			// initialize g(t) weights near identity
+			pSigmoid->setWeightsToIdentity();
+		}
+		pMix->addComponent(pSigmoid);
 	}
 	m_nn->addLayer(pMix);
 	
@@ -240,7 +268,14 @@ void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 	
 	// Filter output
 	GVec out(1);
-	out[0] = 10.0 * (pOut[0] - m_outputBias) / m_outputScale;
+	if(m_filterLogarithm)
+	{
+		out[0] = 10.0 * (log(pOut[0]) / log(10) - m_outputBias) / m_outputScale;
+	}
+	else
+	{
+		out[0] = 10.0 * (pOut[0] - m_outputBias) / m_outputScale;
+	}
 	
 	// Backpropagation
 	m_nn->trainIncremental(in, out);

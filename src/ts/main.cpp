@@ -17,9 +17,6 @@
   our code to be useful, the Waffles team would love to hear how you use it.
 */
 
-// todo: add a unit test for waffles_ts and GNeuralDecomposition
-// todo: add a way to feed in features and labels at the same time
-
 #include <iostream>
 #include <vector>
 #include "../GClasses/GApp.h"
@@ -131,10 +128,16 @@ void Train(GArgReader &args)
 			nd->setLearningRate(args.pop_double());
 		else if(args.if_pop("-linearUnits"))
 			nd->setLinearUnits(args.pop_uint());
+		else if(args.if_pop("-softplusUnits"))
+			nd->setSoftplusUnits(args.pop_uint());
+		else if(args.if_pop("-sigmoidUnits"))
+			nd->setSigmoidUnits(args.pop_uint());
 		else if(args.if_pop("-epochs"))
 			nd->setEpochs(args.pop_uint());
 		else if(args.if_pop("-features"))
 			LoadData(args, hFeatures);
+		else if(args.if_pop("-filterLogarithm"))
+			nd->setFilterLogarithm(true);
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}

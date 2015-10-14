@@ -1910,8 +1910,11 @@ UsageNode* makeTimeSeriesUsageTree()
 		UsageNode *pOpts = pAdd->add("<options>");
 		pOpts->add("-regularization [value]=0.01", "Specify the L1 regularization amount.");
 		pOpts->add("-learningRate [value]=0.001", "Specify the learning rate.");
-		pOpts->add("-linearUnits [value]=1", "Specify the number of linear units to use to augment sinusoid units.");
+		pOpts->add("-linearUnits [value]=10", "Specify the number of linear units to use to augment sinusoid units.");
+		pOpts->add("-softplusUnits [value]=10", "Specify the number of softplus units to use to augment sinusoid units.");
+		pOpts->add("-sigmoidUnits [value]=10", "Specify the number of sigmoid units to use to augment sinusoid units.");
 		pOpts->add("-epochs [value]=1000", "Specify the number of epochs to train the model.");
+		pOpts->add("-filterLogarithm", "Use a logarithmic pre- and post-processing step.");
 		pOpts->add("-features [dataset]", "Specify a features matrix instead of generating one automatically. Must be a single-column matrix in arff format.");
 	}
 	{
