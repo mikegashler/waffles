@@ -152,17 +152,6 @@ void Train(GArgReader &args)
 		}
 		hFeatures.reset(pFeatures);
 	}
-	else
-	{
-		// Preprocess features
-		GMatrix *pFeatures = hFeatures.get();
-		nd->setFeatureScale(pFeatures->columnMax(0) - pFeatures->columnMin(0));
-		nd->setFeatureBias(pFeatures->columnMin(0));
-	}
-	
-	// Preprocess series
-	nd->setOutputScale(pSeries->columnMax(0) - pSeries->columnMin(0));
-	nd->setOutputBias(pSeries->columnMin(0));
 	
 	// Train
 	GMatrix *pFeatures = hFeatures.get();

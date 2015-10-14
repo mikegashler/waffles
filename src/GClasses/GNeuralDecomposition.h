@@ -49,6 +49,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 		void setSinusoidUnits(size_t sinusoidUnits) { m_sinusoidUnits = sinusoidUnits; }
 		void setEpochs(size_t newepochs) { m_epochs = newepochs; }
 		void setFilterLogarithm(bool filterLogarithm) { m_filterLogarithm = filterLogarithm; }
+		void setAutoFilter(bool autoFilter) { m_autoFilter = autoFilter; }
 		
 		GNeuralNet &nn() const { return *m_nn; }
 		double regularization() const { return m_regularization; }
@@ -59,6 +60,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 		double outputBias() const { return m_outputBias; }
 		size_t epochs() const { return m_epochs; }
 		bool filterLogarithm() const { return m_filterLogarithm; }
+		bool autoFilter() const { return m_autoFilter; }
 		
 		// GSupervisedLearner
 		virtual GDomNode* serialize(GDom* pDoc) const;
@@ -80,7 +82,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 		GNeuralNet *m_nn;
 		double m_regularization, m_learningRate, m_featureScale, m_featureBias, m_outputScale, m_outputBias;
 		size_t m_linearUnits, m_softplusUnits, m_sigmoidUnits, m_sinusoidUnits, m_epochs;
-		bool m_filterLogarithm;
+		bool m_filterLogarithm, m_autoFilter;
 };
 
 } // namespace GClasses

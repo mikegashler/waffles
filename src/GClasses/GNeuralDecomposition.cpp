@@ -26,7 +26,7 @@
 namespace GClasses {
 
 GNeuralDecomposition::GNeuralDecomposition()
-: GIncrementalLearner(), m_regularization(0.01), m_learningRate(0.001), m_featureScale(1.0), m_featureBias(0.0), m_outputScale(1.0), m_outputBias(0.0), m_linearUnits(10), m_softplusUnits(10), m_sigmoidUnits(10), m_sinusoidUnits(0), m_epochs(1000), m_filterLogarithm(false)
+: GIncrementalLearner(), m_regularization(0.01), m_learningRate(0.001), m_featureScale(1.0), m_featureBias(0.0), m_outputScale(1.0), m_outputBias(0.0), m_linearUnits(10), m_softplusUnits(10), m_sigmoidUnits(10), m_sinusoidUnits(0), m_epochs(1000), m_filterLogarithm(false), m_autoFilter(true)
 {
 	m_nn = new GNeuralNet();
 }
@@ -47,6 +47,7 @@ GNeuralDecomposition::GNeuralDecomposition(GDomNode *pNode, GLearnerLoader &ll)
 	m_sigmoidUnits = pNode->field("sigmoidUnits")->asInt();
 	m_epochs = pNode->field("epochs")->asInt();
 	m_filterLogarithm = pNode->field("filterLogarithm")->asBool();
+	m_autoFilter = pNode->field("autoFilter")->asBool();
 }
 
 GNeuralDecomposition::~GNeuralDecomposition()
@@ -129,6 +130,7 @@ GDomNode *GNeuralDecomposition::serialize(GDom *pDoc) const
 	pNode->addField(pDoc, "sigmoidUnits", pDoc->newInt(m_sigmoidUnits));
 	pNode->addField(pDoc, "epochs", pDoc->newInt(m_epochs));
 	pNode->addField(pDoc, "filterLogarithm", pDoc->newBool(m_filterLogarithm));
+	pNode->addField(pDoc, "autoFilter", pDoc->newBool(m_autoFilter));
 	return pNode;
 }
 
@@ -165,6 +167,20 @@ void GNeuralDecomposition::trainInner(const GMatrix &features, const GMatrix &la
 	if(m_sinusoidUnits == 0)
 	{
 		m_sinusoidUnits = features.rows();
+	}
+	
+	if(m_autoFilter)
+	{
+		m_featureScale	= features.columnMax(0) - features.columnMin(0);
+		m_featureBias	= features.columnMin(0);
+		m_outputScale	= labels.columnMax(0) - labels.columnMin(0);
+		m_outputBias	= labels.columnMin(0);
+	}
+	
+	if(m_filterLogarithm)
+	{
+		m_outputScale	= log(m_outputScale) / log(10);
+		m_outputBias	= log(m_outputBias) / log(10);
 	}
 	
 	beginIncrementalLearning(features.relation(), labels.relation());
