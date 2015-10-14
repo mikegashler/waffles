@@ -40,7 +40,6 @@
 #include "../GClasses/GNeighborFinder.h"
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GManifold.h"
-#include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GSelfOrganizingMap.h"
 #include "../GClasses/usage.h"
 #include <time.h>
@@ -430,7 +429,7 @@ void PlotBar(GArgReader& args)
 	}
 
 	// Determine the range
-	double* pRow = pData->row(row);
+	GVec& pRow = pData->row(row);
 	if(ymin == UNKNOWN_REAL_VALUE || ymax == UNKNOWN_REAL_VALUE)
 	{
 		ymin = pRow[0];
@@ -1027,7 +1026,7 @@ void makeGridDataSubset(GMatrix* pSource, GMatrix* pDest, size_t horizPos, size_
 		for(size_t i = 0; i < pSource->rows(); i++)
 		{
 			if(pSource->row(i)[vertAttr] == vertValue)
-				pDest->takeRow(pSource->row(i));
+				pDest->takeRow(&pSource->row(i));
 		}
 	}
 	else if(vertAttr == INVALID_INDEX)
@@ -1036,7 +1035,7 @@ void makeGridDataSubset(GMatrix* pSource, GMatrix* pDest, size_t horizPos, size_
 		for(size_t i = 0; i < pSource->rows(); i++)
 		{
 			if(pSource->row(i)[horizAttr] == horizValue)
-				pDest->takeRow(pSource->row(i));
+				pDest->takeRow(&pSource->row(i));
 		}
 	}
 	else
@@ -1046,7 +1045,7 @@ void makeGridDataSubset(GMatrix* pSource, GMatrix* pDest, size_t horizPos, size_
 		for(size_t i = 0; i < pSource->rows(); i++)
 		{
 			if(pSource->row(i)[horizAttr] == horizValue && pSource->row(i)[vertAttr] == vertValue)
-				pDest->takeRow(pSource->row(i));
+				pDest->takeRow(&pSource->row(i));
 		}
 	}
 }
@@ -1314,14 +1313,14 @@ void semanticMap(GArgReader& args){
   if(useVarianceAsLabel){
     //winlist[i] holds the pointers to the rows of the dataset where
     //nodes()[i] is the winner
-    std::vector<std::list<const double*> > winLists(som.nodes().size());
+    std::vector<std::list<const GVec*> > winLists(som.nodes().size());
     for(size_t row = 0; row < hData->rows(); ++row){
-      const double* rowVec = hData->row(row);
+      const GVec& rowVec = hData->row(row);
       size_t bestNode = som.bestMatch(rowVec);
-      winLists.at(bestNode).push_back(rowVec);
+      winLists.at(bestNode).push_back(&rowVec);
     }
     //Calculate the variance of the labelCol column for each node
-    std::vector<std::list<const double*> >::const_iterator list;
+    std::vector<std::list<const GVec*> >::const_iterator list;
     for(list=winLists.begin(); list != winLists.end(); ++list){
       if(list->size() == 0){
 	//No elements in the list, no variance
@@ -1329,11 +1328,11 @@ void semanticMap(GArgReader& args){
       }else{
 	//Copy the appropriate column into a 1-column matrix
 	GMatrix m(0,1);
-	std::list<const double*>::const_iterator l;
+	std::list<const GVec*>::const_iterator l;
 	for(l = list->begin(); l != list->end(); ++l){
 	  m.newRow();
-	  double& val = *(m.row(m.rows()-1));
-	  val = (*l)[labelCol];
+	  double& val = (m.row(m.rows()-1))[0];
+	  val = (*(*l))[labelCol];
 	}
 	//Use the matrix to calculate the variance
 	labels.push_back(m.columnVariance(0, m.columnMean(0)));
@@ -1440,16 +1439,16 @@ void makeHistogram(GArgReader& args)
 			pData->sort(attr);
 			double laplace = 2.0 * (pData->row(pData->rows() - 1)[attr] - pData->row(0)[attr]) / pData->rows();
 			GMatrix invDensity(0, 2);
-			double* pBlock = invDensity.newRow();
+			GVec& pBlock = invDensity.newRow();
 			pBlock[0] = pData->row(0)[attr];
 			pBlock[1] = 0.0;
 			for(size_t i = k - 1; i < pData->rows(); i++)
 			{
 				double xBegin = pData->row(i + 1 - k)[attr];
 				double xEnd = pData->row(i)[attr];
-				double* pBlock = invDensity.newRow();
-				pBlock[0] = 0.5 * (xBegin + xEnd);
-				pBlock[1] = (double)k / ((xEnd - xBegin + laplace) * pData->rows());
+				GVec& pBlock2 = invDensity.newRow();
+				pBlock2[0] = 0.5 * (xBegin + xEnd);
+				pBlock2[1] = (double)k / ((xEnd - xBegin + laplace) * pData->rows());
 			}
 			pBlock = invDensity.newRow();
 			pBlock[0] = pData->row(pData->rows() - 1)[attr];
@@ -1685,8 +1684,8 @@ void calcError(GArgReader& args){
 	}
 	
 	while(args.size() > 0){
-		double *row = output.newRow();
-		*row = 0.0;
+		GVec& row = output.newRow();
+		row[0] = 0.0;
 		
 		size_t col1 = args.pop_uint();
 		size_t col2 = args.pop_uint();
@@ -1703,10 +1702,10 @@ void calcError(GArgReader& args){
 			}
 			
 			if(metric == SSE || metric == RMSE){
-				*row += (loader[i][col1] - loader[i][col2]) * (loader[i][col1] - loader[i][col2]);
+				row[0] += (loader[i][col1] - loader[i][col2]) * (loader[i][col1] - loader[i][col2]);
 			}
 			else if(metric == MAPE){
-				*row += fabs((loader[i][col1] - loader[i][col2]) / loader[i][col1]);
+				row[0] += fabs((loader[i][col1] - loader[i][col2]) / loader[i][col1]);
 			}
 		}
 		
@@ -1714,11 +1713,11 @@ void calcError(GArgReader& args){
 			throw Ex("Invalid data set!");
 		
 		if(metric == MAPE || metric == RMSE)
-			*row /= (loader.rows() - dropped);
+			row[0] /= (loader.rows() - dropped);
 		
 		if(metric == RMSE)
 		{
-			*row = sqrt(*row);
+			row[0] = sqrt(row[0]);
 		}
 	}
 	
@@ -1768,8 +1767,8 @@ void percentSame(GArgReader& args){
   //Count the same values
   vector<size_t> numSame(cols, 0);
   for(size_t row = 0; row < rows; ++row){
-    const double *r1 = hData1->row(row);
-    const double *r2 = hData2->row(row);
+    const GVec& r1 = hData1->row(row);
+    const GVec& r2 = hData2->row(row);
     for(size_t col = 0; col < cols; ++col){
       if(r1[col] == r2[col]){ ++numSame[col]; }
     }

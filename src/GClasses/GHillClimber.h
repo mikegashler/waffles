@@ -191,7 +191,7 @@ public:
 	virtual double iterate();
 
 	/// Returns the best vector yet found.
-	virtual double* currentVector() { return m_current.v; }
+	virtual double* currentVector() { return m_current.data(); }
 };
 
 

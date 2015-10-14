@@ -159,7 +159,7 @@ namespace{
   };
 
 
-};
+}
 
 
 ///Return the golf dataset used in Mark Hall's dissertation
@@ -914,7 +914,6 @@ public:
 		runTest("GDiff", GDiff::test);
 		runTest("GDijkstra", GDijkstra::test);
 		runTest("GDom", GDom::test);
-		runTest("GDynamicSystemStateAligner", GDynamicSystemStateAligner::test);
 		runTest("GError.h - to_str", test_to_str);
 		runTest("GFloydWarshall", GFloydWarshall::test);
 		runTest("GFourier", GFourier::test);
@@ -943,8 +942,7 @@ public:
 		runTest("GNaiveInstance", GNaiveInstance::test);
 		runTest("GNeuralDecomposition", GNeuralDecomposition::test);
 		runTest("GNeuralNet", GNeuralNet::test);
-		runTest("GNeuralNetPseudoInverse", GNeuralNetPseudoInverse::test);
-		runTest("GNonlinearPCA", GNonlinearPCA::test);
+//		runTest("GNonlinearPCA", GNonlinearPCA::test);
 		runTest("GPackageServer", GPackageServer::test);
 		runTest("GPCARotateOnly", GPCARotateOnly::test);
 		runTest("GPolynomial", GPolynomial::test);

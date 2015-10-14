@@ -26,10 +26,10 @@ using namespace GClasses;
 GExtendedKalmanFilter::GExtendedKalmanFilter(int stateDims, int observationDims, int controlDims)
 : m_stateDims(stateDims), m_obsDims(observationDims)
 {
-	m_x = new double[stateDims + observationDims + stateDims];
-	m_z = m_x + stateDims;
-	m_zz = m_z + observationDims;
-	GVec::setAll(m_x, 0.0, stateDims);
+	m_x.resize(stateDims);
+	m_z.resize(observationDims);
+	m_zz.resize(stateDims);
+	m_x.fill(0.0);
 	m_pP = new GMatrix(stateDims, stateDims);
 	m_pP->makeIdentity();
 	for(size_t i = 0; i < m_pP->rows(); i++)
@@ -38,17 +38,16 @@ GExtendedKalmanFilter::GExtendedKalmanFilter(int stateDims, int observationDims,
 
 GExtendedKalmanFilter::~GExtendedKalmanFilter()
 {
-	delete[] m_x;
 	delete(m_pP);
 }
 
-void GExtendedKalmanFilter::advance(const double* pControl, GMatrix* pA)
+void GExtendedKalmanFilter::advance(const GVec& control, GMatrix* pA)
 {
 	// Check values
 	GAssert(pA->rows() == m_stateDims && pA->cols() == m_stateDims); // transition Jacobian wrong size
 
 	// Compute uncorrected next estimated state
-	transition(m_x, pControl);
+	transition(m_x, control);
 
 	// Compute uncorrected next estimated covariance of state
 	GMatrix* pTemp = GMatrix::multiply(*m_pP, *pA, false, true);
@@ -58,7 +57,7 @@ void GExtendedKalmanFilter::advance(const double* pControl, GMatrix* pA)
 	addTransitionNoise(m_pP);
 }
 
-void GExtendedKalmanFilter::correct(const double* pObservation, GMatrix* pH)
+void GExtendedKalmanFilter::correct(const GVec& obs, GMatrix* pH)
 {
 	// Check values
 	GAssert(pH->rows() == m_obsDims && pH->cols() == m_stateDims); // observation Jacobian wrong size
@@ -79,10 +78,10 @@ void GExtendedKalmanFilter::correct(const double* pObservation, GMatrix* pH)
 
 	// Correct the estimated state
 	observation(m_z, m_x);
-	GVec::multiply(m_z, -1.0, m_obsDims);
-	GVec::add(m_z, pObservation, m_obsDims);
+	m_z *= -1.0;
+	m_z += obs;
 	pK->multiply(m_z, m_zz, false);
-	GVec::add(m_x, m_zz, m_stateDims);
+	m_x += m_zz;
 
 	// Correct the estimated covariance of state
 	{

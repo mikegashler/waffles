@@ -73,8 +73,8 @@ of problems because they can generalize for feature vectors that were not availa
 pure virtual methods:</p>
 <pre>
 	virtual void trainInner(GMatrix&amp; features, GMatrix&amp; labels) = 0;
-	virtual void predict(const double* pIn, double* pOut) = 0;
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut) = 0;
+	virtual void predict(const GVec&amp; in, GVec&amp; out) = 0;
+	virtual void predictDistribution(const GVec&amp; in, GPrediction* pOut) = 0;
 	virtual void clear() = 0;
 	virtual GDomNode* serialize(GDom* pDoc) = 0;
 </pre></p>
@@ -95,10 +95,12 @@ in the features matrix passed to trainInner, and it should predict a label vecto
 For example, suppose your algorithm predicts the label of a random row that it draws from its stored instances. (This would be a very
 poor learning algorithm.)</p>
 <pre>
-	virtual void predict(const double* pIn, double* pOut)
+	virtual void predict(const GVec&amp; in, GVec&amp; out)
 	{
+		if(in.size() != m_pStoredFeatures->cols())
+			throw Ex("input vector has unexpected size");
 		size_t index = m_rand.next(m_pStoredLabels->rows());
-		GVec::copy(pOut, m_pStoredLabels->row(index), m_labelDims);
+		out = m_pStoredLabels->row(index);
 	}
 </pre>
 
@@ -106,7 +108,7 @@ poor learning algorithm.)</p>
 If you are feeling lazy, and you are pretty-sure that you will never use your algorithm with any applications that require predicted
 distributions, then it might be reasonable to simply implement this method as follows:</p>
 <pre>
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut)
+	virtual void predictDistribution(const GVec&amp; in, GPrediction* pOut)
 	{
 		throw Ex("Sorry, this method is not yet implemented");
 	}
@@ -116,10 +118,10 @@ For example, Suppose you want to predict a categorical distribution for label el
 over categories 0 and 1, and most of the likelihood on category 2:</p>
 <pre>
 		GCategoricalDistribution* pCat = pOut[0].makeCategorical();
-		double* pVals = pCat->values(3);
-		pVals[0] = 0.1;
-		pVals[1] = 0.1;
-		pVals[2] = 0.9;
+		GVec&amp; vals = pCat->values(3);
+		vals[0] = 0.1;
+		vals[1] = 0.1;
+		vals[2] = 0.9;
 		pCat->normalize();
 </pre>
 <p>and suppose that you wish to predict a Normal distribution for label element 1 with a mean of 0.1 and a variance of 0.2:</p>
@@ -152,7 +154,7 @@ you can implement this method the wimpy way:</p>
 (in addition to all of the methods required by GSupervisedLearner):</p>
 <pre>
 	virtual void enableIncrementalLearning(sp_relation&amp; pFeatureRel, sp_relation&amp; pLabelRel) = 0;
-	virtual void trainIncremental(const double* pIn, const double* pOut) = 0;
+	virtual void trainIncremental(const GVec&amp; in, const GVec&amp; out) = 0;
 	virtual void trainSparse(GSparseMatrix* pData, size_t labelDims) = 0;
 </pre>
 

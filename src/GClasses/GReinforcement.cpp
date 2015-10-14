@@ -92,7 +92,7 @@ void GQLearner::refinePolicyAndChooseNextAction(const double* pSenses, double* p
 // -----------------------------------------------------------------
 
 GIncrementalLearnerQAgent::GIncrementalLearnerQAgent(const GRelation& obsControlRelation, GIncrementalLearner* pQTable, int actionDims, double* pInitialState, GRand* pRand, GAgentActionIterator* pActionIterator, double softMaxThresh)
-: GQLearner(obsControlRelation, actionDims, pInitialState, pRand, pActionIterator)
+: GQLearner(obsControlRelation, actionDims, pInitialState, pRand, pActionIterator), m_buf(m_senseDims + m_actionDims)
 {
 	// Enable incremental learning
 	m_pQTable = pQTable;
@@ -100,7 +100,6 @@ GIncrementalLearnerQAgent::GIncrementalLearnerQAgent(const GRelation& obsControl
 	pQTable->beginIncrementalLearning(obsControlRelation, qRel);
 
 	// Init other stuff
-	m_pBuf = new double[m_senseDims + m_actionDims];
 	m_softMaxThresh = softMaxThresh;
 	m_pActionIterator = pActionIterator;
 	pActionIterator->reset(pInitialState);
@@ -109,26 +108,27 @@ GIncrementalLearnerQAgent::GIncrementalLearnerQAgent(const GRelation& obsControl
 // virtual
 GIncrementalLearnerQAgent::~GIncrementalLearnerQAgent()
 {
-	delete[] m_pBuf;
 }
 
 // virtual
 double GIncrementalLearnerQAgent::getQValue(const double* pState, const double* pAction)
 {
-	GVec::copy(m_pBuf, pState, m_senseDims);
-	GVec::copy(m_pBuf + m_senseDims, pAction, m_actionDims);
-	double out;
-	m_pQTable->predict(m_pBuf, &out);
-	GAssert(out > -1e200);
-	return out;
+	GVec::copy(m_buf.data(), pState, m_senseDims);
+	GVec::copy(m_buf.data() + m_senseDims, pAction, m_actionDims);
+	GVec out(1);
+	m_pQTable->predict(m_buf, out);
+	GAssert(out[0] > -1e200);
+	return out[0];
 }
 
 // virtual
 void GIncrementalLearnerQAgent::setQValue(const double* pState, const double* pAction, double qValue)
 {
-	GVec::copy(m_pBuf, pState, m_senseDims);
-	GVec::copy(m_pBuf + m_senseDims, pAction, m_actionDims);
-	m_pQTable->trainIncremental(m_pBuf, &qValue);
+	GVec::copy(m_buf.data(), pState, m_senseDims);
+	GVec::copy(m_buf.data() + m_senseDims, pAction, m_actionDims);
+	GVec tmp(1);
+	tmp[0] = qValue;
+	m_pQTable->trainIncremental(m_buf, tmp);
 }
 
 // virtual

@@ -54,7 +54,7 @@ GDomNode* GWeightedModel::serialize(GDom* pDoc) const
 
 
 GEnsemble::GEnsemble()
-: GSupervisedLearner(), m_pLabelRel(NULL), m_nAccumulatorDims(0), m_pAccumulator(NULL), m_workerThreads(1), m_pPredictMaster(NULL)
+: GSupervisedLearner(), m_pLabelRel(NULL), m_workerThreads(1), m_pPredictMaster(NULL)
 {
 }
 
@@ -62,8 +62,8 @@ GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode, ll), m_pPredictMaster(NULL)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
-	m_nAccumulatorDims = (size_t)pNode->field("accum")->asInt();
-	m_pAccumulator = new double[m_nAccumulatorDims];
+	size_t accumulatorDims = (size_t)pNode->field("accum")->asInt();
+	m_accumulator.resize(accumulatorDims);
 	m_workerThreads = (size_t)pNode->field("threads")->asInt();
 	GDomNode* pModels = pNode->field("models");
 	GDomListIterator it(pModels);
@@ -80,7 +80,6 @@ GEnsemble::~GEnsemble()
 {
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		delete(*it);
-	delete[] m_pAccumulator;
 	delete(m_pLabelRel);
 	delete(m_pPredictMaster);
 }
@@ -89,7 +88,7 @@ GEnsemble::~GEnsemble()
 void GEnsemble::serializeBase(GDom* pDoc, GDomNode* pNode) const
 {
 	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
-	pNode->addField(pDoc, "accum", pDoc->newInt(m_nAccumulatorDims));
+	pNode->addField(pDoc, "accum", pDoc->newInt(m_accumulator.size()));
 	pNode->addField(pDoc, "threads", pDoc->newInt(m_workerThreads));
 	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
 	for(size_t i = 0; i < m_models.size(); i++)
@@ -102,9 +101,7 @@ void GEnsemble::clearBase()
 		(*it)->m_pModel->clear();
 	delete(m_pLabelRel);
 	m_pLabelRel = NULL;
-	delete[] m_pAccumulator;
-	m_pAccumulator = NULL;
-	m_nAccumulatorDims = 0;
+	m_accumulator.resize(0);
 	delete(m_pPredictMaster);
 	m_pPredictMaster = NULL;
 }
@@ -117,17 +114,16 @@ void GEnsemble::trainInner(const GMatrix& features, const GMatrix& labels)
 
 	// Make the accumulator buffer
 	size_t labelDims = m_pLabelRel->size();
-	m_nAccumulatorDims = 0;
+	size_t nAccumulatorDims = 0;
 	for(size_t i = 0; i < labelDims; i++)
 	{
 		size_t nValues = m_pLabelRel->valueCount(i);
 		if(nValues > 0)
-			m_nAccumulatorDims += nValues;
+			nAccumulatorDims += nValues;
 		else
-			m_nAccumulatorDims += 2; // mean and variance
+			nAccumulatorDims += 2; // mean and variance
 	}
-	delete[] m_pAccumulator;
-	m_pAccumulator = new double[m_nAccumulatorDims];
+	m_accumulator.resize(nAccumulatorDims);
 
 	trainInnerInner(features, labels);
 }
@@ -142,32 +138,32 @@ void GEnsemble::normalizeWeights()
 		(*it)->m_weight *= f;
 }
 
-void GEnsemble::castVote(double weight, const double* pOut)
+void GEnsemble::castVote(double weight, const GVec& out)
 {
 	size_t labelDims = m_pLabelRel->size();
-	double* pAcc = m_pAccumulator;
+	size_t pos = 0;
 	for(size_t i = 0; i < labelDims; i++)
 	{
 		size_t nValues = m_pLabelRel->valueCount(i);
 		if(nValues > 0)
 		{
-			int nVal = (int)pOut[i];
+			int nVal = (int)out[i];
 			if(nVal >= 0 && nVal < (int)nValues)
-				pAcc[nVal] += weight;
-			pAcc += nValues;
+				m_accumulator[pos + nVal] += weight;
+			pos += nValues;
 		}
 		else
 		{
-			double dVal = pOut[i];
-			*pAcc += weight * dVal;
-			pAcc++;
-			*pAcc += weight * (dVal * dVal);
-			pAcc++;
+			double dVal = out[i];
+			m_accumulator[pos] += (weight * dVal);
+			pos++;
+			m_accumulator[pos] += (weight * (dVal * dVal));
+			pos++;
 		}
 	}
 }
 
-void GEnsemble::tally(GPrediction* pOut)
+void GEnsemble::tally(GPrediction* out)
 {
 	size_t labelDims = m_pLabelRel->size();
 	size_t nDims = 0;
@@ -177,20 +173,20 @@ void GEnsemble::tally(GPrediction* pOut)
 		size_t nValues = m_pLabelRel->valueCount(i);
 		if(nValues > 0)
 		{
-			pOut[i].makeCategorical()->setValues(nValues, &m_pAccumulator[nDims]);
+			out[i].makeCategorical()->setValues(nValues, &m_accumulator[nDims]);
 			nDims += nValues;
 		}
 		else
 		{
-			mean = m_pAccumulator[nDims];
-			pOut[i].makeNormal()->setMeanAndVariance(mean, m_pAccumulator[nDims + 1] - (mean * mean));
+			mean = m_accumulator[nDims];
+			out[i].makeNormal()->setMeanAndVariance(mean, m_accumulator[nDims + 1] - (mean * mean));
 			nDims += 2;
 		}
 	}
-	GAssert(nDims == m_nAccumulatorDims); // invalid dim count
+	GAssert(nDims == m_accumulator.size()); // invalid dim count
 }
 
-void GEnsemble::tally(double* pOut)
+void GEnsemble::tally(GVec& out)
 {
 	size_t labelDims = m_pLabelRel->size();
 	size_t nDims = 0;
@@ -199,51 +195,50 @@ void GEnsemble::tally(double* pOut)
 		size_t nValues = m_pLabelRel->valueCount(i);
 		if(nValues > 0)
 		{
-			pOut[i] = (double)GVec::indexOfMax(m_pAccumulator + nDims, nValues, &m_rand);
+			out[i] = (double)m_accumulator.indexOfMax(nDims, nDims + nValues) - nDims;
 			nDims += nValues;
 		}
 		else
 		{
-			pOut[i] = m_pAccumulator[nDims];
+			out[i] = m_accumulator[nDims];
 			nDims += 2;
 		}
 	}
-	GAssert(nDims == m_nAccumulatorDims); // invalid dim count
+	GAssert(nDims == m_accumulator.size()); // invalid dim count
 }
 
 class GEnsemblePredictWorker : public GWorkerThread
 {
 protected:
 	GEnsemble* m_pEnsemble;
-	double* m_pOutBuf;
+	GVec m_prediction;
 
 public:
 	GEnsemblePredictWorker(GMasterThread& master, GEnsemble* pEnsemble, size_t outDims)
 	: GWorkerThread(master), m_pEnsemble(pEnsemble)
 	{
-		m_pOutBuf = new double[outDims];
+		m_prediction.resize(outDims);
 	}
 
 	virtual ~GEnsemblePredictWorker()
 	{
-		delete[] m_pOutBuf;
 	}
 
 	virtual void doJob(size_t jobId)
 	{
-		const double* pIn = (const double*)m_pEnsemble->m_pPredictInput;
+		const GVec& in = *(const GVec*)m_pEnsemble->m_pPredictInput;
 		GWeightedModel* pWM = m_pEnsemble->models()[jobId];
-		pWM->m_pModel->predict(pIn, m_pOutBuf);
+		pWM->m_pModel->predict(in, m_prediction);
 		GSpinLockHolder lockHolder(m_master.getLock(), "GEnsemblePredictWorker::doJob");
-		m_pEnsemble->castVote(pWM->m_weight, m_pOutBuf);
+		m_pEnsemble->castVote(pWM->m_weight, m_prediction);
 	}
 };
 
 // virtual
-void GEnsemble::predict(const double* pIn, double* pOut)
+void GEnsemble::predict(const GVec& in, GVec& out)
 {
-	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
-	m_pPredictInput = pIn;
+	m_accumulator.fill(0.0);
+	m_pPredictInput = &in;
 	if(!m_pPredictMaster)
 	{
 		m_pPredictMaster = new GMasterThread();
@@ -251,21 +246,21 @@ void GEnsemble::predict(const double* pIn, double* pOut)
 			m_pPredictMaster->addWorker(new GEnsemblePredictWorker(*m_pPredictMaster, this, m_models[0]->m_pModel->relLabels().size()));
 	}
 	m_pPredictMaster->doJobs(m_models.size());
-	tally(pOut);
+	tally(out);
 }
 
 // virtual
-void GEnsemble::predictDistribution(const double* pIn, GPrediction* pOut)
+void GEnsemble::predictDistribution(const GVec& in, GPrediction* out)
 {
-	GTEMPBUF(double, pTmp, m_pLabelRel->size());
-	GVec::setAll(m_pAccumulator, 0.0, m_nAccumulatorDims);
+	GVec tmp(m_pLabelRel->size());
+	m_accumulator.fill(0.0);
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 	{
 		GWeightedModel* pWM = *it;
-		pWM->m_pModel->predict(pIn, pTmp);
-		castVote(pWM->m_weight, pTmp);
+		pWM->m_pModel->predict(in, tmp);
+		castVote(pWM->m_weight, tmp);
 	}
-	tally(pOut);
+	tally(out);
 }
 
 
@@ -357,8 +352,8 @@ public:
 		for(size_t j = 0; j < m_drawSize; j++)
 		{
 			size_t r = (size_t)m_rand.next(m_features.rows());
-			m_drawnFeatures.takeRow((double*)m_features[r]); // This case is only okay because we only use drawFeatures as a const GMatrix
-			m_drawnLabels.takeRow((double*)m_labels[r]); // This case is only okay because we only use drawnLabels as a const GMatrix
+			m_drawnFeatures.takeRow((GVec*)&m_features[r]); // This case is only okay because we only use drawFeatures as a const GMatrix
+			m_drawnLabels.takeRow((GVec*)&m_labels[r]); // This case is only okay because we only use drawnLabels as a const GMatrix
 		}
 
 		// Train the learner with the drawn data
@@ -706,7 +701,7 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 	// Train the ensemble
 	size_t labelDims = labels.cols();
 	double penalty = 1.0 / labelDims;
-	GTEMPBUF(double, prediction, labelDims);
+	GVec prediction(labelDims);
 	for(size_t es = 0; es < m_ensembleSize; es++)
 	{
 		// Draw a training set from the distribution
@@ -719,8 +714,8 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 		size_t* pIndex = pDrawnIndexes;
 		for(size_t i = 0; i < drawRows; i++)
 		{
-			drawnFeatures.takeRow((double*)features[*pIndex]);
-			drawnLabels.takeRow((double*)labels[*pIndex]);
+			drawnFeatures.takeRow((GVec*)&features[*pIndex]);
+			drawnLabels.takeRow((GVec*)&labels[*pIndex]);
 			pIndex++;
 		}
 
@@ -734,11 +729,10 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 		for(size_t i = 0; i < features.rows(); i++)
 		{
 			pClone->predict(features[i], prediction);
-			const double* pTarget = labels[i];
-			double* pPred = prediction;
+			const GVec& target = labels[i];
 			for(size_t j = 0; j < labelDims; j++)
 			{
-				if((int)*(pTarget++) != (int)*(pPred++))
+				if((int)target[j] != (int)prediction[j])
 					err += penalty;
 			}
 		}
@@ -757,11 +751,10 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 		{
 			err = 0.0;
 			pClone->predict(features[i], prediction);
-			const double* pTarget = labels[i];
-			double* pPred = prediction;
+			const GVec& target = labels[i];
 			for(size_t j = 0; j < labelDims; j++)
 			{
-				if((int)*(pTarget++) != (int)*(pPred++))
+				if((int)target[j] != (int)prediction[j])
 					err += penalty;
 			}
 			err /= labelDims;
@@ -869,15 +862,15 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GWag::predict(const double* pIn, double* pOut)
+void GWag::predict(const GVec& in, GVec& out)
 {
-	m_pNN->predict(pIn, pOut);
+	m_pNN->predict(in, out);
 }
 
 // virtual
-void GWag::predictDistribution(const double* pIn, GPrediction* pOut)
+void GWag::predictDistribution(const GVec& in, GPrediction* out)
 {
-	m_pNN->predictDistribution(pIn, pOut);
+	m_pNN->predictDistribution(in, out);
 }
 
 
@@ -977,19 +970,19 @@ GSupervisedLearner* GBucket::releaseBestModeler()
 }
 
 // virtual
-void GBucket::predict(const double* pIn, double* pOut)
+void GBucket::predict(const GVec& in, GVec& out)
 {
 	if(m_nBestLearner == INVALID_INDEX)
 		throw Ex("not trained yet");
-	m_models[m_nBestLearner]->predict(pIn, pOut);
+	m_models[m_nBestLearner]->predict(in, out);
 }
 
 // virtual
-void GBucket::predictDistribution(const double* pIn, GPrediction* pOut)
+void GBucket::predictDistribution(const GVec& in, GPrediction* out)
 {
 	if(m_nBestLearner == INVALID_INDEX)
 		throw Ex("not trained yet");
-	m_models[m_nBestLearner]->predictDistribution(pIn, pOut);
+	m_models[m_nBestLearner]->predictDistribution(in, out);
 }
 
 #ifndef NO_TEST_CODE

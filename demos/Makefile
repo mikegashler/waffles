@@ -1,7 +1,7 @@
 SHELL = /bin/bash
 export INSTALL_LOCATION_INCLUDE="/usr/local/include"
 UNAME = $(shell uname -s)
-SUBDIRS= _caronhill _chess _community _fourier_net _hello_console _hello_gui _hello_ml _hello_web _interpolate _manifold _paint _qlearning _raytrace _ubp
+SUBDIRS= _caronhill _chess _community _fourier_net _hello_console _hello_gui _hello_ml _hello_web _interpolate _paint _qlearning _raytrace _ubp
 
 DBG_SUBDIRS= $(SUBDIRS:_%=DBG_%)
 OPT_SUBDIRS= $(SUBDIRS:_%=OPT_%)

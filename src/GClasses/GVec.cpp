@@ -40,26 +40,341 @@ namespace GClasses {
 using std::vector;
 
 GVec::GVec(size_t n)
+: m_size(n)
 {
-	if(n > 0)
-		v = new double[n];
+	if(n == 0)
+		m_data = NULL;
 	else
-		v = NULL;
+		m_data = new double[n];
+}
+
+GVec::GVec(int n)
+: m_size(n)
+{
+	if(n == 0)
+		m_data = NULL;
+	else
+		m_data = new double[n];
+}
+
+GVec::GVec(double d)
+{
+	throw Ex("Calling this method is an error");
+}
+
+GVec::GVec(const GVec& orig)
+{
+	m_size = orig.m_size;
+	if(m_size == 0)
+		m_data = NULL;
+	else
+	{
+		m_data = new double[m_size];
+		for(size_t i = 0; i < m_size; i++)
+			m_data[i] = orig.m_data[i];
+	}
+}
+
+GVec& GVec::operator=(const GVec& orig)
+{
+	resize(orig.m_size);
+	for(size_t i = 0; i < m_size; i++)
+		m_data[i] = orig.m_data[i];
+	return *this;
 }
 
 GVec::~GVec()
 {
-	delete[] v;
+	delete[] m_data;
 }
 
 void GVec::resize(size_t n)
 {
-	delete[] v;
-	if(n > 0)
-		v = new double[n];
+	if(m_size == n)
+		return;
+	delete[] m_data;
+	m_size = n;
+	if(n == 0)
+		m_data = NULL;
 	else
-		v = NULL;
+		m_data = new double[n];
 }
+
+void GVec::fill(const double val, size_t startPos, size_t endPos)
+{
+	endPos = std::min(endPos, m_size);
+	for(size_t i = startPos; i < endPos; i++)
+		m_data[i] = val;
+}
+
+GVec GVec::operator+(const GVec& that) const
+{
+	GAssert(size() == that.size());
+	GVec v(m_size);
+	for(size_t i = 0; i < m_size; i++)
+		v[i] = (*this)[i] + that[i];
+	return v;
+}
+
+GVec& GVec::operator+=(const GVec& that)
+{
+	GAssert(size() == that.size());
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] += that[i];
+	return *this;
+}
+
+GVec GVec::operator-(const GVec& that) const
+{
+	GAssert(size() == that.size());
+	GVec v(m_size);
+	for(size_t i = 0; i < m_size; i++)
+		v[i] = (*this)[i] - that[i];
+	return v;
+}
+
+GVec& GVec::operator-=(const GVec& that)
+{
+	GAssert(size() == that.size());
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] -= that[i];
+	return *this;
+}
+
+GVec GVec::operator*(double scalar) const
+{
+	GVec v(m_size);
+	for(size_t i = 0; i < m_size; i++)
+		v[i] = (*this)[i] * scalar;
+	return v;
+}
+
+GVec& GVec::operator*=(double scalar)
+{
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] *= scalar;
+	return *this;
+}
+
+void GVec::set(const double* pSource, size_t n)
+{
+	resize(n);
+	for(size_t i = 0; i < n; i++)
+		(*this)[i] = *(pSource++);
+}
+
+double GVec::squaredMagnitude() const
+{
+	double s = 0.0;
+	for(size_t i = 0; i < m_size; i++)
+	{
+		double d = (*this)[i];
+		s += (d * d);
+	}
+	return s;
+}
+
+void GVec::normalize()
+{
+	double mag = std::sqrt(squaredMagnitude());
+	if(mag < 1e-16)
+		fill(std::sqrt(1.0 / m_size));
+	else
+		(*this) *= (1.0 / mag);
+}
+
+double GVec::squaredDistance(const GVec& that) const
+{
+	GAssert(size() == that.size());
+	double s = 0.0;
+	for(size_t i = 0; i < m_size; i++)
+	{
+		double d = (*this)[i] - that[i];
+		s += (d * d);
+	}
+	return s;
+}
+
+void GVec::fillUniform(GRand& rand, double min, double max)
+{
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] = rand.uniform() * (max - min) + min;
+}
+
+void GVec::fillNormal(GRand& rand, double deviation)
+{
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] = rand.normal() * deviation;
+}
+
+void GVec::fillSphericalShell(GRand& rand, double radius)
+{
+	fillNormal(rand);
+	normalize();
+	if(radius != 1.0)
+		(*this) *= radius;
+}
+
+void GVec::fillSphericalVolume(GRand& rand)
+{
+	fillSphericalShell(rand);
+	(*this) *= std::pow(rand.uniform(), 1.0 / m_size);
+}
+
+void GVec::fillSimplex(GRand& rand)
+{
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] = rand.exponential();
+	(*this) *= (1.0 / sum());
+}
+
+void GVec::print(std::ostream& stream) const
+{
+	stream << "[";
+	if(m_size > 0)
+		stream << to_str((*this)[0]);
+	for(size_t i = 1; i < m_size; i++)
+		stream << "," << to_str((*this)[i]);
+	stream << "]";
+}
+
+double GVec::sum() const
+{
+	double s = 0.0;
+	for(size_t i = 0; i < m_size; i++)
+		s += (*this)[i];
+	return s;
+}
+
+size_t GVec::indexOfMax(size_t startPos, size_t endPos) const
+{
+	endPos = std::min(m_size, endPos);
+	size_t maxIndex = startPos;
+	double maxValue = -1e300;
+	for(size_t i = startPos; i < endPos; i++)
+	{
+		if((*this)[i] > maxValue)
+		{
+			maxIndex = i;
+			maxValue = (*this)[i];
+		}
+	}
+	return maxIndex;
+}
+
+GDomNode* GVec::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = pDoc->newList();
+	for(size_t i = 0; i < m_size; i++)
+		pNode->addItem(pDoc, pDoc->newDouble((*this)[i]));
+	return pNode;
+}
+
+void GVec::deserialize(GDomNode* pNode)
+{
+	GDomListIterator it(pNode);
+	resize(it.remaining());
+	for(size_t i = 0; it.current(); i++)
+	{
+		(*this)[i] = it.current()->asDouble();
+		it.advance();
+	}
+}
+
+double GVec::dotProduct(const GVec& that) const
+{
+	GAssert(size() == that.size());
+	double s = 0.0;
+	for(size_t i = 0; i < m_size; i++)
+		s += ((*this)[i] * that[i]);
+	return s;
+}
+
+double GVec::dotProductIgnoringUnknowns(const GVec& that) const
+{
+	GAssert(size() == that.size());
+	double s = 0.0;
+	for(size_t i = 0; i < m_size; i++)
+	{
+		if((*this)[i] != UNKNOWN_REAL_VALUE && that[i] != UNKNOWN_REAL_VALUE)
+			s += ((*this)[i] * that[i]);
+	}
+	return s;
+}
+
+double GVec::estimateSquaredDistanceWithUnknowns(const GVec& that) const
+{
+	double dist = 0;
+	double d;
+	size_t nMissing = 0;
+	for(size_t n = 0; n < m_size; n++)
+	{
+		if((*this)[n] == UNKNOWN_REAL_VALUE || that[n] == UNKNOWN_REAL_VALUE)
+			nMissing++;
+		else
+		{
+			d = (*this)[n] - that[n];
+			dist += (d * d);
+		}
+	}
+	if(nMissing >= m_size)
+		return 1e50; // we have no info, so let's make a wild guess
+	else
+		return dist * m_size / (m_size - nMissing);
+}
+
+void GVec::addScaled(double scalar, const GVec& that)
+{
+	GAssert(size() == that.size());
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] += (scalar * that[i]);
+}
+
+void GVec::regularize_L1(double amount)
+{
+	for(size_t i = 0; i < m_size; i++)
+	{
+		if((*this)[i] < 0.0)
+			(*this)[i] = std::min(0.0, (*this)[i] + amount);
+		else
+			(*this)[i] = std::max(0.0, (*this)[i] - amount);
+	}
+}
+
+void GVec::put(size_t pos, const GVec& that)
+{
+	if(pos + that.m_size > m_size)
+		throw Ex("Out of range. this size=", to_str(m_size), ", pos=", to_str(pos), ", that size=", to_str(that.m_size));
+	for(size_t i = 0; i < that.m_size; i++)
+		(*this)[pos + i] = that[i];
+}
+
+void GVec::erase(size_t start, size_t count)
+{
+	size_t end = m_size - count;
+	for(size_t i = start; i < end; i++)
+		(*this)[i] = (*this)[i + count];
+	m_size -= count;
+}
+
+double GVec::correlation(const GVec& that) const
+{
+	double d = this->dotProduct(that);
+	if(d == 0.0)
+		return 0.0;
+	return d / (sqrt(this->squaredMagnitude() * that.squaredMagnitude()));
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -859,22 +1174,65 @@ void GVec::absValues(double* pVec, size_t dims)
 // static
 void GVec::test()
 {
-	GRand prng(0);
-	GTEMPBUF(double, v1, 200);
-	double* v2 = v1 + 100;
-	for(int i = 0; i < 10; i++)
 	{
-		prng.spherical(v1, 100);
-		prng.spherical(v2, 100);
-		GVec::subtractComponent(v2, v1, 100);
-		GVec::normalize(v2, 100);
-		if(std::abs(GVec::correlation(v1, v2, 100)) > 1e-4)
-			throw Ex("Failed");
-		if(std::abs(GVec::squaredMagnitude(v1, 100) - 1) > 1e-4)
-			throw Ex("Failed");
-		if(std::abs(GVec::squaredMagnitude(v2, 100) - 1) > 1e-4)
-			throw Ex("Failed");
+		// Test some static methods
+		GRand prng(0);
+		GTEMPBUF(double, v1, 200);
+		double* v2 = v1 + 100;
+		for(int i = 0; i < 10; i++)
+		{
+			prng.spherical(v1, 100);
+			prng.spherical(v2, 100);
+			GVec::subtractComponent(v2, v1, 100);
+			GVec::normalize(v2, 100);
+			if(std::abs(GVec::correlation(v1, v2, 100)) > 1e-4)
+				throw Ex("Failed");
+			if(std::abs(GVec::squaredMagnitude(v1, 100) - 1) > 1e-4)
+				throw Ex("Failed");
+			if(std::abs(GVec::squaredMagnitude(v2, 100) - 1) > 1e-4)
+				throw Ex("Failed");
+		}
 	}
+
+	// Test the basic operations of the GVec object
+	GVec v1(2);
+	v1[0] = 2.0;
+	v1[1] = 7.0;
+	GVec v2(v1);
+	if(v2.size() != 2)
+		throw Ex("failed");
+	if(v1.squaredDistance(v2) != 0.0)
+		throw Ex("failed");
+	std::swap(v1[0], v1[1]);
+	if(v1.squaredDistance(v2) != 50.0)
+		throw Ex("failed");
+	v2.fill(3.0);
+	v1 = v2;
+	if(v1.squaredMagnitude() != 18.0)
+		throw Ex("failed");
+	if(v1.data()[0] != 3.0 || v1.data()[1] != 3.0)
+		throw Ex("failed");
+
+	// Test overloaded operators
+	v1[0] = 1.0;
+	v1[1] = 2.0;
+	v2[0] = 3.0;
+	v2[1] = 4.0;
+	GVec v3 = v1 + v2;
+	if(v3.squaredMagnitude() != 52.0)
+		throw Ex("failed");
+	v3 += v1;
+	if(v3.squaredMagnitude() != 89.0)
+		throw Ex("failed");
+	v1 *= 2.0;
+	if(v1.squaredMagnitude() != 20.0)
+		throw Ex("failed");
+	v1 -= v2;
+	if(v1[0] != -1.0)
+		throw Ex("failed");
+	if(v1[1] != 0.0)
+		throw Ex("failed");
+	
 }
 #endif // MIN_PREDICT
 

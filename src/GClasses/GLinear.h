@@ -36,7 +36,7 @@ class GLinearRegressor : public GSupervisedLearner
 {
 protected:
 	GMatrix* m_pBeta;
-	double* m_pEpsilon;
+	GVec m_epsilon;
 
 public:
 	GLinearRegressor();
@@ -63,7 +63,7 @@ public:
 	GMatrix* beta() { return m_pBeta; }
 
 	/// Returns the vector that is added to the results after the linear transformation is applied.
-	double* epsilon() { return m_pEpsilon; }
+	GVec& epsilon() { return m_epsilon; }
 
 	/// Performs on-line gradient descent to refine the model
 	void refine(const GMatrix& features, const GMatrix& labels, double learningRate, size_t epochs, double learningRateDecayFactor);
@@ -72,10 +72,10 @@ public:
 	void autoTune(GMatrix& features, GMatrix& labels);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& pIn, GVec& pOut);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
@@ -103,7 +103,7 @@ protected:
 	double m_noiseDev;
 	GMatrix* m_pAInv;
 	GMatrix* m_pWBar;
-	double* m_pBuf;
+	GVec m_buf;
 
 public:
 	/// General-purpose constructor
@@ -129,10 +129,10 @@ public:
 	void setNoiseDeviation(double d) { m_noiseDev = d; }
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& pIn, GVec& pOut);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& pIn, GPrediction* pOut);
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner

@@ -723,7 +723,7 @@ namespace{
 		//Find the smallest finite value in the matrix 
 		min = inf;
 		for(std::size_t row = 0; row < m.rows(); ++row){
-			double const* r = m[row];
+			double const* r = m[row].data();
 			double const* rend = r + m.cols();
 			for(double const* cur = r; cur != rend; ++cur){
 				if(min > *cur && isfinite(*cur)){
@@ -758,7 +758,7 @@ namespace{
 		//Find the largest finite value in the matrix 
 		max = -inf;
 		for(std::size_t row = 0; row < m.rows(); ++row){
-			double const* r = m[row];
+			double const* r = m[row].data();
 			double const* rend = r + m.cols();
 			for(double const* cur = r; cur != rend; ++cur){
 				if(max < *cur && isfinite(*cur)){

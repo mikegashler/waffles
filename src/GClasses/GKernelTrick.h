@@ -46,7 +46,7 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) = 0;
 
 	/// Applies the kernel to the two specified vectors.
-	virtual double apply(const double* pA, const double* pB, size_t dims) = 0;
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims) = 0;
 
 	/// Deserializes a kernel object
 	static GKernel* deserialize(GDomNode* pNode);
@@ -75,9 +75,9 @@ public:
 	virtual const char* name() const { return "identity"; }
 
 	/// Computes A*B
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
-		return GVec::dotProductIgnoringUnknowns(pA, pB, dims);
+		return pA.dotProductIgnoringUnknowns(pB);
 	}
 };
 
@@ -100,15 +100,13 @@ public:
 	virtual const char* name() const { return "chisquared"; }
 
 	/// Computes the sum over each element of 2 * a * b / (a + b)
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
 		double d = 0.0;
 		for(size_t i = 0; i < dims; i++)
 		{
-			if(*pA != UNKNOWN_REAL_VALUE && *pB != UNKNOWN_REAL_VALUE)
-				d += 2.0 * (*pA) * (*pB) / ((*pA) + (*pB));
-			pA++;
-			pB++;
+			if(pA[i] != UNKNOWN_REAL_VALUE && pB[i] != UNKNOWN_REAL_VALUE)
+				d += 2.0 * pA[i] * pB[i] / (pA[i] + pB[i]);
 		}
 		return d;
 	}
@@ -139,9 +137,9 @@ public:
 	virtual const char* name() const { return "polynomial"; }
 
 	/// Computes (A * B + offset)^order
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
-		return pow(GVec::dotProductIgnoringUnknowns(pA, pB, dims) + m_offset, (int)m_order);
+		return pow(pA.dotProductIgnoringUnknowns(pB) + m_offset, (int)m_order);
 	}
 };
 
@@ -168,9 +166,9 @@ public:
 	virtual const char* name() const { return "rbf"; }
 
 	/// Computes e^(-0.5 * ||A - B||^2 / variance)
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
-		return exp(-0.5 * GVec::estimateSquaredDistanceWithUnknowns(pA, pB, dims) / m_variance);
+		return exp(-0.5 * pA.estimateSquaredDistanceWithUnknowns(pB) / m_variance);
 	}
 };
 
@@ -200,7 +198,7 @@ public:
 	virtual const char* name() const { return "translate"; }
 
 	/// Computes K(A, B) + value
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
 		return m_pK->apply(pA, pB, dims) + m_value;
 	}
@@ -232,7 +230,7 @@ public:
 	virtual const char* name() const { return "scale"; }
 
 	/// Computes K(A, B) * value
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
 		return m_pK->apply(pA, pB, dims) * m_value;
 	}
@@ -264,7 +262,7 @@ public:
 	virtual const char* name() const { return "add"; }
 
 	/// Computes K1(A, B) + K2(A, B)
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
 		return m_pK1->apply(pA, pB, dims) + m_pK2->apply(pA, pB, dims);
 	}
@@ -296,7 +294,7 @@ public:
 	virtual const char* name() const { return "multiply"; }
 
 	/// Computes K1(A, B) * K2(A, B)
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
 		return m_pK1->apply(pA, pB, dims) * m_pK2->apply(pA, pB, dims);
 	}
@@ -328,7 +326,7 @@ public:
 	virtual const char* name() const { return "pow"; }
 
 	/// Computes K(A, B)^value
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
 		return pow(m_pK->apply(pA, pB, dims), m_value);
 	}
@@ -358,7 +356,7 @@ public:
 	virtual const char* name() const { return "exp"; }
 
 	/// Computes e^K(A, B)
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
 		return exp(m_pK->apply(pA, pB, dims));
 	}
@@ -388,7 +386,7 @@ public:
 	virtual const char* name() const { return "normalize"; }
 
 	/// Computes K(A, B) / sqrt(K(A, A) * K(B, B))
-	virtual double apply(const double* pA, const double* pB, size_t dims)
+	virtual double apply(const GVec& pA, const GVec& pB, size_t dims)
 	{
 		return m_pK->apply(pA, pB, dims) / sqrt(m_pK->apply(pA, pA, dims) * m_pK->apply(pB, pB, dims));
 	}

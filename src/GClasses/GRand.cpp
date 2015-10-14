@@ -102,7 +102,7 @@ namespace GClasses {
 
 using std::vector;
 
-COMPILER_ASSERT(sizeof(uint64_t) == 8);
+static_assert(sizeof(uint64_t) == 8, "unexpected size");
 
 GRand::GRand(uint64_t seed)
 {

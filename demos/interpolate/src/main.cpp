@@ -85,10 +85,12 @@ protected:
 	volatile bool m_workerWorking;
 	bool m_testing;
 	GCoordVectorIterator* m_pCvi;
+	GVec m_in;
+	GVec m_out;
 
 public:
 	InterpolateDialog(InterpolateController* pController, int w, int h)
-	: GWidgetDialog(w, h, 0xff90d0f0) // a=ff, r=90, g=d0, b=f0
+	: GWidgetDialog(w, h, 0xff90d0f0), m_in(2), m_out(3) // a=ff, r=90, g=d0, b=f0
 	{
 		m_pController = pController;
 		m_pRand = new GRand(0);
@@ -125,10 +127,10 @@ public:
 		for(size_t i = 0; true; i++)
 		{
 			GAssert(i < m_pTrainingFeatures->rows());
-			double* pFeature = m_pTrainingFeatures->row(i);
-			cvi.currentNormalized(pFeature);
+			GVec& pFeature = m_pTrainingFeatures->row(i);
+			cvi.currentNormalized(pFeature.data());
 			GAssert(i < m_pTrainingLabels->rows());
-			double* pLabel = m_pTrainingLabels->row(i);
+			GVec& pLabel = m_pTrainingLabels->row(i);
 			pLabel[0] = ((double)gRed(*pPix)) / 255;
 			pLabel[1] = ((double)gGreen(*pPix)) / 255;
 			pLabel[2] = ((double)gBlue(*pPix)) / 255;
@@ -216,8 +218,8 @@ public:
 		GCoordVectorIterator cvi(2, ranges);
 		for(size_t i = 0; true; i++)
 		{
-			double* pFeature = dataUnlabeled.row(i);
-			cvi.currentNormalized(pFeature);
+			GVec& pFeature = dataUnlabeled.row(i);
+			cvi.currentNormalized(pFeature.data());
 			if(!cvi.advance())
 				break;
 		}
@@ -231,7 +233,7 @@ public:
 		unsigned int* pPix = m_pImageBig->pixels();
 		for(size_t i = 0; true; i++)
 		{
-			double* pRow = pLabels->row(i);
+			GVec& pRow = pLabels->row(i);
 			int r = ClipChan((int)(pRow[0] * 255.0));
 			int g = ClipChan((int)(pRow[1] * 255.0));
 			int b = ClipChan((int)(pRow[2] * 255.0));
@@ -452,16 +454,15 @@ public:
 			m_workerMode = 3; // train
 
 			// Display the image
-			GTEMPBUF(double, row, 5);
 			m_pCvi->reset();
 			unsigned int* pPix = m_pImageBig->pixels();
 			while(true)
 			{
-				m_pCvi->currentNormalized(row);
-				m_pNNCopyForVisualizing->predict(row, row + 2);
-				int r = ClipChan((int)(row[2] * 255.0));
-				int g = ClipChan((int)(row[3] * 255.0));
-				int b = ClipChan((int)(row[4] * 255.0));
+				m_pCvi->currentNormalized(m_in.data());
+				m_pNNCopyForVisualizing->predict(m_in, m_out);
+				int r = ClipChan((int)(m_out[2] * 255.0));
+				int g = ClipChan((int)(m_out[3] * 255.0));
+				int b = ClipChan((int)(m_out[4] * 255.0));
 				*pPix = gARGB(0xff, r, g, b);
 				if(!m_pCvi->advance())
 					break;
@@ -477,16 +478,15 @@ public:
 			double startTime = GTime::seconds();
 
 			// Display the image
-			GTEMPBUF(double, row, 5);
 			while(true)
 			{
 				for(size_t i = 0; i < 100; i++)
 				{
-					m_pCvi->currentNormalized(row);
-					m_pTrainedModel->predict(row, row + 2);
-					int r = ClipChan((int)(row[2] * 255.0));
-					int g = ClipChan((int)(row[3] * 255.0));
-					int b = ClipChan((int)(row[4] * 255.0));
+					m_pCvi->currentNormalized(m_in.data());
+					m_pTrainedModel->predict(m_in, m_out);
+					int r = ClipChan((int)(m_out[2] * 255.0));
+					int g = ClipChan((int)(m_out[3] * 255.0));
+					int b = ClipChan((int)(m_out[4] * 255.0));
 					m_pImageBig->setPixel(m_pCvi->current()[0], m_pCvi->current()[1], gARGB(0xff, r, g, b));
 					if(!m_pCvi->advance())
 					{

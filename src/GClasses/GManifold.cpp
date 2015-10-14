@@ -65,20 +65,20 @@ void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_
 	// Create a matrix of all the neighbors normalized around the origin
 	size_t colCount = pData->cols();
 	GMatrix z(pData->relation().clone());
-	const double* pRow = pData->row(point);
+	const GVec& row = pData->row(point);
 	for(size_t i = 0; i < k; i++)
 	{
 		if(*pNeighbors < pData->rows())
 		{
-			double* pTarget = z.newRow();
-			GVec::copy(pTarget, pData->row(*pNeighbors), colCount);
-			GVec::subtract(pTarget, pRow, colCount);
+			GVec& target = z.newRow();
+			target = pData->row(*pNeighbors);
+			target -= row;
 			pNeighbors++;
 		}
 		else
 		{
-			double* pTarget = z.newRow();
-			GVec::setAll(pTarget, 1e12, colCount);
+			GVec& target = z.newRow();
+			target.fill(1e12);
 		}
 	}
 
@@ -105,7 +105,7 @@ void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_
 	GMatrix* pInv = pSquare->pseudoInverse();
 	Holder<GMatrix> hInv(pInv);
 	for(size_t i = 0; i < pSquare->rows(); i++)
-		pOutWeights[i] = GVec::sumElements(pInv->row(i), pInv->cols());
+		pOutWeights[i] = pInv->row(i).sum();
 
 	// Normalize the weights to sum to one
 	GVec::sumToOne(pOutWeights, pSquare->rows());
@@ -118,25 +118,25 @@ GMatrix* GManifold::blendNeighborhoods(size_t index, GMatrix* pA, double ratio, 
 	size_t rowCount = pA->rows();
 	size_t colCount = pA->cols();
 	GMatrix neighborhoodA(pA->relation().clone());
-	GVec::copy(neighborhoodA.newRow(), pA->row(index), colCount);
+	neighborhoodA.newRow() = pA->row(index);
 	GMatrix neighborhoodB(pB->relation().clone());
-	GVec::copy(neighborhoodB.newRow(), pB->row(index), colCount);
+	neighborhoodB.newRow() = pB->row(index);
 	for(size_t j = 0; j < neighborCount; j++)
 	{
 		if(pHood[j] >= rowCount)
 			continue;
-		GVec::copy(neighborhoodA.newRow(), pA->row(pHood[j]), colCount);
-		GVec::copy(neighborhoodB.newRow(), pB->row(pHood[j]), colCount);
+		neighborhoodA.newRow() = pA->row(pHood[j]);
+		neighborhoodB.newRow() = pB->row(pHood[j]);
 	}
 
 	// Subtract the means
-	GTEMPBUF(double, mean, colCount);
+	GVec mean(colCount);
 	neighborhoodA.centroid(mean);
 	for(size_t i = 0; i < neighborhoodA.rows(); i++)
-		GVec::subtract(neighborhoodA.row(i), mean, colCount);
+		neighborhoodA.row(i) -= mean;
 	neighborhoodB.centroid(mean);
 	for(size_t i = 0; i < neighborhoodB.rows(); i++)
-		GVec::subtract(neighborhoodB.row(i), mean, colCount);
+		neighborhoodB.row(i) -= mean;
 
 	// Use the kabsch algorithm to compute the optimal rotation
 	GMatrix* pKabsch = GMatrix::kabsch(&neighborhoodA, &neighborhoodB);
@@ -144,8 +144,8 @@ GMatrix* GManifold::blendNeighborhoods(size_t index, GMatrix* pA, double ratio, 
 	GMatrix* pC = GMatrix::multiply(neighborhoodB, *pKabsch, false, false);
 	for(size_t i = 0; i < pC->rows(); i++)
 	{
-		GVec::multiply(pC->row(i), ratio, colCount);
-		GVec::addScaled(pC->row(i), 1.0 - ratio, neighborhoodA.row(i), colCount);
+		pC->row(i) *= ratio;
+		pC->row(i).addScaled(1.0 - ratio, neighborhoodA.row(i));
 		// todo: should we normalize the distance here?
 	}
 	return pC;
@@ -169,7 +169,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		size_t* pHood = pNeighborTable + neighborCount * seed;
 		GMatrix* pAve = blendNeighborhoods(seed, pA, pRatios[seed], pB, neighborCount, pHood);
 		Holder<GMatrix> hAve(pAve);
-		GVec::copy(pC->row(seed), pAve->row(0), colCount);
+		pC->row(seed) = pAve->row(0);
 		visited.set(seed);
 		established.set(seed);
 		size_t i = 1;
@@ -178,7 +178,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 			if(pHood[j] >= rowCount)
 				continue;
 			size_t neigh = pHood[j];
-			GVec::copy(pC->row(neigh), pAve->row(i), colCount);
+			pC->row(neigh) = pAve->row(i);
 			visited.set(neigh);
 			q.push_back(neigh);
 			i++;
@@ -186,7 +186,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 	}
 
 	// Align in a breadth-first manner
-	GTEMPBUF(double, mean, colCount);
+	GVec mean(colCount);
 	while(q.size() > 0)
 	{
 		size_t par = q.front();
@@ -201,8 +201,8 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		GMatrix tentativeC(pC->relation().clone());
 		GMatrix tentativeD(pD->relation().clone());
 		GReleaseDataHolder hTentativeD(&tentativeD);
-		GVec::copy(tentativeC.newRow(), pC->row(par), colCount);
-		tentativeD.takeRow(pD->row(0));
+		tentativeC.newRow() = pC->row(par);
+		tentativeD.takeRow(&pD->row(0));
 		size_t ii = 1;
 		for(size_t j = 0; j < neighborCount; j++)
 		{
@@ -210,8 +210,8 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 				continue;
 			if(visited.bit(pHood[j]))
 			{
-				GVec::copy(tentativeC.newRow(), pC->row(pHood[j]), colCount);
-				tentativeD.takeRow(pD->row(ii));
+				tentativeC.newRow() = pC->row(pHood[j]);
+				tentativeD.takeRow(&pD->row(ii));
 			}
 			ii++;
 		}
@@ -219,10 +219,10 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		// Subtract the means
 		tentativeD.centroid(mean);
 		for(size_t i = 0; i < pD->rows(); i++)
-			GVec::subtract(pD->row(i), mean, colCount); // (This will affect tentativeD too b/c it refs the same rows)
+			pD->row(i) -= mean; // (This will affect tentativeD too b/c it refs the same rows)
 		tentativeC.centroid(mean);
 		for(size_t i = 0; i < tentativeC.rows(); i++)
-			GVec::subtract(tentativeC.row(i), mean, colCount);
+			tentativeC.row(i) -= mean;
 
 		// Compute the rotation to align the tentative neighborhoods
 		GMatrix* pKabsch = GMatrix::kabsch(&tentativeC, &tentativeD);
@@ -232,10 +232,10 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		GMatrix* pAligned = GMatrix::multiply(*pD, *pKabsch, false, false);
 		Holder<GMatrix> hAligned(pAligned);
 		for(size_t i = 0; i < pAligned->rows(); i++)
-			GVec::add(pAligned->row(i), mean, colCount);
+			pAligned->row(i) += mean;
 
 		// Accept the new points
-		GVec::copy(pC->row(par), pAligned->row(0), colCount);
+		pC->row(par) = pAligned->row(0);
 		established.set(par);
 		ii = 1;
 		for(size_t j = 0; j < neighborCount; j++)
@@ -243,7 +243,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 			if(pHood[j] >= rowCount)
 				continue;
 			if(!established.bit(pHood[j]))
-				GVec::copy(pC->row(pHood[j]), pAligned->row(ii), colCount);
+				pC->row(pHood[j]) = pAligned->row(ii);
 			if(!visited.bit(pHood[j]))
 			{
 				visited.set(pHood[j]);
@@ -268,28 +268,18 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 	pD->newRows(n);
 	for(size_t i = 0; i < n; i++)
 	{
-		double* pIn = pDistances->row(i) + i;
-		double* pOut = pD->row(i) + i;
-		*pOut = 0.0;
-		pOut++;
-		pIn++;
+		GVec& in = pDistances->row(i);
+		GVec& out = pD->row(i);
+		out[i] = 0.0;
 		if(useSquaredDistances)
 		{
 			for(size_t j = i + 1; j < n; j++)
-			{
-				*pOut = *pIn;
-				pOut++;
-				pIn++;
-			}
+				out[j] = in[j];
 		}
 		else
 		{
 			for(size_t j = i + 1; j < n; j++)
-			{
-				*pOut = (*pIn * *pIn);
-				pOut++;
-				pIn++;
-			}
+				out[j] = (in[j] * in[j]);
 		}
 	}
 	pD->mirrorTriangle(true);
@@ -298,17 +288,14 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 	GTEMPBUF(double, rowsum, n + targetDims);
 	double* pEigenVals = rowsum + n;
 	for(size_t i = 0; i < n; i++)
-		rowsum[i] = GVec::sumElements(pD->row(i), n);
+		rowsum[i] = pD->row(i).sum();
 	double z = 1.0 / n;
 	double t = z * GVec::sumElements(rowsum, n);
 	for(size_t i = 0; i < n; i++)
 	{
-		double* pRow = pD->row(i);
+		GVec& row = pD->row(i);
 		for(size_t j = 0; j < n; j++)
-		{
-			*pRow = -0.5 * (*pRow + (z * (t - rowsum[i] - rowsum[j])));
-			pRow++;
-		}
+			row[j] = -0.5 * (row[j] + (z * (t - rowsum[i] - rowsum[j])));
 	}
 
 	// Compute eigenvectors
@@ -330,7 +317,7 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 	}
 	Holder<GMatrix> hEigs(pEigs);
 	for(size_t i = 0; i < targetDims; i++)
-		GVec::multiply(pEigs->row(i), sqrt(std::max(0.0, pEigenVals[i])), n);
+		pEigs->row(i) *= sqrt(std::max(0.0, pEigenVals[i]));
 	GMatrix* pResults = pEigs->transpose();
 	return pResults;
 }
@@ -343,15 +330,15 @@ void GManifold_testMultiDimensionalScaling()
 	GRand prng(0);
 	GMatrix foo(POINT_COUNT, 2);
 	for(size_t i = 0; i < POINT_COUNT; i++)
-		prng.cubical(foo[i], 2);
+		foo[i].fillUniform(prng);
 
 	// Make distance matrix
 	GMatrix dst(POINT_COUNT, POINT_COUNT);
 	for(size_t i = 0; i < POINT_COUNT; i++)
 	{
-		double* pRow = dst.row(i);
+		GVec& row = dst.row(i);
 		for(size_t j = i + 1; j < POINT_COUNT; j++)
-			pRow[j] = GVec::squaredDistance(foo.row(i), foo.row(j), 2);
+			row[j] = foo.row(i).squaredDistance(foo.row(j));
 	}
 
 	// Do MDS
@@ -361,8 +348,8 @@ void GManifold_testMultiDimensionalScaling()
 	{
 		for(size_t j = 0; j < POINT_COUNT; j++)
 		{
-			double expected = sqrt(GVec::squaredDistance(foo.row(i), foo.row(j), 2));
-			double actual = sqrt(GVec::squaredDistance(pMDS->row(i), pMDS->row(j), 2));
+			double expected = sqrt(foo.row(i).squaredDistance(foo.row(j)));
+			double actual = sqrt(pMDS->row(i).squaredDistance(pMDS->row(j)));
 			if(std::abs(expected - actual) > 1e-5)
 				throw Ex("failed");
 		}
@@ -509,11 +496,11 @@ void GManifoldSculpting::beginTransform(const GMatrix* pRealSpaceData)
 			size_t neighbor = pArrNeighbors[j].m_nNeighbor;
 			if(neighbor < m_pData->rows())
 			{
-				pArrNeighbors[j].m_junkSquaredDist = GVec::squaredDistance(m_pData->row(i) + m_nTargetDims, m_pData->row(neighbor) + m_nTargetDims, m_nDimensions - m_nTargetDims);
+				pArrNeighbors[j].m_junkSquaredDist = GVec::squaredDistance(m_pData->row(i).data() + m_nTargetDims, m_pData->row(neighbor).data() + m_nTargetDims, m_nDimensions - m_nTargetDims);
 				size_t slot = pArrNeighbors[j].m_nNeighborsNeighborSlot;
 				struct GManifoldSculptingNeighbor* pArrNeighborsNeighbors = record(neighbor);
 				size_t neighborsNeighbor = pArrNeighborsNeighbors[slot].m_nNeighbor;
-				pArrNeighbors[j].m_junkDotProd = GVec::dotProduct(m_pData->row(neighbor) + m_nTargetDims, m_pData->row(i) + m_nTargetDims, m_pData->row(neighbor) + m_nTargetDims, m_pData->row(neighborsNeighbor) + m_nTargetDims, m_nDimensions - m_nTargetDims);
+				pArrNeighbors[j].m_junkDotProd = GVec::dotProduct(m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(i).data() + m_nTargetDims, m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(neighborsNeighbor).data() + m_nTargetDims, m_nDimensions - m_nTargetDims);
 			}
 		}
 	}
@@ -595,10 +582,10 @@ void GManifoldSculpting::calculateMetadata(const GMatrix* pData)
 					if(nCandidate < pData->rows())
 					{
 #ifdef USE_ANGLES
-						dCosTheta = acos(vectorCorrelation(pData->row(n), pData->row(nVertex), pData->row(nCandidate))) / M_PI;
+						dCosTheta = acos(vectorCorrelation(pData->row(n).data(), pData->row(nVertex).data(), pData->row(nCandidate).data())) / M_PI;
 						if(dCosTheta > pPoint[i].m_dCosTheta)
 #else
-						dCosTheta = vectorCorrelation(pData->row(n), pData->row(nVertex), pData->row(nCandidate));
+						dCosTheta = vectorCorrelation(pData->row(n).data(), pData->row(nVertex).data(), pData->row(nCandidate).data());
 						if(dCosTheta < pPoint[i].m_dCosTheta)
 #endif
 						{
@@ -669,9 +656,9 @@ double GManifoldSculpting::vectorCorrelation2(double squaredScale, size_t a, siz
 	size_t b = pNeighborsNeighbors[slot].m_nNeighbor;
 	if(b >= m_pData->rows())
 		return 0.0;
-	double* pdA = m_pData->row(a);
-	double* pdV = m_pData->row(vertex);
-	double* pdB = m_pData->row(b);
+	double* pdA = m_pData->row(a).data();
+	double* pdV = m_pData->row(vertex).data();
+	double* pdB = m_pData->row(b).data();
 	double dDotProd = 0;
 	double dMagA = 0;
 	double dMagB = 0;
@@ -706,7 +693,7 @@ double GManifoldSculpting::averageNeighborDistance(size_t nDims)
 			if(pPoint[n].m_nNeighbor < m_pData->rows())
 			{
 				goodNeighbors++;
-				dSum += sqrt(GVec::squaredDistance(m_pData->row(nPoint), m_pData->row(pPoint[n].m_nNeighbor), m_nDimensions));
+				dSum += sqrt(GVec::squaredDistance(m_pData->row(nPoint).data(), m_pData->row(pPoint[n].m_nNeighbor).data(), m_nDimensions));
 			}
 		}
 	}
@@ -751,7 +738,7 @@ double GManifoldSculpting::computeError(size_t nPoint)
 				dTheta *= 0.4;
 
 			// Distances
-			dDist = sqrt(GVec::squaredDistance(m_pData->row(nPoint), m_pData->row(nNeighbor), m_nTargetDims) + squaredScale * pPoint[n].m_junkSquaredDist);
+			dDist = sqrt(GVec::squaredDistance(m_pData->row(nPoint).data(), m_pData->row(nNeighbor).data(), m_nTargetDims) + squaredScale * pPoint[n].m_junkSquaredDist);
 			dDist -= pPoint[n].m_dDistance;
 			dDist /= std::max(m_dAveNeighborDist, 1e-10);
 			if(pNeighborStuff->m_nCycle != m_nPass && pNeighborStuff->m_bAdjustable)
@@ -766,7 +753,7 @@ double GManifoldSculpting::computeError(size_t nPoint)
 size_t GManifoldSculpting::adjustDataPoint(size_t nPoint, double* pError)
 {
 	bool bMadeProgress = true;
-	double* pValues = m_pData->row(nPoint);
+	double* pValues = m_pData->row(nPoint).data();
 	double dErrorBase = computeError(nPoint);
 	double dError = 0;
 	double dStepSize = m_dLearningRate * (m_pRand->uniform() * .4 + .6); // We multiply the learning rate by a random value so that the points can get away from each other
@@ -801,10 +788,10 @@ void GManifoldSculpting::moveMeanToOrigin()
 	GTEMPBUF(double, mean, m_nTargetDims);
 	GVec::setAll(mean, 0.0, m_nTargetDims);
 	for(size_t i = 0; i < m_pData->rows(); i++)
-		GVec::add(mean, m_pData->row(i), m_nTargetDims);
+		GVec::add(mean, m_pData->row(i).data(), m_nTargetDims);
 	GVec::multiply(mean, -1.0 / m_pData->rows(), m_nTargetDims);
 	for(size_t i = 0; i < m_pData->rows(); i++)
-		GVec::add(m_pData->row(i), mean, m_nTargetDims);
+		GVec::add(m_pData->row(i).data(), mean, m_nTargetDims);
 }
 
 double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
@@ -821,18 +808,18 @@ double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
 		if(m_scale > 0.001)
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::multiply(m_pData->row(n) + m_nTargetDims, m_dSquishingRate, m_nDimensions - m_nTargetDims);
+				GVec::multiply(m_pData->row(n).data() + m_nTargetDims, m_dSquishingRate, m_nDimensions - m_nTargetDims);
 		}
 		else
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::setAll(m_pData->row(n) + m_nTargetDims, 0.0, m_nDimensions - m_nTargetDims);
+				GVec::setAll(m_pData->row(n).data() + m_nTargetDims, 0.0, m_nDimensions - m_nTargetDims);
 			m_scale = 0;
 		}
 		while(averageNeighborDistance(m_nDimensions) < m_dAveNeighborDist)
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::multiply(m_pData->row(n), 1.0 / m_dSquishingRate, m_nTargetDims);
+				GVec::multiply(m_pData->row(n).data(), 1.0 / m_dSquishingRate, m_nTargetDims);
 		}
 	}
 
@@ -952,7 +939,7 @@ GMatrix* GIsomap::reduce(const GMatrix& in)
 			size_t missing_count = 0;
 			for(size_t i = 0; i < pCM->rows(); i++)
 			{
-				double* pRow = pCM->row(i);
+				double* pRow = pCM->row(i).data();
 				size_t count = 0;
 				for(size_t j = 0; j < c; j++)
 				{
@@ -1138,7 +1125,7 @@ void GLLEHelper::computeEmbedding()
 	for(size_t i = 1; i <= m_nTargetDims; i++)
 	{
 		size_t rowIn = pV->rows() - 1 - i;
-		double* pRow = pEigVecs->row(i);
+		double* pRow = pEigVecs->row(i).data();
 		for(size_t j = 0; j < pV->cols(); j++)
 			pRow[j] = pV->get(rowIn, j);
 	}
@@ -1187,7 +1174,7 @@ void GLLEHelper::computeEmbedding()
 	double d = sqrt((double)nRowCount);
 	for(row = 0; row < nRowCount; row++)
 	{
-		double* pRow = m_pOutputData->row(row);
+		double* pRow = m_pOutputData->row(row).data();
 		for(col = 0; col < m_nTargetDims; col++)
 			pRow[col] = pEigVecs->row(col + 1)[row] * d;
 	}
@@ -1395,7 +1382,7 @@ void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootInde
 			for(size_t i = 0; i < pLocal->rows(); i++)
 			{
 				if(*pTablePos != UNKNOWN_REAL_VALUE)
-					err += GVec::refinePoint(pLocal->row(i), pLocal->row(j), m_targetDims, *pTablePos, 0.1, &m_rand);
+					err += GVec::refinePoint(pLocal->row(i).data(), pLocal->row(j).data(), m_targetDims, *pTablePos, 0.1, &m_rand);
 				pTablePos++;
 			}
 		}
@@ -1457,12 +1444,12 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t i
 		// Make a local neighborhood
 		GMatrix local(pIn->relation().clone());
 		GReleaseDataHolder hLocal(&local);
-		local.takeRow((double*)pIn->row(index));
+		local.takeRow((GVec*)&pIn->row(index));
 		size_t* pHood = pNeighborhoods + m_neighborCount * index;
 		for(size_t j = 0; j < m_neighborCount; j++)
 		{
 			if(pHood[j] < pIn->rows())
-				local.takeRow((double*)pIn->row(pHood[j]));
+				local.takeRow((GVec*)&pIn->row(pHood[j]));
 		}
 
 		// Use PCA to reduce the neighborhood
@@ -1485,7 +1472,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 	{
 		GMatrix* pLocal = reduceNeighborhood(pIn, seed, pNeighborTable, pSquaredDistances);
 		Holder<GMatrix> hLocal(pLocal);
-		GVec::copy(pOut->row(seed), pLocal->row(0), m_targetDims);
+		GVec::copy(pOut->row(seed).data(), pLocal->row(0).data(), m_targetDims);
 		visited.set(seed);
 		established.set(seed);
 		size_t* pHood = pNeighborTable + m_neighborCount * seed;
@@ -1495,7 +1482,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 			if(pHood[j] >= pIn->rows())
 				continue;
 			size_t neigh = pHood[j];
-			GVec::copy(pOut->row(neigh), pLocal->row(i), m_targetDims);
+			GVec::copy(pOut->row(neigh).data(), pLocal->row(i).data(), m_targetDims);
 			visited.set(neigh);
 			q.push_back(neigh);
 			q.push_back(1);
@@ -1505,7 +1492,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 	pOutWeights[seed] = 8.0;
 
 	// Reduce in a breadth-first manner
-	GTEMPBUF(double, mean, m_targetDims);
+	GVec mean(m_targetDims);
 	while(q.size() > 0)
 	{
 		size_t par = q.front();
@@ -1522,8 +1509,8 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		GMatrix tentativeC(pOut->relation().clone());
 		GMatrix tentativeD(pLocal->relation().clone());
 		GReleaseDataHolder hTentativeD(&tentativeD);
-		GVec::copy(tentativeC.newRow(), pOut->row(par), m_targetDims);
-		tentativeD.takeRow(pLocal->row(0));
+		GVec::copy(tentativeC.newRow().data(), pOut->row(par).data(), m_targetDims);
+		tentativeD.takeRow(&pLocal->row(0));
 		size_t* pHood = pNeighborTable + m_neighborCount * par;
 		size_t ii = 1;
 		for(size_t j = 0; j < m_neighborCount; j++)
@@ -1532,8 +1519,8 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 				continue;
 			if(visited.bit(pHood[j]))
 			{
-				GVec::copy(tentativeC.newRow(), pOut->row(pHood[j]), m_targetDims);
-				tentativeD.takeRow(pLocal->row(ii));
+				GVec::copy(tentativeC.newRow().data(), pOut->row(pHood[j]).data(), m_targetDims);
+				tentativeD.takeRow(&pLocal->row(ii));
 			}
 			ii++;
 		}
@@ -1541,10 +1528,10 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		// Subtract the means
 		tentativeD.centroid(mean);
 		for(size_t i = 0; i < pLocal->rows(); i++)
-			GVec::subtract(pLocal->row(i), mean, m_targetDims); // (This will affect tentativeD too b/c it refs the same rows)
+			GVec::subtract(pLocal->row(i).data(), mean.data(), m_targetDims); // (This will affect tentativeD too b/c it refs the same rows)
 		tentativeC.centroid(mean);
 		for(size_t i = 0; i < tentativeC.rows(); i++)
-			GVec::subtract(tentativeC.row(i), mean, m_targetDims);
+			GVec::subtract(tentativeC.row(i).data(), mean.data(), m_targetDims);
 
 		// Compute the rotation to align the tentative neighborhoods
 		GMatrix* pKabsch = GMatrix::kabsch(&tentativeC, &tentativeD);
@@ -1554,10 +1541,10 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		GMatrix* pAligned = GMatrix::multiply(*pLocal, *pKabsch, false, false);
 		Holder<GMatrix> hAligned(pAligned);
 		for(size_t i = 0; i < pAligned->rows(); i++)
-			GVec::add(pAligned->row(i), mean, m_targetDims);
+			GVec::add(pAligned->row(i).data(), mean.data(), m_targetDims);
 
 		// Accept the new points
-		GVec::copy(pOut->row(par), pAligned->row(0), m_targetDims);
+		GVec::copy(pOut->row(par).data(), pAligned->row(0).data(), m_targetDims);
 		established.set(par);
 		ii = 1;
 		for(size_t j = 0; j < m_neighborCount; j++)
@@ -1565,7 +1552,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 			if(pHood[j] >= pIn->rows())
 				continue;
 			if(!established.bit(pHood[j]))
-				GVec::copy(pOut->row(pHood[j]), pAligned->row(ii), m_targetDims);
+				GVec::copy(pOut->row(pHood[j]).data(), pAligned->row(ii).data(), m_targetDims);
 			if(!visited.bit(pHood[j]))
 			{
 				visited.set(pHood[j]);
@@ -1624,20 +1611,20 @@ void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, 
 		pPreprocess->setAll(0.0);
 	for(size_t i = 0; i < pOut->rows(); i++)
 	{
-		double* pX = pOut->row(i);
-		pX[col] = 0.5;
+		GVec& x = pOut->row(i);
+		x[col] = 0.5;
 		if(col > 0)
 		{
-			double* pPrevWeights = m_pWeights->row(col);
-			double* pPre = pPreprocess->row(i);
+			GVec& prevWeights = m_pWeights->row(col);
+			GVec& pre = pPreprocess->row(i);
 			for(size_t j = 0; j < dims; j++)
-				*(pPre++) += *(pPrevWeights++) * pX[col - 1];
+				pre[j] += prevWeights[j] * x[col - 1];
 		}
 	}
-	double* pBiases = m_pWeights->row(0);
-	double* pWeights = m_pWeights->row(1 + col);
+	GVec& bss = m_pWeights->row(0);
+	GVec& wts = m_pWeights->row(1 + col);
 	for(size_t i = 0; i < dims; i++)
-		pWeights[i] = 0.1 * m_pRand->normal();
+		wts[i] = 0.1 * m_pRand->normal();
 	size_t* pIndexes = new size_t[pOut->rows()];
 	GIndexVec::makeIndexVec(pIndexes, pOut->rows());
 	double learningRate = 0.05;
@@ -1653,40 +1640,35 @@ void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, 
 			for(size_t i = 0; i < pOut->rows(); i++)
 			{
 				size_t index = pIndexes[i];
-				double* pBias = pBiases;
-				double* pPre = pPreprocess->row(index);
-				double* pX = pOut->row(index) + col;
-				double* pW = pWeights;
-				const double* pTar = pIn->row(index);
+				GVec& b = bss;
+				GVec& pre = pPreprocess->row(index);
+				GVec& x = pOut->row(index);
+				GVec& ww = wts;
+				const GVec& tar = pIn->row(index);
 				for(size_t j = 0; j < dims; j++)
 				{
-					if(*pTar != UNKNOWN_REAL_VALUE)
+					if(tar[j] != UNKNOWN_REAL_VALUE)
 					{
 						// Compute the predicted output
-						double net = *pBias + *pPre + *pW * (*pX);
+						double net = b[j] + pre[j] + ww[j] * x[col];
 						double pred = m_pActivation->squash(net, 0);
 
 						// Compute the error (pIn gives the target)
-						double err = learningRate * (*pTar - pred) * m_pActivation->derivativeOfNet(net, pred, 0);
+						double err = learningRate * (tar[j] - pred) * m_pActivation->derivativeOfNet(net, pred, 0);
 						sse += (err * err);
 
 						// Adjust the bias and weight
 						if(m_updateBias)
-							*pBias += err;
-						double w = *pW;
-						*pW += err * (*pX);
+							b[j] += err;
+						double w = ww[j];
+						ww[j] += err * x[col];
 
 						// Adjust x
-						*pX += err * w;
+						x[col] += err * w;
 
 						// Clip x
-//						*pX = std::max(0.0, std::min(1.0, *pX));
+//						x[col] = std::max(0.0, std::min(1.0, x[col));
 					}
-
-					pBias++;
-					pPre++;
-					pW++;
-					pTar++;
 				}
 			}
 		}
@@ -1708,15 +1690,15 @@ double GNeuroPCA::computeSumSquaredErr(const GMatrix* pIn, GMatrix* pOut, size_t
 	double sse = 0.0;
 	for(size_t i = 0; i < pIn->rows(); i++)
 	{
-		const double* pTar = pIn->row(i);
-		double* pBias = m_pWeights->row(0);
+		const GVec& tar = pIn->row(i);
+		GVec& b = m_pWeights->row(0);
 		for(size_t j = 0; j < dims; j++)
 		{
-			double* pX = pOut->row(i);
-			double net = *(pBias++);
+			GVec& x = pOut->row(i);
+			double net = b[j];
 			for(size_t k = 0; k < cols; k++)
-				net += *(pX++) * m_pWeights->row(k + 1)[j];
-			double d = *(pTar++) - m_pActivation->squash(net, 0);
+				net += x[k] * m_pWeights->row(k + 1)[j];
+			double d = tar[j] - m_pActivation->squash(net, 0);
 			sse += (d * d);
 		}
 	}
@@ -1735,13 +1717,13 @@ GMatrix* GNeuroPCA::reduce(const GMatrix& in)
 	// Initialize the biases
 	size_t dims = (size_t)in.cols();
 	{
-		double* pBiases = m_pWeights->row(0);
+		GVec& bss = m_pWeights->row(0);
 		for(size_t i = 0; i < dims; i++)
 		{
 			double mean = in.columnMean(i);
 //			if((mean < m_pActivation->center() - m_pActivation->halfRange()) || (mean > m_pActivation->center() + m_pActivation->halfRange()))
 //				throw Ex("The data is expected to fall within the range of the activation function");
-			*(pBiases++) = m_pActivation->inverse(mean, 0);
+			bss[i] = m_pActivation->inverse(mean, 0);
 		}
 	}
 
@@ -1778,7 +1760,7 @@ GMatrix* GNeuroPCA::reduce(const GMatrix& in)
 
 
 
-
+/*
 GDynamicSystemStateAligner::GDynamicSystemStateAligner(size_t neighbors, GMatrix& inputs, GRand& rand)
 : GTransform(), m_neighbors(neighbors), m_inputs(inputs), m_rand(rand)
 {
@@ -2056,7 +2038,7 @@ void GDynamicSystemStateAligner::test()
 	}
 }
 #endif // NO_TEST_CODE
-
+*/
 
 
 
@@ -2220,468 +2202,6 @@ void GImageJitterer::test(const char* filename)
 
 
 
-GUnsupervisedBackProp::GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand)
-: m_paramDims(0), m_pParamRanges(NULL), m_jitterDims(0), m_intrinsicDims(intrinsicDims), m_cvi(0, NULL), m_useInputBias(true), m_pJitterer(NULL), m_pIntrinsic(NULL), m_pMins(NULL), m_pRanges(NULL), m_pProgress(NULL), m_onePass(false)
-{
-	m_pNN = new GNeuralNet();
-}
-
-GUnsupervisedBackProp::GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll)
-: GTransform(pNode, ll), m_cvi(0, NULL), m_pIntrinsic(NULL), m_pProgress(NULL)
-{
-	GDomListIterator it(pNode->field("params"));
-	m_paramDims = it.remaining();
-	m_pParamRanges = new size_t[m_paramDims];
-	GIndexVec::deserialize(m_pParamRanges, it);
-	m_cvi.reset(m_paramDims, m_pParamRanges);
-	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
-	m_useInputBias = pNode->field("bias")->asBool();
-	GDomNode* pJitterer = pNode->fieldIfExists("jitterer");
-	if(pJitterer)
-	{
-		m_pJitterer = new GImageJitterer(pJitterer);
-		m_jitterDims = 4;
-	}
-	else
-	{
-		m_pJitterer = NULL;
-		m_jitterDims = 0;
-	}
-	m_intrinsicDims = m_pNN->relFeatures().size() - (m_paramDims + m_jitterDims);
-	GDomListIterator itMins(pNode->field("mins"));
-	m_pMins = new double[itMins.remaining()];
-	GVec::deserialize(m_pMins, itMins);
-	GDomListIterator itRanges(pNode->field("ranges"));
-	m_pRanges = new double[itRanges.remaining()];
-	GVec::deserialize(m_pRanges, itRanges);
-	m_onePass = pNode->field("op")->asBool();
-}
-
-// virtual
-GUnsupervisedBackProp::~GUnsupervisedBackProp()
-{
-	delete(m_pJitterer);
-	delete(m_pNN);
-//	delete(m_pRevNN);
-	delete[] m_pParamRanges;
-	delete(m_pIntrinsic);
-	delete[] m_pMins;
-	delete[] m_pRanges;
-	delete(m_pProgress);
-}
-
-GDomNode* GUnsupervisedBackProp::serialize(GDom* pDoc) const
-{
-	size_t channels = m_pNN->relLabels().size();
-	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "params", GIndexVec::serialize(pDoc, m_pParamRanges, m_paramDims));
-	pNode->addField(pDoc, "nn", m_pNN->serialize(pDoc));
-//	pNode->addField(pDoc, "rev", m_pRevNN->serialize(pDoc));
-	GAssert(m_paramDims + m_jitterDims + m_intrinsicDims == m_pNN->relFeatures().size());
-	pNode->addField(pDoc, "bias", pDoc->newBool(m_useInputBias));
-	if(m_pJitterer)
-		pNode->addField(pDoc, "jitterer", m_pJitterer->serialize(pDoc));
-	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, channels));
-	pNode->addField(pDoc, "ranges", GVec::serialize(pDoc, m_pRanges, channels));
-	pNode->addField(pDoc, "op", pDoc->newBool(m_onePass));
-	return pNode;
-}
-
-void GUnsupervisedBackProp::trackProgress()
-{
-	delete(m_pProgress);
-	m_pProgress = new GMatrix(0, 2);
-}
-
-void GUnsupervisedBackProp::setNeuralNet(GNeuralNet* pNN)
-{
-	delete(m_pNN);
-	m_pNN = pNN;
-}
-
-void GUnsupervisedBackProp::setParams(vector<size_t>& paramRanges)
-{
-	m_paramDims = paramRanges.size();
-	delete[] m_pParamRanges;
-	m_pParamRanges = new size_t[m_paramDims];
-	for(size_t i = 0; i < m_paramDims; i++)
-		m_pParamRanges[i] = paramRanges[i];
-	m_cvi.reset(m_paramDims, m_pParamRanges);
-}
-
-void GUnsupervisedBackProp::setIntrinsic(GMatrix* pIntrinsic)
-{
-	if(pIntrinsic->cols() != m_intrinsicDims)
-		throw Ex("Expected ", to_str(m_intrinsicDims), " cols. Got ", to_str(pIntrinsic->cols()));
-	delete(m_pIntrinsic);
-	m_pIntrinsic = pIntrinsic;
-}
-
-void GUnsupervisedBackProp::setJitterer(GImageJitterer* pJitterer)
-{
-	delete(m_pJitterer);
-	m_pJitterer = pJitterer;
-}
-
-// virtual
-GMatrix* GUnsupervisedBackProp::reduce(const GMatrix& in)
-{
-	// Compute pixels and channels
-	size_t pixels = 1;
-	for(size_t i = 0; i < m_paramDims; i++)
-		pixels *= m_pParamRanges[i];
-	size_t channels = in.cols() / pixels;
-	if((pixels * channels) != (size_t)in.cols())
-		throw Ex("params don't line up");
-
-	// Compute the mins and ranges
-	delete[] m_pMins;
-	delete[] m_pRanges;
-	m_pMins = new double[channels];
-	m_pRanges = new double[channels];
-	GVec::setAll(m_pMins, 1e308, channels);
-	GVec::setAll(m_pRanges, -1e308, channels);
-	for(size_t j = 0; j < pixels; j++)
-	{
-		for(size_t i = 0; i < channels; i++)
-		{
-			double inMin = in.columnMin(channels * j + i);
-			double inMax = in.columnMax(channels * j + i);
-			m_pMins[i] = std::min(m_pMins[i], inMin);
-			m_pRanges[i] = std::max(m_pRanges[i], inMax);
-		}
-	}
-	for(size_t i = 0; i < channels; i++)
-	{
-		if(m_pMins[i] > 1e200)
-			m_pMins[i] = 0.0;
-		if(m_pRanges[i] <= m_pMins[i])
-			m_pRanges[i] = m_pMins[i] + 1.0;
-		m_pRanges[i] -= m_pMins[i];
-		//std::cerr << "Min " << to_str(i) << "=" << to_str(m_pMins[i]) << ", Range " << to_str(i) << "=" << to_str(m_pRanges[i]) << "\n";
-	}
-
-	// Init
-	m_jitterDims = 0;
-	GTEMPBUF(double, pixBuf, channels);
-	if(m_pJitterer)
-	{
-		if(m_paramDims != 2)
-			throw Ex("An image jitterer can only be used in conjunction with 2 param dims");
-		if(channels != m_pJitterer->channels() || m_pParamRanges[0] != m_pJitterer->wid() || m_pParamRanges[1] != m_pJitterer->hgt())
-			throw Ex("The image jitterer was constructed with mismatching parameters");
-		m_jitterDims = 4;
-	}
-	GUniformRelation featureRel(m_paramDims + m_jitterDims + m_intrinsicDims);
-	GUniformRelation labelRel(channels);
-	m_pNN->setUseInputBias(m_useInputBias);
-	m_pNN->beginIncrementalLearning(featureRel, labelRel);
-	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	nn.setUseInputBias(m_useInputBias);
-	nn.beginIncrementalLearning(featureRel, labelRel);
-
-	// Train
-	double* pParams = new double[(m_paramDims + m_jitterDims + m_intrinsicDims) * 2];
-	ArrayHolder<double> hParams(pParams);
-	double* pJitters = pParams + m_paramDims;
-	double* pIntrinsic = pJitters + m_jitterDims;
-	double* pGradientOfInputs = pIntrinsic + m_intrinsicDims;
-	size_t totalPasses = 3;
-	if(m_onePass)
-		totalPasses = 1;
-	if(m_pNN->layerCount() == 1)
-		totalPasses = 1;
-	for(size_t pass = 0; pass < totalPasses; pass++)
-	{
-		GNeuralNet* pNN = m_pNN;
-		if(pass == 0)
-		{
-			if(totalPasses > 1)
-				pNN = &nn;
-
-			// Initialize the intrinsic matrix
-			delete(m_pIntrinsic);
-			m_pIntrinsic = new GMatrix(in.rows(), m_intrinsicDims);
-			for(size_t i = 0; i < in.rows(); i++)
-			{
-				double* pVec = m_pIntrinsic->row(i);
-				for(size_t j = 0; j < m_intrinsicDims; j++)
-					*(pVec++) = 0.1 * nn.rand().normal();
-			}
-		}
-
-		double learningRate = 0.1;
-		double momentum = 0.0;
-		double regularizer = 0.0;
-		switch(totalPasses - pass)
-		{
-			case 3: regularizer = 1e-6; break;
-			case 2: regularizer = 1e-8; break;
-			case 1: break;
-			default: throw Ex("Unexpected case");
-		}
-		pNN->setLearningRate(learningRate);
-		pNN->setMomentum(momentum);
-		size_t sampleSize = std::max((size_t)1, (size_t)ceil(sqrt((double)m_cvi.coordCount())));
-		size_t batchSize = std::max((size_t)ceil(sqrt((double)in.rows())), in.rows() / sampleSize);
-
-//sampleSize = 1;
-//batchSize = 100;
-
-		size_t batches = 1000;
-		double decay = pow(0.05, 1.0 / batches);
-		for(size_t i = 0; i < batches; i++)
-		{
-			double sse = 0;
-			for(size_t j = 0; j < 200 * batchSize; j++)
-			{
-				// Pick a row
-				size_t r = (size_t)nn.rand().next(in.rows());
-				const double* pIn = in[r];
-				double* pInt = m_pIntrinsic->row(r);
-				for(size_t k = 0; k < sampleSize; k++) // use the same row for a few iterations to reduce page swaps
-				{
-					// Pick a row, pixel, and channel
-					m_cvi.setRandom(&nn.rand());
-					size_t c = (size_t)nn.rand().next(channels);
-					m_cvi.currentNormalized(pParams);
-
-					// Get the pixel
-					const double* pPix;
-					if(m_pJitterer)
-					{
-						GVec::copy(pJitters, m_pJitterer->pickParams(nn.rand()), m_jitterDims);
-						m_pJitterer->transformedPix(pIn, m_cvi.current()[0], m_cvi.current()[1], pixBuf);
-						pPix = pixBuf;
-					}
-					else
-						pPix = pIn + m_cvi.currentIndex() * channels;
-
-					// Do backprop
-					GVec::copy(pIntrinsic, pInt, m_intrinsicDims);
-					double prediction = pNN->forwardPropSingleOutput(pParams, c);
-					double target = (pPix[c] - m_pMins[c]) / m_pRanges[c];
-					GAssert(target >= 0.0 && target <= 1.0 && prediction >= 0.0 && prediction <= 1.0);
-					double err = target - prediction;
-					sse += (err * err);
-					pNN->backpropagateSingleOutput(c, target);
-
-					// Calculate the gradient of the inputs
-					if(pass != 1)
-						pNN->gradientOfInputsSingleOutput(c, pGradientOfInputs);
-
-					// Update weights
-					pNN->scaleWeightsSingleOutput(c, 1.0 - (learningRate * regularizer));
-					pNN->descendGradientSingleOutput(c, pParams, pNN->learningRate(), pNN->momentum());
-
-					// Update inputs
-					if(pass != 1)
-					{
-						GVec::multiply(pIntrinsic, 1.0 - learningRate * regularizer, m_intrinsicDims);
-						GVec::addScaled(pIntrinsic, -learningRate, pGradientOfInputs + m_paramDims + m_jitterDims, m_intrinsicDims);
-						GVec::copy(pInt, pIntrinsic, m_intrinsicDims);
-					}
-				}
-			}
-			double rmse = sqrt(sse / batchSize);
-			if(m_pProgress)
-			{
-				double* pProg = m_pProgress->newRow();
-				pProg[0] = (double)(batches * pass + i);
-				pProg[1] = rmse;
-			}
-
-			// Print progress
-			std::cerr << "Pass " << to_str(pass + 1) << "/" << to_str(totalPasses) << ", Batch " << to_str(i + 1) << "/" << to_str(batches) << "\n";
-			learningRate *= decay;
-		}
-	}
-
-	// Normalize the intrinsic values
-	for(size_t i = 0; i < m_intrinsicDims; i++)
-	{
-		//std::cerr << "Before intrinsic dim=" << to_str(i) << ", min=" << to_str(m_pIntrinsic->columnMin(i)) << ", max=" << to_str(m_pIntrinsic->columnMax(i)) << "\n";
-		double _min = m_pIntrinsic->columnMin(i);
-		double _max = m_pIntrinsic->columnMax(i);
-		if(_max - _min < 1e-12)
-			_max = _min + 1e-6;
-		GNeuralNetLayer* pInputLayer = &m_pNN->layer(0);
-		pInputLayer->renormalizeInput(m_paramDims + m_jitterDims + i, _min, _max);
-		m_pIntrinsic->normalizeColumn(i, _min, _max);
-		//std::cerr << " After intrinsic dim=" << to_str(i) << ", min=" << to_str(m_pIntrinsic->columnMin(i)) << ", max=" << to_str(m_pIntrinsic->columnMax(i)) << "\n";
-	}
-
-	GMatrix* pOut = m_pIntrinsic;
-	m_pIntrinsic = NULL;
-	return pOut;
-}
-
-class GUBPTargetFunc : public GTargetFunction
-{
-protected:
-	GUnsupervisedBackProp* m_pUBP;
-	double* m_pInit;
-	double* m_pPrediction;
-	size_t m_labelDims;
-	const double* m_pTarget;
-
-public:
-	GUBPTargetFunc(GUnsupervisedBackProp* pUBP, double* pInit, const double* pTarget)
-	: GTargetFunction(pUBP->featureDims()), m_pUBP(pUBP), m_pInit(pInit), m_pTarget(pTarget)
-	{
-		m_labelDims = m_pUBP->labelDims();
-		m_pPrediction = new double[m_labelDims];
-	}
-
-	virtual ~GUBPTargetFunc()
-	{
-		delete[] m_pPrediction;
-	}
-
-	virtual bool isStable() { return true; }
-
-	virtual bool isConstrained() { return false; }
-
-	virtual void initVector(double* pVector)
-	{
-		GVec::copy(pVector, m_pInit, m_pUBP->featureDims());
-	}
-
-	virtual double computeError(const double* pVector)
-	{
-		m_pUBP->lowToHi(pVector, m_pPrediction);
-		double err = 0.0;
-		for(size_t k = 0; k < m_labelDims; k++)
-		{
-			double d = (m_pTarget[k] - m_pPrediction[k]) * pow(2.58, m_pTarget[k] / 128 - 1.0);
-			err += (d * d);
-		}
-		return err;
-	}
-};
-
-void GUnsupervisedBackProp::hiToLow(const double* pIn, double* pOut)
-{
-	throw Ex("Not implemented yet");
-/*
-	// Compute values
-//	size_t channels = m_pNN->labelDims();
-
-	// Init
-	if(!m_pNN->hasTrainingBegun())
-		throw Ex("Not trained");
-	if(m_pNN->relFeatures()->size() != m_paramDims + m_jitterDims + m_intrinsicDims)
-		throw Ex("Incorrect number of inputs Expected ", to_str(m_paramDims + m_jitterDims + m_intrinsicDims), ", got ", to_str(m_pNN->relFeatures()->size()));
-
-	// Use the reverse map
-	double* pParams = new double[m_paramDims + m_jitterDims + m_intrinsicDims];
-	ArrayHolder<double> hParams(pParams);
-	double* pJitters = pParams + m_paramDims;
-	//GVec::setAll(pJitters, 0.5, m_jitterDims + m_intrinsicDims);
-	m_pRevNN->predict(pIn, pJitters);
-
-	// Refine
-	double prevErr = 1e308;
-	for(double learningRate = 0.0001; learningRate > 0.00005; )
-	{
-		m_pNN->setLearningRate(learningRate);
-		double sse = 0;
-		for(size_t i = 0; i < 1e7; i++)
-		{
-			// Pick a pixel, and channel
-			m_cvi.setRandom(m_pRand);
-			size_t c = (size_t)m_pRand->next(channels);
-			m_cvi.currentNormalized(pParams);
-
-			// Get the pixel
-			const double* pPix = pIn + m_cvi.currentIndex() * channels;
-
-			// Do backprop
-			double prediction = m_pNN->forwardPropSingleOutput(pParams, c);
-			double target = (pPix[c] - m_pMins[c]) / m_pRanges[c];
-//			double err = target - prediction;
-double err = (target - prediction) * pow(2.58, target + target - 1.0);
-			sse += (err * err);
-//			m_pNN->setErrorSingleOutput(target, c);
-m_pNN->setErrorSingleOutput(prediction + err, c);
-			m_pNN->backProp()->backpropagateSingleOutput(c);
-
-			// Update weights and inputs
-			m_pNN->backProp()->adjustFeaturesSingleOutput(c, pParams, m_pNN->learningRate(), true);
-			GVec::floorValues(pJitters, 0.2, m_jitterDims + m_intrinsicDims);
-			GVec::capValues(pJitters, 0.8, m_jitterDims + m_intrinsicDims);
-		}
-		double rsse = sqrt(sse);
-//		if(1.0 - rsse / prevErr < 0.0001)
-			learningRate *= 0.5;
-		prevErr = rsse;
-	}
-
-	GUBPTargetFunc targetFunc(this, pJitters, pIn);
-	GHillClimber optimizer(&targetFunc);
-	optimizer.searchUntil(500, 50, 0.0001);
-	GVec::copy(pJitters, optimizer.currentVector(), m_jitterDims + m_intrinsicDims);
-
-
-	GVec::copy(pOut, pJitters, m_jitterDims + m_intrinsicDims);
-*/
-}
-
-void GUnsupervisedBackProp::lowToHi(const double* pIn, double* pOut)
-{
-	size_t channels = m_pNN->relLabels().size();
-	GTEMPBUF(double, pParams, m_paramDims + m_jitterDims + m_intrinsicDims);
-	GVec::copy(pParams + m_paramDims, pIn, m_jitterDims + m_intrinsicDims);
-	m_cvi.reset();
-	while(true)
-	{
-		m_cvi.currentNormalized(pParams);
-		m_pNN->predict(pParams, pOut);
-		for(size_t i = 0; i < channels; i++)
-		{
-			(*pOut) *= m_pRanges[i];
-			(*pOut) += m_pMins[i];
-			pOut++;
-		}
-		if(!m_cvi.advance())
-			break;
-	}
-}
-
-double* GUnsupervisedBackProp::mins()
-{
-	if(!m_pMins)
-	{
-		if(!m_pNN)
-			throw Ex("No neural net has been set");
-		m_pMins = new double[m_pNN->relLabels().size()];
-	}
-	return m_pMins;
-}
-
-double* GUnsupervisedBackProp::ranges()
-{
-	if(!m_pRanges)
-	{
-		if(!m_pNN)
-			throw Ex("No neural net has been set");
-		m_pRanges = new double[m_pNN->relLabels().size()];
-	}
-	return m_pRanges;
-}
-
-size_t GUnsupervisedBackProp::labelDims()
-{
-	return m_cvi.coordCount() * m_pNN->relLabels().size();
-}
-
-
-
-
-
-
-
 
 
 
@@ -2797,10 +2317,10 @@ void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighbo
 		}
 
 		double dTarget = ng.squaredDistanceTable()[edge];
-		double* pA = intrinsic.row(a);
-		double* pB = intrinsic.row(b);
-		double dCur = GVec::squaredDistance(pA, pB, dims);
-		GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget, rand);
+		GVec& aa = intrinsic.row(a);
+		GVec& bb = intrinsic.row(b);
+		double dCur = aa.squaredDistance(bb);
+		GScalingUnfolder_adjustPoints(aa.data(), bb.data(), dims, dCur, dTarget, rand);
 	}
 
 }

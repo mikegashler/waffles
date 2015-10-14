@@ -49,12 +49,12 @@ public:
 	}
 
 	size_t units() { return m_forw.cols(); }
-	double* activation() { return m_bias[0]; }
-	double* bias() { return m_bias[1]; }
-	double* clamp() { return m_bias[2]; }
-	double* delta() { return m_bias[3]; }
-	double* error() { return m_bias[4]; }
-	double* net() { return m_bias[5]; }
+	GVec& activation() { return m_bias[0]; }
+	GVec& bias() { return m_bias[1]; }
+	GVec& clamp() { return m_bias[2]; }
+	GVec& delta() { return m_bias[3]; }
+	GVec& error() { return m_bias[4]; }
+	GVec& net() { return m_bias[5]; }
 
 	void clipWeightMagnitudes(double min, double max);
 	void init(GRand& rand);
@@ -120,13 +120,13 @@ public:
 #endif // MIN_PREDICT
 
 	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const double* pIn, const double* pOut);
+	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const double* pIn, double* pOut);
+	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const double* pIn, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
 
 	/// See the comment for GIncrementalLearner::trainSparse
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
@@ -166,7 +166,7 @@ protected:
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 
-	void clampValues(const double* pIn, const double* pOut);
+	void clampValues(const GVec& in, const GVec& out);
 	void updateDelta(GAssociativeLayer* pLayer, size_t layer, size_t unit, double delta);
 	void clamp(GAssociativeLayer* pLayer, size_t layer, size_t unit, double value);
 	void updateActivation(GAssociativeLayer* pLay, size_t layer, size_t unit, double netDelta);

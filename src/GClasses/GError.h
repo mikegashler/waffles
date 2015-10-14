@@ -237,7 +237,6 @@ void test_to_str();
 #endif // MIN_PREDICT
 
 
-#define COMPILER_ASSERT(expr)  enum { CompilerAssertAtLine##__LINE__ = sizeof( char[(expr) ? +1 : -1] ) }
 
 
 // ----------------------------

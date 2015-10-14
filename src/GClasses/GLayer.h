@@ -66,16 +66,16 @@ public:
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03) = 0;
 
 	/// Returns a buffer where the activation from the most-recent call to feedForward is stored.
-	virtual double* activation() = 0;
+	virtual GVec& activation() = 0;
 
 	/// Returns a buffer where the error terms for each unit are stored.
-	virtual double* error() = 0;
+	virtual GVec& error() = 0;
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop) = 0;
 
 	/// Feeds an input vector through this layer to compute the output of this layer.
-	virtual void feedForward(const double* pIn) = 0;
+	virtual void feedForward(const GVec& in) = 0;
 
 	/// Feeds the activation of the previous layer through this layer to compute the output of this layer.
 	virtual void feedForward(GNeuralNetLayer* pUpStreamLayer)
@@ -84,7 +84,7 @@ public:
 	}
 
 	/// Computes the error term of the activation.
-	virtual void computeError(const double* pTarget) = 0;
+	virtual void computeError(const GVec& target) = 0;
 
 	/// Converts the error term to refer to the net input.
 	virtual void deactivateError() = 0;
@@ -94,7 +94,7 @@ public:
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const double* pUpStreamActivation, double momentum) = 0;
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum) = 0;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	virtual void updateDeltas(GNeuralNetLayer* pUpStreamLayer, double momentum)
@@ -186,13 +186,13 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual double* activation() { return m_bias[2]; }
+	virtual GVec& activation() { return m_bias[2]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual double* error() { return m_bias[3]; }
+	virtual GVec& error() { return m_bias[3]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const double* pIn);
+	virtual void feedForward(const GVec& in);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
@@ -200,7 +200,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const double* pTarget);
+	virtual void computeError(const GVec& target);
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
@@ -214,7 +214,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
@@ -259,29 +259,26 @@ using GNeuralNetLayer::updateDeltas;
 	GMatrix& weights() { return m_weights; }
 
 	/// Returns the bias vector of this layer.
-	double* bias() { return m_bias[0]; }
+	GVec& bias() { return m_bias[0]; }
 
 	/// Returns the bias vector of this layer.
-	const double* bias() const { return m_bias[0]; }
+	const GVec& bias() const { return m_bias[0]; }
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
-	double* net() { return m_bias[1]; }
+	GVec& net() { return m_bias[1]; }
 
 	/// Returns a buffer used to store delta values for each bias in this layer.
-	double* biasDelta() { return m_bias[4]; }
+	GVec& biasDelta() { return m_bias[4]; }
 
 	/// Returns a vector used to specify slack terms for each unit in this layer.
-	double* slack() { return m_bias[5]; }
+	GVec& slack() { return m_bias[5]; }
 
 	/// Returns a pointer to the activation function used in this layer
 	GActivationFunction* activationFunction() { return m_pActivationFunction; }
 
-	/// Feeds a vector forward through this layer. Uses the first value in pIn as an input bias.
-	void feedForwardWithInputBias(const double* pIn);
-
 	/// Feeds a vector forward through this layer to compute only the one specified output value.
-	void feedForwardToOneOutput(const double* pIn, size_t output, bool inputBias);
+	void feedForwardToOneOutput(const GVec& in, size_t output);
 
 	/// This is the same as computeError, except that it only computes the error of a single unit.
 	void computeErrorSingleOutput(double target, size_t output);
@@ -292,10 +289,10 @@ using GNeuralNetLayer::updateDeltas;
 	/// Backpropagates the error from a single output node to a hidden layer.
 	/// (Assumes that the error in the output node has already been deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	void backPropErrorSingleOutput(size_t output, double* pUpStreamError);
+	void backPropErrorSingleOutput(size_t output, GVec& upStreamError);
 
 	/// Updates the weights and bias of a single neuron. (Assumes the error has already been computed and deactivated.)
-	void updateWeightsSingleNeuron(size_t outputNode, const double* pUpStreamActivation, double learningRate, double momentum);
+	void updateWeightsSingleNeuron(size_t outputNode, const GVec& upStreamActivation, double learningRate, double momentum);
 
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
 	/// start specifies the first unit whose incoming weights will be adjusted.
@@ -311,7 +308,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
 	/// that is added before the transform.
-	void transformWeights(GMatrix& transform, const double* pOffset);
+	void transformWeights(GMatrix& transform, const GVec& offset);
 
 	/// Adjusts weights such that values in the new range will result in the
 	/// same behavior that previously resulted from values in the old range.
@@ -386,13 +383,13 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual double* activation() { return m_activation[0]; }
+	virtual GVec& activation() { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual double* error() { return m_activation[1]; }
+	virtual GVec& error() { return m_activation[1]; }
 
 	/// Feeds the inputs through each component to compute an aggregated activation
-	virtual void feedForward(const double* pIn);
+	virtual void feedForward(const GVec& in);
 
 	/// Calls dropOut for each component.
 	virtual void dropOut(GRand& rand, double probOfDrop);
@@ -400,7 +397,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const double* pTarget);
+	virtual void computeError(const GVec& target);
 
 	/// Copies the error vector into the corresponding buffer for each component,
 	/// then calls deactivateError for each component.
@@ -413,7 +410,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
@@ -493,24 +490,24 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values on the hidden end.
-	virtual double* activation() { return m_bias[2]; }
+	virtual GVec& activation() { return m_bias[2]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual double* error() { return m_bias[3]; }
+	virtual GVec& error() { return m_bias[3]; }
 
 	/// Feeds pIn forward through this layer.
-	virtual void feedForward(const double* pIn);
+	virtual void feedForward(const GVec& in);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
 
 	/// Feed a vector from the hidden end to the visible end. The results are placed in activationReverse();
-	void feedBackward(const double* pIn);
+	void feedBackward(const GVec& in);
 
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const double* pTarget);
+	virtual void computeError(const GVec& target);
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
@@ -523,7 +520,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
@@ -566,32 +563,32 @@ using GNeuralNetLayer::updateDeltas;
 	GMatrix& weights() { return m_weights; }
 
 	/// Returns the bias for the hidden end of this layer.
-	double* bias() { return m_bias[0]; }
+	GVec& bias() { return m_bias[0]; }
 
 	/// Returns the bias for the hidden end of this layer.
-	const double* bias() const { return m_bias[0]; }
+	const GVec& bias() const { return m_bias[0]; }
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
-	double* net() { return m_bias[1]; }
+	GVec& net() { return m_bias[1]; }
 
 	/// Returns the delta vector for the bias.
-	double* biasDelta() { return m_bias[4]; }
+	GVec& biasDelta() { return m_bias[4]; }
 
 	/// Returns the bias for the visible end of this layer.
-	double* biasReverse() { return m_biasReverse[0]; }
+	GVec& biasReverse() { return m_biasReverse[0]; }
 
 	/// Returns the delta vector for the reverse bias.
-	double* biasReverseDelta() { return m_biasReverse[4]; }
+	GVec& biasReverseDelta() { return m_biasReverse[4]; }
 
 	/// Returns the net for the visible end of this layer.
-	double* netReverse() { return m_biasReverse[1]; }
+	GVec& netReverse() { return m_biasReverse[1]; }
 
 	/// Returns the activation for the visible end of this layer.
-	double* activationReverse() { return m_biasReverse[2]; }
+	GVec& activationReverse() { return m_biasReverse[2]; }
 
 	/// Returns the error term for the visible end of this layer.
-	double* errorReverse() { return m_biasReverse[3]; }
+	GVec& errorReverse() { return m_biasReverse[3]; }
 
 	/// Performs binomial resampling of the activation values on the output end of this layer.
 	void resampleHidden(GRand& rand);
@@ -605,11 +602,11 @@ using GNeuralNetLayer::updateDeltas;
 	void drawSample(GRand& rand, size_t iters);
 
 	/// Returns the free energy of this layer.
-	double freeEnergy(const double* pVisibleSample);
+	double freeEnergy(const GVec& visibleSample);
 
 	/// Refines this layer by contrastive divergence.
 	/// pVisibleSample should point to a vector of inputs that will be presented to this layer.
-	void contrastiveDivergence(GRand& rand, const double* pVisibleSample, double learningRate, size_t gibbsSamples = 1);
+	void contrastiveDivergence(GRand& rand, const GVec& visibleSample, double learningRate, size_t gibbsSamples = 1);
 
 	/// Adjusts weights such that values in the new range will result in the
 	/// same behavior that previously resulted from values in the old range.
@@ -665,13 +662,13 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual double* activation() { return m_activation[0]; }
+	virtual GVec& activation() { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual double* error() { return m_activation[2]; }
+	virtual GVec& error() { return m_activation[2]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const double* pIn);
+	virtual void feedForward(const GVec& in);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
@@ -682,7 +679,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const double* pTarget);
+	virtual void computeError(const GVec& target);
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
@@ -696,7 +693,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
@@ -738,10 +735,10 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
-	double* net() { return m_activation[1]; }
+	GVec& net() { return m_activation[1]; }
 
-	double* bias() { return m_bias[0]; }
-	double* biasDelta() { return m_bias[1]; }
+	GVec& bias() { return m_bias[0]; }
+	GVec& biasDelta() { return m_bias[1]; }
 	GMatrix& kernels() { return m_kernels; }
 };
 
@@ -798,13 +795,13 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual double* activation() { return m_activation[0]; }
+	virtual GVec& activation() { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual double* error() { return m_activation[2]; }
+	virtual GVec& error() { return m_activation[2]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const double* pIn);
+	virtual void feedForward(const GVec& in);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
@@ -815,7 +812,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const double* pTarget);
+	virtual void computeError(const GVec& target);
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
@@ -829,7 +826,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
@@ -871,10 +868,10 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
-	double* net() { return m_activation[1]; }
+	GVec& net() { return m_activation[1]; }
 
-	double* bias() { return m_bias[0]; }
-	double* biasDelta() { return m_bias[1]; }
+	GVec& bias() { return m_bias[0]; }
+	GVec& biasDelta() { return m_bias[1]; }
 	GMatrix& kernels() { return m_kernels; }
 };
 
@@ -923,13 +920,13 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual double* activation() { return m_activation[0]; }
+	virtual GVec& activation() { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual double* error() { return m_activation[1]; }
+	virtual GVec& error() { return m_activation[1]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const double* pIn);
+	virtual void feedForward(const GVec& in);
 
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop);
@@ -940,7 +937,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const double* pTarget);
+	virtual void computeError(const GVec& target);
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
@@ -954,7 +951,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);

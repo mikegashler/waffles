@@ -31,7 +31,7 @@
 namespace GClasses {
 
 GLinearRegressor::GLinearRegressor()
-: GSupervisedLearner(), m_pBeta(NULL), m_pEpsilon(NULL)
+: GSupervisedLearner(), m_pBeta(NULL)
 {
 }
 
@@ -39,9 +39,7 @@ GLinearRegressor::GLinearRegressor(GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode, ll)
 {
 	m_pBeta = new GMatrix(pNode->field("beta"));
-	m_pEpsilon = new double[m_pBeta->rows()];
-	GDomListIterator it(pNode->field("epsilon"));
-	GVec::deserialize(m_pEpsilon, it);
+	m_epsilon.deserialize(pNode->field("epsilon"));
 }
 
 // virtual
@@ -55,7 +53,7 @@ GDomNode* GLinearRegressor::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GLinearRegressor");
 	pNode->addField(pDoc, "beta", m_pBeta->serialize(pDoc));
-	pNode->addField(pDoc, "epsilon", GVec::serialize(pDoc, m_pEpsilon, m_pBeta->rows()));
+	pNode->addField(pDoc, "epsilon", m_epsilon.serialize(pDoc));
 	return pNode;
 }
 /*
@@ -83,7 +81,7 @@ public:
 
 	virtual double computeError(const double* pVector)
 	{
-		GVec::copy(m_pLR->m_pEpsilon, pVector, m_pLR->m_pBeta->rows());
+		GVec::copy(m_pLR->m_epsilon, pVector, m_pLR->m_pBeta->rows());
 		pVector += m_pLR->m_pBeta->rows();
 		m_pLR->m_pBeta->fromVector(pVector, m_pLR->m_pBeta->rows());
 		double sse = m_pLR->sumSquaredErrorInternal(m_feat, m_lab);
@@ -97,7 +95,7 @@ void GLinearRegressor::refine(GMatrix& features, GMatrix& labels, double learnin
 	GMomentumGreedySearch hc(&tf);
 	hc.searchUntil(100, 100, 0.0001);
 	double* pVector = hc.currentVector();
-	GVec::copy(m_pEpsilon, pVector, m_pBeta->rows());
+	GVec::copy(m_epsilon, pVector, m_pBeta->rows());
 	pVector += m_pBeta->rows();
 	m_pBeta->fromVector(pVector, m_pBeta->rows());
 }
@@ -116,35 +114,25 @@ void GLinearRegressor::refine(const GMatrix& features, const GMatrix& labels, do
 		size_t* pIndex = pIndexes;
 		for(size_t j = 0; j < features.rows(); j++)
 		{
-			const double* pFeat = features[*pIndex];
-			const double* pLab = labels[*pIndex];
-			double* pBias = m_pEpsilon;
+			const GVec& feat = features[*pIndex];
+			const GVec& lab = labels[*pIndex];
 			for(size_t k = 0; k < lDims; k++)
 			{
-				double err = *pLab - (GVec::dotProduct(pFeat, m_pBeta->row(k), fDims) + *pBias);
-				const double* pF = pFeat;
+				double err = lab[k] - (feat.dotProduct(m_pBeta->row(k)) + m_epsilon[k]);
 				double lr = learningRate;
 				double mag = 0.0;
 				for(size_t l = 0; l < fDims; l++)
 				{
-					double d = *pF * err;
+					double d = feat[l] * err;
 					mag += (d * d);
-					pF++;
 				}
 				mag += err * err;
 				if(mag > 1.0)
 					lr /= mag;
-				pF = pFeat;
-				double* pW = m_pBeta->row(k);
+				GVec& w = m_pBeta->row(k);
 				for(size_t l = 0; l < fDims; l++)
-				{
-					*pW += *pF * lr * err;
-					pF++;
-					pW++;
-				}
-				*pBias += learningRate * err;
-				pLab++;
-				pBias++;
+					w[l] += feat[l] * lr * err;
+				m_epsilon[k] += learningRate * err;
 			}
 			pIndex++;
 		}
@@ -172,33 +160,34 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 	GMatrix l(inputs, outputs);
 	for(size_t i = 0; i < inputs; i++)
 	{
-		GVec::copy(f[i], pca.basis()->row(i), inputs);
-		double sqmag = GVec::squaredMagnitude(f[i], inputs);
+		GVec::copy(f[i].data(), pca.basis()->row(i).data(), inputs);
+		double sqmag = f[i].squaredMagnitude();
 		if(sqmag > 1e-10)
-			GVec::multiply(f[i], 1.0 / sqmag, inputs);
-		GVec::copy(l[i], pca.basis()->row(i) + inputs, outputs);
+			f[i] *= 1.0 / sqmag;
+		l[i].set(pca.basis()->row(i).data() + inputs, outputs);
 	}
 	m_pBeta = GMatrix::multiply(l, f, true, false);
-	m_pEpsilon = new double[outputs];
-	m_pBeta->multiply(pca.centroid(), m_pEpsilon, false);
-	GVec::multiply(m_pEpsilon, -1.0, outputs);
-	GVec::add(m_pEpsilon, pca.centroid() + inputs, outputs);
+	m_epsilon.resize(outputs);
+	GVecWrapper vw(pca.centroid().data(), m_pBeta->cols());
+	m_pBeta->multiply(vw.vec(), m_epsilon, false);
+	m_epsilon *= -1.0;
+	GVec::add(m_epsilon.data(), pca.centroid().data() + inputs, outputs);
 
 	// Refine the results using gradient descent
 	refine(features, labels, 0.06, 20, 0.75);
 }
 
 // virtual
-void GLinearRegressor::predictDistribution(const double* pIn, GPrediction* pOut)
+void GLinearRegressor::predictDistribution(const GVec& in, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model cannot predict a distribution.");
 }
 
 // virtual
-void GLinearRegressor::predict(const double* pIn, double* pOut)
+void GLinearRegressor::predict(const GVec& in, GVec& out)
 {
-	m_pBeta->multiply(pIn, pOut, false);
-	GVec::add(pOut, m_pEpsilon, m_pBeta->rows());
+	m_pBeta->multiply(in, out, false);
+	out += m_epsilon;
 }
 
 // virtual
@@ -206,8 +195,6 @@ void GLinearRegressor::clear()
 {
 	delete(m_pBeta);
 	m_pBeta = NULL;
-	delete[] m_pEpsilon;
-	m_pEpsilon = NULL;
 }
 
 void GLinearRegressor::autoTune(GMatrix& features, GMatrix& labels)
@@ -223,11 +210,11 @@ void GLinearRegressor_linear_test(GRand& prng)
 	GMatrix labels1(0, 1);
 	for(size_t i = 0; i < 1000; i++)
 	{
-		double* pVec = features1.newRow();
-		pVec[0] = prng.uniform();
-		pVec[1] = prng.uniform(); // irrelevant attribute
-		pVec[2] = prng.uniform();
-		labels1.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
+		GVec& vec = features1.newRow();
+		vec[0] = prng.uniform();
+		vec[1] = prng.uniform(); // irrelevant attribute
+		vec[2] = prng.uniform();
+		labels1.newRow()[0] = 0.3 * vec[0] + 2.0 * vec[2] + 5.0;
 	}
 	GLinearRegressor lr;
 	lr.train(features1, labels1);
@@ -249,11 +236,11 @@ void GLinearRegressor_linear_test(GRand& prng)
 	GMatrix labels2(0, 1);
 	for(size_t i = 0; i < 1000; i++)
 	{
-		double* pVec = features2.newRow();
-		pVec[0] = prng.uniform();
-		pVec[1] = prng.uniform(); // irrelevant attribute
-		pVec[2] = prng.uniform();
-		labels2.newRow()[0] = 0.3 * pVec[0] + 2.0 * pVec[2] + 5.0;
+		GVec& vec = features2.newRow();
+		vec[0] = prng.uniform();
+		vec[1] = prng.uniform(); // irrelevant attribute
+		vec[2] = prng.uniform();
+		labels2.newRow()[0] = 0.3 * vec[0] + 2.0 * vec[2] + 5.0;
 	}
 	double rmse = sqrt(lr.sumSquaredError(features2, labels2) / features2.rows());
 	if(rmse > 0.0224)
@@ -276,7 +263,7 @@ void GLinearRegressor::test()
 
 
 GLinearDistribution::GLinearDistribution()
-: GSupervisedLearner(), m_noiseDev(1.0), m_pAInv(NULL), m_pWBar(NULL), m_pBuf(NULL)
+: GSupervisedLearner(), m_noiseDev(1.0), m_pAInv(NULL), m_pWBar(NULL)
 {
 }
 
@@ -286,7 +273,7 @@ GLinearDistribution::GLinearDistribution(GDomNode* pNode, GLearnerLoader& ll)
 	m_noiseDev = pNode->field("nd")->asDouble();
 	m_pWBar = new GMatrix(pNode->field("w"));
 	m_pAInv = new GMatrix(pNode->field("a"));
-	m_pBuf = new double[m_pAInv->rows()];
+	m_buf.resize(m_pAInv->rows());
 }
 
 // virtual
@@ -322,8 +309,6 @@ void GLinearDistribution::clear()
 	m_pAInv = NULL;
 	delete(m_pWBar);
 	m_pWBar = NULL;
-	delete[] m_pBuf;
-	m_pBuf = NULL;
 }
 
 // virtual
@@ -349,27 +334,21 @@ void GLinearDistribution::trainInner(const GMatrix& features, const GMatrix& lab
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		// Update A
-		const double* pFeat = features[i];
+		const GVec& feat = features[i];
 		for(size_t j = 0; j < dims; j++)
 		{
-			double* pEl = a[j];
+			GVec& el = a[j];
 			for(size_t k = 0; k < dims; k++)
-			{
-				*pEl += pFeat[j] * pFeat[k];
-				pEl++;
-			}
+				el[k] += feat[j] * feat[k];
 		}
 
 		// Update XY
-		const double* pLab = labels[i];
+		const GVec& lab = labels[i];
 		for(size_t j = 0; j < dims; j++)
 		{
-			double* pEl = xy[j];
+			GVec& el = xy[j];
 			for(size_t k = 0; k < labelDims; k++)
-			{
-				*pEl += pFeat[j] * pLab[k];
-				pEl++;
-			}
+				el[k] += feat[j] * lab[k];
 		}
 	}
 	a.multiply(w);
@@ -383,27 +362,26 @@ void GLinearDistribution::trainInner(const GMatrix& features, const GMatrix& lab
 	m_pWBar = GMatrix::multiply(xy, *m_pAInv, true, true);
 	GAssert(m_pWBar->cols() == dims);
 	GAssert(m_pWBar->rows() == labelDims);
-	m_pBuf = new double[dims];
+	m_buf.resize(dims);
 }
 
 // virtual
-void GLinearDistribution::predict(const double* pIn, double* pOut)
+void GLinearDistribution::predict(const GVec& in, GVec& out)
 {
-	m_pWBar->multiply(pIn, pOut);
+	m_pWBar->multiply(in, out);
 }
 
 // virtual
-void GLinearDistribution::predictDistribution(const double* pIn, GPrediction* pOut)
+void GLinearDistribution::predictDistribution(const GVec& in, GPrediction* out)
 {
-	size_t dims = m_pAInv->rows();
-	m_pAInv->multiply(pIn, m_pBuf);
-	double v = GVec::dotProduct(pIn, m_pBuf, dims);
+	m_pAInv->multiply(in, m_buf);
+	double v = in.dotProduct(m_buf);
 	for(size_t i = 0; i < m_pWBar->rows(); i++)
 	{
-		GNormalDistribution* pNorm = (*pOut).makeNormal();
-		double m = GVec::dotProduct(m_pWBar->row(i), pIn, dims);
+		GNormalDistribution* pNorm = (*out).makeNormal();
+		double m = m_pWBar->row(i).dotProduct(in);
 		pNorm->setMeanAndVariance(m, v);
-		pOut++;
+		out++;
 	}
 }
 
@@ -687,11 +665,11 @@ bool GLinearProgramming::simplexMethod(GMatrix* pA, const double* pB, int leCons
 	GMatrix aa(pA->rows() + 3, pA->cols() + 2);
 	aa.setAll(0.0);
 	aa[1][1] = 0.0;
-	GVec::copy(aa.row(1) + 2, pC, pA->cols());
+	GVec::copy(aa.row(1).data() + 2, pC, pA->cols());
 	for(size_t i = 1; i <= pA->rows(); i++)
 	{
-		GVec::copy(aa.row(i + 1) + 2, pA->row(i - 1), pA->cols());
-		GVec::multiply(aa.row(i + 1) + 2, -1.0, pA->cols());
+		GVec::copy(aa.row(i + 1).data() + 2, pA->row(i - 1).data(), pA->cols());
+		GVec::multiply(aa.row(i + 1).data() + 2, -1.0, pA->cols());
 		aa[i + 1][1] = pB[i - 1];
 	}
 

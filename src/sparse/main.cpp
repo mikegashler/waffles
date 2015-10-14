@@ -41,7 +41,6 @@
 #include "../GClasses/GHtml.h"
 #include "../GClasses/GText.h"
 #include "../GClasses/GDirList.h"
-#include "../GClasses/GSystemLearner.h"
 #include "../GClasses/GTime.h"
 #include "../GClasses/GTransform.h"
 #include "../GClasses/GDom.h"
@@ -420,16 +419,15 @@ void predict(GArgReader& args)
 	GSparseMatrix* pData;
 	Holder<GSparseMatrix> hData(NULL);
 	{
-		GDom doc;
-		doc.loadJson(args.pop_string());
-		pData = new GSparseMatrix(doc.root());
+		GDom doc2;
+		doc2.loadJson(args.pop_string());
+		pData = new GSparseMatrix(doc2.root());
 		hData.reset(pData);
 	}
 
 	// Predict labels
 	GMatrix labels(pData->rows(), pModeler->relLabels().size());
-	double* pFullRow = new double[pData->cols()];
-	ArrayHolder<double> hFullRow(pFullRow);
+	GVec pFullRow(pData->cols());
 	for(unsigned int i = 0; i < pData->rows(); i++)
 	{
 		pData->fullRow(pFullRow, i);
@@ -466,9 +464,9 @@ void test(GArgReader& args)
 	GSparseMatrix* pData;
 	Holder<GSparseMatrix> hData(NULL);
 	{
-		GDom doc;
-		doc.loadJson(args.pop_string());
-		pData = new GSparseMatrix(doc.root());
+		GDom doc2;
+		doc2.loadJson(args.pop_string());
+		pData = new GSparseMatrix(doc2.root());
 		hData.reset(pData);
 	}
 
@@ -479,16 +477,15 @@ void test(GArgReader& args)
 		throw Ex("The data is not compatible with the data used to trainn the model. (The meta-data is different.)");
 
 	// Test
-	GTEMPBUF(double, prediction, labels.cols());
-	double* pFullRow = new double[pData->cols()];
-	ArrayHolder<double> hFullRow(pFullRow);
+	GVec prediction(labels.cols());
+	GVec pFullRow(pData->cols());
 	GTEMPBUF(double, results, labels.cols());
 	GVec::setAll(results, 0.0, labels.cols());
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		pData->fullRow(pFullRow, i);
 		pModeler->predict(pFullRow, prediction);
-		double* pTarget = labels.row(i);
+		GVec& pTarget = labels.row(i);
 		for(size_t j = 0; j < labels.cols(); j++)
 		{
 			if(labels.relation().valueCount(j) == 0)

@@ -65,23 +65,23 @@ bool GPrediction::isContinuous()
 }
 
 // static
-void GPrediction::predictionArrayToVector(size_t nOutputCount, GPrediction* pOutputs, double* pVector)
+void GPrediction::predictionArrayToVector(size_t nOutputCount, GPrediction* pOutputs, GVec& vec)
 {
 	for(size_t i = 0; i < nOutputCount; i++)
-		pVector[i] = pOutputs[i].mode();
+		vec[i] = pOutputs[i].mode();
 }
 
 // static
-void GPrediction::vectorToPredictionArray(GRelation* pRelation, size_t nOutputCount, double* pVector, GPrediction* pOutputs)
+void GPrediction::vectorToPredictionArray(GRelation* pRelation, size_t nOutputCount, GVec& vec, GPrediction* pOutputs)
 {
 	size_t nInputs = pRelation->size() - nOutputCount;
 	for(size_t i = 0; i < nOutputCount; i++)
 	{
 		size_t nValueCount = pRelation->valueCount(nInputs + i);
 		if(nValueCount == 0)
-			pOutputs[i].makeNormal()->setMeanAndVariance(pVector[i], 1);
+			pOutputs[i].makeNormal()->setMeanAndVariance(vec[i], 1);
 		else
-			pOutputs[i].makeCategorical()->setSpike(nValueCount, (size_t)pVector[i], 1);
+			pOutputs[i].makeCategorical()->setSpike(nValueCount, (size_t)vec[i], 1);
 	}
 }
 
@@ -330,17 +330,15 @@ void GTransducer::transductiveConfusionMatrix(const GMatrix& trainFeatures, cons
 	}
 	for(size_t i = 0; i < pPredictedLabels->rows(); i++)
 	{
-		const double* pTarget = testLabels[i];
-		double* pPred = pPredictedLabels->row(i);
+		const GVec& target = testLabels[i];
+		GVec& pred = pPredictedLabels->row(i);
 		for(size_t j = 0; j < labelDims; j++)
 		{
 			if(stats[j])
 			{
-				if((int)*pTarget >= 0 && (int)*pPred >= 0)
-					stats[j]->row((int)*pTarget)[(int)*pPred]++;
+				if((int)target[j] >= 0 && (int)pred[j] >= 0)
+					stats[j]->row((int)target[j])[(int)pred[j]]++;
 			}
-			pTarget++;
-			pPred++;
 		}
 	}
 }
@@ -371,18 +369,18 @@ double GTransducer::crossValidate(const GMatrix& features, const GMatrix& labels
 		size_t foldEnd = (i + 1) * features.rows() / folds;
 		for(size_t j = 0; j < foldStart; j++)
 		{
-			trainFeatures.takeRow((double*)features[j]);
-			trainLabels.takeRow((double*)labels[j]);
+			trainFeatures.takeRow((GVec*)&features[j]);
+			trainLabels.takeRow((GVec*)&labels[j]);
 		}
 		for(size_t j = foldStart; j < foldEnd; j++)
 		{
-			testFeatures.takeRow((double*)features[j]);
-			testLabels.takeRow((double*)labels[j]);
+			testFeatures.takeRow((GVec*)&features[j]);
+			testLabels.takeRow((GVec*)&labels[j]);
 		}
 		for(size_t j = foldEnd; j < features.rows(); j++)
 		{
-			trainFeatures.takeRow((double*)features[j]);
-			trainLabels.takeRow((double*)labels[j]);
+			trainFeatures.takeRow((GVec*)&features[j]);
+			trainLabels.takeRow((GVec*)&labels[j]);
 		}
 
 		// Evaluate
@@ -404,8 +402,8 @@ double GTransducer::repValidate(const GMatrix& features, const GMatrix& labels, 
 	GReleaseDataHolder hL(&l);
 	for(size_t i = 0; i < features.rows(); i++)
 	{
-		f.takeRow((double*)features[i]);
-		l.takeRow((double*)labels[i]);
+		f.takeRow((GVec*)&features[i]);
+		l.takeRow((GVec*)&labels[i]);
 	}
 	double ssse = 0.0;
 	for(size_t i = 0; i < reps; i++)
@@ -503,11 +501,11 @@ void GSupervisedLearner::confusion(GMatrix& features, GMatrix& labels, std::vect
 		else
 			stats[j] = NULL;
 	}
-	GTEMPBUF(double, prediction, labelDims);
+	GVec prediction(labelDims);
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		predict(features[i], prediction);
-		double* target = labels[i];
+		GVec& target = labels[i];
 		for(size_t j = 0; j < labelDims; j++)
 		{
 			if(labels.relation().valueCount(j) > 0)
@@ -528,30 +526,27 @@ double GSupervisedLearner::sumSquaredError(const GMatrix& features, const GMatri
 	if(!m_pRelLabels->isCompatible(labels.relation()))
 		throw Ex("Labels incompatible with this learner");
 	size_t labelDims = labels.cols();
-	GTEMPBUF(double, prediction, labelDims);
+	GVec prediction(labelDims);
 	double sse = 0.0;
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		predict(features[i], prediction);
-		const double* targ = labels[i];
-		double* pred = prediction;
+		const GVec& targ = labels[i];
 		for(size_t j = 0; j < labelDims; j++)
 		{
 			if(labels.relation().valueCount(j) == 0)
 			{
-				if(*targ != UNKNOWN_REAL_VALUE)
+				if(targ[j] != UNKNOWN_REAL_VALUE)
 				{
-					double d = *targ - *pred;
+					double d = targ[j] - prediction[j];
 					sse += (d * d);
 				}
 			}
 			else
 			{
-				if(*targ != UNKNOWN_DISCRETE_VALUE && (int)*targ != (int)*pred)
+				if(targ[j] != UNKNOWN_DISCRETE_VALUE && (int)targ[j] != (int)prediction[j])
 					sse += 1.0;
 			}
-			targ++;
-			pred++;
 		}
 	}
 	return sse;
@@ -586,12 +581,12 @@ size_t GSupervisedLearner::precisionRecallContinuous(GPrediction* pOutput, doubl
 	for(size_t i = 0; i < testFeatures.rows(); i++)
 	{
 		predictDistribution(testFeatures[i], pOutput);
-		double* pResultsVec = stats.row(i);
-		pResultsVec[0] = testLabels[i][label];
-		if(pResultsVec[0] < 0.0 || pResultsVec[0] > 1.0)
+		GVec& resultsVec = stats.row(i);
+		resultsVec[0] = testLabels[i][label];
+		if(resultsVec[0] < 0.0 || resultsVec[0] > 1.0)
 			throw Ex("Expected continuous labels to range from 0 to 1");
 		GNormalDistribution* pDist = pOutput[label].asNormal();
-		pResultsVec[1] = pDist->mean();
+		resultsVec[1] = pDist->mean();
 	}
 
 	// Make the precision/recall data
@@ -600,8 +595,8 @@ size_t GSupervisedLearner::precisionRecallContinuous(GPrediction* pOutput, doubl
 	double sumRelevantRetrieved = 0.0;
 	for(size_t i = 0; i < stats.rows(); i++)
 	{
-		double* pVecIn = stats.row(i);
-		sumRelevantRetrieved += pVecIn[0];
+		GVec& vecIn = stats.row(i);
+		sumRelevantRetrieved += vecIn[0];
 		pFunc[i] = sumRelevantRetrieved / (i + 1);
 	}
 	return stats.rows();
@@ -616,12 +611,12 @@ size_t GSupervisedLearner::precisionRecallNominal(GPrediction* pOutput, double* 
 	for(size_t i = 0; i < testFeatures.rows(); i++)
 	{
 		predictDistribution(testFeatures[i], pOutput);
-		double* pStatsVec = stats.row(i);
-		pStatsVec[0] = testLabels[i][label];
-		if((int)pStatsVec[0] == value)
+		GVec& statsVec = stats.row(i);
+		statsVec[0] = testLabels[i][label];
+		if((int)statsVec[0] == value)
 			nActualRelevant++;
 		GCategoricalDistribution* pDist = pOutput[label].asCategorical();
-		pStatsVec[1] = pDist->likelihood((double)value); // predicted confidence that it is relevant
+		statsVec[1] = pDist->likelihood((double)value); // predicted confidence that it is relevant
 	}
 
 	// Make the precision/recall data
@@ -630,9 +625,9 @@ size_t GSupervisedLearner::precisionRecallNominal(GPrediction* pOutput, double* 
 	size_t nFoundTotal = 0;
 	for(size_t i = stats.rows() - 1; i < stats.rows(); i--)
 	{
-		double* pVecIn = stats.row(i);
+		GVec& vecIn = stats.row(i);
 		nFoundTotal++;
-		if((int)pVecIn[0] == value) // if actually relevant
+		if((int)vecIn[0] == value) // if actually relevant
 		{
 			nFoundRelevant++;
 			if(nFoundTotal <= 1)
@@ -819,11 +814,11 @@ void GSupervisedLearner_basicTest1(GSupervisedLearner* pLearner, double minAccur
 	for(size_t i = 0; i < 2000; i++)
 	{
 		int c = (int)pRand->next(3);
-		double* pF = features.newRow();
-		pF[0] = pRand->normal() + (c == 1 ? 2.0 : 0.0);
-		pF[1] = pRand->normal() + (c == 2 ? 2.0 : 0.0);
-		double* pL = labels.newRow();
-		pL[0] = (double)c;
+		GVec& f = features.newRow();
+		f[0] = pRand->normal() + (c == 1 ? 2.0 : 0.0);
+		f[1] = pRand->normal() + (c == 2 ? 2.0 : 0.0);
+		GVec& l = labels.newRow();
+		l[0] = (double)c;
 	}
 	size_t testSize = features.rows() / 2;
 	GMatrix testFeatures(features.relation().clone());
@@ -848,17 +843,16 @@ void GSupervisedLearner_basicTest2(GSupervisedLearner* pLearner, double minAccur
 	for(size_t i = 0; i < 1000; i++)
 	{
 		int c = (int)pRand->next(3);
-		double* pF = features.newRow();
+		GVec& f = features.newRow();
 		for(size_t j = 0; j < cols; j++)
 		{
 			if(pRand->next(2) == 0)
-				*pF = (double)c;
+				f[j] = (double)c;
 			else
-				*pF = (double)pRand->next(3);
-			pF++;
+				f[j] = (double)pRand->next(3);
 		}
-		double* pL = labels.newRow();
-		pL[0] = (double)c;
+		GVec& l = labels.newRow();
+		l[0] = (double)c;
 	}
 	size_t testSize = features.rows() / 2;
 	GMatrix testFeatures(features.relation().clone());
@@ -1054,8 +1048,8 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode)
 			return new GBaselineRecommender(pNode, *this);
 		else if(strcmp(szClass, "GMatrixFactorization") == 0)
 			return new GMatrixFactorization(pNode, *this);
-		else if(strcmp(szClass, "GNeuralRecommender") == 0)
-			return new GNonlinearPCA(pNode, *this);
+//		else if(strcmp(szClass, "GNeuralRecommender") == 0)
+//			return new GNonlinearPCA(pNode, *this);
 	}
 	if(m_throwIfClassNotFound)
 		throw Ex("Unrecognized class: ", szClass);
@@ -1133,7 +1127,7 @@ GMatrix* GFilter::prefilterFeatures(const GMatrix& in)
 	GMatrix* pOut = new GMatrix(pInnerLearner->relFeatures().clone());
 	pOut->newRows(in.rows());
 	for(size_t i = 0; i < in.rows(); i++)
-		GVec::copy(pOut->row(i), prefilterFeatures(in[i]), pOut->cols());
+		pOut->row(i) = prefilterFeatures(in[i]);
 	return pOut;
 }
 
@@ -1145,7 +1139,7 @@ GMatrix* GFilter::prefilterLabels(const GMatrix& in)
 	GMatrix* pOut = new GMatrix(pInnerLearner->relLabels().clone());
 	pOut->newRows(in.rows());
 	for(size_t i = 0; i < in.rows(); i++)
-		GVec::copy(pOut->row(i), prefilterLabels(in[i]), pOut->cols());
+		pOut->row(i) = prefilterLabels(in[i]);
 	return pOut;
 }
 
@@ -1199,17 +1193,17 @@ void GFeatureFilter::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GFeatureFilter::predict(const double* pIn, double* pOut)
+void GFeatureFilter::predict(const GVec& in, GVec& out)
 {
-	m_pTransform->transform(pIn, m_pTransform->innerBuf());
-	m_pLearner->predict(m_pTransform->innerBuf(), pOut);
+	m_pTransform->transform(in, m_pTransform->innerBuf());
+	m_pLearner->predict(m_pTransform->innerBuf(), out);
 }
 
 // virtual
-void GFeatureFilter::predictDistribution(const double* pIn, GPrediction* pOut)
+void GFeatureFilter::predictDistribution(const GVec& in, GPrediction* out)
 {
-	m_pTransform->transform(pIn, m_pTransform->innerBuf());
-	m_pLearner->predictDistribution(m_pTransform->innerBuf(), pOut);
+	m_pTransform->transform(in, m_pTransform->innerBuf());
+	m_pLearner->predictDistribution(m_pTransform->innerBuf(), out);
 }
 
 // virtual
@@ -1227,16 +1221,16 @@ void GFeatureFilter::beginIncrementalLearningInner(const GMatrix& features, cons
 }
 
 // virtual
-void GFeatureFilter::trainIncremental(const double* pIn, const double* pOut)
+void GFeatureFilter::trainIncremental(const GVec& in, const GVec& out)
 {
-	m_pTransform->transform(pIn, m_pTransform->innerBuf());
-	m_pIncrementalLearner->trainIncremental(m_pTransform->innerBuf(), pOut);
+	m_pTransform->transform(in, m_pTransform->innerBuf());
+	m_pIncrementalLearner->trainIncremental(m_pTransform->innerBuf(), out);
 }
 
 // virtual
-const double* GFeatureFilter::prefilterFeatures(const double* pIn)
+const GVec& GFeatureFilter::prefilterFeatures(const GVec& in)
 {
-	m_pTransform->transform(pIn, m_pTransform->innerBuf());
+	m_pTransform->transform(in, m_pTransform->innerBuf());
 	if(m_pLearner->isFilter())
 		return ((GFilter*)m_pLearner)->prefilterFeatures(m_pTransform->innerBuf());
 	else
@@ -1244,12 +1238,12 @@ const double* GFeatureFilter::prefilterFeatures(const double* pIn)
 }
 
 // virtual
-const double* GFeatureFilter::prefilterLabels(const double* pIn)
+const GVec& GFeatureFilter::prefilterLabels(const GVec& in)
 {
 	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->prefilterLabels(pIn);
+		return ((GFilter*)m_pLearner)->prefilterLabels(in);
 	else
-		return pIn;
+		return in;
 }
 
 // ---------------------------------------------------------------
@@ -1294,17 +1288,17 @@ void GLabelFilter::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GLabelFilter::predict(const double* pIn, double* pOut)
+void GLabelFilter::predict(const GVec& in, GVec& out)
 {
-	m_pLearner->predict(pIn, m_pTransform->innerBuf());
-	m_pTransform->untransform(m_pTransform->innerBuf(), pOut);
+	m_pLearner->predict(in, m_pTransform->innerBuf());
+	m_pTransform->untransform(m_pTransform->innerBuf(), out);
 }
 
 // virtual
-void GLabelFilter::predictDistribution(const double* pIn, GPrediction* pOut)
+void GLabelFilter::predictDistribution(const GVec& in, GPrediction* out)
 {
-	m_pLearner->predict(pIn, m_pTransform->innerBuf());
-	m_pTransform->untransformToDistribution(m_pTransform->innerBuf(), pOut);
+	m_pLearner->predict(in, m_pTransform->innerBuf());
+	m_pTransform->untransformToDistribution(m_pTransform->innerBuf(), out);
 }
 
 // virtual
@@ -1324,25 +1318,25 @@ void GLabelFilter::beginIncrementalLearningInner(const GMatrix& features, const 
 }
 
 // virtual
-void GLabelFilter::trainIncremental(const double* pIn, const double* pOut)
+void GLabelFilter::trainIncremental(const GVec& in, const GVec& out)
 {
-	m_pTransform->transform(pOut, m_pTransform->innerBuf());
-	m_pIncrementalLearner->trainIncremental(pIn, m_pTransform->innerBuf());
+	m_pTransform->transform(out, m_pTransform->innerBuf());
+	m_pIncrementalLearner->trainIncremental(in, m_pTransform->innerBuf());
 }
 
 // virtual
-const double* GLabelFilter::prefilterFeatures(const double* pIn)
+const GVec& GLabelFilter::prefilterFeatures(const GVec& in)
 {
 	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->prefilterFeatures(pIn);
+		return ((GFilter*)m_pLearner)->prefilterFeatures(in);
 	else
-		return pIn;
+		return in;
 }
 
 // virtual
-const double* GLabelFilter::prefilterLabels(const double* pIn)
+const GVec& GLabelFilter::prefilterLabels(const GVec& in)
 {
-	m_pTransform->transform(pIn, m_pTransform->innerBuf());
+	m_pTransform->transform(in, m_pTransform->innerBuf());
 	if(m_pLearner->isFilter())
 		return ((GFilter*)m_pLearner)->prefilterLabels(m_pTransform->innerBuf());
 	else
@@ -1553,21 +1547,21 @@ void GAutoFilter::resetFilters(const GRelation& features, const GRelation& label
 }
 
 // virtual
-const double* GAutoFilter::prefilterFeatures(const double* pIn)
+const GVec& GAutoFilter::prefilterFeatures(const GVec& in)
 {
 	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->prefilterFeatures(pIn);
+		return ((GFilter*)m_pLearner)->prefilterFeatures(in);
 	else
-		return pIn;
+		return in;
 }
 
 // virtual
-const double* GAutoFilter::prefilterLabels(const double* pIn)
+const GVec& GAutoFilter::prefilterLabels(const GVec& in)
 {
 	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->prefilterLabels(pIn);
+		return ((GFilter*)m_pLearner)->prefilterLabels(in);
 	else
-		return pIn;
+		return in;
 }
 
 // virtual
@@ -1580,15 +1574,15 @@ void GAutoFilter::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GAutoFilter::predict(const double* pIn, double* pOut)
+void GAutoFilter::predict(const GVec& in, GVec& out)
 {
-	m_pLearner->predict(pIn, pOut);
+	m_pLearner->predict(in, out);
 }
 
 // virtual
-void GAutoFilter::predictDistribution(const double* pIn, GPrediction* pOut)
+void GAutoFilter::predictDistribution(const GVec& in, GPrediction* out)
 {
-	m_pLearner->predictDistribution(pIn, pOut);
+	m_pLearner->predictDistribution(in, out);
 }
 
 // virtual
@@ -1606,9 +1600,9 @@ void GAutoFilter::beginIncrementalLearningInner(const GRelation& featureRel, con
 }
 
 // virtual
-void GAutoFilter::trainIncremental(const double* pIn, const double* pOut)
+void GAutoFilter::trainIncremental(const GVec& in, const GVec& out)
 {
-	m_pIncrementalLearner->trainIncremental(pIn, pOut);
+	m_pIncrementalLearner->trainIncremental(in, out);
 }
 
 #ifndef MIN_PREDICT
@@ -1624,13 +1618,13 @@ void GAutoFilter::test()
 	GUniformRelation rel(1, 3);
 	af.beginIncrementalLearning(rel, rel);
 	GRand rand(0);
-	double pat[1];
+	GVec pat(1);
 	for(size_t i = 0; i < 500; i++)
 	{
 		pat[0] = (double)rand.next(3);
 		af.trainIncremental(pat, pat);
 	}
-	double pred[1];
+	GVec pred(1);
 	for(size_t i = 0; i < 10; i++)
 	{
 		pat[0] = (double)rand.next(3);
@@ -1708,7 +1702,7 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 			for(size_t j = 0; j < features.rows(); j++)
 			{
 				predictDistribution(features[j], out);
-				GVec::copy(tmpBefore[j], out[i].asCategorical()->values(vals), vals);
+				tmpBefore[j] = out[i].asCategorical()->values(vals);
 			}
 		}
 
@@ -1730,7 +1724,7 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 			for(size_t j = 0; j < features.rows(); j++)
 			{
 				knn.predictDistribution(tmpBefore[j], out);
-				GVec::copy(tmpAfter[j], out[0].asCategorical()->values(vals), vals);
+				tmpAfter[j] = out[0].asCategorical()->values(vals);
 			}
 		}
 
@@ -1752,37 +1746,38 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 }
 
 // virtual
-void GCalibrator::predict(const double* pIn, double* pOut)
+void GCalibrator::predict(const GVec& in, GVec& out)
 {
-	m_pLearner->predict(pIn, pOut);
+	m_pLearner->predict(in, out);
 }
 
 // virtual
-void GCalibrator::predictDistribution(const double* pIn, GPrediction* pOut)
+void GCalibrator::predictDistribution(const GVec& in, GPrediction* out)
 {
-	m_pLearner->predictDistribution(pIn, pOut);
+	m_pLearner->predictDistribution(in, out);
 
 	// Adjust the predicted distributions to make them approximate real distributions
-	GVecBuf vb;
+	GVec vb;
 	if(m_pCalibrations)
 	{
 		size_t labelDims = m_pRelLabels->size();
 		for(size_t i = 0; i < labelDims; i++)
 		{
-			if(pOut[i].isContinuous())
+			if(out[i].isContinuous())
 			{
-				GNormalDistribution* pNorm = pOut[i].asNormal();
-				double varBefore = pNorm->variance();
-				double varAfter;
-				m_pCalibrations[i]->predict(&varBefore, &varAfter);
-				pNorm->setMeanAndVariance(pNorm->mean(), varAfter);
+				GNormalDistribution* pNorm = out[i].asNormal();
+				GVec varBefore(1);
+				varBefore[0] = pNorm->variance();
+				GVec varAfter(1);
+				m_pCalibrations[i]->predict(varBefore, varAfter);
+				pNorm->setMeanAndVariance(pNorm->mean(), varAfter[0]);
 			}
 			else
 			{
-				GCategoricalDistribution* pCat = pOut[i].asCategorical();
-				vb.reserve(pCat->valueCount());
-				m_pCalibrations[i]->predict(pCat->values(pCat->valueCount()), vb.m_pBuf);
-				GVec::copy(pCat->values(pCat->valueCount()), vb.m_pBuf, pCat->valueCount());
+				GCategoricalDistribution* pCat = out[i].asCategorical();
+				vb.resize(pCat->valueCount());
+				m_pCalibrations[i]->predict(pCat->values(pCat->valueCount()), vb);
+				pCat->values(pCat->valueCount()) = vb;
 			}
 		}
 	}
@@ -1795,27 +1790,27 @@ void GCalibrator::beginIncrementalLearningInner(const GRelation& featureRel, con
 }
 
 // virtual
-void GCalibrator::trainIncremental(const double* pIn, const double* pOut)
+void GCalibrator::trainIncremental(const GVec& in, const GVec& out)
 {
 	throw Ex("Sorry, GCalibrator does not support incremental learning");
 }
 
 // virtual
-const double* GCalibrator::prefilterFeatures(const double* pIn)
+const GVec& GCalibrator::prefilterFeatures(const GVec& in)
 {
 	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->prefilterFeatures(pIn);
+		return ((GFilter*)m_pLearner)->prefilterFeatures(in);
 	else
-		return pIn;
+		return in;
 }
 
 // virtual
-const double* GCalibrator::prefilterLabels(const double* pIn)
+const GVec& GCalibrator::prefilterLabels(const GVec& in)
 {
 	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->prefilterLabels(pIn);
+		return ((GFilter*)m_pLearner)->prefilterLabels(in);
 	else
-		return pIn;
+		return in;
 }
 
 // ---------------------------------------------------------------
@@ -1829,8 +1824,8 @@ GBaselineLearner::GBaselineLearner(GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode, ll)
 {
 	m_prediction.clear();
-	GDomNode* pPred = pNode->field("pred");
-	GDomListIterator it(pPred);
+	GDomNode* pred = pNode->field("pred");
+	GDomListIterator it(pred);
 	m_prediction.reserve(it.remaining());
 	for(size_t i = 0; it.current(); i++)
 	{
@@ -1857,9 +1852,9 @@ GDomNode* GBaselineLearner::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GBaselineLearner");
 	if(m_prediction.size() == 0)
 		throw Ex("Attempted to serialize a model that has not been trained");
-	GDomNode* pPred = pNode->addField(pDoc, "pred", pDoc->newList());
+	GDomNode* pred = pNode->addField(pDoc, "pred", pDoc->newList());
 	for(size_t i = 0; i < m_prediction.size(); i++)
-		pPred->addItem(pDoc, pDoc->newDouble(m_prediction[i]));
+		pred->addItem(pDoc, pDoc->newDouble(m_prediction[i]));
 	return pNode;
 }
 
@@ -1874,16 +1869,17 @@ void GBaselineLearner::trainInner(const GMatrix& features, const GMatrix& labels
 }
 
 // virtual
-void GBaselineLearner::predictDistribution(const double* pIn, GPrediction* pOut)
+void GBaselineLearner::predictDistribution(const GVec& in, GPrediction* out)
 {
 	throw Ex("Sorry, this learner cannot predict a distribution");
 }
 
 // virtual
-void GBaselineLearner::predict(const double* pIn, double* pOut)
+void GBaselineLearner::predict(const GVec& in, GVec& out)
 {
+	size_t i = 0;
 	for(vector<double>::iterator it = m_prediction.begin(); it != m_prediction.end(); it++)
-		*(pOut++) = *it;
+		out[i++] = *it;
 }
 
 void GBaselineLearner::autoTune(GMatrix& features, GMatrix& labels)
@@ -1943,20 +1939,20 @@ void GIdentityFunction::trainInner(const GMatrix& features, const GMatrix& label
 }
 
 // virtual
-void GIdentityFunction::predictDistribution(const double* pIn, GPrediction* pOut)
+void GIdentityFunction::predictDistribution(const GVec& in, GPrediction* out)
 {
 	throw Ex("Sorry, not implemented yet");
 }
 
 // virtual
-void GIdentityFunction::predict(const double* pIn, double* pOut)
+void GIdentityFunction::predict(const GVec& in, GVec& out)
 {
 	if(m_labelDims <= m_featureDims)
-		GVec::copy(pOut, pIn, m_labelDims);
+		out.set(in.data(), m_labelDims);
 	else
 	{
-		GVec::copy(pOut, pIn, m_featureDims);
-		GVec::setAll(pOut + m_featureDims, 0.0, m_labelDims - m_featureDims);
+		out.put(0, in);
+		GVec::setAll(out.data() + m_featureDims, 0.0, m_labelDims - m_featureDims);
 	}
 }
 #endif // MIN_PREDICT

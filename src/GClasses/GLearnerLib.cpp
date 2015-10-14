@@ -1158,9 +1158,9 @@ void GLearnerLib::predict(GArgReader& args)
 	// Test
 	for(size_t i = 0; i < pFeatures->rows(); i++)
 	{
-		double* pFeatureVec = pFeatures->row(i);
-		double* pLabelVec = pLabels->row(i);
-		pModeler->predict(pFeatureVec, pLabelVec);
+		GVec& featureVec = pFeatures->row(i);
+		GVec& labelVec = pLabels->row(i);
+		pModeler->predict(featureVec, labelVec);
 	}
 
 	// Print results
@@ -1251,12 +1251,12 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 			else
 			{
 				GCategoricalDistribution* pCat = p[j].asCategorical();
-				double* pValues = pCat->values(pCat->valueCount());
+				GVec& values = pCat->values(pCat->valueCount());
 				for(size_t k = 0; k < pCat->valueCount(); ++k)
 				{
 					if(k > 0)
 						cout << ",";
-					cout << pValues[k];
+					cout << values[k];
 				}
 			}
 		}
@@ -1898,18 +1898,18 @@ void GLearnerLib::sterilize(GArgReader& args)
 		size_t foldEnd = (fold + 1) * pFeatures->rows() / folds;
 		for(size_t i = 0; i < foldBegin; i++)
 		{
-			trainFeatures.takeRow(pFeatures->row(i));
-			trainLabels.takeRow(pLabels->row(i));
+			trainFeatures.takeRow(&pFeatures->row(i));
+			trainLabels.takeRow(&pLabels->row(i));
 		}
 		for(size_t i = foldBegin; i < foldEnd; i++)
 		{
-			testFeatures.takeRow(pFeatures->row(i));
-			testLabels.takeRow(pLabels->row(i));
+			testFeatures.takeRow(&pFeatures->row(i));
+			testLabels.takeRow(&pLabels->row(i));
 		}
 		for(size_t i = foldEnd; i < pFeatures->rows(); i++)
 		{
-			trainFeatures.takeRow(pFeatures->row(i));
-			trainLabels.takeRow(pLabels->row(i));
+			trainFeatures.takeRow(&pFeatures->row(i));
+			trainLabels.takeRow(&pLabels->row(i));
 		}
 
 		// Transduce
@@ -1919,29 +1919,27 @@ void GLearnerLib::sterilize(GArgReader& args)
 		// Keep only the correct predictions
 		for(size_t j = 0; j < testLabels.rows(); j++)
 		{
-			double* pTarget = testLabels[j];
-			double* pPredicted = pPredictedLabels->row(j);
+			GVec& target = testLabels[j];
+			GVec& predicted = pPredictedLabels->row(j);
 			for(size_t i = 0; i < testLabels.cols(); i++)
 			{
 				size_t vals = testLabels.relation().valueCount(i);
 				bool goodEnough = false;
 				if(vals == 0)
 				{
-					if(std::abs(*pTarget - *pPredicted) < diffThresh)
+					if(std::abs(target[i] - predicted[i]) < diffThresh)
 						goodEnough = true;
 				}
 				else
 				{
-					if(*pTarget == *pPredicted)
+					if(target[i] == predicted[i])
 						goodEnough = true;
 				}
 				if(goodEnough)
 				{
-					sterileFeatures.takeRow(testFeatures[j]);
-					sterileLabels.takeRow(testLabels[j]);
+					sterileFeatures.takeRow(&testFeatures[j]);
+					sterileLabels.takeRow(&testLabels[j]);
 				}
-				pTarget++;
-				pPredicted++;
 			}
 		}
 	}
@@ -1951,7 +1949,7 @@ void GLearnerLib::sterilize(GArgReader& args)
 	Holder<GMatrix> hSterile(pSterile);
 	pSterile->print(cout);
 }
-
+/*
 void GLearnerLib::trainRecurrent(GArgReader& args)
 {
 	// Parse options
@@ -2005,16 +2003,6 @@ void GLearnerLib::trainRecurrent(GArgReader& args)
 	if(strcmp(alg, "moses") == 0)
 	{
 	}
-/*	else if(strcmp(alg, "bptt") == 0)
-	{
-		bpttDepth = args.pop_uint();
-		bpttItersPerGrow = args.pop_uint();
-	}
-	else if(strcmp(alg, "bpttcal") == 0)
-	{
-		bpttDepth = args.pop_uint();
-		bpttItersPerGrow = args.pop_uint();
-	}*/
 	else if(strcmp(alg, "evolutionary") == 0)
 	{
 	}
@@ -2086,8 +2074,6 @@ void GLearnerLib::trainRecurrent(GArgReader& args)
 	// Do the training
 	if(strcmp(alg, "moses") == 0)
 		model.trainMoses(&dataAction, &dataObs);
-/*	else if(strcmp(alg, "bptt") == 0)
-		model.trainBackPropThroughTime(&dataAction, &dataObs, bpttDepth, bpttItersPerGrow);*/
 	else if(strcmp(alg, "evolutionary") == 0)
 		model.trainEvolutionary(&dataAction, &dataObs);
 	else if(strcmp(alg, "hillclimber") == 0)
@@ -2098,7 +2084,7 @@ void GLearnerLib::trainRecurrent(GArgReader& args)
 	doc.setRoot(model.serialize(&doc));
 	doc.saveJson(outFilename);
 }
-
+*/
 void GLearnerLib::regress(GArgReader& args)
 {
 	// Load the data
@@ -2169,28 +2155,29 @@ void GLearnerLib::metaData(GArgReader& args)
 
 	// Make the meta-data
 	GMatrix meta(pRel);
-	double* pRow = meta.newRow();
+	GVec& row = meta.newRow();
+	size_t r = 0;
 
 	// log_rows
-	*(pRow++) = log((double)pFeatures->rows());
+	row[r++] = log((double)pFeatures->rows());
 
 	// log_feature_dims
-	*(pRow++) = log((double)pFeatures->cols());
+	row[r++] = log((double)pFeatures->cols());
 
 	// log_label_dims
-	*(pRow++) = log((double)pLabels->cols());
+	row[r++] = log((double)pLabels->cols());
 
 	// log_feature_elements
-	*(pRow++) = log((double)(pFeatures->rows() * pFeatures->cols()));
+	row[r++] = log((double)(pFeatures->rows() * pFeatures->cols()));
 
 	// log_sum_feature_vals
 	size_t sum = 0;
 	for(size_t i = 0; i < pFeatures->cols(); i++)
 		sum += pFeatures->relation().valueCount(i);
-	*(pRow++) = log((double)(sum + 1));
+	row[r++] = log((double)(sum + 1));
 
 	// mean_feature_vals
-	*(pRow++) = (double)sum / pFeatures->cols();
+	row[r++] = (double)sum / pFeatures->cols();
 
 	// feature_range_deviation
 	{
@@ -2204,7 +2191,7 @@ void GLearnerLib::metaData(GArgReader& args)
 		}
 		s /= pFeatures->cols();
 		ss /= pFeatures->cols();
-		*(pRow++) = (double)(pFeatures->cols() - 1) / pFeatures->cols() * sqrt(ss - (s * s));
+		row[r++] = (double)(pFeatures->cols() - 1) / pFeatures->cols() * sqrt(ss - (s * s));
 	}
 
 	// feature_portion_real
@@ -2214,7 +2201,7 @@ void GLearnerLib::metaData(GArgReader& args)
 		if(pFeatures->relation().valueCount(i) == 0)
 			realCount++;
 	}
-	*(pRow++) = (double)realCount / pFeatures->cols();
+	row[r++] = (double)realCount / pFeatures->cols();
 
 	// label_portion_real
 	realCount = 0;
@@ -2223,10 +2210,10 @@ void GLearnerLib::metaData(GArgReader& args)
 		if(pLabels->relation().valueCount(i) == 0)
 			realCount++;
 	}
-	*(pRow++) = (double)realCount / pLabels->cols();
+	row[r++] = (double)realCount / pLabels->cols();
 
 	// features_is_missing_values
-	*(pRow++) = pFeatures->doesHaveAnyMissingValues() ? 1.0 : 0.0;
+	row[r++] = pFeatures->doesHaveAnyMissingValues() ? 1.0 : 0.0;
 
 	// label_entropy
 	double dsum = 0.0;
@@ -2240,7 +2227,7 @@ void GLearnerLib::metaData(GArgReader& args)
 		else
 			dsum += pLabels->entropy(i);
 	}
-	*(pRow++) = dsum / pLabels->cols();
+	row[r++] = dsum / pLabels->cols();
 
 	// label_skew
 	dsum = 0.0;
@@ -2264,25 +2251,25 @@ void GLearnerLib::metaData(GArgReader& args)
 			dsum += (double)count / pLabels->rows();
 		}
 	}
-	*(pRow++) = dsum / pLabels->cols();
+	row[r++] = dsum / pLabels->cols();
 
 	// landmark_baseline
 	{
 		GBaselineLearner model;
-		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_linear
 	{
 		GLinearRegressor model;
-		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_decisiontree
 	{
 		GDecisionTree model;
 		model.useBinaryDivisions();
-		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_shallowtree
@@ -2290,19 +2277,19 @@ void GLearnerLib::metaData(GArgReader& args)
 		GDecisionTree model;
 		model.useBinaryDivisions();
 		model.setLeafThresh(24);
-		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_meanmarginstree
 	{
 		GMeanMarginsTree model;
-		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// landmark_naivebayes
 	{
 		GNaiveBayes model;
-		*(pRow++) = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
+		row[r++] = model.repValidate(*pFeatures, *pLabels, 5, 2) / pFeatures->rows();
 	}
 
 	// Print the results

@@ -13,9 +13,11 @@
 
 <h2>Representing your data</h2>
 
-<p>The GMatrix class is a container for a two-dimensional array of values. These values can be continuous (real-valued) or nominal (categorical). This class provides many useful operations for matrices, tables, datasets, ordered sets of vectors, etc.</p>
+<p>There are two main data structures that you need to know about: GVec and GMatrix.
+The <b>GVec</b> class stores a vector of values. These values can be continuous (real-valued) or nominal (categorical).</p>
+The <b>GMatrix</b> class is a two-dimensional table. It can be thought of as an array of GVec objects.</p>
 
-<p>If you are going to work with the GMatrix class, you need to include GMatrix.h.</p>
+<p>To get started, you probably want to include GMatrix.h.</p>
 <pre>
 	#include &lt;GClasses/GMatrix.h&gt;
 </pre>
@@ -47,14 +49,9 @@ to generate a report of parsing errors, etc. For more details, see the GCSVParse
 	GMatrix M(5, 7); // 5 rows, 7 columns
 </pre>
 
-<p>The "row" method returns a row vector of the matrix as a pointer to an array of doubles:</p>
+<p>You can use array notation to access a row of the matrix:</p>
 <pre>
-	double* pRow = M.row(3);
-</pre>
-
-<p>You can also use array notation. The following line does exactly the same thing:</p>
-<pre>
-	double* pRow = M[3];
+	GVec&amp; row = M[3];
 </pre>
 
 <p>This will set element 3,5 to 3.14159, and element 0,2 to 3.34159:</p>
@@ -63,18 +60,23 @@ to generate a report of parsing errors, etc. For more details, see the GCSVParse
 	M[0][2] = M[3][5] + 0.2;
 </pre>
 
-<p>You can also manually construct a matrix where some columns (or attributes) have nominal (categorical) values. This is done using a vector that specifies how many values are supported in each column. (Use 0 for continuous values.) This example will create a matrix with two rows and three columns. The first column is continuous. The second column is binary, and the third column supports three class values:</p>
+<p>You can also manually construct a matrix where some columns (or attributes) have nominal (categorical) values.
+This is done using a vector that specifies how many values are supported in each column. (Use 0 for continuous values.)
+This example will create a matrix with two rows and three columns. The first column is continuous.
+The second column is binary, and the third column supports three class values:</p>
 <pre>
 	vector&lt;size_t&gt; vals;
 	vals.push_back(0);
 	vals.push_back(2);
 	vals.push_back(3);
 	GMatrix mydata(vals);
-	double* pRow0 = mydata.newRow();
-	double* pRow1 = mydata.newRow();
+	GVec&amp; row0 = mydata.newRow();
+	GVec&amp; row1 = mydata.newRow();
 </pre>
 
-<p>Nominal elements contain an integer value that specifies the index of its class or category. For example, a nominal attribute with 4 possible class values supports the values 0, 1, 2, and 3. (These values are stored internally as doubles, but most operations will cast them to integers, thus dropping the decimal, when working with nominal values.)
+<p>Nominal elements contain an integer value (stored as a double) that specifies the index of its class or category.
+For example, a nominal attribute with 4 possible class values supports the values 0, 1, 2, and 3.
+(These values are stored internally as doubles, but most operations will cast them to integers, thus dropping the decimal, when working with nominal values.)
 
 <p>Now, to tie it all together, here is a simple example program that will load some data, mess with it a little bit, and then print the results to stdout.</p>
 

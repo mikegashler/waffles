@@ -181,16 +181,16 @@ void GNaiveInstance::beginIncrementalLearningInner(const GRelation& featureRel, 
 }
 
 // virtual
-void GNaiveInstance::trainIncremental(const double* pIn, const double* pOut)
+void GNaiveInstance::trainIncremental(const GVec& pIn, const GVec& pOut)
 {
 	if(!m_pHeap)
 		m_pHeap = new GHeap(1024);
 	double* pOutputs = (double*)m_pHeap->allocAligned(sizeof(double) * m_pRelLabels->size());
-	GVec::copy(pOutputs, pOut, m_pRelLabels->size());
+	GVec::copy(pOutputs, pOut.data(), m_pRelLabels->size());
 	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 	{
-		if(*pIn != UNKNOWN_REAL_VALUE)
-			m_pAttrs[i]->addInstance(*(pIn++), pOutputs);
+		if(pIn[i] != UNKNOWN_REAL_VALUE)
+			m_pAttrs[i]->addInstance(pIn[i], pOutputs);
 	}
 }
 
@@ -291,7 +291,7 @@ void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 }
 
 // virtual
-void GNaiveInstance::predictDistribution(const double* pIn, GPrediction* pOut)
+void GNaiveInstance::predictDistribution(const GVec& pIn, GPrediction* pOut)
 {
 	GVec::setAll(m_pWeightSums, 0.0, m_pRelLabels->size());
 	GVec::setAll(m_pValueSums, 0.0, m_pRelLabels->size());
@@ -305,7 +305,7 @@ void GNaiveInstance::predictDistribution(const double* pIn, GPrediction* pOut)
 }
 
 // virtual
-void GNaiveInstance::predict(const double* pIn, double* pOut)
+void GNaiveInstance::predict(const GVec& pIn, GVec& pOut)
 {
 	GVec::setAll(m_pWeightSums, 0.0, m_pRelLabels->size());
 	GVec::setAll(m_pValueSums, 0.0, m_pRelLabels->size());

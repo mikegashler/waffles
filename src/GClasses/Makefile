@@ -99,10 +99,10 @@ CPP_FILES = \
 	GPriorityQueue.cpp\
 	GRayTrace.cpp\
 	GReverseBits.cpp\
-	GRect.cpp\
 	GRand.cpp\
 	GRecommender.cpp\
 	GRecommenderLib.cpp\
+	GRect.cpp\
 	GRegion.cpp\
 	GReinforcement.cpp\
 	GSDL.cpp\
@@ -112,7 +112,6 @@ CPP_FILES = \
 	GSparseMatrix.cpp\
 	GStemmer.cpp\
 	GString.cpp\
-	GSystemLearner.cpp\
 	GText.cpp\
 	GThread.cpp\
 	GTime.cpp\

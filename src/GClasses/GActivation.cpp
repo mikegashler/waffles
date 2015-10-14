@@ -175,9 +175,9 @@ GActivationHinge::GActivationHinge(GDomNode* pNode)
 	m_units = it.remaining();
 	m_error.resize(m_units);
 	m_hinges.resize(m_units);
-	GVec::deserialize(m_hinges.v, it);
+	GVec::deserialize(m_hinges.data(), it);
 	m_delta.resize(m_units);
-	GVec::setAll(m_delta.v, 0.0, m_units);
+	m_delta.fill(0.0);
 }
 
 // virtual
@@ -185,7 +185,7 @@ GDomNode* GActivationHinge::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "name", pDoc->newString(name()));
-	pNode->addField(pDoc, "hinges", GVec::serialize(pDoc, m_hinges.v, m_units));
+	pNode->addField(pDoc, "hinges", GVec::serialize(pDoc, m_hinges.data(), m_units));
 	return pNode;
 }
 
@@ -195,38 +195,32 @@ void GActivationHinge::resize(size_t units)
 	m_units = units;
 	m_error.resize(units);
 	m_hinges.resize(units);
-	GVec::setAll(m_hinges.v, 0.5, units);
+	m_hinges.fill(0.5);
 	m_delta.resize(units);
-	GVec::setAll(m_delta.v, 0.0, units);
+	m_delta.fill(0.0);
 }
 
 // virtual
-void GActivationHinge::setError(const double* pError)
+void GActivationHinge::setError(const GVec& error)
 {
-	GVec::copy(m_error.v, pError, m_units);
+	m_error = error;
 }
 
 // virtual
-void GActivationHinge::updateDeltas(const double* pNet, const double* pActivation, double momentum)
+void GActivationHinge::updateDeltas(const GVec& net, const GVec& activation, double momentum)
 {
-	const double* pErr = m_error.v;
-	const double* pN = pNet;
-	double* pD = m_delta.v;
 	for(size_t i = 0; i < m_units; i++)
 	{
-		*pD *= momentum;
-		*pD += (*pErr) * (sqrt(*pN * *pN + BEND_SIZE * BEND_SIZE) - BEND_SIZE);
-		pN++;
-		pErr++;
-		pD++;
+		m_delta[i] *= momentum;
+		m_delta[i] += m_error[i] * (sqrt(net[i] * net[i] + BEND_SIZE * BEND_SIZE) - BEND_SIZE);
 	}
 }
 
 // virtual
 void GActivationHinge::applyDeltas(double learningRate)
 {
-	double* pD = m_delta.v;
-	double* pHinge = m_hinges.v;
+	double* pD = m_delta.data();
+	double* pHinge = m_hinges.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
 		*pHinge = *pHinge + learningRate * *pD;
@@ -248,7 +242,7 @@ void GActivationHinge::applyDeltas(double learningRate)
 // virtual
 void GActivationHinge::regularize(double lambda)
 {
-	double* pHinge = m_hinges.v;
+	double* pHinge = m_hinges.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
 		if(*pHinge >= 0.0)
@@ -263,7 +257,7 @@ GActivationFunction* GActivationHinge::clone()
 {
 	GActivationHinge* pClone = new GActivationHinge();
 	pClone->resize(m_units);
-	GVec::copy(pClone->m_hinges.v, m_hinges.v, m_units);
+	pClone->m_hinges = m_hinges;
 	return pClone;
 }
 
@@ -276,21 +270,21 @@ size_t GActivationHinge::countWeights()
 // virtual
 size_t GActivationHinge::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, m_hinges.v, m_units);
+	GVec::copy(pOutVector, m_hinges.data(), m_units);
 	return m_units;
 }
 
 // virtual
 size_t GActivationHinge::vectorToWeights(const double* pVector)
 {
-	GVec::copy(m_hinges.v, pVector, m_units);
+	m_hinges.set(pVector, m_units);
 	return m_units;
 }
 
 // virtual
 void GActivationHinge::copyWeights(const GActivationFunction* pOther)
 {
-	GVec::copy(m_hinges.v, ((GActivationHinge*)pOther)->m_hinges.v, m_units);
+	m_hinges = ((GActivationHinge*)pOther)->m_hinges;
 }
 
 #ifndef MIN_PREDICT
@@ -315,38 +309,40 @@ void GActivationHinge::test()
 	pLay1->perturbWeights(nn.rand(), 0.03);
 	pLay2->perturbWeights(nn.rand(), 0.1);
 	pLay3->perturbWeights(nn.rand(), 0.3);
-	GVec::perturb(pAct1->alphas(), 0.1, pLay1->outputs(), nn.rand());
-	GVec::perturb(pAct2->alphas(), 0.1, pLay2->outputs(), nn.rand());
-	GVec::perturb(pAct3->alphas(), 0.1, pLay3->outputs(), nn.rand());
-	double in[2];
-	double out[2];
-	nn.rand().spherical(in, 2);
-	nn.rand().spherical(out, 2);
+	GVec::perturb(pAct1->alphas().data(), 0.1, pLay1->outputs(), nn.rand());
+	GVec::perturb(pAct2->alphas().data(), 0.1, pLay2->outputs(), nn.rand());
+	GVec::perturb(pAct3->alphas().data(), 0.1, pLay3->outputs(), nn.rand());
+	GVec in(2);
+	GVec out(2);
+	in.fillNormal(nn.rand());
+	in.normalize();
+	out.fillNormal(nn.rand());
+	out.normalize();
 
 	// Measure baseline error
 	nn.forwardProp(in);
-	double errBase = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errBase = out.squaredDistance(nn.outputLayer().activation());
 	double epsilon = 1e-6;
 
 	// Empirically measure gradient of a weight
 	double beforeWeight = pLay2->weights()[1][1];
 	pLay2->weights()[1][1] += epsilon;
 	nn.forwardProp(in);
-	double errWeight = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errWeight = out.squaredDistance(nn.outputLayer().activation());
 	pLay2->weights()[1][1] = beforeWeight;
 	
 	// Empirically measure gradient of a bias
 	double beforeBias = pLay2->bias()[1];
 	pLay2->bias()[1] += epsilon;
 	nn.forwardProp(in);
-	double errBias = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errBias = out.squaredDistance(nn.outputLayer().activation());
 	pLay2->bias()[1] = beforeBias;
 
 	// Empirically measure gradient of an alpha
 	double beforeAlpha = pAct2->alphas()[1];
 	pAct2->alphas()[1] += epsilon;
 	nn.forwardProp(in);
-	double errAlpha = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errAlpha = out.squaredDistance(nn.outputLayer().activation());
 	pAct2->alphas()[1] = beforeAlpha;
 
 	// Update the weights by gradient descent
@@ -385,9 +381,9 @@ GActivationLogExp::GActivationLogExp(GDomNode* pNode)
 	m_units = it.remaining();
 	m_error.resize(m_units);
 	m_alphas.resize(m_units);
-	GVec::deserialize(m_alphas.v, it);
+	GVec::deserialize(m_alphas.data(), it);
 	m_delta.resize(m_units);
-	GVec::setAll(m_delta.v, 0.0, m_units);
+	m_delta.fill(0.0);
 }
 
 // virtual
@@ -395,7 +391,7 @@ GDomNode* GActivationLogExp::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "name", pDoc->newString(name()));
-	pNode->addField(pDoc, "alphas", GVec::serialize(pDoc, m_alphas.v, m_units));
+	pNode->addField(pDoc, "alphas", GVec::serialize(pDoc, m_alphas.data(), m_units));
 	return pNode;
 }
 
@@ -405,25 +401,25 @@ void GActivationLogExp::resize(size_t units)
 	m_units = units;
 	m_error.resize(units);
 	m_alphas.resize(units);
-	GVec::setAll(m_alphas.v, 0.0, units);
+	m_alphas.fill(0.0);
 	m_delta.resize(units);
-	GVec::setAll(m_delta.v, 0.0, units);
+	m_delta.fill(0.0);
 }
 
 // virtual
-void GActivationLogExp::setError(const double* pError)
+void GActivationLogExp::setError(const GVec& error)
 {
-	GVec::copy(m_error.v, pError, m_units);
+	m_error = error;
 }
 
 // virtual
-void GActivationLogExp::updateDeltas(const double* pNet, const double* pActivation, double momentum)
+void GActivationLogExp::updateDeltas(const GVec& net, const GVec& activation, double momentum)
 {
-	double* pAlpha = m_alphas.v;
-	const double* pErr = m_error.v;
-	const double* pN = pNet;
-	const double* pAct = pActivation;
-	double* pD = m_delta.v;
+	double* pAlpha = m_alphas.data();
+	const double* pErr = m_error.data();
+	const double* pN = net.data();
+	const double* pAct = activation.data();
+	double* pD = m_delta.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
 		*pD *= momentum;
@@ -448,8 +444,8 @@ void GActivationLogExp::updateDeltas(const double* pNet, const double* pActivati
 // virtual
 void GActivationLogExp::applyDeltas(double learningRate)
 {
-	double* pD = m_delta.v;
-	double* pAlpha = m_alphas.v;
+	double* pD = m_delta.data();
+	double* pAlpha = m_alphas.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
 		*pAlpha = *pAlpha + learningRate * *pD;
@@ -471,7 +467,7 @@ void GActivationLogExp::applyDeltas(double learningRate)
 // virtual
 void GActivationLogExp::regularize(double lambda)
 {
-	double* pAlpha = m_alphas.v;
+	double* pAlpha = m_alphas.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
 		if(*pAlpha >= 0.0)
@@ -486,7 +482,7 @@ GActivationFunction* GActivationLogExp::clone()
 {
 	GActivationLogExp* pClone = new GActivationLogExp();
 	pClone->resize(m_units);
-	GVec::copy(pClone->m_alphas.v, m_alphas.v, m_units);
+	pClone->m_alphas = m_alphas;
 	return pClone;
 }
 
@@ -499,21 +495,21 @@ size_t GActivationLogExp::countWeights()
 // virtual
 size_t GActivationLogExp::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, m_alphas.v, m_units);
+	GVec::copy(pOutVector, m_alphas.data(), m_units);
 	return m_units;
 }
 
 // virtual
 size_t GActivationLogExp::vectorToWeights(const double* pVector)
 {
-	GVec::copy(m_alphas.v, pVector, m_units);
+	m_alphas.set(pVector, m_units);
 	return m_units;
 }
 
 // virtual
 void GActivationLogExp::copyWeights(const GActivationFunction* pOther)
 {
-	GVec::copy(m_alphas.v, ((GActivationLogExp*)pOther)->m_alphas.v, m_units);
+	m_alphas = ((GActivationLogExp*)pOther)->m_alphas;
 }
 
 #ifndef MIN_PREDICT
@@ -538,38 +534,40 @@ void GActivationLogExp::test()
 	pLay1->perturbWeights(nn.rand(), 0.03);
 	pLay2->perturbWeights(nn.rand(), 0.1);
 	pLay3->perturbWeights(nn.rand(), 0.3);
-	GVec::perturb(pAct1->alphas(), 0.1, pLay1->outputs(), nn.rand());
-	GVec::perturb(pAct2->alphas(), 0.1, pLay2->outputs(), nn.rand());
-	GVec::perturb(pAct3->alphas(), 0.1, pLay3->outputs(), nn.rand());
-	double in[2];
-	double out[2];
-	nn.rand().spherical(in, 2);
-	nn.rand().spherical(out, 2);
+	GVec::perturb(pAct1->alphas().data(), 0.1, pLay1->outputs(), nn.rand());
+	GVec::perturb(pAct2->alphas().data(), 0.1, pLay2->outputs(), nn.rand());
+	GVec::perturb(pAct3->alphas().data(), 0.1, pLay3->outputs(), nn.rand());
+	GVec in(2);
+	GVec out(2);
+	in.fillNormal(nn.rand());
+	in.normalize();
+	out.fillNormal(nn.rand());
+	out.normalize();
 
 	// Measure baseline error
 	nn.forwardProp(in);
-	double errBase = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errBase = out.squaredDistance(nn.outputLayer().activation());
 	double epsilon = 1e-6;
 
 	// Empirically measure gradient of a weight
 	double beforeWeight = pLay2->weights()[1][1];
 	pLay2->weights()[1][1] += epsilon;
 	nn.forwardProp(in);
-	double errWeight = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errWeight = out.squaredDistance(nn.outputLayer().activation());
 	pLay2->weights()[1][1] = beforeWeight;
 	
 	// Empirically measure gradient of a bias
 	double beforeBias = pLay2->bias()[1];
 	pLay2->bias()[1] += epsilon;
 	nn.forwardProp(in);
-	double errBias = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errBias = out.squaredDistance(nn.outputLayer().activation());
 	pLay2->bias()[1] = beforeBias;
 
 	// Empirically measure gradient of an alpha
 	double beforeAlpha = pAct2->alphas()[1];
 	pAct2->alphas()[1] += epsilon;
 	nn.forwardProp(in);
-	double errAlpha = GVec::squaredDistance(nn.outputLayer().activation(), out, 2);
+	double errAlpha = out.squaredDistance(nn.outputLayer().activation());
 	pAct2->alphas()[1] = beforeAlpha;
 
 	// Update the weights by gradient descent

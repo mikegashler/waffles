@@ -20,6 +20,7 @@
 #define __GKALMAN_H__
 
 #include <cstring>
+#include "GVec.h"
 
 namespace GClasses {
 
@@ -31,9 +32,9 @@ class GExtendedKalmanFilter
 {
 protected:
 	size_t m_stateDims, m_obsDims;
-	double* m_x; // estimated state
-	double* m_z; // observation buffer
-	double* m_zz; // state correction buffer
+	GVec m_x; // estimated state
+	GVec m_z; // observation buffer
+	GVec m_zz; // state correction buffer
 	GMatrix* m_pP; // estimated covariance of state
 
 public:
@@ -41,7 +42,7 @@ public:
 	~GExtendedKalmanFilter();
 
 	/// Use this to get and/or set the estimated state
-	double* state() { return m_x; }
+	GVec& state() { return m_x; }
 
 	/// Use this to get and/or set the estimated covariance of the state
 	GMatrix* stateCovariance() { return m_pP; }
@@ -53,7 +54,7 @@ public:
 	/// change in f(x,u) over the change in one of the dimensions of
 	/// x, where f is the transition function, x is the state, and u
 	/// is the control vector.
-	void advance(const double* pControl, GMatrix* pA);
+	void advance(const GVec& control, GMatrix* pA);
 
 	/// Correct the estimates of state and covariance based on the
 	/// observations made in the new state (and assuming the observation function
@@ -62,14 +63,14 @@ public:
 	/// state. Each column in pH represents the change in h(x) over the change
 	/// in one of the dimensions of x, where h is the observation function,
 	/// and x is the state.
-	void correct(const double* pObservation, GMatrix* pH);
+	void correct(const GVec& observation, GMatrix* pH);
 
 	/// Computes the transition function. (Adjust the values in pInOutState
 	/// as directed by pControl.)
-	virtual void transition(double* pInOutState, const double* pControl) = 0;
+	virtual void transition(GVec& inOutState, const GVec& control) = 0;
 
 	/// Computes the observation function. Put results in pOutObs.
-	virtual void observation(double* pOutObs, const double* pState) = 0;
+	virtual void observation(GVec& outObs, const GVec& state) = 0;
 
 	/// pInOutCov is a nxn matrix, where n is the number of state dims.
 	/// This method should add the covariance of the transition noise to pInOutCov.

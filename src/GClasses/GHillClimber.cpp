@@ -333,8 +333,8 @@ GRandomDirectionBinarySearch::GRandomDirectionBinarySearch(GTargetFunction* pTar
 	m_dims = pTargetFunc->relation()->size();
 	m_current.resize(m_dims);
 	m_direction.resize(m_dims);
-	GVec::setAll(m_current.v, 0.0, m_dims);
-	m_err = m_pCritic->computeError(m_current.v);
+	m_current.fill(0.0);
+	m_err = m_pCritic->computeError(m_current.data());
 }
 
 // virtual
@@ -345,12 +345,12 @@ GRandomDirectionBinarySearch::~GRandomDirectionBinarySearch()
 // virtual
 double GRandomDirectionBinarySearch::iterate()
 {
-	m_pRand->spherical(m_direction.v, m_dims);
+	m_pRand->spherical(m_direction.data(), m_dims);
 	double sum = 0.0;
 	for(size_t i = 0; i < 20; i++)
 	{
-		GVec::addScaled(m_current.v, m_stepSize, m_direction.v, m_dims);
-		double pos = m_pCritic->computeError(m_current.v);
+		GVec::addScaled(m_current.data(), m_stepSize, m_direction.data(), m_dims);
+		double pos = m_pCritic->computeError(m_current.data());
 		if(pos < m_err)
 		{
 			sum += m_stepSize;
@@ -359,8 +359,8 @@ double GRandomDirectionBinarySearch::iterate()
 		}
 		else
 		{
-			GVec::addScaled(m_current.v, -2.0 * m_stepSize, m_direction.v, m_dims);
-			double neg = m_pCritic->computeError(m_current.v);
+			GVec::addScaled(m_current.data(), -2.0 * m_stepSize, m_direction.data(), m_dims);
+			double neg = m_pCritic->computeError(m_current.data());
 			if(neg < m_err)
 			{
 				sum -= m_stepSize;
@@ -369,7 +369,7 @@ double GRandomDirectionBinarySearch::iterate()
 			}
 			else
 			{
-				GVec::addScaled(m_current.v, m_stepSize, m_direction.v, m_dims);
+				GVec::addScaled(m_current.data(), m_stepSize, m_direction.data(), m_dims);
 				m_stepSize *= 0.5;
 				if(m_stepSize < 1e-16)
 					m_stepSize = 1.0; // No progress. Might as well try something new.

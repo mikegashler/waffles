@@ -46,7 +46,6 @@
 #include "GOptimizer.h"
 #include "GRand.h"
 #include "GSparseMatrix.h"
-#include "GSystemLearner.h"
 #include "GTime.h"
 #include "GTransform.h"
 #include "GDom.h"
@@ -228,7 +227,7 @@ public:
 
         static void sterilize(GArgReader& args);
 
-        static void trainRecurrent(GArgReader& args);
+//        static void trainRecurrent(GArgReader& args);
 
         static void regress(GArgReader& args);
 
@@ -238,7 +237,7 @@ public:
 
         static void showError(GArgReader& args, const char* szAppName, const char* szMessage);
 };
-
+/*
 class MyRecurrentModel : public GRecurrentModel
 {
 protected:
@@ -277,7 +276,7 @@ public:
 		}
 	}
 };
-
+*/
 class OptimizerTargetFunc : public GTargetFunction
 {
 public:
@@ -312,12 +311,12 @@ public:
 			params[inDims + j] = pVector[j];
 		for(size_t i = 0; i < m_pIn->rows(); i++)
 		{
-			double* pIn = m_pIn->row(i);
+			GVec& pIn = m_pIn->row(i);
 			for(size_t j = 0; j < inDims; j++)
 				params[j] = pIn[j];
 			double pred = m_pFunc->call(params, *m_pParser);
-			double* pOut = m_pOut->row(i);
-			double d = *pOut - pred;
+			GVec& pOut = m_pOut->row(i);
+			double d = pOut[0] - pred;
 			sse += d * d;
 		}
 		return sse;

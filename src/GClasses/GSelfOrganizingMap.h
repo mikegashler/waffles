@@ -821,14 +821,14 @@ public:
   ///Transform the given vector from input coordinates to map
   ///coordinates by finding the best match among the nodes.
   ///
-  ///see comment on GIncrementalTransform::(const double*, double*)
-  void transform(const double*pIn, double*pOut);
+  ///see comment on GIncrementalTransform::(const GVec& pIn, GVec& pOut)
+  void transform(const GVec& pIn, GVec& pOut);
 
 
   ///Return the index of the node whose weight vector best matches in
   ///under the distance metric for this SOM.  Assumes there is at
   ///least one node.
-  std::size_t bestMatch(const double*pIn) const;
+  std::size_t bestMatch(const GVec& pIn) const;
 
   ///Given a matrix containing input data of the correct dimensions,
   ///returns a vector v of nodes.size() indices into that matrix.
@@ -884,11 +884,11 @@ public:
     return m_pNodeDistance; }
 
 	/// Throws an exception (because this transform cannot be reversed).
-	virtual void untransform(const double* pIn, double* pOut)
+	virtual void untransform(const GVec& pIn, GVec& pOut)
 	{ throw Ex("This transformation cannot be reversed"); }
 
 	/// Throws an exception (because this transform cannot be reversed).
-	virtual void untransformToDistribution(const double* pIn, GPrediction* pOut)
+	virtual void untransformToDistribution(const GVec& pIn, GPrediction* pOut)
 	{ throw Ex("This transformation cannot be reversed"); }
 };
 

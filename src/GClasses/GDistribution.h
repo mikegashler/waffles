@@ -84,18 +84,16 @@ class GCategoricalDistribution : public GUnivariateDistribution
 protected:
 	size_t m_nValueCount;
 	size_t m_nMode;
-	double* m_pValues;
+	GVec m_pValues;
 
 public:
 	GCategoricalDistribution() : GUnivariateDistribution()
 	{
 		m_nValueCount = 0;
-		m_pValues = NULL;
 	}
 
 	virtual ~GCategoricalDistribution()
 	{
-		delete[] m_pValues;
 	}
 
 	/// Load values from a text format
@@ -148,12 +146,11 @@ public:
 	/// Resizes the vector of probabilities if it
 	/// does not have nValueCount elements, and returns
 	/// that vector
-	double* values(size_t nValueCount)
+	GVec& values(size_t nValueCount)
 	{
 		if(m_nValueCount != nValueCount)
 		{
-			delete[] m_pValues;
-			m_pValues = new double[nValueCount];
+			m_pValues.resize(nValueCount);
 			m_nValueCount = nValueCount;
 		}
 		return m_pValues;
@@ -747,24 +744,24 @@ class GMultivariateNormalDistribution : public GDistribution
 protected:
 	size_t m_nDims;
 	double m_dScale;
-	double* m_pMean;
-	double* m_pVector1;
-	double* m_pVector2;
+	GVec m_mean;
+	GVec m_vector1;
+	GVec m_vector2;
 	GMatrix* m_pInverseCovariance;
 	GMatrix* m_pCholesky;
 
 public:
-	GMultivariateNormalDistribution(const double* pMean, GMatrix* pCovariance);
+	GMultivariateNormalDistribution(const GVec& mean, GMatrix* pCovariance);
 	GMultivariateNormalDistribution(GMatrix* pData, size_t nDims);
 	~GMultivariateNormalDistribution();
 
 	/// Compute the likelihood of the specified vector (which is assumed
 	/// to be the same size as the number of columns or rows in the covariance
 	/// matrix).
-	double likelihood(const double* pParams);
+	double likelihood(const GVec& x);
 
 	/// Generates a random vector from this multivariate Normal distribution.
-	double* randomVector(GRand* pRand);
+	void randomVector(GRand* pRand, GVec& out);
 
 protected:
 	void precompute(GMatrix* pCovariance);

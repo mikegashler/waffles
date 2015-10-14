@@ -78,9 +78,9 @@ public:
 	
 	static GMatrixFactorization* InstantiateMatrixFactorization(GArgReader& args);
 	
-	static GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args);
+//	static GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args);
 	
-	static GHybridNonlinearPCA* InstantiateHybridNonlinearPCA(GArgReader& args);
+//	static GHybridNonlinearPCA* InstantiateHybridNonlinearPCA(GArgReader& args);
 	
 	static GContentBasedFilter* InstantiateContentBasedFilter(GArgReader& args);
 	

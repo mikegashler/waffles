@@ -334,7 +334,7 @@ protected:
 };
 
 
-
+/*
 /// This uses graph-cut to divide the data into two clusters.
 /// It then trains a linear regression model for each cluster
 /// to map from inputs to change-in-state. It then aligns
@@ -364,7 +364,7 @@ public:
 	static void test();
 #endif
 };
-
+*/
 
 
 /// Given an image encoded as a rasterized row of channel values,
@@ -422,92 +422,6 @@ protected:
 
 
 
-
-
-
-/// A manifold learning algorithm that uses back-propagation to train a neural net model
-/// to map from low-dimensional space to high-dimensional space.
-class GUnsupervisedBackProp : public GTransform
-{
-protected:
-	size_t m_paramDims;
-	size_t* m_pParamRanges;
-	size_t m_jitterDims;
-	size_t m_intrinsicDims;
-	GNeuralNet* m_pNN;
-	GCoordVectorIterator m_cvi;
-	bool m_useInputBias;
-	GImageJitterer* m_pJitterer;
-	GMatrix* m_pIntrinsic;
-	double* m_pMins;
-	double* m_pRanges;
-	GMatrix* m_pProgress;
-	bool m_onePass;
-
-public:
-	GUnsupervisedBackProp(size_t intrinsicDims, GRand* pRand);
-	GUnsupervisedBackProp(GDomNode* pNode, GLearnerLoader& ll);
-	virtual ~GUnsupervisedBackProp();
-
-	/// Marshall this object to a DOM that can be serialized.
-	GDomNode* serialize(GDom* pDoc) const;
-
-	/// Returns a pointer to the neural network used to model the manifold. Typically, this
-	/// is used to add layers to the neural network, or set the learning rate (etc.) before
-	/// calling reduce. (You must add at least one layer.)
-	GNeuralNet* neuralNet() { return m_pNN; }
-
-	/// Takes ownership of pNN. Replaces the internal neural net with the one specified.
-	/// This method assumes that pNN has already been trained. If m_updateWeights is true,
-	/// then it will further-refinde this model when reduce is called.
-	/// (You can pass NULL to this method to discard the current model, so that a new model
-	/// will be trained next time reduce is called.)
-	void setNeuralNet(GNeuralNet* pNN);
-
-	/// Parameterize the output values. This feature is typically used when the output is an image,
-	/// and the width and height are specified for the paramRanges.
-	void setParams(std::vector<size_t>& paramRanges);
-
-	/// Specify initial values for the intrinsic variables. This method takes ownership of pIntrinsic.
-	/// If this method is not called prior to "reduce", then the intrinsic variables will be initialized
-	/// with small random values.
-	void setIntrinsic(GMatrix* pIntrinsic);
-
-	/// Perform NLDR. (This also trains the internal neural network to map from
-	/// low-dimensional space to high-dimensional space.) Returns a pointer to
-	/// the intrinsic values (which you are responsible to delete).
-	virtual GMatrix* reduce(const GMatrix& in);
-
-	/// Specify whether to use one of the input values as a bias
-	void setUseInputBias(bool b) { m_useInputBias = b; }
-
-	/// Takes ownership of pJitterer.
-	/// Specify an image jitterer to use during training to make it robust to rotation,
-	/// translation, and scale. If an image jitterer is used, then there must be exactly two
-	/// dimensional parameters, and the parameters used to construct the image jitterer
-	/// must be consistent with those used to construct this object.
-	void setJitterer(GImageJitterer* pJitterer);
-
-	/// Returns the current image jitterer
-	GImageJitterer* jitterer() { return m_pJitterer; }
-
-	/// Given a high-dimensional vector, computes and returns a corresponding low-dimensional vector.
-	void hiToLow(const double* pIn, double* pOut);
-
-	/// Given a low-dimensional vector, computes and returns the corresponding high-dimensional vector.
-	void lowToHi(const double* pIn, double* pOut);
-
-	/// Use only single-pass training.
-	void onePass() { m_onePass = true; }
-
-	double* mins();
-	double* ranges();
-	void useJitterer() { m_jitterDims = 4; }
-	GMatrix& progress() { return *m_pProgress; }
-	void trackProgress();
-	size_t featureDims() { return m_jitterDims + m_intrinsicDims; }
-	size_t labelDims();
-};
 
 
 
