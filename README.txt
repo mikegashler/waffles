@@ -23,11 +23,11 @@ Build Instructions:
 
 	OSX:
 		1- Install clang or g++. Also install Gnu Make.
-			a- Install Xcode
-			b- Click Xcode->Preferences->Downloads
-			c- Click the down arrow to install the "Command Line Tools".
-			(If you do not want to install Xcode, there are other ways
-			 to install g++, such as with Fink or MacPorts.)
+		   a- Install Xcode
+		   b- Click Xcode->Preferences->Downloads
+		   c- Click the down arrow to install the "Command Line Tools".
+		   (If you do not want to install Xcode, there are other ways
+		    to install g++, such as with Fink or MacPorts.)
 		2- Open a terminal
 		3- cd waffles/src
 		4- make opt
