@@ -64,19 +64,23 @@ void GNeuralDecomposition::trainOnSeries(const GMatrix &series)
 	train(features, series);
 }
 
-GMatrix *GNeuralDecomposition::extrapolate(double start, double length, double step)
+GMatrix *GNeuralDecomposition::extrapolate(double start, double length, double step, bool outputFeatures)
 {
 	// note: this method assumes the network was trained with single-column features
 	
 	size_t rows = (size_t) (length / step);
 	double x = start;
 	
-	GMatrix *output = new GMatrix(rows, m_nn->outputLayer().outputs());
+	GMatrix *output = new GMatrix(rows, m_nn->outputLayer().outputs() + (outputFeatures ? 1 : 0));
 	double *out;
 	
 	for(size_t i = 0; i < rows; i++)
 	{
 		out = output->row(i);
+		if(outputFeatures)
+		{
+			*(out++) = x * m_featureScale + m_featureBias;
+		}
 		predict(&x, out);
 		x += step;
 	}

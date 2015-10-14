@@ -190,6 +190,7 @@ void Extrapolate(GArgReader &args)
 	double length = 1.0;
 	double step = 0.0002;
 	bool useFeatures = false;
+	bool outputFeatures = true;
 	
 	GNeuralDecomposition *nd = (GNeuralDecomposition *) pLearner;
 	Holder<GMatrix> hFeatures;
@@ -197,18 +198,30 @@ void Extrapolate(GArgReader &args)
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-start"))
+		{
 			start = args.pop_double();
+		}
 		else if(args.if_pop("-length"))
+		{
 			length = args.pop_double();
+		}
 		else if(args.if_pop("-step"))
+		{
 			step = args.pop_double();
+		}
 		else if(args.if_pop("-features"))
 		{
 			LoadData(args, hFeatures);
 			useFeatures = true;
 		}
+		else if(args.if_pop("-outputFeatures"))
+		{
+			outputFeatures = true;
+		}
 		else
+		{
 			throw Ex("Invalid option: ", args.peek());
+		}
 	}
 	
 	// Extrapolate
@@ -216,7 +229,7 @@ void Extrapolate(GArgReader &args)
 	if(useFeatures)
 		pOutput = nd->extrapolate(*hFeatures.get());
 	else
-		pOutput = nd->extrapolate(start, length, step);
+		pOutput = nd->extrapolate(start, length, step, outputFeatures);
 	Holder<GMatrix> hOutput(pOutput);
 	
 	// Output predictions

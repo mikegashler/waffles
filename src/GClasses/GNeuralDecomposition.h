@@ -34,7 +34,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 		virtual ~GNeuralDecomposition();
 		
 		virtual void trainOnSeries(const GMatrix &series);
-		virtual GMatrix *extrapolate(double start = 1.0, double length = 1.0, double step = 0.0002);
+		virtual GMatrix *extrapolate(double start = 1.0, double length = 1.0, double step = 0.0002, bool outputFeatures = false);
 		virtual GMatrix *extrapolate(const GMatrix &features);
 		
 		void setRegularization(double newregularization) { m_regularization = newregularization; }
