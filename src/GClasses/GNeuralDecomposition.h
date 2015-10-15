@@ -48,8 +48,8 @@ class GNeuralDecomposition: public GIncrementalLearner
 		void setSigmoidUnits(size_t sigmoidUnits) { m_sigmoidUnits = sigmoidUnits; }
 		void setSinusoidUnits(size_t sinusoidUnits) { m_sinusoidUnits = sinusoidUnits; }
 		void setEpochs(size_t newepochs) { m_epochs = newepochs; }
-		void setFilterLogarithm(bool filterLogarithm) { m_filterLogarithm = filterLogarithm; }
-		void setAutoFilter(bool autoFilter) { m_autoFilter = autoFilter; }
+		void setFilterLogarithm(bool filter_Logarithm) { m_filterLogarithm = filter_Logarithm; }
+		void setAutoFilter(bool auto_Filter) { m_autoFilter = auto_Filter; }
 		
 		GNeuralNet &nn() const { return *m_nn; }
 		double regularization() const { return m_regularization; }

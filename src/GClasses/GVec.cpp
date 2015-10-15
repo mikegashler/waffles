@@ -341,12 +341,16 @@ void GVec::regularize_L1(double amount)
 	}
 }
 
-void GVec::put(size_t pos, const GVec& that)
+void GVec::put(size_t pos, const GVec& that, size_t start, size_t length)
 {
-	if(pos + that.m_size > m_size)
+	if(length == (size_t)-1)
+		length = that.size() - start;
+	else if(start + length > that.size())
+		throw Ex("Input out of range. that size=", to_str(that.size()), ", start=", to_str(start), ", length=", to_str(length));
+	if(pos + length > m_size)
 		throw Ex("Out of range. this size=", to_str(m_size), ", pos=", to_str(pos), ", that size=", to_str(that.m_size));
-	for(size_t i = 0; i < that.m_size; i++)
-		(*this)[pos + i] = that[i];
+	for(size_t i = 0; i < length; i++)
+		(*this)[pos + i] = that[start + i];
 }
 
 void GVec::erase(size_t start, size_t count)

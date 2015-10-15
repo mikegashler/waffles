@@ -28,10 +28,6 @@ cat <<ENDTXT >> command/audio.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -66,10 +62,6 @@ cat <<ENDTXT >> command/cluster.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -104,10 +96,6 @@ cat <<ENDTXT >> command/dimred.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -143,10 +131,6 @@ cat <<ENDTXT >> command/generate.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -181,10 +165,6 @@ cat <<ENDTXT >> command/learn.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -219,10 +199,6 @@ cat <<ENDTXT >> command/plot.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -258,10 +234,6 @@ cat <<ENDTXT >> command/recommend.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -298,10 +270,6 @@ cat <<ENDTXT >> command/sparse.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -338,10 +306,6 @@ cat <<ENDTXT >> command/transform.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT
@@ -377,10 +341,6 @@ cat <<ENDTXT >> command/ts.html
 
 <br><br><a href="../index.html#toc">Back to the table of contents</a><br>
 </td></tr></table>
-<center><br><br><br>
-Hosting for this project generously provided by:<br>
-<a href="http://sourceforge.net"><img src="http://sourceforge.net/sflogo.php?group_id=153538&amp;type=3" width="125" height="37" border="0" alt="SourceForge.net Logo" /></a>
-</center>
 </td></tr></table><br><br><br><br><br>
 </body></html>
 ENDTXT

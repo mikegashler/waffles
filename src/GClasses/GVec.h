@@ -160,7 +160,7 @@ public:
 
 	/// Puts a copy of that at the specified location in this.
 	/// Throws an exception if it does not fit there.
-	void put(size_t pos, const GVec& that);
+	void put(size_t pos, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
 
 	/// Erases the specified elements. The remaining elements are shifted over.
 	/// The size of the vector is decreased, but the buffer is not reallocated
