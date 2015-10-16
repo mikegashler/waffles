@@ -726,16 +726,16 @@ public:
 
 	void SaveVector(double* pVector, const char* szFilename)
 	{
-		GImage image;
-		image.setSize(2 * OCR_HALF_VEC_SIZE, 2 * OCR_HALF_VEC_SIZE);
-		image.clear(0xffffffff);
+		GImage img;
+		img.setSize(2 * OCR_HALF_VEC_SIZE, 2 * OCR_HALF_VEC_SIZE);
+		img.clear(0xffffffff);
 		int x, y;
 		for(x = 0; x < 2 * OCR_HALF_VEC_SIZE; x++)
 		{
 			for(y = 0; y < OCR_HALF_VEC_SIZE * pVector[x] && y < 2 * OCR_HALF_VEC_SIZE; y++)
-				image.setPixel(x, 2 * OCR_HALF_VEC_SIZE - 1 - y, x >= OCR_HALF_VEC_SIZE ? 0xff00ff00 : 0xff0000ff);
+				img.setPixel(x, 2 * OCR_HALF_VEC_SIZE - 1 - y, x >= OCR_HALF_VEC_SIZE ? 0xff00ff00 : 0xff0000ff);
 		}
-		image.saveBmp(szFilename);
+		img.saveBmp(szFilename);
 	}
 
 	double EvaluateOCRVector(double* pVector)

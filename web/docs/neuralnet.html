@@ -354,215 +354,6 @@ effort, I would very much appreciate it.)</p>
 
 
 
-
-<br><br>
-<h3>MNIST</h3>
-
-<p>These days, it has become very popular to test deep neural networks with the <a href="http://uaf46365.ddns.uark.edu/data/mnist/">MNIST dataset</a>.
-So, let's do an example with it. First, some heading code:</p>
-
-<pre class="code">
-#include &lt;exception&gt;
-#include &lt;iostream&gt;
-#include &lt;GClasses/GApp.h&gt;
-#include &lt;GClasses/GError.h&gt;
-#include &lt;GClasses/GNeuralNet.h&gt;
-#include &lt;GClasses/GActivation.h&gt;
-#include &lt;GClasses/GTransform.h&gt;
-#include &lt;GClasses/GHolders.h&gt;
-#include &lt;GClasses/GVec.h&gt;
-#include &lt;GClasses/GTime.h&gt;
-#include &lt;GClasses/GDom.h&gt;
-
-using namespace GClasses;
-using std::cerr;
-using std::cout;
-
-int main(int argc, char *argv[])
-{
-</pre>
-
-<p>Now, let's load the dataset and divide it into features and labels. I am
-also going to scale all the features by 1/256. (Note that manually scaling the features
-in this way is not the same as applying normalizing transform to the features.
-A normalizing transform would compute a unique range for each column, which would
-cause background pixels with little variance to be scaled to fill the full range of values.
-In this case, that would augment the noise in the features. Since all of the pixels have
-meaning with respect to each other, we don't want to mess up those relationships.)</p>
-
-<pre class="code">
-	// Load and prep the training data
-	GRand rand(0);
-	GMatrix train;
-	train.loadArff("mnist/train.arff");
-	GDataColSplitter trainSplit(train, 1);
-	trainSplit.features().multiply(1.0 / 256.0);
-	GMatrix test;
-	test.loadArff("mnist/test.arff");
-	GDataColSplitter testSplit(test, 1);
-	testSplit.features().multiply(1.0 / 256.0);
-</pre>
-
-<p>Now, let's make a neural network. One of my favorite activation functions is
-GActivationBend, so I will use it. This activation function requires a smaller
-learning rate, because its derivative is never close to zero. I will use a regular
-sigmoidal layer in the output layer, however, because that tends to stabilize
-training. Note that this is actually a really small network for this problem.
-We could get much better results with a bigger network, but it is a good practice
-to keep your initial experiments fast and simple, so you can make adjustments
-without paying a heavy cost. Notice how I alternate between big and small
-layers--that is a good trick for keeping the total number of network weights small.</p>
-
-<pre class="code">
-	// Make the networks
-	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 40, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 120, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 40, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 120, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	nn.setLearningRate(0.01);
-	GAutoFilter af(&amp;nn, false);
-	af.beginIncrementalLearning(trainSplit.features().relation(), trainSplit.labels().relation());
-	cout &lt;&lt; "Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
-</pre>
-
-<p>Now, let's train it. I don't really do anything fancy here.</p>
-
-<pre class="code">
-	// Train
-	GRandomIndexIterator ii(trainSplit.features().rows(), rand);
-	for(size_t epoch = 0; epoch &lt; 10; epoch++)
-	{
-		// Validate
-		double mis = af.sumSquaredError(testSplit.features(), testSplit.labels());
-		cout &lt;&lt; "Misclassifications: " &lt;&lt; to_str(mis) &lt;&lt; "/" &lt;&lt; to_str(testSplit.labels().rows()) &lt;&lt; "\n";
-
-		// Train
-		ii.reset();
-		size_t index;
-		while(ii.next(index))
-			af.trainIncremental(trainSplit.features()[index], trainSplit.labels()[index]);
-	}
-	return 0;
-}
-</pre>
-
-<p>Training takes less than 2 minutes on a modest laptop computer. Here are the results that I get:</p>
-
-<pre class="code">
-Total weights: 47290
-Misclassifications: 8865/10000
-Misclassifications: 807/10000
-Misclassifications: 649/10000
-Misclassifications: 488/10000
-Misclassifications: 512/10000
-Misclassifications: 494/10000
-Misclassifications: 412/10000
-Misclassifications: 360/10000
-Misclassifications: 346/10000
-Misclassifications: 306/10000
-</pre>
-
-<p>Okay, now let's throw some more tricks onto the pile. Instead of going through the GAutoFilter
-class each time turing training, we may prefer to prefilter the labels, to get them in the right format
-up front. This way we don't have to filter any of the labels more than once. (There is no need
-to prefilter the features in this case, because they are already in a form that neural networks can
-handle. We could if we wanted to, but it would be a no-op.)</p>
-
-<p>So, let's use a convolutional input layer, and add two types of regularization: Dropout and Max-Norm.
-I will highlight changes from the previous example in red:</p>
-
-<pre class="code">
-#include &lt;exception&gt;
-#include &lt;iostream&gt;
-#include &lt;GClasses/GApp.h&gt;
-#include &lt;GClasses/GError.h&gt;
-#include &lt;GClasses/GNeuralNet.h&gt;
-#include &lt;GClasses/GActivation.h&gt;
-#include &lt;GClasses/GTransform.h&gt;
-#include &lt;GClasses/GHolders.h&gt;
-#include &lt;GClasses/GVec.h&gt;
-#include &lt;GClasses/GTime.h&gt;
-#include &lt;GClasses/GDom.h&gt;
-
-using namespace GClasses;
-using std::cerr;
-using std::cout;
-
-int main(int argc, char *argv[])
-{
-	// Load and prep the training data
-	GRand rand(0);
-	GMatrix train;
-	train.loadArff("mnist/train.arff");
-	GDataColSplitter trainSplit(train, 1);
-	trainSplit.features().multiply(1.0 / 256.0);
-	GMatrix test;
-	test.loadArff("mnist/test.arff");
-	GDataColSplitter testSplit(test, 1);
-	testSplit.features().multiply(1.0 / 256.0);
-
-	// Make the networks
-	GNeuralNet nn;
-	nn.addLayer(new <font color="red">GLayerConvolutional2D(28, 28, 1, 7, 5,</font> new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, <font color="red">60</font>, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 40, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 120, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	nn.setLearningRate(0.01);
-	GAutoFilter af(&amp;nn, false);
-	af.beginIncrementalLearning(trainSplit.features().relation(), trainSplit.labels().relation());
-	cout &lt;&lt; "Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
-	<font color="red">GMatrix* pInnerLabels = af.prefilterLabels(trainSplit.labels());
-	Holder&lt;GMatrix&gt; hInnerLabels(pInnerLabels);</font>
-
-	// Train
-	GRandomIndexIterator ii(trainSplit.features().rows(), rand);
-	for(size_t epoch = 0; epoch &lt; 10; epoch++)
-	{
-		// Validate
-		<font color="red">nn.scaleWeights(1.0 - 0.35, false, 1);</font>
-		double mis = af.sumSquaredError(testSplit.features(), testSplit.labels());
-		<font color="red">nn.scaleWeights(1.0 / (1.0 - 0.35), false, 1);</font>
-		cout &lt;&lt; "Misclassifications: " &lt;&lt; to_str(mis) &lt;&lt; "/" &lt;&lt; to_str(testSplit.labels().rows()) &lt;&lt; "\n";
-
-		// Train
-		ii.reset();
-		size_t index;
-		while(ii.next(index))
-		{
-			<font color="red">for(size_t i = 0; i &lt; nn.layerCount(); i++)
-				nn.layer(i).maxNorm(0.0, 2.0);
-			nn.trainIncrementalWithDropout</font>(trainSplit.features()[index], <font color="red">pInnerLabels-&gt;row(index), 0.35</font>);
-		}
-	}
-	return 0;
-}
-</pre>
-
-<p>And here are some results. Notice they are not actually better. Is that because these tricks are no good? Is it
-because this network has more weights and I didn't train for long enough? (Notice the accuracy is still improving.)
-Is it because those tricks are really designed for larger networks, and this one is still so very small?
-Is it because I didn't tune my hyperparameters at all? I will leave answering such questions as an exercize for
-the reader--I'm just trying to show you how to use my code =).</p>
-
-<pre class="code">
-Total weights: 154080
-Misclassifications: 8968/10000
-Misclassifications: 812/10000
-Misclassifications: 659/10000
-Misclassifications: 551/10000
-Misclassifications: 572/10000
-Misclassifications: 609/10000
-Misclassifications: 503/10000
-Misclassifications: 563/10000
-Misclassifications: 464/10000
-Misclassifications: 414/10000
-</pre>
-
-
-
 <br><br>
 <h3>General-purpose code</h3>
 
@@ -589,7 +380,7 @@ int main(int argc, char *argv[])
 	// Load and prep the training data
 	GRand rand(0);
 	GMatrix raw;
-	raw.loadArff("some_data.arff");
+	raw.loadArff("/somepath/somedata.arff");
 	GDataColSplitter s1(raw, 1);
 	GDataRowSplitter s2(s1.features(), s1.labels(), rand, s1.labels().rows() / 2);
 
@@ -603,23 +394,18 @@ int main(int argc, char *argv[])
 	af.beginIncrementalLearning(s2.features1(), s2.labels1());
 
 	// Prep the data
-	GMatrix* filteredFeatures1 = af.prefilterFeatures(s2.features1());
-	Holder&lt;GMatrix&gt; hFilteredFeatures1(filteredFeatures1);
-	GMatrix* filteredLabels1 = af.prefilterLabels(s2.labels1());
-	Holder&lt;GMatrix&gt; hFilteredLabels1(filteredLabels1);
-	GMatrix* filteredFeatures2 = af.prefilterFeatures(s2.features2());
-	Holder&lt;GMatrix&gt; hFilteredFeatures2(filteredFeatures2);
-	GMatrix* filteredLabels2 = af.prefilterLabels(s2.labels2());
-	Holder&lt;GMatrix&gt; hFilteredLabels2(filteredLabels2);
+	af.prefilterData(&amp;s2.features1(), &amp;s2.labels1(), &amp;s2.features2(), &amp;s2.labels2());
+	GMatrix&amp; trainFeatures = *af.data()[0];
+	GMatrix&amp; trainLabels = *af.data()[1];
+	GMatrix&amp; testFeatures = *af.data()[2];
+	GMatrix&amp; testLabels = *af.data()[3];
 
 	// Print some stats
-	size_t nTrain = s2.features1().rows();
-	size_t nTest = s2.features2().rows();
-	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(nTrain) &lt;&lt; "\n";
-	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(nTest) &lt;&lt; "\n";
+	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.layer(0).inputs());
 	for(size_t i = 0; i &lt; nn.layerCount(); i++)
-		cout &lt;&lt; " -> " + to_str(nn.layer(i).outputs());
+		cout &lt;&lt; " -&gt; " + to_str(nn.layer(i).outputs());
 	cout &lt;&lt; "\n";
 	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
 
@@ -629,33 +415,261 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	cout &lt;&lt; "@DATA\n";
-	GRandomIndexIterator ii(s2.features1().rows(), nn.rand());
+	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
 	for(size_t epoch = 0; epoch &lt; 50000; epoch++)
 	{
 		// Validate
-		double sseTrain = nn.sumSquaredError(*filteredFeatures1, *filteredLabels1);
-		double sseTest = nn.sumSquaredError(*filteredFeatures2, *filteredLabels2);
+		double sseTrain = nn.sumSquaredError(trainFeatures, trainLabels);
+		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
+		double sseTest = nn.sumSquaredError(testFeatures, testLabels);
+		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
 		double mis = af.sumSquaredError(s2.features2(), s2.labels2());
-		cout &lt;&lt; to_str(std::sqrt(sseTrain / nTrain)) &lt;&lt; ", ";
-		cout &lt;&lt; to_str(std::sqrt(sseTest / nTest)) &lt;&lt; ", ";
-		cout &lt;&lt; to_str((double)mis / nTrain) &lt;&lt; "\n";
+		cout &lt;&lt; to_str((double)mis / s2.features2().rows()) &lt;&lt; "\n";
 		cout.flush();
 
-		// Train
+		// Do an epoch of training
 		ii.reset();
 		size_t index;
 		while(ii.next(index))
-		{
-			const GVec&amp; in = filteredFeatures1-&gt;row(index);
-			const GVec&amp; targ = filteredLabels1-&gt;row(index);
-			nn.forwardProp(in);
-			nn.backpropagate(targ);
-			nn.descendGradient(in, nn.learningRate(), 0.0);
-		}
+			nn.trainIncremental(trainFeatures[index], trainLabels[index]);
 	}
 	return 0;
 }
 </pre>
+
+
+
+
+
+<br><br>
+<h3>MNIST</h3>
+
+<p>A popular test for a neural network is the <a href="http://uaf46365.ddns.uark.edu/data/mnist/">MNIST dataset</a>.
+So, let's do an example with it. Here is some code:</p>
+
+<pre class="code">
+#include &lt;iostream&gt;
+#include &lt;cmath&gt;
+#include &lt;GClasses/GApp.h&gt;
+#include &lt;GClasses/GError.h&gt;
+#include &lt;GClasses/GNeuralNet.h&gt;
+#include &lt;GClasses/GActivation.h&gt;
+#include &lt;GClasses/GTransform.h&gt;
+#include &lt;GClasses/GVec.h&gt;
+#include &lt;GClasses/GHolders.h&gt;
+
+using namespace GClasses;
+using std::cerr;
+using std::cout;
+
+int main(int argc, char *argv[])
+{
+	// Load the data
+	GMatrix train;
+	train.loadArff("/somepath/data/mnist/train.arff");
+	GDataColSplitter sTrain(train, 1);
+	GMatrix test;
+	test.loadArff("/somepath/data/mnist/test.arff");
+	GDataColSplitter sTest(test, 1);
+
+	// Make the network
+	GNeuralNet nn;
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 80));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 30));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	nn.setLearningRate(0.01);
+	GAutoFilter af(&amp;nn, false);
+	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
+
+	// Prep the data
+	af.prefilterData(&amp;sTrain.features(), &amp;sTrain.labels(), &amp;sTest.features(), &amp;sTest.labels());
+	GMatrix&amp; trainFeatures = *af.data()[0];
+	GMatrix&amp; trainLabels = *af.data()[1];
+	GMatrix&amp; testFeatures = *af.data()[2];
+	GMatrix&amp; testLabels = *af.data()[3];
+
+	// Print some stats
+	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.layer(0).inputs());
+	for(size_t i = 0; i &lt; nn.layerCount(); i++)
+		cout &lt;&lt; " -&gt; " + to_str(nn.layer(i).outputs());
+	cout &lt;&lt; "\n";
+	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
+
+	// Train
+	cout &lt;&lt; "@RELATION neural_net_training\n";
+	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
+	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
+	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
+	cout &lt;&lt; "@DATA\n";
+	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
+	for(size_t epoch = 0; epoch &lt; 10; epoch++)
+	{
+		// Validate
+		double sseTrain = nn.sumSquaredError(trainFeatures, trainLabels);
+		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
+		double sseTest = nn.sumSquaredError(testFeatures, testLabels);
+		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
+		double mis = af.sumSquaredError(sTest.features(), sTest.labels());
+		cout &lt;&lt; to_str((double)mis / sTest.features().rows()) &lt;&lt; "\n";
+		cout.flush();
+
+		// Do an epoch of training
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+			nn.trainIncremental(trainFeatures[index], trainLabels[index]);
+	}
+	return 0;
+}
+</pre>
+
+<p>Here are the results that I get:</p>
+
+<pre class="code">
+% Training patterns: 60000
+% Testing patterns: 10000
+% Topology: 784 -> 80 -> 30 -> 10
+% Total weights: 65540
+@RELATION neural_net_training
+@ATTRIBUTE internal_rmse_train real
+@ATTRIBUTE internal_rmse_test real
+@ATTRIBUTE misclassification_rate real
+@DATA
+1.0062320115962, 1.0062882869588, 0.9235
+0.35827917057482, 0.35285602819834, 0.0588
+0.29920038633219, 0.30503380076365, 0.0455
+0.29897590956784, 0.30469283251474, 0.0436
+0.27005888129929, 0.28255127487034, 0.0382
+0.26209564354629, 0.28000584880966, 0.039
+0.25383945740352, 0.27075626507427, 0.0361
+0.23419057786692, 0.25915069511568, 0.0335
+0.23568715771943, 0.26541501669647, 0.036
+0.23326108174385, 0.26323053581819, 0.0332
+</pre>
+
+<p>The right-most column shows that we get 332 misclassifications after about 2 minutes of training.
+You can get much better accuracy using bigger layers, but then training will take longer too.</p>
+
+</p>Now, let's throw some more tricks onto the pile. Let's add a convolutional input layer, and two types of regularization: Dropout and Max-Norm.
+Changes from the previous example are highlighted in red:</p>
+
+<pre class="code">
+#include &lt;iostream&gt;
+#include &lt;cmath&gt;
+#include &lt;GClasses/GApp.h&gt;
+#include &lt;GClasses/GError.h&gt;
+#include &lt;GClasses/GNeuralNet.h&gt;
+#include &lt;GClasses/GActivation.h&gt;
+#include &lt;GClasses/GTransform.h&gt;
+#include &lt;GClasses/GVec.h&gt;
+#include &lt;GClasses/GHolders.h&gt;
+
+using namespace GClasses;
+using std::cerr;
+using std::cout;
+
+int main(int argc, char *argv[])
+{
+	// Load the data
+	GMatrix train;
+	train.loadArff("/home/mike/data/mnist/train.arff");
+	GDataColSplitter sTrain(train, 1);
+	GMatrix test;
+	test.loadArff("/home/mike/data/mnist/test.arff");
+	GDataColSplitter sTest(test, 1);
+
+	// Make the network
+	GNeuralNet nn;
+	<font color="red">nn.addLayer(new GLayerConvolutional2D(28, 28, 1, 7, 20, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 100, new GActivationBend()));</font>
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	nn.setLearningRate(0.01);
+	GAutoFilter af(&amp;nn, false);
+	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
+
+	// Prep the data
+	af.prefilterData(&amp;sTrain.features(), &amp;sTrain.labels(), &amp;sTest.features(), &amp;sTest.labels());
+	GMatrix&amp; trainFeatures = *af.data()[0];
+	GMatrix&amp; trainLabels = *af.data()[1];
+	GMatrix&amp; testFeatures = *af.data()[2];
+	GMatrix&amp; testLabels = *af.data()[3];
+
+	// Print some stats
+	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.layer(0).inputs());
+	for(size_t i = 0; i &lt; nn.layerCount(); i++)
+		cout &lt;&lt; " -&gt; " + to_str(nn.layer(i).outputs());
+	cout &lt;&lt; "\n";
+	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
+
+	// Train
+	cout &lt;&lt; "@RELATION neural_net_training\n";
+	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
+	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
+	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
+	cout &lt;&lt; "@DATA\n";
+	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
+	for(size_t epoch = 0; epoch &lt; 10; epoch++)
+	{
+		// Validate
+		<font color="red">nn.scaleWeights(1.0 - 0.35, false, 1);</font>
+		double sseTrain = nn.sumSquaredError(trainFeatures, trainLabels);
+		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
+		double sseTest = nn.sumSquaredError(testFeatures, testLabels);
+		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
+		double mis = af.sumSquaredError(sTest.features(), sTest.labels());
+		cout &lt;&lt; to_str((double)mis / sTest.features().rows()) &lt;&lt; "\n";
+		<font color="red">nn.scaleWeights(1.0 / (1.0 - 0.35), false, 1);</font>
+		cout.flush();
+
+		// Do an epoch of training
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+		<font color="red">{
+			nn.maxNorm(0.0, 5.0, true);
+			nn.trainIncrementalWithDropout(trainFeatures[index], trainLabels[index], 0.35);
+		}</font>
+	}
+	return 0;
+}
+</pre>
+
+<p>And here are some results. Notice they are not actually better. Is that because these tricks are no good? Is it
+because this network has more weights and I didn't train for long enough? (Notice the accuracy is still improving.)
+Is it because those tricks are really designed for larger networks, and this one is still so very small?
+Is it because I didn't tune my hyperparameters at all? I will leave answering such questions as an exercize for
+the reader--I'm just trying to show you how to use my code =).</p>
+
+<pre class="code">
+% Training patterns: 60000
+% Testing patterns: 10000
+% Topology: 784 -> 9680 -> 50 -> 100 -> 10
+% Total weights: 491160
+@RELATION neural_net_training
+@ATTRIBUTE internal_rmse_train real
+@ATTRIBUTE internal_rmse_test real
+@ATTRIBUTE misclassification_rate real
+@DATA
+0.98167269423025, 0.98121969211094, 0.8799
+0.50591353448385, 0.50227603143805, 0.0981
+0.44455724838725, 0.44296446989617, 0.0805
+0.43604353580815, 0.43670214066463, 0.0688
+0.43654247522833, 0.43737355561063, 0.0634
+0.44067857942438, 0.4451665813943, 0.0627
+0.37784822100542, 0.38467632207642, 0.0529
+0.47555594601116, 0.4806960384477, 0.0558
+0.43522020483841, 0.44392465357931, 0.0537
+0.34993765903977, 0.36091855594582, 0.0475
+</pre>
+
+
+
+
 
 <br><br>
 <h3>Adaptive learning rate</h3>

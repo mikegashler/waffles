@@ -76,12 +76,12 @@ public:
 		return (Piece)(i & PieceMask);
 	}
 
-	/// Sets the piece at location (col, row). If piece is None, then it doesn't
+	/// Sets the piece at location (col, row). If p is None, then it doesn't
 	/// matter what the value of white is.
-	inline void setPiece(int col, int row, Piece piece, bool white)
+	inline void setPiece(int col, int row, Piece p, bool white)
 	{
 		m_rows[row] &= (~(AllMask << (4 * col)));
-		m_rows[row] |= ((piece | (white ? WhiteMask : 0)) << (4 * col));
+		m_rows[row] |= ((p | (white ? WhiteMask : 0)) << (4 * col));
 	}
 
 	/// Sets up the board for a new game

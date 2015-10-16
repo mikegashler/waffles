@@ -607,8 +607,8 @@ protected:
 	double m_deviation;
 
 public:
-	ItemStats(size_t topicId, Item& item, size_t itemId, Account** pAccs, size_t accCount)
-	: m_item(item), m_id(itemId), m_agree(0), m_uncertain(0), m_disagree(0), m_agg(0), m_dis(0)
+	ItemStats(size_t topicId, Item& itm, size_t itemId, Account** pAccs, size_t accCount)
+	: m_item(itm), m_id(itemId), m_agree(0), m_uncertain(0), m_disagree(0), m_agg(0), m_dis(0)
 	{
 		// Compute the mean
 		Account** pAc = pAccs;
@@ -2171,9 +2171,9 @@ GDomNode* Server::serializeState(GDom* pDoc)
 void Server::deserializeState(GDomNode* pNode)
 {
 	// Captcha salt
-	const char* daemonSalt = pNode->fieldIfExists("daemonSalt")->asString();
-	if(daemonSalt)
-		setDaemonSalt(daemonSalt);
+	const char* daemon_Salt = pNode->fieldIfExists("daemonSalt")->asString();
+	if(daemon_Salt)
+		setDaemonSalt(daemon_Salt);
 
 	// Load the topics
 	GAssert(m_topics.size() == 0);

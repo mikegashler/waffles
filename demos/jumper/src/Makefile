@@ -9,13 +9,13 @@ OBJ_PATH = ../obj
 INSTALL_LOCATION_INCLUDE ?= /usr/local/include
 UNAME = $(shell uname -s)
 ifeq ($(UNAME),Darwin)
-	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp -I../../bullet-2.77/src
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp -I../../bullet-2.77/src
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
 	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) -lpthread -lpng -lz -framework AppKit ../../../lib/GClassesDbg.a ../../bullet-2.77/lib/bulletdbg.a -lglut -lGL -lGLU
 	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) -lpthread -lpng -lz -framework AppKit ../../../lib/GClasses.a ../../bullet-2.77/lib/bullet.a -lglut -lGL -lGLU
 else
-	CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../bullet-2.77/src
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I$(INSTALL_LOCATION_INCLUDE) -I../../bullet-2.77/src
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
 	DBG_LFLAGS = -lGClassesDbg -lpng -lpthread ../../bullet-2.77/lib/bulletdbg.a -lglut -lGL -lGLU

@@ -173,9 +173,9 @@ void doit()
 	double labMean = trainLab.columnMean(0);
 	double labDev = sqrt(trainLab.columnVariance(0, labMean));
 	cout << "dev=" << to_str(labDev) << "\n";
-	double rmse = sqrt(nn.sumSquaredError(trainFeat, trainLab) / trainLab.rows());
-	cout << "initial rmse/dev=" << to_str(rmse / labDev) << "\n";
-	if(rmse >= TIGHTNESS_GOOD * labDev)
+	double initial_rmse = sqrt(nn.sumSquaredError(trainFeat, trainLab) / trainLab.rows());
+	cout << "initial rmse/dev=" << to_str(initial_rmse / labDev) << "\n";
+	if(initial_rmse >= TIGHTNESS_GOOD * labDev)
 		throw Ex("Already above threshold on initialization. This probably means PERTURBATION is too high or SOFTPLUS_SHIFT is too low.");
 
 	// Open Firefox to view the progress

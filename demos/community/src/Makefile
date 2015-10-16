@@ -8,13 +8,13 @@ TARGET_NAME_DBG = $(TARGET_NAME_OPT)dbg
 OBJ_PATH = ../obj
 UNAME = $(shell uname -s)
 ifeq ($(UNAME),Darwin)
-	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
 	DBG_LFLAGS = -L../../../lib -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) -lpng -lz -lpthread -framework AppKit -lGClassesDbg
 	OPT_LFLAGS = -L../../../lib -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) -lpng -lz -lpthread -framework AppKit -lGClasses
 else
-	CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
 	LFLAGS = -L../../../lib -lpng

@@ -1535,15 +1535,14 @@ bool RibParser::matrixInvert( double dest[16], const double matrix[16] )
 							  0, 0, 0, 0, 0, 1, 0, 0,
 							  0, 0, 0, 0, 0, 0, 1, 0,
 							  0, 0, 0, 0, 0, 0, 0, 1 };
-	int i, j;
 
 	// Copy matrix to left block of augmented matrix
-	for ( i = 0; i < 4; i++ )
-		for ( j = 0; j < 4; j++ )
+	for ( int i = 0; i < 4; i++ )
+		for ( int j = 0; j < 4; j++ )
 			aug_matrix[ i*8 + j ] = matrix[ i*4 + j ];
 
 	// Zero out below the diagonal
-	for ( i=0; i<4; i++ )
+	for ( int i=0; i<4; i++ )
 	{
 		val = aug_matrix[i*8+i];
 		if (val==0.0) return 0; // too hard or non-invertible.
@@ -1559,8 +1558,8 @@ bool RibParser::matrixInvert( double dest[16], const double matrix[16] )
 	}
 
 	// Zero out above the diagonal
-	for ( i=3; i>=1; i-- ) {
-		for ( j=i-1; j>=0; j-- ) {
+	for ( int i=3; i>=1; i-- ) {
+		for ( int j=i-1; j>=0; j-- ) {
 			val = aug_matrix[ j*8 + i ];
 			if ( val == 0.0 ) continue;
 			matrixAddScaledAugRow( aug_matrix, i, j, -val );
@@ -1569,8 +1568,8 @@ bool RibParser::matrixInvert( double dest[16], const double matrix[16] )
 	}
 
 	// Copy right block of the aug matrix to the dest
-	for ( i = 0; i < 4; i++ )
-		for ( j = 0; j < 4; j++ )
+	for ( int i = 0; i < 4; i++ )
+		for ( int j = 0; j < 4; j++ )
 			dest[ i*4 + j ] = aug_matrix[ i*8 + j+4 ];
 
 	return true;
@@ -1585,8 +1584,8 @@ RibData::RibData() :
 type( NODE_ARRAY ), file_line( -1 )
 {}
 
-RibData::RibData(int type) :
-type( type ), file_line( -1 )
+RibData::RibData(int typ) :
+type( typ ), file_line( -1 )
 {}
 
 RibData::RibData( const RibData& other )
@@ -1816,7 +1815,7 @@ string RibData::asString() const
 		fprintf(stderr, "Trying to get a data value from an array.\n");
 #endif
 	return string( dataPtr );
-};
+}
 
 double RibData::asDouble() const
 {
@@ -1943,8 +1942,8 @@ type( ROOTBLOCK )
 	setAttribute( "cs655Setting", "toneMappingConstant", default_toneMappingConstant );
 }
 
-StateBlock::StateBlock( int type, const StateBlock& parent )
-: type( type )
+StateBlock::StateBlock( int typ, const StateBlock& parent )
+: type( typ )
 {
 	uint i;
 	for ( i = 0; i < 16; i++ )

@@ -1358,6 +1358,8 @@ GAutoFilter::GAutoFilter(GDomNode* pNode, GLearnerLoader& ll)
 // virtual
 GAutoFilter::~GAutoFilter()
 {
+	for(size_t i = 0; i < m_prefilteredData.size(); i++)
+		delete(m_prefilteredData[i]);
 }
 
 // virtual
@@ -1562,6 +1564,24 @@ const GVec& GAutoFilter::prefilterLabels(const GVec& in)
 		return ((GFilter*)m_pLearner)->prefilterLabels(in);
 	else
 		return in;
+}
+
+void GAutoFilter::prefilterData(const GMatrix* pFeatures1, const GMatrix* pLabels1, const GMatrix* pFeatures2, const GMatrix* pLabels2, const GMatrix* pFeatures3, const GMatrix* pLabels3, const GMatrix* pFeatures4, const GMatrix* pLabels4)
+{
+	m_prefilteredData.push_back(prefilterFeatures(*pFeatures1));
+	m_prefilteredData.push_back(prefilterLabels(*pLabels1));
+	if(pFeatures2)
+		m_prefilteredData.push_back(prefilterFeatures(*pFeatures2));
+	if(pLabels2)
+		m_prefilteredData.push_back(prefilterLabels(*pLabels2));
+	if(pFeatures3)
+		m_prefilteredData.push_back(prefilterFeatures(*pFeatures3));
+	if(pLabels3)
+		m_prefilteredData.push_back(prefilterLabels(*pLabels3));
+	if(pFeatures4)
+		m_prefilteredData.push_back(prefilterFeatures(*pFeatures4));
+	if(pLabels4)
+		m_prefilteredData.push_back(prefilterLabels(*pLabels4));
 }
 
 // virtual

@@ -594,6 +594,9 @@ protected:
 
 class GAutoFilter : public GFilter
 {
+protected:
+	std::vector<GMatrix*> m_prefilteredData;
+
 public:
 using GFilter::prefilterFeatures;
 using GFilter::prefilterLabels;
@@ -628,6 +631,12 @@ using GFilter::prefilterLabels;
 
 	/// Transform a label vector to the form for presenting to the inner learner
 	virtual const GVec& prefilterLabels(const GVec& in);
+
+	/// Prefilters multiple datasets and stores the results in the same order in a vector that can be retrieved by calling data().
+	void prefilterData(const GMatrix* pFeatures1, const GMatrix* pLabels1, const GMatrix* pFeatures2 = nullptr, const GMatrix* pLabels2 = nullptr, const GMatrix* pFeatures3 = nullptr, const GMatrix* pLabels3 = nullptr, const GMatrix* pFeatures4 = nullptr, const GMatrix* pLabels4 = nullptr);
+
+	/// Returns a reference to a vector of prefiltered datasets. (This vector is populated by calling prefilterData.)
+	std::vector<GMatrix*>& data() { return m_prefilteredData; }
 
 protected:
 	/// See the comment for GSupervisedLearner::trainInner
