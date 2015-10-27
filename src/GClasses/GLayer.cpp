@@ -496,7 +496,7 @@ void GLayerClassic::maxNorm(double min, double max)
 			{
 				for(size_t j = 0; j < m_weights.rows(); j++)
 					m_weights[j][i] = 1.0;
-				squaredMag = m_weights.rows();
+				squaredMag = (double)m_weights.rows();
 			}
 			double scal = min / sqrt(squaredMag);
 			for(size_t j = 0; j < m_weights.rows(); j++)
@@ -1324,10 +1324,10 @@ m_bias(2, inputChannels * kernelsPerChannel)
 }
 
 GLayerConvolutional1D::GLayerConvolutional1D(GDomNode* pNode)
-: m_inputSamples(pNode->field("isam")->asInt()),
-m_inputChannels(pNode->field("ichan")->asInt()),
-m_outputSamples(pNode->field("osam")->asInt()),
-m_kernelsPerChannel(pNode->field("kpc")->asInt()),
+: m_inputSamples((size_t)pNode->field("isam")->asInt()),
+m_inputChannels((size_t)pNode->field("ichan")->asInt()),
+m_outputSamples((size_t)pNode->field("osam")->asInt()),
+m_kernelsPerChannel((size_t)pNode->field("kpc")->asInt()),
 m_kernels(pNode->field("kern")),
 m_delta(pNode->field("delt")),
 m_activation(pNode->field("act")),
@@ -1666,12 +1666,12 @@ m_bias(2, m_kernelCount)
 }
 
 GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
-: m_inputCols(pNode->field("icol")->asInt()),
-m_inputRows(pNode->field("irow")->asInt()),
-m_inputChannels(pNode->field("ichan")->asInt()),
-m_outputCols(pNode->field("ocol")->asInt()),
-m_outputRows(pNode->field("orow")->asInt()),
-m_kernelsPerChannel(pNode->field("kpc")->asInt()),
+: m_inputCols((size_t)pNode->field("icol")->asInt()),
+m_inputRows((size_t)pNode->field("irow")->asInt()),
+m_inputChannels((size_t)pNode->field("ichan")->asInt()),
+m_outputCols((size_t)pNode->field("ocol")->asInt()),
+m_outputRows((size_t)pNode->field("orow")->asInt()),
+m_kernelsPerChannel((size_t)pNode->field("kpc")->asInt()),
 m_kernelCount(m_inputChannels * m_kernelsPerChannel),
 m_kernels(pNode->field("kern")),
 m_delta(pNode->field("delt")),
@@ -2050,10 +2050,10 @@ m_inputChannels(inputChannels)
 }
 
 GMaxPooling2D::GMaxPooling2D(GDomNode* pNode)
-: m_inputCols(pNode->field("icol")->asInt()),
-m_inputRows(pNode->field("irow")->asInt()),
-m_inputChannels(pNode->field("ichan")->asInt()),
-m_regionSize(pNode->field("size")->asInt())
+: m_inputCols((size_t)pNode->field("icol")->asInt()),
+m_inputRows((size_t)pNode->field("irow")->asInt()),
+m_inputChannels((size_t)pNode->field("ichan")->asInt()),
+m_regionSize((size_t)pNode->field("size")->asInt())
 {
 }
 

@@ -4014,7 +4014,7 @@ void GMatrix::unstretch(size_t seed, size_t neighbors, double maxDist, GRand& ra
 	while(dest.size() < rows())
 	{
 		// Pick arbitrary point in dest
-		size_t a = dest[rand.next(dest.size())];
+		size_t a = dest[(size_t)rand.next(dest.size())];
 
 		// Find the closest point in src
 		btSrc.neighbors(hood, dists, a);

@@ -57,14 +57,15 @@ void plot_it(const char* filename, GNeuralNet& nn, GMatrix& trainFeat, GMatrix& 
 	double prevx = xmin;
 	double prevy = 0.0;
 	double step = (xmax - xmin) / 500.0;
-	for(double x = prevx; x < xmax; x += step)
+	GVec x(1);
+	GVec y(1);
+	for(x[0] = prevx; x[0] < xmax; x[0] += step)
 	{
-		double y;
-		nn.predict(&x, &y);
-		if(prevx != x)
-			svg.line(prevx, prevy, x, y, 0.3);
-		prevx = x;
-		prevy = y;
+		nn.predict(x, y);
+		if(prevx != x[0])
+			svg.line(prevx, prevy, x[0], y[0], 0.3);
+		prevx = x[0];
+		prevy = y[0];
 	}
 	for(size_t i = 0; i < trainLab.rows(); i++)
 		svg.dot(trainFeat[i][0], trainLab[i][0], 0.4, 0xff000080);
@@ -106,7 +107,7 @@ void doit()
 	// Initialize the weights of the sine units to match the frequencies used by the Fourier transform.
 	GLayerClassic* pSine2 = new GLayerClassic(1, 64, new GActivationSin());
 	GMatrix& wSin = pSine2->weights();
-	double* bSin = pSine2->bias();
+	GVec& bSin = pSine2->bias();
 	for(size_t i = 0; i < pSine2->outputs() / 2; i++)
 	{
 		wSin[0][2 * i] = 2.0 * M_PI * (i + 1);

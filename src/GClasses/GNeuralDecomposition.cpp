@@ -41,11 +41,11 @@ GNeuralDecomposition::GNeuralDecomposition(GDomNode *pNode, GLearnerLoader &ll)
 	m_featureBias = pNode->field("featureBias")->asDouble();
 	m_outputScale = pNode->field("outputScale")->asDouble();
 	m_outputBias = pNode->field("outputBias")->asDouble();
-	m_linearUnits = pNode->field("linearUnits")->asInt();
-	m_sinusoidUnits = pNode->field("sinusoidUnits")->asInt();
-	m_softplusUnits = pNode->field("softplusUnits")->asInt();
-	m_sigmoidUnits = pNode->field("sigmoidUnits")->asInt();
-	m_epochs = pNode->field("epochs")->asInt();
+	m_linearUnits = (size_t)pNode->field("linearUnits")->asInt();
+	m_sinusoidUnits = (size_t)pNode->field("sinusoidUnits")->asInt();
+	m_softplusUnits = (size_t)pNode->field("softplusUnits")->asInt();
+	m_sigmoidUnits = (size_t)pNode->field("sigmoidUnits")->asInt();
+	m_epochs = (size_t)pNode->field("epochs")->asInt();
 	m_filterLogarithm = pNode->field("filterLogarithm")->asBool();
 	m_autoFilter = pNode->field("autoFilter")->asBool();
 }
@@ -310,7 +310,7 @@ void GNeuralDecomposition::test()
 	double step = 0.02;
 	double threshold = 0.5;
 	
-	size_t testSize = 1.0 / step;
+	size_t testSize = (size_t)(1.0 / step);
 	
 	GMatrix series(testSize, 1), test(testSize, 1);
 	for(size_t i = 0; i < testSize * 2; i++)
