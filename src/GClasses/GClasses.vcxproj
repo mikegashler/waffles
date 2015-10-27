@@ -192,6 +192,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="GAssignment.cpp" />
+    <ClCompile Include="GAssociative.cpp" />
     <ClCompile Include="GBayesianNetwork.cpp" />
     <ClCompile Include="GBezier.cpp" />
     <ClCompile Include="GBigInt.cpp" />
@@ -384,6 +385,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="GNeighborFinder.cpp" />
+    <ClCompile Include="GNeuralDecomposition.cpp" />
     <ClCompile Include="GNeuralNet.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -469,7 +471,6 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="GSystemLearner.cpp" />
     <ClCompile Include="GText.cpp" />
     <ClCompile Include="GThread.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -507,6 +508,7 @@
     <ClInclude Include="GActivation.h" />
     <ClInclude Include="GApp.h" />
     <ClInclude Include="GAssignment.h" />
+    <ClInclude Include="GAssociative.h" />
     <ClInclude Include="GBayesianNetwork.h" />
     <ClInclude Include="GBezier.h" />
     <ClInclude Include="GBigInt.h" />
@@ -555,6 +557,7 @@
     <ClInclude Include="GNaiveBayes.h" />
     <ClInclude Include="GNaiveInstance.h" />
     <ClInclude Include="GNeighborFinder.h" />
+    <ClInclude Include="GNeuralDecomposition.h" />
     <ClInclude Include="GNeuralNet.h" />
     <ClInclude Include="GOptimizer.h" />
     <ClInclude Include="GParticleSwarm.h" />
@@ -577,7 +580,6 @@
     <ClInclude Include="GSparseMatrix.h" />
     <ClInclude Include="GStemmer.h" />
     <ClInclude Include="GString.h" />
-    <ClInclude Include="GSystemLearner.h" />
     <ClInclude Include="GText.h" />
     <ClInclude Include="GThread.h" />
     <ClInclude Include="GTime.h" />
