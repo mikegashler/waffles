@@ -46,7 +46,7 @@ public:
 	virtual const char* name() const = 0;
 
 	/// The activation function
-	virtual double squash(double x, size_t index) = 0;
+	virtual double squash(double x, size_t index = 0) = 0;
 
 	/// The derivative of the activation function
 	virtual double derivative(double x, size_t index) = 0;
@@ -108,7 +108,7 @@ public:
 	virtual const char* name() const { return "logistic"; }
 
 	/// The logistic function. Returns 1.0/(e^(-x)+1.0)
-	virtual double squash(double x, size_t index)
+	virtual double squash(double x, size_t index = 0)
 	{
 		if(x >= 700.0) // Don't trigger a floating point exception
 			return 1.0;
@@ -145,7 +145,7 @@ public:
 	virtual const char* name() const { return "arctan"; }
 
 	/// Returns atan(x). The result will be in the range -PI/2 <= y <= PI/2
-	virtual double squash(double x, size_t index) { return atan(x); }
+	virtual double squash(double x, size_t index = 0) { return atan(x); }
 
 	/// Returns 1/(x*x+1.0)
 	virtual double derivative(double x, size_t index) { return 1.0 / (x * x + 1.0); }
@@ -165,7 +165,7 @@ public:
 	virtual const char* name() const { return "tanh"; }
 
 	/// Returns tanh(x). The result is in the range -1 <= y <= 1
-	virtual double squash(double x, size_t index)
+	virtual double squash(double x, size_t index = 0)
 	{
 		//return tanh(x);
 		if(x >= 700.0)
@@ -215,7 +215,7 @@ public:
 	virtual const char* name() const { return "algebraic"; }
 
 	/// Returns x/(sqrt(x*x+1.0). The result is in the range -1 <= y <= 1
-	virtual double squash(double x, size_t index) { return x / (sqrt(x * x + 0.25)); }
+	virtual double squash(double x, size_t index = 0) { return x / (sqrt(x * x + 0.25)); }
 
 	/// Returns 1.0/(sqrt(x*x+1))-(x*x)/pow(x*x+1,1.5)
 	virtual double derivative(double x, size_t index)
@@ -244,7 +244,7 @@ public:
 	virtual const char* name() const { return "identity"; }
 
 	/// Returns x
-	virtual double squash(double x, size_t index) { return x; }
+	virtual double squash(double x, size_t index = 0) { return x; }
 
 	/// Returns 1.0
 	virtual double derivative(double x, size_t index) { return 1.0; }
@@ -275,7 +275,7 @@ public:
 	virtual const char* name() const { return "bend"; }
 
 	/// Returns the bend function of x
-	virtual double squash(double x, size_t index)
+	virtual double squash(double x, size_t index = 0)
 	{
 		return BEND_AMOUNT * (sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x;
 	}
@@ -482,7 +482,7 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "bidir"; }
 
-	virtual double squash(double x, size_t index)
+	virtual double squash(double x, size_t index = 0)
 	{
 		double d = sqrt(x * x + 1.0);
 		return sqrt(d + x) - sqrt(d - x);
@@ -517,7 +517,7 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "gaussian"; }
 
-	virtual double squash(double x, size_t index) { return exp(-(x * x)); }
+	virtual double squash(double x, size_t index = 0) { return exp(-(x * x)); }
 
 	virtual double derivative(double x, size_t index) { return -2.0 * x * exp(-(x * x)); }
 
@@ -540,7 +540,7 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "sin"; }
 
-	virtual double squash(double x, size_t index) { return sin(x); }
+	virtual double squash(double x, size_t index = 0) { return sin(x); }
 
 	virtual double derivative(double x, size_t index) { return cos(x); }
 
@@ -559,7 +559,7 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "sinc"; }
 
-	virtual double squash(double x, size_t index) { return x == 0 ? 1.0 : sin(x) / x; }
+	virtual double squash(double x, size_t index = 0) { return x == 0 ? 1.0 : sin(x) / x; }
 
 	virtual double derivative(double x, size_t index) { return x == 0 ? 0.0 : cos(x) / x - sin(x) / (x * x); }
 
@@ -582,7 +582,7 @@ public:
 	virtual const char* name() const { return "logisticderiv"; }
 
 	/// The derivative of the logistic function.
-	virtual double squash(double x, size_t index)
+	virtual double squash(double x, size_t index = 0)
 	{
 		if(x >= 700.0) // Don't trigger a floating point exception
 			return 0.0;
@@ -620,7 +620,7 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "relu"; }
 
-	virtual double squash(double x, size_t index) { return std::max(0.0, x); }
+	virtual double squash(double x, size_t index = 0) { return std::max(0.0, x); }
 
 	virtual double derivative(double x, size_t index) { return (x >= 0.0 ? 1.0 : 0.0); }
 
@@ -638,7 +638,7 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "softplus"; }
 
-	virtual double squash(double x, size_t index) { return x > 500 ? x : log(1.0 + exp(x)); }
+	virtual double squash(double x, size_t index = 0) { return x > 500 ? x : log(1.0 + exp(x)); }
 
 	virtual double derivative(double x, size_t index) { return 1.0 / (1.0 + exp(-x)); }
 
@@ -656,7 +656,7 @@ public:
 	/// Returns the name of this activation function
 	virtual const char* name() const { return "softplus2"; }
 
-	virtual double squash(double x, size_t index) { return 0.5 * (sqrt(x * x + 1) + x); }
+	virtual double squash(double x, size_t index = 0) { return 0.5 * (sqrt(x * x + 1) + x); }
 
 	virtual double derivative(double x, size_t index) { return 0.5 * (x / sqrt(x * x + 1) + 1.0); }
 
