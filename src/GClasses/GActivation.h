@@ -61,7 +61,7 @@ public:
 	/// This computes the derivative of the net value. (Sometimes, such as with
 	/// GActivationLogistic, it is more efficient to compute this from the activation
 	/// value, so both are provided.)
-	virtual double derivativeOfNet(double net, double activation, size_t index) { return derivative(net, index); }
+	virtual double derivativeOfNet(double net, double activation, size_t index = 0) { return derivative(net, index); }
 
 	/// Serialize this object
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -131,7 +131,7 @@ public:
 	}
 
 	/// Returns y*(1.0-y)
-	virtual double derivativeOfNet(double net, double activation, size_t index) { return activation * (1.0 - activation); }
+	virtual double derivativeOfNet(double net, double activation, size_t index = 0) { return activation * (1.0 - activation); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationLogistic(); }
@@ -201,7 +201,7 @@ public:
 	}
 
 	/// Returns 1-(y*y)
-	virtual double derivativeOfNet(double net, double activation) { return 1.0 - (activation * activation); }
+	virtual double derivativeOfNet(double net, double activation, size_t index = 0) { return 1.0 - (activation * activation); }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationTanH(); }
@@ -224,7 +224,7 @@ public:
 		return (1.0 - (x / (x + 0.25))) / sqrt(x + 0.25);
 	}
 
-	virtual double derivativeOfNet(double net, double activation) { return activation / (net * (net * net + 0.25)); }
+	virtual double derivativeOfNet(double net, double activation, size_t index = 0) { return activation / (net * (net * net + 0.25)); }
 
 	/// Returns y / (sqrt(1.0 - (y * y)))
 	virtual double inverse(double y, size_t index) { return y / (sqrt(1.0 - (y * y))); }
@@ -253,7 +253,7 @@ public:
 	virtual double inverse(double y, size_t index) { return y; }
 
 	/// Returns 1.0
-	virtual double derivativeOfNet(double net, double activation, size_t index) { return 1.0; }
+	virtual double derivativeOfNet(double net, double activation, size_t index = 0) { return 1.0; }
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationIdentity(); }
@@ -602,7 +602,7 @@ public:
 	}
 
 	/// Returns y*(1.0-y)
-	virtual double derivativeOfNet(double net, double activation, size_t index)
+	virtual double derivativeOfNet(double net, double activation, size_t index = 0)
 	{
 		double t = 1.0 - 2.0 / (exp(-net) + 1.0);
 		return activation * t;
