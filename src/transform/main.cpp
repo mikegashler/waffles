@@ -323,6 +323,26 @@ void AddIndexAttribute(GArgReader& args)
 	pUnified->print(cout);
 }
 
+void addCategoryColumn(GArgReader& args)
+{
+	const char* filename = args.pop_string();
+	const char* catname = args.pop_string();
+	const char* catvalue = args.pop_string();
+	GMatrix* pData = loadData(filename);
+	Holder<GMatrix> hData(pData);
+	GArffRelation* pIndexRelation = new GArffRelation();
+	vector<const char*> vals;
+	vals.push_back(catvalue);
+	pIndexRelation->addAttribute(catname, 1, &vals);
+	GMatrix indexes(pIndexRelation);
+	indexes.newRows(pData->rows());
+	for(size_t i = 0; i < pData->rows(); i++)
+		indexes.row(i)[0] = 0.0;
+	GMatrix* pUnified = GMatrix::mergeHoriz(&indexes, pData);
+	Holder<GMatrix> hUnified(pUnified);
+	pUnified->print(cout);
+}
+
 void addMatrices(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -2329,6 +2349,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("add")) addMatrices(args);
 		else if(args.if_pop("addindexcolumn")) AddIndexAttribute(args);
+		else if(args.if_pop("addcategorycolumn")) addCategoryColumn(args);
 		else if(args.if_pop("addnoise")) addNoise(args);
 		else if(args.if_pop("aggregatecols")) aggregateCols(args);
 		else if(args.if_pop("aggregaterows")) aggregateRows(args);

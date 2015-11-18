@@ -1249,6 +1249,7 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-range [xmin] [ymin] [xmax] [ymax]", "Set the range. (The default is: -10 -5 10 5.)");
 		pOpts->add("-nohmarks", "Do not draw any vertical lines to mark position on the horizontal axis.");
 		pOpts->add("-novmarks", "Do not draw any horizontal lines to mark position on the vertical axis.");
+		pOpts->add("-notext", "Do not draw any text labels.");
 		pOpts->add("-nogrid", "Do not draw any horizontal or vertical grid lines.");
 		pOpts->add("-noserifs", "Use a font with no serifs. (This generally makes charts look a little cleaner.)");
 		pOpts->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
@@ -1551,6 +1552,12 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pAIC->add("<options>");
 		pOpts->add("-start [value]=0.0", "Specify the initial index. (the default is 0.0).");
 		pOpts->add("-increment [value]=1.0", "Specify the increment amount. (the default is 1.0).");
+	}
+	{
+		UsageNode* pACC = pRoot->add("addcategorycolumn [dataset] [name] [value]", "Add a column with a constant categorical value. This column will be inserted as column 0.");
+		pACC->add("[dataset]=data.arff", "The filename of a dataset.");
+		pACC->add("[name]=class", "The name of the new column or attribute.");
+		pACC->add("[value]=a", "The name of the constant value to insert in every row.");
 	}
 	{
 		UsageNode* pAN = pRoot->add("addnoise [dataset] [dev] <options>", "Add Gaussian noise with the specified deviation to all the elements in the dataset. (Assumes that the values are all continuous.)");

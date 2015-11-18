@@ -509,6 +509,7 @@ void PlotEquation(GArgReader& args)
 	bool aspect = false;
 	bool horizMarks = true;
 	bool vertMarks = true;
+	bool text = true;
 	double thickness = 1.0;
 	while(args.next_is_flag())
 	{
@@ -534,6 +535,8 @@ void PlotEquation(GArgReader& args)
 			horizMarks = false;
 		else if(args.if_pop("-novmarks"))
 			vertMarks = false;
+		else if(args.if_pop("-notext"))
+			text = false;
 		else if(args.if_pop("-nogrid"))
 		{
 			horizMarks = false;
@@ -577,16 +580,17 @@ void PlotEquation(GArgReader& args)
 	GSVG svg(width, height);
 	svg.newChart(xmin, ymin, xmax, ymax, 0, 0, margin);
 	if(horizMarks)
-		svg.horizMarks((int)maxHorizMarks);
+		svg.horizMarks((int)maxHorizMarks, !text);
 	if(vertMarks)
 	{
 		if(maxVertMarks == INVALID_INDEX)
 			maxVertMarks = maxHorizMarks * height / width;
-		svg.vertMarks((int)maxVertMarks);
+		svg.vertMarks((int)maxVertMarks, !text);
 	}
 
 	// Draw the equation as the label under the graph
-	svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), expr.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
+	if(text)
+		svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), expr.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
 
 	// Count the equations
 	size_t equationCount = 0;

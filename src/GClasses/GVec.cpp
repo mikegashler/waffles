@@ -304,6 +304,7 @@ double GVec::dotProductIgnoringUnknowns(const GVec& that) const
 
 double GVec::estimateSquaredDistanceWithUnknowns(const GVec& that) const
 {
+	GAssert(size() == that.size());
 	double dist = 0;
 	double d;
 	size_t nMissing = 0;

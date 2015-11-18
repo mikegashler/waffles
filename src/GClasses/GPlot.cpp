@@ -511,7 +511,7 @@ double GSVG::vertLabelPos()
 	return m_xmin - m_hunit * ((m_margin / 2));
 }
 
-void GSVG::horizMarks(int maxLabels, std::vector<std::string>* pLabels)
+void GSVG::horizMarks(int maxLabels, bool notext, std::vector<std::string>* pLabels)
 {
 	m_ss << "\n<!-- Horiz labels -->\n";
 	if(maxLabels >= 0)
@@ -521,14 +521,17 @@ void GSVG::horizMarks(int maxLabels, std::vector<std::string>* pLabels)
 		for(int i = 0; i < count; i++)
 		{
 			double x = spacer.label(i);
-			line(x, m_ymin, x, m_ymax, 0.2, 0xa0a0a0);
-			if(pLabels)
+			line(x, m_ymin, x, m_ymax, 0.2, (x == 0.0 ? 0x000000 : 0xc0c0c0));
+			if(!notext)
 			{
-				if(pLabels->size() > (size_t)i)
-					text(x + 3 * m_hunit, m_ymin - m_vunit, (*pLabels)[i].c_str(), 1, End, 0x000000, 90);
+				if(pLabels)
+				{
+					if(pLabels->size() > (size_t)i)
+						text(x + 3 * m_hunit, m_ymin - m_vunit, (*pLabels)[i].c_str(), 1, End, 0x000000, 90);
+				}
+				else
+					text(x + 3 * m_hunit, m_ymin - m_vunit, to_str(x).c_str(), 1, End, 0x000000, 90);
 			}
-			else
-				text(x + 3 * m_hunit, m_ymin - m_vunit, to_str(x).c_str(), 1, End, 0x000000, 90);
 		}
 	}
 	else
@@ -540,15 +543,15 @@ void GSVG::horizMarks(int maxLabels, std::vector<std::string>* pLabels)
 		{
 			if(!spacer.next(&x, &primary))
 				break;
-			line(log(x), m_ymin, log(x), m_ymax, 0.2, 0xa0a0a0);
-			if(primary)
+			line(log(x), m_ymin, log(x), m_ymax, 0.2, (x == 0.0 ? 0x000000 : 0xc0c0c0));
+			if(primary && !notext)
 				text(log(x) + 3 * m_hunit, m_ymin - m_vunit, to_str(x).c_str(), 1, End, 0x000000, 90);
 		}
 	}
 	m_ss << "\n";
 }
 
-void GSVG::vertMarks(int maxLabels, std::vector<std::string>* pLabels)
+void GSVG::vertMarks(int maxLabels, bool notext, std::vector<std::string>* pLabels)
 {
 	m_ss << "\n<!-- Vert labels -->\n";
 	if(maxLabels >= 0)
@@ -558,14 +561,17 @@ void GSVG::vertMarks(int maxLabels, std::vector<std::string>* pLabels)
 		for(int i = 0; i < count; i++)
 		{
 			double y = spacer.label(i);
-			line(m_xmin, y, m_xmax, y, 0.2, 0xa0a0a0);
-			if(pLabels)
+			line(m_xmin, y, m_xmax, y, 0.2, (y == 0.0 ? 0x000000 : 0xc0c0c0));
+			if(!notext)
 			{
-				if(pLabels->size() > (size_t)i)
-					text(m_xmin - m_hunit, y - 3 * m_vunit, (*pLabels)[i].c_str(), 1, End, 0x000000);
+				if(pLabels)
+				{
+					if(pLabels->size() > (size_t)i)
+						text(m_xmin - m_hunit, y - 3 * m_vunit, (*pLabels)[i].c_str(), 1, End, 0x000000);
+				}
+				else
+					text(m_xmin - m_hunit, y - 3 * m_vunit, to_str(y).c_str(), 1, End, 0x000000);
 			}
-			else
-				text(m_xmin - m_hunit, y - 3 * m_vunit, to_str(y).c_str(), 1, End, 0x000000);
 		}
 	}
 	else
@@ -577,8 +583,8 @@ void GSVG::vertMarks(int maxLabels, std::vector<std::string>* pLabels)
 		{
 			if(!spacer.next(&y, &primary))
 				break;
-			line(m_xmin, log(y), m_xmax, log(y), 0.2, 0xa0a0a0);
-			if(primary)
+			line(m_xmin, log(y), m_xmax, log(y), 0.2, (y == 0.0 ? 0x000000 : 0xc0c0c0));
+			if(primary && !notext)
 				text(m_xmin - m_hunit, log(y) - 3 * m_vunit, to_str(y).c_str(), 1, End, 0x000000);
 		}
 	}
