@@ -1552,6 +1552,7 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pAIC->add("<options>");
 		pOpts->add("-start [value]=0.0", "Specify the initial index. (the default is 0.0).");
 		pOpts->add("-increment [value]=1.0", "Specify the increment amount. (the default is 1.0).");
+		pOpts->add("-name [value]=index", "Specify the name of the new attribute.");
 	}
 	{
 		UsageNode* pACC = pRoot->add("addcategorycolumn [dataset] [name] [value]", "Add a column with a constant categorical value. This column will be inserted as column 0.");

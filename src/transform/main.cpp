@@ -300,12 +300,15 @@ void AddIndexAttribute(GArgReader& args)
 	const char* filename = args.pop_string();
 	double nStartValue = 0.0;
 	double nIncrement = 1.0;
+	string name = "index";
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-start"))
 			nStartValue = args.pop_double();
 		else if(args.if_pop("-increment"))
 			nIncrement = args.pop_double();
+		else if(args.if_pop("-name"))
+			name = args.pop_string();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -313,7 +316,7 @@ void AddIndexAttribute(GArgReader& args)
 	GMatrix* pData = loadData(filename);
 	Holder<GMatrix> hData(pData);
 	GArffRelation* pIndexRelation = new GArffRelation();
-	pIndexRelation->addAttribute("index", 0, NULL);
+	pIndexRelation->addAttribute(name.c_str(), 0, NULL);
 	GMatrix indexes(pIndexRelation);
 	indexes.newRows(pData->rows());
 	for(size_t i = 0; i < pData->rows(); i++)
