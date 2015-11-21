@@ -316,8 +316,8 @@ GPCA::GPCA(size_t target_Dims)
 GPCA::GPCA(GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalTransform(pNode, ll), m_rand(0)
 {
-	m_targetDims = before().size();
 	m_pBasisVectors = new GMatrix(pNode->field("basis"));
+	m_targetDims = m_pBasisVectors->rows();
 	m_pCentroid = new GMatrix(pNode->field("centroid"));
 	m_aboutOrigin = pNode->field("aboutOrigin")->asBool();
 }
@@ -364,7 +364,7 @@ GRelation* GPCA::trainInner(const GMatrix& data)
 		data.centroid(mean);
 
 	// Make a copy of the data
-	GMatrix tmpData(data.relation().clone());
+	GMatrix tmpData(data.relation().cloneMinimal());
 	tmpData.copy(&data);
 
 	// Compute the principle components

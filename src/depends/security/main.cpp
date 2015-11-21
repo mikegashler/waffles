@@ -1564,7 +1564,7 @@ void readInPassphrase(char* pBuf, size_t len, char* pSalt = NULL)
 	if(pSalt)
 	{
 		size_t remaining = SALT_LEN;
-		cout << "\rPlease enter " << remaining << " chars of salt";
+		cout << "\rPlease enter " << remaining << " chars of throw-away salt";
 		cout.flush();
 		GPassiveConsole pc(false);
 		while(remaining > 0)
