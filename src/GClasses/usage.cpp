@@ -1785,6 +1785,11 @@ UsageNode* makeTransformUsageTree()
 		pRotate->add("[angle_degrees]=90.0","The angle in degrees to rotate around the origin in the col_x,col_y plane.");
 	}
 	{
+		UsageNode* pRO = pRoot->add("reordercolumns [dataset] [column-list]", "Reorder the columns as specified in the column list.");
+		pRO->add("[dataset]=in.arff", "The filename of a dataset.");
+		pRO->add("[column-list]=0", "A comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
+	}
+	{
 		UsageNode* pSampRows = pRoot->add("samplerows [dataset] [portion]", "Randomly samples from the rows in the specified dataset and prints them to stdout. This tool reads each row one-at-a-time, so it is well-suited for reducing the size of datasets that are too big to fit into memory. (Note that unlike most other tools, this one does not convert CSV to ARFF format internally. If the input is CSV, the output will be CSV too.)");
 		pSampRows->add("[dataset]=in.arff", "The filename of a dataset. ARFF, CSV, and a few other formats are supported.");
 		pSampRows->add("[portion]=0.1", "A value between 0 and 1 that specifies the likelihood that each row will be printed to stdout.");

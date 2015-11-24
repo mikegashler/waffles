@@ -609,7 +609,7 @@ void GRecommenderLib::precisionRecall(GArgReader& args)
 	// Generate precision-recall data
 	GMatrix* pResults = pModel->precisionRecall(data, ideal);
 	Holder<GMatrix> hResults(pResults);
-	pResults->deleteColumn(2); // we don't need the false-positive rate column
+	pResults->deleteColumns(2, 1); // we don't need the false-positive rate column
 	pResults->print(cout);
 }
 
@@ -645,7 +645,7 @@ void GRecommenderLib::ROC(GArgReader& args)
 	GMatrix* pResults = pModel->precisionRecall(data, ideal);
 	Holder<GMatrix> hResults(pResults);
 	double auc = GCollaborativeFilter::areaUnderCurve(*pResults);
-	pResults->deleteColumn(1); // we don't need the precision column
+	pResults->deleteColumns(1, 1); // we don't need the precision column
 	pResults->swapColumns(0, 1);
 	cout << "% Area Under the Curve = " << auc << "\n";
 	pResults->print(cout);
@@ -717,7 +717,7 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 	// Throw out the ignored attributes
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
-		dataOrig.deleteColumn(ignore[i]);
+		dataOrig.deleteColumns(ignore[i], 1);
 
 	GRelation* pOrigRel = dataOrig.relation().clone();
 	Holder<GRelation> hOrigRel(pOrigRel);

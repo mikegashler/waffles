@@ -194,7 +194,7 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t* pLabelDims)
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		data.deleteColumn(ignore[i]);
+		data.deleteColumns(ignore[i], 1);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
 			if(labels[j] >= ignore[i])
@@ -1349,7 +1349,7 @@ void semanticMap(GArgReader& args){
 	pLessColumns->copy(hData.get());
     Holder<GMatrix> lessColumns(pLessColumns);
     while(lessColumns->cols() > som.inputDimensions()){
-      lessColumns->deleteColumn(lessColumns->cols()-1);
+      lessColumns->deleteColumns(lessColumns->cols()-1, 1);
     }
     vector<size_t> bestData = som.bestData(lessColumns.get());
 

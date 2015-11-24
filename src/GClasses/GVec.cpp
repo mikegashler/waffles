@@ -356,6 +356,8 @@ void GVec::put(size_t pos, const GVec& that, size_t start, size_t length)
 
 void GVec::erase(size_t start, size_t count)
 {
+	if(start + count > m_size)
+		throw Ex("out of range");
 	size_t end = m_size - count;
 	for(size_t i = start; i < end; i++)
 		(*this)[i] = (*this)[i + count];

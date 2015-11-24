@@ -331,11 +331,11 @@ GDomNode* GUniformRelation::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GUniformRelation::deleteAttribute(size_t index)
+void GUniformRelation::deleteAttributes(size_t index, size_t count)
 {
-	if(index >= m_attrCount)
+	if(index + count > m_attrCount)
 		throw Ex("Index out of range");
-	m_attrCount--;
+	m_attrCount -= count;
 }
 
 // virtual
@@ -522,9 +522,9 @@ void GMixedRelation::swapAttributes(size_t nAttr1, size_t nAttr2)
 }
 
 // virtual
-void GMixedRelation::deleteAttribute(size_t nAttr)
+void GMixedRelation::deleteAttributes(size_t nAttr, size_t count)
 {
-	m_valueCounts.erase(m_valueCounts.begin() + nAttr);
+	m_valueCounts.erase(m_valueCounts.begin() + nAttr, m_valueCounts.begin() + (nAttr + count));
 }
 
 // virtual
@@ -918,10 +918,10 @@ void GArffRelation::swapAttributes(size_t nAttr1, size_t nAttr2)
 }
 
 // virtual
-void GArffRelation::deleteAttribute(size_t nAttr)
+void GArffRelation::deleteAttributes(size_t nAttr, size_t count)
 {
-	m_attrs.erase(m_attrs.begin() + nAttr);
-	GMixedRelation::deleteAttribute(nAttr);
+	m_attrs.erase(m_attrs.begin() + nAttr, m_attrs.begin() + (nAttr + count));
+	GMixedRelation::deleteAttributes(nAttr, count);
 }
 
 double GArffRelation::parseValue(size_t attr, const char* val)
@@ -2705,14 +2705,14 @@ void GMatrix::swapColumns(size_t nAttr1, size_t nAttr2)
 	}
 }
 
-void GMatrix::deleteColumn(size_t index)
+void GMatrix::deleteColumns(size_t index, size_t count)
 {
-	m_pRelation->deleteAttribute(index);
-	size_t nCount = rows();
-	for(size_t i = 0; i < nCount; i++)
+	m_pRelation->deleteAttributes(index, count);
+	size_t rowCount = rows();
+	for(size_t i = 0; i < rowCount; i++)
 	{
 		GVec& r = row(i);
-		r.erase(index);
+		r.erase(index, count);
 	}
 }
 

@@ -199,7 +199,7 @@ void GLearnerLib::loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Hold
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		data.deleteColumn(ignore[i]);
+		data.deleteColumns(ignore[i], 1);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
 			if(labels[j] >= ignore[i])

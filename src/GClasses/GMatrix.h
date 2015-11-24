@@ -101,7 +101,7 @@ public:
 	virtual GRelation* cloneSub(size_t start, size_t count) const = 0;
 
 	/// \brief Deletes the specified attribute
-	virtual void deleteAttribute(size_t index) = 0;
+	virtual void deleteAttributes(size_t index, size_t count) = 0;
 
 	/// \brief Swaps two attributes
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2) = 0;
@@ -212,7 +212,7 @@ public:
 	virtual GRelation* cloneSub(size_t, size_t count) const { return new GUniformRelation(count, m_valueCount); }
 
 	/// \brief Drop the specified attribute
-	virtual void deleteAttribute(size_t index);
+	virtual void deleteAttributes(size_t index, size_t count);
 
 	/// \brief Swap two attributes (since all attributes are identical, does nothing)
 	virtual void swapAttributes(size_t, size_t) {}
@@ -316,7 +316,7 @@ public:
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2);
 
 	/// \brief Deletes an attribute.
-	virtual void deleteAttribute(size_t nAttr);
+	virtual void deleteAttributes(size_t nAttr, size_t count);
 };
 
 
@@ -427,7 +427,7 @@ public:
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2);
 
 	/// \brief Deletes an attribute
-	virtual void deleteAttribute(size_t nAttr);
+	virtual void deleteAttributes(size_t nAttr, size_t count);
 
 	/// \brief Returns the nominal index for the specified attribute
 	/// with the given value
@@ -838,11 +838,11 @@ public:
 	/// \brief Swaps two columns
 	void swapColumns(size_t nAttr1, size_t nAttr2);
 
-	/// \brief Deletes a column.
+	/// \brief Deletes some columns.
 	/// This does not reallocate the rows, but it does shift the elements,
 	/// which is a slow operation, especially if there are many columns
-	/// that follow the one being deleted.
-	void deleteColumn(size_t index);
+	/// that follow those being deleted.
+	void deleteColumns(size_t index, size_t count);
 
 	/// \brief Swaps the specified row with the last row, and then
 	/// releases it from the dataset.

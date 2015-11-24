@@ -224,7 +224,7 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t& pLabelDims,
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		data.deleteColumn(ignore[i]);
+		data.deleteColumns(ignore[i], 1);
 		originalIndices.erase(originalIndices.begin()+ignore[i]);
 		for(size_t j = 0; j < labels.size(); j++)
 		{

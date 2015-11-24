@@ -955,7 +955,7 @@ GMatrix* GIsomap::reduce(const GMatrix& in)
 			if(missing_count > 0)
 			{
 				pCM->deleteRow(worstRow);
-				pCM->deleteColumn(worstRow);
+				pCM->deleteColumns(worstRow, 1);
 			}
 			else
 				break;

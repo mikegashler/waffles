@@ -963,7 +963,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		// Deselect the weakest attribute
 		m_ranks[curDims - 1] = indexMap[weakestIndex];
 		indexMap.erase(indexMap.begin() + weakestIndex);
-		pFeatures->deleteColumn(weakestIndex);
+		pFeatures->deleteColumns(weakestIndex, 1);
 		curDims--;
 		GAssert(pFeatures->cols() == curDims);
 	}

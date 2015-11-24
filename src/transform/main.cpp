@@ -588,7 +588,7 @@ void dropColumns(GArgReader& args)
 	std::sort(colList.begin(), colList.end());
 	std::reverse(colList.begin(), colList.end());
 	for(size_t i = 0; i < colList.size(); i++)
-		pData->deleteColumn(colList[i]);
+		pData->deleteColumns(colList[i], 1);
 	pData->print(cout);
 }
 
@@ -605,7 +605,7 @@ void dropHomogeneousCols(GArgReader& args)
 	}
 	std::reverse(colList.begin(), colList.end());
 	for(size_t i = 0; i < colList.size(); i++)
-		pData->deleteColumn(colList[i]);
+		pData->deleteColumns(colList[i], 1);
 	pData->print(cout);
 }
 
@@ -633,7 +633,7 @@ void keepOnlyColumns(GArgReader& args)
 	//keeps the column indices for undeleted columns the same even
 	//after deletion.
 	for(size_t i = 0; i < colsToDel.size(); i++)
-		pData->deleteColumn(colsToDel[i]);
+		pData->deleteColumns(colsToDel[i], 1);
 	pData->print(cout);
 }
 
@@ -1338,6 +1338,55 @@ void reducedRowEchelonForm(GArgReader& args)
 	pA->print(cout);
 }
 
+void reorderColumns(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+
+	// Parse and check the list of columns
+	vector<size_t> colList;
+	size_t attrCount = pData->cols();
+	parseAttributeList(colList, args, attrCount);
+	for(size_t i = 0; i < colList.size(); i++)
+	{
+		size_t ind = colList[i];
+		if(ind >= pData->cols())
+			throw Ex("Column ", to_str(ind), " is out of range.");
+	}
+
+	// Make a list of indexes
+	vector<size_t> pos_to_col;
+	vector<size_t> col_to_pos;
+	pos_to_col.reserve(pData->cols());
+	col_to_pos.reserve(pData->cols());
+	for(size_t i = 0; i < pData->cols(); i++)
+	{
+		pos_to_col.push_back(i);
+		col_to_pos.push_back(i);
+	}
+
+	// Do the swapping
+	for(size_t i = 0; i < colList.size(); i++)
+	{
+		if(pos_to_col[i] == colList[i])
+			continue;
+		size_t j = col_to_pos[colList[i]];
+		size_t coli = pos_to_col[i];
+		size_t colj = pos_to_col[j];
+		pData->swapColumns(i, j);
+		pos_to_col[i] = colj;
+		pos_to_col[j] = coli;
+		col_to_pos[coli] = j;
+		col_to_pos[colj] = i;
+	}
+
+	// Drop superfluous columns
+	if(pData->cols() > colList.size())
+		pData->deleteColumns(colList.size(), pData->cols() - colList.size());
+
+	pData->print(cout);
+}
+
 void rotate(GArgReader& args)
 {
 	GMatrix* pA = loadData(args.pop_string());
@@ -1768,7 +1817,7 @@ void splitClass(GArgReader& args)
 		oss << ".arff";
 		string s = oss.str();
 		if(dropClass)
-			tmp.deleteColumn(classAttr);
+			tmp.deleteColumns(classAttr, 1);
 		tmp.saveArff(s.c_str());
 	}
 }
@@ -2398,6 +2447,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("prettify")) prettify(args);
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
+		else if(args.if_pop("reordercolumns")) reorderColumns(args);
 		else if(args.if_pop("rotate")) rotate(args);
 		else if(args.if_pop("samplerows")) sampleRows(args);
 		else if(args.if_pop("samplerowsregularly")) sampleRowsRegularly(args);

@@ -2384,8 +2384,8 @@ void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
 		GVec& vec = m_itemAttrs->row(i);
 		m_itemMap[(size_t)vec[0]] = i;
 	}
-	m_itemAttrs->swapColumns(0,m_itemAttrs->cols()-1);
-	m_itemAttrs->deleteColumn(m_itemAttrs->cols()-1);
+	m_itemAttrs->swapColumns(0,m_itemAttrs->cols() - 1);
+	m_itemAttrs->deleteColumns(m_itemAttrs->cols() - 1, 1);
 }
 
 
