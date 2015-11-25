@@ -57,8 +57,8 @@ m_epochsPerValidationCheck(100)
 {
 }
 
-GNeuralNet::GNeuralNet(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll),
+GNeuralNet::GNeuralNet(GDomNode* pNode)
+: GIncrementalLearner(pNode),
 m_validationPortion(0.35),
 m_minImprovement(0.002),
 m_epochsPerValidationCheck(100)
@@ -1871,7 +1871,7 @@ GReservoirNet::GReservoirNet()
 }
 
 GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll)
+: GIncrementalLearner(pNode)
 {
 	m_pModel = (GIncrementalLearner*)ll.loadLearner(pNode->field("model"));
 	m_weightDeviation = pNode->field("wdev")->asDouble();

@@ -358,8 +358,8 @@ GDecisionTree::GDecisionTree()
 	m_eAlg = GDecisionTree::MINIMIZE_ENTROPY;
 }
 
-GDecisionTree::GDecisionTree(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll), m_leafThresh(1), m_maxLevels(0)
+GDecisionTree::GDecisionTree(GDomNode* pNode)
+: GSupervisedLearner(pNode), m_leafThresh(1), m_maxLevels(0)
 {
 	m_eAlg = (DivisionAlgorithm)pNode->field("alg")->asInt();
 	m_pRoot = GDecisionTreeNode::deserialize(pNode->field("root"));
@@ -1154,8 +1154,8 @@ GMeanMarginsTree::GMeanMarginsTree()
 {
 }
 
-GMeanMarginsTree::GMeanMarginsTree(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GMeanMarginsTree::GMeanMarginsTree(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_pRoot = GMeanMarginsTreeNode::deserialize(pNode->field("root"));
 	m_internalFeatureDims = (size_t)pNode->field("ifd")->asInt();
@@ -1371,7 +1371,7 @@ GRandomForest::GRandomForest(size_t trees, size_t samples)
 }
 
 GRandomForest::GRandomForest(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+: GSupervisedLearner(pNode)
 {
 	m_pEnsemble = new GBag(pNode->field("bag"), ll);
 }

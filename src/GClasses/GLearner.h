@@ -222,7 +222,7 @@ public:
 	GSupervisedLearner();
 
 	/// Deserialization constructor
-	GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll);
+	GSupervisedLearner(GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GSupervisedLearner();
@@ -351,8 +351,8 @@ public:
 	}
 
 	/// Deserialization constructor
-	GIncrementalLearner(GDomNode* pNode, GLearnerLoader& ll)
-	: GSupervisedLearner(pNode, ll)
+	GIncrementalLearner(GDomNode* pNode)
+	: GSupervisedLearner(pNode)
 	{
 	}
 
@@ -714,7 +714,7 @@ public:
 	GBaselineLearner();
 
 	/// Deserialization constructor
-	GBaselineLearner(GDomNode* pNode, GLearnerLoader& ll);
+	GBaselineLearner(GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GBaselineLearner();
@@ -758,7 +758,7 @@ public:
 	GIdentityFunction();
 
 	/// Deserialization constructor
-	GIdentityFunction(GDomNode* pNode, GLearnerLoader& ll);
+	GIdentityFunction(GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GIdentityFunction();

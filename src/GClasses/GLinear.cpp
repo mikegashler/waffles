@@ -35,8 +35,8 @@ GLinearRegressor::GLinearRegressor()
 {
 }
 
-GLinearRegressor::GLinearRegressor(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GLinearRegressor::GLinearRegressor(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_pBeta = new GMatrix(pNode->field("beta"));
 	m_epsilon.deserialize(pNode->field("epsilon"));
@@ -267,8 +267,8 @@ GLinearDistribution::GLinearDistribution()
 {
 }
 
-GLinearDistribution::GLinearDistribution(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GLinearDistribution::GLinearDistribution(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_noiseDev = pNode->field("nd")->asDouble();
 	m_pWBar = new GMatrix(pNode->field("w"));

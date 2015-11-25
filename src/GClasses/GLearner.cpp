@@ -422,7 +422,7 @@ GSupervisedLearner::GSupervisedLearner()
 {
 }
 
-GSupervisedLearner::GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll)
+GSupervisedLearner::GSupervisedLearner(GDomNode* pNode)
 : GTransducer()
 {
 	m_pRelFeatures = GRelation::deserialize(pNode->field("_rf"));
@@ -903,13 +903,13 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
 			{
 #ifndef MIN_PREDICT
 				if(strcmp(szClass, "GAttributeSelector") == 0)
-					return new GAttributeSelector(pNode, *this);
+					return new GAttributeSelector(pNode);
 				else
 #endif // MIN_PREDICT
 				if(strcmp(szClass, "GDataAugmenter") == 0)
 					return new GDataAugmenter(pNode, *this);
 				else if(strcmp(szClass, "GDiscretize") == 0)
-					return new GDiscretize(pNode, *this);
+					return new GDiscretize(pNode);
 			}
 			else
 			{
@@ -927,20 +927,20 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
 			if(szClass[1] < 'P')
 			{
 				if(strcmp(szClass, "GNoiseGenerator") == 0)
-					return new GNoiseGenerator(pNode, *this);
+					return new GNoiseGenerator(pNode);
 				else if(strcmp(szClass, "GNominalToCat") == 0)
-					return new GNominalToCat(pNode, *this);
+					return new GNominalToCat(pNode);
 				else if(strcmp(szClass, "GNormalize") == 0)
-					return new GNormalize(pNode, *this);
+					return new GNormalize(pNode);
 			}
 			else
 			{
 				if(strcmp(szClass, "GPairProduct") == 0)
-					return new GPairProduct(pNode, *this);
+					return new GPairProduct(pNode);
 				else if(strcmp(szClass, "GPCA") == 0)
-					return new GPCA(pNode, *this);
+					return new GPCA(pNode);
 				else if(strcmp(szClass, "GReservoir") == 0)
-					return new GReservoir(pNode, *this);
+					return new GReservoir(pNode);
 			}
 		}
 	}
@@ -965,7 +965,7 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 				else if(strcmp(szClass, "GBag") == 0)
 					return new GBag(pNode, *this);
 				else if(strcmp(szClass, "GBaselineLearner") == 0)
-					return new GBaselineLearner(pNode, *this);
+					return new GBaselineLearner(pNode);
 				else if(strcmp(szClass, "GBayesianModelAveraging") == 0)
 					return new GBayesianModelAveraging(pNode, *this);
 				else if(strcmp(szClass, "GBayesianModelCombination") == 0)
@@ -976,13 +976,13 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 			else
 			{
 				if(strcmp(szClass, "GDecisionTree") == 0)
-					return new GDecisionTree(pNode, *this);
+					return new GDecisionTree(pNode);
 				else if(strcmp(szClass, "GFeatureFilter") == 0)
 					return new GFeatureFilter(pNode, *this);
 				else if(strcmp(szClass, "GGaussianProcess") == 0)
-					return new GGaussianProcess(pNode, *this);
+					return new GGaussianProcess(pNode);
 				else if(strcmp(szClass, "GIdentityFunction") == 0)
-					return new GIdentityFunction(pNode, *this);
+					return new GIdentityFunction(pNode);
 			}
 		}
 		else
@@ -990,33 +990,33 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 			if(szClass[1] < 'N')
 			{
 				if(strcmp(szClass, "GLinearDistribution") == 0)
-					return new GLinearDistribution(pNode, *this);
+					return new GLinearDistribution(pNode);
 				else if(strcmp(szClass, "GKNN") == 0)
-					return new GKNN(pNode, *this);
+					return new GKNN(pNode);
 				else if(strcmp(szClass, "GLabelFilter") == 0)
 					return new GLabelFilter(pNode, *this);
 				else if(strcmp(szClass, "GLinearRegressor") == 0)
-					return new GLinearRegressor(pNode, *this);
+					return new GLinearRegressor(pNode);
 				else if(strcmp(szClass, "GMeanMarginsTree") == 0)
-					return new GMeanMarginsTree(pNode, *this);
+					return new GMeanMarginsTree(pNode);
 			}
 			else
 			{
 				if(szClass[1] < 'P')
 				{
 					if(strcmp(szClass, "GNaiveBayes") == 0)
-						return new GNaiveBayes(pNode, *this);
+						return new GNaiveBayes(pNode);
 					else if(strcmp(szClass, "GNaiveInstance") == 0)
-						return new GNaiveInstance(pNode, *this);
+						return new GNaiveInstance(pNode);
 					else if(strcmp(szClass, "GNeuralDecomposition") == 0)
-						return new GNeuralDecomposition(pNode, *this);
+						return new GNeuralDecomposition(pNode);
 					else if(strcmp(szClass, "GNeuralNet") == 0)
-						return new GNeuralNet(pNode, *this);
+						return new GNeuralNet(pNode);
 				}
 				else
 				{
 					if(strcmp(szClass, "GPolynomial") == 0)
-						return new GPolynomial(pNode, *this);
+						return new GPolynomial(pNode);
 					else if(strcmp(szClass, "GRandomForest") == 0)
 						return new GRandomForest(pNode, *this);
 					else if(strcmp(szClass, "GResamplingAdaBoost") == 0)
@@ -1066,7 +1066,7 @@ GFilter::GFilter(GSupervisedLearner* pLearner, bool ownLearner)
 }
 
 GFilter::GFilter(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll), m_pIncrementalLearner(NULL), m_ownLearner(true)
+: GIncrementalLearner(pNode), m_pIncrementalLearner(NULL), m_ownLearner(true)
 {
 	m_pLearner = ll.loadLearner(pNode->field("learner"));
 	if(m_pLearner->canTrainIncrementally())
@@ -1840,8 +1840,8 @@ GBaselineLearner::GBaselineLearner()
 {
 }
 
-GBaselineLearner::GBaselineLearner(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GBaselineLearner::GBaselineLearner(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_prediction.clear();
 	GDomNode* pred = pNode->field("pred");
@@ -1923,8 +1923,8 @@ GIdentityFunction::GIdentityFunction()
 {
 }
 
-GIdentityFunction::GIdentityFunction(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GIdentityFunction::GIdentityFunction(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();
 	m_featureDims = (size_t)pNode->field("features")->asInt();

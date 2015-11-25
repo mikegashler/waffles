@@ -240,8 +240,8 @@ GNaiveBayes::GNaiveBayes()
 	m_nSampleCount = 0;
 }
 
-GNaiveBayes::GNaiveBayes(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll)
+GNaiveBayes::GNaiveBayes(GDomNode* pNode)
+: GIncrementalLearner(pNode)
 {
 	m_nSampleCount = (size_t)pNode->field("sampleCount")->asInt();
 	m_equivalentSampleSize = pNode->field("ess")->asDouble();

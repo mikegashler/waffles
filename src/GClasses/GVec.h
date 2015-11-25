@@ -46,7 +46,11 @@ public:
 	/// General-purpose constructor. n specifies the initial size of the vector.
 	GVec(size_t n = 0);
 
+	/// General-purpose constructor. n specifies the initial size of the vector.
 	GVec(int n);
+
+	/// Unmarshaling constructor
+	GVec(GDomNode* pNode);
 
 	/// Copy constructor. Copies all the values in orig.
 	GVec(const GVec& orig);

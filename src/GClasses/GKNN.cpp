@@ -113,8 +113,8 @@ GKNN::GKNN()
 	m_pScaleFactorOptimizer = NULL;
 }
 
-GKNN::GKNN(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll)
+GKNN::GKNN(GDomNode* pNode)
+: GIncrementalLearner(pNode)
 {
 	m_pNeighborFinder = NULL;
 	m_pCritic = NULL;
@@ -970,8 +970,8 @@ GSparseInstance::GSparseInstance()
 {
 }
 
-GSparseInstance::GSparseInstance(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GSparseInstance::GSparseInstance(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_neighborCount = (size_t)pNode->field("neighbors")->asInt();
 	m_pInstanceFeatures = new GSparseMatrix(pNode->field("if"));

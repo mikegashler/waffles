@@ -62,6 +62,11 @@ GVec::GVec(double d)
 	throw Ex("Calling this method is an error");
 }
 
+GVec::GVec(GDomNode* pNode)
+{
+	deserialize(pNode);
+}
+
 GVec::GVec(const GVec& orig)
 {
 	m_size = orig.m_size;

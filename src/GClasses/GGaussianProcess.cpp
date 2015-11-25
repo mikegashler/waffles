@@ -112,8 +112,8 @@ GGaussianProcess::GGaussianProcess()
 	m_pKernel = new GKernelIdentity();
 }
 
-GGaussianProcess::GGaussianProcess(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll), m_pBuf(NULL)
+GGaussianProcess::GGaussianProcess(GDomNode* pNode)
+: GSupervisedLearner(pNode), m_pBuf(NULL)
 {
 	m_weightsPriorVar = pNode->field("wv")->asDouble();
 	m_noiseVar = pNode->field("nv")->asDouble();

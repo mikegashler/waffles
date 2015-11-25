@@ -59,7 +59,7 @@ GEnsemble::GEnsemble()
 }
 
 GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll), m_pPredictMaster(NULL)
+: GSupervisedLearner(pNode), m_pPredictMaster(NULL)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	size_t accumulatorDims = (size_t)pNode->field("accum")->asInt();
@@ -791,9 +791,9 @@ GWag::GWag(size_t size)
 }
 
 GWag::GWag(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+: GSupervisedLearner(pNode)
 {
-	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
+	m_pNN = new GNeuralNet(pNode->field("nn"));
 	m_models = (size_t)pNode->field("models")->asInt();
 	m_noAlign = pNode->field("na")->asBool();
 }
@@ -849,7 +849,7 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 			GDom doc;
 			GDomNode* pNode = m_pNN->serialize(&doc);
 			GLearnerLoader ll;
-			pTemp = new GNeuralNet(pNode, ll);
+			pTemp = new GNeuralNet(pNode);
 			hTemp.reset(pTemp);
 			weights = pTemp->countWeights();
 			pWeightBuf = new double[2 * weights];
@@ -887,7 +887,7 @@ GBucket::GBucket()
 }
 
 GBucket::GBucket(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+: GSupervisedLearner(pNode)
 {
 	GDomNode* pModels = pNode->field("models");
 	GDomListIterator it(pModels);

@@ -42,7 +42,7 @@ public:
 	GLinearRegressor();
 
 	/// Load from a text-format
-	GLinearRegressor(GDomNode* pNode, GLearnerLoader& ll);
+	GLinearRegressor(GDomNode* pNode);
 
 	virtual ~GLinearRegressor();
 
@@ -110,7 +110,7 @@ public:
 	GLinearDistribution();
 
 	/// Deserialization constructor
-	GLinearDistribution(GDomNode* pNode, GLearnerLoader& ll);
+	GLinearDistribution(GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GLinearDistribution();

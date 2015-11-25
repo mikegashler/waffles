@@ -31,10 +31,10 @@ GNeuralDecomposition::GNeuralDecomposition()
 	m_nn = new GNeuralNet();
 }
 
-GNeuralDecomposition::GNeuralDecomposition(GDomNode *pNode, GLearnerLoader &ll)
-: GIncrementalLearner(pNode, ll)
+GNeuralDecomposition::GNeuralDecomposition(GDomNode *pNode)
+: GIncrementalLearner(pNode)
 {
-	m_nn = new GNeuralNet(pNode->field("nn"), ll);
+	m_nn = new GNeuralNet(pNode->field("nn"));
 	m_regularization = pNode->field("regularization")->asDouble();
 	m_learningRate = pNode->field("learningRate")->asDouble();
 	m_featureScale = pNode->field("featureScale")->asDouble();

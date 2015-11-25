@@ -921,8 +921,7 @@ void principalComponentAnalysis(GArgReader& args)
 	{
 		GDom doc;
 		doc.loadJson(modelIn.c_str());
-		GLearnerLoader ll;
-		pTransform = new GPCA(doc.root(), ll);
+		pTransform = new GPCA(doc.root());
 	}
 	else
 	{
@@ -1133,8 +1132,7 @@ void selfOrganizingMap(GArgReader& args){
     //Create map from file
     GDom source;
     source.loadJson(loadFrom.c_str());
-    GLearnerLoader ll;
-    som.reset(new GSelfOrganizingMap(source.root(), ll));
+    som.reset(new GSelfOrganizingMap(source.root()));
     //Transform using the loaded network
     out.reset(som->transformBatch(*pData));
   }
@@ -1235,8 +1233,7 @@ void unsupervisedBackProp(GArgReader& args)
 		{
 			GDom doc;
 			doc.loadJson(args.pop_string());
-			GLearnerLoader ll;
-			pUBP = new GUnsupervisedBackProp(doc.root(), ll);
+			pUBP = new GUnsupervisedBackProp(doc.root());
 			hUBP.reset(pUBP);
 		}
 		else if(args.if_pop("-modelout"))

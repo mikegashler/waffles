@@ -781,7 +781,7 @@ public:
 
   /// Reconstruct this self-organizing map from its serialized form in
   /// a dom document
-  GSelfOrganizingMap(GDomNode* pNode, GLearnerLoader& ll);
+  GSelfOrganizingMap(GDomNode* pNode);
 
   virtual ~GSelfOrganizingMap();
 

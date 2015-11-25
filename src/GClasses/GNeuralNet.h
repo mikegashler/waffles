@@ -45,7 +45,7 @@ public:
 	GNeuralNet();
 
 	/// Load from a text-format
-	GNeuralNet(GDomNode* pNode, GLearnerLoader& ll);
+	GNeuralNet(GDomNode* pNode);
 
 	virtual ~GNeuralNet();
 

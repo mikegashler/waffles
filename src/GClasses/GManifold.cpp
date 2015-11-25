@@ -877,8 +877,8 @@ GIsomap::GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand) : m_neig
 {
 }
 
-GIsomap::GIsomap(GDomNode* pNode, GLearnerLoader& ll)
-: GTransform(pNode, ll)
+GIsomap::GIsomap(GDomNode* pNode)
+: GTransform(pNode)
 {
 	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
 }
@@ -1185,8 +1185,8 @@ GLLE::GLLE(size_t neighborCount, size_t targetDims, GRand* pRand) : m_neighborCo
 {
 }
 
-GLLE::GLLE(GDomNode* pNode, GLearnerLoader& ll)
-: GTransform(pNode, ll)
+GLLE::GLLE(GDomNode* pNode)
+: GTransform(pNode)
 {
 	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
 }
@@ -1238,7 +1238,7 @@ GBreadthFirstUnfolding::GBreadthFirstUnfolding(size_t reps, size_t neighborCount
 {
 }
 
-GBreadthFirstUnfolding::GBreadthFirstUnfolding(GDomNode* pNode, GLearnerLoader& ll)
+GBreadthFirstUnfolding::GBreadthFirstUnfolding(GDomNode* pNode)
 : m_reps((size_t)pNode->field("reps")->asInt()), m_neighborCount((size_t)pNode->field("neighbors")->asInt()), m_targetDims((size_t)pNode->field("targetDims")->asInt()), m_pNF(NULL), m_useMds(pNode->field("useMds")->asBool()), m_rand(0)
 {
 }
@@ -2215,8 +2215,8 @@ m_rand(0)
 {
 }
 
-GScalingUnfolder::GScalingUnfolder(GDomNode* pNode, GLearnerLoader& ll)
-: GTransform(pNode, ll),
+GScalingUnfolder::GScalingUnfolder(GDomNode* pNode)
+: GTransform(pNode),
 m_rand(0)
 {
 	throw Ex("Sorry, this method is not implemented yet");

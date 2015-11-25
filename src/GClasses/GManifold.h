@@ -190,7 +190,7 @@ protected:
 
 public:
 	GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GIsomap(GDomNode* pNode, GLearnerLoader& ll);
+	GIsomap(GDomNode* pNode);
 	virtual ~GIsomap();
 
 	/// Serializes this object
@@ -224,7 +224,7 @@ protected:
 
 public:
 	GLLE(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GLLE(GDomNode* pNode, GLearnerLoader& ll);
+	GLLE(GDomNode* pNode);
 	virtual ~GLLE();
 
 	/// Serialize this object
@@ -258,7 +258,7 @@ public:
 	/// reps specifies the number of times to compute the embedding, and blend the
 	/// results together. If you just want fast results, use reps=1.
 	GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims);
-	GBreadthFirstUnfolding(GDomNode* pNode, GLearnerLoader& ll);
+	GBreadthFirstUnfolding(GDomNode* pNode);
 	virtual ~GBreadthFirstUnfolding();
 
 	/// Serialize this object
@@ -440,7 +440,7 @@ protected:
 
 public:
 	GScalingUnfolder();
-	GScalingUnfolder(GDomNode* pNode, GLearnerLoader& ll);
+	GScalingUnfolder(GDomNode* pNode);
 	virtual ~GScalingUnfolder();
 
 	/// Specify the number of neighbors to use. (The default is 14.)
