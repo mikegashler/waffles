@@ -5081,7 +5081,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 	GArffRelation* pRelation = new GArffRelation();
 	outMatrix.setRelation(pRelation);
 	for(size_t i = 0; i < rowCount; i++)
-		outMatrix.takeRow(new GVec(columnCount));
+		outMatrix.takeRow(new GVec());
 	m_report.resize(columnCount);
 	if(m_columnNamesInFirstRow)
 		rowCount--;
@@ -5176,7 +5176,8 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				break;
 			}
 		}
-
+		//resize the outMatrix
+		outMatrix.resize(rows.size(), columnCount);
 		// Make the attribute
 		if(real)
 		{
