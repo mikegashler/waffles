@@ -5177,7 +5177,10 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			}
 		}
 		//resize the outMatrix
-		outMatrix.resize(rows.size(), columnCount);
+		for (size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
+		{
+			outMatrix[rowNum].resize(columnCount);
+		}
 		// Make the attribute
 		if(real)
 		{
