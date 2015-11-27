@@ -944,7 +944,6 @@ public:
 		runTest("GNeuralNet", GNeuralNet::test);
 //		runTest("GNonlinearPCA", GNonlinearPCA::test);
 		runTest("GPackageServer", GPackageServer::test);
-		runTest("GPCARotateOnly", GPCARotateOnly::test);
 		runTest("GPolynomial", GPolynomial::test);
 		runTest("GPriorityQueue", GPriorityQueue::test);
 		runTest("GProbeSearch", GProbeSearch::test);

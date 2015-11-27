@@ -470,17 +470,12 @@ void GManifoldSculpting::beginTransform(const GMatrix* pRealSpaceData)
 	else
 	{
 		// Preprocess the data
-		if(pRealSpaceData->relation().size() < 30)
-			m_pData = GPCARotateOnly::transform(pRealSpaceData->relation().size(), 0, pRealSpaceData, m_nTargetDims, m_pRand);
-		else
-		{
-			size_t preserveDims = m_nTargetDims * 6;
-			preserveDims = std::max((size_t)30, preserveDims);
-			preserveDims = std::min(pRealSpaceData->relation().size(), preserveDims);
-			GPCA pca(preserveDims);
-			pca.train(*pRealSpaceData);
-			m_pData = pca.transformBatch(*pRealSpaceData);
-		}
+		size_t preserveDims = m_nTargetDims * 6;
+		preserveDims = std::max((size_t)30, preserveDims);
+		preserveDims = std::min(pRealSpaceData->relation().size(), preserveDims);
+		GPCA pca(preserveDims);
+		pca.train(*pRealSpaceData);
+		m_pData = pca.transformBatch(*pRealSpaceData);
 	}
 
 	// Calculate the junk

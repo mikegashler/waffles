@@ -377,6 +377,21 @@ double GVec::correlation(const GVec& that) const
 	return d / (sqrt(this->squaredMagnitude() * that.squaredMagnitude()));
 }
 
+void GVec::clip(double min, double max)
+{
+	GAssert(max >= min);
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] = std::max(min, std::min(max, (*this)[i]));
+}
+
+void GVec::subtractComponent(const GVec& component)
+{
+	GAssert(size() == component.size());
+	double comp = dotProduct(component);
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] -= component[i] * comp;
+}
+
 
 
 
@@ -407,7 +422,7 @@ void GVec::copy(double* pDest, const double* pSource, size_t nDims)
 {
 	memcpy(pDest, pSource, sizeof(double) * nDims);
 }
-
+/*
 // static
 double GVec::dotProduct(const double* pA, const double* pB, size_t nSize)
 {
@@ -419,7 +434,7 @@ double GVec::dotProduct(const double* pA, const double* pB, size_t nSize)
 	}
 	return d;
 }
-
+*/
 // static
 double GVec::dotProductIgnoringUnknowns(const double* pA, const double* pB, size_t nSize)
 {
@@ -553,7 +568,7 @@ void GVec::lNormNormalize(double norm, double* pVector, size_t nSize)
 		pVector[i] /= dMag;
 }
 
-
+/*
 // static
 double GVec::correlation(const double* pA, const double* pB, size_t nDims)
 {
@@ -580,7 +595,7 @@ double GVec::correlation(const double* pOriginA, const double* pTargetA, const d
 		return 0;
 	return dDotProd / (sqrt(squaredDistance(pOriginA, pTargetA, nDims) * squaredDistance(pOriginB, pTargetB, nDims)));
 }
-
+*/
 // static
 void GVec::normalize(double* pVector, size_t nSize)
 {
@@ -815,7 +830,7 @@ void GVec::interpolateIndexes(size_t nIndexes, double* pInIndexes, double* pOutI
 		pOutIndexes[i] = ((float)1 - fWeight) * f0 + fWeight * f1;
 	}
 }
-
+/*
 void GVec::rotate(double* pVector, size_t nDims, double dAngle, const double* pA, const double* pB)
 {
 	// Check that the vectors are orthogonal
@@ -839,7 +854,7 @@ void GVec::rotate(double* pVector, size_t nDims, double dAngle, const double* pA
 	GVec::addScaled(pVector, x, pA, nDims);
 	GVec::addScaled(pVector, y, pB, nDims);
 }
-
+*/
 void GVec::perturb(double* pDest, double deviation, size_t dims, GRand& rand)
 {
 	for(size_t i = 0; i < dims; i++)
@@ -930,7 +945,7 @@ void GVec::project(double* pDest, const double* pPoint, const double* pOrigin, c
 		pBasis += dims;
 	}
 }
-
+/*
 void GVec::subtractComponent(double* pInOut, const double* pBasis, size_t dims)
 {
 	double component = dotProduct(pInOut, pBasis, dims);
@@ -953,7 +968,7 @@ void GVec::subtractComponent(double* pInOut, const double* pOrigin, const double
 		pInOut++;
 	}
 }
-
+*/
 double GVec::sumElements(const double* pVec, size_t dims)
 {
 	double sum = 0;
@@ -1146,7 +1161,7 @@ void GVec::fromImage(GImage* pImage, double* pVec, int width, int height, int ch
 		throw Ex("unsupported value for channels");
 }
 #endif // MIN_PREDICT
-
+/*
 // static
 void GVec::capValues(double* pVec, double cap, size_t dims)
 {
@@ -1170,7 +1185,7 @@ void GVec::floorValues(double* pVec, double floor, size_t dims)
 		pVec++;
 	}
 }
-
+*/
 // static
 void GVec::absValues(double* pVec, size_t dims)
 {
@@ -1189,19 +1204,19 @@ void GVec::test()
 	{
 		// Test some static methods
 		GRand prng(0);
-		GTEMPBUF(double, v1, 200);
-		double* v2 = v1 + 100;
+		GVec v1(100);
+		GVec v2(100);
 		for(int i = 0; i < 10; i++)
 		{
-			prng.spherical(v1, 100);
-			prng.spherical(v2, 100);
-			GVec::subtractComponent(v2, v1, 100);
-			GVec::normalize(v2, 100);
-			if(std::abs(GVec::correlation(v1, v2, 100)) > 1e-4)
+			v1.fillSphericalShell(prng);
+			v2.fillSphericalShell(prng);
+			v2.subtractComponent(v1);
+			v2.normalize();
+			if(std::abs(v1.correlation(v2)) > 1e-4)
 				throw Ex("Failed");
-			if(std::abs(GVec::squaredMagnitude(v1, 100) - 1) > 1e-4)
+			if(std::abs(v1.squaredMagnitude() - 1) > 1e-4)
 				throw Ex("Failed");
-			if(std::abs(GVec::squaredMagnitude(v2, 100) - 1) > 1e-4)
+			if(std::abs(v2.squaredMagnitude() - 1) > 1e-4)
 				throw Ex("Failed");
 		}
 	}

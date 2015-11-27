@@ -246,14 +246,6 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			int neighbors = args.pop_uint();
 			pNF = new GKdTree(pData, neighbors, NULL, true);
 		}
-		else if(_stricmp(alg, "saffron") == 0)
-		{
-			size_t medianCands = args.pop_uint();
-			size_t neighbors = args.pop_uint();
-			size_t tangentSpaceDims = args.pop_uint();
-			double thresh = args.pop_double();
-			pNF = new GSaffron(pData, medianCands, neighbors, tangentSpaceDims, thresh, pRand);
-		}
 		else if(_stricmp(alg, "temporal") == 0)
 		{
 			GMatrix* pControlData = loadData(args.pop_string());

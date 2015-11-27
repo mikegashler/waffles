@@ -1164,11 +1164,11 @@ public:
 	/// defines one of the orthonormal basis vectors of this hyperplane)
 	///
 	/// This computes (A^T)Ap, where A is this matrix, and p is pPoint.
-	void project(double* pDest, const double* pPoint) const;
+//	void project(double* pDest, const double* pPoint) const;
 
 	/// \brief Projects pPoint onto this hyperplane (where each row
 	/// defines one of the orthonormal basis vectors of this hyperplane)
-	void project(double* pDest, const double* pPoint, const double* pOrigin) const;
+//	void project(double* pDest, const double* pPoint, const double* pOrigin) const;
 
 	/// \brief Performs a bipartite matching between the rows of \a a
 	/// and \a b using the Linear Assignment Problem (LAP) optimizer

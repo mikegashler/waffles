@@ -272,20 +272,6 @@ protected:
 };
 
 
-/// Principle Component Analysis without the projection. It only rotates
-/// axes to align with the first few principal components.
-class GPCARotateOnly
-{
-public:
-	/// This rotates the data to align the first nComponents axes with the same
-	/// number of principle components.
-	static GMatrix* transform(size_t nDims, size_t nOutputs, const GMatrix* pData, size_t nComponents, GRand* pRand);
-
-#ifndef MIN_PREDICT
-	/// Performs unit tests for this class. Throws an exception if there is a failure.
-	static void test();
-#endif // MIN_PREDICT
-};
 
 
 /// Just generates Gaussian noise

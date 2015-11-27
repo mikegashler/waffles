@@ -1622,12 +1622,8 @@ void GLayerConvolutional1D::perturbWeights(GRand& rand, double deviation, size_t
 // virtual
 void GLayerConvolutional1D::maxNorm(double min, double max)
 {
-	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-	{
-		GVec::capValues(m_kernels[i].data(), max, kernelSize);
-		GVec::floorValues(m_kernels[i].data(), -max, kernelSize);
-	}
+		m_kernels[i].clip(-max, max);
 }
 
 // virtual
@@ -2008,12 +2004,8 @@ void GLayerConvolutional2D::perturbWeights(GRand& rand, double deviation, size_t
 // virtual
 void GLayerConvolutional2D::maxNorm(double min, double max)
 {
-	size_t kernelSize = m_kernels.cols();
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-	{
-		GVec::capValues(m_kernels[i].data(), max, kernelSize);
-		GVec::floorValues(m_kernels[i].data(), -max, kernelSize);
-	}
+		m_kernels[i].clip(-max, max);
 }
 
 // virtual

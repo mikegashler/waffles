@@ -436,46 +436,6 @@ protected:
 
 
 
-/// This class implementes the SAFFRON intelligent neighbor-finding algorithm published in
-/// Gashler, Michael S. and Martinez, Tony. Tangent space guided intelligent neighbor finding.
-/// In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11,
-/// pages 2617–2624, IEEE Press, 2011.
-/// This class intelligently selects neighbors for each point in a dataset, such that the neighbors
-/// define a good neighborhood for manifold learning. A relaxation technique is used to ensure
-/// that neighbors lie on a consistent tangent-space while remaining close to the point. This makes
-/// manifold learning possible with difficult (somtimes even self-intersecting) manifolds.
-class GSaffron : public GNeighborFinder
-{
-protected:
-	size_t* m_pNeighborhoods;
-	double* m_pDistances;
-	size_t m_rows;
-	double m_learningRate;
-	int m_windowSize;
-	double m_minImprovement;
-	bool m_prune;
-
-public:
-	/// General-purpose constructor
-	GSaffron(GMatrix* pData, size_t medianCands, size_t neighbors, size_t tangentDims, double sqCorrCap, GRand* pRand);
-	virtual ~GSaffron();
-
-	/// See the comment for GNeighborFinder::neighbors
-	virtual void neighbors(size_t* pOutNeighbors, size_t index);
-
-	/// See the comment for GNeighborFinder::neighbors
-	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
-
-	/// Returns the mean number of neighbors for each point. If pDeviation is non-NULL,
-	/// it is set to the deviation.
-	double meanNeighborCount(double* pDeviation);
-
-protected:
-	static double measureAlignment(double* pA, GMatrix* pATan, double* pB, GMatrix* pBTan, double cap, double squaredRadius, GRand* pRand);
-};
-
-
-
 /// A neighbor finder that specializes in dynamical systems. It determines
 /// neighbors by searching for the shortest path of actions between observations,
 /// and computes the distance as the number of time-steps in that path.

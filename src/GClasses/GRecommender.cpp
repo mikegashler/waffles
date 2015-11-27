@@ -1289,8 +1289,7 @@ void GMatrixFactorization::impute(GVec& vec, size_t dims)
 			pP[0] += learningRate * (err - m_regularizer * pP[0]);
 			for(size_t j = 1; j <= m_intrinsicDims; j++)
 				pP[j] += learningRate * (err * q[j] - m_regularizer * pP[j]);
-			GVec::floorValues(pP.data() + 1, -1.8, m_intrinsicDims);
-			GVec::capValues(pP.data() + 1, 1.8, m_intrinsicDims);
+			pP.clip(-1.8, 1.8);
 		}
 
 		// Stopping criteria

@@ -1194,16 +1194,6 @@ UsageNode* makeNeighborUsageTree()
 		pKD->add("[k]=12", "The number of neighbors.");
 	}
 	{
-		UsageNode* pMan = pRoot->add("saffron <options> [cands] [k] [t] [thresh]", "The SAFFRON intelligent neighbor-finding algorithm that finds neighborhoods with aligned tangent hyperplanes. This algorithm was published in Gashler, Michael S. and Martinez, Tony. Tangent space guided intelligent neighbor finding. In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11, pages 2617–2624, IEEE Press, 2011.");
-		UsageNode* pOpts = pMan->add("<options>");
-		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
-		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pMan->add("[cands]=32", "The median number of neighbors to use as candidates.");
-		pMan->add("[k]=8", "The number of neighbors to find for each point.");
-		pMan->add("[t]=2", "The number of dimensions in the tangent hyperplanes.");
-		pMan->add("[thresh]=0.9", "A threshold above which all sqared-correlation values are considered to be equal.");
-	}
-	{
 		UsageNode* pSys = pRoot->add("temporal <options> [action-data] [k]", "A neighbor-finder designed for use in modeling certain types of dynamical systems. It estimates the number of time-steps between observations. This algorithm was published in Gashler, Michael S. and Martinez, Tony. Temporal nonlinear dimensionality reduction. In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11, pages 1959–1966, IEEE Press, 2011.");
 		UsageNode* pOpts = pSys->add("<options>");
 		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");

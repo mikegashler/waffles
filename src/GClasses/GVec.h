@@ -174,6 +174,13 @@ public:
 	/// Returns the cosine of the angle between this and that (with the origin as the common vertex).
 	double correlation(const GVec& that) const;
 
+	/// Clips all values in this vector to fall in the range [min, max].
+	void clip(double min, double max);
+
+	/// Subtracts a component from this vector. Uses the Gram-Schmidt approach.
+	/// (Assumes component is already normalized.)
+	void subtractComponent(const GVec& component);
+
 private:
 	/// This method is deliberately private, so calling it will trigger a compiler error.
 	GVec(double d);
@@ -205,10 +212,6 @@ public:
 
 	/// This just wraps memcpy
 	static void copy(double* pDest, const double* pSource, size_t nDims);
-
-	/// Computes the dot product of two vectors. Results are undefined if pA or pB
-	/// contain unknown values.
-	static double dotProduct(const double* pA, const double* pB, size_t nSize);
 
 	/// Computes the dot product of (pTarget - pOrigin) with pVector.
 	static double dotProduct(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize);
@@ -253,15 +256,6 @@ public:
 
 	/// Computes L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
 	static double lNormDistance(double norm, const double* pA, const double* pB, size_t dims);
-
-	/// Computes the cosine of the angle between two vectors (the origin is the vertex)
-	static double correlation(const double* pA, const double* pB, size_t nDims);
-
-	/// Computes the cosine of the angle between two vectors (the origin is the vertex)
-	static double correlation(const double* pOriginA, const double* pTargetA, const double* pB, size_t nDims);
-
-	/// Computes the cosine of the angle between two vectors (the origin is the vertex)
-	static double correlation(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nDims);
 
 	/// Returns the index of the min value in pVector. If multiple elements have
 	/// have an equivalent max value, then behavior depends on the value of pRand.
@@ -320,9 +314,6 @@ public:
 	/// in the list of corresponding indexes, the ends may drift.
 	static void interpolateIndexes(size_t nIndexes, double* pInIndexes, double* pOutIndexes, float fRatio, size_t nCorrIndexes, double* pCorrIndexes1, double* pCorrIndexes2);
 
-	/// Rotates pVector by dAngle radians in the plane defined by the orthogonal axes pA and pB
-	static void rotate(double* pVector, size_t nDims, double dAngle, const double* pA, const double* pB);
-
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
 
@@ -343,14 +334,6 @@ public:
 	/// Projects pPoint onto the hyperplane defined by pOrigin onto the basisCount basis vectors
 	/// specified by pBasis. (The basis vectors are assumed to be chained end-to-end in a big vector.)
 	static void project(double* pDest, const double* pPoint, const double* pOrigin, const double* pBasis, size_t basisCount, size_t dims);
-
-	/// Subtracts the component of pInOut that projects onto pBasis. (Assumes that pBasis is normalized.)
-	/// This might be used, for example, to implement the modified Gram-Schmidt process.
-	static void subtractComponent(double* pInOut, const double* pBasis, size_t dims);
-
-	/// Subtracts the component of pInOut that projects onto (pTarget - pOrigin).
-	/// This might be used, for example, to implement the modified Gram-Schmidt process.
-	static void subtractComponent(double* pInOut, const double* pOrigin, const double* pTarget, size_t dims);
 
 	/// Returns the sum of all the elements
 	static double sumElements(const double* pVec, size_t dims);
@@ -382,12 +365,6 @@ public:
 	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
 	/// pVec must be big enough to hold width * height * channels values.
 	static void fromImage(GImage* pImage, double* pVec, int width, int height, int channels, double range);
-
-	/// Sets each value, v, to MIN(cap, v)
-	static void capValues(double* pVec, double cap, size_t dims);
-
-	/// Sets each value, v, to MAX(floor, v)
-	static void floorValues(double* pVec, double floor, size_t dims);
 
 	/// Sets each value, v, to ABS(v)
 	static void absValues(double* pVec, size_t dims);

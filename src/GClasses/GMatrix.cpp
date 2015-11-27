@@ -4153,7 +4153,7 @@ double GMatrix::dihedralCorrelation(const GMatrix* pThat, GRand* pRand) const
 	pThat->multiply(pBuf, pB, true);
 	return std::abs(pA.correlation(pB));
 }
-
+/*
 void GMatrix::project(double* pDest, const double* pPoint) const
 {
 	size_t dims = cols();
@@ -4175,7 +4175,7 @@ void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin
 		GVec::addScaled(pDest, GVec::dotProduct(pOrigin, pPoint, pBasis, dims), pBasis, dims);
 	}
 }
-
+*/
 GVec* GMatrix::swapRow(size_t i, GVec* pNewRow)
 {
 	GVec* pRow = m_rows[i];
@@ -4530,7 +4530,7 @@ void GMatrix_testDihedralCorrelation(GRand& prng)
 			basis[i].normalize();
 			for(size_t j = 0; j < i; j++)
 			{
-				GVec::subtractComponent(basis[i].data(), basis[j].data(), dims);
+				basis[i].subtractComponent(basis[j]);
 				basis[i].normalize();
 			}
 		}
