@@ -442,6 +442,7 @@ class GFilter : public GIncrementalLearner
 protected:
 	GSupervisedLearner* m_pLearner;
 	GIncrementalLearner* m_pIncrementalLearner;
+	GSupervisedLearner* m_pOriginal;
 	bool m_ownLearner;
 
 
@@ -456,6 +457,9 @@ protected:
 
 	/// Discards any filters between this filter and the base learner
 	void discardIntermediateFilters();
+
+	/// Recursive method used by discardIntermediateFilters
+	void discardIntermediateFilters_helper(GSupervisedLearner* pOriginal);
 
 	/// Helper function for serialization
 	GDomNode* domNode(GDom* pDoc, const char* szClassName) const;
@@ -514,7 +518,7 @@ using GFilter::prefilterLabels;
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-// 	/// See the comment for GSupervisedLearner::predict
+	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistributionInner
@@ -601,7 +605,7 @@ public:
 using GFilter::prefilterFeatures;
 using GFilter::prefilterLabels;
 
-	/// This takes ownership of pLearner.
+	/// General-purpose constructor. If ownLearner is true, then this will delete pLearner when this object is deleted.
 	GAutoFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
 	/// Deserialization constructor
