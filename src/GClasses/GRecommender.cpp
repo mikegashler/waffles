@@ -38,6 +38,7 @@
 #include "GLearner.h"
 #include "GLearnerLib.h"
 #include "usage.h"
+#include <memory>
 
 using std::map;
 using std::multimap;
@@ -82,7 +83,7 @@ void GCollaborativeFilter::trainDenseMatrix(const GMatrix& data, const GMatrix* 
 
 	// Convert to 3-column form
 	GMatrix* pMatrix = new GMatrix(0, 3);
-	Holder<GMatrix> hMatrix(pMatrix);
+	std::unique_ptr<GMatrix> hMatrix(pMatrix);
 	size_t dims = data.cols();
 	for(size_t i = 0; i < data.rows(); i++)
 	{
@@ -1359,7 +1360,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	// Copy and normalize the ratings
 	GMatrix* pClone = new GMatrix();
 	pClone->copy(&data);
-	Holder<GMatrix> hClone(pClone);
+	std::unique_ptr<GMatrix> hClone(pClone);
 	delete[] m_pMins;
 	m_pMins = new double[items];
 	delete[] m_pMaxs;
@@ -1775,7 +1776,7 @@ void GNonlinearPCA::train(GMatrix& data)
 	// Copy and normalize the ratings
 	GMatrix* pClone = new GMatrix();
 	pClone->copy(&data);
-	Holder<GMatrix> hClone(pClone);
+	std::unique_ptr<GMatrix> hClone(pClone);
 	delete[] m_pMins;
 	m_pMins = new double[items];
 	delete[] m_pMaxs;
@@ -2422,7 +2423,7 @@ void GContentBoostedCF::train(GMatrix& data)
 	//make a copy of the training data
 	GMatrix* pClone = new GMatrix();
         pClone->copy(&data);
-        Holder<GMatrix> hClone(pClone);
+        std::unique_ptr<GMatrix> hClone(pClone);
 	m_cbf->train(*pClone);
 
 	//Create the psuedo user-ratings vector for every user

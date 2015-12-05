@@ -20,6 +20,7 @@
 #include "GMatrix.h"
 #include "GVec.h"
 #include "GHolders.h"
+#include <memory>
 
 using namespace GClasses;
 
@@ -51,7 +52,7 @@ void GExtendedKalmanFilter::advance(const GVec& control, GMatrix* pA)
 
 	// Compute uncorrected next estimated covariance of state
 	GMatrix* pTemp = GMatrix::multiply(*m_pP, *pA, false, true);
-	Holder<GMatrix> hTemp(pTemp);
+	std::unique_ptr<GMatrix> hTemp(pTemp);
 	delete(m_pP);
 	m_pP = GMatrix::multiply(*pA, *pTemp, false, false);
 	addTransitionNoise(m_pP);
@@ -66,15 +67,15 @@ void GExtendedKalmanFilter::correct(const GVec& obs, GMatrix* pH)
 	GMatrix* pK;
 	{
 		GMatrix* pTemp = GMatrix::multiply(*m_pP, *pH, false, true);
-		Holder<GMatrix> hTemp(pTemp);
+		std::unique_ptr<GMatrix> hTemp(pTemp);
 		GMatrix* pTemp2 = GMatrix::multiply(*pH, *pTemp, false, false);
-		Holder<GMatrix> hTemp2(pTemp2);
+		std::unique_ptr<GMatrix> hTemp2(pTemp2);
 		addObservationNoise(pTemp2);
 		GMatrix* pTemp3 = pTemp2->pseudoInverse();
-		Holder<GMatrix> hTemp3(pTemp3);
+		std::unique_ptr<GMatrix> hTemp3(pTemp3);
 		pK = GMatrix::multiply(*pTemp, *pTemp3, false, false);
 	}
-	Holder<GMatrix> hK(pK);
+	std::unique_ptr<GMatrix> hK(pK);
 
 	// Correct the estimated state
 	observation(m_z, m_x);
@@ -86,7 +87,7 @@ void GExtendedKalmanFilter::correct(const GVec& obs, GMatrix* pH)
 	// Correct the estimated covariance of state
 	{
 		GMatrix* pTemp = GMatrix::multiply(*pK, *pH, false, false);
-		Holder<GMatrix> hTemp(pTemp);
+		std::unique_ptr<GMatrix> hTemp(pTemp);
 		pTemp->multiply(-1.0);
 		for(size_t i = 0; i < m_stateDims; i++)
 			pTemp->row(i)[i] += 1.0;

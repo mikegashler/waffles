@@ -277,6 +277,11 @@ public:
 	GRand& rand() { return m_rand; }
 
 protected:
+	/// Moves "pPoint" so that it is closer to a distance of "distance" from "pNeighbor". "learningRate"
+	/// specifies how much to move it (0=not at all, 1=all the way). Returns the squared distance between
+	/// pPoint and pNeighbor.
+	static double refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand);
+
 	void refineNeighborhood(GMatrix* pLocal, size_t rootIndex, size_t* pNeighborTable, double* pDistanceTable);
 	GMatrix* reduceNeighborhood(const GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances);
 	GMatrix* unfold(const GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights);

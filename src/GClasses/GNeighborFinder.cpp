@@ -42,6 +42,7 @@
 #include <cmath>
 #include <map>
 #include "GPriorityQueue.h"
+#include <memory>
 
 namespace GClasses {
 
@@ -1569,7 +1570,7 @@ GBallNode* GBallTree::buildTree(size_t count, size_t* pIndexes)
 		if(leftCount == 0 || leftCount == count) // If we could not separate any of the points (which may occur if they are all the same point)...
 			return new GBallLeaf(count, pIndexes, m_pData, m_pMetric);
 		GBallInterior* pInterior = new GBallInterior(count, pIndexes, m_pData, m_pMetric);
-		Holder<GBallInterior> hInterior(pInterior);
+		std::unique_ptr<GBallInterior> hInterior(pInterior);
 		pInterior->m_pLeft = buildTree(leftCount, pIndexes);
 		GAssert(pInterior->m_pLeft);
 		pInterior->m_pRight = buildTree(count - leftCount, pIndexes + leftCount);

@@ -27,6 +27,7 @@
 #include "GHolders.h"
 #include <cmath>
 #include <math.h>
+#include <memory>
 
 namespace GClasses {
 
@@ -151,7 +152,7 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 	// Use a fast, but not-very-numerically-stable technique to compute an initial approximation for beta and epsilon
 	clear();
 	GMatrix* pAll = GMatrix::mergeHoriz(&features, &labels);
-	Holder<GMatrix> hAll(pAll);
+	std::unique_ptr<GMatrix> hAll(pAll);
 	GPCA pca(features.cols());
 	pca.train(*pAll);
 	size_t inputs = features.cols();

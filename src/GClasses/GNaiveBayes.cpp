@@ -29,6 +29,7 @@
 #include "GSparseMatrix.h"
 #include "GHolders.h"
 #include <cmath>
+#include <memory>
 
 namespace GClasses {
 
@@ -416,9 +417,9 @@ void GNaiveBayes_testMath()
 	GMatrix train;
 	train.parseArff(trainFile, strlen(trainFile));
 	GMatrix* pFeatures = train.cloneSub(0, 0, train.rows(), 2);
-	Holder<GMatrix> hFeatures(pFeatures);
+	std::unique_ptr<GMatrix> hFeatures(pFeatures);
 	GMatrix* pLabels = train.cloneSub(0, 2, train.rows(), 1);
-	Holder<GMatrix> hLabels(pLabels);
+	std::unique_ptr<GMatrix> hLabels(pLabels);
 	GNaiveBayes nb;
 	nb.setEquivalentSampleSize(0.0);
 	nb.train(*pFeatures, *pLabels);

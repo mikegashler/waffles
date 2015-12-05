@@ -29,6 +29,7 @@
 #include "GDom.h"
 #include <cmath>
 #include <set>
+#include <memory>
 
 using std::cout;
 
@@ -129,7 +130,7 @@ GMatrix* GSparseMatrix::multiply(GMatrix* pThat, bool transposeThat)
 {
 	// Transpose pThat if necessary
 	GMatrix* pOther = pThat;
-	Holder<GMatrix> hOther(NULL);
+	std::unique_ptr<GMatrix> hOther;
 	if(!transposeThat)
 	{
 		pOther = pThat->transpose();
@@ -321,7 +322,7 @@ void GSparseMatrix::singularValueDecomposition(GSparseMatrix** ppU, double** ppD
 	else
 	{
 		GSparseMatrix* pTemp = transpose();
-		Holder<GSparseMatrix> hTemp(pTemp);
+		std::unique_ptr<GSparseMatrix> hTemp(pTemp);
 		pTemp->singularValueDecompositionHelper(ppV, ppDiag, ppU, throwIfNoConverge, maxIters);
 		GSparseMatrix* pOldV = *ppV;
 		*ppV = pOldV->transpose();
@@ -357,17 +358,17 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	double g = 0.0;
 	double scale = 0.0;
 	GSparseMatrix* pU = new GSparseMatrix(m, m);
-	Holder<GSparseMatrix> hU(pU);
+	std::unique_ptr<GSparseMatrix> hU(pU);
 	pU->copyFrom(this);
 	double* pSigma = new double[n];
 	ArrayHolder<double> hSigma(pSigma);
 	GSparseMatrix* pV = new GSparseMatrix(n, n);
-	Holder<GSparseMatrix> hV(pV);
+	std::unique_ptr<GSparseMatrix> hV(pV);
 	GTEMPBUF(double, temp, n);
 
 	// Householder reduction to bidiagonal form
 	GSparseMatrix* pUT = pU->transpose();
-	Holder<GSparseMatrix> hUT(pUT);
+	std::unique_ptr<GSparseMatrix> hUT(pUT);
 	for(int i = 0; i < n; i++)
 	{
 		// Left-hand reduction
@@ -850,29 +851,29 @@ void GSparseMatrix::deleteLastRow()
 bool GSparseMatrix_testHelper(GSparseMatrix& sm)
 {
 	GMatrix* fm = sm.toFullMatrix();
-	Holder<GMatrix> hFM(fm);
+	std::unique_ptr<GMatrix> hFM(fm);
 
 	// Do it with the full matrix
 	GMatrix* pU;
 	double* pDiag;
 	GMatrix* pV;
 	fm->singularValueDecomposition(&pU, &pDiag, &pV);
-	Holder<GMatrix> hU(pU);
+	std::unique_ptr<GMatrix> hU(pU);
 	ArrayHolder<double> hDiag(pDiag);
-	Holder<GMatrix> hV(pV);
+	std::unique_ptr<GMatrix> hV(pV);
 
 	// Do it with the sparse matrix
 	GSparseMatrix* pSU;
 	double* pSDiag;
 	GSparseMatrix* pSV;
 	sm.singularValueDecomposition(&pSU, &pSDiag, &pSV);
-	Holder<GSparseMatrix> hSU(pSU);
+	std::unique_ptr<GSparseMatrix> hSU(pSU);
 	ArrayHolder<double> hSDiag(pSDiag);
-	Holder<GSparseMatrix> hSV(pSV);
+	std::unique_ptr<GSparseMatrix> hSV(pSV);
 
 	// Check the results
 	GMatrix* pV2 = pSV->toFullMatrix();
-	Holder<GMatrix> hV2(pV2);
+	std::unique_ptr<GMatrix> hV2(pV2);
 	double err = pV2->sumSquaredDifference(*pV, false);
 	if(err > 1e-6)
 		return false;

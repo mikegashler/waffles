@@ -25,6 +25,7 @@
 #include "GBits.h"
 #include "GVec.h"
 #include <cmath>
+#include <memory>
 
 using namespace GClasses;
 
@@ -534,7 +535,7 @@ void GWavelet::test()
 		w.transform(pRow.data(), im.width());
 	}
 	GMatrix* pT = m.transpose();
-	Holder<GMatrix> hT(pT);
+	std::unique_ptr<GMatrix> hT(pT);
 	for(size_t x = 0; x < im.width(); x++)
 	{
 		GVec& pRow = pT->row(x);
@@ -549,14 +550,14 @@ void GWavelet::test()
 
 	// Now do the inverse transform
 	GMatrix* pM = pT->transpose();
-	Holder<GMatrix> hM(pM);
+	std::unique_ptr<GMatrix> hM(pM);
 	for(size_t y = 0; y < im.height(); y++)
 	{
 		GVec& pRow = pM->row(y);
 		w.inverse(pRow.data(), im.width());
 	}
 	GMatrix* pTT = pM->transpose();
-	Holder<GMatrix> hTT(pTT);
+	std::unique_ptr<GMatrix> hTT(pTT);
 	for(size_t x = 0; x < im.width(); x++)
 	{
 		GVec& pRow = pTT->row(x);

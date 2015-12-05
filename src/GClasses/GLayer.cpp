@@ -41,6 +41,7 @@
 #include "GHolders.h"
 #include "GBits.h"
 #include "GFourier.h"
+#include <memory>
 
 using std::vector;
 using std::ostream;
@@ -447,7 +448,7 @@ void GLayerClassic::transformWeights(GMatrix& transform, const GVec& offset)
 		throw Ex("Expected a square transformation matrix.");
 	size_t outputCount = outputs();
 	GMatrix* pNewWeights = GMatrix::multiply(transform, m_weights, true, false);
-	Holder<GMatrix> hNewWeights(pNewWeights);
+	std::unique_ptr<GMatrix> hNewWeights(pNewWeights);
 	m_weights.copyBlock(*pNewWeights, 0, 0, pNewWeights->rows(), outputCount, 0, 0, false);
 	GVec& n = net();
 	n.fill(0.0);

@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <cmath>
 #include <string>
+#include <memory>
 
 using namespace GClasses;
 using std::vector;
@@ -543,11 +544,11 @@ GFunctionNode* GFunctionParser::parseMathOperator(std::vector<std::string>& vari
 	GFunctionNode* pLeft = NULL;
 	if(index > start)
 		pLeft = parseFunctionBody(variables, tokens, start, index - start, depth);
-	Holder<GFunctionNode> hLeft(pLeft);
+	std::unique_ptr<GFunctionNode> hLeft(pLeft);
 	GFunctionNode* pRight = NULL;
 	if(index < start + count - 1)
 		pRight = parseFunctionBody(variables, tokens, index + 1, start + count - index - 1, depth);
-	Holder<GFunctionNode> hRight(pRight);
+	std::unique_ptr<GFunctionNode> hRight(pRight);
 	if(!pLeft)
 	{
 		if(pRight && tokens[index].compare("-") == 0)
@@ -689,7 +690,7 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 				throw Ex("Cannot parse this portion of the expression: ", s.c_str());
 			}
 			GFunctionCall* pFunc = new GFunctionCall(tokens[start].c_str());
-			Holder<GFunctionCall> hFunc(pFunc);
+			std::unique_ptr<GFunctionCall> hFunc(pFunc);
 			parseCommaSeparatedChildren(variables, pFunc, tokens, start + 2, count - 3, depth + 1);
 			return hFunc.release();
 		}

@@ -308,6 +308,10 @@ public:
 	static void test();
 #endif // MIN_PREDICT
 protected:
+	/// Adds the function pIn to pOut after interpolating pIn to be the same size as pOut.
+	/// (This is a helper-function used by precisionRecall.)
+	static void addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals);
+
 	/// This is the implementation of the model's training algorithm. (This method is called by train).
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels) = 0;
 

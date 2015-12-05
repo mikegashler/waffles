@@ -36,6 +36,7 @@
 #include "GDom.h"
 #include <iostream>
 #include <map>
+#include <memory>
 
 using namespace GClasses;
 using std::cout;
@@ -113,7 +114,7 @@ void GAgglomerativeClusterer::cluster(const GMatrix* pData)
 
 	// Find enough neighbors to form a connected graph
 	GNeighborGraph* pNF = NULL;
-	Holder<GNeighborGraph> hNF;
+	std::unique_ptr<GNeighborGraph> hNF;
 	size_t neighbors = 6;
 	while(true)
 	{
@@ -417,7 +418,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, cons
 
 	// Transduce
 	GMatrix* pOut = new GMatrix(labels1.relation().clone());
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	pOut->newRows(features2.rows());
 	pOut->setAll(-1);
 	size_t* pSiblings = new size_t[featuresAll.rows()]; // a cyclical linked list of each row in the cluster
@@ -1273,7 +1274,7 @@ GMatrix* GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMa
 
 	// Transduce
 	GMatrix* pOut = new GMatrix(labels1.relation().clone());
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	pOut->newRows(features2.rows());
 	pOut->setAll(0);
 	for(size_t lab = 0; lab < labels1.cols(); lab++)

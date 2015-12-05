@@ -25,6 +25,7 @@
 #include "GMatrix.h"
 #include "GHolders.h"
 #include <cmath>
+#include <memory>
 
 using namespace GClasses;
 using std::map;
@@ -193,8 +194,8 @@ size_t GCategoricalSampler::draw(double d)
 
 
 
-GCategoricalSamplerBatch::GCategoricalSamplerBatch(size_t categories, const double* pDistribution, GRand& rand)
-: m_categories(categories), m_pDistribution(pDistribution), m_ii(m_categories, rand)
+GCategoricalSamplerBatch::GCategoricalSamplerBatch(size_t categories, const GVec& distribution, GRand& rand)
+: m_categories(categories), m_distribution(distribution), m_ii(m_categories, rand)
 {
 }
 
@@ -211,7 +212,7 @@ void GCategoricalSamplerBatch::draw(size_t samples, size_t* pOutBatch)
 	size_t n = samples;
 	while(m_ii.next(index))
 	{
-		double prob = m_pDistribution[index];
+		double prob = m_distribution[index];
 		size_t k = m_ii.rand().binomial_approx(n, prob / probRemaining);
 		GAssert(k <= n);
 		for(size_t j = 0; j < k; j++)
@@ -232,7 +233,7 @@ void GCategoricalSamplerBatch::draw(size_t samples, size_t* pOutBatch)
 // static
 void GCategoricalSamplerBatch::test()
 {
-	double probs[3];
+	GVec probs(3);
 	probs[0] = 0.2;
 	probs[1] = 0.5;
 	probs[2] = 0.3;
@@ -357,7 +358,7 @@ GMultivariateNormalDistribution::GMultivariateNormalDistribution(GMatrix* pData,
 	for(size_t i = 0; i < nDims; i++)
 		m_mean[i] = pData->columnMean(i);
 	GMatrix* pCov = pData->covarianceMatrix();
-	Holder<GMatrix> hCov(pCov);
+	std::unique_ptr<GMatrix> hCov(pCov);
 	precompute(pCov);
 }
 

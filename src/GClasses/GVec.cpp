@@ -188,6 +188,15 @@ void GVec::normalize()
 		(*this) *= (1.0 / mag);
 }
 
+void GVec::sumToOne()
+{
+	double s = sum();
+	if(s < 1e-16)
+		fill(1.0 / m_size);
+	else
+		(*this) *= (1.0 / s);
+}
+
 double GVec::squaredDistance(const GVec& that) const
 {
 	GAssert(size() == that.size());
@@ -353,7 +362,7 @@ void GVec::put(size_t pos, const GVec& that, size_t start, size_t length)
 		length = that.size() - start;
 	else if(start + length > that.size())
 		throw Ex("Input out of range. that size=", to_str(that.size()), ", start=", to_str(start), ", length=", to_str(length));
-	if(pos + length > m_size)
+	if(pos + length > m_size || start + length > that.m_size)
 		throw Ex("Out of range. this size=", to_str(m_size), ", pos=", to_str(pos), ", that size=", to_str(that.m_size));
 	for(size_t i = 0; i < length; i++)
 		(*this)[pos + i] = that[start + i];
@@ -861,46 +870,6 @@ void GVec::perturb(double* pDest, double deviation, size_t dims, GRand& rand)
 		*(pDest++) += deviation * rand.normal();
 }
 
-void GVec::addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals)
-{
-	if(nInVals > nOutVals)
-	{
-		size_t inPos = 0;
-		size_t outPos, n, count;
-		double d;
-		for(outPos = 0; outPos < nOutVals; outPos++)
-		{
-			n = outPos * nInVals / nOutVals;
-			d = 0;
-			count = 0;
-			while(inPos <= n)
-			{
-				d += pIn[inPos++];
-				count++;
-			}
-			pOut[outPos] += d / count;
-		}
-	}
-	else if(nInVals < nOutVals)
-	{
-		double d;
-		size_t n, i, j;
-		for(n = 0; n < nOutVals; n++)
-		{
-			d = (double)n * nInVals / nOutVals;
-			i = (int)d;
-			j = std::min(i + 1, nInVals - 1);
-			d -= i;
-			pOut[n] += ((1.0 - d) * pIn[i] + d * pIn[j]);
-		}
-	}
-	else
-	{
-		for(size_t n = 0; n < nOutVals; n++)
-			pOut[n] += pIn[n];
-	}
-}
-
 // static
 GDomNode* GVec::serialize(GDom* pDoc, const double* pVec, size_t dims)
 {
@@ -980,7 +949,7 @@ double GVec::sumElements(const double* pVec, size_t dims)
 	}
 	return sum;
 }
-
+/*
 double GVec::sumAbsoluteValues(const double* pVec, size_t dims)
 {
 	double sum = 0;
@@ -992,7 +961,7 @@ double GVec::sumAbsoluteValues(const double* pVec, size_t dims)
 	}
 	return sum;
 }
-
+*/
 
 void GVec_InsertionSort(double* pVec, size_t size, double* pParallel1, size_t* pParallel2, double* pParallel3)
 {
@@ -1012,7 +981,7 @@ void GVec_InsertionSort(double* pVec, size_t size, double* pParallel1, size_t* p
 		}
 	}
 }
-
+/*
 // static
 void GVec::smallestToFront(double* pVec, size_t k, size_t size, double* pParallel1, size_t* pParallel2, double* pParallel3)
 {
@@ -1094,7 +1063,7 @@ double GVec::refinePoint(double* pPoint, double* pNeighbor, size_t dims, double 
 	GVec::add(pPoint, buf, dims);
 	return mag;
 }
-
+*/
 #ifndef MIN_PREDICT
 // static
 void GVec::toImage(const double* pVec, GImage* pImage, int width, int height, int channels, double range)

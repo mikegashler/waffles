@@ -107,6 +107,9 @@ public:
 	/// Scales this vector to have a magnitude of 1.0.
 	void normalize();
 
+	/// Scales this vector such that the elements sum to 1.0.
+	void sumToOne();
+
 	/// Returns the squared Euclidean distance between this and that vector.
 	double squaredDistance(const GVec& that) const;
 
@@ -317,9 +320,6 @@ public:
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
 
-	/// Adds the function pIn to pOut after interpolating pIn to be the same size as pOut.
-	static void addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals);
-
 	/// Write the vector to a text format
 	static GDomNode* serialize(GDom* pDoc, const double* pVec, size_t dims);
 
@@ -339,19 +339,19 @@ public:
 	static double sumElements(const double* pVec, size_t dims);
 
 	/// Returns the sum of the absolute values of all the elements
-	static double sumAbsoluteValues(const double* pVec, size_t dims);
+//	static double sumAbsoluteValues(const double* pVec, size_t dims);
 
 	/// Moves the smallest k values to the front of the vector, and the biggest (size - k) values
 	/// to the end of the vector. (For efficiency, no other guarantees about ordering are made.)
 	/// This has an average-case runtime that is linear with respect to size.
 	/// pParallel1 and pParallel2 are optional arrays that should be arranged to keep their
 	/// indices in sync with pVec.
-	static void smallestToFront(double* pVec, size_t k, size_t size, double* pParallel1 = NULL, size_t* pParallel2 = NULL, double* pParallel3 = NULL);
+//	static void smallestToFront(double* pVec, size_t k, size_t size, double* pParallel1 = NULL, size_t* pParallel2 = NULL, double* pParallel3 = NULL);
 
 	/// Moves "pPoint" so that it is closer to a distance of "distance" from "pNeighbor". "learningRate"
 	/// specifies how much to move it (0=not at all, 1=all the way). Returns the squared distance between
 	/// pPoint and pNeighbor.
-	static double refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand);
+//	static double refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand);
 
 	/// Converts a vector of rasterized pixel values to an image.
 	/// channels must be 1 or 3 (for grayscale or rgb)
@@ -379,7 +379,6 @@ protected:
 	GVec m_v;
 
 public:
-
 	GVecWrapper(const double* buf, size_t size)
 	{
 		m_v.m_data = (double*)buf;

@@ -32,6 +32,7 @@
 #include <set>
 #include <map>
 #include <algorithm>
+#include <memory>
 
 namespace GClasses {
 
@@ -686,7 +687,7 @@ namespace GClasses {
       //Copy the input
       GMatrix* pInputCopy = new GMatrix();
       pInputCopy->copy(pInput);
-      Holder<GMatrix> inputCopy(pInputCopy);
+      std::unique_ptr<GMatrix> inputCopy(pInputCopy);
 
       //For each iteration
       for(unsigned iteration = 0; iteration < m_numIterations; ++iteration){
@@ -916,7 +917,7 @@ GMatrix* GSelfOrganizingMap::reduce(GMatrix& in)
 
   // Make the output location
   GMatrix* pOut = new GMatrix(in.rows(), outputDimensions());
-  Holder<GMatrix> hOut(pOut);
+  std::unique_ptr<GMatrix> hOut(pOut);
 
   // Transform the input, putting it in the output
   for(std::size_t i = 0; i < in.rows(); ++i){
@@ -1148,7 +1149,7 @@ void GSelfOrganizingMap::test(){
   }
   squareSom.train(uniformSquareMat);
 
-  Holder<SOM::ReporterChain> cr(new SOM::ReporterChain());
+  std::unique_ptr<SOM::ReporterChain> cr(new SOM::ReporterChain());
   if(generateReports) {
     cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_01",0,1,true));
     cr->add(new SOM::SVG2DWeightReporter("cylinder_som_test_02",0,2,true));

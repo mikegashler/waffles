@@ -48,6 +48,7 @@
 #endif // MIN_PREDICT
 #include <cmath>
 #include <iostream>
+#include <memory>
 
 using std::vector;
 
@@ -166,8 +167,8 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 	// Convert the features to a form that this algorithm can handle
 	const GMatrix* pF1 = &features1;
 	const GMatrix* pF2 = &features2;
-	Holder<GMatrix> hF1(NULL);
-	Holder<GMatrix> hF2(NULL);
+	std::unique_ptr<GMatrix> hF1;
+	std::unique_ptr<GMatrix> hF2;
 	if(!canImplicitlyHandleNominalFeatures())
 	{
 		if(!canImplicitlyHandleContinuousFeatures())
@@ -233,9 +234,9 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 			GDiscretize disc;
 			disc.train(labels1);
 			GMatrix* pL1 = disc.transformBatch(labels1);
-			Holder<GMatrix> hL1(pL1);
+			std::unique_ptr<GMatrix> hL1(pL1);
 			GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-			Holder<GMatrix> hL2(pL2);
+			std::unique_ptr<GMatrix> hL2(pL2);
 			return disc.untransformBatch(*pL2);
 		}
 	}
@@ -251,9 +252,9 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 				GNormalize norm(lmin, lmax);
 				norm.train(labels1);
 				GMatrix* pL1 = norm.transformBatch(labels1);
-				Holder<GMatrix> hL1(pL1);
+				std::unique_ptr<GMatrix> hL1(pL1);
 				GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-				Holder<GMatrix> hL2(pL2);
+				std::unique_ptr<GMatrix> hL2(pL2);
 				return norm.untransformBatch(*pL2);
 			}
 		}
@@ -265,9 +266,9 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 				GNominalToCat ntc;
 				ntc.train(labels1);
 				GMatrix* pL1 = ntc.transformBatch(labels1);
-				Holder<GMatrix> hL1(pL1);
+				std::unique_ptr<GMatrix> hL1(pL1);
 				GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-				Holder<GMatrix> hL2(pL2);
+				std::unique_ptr<GMatrix> hL2(pL2);
 				return ntc.untransformBatch(*pL2);
 			}
 			else
@@ -291,7 +292,7 @@ double GTransducer::trainAndTest(const GMatrix& trainFeatures, const GMatrix& tr
 
 	// Transduce
 	GMatrix* pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
-	Holder<GMatrix> hPredictedLabels(pPredictedLabels);
+	std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
 
 	// Evaluate the results
 	size_t labelDims = trainLabels.cols();
@@ -312,7 +313,7 @@ void GTransducer::transductiveConfusionMatrix(const GMatrix& trainFeatures, cons
 
 	// Transduce
 	GMatrix* pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
-	Holder<GMatrix> hPredictedLabels(pPredictedLabels);
+	std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
 
 	// Evaluate the results
 	size_t labelDims = trainLabels.cols();
@@ -640,6 +641,46 @@ size_t GSupervisedLearner::precisionRecallNominal(GPrediction* pOutput, double* 
 	return nActualRelevant;
 }
 
+void GSupervisedLearner::addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals)
+{
+	if(nInVals > nOutVals)
+	{
+		size_t inPos = 0;
+		size_t outPos, n, count;
+		double d;
+		for(outPos = 0; outPos < nOutVals; outPos++)
+		{
+			n = outPos * nInVals / nOutVals;
+			d = 0;
+			count = 0;
+			while(inPos <= n)
+			{
+				d += pIn[inPos++];
+				count++;
+			}
+			pOut[outPos] += d / count;
+		}
+	}
+	else if(nInVals < nOutVals)
+	{
+		double d;
+		size_t n, i, j;
+		for(n = 0; n < nOutVals; n++)
+		{
+			d = (double)n * nInVals / nOutVals;
+			i = (int)d;
+			j = std::min(i + 1, nInVals - 1);
+			d -= i;
+			pOut[n] += ((1.0 - d) * pIn[i] + d * pIn[j]);
+		}
+	}
+	else
+	{
+		for(size_t n = 0; n < nOutVals; n++)
+			pOut[n] += pIn[n];
+	}
+}
+
 void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps)
 {
 	if(features.rows() != labels.rows())
@@ -667,18 +708,18 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 		if(valueCount == 0)
 		{
 			size_t relevant = precisionRecallContinuous(out, pFunc, features, labels, otherFeatures, otherLabels, label);
-			GVec::addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
+			addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
 			relevant = precisionRecallContinuous(out, pFunc, otherFeatures, otherLabels, features, labels, label);
-			GVec::addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
+			addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
 		}
 		else
 		{
 			for(int i = 0; i < (int)valueCount; i++)
 			{
 				size_t relevant = precisionRecallNominal(out, pFunc, features, labels, otherFeatures, otherLabels, label, i);
-				GVec::addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
+				addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
 				relevant = precisionRecallNominal(out, pFunc, otherFeatures, otherLabels, features, labels, label, i);
-				GVec::addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
+				addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
 			}
 		}
 	}
@@ -792,7 +833,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	pLearner->clear(); // free up some memory, just because we can
 	GLearnerLoader ll;
 	GSupervisedLearner* pModel = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModel(pModel);
+	std::unique_ptr<GSupervisedLearner> hModel(pModel);
 	if(!relLabelsBefore.isCompatible(pModel->relLabels()))
 		throw Ex("The label relation failed to round-trip. Did your deserializing constructor call the base class constructor?");
 
@@ -1313,7 +1354,7 @@ void GLabelFilter::beginIncrementalLearningInner(const GMatrix& features, const 
 {
 	m_pTransform->train(labels);
 	GMatrix* pNewLabels = m_pTransform->transformBatch(labels);
-	Holder<GMatrix> hNewLabels(pNewLabels);
+	std::unique_ptr<GMatrix> hNewLabels(pNewLabels);
 	m_pIncrementalLearner->beginIncrementalLearning(features, *pNewLabels);
 }
 

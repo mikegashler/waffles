@@ -34,6 +34,7 @@
 #include "GBitTable.h"
 #include <map>
 #include <queue>
+#include <memory>
 
 using std::multimap;
 using std::map;
@@ -750,11 +751,11 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 		featuresAll.takeRow((GVec*)&features1[i]);
 	GMatrix* out = new GMatrix(labels1.relation().clone());
 	out->newRows(features2.rows());
-	Holder<GMatrix> hOut(out);
+	std::unique_ptr<GMatrix> hOut(out);
 
 	// Find friends
 	GNeighborFinder* pNF = new GNeighborGraph(new GKdTree(&featuresAll, m_friendCount, NULL, true), true);
-	Holder<GNeighborFinder> hNF(pNF);
+	std::unique_ptr<GNeighborFinder> hNF(pNF);
 	GTEMPBUF(size_t, neighs, m_friendCount);
 
 	// Transduce

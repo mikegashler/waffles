@@ -682,7 +682,7 @@ public:
 	/// If mostSignificant is true, the largest eigenvalues are
 	/// found. If mostSignificant is false, the smallest eigenvalues are
 	/// found.
-	GMatrix* eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mostSignificant);
+	GMatrix* eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSignificant);
 
 	/// \brief Multiplies every element in the dataset by scalar.
 	/// Behavior is undefined for nominal columns.
@@ -775,7 +775,8 @@ public:
 	double sumSquaredDiffWithIdentity();
 
 	/// \brief Adds an already-allocated row to this dataset.
-	void takeRow(GVec* pRow);
+	/// If pos is specified, the new row will be inserted and the speicified position.
+	void takeRow(GVec* pRow, size_t pos = (size_t)-1);
 
 	/// \brief Converts the matrix to reduced row echelon form
 	size_t toReducedRowEchelonForm();

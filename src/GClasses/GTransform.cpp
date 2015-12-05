@@ -40,6 +40,7 @@
 #include <math.h>
 #include <string>
 #include <cmath>
+#include <memory>
 
 namespace GClasses {
 
@@ -133,7 +134,7 @@ GMatrix* GIncrementalTransform::transformBatch(const GMatrix& in)
 		throw Ex("train has not been called");
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(m_pRelationAfter->clone());
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	pOut->newRows(nRows);
 	for(size_t i = 0; i < nRows; i++)
 		transform(in.row(i), pOut->row(i));
@@ -154,7 +155,7 @@ GMatrix* GIncrementalTransform::untransformBatch(const GMatrix& in)
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(before().clone());
 	pOut->newRows(nRows);
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	for(size_t i = 0; i < nRows; i++)
 		untransform(in.row(i), pOut->row(i));
 	return hOut.release();
@@ -185,13 +186,13 @@ void GIncrementalTransform::test()
 	GIncrementalTransformChainer trans(new GNormalize(), new GNominalToCat());
 	trans.train(m);
 	GMatrix* pA = trans.transformBatch(m);
-	Holder<GMatrix> hA(pA);
+	std::unique_ptr<GMatrix> hA(pA);
 	if(pA->sumSquaredDifference(e) > 1e-12)
 		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
 	if(!pA->relation().areContinuous())
 		throw Ex("failed");
 	GMatrix* pB = trans.untransformBatch(*pA);
-	Holder<GMatrix> hB(pB);
+	std::unique_ptr<GMatrix> hB(pB);
 	if(pB->sumSquaredDifference(m) > 1e-12)
 		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
 	if(!pB->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pB->relation()))
@@ -203,17 +204,17 @@ void GIncrementalTransform::test()
 	GRand rand(0);
 	GLearnerLoader ll;
 	GIncrementalTransform* pTrans = ll.loadIncrementalTransform(pNode);
-	Holder<GIncrementalTransform> hTrans(pTrans);
+	std::unique_ptr<GIncrementalTransform> hTrans(pTrans);
 
 	// Transform the input matrix again, and check it
 	GMatrix* pC = pTrans->transformBatch(m);
-	Holder<GMatrix> hC(pC);
+	std::unique_ptr<GMatrix> hC(pC);
 	if(pC->sumSquaredDifference(e) > 1e-12)
 		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
 	if(!pC->relation().areContinuous())
 		throw Ex("failed");
 	GMatrix* pD = trans.untransformBatch(*pC);
-	Holder<GMatrix> hD(pD);
+	std::unique_ptr<GMatrix> hD(pD);
 	if(pD->sumSquaredDifference(m) > 1e-12)
 		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
 	if(!pD->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pD->relation()))
@@ -267,7 +268,7 @@ GRelation* GIncrementalTransformChainer::trainInner(const GMatrix& data)
 {
 	m_pFirst->train(data);
 	GMatrix* pData2 = m_pFirst->transformBatch(data); // todo: often this step is computation overkill since m_pSecond may not even use it during training. Is there a way to avoid doing it?
-	Holder<GMatrix> hData2(pData2);
+	std::unique_ptr<GMatrix> hData2(pData2);
 	m_pSecond->train(*pData2);
 	return m_pSecond->after().clone();
 }
@@ -722,15 +723,15 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 	GNormalize norm;
 	norm.train(data);
 	GMatrix* pNormData = norm.transformBatch(data);
-	Holder<GMatrix> hNormData(pNormData);
+	std::unique_ptr<GMatrix> hNormData(pNormData);
 
 	// Divide into features and labels
 	size_t curDims = data.cols() - m_labelDims;
 	m_ranks.resize(curDims);
 	GMatrix* pFeatures = pNormData->cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
-	Holder<GMatrix> hFeatures(pFeatures);
+	std::unique_ptr<GMatrix> hFeatures(pFeatures);
 	GMatrix* pLabels = pNormData->cloneSub(0, data.cols() - m_labelDims, data.rows(), m_labelDims);
-	Holder<GMatrix> hLabels(pLabels);
+	std::unique_ptr<GMatrix> hLabels(pLabels);
 	vector<size_t> indexMap;
 	for(size_t i = 0; i < curDims; i++)
 		indexMap.push_back(i);
@@ -742,13 +743,13 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		GNominalToCat ntc;
 		ntc.train(*pFeatures);
 		GMatrix* pFeatures2 = ntc.transformBatch(*pFeatures);
-		Holder<GMatrix> hFeatures2(pFeatures2);
+		std::unique_ptr<GMatrix> hFeatures2(pFeatures2);
 		vector<size_t> rmap;
 		ntc.reverseAttrMap(rmap);
 		GNominalToCat ntc2;
 		ntc2.train(*pLabels);
 		GMatrix* pLabels2 = ntc2.transformBatch(*pLabels);
-		Holder<GMatrix> hLabels2(pLabels2);
+		std::unique_ptr<GMatrix> hLabels2(pLabels2);
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn;
@@ -1387,7 +1388,7 @@ GRelation* GImputeMissingVals::trainInner(const GMatrix& data)
 		m_pNTC->preserveUnknowns();
 	}
 	const GMatrix* pData;
-	Holder<GMatrix> hData;
+	std::unique_ptr<GMatrix> hData;
 	if(m_pNTC)
 	{
 		m_pNTC->train(data);

@@ -31,6 +31,7 @@
 #include "GHolders.h"
 #include <string>
 #include <iostream>
+#include <memory>
 
 using namespace GClasses;
 using std::string;
@@ -874,7 +875,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 	}
 	ArrayHolder<double> hBaselineVec(pBaselineVec);
 	GDecisionTreeInteriorNode* pNode = new GDecisionTreeInteriorNode(attr, pivot, featureParts.size() + 1, 0);
-	Holder<GDecisionTreeInteriorNode> hNode(pNode);
+	std::unique_ptr<GDecisionTreeInteriorNode> hNode(pNode);
 	size_t biggest = features.rows();
 	if(features.rows() > 0){
 		pNode->m_ppChildren[0] = buildBranch(features, labels, attrPool, nDepth + 1, tolerance);
@@ -1277,7 +1278,7 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 
 	// Make the interior node
 	GMeanMarginsTreeInteriorNode* pNode = new GMeanMarginsTreeInteriorNode(m_internalFeatureDims, pFeatureCentroid1, pFeatureCentroid2);
-	Holder<GMeanMarginsTreeInteriorNode> hNode(pNode);
+	std::unique_ptr<GMeanMarginsTreeInteriorNode> hNode(pNode);
 
 	// Divide the data
 	GMatrix otherFeatures(features.relation().clone());

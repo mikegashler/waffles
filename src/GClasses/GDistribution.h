@@ -231,15 +231,14 @@ class GCategoricalSamplerBatch
 {
 protected:
 	size_t m_categories;
-	const double* m_pDistribution;
+	const GVec& m_distribution;
 	GRandomIndexIterator m_ii;
 
 public:
 	/// categories specifies the number of categories.
-	/// pDistribution should specify a probability value for each
-	/// category. They should sum to 1.
+	/// distribution should specify a probability value for each category. They should sum to 1.
 	/// pDistribution is expected to remain valid for the duration of this object.
-	GCategoricalSamplerBatch(size_t categories, const double* pDistribution, GRand& rand);
+	GCategoricalSamplerBatch(size_t categories, const GVec& distribution, GRand& rand);
 	~GCategoricalSamplerBatch();
 
 	/// This will draw a batch of samples from the categorical distribution.
