@@ -69,10 +69,18 @@ public:
 	void fill(const double val, size_t startPos = 0, size_t endPos = (size_t)-1);
 
 	/// \brief Returns a reference to the specified element.
-	inline double& operator [](size_t index) { return m_data[index]; }
+	inline double& operator [](size_t index)
+	{
+		GAssert(index < m_size);
+		return m_data[index];
+	}
 
 	/// \brief Returns a const reference to the specified element
-	inline const double& operator [](size_t index) const { return m_data[index]; }
+	inline const double& operator [](size_t index) const
+	{
+		GAssert(index < m_size);
+		return m_data[index];
+	}
 
 	/// Returns a pointer to the raw element values.
 	double* data() { return m_data; }

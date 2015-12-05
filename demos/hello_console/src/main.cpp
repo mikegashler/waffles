@@ -29,7 +29,9 @@ int main(int argc, char *argv[])
 	GApp::enableFloatingPointExceptions();
 	if(argc > 1)
 		throw Ex("No args were expected");
+
 	cout << "Hello console!\n";
+
 	return 0;
 }
 

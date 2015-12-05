@@ -4799,6 +4799,18 @@ void GMatrix_testBoundingSphere(GRand& rand)
 	}
 }
 
+void GMatrix_testImport()
+{
+	const char* csv = "3.3, 1.2, 3.5, 0\n"
+		"2.1, 5.6, 3.6, 1\n"
+		"2.0, 0.4, 0.7, 0";
+	GCSVParser parser;
+	GMatrix m;
+	parser.parse(m, csv, strlen(csv));
+	if(m[1][2] != 3.6)
+		throw Ex("failed");
+}
+
 // static
 void GMatrix::test()
 {
@@ -4818,6 +4830,7 @@ void GMatrix::test()
 	GMatrix_testParsing();
 	GMatrix_testWilcoxon();
 	GMatrix_testBoundingSphere(prng);
+	GMatrix_testImport();
 }
 #endif // !MIN_PREDICT
 
@@ -5089,7 +5102,11 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 	GArffRelation* pRelation = new GArffRelation();
 	outMatrix.setRelation(pRelation);
 	for(size_t i = 0; i < rowCount; i++)
-		outMatrix.takeRow(new GVec(columnCount));
+	{
+		GVec* pNewVec = new GVec();
+		outMatrix.takeRow(pNewVec);
+		pNewVec->resize(columnCount);
+	}
 	m_report.resize(columnCount);
 	if(m_columnNamesInFirstRow)
 		rowCount--;

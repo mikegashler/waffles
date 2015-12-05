@@ -1100,25 +1100,30 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode)
 // ---------------------------------------------------------------
 
 GFilter::GFilter(GSupervisedLearner* pLearner, bool ownLearner)
-: GIncrementalLearner(), m_pLearner(pLearner), m_pIncrementalLearner(NULL), m_ownLearner(ownLearner)
+: GIncrementalLearner(), m_pLearner(pLearner), m_pIncrementalLearner(NULL), m_pOriginal(pLearner), m_ownLearner(ownLearner)
 {
 	if(pLearner->canTrainIncrementally())
 		m_pIncrementalLearner = (GIncrementalLearner*)pLearner;
 }
 
 GFilter::GFilter(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode), m_pIncrementalLearner(NULL), m_ownLearner(true)
+: GIncrementalLearner(pNode), m_pIncrementalLearner(NULL)
 {
 	m_pLearner = ll.loadLearner(pNode->field("learner"));
 	if(m_pLearner->canTrainIncrementally())
 		m_pIncrementalLearner = (GIncrementalLearner*)m_pLearner;
+	m_pOriginal = m_pLearner;
 }
 
 // virtual
 GFilter::~GFilter()
 {
-	if(m_ownLearner)
-		delete(m_pLearner);
+	if(m_pLearner)
+	{
+		discardIntermediateFilters();
+		if(m_ownLearner)
+			delete(m_pLearner);
+	}
 }
 
 // virtual
@@ -1137,13 +1142,22 @@ void GFilter::initShellOnly(const GRelation& featureRel, const GRelation& labelR
 
 void GFilter::discardIntermediateFilters()
 {
-	if(m_pLearner->isFilter())
+	discardIntermediateFilters_helper(m_pOriginal);
+}
+
+void GFilter::discardIntermediateFilters_helper(GSupervisedLearner* pOriginal)
+{
+	if(m_pLearner != pOriginal && m_pLearner->isFilter())
 	{
+		// Recurse
 		GFilter* pIntermediateFilter = (GFilter*)m_pLearner;
-		pIntermediateFilter->discardIntermediateFilters();
+		pIntermediateFilter->discardIntermediateFilters_helper(pOriginal);
+
+		// Nuke the intermediate filter, and wrap whatever it used to wrap
 		GSupervisedLearner* pTemp = pIntermediateFilter->m_pLearner;
 		pIntermediateFilter->m_pLearner = NULL;
 		pIntermediateFilter->m_pIncrementalLearner = NULL;
+		pIntermediateFilter->m_pOriginal = NULL;
 		delete(m_pLearner);
 		m_pLearner = pTemp;
 		if(m_pLearner->canTrainIncrementally())
