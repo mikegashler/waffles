@@ -313,7 +313,7 @@ public:
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMeanAndDev) after constructing this node.
 	GBNNormal(GBNNode* pDefaultVal);
-	~GBNNormal() {}
+	virtual ~GBNNormal() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -357,7 +357,7 @@ public:
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMeanAndDev) after constructing this node.
 	GBNLogNormal(GBNNode* pDefaultVal);
-	~GBNLogNormal() {}
+	virtual ~GBNLogNormal() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -396,7 +396,7 @@ public:
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setAlphaAndM) after constructing this node.
 	GBNPareto(GBNNode* pDefaultVal);
-	~GBNPareto() {}
+	virtual ~GBNPareto() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -435,7 +435,7 @@ public:
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMinAndMax) after constructing this node.
 	GBNUniformDiscrete(GBNNode* pDefaultVal);
-	~GBNUniformDiscrete() {}
+	virtual ~GBNUniformDiscrete() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -474,7 +474,7 @@ public:
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setMinAndMax) after constructing this node.
 	GBNUniformContinuous(GBNNode* pDefaultVal);
-	~GBNUniformContinuous() {}
+	virtual ~GBNUniformContinuous() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -513,7 +513,7 @@ public:
 	/// used for the parameter of this distribution. Typically, you will
 	/// change this value (by calling setLambda) after constructing this node.
 	GBNPoisson(GBNNode* pDefaultVal);
-	~GBNPoisson() {}
+	virtual ~GBNPoisson() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -552,7 +552,7 @@ public:
 	/// used for the parameter of this distribution. Typically, you will
 	/// change this value (by calling setLambda) after constructing this node.
 	GBNExponential(GBNNode* pDefaultVal);
-	~GBNExponential() {}
+	virtual ~GBNExponential() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -591,7 +591,7 @@ public:
 	/// used for the parameters of this distribution. Typically, you will
 	/// change these values (by calling setAlphaAndBeta) after constructing this node.
 	GBNBeta(GBNNode* pDefaultVal);
-	~GBNBeta() {}
+	virtual ~GBNBeta() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -633,7 +633,7 @@ public:
 	/// If the "beta" parameter is scale (typically denoted with theta) instead of rate,
 	/// then betaIsScaleInsteadOfRate should be set to true.
 	GBNGamma(GBNNode* pDefaultVal);
-	~GBNGamma() {}
+	virtual ~GBNGamma() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -679,7 +679,7 @@ public:
 	/// If the "beta" parameter is scale (typically denoted with theta) instead of rate,
 	/// then betaIsScaleInsteadOfRate should be set to true.
 	GBNInverseGamma(GBNNode* pDefaultVal);
-	~GBNInverseGamma() {}
+	virtual ~GBNInverseGamma() {}
 
 	/// Adds a categorical node as a parent of this node. Calling this method will cause
 	/// This node to resize its table of distribution parameters, so a default value is
@@ -714,6 +714,7 @@ class GBayesNet
 {
 protected:
 	GHeap m_heap;
+	std::vector<GBNNode*> m_nodes;
 	std::vector<GBNVariable*> m_sampleNodes;
 	GRand m_rand;
 	GBNConstant* m_pConstOne;

@@ -1107,7 +1107,7 @@ GFilter::GFilter(GSupervisedLearner* pLearner, bool ownLearner)
 }
 
 GFilter::GFilter(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode), m_pIncrementalLearner(NULL)
+: GIncrementalLearner(pNode), m_pIncrementalLearner(NULL), m_ownLearner(true)
 {
 	m_pLearner = ll.loadLearner(pNode->field("learner"));
 	if(m_pLearner->canTrainIncrementally())
