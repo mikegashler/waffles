@@ -688,9 +688,9 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 	size_t nFuncs = std::max((size_t)1, labels.relation().valueCount(label));
 	GVec::setAll(pOutPrecision, 0.0, nFuncs * nPrecisionSize);
 	double* pFunc = new double[features.rows()];
-	ArrayHolder<double> hFunc(pFunc);
+	std::unique_ptr<double[]> hFunc(pFunc);
 	GPrediction* out = new GPrediction[labels.cols()];
-	ArrayHolder<GPrediction> hOut(out);
+	std::unique_ptr<GPrediction[]> hOut(out);
 	GMatrix otherFeatures(features.relation().cloneMinimal());
 	GMatrix otherLabels(labels.relation().cloneMinimal());
 	size_t valueCount = labels.relation().valueCount(label);
@@ -1759,7 +1759,7 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 	VectorOfPointersHolder<GNeuralNet> hCalibrations(calibrations);
 	size_t neighbors = std::max(size_t(4), std::min(size_t(100), (size_t)sqrt(double(features.rows()))));
 	GPrediction* out = new GPrediction[labelDims];
-	ArrayHolder<GPrediction> hOut(out);
+	std::unique_ptr<GPrediction[]> hOut(out);
 	for(size_t i = 0; i < labelDims; i++)
 	{
 		// Gather the predicted (before) distribution values

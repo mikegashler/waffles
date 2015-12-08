@@ -1113,7 +1113,7 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 
 	// Initialize the output layer
 	struct ComplexNumber* pFourier = new struct ComplexNumber[pSeries->rows()];
-	ArrayHolder<struct ComplexNumber> hIn(pFourier);
+	std::unique_ptr<struct ComplexNumber[]> hIn(pFourier);
 	GMatrix& wIdent = pLayerIdent->weights();
 	GVec& bIdent = pLayerIdent->bias();
 	for(size_t j = 0; j < pSeries->cols(); j++)
@@ -1574,10 +1574,10 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		// Check that they have matching weights
 		size_t wc = nn1.countWeights();
 		double* pW1 = new double[wc];
-		ArrayHolder<double> hW1(pW1);
+		std::unique_ptr<double[]> hW1(pW1);
 		nn1.weights(pW1);
 		double* pW2 = new double[wc];
-		ArrayHolder<double> hW2(pW2);
+		std::unique_ptr<double[]> hW2(pW2);
 		nn2.weights(pW2);
 		for(size_t j = 0; j < wc; j++)
 		{

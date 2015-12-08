@@ -22,6 +22,7 @@
 #include "GError.h"
 #include "GHolders.h"
 #include <wchar.h>
+#include <memory>
 
 using namespace GClasses;
 
@@ -279,7 +280,7 @@ void GHashTable::test()
 	size_t nElements = TEST_HASH_TABLE_ELEMENTS;
 	GHashTable ht(13);
 	size_t* pNothing = new size_t[nElements];
-	ArrayHolder<size_t> hNothing(pNothing);
+	std::unique_ptr<size_t[]> hNothing(pNothing);
 	size_t n;
 	for(n = 0; n < nElements; n++)
 		ht.add(&pNothing[n], (const void*)&pNothing[n]);

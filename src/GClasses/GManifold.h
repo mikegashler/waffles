@@ -372,61 +372,6 @@ public:
 */
 
 
-/// Given an image encoded as a rasterized row of channel values,
-/// this class computes a single pixel drawn from the image as
-/// if the image had been rotated, translated, and zoomed by a
-/// small random amount. (The purpose of this class is to make it
-/// possible to train GUnsupervisedBackProp to understand these common
-/// image-based transformations.)
-class GImageJitterer
-{
-	size_t m_wid;
-	size_t m_hgt;
-	size_t m_channels;
-	double m_rotateRads;
-	double m_translatePixels;
-	double m_zoomFactor;
-	double m_cx, m_cy;
-	double m_params[4]; // zoom, rotate, h-translate, v-translate
-
-public:
-	/// if rotateDegrees is 30.0, then it will rotate the image up to 15.0 degrees in either direction.
-	/// if translateWidths is 1.0, then it will translate between -0.5*wid and 0.5*wid. It will
-	/// also translate vertically by a value in the same range (dependant on wid, not hgt).
-	/// if zoomFactor is 2.0, then it will scale between a factor of 0.5 and 2.0.
-	GImageJitterer(size_t wid, size_t hgt, size_t channels, double rotateDegrees, double translateWidths, double zoomFactor);
-
-	/// Deserializing constructor
-	GImageJitterer(GDomNode* pNode);
-
-	/// Marshall this object into a DOM that can be serialized
-	GDomNode* serialize(GDom* pDoc) const;
-
-	/// Sets the 4 params to random uniform values between 0 and 1, and returns the params
-	double* pickParams(GRand& rand);
-
-	/// Returns the specified pixel in the transformed image
-	void transformedPix(const double* pRow, size_t x, size_t y, double* pOut);
-
-	/// Returns the number of channels
-	size_t channels() { return m_channels; }
-
-	/// Returns the width of the images
-	size_t wid() { return m_wid; }
-
-	/// Returns the height of the images
-	size_t hgt() { return m_hgt; }
-
-#ifndef NO_TEST_CODE
-	static void test(const char* filename);
-#endif
-
-protected:
-	void interpolate(const double* pRow, double x, double y, double* pOut);
-};
-
-
-
 
 
 

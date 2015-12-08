@@ -401,6 +401,84 @@ void GVec::subtractComponent(const GVec& component)
 		(*this)[i] -= component[i] * comp;
 }
 
+void GVec::toImage(GImage* pImage, int width, int height, int channels, double range) const
+{
+	if(size() != (size_t)width * (size_t)height * (size_t)channels)
+		throw Ex("Size mismatch");
+	pImage->setSize(width, height);
+	unsigned int* pix = pImage->pixels();
+	if(channels == 3)
+	{
+		size_t pos = 0;
+		for(int y = 0; y < height; y++)
+		{
+			for(int x = 0; x < width; x++)
+			{
+				int r = ClipChan((int)((*this)[pos++] * 256 / range));
+				int g = ClipChan((int)((*this)[pos++] * 256 / range));
+				int b = ClipChan((int)((*this)[pos++] * 256 / range));
+				*(pix++) = gARGB(0xff, r, g, b);
+			}
+		}
+	}
+	else if(channels == 1)
+	{
+		size_t pos = 0;
+		for(int y = 0; y < height; y++)
+		{
+			for(int x = 0; x < width; x++)
+			{
+				int v = ClipChan((int)((*this)[pos++] * 256 / range));
+				*(pix++) = gARGB(0xff, v, v, v);
+			}
+		}
+	}
+	else
+		throw Ex("unsupported value for channels");
+}
+
+void GVec::fromImage(GImage* pImage, int width, int height, int channels, double range)
+{
+	resize(width * height * channels);
+	unsigned int* pix = pImage->pixels();
+	if(channels == 3)
+	{
+		size_t pos = 0;
+		for(int y = 0; y < height; y++)
+		{
+			for(int x = 0; x < width; x++)
+			{
+				(*this)[pos++] = gRed(*pix) * range / 255;
+				(*this)[pos++] = gGreen(*pix) * range / 255;
+				(*this)[pos++] = gBlue(*pix) * range / 255;
+				pix++;
+			}
+		}
+	}
+	else if(channels == 1)
+	{
+		size_t pos = 0;
+		for(int y = 0; y < height; y++)
+		{
+			for(int x = 0; x < width; x++)
+			{
+				(*this)[pos++] = gGray(*pix) * range / MAX_GRAY_VALUE;
+				pix++;
+			}
+		}
+	}
+	else
+		throw Ex("unsupported value for channels");
+}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -577,34 +655,6 @@ void GVec::lNormNormalize(double norm, double* pVector, size_t nSize)
 		pVector[i] /= dMag;
 }
 
-/*
-// static
-double GVec::correlation(const double* pA, const double* pB, size_t nDims)
-{
-	double dDotProd = dotProduct(pA, pB, nDims);
-	if(dDotProd == 0)
-		return 0;
-	return dDotProd / (sqrt(squaredMagnitude(pA, nDims) * squaredMagnitude(pB, nDims)));
-}
-
-// static
-double GVec::correlation(const double* pOriginA, const double* pTargetA, const double* pB, size_t nDims)
-{
-	double dDotProd = dotProduct(pOriginA, pTargetA, pB, nDims);
-	if(dDotProd == 0)
-		return 0;
-	return dDotProd / (sqrt(squaredDistance(pOriginA, pTargetA, nDims) * squaredMagnitude(pB, nDims)));
-}
-
-// static
-double GVec::correlation(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nDims)
-{
-	double dDotProd = dotProduct(pOriginA, pTargetA, pOriginB, pTargetB, nDims);
-	if(dDotProd == 0)
-		return 0;
-	return dDotProd / (sqrt(squaredDistance(pOriginA, pTargetA, nDims) * squaredDistance(pOriginB, pTargetB, nDims)));
-}
-*/
 // static
 void GVec::normalize(double* pVector, size_t nSize)
 {
@@ -888,7 +938,7 @@ void GVec::deserialize(double* pVec, GDomListIterator& it)
 		it.advance();
 	}
 }
-
+/*
 // static
 void GVec::print(std::ostream& stream, int precision, const double* pVec, size_t dims)
 {
@@ -903,7 +953,7 @@ void GVec::print(std::ostream& stream, int precision, const double* pVec, size_t
 		stream << *pVec;
 		pVec++;
 	}
-}
+}*/
 
 void GVec::project(double* pDest, const double* pPoint, const double* pOrigin, const double* pBasis, size_t basisCount, size_t dims)
 {
@@ -914,30 +964,7 @@ void GVec::project(double* pDest, const double* pPoint, const double* pOrigin, c
 		pBasis += dims;
 	}
 }
-/*
-void GVec::subtractComponent(double* pInOut, const double* pBasis, size_t dims)
-{
-	double component = dotProduct(pInOut, pBasis, dims);
-	for(size_t i = 0; i < dims; i++)
-	{
-		*pInOut -= *pBasis * component;
-		pBasis++;
-		pInOut++;
-	}
-}
 
-void GVec::subtractComponent(double* pInOut, const double* pOrigin, const double* pTarget, size_t dims)
-{
-	double component = dotProduct(pInOut, pOrigin, pTarget, dims) / squaredDistance(pOrigin, pTarget, dims);
-	for(size_t i = 0; i < dims; i++)
-	{
-		*pInOut -= (*pTarget - *pOrigin) * component;
-		pTarget++;
-		pOrigin++;
-		pInOut++;
-	}
-}
-*/
 double GVec::sumElements(const double* pVec, size_t dims)
 {
 	double sum = 0;
@@ -949,212 +976,7 @@ double GVec::sumElements(const double* pVec, size_t dims)
 	}
 	return sum;
 }
-/*
-double GVec::sumAbsoluteValues(const double* pVec, size_t dims)
-{
-	double sum = 0;
-	while(dims > 0)
-	{
-		sum += std::abs(*pVec);
-		pVec++;
-		dims--;
-	}
-	return sum;
-}
-*/
 
-void GVec_InsertionSort(double* pVec, size_t size, double* pParallel1, size_t* pParallel2, double* pParallel3)
-{
-	for(size_t i = 1; i < size; i++)
-	{
-		for(size_t j = i; j > 0; j--)
-		{
-			if(pVec[j] >= pVec[j - 1])
-				break;
-
-			// Swap
-			std::swap(pVec[j - 1], pVec[j]);
-			if(pParallel1)
-				std::swap(pParallel1[j - 1], pParallel1[j]);
-			if(pParallel2)
-				std::swap(pParallel2[j - 1], pParallel2[j]);
-		}
-	}
-}
-/*
-// static
-void GVec::smallestToFront(double* pVec, size_t k, size_t size, double* pParallel1, size_t* pParallel2, double* pParallel3)
-{
-	// Use insertion sort if the list is small
-	if(size < 7)
-	{
-		if(k < size)
-			GVec_InsertionSort(pVec, size, pParallel1, pParallel2, pParallel3);
-		return;
-	}
-	size_t beg = 0;
-	size_t end = size - 1;
-
-	// Pick a pivot (using the median of 3 technique)
-	double pivA = pVec[0];
-	double pivB = pVec[size / 2];
-	double pivC = pVec[size - 1];
-	double pivot;
-	if(pivA < pivB)
-	{
-		if(pivB < pivC)
-			pivot = pivB;
-		else if(pivA < pivC)
-			pivot = pivC;
-		else
-			pivot = pivA;
-	}
-	else
-	{
-		if(pivA < pivC)
-			pivot = pivA;
-		else if(pivB < pivC)
-			pivot = pivC;
-		else
-			pivot = pivB;
-	}
-
-	// Do Quick Sort
-	while(true)
-	{
-		while(beg < end && pVec[beg] < pivot)
-			beg++;
-		while(end > beg && pVec[end] > pivot)
-			end--;
-		if(beg >= end)
-			break;
-		std::swap(pVec[beg], pVec[end]);
-		if(pParallel1)
-			std::swap(pParallel1[beg], pParallel1[end]);
-		if(pParallel2)
-			std::swap(pParallel2[beg], pParallel2[end]);
-		if(pParallel3)
-			std::swap(pParallel3[beg], pParallel3[end]);
-		beg++;
-		end--;
-	}
-
-	// Recurse
-	if(pVec[beg] < pivot)
-		beg++;
-	if(k < beg)
-		GVec::smallestToFront(pVec, k, beg, pParallel1, pParallel2, pParallel3);
-	if(k > beg)
-		GVec::smallestToFront(pVec + beg, k - beg, size - beg, pParallel1 ? pParallel1 + beg : NULL, pParallel2 ? pParallel2 + beg : NULL, pParallel3 ? pParallel3 + beg : NULL);
-}
-
-// static
-double GVec::refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand)
-{
-	GTEMPBUF(double, buf, dims);
-	GVec::copy(buf, pPoint, dims);
-	GVec::subtract(buf, pNeighbor, dims);
-	double mag = squaredMagnitude(buf, dims);
-	GVec::safeNormalize(buf, dims, pRand);
-	GVec::multiply(buf, distance, dims);
-	GVec::add(buf, pNeighbor, dims);
-	GVec::subtract(buf, pPoint, dims);
-	GVec::multiply(buf, learningRate, dims);
-	GVec::add(pPoint, buf, dims);
-	return mag;
-}
-*/
-#ifndef MIN_PREDICT
-// static
-void GVec::toImage(const double* pVec, GImage* pImage, int width, int height, int channels, double range)
-{
-	pImage->setSize(width, height);
-	unsigned int* pix = pImage->pixels();
-	if(channels == 3)
-	{
-		for(int y = 0; y < height; y++)
-		{
-			for(int x = 0; x < width; x++)
-			{
-				int r = ClipChan((int)(*(pVec++) * 256 / range));
-				int g = ClipChan((int)(*(pVec++) * 256 / range));
-				int b = ClipChan((int)(*(pVec++) * 256 / range));
-				*(pix++) = gARGB(0xff, r, g, b);
-			}
-		}
-	}
-	else if(channels == 1)
-	{
-		for(int y = 0; y < height; y++)
-		{
-			for(int x = 0; x < width; x++)
-			{
-				int v = ClipChan((int)(*(pVec++) * 256 / range));
-				*(pix++) = gARGB(0xff, v, v, v);
-			}
-		}
-	}
-	else
-		throw Ex("unsupported value for channels");
-}
-
-// static
-void GVec::fromImage(GImage* pImage, double* pVec, int width, int height, int channels, double range)
-{
-	unsigned int* pix = pImage->pixels();
-	if(channels == 3)
-	{
-		for(int y = 0; y < height; y++)
-		{
-			for(int x = 0; x < width; x++)
-			{
-				*(pVec++) = gRed(*pix) * range / 255;
-				*(pVec++) = gGreen(*pix) * range / 255;
-				*(pVec++) = gBlue(*pix) * range / 255;
-				pix++;
-			}
-		}
-	}
-	else if(channels == 1)
-	{
-		for(int y = 0; y < height; y++)
-		{
-			for(int x = 0; x < width; x++)
-			{
-				*(pVec++) = gGray(*pix) * range / MAX_GRAY_VALUE;
-				pix++;
-			}
-		}
-	}
-	else
-		throw Ex("unsupported value for channels");
-}
-#endif // MIN_PREDICT
-/*
-// static
-void GVec::capValues(double* pVec, double cap, size_t dims)
-{
-	while(true)
-	{
-		*pVec = std::min(*pVec, cap);
-		if(--dims == 0)
-			return;
-		pVec++;
-	}
-}
-
-// static
-void GVec::floorValues(double* pVec, double floor, size_t dims)
-{
-	while(true)
-	{
-		*pVec = std::max(*pVec, floor);
-		if(--dims == 0)
-			return;
-		pVec++;
-	}
-}
-*/
 // static
 void GVec::absValues(double* pVec, size_t dims)
 {

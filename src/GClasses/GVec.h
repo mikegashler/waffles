@@ -192,6 +192,18 @@ public:
 	/// (Assumes component is already normalized.)
 	void subtractComponent(const GVec& component);
 
+	/// Decode this vector into an image.
+	/// channels must be 1 or 3 (for grayscale or rgb)
+	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
+	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
+	void toImage(GImage* pImage, int width, int height, int channels, double range) const;
+
+	/// Encode an image in this vector by rastering across pixel values.
+	/// channels must be 1 or 3 (for grayscale or rgb)
+	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
+	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
+	void fromImage(GImage* pImage, int width, int height, int channels, double range);
+
 private:
 	/// This method is deliberately private, so calling it will trigger a compiler error.
 	GVec(double d);
@@ -337,7 +349,7 @@ public:
 
 	/// Prints the values in the vector separated by ", ".
 	/// precision specifies the number of digits to print
-	static void print(std::ostream& stream, int precision, const double* pVec, size_t dims);
+//	static void print(std::ostream& stream, int precision, const double* pVec, size_t dims);
 
 	/// Projects pPoint onto the hyperplane defined by pOrigin onto the basisCount basis vectors
 	/// specified by pBasis. (The basis vectors are assumed to be chained end-to-end in a big vector.)
@@ -345,34 +357,6 @@ public:
 
 	/// Returns the sum of all the elements
 	static double sumElements(const double* pVec, size_t dims);
-
-	/// Returns the sum of the absolute values of all the elements
-//	static double sumAbsoluteValues(const double* pVec, size_t dims);
-
-	/// Moves the smallest k values to the front of the vector, and the biggest (size - k) values
-	/// to the end of the vector. (For efficiency, no other guarantees about ordering are made.)
-	/// This has an average-case runtime that is linear with respect to size.
-	/// pParallel1 and pParallel2 are optional arrays that should be arranged to keep their
-	/// indices in sync with pVec.
-//	static void smallestToFront(double* pVec, size_t k, size_t size, double* pParallel1 = NULL, size_t* pParallel2 = NULL, double* pParallel3 = NULL);
-
-	/// Moves "pPoint" so that it is closer to a distance of "distance" from "pNeighbor". "learningRate"
-	/// specifies how much to move it (0=not at all, 1=all the way). Returns the squared distance between
-	/// pPoint and pNeighbor.
-//	static double refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand);
-
-	/// Converts a vector of rasterized pixel values to an image.
-	/// channels must be 1 or 3 (for grayscale or rgb)
-	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
-	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
-	static void toImage(const double* pVec, GImage* pImage, int width, int height, int channels, double range);
-
-	/// Converts an image to a vector of rasterized pixel values.
-	/// channels must be 1 or 3 (for grayscale or rgb)
-	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
-	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
-	/// pVec must be big enough to hold width * height * channels values.
-	static void fromImage(GImage* pImage, double* pVec, int width, int height, int channels, double range);
 
 	/// Sets each value, v, to ABS(v)
 	static void absValues(double* pVec, size_t dims);

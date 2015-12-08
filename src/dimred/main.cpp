@@ -1188,7 +1188,8 @@ void singularValueDecomposition(GArgReader& args)
 	}
 	else
 	{
-		GVec::print(cout, 14, pDiag, std::min(pU->rows(), pV->rows()));
+		GVecWrapper diag(pDiag, std::min(pU->rows(), pV->rows()));
+		diag.vec().print(cout);
 		cout << "\n";
 	}
 }

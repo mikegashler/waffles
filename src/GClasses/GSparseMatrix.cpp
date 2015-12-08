@@ -361,7 +361,7 @@ void GSparseMatrix::singularValueDecompositionHelper(GSparseMatrix** ppU, double
 	std::unique_ptr<GSparseMatrix> hU(pU);
 	pU->copyFrom(this);
 	double* pSigma = new double[n];
-	ArrayHolder<double> hSigma(pSigma);
+	std::unique_ptr<double[]> hSigma(pSigma);
 	GSparseMatrix* pV = new GSparseMatrix(n, n);
 	std::unique_ptr<GSparseMatrix> hV(pV);
 	GTEMPBUF(double, temp, n);
@@ -859,7 +859,7 @@ bool GSparseMatrix_testHelper(GSparseMatrix& sm)
 	GMatrix* pV;
 	fm->singularValueDecomposition(&pU, &pDiag, &pV);
 	std::unique_ptr<GMatrix> hU(pU);
-	ArrayHolder<double> hDiag(pDiag);
+	std::unique_ptr<double[]> hDiag(pDiag);
 	std::unique_ptr<GMatrix> hV(pV);
 
 	// Do it with the sparse matrix
@@ -868,7 +868,7 @@ bool GSparseMatrix_testHelper(GSparseMatrix& sm)
 	GSparseMatrix* pSV;
 	sm.singularValueDecomposition(&pSU, &pSDiag, &pSV);
 	std::unique_ptr<GSparseMatrix> hSU(pSU);
-	ArrayHolder<double> hSDiag(pSDiag);
+	std::unique_ptr<double[]> hSDiag(pSDiag);
 	std::unique_ptr<GSparseMatrix> hSV(pSV);
 
 	// Check the results

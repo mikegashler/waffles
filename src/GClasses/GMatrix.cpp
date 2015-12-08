@@ -1947,7 +1947,7 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	GAssert((*this)[this->rows() - 1][this->cols() - 1] != UNKNOWN_REAL_VALUE);
 	pU->copyBlock(*this, 0, 0, m, n, 0, 0, false);
 	double* pSigma = new double[n];
-	ArrayHolder<double> hSigma(pSigma);
+	std::unique_ptr<double[]> hSigma(pSigma);
 	GMatrix* pV = new GMatrix(n, n);
 	std::unique_ptr<GMatrix> hV(pV);
 	pV->setAll(0.0);
@@ -2258,7 +2258,7 @@ GMatrix* GMatrix::pseudoInverse()
 	else
 		singularValueDecompositionHelper(&pU, &pDiag, &pV, false, 80);
 	std::unique_ptr<GMatrix> hU(pU);
-	ArrayHolder<double> hDiag(pDiag);
+	std::unique_ptr<double[]> hDiag(pDiag);
 	std::unique_ptr<GMatrix> hV(pV);
 	GMatrix sigma(rowCount < (size_t)colCount ? colCount : rowCount, rowCount < (size_t)colCount ? rowCount : colCount);
 	sigma.setAll(0.0);
@@ -4617,7 +4617,7 @@ void GMatrix_testSingularValueDecomposition()
 	M[1][0] = 0.0; M[1][1] = -5.0;
 	M.singularValueDecomposition(&pU, &pDiag, &pV);
 	std::unique_ptr<GMatrix> hU(pU);
-	ArrayHolder<double> hDiag(pDiag);
+	std::unique_ptr<double[]> hDiag(pDiag);
 	std::unique_ptr<GMatrix> hV(pV);
 
 	// Test that the diagonal values are correct
@@ -4931,7 +4931,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* szFilename)
 {
 	size_t nLen;
 	char* szFile = GFile::loadFile(szFilename, &nLen);
-	ArrayHolder<char> hFile(szFile);
+	std::unique_ptr<char[]> hFile(szFile);
 	parse(outMatrix, szFile, nLen);
 }
 

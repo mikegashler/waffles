@@ -660,7 +660,7 @@ public:
 	GKdNode* Rebuild(GKdTree* pTree)
 	{
 		size_t* pIndexes = new size_t[m_size];
-		ArrayHolder<size_t> hIndexes(pIndexes);
+		std::unique_ptr<size_t[]> hIndexes(pIndexes);
 		size_t used = Gather(pIndexes);
 		GAssert(used == m_size); // m_size is wrong. This may corrupt memory.
 		return pTree->buildTree(used, pIndexes);
@@ -1812,7 +1812,7 @@ void GShortcutPruner::onDetectBigAtomicCycle(vector<size_t>& cycle)
 {
 	// Make a subgraph containing only nodes close to the cycle
 	size_t* mapIn = new size_t[m_n];
-	ArrayHolder<size_t> hMapIn(mapIn);
+	std::unique_ptr<size_t[]> hMapIn(mapIn);
 	vector<size_t> mapOut;
 	GBitTable visited(m_n);
 	deque<size_t> q;
@@ -1917,7 +1917,7 @@ void GShortcutPruner::test()
 	size_t n = w * h;
 	size_t k = 4;
 	size_t* pNeighbors = new size_t[n * k];
-	ArrayHolder<size_t> hNeighbors(pNeighbors);
+	std::unique_ptr<size_t[]> hNeighbors(pNeighbors);
 	size_t i = 0;
 	size_t* pHood = pNeighbors;
 	for(size_t y = 0; y < h; y++)
@@ -2200,7 +2200,7 @@ void GCycleCut::test()
 	size_t n = w * h;
 	size_t k = 4;
 	size_t* pNeighbors = new size_t[n * k];
-	ArrayHolder<size_t> hNeighbors(pNeighbors);
+	std::unique_ptr<size_t[]> hNeighbors(pNeighbors);
 	size_t i = 0;
 	size_t* pHood = pNeighbors;
 	for(size_t y = 0; y < h; y++)

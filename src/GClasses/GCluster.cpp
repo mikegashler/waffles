@@ -157,7 +157,7 @@ void GAgglomerativeClusterer::cluster(const GMatrix* pData)
 	m_pClusters = new size_t[pData->rows()]; // specifies which cluster each row belongs to
 	GIndexVec::makeIndexVec(m_pClusters, pData->rows());
 	size_t* pSiblings = new size_t[pData->rows()]; // a cyclical linked list of each row in the cluster
-	ArrayHolder<size_t> hSiblings(pSiblings);
+	std::unique_ptr<size_t[]> hSiblings(pSiblings);
 	GIndexVec::makeIndexVec(pSiblings, pData->rows()); // init such that each row is in a cluster of 1
 	size_t currentClusterCount = pData->rows();
 	if(currentClusterCount <= m_clusterCount)
@@ -422,7 +422,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, cons
 	pOut->newRows(features2.rows());
 	pOut->setAll(-1);
 	size_t* pSiblings = new size_t[featuresAll.rows()]; // a cyclical linked list of each row in the cluster
-	ArrayHolder<size_t> hSiblings(pSiblings);
+	std::unique_ptr<size_t[]> hSiblings(pSiblings);
 	for(size_t lab = 0; lab < labels1.cols(); lab++)
 	{
 		// Assign each row to its own cluster
@@ -573,7 +573,7 @@ void GKMeans::recomputeCentroids(const GMatrix* pData)
 			else
 			{
 				size_t* pFreq = new size_t[vals];
-				ArrayHolder<size_t> hFreq(pFreq);
+				std::unique_ptr<size_t[]> hFreq(pFreq);
 				memset(pFreq, 0, sizeof(size_t) * vals);
 				for(size_t k = 0; k < pData->rows(); k++)
 				{
@@ -766,7 +766,7 @@ void GFuzzyKMeans::recomputeCentroids(const GMatrix* pData)
 			else
 			{
 				double* pFreq = new double[vals];
-				ArrayHolder<double> hFreq(pFreq);
+				std::unique_ptr<double[]> hFreq(pFreq);
 				GVec::setAll(pFreq, 0.0, vals);
 				for(size_t k = 0; k < pData->rows(); k++)
 				{
@@ -1051,7 +1051,7 @@ void GKMeansSparse::cluster(GSparseMatrix* pData)
 
 	// Pick the seeds (by randomly picking a known value for each element independently)
 	size_t* pCounts = new size_t[pData->cols()];
-	ArrayHolder<size_t> hCounts(pCounts);
+	std::unique_ptr<size_t[]> hCounts(pCounts);
 	GMatrix means(0, pData->cols());
 	means.newRows(m_nClusters);
 	{

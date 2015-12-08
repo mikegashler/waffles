@@ -718,7 +718,7 @@ double* GDecisionTreeNode_labelVec(GMatrix& labels)
 	return pVec;
 }
 
-double* GDecisionTreeNode_copyIfNotTheLast(size_t emptySets, ArrayHolder<double>& hBaselineVec, size_t dims)
+double* GDecisionTreeNode_copyIfNotTheLast(size_t emptySets, std::unique_ptr<double[]>& hBaselineVec, size_t dims)
 {
 	if(emptySets > 1)
 	{
@@ -873,7 +873,7 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 		else
 			pBaselineVec = GDecisionTreeNode_labelVec(*pB);
 	}
-	ArrayHolder<double> hBaselineVec(pBaselineVec);
+	std::unique_ptr<double[]> hBaselineVec(pBaselineVec);
 	GDecisionTreeInteriorNode* pNode = new GDecisionTreeInteriorNode(attr, pivot, featureParts.size() + 1, 0);
 	std::unique_ptr<GDecisionTreeInteriorNode> hNode(pNode);
 	size_t biggest = features.rows();
@@ -1191,7 +1191,7 @@ void GMeanMarginsTree::trainInner(const GMatrix& features, const GMatrix& labels
 	m_internalFeatureDims = features.cols();
 	m_internalLabelDims = labels.cols();
 	size_t* pBuf2 = new size_t[m_internalFeatureDims * 2];
-	ArrayHolder<size_t> hBuf2(pBuf2);
+	std::unique_ptr<size_t[]> hBuf2(pBuf2);
 	GMatrix fTmp(features);
 	GMatrix lTmp(labels);
 	m_pRoot = buildNode(fTmp, lTmp, pBuf2);

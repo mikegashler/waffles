@@ -763,7 +763,7 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 	{
 		size_t labelValues = labels1.relation().valueCount(lab);
 		double* tallys = new double[labelValues];
-		ArrayHolder<double> hTallys(tallys);
+		std::unique_ptr<double[]> hTallys(tallys);
 
 		// Label the unlabeled patterns
 		GBitTable labeled(features2.rows());

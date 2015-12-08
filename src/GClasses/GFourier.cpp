@@ -163,7 +163,7 @@ void GFourier::fft2d(size_t arrayWidth, size_t arrayHeight, struct ComplexNumber
 	double* pData = (double*)p2DComplexNumberArray;
 
 	double* pTmpArray = new double[std::max(arrayWidth, arrayHeight) << 1];
-	ArrayHolder<double> hTmpArray(pTmpArray);
+	std::unique_ptr<double[]> hTmpArray(pTmpArray);
 
 	// Horizontal transforms
 	for(size_t y = 0; y < arrayHeight; y++)
@@ -207,7 +207,7 @@ struct ComplexNumber* GFourier::imageToFftArray(GImage* pImage, int* pWidth, int
 	int wid = GBits::boundingPowerOfTwo(width);
 	int hgt = GBits::boundingPowerOfTwo(height);
 	struct ComplexNumber* pArray = new struct ComplexNumber[3 * wid * hgt];
-	ArrayHolder<struct ComplexNumber> hArray(pArray);
+	std::unique_ptr<struct ComplexNumber[]> hArray(pArray);
 	int pos = 0;
 
 	// Red channel

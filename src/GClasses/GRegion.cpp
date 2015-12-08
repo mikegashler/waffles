@@ -28,6 +28,7 @@
 #include <math.h>
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 using std::vector;
 
@@ -314,7 +315,7 @@ void G2DRegionGraph::makeCoarserRegions(G2DRegionGraph* pFineRegions)
 	GImage* pCoarseRegionMask = regionMask();
 	GAssert(pCoarseRegionMask->width() == pFineRegionMask->width() && pCoarseRegionMask->height() == pFineRegionMask->height()); // size mismatch
 	int* pBestNeighborMap = new int[pFineRegions->regionCount()];
-	ArrayHolder<int> hBestNeighborMap(pBestNeighborMap);
+	std::unique_ptr<int[]> hBestNeighborMap(pBestNeighborMap);
 	for(size_t i = 0; i < pFineRegions->regionCount(); i++)
 	{
 		struct GRegion* pRegion = pFineRegions->m_regions[i];
@@ -339,7 +340,7 @@ void G2DRegionGraph::makeCoarserRegions(G2DRegionGraph* pFineRegions)
 
 	// Create a mapping to new regions numbers
 	int* pNewRegionMap = new int[pFineRegions->regionCount()];
-	ArrayHolder<int> hNewRegionMap(pNewRegionMap);
+	std::unique_ptr<int[]> hNewRegionMap(pNewRegionMap);
 	memset(pNewRegionMap, 0xff, sizeof(int) * pFineRegions->regionCount());
 	int nNewRegionCount = 0;
 	for(size_t i = 0; i < pFineRegions->regionCount(); i++)
@@ -591,7 +592,7 @@ void G3DRegionGraph::makeCoarserRegions(G3DRegionGraph* pFineRegions)
 	GVideo* pCoarseRegionMask = regionMask();
 	GAssert(pCoarseRegionMask->width() == pFineRegionMask->width() && pCoarseRegionMask->height() == pFineRegionMask->height()); // size mismatch
 	int* pBestNeighborMap = new int[pFineRegions->regionCount()];
-	ArrayHolder<int> hBestNeighborMap(pBestNeighborMap);
+	std::unique_ptr<int[]> hBestNeighborMap(pBestNeighborMap);
 	int i, j;
 	for(i = 0; i < pFineRegions->regionCount(); i++)
 	{
@@ -617,7 +618,7 @@ void G3DRegionGraph::makeCoarserRegions(G3DRegionGraph* pFineRegions)
 
 	// Create a mapping to new regions numbers
 	int* pNewRegionMap = new int[pFineRegions->regionCount()];
-	ArrayHolder<int> hNewRegionMap(pNewRegionMap);
+	std::unique_ptr<int[]> hNewRegionMap(pNewRegionMap);
 	memset(pNewRegionMap, 0xff, sizeof(int) * pFineRegions->regionCount());
 	int nNewRegionCount = 0;
 	for(i = 0; i < pFineRegions->regionCount(); i++)

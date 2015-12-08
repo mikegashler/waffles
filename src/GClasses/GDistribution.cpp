@@ -240,7 +240,7 @@ void GCategoricalSamplerBatch::test()
 	GRand rand(0);
 	GCategoricalSamplerBatch csb(3, probs, rand);
 	size_t* pResults = new size_t[SAMPLES];
-	ArrayHolder<size_t> hResults(pResults);
+	std::unique_ptr<size_t[]> hResults(pResults);
 	csb.draw(SAMPLES, pResults);
 	size_t counts[3];
 	counts[0] = 0;

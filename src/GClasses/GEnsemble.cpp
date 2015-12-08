@@ -448,7 +448,7 @@ void GBomb::determineWeights(GMatrix& features, GMatrix& labels)
 {
 	// Try uniform weights first
 	double* pWeights = new double[m_models.size()];
-	ArrayHolder<double> hWeights(pWeights);
+	std::unique_ptr<double[]> hWeights(pWeights);
 	double uniform = 1.0 / m_models.size();
 	GVec::setAll(pWeights, uniform, m_models.size());
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
@@ -577,7 +577,7 @@ GBayesianModelCombination::GBayesianModelCombination(GDomNode* pNode, GLearnerLo
 void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& labels)
 {
 	double* pWeights = new double[m_models.size()];
-	ArrayHolder<double> hWeights(pWeights);
+	std::unique_ptr<double[]> hWeights(pWeights);
 	GVec::setAll(pWeights, 0.0, m_models.size());
 	double sumWeight = 0.0;
 	double maxLogProb = -1e38;
@@ -696,7 +696,7 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 	pDistribution.fill(1.0 / features.rows());
 	size_t drawRows = size_t(m_trainSize * features.rows());
 	size_t* pDrawnIndexes = new size_t[drawRows];
-	ArrayHolder<size_t> hDrawnIndexes(pDrawnIndexes);
+	std::unique_ptr<size_t[]> hDrawnIndexes(pDrawnIndexes);
 
 	// Train the ensemble
 	size_t labelDims = labels.cols();
@@ -826,7 +826,7 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 	size_t weights = 0;
 	double* pWeightBuf = NULL;
 	double* pWeightBuf2 = NULL;
-	ArrayHolder<double> hWeightBuf;
+	std::unique_ptr<double[]> hWeightBuf;
 	for(size_t i = 0; i < m_models; i++)
 	{
 		m_pNN->train(features, labels);

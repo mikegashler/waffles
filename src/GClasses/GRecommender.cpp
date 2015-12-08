@@ -135,7 +135,7 @@ double GCollaborativeFilter::crossValidate(GMatrix& data, size_t folds, double* 
 	// Randomly assign each rating to one of the folds
 	size_t ratings = data.rows();
 	size_t* pFolds = new size_t[ratings];
-	ArrayHolder<size_t> hFolds(pFolds);
+	std::unique_ptr<size_t[]> hFolds(pFolds);
 	for(size_t i = 0; i < ratings; i++)
 		pFolds[i] = (size_t)m_rand.next(folds);
 
@@ -399,7 +399,7 @@ void GBaselineRecommender::train(GMatrix& data)
 	// Allocate space
 	m_ratings.resize(m_items);
 	size_t* pCounts = new size_t[m_items];
-	ArrayHolder<size_t> hCounts(pCounts);
+	std::unique_ptr<size_t[]> hCounts(pCounts);
 	size_t* pC = pCounts;
 	GVec& rr = m_ratings;
 	for(size_t i = 0; i < m_items; i++)
@@ -742,7 +742,7 @@ void GSparseClusterRecommender::train(GMatrix& data)
 	m_pPredictions = new GMatrix(m_clusters, sm.cols());
 	m_pPredictions->setAll(0.0);
 	size_t* pCounts = new size_t[sm.cols() * m_clusters];
-	ArrayHolder<size_t> hCounts(pCounts);
+	std::unique_ptr<size_t[]> hCounts(pCounts);
 	memset(pCounts, '\0', sizeof(size_t) * sm.cols() * m_clusters);
 	for(size_t i = 0; i < sm.rows(); i++)
 	{
@@ -862,7 +862,7 @@ void GDenseClusterRecommender::train(GMatrix& data)
 	m_pPredictions = new GMatrix(m_clusters, items);
 	m_pPredictions->setAll(0.0);
 	size_t* pCounts = new size_t[items * m_clusters];
-	ArrayHolder<size_t> hCounts(pCounts);
+	std::unique_ptr<size_t[]> hCounts(pCounts);
 	memset(pCounts, '\0', sizeof(size_t) * items * m_clusters);
 	for(size_t i = 0; i < data.rows(); i++)
 	{
@@ -1402,7 +1402,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
 	double* pPrefGradient = new double[m_intrinsicDims + numAttr];
-	ArrayHolder<double> hPrefGradient(pPrefGradient);
+	std::unique_ptr<double[]> hPrefGradient(pPrefGradient);
 
 	// Train
 	int startPass = 0;
@@ -1812,7 +1812,7 @@ void GNonlinearPCA::train(GMatrix& data)
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
 	GVec& prefGradient = new double[m_intrinsicDims];
-	ArrayHolder<double> hPrefGradient(prefGradient);
+	std::unique_ptr<double[]> hPrefGradient(prefGradient);
 
 	// Train
 	size_t startPass = 0;

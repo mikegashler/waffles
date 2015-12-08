@@ -704,7 +704,10 @@ void test_document_classification()
 				if(len >= 256)
 					throw Ex("Need a bigger buffer");
 				buf[len] = '\0';
-				double accuracy = atof(buf);
+				char* pB = buf;
+				if(*pB == '[')
+					pB++;
+				double accuracy = atof(pB);
 				results[i][j] = accuracy;
 			}
 		}

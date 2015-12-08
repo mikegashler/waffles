@@ -1114,7 +1114,7 @@ void GLLEHelper::computeEmbedding()
 	GSparseMatrix* pV;
 	m_pWeights->singularValueDecomposition(&pU, &diag, &pV);
 	std::unique_ptr<GSparseMatrix> hU(pU);
-	ArrayHolder<double> hDiag(diag);
+	std::unique_ptr<double[]> hDiag(diag);
 	std::unique_ptr<GSparseMatrix> hV(pV);
 	GMatrix* pEigVecs = new GMatrix(m_nTargetDims + 1, pV->cols());
 	std::unique_ptr<GMatrix> hEigVecs(pEigVecs);
@@ -1149,7 +1149,7 @@ void GLLEHelper::computeEmbedding()
 	GMatrix* pV;
 	m_pWeights->singularValueDecomposition(&pU, &diag, &pV);
 	std::unique_ptr<GMatrix> hU(pU);
-	ArrayHolder<double> hDiag(diag);
+	std::unique_ptr<double[]> hDiag(diag);
 	std::unique_ptr<GMatrix> hV(pV);
 	GMatrix* pEigVecs = new GMatrix(pV->relation(), pV->heap());
 	std::unique_ptr<GMatrix> hEigVecs(pEigVecs);
@@ -1289,7 +1289,7 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 
 	// Learn the manifold
 	double* pGlobalWeights = new double[in.rows() * 2];
-	ArrayHolder<double> hGlobalWeights(pGlobalWeights);
+	std::unique_ptr<double[]> hGlobalWeights(pGlobalWeights);
 	double* pLocalWeights = pGlobalWeights + in.rows();
 	GVec::setAll(pGlobalWeights, 0.0, in.rows());
 	std::unique_ptr<GMatrix> hFinal;
@@ -2051,162 +2051,6 @@ void GDynamicSystemStateAligner::test()
 }
 #endif // NO_TEST_CODE
 */
-
-
-
-
-
-GImageJitterer::GImageJitterer(size_t width, size_t height, size_t chans, double rotateDegrees, double translateWidths, double zoomFactor)
-: m_wid(width), m_hgt(height), m_channels(chans), m_rotateRads(rotateDegrees * M_PI / 180.0), m_translatePixels(translateWidths * width), m_zoomFactor(zoomFactor), m_cx(0.5 * double(width - 1)), m_cy(0.5 * double(height - 1))
-{
-}
-
-GImageJitterer::GImageJitterer(GDomNode* pNode)
-{
-	m_wid = size_t(pNode->field("wid")->asInt());
-	m_hgt = size_t(pNode->field("hgt")->asInt());
-	m_channels = size_t(pNode->field("chan")->asInt());
-	m_rotateRads = pNode->field("rot")->asDouble();
-	m_translatePixels = pNode->field("tp")->asDouble();
-	m_zoomFactor = pNode->field("zoom")->asDouble();
-	m_cx = pNode->field("cx")->asDouble();
-	m_cy = pNode->field("cy")->asDouble();
-}
-
-GDomNode* GImageJitterer::serialize(GDom* pDoc) const
-{
-	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "wid", pDoc->newInt(m_wid));
-	pNode->addField(pDoc, "hgt", pDoc->newInt(m_hgt));
-	pNode->addField(pDoc, "chan", pDoc->newInt(m_channels));
-	pNode->addField(pDoc, "rot", pDoc->newDouble(m_rotateRads));
-	pNode->addField(pDoc, "tp", pDoc->newDouble(m_translatePixels));
-	pNode->addField(pDoc, "zoom", pDoc->newDouble(m_zoomFactor));
-	pNode->addField(pDoc, "cx", pDoc->newDouble(m_cx));
-	pNode->addField(pDoc, "cy", pDoc->newDouble(m_cy));
-	return pNode;
-}
-
-double* GImageJitterer::pickParams(GRand& rand)
-{
-	for(size_t i = 0; i < 4; i++)
-		m_params[i] = rand.uniform();
-	return m_params;
-}
-
-void GImageJitterer::transformedPix(const double* pRow, size_t x, size_t y, double* pOut)
-{
-	double xx = double(x) - m_cx;
-	double yy = double(y) - m_cy;
-	double* pParam = m_params;
-	double radius = sqrt(xx * xx + yy * yy) * pow(m_zoomFactor, 2 * (*pParam) - 1.0);
-	pParam++;
-	double angle = atan2(yy, xx) + (*pParam - 0.5) * m_rotateRads;
-	pParam++;
-	xx = m_cx + radius * cos(angle) + (*pParam - 0.5) * m_translatePixels;
-	pParam++;
-	yy = m_cy + radius * sin(angle) + (*pParam - 0.5) * m_translatePixels;
-	interpolate(pRow, xx, yy, pOut);
-}
-
-void GImageJitterer::interpolate(const double* pRow, double x, double y, double* pOut)
-{
-	// Compute coordinates
-	size_t xx, yy;
-	if(x < 0.0)
-	{
-		xx = 0;
-		x = 0.0;
-	}
-	else if(x + 1 >= m_wid)
-	{
-		xx = m_wid - 2;
-		x = (double)(m_wid - 1);
-	}
-	else
-		xx = size_t(floor(x));
-	if(y < 0.0)
-	{
-		yy = 0;
-		y = 0.0;
-	}
-	else if(y + 1 >= m_hgt)
-	{
-		yy = m_hgt - 2;
-		y = (double)(m_hgt - 1);
-	}
-	else
-		yy = size_t(floor(y));
-
-	// Linearly interpolate horizontally
-	GTEMPBUF(double, pA, m_channels + m_channels);
-	double u = x - xx;
-	GVec::setAll(pA, 0.0, m_channels + m_channels);
-	GVec::addScaled(pA, 1.0 - u, pRow + m_channels * ((m_wid * yy) + xx), m_channels);
-	GVec::addScaled(pA, u, pRow + m_channels * ((m_wid * yy) + xx + 1), m_channels);
-	GVec::addScaled(pA + m_channels, 1.0 - u, pRow + m_channels * ((m_wid * (yy + 1)) + xx), m_channels);
-	GVec::addScaled(pA + m_channels, u, pRow + m_channels * ((m_wid * (yy + 1)) + xx + 1), m_channels);
-
-	// Linearly interpolate vertically
-	u = y - yy;
-	GVec::setAll(pOut, 0.0, m_channels);
-	GVec::addScaled(pOut, 1.0 - u, pA, m_channels);
-	GVec::addScaled(pOut, u, pA + m_channels, m_channels);
-}
-
-#ifndef NO_TEST_CODE
-void GImageJitterer_makeImage(GImage& image, GImageJitterer& jitterer, double* pVec, double* pParams, double zoom, double rot, double htrans, double vtrans, const char* filename)
-{
-	pParams[0] = zoom;
-	pParams[1] = rot;
-	pParams[2] = htrans;
-	pParams[3] = vtrans;
-	double pix[3];
-	GImage imageOut;
-	imageOut.setSize(image.width(), image.height());
-	for(int y = 0; y < (int)image.height(); y++)
-	{
-		for(int x = 0; x < (int)image.width(); x++)
-		{
-			jitterer.transformedPix(pVec, x, y, pix);
-			imageOut.setPixel(x, y, gARGB(0xff, (int)pix[0], (int)pix[1], (int)pix[2]));
-		}
-	}
-	imageOut.savePpm(filename);
-}
-
-// static
-void GImageJitterer::test(const char* filename)
-{
-	GRand rand(0);
-	GImage image;
-	image.loadPpm(filename);
-	double* pVec = new double[image.width() * image.height() * 3];
-	ArrayHolder<double> hVec(pVec);
-	GVec::fromImage(&image, pVec, image.width(), image.height(), 3, 255.0);
-	GImageJitterer jitterer(image.width(), image.height(), 3, 90.0, 0.5, 2.0);
-	double* pParams = jitterer.pickParams(rand);
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.0, 0.5, 0.5, 0.5, "zoom1.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.25, 0.5, 0.5, 0.5, "zoom2.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.75, 0.5, 0.5, 0.5, "zoom3.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 1.0, 0.5, 0.5, 0.5, "zoom4.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.0, 0.5, 0.5, "rot1.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.25, 0.5, 0.5, "rot2.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.75, 0.5, 0.5, "rot3.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 1.0, 0.5, 0.5, "rot4.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.0, 0.5, "h1.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.25, 0.5, "h2.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.75, 0.5, "h3.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 1.0, 0.5, "h4.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.0, "v1.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.25, "v2.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 0.75, "v3.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.5, 0.5, 0.5, 1.0, "v4.ppm");
-	GImageJitterer_makeImage(image, jitterer, pVec, pParams, 0.25, 0.25, 0.25, 0.25, "all.ppm");
-
-	// todo: find an automated way to examine the results
-}
-#endif
 
 
 

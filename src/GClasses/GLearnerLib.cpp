@@ -1234,7 +1234,7 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 	cout << "\n" << "@data" << "\n" << endl;
 
         GPrediction* p = new GPrediction[modelRelLabelsSize];
-	ArrayHolder<GPrediction> hp(p);
+	std::unique_ptr<GPrediction[]> hp(p);
 	for(size_t i = 0; i < pFeatures->rows(); ++i)
 	{
 		pModeler->predictDistribution(pFeatures->row(i), p);
@@ -1571,10 +1571,8 @@ void GLearnerLib::TransductiveAccuracy(GArgReader& args)
 	pSupLearner->rand().setSeed(seed);
 
 	// Transduce and measure accuracy
-	GTEMPBUF(double, results, pLabels1->cols());
 	vector<GMatrix*> confusionMatrices;
 	double mse = pSupLearner->trainAndTest(*pFeatures1, *pLabels1, *pFeatures2, *pLabels2) / pFeatures2->rows();
-	GVec::print(cout, 14, results, pLabels1->cols());
 	if(pLabels2->cols() == 1 && pLabels2->relation().valueCount(0) > 0)
 		cout << "Misclassification rate: ";
 	else
@@ -1838,7 +1836,7 @@ void GLearnerLib::PrecisionRecall(GArgReader& args)
 	{
 		size_t valCount = std::max((size_t)1, pLabels->relation().valueCount(i));
 		double* precision = new double[valCount * samples];
-		ArrayHolder<double> hPrecision(precision);
+		std::unique_ptr<double[]> hPrecision(precision);
 		pModel->precisionRecall(precision, samples, *pFeatures, *pLabels, i, reps);
 		for(size_t j = 0; j < valCount; j++)
 			results.setCol(pos++, precision + samples * j);

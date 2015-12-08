@@ -997,7 +997,10 @@ public:
 		if(sumOverAttributes)
 			cout << GVec::sumElements(m_pResults, m_attrs);
 		else
-			GVec::print(cout, 14, m_pResults, m_attrs);
+		{
+			GVecWrapper vw(m_pResults, m_attrs);
+			vw.vec().print(cout);
+		}
 	}
 
 	const double* GetResults() { return m_pResults; }
@@ -1065,7 +1068,10 @@ void MeasureMeanSquaredError(GArgReader& args)
 		if(sumOverAttributes)
 			cout << GVec::sumElements(results, dims);
 		else
-			GVec::print(cout, 14, results, dims);
+		{
+			GVecWrapper vw(results, dims);
+			vw.vec().print(cout);
+		}
 	}
 	cout << "\n";
 }

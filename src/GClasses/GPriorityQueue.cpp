@@ -23,6 +23,7 @@
 #include "GRand.h"
 #include <functional>
 #include <queue>
+#include <memory>
 
 using std::priority_queue;
 
@@ -229,7 +230,7 @@ int GPriorityQueueTestComparer(void* pThis, void* pA, void* pB)
 void GPriorityQueue::test()
 {
 	int* buf = new int[TEST_SIZE];
-	ArrayHolder<int> hBuf(buf);
+	std::unique_ptr<int[]> hBuf(buf);
 	int i, t, r;
 	for(i = 0; i < TEST_SIZE; i++)
 		buf[i] = i;

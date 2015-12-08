@@ -107,7 +107,7 @@ void GLinearRegressor::refine(const GMatrix& features, const GMatrix& labels, do
 	size_t fDims = features.cols();
 	size_t lDims = labels.cols();
 	size_t* pIndexes = new size_t[features.rows()];
-	ArrayHolder<size_t> hIndexes(pIndexes);
+	std::unique_ptr<size_t[]> hIndexes(pIndexes);
 	GIndexVec::makeIndexVec(pIndexes, features.rows());
 	for(size_t i = 0; i < epochs; i++)
 	{
