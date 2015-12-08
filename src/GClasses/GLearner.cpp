@@ -1143,6 +1143,7 @@ void GFilter::initShellOnly(const GRelation& featureRel, const GRelation& labelR
 void GFilter::discardIntermediateFilters()
 {
 	discardIntermediateFilters_helper(m_pOriginal);
+	GAssert(m_pLearner == m_pOriginal);
 }
 
 void GFilter::discardIntermediateFilters_helper(GSupervisedLearner* pOriginal)

@@ -47,6 +47,7 @@
 #include <iostream>
 #include <string>
 #include <set>
+#include <memory>
 #include <map>
 #include <algorithm>
 #ifdef WIN32
@@ -63,6 +64,7 @@ using std::vector;
 using std::string;
 using std::set;
 using std::map;
+using std::shared_ptr;
 
 size_t getAttrVal(const char* szString, size_t attrCount)
 {
@@ -1066,7 +1068,7 @@ void selfOrganizingMap(GArgReader& args){
       if(args.if_pop("showTrain") || args.if_pop("showtrain")){
 	showTrain = true;
       }
-      smart_ptr<Reporter> weightReporter
+      shared_ptr<Reporter> weightReporter
 	(new SVG2DWeightReporter(baseFilename, xDim, yDim, showTrain));
       Holder<IterationIntervalReporter> intervalReporter
 	(new IterationIntervalReporter(weightReporter, interval));
