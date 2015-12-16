@@ -234,7 +234,7 @@ UsageNode* makeAlgorithmUsageTree()
 			"leaf node.  This means that there will be at most [n]-1 splits before a decision is made.  This crudely limits overfitting, and so can be helpful on small data sets.  It can also make the resulting trees easier to interpret.  If set to 0, then there is no maximum (which is the default).");
 	}
 	{
-		UsageNode* pGP = pRoot->add("gaussianprocess", "A Gaussian process model.");
+		UsageNode* pGP = pRoot->add("gaussianprocess <options>", "A Gaussian process model.");
 		UsageNode* pOpts = pGP->add("<options>");
 		pOpts->add("-noise [var]=1.0", "The variance of the noise parameter.");
 		pOpts->add("-prior [var]=1024.0", "The prior variance for the weights. (This value will be multiplied by an identity matrix to form the prior covariance for the weights.");

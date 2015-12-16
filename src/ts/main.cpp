@@ -22,16 +22,17 @@
 #include "../GClasses/GApp.h"
 #include "../GClasses/GDom.h"
 #include "../GClasses/GFile.h"
-#include "../GClasses/GHolders.h"
 #include "../GClasses/GNeuralDecomposition.h"
 #include "../GClasses/usage.h"
+#include <memory>
+
 using namespace GClasses;
 using std::cout;
 using std::cerr;
 using std::string;
 using std::vector;
 
-void LoadData(GArgReader &args, Holder<GMatrix> &hOutput)
+void LoadData(GArgReader &args, std::unique_ptr<GMatrix> &hOutput)
 {
 	// Load the dataset by extension
 	if(args.size() < 1)
@@ -92,7 +93,7 @@ void ShowUsage(const char *appName)
 	cout << "<Angled brackets> are used to indicate optional arguments.\n";
 	cout << "\n";
 	UsageNode *pUsageTree = makeTimeSeriesUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	pUsageTree->print(cout, 0, 3, 76, 1000, true);
 	cout.flush();
 }
@@ -100,7 +101,7 @@ void ShowUsage(const char *appName)
 void Train(GArgReader &args)
 {
 	// Load series from file
-	Holder<GMatrix> hSeries, hFeatures;
+	std::unique_ptr<GMatrix> hSeries, hFeatures;
 	LoadData(args, hSeries);
 	GMatrix *pSeries = hSeries.get();
 	
@@ -174,7 +175,7 @@ void Extrapolate(GArgReader &args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner *pLearner = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hLearner(pLearner);
+	std::unique_ptr<GSupervisedLearner> hLearner(pLearner);
 	
 	// Parse options
 	
@@ -185,7 +186,7 @@ void Extrapolate(GArgReader &args)
 	bool outputFeatures = true;
 	
 	GNeuralDecomposition *nd = (GNeuralDecomposition *) pLearner;
-	Holder<GMatrix> hFeatures;
+	std::unique_ptr<GMatrix> hFeatures;
 	
 	while(args.next_is_flag())
 	{
@@ -222,7 +223,7 @@ void Extrapolate(GArgReader &args)
 		pOutput = nd->extrapolate(*hFeatures.get());
 	else
 		pOutput = nd->extrapolate(start, length, step, outputFeatures);
-	Holder<GMatrix> hOutput(pOutput);
+	std::unique_ptr<GMatrix> hOutput(pOutput);
 	
 	// Output predictions
 	pOutput->print(cout);
@@ -235,7 +236,7 @@ void ShowError(GArgReader &args, const char *szAppName, const char *szMessage)
 	args.set_pos(1);
 	const char* szCommand = args.peek();
 	UsageNode* pUsageTree = makeTimeSeriesUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	if(szCommand)
 	{
 		UsageNode* pUsageCommand = pUsageTree->choice(szCommand);

@@ -1918,7 +1918,7 @@ void ShowUsage()
 	cout << "<Angled brackets> are used to indicate optional arguments.\n";
 	cout << "\n";
 	UsageNode* pUsageTree = makeCryptoUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	pUsageTree->print(cout, 0, 3, 76, 1000, true);
 	cout.flush();
 }
@@ -1930,7 +1930,7 @@ void showError(GArgReader& args, const char* szMessage)
 	args.set_pos(1);
 	const char* szCommand = args.peek();
 	UsageNode* pUsageTree = makeCryptoUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	if(szCommand)
 	{
 		UsageNode* pUsageCommand = pUsageTree->choice(szCommand);

@@ -52,6 +52,7 @@
 #include <vector>
 #include <exception>
 #include <set>
+#include <memory>
 
 using namespace GClasses;
 using std::string;
@@ -231,7 +232,7 @@ GMatrix* loadData(const char* szFilename)
 {
 	// Load the dataset by extension
 	GMatrix* pM = new GMatrix();
-	Holder<GMatrix> hM(pM);
+	std::unique_ptr<GMatrix> hM(pM);
 	GMatrix& m = *pM;
 	PathData pd;
 	GFile::parsePath(szFilename, &pd);
@@ -266,7 +267,7 @@ void showInstantiateNeighborFinderError(const char* szMessage, GArgReader& args)
 	cerr << szMessage << "\n\n";
 	const char* szNFName = args.peek();
 	UsageNode* pNFTree = makeNeighborUsageTree();
-	Holder<UsageNode> hNFTree(pNFTree);
+	std::unique_ptr<UsageNode> hNFTree(pNFTree);
 	if(szNFName)
 	{
 		UsageNode* pUsageAlg = pNFTree->choice(szNFName);
@@ -327,7 +328,7 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		else if(_stricmp(alg, "temporal") == 0)
 		{
 			GMatrix* pControlData = loadData(args.pop_string());
-			Holder<GMatrix> hControlData(pControlData);
+			std::unique_ptr<GMatrix> hControlData(pControlData);
 			if(pControlData->rows() != pData->rows())
 				throw Ex("mismatching number of rows");
 			int neighbors = args.pop_uint();
@@ -368,7 +369,7 @@ void PlotBar(GArgReader& args)
 {
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	std::unique_ptr<GMatrix> hData(pData);
 	//if(!pData->relation()->areContinuous())
 	//	throw Ex("Expected all attributes to be continuous");
 
@@ -1050,7 +1051,7 @@ void PlotScatter(GArgReader& args)
 {
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	std::unique_ptr<GMatrix> hData(pData);
 
 	// Values pertaining to grids of charts
 	size_t horizCharts = 1;
@@ -1227,7 +1228,7 @@ void semanticMap(GArgReader& args){
   string dataFile = args.pop_string();
 
   // Load the data
-  Holder<GMatrix> hData(loadData(dataFile.c_str()));
+  std::unique_ptr<GMatrix> hData(loadData(dataFile.c_str()));
   if(hData->rows() < 1){
     throw Ex("The dataset is empty.  Cannot make a semantic map from "
 	       "an empty dataset.");
@@ -1338,7 +1339,7 @@ void semanticMap(GArgReader& args){
     //the input data
     GMatrix* pLessColumns = new GMatrix();
 	pLessColumns->copy(hData.get());
-    Holder<GMatrix> lessColumns(pLessColumns);
+    std::unique_ptr<GMatrix> lessColumns(pLessColumns);
     while(lessColumns->cols() > som.inputDimensions()){
       lessColumns->deleteColumns(lessColumns->cols()-1, 1);
     }
@@ -1382,7 +1383,7 @@ void makeHistogram(GArgReader& args)
 {
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
+	std::unique_ptr<GMatrix> hData(pData);
 
 	// Parse options
 	size_t wid = 960;
@@ -1537,7 +1538,7 @@ void PrintStats(GArgReader& args)
 	// Load
 	const char* szFilename = args.pop_string();
 	GMatrix* pData = loadData(szFilename);
-	Holder<GMatrix> hData(pData);
+	std::unique_ptr<GMatrix> hData(pData);
 	GArffRelation* pRel = (GArffRelation*)&pData->relation();
 
 	// Options
@@ -1720,8 +1721,8 @@ void calcError(GArgReader& args){
 }
 
 void percentSame(GArgReader& args){
-  Holder<GMatrix> hData1(loadData(args.pop_string()));
-  Holder<GMatrix> hData2(loadData(args.pop_string()));
+  std::unique_ptr<GMatrix> hData1(loadData(args.pop_string()));
+  std::unique_ptr<GMatrix> hData2(loadData(args.pop_string()));
   const size_t cols = hData1->cols();
   const size_t rows = hData1->rows();
   if(hData1->cols() != hData2->cols()){
@@ -1792,7 +1793,7 @@ void printDecisionTree(GArgReader& args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModeler(pModeler);
+	std::unique_ptr<GSupervisedLearner> hModeler(pModeler);
 	while(pModeler->isFilter())
 		pModeler = ((GFilter*)pModeler)->innerLearner();
 
@@ -1824,7 +1825,7 @@ void printRandomForest(GArgReader& args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModeler(pModeler);
+	std::unique_ptr<GSupervisedLearner> hModeler(pModeler);
 	while(pModeler->isFilter())
 		pModeler = ((GFilter*)pModeler)->innerLearner();
 
@@ -1853,7 +1854,7 @@ void ShowUsage(const char* appName)
 	cout << "<Angled brackets> are used to indicate optional arguments.\n";
 	cout << "\n";
 	UsageNode* pUsageTree = makePlotUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	pUsageTree->print(cout, 0, 3, 76, 1000, true);
 	cout.flush();
 }
@@ -1865,7 +1866,7 @@ void showError(GArgReader& args, const char* szAppName, const char* szMessage)
 	args.set_pos(1);
 	const char* szCommand = args.peek();
 	UsageNode* pUsageTree = makePlotUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	if(szCommand)
 	{
 		UsageNode* pUsageCommand = pUsageTree->choice(szCommand);

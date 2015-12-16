@@ -53,6 +53,7 @@
 #endif
 #include <exception>
 #include "../GClasses/usage.h"
+#include <memory>
 
 using namespace GClasses;
 using std::cout;
@@ -100,7 +101,7 @@ void agglomerativeclusterer(GArgReader& args)
 	// Do the clustering
 	GAgglomerativeClusterer clusterer(clusters);
 	GMatrix* pOut = clusterer.reduce(data);
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
 
@@ -133,7 +134,7 @@ void fuzzykmeans(GArgReader& args)
 	clusterer.setFuzzifier(fuzzifier);
 	clusterer.setReps(reps);
 	GMatrix* pOut = clusterer.reduce(data);
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
 
@@ -162,7 +163,7 @@ void kmeans(GArgReader& args)
 	GKMeans clusterer(clusters, &prng);
 	clusterer.setReps(reps);
 	GMatrix* pOut = clusterer.reduce(data);
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
 
@@ -176,7 +177,7 @@ void kmedoids(GArgReader& args)
 	// Do the clustering
 	GKMedoids clusterer(clusters);
 	GMatrix* pOut = clusterer.reduce(data);
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	pOut->print(cout);
 }
 
@@ -187,7 +188,7 @@ void ShowUsage(const char* appName)
 	cout << "<Angled brackets> are used to indicate optional arguments.\n";
 	cout << "\n";
 	UsageNode* pUsageTree = makeClusterUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	pUsageTree->print(cout, 0, 3, 76, 1000, true);
 	cout.flush();
 }
@@ -199,7 +200,7 @@ void showError(GArgReader& args, const char* szAppName, const char* szMessage)
 	args.set_pos(1);
 	const char* szCommand = args.peek();
 	UsageNode* pUsageTree = makeClusterUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	if(szCommand)
 	{
 		UsageNode* pUsageCommand = pUsageTree->choice(szCommand);
