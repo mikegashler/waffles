@@ -32,16 +32,16 @@ installall: $(INSTALL_SUBDIRS) INSTALL_depends
 uninstall: $(UNINSTALL_SUBDIRS)
 
 $(DBG_SUBDIRS): DBG_% :
-	$(MAKE) -C $* dbg
+	$(MAKE) -j 6 -C $* dbg
 
 $(OPT_SUBDIRS): OPT_% :
-	$(MAKE) -C $* opt
+	$(MAKE) -j 6 -C $* opt
 
 $(CLEAN_SUBDIRS): CLEAN_% :
 	$(MAKE) -C $* clean
 
 $(INSTALL_SUBDIRS): INSTALL_% :
-	$(MAKE) -C $* install
+	$(MAKE) -j 6 -C $* install
 
 INSTALL_depends:
 	$(MAKE) -C depends install

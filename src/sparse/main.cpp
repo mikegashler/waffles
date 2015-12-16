@@ -56,6 +56,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <memory>
 
 using namespace GClasses;
 using std::cout;
@@ -232,7 +233,7 @@ void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 	cerr << szMessage << "\n\n";
 	const char* szAlgName = args.peek();
 	UsageNode* pAlgTree = makeAlgorithmUsageTree();
-	Holder<UsageNode> hAlgTree(pAlgTree);
+	std::unique_ptr<UsageNode> hAlgTree(pAlgTree);
 	if(szAlgName)
 	{
 		UsageNode* pUsageAlg = pAlgTree->choice(szAlgName);
@@ -294,7 +295,7 @@ void firstPrincipalComponents(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("No dataset specified.");
 	GSparseMatrix* pA;
-	Holder<GSparseMatrix> hA(NULL);
+	std::unique_ptr<GSparseMatrix> hA(nullptr);
 	{
 		GDom doc;
 		doc.loadJson(args.pop_string());
@@ -316,7 +317,7 @@ void multiplyDense(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("No dataset specified.");
 	GSparseMatrix* pA;
-	Holder<GSparseMatrix> hA(NULL);
+	std::unique_ptr<GSparseMatrix> hA(nullptr);
 	{
 		GDom doc;
 		doc.loadJson(args.pop_string());
@@ -339,7 +340,7 @@ void multiplyDense(GArgReader& args)
 	}
 
 	GMatrix* pResult = pA->multiply(&b, transpose);
-	Holder<GMatrix> hResult(pResult);
+	std::unique_ptr<GMatrix> hResult(pResult);
 	pResult->print(cout);
 }
 
@@ -359,7 +360,7 @@ void train(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("Expected a filename of a sparse matrix.");
 	GSparseMatrix* pSparseFeatures;
-	Holder<GSparseMatrix> hSparseFeatures(NULL);
+	std::unique_ptr<GSparseMatrix> hSparseFeatures(nullptr);
 	{
 		GDom doc;
 		doc.loadJson(args.pop_string());
@@ -373,7 +374,7 @@ void train(GArgReader& args)
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(args);
-	Holder<GTransducer> hModel(pSupLearner);
+	std::unique_ptr<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
 	if(!pSupLearner->canTrainIncrementally())
@@ -410,14 +411,14 @@ void predict(GArgReader& args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModeler(pModeler);
+	std::unique_ptr<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
 	// Load the sparse features
 	if(args.size() < 1)
 		throw Ex("No dataset specified.");
 	GSparseMatrix* pData;
-	Holder<GSparseMatrix> hData(NULL);
+	std::unique_ptr<GSparseMatrix> hData(nullptr);
 	{
 		GDom doc2;
 		doc2.loadJson(args.pop_string());
@@ -455,14 +456,14 @@ void test(GArgReader& args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModeler(pModeler);
+	std::unique_ptr<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
 	// Load the sparse features
 	if(args.size() < 1)
 		throw Ex("No dataset specified.");
 	GSparseMatrix* pData;
-	Holder<GSparseMatrix> hData(NULL);
+	std::unique_ptr<GSparseMatrix> hData(nullptr);
 	{
 		GDom doc2;
 		doc2.loadJson(args.pop_string());
@@ -511,7 +512,7 @@ void transpose(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("No dataset specified.");
 	GSparseMatrix* pA;
-	Holder<GSparseMatrix> hA(NULL);
+	std::unique_ptr<GSparseMatrix> hA(nullptr);
 	{
 		GDom doc;
 		doc.loadJson(args.pop_string());
@@ -521,7 +522,7 @@ void transpose(GArgReader& args)
 
 	// Transpose it
 	GSparseMatrix* pB = pA->transpose();
-	Holder<GSparseMatrix> hB(pB);
+	std::unique_ptr<GSparseMatrix> hB(pB);
 
 	// Print it
 	{
@@ -591,7 +592,7 @@ void addWordsToVocabFromHtmlFile(GVocabulary* pVocab, const char* szFilename)
 {
 	size_t len;
 	char* pFile = GFile::loadFile(szFilename, &len);
-	ArrayHolder<char> hFile(pFile);
+	std::unique_ptr<char[]> hFile(pFile);
 	pVocab->newDoc();
 	MyHtmlParser1 parser(pVocab, pFile, len);
 	while(true)
@@ -605,7 +606,7 @@ void makeHtmlFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, si
 {
 	size_t len;
 	char* pFile = GFile::loadFile(szFilename, &len);
-	ArrayHolder<char> hFile(pFile);
+	std::unique_ptr<char[]> hFile(pFile);
 	MyHtmlParser2 parser(pFile, len, pFeatures, row, pVocab, binary);
 	while(true)
 	{
@@ -620,7 +621,7 @@ void addWordsToVocabFromTextFile(GVocabulary* pVocab, const char* szFilename)
 {
 	size_t len;
 	char* pFile = GFile::loadFile(szFilename, &len);
-	ArrayHolder<char> hFile(pFile);
+	std::unique_ptr<char[]> hFile(pFile);
 	pVocab->newDoc();
 	pVocab->addWordsFromTextBlock(pFile, len);
 }
@@ -629,7 +630,7 @@ void makeTextFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, si
 {
 	size_t len;
 	char* pFile = GFile::loadFile(szFilename, &len);
-	ArrayHolder<char> hFile(pFile);
+	std::unique_ptr<char[]> hFile(pFile);
 	GWordIterator it(pFile, len);
 	const char* pWord;
 	size_t wordLen;
@@ -721,7 +722,7 @@ void docsToSparseMatrix(GArgReader& args)
 		pLabels = new GMatrix(classes);
 		pLabels->newRows(vocab.docCount());
 	}
-	Holder<GMatrix> hLabels(pLabels);
+	std::unique_ptr<GMatrix> hLabels(pLabels);
 	size_t row = 0;
 	for(int clss = 0; clss < (int)folders.size(); clss++)
 	{
@@ -779,7 +780,7 @@ void shuffle(GArgReader& args)
 	GDom doc;
 	doc.loadJson(args.pop_string());
 	GSparseMatrix* pData = new GSparseMatrix(doc.root());
-	Holder<GSparseMatrix> hData(pData);
+	std::unique_ptr<GSparseMatrix> hData(pData);
 
 	// Parse options
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
@@ -801,7 +802,7 @@ void shuffle(GArgReader& args)
 	// Shuffle and print
 	GRand prng(nSeed);
 	GMatrix* pLabels = NULL;
-	Holder<GMatrix> hLabels(NULL);
+	std::unique_ptr<GMatrix> hLabels(nullptr);
 	if(labelsIn.length() > 0)
 	{
 		pLabels = new GMatrix();
@@ -822,7 +823,7 @@ void split(GArgReader& args)
 	GDom doc;
 	doc.loadJson(args.pop_string());
 	GSparseMatrix* pData = new GSparseMatrix(doc.root());
-	Holder<GSparseMatrix> hData(pData);
+	std::unique_ptr<GSparseMatrix> hData(pData);
 	size_t pats1 = args.pop_uint();
 	size_t pats2 = pData->rows() - pats1;
 	if(pats2 >= pData->rows())
@@ -832,9 +833,9 @@ void split(GArgReader& args)
 
 	// Split
 	GSparseMatrix* pPart1 = pData->subMatrix(0, 0, pData->cols(), pats1);
-	Holder<GSparseMatrix> hPart1(pPart1);
+	std::unique_ptr<GSparseMatrix> hPart1(pPart1);
 	GSparseMatrix* pPart2 = pData->subMatrix(0, pats1, pData->cols(), pats2);
-	Holder<GSparseMatrix> hPart2(pPart2);
+	std::unique_ptr<GSparseMatrix> hPart2(pPart2);
 	doc.setRoot(pPart1->serialize(&doc));
 	doc.saveJson(szFilename1);
 	doc.setRoot(pPart2->serialize(&doc));
@@ -847,7 +848,7 @@ void splitFold(GArgReader& args)
 	GDom doc;
 	doc.loadJson(args.pop_string());
 	GSparseMatrix* pData = new GSparseMatrix(doc.root());
-	Holder<GSparseMatrix> hData(pData);
+	std::unique_ptr<GSparseMatrix> hData(pData);
 	size_t fold = args.pop_uint();
 	size_t folds = args.pop_uint();
 	if(fold >= folds)
@@ -891,10 +892,10 @@ void ShowUsage(const char* appName)
 	cout << "<Angled brackets> are used to indicate optional arguments.\n";
 	cout << "\n";
 	UsageNode* pUsageTree = makeSparseUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	pUsageTree->print(cout, 0, 3, 76, 1000, true);
 	UsageNode* pUsageTree2 = makeAlgorithmUsageTree();
-	Holder<UsageNode> hUsageTree2(pUsageTree2);
+	std::unique_ptr<UsageNode> hUsageTree2(pUsageTree2);
 	pUsageTree2->print(cout, 0, 3, 76, 1000, true);
 	cout.flush();
 }
@@ -906,7 +907,7 @@ void showError(GArgReader& args, const char* szAppName, const char* szMessage)
 	args.set_pos(1);
 	const char* szCommand = args.peek();
 	UsageNode* pUsageTree = makeSparseUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	if(szCommand)
 	{
 		UsageNode* pUsageCommand = pUsageTree->choice(szCommand);
@@ -918,7 +919,7 @@ void showError(GArgReader& args, const char* szAppName, const char* szMessage)
 			if(pUsageCommand->findPart("[algorithm]") >= 0)
 			{
 				UsageNode* pAlgTree = makeAlgorithmUsageTree();
-				Holder<UsageNode> hAlgTree(pAlgTree);
+				std::unique_ptr<UsageNode> hAlgTree(pAlgTree);
 				pAlgTree->print(cerr, 1, 3, 76, 2, false);
 			}
 		}
