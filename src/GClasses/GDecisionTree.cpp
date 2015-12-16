@@ -31,6 +31,7 @@
 #include "GHolders.h"
 #include <string>
 #include <iostream>
+#include <memory>
 
 using namespace GClasses;
 using std::string;
@@ -358,8 +359,8 @@ GDecisionTree::GDecisionTree()
 	m_eAlg = GDecisionTree::MINIMIZE_ENTROPY;
 }
 
-GDecisionTree::GDecisionTree(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll), m_leafThresh(1), m_maxLevels(0)
+GDecisionTree::GDecisionTree(GDomNode* pNode)
+: GSupervisedLearner(pNode), m_leafThresh(1), m_maxLevels(0)
 {
 	m_eAlg = (DivisionAlgorithm)pNode->field("alg")->asInt();
 	m_pRoot = GDecisionTreeNode::deserialize(pNode->field("root"));
@@ -717,7 +718,7 @@ double* GDecisionTreeNode_labelVec(GMatrix& labels)
 	return pVec;
 }
 
-double* GDecisionTreeNode_copyIfNotTheLast(size_t emptySets, ArrayHolder<double>& hBaselineVec, size_t dims)
+double* GDecisionTreeNode_copyIfNotTheLast(size_t emptySets, std::unique_ptr<double[]>& hBaselineVec, size_t dims)
 {
 	if(emptySets > 1)
 	{
@@ -872,9 +873,9 @@ GDecisionTreeNode* GDecisionTree::buildBranch(GMatrix& features, GMatrix& labels
 		else
 			pBaselineVec = GDecisionTreeNode_labelVec(*pB);
 	}
-	ArrayHolder<double> hBaselineVec(pBaselineVec);
+	std::unique_ptr<double[]> hBaselineVec(pBaselineVec);
 	GDecisionTreeInteriorNode* pNode = new GDecisionTreeInteriorNode(attr, pivot, featureParts.size() + 1, 0);
-	Holder<GDecisionTreeInteriorNode> hNode(pNode);
+	std::unique_ptr<GDecisionTreeInteriorNode> hNode(pNode);
 	size_t biggest = features.rows();
 	if(features.rows() > 0){
 		pNode->m_ppChildren[0] = buildBranch(features, labels, attrPool, nDepth + 1, tolerance);
@@ -1154,8 +1155,8 @@ GMeanMarginsTree::GMeanMarginsTree()
 {
 }
 
-GMeanMarginsTree::GMeanMarginsTree(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GMeanMarginsTree::GMeanMarginsTree(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_pRoot = GMeanMarginsTreeNode::deserialize(pNode->field("root"));
 	m_internalFeatureDims = (size_t)pNode->field("ifd")->asInt();
@@ -1190,7 +1191,7 @@ void GMeanMarginsTree::trainInner(const GMatrix& features, const GMatrix& labels
 	m_internalFeatureDims = features.cols();
 	m_internalLabelDims = labels.cols();
 	size_t* pBuf2 = new size_t[m_internalFeatureDims * 2];
-	ArrayHolder<size_t> hBuf2(pBuf2);
+	std::unique_ptr<size_t[]> hBuf2(pBuf2);
 	GMatrix fTmp(features);
 	GMatrix lTmp(labels);
 	m_pRoot = buildNode(fTmp, lTmp, pBuf2);
@@ -1277,7 +1278,7 @@ GMeanMarginsTreeNode* GMeanMarginsTree::buildNode(GMatrix& features, GMatrix& la
 
 	// Make the interior node
 	GMeanMarginsTreeInteriorNode* pNode = new GMeanMarginsTreeInteriorNode(m_internalFeatureDims, pFeatureCentroid1, pFeatureCentroid2);
-	Holder<GMeanMarginsTreeInteriorNode> hNode(pNode);
+	std::unique_ptr<GMeanMarginsTreeInteriorNode> hNode(pNode);
 
 	// Divide the data
 	GMatrix otherFeatures(features.relation().clone());
@@ -1371,7 +1372,7 @@ GRandomForest::GRandomForest(size_t trees, size_t samples)
 }
 
 GRandomForest::GRandomForest(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+: GSupervisedLearner(pNode)
 {
 	m_pEnsemble = new GBag(pNode->field("bag"), ll);
 }

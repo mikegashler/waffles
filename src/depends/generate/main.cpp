@@ -30,7 +30,6 @@
 #include "../../GClasses/GPlot.h"
 #include "../../GClasses/GRayTrace.h"
 #include "../../GClasses/GRect.h"
-#include "../../GClasses/GSystemLearner.h"
 #include "../../GClasses/GDom.h"
 #include "../../GClasses/usage.h"
 #include <time.h>
@@ -43,6 +42,7 @@
 #include <exception>
 #include <string>
 #include "GImagePng.h"
+#include <memory>
 
 using namespace GClasses;
 using std::cout;
@@ -104,23 +104,22 @@ void cube(GArgReader& args)
 {
 	int side = args.pop_uint() - 1;
 	GMatrix data(0, 3);
-	double* pRow;
 	for(int y = 0; y < side; y++)
 	{
 		double b = ((double)y/* + 0.5*/) / side;
 		for(int x = 0; x < side; x++)
 		{
 			double a = ((double)x/* + 0.5*/) / side;
-			pRow = data.newRow(); pRow[0] = 0.0; pRow[1] = 1.0 - a; pRow[2] = b;
-			pRow = data.newRow(); pRow[0] = 1.0; pRow[1] = a; pRow[2] = 1.0 - b;
-			pRow = data.newRow(); pRow[0] = b; pRow[1] = 0.0; pRow[2] = 1.0 - a;
-			pRow = data.newRow(); pRow[0] = 1.0 - b; pRow[1] = 1.0; pRow[2] = a;
-			pRow = data.newRow(); pRow[0] = 1.0 - a; pRow[1] = b; pRow[2] = 0.0;
-			pRow = data.newRow(); pRow[0] = a; pRow[1] = 1.0 - b; pRow[2] = 1.0;
+			GVec& r0 = data.newRow(); r0[0] = 0.0;     r0[1] = 1.0 - a; r0[2] = b;
+			GVec& r1 = data.newRow(); r1[0] = 1.0;     r1[1] = a;       r1[2] = 1.0 - b;
+			GVec& r2 = data.newRow(); r2[0] = b;       r2[1] = 0.0;     r2[2] = 1.0 - a;
+			GVec& r3 = data.newRow(); r3[0] = 1.0 - b; r3[1] = 1.0;     r3[2] = a;
+			GVec& r4 = data.newRow(); r4[0] = 1.0 - a; r4[1] = b;       r4[2] = 0.0;
+			GVec& r5 = data.newRow(); r5[0] = a;       r5[1] = 1.0 - b; r5[2] = 1.0;
 		}
 	}
-	pRow = data.newRow(); pRow[0] = 0.0; pRow[1] = 0.0; pRow[2] = 0.0;
-	pRow = data.newRow(); pRow[0] = 1.0; pRow[1] = 1.0; pRow[2] = 1.0;
+	GVec& rp = data.newRow(); rp[0] = 0.0; rp[1] = 0.0; rp[2] = 0.0;
+	GVec& ru = data.newRow(); ru[0] = 1.0; ru[1] = 1.0; ru[2] = 1.0;
 	data.print(cout);
 }
 
@@ -146,11 +145,11 @@ void fishBowl(GArgReader& args)
 	GMatrix data(0, 3);
 	for(int i = 0; i < points; i++)
 	{
-		double* pRow = data.newRow();
+		GVec& pRow = data.newRow();
 		int j;
 		for(j = 100; j > 0; j--)
 		{
-			prng.spherical(pRow, 3);
+			pRow.fillSphericalShell(prng);
 			if(pRow[1] < 1.0 - opening)
 				break;
 		}
@@ -338,9 +337,9 @@ void Noise(GArgReader& args)
 	{
 		for(int i = 0; i < pats; i++)
 		{
-			double* pRow = data.newRow();
-			prng.spherical(pRow, dims);
-			GVec::multiply(pRow, p1, dims);
+			GVec& row = data.newRow();
+			row.fillSphericalShell(prng);
+			row *= p1;
 		}
 	}
 	else if(dist.compare("student") == 0)
@@ -406,8 +405,8 @@ void randomWalk(GArgReader& args)
 	scale.resize(dims, 1.0);
 	vector<double> pos;
 	pos.resize(dims, start);
-	GTEMPBUF(double, cur, 2 * dims);
-	double* prev = cur + dims;
+	GVec cur(dims);
+	GVec prev(dims);
 	GMatrix states(samples, dims);
 	GMatrix actions;
 	if(discrete)
@@ -420,7 +419,7 @@ void randomWalk(GArgReader& args)
 		for(size_t i = 0; i < samples; i++)
 		{
 			// Record the state
-			double* pState = states[i];
+			GVec& pState = states[i];
 			for(size_t j = 0; j < dims; j++)
 				pState[j] = pos[j];
 
@@ -468,11 +467,11 @@ void randomWalk(GArgReader& args)
 	else
 	{
 		actions.resize(samples, dims);
-		rand.spherical(prev, dims);
+		prev.fillSphericalShell(rand);
 		for(size_t i = 0; i < samples; i++)
 		{
 			// Record the state
-			double* pState = states[i];
+			GVec& pState = states[i];
 			for(size_t j = 0; j < dims; j++)
 				pState[j] = pos[j];
 
@@ -482,11 +481,11 @@ void randomWalk(GArgReader& args)
 			while(true)
 			{
 				// Pick a direction
-				rand.spherical(cur, dims);
-				GVec::multiply(cur, 1.0 - d, dims);
-				GVec::addScaled(cur, d, prev, dims);
-				GVec::normalize(cur, dims);
-				GVec::multiply(cur, step, dims);
+				cur.fillSphericalShell(rand);
+				cur *= (1.0 - d);
+				cur.addScaled(d, prev);
+				cur.normalize();
+				cur *= step;
 				bool inbounds = true;
 				for(size_t j = 0; j < dims; j++)
 				{
@@ -516,8 +515,8 @@ void randomWalk(GArgReader& args)
 				}
 			}
 
-			GVec::copy(actions[i], cur, dims);
-			GVec::copy(prev, cur, dims);
+			actions[i] = cur;
+			prev = cur;
 		}
 	}
 
@@ -591,7 +590,7 @@ void SwissRoll(GArgReader& args)
 	for(int n = 0; n < points; n++)
 	{
 		double t = ((double)n * 8) / points;
-		double* pVector = data.newRow();
+		GVec& pVector = data.newRow();
 		pVector[0] = ((t + 2) * sin(t));
 		pVector[2] = ((t + 2) * cos(t));
 		if(cutOutStar)
@@ -654,7 +653,7 @@ void SCurve(GArgReader& args)
 	for(int n = 0; n < points; n++)
 	{
 		double t = ((double)n * 2.2 * M_PI - .1 * M_PI) / points;
-		double* pVector = data.newRow();
+		GVec& pVector = data.newRow();
 		pVector[0] = 1.0 - sin(t);
 		pVector[1] = t;
 		pVector[2] = prng.uniform() * 2;
@@ -706,7 +705,7 @@ void EntwinedSpirals(GArgReader& args)
 	for(int n = 0; n < points; n++)
 	{
 		double t = ((double)n * dTotalLength) / points;
-		double* pVector = data.newRow();
+		GVec& pVector = data.newRow();
 		if(reduced)
 		{
 			pVector[0] = t;
@@ -801,7 +800,7 @@ void ImageTranslatedOverNoise(GArgReader& args)
 		{
 			if(reduced)
 			{
-				double* pVec = data.newRow();
+				GVec& pVec = data.newRow();
 				pVec[0] = x;
 				pVec[1] = y;
 			}
@@ -809,7 +808,7 @@ void ImageTranslatedOverNoise(GArgReader& args)
 			{
 				imageAll.copy(&imageNoise);
 				imageAll.blit(x, y, &imageFace, &r);
-				double* pVec = data.newRow();
+				GVec& pVec = data.newRow();
 				for(int yy = 0; yy < (int)imageAll.height(); yy++)
 				{
 					for(int xx = 0; xx < (int)imageAll.width(); xx++)
@@ -842,7 +841,7 @@ void SelfIntersectingRibbon(GArgReader& args)
 	for(unsigned int i = 0; i < points; i++)
 	{
 		double t = M_PI / 4 + (1.5 * M_PI) * (double)i / points;
-		double* pPat = data.newRow();
+		GVec& pPat = data.newRow();
 		pPat[0] = sin(t * 2);
 		pPat[1] = -2.0 * cos(t);
 		pPat[2] = 2.0 * prng.uniform();
@@ -920,7 +919,7 @@ void WindowedImageData(GArgReader& args)
 				continue;
 			if(reduced)
 			{
-				double* pVec = data.newRow();
+				GVec& pVec = data.newRow();
 				pVec[0] = x;
 				pVec[1] = y;
 			}
@@ -928,15 +927,16 @@ void WindowedImageData(GArgReader& args)
 			{
 				GRect r(x, y, imageWindow.width(), imageWindow.height());
 				imageWindow.blit(0, 0, &imageSource, &r);
-				double* pVec = data.newRow();
+				GVec& pVec = data.newRow();
+				size_t pos = 0;
 				for(int yy = 0; yy < (int)imageWindow.height(); yy++)
 				{
 					for(int xx = 0; xx < (int)imageWindow.width(); xx++)
 					{
 						unsigned int pix = imageWindow.pixel(xx, yy);
-						*(pVec++) = (double)gRed(pix) / 256;
-						*(pVec++) = (double)gGreen(pix) / 256;
-						*(pVec++) = (double)gBlue(pix) / 256;
+						pVec[pos++] = (double)gRed(pix) / 256;
+						pVec[pos++] = (double)gGreen(pix) / 256;
+						pVec[pos++] = (double)gBlue(pix) / 256;
 					}
 				}
 			}
@@ -1111,19 +1111,20 @@ void CraneDataset(GArgReader& args)
 			grid.blit(wid * horiz, hgt * vert, pImage, &r);
 			grid.box(wid * horiz, hgt * vert, wid * horiz + wid - 1, hgt * vert + hgt - 1, 0xffb0b0b0);
 
-			double* pRow = data.newRow();
+			GVec& pRow = data.newRow();
+			size_t pos = 0;
 			unsigned int* pPixels = pImage->pixels();
 			for(int yy = 0; yy < hgt; yy++)
 			{
 				for(int xx = 0; xx < wid; xx++)
 				{
 					if(gray)
-						*(pRow++) = gGray(*pPixels);
+						pRow[pos++] = gGray(*pPixels);
 					else
 					{
-						*(pRow++) = gRed(*pPixels);
-						*(pRow++) = gGreen(*pPixels);
-						*(pRow++) = gBlue(*pPixels);
+						pRow[pos++] = gRed(*pPixels);
+						pRow[pos++] = gGreen(*pPixels);
+						pRow[pos++] = gBlue(*pPixels);
 					}
 					pPixels++;
 				}
@@ -1147,7 +1148,7 @@ void cranePath(GArgReader& args)
 	int hgt = 48;
 	int horizFrames = 25;
 	int vertFrames = 21;
-	double state[2];
+	GVec state(2);
 	double ballRadius = 0.3;
 	bool front = false;
 	double blur = 0.0;
@@ -1197,26 +1198,27 @@ void cranePath(GArgReader& args)
 		double craneYaw = posx;
 		state[0] = (craneYaw + 0.75) * (horizFrames - 1) / 1.5;
 		state[1] = ballHeight * (vertFrames - 1) / 1.25;
-		GVec::copy(stateData.newRow(), state, 2);
+		stateData.newRow() = state;
 
 		// Generate the image vector
 		GImage* pImage = makeCraneImage(craneYaw, ballHeight, wid, hgt, ballRadius, front);
 		if(blur > 0)
 			pImage->blur(blur);
-		Holder<GImage> hImage(pImage);
-		double* pRow = data.newRow();
+		std::unique_ptr<GImage> hImage(pImage);
+		GVec& pRow = data.newRow();
+		size_t pos = 0;
 		unsigned int* pPixels = pImage->pixels();
 		for(int yy = 0; yy < hgt; yy++)
 		{
 			for(int xx = 0; xx < wid; xx++)
 			{
 				if(gray)
-					*(pRow++) = ClipChan((int)floor((double)gGray(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
+					pRow[pos++] = ClipChan((int)floor((double)gGray(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
 				else
 				{
-					*(pRow++) = ClipChan((int)floor((double)gRed(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
-					*(pRow++) = ClipChan((int)floor((double)gGreen(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
-					*(pRow++) = ClipChan((int)floor((double)gBlue(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
+					pRow[pos++] = ClipChan((int)floor((double)gRed(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
+					pRow[pos++] = ClipChan((int)floor((double)gGreen(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
+					pRow[pos++] = ClipChan((int)floor((double)gBlue(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
 				}
 				pPixels++;
 			}
@@ -1257,7 +1259,7 @@ void threeCranePath(GArgReader& args)
 	int hgt = 48;
 	int horizFrames = 25;
 	int vertFrames = 21;
-	double state[4];
+	GVec state(4);
 	double ballRadius = 0.3;
 	double blur = 0.0;
 	bool gray = false;
@@ -1312,26 +1314,27 @@ void threeCranePath(GArgReader& args)
 		state[1] = ballHeight[0] * (vertFrames - 1) / 1.25;
 		state[2] = (craneYaw[2] + 0.75) * (horizFrames - 1) / 1.5;
 		state[3] = ballHeight[2] * (vertFrames - 1) / 1.25;
-		GVec::copy(stateData.newRow(), state, 4);
+		stateData.newRow() = state;
 
 		// Generate the image vector
 		GImage* pImage = makeThreeCraneImage(craneYaw, ballHeight, wid, hgt, ballRadius);
 		if(blur > 0)
 			pImage->blur(blur);
 		Holder<GImage> hImage(pImage);
-		double* pRow = data.newRow();
+		GVec& pRow = data.newRow();
+		size_t pos = 0;
 		unsigned int* pPixels = pImage->pixels();
 		for(int yy = 0; yy < hgt; yy++)
 		{
 			for(int xx = 0; xx < wid; xx++)
 			{
 				if(gray)
-					*(pRow++) = ClipChan((int)floor((double)gGray(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
+					pRow[pos++] = ClipChan((int)floor((double)gGray(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
 				else
 				{
-					*(pRow++) = ClipChan((int)floor((double)gRed(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
-					*(pRow++) = ClipChan((int)floor((double)gGreen(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
-					*(pRow++) = ClipChan((int)floor((double)gBlue(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
+					pRow[pos++] = ClipChan((int)floor((double)gRed(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
+					pRow[pos++] = ClipChan((int)floor((double)gGreen(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
+					pRow[pos++] = ClipChan((int)floor((double)gBlue(*pPixels) + 0.5 + prng.normal() * 255.0 * observationNoiseDev));
 				}
 				pPixels++;
 			}
@@ -1469,11 +1472,12 @@ void ScaleAndRotate(GArgReader& args)
 			frame.blitStretchInterpolate(&rDest, &rotated, &rSrc);
 
 			// Convert to a data row
-			double* pRow = data.newRow();
+			GVec& pRow = data.newRow();
+			size_t pos = 0;
 			for(int b = 0; b < (int)imageSource.height(); b++)
 			{
 				for(int a = 0; a < (int)imageSource.width(); a++)
-					*(pRow++) = gGray(frame.pixel(a, b));
+					pRow[pos++] = gGray(frame.pixel(a, b));
 			}
 
 			// Save in the grid image
@@ -1527,13 +1531,12 @@ void gridRandomWalk(GArgReader& args)
 	GMatrix dataObs(pData->relation().clone());
 	GMatrix dataControl(new GUniformRelation(1, 4));
 	GMatrix dataState(0, 2);
-	int colCount = (int)pData->cols();
 	while(dataObs.rows() < samples)
 	{
-		double* pRow = dataState.newRow();
+		GVec& pRow = dataState.newRow();
 		pRow[0] = x;
 		pRow[1] = y;
-		GVec::copy(dataObs.newRow(), pData->row(width * y + x), colCount);
+		dataObs.newRow() = pData->row(width * y + x);
 		int action = 0;
 		while(true)
 		{
@@ -1596,9 +1599,9 @@ void vectorToImage(GArgReader& args)
 	double range = args.pop_double();
 	if((wid * hgt * channels) != pData->cols())
 		throw Ex("Invalid dimensions");
-	double* pVec = pData->row(r);
+	GVec& pVec = pData->row(r);
 	GImage image;
-	GVec::toImage(pVec, &image, wid, hgt, channels, range);
+	pVec.toImage(&image, wid, hgt, channels, range);
 	savePng(&image, "image.png");
 }
 
@@ -1659,7 +1662,7 @@ void imagesToArff(GArgReader& args)
 			size_t dims = w * h * channels;
 			m.resize(0, dims);
 		}
-		GVec::fromImage(&image, m.newRow(), image.width(), image.height(), channels, range);
+		m.newRow().fromImage(&image, image.width(), image.height(), channels, range);
 
 		i += increment;
 	}
@@ -1681,7 +1684,7 @@ void dataToFrames(GArgReader& args)
 	master.setSize((unsigned int)wid, (unsigned int)(hgt * pData->rows()));
 	for(unsigned int i = 0; i < pData->rows(); i++)
 	{
-		GVec::toImage(pData->row(i), &image, wid, hgt, channels, range);
+		pData->row(i).toImage(&image, wid, hgt, channels, range);
 		GRect r(0, 0, (int)wid, (int)hgt);
 		master.blit(0, i * (int)hgt, &image, &r);
 	}
@@ -1794,7 +1797,7 @@ void sceneRobotSimulationPath(GArgReader& args)
 	for(unsigned int i = 0; i < frames; i++)
 	{
 		// Make the state
-		double* pVec = state.newRow();
+		GVec& pVec = state.newRow();
 		pVec[0] = x;
 		pVec[1] = y;
 
@@ -1812,14 +1815,15 @@ void sceneRobotSimulationPath(GArgReader& args)
 
 		// Convert to an observation vector
 		pVec = obs.newRow();
+        size_t pos = 0;
 		unsigned int* pix = frame.pixels();
-		for(unsigned int yy = 0; yy < frame.height(); yy++)
+		for(unsigned int yyy = 0; yyy < frame.height(); yyy++)
 		{
-			for(unsigned int xx = 0; xx < frame.width(); xx++)
+			for(unsigned int xxx = 0; xxx < frame.width(); xxx++)
 			{
-				*(pVec++) = ClipChan((int)(observationNoise * 255 * prng.normal()) + gRed(*pix));
-				*(pVec++) = ClipChan((int)(observationNoise * 255 * prng.normal()) + gGreen(*pix));
-				*(pVec++) = ClipChan((int)(observationNoise * 255 * prng.normal()) + gBlue(*pix));
+				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gRed(*pix));
+				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gGreen(*pix));
+				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gBlue(*pix));
 				pix++;
 			}
 		}
@@ -1860,173 +1864,6 @@ void sceneRobotSimulationPath(GArgReader& args)
 	state.saveArff(stateFilename.c_str());
 	obs.saveArff(obsFilename.c_str());
 	act.saveArff(actFilename.c_str());
-}
-
-void mechanicalRabbit(GArgReader& args)
-{
-	const char* sceneFilename = args.pop_string();
-	GDom doc;
-	doc.loadJson(args.pop_string());
-	GMatrix* pActions = loadData(args.pop_string());
-	Holder<GMatrix> hActions(pActions);
-
-	// Parse the options
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	string contextFilename = "context.arff";
-	string stateFilename = "state.arff";
-	string plannedObsFilename = "planned_obs.arff";
-	string actualObsFilename = "actual_obs.arff";
-	string actionsFilename = "actions.arff";
-	double transitionNoise = 0.0;
-	double observationNoise = 0.0;
-	int cameraWid = 64;
-	int cameraHgt = 48;
-	int strafeLen = 30;
-	int zoomLen = 20;
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-out"))
-		{
-			contextFilename = args.pop_string();
-			stateFilename = args.pop_string();
-			plannedObsFilename = args.pop_string();
-			actualObsFilename = args.pop_string();
-			actionsFilename = args.pop_string();
-		}
-		else if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else if(args.if_pop("-noise"))
-		{
-			transitionNoise = args.pop_double();
-			observationNoise = args.pop_double();
-		}
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-
-	// Generate the context sequence
-	GRand prng(seed);
-	GRecurrentModel rm(doc.root(), &prng);
-	GMatrix obsPlanned(0, rm.obsDims());
-	GMatrix context(0, rm.contextDims());
-	GVec::setAll(rm.context(), 0.0, rm.contextDims());
-	GVec::copy(context.newRow(), rm.context(), rm.contextDims());
-	rm.predict(obsPlanned.newRow());
-	for(size_t i = 0; i < pActions->rows(); i++)
-	{
-		rm.doAction(pActions->row(i));
-		GVec::copy(context.newRow(), rm.context(), rm.contextDims());
-		rm.predict(obsPlanned.newRow());
-	}
-
-	// Reset the model and the system
-	GVec::setAll(rm.context(), 0.0, rm.contextDims());
-	GImage scene;
-	loadPng(&scene, sceneFilename);
-	if(scene.height() > scene.width() * cameraHgt / cameraWid)
-		throw Ex("Expected a panoramic (wide) scene");
-	double maxWid = scene.height() * cameraWid / cameraHgt;
-	double maxStrafeStride = (scene.width() - maxWid) / strafeLen;
-	GImage frame;
-	frame.setSize(cameraWid, cameraHgt);
-	double x = strafeLen / 2.0;
-	double y = 0.0;
-	GMatrix obsActual(0, rm.obsDims());
-	GMatrix state(0, 2);
-	GMatrix actionsActual(new GUniformRelation(1, 4));
-
-	// Do the mechanical rabbit
-	GTEMPBUF(double, tmpContext, rm.contextDims());
-	size_t r = 0;
-	size_t gap = 1;
-	int safety = 0;
-	while(r < context.rows() && gap > 0)
-	{
-		// Store the actual state
-		double* pState = state.newRow();
-		pState[0] = x;
-		pState[1] = y;
-
-		// Make the frame
-		double yy = y / zoomLen;
-		double z = yy;
-		double h = z * cameraHgt + (1.0 - z) * scene.height();
-		double w = h * cameraWid / cameraHgt;
-		double strafeStride = z + (1.0 - z) * maxStrafeStride;
-		double left = ((double)scene.width() - w) / 2.0 + (x - strafeLen / 2.0) * strafeStride;
-		double top = (scene.height() - h) / 2.0;
-		GDoubleRect src(left, top, w, h);
-		GDoubleRect dest(0, 0, cameraWid, cameraHgt);
-		frame.blitStretchInterpolate(&dest, &scene, &src);
-
-		// Convert to an observation vector
-		double* pVec = obsActual.newRow();
-		double* pObsActual = pVec;
-		unsigned int* pix = frame.pixels();
-		for(unsigned int yy = 0; yy < frame.height(); yy++)
-		{
-			for(unsigned int xx = 0; xx < frame.width(); xx++)
-			{
-				*(pVec++) = ClipChan((int)(observationNoise * 255 * prng.normal()) + gRed(*pix));
-				*(pVec++) = ClipChan((int)(observationNoise * 255 * prng.normal()) + gGreen(*pix));
-				*(pVec++) = ClipChan((int)(observationNoise * 255 * prng.normal()) + gBlue(*pix));
-				pix++;
-			}
-		}
-
-		// Advance the mechanical rabbit
-		rm.calibrate(pObsActual);
-		if(r + 1 == context.rows())
-			gap--;
-		safety++;
-		while(safety > 3 || (r + 1 < context.rows() && sqrt(GVec::squaredDistance(rm.context(), context.row(r), rm.contextDims())) < gap))
-		{
-			r++;
-			safety = 0;
-		}
-
-		// Pick the best action
-		int bestAction = -1;
-		double bestSquaredDist = 1e308;
-		double dAction;
-		for(int i = 0; i < 4; i++)
-		{
-			GVec::copy(tmpContext, rm.context(), rm.contextDims());
-			dAction = (double)i;
-			rm.doAction(&dAction);
-			double squaredDist = GVec::squaredDistance(context.row(r), rm.context(), rm.contextDims());
-			if(bestAction < 0 || squaredDist < bestSquaredDist)
-			{
-				bestAction = i;
-				bestSquaredDist = squaredDist;
-			}
-			GVec::copy(rm.context(), tmpContext, rm.contextDims());
-		}
-
-		// Apply the action to the model
-		dAction = (double)bestAction;
-		rm.doAction(&dAction);
-
-		// Apply the action to the system
-		actionsActual.newRow()[0] = bestAction;
-		if(bestAction == 0)
-			x -= 1.0;
-		else if(bestAction == 1)
-			x += 1.0;
-		else if(bestAction == 2)
-			y -= 1.0;
-		else if(bestAction == 3)
-			y += 1.0;
-		x += transitionNoise * prng.normal();
-		y += transitionNoise * prng.normal();
-	}
-
-	// Save the results
-	context.saveArff(contextFilename.c_str());
-	obsPlanned.saveArff(plannedObsFilename.c_str());
-	state.saveArff(stateFilename.c_str());
-	obsActual.saveArff(actualObsFilename.c_str());
-	actionsActual.saveArff(actionsFilename.c_str());
 }
 
 void manifold(GArgReader& args)
@@ -2087,7 +1924,7 @@ void manifold(GArgReader& args)
 	{
 		for(size_t j = 0; j < intrinsicDims; j++)
 			params[j] = prng.uniform();
-		double* pRow = data[i];
+		GVec& pRow = data[i];
 		for(size_t j = 0; j < funcs.size(); j++)
 			pRow[j] = funcs[j]->call(params, mfp);
 		pRow[funcs.size()] = params[0];
@@ -2095,7 +1932,7 @@ void manifold(GArgReader& args)
 
 	// Sort by the first intrinsic parameter, then drop that column from the data
 	data.sort(funcs.size());
-	data.deleteColumn(funcs.size());
+	data.deleteColumns(funcs.size(), 1);
 
 	// Print results
 	data.print(cout);
@@ -2141,8 +1978,8 @@ void mapEquations(GArgReader& args)
 	GMatrix out(in.rows(), funcs.size());
 	for(size_t i = 0; i < in.rows(); i++)
 	{
-		double* pIn = in[i];
-		double* pOut = out[i];
+		GVec& pIn = in[i];
+		GVec& pOut = out[i];
 		for(size_t j = 0; j < dims; j++)
 			params[j] = pIn[j];
 		for(size_t j = 0; j < funcs.size(); j++)
@@ -2263,7 +2100,7 @@ void MakeCorrelationGraph(const GRelation* pRelation, GMatrix* pData, GImage* pI
 		size_t samples = 2048;
 		for(size_t i = 0; i < samples; i++)
 		{
-			double* pPat = pData->row(i * pData->rows() / samples);
+			GVec& pPat = pData->row(i * pData->rows() / samples);
 			pw.point(pPat[attrx] + pRand->normal() * jitter * (xmax - xmin), pPat[attry] + pRand->normal() * jitter * (ymax - ymin), 0xff000080);
 		}
 	}
@@ -2306,18 +2143,18 @@ void MakeCorrelationLabel(const GArffRelation* pRelation, GMatrix* pData, GImage
 		int valueCount = (int)pRelation->valueCount(attr);
 		for(int i = 0; i < valueCount; i++)
 		{
-			GImage image2;
-			image2.setSize(pImage->width() - 16, 16);
-			image2.clear(0);
+			GImage image_2;
+			image_2.setSize(pImage->width() - 16, 16);
+			image_2.clear(0);
 			int xx = 0;
 			ostringstream oss;
 			pRelation->printAttrValue(oss, attr, i);
 			string sValue = oss.str();
 			int eatspace = pImage->width() - 16 - GImage::measureTextWidth(sValue.c_str(), 1.0f);
 			xx += eatspace;
-			image2.text(sValue.c_str(), xx, 0, 1.0f, 0xff000040);
+			image_2.text(sValue.c_str(), xx, 0, 1.0f, 0xff000040);
 			GImage image3;
-			image3.rotateClockwise90(&image2);
+			image3.rotateClockwise90(&image_2);
 			GRect r3(0, 0, image3.width(), image3.height());
 			int span = pImage->width() / valueCount;
 			int start = std::max(0, (span - 16) / 2);
@@ -2558,7 +2395,7 @@ void Plot3d(GImage* pImage, GMatrix* pData, unsigned int bgCol, float pointRadiu
 	copy.sort(comparator);
 	for(size_t i = 0; i < copy.rows(); i++)
 	{
-		double* pVec = copy.row(i);
+		GVec& pVec = copy.row(i);
 		point.set(pVec[0], pVec[1], pVec[2]);
 		toImageCoords(pImage, &camera, &point, &coords);
 		float radius = pointRadius / (float)coords.m_vals[2];
@@ -2751,7 +2588,7 @@ void model(GArgReader& args)
 			size_t count = 0;
 			for(size_t i = 0; i < pData->rows(); i += step)
 			{
-				GVec::copy(features, pData->row(i), featureDims);
+				features = pData->row(i);
 				features[attrx] = xx;
 				features[attry] = yy;
 				pModeler->predict(features, labels);

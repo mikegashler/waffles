@@ -31,7 +31,7 @@ class GTransform
 {
 public:
 	GTransform();
-	GTransform(GDomNode* pNode, GLearnerLoader& ll);
+	GTransform(GDomNode* pNode);
 	virtual ~GTransform();
 
 	/// Applies the transformation to pIn and returns the results.
@@ -56,7 +56,7 @@ private:
 
 public:
 	GIncrementalTransform() : GTransform(), m_pRelationBefore(NULL), m_pRelationAfter(NULL) {}
-	GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll);
+	GIncrementalTransform(GDomNode* pNode);
 	virtual ~GIncrementalTransform();
 
 #ifndef MIN_PREDICT
@@ -216,7 +216,7 @@ public:
 	GPCA(size_t targetDims);
 
 	/// Load from a DOM.
-	GPCA(GDomNode* pNode, GLearnerLoader& ll);
+	GPCA(GDomNode* pNode);
 
 	virtual ~GPCA();
 
@@ -272,20 +272,6 @@ protected:
 };
 
 
-/// Principle Component Analysis without the projection. It only rotates
-/// axes to align with the first few principal components.
-class GPCARotateOnly
-{
-public:
-	/// This rotates the data to align the first nComponents axes with the same
-	/// number of principle components.
-	static GMatrix* transform(size_t nDims, size_t nOutputs, const GMatrix* pData, size_t nComponents, GRand* pRand);
-
-#ifndef MIN_PREDICT
-	/// Performs unit tests for this class. Throws an exception if there is a failure.
-	static void test();
-#endif // MIN_PREDICT
-};
 
 
 /// Just generates Gaussian noise
@@ -299,7 +285,7 @@ public:
 	GNoiseGenerator();
 
 	/// Load from a DOM.
-	GNoiseGenerator(GDomNode* pNode, GLearnerLoader& ll);
+	GNoiseGenerator(GDomNode* pNode);
 
 	virtual ~GNoiseGenerator();
 
@@ -344,7 +330,7 @@ public:
 	GPairProduct(size_t nMaxDims);
 
 	/// Load from a DOM.
-	GPairProduct(GDomNode* pNode, GLearnerLoader& ll);
+	GPairProduct(GDomNode* pNode);
 
 	virtual ~GPairProduct();
 
@@ -388,7 +374,7 @@ public:
 	GReservoir(double weightDeviation = 2.0, size_t outputs = 64, size_t hiddenLayers = 2);
 
 	/// Load from a DOM.
-	GReservoir(GDomNode* pNode, GLearnerLoader& ll);
+	GReservoir(GDomNode* pNode);
 
 	virtual ~GReservoir();
 
@@ -477,7 +463,7 @@ public:
 	{
 	}
 
-	GAttributeSelector(GDomNode* pNode, GLearnerLoader& ll);
+	GAttributeSelector(GDomNode* pNode);
 
 	virtual ~GAttributeSelector()
 	{
@@ -537,7 +523,7 @@ public:
 	GNominalToCat(size_t valueCap = 12);
 
 	/// Load from a DOM.
-	GNominalToCat(GDomNode* pNode, GLearnerLoader& ll);
+	GNominalToCat(GDomNode* pNode);
 
 	virtual ~GNominalToCat();
 
@@ -589,7 +575,7 @@ public:
 	GNormalize(double min = 0.0, double max = 1.0);
 
 	/// Load from a DOM.
-	GNormalize(GDomNode* pNode, GLearnerLoader& ll);
+	GNormalize(GDomNode* pNode);
 
 	virtual ~GNormalize();
 
@@ -634,7 +620,7 @@ public:
 	GDiscretize(size_t buckets = INVALID_INDEX);
 
 	/// Load from a DOM.
-	GDiscretize(GDomNode* pNode, GLearnerLoader& ll);
+	GDiscretize(GDomNode* pNode);
 
 	virtual ~GDiscretize();
 
@@ -724,7 +710,7 @@ public:
 	GLogify();
 
 	/// Load from a DOM.
-	GLogify(GDomNode* pNode, GLearnerLoader& ll);
+	GLogify(GDomNode* pNode);
 
 	virtual ~GLogify();
 

@@ -48,9 +48,9 @@ This switch statement just tells it to execute the tool that is specified by the
 	void Transpose(GArgReader& args)
 	{
 		GMatrix* pData = loadData(args.pop_string());
-		Holder&lt;GMatrix&gt; hData(pData);
+		std::unique_ptr&lt;GMatrix&gt; hData(pData);
 		GMatrix* pTransposed = pData->transpose();
-		Holder&lt;GMatrix&gt; hTransposed(pTransposed);
+		std::unique_ptr&lt;GMatrix&gt; hTransposed(pTransposed);
 		pTransposed->print(cout);
 	}
 </pre>

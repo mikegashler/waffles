@@ -42,6 +42,7 @@
 #include <cmath>
 #include <map>
 #include "GPriorityQueue.h"
+#include <memory>
 
 namespace GClasses {
 
@@ -659,7 +660,7 @@ public:
 	GKdNode* Rebuild(GKdTree* pTree)
 	{
 		size_t* pIndexes = new size_t[m_size];
-		ArrayHolder<size_t> hIndexes(pIndexes);
+		std::unique_ptr<size_t[]> hIndexes(pIndexes);
 		size_t used = Gather(pIndexes);
 		GAssert(used == m_size); // m_size is wrong. This may corrupt memory.
 		return pTree->buildTree(used, pIndexes);
@@ -1569,7 +1570,7 @@ GBallNode* GBallTree::buildTree(size_t count, size_t* pIndexes)
 		if(leftCount == 0 || leftCount == count) // If we could not separate any of the points (which may occur if they are all the same point)...
 			return new GBallLeaf(count, pIndexes, m_pData, m_pMetric);
 		GBallInterior* pInterior = new GBallInterior(count, pIndexes, m_pData, m_pMetric);
-		Holder<GBallInterior> hInterior(pInterior);
+		std::unique_ptr<GBallInterior> hInterior(pInterior);
 		pInterior->m_pLeft = buildTree(leftCount, pIndexes);
 		GAssert(pInterior->m_pLeft);
 		pInterior->m_pRight = buildTree(count - leftCount, pIndexes + leftCount);
@@ -1811,7 +1812,7 @@ void GShortcutPruner::onDetectBigAtomicCycle(vector<size_t>& cycle)
 {
 	// Make a subgraph containing only nodes close to the cycle
 	size_t* mapIn = new size_t[m_n];
-	ArrayHolder<size_t> hMapIn(mapIn);
+	std::unique_ptr<size_t[]> hMapIn(mapIn);
 	vector<size_t> mapOut;
 	GBitTable visited(m_n);
 	deque<size_t> q;
@@ -1916,7 +1917,7 @@ void GShortcutPruner::test()
 	size_t n = w * h;
 	size_t k = 4;
 	size_t* pNeighbors = new size_t[n * k];
-	ArrayHolder<size_t> hNeighbors(pNeighbors);
+	std::unique_ptr<size_t[]> hNeighbors(pNeighbors);
 	size_t i = 0;
 	size_t* pHood = pNeighbors;
 	for(size_t y = 0; y < h; y++)
@@ -2199,7 +2200,7 @@ void GCycleCut::test()
 	size_t n = w * h;
 	size_t k = 4;
 	size_t* pNeighbors = new size_t[n * k];
-	ArrayHolder<size_t> hNeighbors(pNeighbors);
+	std::unique_ptr<size_t[]> hNeighbors(pNeighbors);
 	size_t i = 0;
 	size_t* pHood = pNeighbors;
 	for(size_t y = 0; y < h; y++)
@@ -2245,235 +2246,6 @@ void GCycleCut::test()
 		throw Ex("wrong number of cuts");
 }
 #endif // NO_TEST_CODE
-
-
-
-
-
-
-
-
-
-
-GSaffron::GSaffron(GMatrix* pData, size_t medianCands, size_t neighbor_count, size_t tangentDims, double sqCorrCap, GRand* pRand)
-: GNeighborFinder(pData, neighbor_count), m_rows(pData->rows())
-{
-	double radius = GKdTree::medianDistanceToNeighbor(*pData, medianCands);
-	double squaredRadius = radius * radius;
-	size_t maxCandidates = medianCands * 3 / 2;
-
-	// Make a table of all the neighbors to each point within the radius
-	size_t dims = pData->relation().size();
-	GKdTree neighborFinder(pData, maxCandidates, NULL, true);
-	size_t* pCandIndexes = new size_t[maxCandidates * pData->rows()];
-	ArrayHolder<size_t> hCandIndexes(pCandIndexes);
-	double* pCandDists = new double[maxCandidates * pData->rows()];
-	ArrayHolder<double> hCandDists(pCandDists);
-	size_t* pHoodIndexes = pCandIndexes;
-	double* pHoodDists = pCandDists;
-	for(size_t i = 0; i < pData->rows(); i++)
-	{
-		neighborFinder.neighbors(pHoodIndexes, pHoodDists, i);
-		neighborFinder.sortNeighbors(pHoodIndexes, pHoodDists);
-		for(size_t j = maxCandidates - 1; j < maxCandidates; j--)
-		{
-			if(pHoodIndexes[j] < pData->rows() && pHoodDists[j] < squaredRadius)
-				break;
-			pHoodIndexes[j] = INVALID_INDEX;
-		}
-		pHoodIndexes += maxCandidates;
-		pHoodDists += maxCandidates;
-	}
-
-	// Initialize the weights
-	double* pWeights = new double[maxCandidates * pData->rows()];
-	ArrayHolder<double> hWeights(pWeights);
-	GVec::setAll(pWeights, 1.0 / maxCandidates, maxCandidates * pData->rows());
-
-	// Refine the weights
-	vector<GMatrix> tanSpaces;
-	for(size_t i = 0; i < pData->rows(); i++)
-		tanSpaces[i].resize(tangentDims, dims);
-	double* pBuf = new double[dims + maxCandidates];
-	ArrayHolder<double> hBuf(pBuf);
-	double* pSquaredCorr = pBuf + dims;
-	double prevGoodness = 0.0;
-	size_t iter;
-	for(iter = 0; true; iter++)
-	{
-		// Compute the tangeant hyperplane at each point
-		double* pHoodWeights = pWeights;
-		GMatrix neighborhood(0, dims);
-		for(size_t i = 0; i < pData->rows(); i++)
-		{
-			// Make the neighborhood
-			neighborhood.flush();
-			for(size_t j = 0; j < maxCandidates; j++)
-			{
-				size_t neigh = pCandIndexes[maxCandidates * i + j];
-				if(neigh < pData->rows())
-					neighborhood.newRow() = pData->row(neigh);
-			}
-
-			// Compute the tangeant hyperplane
-			GMatrix* pTanSpace = &tanSpaces[i];
-			for(size_t j = 0; j < tangentDims; j++)
-			{
-				GVec& pBasis = pTanSpace->row(j);
-				neighborhood.weightedPrincipalComponent(pBasis, pData->row(i), pHoodWeights, pRand);
-				neighborhood.removeComponent(pData->row(i), pBasis);
-			}
-			pHoodWeights += maxCandidates;
-		}
-
-		// Refine the weights
-		pHoodWeights = pWeights;
-		size_t* pHoodIndxs = pCandIndexes;
-		double* pHoodDsts = pCandDists;
-		double goodness = 0.0;
-		for(size_t i = 0; i < pData->rows(); i++)
-		{
-			// Compute the squaredDistance with each neighbor
-			GVec& pMe = pData->row(i);
-			GMatrix* pMyTan = &tanSpaces[i];
-			for(size_t j = 0; j < maxCandidates; j++)
-			{
-				size_t neighIndex = pHoodIndxs[j];
-				if(neighIndex >= pData->rows())
-				{
-					pSquaredCorr[j] = 0.0;
-					continue;
-				}
-				GVec& pNeigh = pData->row(neighIndex);
-				GMatrix* pNeighTan = &tanSpaces[neighIndex];
-				pSquaredCorr[j] = measureAlignment(pMe.data(), pMyTan, pNeigh.data(), pNeighTan, sqCorrCap, squaredRadius, pRand);
-
-				// Compute squared correlation between the two neighbors
-				double sqdist = pMe.squaredDistance(pNeigh);
-				double alignment = 1.0;
-				if(sqdist > 0)
-				{
-					pNeighTan->project(pBuf, pMe.data(), pNeigh.data());
-					alignment = (1.0 - (GVec::squaredDistance(pBuf, pMe.data(), dims) / sqdist));
-					pMyTan->project(pBuf, pNeigh.data(), pMe.data());
-					alignment *= (1.0 - GVec::squaredDistance(pBuf, pNeigh.data(), dims) / sqdist);
-				}
-				double cosDihedral = pMyTan->dihedralCorrelation(pNeighTan, pRand);
-				pSquaredCorr[j] = alignment * cosDihedral * cosDihedral;
-			}
-
-			// Adjust the weights
-			GVec::smallestToFront(pSquaredCorr, maxCandidates - neighbor_count, maxCandidates, pHoodWeights, pHoodIndxs, pHoodDsts);
-			for(size_t j = 0; j < maxCandidates - neighbor_count; j++)
-				pHoodWeights[j] = 0.9 * pHoodWeights[j];
-			GVec::sumToOne(pHoodWeights, maxCandidates);
-			goodness += GVec::dotProduct(pHoodWeights, pSquaredCorr, maxCandidates);
-
-			// Advance
-			pHoodWeights += maxCandidates;
-			pHoodIndxs += maxCandidates;
-			pHoodDsts += maxCandidates;
-		}
-		if(prevGoodness > 0.0 && (goodness / prevGoodness - 1.0) < 0.0001)
-			break;
-		prevGoodness = goodness;
-		//cout << "	goodness=" << goodness << "\n";
-	}
-	//cout << "	iters=" << iter << "\n";
-
-	// Store the results
-	m_pNeighborhoods = new size_t[m_neighborCount * pData->rows()];
-	m_pDistances = new double[m_neighborCount * pData->rows()];
-	size_t* pOutIndexes = m_pNeighborhoods;
-	double* pOutDists = m_pDistances;
-	pHoodDists = pCandDists;
-	pHoodIndexes = pCandIndexes;
-	for(size_t i = 0; i < pData->rows(); i++)
-	{
-		for(size_t j = 0; j < m_neighborCount; j++)
-		{
-			pOutIndexes[j] = pHoodIndexes[maxCandidates - 1 - j];
-			pOutDists[j] = pHoodDists[maxCandidates - 1 - j];
-		}
-
-		// Advance
-		pOutIndexes += m_neighborCount;
-		pOutDists += m_neighborCount;
-		pHoodDists += maxCandidates;
-		pHoodIndexes += maxCandidates;
-	}
-}
-
-// virtual
-GSaffron::~GSaffron()
-{
-	delete[] m_pNeighborhoods;
-	delete[] m_pDistances;
-}
-
-// static
-double GSaffron::measureAlignment(double* pA, GMatrix* pATan, double* pB, GMatrix* pBTan, double cap, double squaredRadius, GRand* pRand)
-{
-	size_t dims = pATan->cols();
-	double sqdist = GVec::squaredDistance(pA, pB, dims);
-	double mono1;
-	double mono2;
-	if(sqdist > 0)
-	{
-		GTEMPBUF(double, pBuf, dims);
-		pBTan->project(pBuf, pA, pB); // project pA - pB onto pBTan
-		mono1 = std::min(cap, GVec::squaredDistance(pBuf, pB, dims) / sqdist);
-		pATan->project(pBuf, pB, pA); // project pB - pA onto pATan
-		mono2 = std::min(cap, GVec::squaredDistance(pBuf, pA, dims) / sqdist);
-	}
-	else
-	{
-		mono1 = cap;
-		mono2 = cap;
-	}
-	double di = pATan->dihedralCorrelation(pBTan, pRand);
-	di = std::min(cap, di * di);
-	double distancePenalty = 1e-6 * sqdist / squaredRadius; // use distance to break ties
-	return mono1 * mono2 * di - distancePenalty;
-}
-
-// virtual
-void GSaffron::neighbors(size_t* pOutNeighbors, size_t index)
-{
-	if(index >= m_rows)
-		throw Ex("out of range");
-	memcpy(pOutNeighbors, m_pNeighborhoods + index * m_neighborCount, sizeof(size_t) * m_neighborCount);
-}
-
-// virtual
-void GSaffron::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
-{
-	neighbors(pOutNeighbors, index);
-	GVec::copy(pOutDistances, m_pDistances + index * m_neighborCount, m_neighborCount);
-}
-
-double GSaffron::meanNeighborCount(double* pDeviation)
-{
-	size_t sum = 0;
-	size_t sumOfSq = 0;
-	size_t* pPos = m_pNeighborhoods;
-	for(size_t i = 0; i < m_rows; i++)
-	{
-		size_t n = 0;
-		for(size_t j = 0; j < m_neighborCount; j++)
-		{
-			if(*pPos < m_rows)
-				n++;
-			pPos++;
-		}
-		sum += n;
-		sumOfSq += (n * n);
-	}
-	double mean = (double)sum / m_rows;
-	if(pDeviation)
-		*pDeviation = ((sumOfSq / m_rows) - (mean * mean)) * m_rows / (m_rows - 1);
-	return mean;
-}
 
 
 

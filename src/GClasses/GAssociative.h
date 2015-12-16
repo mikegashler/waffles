@@ -43,10 +43,7 @@ public:
 
 public:
 	GAssociativeLayer(size_t bef, size_t cur, size_t aft, GActivationFunction* pActivationFunction = NULL);
-
-	~GAssociativeLayer()
-	{
-	}
+	~GAssociativeLayer();
 
 	size_t units() { return m_forw.cols(); }
 	GVec& activation() { return m_bias[0]; }

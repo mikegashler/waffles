@@ -68,6 +68,11 @@ m_bias(6, cur)
 		m_pActivationFunction = new GActivationTanH();
 }
 
+GAssociativeLayer::~GAssociativeLayer()
+{
+	delete(m_pActivationFunction);
+}
+
 void GAssociativeLayer::clipWeightMagnitudes(double min, double max)
 {
 	size_t bef = m_forw.rows();

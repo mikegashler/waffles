@@ -46,7 +46,11 @@ public:
 	/// General-purpose constructor. n specifies the initial size of the vector.
 	GVec(size_t n = 0);
 
+	/// General-purpose constructor. n specifies the initial size of the vector.
 	GVec(int n);
+
+	/// Unmarshaling constructor
+	GVec(GDomNode* pNode);
 
 	/// Copy constructor. Copies all the values in orig.
 	GVec(const GVec& orig);
@@ -65,10 +69,18 @@ public:
 	void fill(const double val, size_t startPos = 0, size_t endPos = (size_t)-1);
 
 	/// \brief Returns a reference to the specified element.
-	inline double& operator [](size_t index) { return m_data[index]; }
+	inline double& operator [](size_t index)
+	{
+		GAssert(index < m_size);
+		return m_data[index];
+	}
 
 	/// \brief Returns a const reference to the specified element
-	inline const double& operator [](size_t index) const { return m_data[index]; }
+	inline const double& operator [](size_t index) const
+	{
+		GAssert(index < m_size);
+		return m_data[index];
+	}
 
 	/// Returns a pointer to the raw element values.
 	double* data() { return m_data; }
@@ -102,6 +114,9 @@ public:
 
 	/// Scales this vector to have a magnitude of 1.0.
 	void normalize();
+
+	/// Scales this vector such that the elements sum to 1.0.
+	void sumToOne();
 
 	/// Returns the squared Euclidean distance between this and that vector.
 	double squaredDistance(const GVec& that) const;
@@ -170,6 +185,25 @@ public:
 	/// Returns the cosine of the angle between this and that (with the origin as the common vertex).
 	double correlation(const GVec& that) const;
 
+	/// Clips all values in this vector to fall in the range [min, max].
+	void clip(double min, double max);
+
+	/// Subtracts a component from this vector. Uses the Gram-Schmidt approach.
+	/// (Assumes component is already normalized.)
+	void subtractComponent(const GVec& component);
+
+	/// Decode this vector into an image.
+	/// channels must be 1 or 3 (for grayscale or rgb)
+	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
+	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
+	void toImage(GImage* pImage, int width, int height, int channels, double range) const;
+
+	/// Encode an image in this vector by rastering across pixel values.
+	/// channels must be 1 or 3 (for grayscale or rgb)
+	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
+	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
+	void fromImage(GImage* pImage, int width, int height, int channels, double range);
+
 private:
 	/// This method is deliberately private, so calling it will trigger a compiler error.
 	GVec(double d);
@@ -201,10 +235,6 @@ public:
 
 	/// This just wraps memcpy
 	static void copy(double* pDest, const double* pSource, size_t nDims);
-
-	/// Computes the dot product of two vectors. Results are undefined if pA or pB
-	/// contain unknown values.
-	static double dotProduct(const double* pA, const double* pB, size_t nSize);
 
 	/// Computes the dot product of (pTarget - pOrigin) with pVector.
 	static double dotProduct(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize);
@@ -249,15 +279,6 @@ public:
 
 	/// Computes L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
 	static double lNormDistance(double norm, const double* pA, const double* pB, size_t dims);
-
-	/// Computes the cosine of the angle between two vectors (the origin is the vertex)
-	static double correlation(const double* pA, const double* pB, size_t nDims);
-
-	/// Computes the cosine of the angle between two vectors (the origin is the vertex)
-	static double correlation(const double* pOriginA, const double* pTargetA, const double* pB, size_t nDims);
-
-	/// Computes the cosine of the angle between two vectors (the origin is the vertex)
-	static double correlation(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nDims);
 
 	/// Returns the index of the min value in pVector. If multiple elements have
 	/// have an equivalent max value, then behavior depends on the value of pRand.
@@ -316,14 +337,8 @@ public:
 	/// in the list of corresponding indexes, the ends may drift.
 	static void interpolateIndexes(size_t nIndexes, double* pInIndexes, double* pOutIndexes, float fRatio, size_t nCorrIndexes, double* pCorrIndexes1, double* pCorrIndexes2);
 
-	/// Rotates pVector by dAngle radians in the plane defined by the orthogonal axes pA and pB
-	static void rotate(double* pVector, size_t nDims, double dAngle, const double* pA, const double* pB);
-
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
-
-	/// Adds the function pIn to pOut after interpolating pIn to be the same size as pOut.
-	static void addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals);
 
 	/// Write the vector to a text format
 	static GDomNode* serialize(GDom* pDoc, const double* pVec, size_t dims);
@@ -334,56 +349,14 @@ public:
 
 	/// Prints the values in the vector separated by ", ".
 	/// precision specifies the number of digits to print
-	static void print(std::ostream& stream, int precision, const double* pVec, size_t dims);
+//	static void print(std::ostream& stream, int precision, const double* pVec, size_t dims);
 
 	/// Projects pPoint onto the hyperplane defined by pOrigin onto the basisCount basis vectors
 	/// specified by pBasis. (The basis vectors are assumed to be chained end-to-end in a big vector.)
 	static void project(double* pDest, const double* pPoint, const double* pOrigin, const double* pBasis, size_t basisCount, size_t dims);
 
-	/// Subtracts the component of pInOut that projects onto pBasis. (Assumes that pBasis is normalized.)
-	/// This might be used, for example, to implement the modified Gram-Schmidt process.
-	static void subtractComponent(double* pInOut, const double* pBasis, size_t dims);
-
-	/// Subtracts the component of pInOut that projects onto (pTarget - pOrigin).
-	/// This might be used, for example, to implement the modified Gram-Schmidt process.
-	static void subtractComponent(double* pInOut, const double* pOrigin, const double* pTarget, size_t dims);
-
 	/// Returns the sum of all the elements
 	static double sumElements(const double* pVec, size_t dims);
-
-	/// Returns the sum of the absolute values of all the elements
-	static double sumAbsoluteValues(const double* pVec, size_t dims);
-
-	/// Moves the smallest k values to the front of the vector, and the biggest (size - k) values
-	/// to the end of the vector. (For efficiency, no other guarantees about ordering are made.)
-	/// This has an average-case runtime that is linear with respect to size.
-	/// pParallel1 and pParallel2 are optional arrays that should be arranged to keep their
-	/// indices in sync with pVec.
-	static void smallestToFront(double* pVec, size_t k, size_t size, double* pParallel1 = NULL, size_t* pParallel2 = NULL, double* pParallel3 = NULL);
-
-	/// Moves "pPoint" so that it is closer to a distance of "distance" from "pNeighbor". "learningRate"
-	/// specifies how much to move it (0=not at all, 1=all the way). Returns the squared distance between
-	/// pPoint and pNeighbor.
-	static double refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand);
-
-	/// Converts a vector of rasterized pixel values to an image.
-	/// channels must be 1 or 3 (for grayscale or rgb)
-	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
-	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
-	static void toImage(const double* pVec, GImage* pImage, int width, int height, int channels, double range);
-
-	/// Converts an image to a vector of rasterized pixel values.
-	/// channels must be 1 or 3 (for grayscale or rgb)
-	/// range specifies the range of channel values. Typical values are 1.0 or 255.0.
-	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
-	/// pVec must be big enough to hold width * height * channels values.
-	static void fromImage(GImage* pImage, double* pVec, int width, int height, int channels, double range);
-
-	/// Sets each value, v, to MIN(cap, v)
-	static void capValues(double* pVec, double cap, size_t dims);
-
-	/// Sets each value, v, to MAX(floor, v)
-	static void floorValues(double* pVec, double floor, size_t dims);
 
 	/// Sets each value, v, to ABS(v)
 	static void absValues(double* pVec, size_t dims);
@@ -398,7 +371,6 @@ protected:
 	GVec m_v;
 
 public:
-
 	GVecWrapper(const double* buf, size_t size)
 	{
 		m_v.m_data = (double*)buf;

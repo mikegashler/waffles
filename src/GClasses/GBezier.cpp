@@ -22,6 +22,7 @@
 #include "GHolders.h"
 #include "GRand.h"
 #include <stdlib.h>
+#include <memory>
 
 using namespace GClasses;
 
@@ -352,7 +353,7 @@ void GBezier::test()
 	GRand prng(0);
 	G3DVector p1, p2, p3;
 	GBezier* pOrig = new GBezier(7);
-	Holder<GBezier> hOrig(pOrig);
+	std::unique_ptr<GBezier> hOrig(pOrig);
 	int n;
 	for(n = 0; n < pOrig->controlPointCount(); n++)
 	{
@@ -364,7 +365,7 @@ void GBezier::test()
 
 	// Test that elevating the degree doesn't change the curve
 	GBezier* pCopy = pOrig->copy();
-	Holder<GBezier> hCopy(pCopy);
+	std::unique_ptr<GBezier> hCopy(pCopy);
 	pCopy->elevateDegree();
 	if(pCopy->controlPointCount() != pOrig->controlPointCount() + 1)
 		throw "wrong answer";
@@ -378,7 +379,7 @@ void GBezier::test()
 
 	// Test that we can segment the curve properly
 	GBezier* pCopy2 = pCopy->copy();
-	Holder<GBezier> hCopy2(pCopy2);
+	std::unique_ptr<GBezier> hCopy2(pCopy2);
 	pCopy->segment(.3, false);
 	pCopy2->segment(.3, true);
 	for(n = 0; n < 10; n++)
@@ -396,7 +397,7 @@ void GBezier::test()
 	G3DVector coeff[7];
 	pOrig->toPolynomial(coeff);
 	GBezier* pAnother = GBezier::fromPolynomial(coeff, 7);
-	Holder<GBezier> hAnother(pAnother);
+	std::unique_ptr<GBezier> hAnother(pAnother);
 	for(n = 0; n < 10; n++)
 	{
 		pOrig->point((double)n / 10, &p1);

@@ -84,7 +84,7 @@ public:
 	GKNN();
 
 	/// Load from a DOM.
-	GKNN(GDomNode* pNode, GLearnerLoader& ll);
+	GKNN(GDomNode* pNode);
 
 	virtual ~GKNN();
 
@@ -294,7 +294,7 @@ public:
 	GSparseInstance();
 
 	/// Load from a DOM.
-	GSparseInstance(GDomNode* pNode, GLearnerLoader& ll);
+	GSparseInstance(GDomNode* pNode);
 
 	virtual ~GSparseInstance();
 

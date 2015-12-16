@@ -58,7 +58,7 @@ public:
 	GDecisionTree();
 
 	/// Loads from a DOM.
-	GDecisionTree(GDomNode* pNode, GLearnerLoader& ll);
+	GDecisionTree(GDomNode* pNode);
 
 	virtual ~GDecisionTree();
 
@@ -171,7 +171,7 @@ public:
 	GMeanMarginsTree();
 
 	/// Load from a DOM.
-	GMeanMarginsTree(GDomNode* pNode, GLearnerLoader& ll);
+	GMeanMarginsTree(GDomNode* pNode);
 
 	virtual ~GMeanMarginsTree();
 

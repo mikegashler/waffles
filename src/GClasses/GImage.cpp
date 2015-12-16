@@ -35,6 +35,7 @@
 #include <string.h>
 #include <sstream>
 #include <cmath>
+#include <memory>
 
 namespace GClasses {
 using std::vector;
@@ -3093,7 +3094,7 @@ void GImage::highPassFilter(double dExtent)
 	// Convert to the Fourier domain
 	int nChannelWidth, nChannelHeight;
 	struct ComplexNumber* pArray = GFourier::imageToFftArray(this, &nChannelWidth, &nChannelHeight);
-	ArrayHolder<struct ComplexNumber> hArray(pArray);
+	std::unique_ptr<struct ComplexNumber[]> hArray(pArray);
 	int nChannelSize = nChannelWidth * nChannelHeight;
 
 	// Filter out the low frequency data
@@ -3135,7 +3136,7 @@ void GImage::lowPassFilter(double dExtent)
 	// Convert to the Fourier domain
 	int nChannelWidth, nChannelHeight;
 	struct ComplexNumber* pArray = GFourier::imageToFftArray(this, &nChannelWidth, &nChannelHeight);
-	ArrayHolder<struct ComplexNumber> hArray(pArray);
+	std::unique_ptr<struct ComplexNumber[]> hArray(pArray);
 	int nChannelSize = nChannelWidth * nChannelHeight;
 
 	// Filter out the low frequency data

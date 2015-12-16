@@ -2,34 +2,27 @@
 # Paths and Flags
 ################
 SHELL = /bin/bash
-TARGET_PATH = ../../../bin
-TARGET_NAME_OPT = waffles_generate
+TARGET_PATH = ../bin
+TARGET_NAME_OPT = eigen
 TARGET_NAME_DBG = $(TARGET_NAME_OPT)dbg
-OBJ_PATH = ../../../obj/$(TARGET_NAME_OPT)
-INSTALL_LOCATION_BIN ?= /usr/local/bin
+OBJ_PATH = ../obj
+INSTALL_LOCATION_INCLUDE ?= /usr/local/include
 UNAME = $(shell uname -s)
-
-# If colorgcc is installed, use it, otherwise use g++
-ifeq ($(wildcard /usr/bin/colorgcc),)
-	COMPILER=g++
-else
-	COMPILER=colorgcc
-endif
-
-# Set platform-specific compiler and linker flags
 ifeq ($(UNAME),Darwin)
-	DARWIN_BASE ?= /usr/X11
-	CFLAGS = -Wshadow -std=c++11 -stdlib=libc++ -I/opt/local/include -I/usr/local/include -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-	DBG_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClassesDbg.a -lpthread
-	OPT_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClasses.a -lpthread
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
+	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
+	OPT_CFLAGS = $(CFLAGS) -O3
+	LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib -L../../../lib -framework AppKit
+	DBG_LFLAGS = $(LFLAGS) -lpthread -lGClassesDbg
+	OPT_LFLAGS = $(LFLAGS) -lpthread -lGClasses
 else
-	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11
-	DBG_LFLAGS = ../../../lib/libGClassesDbg.a -lpng -lpthread
-	OPT_LFLAGS = ../../../lib/libGClasses.a -lpng -lpthread
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
+	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
+	OPT_CFLAGS = $(CFLAGS) -O3
+	LFLAGS = -L../../../lib
+	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lpthread
+	OPT_LFLAGS = $(LFLAGS) -lGClasses -lpthread
 endif
-
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
-OPT_CFLAGS = $(CFLAGS) -O3
 
 ################
 # Source
@@ -37,7 +30,6 @@ OPT_CFLAGS = $(CFLAGS) -O3
 
 CPP_FILES =\
 	main.cpp\
-	GImagePng.cpp\
 
 ################
 # Lists
@@ -67,23 +59,14 @@ usage:
 	@echo "  make clean   (to delete all the .o files)"
 	@echo "  make dbg     (to build a debug version)"
 	@echo "  make opt     (to build an optimized version)"
-	@echo "  make install (to install it)"
 	@echo ""
 
-../../../lib/libGClassesDbg.a :
-	$(MAKE) -C ../../GClasses dbg
-
-../../../lib/libGClasses.a :
-	$(MAKE) -C ../../GClasses opt
-
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../../lib/libGClasses.a
-	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
+$(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT)
 	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
 
 # This rule makes the debug binary by using g++ with the debug ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../../lib/libGClassesDbg.a
-	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
+$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
 	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 
 # This includes all of the ".d" files. Each ".d" file contains a
@@ -97,45 +80,34 @@ $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../../lib/
 # The ".d" file will contain a rule that says how to make an optimized ".o" file.
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_OPT) : $(OBJ_PATH)/opt/%.d : %.cpp
-	@if [ "$${USER}" == "root" ] && [ "$${SUDO_USER}" != "" ]; then false; fi
 	@echo -e "Computing opt dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -en "$$(dirname $@)/" > $@
-	@$(COMPILER) $(OPT_CFLAGS) -MM $< >> $@
-	@echo -e "	$(COMPILER) $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@g++ $(OPT_CFLAGS) -MM $< >> $@
+	@echo -e "	g++ $(OPT_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 # This rule makes the debug ".d" files by using "g++ -MM" with the corresponding ".cpp" file
 # The ".d" file will contain a rule that says how to make a debug ".o" file.
 # "$<" refers to the ".cpp" file, and "$@" refers to the ".d" file
 $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
-	@if [ "$${USER}" == "root" ] && [ "$${SUDO_USER}" != "" ]; then false; fi
 	@echo -e "Computing dbg dependencies for $<"
 	@-rm -f $$(dirname $@)/$$(basename $@ .d).o
 	@if [ ! -d "$$(dirname $@)" ]; then mkdir -p "$$(dirname $@)"; fi
 	@echo -en "$$(dirname $@)/" > $@
-	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
-	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
+	@g++ $(DBG_CFLAGS) -MM $< >> $@
+	@echo -e "	g++ $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleandbg :
-	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
+	@rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
 
 partialcleanopt :
-	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
+	@rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
 clean : partialcleandbg partialcleanopt
 	rm -f $(OBJECTS_OPT)
 	rm -f $(OBJECTS_DBG)
 	rm -f $(DEPS_OPT)
 	rm -f $(DEPS_DBG)
-
-install :
-	@if [ "$${SUDO_USER}" == "" ]; then echo "You must use sudo to install"; false; fi
-	@sudo -u $${SUDO_USER} $(MAKE) -C . opt
-	@rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
-	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_BIN)
-
-uninstall:
-	rm -f $(INSTALL_LOCATION_BIN)/$(TARGET_NAME_OPT)
-
-.PHONY: clean partialcleandbg partialcleanopt install uninstall dbg opt

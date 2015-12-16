@@ -48,6 +48,7 @@
 #endif // MIN_PREDICT
 #include <cmath>
 #include <iostream>
+#include <memory>
 
 using std::vector;
 
@@ -166,8 +167,8 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 	// Convert the features to a form that this algorithm can handle
 	const GMatrix* pF1 = &features1;
 	const GMatrix* pF2 = &features2;
-	Holder<GMatrix> hF1(NULL);
-	Holder<GMatrix> hF2(NULL);
+	std::unique_ptr<GMatrix> hF1;
+	std::unique_ptr<GMatrix> hF2;
 	if(!canImplicitlyHandleNominalFeatures())
 	{
 		if(!canImplicitlyHandleContinuousFeatures())
@@ -233,9 +234,9 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 			GDiscretize disc;
 			disc.train(labels1);
 			GMatrix* pL1 = disc.transformBatch(labels1);
-			Holder<GMatrix> hL1(pL1);
+			std::unique_ptr<GMatrix> hL1(pL1);
 			GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-			Holder<GMatrix> hL2(pL2);
+			std::unique_ptr<GMatrix> hL2(pL2);
 			return disc.untransformBatch(*pL2);
 		}
 	}
@@ -251,9 +252,9 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 				GNormalize norm(lmin, lmax);
 				norm.train(labels1);
 				GMatrix* pL1 = norm.transformBatch(labels1);
-				Holder<GMatrix> hL1(pL1);
+				std::unique_ptr<GMatrix> hL1(pL1);
 				GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-				Holder<GMatrix> hL2(pL2);
+				std::unique_ptr<GMatrix> hL2(pL2);
 				return norm.untransformBatch(*pL2);
 			}
 		}
@@ -265,9 +266,9 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 				GNominalToCat ntc;
 				ntc.train(labels1);
 				GMatrix* pL1 = ntc.transformBatch(labels1);
-				Holder<GMatrix> hL1(pL1);
+				std::unique_ptr<GMatrix> hL1(pL1);
 				GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-				Holder<GMatrix> hL2(pL2);
+				std::unique_ptr<GMatrix> hL2(pL2);
 				return ntc.untransformBatch(*pL2);
 			}
 			else
@@ -291,7 +292,7 @@ double GTransducer::trainAndTest(const GMatrix& trainFeatures, const GMatrix& tr
 
 	// Transduce
 	GMatrix* pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
-	Holder<GMatrix> hPredictedLabels(pPredictedLabels);
+	std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
 
 	// Evaluate the results
 	size_t labelDims = trainLabels.cols();
@@ -312,7 +313,7 @@ void GTransducer::transductiveConfusionMatrix(const GMatrix& trainFeatures, cons
 
 	// Transduce
 	GMatrix* pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
-	Holder<GMatrix> hPredictedLabels(pPredictedLabels);
+	std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
 
 	// Evaluate the results
 	size_t labelDims = trainLabels.cols();
@@ -422,7 +423,7 @@ GSupervisedLearner::GSupervisedLearner()
 {
 }
 
-GSupervisedLearner::GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll)
+GSupervisedLearner::GSupervisedLearner(GDomNode* pNode)
 : GTransducer()
 {
 	m_pRelFeatures = GRelation::deserialize(pNode->field("_rf"));
@@ -640,6 +641,46 @@ size_t GSupervisedLearner::precisionRecallNominal(GPrediction* pOutput, double* 
 	return nActualRelevant;
 }
 
+void GSupervisedLearner::addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals)
+{
+	if(nInVals > nOutVals)
+	{
+		size_t inPos = 0;
+		size_t outPos, n, count;
+		double d;
+		for(outPos = 0; outPos < nOutVals; outPos++)
+		{
+			n = outPos * nInVals / nOutVals;
+			d = 0;
+			count = 0;
+			while(inPos <= n)
+			{
+				d += pIn[inPos++];
+				count++;
+			}
+			pOut[outPos] += d / count;
+		}
+	}
+	else if(nInVals < nOutVals)
+	{
+		double d;
+		size_t n, i, j;
+		for(n = 0; n < nOutVals; n++)
+		{
+			d = (double)n * nInVals / nOutVals;
+			i = (int)d;
+			j = std::min(i + 1, nInVals - 1);
+			d -= i;
+			pOut[n] += ((1.0 - d) * pIn[i] + d * pIn[j]);
+		}
+	}
+	else
+	{
+		for(size_t n = 0; n < nOutVals; n++)
+			pOut[n] += pIn[n];
+	}
+}
+
 void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps)
 {
 	if(features.rows() != labels.rows())
@@ -647,9 +688,9 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 	size_t nFuncs = std::max((size_t)1, labels.relation().valueCount(label));
 	GVec::setAll(pOutPrecision, 0.0, nFuncs * nPrecisionSize);
 	double* pFunc = new double[features.rows()];
-	ArrayHolder<double> hFunc(pFunc);
+	std::unique_ptr<double[]> hFunc(pFunc);
 	GPrediction* out = new GPrediction[labels.cols()];
-	ArrayHolder<GPrediction> hOut(out);
+	std::unique_ptr<GPrediction[]> hOut(out);
 	GMatrix otherFeatures(features.relation().cloneMinimal());
 	GMatrix otherLabels(labels.relation().cloneMinimal());
 	size_t valueCount = labels.relation().valueCount(label);
@@ -667,18 +708,18 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 		if(valueCount == 0)
 		{
 			size_t relevant = precisionRecallContinuous(out, pFunc, features, labels, otherFeatures, otherLabels, label);
-			GVec::addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
+			addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
 			relevant = precisionRecallContinuous(out, pFunc, otherFeatures, otherLabels, features, labels, label);
-			GVec::addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
+			addInterpolatedFunction(pOutPrecision, nPrecisionSize, pFunc, relevant);
 		}
 		else
 		{
 			for(int i = 0; i < (int)valueCount; i++)
 			{
 				size_t relevant = precisionRecallNominal(out, pFunc, features, labels, otherFeatures, otherLabels, label, i);
-				GVec::addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
+				addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
 				relevant = precisionRecallNominal(out, pFunc, otherFeatures, otherLabels, features, labels, label, i);
-				GVec::addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
+				addInterpolatedFunction(pOutPrecision + nPrecisionSize * i, nPrecisionSize, pFunc, relevant);
 			}
 		}
 	}
@@ -792,7 +833,7 @@ void GSupervisedLearner_basicTestEngine(GSupervisedLearner* pLearner, GMatrix& f
 	pLearner->clear(); // free up some memory, just because we can
 	GLearnerLoader ll;
 	GSupervisedLearner* pModel = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModel(pModel);
+	std::unique_ptr<GSupervisedLearner> hModel(pModel);
 	if(!relLabelsBefore.isCompatible(pModel->relLabels()))
 		throw Ex("The label relation failed to round-trip. Did your deserializing constructor call the base class constructor?");
 
@@ -903,13 +944,13 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
 			{
 #ifndef MIN_PREDICT
 				if(strcmp(szClass, "GAttributeSelector") == 0)
-					return new GAttributeSelector(pNode, *this);
+					return new GAttributeSelector(pNode);
 				else
 #endif // MIN_PREDICT
 				if(strcmp(szClass, "GDataAugmenter") == 0)
 					return new GDataAugmenter(pNode, *this);
 				else if(strcmp(szClass, "GDiscretize") == 0)
-					return new GDiscretize(pNode, *this);
+					return new GDiscretize(pNode);
 			}
 			else
 			{
@@ -927,20 +968,20 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
 			if(szClass[1] < 'P')
 			{
 				if(strcmp(szClass, "GNoiseGenerator") == 0)
-					return new GNoiseGenerator(pNode, *this);
+					return new GNoiseGenerator(pNode);
 				else if(strcmp(szClass, "GNominalToCat") == 0)
-					return new GNominalToCat(pNode, *this);
+					return new GNominalToCat(pNode);
 				else if(strcmp(szClass, "GNormalize") == 0)
-					return new GNormalize(pNode, *this);
+					return new GNormalize(pNode);
 			}
 			else
 			{
 				if(strcmp(szClass, "GPairProduct") == 0)
-					return new GPairProduct(pNode, *this);
+					return new GPairProduct(pNode);
 				else if(strcmp(szClass, "GPCA") == 0)
-					return new GPCA(pNode, *this);
+					return new GPCA(pNode);
 				else if(strcmp(szClass, "GReservoir") == 0)
-					return new GReservoir(pNode, *this);
+					return new GReservoir(pNode);
 			}
 		}
 	}
@@ -965,7 +1006,7 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 				else if(strcmp(szClass, "GBag") == 0)
 					return new GBag(pNode, *this);
 				else if(strcmp(szClass, "GBaselineLearner") == 0)
-					return new GBaselineLearner(pNode, *this);
+					return new GBaselineLearner(pNode);
 				else if(strcmp(szClass, "GBayesianModelAveraging") == 0)
 					return new GBayesianModelAveraging(pNode, *this);
 				else if(strcmp(szClass, "GBayesianModelCombination") == 0)
@@ -976,13 +1017,13 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 			else
 			{
 				if(strcmp(szClass, "GDecisionTree") == 0)
-					return new GDecisionTree(pNode, *this);
+					return new GDecisionTree(pNode);
 				else if(strcmp(szClass, "GFeatureFilter") == 0)
 					return new GFeatureFilter(pNode, *this);
 				else if(strcmp(szClass, "GGaussianProcess") == 0)
-					return new GGaussianProcess(pNode, *this);
+					return new GGaussianProcess(pNode);
 				else if(strcmp(szClass, "GIdentityFunction") == 0)
-					return new GIdentityFunction(pNode, *this);
+					return new GIdentityFunction(pNode);
 			}
 		}
 		else
@@ -990,33 +1031,33 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 			if(szClass[1] < 'N')
 			{
 				if(strcmp(szClass, "GLinearDistribution") == 0)
-					return new GLinearDistribution(pNode, *this);
+					return new GLinearDistribution(pNode);
 				else if(strcmp(szClass, "GKNN") == 0)
-					return new GKNN(pNode, *this);
+					return new GKNN(pNode);
 				else if(strcmp(szClass, "GLabelFilter") == 0)
 					return new GLabelFilter(pNode, *this);
 				else if(strcmp(szClass, "GLinearRegressor") == 0)
-					return new GLinearRegressor(pNode, *this);
+					return new GLinearRegressor(pNode);
 				else if(strcmp(szClass, "GMeanMarginsTree") == 0)
-					return new GMeanMarginsTree(pNode, *this);
+					return new GMeanMarginsTree(pNode);
 			}
 			else
 			{
 				if(szClass[1] < 'P')
 				{
 					if(strcmp(szClass, "GNaiveBayes") == 0)
-						return new GNaiveBayes(pNode, *this);
+						return new GNaiveBayes(pNode);
 					else if(strcmp(szClass, "GNaiveInstance") == 0)
-						return new GNaiveInstance(pNode, *this);
+						return new GNaiveInstance(pNode);
 					else if(strcmp(szClass, "GNeuralDecomposition") == 0)
-						return new GNeuralDecomposition(pNode, *this);
+						return new GNeuralDecomposition(pNode);
 					else if(strcmp(szClass, "GNeuralNet") == 0)
-						return new GNeuralNet(pNode, *this);
+						return new GNeuralNet(pNode);
 				}
 				else
 				{
 					if(strcmp(szClass, "GPolynomial") == 0)
-						return new GPolynomial(pNode, *this);
+						return new GPolynomial(pNode);
 					else if(strcmp(szClass, "GRandomForest") == 0)
 						return new GRandomForest(pNode, *this);
 					else if(strcmp(szClass, "GResamplingAdaBoost") == 0)
@@ -1059,25 +1100,30 @@ GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode)
 // ---------------------------------------------------------------
 
 GFilter::GFilter(GSupervisedLearner* pLearner, bool ownLearner)
-: GIncrementalLearner(), m_pLearner(pLearner), m_pIncrementalLearner(NULL), m_ownLearner(ownLearner)
+: GIncrementalLearner(), m_pLearner(pLearner), m_pIncrementalLearner(NULL), m_pOriginal(pLearner), m_ownLearner(ownLearner)
 {
 	if(pLearner->canTrainIncrementally())
 		m_pIncrementalLearner = (GIncrementalLearner*)pLearner;
 }
 
 GFilter::GFilter(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll), m_pIncrementalLearner(NULL), m_ownLearner(true)
+: GIncrementalLearner(pNode), m_pIncrementalLearner(NULL), m_ownLearner(true)
 {
 	m_pLearner = ll.loadLearner(pNode->field("learner"));
 	if(m_pLearner->canTrainIncrementally())
 		m_pIncrementalLearner = (GIncrementalLearner*)m_pLearner;
+	m_pOriginal = m_pLearner;
 }
 
 // virtual
 GFilter::~GFilter()
 {
-	if(m_ownLearner)
-		delete(m_pLearner);
+	if(m_pLearner)
+	{
+		discardIntermediateFilters();
+		if(m_ownLearner)
+			delete(m_pLearner);
+	}
 }
 
 // virtual
@@ -1096,13 +1142,23 @@ void GFilter::initShellOnly(const GRelation& featureRel, const GRelation& labelR
 
 void GFilter::discardIntermediateFilters()
 {
-	if(m_pLearner->isFilter())
+	discardIntermediateFilters_helper(m_pOriginal);
+	GAssert(m_pLearner == m_pOriginal);
+}
+
+void GFilter::discardIntermediateFilters_helper(GSupervisedLearner* pOriginal)
+{
+	if(m_pLearner != pOriginal && m_pLearner->isFilter())
 	{
+		// Recurse
 		GFilter* pIntermediateFilter = (GFilter*)m_pLearner;
-		pIntermediateFilter->discardIntermediateFilters();
+		pIntermediateFilter->discardIntermediateFilters_helper(pOriginal);
+
+		// Nuke the intermediate filter, and wrap whatever it used to wrap
 		GSupervisedLearner* pTemp = pIntermediateFilter->m_pLearner;
 		pIntermediateFilter->m_pLearner = NULL;
 		pIntermediateFilter->m_pIncrementalLearner = NULL;
+		pIntermediateFilter->m_pOriginal = NULL;
 		delete(m_pLearner);
 		m_pLearner = pTemp;
 		if(m_pLearner->canTrainIncrementally())
@@ -1313,7 +1369,7 @@ void GLabelFilter::beginIncrementalLearningInner(const GMatrix& features, const 
 {
 	m_pTransform->train(labels);
 	GMatrix* pNewLabels = m_pTransform->transformBatch(labels);
-	Holder<GMatrix> hNewLabels(pNewLabels);
+	std::unique_ptr<GMatrix> hNewLabels(pNewLabels);
 	m_pIncrementalLearner->beginIncrementalLearning(features, *pNewLabels);
 }
 
@@ -1703,7 +1759,7 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 	VectorOfPointersHolder<GNeuralNet> hCalibrations(calibrations);
 	size_t neighbors = std::max(size_t(4), std::min(size_t(100), (size_t)sqrt(double(features.rows()))));
 	GPrediction* out = new GPrediction[labelDims];
-	ArrayHolder<GPrediction> hOut(out);
+	std::unique_ptr<GPrediction[]> hOut(out);
 	for(size_t i = 0; i < labelDims; i++)
 	{
 		// Gather the predicted (before) distribution values
@@ -1840,8 +1896,8 @@ GBaselineLearner::GBaselineLearner()
 {
 }
 
-GBaselineLearner::GBaselineLearner(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GBaselineLearner::GBaselineLearner(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_prediction.clear();
 	GDomNode* pred = pNode->field("pred");
@@ -1923,8 +1979,8 @@ GIdentityFunction::GIdentityFunction()
 {
 }
 
-GIdentityFunction::GIdentityFunction(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GIdentityFunction::GIdentityFunction(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();
 	m_featureDims = (size_t)pNode->field("features")->asInt();

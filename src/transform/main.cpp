@@ -246,14 +246,6 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			int neighbors = args.pop_uint();
 			pNF = new GKdTree(pData, neighbors, NULL, true);
 		}
-		else if(_stricmp(alg, "saffron") == 0)
-		{
-			size_t medianCands = args.pop_uint();
-			size_t neighbors = args.pop_uint();
-			size_t tangentSpaceDims = args.pop_uint();
-			double thresh = args.pop_double();
-			pNF = new GSaffron(pData, medianCands, neighbors, tangentSpaceDims, thresh, pRand);
-		}
 		else if(_stricmp(alg, "temporal") == 0)
 		{
 			GMatrix* pControlData = loadData(args.pop_string());
@@ -300,12 +292,15 @@ void AddIndexAttribute(GArgReader& args)
 	const char* filename = args.pop_string();
 	double nStartValue = 0.0;
 	double nIncrement = 1.0;
+	string name = "index";
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-start"))
 			nStartValue = args.pop_double();
 		else if(args.if_pop("-increment"))
 			nIncrement = args.pop_double();
+		else if(args.if_pop("-name"))
+			name = args.pop_string();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -313,11 +308,31 @@ void AddIndexAttribute(GArgReader& args)
 	GMatrix* pData = loadData(filename);
 	Holder<GMatrix> hData(pData);
 	GArffRelation* pIndexRelation = new GArffRelation();
-	pIndexRelation->addAttribute("index", 0, NULL);
+	pIndexRelation->addAttribute(name.c_str(), 0, NULL);
 	GMatrix indexes(pIndexRelation);
 	indexes.newRows(pData->rows());
 	for(size_t i = 0; i < pData->rows(); i++)
 		indexes.row(i)[0] = nStartValue + i * nIncrement;
+	GMatrix* pUnified = GMatrix::mergeHoriz(&indexes, pData);
+	Holder<GMatrix> hUnified(pUnified);
+	pUnified->print(cout);
+}
+
+void addCategoryColumn(GArgReader& args)
+{
+	const char* filename = args.pop_string();
+	const char* catname = args.pop_string();
+	const char* catvalue = args.pop_string();
+	GMatrix* pData = loadData(filename);
+	Holder<GMatrix> hData(pData);
+	GArffRelation* pIndexRelation = new GArffRelation();
+	vector<const char*> vals;
+	vals.push_back(catvalue);
+	pIndexRelation->addAttribute(catname, 1, &vals);
+	GMatrix indexes(pIndexRelation);
+	indexes.newRows(pData->rows());
+	for(size_t i = 0; i < pData->rows(); i++)
+		indexes.row(i)[0] = 0.0;
 	GMatrix* pUnified = GMatrix::mergeHoriz(&indexes, pData);
 	Holder<GMatrix> hUnified(pUnified);
 	pUnified->print(cout);
@@ -565,7 +580,7 @@ void dropColumns(GArgReader& args)
 	std::sort(colList.begin(), colList.end());
 	std::reverse(colList.begin(), colList.end());
 	for(size_t i = 0; i < colList.size(); i++)
-		pData->deleteColumn(colList[i]);
+		pData->deleteColumns(colList[i], 1);
 	pData->print(cout);
 }
 
@@ -582,7 +597,7 @@ void dropHomogeneousCols(GArgReader& args)
 	}
 	std::reverse(colList.begin(), colList.end());
 	for(size_t i = 0; i < colList.size(); i++)
-		pData->deleteColumn(colList[i]);
+		pData->deleteColumns(colList[i], 1);
 	pData->print(cout);
 }
 
@@ -610,7 +625,7 @@ void keepOnlyColumns(GArgReader& args)
 	//keeps the column indices for undeleted columns the same even
 	//after deletion.
 	for(size_t i = 0; i < colsToDel.size(); i++)
-		pData->deleteColumn(colsToDel[i]);
+		pData->deleteColumns(colsToDel[i], 1);
 	pData->print(cout);
 }
 
@@ -982,7 +997,10 @@ public:
 		if(sumOverAttributes)
 			cout << GVec::sumElements(m_pResults, m_attrs);
 		else
-			GVec::print(cout, 14, m_pResults, m_attrs);
+		{
+			GVecWrapper vw(m_pResults, m_attrs);
+			vw.vec().print(cout);
+		}
 	}
 
 	const double* GetResults() { return m_pResults; }
@@ -1050,7 +1068,10 @@ void MeasureMeanSquaredError(GArgReader& args)
 		if(sumOverAttributes)
 			cout << GVec::sumElements(results, dims);
 		else
-			GVec::print(cout, 14, results, dims);
+		{
+			GVecWrapper vw(results, dims);
+			vw.vec().print(cout);
+		}
 	}
 	cout << "\n";
 }
@@ -1313,6 +1334,55 @@ void reducedRowEchelonForm(GArgReader& args)
 	Holder<GMatrix> hA(pA);
 	pA->toReducedRowEchelonForm();
 	pA->print(cout);
+}
+
+void reorderColumns(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+
+	// Parse and check the list of columns
+	vector<size_t> colList;
+	size_t attrCount = pData->cols();
+	parseAttributeList(colList, args, attrCount);
+	for(size_t i = 0; i < colList.size(); i++)
+	{
+		size_t ind = colList[i];
+		if(ind >= pData->cols())
+			throw Ex("Column ", to_str(ind), " is out of range.");
+	}
+
+	// Make a list of indexes
+	vector<size_t> pos_to_col;
+	vector<size_t> col_to_pos;
+	pos_to_col.reserve(pData->cols());
+	col_to_pos.reserve(pData->cols());
+	for(size_t i = 0; i < pData->cols(); i++)
+	{
+		pos_to_col.push_back(i);
+		col_to_pos.push_back(i);
+	}
+
+	// Do the swapping
+	for(size_t i = 0; i < colList.size(); i++)
+	{
+		if(pos_to_col[i] == colList[i])
+			continue;
+		size_t j = col_to_pos[colList[i]];
+		size_t coli = pos_to_col[i];
+		size_t colj = pos_to_col[j];
+		pData->swapColumns(i, j);
+		pos_to_col[i] = colj;
+		pos_to_col[j] = coli;
+		col_to_pos[coli] = j;
+		col_to_pos[colj] = i;
+	}
+
+	// Drop superfluous columns
+	if(pData->cols() > colList.size())
+		pData->deleteColumns(colList.size(), pData->cols() - colList.size());
+
+	pData->print(cout);
 }
 
 void rotate(GArgReader& args)
@@ -1745,7 +1815,7 @@ void splitClass(GArgReader& args)
 		oss << ".arff";
 		string s = oss.str();
 		if(dropClass)
-			tmp.deleteColumn(classAttr);
+			tmp.deleteColumns(classAttr, 1);
 		tmp.saveArff(s.c_str());
 	}
 }
@@ -2329,6 +2399,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("add")) addMatrices(args);
 		else if(args.if_pop("addindexcolumn")) AddIndexAttribute(args);
+		else if(args.if_pop("addcategorycolumn")) addCategoryColumn(args);
 		else if(args.if_pop("addnoise")) addNoise(args);
 		else if(args.if_pop("aggregatecols")) aggregateCols(args);
 		else if(args.if_pop("aggregaterows")) aggregateRows(args);
@@ -2374,6 +2445,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("prettify")) prettify(args);
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
+		else if(args.if_pop("reordercolumns")) reorderColumns(args);
 		else if(args.if_pop("rotate")) rotate(args);
 		else if(args.if_pop("samplerows")) sampleRows(args);
 		else if(args.if_pop("samplerowsregularly")) sampleRowsRegularly(args);

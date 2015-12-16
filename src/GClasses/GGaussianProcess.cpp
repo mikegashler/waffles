@@ -25,6 +25,7 @@
 #include "GKernelTrick.h"
 #include "GHolders.h"
 #include <cmath>
+#include <memory>
 
 namespace GClasses {
 
@@ -82,7 +83,7 @@ void GRunningCovariance::test()
 	for(size_t i = 0; i < m.rows(); i++)
 		m[i].fillUniform(rand);
 	GMatrix* pCov1 = m.covarianceMatrix();
-	Holder<GMatrix> hCov1(pCov1);
+	std::unique_ptr<GMatrix> hCov1(pCov1);
 	m.centerMeanAtOrigin();
 	GRunningCovariance rc(m.cols());
 	for(size_t i = 0; i < m.rows(); i++)
@@ -112,8 +113,8 @@ GGaussianProcess::GGaussianProcess()
 	m_pKernel = new GKernelIdentity();
 }
 
-GGaussianProcess::GGaussianProcess(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll), m_pBuf(NULL)
+GGaussianProcess::GGaussianProcess(GDomNode* pNode)
+: GSupervisedLearner(pNode), m_pBuf(NULL)
 {
 	m_weightsPriorVar = pNode->field("wv")->asDouble();
 	m_noiseVar = pNode->field("nv")->asDouble();
@@ -228,16 +229,16 @@ void GGaussianProcess::trainInnerInner(const GMatrix& features, const GMatrix& l
 		// Compute L
 		pL = k.cholesky(true);
 	}
-	Holder<GMatrix> hL(pL);
+	std::unique_ptr<GMatrix> hL(pL);
 
 	// Compute the model
 	m_pLInv = pL->pseudoInverse();
 	GMatrix* pTmp = GMatrix::multiply(*m_pLInv, labels, false, false);
-	Holder<GMatrix> hTmp(pTmp);
+	std::unique_ptr<GMatrix> hTmp(pTmp);
 	GMatrix* pLTrans = pL->transpose();
-	Holder<GMatrix> hLTrans(pLTrans);
+	std::unique_ptr<GMatrix> hLTrans(pLTrans);
 	GMatrix* pLTransInv = pLTrans->pseudoInverse();
-	Holder<GMatrix> hLTransInv(pLTransInv);
+	std::unique_ptr<GMatrix> hLTransInv(pLTransInv);
 	m_pAlpha = GMatrix::multiply(*pLTransInv, *pTmp, false, false);
 	GAssert(m_pAlpha->rows() == features.rows());
 	GAssert(m_pAlpha->cols() == labels.cols());

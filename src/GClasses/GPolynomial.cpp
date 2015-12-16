@@ -605,8 +605,8 @@ GPolynomial::GPolynomial()
 {
 }
 
-GPolynomial::GPolynomial(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GPolynomial::GPolynomial(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_controlPoints = (size_t)pNode->field("controlPoints")->asInt();
 	GDomNode* pPolys = pNode->field("polys");

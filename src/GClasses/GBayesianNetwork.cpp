@@ -917,6 +917,8 @@ GBayesNet::GBayesNet(size_t seed)
 
 GBayesNet::~GBayesNet()
 {
+	for(size_t i = 0; i < m_nodes.size(); i++)
+		m_nodes[i]->~GBNNode();
 }
 
 GBNConstant* GBayesNet::newConst(double val)
@@ -934,13 +936,17 @@ GBNSum* GBayesNet::newSum()
 GBNProduct* GBayesNet::newProduct()
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNProduct));
-	return new (pDest) GBNProduct();
+	GBNProduct* pNode = new (pDest) GBNProduct();
+	m_nodes.push_back(pNode);
+	return pNode;
 }
 
 GBNMath* GBayesNet::newMath(GBNNode* pParent, GBNMath::math_op operation)
 {
 	char* pDest = m_heap.allocAligned(sizeof(GBNMath));
-	return new (pDest) GBNMath(pParent, operation);
+	GBNMath* pNode = new (pDest) GBNMath(pParent, operation);
+	m_nodes.push_back(pNode);
+	return pNode;
 }
 
 GBNCategorical* GBayesNet::newCat(size_t categories)
@@ -948,6 +954,7 @@ GBNCategorical* GBayesNet::newCat(size_t categories)
 	char* pDest = m_heap.allocAligned(sizeof(GBNCategorical));
 	GBNCategorical* pNode = new (pDest) GBNCategorical(categories, m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -956,6 +963,7 @@ GBNNormal* GBayesNet::newNormal()
 	char* pDest = m_heap.allocAligned(sizeof(GBNNormal));
 	GBNNormal* pNode = new (pDest) GBNNormal(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -964,6 +972,7 @@ GBNLogNormal* GBayesNet::newLogNormal()
 	char* pDest = m_heap.allocAligned(sizeof(GBNLogNormal));
 	GBNLogNormal* pNode = new (pDest) GBNLogNormal(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -972,6 +981,7 @@ GBNPareto* GBayesNet::newPareto()
 	char* pDest = m_heap.allocAligned(sizeof(GBNPareto));
 	GBNPareto* pNode = new (pDest) GBNPareto(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -980,6 +990,7 @@ GBNUniformDiscrete* GBayesNet::newUniformDiscrete()
 	char* pDest = m_heap.allocAligned(sizeof(GBNUniformDiscrete));
 	GBNUniformDiscrete* pNode = new (pDest) GBNUniformDiscrete(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -988,6 +999,7 @@ GBNUniformContinuous* GBayesNet::newUniformContinuous()
 	char* pDest = m_heap.allocAligned(sizeof(GBNUniformContinuous));
 	GBNUniformContinuous* pNode = new (pDest) GBNUniformContinuous(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -996,6 +1008,7 @@ GBNPoisson* GBayesNet::newPoisson()
 	char* pDest = m_heap.allocAligned(sizeof(GBNPoisson));
 	GBNPoisson* pNode = new (pDest) GBNPoisson(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -1004,6 +1017,7 @@ GBNExponential* GBayesNet::newExponential()
 	char* pDest = m_heap.allocAligned(sizeof(GBNExponential));
 	GBNExponential* pNode = new (pDest) GBNExponential(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -1012,6 +1026,7 @@ GBNBeta* GBayesNet::newBeta()
 	char* pDest = m_heap.allocAligned(sizeof(GBNBeta));
 	GBNBeta* pNode = new (pDest) GBNBeta(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -1020,6 +1035,7 @@ GBNGamma* GBayesNet::newGamma()
 	char* pDest = m_heap.allocAligned(sizeof(GBNGamma));
 	GBNGamma* pNode = new (pDest) GBNGamma(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 
@@ -1028,6 +1044,7 @@ GBNInverseGamma* GBayesNet::newInverseGamma()
 	char* pDest = m_heap.allocAligned(sizeof(GBNInverseGamma));
 	GBNInverseGamma* pNode = new (pDest) GBNInverseGamma(m_pConstOne);
 	m_sampleNodes.push_back(pNode);
+	m_nodes.push_back(pNode);
 	return pNode;
 }
 

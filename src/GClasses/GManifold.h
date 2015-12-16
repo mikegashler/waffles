@@ -190,7 +190,7 @@ protected:
 
 public:
 	GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GIsomap(GDomNode* pNode, GLearnerLoader& ll);
+	GIsomap(GDomNode* pNode);
 	virtual ~GIsomap();
 
 	/// Serializes this object
@@ -224,7 +224,7 @@ protected:
 
 public:
 	GLLE(size_t neighborCount, size_t targetDims, GRand* pRand);
-	GLLE(GDomNode* pNode, GLearnerLoader& ll);
+	GLLE(GDomNode* pNode);
 	virtual ~GLLE();
 
 	/// Serialize this object
@@ -258,7 +258,7 @@ public:
 	/// reps specifies the number of times to compute the embedding, and blend the
 	/// results together. If you just want fast results, use reps=1.
 	GBreadthFirstUnfolding(size_t reps, size_t neighborCount, size_t targetDims);
-	GBreadthFirstUnfolding(GDomNode* pNode, GLearnerLoader& ll);
+	GBreadthFirstUnfolding(GDomNode* pNode);
 	virtual ~GBreadthFirstUnfolding();
 
 	/// Serialize this object
@@ -277,6 +277,11 @@ public:
 	GRand& rand() { return m_rand; }
 
 protected:
+	/// Moves "pPoint" so that it is closer to a distance of "distance" from "pNeighbor". "learningRate"
+	/// specifies how much to move it (0=not at all, 1=all the way). Returns the squared distance between
+	/// pPoint and pNeighbor.
+	static double refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand);
+
 	void refineNeighborhood(GMatrix* pLocal, size_t rootIndex, size_t* pNeighborTable, double* pDistanceTable);
 	GMatrix* reduceNeighborhood(const GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances);
 	GMatrix* unfold(const GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights);
@@ -367,61 +372,6 @@ public:
 */
 
 
-/// Given an image encoded as a rasterized row of channel values,
-/// this class computes a single pixel drawn from the image as
-/// if the image had been rotated, translated, and zoomed by a
-/// small random amount. (The purpose of this class is to make it
-/// possible to train GUnsupervisedBackProp to understand these common
-/// image-based transformations.)
-class GImageJitterer
-{
-	size_t m_wid;
-	size_t m_hgt;
-	size_t m_channels;
-	double m_rotateRads;
-	double m_translatePixels;
-	double m_zoomFactor;
-	double m_cx, m_cy;
-	double m_params[4]; // zoom, rotate, h-translate, v-translate
-
-public:
-	/// if rotateDegrees is 30.0, then it will rotate the image up to 15.0 degrees in either direction.
-	/// if translateWidths is 1.0, then it will translate between -0.5*wid and 0.5*wid. It will
-	/// also translate vertically by a value in the same range (dependant on wid, not hgt).
-	/// if zoomFactor is 2.0, then it will scale between a factor of 0.5 and 2.0.
-	GImageJitterer(size_t wid, size_t hgt, size_t channels, double rotateDegrees, double translateWidths, double zoomFactor);
-
-	/// Deserializing constructor
-	GImageJitterer(GDomNode* pNode);
-
-	/// Marshall this object into a DOM that can be serialized
-	GDomNode* serialize(GDom* pDoc) const;
-
-	/// Sets the 4 params to random uniform values between 0 and 1, and returns the params
-	double* pickParams(GRand& rand);
-
-	/// Returns the specified pixel in the transformed image
-	void transformedPix(const double* pRow, size_t x, size_t y, double* pOut);
-
-	/// Returns the number of channels
-	size_t channels() { return m_channels; }
-
-	/// Returns the width of the images
-	size_t wid() { return m_wid; }
-
-	/// Returns the height of the images
-	size_t hgt() { return m_hgt; }
-
-#ifndef NO_TEST_CODE
-	static void test(const char* filename);
-#endif
-
-protected:
-	void interpolate(const double* pRow, double x, double y, double* pOut);
-};
-
-
-
 
 
 
@@ -440,7 +390,7 @@ protected:
 
 public:
 	GScalingUnfolder();
-	GScalingUnfolder(GDomNode* pNode, GLearnerLoader& ll);
+	GScalingUnfolder(GDomNode* pNode);
 	virtual ~GScalingUnfolder();
 
 	/// Specify the number of neighbors to use. (The default is 14.)

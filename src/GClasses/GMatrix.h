@@ -101,7 +101,7 @@ public:
 	virtual GRelation* cloneSub(size_t start, size_t count) const = 0;
 
 	/// \brief Deletes the specified attribute
-	virtual void deleteAttribute(size_t index) = 0;
+	virtual void deleteAttributes(size_t index, size_t count) = 0;
 
 	/// \brief Swaps two attributes
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2) = 0;
@@ -212,7 +212,7 @@ public:
 	virtual GRelation* cloneSub(size_t, size_t count) const { return new GUniformRelation(count, m_valueCount); }
 
 	/// \brief Drop the specified attribute
-	virtual void deleteAttribute(size_t index);
+	virtual void deleteAttributes(size_t index, size_t count);
 
 	/// \brief Swap two attributes (since all attributes are identical, does nothing)
 	virtual void swapAttributes(size_t, size_t) {}
@@ -316,7 +316,7 @@ public:
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2);
 
 	/// \brief Deletes an attribute.
-	virtual void deleteAttribute(size_t nAttr);
+	virtual void deleteAttributes(size_t nAttr, size_t count);
 };
 
 
@@ -427,7 +427,7 @@ public:
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2);
 
 	/// \brief Deletes an attribute
-	virtual void deleteAttribute(size_t nAttr);
+	virtual void deleteAttributes(size_t nAttr, size_t count);
 
 	/// \brief Returns the nominal index for the specified attribute
 	/// with the given value
@@ -682,7 +682,7 @@ public:
 	/// If mostSignificant is true, the largest eigenvalues are
 	/// found. If mostSignificant is false, the smallest eigenvalues are
 	/// found.
-	GMatrix* eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mostSignificant);
+	GMatrix* eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSignificant);
 
 	/// \brief Multiplies every element in the dataset by scalar.
 	/// Behavior is undefined for nominal columns.
@@ -775,7 +775,8 @@ public:
 	double sumSquaredDiffWithIdentity();
 
 	/// \brief Adds an already-allocated row to this dataset.
-	void takeRow(GVec* pRow);
+	/// If pos is specified, the new row will be inserted and the speicified position.
+	void takeRow(GVec* pRow, size_t pos = (size_t)-1);
 
 	/// \brief Converts the matrix to reduced row echelon form
 	size_t toReducedRowEchelonForm();
@@ -838,11 +839,11 @@ public:
 	/// \brief Swaps two columns
 	void swapColumns(size_t nAttr1, size_t nAttr2);
 
-	/// \brief Deletes a column.
+	/// \brief Deletes some columns.
 	/// This does not reallocate the rows, but it does shift the elements,
 	/// which is a slow operation, especially if there are many columns
-	/// that follow the one being deleted.
-	void deleteColumn(size_t index);
+	/// that follow those being deleted.
+	void deleteColumns(size_t index, size_t count);
 
 	/// \brief Swaps the specified row with the last row, and then
 	/// releases it from the dataset.
@@ -1164,11 +1165,11 @@ public:
 	/// defines one of the orthonormal basis vectors of this hyperplane)
 	///
 	/// This computes (A^T)Ap, where A is this matrix, and p is pPoint.
-	void project(double* pDest, const double* pPoint) const;
+//	void project(double* pDest, const double* pPoint) const;
 
 	/// \brief Projects pPoint onto this hyperplane (where each row
 	/// defines one of the orthonormal basis vectors of this hyperplane)
-	void project(double* pDest, const double* pPoint, const double* pOrigin) const;
+//	void project(double* pDest, const double* pPoint, const double* pOrigin) const;
 
 	/// \brief Performs a bipartite matching between the rows of \a a
 	/// and \a b using the Linear Assignment Problem (LAP) optimizer

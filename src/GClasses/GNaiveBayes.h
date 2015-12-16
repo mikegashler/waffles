@@ -39,7 +39,7 @@ public:
 	GNaiveBayes();
 
 	/// Load from a DOM.
-	GNaiveBayes(GDomNode* pNode, GLearnerLoader& ll);
+	GNaiveBayes(GDomNode* pNode);
 
 	virtual ~GNaiveBayes();
 

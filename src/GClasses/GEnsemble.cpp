@@ -25,6 +25,7 @@
 #include "GRand.h"
 #include "GHolders.h"
 #include "GThread.h"
+#include <memory>
 
 using namespace GClasses;
 using std::vector;
@@ -59,7 +60,7 @@ GEnsemble::GEnsemble()
 }
 
 GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll), m_pPredictMaster(NULL)
+: GSupervisedLearner(pNode), m_pPredictMaster(NULL)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
 	size_t accumulatorDims = (size_t)pNode->field("accum")->asInt();
@@ -447,7 +448,7 @@ void GBomb::determineWeights(GMatrix& features, GMatrix& labels)
 {
 	// Try uniform weights first
 	double* pWeights = new double[m_models.size()];
-	ArrayHolder<double> hWeights(pWeights);
+	std::unique_ptr<double[]> hWeights(pWeights);
 	double uniform = 1.0 / m_models.size();
 	GVec::setAll(pWeights, uniform, m_models.size());
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
@@ -576,7 +577,7 @@ GBayesianModelCombination::GBayesianModelCombination(GDomNode* pNode, GLearnerLo
 void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& labels)
 {
 	double* pWeights = new double[m_models.size()];
-	ArrayHolder<double> hWeights(pWeights);
+	std::unique_ptr<double[]> hWeights(pWeights);
 	GVec::setAll(pWeights, 0.0, m_models.size());
 	double sumWeight = 0.0;
 	double maxLogProb = -1e38;
@@ -691,12 +692,11 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 	clear();
 
 	// Initialize all instances with uniform weights
-	double* pDistribution = new double[features.rows()];
-	ArrayHolder<double> hDistribution(pDistribution);
-	GVec::setAll(pDistribution, 1.0 / features.rows(), features.rows());
+	GVec pDistribution(features.rows());
+	pDistribution.fill(1.0 / features.rows());
 	size_t drawRows = size_t(m_trainSize * features.rows());
 	size_t* pDrawnIndexes = new size_t[drawRows];
-	ArrayHolder<size_t> hDrawnIndexes(pDrawnIndexes);
+	std::unique_ptr<size_t[]> hDrawnIndexes(pDrawnIndexes);
 
 	// Train the ensemble
 	size_t labelDims = labels.cols();
@@ -746,7 +746,6 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 		m_models.push_back(new GWeightedModel(weight, pClone));
 
 		// Update the distribution to favor mis-classified instances
-		double* pDist = pDistribution;
 		for(size_t i = 0; i < features.rows(); i++)
 		{
 			err = 0.0;
@@ -758,10 +757,9 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 					err += penalty;
 			}
 			err /= labelDims;
-			*pDist *= exp(weight * (err * 2.0 - 1.0));
-			pDist++;
+			pDistribution[i] *= exp(weight * (err * 2.0 - 1.0));
 		}
-		GVec::sumToOne(pDistribution, features.rows());
+		pDistribution.sumToOne();
 	}
 	normalizeWeights();
 }
@@ -791,9 +789,9 @@ GWag::GWag(size_t size)
 }
 
 GWag::GWag(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+: GSupervisedLearner(pNode)
 {
-	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
+	m_pNN = new GNeuralNet(pNode->field("nn"));
 	m_models = (size_t)pNode->field("models")->asInt();
 	m_noAlign = pNode->field("na")->asBool();
 }
@@ -824,11 +822,11 @@ void GWag::clear()
 void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	GNeuralNet* pTemp = NULL;
-	Holder<GNeuralNet> hTemp;
+	std::unique_ptr<GNeuralNet> hTemp;
 	size_t weights = 0;
 	double* pWeightBuf = NULL;
 	double* pWeightBuf2 = NULL;
-	ArrayHolder<double> hWeightBuf;
+	std::unique_ptr<double[]> hWeightBuf;
 	for(size_t i = 0; i < m_models; i++)
 	{
 		m_pNN->train(features, labels);
@@ -849,7 +847,7 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 			GDom doc;
 			GDomNode* pNode = m_pNN->serialize(&doc);
 			GLearnerLoader ll;
-			pTemp = new GNeuralNet(pNode, ll);
+			pTemp = new GNeuralNet(pNode);
 			hTemp.reset(pTemp);
 			weights = pTemp->countWeights();
 			pWeightBuf = new double[2 * weights];
@@ -887,7 +885,7 @@ GBucket::GBucket()
 }
 
 GBucket::GBucket(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+: GSupervisedLearner(pNode)
 {
 	GDomNode* pModels = pNode->field("models");
 	GDomListIterator it(pModels);

@@ -25,6 +25,7 @@
 #include "sha2.h"
 #include <algorithm>
 #include <iostream>
+#include <memory>
 
 using std::cout;
 
@@ -234,7 +235,7 @@ void GCrypto::test()
 {
 	size_t testLen = DIGEST_BYTES * 5 / 2;
 	char* pA = new char[3 * testLen];
-	ArrayHolder<char> hA(pA);
+	std::unique_ptr<char[]> hA(pA);
 	char* pB = pA + testLen;
 	char* pC = pB + testLen;
 	GRand r(1234);

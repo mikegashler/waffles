@@ -41,6 +41,7 @@
 #include "GHolders.h"
 #include "GBits.h"
 #include "GFourier.h"
+#include <memory>
 
 using std::vector;
 
@@ -57,8 +58,8 @@ m_epochsPerValidationCheck(100)
 {
 }
 
-GNeuralNet::GNeuralNet(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll),
+GNeuralNet::GNeuralNet(GDomNode* pNode)
+: GIncrementalLearner(pNode),
 m_validationPortion(0.35),
 m_minImprovement(0.002),
 m_epochsPerValidationCheck(100)
@@ -844,9 +845,9 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 {
 	// Try a plain-old single-layer network
 	size_t hidden = std::max((size_t)4, (features.cols() + 3) / 4);
-	Holder<GNeuralNet> hCand0(new GNeuralNet());
+	std::unique_ptr<GNeuralNet> hCand0(new GNeuralNet());
 	hCand0->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	Holder<GNeuralNet> hCand1;
+	std::unique_ptr<GNeuralNet> hCand1;
 	double scores[2];
 	scores[0] = hCand0.get()->crossValidate(features, labels, 2);
 	scores[1] = 1e308;
@@ -980,7 +981,7 @@ void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
 void GNeuralNet::pretrainWithAutoencoders(const GMatrix& features, size_t maxLayers)
 {
 	const GMatrix* pFeat = &features;
-	Holder<GMatrix> hFeat(NULL);
+	std::unique_ptr<GMatrix> hFeat;
 	maxLayers = std::min(layerCount(), maxLayers);
 	for(size_t i = 0; i < maxLayers; i++)
 	{
@@ -1066,7 +1067,7 @@ GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 	GVec off(lay.inputs());
 	pca.basis()->multiply(pca.centroid(), off);
 	GMatrix* pInvTransform = pca.basis()->pseudoInverse();
-	Holder<GMatrix> hInvTransform(pInvTransform);
+	std::unique_ptr<GMatrix> hInvTransform(pInvTransform);
 	lay.transformWeights(*pInvTransform, off);
 	return pca.transformBatch(features);
 }
@@ -1076,7 +1077,7 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 {
 	// Pad until the number of rows in series is a power of 2
 	GMatrix* pSeries = &series;
-	Holder<GMatrix> hSeries(NULL);
+	std::unique_ptr<GMatrix> hSeries;
 	if(!GBits::isPowerOfTwo((unsigned int)series.rows()))
 	{
 		pSeries = new GMatrix(series);
@@ -1112,7 +1113,7 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 
 	// Initialize the output layer
 	struct ComplexNumber* pFourier = new struct ComplexNumber[pSeries->rows()];
-	ArrayHolder<struct ComplexNumber> hIn(pFourier);
+	std::unique_ptr<struct ComplexNumber[]> hIn(pFourier);
 	GMatrix& wIdent = pLayerIdent->weights();
 	GVec& bIdent = pLayerIdent->bias();
 	for(size_t j = 0; j < pSeries->cols(); j++)
@@ -1573,10 +1574,10 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		// Check that they have matching weights
 		size_t wc = nn1.countWeights();
 		double* pW1 = new double[wc];
-		ArrayHolder<double> hW1(pW1);
+		std::unique_ptr<double[]> hW1(pW1);
 		nn1.weights(pW1);
 		double* pW2 = new double[wc];
-		ArrayHolder<double> hW2(pW2);
+		std::unique_ptr<double[]> hW2(pW2);
 		nn2.weights(pW2);
 		for(size_t j = 0; j < wc; j++)
 		{
@@ -1657,7 +1658,7 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 		transform.multiply(offset, tmp);
 		offset = tmp;
 		GMatrix* pTransInv = transform.pseudoInverse();
-		Holder<GMatrix> hTransInv(pTransInv);
+		std::unique_ptr<GMatrix> hTransInv(pTransInv);
 		((GLayerClassic*)&nn.layer(0))->transformWeights(*pTransInv, offset);
 
 		// Predict again
@@ -1686,7 +1687,7 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 
 	// Test
 	GMatrix* pNewFeat = nn1.compressFeatures(feat);
-	Holder<GMatrix> hNewFeat(pNewFeat);
+	std::unique_ptr<GMatrix> hNewFeat(pNewFeat);
 	GVec out1(NN_TEST_DIMS);
 	GVec out2(NN_TEST_DIMS);
 	for(size_t i = 0; i < feat.rows(); i++)
@@ -1719,7 +1720,7 @@ void GNeuralNet_testFourier()
 	m[15][0] = 2.9; m[15][1] = 1.2; m[15][2] = 3.0;
 	double period = 3.0;
 	GNeuralNet* pNN = GNeuralNet::fourier(m, period);
-	Holder<GNeuralNet> hNN(pNN);
+	std::unique_ptr<GNeuralNet> hNN(pNN);
 	GVec out(3);
 	for(size_t i = 0; i < m.rows(); i++)
 	{
@@ -1871,7 +1872,7 @@ GReservoirNet::GReservoirNet()
 }
 
 GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll)
+: GIncrementalLearner(pNode)
 {
 	m_pModel = (GIncrementalLearner*)ll.loadLearner(pNode->field("model"));
 	m_weightDeviation = pNode->field("wdev")->asDouble();

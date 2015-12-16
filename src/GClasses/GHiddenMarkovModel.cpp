@@ -49,9 +49,8 @@ GHiddenMarkovModel::~GHiddenMarkovModel()
 double GHiddenMarkovModel::forwardAlgorithm(const int* pObservations, int len)
 {
 	// Compute probabilities of initial observation
-	GTEMPBUF(double, alpha, 2 * m_stateCount);
-	double* pCur = alpha;
-	double* pPrev = alpha + m_stateCount;
+	GVec pCur(m_stateCount);
+	GVec pPrev(m_stateCount);
 	double logProb = 0;
 	for(int j = 0; j < m_stateCount; j++)
 		pCur[j] = m_pInitialStateProbabilities[j] * m_pSymbolProbabilities[m_symbolCount * j + pObservations[0]];
@@ -70,13 +69,13 @@ double GHiddenMarkovModel::forwardAlgorithm(const int* pObservations, int len)
 		}
 
 		// Normalize to preserve numerical stability
-		double sum = GVec::sumElements(pCur, m_stateCount);
-		GVec::multiply(pCur, 1.0 / sum, m_stateCount);
+		double sum = pCur.sum();
+		pCur *= (1.0 / sum);
 		logProb += log(sum);
 	}
 
 	// Sum to get final probabilities
-	logProb += log(GVec::sumElements(pCur, m_stateCount));
+	logProb += log(pCur.sum());
 	return logProb;
 }
 
@@ -84,9 +83,8 @@ double GHiddenMarkovModel::viterbi(int* pMostLikelyStates, const int* pObservati
 {
 	// Compute probabilities of initial observation
 	GTEMPBUF(int, backpointers, m_stateCount * (len - 1));
-	GTEMPBUF(double, delta, 2 * m_stateCount);
-	double* pCur = delta;
-	double* pPrev = delta + m_stateCount;
+	GVec pCur(m_stateCount);
+	GVec pPrev(m_stateCount);
 	double logProb = 0;
 	for(int j = 0; j < m_stateCount; j++)
 		pCur[j] = m_pInitialStateProbabilities[j] * m_pSymbolProbabilities[m_symbolCount * j + pObservations[0]];
@@ -114,8 +112,8 @@ double GHiddenMarkovModel::viterbi(int* pMostLikelyStates, const int* pObservati
 		}
 
 		// Normalize to preserve numerical stability
-		double sum = GVec::sumElements(pCur, m_stateCount);
-		GVec::multiply(pCur, 1.0 / sum, m_stateCount);
+		double sum = pCur.sum();
+		pCur *= (1.0 / sum);
 		logProb += log(sum);
 	}
 

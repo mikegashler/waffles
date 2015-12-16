@@ -1194,16 +1194,6 @@ UsageNode* makeNeighborUsageTree()
 		pKD->add("[k]=12", "The number of neighbors.");
 	}
 	{
-		UsageNode* pMan = pRoot->add("saffron <options> [cands] [k] [t] [thresh]", "The SAFFRON intelligent neighbor-finding algorithm that finds neighborhoods with aligned tangent hyperplanes. This algorithm was published in Gashler, Michael S. and Martinez, Tony. Tangent space guided intelligent neighbor finding. In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11, pages 2617–2624, IEEE Press, 2011.");
-		UsageNode* pOpts = pMan->add("<options>");
-		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
-		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pMan->add("[cands]=32", "The median number of neighbors to use as candidates.");
-		pMan->add("[k]=8", "The number of neighbors to find for each point.");
-		pMan->add("[t]=2", "The number of dimensions in the tangent hyperplanes.");
-		pMan->add("[thresh]=0.9", "A threshold above which all sqared-correlation values are considered to be equal.");
-	}
-	{
 		UsageNode* pSys = pRoot->add("temporal <options> [action-data] [k]", "A neighbor-finder designed for use in modeling certain types of dynamical systems. It estimates the number of time-steps between observations. This algorithm was published in Gashler, Michael S. and Martinez, Tony. Temporal nonlinear dimensionality reduction. In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11, pages 1959–1966, IEEE Press, 2011.");
 		UsageNode* pOpts = pSys->add("<options>");
 		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
@@ -1249,6 +1239,7 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-range [xmin] [ymin] [xmax] [ymax]", "Set the range. (The default is: -10 -5 10 5.)");
 		pOpts->add("-nohmarks", "Do not draw any vertical lines to mark position on the horizontal axis.");
 		pOpts->add("-novmarks", "Do not draw any horizontal lines to mark position on the vertical axis.");
+		pOpts->add("-notext", "Do not draw any text labels.");
 		pOpts->add("-nogrid", "Do not draw any horizontal or vertical grid lines.");
 		pOpts->add("-noserifs", "Use a font with no serifs. (This generally makes charts look a little cleaner.)");
 		pOpts->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
@@ -1551,6 +1542,13 @@ UsageNode* makeTransformUsageTree()
 		UsageNode* pOpts = pAIC->add("<options>");
 		pOpts->add("-start [value]=0.0", "Specify the initial index. (the default is 0.0).");
 		pOpts->add("-increment [value]=1.0", "Specify the increment amount. (the default is 1.0).");
+		pOpts->add("-name [value]=index", "Specify the name of the new attribute.");
+	}
+	{
+		UsageNode* pACC = pRoot->add("addcategorycolumn [dataset] [name] [value]", "Add a column with a constant categorical value. This column will be inserted as column 0.");
+		pACC->add("[dataset]=data.arff", "The filename of a dataset.");
+		pACC->add("[name]=class", "The name of the new column or attribute.");
+		pACC->add("[value]=a", "The name of the constant value to insert in every row.");
 	}
 	{
 		UsageNode* pAN = pRoot->add("addnoise [dataset] [dev] <options>", "Add Gaussian noise with the specified deviation to all the elements in the dataset. (Assumes that the values are all continuous.)");
@@ -1775,6 +1773,11 @@ UsageNode* makeTransformUsageTree()
 		pRotate->add("[col_x]=0", "The zero-based index of an attribute to serve as the x coordinate in the plane of rotation.  Rotation from x to y will be 90 degrees. col_x must be a real-valued attribute.");
 		pRotate->add("[col_y]=1", "The zero-based index of an attribute to serve as the y coordinate in the plane of rotation.  Rotation from y to x will be 270 degrees. col_y must be a real-valued attribute.");
 		pRotate->add("[angle_degrees]=90.0","The angle in degrees to rotate around the origin in the col_x,col_y plane.");
+	}
+	{
+		UsageNode* pRO = pRoot->add("reordercolumns [dataset] [column-list]", "Reorder the columns as specified in the column list.");
+		pRO->add("[dataset]=in.arff", "The filename of a dataset.");
+		pRO->add("[column-list]=0", "A comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
 		UsageNode* pSampRows = pRoot->add("samplerows [dataset] [portion]", "Randomly samples from the rows in the specified dataset and prints them to stdout. This tool reads each row one-at-a-time, so it is well-suited for reducing the size of datasets that are too big to fit into memory. (Note that unlike most other tools, this one does not convert CSV to ARFF format internally. If the input is CSV, the output will be CSV too.)");

@@ -18,6 +18,7 @@
 #include "../../GClasses/GHolders.h"
 #include "../../GClasses/GFile.h"
 #include "../../GClasses/GBits.h"
+#include <memory>
 
 namespace GClasses {
 
@@ -99,11 +100,11 @@ void loadPng(GImage* pImage, const unsigned char* pData, size_t nDataSize)
 	// Allocate the row pointers
 	unsigned long rowbytes = png_get_rowbytes(reader.m_pReadStruct, reader.m_pInfoStruct);
 	unsigned long channels = rowbytes / width;
-	ArrayHolder<unsigned char> hData(new unsigned char[rowbytes * height]);
+	std::unique_ptr<unsigned char[]> hData(new unsigned char[rowbytes * height]);
 	png_bytep pRawData = (png_bytep)hData.get();
 	unsigned int i;
 	{
-		ArrayHolder<unsigned char> hRows(new unsigned char[sizeof(png_bytep) * height]);
+		std::unique_ptr<unsigned char[]> hRows(new unsigned char[sizeof(png_bytep) * height]);
 		png_bytep* pRows = (png_bytep*)hRows.get();
 		for(i = 0; i < height; i++)
 			pRows[i] = pRawData + i * rowbytes;
@@ -204,7 +205,7 @@ void savePng(GImage* pImage, FILE* pFile, bool bIncludeAlphaChannel)
 	unsigned long channels = bIncludeAlphaChannel ? 4 : 3;
 	unsigned long rowbytes = width * channels;
 	unsigned char* pRow = new unsigned char[rowbytes];
-	ArrayHolder<unsigned char> hRow(pRow);
+	std::unique_ptr<unsigned char[]> hRow(pRow);
 	unsigned int* pPix = pImage->pixels();
 	if(channels == 4)
 	{
@@ -245,7 +246,7 @@ void loadPng(GImage* pImage, const char* szFilename)
 {
 	size_t nSize;
 	char* pRawData = GFile::loadFile(szFilename, &nSize);
-	ArrayHolder<char> hRawData(pRawData);
+	std::unique_ptr<char[]> hRawData(pRawData);
 	loadPng(pImage, (const unsigned char*)pRawData, nSize);
 }
 
@@ -253,7 +254,7 @@ void loadPngFromHex(GImage* pImage, const char* szHex)
 {
 	size_t len = strlen(szHex);
 	unsigned char* pBuf = new unsigned char[len / 2];
-	ArrayHolder<unsigned char> hBuf(pBuf);
+	std::unique_ptr<unsigned char[]> hBuf(pBuf);
 	GBits::hexToBuffer(szHex, len, pBuf);
 	loadPng(pImage, pBuf, len / 2);
 }

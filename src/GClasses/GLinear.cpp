@@ -27,6 +27,7 @@
 #include "GHolders.h"
 #include <cmath>
 #include <math.h>
+#include <memory>
 
 namespace GClasses {
 
@@ -35,8 +36,8 @@ GLinearRegressor::GLinearRegressor()
 {
 }
 
-GLinearRegressor::GLinearRegressor(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GLinearRegressor::GLinearRegressor(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_pBeta = new GMatrix(pNode->field("beta"));
 	m_epsilon.deserialize(pNode->field("epsilon"));
@@ -106,7 +107,7 @@ void GLinearRegressor::refine(const GMatrix& features, const GMatrix& labels, do
 	size_t fDims = features.cols();
 	size_t lDims = labels.cols();
 	size_t* pIndexes = new size_t[features.rows()];
-	ArrayHolder<size_t> hIndexes(pIndexes);
+	std::unique_ptr<size_t[]> hIndexes(pIndexes);
 	GIndexVec::makeIndexVec(pIndexes, features.rows());
 	for(size_t i = 0; i < epochs; i++)
 	{
@@ -151,7 +152,7 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 	// Use a fast, but not-very-numerically-stable technique to compute an initial approximation for beta and epsilon
 	clear();
 	GMatrix* pAll = GMatrix::mergeHoriz(&features, &labels);
-	Holder<GMatrix> hAll(pAll);
+	std::unique_ptr<GMatrix> hAll(pAll);
 	GPCA pca(features.cols());
 	pca.train(*pAll);
 	size_t inputs = features.cols();
@@ -267,8 +268,8 @@ GLinearDistribution::GLinearDistribution()
 {
 }
 
-GLinearDistribution::GLinearDistribution(GDomNode* pNode, GLearnerLoader& ll)
-: GSupervisedLearner(pNode, ll)
+GLinearDistribution::GLinearDistribution(GDomNode* pNode)
+: GSupervisedLearner(pNode)
 {
 	m_noiseDev = pNode->field("nd")->asDouble();
 	m_pWBar = new GMatrix(pNode->field("w"));

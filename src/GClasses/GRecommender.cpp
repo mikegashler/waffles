@@ -38,6 +38,7 @@
 #include "GLearner.h"
 #include "GLearnerLib.h"
 #include "usage.h"
+#include <memory>
 
 using std::map;
 using std::multimap;
@@ -82,7 +83,7 @@ void GCollaborativeFilter::trainDenseMatrix(const GMatrix& data, const GMatrix* 
 
 	// Convert to 3-column form
 	GMatrix* pMatrix = new GMatrix(0, 3);
-	Holder<GMatrix> hMatrix(pMatrix);
+	std::unique_ptr<GMatrix> hMatrix(pMatrix);
 	size_t dims = data.cols();
 	for(size_t i = 0; i < data.rows(); i++)
 	{
@@ -134,7 +135,7 @@ double GCollaborativeFilter::crossValidate(GMatrix& data, size_t folds, double* 
 	// Randomly assign each rating to one of the folds
 	size_t ratings = data.rows();
 	size_t* pFolds = new size_t[ratings];
-	ArrayHolder<size_t> hFolds(pFolds);
+	std::unique_ptr<size_t[]> hFolds(pFolds);
 	for(size_t i = 0; i < ratings; i++)
 		pFolds[i] = (size_t)m_rand.next(folds);
 
@@ -398,7 +399,7 @@ void GBaselineRecommender::train(GMatrix& data)
 	// Allocate space
 	m_ratings.resize(m_items);
 	size_t* pCounts = new size_t[m_items];
-	ArrayHolder<size_t> hCounts(pCounts);
+	std::unique_ptr<size_t[]> hCounts(pCounts);
 	size_t* pC = pCounts;
 	GVec& rr = m_ratings;
 	for(size_t i = 0; i < m_items; i++)
@@ -741,7 +742,7 @@ void GSparseClusterRecommender::train(GMatrix& data)
 	m_pPredictions = new GMatrix(m_clusters, sm.cols());
 	m_pPredictions->setAll(0.0);
 	size_t* pCounts = new size_t[sm.cols() * m_clusters];
-	ArrayHolder<size_t> hCounts(pCounts);
+	std::unique_ptr<size_t[]> hCounts(pCounts);
 	memset(pCounts, '\0', sizeof(size_t) * sm.cols() * m_clusters);
 	for(size_t i = 0; i < sm.rows(); i++)
 	{
@@ -861,7 +862,7 @@ void GDenseClusterRecommender::train(GMatrix& data)
 	m_pPredictions = new GMatrix(m_clusters, items);
 	m_pPredictions->setAll(0.0);
 	size_t* pCounts = new size_t[items * m_clusters];
-	ArrayHolder<size_t> hCounts(pCounts);
+	std::unique_ptr<size_t[]> hCounts(pCounts);
 	memset(pCounts, '\0', sizeof(size_t) * items * m_clusters);
 	for(size_t i = 0; i < data.rows(); i++)
 	{
@@ -1289,8 +1290,7 @@ void GMatrixFactorization::impute(GVec& vec, size_t dims)
 			pP[0] += learningRate * (err - m_regularizer * pP[0]);
 			for(size_t j = 1; j <= m_intrinsicDims; j++)
 				pP[j] += learningRate * (err * q[j] - m_regularizer * pP[j]);
-			GVec::floorValues(pP.data() + 1, -1.8, m_intrinsicDims);
-			GVec::capValues(pP.data() + 1, 1.8, m_intrinsicDims);
+			pP.clip(-1.8, 1.8);
 		}
 
 		// Stopping criteria
@@ -1360,7 +1360,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	// Copy and normalize the ratings
 	GMatrix* pClone = new GMatrix();
 	pClone->copy(&data);
-	Holder<GMatrix> hClone(pClone);
+	std::unique_ptr<GMatrix> hClone(pClone);
 	delete[] m_pMins;
 	m_pMins = new double[items];
 	delete[] m_pMaxs;
@@ -1402,7 +1402,7 @@ void GHybridNonlinearPCA::train(GMatrix& data)
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
 	double* pPrefGradient = new double[m_intrinsicDims + numAttr];
-	ArrayHolder<double> hPrefGradient(pPrefGradient);
+	std::unique_ptr<double[]> hPrefGradient(pPrefGradient);
 
 	// Train
 	int startPass = 0;
@@ -1776,7 +1776,7 @@ void GNonlinearPCA::train(GMatrix& data)
 	// Copy and normalize the ratings
 	GMatrix* pClone = new GMatrix();
 	pClone->copy(&data);
-	Holder<GMatrix> hClone(pClone);
+	std::unique_ptr<GMatrix> hClone(pClone);
 	delete[] m_pMins;
 	m_pMins = new double[items];
 	delete[] m_pMaxs;
@@ -1812,7 +1812,7 @@ void GNonlinearPCA::train(GMatrix& data)
 	nn.setUseInputBias(m_useInputBias);
 	nn.beginIncrementalLearning(featureRel, labelRel);
 	GVec& prefGradient = new double[m_intrinsicDims];
-	ArrayHolder<double> hPrefGradient(prefGradient);
+	std::unique_ptr<double[]> hPrefGradient(prefGradient);
 
 	// Train
 	size_t startPass = 0;
@@ -2384,8 +2384,8 @@ void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
 		GVec& vec = m_itemAttrs->row(i);
 		m_itemMap[(size_t)vec[0]] = i;
 	}
-	m_itemAttrs->swapColumns(0,m_itemAttrs->cols()-1);
-	m_itemAttrs->deleteColumn(m_itemAttrs->cols()-1);
+	m_itemAttrs->swapColumns(0,m_itemAttrs->cols() - 1);
+	m_itemAttrs->deleteColumns(m_itemAttrs->cols() - 1, 1);
 }
 
 
@@ -2423,7 +2423,7 @@ void GContentBoostedCF::train(GMatrix& data)
 	//make a copy of the training data
 	GMatrix* pClone = new GMatrix();
         pClone->copy(&data);
-        Holder<GMatrix> hClone(pClone);
+        std::unique_ptr<GMatrix> hClone(pClone);
 	m_cbf->train(*pClone);
 
 	//Create the psuedo user-ratings vector for every user

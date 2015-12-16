@@ -501,7 +501,8 @@ void test(GArgReader& args)
 		}
 	}
 	GVec::multiply(results, 1.0 / pData->rows(), labels.cols());
-	GVec::print(cout, 14, results, labels.cols());
+	GVecWrapper vw(results, labels.cols());
+	vw.vec().print(cout);
 }
 
 void transpose(GArgReader& args)

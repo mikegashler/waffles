@@ -132,7 +132,7 @@ void GLearnerLib::parseAttributeList(vector<size_t>& list, GArgReader& args, siz
 	}
 }
 
-void GLearnerLib::loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& hLabelsOut, bool requireMetadata)
+void GLearnerLib::loadData(GArgReader& args, std::unique_ptr<GMatrix>& hFeaturesOut, std::unique_ptr<GMatrix>& hLabelsOut, bool requireMetadata)
 {
 	// Load the dataset by extension
 	if(args.size() < 1)
@@ -199,7 +199,7 @@ void GLearnerLib::loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Hold
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		data.deleteColumn(ignore[i]);
+		data.deleteColumns(ignore[i], 1);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
 			if(labels[j] >= ignore[i])
@@ -869,7 +869,7 @@ void GLearnerLib::showInstantiateAlgorithmError(const char* szMessage, GArgReade
 	cerr << szMessage << "\n\n";
 	const char* szAlgName = args.peek();
 	UsageNode* pAlgTree = makeAlgorithmUsageTree();
-	Holder<UsageNode> hAlgTree(pAlgTree);
+	std::unique_ptr<UsageNode> hAlgTree(pAlgTree);
 	if(szAlgName)
 	{
 		UsageNode* pUsageAlg = pAlgTree->choice(szAlgName);
@@ -1042,7 +1042,7 @@ void GLearnerLib::autoTuneGraphCutTransducer(GMatrix& features, GMatrix& labels)
 void GLearnerLib::autoTune(GArgReader& args)
 {
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
@@ -1088,7 +1088,7 @@ void GLearnerLib::Train(GArgReader& args)
 	}
 
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
@@ -1096,7 +1096,7 @@ void GLearnerLib::Train(GArgReader& args)
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(args, pFeatures, pLabels);
 	pSupLearner->rand().setSeed(seed);
-	Holder<GTransducer> hModel(pSupLearner);
+	std::unique_ptr<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
 	if(!pSupLearner->canGeneralize())
@@ -1141,11 +1141,11 @@ void GLearnerLib::predict(GArgReader& args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModeler(pModeler);
+	std::unique_ptr<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
@@ -1186,11 +1186,11 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModeler(pModeler);
+	std::unique_ptr<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
@@ -1234,7 +1234,7 @@ void GLearnerLib::predictDistribution(GArgReader& args)
 	cout << "\n" << "@data" << "\n" << endl;
 
         GPrediction* p = new GPrediction[modelRelLabelsSize];
-	ArrayHolder<GPrediction> hp(p);
+	std::unique_ptr<GPrediction[]> hp(p);
 	for(size_t i = 0; i < pFeatures->rows(); ++i)
 	{
 		pModeler->predictDistribution(pFeatures->row(i), p);
@@ -1457,11 +1457,11 @@ void GLearnerLib::Test(GArgReader& args)
 	doc.loadJson(args.pop_string());
 	GLearnerLoader ll(true);
 	GSupervisedLearner* pModeler = ll.loadLearner(doc.root());
-	Holder<GSupervisedLearner> hModeler(pModeler);
+	std::unique_ptr<GSupervisedLearner> hModeler(pModeler);
 	pModeler->rand().setSeed(seed);
 
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels, true);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
@@ -1509,7 +1509,7 @@ void GLearnerLib::Transduce(GArgReader& args)
 		throw Ex("No labeled set specified.");
 
 	// Load the labeled and unlabeled sets
-	Holder<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
+	std::unique_ptr<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
 	loadData(args, hFeatures1, hLabels1, true);
 	loadData(args, hFeatures2, hLabels2, true);
 	GMatrix* pFeatures1 = hFeatures1.get();
@@ -1521,14 +1521,14 @@ void GLearnerLib::Transduce(GArgReader& args)
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(args, pFeatures1, pLabels1);
-	Holder<GTransducer> hModel(pSupLearner);
+	std::unique_ptr<GTransducer> hModel(pSupLearner);
 	pSupLearner->rand().setSeed(seed);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
 
 	// Transduce
 	GMatrix* pLabels3 = pSupLearner->transduce(*pFeatures1, *pLabels1, *pFeatures2);
-	Holder<GMatrix> hLabels3(pLabels3);
+	std::unique_ptr<GMatrix> hLabels3(pLabels3);
 
 	// Print results
 	pLabels3->print(cout);
@@ -1553,7 +1553,7 @@ void GLearnerLib::TransductiveAccuracy(GArgReader& args)
 	}
 
 	// Load the data sets
-	Holder<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
+	std::unique_ptr<GMatrix> hFeatures1, hLabels1, hFeatures2, hLabels2;
 	loadData(args, hFeatures1, hLabels1, true);
 	loadData(args, hFeatures2, hLabels2, true);
 	GMatrix* pFeatures1 = hFeatures1.get();
@@ -1565,16 +1565,14 @@ void GLearnerLib::TransductiveAccuracy(GArgReader& args)
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(args, pFeatures1, pLabels1);
-	Holder<GTransducer> hModel(pSupLearner);
+	std::unique_ptr<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
 	pSupLearner->rand().setSeed(seed);
 
 	// Transduce and measure accuracy
-	GTEMPBUF(double, results, pLabels1->cols());
 	vector<GMatrix*> confusionMatrices;
 	double mse = pSupLearner->trainAndTest(*pFeatures1, *pLabels1, *pFeatures2, *pLabels2) / pFeatures2->rows();
-	GVec::print(cout, 14, results, pLabels1->cols());
 	if(pLabels2->cols() == 1 && pLabels2->relation().valueCount(0) > 0)
 		cout << "Misclassification rate: ";
 	else
@@ -1617,14 +1615,14 @@ void GLearnerLib::SplitTest(GArgReader& args)
 
 	// Load the data
 	GRand prng(seed);
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(args, pFeatures, pLabels);
-	Holder<GTransducer> hModel(pSupLearner);
+	std::unique_ptr<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
 	pSupLearner->rand().setSeed(seed);
@@ -1720,14 +1718,14 @@ void GLearnerLib::CrossValidate(GArgReader& args)
 		throw Ex("There must be at least 2 folds.");
 
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(args, pFeatures, pLabels);
-	Holder<GTransducer> hModel(pSupLearner);
+	std::unique_ptr<GTransducer> hModel(pSupLearner);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
 	pSupLearner->rand().setSeed(seed);
@@ -1783,14 +1781,14 @@ void GLearnerLib::PrecisionRecall(GArgReader& args)
 		throw Ex("There must be at least 2 samples.");
 
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
 	GTransducer* pSupLearner = InstantiateAlgorithm(args, pFeatures, pLabels);
-	Holder<GTransducer> hModel(pSupLearner);
+	std::unique_ptr<GTransducer> hModel(pSupLearner);
 	pSupLearner->rand().setSeed(seed);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
@@ -1838,7 +1836,7 @@ void GLearnerLib::PrecisionRecall(GArgReader& args)
 	{
 		size_t valCount = std::max((size_t)1, pLabels->relation().valueCount(i));
 		double* precision = new double[valCount * samples];
-		ArrayHolder<double> hPrecision(precision);
+		std::unique_ptr<double[]> hPrecision(precision);
 		pModel->precisionRecall(precision, samples, *pFeatures, *pLabels, i, reps);
 		for(size_t j = 0; j < valCount; j++)
 			results.setCol(pos++, precision + samples * j);
@@ -1866,14 +1864,14 @@ void GLearnerLib::sterilize(GArgReader& args)
 	}
 
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
 
 	// Instantiate the modeler
 	GTransducer* pTransducer = InstantiateAlgorithm(args, pFeatures, pLabels);
-	Holder<GTransducer> hModel(pTransducer);
+	std::unique_ptr<GTransducer> hModel(pTransducer);
 	if(args.size() > 0)
 		throw Ex("Superfluous argument: ", args.peek());
 	pTransducer->rand().setSeed(seed);
@@ -1914,7 +1912,7 @@ void GLearnerLib::sterilize(GArgReader& args)
 
 		// Transduce
 		GMatrix* pPredictedLabels = pTransducer->transduce(trainFeatures, trainLabels, testFeatures);
-		Holder<GMatrix> hPredictedLabels(pPredictedLabels);
+		std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
 
 		// Keep only the correct predictions
 		for(size_t j = 0; j < testLabels.rows(); j++)
@@ -1946,7 +1944,7 @@ void GLearnerLib::sterilize(GArgReader& args)
 
 	// Merge the sterile features and labels
 	GMatrix* pSterile = GMatrix::mergeHoriz(&sterileFeatures, &sterileLabels);
-	Holder<GMatrix> hSterile(pSterile);
+	std::unique_ptr<GMatrix> hSterile(pSterile);
 	pSterile->print(cout);
 }
 /*
@@ -2037,12 +2035,12 @@ void GLearnerLib::trainRecurrent(GArgReader& args)
 
 	// Instantiate the recurrent model
 	GTransducer* pTransitionFunc = InstantiateAlgorithm(args, NULL, NULL);
-	Holder<GTransducer> hTransitionFunc(pTransitionFunc);
+	std::unique_ptr<GTransducer> hTransitionFunc(pTransitionFunc);
 	if(!pTransitionFunc->canGeneralize())
 		throw Ex("The algorithm specified for the transition function cannot be \"trained\". It can only be used to \"transduce\".");
 	pTransitionFunc->rand().setSeed(seed);
 	GTransducer* pObservationFunc = InstantiateAlgorithm(args, NULL, NULL);
-	Holder<GTransducer> hObservationFunc(pObservationFunc);
+	std::unique_ptr<GTransducer> hObservationFunc(pObservationFunc);
 	if(!pObservationFunc->canGeneralize())
 		throw Ex("The algorithm specified for the observation function cannot be \"trained\". It can only be used to \"transduce\".");
 	pObservationFunc->rand().setSeed((seed + 13) * 11);
@@ -2059,7 +2057,7 @@ void GLearnerLib::trainRecurrent(GArgReader& args)
 		for(size_t i = 0; i < validationFilenames.size(); i++)
 		{
 			GMatrix* pVal = new GMatrix();
-			Holder<GMatrix> hVal(pVal);
+			std::unique_ptr<GMatrix> hVal(pVal);
 			pVal->loadArff(validationFilenames[i].c_str());
 			validationData.push_back(hVal.release());
 		}
@@ -2088,7 +2086,7 @@ void GLearnerLib::trainRecurrent(GArgReader& args)
 void GLearnerLib::regress(GArgReader& args)
 {
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
@@ -2127,7 +2125,7 @@ void GLearnerLib::regress(GArgReader& args)
 void GLearnerLib::metaData(GArgReader& args)
 {
 	// Load the data
-	Holder<GMatrix> hFeatures, hLabels;
+	std::unique_ptr<GMatrix> hFeatures, hLabels;
 	loadData(args, hFeatures, hLabels);
 	GMatrix* pFeatures = hFeatures.get();
 	GMatrix* pLabels = hLabels.get();
@@ -2303,10 +2301,10 @@ void GLearnerLib::ShowUsage(const char* appName)
 	cout << "<Angled brackets> are used to indicate optional arguments.\n";
 	cout << "\n";
 	UsageNode* pUsageTree = makeLearnUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	pUsageTree->print(cout, 0, 3, 76, 1000, true);
 	UsageNode* pUsageTree2 = makeAlgorithmUsageTree();
-	Holder<UsageNode> hUsageTree2(pUsageTree2);
+	std::unique_ptr<UsageNode> hUsageTree2(pUsageTree2);
 	pUsageTree2->print(cout, 0, 3, 76, 1000, true);
 	cout.flush();
 }
@@ -2318,7 +2316,7 @@ void GLearnerLib::showError(GArgReader& args, const char* szAppName, const char*
 	args.set_pos(1);
 	const char* szCommand = args.peek();
 	UsageNode* pUsageTree = makeLearnUsageTree();
-	Holder<UsageNode> hUsageTree(pUsageTree);
+	std::unique_ptr<UsageNode> hUsageTree(pUsageTree);
 	if(szCommand)
 	{
 		UsageNode* pUsageCommand = pUsageTree->choice(szCommand);
@@ -2330,7 +2328,7 @@ void GLearnerLib::showError(GArgReader& args, const char* szAppName, const char*
 			if(pUsageCommand->findPart("[algorithm]") >= 0)
 			{
 				UsageNode* pAlgTree = makeAlgorithmUsageTree();
-				Holder<UsageNode> hAlgTree(pAlgTree);
+				std::unique_ptr<UsageNode> hAlgTree(pAlgTree);
 				pAlgTree->print(cerr, 1, 3, 76, 2, false);
 			}
 		}

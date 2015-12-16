@@ -47,6 +47,7 @@
 #include <iostream>
 #include <string>
 #include <set>
+#include <memory>
 #include <map>
 #include <algorithm>
 #ifdef WIN32
@@ -63,6 +64,7 @@ using std::vector;
 using std::string;
 using std::set;
 using std::map;
+using std::shared_ptr;
 
 size_t getAttrVal(const char* szString, size_t attrCount)
 {
@@ -224,7 +226,7 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t& pLabelDims,
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		data.deleteColumn(ignore[i]);
+		data.deleteColumns(ignore[i], 1);
 		originalIndices.erase(originalIndices.begin()+ignore[i]);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
@@ -356,14 +358,6 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		{
 			int neighbors = args.pop_uint();
 			pNF = new GKdTree(pData, neighbors, NULL, true);
-		}
-		else if(_stricmp(alg, "saffron") == 0)
-		{
-			size_t medianCands = args.pop_uint();
-			size_t neighbors = args.pop_uint();
-			size_t tangentSpaceDims = args.pop_uint();
-			double thresh = args.pop_double();
-			pNF = new GSaffron(pData, medianCands, neighbors, tangentSpaceDims, thresh, pRand);
 		}
 		else if(_stricmp(alg, "temporal") == 0)
 		{
@@ -921,8 +915,7 @@ void principalComponentAnalysis(GArgReader& args)
 	{
 		GDom doc;
 		doc.loadJson(modelIn.c_str());
-		GLearnerLoader ll;
-		pTransform = new GPCA(doc.root(), ll);
+		pTransform = new GPCA(doc.root());
 	}
 	else
 	{
@@ -1075,7 +1068,7 @@ void selfOrganizingMap(GArgReader& args){
       if(args.if_pop("showTrain") || args.if_pop("showtrain")){
 	showTrain = true;
       }
-      smart_ptr<Reporter> weightReporter
+      shared_ptr<Reporter> weightReporter
 	(new SVG2DWeightReporter(baseFilename, xDim, yDim, showTrain));
       Holder<IterationIntervalReporter> intervalReporter
 	(new IterationIntervalReporter(weightReporter, interval));
@@ -1133,8 +1126,7 @@ void selfOrganizingMap(GArgReader& args){
     //Create map from file
     GDom source;
     source.loadJson(loadFrom.c_str());
-    GLearnerLoader ll;
-    som.reset(new GSelfOrganizingMap(source.root(), ll));
+    som.reset(new GSelfOrganizingMap(source.root()));
     //Transform using the loaded network
     out.reset(som->transformBatch(*pData));
   }
@@ -1196,7 +1188,8 @@ void singularValueDecomposition(GArgReader& args)
 	}
 	else
 	{
-		GVec::print(cout, 14, pDiag, std::min(pU->rows(), pV->rows()));
+		GVecWrapper diag(pDiag, std::min(pU->rows(), pV->rows()));
+		diag.vec().print(cout);
 		cout << "\n";
 	}
 }
@@ -1235,8 +1228,7 @@ void unsupervisedBackProp(GArgReader& args)
 		{
 			GDom doc;
 			doc.loadJson(args.pop_string());
-			GLearnerLoader ll;
-			pUBP = new GUnsupervisedBackProp(doc.root(), ll);
+			pUBP = new GUnsupervisedBackProp(doc.root());
 			hUBP.reset(pUBP);
 		}
 		else if(args.if_pop("-modelout"))

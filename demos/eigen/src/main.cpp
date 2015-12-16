@@ -20,9 +20,12 @@
 #include <iostream>
 #include <GClasses/GApp.h>
 #include <GClasses/GError.h>
+#include <GClasses/GMatrix.h>
+#include <eigen3/Eigen/Dense>
 
 using namespace GClasses;
 using std::cout;
+using Eigen::MatrixXd;
 
 int main(int argc, char *argv[])
 {
@@ -30,7 +33,29 @@ int main(int argc, char *argv[])
 	if(argc > 1)
 		throw Ex("No args were expected");
 
-	cout << "Hello console!\n";
+	cout << "Making a Waffles matrix...\n";
+	GMatrix waf_m(2, 2);
+	waf_m[0][0] = 1.0; waf_m[0][1] = 2.0;
+	waf_m[1][0] = 3.0; waf_m[1][1] = 4.0;
+	waf_m.print(cout);
+
+	cout << "\n\nConverting to an Eigen matrix...\n";
+	MatrixXd eig_m(waf_m.rows(), waf_m.cols());
+	for(size_t j = 0; j < waf_m.rows(); j++)
+	{
+		for(size_t i = 0; i < waf_m.cols(); i++)
+			eig_m(j, i) = waf_m[j][i];
+	}
+	cout << eig_m << "\n";
+
+	cout << "\n\nConverting back to a Waffles matrix...\n";
+	GMatrix waf_2(2, 2);
+	for(size_t j = 0; j < 2; j++)
+	{
+		for(size_t i = 0; i < 2; i++)
+			waf_2[j][i] = eig_m(j, i);
+	}
+	waf_2.print(cout);
 
 	return 0;
 }

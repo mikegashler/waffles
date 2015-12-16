@@ -27,6 +27,7 @@
 #include <cmath>
 #include <cassert>
 #include <limits>
+#include <memory>
 
 namespace GClasses {
 
@@ -231,7 +232,7 @@ class GDistanceMetric;
     /// block of "interval" iterations, and finally on stop
     class IterationIntervalReporter: public Reporter{
       ///The reporter called by this IterationIntervalReporter
-      smart_ptr<Reporter> m_subReporter;
+      std::shared_ptr<Reporter> m_subReporter;
       ///The reporting interval, only the first in every m_interval
       ///calls to newStatus results in a call to the subReporter
       unsigned m_interval;
@@ -241,7 +242,7 @@ class GDistanceMetric;
     public:
       /// Sets up this reporter to call the subReporter the first out
       /// of every interval status updates
-      IterationIntervalReporter(smart_ptr<Reporter>& subReporter,
+      IterationIntervalReporter(std::shared_ptr<Reporter>& subReporter,
 				unsigned interval)
 	:m_subReporter(subReporter),
 	 m_interval(interval), m_callsSinceLastReport(interval-1){}
@@ -781,7 +782,7 @@ public:
 
   /// Reconstruct this self-organizing map from its serialized form in
   /// a dom document
-  GSelfOrganizingMap(GDomNode* pNode, GLearnerLoader& ll);
+  GSelfOrganizingMap(GDomNode* pNode);
 
   virtual ~GSelfOrganizingMap();
 

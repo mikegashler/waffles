@@ -43,6 +43,7 @@
 #include <cmath>
 #include <set>
 #include <errno.h>
+#include <memory>
 
 using std::vector;
 using std::string;
@@ -331,11 +332,11 @@ GDomNode* GUniformRelation::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GUniformRelation::deleteAttribute(size_t index)
+void GUniformRelation::deleteAttributes(size_t index, size_t count)
 {
-	if(index >= m_attrCount)
+	if(index + count > m_attrCount)
 		throw Ex("Index out of range");
-	m_attrCount--;
+	m_attrCount -= count;
 }
 
 // virtual
@@ -522,9 +523,9 @@ void GMixedRelation::swapAttributes(size_t nAttr1, size_t nAttr2)
 }
 
 // virtual
-void GMixedRelation::deleteAttribute(size_t nAttr)
+void GMixedRelation::deleteAttributes(size_t nAttr, size_t count)
 {
-	m_valueCounts.erase(m_valueCounts.begin() + nAttr);
+	m_valueCounts.erase(m_valueCounts.begin() + nAttr, m_valueCounts.begin() + (nAttr + count));
 }
 
 // virtual
@@ -918,10 +919,10 @@ void GArffRelation::swapAttributes(size_t nAttr1, size_t nAttr2)
 }
 
 // virtual
-void GArffRelation::deleteAttribute(size_t nAttr)
+void GArffRelation::deleteAttributes(size_t nAttr, size_t count)
 {
-	m_attrs.erase(m_attrs.begin() + nAttr);
-	GMixedRelation::deleteAttribute(nAttr);
+	m_attrs.erase(m_attrs.begin() + nAttr, m_attrs.begin() + (nAttr + count));
+	GMixedRelation::deleteAttributes(nAttr, count);
 }
 
 double GArffRelation::parseValue(size_t attr, const char* val)
@@ -1891,7 +1892,7 @@ void GMatrix::singularValueDecomposition(GMatrix** ppU, double** ppDiag, GMatrix
 	else
 	{
 		GMatrix* pTemp = transpose();
-		Holder<GMatrix> hTemp(pTemp);
+		std::unique_ptr<GMatrix> hTemp(pTemp);
 		pTemp->singularValueDecompositionHelper(ppV, ppDiag, ppU, throwIfNoConverge, maxIters);
 		(*ppV)->inPlaceSquareTranspose();
 		(*ppU)->inPlaceSquareTranspose();
@@ -1941,13 +1942,14 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	double g = 0.0;
 	double scale = 0.0;
 	GMatrix* pU = new GMatrix(m, m);
-	Holder<GMatrix> hU(pU);
+	std::unique_ptr<GMatrix> hU(pU);
 	pU->setAll(0.0);
+	GAssert((*this)[this->rows() - 1][this->cols() - 1] != UNKNOWN_REAL_VALUE);
 	pU->copyBlock(*this, 0, 0, m, n, 0, 0, false);
 	double* pSigma = new double[n];
-	ArrayHolder<double> hSigma(pSigma);
+	std::unique_ptr<double[]> hSigma(pSigma);
 	GMatrix* pV = new GMatrix(n, n);
-	Holder<GMatrix> hV(pV);
+	std::unique_ptr<GMatrix> hV(pV);
 	pV->setAll(0.0);
 	GTEMPBUF(double, temp, n);
 
@@ -2250,14 +2252,14 @@ GMatrix* GMatrix::pseudoInverse()
 	if(rowCount < (size_t)colCount)
 	{
 		GMatrix* pTranspose = transpose();
-		Holder<GMatrix> hTranspose(pTranspose);
+		std::unique_ptr<GMatrix> hTranspose(pTranspose);
 		pTranspose->singularValueDecompositionHelper(&pU, &pDiag, &pV, false, 80);
 	}
 	else
 		singularValueDecompositionHelper(&pU, &pDiag, &pV, false, 80);
-	Holder<GMatrix> hU(pU);
-	ArrayHolder<double> hDiag(pDiag);
-	Holder<GMatrix> hV(pV);
+	std::unique_ptr<GMatrix> hU(pU);
+	std::unique_ptr<double[]> hDiag(pDiag);
+	std::unique_ptr<GMatrix> hV(pV);
 	GMatrix sigma(rowCount < (size_t)colCount ? colCount : rowCount, rowCount < (size_t)colCount ? rowCount : colCount);
 	sigma.setAll(0.0);
 	size_t m = std::min(rowCount, colCount);
@@ -2269,7 +2271,7 @@ GMatrix* GMatrix::pseudoInverse()
 			sigma[i][i] = 0.0;
 	}
 	GMatrix* pT = GMatrix::multiply(*pU, sigma, false, false);
-	Holder<GMatrix> hT(pT);
+	std::unique_ptr<GMatrix> hT(pT);
 	if(rowCount < (size_t)colCount)
 		return GMatrix::multiply(*pT, *pV, false, false);
 	else
@@ -2279,15 +2281,17 @@ GMatrix* GMatrix::pseudoInverse()
 // static
 GMatrix* GMatrix::kabsch(GMatrix* pA, GMatrix* pB)
 {
+	GAssert((*pA)[pA->rows() - 1][pA->cols() - 1] != UNKNOWN_REAL_VALUE);
+	GAssert((*pB)[pB->rows() - 1][pB->cols() - 1] != UNKNOWN_REAL_VALUE);
 	GMatrix* pCovariance = GMatrix::multiply(*pA, *pB, true, false);
-	Holder<GMatrix> hCov(pCovariance);
+	std::unique_ptr<GMatrix> hCov(pCovariance);
 	GMatrix* pU;
 	double* pDiag;
 	GMatrix* pV;
 	pCovariance->singularValueDecomposition(&pU, &pDiag, &pV);
-	Holder<GMatrix> hU(pU);
+	std::unique_ptr<GMatrix> hU(pU);
 	delete[] pDiag;
-	Holder<GMatrix> hV(pV);
+	std::unique_ptr<GMatrix> hV(pV);
 	GMatrix* pK = GMatrix::multiply(*pV, *pU, true, true);
 	return pK;
 }
@@ -2305,9 +2309,9 @@ GMatrix* GMatrix::align(GMatrix* pA, GMatrix* pB)
 	bb.copy(pB);
 	bb.centerMeanAtOrigin();
 	GMatrix* pK = GMatrix::kabsch(&bb, &aa);
-	Holder<GMatrix> hK(pK);
+	std::unique_ptr<GMatrix> hK(pK);
 	GMatrix* pAligned = GMatrix::multiply(bb, *pK, false, true);
-	Holder<GMatrix> hAligned(pAligned);
+	std::unique_ptr<GMatrix> hAligned(pAligned);
 	for(size_t i = 0; i < pAligned->rows(); i++)
 		pAligned->row(i) += mean;
 	return hAligned.release();
@@ -2461,8 +2465,9 @@ void GMatrix::eigenVector(double eigenvalue, double* pOutVector)
 	GVec::normalize(pOutVector, rowCount);
 }
 
-GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mostSignificant)
+GMatrix* GMatrix::eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSignificant)
 {
+	eigenVals.resize(nCount);
 	size_t dims = cols();
 	if(nCount > dims)
 		throw Ex("Can't have more eigenvectors than columns");
@@ -2473,9 +2478,9 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 	// The principle components of the Cholesky (square-root) matrix are the same as
 	// the eigenvectors of this matrix.
 	GMatrix* pDeviation = cholesky();
-	Holder<GMatrix> hDeviation(pDeviation);
+	std::unique_ptr<GMatrix> hDeviation(pDeviation);
 	GMatrix* pData = pDeviation->transpose();
-	Holder<GMatrix> hData(pData);
+	std::unique_ptr<GMatrix> hData(pData);
 	size_t s = pData->rows();
 	for(size_t i = 0; i < s; i++)
 	{
@@ -2505,7 +2510,7 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 	}
 	else
 		pA = pseudoInverse();
-	Holder<GMatrix> hA(pA);
+	std::unique_ptr<GMatrix> hA(pA);
 	GVec pTemp(dims);
 	for(size_t i = 0; i < nCount; i++)
 	{
@@ -2521,8 +2526,7 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 
 		// Compute the corresponding eigenvalue
 		double lambda = pA->eigenValue(x);
-		if(pEigenVals)
-			pEigenVals[i] = lambda;
+		eigenVals[i] = lambda;
 
 		// Deflate (subtract out the eigenvector)
 		for(size_t j = 0; j < dims; j++)
@@ -2539,7 +2543,7 @@ GMatrix* GMatrix::eigs(size_t nCount, double* pEigenVals, GRand* pRand, bool mos
 GMatrix* GMatrix::leastSignificantEigenVectors(size_t nCount, GRand* pRand)
 {
 	GMatrix* pInv = cloneMinimal();
-	Holder<GMatrix> hInv(pInv);
+	std::unique_ptr<GMatrix> hInv(pInv);
 	pInv->invert();
 	GMatrix* pOut = pInv->mostSignificantEigenVectors(nCount, pRand);
 	double eigenvalue;
@@ -2547,7 +2551,7 @@ GMatrix* GMatrix::leastSignificantEigenVectors(size_t nCount, GRand* pRand)
 	{
 		eigenvalue = 1.0 / pInv->eigenValue(pOut->row(i));
 		GMatrix* cp = cloneMinimal();
-		Holder<GMatrix> hCp(cp);
+		std::unique_ptr<GMatrix> hCp(cp);
 		cp->eigenVector(eigenvalue, pOut->row(i));
 	}
 	return pOut;
@@ -2580,11 +2584,14 @@ void GMatrix::newColumns(size_t n)
 	}
 }
 
-void GMatrix::takeRow(GVec* pRow)
+void GMatrix::takeRow(GVec* pRow, size_t pos)
 {
 	if(pRow->size() != cols())
 		throw Ex("Mismatching size");
-	m_rows.push_back(pRow);
+	if(pos < m_rows.size())
+		m_rows.insert(m_rows.begin() + pos, pRow);
+	else
+		m_rows.push_back(pRow);
 }
 
 void GMatrix::newRows(size_t nRows)
@@ -2631,6 +2638,7 @@ void GMatrix::setAll(double val, size_t colStart, size_t colCount)
 
 void GMatrix::copy(const GMatrix* pThat)
 {
+	GAssert(pThat != this);
 	flush();
 	setRelation(pThat->m_pRelation->clone());
 	newRows(pThat->rows());
@@ -2705,14 +2713,14 @@ void GMatrix::swapColumns(size_t nAttr1, size_t nAttr2)
 	}
 }
 
-void GMatrix::deleteColumn(size_t index)
+void GMatrix::deleteColumns(size_t index, size_t count)
 {
-	m_pRelation->deleteAttribute(index);
-	size_t nCount = rows();
-	for(size_t i = 0; i < nCount; i++)
+	m_pRelation->deleteAttributes(index, count);
+	size_t rowCount = rows();
+	for(size_t i = 0; i < rowCount; i++)
 	{
 		GVec& r = row(i);
-		r.erase(index);
+		r.erase(index, count);
 	}
 }
 
@@ -2758,7 +2766,7 @@ GMatrix* GMatrix::mergeHoriz(const GMatrix* pSetA, const GMatrix* pSetB)
 	pRel->addAttrs(pSetA->relation());
 	pRel->addAttrs(pSetB->relation());
 	GMatrix* pNewSet = new GMatrix(pRel);
-	Holder<GMatrix> hNewSet(pNewSet);
+	std::unique_ptr<GMatrix> hNewSet(pNewSet);
 	pNewSet->reserve(pSetA->rows());
 	for(size_t i = 0; i < pSetA->rows(); i++)
 	{
@@ -4101,14 +4109,14 @@ bool GMatrix::leastCorrelatedVector(double* pOut, GMatrix* pThat, GRand* pRand)
 	if(rows() != pThat->rows() || cols() != pThat->cols())
 		throw Ex("Expected matrices with the same dimensions");
 	GMatrix* pC = GMatrix::multiply(*pThat, *this, false, true);
-	Holder<GMatrix> hC(pC);
+	std::unique_ptr<GMatrix> hC(pC);
 	GMatrix* pE = GMatrix::multiply(*pC, *pC, true, false);
-	Holder<GMatrix> hE(pE);
+	std::unique_ptr<GMatrix> hE(pE);
 	double d = pE->sumSquaredDiffWithIdentity();
 	if(d < 0.001)
 		return false;
 	GMatrix* pF = pE->mostSignificantEigenVectors(rows(), pRand);
-	Holder<GMatrix> hF(pF);
+	std::unique_ptr<GMatrix> hF(pF);
 	GVec::copy(pOut, pF->row(rows() - 1), rows());
 	return true;
 }
@@ -4118,9 +4126,9 @@ bool GMatrix::leastCorrelatedVector(GVec& out, const GMatrix* pThat, GRand* pRan
 	if(rows() != pThat->rows() || cols() != pThat->cols())
 		throw Ex("Expected matrices with the same dimensions");
 	GMatrix* pC = GMatrix::multiply(*pThat, *this, false, true);
-	Holder<GMatrix> hC(pC);
+	std::unique_ptr<GMatrix> hC(pC);
 	GMatrix* pD = GMatrix::multiply(*pThat, *pC, true, false);
-	Holder<GMatrix> hD(pD);
+	std::unique_ptr<GMatrix> hD(pD);
 	double d = pD->sumSquaredDifference(*this, true);
 	if(d < 1e-9)
 		return false;
@@ -4129,9 +4137,9 @@ bool GMatrix::leastCorrelatedVector(GVec& out, const GMatrix* pThat, GRand* pRan
 	return true;
 /*
 	GMatrix* pE = GMatrix::multiply(*pD, *pD, true, false);
-	Holder<GMatrix> hE(pE);
+	std::unique_ptr<GMatrix> hE(pE);
 	GMatrix* pF = pE->mostSignificantEigenVectors(1, pRand);
-	Holder<GMatrix> hF(pF);
+	std::unique_ptr<GMatrix> hF(pF);
 	GVec::copy(out, pF->row(0), rows());
 	return true;
 */
@@ -4153,7 +4161,7 @@ double GMatrix::dihedralCorrelation(const GMatrix* pThat, GRand* pRand) const
 	pThat->multiply(pBuf, pB, true);
 	return std::abs(pA.correlation(pB));
 }
-
+/*
 void GMatrix::project(double* pDest, const double* pPoint) const
 {
 	size_t dims = cols();
@@ -4175,7 +4183,7 @@ void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin
 		GVec::addScaled(pDest, GVec::dotProduct(pOrigin, pPoint, pBasis, dims), pBasis, dims);
 	}
 }
-
+*/
 GVec* GMatrix::swapRow(size_t i, GVec* pNewRow)
 {
 	GVec* pRow = m_rows[i];
@@ -4333,9 +4341,9 @@ void GMatrix_testCholesky()
 	m1[1][0] = 1;	m1[1][1] = 4;	m1[1][2] = 0;
 	m1[2][0] = 2;	m1[2][1] = 2;	m1[2][2] = 7;
 	GMatrix* pM3 = GMatrix::multiply(m1, m1, false, true);
-	Holder<GMatrix> hM3(pM3);
+	std::unique_ptr<GMatrix> hM3(pM3);
 	GMatrix* pM4 = pM3->cholesky();
-	Holder<GMatrix> hM4(pM4);
+	std::unique_ptr<GMatrix> hM4(pM4);
 	if(m1.sumSquaredDifference(*pM4, false) >= .0001)
 		throw Ex("Cholesky decomposition didn't work right");
 }
@@ -4348,7 +4356,7 @@ void GMatrix_testInvert()
 	i1[2][0] = 0;	i1[2][1] = -1;	i1[2][2] = 2;
 //	i1.invert();
 	GMatrix* pInv = i1.pseudoInverse();
-	Holder<GMatrix> hInv(pInv);
+	std::unique_ptr<GMatrix> hInv(pInv);
 	GMatrix i2(3, 3);
 	i2[0][0] = .75;	i2[0][1] = .5;	i2[0][2] = .25;
 	i2[1][0] = .5;	i2[1][1] = 1;	i2[1][2] = .5;
@@ -4357,9 +4365,9 @@ void GMatrix_testInvert()
 		throw Ex("Not good enough");
 //	i1.invert();
 	GMatrix* pInvInv = pInv->pseudoInverse();
-	Holder<GMatrix> hInvInv(pInvInv);
+	std::unique_ptr<GMatrix> hInvInv(pInvInv);
 	GMatrix* pI3 = GMatrix::multiply(*pInvInv, i2, false, false);
-	Holder<GMatrix> hI3(pI3);
+	std::unique_ptr<GMatrix> hI3(pI3);
 	GMatrix i4(3, 3);
 	i4.makeIdentity();
 	if(pI3->sumSquaredDifference(i4, false) >= .0001)
@@ -4475,10 +4483,10 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 	rel.addAttr(0);
 	rel.addAttr(0);
 	GMatrix* pM = data.covarianceMatrix();
-	Holder<GMatrix> hM(pM);
-	double ev;
-	GMatrix* pEigenVecs = pM->eigs(1, &ev, &prng, true);
-	Holder<GMatrix> hEigenVecs(pEigenVecs);
+	std::unique_ptr<GMatrix> hM(pM);
+	GVec ev;
+	GMatrix* pEigenVecs = pM->eigs(1, ev, &prng, true);
+	std::unique_ptr<GMatrix> hEigenVecs(pEigenVecs);
 	if(std::abs(pEigenVecs->row(0)[0] * pEigenVecs->row(0)[1] - eig[0] * eig[1]) > .0001)
 		throw Ex("answers don't agree");
 
@@ -4487,8 +4495,8 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 	e1[0][0] = 1;	e1[0][1] = 1;
 	e1[1][0] = 1;	e1[1][1] = 4;
 	GVec ev2(2);
-	GMatrix* pE2 = e1.eigs(2, ev2.data(), &prng, true);
-	Holder<GMatrix> hE2(pE2);
+	GMatrix* pE2 = e1.eigs(2, ev2, &prng, true);
+	std::unique_ptr<GMatrix> hE2(pE2);
 	if(std::abs(pE2->row(0)[0] * pE2->row(0)[0] + pE2->row(0)[1] * pE2->row(0)[1] - 1) > .0001)
 		throw Ex("answer not normalized");
 	if(std::abs(pE2->row(0)[0] * pE2->row(0)[1] - .27735) >= .0001)
@@ -4502,10 +4510,10 @@ void GMatrix_testPrincipalComponents(GRand& prng)
 	GMatrix e3(2, 2);
 	e3[0][0] = 9;	e3[0][1] = 3;
 	e3[1][0] = 3;	e3[1][1] = 5;
-	GMatrix* pE4 = e3.eigs(2, ev2.data(), &prng, true);
-	Holder<GMatrix> hE4(pE4);
-	GMatrix* pE5 = e3.eigs(2, ev2.data(), &prng, false);
-	Holder<GMatrix> hE5(pE5);
+	GMatrix* pE4 = e3.eigs(2, ev2, &prng, true);
+	std::unique_ptr<GMatrix> hE4(pE4);
+	GMatrix* pE5 = e3.eigs(2, ev2, &prng, false);
+	std::unique_ptr<GMatrix> hE5(pE5);
 	if(std::abs(std::abs(pE4->row(0)[0]) - std::abs(pE5->row(1)[0])) >= .0001)
 		throw Ex("failed");
 	if(std::abs(std::abs(pE4->row(0)[1]) - std::abs(pE5->row(1)[1])) >= .0001)
@@ -4530,7 +4538,7 @@ void GMatrix_testDihedralCorrelation(GRand& prng)
 			basis[i].normalize();
 			for(size_t j = 0; j < i; j++)
 			{
-				GVec::subtractComponent(basis[i].data(), basis[j].data(), dims);
+				basis[i].subtractComponent(basis[j]);
 				basis[i].normalize();
 			}
 		}
@@ -4578,7 +4586,7 @@ void GMatrix_testDihedralCorrelation(GRand& prng)
 	GMatrix sp1(3, 5);
 	sp1.makeIdentity();
 	GMatrix* sp3 = GMatrix::multiply(sp1, bas, false, true);
-	Holder<GMatrix> hSp3(sp3);
+	std::unique_ptr<GMatrix> hSp3(sp3);
 	double cosangle = sp1.dihedralCorrelation(sp3, &prng);
 	double measured = acos(cosangle);
 	if(std::abs(measured - angle) > 1e-8)
@@ -4608,9 +4616,9 @@ void GMatrix_testSingularValueDecomposition()
 	M[0][0] = 4.0; M[0][1] = 3.0;
 	M[1][0] = 0.0; M[1][1] = -5.0;
 	M.singularValueDecomposition(&pU, &pDiag, &pV);
-	Holder<GMatrix> hU(pU);
-	ArrayHolder<double> hDiag(pDiag);
-	Holder<GMatrix> hV(pV);
+	std::unique_ptr<GMatrix> hU(pU);
+	std::unique_ptr<double[]> hDiag(pDiag);
+	std::unique_ptr<GMatrix> hV(pV);
 
 	// Test that the diagonal values are correct
 	if(std::abs(pDiag[0] - sqrt(40.0)) > 1e-8)
@@ -4620,13 +4628,13 @@ void GMatrix_testSingularValueDecomposition()
 
 	// Test that U is unitary
 	GMatrix* pT1 = GMatrix::multiply(*pU, *pU, false, true);
-	Holder<GMatrix> hT1(pT1);
+	std::unique_ptr<GMatrix> hT1(pT1);
 	if(pT1->sumSquaredDiffWithIdentity() > 1e-8)
 		throw Ex("U is not unitary");
 
 	// Test that V is unitary
 	GMatrix* pT2 = GMatrix::multiply(*pV, *pV, false, true);
-	Holder<GMatrix> hT2(pT2);
+	std::unique_ptr<GMatrix> hT2(pT2);
 	if(pT2->sumSquaredDiffWithIdentity() > 1e-8)
 		throw Ex("V is not unitary");
 }
@@ -4638,7 +4646,7 @@ void GMatrix_testPseudoInverse()
 		M[0][0] = 1.0; M[0][1] = 1.0;
 		M[1][0] = 2.0; M[1][1] = 2.0;
 		GMatrix* A = M.pseudoInverse();
-		Holder<GMatrix> hA(A);
+		std::unique_ptr<GMatrix> hA(A);
 		GMatrix B(2, 2);
 		B[0][0] = 0.1; B[0][1] = 0.2;
 		B[1][0] = 0.1; B[1][1] = 0.2;
@@ -4651,7 +4659,7 @@ void GMatrix_testPseudoInverse()
 		M[1][0] = 3.0; M[1][1] = 4.0;
 		M[2][0] = 5.0; M[2][1] = 6.0;
 		GMatrix* A = M.pseudoInverse();
-		Holder<GMatrix> hA(A);
+		std::unique_ptr<GMatrix> hA(A);
 		if(A->rows() != 2 || A->cols() != 3)
 			throw Ex("wrong size");
 		GMatrix B(2, 3);
@@ -4665,7 +4673,7 @@ void GMatrix_testPseudoInverse()
 		M[0][0] = 1.0; M[0][1] = 3.0; M[0][2] = 5.0;
 		M[1][0] = 2.0; M[1][1] = 4.0; M[1][2] = 6.0;
 		GMatrix* A = M.pseudoInverse();
-		Holder<GMatrix> hA(A);
+		std::unique_ptr<GMatrix> hA(A);
 		if(A->rows() != 3 || A->cols() != 2)
 			throw Ex("wrong size");
 		GMatrix B(3, 2);
@@ -4682,8 +4690,8 @@ void GMatrix_testKabsch(GRand& prng)
 	GMatrix a(20, 5);
 	for(size_t i = 0; i < 20; i++)
 	{
-		a[1].fillNormal(prng);
-		a[1].normalize();
+		a[i].fillNormal(prng);
+		a[i].normalize();
 		a[i] *= (prng.uniform() + 0.5);
 	}
 	GMatrix rot(5, 5);
@@ -4696,13 +4704,13 @@ void GMatrix_testKabsch(GRand& prng)
 	};
 	rot.fromVector(rr, 5);
 	GMatrix* pB = GMatrix::multiply(a, rot, false, false);
-	Holder<GMatrix> hB(pB);
+	std::unique_ptr<GMatrix> hB(pB);
 	GMatrix* pK = GMatrix::kabsch(&a, pB);
-	Holder<GMatrix> hK(pK);
+	std::unique_ptr<GMatrix> hK(pK);
 	if(pK->sumSquaredDifference(rot, true) > 1e-6)
 		throw Ex("Failed to recover rotation matrix");
 	GMatrix* pC = GMatrix::multiply(*pB, *pK, false, false);
-	Holder<GMatrix> hC(pC);
+	std::unique_ptr<GMatrix> hC(pC);
 	if(a.sumSquaredDifference(*pC, false) > 1e-6)
 		throw Ex("Failed to align data");
 }
@@ -4734,7 +4742,7 @@ void GMatrix_testLUDecomposition(GRand& prng)
 		u[i][i] = 1.0;
 	}
 	GMatrix* pProd = GMatrix::multiply(l, u, false, false);
-	Holder<GMatrix> hProd(pProd);
+	std::unique_ptr<GMatrix> hProd(pProd);
 	if(pProd->sumSquaredDifference(a, false) > 0.00001)
 		throw Ex("failed");
 }
@@ -4791,6 +4799,18 @@ void GMatrix_testBoundingSphere(GRand& rand)
 	}
 }
 
+void GMatrix_testImport()
+{
+	const char* csv = "3.3, 1.2, 3.5, 0\n"
+		"2.1, 5.6, 3.6, 1\n"
+		"2.0, 0.4, 0.7, 0";
+	GCSVParser parser;
+	GMatrix m;
+	parser.parse(m, csv, strlen(csv));
+	if(m[1][2] != 3.6)
+		throw Ex("failed");
+}
+
 // static
 void GMatrix::test()
 {
@@ -4810,6 +4830,7 @@ void GMatrix::test()
 	GMatrix_testParsing();
 	GMatrix_testWilcoxon();
 	GMatrix_testBoundingSphere(prng);
+	GMatrix_testImport();
 }
 #endif // !MIN_PREDICT
 
@@ -4910,7 +4931,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* szFilename)
 {
 	size_t nLen;
 	char* szFile = GFile::loadFile(szFilename, &nLen);
-	ArrayHolder<char> hFile(szFile);
+	std::unique_ptr<char[]> hFile(szFile);
 	parse(outMatrix, szFile, nLen);
 }
 
@@ -5081,7 +5102,11 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 	GArffRelation* pRelation = new GArffRelation();
 	outMatrix.setRelation(pRelation);
 	for(size_t i = 0; i < rowCount; i++)
-		outMatrix.takeRow(new GVec(columnCount));
+	{
+		GVec* pNewVec = new GVec();
+		outMatrix.takeRow(pNewVec);
+		pNewVec->resize(columnCount);
+	}
 	m_report.resize(columnCount);
 	if(m_columnNamesInFirstRow)
 		rowCount--;

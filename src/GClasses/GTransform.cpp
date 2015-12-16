@@ -40,6 +40,7 @@
 #include <math.h>
 #include <string>
 #include <cmath>
+#include <memory>
 
 namespace GClasses {
 
@@ -51,7 +52,7 @@ GTransform::GTransform()
 {
 }
 
-GTransform::GTransform(GDomNode* pNode, GLearnerLoader& ll)
+GTransform::GTransform(GDomNode* pNode)
 {
 }
 
@@ -70,8 +71,8 @@ GDomNode* GTransform::baseDomNode(GDom* pDoc, const char* szClassName) const
 
 // ---------------------------------------------------------------
 
-GIncrementalTransform::GIncrementalTransform(GDomNode* pNode, GLearnerLoader& ll)
-: GTransform(pNode, ll)
+GIncrementalTransform::GIncrementalTransform(GDomNode* pNode)
+: GTransform(pNode)
 {
 	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
 	m_pRelationAfter = GRelation::deserialize(pNode->field("after"));
@@ -133,7 +134,7 @@ GMatrix* GIncrementalTransform::transformBatch(const GMatrix& in)
 		throw Ex("train has not been called");
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(m_pRelationAfter->clone());
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	pOut->newRows(nRows);
 	for(size_t i = 0; i < nRows; i++)
 		transform(in.row(i), pOut->row(i));
@@ -154,7 +155,7 @@ GMatrix* GIncrementalTransform::untransformBatch(const GMatrix& in)
 	size_t nRows = in.rows();
 	GMatrix* pOut = new GMatrix(before().clone());
 	pOut->newRows(nRows);
-	Holder<GMatrix> hOut(pOut);
+	std::unique_ptr<GMatrix> hOut(pOut);
 	for(size_t i = 0; i < nRows; i++)
 		untransform(in.row(i), pOut->row(i));
 	return hOut.release();
@@ -185,13 +186,13 @@ void GIncrementalTransform::test()
 	GIncrementalTransformChainer trans(new GNormalize(), new GNominalToCat());
 	trans.train(m);
 	GMatrix* pA = trans.transformBatch(m);
-	Holder<GMatrix> hA(pA);
+	std::unique_ptr<GMatrix> hA(pA);
 	if(pA->sumSquaredDifference(e) > 1e-12)
 		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
 	if(!pA->relation().areContinuous())
 		throw Ex("failed");
 	GMatrix* pB = trans.untransformBatch(*pA);
-	Holder<GMatrix> hB(pB);
+	std::unique_ptr<GMatrix> hB(pB);
 	if(pB->sumSquaredDifference(m) > 1e-12)
 		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
 	if(!pB->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pB->relation()))
@@ -203,17 +204,17 @@ void GIncrementalTransform::test()
 	GRand rand(0);
 	GLearnerLoader ll;
 	GIncrementalTransform* pTrans = ll.loadIncrementalTransform(pNode);
-	Holder<GIncrementalTransform> hTrans(pTrans);
+	std::unique_ptr<GIncrementalTransform> hTrans(pTrans);
 
 	// Transform the input matrix again, and check it
 	GMatrix* pC = pTrans->transformBatch(m);
-	Holder<GMatrix> hC(pC);
+	std::unique_ptr<GMatrix> hC(pC);
 	if(pC->sumSquaredDifference(e) > 1e-12)
 		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
 	if(!pC->relation().areContinuous())
 		throw Ex("failed");
 	GMatrix* pD = trans.untransformBatch(*pC);
-	Holder<GMatrix> hD(pD);
+	std::unique_ptr<GMatrix> hD(pD);
 	if(pD->sumSquaredDifference(m) > 1e-12)
 		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
 	if(!pD->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pD->relation()))
@@ -238,7 +239,7 @@ GIncrementalTransformChainer::GIncrementalTransformChainer(GIncrementalTransform
 }
 
 GIncrementalTransformChainer::GIncrementalTransformChainer(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll)
+: GIncrementalTransform(pNode)
 {
 	m_pFirst = ll.loadIncrementalTransform(pNode->field("first"));
 	m_pSecond = ll.loadIncrementalTransform(pNode->field("second"));
@@ -267,7 +268,7 @@ GRelation* GIncrementalTransformChainer::trainInner(const GMatrix& data)
 {
 	m_pFirst->train(data);
 	GMatrix* pData2 = m_pFirst->transformBatch(data); // todo: often this step is computation overkill since m_pSecond may not even use it during training. Is there a way to avoid doing it?
-	Holder<GMatrix> hData2(pData2);
+	std::unique_ptr<GMatrix> hData2(pData2);
 	m_pSecond->train(*pData2);
 	return m_pSecond->after().clone();
 }
@@ -313,11 +314,11 @@ GPCA::GPCA(size_t target_Dims)
 {
 }
 
-GPCA::GPCA(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll), m_rand(0)
+GPCA::GPCA(GDomNode* pNode)
+: GIncrementalTransform(pNode), m_rand(0)
 {
-	m_targetDims = before().size();
 	m_pBasisVectors = new GMatrix(pNode->field("basis"));
+	m_targetDims = m_pBasisVectors->rows();
 	m_pCentroid = new GMatrix(pNode->field("centroid"));
 	m_aboutOrigin = pNode->field("aboutOrigin")->asBool();
 }
@@ -364,7 +365,7 @@ GRelation* GPCA::trainInner(const GMatrix& data)
 		data.centroid(mean);
 
 	// Make a copy of the data
-	GMatrix tmpData(data.relation().clone());
+	GMatrix tmpData(data.relation().cloneMinimal());
 	tmpData.copy(&data);
 
 	// Compute the principle components
@@ -420,185 +421,6 @@ void GPCA::untransformToDistribution(const GVec& in, GPrediction* out)
 	throw Ex("Sorry, PCA cannot untransform to a distribution");
 }
 
-/*
-GPCARotateOnly::GPCARotateOnly(GArffRelation* pRelation, GMatrix* pData)
-{
-	m_pRelation = pRelation;
-	m_pInputData = pData;
-	m_pOutputData = NULL;
-}
-
-GPCARotateOnly::~GPCARotateOnly()
-{
-	delete(m_pOutputData);
-}
-
-// static
-GMatrix* GPCARotateOnly::DoPCA(GArffRelation* pRelation, GMatrix* pData)
-{
-	GPCA pca(pRelation, pData);
-	pca.DoPCA();
-	return pca.ReleaseOutputData();
-}
-
-void GPCARotateOnly::DoPCA()
-{
-	// Compute the eigenvectors
-	GMatrix m;
-	m_pInputData->ComputeCovarianceMatrix(&m, m_pRelation);
-	GMatrix eigenVectors;
-	eigenVectors.ComputeEigenVectors(m.GetColumnCount(), &m);
-	m_pOutputData = new GMatrix(m_pInputData->rows());
-	int nRowCount = m_pInputData->rows();
-	int nInputCount = m_pRelation->GetInputCount();
-	int nOutputCount = m_pRelation->GetOutputCount();
-	int nAttributeCount = m_pRelation->size();
-	GVec& inputRow;
-	GVec& outputRow;
-	int n, i, j, nIndex;
-
-	// Allocate space for the output
-	for(n = 0; n < nRowCount; n++)
-	{
-		outputRow = new double[nAttributeCount];
-		m_pOutputData->AddRow(outputRow);
-	}
-
-	// Compute the output
-	GVec& eigenVector;
-	Holder<double> hInputVector(new double[nInputCount]);
-	GVec& inputVector = hInputVector.Get();
-	for(i = 0; i < nInputCount; i++)
-	{
-		nIndex = m_pRelation->GetInputIndex(i);
-		eigenVector = eigenVectors.row(i);
-		for(n = 0; n < nRowCount; n++)
-		{
-			inputRow = m_pInputData->row(n);
-			for(j = 0; j < nInputCount; j++)
-				inputVector[j] = inputRow[m_pRelation->GetInputIndex(j)];
-			outputRow = m_pOutputData->row(n);
-			outputRow[nIndex] = GVec::dotProduct(inputVector, eigenVector, nInputCount);
-		}
-	}
-	for(i = 0; i < nOutputCount; i++)
-	{
-		for(n = 0; n < nRowCount; n++)
-		{
-			nIndex = m_pRelation->GetOutputIndex(i);
-			inputRow = m_pInputData->row(n);
-			outputRow = m_pOutputData->row(n);
-			outputRow[nIndex] = inputRow[nIndex];
-		}
-	}
-}
-
-GMatrix* GPCARotateOnly::ReleaseOutputData()
-{
-	GMatrix* pData = m_pOutputData;
-	m_pOutputData = NULL;
-	return pData;
-}
-*/
-GMatrix* GPCARotateOnly::transform(size_t nDims, size_t nOutputs, const GMatrix* pData, size_t nComponents, GRand* pRand)
-{
-	// Init the basis vectors
-	GMatrix pBasisVectors(nDims, nDims);
-	GVec pComponent(nDims);
-	GVec pA(nDims);
-	GVec pB(nDims);
-	GVec pMean(nDims);
-	size_t j;
-	pBasisVectors.setAll(0.0);
-	for(size_t i = 0; i < nDims; i++)
-		pBasisVectors[i][i] = 1.0;
-
-	// Compute the mean
-	for(j = 0; j < nDims; j++)
-		pMean[j] = pData->columnMean(j);
-
-	// Make a copy of the data
-	GMatrix* pOutData = new GMatrix(pData->relation().clone());
-	pOutData->copy(pData);
-	Holder<GMatrix> hOutData(pOutData);
-
-	// Rotate the basis vectors
-	for(size_t i = 0; i < nComponents; i++)
-	{
-		// Compute the next principle component
-		pOutData->principalComponent(pComponent, pMean, pRand);
-		pOutData->removeComponent(pMean, pComponent);
-
-		// Use the current axis as the first plane vector
-		pA = pBasisVectors[i];
-
-		// Use the modified Gram-Schmidt process to compute the other plane vector
-		pB = pComponent;
-		double dDotProd = pA.dotProduct(pB);
-		pB.addScaled(-dDotProd, pA);
-		double dMag = sqrt(pB.squaredMagnitude());
-		if(dMag < 1e-6)
-			break; // It's already close enough. If we normalized something that small, it would just mess up our data
-		pB *= (1.0 / dMag);
-
-		// Rotate the remaining basis vectors
-		double dAngle = atan2(pComponent.dotProduct(pB), dDotProd);
-		for(j = i; j < nDims; j++)
-			GVec::rotate(pBasisVectors[j].data(), nDims, dAngle, pA.data(), pB.data());
-	}
-
-	// Align data with new basis vectors
-	size_t nCount = pData->rows();
-	for(size_t i = 0; i < nCount; i++)
-	{
-		const GVec& inVector = pData->row(i);
-		GVec& outVector = pOutData->row(i);
-		for(j = 0; j < nDims; j++)
-			outVector[j] = GVec::dotProduct(pMean.data(), inVector.data(), pBasisVectors[j].data(), nDims);
-	}
-
-	return hOutData.release();
-}
-
-#ifndef MIN_PREDICT
-//static
-void GPCARotateOnly::test()
-{
-	GRand prng(0);
-	GMatrix data(0, 2);
-	GVec& vec1 = data.newRow();
-	vec1[0] = 0;
-	vec1[1] = 0;
-	GVec& vec2 = data.newRow();
-	vec2[0] = 10;
-	vec2[1] = 10;
-	GVec& vec3 = data.newRow();
-	vec3[0] = 4;
-	vec3[1] = 6;
-	GVec& vec4 = data.newRow();
-	vec4[0] = 6;
-	vec4[1] = 4;
-	GMatrix* pOut2 = GPCARotateOnly::transform(2, 0, &data, 2, &prng);
-	for(size_t i = 0; i < pOut2->rows(); i++)
-	{
-		GVec& vec = pOut2->row(i);
-		if(std::abs(std::abs(vec[0]) - 7.071067) < .001)
-		{
-			if(std::abs(vec[1]) > .001)
-				throw Ex("wrong answer");
-		}
-		else if(std::abs(vec[0]) < .001)
-		{
-			if(std::abs(std::abs(vec[1]) - 1.414214) > .001)
-				throw Ex("wrong answer");
-		}
-		else
-			throw Ex("wrong answer");
-	}
-	delete(pOut2);
-}
-#endif // !MIN_PREDICT
-
 // --------------------------------------------------------------------------
 
 GNoiseGenerator::GNoiseGenerator()
@@ -606,8 +428,8 @@ GNoiseGenerator::GNoiseGenerator()
 {
 }
 
-GNoiseGenerator::GNoiseGenerator(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll), m_rand(0)
+GNoiseGenerator::GNoiseGenerator(GDomNode* pNode)
+: GIncrementalTransform(pNode), m_rand(0)
 {
 	m_mean = pNode->field("mean")->asDouble();
 	m_deviation = pNode->field("dev")->asDouble();
@@ -659,8 +481,8 @@ GPairProduct::GPairProduct(size_t nMaxDims)
 {
 }
 
-GPairProduct::GPairProduct(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll)
+GPairProduct::GPairProduct(GDomNode* pNode)
+: GIncrementalTransform(pNode)
 {
 	m_maxDims = (size_t)pNode->field("maxDims")->asInt();
 }
@@ -715,10 +537,10 @@ GReservoir::GReservoir(double weightDeviation, size_t outputs, size_t hiddenLaye
 {
 }
 
-GReservoir::GReservoir(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll)
+GReservoir::GReservoir(GDomNode* pNode)
+: GIncrementalTransform(pNode)
 {
-	m_pNN = new GNeuralNet(pNode->field("nn"), ll);
+	m_pNN = new GNeuralNet(pNode->field("nn"));
 	m_outputs = m_pNN->relLabels().size();
 	m_deviation = pNode->field("dev")->asDouble();
 	m_hiddenLayers = (size_t)pNode->field("hl")->asInt();
@@ -781,7 +603,7 @@ GDataAugmenter::GDataAugmenter(GIncrementalTransform* pTransform)
 }
 
 GDataAugmenter::GDataAugmenter(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll)
+: GIncrementalTransform(pNode)
 {
 	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
 }
@@ -845,8 +667,8 @@ void GDataAugmenter::untransformToDistribution(const GVec& in, GPrediction* out)
 // --------------------------------------------------------------------------
 #ifndef MIN_PREDICT
 
-GAttributeSelector::GAttributeSelector(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll), m_seed(1234567)
+GAttributeSelector::GAttributeSelector(GDomNode* pNode)
+: GIncrementalTransform(pNode), m_seed(1234567)
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();
 	m_targetFeatures = (size_t)pNode->field("target")->asInt();
@@ -901,15 +723,15 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 	GNormalize norm;
 	norm.train(data);
 	GMatrix* pNormData = norm.transformBatch(data);
-	Holder<GMatrix> hNormData(pNormData);
+	std::unique_ptr<GMatrix> hNormData(pNormData);
 
 	// Divide into features and labels
 	size_t curDims = data.cols() - m_labelDims;
 	m_ranks.resize(curDims);
 	GMatrix* pFeatures = pNormData->cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
-	Holder<GMatrix> hFeatures(pFeatures);
+	std::unique_ptr<GMatrix> hFeatures(pFeatures);
 	GMatrix* pLabels = pNormData->cloneSub(0, data.cols() - m_labelDims, data.rows(), m_labelDims);
-	Holder<GMatrix> hLabels(pLabels);
+	std::unique_ptr<GMatrix> hLabels(pLabels);
 	vector<size_t> indexMap;
 	for(size_t i = 0; i < curDims; i++)
 		indexMap.push_back(i);
@@ -921,13 +743,13 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		GNominalToCat ntc;
 		ntc.train(*pFeatures);
 		GMatrix* pFeatures2 = ntc.transformBatch(*pFeatures);
-		Holder<GMatrix> hFeatures2(pFeatures2);
+		std::unique_ptr<GMatrix> hFeatures2(pFeatures2);
 		vector<size_t> rmap;
 		ntc.reverseAttrMap(rmap);
 		GNominalToCat ntc2;
 		ntc2.train(*pLabels);
 		GMatrix* pLabels2 = ntc2.transformBatch(*pLabels);
-		Holder<GMatrix> hLabels2(pLabels2);
+		std::unique_ptr<GMatrix> hLabels2(pLabels2);
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn;
@@ -963,7 +785,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		// Deselect the weakest attribute
 		m_ranks[curDims - 1] = indexMap[weakestIndex];
 		indexMap.erase(indexMap.begin() + weakestIndex);
-		pFeatures->deleteColumn(weakestIndex);
+		pFeatures->deleteColumns(weakestIndex, 1);
 		curDims--;
 		GAssert(pFeatures->cols() == curDims);
 	}
@@ -1021,8 +843,8 @@ GNominalToCat::GNominalToCat(size_t nValueCap)
 {
 }
 
-GNominalToCat::GNominalToCat(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll)
+GNominalToCat::GNominalToCat(GDomNode* pNode)
+: GIncrementalTransform(pNode)
 {
 	m_valueCap = (size_t)pNode->field("valueCap")->asInt();
 	m_preserveUnknowns = pNode->field("pu")->asBool();
@@ -1264,8 +1086,8 @@ GNormalize::GNormalize(double min, double max)
 {
 }
 
-GNormalize::GNormalize(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll)
+GNormalize::GNormalize(GDomNode* pNode)
+: GIncrementalTransform(pNode)
 {
 	m_min = pNode->field("min")->asDouble();
 	m_max = pNode->field("max")->asDouble();
@@ -1387,8 +1209,8 @@ GDiscretize::GDiscretize(size_t buckets)
 	m_bucketsOut = -1;
 }
 
-GDiscretize::GDiscretize(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll)
+GDiscretize::GDiscretize(GDomNode* pNode)
+: GIncrementalTransform(pNode)
 {
 	m_bucketsIn = (size_t)pNode->field("bucketsIn")->asInt();
 	m_bucketsOut = (size_t)pNode->field("bucketsOut")->asInt();
@@ -1517,12 +1339,12 @@ GImputeMissingVals::GImputeMissingVals()
 }
 
 GImputeMissingVals::GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll), m_pLabels(NULL), m_pBatch(NULL)
+: GIncrementalTransform(pNode), m_pLabels(NULL), m_pBatch(NULL)
 {
 	m_pCF = ll.loadCollaborativeFilter(pNode->field("cf"));
 	GDomNode* pNTC = pNode->fieldIfExists("ntc");
 	if(pNTC)
-		m_pNTC = new GNominalToCat(pNTC, ll);
+		m_pNTC = new GNominalToCat(pNTC);
 	else
 		m_pNTC = NULL;
 }
@@ -1566,7 +1388,7 @@ GRelation* GImputeMissingVals::trainInner(const GMatrix& data)
 		m_pNTC->preserveUnknowns();
 	}
 	const GMatrix* pData;
-	Holder<GMatrix> hData;
+	std::unique_ptr<GMatrix> hData;
 	if(m_pNTC)
 	{
 		m_pNTC->train(data);
@@ -1682,8 +1504,8 @@ GLogify::GLogify()
 {
 }
 
-GLogify::GLogify(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalTransform(pNode, ll)
+GLogify::GLogify(GDomNode* pNode)
+: GIncrementalTransform(pNode)
 {
 }
 

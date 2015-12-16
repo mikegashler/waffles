@@ -704,7 +704,10 @@ void test_document_classification()
 				if(len >= 256)
 					throw Ex("Need a bigger buffer");
 				buf[len] = '\0';
-				double accuracy = atof(buf);
+				char* pB = buf;
+				if(*pB == '[')
+					pB++;
+				double accuracy = atof(pB);
 				results[i][j] = accuracy;
 			}
 		}
@@ -944,7 +947,6 @@ public:
 		runTest("GNeuralNet", GNeuralNet::test);
 //		runTest("GNonlinearPCA", GNonlinearPCA::test);
 		runTest("GPackageServer", GPackageServer::test);
-		runTest("GPCARotateOnly", GPCARotateOnly::test);
 		runTest("GPolynomial", GPolynomial::test);
 		runTest("GPriorityQueue", GPriorityQueue::test);
 		runTest("GProbeSearch", GProbeSearch::test);

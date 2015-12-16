@@ -43,7 +43,7 @@ namespace GClasses {
 
 
 GCharSet::GCharSet(const char* szChars)
-	: m_bt(256)
+: m_bt(256)
 {
 	char c = '\0';
 	while(*szChars != '\0')
@@ -88,6 +88,8 @@ GTokenizer::GTokenizer(const char* szFilename)
 	{
 		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
 	}
+	if(pStream->fail())
+		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
 	m_qPos = 0;
 	m_qCount = 0;
 	m_pBufStart = new char[256];
@@ -302,11 +304,10 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 	{
 		bufferChar('"');
 		advance(1);
-		GCharSet cs("\"\n");
 		while(has_more())
 		{
 			char c2 = peek();
-			if(cs.find(c2))
+			if(c2 == '\"' || c2 == '\n')
 				break;
 			c2 = get();
 			bufferChar(c2);
@@ -324,11 +325,10 @@ char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
 	{
 		bufferChar('\'');
 		advance(1);
-		GCharSet cs("'\n");
 		while(has_more())
 		{
 			char c2 = peek();
-			if(cs.find(c2))
+			if(c2 == '\'' || c2 == '\n')
 				break;
 			c2 = get();
 			bufferChar(c2);

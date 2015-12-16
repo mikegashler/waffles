@@ -6,6 +6,7 @@
 // (http://www.opensource.org/licenses).
 // -------------------------------------------------------------
 
+#include "crawler.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "../../GClasses/GHttp.h"
@@ -45,7 +46,7 @@
 #include <sstream>
 #include <fstream>
 #include <errno.h>
-#include "crawler.h"
+#include <memory>
 
 using namespace GClasses;
 using std::cout;
@@ -179,7 +180,7 @@ bool shredFile(const char* szFilename)
 bool shredFolder(const char* szPath)
 {
 	char* szOldDir = new char[300]; // use heap so deep recursion won't overflow stack
-	ArrayHolder<char> hOldDir(szOldDir);
+	std::unique_ptr<char[]> hOldDir(szOldDir);
 	if(!getcwd(szOldDir, 300))
 		throw Ex("Failed to read current dir");
 
@@ -399,7 +400,7 @@ int doBandwidthClient(GArgReader& args)
 
 	// Fill an 8-MB buffer with random data
 	unsigned char* pBuf = new unsigned char[MESSAGESIZE];
-	ArrayHolder<unsigned char> hBuf(pBuf);
+	std::unique_ptr<unsigned char[]> hBuf(pBuf);
 	GRand r(0);
 	unsigned int* pU = (unsigned int*)pBuf;
 	for(unsigned int i = 0; i < MESSAGESIZE / sizeof(unsigned int); i++)
@@ -565,8 +566,8 @@ void dictionaryAttackNTPassword(unsigned char* hash, vector<vector<string>* >& d
 			pos += separator.length();
 
 			// Add the next word
-			vector<string>& dict = *dictionaries[i];
-			string& word = dict[indexes[i]];
+			vector<string>& dict2 = *dictionaries[i];
+			string& word = dict2[indexes[i]];
 			memcpy(buf + pos, word.c_str(), word.length());
 			pos += word.length();
 		}
@@ -922,7 +923,7 @@ void dump(GArgReader& args)
 		length = 0;
 	size_t bufSize = std::min((size_t)8192, length);
 	char* pBuf = new char[bufSize + 1];
-	ArrayHolder<char> hBuf(pBuf);
+	std::unique_ptr<char[]> hBuf(pBuf);
 	while(length > 0)
 	{
 		size_t blockLen = std::min(length, bufSize);
@@ -1015,7 +1016,7 @@ void decryptFile(const char* source, char* passphrase, char* outSalt, std::strin
 	GFolderDeserializer fd(pBaseName);
 	GCrypto crypto(passphrase, strlen(passphrase));
 	char* pBuf = new char[DECRYPT_BLOCK_SIZE];
-	ArrayHolder<char> hBuf(pBuf);
+	std::unique_ptr<char[]> hBuf(pBuf);
 	bool first = true;
 	while(len > 0)
 	{
@@ -1154,7 +1155,7 @@ void FastConnection::handleRequest(GDynamicPageSession* pSession, std::ostream& 
 				const char* szpretime = "name=\"date\" value=\"";
 				size_t resp1Size;
 				unsigned char* pResp1 = downloadFromWeb(szServer, 60, &resp1Size);
-				ArrayHolder<unsigned char> hResp1(pResp1);
+				std::unique_ptr<unsigned char[]> hResp1(pResp1);
 				char* pServerTime = strstr((char*)pResp1, szpretime);
 				size_t servertime = atol(pServerTime + strlen(szpretime));
 				time_t timenow = time(NULL);
@@ -1178,7 +1179,7 @@ void FastConnection::handleRequest(GDynamicPageSession* pSession, std::ostream& 
 				query += "&date=";
 				query += to_str(timenow + duration + skew);
 				unsigned char* pResponse = downloadFromWeb(query.c_str(), 60, &responseSize);
-				ArrayHolder<unsigned char> hResponse(pResponse);
+				std::unique_ptr<unsigned char[]> hResponse(pResponse);
 				char* pUntil = strstr((char*)pResponse, "until ");
 				if(!pUntil)
 					throw Ex("Unexpected response from server: ", (char*)pResponse);
@@ -1292,7 +1293,7 @@ void feast(GArgReader& args)
 	query += "?get=";
 	query += szName;
 	unsigned char* pResponse = downloadFromWeb(query.c_str(), 60, &responseSize);
-	ArrayHolder<unsigned char> hResponse(pResponse);
+	std::unique_ptr<unsigned char[]> hResponse(pResponse);
 	char* pUntil = strstr((char*)pResponse, "until ");
 	if(pUntil)
 	{
@@ -1337,7 +1338,7 @@ void find(GArgReader& args)
 		throw Ex("big needle");
 	size_t bufSize = bulkSize + needleLen;
 	char* pBuf = new char[bufSize + 1];
-	ArrayHolder<char> hBuf(pBuf);
+	std::unique_ptr<char[]> hBuf(pBuf);
 	size_t overflow = 0;
 	size_t pos = 0;
 	while(fileSize > 0)
@@ -1486,7 +1487,7 @@ int wget(GArgReader& args)
 	const char* filename = args.pop_string();
 	size_t size;
 	char* pFile = (char*)downloadFromWeb(url, 20, &size);
-	ArrayHolder<char> hFile(pFile);
+	std::unique_ptr<char[]> hFile(pFile);
 	GFile::saveFile(pFile, size, filename);
 	return 0;
 }
@@ -1564,12 +1565,12 @@ void readInPassphrase(char* pBuf, size_t len, char* pSalt = NULL)
 	if(pSalt)
 	{
 		size_t remaining = SALT_LEN;
-		cout << "\rPlease enter " << remaining << " chars of salt";
+		cout << "\rPlease enter " << remaining << " chars of throw-away salt";
 		cout.flush();
-		GPassiveConsole pc(false);
+		GPassiveConsole pc2(false);
 		while(remaining > 0)
 		{
-			char c = pc.getChar();
+			char c = pc2.getChar();
 			if(c != '\0')
 			{
 				remaining--;

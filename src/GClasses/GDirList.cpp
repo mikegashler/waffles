@@ -28,6 +28,7 @@
 #else
 #	include <unistd.h>
 #endif
+#include <memory>
 
 using std::string;
 
@@ -487,7 +488,7 @@ void GFolderDeserializer::pump2()
 			const char* pChunk = m_pBQ2->dequeue(m_compressedBlockSize); if(!pChunk) return;
 			unsigned int uncompressedLen;
 			unsigned char* pUncompressed = GCompressor::uncompress((unsigned char*)pChunk, (unsigned int)m_compressedBlockSize, &uncompressedLen);
-			ArrayHolder<unsigned char> hUncompressed(pUncompressed);
+			std::unique_ptr<unsigned char[]> hUncompressed(pUncompressed);
 			m_pBQ1->enqueue((char*)pUncompressed, (size_t)uncompressedLen);
 			pump1();
 			m_compressedBlockSize = 0;

@@ -43,6 +43,7 @@
 #include <sstream>
 #include <fstream>
 #include <errno.h>
+#include <memory>
 
 
 using namespace GClasses;
@@ -648,7 +649,7 @@ unsigned char* compressWorker(unsigned char* pData, unsigned int len, unsigned i
 	if(len < sizeof(unsigned int) + sizeof(unsigned char) + sizeof(unsigned char))
 		return NULL;
 	unsigned char* pOut = new unsigned char[len];
-	ArrayHolder<unsigned char> hOut(pOut);
+	std::unique_ptr<unsigned char[]> hOut(pOut);
 	unsigned int pos = 0;
 	*(unsigned int*)(pOut + pos) = origLen;
 	pos += sizeof(unsigned int);
@@ -911,8 +912,8 @@ unsigned char* GCompressor::uncompress(unsigned char* pIn, unsigned int len, uns
 		return pOut;
 	}
 	unsigned char* pOut = new unsigned char[origLen];
-	ArrayHolder<unsigned char> hOut(pOut);
-	ArrayHolder<unsigned char> hCur(NULL);
+	std::unique_ptr<unsigned char[]> hOut(pOut);
+	std::unique_ptr<unsigned char[]> hCur(nullptr);
 	unsigned char* pCur = pIn;
 	while(true)
 	{
@@ -946,12 +947,12 @@ void GCompressor::test()
 	unsigned int len = (unsigned int)strlen(szTest);
 	unsigned int compressedLen;
 	unsigned char* pCompressed = GCompressor::compress((unsigned char*)szTest, len, &compressedLen);
-	ArrayHolder<unsigned char> hCompressed(pCompressed);
+	std::unique_ptr<unsigned char[]> hCompressed(pCompressed);
 	if(compressedLen >= len)
 		throw Ex("failed to compress");
 	unsigned int finalLen;
 	unsigned char* pFinal = GCompressor::uncompress(pCompressed, compressedLen, &finalLen);
-	ArrayHolder<unsigned char> hFinal(pFinal);
+	std::unique_ptr<unsigned char[]> hFinal(pFinal);
 	if(finalLen != len)
 		throw Ex("failed to uncompress");
 	if(memcmp(szTest, pFinal, len) != 0)

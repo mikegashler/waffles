@@ -22,6 +22,7 @@
 #endif
 #include <iostream>
 #include <ostream>
+#include <memory>
 
 using namespace GClasses;
 using std::string;
@@ -414,7 +415,7 @@ void Sha1DigestFile(unsigned char* pOut20ByteHash, const char* filename)
 {
 	// Digest the file
 	unsigned char* buf = new unsigned char[8192];
-	ArrayHolder<unsigned char> hBuf(buf);
+	std::unique_ptr<unsigned char[]> hBuf(buf);
 	SHA_CTX ctx;
 	SHA1_Init(&ctx);
 	FILE* pFileIn = fopen(filename, "rb");

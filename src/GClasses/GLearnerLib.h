@@ -63,6 +63,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <memory>
 
 namespace GClasses{
 
@@ -83,7 +84,7 @@ public:
 
 	static void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount);
 
-        static void loadData(GArgReader& args, Holder<GMatrix>& hFeaturesOut, Holder<GMatrix>& hLabelsOut, bool requireMetadata = false);
+        static void loadData(GArgReader& args, std::unique_ptr<GMatrix>& hFeaturesOut, std::unique_ptr<GMatrix>& hLabelsOut, bool requireMetadata = false);
 
         static GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 

@@ -194,7 +194,7 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t* pLabelDims)
 	std::sort(ignore.begin(), ignore.end());
 	for(size_t i = ignore.size() - 1; i < ignore.size(); i--)
 	{
-		data.deleteColumn(ignore[i]);
+		data.deleteColumns(ignore[i], 1);
 		for(size_t j = 0; j < labels.size(); j++)
 		{
 			if(labels[j] >= ignore[i])
@@ -323,14 +323,6 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		{
 			int neighbors = args.pop_uint();
 			pNF = new GKdTree(pData, neighbors, NULL, true);
-		}
-		else if(_stricmp(alg, "saffron") == 0)
-		{
-			size_t medianCands = args.pop_uint();
-			size_t neighbors = args.pop_uint();
-			size_t tangentSpaceDims = args.pop_uint();
-			double thresh = args.pop_double();
-			pNF = new GSaffron(pData, medianCands, neighbors, tangentSpaceDims, thresh, pRand);
 		}
 		else if(_stricmp(alg, "temporal") == 0)
 		{
@@ -509,6 +501,7 @@ void PlotEquation(GArgReader& args)
 	bool aspect = false;
 	bool horizMarks = true;
 	bool vertMarks = true;
+	bool text = true;
 	double thickness = 1.0;
 	while(args.next_is_flag())
 	{
@@ -534,6 +527,8 @@ void PlotEquation(GArgReader& args)
 			horizMarks = false;
 		else if(args.if_pop("-novmarks"))
 			vertMarks = false;
+		else if(args.if_pop("-notext"))
+			text = false;
 		else if(args.if_pop("-nogrid"))
 		{
 			horizMarks = false;
@@ -577,16 +572,17 @@ void PlotEquation(GArgReader& args)
 	GSVG svg(width, height);
 	svg.newChart(xmin, ymin, xmax, ymax, 0, 0, margin);
 	if(horizMarks)
-		svg.horizMarks((int)maxHorizMarks);
+		svg.horizMarks((int)maxHorizMarks, !text);
 	if(vertMarks)
 	{
 		if(maxVertMarks == INVALID_INDEX)
 			maxVertMarks = maxHorizMarks * height / width;
-		svg.vertMarks((int)maxVertMarks);
+		svg.vertMarks((int)maxVertMarks, !text);
 	}
 
 	// Draw the equation as the label under the graph
-	svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), expr.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
+	if(text)
+		svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), expr.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
 
 	// Count the equations
 	size_t equationCount = 0;
@@ -1243,8 +1239,7 @@ void semanticMap(GArgReader& args){
   // Load the self organizing map
   GDom doc;
   doc.loadJson(somFile.c_str());
-  GLearnerLoader ll;
-  GSelfOrganizingMap som(doc.root(), ll);
+  GSelfOrganizingMap som(doc.root());
   // Parse the options
   string outFilename="semantic_map.svg";
   unsigned labelCol = (unsigned int)hData->cols()-1;
@@ -1345,7 +1340,7 @@ void semanticMap(GArgReader& args){
 	pLessColumns->copy(hData.get());
     Holder<GMatrix> lessColumns(pLessColumns);
     while(lessColumns->cols() > som.inputDimensions()){
-      lessColumns->deleteColumn(lessColumns->cols()-1);
+      lessColumns->deleteColumns(lessColumns->cols()-1, 1);
     }
     vector<size_t> bestData = som.bestData(lessColumns.get());
 

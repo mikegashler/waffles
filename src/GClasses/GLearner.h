@@ -222,7 +222,7 @@ public:
 	GSupervisedLearner();
 
 	/// Deserialization constructor
-	GSupervisedLearner(GDomNode* pNode, GLearnerLoader& ll);
+	GSupervisedLearner(GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GSupervisedLearner();
@@ -308,6 +308,10 @@ public:
 	static void test();
 #endif // MIN_PREDICT
 protected:
+	/// Adds the function pIn to pOut after interpolating pIn to be the same size as pOut.
+	/// (This is a helper-function used by precisionRecall.)
+	static void addInterpolatedFunction(double* pOut, size_t nOutVals, double* pIn, size_t nInVals);
+
 	/// This is the implementation of the model's training algorithm. (This method is called by train).
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels) = 0;
 
@@ -351,8 +355,8 @@ public:
 	}
 
 	/// Deserialization constructor
-	GIncrementalLearner(GDomNode* pNode, GLearnerLoader& ll)
-	: GSupervisedLearner(pNode, ll)
+	GIncrementalLearner(GDomNode* pNode)
+	: GSupervisedLearner(pNode)
 	{
 	}
 
@@ -442,6 +446,7 @@ class GFilter : public GIncrementalLearner
 protected:
 	GSupervisedLearner* m_pLearner;
 	GIncrementalLearner* m_pIncrementalLearner;
+	GSupervisedLearner* m_pOriginal;
 	bool m_ownLearner;
 
 
@@ -456,6 +461,9 @@ protected:
 
 	/// Discards any filters between this filter and the base learner
 	void discardIntermediateFilters();
+
+	/// Recursive method used by discardIntermediateFilters
+	void discardIntermediateFilters_helper(GSupervisedLearner* pOriginal);
 
 	/// Helper function for serialization
 	GDomNode* domNode(GDom* pDoc, const char* szClassName) const;
@@ -514,7 +522,7 @@ using GFilter::prefilterLabels;
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-// 	/// See the comment for GSupervisedLearner::predict
+	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const GVec& in, GVec& out);
 
 	/// See the comment for GSupervisedLearner::predictDistributionInner
@@ -601,7 +609,7 @@ public:
 using GFilter::prefilterFeatures;
 using GFilter::prefilterLabels;
 
-	/// This takes ownership of pLearner.
+	/// General-purpose constructor. If ownLearner is true, then this will delete pLearner when this object is deleted.
 	GAutoFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
 	/// Deserialization constructor
@@ -714,7 +722,7 @@ public:
 	GBaselineLearner();
 
 	/// Deserialization constructor
-	GBaselineLearner(GDomNode* pNode, GLearnerLoader& ll);
+	GBaselineLearner(GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GBaselineLearner();
@@ -758,7 +766,7 @@ public:
 	GIdentityFunction();
 
 	/// Deserialization constructor
-	GIdentityFunction(GDomNode* pNode, GLearnerLoader& ll);
+	GIdentityFunction(GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GIdentityFunction();

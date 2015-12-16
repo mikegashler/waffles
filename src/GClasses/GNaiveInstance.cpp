@@ -90,8 +90,8 @@ GNaiveInstance::GNaiveInstance()
 	m_pValueSums = NULL;
 }
 
-GNaiveInstance::GNaiveInstance(GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode, ll), m_pHeap(NULL)
+GNaiveInstance::GNaiveInstance(GDomNode* pNode)
+: GIncrementalLearner(pNode), m_pHeap(NULL)
 {
 	m_pAttrs = NULL;
 	m_pValueSums = NULL;
