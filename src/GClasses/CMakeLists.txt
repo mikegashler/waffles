@@ -11,18 +11,19 @@ IF(WIN32)
     SET(CMAKE_INSTALL_PREFIX /usr/local CACHE PATH
         "Install path prefix, prepended onto install directories" FORCE)
   ENDIF()
-  
+
   #Remove console from the line if we do not want to have the console window)
   #SET(LINK_FLAGS ${LINK_FLAGS} "-mwindows")
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS -DWINDOWS)
   ADD_DEFINITIONS( "/W3 /wd4005 /wd4996 /nologo /wd4291 /wd4267 /wd4244 /wd4305 /EHsc" )
 ENDIF()
 
+ADD_DEFINITIONS(-Wall -Werror -Wshadow -pedantic -std=c++11)
+
 #-------------------------------------------------------------------------------
 #Build the Waffles Library here
 #-------------------------------------------------------------------------------
 FILE(GLOB WAFFLES_SRCS *.cpp)
-
 FILE(GLOB WAFFLES_HDRS *.h)
 
 #Omit these files from the list
