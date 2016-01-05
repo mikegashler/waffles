@@ -282,7 +282,7 @@ GDomNode* GCosineSimilarity::serialize(GDom* pDoc) const
 }
 
 // virtual
-double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b, size_t& count)
+double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	map<size_t,double>::const_iterator itB = b.begin();
@@ -307,7 +307,6 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size
 		}
 		else
 		{
-			count++;
 			sum_sq_a += (itA->second * itA->second);
 			sum_sq_b += (itB->second * itB->second);
 			sum_co_prod += (itA->second * itB->second);
@@ -325,7 +324,7 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const map<size
 }
 
 // virtual
-double GCosineSimilarity::similarity(const map<size_t,double>& a, const GVec& b, size_t& count)
+double GCosineSimilarity::similarity(const map<size_t,double>& a, const GVec& b)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	if(itA == a.end())
@@ -335,11 +334,31 @@ double GCosineSimilarity::similarity(const map<size_t,double>& a, const GVec& b,
 	double sum_co_prod = 0.0;
 	while(itA != a.end())
 	{
-		count++;
 		sum_sq_a += (itA->second * itA->second);
 		sum_sq_b += (b[itA->first] * b[itA->first]);
 		sum_co_prod += (itA->second * b[itA->first]);
 		itA++;
+	}
+	double denom = sqrt(sum_sq_a * sum_sq_b) + m_regularizer;
+	if(denom > 0.0)
+		return sum_co_prod / denom;
+	else
+		return 0.0;
+}
+
+// virtual
+double GCosineSimilarity::similarity(const GVec& a, const GVec& b)
+{
+	if(a.size() != b.size())
+		throw Ex("mismatching sizes");
+	double sum_sq_a = 0.0;
+	double sum_sq_b = 0.0;
+	double sum_co_prod = 0.0;
+	for(size_t i = 0; i < a.size(); i++)
+	{
+		sum_sq_a += (a[i] * a[i]);
+		sum_sq_b += (b[i] * b[i]);
+		sum_co_prod += (a[i] * b[i]);
 	}
 	double denom = sqrt(sum_sq_a * sum_sq_b) + m_regularizer;
 	if(denom > 0.0)
@@ -358,7 +377,7 @@ GDomNode* GPearsonCorrelation::serialize(GDom* pDoc) const
 }
 
 // virtual
-double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<size_t,double>& b, size_t& count)
+double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<size_t,double>& b)
 {
 	// Compute the mean of the overlapping portions
 	map<size_t,double>::const_iterator itA = a.begin();
@@ -369,7 +388,7 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<si
 		return 0.0;
 	double mean_a = 0.0;
 	double mean_b = 0.0;
-//	size_t count = 0;
+	size_t count = 0;
 	while(true)
 	{
 		if(itA->first < itB->first)
@@ -433,13 +452,13 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const map<si
 }
 
 // virtual
-double GPearsonCorrelation::similarity(const map<size_t,double>& a, const GVec& b, size_t& count)
+double GPearsonCorrelation::similarity(const map<size_t,double>& a, const GVec& b)
 {
 	// Compute the mean of the overlapping portions
 	map<size_t,double>::const_iterator itA = a.begin();
 	double mean_a = 0.0;
 	double mean_b = 0.0;
-//	size_t count = 0;
+	size_t count = 0;
 	while(itA != a.end())
 	{
 		mean_a += itA->second;
@@ -469,6 +488,40 @@ double GPearsonCorrelation::similarity(const map<size_t,double>& a, const GVec& 
 		return 0.0;
 }
 
+// virtual
+double GPearsonCorrelation::similarity(const GVec& a, const GVec& b)
+{
+	if(a.size() != b.size())
+		throw Ex("mismatching sizes");
+
+	// Compute the mean of the overlapping portions
+	double mean_a = 0.0;
+	double mean_b = 0.0;
+	for(size_t i = 0; i < a.size(); i++)
+	{
+		mean_a += a[i];
+		mean_b += b[i];
+	}
+	double d = 1.0 / a.size();
+	mean_a *= d;
+	mean_b *= d;
+
+	// Compute the similarity
+	double sum = 0.0;
+	double sum_of_sq = 0.0;
+	for(size_t i = 0; i < a.size(); i++)
+	{
+		d = (a[i] - mean_a) * (b[i] - mean_b);
+		sum += d;
+		sum_of_sq += (d * d);
+	}
+	double denom = sqrt(sum_of_sq) + m_regularizer;
+	if(denom > 0.0)
+		return sum / denom;
+	else
+		return 0.0;
+}
+
 // --------------------------------------------------------------------
 
 // virtual
@@ -479,7 +532,7 @@ GDomNode* GEuclidSimilarity::serialize(GDom* pDoc) const
 }
 
 // virtual
-double GEuclidSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b, size_t& count)
+double GEuclidSimilarity::similarity(const map<size_t,double>& a, const map<size_t,double>& b)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	map<size_t,double>::const_iterator itB = b.begin();
@@ -502,7 +555,6 @@ double GEuclidSimilarity::similarity(const map<size_t,double>& a, const map<size
 		}
 		else
 		{	
-			count++;
 			double d = (itB->second - itA->second);
 			sum_sq += (d * d);
 			if(++itA == a.end())
@@ -518,7 +570,7 @@ double GEuclidSimilarity::similarity(const map<size_t,double>& a, const map<size
 }
 
 // virtual
-double GEuclidSimilarity::similarity(const map<size_t,double>& a, const GVec& b, size_t& count)
+double GEuclidSimilarity::similarity(const map<size_t,double>& a, const GVec& b)
 {
 	map<size_t,double>::const_iterator itA = a.begin();
 	if(itA == a.end())
@@ -526,10 +578,27 @@ double GEuclidSimilarity::similarity(const map<size_t,double>& a, const GVec& b,
 	double sum_sq = 0.0;
 	while(itA != a.end())
 	{
-		count++;
 		double d = (b[itA->first] - itA->second);
 		sum_sq += (d * d);
 		itA++;
+	}
+	if(sum_sq > 0.0)
+		return 1.0 / sum_sq;
+	else
+		return 1e12;
+}
+
+// virtual
+double GEuclidSimilarity::similarity(const GVec& a, const GVec& b)
+{
+	if(a.size() != b.size())
+		throw Ex("mismatching sizes");
+
+	double sum_sq = 0.0;
+	for(size_t i = 0; i < a.size(); i++)
+	{
+		double d = (b[i] - a[i]);
+		sum_sq += (d * d);
 	}
 	if(sum_sq > 0.0)
 		return 1.0 / sum_sq;
