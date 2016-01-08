@@ -67,8 +67,8 @@ public:
 
 	virtual void initVector(double* pVector)
 	{
-		GRowDistanceScaled* pMetric = m_pLearner->metric();
-		GVec::copy(pVector, pMetric->scaleFactors(), relation()->size());
+		GDistanceMetric* pMetric = m_pLearner->metric();
+		GVec::copy(pVector, pMetric->scaleFactors().data(), pMetric->scaleFactors().size());
 	}
 
 	virtual bool isStable() { return false; }
@@ -83,7 +83,7 @@ protected:
 		GKNN temp;
 		temp.setNeighborCount(m_pLearner->neighborCount());
 		temp.beginIncrementalLearning(pFeatures->relation(), pLabels->relation());
-		GVec::copy(temp.metric()->scaleFactors(), pVector, relation()->size());
+		temp.metric()->scaleFactors().set(pVector, relation()->size());
 		return temp.crossValidate(*pFeatures, *pLabels, 2);
 	}
 };
@@ -141,7 +141,7 @@ GKNN::GKNN(GDomNode* pNode)
 	m_pDistanceMetric = NULL;
 	m_pSparseMetric = NULL;
 	if(pMetricNode)
-		m_pDistanceMetric = new GRowDistanceScaled(pNode->field("metric"));
+		m_pDistanceMetric = GDistanceMetric::deserialize(pNode->field("metric"));
 	else
 		m_pSparseMetric = GSparseSimilarity::deserialize(pNode->field("sparseMetric"));
 	m_ownMetric = true;
@@ -288,7 +288,7 @@ void GKNN::setOptimizeScaleFactors(bool b)
 	m_optimizeScaleFactors = b;
 }
 
-void GKNN::setMetric(GRowDistanceScaled* pMetric, bool own)
+void GKNN::setMetric(GDistanceMetric* pMetric, bool own)
 {
 	if(m_ownMetric)
 	{
@@ -317,7 +317,7 @@ void GKNN::beginIncrementalLearningInner(const GRelation& featureRel, const GRel
 {
 	clear();
 	if(!m_pDistanceMetric && !m_pSparseMetric)
-		setMetric(new GRowDistanceScaled(), true);
+		setMetric(new GRowDistance(), true);
 	if(m_pDistanceMetric)
 	{
 		m_pFeatures = new GMatrix(featureRel.cloneMinimal());
@@ -359,7 +359,7 @@ void GKNN::trainIncremental(const GVec& in, const GVec& out)
 	if(m_pScaleFactorOptimizer && m_pFeatures->rows() > 50)
 	{
 		m_pScaleFactorOptimizer->iterate();
-		GVec::copy(m_pDistanceMetric->scaleFactors(), m_pScaleFactorOptimizer->currentVector(), m_pFeatures->cols());
+		m_pDistanceMetric->scaleFactors().set(m_pScaleFactorOptimizer->currentVector(), m_pFeatures->cols());
 	}
 }
 
@@ -370,7 +370,7 @@ void GKNN::trainInner(const GMatrix& feats, const GMatrix& labs)
 	beginIncrementalLearningInner(feats.relation(), labs.relation());
 
 	// Give each attribute an equal chance by scaling out the deviation
-	double* pScaleFactors = m_pDistanceMetric->scaleFactors();
+	GVec& scaleFactors = m_pDistanceMetric->scaleFactors();
 	if(m_normalizeScaleFactors)
 	{
 		for(size_t i = 0; i < feats.cols(); i++)
@@ -380,16 +380,16 @@ void GKNN::trainInner(const GMatrix& feats, const GMatrix& labs)
 				double m = feats.columnMean(i);
 				double d = sqrt(feats.columnVariance(i, m));
 				if(d >= 1e-8)
-					pScaleFactors[i] = 1.0 / (2.0 * d);
+					scaleFactors[i] = 1.0 / (2.0 * d);
 				else
-					pScaleFactors[i] = 1.0;
+					scaleFactors[i] = 1.0;
 			}
 			else
-				pScaleFactors[i] = 1.0;
+				scaleFactors[i] = 1.0;
 		}
 	}
 	else
-		GVec::setAll(pScaleFactors, 1.0, feats.cols());
+		scaleFactors.fill(1.0);
 
 	if(m_eTrainMethod == StoreAll)
 	{
@@ -426,7 +426,7 @@ void GKNN::trainInner(const GMatrix& feats, const GMatrix& labs)
 			m_pScaleFactorOptimizer->iterate();
 			m_pNeighborFinder->reoptimize();
 		}
-		GVec::copy(pScaleFactors, m_pScaleFactorOptimizer->currentVector(), feats.cols());
+		scaleFactors.set(m_pScaleFactorOptimizer->currentVector(), feats.cols());
 	}
 }
 

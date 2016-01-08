@@ -29,8 +29,11 @@ using std::map;
 namespace GClasses {
 
 GDistanceMetric::GDistanceMetric(GDomNode* pNode)
+: m_scaleFactors(pNode->field("scalars"))
 {
 	m_pRelation = GRelation::deserialize(pNode->field("relation"));
+	if(m_pRelation->size() != m_scaleFactors.size())
+		throw Ex("Mismatching sizes");
 	m_ownRelation = true;
 }
 
@@ -46,22 +49,21 @@ void GDistanceMetric::setRelation(const GRelation* pRelation, bool own)
 		delete((GRelation*)m_pRelation);
 	m_pRelation = pRelation;
 	m_ownRelation = own;
+	if(pRelation)
+	{
+		m_scaleFactors.resize(pRelation->size());
+		m_scaleFactors.fill(1.0);
+	}
+	else
+		m_scaleFactors.resize(0);
 }
-/*
-double GDistanceMetric::squaredDistance(const std::vector<double> & x, const std::vector<double> & y) const{
-	assert(x.size() == y.size());
-	const std::size_t numDim = x.size();
-	const double* firstX = numDim==0?0:&(x.front());
-	const double* firstY = numDim==0?0:&(y.front());
-	return squaredDistance(firstX, firstY);
-}
-*/
 
-GDomNode* GDistanceMetric::baseDomNode(GDom* pDoc, const char* szClassName) const
+GDomNode* GDistanceMetric::baseDomNode(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
+	pNode->addField(pDoc, "class", pDoc->newString(name()));
 	pNode->addField(pDoc, "relation", m_pRelation->serialize(pDoc));
+	pNode->addField(pDoc, "scalars", m_scaleFactors.serialize(pDoc));
 	return pNode;
 }
 
@@ -69,8 +71,6 @@ GDomNode* GDistanceMetric::baseDomNode(GDom* pDoc, const char* szClassName) cons
 GDistanceMetric* GDistanceMetric::deserialize(GDomNode* pNode)
 {
 	const char* szClass = pNode->field("class")->asString();
-	if(strcmp(szClass, "GRowDistanceScaled") == 0)
-		return new GRowDistanceScaled(pNode);
 	if(strcmp(szClass, "GRowDistance") == 0)
 		return new GRowDistance(pNode);
 	if(strcmp(szClass, "GLNormDistance") == 0)
@@ -95,7 +95,7 @@ GRowDistance::GRowDistance(GDomNode* pNode)
 // virtual
 GDomNode* GRowDistance::serialize(GDom* pDoc) const
 {
-	GDomNode* pNode = baseDomNode(pDoc, "GRowDistance");
+	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
 	return pNode;
 }
@@ -109,6 +109,8 @@ void GRowDistance::init(const GRelation* pRelation, bool own)
 // virtual
 double GRowDistance::squaredDistance(const GVec& a, const GVec& b) const
 {
+	if(a.size() != m_pRelation->size() || b.size() != m_pRelation->size())
+		throw Ex("unexpected size");
 	double sum = 0;
 	size_t count = m_pRelation->size();
 	double d;
@@ -119,72 +121,15 @@ double GRowDistance::squaredDistance(const GVec& a, const GVec& b) const
 			if(a[i] == UNKNOWN_REAL_VALUE || b[i] == UNKNOWN_REAL_VALUE)
 				d = m_diffWithUnknown;
 			else
-				d = b[i] - a[i];
+				d = (b[i] - a[i]) * m_scaleFactors[i];
 		}
 		else
 		{
 			if((int)a[i] == UNKNOWN_DISCRETE_VALUE || (int)b[i] == UNKNOWN_DISCRETE_VALUE)
-				d = 1;
+				d = m_diffWithUnknown;
 			else
 				d = ((int)b[i] == (int)a[i] ? 0 : 1);
 		}
-		sum += (d * d);
-	}
-	return sum;
-}
-
-// --------------------------------------------------------------------
-
-GRowDistanceScaled::GRowDistanceScaled(GDomNode* pNode)
-: GDistanceMetric(pNode)
-{
-	GDomNode* pScaleFactors = pNode->field("scaleFactors");
-	GDomListIterator it(pScaleFactors);
-	size_t dims = m_pRelation->size();
-	if(it.remaining() != dims)
-		throw Ex("wrong number of scale factors");
-	m_pScaleFactors = new double[dims];
-	for(size_t i = 0; i < dims; i++)
-	{
-		m_pScaleFactors[i] = it.current()->asDouble();
-		it.advance();
-	}
-}
-
-// virtual
-GDomNode* GRowDistanceScaled::serialize(GDom* pDoc) const
-{
-	GDomNode* pNode = baseDomNode(pDoc, "GRowDistance");
-	size_t dims = m_pRelation->size();
-	GDomNode* pScaleFactors = pNode->addField(pDoc, "scaleFactors", pDoc->newList());
-	for(size_t i = 0; i < dims; i++)
-		pScaleFactors->addItem(pDoc, pDoc->newDouble(m_pScaleFactors[i]));
-	return pNode;
-}
-
-// virtual
-void GRowDistanceScaled::init(const GRelation* pRelation, bool own)
-{
-	setRelation(pRelation, own);
-	delete[] m_pScaleFactors;
-	m_pScaleFactors = new double[pRelation->size()];
-	GVec::setAll(m_pScaleFactors, 1.0, pRelation->size());
-}
-
-// virtual
-double GRowDistanceScaled::squaredDistance(const GVec& a, const GVec& b) const
-{
-	double sum = 0;
-	size_t count = m_pRelation->size();
-	double d;
-	const double* pSF = m_pScaleFactors;
-	for(size_t i = 0; i < count; i++)
-	{
-		if(m_pRelation->valueCount(i) == 0)
-			d = (b[i] - a[i]) * (*pSF);
-		else
-			d = ((int)b[i] == (int)a[i] ? 0 : *pSF);
-		pSF++;
 		sum += (d * d);
 	}
 	return sum;
@@ -205,7 +150,7 @@ GLNormDistance::GLNormDistance(GDomNode* pNode)
 // virtual
 GDomNode* GLNormDistance::serialize(GDom* pDoc) const
 {
-	GDomNode* pNode = baseDomNode(pDoc, "GLNormDistance");
+	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "norm", pDoc->newDouble(m_norm));
 	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
 	return pNode;
@@ -220,6 +165,8 @@ void GLNormDistance::init(const GRelation* pRelation, bool own)
 // virtual
 double GLNormDistance::squaredDistance(const GVec& a, const GVec& b) const
 {
+	if(a.size() != m_pRelation->size() || b.size() != m_pRelation->size())
+		throw Ex("unexpected size");
 	double sum = 0;
 	size_t count = m_pRelation->size();
 	double d;
@@ -230,7 +177,7 @@ double GLNormDistance::squaredDistance(const GVec& a, const GVec& b) const
 			if(a[i] == UNKNOWN_REAL_VALUE || b[i] == UNKNOWN_REAL_VALUE)
 				d = m_diffWithUnknown;
 			else
-				d = b[i] - a[i];
+				d = (b[i] - a[i]) * m_scaleFactors[i];
 		}
 		else
 		{
@@ -243,6 +190,93 @@ double GLNormDistance::squaredDistance(const GVec& a, const GVec& b) const
 	}
 	d = pow(sum, 1.0 / m_norm);
 	return (d * d);
+}
+
+// --------------------------------------------------------------------
+
+GDenseCosineDistance::GDenseCosineDistance()
+: GDistanceMetric()
+{
+}
+
+GDenseCosineDistance::GDenseCosineDistance(GDomNode* pNode)
+: GDistanceMetric(pNode)
+{
+}
+
+// virtual
+GDomNode* GDenseCosineDistance::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	return pNode;
+}
+
+// virtual
+void GDenseCosineDistance::init(const GRelation* pRelation, bool own)
+{
+	setRelation(pRelation, own);
+}
+
+// virtual
+double GDenseCosineDistance::squaredDistance(const GVec& a, const GVec& b) const
+{
+	if(a.size() != m_pRelation->size() || b.size() != m_pRelation->size())
+		throw Ex("unexpected size");
+	double sum_sq_a = 0.0;
+	double sum_sq_b = 0.0;
+	double sum_co_prod = 0.0;
+	for(size_t i = 0; i < a.size(); i++)
+	{
+		sum_sq_a += (a[i] * a[i]);
+		sum_sq_b += (b[i] * b[i]);
+		sum_co_prod += (a[i] * b[i]);
+	}
+	double denom = sqrt(sum_sq_a * sum_sq_b);
+	if(denom > 0.0)
+		return 1.0 - sum_co_prod / denom;
+	else
+		return 1.0;
+
+}
+
+// --------------------------------------------------------------------
+
+GKernelDistance::GKernelDistance(GKernel* pKernel, bool own)
+: GDistanceMetric(), m_pKernel(pKernel), m_ownKernel(own)
+{
+}
+
+GKernelDistance::GKernelDistance(GDomNode* pNode)
+: GDistanceMetric(pNode)
+{
+	m_pKernel = GKernel::deserialize(pNode->field("kernel"));
+}
+
+// virtual
+GKernelDistance::~GKernelDistance()
+{
+	if(m_ownKernel)
+		delete(m_pKernel);
+}
+
+// virtual
+GDomNode* GKernelDistance::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "kernel", m_pKernel->serialize(pDoc));
+	return pNode;
+}
+
+// virtual
+void GKernelDistance::init(const GRelation* pRelation, bool own)
+{
+	setRelation(pRelation, own);
+}
+
+// virtual
+double GKernelDistance::squaredDistance(const GVec& a, const GVec& b) const
+{
+	return 1.0 - m_pKernel->apply(a, b);
 }
 
 // --------------------------------------------------------------------

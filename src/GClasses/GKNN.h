@@ -65,7 +65,7 @@ protected:
 	// Scale Factor Optimization
 	bool m_normalizeScaleFactors;
 	bool m_optimizeScaleFactors;
-	GRowDistanceScaled* m_pDistanceMetric;
+	GDistanceMetric* m_pDistanceMetric;
 	GSparseSimilarity* m_pSparseMetric;
 	bool m_ownMetric;
 	GKnnScaleFactorCritic* m_pCritic;
@@ -116,7 +116,7 @@ public:
 
 	/// Sets the distance metric to use for finding neighbors. If own is true, then
 	/// this object will delete pMetric when it is done with it.
-	void setMetric(GRowDistanceScaled* pMetric, bool own);
+	void setMetric(GDistanceMetric* pMetric, bool own);
 
 	/// Sets the sparse similarity metric to use for finding neighbors. If own is true, then
 	/// this object will delete pMetric when it is done with it.
@@ -134,7 +134,7 @@ public:
 	size_t addVector(const GVec& in, const GVec& out);
 
 	/// Returns the dissimilarity metric
-	GRowDistanceScaled* metric() { return m_pDistanceMetric; }
+	GDistanceMetric* metric() { return m_pDistanceMetric; }
 
 	/// Specify whether to normalize the scaling of each attribute. (The default is to normalize.)
 	void setNormalizeScaleFactors(bool b);

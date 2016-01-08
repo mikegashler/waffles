@@ -1261,16 +1261,14 @@ GMatrix* GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMa
 	knn.setNeighborCount(m_neighborCount);
 	//knn.setOptimizeScaleFactors(true);
 	knn.train(features1, labels1);
-	GRowDistanceScaled* pMetric = knn.metric();
+	GDistanceMetric* pMetric = knn.metric();
 
 	// Merge the features into one dataset and build a kd-tree
 	GMatrix both(features1.relation().clone());
 	both.newRows(features1.rows() + features2.rows());
 	both.copyBlock(features1, 0, 0, features1.rows(), features1.cols(), 0, 0, false);
 	both.copyBlock(features2, 0, 0, features2.rows(), features2.cols(), features1.rows(), 0, false);
-	GRowDistanceScaled metric2;
-	GKdTree neighborFinder(&both, m_neighborCount, &metric2, false);
-	GVec::copy(metric2.scaleFactors(), pMetric->scaleFactors(), features1.cols());
+	GKdTree neighborFinder(&both, m_neighborCount, pMetric, false);
 
 	// Transduce
 	GMatrix* pOut = new GMatrix(labels1.relation().clone());

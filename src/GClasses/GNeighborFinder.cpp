@@ -610,22 +610,13 @@ public:
 		m_minDist = pParent->m_minDist;
 	}
 
-	void AdjustOffset(size_t attr, double offset, const double* m_pScaleFactors)
+	void AdjustOffset(size_t attr, double offset, const GVec& scaleFactors)
 	{
 		if(offset > m_pOffset[attr])
 		{
-			if(m_pScaleFactors)
-			{
-				m_minDist -= (m_pOffset[attr] * m_pOffset[attr] * m_pScaleFactors[attr] * m_pScaleFactors[attr]);
-				m_pOffset[attr] = offset;
-				m_minDist += (m_pOffset[attr] * m_pOffset[attr] * m_pScaleFactors[attr] * m_pScaleFactors[attr]);
-			}
-			else
-			{
-				m_minDist -= (m_pOffset[attr] * m_pOffset[attr]);
-				m_pOffset[attr] = offset;
-				m_minDist += (m_pOffset[attr] * m_pOffset[attr]);
-			}
+			m_minDist -= (m_pOffset[attr] * m_pOffset[attr] * scaleFactors[attr] * scaleFactors[attr]);
+			m_pOffset[attr] = offset;
+			m_minDist += (m_pOffset[attr] * m_pOffset[attr] * scaleFactors[attr] * scaleFactors[attr]);
 		}
 	}
 };
@@ -858,9 +849,8 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 				entropy -= ratio * log(ratio);
 			}
 		}
-		const double* pScaleFactors = m_pMetric->scaleFactors();
-		if(pScaleFactors)
-			entropy *= (pScaleFactors[attr] * pScaleFactors[attr]);
+		const GVec& pScaleFactors = m_pMetric->scaleFactors();
+		entropy *= (pScaleFactors[attr] * pScaleFactors[attr]);
 
 		*pOutPivot = (double)max;
 		*pOutGoodness = entropy;
@@ -884,29 +874,14 @@ void GKdTree::computePivotAndGoodness(size_t count, size_t* pIndexes, size_t att
 		// Compute the scaled variance
 		double var = 0;
 		double d;
-		const double* pScaleFactors = m_pMetric->scaleFactors();
-		if(pScaleFactors)
+		const GVec& scaleFactors = m_pMetric->scaleFactors();
+		for(size_t i = 0; i < count; i++)
 		{
-			for(size_t i = 0; i < count; i++)
+			const GVec& pPat = m_pData->row(pIndexes[i]);
+			if(pPat[attr] != UNKNOWN_REAL_VALUE)
 			{
-				const GVec& pPat = m_pData->row(pIndexes[i]);
-				if(pPat[attr] != UNKNOWN_REAL_VALUE)
-				{
-					d = (pPat[attr] - mean) * pScaleFactors[attr];
-					var += (d * d);
-				}
-			}
-		}
-		else
-		{
-			for(size_t i = 0; i < count; i++)
-			{
-				const GVec& pPat = m_pData->row(pIndexes[i]);
-				if(pPat[attr] != UNKNOWN_REAL_VALUE)
-				{
-					d = (pPat[attr] - mean);
-					var += (d * d);
-				}
+				d = (pPat[attr] - mean) * scaleFactors[attr];
+				var += (d * d);
 			}
 		}
 		var /= (count - missing); // (the biased estimator of variance is better for this purpose)
@@ -1207,6 +1182,8 @@ public:
 	virtual ~GDontGoFarMetric()
 	{
 	}
+
+	virtual const char* name() const { return "GDontGoFarMetric"; }
 
 	virtual GDomNode* serialize(GDom* pDoc) const
 	{
