@@ -34,6 +34,7 @@ class btDefaultCollisionConfiguration;
 namespace GClasses
 {
 	class GSupervisedLearner;
+	class GVec;
 }
 
 
@@ -118,7 +119,7 @@ public:
 	void DoAction(GClasses::GSupervisedLearner* pPolicy, double time);
 
 protected:
-	void makeFeatureVector(double* pFeatures, double time);
+	void makeFeatureVector(GClasses::GVec& features, double time);
 };
 
 
