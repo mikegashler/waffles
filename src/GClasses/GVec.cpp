@@ -63,6 +63,7 @@ GVec::GVec(double d)
 }
 
 GVec::GVec(GDomNode* pNode)
+: m_data(NULL), m_size(0)
 {
 	deserialize(pNode);
 }

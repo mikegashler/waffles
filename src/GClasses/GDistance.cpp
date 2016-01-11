@@ -23,6 +23,7 @@
 #include "GVec.h"
 #include <math.h>
 #include <cassert>
+#include <memory>
 
 using std::map;
 
@@ -73,11 +74,51 @@ GDistanceMetric* GDistanceMetric::deserialize(GDomNode* pNode)
 	const char* szClass = pNode->field("class")->asString();
 	if(strcmp(szClass, "GRowDistance") == 0)
 		return new GRowDistance(pNode);
+	if(strcmp(szClass, "GDenseCosineDistance") == 0)
+		return new GDenseCosineDistance(pNode);
 	if(strcmp(szClass, "GLNormDistance") == 0)
 		return new GLNormDistance(pNode);
+	if(strcmp(szClass, "GKernelDistance") == 0)
+		return new GKernelDistance(pNode);
 	throw Ex("Unrecognized class: ", szClass);
 	return NULL;
 }
+
+#ifndef NO_TEST_CODE
+void GDistanceMetric_exerciseMetric(GDistanceMetric& metric)
+{
+	// Make two vectors
+	GVec a(2);
+	a.fill(1.0);
+	GVec b(2);
+	b.fill(2.0);
+	GUniformRelation rel(2);
+	metric.init(&rel, false);
+
+	// Measure distance	
+	double sqDist = metric.squaredDistance(a, b);
+
+	// Roundtrip through serialization
+	GDom doc;
+	GDomNode* pNode = metric.serialize(&doc);
+	GDistanceMetric* pRoundtripped = GDistanceMetric::deserialize(pNode);
+	std::unique_ptr<GDistanceMetric> hRoundtripped(pRoundtripped);
+
+	// Make sure the roundtripped metric still returns the same result
+	double sqDist2 = pRoundtripped->squaredDistance(a, b);
+	if(std::abs(sqDist - sqDist2) > 1e-12)
+		throw Ex("failed");
+}
+
+// static
+void GDistanceMetric::test()
+{
+	GRowDistance d1; GDistanceMetric_exerciseMetric(d1);
+	GLNormDistance d2(1.4); GDistanceMetric_exerciseMetric(d2);
+	GDenseCosineDistance d3; GDistanceMetric_exerciseMetric(d3);
+	GKernelDistance d4(GKernel::kernelComplex1(), true); GDistanceMetric_exerciseMetric(d4);
+}
+#endif
 
 // --------------------------------------------------------------------
 

@@ -42,6 +42,7 @@
 #include "../GClasses/GCrypto.h"
 #include "../GClasses/GDecisionTree.h"
 #include "../GClasses/GDiff.h"
+#include "../GClasses/GDistance.h"
 #include "../GClasses/GDistribution.h"
 #include "../GClasses/GDom.h"
 #include "../GClasses/GEnsemble.h"
@@ -916,6 +917,7 @@ public:
 		runTest("GDecisionTree", GDecisionTree::test);
 		runTest("GDiff", GDiff::test);
 		runTest("GDijkstra", GDijkstra::test);
+		runTest("GDistanceMetric", GDistanceMetric::test);
 		runTest("GDom", GDom::test);
 		runTest("GError.h - to_str", test_to_str);
 		runTest("GFloydWarshall", GFloydWarshall::test);

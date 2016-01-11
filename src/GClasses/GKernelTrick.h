@@ -51,6 +51,12 @@ public:
 	/// Deserializes a kernel object
 	static GKernel* deserialize(GDomNode* pNode);
 
+	/// Returns a complex kernel made by combining several other kernels.
+	/// This might be used to exercise kernel functionality or to test non-linear metrics.
+	/// The caller is responsible to delete the object this returns.
+	static GKernel* kernelComplex1();
+
+
 protected:
 	/// Helper method used by the serialize methods in child classes
 	GDomNode* makeBaseNode(GDom* pDoc) const;

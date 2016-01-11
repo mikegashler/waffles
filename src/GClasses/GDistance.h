@@ -49,6 +49,10 @@ public:
 	GDistanceMetric(GDomNode* pNode);
 	virtual ~GDistanceMetric();
 
+#ifndef NO_TEST_CODE
+	static void test();
+#endif
+
 	/// Returns the name of this class
 	virtual const char* name() const = 0;
 
