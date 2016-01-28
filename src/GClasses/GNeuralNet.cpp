@@ -574,7 +574,11 @@ size_t GNeuralNet::trainWithValidation(const GMatrix& trainFeatures, const GMatr
 			if(1.0 - dSumSquaredError / dBestError >= m_minImprovement) // This condition is designed such that if dSumSquaredError is NAN, it will break out of the loop
 			{
 				if(dSumSquaredError < dBestError)
+				{
+					if(dSumSquaredError == 0.0)
+						break;
 					dBestError = dSumSquaredError;
+				}
 			}
 			else
 				break;
