@@ -66,26 +66,25 @@ const double g_squat[] = { 0.4,    -0.4,    0.4,   -0.4,    0.4,     0.4,     0.
 const double g_jump[] =  { -0.4,    0.4,   -0.4,    0.4,   -0.4,    -0.4,    -0.4,    -0.4,    -0.4,     0.4,     0.4 };
 const double g_tuck[] =  { 0.4,    -0.4,    0.4,   -0.4,    0.4,    -0.4,    -0.4,    -0.4,    -0.4,     0.4,     0.4 };
 
-void manualPolicy(const double* pIn, double* pOut)
+void manualPolicy(const GVec& pIn, GVec& pOut)
 {
 	GAssert(sizeof(g_squat) == LABEL_DIMS * sizeof(double));
 	double time = pIn[0];
 	if(time < 0.2)
-		GVec::copy(pOut, g_squat, LABEL_DIMS);
+		pOut.set(g_squat, LABEL_DIMS);
 	else if(time < 0.6)
-		GVec::copy(pOut, g_jump, LABEL_DIMS);
+		pOut.set(g_jump, LABEL_DIMS);
 	else
-		GVec::copy(pOut, g_tuck, LABEL_DIMS);
+		pOut.set(g_tuck, LABEL_DIMS);
 }
 
 void GenerateSeedTrainingSet(GMatrix* pFeatures, GMatrix* pLabels, GRand* pRand)
 {
 	GAssert(FEATURE_DIMS == 3);
-	double* pPat;
 	double d;
 	for(d = 0.0; d < 1.2; d += 0.0001)
 	{
-		pPat = pFeatures->newRow();
+		GVec& pPat = pFeatures->newRow();
 		pPat[0] = d;
 		pPat[1] = pRand->normal();
 		pPat[2] = pRand->normal();
@@ -140,7 +139,7 @@ GNeuralNet* LoadPolicy(const char* szFilename, GRand* pRand)
 	GDom doc;
 	doc.loadJson(szFilename);
 	GLearnerLoader ll;
-	return new GNeuralNet(doc.root(), ll);
+	return new GNeuralNet(doc.root());
 }
 
 GNeuralNet* TrainPolicy()

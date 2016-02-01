@@ -950,6 +950,29 @@ double GSparseVec::dotProduct(SparseVec& a, SparseVec& b)
 	return d;
 }
 
+// static
+size_t GSparseVec::count_matching_elements(SparseVec& a, SparseVec& b)
+{
+	size_t count = 0;
+	SparseVec::iterator itA = a.begin();
+	SparseVec::iterator itB = b.begin();
+	while(itA != a.end() && itB != b.end())
+	{
+		if(itA->first < itB->first)
+			itA++;
+		else if(itB->first < itA->first)
+			itB++;
+		else
+		{
+			itA++;
+			itB++;
+			count++;
+		}
+	}
+	return count;
+}
+
+
 
 } // namespace GClasses
 

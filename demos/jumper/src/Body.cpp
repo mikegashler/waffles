@@ -375,7 +375,7 @@ btScalar RagDoll::getFaceDownness()
 	return m_bodies[BODYPART_SPINE]->getWorldTransform().getBasis().tdotz(v);
 }
 
-void RagDoll::makeFeatureVector(double* pFeatures, double time)
+void RagDoll::makeFeatureVector(GVec& pFeatures, double time)
 {
 	GAssert(LABEL_DIMS == JOINT_COUNT - 1); // We control all of the joints except for the neck
 	GAssert(FEATURE_DIMS == 3); // Unexpected value
@@ -388,9 +388,9 @@ void RagDoll::makeFeatureVector(double* pFeatures, double time)
 void RagDoll::DoAction(GSupervisedLearner* pPolicy, double time)
 {
 	// Make a feature vector
-	double pPat[FEATURE_DIMS + LABEL_DIMS];
-	//	GTEMPBUF(double, pPat, FEATURE_DIMS + LABEL_DIMS);
-	makeFeatureVector(pPat, time);
+	GVec pat(FEATURE_DIMS);
+	GVec lab(LABEL_DIMS);
+	makeFeatureVector(pat, time);
 
 	// Decide how to move the joints
 	int i;
@@ -399,23 +399,23 @@ void RagDoll::DoAction(GSupervisedLearner* pPolicy, double time)
 		// Use the policy
 		GAssert(pPolicy->relFeatures().size() == FEATURE_DIMS);
 		GAssert(pPolicy->relLabels().size() == LABEL_DIMS);
-		pPolicy->predict(pPat, pPat + FEATURE_DIMS);
+		pPolicy->predict(pat, lab);
 	}
 	else
 	{
 		// Use the hard-coded manual policy
-		manualPolicy(pPat, pPat + FEATURE_DIMS);
+		manualPolicy(pat, lab);
 	}
 
 	// Apply impulse to the joints
 	btScalar velocity, impulse;
 	for(i = 0; i < JOINT_COUNT - 1; i++)
 	{
-		velocity = 8.0 * GBits::sign(pPat[FEATURE_DIMS + i]);
-		if(pPat[FEATURE_DIMS + i] < 0)
-			impulse = std::min(m_negativeStrength[i], -pPat[FEATURE_DIMS + i]);
+		velocity = 8.0 * GBits::sign(lab[i]);
+		if(lab[i] < 0)
+			impulse = std::min(m_negativeStrength[i], -lab[i]);
 		else
-			impulse = std::min(m_positiveStrength[i], pPat[FEATURE_DIMS + i]);
+			impulse = std::min(m_positiveStrength[i], lab[i]);
 		((btHingeConstraint*)m_joints[i + 1])->enableAngularMotor(true, velocity, impulse);
 	}
 }

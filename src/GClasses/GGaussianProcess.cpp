@@ -206,7 +206,6 @@ void GGaussianProcess::trainInner(const GMatrix& features, const GMatrix& labels
 void GGaussianProcess::trainInnerInner(const GMatrix& features, const GMatrix& labels)
 {
 	clear();
-	size_t dims = features.cols();
 	GMatrix* pL;
 	{
 		// Compute the kernel matrix
@@ -218,7 +217,7 @@ void GGaussianProcess::trainInnerInner(const GMatrix& features, const GMatrix& l
 			for(size_t j = 0; j < features.rows(); j++)
 			{
 				const GVec& b = features[j];
-				row[j] = m_weightsPriorVar * m_pKernel->apply(a, b, dims);
+				row[j] = m_weightsPriorVar * m_pKernel->apply(a, b);
 			}
 		}
 
@@ -254,9 +253,8 @@ void GGaussianProcess::predict(const GVec& in, GVec& out)
 
 	// Compute k*
 	GVec& k = m_pBuf->row(0);
-	size_t dims = m_pStoredFeatures->cols();
 	for(size_t i = 0; i < m_pStoredFeatures->rows(); i++)
-		k[i] = m_weightsPriorVar * m_pKernel->apply(m_pStoredFeatures->row(i), in, dims);
+		k[i] = m_weightsPriorVar * m_pKernel->apply(m_pStoredFeatures->row(i), in);
 
 	// Compute the prediction
 	m_pAlpha->multiply(m_pBuf->row(0), out, true);
@@ -272,9 +270,8 @@ void GGaussianProcess::predictDistribution(const GVec& in, GPrediction* out)
 
 	// Compute k*
 	GVec& k = m_pBuf->row(0);
-	size_t dims = m_pStoredFeatures->cols();
 	for(size_t i = 0; i < m_pStoredFeatures->rows(); i++)
-		k[i] = m_weightsPriorVar * m_pKernel->apply(m_pStoredFeatures->row(i), in, dims);
+		k[i] = m_weightsPriorVar * m_pKernel->apply(m_pStoredFeatures->row(i), in);
 
 	// Compute the prediction
 	GVec pred;
@@ -283,7 +280,7 @@ void GGaussianProcess::predictDistribution(const GVec& in, GPrediction* out)
 	// Compute the variance
 	GVec& v = m_pBuf->row(1);
 	m_pLInv->multiply(k, v);
-	double variance = m_pKernel->apply(k, k, m_pStoredFeatures->rows()) - v.squaredMagnitude();
+	double variance = m_pKernel->apply(k, k) - v.squaredMagnitude();
 
 	// Store the results
 	for(size_t i = 0; i < m_pAlpha->cols(); i++)

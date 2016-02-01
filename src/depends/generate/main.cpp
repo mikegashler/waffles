@@ -2244,8 +2244,10 @@ public:
 	}
 
 	// returns false if pA is closer than pB
-	bool operator() (const double* pA, const double* pB) const
+	bool operator() (const GVec* AA, const GVec* BB) const
 	{
+		const GVec& pA = *AA;
+		const GVec& pB = *BB;
 		G3DVector a, b, c, d;
 		a.m_vals[0] = pA[0];
 		a.m_vals[1] = pA[1];
@@ -2569,8 +2571,7 @@ void model(GArgReader& args)
 	GImage image;
 	image.setSize(width, height);
 	GPlotWindow pw(&image, xmin, ymin, xmin + xrange, ymin + yrange);
-	GTEMPBUF(double, features, pData->cols());
-	double* labels = features + featureDims;
+	GVec labels;
 	unsigned int* pPix = image.pixels();
 	size_t step = std::max((size_t)1, pData->rows() / 100);
 	double xx, yy;
@@ -2588,7 +2589,7 @@ void model(GArgReader& args)
 			size_t count = 0;
 			for(size_t i = 0; i < pData->rows(); i += step)
 			{
-				features = pData->row(i);
+				GVec& features = pData->row(i);
 				features[attrx] = xx;
 				features[attry] = yy;
 				pModeler->predict(features, labels);
@@ -2615,7 +2616,7 @@ void model(GArgReader& args)
 	// Plot the data
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		double* pRow = pData->row(i);
+		GVec& pRow = pData->row(i);
 		unsigned int hue;
 		if(continuous)
 			hue = MixColors(gARGB(0xff, 0, 0xff, 0xff), gARGB(0xff, 0xff, 0, 0), (int)(256.0 * (pRow[featureDims + labelDim] - labelMin) / labelRange));
@@ -2750,22 +2751,27 @@ void rayTraceManifoldModel(GArgReader& args)
 	pMat2->setColor(GRayTraceMaterial::Reflective, 0.5, 0.5, 0.3);
 
 	// Make the surface
-	double in[2];
+	GVec in(2);
 	double astep = (amax - amin) / (std::max((size_t)2, granularity) - 1);
 	double bstep = (bmax - bmin) / (std::max((size_t)2, granularity) - 1);
+	GVec pred(3);
 	for(in[1] = bmin; in[1] + bstep <= bmax; in[1] += bstep)
 	{
 		for(in[0] = amin; in[0] + astep <= amax; )
 		{
 			// Predict the 4 corners
 			G3DVector v1, v2, v3, v4;
-			pModeler->predict(in, v1.vals());
+			pModeler->predict(in, pred);
+			v1.set(pred[0], pred[1], pred[2]);
 			in[1] += bstep;
-			pModeler->predict(in, v3.vals());
+			pModeler->predict(in, pred);
+			v3.set(pred[0], pred[1], pred[2]);
 			in[0] += astep;
-			pModeler->predict(in, v4.vals());
+			pModeler->predict(in, pred);
+			v4.set(pred[0], pred[1], pred[2]);
 			in[1] -= bstep;
-			pModeler->predict(in, v2.vals());
+			pModeler->predict(in, pred);
+			v2.set(pred[0], pred[1], pred[2]);
 
 			// Add a quad surface
 			scene.addMesh(GRayTraceTriMesh::makeQuadSurface(pMat1, &v1, &v3, &v4, &v2));
@@ -2777,7 +2783,7 @@ void rayTraceManifoldModel(GArgReader& args)
 	{
 		for(size_t i = 0; i < pPoints->rows(); i++)
 		{
-			double* pVec = pPoints->row(i);
+			GVec& pVec = pPoints->row(i);
 			scene.addObject(new GRayTraceSphere(pMat2, pVec[0], pVec[1], pVec[2], pointRadius));
 		}
 	}
@@ -2807,102 +2813,12 @@ void rowToImage(GArgReader& args)
 	size_t cols = pData->cols();
 	if((cols % (channels * width)) != 0)
 		throw Ex("The row has ", to_str(cols), " dims, which is not a multiple of ", to_str(channels), " channels times ", to_str(width), " pixels wide");
-	double* pRow = pData->row(r);
+	GVec& pRow = pData->row(r);
 	unsigned int height = (unsigned int)cols / (unsigned int)(channels * width);
 	GImage image;
-	GVec::toImage(pRow, &image, width, height, channels, range);
+	pRow.toImage(&image, width, height, channels, range);
 	savePng(&image, filename.c_str());
 	cout << "Image saved to " << filename.c_str() << ".\n";
-}
-
-void systemFrames(GArgReader& args)
-{
-	GDom doc;
-	doc.loadJson(args.pop_string());
-	GMatrix* pActions = loadData(args.pop_string());
-	Holder<GMatrix> hActions(pActions);
-	GMatrix* pObs = NULL;
-	Holder<GMatrix> hObs(NULL);
-
-	// Parse options
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	bool calibrate = false;
-	int frameWidth = 256;
-	int stepsPerFrame = 1;
-	double scalePredictions = 1.0;
-	string outFilename = "frames.png";
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else if(args.if_pop("-calibrate"))
-			calibrate = true;
-		else if(args.if_pop("-framewidth"))
-			frameWidth = args.pop_uint();
-		else if(args.if_pop("-stepsperframe"))
-			stepsPerFrame = args.pop_uint();
-		else if(args.if_pop("-scalepredictions"))
-			scalePredictions = args.pop_double();
-		else if(args.if_pop("-out"))
-			outFilename = args.pop_string();
-		else if(args.if_pop("-observations"))
-		{
-			pObs = loadData(args.pop_string());
-			hObs.reset(pObs);
-		}
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-
-	// Instantiate the model
-	GRand prng(seed);
-	GRecurrentModel rm(doc.root(), &prng);
-	GImage* pImage = rm.frames(pActions, pObs, calibrate, frameWidth, stepsPerFrame, scalePredictions);
-	Holder<GImage> hImage(pImage);
-	savePng(pImage, outFilename.c_str());
-	cout << "Frames saved to " << outFilename.c_str() << ".\n";
-}
-
-void ubpFrames(GArgReader& args)
-{
-	const char* szModelFilename = args.pop_string();
-	size_t imageWid = args.pop_uint();
-	size_t imageHgt = args.pop_uint();
-	size_t framesHoriz = args.pop_uint();
-	size_t framesVert = args.pop_uint();
-	const char* outFilename = args.pop_string();
-
-	GDom doc;
-	doc.loadJson(szModelFilename);
-	GLearnerLoader ll;
-	GUnsupervisedBackProp* pUBP = new GUnsupervisedBackProp(doc.root(), ll);
-	Holder<GUnsupervisedBackProp> hUBP(pUBP);
-
-	size_t featureDims = pUBP->neuralNet()->relFeatures().size() - 2;
-	GTEMPBUF(double, pFeatures, featureDims);
-	GVec::setAll(pFeatures, 0.5, featureDims);
-	size_t labelDims = pUBP->labelDims();
-	GTEMPBUF(double, pLabels, labelDims);
-	GImage image;
-	image.setSize((imageWid + 1) * framesHoriz, (imageHgt + 1) * framesVert);
-	image.clear(0xff008000);
-	size_t yy = 0;
-	for(size_t vFrame = 0; vFrame < framesVert; vFrame++)
-	{
-		size_t xx = 0;
-		for(size_t hFrame = 0; hFrame < framesHoriz; hFrame++)
-		{
-			pFeatures[featureDims - 2] = (double)hFrame / (framesHoriz - 1);
-			pFeatures[featureDims - 1] = (double)vFrame / (framesVert - 1);
-			pUBP->lowToHi(pFeatures, pLabels);
-			GImage tmp;
-			GVec::toImage(pLabels, &tmp, imageWid, imageHgt, pUBP->neuralNet()->relLabels().size(), 255.0);
-			image.blit(xx, yy, &tmp);
-			xx += imageWid + 1;
-		}
-		yy += imageHgt + 1;
-	}
-	savePng(&image, outFilename);
 }
 
 void ShowUsage(const char* appName)
@@ -2999,14 +2915,13 @@ void mackeyGlass(GArgReader &args)
 	}
 	
 	double x, xt;
-	double *row;
-	
+
 	GMatrix m(0, 1);
 	for(size_t i = 0; i < count; i++)
 	{
 		if(m.rows() > 0)
 		{
-			x = *m[m.rows() - 1];
+			x = m[m.rows() - 1][0];
 		}
 		else
 		{
@@ -3015,15 +2930,15 @@ void mackeyGlass(GArgReader &args)
 		
 		if(m.rows() >= tao)
 		{
-			xt = *m[i - tao];
+			xt = m[i - tao][0];
 		}
 		else
 		{
 			xt = initX;
 		}
 		
-		row = m.newRow();
-		*row = GMath::mackeyGlass(x, xt, beta, gamma, n);
+		GVec& row = m.newRow();
+		row[0] = GMath::mackeyGlass(x, xt, beta, gamma, n);
 	}
 	
 	m.print(cout);
@@ -3054,7 +2969,6 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("mackeyglass")) mackeyGlass(args);
 		else if(args.if_pop("manifold")) manifold(args);
 		else if(args.if_pop("map")) mapEquations(args);
-		else if(args.if_pop("mechanicalrabbit")) mechanicalRabbit(args);
 		else if(args.if_pop("model")) model(args);
 		else if(args.if_pop("noise")) Noise(args);
 		else if(args.if_pop("overview")) PlotCorrelations(args);
@@ -3069,9 +2983,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("scurve")) SCurve(args);
 		else if(args.if_pop("selfintersectingribbon")) SelfIntersectingRibbon(args);
 		else if(args.if_pop("swissroll")) SwissRoll(args);
-		else if(args.if_pop("systemframes")) systemFrames(args);
 		else if(args.if_pop("threecranepath")) threeCranePath(args);
-		else if(args.if_pop("ubpframes")) ubpFrames(args);
 		else if(args.if_pop("vectortoimage")) vectorToImage(args);
 		else if(args.if_pop("windowedimage")) WindowedImageData(args);
 		else throw Ex("Unrecognized command: ", args.peek());

@@ -525,49 +525,49 @@ void GInstanceRecommender::train(GMatrix& data)
 // virtual
 double GInstanceRecommender::predict(size_t user, size_t item)
 {
-        if(!m_pData)
-                throw Ex("This model has not been trained");
-        if(user >= m_pData->rows() || item >= m_pData->cols())
-                return 0.0;
+		if(!m_pData)
+				throw Ex("This model has not been trained");
+		if(user >= m_pData->rows() || item >= m_pData->cols())
+				return 0.0;
 
-        // Find the k-nearest neighbors
-        multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
-        for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
-        {
-                // Only consider other users that have rated this item
-                if(neigh == user)
-                        continue;
-                double rating = m_pData->get(neigh, item);
-                if(rating == UNKNOWN_REAL_VALUE)
-                        continue;
+		// Find the k-nearest neighbors
+		multimap<double,size_t> depq; // double-ended priority-queue that maps from similarity to user-id
+		for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
+		{
+				// Only consider other users that have rated this item
+				if(neigh == user)
+						continue;
+				double rating = m_pData->get(neigh, item);
+				if(rating == UNKNOWN_REAL_VALUE)
+						continue;
 
-                // Compute the similarity
-                size_t count = 0;
-                double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh), count);
+				// Compute the similarity
+				size_t count = GSparseVec::count_matching_elements(m_pData->row(user), m_pData->row(neigh));
+				double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh));
 
-                if(count < m_significanceWeight)
-                        similarity *= count / m_significanceWeight;
+				if(count < m_significanceWeight)
+						similarity *= count / m_significanceWeight;
 
-                // If the queue is overfull, drop the worst item
-                depq.insert(std::make_pair(similarity, neigh));
-                if(depq.size() > m_neighbors)
-                        depq.erase(depq.begin());
-        }
+				// If the queue is overfull, drop the worst item
+				depq.insert(std::make_pair(similarity, neigh));
+				if(depq.size() > m_neighbors)
+						depq.erase(depq.begin());
+		}
 
-        // Combine the ratings of the nearest neighbors to make a prediction
-        double weighted_sum = 0.0;
-        double sum_weight = 0.0;
-        for(multimap<double,size_t>::iterator it = depq.begin(); it != depq.end(); it++)
-        {
-                double weight = std::max(0.0, std::min(1.0, it->first));
-                double val = m_pData->get(it->second, item);
-                weighted_sum += weight * val;
-                sum_weight += weight;
-        }
-        if(sum_weight > 0.0)
-                return weighted_sum / sum_weight;
-        else
-                return m_pBaseline->predict(user, item);
+		// Combine the ratings of the nearest neighbors to make a prediction
+		double weighted_sum = 0.0;
+		double sum_weight = 0.0;
+		for(multimap<double,size_t>::iterator it = depq.begin(); it != depq.end(); it++)
+		{
+				double weight = std::max(0.0, std::min(1.0, it->first));
+				double val = m_pData->get(it->second, item);
+				weighted_sum += weight * val;
+				sum_weight += weight;
+		}
+		if(sum_weight > 0.0)
+				return weighted_sum / sum_weight;
+		else
+				return m_pBaseline->predict(user, item);
 }
 
 multimap<double,ArrayWrapper> GInstanceRecommender::getNeighbors(size_t user, size_t item)
@@ -578,8 +578,8 @@ multimap<double,ArrayWrapper> GInstanceRecommender::getNeighbors(size_t user, si
 		throw Ex("User and/or item not in the provided data set");
 
 	// Find the k-nearest neighbors
-        if(m_user_depq.find(user) == m_user_depq.end())
-        {
+		if(m_user_depq.find(user) == m_user_depq.end())
+		{
 		multimap<double,ArrayWrapper> depq; // double-ended priority-queue that maps from similarity to user-id
 		for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
 		{
@@ -591,8 +591,8 @@ multimap<double,ArrayWrapper> GInstanceRecommender::getNeighbors(size_t user, si
 				continue;
 
 			// Compute the similarity
-			size_t count = 0;
-			double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh), count);
+			size_t count = GSparseVec::count_matching_elements(m_pData->row(user), m_pData->row(neigh));
+			double similarity = m_pMetric->similarity(m_pData->row(user), m_pData->row(neigh));
 
 			if(count < m_significanceWeight)
 				similarity *= count / m_significanceWeight;
@@ -603,8 +603,8 @@ multimap<double,ArrayWrapper> GInstanceRecommender::getNeighbors(size_t user, si
 			if(depq.size() > m_neighbors)
 				depq.erase(depq.begin());
 		}
-                m_user_depq[user] = depq;
-        }
+				m_user_depq[user] = depq;
+		}
 
 	return m_user_depq[user];
 }
@@ -622,8 +622,8 @@ void GInstanceRecommender::impute(GVec& vec, size_t dims)
 	for(size_t neigh = 0; neigh < m_pData->rows(); neigh++)
 	{
 		// Compute the similarity
-		size_t count = 0;
-		double similarity = m_pMetric->similarity(m_pData->row(neigh), vec, count);
+		size_t count = vec.size();
+		double similarity = m_pMetric->similarity(m_pData->row(neigh), vec);
 
 		if(count < m_significanceWeight)
 			similarity *= count / m_significanceWeight;
@@ -2292,8 +2292,8 @@ void GContentBasedFilter::train(GMatrix& data)
 	m_userRatings.clear();
 
 	size_t users, items;
-        GCollaborativeFilter_dims(data, &users, &items);
-        m_items = items;
+		GCollaborativeFilter_dims(data, &users, &items);
+		m_items = items;
 	m_users = users;
 	std::set<size_t> userSet;
 
@@ -2330,8 +2330,8 @@ void GContentBasedFilter::train(GMatrix& data)
 
 		//train a learning algorithm for each user
 		GSupervisedLearner* pLearn = (GSupervisedLearner*)GLearnerLib::InstantiateAlgorithm(m_args, trainingData, labels);
-	        if(m_args.size() > 0)
-	                throw Ex("Superfluous argument: ", m_args.peek());
+			if(m_args.size() > 0)
+					throw Ex("Superfluous argument: ", m_args.peek());
 		pLearn->train(*trainingData, *labels);
 		m_userMap[(*it)] = m_learners.size();
 		m_learners.push_back(pLearn);
@@ -2342,7 +2342,7 @@ void GContentBasedFilter::train(GMatrix& data)
 double GContentBasedFilter::predict(size_t user, size_t item)
 {
 	if(user >= m_users || item >= m_items)
-                return 0.0;
+				return 0.0;
 	GVec pOut(1);
 	m_learners[m_userMap[user]]->predict(m_itemAttrs->row(m_itemMap[item]), pOut);
 	return pOut[0];
@@ -2369,9 +2369,9 @@ GDomNode* GContentBasedFilter::serialize(GDom* pDoc) const
 
 void GContentBasedFilter::clear()
 {
-//        for(vector<GSupervisedLearner*>::iterator it = m_learners.begin(); it != m_learners.end(); it++)
-//                delete(*it);
-        m_learners.clear();
+//		for(vector<GSupervisedLearner*>::iterator it = m_learners.begin(); it != m_learners.end(); it++)
+//				delete(*it);
+		m_learners.clear();
 }
 
 void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
@@ -2422,8 +2422,8 @@ void GContentBoostedCF::train(GMatrix& data)
 {
 	//make a copy of the training data
 	GMatrix* pClone = new GMatrix();
-        pClone->copy(&data);
-        std::unique_ptr<GMatrix> hClone(pClone);
+		pClone->copy(&data);
+		std::unique_ptr<GMatrix> hClone(pClone);
 	m_cbf->train(*pClone);
 
 	//Create the psuedo user-ratings vector for every user
@@ -2439,7 +2439,7 @@ void GContentBoostedCF::train(GMatrix& data)
 	GVec::setAll(m_pseudoRatingSum, 0.0, m_userMap.size());
 
 	for(size_t i = 0; i < pClone->rows(); i++)
-        {
+		{
 		GVec& vec = pClone->row(i);
 		m_pseudoRatingSum[m_userMap[(size_t)vec[0]]] += vec[2];
 	}
@@ -2485,22 +2485,22 @@ double GContentBoostedCF::predict(size_t user, size_t item)
 	double max = 2;
 	multimap<double,ArrayWrapper> neighbors = m_cf->getNeighbors(user, item);
 
-        // Combine the ratings of the nearest neighbors to make a prediction
+		// Combine the ratings of the nearest neighbors to make a prediction
 	size_t num = m_ratingCounts[m_userMap[user]];
 	double selfWeight = (num > 50) ? 1.0 : num / 50.0;
-        double weighted_sum = max * selfWeight * (m_cbf->predict(user, item)); // - (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]));
-        double sum_weight = max * selfWeight;
-        for(multimap<double,ArrayWrapper>::iterator it = neighbors.begin(); it != neighbors.end(); it++)
-        {
-                double weight = std::max(0.0, std::min(1.0, it->first));
+		double weighted_sum = max * selfWeight * (m_cbf->predict(user, item)); // - (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]));
+		double sum_weight = max * selfWeight;
+		for(multimap<double,ArrayWrapper>::iterator it = neighbors.begin(); it != neighbors.end(); it++)
+		{
+				double weight = std::max(0.0, std::min(1.0, it->first));
 		size_t neighNum = m_ratingCounts[m_userMap[(size_t)it->first]];
 		double neighWeight = (neighNum > 50) ? 1.0 : neighNum / 50.0;
 		double sigWeight = (it->second.values[1] > 50) ? 1.0 : it->second.values[1] / 50.0;
 		weight *= ((2 * selfWeight * neighWeight) / (selfWeight + neighWeight)) + sigWeight;
-                double val = m_cf->getRating(it->second.values[0], item);
-                weighted_sum += weight * val;
-                sum_weight += weight;
-        }
+				double val = m_cf->getRating(it->second.values[0], item);
+				weighted_sum += weight * val;
+				sum_weight += weight;
+		}
 
 //	return (m_pseudoRatingSum[m_userMap[user]] / m_ratingCounts[m_userMap[user]]) + (weighted_sum / sum_weight);
 	return weighted_sum / sum_weight;

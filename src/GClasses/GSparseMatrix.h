@@ -179,6 +179,9 @@ public:
 
 	/// Computes the dot product of two sparse vectors
 	static double dotProduct(SparseVec& a, SparseVec& b);
+
+	/// Returns the number of elements that the two vectors both specify in common
+	static size_t count_matching_elements(SparseVec& a, SparseVec& b);
 };
 
 

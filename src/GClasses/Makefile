@@ -245,8 +245,8 @@ clean : partialcleandbg partialcleanopt
 
 install:
 	@if [ "$${SUDO_USER}" == "" ]; then echo "You must use sudo to install"; false; fi
-	@sudo -u $${SUDO_USER} $(MAKE) -C . dbg
-	@sudo -u $${SUDO_USER} $(MAKE) -C . opt
+	@sudo -u $${SUDO_USER} $(MAKE) -j 5 -C . dbg
+	@sudo -u $${SUDO_USER} $(MAKE) -j 5 -C . opt
 	mkdir -m 0755 -p $(INSTALL_LOCATION_LIB)
 	mkdir -m 0755 -p $(INSTALL_LOCATION_INCLUDE)/GClasses
 	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_OPT)

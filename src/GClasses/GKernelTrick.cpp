@@ -61,7 +61,7 @@ GKernel* GKernel::deserialize(GDomNode* pNode)
 	return NULL;
 }
 
-GKernel* makeKernel()
+GKernel* GKernel::kernelComplex1()
 {
 	//return new GKernelIdentity();
 	//return new GKernelPolynomial(1, 7);

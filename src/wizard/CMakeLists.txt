@@ -18,6 +18,8 @@ IF(WIN32)
   ADD_DEFINITIONS( "/W3 /wd4005 /wd4996 /nologo /wd4291 /wd4267 /wd4244 /wd4305 /EHsc" )
 ENDIF()
 
+ADD_DEFINITIONS(-Wall -Werror -Wshadow -pedantic -std=c++11)
+
 #-------------------------------------------------------------------------------
 #Build the Waffles Library here
 #-------------------------------------------------------------------------------
@@ -32,9 +34,11 @@ INCLUDE_DIRECTORIES(../wizard)
 SET (LIBRARY_OUTPUT_PATH ../../lib/ CACHE PATH "Output directory libraries.")
 SET (EXECUTABLE_OUTPUT_PATH ../../bin/ CACHE PATH "Output directory for executables.")
 ADD_EXECUTABLE(waffles_wizard ../GClasses/usage.cpp ${SOURCE_FILES} ../GClasses/usage.h ${HEADER_FILES})
-#DD_EXECUTABLE(waffles_wizard ${SOURCE_FILES} ${HEADER_FILES})
-TARGET_LINK_LIBRARIES(waffles_wizard GClasses pthread)
-
+IF(WIN32)
+  TARGET_LINK_LIBRARIES(waffles_wizard GClasses Ws2_32lib)
+ELSE()
+  TARGET_LINK_LIBRARIES(waffles_wizard GClasses pthread)
+ENDIF()
 #-------------------------------------------------------------------------------
 INSTALL(
   TARGETS
