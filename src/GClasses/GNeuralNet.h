@@ -45,7 +45,7 @@ public:
 	GNeuralNet();
 
 	/// Load from a text-format
-	GNeuralNet(GDomNode* pNode);
+	GNeuralNet(const GDomNode* pNode);
 
 	virtual ~GNeuralNet();
 
@@ -416,7 +416,7 @@ public:
 	GReservoirNet();
 
 	/// Deserializing constructor
-	GReservoirNet(GDomNode* pNode, GLearnerLoader& ll);
+	GReservoirNet(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GReservoirNet();
 

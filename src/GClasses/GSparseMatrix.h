@@ -51,7 +51,7 @@ public:
 	GSparseMatrix(size_t rows, size_t cols, double defaultValue = 0.0);
 
 	/// Deserializes a sparse matrix
-	GSparseMatrix(GDomNode* pNode);
+	GSparseMatrix(const GDomNode* pNode);
 
 	~GSparseMatrix();
 

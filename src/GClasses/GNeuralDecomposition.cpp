@@ -31,7 +31,7 @@ GNeuralDecomposition::GNeuralDecomposition()
 	m_nn = new GNeuralNet();
 }
 
-GNeuralDecomposition::GNeuralDecomposition(GDomNode *pNode)
+GNeuralDecomposition::GNeuralDecomposition(const GDomNode *pNode)
 : GIncrementalLearner(pNode)
 {
 	m_nn = new GNeuralNet(pNode->field("nn"));

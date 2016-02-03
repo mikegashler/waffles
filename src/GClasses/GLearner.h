@@ -222,7 +222,7 @@ public:
 	GSupervisedLearner();
 
 	/// Deserialization constructor
-	GSupervisedLearner(GDomNode* pNode);
+	GSupervisedLearner(const GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GSupervisedLearner();
@@ -355,7 +355,7 @@ public:
 	}
 
 	/// Deserialization constructor
-	GIncrementalLearner(GDomNode* pNode)
+	GIncrementalLearner(const GDomNode* pNode)
 	: GSupervisedLearner(pNode)
 	{
 	}
@@ -428,14 +428,14 @@ public:
 	virtual ~GLearnerLoader() {}
 
 	/// Loads an incremental transform (or a two-way incremental transform) from a DOM.
-	virtual GIncrementalTransform* loadIncrementalTransform(GDomNode* pNode);
+	virtual GIncrementalTransform* loadIncrementalTransform(const GDomNode* pNode);
 
 	/// Loads a learning algorithm from a DOM.
-	virtual GSupervisedLearner* loadLearner(GDomNode* pNode);
+	virtual GSupervisedLearner* loadLearner(const GDomNode* pNode);
 
 #ifndef MIN_PREDICT
 	/// Loads a collaborative filtering algorithm from a DOM.
-	virtual GCollaborativeFilter* loadCollaborativeFilter(GDomNode* pNode);
+	virtual GCollaborativeFilter* loadCollaborativeFilter(const GDomNode* pNode);
 #endif // MIN_PREDICT
 };
 
@@ -453,7 +453,7 @@ protected:
 	GFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
 	/// Deserialization constructor
-	GFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GFilter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GFilter();
 
@@ -514,7 +514,7 @@ using GFilter::prefilterLabels;
 	GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner = true, bool ownTransform = true);
 
 	/// Deserialization constructor
-	GFeatureFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GFeatureFilter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GFeatureFilter();
@@ -563,7 +563,7 @@ using GFilter::prefilterLabels;
 	GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner = true, bool ownTransform = true);
 
 	/// Deserialization constructor
-	GLabelFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GLabelFilter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GLabelFilter();
@@ -613,7 +613,7 @@ using GFilter::prefilterLabels;
 	GAutoFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
 	/// Deserialization constructor
-	GAutoFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GAutoFilter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GAutoFilter();
@@ -676,7 +676,7 @@ public:
 	GCalibrator(GSupervisedLearner* pLearner);
 
 	/// Deserialization constructor
-	GCalibrator(GDomNode* pNode, GLearnerLoader& ll);
+	GCalibrator(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GCalibrator();
@@ -722,7 +722,7 @@ public:
 	GBaselineLearner();
 
 	/// Deserialization constructor
-	GBaselineLearner(GDomNode* pNode);
+	GBaselineLearner(const GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GBaselineLearner();
@@ -766,7 +766,7 @@ public:
 	GIdentityFunction();
 
 	/// Deserialization constructor
-	GIdentityFunction(GDomNode* pNode);
+	GIdentityFunction(const GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GIdentityFunction();

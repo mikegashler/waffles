@@ -58,7 +58,7 @@ public:
 	GDecisionTree();
 
 	/// Loads from a DOM.
-	GDecisionTree(GDomNode* pNode);
+	GDecisionTree(const GDomNode* pNode);
 
 	virtual ~GDecisionTree();
 
@@ -171,7 +171,7 @@ public:
 	GMeanMarginsTree();
 
 	/// Load from a DOM.
-	GMeanMarginsTree(GDomNode* pNode);
+	GMeanMarginsTree(const GDomNode* pNode);
 
 	virtual ~GMeanMarginsTree();
 
@@ -216,7 +216,7 @@ protected:
 
 public:
 	GRandomForest(size_t trees, size_t samples = 1);
-	GRandomForest(GDomNode* pNode, GLearnerLoader& ll);
+	GRandomForest(const GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GRandomForest();
 
 #ifndef NO_TEST_CODE

@@ -56,7 +56,7 @@ class GDistanceMetric;
       Node(){}
 
       /// Generate this node from the one serialized in the dom object
-      Node(GDomNode* domObject);
+      Node(const GDomNode* domObject);
     };
 
     ///Used for creating an array of nodes sorted by nearness to a
@@ -480,7 +480,7 @@ class GDistanceMetric;
       /// Create the correct type of training algorithm from the given dom node.
       /// Right now just returns a pointer to a DummyTrainingAlgorithm
       /// TODO: fix deserialize so training algorithms are really serialized
-      static TrainingAlgorithm* deserialize(GDomNode* pNode);
+      static TrainingAlgorithm* deserialize(const GDomNode* pNode);
 
       /// Train the map.  Subclassers see also
       /// TrainingAlgorithm::setPRelationBefore
@@ -782,7 +782,7 @@ public:
 
   /// Reconstruct this self-organizing map from its serialized form in
   /// a dom document
-  GSelfOrganizingMap(GDomNode* pNode);
+  GSelfOrganizingMap(const GDomNode* pNode);
 
   virtual ~GSelfOrganizingMap();
 

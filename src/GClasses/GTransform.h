@@ -31,7 +31,7 @@ class GTransform
 {
 public:
 	GTransform();
-	GTransform(GDomNode* pNode);
+	GTransform(const GDomNode* pNode);
 	virtual ~GTransform();
 
 	/// Applies the transformation to pIn and returns the results.
@@ -56,7 +56,7 @@ private:
 
 public:
 	GIncrementalTransform() : GTransform(), m_pRelationBefore(NULL), m_pRelationAfter(NULL) {}
-	GIncrementalTransform(GDomNode* pNode);
+	GIncrementalTransform(const GDomNode* pNode);
 	virtual ~GIncrementalTransform();
 
 #ifndef MIN_PREDICT
@@ -167,7 +167,7 @@ public:
 	GIncrementalTransformChainer(GIncrementalTransform* pFirst, GIncrementalTransform* pSecond);
 
 	/// Deserializing constructor
-	GIncrementalTransformChainer(GDomNode* pNode, GLearnerLoader& ll);
+	GIncrementalTransformChainer(const GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIncrementalTransformChainer();
 
 #ifndef MIN_PREDICT
@@ -216,7 +216,7 @@ public:
 	GPCA(size_t targetDims);
 
 	/// Load from a DOM.
-	GPCA(GDomNode* pNode);
+	GPCA(const GDomNode* pNode);
 
 	virtual ~GPCA();
 
@@ -285,7 +285,7 @@ public:
 	GNoiseGenerator();
 
 	/// Load from a DOM.
-	GNoiseGenerator(GDomNode* pNode);
+	GNoiseGenerator(const GDomNode* pNode);
 
 	virtual ~GNoiseGenerator();
 
@@ -330,7 +330,7 @@ public:
 	GPairProduct(size_t nMaxDims);
 
 	/// Load from a DOM.
-	GPairProduct(GDomNode* pNode);
+	GPairProduct(const GDomNode* pNode);
 
 	virtual ~GPairProduct();
 
@@ -374,7 +374,7 @@ public:
 	GReservoir(double weightDeviation = 2.0, size_t outputs = 64, size_t hiddenLayers = 2);
 
 	/// Load from a DOM.
-	GReservoir(GDomNode* pNode);
+	GReservoir(const GDomNode* pNode);
 
 	virtual ~GReservoir();
 
@@ -418,7 +418,7 @@ public:
 	GDataAugmenter(GIncrementalTransform* pTransform);
 
 	/// Load from a DOM
-	GDataAugmenter(GDomNode* pNode, GLearnerLoader& ll);
+	GDataAugmenter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GDataAugmenter();
 
@@ -463,7 +463,7 @@ public:
 	{
 	}
 
-	GAttributeSelector(GDomNode* pNode);
+	GAttributeSelector(const GDomNode* pNode);
 
 	virtual ~GAttributeSelector()
 	{
@@ -523,7 +523,7 @@ public:
 	GNominalToCat(size_t valueCap = 12);
 
 	/// Load from a DOM.
-	GNominalToCat(GDomNode* pNode);
+	GNominalToCat(const GDomNode* pNode);
 
 	virtual ~GNominalToCat();
 
@@ -575,7 +575,7 @@ public:
 	GNormalize(double min = 0.0, double max = 1.0);
 
 	/// Load from a DOM.
-	GNormalize(GDomNode* pNode);
+	GNormalize(const GDomNode* pNode);
 
 	virtual ~GNormalize();
 
@@ -620,7 +620,7 @@ public:
 	GDiscretize(size_t buckets = INVALID_INDEX);
 
 	/// Load from a DOM.
-	GDiscretize(GDomNode* pNode);
+	GDiscretize(const GDomNode* pNode);
 
 	virtual ~GDiscretize();
 
@@ -660,7 +660,7 @@ public:
 	GImputeMissingVals();
 
 	/// Deserializing constructor
-	GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll);
+	GImputeMissingVals(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GImputeMissingVals();
 
@@ -710,7 +710,7 @@ public:
 	GLogify();
 
 	/// Load from a DOM.
-	GLogify(GDomNode* pNode);
+	GLogify(const GDomNode* pNode);
 
 	virtual ~GLogify();
 

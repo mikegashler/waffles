@@ -58,7 +58,7 @@ m_epochsPerValidationCheck(100)
 {
 }
 
-GNeuralNet::GNeuralNet(GDomNode* pNode)
+GNeuralNet::GNeuralNet(const GDomNode* pNode)
 : GIncrementalLearner(pNode),
 m_validationPortion(0.35),
 m_minImprovement(0.002),
@@ -1875,7 +1875,7 @@ GReservoirNet::GReservoirNet()
 {
 }
 
-GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
+GReservoirNet::GReservoirNet(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalLearner(pNode)
 {
 	m_pModel = (GIncrementalLearner*)ll.loadLearner(pNode->field("model"));

@@ -48,12 +48,12 @@ std::string to_str(const GDom& doc);
 class GDomListIterator
 {
 protected:
-	GDomNode* m_pList;
+	const GDomNode* m_pList;
 	GDomListItem* m_pCurrent;
 	size_t m_remaining;
 
 public:
-	GDomListIterator(GDomNode* pNode);
+	GDomListIterator(const GDomNode* pNode);
 	~GDomListIterator();
 
 	/// Returns the current item in the list
@@ -103,13 +103,13 @@ private:
 
 public:
 	/// Returns the type of this node
-	nodetype type()
+	nodetype type() const
 	{
 		return (nodetype)m_type;
 	}
 
 	/// Returns the boolean value stored by this node. Throws if this is not a bool type
-	bool asBool()
+	bool asBool() const
 	{
 		if(m_type != type_bool)
 			throw Ex("\"", to_str(this), "\" is not a bool");
@@ -117,7 +117,7 @@ public:
 	}
 
 	/// Returns the 64-bit integer value stored by this node. Throws if this is not an integer type
-	long long asInt()
+	long long asInt() const
 	{
 		if(m_type != type_int)
 			throw Ex("\"", to_str(this), "\" is not an int");
@@ -125,7 +125,7 @@ public:
 	}
 
 	/// Returns the double value stored by this node. Throws if this is not a double type
-	double asDouble()
+	double asDouble() const
 	{
 		if(m_type == type_double)
 			return m_value.m_double;
@@ -137,7 +137,7 @@ public:
 	}
 
 	/// Returns the string value stored by this node. Throws if this is not a string type
-	const char* asString()
+	const char* asString() const
 	{
 		if(m_type != type_string)
 			throw Ex("\"", to_str(this), "\" is not a string");
@@ -146,11 +146,11 @@ public:
 
 	/// Returns the node with the specified field name. Throws if this is not an object type. Returns
 	/// NULL if this is an object type, but there is no field with the specified name
-	GDomNode* fieldIfExists(const char* szName);
+	GDomNode* fieldIfExists(const char* szName) const;
 
 	/// Returns the node with the specified field name. Throws if this is not an object type. Throws
 	/// if there is no field with the name specified by szName
-	GDomNode* field(const char* szName)
+	GDomNode* field(const char* szName) const
 	{
 		GDomNode* pNode = fieldIfExists(szName);
 		if(!pNode)
@@ -165,6 +165,9 @@ public:
 
 	/// Adds an item to a list node. Returns a pointer to the item passed in (pNode).
 	GDomNode* addItem(GDom* pDoc, GDomNode* pNode);
+
+	/// Writes this node to a JSON file
+	void saveJson(const char* filename) const;
 
 	/// Writes this node in JSON format.
 	void writeJson(std::ostream& stream) const;
@@ -217,7 +220,7 @@ class GDom
 friend class GDomNode;
 protected:
 	GHeap m_heap;
-	GDomNode* m_pRoot;
+	const GDomNode* m_pRoot;
 	int m_line;
 	size_t m_len;
 	const char* m_pDoc;
@@ -259,10 +262,10 @@ public:
 	void writeXml(std::ostream& stream) const;
 
 	/// Gets the root document node
-	GDomNode* root() const { return m_pRoot; }
+	const GDomNode* root() const { return m_pRoot; }
 
 	/// Sets the root document node. (Returns the same node that you pass in.)
-	GDomNode* setRoot(GDomNode* pNode) { m_pRoot = pNode; return pNode; }
+	const GDomNode* setRoot(const GDomNode* pNode) { m_pRoot = pNode; return pNode; }
 
 	/// Makes a new object node
 	GDomNode* newObj();

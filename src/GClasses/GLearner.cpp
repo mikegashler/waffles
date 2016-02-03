@@ -423,7 +423,7 @@ GSupervisedLearner::GSupervisedLearner()
 {
 }
 
-GSupervisedLearner::GSupervisedLearner(GDomNode* pNode)
+GSupervisedLearner::GSupervisedLearner(const GDomNode* pNode)
 : GTransducer()
 {
 	m_pRelFeatures = GRelation::deserialize(pNode->field("_rf"));
@@ -933,7 +933,7 @@ void GIncrementalLearner::beginIncrementalLearning(const GMatrix& features, cons
 // ---------------------------------------------------------------
 
 // virtual
-GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
+GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(const GDomNode* pNode)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(szClass[0] == 'G')
@@ -991,7 +991,7 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(GDomNode* pNode)
 }
 
 // virtual
-GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
+GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 {
 #ifndef MIN_PREDICT
 	const char* szClass = pNode->field("class")->asString();
@@ -1078,7 +1078,7 @@ GSupervisedLearner* GLearnerLoader::loadLearner(GDomNode* pNode)
 
 #ifndef MIN_PREDICT
 // virtual
-GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(GDomNode* pNode)
+GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(const GDomNode* pNode)
 {
 	const char* szClass = pNode->field("class")->asString();
 	if(szClass[0] == 'G')
@@ -1106,7 +1106,7 @@ GFilter::GFilter(GSupervisedLearner* pLearner, bool ownLearner)
 		m_pIncrementalLearner = (GIncrementalLearner*)pLearner;
 }
 
-GFilter::GFilter(GDomNode* pNode, GLearnerLoader& ll)
+GFilter::GFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalLearner(pNode), m_pIncrementalLearner(NULL), m_ownLearner(true)
 {
 	m_pLearner = ll.loadLearner(pNode->field("learner"));
@@ -1214,7 +1214,7 @@ GFeatureFilter::GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransfo
 {
 }
 
-GFeatureFilter::GFeatureFilter(GDomNode* pNode, GLearnerLoader& ll)
+GFeatureFilter::GFeatureFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : GFilter(pNode, ll), m_ownTransform(true)
 {
 	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
@@ -1309,7 +1309,7 @@ GLabelFilter::GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* 
 {
 }
 
-GLabelFilter::GLabelFilter(GDomNode* pNode, GLearnerLoader& ll)
+GLabelFilter::GLabelFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : GFilter(pNode, ll), m_ownTransform(true)
 {
 	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
@@ -1406,7 +1406,7 @@ GAutoFilter::GAutoFilter(GSupervisedLearner* pLearner, bool ownLearner)
 {
 }
 
-GAutoFilter::GAutoFilter(GDomNode* pNode, GLearnerLoader& ll)
+GAutoFilter::GAutoFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : GFilter(pNode, ll)
 {
 }
@@ -1720,7 +1720,7 @@ GCalibrator::GCalibrator(GSupervisedLearner* pLearner)
 {
 }
 
-GCalibrator::GCalibrator(GDomNode* pNode, GLearnerLoader& ll)
+GCalibrator::GCalibrator(const GDomNode* pNode, GLearnerLoader& ll)
 : GFilter(pNode, ll)
 {
 }
@@ -1896,7 +1896,7 @@ GBaselineLearner::GBaselineLearner()
 {
 }
 
-GBaselineLearner::GBaselineLearner(GDomNode* pNode)
+GBaselineLearner::GBaselineLearner(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_prediction.clear();
@@ -1979,7 +1979,7 @@ GIdentityFunction::GIdentityFunction()
 {
 }
 
-GIdentityFunction::GIdentityFunction(GDomNode* pNode)
+GIdentityFunction::GIdentityFunction(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();

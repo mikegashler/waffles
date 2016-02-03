@@ -56,7 +56,7 @@ public:
 	GNaiveInstance();
 
 	/// Deserializing constructor
-	GNaiveInstance(GDomNode* pNode);
+	GNaiveInstance(const GDomNode* pNode);
 	virtual ~GNaiveInstance();
 
 #ifndef NO_TEST_CODE

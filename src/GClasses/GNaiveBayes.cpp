@@ -241,7 +241,7 @@ GNaiveBayes::GNaiveBayes()
 	m_nSampleCount = 0;
 }
 
-GNaiveBayes::GNaiveBayes(GDomNode* pNode)
+GNaiveBayes::GNaiveBayes(const GDomNode* pNode)
 : GIncrementalLearner(pNode)
 {
 	m_nSampleCount = (size_t)pNode->field("sampleCount")->asInt();

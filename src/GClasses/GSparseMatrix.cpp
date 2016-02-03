@@ -41,7 +41,7 @@ GSparseMatrix::GSparseMatrix(size_t rowCount, size_t colCount, double def_Value)
 	m_rows.resize(rowCount);
 }
 
-GSparseMatrix::GSparseMatrix(GDomNode* pNode)
+GSparseMatrix::GSparseMatrix(const GDomNode* pNode)
 {
 	m_defaultValue = pNode->field("def")->asDouble();
 	m_cols = (size_t)pNode->field("cols")->asInt();

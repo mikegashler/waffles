@@ -58,7 +58,7 @@ public:
 };
 
 
-GDomListIterator::GDomListIterator(GDomNode* pNode)
+GDomListIterator::GDomListIterator(const GDomNode* pNode)
 {
 	if(pNode->m_type != GDomNode::type_list)
 		throw Ex("\"", to_str(pNode), "\" is not a list type");
@@ -89,7 +89,7 @@ size_t GDomListIterator::remaining()
 }
 
 
-GDomNode* GDomNode::fieldIfExists(const char* szName)
+GDomNode* GDomNode::fieldIfExists(const char* szName) const
 {
 	if(m_type != type_obj)
 		throw Ex("\"", to_str(this), "\" is not an obj");
@@ -229,6 +229,13 @@ size_t writeJSONStringCpp(std::ostream& stream, const char* szString)
 	stream << "\\\"";
 	chars += 2;
 	return chars;
+}
+
+void GDomNode::saveJson(const char* filename) const
+{
+	GDom doc;
+	doc.setRoot(this);
+	doc.saveJson(filename);
 }
 
 void GDomNode::writeJson(std::ostream& stream) const

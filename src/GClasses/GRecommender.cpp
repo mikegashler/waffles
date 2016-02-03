@@ -71,7 +71,7 @@ GCollaborativeFilter::GCollaborativeFilter()
 {
 }
 
-GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll)
+GCollaborativeFilter::GCollaborativeFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : m_rand(0)
 {
 }
@@ -373,7 +373,7 @@ GBaselineRecommender::GBaselineRecommender()
 {
 }
 
-GBaselineRecommender::GBaselineRecommender(GDomNode* pNode, GLearnerLoader& ll)
+GBaselineRecommender::GBaselineRecommender(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_ratings.deserialize(pNode->field("ratings"));
@@ -471,7 +471,7 @@ GInstanceRecommender::GInstanceRecommender(size_t neighbors)
 	m_pMetric = new GCosineSimilarity();
 }
 
-GInstanceRecommender::GInstanceRecommender(GDomNode* pNode, GLearnerLoader& ll)
+GInstanceRecommender::GInstanceRecommender(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_neighbors = (size_t)pNode->field("neighbors")->asInt();
@@ -925,7 +925,7 @@ GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims)
 {
 }
 
-GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll)
+GMatrixFactorization::GMatrixFactorization(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_regularizer = pNode->field("reg")->asDouble();
@@ -1617,7 +1617,7 @@ GNonlinearPCA::GNonlinearPCA(size_t intrinsicDims)
 	m_pUsers = NULL;
 }
 
-GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
+GNonlinearPCA::GNonlinearPCA(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_useInputBias = pNode->field("uib")->asBool();
@@ -1941,7 +1941,7 @@ GLogNet::GLogNet(size_t intrinsicDims)
 {
 }
 
-GLogNet::GLogNet(GDomNode* pNode, GLearnerLoader& ll)
+GLogNet::GLogNet(const GDomNode* pNode, GLearnerLoader& ll)
 {
 	throw Ex("Sorry, not implemented yet");
 }
@@ -2159,7 +2159,7 @@ GBagOfRecommenders::GBagOfRecommenders()
 {
 }
 
-GBagOfRecommenders::GBagOfRecommenders(GDomNode* pNode, GLearnerLoader& ll)
+GBagOfRecommenders::GBagOfRecommenders(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_itemCount = (size_t)pNode->field("ic")->asInt();

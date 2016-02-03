@@ -745,7 +745,7 @@ namespace{
     return pNode;
   }
 
-  std::vector<double> doubleVectorDeserialize(GDomNode* pNode){
+  std::vector<double> doubleVectorDeserialize(const GDomNode* pNode){
     GDomListIterator it(pNode);
     std::size_t size = it.remaining();
     std::vector<double> out; out.reserve(size);
@@ -770,7 +770,7 @@ namespace{
   ///Deserialize a vector of any object that can be constructed from a
   ///GDomNode
   template<class vectortype>
-  vectortype objVectorDeserialize(GDomNode* pNode){
+  vectortype objVectorDeserialize(const GDomNode* pNode){
     GDomListIterator it(pNode);
     std::size_t size = it.remaining();
     vectortype out; out.reserve(size);
@@ -782,7 +782,7 @@ namespace{
   }
 }
 
-SOM::Node::Node(GDomNode* pNode)
+SOM::Node::Node(const GDomNode* pNode)
   :outputLocation(doubleVectorDeserialize(pNode->field("outputLocation"))),
    weights(doubleVectorDeserialize(pNode->field("weights"))){}
 
@@ -803,7 +803,7 @@ GDomNode* SOM::TrainingAlgorithm::serialize(GDom* pDoc) const{
   return pNode;
 }
 
-SOM::TrainingAlgorithm* SOM::TrainingAlgorithm::deserialize(GDomNode* pNode){
+SOM::TrainingAlgorithm* SOM::TrainingAlgorithm::deserialize(const GDomNode* pNode){
   return new DummyTrainingAlgorithm();
 }
 
@@ -823,7 +823,7 @@ GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
   return pNode;
 }
 
-GSelfOrganizingMap::GSelfOrganizingMap(GDomNode* pNode) : GIncrementalTransform(pNode) {
+GSelfOrganizingMap::GSelfOrganizingMap(const GDomNode* pNode) : GIncrementalTransform(pNode) {
   m_nInputDims=(unsigned int)pNode->field("inputDims")->asInt();
   m_outputAxes=doubleVectorDeserialize(pNode->field("outputAxes"));
   m_pTrainer=SOM::TrainingAlgorithm::deserialize(pNode->field("trainer"));
