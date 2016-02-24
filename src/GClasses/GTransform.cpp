@@ -52,7 +52,7 @@ GTransform::GTransform()
 {
 }
 
-GTransform::GTransform(GDomNode* pNode)
+GTransform::GTransform(const GDomNode* pNode)
 {
 }
 
@@ -71,7 +71,7 @@ GDomNode* GTransform::baseDomNode(GDom* pDoc, const char* szClassName) const
 
 // ---------------------------------------------------------------
 
-GIncrementalTransform::GIncrementalTransform(GDomNode* pNode)
+GIncrementalTransform::GIncrementalTransform(const GDomNode* pNode)
 : GTransform(pNode)
 {
 	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
@@ -238,7 +238,7 @@ GIncrementalTransformChainer::GIncrementalTransformChainer(GIncrementalTransform
 {
 }
 
-GIncrementalTransformChainer::GIncrementalTransformChainer(GDomNode* pNode, GLearnerLoader& ll)
+GIncrementalTransformChainer::GIncrementalTransformChainer(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalTransform(pNode)
 {
 	m_pFirst = ll.loadIncrementalTransform(pNode->field("first"));
@@ -314,7 +314,7 @@ GPCA::GPCA(size_t target_Dims)
 {
 }
 
-GPCA::GPCA(GDomNode* pNode)
+GPCA::GPCA(const GDomNode* pNode)
 : GIncrementalTransform(pNode), m_rand(0)
 {
 	m_pBasisVectors = new GMatrix(pNode->field("basis"));
@@ -428,7 +428,7 @@ GNoiseGenerator::GNoiseGenerator()
 {
 }
 
-GNoiseGenerator::GNoiseGenerator(GDomNode* pNode)
+GNoiseGenerator::GNoiseGenerator(const GDomNode* pNode)
 : GIncrementalTransform(pNode), m_rand(0)
 {
 	m_mean = pNode->field("mean")->asDouble();
@@ -481,7 +481,7 @@ GPairProduct::GPairProduct(size_t nMaxDims)
 {
 }
 
-GPairProduct::GPairProduct(GDomNode* pNode)
+GPairProduct::GPairProduct(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
 	m_maxDims = (size_t)pNode->field("maxDims")->asInt();
@@ -537,7 +537,7 @@ GReservoir::GReservoir(double weightDeviation, size_t outputs, size_t hiddenLaye
 {
 }
 
-GReservoir::GReservoir(GDomNode* pNode)
+GReservoir::GReservoir(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
 	m_pNN = new GNeuralNet(pNode->field("nn"));
@@ -602,7 +602,7 @@ GDataAugmenter::GDataAugmenter(GIncrementalTransform* pTransform)
 {
 }
 
-GDataAugmenter::GDataAugmenter(GDomNode* pNode, GLearnerLoader& ll)
+GDataAugmenter::GDataAugmenter(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalTransform(pNode)
 {
 	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
@@ -667,7 +667,7 @@ void GDataAugmenter::untransformToDistribution(const GVec& in, GPrediction* out)
 // --------------------------------------------------------------------------
 #ifndef MIN_PREDICT
 
-GAttributeSelector::GAttributeSelector(GDomNode* pNode)
+GAttributeSelector::GAttributeSelector(const GDomNode* pNode)
 : GIncrementalTransform(pNode), m_seed(1234567)
 {
 	m_labelDims = (size_t)pNode->field("labels")->asInt();
@@ -843,7 +843,7 @@ GNominalToCat::GNominalToCat(size_t nValueCap)
 {
 }
 
-GNominalToCat::GNominalToCat(GDomNode* pNode)
+GNominalToCat::GNominalToCat(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
 	m_valueCap = (size_t)pNode->field("valueCap")->asInt();
@@ -1086,7 +1086,7 @@ GNormalize::GNormalize(double min, double max)
 {
 }
 
-GNormalize::GNormalize(GDomNode* pNode)
+GNormalize::GNormalize(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
 	m_min = pNode->field("min")->asDouble();
@@ -1209,7 +1209,7 @@ GDiscretize::GDiscretize(size_t buckets)
 	m_bucketsOut = -1;
 }
 
-GDiscretize::GDiscretize(GDomNode* pNode)
+GDiscretize::GDiscretize(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
 	m_bucketsIn = (size_t)pNode->field("bucketsIn")->asInt();
@@ -1338,7 +1338,7 @@ GImputeMissingVals::GImputeMissingVals()
 {
 }
 
-GImputeMissingVals::GImputeMissingVals(GDomNode* pNode, GLearnerLoader& ll)
+GImputeMissingVals::GImputeMissingVals(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalTransform(pNode), m_pLabels(NULL), m_pBatch(NULL)
 {
 	m_pCF = ll.loadCollaborativeFilter(pNode->field("cf"));
@@ -1504,7 +1504,7 @@ GLogify::GLogify()
 {
 }
 
-GLogify::GLogify(GDomNode* pNode)
+GLogify::GLogify(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
 }

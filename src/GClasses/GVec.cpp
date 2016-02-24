@@ -292,7 +292,7 @@ GDomNode* GVec::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-void GVec::deserialize(GDomNode* pNode)
+void GVec::deserialize(const GDomNode* pNode)
 {
 	GDomListIterator it(pNode);
 	resize(it.remaining());

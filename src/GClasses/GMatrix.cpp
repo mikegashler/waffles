@@ -56,7 +56,7 @@ namespace GClasses {
 GUniformRelation g_emptyRelation(0, 0);
 
 // static
-GRelation* GRelation::deserialize(GDomNode* pNode)
+GRelation* GRelation::deserialize(const GDomNode* pNode)
 {
 	if(pNode->fieldIfExists("name"))
 		return new GArffRelation(pNode);
@@ -316,7 +316,7 @@ void GRelation::test()
 
 
 
-GUniformRelation::GUniformRelation(GDomNode* pNode)
+GUniformRelation::GUniformRelation(const GDomNode* pNode)
 {
 	m_attrCount = (size_t)pNode->field("attrs")->asInt();
 	m_valueCount = (size_t)pNode->field("vals")->asInt();
@@ -367,7 +367,7 @@ GMixedRelation::GMixedRelation(vector<size_t>& attrValues)
 		addAttr(*it);
 }
 
-GMixedRelation::GMixedRelation(GDomNode* pNode)
+GMixedRelation::GMixedRelation(const GDomNode* pNode)
 {
 	m_valueCounts.clear();
 	GDomNode* pValueCounts = pNode->field("vals");
@@ -568,7 +568,7 @@ GArffRelation::GArffRelation()
 {
 }
 
-GArffRelation::GArffRelation(GDomNode* pNode)
+GArffRelation::GArffRelation(const GDomNode* pNode)
 {
 	m_name = pNode->field("name")->asString();
 	GDomListIterator it(pNode->field("attrs"));
@@ -1029,7 +1029,7 @@ GMatrix& GMatrix::operator=(const GMatrix& orig)
 	return *this;
 }
 
-GMatrix::GMatrix(GDomNode* pNode)
+GMatrix::GMatrix(const GDomNode* pNode)
 {
 	m_pRelation = GRelation::deserialize(pNode->field("rel"));
 	GDomNode* pRows = pNode->field("vals");

@@ -59,7 +59,7 @@ GEnsemble::GEnsemble()
 {
 }
 
-GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
+GEnsemble::GEnsemble(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode), m_pPredictMaster(NULL)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
@@ -275,7 +275,7 @@ GBag::GBag()
 {
 }
 
-GBag::GBag(GDomNode* pNode, GLearnerLoader& ll)
+GBag::GBag(const GDomNode* pNode, GLearnerLoader& ll)
 : GEnsemble(pNode, ll), m_pCB(NULL), m_pThis(NULL)
 {
 	m_trainSize = pNode->field("ts")->asDouble();
@@ -437,7 +437,7 @@ void GBag::test()
 
 
 
-GBomb::GBomb(GDomNode* pNode, GLearnerLoader& ll)
+GBomb::GBomb(const GDomNode* pNode, GLearnerLoader& ll)
 : GBag(pNode, ll)
 {
 	m_samples = (size_t)pNode->field("samps")->asInt();
@@ -567,7 +567,7 @@ void GBayesianModelAveraging::test()
 
 
 
-GBayesianModelCombination::GBayesianModelCombination(GDomNode* pNode, GLearnerLoader& ll)
+GBayesianModelCombination::GBayesianModelCombination(const GDomNode* pNode, GLearnerLoader& ll)
 : GBag(pNode, ll)
 {
 	m_samples = (size_t)pNode->field("samps")->asInt();
@@ -650,7 +650,7 @@ GResamplingAdaBoost::GResamplingAdaBoost(GSupervisedLearner* pLearner, bool ownL
 {
 }
 
-GResamplingAdaBoost::GResamplingAdaBoost(GDomNode* pNode, GLearnerLoader& ll)
+GResamplingAdaBoost::GResamplingAdaBoost(const GDomNode* pNode, GLearnerLoader& ll)
 : GEnsemble(pNode, ll), m_pLearner(NULL), m_ownLearner(false), m_pLoader(NULL)
 {
 	m_trainSize = pNode->field("ts")->asDouble();
@@ -788,7 +788,7 @@ GWag::GWag(size_t size)
 	m_pNN = new GNeuralNet();
 }
 
-GWag::GWag(GDomNode* pNode, GLearnerLoader& ll)
+GWag::GWag(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode)
 {
 	m_pNN = new GNeuralNet(pNode->field("nn"));
@@ -884,7 +884,7 @@ GBucket::GBucket()
 	m_nBestLearner = INVALID_INDEX;
 }
 
-GBucket::GBucket(GDomNode* pNode, GLearnerLoader& ll)
+GBucket::GBucket(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode)
 {
 	GDomNode* pModels = pNode->field("models");

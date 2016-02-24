@@ -114,7 +114,7 @@ GKNN::GKNN()
 	m_pScaleFactorOptimizer = NULL;
 }
 
-GKNN::GKNN(GDomNode* pNode)
+GKNN::GKNN(const GDomNode* pNode)
 : GIncrementalLearner(pNode)
 {
 	m_pNeighborFinder = NULL;
@@ -971,7 +971,7 @@ GSparseInstance::GSparseInstance()
 {
 }
 
-GSparseInstance::GSparseInstance(GDomNode* pNode)
+GSparseInstance::GSparseInstance(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_neighborCount = (size_t)pNode->field("neighbors")->asInt();

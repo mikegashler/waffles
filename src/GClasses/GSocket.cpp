@@ -1073,7 +1073,7 @@ void GDomClient::send(GDomNode* pNode)
 	GPackageClient::send(s.c_str(), s.length());
 }
 
-GDomNode* GDomClient::receive()
+const GDomNode* GDomClient::receive()
 {
 	m_doc.clear();
 	size_t len;
@@ -1100,7 +1100,7 @@ void GDomServer::send(GDomNode* pNode, GPackageConnection* pConn)
 	GPackageServer::send(s.c_str(), s.length(), pConn);
 }
 
-GDomNode* GDomServer::receive(GPackageConnection** pOutConn)
+const GDomNode* GDomServer::receive(GPackageConnection** pOutConn)
 {
 	m_doc.clear();
 	size_t len;

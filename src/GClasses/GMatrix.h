@@ -152,7 +152,7 @@ public:
 	void fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount) const;
 
 	/// \brief Load from a DOM.
-	static GRelation* deserialize(GDomNode* pNode);
+	static GRelation* deserialize(const GDomNode* pNode);
 
 	/// \brief Saves to a file
 	void save(const GMatrix* pData, const char* szFilename, size_t precision) const;
@@ -181,7 +181,7 @@ public:
 	{
 	}
 
-	GUniformRelation(GDomNode* pNode);
+	GUniformRelation(const GDomNode* pNode);
 
 	virtual RelationType type() const { return UNIFORM; }
 
@@ -239,7 +239,7 @@ public:
 	GMixedRelation(std::vector<size_t>& attrValues);
 
 	/// \brief Loads from a DOM.
-	GMixedRelation(GDomNode* pNode);
+	GMixedRelation(const GDomNode* pNode);
 
 	/// \brief Makes a copy of pCopyMe
 	GMixedRelation(const GRelation* pCopyMe);
@@ -345,7 +345,7 @@ public:
 	GArffRelation();
 
 	/// Deserializing constructor
-	GArffRelation(GDomNode* pNode);
+	GArffRelation(const GDomNode* pNode);
 
 	virtual ~GArffRelation();
 
@@ -514,7 +514,7 @@ public:
 
 
 	/// \brief Load from a DOM.
-	GMatrix(GDomNode* pNode);
+	GMatrix(const GDomNode* pNode);
 
 	~GMatrix();
 

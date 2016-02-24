@@ -353,7 +353,7 @@ public:
 	void send(GDomNode* pNode);
 
 	/// Receive the next available DOM node, or NULL if none are ready.
-	GDomNode* receive();
+	const GDomNode* receive();
 };
 
 
@@ -371,7 +371,7 @@ public:
 	void send(GDomNode* pNode, GPackageConnection* pConn);
 
 	/// Receive the next available DOM node, or NULL if none are ready.
-	GDomNode* receive(GPackageConnection** pOutConn);
+	const GDomNode* receive(GPackageConnection** pOutConn);
 
 };
 

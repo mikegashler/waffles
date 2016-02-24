@@ -74,7 +74,7 @@ public:
 	GEnsemble();
 
 	/// Deserializing constructor.
-	GEnsemble(GDomNode* pNode, GLearnerLoader& ll);
+	GEnsemble(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GEnsemble();
 
@@ -151,7 +151,7 @@ public:
 	GBag();
 
 	/// Deserializing constructor.
-	GBag(GDomNode* pNode, GLearnerLoader& ll);
+	GBag(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBag();
 
@@ -200,7 +200,7 @@ public:
 	GBomb() : GBag(), m_samples(100) {}
 
 	/// Deserializing constructor.
-	GBomb(GDomNode* pNode, GLearnerLoader& ll);
+	GBomb(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBomb() {}
 
@@ -239,7 +239,7 @@ public:
 	GBayesianModelAveraging() : GBag() {}
 
 	/// Deserializing constructor.
-	GBayesianModelAveraging(GDomNode* pNode, GLearnerLoader& ll) : GBag(pNode, ll) {}
+	GBayesianModelAveraging(const GDomNode* pNode, GLearnerLoader& ll) : GBag(pNode, ll) {}
 
 	virtual ~GBayesianModelAveraging() {}
 
@@ -272,7 +272,7 @@ public:
 	GBayesianModelCombination() : GBag(), m_samples(100) {}
 
 	/// Deserializing constructor.
-	GBayesianModelCombination(GDomNode* pNode, GLearnerLoader& ll);
+	GBayesianModelCombination(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBayesianModelCombination() {}
 
@@ -324,7 +324,7 @@ public:
 	GResamplingAdaBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader);
 
 	/// Deserializing constructor
-	GResamplingAdaBoost(GDomNode* pNode, GLearnerLoader& ll);
+	GResamplingAdaBoost(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GResamplingAdaBoost();
 
@@ -369,7 +369,7 @@ public:
 	GWag(size_t size);
 
 	/// Deserializing constructor
-	GWag(GDomNode* pNode, GLearnerLoader& ll);
+	GWag(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GWag();
 
@@ -425,7 +425,7 @@ public:
 	GBucket();
 
 	/// Deserializing constructor
-	GBucket(GDomNode* pNode, GLearnerLoader& ll);
+	GBucket(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GBucket();
 

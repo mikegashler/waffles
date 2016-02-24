@@ -58,7 +58,7 @@ public:
 	virtual void print(GDecisionTree* pTree, ostream& stream, vector<char>& prefix, const char* parentValue) = 0;
 	virtual void CountValues(size_t nOutput, size_t* pnCounts) = 0;
 	virtual double FindSumOutputValue(size_t nOutput) = 0;
-	static GDecisionTreeNode* deserialize(GDomNode* pNode);
+	static GDecisionTreeNode* deserialize(const GDomNode* pNode);
 	virtual GDomNode* serialize(GDom* pDoc, size_t outputCount) = 0;
 };
 
@@ -80,7 +80,7 @@ public:
 		memset(m_ppChildren, '\0', sizeof(GDecisionTreeNode*) * children);
 	}
 
-	GDecisionTreeInteriorNode(GDomNode* pNode) : GDecisionTreeNode()
+	GDecisionTreeInteriorNode(const GDomNode* pNode) : GDecisionTreeNode()
 	{
 		m_nAttribute = (size_t)pNode->field("attr")->asInt();
 		m_dPivot = pNode->field("pivot")->asDouble();
@@ -256,7 +256,7 @@ public:
 		m_nSampleSize = nSampleSize;
 	}
 
-	GDecisionTreeLeafNode(GDomNode* pNode) : GDecisionTreeNode()
+	GDecisionTreeLeafNode(const GDomNode* pNode) : GDecisionTreeNode()
 	{
 		m_nSampleSize = (size_t)pNode->field("size")->asInt();
 		GDomNode* pOut = pNode->field("out");
@@ -342,7 +342,7 @@ public:
 }
 
 // static
-GDecisionTreeNode* GDecisionTreeNode::deserialize(GDomNode* pNode)
+GDecisionTreeNode* GDecisionTreeNode::deserialize(const GDomNode* pNode)
 {
 	if(pNode->fieldIfExists("children"))
 		return new GDecisionTreeInteriorNode(pNode);
@@ -359,7 +359,7 @@ GDecisionTree::GDecisionTree()
 	m_eAlg = GDecisionTree::MINIMIZE_ENTROPY;
 }
 
-GDecisionTree::GDecisionTree(GDomNode* pNode)
+GDecisionTree::GDecisionTree(const GDomNode* pNode)
 : GSupervisedLearner(pNode), m_leafThresh(1), m_maxLevels(0)
 {
 	m_eAlg = (DivisionAlgorithm)pNode->field("alg")->asInt();
@@ -1020,7 +1020,7 @@ public:
 	virtual bool IsLeaf() = 0;
 	virtual GDomNode* serialize(GDom* pDoc, size_t nInputs, size_t nOutputs) = 0;
 
-	static GMeanMarginsTreeNode* deserialize(GDomNode* pNode);
+	static GMeanMarginsTreeNode* deserialize(const GDomNode* pNode);
 };
 
 
@@ -1042,7 +1042,7 @@ public:
 		m_pRight = NULL;
 	}
 
-	GMeanMarginsTreeInteriorNode(GDomNode* pNode)
+	GMeanMarginsTreeInteriorNode(const GDomNode* pNode)
 	: GMeanMarginsTreeNode()
 	{
 		m_pCenter.deserialize(pNode->field("center"));
@@ -1112,7 +1112,7 @@ public:
 		m_pOutputs.copy(outputs);
 	}
 
-	GMeanMarginsTreeLeafNode(GDomNode* pNode)
+	GMeanMarginsTreeLeafNode(const GDomNode* pNode)
 	: GMeanMarginsTreeNode()
 	{
 		m_pOutputs.deserialize(pNode);
@@ -1140,7 +1140,7 @@ public:
 }
 
 // static
-GMeanMarginsTreeNode* GMeanMarginsTreeNode::deserialize(GDomNode* pNode)
+GMeanMarginsTreeNode* GMeanMarginsTreeNode::deserialize(const GDomNode* pNode)
 {
 	if(pNode->type() == GDomNode::type_list)
 		return new GMeanMarginsTreeLeafNode(pNode);
@@ -1155,7 +1155,7 @@ GMeanMarginsTree::GMeanMarginsTree()
 {
 }
 
-GMeanMarginsTree::GMeanMarginsTree(GDomNode* pNode)
+GMeanMarginsTree::GMeanMarginsTree(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_pRoot = GMeanMarginsTreeNode::deserialize(pNode->field("root"));
@@ -1371,7 +1371,7 @@ GRandomForest::GRandomForest(size_t trees, size_t samples)
 	}
 }
 
-GRandomForest::GRandomForest(GDomNode* pNode, GLearnerLoader& ll)
+GRandomForest::GRandomForest(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode)
 {
 	m_pEnsemble = new GBag(pNode->field("bag"), ll);

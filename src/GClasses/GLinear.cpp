@@ -36,7 +36,7 @@ GLinearRegressor::GLinearRegressor()
 {
 }
 
-GLinearRegressor::GLinearRegressor(GDomNode* pNode)
+GLinearRegressor::GLinearRegressor(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_pBeta = new GMatrix(pNode->field("beta"));
@@ -268,7 +268,7 @@ GLinearDistribution::GLinearDistribution()
 {
 }
 
-GLinearDistribution::GLinearDistribution(GDomNode* pNode)
+GLinearDistribution::GLinearDistribution(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_noiseDev = pNode->field("nd")->asDouble();

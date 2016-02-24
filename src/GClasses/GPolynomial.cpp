@@ -47,7 +47,7 @@ public:
 	GPolynomialSingleLabel(size_t nControlPoints);
 
 	/// Load from a DOM.
-	GPolynomialSingleLabel(GDomNode* pNode);
+	GPolynomialSingleLabel(const GDomNode* pNode);
 
 	virtual ~GPolynomialSingleLabel();
 
@@ -183,7 +183,7 @@ GPolynomialSingleLabel::GPolynomialSingleLabel(size_t controlPoints)
 	GAssert(controlPoints > 0);
 }
 
-GPolynomialSingleLabel::GPolynomialSingleLabel(GDomNode* pNode)
+GPolynomialSingleLabel::GPolynomialSingleLabel(const GDomNode* pNode)
 {
 	m_nControlPoints = (int)pNode->field("controlPoints")->asInt();
 	m_nCoefficients = 1;
@@ -605,7 +605,7 @@ GPolynomial::GPolynomial()
 {
 }
 
-GPolynomial::GPolynomial(GDomNode* pNode)
+GPolynomial::GPolynomial(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_controlPoints = (size_t)pNode->field("controlPoints")->asInt();

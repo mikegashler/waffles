@@ -155,7 +155,7 @@ public:
 	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Unmarshals this vector from a DOM.
-	void deserialize(GDomNode* pNode);
+	void deserialize(const GDomNode* pNode);
 
 	/// Returns the dot product of this and that.
 	double dotProduct(const GVec& that) const;

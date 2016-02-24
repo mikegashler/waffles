@@ -58,7 +58,7 @@ m_epochsPerValidationCheck(100)
 {
 }
 
-GNeuralNet::GNeuralNet(GDomNode* pNode)
+GNeuralNet::GNeuralNet(const GDomNode* pNode)
 : GIncrementalLearner(pNode),
 m_validationPortion(0.35),
 m_minImprovement(0.002),
@@ -574,7 +574,11 @@ size_t GNeuralNet::trainWithValidation(const GMatrix& trainFeatures, const GMatr
 			if(1.0 - dSumSquaredError / dBestError >= m_minImprovement) // This condition is designed such that if dSumSquaredError is NAN, it will break out of the loop
 			{
 				if(dSumSquaredError < dBestError)
+				{
+					if(dSumSquaredError == 0.0)
+						break;
 					dBestError = dSumSquaredError;
+				}
 			}
 			else
 				break;
@@ -1871,7 +1875,7 @@ GReservoirNet::GReservoirNet()
 {
 }
 
-GReservoirNet::GReservoirNet(GDomNode* pNode, GLearnerLoader& ll)
+GReservoirNet::GReservoirNet(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalLearner(pNode)
 {
 	m_pModel = (GIncrementalLearner*)ll.loadLearner(pNode->field("model"));
