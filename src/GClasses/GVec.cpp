@@ -81,6 +81,11 @@ GVec::GVec(const GVec& orig)
 	}
 }
 
+GVec::~GVec()
+{
+	delete[] m_data;
+}
+
 GVec& GVec::operator=(const GVec& orig)
 {
 	resize(orig.m_size);
@@ -89,9 +94,11 @@ GVec& GVec::operator=(const GVec& orig)
 	return *this;
 }
 
-GVec::~GVec()
+void GVec::copy(const GVec& orig)
 {
-	delete[] m_data;
+	resize(orig.m_size);
+	for(size_t i = 0; i < m_size; i++)
+		m_data[i] = orig.m_data[i];
 }
 
 void GVec::resize(size_t n)

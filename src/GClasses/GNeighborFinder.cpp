@@ -2304,12 +2304,12 @@ bool GTemporalNeighborFinder::findPath(size_t from, size_t to, double* path, dou
 	GVec pObs(dims);
 	GVec pDelta(dims);
 	GVec pRemaining(dims);
-	pObs = pStart;
+	pObs.copy(pStart);
 	GBitTable usedActions(actionValues);
 	GVec::setAll(path, 0.0, actionValues);
 	while(true)
 	{
-		pRemaining = pGoal;
+		pRemaining.copy(pGoal);
 		pRemaining -= pObs;
 		if(pRemaining.squaredMagnitude() < 1e-9)
 			break; // We have arrived at the destination

@@ -497,7 +497,7 @@ void GKMeans::init(const GMatrix* pData)
 	for(size_t i = 0; i < m_clusterCount; i++)
 	{
 		size_t index = (size_t)m_pRand->next(m_clusterCount);
-		m_pCentroids->row(i) = pData->row(index);
+		m_pCentroids->row(i).copy(pData->row(index));
 	}
 
 	// Initialize the clusters
@@ -686,7 +686,7 @@ void GFuzzyKMeans::init(const GMatrix* pData)
 		for(size_t i = 0; i < m_clusterCount; i++)
 		{
 			size_t index = (size_t)m_pRand->next(m_clusterCount);
-			m_pCentroids->row(i) = pData->row(index);
+			m_pCentroids->row(i).copy(pData->row(index));
 		}
 
 		// Test whether the centroids are all unique

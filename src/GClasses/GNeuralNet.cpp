@@ -197,7 +197,7 @@ void GNeuralNet::copyErrors(const GNeuralNet* pOther)
 	{
 		GNeuralNetLayer* pLay = m_layers[i];
 		GNeuralNetLayer* pOth = pOther->m_layers[i];
-		pLay->error() = pOth->error();
+		pLay->error().copy(pOth->error());
 	}
 }
 
@@ -473,7 +473,7 @@ void GNeuralNet::predictDistribution(const GVec& in, GPrediction* pOut)
 void GNeuralNet::copyPrediction(GVec& out)
 {
 	GNeuralNetLayer& outputLay = *m_layers[m_layers.size() - 1];
-	out = outputLay.activation();
+	out.copy(outputLay.activation());
 }
 
 double GNeuralNet::sumSquaredPredictionError(const GVec& target)
@@ -1085,7 +1085,7 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 		while(pSeries->rows() & (pSeries->rows() - 1)) // Pad until the number of rows is a power of 2
 		{
 			GVec& newRow = pSeries->newRow();
-			newRow = pSeries->row(0);
+			newRow.copy(pSeries->row(0));
 		}
 		period *= ((double)pSeries->rows() / series.rows());
 	}
@@ -1186,7 +1186,7 @@ void GNeuralNet_testMath()
 	// Test forward prop
 	double tol = 1e-12;
 	GVec pat(2);
-	pat = features[0];
+	pat.copy(features[0]);
 	GVec pred(1);
 	nn.predict(pat, pred);
 	// Here is the math (done by hand) for why these results are expected:
@@ -1656,7 +1656,7 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 		GVec tmp(2);
 		offset *= -1.0;
 		transform.multiply(offset, tmp);
-		offset = tmp;
+		offset.copy(tmp);
 		GMatrix* pTransInv = transform.pseudoInverse();
 		std::unique_ptr<GMatrix> hTransInv(pTransInv);
 		((GLayerClassic*)&nn.layer(0))->transformWeights(*pTransInv, offset);

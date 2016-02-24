@@ -515,8 +515,8 @@ void randomWalk(GArgReader& args)
 				}
 			}
 
-			actions[i] = cur;
-			prev = cur;
+			actions[i].copy(cur);
+			prev.copy(cur);
 		}
 	}
 
@@ -1198,7 +1198,7 @@ void cranePath(GArgReader& args)
 		double craneYaw = posx;
 		state[0] = (craneYaw + 0.75) * (horizFrames - 1) / 1.5;
 		state[1] = ballHeight * (vertFrames - 1) / 1.25;
-		stateData.newRow() = state;
+		stateData.newRow().copy(state);
 
 		// Generate the image vector
 		GImage* pImage = makeCraneImage(craneYaw, ballHeight, wid, hgt, ballRadius, front);
@@ -1314,7 +1314,7 @@ void threeCranePath(GArgReader& args)
 		state[1] = ballHeight[0] * (vertFrames - 1) / 1.25;
 		state[2] = (craneYaw[2] + 0.75) * (horizFrames - 1) / 1.5;
 		state[3] = ballHeight[2] * (vertFrames - 1) / 1.25;
-		stateData.newRow() = state;
+		stateData.newRow().copy(state);
 
 		// Generate the image vector
 		GImage* pImage = makeThreeCraneImage(craneYaw, ballHeight, wid, hgt, ballRadius);
@@ -1536,7 +1536,7 @@ void gridRandomWalk(GArgReader& args)
 		GVec& pRow = dataState.newRow();
 		pRow[0] = x;
 		pRow[1] = y;
-		dataObs.newRow() = pData->row(width * y + x);
+		dataObs.newRow().copy(pData->row(width * y + x));
 		int action = 0;
 		while(true)
 		{
@@ -1814,16 +1814,16 @@ void sceneRobotSimulationPath(GArgReader& args)
 		frame.blitStretchInterpolate(&dest, &scene, &src);
 
 		// Convert to an observation vector
-		pVec = obs.newRow();
+		GVec& pVec2 = obs.newRow();
         size_t pos = 0;
 		unsigned int* pix = frame.pixels();
 		for(unsigned int yyy = 0; yyy < frame.height(); yyy++)
 		{
 			for(unsigned int xxx = 0; xxx < frame.width(); xxx++)
 			{
-				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gRed(*pix));
-				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gGreen(*pix));
-				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gBlue(*pix));
+				pVec2[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gRed(*pix));
+				pVec2[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gGreen(*pix));
+				pVec2[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gBlue(*pix));
 				pix++;
 			}
 		}

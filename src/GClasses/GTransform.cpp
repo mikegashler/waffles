@@ -410,7 +410,7 @@ void GPCA::transform(const GVec& in, GVec& out)
 // virtual
 void GPCA::untransform(const GVec& in, GVec& out)
 {
-	out = m_pCentroid->row(0);
+	out.copy(m_pCentroid->row(0));
 	for(size_t i = 0; i < m_targetDims; i++)
 		out.addScaled(in[i], m_pBasisVectors->row(i));
 }
@@ -1115,8 +1115,8 @@ void GNormalize::setMinsAndRanges(const GRelation& rel, const GVec& mins, const 
 {
 	setBefore(rel.clone());
 	setAfter(rel.clone());
-	m_mins = mins;
-	m_ranges = ranges;
+	m_mins.copy(mins);
+	m_ranges.copy(ranges);
 }
 
 // virtual
@@ -1434,7 +1434,7 @@ void GImputeMissingVals::transform(const GVec& in, GVec& out)
 	}
 	if(i >= dims)
 	{
-		out = in;
+		out.copy(in);
 		return;
 	}
 
@@ -1448,7 +1448,7 @@ void GImputeMissingVals::transform(const GVec& in, GVec& out)
 	}
 	else
 	{
-		out = in;
+		out.copy(in);
 		pVec = &out;
 	}
 

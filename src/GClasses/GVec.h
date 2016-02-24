@@ -56,11 +56,13 @@ public:
 	GVec(const GVec& orig);
 
 	/// Copies all the values in orig.
-	GVec& operator=(const GVec& orig);
 	~GVec();
 
 	/// Returns the size of this vector.
 	size_t size() const { return m_size; }
+
+	/// Copies all the values in orig.
+	void copy(const GVec& orig);
 
 	/// Resizes this vector
 	void resize(size_t n);
@@ -205,7 +207,10 @@ public:
 	void fromImage(GImage* pImage, int width, int height, int channels, double range);
 
 private:
-	/// This method is deliberately private, so calling it will trigger a compiler error.
+	/// This method is deliberately private, so calling it will trigger a compiler error. Call "copy" instead.
+	GVec& operator=(const GVec& orig);
+
+	/// This method is deliberately private, so calling it will trigger a compiler error. Call "fill" instead.
 	GVec(double d);
 
 public:

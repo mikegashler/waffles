@@ -1446,9 +1446,9 @@ void makeHistogram(GArgReader& args)
 				pBlock2[0] = 0.5 * (xBegin + xEnd);
 				pBlock2[1] = (double)k / ((xEnd - xBegin + laplace) * pData->rows());
 			}
-			pBlock = invDensity.newRow();
-			pBlock[0] = pData->row(pData->rows() - 1)[attr];
-			pBlock[1] = 0.0;
+			GVec& pBlock3 = invDensity.newRow();
+			pBlock3[0] = pData->row(pData->rows() - 1)[attr];
+			pBlock3[1] = 0.0;
 
 			// Plot it
 			double maxHeight = invDensity.columnMax(1);

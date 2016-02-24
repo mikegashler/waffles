@@ -79,7 +79,7 @@ GMatrix* GNeuralNetLayer::feedThrough(const GMatrix& data)
 	for(size_t i = 0; i < data.rows(); i++)
 	{
 		feedForward(data[i]);
-		pResults->newRow() = activation();
+		pResults->newRow().copy(activation());
 	}
 	return pResults;
 }
@@ -211,7 +211,7 @@ void GLayerClassic::feedForward(const GVec& in)
 {
 	// Copy the bias to the net
 	GAssert(bias()[outputs() - 1] > -1e100 && bias()[outputs() - 1] < 1e100);
-	net() = bias();
+	net().copy(bias());
 
 	// Feed the input through
 	size_t inputCount = inputs();
@@ -545,7 +545,7 @@ void GLayerClassic::copyWeights(const GNeuralNetLayer* pSource)
 {
 	GLayerClassic* src = (GLayerClassic*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
-	bias() = src->bias();
+	bias().copy(src->bias());
 	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
@@ -1009,7 +1009,7 @@ void GLayerRestrictedBoltzmannMachine::perturbWeights(GRand& rand, double deviat
 // virtual
 void GLayerRestrictedBoltzmannMachine::feedForward(const GVec& in)
 {
-	net() = bias();
+	net().copy(bias());
 	size_t outputCount = outputs();
 	double* pNet = net().data();
 	for(size_t i = 0; i < outputCount; i++)
@@ -1280,7 +1280,7 @@ void GLayerRestrictedBoltzmannMachine::copyWeights(const GNeuralNetLayer* pSourc
 {
 	GLayerRestrictedBoltzmannMachine* src = (GLayerRestrictedBoltzmannMachine*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
-	bias() = src->bias();
+	bias().copy(src->bias());
 	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
@@ -1409,7 +1409,7 @@ void GLayerConvolutional1D::feedForward(const GVec& in)
 
 	// Activate
 	GVec& a = activation();
-	n = net();
+	n.copy(net());
 	size_t kernelCount = m_bias.cols();
 	size_t pos = 0;
 	for(size_t i = 0; i < m_outputSamples; i++)
@@ -1605,7 +1605,7 @@ void GLayerConvolutional1D::copyWeights(const GNeuralNetLayer* pSource)
 {
 	GLayerConvolutional1D* src = (GLayerConvolutional1D*)pSource;
 	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
-	bias() = src->bias();
+	bias().copy(src->bias());
 	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
@@ -1739,7 +1739,6 @@ void GLayerConvolutional2D::feedForward(const GVec& in)
 
 	// Feed the input through
 	size_t kernelSize = m_kernels.cols();
-	n = net();
 	netPos = 0;
 	size_t inPos = 0;
 	for(size_t h = 0; h < m_outputRows; h++) // for each output row...
@@ -1771,7 +1770,6 @@ void GLayerConvolutional2D::feedForward(const GVec& in)
 
 	// Activate
 	GVec& a = activation();
-	n = net();
 	size_t actPos = 0;
 	for(size_t h = 0; h < m_outputRows; h++) // for each output row...
 	{
@@ -1987,7 +1985,7 @@ void GLayerConvolutional2D::copyWeights(const GNeuralNetLayer* pSource)
 {
 	GLayerConvolutional2D* src = (GLayerConvolutional2D*)pSource;
 	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
-	bias() = src->bias();
+	bias().copy(src->bias());
 	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 

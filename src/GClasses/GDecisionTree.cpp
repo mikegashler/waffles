@@ -1036,8 +1036,8 @@ public:
 	GMeanMarginsTreeInteriorNode(size_t featureDims, const GVec& center, const GVec& normal)
 	: GMeanMarginsTreeNode()
 	{
-		m_pCenter = center;
-		m_pNormal = normal;
+		m_pCenter.copy(center);
+		m_pNormal.copy(normal);
 		m_pLeft = NULL;
 		m_pRight = NULL;
 	}
@@ -1109,7 +1109,7 @@ public:
 	GMeanMarginsTreeLeafNode(size_t nOutputCount, const GVec& outputs)
 	: GMeanMarginsTreeNode()
 	{
-		m_pOutputs = outputs;
+		m_pOutputs.copy(outputs);
 	}
 
 	GMeanMarginsTreeLeafNode(GDomNode* pNode)
@@ -1328,7 +1328,7 @@ void GMeanMarginsTree::predict(const GVec& in, GVec& out)
 			pNode = ((GMeanMarginsTreeInteriorNode*)pNode)->GetLeft();
 		nDepth++;
 	}
-	out = ((GMeanMarginsTreeLeafNode*)pNode)->GetOutputs();
+	out.copy(((GMeanMarginsTreeLeafNode*)pNode)->GetOutputs());
 }
 
 // virtual

@@ -506,13 +506,13 @@ void cumulativeColumns(GArgReader& args)
 	Holder<GMatrix> hA(pA);
 	vector<size_t> cols;
 	parseAttributeList(cols, args, pA->cols());
-	GVec& pPrevRow = pA->row(0);
+	GVec* pPrevRow = &pA->row(0);
 	for(size_t i = 1; i < pA->rows(); i++)
 	{
 		GVec& pRow = pA->row(i);
 		for(vector<size_t>::iterator it = cols.begin(); it != cols.end(); it++)
-			pRow[*it] += pPrevRow[*it];
-		pPrevRow = pRow;
+			pRow[*it] += (*pPrevRow)[*it];
+		pPrevRow = &pRow;
 	}
 	pA->print(cout);
 }
@@ -741,7 +741,7 @@ void dropIfTooClose(GArgReader& args)
 			if(pCand[col] - pLastKept[col] >= minGap)
 			{
 				keep.takeRow(&pCand);
-				pLastKept = pCand;
+				pLastKept.copy(pCand);
 			}
 		}
 		keep.print(cout);
@@ -1776,11 +1776,11 @@ void splitFold(GArgReader& args)
 	size_t begin = pData->rows() * fold / folds;
 	size_t end = pData->rows() * (fold + 1) / folds;
 	for(size_t i = 0; i < begin; i++)
-		train.newRow() = pData->row(i);
+		train.newRow().copy(pData->row(i));
 	for(size_t i = begin; i < end; i++)
-		test.newRow() = pData->row(i);
+		test.newRow().copy(pData->row(i));
 	for(size_t i = end; i < pData->rows(); i++)
-		train.newRow() = pData->row(i);
+		train.newRow().copy(pData->row(i));
 	train.saveArff(filenameTrain.c_str());
 	test.saveArff(filenameTest.c_str());
 }

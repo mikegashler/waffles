@@ -271,10 +271,10 @@ size_t GKNN::addVector(const GVec& feat, const GVec& lab)
 		m_pNeighborFinder = NULL;
 	}
 	index = m_pFeatures->rows();
-	m_pFeatures->newRow() = feat;
+	m_pFeatures->newRow().copy(feat);
 
 	// Store the labels
-	m_pLabels->newRow() = lab;
+	m_pLabels->newRow().copy(lab);
 	return index;
 }
 

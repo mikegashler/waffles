@@ -23,7 +23,7 @@ ifeq ($(UNAME),Darwin)
 	DBG_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClassesDbg.a -lpthread -lX11 -lssl
 	OPT_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClasses.a -lpthread -lX11 -lssl
 else
-	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11
+	CFLAGS = -Wall -Wshadow -pedantic -std=c++11
 	DBG_LFLAGS = ../../../lib/libGClassesDbg.a -lpng -lpthread -lX11
 	OPT_LFLAGS = ../../../lib/libGClasses.a -lpng -lpthread -lX11
 endif

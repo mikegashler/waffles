@@ -72,7 +72,7 @@ void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_
 		if(*pNeighbors < pData->rows())
 		{
 			GVec& target = z.newRow();
-			target = pData->row(*pNeighbors);
+			target.copy(pData->row(*pNeighbors));
 			target -= row;
 			pNeighbors++;
 		}
@@ -119,15 +119,15 @@ GMatrix* GManifold::blendNeighborhoods(size_t index, GMatrix* pA, double ratio, 
 	size_t rowCount = pA->rows();
 	size_t colCount = pA->cols();
 	GMatrix neighborhoodA(pA->relation().clone());
-	neighborhoodA.newRow() = pA->row(index);
+	neighborhoodA.newRow().copy(pA->row(index));
 	GMatrix neighborhoodB(pB->relation().clone());
-	neighborhoodB.newRow() = pB->row(index);
+	neighborhoodB.newRow().copy(pB->row(index));
 	for(size_t j = 0; j < neighborCount; j++)
 	{
 		if(pHood[j] >= rowCount)
 			continue;
-		neighborhoodA.newRow() = pA->row(pHood[j]);
-		neighborhoodB.newRow() = pB->row(pHood[j]);
+		neighborhoodA.newRow().copy(pA->row(pHood[j]));
+		neighborhoodB.newRow().copy(pB->row(pHood[j]));
 	}
 
 	// Subtract the means
@@ -170,7 +170,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		size_t* pHood = pNeighborTable + neighborCount * seed;
 		GMatrix* pAve = blendNeighborhoods(seed, pA, pRatios[seed], pB, neighborCount, pHood);
 		std::unique_ptr<GMatrix> hAve(pAve);
-		pC->row(seed) = pAve->row(0);
+		pC->row(seed).copy(pAve->row(0));
 		visited.set(seed);
 		established.set(seed);
 		size_t i = 1;
@@ -179,7 +179,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 			if(pHood[j] >= rowCount)
 				continue;
 			size_t neigh = pHood[j];
-			pC->row(neigh) = pAve->row(i);
+			pC->row(neigh).copy(pAve->row(i));
 			visited.set(neigh);
 			q.push_back(neigh);
 			i++;
@@ -202,7 +202,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		GMatrix tentativeC(pC->relation().clone());
 		GMatrix tentativeD(pD->relation().clone());
 		GReleaseDataHolder hTentativeD(&tentativeD);
-		tentativeC.newRow() = pC->row(par);
+		tentativeC.newRow().copy(pC->row(par));
 		tentativeD.takeRow(&pD->row(0));
 		size_t ii = 1;
 		for(size_t j = 0; j < neighborCount; j++)
@@ -211,7 +211,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 				continue;
 			if(visited.bit(pHood[j]))
 			{
-				tentativeC.newRow() = pC->row(pHood[j]);
+				tentativeC.newRow().copy(pC->row(pHood[j]));
 				tentativeD.takeRow(&pD->row(ii));
 			}
 			ii++;
@@ -236,7 +236,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 			pAligned->row(i) += mean;
 
 		// Accept the new points
-		pC->row(par) = pAligned->row(0);
+		pC->row(par).copy(pAligned->row(0));
 		established.set(par);
 		ii = 1;
 		for(size_t j = 0; j < neighborCount; j++)
@@ -244,7 +244,7 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 			if(pHood[j] >= rowCount)
 				continue;
 			if(!established.bit(pHood[j]))
-				pC->row(pHood[j]) = pAligned->row(ii);
+				pC->row(pHood[j]).copy(pAligned->row(ii));
 			if(!visited.bit(pHood[j]))
 			{
 				visited.set(pHood[j]);

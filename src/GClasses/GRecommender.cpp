@@ -2322,7 +2322,7 @@ void GContentBasedFilter::train(GMatrix& data)
 		GMatrix* labels = new GMatrix(relation);
 		for(multimap<size_t, size_t>::iterator ratings = ratedItems.first; ratings != ratedItems.second; ++ratings)
 		{
-			trainingData->newRow() = m_itemAttrs->row(m_itemMap[(*ratings).second]);
+			trainingData->newRow().copy(m_itemAttrs->row(m_itemMap[(*ratings).second]));
 
 			GVec& temp = labels->newRow();
 			temp[0] = data[(*ratings).second][2];

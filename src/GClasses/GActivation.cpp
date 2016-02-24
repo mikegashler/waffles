@@ -203,7 +203,7 @@ void GActivationHinge::resize(size_t units)
 // virtual
 void GActivationHinge::setError(const GVec& error)
 {
-	m_error = error;
+	m_error.copy(error);
 }
 
 // virtual
@@ -257,7 +257,7 @@ GActivationFunction* GActivationHinge::clone()
 {
 	GActivationHinge* pClone = new GActivationHinge();
 	pClone->resize(m_units);
-	pClone->m_hinges = m_hinges;
+	pClone->m_hinges.copy(m_hinges);
 	return pClone;
 }
 
@@ -284,7 +284,7 @@ size_t GActivationHinge::vectorToWeights(const double* pVector)
 // virtual
 void GActivationHinge::copyWeights(const GActivationFunction* pOther)
 {
-	m_hinges = ((GActivationHinge*)pOther)->m_hinges;
+	m_hinges.copy(((GActivationHinge*)pOther)->m_hinges);
 }
 
 #ifndef MIN_PREDICT
@@ -409,7 +409,7 @@ void GActivationLogExp::resize(size_t units)
 // virtual
 void GActivationLogExp::setError(const GVec& error)
 {
-	m_error = error;
+	m_error.copy(error);
 }
 
 // virtual
@@ -482,7 +482,7 @@ GActivationFunction* GActivationLogExp::clone()
 {
 	GActivationLogExp* pClone = new GActivationLogExp();
 	pClone->resize(m_units);
-	pClone->m_alphas = m_alphas;
+	pClone->m_alphas.copy(m_alphas);
 	return pClone;
 }
 
@@ -509,7 +509,7 @@ size_t GActivationLogExp::vectorToWeights(const double* pVector)
 // virtual
 void GActivationLogExp::copyWeights(const GActivationFunction* pOther)
 {
-	m_alphas = ((GActivationLogExp*)pOther)->m_alphas;
+	m_alphas.copy(((GActivationLogExp*)pOther)->m_alphas);
 }
 
 #ifndef MIN_PREDICT

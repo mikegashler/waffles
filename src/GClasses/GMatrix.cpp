@@ -2520,7 +2520,7 @@ GMatrix* GMatrix::eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSi
 		for(size_t j = 0; j < 100; j++) // todo: is there a better way to detect convergence?
 		{
 			pA->multiply(x, pTemp);
-			x = pTemp;
+			x.copy(pTemp);
 			x.normalize();
 		}
 
@@ -3343,7 +3343,7 @@ void GMatrix::principalComponent(GVec& outVector, const GVec& centroi, GRand* pR
 			for(size_t j = 0; j < dims; j++)
 				pAccumulator[j] += d * (vec[j] - centroi[j]);
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
@@ -3375,7 +3375,7 @@ void GMatrix::principalComponentAboutOrigin(GVec& outVector, GRand* pRand) const
 			for(size_t j = 0; j < dims; j++)
 				pAccumulator[j] += d * vec[j];
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
@@ -3418,7 +3418,7 @@ void GMatrix::principalComponentIgnoreUnknowns(GVec& outVector, const GVec& cent
 					pAccumulator[j] += d * (vec[j] - centroi[j]);
 			}
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
@@ -3454,7 +3454,7 @@ void GMatrix::weightedPrincipalComponent(GVec& outVector, const GVec& centroi, c
 				pAccumulator[j] += (*pW) * d * (vec[j] - centroi[j]);
 			pW++;
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
@@ -3720,7 +3720,7 @@ double GMatrix::boundingSphere(GVec& center, size_t* pIndexes, size_t indexCount
 	{
 		if(indexCount < 1)
 			throw Ex("Need at least one point");
-		center = row(pIndexes[0]);
+		center.copy(row(pIndexes[0]));
 		return 1e-18;
 	}
 
@@ -3754,7 +3754,7 @@ double GMatrix::boundingSphere(GVec& center, size_t* pIndexes, size_t indexCount
 
 	// Compute initial center and radius
 	double sradius = 0.25 * sdist;
-	center = row(pIndexes[b]);
+	center.copy(row(pIndexes[b]));
 	center += row(pIndexes[c]);
 	center *= 0.5;
 

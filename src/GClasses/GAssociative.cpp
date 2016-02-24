@@ -460,7 +460,7 @@ void GAssociative::predict(const GVec& pIn, GVec& pOut)
 	propagateActivation();
 
 	// Retrieve the activations of the output units
-	pOut = pLayOut->activation();
+	pOut.copy(pLayOut->activation());
 }
 
 // virtual

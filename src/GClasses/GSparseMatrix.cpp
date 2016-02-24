@@ -818,7 +818,7 @@ void GSparseMatrix::principalComponentAboutOrigin(GVec& outVector, GRand* pRand)
 			for(Iter it = rowBegin(n); it != itEnd; it++)
 				pAccumulator[it->first] += dd * it->second;
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)

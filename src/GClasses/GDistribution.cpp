@@ -345,7 +345,7 @@ GMultivariateNormalDistribution::GMultivariateNormalDistribution(const GVec& mea
 	m_mean.resize(m_nDims);
 	m_vector1.resize(m_nDims);
 	m_vector2.resize(m_nDims);
-	m_mean = mean;
+	m_mean.copy(mean);
 	precompute(pCovariance);
 }
 
@@ -370,7 +370,8 @@ GMultivariateNormalDistribution::~GMultivariateNormalDistribution()
 
 double GMultivariateNormalDistribution::likelihood(const GVec& x)
 {
-	m_vector1 = x - m_mean;
+	m_vector1.copy(x);
+	m_vector1 -= m_mean;
 	m_pInverseCovariance->multiply(m_vector1/*in*/, m_vector2/*out*/, false);
 	return m_dScale * exp(-0.5 * m_vector1.dotProduct(m_vector2));
 }

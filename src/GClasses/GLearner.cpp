@@ -1183,7 +1183,7 @@ GMatrix* GFilter::prefilterFeatures(const GMatrix& in)
 	GMatrix* pOut = new GMatrix(pInnerLearner->relFeatures().clone());
 	pOut->newRows(in.rows());
 	for(size_t i = 0; i < in.rows(); i++)
-		pOut->row(i) = prefilterFeatures(in[i]);
+		pOut->row(i).copy(prefilterFeatures(in[i]));
 	return pOut;
 }
 
@@ -1195,7 +1195,7 @@ GMatrix* GFilter::prefilterLabels(const GMatrix& in)
 	GMatrix* pOut = new GMatrix(pInnerLearner->relLabels().clone());
 	pOut->newRows(in.rows());
 	for(size_t i = 0; i < in.rows(); i++)
-		pOut->row(i) = prefilterLabels(in[i]);
+		pOut->row(i).copy(prefilterLabels(in[i]));
 	return pOut;
 }
 
@@ -1778,7 +1778,7 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 			for(size_t j = 0; j < features.rows(); j++)
 			{
 				predictDistribution(features[j], out);
-				tmpBefore[j] = out[i].asCategorical()->values(vals);
+				tmpBefore[j].copy(out[i].asCategorical()->values(vals));
 			}
 		}
 
@@ -1800,7 +1800,7 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 			for(size_t j = 0; j < features.rows(); j++)
 			{
 				knn.predictDistribution(tmpBefore[j], out);
-				tmpAfter[j] = out[0].asCategorical()->values(vals);
+				tmpAfter[j].copy(out[0].asCategorical()->values(vals));
 			}
 		}
 
@@ -1853,7 +1853,7 @@ void GCalibrator::predictDistribution(const GVec& in, GPrediction* out)
 				GCategoricalDistribution* pCat = out[i].asCategorical();
 				vb.resize(pCat->valueCount());
 				m_pCalibrations[i]->predict(pCat->values(pCat->valueCount()), vb);
-				pCat->values(pCat->valueCount()) = vb;
+				pCat->values(pCat->valueCount()).copy(vb);
 			}
 		}
 	}
