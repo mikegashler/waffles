@@ -1098,7 +1098,7 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
 #include "GRand.h"
 #include "GImage.h"
   namespace{
-    ///The original test code - which I may still make use of some time
+/*    ///The original test code - which I may still make use of some time
     void originalTest()
     {
       // Make a dataset of random colors
@@ -1129,7 +1129,7 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
       }
       //image.SavePNGFile("som.png");
     }
-
+*/
     #include "GSelfOrganizingMapTestData.cpp"
 
   }//Anonymous namespace
