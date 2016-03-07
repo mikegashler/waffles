@@ -257,6 +257,8 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
+	
+	GMatrix& deltas() { return m_delta; }
 
 	/// Returns the bias vector of this layer.
 	GVec& bias() { return m_bias[0]; }

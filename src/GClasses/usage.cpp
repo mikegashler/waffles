@@ -845,6 +845,18 @@ UsageNode* makeGenerateUsageTree()
 		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
 	}
 	{
+		UsageNode* pManifold = pRoot->add("lorenz [count] <options>", "Generate count samples in the chaotic Lorenz ('63) series.");
+		pManifold->add("[count]=100", "The number of samples to generate.");
+		UsageNode* pOpts = pManifold->add("<options>");
+		pOpts->add("-x [value]=1.0", "Specify a value for x for t = 0.");
+		pOpts->add("-y [value]=1.0", "Specify a value for y for t = 0.");
+		pOpts->add("-z [value]=1.0", "Specify a value for z for t = 0.");
+		pOpts->add("-sigma [value]=10.0", "Specify a value for sigma.");
+		pOpts->add("-beta [value]=8.0/3.0", "Specify a value for beta.");
+		pOpts->add("-rho [value]=28.0", "Specify a value for rho.");
+		pOpts->add("-dt [value]=0.01", "Specify a value for timestep.");
+	}
+	{
 		UsageNode* pManifold = pRoot->add("mackeyglass [count] <options>", "Generate count samples in the chaotic Mackey-Glass series.");
 		pManifold->add("[count]=100", "The number of samples to generate.");
 		UsageNode* pOpts = pManifold->add("<options>");
