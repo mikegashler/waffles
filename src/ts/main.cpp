@@ -121,6 +121,8 @@ void Train(GArgReader &args)
 	
 	// Parse options
 	GNeuralDecomposition *nd = new GNeuralDecomposition();
+	nd->nn().rand().setSeed(time(NULL));
+	
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-regularization"))
@@ -139,6 +141,8 @@ void Train(GArgReader &args)
 			LoadData(args, hFeatures);
 		else if(args.if_pop("-filterLogarithm"))
 			nd->setFilterLogarithm(true);
+		else if(args.if_pop("-seed"))
+			nd->nn().rand().setSeed(args.pop_uint());
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
