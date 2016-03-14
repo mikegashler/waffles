@@ -699,15 +699,14 @@ GFunctionNode* GFunctionParser::parseFunctionBody(std::vector<std::string>& vari
 
 void GFunctionParser::parseVariableNames(vector<string>& variables, vector<string>& tokens, int start, int count)
 {
-	for(int i = 0; i < count; i++)
+	for(int i = 0; i < count - 1; i += 2)
 	{
 		char c = tokens[start + i][0];
 		if(!GFunctionTokenizer::IsNameChar(c))
 			throw Ex("Expected a variable name to start with a letter or '_'");
 		variables.push_back(tokens[start + i]);
-		if(i + 1 < count && tokens[start + i + 1].compare(",") != 0)
+		if(tokens[start + i + 1].compare(",") != 0)
 			throw Ex("Expected a comma between variable declarations");
-		i++;
 	}
 }
 
