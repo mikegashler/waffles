@@ -227,7 +227,7 @@ double GLNormDistance::squaredDistance(const GVec& a, const GVec& b) const
 			else
 				d = ((int)b[i] == (int)a[i] ? 0 : 1);
 		}
-		sum += pow(abs(d), m_norm);
+		sum += pow(fabs(d), m_norm);
 	}
 	d = pow(sum, 1.0 / m_norm);
 	return (d * d);
