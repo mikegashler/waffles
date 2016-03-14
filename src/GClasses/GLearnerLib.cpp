@@ -1527,8 +1527,7 @@ void GLearnerLib::Transduce(GArgReader& args)
 		throw Ex("Superfluous argument: ", args.peek());
 
 	// Transduce
-	GMatrix* pLabels3 = pSupLearner->transduce(*pFeatures1, *pLabels1, *pFeatures2);
-	std::unique_ptr<GMatrix> hLabels3(pLabels3);
+	auto pLabels3 = pSupLearner->transduce(*pFeatures1, *pLabels1, *pFeatures2);
 
 	// Print results
 	pLabels3->print(cout);
@@ -1911,8 +1910,7 @@ void GLearnerLib::sterilize(GArgReader& args)
 		}
 
 		// Transduce
-		GMatrix* pPredictedLabels = pTransducer->transduce(trainFeatures, trainLabels, testFeatures);
-		std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
+		auto pPredictedLabels = pTransducer->transduce(trainFeatures, trainLabels, testFeatures);
 
 		// Keep only the correct predictions
 		for(size_t j = 0; j < testLabels.rows(); j++)

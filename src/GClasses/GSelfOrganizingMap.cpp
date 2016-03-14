@@ -427,7 +427,6 @@ namespace GClasses {
      NeighborhoodWindowFunction* windowFunc,
      Reporter* reporter):
       m_initialNeighborhoodSize(initialNeighborhoodSize),
-      m_finalNeighborhoodSize(finalNeighborhoodSize),
       m_timeFactor(std::log(finalNeighborhoodSize/initialNeighborhoodSize)
 		   /(numIterations-1)),
       m_numIterations(numIterations),
@@ -910,7 +909,7 @@ GSelfOrganizingMap::~GSelfOrganizingMap()
 }
 
 
-GMatrix* GSelfOrganizingMap::reduce(GMatrix& in)
+GMatrix* GSelfOrganizingMap::reduce(const GMatrix& in)
 {
   // Train the map on the input
   train(in);

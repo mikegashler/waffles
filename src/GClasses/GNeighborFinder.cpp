@@ -2224,14 +2224,8 @@ void GCycleCut::test()
 }
 #endif // NO_TEST_CODE
 
-
-
-
-
-
 GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighbor_count, GRand* pRand, size_t maxDims)
 : GNeighborFinder(preprocessObservations(pObservations, maxDims), neighbor_count),
-m_pPreprocessed(m_pPreprocessed + 0), // don't panic, this is intentional. m_pPreprocessed is initialized in the previous line, and we do this so that its value will not be stomped over.
 m_pActions(pActions),
 m_ownActionsData(ownActionsData),
 m_pRand(pRand)

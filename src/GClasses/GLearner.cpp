@@ -48,7 +48,6 @@
 #endif // MIN_PREDICT
 #include <cmath>
 #include <iostream>
-#include <memory>
 
 using std::vector;
 
@@ -157,7 +156,7 @@ public:
 };
 
 // virtual
-GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
+std::unique_ptr<GMatrix> GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	if(features1.rows() != labels1.rows())
 		throw Ex("Expected features1 and labels1 to have the same number of rows");
@@ -234,10 +233,8 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 			GDiscretize disc;
 			disc.train(labels1);
 			GMatrix* pL1 = disc.transformBatch(labels1);
-			std::unique_ptr<GMatrix> hL1(pL1);
-			GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-			std::unique_ptr<GMatrix> hL2(pL2);
-			return disc.untransformBatch(*pL2);
+			auto pL2 = transduceInner(*pF1, *pL1, *pF2);
+			return std::unique_ptr<GMatrix>(disc.untransformBatch(*pL2));
 		}
 	}
 	else
@@ -253,9 +250,8 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 				norm.train(labels1);
 				GMatrix* pL1 = norm.transformBatch(labels1);
 				std::unique_ptr<GMatrix> hL1(pL1);
-				GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-				std::unique_ptr<GMatrix> hL2(pL2);
-				return norm.untransformBatch(*pL2);
+				auto pL2 = transduceInner(*pF1, *pL1, *pF2);
+				return std::unique_ptr<GMatrix>(norm.untransformBatch(*pL2));
 			}
 		}
 		else
@@ -267,15 +263,14 @@ GMatrix* GTransducer::transduce(const GMatrix& features1, const GMatrix& labels1
 				ntc.train(labels1);
 				GMatrix* pL1 = ntc.transformBatch(labels1);
 				std::unique_ptr<GMatrix> hL1(pL1);
-				GMatrix* pL2 = transduceInner(*pF1, *pL1, *pF2);
-				std::unique_ptr<GMatrix> hL2(pL2);
-				return ntc.untransformBatch(*pL2);
+				auto pL2 = transduceInner(*pF1, *pL1, *pF2);
+				return std::unique_ptr<GMatrix>(ntc.untransformBatch(*pL2));
 			}
 			else
 			{
 				// todo: both nominalToCat and normalization filters are necessary in this case
 				throw Ex("case not yet supported");
-				return NULL;
+				return std::unique_ptr<GMatrix>(nullptr);
 			}
 		}
 	}
@@ -291,8 +286,7 @@ double GTransducer::trainAndTest(const GMatrix& trainFeatures, const GMatrix& tr
 		throw Ex("Expected the training features and test features to have the same number of columns");
 
 	// Transduce
-	GMatrix* pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
-	std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
+	auto pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
 
 	// Evaluate the results
 	size_t labelDims = trainLabels.cols();
@@ -312,8 +306,7 @@ void GTransducer::transductiveConfusionMatrix(const GMatrix& trainFeatures, cons
 		throw Ex("Expected the training features and test features to have the same number of columns");
 
 	// Transduce
-	GMatrix* pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
-	std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
+	auto pPredictedLabels = transduce(trainFeatures, trainLabels, testFeatures);
 
 	// Evaluate the results
 	size_t labelDims = trainLabels.cols();
@@ -554,13 +547,13 @@ double GSupervisedLearner::sumSquaredError(const GMatrix& features, const GMatri
 }
 
 // virtual
-GMatrix* GSupervisedLearner::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
+std::unique_ptr<GMatrix> GSupervisedLearner::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Train
 	train(features1, labels1);
 
 	// Predict
-	GMatrix* pOut = new GMatrix(labels1.relation().clone());
+	auto pOut = std::unique_ptr<GMatrix>(new GMatrix(labels1.relation().clone()));
 	pOut->newRows(features2.rows());
 	for(size_t i = 0; i < features2.rows(); i++)
 		predict(features2.row(i), pOut->row(i));

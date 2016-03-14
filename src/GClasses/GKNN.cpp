@@ -739,7 +739,7 @@ void GNeighborTransducer::autoTune(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
+std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Make a dataset containing all rows
 	GMatrix featuresAll(features1.relation().cloneMinimal());
@@ -749,9 +749,8 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 		featuresAll.takeRow((GVec*)&features2[i]);
 	for(size_t i = 0; i < features1.rows(); i++)
 		featuresAll.takeRow((GVec*)&features1[i]);
-	GMatrix* out = new GMatrix(labels1.relation().clone());
+	auto out = std::unique_ptr<GMatrix>(new GMatrix(labels1.relation().clone()));
 	out->newRows(features2.rows());
-	std::unique_ptr<GMatrix> hOut(out);
 
 	// Find friends
 	GNeighborFinder* pNF = new GNeighborGraph(new GKdTree(&featuresAll, m_friendCount, NULL, true), true);
@@ -840,16 +839,8 @@ GMatrix* GNeighborTransducer::transduceInner(const GMatrix& features1, const GMa
 			}
 		}
 	}
-	return hOut.release();
+	return out;
 }
-
-
-
-
-
-
-
-
 
 GInstanceTable::GInstanceTable(size_t dims, size_t* pDims)
 : GIncrementalLearner(), m_dims(dims)

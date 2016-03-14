@@ -128,7 +128,7 @@ public:
 #endif // MIN_PREDICT
 
 	/// This assumes train was previously called, and untransforms all the rows in pIn and returns the results.
-	virtual GMatrix* untransformBatch(const GMatrix& in);
+	virtual std::unique_ptr<GMatrix> untransformBatch(const GMatrix& in);
 
 protected:
 	/// Child classes should use this in their implementation of serialize

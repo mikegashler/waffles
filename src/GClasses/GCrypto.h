@@ -39,9 +39,7 @@ class GCrypto
 {
 private:
 	Mangler* m_pMangler;
-	GRand* m_pRand;
 	unsigned char* m_pBuf;
-	bool m_encrypt;
 	size_t m_blockPos;
 
 public:

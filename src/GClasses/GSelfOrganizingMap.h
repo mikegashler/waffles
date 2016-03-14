@@ -521,9 +521,6 @@ class GDistanceMetric;
       /// The initial neighborhood size
       const double m_initialNeighborhoodSize;
 
-      /// The final neighborhood size
-      const double m_finalNeighborhoodSize;
-
       /// The factor in the exponential decay equation: curSize =
       /// initialNeighborhoodSize*exp(timeFactor*iterationNumber) --
       /// where iterationNumber starts at 0.
@@ -792,7 +789,7 @@ public:
 #endif
 
   /// Transforms pIn after training on it
-  virtual GMatrix* reduce(GMatrix& in);
+  virtual GMatrix* reduce(const GMatrix& in) override;
 
   /// Add this map to a dom document and return the pointer to the
   /// tree added.
@@ -802,10 +799,10 @@ public:
   /// GSelfOrganizingMap obtained from a dom file
   ///
   ///TODO: make all serialize's const
-  virtual GDomNode* serialize(GDom*) const;
+  virtual GDomNode* serialize(GDom*) const override;
 
   ///see comment on GIncrementalTransform::train(GMatrix&)
-  virtual GRelation* trainInner(const GMatrix& in){
+  virtual GRelation* trainInner(const GMatrix& in) override {
     if(m_pTrainer != NULL){
       m_pTrainer->train(*this, &in);
     }
@@ -813,7 +810,7 @@ public:
   }
 
   /// Throws an exception (because this transform cannot be trained without data)
-  virtual GRelation* trainInner(const GRelation& in){
+  virtual GRelation* trainInner(const GRelation& in) override {
     throw Ex("This transform cannot be trained without data");
 	return before().clone();
   }
@@ -823,7 +820,7 @@ public:
   ///coordinates by finding the best match among the nodes.
   ///
   ///see comment on GIncrementalTransform::(const GVec& pIn, GVec& pOut)
-  void transform(const GVec& pIn, GVec& pOut);
+  void transform(const GVec& pIn, GVec& pOut) override;
 
 
   ///Return the index of the node whose weight vector best matches in
@@ -877,20 +874,24 @@ public:
   /// Inspector for the distance metric used in input space, that is,
   /// between an input point and a weight for determining the winner.
   const GDistanceMetric* weightDistance() const {
-    return m_pWeightDistance; }
+    return m_pWeightDistance;
+  }
 
   /// Inspector for the distance metric used in output space, that is,
   /// between two nodes for their relative influence
   const GDistanceMetric* nodeDistance() const {
-    return m_pNodeDistance; }
+    return m_pNodeDistance;
+  }
 
-	/// Throws an exception (because this transform cannot be reversed).
-	virtual void untransform(const GVec& pIn, GVec& pOut)
-	{ throw Ex("This transformation cannot be reversed"); }
+  /// Throws an exception (because this transform cannot be reversed).
+  virtual void untransform(const GVec& pIn, GVec& pOut) override {
+    throw Ex("This transformation cannot be reversed");
+  }
 
-	/// Throws an exception (because this transform cannot be reversed).
-	virtual void untransformToDistribution(const GVec& pIn, GPrediction* pOut)
-	{ throw Ex("This transformation cannot be reversed"); }
+  /// Throws an exception (because this transform cannot be reversed).
+  virtual void untransformToDistribution(const GVec& pIn, GPrediction* pOut) override {
+    throw Ex("This transformation cannot be reversed");
+  }
 };
 
 inline GDistanceMetric&
