@@ -427,7 +427,6 @@ namespace GClasses {
      NeighborhoodWindowFunction* windowFunc,
      Reporter* reporter):
       m_initialNeighborhoodSize(initialNeighborhoodSize),
-      m_finalNeighborhoodSize(finalNeighborhoodSize),
       m_timeFactor(std::log(finalNeighborhoodSize/initialNeighborhoodSize)
 		   /(numIterations-1)),
       m_numIterations(numIterations),

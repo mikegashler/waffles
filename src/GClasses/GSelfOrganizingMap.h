@@ -521,9 +521,6 @@ class GDistanceMetric;
       /// The initial neighborhood size
       const double m_initialNeighborhoodSize;
 
-      /// The final neighborhood size
-      const double m_finalNeighborhoodSize;
-
       /// The factor in the exponential decay equation: curSize =
       /// initialNeighborhoodSize*exp(timeFactor*iterationNumber) --
       /// where iterationNumber starts at 0.
