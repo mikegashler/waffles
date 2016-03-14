@@ -148,17 +148,16 @@ GVec& GIncrementalTransform::innerBuf()
 }
 
 // virtual
-GMatrix* GIncrementalTransform::untransformBatch(const GMatrix& in)
+std::unique_ptr<GMatrix> GIncrementalTransform::untransformBatch(const GMatrix& in)
 {
 	if(!m_pRelationBefore)
 		throw Ex("train has not been called");
 	size_t nRows = in.rows();
-	GMatrix* pOut = new GMatrix(before().clone());
+	auto pOut = std::unique_ptr<GMatrix>(new GMatrix(before().clone()));
 	pOut->newRows(nRows);
-	std::unique_ptr<GMatrix> hOut(pOut);
 	for(size_t i = 0; i < nRows; i++)
 		untransform(in.row(i), pOut->row(i));
-	return hOut.release();
+	return pOut;
 }
 
 #ifndef MIN_PREDICT
@@ -191,8 +190,7 @@ void GIncrementalTransform::test()
 		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
 	if(!pA->relation().areContinuous())
 		throw Ex("failed");
-	GMatrix* pB = trans.untransformBatch(*pA);
-	std::unique_ptr<GMatrix> hB(pB);
+	auto pB = trans.untransformBatch(*pA);
 	if(pB->sumSquaredDifference(m) > 1e-12)
 		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
 	if(!pB->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pB->relation()))
@@ -213,8 +211,7 @@ void GIncrementalTransform::test()
 		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
 	if(!pC->relation().areContinuous())
 		throw Ex("failed");
-	GMatrix* pD = trans.untransformBatch(*pC);
-	std::unique_ptr<GMatrix> hD(pD);
+	auto pD = trans.untransformBatch(*pC);
 	if(pD->sumSquaredDifference(m) > 1e-12)
 		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
 	if(!pD->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pD->relation()))

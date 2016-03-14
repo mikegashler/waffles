@@ -362,7 +362,7 @@ void GAgglomerativeTransducer::autoTune(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
+std::unique_ptr<GMatrix> GAgglomerativeTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Init the metric
 	if(!m_pMetric)
@@ -417,8 +417,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, cons
 	std::sort(distNeighs.begin(), it);
 
 	// Transduce
-	GMatrix* pOut = new GMatrix(labels1.relation().clone());
-	std::unique_ptr<GMatrix> hOut(pOut);
+	auto pOut = std::unique_ptr<GMatrix>(new GMatrix(labels1.relation().clone()));
 	pOut->newRows(features2.rows());
 	pOut->setAll(-1);
 	size_t* pSiblings = new size_t[featuresAll.rows()]; // a cyclical linked list of each row in the cluster
@@ -465,7 +464,7 @@ GMatrix* GAgglomerativeTransducer::transduceInner(const GMatrix& features1, cons
 			std::swap(pSiblings[a], pSiblings[b]); // This line joins the cyclical linked lists into one big cycle
 		}
 	}
-	return hOut.release();
+	return pOut;
 }
 
 
@@ -1254,7 +1253,7 @@ void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels)
 }
 
 // virtual
-GMatrix* GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
+std::unique_ptr<GMatrix> GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2)
 {
 	// Use k-NN to compute a distance metric with good scale factors for prediction
 	GKNN knn;
@@ -1271,8 +1270,7 @@ GMatrix* GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMa
 	GKdTree neighborFinder(&both, m_neighborCount, pMetric, false);
 
 	// Transduce
-	GMatrix* pOut = new GMatrix(labels1.relation().clone());
-	std::unique_ptr<GMatrix> hOut(pOut);
+	auto pOut = std::unique_ptr<GMatrix>(new GMatrix(labels1.relation().clone()));
 	pOut->newRows(features2.rows());
 	pOut->setAll(0);
 	for(size_t lab = 0; lab < labels1.cols(); lab++)
@@ -1314,7 +1312,7 @@ GMatrix* GGraphCutTransducer::transduceInner(const GMatrix& features1, const GMa
 			}
 		}
 	}
-	return hOut.release();
+	return pOut;
 }
 
 

@@ -222,7 +222,7 @@ public:
 
 protected:
 	/// See the comment for GTransducer::transduce
-	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
+	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() { return false; }

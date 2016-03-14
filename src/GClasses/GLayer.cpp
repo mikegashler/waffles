@@ -1298,12 +1298,6 @@ void GLayerRestrictedBoltzmannMachine::renormalizeInput(size_t input, double old
 	}
 }
 
-
-
-
-
-
-
 GLayerConvolutional1D::GLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction)
 : m_inputSamples(inputSamples),
 m_inputChannels(inputChannels),
@@ -1339,6 +1333,7 @@ m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func"))
 
 GLayerConvolutional1D::~GLayerConvolutional1D()
 {
+  delete m_pActivationFunction;
 }
 
 // virtual

@@ -288,7 +288,7 @@ GKernelDistance::GKernelDistance(GKernel* pKernel, bool own)
 }
 
 GKernelDistance::GKernelDistance(GDomNode* pNode)
-: GDistanceMetric(pNode)
+: GDistanceMetric(pNode), m_ownKernel(true)
 {
 	m_pKernel = GKernel::deserialize(pNode->field("kernel"));
 }

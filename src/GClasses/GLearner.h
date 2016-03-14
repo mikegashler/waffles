@@ -22,6 +22,8 @@
 #include "GMatrix.h"
 #include "GRand.h"
 
+#include <memory>
+
 namespace GClasses {
 
 class GDom;
@@ -134,7 +136,7 @@ public:
 
 	/// Predicts a set of labels to correspond with features2, such that these
 	/// labels will be consistent with the patterns exhibited by features1 and labels1.
-	GMatrix* transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
+	std::unique_ptr<GMatrix> transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// Trains and tests this learner. Returns the sum-squared-error.
 	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels);
@@ -203,7 +205,7 @@ public:
 protected:
 #ifndef MIN_PREDICT
 	/// This is the algorithm's implementation of transduction. (It is called by the transduce method.)
-	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2) = 0;
+	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2) = 0;
 #endif // MIN_PREDICT
 };
 
@@ -317,7 +319,7 @@ protected:
 
 #ifndef MIN_PREDICT
 	/// See GTransducer::transduce
-	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
+	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 #endif // MIN_PREDICT
 
 	/// This method determines which data filters (normalize, discretize,
