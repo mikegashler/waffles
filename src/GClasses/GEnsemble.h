@@ -209,7 +209,7 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) const;
+	virtual GDomNode* serialize(GDom* pDoc) const override;
 
 	/// Returns the number of samples from which to estimate the combination weights
 	size_t samples() { return m_samples; }
@@ -219,11 +219,13 @@ public:
 
 protected:
 	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
-	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+	virtual bool canImplicitlyHandleContinuousLabels() override {
+	  return false;
+	}
 
 	/// Determines the weights in the manner of Bayesian model averaging,
 	/// with the assumption of uniform priors.
-	virtual void determineWeights(GMatrix& features, GMatrix& labels);
+	virtual void determineWeights(const GMatrix& features, const GMatrix& labels) override;
 };
 
 
@@ -248,15 +250,17 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) const;
+	virtual GDomNode* serialize(GDom* pDoc) const override;
 
 protected:
 	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
-	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+	virtual bool canImplicitlyHandleContinuousLabels() override {
+	  return false;
+	}
 
 	/// Determines the weights in the manner of Bayesian model averaging,
 	/// with the assumption of uniform priors.
-	virtual void determineWeights(GMatrix& features, GMatrix& labels);
+	virtual void determineWeights(const GMatrix& features, const GMatrix& labels) override;
 };
 
 
@@ -281,7 +285,7 @@ public:
 #endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) const;
+	virtual GDomNode* serialize(GDom* pDoc) const override;
 
 	/// Returns the number of samples from which to estimate the combination weights
 	size_t samples() { return m_samples; }
@@ -291,11 +295,13 @@ public:
 
 protected:
 	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
-	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+	virtual bool canImplicitlyHandleContinuousLabels() override {
+	  return false;
+	}
 
 	/// Determines the weights in the manner of Bayesian model averaging,
 	/// with the assumption of uniform priors.
-	virtual void determineWeights(GMatrix& features, GMatrix& labels);
+	virtual void determineWeights(const GMatrix& features, const GMatrix& labels) override;
 };
 
 

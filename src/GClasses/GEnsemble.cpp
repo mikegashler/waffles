@@ -444,7 +444,7 @@ GBomb::GBomb(const GDomNode* pNode, GLearnerLoader& ll)
 }
 
 // virtual
-void GBomb::determineWeights(GMatrix& features, GMatrix& labels)
+void GBomb::determineWeights(const GMatrix& features, const GMatrix& labels)
 {
 	// Try uniform weights first
 	double* pWeights = new double[m_models.size()];
@@ -514,7 +514,7 @@ void GBomb::test()
 
 
 // virtual
-void GBayesianModelAveraging::determineWeights(GMatrix& features, GMatrix& labels)
+void GBayesianModelAveraging::determineWeights(const GMatrix& features, const GMatrix& labels)
 {
 	double m = -1e38;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
@@ -574,7 +574,7 @@ GBayesianModelCombination::GBayesianModelCombination(const GDomNode* pNode, GLea
 }
 
 // virtual
-void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& labels)
+void GBayesianModelCombination::determineWeights(const GMatrix& features, const GMatrix& labels)
 {
 	double* pWeights = new double[m_models.size()];
 	std::unique_ptr<double[]> hWeights(pWeights);
