@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <sstream>
+#include <execinfo.h>
 #ifndef MIN_PREDICT
 #include "GString.h"
 #endif // MIN_PREDICT
@@ -45,7 +46,25 @@ void Ex::setMessage(std::string message)
 	if(g_exceptionExpected)
 		m_message = message;
 	else
-		m_message = message; // (This is a good place to put a breakpoint. All unexpected exceptions thrown from this library pass through here.)
+	{
+		m_message = message;
+#ifdef _DEBUG
+		// Attempt to add a backtrace to the error message. (This will only produce human-readable results if the "-rdynamic" flag is used with the linker.)
+		m_message += "\n";
+		void* stackPointers[50];
+		size_t stackSize = backtrace(stackPointers, 50);
+		char** stackNames = backtrace_symbols(stackPointers, stackSize);
+		for(size_t i = 0; i < stackSize; i++)
+		{
+			m_message += stackNames[i];
+			m_message += "\n";
+		}
+		free(stackNames);
+
+		// Stop in the debugger
+		raise(SIGINT);
+#endif
+	}
 }
 
 const char* Ex::what() const throw()

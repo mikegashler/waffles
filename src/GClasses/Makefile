@@ -27,7 +27,7 @@ else
 endif
 
 # GCOV_CFLAGS = $(CFLAGS) -g -fprofile-arcs -ftest-coverage
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
+DBG_CFLAGS = $(CFLAGS) -g -rdynamic -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
 #OPT_CFLAGS = $(CFLAGS)  -Ofast -ffp-contract=fast -floop-parallelize-all -funroll-loops -falign-loops -ffast-math -msse -msse2 -msse3 -mfpmath=sse
 

@@ -557,7 +557,7 @@ void GBayesianModelAveraging::test()
 		pTree->useRandomDivisions();
 		bma.addLearner(pTree);
 	}
-	bma.basicTest(0.755, 0.928, 0.01);
+	bma.basicTest(0.708, 0.816, 0.01);
 }
 #endif
 

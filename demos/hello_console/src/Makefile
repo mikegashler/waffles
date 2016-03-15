@@ -17,7 +17,7 @@ ifeq ($(UNAME),Darwin)
 	OPT_LFLAGS = $(LFLAGS) -lpthread -lGClasses
 else
 	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I$(INSTALL_LOCATION_INCLUDE) -I../../../src
-	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
+	DBG_CFLAGS = $(CFLAGS) -g -rdynamic -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
 	LFLAGS = -L../../../lib
 	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lpthread

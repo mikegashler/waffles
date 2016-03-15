@@ -30,7 +30,7 @@ else
 	GCOV_LFLAGS = -fprofile-arcs ../../lib/libGClassesGcov.a -lpthread
 endif
 
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
+DBG_CFLAGS = $(CFLAGS) -g -rdynamic -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
 GCOV_CFLAGS = $(CFLAGS) -fprofile-arcs -ftest-coverage -g
 

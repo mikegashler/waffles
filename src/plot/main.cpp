@@ -796,7 +796,7 @@ public:
 		{
 			colorMin = pData->columnMin(m_color);
 			colorRange = pData->columnMax(m_color) - colorMin;
-			colorRange *= 1.15;
+			colorRange *= 0.6;
 		}
 		if(m_pFunc)
 		{
@@ -1453,7 +1453,9 @@ void makeHistogram(GArgReader& args)
 			// Plot it
 			double maxHeight = invDensity.columnMax(1);
 			GSVG svg(wid, hgt);
-			svg.newChart(invDensity[0][0], 0.0, invDensity[invDensity.rows() - 1][0], maxHeight);
+			double xxmin = invDensity[0][0];
+			double xxmax = invDensity[invDensity.rows() - 1][0];
+			svg.newChart(xxmin, 0.0, xxmax, maxHeight);
 			svg.add_raw("<path d=\"m "); // Start a path
 			svg.add_raw(to_str(invDensity[0][0]).c_str());
 			svg.add_raw(",0 c "); // Turn on control points
