@@ -275,6 +275,10 @@ public:
 	/// Tell each layer to apply its deltas. (That is, take a step in the direction specified in the delta buffer.)
 	void applyDeltas(double learningRate);
 
+	/// Tell each layer to update a weight-specific adaptive learning rate, and
+	/// update the weights according to the sign of the gradient multiplied by the adaptive learning rate.
+	void applyAdaptive();
+
 	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
 	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
 	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradient.
@@ -293,6 +297,11 @@ public:
 
 	/// Performs a single step of batch gradient descent.
 	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels);
+
+	/// Performs a single step of adaptive batch gradient descent.
+	/// (This is an implementation of R-Prop, except I just coded it up from memory
+	/// without checking with the paper, so I am not certain that it is faithful to the original.)
+	void trainIncrementalAdaptive(const GMatrix& features, const GMatrix& labels);
 
 	/// Presents a pattern for training. Applies dropout to the activations of hidden layers.
 	/// Note that when training with dropout is complete, you should call

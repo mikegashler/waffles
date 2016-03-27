@@ -638,6 +638,24 @@ void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& l
 	applyDeltas(m_learningRate / features.rows());
 }
 
+void GNeuralNet::trainIncrementalAdaptive(const GMatrix& features, const GMatrix& labels)
+{
+	const GVec& feat0 = features[0];
+	const GVec& targ0 = labels[0];
+	forwardProp(feat0);
+	backpropagate(targ0);
+	updateDeltas(feat0, 0.0);
+	for(size_t i = 1; i < features.rows(); i++)
+	{
+		const GVec& feat = features[i];
+		const GVec& targ = labels[i];
+		forwardProp(feat);
+		backpropagate(targ);
+		updateDeltas(feat, 1.0);
+	}
+	applyAdaptive();
+}
+
 void GNeuralNet::trainIncrementalWithDropout(const GVec& in, const GVec& out, double probOfDrop)
 {
 	if(m_momentum != 0.0)
@@ -819,6 +837,12 @@ void GNeuralNet::applyDeltas(double learning_rate)
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
 		m_layers[i]->applyDeltas(learning_rate);
+}
+
+void GNeuralNet::applyAdaptive()
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+		m_layers[i]->applyAdaptive();
 }
 
 void GNeuralNet::gradientOfInputs(GVec& outGradient)

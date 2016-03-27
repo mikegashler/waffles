@@ -105,6 +105,9 @@ public:
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate) = 0;
 
+	/// Adaptively update a per-weight learning rate and update the weights and biases.
+	virtual void applyAdaptive() = 0;
+
 	/// Multiplies all the weights by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) = 0;
 
@@ -218,6 +221,9 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Adaptively update a per-weight learning rate and update the weights and biases.
+	virtual void applyAdaptive();
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -417,6 +423,9 @@ using GNeuralNetLayer::updateDeltas;
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
 
+	/// Adaptively update a per-weight learning rate and update the weights and biases.
+	virtual void applyAdaptive();
+
 	/// Calls scaleWeights for each component.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
@@ -526,6 +535,9 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Adaptively update a per-weight learning rate and update the weights and biases.
+	virtual void applyAdaptive();
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -700,6 +712,9 @@ using GNeuralNetLayer::updateDeltas;
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
 
+	/// Adaptively update a per-weight learning rate and update the weights and biases.
+	virtual void applyAdaptive();
+
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
@@ -833,6 +848,9 @@ using GNeuralNetLayer::updateDeltas;
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
 
+	/// Adaptively update a per-weight learning rate and update the weights and biases.
+	virtual void applyAdaptive();
+
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
@@ -957,6 +975,9 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Adaptively update a per-weight learning rate and update the weights and biases.
+	virtual void applyAdaptive();
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);

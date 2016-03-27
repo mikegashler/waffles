@@ -394,6 +394,45 @@ void GLayerClassic::applyDeltas(double learningRate)
 	m_pActivationFunction->applyDeltas(learningRate);
 }
 
+// virtual
+void GLayerClassic::applyAdaptive()
+{
+	// Lazily make a place to store adaptive learning rates
+	while(m_delta.rows() <= m_weights.rows() + m_weights.rows()) // all the weights + the bias vector
+		m_delta.newRow().fill(0.01);
+
+	// Adapt the learning rates
+	size_t inputCount = inputs();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		GVec& delta = m_delta[i];
+		GVec& rates = m_delta[m_weights.rows() + i];
+		for(size_t j = 0; j < outputCount; j++)
+		{
+			if(std::signbit(delta[j]) == std::signbit(rates[j]))
+				rates[j] *= 1.2;
+			else
+				rates[j] *= -0.2;
+		}
+	}
+	GVec& delta = biasDelta();
+	GVec& rates = m_delta[m_weights.rows() + m_weights.rows()];
+	for(size_t j = 0; j < outputCount; j++)
+	{
+		if(std::signbit(delta[j]) == std::signbit(rates[j]))
+			rates[j] *= 1.2;
+		else
+			rates[j] *= -0.2;
+	}
+
+	// Update the weights and bias
+	for(size_t i = 0; i < inputCount; i++)
+		m_weights[i] += m_delta[m_weights.rows() + i];
+	bias() += m_delta[m_weights.rows() + m_weights.rows()];
+	// todo: think about how to update the activation function here: m_pActivationFunction->applyDeltas(learningRate);
+}
+
 void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_weights.rows(); i++)
@@ -787,6 +826,13 @@ void GLayerMixed::applyDeltas(double learningRate)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->applyDeltas(learningRate);
+}
+
+// virtual
+void GLayerMixed::applyAdaptive()
+{
+	for(size_t i = 0; i < m_components.size(); i++)
+		m_components[i]->applyAdaptive();
 }
 
 // virtual
@@ -1205,6 +1251,12 @@ void GLayerRestrictedBoltzmannMachine::applyDeltas(double learningRate)
 	bias().addScaled(learningRate, biasDelta());
 }
 
+// virtual
+void GLayerRestrictedBoltzmannMachine::applyAdaptive()
+{
+	throw new Ex("Sorry, not implemented yet");
+}
+
 void GLayerRestrictedBoltzmannMachine::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_weights.rows(); i++)
@@ -1541,6 +1593,12 @@ void GLayerConvolutional1D::applyDeltas(double learningRate)
 	for(size_t i = 0; i < n; i++)
 		m_kernels[i].addScaled(learningRate, m_delta[i]);
 	bias().addScaled(learningRate, biasDelta());
+}
+
+// virtual
+void GLayerConvolutional1D::applyAdaptive()
+{
+	throw new Ex("Sorry, not implemented yet");
 }
 
 // virtual
@@ -1924,6 +1982,12 @@ void GLayerConvolutional2D::applyDeltas(double learningRate)
 }
 
 // virtual
+void GLayerConvolutional2D::applyAdaptive()
+{
+	throw new Ex("Sorry, not implemented yet");
+}
+
+// virtual
 void GLayerConvolutional2D::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_kernels.rows(); i++)
@@ -2176,6 +2240,12 @@ void GMaxPooling2D::updateDeltas(const GVec& upStreamActivation, double momentum
 // virtual
 void GMaxPooling2D::applyDeltas(double learningRate)
 {
+}
+
+// virtual
+void GMaxPooling2D::applyAdaptive()
+{
+	throw new Ex("Sorry, not implemented yet");
 }
 
 // virtual
