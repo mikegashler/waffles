@@ -411,9 +411,17 @@ void GLayerClassic::applyAdaptive()
 		for(size_t j = 0; j < outputCount; j++)
 		{
 			if(std::signbit(delta[j]) == std::signbit(rates[j]))
-				rates[j] *= 1.2;
+			{
+				if(std::abs(rates[j]) < 1e3)
+					rates[j] *= 1.2;
+			}
 			else
-				rates[j] *= -0.2;
+			{
+				if(std::abs(rates[j]) > 1e-8)
+					rates[j] *= -0.2;
+				else
+					rates[j] *= -1.1;
+			}
 		}
 	}
 	GVec& delta = biasDelta();
@@ -421,16 +429,24 @@ void GLayerClassic::applyAdaptive()
 	for(size_t j = 0; j < outputCount; j++)
 	{
 		if(std::signbit(delta[j]) == std::signbit(rates[j]))
-			rates[j] *= 1.2;
+		{
+			if(std::abs(rates[j]) < 1e3)
+				rates[j] *= 1.2;
+		}
 		else
-			rates[j] *= -0.2;
+		{
+			if(std::abs(rates[j]) > 1e-8)
+				rates[j] *= -0.2;
+			else
+				rates[j] *= -1.1;
+		}
 	}
 
 	// Update the weights and bias
 	for(size_t i = 0; i < inputCount; i++)
 		m_weights[i] += m_delta[m_weights.rows() + i];
 	bias() += m_delta[m_weights.rows() + m_weights.rows()];
-	// todo: think about how to update the activation function here: m_pActivationFunction->applyDeltas(learningRate);
+	m_pActivationFunction->applyAdaptive();
 }
 
 void GLayerClassic::scaleWeights(double factor, bool scaleBiases)

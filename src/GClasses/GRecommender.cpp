@@ -1969,7 +1969,7 @@ void GLogNet::train(GMatrix& data)
 	m_pModel = new GNeuralNet();
 
 	// Add a layer that just takes the logarithm of the inputs
-	GActivationLogExp* pAct1 = new GActivationLogExp();
+	GActivationSoftExponential* pAct1 = new GActivationSoftExponential();
 	//GActivationHinge* pAct1 = new GActivationHinge();
 	size_t totalInputs = 2 * (m_intrinsicDims + 1);
 	GUniformRelation relIn(totalInputs);
@@ -1990,7 +1990,7 @@ void GLogNet::train(GMatrix& data)
 	b1[m_intrinsicDims + 1] = 0.0; // item bias
 
 	// Add a layer that computes the pair-wise products of the user and item profile elements
-	GActivationLogExp* pAct2 = new GActivationLogExp();
+	GActivationSoftExponential* pAct2 = new GActivationSoftExponential();
 	//GActivationHinge* pAct2 = new GActivationHinge();
 	size_t totalTerms = m_intrinsicDims + 2;
 	GLayerClassic* pLay2 = new GLayerClassic(totalInputs, totalTerms, pAct2);
@@ -2013,7 +2013,7 @@ void GLogNet::train(GMatrix& data)
 	b2.fill(0.0);
 
 	// Add a layer that sums the pair-wise products
-	GActivationLogExp* pAct3 = new GActivationLogExp();
+	GActivationSoftExponential* pAct3 = new GActivationSoftExponential();
 	//GActivationHinge* pAct3 = new GActivationHinge();
 	GLayerClassic* pLay3 = new GLayerClassic(totalTerms, 1, pAct3);
 	GVec& a3 = pAct3->alphas();

@@ -55,12 +55,12 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 			return new GActivationGaussian();
 		else if(strcmp(szName, "bidir") == 0)
 			return new GActivationBiDir();
-		else if(strcmp(szName, "bend") == 0)
-			return new GActivationBend();
+		else if(strcmp(szName, "bentident") == 0)
+			return new GActivationBentIdentity();
 		else if(strcmp(szName, "hinge") == 0)
 			return new GActivationHinge(pNode);
-		else if(strcmp(szName, "logexp") == 0)
-			return new GActivationLogExp(pNode);
+		else if(strcmp(szName, "softexp") == 0)
+			return new GActivationSoftExponential(pNode);
 		else if(strcmp(szName, "logisticderiv") == 0)
 			return new GActivationLogisticDerivative();
 		else
@@ -165,7 +165,7 @@ std::cout << to_str(scale) << "," << to_str(log(t0 / 400.0) * M_LOG10E) << "," <
 
 
 GActivationHinge::GActivationHinge()
-: GActivationFunction(), m_units(0), m_error(0), m_hinges(0), m_delta(0)
+: GActivationFunction(), m_units(0), m_error(0), m_hinges(0), m_delta(0), m_rates(0)
 {
 }
 
@@ -178,6 +178,8 @@ GActivationHinge::GActivationHinge(GDomNode* pNode)
 	GVec::deserialize(m_hinges.data(), it);
 	m_delta.resize(m_units);
 	m_delta.fill(0.0);
+	m_rates.resize(m_units);
+	m_rates.fill(0.01);
 }
 
 // virtual
@@ -198,6 +200,8 @@ void GActivationHinge::resize(size_t units)
 	m_hinges.fill(0.5);
 	m_delta.resize(units);
 	m_delta.fill(0.0);
+	m_rates.resize(m_units);
+	m_rates.fill(0.01);
 }
 
 // virtual
@@ -240,6 +244,42 @@ void GActivationHinge::applyDeltas(double learningRate)
 }
 
 // virtual
+void GActivationHinge::applyAdaptive()
+{
+	// Adapt the learning rates
+	double* pD = m_delta.data();
+	double* pR = m_rates.data();
+	for(size_t i = 0; i < m_units; i++)
+	{
+		if(std::signbit(*pD) == std::signbit(*pR))
+		{
+			if(std::abs(*pR) < 1e3)
+				(*pR) *= 1.2;
+		}
+		else
+		{
+			if(std::abs(*pR) > 1e-8)
+				(*pR) *= -0.2;
+			else
+				(*pR) *= -1.1;
+		}
+		pD++;
+		pR++;
+	}
+
+	// Update the parameters
+	pR = m_rates.data();
+	double* pHinge = m_hinges.data();
+	for(size_t i = 0; i < m_units; i++)
+	{
+		*pHinge = *pHinge + *pR;
+		*pHinge = std::max(-1.0, std::min(1.0, *pHinge));
+		pHinge++;
+		pR++;
+	}
+}
+
+// virtual
 void GActivationHinge::regularize(double lambda)
 {
 	double* pHinge = m_hinges.data();
@@ -258,6 +298,7 @@ GActivationFunction* GActivationHinge::clone()
 	GActivationHinge* pClone = new GActivationHinge();
 	pClone->resize(m_units);
 	pClone->m_hinges.copy(m_hinges);
+	pClone->m_rates.copy(m_rates);
 	return pClone;
 }
 
@@ -370,12 +411,12 @@ void GActivationHinge::test()
 
 
 
-GActivationLogExp::GActivationLogExp()
-: GActivationFunction(), m_units(0), m_error(0), m_alphas(0), m_delta(0)
+GActivationSoftExponential::GActivationSoftExponential()
+: GActivationFunction(), m_units(0), m_error(0), m_alphas(0), m_delta(0), m_rates(0)
 {
 }
 
-GActivationLogExp::GActivationLogExp(GDomNode* pNode)
+GActivationSoftExponential::GActivationSoftExponential(GDomNode* pNode)
 {
 	GDomListIterator it(pNode->field("alphas"));
 	m_units = it.remaining();
@@ -384,10 +425,12 @@ GActivationLogExp::GActivationLogExp(GDomNode* pNode)
 	GVec::deserialize(m_alphas.data(), it);
 	m_delta.resize(m_units);
 	m_delta.fill(0.0);
+	m_rates.resize(m_units);
+	m_rates.fill(0.01);
 }
 
 // virtual
-GDomNode* GActivationLogExp::serialize(GDom* pDoc) const
+GDomNode* GActivationSoftExponential::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "name", pDoc->newString(name()));
@@ -396,7 +439,7 @@ GDomNode* GActivationLogExp::serialize(GDom* pDoc) const
 }
 
 // virtual
-void GActivationLogExp::resize(size_t units)
+void GActivationSoftExponential::resize(size_t units)
 {
 	m_units = units;
 	m_error.resize(units);
@@ -404,16 +447,18 @@ void GActivationLogExp::resize(size_t units)
 	m_alphas.fill(0.0);
 	m_delta.resize(units);
 	m_delta.fill(0.0);
+	m_rates.resize(m_units);
+	m_rates.fill(0.01);
 }
 
 // virtual
-void GActivationLogExp::setError(const GVec& error)
+void GActivationSoftExponential::setError(const GVec& error)
 {
 	m_error.copy(error);
 }
 
 // virtual
-void GActivationLogExp::updateDeltas(const GVec& net, const GVec& activation, double momentum)
+void GActivationSoftExponential::updateDeltas(const GVec& net, const GVec& activation, double momentum)
 {
 	double* pAlpha = m_alphas.data();
 	const double* pErr = m_error.data();
@@ -442,7 +487,7 @@ void GActivationLogExp::updateDeltas(const GVec& net, const GVec& activation, do
 }
 
 // virtual
-void GActivationLogExp::applyDeltas(double learningRate)
+void GActivationSoftExponential::applyDeltas(double learningRate)
 {
 	double* pD = m_delta.data();
 	double* pAlpha = m_alphas.data();
@@ -465,7 +510,43 @@ void GActivationLogExp::applyDeltas(double learningRate)
 }
 
 // virtual
-void GActivationLogExp::regularize(double lambda)
+void GActivationSoftExponential::applyAdaptive()
+{
+	// Adapt the learning rates
+	double* pD = m_delta.data();
+	double* pR = m_rates.data();
+	for(size_t i = 0; i < m_units; i++)
+	{
+		if(std::signbit(*pD) == std::signbit(*pR))
+		{
+			if(std::abs(*pR) < 1e3)
+				(*pR) *= 1.2;
+		}
+		else
+		{
+			if(std::abs(*pR) > 1e-8)
+				(*pR) *= -0.2;
+			else
+				(*pR) *= -1.1;
+		}
+		pD++;
+		pR++;
+	}
+
+	// Update the parameters
+	pR = m_rates.data();
+	double* pAlpha = m_alphas.data();
+	for(size_t i = 0; i < m_units; i++)
+	{
+		*pAlpha = *pAlpha + *pR;
+		*pAlpha = std::max(-1.0, std::min(1.0, *pAlpha));
+		pAlpha++;
+		pR++;
+	}
+}
+
+// virtual
+void GActivationSoftExponential::regularize(double lambda)
 {
 	double* pAlpha = m_alphas.data();
 	for(size_t i = 0; i < m_units; i++)
@@ -478,51 +559,52 @@ void GActivationLogExp::regularize(double lambda)
 }
 
 // virtual
-GActivationFunction* GActivationLogExp::clone()
+GActivationFunction* GActivationSoftExponential::clone()
 {
-	GActivationLogExp* pClone = new GActivationLogExp();
+	GActivationSoftExponential* pClone = new GActivationSoftExponential();
 	pClone->resize(m_units);
 	pClone->m_alphas.copy(m_alphas);
+	pClone->m_rates.copy(m_rates);
 	return pClone;
 }
 
 // virtual
-size_t GActivationLogExp::countWeights()
+size_t GActivationSoftExponential::countWeights()
 {
 	return m_units;
 }
 
 // virtual
-size_t GActivationLogExp::weightsToVector(double* pOutVector)
+size_t GActivationSoftExponential::weightsToVector(double* pOutVector)
 {
 	GVec::copy(pOutVector, m_alphas.data(), m_units);
 	return m_units;
 }
 
 // virtual
-size_t GActivationLogExp::vectorToWeights(const double* pVector)
+size_t GActivationSoftExponential::vectorToWeights(const double* pVector)
 {
 	m_alphas.set(pVector, m_units);
 	return m_units;
 }
 
 // virtual
-void GActivationLogExp::copyWeights(const GActivationFunction* pOther)
+void GActivationSoftExponential::copyWeights(const GActivationFunction* pOther)
 {
-	m_alphas.copy(((GActivationLogExp*)pOther)->m_alphas);
+	m_alphas.copy(((GActivationSoftExponential*)pOther)->m_alphas);
 }
 
 #ifndef MIN_PREDICT
 // static
-void GActivationLogExp::test()
+void GActivationSoftExponential::test()
 {
 	// Make a neural network
 	GNeuralNet nn;
-	GActivationLogExp* pAct1 = new GActivationLogExp();
+	GActivationSoftExponential* pAct1 = new GActivationSoftExponential();
 	GLayerClassic* pLay1 = new GLayerClassic(2, 3, pAct1);
-	GActivationLogExp* pAct2 = new GActivationLogExp();
+	GActivationSoftExponential* pAct2 = new GActivationSoftExponential();
 	GLayerClassic* pLay2 = new GLayerClassic(3, 2, pAct2);
-	GActivationLogExp* pAct3 = new GActivationLogExp();
+	GActivationSoftExponential* pAct3 = new GActivationSoftExponential();
 	GLayerClassic* pLay3 = new GLayerClassic(2, 2, pAct3);
 	nn.addLayer(pLay1);
 	nn.addLayer(pLay2);

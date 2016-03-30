@@ -886,7 +886,7 @@ public:
 	{
 		// Class tests
 		runTest("GActivationHinge", GActivationHinge::test);
-		runTest("GActivationLogExp", GActivationLogExp::test);
+		runTest("GActivationSoftExponential", GActivationSoftExponential::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAnnealing", GAnnealing::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);
