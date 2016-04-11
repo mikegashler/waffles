@@ -55,7 +55,7 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 			return new GActivationGaussian();
 		else if(strcmp(szName, "bidir") == 0)
 			return new GActivationBiDir();
-		else if(strcmp(szName, "bentident") == 0)
+		else if(strcmp(szName, "bentident") == 0 || strcmp(szName, "bend") == 0)
 			return new GActivationBentIdentity();
 		else if(strcmp(szName, "hinge") == 0)
 			return new GActivationHinge(pNode);
