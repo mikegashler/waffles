@@ -197,7 +197,7 @@ void GActivationHinge::resize(size_t units)
 	m_units = units;
 	m_error.resize(units);
 	m_hinges.resize(units);
-	m_hinges.fill(0.5);
+	m_hinges.fill(0.0);
 	m_delta.resize(units);
 	m_delta.fill(0.0);
 	m_rates.resize(m_units);

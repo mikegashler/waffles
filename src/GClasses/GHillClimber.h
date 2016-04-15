@@ -79,6 +79,7 @@ class GHillClimber : public GOptimizer
 {
 protected:
 	size_t m_nDims;
+	size_t m_dim;
 	double* m_pStepSizes;
 	double* m_pVector;
 	double* m_pAnnealCand;

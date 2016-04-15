@@ -112,7 +112,7 @@ void GMomentumGreedySearch::test()
 
 
 GHillClimber::GHillClimber(GTargetFunction* pCritic)
-: GOptimizer(pCritic)
+: GOptimizer(pCritic), m_dim(0)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
@@ -152,84 +152,82 @@ double* GHillClimber::stepSizes()
 
 /*virtual*/ double GHillClimber::iterate()
 {
-	double decel, accel, decScore, accScore;
-	for(size_t dim = 0; dim < m_nDims; dim++)
+	double decel = m_pStepSizes[m_dim] * m_dChangeFactor;
+	if(std::abs(decel) < 1e-16)
+		decel = 0.1;
+	double accel = m_pStepSizes[m_dim] / m_dChangeFactor;
+	if(std::abs(accel) > 1e14)
+		accel = 0.1;
+	if(!m_pCritic->isStable())
+		m_dError = m_pCritic->computeError(m_pVector); // Current spot
+	m_pVector[m_dim] += decel;
+	double decScore = m_pCritic->computeError(m_pVector); // Forward decelerated
+	m_pVector[m_dim] -= decel; // undo
+	m_pVector[m_dim] += accel;
+	double accScore = m_pCritic->computeError(m_pVector); // Forward accelerated
+	if(m_dError < decScore && m_dError < accScore)
 	{
-		decel = m_pStepSizes[dim] * m_dChangeFactor;
-		if(std::abs(decel) < 1e-16)
-			decel = 0.1;
-		accel = m_pStepSizes[dim] / m_dChangeFactor;
-		if(std::abs(accel) > 1e14)
-			accel = 0.1;
-		if(!m_pCritic->isStable())
-			m_dError = m_pCritic->computeError(m_pVector); // Current spot
-		m_pVector[dim] += decel;
-		decScore = m_pCritic->computeError(m_pVector); // Forward decelerated
-		m_pVector[dim] -= decel; // undo
-		m_pVector[dim] += accel;
-		accScore = m_pCritic->computeError(m_pVector); // Forward accelerated
+		m_pVector[m_dim] -= accel; // undo
+		m_pVector[m_dim] -= decel;
+		decScore = m_pCritic->computeError(m_pVector); // Reverse decelerated
+		m_pVector[m_dim] += decel; // undo
+		m_pVector[m_dim] -= accel;
+		accScore = m_pCritic->computeError(m_pVector); // Reverse accelerated
 		if(m_dError < decScore && m_dError < accScore)
 		{
-			m_pVector[dim] -= accel; // undo
-			m_pVector[dim] -= decel;
-			decScore = m_pCritic->computeError(m_pVector); // Reverse decelerated
-			m_pVector[dim] += decel; // undo
-			m_pVector[dim] -= accel;
-			accScore = m_pCritic->computeError(m_pVector); // Reverse accelerated
-			if(m_dError < decScore && m_dError < accScore)
-			{
-				// Stay put and decelerate
-				m_pVector[dim] += accel;
-				m_pStepSizes[dim] = decel;
-			}
-			else if(decScore < accScore)
-			{
-				// Reverse and decelerate
-				m_pVector[dim] += accel;
-				m_pVector[dim] -= decel;
-				m_dError = decScore;
-				m_pStepSizes[dim] = -decel;
-			}
-			else
-			{
-				// Reverse and accelerate
-				m_dError = accScore;
-				m_pStepSizes[dim] = -accel;
-			}
+			// Stay put and decelerate
+			m_pVector[m_dim] += accel;
+			m_pStepSizes[m_dim] = decel;
 		}
 		else if(decScore < accScore)
 		{
-			// Forward and decelerate
-			m_pVector[dim] -= accel;
-			m_pVector[dim] += decel;
+			// Reverse and decelerate
+			m_pVector[m_dim] += accel;
+			m_pVector[m_dim] -= decel;
 			m_dError = decScore;
-			m_pStepSizes[dim] = decel;
+			m_pStepSizes[m_dim] = -decel;
 		}
-		else if(decScore == accScore)
+		else
 		{
-			if(m_dError == decScore)
-			{
-				// Neither accelerate nor decelerate. If we're on a temporary plateau
-				// on the target function, slowing down would be bad because we might
-				// never get off the plateau. If we're at the max error, speeding up
-				// would be bad, because we'd just run off to infinity. We will, however
-				// move at the accelerated rate, just so we're going somewhere.
-			}
-			else
-			{
-				// Forward and accelerate
-				m_dError = accScore;
-				m_pStepSizes[dim] = accel;
-			}
+			// Reverse and accelerate
+			m_dError = accScore;
+			m_pStepSizes[m_dim] = -accel;
+		}
+	}
+	else if(decScore < accScore)
+	{
+		// Forward and decelerate
+		m_pVector[m_dim] -= accel;
+		m_pVector[m_dim] += decel;
+		m_dError = decScore;
+		m_pStepSizes[m_dim] = decel;
+	}
+	else if(decScore == accScore)
+	{
+		if(m_dError == decScore)
+		{
+			// Neither accelerate nor decelerate. If we're on a temporary plateau
+			// on the target function, slowing down would be bad because we might
+			// never get off the plateau. If we're at the max error, speeding up
+			// would be bad, because we'd just run off to infinity. We will, however
+			// move at the accelerated rate, just so we're going somewhere.
 		}
 		else
 		{
 			// Forward and accelerate
 			m_dError = accScore;
-			m_pStepSizes[dim] = accel;
+			m_pStepSizes[m_dim] = accel;
 		}
 	}
+	else
+	{
+		// Forward and accelerate
+		m_dError = accScore;
+		m_pStepSizes[m_dim] = accel;
+	}
 
+	if(++m_dim >= m_nDims)
+		m_dim = 0;
 	return m_dError;
 }
 

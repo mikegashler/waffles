@@ -21,6 +21,8 @@
 
 #include "GLayer.h"
 #include "GLearner.h"
+#include "GOptimizer.h"
+#include "GHillClimber.h"
 #include "GVec.h"
 #include <vector>
 
@@ -366,6 +368,40 @@ protected:
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+};
+
+
+
+/// A class that facilitates training a neural network with an arbitrary optimization algorithm
+class GNeuralNetTargetFunction : public GTargetFunction
+{
+protected:
+	GNeuralNet& m_nn;
+	const GMatrix& m_features;
+	const GMatrix& m_labels;
+
+public:
+	/// You should call GNeuralNet::beginIncrementalLearning before passing your neural network to this constructor.
+	/// features and labels should be pre-filtered to contain only continuous values for the neural network.
+	GNeuralNetTargetFunction(GNeuralNet& nn, const GMatrix& features, const GMatrix& labels)
+	: GTargetFunction(nn.countWeights()), m_nn(nn), m_features(features), m_labels(labels)
+	{
+	}
+
+	virtual ~GNeuralNetTargetFunction() {}
+
+	/// Copies the neural network weights into the vector.
+	virtual void initVector(double* pVector)
+	{
+		m_nn.weights(pVector);
+	}
+
+	/// Copies the vector into the neural network and measures sum-squared error. 
+	virtual double computeError(const double* pVector)
+	{
+		m_nn.setWeights(pVector);
+		return m_nn.sumSquaredError(m_features, m_labels);
+	}
 };
 
 

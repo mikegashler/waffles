@@ -121,9 +121,8 @@ bool GNeuralNet::supportedLabelRange(double* pOutMin, double* pOutMax)
 {
 	if(m_layers.size() > 0)
 	{
-		GActivationFunction* pAct = ((GLayerClassic*)&outputLayer())->m_pActivationFunction; // TODO: This is a HACK
-		*pOutMin = pAct->squash(-400.0, 0);
-		*pOutMax = pAct->squash(400.0, 0);
+		*pOutMin = -1.0;
+		*pOutMax = 1.0;
 	}
 	else
 	{
