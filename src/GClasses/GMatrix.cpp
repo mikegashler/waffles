@@ -1329,6 +1329,8 @@ void GMatrix::loadRaw(const char* szFilename)
 {
 	size_t r, c;
 	std::ifstream fin(szFilename, std::ios::in | std::ios::binary);
+	if(fin.fail())
+		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
 	fin.read((char *) &r, sizeof(size_t));
 	fin.read((char *) &c, sizeof(size_t));
 	resize(r, c);
