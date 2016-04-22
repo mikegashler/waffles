@@ -641,6 +641,9 @@ public:
 #ifndef MIN_PREDICT
 	/// \brief Loads an ARFF file and replaces the contents of this matrix with it.
 	void loadArff(const char* szFilename);
+	
+	/// \brief Loads a raw (binary) file and replaces the contents of this matrix with it.
+	void loadRaw(const char* szFilename);
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
 	void parseArff(const char* szFile, size_t nLen);
@@ -733,6 +736,9 @@ public:
 #ifndef MIN_PREDICT
 	/// \brief Saves the dataset to a file in ARFF format
 	void saveArff(const char* szFilename);
+	
+	/// \brief Saves the dataset to a file in raw (binary) format
+	void saveRaw(const char* szFilename);
 #endif // MIN_PREDICT
 
 	/// \brief Performs SVD on A, where A is this m-by-n matrix.

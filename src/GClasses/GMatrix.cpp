@@ -1325,9 +1325,33 @@ void GMatrix::loadArff(const char* szFilename)
 	parseArff(tok);
 }
 
+void GMatrix::loadRaw(const char* szFilename)
+{
+	size_t r, c;
+	std::ifstream fin(szFilename, std::ios::in | std::ios::binary);
+	fin.read((char *) &r, sizeof(size_t));
+	fin.read((char *) &c, sizeof(size_t));
+	resize(r, c);
+	for(size_t i = 0; i < r; i++)
+		fin.read((char *) m_rows[i]->data(), sizeof(double) * c);
+	fin.close();
+}
+
 void GMatrix::saveArff(const char* szFilename)
 {
 	m_pRelation->save(this, szFilename, 14);
+}
+
+void GMatrix::saveRaw(const char* szFilename)
+{
+	size_t r = rows();
+	size_t c = cols();
+	std::ofstream fout(szFilename, std::ios::out | std::ios::binary);
+	fout.write((char *) &r, sizeof(size_t));
+	fout.write((char *) &c, sizeof(size_t));
+	for(size_t i = 0; i < r; i++)
+		fout.write((char *) m_rows[i]->data(), sizeof(double) * c);
+	fout.close();
 }
 
 // static
