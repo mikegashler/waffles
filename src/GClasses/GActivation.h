@@ -643,6 +643,23 @@ public:
 	virtual GActivationFunction* clone() { return new GActivationRectifiedLinear(); }
 };
 
+/// The activation function for leaky rectified linear units (leaky ReLU).
+class GActivationLeakyRectifiedLinear : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "leakyrelu"; }
+
+	virtual double squash(double x, size_t index = 0) { return x >= 0.0 ? x : 0.01 * x; }
+
+	virtual double derivative(double x, size_t index) { return x >= 0.0 ? 1.0 : 0.01; }
+
+	virtual double inverse(double y, size_t index) { return y; }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationLeakyRectifiedLinear(); }
+};
+
 
 /// The integral of the logsitic function. At very negative values, this converges toward y=0. At very positive values, this converges to y=x.
 class GActivationSoftPlus : public GActivationFunction
