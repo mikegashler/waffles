@@ -160,6 +160,8 @@ GMatrix* loadData(const char* szFilename)
 	Holder<GMatrix> hData(pData);
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		pData->loadArff(szFilename);
+	else if(_stricmp(szFilename + pd.extStart, ".raw") == 0)
+		pData->loadRaw(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
 	{
 		GCSVParser parser;
@@ -2331,6 +2333,13 @@ void wilcoxon(GArgReader& args)
 	cout << p << "\n";
 }
 
+void toraw(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	pData->saveRaw(args.pop_string());
+}
+
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -2461,6 +2470,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("squaredDistance")) squaredDistance(args);
 		else if(args.if_pop("swapcolumns")) SwapAttributes(args);
 		else if(args.if_pop("threshold")) threshold(args);
+		else if(args.if_pop("toraw")) toraw(args);
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
 		else if(args.if_pop("uglify")) uglify(args);

@@ -1346,9 +1346,9 @@ void GMatrix::saveArff(const char* szFilename)
 
 void GMatrix::saveRaw(const char* szFilename)
 {
+	std::ofstream fout(szFilename, std::ios::out | std::ios::binary);
 	size_t r = rows();
 	size_t c = cols();
-	std::ofstream fout(szFilename, std::ios::out | std::ios::binary);
 	fout.write((char *) &r, sizeof(size_t));
 	fout.write((char *) &c, sizeof(size_t));
 	for(size_t i = 0; i < r; i++)
