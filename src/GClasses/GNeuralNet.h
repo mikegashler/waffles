@@ -22,7 +22,6 @@
 #include "GLayer.h"
 #include "GLearner.h"
 #include "GOptimizer.h"
-#include "GHillClimber.h"
 #include "GVec.h"
 #include <vector>
 

@@ -343,7 +343,7 @@ GRandomDirectionBinarySearch::~GRandomDirectionBinarySearch()
 // virtual
 double GRandomDirectionBinarySearch::iterate()
 {
-	m_pRand->spherical(m_direction.data(), m_dims);
+	m_direction.fillSphericalShell(*m_pRand);
 	double sum = 0.0;
 	for(size_t i = 0; i < 20; i++)
 	{
@@ -439,15 +439,11 @@ void GEmpiricalGradientDescent::reset()
 // --------------------------------------------------------------------------------
 
 GSampleClimber::GSampleClimber(GTargetFunction* pCritic, GRand* pRand)
-: GOptimizer(pCritic), m_pRand(pRand)
+: GOptimizer(pCritic), m_pRand(pRand), m_pVector(pCritic->relation()->size()), m_pDir(pCritic->relation()->size()), m_pCand(pCritic->relation()->size()), m_pGradient(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_dims = pCritic->relation()->size();
-	m_pVector = new double[m_dims * 4];
-	m_pDir = m_pVector + m_dims;
-	m_pCand = m_pDir + m_dims;
-	m_pGradient = m_pCand + m_dims;
 	m_dStepSize = 0.1;
 	m_alpha = 0.01;
 	reset();
@@ -456,42 +452,41 @@ GSampleClimber::GSampleClimber(GTargetFunction* pCritic, GRand* pRand)
 // virtual
 GSampleClimber::~GSampleClimber()
 {
-	delete[] m_pVector;
 }
 
 void GSampleClimber::reset()
 {
 	m_dStepSize = .1;
-	m_pCritic->initVector(m_pVector);
-	m_error = m_pCritic->computeError(m_pVector);
+	m_pCritic->initVector(m_pVector.data());
+	m_error = m_pCritic->computeError(m_pVector.data());
 }
 
 // virtual
 double GSampleClimber::iterate()
 {
 	// Improve our moving gradient estimate with a new sample
-	m_pRand->spherical(m_pDir, m_dims);
-	GVec::copy(m_pCand, m_pVector, m_dims);
-	GVec::addScaled(m_pCand, m_dStepSize * 0.015625, m_pDir, m_dims);
-	GVec::add(m_pCand, m_pVector, m_dims);
+	m_pDir.fillSphericalShell(*m_pRand);
+	m_pCand.copy(m_pVector);
+	m_pCand.addScaled(m_dStepSize * 0.015625, m_pDir);
+	m_pCand += m_pVector;
 	double w;
-	double err = m_pCritic->computeError(m_pCand);
+	double err = m_pCritic->computeError(m_pCand.data());
 	for(size_t i = 0; i < m_dims; i++)
 	{
 		w = m_alpha * m_pDir[i] * m_pDir[i];
 		m_pGradient[i] *= (1.0 - w);
 		m_pGradient[i] += w * (err - m_error) / m_pDir[i];
 	}
-	GVec::copy(m_pDir, m_pGradient, m_dims);
-	GVec::safeNormalize(m_pDir, m_dims, m_pRand);
+	m_pDir.copy(m_pGradient);
+	m_pDir.normalize();
 
 	// Step
-	GVec::addScaled(m_pVector, m_dStepSize, m_pDir, m_dims);
-	err = m_pCritic->computeError(m_pVector);
+	m_pVector.addScaled(m_dStepSize, m_pDir);
+	err = m_pCritic->computeError(m_pVector.data());
 	if(m_error < err)
 	{
 		// back up and slow down
-		GVec::addScaled(m_pVector, -m_dStepSize, m_pDir, m_dims);
+		m_pVector.addScaled(-m_dStepSize, m_pDir);
 		m_dStepSize *= 0.87;
 	}
 	else

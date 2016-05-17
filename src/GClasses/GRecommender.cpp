@@ -1090,6 +1090,16 @@ void GMatrixFactorization::clampQ(size_t i)
 	}
 }
 
+void GMatrixFactorization_absValues(double* pVec, size_t dims)
+{
+	while(true)
+	{
+		*pVec = std::abs(*pVec);
+		if(--dims == 0)
+			return;
+	}
+}
+
 // virtual
 void GMatrixFactorization::train(GMatrix& data)
 {
@@ -1105,7 +1115,7 @@ void GMatrixFactorization::train(GMatrix& data)
 		GVec& vec = m_pP->row(i);
 		vec.fillNormal(m_rand, 0.02);
 		if(m_nonNeg)
-			GVec::absValues(m_pP->row(i).data() + 1, m_intrinsicDims);
+			GMatrixFactorization_absValues(m_pP->row(i).data() + 1, m_intrinsicDims);
 	}
 	delete(m_pQ);
 	m_pQ = new GMatrix(items, 1 + m_intrinsicDims);
@@ -1114,7 +1124,7 @@ void GMatrixFactorization::train(GMatrix& data)
 		GVec& vec = m_pQ->row(i);
 		vec.fillNormal(m_rand, 0.02);
 		if(m_nonNeg)
-			GVec::absValues(m_pQ->row(i).data() + 1, m_intrinsicDims);
+			GMatrixFactorization_absValues(m_pQ->row(i).data() + 1, m_intrinsicDims);
 	}
 
 	// Make a shallow copy of the data (so we can shuffle it)

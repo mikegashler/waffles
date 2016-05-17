@@ -2325,6 +2325,41 @@ void uglify(GArgReader& args)
 	doc.writeJson(cout);
 }
 
+void unique(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	size_t col = args.pop_uint();
+
+	// Parse the options
+	bool last = false;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-last"))
+			last = true;
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	map<double, GVec*> unique_rows;
+	for(size_t i = 0; i < pData->rows(); i++)
+	{
+		GVec& r = pData->row(i);
+		if(last)
+			unique_rows[r[col]] = &r; // The last row with a unique value in col will stick
+		else
+		{
+			if(unique_rows.find(r[col]) == unique_rows.end())
+				unique_rows[r[col]] = &r; // the first row with a unique value in col will stick
+		}
+	}
+	GMatrix uniqueData(pData->relation().clone());
+	GReleaseDataHolder hUniqueData(&uniqueData);
+	map<double, GVec*>::iterator it;
+	for(it = unique_rows.begin(); it != unique_rows.end(); it++)
+		uniqueData.takeRow(it->second);
+	uniqueData.print(cout);
+}
+
 void wilcoxon(GArgReader& args)
 {
 	size_t n = args.pop_uint();
@@ -2474,6 +2509,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
 		else if(args.if_pop("uglify")) uglify(args);
+		else if(args.if_pop("unique")) unique(args);
 		else if(args.if_pop("wilcoxon")) wilcoxon(args);
 		else if(args.if_pop("zeromean")) zeroMean(args);
 		else throw Ex("Unrecognized command: ", args.peek());

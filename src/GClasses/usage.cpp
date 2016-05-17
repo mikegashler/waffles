@@ -29,6 +29,7 @@ using std::vector;
 
 UsageNode::UsageNode(const char* templ, const char* descrip)
 {
+	const char* origTempl = templ;
 #ifdef DEBUG_HELPERS
 	p0 = NULL; p1 = NULL; p2 = NULL; p3 = NULL;
 #endif
@@ -53,7 +54,7 @@ UsageNode::UsageNode(const char* templ, const char* descrip)
 		if(*templ == '=')
 		{
 			if(m_default_value.size() > 0)
-				throw Ex("Only one default value is permitted per node. You should probably expand with child nodes.");
+				throw Ex("Only one default value is permitted per node. You should probably expand with child nodes. In node: ", origTempl);
 
 			// Find the end of the default value
 			for(i = 1; templ[i] != ' ' && templ[i] != '\0'; i++)
@@ -1893,6 +1894,13 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		pRoot->add("uglify [json-file]=model.json", "Prints a JSON file with whitespace removed.");
+	}
+	{
+		UsageNode* pUnique = pRoot->add("unique [dataset] [col] <options>", "Discard rows with redundant values in [col].");
+		pUnique->add("[dataset]=data.arff", "The dataset on which to operate.");
+		pUnique->add("[col]=0", "The column in which to preserve only one of each unique value.");
+		UsageNode* pOpts = pUnique->add("<options>");
+		pOpts->add("-last", "Preserve the last row with a unique value in [col]. (The default is to preserve the first row with a unique value in [col].)");
 	}
 	{
 		pRoot->add("zeromean [dataset]=m.arff","Subtracts the mean from all values "

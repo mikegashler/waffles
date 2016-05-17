@@ -33,8 +33,8 @@ namespace GClasses {
 class GGridSearch : public GOptimizer
 {
 protected:
-	double* m_pCandidate;
-	double* m_pBestVector;
+	GVec m_pCandidate;
+	GVec m_pBestVector;
 	double m_bestError;
 	GCoordVectorIterator* m_pCvi;
 
@@ -59,8 +59,8 @@ class GRandomSearch : public GOptimizer
 {
 protected:
 	GRand* m_pRand;
-	double* m_pCandidate;
-	double* m_pBestVector;
+	GVec m_pCandidate;
+	GVec m_pBestVector;
 	double m_bestError;
 
 public:
@@ -122,10 +122,10 @@ protected:
 	GRand m_rand;
 	size_t m_nDimensions;
 	unsigned int m_nMask[4];
-	double* m_pMins;
-	double* m_pMaxs;
-	double* m_pVector;
-	double* m_pBestYet;
+	GVec m_pMins;
+	GVec m_pMaxs;
+	GVec m_pVector;
+	GVec m_pBestYet;
 	double m_bestError;
 	size_t m_nStabDepth;
 	size_t m_nCurrentDim;
@@ -141,7 +141,7 @@ public:
 	virtual double iterate();
 
 	/// Returns the best vector yet found
-	virtual double* currentVector() { return m_pBestYet; }
+	virtual double* currentVector() { return m_pBestYet.data(); }
 
 	/// Specify the number of times to divide the space before
 	/// satisfactory accuracy is obtained. Larger values will

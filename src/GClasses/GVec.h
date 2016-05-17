@@ -206,6 +206,9 @@ public:
 	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
 	void fromImage(GImage* pImage, int width, int height, int channels, double range);
 
+	/// Swaps the contents of this vector with that vector.
+	void swapContents(GVec& that);
+
 private:
 	/// This method is deliberately private, so calling it will trigger a compiler error. Call "copy" instead.
 	GVec& operator=(const GVec& orig);
@@ -258,32 +261,14 @@ public:
 	/// Computes the squared magnitude of the vector
 	static double squaredMagnitude(const double* pVector, size_t nSize);
 
-	/// Computes the magnitude in L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static double lNormMagnitude(double norm, const double* pVector, size_t nSize);
-
 	/// Normalizes this vector to a magnitude of 1. Throws an exception if the magnitude is zero.
 	static void normalize(double* pVector, size_t nSize);
-
-	/// Normalizes this vector to a magnitude of 1. If the magnitude is zero, it returns a random vector.
-	static void safeNormalize(double* pVector, size_t nSize, GRand* pRand);
 
 	/// Scale the vector so that the elements sum to 1
 	static void sumToOne(double* pVector, size_t size);
 
-	/// Normalizes with L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static void lNormNormalize(double norm, double* pVector, size_t nSize);
-
 	/// Computes the squared distance between two vectors
 	static double squaredDistance(const double* pA, const double* pB, size_t nDims);
-
-	/// Estimates the squared distance between two points that may have some missing values. It assumes
-	/// the distance in missing dimensions is approximately the same as the average distance in other
-	/// dimensions. If there are no known dimensions that overlap between the two points, it returns
-	/// 1e50.
-	static double estimateSquaredDistanceWithUnknowns(const double* pA, const double* pB, size_t nDims);
-
-	/// Computes L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static double lNormDistance(double norm, const double* pA, const double* pB, size_t dims);
 
 	/// Returns the index of the min value in pVector. If multiple elements have
 	/// have an equivalent max value, then behavior depends on the value of pRand.
@@ -307,40 +292,14 @@ public:
 	/// Adds dMag * pSource to pDest
 	static void addScaled(double* pDest, double dMag, const double* pSource, size_t nDims);
 
-	/// Adds the log of each element in pSource to pDest
-	static void addLog(double* pDest, const double* pSource, size_t nDims);
-
 	/// Subtracts pSource from pDest
 	static void subtract(double* pDest, const double* pSource, size_t nDims);
 
 	/// Multiplies pVector by dScalar
 	static void multiply(double* pVector, double dScalar, size_t nDims);
 
-	/// Apply L^(1.5) regularization to the specified vector.
-	static void regularize_1_5(double* pVector, double amount, size_t nDims);
-
-	/// Adjusts each element in the direction toward 0 by the specified amount.
-	static void regularize_1(double* pVector, double amount, size_t nDims);
-
-	/// Raises each element of pVector to the exponent dScalar
-	static void pow(double* pVector, double dScalar, size_t nDims);
-
-	/// Multiplies each element in pDest by the corresponding element in pOther
-	static void pairwiseMultiply(double* pDest, double* pOther, size_t dims);
-
-	/// Divides each element in pDest by the corresponding element in pOther
-	static void pairwiseDivide(double* pDest, double* pOther, size_t dims);
-
 	/// Sets all the elements to the specified value
 	static void setAll(double* pVector, double value, size_t dims);
-
-	/// Interpolates (morphs) a set of indexes from one function to another. pInIndexes, pCorrIndexes1,
-	/// and pCorrIndexes2 are all expected to be in sorted order. All indexes should be >= 0 and < nDims.
-	/// fRatio is the interpolation ratio such that if fRatio is zero, all indexes left unchanged, and
-	/// as fRatio approaches one, the indexes are interpolated linearly such that each index in pCorrIndexes1
-	/// is interpolated linearly to the corresponding index in pCorrIndexes2. If the two extremes are not
-	/// in the list of corresponding indexes, the ends may drift.
-	static void interpolateIndexes(size_t nIndexes, double* pInIndexes, double* pOutIndexes, float fRatio, size_t nCorrIndexes, double* pCorrIndexes1, double* pCorrIndexes2);
 
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
@@ -348,23 +307,8 @@ public:
 	/// Write the vector to a text format
 	static GDomNode* serialize(GDom* pDoc, const double* pVec, size_t dims);
 
-	/// Load the vector from a text format. pVec must be large enough to contain all of the
-	/// elements that remain in "it".
-	static void deserialize(double* pVec, GDomListIterator& it);
-
-	/// Prints the values in the vector separated by ", ".
-	/// precision specifies the number of digits to print
-//	static void print(std::ostream& stream, int precision, const double* pVec, size_t dims);
-
-	/// Projects pPoint onto the hyperplane defined by pOrigin onto the basisCount basis vectors
-	/// specified by pBasis. (The basis vectors are assumed to be chained end-to-end in a big vector.)
-	static void project(double* pDest, const double* pPoint, const double* pOrigin, const double* pBasis, size_t basisCount, size_t dims);
-
 	/// Returns the sum of all the elements
 	static double sumElements(const double* pVec, size_t dims);
-
-	/// Sets each value, v, to ABS(v)
-	static void absValues(double* pVec, size_t dims);
 };
 
 

@@ -170,12 +170,10 @@ GActivationHinge::GActivationHinge()
 }
 
 GActivationHinge::GActivationHinge(GDomNode* pNode)
+: m_hinges(pNode->field("hinges"))
 {
-	GDomListIterator it(pNode->field("hinges"));
-	m_units = it.remaining();
+	m_units = m_hinges.size();
 	m_error.resize(m_units);
-	m_hinges.resize(m_units);
-	GVec::deserialize(m_hinges.data(), it);
 	m_delta.resize(m_units);
 	m_delta.fill(0.0);
 	m_rates.resize(m_units);
@@ -417,12 +415,10 @@ GActivationSoftExponential::GActivationSoftExponential()
 }
 
 GActivationSoftExponential::GActivationSoftExponential(GDomNode* pNode)
+: m_alphas(pNode->field("alphas"))
 {
-	GDomListIterator it(pNode->field("alphas"));
-	m_units = it.remaining();
+	m_units = m_alphas.size();
 	m_error.resize(m_units);
-	m_alphas.resize(m_units);
-	GVec::deserialize(m_alphas.data(), it);
 	m_delta.resize(m_units);
 	m_delta.fill(0.0);
 	m_rates.resize(m_units);

@@ -250,17 +250,17 @@ protected:
 	double m_alpha;
 	double m_error;
 	size_t m_dims;
-	double* m_pVector;
-	double* m_pDir;
-	double* m_pCand;
-	double* m_pGradient;
+	GVec m_pVector;
+	GVec m_pDir;
+	GVec m_pCand;
+	GVec m_pGradient;
 
 public:
 	GSampleClimber(GTargetFunction* pCritic, GRand* pRand);
 	virtual ~GSampleClimber();
 
 	/// Returns the best vector yet found
-	virtual double* currentVector() { return m_pVector; }
+	virtual double* currentVector() { return m_pVector.data(); }
 	
 	/// Performs a little more optimization. (Call this in a loop until
 	/// acceptable results are found.)

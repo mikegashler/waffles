@@ -517,19 +517,7 @@ void GVec::copy(double* pDest, const double* pSource, size_t nDims)
 {
 	memcpy(pDest, pSource, sizeof(double) * nDims);
 }
-/*
-// static
-double GVec::dotProduct(const double* pA, const double* pB, size_t nSize)
-{
-	double d = 0;
-	while(nSize > 0)
-	{
-		d += *(pA++) * *(pB++);
-		nSize--;
-	}
-	return d;
-}
-*/
+
 // static
 double GVec::dotProductIgnoringUnknowns(const double* pA, const double* pB, size_t nSize)
 {
@@ -597,7 +585,7 @@ double GVec::squaredDistance(const double* pA, const double* pB, size_t nDims)
 	}
 	return dist;
 }
-
+/*
 // static
 double GVec::estimateSquaredDistanceWithUnknowns(const double* pA, const double* pB, size_t nDims)
 {
@@ -619,7 +607,7 @@ double GVec::estimateSquaredDistanceWithUnknowns(const double* pA, const double*
 	else
 		return dist * nDims / (nDims - nMissing);
 }
-
+*/
 // static
 double GVec::squaredMagnitude(const double* pVector, size_t nSize)
 {
@@ -634,52 +622,12 @@ double GVec::squaredMagnitude(const double* pVector, size_t nSize)
 }
 
 // static
-double GVec::lNormMagnitude(double norm, const double* pVector, size_t nSize)
-{
-	double dMag = 0;
-	for(size_t i = 0; i < nSize; i++)
-		dMag += std::pow(std::abs(pVector[i]), norm);
-	return std::pow(dMag, 1.0 / norm);
-}
-
-// static
-double GVec::lNormDistance(double norm, const double* pA, const double* pB, size_t dims)
-{
-	double dist = 0;
-	for(size_t i = 0; i < dims; i++)
-	{
-		dist += std::pow(std::abs(*pA - *pB), norm);
-		pA++;
-		pB++;
-	}
-	return std::pow(dist, 1.0 / norm);
-}
-
-// static
-void GVec::lNormNormalize(double norm, double* pVector, size_t nSize)
-{
-	double dMag = lNormMagnitude(norm, pVector, nSize);
-	for(size_t i = 0; i < nSize; i++)
-		pVector[i] /= dMag;
-}
-
-// static
 void GVec::normalize(double* pVector, size_t nSize)
 {
 	double dMag = squaredMagnitude(pVector, nSize);
 	if(dMag <= 0)
 		throw Ex("Can't normalize a vector with zero magnitude");
 	GVec::multiply(pVector, 1.0  / sqrt(dMag), nSize);
-}
-
-// static
-void GVec::safeNormalize(double* pVector, size_t nSize, GRand* pRand)
-{
-	double dMag = squaredMagnitude(pVector, nSize);
-	if(dMag <= 0)
-		pRand->spherical(pVector, nSize);
-	else
-		GVec::multiply(pVector, 1.0  / sqrt(dMag), nSize);
 }
 
 // static
@@ -784,14 +732,14 @@ void GVec::addScaled(double* pDest, double dMag, const double* pSource, size_t n
 	for(size_t i = 0; i < nDims; i++)
 		*(pDest++) += (dMag * *(pSource++));
 }
-
+/*
 // static
 void GVec::addLog(double* pDest, const double* pSource, size_t nDims)
 {
 	for(size_t i = 0; i < nDims; i++)
 		pDest[i] += log(pSource[i]);
 }
-
+*/
 // static
 void GVec::subtract(double* pDest, const double* pSource, size_t nDims)
 {
@@ -814,63 +762,6 @@ void GVec::multiply(double* pVector, double dScalar, size_t nDims)
 }
 
 // static
-void GVec::regularize_1_5(double* pVector, double amount, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-	{
-		if(*pVector < 0.0)
-			*pVector = std::min(0.0, *pVector + amount * sqrt(-*pVector));
-		else
-			*pVector = std::max(0.0, *pVector - amount * sqrt(*pVector));
-		pVector++;
-	}
-}
-
-// static
-void GVec::regularize_1(double* pVector, double amount, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-	{
-		if(*pVector < 0.0)
-			*pVector = std::min(0.0, *pVector + amount);
-		else
-			*pVector = std::max(0.0, *pVector - amount);
-		pVector++;
-	}
-}
-
-//static
-void GVec::pow(double* pVector, double dScalar, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-	{
-		*pVector = std::pow(*pVector, dScalar);
-		pVector++;
-	}
-}
-
-
-// static
-void GVec::pairwiseMultiply(double* pDest, double* pOther, size_t dims)
-{
-	while(dims > 0)
-	{
-		*(pDest++) *= *(pOther++);
-		dims--;
-	}
-}
-
-// static
-void GVec::pairwiseDivide(double* pDest, double* pOther, size_t dims)
-{
-	while(dims > 0)
-	{
-		*(pDest++) /= *(pOther++);
-		dims--;
-	}
-}
-
-// static
 void GVec::setAll(double* pVector, double value, size_t dims)
 {
 	for(size_t i = 0; i < dims; i++)
@@ -880,48 +771,6 @@ void GVec::setAll(double* pVector, double value, size_t dims)
 	}
 }
 
-void GVec::interpolateIndexes(size_t nIndexes, double* pInIndexes, double* pOutIndexes, float fRatio, size_t nCorrIndexes, double* pCorrIndexes1, double* pCorrIndexes2)
-{
-	GAssert(nCorrIndexes >= 2); // need at least two correlated indexes (at least the two extremes)
-	size_t nCorr = 0;
-	double fInvRatio = (float)1 - fRatio;
-	double fIndex, fWeight, f0, f1;
-	for(size_t i = 0; i < nIndexes; i++)
-	{
-		fIndex = pInIndexes[i];
-		while(nCorr < nCorrIndexes - 2 && fIndex >= pCorrIndexes1[nCorr + 1])
-			nCorr++;
-		fWeight = (fIndex - pCorrIndexes1[nCorr]) / (pCorrIndexes1[nCorr + 1] - pCorrIndexes1[nCorr]);
-		f0 = fInvRatio * pCorrIndexes1[nCorr] + fRatio * pCorrIndexes2[nCorr];
-		f1 = fInvRatio * pCorrIndexes1[nCorr + 1] + fRatio * pCorrIndexes2[nCorr + 1];
-		pOutIndexes[i] = ((float)1 - fWeight) * f0 + fWeight * f1;
-	}
-}
-/*
-void GVec::rotate(double* pVector, size_t nDims, double dAngle, const double* pA, const double* pB)
-{
-	// Check that the vectors are orthogonal
-	GAssert(pVector != pA && pVector != pB); // expected different vectors
-	GAssert(std::abs(GVec::dotProduct(pA, pB, nDims)) < 1e-4); // expected orthogonal plane axes
-
-	// Remove old planar component
-	double x = GVec::dotProduct(pVector, pA, nDims);
-	double y = GVec::dotProduct(pVector, pB, nDims);
-	GVec::addScaled(pVector, -x, pA, nDims);
-	GVec::addScaled(pVector, -y, pB, nDims);
-
-	// Rotate
-	double dRadius = sqrt(x * x + y * y);
-	double dTheta = atan2(y, x);
-	dTheta += dAngle;
-	x = dRadius * cos(dTheta);
-	y = dRadius * sin(dTheta);
-
-	// Add new planar component
-	GVec::addScaled(pVector, x, pA, nDims);
-	GVec::addScaled(pVector, y, pB, nDims);
-}
-*/
 void GVec::perturb(double* pDest, double deviation, size_t dims, GRand& rand)
 {
 	for(size_t i = 0; i < dims; i++)
@@ -937,42 +786,6 @@ GDomNode* GVec::serialize(GDom* pDoc, const double* pVec, size_t dims)
 	return pNode;
 }
 
-// static
-void GVec::deserialize(double* pVec, GDomListIterator& it)
-{
-	while(it.current())
-	{
-		*(pVec++) = it.current()->asDouble();
-		it.advance();
-	}
-}
-/*
-// static
-void GVec::print(std::ostream& stream, int precision, const double* pVec, size_t dims)
-{
-	if(dims == 0)
-		return;
-	stream.precision(precision);
-	stream << *pVec;
-	pVec++;
-	for(size_t i = 1; i < dims; i++)
-	{
-		stream << ", ";
-		stream << *pVec;
-		pVec++;
-	}
-}*/
-
-void GVec::project(double* pDest, const double* pPoint, const double* pOrigin, const double* pBasis, size_t basisCount, size_t dims)
-{
-	GVec::copy(pDest, pOrigin, dims);
-	for(size_t j = 0; j < basisCount; j++)
-	{
-		GVec::addScaled(pDest, GVec::dotProduct(pOrigin, pPoint, pBasis, dims), pBasis, dims);
-		pBasis += dims;
-	}
-}
-
 double GVec::sumElements(const double* pVec, size_t dims)
 {
 	double sum = 0;
@@ -985,15 +798,10 @@ double GVec::sumElements(const double* pVec, size_t dims)
 	return sum;
 }
 
-// static
-void GVec::absValues(double* pVec, size_t dims)
+void GVec::swapContents(GVec& that)
 {
-	while(true)
-	{
-		*pVec = std::abs(*pVec);
-		if(--dims == 0)
-			return;
-	}
+	std::swap(m_data, that.m_data);
+	std::swap(m_size, that.m_size);
 }
 
 #ifndef MIN_PREDICT

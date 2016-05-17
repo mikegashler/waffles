@@ -1261,6 +1261,15 @@ void GBreadthFirstUnfolding::setNeighborFinder(GNeighborFinder* pNF)
 	m_pNF = pNF;
 }
 
+void GBreadthFirstUnfolding_pairwiseDivide(double* pDest, double* pOther, size_t dims)
+{
+	while(dims > 0)
+	{
+		*(pDest++) /= *(pOther++);
+		dims--;
+	}
+}
+
 // virtual
 GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 {
@@ -1299,7 +1308,7 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 		if(hFinal.get())
 		{
 			GVec::add(pGlobalWeights, pLocalWeights, in.rows());
-			GVec::pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
+			GBreadthFirstUnfolding_pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
 			std::unique_ptr<GMatrix> hRep(pRep);
 			hFinal.reset(GManifold::blendEmbeddings(pRep, pLocalWeights, hFinal.get(), m_neighborCount, pNeighborTable, (size_t)m_rand.next(pData->rows())));
 		}
@@ -1319,7 +1328,7 @@ double GBreadthFirstUnfolding::refinePoint(double* pPoint, double* pNeighbor, si
 	GVec::copy(buf, pPoint, dims);
 	GVec::subtract(buf, pNeighbor, dims);
 	double mag = GVec::squaredMagnitude(buf, dims);
-	GVec::safeNormalize(buf, dims, pRand);
+	GVec::normalize(buf, dims);
 	GVec::multiply(buf, distance, dims);
 	GVec::add(buf, pNeighbor, dims);
 	GVec::subtract(buf, pPoint, dims);

@@ -116,9 +116,11 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
 partialcleandbg :
+	echo;echo;echo;echo;echo;echo "Building $(TARGET_NAME_DBG)..."
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
 
 partialcleanopt :
+	echo;echo;echo;echo;echo;echo "Building $(TARGET_NAME_OPT)..."
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
 clean : partialcleandbg partialcleanopt

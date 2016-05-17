@@ -378,27 +378,6 @@ double GRand::beta(double alphaVal, double betaVal)
 	return r / (r + gamma(betaVal));
 }
 
-void GRand::spherical(double* pOutVec, size_t dims)
-{
-	double* pEl = pOutVec;
-	for(size_t i = 0; i < dims; i++)
-		*(pEl++) = normal();
-	GVec::safeNormalize(pOutVec, dims, this);
-}
-
-void GRand::spherical_volume(double* pOutVec, size_t dims)
-{
-	spherical(pOutVec, dims);
-	GVec::multiply(pOutVec, pow(uniform(), 1.0 / dims), dims);
-}
-
-void GRand::cubical(double* pOutVec, size_t dims)
-{
-	double* pEl = pOutVec;
-	for(size_t i = 0; i < dims; i++)
-		*(pEl++) = uniform();
-}
-
 #ifndef MIN_PREDICT
 #define TEST_BIT_HIST_ITERS 100000
 void GRand_testBitHistogram()

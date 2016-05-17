@@ -27,7 +27,7 @@ using std::vector;
 namespace GClasses {
 
 GGridSearch::GGridSearch(GTargetFunction* pCritic)
-: GOptimizer(pCritic)
+: GOptimizer(pCritic), m_pCandidate(pCritic->relation()->size()), m_pBestVector(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
@@ -36,29 +36,25 @@ GGridSearch::GGridSearch(GTargetFunction* pCritic)
 	for(size_t i = 0; i < (size_t)pCritic->relation()->size(); i++)
 		ranges[i] = 0x4000001;
 	m_pCvi = new GCoordVectorIterator(ranges);
-	m_pCandidate = new double[2 * pCritic->relation()->size()];
-	m_pBestVector = m_pCandidate + pCritic->relation()->size();
 }
 
 // virtual
 GGridSearch::~GGridSearch()
 {
 	delete(m_pCvi);
-	delete[] std::min(m_pCandidate, m_pBestVector);
 }
 
 // virtual
 double GGridSearch::iterate()
 {
 	size_t* pCur = m_pCvi->current();
-	double* pCand = m_pCandidate;
 	for(size_t i = 0; i < (size_t)m_pCritic->relation()->size(); i++)
-		*(pCand++) = (double)*(pCur++) / 0x4000001;
-	double err = m_pCritic->computeError(m_pCandidate);
+		m_pCandidate[i] = (double)*(pCur++) / 0x4000001;
+	double err = m_pCritic->computeError(m_pCandidate.data());
 	if(err < m_bestError)
 	{
 		m_bestError = err;
-		std::swap(m_pCandidate, m_pBestVector);
+		m_pCandidate.swapContents(m_pBestVector);
 	}
 	m_pCvi->advanceSampling();
 	return m_bestError;
@@ -67,7 +63,7 @@ double GGridSearch::iterate()
 // virtual
 double* GGridSearch::currentVector()
 {
-	return m_pBestVector;
+	return m_pBestVector.data();
 }
 
 
@@ -79,29 +75,26 @@ double* GGridSearch::currentVector()
 
 
 GRandomSearch::GRandomSearch(GTargetFunction* pCritic, GRand* pRand)
-: GOptimizer(pCritic), m_pRand(pRand)
+: GOptimizer(pCritic), m_pRand(pRand), m_pCandidate(pCritic->relation()->size()), m_pBestVector(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	m_pCandidate = new double[2 * pCritic->relation()->size()];
-	m_pBestVector = m_pCandidate + pCritic->relation()->size();
 }
 
 // virtual
 GRandomSearch::~GRandomSearch()
 {
-	delete[] std::min(m_pCandidate, m_pBestVector);
 }
 
 // virtual
 double GRandomSearch::iterate()
 {
-	m_pRand->cubical(m_pCandidate, m_pCritic->relation()->size());
-	double err = m_pCritic->computeError(m_pCandidate);
+	m_pCandidate.fillUniform(*m_pRand);
+	double err = m_pCritic->computeError(m_pCandidate.data());
 	if(err < m_bestError)
 	{
 		m_bestError = err;
-		std::swap(m_pCandidate, m_pBestVector);
+		m_pCandidate.swapContents(m_pBestVector);
 	}
 	return m_bestError;
 }
@@ -109,7 +102,7 @@ double GRandomSearch::iterate()
 // virtual
 double* GRandomSearch::currentVector()
 {
-	return m_pBestVector;
+	return m_pBestVector.data();
 }
 
 
@@ -164,23 +157,18 @@ double GMinBinSearch::iterate()
 
 
 GProbeSearch::GProbeSearch(GTargetFunction* pCritic)
-: GOptimizer(pCritic), m_rand(0)
+: GOptimizer(pCritic), m_rand(0), m_pMins(pCritic->relation()->size()), m_pMaxs(pCritic->relation()->size()), m_pVector(pCritic->relation()->size()), m_pBestYet(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDimensions = pCritic->relation()->size();
 	m_nStabDepth = m_nDimensions * 30;
-	m_pMins = new double[m_nDimensions * 4];
-	m_pMaxs = m_pMins + m_nDimensions;
-	m_pVector = m_pMaxs + m_nDimensions;
-	m_pBestYet = m_pVector + m_nDimensions;
 	m_samples = 64;
 	reset();
 }
 
 /*virtual*/ GProbeSearch::~GProbeSearch()
 {
-	delete[] m_pMins;
 }
 
 void GProbeSearch::reset()
@@ -201,8 +189,8 @@ void GProbeSearch::resetStab()
 	m_nDepth = 0;
 
 	// Start at the global scope
-	GVec::setAll(m_pMins, 0.0, m_nDimensions);
-	GVec::setAll(m_pMaxs, 1.0, m_nDimensions);
+	m_pMins.fill(0.0);
+	m_pMaxs.fill(1.0);
 
 	// Increment the mask
 	size_t i = 0;
@@ -217,7 +205,7 @@ double GProbeSearch::sample(bool greater)
 	m_rand.setSeed(0);
 	for(size_t i = 0; i < m_samples; i++)
 	{
-		m_rand.cubical(m_pVector, m_nDimensions);
+		m_pVector.fillUniform(m_rand);
 		for(size_t j = 0; j < m_nDimensions; j++)
 		{
 			m_pVector[j] *= (m_pMaxs[j] - m_pMins[j]);
@@ -228,12 +216,12 @@ double GProbeSearch::sample(bool greater)
 		m_pVector[m_nCurrentDim] += m_pMins[m_nCurrentDim];
 		if(greater)
 			m_pVector[m_nCurrentDim] += 0.5 * (m_pMaxs[m_nCurrentDim] - m_pMins[m_nCurrentDim]);
-		double err = m_pCritic->computeError(m_pVector);
+		double err = m_pCritic->computeError(m_pVector.data());
 		bestLocal = std::min(bestLocal, err);
 		if(err < m_bestError)
 		{
 			m_bestError = err;
-			GVec::copy(m_pBestYet, m_pVector, m_nDimensions);
+			m_pBestYet.copy(m_pVector);
 		}
 	}
 	return bestLocal;
