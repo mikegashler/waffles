@@ -61,7 +61,7 @@ protected:
 	GCudaVector m_activation;
 	GCudaVector m_incoming;
 	GCudaVector m_error;
-	double* m_pOutgoing;
+	GVec m_outgoing;
 
 public:
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
@@ -84,16 +84,16 @@ public:
 	virtual GCudaVector& deviceActivation() { return m_activation; }
 
 	/// Downloads the activation vector from device memory to host memory, and returns a pointer to the host memory copy.
-	virtual double* activation();
+	virtual GVec& activation();
 
 	/// Returns the error vector in device memory.
 	virtual GCudaVector& deviceError() { return m_error; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual double* error();
+	virtual GVec& error();
 
 	/// Uploads pIn to the GPU, then feeds it through this layer
-	virtual void feedForward(const double* pIn);
+	virtual void feedForward(const GVec& in);
 
 	/// Feeds the activation from the upstream layer through this layer.
 	/// (If the upstream layer is a GPU-optimized layer, then it will be faster because
@@ -106,7 +106,7 @@ public:
 	/// Computes the error terms associated with the output of this layer, given a target vector.
 	/// (Note that this is the error of the output, not the error of the weights. To obtain the
 	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const double* pTarget);
+	virtual void computeError(const GVec& target);
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
@@ -121,7 +121,7 @@ public:
 	/// (Assumes the error has already been computed and deactivated.)
 	/// Note that this method does not sync with the GPU. It assumes that you will yet call
 	/// updateBias, which does sync with the GPU.
-	virtual void updateDeltas(const double* pUpStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Refines the weights by gradient descent.
 	virtual void updateDeltas(GNeuralNetLayer* pUpStreamLayer, double momentum);
@@ -129,9 +129,12 @@ public:
 	/// Adds the deltas to the weights.
 	virtual void applyDeltas(double learningRate);
 
+	/// Adaptively update a per-weight learning rate and update the weights and biases.
+	virtual void applyAdaptive();
+
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
-	virtual void updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
+	virtual void updateWeightsAndRestoreDroppedOnes(const GVec& upStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
 
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
@@ -152,10 +155,10 @@ public:
 	virtual size_t countWeights();
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* outVector);
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* vector);
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
 	virtual void copyWeights(const GNeuralNetLayer* pSource);
@@ -191,7 +194,7 @@ public:
 protected:
 	void copyBiasToNet();
 
-	void feedIn(const double* pIn);
+	void feedIn(const GVec& in);
 
 	void feedIn(GNeuralNetLayer* pUpStreamLayer);
 

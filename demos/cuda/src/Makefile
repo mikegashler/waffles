@@ -3,7 +3,7 @@
 ################
 SHELL = /bin/bash
 TARGET_PATH = ../bin
-TARGET_NAME_OPT = hello
+TARGET_NAME_OPT = cuda
 TARGET_NAME_DBG = $(TARGET_NAME_OPT)dbg
 OBJ_PATH = ../obj
 INSTALL_LOCATION_INCLUDE ?= /usr/local/include
@@ -15,12 +15,12 @@ ifeq ($(UNAME),Darwin)
 	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) -lpthread -framework AppKit ../../../lib/libGClassesDbg.a
 	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) -lpthread -framework AppKit ../../../lib/libGClasses.a
 else
-	CFLAGS = -Wall -I$(INSTALL_LOCATION_INCLUDE) -I../../../src -I/usr/local/cuda/include
+	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I$(INSTALL_LOCATION_INCLUDE) -I../../../src -I/usr/local/cuda/include
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
 	LFLAGS = -L../../../lib -lpthread -L/usr/local/cuda/lib64/
-	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lGCudaDbg -lcurand -lcublas -lcudart
-	OPT_LFLAGS = $(LFLAGS) -lGClasses -lGCuda -lcurand -lcublas -lcudart
+	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lGCudaDbg -lcurand -lcublas -lcudart -lpthread
+	OPT_LFLAGS = $(LFLAGS) -lGClasses -lGCuda -lcurand -lcublas -lcudart -lpthread
 endif
 
 ################

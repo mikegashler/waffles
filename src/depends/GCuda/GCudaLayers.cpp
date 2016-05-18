@@ -45,14 +45,13 @@ GDomNode* GCudaLayer::serialize(GDom* pDoc)
 
 
 GLayerClassicCuda::GLayerClassicCuda(GCudaEngine& engine, size_t inputs, size_t outputs)
-: GCudaLayer(engine), m_pOutgoing(NULL)
+: GCudaLayer(engine)
 {
 	resize(inputs, outputs, NULL);
 }
 
 GLayerClassicCuda::~GLayerClassicCuda()
 {
-	delete[] m_pOutgoing;
 }
 
 void GLayerClassicCuda::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
@@ -68,8 +67,7 @@ void GLayerClassicCuda::resize(size_t inputCount, size_t outputCount, GRand* pRa
 	m_biasDelta.resize(outputCount);
 	m_activation.resize(outputCount);
 	m_error.resize(outputCount);
-	delete[] m_pOutgoing;
-	m_pOutgoing = NULL;
+	m_outgoing.resize(0);
 }
 
 // virtual
@@ -81,16 +79,14 @@ void GLayerClassicCuda::resetWeights(GRand& rand)
 	double mag = 1.0 / inputCount;
 	for(size_t i = 0; i < inputCount; i++)
 	{
-		double* pW = mTmp[i];
+		GVec& pW = mTmp[i];
 		for(size_t j = 0; j < outputCount; j++)
-			*(pW++) = rand.normal() * mag;
+			pW[j] = rand.normal() * mag;
 	}
 	m_weights.upload(mTmp);
 	GVec vTmp(outputCount);
-	double* pB = vTmp.v;
-	for(size_t i = 0; i < outputCount; i++)
-		*(pB++) = rand.normal() * mag;
-	m_bias.upload(vTmp.v, outputCount);
+        vTmp.fillNormal(rand, mag);
+	m_bias.upload(vTmp);
 	m_delta.scale(m_engine, 0.0);
 	m_biasDelta.scale(m_engine, 0.0);
 }
@@ -103,32 +99,28 @@ void GLayerClassicCuda::perturbWeights(GRand& rand, double deviation, size_t sta
 	m_weights.download(m);
 	size_t n = std::min(outputs() - start, count);
 	for(size_t j = 0; j < m_weights.rows(); j++)
-		GVec::perturb(m[j] + start, deviation, n, rand);
+		GVec::perturb(m[j].data() + start, deviation, n, rand);
 	m_weights.upload(m);
 
 	// Perturb biases
 	GVec v(outputs());
-	m_bias.download(v.v);
-	GVec::perturb(v.v + start, deviation, n, rand);
-	m_bias.upload(v.v, outputs());
+	m_bias.download(v);
+	GVec::perturb(v.data() + start, deviation, n, rand);
+	m_bias.upload(v);
 }
 
 // virtual
-double* GLayerClassicCuda::activation()
+GVec& GLayerClassicCuda::activation()
 {
-	if(!m_pOutgoing)
-		m_pOutgoing = new double[outputs()];
-	m_activation.download(m_pOutgoing);
-	return m_pOutgoing;
+	m_activation.download(m_outgoing);
+	return m_outgoing;
 }
 
 // virtual
-double* GLayerClassicCuda::error()
+GVec& GLayerClassicCuda::error()
 {
-	if(!m_pOutgoing)
-		m_pOutgoing = new double[outputs()];
-	m_error.download(m_pOutgoing);
-	return m_pOutgoing;
+	m_error.download(m_outgoing);
+	return m_outgoing;
 }
 
 // virtual
@@ -139,9 +131,9 @@ void GLayerClassicCuda::copyBiasToNet()
 }
 
 // virtual
-void GLayerClassicCuda::feedIn(const double* pIn)
+void GLayerClassicCuda::feedIn(const GVec& in)
 {
-	m_incoming.upload(pIn, inputs());
+	m_incoming.upload(in);
 	m_weights.feedIn(m_engine, m_incoming, m_activation, 0);
 	m_engine.sync();
 }
@@ -166,10 +158,10 @@ void GLayerClassicCuda::activate()
 }
 
 // virtual
-void GLayerClassicCuda::feedForward(const double* pIn)
+void GLayerClassicCuda::feedForward(const GVec& in)
 {
 	copyBiasToNet();
-	m_incoming.upload(pIn, inputs());
+	m_incoming.upload(in);
 	m_weights.feedIn(m_engine, m_incoming, m_activation, 0);
 	m_engine.sync();
 	activate();
@@ -189,9 +181,9 @@ void GLayerClassicCuda::dropOut(GRand& rand, double probOfDrop)
 	throw Ex("sorry, not implemented yet");
 }
 
-void GLayerClassicCuda::computeError(const double* pTarget)
+void GLayerClassicCuda::computeError(const GVec& target)
 {
-	m_error.upload(pTarget, outputs());
+	m_error.upload(target);
 	m_error.add(m_engine, m_activation, -1.0);
 	m_engine.sync();
 }
@@ -206,14 +198,14 @@ void GLayerClassicCuda::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	if(pUpStreamLayer->usesGPU())
 	{
-		m_weights.backPropError(m_engine, m_error, ((GCudaLayer*)pUpStreamLayer)->deviceError());
+		m_weights.backPropError(m_engine, m_error, ((GCudaLayer*)pUpStreamLayer)->deviceError(), 0);
 		m_engine.sync();
 	}
 	else
 	{
 		if(m_incoming.size() != inputs())
 			m_incoming.resize(inputs());
-		m_weights.backPropError(m_engine, m_error, m_incoming);
+		m_weights.backPropError(m_engine, m_error, m_incoming, 0);
 		m_engine.sync();
 		m_incoming.download(pUpStreamLayer->error());
 	}
@@ -227,7 +219,7 @@ void GLayerClassicCuda::updateBias(double learningRate, double momentum)
 }
 
 // virtual
-void GLayerClassicCuda::updateDeltas(const double* pUpStreamActivation, double momentum)
+void GLayerClassicCuda::updateDeltas(const GVec& upStreamActivation, double momentum)
 {
 	// Assume that the input was already uploaded into m_incoming when feedForward was called
 	if(momentum != 1.0)
@@ -268,7 +260,13 @@ void GLayerClassicCuda::applyDeltas(double learningRate)
 }
 
 // virtual
-void GLayerClassicCuda::updateWeightsAndRestoreDroppedOnes(const double* pUpStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
+void GLayerClassicCuda::applyAdaptive()
+{
+	throw Ex("Sorry, GLayerClassicCuda::applyAdaptive is not yet implemented");
+}
+
+// virtual
+void GLayerClassicCuda::updateWeightsAndRestoreDroppedOnes(const GVec& upStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
 {
 	throw Ex("Sorry, not implemented yet");
 }
@@ -306,14 +304,14 @@ size_t GLayerClassicCuda::countWeights()
 }
 
 // virtual
-size_t GLayerClassicCuda::weightsToVector(double* pOutVector)
+size_t GLayerClassicCuda::weightsToVector(double* outVector)
 {
 	throw Ex("Sorry, GLayerClassicCuda::weightsToVector is not yet implemented");
 	//return 0;
 }
 
 // virtual
-size_t GLayerClassicCuda::vectorToWeights(const double* pVector)
+size_t GLayerClassicCuda::vectorToWeights(const double* vector)
 {
 	throw Ex("Sorry, GLayerClassicCuda::vectorToWeights is not yet implemented");
 	//return 0;
@@ -347,7 +345,7 @@ void GLayerClassicCuda::regularizeActivationFunction(double lambda)
 void GLayerClassicCuda::upload(GLayerClassic& source)
 {
 	m_weights.upload(source.weights());
-	m_bias.upload(source.bias(), source.outputs());
+	m_bias.upload(source.bias());
 }
 
 void GLayerClassicCuda::download(GLayerClassic& dest)

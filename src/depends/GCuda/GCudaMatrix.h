@@ -20,6 +20,7 @@
 #define __GCUDAMATRIX_H__
 
 #include <cstddef>
+#include "../../GClasses/GVec.h"
 
 namespace GClasses {
 
@@ -71,10 +72,10 @@ public:
 
 	/// Copies a vector from the host (CPU memory) to the device (GPU memory).
 	/// Resizes this vector if necessary.
-	void upload(const double* pHostVector, size_t size);
+	void upload(const GVec& hostVector);
 
 	/// Copies a vector from the device (GPU memory) to the host (CPU memory).
-	void download(double* pOutHostVector);
+	void download(GVec& hostVector);
 
 	/// Copies that into this. (Resizes this vector if necessary.)
 	void copy(GCudaEngine& engine, const GCudaVector& that);
