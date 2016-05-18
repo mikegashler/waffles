@@ -47,7 +47,7 @@ public:
 	virtual double iterate();
 
 	/// Returns the best vector yet found
-	virtual double* currentVector();
+	virtual const GVec& currentVector();
 };
 
 
@@ -71,7 +71,7 @@ public:
 	virtual double iterate();
 
 	/// Returns the best vector yet found
-	virtual double* currentVector();
+	virtual const GVec& currentVector();
 };
 
 
@@ -86,7 +86,7 @@ class GMinBinSearch : public GOptimizer
 protected:
 	size_t m_curDim;
 	double m_stepSize;
-	double* m_pCurrent;
+	GVec m_pCurrent;
 	double m_curErr;
 
 public:
@@ -97,7 +97,7 @@ public:
 	virtual double iterate();
 
 	/// Returns the best vector yet found
-	virtual double* currentVector() { return m_pCurrent; }
+	virtual const GVec& currentVector() { return m_pCurrent; }
 };
 
 
@@ -141,7 +141,7 @@ public:
 	virtual double iterate();
 
 	/// Returns the best vector yet found
-	virtual double* currentVector() { return m_pBestYet.data(); }
+	virtual const GVec& currentVector() { return m_pBestYet; }
 
 	/// Specify the number of times to divide the space before
 	/// satisfactory accuracy is obtained. Larger values will

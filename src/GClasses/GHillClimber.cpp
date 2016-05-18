@@ -28,21 +28,18 @@
 using namespace GClasses;
 
 GMomentumGreedySearch::GMomentumGreedySearch(GTargetFunction* pCritic)
-: GOptimizer(pCritic)
+: GOptimizer(pCritic), m_pStepSizes(pCritic->relation()->size()), m_pVector(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDimensions = pCritic->relation()->size();
 	m_nCurrentDim = 0;
-	m_pVector = new double[2 * m_nDimensions];
-	m_pStepSizes = m_pVector + m_nDimensions;
 	m_dChangeFactor = .87;
 	reset();
 }
 
 /*virtual*/ GMomentumGreedySearch::~GMomentumGreedySearch()
 {
-	delete[] m_pVector;
 }
 
 void GMomentumGreedySearch::reset()
@@ -57,10 +54,10 @@ void GMomentumGreedySearch::reset()
 
 void GMomentumGreedySearch::setAllStepSizes(double dStepSize)
 {
-	GVec::setAll(m_pStepSizes, dStepSize, m_nDimensions);
+	m_pStepSizes.fill(dStepSize);
 }
 
-double* GMomentumGreedySearch::stepSizes()
+GVec& GMomentumGreedySearch::stepSizes()
 {
 	return m_pStepSizes;
 }
@@ -112,22 +109,17 @@ void GMomentumGreedySearch::test()
 
 
 GHillClimber::GHillClimber(GTargetFunction* pCritic)
-: GOptimizer(pCritic), m_dim(0)
+: GOptimizer(pCritic), m_dim(0), m_pStepSizes(pCritic->relation()->size()), m_pVector(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDims = pCritic->relation()->size();
-	m_pVector = new double[2 * m_nDims];
-	m_pStepSizes = m_pVector + m_nDims;
 	m_dChangeFactor = .83;
-	m_pAnnealCand = NULL;
 	reset();
 }
 
 /*virtual*/ GHillClimber::~GHillClimber()
 {
-	delete[] m_pVector;
-	delete[] m_pAnnealCand;
 }
 
 void GHillClimber::reset()
@@ -142,10 +134,10 @@ void GHillClimber::reset()
 
 void GHillClimber::setStepSizes(double size)
 {
-	GVec::setAll(m_pStepSizes, size, m_nDims);
+	m_pStepSizes.fill(size);
 }
 
-double* GHillClimber::stepSizes()
+GVec& GHillClimber::stepSizes()
 {
 	return m_pStepSizes;
 }
@@ -235,15 +227,14 @@ double GHillClimber::anneal(double dev, GRand* pRand)
 {
 	if(!m_pCritic->isStable())
 		m_dError = m_pCritic->computeError(m_pVector); // Current spot
-	if(!m_pAnnealCand)
-		m_pAnnealCand = new double[m_nDims];
+	m_pAnnealCand.resize(m_nDims);
 	for(size_t i = 0; i < m_nDims; i++)
 		m_pAnnealCand[i] = m_pVector[i] + pRand->normal() * dev;
 	double err = m_pCritic->computeError(m_pAnnealCand);
 	if(err < m_dError)
 	{
 		m_dError = err;
-		std::swap(m_pAnnealCand, m_pVector);
+		m_pAnnealCand.swapContents(m_pVector);
 	}
 	return m_dError;
 }
@@ -263,20 +254,16 @@ void GHillClimber::test()
 
 
 GAnnealing::GAnnealing(GTargetFunction* pTargetFunc, GRand* pRand)
-: GOptimizer(pTargetFunc), m_initialDeviation(1.0), m_pRand(pRand)
+: GOptimizer(pTargetFunc), m_initialDeviation(1.0), m_pVector(pTargetFunc->relation()->size()), m_pCandidate(pTargetFunc->relation()->size()), m_pRand(pRand)
 {
 	if(!pTargetFunc->relation()->areContinuous(0, pTargetFunc->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_dims = pTargetFunc->relation()->size();
-	m_pBuf = new double[m_dims * 2];
-	m_pVector = m_pBuf;
-	m_pCandidate = m_pVector + m_dims;
 	reset();
 }
 
 /*virtual*/ GAnnealing::~GAnnealing()
 {
-	delete[] m_pBuf;
 }
 
 void GAnnealing::reset()
@@ -298,7 +285,7 @@ void GAnnealing::reset()
 		double cand = m_pCritic->computeError(m_pCandidate);
 		if(cand < m_dError)
 		{
-			std::swap(m_pVector, m_pCandidate);
+			m_pVector.swapContents(m_pCandidate);
 			m_dError = cand;
 			m_deviation *= 1.5;
 		}
@@ -332,7 +319,7 @@ GRandomDirectionBinarySearch::GRandomDirectionBinarySearch(GTargetFunction* pTar
 	m_current.resize(m_dims);
 	m_direction.resize(m_dims);
 	m_current.fill(0.0);
-	m_err = m_pCritic->computeError(m_current.data());
+	m_err = m_pCritic->computeError(m_current);
 }
 
 // virtual
@@ -347,8 +334,8 @@ double GRandomDirectionBinarySearch::iterate()
 	double sum = 0.0;
 	for(size_t i = 0; i < 20; i++)
 	{
-		GVec::addScaled(m_current.data(), m_stepSize, m_direction.data(), m_dims);
-		double pos = m_pCritic->computeError(m_current.data());
+		m_current.addScaled(m_stepSize, m_direction);
+		double pos = m_pCritic->computeError(m_current);
 		if(pos < m_err)
 		{
 			sum += m_stepSize;
@@ -358,7 +345,7 @@ double GRandomDirectionBinarySearch::iterate()
 		else
 		{
 			GVec::addScaled(m_current.data(), -2.0 * m_stepSize, m_direction.data(), m_dims);
-			double neg = m_pCritic->computeError(m_current.data());
+			double neg = m_pCritic->computeError(m_current);
 			if(neg < m_err)
 			{
 				sum -= m_stepSize;
@@ -394,14 +381,11 @@ void GRandomDirectionBinarySearch::test()
 // --------------------------------------------------------------------------------
 
 GEmpiricalGradientDescent::GEmpiricalGradientDescent(GTargetFunction* pCritic, GRand* pRand)
-: GOptimizer(pCritic)
+: GOptimizer(pCritic), m_pVector(pCritic->relation()->size()), m_pGradient(pCritic->relation()->size()), m_pDelta(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDimensions = pCritic->relation()->size();
-	m_pVector = new double[m_nDimensions * 3];
-	m_pGradient = m_pVector + m_nDimensions;
-	m_pDelta = m_pGradient + m_nDimensions;
 	m_dFeelDistance = 0.03125;
 	m_dMomentum = 0.8;
 	m_dLearningRate = 0.1;
@@ -411,13 +395,12 @@ GEmpiricalGradientDescent::GEmpiricalGradientDescent(GTargetFunction* pCritic, G
 
 /*virtual*/ GEmpiricalGradientDescent::~GEmpiricalGradientDescent()
 {
-	delete[] m_pVector;
 }
 
 void GEmpiricalGradientDescent::reset()
 {
 	m_pCritic->initVector(m_pVector);
-	GVec::setAll(m_pDelta, 0.0, m_nDimensions);
+	m_pDelta.fill(0.0);
 }
 
 /*virtual*/ double GEmpiricalGradientDescent::iterate()
@@ -457,8 +440,8 @@ GSampleClimber::~GSampleClimber()
 void GSampleClimber::reset()
 {
 	m_dStepSize = .1;
-	m_pCritic->initVector(m_pVector.data());
-	m_error = m_pCritic->computeError(m_pVector.data());
+	m_pCritic->initVector(m_pVector);
+	m_error = m_pCritic->computeError(m_pVector);
 }
 
 // virtual
@@ -470,7 +453,7 @@ double GSampleClimber::iterate()
 	m_pCand.addScaled(m_dStepSize * 0.015625, m_pDir);
 	m_pCand += m_pVector;
 	double w;
-	double err = m_pCritic->computeError(m_pCand.data());
+	double err = m_pCritic->computeError(m_pCand);
 	for(size_t i = 0; i < m_dims; i++)
 	{
 		w = m_alpha * m_pDir[i] * m_pDir[i];
@@ -482,7 +465,7 @@ double GSampleClimber::iterate()
 
 	// Step
 	m_pVector.addScaled(m_dStepSize, m_pDir);
-	err = m_pCritic->computeError(m_pVector.data());
+	err = m_pCritic->computeError(m_pVector);
 	if(m_error < err)
 	{
 		// back up and slow down

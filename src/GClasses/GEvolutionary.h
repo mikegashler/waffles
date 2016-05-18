@@ -44,7 +44,7 @@ public:
 	virtual ~GEvolutionaryOptimizer();
 
 	/// Returns the best vector found in recent iterations.
-	virtual double* currentVector();
+	virtual const GVec& currentVector();
 
 	/// Do a little bit more optimization. (This method is typically called in a loop
 	/// until satisfactory results are obtained.)
@@ -54,7 +54,7 @@ protected:
 	/// Returns the index of the tournament loser (who should typically die and be replaced).
 	size_t doTournament();
 
-	void recomputeError(size_t index, GEvolutionaryOptimizerNode* pNode, const double* pVec);
+	void recomputeError(size_t index, GEvolutionaryOptimizerNode* pNode, const GVec& vec);
 
 	GEvolutionaryOptimizerNode* node(size_t index);
 };

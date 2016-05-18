@@ -59,10 +59,10 @@ public:
 	/// Sets pVector to an initial guess. The default behavior is to initialize the
 	/// vector to all zeros. You should override this method if different behavior
 	/// is desired.
-	virtual void initVector(double* pVector);
+	virtual void initVector(GVec& vector);
 
 	/// Computes the error of the given vector using all patterns
-	virtual double computeError(const double* pVector) = 0;
+	virtual double computeError(const GVec& vector) = 0;
 };
 
 
@@ -72,7 +72,7 @@ class GOptimizerBasicTestTargetFunction : public GTargetFunction
 public:
 	GOptimizerBasicTestTargetFunction() : GTargetFunction(3) {}
 
-	virtual double computeError(const double* pVector);
+	virtual double computeError(const GVec& vector);
 };
 #endif // MIN_PREDICT
 
@@ -96,7 +96,7 @@ public:
 
 	/// Returns the current vector of the optimizer. For greedy search
 	/// methods, this will be the best vector yet found.
-	virtual double* currentVector() = 0;
+	virtual const GVec& currentVector() = 0;
 
 	/// This will first call iterate() nBurnInIterations times,
 	/// then it will repeatedly call iterate() in blocks of

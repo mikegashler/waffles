@@ -35,10 +35,10 @@ protected:
 	double m_dLearningRate;
 	size_t m_nDimensions;
 	size_t m_nPopulation;
-	double* m_pPositions;
-	double* m_pVelocities;
-	double* m_pBests;
-	double* m_pErrors;
+	GMatrix m_pPositions;
+	GMatrix m_pVelocities;
+	GMatrix m_pBests;
+	GVec m_pErrors;
 	size_t m_nGlobalBest;
 	GRand* m_pRand;
 

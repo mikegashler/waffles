@@ -65,17 +65,17 @@ public:
 		delete[] m_pAccuracy;
 	}
 
-	virtual void initVector(double* pVector)
+	virtual void initVector(GVec& pVector)
 	{
 		GDistanceMetric* pMetric = m_pLearner->metric();
-		GVec::copy(pVector, pMetric->scaleFactors().data(), pMetric->scaleFactors().size());
+		pVector.copy(pMetric->scaleFactors());
 	}
 
 	virtual bool isStable() { return false; }
 	virtual bool isConstrained() { return false; }
 
 protected:
-	virtual double computeError(const double* pVector)
+	virtual double computeError(const GVec& pVector)
 	{
 		// todo: this method is WAAAY too inefficient
 		GMatrix* pFeatures = m_pLearner->features();
@@ -83,7 +83,7 @@ protected:
 		GKNN temp;
 		temp.setNeighborCount(m_pLearner->neighborCount());
 		temp.beginIncrementalLearning(pFeatures->relation(), pLabels->relation());
-		temp.metric()->scaleFactors().set(pVector, relation()->size());
+		temp.metric()->scaleFactors().copy(pVector);
 		return temp.crossValidate(*pFeatures, *pLabels, 2);
 	}
 };
@@ -359,7 +359,7 @@ void GKNN::trainIncremental(const GVec& in, const GVec& out)
 	if(m_pScaleFactorOptimizer && m_pFeatures->rows() > 50)
 	{
 		m_pScaleFactorOptimizer->iterate();
-		m_pDistanceMetric->scaleFactors().set(m_pScaleFactorOptimizer->currentVector(), m_pFeatures->cols());
+		m_pDistanceMetric->scaleFactors().copy(m_pScaleFactorOptimizer->currentVector());
 	}
 }
 
@@ -426,7 +426,7 @@ void GKNN::trainInner(const GMatrix& feats, const GMatrix& labs)
 			m_pScaleFactorOptimizer->iterate();
 			m_pNeighborFinder->reoptimize();
 		}
-		scaleFactors.set(m_pScaleFactorOptimizer->currentVector(), feats.cols());
+		scaleFactors.copy(m_pScaleFactorOptimizer->currentVector());
 	}
 }
 

@@ -93,7 +93,7 @@ public:
 	void clear();
 
 	/// Sets all the coefficients. pVector must be of size GetCoefficientCount()
-	void setCoefficients(const double* pVector);
+	void setCoefficients(const GVec& pVector);
 
 	/// Converts to a multi-dimensional Bezier curve
 	void toBezierCoefficients();
@@ -262,12 +262,12 @@ public:
 	virtual bool isConstrained() { return false; }
 
 protected:
-	virtual void initVector(double* pVector)
+	virtual void initVector(GVec& pVector)
 	{
-		GVec::setAll(pVector, 0.0, relation()->size());
+		pVector.fill(0.0);
 	}
 
-	virtual double computeError(const double* pVector)
+	virtual double computeError(const GVec& pVector)
 	{
 		m_pPolynomial->setCoefficients(pVector);
 		m_pPolynomial->fromBezierCoefficients();
@@ -284,11 +284,11 @@ protected:
 	}
 };
 
-void GPolynomialSingleLabel::setCoefficients(const double* pVector)
+void GPolynomialSingleLabel::setCoefficients(const GVec& pVector)
 {
 	if(m_featureDims == 0)
 		throw Ex("init has not been called");
-	m_pCoefficients.set(pVector, m_nCoefficients);
+	m_pCoefficients.copy(pVector);
 }
 
 void GPolynomialSingleLabel::clear()

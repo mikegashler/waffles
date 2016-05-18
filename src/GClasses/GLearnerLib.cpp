@@ -2110,7 +2110,7 @@ void GLearnerLib::regress(GArgReader& args)
 	double err = hc.currentError();
 	cout << "SSE = " << to_str(err) << "\n";
 	cout << "Params:\n";
-	double* pVec = hc.currentVector();
+	const GVec& pVec = hc.currentVector();
 	for(size_t i = 0; i < (size_t)pFunc->m_expectedParams - pFeatures->cols(); i++)
 	{
 		if(i > 0)

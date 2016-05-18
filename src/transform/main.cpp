@@ -965,25 +965,25 @@ public:
 	virtual bool isStable() { return true; }
 	virtual bool isConstrained() { return false; }
 
-	virtual void initVector(double* pVector)
+	virtual void initVector(GVec& pVector)
 	{
-		GVec::setAll(pVector, 0.0, m_attrs);
-		m_transform.toVector(pVector + m_attrs);
+		pVector.fill(0.0);
+		m_transform.toVector(pVector.data() + m_attrs);
 	}
 
-	void TransformData(const double* pVector)
+	void TransformData(const GVec& pVector)
 	{
-		m_transform.fromVector(pVector + m_attrs, m_attrs);
+		m_transform.fromVector(pVector.data() + m_attrs, m_attrs);
 		for(size_t i = 0; i < m_pData2->rows(); i++)
 		{
 			GVec& pPatIn = m_pData2->row(i);
 			GVec& pPatOut = m_transformed.row(i);
 			m_transform.multiply(pPatIn, pPatOut);
-			GVec::add(pPatOut.data(), pVector, m_attrs);
+			GVec::add(pPatOut.data(), pVector.data(), m_attrs);
 		}
 	}
 
-	virtual double computeError(const double* pVector)
+	virtual double computeError(const GVec& pVector)
 	{
 		TransformData(pVector);
 		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_pResults);
@@ -991,7 +991,7 @@ public:
 		return sum;
 	}
 
-	void ShowResults(const double* pVector, bool sumOverAttributes)
+	void ShowResults(const GVec& pVector, bool sumOverAttributes)
 	{
 		TransformData(pVector);
 		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_pResults);

@@ -37,8 +37,8 @@ class GMomentumGreedySearch : public GOptimizer
 protected:
 	size_t m_nDimensions;
 	size_t m_nCurrentDim;
-	double* m_pStepSizes;
-	double* m_pVector;
+	GVec m_pStepSizes;
+	GVec m_pVector;
 	double m_dError;
 	double m_dChangeFactor;
 
@@ -52,13 +52,13 @@ public:
 #endif
 
 	/// Returns a pointer to the state vector
-	virtual double* currentVector() { return m_pVector; }
+	virtual const GVec& currentVector() { return m_pVector; }
 
 	/// Set all the current step sizes to this value
 	void setAllStepSizes(double dStepSize);
 
 	/// Returns the vector of step sizes
-	double* stepSizes();
+	GVec& stepSizes();
 
 	virtual double iterate();
 
@@ -80,9 +80,9 @@ class GHillClimber : public GOptimizer
 protected:
 	size_t m_nDims;
 	size_t m_dim;
-	double* m_pStepSizes;
-	double* m_pVector;
-	double* m_pAnnealCand;
+	GVec m_pStepSizes;
+	GVec m_pVector;
+	GVec m_pAnnealCand;
 	double m_dError;
 	double m_dChangeFactor;
 
@@ -96,7 +96,7 @@ public:
 #endif
 
 	/// Returns a pointer to the current vector
-	virtual double* currentVector() { return m_pVector; }
+	virtual const GVec& currentVector() { return m_pVector; }
 
 	/// Returns the error for the current vector
 	double currentError() { return m_dError; }
@@ -105,7 +105,7 @@ public:
 	void setStepSizes(double size);
 
 	/// Returns the vector of step sizes
-	double* stepSizes();
+	GVec& stepSizes();
 
 	virtual double iterate();
 
@@ -132,9 +132,8 @@ protected:
 	double m_deviation;
 	double m_decay;
 	size_t m_dims;
-	double* m_pBuf;
-	double* m_pVector;
-	double* m_pCandidate;
+	GVec m_pVector;
+	GVec m_pCandidate;
 	double m_dError;
 	GRand* m_pRand;
 
@@ -152,7 +151,7 @@ public:
 	virtual double iterate();
 
 	/// Returns the best vector yet found.
-	virtual double* currentVector() { return m_pVector; }
+	virtual const GVec& currentVector() { return m_pVector; }
 
 	/// Specify the current deviation to use for annealing. (A random vector
 	/// from a Normal distribution with the specified deviation will be added to each
@@ -192,7 +191,7 @@ public:
 	virtual double iterate();
 
 	/// Returns the best vector yet found.
-	virtual double* currentVector() { return m_current.data(); }
+	virtual const GVec& currentVector() { return m_current; }
 };
 
 
@@ -208,9 +207,9 @@ class GEmpiricalGradientDescent : public GOptimizer
 protected:
 	double m_dLearningRate;
 	size_t m_nDimensions;
-	double* m_pVector;
-	double* m_pGradient;
-	double* m_pDelta;
+	GVec m_pVector;
+	GVec m_pGradient;
+	GVec m_pDelta;
 	double m_dFeelDistance;
 	double m_dMomentum;
 	GRand* m_pRand;
@@ -220,7 +219,7 @@ public:
 	virtual ~GEmpiricalGradientDescent();
 
 	/// Returns the best vector yet found.
-	virtual double* currentVector() { return m_pVector; }
+	virtual const GVec& currentVector() { return m_pVector; }
 
 	/// Performs a little more optimization. (Call this in a loop until
 	/// acceptable results are found.)
@@ -260,7 +259,7 @@ public:
 	virtual ~GSampleClimber();
 
 	/// Returns the best vector yet found
-	virtual double* currentVector() { return m_pVector.data(); }
+	virtual const GVec& currentVector() { return m_pVector; }
 	
 	/// Performs a little more optimization. (Call this in a loop until
 	/// acceptable results are found.)

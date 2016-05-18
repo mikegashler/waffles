@@ -25,17 +25,13 @@
 namespace GClasses {
 
 GParticleSwarm::GParticleSwarm(GTargetFunction* pCritic, size_t nPopulation, double dMin, double dRange, GRand* pRand)
-: GOptimizer(pCritic), m_pRand(pRand)
+: GOptimizer(pCritic), m_pPositions(m_nPopulation, pCritic->relation()->size()), m_pVelocities(m_nPopulation, pCritic->relation()->size()), m_pBests(m_nPopulation, pCritic->relation()->size()), m_pErrors(m_nPopulation), m_pRand(pRand)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_dLearningRate = .2;
 	m_nDimensions = pCritic->relation()->size();
 	m_nPopulation = nPopulation;
-	m_pPositions = new double[m_nPopulation * m_nDimensions];
-	m_pVelocities = new double[m_nPopulation * m_nDimensions];
-	m_pBests = new double[m_nPopulation * m_nDimensions];
-	m_pErrors = new double[m_nPopulation];
 	m_dMin = dMin;
 	m_dRange = dRange;
 	reset();
@@ -43,22 +39,15 @@ GParticleSwarm::GParticleSwarm(GTargetFunction* pCritic, size_t nPopulation, dou
 
 /*virtual*/ GParticleSwarm::~GParticleSwarm()
 {
-	delete(m_pErrors);
-	delete(m_pBests);
-	delete(m_pVelocities);
-	delete(m_pPositions);
 }
 
 void GParticleSwarm::reset()
 {
 	for(size_t i = 0; i < m_nPopulation; i++)
 	{
-		for(size_t n = 0; n < m_nDimensions; n++)
-		{
-			m_pPositions[m_nDimensions * i + n] = m_pRand->uniform() * m_dRange + m_dMin;
-			m_pVelocities[m_nDimensions * i + n] = m_pRand->uniform() * m_dRange + m_dMin;
-			m_pBests[m_nDimensions * i + n] = m_pPositions[m_nDimensions * i + n];
-		}
+		m_pPositions[i].fillUniform(*m_pRand, m_dMin, m_dMin + m_dRange);
+		m_pVelocities[i].fillUniform(*m_pRand, m_dMin, m_dMin + m_dRange);
+		m_pBests[i].copy(m_pPositions[i]);
 		m_pErrors[i] = 1e100;
 	}
 	m_nGlobalBest = 0;
@@ -76,12 +65,11 @@ void GParticleSwarm::reset()
 	double dGlobalBest = 1e100;
 	for(size_t i = 0; i < m_nPopulation; i++)
 	{
-		size_t nPos = m_nDimensions * i;
-		dError = m_pCritic->computeError(&m_pPositions[nPos]);
+		dError = m_pCritic->computeError(m_pPositions[i]);
 		if(dError < m_pErrors[i])
 		{
 			m_pErrors[i] = dError;
-			memcpy(&m_pBests[nPos], &m_pPositions[nPos], sizeof(double) * m_nDimensions);
+			m_pBests[i].copy(m_pPositions[i]);
 		}
 		if(m_pErrors[i] < dGlobalBest)
 		{
@@ -92,13 +80,10 @@ void GParticleSwarm::reset()
 
 	// Update velocities
 	size_t nPos = 0;
-	n = m_nDimensions * m_nGlobalBest;
 	for(size_t i = 0; i < m_nPopulation; i++)
 	{
 		for(size_t j = 0; j < m_nDimensions; j++)
-		{
-			m_pVelocities[nPos + j] += m_dLearningRate * m_pRand->uniform() * (m_pBests[nPos + j] - m_pPositions[nPos + j]) + m_dLearningRate * m_pRand->uniform() * (m_pPositions[n + j] - m_pPositions[nPos + j]);
-		}
+			m_pVelocities[i][j] += m_dLearningRate * m_pRand->uniform() * (m_pBests[i][j] - m_pPositions[i][j]) + m_dLearningRate * m_pRand->uniform() * (m_pPositions[m_nGlobalBest][j] - m_pPositions[i][j]);
 		nPos += m_nDimensions;
 	}
 
