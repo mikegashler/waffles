@@ -572,43 +572,6 @@ double GVec::dotProductIgnoringUnknowns(const double* pOrigin, const double* pTa
 }
 
 // static
-double GVec::squaredDistance(const double* pA, const double* pB, size_t nDims)
-{
-	double dist = 0;
-	double d;
-	for(size_t n = 0; n < nDims; n++)
-	{
-		d = (*pA) - (*pB);
-		dist += (d * d);
-		pA++;
-		pB++;
-	}
-	return dist;
-}
-/*
-// static
-double GVec::estimateSquaredDistanceWithUnknowns(const double* pA, const double* pB, size_t nDims)
-{
-	double dist = 0;
-	double d;
-	size_t nMissing = 0;
-	for(size_t n = 0; n < nDims; n++)
-	{
-		if(pA[n] == UNKNOWN_REAL_VALUE || pB[n] == UNKNOWN_REAL_VALUE)
-			nMissing++;
-		else
-		{
-			d = pA[n] - pB[n];
-			dist += (d * d);
-		}
-	}
-	if(nMissing >= nDims)
-		return 1e50; // we have no info, so let's make a wild guess
-	else
-		return dist * nDims / (nDims - nMissing);
-}
-*/
-// static
 double GVec::squaredMagnitude(const double* pVector, size_t nSize)
 {
 	double dMag = 0;
@@ -721,31 +684,6 @@ void GVec::add(double* pDest, const double* pSource, size_t nDims)
 	for(size_t i = 0; i < nDims; i++)
 	{
 		*pDest += *pSource;
-		pDest++;
-		pSource++;
-	}
-}
-
-// static
-void GVec::addScaled(double* pDest, double dMag, const double* pSource, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-		*(pDest++) += (dMag * *(pSource++));
-}
-/*
-// static
-void GVec::addLog(double* pDest, const double* pSource, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-		pDest[i] += log(pSource[i]);
-}
-*/
-// static
-void GVec::subtract(double* pDest, const double* pSource, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-	{
-		*pDest -= *pSource;
 		pDest++;
 		pSource++;
 	}

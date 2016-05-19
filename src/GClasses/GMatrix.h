@@ -1226,12 +1226,6 @@ public:
 	/// unique values are found, it immediately returns maxCount.
 	size_t countUniqueValues(size_t col, size_t maxCount = (size_t)-1) const;
 
-	/// Traverse the points in a breadth-first manner, starting with row seed,
-	/// and ensure that every point is within maxDist units of the centroid of
-	/// its k-nearest neighbors among the points that have already been visited
-	/// by the traversal.
-	void unstretch(size_t seed, size_t neighbors, double maxDist, GRand& rand);
-
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception
 	/// if there is a failure.

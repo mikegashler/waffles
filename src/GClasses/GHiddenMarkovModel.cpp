@@ -265,6 +265,20 @@ void GHiddenMarkovModel::baumWelchAddSequence(const int* pObservations, int len)
 	}
 }
 
+double GHMM_sqDist(const double* pA, const double* pB, size_t nDims)
+{
+	double dist = 0;
+	double d;
+	for(size_t n = 0; n < nDims; n++)
+	{
+		d = (*pA) - (*pB);
+		dist += (d * d);
+		pA++;
+		pB++;
+	}
+	return dist;
+}
+
 double GHiddenMarkovModel::baumWelchEndPass()
 {
 	// Normalize all of the probabilities
@@ -280,9 +294,9 @@ double GHiddenMarkovModel::baumWelchEndPass()
 
 	// Measure the change
 	double err = 0;
-	err += GVec::squaredDistance(m_pInitialStateProbabilities, pAccumInitProb, m_stateCount);
-	err += GVec::squaredDistance(m_pTransitionProbabilities, pAccumTransProb, m_stateCount * m_stateCount);
-	err += GVec::squaredDistance(m_pSymbolProbabilities, pAccumSymbolProb, m_stateCount * m_symbolCount);
+	err += GHMM_sqDist(m_pInitialStateProbabilities, pAccumInitProb, m_stateCount);
+	err += GHMM_sqDist(m_pTransitionProbabilities, pAccumTransProb, m_stateCount * m_stateCount);
+	err += GHMM_sqDist(m_pSymbolProbabilities, pAccumSymbolProb, m_stateCount * m_symbolCount);
 
 	// Copy over the old model
 	GVec::copy(m_pInitialStateProbabilities, pAccumInitProb, m_stateCount);

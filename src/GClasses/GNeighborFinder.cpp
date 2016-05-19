@@ -2248,10 +2248,10 @@ m_pRand(pRand)
 		{
 			if((int)pActions->row(i)[0] == (int)j)
 			{
-				GVec::copy(before.newRow().data(), m_pData->row(i).data(), obsDims);
+				before.newRow().copy(m_pData->row(i));
 				GVec& pDelta = delta.newRow();
-				GVec::copy(pDelta.data(), m_pData->row(i + 1).data(), obsDims);
-				GVec::subtract(pDelta.data(), m_pData->row(i).data(), obsDims);
+				pDelta.copy(m_pData->row(i + 1));
+				pDelta -= m_pData->row(i);
 			}
 		}
 		GAssert(before.rows() > 20); // not much data

@@ -2313,7 +2313,10 @@ void transition(GArgReader& args)
 		GVec::copy(pOut.data() + actionDims, pState->row(i).data(), stateDims);
 		GVec::copy(pOut.data() + actionDims + stateDims, pState->row(i + 1).data(), stateDims);
 		if(delta)
-			GVec::subtract(pOut.data() + actionDims + stateDims, pState->row(i).data(), stateDims);
+		{
+			for(size_t j = 0; j < stateDims; j++)
+				pOut[actionDims + stateDims + j] -= pState->row(i)[j];
+		}
 	}
 	pTransition->print(cout);
 }

@@ -824,9 +824,8 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 	GNeuralNet* pTemp = NULL;
 	std::unique_ptr<GNeuralNet> hTemp;
 	size_t weights = 0;
-	double* pWeightBuf = NULL;
-	double* pWeightBuf2 = NULL;
-	std::unique_ptr<double[]> hWeightBuf;
+	GVec pWeightBuf;
+	GVec pWeightBuf2;
 	for(size_t i = 0; i < m_models; i++)
 	{
 		m_pNN->train(features, labels);
@@ -835,11 +834,11 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 			// Average m_pNN with pTemp
 			if(!m_noAlign)
 				m_pNN->align(*pTemp);
-			pTemp->weights(pWeightBuf);
-			m_pNN->weights(pWeightBuf2);
-			GVec::multiply(pWeightBuf, double(i) / (i + 1), weights);
-			GVec::addScaled(pWeightBuf, 1.0 / (i + 1), pWeightBuf2, weights);
-			pTemp->setWeights(pWeightBuf);
+			pTemp->weights(pWeightBuf.data());
+			m_pNN->weights(pWeightBuf2.data());
+			pWeightBuf *= (double(i) / (i + 1));
+			pWeightBuf.addScaled(1.0 / (i + 1), pWeightBuf2);
+			pTemp->setWeights(pWeightBuf.data());
 		}
 		else
 		{
@@ -850,13 +849,12 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 			pTemp = new GNeuralNet(pNode);
 			hTemp.reset(pTemp);
 			weights = pTemp->countWeights();
-			pWeightBuf = new double[2 * weights];
-			hWeightBuf.reset(pWeightBuf);
-			pWeightBuf2 = pWeightBuf + weights;
+			pWeightBuf.resize(weights);
+			pWeightBuf2.resize(weights);
 		}
 	}
-	pTemp->weights(pWeightBuf);
-	m_pNN->setWeights(pWeightBuf);
+	pTemp->weights(pWeightBuf.data());
+	m_pNN->setWeights(pWeightBuf.data());
 }
 
 // virtual

@@ -268,7 +268,7 @@ public:
 	static void sumToOne(double* pVector, size_t size);
 
 	/// Computes the squared distance between two vectors
-	static double squaredDistance(const double* pA, const double* pB, size_t nDims);
+//	static double squaredDistance(const double* pA, const double* pB, size_t nDims);
 
 	/// Returns the index of the min value in pVector. If multiple elements have
 	/// have an equivalent max value, then behavior depends on the value of pRand.
@@ -288,12 +288,6 @@ public:
 
 	/// Adds pSource to pDest
 	static void add(double* pDest, const double* pSource, size_t nDims);
-
-	/// Adds dMag * pSource to pDest
-	static void addScaled(double* pDest, double dMag, const double* pSource, size_t nDims);
-
-	/// Subtracts pSource from pDest
-	static void subtract(double* pDest, const double* pSource, size_t nDims);
 
 	/// Multiplies pVector by dScalar
 	static void multiply(double* pVector, double dScalar, size_t nDims);

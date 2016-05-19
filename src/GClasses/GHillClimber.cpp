@@ -344,7 +344,7 @@ double GRandomDirectionBinarySearch::iterate()
 		}
 		else
 		{
-			GVec::addScaled(m_current.data(), -2.0 * m_stepSize, m_direction.data(), m_dims);
+			m_current.addScaled(-2.0 * m_stepSize, m_direction);
 			double neg = m_pCritic->computeError(m_current);
 			if(neg < m_err)
 			{
@@ -354,7 +354,7 @@ double GRandomDirectionBinarySearch::iterate()
 			}
 			else
 			{
-				GVec::addScaled(m_current.data(), m_stepSize, m_direction.data(), m_dims);
+				m_current.addScaled(m_stepSize, m_direction);
 				m_stepSize *= 0.5;
 				if(m_stepSize < 1e-16)
 					m_stepSize = 1.0; // No progress. Might as well try something new.

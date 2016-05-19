@@ -1656,7 +1656,12 @@ size_t GMatrix::toReducedRowEchelonForm()
 		for(i = 0; i < rowCount; i++)
 		{
 			if(i != nRow)
-				GVec::addScaled(row(i).data() + nLead, -row(i)[nLead], pRow + nLead, colCount - nLead);
+			{
+				double* pR2 = row(i).data();
+				double t = pR2[nLead];
+				for(size_t j = nLead; j < colCount; j++)
+					pR2[j] -= t * pRow[j];
+			}
 		}
 
 		nLead++;
@@ -1700,7 +1705,9 @@ bool GMatrix::gaussianElimination(double* pVector)
 			if(i != nRow)
 			{
 				d = -row(i)[nRow];
-				GVec::addScaled(row(i).data() + nRow, d, pRow + nRow, colCount - nRow);
+				double* pR2 = row(i).data();
+				for(size_t j = nRow; j < colCount; j++)
+					pR2[j] += d * pRow[j];
 				pVector[i] += d * pVector[nRow];
 			}
 		}
@@ -4029,60 +4036,6 @@ void GMatrix::ensureDataHasNoMissingNominals() const
 			if((int)pat[i] == UNKNOWN_DISCRETE_VALUE)
 				throw Ex("Missing values in nominal attributes are not supported");
 		}
-	}
-}
-
-void GMatrix::unstretch(size_t seed, size_t neighbors, double maxDist, GRand& rand)
-{
-	size_t dims = cols();
-	GTEMPBUF(size_t, hood, neighbors);
-	GTEMPBUF(double, dists, neighbors);
-	GTEMPBUF(double, pC, dims);
-	GBallTree btSrc(this, neighbors);
-	GBallTree btDest(this, neighbors);
-	btDest.dropAll();
-	btSrc.drop(seed);
-	btDest.insert(seed);
-	vector<size_t> dest;
-	dest.push_back(seed);
-	while(dest.size() < rows())
-	{
-		// Pick arbitrary point in dest
-		size_t a = dest[(size_t)rand.next(dest.size())];
-
-		// Find the closest point in src
-		btSrc.neighbors(hood, dists, a);
-		GNeighborFinder::sortNeighbors(neighbors, hood, dists);
-		size_t b = hood[0];
-
-		// Find the k-nearest points in dest
-		btDest.neighbors(hood, dists, b);
-		GNeighborFinder::sortNeighbors(neighbors, hood, dists);
-
-		// Compute the centroid of the k neighbors
-		size_t validNeighbors = 0;
-		GVec::setAll(pC, 0.0, dims);
-		for(size_t i = 0; i < neighbors; i++)
-		{
-			if(hood[i] != INVALID_INDEX)
-			{
-				GVec::add(pC, row(hood[i]).data(), dims);
-				validNeighbors++;
-			}
-		}
-		GVec::multiply(pC, 1.0 / validNeighbors, dims);
-
-		// Move b to within maxDist of the centroid of its neighbors, and transfer it to the dest list
-		GVec& pB = row(b);
-		double dist = sqrt(GVec::squaredDistance(pC, pB.data(), dims));
-		btSrc.drop(b);
-		if(dist > maxDist)
-		{
-			for(size_t i = 0; i < dims; i++)
-				pB[i] += ((pC[i] - pB[i]) * (dist - maxDist) / dist);
-		}
-		btDest.insert(b);
-		dest.push_back(b);
 	}
 }
 

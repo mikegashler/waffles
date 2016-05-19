@@ -1394,8 +1394,9 @@ void GNeuralNet_testConvolutionalLayerMath()
 	in[7] = 2.0;
 	double learning_rate = 2.0;
 	layer.feedForward(in);
-	const double expected_activation[] = { 2.0, -1.0, 9.0, 7.0, 5.0, 0.0, 10.0, 8.0 };
-	if(GVec::squaredDistance(layer.activation().data(), expected_activation, 8) > 1e-9)
+	GVec ex(8);
+	ex[0] = 2.0; ex[1] = -1.0; ex[2] = 9.0; ex[3] = 7.0; ex[4] = 5.0; ex[5] = 0.0; ex[6] = 10.0; ex[7] = 8.0;
+	if(layer.activation().squaredDistance(ex) > 1e-9)
 		throw Ex("incorrect activation");
 	GVec target(8);
 	target[0] = 2.0;
@@ -1407,27 +1408,29 @@ void GNeuralNet_testConvolutionalLayerMath()
 	target[6] = 16.0;
 	target[7] = 15.0;
 	layer.computeError(target);
-	const double expected_err[] = { 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0 };
-	if(GVec::squaredDistance(layer.error().data(), expected_err, 8) > 1e-9)
+	ex[0] = 0.0; ex[1] = 1.0; ex[2] = 2.0; ex[3] = 3.0; ex[4] = 4.0; ex[5] = 5.0; ex[6] = 6.0; ex[7] = 7.0;
+	if(layer.error().squaredDistance(ex) > 1e-9)
 		throw Ex("incorrect error");
 	layer.deactivateError();
 	// Note that this test does not cover backPropError().
 	layer.updateDeltas(in, 0.0);
 	layer.applyDeltas(learning_rate);
-	const double expected_k1[] = { 0.0, 9.0, 18.0 };
-	const double expected_k2[] = { 2.0, 11.0, 22.0 };
-	const double expected_k3[] = { 28.0, 46.0, 37.0 };
-	const double expected_k4[] = { 35.0, 55.0, 47.0 };
-	if(GVec::squaredDistance(k[0].data(), expected_k1, 3) > 1e-9)
+	ex.resize(3);
+	ex[0] = 0.0; ex[1] = 9.0; ex[2] = 18.0;
+	if(k[0].squaredDistance(ex) > 1e-9)
 		throw Ex("incorrect weights");
-	if(GVec::squaredDistance(k[1].data(), expected_k2, 3) > 1e-9)
+	ex[0] = 2.0; ex[1] = 11.0; ex[2] = 22.0;
+	if(k[1].squaredDistance(ex) > 1e-9)
 		throw Ex("incorrect weights");
-	if(GVec::squaredDistance(k[2].data(), expected_k3, 3) > 1e-9)
+	ex[0] = 28.0; ex[1] = 46.0; ex[2] = 37.0;
+	if(k[2].squaredDistance(ex) > 1e-9)
 		throw Ex("incorrect weights");
-	if(GVec::squaredDistance(k[3].data(), expected_k4, 3) > 1e-9)
+	ex[0] = 35.0; ex[1] = 55.0; ex[2] = 47.0;
+	if(k[3].squaredDistance(ex) > 1e-9)
 		throw Ex("incorrect weights");
-	const double expected_bias[] = { 8.0, 11.0, 18.0, 21.0 };
-	if(GVec::squaredDistance(layer.bias().data(), expected_bias, 4) > 1e-9)
+	ex.resize(4);
+	ex[0] = 8.0; ex[1] = 11.0; ex[2] = 18.0; ex[3] = 21.0;
+	if(layer.bias().squaredDistance(ex) > 1e-9)
 		throw Ex("incorrect bias");
 }
 
