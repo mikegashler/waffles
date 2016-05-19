@@ -169,10 +169,11 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 	}
 	m_pBeta = GMatrix::multiply(l, f, true, false);
 	m_epsilon.resize(outputs);
-	GVecWrapper vw(pca.centroid().data(), m_pBeta->cols());
+	GConstVecWrapper vw(pca.centroid().data(), m_pBeta->cols());
 	m_pBeta->multiply(vw.vec(), m_epsilon, false);
 	m_epsilon *= -1.0;
-	GVec::add(m_epsilon.data(), pca.centroid().data() + inputs, outputs);
+	for(size_t i = 0; i < outputs; i++)
+		m_epsilon[i] += pca.centroid()[inputs + i];
 
 	// Refine the results using gradient descent
 	refine(features, labels, 0.06, 20, 0.75);

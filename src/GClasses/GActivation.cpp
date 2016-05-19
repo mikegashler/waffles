@@ -185,7 +185,7 @@ GDomNode* GActivationHinge::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "name", pDoc->newString(name()));
-	pNode->addField(pDoc, "hinges", GVec::serialize(pDoc, m_hinges.data(), m_units));
+	pNode->addField(pDoc, "hinges", m_hinges.serialize(pDoc));
 	return pNode;
 }
 
@@ -430,7 +430,7 @@ GDomNode* GActivationSoftExponential::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "name", pDoc->newString(name()));
-	pNode->addField(pDoc, "alphas", GVec::serialize(pDoc, m_alphas.data(), m_units));
+	pNode->addField(pDoc, "alphas", m_alphas.serialize(pDoc));
 	return pNode;
 }
 

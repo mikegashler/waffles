@@ -91,5 +91,62 @@ void GParticleSwarm::reset()
 }
 
 
+
+
+
+
+
+GBouncyBalls::GBouncyBalls(GTargetFunction* pCritic, size_t population, GRand& rand, double probTeleport, double propSpurt)
+: GOptimizer(pCritic),
+m_positions(population, pCritic->relation()->size()),
+m_velocities(population, pCritic->relation()->size()),
+m_errors(population),
+m_bestIndex(0),
+m_rand(rand),
+m_probTeleport(probTeleport),
+m_probSpurt(propSpurt)
+{
+	m_positions.setAll(0.0);
+	for(size_t i = 0; i < population; i++)
+		m_velocities[i].fillNormal(m_rand);
+	m_errors.fill(1e200);
+}
+
+GBouncyBalls::~GBouncyBalls()
+{
+}
+
+// virtual
+double GBouncyBalls::iterate()
+{
+	for(size_t i = 0; i < m_positions.rows(); i++)
+	{
+		m_positions[i] += m_velocities[i];
+		double newErr = m_pCritic->computeError(m_positions[i]);
+		if(newErr > m_errors[i])
+		{
+			m_positions[i] -= m_velocities[i];
+			double mag = std::sqrt(m_velocities[i].squaredMagnitude());
+			m_velocities[i].fillSphericalShell(m_rand);
+			m_velocities[i] *= (mag * 0.8);
+			if(m_rand.uniform() < m_probTeleport)
+				m_positions[i].copy(m_positions[m_bestIndex]);
+		}
+		else
+		{
+			m_velocities[i] *= 1.2;
+			m_errors[i] = newErr;
+			if(m_errors[i] < m_errors[m_bestIndex])
+				m_bestIndex = i;
+			if(m_rand.uniform() < m_probSpurt)
+				m_velocities[i] *= 10;
+		}
+	}
+	return m_errors[m_bestIndex];
+}
+
+
+
+
 } // namespace GClasses
 

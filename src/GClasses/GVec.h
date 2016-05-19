@@ -34,10 +34,11 @@ class GImage;
 class GDomListIterator;
 class GVecWrapper;
 
-/// Contains some useful functions for operating on vectors
+/// Represents a mathematical vector of doubles
 class GVec
 {
 friend class GVecWrapper;
+friend class GConstVecWrapper;
 protected:
 	double* m_data;
 	size_t m_size;
@@ -163,6 +164,9 @@ public:
 	/// Returns the dot product of this and that, ignoring elements in which either vector has UNKNOWN_REAL_VALUE.
 	double dotProductIgnoringUnknowns(const GVec& that) const;
 
+	/// Returns the dot product of this with (to - from), ignoring elements in which any vector has UNKNOWN_REAL_VALUE.
+	double dotProductIgnoringUnknowns(const GVec& from, const GVec& to) const;
+
 	/// Estimates the squared distance between two points that may have some missing values. It assumes
 	/// the distance in missing dimensions is approximately the same as the average distance in other
 	/// dimensions. If there are no known dimensions that overlap between the two points, it returns
@@ -236,55 +240,17 @@ public:
 	static void test();
 #endif // MIN_PREDICT
 
-	/// This returns true if the vector contains any unknown values. Most of the methods in this
-	/// class will give bad results if a vector contains unknown values, but for efficiency
-	/// reasons, they don't check. So it's your job to check your vectors first.
-	static bool doesContainUnknowns(const double* pVector, size_t nSize);
-
 	/// This just wraps memcpy
 	static void copy(double* pDest, const double* pSource, size_t nDims);
 
-	/// Computes the dot product of (pTarget - pOrigin) with pVector.
-	static double dotProduct(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize);
-
-	/// Computes the dot product of (pTargetA - pOriginA) with (pTargetB - pOriginB).
-	static double dotProduct(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nSize);
-
-	/// Computes the dot product of two vectors, ignoring any unknown values.
-	static double dotProductIgnoringUnknowns(const double* pA, const double* pB, size_t nSize);
-
-	/// Computes the dot product of (pTarget - pOrigin) with pVector. Unknown values
-	/// in pTarget will simply be ignored. (pOrigin and pVector must not contain any
-	/// unknown values.)
-	static double dotProductIgnoringUnknowns(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize);
-
-	/// Computes the squared magnitude of the vector
-	static double squaredMagnitude(const double* pVector, size_t nSize);
-
-	/// Normalizes this vector to a magnitude of 1. Throws an exception if the magnitude is zero.
-	static void normalize(double* pVector, size_t nSize);
-
 	/// Scale the vector so that the elements sum to 1
 	static void sumToOne(double* pVector, size_t size);
-
-	/// Computes the squared distance between two vectors
-//	static double squaredDistance(const double* pA, const double* pB, size_t nDims);
-
-	/// Returns the index of the min value in pVector. If multiple elements have
-	/// have an equivalent max value, then behavior depends on the value of pRand.
-	/// If pRand is NULL, it will pick the first one. If pRand is non-NULL, it will
-	/// uniformly pick from all the ties.
-	static size_t indexOfMin(const double* pVector, size_t dims, GRand* pRand = NULL);
 
 	/// Returns the index of the max value in pVector. If multiple elements have
 	/// have an equivalent max value, then behavior depends on the value of pRand.
 	/// If pRand is NULL, it will pick the first one. If pRand is non-NULL, it will
 	/// uniformly pick from all the ties.
 	static size_t indexOfMax(const double* pVector, size_t dims, GRand* pRand = NULL);
-
-	/// Returns the index of the value with the largest magnitude in pVector. If multiple elements have
-	/// have an equivalent magnitude, it randomly (uniformly) picks from all the ties.
-	static size_t indexOfMaxMagnitude(const double* pVector, size_t dims, GRand* pRand);
 
 	/// Adds pSource to pDest
 	static void add(double* pDest, const double* pSource, size_t nDims);
@@ -298,9 +264,6 @@ public:
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
 
-	/// Write the vector to a text format
-	static GDomNode* serialize(GDom* pDoc, const double* pVec, size_t dims);
-
 	/// Returns the sum of all the elements
 	static double sumElements(const double* pVec, size_t dims);
 };
@@ -308,15 +271,43 @@ public:
 
 /// This class temporarily wraps a GVec around a const array of doubles.
 /// You should take care to ensure this object is destroyed before the array it wraps.
+class GConstVecWrapper
+{
+protected:
+	GVec m_v;
+
+public:
+	GConstVecWrapper(const double* buf, size_t size)
+	{
+		m_v.m_data = (double*)buf;
+		m_v.m_size = size;
+	}
+
+	~GConstVecWrapper()
+	{
+		m_v.m_data = NULL;
+		m_v.m_size = 0;
+	}
+
+	const GVec& vec()
+	{
+		return m_v;
+	}
+};
+
+
+
+/// This class temporarily wraps a GVec around an array of doubles.
+/// You should take care to ensure this object is destroyed before the array it wraps.
 class GVecWrapper
 {
 protected:
 	GVec m_v;
 
 public:
-	GVecWrapper(const double* buf, size_t size)
+	GVecWrapper(double* buf, size_t size)
 	{
-		m_v.m_data = (double*)buf;
+		m_v.m_data = buf;
 		m_v.m_size = size;
 	}
 
@@ -326,7 +317,7 @@ public:
 		m_v.m_size = 0;
 	}
 
-	const GVec& vec()
+	GVec& vec()
 	{
 		return m_v;
 	}

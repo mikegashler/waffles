@@ -1846,8 +1846,8 @@ void GBackPropThroughTime::trainIncremental(const GVec& initialState, const GMat
 	GAssert(controls.rows() == m_unfoldDepth);
 	GAssert(obsParams.size() == m_obsParamCount);
 	GAssert(targetObs.size() == m_observation.outputLayer().outputs());
-	GVecWrapper vwTrans(m_buf, transInputs);
-	GVecWrapper vwObs(m_buf, obsInputs);
+	GConstVecWrapper vwTrans(m_buf, transInputs);
+	GConstVecWrapper vwObs(m_buf, obsInputs);
 
 	// Forward Prop
 	GVec::copy(m_buf, initialState.data(), transOutputs);

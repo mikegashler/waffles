@@ -324,6 +324,19 @@ double GVec::dotProductIgnoringUnknowns(const GVec& that) const
 	return s;
 }
 
+double GVec::dotProductIgnoringUnknowns(const GVec& from, const GVec& to) const
+{
+	GAssert(size() == from.size());
+	GAssert(size() == to.size());
+	double s = 0.0;
+	for(size_t i = 0; i < m_size; i++)
+	{
+		if((*this)[i] != UNKNOWN_REAL_VALUE && from[i] != UNKNOWN_REAL_VALUE && to[i] != UNKNOWN_REAL_VALUE)
+			s += ((*this)[i] * (to[i] - from[i]));
+	}
+	return s;
+}
+
 double GVec::estimateSquaredDistanceWithUnknowns(const GVec& that) const
 {
 	GAssert(size() == that.size());
@@ -501,96 +514,9 @@ void GVec::fromImage(GImage* pImage, int width, int height, int channels, double
 
 
 // static
-bool GVec::doesContainUnknowns(const double* pVector, size_t nSize)
-{
-	for(size_t n = 0; n < nSize; n++)
-	{
-		if(*pVector == UNKNOWN_REAL_VALUE)
-			return true;
-		pVector++;
-	}
-	return false;
-}
-
-// static
 void GVec::copy(double* pDest, const double* pSource, size_t nDims)
 {
 	memcpy(pDest, pSource, sizeof(double) * nDims);
-}
-
-// static
-double GVec::dotProductIgnoringUnknowns(const double* pA, const double* pB, size_t nSize)
-{
-	double d = 0;
-	while(nSize > 0)
-	{
-		if(*pA != UNKNOWN_REAL_VALUE && *pB != UNKNOWN_REAL_VALUE)
-			d += *(pA++) * *(pB++);
-		nSize--;
-	}
-	return d;
-}
-
-// static
-double GVec::dotProduct(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize)
-{
-	double d = 0;
-	while(nSize > 0)
-	{
-		d += (*(pTarget++) - *(pOrigin++)) * (*(pVector++));
-		nSize--;
-	}
-	return d;
-}
-
-// static
-double GVec::dotProduct(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nSize)
-{
-	double dVal = 0;
-	for(size_t n = 0; n < nSize; n++)
-	{
-		dVal += (*pTargetA - *pOriginA) * (*pTargetB - *pOriginB);
-		pTargetA++;
-		pOriginA++;
-		pTargetB++;
-		pOriginB++;
-	}
-	return dVal;
-}
-
-// static
-double GVec::dotProductIgnoringUnknowns(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize)
-{
-	double dVal = 0;
-	for(size_t n = 0; n < nSize; n++)
-	{
-		GAssert(*pOrigin != UNKNOWN_REAL_VALUE && *pVector != UNKNOWN_REAL_VALUE); // unknowns in pOrigin or pVector not supported
-		if(*pTarget != UNKNOWN_REAL_VALUE)
-			dVal += (*(pTarget++) - *(pOrigin++)) * *(pVector++);
-	}
-	return dVal;
-}
-
-// static
-double GVec::squaredMagnitude(const double* pVector, size_t nSize)
-{
-	double dMag = 0;
-	while(nSize > 0)
-	{
-		dMag += ((*pVector) * (*pVector));
-		pVector++;
-		nSize--;
-	}
-	return dMag;
-}
-
-// static
-void GVec::normalize(double* pVector, size_t nSize)
-{
-	double dMag = squaredMagnitude(pVector, nSize);
-	if(dMag <= 0)
-		throw Ex("Can't normalize a vector with zero magnitude");
-	GVec::multiply(pVector, 1.0  / sqrt(dMag), nSize);
 }
 
 // static
@@ -601,31 +527,6 @@ void GVec::sumToOne(double* pVector, size_t size)
 		GVec::setAll(pVector, 1.0 / size, size);
 	else
 		GVec::multiply(pVector, 1.0 / sum, size);
-}
-
-// static
-size_t GVec::indexOfMin(const double* pVector, size_t dims, GRand* pRand)
-{
-	size_t index = 0;
-	size_t count = 1;
-	for(size_t n = 1; n < dims; n++)
-	{
-		if(pVector[n] <= pVector[index])
-		{
-			if(pVector[n] == pVector[index])
-			{
-				count++;
-				if(pRand && pRand->next(count) == 0)
-					index = n;
-			}
-			else
-			{
-				index = n;
-				count = 1;
-			}
-		}
-	}
-	return index;
 }
 
 // static
@@ -641,31 +542,6 @@ size_t GVec::indexOfMax(const double* pVector, size_t dims, GRand* pRand)
 			{
 				count++;
 				if(pRand && pRand->next(count) == 0)
-					index = n;
-			}
-			else
-			{
-				index = n;
-				count = 1;
-			}
-		}
-	}
-	return index;
-}
-
-// static
-size_t GVec::indexOfMaxMagnitude(const double* pVector, size_t dims, GRand* pRand)
-{
-	size_t index = 0;
-	size_t count = 1;
-	for(size_t n = 1; n < dims; n++)
-	{
-		if(std::abs(pVector[n]) >= std::abs(pVector[index]))
-		{
-			if(std::abs(pVector[n]) == std::abs(pVector[index]))
-			{
-				count++;
-				if(pRand->next(count) == 0)
 					index = n;
 			}
 			else
@@ -713,15 +589,6 @@ void GVec::perturb(double* pDest, double deviation, size_t dims, GRand& rand)
 {
 	for(size_t i = 0; i < dims; i++)
 		*(pDest++) += deviation * rand.normal();
-}
-
-// static
-GDomNode* GVec::serialize(GDom* pDoc, const double* pVec, size_t dims)
-{
-	GDomNode* pNode = pDoc->newList();
-	for(size_t i = 0; i < dims; i++)
-		pNode->addItem(pDoc, pDoc->newDouble(*(pVec++)));
-	return pNode;
 }
 
 double GVec::sumElements(const double* pVec, size_t dims)

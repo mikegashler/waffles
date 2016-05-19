@@ -436,53 +436,6 @@ protected:
 
 
 
-/// A neighbor finder that specializes in dynamical systems. It determines
-/// neighbors by searching for the shortest path of actions between observations,
-/// and computes the distance as the number of time-steps in that path.
-/// This algorithm was published in Gashler, Michael S. and Martinez, Tony. Temporal
-/// nonlinear dimensionality reduction. In Proceedings of the International
-/// Joint Conference on Neural Networks IJCNN’11, pages 1959–1966, IEEE Press, 2011.
-class GTemporalNeighborFinder : public GNeighborFinder
-{
-protected:
-	GMatrix* m_pPreprocessed;
-	GMatrix* m_pActions;
-	bool m_ownActionsData;
-	std::vector<GSupervisedLearner*> m_consequenceMaps;
-	size_t m_maxDims;
-	GRand* m_pRand;
-
-public:
-	/// pObservations is typically a matrix of high-dimensional observations.
-	/// pActions is a matrix of corresponding actions (peformed after the corresponding observation was observed).
-	/// If ownActionsData is true, then this object will delete pActions when it is deleted.
-	/// This neighbor-finder is somewhat slow in high-dimensional space. Consequently, if
-	/// the data has more than maxDims dimensions, it will internally use PCA to reduce it to
-	/// maxDims dimensions before computing neighbors. The default is 12.
-	GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighborCount, GRand* pRand, size_t maxDims = 12);
-	virtual ~GTemporalNeighborFinder();
-
-	/// Computes the neighbors of the specified vector
-	virtual void neighbors(size_t* pOutNeighbors, size_t index);
-
-	/// Computes the neighbors and distances of the specified vector
-	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
-
-protected:
-	/// Returns false if distCap is exceeded, or if the results
-	/// are too imprecise to be reliable. Otherwise, returns true, and path is set
-	/// to contain the number of times that each action must be performed to travel
-	/// from point "from" to point "to".
-	bool findPath(size_t from, size_t to, double* path, double distCap);
-
-	/// This method uses PCA to reduce pObs to maxDims dimensions.
-	/// (If pObs is already small enough, it just returns pObs.)
-	GMatrix* preprocessObservations(GMatrix* pObs, size_t maxDims);
-};
-
-
-
-
 /// A simple neighbor-finder that reports the nearest neighbors in the sequence.
 /// (That is, the previous and next rows are the closest neighbors.) The distance
 /// is sequential distance to the neighbor (not squared).

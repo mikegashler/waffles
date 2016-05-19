@@ -359,15 +359,6 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 			int neighbors = args.pop_uint();
 			pNF = new GKdTree(pData, neighbors, NULL, true);
 		}
-		else if(_stricmp(alg, "temporal") == 0)
-		{
-			GMatrix* pControlData = loadData(args.pop_string());
-			Holder<GMatrix> hControlData(pControlData);
-			if(pControlData->rows() != pData->rows())
-				throw Ex("mismatching number of rows");
-			int neighbors = args.pop_uint();
-			pNF = new GTemporalNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
-		}
 		else
 			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
 

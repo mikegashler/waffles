@@ -764,16 +764,15 @@ void GFuzzyKMeans::recomputeCentroids(const GMatrix* pData)
 			}
 			else
 			{
-				double* pFreq = new double[vals];
-				std::unique_ptr<double[]> hFreq(pFreq);
-				GVec::setAll(pFreq, 0.0, vals);
+				GVec pFreq(vals);
+				pFreq.fill(0.0);
 				for(size_t k = 0; k < pData->rows(); k++)
 				{
 					int v = (int)pData->row(k)[j];
 					if(v != UNKNOWN_DISCRETE_VALUE && (size_t)v < vals)
 						pFreq[v] += m_pWeights->row(k)[i];
 				}
-				size_t index = GVec::indexOfMax(pFreq, vals, m_pRand);
+				size_t index = pFreq.indexOfMax();
 				if(pFreq[index] > 0.0)
 					centroid[j] = (double)index;
 				else

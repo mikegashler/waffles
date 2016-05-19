@@ -196,6 +196,16 @@ void GHiddenMarkovModel::backwardAlgorithm(const int* pObservations, int len)
 	}
 }
 
+void GVec_add(double* pDest, const double* pSource, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pDest += *pSource;
+		pDest++;
+		pSource++;
+	}
+}
+
 void GHiddenMarkovModel::baumWelchAddSequence(const int* pObservations, int len)
 {
 	// Do backward algorithm to obtain beta values
@@ -257,9 +267,9 @@ void GHiddenMarkovModel::baumWelchAddSequence(const int* pObservations, int len)
 
 		// Accumulate probabilities
 		if(i ==  0)
-			GVec::add (pAccumInitProb, pGamma, m_stateCount);
+			GVec_add(pAccumInitProb, pGamma, m_stateCount);
 		if(i < len - 1)
-			GVec::add(pAccumTransProb, pXi, m_stateCount * m_stateCount);
+			GVec_add(pAccumTransProb, pXi, m_stateCount * m_stateCount);
 		for(int j = 0; j < m_stateCount; j++)
 			pAccumSymbolProb[m_symbolCount * j + pObservations[i]] += pGamma[j];
 	}

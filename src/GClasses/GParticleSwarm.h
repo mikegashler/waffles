@@ -57,6 +57,25 @@ protected:
 };
 
 
+// An optimization algorithm inspired by boucing balls
+class GBouncyBalls : public GOptimizer
+{
+public:
+	GMatrix m_positions;
+	GMatrix m_velocities;
+	GVec m_errors;
+	size_t m_bestIndex;
+	GRand& m_rand;
+	double m_probTeleport;
+	double m_probSpurt;
+
+	GBouncyBalls(GTargetFunction* pCritic, size_t population, GRand& rand, double probTeleport = 0.01, double propSpurt = 0.01);
+	virtual ~GBouncyBalls();
+
+	virtual double iterate();
+};
+
+
 } // namespace GClasses
 
 #endif // __GPARTICLESWARM_H__

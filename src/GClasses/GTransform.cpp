@@ -396,11 +396,10 @@ GRelation* GPCA::trainInner(const GRelation& relation)
 void GPCA::transform(const GVec& in, GVec& out)
 {
 	GVec& c = m_pCentroid->row(0);
-	size_t nInputDims = before().size();
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
 		GVec& basisVector = m_pBasisVectors->row(i);
-		out[i] = GVec::dotProductIgnoringUnknowns(c.data(), in.data(), basisVector.data(), nInputDims);
+		out[i] = basisVector.dotProductIgnoringUnknowns(c, in);
 	}
 }
 

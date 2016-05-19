@@ -2486,16 +2486,17 @@ double GMatrix::eigenValue(const GVec& pEigenVector)
 	return row(nEl).dotProduct(pEigenVector) / pEigenVector[nEl];
 }
 
-void GMatrix::eigenVector(double eigenvalue, double* pOutVector)
+void GMatrix::eigenVector(double eigenvalue, GVec& outVector)
 {
 	GAssert(rows() == (size_t)cols()); // Expected a square matrix
 	size_t rowCount = rows();
 	for(size_t i = 0; i < rowCount; i++)
 		row(i)[i] = row(i)[i] - eigenvalue;
-	GVec::setAll(pOutVector, 0.0, rowCount);
-	if(!gaussianElimination(pOutVector))
+	outVector.resize(rowCount);
+	outVector.fill(0.0);
+	if(!gaussianElimination(outVector.data()))
 		throw Ex("no solution");
-	GVec::normalize(pOutVector, rowCount);
+	outVector.normalize();
 }
 
 GMatrix* GMatrix::eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSignificant)
@@ -3497,12 +3498,37 @@ void GMatrix::weightedPrincipalComponent(GVec& outVector, const GVec& centroi, c
 	}
 }
 
+// static
+size_t vec_indexOfMaxMagnitude(const double* pVector, size_t dims, GRand* pRand)
+{
+	size_t index = 0;
+	size_t count = 1;
+	for(size_t n = 1; n < dims; n++)
+	{
+		if(std::abs(pVector[n]) >= std::abs(pVector[index]))
+		{
+			if(std::abs(pVector[n]) == std::abs(pVector[index]))
+			{
+				count++;
+				if(pRand->next(count) == 0)
+					index = n;
+			}
+			else
+			{
+				index = n;
+				count = 1;
+			}
+		}
+	}
+	return index;
+}
+
 double GMatrix::eigenValue(const double* pMean, const double* pEigenVector, GRand* pRand) const
 {
 	// Use the element of the eigenvector with the largest magnitude,
 	// because that will give us the least rounding error when we compute the eigenvalue.
 	size_t dims = cols();
-	size_t index = GVec::indexOfMaxMagnitude(pEigenVector, dims, pRand);
+	size_t index = vec_indexOfMaxMagnitude(pEigenVector, dims, pRand);
 
 	// The eigenvalue is the factor by which the eigenvector is scaled by the covariance matrix,
 	// so we compute just the part of the covariance matrix that we need to see how much the

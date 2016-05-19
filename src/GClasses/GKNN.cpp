@@ -109,7 +109,6 @@ GKNN::GKNN()
 	m_pDistanceMetric = NULL;
 	m_pSparseMetric = NULL;
 	m_ownMetric = false;
-	m_pValueCounts = NULL;
 	m_pCritic = NULL;
 	m_pScaleFactorOptimizer = NULL;
 }
@@ -121,7 +120,6 @@ GKNN::GKNN(const GDomNode* pNode)
 	m_pCritic = NULL;
 	m_pScaleFactorOptimizer = NULL;
 	m_pLearner = NULL;
-	m_pValueCounts = NULL;
 	m_bOwnLearner = false;
 	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
 	m_eInterpolationMethod = (InterpolationMethod)pNode->field("interpMethod")->asInt();
@@ -173,7 +171,6 @@ GKNN::~GKNN()
 	delete(m_pLabels);
 	delete[] m_pEvalNeighbors;
 	delete[] m_pEvalDistances;
-	delete[] m_pValueCounts;
 	delete(m_pScaleFactorOptimizer);
 	delete(m_pCritic);
 	if(m_ownMetric)
@@ -345,7 +342,7 @@ void GKNN::beginIncrementalLearningInner(const GRelation& featureRel, const GRel
 	size_t maxOutputValueCount = 0;
 	for(size_t n = 0; n < labelRel.size(); n++)
 		maxOutputValueCount = std::max(maxOutputValueCount, labelRel.valueCount(n));
-	m_pValueCounts = new double[maxOutputValueCount];
+	m_valueCounts.resize(maxOutputValueCount);
 }
 
 // virtual
@@ -538,7 +535,7 @@ void GKNN::interpolateMean(const GVec& in, GPrediction* out, GVec* pOut2)
 		{
 			// Nominal label
 			size_t nValueCount = m_pLabels->relation().valueCount(i);
-			GVec::setAll(m_pValueCounts, 0.0, nValueCount);
+			m_valueCounts.fill(0.0, 0, nValueCount);
 			for(size_t j = 0; j < m_nNeighbors; j++)
 			{
 				size_t k = m_pEvalNeighbors[j];
@@ -548,13 +545,13 @@ void GKNN::interpolateMean(const GVec& in, GPrediction* out, GVec* pOut2)
 					int val = (int)neighbor[i];
 					if(val < 0 || val >= (int)nValueCount)
 						throw Ex("GKNN doesn't support unknown label values");
-					m_pValueCounts[val]++;
+					m_valueCounts[val]++;
 				}
 			}
 			if(out)
-				out[i].makeCategorical()->setValues(nValueCount, m_pValueCounts);
+				out[i].makeCategorical()->setValues(nValueCount, m_valueCounts.data());
 			if(pOut2)
-				(*pOut2)[i] = (double)GVec::indexOfMax(m_pValueCounts, nValueCount, &m_rand);
+				(*pOut2)[i] = m_valueCounts.indexOfMax((size_t)0, nValueCount);
 		}
 	}
 }
@@ -607,7 +604,7 @@ void GKNN::interpolateLinear(const GVec& in, GPrediction* out, GVec* pOut2)
 		{
 			// Nominal label
 			int nValueCount = (int)m_pLabels->relation().valueCount(i);
-			GVec::setAll(m_pValueCounts, 0.0, nValueCount);
+			m_valueCounts.fill(0.0, 0, nValueCount);
 			double dSumWeight = 0;
 			for(size_t j = 0; j < m_nNeighbors; j++)
 			{
@@ -619,14 +616,14 @@ void GKNN::interpolateLinear(const GVec& in, GPrediction* out, GVec* pOut2)
 					int val = (int)neighbor[i];
 					if(val < 0 || val >= nValueCount)
 						throw Ex("GKNN doesn't support unknown label values");
-					m_pValueCounts[val] += d;
+					m_valueCounts[val] += d;
 					dSumWeight += d;
 				}
 			}
 			if(out)
-				out[i].makeCategorical()->setValues(nValueCount, m_pValueCounts);
+				out[i].makeCategorical()->setValues(nValueCount, m_valueCounts.data());
 			if(pOut2)
-				(*pOut2)[i] = (double)GVec::indexOfMax(m_pValueCounts, nValueCount, &m_rand);
+				(*pOut2)[i] = (double)m_valueCounts.indexOfMax((size_t)0, nValueCount);
 		}
 	}
 }
@@ -695,7 +692,7 @@ void GKNN::clear()
 	delete(m_pLabels); m_pLabels = NULL;
 	delete(m_pScaleFactorOptimizer); m_pScaleFactorOptimizer = NULL;
 	delete(m_pCritic); m_pCritic = NULL;
-	delete[] m_pValueCounts; m_pValueCounts = NULL;
+	m_valueCounts.resize(0);
 }
 
 #ifndef NO_TEST_CODE
@@ -704,7 +701,7 @@ void GKNN::test()
 {
 	GKNN knn;
 	knn.setNeighborCount(3);
-	knn.basicTest(0.72, 0.924, 0.1);
+	knn.basicTest(0.72, 0.92, 0.1);
 }
 #endif
 

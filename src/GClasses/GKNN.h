@@ -74,7 +74,7 @@ protected:
 	// Working Buffers
 	size_t* m_pEvalNeighbors;
 	double* m_pEvalDistances;
-	double* m_pValueCounts;
+	GVec m_valueCounts;
 
 	// Neighbor Finding
 	GNeighborFinderGeneralizing* m_pNeighborFinder;

@@ -603,7 +603,7 @@ public:
 	/// \brief Computes the eigenvector that corresponds to the
 	/// specified eigenvalue of this matrix. Note that this method
 	/// trashes this matrix, so make a copy first if you care.
-	void eigenVector(double eigenvalue, double* pOutVector);
+	void eigenVector(double eigenvalue, GVec& outVector);
 
 	/// \brief Computes y in the equation M*y=x (or y=M^(-1)x), where M
 	/// is this dataset, which must be a square matrix, and x is pVector

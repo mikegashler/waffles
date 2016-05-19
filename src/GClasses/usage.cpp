@@ -1206,14 +1206,6 @@ UsageNode* makeNeighborUsageTree()
 		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
 		pKD->add("[k]=12", "The number of neighbors.");
 	}
-	{
-		UsageNode* pSys = pRoot->add("temporal <options> [action-data] [k]", "A neighbor-finder designed for use in modeling certain types of dynamical systems. It estimates the number of time-steps between observations. This algorithm was published in Gashler, Michael S. and Martinez, Tony. Temporal nonlinear dimensionality reduction. In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11, pages 1959–1966, IEEE Press, 2011.");
-		UsageNode* pOpts = pSys->add("<options>");
-		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
-		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pSys->add("[action-data]=actions.arff", "The filename of an arff file for the sequence of actions given to the system.");
-		pSys->add("[k]=12", "The number of neighbors.");
-	}
 	return pRoot;
 }
 

@@ -450,6 +450,20 @@ GMatrix* GManifoldSculpting::reduce(const GMatrix& in)
 	return pDataOut;
 }
 
+double GManifoldSculpting_dotProduct(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nSize)
+{
+	double dVal = 0;
+	for(size_t n = 0; n < nSize; n++)
+	{
+		dVal += (*pTargetA - *pOriginA) * (*pTargetB - *pOriginB);
+		pTargetA++;
+		pOriginA++;
+		pTargetB++;
+		pOriginB++;
+	}
+	return dVal;
+}
+
 double GMS_sqDist(const double* pA, const double* pB, size_t nDims)
 {
 	double dist = 0;
@@ -510,7 +524,7 @@ void GManifoldSculpting::beginTransform(const GMatrix* pRealSpaceData)
 				size_t slot = pArrNeighbors[j].m_nNeighborsNeighborSlot;
 				struct GManifoldSculptingNeighbor* pArrNeighborsNeighbors = record(neighbor);
 				size_t neighborsNeighbor = pArrNeighborsNeighbors[slot].m_nNeighbor;
-				pArrNeighbors[j].m_junkDotProd = GVec::dotProduct(m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(i).data() + m_nTargetDims, m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(neighborsNeighbor).data() + m_nTargetDims, m_nDimensions - m_nTargetDims);
+				pArrNeighbors[j].m_junkDotProd = GManifoldSculpting_dotProduct(m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(i).data() + m_nTargetDims, m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(neighborsNeighbor).data() + m_nTargetDims, m_nDimensions - m_nTargetDims);
 			}
 		}
 	}
@@ -1275,13 +1289,44 @@ void GBreadthFirstUnfolding::setNeighborFinder(GNeighborFinder* pNF)
 	m_pNF = pNF;
 }
 
-void GBreadthFirstUnfolding_pairwiseDivide(double* pDest, double* pOther, size_t dims)
+void GVec_pairwiseDivide(double* pDest, double* pOther, size_t dims)
 {
 	while(dims > 0)
 	{
 		*(pDest++) /= *(pOther++);
 		dims--;
 	}
+}
+
+void GVec_subtract(double* pDest, const double* pSource, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pDest -= *pSource;
+		pDest++;
+		pSource++;
+	}
+}
+
+double GVec_squaredMagnitude(const double* pVector, size_t nSize)
+{
+	double dMag = 0;
+	while(nSize > 0)
+	{
+		dMag += ((*pVector) * (*pVector));
+		pVector++;
+		nSize--;
+	}
+	return dMag;
+}
+
+void GVec_normalize(double* pVector, size_t nSize)
+{
+	double dMag = GVec_squaredMagnitude(pVector, nSize);
+	if(dMag <= 0)
+		pVector[0] = 1.0;
+	else
+		GVec::multiply(pVector, 1.0  / sqrt(dMag), nSize);
 }
 
 // virtual
@@ -1322,7 +1367,7 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 		if(hFinal.get())
 		{
 			GVec::add(pGlobalWeights, pLocalWeights, in.rows());
-			GBreadthFirstUnfolding_pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
+			GVec_pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
 			std::unique_ptr<GMatrix> hRep(pRep);
 			hFinal.reset(GManifold::blendEmbeddings(pRep, pLocalWeights, hFinal.get(), m_neighborCount, pNeighborTable, (size_t)m_rand.next(pData->rows())));
 		}
@@ -1335,24 +1380,14 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 	return hFinal.release();
 }
 
-void GVec_subtract(double* pDest, const double* pSource, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-	{
-		*pDest -= *pSource;
-		pDest++;
-		pSource++;
-	}
-}
-
 // static
 double GBreadthFirstUnfolding::refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand)
 {
 	GTEMPBUF(double, buf, dims);
 	GVec::copy(buf, pPoint, dims);
 	GVec_subtract(buf, pNeighbor, dims);
-	double mag = GVec::squaredMagnitude(buf, dims);
-	GVec::normalize(buf, dims);
+	double mag = GVec_squaredMagnitude(buf, dims);
+	GVec_normalize(buf, dims);
 	GVec::multiply(buf, distance, dims);
 	GVec::add(buf, pNeighbor, dims);
 	GVec_subtract(buf, pPoint, dims);
@@ -2145,6 +2180,7 @@ void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double c
 // static
 void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, GRand& rand)
 {
+
 	// Do it in breadth-first order
 	size_t dims = intrinsic.cols();
 	size_t edgeCount = ng.data()->rows() * ng.neighborCount();
