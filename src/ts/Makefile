@@ -28,7 +28,7 @@ else
 	OPT_LFLAGS = ../../lib/libGClasses.a -lpthread
 endif
 
-DBG_CFLAGS = $(CFLAGS) -g -rdynamic -D_DEBUG
+DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
 
 ################

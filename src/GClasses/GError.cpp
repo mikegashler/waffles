@@ -49,6 +49,7 @@ void Ex::setMessage(std::string message)
 	{
 		m_message = message;
 #ifdef _DEBUG
+		/*
 		// Attempt to add a backtrace to the error message. (This will only produce human-readable results if the "-rdynamic" flag is used with the linker.)
 		m_message += "\n";
 		void* stackPointers[50];
@@ -60,8 +61,10 @@ void Ex::setMessage(std::string message)
 			m_message += "\n";
 		}
 		free(stackNames);
-
+		*/
 		// Stop in the debugger
+		cerr << "Unexpected exception: " << m_message << "\n";
+		cerr.flush();
 		raise(SIGINT);
 #endif
 	}

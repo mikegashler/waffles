@@ -59,8 +59,6 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 			return new GActivationBentIdentity();
 		else if(strcmp(szName, "hinge") == 0)
 			return new GActivationHinge(pNode);
-		else if(strcmp(szName, "softexp") == 0)
-			return new GActivationSoftExponential(pNode);
 		else if(strcmp(szName, "logisticderiv") == 0)
 			return new GActivationLogisticDerivative();
 		else
@@ -78,6 +76,8 @@ GActivationFunction* GActivationFunction::deserialize(GDomNode* pNode)
 			return new GActivationSin();
 		else if(strcmp(szName, "sinc") == 0)
 			return new GActivationSinc();
+		else if(strcmp(szName, "softexp") == 0)
+			return new GActivationSoftExponential(pNode);
 		else if(strcmp(szName, "softplus2") == 0)
 			return new GActivationSoftPlus2();
 		else

@@ -412,7 +412,7 @@ public:
 #endif
 
 	/// Returns the name of this activation function
-	virtual const char* name() const { return "logexp"; }
+	virtual const char* name() const { return "softexp"; }
 
 	/// Returns the internal vector of parameter values
 	GVec& alphas() { return m_alphas; }
@@ -420,13 +420,13 @@ public:
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// Returns the logexp function of x with the parameterized alpha value
+	/// Returns the softExponential function of x with the parameterized alpha value
 	virtual double squash(double x, size_t index)
 	{
-		return std::max(-500.0, std::min(500.0, GMath::logExp(m_alphas[index], x)));
+		return std::max(-500.0, std::min(500.0, GMath::softExponential(m_alphas[index], x)));
 	}
 
-	/// Returns the derivative of the logexp function
+	/// Returns the derivative of the softExponential function
 	virtual double derivative(double x, size_t index)
 	{
 		double a = m_alphas[index];
@@ -444,7 +444,7 @@ public:
 	virtual double inverse(double y, size_t index)
 	{
 		double a = m_alphas[index];
-		return GMath::logExp(-a, y);
+		return GMath::softExponential(-a, y);
 	}
 
 	/// Resizes the layer

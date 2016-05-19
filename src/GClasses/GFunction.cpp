@@ -123,7 +123,7 @@ public:
 	static double _ifnegative(vector<double>& params) { return (params[0] < 0) ? params[1] : params[2]; }
 	static double _lgamma(vector<double>& params) { return GMath::logGamma(params[0]); }
 	static double _log(vector<double>& params) { return log(params[0]); }
-	static double _logexp(vector<double>& params) { return GMath::logExp(params[0], params[1]); }
+	static double _softexp(vector<double>& params) { return GMath::softExponential(params[0], params[1]); }
 	static double _max(vector<double>& params)
 	{
 		vector<double>::iterator it = params.begin();
@@ -395,7 +395,7 @@ GFunctionParser::GFunctionParser()
 	addFunction("gamma", new GFunctionBuiltIn(GFunctionBuiltIn::_gamma), 1);
 	addFunction("lgamma", new GFunctionBuiltIn(GFunctionBuiltIn::_lgamma), 1);
 	addFunction("log", new GFunctionBuiltIn(GFunctionBuiltIn::_log), 1);
-	addFunction("logexp", new GFunctionBuiltIn(GFunctionBuiltIn::_logexp), 2);
+	addFunction("softexp", new GFunctionBuiltIn(GFunctionBuiltIn::_softexp), 2);
 	addFunction("max", new GFunctionBuiltIn(GFunctionBuiltIn::_max), -2/*at least 1 param*/);
 	addFunction("min", new GFunctionBuiltIn(GFunctionBuiltIn::_min), -2/*at least 1 param*/);
 	addFunction("normal", new GFunctionBuiltIn(GFunctionBuiltIn::_normal), 1);
