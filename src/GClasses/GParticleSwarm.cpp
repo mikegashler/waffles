@@ -96,15 +96,15 @@ void GParticleSwarm::reset()
 
 
 
-GBouncyBalls::GBouncyBalls(GTargetFunction* pCritic, size_t population, GRand& rand, double probTeleport, double propSpurt)
+GBouncyBalls::GBouncyBalls(GTargetFunction* pCritic, size_t population, GRand& rand, double probTeleport)
 : GOptimizer(pCritic),
 m_positions(population, pCritic->relation()->size()),
 m_velocities(population, pCritic->relation()->size()),
 m_errors(population),
 m_bestIndex(0),
+m_ball(0),
 m_rand(rand),
-m_probTeleport(probTeleport),
-m_probSpurt(propSpurt)
+m_probTeleport(probTeleport)
 {
 	m_positions.setAll(0.0);
 	for(size_t i = 0; i < population; i++)
@@ -119,29 +119,33 @@ GBouncyBalls::~GBouncyBalls()
 // virtual
 double GBouncyBalls::iterate()
 {
-	for(size_t i = 0; i < m_positions.rows(); i++)
+	m_positions[m_ball] += m_velocities[m_ball];
+	double newErr = m_pCritic->computeError(m_positions[m_ball]);
+	if(newErr > m_errors[m_ball])
 	{
-		m_positions[i] += m_velocities[i];
-		double newErr = m_pCritic->computeError(m_positions[i]);
-		if(newErr > m_errors[i])
+		m_positions[m_ball] -= m_velocities[m_ball];
+		double mag = std::sqrt(m_velocities[m_ball].squaredMagnitude());
+		m_velocities[m_ball].fillSphericalShell(m_rand);
+		m_velocities[m_ball] *= (mag * 0.98);
+		if(m_rand.uniform() < m_probTeleport)
 		{
-			m_positions[i] -= m_velocities[i];
-			double mag = std::sqrt(m_velocities[i].squaredMagnitude());
-			m_velocities[i].fillSphericalShell(m_rand);
-			m_velocities[i] *= (mag * 0.8);
-			if(m_rand.uniform() < m_probTeleport)
-				m_positions[i].copy(m_positions[m_bestIndex]);
-		}
-		else
-		{
-			m_velocities[i] *= 1.2;
-			m_errors[i] = newErr;
-			if(m_errors[i] < m_errors[m_bestIndex])
-				m_bestIndex = i;
-			if(m_rand.uniform() < m_probSpurt)
-				m_velocities[i] *= 10;
+			size_t index = m_rand.next(m_errors.size());
+			if(m_errors[index] < m_errors[m_ball])
+			{
+				m_positions[m_ball].copy(m_positions[index]);
+				m_errors[m_ball] = m_errors[index];
+			}
 		}
 	}
+	else
+	{
+		m_errors[m_ball] = newErr;
+		m_velocities[m_ball] *= 1.2;
+		if(m_errors[m_ball] < m_errors[m_bestIndex])
+			m_bestIndex = m_ball;
+	}
+	if(++m_ball >= m_positions.rows())
+		m_ball = 0;
 	return m_errors[m_bestIndex];
 }
 

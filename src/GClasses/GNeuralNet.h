@@ -390,15 +390,15 @@ public:
 	virtual ~GNeuralNetTargetFunction() {}
 
 	/// Copies the neural network weights into the vector.
-	virtual void initVector(double* pVector)
+	virtual void initVector(GVec& pVector)
 	{
-		m_nn.weights(pVector);
+		m_nn.weights(pVector.data());
 	}
 
 	/// Copies the vector into the neural network and measures sum-squared error. 
-	virtual double computeError(const double* pVector)
+	virtual double computeError(const GVec& pVector)
 	{
-		m_nn.setWeights(pVector);
+		m_nn.setWeights(pVector.data());
 		return m_nn.sumSquaredError(m_features, m_labels);
 	}
 };

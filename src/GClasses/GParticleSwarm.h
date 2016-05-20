@@ -65,14 +65,16 @@ public:
 	GMatrix m_velocities;
 	GVec m_errors;
 	size_t m_bestIndex;
+	size_t m_ball;
 	GRand& m_rand;
 	double m_probTeleport;
 	double m_probSpurt;
 
-	GBouncyBalls(GTargetFunction* pCritic, size_t population, GRand& rand, double probTeleport = 0.01, double propSpurt = 0.01);
+	GBouncyBalls(GTargetFunction* pCritic, size_t population, GRand& rand, double probTeleport = 0.01);
 	virtual ~GBouncyBalls();
 
 	virtual double iterate();
+	virtual const GVec& currentVector() { return m_positions[m_bestIndex]; }
 };
 
 
