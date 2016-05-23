@@ -67,17 +67,9 @@ $(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT)
 	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT)
 
 # This rule makes the debug ".a" file by using the "ar" tool with all of the debug ".o" files
-$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) $(OBJ_PATH)/dbg/dlink.o
+$(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
-	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(OBJ_PATH)/dbg/dlink.o
-
-$(OBJ_PATH)/opt/dlink.o :
-	@if [ ! -d "$(OBJ_PATH)/opt" ]; then mkdir -p "$(OBJ_PATH)/opt"; fi
-	$(COMPILER) $(OPT_CFLAGS) -o $(OBJ_PATH)/opt/dlink.o
-
-$(OBJ_PATH)/dbg/dlink.o :
-	@if [ ! -d "$(OBJ_PATH)/dbg" ]; then mkdir -p "$(OBJ_PATH)/dbg"; fi
-	$(COMPILER) $(DBG_CFLAGS) -o $(OBJ_PATH)/dbg/dlink.o
+	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG)
 
 $(OBJECTS_OPT) : $(CU_FILES)
 	@if [ ! -d "$(OBJ_PATH)/opt" ]; then mkdir -p "$(OBJ_PATH)/opt"; fi
