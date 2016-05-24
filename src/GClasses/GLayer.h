@@ -263,6 +263,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
+	const GMatrix& weights() const { return m_weights; }
 	
 	GMatrix& deltas() { return m_delta; }
 

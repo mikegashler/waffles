@@ -33,7 +33,10 @@ GCudaLayer::GCudaLayer(GDomNode* pNode, GCudaEngine& engine)
 	throw Ex("First deserialize to a GLayerClassic, then call GLayerClassicCuda::upload");
 }
 
-
+// virtual
+GCudaLayer::~GCudaLayer()
+{
+}
 
 
 
@@ -355,6 +358,7 @@ void GLayerClassicCuda::upload(const GLayerClassic& source)
 	m_bias.upload(source.bias());
 }
 
+void GLayerClassicCuda::download(GLayerClassic& dest) const
 {
 	m_weights.download(dest.weights());
 	m_bias.download(dest.bias());

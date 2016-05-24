@@ -75,7 +75,7 @@ public:
 	void upload(const GVec& hostVector);
 
 	/// Copies a vector from the device (GPU memory) to the host (CPU memory).
-	void download(GVec& hostVector);
+	void download(GVec& hostVector) const;
 
 	/// Copies that into this. (Resizes this vector if necessary.)
 	void copy(GCudaEngine& engine, const GCudaVector& that);
@@ -139,7 +139,7 @@ public:
 
 	/// Copies from this device (GPU memory) into m on the host (CPU memory).
 	/// Resizes m if necessary.
-	void download(GMatrix& m);
+	void download(GMatrix& m) const;
 
 	/// Adds that multipled by thatScalar to this.
 	void add(GCudaEngine& engine, GCudaMatrix& that, double thatScalar);

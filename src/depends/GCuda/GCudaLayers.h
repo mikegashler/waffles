@@ -31,11 +31,11 @@ protected:
 
 public:
 	/// Standard constructor
-	GCudaLayer(GCudaEngine& engine) : GNeuralNetLayer(), m_engine(engine) {}
+	GCudaLayer(GCudaEngine& engine);
 
 	/// Throws an exception.
 	GCudaLayer(GDomNode* pNode, GCudaEngine& engine);
-	virtual ~GCudaLayer() {}
+	virtual ~GCudaLayer();
 
 	/// Returns true
 	virtual bool usesGPU() { return true; }
@@ -73,7 +73,7 @@ public:
 	/// (The serialized form will not remember that it was trained with CUDA,
 	/// so it can be loaded on machines without a GPU. If you want to resume training
 	/// on a GPU, you will need to call "upload" to get back to a GLayerClassicCuda.)
-	GDomNode* GLayerClassicCuda::serialize(GDom* pDoc)
+	GDomNode* serialize(GDom* pDoc);
 
 	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs() { return m_weights.rows(); }
@@ -193,7 +193,7 @@ public:
 	void upload(const GLayerClassic& source);
 
 	/// Copies the weights and bias vector from this layer into a GLayerClassic layer.
-	void download(GLayerClassic& dest);
+	void download(GLayerClassic& dest) const;
 
 protected:
 	void copyBiasToNet();
