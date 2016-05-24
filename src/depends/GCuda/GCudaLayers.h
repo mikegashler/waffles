@@ -37,9 +37,6 @@ public:
 	GCudaLayer(GDomNode* pNode, GCudaEngine& engine);
 	virtual ~GCudaLayer() {}
 
-	/// Throws an exception
-	virtual GDomNode* serialize(GDom* pDoc);
-
 	/// Returns true
 	virtual bool usesGPU() { return true; }
 
@@ -49,6 +46,7 @@ public:
 	/// Return the error vector on device memory
 	virtual GCudaVector& deviceError() = 0;
 };
+
 
 
 class GLayerClassicCuda : public GCudaLayer
@@ -70,6 +68,12 @@ public:
 
 	/// Returns the type of this layer
 	virtual const char* type() { return "cuda"; }
+
+	/// Converts to a classic layer and serializes.
+	/// (The serialized form will not remember that it was trained with CUDA,
+	/// so it can be loaded on machines without a GPU. If you want to resume training
+	/// on a GPU, you will need to call "upload" to get back to a GLayerClassicCuda.)
+	GDomNode* GLayerClassicCuda::serialize(GDom* pDoc)
 
 	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs() { return m_weights.rows(); }
@@ -185,10 +189,10 @@ public:
 	/// Throws an exception
 	virtual void regularizeActivationFunction(double lambda);
 
-	/// Copies the weights and bias vector from this layer into a GLayerClassic layer.
-	void upload(GLayerClassic& source);
-
 	/// Copies the weights and bias vector from GLayerClassic layer into this layer.
+	void upload(const GLayerClassic& source);
+
+	/// Copies the weights and bias vector from this layer into a GLayerClassic layer.
 	void download(GLayerClassic& dest);
 
 protected:

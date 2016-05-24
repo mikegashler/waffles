@@ -22,17 +22,17 @@
 
 namespace GClasses {
 
+GCudaLayer::GCudaLayer(GCudaEngine& engine)
+: GNeuralNetLayer(), m_engine(engine)
+{
+}
+
 GCudaLayer::GCudaLayer(GDomNode* pNode, GCudaEngine& engine)
 : GNeuralNetLayer(), m_engine(engine)
 {
-	throw Ex("Sorry, GCudaLayer does not support serialization");
+	throw Ex("First deserialize to a GLayerClassic, then call GLayerClassicCuda::upload");
 }
 
-GDomNode* GCudaLayer::serialize(GDom* pDoc)
-{
-	throw Ex("Sorry, GNeuralNetLayerCuda does not support serialization");
-	//return NULL;
-}
 
 
 
@@ -52,6 +52,13 @@ GLayerClassicCuda::GLayerClassicCuda(GCudaEngine& engine, size_t inputs, size_t 
 
 GLayerClassicCuda::~GLayerClassicCuda()
 {
+}
+
+GDomNode* GLayerClassicCuda::serialize(GDom* pDoc)
+{
+	GLayerClassic tmp(inputs(), outputs());
+	download(tmp);
+	return tmp.serialize(pDoc);
 }
 
 void GLayerClassicCuda::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
@@ -342,13 +349,12 @@ void GLayerClassicCuda::regularizeActivationFunction(double lambda)
 }
 
 
-void GLayerClassicCuda::upload(GLayerClassic& source)
+void GLayerClassicCuda::upload(const GLayerClassic& source)
 {
 	m_weights.upload(source.weights());
 	m_bias.upload(source.bias());
 }
 
-void GLayerClassicCuda::download(GLayerClassic& dest)
 {
 	m_weights.download(dest.weights());
 	m_bias.download(dest.bias());
