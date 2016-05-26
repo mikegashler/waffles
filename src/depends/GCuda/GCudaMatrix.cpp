@@ -102,7 +102,7 @@ void GCudaVector::upload(const GVec& hostVector)
 		throw Ex("cublasSetVector failed");
 }
 
-void GCudaVector::download(GVec& hostVector)
+void GCudaVector::download(GVec& hostVector) const
 {
 	hostVector.resize(m_size);
 	if(cublasGetVector(m_size, sizeof(double), d_vals, 1, hostVector.data(), 1) != CUBLAS_STATUS_SUCCESS)
@@ -184,7 +184,7 @@ void GCudaMatrix::upload(const GMatrix& m)
 	}
 }
 
-void GCudaMatrix::download(GMatrix& m)
+void GCudaMatrix::download(GMatrix& m) const
 {
 	if(m.rows() != m_rows || m.cols() != m_cols)
 		m.resize(m_rows, m_cols);
