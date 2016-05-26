@@ -1286,8 +1286,7 @@ UsageNode* makePlotUsageTree()
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
-		UsageNode* pScat = pRoot->add("scatter [dataset] <globalopts> <color-x-y>", "Makes a scatter plot or line graph. Print the resulting SVG file to stdout.");
-		pScat->add("[dataset]=data.arff", "The filename of a dataset to be plotted. The first attribute specifies the values on the horizontal axis. All other attributes specify the values on the vertical axis for a certain color.");
+		UsageNode* pScat = pRoot->add("scatter <globalopts> <color-data-x-y>", "Makes a scatter plot or line graph. Print the resulting SVG file to stdout.");
 		UsageNode* pGO = pScat->add("<globalopts>");
 		pGO->add("-size [width] [height]", "Specify the size of the chart. (The default is 960 540.)");
 		pGO->add("-margin [size]=100", "Specify the size of the margin for the axis labels. (The default is 100.)");
@@ -1304,11 +1303,11 @@ UsageNode* makePlotUsageTree()
 		pGO->add("-hlabel [string]", "Specify a label for the horizontal axis. (The default is to determine it from the data.)");
 		pGO->add("-vlabel [string]", "Specify a label for the vertical axis. (The default is to determine it from the data.)");
 		pGO->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
-		pGO->add("-horizattr [n]=0", "Make a grid of charts, instead of just a single chart, and specify the attribute that differs along the horizontal axis of the grid of charts. An equal number of samples must exist for every value in this attribute.");
-		pGO->add("-vertattr [n]=1", "Make a grid of charts, instead of just a single chart, and specify the attribute that differs along the vertical axis of the grid of charts. An equal number of samples must exist for every value in this attribute.");
-		UsageNode* pAllLines = pScat->add("<color-x-y>");
-		UsageNode* pCXY = pAllLines->add("[color] [attr-x] [attr-y] <options>");
-		UsageNode* pColor = pCXY->add("[color]", "Specify the color to use for this pair of attributes.");
+		//pGO->add("-horizattr [n]=0", "Make a grid of charts, instead of just a single chart, and specify the attribute that differs along the horizontal axis of the grid of charts. An equal number of samples must exist for every value in this attribute.");
+		//pGO->add("-vertattr [n]=1", "Make a grid of charts, instead of just a single chart, and specify the attribute that differs along the vertical axis of the grid of charts. An equal number of samples must exist for every value in this attribute.");
+		UsageNode* pAllLines = pScat->add("<color-data-x-y>");
+		UsageNode* pCDXY = pAllLines->add("[color] [dataset] [attr-x] [attr-y] <options>");
+		UsageNode* pColor = pCDXY->add("[color]", "Specify the color to use for this pair of attributes.");
 		pColor->add("row", "Use a spectrum color according to the row-index in the data (starting with red, ending with purple)");
 		pColor->add("#800000", "Red.");
 		pColor->add("red", "The same as #800000.");
@@ -1324,13 +1323,10 @@ UsageNode* makePlotUsageTree()
 		pColor->add("magenta", "The same as #800080.");
 		pColor->add("black", "The same as #000000.");
 		pColor->add("gray", "The same as #808080.");
-		pColor->add("0", "Use the value in attribute 0 to determine the color.");
-		pColor->add("1", "Use the value in attribute 1 to determine the color.");
-		pColor->add("2", "Use the value in attribute 2 to determine the color.");
-		pColor->add("3", "Use the value in attribute 3 to determine the color. (And so forth.)");
-		pCXY->add("[attr-x]=0", "The zero-based index of the attribute to use to specify position on the horizontal axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the horizontal axis.)");
-		pCXY->add("[attr-y]=1", "The zero-based index of the attribute to use to specify position on the vertical axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the vertical axis.)");
-		UsageNode* pOpts = pCXY->add("<options>");
+		pCDXY->add("[dataset]=data.arff", "The filename of a dataset containing the data you want to plot. (Note that you will need to specify the dataset for each color, even if they all come from the same dataset.)");
+		pCDXY->add("[attr-x]=0", "The zero-based index of the attribute to use to specify position on the horizontal axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the horizontal axis.)");
+		pCDXY->add("[attr-y]=1", "The zero-based index of the attribute to use to specify position on the vertical axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the vertical axis.)");
+		UsageNode* pOpts = pCDXY->add("<options>");
 		pOpts->add("-radius=1.0", "Specify the radius (in window units) to use for each point.");
 		pOpts->add("-thickness=1.0", "Specify the thickness (in window units) of the lines to use to connect the points. (Use 0 if you want a scatter plot with no connecting lines.)");
 	}
