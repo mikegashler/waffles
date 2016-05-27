@@ -64,6 +64,10 @@ protected:
 public:
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
 	GLayerClassicCuda(GCudaEngine& engine, size_t inputs, size_t outputs);
+	
+	// Unmarshaling constructor
+	GLayerClassicCuda(GDomNode* pNode, GCudaEngine& engine);
+
 	virtual ~GLayerClassicCuda();
 
 	/// Returns the type of this layer

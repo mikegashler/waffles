@@ -30,7 +30,6 @@ GCudaLayer::GCudaLayer(GCudaEngine& engine)
 GCudaLayer::GCudaLayer(GDomNode* pNode, GCudaEngine& engine)
 : GNeuralNetLayer(), m_engine(engine)
 {
-	throw Ex("First deserialize to a GLayerClassic, then call GLayerClassicCuda::upload");
 }
 
 // virtual
@@ -51,6 +50,14 @@ GLayerClassicCuda::GLayerClassicCuda(GCudaEngine& engine, size_t inputs, size_t 
 : GCudaLayer(engine)
 {
 	resize(inputs, outputs, NULL);
+}
+
+GLayerClassicCuda::GLayerClassicCuda(GDomNode* pNode, GCudaEngine& engine)
+: GCudaLayer(pNode, engine)
+{
+	GLayerClassic tmp(pNode);
+	resize(tmp.inputs(), tmp.outputs(), NULL);
+	upload(tmp);
 }
 
 GLayerClassicCuda::~GLayerClassicCuda()
@@ -309,28 +316,32 @@ void GLayerClassicCuda::maxNorm(double min, double max)
 // virtual
 size_t GLayerClassicCuda::countWeights()
 {
-	throw Ex("Sorry, GLayerClassicCuda::countWeights is not yet implemented");
-	//return 0;
+	return (inputs() + 1) * outputs();
 }
 
 // virtual
 size_t GLayerClassicCuda::weightsToVector(double* outVector)
 {
-	throw Ex("Sorry, GLayerClassicCuda::weightsToVector is not yet implemented");
-	//return 0;
+	GLayerClassic tmp(inputs(), outputs());
+	download(tmp);
+	return tmp.weightsToVector(outVector);
 }
 
 // virtual
 size_t GLayerClassicCuda::vectorToWeights(const double* vector)
 {
-	throw Ex("Sorry, GLayerClassicCuda::vectorToWeights is not yet implemented");
-	//return 0;
+	GLayerClassic tmp(inputs(), outputs());
+	size_t ret = tmp.vectorToWeights(vector);
+	upload(tmp);
+	return ret;
 }
 
 // virtual
 void GLayerClassicCuda::copyWeights(const GNeuralNetLayer* pSource)
 {
-	throw Ex("Sorry, GLayerClassicCuda::copyWeights is not yet implemented");
+	GLayerClassicCuda* pThat = (GLayerClassicCuda*)pSource;
+	m_weights.copy(m_engine, pThat->m_weights);
+	m_bias.copy(m_engine, pThat->m_bias);
 }
 
 // virtual

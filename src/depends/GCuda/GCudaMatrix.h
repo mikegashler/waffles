@@ -144,6 +144,9 @@ public:
 	/// Adds that multipled by thatScalar to this.
 	void add(GCudaEngine& engine, GCudaMatrix& that, double thatScalar);
 
+	/// Copies the contents of that matrix into this matrix. Resizes if necessary.
+	void copy(GCudaEngine& engine, GCudaMatrix& that);
+
 	/// Multiplies this matrix by scalar
 	void scale(GCudaEngine& engine, double scalar);
 

@@ -197,6 +197,14 @@ void GCudaMatrix::download(GMatrix& m) const
 	}
 }
 
+void GCudaMatrix::copy(GCudaEngine& engine, GCudaMatrix& that)
+{
+	if(that.rows() != m_rows || that.cols() != m_cols)
+		resize(that.rows(), that.cols());
+	if(cublasDcopy((cublasHandle_t)engine.m_handle, m_rows * m_cols, that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDcopy failed");
+}
+
 void GCudaMatrix::scale(GCudaEngine& engine, double scalar)
 {
 	if(cublasDscal((cublasHandle_t)engine.m_handle, m_rows * m_cols, &scalar, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
