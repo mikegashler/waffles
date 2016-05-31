@@ -122,7 +122,6 @@ CPP_FILES = \
 	GWave.cpp\
 	GWidgets.cpp\
 	GWindows.cpp\
-	sha1.cpp\
 	sha2.cpp\
 	usage.cpp\
 
