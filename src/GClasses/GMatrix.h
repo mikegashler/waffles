@@ -132,25 +132,6 @@ public:
 	/// \brief Print a single row of data in ARFF format
 	void printRow(std::ostream& stream, const double* pRow, const char* separator, const char* missing = "?") const;
 
-	/// \brief Counts the size of the corresponding real-space vector
-	size_t countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount) const;
-
-	/// \brief Converts a row (pIn) to a real-space vector (pOut) (pIn
-	/// should point to the nFirstAttr'th element, not the first
-	/// element)
-	void toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount) const;
-
-	/// \brief Converts a real-space vector (pIn) to a row (pOut)
-	///
-	/// nFirstAttr and nAttrCount refer to the row indexes
-	void fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount, GRand* pRand) const;
-
-	/// \brief Converts a real-space vector (pIn) to an array of
-	/// predictions (pOut)
-	///
-	/// nFirstAttr and nAttrCount refer to the prediction indexes
-	void fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount) const;
-
 	/// \brief Load from a DOM.
 	static GRelation* deserialize(const GDomNode* pNode);
 

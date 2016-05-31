@@ -109,7 +109,8 @@ void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_
 		pOutWeights[i] = pInv->row(i).sum();
 
 	// Normalize the weights to sum to one
-	GVec::sumToOne(pOutWeights, pSquare->rows());
+	GVecWrapper vw(pOutWeights, pSquare->rows());
+	vw.vec().sumToOne();
 }
 
 // static
@@ -1659,7 +1660,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 
 
 GNeuroPCA::GNeuroPCA(size_t targDims, GRand* pRand)
-: GTransform(), m_targetDims(targDims), m_pWeights(NULL), m_pEigVals(NULL), m_pRand(pRand)
+: GTransform(), m_targetDims(targDims), m_pWeights(NULL), m_pRand(pRand)
 {
 	m_pActivation = new GActivationTanH();
 }
@@ -1668,7 +1669,6 @@ GNeuroPCA::GNeuroPCA(size_t targDims, GRand* pRand)
 GNeuroPCA::~GNeuroPCA()
 {
 	delete(m_pWeights);
-	delete[] m_pEigVals;
 	delete(m_pActivation);
 }
 
@@ -1680,8 +1680,7 @@ void GNeuroPCA::setActivation(GActivationFunction* pActivation)
 
 void GNeuroPCA::computeEigVals()
 {
-	delete[] m_pEigVals;
-	m_pEigVals = new double[m_targetDims];
+	m_eigVals.resize(m_targetDims);
 }
 
 void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess)
@@ -1814,18 +1813,18 @@ GMatrix* GNeuroPCA::reduce(const GMatrix& in)
 	// Make a buffer for preprocessed info
 	GMatrix preprocess(in.relation().clone());
 	preprocess.newRows(in.rows());
-
+// 
 	// Compute the principle components
 	double sse = 0;
-	if(m_pEigVals)
+	if(m_eigVals.size() > 0)
 		sse = computeSumSquaredErr(&in, pOut, 0);
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
 		computeComponent(&in, pOut, i, &preprocess);
-		if(m_pEigVals)
+		if(m_eigVals.size() > 0)
 		{
 			double t = computeSumSquaredErr(&in, pOut, i + 1);
-			m_pEigVals[i] = (sse - t) / dims;
+			m_eigVals[i] = (sse - t) / dims;
 			sse = t;
 		}
 	}

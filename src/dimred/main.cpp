@@ -552,13 +552,13 @@ void curviness2(GArgReader& args)
 	np1.computeEigVals();
 	GMatrix* pResults1 = np1.reduce(*pDataNormalized);
 	Holder<GMatrix> hResults1(pResults1);
-	double* pEigVals1 = np1.eigVals();
+	GVec& eigVals1 = np1.eigVals();
 	for(size_t i = 0; i + 1 < targetDims; i++)
-		pEigVals1[i] = sqrt(pEigVals1[i]) - sqrt(pEigVals1[i + 1]);
-	size_t max1 = GVec::indexOfMax(pEigVals1, targetDims - 1, &rand);
+		eigVals1[i] = sqrt(eigVals1[i]) - sqrt(eigVals1[i + 1]);
+	size_t max1 = eigVals1.indexOfMax();
 	double v1 = (double)max1;
 	if(max1 > 0 && max1 + 2 < targetDims)
-		v1 += (pEigVals1[max1 - 1] - pEigVals1[max1 + 1]) / (2.0 * (pEigVals1[max1 - 1] + pEigVals1[max1 + 1] - 2.0 * pEigVals1[max1]));
+		v1 += (eigVals1[max1 - 1] - eigVals1[max1 + 1]) / (2.0 * (eigVals1[max1 - 1] + eigVals1[max1 + 1] - 2.0 * eigVals1[max1]));
 
 	// Do non-linear PCA
 	GNeuroPCA np2(targetDims, &rand);
@@ -566,13 +566,13 @@ void curviness2(GArgReader& args)
 	np2.computeEigVals();
 	GMatrix* pResults2 = np2.reduce(*pDataNormalized);
 	Holder<GMatrix> hResults2(pResults2);
-	double* pEigVals2 = np2.eigVals();
+	GVec& eigVals2 = np2.eigVals();
 	for(size_t i = 0; i + 1 < targetDims; i++)
-		pEigVals2[i] = sqrt(pEigVals2[i]) - sqrt(pEigVals2[i + 1]);
-	size_t max2 = GVec::indexOfMax(pEigVals2, targetDims - 1, &rand);
+		eigVals2[i] = sqrt(eigVals2[i]) - sqrt(eigVals2[i + 1]);
+	size_t max2 = eigVals2.indexOfMax();
 	double v2 = (double)max2;
 	if(max2 > 0 && max2 + 2 < targetDims)
-		v2 += (pEigVals2[max2 - 1] - pEigVals2[max2 + 1]) / (2.0 * (pEigVals2[max2 - 1] + pEigVals2[max2 + 1] - 2.0 * pEigVals2[max2]));
+		v2 += (eigVals2[max2 - 1] - eigVals2[max2 + 1]) / (2.0 * (eigVals2[max2 - 1] + eigVals2[max2 + 1] - 2.0 * eigVals2[max2]));
 
 	// Compute the difference in where the eigenvalues fall
 	cout.precision(14);
@@ -843,9 +843,9 @@ void neuroPCA(GArgReader& args)
 		pRelation->addAttribute("eigenvalues", 0, NULL);
 		GMatrix dataEigenvalues(pRelation);
 		dataEigenvalues.newRows(nTargetDims);
-		double* pEigVals = transform.eigVals();
+		GVec& eigVals = transform.eigVals();
 		for(int i = 0; i < nTargetDims; i++)
-			dataEigenvalues[i][0] = pEigVals[i];
+			dataEigenvalues[i][0] = eigVals[i];
 		dataEigenvalues.saveArff(eigenvalues.c_str());
 	}
 

@@ -301,7 +301,7 @@ class GNeuroPCA : public GTransform
 protected:
 	size_t m_targetDims;
 	GMatrix* m_pWeights;
-	double* m_pEigVals;
+	GVec m_eigVals;
 	GRand* m_pRand;
 	GActivationFunction* m_pActivation;
 	bool m_updateBias;
@@ -319,7 +319,7 @@ public:
 	void computeEigVals();
 
 	/// Returns the eigenvalues. Returns NULL if computeEigVals was not called.
-	double* eigVals() { return m_pEigVals; }
+	GVec& eigVals() { return m_eigVals; }
 
 	/// Returns the number of principal components to find.
 	size_t targetDims() { return m_targetDims; }

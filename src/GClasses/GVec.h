@@ -33,6 +33,7 @@ class GDomNode;
 class GImage;
 class GDomListIterator;
 class GVecWrapper;
+class GConstVecWrapper;
 
 /// Represents a mathematical vector of doubles
 class GVec
@@ -243,15 +244,6 @@ public:
 	/// This just wraps memcpy
 	static void copy(double* pDest, const double* pSource, size_t nDims);
 
-	/// Scale the vector so that the elements sum to 1
-	static void sumToOne(double* pVector, size_t size);
-
-	/// Returns the index of the max value in pVector. If multiple elements have
-	/// have an equivalent max value, then behavior depends on the value of pRand.
-	/// If pRand is NULL, it will pick the first one. If pRand is non-NULL, it will
-	/// uniformly pick from all the ties.
-	static size_t indexOfMax(const double* pVector, size_t dims, GRand* pRand = NULL);
-
 	/// Adds pSource to pDest
 	static void add(double* pDest, const double* pSource, size_t nDims);
 
@@ -263,9 +255,6 @@ public:
 
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
-
-	/// Returns the sum of all the elements
-	static double sumElements(const double* pVec, size_t dims);
 };
 
 

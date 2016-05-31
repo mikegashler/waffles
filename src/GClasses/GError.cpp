@@ -63,7 +63,7 @@ void Ex::setMessage(std::string message)
 		free(stackNames);
 		*/
 		// Stop in the debugger
-		cerr << "Unexpected exception: " << m_message << "\n";
+		cerr << "Unexpected exception: " << m_message << "\nRaising SIGINT...";
 		cerr.flush();
 		raise(SIGINT);
 #endif

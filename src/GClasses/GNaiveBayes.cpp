@@ -224,10 +224,10 @@ struct GNaiveBayesOutputAttr
 
 	double predict(const double* pIn, double equivalentSampleSize, GRand* pRand)
 	{
-		GTEMPBUF(double, pValues, m_nValueCount);
+		GQUICKVEC(values, m_nValueCount);
 		for(size_t n = 0; n < m_nValueCount; n++)
-			pValues[n] = m_pValues[n]->eval(pIn, equivalentSampleSize);
-		return (double)GVec::indexOfMax(pValues, m_nValueCount, pRand);
+			values[n] = m_pValues[n]->eval(pIn, equivalentSampleSize);
+		return values.indexOfMax();
 	}
 };
 

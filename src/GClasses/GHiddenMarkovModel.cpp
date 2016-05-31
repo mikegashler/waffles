@@ -166,6 +166,16 @@ void GHiddenMarkovModel::baumWelchBeginPass()
 	GVec::setAll(pAccumSymbolProb, 0.0, m_stateCount * m_symbolCount);
 }
 
+void GHMM_sumToOne(double* pVector, size_t size)
+{
+	GConstVecWrapper vw(pVector, size);
+	double sum = vw.vec().sum();
+	if(sum == 0)
+		GVec::setAll(pVector, 1.0 / size, size);
+	else
+		GVec::multiply(pVector, 1.0 / sum, size);
+}
+
 void GHiddenMarkovModel::backwardAlgorithm(const int* pObservations, int len)
 {
 	// Initialize probabilities of the last state
@@ -192,7 +202,7 @@ void GHiddenMarkovModel::backwardAlgorithm(const int* pObservations, int len)
 
 		// Normalize to preserve numerical stability
 		pCur = pBeta + m_stateCount * i;
-		GVec::sumToOne(pCur, m_stateCount);
+		GHMM_sumToOne(pCur, m_stateCount);
 	}
 }
 
@@ -243,7 +253,7 @@ void GHiddenMarkovModel::baumWelchAddSequence(const int* pObservations, int len)
 		}
 
 		// Normalize to preserve numerical stability
-		GVec::sumToOne(pCur, m_stateCount);
+		GHMM_sumToOne(pCur, m_stateCount);
 
 		// Compute xi and gamma
 		for(int j = 0; j < m_stateCount; j++)
@@ -261,9 +271,9 @@ void GHiddenMarkovModel::baumWelchAddSequence(const int* pObservations, int len)
 				}
 			}
 		}
-		GVec::sumToOne(pGamma, m_stateCount);
+		GHMM_sumToOne(pGamma, m_stateCount);
 		if(i < len - 1)
-			GVec::sumToOne(pXi, m_stateCount * m_stateCount);
+			GHMM_sumToOne(pXi, m_stateCount * m_stateCount);
 
 		// Accumulate probabilities
 		if(i ==  0)
@@ -295,11 +305,11 @@ double GHiddenMarkovModel::baumWelchEndPass()
 	double* pAccumInitProb = m_pTrainingBuffer;
 	double* pAccumTransProb = pAccumInitProb + m_stateCount;
 	double* pAccumSymbolProb = pAccumTransProb + m_stateCount * m_stateCount;
-	GVec::sumToOne(pAccumInitProb, m_stateCount);
+	GHMM_sumToOne(pAccumInitProb, m_stateCount);
 	for(int i = 0; i < m_stateCount; i++)
 	{
-		GVec::sumToOne(pAccumTransProb + m_stateCount * i, m_stateCount);
-		GVec::sumToOne(pAccumSymbolProb + m_symbolCount * i, m_symbolCount);
+		GHMM_sumToOne(pAccumTransProb + m_stateCount * i, m_stateCount);
+		GHMM_sumToOne(pAccumSymbolProb + m_symbolCount * i, m_symbolCount);
 	}
 
 	// Measure the change

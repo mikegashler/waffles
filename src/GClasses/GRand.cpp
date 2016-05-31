@@ -309,11 +309,21 @@ size_t GRand::binomial_approx(size_t n, double p)
 	return std::min(n, size_t(floor(std::max(0.0, normal() * dev + mean + 0.5))));
 }
 
+void GRand_sumToOne(double* pVector, size_t size)
+{
+	GConstVecWrapper vw(pVector, size);
+	double sum = vw.vec().sum();
+	if(sum == 0)
+		GVec::setAll(pVector, 1.0 / size, size);
+	else
+		GVec::multiply(pVector, 1.0 / sum, size);
+}
+
 void GRand::simplex(double* pOutVec, size_t dims)
 {
 	for(size_t i = 0; i < dims; i++)
 		*(pOutVec++) = exponential();
-	GVec::sumToOne(pOutVec, dims);
+	GRand_sumToOne(pOutVec, dims);
 }
 
 double GRand::softImpulse(double s)
@@ -335,7 +345,7 @@ void GRand::dirichlet(double* pOutVec, const double* pParams, int dims)
 	const double* pIn = pParams;
 	for(int i = 0; i < dims; i++)
 		*(pOut++) = gamma(*(pIn++));
-	GVec::sumToOne(pOutVec, dims);
+	GRand_sumToOne(pOutVec, dims);
 }
 
 double GRand::student(double t)

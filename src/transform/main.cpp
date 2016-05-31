@@ -911,9 +911,9 @@ void Import(GArgReader& args)
 	data.print(cout);
 }
 
-void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, double* pResults)
+void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, GVec& results)
 {
-	GVec::setAll(pResults, 0.0, dims);
+	results.fill(0.0);
 	for(size_t i = 0; i < pData1->rows(); i++)
 	{
 		GVec& pPat1 = pData1->row(i);
@@ -923,11 +923,11 @@ void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, doub
 			if(pPat1[j] != UNKNOWN_REAL_VALUE && pPat2[j] != UNKNOWN_REAL_VALUE)
 			{
 				double d = (pPat1[j] - pPat2[j]);
-				pResults[j] += (d * d);
+				results[j] += (d * d);
 			}
 		}
 	}
-	GVec::multiply(pResults, 1.0 / pData1->rows(), dims);
+	results *= (1.0 / pData1->rows());
 }
 
 class FitDataCritic : public GTargetFunction
@@ -938,19 +938,18 @@ protected:
 	size_t m_attrs;
 	GMatrix m_transformed;
 	GMatrix m_transform;
-	double* m_pResults;
+	GVec m_results;
 
 public:
 	FitDataCritic(GMatrix* pData1, GMatrix* pData2, size_t attrs)
 	: GTargetFunction(attrs + attrs * attrs), m_pData1(pData1), m_pData2(pData2), m_attrs(attrs), m_transformed(pData1->rows(), attrs), m_transform(attrs, attrs)
 	{
 		m_transform.makeIdentity();
-		m_pResults = new double[attrs];
+		m_results.resize(attrs);
 	}
 
 	virtual ~FitDataCritic()
 	{
-		delete[] m_pResults;
 	}
 
 	virtual bool isStable() { return true; }
@@ -977,26 +976,25 @@ public:
 	virtual double computeError(const GVec& pVector)
 	{
 		TransformData(pVector);
-		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_pResults);
-		double sum = GVec::sumElements(m_pResults, m_attrs);
+		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_results);
+		double sum = m_results.sum();
 		return sum;
 	}
 
 	void ShowResults(const GVec& pVector, bool sumOverAttributes)
 	{
 		TransformData(pVector);
-		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_pResults);
+		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_results);
 		cout.precision(14);
 		if(sumOverAttributes)
-			cout << GVec::sumElements(m_pResults, m_attrs);
+			cout << m_results.sum();
 		else
 		{
-			GVecWrapper vw(m_pResults, m_attrs);
-			vw.vec().print(cout);
+			m_results.print(cout);
 		}
 	}
 
-	const double* GetResults() { return m_pResults; }
+	const GVec& GetResults() { return m_results; }
 };
 
 void MeasureMeanSquaredError(GArgReader& args)
@@ -1055,16 +1053,13 @@ void MeasureMeanSquaredError(GArgReader& args)
 	else
 	{
 		// Compute mean squared error
-		GTEMPBUF(double, results, dims);
+		GQUICKVEC(results, dims);
 		ComputeMeanSquaredError(pData1, pData2, dims, results);
 		cout.precision(14);
 		if(sumOverAttributes)
-			cout << GVec::sumElements(results, dims);
+			cout << results.sum();
 		else
-		{
-			GVecWrapper vw(results, dims);
-			vw.vec().print(cout);
-		}
+			results.print(cout);
 	}
 	cout << "\n";
 }

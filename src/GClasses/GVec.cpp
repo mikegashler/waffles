@@ -492,6 +492,12 @@ void GVec::fromImage(GImage* pImage, int width, int height, int channels, double
 		throw Ex("unsupported value for channels");
 }
 
+void GVec::swapContents(GVec& that)
+{
+	std::swap(m_data, that.m_data);
+	std::swap(m_size, that.m_size);
+}
+
 
 
 
@@ -517,41 +523,6 @@ void GVec::fromImage(GImage* pImage, int width, int height, int channels, double
 void GVec::copy(double* pDest, const double* pSource, size_t nDims)
 {
 	memcpy(pDest, pSource, sizeof(double) * nDims);
-}
-
-// static
-void GVec::sumToOne(double* pVector, size_t size)
-{
-	double sum = GVec::sumElements(pVector, size);
-	if(sum == 0)
-		GVec::setAll(pVector, 1.0 / size, size);
-	else
-		GVec::multiply(pVector, 1.0 / sum, size);
-}
-
-// static
-size_t GVec::indexOfMax(const double* pVector, size_t dims, GRand* pRand)
-{
-	size_t index = 0;
-	size_t count = 1;
-	for(size_t n = 1; n < dims; n++)
-	{
-		if(pVector[n] >= pVector[index])
-		{
-			if(pVector[n] == pVector[index])
-			{
-				count++;
-				if(pRand && pRand->next(count) == 0)
-					index = n;
-			}
-			else
-			{
-				index = n;
-				count = 1;
-			}
-		}
-	}
-	return index;
 }
 
 // static
@@ -585,28 +556,11 @@ void GVec::setAll(double* pVector, double value, size_t dims)
 	}
 }
 
+// static
 void GVec::perturb(double* pDest, double deviation, size_t dims, GRand& rand)
 {
 	for(size_t i = 0; i < dims; i++)
 		*(pDest++) += deviation * rand.normal();
-}
-
-double GVec::sumElements(const double* pVec, size_t dims)
-{
-	double sum = 0;
-	while(dims > 0)
-	{
-		sum += *pVec;
-		pVec++;
-		dims--;
-	}
-	return sum;
-}
-
-void GVec::swapContents(GVec& that)
-{
-	std::swap(m_data, that.m_data);
-	std::swap(m_size, that.m_size);
 }
 
 #ifndef MIN_PREDICT
