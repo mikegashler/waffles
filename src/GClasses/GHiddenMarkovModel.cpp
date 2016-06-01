@@ -27,6 +27,7 @@
 #include "GError.h"
 #include "GHolders.h"
 #include "GVec.h"
+#include <string.h>
 
 using namespace GClasses;
 using std::vector;
@@ -155,15 +156,21 @@ void GHiddenMarkovModel::baumWelchBeginTraining(int maxLen)
 		];
 }
 
+void GHMM_setAll(double* pVector, double val, size_t size)
+{
+	for(size_t i = 0; i < size; i++)
+		pVector[i] = val;
+}
+
 void GHiddenMarkovModel::baumWelchBeginPass()
 {
 	// Reset the accumulators
 	double* pAccumInitProb = m_pTrainingBuffer;
 	double* pAccumTransProb = pAccumInitProb + m_stateCount;
 	double* pAccumSymbolProb = pAccumTransProb + m_stateCount * m_stateCount;
-	GVec::setAll(pAccumInitProb, 0.0, m_stateCount);
-	GVec::setAll(pAccumTransProb, 0.0, m_stateCount * m_stateCount);
-	GVec::setAll(pAccumSymbolProb, 0.0, m_stateCount * m_symbolCount);
+	GHMM_setAll(pAccumInitProb, 0.0, m_stateCount);
+	GHMM_setAll(pAccumTransProb, 0.0, m_stateCount * m_stateCount);
+	GHMM_setAll(pAccumSymbolProb, 0.0, m_stateCount * m_symbolCount);
 }
 
 void GHMM_sumToOne(double* pVector, size_t size)
@@ -171,9 +178,12 @@ void GHMM_sumToOne(double* pVector, size_t size)
 	GConstVecWrapper vw(pVector, size);
 	double sum = vw.vec().sum();
 	if(sum == 0)
-		GVec::setAll(pVector, 1.0 / size, size);
+		GHMM_setAll(pVector, 1.0 / size, size);
 	else
-		GVec::multiply(pVector, 1.0 / sum, size);
+	{
+		for(size_t i = 0; i < size; i++)
+			pVector[i] *= (1.0 / sum);
+	}
 }
 
 void GHiddenMarkovModel::backwardAlgorithm(const int* pObservations, int len)
@@ -319,9 +329,9 @@ double GHiddenMarkovModel::baumWelchEndPass()
 	err += GHMM_sqDist(m_pSymbolProbabilities, pAccumSymbolProb, m_stateCount * m_symbolCount);
 
 	// Copy over the old model
-	GVec::copy(m_pInitialStateProbabilities, pAccumInitProb, m_stateCount);
-	GVec::copy(m_pTransitionProbabilities, pAccumTransProb, m_stateCount * m_stateCount);
-	GVec::copy(m_pSymbolProbabilities, pAccumSymbolProb, m_stateCount * m_symbolCount);
+	memcpy(m_pInitialStateProbabilities, pAccumInitProb, sizeof(double) * m_stateCount);
+	memcpy(m_pTransitionProbabilities, pAccumTransProb, sizeof(double) * m_stateCount * m_stateCount);
+	memcpy(m_pSymbolProbabilities, pAccumSymbolProb, sizeof(double) * m_stateCount * m_symbolCount);
 
 	return err;
 }

@@ -450,7 +450,8 @@ void GBomb::determineWeights(const GMatrix& features, const GMatrix& labels)
 	double* pWeights = new double[m_models.size()];
 	std::unique_ptr<double[]> hWeights(pWeights);
 	double uniform = 1.0 / m_models.size();
-	GVec::setAll(pWeights, uniform, m_models.size());
+	for(size_t i = 0; i < m_models.size(); i++)
+		pWeights[i] = uniform;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		(*it)->m_weight = uniform;
 	double minErr = sumSquaredError(features, labels);
@@ -576,9 +577,8 @@ GBayesianModelCombination::GBayesianModelCombination(const GDomNode* pNode, GLea
 // virtual
 void GBayesianModelCombination::determineWeights(const GMatrix& features, const GMatrix& labels)
 {
-	double* pWeights = new double[m_models.size()];
-	std::unique_ptr<double[]> hWeights(pWeights);
-	GVec::setAll(pWeights, 0.0, m_models.size());
+	GQUICKVEC(weights, m_models.size());
+	weights.fill(0.0);
 	double sumWeight = 0.0;
 	double maxLogProb = -1e38;
 	for(size_t i = 0; i < m_samples; i++)
@@ -601,19 +601,19 @@ void GBayesianModelCombination::determineWeights(const GMatrix& features, const 
 		// Update the weights
 		if(logProbEnsembleGivenData > maxLogProb)
 		{
-			GVec::multiply(pWeights, exp(maxLogProb - logProbEnsembleGivenData), m_models.size());
+			weights *= exp(maxLogProb - logProbEnsembleGivenData);
 			maxLogProb = logProbEnsembleGivenData;
 		}
 		double w = exp(logProbEnsembleGivenData - maxLogProb);
-		GVec::multiply(pWeights, sumWeight / (sumWeight + w), m_models.size());
-		double* pW = pWeights;
+		weights *= (sumWeight / (sumWeight + w));
+		size_t pos = 0;
 		for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-			*(pW++) += w * (*it)->m_weight;
+			weights[pos++] += (w * (*it)->m_weight);
 		sumWeight += w;
 	}
-	double* pW = pWeights;
+	size_t pos = 0;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-		(*it)->m_weight = *(pW++);
+		(*it)->m_weight = weights[pos++];
 }
 
 // virtual

@@ -407,7 +407,8 @@ void GBillboardWorld::draw(GImage* pImage, double* pDepthMap, GCamera& camera)
 {
 	G3DVector coords[VERTEX_COUNT + 1];
 	int coordMap[VERTEX_COUNT + 1];
-	GVec::setAll(pDepthMap, 1e200, pImage->width() * pImage->height());
+	for(size_t i = 0; i < pImage->width() * pImage->height(); i++)
+		pDepthMap[i] = 1e200;
 	for(vector<GBillboard*>::iterator it = m_billboards.begin(); it != m_billboards.end(); it++)
 	{
 		// Project each of the corners onto the view

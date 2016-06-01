@@ -241,15 +241,6 @@ public:
 	static void test();
 #endif // MIN_PREDICT
 
-	/// This just wraps memcpy
-	static void copy(double* pDest, const double* pSource, size_t nDims);
-
-	/// Adds pSource to pDest
-	static void add(double* pDest, const double* pSource, size_t nDims);
-
-	/// Multiplies pVector by dScalar
-	static void multiply(double* pVector, double dScalar, size_t nDims);
-
 	/// Sets all the elements to the specified value
 	static void setAll(double* pVector, double value, size_t dims);
 

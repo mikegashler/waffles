@@ -520,33 +520,6 @@ void GVec::swapContents(GVec& that)
 
 
 // static
-void GVec::copy(double* pDest, const double* pSource, size_t nDims)
-{
-	memcpy(pDest, pSource, sizeof(double) * nDims);
-}
-
-// static
-void GVec::add(double* pDest, const double* pSource, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-	{
-		*pDest += *pSource;
-		pDest++;
-		pSource++;
-	}
-}
-
-// static
-void GVec::multiply(double* pVector, double dScalar, size_t nDims)
-{
-	for(size_t i = 0; i < nDims; i++)
-	{
-		*pVector *= dScalar;
-		pVector++;
-	}
-}
-
-// static
 void GVec::setAll(double* pVector, double value, size_t dims)
 {
 	for(size_t i = 0; i < dims; i++)

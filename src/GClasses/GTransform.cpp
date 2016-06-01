@@ -643,7 +643,7 @@ GRelation* GDataAugmenter::trainInner(const GRelation& relation)
 // virtual
 void GDataAugmenter::transform(const GVec& in, GVec& out)
 {
-	GVec::copy(out.data(), in.data(), before().size());
+	memcpy(out.data(), in.data(), before().size() * sizeof(double));
 	m_pTransform->transform(in, m_pTransform->innerBuf());
 	out.put(before().size(), m_pTransform->innerBuf());
 }
@@ -651,7 +651,7 @@ void GDataAugmenter::transform(const GVec& in, GVec& out)
 // virtual
 void GDataAugmenter::untransform(const GVec& in, GVec& out)
 {
-	GVec::copy(out.data(), in.data(), before().size());
+	memcpy(out.data(), in.data(), before().size() * sizeof(double));
 }
 
 // virtual
@@ -1459,7 +1459,7 @@ void GImputeMissingVals::transform(const GVec& in, GVec& out)
 // virtual
 void GImputeMissingVals::untransform(const GVec& in, GVec& out)
 {
-	GVec::copy(out.data(), in.data(), after().size());
+	memcpy(out.data(), in.data(), after().size() * sizeof(double));
 }
 
 // virtual

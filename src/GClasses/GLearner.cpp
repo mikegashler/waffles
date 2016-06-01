@@ -716,7 +716,8 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 			}
 		}
 	}
-	GVec::multiply(pOutPrecision, 1.0 / (2 * nReps), nFuncs * nPrecisionSize);
+	GVecWrapper vw(pOutPrecision, nFuncs * nPrecisionSize);
+	vw.vec() *= (1.0 / (2 * nReps));
 }
 
 

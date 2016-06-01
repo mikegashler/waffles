@@ -1020,7 +1020,7 @@ void GMatrix::resizePreserve(size_t rowCount, size_t colCount)
 		for(size_t i = 0; i < lesserRows; i++)
 		{
 			GVec* newrow = new GVec(colCount);
-			GVec::copy(newrow->data(), row(i).data(), lesserCols);
+			memcpy(newrow->data(), row(i).data(), sizeof(double) * lesserCols);
 			delete(m_rows[i]);
 			m_rows[i] = newrow;
 		}
@@ -1542,7 +1542,6 @@ double GMatrix::trace()
 size_t GMatrix::toReducedRowEchelonForm()
 {
 	size_t nLead = 0;
-	double* pRow;
 	size_t rowCount = rows();
 	size_t colCount = cols();
 	for(size_t nRow = 0; nRow < rowCount; nRow++)
@@ -1562,8 +1561,10 @@ size_t GMatrix::toReducedRowEchelonForm()
 			swapRows(i, nRow);
 
 		// Scale the pivot to 1
-		pRow = row(nRow).data();
-		GVec::multiply(pRow + nLead, 1.0 / pRow[nLead], colCount - nLead);
+		GVec& pRow = row(nRow);
+		double d = 1.0 / pRow[nLead];
+		for(i = nLead; i < colCount; i++)
+			pRow[i] *= d;
 
 		// Elliminate all values above and below the pivot
 		for(i = 0; i < rowCount; i++)
@@ -1587,7 +1588,6 @@ bool GMatrix::gaussianElimination(double* pVector)
 	if(rows() != (size_t)cols())
 		throw Ex("Expected a square matrix");
 	double d;
-	double* pRow;
 	size_t rowCount = rows();
 	size_t colCount = cols();
 	for(size_t nRow = 0; nRow < rowCount; nRow++)
@@ -1607,9 +1607,10 @@ bool GMatrix::gaussianElimination(double* pVector)
 		}
 
 		// Scale the pivot to 1
-		pRow = row(nRow).data();
+		GVec& pRow = row(nRow);
 		d = 1.0 / pRow[nRow];
-		GVec::multiply(pRow + nRow, d, colCount - nRow);
+		for(i = nRow; i < colCount; i++)
+			pRow[i] *= d;
 		pVector[nRow] *= d;
 
 		// Elliminate all values above and below the pivot
@@ -2525,7 +2526,7 @@ void GMatrix::newColumns(size_t n)
 	{
 		GVec* pOld = m_rows[i];
 		GVec* pNew = new GVec(oldSize + n);
-		GVec::copy(pNew->data(), pOld->data(), oldSize);
+		memcpy(pNew->data(), pOld->data(), sizeof(double) * oldSize);
 		delete(pOld);
 		m_rows[i] = pNew;
 	}
@@ -2571,7 +2572,7 @@ void GMatrix::toVector(double* pVec)
 	size_t nCols = cols();
 	for(size_t i = 0; i < rows(); i++)
 	{
-		GVec::copy(pVec, row(i).data(), nCols);
+		memcpy(pVec, row(i).data(), nCols * sizeof(double));
 		pVec += nCols;
 	}
 }
@@ -2629,7 +2630,7 @@ void GMatrix::copyBlock(const GMatrix& source, size_t srcRow, size_t srcCol, siz
 		}
 	}
 	for(size_t i = 0; i < hgt; i++)
-		GVec::copy(row(destRow + i).data() + destCol, source[srcRow + i].data() + srcCol, wid);
+		memcpy(row(destRow + i).data() + destCol, source[srcRow + i].data() + srcCol, wid * sizeof(double));
 }
 
 void GMatrix::copyCols(const GMatrix& that, size_t firstCol, size_t colCount)
@@ -2718,8 +2719,8 @@ GMatrix* GMatrix::mergeHoriz(const GMatrix* pSetA, const GMatrix* pSetB)
 	for(size_t i = 0; i < pSetA->rows(); i++)
 	{
 		GVec& newRow = pNewSet->newRow();
-		GVec::copy(newRow.data(), pSetA->row(i).data(), nSetADims);
-		GVec::copy(newRow.data() + nSetADims, pSetB->row(i).data(), nSetBDims);
+		memcpy(newRow.data(), pSetA->row(i).data(), nSetADims * sizeof(double));
+		memcpy(newRow.data() + nSetADims, pSetB->row(i).data(), nSetBDims * sizeof(double));
 	}
 	return hNewSet.release();
 }

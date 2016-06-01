@@ -606,7 +606,7 @@ public:
 
 	void CopyOffset(GKdNode* pParent)
 	{
-		GVec::copy(m_pOffset, pParent->m_pOffset, m_dims);
+		memcpy(m_pOffset, pParent->m_pOffset, sizeof(double) * m_dims);
 		m_minDist = pParent->m_minDist;
 	}
 

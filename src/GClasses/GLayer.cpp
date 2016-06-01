@@ -576,7 +576,7 @@ size_t GLayerClassic::countWeights()
 // virtual
 size_t GLayerClassic::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, bias().data(), outputs());
+	memcpy(pOutVector, bias().data(), sizeof(double) * outputs());
 	pOutVector += outputs();
 	m_weights.toVector(pOutVector);
 	pOutVector += (inputs() * outputs());
@@ -677,12 +677,13 @@ void GLayerSoftMax::activate()
 	{
 		double fac = 1.0 / sum;
 		m_weights.multiply(fac);
-		GVec::multiply(bias().data(), fac, outputCount);
-		GVec::multiply(activation().data(), fac, outputCount);
+		bias() *= fac;
+		activation() *= fac;
 	}
 	else
 	{
-		GVec::setAll(activation().data(), 1.0 / outputCount, outputCount);
+		for(size_t i = 0; i < outputCount; i++)
+			activation()[i] = 1.0 / outputCount;
 	}
 }
 
@@ -775,7 +776,7 @@ void GLayerMixed::feedForward(const GVec& in)
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
 		m_components[i]->feedForward(in);
-		GVec::copy(pAct, m_components[i]->activation().data(), m_components[i]->outputs());
+		memcpy(pAct, m_components[i]->activation().data(), m_components[i]->outputs() * sizeof(double));
 		pAct += m_components[i]->outputs();
 	}
 }
@@ -810,7 +811,7 @@ void GLayerMixed::deactivateError()
 	double* pErr = error().data();
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
-		GVec::copy(m_components[i]->error().data(), pErr, m_components[i]->outputs());
+		memcpy(m_components[i]->error().data(), pErr, m_components[i]->outputs() * sizeof(double));
 		m_components[i]->deactivateError();
 		pErr += m_components[i]->outputs();
 	}
@@ -821,13 +822,13 @@ void GLayerMixed::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	double* pBuf = m_inputError[0].data();
 	size_t inps = pUpStreamLayer->outputs();
-	GVec::setAll(pBuf, 0.0, inps);
+	m_inputError[0].fill(0.0);
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
 		m_components[i]->backPropError(pUpStreamLayer);
-		GVec::add(pBuf, pUpStreamLayer->error().data(), inps);
+		m_inputError[0] += pUpStreamLayer->error();
 	}
-	GVec::copy(pUpStreamLayer->error().data(), pBuf, inps);
+	memcpy(pUpStreamLayer->error().data(), pBuf, inps * sizeof(double));
 }
 
 // virtual
@@ -1324,7 +1325,7 @@ size_t GLayerRestrictedBoltzmannMachine::countWeights()
 // virtual
 size_t GLayerRestrictedBoltzmannMachine::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, bias().data(), outputs());
+	memcpy(pOutVector, bias().data(), outputs() * sizeof(double));
 	pOutVector += outputs();
 	m_weights.toVector(pOutVector);
 	pOutVector += (inputs() * outputs());
@@ -1335,7 +1336,7 @@ size_t GLayerRestrictedBoltzmannMachine::weightsToVector(double* pOutVector)
 // virtual
 size_t GLayerRestrictedBoltzmannMachine::vectorToWeights(const double* pVector)
 {
-	GVec::copy(bias().data(), pVector, outputs());
+	memcpy(bias().data(), pVector, outputs() * sizeof(double));
 	pVector += outputs();
 	m_weights.fromVector(pVector, inputs());
 	pVector += (inputs() * outputs());
@@ -1650,7 +1651,7 @@ size_t GLayerConvolutional1D::countWeights()
 // virtual
 size_t GLayerConvolutional1D::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, bias().data(), m_kernels.rows());
+	memcpy(pOutVector, bias().data(), m_kernels.rows() * sizeof(double));
 	pOutVector += m_kernels.rows();
 	m_kernels.toVector(pOutVector);
 	pOutVector += (m_kernels.rows() * m_kernels.cols());
@@ -1661,7 +1662,7 @@ size_t GLayerConvolutional1D::weightsToVector(double* pOutVector)
 // virtual
 size_t GLayerConvolutional1D::vectorToWeights(const double* pVector)
 {
-	GVec::copy(bias().data(), pVector, m_kernels.rows());
+	memcpy(bias().data(), pVector, m_kernels.rows() * sizeof(double));
 	pVector += m_kernels.rows();
 	m_kernels.fromVector(pVector, m_kernels.rows());
 	pVector += (m_kernels.rows() * m_kernels.cols());
@@ -2036,7 +2037,7 @@ size_t GLayerConvolutional2D::countWeights()
 // virtual
 size_t GLayerConvolutional2D::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, bias().data(), m_kernelCount);
+	memcpy(pOutVector, bias().data(), m_kernelCount * sizeof(double));
 	pOutVector += m_kernelCount;
 	m_kernels.toVector(pOutVector);
 	pOutVector += (m_kernels.rows() * m_kernels.cols());
@@ -2047,7 +2048,7 @@ size_t GLayerConvolutional2D::weightsToVector(double* pOutVector)
 // virtual
 size_t GLayerConvolutional2D::vectorToWeights(const double* pVector)
 {
-	GVec::copy(bias().data(), pVector, m_kernelCount);
+	memcpy(bias().data(), pVector, m_kernelCount * sizeof(double));
 	pVector += m_kernelCount;
 	m_kernels.fromVector(pVector, m_kernels.rows());
 	pVector += (m_kernels.rows() * m_kernels.cols());

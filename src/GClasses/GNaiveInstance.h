@@ -44,10 +44,10 @@ class GNaiveInstance : public GIncrementalLearner
 protected:
 	size_t m_nNeighbors;
 	GNaiveInstanceAttr** m_pAttrs;
-	double* m_pValueSums;
-	double* m_pWeightSums;
-	double* m_pSumBuffer;
-	double* m_pSumOfSquares;
+	GVec m_pValueSums;
+	GVec m_pWeightSums;
+	GVec m_pSumBuffer;
+	GVec m_pSumOfSquares;
 	GHeap* m_pHeap;
 
 public:

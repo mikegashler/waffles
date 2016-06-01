@@ -296,7 +296,7 @@ public:
 	virtual GDecisionTreeNode* DeepCopy(size_t nOutputCount, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy)
 	{
 		double* pOutputValues = new double[nOutputCount];
-		GVec::copy(pOutputValues, m_pOutputValues, nOutputCount);
+		memcpy(pOutputValues, m_pOutputValues, sizeof(double) * nOutputCount);
 		GDecisionTreeLeafNode* pNewNode = new GDecisionTreeLeafNode(pOutputValues, m_nSampleSize);
 		if(this == pInterestingNode)
 			*ppOutInterestingCopy = pNewNode;
@@ -723,7 +723,7 @@ double* GDecisionTreeNode_copyIfNotTheLast(size_t emptySets, std::unique_ptr<dou
 	if(emptySets > 1)
 	{
 		double* pCopy = new double[dims];
-		GVec::copy(pCopy, hBaselineVec.get(), dims);
+		memcpy(pCopy, hBaselineVec.get(), sizeof(double) * dims);
 		return pCopy;
 	}
 	else

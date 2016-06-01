@@ -1850,14 +1850,14 @@ void GBackPropThroughTime::trainIncremental(const GVec& initialState, const GMat
 	GConstVecWrapper vwObs(m_buf, obsInputs);
 
 	// Forward Prop
-	GVec::copy(m_buf, initialState.data(), transOutputs);
+	memcpy(m_buf, initialState.data(), sizeof(double) * transOutputs);
 	for(size_t i = 0; i < m_unfoldDepth; i++)
 	{
-		GVec::copy(m_buf + transOutputs, controls[i].data(), transInputs - transOutputs);
+		memcpy(m_buf + transOutputs, controls[i].data(), sizeof(double) * (transInputs - transOutputs));
 		m_parts[i]->forwardProp(vwTrans.vec());
-		GVec::copy(m_buf, m_parts[i]->outputLayer().activation().data(), transOutputs);
+		memcpy(m_buf, m_parts[i]->outputLayer().activation().data(), sizeof(double) * transOutputs);
 	}
-	GVec::copy(m_buf + transOutputs, obsParams.data(), obsInputs - transOutputs);
+	memcpy(m_buf + transOutputs, obsParams.data(), sizeof(double) * (obsInputs - transOutputs));
 	m_observation.forwardProp(vwObs.vec());
 
 	// Back Prop
@@ -1871,15 +1871,15 @@ void GBackPropThroughTime::trainIncremental(const GVec& initialState, const GMat
 	}
 
 	// Update weights
-	GVec::copy(m_buf, initialState.data(), transOutputs);
+	memcpy(m_buf, initialState.data(), sizeof(double) * transOutputs);
 	for(size_t i = 0; i < m_unfoldDepth; i++)
 	{
 		m_transition.copyErrors(m_parts[i]);
-		GVec::copy(m_buf + transOutputs, controls[i].data(), transInputs - transOutputs);
+		memcpy(m_buf + transOutputs, controls[i].data(), sizeof(double) * (transInputs - transOutputs));
 		m_transition.descendGradient(vwTrans.vec(), m_transition.learningRate() * m_unfoldReciprocal, m_transition.momentum());
-		GVec::copy(m_buf, m_parts[i]->outputLayer().activation().data(), transOutputs);
+		memcpy(m_buf, m_parts[i]->outputLayer().activation().data(), sizeof(double) * transOutputs);
 	}
-	GVec::copy(m_buf + transOutputs, obsParams.data(), obsInputs - transOutputs);
+	memcpy(m_buf + transOutputs, obsParams.data(), sizeof(double) * (obsInputs - transOutputs));
 	m_observation.descendGradient(vwObs.vec(), m_observation.learningRate(), m_observation.momentum());
 }
 

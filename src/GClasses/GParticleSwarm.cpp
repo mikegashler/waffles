@@ -126,7 +126,7 @@ double GBouncyBalls::iterate()
 		m_positions[m_ball] -= m_velocities[m_ball];
 		double mag = std::sqrt(m_velocities[m_ball].squaredMagnitude());
 		m_velocities[m_ball].fillSphericalShell(m_rand);
-		m_velocities[m_ball] *= (mag * 0.98);
+		m_velocities[m_ball] *= (mag * 0.9);
 		if(m_rand.uniform() < m_probTeleport)
 		{
 			size_t index = m_rand.next(m_errors.size());
@@ -149,6 +149,16 @@ double GBouncyBalls::iterate()
 	return m_errors[m_bestIndex];
 }
 
+#ifndef MIN_PREDICT
+// static
+void GBouncyBalls::test()
+{
+	GRand rand(0);
+	GOptimizerBasicTestTargetFunction target;
+	GBouncyBalls opt(&target, 10, rand, 0.01);
+	opt.basicTest(0.002);
+}
+#endif
 
 
 

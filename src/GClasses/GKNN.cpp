@@ -943,7 +943,7 @@ void GInstanceTable::trainIncremental(const GVec& in, const GVec& out)
 		pos += n * m_pScales[i];
 	}
 	size_t labelDims = m_pRelLabels->size();
-	GVec::copy(m_pTable + pos * labelDims, out.data(), labelDims);
+	memcpy(m_pTable + pos * labelDims, out.data(), sizeof(double) * labelDims);
 }
 
 

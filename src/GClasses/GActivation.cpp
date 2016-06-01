@@ -309,7 +309,7 @@ size_t GActivationHinge::countWeights()
 // virtual
 size_t GActivationHinge::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, m_hinges.data(), m_units);
+	memcpy(pOutVector, m_hinges.data(), sizeof(double) * m_units);
 	return m_units;
 }
 
@@ -573,7 +573,7 @@ size_t GActivationSoftExponential::countWeights()
 // virtual
 size_t GActivationSoftExponential::weightsToVector(double* pOutVector)
 {
-	GVec::copy(pOutVector, m_alphas.data(), m_units);
+	memcpy(pOutVector, m_alphas.data(), sizeof(double) * m_units);
 	return m_units;
 }
 

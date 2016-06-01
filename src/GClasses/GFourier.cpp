@@ -97,15 +97,16 @@ void GFourier::fft(size_t arraySize, struct ComplexNumber* pComplexNumberArray, 
 
 	// Move the data to it's reversed-bit position
 	size_t totalSize = arraySize << 1;
-	double* pTmp = new double[totalSize];
-	for(size_t n = 0; n < arraySize; n++)
 	{
-		size_t nReversed = ReverseBits(n, nBits);
-		pTmp[nReversed << 1] = pData[n << 1];
-		pTmp[(nReversed << 1) + 1] = pData[(n << 1) + 1];
+		GQUICKVEC(pTmp, totalSize);
+		for(size_t n = 0; n < arraySize; n++)
+		{
+			size_t nReversed = ReverseBits(n, nBits);
+			pTmp[nReversed << 1] = pData[n << 1];
+			pTmp[(nReversed << 1) + 1] = pData[(n << 1) + 1];
+		}
+		memcpy(pData, pTmp.data(), sizeof(double) * totalSize);
 	}
-	GVec::copy(pData, pTmp, totalSize);
-	delete[] pTmp;
 
 	// Calculate the angle numerator
 	double dAngleNumerator;
@@ -155,7 +156,10 @@ void GFourier::fft(size_t arraySize, struct ComplexNumber* pComplexNumberArray, 
 
 	// Normalize output if we're doing the inverse forier transform
 	if(!bForward)
-		GVec::multiply(pData, 1.0 / (double)arraySize, totalSize);
+	{
+		GVecWrapper vw(pData, totalSize);
+		vw.vec() *= (1.0 / (double)arraySize);
+	}
 }
 
 void GFourier::fft2d(size_t arrayWidth, size_t arrayHeight, struct ComplexNumber* p2DComplexNumberArray, bool bForward)

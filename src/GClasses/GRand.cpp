@@ -316,7 +316,11 @@ void GRand_sumToOne(double* pVector, size_t size)
 	if(sum == 0)
 		GVec::setAll(pVector, 1.0 / size, size);
 	else
-		GVec::multiply(pVector, 1.0 / sum, size);
+	{
+		double scale = 1.0 / sum;
+		for(size_t i = 0; i < size; i++)
+			(*pVector++) *= scale;
+	}
 }
 
 void GRand::simplex(double* pOutVec, size_t dims)

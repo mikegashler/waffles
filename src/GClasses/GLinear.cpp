@@ -161,7 +161,7 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 	GMatrix l(inputs, outputs);
 	for(size_t i = 0; i < inputs; i++)
 	{
-		GVec::copy(f[i].data(), pca.basis()->row(i).data(), inputs);
+		memcpy(f[i].data(), pca.basis()->row(i).data(), sizeof(double) * inputs);
 		double sqmag = f[i].squaredMagnitude();
 		if(sqmag > 1e-10)
 			f[i] *= 1.0 / sqmag;
@@ -667,11 +667,12 @@ bool GLinearProgramming::simplexMethod(GMatrix* pA, const double* pB, int leCons
 	GMatrix aa(pA->rows() + 3, pA->cols() + 2);
 	aa.setAll(0.0);
 	aa[1][1] = 0.0;
-	GVec::copy(aa.row(1).data() + 2, pC, pA->cols());
+	memcpy(aa.row(1).data() + 2, pC, sizeof(double) * pA->cols());
 	for(size_t i = 1; i <= pA->rows(); i++)
 	{
-		GVec::copy(aa.row(i + 1).data() + 2, pA->row(i - 1).data(), pA->cols());
-		GVec::multiply(aa.row(i + 1).data() + 2, -1.0, pA->cols());
+		aa.row(i + 1).put(2, pA->row(i - 1));
+		GVecWrapper vw(aa.row(i + 1).data() + 2, pA->cols());
+		vw.vec() *= -1.0;
 		aa[i + 1][1] = pB[i - 1];
 	}
 

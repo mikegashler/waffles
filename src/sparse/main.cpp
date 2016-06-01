@@ -501,8 +501,8 @@ void test(GArgReader& args)
 			}
 		}
 	}
-	GVec::multiply(results, 1.0 / pData->rows(), labels.cols());
 	GVecWrapper vw(results, labels.cols());
+	vw.vec() *= (1.0 / pData->rows());
 	vw.vec().print(cout);
 }
 

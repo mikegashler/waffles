@@ -60,6 +60,39 @@ using std::make_pair;
 #define USE_ANGLES
 #define STEP_SIZE_PER_POINT
 
+void GVec_copy(double* pDest, const double* pSource, size_t nDims)
+{
+	memcpy(pDest, pSource, sizeof(double) * nDims);
+}
+
+void GVec_add(double* pDest, const double* pSource, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pDest += *pSource;
+		pDest++;
+		pSource++;
+	}
+}
+
+void GVec_multiply(double* pVector, double dScalar, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pVector *= dScalar;
+		pVector++;
+	}
+}
+
+void GVec_setAll(double* pVector, double value, size_t dims)
+{
+	for(size_t i = 0; i < dims; i++)
+	{
+		*pVector = value;
+		pVector++;
+	}
+}
+
 // static
 void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_t k, const size_t* pNeighbors, double* pOutWeights)
 {
@@ -811,12 +844,12 @@ size_t GManifoldSculpting::adjustDataPoint(size_t nPoint, double* pError)
 void GManifoldSculpting::moveMeanToOrigin()
 {
 	GTEMPBUF(double, mean, m_nTargetDims);
-	GVec::setAll(mean, 0.0, m_nTargetDims);
+	GVec_setAll(mean, 0.0, m_nTargetDims);
 	for(size_t i = 0; i < m_pData->rows(); i++)
-		GVec::add(mean, m_pData->row(i).data(), m_nTargetDims);
-	GVec::multiply(mean, -1.0 / m_pData->rows(), m_nTargetDims);
+		GVec_add(mean, m_pData->row(i).data(), m_nTargetDims);
+	GVec_multiply(mean, -1.0 / m_pData->rows(), m_nTargetDims);
 	for(size_t i = 0; i < m_pData->rows(); i++)
-		GVec::add(m_pData->row(i).data(), mean, m_nTargetDims);
+		GVec_add(m_pData->row(i).data(), mean, m_nTargetDims);
 }
 
 double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
@@ -833,18 +866,18 @@ double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
 		if(m_scale > 0.001)
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::multiply(m_pData->row(n).data() + m_nTargetDims, m_dSquishingRate, m_nDimensions - m_nTargetDims);
+				GVec_multiply(m_pData->row(n).data() + m_nTargetDims, m_dSquishingRate, m_nDimensions - m_nTargetDims);
 		}
 		else
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::setAll(m_pData->row(n).data() + m_nTargetDims, 0.0, m_nDimensions - m_nTargetDims);
+				GVec_setAll(m_pData->row(n).data() + m_nTargetDims, 0.0, m_nDimensions - m_nTargetDims);
 			m_scale = 0;
 		}
 		while(averageNeighborDistance(m_nDimensions) < m_dAveNeighborDist)
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::multiply(m_pData->row(n).data(), 1.0 / m_dSquishingRate, m_nTargetDims);
+				GVec_multiply(m_pData->row(n).data(), 1.0 / m_dSquishingRate, m_nTargetDims);
 		}
 	}
 
@@ -1109,7 +1142,7 @@ void GLLEHelper::computeWeights()
 				pos++;
 		}
 #else
-		GVec::setAll(m_pWeights->row(n), 0.0, nRowCount);
+		GVec_setAll(m_pWeights->row(n), 0.0, nRowCount);
 		for(size_t i = 0; i < m_nNeighbors; i++)
 		{
 			if(pHood[i] < nRowCount)
@@ -1327,7 +1360,7 @@ void GVec_normalize(double* pVector, size_t nSize)
 	if(dMag <= 0)
 		pVector[0] = 1.0;
 	else
-		GVec::multiply(pVector, 1.0  / sqrt(dMag), nSize);
+		GVec_multiply(pVector, 1.0  / sqrt(dMag), nSize);
 }
 
 // virtual
@@ -1360,14 +1393,14 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 	double* pGlobalWeights = new double[in.rows() * 2];
 	std::unique_ptr<double[]> hGlobalWeights(pGlobalWeights);
 	double* pLocalWeights = pGlobalWeights + in.rows();
-	GVec::setAll(pGlobalWeights, 0.0, in.rows());
+	GVec_setAll(pGlobalWeights, 0.0, in.rows());
 	std::unique_ptr<GMatrix> hFinal;
 	for(size_t i = 0; i < m_reps; i++)
 	{
 		GMatrix* pRep = unfold(pData, pNeighborTable, pSquaredDistances, (size_t)m_rand.next(pData->rows()), pLocalWeights);
 		if(hFinal.get())
 		{
-			GVec::add(pGlobalWeights, pLocalWeights, in.rows());
+			GVec_add(pGlobalWeights, pLocalWeights, in.rows());
 			GVec_pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
 			std::unique_ptr<GMatrix> hRep(pRep);
 			hFinal.reset(GManifold::blendEmbeddings(pRep, pLocalWeights, hFinal.get(), m_neighborCount, pNeighborTable, (size_t)m_rand.next(pData->rows())));
@@ -1385,15 +1418,15 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 double GBreadthFirstUnfolding::refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand)
 {
 	GTEMPBUF(double, buf, dims);
-	GVec::copy(buf, pPoint, dims);
+	GVec_copy(buf, pPoint, dims);
 	GVec_subtract(buf, pNeighbor, dims);
 	double mag = GVec_squaredMagnitude(buf, dims);
 	GVec_normalize(buf, dims);
-	GVec::multiply(buf, distance, dims);
-	GVec::add(buf, pNeighbor, dims);
+	GVec_multiply(buf, distance, dims);
+	GVec_add(buf, pNeighbor, dims);
 	GVec_subtract(buf, pPoint, dims);
-	GVec::multiply(buf, learningRate, dims);
-	GVec::add(pPoint, buf, dims);
+	GVec_multiply(buf, learningRate, dims);
+	GVec_add(pPoint, buf, dims);
 	return mag;
 }
 
@@ -1553,7 +1586,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 	{
 		GMatrix* pLocal = reduceNeighborhood(pIn, seed, pNeighborTable, pSquaredDistances);
 		std::unique_ptr<GMatrix> hLocal(pLocal);
-		GVec::copy(pOut->row(seed).data(), pLocal->row(0).data(), m_targetDims);
+		GVec_copy(pOut->row(seed).data(), pLocal->row(0).data(), m_targetDims);
 		visited.set(seed);
 		established.set(seed);
 		size_t* pHood = pNeighborTable + m_neighborCount * seed;
@@ -1563,7 +1596,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 			if(pHood[j] >= pIn->rows())
 				continue;
 			size_t neigh = pHood[j];
-			GVec::copy(pOut->row(neigh).data(), pLocal->row(i).data(), m_targetDims);
+			GVec_copy(pOut->row(neigh).data(), pLocal->row(i).data(), m_targetDims);
 			visited.set(neigh);
 			q.push_back(neigh);
 			q.push_back(1);
@@ -1590,7 +1623,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		GMatrix tentativeC(pOut->relation().clone());
 		GMatrix tentativeD(pLocal->relation().clone());
 		GReleaseDataHolder hTentativeD(&tentativeD);
-		GVec::copy(tentativeC.newRow().data(), pOut->row(par).data(), m_targetDims);
+		GVec_copy(tentativeC.newRow().data(), pOut->row(par).data(), m_targetDims);
 		tentativeD.takeRow(&pLocal->row(0));
 		size_t* pHood = pNeighborTable + m_neighborCount * par;
 		size_t ii = 1;
@@ -1600,7 +1633,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 				continue;
 			if(visited.bit(pHood[j]))
 			{
-				GVec::copy(tentativeC.newRow().data(), pOut->row(pHood[j]).data(), m_targetDims);
+				GVec_copy(tentativeC.newRow().data(), pOut->row(pHood[j]).data(), m_targetDims);
 				tentativeD.takeRow(&pLocal->row(ii));
 			}
 			ii++;
@@ -1622,10 +1655,10 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		GMatrix* pAligned = GMatrix::multiply(*pLocal, *pKabsch, false, false);
 		std::unique_ptr<GMatrix> hAligned(pAligned);
 		for(size_t i = 0; i < pAligned->rows(); i++)
-			GVec::add(pAligned->row(i).data(), mean.data(), m_targetDims);
+			GVec_add(pAligned->row(i).data(), mean.data(), m_targetDims);
 
 		// Accept the new points
-		GVec::copy(pOut->row(par).data(), pAligned->row(0).data(), m_targetDims);
+		GVec_copy(pOut->row(par).data(), pAligned->row(0).data(), m_targetDims);
 		established.set(par);
 		ii = 1;
 		for(size_t j = 0; j < m_neighborCount; j++)
@@ -1633,7 +1666,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 			if(pHood[j] >= pIn->rows())
 				continue;
 			if(!established.bit(pHood[j]))
-				GVec::copy(pOut->row(pHood[j]).data(), pAligned->row(ii).data(), m_targetDims);
+				GVec_copy(pOut->row(pHood[j]).data(), pAligned->row(ii).data(), m_targetDims);
 			if(!visited.bit(pHood[j]))
 			{
 				visited.set(pHood[j]);

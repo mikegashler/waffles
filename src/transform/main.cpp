@@ -969,7 +969,7 @@ public:
 			GVec& pPatIn = m_pData2->row(i);
 			GVec& pPatOut = m_transformed.row(i);
 			m_transform.multiply(pPatIn, pPatOut);
-			GVec::add(pPatOut.data(), pVector.data(), m_attrs);
+			pPatOut += pVector;
 		}
 	}
 
@@ -2295,9 +2295,9 @@ void transition(GArgReader& args)
 	for(size_t i = 0; i < pActions->rows() - 1; i++)
 	{
 		GVec& pOut = pTransition->row(i);
-		GVec::copy(pOut.data(), pActions->row(i).data(), actionDims);
-		GVec::copy(pOut.data() + actionDims, pState->row(i).data(), stateDims);
-		GVec::copy(pOut.data() + actionDims + stateDims, pState->row(i + 1).data(), stateDims);
+		memcpy(pOut.data(), pActions->row(i).data(), actionDims * sizeof(double));
+		memcpy(pOut.data() + actionDims, pState->row(i).data(), stateDims * sizeof(double));
+		memcpy(pOut.data() + actionDims + stateDims, pState->row(i + 1).data(), stateDims * sizeof(double));
 		if(delta)
 		{
 			for(size_t j = 0; j < stateDims; j++)

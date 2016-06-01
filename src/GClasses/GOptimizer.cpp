@@ -91,7 +91,7 @@ double GOptimizer::searchUntil(size_t nBurnInIterations, size_t nIterations, dou
 #ifndef MIN_PREDICT
 void GOptimizer::basicTest(double minAccuracy, double warnRange)
 {
-	double d = searchUntil(5, 20, 0.001);
+	double d = searchUntil(5, 100, 0.001);
 	if(d > minAccuracy)
 		throw Ex("Optimizer accuracy has regressed. Expected ", to_str(minAccuracy), ". Got ", to_str(d));
 	if(d < minAccuracy - warnRange)
