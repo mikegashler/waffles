@@ -226,13 +226,10 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 	{
 		// Parse the options
 		int cutCycleLen = 0;
-		bool normalize = false;
 		while(args.next_is_flag())
 		{
 			if(args.if_pop("-cyclecut"))
 				cutCycleLen = args.pop_uint();
-			else if(args.if_pop("-normalize"))
-				normalize = true;
 			else
 				throw Ex("Invalid neighbor finder option: ", args.peek());
 		}
@@ -251,20 +248,10 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		else
 			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
 
-		// Normalize
-		if(normalize)
-		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
-			pNF2->normalizeDistances();
-			pNF = pNF2;
-		}
-
 		// Apply CycleCut
 		if(cutCycleLen > 0)
 		{
 			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
 			pNF2->cutShortcuts(cutCycleLen);
 			pNF = pNF2;
 		}
@@ -1185,21 +1172,21 @@ void neighbors(GArgReader& args)
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	int neighborCount = args.pop_uint();
+	size_t neighborCount = args.pop_uint();
 
 	// Find the neighbors
 	GKdTree neighborFinder(pData, neighborCount, NULL, true);
-	GTEMPBUF(size_t, neighbors, neighborCount);
-	GTEMPBUF(double, distances, neighborCount);
 	double sumClosest = 0;
 	double sumAll = 0;
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		neighborFinder.neighbors(neighbors, distances, i);
-		neighborFinder.sortNeighbors(neighbors, distances);
-		sumClosest += sqrt(distances[0]);
-		for(int j = 0; j < neighborCount; j++)
-			sumAll += sqrt(distances[j]);
+		size_t nc = neighborFinder.findNeighbors(i);
+		if(nc != neighborCount)
+			throw Ex("Only found ", to_str(nc), " neighbors");
+		neighborFinder.sortNeighbors();
+		sumClosest += sqrt(neighborFinder.distance(0));
+		for(size_t j = 0; j < neighborCount; j++)
+			sumAll += sqrt(neighborFinder.distance(j));
 	}
 	cout.precision(14);
 	cout << "average closest neighbor distance = " << (sumClosest / pData->rows()) << "\n";

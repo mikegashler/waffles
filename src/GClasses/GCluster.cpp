@@ -121,7 +121,6 @@ void GAgglomerativeClusterer::cluster(const GMatrix* pData)
 		GKdTree* pKdTree = new GKdTree(pData, neighbors, m_pMetric, false);
 		pNF = new GNeighborGraph(pKdTree, true);
 		hNF.reset(pNF);
-		pNF->fillCache();
 		if(pNF->isConnected())
 			break;
 		if(neighbors + 1 >= pData->rows())
@@ -130,25 +129,18 @@ void GAgglomerativeClusterer::cluster(const GMatrix* pData)
 	}
 
 	// Sort all the neighbors by their distances
-	size_t count = pData->rows() * neighbors;
 	vector< std::pair<double,size_t> > distNeighs;
-	distNeighs.resize(count);
-	double* pDistances = pNF->squaredDistanceTable();
-	size_t* pRows = pNF->cache();
-	size_t index = 0;
+	distNeighs.resize(pData->rows() * neighbors);
 	vector< std::pair<double,size_t> >::iterator it = distNeighs.begin();
-	for(size_t i = 0; i < count; i++)
+	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		if(*pRows < pData->rows())
+		size_t nc = pNF->findNeighbors(i);
+		for(size_t j = 0; j < nc; j++)
 		{
-			it->first = *pDistances;
-			it->second = i;
+			it->first = pNF->distance(j);
+			it->second = i * neighbors + j;
 			it++;
 		}
-		else
-			index--;
-		pRows++;
-		pDistances++;
 	}
 	std::sort(distNeighs.begin(), it);
 
@@ -164,12 +156,12 @@ void GAgglomerativeClusterer::cluster(const GMatrix* pData)
 		return; // nothing to do
 
 	// Merge until we have the desired number of clusters
-	pRows = pNF->cache();
 	for(vector< std::pair<double,size_t> >::iterator dn = distNeighs.begin(); dn != it; dn++)
 	{
 		// Get the next two closest points
 		size_t a = dn->second / neighbors;
-		size_t b = pRows[dn->second];
+		pNF->findNeighbors(a);
+		size_t b = pNF->neighbor(dn->second % neighbors);
 		GAssert(a != b && a < pData->rows() && b < pData->rows());
 		size_t clustA = m_pClusters[a];
 		size_t clustB = m_pClusters[b];
@@ -382,7 +374,6 @@ std::unique_ptr<GMatrix> GAgglomerativeTransducer::transduceInner(const GMatrix&
 	{
 		GKdTree* pKdTree = new GKdTree(&featuresAll, neighbors, m_pMetric, false);
 		pNF = new GNeighborGraph(pKdTree, true);
-		pNF->fillCache();
 		if(pNF->isConnected())
 			break;
 		if(neighbors + 1 >= featuresAll.rows())
@@ -394,25 +385,18 @@ std::unique_ptr<GMatrix> GAgglomerativeTransducer::transduceInner(const GMatrix&
 	}
 
 	// Sort all the neighbors by their distances
-	size_t count = featuresAll.rows() * neighbors;
 	vector< std::pair<double,size_t> > distNeighs;
-	distNeighs.resize(count);
-	double* pDistances = pNF->squaredDistanceTable();
-	size_t* pRows = pNF->cache();
-	size_t index = 0;
+	distNeighs.resize(featuresAll.rows() * neighbors);
 	vector< std::pair<double,size_t> >::iterator it = distNeighs.begin();
-	for(size_t i = 0; i < count; i++)
+	for(size_t i = 0; i < featuresAll.rows(); i++)
 	{
-		if(*pRows < featuresAll.rows())
+		size_t nc = pNF->findNeighbors(i);
+		for(size_t j = 0; j < nc; j++)
 		{
-			it->first = *pDistances;
-			it->second = i;
+			it->first = pNF->distance(j);
+			it->second = i * neighbors + j;
 			it++;
 		}
-		else
-			index--;
-		pRows++;
-		pDistances++;
 	}
 	std::sort(distNeighs.begin(), it);
 
@@ -429,12 +413,12 @@ std::unique_ptr<GMatrix> GAgglomerativeTransducer::transduceInner(const GMatrix&
 		size_t missingLabels = features2.rows();
 
 		// Merge until we have the desired number of clusters
-		pRows = pNF->cache();
 		for(vector< std::pair<double,size_t> >::iterator dn = distNeighs.begin(); dn != it; dn++)
 		{
 			// Get the next two closest points
 			size_t a = dn->second / neighbors;
-			size_t b = pRows[dn->second];
+			pNF->findNeighbors(a);
+			size_t b = pNF->neighbor(dn->second % neighbors);
 			GAssert(a != b && a < featuresAll.rows() && b < featuresAll.rows());
 			int labelA = (a < features1.rows() ? (int)labels1[a][lab] : (int)pOut->row(a - features1.rows())[lab]);
 			int labelB = (b < features1.rows() ? (int)labels1[b][lab] : (int)pOut->row(b - features1.rows())[lab]);
@@ -1208,24 +1192,16 @@ size_t CountLocalMaximums(size_t nElements, double* pData)
 GGraphCutTransducer::GGraphCutTransducer()
 : GTransducer(), m_neighborCount(12)
 {
-	m_pNeighbors = new size_t[m_neighborCount];
-	m_pDistances = new double[m_neighborCount];
 }
 
 // virtual
 GGraphCutTransducer::~GGraphCutTransducer()
 {
-	delete[] m_pNeighbors;
-	delete[] m_pDistances;
 }
 
 void GGraphCutTransducer::setNeighbors(size_t k)
 {
-	delete[] m_pNeighbors;
-	delete[] m_pDistances;
 	m_neighborCount = k;
-	m_pNeighbors = new size_t[k];
-	m_pDistances = new double[k];
 }
 
 void GGraphCutTransducer::autoTune(GMatrix& features, GMatrix& labels)
@@ -1282,12 +1258,10 @@ std::unique_ptr<GMatrix> GGraphCutTransducer::transduceInner(const GMatrix& feat
 			GGraphCut gc(features1.rows() + features2.rows() + 2);
 			for(size_t i = 0; i < both.rows(); i++)
 			{
-				neighborFinder.neighbors(m_pNeighbors, m_pDistances, i);
-				for(size_t j = 0; j < m_neighborCount; j++)
+				size_t nc = neighborFinder.findNeighbors(i);
+				for(size_t j = 0; j < nc; j++)
 				{
-					if(m_pNeighbors[j] >= both.rows())
-						continue;
-					gc.addEdge(2 + i, 2 + m_pNeighbors[j], (float)(1.0 / std::max(sqrt(m_pDistances[j]), 1e-9))); // connect neighbors
+					gc.addEdge(2 + i, 2 + neighborFinder.neighbor(j), (float)(1.0 / std::max(sqrt(neighborFinder.distance(j)), 1e-9))); // connect neighbors
 				}
 			}
 

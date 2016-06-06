@@ -325,8 +325,6 @@ class GGraphCutTransducer : public GTransducer
 {
 protected:
 	size_t m_neighborCount;
-	size_t* m_pNeighbors;
-	double* m_pDistances;
 
 public:
 	GGraphCutTransducer();

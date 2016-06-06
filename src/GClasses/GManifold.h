@@ -30,6 +30,7 @@ namespace GClasses {
 
 struct GManifoldSculptingNeighbor;
 class GNeighborFinder;
+class GNeighborFinderGeneralizing;
 class GNeuralNet;
 class GNeuralNetLayer;
 class GNeighborGraph;
@@ -46,13 +47,13 @@ public:
 	/// centered around the neighborhood mean. The first point will be
 	/// the index point, and the rest will be neighborhood points with
 	/// an index that is not INVALID_INDEX.
-	static GMatrix* blendNeighborhoods(size_t index, GMatrix* pA, double ratio, GMatrix* pB, size_t neighborCount, size_t* pHood);
+	static GMatrix* blendNeighborhoods(size_t index, GMatrix* pA, double ratio, GMatrix* pB, size_t neighborCount, GNeighborFinder* pNF);
 
 	/// Combines two embeddings to form an "average" embedding. pRatios is an array that specifies how much to weight the
 	/// neighborhoods around each point. If the ratio for a point is close to zero, pA will be emphasized more. If
 	/// the ratio for the point is close to 1, pB will be emphasized more. "seed" specifies a starting point. It will
 	/// blend outward in a breadth-first manner.
-	static GMatrix* blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, size_t neighborCount, size_t* pNeighborTable, size_t seed);
+	static GMatrix* blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, size_t neighborCount, GNeighborGraph* pNeighborTable, size_t seed);
 
 	/// Performs classic MDS. pDistances must be a square matrix, but only the upper-triangle is used.
 	/// Each row in the results is one of the result points.
@@ -92,7 +93,7 @@ protected:
 	GRand* m_pRand;
 	GMatrix* m_pData;
 	unsigned char* m_pMetaData;
-	GNeighborFinder* m_pNF;
+	GNeighborFinderGeneralizing* m_pNF;
 
 public:
 	GManifoldSculpting(size_t nNeighbors, size_t targetDims, GRand* pRand);
@@ -149,7 +150,7 @@ public:
 	/// Specifies to use the neighborhoods determined by the specified neighbor-finder instead of the nearest
 	/// Euclidean-distance neighbors. If this method is called, pNF should have the same number of
 	/// neighbors and the same dataset as is passed into this class.
-	void setNeighborFinder(GNeighborFinder* pNF) { m_pNF = pNF; }
+	void setNeighborFinder(GNeighborFinderGeneralizing* pNF) { m_pNF = pNF; }
 
 protected:
 	inline struct GManifoldSculptingStuff* stuff(size_t n)
@@ -282,9 +283,9 @@ protected:
 	/// pPoint and pNeighbor.
 	static double refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand);
 
-	void refineNeighborhood(GMatrix* pLocal, size_t rootIndex, size_t* pNeighborTable, double* pDistanceTable);
-	GMatrix* reduceNeighborhood(const GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances);
-	GMatrix* unfold(const GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights);
+	void refineNeighborhood(GMatrix* pLocal, size_t rootIndex, GNeighborGraph* pNeighborGraph);
+	GMatrix* reduceNeighborhood(const GMatrix* pIn, size_t index, GNeighborGraph* pNeighborGraph);
+	GMatrix* unfold(const GMatrix* pIn, GNeighborGraph* pNeighborGraph, size_t seed, double* pOutWeights);
 };
 
 

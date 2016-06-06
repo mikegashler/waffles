@@ -1196,7 +1196,6 @@ UsageNode* makeNeighborUsageTree()
 		UsageNode* pOpts = pBF->add("<options>");
 		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
 		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pOpts->add("-normalize", "Normalize distances in local neighborhoods so that all neighborhoood have a uniform amount of total distance.");
 		pBF->add("[k]=12", "The number of neighbors.");
 	}
 	{

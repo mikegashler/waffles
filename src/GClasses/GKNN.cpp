@@ -102,8 +102,6 @@ GKNN::GKNN()
 	m_pSparseFeatures = NULL;
 	m_pLabels = NULL;
 	m_pNeighborFinder = NULL;
-	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
-	m_pEvalDistances = new double[m_nNeighbors + 1];
 	m_normalizeScaleFactors = true;
 	m_optimizeScaleFactors = false;
 	m_pDistanceMetric = NULL;
@@ -146,8 +144,6 @@ GKNN::GKNN(const GDomNode* pNode)
 	m_pFeatures = NULL;
 	m_pSparseFeatures = NULL;
 	m_pLabels = NULL;
-	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
-	m_pEvalDistances = new double[m_nNeighbors + 1];
 	if(pFeatures)
 		beginIncrementalLearningInner(pFeatures->relation(), pLabels->relation());
 	else
@@ -169,8 +165,6 @@ GKNN::~GKNN()
 	delete(m_pFeatures);
 	delete(m_pSparseFeatures);
 	delete(m_pLabels);
-	delete[] m_pEvalNeighbors;
-	delete[] m_pEvalDistances;
 	delete(m_pScaleFactorOptimizer);
 	delete(m_pCritic);
 	if(m_ownMetric)
@@ -235,11 +229,7 @@ void GKNN::autoTune(GMatrix& feats, GMatrix& labs)
 
 void GKNN::setNeighborCount(size_t k)
 {
-	delete[] m_pEvalNeighbors;
-	delete[] m_pEvalDistances;
 	m_nNeighbors = k;
-	m_pEvalNeighbors = new size_t[m_nNeighbors + 1];
-	m_pEvalDistances = new double[m_nNeighbors + 1];
 }
 
 void GKNN::setInterpolationMethod(InterpolationMethod eMethod)
@@ -445,54 +435,28 @@ void GKNN::trainSparse(GSparseMatrix& feats, GMatrix& labs)
 	m_pLabels->copy(&labs);
 }
 
-void GKNN::findNeighbors(const GVec& vec)
+size_t GKNN::findNeighbors(const GVec& vec)
 {
-	if(m_pDistanceMetric)
+	if(!m_pNeighborFinder)
 	{
-		if(!m_pNeighborFinder)
+		if(m_pDistanceMetric)
 		{
 			//m_pNeighborFinder = new GBruteForceNeighborFinder(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
 			m_pNeighborFinder = new GKdTree(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
 		}
-		GAssert(m_pNeighborFinder->neighborCount() == m_nNeighbors);
-		m_pNeighborFinder->neighbors(m_pEvalNeighbors, m_pEvalDistances, vec);
-	}
-	else
-	{
-		if(!m_pSparseMetric)
-			throw Ex("train, trainSparse, or beginIncrementalLearning must be called before this method");
-		multimap<double,size_t> priority_queue;
-		for(size_t i = 0; i < m_pSparseFeatures->rows(); i++)
+		else
 		{
-			map<size_t,double>& row = m_pSparseFeatures->row(i);
-			double similarity = m_pSparseMetric->similarity(row, vec);
-			priority_queue.insert(pair<double,size_t>(similarity, i));
-			if(priority_queue.size() > m_nNeighbors)
-				priority_queue.erase(priority_queue.begin());
-		}
-		size_t pos = 0;
-		size_t* pNeigh = m_pEvalNeighbors;
-		double* pDist = m_pEvalDistances;
-		for(multimap<double,size_t>::iterator it = priority_queue.begin(); it != priority_queue.end(); it++)
-		{
-			*pNeigh = it->second;
-			*pDist = 1.0;
-			pos++;
-			pNeigh++;
-			pDist++;
-		}
-		while(pos < m_nNeighbors)
-		{
-			*pNeigh = INVALID_INDEX;
-			*pDist = UNKNOWN_REAL_VALUE;
-			pos++;
-			pNeigh++;
-			pDist++;
+			GAssert(m_pSparseMetric);
+			GAssert(m_pSparseFeatures);
+			GMatrix bogus;
+			m_pNeighborFinder = new GSparseNeighborFinder(m_pSparseFeatures, &bogus, m_nNeighbors, m_pSparseMetric, false);
 		}
 	}
+	GAssert(m_pNeighborFinder->neighborCount() == m_nNeighbors);
+	return m_pNeighborFinder->findNeighbors(vec);
 }
 
-void GKNN::interpolateMean(const GVec& in, GPrediction* out, GVec* pOut2)
+void GKNN::interpolateMean(size_t nc, const GVec& in, GPrediction* out, GVec* pOut2)
 {
 	for(size_t i = 0; i < m_pLabels->cols(); i++)
 	{
@@ -502,16 +466,13 @@ void GKNN::interpolateMean(const GVec& in, GPrediction* out, GVec* pOut2)
 			double dSum = 0;
 			double dSumOfSquares = 0;
 			size_t count = 0;
-			for(size_t j = 0; j < m_nNeighbors; j++)
+			for(size_t j = 0; j < nc; j++)
 			{
-				size_t k = m_pEvalNeighbors[j];
-				if(k < m_pLabels->rows())
-				{
-					GVec& neighbor = m_pLabels->row(k);
-					dSum += neighbor[i];
-					dSumOfSquares += (neighbor[i] * neighbor[i]);
-					count++;
-				}
+				size_t k = m_pNeighborFinder->neighbor(j);
+				GVec& neighbor = m_pLabels->row(k);
+				dSum += neighbor[i];
+				dSumOfSquares += (neighbor[i] * neighbor[i]);
+				count++;
 			}
 			if(out)
 			{
@@ -536,17 +497,14 @@ void GKNN::interpolateMean(const GVec& in, GPrediction* out, GVec* pOut2)
 			// Nominal label
 			size_t nValueCount = m_pLabels->relation().valueCount(i);
 			m_valueCounts.fill(0.0, 0, nValueCount);
-			for(size_t j = 0; j < m_nNeighbors; j++)
+			for(size_t j = 0; j < nc; j++)
 			{
-				size_t k = m_pEvalNeighbors[j];
-				if(k < m_pLabels->rows())
-				{
-					GVec& neighbor = m_pLabels->row(k);
-					int val = (int)neighbor[i];
-					if(val < 0 || val >= (int)nValueCount)
-						throw Ex("GKNN doesn't support unknown label values");
-					m_valueCounts[val]++;
-				}
+				size_t k = m_pNeighborFinder->neighbor(j);
+				GVec& neighbor = m_pLabels->row(k);
+				int val = (int)neighbor[i];
+				if(val < 0 || val >= (int)nValueCount)
+					throw Ex("GKNN doesn't support unknown label values");
+				m_valueCounts[val]++;
 			}
 			if(out)
 				out[i].makeCategorical()->setValues(nValueCount, m_valueCounts.data());
@@ -556,7 +514,7 @@ void GKNN::interpolateMean(const GVec& in, GPrediction* out, GVec* pOut2)
 	}
 }
 
-void GKNN::interpolateLinear(const GVec& in, GPrediction* out, GVec* pOut2)
+void GKNN::interpolateLinear(size_t nc, const GVec& in, GPrediction* out, GVec* pOut2)
 {
 	for(size_t i = 0; i < m_pLabels->cols(); i++)
 	{
@@ -566,21 +524,18 @@ void GKNN::interpolateLinear(const GVec& in, GPrediction* out, GVec* pOut2)
 			double dSum = 0;
 			double dSumOfSquares = 0;
 			double dTot = 0;
-			for(size_t j = 0; j < m_nNeighbors; j++)
+			for(size_t j = 0; j < nc; j++)
 			{
-				size_t k = m_pEvalNeighbors[j];
-				if(k < m_pLabels->rows())
-				{
-					GVec& neighbor = m_pLabels->row(k);
-					if(neighbor[i] == UNKNOWN_REAL_VALUE)
-						throw Ex("GKNN doesn't support unknown label values");
-					double d = 1.0 / std::max(sqrt(m_pEvalDistances[j]), 1e-9); // the weight
-					dTot += d;
-					d *= neighbor[i]; // weighted sum
-					dSum += d;
-					d *= neighbor[i]; // weighted sum of squares
-					dSumOfSquares += d;
-				}
+				size_t k = m_pNeighborFinder->neighbor(j);
+				GVec& neighbor = m_pLabels->row(k);
+				if(neighbor[i] == UNKNOWN_REAL_VALUE)
+					throw Ex("GKNN doesn't support unknown label values");
+				double d = 1.0 / std::max(sqrt(m_pNeighborFinder->distance(j)), 1e-9); // the weight
+				dTot += d;
+				d *= neighbor[i]; // weighted sum
+				dSum += d;
+				d *= neighbor[i]; // weighted sum of squares
+				dSumOfSquares += d;
 			}
 			if(out)
 			{
@@ -606,13 +561,13 @@ void GKNN::interpolateLinear(const GVec& in, GPrediction* out, GVec* pOut2)
 			int nValueCount = (int)m_pLabels->relation().valueCount(i);
 			m_valueCounts.fill(0.0, 0, nValueCount);
 			double dSumWeight = 0;
-			for(size_t j = 0; j < m_nNeighbors; j++)
+			for(size_t j = 0; j < nc; j++)
 			{
-				size_t k = m_pEvalNeighbors[j];
+				size_t k = m_pNeighborFinder->neighbor(j);
 				if(k < m_pLabels->rows())
 				{
 					GVec& neighbor = m_pLabels->row(k);
-					double d = 1.0 / std::max(m_pEvalDistances[j], 1e-9); // to be truly "linear", we should use sqrt(d) instead of d, but this is faster to compute and arguably better for nominal values anyway
+					double d = 1.0 / std::max(m_pNeighborFinder->distance(j), 1e-9); // to be truly "linear", we should use sqrt(d) instead of d, but this is faster to compute and arguably better for nominal values anyway
 					int val = (int)neighbor[i];
 					if(val < 0 || val >= nValueCount)
 						throw Ex("GKNN doesn't support unknown label values");
@@ -628,23 +583,20 @@ void GKNN::interpolateLinear(const GVec& in, GPrediction* out, GVec* pOut2)
 	}
 }
 
-void GKNN::interpolateLearner(const GVec& in, GPrediction* out, GVec* pOut2)
+void GKNN::interpolateLearner(size_t nc, const GVec& in, GPrediction* out, GVec* pOut2)
 {
 	GAssert(m_pLearner); // no learner is set
 	GMatrix dataFeatures(m_pFeatures->relation().cloneMinimal());
 	GReleaseDataHolder hDataFeatures(&dataFeatures);
-	dataFeatures.reserve(m_nNeighbors);
+	dataFeatures.reserve(nc);
 	GMatrix dataLabels(m_pLabels->relation().cloneMinimal());
 	GReleaseDataHolder hDataLabels(&dataLabels);
-	dataLabels.reserve(m_nNeighbors);
-	for(size_t i = 0; i < m_nNeighbors; i++)
+	dataLabels.reserve(nc);
+	for(size_t i = 0; i < nc; i++)
 	{
-		size_t nNeighbor = m_pEvalNeighbors[i];
-		if(nNeighbor < m_pFeatures->rows())
-		{
-			dataFeatures.takeRow(&m_pFeatures->row(nNeighbor));
-			dataLabels.takeRow(&m_pLabels->row(nNeighbor));
-		}
+		size_t nNeighbor = m_pNeighborFinder->neighbor(i);
+		dataFeatures.takeRow(&m_pFeatures->row(nNeighbor));
+		dataLabels.takeRow(&m_pLabels->row(nNeighbor));
 	}
 	m_pLearner->train(dataFeatures, dataLabels);
 	if(out)
@@ -656,12 +608,12 @@ void GKNN::interpolateLearner(const GVec& in, GPrediction* out, GVec* pOut2)
 // virtual
 void GKNN::predictDistribution(const GVec& in, GPrediction* out)
 {
-	findNeighbors(in);
+	size_t nc = findNeighbors(in);
 	switch(m_eInterpolationMethod)
 	{
-		case Linear: interpolateLinear(in, out, NULL); break;
-		case Mean: interpolateMean(in, out, NULL); break;
-		case Learner: interpolateLearner(in, out, NULL); break;
+		case Linear: interpolateLinear(nc, in, out, NULL); break;
+		case Mean: interpolateMean(nc, in, out, NULL); break;
+		case Learner: interpolateLearner(nc, in, out, NULL); break;
 		default:
 			GAssert(false); // unexpected enumeration
 			break;
@@ -671,12 +623,12 @@ void GKNN::predictDistribution(const GVec& in, GPrediction* out)
 // virtual
 void GKNN::predict(const GVec& in, GVec& out)
 {
-	findNeighbors(in);
+	size_t nc = findNeighbors(in);
 	switch(m_eInterpolationMethod)
 	{
-		case Linear: interpolateLinear(in, NULL, &out); break;
-		case Mean: interpolateMean(in, NULL, &out); break;
-		case Learner: interpolateLearner(in, NULL, &out); break;
+		case Linear: interpolateLinear(nc, in, NULL, &out); break;
+		case Mean: interpolateMean(nc, in, NULL, &out); break;
+		case Learner: interpolateLearner(nc, in, NULL, &out); break;
 		default:
 			GAssert(false); // unexpected enumeration
 			break;
@@ -752,7 +704,6 @@ std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& feat
 	// Find friends
 	GNeighborFinder* pNF = new GNeighborGraph(new GKdTree(&featuresAll, m_friendCount, NULL, true), true);
 	std::unique_ptr<GNeighborFinder> hNF(pNF);
-	GTEMPBUF(size_t, neighs, m_friendCount);
 
 	// Transduce
 	for(size_t lab = 0; lab < labels1.cols(); lab++)
@@ -774,21 +725,19 @@ std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& feat
 				// Find the most common label
 				GVec& row = labelList.row(i);
 				size_t index = (size_t)row[0];
-				pNF->neighbors(neighs, index);
+				pNF->findNeighbors(index);
 				GVec::setAll(tallys, 0.0, labelValues);
 				for(size_t j = 0; j < m_friendCount; j++)
 				{
-					if(neighs[j] >= featuresAll.rows())
-						continue;
-					if(neighs[j] >= features2.rows())
+					if(pNF->neighbor(j) >= features2.rows())
 					{
-						int label = (int)labels1[neighs[j] - features2.rows()][lab];
+						int label = (int)labels1[pNF->neighbor(j) - features2.rows()][lab];
 						if(label >= 0 && label < (int)labelValues)
 							tallys[label]++;
 					}
-					else if(labeled.bit(neighs[j]))
+					else if(labeled.bit(pNF->neighbor(j)))
 					{
-						int label = (int)out->row(neighs[j])[lab];
+						int label = (int)out->row(pNF->neighbor(j))[lab];
 						if(label >= 0 && label < (int)labelValues)
 							tallys[label] += 0.6;
 					}
@@ -801,17 +750,15 @@ std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& feat
 				// Penalize for dissenting votes
 				for(size_t j = 0; j < m_friendCount; j++)
 				{
-					if(neighs[j] >= featuresAll.rows())
-						continue;
-					if(neighs[j] >= features2.rows())
+					if(pNF->neighbor(j) >= features2.rows())
 					{
-						int l2 = (int)labels1[neighs[j] - features2.rows()][lab];
+						int l2 = (int)labels1[pNF->neighbor(j) - features2.rows()][lab];
 						if(l2 != label)
 							conf *= 0.5;
 					}
-					else if(labeled.bit(neighs[j]))
+					else if(labeled.bit(pNF->neighbor(j)))
 					{
-						int l2 = (int)out->row(neighs[j])[lab];
+						int l2 = (int)out->row(pNF->neighbor(j))[lab];
 						if(l2 != label)
 							conf *= 0.8;
 					}

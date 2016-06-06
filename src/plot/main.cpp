@@ -303,13 +303,10 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 	{
 		// Parse the options
 		int cutCycleLen = 0;
-		bool normalize = false;
 		while(args.next_is_flag())
 		{
 			if(args.if_pop("-cyclecut"))
 				cutCycleLen = args.pop_uint();
-			else if(args.if_pop("-normalize"))
-				normalize = true;
 			else
 				throw Ex("Invalid neighbor finder option: ", args.peek());
 		}
@@ -328,20 +325,10 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		else
 			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
 
-		// Normalize
-		if(normalize)
-		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
-			pNF2->normalizeDistances();
-			pNF = pNF2;
-		}
-
 		// Apply CycleCut
 		if(cutCycleLen > 0)
 		{
 			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
 			pNF2->cutShortcuts(cutCycleLen);
 			pNF = pNF2;
 		}

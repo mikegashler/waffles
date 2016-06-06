@@ -72,8 +72,6 @@ protected:
 	GOptimizer* m_pScaleFactorOptimizer;
 
 	// Working Buffers
-	size_t* m_pEvalNeighbors;
-	double* m_pEvalDistances;
 	GVec m_valueCounts;
 
 	// Neighbor Finding
@@ -181,19 +179,19 @@ protected:
 	/// Call SetElbowRoom to specify the elbow room distance.
 	virtual void trainIncremental(const GVec& in, const GVec& out);
 
-	/// Finds the nearest neighbors of pVector
-	void findNeighbors(const GVec& vector);
+	/// Finds the nearest neighbors of pVector. Returns the number of neighbors found.
+	size_t findNeighbors(const GVec& vector);
 
 	/// Interpolate with each neighbor having equal vote
-	void interpolateMean(const GVec& in, GPrediction* pOut, GVec* pOut2);
+	void interpolateMean(size_t nc, const GVec& in, GPrediction* pOut, GVec* pOut2);
 
 	/// Interpolate with each neighbor having a linear vote. (Actually it's linear with
 	/// respect to the squared distance instead of the distance, because this is faster
 	/// to compute.)
-	void interpolateLinear(const GVec& in, GPrediction* pOut, GVec* pOut2);
+	void interpolateLinear(size_t nc, const GVec& in, GPrediction* pOut, GVec* pOut2);
 
 	/// Interpolates with the provided supervised learning algorithm
-	void interpolateLearner(const GVec& in, GPrediction* pOut, GVec* pOut2);
+	void interpolateLearner(size_t nc, const GVec& in, GPrediction* pOut, GVec* pOut2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
 	virtual bool canImplicitlyHandleMissingFeatures() { return false; }

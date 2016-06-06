@@ -1030,6 +1030,8 @@ void GAtomicCycleFinder::addEdge(size_t a, size_t b)
 
 void GAtomicCycleFinder::addEdgeIfNotDupe(size_t a, size_t b)
 {
+	if(b == INVALID_INDEX)
+		return;
 	if(m_pNeighbors[a].size() < m_pNeighbors[b].size())
 	{
 		for(vector<size_t>::iterator it = m_pNeighbors[a].begin(); it != m_pNeighbors[a].end(); it++)
