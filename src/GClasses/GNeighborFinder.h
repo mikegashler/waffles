@@ -44,11 +44,10 @@ class GNeighborFinder
 {
 protected:
 	const GMatrix* m_pData;
-	size_t m_neighborCount;
 
 public:
-	GNeighborFinder(const GMatrix* pData, size_t neighs)
-	: m_pData(pData), m_neighborCount(neighs)
+	GNeighborFinder(const GMatrix* pData)
+	: m_pData(pData)
 	{
 	}
 
@@ -59,9 +58,6 @@ public:
 	/// Returns the data passed to the constructor of this object
 	const GMatrix* data() { return m_pData; }
 
-	/// Returns the number of neighbors to find
-	size_t neighborCount() { return m_neighborCount; }
-
 	/// Returns true if this neighbor finder can operate on points that
 	/// are not in the dataset passed to the constructor
 	virtual bool canGeneralize() { return false; }
@@ -69,17 +65,17 @@ public:
 	/// Returns true iff the neighbors and distances are pre-computed
 	virtual bool isCached() { return false; }
 
-	/// Finds the neighbors of the specified point index.
+	/// Finds the k-nearest neighbors of the specified point index.
 	/// Returns the number of neighbors found.
 	/// Call "neighbor" or "distance" to obtain the neighbors and distances that were found.
-	virtual size_t findNeighbors(size_t index) = 0;
+	virtual size_t findNearest(size_t k, size_t pointIndex) = 0;
 
-	/// Returns the point index of the ith neighbor of the last point passed to "findNeighbors".
-	/// (Behavior is undefined if findNeighbors has not yet been called.)
+	/// Returns the point index of the ith neighbor of the last point passed to "findNearest".
+	/// (Behavior is undefined if findNearest has not yet been called.)
 	virtual size_t neighbor(size_t i) = 0;
 
-	/// Returns the distance to the ith neighbor of the last point passed to "findNeighbors".
-	/// (Behavior is undefined if findNeighbors has not yet been called.)
+	/// Returns the distance to the ith neighbor of the last point passed to "findNearest".
+	/// (Behavior is undefined if findNearest has not yet been called.)
 	virtual double distance(size_t i) = 0;
 };
 
@@ -99,11 +95,11 @@ protected:
 
 public:
 	/// If own is true, then this will take ownership of pNF
-	GNeighborGraph(GNeighborFinder* pNF, bool own);
+	GNeighborGraph(GNeighborFinder* pNF, bool own, size_t neighbors);
 	virtual ~GNeighborGraph();
 
-	/// See the comment for GNeighborFinder::findNeighbors
-	virtual size_t findNeighbors(size_t index) { m_focus = index; return m_neighs[index].size(); }
+	/// See the comment for GNeighborFinder::findNearest
+	virtual size_t findNearest(size_t k, size_t pointIndex) { m_focus = pointIndex; return m_neighs[pointIndex].size(); }
 
 	/// See the comment for GNeighborFinder::neighbor
 	virtual size_t neighbor(size_t i) { return m_neighs[m_focus][i]; }
@@ -120,11 +116,8 @@ public:
 	/// Uses CycleCut to remove shortcut connections. (Assumes fillCache has already been called.)
 	size_t cutShortcuts(size_t cycleLen);
 
-	/// Patches any missing neighbors by randomly selecting another of its neighbors to fill both spots.
-	void patchMissingSpots(GRand* pRand);
-
-	/// (Re)computes all neighbor distances using the specified metric.
-	void fillDistances(GDistanceMetric* pMetric);
+	/// recomputes all neighbor distances using the specified metric.
+	void recomputeDistances(GDistanceMetric* pMetric);
 
 	/// Returns true iff the neighbors form a connected graph when each neighbor
 	/// is evaluated as a bi-directional edge. (Assumes that fillCache has already been called.)
@@ -139,8 +132,8 @@ public:
 	void dropInvalidNeighbors();
 
 protected:
-	/// Ensures that the cache is populated with data for every index in the dataset
-	void fillCache();
+	/// Fills the cache with the k-nearest neighbors of each point
+	void fillCacheNearest(size_t k);
 };
 
 
@@ -161,7 +154,7 @@ public:
 	/// true, then the neighborFinder takes responsibility for
 	/// deleting the metric, otherwise it is the caller's
 	/// responsibility.
-	GNeighborFinderGeneralizing(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
+	GNeighborFinderGeneralizing(const GMatrix* pData, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 
 	virtual ~GNeighborFinderGeneralizing();
 
@@ -175,8 +168,8 @@ public:
 	/// Finds the neighbors of the specified vector.
 	/// Returns the number of neighbors found.
 	/// Call "neighbor" or "distance" to obtain the neighbors and distances that were found.
-	virtual size_t findNeighbors(const GVec& vector) = 0;
-	using GNeighborFinder::findNeighbors;
+	virtual size_t findNearest(size_t k, const GVec& vector) = 0;
+	using GNeighborFinder::findNearest;
 
 	/// See the comment for GNeighborFinder::neighbor
 	virtual size_t neighbor(size_t i) { return m_neighs[i]; }
@@ -198,20 +191,20 @@ protected:
 class GBruteForceNeighborFinder : public GNeighborFinderGeneralizing
 {
 public:
-	GBruteForceNeighborFinder(GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
+	GBruteForceNeighborFinder(GMatrix* pData, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GBruteForceNeighborFinder();
 
 	/// This is a no-op method in this class.
 	virtual void reoptimize();
 
-	/// See the comment for GNeighborFinder::findNeighbors
-	virtual size_t findNeighbors(size_t index);
+	/// See the comment for GNeighborFinder::findNearest
+	virtual size_t findNearest(size_t k, size_t index);
 
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
-	virtual size_t findNeighbors(const GVec& vector);
+	virtual size_t findNearest(size_t k, const GVec& vector);
 
 protected:
-	size_t findNeighbors(const GVec& vec, size_t exclude);
+	size_t findNearest(size_t k, const GVec& vec, size_t exclude);
 };
 
 
@@ -231,17 +224,17 @@ public:
 	/// neighborCount is the number of neighbors that you want to find.
 	/// pMetric is the similarity metric to use in finding neighbors. Higher similarity indicates closer neighbors.
 	/// ownMetric specifies whether this object should delete pMetric when it is deleted.
-	GSparseNeighborFinder(GSparseMatrix* pData, GMatrix* pBogusData, size_t neighborCount, GSparseSimilarity* pMetric, bool ownMetric = false);
+	GSparseNeighborFinder(GSparseMatrix* pData, GMatrix* pBogusData, GSparseSimilarity* pMetric, bool ownMetric = false);
 	virtual ~GSparseNeighborFinder();
 
 	/// This is a no-op method in this class.
 	virtual void reoptimize();
 
-	/// See the comment for GNeighborFinder::findNeighbors
-	virtual size_t findNeighbors(size_t index);
+	/// See the comment for GNeighborFinder::findNearest
+	virtual size_t findNearest(size_t k, size_t index);
 
-	/// See the comment for GNeighborFinderGeneralizing::neighbors
-	virtual size_t findNeighbors(const GVec& vector);
+	/// See the comment for GNeighborFinderGeneralizing::findNearest
+	virtual size_t findNearest(size_t k, const GVec& vector);
 };
 
 
@@ -256,7 +249,7 @@ protected:
 	GKdNode* m_pRoot;
 
 public:
-	GKdTree(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
+	GKdTree(const GMatrix* pData, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GKdTree();
 
 #ifndef NO_TEST_CODE
@@ -268,11 +261,11 @@ public:
 	/// a significant number of point-vectors are added to or released from the internal set.
 	virtual void reoptimize();
 
-	/// See the comment for GNeighborFinder::findNeighbors
-	virtual size_t findNeighbors(size_t index);
+	/// See the comment for GNeighborFinder::findNearest
+	virtual size_t findNearest(size_t k, size_t index);
 
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
-	virtual size_t findNeighbors(const GVec& vector);
+	virtual size_t findNearest(size_t k, const GVec& vector);
 
 	/// Specify the max number of point-vectors to store in each leaf node.
 	void setMaxLeafSize(size_t n) { m_maxLeafSize = n; }
@@ -291,7 +284,7 @@ public:
 
 protected:
 	/// This is the helper method that finds the neighbors
-	size_t findNeighbors(const GVec& vec, size_t nExclude);
+	size_t findNearest(size_t k, const GVec& vec, size_t nExclude);
 
 	/// Computes a good pivot for the specified attribute, and the goodness of splitting on
 	/// that attribute. For continuous attributes, the pivot is the (not scaled) mean and the goodness is
@@ -318,7 +311,7 @@ protected:
 	GBallNode* m_pRoot;
 
 public:
-	GBallTree(const GMatrix* pData, size_t neighborCount, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
+	GBallTree(const GMatrix* pData, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GBallTree();
 
 #ifndef NO_TEST_CODE
@@ -330,11 +323,11 @@ public:
 	/// a significant number of point-vectors are added to or released from the internal set.
 	virtual void reoptimize();
 
-	/// See the comment for GNeighborFinder::findNeighbors
-	virtual size_t findNeighbors(size_t index);
+	/// See the comment for GNeighborFinder::findNearest
+	virtual size_t findNearest(size_t k, size_t index);
 
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
-	virtual size_t findNeighbors(const GVec& vec);
+	virtual size_t findNearest(size_t k, const GVec& vec);
 
 	/// Specify the max number of point-vectors to store in each leaf node.
 	void setMaxLeafSize(size_t n) { m_maxLeafSize = n; }
@@ -361,14 +354,14 @@ protected:
 	GBallNode* buildTree(size_t count, size_t* pIndexes);
 
 	/// This is the helper method that finds the neighbors
-	size_t findNeighbors(const GVec& vec, size_t nExclude);
+	size_t findNearest(size_t k, const GVec& vec, size_t nExclude);
 };
 
 
 
 
 
-/// This finds the shortcuts in a table of neighbors and replaces them with INVALID_INDEX.
+/// This uses "betweeenness centrality" to find the shortcuts in a table of neighbors and replaces them with INVALID_INDEX.
 class GShortcutPruner
 {
 protected:
@@ -457,23 +450,6 @@ protected:
 	bool doAnyBigAtomicCyclesExist();
 };
 
-
-
-
-/// A simple neighbor-finder that reports the nearest neighbors in the sequence.
-/// (That is, the previous and next rows are the closest neighbors.) The distance
-/// is sequential distance to the neighbor (not squared).
-class GSequenceNeighborFinder : public GNeighborFinder
-{
-public:
-	GSequenceNeighborFinder(GMatrix* pData, int neighborCount);
-	virtual ~GSequenceNeighborFinder();
-	/// Computes the neighbors of the specified vector
-	virtual void neighbors(size_t* pOutNeighbors, size_t index);
-
-	/// Computes the neighbors and distances of the specified vector
-	virtual void neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index);
-};
 
 
 } // namespace GClasses

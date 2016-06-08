@@ -406,7 +406,7 @@ void GKNN::trainInner(const GMatrix& feats, const GMatrix& labs)
 	{
 		if(!m_pNeighborFinder)
 		{
-			m_pNeighborFinder = new GKdTree(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
+			m_pNeighborFinder = new GKdTree(m_pFeatures, m_pDistanceMetric, false);
 		}
 		for(size_t j = 0; j < 50; j++)
 		{
@@ -441,19 +441,18 @@ size_t GKNN::findNeighbors(const GVec& vec)
 	{
 		if(m_pDistanceMetric)
 		{
-			//m_pNeighborFinder = new GBruteForceNeighborFinder(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
-			m_pNeighborFinder = new GKdTree(m_pFeatures, m_nNeighbors, m_pDistanceMetric, false);
+			//m_pNeighborFinder = new GBruteForceNeighborFinder(m_pFeatures, m_pDistanceMetric, false);
+			m_pNeighborFinder = new GKdTree(m_pFeatures, m_pDistanceMetric, false);
 		}
 		else
 		{
 			GAssert(m_pSparseMetric);
 			GAssert(m_pSparseFeatures);
 			GMatrix bogus;
-			m_pNeighborFinder = new GSparseNeighborFinder(m_pSparseFeatures, &bogus, m_nNeighbors, m_pSparseMetric, false);
+			m_pNeighborFinder = new GSparseNeighborFinder(m_pSparseFeatures, &bogus, m_pSparseMetric, false);
 		}
 	}
-	GAssert(m_pNeighborFinder->neighborCount() == m_nNeighbors);
-	return m_pNeighborFinder->findNeighbors(vec);
+	return m_pNeighborFinder->findNearest(m_nNeighbors, vec);
 }
 
 void GKNN::interpolateMean(size_t nc, const GVec& in, GPrediction* out, GVec* pOut2)
@@ -702,7 +701,7 @@ std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& feat
 	out->newRows(features2.rows());
 
 	// Find friends
-	GNeighborFinder* pNF = new GNeighborGraph(new GKdTree(&featuresAll, m_friendCount, NULL, true), true);
+	GNeighborFinder* pNF = new GNeighborGraph(new GKdTree(&featuresAll, NULL, true), true, m_friendCount);
 	std::unique_ptr<GNeighborFinder> hNF(pNF);
 
 	// Transduce
@@ -725,7 +724,7 @@ std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& feat
 				// Find the most common label
 				GVec& row = labelList.row(i);
 				size_t index = (size_t)row[0];
-				pNF->findNeighbors(index);
+				pNF->findNearest(m_friendCount, index);
 				GVec::setAll(tallys, 0.0, labelValues);
 				for(size_t j = 0; j < m_friendCount; j++)
 				{

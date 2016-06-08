@@ -184,88 +184,6 @@ GMatrix* loadData(const char* szFilename)
 	return hData.release();
 }
 
-void showInstantiateNeighborFinderError(const char* szMessage, GArgReader& args)
-{
-	cerr << "_________________________________\n";
-	cerr << szMessage << "\n\n";
-	const char* szNFName = args.peek();
-	UsageNode* pNFTree = makeNeighborUsageTree();
-	Holder<UsageNode> hNFTree(pNFTree);
-	if(szNFName)
-	{
-		UsageNode* pUsageAlg = pNFTree->choice(szNFName);
-		if(pUsageAlg)
-		{
-			cerr << "Partial Usage Information:\n\n";
-			pUsageAlg->print(cerr, 0, 3, 76, 1000, true);
-		}
-		else
-		{
-			cerr << "\"" << szNFName << "\" is not a recognized neighbor-finding techniqie. Try one of these:\n\n";
-			pNFTree->print(cerr, 0, 3, 76, 1, false);
-		}
-	}
-	else
-	{
-		cerr << "Expected a neighbor-finding technique. Here are some choices:\n";
-		pNFTree->print(cerr, 0, 3, 76, 1, false);
-	}
-	cerr << "\nTo see full usage information, run:\n	waffles_transform usage\n\n";
-	cerr << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
-	cerr.flush();
-}
-
-GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgReader& args)
-{
-	// Get the algorithm name
-	int argPos = args.get_pos();
-	GNeighborFinder* pNF = NULL;
-	const char* alg = args.pop_string();
-
-	try
-	{
-		// Parse the options
-		int cutCycleLen = 0;
-		while(args.next_is_flag())
-		{
-			if(args.if_pop("-cyclecut"))
-				cutCycleLen = args.pop_uint();
-			else
-				throw Ex("Invalid neighbor finder option: ", args.peek());
-		}
-
-		// Parse required algorithms
-		if(_stricmp(alg, "bruteforce") == 0)
-		{
-			int neighbors = args.pop_uint();
-			pNF = new GBruteForceNeighborFinder(pData, neighbors, NULL, true);
-		}
-		else if(_stricmp(alg, "kdtree") == 0)
-		{
-			int neighbors = args.pop_uint();
-			pNF = new GKdTree(pData, neighbors, NULL, true);
-		}
-		else
-			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
-
-		// Apply CycleCut
-		if(cutCycleLen > 0)
-		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->cutShortcuts(cutCycleLen);
-			pNF = pNF2;
-		}
-	}
-	catch(const std::exception& e)
-	{
-		args.set_pos(argPos);
-		showInstantiateNeighborFinderError(e.what(), args);
-		throw Ex("nevermind"); // this means "don't display another error message"
-	}
-
-	return pNF;
-}
-
 void AddIndexAttribute(GArgReader& args)
 {
 	// Parse args
@@ -1175,12 +1093,12 @@ void neighbors(GArgReader& args)
 	size_t neighborCount = args.pop_uint();
 
 	// Find the neighbors
-	GKdTree neighborFinder(pData, neighborCount, NULL, true);
+	GKdTree neighborFinder(pData, NULL, true);
 	double sumClosest = 0;
 	double sumAll = 0;
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		size_t nc = neighborFinder.findNeighbors(i);
+		size_t nc = neighborFinder.findNearest(neighborCount, i);
 		if(nc != neighborCount)
 			throw Ex("Only found ", to_str(nc), " neighbors");
 		neighborFinder.sortNeighbors();

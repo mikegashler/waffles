@@ -627,34 +627,38 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-labeldims [n]=1", "Specify the number of dimensions in the label (output) vector. The default is 1. (Don't confuse this with the number of class labels. It only takes one dimension to specify a class label, even if there are k possible labels.)");
 	}
 	{
-		UsageNode* pBE = pRoot->add("blendembeddings [data-orig] [neighbor-finder] [data-a] [data-b] <options>", "Compute a blended \"average\" embedding from two reduced-dimensionality embeddings of some data.");
+		UsageNode* pBE = pRoot->add("blendembeddings [data-orig] [neighbor-count] [neighbor-finder] [data-a] [data-b] <options>", "Compute a blended \"average\" embedding from two reduced-dimensionality embeddings of some data.");
 		pBE->add("[data-orig]=orig.arff", "The filename of the original high-dimensional data.");
+		pBE->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pBE->add("[data-a]=a.arff", "The first reduced dimensional embedding of [data-orig]");
 		pBE->add("[data-b]=b.arff", "The second reduced dimensional embedding of [data-orig]");
 		UsageNode* pOpts = pBE->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
 	{
-		UsageNode* pBFU = pRoot->add("breadthfirstunfolding [dataset] [neighbor-finder] [target_dims] <options>", "A manifold learning algorithm.");
+		UsageNode* pBFU = pRoot->add("breadthfirstunfolding [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "A manifold learning algorithm.");
 		UsageNode* pOpts = pBFU->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-reps [n]=10", "The number of times to compute the embedding and blend the results together. If not specified, the default is 1.");
 		pBFU->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pBFU->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pBFU->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
-		UsageNode* pIsomap = pRoot->add("isomap [dataset] [neighbor-finder] [target_dims] <options>", "Use the Isomap algorithm to reduce dimensionality.");
+		UsageNode* pIsomap = pRoot->add("isomap [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "Use the Isomap algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pIsomap->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-tolerant", "If there are points that are disconnected from the rest of the graph, just drop them from the data. (This may cause the results to contain fewer rows than the input.)");
 		pIsomap->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pIsomap->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pIsomap->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
-		UsageNode* SU = pRoot->add("scalingunfolder [dataset] [neighbor-finder] [target_dims] <options>", "Use the ScalingUnfolder algorithm to reduce dimensionality. (This algorithm was inspired by Maximum Variance Unfolding (MVU). It iteratively scales up the data, then restores distances in local neighborhoods. Unlike MVU, however, it does not use semidefinite programming.)");
+		UsageNode* SU = pRoot->add("scalingunfolder [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "Use the ScalingUnfolder algorithm to reduce dimensionality. (This algorithm was inspired by Maximum Variance Unfolding (MVU). It iteratively scales up the data, then restores distances in local neighborhoods. Unlike MVU, however, it does not use semidefinite programming.)");
 		UsageNode* pOpts = SU->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		SU->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		SU->add("[neighbor-count]=12", "The number of neighbors to use.");
 		SU->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	UsageNode* pSOM = pRoot->add
@@ -714,15 +718,17 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-maxiters [n]=100", "Specify the number of times to iterate before giving up. The default is 100, which should be sufficient for most problems.");
 	}
 	{
-		UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
+		UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pLLE->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pLLE->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pLLE->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pLLE->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
-		UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513-520, MIT Press, Cambridge, MA, 2008.)");
+		UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513-520, MIT Press, Cambridge, MA, 2008.)");
 		pMS->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pMS->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pMS->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 		UsageNode* pOpts = pMS->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");

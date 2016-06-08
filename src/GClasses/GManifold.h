@@ -340,39 +340,6 @@ protected:
 };
 
 
-/*
-/// This uses graph-cut to divide the data into two clusters.
-/// It then trains a linear regression model for each cluster
-/// to map from inputs to change-in-state. It then aligns
-/// the smaller cluster with the larger one such that the linear
-/// models are in agreement (as much as possible).
-class GDynamicSystemStateAligner : public GTransform
-{
-protected:
-	size_t m_neighbors;
-	size_t m_seedA, m_seedB;
-	size_t* m_pNeighbors;
-	double* m_pDistances;
-	GMatrix& m_inputs;
-	GRand& m_rand;
-
-public:
-	GDynamicSystemStateAligner(size_t neighbors, GMatrix& inputs, GRand& rand);
-	virtual ~GDynamicSystemStateAligner();
-
-	/// Perform the transformation
-	virtual GMatrix* reduce(const GMatrix& in);
-
-	/// Specify the source and sink points for dividing the data into two clusters
-	void setSeeds(size_t a, size_t b);
-
-#ifndef NO_TEST_CODE
-	static void test();
-#endif
-};
-*/
-
-
 
 
 
@@ -420,7 +387,7 @@ public:
 	void unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, GNeuralNet* pDecoder = NULL, const GMatrix* pVisible = NULL);
 
 	/// Perform a single pass over all the edges and attempt to restore local relationships
-	static void restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, GRand& rand);
+	static void restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, size_t neighborCount, GRand& rand);
 
 	/// A convenience method for iteratively unfolding the manifold sampled by a matrix.
 	/// (This method is not used within this class.) It finds the k-nearest neighbors within
