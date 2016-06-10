@@ -68,6 +68,14 @@ GNeighborGraph::GNeighborGraph(GNeighborFinder* pNF, bool own, size_t neighbors)
 	fillCacheNearest(neighbors);
 }
 
+GNeighborGraph::GNeighborGraph(double squaredRadius, GNeighborFinder* pNF, bool own)
+: GNeighborFinder(pNF->data()), m_pNF(pNF), m_own(own)
+{
+	m_neighs.resize(m_pData->rows());
+	m_dists.resize(m_pData->rows());
+	fillCacheRadius(squaredRadius);
+}
+
 // virtual
 GNeighborGraph::~GNeighborGraph()
 {
@@ -80,6 +88,21 @@ void GNeighborGraph::fillCacheNearest(size_t k)
 	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
 		size_t neigh_count = m_pNF->findNearest(k, i);
+		m_neighs[i].clear();
+		m_dists[i].clear();
+		for(size_t j = 0; j < neigh_count; j++)
+		{
+			m_neighs[i].push_back(m_pNF->neighbor(j));
+			m_dists[i].push_back(m_pNF->distance(j));
+		}
+	}
+}
+
+void GNeighborGraph::fillCacheRadius(double squaredRadius)
+{
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		size_t neigh_count = m_pNF->findWithinRadius(squaredRadius, i);
 		m_neighs[i].clear();
 		m_dists[i].clear();
 		for(size_t j = 0; j < neigh_count; j++)
@@ -408,6 +431,24 @@ size_t GBruteForceNeighborFinder::findNearest(size_t k, const GVec& vec, size_t 
 	return m_neighs.size();
 }
 
+size_t GBruteForceNeighborFinder::findWithinRadius(double squaredRadius, const GVec& vec, size_t exclude)
+{
+	m_neighs.clear();
+	m_dists.clear();
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		if(i == exclude)
+			continue;
+		double d = m_pMetric->squaredDistance(vec, m_pData->row(i));
+		if(d <= squaredRadius)
+		{
+			m_neighs.push_back(i);
+			m_dists.push_back(d);
+		}
+	}
+	return m_neighs.size();
+}
+
 // virtual
 size_t GBruteForceNeighborFinder::findNearest(size_t k, const GVec& vec)
 {
@@ -418,6 +459,18 @@ size_t GBruteForceNeighborFinder::findNearest(size_t k, const GVec& vec)
 size_t GBruteForceNeighborFinder::findNearest(size_t k, size_t index)
 {
 	return findNearest(k, m_pData->row(index), index);
+}
+
+// virtual
+size_t GBruteForceNeighborFinder::findWithinRadius(double squaredRadius, const GVec& vec)
+{
+	return findWithinRadius(squaredRadius, vec, INVALID_INDEX);
+}
+
+// virtual
+size_t GBruteForceNeighborFinder::findWithinRadius(double squaredRadius, size_t index)
+{
+	return findWithinRadius(squaredRadius, m_pData->row(index), index);
 }
 
 // --------------------------------------------------------------------------------
@@ -486,6 +539,18 @@ size_t GSparseNeighborFinder::findNearest(size_t k, size_t index)
 		m_dists.push_back(1.0 / (it->first + 1e-6));
 	}
 	return m_neighs.size();
+}
+
+// virtual
+size_t GSparseNeighborFinder::findWithinRadius(double squaredRadius, const GVec& vec)
+{
+	throw new Ex("Sorry, not implemented yet");
+}
+
+// virtual
+size_t GSparseNeighborFinder::findWithinRadius(double squaredRadius, size_t index)
+{
+	throw new Ex("Sorry, not implemented yet");
 }
 
 // --------------------------------------------------------------------------------
@@ -960,6 +1025,59 @@ size_t GKdTree::findNearest(size_t k, const GVec& vec, size_t nExclude)
 	return m_neighs.size();
 }
 
+size_t GKdTree::findWithinRadius(double squaredRadius, const GVec& vec, size_t nExclude)
+{
+	m_neighs.clear();
+	m_dists.clear();
+	KdTree_Compare_Nodes_Functor comparator;
+	priority_queue< GKdNode*, vector<GKdNode*>, KdTree_Compare_Nodes_Functor > q(comparator);
+	q.push(m_pRoot);
+	while(q.size() > 0)
+	{
+		GKdNode* pNode = q.top();
+		q.pop();
+		if(pNode->GetMinDist() > squaredRadius)
+			break;
+		if(pNode->IsLeaf())
+		{
+			double squaredDist;
+			vector<size_t>* pIndexes = ((GKdLeafNode*)pNode)->GetIndexes();
+			size_t count = pIndexes->size();
+			for(size_t i = 0; i < count; i++)
+			{
+				size_t index = (*pIndexes)[i];
+				if(index == nExclude)
+					continue;
+				const GVec& pCand = m_pData->row(index);
+				squaredDist = m_pMetric->squaredDistance(vec, pCand);
+				if(squaredDist <= squaredRadius)
+				{
+					m_neighs.push_back(index);
+					m_dists.push_back(squaredDist);
+				}
+			}
+		}
+		else
+		{
+			size_t attr;
+			double pivot;
+			GKdInteriorNode* pParent = (GKdInteriorNode*)pNode;
+			pParent->GetDivision(&attr, &pivot);
+			GKdNode* pLess = pParent->GetLess();
+			pLess->CopyOffset(pParent);
+			GKdNode* pGreaterOrEqual = pParent->GetGreaterOrEqual();
+			pGreaterOrEqual->CopyOffset(pParent);
+			if(isGreaterOrEqual(vec.data(), attr, pivot))
+				pLess->AdjustOffset(attr, vec[attr] - pivot, m_pMetric->scaleFactors());
+			else
+				pGreaterOrEqual->AdjustOffset(attr, pivot - vec[attr], m_pMetric->scaleFactors());
+			q.push(pLess);
+			q.push(pGreaterOrEqual);
+		}
+	}
+	return m_neighs.size();
+}
+
 // virtual
 size_t GKdTree::findNearest(size_t k, size_t index)
 {
@@ -970,6 +1088,18 @@ size_t GKdTree::findNearest(size_t k, size_t index)
 size_t GKdTree::findNearest(size_t k, const GVec& vec)
 {
 	return findNearest(k, vec, INVALID_INDEX);
+}
+
+// virtual
+size_t GKdTree::findWithinRadius(double squaredRadius, size_t index)
+{
+	return findWithinRadius(squaredRadius, m_pData->row(index), index);
+}
+
+// virtual
+size_t GKdTree::findWithinRadius(double squaredRadius, const GVec& vector)
+{
+	return findWithinRadius(squaredRadius, vector, INVALID_INDEX);
 }
 
 // virtual
@@ -1436,6 +1566,18 @@ size_t GBallTree::findNearest(size_t k, const GVec& vec)
 	return findNearest(k, vec, INVALID_INDEX);
 }
 
+// virtual
+size_t GBallTree::findWithinRadius(double squaredRadius, size_t index)
+{
+	return findWithinRadius(squaredRadius, m_pData->row(index), index);
+}
+
+// virtual
+size_t GBallTree::findWithinRadius(double squaredRadius, const GVec& vec)
+{
+	return findWithinRadius(squaredRadius, vec, INVALID_INDEX);
+}
+
 GBallNode* GBallTree::buildTree(size_t count, size_t* pIndexes)
 {
 	if(count > m_maxLeafSize)
@@ -1516,6 +1658,46 @@ size_t GBallTree::findNearest(size_t k, const GVec& vec, size_t nExclude)
 				size_t index = pLeaf->m_indexes[i];
 				if(index != nExclude)
 					helper.TryPoint(pLeaf->m_indexes[i], m_pMetric->squaredDistance(m_pData->row(index), vec));
+			}
+		}
+		else
+		{
+			GBallInterior* pInt = (GBallInterior*)pBall;
+			q.insert(pInt->m_pLeft, pInt->m_pLeft->distance(m_pMetric, vec));
+			q.insert(pInt->m_pRight, pInt->m_pRight->distance(m_pMetric, vec));
+		}
+	}
+	return m_neighs.size();
+}
+
+size_t GBallTree::findWithinRadius(double squaredRadius, const GVec& vec, size_t nExclude)
+{
+	m_neighs.clear();
+	m_dists.clear();
+	GSimplePriorityQueue<GBallNode*> q;
+	q.insert(m_pRoot, m_pRoot->distance(m_pMetric, vec));
+	while(q.size() > 0)
+	{
+		double dist = q.peekValue();
+		if(dist * dist > squaredRadius)
+			break;
+		GBallNode* pBall = q.peekObject();
+		q.pop();
+		if(pBall->isLeaf())
+		{
+			GBallLeaf* pLeaf = (GBallLeaf*)pBall;
+			for(size_t i = 0; i < pLeaf->m_indexes.size(); i++)
+			{
+				size_t index = pLeaf->m_indexes[i];
+				if(index != nExclude)
+				{
+					double d = m_pMetric->squaredDistance(m_pData->row(index), vec);
+					if(d <= squaredRadius)
+					{
+						m_neighs.push_back(pLeaf->m_indexes[i]);
+						m_dists.push_back(d);
+					}
+				}
 			}
 		}
 		else

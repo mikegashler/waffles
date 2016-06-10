@@ -70,6 +70,11 @@ public:
 	/// Call "neighbor" or "distance" to obtain the neighbors and distances that were found.
 	virtual size_t findNearest(size_t k, size_t pointIndex) = 0;
 
+	/// Finds all neighbors of the specified point index within a specified radius.
+	/// Returns the number of neighbors found.
+	/// Call "neighbor" or "distance" to obtain the neighbors and distances that were found.
+	virtual size_t findWithinRadius(double squaredRadius, size_t pointIndex) = 0;
+
 	/// Returns the point index of the ith neighbor of the last point passed to "findNearest".
 	/// (Behavior is undefined if findNearest has not yet been called.)
 	virtual size_t neighbor(size_t i) = 0;
@@ -94,12 +99,19 @@ protected:
 	std::vector<std::vector<double> > m_dists;
 
 public:
+	/// Makes a GNeighborGraph that has precomputed the k-nearest neighbors of each point in a dataset.
 	/// If own is true, then this will take ownership of pNF
 	GNeighborGraph(GNeighborFinder* pNF, bool own, size_t neighbors);
+
+	/// Makes a GNeighborGraph that has precomputed the neighbors of each point in a dataset within a specified radius.
+	GNeighborGraph(double squaredRadius, GNeighborFinder* pNF, bool own);
 	virtual ~GNeighborGraph();
 
 	/// See the comment for GNeighborFinder::findNearest
 	virtual size_t findNearest(size_t k, size_t pointIndex) { m_focus = pointIndex; return m_neighs[pointIndex].size(); }
+
+	/// See the comment for GNeighborFinder::findWithinRadius
+	virtual size_t findWithinRadius(double squaredRadius, size_t pointIndex) { m_focus = pointIndex; return m_neighs[pointIndex].size(); }
 
 	/// See the comment for GNeighborFinder::neighbor
 	virtual size_t neighbor(size_t i) { return m_neighs[m_focus][i]; }
@@ -132,8 +144,11 @@ public:
 	void dropInvalidNeighbors();
 
 protected:
-	/// Fills the cache with the k-nearest neighbors of each point
+	/// Fills the cache with the k-nearest neighbors of each point.
 	void fillCacheNearest(size_t k);
+
+	/// Fills the cache with the neighbors of each point within a specified radius.
+	void fillCacheRadius(double squaredRadius);
 };
 
 
@@ -165,11 +180,17 @@ public:
 	/// any optimization structures.
 	virtual void reoptimize() = 0;
 
-	/// Finds the neighbors of the specified vector.
+	/// Finds the nearest neighbors of the specified vector.
 	/// Returns the number of neighbors found.
 	/// Call "neighbor" or "distance" to obtain the neighbors and distances that were found.
 	virtual size_t findNearest(size_t k, const GVec& vector) = 0;
 	using GNeighborFinder::findNearest;
+
+	/// Finds all neighbors of the specified vector within a specified radius.
+	/// Returns the number of neighbors found.
+	/// Call "neighbor" or "distance" to obtain the neighbors and distances that were found.
+	virtual size_t findWithinRadius(double squaredRadius, const GVec& vector) = 0;
+	using GNeighborFinder::findWithinRadius;
 
 	/// See the comment for GNeighborFinder::neighbor
 	virtual size_t neighbor(size_t i) { return m_neighs[i]; }
@@ -203,8 +224,15 @@ public:
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
 	virtual size_t findNearest(size_t k, const GVec& vector);
 
+	/// See the comment for GNeighborFinder::findWithinRadius
+	virtual size_t findWithinRadius(double squaredRadius, size_t index);
+
+	/// See the comment for GNeighborFinderGeneralizing::findWithinRadius
+	virtual size_t findWithinRadius(double squaredRadius, const GVec& vector);
+
 protected:
 	size_t findNearest(size_t k, const GVec& vec, size_t exclude);
+	size_t findWithinRadius(double squaredRadius, const GVec& vec, size_t exclude);
 };
 
 
@@ -235,6 +263,14 @@ public:
 
 	/// See the comment for GNeighborFinderGeneralizing::findNearest
 	virtual size_t findNearest(size_t k, const GVec& vector);
+
+	/// See the comment for GNeighborFinder::findWithinRadius
+	/// Currently, this method just throws an exception because it is not yet implemented.
+	virtual size_t findWithinRadius(double squaredRadius, size_t index);
+
+	/// See the comment for GNeighborFinderGeneralizing::findWithinRadius
+	/// Currently, this method just throws an exception because it is not yet implemented.
+	virtual size_t findWithinRadius(double squaredRadius, const GVec& vector);
 };
 
 
@@ -267,6 +303,12 @@ public:
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
 	virtual size_t findNearest(size_t k, const GVec& vector);
 
+	/// See the comment for GNeighborFinder::findWithinRadius
+	size_t findWithinRadius(double squaredRadius, size_t index);
+
+	/// See the comment for GNeighborFinderGeneralizing::findWithinRadius
+	size_t findWithinRadius(double squaredRadius, const GVec& vector);
+
 	/// Specify the max number of point-vectors to store in each leaf node.
 	void setMaxLeafSize(size_t n) { m_maxLeafSize = n; }
 
@@ -283,8 +325,11 @@ public:
 	static double medianDistanceToNeighbor(GMatrix& data, size_t n);
 
 protected:
-	/// This is the helper method that finds the neighbors
+	/// This is a helper method that finds the nearest neighbors
 	size_t findNearest(size_t k, const GVec& vec, size_t nExclude);
+
+	/// This is a helper method that finds neighbors within a radius
+	size_t findWithinRadius(double squaredRadius, const GVec& vec, size_t nExclude);
 
 	/// Computes a good pivot for the specified attribute, and the goodness of splitting on
 	/// that attribute. For continuous attributes, the pivot is the (not scaled) mean and the goodness is
@@ -329,6 +374,12 @@ public:
 	/// See the comment for GNeighborFinderGeneralizing::neighbors
 	virtual size_t findNearest(size_t k, const GVec& vec);
 
+	/// See the comment for GNeighborFinder::findWithinRadius
+	virtual size_t findWithinRadius(double squaredRadius, size_t index);
+
+	/// See the comment for GNeighborFinderGeneralizing::findWithinRadius
+	virtual size_t findWithinRadius(double squaredRadius, const GVec& vec);
+
 	/// Specify the max number of point-vectors to store in each leaf node.
 	void setMaxLeafSize(size_t n) { m_maxLeafSize = n; }
 
@@ -353,8 +404,11 @@ protected:
 	/// Build the tree
 	GBallNode* buildTree(size_t count, size_t* pIndexes);
 
-	/// This is the helper method that finds the neighbors
+	/// This is a helper method that finds the nearest neighbors
 	size_t findNearest(size_t k, const GVec& vec, size_t nExclude);
+
+	/// This is a helper method that finds the neighbors within a specified radius
+	size_t findWithinRadius(double squaredRadius, const GVec& vec, size_t nExclude);
 };
 
 
