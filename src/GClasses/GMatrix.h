@@ -810,9 +810,15 @@ public:
 	/// \brief Returns a const pointer to the specified row
 	inline const GVec& operator [](size_t index) const { return *m_rows[index]; }
 
-	/// \brief Sets all elements in the specified range of columns to the specified value.
+	/// \brief Fills all elements in the specified range of columns with the specified value.
 	/// If no column ranges are specified, the default is to set all of them.
 	void setAll(double val, size_t colStart = 0, size_t colCount = INVALID_INDEX);
+
+	/// \brief Fills all elements with random values from a uniform distribution.
+	void fillUniform(GRand& rand, double min = 0.0, double max = 1.0);
+
+	/// \brief Fills all elements with random values from a Normal distribution.
+	void fillNormal(GRand& rand, double deviation = 1.0);
 
 	/// \brief Copies pVector over the specified column
 	void setCol(size_t index, const double* pVector);

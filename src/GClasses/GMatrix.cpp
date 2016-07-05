@@ -2584,6 +2584,18 @@ void GMatrix::setAll(double val, size_t colStart, size_t colCount)
 		row(i).fill(val, colStart, colStart + count);
 }
 
+void GMatrix::fillUniform(GRand& rand, double min, double max)
+{
+	for(size_t i = 0; i < rows(); i++)
+		row(i).fillUniform(rand, min, max);
+}
+
+void GMatrix::fillNormal(GRand& rand, double deviation)
+{
+	for(size_t i = 0; i < rows(); i++)
+		row(i).fillNormal(rand, deviation);
+}
+
 void GMatrix::copy(const GMatrix* pThat)
 {
 	GAssert(pThat != this);
