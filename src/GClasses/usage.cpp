@@ -1639,6 +1639,7 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-space", "Separate with spaces instead of commas.");
 		pOpts->add("-r", "Use \"NA\" instead of \"?\" for missing values. (This is the format used by R.)");
 		pOpts->add("-columnnames", "Print column names on the first row. (The default is to not print column names.)");
+		pOpts->add("-precision [val]=14", "Specify how many digits of precision to use before truncating and resorting to scientific notation.");
 	}
 	{
 		UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");

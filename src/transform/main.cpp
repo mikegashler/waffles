@@ -714,6 +714,7 @@ void Export(GArgReader& args)
 	const char* separator = ",";
 	const char* missing = "?";
 	bool colnames = false;
+	int precision = 14;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-tab"))
@@ -724,11 +725,14 @@ void Export(GArgReader& args)
 			missing = "NA";
 		else if(args.if_pop("-columnnames"))
 			colnames = true;
+		else if(args.if_pop("-precision"))
+			precision = (int)args.pop_uint();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Print column names
+	cout.precision(precision);
 	if(colnames)
 	{
 		size_t c = pData->cols();
