@@ -33,7 +33,7 @@ protected:
 	std::string m_filename;
 	unsigned long long m_fileLen;
 	size_t m_filePos;
-	unsigned char m_fileHash[20];
+	unsigned char m_fileHash[64];
 	unsigned char* m_pBuf;
 	bool m_uploading;
 
@@ -67,7 +67,7 @@ protected:
 
 
 
-void Sha1DigestFile(unsigned char* pOut20ByteHash, const char* filename);
+void Sha512DigestFile(unsigned char* pOut64ByteHash, const char* filename);
 
 void doShellCommandCenter(int port);
 

@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+using std::string;
+
 namespace GClasses {
 
 size_t safe_strcpy(char* szDest, const char* szSrc, size_t nMaxSize)
@@ -35,6 +37,20 @@ size_t safe_strcpy(char* szDest, const char* szSrc, size_t nMaxSize)
 		szDest[n] = szSrc[n];
 	szDest[n] = '\0';
 	return n;
+}
+
+// ----------------------------------------------------------------------------------
+
+std::string pre_pad(size_t final_length, char pad_char, const std::string& src_string)
+{
+	if(src_string.length() <= final_length)
+	{
+		string s(final_length - src_string.length(), pad_char);
+		s += src_string;
+		return s;
+	}
+	else
+		return src_string.substr(src_string.length() - final_length, final_length);
 }
 
 // ----------------------------------------------------------------------------------
