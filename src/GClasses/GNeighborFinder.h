@@ -198,6 +198,9 @@ public:
 	/// See the comment for GNeighborFinder::distance
 	virtual double distance(size_t i) { return m_dists[i]; }
 
+	/// Returns the metric
+	GDistanceMetric *metric() { return m_pMetric; }
+
 	/// Uses Quick Sort to sort the neighbors from least to most distant.
 	void sortNeighbors(size_t start = 0, size_t end = INVALID_INDEX);
 
