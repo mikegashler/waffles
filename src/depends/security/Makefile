@@ -20,8 +20,8 @@ endif
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS = -Wshadow -std=c++11 -stdlib=libc++ -I/opt/local/include -I/usr/local/include -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-	DBG_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClassesDbg.a -lpthread -lX11 -lssl
-	OPT_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClasses.a -lpthread -lX11 -lssl
+	DBG_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -L$(DARWIN_BASE)/lib -lpng -lz -framework AppKit ../../../lib/libGClassesDbg.a -lpthread -lX11 -lssl
+	OPT_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -L$(DARWIN_BASE)/lib -lpng -lz -framework AppKit ../../../lib/libGClasses.a -lpthread -lX11 -lssl
 else
 	CFLAGS = -Wall -Wshadow -pedantic -std=c++11
 	DBG_LFLAGS = ../../../lib/libGClassesDbg.a -lpng -lpthread -lX11
