@@ -602,7 +602,17 @@ void GVec::test()
 }
 #endif // MIN_PREDICT
 
-
+std::string to_str(const GVec& v)
+{
+	std::ostringstream os;
+	os << "[";
+	if(v.size() > 0)
+		os << to_str(v[0]);
+	for(size_t i = 1; i < v.size(); i++)
+		os << "," << to_str(v[i]);
+	os << "]";
+	return os.str();
+}
 
 
 

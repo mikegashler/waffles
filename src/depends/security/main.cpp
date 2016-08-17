@@ -833,9 +833,9 @@ void dictAttackNTPassword(GArgReader& args)
 	GBits::hexToBufferBigEndian(szHashHex, 32, hash);
 
 	const char* szDictionary = args.pop_string();
-	size_t cap1 = 6;
-	size_t cap2 = 4;
-	size_t cap3 = 3;
+	size_t cap1 = 6; // max length for one-word passphrase attempts
+	size_t cap2 = 4; // max length for two-word passphrase attempts
+	size_t cap3 = 3; // max length for three-word passphrase attempts
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-cap1"))
@@ -895,6 +895,35 @@ void dictAttackNTPassword(GArgReader& args)
 			dictAttack(hash, &d3, &d1, &d2);
 		}
 	}
+}
+
+void permuteAttack(GArgReader& args)
+{
+	const char* szHashHex = args.pop_string();
+	if(strlen(szHashHex) != 32)
+		throw Ex("Expected the hash to consist of 32 hexadecimal digits");
+	unsigned char hash[16];
+	GBits::hexToBufferBigEndian(szHashHex, 32, hash);
+
+	const char* szBase = args.pop_string();
+	size_t removals = 0;
+	size_t changes = 2;
+	size_t additions = 3;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-removals"))
+			throw Ex("Sorry, not supported yet");
+		else if(args.if_pop("-changes"))
+			changes = args.pop_uint();
+		else if(args.if_pop("-additions"))
+			additions = args.pop_uint();
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	// todo: finish me
+	
+	
 }
 
 void dump(GArgReader& args)

@@ -523,6 +523,45 @@ public:
 	virtual GActivationFunction* clone() { return new GActivationBiDir(); }
 };
 
+
+/// This activation function forms a sigmoid shape by splicing an exponential and logarithmic function together.
+class GActivationSigExp : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "sigexp"; }
+
+	virtual double squash(double x, size_t index = 0) { return (x <= 0.0 ? exp(x) - 1.0 : log(x + 1.0)); }
+
+	virtual double derivative(double x, size_t index) { return (x <= 0.0 ? exp(x) : 1.0 / (x + 1.0)); }
+
+	virtual double inverse(double y, size_t index) { return(y <= 0.0 ? log(y + 1.0) : exp(y) - 1.0); }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationSigExp(); }
+};
+
+
+
+/// This activation function forms a sigmoid shape using square roots.
+class GActivationSigRoot : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "sigroot"; }
+
+	virtual double squash(double x, size_t index = 0) { return x < 0.0 ? -sqrt(-x + 0.25) + 0.5 : sqrt(x + 0.25) - 0.5; }
+
+	virtual double derivative(double x, size_t index) { return 1.0 / (2.0 * sqrt(std::abs(x) + 0.25)); }
+
+	virtual double inverse(double y, size_t index) { return (y <= 0.0 ? -(y - 0.5) * (y - 0.5) + 0.25 : (y + 0.5) * (y + 0.5) - 0.25); }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationSigRoot(); }
+};
+
+
+
 /// This is a simple Gaussian function.
 class GActivationGaussian : public GActivationFunction
 {

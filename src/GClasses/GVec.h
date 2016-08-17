@@ -249,6 +249,17 @@ public:
 };
 
 
+///\brief Allow GVec objects to easily be converted into a string for debugging
+///
+///\param v the GVec that will be converted to a string
+///
+///\return a string representing the GVec \a v
+///
+///\see template<class T> to_str(const T& n)
+std::string to_str(const GVec& v);
+
+
+
 /// This class temporarily wraps a GVec around a const array of doubles.
 /// You should take care to ensure this object is destroyed before the array it wraps.
 class GConstVecWrapper
