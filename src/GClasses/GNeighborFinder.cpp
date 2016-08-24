@@ -76,6 +76,32 @@ GNeighborGraph::GNeighborGraph(double squaredRadius, GNeighborFinder* pNF, bool 
 	fillCacheRadius(squaredRadius);
 }
 
+GNeighborGraph::GNeighborGraph(bool own, GNeighborFinderGeneralizing* pNF)
+: GNeighborFinder(pNF->data()), m_pNF(pNF), m_own(own)
+{
+	m_neighs.resize(m_pData->rows());
+	m_dists.resize(m_pData->rows());
+	GDistanceMetric* pMetric = pNF->metric();
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		double prev = 0.0;
+		if(i > 0)
+			prev = pMetric->squaredDistance(pNF->data()->row(i), pNF->data()->row(i - 1));
+		double next = 0.0;
+		if(i + 1 < m_pData->rows())
+			next = pMetric->squaredDistance(pNF->data()->row(i), pNF->data()->row(i + 1));
+		double maxSqRad = std::max(prev, next);
+		size_t neigh_count = m_pNF->findWithinRadius(maxSqRad, i);
+		m_neighs[i].clear();
+		m_dists[i].clear();
+		for(size_t j = 0; j < neigh_count; j++)
+		{
+			m_neighs[i].push_back(m_pNF->neighbor(j));
+			m_dists[i].push_back(m_pNF->distance(j));
+		}
+	}
+}
+
 // virtual
 GNeighborGraph::~GNeighborGraph()
 {
@@ -125,6 +151,11 @@ void GNeighborGraph::recomputeDistances(GDistanceMetric* pMetric)
 			dists[j] = pMetric->squaredDistance(m_pData->row(i), m_pData->row(neighs[j]));
 		}
 	}
+}
+
+void GNeighborGraph::swapInData(const GMatrix* pNewData)
+{
+	m_pData = pNewData;
 }
 
 size_t GNeighborGraph::cutShortcuts(size_t cycleLen)

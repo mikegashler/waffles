@@ -125,6 +125,17 @@ GDomNode* GLayerClassic::serialize(GDom* pDoc)
 	return pNode;
 }
 
+// virtual
+std::string GLayerClassic::to_str()
+{
+	std::ostringstream os;
+	os << "[GLayerClassic:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
+	os << " Weights: " << GClasses::to_str(m_weights) << "\n";
+	os << " Bias: " << GClasses::to_str(m_bias) << "\n";
+	os << "]";
+	return os.str();
+}
+
 void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
 {
 	if(inputCount == inputs() && outputCount == outputs())
@@ -628,21 +639,6 @@ void GLayerClassic::renormalizeInput(size_t input, double oldMin, double oldMax,
 	}
 }
 
-void GLayerClassic::printSummary(ostream& stream)
-{
-	size_t inps = m_weights.rows();
-	size_t outs = m_weights.cols();
-	stream << " ( " << to_str(inps) << " -> " << to_str(outs) << " )\n";
-	stream << "    Bias Mag: " << std::sqrt(bias().squaredMagnitude()) << "\n";
-	double sum = 0.0;
-	for(size_t i = 0; i < outs; i++)
-		sum += std::sqrt(m_weights.columnVariance(i, 0.0));
-	stream << "    Ave Weight Mag: " << to_str(sum / outs) << "\n";
-	stream << "    Net Mag: " << std::sqrt(net().squaredMagnitude()) << "\n";
-	stream << "    Act Mag: " << std::sqrt(activation().squaredMagnitude()) << "\n";
-	stream << "    Err Mag: " << std::sqrt(error().squaredMagnitude()) << "\n";
-}
-
 
 
 
@@ -725,6 +721,17 @@ GDomNode* GLayerMixed::serialize(GDom* pDoc)
 	return pNode;
 }
 
+// virtual
+std::string GLayerMixed::to_str()
+{
+	std::ostringstream os;
+	os << "[GLayerMixed:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
+	for(size_t i = 0; i < m_components.size(); i++)
+		os << m_components[i]->to_str() << "\n";
+	os << "]";
+	return os.str();
+}
+
 void GLayerMixed::addComponent(GNeuralNetLayer* pComponent)
 {
 	if(m_activation.cols() > 0)
@@ -732,7 +739,7 @@ void GLayerMixed::addComponent(GNeuralNetLayer* pComponent)
 	if(m_inputError.cols() == 0)
 		m_inputError.resize(1, pComponent->inputs());
 	else if(m_inputError.cols() != pComponent->inputs())
-		throw Ex("This component expects ", to_str(pComponent->inputs()), ", inputs, which conflicts with a previous component that expects ", to_str(m_inputError.cols()), " inputs");
+		throw Ex("This component expects ", GClasses::to_str(pComponent->inputs()), ", inputs, which conflicts with a previous component that expects ", GClasses::to_str(m_inputError.cols()), " inputs");
 	m_components.push_back(pComponent);
 }
 
@@ -984,6 +991,18 @@ GDomNode* GLayerRestrictedBoltzmannMachine::serialize(GDom* pDoc)
 	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 
 	return pNode;
+}
+
+// virtual
+std::string GLayerRestrictedBoltzmannMachine::to_str()
+{
+	std::ostringstream os;
+	os << "[GLayerRestrictedBoltzmannMachine:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
+	os << " Weights: " << GClasses::to_str(m_weights) << "\n";
+	os << " Bias: " << GClasses::to_str(bias()) << "\n";
+	os << " BiasReverse: " << GClasses::to_str(biasReverse()) << "\n";
+	os << "]";
+	return os.str();
 }
 
 void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
@@ -1422,6 +1441,16 @@ GDomNode* GLayerConvolutional1D::serialize(GDom* pDoc)
 }
 
 // virtual
+std::string GLayerConvolutional1D::to_str()
+{
+	std::ostringstream os;
+	os << "[GLayerConvolutional1D:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
+	os << " Kernels: " << GClasses::to_str(m_kernels) << "\n";
+	os << "]";
+	return os.str();
+}
+
+// virtual
 void GLayerConvolutional1D::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
 {
 	if(inputSize != m_inputSamples * m_inputChannels)
@@ -1768,6 +1797,16 @@ GDomNode* GLayerConvolutional2D::serialize(GDom* pDoc)
 	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
 	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 	return pNode;
+}
+
+// virtual
+std::string GLayerConvolutional2D::to_str()
+{
+	std::ostringstream os;
+	os << "[GLayerConvolutional2D:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
+	os << " Kernels: " << GClasses::to_str(m_kernels) << "\n";
+	os << "]";
+	return os.str();
 }
 
 // virtual
@@ -2137,6 +2176,14 @@ GDomNode* GMaxPooling2D::serialize(GDom* pDoc)
 	pNode->addField(pDoc, "ichan", pDoc->newInt(m_inputChannels));
 	pNode->addField(pDoc, "size", pDoc->newInt(m_regionSize));
 	return pNode;
+}
+
+// virtual
+std::string GMaxPooling2D::to_str()
+{
+	std::ostringstream os;
+	os << "[GMaxPooling2D:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "]";
+	return os.str();
 }
 
 // virtual

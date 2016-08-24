@@ -1056,16 +1056,6 @@ void GNeuralNet::printWeights(std::ostream& stream)
 	}
 }
 
-void GNeuralNet::printSummary(std::ostream& stream)
-{
-	stream << "Neural Net ( " << to_str(layerCount()) << " layers )\n";
-	for(size_t i = 0; i < layerCount(); i++)
-	{
-		stream << "  Layer " << to_str(i);
-		((GLayerClassic*)&layer(i))->printSummary(stream);
-	}
-}
-
 void GNeuralNet::containIntrinsics(GMatrix& intrinsics)
 {
 	size_t dims = intrinsics.cols();

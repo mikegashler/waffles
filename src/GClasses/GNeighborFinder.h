@@ -37,6 +37,7 @@ class GSupervisedLearner;
 class GRandomIndexIterator;
 class GSparseMatrix;
 class GSparseSimilarity;
+class GNeighborFinderGeneralizing;
 
 
 /// Finds the k-nearest neighbors of any vector in a dataset.
@@ -105,6 +106,12 @@ public:
 
 	/// Makes a GNeighborGraph that has precomputed the neighbors of each point in a dataset within a specified radius.
 	GNeighborGraph(double squaredRadius, GNeighborFinder* pNF, bool own);
+
+	/// Makes a GNeighborGraph assuming the data represents a sequence of observations.
+	/// First, it computes the distance between each point and its previous and next points.
+	/// Then, it finds all neighbors within a radius of the maximum of those two distances.
+	GNeighborGraph(bool own, GNeighborFinderGeneralizing* pNF);
+	
 	virtual ~GNeighborGraph();
 
 	/// See the comment for GNeighborFinder::findNearest
@@ -130,6 +137,9 @@ public:
 
 	/// recomputes all neighbor distances using the specified metric.
 	void recomputeDistances(GDistanceMetric* pMetric);
+
+	/// Uses pNewData for subsequent calls to recomputeDistances.
+	void swapInData(const GMatrix* pNewData);
 
 	/// Returns true iff the neighbors form a connected graph when each neighbor
 	/// is evaluated as a bi-directional edge. (Assumes that fillCache has already been called.)

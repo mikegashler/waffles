@@ -234,14 +234,23 @@ void GKeyboard::Watch()
 	XEvent event;
 	m_pDisplay = XOpenDisplay(":0");
 	if(!m_pDisplay)
-		throw "failed to open display";
+		throw Ex("failed to open display");
 	SelectAllChildWindows(DefaultRootWindow(m_pDisplay),
 			KeyPressMask | // receive KeyPress, KeyRelease, ButtonPress, and ButtonRelease events
 			SubstructureNotifyMask // receive CreateNotify events
+//			OwnerGrabButtonMask // which window buttons were pressed in
 		);
+	
+/*
+	// Values used for getting button press events
+	Atom property = XInternAtom(m_pDisplay, "WM_NAME", False), type;
+	int form;
+	unsigned long remain, len;
+	unsigned char *list;
+*/
 	while(m_bKeepWatching)
 	{
-		XNextEvent(m_pDisplay, &event);
+		XNextEvent(m_pDisplay, &event); // Blocks if the event queue is empty
 		if(event.type == KeyPress)
 		{
 			GetKeyCode(&event);
@@ -255,6 +264,17 @@ void GKeyboard::Watch()
 				//m_pLogKeyFunc(m_pParam, m_szKeyCode[0]);
 			}
 		}
+/*		else if(event.type == ButtonPress)
+		{
+			// note: probably need to "grab" the button first
+			// param 2 might need to be event.xbutton.window, event.xbutton.root, or event.xbutton.subwindow
+			if (XGetWindowProperty(m_pDisplay, event.xbutton.window, property, 0, 1024, False, AnyPropertyType, &type, &form, &len, &remain, &list) == Success)
+			{
+				for(unsigned long i = 0; i < len; i++)
+					m_pLogKeyFunc(m_pParam, list[i]);
+			}
+
+		}*/
 		else if(event.type == CreateNotify)
 		{
 			SelectAllChildWindows(event.xcreatewindow.parent/*window*/,
