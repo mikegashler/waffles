@@ -781,137 +781,77 @@ using GNeuralNetLayer::updateDeltas;
 class GLayerConvolutional2D : public GNeuralNetLayer
 {
 protected:
-	size_t m_inputCols;
+	// primary properties
 	size_t m_inputRows;
+	size_t m_inputCols;
 	size_t m_inputChannels;
-	size_t m_outputCols;
-	size_t m_outputRows;
-	size_t m_kernelsPerChannel;
+	size_t m_kernelRows;
+	size_t m_kernelCols;
 	size_t m_kernelCount;
-	GMatrix m_kernels;
+	size_t m_padding;
+	size_t m_stride;
+	
+	// derived properties
+	size_t m_outputRows;
+	size_t m_outputCols;
+	
+	// parameters
+	GMatrix m_kernels; // Bias is per-kernel, so the last column of each kernel is its bias.
 	GMatrix m_delta;
-	GMatrix m_activation; // Row 0 is the activation. Row 1 is the net. Row 2 is the error.
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the bias delta.
-	GActivationFunction* m_pActivationFunction;
-
+	GMatrix m_activation; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
+	GActivationFunction *m_pActivationFunction;
+	
 public:
-using GNeuralNetLayer::feedForward;
-using GNeuralNetLayer::updateDeltas;
-
 	/// General-purpose constructor.
 	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
 	/// and inputChannels will be 3. The total input size will be 9216 (64*48*3=9216).
-	/// The values should be presented in the following order: c1x1y1, c2x1y1, c1x2y1, c2x2y1, c1x1y2, ...
-	/// If kernelSize is 5, then the output will consist of 60 columns (64-5+1=60) and 44 rows (48-5+1=44).
-	/// If kernelsPerChannel is 2, then there will be 6 (3*2=6) channels in the output, for a total of
-	/// 15840 (60*44*6=15840) output values. (kernelSize must be <= inputSamples.)
-	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction = NULL);
-
-	/// Deserializing constructor
-	GLayerConvolutional2D(GDomNode* pNode);
-
+	/// The values should be presented in the following order: c1y1x1 c1y1x2 ... c2y1x1 c2y1x2 ... (i.e. RGB for each pixel in row major order)
+	/// kernelCount determines the number of output channels.
+	/// kernelRows, kernelCols, stride, and padding determine the size of the output.
+	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
+	
+	/// Constructor that uses the upstream convolutional layer to determine input dimensions
+	GLayerConvolutional2D(const GLayerConvolutional2D &upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
+	
+	GLayerConvolutional2D(GDomNode *pNode);
 	virtual ~GLayerConvolutional2D();
-
-	/// Returns the type of this layer
-	virtual const char* type() { return "conv2"; }
-
-	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
-
-	/// Makes a string representation of this layer
+	
+	virtual const char *type() { return "conv2d"; }
+	virtual GDomNode *serialize(GDom *pDoc);
 	virtual std::string to_str();
-
-	/// Returns the number of values expected to be fed as input into this layer.
 	virtual size_t inputs() { return m_inputRows * m_inputCols * m_inputChannels; }
-
-	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() { return m_outputRows * m_outputCols * m_inputChannels * m_kernelsPerChannel; }
-
-	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
-
-	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_activation[0]; }
-
-	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_activation[2]; }
-
-	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const GVec& in);
-
-	/// Randomly sets the activation of some units to 0.
-	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Throws an exception, because convolutional layers do not support dropConnect.
-	virtual void dropConnect(GRand& rand, double probOfDrop);
-
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
-
-	/// Multiplies each element in the error vector by the derivative of the activation function.
-	/// This results in the error having meaning with respect to the weights, instead of the output.
-	/// (Assumes the error for this layer has already been computed.)
+	virtual size_t outputs() { return m_outputRows * m_outputCols * m_kernelCount; }
+	virtual void resize(size_t inputs, size_t outputs, GRand *pRand = NULL, double deviation = 0.03);
+	virtual GVec &activation() { return m_activation[1]; }
+	virtual GVec &error() { return m_activation[2]; }
+	
+	virtual void feedForward(const GVec &in);
+	virtual void dropOut(GRand &rand, double probOfDrop);
+	virtual void dropConnect(GRand &rand, double probOfDrop);
+	virtual void computeError(const GVec &target);
 	virtual void deactivateError();
-
-	/// Backpropagates the error from this layer into the upstream layer's error vector.
-	/// (Assumes that the error in this layer has already been computed and deactivated.
-	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
-
-	/// Add the weight and bias deltas to the weights.
+	virtual void backPropError(GNeuralNetLayer *pUpStreamLayer);
+	virtual void updateDeltas(const GVec &upStreamActivation, double momentum);
 	virtual void applyDeltas(double learningRate);
-
-	/// Adaptively update a per-weight learning rate and update the weights and biases.
 	virtual void applyAdaptive();
-
-	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
-
-	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases);
-
-	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights();
-
-	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
-
-	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
-
-	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
-
-	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
-
-	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
-	/// start specifies the first unit whose incoming weights are perturbed.
-	/// count specifies the maximum number of units whose incoming weights are perturbed.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
-
-	/// Clips each kernel weight (not including the bias) to fall between -max and max.
+	virtual size_t weightsToVector(double *pOutVector);
+	virtual size_t vectorToWeights(const double *pVector);
+	virtual void copyWeights(const GNeuralNetLayer *pSource);
+	virtual void resetWeights(GRand &rand);
+	virtual void perturbWeights(GRand &rand, double deviation, size_t start, size_t count);
 	virtual void maxNorm(double min, double max);
-
-	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
-
-	/// Throws an exception.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
-
-	/// Returns the net vector (that is, the values computed before the activation function was applied)
-	/// from the most recent call to feedForward().
-	GVec& net() { return m_activation[1]; }
-
-	GVec& bias() { return m_bias[0]; }
-	GVec& biasDelta() { return m_bias[1]; }
-	GMatrix& kernels() { return m_kernels; }
+	
+	size_t outputRows() const { return m_outputRows; }
+	size_t outputCols() const { return m_outputCols; }
+	size_t outputChannels() const { return m_kernelCount; }
+	
+	GVec &net() { return m_activation[0]; }
+	GMatrix &kernels() { return m_kernels; }
 };
 
 

@@ -42,6 +42,8 @@
 #include "GBits.h"
 #include "GFourier.h"
 #include <memory>
+#include <string>
+#include <sstream>
 
 using std::vector;
 
@@ -1719,6 +1721,98 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 	}
 }
 
+void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
+{
+	// a 5x5x3 "image"
+	GVec feature(5*5*3);
+	{
+		std::string data = "1 2 0 1 0 0 2 2 2 0 1 1 1 0 0 1 1 1 0 2 1 0 2 0 2 2 1 2 1 0 2 0 1 2 1 2 1 0 1 2 0 2 1 1 0 2 1 1 0 1 1 0 0 0 0 1 0 2 1 1 0 1 2 1 1 0 0 2 2 0 1 2 0 2 1";
+		std::istringstream ss(data);
+		for(size_t i = 0; i < feature.size(); i++)
+			ss >> feature[i];
+	}
+	
+	// the correct convolution for the image above given the kernels below
+	GVec label(3*3*2);
+	{
+		std::string data = "8 5 0 4 -7 4 1 4 8 -4 3 2 0 4 0 0 -2 -3";
+		std::istringstream ss(data);
+		for(size_t i = 0; i < label.size(); i++)
+			ss >> label[i];
+	}
+	
+	GLayerConvolutional2D layer(5, 5, 3, 3, 3, 2, 2, 1, new GActivationIdentity());
+	{
+		std::string data1 = "0 1 -1 -1 1 1 1 0 1 1 0 0 -1 1 0 -1 1 1 1 -1 1 0 -1 -1 1 -1 -1 1";
+		std::string data2 = "-1 0 0 0 0 -1 1 1 0 1 0 1 0 0 0 1 -1 0 -1 1 -1 -1 0 -1 -1 0 1 0";
+		std::istringstream ss1(data1);
+		std::istringstream ss2(data2);
+		for(size_t i = 0; i < layer.kernels().cols(); i++)
+		{
+			ss1 >> layer.kernels()[0][i];
+			ss2 >> layer.kernels()[1][i];
+		}
+	}
+	
+	// test forward propagation
+	
+	layer.feedForward(feature);
+	for(size_t i = 0; i < label.size(); i++)
+		if(label[i] != layer.activation()[i])
+			throw Ex("GLayerConvolutional2D forward prop failed");
+	
+	// test backpropagation (1)
+	// -- can we update weights in the previous layer?
+	
+	GLayerClassic upstream(1, layer.inputs(), new GActivationIdentity());
+	for(size_t i = 0; i < layer.inputs(); i++)
+		upstream.weights()[0][i] = feature[i] + prng.normal();
+	upstream.bias().fill(0.0);
+	
+	GVec oneVec(1);
+	oneVec.fill(1.0);
+	
+	upstream.feedForward(oneVec);
+	layer.feedForward(upstream.activation());
+	
+	for(size_t i = 0; i < 100; i++)
+	{
+		upstream.feedForward(oneVec);
+		layer.feedForward(upstream.activation());
+		layer.computeError(label);
+		layer.backPropError(&upstream);
+		upstream.updateDeltas(oneVec, 0.0);
+		upstream.applyDeltas(0.01);
+	}
+	
+	upstream.feedForward(oneVec);
+	layer.feedForward(upstream.activation());
+	if(layer.activation().squaredDistance(label) > 1e-2)
+		throw Ex("GLayerConvolutional2D backpropagation failed (1)");
+	
+	// test backpropagation (2)
+	// -- can we update weights in the convolutional layer?
+	
+	GVec zeroVec(label.size());
+	zeroVec.fill(0.0);
+	
+	for(size_t c = 0; c < layer.kernels().rows(); c++)
+		for(size_t i = 0; i < layer.kernels().cols(); i++)
+			layer.kernels()[c][i] += prng.normal();
+	
+	for(size_t i = 0; i < 100; i++)
+	{
+		layer.feedForward(feature);
+		layer.computeError(label);
+		layer.updateDeltas(feature, 0.0);
+		layer.applyDeltas(0.01);
+	}
+	
+	layer.feedForward(feature);
+	if(layer.activation().squaredDistance(label) > 1e-2)
+		throw Ex("GLayerConvolutional2D backpropagation failed (2)");
+}
+
 void GNeuralNet_testFourier()
 {
 	GMatrix m(16, 3);
@@ -1765,6 +1859,7 @@ void GNeuralNet::test()
 	GNeuralNet_testTransformWeights(prng);
 	GNeuralNet_testCompressFeatures(prng);
 	GNeuralNet_testConvolutionalLayerMath();
+	GNeuralNet_testConvolutionalLayer2D(prng);
 	GNeuralNet_testFourier();
 
 	// Test with no hidden layers (logistic regression)

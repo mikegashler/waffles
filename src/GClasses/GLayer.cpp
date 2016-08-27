@@ -1736,396 +1736,287 @@ void GLayerConvolutional1D::renormalizeInput(size_t input, double oldMin, double
 
 
 
-GLayerConvolutional2D::GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction)
-: m_inputCols(inputCols),
-m_inputRows(inputRows),
-m_inputChannels(inputChannels),
-m_outputCols(inputCols - kernelSize + 1),
-m_outputRows(inputRows - kernelSize + 1),
-m_kernelsPerChannel(kernelsPerChannel),
-m_kernelCount(inputChannels * kernelsPerChannel),
-m_kernels(m_kernelCount * kernelSize, kernelSize),
-m_delta(m_kernelCount * kernelSize, kernelSize),
-m_bias(2, m_kernelCount)
-{
-	if(kernelSize > inputCols)
-		throw Ex("kernelSize must be <= inputCols");
-	if(kernelSize > inputRows)
-		throw Ex("kernelSize must be <= inputRows");
-	m_pActivationFunction = pActivationFunction;
-	if(!m_pActivationFunction)
-		m_pActivationFunction = new GActivationLogistic();
-	m_activation.resize(3, m_kernelCount * m_outputCols * m_outputRows);
-	m_delta.setAll(0.0);
-	biasDelta().fill(0.0);
-	m_pActivationFunction->resize(m_kernelCount);
-}
+GLayerConvolutional2D::GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride, size_t padding, GActivationFunction *pActivationFunction)
+: m_inputRows(inputRows), m_inputCols(inputCols), m_inputChannels(inputChannels), m_kernelRows(kernelRows), m_kernelCols(kernelCols), m_kernelCount(kernelCount), m_stride(stride), m_padding(padding), m_outputRows((inputRows - kernelRows + 2 * padding) / stride + 1), m_outputCols((inputCols - kernelCols + 2 * padding) / stride + 1), m_kernels(kernelCount, inputChannels * kernelRows * kernelCols + 1), m_delta(kernelCount, inputChannels * kernelRows * kernelCols + 1), m_activation(3, kernelCount * m_outputRows * m_outputCols), m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
+{}
 
-GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
-: m_inputCols((size_t)pNode->field("icol")->asInt()),
-m_inputRows((size_t)pNode->field("irow")->asInt()),
-m_inputChannels((size_t)pNode->field("ichan")->asInt()),
-m_outputCols((size_t)pNode->field("ocol")->asInt()),
-m_outputRows((size_t)pNode->field("orow")->asInt()),
-m_kernelsPerChannel((size_t)pNode->field("kpc")->asInt()),
-m_kernelCount(m_inputChannels * m_kernelsPerChannel),
-m_kernels(pNode->field("kern")),
-m_delta(pNode->field("delt")),
-m_activation(pNode->field("act")),
-m_bias(pNode->field("bias")),
-m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
+GLayerConvolutional2D::GLayerConvolutional2D(const GLayerConvolutional2D &upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride, size_t padding, GActivationFunction *pActivationFunction)
+: m_inputRows(upstream.outputRows()), m_inputCols(upstream.outputCols()), m_inputChannels(upstream.outputChannels()), m_kernelRows(kernelRows), m_kernelCols(kernelCols), m_kernelCount(kernelCount), m_stride(stride), m_padding(padding), m_outputRows((m_inputRows - kernelRows + 2 * padding) / stride + 1), m_outputCols((m_inputCols - kernelCols + 2 * padding) / stride + 1), m_kernels(kernelCount, m_inputChannels * kernelRows * kernelCols + 1), m_delta(kernelCount, m_inputChannels * kernelRows * kernelCols + 1), m_activation(3, kernelCount * m_outputRows * m_outputCols), m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
+{}
+
+GLayerConvolutional2D::GLayerConvolutional2D(GDomNode *pNode)
+: m_inputRows(pNode->field("inputRows")->asInt()), m_inputCols(pNode->field("inputCols")->asInt()), m_inputChannels(pNode->field("inputChannels")->asInt()), m_kernelRows(pNode->field("kernelRows")->asInt()), m_kernelCols(pNode->field("kernelCols")->asInt()), m_kernelCount(pNode->field("kernelCount")->asInt()), m_padding(pNode->field("padding")->asInt()), m_stride(pNode->field("stride")->asInt()), m_outputRows(pNode->field("outputRows")->asInt()), m_outputCols(pNode->field("outputCols")->asInt()), m_kernels(pNode->field("kernels"))
 {
+	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 }
 
 GLayerConvolutional2D::~GLayerConvolutional2D()
 {
+	delete m_pActivationFunction;
 }
 
-// virtual
-GDomNode* GLayerConvolutional2D::serialize(GDom* pDoc)
+GDomNode *GLayerConvolutional2D::serialize(GDom *pDoc)
 {
-	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "icol", pDoc->newInt(m_inputCols));
-	pNode->addField(pDoc, "irow", pDoc->newInt(m_inputRows));
-	pNode->addField(pDoc, "ichan", pDoc->newInt(m_inputChannels));
-	pNode->addField(pDoc, "ocol", pDoc->newInt(m_outputCols));
-	pNode->addField(pDoc, "orow", pDoc->newInt(m_outputRows));
-	pNode->addField(pDoc, "kpc", pDoc->newInt(m_kernelsPerChannel));
-	pNode->addField(pDoc, "kern", m_kernels.serialize(pDoc));
-	pNode->addField(pDoc, "delt", m_delta.serialize(pDoc));
-	pNode->addField(pDoc, "act", m_activation.serialize(pDoc));
-	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
+	GDomNode *pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "inputRows", pDoc->newInt(m_inputRows));
+	pNode->addField(pDoc, "inputCols", pDoc->newInt(m_inputCols));
+	pNode->addField(pDoc, "inputChannels", pDoc->newInt(m_inputChannels));
+	pNode->addField(pDoc, "kernelRows", pDoc->newInt(m_kernelRows));
+	pNode->addField(pDoc, "kernelCols", pDoc->newInt(m_kernelCols));
+	pNode->addField(pDoc, "kernelCount", pDoc->newInt(m_kernelCount));
+	pNode->addField(pDoc, "padding", pDoc->newInt(m_padding));
+	pNode->addField(pDoc, "stride", pDoc->newInt(m_stride));
+	pNode->addField(pDoc, "outputRows", pDoc->newInt(m_outputRows));
+	pNode->addField(pDoc, "outputCols", pDoc->newInt(m_outputCols));
+	pNode->addField(pDoc, "kernels", m_kernels.serialize(pDoc));
 	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 	return pNode;
+	
 }
 
-// virtual
 std::string GLayerConvolutional2D::to_str()
 {
-	std::ostringstream os;
-	os << "[GLayerConvolutional2D:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
-	os << " Kernels: " << GClasses::to_str(m_kernels) << "\n";
-	os << "]";
-	return os.str();
+	std::stringstream ss;
+	ss << "[GLayerConvolutional2D:" << m_inputCols << "x" << m_inputRows << "x" << m_inputChannels << "\n"
+	   << " Kernels: " << GClasses::to_str(m_kernels) << "\n"
+	   << "]";
+	return ss.str();
 }
 
-// virtual
-void GLayerConvolutional2D::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
+void GLayerConvolutional2D::resize(size_t inputSize, size_t outputSize, GRand *pRand, double deviation)
 {
-	if(inputSize != m_inputCols * m_inputRows * m_inputChannels)
-		throw Ex("Changing the size of GLayerConvolutional2D is not supported");
-	if(outputSize != m_inputChannels * m_kernelsPerChannel * m_outputCols * m_outputRows)
+	if(inputSize != inputs() || outputSize != outputs())
 		throw Ex("Changing the size of GLayerConvolutional2D is not supported");
 }
 
-// virtual
-void GLayerConvolutional2D::resetWeights(GRand& rand)
+void GLayerConvolutional2D::feedForward(const GVec &in)
 {
-	size_t kernelSize = m_kernels.cols();
-	double mag = std::max(0.03, 1.0 / (kernelSize * kernelSize));
-	for(size_t i = 0; i < m_kernels.rows(); i++)
-		m_kernels[i].fillNormal(rand, mag);
-	m_delta.setAll(0.0);
-	bias().fillNormal(rand, mag);
-	biasDelta().fill(0.0);
-}
-
-// virtual
-void GLayerConvolutional2D::feedForward(const GVec& in)
-{
-	// Copy the bias to the net
-	GVec& n = net();
-	GVec& b = bias();
-	size_t netPos = 0;
-	for(size_t j = 0; j < m_outputRows; j++)
+	GVec &n = net();
+	GVec &a = activation();
+	for(size_t k = 0; k < m_kernelCount; k++)
 	{
-		for(size_t i = 0; i < m_outputCols; i++)
+		size_t outChannelOffset = k * m_outputRows * m_outputCols;
+		for(size_t j = 0; j < m_outputRows; j++)
 		{
-			n.put(netPos, b);
-			netPos += m_kernelCount;
-		}
-	}
-
-	// Feed the input through
-	size_t kernelSize = m_kernels.cols();
-	netPos = 0;
-	size_t inPos = 0;
-	for(size_t h = 0; h < m_outputRows; h++) // for each output row...
-	{
-		for(size_t i = 0; i < m_outputCols; i++) // for each output column...
-		{
-			size_t kern = 0;
-			for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+			size_t outRowOffset = j * m_outputCols;
+			int inRowOffset = j * m_stride - m_padding;
+			for(size_t i = 0; i < m_outputCols; i++)
 			{
-				for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+				size_t index = outChannelOffset + outRowOffset + i;
+				int inColOffset = i * m_stride - m_padding;
+				n[index] = m_kernels[k][m_kernels.cols() - 1];
+				for(size_t z = 0; z < m_inputChannels; z++)
 				{
-					double d = 0.0;
-					size_t inOfs = 0;
-					for(size_t l = 0; l < kernelSize; l++) // for each kernel row...
+					size_t kernelChannelOffset = z * m_kernelRows * m_kernelCols;
+					size_t inChannelOffset = z * m_inputRows * m_inputCols;
+					for(size_t y = 0; y < m_kernelRows; y++)
 					{
-						GVec& w = m_kernels[kern++];
-						for(size_t m = 0; m < kernelSize; m++) // for each kernel column... todo: the cyclomatic complexity of this method is ridiculous!
+						size_t kernelRowOffset = y * m_kernelCols;
+						int inRow = inRowOffset + y;
+						for(size_t x = 0; x < m_kernelCols; x++)
 						{
-							d += w[m] * in[inPos + inOfs];
-							inOfs += m_inputChannels;
+							int inCol = inColOffset + x;
+							if(inRow >= 0 && inRow < m_inputRows && inCol >= 0 && inCol < m_inputRows)
+							{
+								int idx = inChannelOffset + m_inputCols * inRow + inCol;
+								n[index] += m_kernels[k][kernelChannelOffset + kernelRowOffset + x] * in[idx];
+							}
 						}
 					}
-					n[netPos++] += d;
 				}
-				inPos++;
-			}
-		}
-	}
-
-	// Activate
-	GVec& a = activation();
-	size_t actPos = 0;
-	for(size_t h = 0; h < m_outputRows; h++) // for each output row...
-	{
-		for(size_t i = 0; i < m_outputCols; i++) // for each output column...
-		{
-			for(size_t j = 0; j < m_kernelCount; j++)
-			{
-				a[actPos] = m_pActivationFunction->squash(n[actPos], j);
-				actPos++;
+				a[index] = m_pActivationFunction->squash(n[index]);
 			}
 		}
 	}
 }
 
-// virtual
-void GLayerConvolutional2D::dropOut(GRand& rand, double probOfDrop)
+void GLayerConvolutional2D::dropOut(GRand &rand, double probOfDrop)
 {
-	GVec& a = activation();
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		if(rand.uniform() < probOfDrop)
-			a[i] = 0.0;
-	}
+	throw Ex("dropOut not implemented");
 }
 
-// virtual
-void GLayerConvolutional2D::dropConnect(GRand& rand, double probOfDrop)
+void GLayerConvolutional2D::dropConnect(GRand &rand, double probOfDrop)
 {
-	throw Ex("Sorry, convolutional layers do not support dropConnect");
+	throw Ex("dropConnect not implemented");
 }
 
-// virtual
-void GLayerConvolutional2D::computeError(const GVec& target)
+void GLayerConvolutional2D::computeError(const GVec &target)
 {
 	size_t outputUnits = outputs();
-	GVec& a = activation();
-	GVec& err = error();
+	GVec &a = activation();
+	GVec &err = error();
 	for(size_t i = 0; i < outputUnits; i++)
 	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
+		if(target[i] == UNKNOWN_REAL_VALUE || target[i] == a[i])
 			err[i] = 0.0;
 		else
 			err[i] = target[i] - a[i];
 	}
 }
 
-// virtual
 void GLayerConvolutional2D::deactivateError()
 {
-	size_t outputUnits = outputs();
-	GVec& err = error();
-	GVec& n = net();
-	GVec& a = activation();
-	m_pActivationFunction->setError(err);
-	for(size_t i = 0; i < outputUnits; i++)
-		err[i] *= m_pActivationFunction->derivativeOfNet(n[i], a[i], i);
+	GVec &n = net();
+	GVec &act = activation();
+	GVec &err = error();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+		err[i] *= m_pActivationFunction->derivativeOfNet(n[i], act[i]);
 }
 
-// virtual
-void GLayerConvolutional2D::backPropError(GNeuralNetLayer* pUpStreamLayer)
+void GLayerConvolutional2D::backPropError(GNeuralNetLayer *pUpStreamLayer)
 {
-	GAssert(pUpStreamLayer->outputs() == inputs());
-	GVec& upStreamErr = pUpStreamLayer->error();
-	GVec& downStreamErr = error();
-	size_t kernelSize = m_kernels.cols();
-	upStreamErr.fill(0.0);
-	size_t upPos = 0;
-	size_t downPos = 0;
-	for(size_t h = 0; h < m_outputRows; h++) // for each output row...
-	{
-		for(size_t i = 0; i < m_outputCols; i++) // for each output column...
-		{
-			size_t kern = 0;
-			for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
-			{
-				for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
-				{
-					size_t upOfs = 0;
-					for(size_t l = 0; l < kernelSize; l++) // for each kernel row...
-					{
-						GVec& w = m_kernels[kern++];
-						for(size_t m = 0; m < kernelSize; m++) // for each kernel column...
-						{
-							upStreamErr[upPos + upOfs] += w[m] * downStreamErr[downPos];
-							upOfs += m_inputChannels;
-						}
-					}
-					downPos++;
-				}
-				upPos++;
-			}
-		}
-	}
-}
-
-// virtual
-void GLayerConvolutional2D::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-	m_delta.multiply(momentum);
-	biasDelta() *= momentum;
-	GVec& err = error();
-	size_t kernelSize = m_kernels.cols();
-	size_t errPos = 0;
-	size_t upPos = 0;
-	for(size_t h = 0; h < m_outputRows; h++) // for each sample row...
-	{
-		for(size_t i = 0; i < m_outputCols; i++) // for each sample column...
-		{
-			size_t kern = 0;
-			for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
-			{
-				for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
-				{
-					size_t upOfs = 0;
-					for(size_t l = 0; l < kernelSize; l++) // for each kernel row...
-					{
-						GVec& d = m_delta[kern++];
-						for(size_t m = 0; m < kernelSize; m++) // for each kernel column...
-						{
-							d[m] += err[errPos] * upStreamActivation[upOfs];;
-							upOfs += m_inputChannels;
-						}
-					}
-					errPos++;
-				}
-				upPos++;
-			}
-		}
-	}
-	errPos = 0;
+	GVec &upStreamError = pUpStreamLayer->error();
+	upStreamError.fill(0.0);
 	
-	for(size_t h = 0; h < m_outputRows; h++)
+	GVec &err = error();
+	for(size_t k = 0; k < m_kernelCount; k++)
 	{
-		for(size_t i = 0; i < m_outputCols; i++)
+		size_t outChannelOffset = k * m_outputRows * m_outputCols;
+		for(size_t j = 0; j < m_outputRows; j++)
 		{
-			GVec& d = biasDelta();
-			size_t dPos = 0;
-			for(size_t j = 0; j < m_inputChannels; j++)
+			size_t outRowOffset = j * m_outputCols;
+			int inRowOffset = j * m_stride - m_padding;
+			for(size_t i = 0; i < m_outputCols; i++)
 			{
-				for(size_t k = 0; k < m_kernelsPerChannel; k++)
+				size_t index = outChannelOffset + outRowOffset + i;
+				int inColOffset = i * m_stride - m_padding;
+				for(size_t z = 0; z < m_inputChannels; z++)
 				{
-					d[dPos++] += err[errPos++];
+					size_t kernelChannelOffset = z * m_kernelRows * m_kernelCols;
+					size_t inChannelOffset = z * m_inputRows * m_inputCols;
+					for(size_t y = 0; y < m_kernelRows; y++)
+					{
+						size_t kernelRowOffset = y * m_kernelCols;
+						int inRow = inRowOffset + y;
+						for(size_t x = 0; x < m_kernelCols; x++)
+						{
+							int inCol = inColOffset + x;
+							if(inRow >= 0 && inRow < m_inputRows && inCol >= 0 && inCol < m_inputRows)
+							{
+								int idx = inChannelOffset + m_inputCols * inRow + inCol;
+								upStreamError[idx] += m_kernels[k][kernelChannelOffset + kernelRowOffset + x] * err[index];
+							}
+						}
+					}
 				}
 			}
 		}
 	}
 }
 
-// virtual
+// note: may be able to rewrite as a convolution between upStreamActivation and err
+void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, double momentum)
+{
+	GVec &err = error();
+	m_delta.multiply(momentum);
+	
+	for(size_t k = 0; k < m_kernelCount; k++)
+	{
+		size_t outChannelOffset = k * m_outputRows * m_outputCols;
+		for(size_t j = 0; j < m_outputRows; j++)
+		{
+			size_t outRowOffset = j * m_outputCols;
+			int inRowOffset = j * m_stride - m_padding;
+			for(size_t i = 0; i < m_outputCols; i++)
+			{
+				size_t index = outChannelOffset + outRowOffset + i;
+				int inColOffset = i * m_stride - m_padding;
+				m_delta[k][m_delta.cols() - 1] += err[index];
+				for(size_t z = 0; z < m_inputChannels; z++)
+				{
+					size_t kernelChannelOffset = z * m_kernelRows * m_kernelCols;
+					size_t inChannelOffset = z * m_inputRows * m_inputCols;
+					for(size_t y = 0; y < m_kernelRows; y++)
+					{
+						size_t kernelRowOffset = y * m_kernelCols;
+						int inRow = inRowOffset + y;
+						for(size_t x = 0; x < m_kernelCols; x++)
+						{
+							int inCol = inColOffset + x;
+							if(inRow >= 0 && inRow < m_inputRows && inCol >= 0 && inCol < m_inputRows)
+							{
+								int idx = inChannelOffset + m_inputCols * inRow + inCol;
+								m_delta[k][kernelChannelOffset + kernelRowOffset + x] += err[index] * upStreamActivation[idx];
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 void GLayerConvolutional2D::applyDeltas(double learningRate)
 {
-	size_t n = m_kernels.rows();
-	for(size_t i = 0; i < n; i++)
+	size_t rows = m_delta.rows();
+	for(size_t i = 0; i < rows; i++)
 		m_kernels[i].addScaled(learningRate, m_delta[i]);
-	bias().addScaled(learningRate, biasDelta());
 }
 
-// virtual
 void GLayerConvolutional2D::applyAdaptive()
 {
-	throw new Ex("Sorry, not implemented yet");
+	throw Ex("not implemented");
 }
 
-// virtual
 void GLayerConvolutional2D::scaleWeights(double factor, bool scaleBiases)
 {
-	for(size_t i = 0; i < m_kernels.rows(); i++)
-		m_kernels[i] *= factor;
-	if(scaleBiases)
-		bias() *= factor;
+	throw Ex("scaleWeights not implemented");
 }
 
-// virtual
-void GLayerConvolutional2D::diminishWeights(double amount, bool diminishBiases)
+void GLayerConvolutional2D::diminishWeights(double amount, bool regularizeBiases)
 {
-	for(size_t i = 0; i < m_kernels.rows(); i++)
-		m_kernels[i].regularize_L1(amount);
-	if(diminishBiases)
-		bias().regularize_L1(amount);
+	throw Ex("diminishWeights not implemented");
 }
 
-// virtual
-void GLayerConvolutional2D::regularizeActivationFunction(double lambda)
-{
-	m_pActivationFunction->regularize(lambda);
-}
-
-// virtual
 size_t GLayerConvolutional2D::countWeights()
 {
-	return m_kernels.rows() * m_kernels.cols() + m_kernelCount;
+	return m_inputChannels * m_kernelRows * m_kernelCols;
 }
 
-// virtual
-size_t GLayerConvolutional2D::weightsToVector(double* pOutVector)
+size_t GLayerConvolutional2D::weightsToVector(double *pOutVector)
 {
-	memcpy(pOutVector, bias().data(), m_kernelCount * sizeof(double));
-	pOutVector += m_kernelCount;
 	m_kernels.toVector(pOutVector);
-	pOutVector += (m_kernels.rows() * m_kernels.cols());
-	size_t activationWeights = m_pActivationFunction->weightsToVector(pOutVector);
-	return m_kernels.rows() * m_kernels.cols() + m_kernelCount + activationWeights;
+	return countWeights();
 }
 
-// virtual
-size_t GLayerConvolutional2D::vectorToWeights(const double* pVector)
+size_t GLayerConvolutional2D::vectorToWeights(const double *pVector)
 {
-	memcpy(bias().data(), pVector, m_kernelCount * sizeof(double));
-	pVector += m_kernelCount;
-	m_kernels.fromVector(pVector, m_kernels.rows());
-	pVector += (m_kernels.rows() * m_kernels.cols());
-	size_t activationWeights = m_pActivationFunction->vectorToWeights(pVector);
-	return m_kernels.rows() * m_kernels.cols() + m_kernelCount + activationWeights;
+	m_kernels.fromVector(pVector, m_kernelCount);
+	return countWeights();
 }
 
-// virtual
-void GLayerConvolutional2D::copyWeights(const GNeuralNetLayer* pSource)
+void GLayerConvolutional2D::copyWeights(const GNeuralNetLayer *pSource)
 {
-	GLayerConvolutional2D* src = (GLayerConvolutional2D*)pSource;
-	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
-	bias().copy(src->bias());
-	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
+	throw Ex("copyWeights not implemented");
 }
 
-// virtual
-void GLayerConvolutional2D::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+void GLayerConvolutional2D::resetWeights(GRand &rand)
 {
-	if(start != 0)
-		throw Ex("Sorry, convolutional layers do not support perturbing weights for a subset of units");
-	size_t kernelSize = m_kernels.cols();
+	double mag = std::max(0.03, 1.0 / outputs());
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-		GVec::perturb(m_kernels[i].data(), deviation, kernelSize, rand);
-	GVec::perturb(bias().data(), deviation, m_kernelCount, rand);
+		m_kernels[i].fillNormal(rand, mag);
+	m_delta.setAll(0.0);
 }
 
-// virtual
+void GLayerConvolutional2D::perturbWeights(GRand &rand, double deviation, size_t start, size_t count)
+{
+	throw Ex("perturbWeights not implemented");
+}
+
 void GLayerConvolutional2D::maxNorm(double min, double max)
 {
-	for(size_t i = 0; i < m_kernels.rows(); i++)
-		m_kernels[i].clip(-max, max);
+	throw Ex("maxNorm not implemented");
 }
 
-// virtual
+void GLayerConvolutional2D::regularizeActivationFunction(double lambda)
+{
+	throw Ex("regularizeActivationFunction not implemented");
+}
+
 void GLayerConvolutional2D::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
 {
-	throw Ex("Sorry, convolutional layers do not support this method");
+	throw Ex("renormalizeInput not implemented");
 }
 
 
