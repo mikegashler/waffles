@@ -811,7 +811,7 @@ public:
 	/// General-purpose constructor.
 	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
 	/// and inputChannels will be 3. The total input size will be 9216 (64*48*3=9216).
-	/// The values should be presented in the following order: c1y1x1 c1y1x2 ... c2y1x1 c2y1x2 ... (i.e. RGB for each pixel in row major order)
+	/// The values should be presented as inputChannels 2d images (i.e. a 64x48x1 image for red, a 64x48 image for blue, and a 64x48 image for green) in row major order.
 	/// kernelCount determines the number of output channels.
 	/// kernelRows, kernelCols, stride, and padding determine the size of the output.
 	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
@@ -851,7 +851,7 @@ public:
 	virtual size_t vectorToWeights(const double *pVector);
 	virtual void copyWeights(const GNeuralNetLayer *pSource);
 	virtual void resetWeights(GRand &rand);
-	virtual void perturbWeights(GRand &rand, double deviation, size_t start, size_t count);
+	virtual void perturbWeights(GRand &rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 	virtual void maxNorm(double min, double max);
 	virtual void regularizeActivationFunction(double lambda);
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);

@@ -1724,6 +1724,7 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 {
 	// a 5x5x3 "image"
+	// each channel should be given in deinterlaced order (i.e. red as 5x5x1, then blue as 5x5x1, then green as 5x5x1)
 	GVec feature(5*5*3);
 	{
 		std::string data = "1 2 0 1 0 0 2 2 2 0 1 1 1 0 0 1 1 1 0 2 1 0 2 0 2 2 1 2 1 0 2 0 1 2 1 2 1 0 1 2 0 2 1 1 0 2 1 1 0 1 1 0 0 0 0 1 0 2 1 1 0 1 2 1 1 0 0 2 2 0 1 2 0 2 1";
@@ -1733,6 +1734,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	}
 	
 	// the correct convolution for the image above given the kernels below
+	// also encoded as the image above
 	GVec label(3*3*2);
 	{
 		std::string data = "8 5 0 4 -7 4 1 4 8 -4 3 2 0 4 0 0 -2 -3";

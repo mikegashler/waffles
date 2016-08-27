@@ -1744,8 +1744,8 @@ GLayerConvolutional2D::GLayerConvolutional2D(const GLayerConvolutional2D &upstre
 : m_inputRows(upstream.outputRows()), m_inputCols(upstream.outputCols()), m_inputChannels(upstream.outputChannels()), m_kernelRows(kernelRows), m_kernelCols(kernelCols), m_kernelCount(kernelCount), m_stride(stride), m_padding(padding), m_outputRows((m_inputRows - kernelRows + 2 * padding) / stride + 1), m_outputCols((m_inputCols - kernelCols + 2 * padding) / stride + 1), m_kernels(kernelCount, m_inputChannels * kernelRows * kernelCols + 1), m_delta(kernelCount, m_inputChannels * kernelRows * kernelCols + 1), m_activation(3, kernelCount * m_outputRows * m_outputCols), m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
 {}
 
-GLayerConvolutional2D::GLayerConvolutional2D(size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL)
-: m_inputRows(FLEXIBLE_SIZE), m_inputCols(FLEXIBLE_SIZE), m_inputChannels(FLEXIBLE_SIZE), m_kernelRows(kernelRows), m_kernelCols(kernelCols), m_kernelCount(kernelCount), m_stride(stride), m_padding(padding), m_outputRows(0), m_outputCols(0), m_kernels(kernelCount, 0), m_delta(kernelCount, 0), m_activation(3, kernelCount * m_outputRows * m_outputCols), m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
+GLayerConvolutional2D::GLayerConvolutional2D(size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride, size_t padding, GActivationFunction *pActivationFunction)
+: m_inputRows(FLEXIBLE_SIZE), m_inputCols(FLEXIBLE_SIZE), m_inputChannels(FLEXIBLE_SIZE), m_kernelRows(kernelRows), m_kernelCols(kernelCols), m_kernelCount(kernelCount), m_stride(stride), m_padding(padding), m_outputRows(0), m_outputCols(0), m_kernels(kernelCount, 0), m_delta(kernelCount, 0), m_activation(3, FLEXIBLE_SIZE), m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
 {}
 
 GLayerConvolutional2D::GLayerConvolutional2D(GDomNode *pNode)
@@ -1795,7 +1795,7 @@ void GLayerConvolutional2D::resize(size_t inputSize, size_t outputSize, GRand *p
 
 void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand *pRand, double deviation)
 {
-	if(pUpStreamLayer->type() != "conv2d")
+	if(strcmp(pUpStreamLayer->type(), "conv2d") != 0)
 		throw Ex("GLayerConvolutional2D can only be resized given an upstream convolutional layer!");
 	
 	GLayerConvolutional2D &upstream = *((GLayerConvolutional2D *) pUpStreamLayer);
@@ -1804,10 +1804,11 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand 
 	m_inputCols		= upstream.outputCols();
 	m_inputChannels	= upstream.outputChannels();
 	m_outputRows	= (m_inputRows - m_kernelRows + 2 * m_padding) / m_stride + 1;
-	m_outputCols	= (m_inputCols - m_kernelCols + 2 * m_padding) / m_stride + 1);
+	m_outputCols	= (m_inputCols - m_kernelCols + 2 * m_padding) / m_stride + 1;
 	
 	m_kernels.resize(m_kernelCount, m_inputChannels * m_kernelRows * m_kernelCols + 1);
 	m_delta.resize(m_kernelCount, m_inputChannels * m_kernelRows * m_kernelCols + 1);
+	m_activation.resize(3, m_kernelCount * m_outputRows * m_outputCols);
 	
 	m_kernels.setAll(0.0);
 	
