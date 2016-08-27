@@ -67,6 +67,12 @@ public:
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03) = 0;
+	
+	/// Resizes the inputs of this layer (as in the above function) given the upstream layer to calculate needed inputs.
+	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03)
+	{
+		resize(pUpStreamLayer->outputs(), outputs(), pRand, deviation);
+	}
 
 	/// Returns a buffer where the activation from the most-recent call to feedForward is stored.
 	virtual GVec& activation() = 0;
@@ -813,6 +819,9 @@ public:
 	/// Constructor that uses the upstream convolutional layer to determine input dimensions
 	GLayerConvolutional2D(const GLayerConvolutional2D &upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
 	
+	/// Constructor that will automatically use the upstream convolutional layer when added to a neural network
+	GLayerConvolutional2D(size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
+	
 	GLayerConvolutional2D(GDomNode *pNode);
 	virtual ~GLayerConvolutional2D();
 	
@@ -822,6 +831,7 @@ public:
 	virtual size_t inputs() { return m_inputRows * m_inputCols * m_inputChannels; }
 	virtual size_t outputs() { return m_outputRows * m_outputCols * m_kernelCount; }
 	virtual void resize(size_t inputs, size_t outputs, GRand *pRand = NULL, double deviation = 0.03);
+	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03);
 	virtual GVec &activation() { return m_activation[1]; }
 	virtual GVec &error() { return m_activation[2]; }
 	

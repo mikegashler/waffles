@@ -265,7 +265,7 @@ void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
 			{
 				if(m_layers[position - 1]->outputs() == FLEXIBLE_SIZE)
 					throw Ex("Two FLEXIBLE_SIZE ends cannot be connected");
-				pLayer->resize(m_layers[position - 1]->outputs(), pLayer->outputs());
+				pLayer->resizeInputs(m_layers[position - 1]);
 			}
 			else if(m_layers[position - 1]->outputs() == FLEXIBLE_SIZE)
 				m_layers[position - 1]->resize(m_layers[position - 1]->inputs(), pLayer->inputs());
