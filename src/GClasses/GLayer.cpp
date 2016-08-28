@@ -2020,7 +2020,7 @@ void GLayerConvolutional2D::copyWeights(const GNeuralNetLayer *pSource)
 
 void GLayerConvolutional2D::resetWeights(GRand &rand)
 {
-	double mag = std::max(0.03, 1.0 / outputs());
+	double mag = std::max(0.03, 1.0 / (m_outputRows * m_outputCols));
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		m_kernels[i].fillNormal(rand, mag);
 	m_delta.setAll(0.0);
