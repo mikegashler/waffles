@@ -67,7 +67,7 @@ public:
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03) = 0;
-	
+
 	/// Resizes the inputs of this layer (as in the above function) given the upstream layer to calculate needed inputs.
 	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03)
 	{
@@ -276,7 +276,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
 	const GMatrix& weights() const { return m_weights; }
-	
+
 	GMatrix& deltas() { return m_delta; }
 
 	/// Returns the bias vector of this layer.
@@ -794,19 +794,19 @@ protected:
 	size_t m_kernelRows;
 	size_t m_kernelCols;
 	size_t m_kernelCount;
-	size_t m_padding;
 	size_t m_stride;
-	
+	size_t m_padding;
+
 	// derived properties
 	size_t m_outputRows;
 	size_t m_outputCols;
-	
+
 	// parameters
 	GMatrix m_kernels; // Bias is per-kernel, so the last column of each kernel is its bias.
 	GMatrix m_delta;
 	GMatrix m_activation; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
 	GActivationFunction *m_pActivationFunction;
-	
+
 public:
 	/// General-purpose constructor.
 	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
@@ -815,16 +815,16 @@ public:
 	/// kernelCount determines the number of output channels.
 	/// kernelRows, kernelCols, stride, and padding determine the size of the output.
 	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
-	
+
 	/// Constructor that uses the upstream convolutional layer to determine input dimensions
 	GLayerConvolutional2D(const GLayerConvolutional2D &upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
-	
+
 	/// Constructor that will automatically use the upstream convolutional layer when added to a neural network
 	GLayerConvolutional2D(size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
-	
+
 	GLayerConvolutional2D(GDomNode *pNode);
 	virtual ~GLayerConvolutional2D();
-	
+
 	virtual const char *type() { return "conv2d"; }
 	virtual GDomNode *serialize(GDom *pDoc);
 	virtual std::string to_str();
@@ -834,7 +834,7 @@ public:
 	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03);
 	virtual GVec &activation() { return m_activation[1]; }
 	virtual GVec &error() { return m_activation[2]; }
-	
+
 	virtual void feedForward(const GVec &in);
 	virtual void dropOut(GRand &rand, double probOfDrop);
 	virtual void dropConnect(GRand &rand, double probOfDrop);
@@ -855,11 +855,11 @@ public:
 	virtual void maxNorm(double min, double max);
 	virtual void regularizeActivationFunction(double lambda);
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
-	
+
 	size_t outputRows() const { return m_outputRows; }
 	size_t outputCols() const { return m_outputCols; }
 	size_t outputChannels() const { return m_kernelCount; }
-	
+
 	GVec &net() { return m_activation[0]; }
 	GMatrix &kernels() { return m_kernels; }
 };
@@ -992,4 +992,3 @@ using GNeuralNetLayer::updateDeltas;
 } // namespace GClasses
 
 #endif // __GLAYER_H__
-
