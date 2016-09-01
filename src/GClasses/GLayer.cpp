@@ -1830,7 +1830,7 @@ void GLayerConvolutional2D::feedForward(const GVec &in)
 			for(size_t i = 0; i < m_outputCols; i++)
 			{
 				size_t index = outChannelOffset + outRowOffset + i;
-				size_t inColOffset = i * m_stride - m_padding;
+				int inColOffset = i * m_stride - m_padding;
 				n[index] = m_kernels[k][m_kernels.cols() - 1];
 				for(size_t z = 0; z < m_inputChannels; z++)
 				{
@@ -1839,10 +1839,10 @@ void GLayerConvolutional2D::feedForward(const GVec &in)
 					for(size_t y = 0; y < m_kernelRows; y++)
 					{
 						size_t kernelRowOffset = y * m_kernelCols;
-						size_t inRow = inRowOffset + y;
+						int inRow = inRowOffset + y;
 						for(size_t x = 0; x < m_kernelCols; x++)
 						{
-							size_t inCol = inColOffset + x;
+							int inCol = inColOffset + x;
 							if(inRow >= 0 && inRow < m_inputRows && inCol >= 0 && inCol < m_inputRows)
 							{
 								size_t idx = inChannelOffset + m_inputCols * inRow + inCol;
@@ -1903,11 +1903,11 @@ void GLayerConvolutional2D::backPropError(GNeuralNetLayer *pUpStreamLayer)
 		for(size_t j = 0; j < m_outputRows; j++)
 		{
 			size_t outRowOffset = j * m_outputCols;
-			size_t inRowOffset = j * m_stride - m_padding;
+			int inRowOffset = j * m_stride - m_padding;
 			for(size_t i = 0; i < m_outputCols; i++)
 			{
 				size_t index = outChannelOffset + outRowOffset + i;
-				size_t inColOffset = i * m_stride - m_padding;
+				int inColOffset = i * m_stride - m_padding;
 				for(size_t z = 0; z < m_inputChannels; z++)
 				{
 					size_t kernelChannelOffset = z * m_kernelRows * m_kernelCols;
@@ -1915,10 +1915,10 @@ void GLayerConvolutional2D::backPropError(GNeuralNetLayer *pUpStreamLayer)
 					for(size_t y = 0; y < m_kernelRows; y++)
 					{
 						size_t kernelRowOffset = y * m_kernelCols;
-						size_t inRow = inRowOffset + y;
+						int inRow = inRowOffset + y;
 						for(size_t x = 0; x < m_kernelCols; x++)
 						{
-							size_t inCol = inColOffset + x;
+							int inCol = inColOffset + x;
 							if(inRow >= 0 && inRow < m_inputRows && inCol >= 0 && inCol < m_inputRows)
 							{
 								size_t idx = inChannelOffset + m_inputCols * inRow + inCol;
@@ -1944,11 +1944,11 @@ void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, double 
 		for(size_t j = 0; j < m_outputRows; j++)
 		{
 			size_t outRowOffset = j * m_outputCols;
-			size_t inRowOffset = j * m_stride - m_padding;
+			int inRowOffset = j * m_stride - m_padding;
 			for(size_t i = 0; i < m_outputCols; i++)
 			{
 				size_t index = outChannelOffset + outRowOffset + i;
-				size_t inColOffset = i * m_stride - m_padding;
+				int inColOffset = i * m_stride - m_padding;
 				m_delta[k][m_delta.cols() - 1] += err[index];
 				for(size_t z = 0; z < m_inputChannels; z++)
 				{
@@ -1957,10 +1957,10 @@ void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, double 
 					for(size_t y = 0; y < m_kernelRows; y++)
 					{
 						size_t kernelRowOffset = y * m_kernelCols;
-						size_t inRow = inRowOffset + y;
+						int inRow = inRowOffset + y;
 						for(size_t x = 0; x < m_kernelCols; x++)
 						{
-							size_t inCol = inColOffset + x;
+							int inCol = inColOffset + x;
 							if(inRow >= 0 && inRow < m_inputRows && inCol >= 0 && inCol < m_inputRows)
 							{
 								size_t idx = inChannelOffset + m_inputCols * inRow + inCol;

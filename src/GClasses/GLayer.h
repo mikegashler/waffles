@@ -856,6 +856,9 @@ public:
 	virtual void regularizeActivationFunction(double lambda);
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
+	size_t kernelRows() const { return m_kernelRows; }
+	size_t kernelCols() const { return m_kernelCols; }
+
 	size_t outputRows() const { return m_outputRows; }
 	size_t outputCols() const { return m_outputCols; }
 	size_t outputChannels() const { return m_kernelCount; }
