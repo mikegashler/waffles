@@ -137,6 +137,13 @@ GVec& GVec::operator+=(const GVec& that)
 	return *this;
 }
 
+GVec& GVec::operator+=(const double scalar)
+{
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] += scalar;
+	return *this;
+}
+
 GVec GVec::operator-(const GVec& that) const
 {
 	GAssert(size() == that.size());
@@ -169,11 +176,31 @@ GVec& GVec::operator*=(double scalar)
 	return *this;
 }
 
+GVec& GVec::operator/=(double scalar)
+{
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] /= scalar;
+	return *this;
+}
+
 void GVec::set(const double* pSource, size_t n)
 {
 	resize(n);
 	for(size_t i = 0; i < n; i++)
 		(*this)[i] = *(pSource++);
+}
+
+double GVec::mean() const
+{
+	double m = 0.0;
+	for(size_t i = 0; i < m_size; i++)
+	{
+		m += (*this)[i];
+	}
+	if ( m_size > 0 ) // make sure there are elements.
+		return m / m_size;
+	else
+		return 0.0;
 }
 
 double GVec::squaredMagnitude() const
@@ -282,6 +309,50 @@ size_t GVec::indexOfMax(size_t startPos, size_t endPos) const
 		}
 	}
 	return maxIndex;
+}
+
+size_t GVec::indexOfMin(size_t startPos, size_t endPos) const
+{
+	endPos = std::min(m_size, endPos);
+	size_t minIndex = startPos;
+	double minValue = 1e300;
+	for(size_t i = startPos; i < endPos; i++)
+	{
+		if((*this)[i] < minValue)
+		{
+			minIndex = i;
+			minValue = (*this)[i];
+		}
+	}
+	return minIndex;
+}
+
+double GVec::max(size_t startPos, size_t endPos) const
+{
+	endPos = std::min(m_size, endPos);
+	double maxValue = -1e300;
+	for(size_t i = startPos; i < endPos; i++)
+	{
+		if((*this)[i] > maxValue)
+		{
+			maxValue = (*this)[i];
+		}
+	}
+	return maxValue;
+}
+
+double GVec::min(size_t startPos, size_t endPos) const
+{
+	endPos = std::min(m_size, endPos);
+	double minValue = 1e300;
+	for(size_t i = startPos; i < endPos; i++)
+	{
+		if((*this)[i] < minValue)
+		{
+			minValue = (*this)[i];
+		}
+	}
+	return minValue;
 }
 
 GDomNode* GVec::serialize(GDom* pDoc) const
@@ -598,7 +669,33 @@ void GVec::test()
 		throw Ex("failed");
 	if(v1[1] != 0.0)
 		throw Ex("failed");
-	
+
+	// Test some other methods:
+	GVec v4(10);
+	GVec v5(10);
+	for(size_t i = 0; i < 10; i++ )
+	{
+		v4[i] = i;
+		v5[i] = 20 - i;
+	}
+	double max = v4.max();
+	if ( max != 9 )
+		throw Ex("failed");
+	max = v5.max();
+	if ( max != 20 )
+		throw Ex("failed");
+	v4 += 2;
+	if ( v4[0] != 2 || v4[1] != 3 || v4[2] != 4 )
+		throw Ex("failed");
+	double mean = v4.mean();
+	if ( mean != 6.5 )
+		throw Ex("failed");
+	GVec v6(2);
+	v6[0] = 10;
+	v6[1] = 10;
+	v6 /= 2;
+	if ( v6[0] != 5 || v6[1] != 5 )
+		throw Ex("failed");
 }
 #endif // MIN_PREDICT
 
@@ -1001,4 +1098,3 @@ void GCoordVectorIterator::test()
 
 
 } // namespace GClasses
-

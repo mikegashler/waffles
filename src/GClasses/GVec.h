@@ -98,6 +98,9 @@ public:
 	/// Adds another vector to this one.
 	GVec& operator+=(const GVec& that);
 
+	/// Adds a scalar to each element in this vector.
+	GVec& operator+=(const double scalar);
+
 	/// Subtracts a vector from this one to make a new one.
 	GVec operator-(const GVec& that) const;
 
@@ -110,8 +113,17 @@ public:
 	/// Scales this vector.
 	GVec& operator*=(double scalar);
 
+	/// Scales this vector.
+	GVec& operator/=(double scalar);
+
 	/// Sets the data in this vector.
 	void set(const double* pSource, size_t size);
+
+// standard deviation
+// add divide method, plus for scalars,
+
+	/// Returns the mean of all of the elements in this vector.
+	double mean() const;
 
 	/// Returns the squared Euclidean magnitude of this vector.
 	double squaredMagnitude() const;
@@ -152,6 +164,23 @@ public:
 	/// The returned value will be >= startPos.
 	/// The returned value will be < endPos.
 	size_t indexOfMax(size_t startPos = 0, size_t endPos = (size_t)-1) const;
+
+	/// Returns the index of the min element.
+	/// The returned value with be >= startPos.
+	/// the returned value will be < endPos.
+	size_t indexOfMin(size_t startPos = 0, size_t endPos = (size_t)-1) const;
+
+	/// Returns the max element.
+	/// If you want the location, call indexOfMax
+	/// The returned value with be >= startPos.
+	/// the returned value will be < endPos.
+	double max(size_t startPos = 0, size_t endPos = (size_t)-1) const;
+
+	/// Returns the min element.
+	/// If you want the location, call indexOfMin
+	/// The returned value with be >= startPos.
+	/// the returned value will be < endPos.
+	double min(size_t startPos = 0, size_t endPos = (size_t)-1) const;
 
 	/// Marshals this vector into a DOM node.
 	GDomNode* serialize(GDom* pDoc) const;
@@ -222,20 +251,20 @@ private:
 	GVec(double d);
 
 public:
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
@@ -475,4 +504,3 @@ public:
 } // namespace GClasses
 
 #endif // __GVEC_H__
-
