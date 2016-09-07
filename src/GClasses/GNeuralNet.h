@@ -101,6 +101,7 @@ public:
 
 	/// Multiplies all weights in the network by the specified factor. This can be used
 	/// to implement L2 regularization, which prevents weight saturation.
+	/// The factor for L2 regularization should be less than 1.0, but most likely somewhat close to 1.
 	void scaleWeights(double factor, bool scaleBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
 
 	/// Diminishes all weights in the network by the specified amount. This can be used
@@ -392,7 +393,7 @@ public:
 		m_nn.weights(pVector.data());
 	}
 
-	/// Copies the vector into the neural network and measures sum-squared error. 
+	/// Copies the vector into the neural network and measures sum-squared error.
 	virtual double computeError(const GVec& pVector)
 	{
 		m_nn.setWeights(pVector.data());
@@ -520,4 +521,3 @@ public:
 } // namespace GClasses
 
 #endif // __GNEURALNET_H__
-
