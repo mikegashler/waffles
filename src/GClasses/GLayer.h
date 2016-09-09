@@ -802,7 +802,8 @@ protected:
 	size_t m_outputCols;
 
 	// parameters
-	GMatrix m_kernels; // Bias is per-kernel, so the last column of each kernel is its bias.
+	GVec m_bias, m_biasDelta;
+	GMatrix m_kernels;
 	GMatrix m_delta;
 	GMatrix m_activation; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
 	GActivationFunction *m_pActivationFunction;
@@ -865,6 +866,7 @@ public:
 
 	GVec &net() { return m_activation[0]; }
 	GMatrix &kernels() { return m_kernels; }
+	GVec &bias() { return m_bias; }
 };
 
 

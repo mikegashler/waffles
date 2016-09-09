@@ -1754,6 +1754,8 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 			ss1 >> layer.kernels()[0][i];
 			ss2 >> layer.kernels()[1][i];
 		}
+		ss1 >> layer.bias()[0];
+		ss2 >> layer.bias()[1];
 	}
 	
 	// test forward propagation
@@ -1799,8 +1801,11 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	zeroVec.fill(0.0);
 	
 	for(size_t c = 0; c < layer.kernels().rows(); c++)
+	{
+		layer.bias()[c] += prng.normal();
 		for(size_t i = 0; i < layer.kernels().cols(); i++)
 			layer.kernels()[c][i] += prng.normal();
+	}
 	
 	for(size_t i = 0; i < 100; i++)
 	{
