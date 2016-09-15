@@ -355,17 +355,23 @@ public:
 
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
-
+	
+	/// Convenience method for adding a basic layer
+	void addLayer(size_t outputSize)
+	{
+		addLayer(new GLayerClassic(FLEXIBLE_SIZE, outputSize));
+	}
+	
 	/// Convenience method for adding multiple layers (base case)
 	template <typename T>
-	void addLayers(T *layer)
+	void addLayers(T layer)
 	{
 		addLayer(layer);
 	}
 	
 	/// Convenience method for adding multiple layers
 	template <typename T, typename ... Ts>
-	void addLayers(T *layer, Ts... layers)
+	void addLayers(T layer, Ts... layers)
 	{
 		addLayers(layer);
 		addLayers(layers...);
