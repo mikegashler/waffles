@@ -356,6 +356,93 @@ public:
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
 
+	/// Convenience method for adding multiple layers (base case)
+	template <typename T>
+	void addLayers(T *layer)
+	{
+		addLayer(layer);
+	}
+	
+	/// Convenience method for adding multiple layers
+	template <typename T, typename ... Ts>
+	void addLayers(T *layer, Ts... layers)
+	{
+		addLayers(layer);
+		addLayers(layers...);
+	}
+	
+	/// Convenience method for forward propagating across multiple networks (base case)
+	static void forwardProp(const GVec &inputs, GNeuralNet &nn)
+	{
+		nn.forwardProp(inputs);
+	}
+	
+	/// Convenience method for forward propagating across multiple networks
+	template <typename ... Ts>
+	static void forwardProp(const GVec &inputs, GNeuralNet &nn, Ts &... nns)
+	{
+		nn.forwardProp(inputs);
+		forwardProp(nn.outputLayer().activation(), nns...);
+	}
+	
+	/// Convenience method for backpropagating across multiple networks (base case 1)
+	static void backpropagate(const GVec &target, GNeuralNet &nn)
+	{
+		nn.backpropagate(target);
+	}
+	
+	/// Convenience method for backpropagating across multiple networks (base case 2)
+	static void backpropagate(GNeuralNet &a, GNeuralNet &b)
+	{
+		b.backpropagateFromLayer(&a.layer(0));
+	}
+	
+	/// Convenience method for backpropagating across multiple networks
+	template <typename ... Ts>
+	static void backpropagate(const GVec &target, GNeuralNet &nn, Ts &... nns)
+	{
+		backpropagate(target, nn);
+		backpropagate(nn, nns...);
+	}
+	
+	/// Convenience method for backpropagating across multiple networks (base case; reversed order of inputs)
+	static void backpropagateR(const GVec &target, GNeuralNet &nn)
+	{
+		nn.backpropagate(target);
+	}
+	
+	/// Convenience method for backpropagating across multiple networks (reversed order of inputs)
+	template <typename ... Ts>
+	static void backpropagateR(const GVec &target, GNeuralNet &a, GNeuralNet &b, Ts &... nns)
+	{
+		backpropagateR(target, b, nns...);
+		a.backpropagateFromLayer(&b.layer(0));
+	}
+	
+	/// Convenience method for descending the gradient across multiple networks (base case)
+	template <typename T>
+	static void descendGradient(const GVec &inputs, T &nn)
+	{
+		nn.descendGradient(inputs, nn.learningRate(), nn.momentum());
+	}
+	
+	/// Convenience method for descending the gradient across multiple networks
+	template <typename T, typename ... Ts>
+	static void descendGradient(const GVec &inputs, T &nn, Ts &... nns)
+	{
+		nn.descendGradient(inputs, nn.learningRate(), nn.momentum());
+		descendGradient(nn.outputLayer().activation(), nns...);
+	}
+	
+	/// Convenience method for incremental training across multiple networks
+	template <typename ... Ts>
+	static void trainIncremental(const GVec &inputs, const GVec &target, Ts &... nns)
+	{
+		forwardProp(inputs, nns...);
+		backpropagateR(target, nns...);
+		descendGradient(inputs, nns...);
+	}
+
 protected:
 	/// Measures the sum squared error against the specified dataset
 	double validationSquaredError(const GMatrix& features, const GMatrix& labels);
