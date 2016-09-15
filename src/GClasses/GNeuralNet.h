@@ -362,6 +362,22 @@ public:
 		descendGradient(inputs, m_learningRate, m_momentum);
 	}
 	
+	/// Convenience method for incremental learning with input training
+	void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder, double inputLearningRate)
+	{
+		forwardProp(inputs);
+		backpropagate(target);
+		gradientOfInputs(gradientHolder);
+		descendGradient(inputs);
+		inputs.addScaled(-inputLearningRate, gradientHolder);
+	}
+	
+	/// Convenience method for incremental learning and train the inputs as well
+	inline void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder)
+	{
+		trainIncrementalUpdateInputs(inputs, target, gradientHolder, m_learningRate);
+	}
+	
 	/// Convenience method for adding a basic layer
 	void addLayer(size_t outputSize)
 	{
