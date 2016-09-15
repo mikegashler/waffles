@@ -356,6 +356,12 @@ public:
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
 	
+	/// Convenience method for descending the gradient without specifying a learning rate or momentum
+	inline void descendGradient(const GVec &inputs)
+	{
+		descendGradient(inputs, m_learningRate, m_momentum);
+	}
+	
 	/// Convenience method for adding a basic layer
 	void addLayer(size_t outputSize)
 	{
@@ -429,14 +435,14 @@ public:
 	template <typename T>
 	static void descendGradient(const GVec &inputs, T &nn)
 	{
-		nn.descendGradient(inputs, nn.learningRate(), nn.momentum());
+		nn.descendGradient(inputs);
 	}
 	
 	/// Convenience method for descending the gradient across multiple networks
 	template <typename T, typename ... Ts>
 	static void descendGradient(const GVec &inputs, T &nn, Ts &... nns)
 	{
-		nn.descendGradient(inputs, nn.learningRate(), nn.momentum());
+		nn.descendGradient(inputs);
 		descendGradient(nn.outputLayer().activation(), nns...);
 	}
 	
