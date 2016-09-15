@@ -1252,6 +1252,25 @@ void GMatrix::loadRaw(const char* szFilename)
 	fin.close();
 }
 
+void GMatrix::load(const char* szFilename)
+{
+	char *extPos = strrchr(szFilename, '.');
+	if(extPos)
+	{
+		string ext(extPos+1);
+		for(size_t i = 0; i < ext.size(); ++i)
+			ext[i] = tolower(ext[i]);
+		if(ext == "arff")
+			loadArff(szFilename);
+		else if(ext == "raw")
+			loadRaw(szFilename);
+		else
+			throw Ex("File type could not be determined.");
+	}
+	else
+		throw Ex("File type could not be determined.");
+}
+
 void GMatrix::saveArff(const char* szFilename)
 {
 	m_pRelation->save(this, szFilename, 14);

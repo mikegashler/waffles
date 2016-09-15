@@ -625,6 +625,9 @@ public:
 	
 	/// \brief Loads a raw (binary) file and replaces the contents of this matrix with it.
 	void loadRaw(const char* szFilename);
+	
+	/// \brief Loads a file and automatically detects ARFF or raw (binary)
+	void load(const char* szFilename);
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
 	void parseArff(const char* szFile, size_t nLen);
