@@ -1853,6 +1853,25 @@ void GNeuralNet_testFourier()
 	}
 }
 
+void GNeuralNet_testConvenience()
+{
+	// this method will not throw any exceptions; if it compiles, it works
+	
+	GUniformRelation rel(1);
+	GVec vec(1);
+	vec[0] = 0.5;
+	
+	GNeuralNet encoder;
+	encoder.addLayers(200, 100, new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationSin()), FLEXIBLE_SIZE);
+	encoder.beginIncrementalLearning(rel, rel);
+	
+	GNeuralNet decoder;
+	decoder.addLayers(100, 200, FLEXIBLE_SIZE);
+	decoder.beginIncrementalLearning(rel, rel);
+	
+	GNeuralNet::trainIncremental(vec, vec, encoder, decoder);
+}
+
 // static
 void GNeuralNet::test()
 {
@@ -1868,6 +1887,7 @@ void GNeuralNet::test()
 	GNeuralNet_testConvolutionalLayerMath();
 	GNeuralNet_testConvolutionalLayer2D(prng);
 	GNeuralNet_testFourier();
+	GNeuralNet_testConvenience();
 
 	// Test with no hidden layers (logistic regression)
 	{
