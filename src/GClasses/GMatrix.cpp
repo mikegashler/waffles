@@ -1254,7 +1254,7 @@ void GMatrix::loadRaw(const char* szFilename)
 
 void GMatrix::load(const char* szFilename)
 {
-	char *extPos = strrchr(szFilename, '.');
+	const char *extPos = strrchr(szFilename, '.');
 	if(extPos)
 	{
 		string ext(extPos+1);
