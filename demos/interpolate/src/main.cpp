@@ -225,8 +225,8 @@ public:
 		}
 
 		// Predict labels
-		GMatrix* pLabels = pModel->transduce(*m_pTrainingFeatures, *m_pTrainingLabels, dataUnlabeled);
-		Holder<GMatrix> hLabels(pLabels);
+		std::unique_ptr<GClasses::GMatrix> hLabels = pModel->transduce(*m_pTrainingFeatures, *m_pTrainingLabels, dataUnlabeled);
+		GMatrix* pLabels = hLabels.get();
 
 		// Copy the labels into the big image
 		cvi.reset();
@@ -460,9 +460,9 @@ public:
 			{
 				m_pCvi->currentNormalized(m_in.data());
 				m_pNNCopyForVisualizing->predict(m_in, m_out);
-				int r = ClipChan((int)(m_out[2] * 255.0));
-				int g = ClipChan((int)(m_out[3] * 255.0));
-				int b = ClipChan((int)(m_out[4] * 255.0));
+				int r = ClipChan((int)(m_out[0] * 255.0));
+				int g = ClipChan((int)(m_out[1] * 255.0));
+				int b = ClipChan((int)(m_out[2] * 255.0));
 				*pPix = gARGB(0xff, r, g, b);
 				if(!m_pCvi->advance())
 					break;
@@ -484,9 +484,9 @@ public:
 				{
 					m_pCvi->currentNormalized(m_in.data());
 					m_pTrainedModel->predict(m_in, m_out);
-					int r = ClipChan((int)(m_out[2] * 255.0));
-					int g = ClipChan((int)(m_out[3] * 255.0));
-					int b = ClipChan((int)(m_out[4] * 255.0));
+					int r = ClipChan((int)(m_out[0] * 255.0));
+					int g = ClipChan((int)(m_out[1] * 255.0));
+					int b = ClipChan((int)(m_out[2] * 255.0));
 					m_pImageBig->setPixel(m_pCvi->current()[0], m_pCvi->current()[1], gARGB(0xff, r, g, b));
 					if(!m_pCvi->advance())
 					{
