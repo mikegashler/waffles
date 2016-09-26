@@ -1754,6 +1754,8 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 			ss1 >> layer.kernels()[0][i];
 			ss2 >> layer.kernels()[1][i];
 		}
+		ss1 >> layer.bias()[0];
+		ss2 >> layer.bias()[1];
 	}
 	
 	// test forward propagation
@@ -1799,8 +1801,11 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	zeroVec.fill(0.0);
 	
 	for(size_t c = 0; c < layer.kernels().rows(); c++)
+	{
+		layer.bias()[c] += prng.normal();
 		for(size_t i = 0; i < layer.kernels().cols(); i++)
 			layer.kernels()[c][i] += prng.normal();
+	}
 	
 	for(size_t i = 0; i < 100; i++)
 	{
@@ -1848,6 +1853,25 @@ void GNeuralNet_testFourier()
 	}
 }
 
+void GNeuralNet_testConvenience()
+{
+	// this method will not throw any exceptions; if it compiles, it works
+	
+	GUniformRelation rel(1);
+	GVec vec(1);
+	vec[0] = 0.5;
+	
+	GNeuralNet encoder;
+	encoder.addLayers(200, 100, new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationSin()), FLEXIBLE_SIZE);
+	encoder.beginIncrementalLearning(rel, rel);
+	
+	GNeuralNet decoder;
+	decoder.addLayers(100, 200, FLEXIBLE_SIZE);
+	decoder.beginIncrementalLearning(rel, rel);
+	
+	GNeuralNet::trainIncremental(vec, vec, encoder, decoder);
+}
+
 // static
 void GNeuralNet::test()
 {
@@ -1863,6 +1887,7 @@ void GNeuralNet::test()
 	GNeuralNet_testConvolutionalLayerMath();
 	GNeuralNet_testConvolutionalLayer2D(prng);
 	GNeuralNet_testFourier();
+	GNeuralNet_testConvenience();
 
 	// Test with no hidden layers (logistic regression)
 	{

@@ -48,6 +48,20 @@ public:
 	/// Load from a text-format
 	GNeuralNet(const GDomNode* pNode);
 
+	/// Construct a neural network with initial layers
+	template <typename ... Ts>
+	GNeuralNet(GNeuralNetLayer *l, Ts... layers)
+	{
+		addLayers(l, layers...);
+	}
+	
+	/// Construct a neural network with initial layers
+	template <typename ... Ts>
+	GNeuralNet(size_t l, Ts... layers)
+	{
+		addLayers(l, layers...);
+	}
+
 	virtual ~GNeuralNet();
 
 #ifndef MIN_PREDICT
@@ -101,6 +115,7 @@ public:
 
 	/// Multiplies all weights in the network by the specified factor. This can be used
 	/// to implement L2 regularization, which prevents weight saturation.
+	/// The factor for L2 regularization should be less than 1.0, but most likely somewhat close to 1.
 	void scaleWeights(double factor, bool scaleBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
 
 	/// Diminishes all weights in the network by the specified amount. This can be used
@@ -354,6 +369,121 @@ public:
 
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
+	
+	/// Convenience method for descending the gradient without specifying a learning rate or momentum
+	inline void descendGradient(const GVec &inputs)
+	{
+		descendGradient(inputs, m_learningRate, m_momentum);
+	}
+	
+	/// Convenience method for incremental learning with input training
+	void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder, double inputLearningRate)
+	{
+		forwardProp(inputs);
+		backpropagate(target);
+		gradientOfInputs(gradientHolder);
+		descendGradient(inputs);
+		inputs.addScaled(-inputLearningRate, gradientHolder);
+	}
+	
+	/// Convenience method for incremental learning and train the inputs as well
+	inline void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder)
+	{
+		trainIncrementalUpdateInputs(inputs, target, gradientHolder, m_learningRate);
+	}
+	
+	/// Convenience method for adding a basic layer
+	void addLayer(size_t outputSize)
+	{
+		addLayer(new GLayerClassic(FLEXIBLE_SIZE, outputSize));
+	}
+	
+	/// Convenience method for adding multiple layers (base case)
+	template <typename T>
+	void addLayers(T layer)
+	{
+		addLayer(layer);
+	}
+	
+	/// Convenience method for adding multiple layers
+	template <typename T, typename ... Ts>
+	void addLayers(T layer, Ts... layers)
+	{
+		addLayers(layer);
+		addLayers(layers...);
+	}
+	
+	/// Convenience method for forward propagating across multiple networks (base case)
+	static void forwardProp(const GVec &inputs, GNeuralNet &nn)
+	{
+		nn.forwardProp(inputs);
+	}
+	
+	/// Convenience method for forward propagating across multiple networks
+	template <typename ... Ts>
+	static void forwardProp(const GVec &inputs, GNeuralNet &nn, Ts &... nns)
+	{
+		nn.forwardProp(inputs);
+		forwardProp(nn.outputLayer().activation(), nns...);
+	}
+	
+	/// Convenience method for backpropagating across multiple networks (base case 1)
+	static void backpropagate(const GVec &target, GNeuralNet &nn)
+	{
+		nn.backpropagate(target);
+	}
+	
+	/// Convenience method for backpropagating across multiple networks (base case 2)
+	static void backpropagate(GNeuralNet &a, GNeuralNet &b)
+	{
+		b.backpropagateFromLayer(&a.layer(0));
+	}
+	
+	/// Convenience method for backpropagating across multiple networks
+	template <typename ... Ts>
+	static void backpropagate(const GVec &target, GNeuralNet &nn, Ts &... nns)
+	{
+		backpropagate(target, nn);
+		backpropagate(nn, nns...);
+	}
+	
+	/// Convenience method for backpropagating across multiple networks (base case; reversed order of inputs)
+	static void backpropagateR(const GVec &target, GNeuralNet &nn)
+	{
+		nn.backpropagate(target);
+	}
+	
+	/// Convenience method for backpropagating across multiple networks (reversed order of inputs)
+	template <typename ... Ts>
+	static void backpropagateR(const GVec &target, GNeuralNet &a, GNeuralNet &b, Ts &... nns)
+	{
+		backpropagateR(target, b, nns...);
+		a.backpropagateFromLayer(&b.layer(0));
+	}
+	
+	/// Convenience method for descending the gradient across multiple networks (base case)
+	template <typename T>
+	static void descendGradient(const GVec &inputs, T &nn)
+	{
+		nn.descendGradient(inputs);
+	}
+	
+	/// Convenience method for descending the gradient across multiple networks
+	template <typename T, typename ... Ts>
+	static void descendGradient(const GVec &inputs, T &nn, Ts &... nns)
+	{
+		nn.descendGradient(inputs);
+		descendGradient(nn.outputLayer().activation(), nns...);
+	}
+	
+	/// Convenience method for incremental training across multiple networks
+	template <typename ... Ts>
+	static void trainIncremental(const GVec &inputs, const GVec &target, Ts &... nns)
+	{
+		forwardProp(inputs, nns...);
+		backpropagateR(target, nns...);
+		descendGradient(inputs, nns...);
+	}
 
 protected:
 	/// Measures the sum squared error against the specified dataset
@@ -392,7 +522,7 @@ public:
 		m_nn.weights(pVector.data());
 	}
 
-	/// Copies the vector into the neural network and measures sum-squared error. 
+	/// Copies the vector into the neural network and measures sum-squared error.
 	virtual double computeError(const GVec& pVector)
 	{
 		m_nn.setWeights(pVector.data());
@@ -520,4 +650,3 @@ public:
 } // namespace GClasses
 
 #endif // __GNEURALNET_H__
-
