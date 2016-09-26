@@ -3545,19 +3545,21 @@ double GMatrix::sumSquaredDistance(const GVec& point) const
 	return err;
 }
 
-double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column) const
+double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column, double* pOutSAE) const
 {
 	if(that.rows() != rows())
 		throw Ex("Mismatching number of rows");
 	if(column >= cols() || column >= that.cols())
 		throw Ex("column index out of range");
 	double sse = 0.0;
+	double sae = 0.0;
 	if(relation().valueCount(column) == 0)
 	{
 		for(size_t i = 0; i < rows(); i++)
 		{
 			double d = row(i)[column] - that.row(i)[column];
 			sse += (d * d);
+			sae += std::abs(d);
 		}
 	}
 	else
@@ -3565,9 +3567,14 @@ double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column) c
 		for(size_t i = 0; i < rows(); i++)
 		{
 			if((int)row(i)[column] != (int)that.row(i)[column])
+			{
 				sse++;
+				sae++;
+			}
 		}
 	}
+	if(pOutSAE)
+		*pOutSAE = sae;
 	return sse;
 }
 

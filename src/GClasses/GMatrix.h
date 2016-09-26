@@ -1077,7 +1077,8 @@ public:
 	/// \brief Computes the sum-squared distance between the specified
 	/// column of this and that. If the column is a nominal attribute,
 	/// then Hamming distance is used.
-	double columnSumSquaredDifference(const GMatrix& that, size_t col) const;
+	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
+	double columnSumSquaredDifference(const GMatrix& that, size_t col, double* pOutSAE = NULL) const;
 
 	/// \brief Computes the squared distance between this and that.
 	///
