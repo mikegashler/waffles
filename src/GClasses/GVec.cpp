@@ -277,14 +277,21 @@ void GVec::fillSimplex(GRand& rand)
 	(*this) *= (1.0 / sum());
 }
 
-void GVec::print(std::ostream& stream) const
+void GVec::print(std::ostream& stream, char separator) const
 {
-	stream << "[";
+	std::streamsize oldPrecision = stream.precision(14);
 	if(m_size > 0)
-		stream << to_str((*this)[0]);
+		stream << (*this)[0];
 	for(size_t i = 1; i < m_size; i++)
-		stream << "," << to_str((*this)[i]);
-	stream << "]";
+		stream << separator << (*this)[i];
+	stream.precision(oldPrecision);
+}
+
+std::string GVec::to_str(char separator) const
+{
+	std::ostringstream ss;
+	print(ss, separator);
+	return ss.str();
 }
 
 double GVec::sum() const
@@ -701,14 +708,7 @@ void GVec::test()
 
 std::string to_str(const GVec& v)
 {
-	std::ostringstream os;
-	os << "[";
-	if(v.size() > 0)
-		os << to_str(v[0]);
-	for(size_t i = 1; i < v.size(); i++)
-		os << "," << to_str(v[i]);
-	os << "]";
-	return os.str();
+	return v.to_str();
 }
 
 

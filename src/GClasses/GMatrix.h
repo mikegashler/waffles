@@ -106,9 +106,8 @@ public:
 	/// \brief Swaps two attributes
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2) = 0;
 
-	/// \brief Prints as an ARFF file to the specified stream. (pData
-	/// can be NULL if data is not available)
-	void print(std::ostream& stream, const GMatrix* pData, size_t precision) const;
+	/// \brief Prints this relation in ARFF format to the specified stream
+	void print(std::ostream& stream) const;
 
 	/// \brief Prints the specified attribute name to a stream
 	virtual void printAttrName(std::ostream& stream, size_t column) const;
@@ -130,13 +129,13 @@ public:
 	virtual bool isCompatible(const GRelation& that) const;
 
 	/// \brief Print a single row of data in ARFF format
-	void printRow(std::ostream& stream, const double* pRow, const char* separator, const char* missing = "?") const;
+	void printRow(std::ostream& stream, const double* pRow, char separator = ',', const char* missing = "?") const;
 
 	/// \brief Load from a DOM.
 	static GRelation* deserialize(const GDomNode* pNode);
 
 	/// \brief Saves to a file
-	void save(const GMatrix* pData, const char* szFilename, size_t precision) const;
+	void save(const GMatrix* pData, const char* szFilename) const;
 
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception
@@ -536,10 +535,10 @@ public:
 
 	/// \brief Matrix add
 	///
-	/// Adds the values in pThat to this. (If transpose is true, adds
-	/// the transpose of pThat to this.) Both datasets must have the
+	/// Adds scalar * pThat to this. (If transpose is true, adds
+	/// scalar * the transpose of pThat to this.) Both datasets must have the
 	/// same dimensions. Behavior is undefined for nominal columns.
-	void add(const GMatrix* pThat, bool transpose = false);
+	void add(const GMatrix* pThat, bool transpose = false, double scalar = 1.0);
 
 	/// \brief Copies the specified range of columns (including meta-data) from that matrix into this matrix,
 	/// replacing all data currently in this matrix.
@@ -1123,8 +1122,8 @@ public:
 	/// be equal.
 	void wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance, int* pNum, double* pWMinus, double* pWPlus) const;
 
-	/// \brief Prints the data to the specified stream
-	void print(std::ostream& stream) const;
+	/// \brief Prints this matrix in ARFF format to the specified stream
+	void print(std::ostream& stream = std::cout, char separator = ',') const;
 
 	/// \brief Returns the number of ocurrences of the specified value
 	/// in the specified attribute

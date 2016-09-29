@@ -1993,12 +1993,13 @@ void GLayerConvolutional2D::applyAdaptive()
 
 void GLayerConvolutional2D::scaleWeights(double factor, bool scaleBiases)
 {
-	throw Ex("scaleWeights not implemented");
+	m_kernels.multiply(factor);
 }
 
 void GLayerConvolutional2D::diminishWeights(double amount, bool regularizeBiases)
 {
-	throw Ex("diminishWeights not implemented");
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+		m_kernels[i].regularize_L1(amount);
 }
 
 size_t GLayerConvolutional2D::countWeights()

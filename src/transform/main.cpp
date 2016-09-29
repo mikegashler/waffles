@@ -711,16 +711,16 @@ void Export(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 
 	// Parse options
-	const char* separator = ",";
+	char separator = ',';
 	const char* missing = "?";
 	bool colnames = false;
 	int precision = 14;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-tab"))
-			separator = "	";
+			separator = '\t';
 		else if(args.if_pop("-space"))
-			separator = " ";
+			separator = ' ';
 		else if(args.if_pop("-r"))
 			missing = "NA";
 		else if(args.if_pop("-columnnames"))

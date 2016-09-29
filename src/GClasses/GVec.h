@@ -155,7 +155,10 @@ public:
 	void fillSimplex(GRand& rand);
 
 	/// Prints a representation of this vector to the specified stream.
-	void print(std::ostream& stream = std::cout) const;
+	void print(std::ostream& stream = std::cout, char separator = ',') const;
+
+	/// Returns a string representation of this vector
+	std::string to_str(char separator = ',') const;
 
 	/// Returns the sum of the elements in this vector
 	double sum() const;
