@@ -71,7 +71,7 @@ public:
 	virtual ~GLayerClassicCuda();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "cuda"; }
+	virtual const char* type() { return "classiccuda"; }
 
 	/// Converts to a classic layer and serializes.
 	/// (The serialized form will not remember that it was trained with CUDA,
@@ -79,11 +79,13 @@ public:
 	/// on a GPU, you will need to call "upload" to get back to a GLayerClassicCuda.)
 	GDomNode* serialize(GDom* pDoc);
 
+	virtual std::string to_str();
+
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() { return m_weights.rows(); }
+	virtual size_t inputs() const { return m_weights.rows(); }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() { return m_weights.cols(); }
+	virtual size_t outputs() const { return m_weights.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it throws an exception.
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
@@ -208,6 +210,104 @@ protected:
 
 	void activate();
 
+};
+
+
+class GLayerConvolutional2DCuda : public GCudaLayer
+{
+protected:
+	// primary properties
+	size_t m_inputRows;
+	size_t m_inputCols;
+	size_t m_inputChannels;
+	size_t m_kernelRows;
+	size_t m_kernelCols;
+	size_t m_kernelCount;
+	size_t m_stride;
+	size_t m_padding;
+
+	// derived properties
+	size_t m_outputRows;
+	size_t m_outputCols;
+
+	// parameters
+	GCudaVector m_incoming;
+	GCudaVector m_bias, m_biasDelta;
+	GCudaMatrix m_kernels;
+	GCudaMatrix m_delta;
+	GCudaVector m_net;
+	GCudaVector m_activation;
+	GCudaVector m_error;
+	GVec m_outgoing;
+
+public:
+	/// General-purpose constructor.
+	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
+	/// and inputChannels will be 3. The total input size will be 9216 (64*48*3=9216).
+	/// The values should be presented as inputChannels 2d images (i.e. a 64x48x1 image for red, a 64x48 image for blue, and a 64x48 image for green) in row major order.
+	/// kernelCount determines the number of output channels.
+	/// kernelRows, kernelCols, stride, and padding determine the size of the output.
+	GLayerConvolutional2DCuda(GCudaEngine& engine, size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0);
+
+	/// Constructor that uses the upstream convolutional layer to determine input dimensions
+	GLayerConvolutional2DCuda(GCudaEngine& engine, const GLayerConvolutional2DCuda& upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0);
+
+	GLayerConvolutional2DCuda(GDomNode* pNode, GCudaEngine& engine);
+	virtual ~GLayerConvolutional2DCuda();
+
+	virtual const char *type() { return "conv2dcuda"; }
+	virtual GDomNode *serialize(GDom *pDoc);
+	virtual std::string to_str();
+	virtual size_t inputs() const { return m_inputRows * m_inputCols * m_inputChannels; }
+	virtual size_t outputs() const { return m_outputRows * m_outputCols * m_kernelCount; }
+	virtual void resize(size_t inputs, size_t outputs, GRand *pRand = NULL, double deviation = 0.03);
+	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03);
+
+	/// Uploads pIn to the GPU, then feeds it through this layer
+	virtual void feedForward(const GVec &in);
+
+	/// Feeds the activation from the upstream layer through this layer.
+	/// (If the upstream layer is a GPU-optimized layer, then it will be faster because
+	/// the data can stay on the GPU.)
+	virtual void feedForward(GNeuralNetLayer* pUpStreamLayer);
+
+	virtual void dropOut(GRand &rand, double probOfDrop);
+	virtual void dropConnect(GRand &rand, double probOfDrop);
+	virtual void computeError(const GVec &target);
+	virtual void deactivateError();
+	virtual void backPropError(GNeuralNetLayer *pUpStreamLayer);
+	virtual void updateDeltas(const GVec &upStreamActivation, double momentum);
+	virtual void updateDeltas(GNeuralNetLayer* pUpStreamLayer, double momentum);
+	virtual void applyDeltas(double learningRate);
+	virtual void applyAdaptive();
+	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual size_t countWeights();
+	virtual size_t weightsToVector(double *pOutVector);
+	virtual size_t vectorToWeights(const double *pVector);
+	virtual void copyWeights(const GNeuralNetLayer *pSource);
+	virtual void resetWeights(GRand &rand);
+	virtual void perturbWeights(GRand &rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+	virtual void maxNorm(double min, double max);
+	virtual void regularizeActivationFunction(double lambda);
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
+	virtual GVec& activation();
+	virtual GVec& error();
+	virtual GCudaVector& deviceActivation() { return m_activation; }
+	virtual GCudaVector& deviceError() { return m_error; }
+
+	/// Copies the kernels and biases from a GLayerConvolutional2D layer into this layer.
+	void upload(const GLayerConvolutional2D& source);
+
+	/// Copies the weights and bias vector from this layer into a GLayerConvolutional2D layer.
+	void download(GLayerConvolutional2D& dest) const;
+
+	size_t kernelRows() const { return m_kernelRows; }
+	size_t kernelCols() const { return m_kernelCols; }
+
+	size_t outputRows() const { return m_outputRows; }
+	size_t outputCols() const { return m_outputCols; }
+	size_t outputChannels() const { return m_kernelCount; }
 };
 
 } // namespace GClasses

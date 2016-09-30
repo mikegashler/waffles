@@ -59,10 +59,10 @@ public:
 	virtual std::string to_str() = 0;
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() = 0;
+	virtual size_t inputs() const = 0;
 
 	/// Returns the number of values that this layer outputs.
-	virtual size_t outputs() = 0;
+	virtual size_t outputs() const = 0;
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
@@ -191,10 +191,10 @@ using GNeuralNetLayer::updateDeltas;
 	virtual std::string to_str();
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() { return m_weights.rows(); }
+	virtual size_t inputs() const { return m_weights.rows(); }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() { return m_weights.cols(); }
+	virtual size_t outputs() const { return m_weights.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
@@ -397,10 +397,10 @@ using GNeuralNetLayer::updateDeltas;
 	GNeuralNetLayer& component(size_t i) { return *m_components[i]; }
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs();
+	virtual size_t inputs() const;
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs();
+	virtual size_t outputs() const;
 
 	/// Throws an exception if the specified dimensions would change anything. Also
 	/// throws an exception if pRand is not NULL.
@@ -510,10 +510,10 @@ using GNeuralNetLayer::updateDeltas;
 	virtual std::string to_str();
 
 	/// Returns the number of visible units.
-	virtual size_t inputs() { return m_weights.cols(); }
+	virtual size_t inputs() const { return m_weights.cols(); }
 
 	/// Returns the number of hidden units.
-	virtual size_t outputs() { return m_weights.rows(); }
+	virtual size_t outputs() const { return m_weights.rows(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
@@ -680,7 +680,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual ~GLayerConvolutional1D();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "conv1"; }
+	virtual const char* type() { return "conv1d"; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc);
@@ -689,10 +689,10 @@ using GNeuralNetLayer::updateDeltas;
 	virtual std::string to_str();
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() { return m_inputSamples * m_inputChannels; }
+	virtual size_t inputs() const { return m_inputSamples * m_inputChannels; }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
+	virtual size_t outputs() const { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
@@ -776,8 +776,10 @@ using GNeuralNetLayer::updateDeltas;
 	/// from the most recent call to feedForward().
 	GVec& net() { return m_activation[1]; }
 
+	const GVec& bias() const { return m_bias[0]; }
 	GVec& bias() { return m_bias[0]; }
 	GVec& biasDelta() { return m_bias[1]; }
+	const GMatrix& kernels() const { return m_kernels; }
 	GMatrix& kernels() { return m_kernels; }
 };
 
@@ -818,10 +820,10 @@ public:
 	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
 
 	/// Constructor that uses the upstream convolutional layer to determine input dimensions
-	GLayerConvolutional2D(const GLayerConvolutional2D &upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
+	GLayerConvolutional2D(const GLayerConvolutional2D& upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
 
 	/// Constructor that will automatically use the upstream convolutional layer when added to a neural network
-	GLayerConvolutional2D(size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
+	GLayerConvolutional2D(size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction* pActivationFunction = NULL);
 
 	GLayerConvolutional2D(GDomNode *pNode);
 	virtual ~GLayerConvolutional2D();
@@ -829,8 +831,8 @@ public:
 	virtual const char *type() { return "conv2d"; }
 	virtual GDomNode *serialize(GDom *pDoc);
 	virtual std::string to_str();
-	virtual size_t inputs() { return m_inputRows * m_inputCols * m_inputChannels; }
-	virtual size_t outputs() { return m_outputRows * m_outputCols * m_kernelCount; }
+	virtual size_t inputs() const { return m_inputRows * m_inputCols * m_inputChannels; }
+	virtual size_t outputs() const { return m_outputRows * m_outputCols * m_kernelCount; }
 	virtual void resize(size_t inputs, size_t outputs, GRand *pRand = NULL, double deviation = 0.03);
 	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03);
 	virtual GVec &activation() { return m_activation[1]; }
@@ -865,7 +867,9 @@ public:
 	size_t outputChannels() const { return m_kernelCount; }
 
 	GVec &net() { return m_activation[0]; }
+	const GMatrix &kernels() const { return m_kernels; }
 	GMatrix &kernels() { return m_kernels; }
+	const GVec &bias() const { return m_bias; }
 	GVec &bias() { return m_bias; }
 };
 
@@ -908,10 +912,10 @@ using GNeuralNetLayer::updateDeltas;
 	virtual std::string to_str();
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() { return m_inputRows * m_inputCols * m_inputChannels; }
+	virtual size_t inputs() const { return m_inputRows * m_inputCols * m_inputChannels; }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
+	virtual size_t outputs() const { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
 	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);

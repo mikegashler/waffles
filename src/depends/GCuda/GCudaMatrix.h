@@ -70,6 +70,9 @@ public:
 	/// Returns the size of this vector.
 	size_t size() const { return m_size; }
 
+	/// Fills the vector with the specified value
+	void fill(GCudaEngine& engine, double val);
+
 	/// Copies a vector from the host (CPU memory) to the device (GPU memory).
 	/// Resizes this vector if necessary.
 	void upload(const GVec& hostVector);
@@ -184,6 +187,12 @@ public:
 
 	/// Scales the values in the specified column.
 	void scaleCol(GCudaEngine& engine, size_t col, double scalar);
+
+	/// Fills the matrix with the specified value
+	void fill(GCudaEngine& engine, double val);
+
+	/// Fills this matrix with random values from a Normal distribution.
+	void fillNormal(GCudaEngine& engine, double mean, double dev);
 };
 
 

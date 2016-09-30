@@ -60,14 +60,16 @@ GNeuralNetLayer* GNeuralNetLayer::deserialize(GDomNode* pNode)
 	const char* szType = pNode->field("type")->asString();
 	if(strcmp(szType, "classic") == 0)
 		return new GLayerClassic(pNode);
-	if(strcmp(szType, "mixed") == 0)
+	else if(strcmp(szType, "mixed") == 0)
 		return new GLayerMixed(pNode);
-	if(strcmp(szType, "rbm") == 0)
+	else if(strcmp(szType, "rbm") == 0)
 		return new GLayerRestrictedBoltzmannMachine(pNode);
-	if(strcmp(szType, "softmax") == 0)
+	else if(strcmp(szType, "softmax") == 0)
 		return new GLayerSoftMax(pNode);
-	if(strcmp(szType, "conv1") == 0)
+	else if(strcmp(szType, "conv1d") == 0)
 		return new GLayerConvolutional1D(pNode);
+	else if(strcmp(szType, "conv2d") == 0)
+		return new GLayerConvolutional2D(pNode);
 	else
 		throw Ex("Unrecognized neural network layer type: ", szType);
 }
@@ -744,13 +746,13 @@ void GLayerMixed::addComponent(GNeuralNetLayer* pComponent)
 }
 
 // virtual
-size_t GLayerMixed::inputs()
+size_t GLayerMixed::inputs() const
 {
 	return m_inputError.cols();
 }
 
 // virtual
-size_t GLayerMixed::outputs()
+size_t GLayerMixed::outputs() const
 {
 	size_t outs = m_activation.cols();
 	if(outs == 0)
@@ -759,7 +761,7 @@ size_t GLayerMixed::outputs()
 			throw Ex("GLayerMixed requires at least 2 components to be added before it is used");
 		for(size_t i = 0; i < m_components.size(); i++)
 			outs += m_components[i]->outputs();
-		m_activation.resize(2, outs);
+		((GMatrix*)&m_activation)->resize(2, outs); // !!!HACK: this circumvents the "const" declaration on this function!
 	}
 	return outs;
 }
@@ -1737,19 +1739,78 @@ void GLayerConvolutional1D::renormalizeInput(size_t input, double oldMin, double
 
 
 GLayerConvolutional2D::GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride, size_t padding, GActivationFunction *pActivationFunction)
-: m_inputRows(inputRows), m_inputCols(inputCols), m_inputChannels(inputChannels), m_kernelRows(kernelRows), m_kernelCols(kernelCols), m_kernelCount(kernelCount), m_stride(stride), m_padding(padding), m_outputRows((inputRows - kernelRows + 2 * padding) / stride + 1), m_outputCols((inputCols - kernelCols + 2 * padding) / stride + 1), m_bias(kernelCount), m_biasDelta(kernelCount), m_kernels(kernelCount, inputChannels * kernelRows * kernelCols), m_delta(kernelCount, inputChannels * kernelRows * kernelCols), m_activation(3, kernelCount * m_outputRows * m_outputCols), m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
+: m_inputRows(inputRows),
+m_inputCols(inputCols),
+m_inputChannels(inputChannels),
+m_kernelRows(kernelRows),
+m_kernelCols(kernelCols),
+m_kernelCount(kernelCount),
+m_stride(stride),
+m_padding(padding),
+m_outputRows((inputRows - kernelRows + 2 * padding) / stride + 1),
+m_outputCols((inputCols - kernelCols + 2 * padding) / stride + 1),
+m_bias(kernelCount),
+m_biasDelta(kernelCount),
+m_kernels(kernelCount, inputChannels * kernelRows * kernelCols),
+m_delta(kernelCount, inputChannels * kernelRows * kernelCols),
+m_activation(3, kernelCount * m_outputRows * m_outputCols),
+m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
 {}
 
-GLayerConvolutional2D::GLayerConvolutional2D(const GLayerConvolutional2D &upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride, size_t padding, GActivationFunction *pActivationFunction)
-: m_inputRows(upstream.outputRows()), m_inputCols(upstream.outputCols()), m_inputChannels(upstream.outputChannels()), m_kernelRows(kernelRows), m_kernelCols(kernelCols), m_kernelCount(kernelCount), m_stride(stride), m_padding(padding), m_outputRows((m_inputRows - kernelRows + 2 * padding) / stride + 1), m_outputCols((m_inputCols - kernelCols + 2 * padding) / stride + 1), m_bias(kernelCount), m_biasDelta(kernelCount), m_kernels(kernelCount, m_inputChannels * kernelRows * kernelCols + 1), m_delta(kernelCount, m_inputChannels * kernelRows * kernelCols), m_activation(3, kernelCount * m_outputRows * m_outputCols), m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
+GLayerConvolutional2D::GLayerConvolutional2D(const GLayerConvolutional2D& upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride, size_t padding, GActivationFunction *pActivationFunction)
+: m_inputRows(upstream.outputRows()),
+m_inputCols(upstream.outputCols()),
+m_inputChannels(upstream.outputChannels()),
+m_kernelRows(kernelRows),
+m_kernelCols(kernelCols),
+m_kernelCount(kernelCount),
+m_stride(stride),
+m_padding(padding),
+m_outputRows((m_inputRows - kernelRows + 2 * padding) / stride + 1),
+m_outputCols((m_inputCols - kernelCols + 2 * padding) / stride + 1),
+m_bias(kernelCount),
+m_biasDelta(kernelCount),
+m_kernels(kernelCount, m_inputChannels * kernelRows * kernelCols),
+m_delta(kernelCount, m_inputChannels * kernelRows * kernelCols),
+m_activation(3, kernelCount * m_outputRows * m_outputCols),
+m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
 {}
 
 GLayerConvolutional2D::GLayerConvolutional2D(size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride, size_t padding, GActivationFunction *pActivationFunction)
-: m_inputRows(FLEXIBLE_SIZE), m_inputCols(FLEXIBLE_SIZE), m_inputChannels(FLEXIBLE_SIZE), m_kernelRows(kernelRows), m_kernelCols(kernelCols), m_kernelCount(kernelCount), m_stride(stride), m_padding(padding), m_outputRows(0), m_outputCols(0), m_bias(kernelCount), m_biasDelta(kernelCount), m_kernels(kernelCount, 0), m_delta(kernelCount, 0), m_activation(3, FLEXIBLE_SIZE), m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
+: m_inputRows(FLEXIBLE_SIZE),
+m_inputCols(FLEXIBLE_SIZE),
+m_inputChannels(FLEXIBLE_SIZE),
+m_kernelRows(kernelRows),
+m_kernelCols(kernelCols),
+m_kernelCount(kernelCount),
+m_stride(stride),
+m_padding(padding),
+m_outputRows(0),
+m_outputCols(0),
+m_bias(kernelCount),
+m_biasDelta(kernelCount),
+m_kernels(kernelCount, 0),
+m_delta(kernelCount, 0),
+m_activation(3, FLEXIBLE_SIZE),
+m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH())
 {}
 
-GLayerConvolutional2D::GLayerConvolutional2D(GDomNode *pNode)
-: m_inputRows(pNode->field("inputRows")->asInt()), m_inputCols(pNode->field("inputCols")->asInt()), m_inputChannels(pNode->field("inputChannels")->asInt()), m_kernelRows(pNode->field("kernelRows")->asInt()), m_kernelCols(pNode->field("kernelCols")->asInt()), m_kernelCount(pNode->field("kernelCount")->asInt()), m_stride(pNode->field("stride")->asInt()), m_padding(pNode->field("padding")->asInt()), m_outputRows(pNode->field("outputRows")->asInt()), m_outputCols(pNode->field("outputCols")->asInt()), m_bias(pNode->field("bias")), m_biasDelta(m_kernelCount), m_kernels(pNode->field("kernels")), m_delta(m_kernelCount, m_inputChannels * m_kernelRows * m_kernelCols), m_activation(3, m_kernelCount * m_outputRows * m_outputCols)
+GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
+: m_inputRows(pNode->field("inputRows")->asInt()),
+m_inputCols(pNode->field("inputCols")->asInt()),
+m_inputChannels(pNode->field("inputChannels")->asInt()),
+m_kernelRows(pNode->field("kernelRows")->asInt()),
+m_kernelCols(pNode->field("kernelCols")->asInt()),
+m_kernelCount(pNode->field("kernelCount")->asInt()),
+m_stride(pNode->field("stride")->asInt()),
+m_padding(pNode->field("padding")->asInt()),
+m_outputRows(pNode->field("outputRows")->asInt()),
+m_outputCols(pNode->field("outputCols")->asInt()),
+m_bias(pNode->field("bias")),
+m_biasDelta(m_kernelCount),
+m_kernels(pNode->field("kernels")),
+m_delta(m_kernelCount, m_inputChannels * m_kernelRows * m_kernelCols),
+m_activation(3, m_kernelCount * m_outputRows * m_outputCols)
 {
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 }
@@ -1993,13 +2054,12 @@ void GLayerConvolutional2D::applyAdaptive()
 
 void GLayerConvolutional2D::scaleWeights(double factor, bool scaleBiases)
 {
-	m_kernels.multiply(factor);
+	throw Ex("scaleWeights not implemented");
 }
 
 void GLayerConvolutional2D::diminishWeights(double amount, bool regularizeBiases)
 {
-	for(size_t i = 0; i < m_kernels.rows(); i++)
-		m_kernels[i].regularize_L1(amount);
+	throw Ex("diminishWeights not implemented");
 }
 
 size_t GLayerConvolutional2D::countWeights()
