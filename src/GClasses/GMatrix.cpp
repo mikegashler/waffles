@@ -66,10 +66,8 @@ GRelation* GRelation::deserialize(const GDomNode* pNode)
 		return new GMixedRelation(pNode);
 }
 
-void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) const
+void GRelation::print(ostream& stream) const
 {
-	stream.precision(precision);
-
 	// Write the relation title
 	stream << "@RELATION ";
 	if(type() == ARFF)
@@ -107,10 +105,6 @@ void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) c
 
 	// Write the data
 	stream << "\n@DATA\n";
-	if(!pData)
-		return;
-	for(size_t i = 0; i < pData->rows(); i++)
-		printRow(stream, pData->row(i).data(), ",");
 }
 
 // virtual
@@ -180,7 +174,7 @@ bool GRelation::isCompatible(const GRelation& that) const
 	return true;
 }
 
-void GRelation::printRow(ostream& stream, const double* pRow, const char* separator, const char* missing) const
+void GRelation::printRow(ostream& stream, const double* pRow, char separator, const char* missing) const
 {
 	size_t j = 0;
 	if(j < size())
@@ -199,7 +193,7 @@ void GRelation::printRow(ostream& stream, const double* pRow, const char* separa
 }
 
 #ifndef MIN_PREDICT
-void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precision) const
+void GRelation::save(const GMatrix* pData, const char* szFilename) const
 {
 	std::ofstream stream;
 	stream.exceptions(std::ios::badbit | std::ios::failbit);
@@ -211,7 +205,7 @@ void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precis
 	{
 		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
 	}
-	print(stream, pData, precision);
+	pData->print(stream);
 }
 
 //static
@@ -1254,7 +1248,7 @@ void GMatrix::loadRaw(const char* szFilename)
 
 void GMatrix::load(const char* szFilename)
 {
-	char *extPos = strrchr(szFilename, '.');
+	const char *extPos = strrchr(szFilename, '.');
 	if(extPos)
 	{
 		string ext(extPos+1);
@@ -1273,7 +1267,7 @@ void GMatrix::load(const char* szFilename)
 
 void GMatrix::saveArff(const char* szFilename)
 {
-	m_pRelation->save(this, szFilename, 14);
+	m_pRelation->save(this, szFilename);
 }
 
 void GMatrix::saveRaw(const char* szFilename)
@@ -1342,7 +1336,7 @@ void GMatrix::setCol(size_t index, const double* pVector)
 		row(i)[index] = *(pVector++);
 }
 
-void GMatrix::add(const GMatrix* pThat, bool transposeThat)
+void GMatrix::add(const GMatrix* pThat, bool transposeThat, double scalar)
 {
 	if(transposeThat)
 	{
@@ -1353,7 +1347,7 @@ void GMatrix::add(const GMatrix* pThat, bool transposeThat)
 		{
 			GVec& r = row(i);
 			for(size_t j = 0; j < c; j++)
-				r[j] += pThat->row(j)[i];
+				r[j] += scalar * pThat->row(j)[i];
 		}
 	}
 	else
@@ -1362,7 +1356,7 @@ void GMatrix::add(const GMatrix* pThat, bool transposeThat)
 		if(rows() != pThat->rows() || c != pThat->cols())
 			throw Ex("expected matrices of same size");
 		for(size_t i = 0; i < rows(); i++)
-			row(i) += pThat->row(i);
+			row(i).addScaled(scalar, pThat->row(i));
 	}
 }
 
@@ -3564,19 +3558,21 @@ double GMatrix::sumSquaredDistance(const GVec& point) const
 	return err;
 }
 
-double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column) const
+double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column, double* pOutSAE) const
 {
 	if(that.rows() != rows())
 		throw Ex("Mismatching number of rows");
 	if(column >= cols() || column >= that.cols())
 		throw Ex("column index out of range");
 	double sse = 0.0;
+	double sae = 0.0;
 	if(relation().valueCount(column) == 0)
 	{
 		for(size_t i = 0; i < rows(); i++)
 		{
 			double d = row(i)[column] - that.row(i)[column];
 			sse += (d * d);
+			sae += std::abs(d);
 		}
 	}
 	else
@@ -3584,9 +3580,14 @@ double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column) c
 		for(size_t i = 0; i < rows(); i++)
 		{
 			if((int)row(i)[column] != (int)that.row(i)[column])
+			{
 				sse++;
+				sae++;
+			}
 		}
 	}
+	if(pOutSAE)
+		*pOutSAE = sae;
 	return sse;
 }
 
@@ -4010,9 +4011,13 @@ void GMatrix::ensureDataHasNoMissingNominals() const
 	}
 }
 
-void GMatrix::print(ostream& stream) const
+void GMatrix::print(ostream& stream, char separator) const
 {
-	m_pRelation->print(stream, this, 14);
+	m_pRelation->print(stream);
+	std::streamsize oldPrecision = stream.precision(14);
+	for(size_t i = 0; i < rows(); i++)
+		m_pRelation->printRow(stream, row(i).data(), separator);
+	stream.precision(oldPrecision);
 }
 
 double GMatrix::measureInfo() const
@@ -4111,29 +4116,7 @@ double GMatrix::dihedralCorrelation(const GMatrix* pThat, GRand* pRand) const
 	pThat->multiply(pBuf, pB, true);
 	return std::abs(pA.correlation(pB));
 }
-/*
-void GMatrix::project(double* pDest, const double* pPoint) const
-{
-	size_t dims = cols();
-	GVec::setAll(pDest, 0.0, dims);
-	for(size_t i = 0; i < rows(); i++)
-	{
-		const GVec& basis = row(i);
-		GVec::addScaled(pDest, GVec::dotProduct(pPoint, basis.data(), dims), basis.data(), dims);
-	}
-}
 
-void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin) const
-{
-	size_t dims = cols();
-	GVec::copy(pDest, pOrigin, dims);
-	for(size_t i = 0; i < rows(); i++)
-	{
-		const double* pBasis = row(i).data();
-		GVec::addScaled(pDest, GVec::dotProduct(pOrigin, pPoint, pBasis, dims), pBasis, dims);
-	}
-}
-*/
 GVec* GMatrix::swapRow(size_t i, GVec* pNewRow)
 {
 	GVec* pRow = m_rows[i];

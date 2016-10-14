@@ -139,7 +139,8 @@ public:
 	std::unique_ptr<GMatrix> transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// Trains and tests this learner. Returns the sum-squared-error.
-	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels);
+	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
+	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, double* pOutSAE = NULL);
 
 	/// Makes a confusion matrix for a transduction algorithm
 	void transductiveConfusionMatrix(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, std::vector<GMatrix*>& stats);
@@ -150,14 +151,16 @@ public:
 	/// nRep is just the rep number that will be passed to the callback.
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
-	double crossValidate(const GMatrix& features, const GMatrix& labels, size_t nFolds, RepValidateCallback pCB = NULL, size_t nRep = 0, void* pThis = NULL);
+	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
+	double crossValidate(const GMatrix& features, const GMatrix& labels, size_t nFolds, double* pOutSAE = NULL, RepValidateCallback pCB = NULL, size_t nRep = 0, void* pThis = NULL);
 
 	/// Perform cross validation "nReps" times and return the
 	/// average score. pCB is an optional callback method for reporting intermediate stats
 	/// It can be NULL if you don't want intermediate reporting.
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
-	double repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t nFolds, RepValidateCallback pCB = NULL, void* pThis = NULL);
+	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
+	double repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t nFolds, double* pOutSAE = NULL, RepValidateCallback pCB = NULL, void* pThis = NULL);
 #endif // MIN_PREDICT
 
 	/// Returns a reference to the random number generator associated with this object.
@@ -288,7 +291,7 @@ public:
 
 	/// Computes the sum-squared-error for predicting the labels from the features.
 	/// For categorical labels, Hamming distance is used.
-	double sumSquaredError(const GMatrix& features, const GMatrix& labels);
+	double sumSquaredError(const GMatrix& features, const GMatrix& labels, double* pOutSAE = NULL);
 
 	/// label specifies which output to measure. (It should be 0 if there is only one label dimension.)
 	/// The measurement will be performed "nReps" times and results averaged together

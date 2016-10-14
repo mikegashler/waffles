@@ -320,6 +320,11 @@ void GCudaMatrix::scaleCol(GCudaEngine& engine, size_t col, double scalar)
 		throw Ex("cublasDscal failed");
 }
 
+void GCudaMatrix::fillNormal(GCudaEngine& engine, double mean, double dev)
+{
+	if(curandGenerateNormalDouble((curandGenerator_t)engine.m_prng, d_vals, m_rows * m_cols, mean, dev) != CURAND_STATUS_SUCCESS)
+		throw Ex("curandGenerateNormalDouble failed");
+}
 
 } // namespace GClasses
 

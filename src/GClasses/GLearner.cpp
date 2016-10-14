@@ -277,7 +277,7 @@ std::unique_ptr<GMatrix> GTransducer::transduce(const GMatrix& features1, const 
 }
 
 // virtual
-double GTransducer::trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels)
+double GTransducer::trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, double* pOutSAE)
 {
 	// Check assumptions
 	if(testFeatures.rows() != testLabels.rows())
@@ -292,7 +292,7 @@ double GTransducer::trainAndTest(const GMatrix& trainFeatures, const GMatrix& tr
 	size_t labelDims = trainLabels.cols();
 	double sse = 0.0;
 	for(size_t i = 0; i < labelDims; i++)
-		sse += testLabels.columnSumSquaredDifference(*pPredictedLabels, i);
+		sse += testLabels.columnSumSquaredDifference(*pPredictedLabels, i, pOutSAE);
 	return sse;
 }
 
@@ -337,7 +337,7 @@ void GTransducer::transductiveConfusionMatrix(const GMatrix& trainFeatures, cons
 	}
 }
 
-double GTransducer::crossValidate(const GMatrix& features, const GMatrix& labels, size_t folds, RepValidateCallback pCB, size_t nRep, void* pThis)
+double GTransducer::crossValidate(const GMatrix& features, const GMatrix& labels, size_t folds, double* pOutSAE, RepValidateCallback pCB, size_t nRep, void* pThis)
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
@@ -378,7 +378,7 @@ double GTransducer::crossValidate(const GMatrix& features, const GMatrix& labels
 		}
 
 		// Evaluate
-		double foldsse = trainAndTest(trainFeatures, trainLabels, testFeatures, testLabels);
+		double foldsse = trainAndTest(trainFeatures, trainLabels, testFeatures, testLabels, pOutSAE);
 		sse += foldsse;
 		if(pCB)
 			pCB(pThis, nRep, i, foldsse, testLabels.rows());
@@ -386,7 +386,7 @@ double GTransducer::crossValidate(const GMatrix& features, const GMatrix& labels
 	return sse;
 }
 
-double GTransducer::repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t folds, RepValidateCallback pCB, void* pThis)
+double GTransducer::repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t folds, double* pOutSAE, RepValidateCallback pCB, void* pThis)
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
@@ -403,7 +403,7 @@ double GTransducer::repValidate(const GMatrix& features, const GMatrix& labels, 
 	for(size_t i = 0; i < reps; i++)
 	{
 		f.shuffle(m_rand, &l);
-		ssse += crossValidate(f, l, folds, pCB, i, pThis);
+		ssse += crossValidate(f, l, folds, pOutSAE, pCB, i, pThis);
 	}
 	return ssse / reps;
 }
@@ -511,7 +511,7 @@ void GSupervisedLearner::confusion(GMatrix& features, GMatrix& labels, std::vect
 	}
 }
 
-double GSupervisedLearner::sumSquaredError(const GMatrix& features, const GMatrix& labels)
+double GSupervisedLearner::sumSquaredError(const GMatrix& features, const GMatrix& labels, double* pOutSAE)
 {
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
@@ -521,6 +521,7 @@ double GSupervisedLearner::sumSquaredError(const GMatrix& features, const GMatri
 		throw Ex("Labels incompatible with this learner");
 	size_t labelDims = labels.cols();
 	GVec prediction(labelDims);
+	double sae = 0.0;
 	double sse = 0.0;
 	for(size_t i = 0; i < features.rows(); i++)
 	{
@@ -534,15 +535,21 @@ double GSupervisedLearner::sumSquaredError(const GMatrix& features, const GMatri
 				{
 					double d = targ[j] - prediction[j];
 					sse += (d * d);
+					sae += std::abs(d);
 				}
 			}
 			else
 			{
 				if(targ[j] != UNKNOWN_DISCRETE_VALUE && (int)targ[j] != (int)prediction[j])
+				{
 					sse += 1.0;
+					sae += 1.0;
+				}
 			}
 		}
 	}
+	if(pOutSAE)
+		*pOutSAE = sae;
 	return sse;
 }
 
