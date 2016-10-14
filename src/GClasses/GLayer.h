@@ -788,11 +788,11 @@ class GLayerConvolutional2D : public GNeuralNetLayer
 {
 protected:
 	// primary properties
-	size_t m_inputRows;
 	size_t m_inputCols;
+	size_t m_inputRows;
 	size_t m_inputChannels;
-	size_t m_kernelRows;
 	size_t m_kernelCols;
+	size_t m_kernelRows;
 	size_t m_kernelCount;
 	size_t m_stride;
 	size_t m_padding;
@@ -815,13 +815,13 @@ public:
 	/// The values should be presented as inputChannels 2d images (i.e. a 64x48x1 image for red, a 64x48 image for blue, and a 64x48 image for green) in row major order.
 	/// kernelCount determines the number of output channels.
 	/// kernelRows, kernelCols, stride, and padding determine the size of the output.
-	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
+	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelCols, size_t kernelRows, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
 
 	/// Constructor that uses the upstream convolutional layer to determine input dimensions
-	GLayerConvolutional2D(const GLayerConvolutional2D &upstream, size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
+	GLayerConvolutional2D(const GLayerConvolutional2D &upstream, size_t kernelCols, size_t kernelRows, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
 
 	/// Constructor that will automatically use the upstream convolutional layer when added to a neural network
-	GLayerConvolutional2D(size_t kernelRows, size_t kernelCols, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
+	GLayerConvolutional2D(size_t kernelCols, size_t kernelRows, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction *pActivationFunction = NULL);
 
 	GLayerConvolutional2D(GDomNode *pNode);
 	virtual ~GLayerConvolutional2D();
