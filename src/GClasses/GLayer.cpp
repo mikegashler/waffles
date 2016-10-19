@@ -1740,7 +1740,7 @@ void GLayerConvolutional1D::renormalizeInput(size_t input, double oldMin, double
 
 
 GLayerConvolutional2D::Image::Image(GVec *_data, size_t _width, size_t _height, size_t _channels)
-: data(_data), width(_width), height(_height), channels(_channels), dx(0), dy(0), dz(0), px(0), py(0), sx(1), sy(1), invertStride(false), flip(false) {}
+: data(_data), width(_width), height(_height), channels(_channels), interlaced(false), dx(0), dy(0), dz(0), px(0), py(0), sx(1), sy(1), invertStride(false), flip(false) {}
 
 size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 {
@@ -1768,7 +1768,10 @@ size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 	if(x >= width || y >= height)
 		return -1;
 	
-	return (z * height + y) * width + x;
+	if(interlaced)
+		return (y * width + x) * channels + z;
+	else
+		return (z * height + y) * width + x;
 }
 
 double GLayerConvolutional2D::Image::read(size_t x, size_t y, size_t z) const
@@ -2101,6 +2104,15 @@ void GLayerConvolutional2D::setStride(size_t sx, size_t sy)
 	m_inputImage.sx = sx;
 	m_inputImage.sy = sy == -1 ? sx : sy;
 	updateOutputSize();
+}
+
+void GLayerConvolutional2D::setInterlaced(bool interlaced)
+{
+	m_inputImage.interlaced = interlaced;
+	m_upStreamErrorImage.interlaced = interlaced;
+	m_netImage.interlaced = interlaced;
+	m_actImage.interlaced = interlaced;
+	m_errImage.interlaced = interlaced;
 }
 
 void GLayerConvolutional2D::addKernel()

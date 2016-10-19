@@ -800,6 +800,7 @@ protected:
 		/// image data
 		GVec *data;
 		size_t width, height, channels;
+		bool interlaced;
 		
 		/// viewport data
 		mutable size_t dx, dy, dz;	///< offset
@@ -880,6 +881,7 @@ public:
 
 	void setPadding(size_t px, size_t py = -1);
 	void setStride(size_t sx, size_t sy = -1);
+	void setInterlaced(bool interlaced);
 	void addKernel();
 	void addKernels(size_t n);
 
