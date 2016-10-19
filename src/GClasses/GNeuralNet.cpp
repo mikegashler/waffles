@@ -1751,6 +1751,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		std::string data2 = "-1 0 0 0 0 -1 1 1 0 1 0 1 0 0 0 1 -1 0 -1 1 -1 -1 0 -1 -1 0 1 0";
 		std::istringstream ss1(data1);
 		std::istringstream ss2(data2);
+		
 		for(size_t i = 0; i < layer.kernels().cols(); i++)
 		{
 			ss1 >> layer.kernels()[0][i];
@@ -1764,8 +1765,11 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	
 	layer.feedForward(feature);
 	for(size_t i = 0; i < label.size(); i++)
+	{
+		size_t row = i / 3, col = i % 3;
 		if(label[i] != layer.activation()[i])
 			throw Ex("GLayerConvolutional2D forward prop failed");
+	}
 	
 	// test backpropagation (1)
 	// -- can we update weights in the previous layer?
@@ -1778,9 +1782,6 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	GVec oneVec(1);
 	oneVec.fill(1.0);
 	
-	upstream.feedForward(oneVec);
-	layer.feedForward(upstream.activation());
-	
 	for(size_t i = 0; i < 100; i++)
 	{
 		upstream.feedForward(oneVec);
@@ -1789,6 +1790,9 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		layer.backPropError(&upstream);
 		upstream.updateDeltas(oneVec, 0.0);
 		upstream.applyDeltas(0.01);
+		
+		upstream.feedForward(oneVec);
+		layer.feedForward(upstream.activation());
 	}
 	
 	upstream.feedForward(oneVec);

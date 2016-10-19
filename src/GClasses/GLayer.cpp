@@ -1792,52 +1792,44 @@ double &GLayerConvolutional2D::Image::at(size_t x, size_t y, size_t z)
 GLayerConvolutional2D::GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount, GActivationFunction *pActivationFunction)
 : m_width(width), m_height(height), m_channels(channels),
   m_kWidth(kWidth), m_kHeight(kHeight),
-  m_strideX(1), m_strideY(1), m_paddingX(0), m_paddingY(0),
   m_outputWidth(width - kWidth + 1), m_outputHeight(height - kHeight + 1),
   m_bias(kCount), m_biasDelta(kCount),
-  m_kernels(kCount, width * height * channels), m_deltas(kCount, width * height * channels),
+  m_kernels(kCount, kWidth * kHeight * channels), m_deltas(kCount, kWidth * kHeight * channels),
   m_activation(3, m_outputWidth * m_outputHeight * kCount),
   m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH()),
+  m_kernelImage(NULL, kWidth, kHeight, channels), m_deltaImage(NULL, kWidth, kHeight, channels),
   m_inputImage(NULL, width, height, channels), m_upStreamErrorImage(NULL, width, height, channels),
   m_netImage(&m_activation[0], m_outputWidth, m_outputHeight, kCount), m_actImage(&m_activation[1], m_outputWidth, m_outputHeight, kCount), m_errImage(&m_activation[2], m_outputWidth, m_outputHeight, kCount)
-{
-	for(size_t i = 0; i < kCount; ++i)
-	{
-		m_kernelImages.push_back(Image(&m_kernels[i], kWidth, kHeight, channels));
-		m_deltaImages.push_back(Image(&m_deltas[i], kWidth, kHeight, channels));
-	}
-}
+{}
 
 GLayerConvolutional2D::GLayerConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount, GActivationFunction *pActivationFunction)
 : m_width(FLEXIBLE_SIZE), m_height(FLEXIBLE_SIZE), m_channels(FLEXIBLE_SIZE),
   m_kWidth(kWidth), m_kHeight(kHeight),
-  m_strideX(1), m_strideY(1), m_paddingX(0), m_paddingY(0),
   m_outputWidth(0), m_outputHeight(0),
   m_bias(kCount), m_biasDelta(kCount),
   m_kernels(kCount, 0), m_deltas(kCount, 0),
   m_activation(3, 0),
   m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH()),
+  m_kernelImage(NULL, kWidth, kHeight, 0), m_deltaImage(NULL, kWidth, kHeight, 0),
   m_inputImage(NULL, 0, 0, 0), m_upStreamErrorImage(NULL, 0, 0, 0),
   m_netImage(&m_activation[0], 0, 0, 0), m_actImage(&m_activation[1], 0, 0, 0), m_errImage(&m_activation[2], 0, 0, 0)
-{
-	for(size_t i = 0; i < kCount; ++i)
-	{
-		m_kernelImages.push_back(Image(&m_kernels[i], kWidth, kHeight, 0));
-		m_deltaImages.push_back(Image(&m_deltas[i], kWidth, kHeight, 0));
-	}
-}
+{}
 
 GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
 : m_width(pNode->field("width")->asInt()), m_height(pNode->field("height")->asInt()), m_channels(pNode->field("channels")->asInt()),
   m_kWidth(pNode->field("kWidth")->asInt()), m_kHeight(pNode->field("kHeight")->asInt()),
-  m_strideX(pNode->field("strideX")->asInt()), m_strideY(pNode->field("strideY")->asInt()), m_paddingX(pNode->field("paddingX")->asInt()), m_paddingY(pNode->field("paddingY")->asInt()),
   m_outputWidth(pNode->field("outputWidth")->asInt()), m_outputHeight(pNode->field("outputHeight")->asInt()),
   m_bias(pNode->field("bias")), m_biasDelta(m_bias.size()),
   m_kernels(pNode->field("kernels")), m_deltas(m_kernels.rows(), m_kernels.cols()),
-  m_activation(3, m_outputWidth * m_outputHeight * m_bias.size()),
+  m_activation(3, m_outputWidth * m_outputHeight * m_kernels.rows()),
+  m_kernelImage(NULL, m_kWidth, m_kHeight, m_channels), m_deltaImage(NULL, m_kWidth, m_kHeight, m_channels),
   m_inputImage(NULL, m_width, m_height, m_channels), m_upStreamErrorImage(NULL, m_width, m_height, m_channels),
-  m_netImage(&m_activation[0], m_outputWidth, m_outputHeight, m_bias.size()), m_actImage(&m_activation[1], m_outputWidth, m_outputHeight, m_bias.size()), m_errImage(&m_activation[2], m_outputWidth, m_outputHeight, m_bias.size())
+  m_netImage(&m_activation[0], m_outputWidth, m_outputHeight, m_kernels.rows()), m_actImage(&m_activation[1], m_outputWidth, m_outputHeight, m_kernels.rows()), m_errImage(&m_activation[2], m_outputWidth, m_outputHeight, m_kernels.rows())
 {
+	m_inputImage.sx	= pNode->field("strideX")->asInt();
+	m_inputImage.sy	= pNode->field("strideY")->asInt();
+	m_inputImage.px	= pNode->field("paddingX")->asInt();
+	m_inputImage.py	= pNode->field("paddingY")->asInt();
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 }
 
@@ -1854,10 +1846,10 @@ GDomNode *GLayerConvolutional2D::serialize(GDom *pDoc)
 	pNode->addField(pDoc, "channels", pDoc->newInt(m_channels));
 	pNode->addField(pDoc, "kWidth", pDoc->newInt(m_kWidth));
 	pNode->addField(pDoc, "kHeight", pDoc->newInt(m_kHeight));
-	pNode->addField(pDoc, "strideX", pDoc->newInt(m_strideX));
-	pNode->addField(pDoc, "strideY", pDoc->newInt(m_strideY));
-	pNode->addField(pDoc, "paddingX", pDoc->newInt(m_paddingX));
-	pNode->addField(pDoc, "paddingY", pDoc->newInt(m_paddingY));
+	pNode->addField(pDoc, "strideX", pDoc->newInt(m_inputImage.sx));
+	pNode->addField(pDoc, "strideY", pDoc->newInt(m_inputImage.sy));
+	pNode->addField(pDoc, "paddingX", pDoc->newInt(m_inputImage.px));
+	pNode->addField(pDoc, "paddingY", pDoc->newInt(m_inputImage.py));
 	pNode->addField(pDoc, "outputWidth", pDoc->newInt(m_outputWidth));
 	pNode->addField(pDoc, "outputHeight", pDoc->newInt(m_outputHeight));
 	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
@@ -1871,9 +1863,9 @@ std::string GLayerConvolutional2D::to_str()
 {
 	std::stringstream ss;
 	ss << "[GLayerConvolutional2D:\n"
-	   << "    " << m_width << "x" << m_height << "x" << m_channels << " (stride=" << m_strideX << "," << m_strideY << "; padding=" << m_paddingX << "," << m_paddingY << ")\n"
+	   << "    " << m_width << "x" << m_height << "x" << m_channels << " (stride=" << m_inputImage.sx << "," << m_inputImage.sy << "; padding=" << m_inputImage.px << "," << m_inputImage.py << ")\n"
 	   << " *  " << m_kWidth << "x" << m_kHeight << "\n"
-	   << " -> " << m_outputWidth << "x" << m_outputHeight << "x" << m_bias.size() << "\n"
+	   << " -> " << m_outputWidth << "x" << m_outputHeight << "x" << m_kernels.rows() << "\n"
 	   << "]";
 	return ss.str();
 }
@@ -1894,21 +1886,17 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand 
 	m_width			= upstream.outputWidth();
 	m_height		= upstream.outputHeight();
 	m_channels		= upstream.outputChannels();
-	m_outputWidth	= (m_width - m_kWidth + 2 * m_paddingX) / m_strideX + 1;
-	m_outputHeight	= (m_height - m_kHeight + 2 * m_paddingY) / m_strideY + 1;
 	
 	m_kernels.resize(m_kernels.rows(), m_kWidth * m_kHeight * m_channels);
 	m_deltas.resize(m_kernels.rows(), m_kWidth * m_kHeight * m_channels);
-	m_activation.resize(3, m_outputWidth * m_outputHeight * m_bias.size());
 	
 	m_bias.fill(0.0);
 	m_kernels.setAll(0.0);
 	
-	for(size_t i = 0; i < m_kernelImages.size(); ++i)
-	{
-		m_kernelImages[i].channels = m_channels;
-		m_deltaImages[i].channels = m_channels;
-	}
+	m_kernelImage.channels = m_channels;
+	m_deltaImage.channels = m_channels;
+	
+	updateOutputSize();
 	
 	if(pRand)
 		perturbWeights(*pRand, deviation);
@@ -1924,7 +1912,8 @@ void GLayerConvolutional2D::feedForward(const GVec &in)
 	n.data->fill(0.0);
 	for(n.dz = 0; n.dz < n.channels; ++n.dz)
 	{
-		convolve(m_inputImage, m_kernelImages[n.dz], n);
+		m_kernelImage.data = &m_kernels[n.dz];
+		convolve(m_inputImage, m_kernelImage, n);
 		for(size_t y = 0; y < n.height; ++y)
 		{
 			for(size_t x = 0; x < n.width; ++x)
@@ -1978,20 +1967,24 @@ void GLayerConvolutional2D::backPropError(GNeuralNetLayer *pUpStreamLayer)
 	
 	upErr.data = &pUpStreamLayer->error();
 	upErr.data->fill(0.0);
+	upErr.px = m_inputImage.px;
+	upErr.py = m_inputImage.py;
 	
-	err.invertStride = true, err.sx = m_strideX, err.sy = m_strideY;
+	err.invertStride = true, err.sx = m_inputImage.sx, err.sy = m_inputImage.sy;
 	for(upErr.dz = 0; upErr.dz < upErr.channels; ++upErr.dz)
 	{
 		for(err.dz = 0; err.dz < err.channels; ++err.dz)
 		{
-			m_kernelImages[err.dz].flip = true, m_kernelImages[err.dz].dz = upErr.dz;
-			convolveFull(err, m_kernelImages[err.dz], upErr, 1);
-			m_kernelImages[err.dz].flip = false, m_kernelImages[err.dz].dz = 0;
+			m_kernelImage.data = &m_kernels[err.dz];
+			m_kernelImage.flip = true, m_kernelImage.dz = upErr.dz;
+			convolveFull(err, m_kernelImage, upErr, 1);
+			m_kernelImage.flip = false, m_kernelImage.dz = 0;
 		}
 	}
 	err.sx = err.sy = 1, err.invertStride = false;
 	err.dz = 0;
 	upErr.dz = 0;
+	upErr.px = upErr.py = 0;
 }
 
 void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, double momentum)
@@ -2005,12 +1998,13 @@ void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, double 
 	
 	for(err.dz = 0; err.dz < err.channels; ++err.dz)
 	{
-		m_deltaImages[err.dz].data->fill(0.0);
-		for(in.dz = m_deltaImages[err.dz].dz = 0; in.dz < in.channels; ++in.dz, m_deltaImages[err.dz].dz++)
+		m_deltaImage.data = &m_deltas[err.dz];
+		m_deltaImage.data->fill(0.0);
+		for(in.dz = m_deltaImage.dz = 0; in.dz < in.channels; ++in.dz, ++m_deltaImage.dz)
 			for(in.dy = 0; in.dy < err.height; ++in.dy)
 				for(in.dx = 0; in.dx < err.width; ++in.dx)
-					addScaled(in, err.read(in.dx, in.dy), m_deltaImages[err.dz]);
-		m_deltaImages[err.dz].dz = 0;
+					addScaled(in, err.read(in.dx, in.dy), m_deltaImage);
+		m_deltaImage.dz = 0;
 	}
 	in.dz = 0;
 }
@@ -2039,7 +2033,7 @@ void GLayerConvolutional2D::diminishWeights(double amount, bool regularizeBiases
 
 size_t GLayerConvolutional2D::countWeights()
 {
-	return m_kWidth * m_kHeight * m_channels * m_bias.size() + m_bias.size();
+	return m_kWidth * m_kHeight * m_channels * m_kernels.rows() + m_kernels.rows();
 }
 
 size_t GLayerConvolutional2D::weightsToVector(double *pOutVector)
@@ -2051,8 +2045,8 @@ size_t GLayerConvolutional2D::weightsToVector(double *pOutVector)
 
 size_t GLayerConvolutional2D::vectorToWeights(const double *pVector)
 {
-	m_kernels.fromVector(pVector, m_bias.size());
-	m_bias.put(0, GConstVecWrapper(pVector + m_kernels.rows() * m_kernels.cols(), m_bias.size()).vec());
+	m_kernels.fromVector(pVector, m_kernels.rows());
+	m_bias.put(0, GConstVecWrapper(pVector + m_kernels.rows() * m_kernels.cols(), m_kernels.rows()).vec());
 	return countWeights();
 }
 
@@ -2063,7 +2057,7 @@ void GLayerConvolutional2D::copyWeights(const GNeuralNetLayer *pSource)
 
 void GLayerConvolutional2D::resetWeights(GRand &rand)
 {
-	double mag = std::max(0.03, 1.0 / (m_outputWidth * m_outputHeight * m_bias.size()));
+	double mag = std::max(0.03, 1.0 / (m_outputWidth * m_outputHeight * m_kernels.rows()));
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		m_kernels[i].fillNormal(rand, mag);
 	m_bias.fillNormal(rand, mag);
@@ -2073,11 +2067,11 @@ void GLayerConvolutional2D::resetWeights(GRand &rand)
 
 void GLayerConvolutional2D::perturbWeights(GRand &rand, double deviation, size_t start, size_t count)
 {
-	GAssert(start + count < m_bias.size());
-	size_t n = std::min(m_bias.size() - start, count);
+	GAssert(start + count < m_kernels.rows());
+	size_t n = std::min(m_kernels.rows() - start, count);
 	for(size_t j = start; j < n; j++)
 		GVec::perturb(m_kernels[j].data(), deviation, m_kernels.cols(), rand);
-	GVec::perturb(m_bias.data(), deviation, m_bias.size(), rand);
+	GVec::perturb(m_bias.data(), deviation, m_kernels.rows(), rand);
 }
 
 void GLayerConvolutional2D::maxNorm(double min, double max)
@@ -2094,6 +2088,45 @@ void GLayerConvolutional2D::renormalizeInput(size_t input, double oldMin, double
 {
 	throw Ex("renormalizeInput not implemented");
 }
+
+void GLayerConvolutional2D::setPadding(size_t px, size_t py)
+{
+	m_inputImage.px = px;
+	m_inputImage.py = py == -1 ? px : py;
+	updateOutputSize();
+}
+
+void GLayerConvolutional2D::setStride(size_t sx, size_t sy)
+{
+	m_inputImage.sx = sx;
+	m_inputImage.sy = sy == -1 ? sx : sy;
+	updateOutputSize();
+}
+
+void GLayerConvolutional2D::addKernel()
+{
+	m_kernels.resizePreserve(m_kernels.rows() + 1, m_kernels.cols());
+	m_deltas.resize(m_kernels.rows(), m_kernels.cols());
+	
+	GVec temp(m_bias);
+	m_bias.resize(m_kernels.rows() + 1);
+	m_bias.put(0, temp);
+	
+	m_biasDelta.resize(m_kernels.rows());
+	m_netImage.channels = m_kernels.rows();
+	m_actImage.channels = m_kernels.rows();
+	m_errImage.channels = m_kernels.rows();
+	updateOutputSize();
+}
+
+void GLayerConvolutional2D::addKernels(size_t n)
+{
+	for(size_t i = 0; i < n; ++i)
+		addKernel();
+}
+
+#include <iostream>
+using namespace std;
 
 double GLayerConvolutional2D::filterSum(const Image &in, const Image &filter, size_t channels)
 {
@@ -2133,9 +2166,12 @@ void GLayerConvolutional2D::convolveFull(const Image &in, const Image &filter, I
 
 void GLayerConvolutional2D::updateOutputSize()
 {
-	m_outputWidth = (m_width - m_kWidth + 2 * m_paddingX) / m_strideX + 1;
-	m_outputHeight = (m_height - m_kHeight + 2 * m_paddingY) / m_strideY + 1;
-	m_activation.resize(3, m_outputWidth * m_outputHeight * m_bias.size());
+	m_outputWidth = (m_width - m_kWidth + 2 * m_inputImage.px) / m_inputImage.sx + 1;
+	m_outputHeight = (m_height - m_kHeight + 2 * m_inputImage.py) / m_inputImage.sy + 1;
+	m_activation.resize(3, m_outputWidth * m_outputHeight * m_kernels.rows());
+	m_netImage.data = &m_activation[0];
+	m_actImage.data = &m_activation[1];
+	m_errImage.data = &m_activation[2];
 }
 
 

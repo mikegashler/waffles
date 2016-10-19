@@ -815,10 +815,6 @@ protected:
 	/// Kernel dimensions (kernel channels = input channels)
 	size_t m_kWidth, m_kHeight;
 	
-	/// Viewport options
-	size_t m_strideX, m_strideY;
-	size_t m_paddingX, m_paddingY;
-	
 	/// Output dimensions (derived; output channels = kernel count)
 	size_t m_outputWidth, m_outputHeight;
 	
@@ -829,8 +825,7 @@ protected:
 	GActivationFunction *m_pActivationFunction;
 	
 	/// Data as images
-	std::vector<Image> m_kernelImages;
-	std::vector<Image> m_deltaImages;
+	Image m_kernelImage, m_deltaImage;
 	Image m_inputImage, m_upStreamErrorImage;
 	Image m_netImage, m_actImage, m_errImage;
 
@@ -883,27 +878,24 @@ public:
 	virtual void regularizeActivationFunction(double lambda);
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
+	void setPadding(size_t px, size_t py = -1);
+	void setStride(size_t sx, size_t sy = -1);
+	void addKernel();
+	void addKernels(size_t n);
+
+	size_t inputWidth() const { return m_width; }
+	size_t inputHeight() const { return m_height; }
+	size_t inputChannels() const { return m_channels; }
+
 	size_t kernelWidth() const { return m_kWidth; }
 	size_t kernelHeight() const { return m_kHeight; }
+	size_t kernelChannels() const { return m_channels; }
 
 	size_t outputWidth() const { return m_outputWidth; }
 	size_t outputHeight() const { return m_outputHeight; }
 	size_t outputChannels() const { return m_bias.size(); }
-
-	void setPadding(size_t px, size_t py = -1)
-	{
-		m_paddingX = px;
-		m_paddingY = py == -1 ? px : py;
-		updateOutputSize();
-	}
 	
-	void setStride(size_t sx, size_t sy = -1)
-	{
-		m_strideX = sx;
-		m_strideY = sy == -1 ? sx : sy;
-		updateOutputSize();
-	}
-
+	size_t kernelCount() const { return m_kernels.rows(); }
 	GVec &net() { return m_activation[0]; }
 	const GMatrix &kernels() const { return m_kernels; }
 	GMatrix &kernels() { return m_kernels; }
