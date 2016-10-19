@@ -1743,7 +1743,9 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 			ss >> label[i];
 	}
 	
-	GLayerConvolutional2D layer(5, 5, 3, 3, 3, 2, 2, 1, new GActivationIdentity());
+	GLayerConvolutional2D layer(5, 5, 3, 3, 3, 2, new GActivationIdentity());
+	layer.setPadding(1);
+	layer.setStride(2);
 	{
 		std::string data1 = "0 1 -1 -1 1 1 1 0 1 1 0 0 -1 1 0 -1 1 1 1 -1 1 0 -1 -1 1 -1 -1 1";
 		std::string data2 = "-1 0 0 0 0 -1 1 1 0 1 0 1 0 0 0 1 -1 0 -1 1 -1 -1 0 -1 -1 0 1 0";

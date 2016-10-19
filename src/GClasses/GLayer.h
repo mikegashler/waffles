@@ -789,41 +789,65 @@ using GNeuralNetLayer::updateDeltas;
 class GLayerConvolutional2D : public GNeuralNetLayer
 {
 protected:
-	// primary properties
-	size_t m_inputCols;
-	size_t m_inputRows;
-	size_t m_inputChannels;
-	size_t m_kernelCols;
-	size_t m_kernelRows;
-	size_t m_kernelCount;
-	size_t m_stride;
-	size_t m_padding;
-
-	// derived properties
-	size_t m_outputRows;
-	size_t m_outputCols;
-
-	// parameters
+	/// Image abstraction to facilitate convolution
+	struct Image
+	{
+		Image(GVec *data, size_t width, size_t height, size_t channels);
+		size_t index(size_t x, size_t y, size_t z) const;
+		double read(size_t x, size_t y, size_t z = 0) const;
+		double &at(size_t x, size_t y, size_t z = 0);
+		
+		/// image data
+		GVec *data;
+		size_t width, height, channels;
+		
+		/// viewport data
+		mutable size_t dx, dy, dz;	///< offset
+		mutable size_t px, py;		///< padding
+		mutable size_t sx, sy;		///< stride
+		mutable bool invertStride;	///< whether the stride should be inverted (i.e. sx or sy zeroes between each value)
+		mutable bool flip;			///< whether to "flip" the image (i.e. 180 degree rotation)
+	};
+	
+	/// Input dimensions
+	size_t m_width, m_height, m_channels;
+	
+	/// Kernel dimensions (kernel channels = input channels)
+	size_t m_kWidth, m_kHeight;
+	
+	/// Viewport options
+	size_t m_strideX, m_strideY;
+	size_t m_paddingX, m_paddingY;
+	
+	/// Output dimensions (derived; output channels = kernel count)
+	size_t m_outputWidth, m_outputHeight;
+	
+	/// Data
 	GVec m_bias, m_biasDelta;
-	GMatrix m_kernels;
-	GMatrix m_delta;
+	GMatrix m_kernels, m_deltas;
 	GMatrix m_activation; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
 	GActivationFunction *m_pActivationFunction;
+	
+	/// Data as images
+	std::vector<Image> m_kernelImages;
+	std::vector<Image> m_deltaImages;
+	Image m_inputImage, m_upStreamErrorImage;
+	Image m_netImage, m_actImage, m_errImage;
+
+private:
+	/// Helper functions for convolution
+	double filterSum(const Image &in, const Image &filter, size_t channels);
+	void addScaled(const Image &in, double scalar, Image &out);
+	void convolve(const Image &in, const Image &filter, Image &out, size_t channels = -1);
+	void convolveFull(const Image &in, const Image &filter, Image &out, size_t channels = -1);
+	void updateOutputSize();
 
 public:
 	/// General-purpose constructor.
-	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
-	/// and inputChannels will be 3. The total input size will be 9216 (64*48*3=9216).
-	/// The values should be presented as inputChannels 2d images (i.e. a 64x48x1 image for red, a 64x48 image for blue, and a 64x48 image for green) in row major order.
-	/// kernelCount determines the number of output channels.
-	/// kernelRows, kernelCols, stride, and padding determine the size of the output.
-	GLayerConvolutional2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t kernelCols, size_t kernelRows, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction* pActivationFunction = NULL);
-
-	/// Constructor that uses the upstream convolutional layer to determine input dimensions
-	GLayerConvolutional2D(const GLayerConvolutional2D& upstream, size_t kernelCols, size_t kernelRows, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction* pActivationFunction = NULL);
+	GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount = 0, GActivationFunction *pActivationFunction = NULL);
 
 	/// Constructor that will automatically use the upstream convolutional layer when added to a neural network
-	GLayerConvolutional2D(size_t kernelCols, size_t kernelRows, size_t kernelCount, size_t stride = 1, size_t padding = 0, GActivationFunction* pActivationFunction = NULL);
+	GLayerConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount = 0, GActivationFunction *pActivationFunction = NULL);
 
 	GLayerConvolutional2D(GDomNode* pNode);
 	virtual ~GLayerConvolutional2D();
@@ -831,8 +855,8 @@ public:
 	virtual const char *type() { return "conv2d"; }
 	virtual GDomNode *serialize(GDom *pDoc);
 	virtual std::string to_str();
-	virtual size_t inputs() const { return m_inputRows * m_inputCols * m_inputChannels; }
-	virtual size_t outputs() const { return m_outputRows * m_outputCols * m_kernelCount; }
+	virtual size_t inputs() const { return m_width * m_height * m_channels; }
+	virtual size_t outputs() const { return m_outputWidth * m_outputHeight * m_bias.size(); }
 	virtual void resize(size_t inputs, size_t outputs, GRand *pRand = NULL, double deviation = 0.03);
 	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03);
 	virtual GVec &activation() { return m_activation[1]; }
@@ -859,12 +883,26 @@ public:
 	virtual void regularizeActivationFunction(double lambda);
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
-	size_t kernelRows() const { return m_kernelRows; }
-	size_t kernelCols() const { return m_kernelCols; }
+	size_t kernelWidth() const { return m_kWidth; }
+	size_t kernelHeight() const { return m_kHeight; }
 
-	size_t outputRows() const { return m_outputRows; }
-	size_t outputCols() const { return m_outputCols; }
-	size_t outputChannels() const { return m_kernelCount; }
+	size_t outputWidth() const { return m_outputWidth; }
+	size_t outputHeight() const { return m_outputHeight; }
+	size_t outputChannels() const { return m_bias.size(); }
+
+	void setPadding(size_t px, size_t py = -1)
+	{
+		m_paddingX = px;
+		m_paddingY = py == -1 ? px : py;
+		updateOutputSize();
+	}
+	
+	void setStride(size_t sx, size_t sy = -1)
+	{
+		m_strideX = sx;
+		m_strideY = sy == -1 ? sx : sy;
+		updateOutputSize();
+	}
 
 	GVec &net() { return m_activation[0]; }
 	const GMatrix &kernels() const { return m_kernels; }
