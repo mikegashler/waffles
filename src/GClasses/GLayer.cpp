@@ -2108,6 +2108,8 @@ void GLayerConvolutional2D::setStride(size_t sx, size_t sy)
 
 void GLayerConvolutional2D::setInterlaced(bool interlaced)
 {
+	m_kernelImage.interlaced = interlaced;
+	m_deltaImage.interlaced = interlaced;
 	m_inputImage.interlaced = interlaced;
 	m_upStreamErrorImage.interlaced = interlaced;
 	m_netImage.interlaced = interlaced;
