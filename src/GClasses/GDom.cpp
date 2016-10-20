@@ -299,6 +299,7 @@ void newLineAndIndent(std::ostream& stream, size_t indents)
 
 void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 {
+	stream << std::fixed;
 	switch(m_type)
 	{
 		case type_obj:
@@ -379,10 +380,12 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 		default:
 			throw Ex("Unrecognized node type");
 	}
+	stream << std::defaultfloat;
 }
 
 size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 {
+	stream << std::fixed;
 	switch(m_type)
 	{
 		case type_obj:
@@ -459,6 +462,7 @@ size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 		stream << "\"\n\"";
 		col = 0;
 	}
+	stream << std::defaultfloat;
 	return col;
 }
 
