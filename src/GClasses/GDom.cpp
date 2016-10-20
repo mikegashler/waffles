@@ -240,6 +240,7 @@ void GDomNode::saveJson(const char* filename) const
 
 void GDomNode::writeJson(std::ostream& stream) const
 {
+	stream << std::fixed;
 	switch(m_type)
 	{
 		case type_obj:
@@ -286,6 +287,7 @@ void GDomNode::writeJson(std::ostream& stream) const
 		default:
 			throw Ex("Unrecognized node type");
 	}
+	stream << std::defaultfloat;
 }
 
 void newLineAndIndent(std::ostream& stream, size_t indents)
