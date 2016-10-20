@@ -173,7 +173,9 @@ void GNeuralNet::copyWeights(const GNeuralNet* pOther)
 
 void GNeuralNet::copyStructure(const GNeuralNet* pOther)
 {
-	clear();
+	for(size_t i = 0; i < m_layers.size(); i++)
+		delete(m_layers[i]);
+	m_layers.clear();
 	delete(m_pRelFeatures);
 	m_pRelFeatures = pOther->m_pRelFeatures->cloneMinimal();
 	delete(m_pRelLabels);
