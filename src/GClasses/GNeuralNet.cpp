@@ -1725,7 +1725,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 {
 	// a 5x5x3 "image"
 	// each channel may be given in deinterlaced order (i.e. red as 5x5x1, then blue as 5x5x1, then green as 5x5x1) or in interlaced order (i.e. rgb for pixel 1, rgb for pixel 2, etc)
-	// deinterlaced is assumed, but interlaced may be used if the layer is set to interpret the input as interlaced
+	// interlaced is assumed, but deinterlaced may be used if the layer is set to interpret the input as deinterlaced
 	GVec feature(5*5*3);
 	{
 		// std::string data = "1 2 0 1 0 0 2 2 2 0 1 1 1 0 0 1 1 1 0 2 1 0 2 0 2 2 1 2 1 0 2 0 1 2 1 2 1 0 1 2 0 2 1 1 0 2 1 1 0 1 1 0 0 0 0 1 0 2 1 1 0 1 2 1 1 0 0 2 2 0 1 2 0 2 1";
@@ -1749,10 +1749,11 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	GLayerConvolutional2D layer(5, 5, 3, 3, 3, 2, new GActivationIdentity());
 	layer.setPadding(1);
 	layer.setStride(2);
-	layer.setInterlaced(true);
 	{
-		std::string data1 = "0 1 -1 -1 1 1 1 0 1 1 0 0 -1 1 0 -1 1 1 1 -1 1 0 -1 -1 1 -1 -1 1";
-		std::string data2 = "-1 0 0 0 0 -1 1 1 0 1 0 1 0 0 0 1 -1 0 -1 1 -1 -1 0 -1 -1 0 1 0";
+		// std::string data1 = "0 1 -1 -1 1 1 1 0 1 1 0 0 -1 1 0 -1 1 1 1 -1 1 0 -1 -1 1 -1 -1 1";
+		// std::string data2 = "-1 0 0 0 0 -1 1 1 0 1 0 1 0 0 0 1 -1 0 -1 1 -1 -1 0 -1 -1 0 1 0";
+		std::string data1 = "0 1 1 1 0 -1 -1 0 1 -1 -1 0 1 1 -1 1 0 -1 1 -1 1 0 1 -1 1 1 -1 1";
+		std::string data2 = "-1 1 -1 0 0 1 0 1 -1 0 0 -1 0 0 0 -1 0 -1 1 1 -1 1 -1 0 0 0 1 0";
 		std::istringstream ss1(data1);
 		std::istringstream ss2(data2);
 		
@@ -1769,11 +1770,8 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	
 	layer.feedForward(feature);
 	for(size_t i = 0; i < label.size(); i++)
-	{
-		size_t row = i / 3, col = i % 3;
 		if(label[i] != layer.activation()[i])
 			throw Ex("GLayerConvolutional2D forward prop failed");
-	}
 	
 	// test backpropagation (1)
 	// -- can we update weights in the previous layer?

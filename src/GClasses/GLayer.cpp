@@ -1740,7 +1740,7 @@ void GLayerConvolutional1D::renormalizeInput(size_t input, double oldMin, double
 
 
 GLayerConvolutional2D::Image::Image(GVec *_data, size_t _width, size_t _height, size_t _channels)
-: data(_data), width(_width), height(_height), channels(_channels), interlaced(false), dx(0), dy(0), dz(0), px(0), py(0), sx(1), sy(1), invertStride(false), flip(false) {}
+: data(_data), width(_width), height(_height), channels(_channels), interlaced(true), dx(0), dy(0), dz(0), px(0), py(0), sx(1), sy(1), invertStride(false), flip(false) {}
 
 size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 {
@@ -2136,9 +2136,6 @@ void GLayerConvolutional2D::addKernels(size_t n)
 	for(size_t i = 0; i < n; ++i)
 		addKernel();
 }
-
-#include <iostream>
-using namespace std;
 
 double GLayerConvolutional2D::filterSum(const Image &in, const Image &filter, size_t channels)
 {
