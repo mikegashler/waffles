@@ -1766,6 +1766,20 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		ss2 >> layer.bias()[1];
 	}
 	
+	// test serialization
+	
+	GDom doc;
+	GDomNode *root = layer.serialize(&doc);
+	GLayerConvolutional2D *p_layer = (GLayerConvolutional2D *) GNeuralNetLayer::deserialize(root);
+	for(size_t i = 0; i < layer.bias().size(); ++i)
+		if(layer.bias()[i] != p_layer->bias()[i])
+			throw Ex("GLayerConvolutional2D serialization failed (1)");
+	for(size_t i = 0; i < layer.kernels().rows(); ++i)
+		for(size_t j = 0; j < layer.kernels().cols(); ++j)
+			if(layer.kernels()[i][j] != p_layer->kernels()[i][j])
+				throw Ex("GLayerConvolutional2D serialization failed (2)");
+	delete p_layer;
+	
 	// test forward propagation
 	
 	layer.feedForward(feature);
