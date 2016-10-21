@@ -1838,6 +1838,11 @@ GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
 	m_inputImage.sy	= pNode->field("strideY")->asInt();
 	m_inputImage.px	= pNode->field("paddingX")->asInt();
 	m_inputImage.py	= pNode->field("paddingY")->asInt();
+	
+	setInputInterlaced(pNode->field("inputInterlaced")->asBool());
+	setKernelsInterlaced(pNode->field("kernelsInterlaced")->asBool());
+	setOutputInterlaced(pNode->field("outputInterlaced")->asBool());
+	
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 }
 
@@ -1860,6 +1865,9 @@ GDomNode *GLayerConvolutional2D::serialize(GDom *pDoc)
 	pNode->addField(pDoc, "paddingY", pDoc->newInt(m_inputImage.py));
 	pNode->addField(pDoc, "outputWidth", pDoc->newInt(m_outputWidth));
 	pNode->addField(pDoc, "outputHeight", pDoc->newInt(m_outputHeight));
+	pNode->addField(pDoc, "inputInterlaced", pDoc->newBool(m_inputImage.interlaced));
+	pNode->addField(pDoc, "kernelsInterlaced", pDoc->newBool(m_kernelImage.interlaced));
+	pNode->addField(pDoc, "outputInterlaced", pDoc->newBool(m_netImage.interlaced));
 	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
 	pNode->addField(pDoc, "kernels", m_kernels.serialize(pDoc));
 	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
