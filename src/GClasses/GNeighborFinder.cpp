@@ -1580,8 +1580,8 @@ void GBallTree::reoptimize()
 		return;
 	delete(m_pRoot);
 	GIndexVec indexes(m_pData->rows());
-	GIndexVec::makeIndexVec(indexes.v, m_pData->rows());
-	m_pRoot = buildTree(m_pData->rows(), indexes.v);
+	GIndexVec::makeIndexVec(indexes.m_data, m_pData->rows());
+	m_pRoot = buildTree(m_pData->rows(), indexes.m_data);
 	m_size = m_pData->rows();
 }
 

@@ -717,25 +717,27 @@ std::string to_str(const GVec& v)
 
 
 GIndexVec::GIndexVec(size_t n)
+: m_size(n)
 {
-	if(n > 0)
-		v = new size_t[n];
+	if(n == 0)
+		m_data = NULL;
 	else
-		v = NULL;
+		m_data = new size_t[n];
 }
 
 GIndexVec::~GIndexVec()
 {
-	delete[] v;
+	delete[] m_data;
 }
 
 void GIndexVec::resize(size_t n)
 {
-	delete[] v;
-	if(n > 0)
-		v = new size_t[n];
+	delete[] m_data;
+	m_size = n;
+	if(n == 0)
+		m_data = NULL;
 	else
-		v = NULL;
+		m_data = new size_t[n];
 }
 
 // static

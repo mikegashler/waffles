@@ -88,7 +88,7 @@ public:
 	virtual size_t outputs() const { return m_weights.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it throws an exception.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
+	virtual void resize(size_t inputs, size_t outputs);
 
 	/// Returns the activation vector in device memory.
 	virtual GCudaVector& deviceActivation() { return m_activation; }
@@ -139,9 +139,6 @@ public:
 	/// Adds the deltas to the weights.
 	virtual void applyDeltas(double learningRate);
 
-	/// Adaptively update a per-weight learning rate and update the weights and biases.
-	virtual void applyAdaptive();
-
 	/// This is a special weight update method for use with drop-connect. It updates the weights, and restores
 	/// the weights that were previously dropped by a call to dropConnect.
 	virtual void updateWeightsAndRestoreDroppedOnes(const GVec& upStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum);
@@ -184,10 +181,6 @@ public:
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double min, double max);
-
-	/// Adjusts weights such that values in the new range will result in the
-	/// same behavior that previously resulted from values in the old range.
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	/// Throws an exception
 	virtual void refineActivationFunction(double learningRate);
@@ -260,8 +253,8 @@ public:
 	virtual std::string to_str();
 	virtual size_t inputs() const { return m_inputRows * m_inputCols * m_inputChannels; }
 	virtual size_t outputs() const { return m_outputRows * m_outputCols * m_kernelCount; }
-	virtual void resize(size_t inputs, size_t outputs, GRand *pRand = NULL, double deviation = 0.03);
-	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03);
+	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer);
 
 	/// Uploads pIn to the GPU, then feeds it through this layer
 	virtual void feedForward(const GVec &in);
@@ -279,7 +272,6 @@ public:
 	virtual void updateDeltas(const GVec &upStreamActivation, double momentum);
 	virtual void updateDeltas(GNeuralNetLayer* pUpStreamLayer, double momentum);
 	virtual void applyDeltas(double learningRate);
-	virtual void applyAdaptive();
 	virtual void scaleWeights(double factor, bool scaleBiases);
 	virtual void diminishWeights(double amount, bool regularizeBiases);
 	virtual size_t countWeights();
@@ -290,7 +282,6 @@ public:
 	virtual void perturbWeights(GRand &rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 	virtual void maxNorm(double min, double max);
 	virtual void regularizeActivationFunction(double lambda);
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 	virtual GVec& activation();
 	virtual GVec& error();
 	virtual GCudaVector& deviceActivation() { return m_activation; }

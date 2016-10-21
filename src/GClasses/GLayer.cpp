@@ -99,7 +99,7 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 	m_pActivationFunction = pActivationFunction;
 	if(!m_pActivationFunction)
 		m_pActivationFunction = new GActivationTanH();
-	resize(inps, outs, NULL);
+	resize(inps, outs);
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
@@ -138,63 +138,20 @@ std::string GLayerClassic::to_str()
 	return os.str();
 }
 
-void GLayerClassic::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
+void GLayerClassic::resize(size_t inputCount, size_t outputCount)
 {
 	if(inputCount == inputs() && outputCount == outputs())
 		return;
-	size_t oldInputs = inputs();
-	size_t oldOutputs = outputs();
-	size_t fewerInputs = std::min(oldInputs, inputCount);
-	size_t fewerOutputs = std::min(oldOutputs, outputCount);
 
 	// Weights
-	m_weights.resizePreserve(inputCount, outputCount);
-	m_delta.resizePreserve(inputCount, outputCount);
+	m_weights.resize(inputCount, outputCount);
+	m_delta.resize(inputCount, outputCount);
 	m_delta.setAll(0.0);
-	double dev = deviation;
-	if(pRand)
-	{
-		if(fewerInputs * fewerOutputs >= 8)
-		{
-			double d = 0.0;
-			for(size_t i = 0; i < fewerInputs; i++)
-			{
-				GVec& row = m_weights[i];
-				for(size_t j = 0; j < fewerOutputs; j++)
-					d += (row[j] * row[j]);
-			}
-			dev *= sqrt(d / (fewerInputs * fewerOutputs));
-			if(inputCount * outputCount - fewerInputs * fewerOutputs > fewerInputs * fewerOutputs)
-				dev *= fewerInputs * fewerOutputs / (inputCount * outputCount - fewerInputs * fewerOutputs);
-		}
-		for(size_t i = 0; i < fewerInputs; i++)
-		{
-			GVec& row = m_weights[i];
-			for(size_t j = fewerOutputs; j < outputCount; j++)
-				row[j] = dev * pRand->normal();
-		}
-		for(size_t i = fewerInputs; i < inputCount; i++)
-		{
-			GVec& row = m_weights[i];
-			for(size_t j = 0; j < outputCount; j++)
-				row[j] = dev * pRand->normal();
-		}
-	}
 
 	// Bias
-	m_bias.resizePreserve(6, outputCount);
+	m_bias.resize(6, outputCount);
 	biasDelta().fill(0.0);
-	if(pRand)
-	{
-		GVec& b = bias();
-		for(size_t j = fewerOutputs; j < outputCount; j++)
-			b[j] = dev * pRand->normal();
-	}
-
-	// Slack
-	GVec& s = slack();
-	for(size_t j = fewerOutputs; j < outputCount; j++)
-		s[j] = 0.0;
+	slack().fill(0.0);
 
 	// Activation function
 	m_pActivationFunction->resize(outputCount);
@@ -407,61 +364,6 @@ void GLayerClassic::applyDeltas(double learningRate)
 	m_pActivationFunction->applyDeltas(learningRate);
 }
 
-// virtual
-void GLayerClassic::applyAdaptive()
-{
-	// Lazily make a place to store adaptive learning rates
-	while(m_delta.rows() <= m_weights.rows() + m_weights.rows()) // all the weights + the bias vector
-		m_delta.newRow().fill(0.01);
-
-	// Adapt the learning rates
-	size_t inputCount = inputs();
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < inputCount; i++)
-	{
-		GVec& delta = m_delta[i];
-		GVec& rates = m_delta[m_weights.rows() + i];
-		for(size_t j = 0; j < outputCount; j++)
-		{
-			if(std::signbit(delta[j]) == std::signbit(rates[j]))
-			{
-				if(std::abs(rates[j]) < 1e3)
-					rates[j] *= 1.2;
-			}
-			else
-			{
-				if(std::abs(rates[j]) > 1e-8)
-					rates[j] *= -0.2;
-				else
-					rates[j] *= -1.1;
-			}
-		}
-	}
-	GVec& delta = biasDelta();
-	GVec& rates = m_delta[m_weights.rows() + m_weights.rows()];
-	for(size_t j = 0; j < outputCount; j++)
-	{
-		if(std::signbit(delta[j]) == std::signbit(rates[j]))
-		{
-			if(std::abs(rates[j]) < 1e3)
-				rates[j] *= 1.2;
-		}
-		else
-		{
-			if(std::abs(rates[j]) > 1e-8)
-				rates[j] *= -0.2;
-			else
-				rates[j] *= -1.1;
-		}
-	}
-
-	// Update the weights and bias
-	for(size_t i = 0; i < inputCount; i++)
-		m_weights[i] += m_delta[m_weights.rows() + i];
-	bias() += m_delta[m_weights.rows() + m_weights.rows()];
-	m_pActivationFunction->applyAdaptive();
-}
-
 void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_weights.rows(); i++)
@@ -492,20 +394,6 @@ void GLayerClassic::contractWeights(double factor, bool contractBiases)
 		if(contractBiases)
 			b[i] *= f;
 	}
-}
-
-void GLayerClassic::regularizeWeights(double factor, double power)
-{
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < m_weights.rows(); i++)
-	{
-		GVec& w = m_weights[i];
-		for(size_t j = 0; j < outputCount; j++)
-			w[j] -= GBits::sign(w[j]) * factor * pow(std::abs(w[j]), power);
-	}
-	GVec& w = bias();
-	for(size_t j = 0; j < outputCount; j++)
-		w[j] -= GBits::sign(w[j]) * factor * pow(std::abs(w[j]), power);
 }
 
 void GLayerClassic::transformWeights(GMatrix& transform, const GVec& offset)
@@ -648,6 +536,443 @@ void GLayerClassic::renormalizeInput(size_t input, double oldMin, double oldMax,
 
 
 
+GLayerProductPooling::GLayerProductPooling(size_t inps)
+{
+	resize(inps, inps * 2);
+}
+
+GLayerProductPooling::GLayerProductPooling(GDomNode* pNode)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+GLayerProductPooling::~GLayerProductPooling()
+{
+}
+
+GDomNode* GLayerProductPooling::serialize(GDom* pDoc)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+std::string GLayerProductPooling::to_str()
+{
+	std::ostringstream os;
+	os << "[GLayerProductPooling:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "]\n";
+	return os.str();
+}
+
+void GLayerProductPooling::resize(size_t inputCount, size_t outputCount)
+{
+	if(outputCount * 2 != inputCount)
+		throw Ex("inputCount must be 2*outputCount");
+	if(outputCount == outputs())
+		return;
+
+	// Weights
+	m_activation.resize(2, outputCount);
+}
+
+// virtual
+void GLayerProductPooling::resetWeights(GRand& rand)
+{
+	// There are no weights in this layer to reset
+}
+
+// virtual
+void GLayerProductPooling::feedForward(const GVec& in)
+{
+	if(in.size() != m_activation.cols() * 2)
+		throw Ex("Unexpected number of inputs");
+	GVec& a = activation();
+	for(size_t i = 0; i < m_activation.cols(); i++)
+		a[i] = in[2 * i] * in[2 * i + 1];
+}
+
+// virtual
+void GLayerProductPooling::dropOut(GRand& rand, double probOfDrop)
+{
+	// There are no weights in this layer to drop
+}
+
+void GLayerProductPooling::computeError(const GVec& target)
+{
+	size_t outputUnits = outputs();
+	GVec& a = activation();
+	GVec& err = error();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		if(target[i] == UNKNOWN_REAL_VALUE)
+			err[i] = 0.0;
+		else
+			err[i] = target[i] - a[i];
+	}
+}
+
+void GLayerProductPooling::deactivateError()
+{
+}
+
+void GLayerProductPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
+{
+	GVec& upStreamAct = pUpStreamLayer->activation();
+	GVec& upStreamError = pUpStreamLayer->error();
+	size_t outputCount = outputs();
+	const GVec& err = error();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		upStreamError[2 * i] = err[i] * upStreamAct[2 * i + 1];
+		upStreamError[2 * i + 1] = err[i] * upStreamAct[2 * i];
+	}
+}
+
+void GLayerProductPooling::updateDeltas(const GVec& upStreamActivation, double momentum)
+{
+	// There are no weights to update
+}
+
+// virtual
+void GLayerProductPooling::applyDeltas(double learningRate)
+{
+	// There are no weights to update
+}
+
+void GLayerProductPooling::scaleWeights(double factor, bool scaleBiases)
+{
+	// There are no weights to scale
+}
+
+void GLayerProductPooling::diminishWeights(double amount, bool regularizeBiases)
+{
+	// There are no weights to diminish
+}
+
+void GLayerProductPooling::contractWeights(double factor, bool contractBiases)
+{
+	// There are no weights to contract
+}
+
+// virtual
+void GLayerProductPooling::maxNorm(double min, double max)
+{
+	throw Ex("Not implemented");
+}
+
+// virtual
+void GLayerProductPooling::regularizeActivationFunction(double lambda)
+{
+	throw Ex("Not implemented");
+}
+
+// virtual
+size_t GLayerProductPooling::countWeights()
+{
+	return 0;
+}
+
+// virtual
+size_t GLayerProductPooling::weightsToVector(double* pOutVector)
+{
+	return 0;
+}
+
+// virtual
+size_t GLayerProductPooling::vectorToWeights(const double* pVector)
+{
+	return 0;
+}
+
+// virtual
+void GLayerProductPooling::copyWeights(const GNeuralNetLayer* pSource)
+{
+	// There are no weights to copy
+}
+
+// virtual
+void GLayerProductPooling::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+{
+	// There are no weights to perturb
+}
+
+
+
+
+
+
+
+
+GLayerMaxOut::GLayerMaxOut(size_t inps, size_t outs)
+{
+	resize(inps, outs);
+}
+
+GLayerMaxOut::GLayerMaxOut(GDomNode* pNode)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+GLayerMaxOut::~GLayerMaxOut()
+{
+}
+
+GDomNode* GLayerMaxOut::serialize(GDom* pDoc)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+std::string GLayerMaxOut::to_str()
+{
+	std::ostringstream os;
+	os << "[GLayerMaxOut:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
+	os << " Weights: " << GClasses::to_str(m_weights) << "\n";
+	os << " Bias: " << GClasses::to_str(m_bias) << "\n";
+	os << "]";
+	return os.str();
+}
+
+void GLayerMaxOut::resize(size_t inputCount, size_t outputCount)
+{
+	if(inputCount == inputs() && outputCount == outputs())
+		return;
+
+	// Weights
+	m_weights.resize(inputCount, outputCount);
+	m_delta.resize(inputCount, outputCount);
+	m_delta.setAll(0.0);
+	m_activation.resize(2, outputCount);
+	m_winners.resize(outputCount);
+
+	// Bias
+	m_bias.resize(2, inputCount);
+	biasDelta().fill(0.0);
+}
+
+// virtual
+void GLayerMaxOut::resetWeights(GRand& rand)
+{
+	size_t outputCount = outputs();
+	size_t inputCount = inputs();
+	double mag = std::max(0.03, 1.0 / inputCount); // maxing with 0.03 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		GVec& w = m_weights[i];
+		for(size_t j = 0; j < outputCount; j++)
+			w[j] = rand.normal() * mag;
+	}
+	m_delta.setAll(0.0);
+	GVec& b = bias();
+	for(size_t i = 0; i < inputCount; i++)
+		b[i] = rand.normal() * mag;
+	biasDelta().fill(0.0);
+}
+
+// virtual
+void GLayerMaxOut::feedForward(const GVec& in)
+{
+	// Feed the input through
+	size_t inputCount = inputs();
+	size_t outputCount = outputs();
+	GVec& b = bias();
+	GVec& a = activation();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double best = -1e200;
+		for(size_t j = 0; j < inputCount; j++)
+		{
+			double cand = (in[j] + b[j]) * m_weights[j][i];
+			if(cand > best)
+			{
+				best = cand;
+				m_winners[i] = j;
+			}
+		}
+		if(rand() % 10 == 0) // todo: get rid of rand()
+		{
+			size_t j = rand() % inputCount; // todo: get rid of rand()
+			best = (in[j] + b[j]) * m_weights[j][i];
+			m_winners[i] = j;
+		}
+		a[i] = best;
+	}
+}
+
+// virtual
+void GLayerMaxOut::dropOut(GRand& rand, double probOfDrop)
+{
+	throw Ex("Sorry, not implemented");
+}
+
+void GLayerMaxOut::computeError(const GVec& target)
+{
+	size_t outputUnits = outputs();
+	GVec& a = activation();
+	GVec& err = error();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		if(target[i] == UNKNOWN_REAL_VALUE)
+			err[i] = 0.0;
+		else
+			err[i] = target[i] - a[i];
+	}
+}
+
+void GLayerMaxOut::deactivateError()
+{
+}
+
+void GLayerMaxOut::backPropError(GNeuralNetLayer* pUpStreamLayer)
+{
+	GVec& upStreamError = pUpStreamLayer->error();
+	GAssert(pUpStreamLayer->outputs() <= m_weights.rows());
+	size_t outputCount = outputs();
+	const GVec& source = error();
+	upStreamError.fill(0.0);
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		size_t up = m_winners[i];
+		GAssert(up < pUpStreamLayer->outputs());
+		upStreamError[up] += m_weights[up][i] * source[i];
+	}
+}
+
+void GLayerMaxOut::updateDeltas(const GVec& upStreamActivation, double momentum)
+{
+	GVec& err = error();
+	size_t outputCount = outputs();
+	GVec& bd = biasDelta();
+	for(size_t down = 0; down < outputCount; down++)
+	{
+		size_t up = m_winners[down];
+		GVec& d = m_delta[up];
+		bd[up] *= momentum;
+		bd[up] += (err[down] * d[down]);
+		d[down] *= momentum;
+		d[down] += (err[down] * upStreamActivation[up]);
+	}
+}
+
+// virtual
+void GLayerMaxOut::applyDeltas(double learningRate)
+{
+	size_t outputCount = outputs();
+	GVec& bd = biasDelta();
+	GVec& bi = bias();
+	for(size_t down = 0; down < outputCount; down++)
+	{
+		size_t up = m_winners[down];
+		bi[up] += learningRate * bd[up];
+		bd[up] = 0.0;
+		m_weights[up][down] += learningRate * m_delta[up][down];
+	}
+}
+
+void GLayerMaxOut::scaleWeights(double factor, bool scaleBiases)
+{
+	for(size_t i = 0; i < m_weights.rows(); i++)
+		m_weights[i] *= factor;
+	if(scaleBiases)
+		bias() *= factor;
+}
+
+void GLayerMaxOut::diminishWeights(double amount, bool regularizeBiases)
+{
+	for(size_t i = 0; i < m_weights.rows(); i++)
+		m_weights[i].regularize_L1(amount);
+	if(regularizeBiases)
+		bias().regularize_L1(amount);
+}
+
+void GLayerMaxOut::contractWeights(double factor, bool contractBiases)
+{
+	throw Ex("Not implemented");
+}
+
+void GLayerMaxOut::transformWeights(GMatrix& transform, const GVec& offset)
+{
+	throw Ex("Not implemented");
+}
+
+void GLayerMaxOut::setWeightsToIdentity(size_t start, size_t count)
+{
+	size_t end = std::min(start + count, outputs());
+	for(size_t i = start; i < end; i++)
+	{
+		bias()[i] = 0.0;
+		for(size_t j = 0; j < inputs(); j++)
+		{
+			if(j == i)
+				m_weights[j][i] = 1.0;
+			else
+				m_weights[j][i] = 0.0;
+		}
+	}
+}
+
+// virtual
+void GLayerMaxOut::maxNorm(double min, double max)
+{
+	throw Ex("Not implemented");
+}
+
+// virtual
+void GLayerMaxOut::regularizeActivationFunction(double lambda)
+{
+	throw Ex("Not implemented");
+}
+
+// virtual
+size_t GLayerMaxOut::countWeights()
+{
+	return inputs() * (outputs() + 1);
+}
+
+// virtual
+size_t GLayerMaxOut::weightsToVector(double* pOutVector)
+{
+	memcpy(pOutVector, bias().data(), sizeof(double) * inputs());
+	pOutVector += inputs();
+	m_weights.toVector(pOutVector);
+	pOutVector += (inputs() * outputs());
+	return inputs() * (outputs() + 1);
+}
+
+// virtual
+size_t GLayerMaxOut::vectorToWeights(const double* pVector)
+{
+	bias().set(pVector, inputs());
+	pVector += inputs();
+	m_weights.fromVector(pVector, inputs());
+	pVector += (inputs() * outputs());
+	return inputs() * (outputs() + 1);
+}
+
+// virtual
+void GLayerMaxOut::copyWeights(const GNeuralNetLayer* pSource)
+{
+	GLayerMaxOut* src = (GLayerMaxOut*)pSource;
+	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+	bias().copy(src->bias());
+}
+
+// virtual
+void GLayerMaxOut::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+{
+	size_t n = std::min(outputs() - start, count);
+	for(size_t j = 0; j < m_weights.rows(); j++)
+		GVec::perturb(m_weights[j].data() + start, deviation, n, rand);
+	GVec::perturb(bias().data(), deviation, inputs(), rand);
+}
+
+
+
+
+
+
+
+
+
 GLayerSoftMax::GLayerSoftMax(size_t inputSize, size_t outputSize)
 : GLayerClassic(inputSize, outputSize, new GActivationLogistic())
 {
@@ -767,13 +1092,13 @@ size_t GLayerMixed::outputs() const
 }
 
 // virtual
-void GLayerMixed::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
+void GLayerMixed::resize(size_t inputSize, size_t outputSize)
 {
 	if(outputSize != m_activation.cols())
 		throw Ex("Sorry, GLayerMixed does not support resizing the number of outputs");
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
-		m_components[i]->resize(inputSize, m_components[i]->outputs(), pRand, deviation);
+		m_components[i]->resize(inputSize, m_components[i]->outputs());
 		m_inputError.resize(1, inputSize);
 	}
 }
@@ -852,13 +1177,6 @@ void GLayerMixed::applyDeltas(double learningRate)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->applyDeltas(learningRate);
-}
-
-// virtual
-void GLayerMixed::applyAdaptive()
-{
-	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->applyAdaptive();
 }
 
 // virtual
@@ -946,12 +1264,6 @@ void GLayerMixed::maxNorm(double min, double max)
 		m_components[i]->maxNorm(min, max);
 }
 
-// virtual
-void GLayerMixed::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
-{
-	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->renormalizeInput(input, oldMin, oldMax, newMin, newMax);
-}
 
 
 
@@ -968,7 +1280,7 @@ GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(size_t inputS
 	m_pActivationFunction = pActivationFunction;
 	if(!m_pActivationFunction)
 		m_pActivationFunction = new GActivationLogistic();
-	resize(inputSize, outputSize, NULL);
+	resize(inputSize, outputSize);
 }
 
 GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(GDomNode* pNode)
@@ -1007,53 +1319,22 @@ std::string GLayerRestrictedBoltzmannMachine::to_str()
 	return os.str();
 }
 
-void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
+void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCount)
 {
 	if(inputCount == inputs() && outputCount == outputs())
 		return;
-	size_t oldInputs = inputs();
-	size_t oldOutputs = outputs();
-	size_t fewerInputs = std::min(oldInputs, inputCount);
-	size_t fewerOutputs = std::min(oldOutputs, outputCount);
 
 	// Weights
-	m_weights.resizePreserve(outputCount, inputCount);
-	if(pRand)
-	{
-		for(size_t i = 0; i < fewerOutputs; i++)
-		{
-			double* pRow = m_weights[i].data() + fewerInputs;
-			for(size_t j = fewerInputs; j < inputCount; j++)
-				*(pRow++) = deviation * pRand->normal();
-		}
-		for(size_t i = fewerOutputs; i < outputCount; i++)
-		{
-			double* pRow = m_weights[i].data();
-			for(size_t j = 0; j < inputCount; j++)
-				*(pRow++) = deviation * pRand->normal();
-		}
-	}
+	m_weights.resize(outputCount, inputCount);
 	m_delta.resize(outputCount, inputCount);
 	m_delta.setAll(0.0);
 
 	// Bias
-	m_bias.resizePreserve(5, outputCount);
+	m_bias.resize(5, outputCount);
 	biasDelta().fill(0.0);
-	if(pRand)
-	{
-		double* pB = bias().data() + fewerOutputs;
-		for(size_t j = fewerOutputs; j < outputCount; j++)
-			*(pB++) = deviation * pRand->normal();
-	}
 
 	// BiasReverse
-	m_biasReverse.resizePreserve(5, inputCount);
-	if(pRand)
-	{
-		double* pB = biasReverse().data() + fewerInputs;
-		for(size_t j = fewerInputs; j < inputCount; j++)
-			*(pB++) = deviation * pRand->normal();
-	}
+	m_biasReverse.resize(5, inputCount);
 
 	// Activation function
 	m_pActivationFunction->resize(outputCount);
@@ -1289,12 +1570,6 @@ void GLayerRestrictedBoltzmannMachine::applyDeltas(double learningRate)
 	bias().addScaled(learningRate, biasDelta());
 }
 
-// virtual
-void GLayerRestrictedBoltzmannMachine::applyAdaptive()
-{
-	throw new Ex("Sorry, not implemented yet");
-}
-
 void GLayerRestrictedBoltzmannMachine::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_weights.rows(); i++)
@@ -1374,19 +1649,6 @@ void GLayerRestrictedBoltzmannMachine::copyWeights(const GNeuralNetLayer* pSourc
 	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
-// virtual
-void GLayerRestrictedBoltzmannMachine::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
-{
-	size_t outputCount = outputs();
-	double* pB = bias().data();
-	double f = (oldMax - oldMin) / (newMax - newMin);
-	double g = (oldMin - newMin * f);
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		*pB += m_weights[i][input] * g;
-		m_weights[i][input] *= f;
-	}
-}
 
 GLayerConvolutional1D::GLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction)
 : m_inputSamples(inputSamples),
@@ -1453,7 +1715,7 @@ std::string GLayerConvolutional1D::to_str()
 }
 
 // virtual
-void GLayerConvolutional1D::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
+void GLayerConvolutional1D::resize(size_t inputSize, size_t outputSize)
 {
 	if(inputSize != m_inputSamples * m_inputChannels)
 		throw Ex("Changing the size of GLayerConvolutional1D is not supported");
@@ -1644,12 +1906,6 @@ void GLayerConvolutional1D::applyDeltas(double learningRate)
 }
 
 // virtual
-void GLayerConvolutional1D::applyAdaptive()
-{
-	throw new Ex("Sorry, not implemented yet");
-}
-
-// virtual
 void GLayerConvolutional1D::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_kernels.rows(); i++)
@@ -1728,11 +1984,6 @@ void GLayerConvolutional1D::maxNorm(double min, double max)
 		m_kernels[i].clip(-max, max);
 }
 
-// virtual
-void GLayerConvolutional1D::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
-{
-	throw Ex("Sorry, convolutional layers do not support this method");
-}
 
 
 
@@ -1749,7 +2000,7 @@ size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 	if(invertStride)
 	{
 		if((x + dx) % sx > 0 || (y + dy) % sy > 0)
-			return -1;
+			return INVALID_INDEX;
 		x = (x + dx) / sx - px;
 		y = (y + dy) / sy - py;
 	}
@@ -1766,7 +2017,7 @@ size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 	}
 	
 	if(x >= width || y >= height)
-		return -1;
+		return INVALID_INDEX;
 	
 	if(interlaced)
 		return (y * width + x) * channels + z;
@@ -1777,7 +2028,7 @@ size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 double GLayerConvolutional2D::Image::read(size_t x, size_t y, size_t z) const
 {
 	size_t i = index(x, y, z);
-	if(i == -1)
+	if(i == INVALID_INDEX)
 		return 0.0;
 	else
 		return (*data)[i];
@@ -1786,7 +2037,7 @@ double GLayerConvolutional2D::Image::read(size_t x, size_t y, size_t z) const
 double &GLayerConvolutional2D::Image::at(size_t x, size_t y, size_t z)
 {
 	size_t i = index(x, y, z);
-	if(i == -1)
+	if(i == INVALID_INDEX)
 		throw Ex("tried to access invalid image location!");
 	else
 		return (*data)[i];
@@ -1873,17 +2124,17 @@ std::string GLayerConvolutional2D::to_str()
 	return ss.str();
 }
 
-void GLayerConvolutional2D::resize(size_t inputSize, size_t outputSize, GRand *pRand, double deviation)
+void GLayerConvolutional2D::resize(size_t inputSize, size_t outputSize)
 {
 	if(inputSize != inputs() || outputSize != outputs())
 		throw Ex("GLayerConvolutional2D can only be resized given an upstream convolutional layer!");
 }
 
-void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand *pRand, double deviation)
+void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer)
 {
 	if(strcmp(pUpStreamLayer->type(), "conv2d") != 0)
 		throw Ex("GLayerConvolutional2D can only be resized given an upstream convolutional layer!");
-	
+
 	GLayerConvolutional2D &upstream = *((GLayerConvolutional2D *) pUpStreamLayer);
 	
 	m_width			= upstream.outputWidth();
@@ -1908,9 +2159,6 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand 
 	m_deltaImage.channels = m_channels;
 	
 	updateOutputSize();
-	
-	if(pRand)
-		perturbWeights(*pRand, deviation);
 }
 
 void GLayerConvolutional2D::feedForward(const GVec &in)
@@ -2027,11 +2275,6 @@ void GLayerConvolutional2D::applyDeltas(double learningRate)
 		m_kernels[i].addScaled(learningRate, m_deltas[i]);
 }
 
-void GLayerConvolutional2D::applyAdaptive()
-{
-	throw Ex("not implemented");
-}
-
 void GLayerConvolutional2D::scaleWeights(double factor, bool scaleBiases)
 {
 	throw Ex("scaleWeights not implemented");
@@ -2095,22 +2338,17 @@ void GLayerConvolutional2D::regularizeActivationFunction(double lambda)
 	throw Ex("regularizeActivationFunction not implemented");
 }
 
-void GLayerConvolutional2D::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
-{
-	throw Ex("renormalizeInput not implemented");
-}
-
 void GLayerConvolutional2D::setPadding(size_t px, size_t py)
 {
 	m_inputImage.px = px;
-	m_inputImage.py = py == -1 ? px : py;
+	m_inputImage.py = (py == INVALID_INDEX ? px : py);
 	updateOutputSize();
 }
 
 void GLayerConvolutional2D::setStride(size_t sx, size_t sy)
 {
 	m_inputImage.sx = sx;
-	m_inputImage.sy = sy == -1 ? sx : sy;
+	m_inputImage.sy = (sy == INVALID_INDEX ? sx : sy);
 	updateOutputSize();
 }
 
@@ -2142,7 +2380,7 @@ void GLayerConvolutional2D::setOutputInterlaced(bool interlaced)
 
 void GLayerConvolutional2D::addKernel()
 {
-	m_kernels.resizePreserve(m_kernels.rows() + 1, m_kernels.cols());
+	m_kernels.resize(m_kernels.rows() + 1, m_kernels.cols());
 	m_deltas.resize(m_kernels.rows(), m_kernels.cols());
 	
 	GVec temp(m_bias);
@@ -2182,7 +2420,7 @@ void GLayerConvolutional2D::addScaled(const Image &in, double scalar, Image &out
 void GLayerConvolutional2D::convolve(const Image &in, const Image &filter, Image &out, size_t channels)
 {
 	size_t x, y;
-	if(channels == -1)
+	if(channels == INVALID_INDEX)
 		channels = filter.channels;
 	for(y = 0, in.dy = out.py; y < out.height; ++y, ++in.dy)
 		for(x = 0, in.dx = out.px; x < out.width; ++x, ++in.dx)
@@ -2276,7 +2514,7 @@ std::string GMaxPooling2D::to_str()
 }
 
 // virtual
-void GMaxPooling2D::resize(size_t inputSize, size_t outputSize, GRand* pRand, double deviation)
+void GMaxPooling2D::resize(size_t inputSize, size_t outputSize)
 {
 	if(inputSize != m_inputCols * m_inputRows * m_inputChannels)
 		throw Ex("Changing the size of GMaxPooling2D is not supported");
@@ -2396,12 +2634,6 @@ void GMaxPooling2D::applyDeltas(double learningRate)
 }
 
 // virtual
-void GMaxPooling2D::applyAdaptive()
-{
-	throw new Ex("Sorry, not implemented yet");
-}
-
-// virtual
 void GMaxPooling2D::scaleWeights(double factor, bool scaleBiases)
 {
 }
@@ -2449,11 +2681,6 @@ void GMaxPooling2D::maxNorm(double min, double max)
 {
 }
 
-// virtual
-void GMaxPooling2D::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
-{
-	throw Ex("Sorry, max poolings layers do not support this method");
-}
 
 
 
