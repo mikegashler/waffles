@@ -882,6 +882,9 @@ public:
 	void setPadding(size_t px, size_t py = -1);
 	void setStride(size_t sx, size_t sy = -1);
 	void setInterlaced(bool interlaced);
+	void setInputInterlaced(bool interlaced);
+	void setKernelsInterlaced(bool interlaced);
+	void setOutputInterlaced(bool interlaced);
 	void addKernel();
 	void addKernels(size_t n);
 

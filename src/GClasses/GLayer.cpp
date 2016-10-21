@@ -1896,6 +1896,14 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand 
 	m_bias.fill(0.0);
 	m_kernels.setAll(0.0);
 	
+	m_inputImage.width = m_width;
+	m_inputImage.height = m_height;
+	m_inputImage.channels = m_channels;
+	
+	m_upStreamErrorImage.width = m_width;
+	m_upStreamErrorImage.height = m_height;
+	m_upStreamErrorImage.channels = m_channels;
+	
 	m_kernelImage.channels = m_channels;
 	m_deltaImage.channels = m_channels;
 	
@@ -2108,10 +2116,25 @@ void GLayerConvolutional2D::setStride(size_t sx, size_t sy)
 
 void GLayerConvolutional2D::setInterlaced(bool interlaced)
 {
-	m_kernelImage.interlaced = interlaced;
-	m_deltaImage.interlaced = interlaced;
+	setInputInterlaced(interlaced);
+	setKernelsInterlaced(interlaced);
+	setOutputInterlaced(interlaced);
+}
+
+void GLayerConvolutional2D::setInputInterlaced(bool interlaced)
+{
 	m_inputImage.interlaced = interlaced;
 	m_upStreamErrorImage.interlaced = interlaced;
+}
+
+void GLayerConvolutional2D::setKernelsInterlaced(bool interlaced)
+{
+	m_kernelImage.interlaced = interlaced;
+	m_deltaImage.interlaced = interlaced;
+}
+
+void GLayerConvolutional2D::setOutputInterlaced(bool interlaced)
+{
 	m_netImage.interlaced = interlaced;
 	m_actImage.interlaced = interlaced;
 	m_errImage.interlaced = interlaced;
@@ -2180,9 +2203,18 @@ void GLayerConvolutional2D::updateOutputSize()
 	m_outputWidth = (m_width - m_kWidth + 2 * m_inputImage.px) / m_inputImage.sx + 1;
 	m_outputHeight = (m_height - m_kHeight + 2 * m_inputImage.py) / m_inputImage.sy + 1;
 	m_activation.resize(3, m_outputWidth * m_outputHeight * m_kernels.rows());
+	
 	m_netImage.data = &m_activation[0];
+	m_netImage.width = m_outputWidth;
+	m_netImage.height = m_outputHeight;
+	
 	m_actImage.data = &m_activation[1];
+	m_actImage.width = m_outputWidth;
+	m_actImage.height = m_outputHeight;
+	
 	m_errImage.data = &m_activation[2];
+	m_errImage.width = m_outputWidth;
+	m_errImage.height = m_outputHeight;
 }
 
 
