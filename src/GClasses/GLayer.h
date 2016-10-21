@@ -1015,6 +1015,8 @@ protected:
 	/// Image abstraction to facilitate convolution
 	struct Image
 	{
+		static size_t npos;
+		
 		Image(GVec *data, size_t width, size_t height, size_t channels);
 		size_t index(size_t x, size_t y, size_t z) const;
 		double read(size_t x, size_t y, size_t z = 0) const;
@@ -1057,11 +1059,13 @@ private:
 	/// Helper functions for convolution
 	double filterSum(const Image &in, const Image &filter, size_t channels);
 	void addScaled(const Image &in, double scalar, Image &out);
-	void convolve(const Image &in, const Image &filter, Image &out, size_t channels = -1);
-	void convolveFull(const Image &in, const Image &filter, Image &out, size_t channels = -1);
+	void convolve(const Image &in, const Image &filter, Image &out, size_t channels = none);
+	void convolveFull(const Image &in, const Image &filter, Image &out, size_t channels = none);
 	void updateOutputSize();
 
 public:
+	static size_t none;
+	
 	/// General-purpose constructor.
 	GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount = 0, GActivationFunction *pActivationFunction = NULL);
 
@@ -1100,8 +1104,8 @@ public:
 	virtual void maxNorm(double min, double max);
 	virtual void regularizeActivationFunction(double lambda);
 
-	void setPadding(size_t px, size_t py = -1);
-	void setStride(size_t sx, size_t sy = -1);
+	void setPadding(size_t px, size_t py = none);
+	void setStride(size_t sx, size_t sy = none);
 	void setInterlaced(bool interlaced);
 	void setInputInterlaced(bool interlaced);
 	void setKernelsInterlaced(bool interlaced);

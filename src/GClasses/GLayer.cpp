@@ -1990,6 +1990,8 @@ void GLayerConvolutional1D::maxNorm(double min, double max)
 
 
 
+size_t GLayerConvolutional2D::Image::npos = (size_t) -1;
+
 GLayerConvolutional2D::Image::Image(GVec *_data, size_t _width, size_t _height, size_t _channels)
 : data(_data), width(_width), height(_height), channels(_channels), interlaced(true), dx(0), dy(0), dz(0), px(0), py(0), sx(1), sy(1), invertStride(false), flip(false) {}
 
@@ -2000,7 +2002,7 @@ size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 	if(invertStride)
 	{
 		if((x + dx) % sx > 0 || (y + dy) % sy > 0)
-			return INVALID_INDEX;
+			return npos;
 		x = (x + dx) / sx - px;
 		y = (y + dy) / sy - py;
 	}
@@ -2017,7 +2019,7 @@ size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 	}
 	
 	if(x >= width || y >= height)
-		return INVALID_INDEX;
+		return npos;
 	
 	if(interlaced)
 		return (y * width + x) * channels + z;
@@ -2028,7 +2030,7 @@ size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 double GLayerConvolutional2D::Image::read(size_t x, size_t y, size_t z) const
 {
 	size_t i = index(x, y, z);
-	if(i == INVALID_INDEX)
+	if(i == npos)
 		return 0.0;
 	else
 		return (*data)[i];
@@ -2037,11 +2039,14 @@ double GLayerConvolutional2D::Image::read(size_t x, size_t y, size_t z) const
 double &GLayerConvolutional2D::Image::at(size_t x, size_t y, size_t z)
 {
 	size_t i = index(x, y, z);
-	if(i == INVALID_INDEX)
+	if(i == npos)
 		throw Ex("tried to access invalid image location!");
 	else
 		return (*data)[i];
 }
+
+
+size_t GLayerConvolutional2D::none = (size_t) -1;
 
 GLayerConvolutional2D::GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount, GActivationFunction *pActivationFunction)
 : m_width(width), m_height(height), m_channels(channels),
@@ -2341,14 +2346,14 @@ void GLayerConvolutional2D::regularizeActivationFunction(double lambda)
 void GLayerConvolutional2D::setPadding(size_t px, size_t py)
 {
 	m_inputImage.px = px;
-	m_inputImage.py = (py == INVALID_INDEX ? px : py);
+	m_inputImage.py = (py == none ? px : py);
 	updateOutputSize();
 }
 
 void GLayerConvolutional2D::setStride(size_t sx, size_t sy)
 {
 	m_inputImage.sx = sx;
-	m_inputImage.sy = (sy == INVALID_INDEX ? sx : sy);
+	m_inputImage.sy = (sy == none ? sx : sy);
 	updateOutputSize();
 }
 
@@ -2420,7 +2425,7 @@ void GLayerConvolutional2D::addScaled(const Image &in, double scalar, Image &out
 void GLayerConvolutional2D::convolve(const Image &in, const Image &filter, Image &out, size_t channels)
 {
 	size_t x, y;
-	if(channels == INVALID_INDEX)
+	if(channels == none)
 		channels = filter.channels;
 	for(y = 0, in.dy = out.py; y < out.height; ++y, ++in.dy)
 		for(x = 0, in.dx = out.px; x < out.width; ++x, ++in.dx)
