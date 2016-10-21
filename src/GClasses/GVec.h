@@ -352,13 +352,40 @@ public:
 class GIndexVec
 {
 public:
-	size_t* v;
+	size_t* m_data;
+	size_t m_size;
+
 	GIndexVec(size_t n = 0);
 	~GIndexVec();
 
 	/// Resizes this vector
 	void resize(size_t n);
 
+	/// \brief Returns a reference to the specified element.
+	inline size_t& operator [](size_t index)
+	{
+		GAssert(index < m_size);
+		return m_data[index];
+	}
+
+	/// \brief Returns a const reference to the specified element
+	inline const size_t& operator [](size_t index) const
+	{
+		GAssert(index < m_size);
+		return m_data[index];
+	}
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	/// Makes a vector of ints where each element contains its index (starting with zero, of course)
 	static void makeIndexVec(size_t* pVec, size_t size);
 

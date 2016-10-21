@@ -1005,29 +1005,6 @@ void GMatrix::resize(size_t rowCount, size_t colCount)
 	newRows(rowCount);
 }
 
-void GMatrix::resizePreserve(size_t rowCount, size_t colCount)
-{
-	if(colCount != cols())
-	{
-		size_t lesserRows = std::min(rows(), rowCount);
-		size_t lesserCols = std::min(cols(), colCount);
-		for(size_t i = 0; i < lesserRows; i++)
-		{
-			GVec* newrow = new GVec(colCount);
-			memcpy(newrow->data(), row(i).data(), sizeof(double) * lesserCols);
-			delete(m_rows[i]);
-			m_rows[i] = newrow;
-		}
-	}
-	while(rows() > rowCount)
-		deleteRow(rows() - 1);
-	if(m_pRelation != &g_emptyRelation)
-		delete(m_pRelation);
-	m_pRelation = new GUniformRelation(colCount, 0);
-	while(rows() < rowCount)
-		newRow();
-}
-
 void GMatrix::flush()
 {
 	for(size_t i = 0; i < rows(); i++)

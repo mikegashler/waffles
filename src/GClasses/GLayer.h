@@ -32,7 +32,7 @@ namespace GClasses {
 /// not FLEXIBLE_SIZE is used.) FLEXIBLE_SIZE should probably not be used on an end that
 /// will be connected to another end with FLEXIBLE_SIZE because then both ends will stay
 /// at a size of zero, which will result in approximately baseline predictions.
-#define FLEXIBLE_SIZE 0
+#define FLEXIBLE_SIZE (size_t)0
 
 class GActivationFunction;
 
@@ -66,12 +66,12 @@ public:
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03) = 0;
+	virtual void resize(size_t inputs, size_t outputs) = 0;
 
 	/// Resizes the inputs of this layer (as in the above function) given the upstream layer to calculate needed inputs.
-	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03)
+	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer)
 	{
-		resize(pUpStreamLayer->outputs(), outputs(), pRand, deviation);
+		resize(pUpStreamLayer->outputs(), outputs());
 	}
 
 	/// Returns a buffer where the activation from the most-recent call to feedForward is stored.
@@ -114,9 +114,6 @@ public:
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate) = 0;
 
-	/// Adaptively update a per-weight learning rate and update the weights and biases.
-	virtual void applyAdaptive() = 0;
-
 	/// Multiplies all the weights by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) = 0;
 
@@ -147,10 +144,6 @@ public:
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda) = 0;
-
-	/// Adjusts weights such that values in the new range will result in the
-	/// same behavior that previously resulted from values in the old range.
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0) = 0;
 
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
@@ -198,7 +191,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
+	virtual void resize(size_t inputs, size_t outputs);
 
 	/// Returns the activation values from the most recent call to feedForward().
 	virtual GVec& activation() { return m_bias[2]; }
@@ -233,9 +226,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
-
-	/// Adaptively update a per-weight learning rate and update the weights and biases.
-	virtual void applyAdaptive();
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -320,11 +310,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// count specifies the maximum number of units whose incoming weights are adjusted.
 	void setWeightsToIdentity(size_t start = 0, size_t count = (size_t)-1);
 
-	/// Adjusts the value of each weight to, w = w - factor * pow(w, power).
-	/// If power is 1, this is the same as calling scaleWeights.
-	/// If power is 0, this is the same as calling diminishWeights.
-	void regularizeWeights(double factor, double power);
-
 	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
@@ -334,6 +319,264 @@ using GNeuralNetLayer::updateDeltas;
 	/// Adjusts weights such that values in the new range will result in the
 	/// same behavior that previously resulted from values in the old range.
 	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
+	void copySingleNeuronWeights(size_t source, size_t dest);
+	void printSummary(std::ostream& stream);
+};
+
+
+
+/// Multiplies each pair of values together to produce the output
+class GLayerProductPooling : public GNeuralNetLayer
+{
+friend class GNeuralNet;
+protected:
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
+
+public:
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
+
+	/// General-purpose constructor.
+	GLayerProductPooling(size_t inputs);
+
+	/// Deserializing constructor
+	GLayerProductPooling(GDomNode* pNode);
+	~GLayerProductPooling();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "productpooling"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() const { return m_activation.cols() * 2; }
+
+	/// Returns the number of outputs that this layer produces.
+	virtual size_t outputs() const { return m_activation.cols(); }
+
+	/// Resizes this layer. outputs must be 2*inputs.
+	virtual void resize(size_t inputs, size_t outputs);
+
+	/// Resizes the inputs of this layer (as in the above function) given the upstream layer to calculate needed inputs.
+	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer)
+	{
+		resize(pUpStreamLayer->outputs(), pUpStreamLayer->outputs() / 2);
+	}
+
+	/// Returns the activation values from the most recent call to feedForward().
+	virtual GVec& activation() { return m_activation[0]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual GVec& error() { return m_activation[1]; }
+
+	/// Feeds a the inputs through this layer.
+	virtual void feedForward(const GVec& in);
+
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const GVec& target);
+
+	/// Multiplies each element in the error vector by the derivative of the activation function.
+	/// This results in the error having meaning with respect to the weights, instead of the output.
+	/// (Assumes the error for this layer has already been computed.)
+	virtual void deactivateError();
+
+	/// Backpropagates the error from this layer into the upstream layer's error vector.
+	/// (Assumes that the error in this layer has already been computed and deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate);
+
+	/// Multiplies all the weights in this layer by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases);
+
+	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
+	void contractWeights(double factor, bool contractBiases);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand);
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	/// The default values for these parameters apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
+	virtual void maxNorm(double min, double max);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
+};
+
+
+
+class GLayerMaxOut : public GNeuralNetLayer
+{
+friend class GNeuralNet;
+protected:
+	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the bias delta.
+	GMatrix m_delta; // Used to implement momentum
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
+	GIndexVec m_winners; // The indexes of the winning inputs.
+
+public:
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
+
+	/// General-purpose constructor. Takes ownership of pActivationFunction.
+	/// If pActivationFunction is NULL, then GActivationTanH is used.
+	GLayerMaxOut(size_t inputs, size_t outputs);
+
+	/// Deserializing constructor
+	GLayerMaxOut(GDomNode* pNode);
+	~GLayerMaxOut();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "maxnet"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() const { return m_weights.rows(); }
+
+	/// Returns the number of nodes or units in this layer.
+	virtual size_t outputs() const { return m_weights.cols(); }
+
+	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
+	/// and initializes any others to small random values.
+	virtual void resize(size_t inputs, size_t outputs);
+
+	/// Returns the activation values from the most recent call to feedForward().
+	virtual GVec& activation() { return m_activation[0]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual GVec& error() { return m_activation[1]; }
+
+	/// Feeds a the inputs through this layer.
+	virtual void feedForward(const GVec& in);
+
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const GVec& target);
+
+	/// Multiplies each element in the error vector by the derivative of the activation function.
+	/// This results in the error having meaning with respect to the weights, instead of the output.
+	/// (Assumes the error for this layer has already been computed.)
+	virtual void deactivateError();
+
+	/// Backpropagates the error from this layer into the upstream layer's error vector.
+	/// (Assumes that the error in this layer has already been computed and deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate);
+
+	/// Multiplies all the weights in this layer by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases);
+
+	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
+	void contractWeights(double factor, bool contractBiases);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand);
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	/// The default values for these parameters apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
+	virtual void maxNorm(double min, double max);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
+
+	/// Returns a reference to the weights matrix of this layer
+	GMatrix& weights() { return m_weights; }
+	const GMatrix& weights() const { return m_weights; }
+
+	GMatrix& deltas() { return m_delta; }
+
+	/// Returns the bias vector of this layer.
+	GVec& bias() { return m_bias[0]; }
+
+	/// Returns the bias vector of this layer.
+	const GVec& bias() const { return m_bias[0]; }
+
+	/// Returns a buffer used to store delta values for each bias in this layer.
+	GVec& biasDelta() { return m_bias[1]; }
+
+	/// Sets the weights of this layer to make it weakly approximate the identity function.
+	/// start specifies the first unit whose incoming weights will be adjusted.
+	/// count specifies the maximum number of units whose incoming weights are adjusted.
+	void setWeightsToIdentity(size_t start = 0, size_t count = (size_t)-1);
+
+	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
+	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
+	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
+	/// that is added before the transform.
+	void transformWeights(GMatrix& transform, const GVec& offset);
+
 	void copySingleNeuronWeights(size_t source, size_t dest);
 	void printSummary(std::ostream& stream);
 };
@@ -404,7 +647,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Throws an exception if the specified dimensions would change anything. Also
 	/// throws an exception if pRand is not NULL.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
+	virtual void resize(size_t inputs, size_t outputs);
 
 	/// Returns the activation values from the most recent call to feedForward().
 	virtual GVec& activation() { return m_activation[0]; }
@@ -439,9 +682,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
 
-	/// Adaptively update a per-weight learning rate and update the weights and biases.
-	virtual void applyAdaptive();
-
 	/// Calls scaleWeights for each component.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
@@ -471,10 +711,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
-
-	/// Adjusts weights such that values in the new range will result in the
-	/// same behavior that previously resulted from values in the old range.
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 };
 
 
@@ -517,7 +753,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
+	virtual void resize(size_t inputs, size_t outputs);
 
 	/// Returns the activation values on the hidden end.
 	virtual GVec& activation() { return m_bias[2]; }
@@ -554,9 +790,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
-
-	/// Adaptively update a per-weight learning rate and update the weights and biases.
-	virtual void applyAdaptive();
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -640,10 +873,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Refines this layer by contrastive divergence.
 	/// pVisibleSample should point to a vector of inputs that will be presented to this layer.
 	void contrastiveDivergence(GRand& rand, const GVec& visibleSample, double learningRate, size_t gibbsSamples = 1);
-
-	/// Adjusts weights such that values in the new range will result in the
-	/// same behavior that previously resulted from values in the old range.
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 };
 
 
@@ -695,7 +924,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual size_t outputs() const { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
+	virtual void resize(size_t inputs, size_t outputs);
 
 	/// Returns the activation values from the most recent call to feedForward().
 	virtual GVec& activation() { return m_activation[0]; }
@@ -734,9 +963,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
 
-	/// Adaptively update a per-weight learning rate and update the weights and biases.
-	virtual void applyAdaptive();
-
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
@@ -768,9 +994,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
-
-	/// Throws an exception.
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
@@ -857,8 +1080,8 @@ public:
 	virtual std::string to_str();
 	virtual size_t inputs() const { return m_width * m_height * m_channels; }
 	virtual size_t outputs() const { return m_outputWidth * m_outputHeight * m_bias.size(); }
-	virtual void resize(size_t inputs, size_t outputs, GRand *pRand = NULL, double deviation = 0.03);
-	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand* pRand = NULL, double deviation = 0.03);
+	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer);
 	virtual GVec &activation() { return m_activation[1]; }
 	virtual GVec &error() { return m_activation[2]; }
 
@@ -870,7 +1093,6 @@ public:
 	virtual void backPropError(GNeuralNetLayer *pUpStreamLayer);
 	virtual void updateDeltas(const GVec &upStreamActivation, double momentum);
 	virtual void applyDeltas(double learningRate);
-	virtual void applyAdaptive();
 	virtual void scaleWeights(double factor, bool scaleBiases);
 	virtual void diminishWeights(double amount, bool regularizeBiases);
 	virtual size_t countWeights();
@@ -881,7 +1103,6 @@ public:
 	virtual void perturbWeights(GRand &rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
 	virtual void maxNorm(double min, double max);
 	virtual void regularizeActivationFunction(double lambda);
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 
 	void setPadding(size_t px, size_t py = none);
 	void setStride(size_t sx, size_t sy = none);
@@ -957,7 +1178,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual size_t outputs() const { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
-	virtual void resize(size_t inputs, size_t outputs, GRand* pRand = NULL, double deviation = 0.03);
+	virtual void resize(size_t inputs, size_t outputs);
 
 	/// Returns the activation values from the most recent call to feedForward().
 	virtual GVec& activation() { return m_activation[0]; }
@@ -996,9 +1217,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
 
-	/// Adaptively update a per-weight learning rate and update the weights and biases.
-	virtual void applyAdaptive();
-
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
 
@@ -1030,9 +1248,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
-
-	/// Throws an exception.
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 };
 
 

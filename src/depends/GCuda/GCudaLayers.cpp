@@ -77,12 +77,10 @@ std::string GLayerClassicCuda::to_str()
 	throw Ex("Sorry, to_str not implemented");
 }
 
-void GLayerClassicCuda::resize(size_t inputCount, size_t outputCount, GRand* pRand, double deviation)
+void GLayerClassicCuda::resize(size_t inputCount, size_t outputCount)
 {
 	if(inputCount == inputs() && outputCount == outputs())
 		return;
-	if(pRand)
-		throw Ex("Sorry, GLayerClassicCuda does not support preserving resizes");
 
 	m_weights.resize(inputCount, outputCount);
 	m_delta.resize(inputCount, outputCount);
@@ -283,12 +281,6 @@ void GLayerClassicCuda::applyDeltas(double learningRate)
 }
 
 // virtual
-void GLayerClassicCuda::applyAdaptive()
-{
-	throw Ex("Sorry, GLayerClassicCuda::applyAdaptive is not yet implemented");
-}
-
-// virtual
 void GLayerClassicCuda::updateWeightsAndRestoreDroppedOnes(const GVec& upStreamActivation, size_t inputStart, size_t inputCount, double learningRate, double momentum)
 {
 	throw Ex("Sorry, not implemented yet");
@@ -455,13 +447,13 @@ std::string GLayerConvolutional2DCuda::to_str()
 	return ss.str();
 }
 
-void GLayerConvolutional2DCuda::resize(size_t inputSize, size_t outputSize, GRand *pRand, double deviation)
+void GLayerConvolutional2DCuda::resize(size_t inputSize, size_t outputSize)
 {
 	if(inputSize != inputs() || outputSize != outputs())
 		throw Ex("GLayerConvolutional2DCuda cannot be resized");
 }
 
-void GLayerConvolutional2DCuda::resizeInputs(GNeuralNetLayer *pUpStreamLayer, GRand *pRand, double deviation)
+void GLayerConvolutional2DCuda::resizeInputs(GNeuralNetLayer *pUpStreamLayer)
 {
 	throw Ex("Sorry, this method is not yet implemented.");
 }
@@ -546,11 +538,6 @@ void GLayerConvolutional2DCuda::applyDeltas(double learningRate)
 {
 	m_bias.add(m_engine, m_biasDelta, learningRate);
 	m_kernels.add(m_engine, m_delta, learningRate);
-}
-
-void GLayerConvolutional2DCuda::applyAdaptive()
-{
-	throw Ex("not implemented");
 }
 
 void GLayerConvolutional2DCuda::scaleWeights(double factor, bool scaleBiases)
