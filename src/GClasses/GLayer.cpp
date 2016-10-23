@@ -538,7 +538,9 @@ void GLayerClassic::renormalizeInput(size_t input, double oldMin, double oldMax,
 
 GLayerProductPooling::GLayerProductPooling(size_t inps)
 {
-	resize(inps, inps * 2);
+	if((inps & 1) == 1)
+		throw Ex("inputCount must be divisible by 2");
+	resize(inps, inps / 2);
 }
 
 GLayerProductPooling::GLayerProductPooling(GDomNode* pNode)
