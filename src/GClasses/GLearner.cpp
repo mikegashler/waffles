@@ -568,7 +568,7 @@ std::unique_ptr<GMatrix> GSupervisedLearner::transduceInner(const GMatrix& featu
 }
 
 // virtual
-double GSupervisedLearner::trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels)
+double GSupervisedLearner::trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, double* pOutSAE)
 {
 	train(trainFeatures, trainLabels);
 	return sumSquaredError(testFeatures, testLabels);

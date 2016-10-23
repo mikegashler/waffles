@@ -25,7 +25,7 @@
 namespace GClasses {
 
 GParticleSwarm::GParticleSwarm(GTargetFunction* pCritic, size_t nPopulation, double dMin, double dRange, GRand* pRand)
-: GOptimizer(pCritic), m_pPositions(m_nPopulation, pCritic->relation()->size()), m_pVelocities(m_nPopulation, pCritic->relation()->size()), m_pBests(m_nPopulation, pCritic->relation()->size()), m_pErrors(m_nPopulation), m_pRand(pRand)
+: GOptimizer(pCritic), m_pPositions(nPopulation, pCritic->relation()->size()), m_pVelocities(nPopulation, pCritic->relation()->size()), m_pBests(nPopulation, pCritic->relation()->size()), m_pErrors(nPopulation), m_pRand(pRand)
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");

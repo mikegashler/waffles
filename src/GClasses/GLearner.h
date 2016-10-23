@@ -302,7 +302,7 @@ public:
 	void precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps);
 
 	/// Trains and tests this learner. Returns sum-squared-error.
-	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels);
+	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, double* pOutSAE = NULL);
 #endif // MIN_PREDICT
 
 #ifndef MIN_PREDICT
