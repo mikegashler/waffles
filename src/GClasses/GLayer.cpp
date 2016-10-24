@@ -3,6 +3,7 @@
 
     Michael S. Gashler,
     Michael R. Smith,
+		Stephen Ashmore,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).

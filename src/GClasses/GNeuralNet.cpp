@@ -56,7 +56,8 @@ m_learningRate(0.1),
 m_momentum(0.0),
 m_validationPortion(0.35),
 m_minImprovement(0.002),
-m_epochsPerValidationCheck(100)
+m_epochsPerValidationCheck(100),
+m_ready(false)
 {
 }
 
@@ -100,9 +101,9 @@ GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 	GDomNode* pLayerList = pNode->addField(pDoc, "layers", pDoc->newList());
 	for(size_t i = 0; i < m_layers.size(); i++)
 		pLayerList->addItem(pDoc, m_layers[i]->serialize(pDoc));
-	
+
 	// Add other settings
-	
+
 	pNode->addField(pDoc, "learningRate", pDoc->newDouble(m_learningRate));
 	pNode->addField(pDoc, "momentum", pDoc->newDouble(m_momentum));
 
@@ -613,11 +614,16 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 	// Reset the weights
 	for(size_t i = 0; i < m_layers.size(); i++)
 		m_layers[i]->resetWeights(m_rand);
+
+	m_ready = true;
 }
 
 // virtual
 void GNeuralNet::trainIncremental(const GVec& in, const GVec& out)
 {
+	if ( !m_ready ) {
+		throw Ex("beginIncrementalLearning must be called before you can trainIncremental.");
+	}
 	forwardProp(in);
 	backpropagate(out);
 	descendGradient(in, m_learningRate, m_momentum);
@@ -1715,7 +1721,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		for(size_t i = 0; i < feature.size(); i++)
 			ss >> feature[i];
 	}
-	
+
 	// the correct convolution for the image above given the kernels below
 	// also encoded as the image above
 	GVec label(3*3*2);
@@ -1726,7 +1732,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		for(size_t i = 0; i < label.size(); i++)
 			ss >> label[i];
 	}
-	
+
 	GLayerConvolutional2D layer(5, 5, 3, 3, 3, 2, new GActivationIdentity());
 	layer.setPadding(1);
 	layer.setStride(2);
@@ -1737,7 +1743,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		std::string data2 = "-1 1 -1 0 0 1 0 1 -1 0 0 -1 0 0 0 -1 0 -1 1 1 -1 1 -1 0 0 0 1 0";
 		std::istringstream ss1(data1);
 		std::istringstream ss2(data2);
-		
+
 		for(size_t i = 0; i < layer.kernels().cols(); i++)
 		{
 			ss1 >> layer.kernels()[0][i];
@@ -1746,9 +1752,9 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		ss1 >> layer.bias()[0];
 		ss2 >> layer.bias()[1];
 	}
-	
+
 	// test serialization
-	
+
 	GDom doc;
 	GDomNode *root = layer.serialize(&doc);
 	GLayerConvolutional2D *p_layer = (GLayerConvolutional2D *) GNeuralNetLayer::deserialize(root);
@@ -1760,25 +1766,25 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 			if(layer.kernels()[i][j] != p_layer->kernels()[i][j])
 				throw Ex("GLayerConvolutional2D serialization failed (2)");
 	delete p_layer;
-	
+
 	// test forward propagation
-	
+
 	layer.feedForward(feature);
 	for(size_t i = 0; i < label.size(); i++)
 		if(label[i] != layer.activation()[i])
 			throw Ex("GLayerConvolutional2D forward prop failed");
-	
+
 	// test backpropagation (1)
 	// -- can we update weights in the previous layer?
-	
+
 	GLayerClassic upstream(1, layer.inputs(), new GActivationIdentity());
 	for(size_t i = 0; i < layer.inputs(); i++)
 		upstream.weights()[0][i] = feature[i] + prng.normal();
 	upstream.bias().fill(0.0);
-	
+
 	GVec oneVec(1);
 	oneVec.fill(1.0);
-	
+
 	for(size_t i = 0; i < 100; i++)
 	{
 		upstream.feedForward(oneVec);
@@ -1787,32 +1793,32 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		layer.backPropError(&upstream);
 		upstream.updateDeltas(oneVec, 0.0);
 		upstream.applyDeltas(0.01);
-		
+
 		upstream.feedForward(oneVec);
 		layer.feedForward(upstream.activation());
-		
+
 		upstream.feedForward(oneVec);
 		layer.feedForward(upstream.activation());
 	}
-	
+
 	upstream.feedForward(oneVec);
 	layer.feedForward(upstream.activation());
 	if(layer.activation().squaredDistance(label) > 1e-2)
 		throw Ex("GLayerConvolutional2D backpropagation failed (1)");
-	
+
 	// test backpropagation (2)
 	// -- can we update weights in the convolutional layer?
-	
+
 	GVec zeroVec(label.size());
 	zeroVec.fill(0.0);
-	
+
 	for(size_t c = 0; c < layer.kernels().rows(); c++)
 	{
 		layer.bias()[c] += prng.normal();
 		for(size_t i = 0; i < layer.kernels().cols(); i++)
 			layer.kernels()[c][i] += prng.normal();
 	}
-	
+
 	for(size_t i = 0; i < 100; i++)
 	{
 		layer.feedForward(feature);
@@ -1820,7 +1826,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		layer.updateDeltas(feature, 0.0);
 		layer.applyDeltas(0.01);
 	}
-	
+
 	layer.feedForward(feature);
 	if(layer.activation().squaredDistance(label) > 1e-2)
 		throw Ex("GLayerConvolutional2D backpropagation failed (2)");
@@ -1862,19 +1868,19 @@ void GNeuralNet_testFourier()
 void GNeuralNet_testConvenience()
 {
 	// this method will not throw any exceptions; if it compiles, it works
-	
+
 	GUniformRelation rel(1);
 	GVec vec(1);
 	vec[0] = 0.5;
-	
+
 	GNeuralNet encoder;
 	encoder.addLayers(200, 100, new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationSin()), FLEXIBLE_SIZE);
 	encoder.beginIncrementalLearning(rel, rel);
-	
+
 	GNeuralNet decoder;
 	decoder.addLayers(100, 200, FLEXIBLE_SIZE);
 	decoder.beginIncrementalLearning(rel, rel);
-	
+
 	GNeuralNet::trainIncremental(vec, vec, encoder, decoder);
 }
 
@@ -2130,4 +2136,3 @@ void GReservoirNet::test()
 
 
 } // namespace GClasses
-

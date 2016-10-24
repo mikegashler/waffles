@@ -41,6 +41,7 @@ protected:
 	double m_validationPortion;
 	double m_minImprovement;
 	size_t m_epochsPerValidationCheck;
+	bool m_ready;
 
 public:
 	GNeuralNet();
