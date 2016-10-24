@@ -307,6 +307,7 @@ public:
 
 	/// Performs a single step of batch gradient descent.
 	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, size_t start = 0, size_t count = INVALID_INDEX);
+	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count = INVALID_INDEX);
 
 	/// Presents a pattern for training. Applies dropout to the activations of hidden layers.
 	/// Note that when training with dropout is complete, you should call

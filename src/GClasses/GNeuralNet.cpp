@@ -650,6 +650,35 @@ void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& l
 	applyDeltas(m_learningRate / features.rows());
 }
 
+void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count)
+{
+	if(count == INVALID_INDEX)
+	{
+		count = features.rows();
+		ii.reset();
+	}
+	GAssert(count <= features.rows() && count > 0);
+	
+	size_t j;
+	if(!ii.next(j)) ii.reset(), ii.next(j);
+	
+	const GVec& feat0 = features[j];
+	const GVec& targ0 = labels[j];
+	forwardProp(feat0);
+	backpropagate(targ0);
+	updateDeltas(feat0, 0.0);
+	for(size_t i = 1; i < count; ++i)
+	{
+		if(!ii.next(j)) ii.reset(), ii.next(j);
+		const GVec& feat = features[j];
+		const GVec& targ = labels[j];
+		forwardProp(feat);
+		backpropagate(targ);
+		updateDeltas(feat, 1.0);
+	}
+	applyDeltas(m_learningRate / features.rows());
+}
+
 void GNeuralNet::trainIncrementalWithDropout(const GVec& in, const GVec& out, double probOfDrop)
 {
 	if(m_momentum != 0.0)
