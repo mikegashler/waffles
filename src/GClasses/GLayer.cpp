@@ -104,13 +104,24 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
-: m_weights(pNode->field("weights")), m_delta(m_weights.rows(), m_weights.cols()), m_bias(6, m_weights.cols())
 {
-	bias().deserialize(pNode->field("bias"));
+	GMatrix temp(pNode->field("weights"));
+	m_weights = temp;
+	
+	// backwards compatibility before bias was merged into weights
+	GDomNode *bias = pNode->fieldIfExists("bias");
+	if(bias != NULL)
+	{
+		m_weights.newRow();
+		m_weights.back().deserialize(pNode->field("bias"));
+	}
+	
+	m_delta.resize(m_weights.rows(), m_weights.cols());
+	m_out.resize(4, m_weights.cols());
+	
 	slack().deserialize(pNode->field("slack"));
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 	m_delta.setAll(0.0);
-	biasDelta().fill(0.0);
 }
 
 GLayerClassic::~GLayerClassic()
@@ -134,7 +145,6 @@ std::string GLayerClassic::to_str()
 	std::ostringstream os;
 	os << "[GLayerClassic:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
 	os << " Weights: " << GClasses::to_str(m_weights) << "\n";
-	os << " Bias: " << GClasses::to_str(m_bias) << "\n";
 	os << "]";
 	return os.str();
 }
@@ -145,13 +155,12 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount)
 		return;
 
 	// Weights
-	m_weights.resize(inputCount, outputCount);
-	m_delta.resize(inputCount, outputCount);
+	m_weights.resize(inputCount + 1, outputCount);
+	m_delta.resize(inputCount + 1, outputCount);
 	m_delta.setAll(0.0);
 
 	// Bias
-	m_bias.resize(6, outputCount);
-	biasDelta().fill(0.0);
+	m_out.resize(4, outputCount);
 	slack().fill(0.0);
 
 	// Activation function
