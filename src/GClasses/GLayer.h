@@ -40,9 +40,6 @@ class GActivationFunction;
 /// Represents a layer of neurons in a neural network
 class GNeuralNetLayer
 {
-protected:
-	GMatrix m_weights; // Generally, each row is an upstream neuron and each column is a downstream neuron.
-	GMatrix m_delta; // Used to store (cumulative) blame terms.
 public:
 	GNeuralNetLayer() {}
 	virtual ~GNeuralNetLayer() {}
@@ -151,11 +148,6 @@ public:
 
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
-	
-	GMatrix &weights()				{ return m_weights; }
-	const GMatrix &weights() const	{ return m_weights; }
-	GMatrix &deltas()				{ return m_delta; }
-	const GMatrix &deltas() const	{ return m_delta; }
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc);
@@ -166,7 +158,9 @@ class GLayerClassic : public GNeuralNetLayer
 {
 friend class GNeuralNet;
 protected:
-	GMatrix m_out; // Row 0 is the net. Row 1 is the activation. Row 2 is the error. Row 3 is the slack.
+	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
+	GMatrix m_delta; // Used to implement momentum
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack.
 	GActivationFunction* m_pActivationFunction;
 
 public:
@@ -190,8 +184,8 @@ using GNeuralNetLayer::updateDeltas;
 	/// Makes a string representation of this layer
 	virtual std::string to_str();
 
-	/// Returns the number of values expected to be fed as input into this layer. (minus 1 for the bias).
-	virtual size_t inputs() const { return m_weights.rows() - 1; }
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() const { return m_weights.rows(); }
 
 	/// Returns the number of nodes or units in this layer.
 	virtual size_t outputs() const { return m_weights.cols(); }
@@ -201,10 +195,10 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs);
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_out[1]; }
+	virtual GVec& activation() { return m_bias[2]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_out[2]; }
+	virtual GVec& error() { return m_bias[3]; }
 
 	/// Feeds a the inputs through this layer.
 	virtual void feedForward(const GVec& in);
@@ -270,21 +264,27 @@ using GNeuralNetLayer::updateDeltas;
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
 
-	/// Returns the bias vector of this layer.
-	GVec& bias() { return m_weights.back(); }
+	/// Returns a reference to the weights matrix of this layer
+	GMatrix& weights() { return m_weights; }
+	const GMatrix& weights() const { return m_weights; }
+
+	GMatrix& deltas() { return m_delta; }
 
 	/// Returns the bias vector of this layer.
-	const GVec& bias() const { return m_weights.back(); }
+	GVec& bias() { return m_bias[0]; }
+
+	/// Returns the bias vector of this layer.
+	const GVec& bias() const { return m_bias[0]; }
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
-	GVec& net() { return m_out[0]; }
+	GVec& net() { return m_bias[1]; }
 
 	/// Returns a buffer used to store delta values for each bias in this layer.
-	GVec& biasDelta() { return m_delta.back(); }
+	GVec& biasDelta() { return m_bias[4]; }
 
 	/// Returns a vector used to specify slack terms for each unit in this layer.
-	GVec& slack() { return m_out[3]; }
+	GVec& slack() { return m_bias[5]; }
 
 	/// Returns a pointer to the activation function used in this layer
 	GActivationFunction* activationFunction() { return m_pActivationFunction; }
