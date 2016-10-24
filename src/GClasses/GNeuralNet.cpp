@@ -57,7 +57,9 @@ m_momentum(0.0),
 m_validationPortion(0.35),
 m_minImprovement(0.002),
 m_epochsPerValidationCheck(100),
-m_ready(false)
+m_ready(false),
+m_deltaMin(1e-6),
+m_deltaMax(5e1)
 {
 }
 
@@ -615,6 +617,9 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 	for(size_t i = 0; i < m_layers.size(); i++)
 		m_layers[i]->resetWeights(m_rand);
 
+	m_meanSquare.resize(countWeights());
+	m_meanSquare.fill(0.0);
+
 	m_ready = true;
 }
 
@@ -677,6 +682,112 @@ void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& l
 		updateDeltas(feat, 1.0);
 	}
 	applyDeltas(m_learningRate / features.rows());
+}
+
+void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, size_t start, size_t count)
+{
+	if(count == INVALID_INDEX)
+		count = features.rows();
+	GAssert(start + count <= features.rows() && count > 0);
+	
+#ifdef _DEBUG
+	// inside ifdef to avoid useless for loop in optimized mode
+	for(size_t i = 0; i < layerCount(); ++i)
+		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL);
+#endif
+	
+	const GVec& feat0 = features[start];
+	const GVec& targ0 = labels[start];
+	forwardProp(feat0);
+	backpropagate(targ0);
+	updateDeltas(feat0, 0.0);
+	for(size_t i = 1; i < count; ++i, ++start)
+	{
+		const GVec& feat = features[start];
+		const GVec& targ = labels[start];
+		forwardProp(feat);
+		backpropagate(targ);
+		updateDeltas(feat, 1.0);
+	}
+	
+	double *meanSquare = m_meanSquare.data();
+	double factor = 1.0 / count;
+	for(size_t i = 0; i < layerCount(); ++i)
+	{
+		GLayerClassic &layer = *((GLayerClassic *) m_layers[i]);
+		
+		// BEGIN RMSPROP
+		for(size_t j = 0; j < layer.biasDelta().size(); ++j, ++meanSquare)
+			updateMeanSquareAndDelta(*meanSquare, layer.biasDelta()[j]);
+		for(size_t j = 0; j < layer.deltas().rows(); ++j)
+			for(size_t k = 0; k < layer.deltas().cols(); ++k, ++meanSquare)
+				updateMeanSquareAndDelta(*meanSquare, layer.deltas()[j][k]);
+		// END RMSPROP
+		
+		layer.applyDeltas(m_learningRate * factor);
+	}
+}
+
+void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count)
+{
+	if(count == INVALID_INDEX)
+	{
+		count = features.rows();
+		ii.reset();
+	}
+	GAssert(count <= features.rows() && count > 0);
+	
+#ifdef _DEBUG
+	// inside ifdef to avoid useless for loop in optimized mode
+	for(size_t i = 0; i < layerCount(); ++i)
+		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL);
+#endif
+	
+	size_t j;
+	if(!ii.next(j)) ii.reset(), ii.next(j);
+	
+	const GVec& feat0 = features[j];
+	const GVec& targ0 = labels[j];
+	forwardProp(feat0);
+	backpropagate(targ0);
+	updateDeltas(feat0, 0.0);
+	for(size_t i = 1; i < count; ++i)
+	{
+		if(!ii.next(j)) ii.reset(), ii.next(j);
+		const GVec& feat = features[j];
+		const GVec& targ = labels[j];
+		forwardProp(feat);
+		backpropagate(targ);
+		updateDeltas(feat, 1.0);
+	}
+	
+	double *meanSquare = m_meanSquare.data();
+	double factor = 1.0 / count;
+	for(size_t i = 0; i < layerCount(); ++i)
+	{
+		GLayerClassic &layer = *((GLayerClassic *) m_layers[i]);
+		
+		// BEGIN RMSPROP
+		for(size_t jj = 0; jj < layer.biasDelta().size(); ++jj, ++meanSquare)
+			updateMeanSquareAndDelta(*meanSquare, layer.biasDelta()[jj]);
+		for(size_t jj = 0; jj < layer.deltas().rows(); ++jj)
+			for(size_t k = 0; k < layer.deltas().cols(); ++k, ++meanSquare)
+				updateMeanSquareAndDelta(*meanSquare, layer.deltas()[jj][k]);
+		// END RMSPROP
+		
+		layer.applyDeltas(m_learningRate * factor);
+	}
+}
+
+void GNeuralNet::updateMeanSquareAndDelta(double &meanSquare, double &delta)
+{
+	meanSquare *= 0.9;
+	meanSquare += 0.1 * delta * delta;
+	delta /= sqrt(meanSquare) + 1e-6;
+	if(delta > 0)
+		delta = std::min(std::max(delta, m_deltaMin), m_deltaMax);
+	else
+		delta = std::max(std::min(delta, -m_deltaMin), -m_deltaMax);
 }
 
 void GNeuralNet::trainIncrementalWithDropout(const GVec& in, const GVec& out, double probOfDrop)
