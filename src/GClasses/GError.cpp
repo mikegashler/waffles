@@ -132,10 +132,24 @@ void GAssertFailed(const char* filename, int line)
 	cerr.flush();
 	__debugbreak();
 }
+void GAssertFailed(const char* filename, int line, const char* message)
+{
+	cerr << "Debug Assert Failed in " << filename << ":" << line << std::endl;
+	cerr << "Message: " << message << std::endl;
+	cerr.flush();
+	__debugbreak();
+}
 #else
 void GAssertFailed(const char* filename, int line)
 {
 	cerr << "Debug Assert Failed in " << filename << ":" << line << std::endl;
+	cerr.flush();
+	raise(SIGINT);
+}
+void GAssertFailed(const char* filename, int line, const char* message)
+{
+	cerr << "Debug Assert Failed in " << filename << ":" << line << std::endl;
+	cerr << "Message: " << message << std::endl;
 	cerr.flush();
 	raise(SIGINT);
 }
@@ -292,4 +306,3 @@ void test_to_str(){
 #endif // MIN_PREDICT
 
 } // namespace GClasses
-
