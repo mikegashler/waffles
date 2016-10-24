@@ -337,7 +337,7 @@ using GNeuralNetLayer::feedForward;
 using GNeuralNetLayer::updateDeltas;
 
 	/// General-purpose constructor.
-	GLayerProductPooling(size_t inputs);
+	GLayerProductPooling(size_t inputs = FLEXIBLE_SIZE);
 
 	/// Deserializing constructor
 	GLayerProductPooling(GDomNode* pNode);

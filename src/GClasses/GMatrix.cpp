@@ -554,7 +554,13 @@ void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<cons
 	m_valueCounts.push_back(nValues);
 	m_attrs.resize(index + 1);
 	if(szName)
-		m_attrs[index].m_name = szName;
+	{
+		std::string s = szName;
+		size_t pos;
+		while((pos = s.find(" ")) != std::string::npos)
+			s.replace(pos, 1, "_");
+		m_attrs[index].m_name = s;
+	}
 	else
 	{
 		m_attrs[index].m_name = "attr_";
@@ -799,7 +805,11 @@ const char* GArffRelation::attrName(size_t nAttr) const
 #ifndef MIN_PREDICT
 void GArffRelation::setAttrName(size_t attr, const char* szNewName)
 {
-	m_attrs[attr].m_name = szNewName;
+	std::string s = szNewName;
+	size_t pos;
+	while((pos = s.find(" ")) != std::string::npos)
+		s.replace(pos, 1, "_");
+	m_attrs[attr].m_name = s;
 }
 #endif // MIN_PREDICT
 
