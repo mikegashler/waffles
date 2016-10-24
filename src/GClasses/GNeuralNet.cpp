@@ -628,17 +628,50 @@ void GNeuralNet::trainIncremental(const GVec& in, const GVec& out)
 	descendGradient(in, m_learningRate, m_momentum);
 }
 
-void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels)
+void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, size_t start, size_t count)
 {
-	const GVec& feat0 = features[0];
-	const GVec& targ0 = labels[0];
+	if(count == INVALID_INDEX)
+		count = features.rows();
+	GAssert(start + count <= features.rows() && count > 0);
+	
+	const GVec& feat0 = features[start];
+	const GVec& targ0 = labels[start];
 	forwardProp(feat0);
 	backpropagate(targ0);
 	updateDeltas(feat0, 0.0);
-	for(size_t i = 1; i < features.rows(); i++)
+	for(size_t i = 1; i < count; ++i, ++start)
 	{
-		const GVec& feat = features[i];
-		const GVec& targ = labels[i];
+		const GVec& feat = features[start];
+		const GVec& targ = labels[start];
+		forwardProp(feat);
+		backpropagate(targ);
+		updateDeltas(feat, 1.0);
+	}
+	applyDeltas(m_learningRate / features.rows());
+}
+
+void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count)
+{
+	if(count == INVALID_INDEX)
+	{
+		count = features.rows();
+		ii.reset();
+	}
+	GAssert(count <= features.rows() && count > 0);
+	
+	size_t j;
+	if(!ii.next(j)) ii.reset(), ii.next(j);
+	
+	const GVec& feat0 = features[j];
+	const GVec& targ0 = labels[j];
+	forwardProp(feat0);
+	backpropagate(targ0);
+	updateDeltas(feat0, 0.0);
+	for(size_t i = 1; i < count; ++i)
+	{
+		if(!ii.next(j)) ii.reset(), ii.next(j);
+		const GVec& feat = features[j];
+		const GVec& targ = labels[j];
 		forwardProp(feat);
 		backpropagate(targ);
 		updateDeltas(feat, 1.0);
