@@ -700,6 +700,167 @@ void GLayerProductPooling::perturbWeights(GRand& rand, double deviation, size_t 
 
 
 
+GLayerAdditionPooling::GLayerAdditionPooling(size_t inps)
+{
+	if((inps & 1) == 1)
+		throw Ex("inputCount must be divisible by 2");
+	resize(inps, inps / 2);
+}
+
+GLayerAdditionPooling::GLayerAdditionPooling(GDomNode* pNode)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+GLayerAdditionPooling::~GLayerAdditionPooling()
+{
+}
+
+GDomNode* GLayerAdditionPooling::serialize(GDom* pDoc)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+// virtual
+std::string GLayerAdditionPooling::to_str()
+{
+	std::ostringstream os;
+	os << "[GLayerAdditionPooling:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "]\n";
+	return os.str();
+}
+
+void GLayerAdditionPooling::resize(size_t inputCount, size_t outputCount)
+{
+	if(outputCount * 2 != inputCount)
+		throw Ex("inputCount must be 2*outputCount");
+	if(outputCount == outputs())
+		return;
+
+	// Weights
+	m_activation.resize(2, outputCount);
+}
+
+// virtual
+void GLayerAdditionPooling::resetWeights(GRand& rand)
+{
+	// There are no weights in this layer to reset
+}
+
+void GLayerAdditionPooling::feedForward(const GVec& in)
+{
+	if(in.size() != m_activation.cols() * 2)
+		throw Ex("Unexpected number of inputs");
+	GVec& a = activation();
+	for(size_t i = 0; i < m_activation.cols(); i++)
+		a[i] = in[2 * i] + in[2 * i + 1];
+}
+
+// virtual
+void GLayerAdditionPooling::dropOut(GRand& rand, double probOfDrop)
+{
+	// There are no weights in this layer to drop
+}
+
+void GLayerAdditionPooling::computeError(const GVec& target)
+{
+	size_t outputUnits = outputs();
+	GVec& a = activation();
+	GVec& err = error();
+	for(size_t i = 0; i < outputUnits; i++)
+	{
+		if(target[i] == UNKNOWN_REAL_VALUE)
+			err[i] = 0.0;
+		else
+			err[i] = target[i] - a[i];
+	}
+}
+
+void GLayerAdditionPooling::deactivateError()
+{
+}
+
+void GLayerAdditionPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
+{
+	GVec& upStreamAct = pUpStreamLayer->activation();
+	GVec& upStreamError = pUpStreamLayer->error();
+	size_t outputCount = outputs();
+	const GVec& err = error();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		// Should we add here?
+		upStreamError[2 * i] = err[i] + upStreamAct[2 * i + 1];
+		upStreamError[2 * i + 1] = err[i] + upStreamAct[2 * i];
+	}
+}
+
+void GLayerAdditionPooling::updateDeltas(const GVec& upStreamActivation, double momentum)
+{
+	// There are no weights to update
+}
+
+// virtual
+void GLayerAdditionPooling::applyDeltas(double learningRate)
+{
+	// There are no weights to update
+}
+
+void GLayerAdditionPooling::scaleWeights(double factor, bool scaleBiases)
+{
+	// There are no weights to scale
+}
+
+void GLayerAdditionPooling::diminishWeights(double amount, bool regularizeBiases)
+{
+	// There are no weights to diminish
+}
+
+void GLayerAdditionPooling::contractWeights(double factor, bool contractBiases)
+{
+	// There are no weights to contract
+}
+
+// virtual
+void GLayerAdditionPooling::maxNorm(double min, double max)
+{
+	throw Ex("Not implemented");
+}
+
+// virtual
+void GLayerAdditionPooling::regularizeActivationFunction(double lambda)
+{
+	throw Ex("Not implemented");
+}
+
+// virtual
+size_t GLayerAdditionPooling::countWeights()
+{
+	return 0;
+}
+
+// virtual
+size_t GLayerAdditionPooling::weightsToVector(double* pOutVector)
+{
+	return 0;
+}
+
+// virtual
+size_t GLayerAdditionPooling::vectorToWeights(const double* pVector)
+{
+	return 0;
+}
+
+// virtual
+void GLayerAdditionPooling::copyWeights(const GNeuralNetLayer* pSource)
+{
+	// There are no weights to copy
+}
+
+// virtual
+void GLayerAdditionPooling::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
+{
+	// There are no weights to perturb
+}
+
 
 
 
@@ -2000,7 +2161,7 @@ GLayerConvolutional2D::Image::Image(GVec *_data, size_t _width, size_t _height, 
 size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 {
 	z += dz;
-	
+
 	if(invertStride)
 	{
 		if((x + dx) % sx > 0 || (y + dy) % sy > 0)
@@ -2013,16 +2174,16 @@ size_t GLayerConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 		x += dx * sx - px;
 		y += dy * sy - py;
 	}
-	
+
 	if(flip)
 	{
 		x = width - x - 1;
 		y = height - y - 1;
 	}
-	
+
 	if(x >= width || y >= height)
 		return npos;
-	
+
 	if(interlaced)
 		return (y * width + x) * channels + z;
 	else
@@ -2091,11 +2252,11 @@ GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
 	m_inputImage.sy	= pNode->field("strideY")->asInt();
 	m_inputImage.px	= pNode->field("paddingX")->asInt();
 	m_inputImage.py	= pNode->field("paddingY")->asInt();
-	
+
 	setInputInterlaced(pNode->field("inputInterlaced")->asBool());
 	setKernelsInterlaced(pNode->field("kernelsInterlaced")->asBool());
 	setOutputInterlaced(pNode->field("outputInterlaced")->asBool());
-	
+
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 }
 
@@ -2151,38 +2312,38 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer)
 		throw Ex("GLayerConvolutional2D can only be resized given an upstream convolutional layer!");
 
 	GLayerConvolutional2D &upstream = *((GLayerConvolutional2D *) pUpStreamLayer);
-	
+
 	m_width			= upstream.outputWidth();
 	m_height		= upstream.outputHeight();
 	m_channels		= upstream.outputChannels();
-	
+
 	m_kernels.resize(m_kernels.rows(), m_kWidth * m_kHeight * m_channels);
 	m_deltas.resize(m_kernels.rows(), m_kWidth * m_kHeight * m_channels);
-	
+
 	m_bias.fill(0.0);
 	m_kernels.setAll(0.0);
-	
+
 	m_inputImage.width = m_width;
 	m_inputImage.height = m_height;
 	m_inputImage.channels = m_channels;
-	
+
 	m_upStreamErrorImage.width = m_width;
 	m_upStreamErrorImage.height = m_height;
 	m_upStreamErrorImage.channels = m_channels;
-	
+
 	m_kernelImage.channels = m_channels;
 	m_deltaImage.channels = m_channels;
-	
+
 	updateOutputSize();
 }
 
 void GLayerConvolutional2D::feedForward(const GVec &in)
 {
 	m_inputImage.data = const_cast<GVec *>(&in);
-	
+
 	Image &n = m_netImage;
 	Image &a = m_actImage;
-	
+
 	n.data->fill(0.0);
 	for(n.dz = 0; n.dz < n.channels; ++n.dz)
 	{
@@ -2238,12 +2399,12 @@ void GLayerConvolutional2D::backPropError(GNeuralNetLayer *pUpStreamLayer)
 {
 	Image &err = m_errImage;
 	Image &upErr = m_upStreamErrorImage;
-	
+
 	upErr.data = &pUpStreamLayer->error();
 	upErr.data->fill(0.0);
 	upErr.px = m_inputImage.px;
 	upErr.py = m_inputImage.py;
-	
+
 	err.invertStride = true, err.sx = m_inputImage.sx, err.sy = m_inputImage.sy;
 	for(upErr.dz = 0; upErr.dz < upErr.channels; ++upErr.dz)
 	{
@@ -2265,11 +2426,11 @@ void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, double 
 {
 	m_biasDelta *= momentum;
 	m_deltas.multiply(momentum);
-	
+
 	Image &err = m_errImage;
 	Image &in = m_inputImage;
 	in.data = const_cast<GVec *>(&upStreamActivation);
-	
+
 	for(err.dz = 0; err.dz < err.channels; ++err.dz)
 	{
 		m_deltaImage.data = &m_deltas[err.dz];
@@ -2397,11 +2558,11 @@ void GLayerConvolutional2D::addKernel()
 {
 	m_kernels.resize(m_kernels.rows() + 1, m_kernels.cols());
 	m_deltas.resize(m_kernels.rows(), m_kernels.cols());
-	
+
 	GVec temp(m_bias);
 	m_bias.resize(m_kernels.rows() + 1);
 	m_bias.put(0, temp);
-	
+
 	m_biasDelta.resize(m_kernels.rows());
 	m_netImage.channels = m_kernels.rows();
 	m_actImage.channels = m_kernels.rows();
@@ -2456,15 +2617,15 @@ void GLayerConvolutional2D::updateOutputSize()
 	m_outputWidth = (m_width - m_kWidth + 2 * m_inputImage.px) / m_inputImage.sx + 1;
 	m_outputHeight = (m_height - m_kHeight + 2 * m_inputImage.py) / m_inputImage.sy + 1;
 	m_activation.resize(3, m_outputWidth * m_outputHeight * m_kernels.rows());
-	
+
 	m_netImage.data = &m_activation[0];
 	m_netImage.width = m_outputWidth;
 	m_netImage.height = m_outputHeight;
-	
+
 	m_actImage.data = &m_activation[1];
 	m_actImage.width = m_outputWidth;
 	m_actImage.height = m_outputHeight;
-	
+
 	m_errImage.data = &m_activation[2];
 	m_errImage.width = m_outputWidth;
 	m_errImage.height = m_outputHeight;
