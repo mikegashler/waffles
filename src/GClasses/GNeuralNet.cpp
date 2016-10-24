@@ -621,9 +621,8 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 // virtual
 void GNeuralNet::trainIncremental(const GVec& in, const GVec& out)
 {
-	if ( !m_ready ) {
-		throw Ex("beginIncrementalLearning must be called before you can trainIncremental.");
-	}
+	GAssert( m_ready );
+
 	forwardProp(in);
 	backpropagate(out);
 	descendGradient(in, m_learningRate, m_momentum);
