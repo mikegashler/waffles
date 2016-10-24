@@ -2,6 +2,7 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
+		Stephen Ashmore,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -438,6 +439,119 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void regularizeActivationFunction(double lambda);
 };
 
+
+/// Adds each pair of values together to produce the output
+class GLayerAdditionPooling : public GNeuralNetLayer
+{
+friend class GNeuralNet;
+protected:
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
+
+public:
+using GNeuralNetLayer::feedForward;
+using GNeuralNetLayer::updateDeltas;
+
+	/// General-purpose constructor.
+	GLayerAdditionPooling(size_t inputs = FLEXIBLE_SIZE);
+
+	/// Deserializing constructor
+	GLayerAdditionPooling(GDomNode* pNode);
+	~GLayerAdditionPooling();
+
+	/// Returns the type of this layer
+	virtual const char* type() { return "additionpooling"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc);
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str();
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() const { return m_activation.cols() * 2; }
+
+	/// Returns the number of outputs that this layer produces.
+	virtual size_t outputs() const { return m_activation.cols(); }
+
+	/// Resizes this layer. outputs must be 2*inputs.
+	virtual void resize(size_t inputs, size_t outputs);
+
+	/// Resizes the inputs of this layer (as in the above function) given the upstream layer to calculate needed inputs.
+	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer)
+	{
+		resize(pUpStreamLayer->outputs(), pUpStreamLayer->outputs() / 2);
+	}
+
+	/// Returns the activation values from the most recent call to feedForward().
+	virtual GVec& activation() { return m_activation[0]; }
+
+	/// Returns a buffer used to store error terms for each unit in this layer.
+	virtual GVec& error() { return m_activation[1]; }
+
+	/// Feeds a the inputs through this layer.
+	virtual void feedForward(const GVec& in);
+
+	/// Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop);
+
+	/// Computes the error terms associated with the output of this layer, given a target vector.
+	/// (Note that this is the error of the output, not the error of the weights. To obtain the
+	/// error term for the weights, deactivateError must be called.)
+	virtual void computeError(const GVec& target);
+
+	/// Multiplies each element in the error vector by the derivative of the activation function.
+	/// This results in the error having meaning with respect to the weights, instead of the output.
+	/// (Assumes the error for this layer has already been computed.)
+	virtual void deactivateError();
+
+	/// Backpropagates the error from this layer into the upstream layer's error vector.
+	/// (Assumes that the error in this layer has already been computed and deactivated.
+	/// The error this computes is with respect to the output of the upstream layer.)
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(double learningRate);
+
+	/// Multiplies all the weights in this layer by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases);
+
+	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases);
+
+	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
+	void contractWeights(double factor, bool contractBiases);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights();
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector);
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector);
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource);
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand);
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
+	/// start specifies the first unit whose incoming weights are perturbed.
+	/// count specifies the maximum number of units whose incoming weights are perturbed.
+	/// The default values for these parameters apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
+	virtual void maxNorm(double min, double max);
+
+	/// Regularizes the activation function
+	virtual void regularizeActivationFunction(double lambda);
+};
 
 
 class GLayerMaxOut : public GNeuralNetLayer
@@ -1016,17 +1130,17 @@ protected:
 	struct Image
 	{
 		static size_t npos;
-		
+
 		Image(GVec *data, size_t width, size_t height, size_t channels);
 		size_t index(size_t x, size_t y, size_t z) const;
 		double read(size_t x, size_t y, size_t z = 0) const;
 		double &at(size_t x, size_t y, size_t z = 0);
-		
+
 		/// image data
 		GVec *data;
 		size_t width, height, channels;
 		bool interlaced;
-		
+
 		/// viewport data
 		mutable size_t dx, dy, dz;	///< offset
 		mutable size_t px, py;		///< padding
@@ -1034,22 +1148,22 @@ protected:
 		mutable bool invertStride;	///< whether the stride should be inverted (i.e. sx or sy zeroes between each value)
 		mutable bool flip;			///< whether to "flip" the image (i.e. 180 degree rotation)
 	};
-	
+
 	/// Input dimensions
 	size_t m_width, m_height, m_channels;
-	
+
 	/// Kernel dimensions (kernel channels = input channels)
 	size_t m_kWidth, m_kHeight;
-	
+
 	/// Output dimensions (derived; output channels = kernel count)
 	size_t m_outputWidth, m_outputHeight;
-	
+
 	/// Data
 	GVec m_bias, m_biasDelta;
 	GMatrix m_kernels, m_deltas;
 	GMatrix m_activation; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
 	GActivationFunction *m_pActivationFunction;
-	
+
 	/// Data as images
 	Image m_kernelImage, m_deltaImage;
 	Image m_inputImage, m_upStreamErrorImage;
@@ -1065,7 +1179,7 @@ private:
 
 public:
 	static size_t none;
-	
+
 	/// General-purpose constructor.
 	GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount = 0, GActivationFunction *pActivationFunction = NULL);
 
@@ -1124,7 +1238,7 @@ public:
 	size_t outputWidth() const { return m_outputWidth; }
 	size_t outputHeight() const { return m_outputHeight; }
 	size_t outputChannels() const { return m_bias.size(); }
-	
+
 	size_t kernelCount() const { return m_kernels.rows(); }
 	GVec &net() { return m_activation[0]; }
 	const GMatrix &kernels() const { return m_kernels; }
