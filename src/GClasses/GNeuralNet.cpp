@@ -696,7 +696,7 @@ void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMa
 #ifdef _DEBUG
 	// inside ifdef to avoid useless for loop in optimized mode
 	for(size_t i = 0; i < layerCount(); ++i)
-		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL);
+		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL || m_layers[i]->countWeights() == 0);
 #endif
 	
 	const GVec& feat0 = features[start];
@@ -747,7 +747,7 @@ void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMa
 #ifdef _DEBUG
 	// inside ifdef to avoid useless for loop in optimized mode
 	for(size_t i = 0; i < layerCount(); ++i)
-		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL);
+		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL || m_layers[i]->countWeights() == 0);
 #endif
 	
 	size_t j;
@@ -802,6 +802,8 @@ void GNeuralNet::updateMeanSquareAndDelta(double &meanSquare, double &delta)
 
 void GNeuralNet::trainIncrementalWithDropout(const GVec& in, const GVec& out, double probOfDrop)
 {
+	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
+	
 	if(m_momentum != 0.0)
 		throw Ex("Sorry, this implementation is not compatible with momentum");
 
