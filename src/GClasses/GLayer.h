@@ -40,8 +40,11 @@ class GActivationFunction;
 /// Represents a layer of neurons in a neural network
 class GNeuralNetLayer
 {
+protected:
+	GMatrix m_weights; // All weights for the layer (used for optimization); generally, each row is an upstream neuron and each column is a downstream neuron.
 public:
 	GNeuralNetLayer() {}
+	GNeuralNetLayer(GDomNode* pNode);
 	virtual ~GNeuralNetLayer() {}
 
 	/// Returns the type of this layer
@@ -158,7 +161,6 @@ class GLayerClassic : public GNeuralNetLayer
 {
 friend class GNeuralNet;
 protected:
-	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
 	GMatrix m_delta; // Used to implement momentum
 	GMatrix m_delta2; // Used with ADAM training
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack. Row 6 is biasDelta2.
@@ -187,7 +189,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual std::string to_str();
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_weights.rows(); }
+	virtual size_t inputs() const { return m_weights.rows() - 1; }
 
 	/// Returns the number of nodes or units in this layer.
 	virtual size_t outputs() const { return m_weights.cols(); }
@@ -279,17 +281,17 @@ using GNeuralNetLayer::updateDeltas;
 	GMatrix& deltas() { return m_delta; }
 
 	/// Returns the bias vector of this layer.
-	GVec& bias() { return m_bias[0]; }
+	GVec& bias() { return m_weights.back(); }
 
 	/// Returns the bias vector of this layer.
-	const GVec& bias() const { return m_bias[0]; }
+	const GVec& bias() const { return m_weights.back(); }
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
 	GVec& net() { return m_bias[1]; }
 
 	/// Returns a buffer used to store delta values for each bias in this layer.
-	GVec& biasDelta() { return m_bias[4]; }
+	GVec& biasDelta() { return m_delta.back(); }
 
 	/// Returns a vector used to specify slack terms for each unit in this layer.
 	GVec& slack() { return m_bias[5]; }

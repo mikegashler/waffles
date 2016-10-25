@@ -49,6 +49,9 @@ using std::ostream;
 
 namespace GClasses {
 
+GNeuralNetLayer::GNeuralNetLayer(GDomNode* pNode) : m_weights(pNode->field("weights"))
+{}
+
 GDomNode* GNeuralNetLayer::baseDomNode(GDom* pDoc)
 {
 	GDomNode* pNode = pDoc->newObj();
@@ -104,13 +107,19 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
-: m_weights(pNode->field("weights")), m_delta(m_weights.rows(), m_weights.cols()), m_bias(7, m_weights.cols())
+: GNeuralNetLayer(pNode), m_delta(m_weights.rows(), m_weights.cols()), m_bias(7, m_weights.cols())
 {
-	bias().deserialize(pNode->field("bias"));
+	// backwards compatibility for when bias was separate from weights
+	GDomNode *biasField = pNode->fieldIfExists("bias");
+	if(biasField != NULL)
+	{
+		m_weights.newRow();
+		m_delta.newRow();
+		bias().deserialize(biasField);
+	}
 	slack().deserialize(pNode->field("slack"));
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 	m_delta.setAll(0.0);
-	biasDelta().fill(0.0);
 }
 
 GLayerClassic::~GLayerClassic()
@@ -145,8 +154,8 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount)
 		return;
 
 	// Weights
-	m_weights.resize(inputCount, outputCount);
-	m_delta.resize(inputCount, outputCount);
+	m_weights.resize(inputCount + 1, outputCount);
+	m_delta.resize(inputCount + 1, outputCount);
 	m_delta2.resize(inputCount, outputCount);
 	m_delta.setAll(0.0);
 
@@ -173,10 +182,6 @@ void GLayerClassic::resetWeights(GRand& rand)
 	}
 	m_delta.setAll(0.0);
 	m_delta2.setAll(0.0);
-	GVec& b = bias();
-	for(size_t i = 0; i < outputCount; i++)
-		b[i] = rand.normal() * mag;
-	biasDelta().fill(0.0);
 	biasDelta2().fill(0.0);
 	m_correct1 = 1.0;
 	m_correct2 = 1.0;
@@ -224,7 +229,7 @@ void GLayerClassic::feedForwardToOneOutput(const GVec& in, size_t output)
 	GVec& n = net();
 	size_t pos = 0;
 	n[output] = 0.0;
-	for(size_t i = 0; i < m_weights.rows(); i++)
+	for(size_t i = 0; i < inputs(); i++)
 		n[output] += (in[pos++] * m_weights[i][output]);
 	n[output] += bias()[output];
 
@@ -291,7 +296,7 @@ void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	GVec& upStreamError = pUpStreamLayer->error();
 	size_t inputCount = pUpStreamLayer->outputs();
-	GAssert(inputCount <= m_weights.rows());
+	GAssert(inputCount <= inputs());
 	const GVec& source = error();
 	for(size_t i = 0; i < inputCount; i++)
 		upStreamError[i] = source.dotProduct(m_weights[i]);
@@ -301,7 +306,7 @@ void GLayerClassic::backPropErrorSingleOutput(size_t outputNode, GVec& upStreamE
 {
 	GAssert(outputNode < outputs());
 	double in = error()[outputNode];
-	for(size_t i = 0; i < m_weights.rows(); i++)
+	for(size_t i = 0; i < inputs(); i++)
 		upStreamError[i] = in * m_weights[i][outputNode];
 }
 
@@ -364,7 +369,7 @@ void GLayerClassic::updateDeltasAdam(const GVec& upStreamActivation, double beta
 
 void GLayerClassic::copySingleNeuronWeights(size_t source, size_t dest)
 {
-	for(size_t up = 0; up < m_weights.rows(); up++)
+	for(size_t up = 0; up < inputs(); up++)
 	{
 		m_weights[up][dest] = m_weights[up][source];
 	}
@@ -375,7 +380,7 @@ void GLayerClassic::updateWeightsSingleNeuron(size_t outputNode, const GVec& upS
 {
 	// Adjust the weights
 	double err = error()[outputNode];
-	for(size_t up = 0; up < m_weights.rows(); up++)
+	for(size_t up = 0; up < inputs(); up++)
 	{
 		double* pD = &m_delta[up][outputNode];
 		double* pW = &m_weights[up][outputNode];
@@ -426,7 +431,7 @@ void GLayerClassic::applyDeltasAdam(double learningRate)
 
 void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 {
-	for(size_t i = 0; i < m_weights.rows(); i++)
+	for(size_t i = 0; i < inputs(); i++)
 		m_weights[i] *= factor;
 	if(scaleBiases)
 		bias() *= factor;
@@ -434,7 +439,7 @@ void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 
 void GLayerClassic::diminishWeights(double amount, bool regularizeBiases)
 {
-	for(size_t i = 0; i < m_weights.rows(); i++)
+	for(size_t i = 0; i < inputs(); i++)
 		m_weights[i].regularize_L1(amount);
 	if(regularizeBiases)
 		bias().regularize_L1(amount);
@@ -449,7 +454,7 @@ void GLayerClassic::contractWeights(double factor, bool contractBiases)
 	for(size_t i = 0; i < outputCount; i++)
 	{
 		double f = 1.0 - factor * m_pActivationFunction->derivativeOfNet(n[i], a[i], i);
-		for(size_t j = 0; j < m_weights.rows(); j++)
+		for(size_t j = 0; j < inputs(); j++)
 			m_weights[j][i] *= f;
 		if(contractBiases)
 			b[i] *= f;
@@ -458,19 +463,7 @@ void GLayerClassic::contractWeights(double factor, bool contractBiases)
 
 void GLayerClassic::transformWeights(GMatrix& transform, const GVec& offset)
 {
-	if(transform.rows() != inputs())
-		throw Ex("Transformation matrix not suitable size for this layer");
-	if(transform.rows() != transform.cols())
-		throw Ex("Expected a square transformation matrix.");
-	size_t outputCount = outputs();
-	GMatrix* pNewWeights = GMatrix::multiply(transform, m_weights, true, false);
-	std::unique_ptr<GMatrix> hNewWeights(pNewWeights);
-	m_weights.copyBlock(*pNewWeights, 0, 0, pNewWeights->rows(), outputCount, 0, 0, false);
-	GVec& n = net();
-	n.fill(0.0);
-	for(size_t i = 0; i < m_weights.rows(); i++)
-		n.addScaled(offset[i], m_weights.row(i));
-	bias() += n;
+	throw Ex("not implemented (since separating the optimizer)");
 }
 
 void GLayerClassic::setWeightsToIdentity(size_t start, size_t count)
@@ -496,7 +489,7 @@ void GLayerClassic::maxNorm(double min, double max)
 	for(size_t i = 0; i < outputCount; i++)
 	{
 		double squaredMag = 0;
-		for(size_t j = 0; j < m_weights.rows(); j++)
+		for(size_t j = 0; j < inputs(); j++)
 		{
 			double d = m_weights[j][i];
 			squaredMag += (d * d);
@@ -504,19 +497,19 @@ void GLayerClassic::maxNorm(double min, double max)
 		if(squaredMag > max * max)
 		{
 			double scal = max / sqrt(squaredMag);
-			for(size_t j = 0; j < m_weights.rows(); j++)
+			for(size_t j = 0; j < inputs(); j++)
 				m_weights[j][i] *= scal;
 		}
 		else if(squaredMag < min * min)
 		{
 			if(squaredMag == 0.0)
 			{
-				for(size_t j = 0; j < m_weights.rows(); j++)
+				for(size_t j = 0; j < inputs(); j++)
 					m_weights[j][i] = 1.0;
-				squaredMag = (double)m_weights.rows();
+				squaredMag = (double)inputs();
 			}
 			double scal = min / sqrt(squaredMag);
-			for(size_t j = 0; j < m_weights.rows(); j++)
+			for(size_t j = 0; j < inputs(); j++)
 				m_weights[j][i] *= scal;
 		}
 	}
@@ -537,10 +530,8 @@ size_t GLayerClassic::countWeights()
 // virtual
 size_t GLayerClassic::weightsToVector(double* pOutVector)
 {
-	memcpy(pOutVector, bias().data(), sizeof(double) * outputs());
-	pOutVector += outputs();
 	m_weights.toVector(pOutVector);
-	pOutVector += (inputs() * outputs());
+	pOutVector += ((inputs() + 1) * outputs());
 	size_t activationWeights = m_pActivationFunction->weightsToVector(pOutVector);
 	return (inputs() + 1) * outputs() + activationWeights;
 }
@@ -548,10 +539,8 @@ size_t GLayerClassic::weightsToVector(double* pOutVector)
 // virtual
 size_t GLayerClassic::vectorToWeights(const double* pVector)
 {
-	bias().set(pVector, outputs());
-	pVector += outputs();
 	m_weights.fromVector(pVector, inputs());
-	pVector += (inputs() * outputs());
+	pVector += ((inputs() + 1) * outputs());
 	size_t activationWeights = m_pActivationFunction->vectorToWeights(pVector);
 	return (inputs() + 1) * outputs() + activationWeights;
 }
@@ -561,7 +550,6 @@ void GLayerClassic::copyWeights(const GNeuralNetLayer* pSource)
 {
 	GLayerClassic* src = (GLayerClassic*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
-	bias().copy(src->bias());
 	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
@@ -571,7 +559,6 @@ void GLayerClassic::perturbWeights(GRand& rand, double deviation, size_t start, 
 	size_t n = std::min(outputs() - start, count);
 	for(size_t j = 0; j < m_weights.rows(); j++)
 		GVec::perturb(m_weights[j].data() + start, deviation, n, rand);
-	GVec::perturb(bias().data() + start, deviation, n, rand);
 }
 
 // virtual
