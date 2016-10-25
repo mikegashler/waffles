@@ -227,7 +227,7 @@ struct GNaiveBayesOutputAttr
 		GQUICKVEC(values, m_nValueCount);
 		for(size_t n = 0; n < m_nValueCount; n++)
 			values[n] = m_pValues[n]->eval(pIn, equivalentSampleSize);
-		return values.indexOfMax();
+		return (double)values.indexOfMax();
 	}
 };
 

@@ -28,7 +28,9 @@
 #include <stdlib.h>
 #include <iostream>
 #include <sstream>
-#include <execinfo.h>
+#ifndef WINDOWS
+#	include <execinfo.h>
+#endif
 #ifndef MIN_PREDICT
 #include "GString.h"
 #endif // MIN_PREDICT
