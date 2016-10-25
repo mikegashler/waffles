@@ -110,7 +110,7 @@ void GRelation::print(ostream& stream) const
 // virtual
 void GRelation::printAttrName(std::ostream& stream, size_t column) const
 {
-	stream << "attr_" << column;
+	stream << "'attr_" << column << "'";
 }
 
 // virtual
@@ -672,7 +672,7 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 // virtual
 void GArffRelation::printAttrName(std::ostream& stream, size_t column) const
 {
-	stream << attrName(column);
+	stream << "'" << attrName(column) << "'";
 }
 
 // virtual
