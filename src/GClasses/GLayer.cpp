@@ -462,7 +462,7 @@ void GLayerClassic::contractWeights(double factor, bool contractBiases)
 
 void GLayerClassic::transformWeights(GMatrix& transform, const GVec& offset)
 {
-	throw Ex("not implemented (since separating the optimizer)");
+	throw Ex("GLayerClassic::transformWeights currently not implemented");
 }
 
 void GLayerClassic::setWeightsToIdentity(size_t start, size_t count)
@@ -538,7 +538,7 @@ size_t GLayerClassic::weightsToVector(double* pOutVector)
 // virtual
 size_t GLayerClassic::vectorToWeights(const double* pVector)
 {
-	m_weights.fromVector(pVector, inputs());
+	m_weights.fromVector(pVector, inputs() + 1);
 	pVector += ((inputs() + 1) * outputs());
 	size_t activationWeights = m_pActivationFunction->vectorToWeights(pVector);
 	return (inputs() + 1) * outputs() + activationWeights;

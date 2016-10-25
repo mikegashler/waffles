@@ -228,7 +228,6 @@ void GNeuralNet::invertNode(size_t lay, size_t node)
 	GMatrix& w = layerUpStream.m_weights;
 	for(size_t i = 0; i < w.rows(); i++)
 		w[i][node] = -w[i][node];
-	layerUpStream.bias()[node] = -layerUpStream.bias()[node];
 	if(lay + 1 < m_layers.size())
 	{
 		GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[lay + 1];
@@ -248,7 +247,6 @@ void GNeuralNet::swapNodes(size_t lay, size_t a, size_t b)
 {
 	GLayerClassic& layerUpStream = *(GLayerClassic*)m_layers[lay];
 	layerUpStream.m_weights.swapColumns(a, b);
-	std::swap(layerUpStream.bias()[a], layerUpStream.bias()[b]);
 	if(lay + 1 < m_layers.size())
 	{
 		GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[lay + 1];
@@ -1000,7 +998,7 @@ void GNeuralNet::gradientOfInputs(GVec& outGradient)
 {
 	GMatrix& w = ((GLayerClassic*)m_layers[0])->m_weights;
 	GVec& err = ((GLayerClassic*)m_layers[0])->error();
-	for(size_t i = 0; i < w.rows(); i++)
+	for(size_t i = 0; i < m_layers[0]->inputs(); i++)
 		outGradient[i] = -w[i].dotProduct(err);
 }
 
@@ -1635,7 +1633,7 @@ void GNeuralNet_testInputGradient(GRand* pRand)
 		if(corr > 1.0)
 			throw Ex("pathological results");
 		if(corr < 0.999)
-			throw Ex("failed");
+			throw Ex("GNeuralNet::gradientOfInputs failed; correlation expected 1.0, got " + to_str(corr));
 	}
 }
 
@@ -1691,7 +1689,7 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		}
 		nn.predict(in, outAfter);
 		if(outBefore.squaredDistance(outAfter) > 1e-10)
-			throw Ex("Failed");
+			throw Ex("GNeuralNet::invertAndSwap failed");
 	}
 
 	for(size_t i = 0; i < 30; i++)
