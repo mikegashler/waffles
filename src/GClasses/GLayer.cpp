@@ -309,6 +309,26 @@ void GLayerClassic::backPropErrorSingleOutput(size_t outputNode, GVec& upStreamE
 		upStreamError[i] = in * m_weights[i][outputNode];
 }
 
+void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GMatrix &deltas)
+{
+	GAssert(deltas.rows() == m_weights.rows() && deltas.cols() == m_weights.cols(), "Deltas must match the dimensions of weights!");
+	
+	GVec &err = error();
+	for(size_t i = 0; i < inputs(); ++i)
+	{
+		GVec &d = deltas[i];
+		double act = upStreamActivation[i];
+		for(size_t j = 0; j < outputs(); ++j)
+			d[j] += err[j] * act;
+	}
+	
+	GVec &d = deltas.back();
+	for(size_t j = 0; j < outputs(); ++j)
+		d[j] += err[j];
+	
+	// m_pActivationFunction->updateDeltas(net(), activation(), momentum);
+}
+
 void GLayerClassic::updateDeltas(const GVec& upStreamActivation, double momentum)
 {
 	GVec& err = error();

@@ -83,7 +83,7 @@ public:
 	{
 		GAssert(m_nn != NULL, "Neural network must be set before preparing to train it!");
 		for(size_t i = 0; i < m_optimizers.size(); ++i)
-			m_optimizers[i].prepare(m_nn->layer(i).weights());
+			m_optimizers[i]->prepare(m_nn->layer(i).weights());
 	}
 	
 	/// Learn from a single traning sample
@@ -102,7 +102,7 @@ private:
 		const GVec *input = &feat;
 		for(size_t i = 0; i < m_optimizers.size(); ++i)
 		{
-			m_nn->layer(i).updateDeltas(*input, m_optimizers[i].deltas());
+			m_nn->layer(i).updateDeltas(*input, m_optimizers[i]->deltas());
 			input = &m_nn->layer(i).activation();
 		}
 	}
@@ -111,7 +111,7 @@ private:
 	void applyDeltas(const GVec &feat)
 	{
 		for(size_t i = 0; i < m_optimizers.size(); ++i)
-			m_optimizers[i].applyDeltas(m_nn->layer(i).weights());
+			m_optimizers[i]->applyDeltas(m_nn->layer(i).weights());
 	}
 	
 	GNeuralNet *m_nn;
