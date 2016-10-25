@@ -71,7 +71,13 @@ void GRelation::print(ostream& stream) const
 	// Write the relation title
 	stream << "@RELATION ";
 	if(type() == ARFF)
-		stream << ((GArffRelation*)this)->name();
+	{
+		std::string name = ((GArffRelation*)this)->name();
+		if(name.find(" ") != string::npos)
+			stream << "'" << name << "'";
+		else
+			stream << name;
+	}
 	else
 		stream << "Untitled";
 	stream << "\n\n";
@@ -110,7 +116,7 @@ void GRelation::print(ostream& stream) const
 // virtual
 void GRelation::printAttrName(std::ostream& stream, size_t column) const
 {
-	stream << "'attr_" << column << "'";
+	stream << "attr_" << column;
 }
 
 // virtual
@@ -672,7 +678,11 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 // virtual
 void GArffRelation::printAttrName(std::ostream& stream, size_t column) const
 {
-	stream << "'" << attrName(column) << "'";
+	std::string s = attrName(column);
+	if(s.find(" ") != std::string::npos)
+		stream << "'" << s << "'";
+	else
+		stream << s;
 }
 
 // virtual
