@@ -49,7 +49,7 @@ using std::ostream;
 
 namespace GClasses {
 
-GNeuralNetLayer::GNeuralNetLayer(GDomNode* pNode) : m_weights(pNode->field("weights"))
+GNeuralNetLayer::GNeuralNetLayer(GDomNode* pNode) : m_weights(pNode->field("weights")), m_delta(m_weights.rows(), m_weights.cols())
 {}
 
 GDomNode* GNeuralNetLayer::baseDomNode(GDom* pDoc)
@@ -107,7 +107,7 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
-: GNeuralNetLayer(pNode), m_delta(m_weights.rows(), m_weights.cols()), m_bias(7, m_weights.cols())
+: GNeuralNetLayer(pNode), m_bias(7, m_weights.cols())
 {
 	// backwards compatibility for when bias was separate from weights
 	GDomNode *biasField = pNode->fieldIfExists("bias");

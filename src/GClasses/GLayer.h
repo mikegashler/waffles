@@ -42,6 +42,7 @@ class GNeuralNetLayer
 {
 protected:
 	GMatrix m_weights; // All weights for the layer (used for optimization); generally, each row is an upstream neuron and each column is a downstream neuron.
+	GMatrix m_delta; // Used to implement momentum
 public:
 	GNeuralNetLayer() {}
 	GNeuralNetLayer(GDomNode* pNode);
@@ -161,7 +162,6 @@ class GLayerClassic : public GNeuralNetLayer
 {
 friend class GNeuralNet;
 protected:
-	GMatrix m_delta; // Used to implement momentum
 	GMatrix m_delta2; // Used with ADAM training
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack. Row 6 is biasDelta2.
 	double m_correct1, m_correct2; // used with ADAM training
