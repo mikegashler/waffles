@@ -131,7 +131,6 @@ GDomNode* GLayerClassic::serialize(GDom* pDoc)
 {
 	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
-	pNode->addField(pDoc, "bias", bias().serialize(pDoc));
 	pNode->addField(pDoc, "slack", slack().serialize(pDoc));
 	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 	return pNode;
