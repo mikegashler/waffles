@@ -174,7 +174,7 @@ void GLayerClassic::resetWeights(GRand& rand)
 	size_t outputCount = outputs();
 	size_t inputCount = inputs();
 	double mag = std::max(0.03, 1.0 / inputCount); // maxing with 0.03 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
-	for(size_t i = 0; i < inputCount; i++)
+	for(size_t i = 0; i < m_weights.rows(); i++)
 	{
 		GVec& w = m_weights[i];
 		for(size_t j = 0; j < outputCount; j++)

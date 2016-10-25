@@ -658,12 +658,12 @@ void GActivationSoftExponential::test()
 	double computedGradientBias = -2.0 * (pLay2->bias()[1] - beforeBias) / nn.learningRate();
 	double empiricalGradientAlpha = (errAlpha - errBase) / epsilon;
 	double computedGradientAlpha = -2.0 * (pAct2->alphas()[1] - beforeAlpha) / nn.learningRate();
-	if(std::abs(empiricalGradientWeight - computedGradientWeight) > 1e-6)
-		throw Ex("failed");
-	if(std::abs(empiricalGradientBias - computedGradientBias) > 1e-6)
-		throw Ex("failed");
-	if(std::abs(empiricalGradientAlpha - computedGradientAlpha) > 1e-6)
-		throw Ex("failed");
+	if(std::abs(empiricalGradientWeight - computedGradientWeight) > epsilon)
+		throw Ex("GActivation::test failed; weight gradient incorrect");
+	if(std::abs(empiricalGradientBias - computedGradientBias) > epsilon)
+		throw Ex("GActivation::test failed; bias gradient incorrect");
+	if(std::abs(empiricalGradientAlpha - computedGradientAlpha) > epsilon)
+		throw Ex("GActivation::test failed; alpha gradient incorrect; expected " + to_str(empiricalGradientAlpha) + ", got " + to_str(computedGradientAlpha));
 }
 #endif
 
