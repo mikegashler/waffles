@@ -462,7 +462,23 @@ void GLayerClassic::contractWeights(double factor, bool contractBiases)
 
 void GLayerClassic::transformWeights(GMatrix& transform, const GVec& offset)
 {
-	throw Ex("GLayerClassic::transformWeights currently not implemented");
+	if(transform.rows() != inputs())
+		throw Ex("Transformation matrix not suitable size for this layer");
+	if(transform.rows() != transform.cols())
+		throw Ex("Expected a square transformation matrix.");
+	size_t outputCount = outputs();
+	
+	GMatrix temp(inputs(), outputs());
+	temp.copyBlock(m_weights, 0, 0, inputs(), outputs());
+	
+	GMatrix* pNewWeights = GMatrix::multiply(transform, temp, true, false);
+	std::unique_ptr<GMatrix> hNewWeights(pNewWeights);
+	m_weights.copyBlock(*pNewWeights, 0, 0, pNewWeights->rows(), outputCount, 0, 0, false);
+	GVec& n = net();
+	n.fill(0.0);
+	for(size_t i = 0; i < inputs(); i++)
+		n.addScaled(offset[i], m_weights.row(i));
+	bias() += n;
 }
 
 void GLayerClassic::setWeightsToIdentity(size_t start, size_t count)
