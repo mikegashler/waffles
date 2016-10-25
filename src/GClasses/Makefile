@@ -98,6 +98,7 @@ CPP_FILES = \
 	GManifold.cpp\
 	GMath.cpp\
 	GMatrix.cpp\
+	GMatrixOptimizer.cpp\
 	GMixtureOfGaussians.cpp\
 	GNaiveBayes.cpp\
 	GNaiveInstance.cpp\

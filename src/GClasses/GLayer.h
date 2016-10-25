@@ -41,8 +41,8 @@ class GActivationFunction;
 class GNeuralNetLayer
 {
 protected:
-	GMatrix m_weights; // All weights for the layer (used for optimization); generally, each row is an upstream neuron and each column is a downstream neuron.
-	GMatrix m_delta; // Used to implement momentum
+	GMatrix m_weights; // All parameters for the layer (used for optimization); generally, each row is an upstream neuron and each column is a downstream neuron.
+	GMatrix m_delta; // Blame terms for each parameter in the network (can be used to implement momentum)
 public:
 	GNeuralNetLayer() {}
 	GNeuralNetLayer(GDomNode* pNode);
@@ -152,6 +152,12 @@ public:
 
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
+
+	/// Getters for weights and deltas
+	GMatrix &weights()				{ return m_weights; }
+	const GMatrix &weights() const	{ return m_weights; }
+	GMatrix &deltas()				{ return m_delta; }
+	const GMatrix &deltas() const	{ return m_delta; }
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc);
@@ -273,12 +279,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Regularizes the activation function
 	virtual void regularizeActivationFunction(double lambda);
-
-	/// Returns a reference to the weights matrix of this layer
-	GMatrix& weights() { return m_weights; }
-	const GMatrix& weights() const { return m_weights; }
-
-	GMatrix& deltas() { return m_delta; }
 
 	/// Returns the bias vector of this layer.
 	GVec& bias() { return m_weights.back(); }
