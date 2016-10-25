@@ -107,7 +107,7 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
-: GNeuralNetLayer(pNode), m_bias(7, m_weights.cols())
+: GNeuralNetLayer(pNode), m_out(5, m_weights.cols())
 {
 	// backwards compatibility for when bias was separate from weights
 	GDomNode *biasField = pNode->fieldIfExists("bias");
@@ -142,7 +142,7 @@ std::string GLayerClassic::to_str()
 	std::ostringstream os;
 	os << "[GLayerClassic:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "\n";
 	os << " Weights: " << GClasses::to_str(m_weights) << "\n";
-	os << " Bias: " << GClasses::to_str(m_bias) << "\n";
+	os << " Out: " << GClasses::to_str(m_out) << "\n";
 	os << "]";
 	return os.str();
 }
@@ -159,7 +159,7 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount)
 	m_delta.setAll(0.0);
 
 	// Bias
-	m_bias.resize(7, outputCount);
+	m_out.resize(5, outputCount);
 	biasDelta().fill(0.0);
 	slack().fill(0.0);
 

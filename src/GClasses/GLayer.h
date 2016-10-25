@@ -163,7 +163,7 @@ class GLayerClassic : public GNeuralNetLayer
 friend class GNeuralNet;
 protected:
 	GMatrix m_delta2; // Used with ADAM training
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack. Row 6 is biasDelta2.
+	GMatrix m_out; // Row 0 is the net. Row 1 is the activation. Row 2 is the error. Row 3 is the slack. Row 4 is biasDelta2.
 	double m_correct1, m_correct2; // used with ADAM training
 	GActivationFunction* m_pActivationFunction;
 
@@ -199,10 +199,10 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs);
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_bias[2]; }
+	virtual GVec& activation() { return m_out[1]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_bias[3]; }
+	virtual GVec& error() { return m_out[2]; }
 
 	/// Feeds a the inputs through this layer.
 	virtual void feedForward(const GVec& in);
@@ -288,16 +288,16 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
-	GVec& net() { return m_bias[1]; }
+	GVec& net() { return m_out[0]; }
 
 	/// Returns a buffer used to store delta values for each bias in this layer.
 	GVec& biasDelta() { return m_delta.back(); }
 
 	/// Returns a vector used to specify slack terms for each unit in this layer.
-	GVec& slack() { return m_bias[5]; }
+	GVec& slack() { return m_out[3]; }
 
 	/// Returns a vector used to store squared delta values for each bias in this layer.
-	GVec& biasDelta2() { return m_bias[6]; }
+	GVec& biasDelta2() { return m_out[4]; }
 
 	/// Returns a pointer to the activation function used in this layer
 	GActivationFunction* activationFunction() { return m_pActivationFunction; }
