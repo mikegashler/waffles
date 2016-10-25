@@ -499,7 +499,6 @@
     <ClCompile Include="GWave.cpp" />
     <ClCompile Include="GWidgets.cpp" />
     <ClCompile Include="GWindows.cpp" />
-    <ClCompile Include="sha1.cpp" />
     <ClCompile Include="sha2.cpp" />
     <ClCompile Include="usage.cpp" />
   </ItemGroup>
@@ -590,7 +589,6 @@
     <ClInclude Include="GWave.h" />
     <ClInclude Include="GWidgets.h" />
     <ClInclude Include="GWindows.h" />
-    <ClInclude Include="sha1.h" />
     <ClInclude Include="sha2.h" />
     <ClInclude Include="uitypes.h" />
     <ClInclude Include="usage.h" />

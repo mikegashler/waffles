@@ -143,6 +143,8 @@ GMatrix* GIncrementalTransform::transformBatch(const GMatrix& in)
 
 GVec& GIncrementalTransform::innerBuf()
 {
+	if(!m_pRelationAfter)
+		throw Ex("Attempted to use a transform that was not trained");
 	m_innerBuf.resize(m_pRelationAfter->size());
 	return m_innerBuf;
 }
