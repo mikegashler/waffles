@@ -635,6 +635,8 @@ void GNeuralNet::trainIncremental(const GVec& in, const GVec& out)
 
 void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, size_t start, size_t count)
 {
+	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
+	
 	if(count == INVALID_INDEX)
 		count = features.rows();
 	GAssert(start + count <= features.rows() && count > 0);
@@ -657,6 +659,8 @@ void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& l
 
 void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count)
 {
+	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
+	
 	if(count == INVALID_INDEX)
 	{
 		count = features.rows();
@@ -686,6 +690,8 @@ void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& l
 
 void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, size_t start, size_t count)
 {
+	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
+	
 	if(count == INVALID_INDEX)
 		count = features.rows();
 	GAssert(start + count <= features.rows() && count > 0);
@@ -733,6 +739,8 @@ void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMa
 
 void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count)
 {
+	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
+	
 	if(count == INVALID_INDEX)
 	{
 		count = features.rows();
@@ -798,6 +806,8 @@ void GNeuralNet::updateMeanSquareAndDelta(double &meanSquare, double &delta)
 
 void GNeuralNet::trainIncrementalWithDropout(const GVec& in, const GVec& out, double probOfDrop)
 {
+	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
+	
 	if(m_momentum != 0.0)
 		throw Ex("Sorry, this implementation is not compatible with momentum");
 
@@ -2241,6 +2251,7 @@ void GReservoirNet::trainInner(const GMatrix& features, const GMatrix& labels)
 // virtual
 void GReservoirNet::trainIncremental(const GVec& in, const GVec& out)
 {
+	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
 	m_pModel->trainIncremental(in, out);
 }
 
