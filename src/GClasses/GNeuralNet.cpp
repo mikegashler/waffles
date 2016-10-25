@@ -693,7 +693,7 @@ void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMa
 #ifdef _DEBUG
 	// inside ifdef to avoid useless for loop in optimized mode
 	for(size_t i = 0; i < layerCount(); ++i)
-		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL);
+		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL || m_layers[i]->countWeights() == 0);
 #endif
 	
 	const GVec& feat0 = features[start];
@@ -714,17 +714,20 @@ void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMa
 	double factor = 1.0 / count;
 	for(size_t i = 0; i < layerCount(); ++i)
 	{
-		GLayerClassic &layer = *((GLayerClassic *) m_layers[i]);
-		
-		// BEGIN RMSPROP
-		for(size_t j = 0; j < layer.biasDelta().size(); ++j, ++meanSquare)
-			updateMeanSquareAndDelta(*meanSquare, layer.biasDelta()[j]);
-		for(size_t j = 0; j < layer.deltas().rows(); ++j)
-			for(size_t k = 0; k < layer.deltas().cols(); ++k, ++meanSquare)
-				updateMeanSquareAndDelta(*meanSquare, layer.deltas()[j][k]);
-		// END RMSPROP
-		
-		layer.applyDeltas(m_learningRate * factor);
+		if(m_layers[i]->countWeights() > 0)
+		{
+			GLayerClassic &layer = *(dynamic_cast<GLayerClassic *>(m_layers[i]));
+			
+			// BEGIN RMSPROP
+			for(size_t j = 0; j < layer.biasDelta().size(); ++j, ++meanSquare)
+				updateMeanSquareAndDelta(*meanSquare, layer.biasDelta()[j]);
+			for(size_t j = 0; j < layer.deltas().rows(); ++j)
+				for(size_t k = 0; k < layer.deltas().cols(); ++k, ++meanSquare)
+					updateMeanSquareAndDelta(*meanSquare, layer.deltas()[j][k]);
+			// END RMSPROP
+			
+			layer.applyDeltas(m_learningRate * factor);
+		}
 	}
 }
 
@@ -740,7 +743,7 @@ void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMa
 #ifdef _DEBUG
 	// inside ifdef to avoid useless for loop in optimized mode
 	for(size_t i = 0; i < layerCount(); ++i)
-		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL);
+		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL || m_layers[i]->countWeights() == 0);
 #endif
 	
 	size_t j;
@@ -765,17 +768,20 @@ void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMa
 	double factor = 1.0 / count;
 	for(size_t i = 0; i < layerCount(); ++i)
 	{
-		GLayerClassic &layer = *((GLayerClassic *) m_layers[i]);
-		
-		// BEGIN RMSPROP
-		for(size_t jj = 0; jj < layer.biasDelta().size(); ++jj, ++meanSquare)
-			updateMeanSquareAndDelta(*meanSquare, layer.biasDelta()[jj]);
-		for(size_t jj = 0; jj < layer.deltas().rows(); ++jj)
-			for(size_t k = 0; k < layer.deltas().cols(); ++k, ++meanSquare)
-				updateMeanSquareAndDelta(*meanSquare, layer.deltas()[jj][k]);
-		// END RMSPROP
-		
-		layer.applyDeltas(m_learningRate * factor);
+		if(m_layers[i]->countWeights() > 0)
+		{
+			GLayerClassic &layer = *(dynamic_cast<GLayerClassic *>(m_layers[i]));
+			
+			// BEGIN RMSPROP
+			for(size_t jj = 0; jj < layer.biasDelta().size(); ++jj, ++meanSquare)
+				updateMeanSquareAndDelta(*meanSquare, layer.biasDelta()[jj]);
+			for(size_t jj = 0; jj < layer.deltas().rows(); ++jj)
+				for(size_t k = 0; k < layer.deltas().cols(); ++k, ++meanSquare)
+					updateMeanSquareAndDelta(*meanSquare, layer.deltas()[jj][k]);
+			// END RMSPROP
+			
+			layer.applyDeltas(m_learningRate * factor);
+		}
 	}
 }
 
