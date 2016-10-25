@@ -937,6 +937,21 @@ void GNeuralNet::descendGradient(const GVec& feat, double learning_rate, double 
 	}
 }
 
+void GNeuralNet::descendGradientAdam(const GVec& feat, double learning_rate, double beta1, double beta2)
+{
+	GLayerClassic* pLay = (GLayerClassic*)m_layers[0];
+	pLay->updateDeltasAdam(feat, beta1, beta2);
+	pLay->applyDeltasAdam(learning_rate);
+	GLayerClassic* pUpStream = pLay;
+	for(size_t i = 1; i < m_layers.size(); i++)
+	{
+		pLay = (GLayerClassic*)m_layers[i];
+		pLay->updateDeltasAdam(pUpStream->activation(), beta1, beta2);
+		pLay->applyDeltasAdam(learning_rate);
+		pUpStream = pLay;
+	}
+}
+
 void GNeuralNet::descendGradientSingleOutput(size_t outputNeuron, const GVec& feat, double learning_rate, double momentumTerm)
 {
 	size_t i = m_layers.size() - 1;
