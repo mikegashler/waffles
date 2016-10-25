@@ -283,6 +283,10 @@ public:
 	/// gradient of the error surface with respect to the weights.
 	void descendGradient(const GVec& features, double learningRate, double momentum);
 
+	/// Descends the gradient with ADAM. (Currently assumes that all layers are instances of GLayerClassic.)
+	/// See Diederik P. Kingma and Jimmy Lei Ba, "Adam: A Method for Stochastic Optimization", 2015.
+	void descendGradientAdam(const GVec& feat, double learning_rate = 0.001, double beta1 = 0.9, double beta2 = 0.999);
+
 	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
 	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
 	void descendGradientSingleOutput(size_t outputNeuron, const GVec& features, double learningRate, double momentum);

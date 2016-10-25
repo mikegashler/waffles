@@ -160,7 +160,9 @@ friend class GNeuralNet;
 protected:
 	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
 	GMatrix m_delta; // Used to implement momentum
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack.
+	GMatrix m_delta2; // Used with ADAM training
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the biasDelta. Row 5 is the slack. Row 6 is biasDelta2.
+	double m_correct1, m_correct2; // used with ADAM training
 	GActivationFunction* m_pActivationFunction;
 
 public:
@@ -225,8 +227,14 @@ using GNeuralNetLayer::updateDeltas;
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
+	/// Updates the deltas for ADAM training.
+	void updateDeltasAdam(const GVec& upStreamActivation, double beta1 = 0.9, double beta2 = 0.999);
+
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Applies the deltas for ADAM training.
+	void applyDeltasAdam(double learningRate);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -285,6 +293,9 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Returns a vector used to specify slack terms for each unit in this layer.
 	GVec& slack() { return m_bias[5]; }
+
+	/// Returns a vector used to store squared delta values for each bias in this layer.
+	GVec& biasDelta2() { return m_bias[6]; }
 
 	/// Returns a pointer to the activation function used in this layer
 	GActivationFunction* activationFunction() { return m_pActivationFunction; }

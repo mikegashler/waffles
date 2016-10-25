@@ -104,7 +104,7 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
-: m_weights(pNode->field("weights")), m_delta(m_weights.rows(), m_weights.cols()), m_bias(6, m_weights.cols())
+: m_weights(pNode->field("weights")), m_delta(m_weights.rows(), m_weights.cols()), m_bias(7, m_weights.cols())
 {
 	bias().deserialize(pNode->field("bias"));
 	slack().deserialize(pNode->field("slack"));
@@ -147,10 +147,11 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount)
 	// Weights
 	m_weights.resize(inputCount, outputCount);
 	m_delta.resize(inputCount, outputCount);
+	m_delta2.resize(inputCount, outputCount);
 	m_delta.setAll(0.0);
 
 	// Bias
-	m_bias.resize(6, outputCount);
+	m_bias.resize(7, outputCount);
 	biasDelta().fill(0.0);
 	slack().fill(0.0);
 
@@ -171,10 +172,14 @@ void GLayerClassic::resetWeights(GRand& rand)
 			w[j] = rand.normal() * mag;
 	}
 	m_delta.setAll(0.0);
+	m_delta2.setAll(0.0);
 	GVec& b = bias();
 	for(size_t i = 0; i < outputCount; i++)
 		b[i] = rand.normal() * mag;
 	biasDelta().fill(0.0);
+	biasDelta2().fill(0.0);
+	m_correct1 = 1.0;
+	m_correct2 = 1.0;
 }
 
 // virtual
@@ -324,6 +329,39 @@ void GLayerClassic::updateDeltas(const GVec& upStreamActivation, double momentum
 	m_pActivationFunction->updateDeltas(net(), activation(), momentum);
 }
 
+void GLayerClassic::updateDeltasAdam(const GVec& upStreamActivation, double beta1, double beta2)
+{
+	m_correct1 *= beta1;
+	m_correct2 *= beta2;
+	GVec& err = error();
+	size_t inputCount = inputs();
+	size_t outputCount = outputs();
+	for(size_t up = 0; up < inputCount; up++)
+	{
+		GVec& d = m_delta[up];
+		GVec& d2 = m_delta2[up];
+		double act = upStreamActivation[up];
+		for(size_t down = 0; down < outputCount; down++)
+		{
+			double g = err[down] * act;
+			d[down] *= beta1;
+			d[down] += (1.0 - beta1) * g;
+			d2[down] *= beta2;
+			d2[down] += (1.0 - beta1) * (g * g);
+		}
+	}
+	GVec& d = biasDelta();
+	GVec& d2 = biasDelta2();
+	for(size_t down = 0; down < outputCount; down++)
+	{
+		double g = err[down];
+		d[down] *= beta1;
+		d[down] += (1.0 - beta1) * g;
+		d2[down] *= beta2;
+		d2[down] += (1.0 - beta1) * (g * g);
+	}
+}
+
 void GLayerClassic::copySingleNeuronWeights(size_t source, size_t dest)
 {
 	for(size_t up = 0; up < m_weights.rows(); up++)
@@ -363,6 +401,27 @@ void GLayerClassic::applyDeltas(double learningRate)
 		m_weights[i].addScaled(learningRate, m_delta[i]);
 	bias().addScaled(learningRate, biasDelta());
 	m_pActivationFunction->applyDeltas(learningRate);
+}
+
+void GLayerClassic::applyDeltasAdam(double learningRate)
+{
+	double alpha1 = learningRate * 1.0 / (1.0 - m_correct1);
+	double alpha2 = 1.0 / (1.0 - m_correct2);
+	size_t inputCount = inputs();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		GVec& w = m_weights[i];
+		GVec& d = m_delta[i];
+		GVec& d2 = m_delta2[i];
+		for(size_t j = 0; j < outputCount; j++)
+			w[j] += alpha1 * d[j] / (std::sqrt(alpha2 * d2[j]) + 1e-8);
+	}
+	GVec& w = bias();
+	GVec& d = biasDelta();
+	GVec& d2 = biasDelta2();
+	for(size_t j = 0; j < outputCount; j++)
+		w[j] += alpha1 * d[j] / (std::sqrt(alpha2 * d2[j]) + 1e-8);
 }
 
 void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
