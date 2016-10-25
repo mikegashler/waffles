@@ -2251,7 +2251,6 @@ void GReservoirNet::trainInner(const GMatrix& features, const GMatrix& labels)
 // virtual
 void GReservoirNet::trainIncremental(const GVec& in, const GVec& out)
 {
-	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
 	m_pModel->trainIncremental(in, out);
 }
 
