@@ -110,7 +110,7 @@ void GRelation::print(ostream& stream) const
 // virtual
 void GRelation::printAttrName(std::ostream& stream, size_t column) const
 {
-	stream << "attr_" << column;
+	stream << "'attr_" << column << "'";
 }
 
 // virtual
@@ -555,11 +555,7 @@ void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<cons
 	m_attrs.resize(index + 1);
 	if(szName)
 	{
-		std::string s = szName;
-		size_t pos;
-		while((pos = s.find(" ")) != std::string::npos)
-			s.replace(pos, 1, "_");
-		m_attrs[index].m_name = s;
+		m_attrs[index].m_name = szName;
 	}
 	else
 	{
@@ -676,7 +672,7 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 // virtual
 void GArffRelation::printAttrName(std::ostream& stream, size_t column) const
 {
-	stream << attrName(column);
+	stream << "'" << attrName(column) << "'";
 }
 
 // virtual
@@ -805,11 +801,7 @@ const char* GArffRelation::attrName(size_t nAttr) const
 #ifndef MIN_PREDICT
 void GArffRelation::setAttrName(size_t attr, const char* szNewName)
 {
-	std::string s = szNewName;
-	size_t pos;
-	while((pos = s.find(" ")) != std::string::npos)
-		s.replace(pos, 1, "_");
-	m_attrs[attr].m_name = s;
+	m_attrs[attr].m_name = szNewName;
 }
 #endif // MIN_PREDICT
 

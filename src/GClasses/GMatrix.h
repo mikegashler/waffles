@@ -802,6 +802,14 @@ public:
 	/// \brief Returns a const pointer to the specified row
 	inline const GVec& row(size_t index) const { return *m_rows[index]; }
 
+	/// \brief Returns a pointer to the first row
+	inline GVec& front() { return *m_rows[0]; }
+	inline const GVec& front() const { return *m_rows[0]; }
+	
+	/// \brief Returns a pointer to the last row
+	inline GVec& back() { return *m_rows[m_rows.size() - 1]; }
+	inline const GVec& back() const { return *m_rows[m_rows.size() - 1]; }
+
 	/// \brief Returns a pointer to the specified row
 	inline GVec& operator [](size_t index) { return *m_rows[index]; }
 
