@@ -80,7 +80,7 @@ public:
 	GGaussianProcess();
 
 	/// Deserialization constructor
-	GGaussianProcess(GDomNode* pNode);
+	GGaussianProcess(const GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GGaussianProcess();

@@ -37,7 +37,6 @@
 #include "../GClasses/GPlot.h"
 #include "../GClasses/GFunction.h"
 #include "../GClasses/GLearner.h"
-#include "../GClasses/GNeighborFinder.h"
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GManifold.h"
 #include "../GClasses/GSelfOrganizingMap.h"
@@ -259,110 +258,6 @@ GMatrix* loadData(const char* szFilename)
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 
 	return hM.release();
-}
-
-void showInstantiateNeighborFinderError(const char* szMessage, GArgReader& args)
-{
-	cerr << "_________________________________\n";
-	cerr << szMessage << "\n\n";
-	const char* szNFName = args.peek();
-	UsageNode* pNFTree = makeNeighborUsageTree();
-	std::unique_ptr<UsageNode> hNFTree(pNFTree);
-	if(szNFName)
-	{
-		UsageNode* pUsageAlg = pNFTree->choice(szNFName);
-		if(pUsageAlg)
-		{
-			cerr << "Partial Usage Information:\n\n";
-			pUsageAlg->print(cerr, 0, 3, 76, 1000, true);
-		}
-		else
-		{
-			cerr << "\"" << szNFName << "\" is not a recognized neighbor-finding techniqie. Try one of these:\n\n";
-			pNFTree->print(cerr, 0, 3, 76, 1, false);
-		}
-	}
-	else
-	{
-		cerr << "Expected a neighbor-finding technique. Here are some choices:\n";
-		pNFTree->print(cerr, 0, 3, 76, 1, false);
-	}
-	cerr << "\nTo see full usage information, run:\n	waffles_transform usage\n\n";
-	cerr << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
-	cerr.flush();
-}
-
-GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgReader& args)
-{
-	// Get the algorithm name
-	int argPos = args.get_pos();
-	GNeighborFinder* pNF = NULL;
-	const char* alg = args.pop_string();
-
-	try
-	{
-		// Parse the options
-		int cutCycleLen = 0;
-		bool normalize = false;
-		while(args.next_is_flag())
-		{
-			if(args.if_pop("-cyclecut"))
-				cutCycleLen = args.pop_uint();
-			else if(args.if_pop("-normalize"))
-				normalize = true;
-			else
-				throw Ex("Invalid neighbor finder option: ", args.peek());
-		}
-
-		// Parse required algorithms
-		if(_stricmp(alg, "bruteforce") == 0)
-		{
-			int neighbors = args.pop_uint();
-			pNF = new GBruteForceNeighborFinder(pData, neighbors, NULL, true);
-		}
-		else if(_stricmp(alg, "kdtree") == 0)
-		{
-			int neighbors = args.pop_uint();
-			pNF = new GKdTree(pData, neighbors, NULL, true);
-		}
-		else if(_stricmp(alg, "temporal") == 0)
-		{
-			GMatrix* pControlData = loadData(args.pop_string());
-			std::unique_ptr<GMatrix> hControlData(pControlData);
-			if(pControlData->rows() != pData->rows())
-				throw Ex("mismatching number of rows");
-			int neighbors = args.pop_uint();
-			pNF = new GTemporalNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
-		}
-		else
-			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
-
-		// Normalize
-		if(normalize)
-		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
-			pNF2->normalizeDistances();
-			pNF = pNF2;
-		}
-
-		// Apply CycleCut
-		if(cutCycleLen > 0)
-		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
-			pNF2->cutShortcuts(cutCycleLen);
-			pNF = pNF2;
-		}
-	}
-	catch(const std::exception& e)
-	{
-		args.set_pos(argPos);
-		showInstantiateNeighborFinderError(e.what(), args);
-		throw Ex("nevermind"); // this means "don't display another error message"
-	}
-
-	return pNF;
 }
 
 void PlotBar(GArgReader& args)
@@ -652,6 +547,7 @@ public:
 
 	ColType m_type;
 	size_t m_color;
+	GMatrix* m_pData;
 	size_t m_attrX;
 	size_t m_attrY;
 	double m_radius;
@@ -669,7 +565,7 @@ public:
 		delete(m_pFP);
 	}
 
-	void parse(GArgReader& args, size_t cols)
+	void parse(GArgReader& args, std::map<string, GMatrix*>& datasets)
 	{
 		// Parse the color
 		m_type = Fixed;
@@ -708,12 +604,19 @@ public:
 		else if(args.if_pop("gray"))
 			m_color = 0xff808080;
 		else
+			throw Ex("Expected a color. Got ", args.pop_string());
+
+		// Load the data
+		string filename = args.pop_string();
+		std::map<string, GMatrix*>::iterator it = datasets.find(filename);
+		if(it == datasets.end())
 		{
-			m_type = Attr;
-			m_color = args.pop_uint();
-			if(m_color >= cols)
-				throw Ex("column index ", to_str(m_color), " out of range. Expected 0-", to_str(cols - 1));
+			m_pData = new GMatrix();
+			m_pData->loadArff(filename.c_str());
+			datasets.insert(std::pair<string, GMatrix*>(filename, m_pData));
 		}
+		else
+			m_pData = it->second;
 
 		// Parse the X attribute
 		if(args.if_pop("equation"))
@@ -733,8 +636,8 @@ public:
 		else
 		{
 			m_attrX = args.pop_uint();
-			if(m_attrX >= cols)
-				throw Ex("column index ", to_str(m_attrX), " out of range. Expected 0-", to_str(cols - 1));
+			if(m_attrX >= m_pData->cols())
+				throw Ex("column index ", to_str(m_attrX), " out of range. Expected 0-", to_str(m_pData->cols() - 1));
 		}
 
 		// Parse the Y attribute
@@ -745,8 +648,8 @@ public:
 			else
 			{
 				m_attrY = args.pop_uint();
-				if(m_attrY >= cols)
-					throw Ex("column index ", to_str(m_attrY), " out of range. Expected 0-", to_str(cols - 1));
+				if(m_attrY >= m_pData->cols())
+					throw Ex("column index ", to_str(m_attrY), " out of range. Expected 0-", to_str(m_pData->cols() - 1));
 			}
 		}
 
@@ -772,15 +675,15 @@ public:
 		return s;
 	}
 
-	static double attrVal(GMatrix* pData, size_t i, size_t attr)
+	double attrVal(size_t i, size_t attr)
 	{
-		if(attr < pData->cols())
-			return pData->row(i)[attr];
+		if(attr < m_pData->cols())
+			return m_pData->row(i)[attr];
 		else
 			return (double)i;
 	}
 
-	void plot(GSVG& svg, GMatrix* pData, double xmin, double xmax, size_t width)
+	void plot(GSVG& svg, double xmin, double xmax, size_t width)
 	{
 		svg.add_raw("<g><!-- ");
 		svg.add_raw(attrName().c_str());
@@ -791,12 +694,12 @@ public:
 		double colorMin = 0.0;
 		double colorRange = 1.0;
 		if(m_type == Row)
-			colorRange = pData->rows() * 1.15;
+			colorRange = m_pData->rows() * 1.15;
 		if(m_type == Attr)
 		{
-			colorMin = pData->columnMin(m_color);
-			colorRange = pData->columnMax(m_color) - colorMin;
-			colorRange *= 1.15;
+			colorMin = m_pData->columnMin(m_color);
+			colorRange = m_pData->columnMax(m_color) - colorMin;
+			colorRange *= 0.6;
 		}
 		if(m_pFunc)
 		{
@@ -818,17 +721,17 @@ public:
 		}
 		else
 		{
-			for(size_t i = 0; i < pData->rows(); i++)
+			for(size_t i = 0; i < m_pData->rows(); i++)
 			{
-				x = attrVal(pData, i, m_attrX);
-				y = attrVal(pData, i, m_attrY);
+				x = attrVal(i, m_attrX);
+				y = attrVal(i, m_attrY);
 				size_t col = 0;
 				if(m_type == Fixed)
 					col = m_color;
 				else if(m_type == Row)
 					col = gAHSV(0xff, i / (float)colorRange, 1.0f, 0.5f);
 				else if(m_type == Attr)
-					col = gAHSV(0xff, (float)(pData->row(i)[m_color] - colorMin) / (float)colorRange, 1.0f, 0.5f);
+					col = gAHSV(0xff, (float)(m_pData->row(i)[m_color] - colorMin) / (float)colorRange, 1.0f, 0.5f);
 				else
 					throw Ex("Unrecognized type");
 				if(x != UNKNOWN_REAL_VALUE && y != UNKNOWN_REAL_VALUE)
@@ -848,7 +751,7 @@ public:
 	}
 };
 
-void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, bool forcePad, double pad, bool x, double& axisMin, double& axisMax)
+void determineRange(vector<ScatterCol>& cols, bool logx, bool forcePad, double pad, bool x, double& axisMin, double& axisMax)
 {
 	// Determine the range
 	if(logx)
@@ -860,15 +763,15 @@ void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, bool fo
 			for(size_t i = 0; i < cols.size(); i++)
 			{
 				size_t attr = x ? cols[i].m_attrX : cols[i].m_attrY;
-				if(attr < pData->cols()) // if attr is an attribute
+				if(attr < cols[i].m_pData->cols()) // if attr is an attribute
 				{
-					axisMin = std::min(axisMin, pData->columnMin(attr));
-					axisMax = std::max(axisMax, pData->columnMax(attr));
+					axisMin = std::min(axisMin, cols[i].m_pData->columnMin(attr));
+					axisMax = std::max(axisMax, cols[i].m_pData->columnMax(attr));
 				}
 				else // attr is the row index
 				{
 					axisMin = 1.0;
-					axisMax = std::max(axisMax, (double)(pData->rows() - 1));
+					axisMax = std::max(axisMax, (double)(cols[i].m_pData->rows() - 1));
 				}
 			}
 		}
@@ -889,15 +792,15 @@ void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, bool fo
 			for(size_t i = 0; i < cols.size(); i++)
 			{
 				size_t attr = x ? cols[i].m_attrX : cols[i].m_attrY;
-				if(attr < pData->cols()) // if attr is an attribute
+				if(attr < cols[i].m_pData->cols()) // if attr is an attribute
 				{
-					axisMin = std::min(axisMin, pData->columnMin(attr));
-					axisMax = std::max(axisMax, pData->columnMax(attr));
+					axisMin = std::min(axisMin, cols[i].m_pData->columnMin(attr));
+					axisMax = std::max(axisMax, cols[i].m_pData->columnMax(attr));
 				}
 				else // attr is the row index
 				{
 					axisMin = std::min(axisMin, 0.0);
-					axisMax = std::max(axisMax, (double)(pData->rows() - 1));
+					axisMax = std::max(axisMax, (double)(cols[i].m_pData->rows() - 1));
 				}
 			}
 			if(axisMin < -1e200)
@@ -927,7 +830,7 @@ void determineRange(GMatrix* pData, vector<ScatterCol>& cols, bool logx, bool fo
 	}
 }
 
-void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axisMin, double axisMax, GSVG& svg, bool serifs)
+void autolabel(vector<ScatterCol>& cols, bool horiz, double axisMin, double axisMax, GSVG& svg, bool serifs)
 {
 	// Count the unique attributes
 	size_t count = 1;
@@ -950,10 +853,10 @@ void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axis
 		// Determine the label
 		string sLabel;
 		size_t attr = horiz ? cols[i].m_attrX : cols[i].m_attrY;
-		if(attr < pData->relation().size())
+		if(attr < cols[i].m_pData->cols())
 		{
-			if(pData->relation().type() == GRelation::ARFF)
-				sLabel = ((GArffRelation*)&pData->relation())->attrName(attr);
+			if(cols[i].m_pData->relation().type() == GRelation::ARFF)
+				sLabel = ((GArffRelation*)&cols[i].m_pData->relation())->attrName(attr);
 			else
 			{
 				sLabel = "Attr ";
@@ -980,7 +883,7 @@ void autolabel(GMatrix* pData, vector<ScatterCol>& cols, bool horiz, double axis
 		pos++;
 	}
 }
-
+/*
 void findGridPattern(GMatrix* pData, size_t attr, size_t& block, size_t& cycle)
 {
 	// Count reps
@@ -1014,7 +917,7 @@ void findGridPattern(GMatrix* pData, size_t attr, size_t& block, size_t& cycle)
 		}
 	}
 }
-
+*/
 void makeGridDataSubset(GMatrix* pSource, GMatrix* pDest, size_t horizPos, size_t horizAttr, size_t horizBlock, size_t vertPos, size_t vertAttr, size_t vertBlock)
 {
 	if(horizAttr == INVALID_INDEX)
@@ -1047,19 +950,29 @@ void makeGridDataSubset(GMatrix* pSource, GMatrix* pDest, size_t horizPos, size_
 	}
 }
 
+class DatasetDeleter
+{
+public:
+	std::map<string, GMatrix*>& datasets;
+
+	DatasetDeleter(std::map<string, GMatrix*>& sets) : datasets(sets)
+	{
+	}
+
+	~DatasetDeleter()
+	{
+		for(auto it = datasets.begin(); it != datasets.end(); it++)
+		{
+			delete(it->second);
+		}
+	}
+};
+
 void PlotScatter(GArgReader& args)
 {
-	// Load the data
-	GMatrix* pData = loadData(args.pop_string());
-	std::unique_ptr<GMatrix> hData(pData);
-
 	// Values pertaining to grids of charts
 	size_t horizCharts = 1;
-	size_t horizAttr = INVALID_INDEX;
-	size_t horizBlock, horizCycle;
 	size_t vertCharts = 1;
-	size_t vertAttr = INVALID_INDEX;
-	size_t vertBlock, vertCycle;
 
 	// Values pertaining to each chart
 	size_t width = 960;
@@ -1089,7 +1002,7 @@ void PlotScatter(GArgReader& args)
 			width = args.pop_uint();
 			height = args.pop_uint();
 		}
-		else if(args.if_pop("-horizattr"))
+/*		else if(args.if_pop("-horizattr"))
 		{
 			horizAttr = args.pop_uint();
 			findGridPattern(pData, horizAttr, horizBlock, horizCycle);
@@ -1100,7 +1013,7 @@ void PlotScatter(GArgReader& args)
 			vertAttr = args.pop_uint();
 			findGridPattern(pData, vertAttr, vertBlock, vertCycle);
 			vertCharts = vertCycle / vertBlock;
-		}
+		}*/
 		else if(args.if_pop("-margin"))
 			margin = args.pop_uint();
 		else if(args.if_pop("-horizmarks"))
@@ -1148,17 +1061,19 @@ void PlotScatter(GArgReader& args)
 		margin = (size_t)(std::min(width, height) * 0.2);
 
 	// Parse the colors
+	std::map<string, GMatrix*> datasets;
+	DatasetDeleter dsd(datasets);
 	vector<ScatterCol> cols;
 	while(args.size() > 0)
 	{
 		size_t n = cols.size();
 		cols.resize(cols.size() + 1);
-		cols[n].parse(args, pData->cols());
+		cols[n].parse(args, datasets);
 	}
 
 	// Draw the grid
-	determineRange(pData, cols, logx, forcePad, pad, true, xmin, xmax);
-	determineRange(pData, cols, logy, forcePad, pad, false, ymin, ymax);
+	determineRange(cols, logx, forcePad, pad, true, xmin, xmax);
+	determineRange(cols, logy, forcePad, pad, false, ymin, ymax);
 	if(aspect)
 	{
 		if(logx || logy)
@@ -1195,15 +1110,15 @@ void PlotScatter(GArgReader& args)
 			if(horizLabel.length() > 0)
 				svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), horizLabel.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
 			else
-				autolabel(pData, cols, true, xmin, xmax, svg, serifs);
+				autolabel(cols, true, xmin, xmax, svg, serifs);
 			if(vertLabel.length() > 0)
 				svg.text(svg.vertLabelPos(), 0.5 * (ymin + ymax), vertLabel.c_str(), 1.5, GSVG::Middle, 0xff000000, 90, serifs);
 			else
-				autolabel(pData, cols, false, ymin, ymax, svg, serifs);
+				autolabel(cols, false, ymin, ymax, svg, serifs);
 
 			// Draw the colors
 			svg.clip();
-			if(horizCharts > 1 || vertCharts > 1)
+/*			if(horizCharts > 1 || vertCharts > 1)
 			{
 				GMatrix temp(pData->relation().clone());
 				GReleaseDataHolder hTemp(&temp);
@@ -1211,10 +1126,10 @@ void PlotScatter(GArgReader& args)
 				for(size_t i = 0; i < cols.size(); i++)
 					cols[i].plot(svg, &temp, xmin, xmax, width);
 			}
-			else
+			else*/
 			{
 				for(size_t i = 0; i < cols.size(); i++)
-					cols[i].plot(svg, pData, xmin, xmax, width);
+					cols[i].plot(svg, xmin, xmax, width);
 			}
 		}
 	}
@@ -1446,14 +1361,16 @@ void makeHistogram(GArgReader& args)
 				pBlock2[0] = 0.5 * (xBegin + xEnd);
 				pBlock2[1] = (double)k / ((xEnd - xBegin + laplace) * pData->rows());
 			}
-			pBlock = invDensity.newRow();
-			pBlock[0] = pData->row(pData->rows() - 1)[attr];
-			pBlock[1] = 0.0;
+			GVec& pBlock3 = invDensity.newRow();
+			pBlock3[0] = pData->row(pData->rows() - 1)[attr];
+			pBlock3[1] = 0.0;
 
 			// Plot it
 			double maxHeight = invDensity.columnMax(1);
 			GSVG svg(wid, hgt);
-			svg.newChart(invDensity[0][0], 0.0, invDensity[invDensity.rows() - 1][0], maxHeight);
+			double xxmin = invDensity[0][0];
+			double xxmax = invDensity[invDensity.rows() - 1][0];
+			svg.newChart(xxmin, 0.0, xxmax, maxHeight);
 			svg.add_raw("<path d=\"m "); // Start a path
 			svg.add_raw(to_str(invDensity[0][0]).c_str());
 			svg.add_raw(",0 c "); // Turn on control points

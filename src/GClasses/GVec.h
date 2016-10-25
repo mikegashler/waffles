@@ -33,11 +33,13 @@ class GDomNode;
 class GImage;
 class GDomListIterator;
 class GVecWrapper;
+class GConstVecWrapper;
 
-/// Contains some useful functions for operating on vectors
+/// Represents a mathematical vector of doubles
 class GVec
 {
 friend class GVecWrapper;
+friend class GConstVecWrapper;
 protected:
 	double* m_data;
 	size_t m_size;
@@ -56,11 +58,13 @@ public:
 	GVec(const GVec& orig);
 
 	/// Copies all the values in orig.
-	GVec& operator=(const GVec& orig);
 	~GVec();
 
 	/// Returns the size of this vector.
 	size_t size() const { return m_size; }
+
+	/// Copies all the values in orig.
+	void copy(const GVec& orig);
 
 	/// Resizes this vector
 	void resize(size_t n);
@@ -94,6 +98,9 @@ public:
 	/// Adds another vector to this one.
 	GVec& operator+=(const GVec& that);
 
+	/// Adds a scalar to each element in this vector.
+	GVec& operator+=(const double scalar);
+
 	/// Subtracts a vector from this one to make a new one.
 	GVec operator-(const GVec& that) const;
 
@@ -106,8 +113,17 @@ public:
 	/// Scales this vector.
 	GVec& operator*=(double scalar);
 
+	/// Scales this vector.
+	GVec& operator/=(double scalar);
+
 	/// Sets the data in this vector.
 	void set(const double* pSource, size_t size);
+
+// standard deviation
+// add divide method, plus for scalars,
+
+	/// Returns the mean of all of the elements in this vector.
+	double mean() const;
 
 	/// Returns the squared Euclidean magnitude of this vector.
 	double squaredMagnitude() const;
@@ -139,7 +155,10 @@ public:
 	void fillSimplex(GRand& rand);
 
 	/// Prints a representation of this vector to the specified stream.
-	void print(std::ostream& stream = std::cout) const;
+	void print(std::ostream& stream = std::cout, char separator = ',') const;
+
+	/// Returns a string representation of this vector
+	std::string to_str(char separator = ',') const;
 
 	/// Returns the sum of the elements in this vector
 	double sum() const;
@@ -149,17 +168,37 @@ public:
 	/// The returned value will be < endPos.
 	size_t indexOfMax(size_t startPos = 0, size_t endPos = (size_t)-1) const;
 
+	/// Returns the index of the min element.
+	/// The returned value with be >= startPos.
+	/// the returned value will be < endPos.
+	size_t indexOfMin(size_t startPos = 0, size_t endPos = (size_t)-1) const;
+
+	/// Returns the max element.
+	/// If you want the location, call indexOfMax
+	/// The returned value with be >= startPos.
+	/// the returned value will be < endPos.
+	double max(size_t startPos = 0, size_t endPos = (size_t)-1) const;
+
+	/// Returns the min element.
+	/// If you want the location, call indexOfMin
+	/// The returned value with be >= startPos.
+	/// the returned value will be < endPos.
+	double min(size_t startPos = 0, size_t endPos = (size_t)-1) const;
+
 	/// Marshals this vector into a DOM node.
 	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Unmarshals this vector from a DOM.
-	void deserialize(GDomNode* pNode);
+	void deserialize(const GDomNode* pNode);
 
 	/// Returns the dot product of this and that.
 	double dotProduct(const GVec& that) const;
 
 	/// Returns the dot product of this and that, ignoring elements in which either vector has UNKNOWN_REAL_VALUE.
 	double dotProductIgnoringUnknowns(const GVec& that) const;
+
+	/// Returns the dot product of this with (to - from), ignoring elements in which any vector has UNKNOWN_REAL_VALUE.
+	double dotProductIgnoringUnknowns(const GVec& from, const GVec& to) const;
 
 	/// Estimates the squared distance between two points that may have some missing values. It assumes
 	/// the distance in missing dimensions is approximately the same as the average distance in other
@@ -204,180 +243,70 @@ public:
 	/// Pixels are visited in reading order (left-to-right, top-to-bottom).
 	void fromImage(GImage* pImage, int width, int height, int channels, double range);
 
+	/// Swaps the contents of this vector with that vector.
+	void swapContents(GVec& that);
+
 private:
-	/// This method is deliberately private, so calling it will trigger a compiler error.
+	/// This method is deliberately private, so calling it will trigger a compiler error. Call "copy" instead.
+	GVec& operator=(const GVec& orig);
+
+	/// This method is deliberately private, so calling it will trigger a compiler error. Call "fill" instead.
 	GVec(double d);
 
 public:
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
 #endif // MIN_PREDICT
 
-	/// This returns true if the vector contains any unknown values. Most of the methods in this
-	/// class will give bad results if a vector contains unknown values, but for efficiency
-	/// reasons, they don't check. So it's your job to check your vectors first.
-	static bool doesContainUnknowns(const double* pVector, size_t nSize);
-
-	/// This just wraps memcpy
-	static void copy(double* pDest, const double* pSource, size_t nDims);
-
-	/// Computes the dot product of (pTarget - pOrigin) with pVector.
-	static double dotProduct(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize);
-
-	/// Computes the dot product of (pTargetA - pOriginA) with (pTargetB - pOriginB).
-	static double dotProduct(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nSize);
-
-	/// Computes the dot product of two vectors, ignoring any unknown values.
-	static double dotProductIgnoringUnknowns(const double* pA, const double* pB, size_t nSize);
-
-	/// Computes the dot product of (pTarget - pOrigin) with pVector. Unknown values
-	/// in pTarget will simply be ignored. (pOrigin and pVector must not contain any
-	/// unknown values.)
-	static double dotProductIgnoringUnknowns(const double* pOrigin, const double* pTarget, const double* pVector, size_t nSize);
-
-	/// Computes the squared magnitude of the vector
-	static double squaredMagnitude(const double* pVector, size_t nSize);
-
-	/// Computes the magnitude in L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static double lNormMagnitude(double norm, const double* pVector, size_t nSize);
-
-	/// Normalizes this vector to a magnitude of 1. Throws an exception if the magnitude is zero.
-	static void normalize(double* pVector, size_t nSize);
-
-	/// Normalizes this vector to a magnitude of 1. If the magnitude is zero, it returns a random vector.
-	static void safeNormalize(double* pVector, size_t nSize, GRand* pRand);
-
-	/// Scale the vector so that the elements sum to 1
-	static void sumToOne(double* pVector, size_t size);
-
-	/// Normalizes with L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static void lNormNormalize(double norm, double* pVector, size_t nSize);
-
-	/// Computes the squared distance between two vectors
-	static double squaredDistance(const double* pA, const double* pB, size_t nDims);
-
-	/// Estimates the squared distance between two points that may have some missing values. It assumes
-	/// the distance in missing dimensions is approximately the same as the average distance in other
-	/// dimensions. If there are no known dimensions that overlap between the two points, it returns
-	/// 1e50.
-	static double estimateSquaredDistanceWithUnknowns(const double* pA, const double* pB, size_t nDims);
-
-	/// Computes L-Norm distance (norm=1 is manhattan distance, norm=2 is Euclidean distance, norm=infinity is Chebychev, etc.)
-	static double lNormDistance(double norm, const double* pA, const double* pB, size_t dims);
-
-	/// Returns the index of the min value in pVector. If multiple elements have
-	/// have an equivalent max value, then behavior depends on the value of pRand.
-	/// If pRand is NULL, it will pick the first one. If pRand is non-NULL, it will
-	/// uniformly pick from all the ties.
-	static size_t indexOfMin(const double* pVector, size_t dims, GRand* pRand = NULL);
-
-	/// Returns the index of the max value in pVector. If multiple elements have
-	/// have an equivalent max value, then behavior depends on the value of pRand.
-	/// If pRand is NULL, it will pick the first one. If pRand is non-NULL, it will
-	/// uniformly pick from all the ties.
-	static size_t indexOfMax(const double* pVector, size_t dims, GRand* pRand = NULL);
-
-	/// Returns the index of the value with the largest magnitude in pVector. If multiple elements have
-	/// have an equivalent magnitude, it randomly (uniformly) picks from all the ties.
-	static size_t indexOfMaxMagnitude(const double* pVector, size_t dims, GRand* pRand);
-
-	/// Adds pSource to pDest
-	static void add(double* pDest, const double* pSource, size_t nDims);
-
-	/// Adds dMag * pSource to pDest
-	static void addScaled(double* pDest, double dMag, const double* pSource, size_t nDims);
-
-	/// Adds the log of each element in pSource to pDest
-	static void addLog(double* pDest, const double* pSource, size_t nDims);
-
-	/// Subtracts pSource from pDest
-	static void subtract(double* pDest, const double* pSource, size_t nDims);
-
-	/// Multiplies pVector by dScalar
-	static void multiply(double* pVector, double dScalar, size_t nDims);
-
-	/// Apply L^(1.5) regularization to the specified vector.
-	static void regularize_1_5(double* pVector, double amount, size_t nDims);
-
-	/// Adjusts each element in the direction toward 0 by the specified amount.
-	static void regularize_1(double* pVector, double amount, size_t nDims);
-
-	/// Raises each element of pVector to the exponent dScalar
-	static void pow(double* pVector, double dScalar, size_t nDims);
-
-	/// Multiplies each element in pDest by the corresponding element in pOther
-	static void pairwiseMultiply(double* pDest, double* pOther, size_t dims);
-
-	/// Divides each element in pDest by the corresponding element in pOther
-	static void pairwiseDivide(double* pDest, double* pOther, size_t dims);
-
 	/// Sets all the elements to the specified value
 	static void setAll(double* pVector, double value, size_t dims);
 
-	/// Interpolates (morphs) a set of indexes from one function to another. pInIndexes, pCorrIndexes1,
-	/// and pCorrIndexes2 are all expected to be in sorted order. All indexes should be >= 0 and < nDims.
-	/// fRatio is the interpolation ratio such that if fRatio is zero, all indexes left unchanged, and
-	/// as fRatio approaches one, the indexes are interpolated linearly such that each index in pCorrIndexes1
-	/// is interpolated linearly to the corresponding index in pCorrIndexes2. If the two extremes are not
-	/// in the list of corresponding indexes, the ends may drift.
-	static void interpolateIndexes(size_t nIndexes, double* pInIndexes, double* pOutIndexes, float fRatio, size_t nCorrIndexes, double* pCorrIndexes1, double* pCorrIndexes2);
-
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
-
-	/// Write the vector to a text format
-	static GDomNode* serialize(GDom* pDoc, const double* pVec, size_t dims);
-
-	/// Load the vector from a text format. pVec must be large enough to contain all of the
-	/// elements that remain in "it".
-	static void deserialize(double* pVec, GDomListIterator& it);
-
-	/// Prints the values in the vector separated by ", ".
-	/// precision specifies the number of digits to print
-//	static void print(std::ostream& stream, int precision, const double* pVec, size_t dims);
-
-	/// Projects pPoint onto the hyperplane defined by pOrigin onto the basisCount basis vectors
-	/// specified by pBasis. (The basis vectors are assumed to be chained end-to-end in a big vector.)
-	static void project(double* pDest, const double* pPoint, const double* pOrigin, const double* pBasis, size_t basisCount, size_t dims);
-
-	/// Returns the sum of all the elements
-	static double sumElements(const double* pVec, size_t dims);
-
-	/// Sets each value, v, to ABS(v)
-	static void absValues(double* pVec, size_t dims);
 };
+
+
+///\brief Allow GVec objects to easily be converted into a string for debugging
+///
+///\param v the GVec that will be converted to a string
+///
+///\return a string representing the GVec \a v
+///
+///\see template<class T> to_str(const T& n)
+std::string to_str(const GVec& v);
+
 
 
 /// This class temporarily wraps a GVec around a const array of doubles.
 /// You should take care to ensure this object is destroyed before the array it wraps.
-class GVecWrapper
+class GConstVecWrapper
 {
 protected:
 	GVec m_v;
 
 public:
-	GVecWrapper(const double* buf, size_t size)
+	GConstVecWrapper(const double* buf, size_t size)
 	{
 		m_v.m_data = (double*)buf;
 		m_v.m_size = size;
 	}
 
-	~GVecWrapper()
+	~GConstVecWrapper()
 	{
 		m_v.m_data = NULL;
 		m_v.m_size = 0;
@@ -391,17 +320,72 @@ public:
 
 
 
+/// This class temporarily wraps a GVec around an array of doubles.
+/// You should take care to ensure this object is destroyed before the array it wraps.
+class GVecWrapper
+{
+protected:
+	GVec m_v;
+
+public:
+	GVecWrapper(double* buf, size_t size)
+	{
+		m_v.m_data = buf;
+		m_v.m_size = size;
+	}
+
+	~GVecWrapper()
+	{
+		m_v.m_data = NULL;
+		m_v.m_size = 0;
+	}
+
+	GVec& vec()
+	{
+		return m_v;
+	}
+};
+
+
+
 /// Useful functions for operating on vectors of indexes
 class GIndexVec
 {
 public:
-	size_t* v;
+	size_t* m_data;
+	size_t m_size;
+
 	GIndexVec(size_t n = 0);
 	~GIndexVec();
 
 	/// Resizes this vector
 	void resize(size_t n);
 
+	/// \brief Returns a reference to the specified element.
+	inline size_t& operator [](size_t index)
+	{
+		GAssert(index < m_size);
+		return m_data[index];
+	}
+
+	/// \brief Returns a const reference to the specified element
+	inline const size_t& operator [](size_t index) const
+	{
+		GAssert(index < m_size);
+		return m_data[index];
+	}
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	/// Makes a vector of ints where each element contains its index (starting with zero, of course)
 	static void makeIndexVec(size_t* pVec, size_t size);
 
@@ -550,4 +534,3 @@ public:
 } // namespace GClasses
 
 #endif // __GVEC_H__
-

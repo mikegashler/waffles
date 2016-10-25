@@ -56,7 +56,7 @@ protected:
 
 public:
 	GCollaborativeFilter();
-	GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GCollaborativeFilter(const GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GCollaborativeFilter() {}
 
 	/// Trains this recommender system. Let R be an m-by-n sparse
@@ -152,7 +152,7 @@ public:
 	GBaselineRecommender();
 
 	/// Deserialization constructor
-	GBaselineRecommender(GDomNode* pNode, GLearnerLoader& ll);
+	GBaselineRecommender(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GBaselineRecommender();
@@ -192,7 +192,7 @@ protected:
 
 public:
 	GInstanceRecommender(size_t neighbors);
-	GInstanceRecommender(GDomNode* pNode, GLearnerLoader& ll);
+	GInstanceRecommender(const GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GInstanceRecommender();
 
 	/// Sets the similarity metric to use. if own is true, then this object will take care
@@ -358,7 +358,7 @@ public:
 	GMatrixFactorization(size_t intrinsicDims);
 
 	/// Deserialization constructor
-	GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll);
+	GMatrixFactorization(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GMatrixFactorization();
@@ -461,7 +461,7 @@ public:
 	GNonlinearPCA(size_t intrinsicDims);
 
 	/// Deserialization constructor
-	GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll);
+	GNonlinearPCA(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GNonlinearPCA();
@@ -552,7 +552,7 @@ public:
         GHybridNonlinearPCA(size_t intrinsicDims);
 
 //        /// Deserialization constructor
-//        GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll);
+//        GNonlinearPCA(const GDomNode* pNode, GLearnerLoader& ll);
 
         /// Destructor
         virtual ~GHybridNonlinearPCA();
@@ -590,7 +590,7 @@ public:
 	GLogNet(size_t intrinsicDims);
 
 	/// Deserialization constructor
-	GLogNet(GDomNode* pNode, GLearnerLoader& ll);
+	GLogNet(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GLogNet();
@@ -628,7 +628,7 @@ public:
 	GBagOfRecommenders();
 
 	/// Deserialization constructor
-	GBagOfRecommenders(GDomNode* pNode, GLearnerLoader& ll);
+	GBagOfRecommenders(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Destructor
 	virtual ~GBagOfRecommenders();

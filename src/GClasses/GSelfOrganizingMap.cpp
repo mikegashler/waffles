@@ -427,7 +427,6 @@ namespace GClasses {
      NeighborhoodWindowFunction* windowFunc,
      Reporter* reporter):
       m_initialNeighborhoodSize(initialNeighborhoodSize),
-      m_finalNeighborhoodSize(finalNeighborhoodSize),
       m_timeFactor(std::log(finalNeighborhoodSize/initialNeighborhoodSize)
 		   /(numIterations-1)),
       m_numIterations(numIterations),
@@ -745,7 +744,7 @@ namespace{
     return pNode;
   }
 
-  std::vector<double> doubleVectorDeserialize(GDomNode* pNode){
+  std::vector<double> doubleVectorDeserialize(const GDomNode* pNode){
     GDomListIterator it(pNode);
     std::size_t size = it.remaining();
     std::vector<double> out; out.reserve(size);
@@ -770,7 +769,7 @@ namespace{
   ///Deserialize a vector of any object that can be constructed from a
   ///GDomNode
   template<class vectortype>
-  vectortype objVectorDeserialize(GDomNode* pNode){
+  vectortype objVectorDeserialize(const GDomNode* pNode){
     GDomListIterator it(pNode);
     std::size_t size = it.remaining();
     vectortype out; out.reserve(size);
@@ -782,7 +781,7 @@ namespace{
   }
 }
 
-SOM::Node::Node(GDomNode* pNode)
+SOM::Node::Node(const GDomNode* pNode)
   :outputLocation(doubleVectorDeserialize(pNode->field("outputLocation"))),
    weights(doubleVectorDeserialize(pNode->field("weights"))){}
 
@@ -803,7 +802,7 @@ GDomNode* SOM::TrainingAlgorithm::serialize(GDom* pDoc) const{
   return pNode;
 }
 
-SOM::TrainingAlgorithm* SOM::TrainingAlgorithm::deserialize(GDomNode* pNode){
+SOM::TrainingAlgorithm* SOM::TrainingAlgorithm::deserialize(const GDomNode* pNode){
   return new DummyTrainingAlgorithm();
 }
 
@@ -823,7 +822,7 @@ GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
   return pNode;
 }
 
-GSelfOrganizingMap::GSelfOrganizingMap(GDomNode* pNode) : GIncrementalTransform(pNode) {
+GSelfOrganizingMap::GSelfOrganizingMap(const GDomNode* pNode) : GIncrementalTransform(pNode) {
   m_nInputDims=(unsigned int)pNode->field("inputDims")->asInt();
   m_outputAxes=doubleVectorDeserialize(pNode->field("outputAxes"));
   m_pTrainer=SOM::TrainingAlgorithm::deserialize(pNode->field("trainer"));
@@ -910,7 +909,7 @@ GSelfOrganizingMap::~GSelfOrganizingMap()
 }
 
 
-GMatrix* GSelfOrganizingMap::reduce(GMatrix& in)
+GMatrix* GSelfOrganizingMap::reduce(const GMatrix& in)
 {
   // Train the map on the input
   train(in);
@@ -947,7 +946,7 @@ std::size_t GSelfOrganizingMap::bestMatch(const GVec& in) const{
   for(NIter cur = nodes().begin(); cur != nodes().end(); ++cur){
     const double *weights = &(cur->weights.front());
     {
-      GVecWrapper w(weights, cur->weights.size());
+      GConstVecWrapper w(weights, cur->weights.size());
       double dissim = (*m_pWeightDistance)(w.vec(), in);
       if(dissim < bestDistance || best_Match >= nodes().size()){
         best_Match = cur - nodes().begin();
@@ -972,7 +971,7 @@ std::vector<std::size_t> GSelfOrganizingMap::bestData
   vector<size_t> out; out.reserve(nodes().size());
   for(NIter cur = nodes().begin(); cur != nodes().end(); ++cur){
     const double *weights = &(cur->weights.front());
-    GVecWrapper w(weights, cur->weights.size());
+    GConstVecWrapper w(weights, cur->weights.size());
     double bestDist=(*m_pWeightDistance)(w.vec(), data->row(0));
     size_t bestIdx=0;
     for(unsigned dataIdx = 1; dataIdx < data->rows(); ++dataIdx){
@@ -1015,8 +1014,8 @@ void GSelfOrganizingMap::regenerateSortedNeighbors() const{
       for(std::size_t other = 0; other < m_nodes.size(); ++other){
 	if(other == curIdx) continue;
 	dist->nodeIdx = other;
-	GVecWrapper a(m_nodes[curIdx].outputLocation.data(), m_nodes[curIdx].outputLocation.size());
-	GVecWrapper b(m_nodes[other].outputLocation.data(), m_nodes[other].outputLocation.size());
+	GConstVecWrapper a(m_nodes[curIdx].outputLocation.data(), m_nodes[curIdx].outputLocation.size());
+	GConstVecWrapper b(m_nodes[other].outputLocation.data(), m_nodes[other].outputLocation.size());
 	dist->distance = (*metric)(a.vec(), b.vec());
 	++dist;
       }
@@ -1098,7 +1097,7 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
 #include "GRand.h"
 #include "GImage.h"
   namespace{
-    ///The original test code - which I may still make use of some time
+/*    ///The original test code - which I may still make use of some time
     void originalTest()
     {
       // Make a dataset of random colors
@@ -1129,7 +1128,7 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
       }
       //image.SavePNGFile("som.png");
     }
-
+*/
     #include "GSelfOrganizingMapTestData.cpp"
 
   }//Anonymous namespace

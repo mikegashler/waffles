@@ -230,7 +230,12 @@ void GFile::folderList(std::vector<std::string>& list, const char* dir, bool exc
 #else
 	DIR* pDir = opendir(dir);
 	if(!pDir)
-		throw Ex("Failed to open dir: ", dir);
+	{
+		char curdir[255];
+		if(!getcwd(curdir, 255))
+			curdir[0] = '\0';
+		throw Ex("Failed to open dir: ", dir, " from ", curdir);
+	}
 	while(true)
 	{
 		struct dirent *pDirent = readdir(pDir);

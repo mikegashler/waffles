@@ -744,8 +744,7 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 	std::unique_ptr<GMatrix> hData(pData);
 
 	// Convert to 3-column form
-	GMatrix* pMatrix = new GMatrix(0, 3);
-	std::unique_ptr<GMatrix> hMatrix(pMatrix);
+	auto pMatrix = std::unique_ptr<GMatrix>(new GMatrix(0, 3));
 	size_t dims = pData->cols();
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
@@ -764,8 +763,6 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 
 	// Train the collaborative filter
 	pModel->train(*pMatrix);
-	hMatrix.release();
-	pMatrix = NULL;
 
 	// Predict values for missing elements
 	for(size_t i = 0; i < pData->rows(); i++)
@@ -780,7 +777,7 @@ void GRecommenderLib::fillMissingValues(GArgReader& args)
 	}
 
 	// Convert the data back to its original form
-	GMatrix* pOut = pFilter->untransformBatch(*pData);
+	auto pOut = pFilter->untransformBatch(*pData);
 	pOut->setRelation(hOrigRel.release());
 	pOut->print(cout);
 }

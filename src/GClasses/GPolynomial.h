@@ -40,7 +40,7 @@ public:
 	GPolynomial();
 
 	/// Load from a DOM.
-	GPolynomial(GDomNode* pNode);
+	GPolynomial(const GDomNode* pNode);
 
 	virtual ~GPolynomial();
 

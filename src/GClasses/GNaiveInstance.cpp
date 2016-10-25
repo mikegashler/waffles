@@ -87,14 +87,12 @@ GNaiveInstance::GNaiveInstance()
 {
 	m_nNeighbors = 12;
 	m_pAttrs = NULL;
-	m_pValueSums = NULL;
 }
 
-GNaiveInstance::GNaiveInstance(GDomNode* pNode)
+GNaiveInstance::GNaiveInstance(const GDomNode* pNode)
 : GIncrementalLearner(pNode), m_pHeap(NULL)
 {
 	m_pAttrs = NULL;
-	m_pValueSums = NULL;
 	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
 	beginIncrementalLearningInner(*m_pRelFeatures, *m_pRelLabels);
 	GDomNode* pAttrs = pNode->field("attrs");
@@ -125,8 +123,7 @@ void GNaiveInstance::clear()
 		delete[] m_pAttrs;
 	}
 	m_pAttrs = NULL;
-	delete[] m_pValueSums;
-	m_pValueSums = NULL;
+	m_pValueSums.resize(0);
 	delete(m_pHeap);
 	m_pHeap = NULL;
 }
@@ -174,10 +171,10 @@ void GNaiveInstance::beginIncrementalLearningInner(const GRelation& featureRel, 
 	m_pAttrs = new GNaiveInstanceAttr*[m_pRelFeatures->size()];
 	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 		m_pAttrs[i] = new GNaiveInstanceAttr();
-	m_pValueSums = new double[4 * m_pRelLabels->size() + m_pRelFeatures->size()];
-	m_pWeightSums = &m_pValueSums[m_pRelLabels->size()];
-	m_pSumBuffer = &m_pValueSums[2 * m_pRelLabels->size()];
-	m_pSumOfSquares = &m_pValueSums[3 * m_pRelLabels->size()];
+	m_pValueSums.resize(m_pRelLabels->size());
+	m_pWeightSums.resize(m_pRelLabels->size());
+	m_pSumBuffer.resize(m_pRelLabels->size());
+	m_pSumOfSquares.resize(m_pRelLabels->size());
 }
 
 // virtual
@@ -186,7 +183,7 @@ void GNaiveInstance::trainIncremental(const GVec& pIn, const GVec& pOut)
 	if(!m_pHeap)
 		m_pHeap = new GHeap(1024);
 	double* pOutputs = (double*)m_pHeap->allocAligned(sizeof(double) * m_pRelLabels->size());
-	GVec::copy(pOutputs, pOut.data(), m_pRelLabels->size());
+	memcpy(pOutputs, pOut.data(), sizeof(double) * m_pRelLabels->size());
 	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 	{
 		if(pIn[i] != UNKNOWN_REAL_VALUE)
@@ -216,8 +213,8 @@ void GNaiveInstance::trainSparse(GSparseMatrix& features, GMatrix& labels)
 void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 {
 	// Init the accumulators
-	GVec::setAll(m_pSumBuffer, 0.0, m_pRelLabels->size());
-	GVec::setAll(m_pSumOfSquares, 0.0, m_pRelLabels->size());
+	m_pSumBuffer.fill(0.0);
+	m_pSumOfSquares.fill(0.0);
 
 	// Find the nodes on either side of dInput
 	GNaiveInstanceAttr* pAttr = m_pAttrs[nInputDim];
@@ -256,7 +253,8 @@ void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 
 		// Accumulate values
 		const double* pOutputVec = goRight ? itRight->second : itLeft->second;
-		GVec::add(m_pSumBuffer, pOutputVec, m_pRelLabels->size());
+		GConstVecWrapper vw(pOutputVec, m_pSumBuffer.size());
+		m_pSumBuffer += vw.vec();
 		for(size_t j = 0; j < m_pRelLabels->size(); j++)
 			m_pSumOfSquares[j] += (pOutputVec[j] * pOutputVec[j]);
 
@@ -275,8 +273,8 @@ void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 				itLeft--;
 		}
 	}
-	GVec::multiply(m_pSumBuffer, 1.0 / nNeighbors, m_pRelLabels->size());
-	GVec::multiply(m_pSumOfSquares, 1.0 / nNeighbors, m_pRelLabels->size());
+	m_pSumBuffer *= (1.0 / nNeighbors);
+	m_pSumOfSquares *= (1.0 / nNeighbors);
 
 	// Accumulate the predictions across all dimensions
 	int dims = 0;
@@ -293,8 +291,8 @@ void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 // virtual
 void GNaiveInstance::predictDistribution(const GVec& pIn, GPrediction* pOut)
 {
-	GVec::setAll(m_pWeightSums, 0.0, m_pRelLabels->size());
-	GVec::setAll(m_pValueSums, 0.0, m_pRelLabels->size());
+	m_pWeightSums.fill(0.0);
+	m_pValueSums.fill(0.0);
 	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 		evalInput(i, pIn[i]);
 	for(size_t i = 0; i < m_pRelLabels->size(); i++)
@@ -307,8 +305,8 @@ void GNaiveInstance::predictDistribution(const GVec& pIn, GPrediction* pOut)
 // virtual
 void GNaiveInstance::predict(const GVec& pIn, GVec& pOut)
 {
-	GVec::setAll(m_pWeightSums, 0.0, m_pRelLabels->size());
-	GVec::setAll(m_pValueSums, 0.0, m_pRelLabels->size());
+	m_pWeightSums.fill(0.0);
+	m_pValueSums.fill(0.0);
 	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
 		evalInput(i, pIn[i]);
 	for(size_t i = 0; i < m_pRelLabels->size(); i++)

@@ -36,7 +36,6 @@
 #include "../GClasses/GThread.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GHashTable.h"
-#include "../GClasses/sha1.h"
 #include "../GClasses/GDirList.h"
 #include <wchar.h>
 #include <string>

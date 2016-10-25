@@ -58,7 +58,7 @@ public:
 };
 
 
-GDomListIterator::GDomListIterator(GDomNode* pNode)
+GDomListIterator::GDomListIterator(const GDomNode* pNode)
 {
 	if(pNode->m_type != GDomNode::type_list)
 		throw Ex("\"", to_str(pNode), "\" is not a list type");
@@ -89,7 +89,7 @@ size_t GDomListIterator::remaining()
 }
 
 
-GDomNode* GDomNode::fieldIfExists(const char* szName)
+GDomNode* GDomNode::fieldIfExists(const char* szName) const
 {
 	if(m_type != type_obj)
 		throw Ex("\"", to_str(this), "\" is not an obj");
@@ -231,8 +231,16 @@ size_t writeJSONStringCpp(std::ostream& stream, const char* szString)
 	return chars;
 }
 
+void GDomNode::saveJson(const char* filename) const
+{
+	GDom doc;
+	doc.setRoot(this);
+	doc.saveJson(filename);
+}
+
 void GDomNode::writeJson(std::ostream& stream) const
 {
+	stream << std::fixed;
 	switch(m_type)
 	{
 		case type_obj:
@@ -279,6 +287,7 @@ void GDomNode::writeJson(std::ostream& stream) const
 		default:
 			throw Ex("Unrecognized node type");
 	}
+	stream << std::defaultfloat;
 }
 
 void newLineAndIndent(std::ostream& stream, size_t indents)
@@ -290,6 +299,7 @@ void newLineAndIndent(std::ostream& stream, size_t indents)
 
 void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 {
+	stream << std::fixed;
 	switch(m_type)
 	{
 		case type_obj:
@@ -370,10 +380,12 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 		default:
 			throw Ex("Unrecognized node type");
 	}
+	stream << std::defaultfloat;
 }
 
 size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 {
+	stream << std::fixed;
 	switch(m_type)
 	{
 		case type_obj:
@@ -450,6 +462,7 @@ size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 		stream << "\"\n\"";
 		col = 0;
 	}
+	stream << std::defaultfloat;
 	return col;
 }
 

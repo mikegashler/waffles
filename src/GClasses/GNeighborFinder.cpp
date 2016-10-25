@@ -43,8 +43,8 @@
 #include <map>
 #include "GPriorityQueue.h"
 #include <memory>
+#include "GSparseMatrix.h"
 
-namespace GClasses {
 
 //using std::cerr;
 using std::vector;
@@ -54,282 +54,115 @@ using std::deque;
 using std::make_pair;
 using std::pair;
 using std::string;
+using std::map;
 using std::multimap;
 
+namespace GClasses {
 
-void GNeighborFinder_InsertionSortNeighbors(size_t neighborCount, size_t* pNeighbors, double* pDistances)
+
+GNeighborGraph::GNeighborGraph(GNeighborFinder* pNF, bool own, size_t neighbors)
+: GNeighborFinder(pNF->data()), m_pNF(pNF), m_own(own)
 {
-	size_t tt;
-	double t;
-	for(size_t i = 1; i < neighborCount; i++)
-	{
-		for(size_t j = i; j > 0; j--)
-		{
-			if(pNeighbors[j] == INVALID_INDEX)
-				break;
-			if(pNeighbors[j - 1] != INVALID_INDEX && pDistances[j] >= pDistances[j - 1])
-				break;
+	m_neighs.resize(m_pData->rows());
+	m_dists.resize(m_pData->rows());
+	fillCacheNearest(neighbors);
+}
 
-			// Swap
-			tt = pNeighbors[j - 1];
-			pNeighbors[j - 1] = pNeighbors[j];
-			pNeighbors[j] = tt;
-			t = pDistances[j - 1];
-			pDistances[j - 1] = pDistances[j];
-			pDistances[j] = t;
+GNeighborGraph::GNeighborGraph(double squaredRadius, GNeighborFinder* pNF, bool own)
+: GNeighborFinder(pNF->data()), m_pNF(pNF), m_own(own)
+{
+	m_neighs.resize(m_pData->rows());
+	m_dists.resize(m_pData->rows());
+	fillCacheRadius(squaredRadius);
+}
+
+GNeighborGraph::GNeighborGraph(bool own, GNeighborFinderGeneralizing* pNF)
+: GNeighborFinder(pNF->data()), m_pNF(pNF), m_own(own)
+{
+	m_neighs.resize(m_pData->rows());
+	m_dists.resize(m_pData->rows());
+	GDistanceMetric* pMetric = pNF->metric();
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		double prev = 0.0;
+		if(i > 0)
+			prev = pMetric->squaredDistance(pNF->data()->row(i), pNF->data()->row(i - 1));
+		double next = 0.0;
+		if(i + 1 < m_pData->rows())
+			next = pMetric->squaredDistance(pNF->data()->row(i), pNF->data()->row(i + 1));
+		double maxSqRad = std::max(prev, next);
+		size_t neigh_count = m_pNF->findWithinRadius(maxSqRad, i);
+		m_neighs[i].clear();
+		m_dists[i].clear();
+		for(size_t j = 0; j < neigh_count; j++)
+		{
+			m_neighs[i].push_back(m_pNF->neighbor(j));
+			m_dists[i].push_back(m_pNF->distance(j));
 		}
 	}
-}
-
-void GNeighborFinder::sortNeighbors(size_t neighborCount, size_t* pNeighbors, double* pDistances)
-{
-	// Use insertion sort if the list is small
-	if(neighborCount < 7)
-	{
-		GNeighborFinder_InsertionSortNeighbors(neighborCount, pNeighbors, pDistances);
-		return;
-	}
-	double t;
-	size_t tt;
-	size_t beg = 0;
-	size_t end = neighborCount - 1;
-
-	// Pick a pivot (using the median of 3 technique)
-	double pivA = pDistances[0];
-	double pivB = pDistances[neighborCount / 2];
-	double pivC = pDistances[neighborCount - 1];
-	double pivot;
-	if(pivA < pivB)
-	{
-		if(pivB < pivC)
-			pivot = pivB;
-		else if(pivA < pivC)
-			pivot = pivC;
-		else
-			pivot = pivA;
-	}
-	else
-	{
-		if(pivA < pivC)
-			pivot = pivA;
-		else if(pivB < pivC)
-			pivot = pivC;
-		else
-			pivot = pivB;
-	}
-
-	// Do Quick Sort
-	while(true)
-	{
-		while(beg < end && pNeighbors[beg] != INVALID_INDEX && pDistances[beg] < pivot)
-			beg++;
-		while(end > beg && (pNeighbors[end] == INVALID_INDEX || pDistances[end] > pivot))
-			end--;
-		if(beg >= end)
-			break;
-		t = pDistances[beg];
-		pDistances[beg] = pDistances[end];
-		pDistances[end] = t;
-		tt = pNeighbors[beg];
-		pNeighbors[beg] = pNeighbors[end];
-		pNeighbors[end] = tt;
-		beg++;
-		end--;
-	}
-
-	// Recurse
-	if(pNeighbors[beg] != INVALID_INDEX && pDistances[beg] < pivot)
-		beg++;
-	else if(beg == 0) // This could happen if they're all -1 (bad neighbors)
-	{
-		GNeighborFinder_InsertionSortNeighbors(neighborCount, pNeighbors, pDistances);
-		return;
-	}
-	GNeighborFinder::sortNeighbors(beg, pNeighbors, pDistances);
-	GNeighborFinder::sortNeighbors(neighborCount - beg, pNeighbors + beg, pDistances + beg);
-}
-
-void GNeighborFinder::sortNeighbors(size_t* pNeighbors, double* pDistances)
-{
-	GNeighborFinder::sortNeighbors(m_neighborCount, pNeighbors, pDistances);
-}
-
-
-
-
-
-
-
-
-
-GNeighborGraph::GNeighborGraph(GNeighborFinder* pNF, bool own)
-: GNeighborFinder(pNF->data(), pNF->neighborCount()), m_pNF(pNF), m_own(own), m_pRandomEdgeIterator(NULL)
-{
-	m_pCache = new size_t[m_pData->rows() * m_neighborCount];
-	m_pDissims = new double[m_pData->rows() * m_neighborCount];
-	for(size_t i = 0; i < m_pData->rows(); i++)
-		m_pCache[i * m_neighborCount] = m_pData->rows();
 }
 
 // virtual
 GNeighborGraph::~GNeighborGraph()
 {
-	delete[] m_pCache;
-	delete[] m_pDissims;
 	if(m_own)
 		delete(m_pNF);
-	delete(m_pRandomEdgeIterator);
 }
 
-GRandomIndexIterator& GNeighborGraph::randomEdgeIterator(GRand& rand)
+void GNeighborGraph::fillCacheNearest(size_t k)
 {
-	if(!m_pRandomEdgeIterator)
-		m_pRandomEdgeIterator = new GRandomIndexIterator(data()->rows() * neighborCount(), rand);
-	return *m_pRandomEdgeIterator;
-}
-
-// virtual
-void GNeighborGraph::neighbors(size_t* pOutNeighbors, size_t index)
-{
-	size_t* pCache = m_pCache + m_neighborCount * index;
-	if(*pCache == m_pData->rows())
-	{
-		double* pDissims = m_pDissims + m_neighborCount * index;
-		((GNeighborFinder*)m_pNF)->neighbors(pCache, pDissims, index);
-	}
-	memcpy(pOutNeighbors, pCache, sizeof(size_t) * m_neighborCount);
-}
-
-// virtual
-void GNeighborGraph::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
-{
-	size_t* pCache = m_pCache + m_neighborCount * index;
-	double* pDissims = m_pDissims + m_neighborCount * index;
-	if(*pCache == m_pData->rows())
-		((GNeighborFinder*)m_pNF)->neighbors(pCache, pDissims, index);
-	memcpy(pOutNeighbors, pCache, sizeof(size_t) * m_neighborCount);
-	memcpy(pOutDistances, pDissims, sizeof(double) * m_neighborCount);
-}
-
-void GNeighborGraph::fillCache()
-{
-	size_t rowCount = m_pData->rows();
-	size_t* pCache = m_pCache;
-	double* pDissims = m_pDissims;
-	for(size_t i = 0; i < rowCount; i++)
-	{
-		if(*pCache == m_pData->rows())
-			((GNeighborFinder*)m_pNF)->neighbors(pCache, pDissims, i);
-		pCache += m_neighborCount;
-		pDissims += m_neighborCount;
-	}
-}
-
-void GNeighborGraph::fillDistances(GDistanceMetric* pMetric)
-{
-	pMetric->init(&m_pData->relation(), false);
-	double* pDissim = m_pDissims;
-	size_t* pHood = m_pCache;
 	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
-		const GVec& pA = m_pData->row(i);
-		for(size_t j = 0; j < m_neighborCount; j++)
+		size_t neigh_count = m_pNF->findNearest(k, i);
+		m_neighs[i].clear();
+		m_dists[i].clear();
+		for(size_t j = 0; j < neigh_count; j++)
 		{
-			const GVec& pB = m_pData->row(pHood[j]);
-			*pDissim = pMetric->squaredDistance(pA, pB);
-			pDissim++;
+			m_neighs[i].push_back(m_pNF->neighbor(j));
+			m_dists[i].push_back(m_pNF->distance(j));
 		}
-		pHood += m_neighborCount;
 	}
+}
+
+void GNeighborGraph::fillCacheRadius(double squaredRadius)
+{
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		size_t neigh_count = m_pNF->findWithinRadius(squaredRadius, i);
+		m_neighs[i].clear();
+		m_dists[i].clear();
+		for(size_t j = 0; j < neigh_count; j++)
+		{
+			m_neighs[i].push_back(m_pNF->neighbor(j));
+			m_dists[i].push_back(m_pNF->distance(j));
+		}
+	}
+}
+
+void GNeighborGraph::recomputeDistances(GDistanceMetric* pMetric)
+{
+	pMetric->init(&m_pData->relation(), false);
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		vector<size_t>& neighs = m_neighs[i];
+		vector<double>& dists = m_dists[i];
+		for(size_t j = 0; j < neighs.size(); j++)
+		{
+			dists[j] = pMetric->squaredDistance(m_pData->row(i), m_pData->row(neighs[j]));
+		}
+	}
+}
+
+void GNeighborGraph::swapInData(const GMatrix* pNewData)
+{
+	m_pData = pNewData;
 }
 
 size_t GNeighborGraph::cutShortcuts(size_t cycleLen)
 {
-	GCycleCut cc(m_pCache, m_pData, m_neighborCount);
+	GCycleCut cc(this, m_pData, m_neighs[0].size());
 	cc.setCycleThreshold(cycleLen);
 	return cc.cut();
-}
-
-void GNeighborGraph::patchMissingSpots(GRand* pRand)
-{
-	size_t rowCount = m_pData->rows();
-	size_t* pCache = m_pCache;
-	double* pDissims = m_pDissims;
-	for(size_t i = 0; i < rowCount; i++)
-	{
-		if(*pCache == m_pData->rows())
-			throw Ex("cache not filled out");
-		for(size_t j = 0; j < m_neighborCount; j++)
-		{
-			if(pCache[j] >= m_pData->rows())
-			{
-				size_t k = (size_t)pRand->next(m_neighborCount);
-				size_t l;
-				for(l = k; l < m_neighborCount; l++)
-				{
-					if(pCache[l] < m_pData->rows())
-						break;
-				}
-				if(l >= m_neighborCount)
-				{
-					for(l = 0; l < k; l++)
-					{
-						if(pCache[l] < m_pData->rows())
-							break;
-					}
-				}
-				if(pCache[l] >= m_pData->rows())
-					throw Ex("row has zero valid neighbors");
-				if(pDissims)
-					pDissims[j] = pDissims[l];
-				pCache[j] = pCache[l];
-			}
-		}
-		pCache += m_neighborCount;
-		pDissims += m_neighborCount;
-	}
-}
-
-void GNeighborGraph::normalizeDistances()
-{
-	size_t rowCount = m_pData->rows();
-	size_t* pCache = m_pCache;
-	double* pDissims = m_pDissims;
-	double total = 0.0;
-	for(size_t i = 0; i < rowCount; i++)
-	{
-		if(*pCache == m_pData->rows())
-			throw Ex("cache not filled out");
-		for(size_t j = 0; j < m_neighborCount; j++)
-		{
-			pDissims[j] = sqrt(pDissims[j]);
-			total += pDissims[j];
-		}
-		pCache += m_neighborCount;
-		pDissims += m_neighborCount;
-	}
-	pDissims = m_pDissims;
-	for(size_t i = 0; i < rowCount; i++)
-	{
-		double s = 0;
-		for(size_t j = 0; j < m_neighborCount; j++)
-			s += pDissims[j];
-		s = 1.0 / s;
-		for(size_t j = 0; j < m_neighborCount; j++)
-			pDissims[j] *= s;
-		pDissims += m_neighborCount;
-	}
-	total /= rowCount;
-	pDissims = m_pDissims;
-	for(size_t i = 0; i < rowCount; i++)
-	{
-		for(size_t j = 0; j < m_neighborCount; j++)
-		{
-			double d = pDissims[j] * total;
-			pDissims[j] = (d * d);
-		}
-		pDissims += m_neighborCount;
-	}
 }
 
 bool GNeighborGraph::isConnected()
@@ -337,20 +170,14 @@ bool GNeighborGraph::isConnected()
 	// Make a table containing bi-directional neighbor connections
 	vector< vector<size_t> > bidirTable;
 	bidirTable.resize(m_pData->rows());
-	size_t* pHood = m_pCache;
-	for(size_t i = 0; i < m_pData->rows(); i++)
-		bidirTable[i].reserve(m_neighborCount * 2);
 	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
+		size_t nc = findNearest(0, i);
 		vector<size_t>& row = bidirTable[i];
-		for(size_t j = 0; j < (size_t)m_neighborCount; j++)
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(*pHood < m_pData->rows())
-			{
-				row.push_back(*pHood);
-				bidirTable[*pHood].push_back(i);
-			}
-			pHood++;
+			row.push_back(neighbor(j));
+			bidirTable[neighbor(j)].push_back(i);
 		}
 	}
 
@@ -380,6 +207,26 @@ bool GNeighborGraph::isConnected()
 	return false;
 }
 
+void GNeighborGraph::set(size_t point, size_t neighbor_number, size_t neigh)
+{
+	m_neighs[point][neighbor_number] = neigh;
+}
+
+void GNeighborGraph::dropInvalidNeighbors()
+{
+	for(size_t i = 0; i < m_neighs.size(); i++)
+	{
+		for(size_t j = m_neighs[i].size() - 1; j < m_neighs[i].size(); j--)
+		{
+			if(m_neighs[i][j] == INVALID_INDEX)
+			{
+				m_neighs[i].erase(m_neighs[i].begin() + j);
+				m_dists[i].erase(m_dists[i].begin() + j);
+			}
+		}
+	}
+}
+
 // --------------------------------------------------------------------
 
 /// This helper class keeps neighbors sorted as a binary heap, such that the most dissimilar
@@ -387,21 +234,17 @@ bool GNeighborGraph::isConnected()
 class GClosestNeighborFindingHelper
 {
 protected:
-	size_t m_found;
 	size_t m_neighbors;
-	size_t* m_pNeighbors;
-	double* m_pDistances;
+	std::vector<size_t>& m_neighs;
+	std::vector<double>& m_dists;
 
 public:
-	GClosestNeighborFindingHelper(size_t neighbors, size_t* pNeighbors, double* pDistances)
-	: m_found(0), m_neighbors(neighbors), m_pNeighbors(pNeighbors), m_pDistances(pDistances)
+	GClosestNeighborFindingHelper(size_t neighbors, std::vector<size_t>& neighs, std::vector<double>& dists)
+	: m_neighbors(neighbors), m_neighs(neighs), m_dists(dists)
 	{
 		GAssert(m_neighbors >= 1);
-		for(size_t i = 0; i < m_neighbors; i++)
-		{
-			m_pNeighbors[i] = size_t(-1);
-			m_pDistances[i] = 1e308;
-		}
+		neighs.clear();
+		dists.clear();
 	}
 
 	~GClosestNeighborFindingHelper()
@@ -412,58 +255,60 @@ public:
 	// most dissimilar of the k-current-neighbors
 	void TryPoint(size_t index, double distance)
 	{
-		double* pHeapDist = m_pDistances - 1;
-		size_t* pHeapNeigh = m_pNeighbors - 1;
 		size_t heapPos;
-		if(m_found < m_neighbors)
-			heapPos = ++m_found;
+		if(m_neighs.size() < m_neighbors)
+		{
+			m_neighs.push_back(index);
+			m_dists.push_back(distance);
+			heapPos = m_neighs.size();
+		}
 		else
 		{
 			// Compare with the front of the heap, which holds the most dissimilar of the k-current-neighbors
-			if(distance >= m_pDistances[0])
+			if(distance >= m_dists[0])
 				return;
 
 			// Release the most dissimilar of the k-current neighbors
 			heapPos = 1;
 			while(2 * heapPos <= m_neighbors)
 			{
-				if(2 * heapPos == m_neighbors || pHeapDist[2 * heapPos] > pHeapDist[2 * heapPos + 1])
+				if(2 * heapPos == m_neighbors || m_dists[2 * heapPos - 1] > m_dists[2 * heapPos])
 				{
-					pHeapDist[heapPos] = pHeapDist[2 * heapPos];
-					pHeapNeigh[heapPos] = pHeapNeigh[2 * heapPos];
+					m_dists[heapPos - 1] = m_dists[2 * heapPos - 1];
+					m_neighs[heapPos - 1] = m_neighs[2 * heapPos - 1];
 					heapPos = 2 * heapPos;
 				}
 				else
 				{
-					pHeapDist[heapPos] = pHeapDist[2 * heapPos + 1];
-					pHeapNeigh[heapPos] = pHeapNeigh[2 * heapPos + 1];
+					m_dists[heapPos - 1] = m_dists[2 * heapPos];
+					m_neighs[heapPos - 1] = m_neighs[2 * heapPos];
 					heapPos = 2 * heapPos + 1;
 				}
 			}
+			m_dists[heapPos - 1] = distance;
+			m_neighs[heapPos - 1] = index;
 		}
 
 		// Insert into heap
-		pHeapDist[heapPos] = distance;
-		pHeapNeigh[heapPos] = index;
-		while(heapPos > 1 && pHeapDist[heapPos / 2] < pHeapDist[heapPos])
+		while(heapPos > 1 && m_dists[heapPos / 2 - 1] < m_dists[heapPos - 1])
 		{
-			std::swap(pHeapDist[heapPos / 2], pHeapDist[heapPos]);
-			std::swap(pHeapNeigh[heapPos / 2], pHeapNeigh[heapPos]);
+			std::swap(m_dists[heapPos / 2 - 1], m_dists[heapPos - 1]);
+			std::swap(m_neighs[heapPos / 2 - 1], m_neighs[heapPos - 1]);
 			heapPos /= 2;
 		}
 	}
 
 	double GetWorstDist()
 	{
-		return m_found >= m_neighbors ? m_pDistances[0] : 1e308;
+		return m_dists.size() >= m_neighbors ? m_dists[0] : 1e308;
 	}
 
 #ifndef NO_TEST_CODE
 #	define TEST_NEIGHBOR_COUNT 33
 	static void test()
 	{
-		size_t neighbors[TEST_NEIGHBOR_COUNT];
-		double distances[TEST_NEIGHBOR_COUNT];
+		vector<size_t> neighbors;
+		vector<double> distances;
 		GMatrix values1(0, 1);
 		GMatrix values2(0, 1);
 		GClosestNeighborFindingHelper ob(TEST_NEIGHBOR_COUNT, neighbors, distances);
@@ -490,8 +335,8 @@ public:
 
 // --------------------------------------------------------------------------------
 
-GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(const GMatrix* pData, size_t neighbor_count, GDistanceMetric* pMetric, bool ownMetric)
-: GNeighborFinder(pData, neighbor_count), m_pMetric(pMetric), m_ownMetric(ownMetric)
+GNeighborFinderGeneralizing::GNeighborFinderGeneralizing(const GMatrix* pData, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinder(pData), m_pMetric(pMetric), m_ownMetric(ownMetric)
 {
 	if(!m_pMetric)
 	{
@@ -508,10 +353,91 @@ GNeighborFinderGeneralizing::~GNeighborFinderGeneralizing()
 		delete(m_pMetric);
 }
 
+void GNeighborFinderGeneralizing::insertionSortNeighbors(size_t start, size_t end)
+{
+	for(size_t i = start + 1; i < end; i++)
+	{
+		for(size_t j = i; j > start; j--)
+		{
+			if(distance(j - 1) < distance(j))
+				break;
+			std::swap(m_neighs[j - 1], m_neighs[j]);
+			std::swap(m_dists[j - 1], m_dists[j]);
+		}
+	}
+}
+
+void GNeighborFinderGeneralizing::sortNeighbors(size_t beg, size_t end)
+{
+	end = std::min(end, m_neighs.size());
+	if(beg + 6 >= end)
+	{
+		insertionSortNeighbors(beg, end);
+		return;
+	}
+	size_t initial_beg = beg;
+	size_t initial_end = end;
+
+	// Pick a pivot (using the median of 3 technique)
+	double pivA = distance(0);
+	double pivB = distance((beg + end) / 2);
+	double pivC = distance(end - 1);
+	double pivot;
+	if(pivA < pivB)
+	{
+		if(pivB < pivC)
+			pivot = pivB;
+		else if(pivA < pivC)
+			pivot = pivC;
+		else
+			pivot = pivA;
+	}
+	else
+	{
+		if(pivA < pivC)
+			pivot = pivA;
+		else if(pivB < pivC)
+			pivot = pivC;
+		else
+			pivot = pivB;
+	}
+
+	// Do Quick Sort
+	while(true)
+	{
+		while(beg + 1 < end && distance(beg) < pivot)
+			beg++;
+		while(end > beg + 1 && distance(end - 1) > pivot)
+			end--;
+		if(beg + 1 >= end)
+			break;
+		std::swap(m_dists[beg], m_dists[end - 1]);
+		std::swap(m_neighs[beg], m_neighs[end - 1]);
+		beg++;
+		end--;
+	}
+
+	// Recurse
+	if(distance(beg) < pivot)
+		beg++;
+	if(beg == initial_beg || end == initial_end)
+	{
+		insertionSortNeighbors(initial_beg, initial_end);
+		return;
+	}
+	sortNeighbors(initial_beg, beg);
+	sortNeighbors(beg, initial_end);
+}
+
+
+
+
+
+
 // --------------------------------------------------------------------------------
 
-GBruteForceNeighborFinder::GBruteForceNeighborFinder(GMatrix* pData, size_t neighbor_count, GDistanceMetric* pMetric, bool ownMetric)
-: GNeighborFinderGeneralizing(pData, neighbor_count, pMetric, ownMetric)
+GBruteForceNeighborFinder::GBruteForceNeighborFinder(GMatrix* pData, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinderGeneralizing(pData, pMetric, ownMetric)
 {
 }
 
@@ -524,40 +450,138 @@ void GBruteForceNeighborFinder::reoptimize()
 {
 }
 
-// virtual
-void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
+size_t GBruteForceNeighborFinder::findNearest(size_t k, const GVec& vec, size_t exclude)
 {
-	GTEMPBUF(double, distances, m_neighborCount);
-	neighbors(pOutNeighbors, distances, index);
+	GClosestNeighborFindingHelper helper(k, m_neighs, m_dists);
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		if(i == exclude)
+			continue;
+		helper.TryPoint(i, m_pMetric->squaredDistance(vec, m_pData->row(i)));
+	}
+	return m_neighs.size();
+}
+
+size_t GBruteForceNeighborFinder::findWithinRadius(double squaredRadius, const GVec& vec, size_t exclude)
+{
+	m_neighs.clear();
+	m_dists.clear();
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		if(i == exclude)
+			continue;
+		double d = m_pMetric->squaredDistance(vec, m_pData->row(i));
+		if(d <= squaredRadius)
+		{
+			m_neighs.push_back(i);
+			m_dists.push_back(d);
+		}
+	}
+	return m_neighs.size();
 }
 
 // virtual
-void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
+size_t GBruteForceNeighborFinder::findNearest(size_t k, const GVec& vec)
 {
-	GClosestNeighborFindingHelper helper(m_neighborCount, pOutNeighbors, pOutDistances);
-	double dist;
-	const GVec& pInputVector = m_pData->row(index);
+	return findNearest(k, vec, INVALID_INDEX);
+}
+
+// virtual
+size_t GBruteForceNeighborFinder::findNearest(size_t k, size_t index)
+{
+	return findNearest(k, m_pData->row(index), index);
+}
+
+// virtual
+size_t GBruteForceNeighborFinder::findWithinRadius(double squaredRadius, const GVec& vec)
+{
+	return findWithinRadius(squaredRadius, vec, INVALID_INDEX);
+}
+
+// virtual
+size_t GBruteForceNeighborFinder::findWithinRadius(double squaredRadius, size_t index)
+{
+	return findWithinRadius(squaredRadius, m_pData->row(index), index);
+}
+
+// --------------------------------------------------------------------------------
+
+GSparseNeighborFinder::GSparseNeighborFinder(GSparseMatrix* pData, GMatrix* pBogusData, GSparseSimilarity* pMetric, bool ownMetric)
+: GNeighborFinderGeneralizing(pBogusData, new GRowDistance(), true),
+m_pData(pData),
+m_pSparseMetric(pMetric),
+m_ownSparseMetric(ownMetric)
+{
+}
+
+GSparseNeighborFinder::~GSparseNeighborFinder()
+{
+	if(m_ownSparseMetric)
+		delete(m_pSparseMetric);
+}
+
+// virtual
+void GSparseNeighborFinder::reoptimize()
+{
+}
+
+// virtual
+size_t GSparseNeighborFinder::findNearest(size_t k, const GVec& vec)
+{
+	m_neighs.clear();
+	m_dists.clear();
+	multimap<double,size_t> priority_queue;
+	for(size_t i = 0; i < m_pData->rows(); i++)
+	{
+		map<size_t,double>& row = m_pData->row(i);
+		double similarity = m_pSparseMetric->similarity(row, vec);
+		priority_queue.insert(pair<double,size_t>(similarity, i));
+		if(priority_queue.size() > k)
+			priority_queue.erase(priority_queue.begin());
+	}
+	for(multimap<double,size_t>::iterator it = priority_queue.begin(); it != priority_queue.end(); it++)
+	{
+		m_neighs.push_back(it->second);
+		m_dists.push_back(1.0 / (it->first + 1e-6));
+	}
+	return m_neighs.size();
+}
+
+// virtual
+size_t GSparseNeighborFinder::findNearest(size_t k, size_t index)
+{
+	map<size_t,double>& vec = m_pData->row(index);
+	m_neighs.clear();
+	m_dists.clear();
+	multimap<double,size_t> priority_queue;
 	for(size_t i = 0; i < m_pData->rows(); i++)
 	{
 		if(i == index)
 			continue;
-		const GVec& pCand = m_pData->row(i);
-		dist = m_pMetric->squaredDistance(pInputVector, pCand);
-		helper.TryPoint(i, dist);
+		map<size_t,double>& row = m_pData->row(i);
+		double similarity = m_pSparseMetric->similarity(row, vec);
+		priority_queue.insert(pair<double,size_t>(similarity, i));
+		if(priority_queue.size() > k)
+			priority_queue.erase(priority_queue.begin());
 	}
+	for(multimap<double,size_t>::iterator it = priority_queue.begin(); it != priority_queue.end(); it++)
+	{
+		m_neighs.push_back(it->second);
+		m_dists.push_back(1.0 / (it->first + 1e-6));
+	}
+	return m_neighs.size();
 }
 
 // virtual
-void GBruteForceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector)
+size_t GSparseNeighborFinder::findWithinRadius(double squaredRadius, const GVec& vec)
 {
-	GClosestNeighborFindingHelper helper(m_neighborCount, pOutNeighbors, pOutDistances);
-	double dist;
-	for(size_t i = 0; i < m_pData->rows(); i++)
-	{
-		const GVec& pCand = m_pData->row(i);
-		dist = m_pMetric->squaredDistance(pInputVector, pCand);
-		helper.TryPoint(i, dist);
-	}
+	throw new Ex("Sorry, not implemented yet");
+}
+
+// virtual
+size_t GSparseNeighborFinder::findWithinRadius(double squaredRadius, size_t index)
+{
+	throw new Ex("Sorry, not implemented yet");
 }
 
 // --------------------------------------------------------------------------------
@@ -606,7 +630,7 @@ public:
 
 	void CopyOffset(GKdNode* pParent)
 	{
-		GVec::copy(m_pOffset, pParent->m_pOffset, m_dims);
+		memcpy(m_pOffset, pParent->m_pOffset, sizeof(double) * m_dims);
 		m_minDist = pParent->m_minDist;
 	}
 
@@ -795,8 +819,8 @@ public:
 
 // --------------------------------------------------------------------------------------------------------
 
-GKdTree::GKdTree(const GMatrix* pData, size_t neighbor_count, GDistanceMetric* pMetric, bool ownMetric)
-: GNeighborFinderGeneralizing(pData, neighbor_count, pMetric, ownMetric)
+GKdTree::GKdTree(const GMatrix* pData, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinderGeneralizing(pData, pMetric, ownMetric)
 {
 	m_maxLeafSize = 6;
 	size_t count = pData->rows();
@@ -984,9 +1008,9 @@ public:
 	}
 };
 
-void GKdTree::findNeighbors(size_t* pOutNeighbors, double* pOutSquaredDistances, const GVec& pInputVector, size_t nExclude)
+size_t GKdTree::findNearest(size_t k, const GVec& vec, size_t nExclude)
 {
-	GClosestNeighborFindingHelper helper(m_neighborCount, pOutNeighbors, pOutSquaredDistances);
+	GClosestNeighborFindingHelper helper(k, m_neighs, m_dists);
 	KdTree_Compare_Nodes_Functor comparator;
 	priority_queue< GKdNode*, vector<GKdNode*>, KdTree_Compare_Nodes_Functor > q(comparator);
 	q.push(m_pRoot);
@@ -1007,7 +1031,7 @@ void GKdTree::findNeighbors(size_t* pOutNeighbors, double* pOutSquaredDistances,
 				if(index == nExclude)
 					continue;
 				const GVec& pCand = m_pData->row(index);
-				squaredDist = m_pMetric->squaredDistance(pInputVector, pCand);
+				squaredDist = m_pMetric->squaredDistance(vec, pCand);
 				helper.TryPoint(index, squaredDist);
 			}
 		}
@@ -1021,33 +1045,92 @@ void GKdTree::findNeighbors(size_t* pOutNeighbors, double* pOutSquaredDistances,
 			pLess->CopyOffset(pParent);
 			GKdNode* pGreaterOrEqual = pParent->GetGreaterOrEqual();
 			pGreaterOrEqual->CopyOffset(pParent);
-			if(isGreaterOrEqual(pInputVector.data(), attr, pivot))
-				pLess->AdjustOffset(attr, pInputVector[attr] - pivot, m_pMetric->scaleFactors());
+			if(isGreaterOrEqual(vec.data(), attr, pivot))
+				pLess->AdjustOffset(attr, vec[attr] - pivot, m_pMetric->scaleFactors());
 			else
-				pGreaterOrEqual->AdjustOffset(attr, pivot - pInputVector[attr], m_pMetric->scaleFactors());
+				pGreaterOrEqual->AdjustOffset(attr, pivot - vec[attr], m_pMetric->scaleFactors());
 			q.push(pLess);
 			q.push(pGreaterOrEqual);
 		}
 	}
+	return m_neighs.size();
+}
+
+size_t GKdTree::findWithinRadius(double squaredRadius, const GVec& vec, size_t nExclude)
+{
+	m_neighs.clear();
+	m_dists.clear();
+	KdTree_Compare_Nodes_Functor comparator;
+	priority_queue< GKdNode*, vector<GKdNode*>, KdTree_Compare_Nodes_Functor > q(comparator);
+	q.push(m_pRoot);
+	while(q.size() > 0)
+	{
+		GKdNode* pNode = q.top();
+		q.pop();
+		if(pNode->GetMinDist() > squaredRadius)
+			break;
+		if(pNode->IsLeaf())
+		{
+			double squaredDist;
+			vector<size_t>* pIndexes = ((GKdLeafNode*)pNode)->GetIndexes();
+			size_t count = pIndexes->size();
+			for(size_t i = 0; i < count; i++)
+			{
+				size_t index = (*pIndexes)[i];
+				if(index == nExclude)
+					continue;
+				const GVec& pCand = m_pData->row(index);
+				squaredDist = m_pMetric->squaredDistance(vec, pCand);
+				if(squaredDist <= squaredRadius)
+				{
+					m_neighs.push_back(index);
+					m_dists.push_back(squaredDist);
+				}
+			}
+		}
+		else
+		{
+			size_t attr;
+			double pivot;
+			GKdInteriorNode* pParent = (GKdInteriorNode*)pNode;
+			pParent->GetDivision(&attr, &pivot);
+			GKdNode* pLess = pParent->GetLess();
+			pLess->CopyOffset(pParent);
+			GKdNode* pGreaterOrEqual = pParent->GetGreaterOrEqual();
+			pGreaterOrEqual->CopyOffset(pParent);
+			if(isGreaterOrEqual(vec.data(), attr, pivot))
+				pLess->AdjustOffset(attr, vec[attr] - pivot, m_pMetric->scaleFactors());
+			else
+				pGreaterOrEqual->AdjustOffset(attr, pivot - vec[attr], m_pMetric->scaleFactors());
+			q.push(pLess);
+			q.push(pGreaterOrEqual);
+		}
+	}
+	return m_neighs.size();
 }
 
 // virtual
-void GKdTree::neighbors(size_t* pOutNeighbors, size_t index)
+size_t GKdTree::findNearest(size_t k, size_t index)
 {
-	GTEMPBUF(double, distances, m_neighborCount);
-	neighbors(pOutNeighbors, distances, index);
+	return findNearest(k, m_pData->row(index), index);
 }
 
 // virtual
-void GKdTree::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
+size_t GKdTree::findNearest(size_t k, const GVec& vec)
 {
-	findNeighbors(pOutNeighbors, pOutDistances, m_pData->row(index), index);
+	return findNearest(k, vec, INVALID_INDEX);
 }
 
 // virtual
-void GKdTree::neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector)
+size_t GKdTree::findWithinRadius(double squaredRadius, size_t index)
 {
-	findNeighbors(pOutNeighbors, pOutDistances, pInputVector, INVALID_INDEX);
+	return findWithinRadius(squaredRadius, m_pData->row(index), index);
+}
+
+// virtual
+size_t GKdTree::findWithinRadius(double squaredRadius, const GVec& vector)
+{
+	return findWithinRadius(squaredRadius, vector, INVALID_INDEX);
 }
 
 // virtual
@@ -1068,17 +1151,14 @@ double GKdTree::medianDistanceToNeighbor(GMatrix& data, size_t n)
 		return 0.0; // 0 is the point itself
 
 	// Fill a vector with the distances to the n^th neighbor of each point
-	GKdTree kdtree(&data, n, NULL, false);
+	GKdTree kdtree(&data, NULL, false);
 	vector<double> vals;
 	vals.reserve(data.rows());
-	GTEMPBUF(double, distances, n);
-	GTEMPBUF(size_t, indexes, n);
 	for(size_t i = 0; i < data.rows(); i++)
 	{
-		kdtree.neighbors(indexes, distances, i);
-		GNeighborFinder::sortNeighbors(n, indexes, distances);
-		if(indexes[n - 1] < data.rows())
-			vals.push_back(sqrt(distances[n - 1]));
+		size_t nc = kdtree.findNearest(n, i);
+		kdtree.sortNeighbors();
+		vals.push_back(sqrt(kdtree.distance(nc - 1)));
 	}
 
 	// Find the median value
@@ -1100,8 +1180,7 @@ double GKdTree::medianDistanceToNeighbor(GMatrix& data, size_t n)
 }
 
 #ifndef NO_TEST_CODE
-#	include "GImage.h"
-#	include "GHeap.h"
+//#	include "GImage.h"
 
 void MeasureBounds(GMatrix* pData, GKdNode* pNode, size_t attr, double* pMin, double* pMax)
 {
@@ -1216,26 +1295,52 @@ void GKdTree_testThatItDoesntLookFar()
 		pRow[1] = prng.uniform();
 	}
 	GDontGoFarMetric metric(0.05);
-	GKdTree kdTree(&tmp, 5, &metric, false);
+	GKdTree kdTree(&tmp, &metric, false);
 	GVec row(2);
-	size_t neighs[5];
-	double dists[5];
 	for(size_t i = 0; i < 100; i++)
 	{
 		row[0] = prng.uniform();
 		row[1] = prng.uniform();
-		kdTree.neighbors(neighs, dists, row);
+		kdTree.findNearest(5, row);
 	}
 }
 
 #	define TEST_DIMS 4
 #	define TEST_PATTERNS 1000
 #	define TEST_NEIGHBORS 24
+
 // static
 void GKdTree::test()
 {
 	GClosestNeighborFindingHelper::test();
 	GKdTree_testThatItDoesntLookFar();
+
+	// Test neighbor sorting
+	{
+		GRand rand(0);
+		GMatrix data(256, 1);
+		for(size_t i = 0; i < data.rows(); i++)
+			data[i][0] = rand.uniform();
+		data.sort(0);
+		GRandomIndexIterator ii(data.rows(), rand);
+		GKdTree kd(&data);
+		size_t index;
+		kd.m_neighs.clear();
+		kd.m_dists.clear();
+		ii.reset();
+		while(ii.next(index))
+		{
+			kd.m_neighs.push_back(index);
+			kd.m_dists.push_back(data[index][0]);
+		}
+		kd.sortNeighbors();
+		for(size_t i = 0; i < data.rows(); i++)
+		{
+			if(kd.m_neighs[i] != i || kd.m_dists[i] != data[i][0])
+				throw Ex("wrong answer");
+		}
+	}
+
 
 	GMatrix data(new GUniformRelation(TEST_DIMS, 0));
 	data.reserve(TEST_PATTERNS);
@@ -1246,8 +1351,8 @@ void GKdTree::test()
 		pPat.fillNormal(prng);
 		pPat.normalize();
 	}
-	GBruteForceNeighborFinder bf(&data, TEST_NEIGHBORS, NULL, true);
-	GKdTree kd(&data, TEST_NEIGHBORS, NULL, true);
+	GBruteForceNeighborFinder bf(&data);
+	GKdTree kd(&data);
 /*
 	GAssert(TEST_DIMS == 2); // You must change TEST_DIMS to 2 if you're going to plot the tree
 	GImage image;
@@ -1257,21 +1362,21 @@ void GKdTree::test()
 	DrawKdNode(&pw, kd.GetRoot(), &data);
 	image.SavePNGFile("kdtree.png");
 */
-	size_t bfNeighbors[TEST_NEIGHBORS];
-	size_t kdNeighbors[TEST_NEIGHBORS];
-	double bfDistances[TEST_NEIGHBORS];
-	double kdDistances[TEST_NEIGHBORS];
 	for(size_t i = 0; i < TEST_PATTERNS; i++)
 	{
-		bf.neighbors(bfNeighbors, bfDistances, i);
-		bf.sortNeighbors(bfNeighbors, bfDistances);
-		kd.neighbors(kdNeighbors, kdDistances, i);
-		kd.sortNeighbors(kdNeighbors, kdDistances);
+		size_t ncbf = bf.findNearest(TEST_NEIGHBORS, i);
+		bf.sortNeighbors();
+		size_t nckd = kd.findNearest(TEST_NEIGHBORS, i);
+		kd.sortNeighbors();
+		if(ncbf != nckd)
+			throw Ex("found different number of neighbors");
+		if(ncbf != TEST_NEIGHBORS)
+			throw Ex("found unexpected number of neighbors");
 		for(size_t j = 0; j < TEST_DIMS; j++)
 		{
-			if(bfNeighbors[j] != kdNeighbors[j])
+			if(bf.neighbor(j) != kd.neighbor(j))
 				throw Ex("wrong answer!");
-			if(kdNeighbors[j] != INVALID_INDEX && j > 0 && kdDistances[j] < kdDistances[j - 1])
+			if(j > 0 && kd.distance(j) < kd.distance(j - 1))
 				throw Ex("Neighbors out of order");
 		}
 	}
@@ -1455,8 +1560,8 @@ public:
 };
 
 
-GBallTree::GBallTree(const GMatrix* pData, size_t neighbor_count, GDistanceMetric* pMetric, bool ownMetric)
-: GNeighborFinderGeneralizing(pData, neighbor_count, pMetric, ownMetric),
+GBallTree::GBallTree(const GMatrix* pData, GDistanceMetric* pMetric, bool ownMetric)
+: GNeighborFinderGeneralizing(pData, pMetric, ownMetric),
 m_maxLeafSize(6),
 m_pRoot(NULL)
 {
@@ -1475,28 +1580,33 @@ void GBallTree::reoptimize()
 		return;
 	delete(m_pRoot);
 	GIndexVec indexes(m_pData->rows());
-	GIndexVec::makeIndexVec(indexes.v, m_pData->rows());
-	m_pRoot = buildTree(m_pData->rows(), indexes.v);
+	GIndexVec::makeIndexVec(indexes.m_data, m_pData->rows());
+	m_pRoot = buildTree(m_pData->rows(), indexes.m_data);
 	m_size = m_pData->rows();
 }
 
 // virtual
-void GBallTree::neighbors(size_t* pOutNeighbors, size_t index)
+size_t GBallTree::findNearest(size_t k, size_t index)
 {
-	GTEMPBUF(double, distances, m_neighborCount);
-	neighbors(pOutNeighbors, distances, index);
+	return findNearest(k, m_pData->row(index), index);
 }
 
 // virtual
-void GBallTree::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
+size_t GBallTree::findNearest(size_t k, const GVec& vec)
 {
-	findNeighbors(pOutNeighbors, pOutDistances, m_pData->row(index), index);
+	return findNearest(k, vec, INVALID_INDEX);
 }
 
 // virtual
-void GBallTree::neighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector)
+size_t GBallTree::findWithinRadius(double squaredRadius, size_t index)
 {
-	findNeighbors(pOutNeighbors, pOutDistances, pInputVector, INVALID_INDEX);
+	return findWithinRadius(squaredRadius, m_pData->row(index), index);
+}
+
+// virtual
+size_t GBallTree::findWithinRadius(double squaredRadius, const GVec& vec)
+{
+	return findWithinRadius(squaredRadius, vec, INVALID_INDEX);
 }
 
 GBallNode* GBallTree::buildTree(size_t count, size_t* pIndexes)
@@ -1559,11 +1669,11 @@ GBallNode* GBallTree::buildTree(size_t count, size_t* pIndexes)
 }
 
 
-void GBallTree::findNeighbors(size_t* pOutNeighbors, double* pOutDistances, const GVec& pInputVector, size_t nExclude)
+size_t GBallTree::findNearest(size_t k, const GVec& vec, size_t nExclude)
 {
-	GClosestNeighborFindingHelper helper(m_neighborCount, pOutNeighbors, pOutDistances);
+	GClosestNeighborFindingHelper helper(k, m_neighs, m_dists);
 	GSimplePriorityQueue<GBallNode*> q;
-	q.insert(m_pRoot, m_pRoot->distance(m_pMetric, pInputVector));
+	q.insert(m_pRoot, m_pRoot->distance(m_pMetric, vec));
 	while(q.size() > 0)
 	{
 		double dist = q.peekValue();
@@ -1578,16 +1688,57 @@ void GBallTree::findNeighbors(size_t* pOutNeighbors, double* pOutDistances, cons
 			{
 				size_t index = pLeaf->m_indexes[i];
 				if(index != nExclude)
-					helper.TryPoint(pLeaf->m_indexes[i], m_pMetric->squaredDistance(m_pData->row(index), pInputVector));
+					helper.TryPoint(pLeaf->m_indexes[i], m_pMetric->squaredDistance(m_pData->row(index), vec));
 			}
 		}
 		else
 		{
 			GBallInterior* pInt = (GBallInterior*)pBall;
-			q.insert(pInt->m_pLeft, pInt->m_pLeft->distance(m_pMetric, pInputVector));
-			q.insert(pInt->m_pRight, pInt->m_pRight->distance(m_pMetric, pInputVector));
+			q.insert(pInt->m_pLeft, pInt->m_pLeft->distance(m_pMetric, vec));
+			q.insert(pInt->m_pRight, pInt->m_pRight->distance(m_pMetric, vec));
 		}
 	}
+	return m_neighs.size();
+}
+
+size_t GBallTree::findWithinRadius(double squaredRadius, const GVec& vec, size_t nExclude)
+{
+	m_neighs.clear();
+	m_dists.clear();
+	GSimplePriorityQueue<GBallNode*> q;
+	q.insert(m_pRoot, m_pRoot->distance(m_pMetric, vec));
+	while(q.size() > 0)
+	{
+		double dist = q.peekValue();
+		if(dist * dist > squaredRadius)
+			break;
+		GBallNode* pBall = q.peekObject();
+		q.pop();
+		if(pBall->isLeaf())
+		{
+			GBallLeaf* pLeaf = (GBallLeaf*)pBall;
+			for(size_t i = 0; i < pLeaf->m_indexes.size(); i++)
+			{
+				size_t index = pLeaf->m_indexes[i];
+				if(index != nExclude)
+				{
+					double d = m_pMetric->squaredDistance(m_pData->row(index), vec);
+					if(d <= squaredRadius)
+					{
+						m_neighs.push_back(pLeaf->m_indexes[i]);
+						m_dists.push_back(d);
+					}
+				}
+			}
+		}
+		else
+		{
+			GBallInterior* pInt = (GBallInterior*)pBall;
+			q.insert(pInt->m_pLeft, pInt->m_pLeft->distance(m_pMetric, vec));
+			q.insert(pInt->m_pRight, pInt->m_pRight->distance(m_pMetric, vec));
+		}
+	}
+	return m_neighs.size();
 }
 
 void GBallTree::insert(size_t index)
@@ -1617,25 +1768,23 @@ void GBallTree::dropAll()
 // static
 void GBallTree::test()
 {
-	double kdDist[TEST_BALLTREE_NEIGHBORS];
-	size_t kdInd[TEST_BALLTREE_NEIGHBORS];
-	double ballDist[TEST_BALLTREE_NEIGHBORS];
-	size_t ballInd[TEST_BALLTREE_NEIGHBORS];
 	GRand r(0);
 	for(size_t i = 0; i < TEST_BALLTREE_ITERS; i++)
 	{
 		GMatrix m(TEST_BALLTREE_ROWS, TEST_BALLTREE_DIMS);
 		for(size_t j = 0; j < TEST_BALLTREE_ROWS; j++)
 			m[j].fillUniform(r);
-		GKdTree kd(&m, TEST_BALLTREE_NEIGHBORS);
-		GBallTree ball(&m, TEST_BALLTREE_NEIGHBORS);
-		kd.neighbors(kdInd, kdDist, (size_t)0);
-		kd.sortNeighbors(kdInd, kdDist);
-		ball.neighbors(ballInd, ballDist, (size_t)0);
-		ball.sortNeighbors(ballInd, ballDist);
+		GKdTree kd(&m);
+		GBallTree ball(&m);
+		size_t nckd = kd.findNearest(TEST_BALLTREE_NEIGHBORS, 0);
+		kd.sortNeighbors();
+		size_t ncbt = ball.findNearest(TEST_BALLTREE_NEIGHBORS, 0);
+		ball.sortNeighbors();
+		if(nckd != ncbt)
+			throw Ex("found different number of neighbors");
 		for(size_t j = 0; j < TEST_BALLTREE_NEIGHBORS; j++)
 		{
-			if(kdInd[j] != ballInd[j])
+			if(kd.neighbor(j) != ball.neighbor(j))
 			{
 				/*
 				std::cout << "\nIter: " << to_str(i) << "\n";
@@ -1654,7 +1803,7 @@ void GBallTree::test()
 				*/
 				throw Ex("indexes differ");
 			}
-			if(kdDist[j] != ballDist[j])
+			if(kd.distance(j) != ball.distance(j))
 				throw Ex("distances differ");
 		}
 	}
@@ -1976,44 +2125,30 @@ public:
 	}
 };
 
-GCycleCut::GCycleCut(size_t* pNeighborhoods, const GMatrix* pPoints, size_t k)
-: m_pNeighborhoods(pNeighborhoods), m_pPoints(pPoints), m_k(k), m_cycleThresh(10), m_cutCount(0)
+GCycleCut::GCycleCut(GNeighborGraph* pNeighborGraph, const GMatrix* pPoints, size_t k)
+: m_pNeighborGraph(pNeighborGraph), m_pPoints(pPoints), m_k(k), m_cycleThresh(10), m_cutCount(0)
 {
 	// Compute the mean neighbor distance
-	size_t* pNeigh = m_pNeighborhoods;
 	size_t count = 0;
 	double sum = 0;
 	for(size_t i = 0; i < m_pPoints->rows(); i++)
 	{
-		for(size_t j = 0; j < k; j++)
-		{
-			if(*pNeigh < m_pPoints->rows())
-			{
-				sum += sqrt(m_pPoints->row(i).squaredDistance(m_pPoints->row(*pNeigh)));
-				count++;
-			}
-			pNeigh++;
-		}
+		size_t nc = pNeighborGraph->findNearest(m_k, i);
+		for(size_t j = 0; j < nc; j++)
+			sum += sqrt(pNeighborGraph->distance(j));
+		count += nc;
 	}
 	m_aveDist = sum / count;
 
 	// Compute the capacities
-	pNeigh = m_pNeighborhoods;
 	for(size_t i = 0; i < m_pPoints->rows(); i++)
 	{
-		for(size_t j = 0; j < k; j++)
+		size_t nc = pNeighborGraph->findNearest(m_k, i);
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(*pNeigh < m_pPoints->rows())
-			{
-				double cap = 1.0 / (m_aveDist + sqrt(m_pPoints->row(i).squaredDistance(m_pPoints->row(*pNeigh))));
-				m_capacities[make_pair(i, *pNeigh)] = cap;
-				m_capacities[make_pair(*pNeigh, i)] = cap;
-/*
-				m_capacities[make_pair(i, *pNeigh)] = 1.0;
-				m_capacities[make_pair(*pNeigh, i)] = 1.0;
-*/
-			}
-			pNeigh++;
+			double cap = 1.0 / (m_aveDist + sqrt(pNeighborGraph->distance(j)));
+			m_capacities[make_pair(i, pNeighborGraph->neighbor(j))] = cap;
+			m_capacities[make_pair(pNeighborGraph->neighbor(j), i)] = cap;
 		}
 	}
 }
@@ -2026,15 +2161,11 @@ bool GCycleCut::doAnyBigAtomicCyclesExist()
 {
 	// Make the graph
 	GCycleCutAtomicCycleDetector g(m_pPoints->rows(), this, m_cycleThresh, true);
-	size_t* pHood = m_pNeighborhoods;
 	for(size_t i = 0; i < m_pPoints->rows(); i++)
 	{
-		for(size_t j = 0; j < m_k; j++)
-		{
-			if(pHood[j] < m_pPoints->rows())
-				g.addEdgeIfNotDupe(i, pHood[j]);
-		}
-		pHood += m_k;
+		size_t nc = m_pNeighborGraph->findNearest(m_k, i);
+		for(size_t j = 0; j < nc; j++)
+			g.addEdgeIfNotDupe(i, m_pNeighborGraph->neighbor(j));
 	}
 
 	// Find a large atomic cycle (calls onDetectBigAtomicCycle when found)
@@ -2051,15 +2182,11 @@ size_t GCycleCut::cut()
 	{
 		// Make the graph
 		GCycleCutAtomicCycleDetector g(m_pPoints->rows(), this, m_cycleThresh, false);
-		size_t* pHood = m_pNeighborhoods;
 		for(size_t i = 0; i < m_pPoints->rows(); i++)
 		{
-			for(size_t j = 0; j < m_k; j++)
-			{
-				if(pHood[j] < m_pPoints->rows())
-					g.addEdgeIfNotDupe(i, pHood[j]);
-			}
-			pHood += m_k;
+			size_t nc = m_pNeighborGraph->findNearest(m_k, i);
+			for(size_t j = 0; j < nc; j++)
+				g.addEdgeIfNotDupe(i, m_pNeighborGraph->neighbor(j));
 		}
 
 		// Find a large atomic cycle (calls onDetectBigAtomicCycle when found)
@@ -2082,13 +2209,15 @@ size_t GCycleCut::cut()
 		it++;
 
 		// Restore the edge if it doesn't create a big atomic cycle
-		m_pNeighborhoods[point * m_k + neigh] = other;
+		m_pNeighborGraph->set(point, neigh, other);
 		if(!doAnyBigAtomicCyclesExist())
 			m_cutCount--;
 		else
-			m_pNeighborhoods[point * m_k + neigh] = INVALID_INDEX;
+			m_pNeighborGraph->set(point, neigh, INVALID_INDEX);
 	}
 //cerr << "cuts: " << m_cutCount << "\n";
+
+	m_pNeighborGraph->dropInvalidNeighbors();
 	return m_cutCount;
 }
 
@@ -2127,20 +2256,20 @@ void GCycleCut::onDetectBigAtomicCycle(vector<size_t>& cycle)
 			m_capacities.erase(p1);
 			m_capacities.erase(p2);
 			size_t forw = INVALID_INDEX;
-			size_t* pHood = m_pNeighborhoods + from * m_k;
-			for(size_t j = 0; j < m_k; j++)
+			size_t nc = m_pNeighborGraph->findNearest(m_k, from);
+			for(size_t j = 0; j < nc; j++)
 			{
-				if(pHood[j] == to)
+				if(m_pNeighborGraph->neighbor(j) == to)
 				{
 					forw = j;
 					break;
 				}
 			}
 			size_t rev = INVALID_INDEX;
-			pHood = m_pNeighborhoods + to * m_k;
-			for(size_t j = 0; j < m_k; j++)
+			nc = m_pNeighborGraph->findNearest(m_k, to);
+			for(size_t j = 0; j < nc; j++)
 			{
-				if(pHood[j] == from)
+				if(m_pNeighborGraph->neighbor(j) == from)
 				{
 					rev = j;
 					break;
@@ -2149,7 +2278,7 @@ void GCycleCut::onDetectBigAtomicCycle(vector<size_t>& cycle)
 			GAssert(rev != INVALID_INDEX || forw != INVALID_INDEX); // couldn't find the edge
 			if(forw != INVALID_INDEX)
 			{
-				m_pNeighborhoods[from * m_k + forw] = INVALID_INDEX;
+				m_pNeighborGraph->set(from, forw, INVALID_INDEX);
 				m_cuts.push_back(from);
 				m_cuts.push_back(forw);
 				m_cuts.push_back(to);
@@ -2157,7 +2286,7 @@ void GCycleCut::onDetectBigAtomicCycle(vector<size_t>& cycle)
 			}
 			if(rev != INVALID_INDEX)
 			{
-				m_pNeighborhoods[to * m_k + rev] = INVALID_INDEX;
+				m_pNeighborGraph->set(to, rev, INVALID_INDEX);
 				m_cuts.push_back(to);
 				m_cuts.push_back(rev);
 				m_cuts.push_back(from);
@@ -2171,295 +2300,11 @@ void GCycleCut::onDetectBigAtomicCycle(vector<size_t>& cycle)
 // static
 void GCycleCut::test()
 {
-	// Make a fully-connected grid
-	size_t w = 6;
-	size_t h = 6;
-	size_t n = w * h;
-	size_t k = 4;
-	size_t* pNeighbors = new size_t[n * k];
-	std::unique_ptr<size_t[]> hNeighbors(pNeighbors);
-	size_t i = 0;
-	size_t* pHood = pNeighbors;
-	for(size_t y = 0; y < h; y++)
-	{
-		for(size_t x = 0; x < w; x++)
-		{
-			size_t j = 0;
-			pHood[j++] = (x > 0 ? i - 1 : INVALID_INDEX);
-			pHood[j++] = (x < w - 1 ? i + 1 : INVALID_INDEX);
-			pHood[j++] = (y > 0 ? i - w : INVALID_INDEX);
-			pHood[j++] = (y < h - 1 ? i + w : INVALID_INDEX);
-			pHood += k;
-			i++;
-		}
-	}
-
-	// Add 3 shortcuts
-	pNeighbors[(0 * w + 0) * k + 0] = n - 1; // connect (0,0) to (w-1, h-1)
-	pNeighbors[(0 * w + (w - 1)) * k + 1] = n - 1; // connect (w-1,0) to (w-1,h-1)
-	pNeighbors[((h - 1) * w + (w - 1)) * k + 0] = w - 1; // connect (w-1,h-1) to (w-1,0)
-
-	// Make some random data
-	GMatrix data(0, 5);
-	GRand prng(0);
-	for(size_t ii = 0; ii < n; ii++)
-	{
-		GVec& pRow = data.newRow();
-		pRow.fillNormal(prng);
-		pRow.normalize();
-	}
-
-	// Cut the shortcuts
-	GCycleCut pruner(pNeighbors, &data, k);
-	pruner.setCycleThreshold(h);
-	size_t cuts = pruner.cut();
-	if(pNeighbors[(0 * w + 0) * k + 0] != INVALID_INDEX)
-		throw Ex("missed a shortcut");
-	if(pNeighbors[(0 * w + (w - 1)) * k + 1] != INVALID_INDEX)
-		throw Ex("missed a shortcut");
-	if(pNeighbors[((h - 1) * w + (w - 1)) * k + 0] != INVALID_INDEX)
-		throw Ex("missed a shortcut");
-	if(cuts != 3)
-		throw Ex("wrong number of cuts");
+	// todo: This test was removed because I didn't want to port it when I made some API changes.
+	// I believe GCycleCut still works, but I really should write a new test to exercise it.
 }
 #endif // NO_TEST_CODE
 
-
-
-
-
-
-GTemporalNeighborFinder::GTemporalNeighborFinder(GMatrix* pObservations, GMatrix* pActions, bool ownActionsData, size_t neighbor_count, GRand* pRand, size_t maxDims)
-: GNeighborFinder(preprocessObservations(pObservations, maxDims), neighbor_count),
-m_pPreprocessed(m_pPreprocessed + 0), // don't panic, this is intentional. m_pPreprocessed is initialized in the previous line, and we do this so that its value will not be stomped over.
-m_pActions(pActions),
-m_ownActionsData(ownActionsData),
-m_pRand(pRand)
-{
-	if(m_pData->rows() != pActions->rows())
-		throw Ex("Expected the same number of observations as control vectors");
-	if(pActions->cols() != 1)
-		throw Ex("Sorry, only one action dim is currently supported");
-	int actionValues = (int)m_pActions->relation().valueCount(0);
-	if(actionValues < 2)
-		throw Ex("Sorry, only nominal actions are currently supported");
-
-	// Train the consequence maps
-	size_t obsDims = m_pData->cols();
-	for(int j = 0; j < actionValues; j++)
-	{
-		GMatrix before(0, obsDims);
-		GMatrix delta(0, obsDims);
-		for(size_t i = 0; i < m_pData->rows() - 1; i++)
-		{
-			if((int)pActions->row(i)[0] == (int)j)
-			{
-				GVec::copy(before.newRow().data(), m_pData->row(i).data(), obsDims);
-				GVec& pDelta = delta.newRow();
-				GVec::copy(pDelta.data(), m_pData->row(i + 1).data(), obsDims);
-				GVec::subtract(pDelta.data(), m_pData->row(i).data(), obsDims);
-			}
-		}
-		GAssert(before.rows() > 20); // not much data
-		GSupervisedLearner* pMap = new GFeatureFilter(new GKNN(), new GPCA(12));
-		m_consequenceMaps.push_back(pMap);
-		pMap->train(before, delta);
-	}
-}
-
-// virtual
-GTemporalNeighborFinder::~GTemporalNeighborFinder()
-{
-	if(m_ownActionsData)
-		delete(m_pActions);
-	for(vector<GSupervisedLearner*>::iterator it = m_consequenceMaps.begin(); it != m_consequenceMaps.end(); it++)
-		delete(*it);
-	delete(m_pPreprocessed);
-}
-
-GMatrix* GTemporalNeighborFinder::preprocessObservations(GMatrix* pObs, size_t maxDims)
-{
-	if(pObs->cols() > maxDims)
-	{
-		GPCA pca(maxDims);
-		pca.train(*pObs);
-		m_pPreprocessed = pca.transformBatch(*pObs);
-		return m_pPreprocessed;
-	}
-	else
-	{
-		m_pPreprocessed = NULL;
-		return pObs;
-	}
-}
-
-bool GTemporalNeighborFinder::findPath(size_t from, size_t to, double* path, double maxDist)
-{
-	// Find the path
-	int actionValues = (int)m_pActions->relation().valueCount(0);
-	const GVec& pStart = m_pData->row(from);
-	const GVec& pGoal = m_pData->row(to);
-	size_t dims = m_pData->cols();
-	double origSquaredDist = pStart.squaredDistance(pGoal);
-	GVec pObs(dims);
-	GVec pDelta(dims);
-	GVec pRemaining(dims);
-	pObs = pStart;
-	GBitTable usedActions(actionValues);
-	GVec::setAll(path, 0.0, actionValues);
-	while(true)
-	{
-		pRemaining = pGoal;
-		pRemaining -= pObs;
-		if(pRemaining.squaredMagnitude() < 1e-9)
-			break; // We have arrived at the destination
-		double biggestCorr = 1e-6;
-		int bestAction = -1;
-		double stepSize = 0.0;
-		int lastPredicted = -1;
-		for(int i = 0; i < actionValues; i++)
-		{
-			if(usedActions.bit(i))
-				continue;
-			m_consequenceMaps[i]->predict(pObs, pDelta);
-			lastPredicted = i;
-			double d = pDelta.correlation(pRemaining);
-			if(d <= 0)
-				usedActions.set(i);
-			else if(d > biggestCorr)
-			{
-				biggestCorr = d;
-				bestAction = i;
-				stepSize = std::min(1.0, pDelta.dotProduct(pRemaining) / pDelta.squaredMagnitude());
-			}
-		}
-		if(bestAction < 0)
-			break; // There are no good actions, so we're done
-		if(stepSize < 1.0)
-			usedActions.set(bestAction); // let's not do microscopic zig-zagging
-
-		// Advance the current observation
-		if(bestAction != lastPredicted)
-			m_consequenceMaps[bestAction]->predict(pObs, pDelta);
-		pObs.addScaled(stepSize, pDelta);
-		path[bestAction] += stepSize;
-		if(GVec::squaredMagnitude(path, actionValues) > maxDist * maxDist)
-			return false;
-	}
-	if(pRemaining.squaredMagnitude() >= 0.2 * 0.2 * origSquaredDist)
-		return false; // Too imprecise. Throw this one out.
-	return true;
-}
-
-// virtual
-void GTemporalNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
-{
-	GTEMPBUF(double, dissims, m_neighborCount);
-	neighbors(pOutNeighbors, dissims, index);
-}
-
-// virtual
-void GTemporalNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
-{
-	int valueCount = (int)m_pActions->relation().valueCount(0);
-	if(m_pActions->cols() > 1 || valueCount == 0)
-		throw Ex("continuous and multi-dim actions not supported yet");
-	size_t actionValues = m_pActions->relation().valueCount(0);
-	size_t pos = 0;
-	GTEMPBUF(double, path, actionValues);
-	for(size_t i = 0; pos < m_neighborCount && i < m_pData->rows(); i++)
-	{
-		if(index == i)
-			continue;
-		if(!findPath(index, i, path, 2.0 //distCap
-			))
-		{
-			if(index + 1 == i)
-			{
-				pOutNeighbors[pos] = i;
-				pOutDistances[pos] = 1.0;
-			}
-			else if(index == i + 1)
-			{
-				pOutNeighbors[pos] = i;
-				pOutDistances[pos] = 1.0;
-			}
-			else
-				continue;
-		}
-		pOutNeighbors[pos] = i;
-		pOutDistances[pos] = GVec::squaredMagnitude(path, actionValues);
-		//GAssert(ABS(pOutDistances[pos]) < 0.001 || ABS(pOutDistances[pos] - 1.0) < 0.001 || ABS(pOutDistances[pos] - 1.4142) < 0.001 || ABS(pOutDistances[pos] - 2.0) < 0.001); // Noisy result. Does the transition function have noise? If so, then this is expected, so comment me out.
-		pos++;
-	}
-
-	// Fill the remaining slots with nothing
-	while(pos < m_neighborCount)
-	{
-		pOutNeighbors[pos] = INVALID_INDEX;
-		pOutDistances[pos] = 0.0;
-		pos++;
-	}
-}
-
-
-
-
-
-
-
-
-GSequenceNeighborFinder::GSequenceNeighborFinder(GMatrix* pData, int neighbor_count)
-: GNeighborFinder(pData, neighbor_count)
-{
-}
-
-// virtual
-GSequenceNeighborFinder::~GSequenceNeighborFinder()
-{
-}
-
-// virtual
-void GSequenceNeighborFinder::neighbors(size_t* pOutNeighbors, size_t index)
-{
-	return neighbors(pOutNeighbors, NULL, index);
-}
-
-// virtual
-void GSequenceNeighborFinder::neighbors(size_t* pOutNeighbors, double* pOutDistances, size_t index)
-{
-	size_t prevPos = -1;
-	size_t pos = 0;
-	size_t i = 1;
-	while(true)
-	{
-		if(pos == prevPos)
-		{
-			while(pos < m_neighborCount)
-				pOutNeighbors[pos++] = INVALID_INDEX;
-			break;
-		}
-		prevPos = pos;
-		if(index - i < m_pData->rows())
-		{
-			pOutNeighbors[pos] = index - i;
-			if(++pos >= m_neighborCount)
-				break;
-		}
-		if(index + i < m_pData->rows())
-		{
-			pOutNeighbors[pos] = index + i;
-			if(++pos >= m_neighborCount)
-				break;
-		}
-		i++;
-	}
-	if(pOutDistances)
-	{
-		for(size_t ii = 0; ii < m_neighborCount; ii++)
-			pOutDistances[ii] = (double)((ii + 2) / 2);
-	}
-}
 
 
 

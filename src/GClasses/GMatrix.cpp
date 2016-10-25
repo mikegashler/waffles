@@ -56,7 +56,7 @@ namespace GClasses {
 GUniformRelation g_emptyRelation(0, 0);
 
 // static
-GRelation* GRelation::deserialize(GDomNode* pNode)
+GRelation* GRelation::deserialize(const GDomNode* pNode)
 {
 	if(pNode->fieldIfExists("name"))
 		return new GArffRelation(pNode);
@@ -66,14 +66,18 @@ GRelation* GRelation::deserialize(GDomNode* pNode)
 		return new GMixedRelation(pNode);
 }
 
-void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) const
+void GRelation::print(ostream& stream) const
 {
-	stream.precision(precision);
-
 	// Write the relation title
 	stream << "@RELATION ";
 	if(type() == ARFF)
-		stream << ((GArffRelation*)this)->name();
+	{
+		std::string name = ((GArffRelation*)this)->name();
+		if(name.find(" ") != string::npos)
+			stream << "'" << name << "'";
+		else
+			stream << name;
+	}
 	else
 		stream << "Untitled";
 	stream << "\n\n";
@@ -107,10 +111,6 @@ void GRelation::print(ostream& stream, const GMatrix* pData, size_t precision) c
 
 	// Write the data
 	stream << "\n@DATA\n";
-	if(!pData)
-		return;
-	for(size_t i = 0; i < pData->rows(); i++)
-		printRow(stream, pData->row(i).data(), ",");
 }
 
 // virtual
@@ -180,7 +180,7 @@ bool GRelation::isCompatible(const GRelation& that) const
 	return true;
 }
 
-void GRelation::printRow(ostream& stream, const double* pRow, const char* separator, const char* missing) const
+void GRelation::printRow(ostream& stream, const double* pRow, char separator, const char* missing) const
 {
 	size_t j = 0;
 	if(j < size())
@@ -198,95 +198,8 @@ void GRelation::printRow(ostream& stream, const double* pRow, const char* separa
 	stream << "\n";
 }
 
-size_t GRelation::countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount) const
-{
-	size_t nDims = 0;
-	for(size_t i = 0; i < nAttrCount; i++)
-	{
-		size_t nValues = valueCount(nFirstAttr + i);
-		if(nValues == 0)
-			nDims += 2;
-		else
-			nDims += nValues;
-	}
-	return nDims;
-}
-
-void GRelation::toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount) const
-{
-	size_t nDims = 0;
-	size_t i, j, k, nValues;
-	for(i = 0; i < nAttrCount; i++)
-	{
-		nValues = valueCount(nFirstAttr + i);
-		if(nValues == 0)
-		{
-			pOut[nDims++] = pIn[i];
-			if(pIn[i] == UNKNOWN_REAL_VALUE)
-				pOut[nDims++] = UNKNOWN_REAL_VALUE;
-			else
-				pOut[nDims++] = pIn[i] * pIn[i];
-		}
-		else
-		{
-			k = nDims;
-			for(j = 0; j < nValues; j++)
-				pOut[nDims++] = 0;
-			if(pIn[i] >= 0) // For unknown discrete values, set to all zeros.
-			{
-				GAssert(pIn[i] >= 0 && pIn[i] < nValues);
-				pOut[k + (size_t)pIn[i]] = 1;
-			}
-		}
-	}
-}
-
 #ifndef MIN_PREDICT
-void GRelation::fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount, GRand* pRand) const
-{
-	size_t nDims = 0;
-	size_t i, nValues;
-	for(i = 0; i < nAttrCount; i++)
-	{
-		nValues = valueCount(nFirstAttr + i);
-		if(nValues == 0)
-		{
-			pOut[i] = pIn[nDims++];
-			nDims++;
-		}
-		else
-		{
-			pOut[i] = (double)GVec::indexOfMax(&pIn[nDims], nValues, pRand);
-			nDims += nValues;
-		}
-	}
-}
-
-void GRelation::fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount) const
-{
-	size_t nDims = 0;
-	size_t i, nValues;
-	for(i = 0; i < nAttrCount; i++)
-	{
-		nValues = valueCount(nFirstAttr + i);
-		if(nValues == 0)
-		{
-			GNormalDistribution* pNorm = pOut[i].makeNormal();
-			double mean = pIn[nDims++];
-			double variance = pIn[nDims++] - (mean * mean);
-			pNorm->setMeanAndVariance(mean, variance);
-		}
-		else
-		{
-			GCategoricalDistribution* pCat = pOut[i].makeCategorical();
-			pCat->setValues(nValues, &pIn[nDims]);
-			nDims += nValues;
-		}
-	}
-}
-
-
-void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precision) const
+void GRelation::save(const GMatrix* pData, const char* szFilename) const
 {
 	std::ofstream stream;
 	stream.exceptions(std::ios::badbit | std::ios::failbit);
@@ -298,7 +211,7 @@ void GRelation::save(const GMatrix* pData, const char* szFilename, size_t precis
 	{
 		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
 	}
-	print(stream, pData, precision);
+	pData->print(stream);
 }
 
 //static
@@ -316,7 +229,7 @@ void GRelation::test()
 
 
 
-GUniformRelation::GUniformRelation(GDomNode* pNode)
+GUniformRelation::GUniformRelation(const GDomNode* pNode)
 {
 	m_attrCount = (size_t)pNode->field("attrs")->asInt();
 	m_valueCount = (size_t)pNode->field("vals")->asInt();
@@ -367,7 +280,7 @@ GMixedRelation::GMixedRelation(vector<size_t>& attrValues)
 		addAttr(*it);
 }
 
-GMixedRelation::GMixedRelation(GDomNode* pNode)
+GMixedRelation::GMixedRelation(const GDomNode* pNode)
 {
 	m_valueCounts.clear();
 	GDomNode* pValueCounts = pNode->field("vals");
@@ -568,7 +481,7 @@ GArffRelation::GArffRelation()
 {
 }
 
-GArffRelation::GArffRelation(GDomNode* pNode)
+GArffRelation::GArffRelation(const GDomNode* pNode)
 {
 	m_name = pNode->field("name")->asString();
 	GDomListIterator it(pNode->field("attrs"));
@@ -647,7 +560,9 @@ void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<cons
 	m_valueCounts.push_back(nValues);
 	m_attrs.resize(index + 1);
 	if(szName)
+	{
 		m_attrs[index].m_name = szName;
+	}
 	else
 	{
 		m_attrs[index].m_name = "attr_";
@@ -763,7 +678,11 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 // virtual
 void GArffRelation::printAttrName(std::ostream& stream, size_t column) const
 {
-	stream << attrName(column);
+	std::string s = attrName(column);
+	if(s.find(" ") != std::string::npos)
+		stream << "'" << s << "'";
+	else
+		stream << s;
 }
 
 // virtual
@@ -1029,7 +948,7 @@ GMatrix& GMatrix::operator=(const GMatrix& orig)
 	return *this;
 }
 
-GMatrix::GMatrix(GDomNode* pNode)
+GMatrix::GMatrix(const GDomNode* pNode)
 {
 	m_pRelation = GRelation::deserialize(pNode->field("rel"));
 	GDomNode* pRows = pNode->field("vals");
@@ -1096,29 +1015,6 @@ void GMatrix::resize(size_t rowCount, size_t colCount)
 	flush();
 	setRelation(new GUniformRelation(colCount, 0));
 	newRows(rowCount);
-}
-
-void GMatrix::resizePreserve(size_t rowCount, size_t colCount)
-{
-	if(colCount != cols())
-	{
-		size_t lesserRows = std::min(rows(), rowCount);
-		size_t lesserCols = std::min(cols(), colCount);
-		for(size_t i = 0; i < lesserRows; i++)
-		{
-			GVec* newrow = new GVec(colCount);
-			GVec::copy(newrow->data(), row(i).data(), lesserCols);
-			delete(m_rows[i]);
-			m_rows[i] = newrow;
-		}
-	}
-	while(rows() > rowCount)
-		deleteRow(rows() - 1);
-	if(m_pRelation != &g_emptyRelation)
-		delete(m_pRelation);
-	m_pRelation = new GUniformRelation(colCount, 0);
-	while(rows() < rowCount)
-		newRow();
 }
 
 void GMatrix::flush()
@@ -1325,9 +1221,54 @@ void GMatrix::loadArff(const char* szFilename)
 	parseArff(tok);
 }
 
+void GMatrix::loadRaw(const char* szFilename)
+{
+	size_t r, c;
+	std::ifstream fin(szFilename, std::ios::in | std::ios::binary);
+	if(fin.fail())
+		throw Ex("Error while trying to open the file, ", szFilename, ". ", strerror(errno));
+	fin.read((char *) &r, sizeof(size_t));
+	fin.read((char *) &c, sizeof(size_t));
+	resize(r, c);
+	for(size_t i = 0; i < r; i++)
+		fin.read((char *) m_rows[i]->data(), sizeof(double) * c);
+	fin.close();
+}
+
+void GMatrix::load(const char* szFilename)
+{
+	const char *extPos = strrchr(szFilename, '.');
+	if(extPos)
+	{
+		string ext(extPos+1);
+		for(size_t i = 0; i < ext.size(); ++i)
+			ext[i] = tolower(ext[i]);
+		if(ext == "arff")
+			loadArff(szFilename);
+		else if(ext == "raw")
+			loadRaw(szFilename);
+		else
+			throw Ex("File type could not be determined.");
+	}
+	else
+		throw Ex("File type could not be determined.");
+}
+
 void GMatrix::saveArff(const char* szFilename)
 {
-	m_pRelation->save(this, szFilename, 14);
+	m_pRelation->save(this, szFilename);
+}
+
+void GMatrix::saveRaw(const char* szFilename)
+{
+	std::ofstream fout(szFilename, std::ios::out | std::ios::binary);
+	size_t r = rows();
+	size_t c = cols();
+	fout.write((char *) &r, sizeof(size_t));
+	fout.write((char *) &c, sizeof(size_t));
+	for(size_t i = 0; i < r; i++)
+		fout.write((char *) m_rows[i]->data(), sizeof(double) * c);
+	fout.close();
 }
 
 // static
@@ -1384,7 +1325,7 @@ void GMatrix::setCol(size_t index, const double* pVector)
 		row(i)[index] = *(pVector++);
 }
 
-void GMatrix::add(const GMatrix* pThat, bool transposeThat)
+void GMatrix::add(const GMatrix* pThat, bool transposeThat, double scalar)
 {
 	if(transposeThat)
 	{
@@ -1395,7 +1336,7 @@ void GMatrix::add(const GMatrix* pThat, bool transposeThat)
 		{
 			GVec& r = row(i);
 			for(size_t j = 0; j < c; j++)
-				r[j] += pThat->row(j)[i];
+				r[j] += scalar * pThat->row(j)[i];
 		}
 	}
 	else
@@ -1404,7 +1345,7 @@ void GMatrix::add(const GMatrix* pThat, bool transposeThat)
 		if(rows() != pThat->rows() || c != pThat->cols())
 			throw Ex("expected matrices of same size");
 		for(size_t i = 0; i < rows(); i++)
-			row(i) += pThat->row(i);
+			row(i).addScaled(scalar, pThat->row(i));
 	}
 }
 
@@ -1603,7 +1544,6 @@ double GMatrix::trace()
 size_t GMatrix::toReducedRowEchelonForm()
 {
 	size_t nLead = 0;
-	double* pRow;
 	size_t rowCount = rows();
 	size_t colCount = cols();
 	for(size_t nRow = 0; nRow < rowCount; nRow++)
@@ -1623,14 +1563,21 @@ size_t GMatrix::toReducedRowEchelonForm()
 			swapRows(i, nRow);
 
 		// Scale the pivot to 1
-		pRow = row(nRow).data();
-		GVec::multiply(pRow + nLead, 1.0 / pRow[nLead], colCount - nLead);
+		GVec& pRow = row(nRow);
+		double d = 1.0 / pRow[nLead];
+		for(i = nLead; i < colCount; i++)
+			pRow[i] *= d;
 
 		// Elliminate all values above and below the pivot
 		for(i = 0; i < rowCount; i++)
 		{
 			if(i != nRow)
-				GVec::addScaled(row(i).data() + nLead, -row(i)[nLead], pRow + nLead, colCount - nLead);
+			{
+				double* pR2 = row(i).data();
+				double t = pR2[nLead];
+				for(size_t j = nLead; j < colCount; j++)
+					pR2[j] -= t * pRow[j];
+			}
 		}
 
 		nLead++;
@@ -1643,7 +1590,6 @@ bool GMatrix::gaussianElimination(double* pVector)
 	if(rows() != (size_t)cols())
 		throw Ex("Expected a square matrix");
 	double d;
-	double* pRow;
 	size_t rowCount = rows();
 	size_t colCount = cols();
 	for(size_t nRow = 0; nRow < rowCount; nRow++)
@@ -1663,9 +1609,10 @@ bool GMatrix::gaussianElimination(double* pVector)
 		}
 
 		// Scale the pivot to 1
-		pRow = row(nRow).data();
+		GVec& pRow = row(nRow);
 		d = 1.0 / pRow[nRow];
-		GVec::multiply(pRow + nRow, d, colCount - nRow);
+		for(i = nRow; i < colCount; i++)
+			pRow[i] *= d;
 		pVector[nRow] *= d;
 
 		// Elliminate all values above and below the pivot
@@ -1674,7 +1621,9 @@ bool GMatrix::gaussianElimination(double* pVector)
 			if(i != nRow)
 			{
 				d = -row(i)[nRow];
-				GVec::addScaled(row(i).data() + nRow, d, pRow + nRow, colCount - nRow);
+				double* pR2 = row(i).data();
+				for(size_t j = nRow; j < colCount; j++)
+					pR2[j] += d * pRow[j];
 				pVector[i] += d * pVector[nRow];
 			}
 		}
@@ -2453,16 +2402,17 @@ double GMatrix::eigenValue(const GVec& pEigenVector)
 	return row(nEl).dotProduct(pEigenVector) / pEigenVector[nEl];
 }
 
-void GMatrix::eigenVector(double eigenvalue, double* pOutVector)
+void GMatrix::eigenVector(double eigenvalue, GVec& outVector)
 {
 	GAssert(rows() == (size_t)cols()); // Expected a square matrix
 	size_t rowCount = rows();
 	for(size_t i = 0; i < rowCount; i++)
 		row(i)[i] = row(i)[i] - eigenvalue;
-	GVec::setAll(pOutVector, 0.0, rowCount);
-	if(!gaussianElimination(pOutVector))
+	outVector.resize(rowCount);
+	outVector.fill(0.0);
+	if(!gaussianElimination(outVector.data()))
 		throw Ex("no solution");
-	GVec::normalize(pOutVector, rowCount);
+	outVector.normalize();
 }
 
 GMatrix* GMatrix::eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSignificant)
@@ -2520,7 +2470,7 @@ GMatrix* GMatrix::eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSi
 		for(size_t j = 0; j < 100; j++) // todo: is there a better way to detect convergence?
 		{
 			pA->multiply(x, pTemp);
-			x = pTemp;
+			x.copy(pTemp);
 			x.normalize();
 		}
 
@@ -2578,7 +2528,7 @@ void GMatrix::newColumns(size_t n)
 	{
 		GVec* pOld = m_rows[i];
 		GVec* pNew = new GVec(oldSize + n);
-		GVec::copy(pNew->data(), pOld->data(), oldSize);
+		memcpy(pNew->data(), pOld->data(), sizeof(double) * oldSize);
 		delete(pOld);
 		m_rows[i] = pNew;
 	}
@@ -2624,7 +2574,7 @@ void GMatrix::toVector(double* pVec)
 	size_t nCols = cols();
 	for(size_t i = 0; i < rows(); i++)
 	{
-		GVec::copy(pVec, row(i).data(), nCols);
+		memcpy(pVec, row(i).data(), nCols * sizeof(double));
 		pVec += nCols;
 	}
 }
@@ -2634,6 +2584,18 @@ void GMatrix::setAll(double val, size_t colStart, size_t colCount)
 	size_t count = std::min(cols() - colStart, colCount);
 	for(size_t i = 0; i < rows(); i++)
 		row(i).fill(val, colStart, colStart + count);
+}
+
+void GMatrix::fillUniform(GRand& rand, double min, double max)
+{
+	for(size_t i = 0; i < rows(); i++)
+		row(i).fillUniform(rand, min, max);
+}
+
+void GMatrix::fillNormal(GRand& rand, double deviation)
+{
+	for(size_t i = 0; i < rows(); i++)
+		row(i).fillNormal(rand, deviation);
 }
 
 void GMatrix::copy(const GMatrix* pThat)
@@ -2682,7 +2644,7 @@ void GMatrix::copyBlock(const GMatrix& source, size_t srcRow, size_t srcCol, siz
 		}
 	}
 	for(size_t i = 0; i < hgt; i++)
-		GVec::copy(row(destRow + i).data() + destCol, source[srcRow + i].data() + srcCol, wid);
+		memcpy(row(destRow + i).data() + destCol, source[srcRow + i].data() + srcCol, wid * sizeof(double));
 }
 
 void GMatrix::copyCols(const GMatrix& that, size_t firstCol, size_t colCount)
@@ -2771,8 +2733,8 @@ GMatrix* GMatrix::mergeHoriz(const GMatrix* pSetA, const GMatrix* pSetB)
 	for(size_t i = 0; i < pSetA->rows(); i++)
 	{
 		GVec& newRow = pNewSet->newRow();
-		GVec::copy(newRow.data(), pSetA->row(i).data(), nSetADims);
-		GVec::copy(newRow.data() + nSetADims, pSetB->row(i).data(), nSetBDims);
+		memcpy(newRow.data(), pSetA->row(i).data(), nSetADims * sizeof(double));
+		memcpy(newRow.data() + nSetADims, pSetB->row(i).data(), nSetBDims * sizeof(double));
 	}
 	return hNewSet.release();
 }
@@ -3343,7 +3305,7 @@ void GMatrix::principalComponent(GVec& outVector, const GVec& centroi, GRand* pR
 			for(size_t j = 0; j < dims; j++)
 				pAccumulator[j] += d * (vec[j] - centroi[j]);
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
@@ -3375,7 +3337,7 @@ void GMatrix::principalComponentAboutOrigin(GVec& outVector, GRand* pRand) const
 			for(size_t j = 0; j < dims; j++)
 				pAccumulator[j] += d * vec[j];
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
@@ -3418,7 +3380,7 @@ void GMatrix::principalComponentIgnoreUnknowns(GVec& outVector, const GVec& cent
 					pAccumulator[j] += d * (vec[j] - centroi[j]);
 			}
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
@@ -3454,7 +3416,7 @@ void GMatrix::weightedPrincipalComponent(GVec& outVector, const GVec& centroi, c
 				pAccumulator[j] += (*pW) * d * (vec[j] - centroi[j]);
 			pW++;
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)
@@ -3464,12 +3426,37 @@ void GMatrix::weightedPrincipalComponent(GVec& outVector, const GVec& centroi, c
 	}
 }
 
+// static
+size_t vec_indexOfMaxMagnitude(const double* pVector, size_t dims, GRand* pRand)
+{
+	size_t index = 0;
+	size_t count = 1;
+	for(size_t n = 1; n < dims; n++)
+	{
+		if(std::abs(pVector[n]) >= std::abs(pVector[index]))
+		{
+			if(std::abs(pVector[n]) == std::abs(pVector[index]))
+			{
+				count++;
+				if(pRand->next(count) == 0)
+					index = n;
+			}
+			else
+			{
+				index = n;
+				count = 1;
+			}
+		}
+	}
+	return index;
+}
+
 double GMatrix::eigenValue(const double* pMean, const double* pEigenVector, GRand* pRand) const
 {
 	// Use the element of the eigenvector with the largest magnitude,
 	// because that will give us the least rounding error when we compute the eigenvalue.
 	size_t dims = cols();
-	size_t index = GVec::indexOfMaxMagnitude(pEigenVector, dims, pRand);
+	size_t index = vec_indexOfMaxMagnitude(pEigenVector, dims, pRand);
 
 	// The eigenvalue is the factor by which the eigenvector is scaled by the covariance matrix,
 	// so we compute just the part of the covariance matrix that we need to see how much the
@@ -3560,19 +3547,21 @@ double GMatrix::sumSquaredDistance(const GVec& point) const
 	return err;
 }
 
-double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column) const
+double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column, double* pOutSAE) const
 {
 	if(that.rows() != rows())
 		throw Ex("Mismatching number of rows");
 	if(column >= cols() || column >= that.cols())
 		throw Ex("column index out of range");
 	double sse = 0.0;
+	double sae = 0.0;
 	if(relation().valueCount(column) == 0)
 	{
 		for(size_t i = 0; i < rows(); i++)
 		{
 			double d = row(i)[column] - that.row(i)[column];
 			sse += (d * d);
+			sae += std::abs(d);
 		}
 	}
 	else
@@ -3580,9 +3569,14 @@ double GMatrix::columnSumSquaredDifference(const GMatrix& that, size_t column) c
 		for(size_t i = 0; i < rows(); i++)
 		{
 			if((int)row(i)[column] != (int)that.row(i)[column])
+			{
 				sse++;
+				sae++;
+			}
 		}
 	}
+	if(pOutSAE)
+		*pOutSAE = sae;
 	return sse;
 }
 
@@ -3720,7 +3714,7 @@ double GMatrix::boundingSphere(GVec& center, size_t* pIndexes, size_t indexCount
 	{
 		if(indexCount < 1)
 			throw Ex("Need at least one point");
-		center = row(pIndexes[0]);
+		center.copy(row(pIndexes[0]));
 		return 1e-18;
 	}
 
@@ -3754,7 +3748,7 @@ double GMatrix::boundingSphere(GVec& center, size_t* pIndexes, size_t indexCount
 
 	// Compute initial center and radius
 	double sradius = 0.25 * sdist;
-	center = row(pIndexes[b]);
+	center.copy(row(pIndexes[b]));
 	center += row(pIndexes[c]);
 	center *= 0.5;
 
@@ -4006,63 +4000,13 @@ void GMatrix::ensureDataHasNoMissingNominals() const
 	}
 }
 
-void GMatrix::unstretch(size_t seed, size_t neighbors, double maxDist, GRand& rand)
+void GMatrix::print(ostream& stream, char separator) const
 {
-	size_t dims = cols();
-	GTEMPBUF(size_t, hood, neighbors);
-	GTEMPBUF(double, dists, neighbors);
-	GTEMPBUF(double, pC, dims);
-	GBallTree btSrc(this, neighbors);
-	GBallTree btDest(this, neighbors);
-	btDest.dropAll();
-	btSrc.drop(seed);
-	btDest.insert(seed);
-	vector<size_t> dest;
-	dest.push_back(seed);
-	while(dest.size() < rows())
-	{
-		// Pick arbitrary point in dest
-		size_t a = dest[(size_t)rand.next(dest.size())];
-
-		// Find the closest point in src
-		btSrc.neighbors(hood, dists, a);
-		GNeighborFinder::sortNeighbors(neighbors, hood, dists);
-		size_t b = hood[0];
-
-		// Find the k-nearest points in dest
-		btDest.neighbors(hood, dists, b);
-		GNeighborFinder::sortNeighbors(neighbors, hood, dists);
-
-		// Compute the centroid of the k neighbors
-		size_t validNeighbors = 0;
-		GVec::setAll(pC, 0.0, dims);
-		for(size_t i = 0; i < neighbors; i++)
-		{
-			if(hood[i] != INVALID_INDEX)
-			{
-				GVec::add(pC, row(hood[i]).data(), dims);
-				validNeighbors++;
-			}
-		}
-		GVec::multiply(pC, 1.0 / validNeighbors, dims);
-
-		// Move b to within maxDist of the centroid of its neighbors, and transfer it to the dest list
-		GVec& pB = row(b);
-		double dist = sqrt(GVec::squaredDistance(pC, pB.data(), dims));
-		btSrc.drop(b);
-		if(dist > maxDist)
-		{
-			for(size_t i = 0; i < dims; i++)
-				pB[i] += ((pC[i] - pB[i]) * (dist - maxDist) / dist);
-		}
-		btDest.insert(b);
-		dest.push_back(b);
-	}
-}
-
-void GMatrix::print(ostream& stream) const
-{
-	m_pRelation->print(stream, this, 14);
+	m_pRelation->print(stream);
+	std::streamsize oldPrecision = stream.precision(14);
+	for(size_t i = 0; i < rows(); i++)
+		m_pRelation->printRow(stream, row(i).data(), separator);
+	stream.precision(oldPrecision);
 }
 
 double GMatrix::measureInfo() const
@@ -4161,29 +4105,7 @@ double GMatrix::dihedralCorrelation(const GMatrix* pThat, GRand* pRand) const
 	pThat->multiply(pBuf, pB, true);
 	return std::abs(pA.correlation(pB));
 }
-/*
-void GMatrix::project(double* pDest, const double* pPoint) const
-{
-	size_t dims = cols();
-	GVec::setAll(pDest, 0.0, dims);
-	for(size_t i = 0; i < rows(); i++)
-	{
-		const GVec& basis = row(i);
-		GVec::addScaled(pDest, GVec::dotProduct(pPoint, basis.data(), dims), basis.data(), dims);
-	}
-}
 
-void GMatrix::project(double* pDest, const double* pPoint, const double* pOrigin) const
-{
-	size_t dims = cols();
-	GVec::copy(pDest, pOrigin, dims);
-	for(size_t i = 0; i < rows(); i++)
-	{
-		const double* pBasis = row(i).data();
-		GVec::addScaled(pDest, GVec::dotProduct(pOrigin, pPoint, pBasis, dims), pBasis, dims);
-	}
-}
-*/
 GVec* GMatrix::swapRow(size_t i, GVec* pNewRow)
 {
 	GVec* pRow = m_rows[i];

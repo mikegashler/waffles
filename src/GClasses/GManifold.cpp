@@ -60,6 +60,39 @@ using std::make_pair;
 #define USE_ANGLES
 #define STEP_SIZE_PER_POINT
 
+void GVec_copy(double* pDest, const double* pSource, size_t nDims)
+{
+	memcpy(pDest, pSource, sizeof(double) * nDims);
+}
+
+void GVec_add(double* pDest, const double* pSource, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pDest += *pSource;
+		pDest++;
+		pSource++;
+	}
+}
+
+void GVec_multiply(double* pVector, double dScalar, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pVector *= dScalar;
+		pVector++;
+	}
+}
+
+void GVec_setAll(double* pVector, double value, size_t dims)
+{
+	for(size_t i = 0; i < dims; i++)
+	{
+		*pVector = value;
+		pVector++;
+	}
+}
+
 // static
 void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_t k, const size_t* pNeighbors, double* pOutWeights)
 {
@@ -72,7 +105,7 @@ void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_
 		if(*pNeighbors < pData->rows())
 		{
 			GVec& target = z.newRow();
-			target = pData->row(*pNeighbors);
+			target.copy(pData->row(*pNeighbors));
 			target -= row;
 			pNeighbors++;
 		}
@@ -109,25 +142,23 @@ void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_
 		pOutWeights[i] = pInv->row(i).sum();
 
 	// Normalize the weights to sum to one
-	GVec::sumToOne(pOutWeights, pSquare->rows());
+	GVecWrapper vw(pOutWeights, pSquare->rows());
+	vw.vec().sumToOne();
 }
 
 // static
-GMatrix* GManifold::blendNeighborhoods(size_t index, GMatrix* pA, double ratio, GMatrix* pB, size_t neighborCount, size_t* pHood)
+GMatrix* GManifold::blendNeighborhoods(size_t index, GMatrix* pA, double ratio, GMatrix* pB, size_t neighborCount, GNeighborFinder* pNF)
 {
 	// Copy the two neighborhoods
-	size_t rowCount = pA->rows();
 	size_t colCount = pA->cols();
 	GMatrix neighborhoodA(pA->relation().clone());
-	neighborhoodA.newRow() = pA->row(index);
+	neighborhoodA.newRow().copy(pA->row(index));
 	GMatrix neighborhoodB(pB->relation().clone());
-	neighborhoodB.newRow() = pB->row(index);
+	neighborhoodB.newRow().copy(pB->row(index));
 	for(size_t j = 0; j < neighborCount; j++)
 	{
-		if(pHood[j] >= rowCount)
-			continue;
-		neighborhoodA.newRow() = pA->row(pHood[j]);
-		neighborhoodB.newRow() = pB->row(pHood[j]);
+		neighborhoodA.newRow().copy(pA->row(pNF->neighbor(j)));
+		neighborhoodB.newRow().copy(pB->row(pNF->neighbor(j)));
 	}
 
 	// Subtract the means
@@ -153,7 +184,7 @@ GMatrix* GManifold::blendNeighborhoods(size_t index, GMatrix* pA, double ratio, 
 }
 
 // static
-GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, size_t neighborCount, size_t* pNeighborTable, size_t seed)
+GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, size_t neighborCount, GNeighborGraph* pNeighborTable, size_t seed)
 {
 	// Check params
 	size_t rowCount = pA->rows();
@@ -167,19 +198,17 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 	GBitTable visited(rowCount);
 	GBitTable established(rowCount);
 	{
-		size_t* pHood = pNeighborTable + neighborCount * seed;
-		GMatrix* pAve = blendNeighborhoods(seed, pA, pRatios[seed], pB, neighborCount, pHood);
+		size_t nc = pNeighborTable->findNearest(neighborCount, seed);
+		GMatrix* pAve = blendNeighborhoods(seed, pA, pRatios[seed], pB, neighborCount, pNeighborTable);
 		std::unique_ptr<GMatrix> hAve(pAve);
-		pC->row(seed) = pAve->row(0);
+		pC->row(seed).copy(pAve->row(0));
 		visited.set(seed);
 		established.set(seed);
 		size_t i = 1;
-		for(size_t j = 0; j < neighborCount; j++)
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pHood[j] >= rowCount)
-				continue;
-			size_t neigh = pHood[j];
-			pC->row(neigh) = pAve->row(i);
+			size_t neigh = pNeighborTable->neighbor(j);
+			pC->row(neigh).copy(pAve->row(i));
 			visited.set(neigh);
 			q.push_back(neigh);
 			i++;
@@ -194,24 +223,22 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 		q.pop_front();
 
 		// Make a blended neighborhood
-		size_t* pHood = pNeighborTable + neighborCount * par;
-		GMatrix* pD = blendNeighborhoods(par, pA, pRatios[par], pB, neighborCount, pHood);
+		size_t nc = pNeighborTable->findNearest(neighborCount, par);
+		GMatrix* pD = blendNeighborhoods(par, pA, pRatios[par], pB, neighborCount, pNeighborTable);
 		std::unique_ptr<GMatrix> hD(pD);
 
 		// Make sub-neighborhoods that contain only tentatively-placed points
 		GMatrix tentativeC(pC->relation().clone());
 		GMatrix tentativeD(pD->relation().clone());
 		GReleaseDataHolder hTentativeD(&tentativeD);
-		tentativeC.newRow() = pC->row(par);
+		tentativeC.newRow().copy(pC->row(par));
 		tentativeD.takeRow(&pD->row(0));
 		size_t ii = 1;
-		for(size_t j = 0; j < neighborCount; j++)
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pHood[j] >= rowCount)
-				continue;
-			if(visited.bit(pHood[j]))
+			if(visited.bit(pNeighborTable->neighbor(j)))
 			{
-				tentativeC.newRow() = pC->row(pHood[j]);
+				tentativeC.newRow().copy(pC->row(pNeighborTable->neighbor(j)));
 				tentativeD.takeRow(&pD->row(ii));
 			}
 			ii++;
@@ -236,19 +263,17 @@ GMatrix* GManifold::blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, s
 			pAligned->row(i) += mean;
 
 		// Accept the new points
-		pC->row(par) = pAligned->row(0);
+		pC->row(par).copy(pAligned->row(0));
 		established.set(par);
 		ii = 1;
-		for(size_t j = 0; j < neighborCount; j++)
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pHood[j] >= rowCount)
-				continue;
-			if(!established.bit(pHood[j]))
-				pC->row(pHood[j]) = pAligned->row(ii);
-			if(!visited.bit(pHood[j]))
+			if(!established.bit(pNeighborTable->neighbor(j)))
+				pC->row(pNeighborTable->neighbor(j)).copy(pAligned->row(ii));
+			if(!visited.bit(pNeighborTable->neighbor(j)))
 			{
-				visited.set(pHood[j]);
-				q.push_back(pHood[j]);
+				visited.set(pNeighborTable->neighbor(j));
+				q.push_back(pNeighborTable->neighbor(j));
 			}
 			ii++;
 		}
@@ -450,6 +475,34 @@ GMatrix* GManifoldSculpting::reduce(const GMatrix& in)
 	return pDataOut;
 }
 
+double GManifoldSculpting_dotProduct(const double* pOriginA, const double* pTargetA, const double* pOriginB, const double* pTargetB, size_t nSize)
+{
+	double dVal = 0;
+	for(size_t n = 0; n < nSize; n++)
+	{
+		dVal += (*pTargetA - *pOriginA) * (*pTargetB - *pOriginB);
+		pTargetA++;
+		pOriginA++;
+		pTargetB++;
+		pOriginB++;
+	}
+	return dVal;
+}
+
+double GMS_sqDist(const double* pA, const double* pB, size_t nDims)
+{
+	double dist = 0;
+	double d;
+	for(size_t n = 0; n < nDims; n++)
+	{
+		d = (*pA) - (*pB);
+		dist += (d * d);
+		pA++;
+		pB++;
+	}
+	return dist;
+}
+
 void GManifoldSculpting::beginTransform(const GMatrix* pRealSpaceData)
 {
 	m_nDimensions = pRealSpaceData->cols();
@@ -492,11 +545,11 @@ void GManifoldSculpting::beginTransform(const GMatrix* pRealSpaceData)
 			size_t neighbor = pArrNeighbors[j].m_nNeighbor;
 			if(neighbor < m_pData->rows())
 			{
-				pArrNeighbors[j].m_junkSquaredDist = GVec::squaredDistance(m_pData->row(i).data() + m_nTargetDims, m_pData->row(neighbor).data() + m_nTargetDims, m_nDimensions - m_nTargetDims);
+				pArrNeighbors[j].m_junkSquaredDist = GMS_sqDist(m_pData->row(i).data() + m_nTargetDims, m_pData->row(neighbor).data() + m_nTargetDims, m_nDimensions - m_nTargetDims);
 				size_t slot = pArrNeighbors[j].m_nNeighborsNeighborSlot;
 				struct GManifoldSculptingNeighbor* pArrNeighborsNeighbors = record(neighbor);
 				size_t neighborsNeighbor = pArrNeighborsNeighbors[slot].m_nNeighbor;
-				pArrNeighbors[j].m_junkDotProd = GVec::dotProduct(m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(i).data() + m_nTargetDims, m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(neighborsNeighbor).data() + m_nTargetDims, m_nDimensions - m_nTargetDims);
+				pArrNeighbors[j].m_junkDotProd = GManifoldSculpting_dotProduct(m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(i).data() + m_nTargetDims, m_pData->row(neighbor).data() + m_nTargetDims, m_pData->row(neighborsNeighbor).data() + m_nTargetDims, m_nDimensions - m_nTargetDims);
 			}
 		}
 	}
@@ -512,40 +565,33 @@ void GManifoldSculpting::calculateMetadata(const GMatrix* pData)
 	size_t m_goodNeighbors = 0;
 	{
 		// Get the appropriate neighbor finder
-		std::unique_ptr<GNeighborFinder> hNF;
-		GNeighborFinder* pNF = m_pNF;
+		std::unique_ptr<GNeighborFinderGeneralizing> hNF;
+		GNeighborFinderGeneralizing* pNF = m_pNF;
 		if(pNF)
 		{
 			if(pNF->data() != pData)
 				throw Ex("Data mismatch");
-			if(pNF->neighborCount() != (size_t)m_nNeighbors)
-				throw Ex("mismatching numbers of neighbors");
 		}
 		else
 		{
-			pNF = new GKdTree(pData, m_nNeighbors, NULL, true);
+			pNF = new GKdTree(pData, NULL, true);
 			hNF.reset(pNF);
 		}
 
 		// Set up some some data structures that store the neighbors and distances of each point (and some other stuff)
-		GTEMPBUF(size_t, pHood, m_nNeighbors);
-		GTEMPBUF(double, pDists, m_nNeighbors);
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
 			stuff(i)->m_bAdjustable = true;
-				pNF->neighbors(pHood, pDists, i);
-			GNeighborFinder::sortNeighbors(m_nNeighbors, pHood, pDists);
+			pNF->findNearest(m_nNeighbors, i);
+			pNF->sortNeighbors();
 			struct GManifoldSculptingNeighbor* pArrNeighbors = record(i);
 			for(size_t j = 0; j < m_nNeighbors; j++)
 			{
-				pArrNeighbors[j].m_nNeighbor = pHood[j];
-				if(pHood[j] < pData->rows())
-				{
-					m_goodNeighbors++;
-					pArrNeighbors[j].m_nNeighborsNeighborSlot = INVALID_INDEX;
-					pArrNeighbors[j].m_dDistance = sqrt(pDists[j]);
-					m_dAveNeighborDist += pArrNeighbors[j].m_dDistance;
-				}
+				pArrNeighbors[j].m_nNeighbor = pNF->neighbor(j);
+				m_goodNeighbors++;
+				pArrNeighbors[j].m_nNeighborsNeighborSlot = INVALID_INDEX;
+				pArrNeighbors[j].m_dDistance = sqrt(pNF->distance(j));
+				m_dAveNeighborDist += pArrNeighbors[j].m_dDistance;
 			}
 		}
 	}
@@ -689,7 +735,7 @@ double GManifoldSculpting::averageNeighborDistance(size_t nDims)
 			if(pPoint[n].m_nNeighbor < m_pData->rows())
 			{
 				goodNeighbors++;
-				dSum += sqrt(GVec::squaredDistance(m_pData->row(nPoint).data(), m_pData->row(pPoint[n].m_nNeighbor).data(), m_nDimensions));
+				dSum += sqrt(GMS_sqDist(m_pData->row(nPoint).data(), m_pData->row(pPoint[n].m_nNeighbor).data(), m_nDimensions));
 			}
 		}
 	}
@@ -734,7 +780,7 @@ double GManifoldSculpting::computeError(size_t nPoint)
 				dTheta *= 0.4;
 
 			// Distances
-			dDist = sqrt(GVec::squaredDistance(m_pData->row(nPoint).data(), m_pData->row(nNeighbor).data(), m_nTargetDims) + squaredScale * pPoint[n].m_junkSquaredDist);
+			dDist = sqrt(GMS_sqDist(m_pData->row(nPoint).data(), m_pData->row(nNeighbor).data(), m_nTargetDims) + squaredScale * pPoint[n].m_junkSquaredDist);
 			dDist -= pPoint[n].m_dDistance;
 			dDist /= std::max(m_dAveNeighborDist, 1e-10);
 			if(pNeighborStuff->m_nCycle != m_nPass && pNeighborStuff->m_bAdjustable)
@@ -782,12 +828,12 @@ size_t GManifoldSculpting::adjustDataPoint(size_t nPoint, double* pError)
 void GManifoldSculpting::moveMeanToOrigin()
 {
 	GTEMPBUF(double, mean, m_nTargetDims);
-	GVec::setAll(mean, 0.0, m_nTargetDims);
+	GVec_setAll(mean, 0.0, m_nTargetDims);
 	for(size_t i = 0; i < m_pData->rows(); i++)
-		GVec::add(mean, m_pData->row(i).data(), m_nTargetDims);
-	GVec::multiply(mean, -1.0 / m_pData->rows(), m_nTargetDims);
+		GVec_add(mean, m_pData->row(i).data(), m_nTargetDims);
+	GVec_multiply(mean, -1.0 / m_pData->rows(), m_nTargetDims);
 	for(size_t i = 0; i < m_pData->rows(); i++)
-		GVec::add(m_pData->row(i).data(), mean, m_nTargetDims);
+		GVec_add(m_pData->row(i).data(), mean, m_nTargetDims);
 }
 
 double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
@@ -804,18 +850,18 @@ double GManifoldSculpting::squishPass(size_t nSeedDataPoint)
 		if(m_scale > 0.001)
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::multiply(m_pData->row(n).data() + m_nTargetDims, m_dSquishingRate, m_nDimensions - m_nTargetDims);
+				GVec_multiply(m_pData->row(n).data() + m_nTargetDims, m_dSquishingRate, m_nDimensions - m_nTargetDims);
 		}
 		else
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::setAll(m_pData->row(n).data() + m_nTargetDims, 0.0, m_nDimensions - m_nTargetDims);
+				GVec_setAll(m_pData->row(n).data() + m_nTargetDims, 0.0, m_nDimensions - m_nTargetDims);
 			m_scale = 0;
 		}
 		while(averageNeighborDistance(m_nDimensions) < m_dAveNeighborDist)
 		{
 			for(size_t n = 0; n < m_pData->rows(); n++)
-				GVec::multiply(m_pData->row(n).data(), 1.0 / m_dSquishingRate, m_nTargetDims);
+				GVec_multiply(m_pData->row(n).data(), 1.0 / m_dSquishingRate, m_nTargetDims);
 		}
 	}
 
@@ -903,23 +949,19 @@ GMatrix* GIsomap::reduce(const GMatrix& in)
 	std::unique_ptr<GNeighborFinder> hNF;
 	if(!pNF)
 	{
-		pNF = new GKdTree(&in, m_neighborCount, NULL, true);
+		pNF = new GKdTree(&in, NULL, true);
 		hNF.reset(pNF);
 	}
 
 	// Compute the distance matrix using the Floyd Warshall algorithm
-	GTEMPBUF(size_t, hood, pNF->neighborCount());
-	GTEMPBUF(double, squaredDists, pNF->neighborCount());
 	GFloydWarshall graph(in.rows());
 	for(size_t i = 0; i < in.rows(); i++)
 	{
-		pNF->neighbors(hood, squaredDists, i);
-		for(size_t j = 0; j < pNF->neighborCount(); j++)
+		size_t nc = pNF->findNearest(m_neighborCount, i);
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(hood[j] >= in.rows())
-				continue;
-			double d = sqrt(squaredDists[j]);
-			graph.addDirectedEdge(i, hood[j], d);
+			double d = sqrt(pNF->distance(j));
+			graph.addDirectedEdge(i, pNF->neighbor(j), d);
 		}
 	}
 	graph.compute();
@@ -1000,7 +1042,7 @@ public:
 
 	// Uses LLE to compute the reduced dimensional embedding of the data
 	// associated with pNF.
-	static GMatrix* doLLE(GNeighborFinder* pNF, size_t nTargetDims, GRand* pRand);
+	static GMatrix* doLLE(GNeighborFinder* pNF, size_t nTargetDims, size_t neighbors, GRand* pRand);
 
 protected:
 	void findNeighbors(GNeighborFinder* pNF);
@@ -1036,9 +1078,9 @@ GMatrix* GLLEHelper::releaseOutputData()
 }
 
 // static
-GMatrix* GLLEHelper::doLLE(GNeighborFinder* pNF, size_t nTargetDims, GRand* pRand)
+GMatrix* GLLEHelper::doLLE(GNeighborFinder* pNF, size_t nTargetDims, size_t neighbors, GRand* pRand)
 {
-	GLLEHelper lle(pNF->data(), nTargetDims, pNF->neighborCount(), pRand);
+	GLLEHelper lle(pNF->data(), nTargetDims, neighbors, pRand);
 	lle.findNeighbors(pNF);
 	lle.computeWeights();
 	lle.computeEmbedding();
@@ -1052,7 +1094,11 @@ void GLLEHelper::findNeighbors(GNeighborFinder* pNF)
 	size_t* pHood = m_pNeighbors;
 	for(size_t i = 0; i < m_pInputData->rows(); i++)
 	{
-		pNF->neighbors(pHood, i);
+		size_t nc = pNF->findNearest(m_nNeighbors, i);
+		for(size_t j = 0; j < nc; j++)
+			pHood[j] = pNF->neighbor(j);
+		for(size_t j = nc; j < m_nNeighbors; j++)
+			pHood[j] = INVALID_INDEX;
 		pHood += m_nNeighbors;
 	}
 }
@@ -1080,7 +1126,7 @@ void GLLEHelper::computeWeights()
 				pos++;
 		}
 #else
-		GVec::setAll(m_pWeights->row(n), 0.0, nRowCount);
+		GVec_setAll(m_pWeights->row(n), 0.0, nRowCount);
 		for(size_t i = 0; i < m_nNeighbors; i++)
 		{
 			if(pHood[i] < nRowCount)
@@ -1211,10 +1257,10 @@ GMatrix* GLLE::reduce(const GMatrix& in)
 	std::unique_ptr<GNeighborFinder> hNF;
 	if(!pNF)
 	{
-		pNF = new GKdTree(&in, m_neighborCount, NULL, true);
+		pNF = new GKdTree(&in, NULL, true);
 		hNF.reset(pNF);
 	}
-	return GLLEHelper::doLLE(pNF, m_targetDims, m_pRand);
+	return GLLEHelper::doLLE(pNF, m_targetDims, m_neighborCount, m_pRand);
 }
 
 
@@ -1261,6 +1307,46 @@ void GBreadthFirstUnfolding::setNeighborFinder(GNeighborFinder* pNF)
 	m_pNF = pNF;
 }
 
+void GVec_pairwiseDivide(double* pDest, double* pOther, size_t dims)
+{
+	while(dims > 0)
+	{
+		*(pDest++) /= *(pOther++);
+		dims--;
+	}
+}
+
+void GVec_subtract(double* pDest, const double* pSource, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pDest -= *pSource;
+		pDest++;
+		pSource++;
+	}
+}
+
+double GVec_squaredMagnitude(const double* pVector, size_t nSize)
+{
+	double dMag = 0;
+	while(nSize > 0)
+	{
+		dMag += ((*pVector) * (*pVector));
+		pVector++;
+		nSize--;
+	}
+	return dMag;
+}
+
+void GVec_normalize(double* pVector, size_t nSize)
+{
+	double dMag = GVec_squaredMagnitude(pVector, nSize);
+	if(dMag <= 0)
+		pVector[0] = 1.0;
+	else
+		GVec_multiply(pVector, 1.0  / sqrt(dMag), nSize);
+}
+
 // virtual
 GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 {
@@ -1269,7 +1355,7 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 	std::unique_ptr<GNeighborFinder> hNF;
 	if(!pNF)
 	{
-		pNF = new GKdTree(&in, m_neighborCount, NULL, true);
+		pNF = new GKdTree(&in, NULL, true);
 		hNF.reset(pNF);
 	}
 
@@ -1277,31 +1363,28 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 	std::unique_ptr<GNeighborGraph> hNF2;
 	if(!pNF->isCached())
 	{
-		GNeighborGraph* pNF2 = new GNeighborGraph(pNF, false);
+		GNeighborGraph* pNF2 = new GNeighborGraph(pNF, false, m_neighborCount);
 		hNF2.reset(pNF2);
 		pNF = pNF2;
 	}
 	GNeighborGraph* pCachedNF = (GNeighborGraph*)pNF;
-	pCachedNF->fillCache();
-	size_t* pNeighborTable = pCachedNF->cache();
-	double* pSquaredDistances = pCachedNF->squaredDistanceTable();
 	const GMatrix* pData = pNF->data();
 
 	// Learn the manifold
 	double* pGlobalWeights = new double[in.rows() * 2];
 	std::unique_ptr<double[]> hGlobalWeights(pGlobalWeights);
 	double* pLocalWeights = pGlobalWeights + in.rows();
-	GVec::setAll(pGlobalWeights, 0.0, in.rows());
+	GVec_setAll(pGlobalWeights, 0.0, in.rows());
 	std::unique_ptr<GMatrix> hFinal;
 	for(size_t i = 0; i < m_reps; i++)
 	{
-		GMatrix* pRep = unfold(pData, pNeighborTable, pSquaredDistances, (size_t)m_rand.next(pData->rows()), pLocalWeights);
+		GMatrix* pRep = unfold(pData, pCachedNF, (size_t)m_rand.next(pData->rows()), pLocalWeights);
 		if(hFinal.get())
 		{
-			GVec::add(pGlobalWeights, pLocalWeights, in.rows());
-			GVec::pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
+			GVec_add(pGlobalWeights, pLocalWeights, in.rows());
+			GVec_pairwiseDivide(pLocalWeights, pGlobalWeights, in.rows());
 			std::unique_ptr<GMatrix> hRep(pRep);
-			hFinal.reset(GManifold::blendEmbeddings(pRep, pLocalWeights, hFinal.get(), m_neighborCount, pNeighborTable, (size_t)m_rand.next(pData->rows())));
+			hFinal.reset(GManifold::blendEmbeddings(pRep, pLocalWeights, hFinal.get(), m_neighborCount, pCachedNF, (size_t)m_rand.next(pData->rows())));
 		}
 		else
 		{
@@ -1316,29 +1399,28 @@ GMatrix* GBreadthFirstUnfolding::reduce(const GMatrix& in)
 double GBreadthFirstUnfolding::refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand)
 {
 	GTEMPBUF(double, buf, dims);
-	GVec::copy(buf, pPoint, dims);
-	GVec::subtract(buf, pNeighbor, dims);
-	double mag = GVec::squaredMagnitude(buf, dims);
-	GVec::safeNormalize(buf, dims, pRand);
-	GVec::multiply(buf, distance, dims);
-	GVec::add(buf, pNeighbor, dims);
-	GVec::subtract(buf, pPoint, dims);
-	GVec::multiply(buf, learningRate, dims);
-	GVec::add(pPoint, buf, dims);
+	GVec_copy(buf, pPoint, dims);
+	GVec_subtract(buf, pNeighbor, dims);
+	double mag = GVec_squaredMagnitude(buf, dims);
+	GVec_normalize(buf, dims);
+	GVec_multiply(buf, distance, dims);
+	GVec_add(buf, pNeighbor, dims);
+	GVec_subtract(buf, pPoint, dims);
+	GVec_multiply(buf, learningRate, dims);
+	GVec_add(pPoint, buf, dims);
 	return mag;
 }
 
-void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootIndex, size_t* pNeighborTable, double* pDistanceTable)
+void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootIndex, GNeighborGraph* pNeighborGraph)
 {
 	// Determine the index of every row in pLocal
 	GTEMPBUF(size_t, indexes, pLocal->rows())
-	size_t* pRootNeighbors = pNeighborTable + m_neighborCount * rootIndex;
+	size_t nc = pNeighborGraph->findNearest(m_neighborCount, rootIndex);
 	indexes[0] = rootIndex;
 	size_t pos = 1;
-	for(size_t i = 0; i < m_neighborCount; i++)
+	for(size_t i = 0; i < nc; i++)
 	{
-		if(pRootNeighbors[i] != INVALID_INDEX)
-			indexes[pos++] = pRootNeighbors[i];
+		indexes[pos++] = pNeighborGraph->neighbor(i);
 	}
 
 	// Make a pair-wise distance table
@@ -1348,20 +1430,18 @@ void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootInde
 	{
 		// Make a map to the indexes of point i's neighbors
 		size_t indexI = indexes[i];
-		size_t* pCurNeighbors = pNeighborTable + m_neighborCount * indexI;
-		double* pCurDists = pDistanceTable + m_neighborCount * indexI;
+		nc = pNeighborGraph->findNearest(m_neighborCount, indexI);
 		map<size_t,size_t> indexMap;
-		for(size_t j = 0; j < m_neighborCount; j++)
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pCurNeighbors[j] != INVALID_INDEX)
-				indexMap.insert(make_pair(pCurNeighbors[j], j));
+			indexMap.insert(make_pair(pNeighborGraph->neighbor(j), j));
 		}
 		for(size_t j = 0; j < pLocal->rows(); j++)
 		{
 			size_t indexJ = indexes[j];
 			map<size_t,size_t>::iterator it = indexMap.find(indexJ);
 			if(it != indexMap.end())
-				*pTablePos = sqrt(pCurDists[it->second]);
+				*pTablePos = sqrt(pNeighborGraph->distance(it->second));
 			else
 				*pTablePos = UNKNOWN_REAL_VALUE;
 			pTablePos++;
@@ -1405,7 +1485,7 @@ void GBreadthFirstUnfolding::refineNeighborhood(GMatrix* pLocal, size_t rootInde
 	}
 }
 
-GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances)
+GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t index, GNeighborGraph* pNeighborGraph)
 {
 	GMatrix* pReducedNeighborhood = NULL;
 	if(m_useMds)
@@ -1417,14 +1497,11 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t i
 		map<size_t,size_t>::iterator it;
 		revIndexes.insert(make_pair(index, localSize));
 		indexes[localSize++] = index;
-		size_t* pHood = pNeighborhoods + m_neighborCount * index;
-		for(size_t j = 0; j < m_neighborCount; j++)
+		size_t nc = pNeighborGraph->findNearest(m_neighborCount, index);
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pHood[j] < pIn->rows())
-			{
-				revIndexes.insert(make_pair(pHood[j], localSize));
-				indexes[localSize++] = pHood[j];
-			}
+			revIndexes.insert(make_pair(pNeighborGraph->neighbor(j), localSize));
+			indexes[localSize++] = pNeighborGraph->neighbor(j);
 		}
 
 		// Build a distance matrix
@@ -1432,15 +1509,14 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t i
 		for(size_t i = 0; i < localSize; i++)
 		{
 			size_t from = indexes[i];
-			pHood = pNeighborhoods + m_neighborCount * from;
-			double* pSquaredDists = pSquaredDistances + m_neighborCount * from;
+			nc = pNeighborGraph->findNearest(m_neighborCount, from);
 			for(size_t j = 0; j < m_neighborCount; j++)
 			{
-				size_t to = pHood[j];
+				size_t to = pNeighborGraph->neighbor(j);
 				it = revIndexes.find(to);
 				if(it == revIndexes.end())
 					continue;
-				double d = sqrt(pSquaredDists[j]);
+				double d = sqrt(pNeighborGraph->distance(j));
 				graph.addDirectedEdge(i, it->second, d);
 				graph.addDirectedEdge(it->second, i, d);
 			}
@@ -1457,11 +1533,10 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t i
 		GMatrix local(pIn->relation().clone());
 		GReleaseDataHolder hLocal(&local);
 		local.takeRow((GVec*)&pIn->row(index));
-		size_t* pHood = pNeighborhoods + m_neighborCount * index;
-		for(size_t j = 0; j < m_neighborCount; j++)
+		size_t nc = pNeighborGraph->findNearest(m_neighborCount, index);
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pHood[j] < pIn->rows())
-				local.takeRow((GVec*)&pIn->row(pHood[j]));
+			local.takeRow((GVec*)&pIn->row(pNeighborGraph->neighbor(j)));
 		}
 
 		// Use PCA to reduce the neighborhood
@@ -1473,7 +1548,7 @@ GMatrix* GBreadthFirstUnfolding::reduceNeighborhood(const GMatrix* pIn, size_t i
 	return pReducedNeighborhood;
 }
 
-GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights)
+GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, GNeighborGraph* pNeighborTable, size_t seed, double* pOutWeights)
 {
 	// Reduce the seed neighborhood
 	GMatrix* pOut = new GMatrix(pIn->rows(), m_targetDims);
@@ -1482,19 +1557,17 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 	GBitTable visited(pIn->rows());
 	GBitTable established(pIn->rows());
 	{
-		GMatrix* pLocal = reduceNeighborhood(pIn, seed, pNeighborTable, pSquaredDistances);
+		GMatrix* pLocal = reduceNeighborhood(pIn, seed, pNeighborTable);
 		std::unique_ptr<GMatrix> hLocal(pLocal);
-		GVec::copy(pOut->row(seed).data(), pLocal->row(0).data(), m_targetDims);
+		GVec_copy(pOut->row(seed).data(), pLocal->row(0).data(), m_targetDims);
 		visited.set(seed);
 		established.set(seed);
-		size_t* pHood = pNeighborTable + m_neighborCount * seed;
+		size_t nc = pNeighborTable->findNearest(m_neighborCount, seed);
 		size_t i = 1;
-		for(size_t j = 0; j < m_neighborCount; j++)
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pHood[j] >= pIn->rows())
-				continue;
-			size_t neigh = pHood[j];
-			GVec::copy(pOut->row(neigh).data(), pLocal->row(i).data(), m_targetDims);
+			size_t neigh = pNeighborTable->neighbor(j);
+			GVec_copy(pOut->row(neigh).data(), pLocal->row(i).data(), m_targetDims);
 			visited.set(neigh);
 			q.push_back(neigh);
 			q.push_back(1);
@@ -1514,24 +1587,22 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		pOutWeights[par] = 1.0 / (double)depth;
 
 		// Make a blended neighborhood
-		GMatrix* pLocal = reduceNeighborhood(pIn, par, pNeighborTable, pSquaredDistances);
+		GMatrix* pLocal = reduceNeighborhood(pIn, par, pNeighborTable);
 		std::unique_ptr<GMatrix> hLocal(pLocal);
 
 		// Make sub-neighborhoods that contain only tentatively-placed points
 		GMatrix tentativeC(pOut->relation().clone());
 		GMatrix tentativeD(pLocal->relation().clone());
 		GReleaseDataHolder hTentativeD(&tentativeD);
-		GVec::copy(tentativeC.newRow().data(), pOut->row(par).data(), m_targetDims);
+		GVec_copy(tentativeC.newRow().data(), pOut->row(par).data(), m_targetDims);
 		tentativeD.takeRow(&pLocal->row(0));
-		size_t* pHood = pNeighborTable + m_neighborCount * par;
+		size_t nc = pNeighborTable->findNearest(m_neighborCount, par);
 		size_t ii = 1;
-		for(size_t j = 0; j < m_neighborCount; j++)
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pHood[j] >= pIn->rows())
-				continue;
-			if(visited.bit(pHood[j]))
+			if(visited.bit(pNeighborTable->neighbor(j)))
 			{
-				GVec::copy(tentativeC.newRow().data(), pOut->row(pHood[j]).data(), m_targetDims);
+				GVec_copy(tentativeC.newRow().data(), pOut->row(pNeighborTable->neighbor(j)).data(), m_targetDims);
 				tentativeD.takeRow(&pLocal->row(ii));
 			}
 			ii++;
@@ -1540,10 +1611,10 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		// Subtract the means
 		tentativeD.centroid(mean);
 		for(size_t i = 0; i < pLocal->rows(); i++)
-			GVec::subtract(pLocal->row(i).data(), mean.data(), m_targetDims); // (This will affect tentativeD too b/c it refs the same rows)
+			GVec_subtract(pLocal->row(i).data(), mean.data(), m_targetDims); // (This will affect tentativeD too b/c it refs the same rows)
 		tentativeC.centroid(mean);
 		for(size_t i = 0; i < tentativeC.rows(); i++)
-			GVec::subtract(tentativeC.row(i).data(), mean.data(), m_targetDims);
+			GVec_subtract(tentativeC.row(i).data(), mean.data(), m_targetDims);
 
 		// Compute the rotation to align the tentative neighborhoods
 		GMatrix* pKabsch = GMatrix::kabsch(&tentativeC, &tentativeD);
@@ -1553,22 +1624,20 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 		GMatrix* pAligned = GMatrix::multiply(*pLocal, *pKabsch, false, false);
 		std::unique_ptr<GMatrix> hAligned(pAligned);
 		for(size_t i = 0; i < pAligned->rows(); i++)
-			GVec::add(pAligned->row(i).data(), mean.data(), m_targetDims);
+			GVec_add(pAligned->row(i).data(), mean.data(), m_targetDims);
 
 		// Accept the new points
-		GVec::copy(pOut->row(par).data(), pAligned->row(0).data(), m_targetDims);
+		GVec_copy(pOut->row(par).data(), pAligned->row(0).data(), m_targetDims);
 		established.set(par);
 		ii = 1;
-		for(size_t j = 0; j < m_neighborCount; j++)
+		for(size_t j = 0; j < nc; j++)
 		{
-			if(pHood[j] >= pIn->rows())
-				continue;
-			if(!established.bit(pHood[j]))
-				GVec::copy(pOut->row(pHood[j]).data(), pAligned->row(ii).data(), m_targetDims);
-			if(!visited.bit(pHood[j]))
+			if(!established.bit(pNeighborTable->neighbor(j)))
+				GVec_copy(pOut->row(pNeighborTable->neighbor(j)).data(), pAligned->row(ii).data(), m_targetDims);
+			if(!visited.bit(pNeighborTable->neighbor(j)))
 			{
-				visited.set(pHood[j]);
-				q.push_back(pHood[j]);
+				visited.set(pNeighborTable->neighbor(j));
+				q.push_back(pNeighborTable->neighbor(j));
 				q.push_back(depth + 1);
 			}
 			ii++;
@@ -1591,7 +1660,7 @@ GMatrix* GBreadthFirstUnfolding::unfold(const GMatrix* pIn, size_t* pNeighborTab
 
 
 GNeuroPCA::GNeuroPCA(size_t targDims, GRand* pRand)
-: GTransform(), m_targetDims(targDims), m_pWeights(NULL), m_pEigVals(NULL), m_pRand(pRand)
+: GTransform(), m_targetDims(targDims), m_pWeights(NULL), m_pRand(pRand)
 {
 	m_pActivation = new GActivationTanH();
 }
@@ -1600,7 +1669,6 @@ GNeuroPCA::GNeuroPCA(size_t targDims, GRand* pRand)
 GNeuroPCA::~GNeuroPCA()
 {
 	delete(m_pWeights);
-	delete[] m_pEigVals;
 	delete(m_pActivation);
 }
 
@@ -1612,8 +1680,7 @@ void GNeuroPCA::setActivation(GActivationFunction* pActivation)
 
 void GNeuroPCA::computeEigVals()
 {
-	delete[] m_pEigVals;
-	m_pEigVals = new double[m_targetDims];
+	m_eigVals.resize(m_targetDims);
 }
 
 void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess)
@@ -1746,311 +1813,24 @@ GMatrix* GNeuroPCA::reduce(const GMatrix& in)
 	// Make a buffer for preprocessed info
 	GMatrix preprocess(in.relation().clone());
 	preprocess.newRows(in.rows());
-
+// 
 	// Compute the principle components
 	double sse = 0;
-	if(m_pEigVals)
+	if(m_eigVals.size() > 0)
 		sse = computeSumSquaredErr(&in, pOut, 0);
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
 		computeComponent(&in, pOut, i, &preprocess);
-		if(m_pEigVals)
+		if(m_eigVals.size() > 0)
 		{
 			double t = computeSumSquaredErr(&in, pOut, i + 1);
-			m_pEigVals[i] = (sse - t) / dims;
+			m_eigVals[i] = (sse - t) / dims;
 			sse = t;
 		}
 	}
 	return hOut.release();
 }
 
-
-
-
-
-
-
-
-
-/*
-GDynamicSystemStateAligner::GDynamicSystemStateAligner(size_t neighbors, GMatrix& inputs, GRand& rand)
-: GTransform(), m_neighbors(neighbors), m_inputs(inputs), m_rand(rand)
-{
-	if(!inputs.relation().areContinuous())
-		throw Ex("Only continuous attributes are supported");
-	m_seedA = (size_t)m_rand.next(inputs.rows());
-	m_seedB = (size_t)m_rand.next(inputs.rows() - 1);
-	if(m_seedB >= m_seedA)
-		m_seedB++;
-	m_pNeighbors = new size_t[neighbors];
-	m_pDistances = new double[neighbors];
-}
-
-// virtual
-GDynamicSystemStateAligner::~GDynamicSystemStateAligner()
-{
-	delete[] m_pNeighbors;
-	delete[] m_pDistances;
-}
-
-void GDynamicSystemStateAligner::setSeeds(size_t a, size_t b)
-{
-	m_seedA = a;
-	m_seedB = b;
-}
-
-// virtual
-GMatrix* GDynamicSystemStateAligner::reduce(const GMatrix& in)
-{
-	if(!in.relation().areContinuous())
-		throw Ex("Only continuous attributes are supported");
-	if(in.rows() != m_inputs.rows())
-		throw Ex("Expected pIn to have the same number of rows as the inputs");
-	if(in.rows() < 6)
-	{
-		GMatrix* pRet = new GMatrix();
-		pRet->copy(&in);
-		return pRet;
-	}
-
-	// Make a graph of local neighborhoods
-	GKdTree neighborFinder(&in, m_neighbors, NULL, false);
-	GGraphCut gc(in.rows() + 2);
-	for(size_t i = 0; i < in.rows(); i++)
-	{
-		neighborFinder.neighbors(m_pNeighbors, m_pDistances, i);
-		size_t* pNeigh = m_pNeighbors;
-		double* pDist = m_pDistances;
-		for(size_t j = 0; j < m_neighbors; j++)
-		{
-			if(*pNeigh >= in.rows())
-				continue;
-			gc.addEdge(i, *pNeigh, (float)(1.0 / std::max(sqrt(*pDist), 1e-9))); // connect neighbors
-			pNeigh++;
-			pDist++;
-		}
-	}
-
-	// Divide into two clusters
-	gc.cut(m_seedA, m_seedB);
-
-	// Create training data for the linear regressors
-	GMatrix aFeatures(m_inputs.relation().clone());
-	GReleaseDataHolder hAFeatures(&aFeatures);
-	GMatrix bFeatures(m_inputs.relation().clone());
-	GReleaseDataHolder hBFeatures(&bFeatures);
-	GMatrix aLabels(in.relation().clone()); // Transitions within cluster A
-	GMatrix bLabels(in.relation().clone()); // Transitions within cluster B
-	GMatrix cLabels(in.relation().clone()); // Transitions between clusters
-	for(size_t i = 0; i < in.rows() - 1; i++)
-	{
-		double* pLabel;
-		if(gc.isSource(i))
-		{
-			if(gc.isSource(i + 1))
-			{
-				pLabel = aLabels.newRow();
-				aFeatures.takeRow(m_inputs[i]);
-			}
-			else
-				pLabel = cLabels.newRow();
-		}
-		else
-		{
-			if(gc.isSource(i + 1))
-				pLabel = cLabels.newRow();
-			else
-			{
-				pLabel = bLabels.newRow();
-				bFeatures.takeRow(m_inputs[i]);
-			}
-		}
-		GVec::copy(pLabel, in.row(i + 1), in.cols());
-		GVec::subtract(pLabel, in.row(i), in.cols());
-	}
-
-	// Make the output data
-	GMatrix* pOut = new GMatrix();
-	pOut->copy(&in);
-	std::unique_ptr<GMatrix> hOut(pOut);
-	if(aFeatures.rows() < in.cols() || bFeatures.rows() < in.cols() || cLabels.rows() < 1)
-	{
-		// There are not enough points to avoid being arbitrary, so we will simply not change anything
-		return hOut.release();
-	}
-
-	// Train the linear regression models
-	GLinearRegressor lrA;
-	GLinearRegressor lrB;
-	lrA.train(aFeatures, aLabels);
-	lrB.train(bFeatures, bLabels);
-
-	// Align the perceptrons
-	bool alignCluster = true;
-	GLinearRegressor* pLrAlign = &lrA;
-	GLinearRegressor* pLrBase = &lrB;
-	if(bFeatures.rows() < aFeatures.rows())
-	{
-		std::swap(pLrAlign, pLrBase);
-		alignCluster = false;
-	}
-
-	GMatrix* pAInv = pLrAlign->beta()->pseudoInverse();
-	std::unique_ptr<GMatrix> hAInv(pAInv);
-	GMatrix* pAlign = GMatrix::multiply(*pLrBase->beta(), *pAInv, false, false);
-	std::unique_ptr<GMatrix> hAlign(pAlign);
-	GAssert(pAlign->rows() == pAlign->cols());
-	GTEMPBUF(double, shift, 2 * in.cols());
-	double* pBuf = shift + in.cols();
-	GVec::setAll(shift, 0.0, in.cols());
-	size_t crossCount = 0;
-	for(size_t i = 0; i < in.rows(); i++)
-	{
-		if(gc.isSource(i) == alignCluster)
-		{
-			pAlign->multiply(in.row(i), pOut->row(i));
-			if(i > 0 && gc.isSource(i - 1) != alignCluster)
-			{
-				pLrBase->predict(m_inputs[i - 1], pBuf);
-				GVec::add(pBuf, in.row(i - 1), in.cols());
-				GVec::subtract(pBuf, pOut->row(i), in.cols());
-				GVec::add(shift, pBuf, in.cols());
-				crossCount++;
-			}
-			if(i < in.rows() - 1 && gc.isSource(i + 1) != alignCluster)
-			{
-				pLrBase->predict(m_inputs[i], pBuf);
-				GVec::multiply(pBuf, -1.0, in.cols());
-				GVec::add(pBuf, in.row(i + 1), in.cols());
-				GVec::subtract(pBuf, pOut->row(i), in.cols());
-				GVec::add(shift, pBuf, in.cols());
-				crossCount++;
-			}
-		}
-	}
-	GVec::multiply(shift, 1.0 / crossCount, in.cols());
-	for(size_t i = 0; i < in.rows(); i++)
-	{
-		if(gc.isSource(i) == alignCluster)
-			GVec::add(pOut->row(i), shift, in.cols());
-	}
-
-	// Pick new seeds, in case this method is called again
-	m_seedA = (size_t)m_rand.next(m_inputs.rows());
-	m_seedB = (size_t)m_rand.next(m_inputs.rows() - 1);
-	if(m_seedB >= m_seedA)
-		m_seedB++;
-
-	return hOut.release();
-}
-
-#ifndef NO_TEST_CODE
-// static
-void GDynamicSystemStateAligner::test()
-{
-	// Make some data suitable for testing it
-	GRand prng(0);
-	GMatrix inputs(500, 4);
-	inputs.setAll(0.0);
-	GMatrix state(500, 2);
-	bool alt = false;
-	double a2 = 0.7;
-	double ca2 = cos(a2);
-	double sa2 = sin(a2);
-	double x1 = 0.0;
-	double y1 = 0.0;
-	double x2 = 20.0;
-	double y2 = 0.0;
-	size_t seedA = 0;
-	size_t seedB = 0;
-	for(size_t i = 0; i < 500; i++)
-	{
-		if(alt)
-		{
-			state[i][0] = x2;
-			state[i][1] = y2;
-			seedB = i;
-		}
-		else
-		{
-			state[i][0] = x1;
-			state[i][1] = y1;
-			seedA = i;
-		}
-		while(true)
-		{
-			double dx = 0;
-			double dy = 0;
-			size_t action = (size_t)prng.next(4);
-			if(action == 0 && x1 < 5)
-				dx = 1;
-			else if(action == 1 && x1 > -5)
-				dx = -1;
-			else if(action == 2 && y1 < 5)
-				dy = 1;
-			else if(action == 3 && y1 > -5)
-				dy = -1;
-			else
-				continue;
-			x1 += dx;
-			y1 += dy;
-			x2 += ca2 * dx - sa2 * dy;
-			y2 += ca2 * dy + sa2 * dx;
-			GVec::setAll(inputs[i], 0.0, 4);
-			inputs[i][action] = 1.0;
-			break;
-		}
-		if((size_t)prng.next(6) == 0)
-			alt = !alt;
-	}
-
-	// Do the transformation it
-	GDynamicSystemStateAligner dssa(16, inputs, prng);
-	dssa.setSeeds(seedA, seedB);
-	GMatrix* pStateOut = dssa.reduce(state);
-	std::unique_ptr<GMatrix> hStateOut(pStateOut);
-
-	// Check results
-	alt = pStateOut->row(0)[0] < 10 ? false : true;
-	x1 = 0.0;
-	y1 = 0.0;
-	x2 = 20.0;
-	y2 = 0.0;
-	for(size_t i = 0; i < 500; i++)
-	{
-		if(alt)
-		{
-			if(std::abs(pStateOut->row(i)[0] - x2) > 0.6)
-				throw Ex("failed");
-			if(std::abs(pStateOut->row(i)[1] - y2) > 0.6)
-				throw Ex("failed");
-		}
-		else
-		{
-			if(std::abs(pStateOut->row(i)[0] - x1) > 0.6)
-				throw Ex("failed");
-			if(std::abs(pStateOut->row(i)[1] - y1) > 0.6)
-				throw Ex("failed");
-		}
-		size_t action = GVec::indexOfMax(inputs[i], 4, &prng);
-		double dx = 0;
-		double dy = 0;
-		if(action == 0)
-			dx = 1;
-		else if(action == 1)
-			dx = -1;
-		else if(action == 2)
-			dy = 1;
-		else
-			dy = -1;
-		x1 += dx;
-		y1 += dy;
-		x2 += ca2 * dx - sa2 * dy;
-		y2 += ca2 * dy + sa2 * dx;
-	}
-}
-#endif // NO_TEST_CODE
-*/
 
 
 
@@ -2110,69 +1890,44 @@ void GScalingUnfolder_adjustPoints(double* pA, double* pB, size_t dims, double c
 }
 
 // static
-void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, GRand& rand)
+void GScalingUnfolder::restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, size_t neighborCount, GRand& rand)
 {
-/*
-	// Do it in random order
-	size_t dims = intrinsic.cols();
-	GRandomIndexIterator& ii = ng.randomEdgeIterator(rand);
-	ii.reset();
-	size_t ind;
-	while(ii.next(ind))
-	{
-		size_t a = ind / ng.neighborCount();
-		size_t b = ng.cache()[ind];
-		if(b != INVALID_INDEX)
-		{
-			double dTarget = ng.squaredDistanceTable()[ind];
-			double* pA = intrinsic.row(a);
-			double* pB = intrinsic.row(b);
-			double dCur = GVec::squaredDistance(pA, pB, dims);
-			GScalingUnfolder_adjustPoints(pA, pB, dims, dCur, dTarget, rand);
-		}
-	}
-*/
 
 	// Do it in breadth-first order
 	size_t dims = intrinsic.cols();
-	size_t edgeCount = ng.data()->rows() * ng.neighborCount();
 	std::queue<size_t> q;
 	GBitTable used(ng.data()->rows());
-	size_t seed = INVALID_INDEX;
-	while(seed == INVALID_INDEX)
-	{
-		seed = (size_t)rand.next(edgeCount);
-		if(ng.cache()[seed] == INVALID_INDEX)
-			seed = INVALID_INDEX;
-	}
+	size_t random_row = rand.next(intrinsic.rows());
+	size_t random_neigh = rand.next(ng.findNearest(neighborCount, random_row));
+	size_t seed = random_row * neighborCount + random_neigh;
 	q.push(seed);
 	while(q.size() > 0)
 	{
 		// Get the next edge from the queue
 		size_t edge = q.front();
 		q.pop();
-		size_t a = edge / ng.neighborCount();
-		size_t b = ng.cache()[edge];
-		if(b == INVALID_INDEX)
-			continue;
+		size_t a = edge / neighborCount;
+		ng.findNearest(neighborCount, a);
+		size_t neighbor_index = edge % neighborCount;
+		size_t b = ng.neighbor(neighbor_index);
 
 		// add all edges that connect to either end of this edge
 		if(!used.bit(a))
 		{
 			used.set(a);
-			size_t ed = ng.neighborCount() * a;
-			for(size_t i = 0; i < ng.neighborCount(); i++)
+			size_t ed = neighborCount * a;
+			for(size_t i = 0; i < neighborCount; i++)
 				q.push(ed++);
 		}
 		if(!used.bit(b))
 		{
 			used.set(b);
-			size_t ed = ng.neighborCount() * b;
-			for(size_t i = 0; i < ng.neighborCount(); i++)
+			size_t ed = neighborCount * b;
+			for(size_t i = 0; i < neighborCount; i++)
 				q.push(ed++);
 		}
 
-		double dTarget = ng.squaredDistanceTable()[edge];
+		double dTarget = ng.distance(neighbor_index);
 		GVec& aa = intrinsic.row(a);
 		GVec& bb = intrinsic.row(b);
 		double dCur = aa.squaredDistance(bb);
@@ -2191,7 +1946,7 @@ void GScalingUnfolder::unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t enc
 		intrinsic.multiply(1.0 / m_scaleRate);
 
 		for(size_t i = 0; i < m_refines_per_scale; i++)
-			restore_local_distances_pass(intrinsic, nf, m_rand);
+			restore_local_distances_pass(intrinsic, nf, m_neighborCount, m_rand);
 
 		// Train the encoder
 		if(pVisible)
@@ -2217,9 +1972,8 @@ size_t GScalingUnfolder::unfold_iter(GMatrix& intrinsic, GRand& rand, size_t nei
 	while(true)
 	{
 		// Find neighbors
-		GKdTree kdtree(&intrinsic, neighborCount, NULL, false);
-		GNeighborGraph ng(&kdtree, false);
-		ng.fillCache();
+		GKdTree kdtree(&intrinsic, NULL, false);
+		GNeighborGraph ng(&kdtree, false, neighborCount);
 		if(!ng.isConnected())
 		{
 			if(neighborCount < 1 || neighborCount >= intrinsic.rows() - 1)
@@ -2233,7 +1987,7 @@ size_t GScalingUnfolder::unfold_iter(GMatrix& intrinsic, GRand& rand, size_t nei
 
 		// Refine the points to restore distances in local neighborhoods
 		for(size_t i = 0; i < refinements; i++)
-			restore_local_distances_pass(intrinsic, ng, rand);
+			restore_local_distances_pass(intrinsic, ng, neighborCount, rand);
 		return neighborCount;
 	}
 }
@@ -2242,9 +1996,8 @@ size_t GScalingUnfolder::unfold_iter(GMatrix& intrinsic, GRand& rand, size_t nei
 GMatrix* GScalingUnfolder::reduce(const GMatrix& in)
 {
 	// Find neighbors
-	GKdTree kdtree(&in, m_neighborCount, NULL, false);
-	GNeighborGraph nf(&kdtree, false);
-	nf.fillCache();
+	GKdTree kdtree(&in, NULL, false);
+	GNeighborGraph nf(&kdtree, false, m_neighborCount);
 
 	// Make a copy of the data
 	GMatrix intrinsic;

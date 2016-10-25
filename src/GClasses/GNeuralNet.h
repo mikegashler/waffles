@@ -21,6 +21,7 @@
 
 #include "GLayer.h"
 #include "GLearner.h"
+#include "GOptimizer.h"
 #include "GVec.h"
 #include <vector>
 
@@ -40,12 +41,31 @@ protected:
 	double m_validationPortion;
 	double m_minImprovement;
 	size_t m_epochsPerValidationCheck;
+	bool m_ready;
+	
+	/// variables required by RMSProp
+	GVec m_meanSquare;
+	double m_deltaMin, m_deltaMax;
 
 public:
 	GNeuralNet();
 
 	/// Load from a text-format
-	GNeuralNet(GDomNode* pNode);
+	GNeuralNet(const GDomNode* pNode);
+
+	/// Construct a neural network with initial layers
+	template <typename ... Ts>
+	GNeuralNet(GNeuralNetLayer *l, Ts... layers)
+	{
+		addLayers(l, layers...);
+	}
+
+	/// Construct a neural network with initial layers
+	template <typename ... Ts>
+	GNeuralNet(size_t l, Ts... layers)
+	{
+		addLayers(l, layers...);
+	}
 
 	virtual ~GNeuralNet();
 
@@ -100,6 +120,7 @@ public:
 
 	/// Multiplies all weights in the network by the specified factor. This can be used
 	/// to implement L2 regularization, which prevents weight saturation.
+	/// The factor for L2 regularization should be less than 1.0, but most likely somewhat close to 1.
 	void scaleWeights(double factor, bool scaleBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
 
 	/// Diminishes all weights in the network by the specified amount. This can be used
@@ -233,9 +254,6 @@ public:
 	/// Prints weights in a human-readable format
 	void printWeights(std::ostream& stream);
 
-	/// Prints a summary of this neural network. Assumes all layers are GLayerClassic.
-	void printSummary(std::ostream& stream);
-
 	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
 	/// variance of the data to the first few columns. Adjusts the weights on the input layer accordingly,
 	/// such that the network output remains the same. Returns the transformed feature matrix.
@@ -265,6 +283,10 @@ public:
 	/// gradient of the error surface with respect to the weights.
 	void descendGradient(const GVec& features, double learningRate, double momentum);
 
+	/// Descends the gradient with ADAM. (Currently assumes that all layers are instances of GLayerClassic.)
+	/// See Diederik P. Kingma and Jimmy Lei Ba, "Adam: A Method for Stochastic Optimization", 2015.
+	void descendGradientAdam(const GVec& feat, double learning_rate = 0.001, double beta1 = 0.9, double beta2 = 0.999);
+
 	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
 	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
 	void descendGradientSingleOutput(size_t outputNeuron, const GVec& features, double learningRate, double momentum);
@@ -292,7 +314,20 @@ public:
 	virtual void trainIncremental(const GVec& in, const GVec& out);
 
 	/// Performs a single step of batch gradient descent.
-	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels);
+	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, size_t start = 0, size_t count = INVALID_INDEX);
+	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count = INVALID_INDEX);
+
+	/// Performs a single step of batch gradient descent using RMSProp instead of SGD.
+	/// Note: this assumes that all layers are GLayerClassic!
+	void trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, size_t start = 0, size_t count = INVALID_INDEX);
+	void trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count = INVALID_INDEX);
+	void updateMeanSquareAndDelta(double &meanSquare, double &delta);
+
+	/// Getters and setters for RMSProp variables
+	void setDeltaMin(double d)	{ m_deltaMin = d; }
+	double deltaMin() const		{ return m_deltaMin; }
+	void setDeltaMax(double d)	{ m_deltaMax = d; }
+	double deltaMax() const		{ return m_deltaMax; }
 
 	/// Presents a pattern for training. Applies dropout to the activations of hidden layers.
 	/// Note that when training with dropout is complete, you should call
@@ -348,6 +383,121 @@ public:
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
 
+	/// Convenience method for descending the gradient without specifying a learning rate or momentum
+	inline void descendGradient(const GVec &inputs)
+	{
+		descendGradient(inputs, m_learningRate, m_momentum);
+	}
+
+	/// Convenience method for incremental learning with input training
+	void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder, double inputLearningRate)
+	{
+		forwardProp(inputs);
+		backpropagate(target);
+		gradientOfInputs(gradientHolder);
+		descendGradient(inputs);
+		inputs.addScaled(-inputLearningRate, gradientHolder);
+	}
+
+	/// Convenience method for incremental learning and train the inputs as well
+	inline void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder)
+	{
+		trainIncrementalUpdateInputs(inputs, target, gradientHolder, m_learningRate);
+	}
+
+	/// Convenience method for adding a basic layer
+	void addLayer(size_t outputSize)
+	{
+		addLayer(new GLayerClassic(FLEXIBLE_SIZE, outputSize));
+	}
+
+	/// Convenience method for adding multiple layers (base case)
+	template <typename T>
+	void addLayers(T layer)
+	{
+		addLayer(layer);
+	}
+
+	/// Convenience method for adding multiple layers
+	template <typename T, typename ... Ts>
+	void addLayers(T layer, Ts... layers)
+	{
+		addLayers(layer);
+		addLayers(layers...);
+	}
+
+	/// Convenience method for forward propagating across multiple networks (base case)
+	static void forwardProp(const GVec &inputs, GNeuralNet &nn)
+	{
+		nn.forwardProp(inputs);
+	}
+
+	/// Convenience method for forward propagating across multiple networks
+	template <typename ... Ts>
+	static void forwardProp(const GVec &inputs, GNeuralNet &nn, Ts &... nns)
+	{
+		nn.forwardProp(inputs);
+		forwardProp(nn.outputLayer().activation(), nns...);
+	}
+
+	/// Convenience method for backpropagating across multiple networks (base case 1)
+	static void backpropagate(const GVec &target, GNeuralNet &nn)
+	{
+		nn.backpropagate(target);
+	}
+
+	/// Convenience method for backpropagating across multiple networks (base case 2)
+	static void backpropagate(GNeuralNet &a, GNeuralNet &b)
+	{
+		b.backpropagateFromLayer(&a.layer(0));
+	}
+
+	/// Convenience method for backpropagating across multiple networks
+	template <typename ... Ts>
+	static void backpropagate(const GVec &target, GNeuralNet &nn, Ts &... nns)
+	{
+		backpropagate(target, nn);
+		backpropagate(nn, nns...);
+	}
+
+	/// Convenience method for backpropagating across multiple networks (base case; reversed order of inputs)
+	static void backpropagateR(const GVec &target, GNeuralNet &nn)
+	{
+		nn.backpropagate(target);
+	}
+
+	/// Convenience method for backpropagating across multiple networks (reversed order of inputs)
+	template <typename ... Ts>
+	static void backpropagateR(const GVec &target, GNeuralNet &a, GNeuralNet &b, Ts &... nns)
+	{
+		backpropagateR(target, b, nns...);
+		a.backpropagateFromLayer(&b.layer(0));
+	}
+
+	/// Convenience method for descending the gradient across multiple networks (base case)
+	template <typename T>
+	static void descendGradient(const GVec &inputs, T &nn)
+	{
+		nn.descendGradient(inputs);
+	}
+
+	/// Convenience method for descending the gradient across multiple networks
+	template <typename T, typename ... Ts>
+	static void descendGradient(const GVec &inputs, T &nn, Ts &... nns)
+	{
+		nn.descendGradient(inputs);
+		descendGradient(nn.outputLayer().activation(), nns...);
+	}
+
+	/// Convenience method for incremental training across multiple networks
+	template <typename ... Ts>
+	static void trainIncremental(const GVec &inputs, const GVec &target, Ts &... nns)
+	{
+		forwardProp(inputs, nns...);
+		backpropagateR(target, nns...);
+		descendGradient(inputs, nns...);
+	}
+
 protected:
 	/// Measures the sum squared error against the specified dataset
 	double validationSquaredError(const GMatrix& features, const GMatrix& labels);
@@ -357,6 +507,40 @@ protected:
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+};
+
+
+
+/// A class that facilitates training a neural network with an arbitrary optimization algorithm
+class GNeuralNetTargetFunction : public GTargetFunction
+{
+protected:
+	GNeuralNet& m_nn;
+	const GMatrix& m_features;
+	const GMatrix& m_labels;
+
+public:
+	/// You should call GNeuralNet::beginIncrementalLearning before passing your neural network to this constructor.
+	/// features and labels should be pre-filtered to contain only continuous values for the neural network.
+	GNeuralNetTargetFunction(GNeuralNet& nn, const GMatrix& features, const GMatrix& labels)
+	: GTargetFunction(nn.countWeights()), m_nn(nn), m_features(features), m_labels(labels)
+	{
+	}
+
+	virtual ~GNeuralNetTargetFunction() {}
+
+	/// Copies the neural network weights into the vector.
+	virtual void initVector(GVec& pVector)
+	{
+		m_nn.weights(pVector.data());
+	}
+
+	/// Copies the vector into the neural network and measures sum-squared error.
+	virtual double computeError(const GVec& pVector)
+	{
+		m_nn.setWeights(pVector.data());
+		return m_nn.sumSquaredError(m_features, m_labels);
+	}
 };
 
 
@@ -416,7 +600,7 @@ public:
 	GReservoirNet();
 
 	/// Deserializing constructor
-	GReservoirNet(GDomNode* pNode, GLearnerLoader& ll);
+	GReservoirNet(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GReservoirNet();
 
@@ -479,4 +663,3 @@ public:
 } // namespace GClasses
 
 #endif // __GNEURALNET_H__
-

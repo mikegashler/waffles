@@ -34,14 +34,14 @@ using std::cout;
 void test_GCudaMatrix(GCudaEngine& e)
 {
 	GVec v1(2);
-	v1.v[0] = 1.0;
-	v1.v[1] = 2.0;
+	v1[0] = 1.0;
+	v1[1] = 2.0;
 	GMatrix m(2, 3);
 	m[0][0] = 1.0; m[0][1] = 2.0; m[0][2] = 3.0;
 	m[1][0] = 4.0; m[1][1] = 5.0; m[1][2] = 6.0;
 
 	GCudaVector cv1;
-	cv1.upload(v1.v, 2);
+	cv1.upload(v1);
 	GCudaMatrix cm;
 	cm.upload(m);
 	GCudaVector cv2;
@@ -49,17 +49,17 @@ void test_GCudaMatrix(GCudaEngine& e)
 
 	cout << "Testing Matrix-vector multiplication...\n";
 	GVec v2(3);
-	cv2.download(v2.v);
+	cv2.download(v2);
 	std::cout << "Expected: 9, 12, 15\n";
-	std::cout << "  Actual: " << to_str(v2.v[0]) << ", " << to_str(v2.v[1]) << ", " << to_str(v2.v[2]) << "\n";
+	std::cout << "  Actual: " << to_str(v2[0]) << ", " << to_str(v2[1]) << ", " << to_str(v2[2]) << "\n";
 
 	cout << "Testing the tanh activation kernel...\n";
-	v2.v[0] = 1.0; v2.v[1] = 2.0; v2.v[2] = 3.0;
-	cv2.upload(v2.v, 3);
+	v2[0] = 1.0; v2[1] = 2.0; v2[2] = 3.0;
+	cv2.upload(v2);
 	cv2.activateTanh(e);
-	cv2.download(v2.v);
+	cv2.download(v2);
 	std::cout << "Expected: 0.76159415595576, 0.96402758007582, 0.99505475368673\n";
-	std::cout << "  Actual: " << to_str(v2.v[0]) << ", " << to_str(v2.v[1]) << ", " << to_str(v2.v[2]) << "\n";
+	std::cout << "  Actual: " << to_str(v2[0]) << ", " << to_str(v2[1]) << ", " << to_str(v2[2]) << "\n";
 }
 
 void test_GCudaLayer(GCudaEngine& e)
@@ -99,11 +99,11 @@ void test_GCudaLayer(GCudaEngine& e)
 		((GLayerClassicCuda*)&nn3.layer(i))->upload(*(GLayerClassic*)&nn1.layer(i));
 
 	cout << "Testing to make sure they make identical predictions (before training)...\n";
-	double vec[3];
+	GVec vec(3);
 	vec[0] = 0.2;
 	vec[1] = 0.4;
 	vec[2] = 0.6;
-	double out[3];
+	GVec out(3);
 	cout << "  Input: " << to_str(vec[0]) << ",	" << to_str(vec[1]) << ",	" << to_str(vec[2]) << "\n";
 	nn1.predict(vec, out);
 	cout << "Classic: " << to_str(out[0]) << ",	" << to_str(out[1]) << ",	" << to_str(out[2]) << "\n";
@@ -171,11 +171,102 @@ void test_GCudaLayer(GCudaEngine& e)
 
 }
 
+void test_convolutional(GCudaEngine& e)
+{
+	size_t epochs = 1000;
+
+	// Make some random training data
+	GRand r(0);
+	GMatrix feat(10, 9);
+	feat.fillNormal(r, 0.1);
+	GMatrix lab(10, 1);
+	lab.fillNormal(r, 0.1);
+
+	// Make a regular CNN
+	GNeuralNet nn1;
+	nn1.addLayer(new GLayerConvolutional2D(3, 3, 1, 2, 2, 1));
+	nn1.addLayer(new GLayerClassic(4, 1));
+	nn1.beginIncrementalLearning(feat, lab);
+	
+	// Make a parallel CNN
+	GNeuralNet nn2;
+	nn2.addLayer(new GLayerConvolutional2DCuda(e, 3, 3, 1, 2, 2, 1));
+	nn2.addLayer(new GLayerClassicCuda(e, 4, 1));
+	nn2.beginIncrementalLearning(feat, lab);
+
+	// Make another parallel CNN
+	GNeuralNet nn3;
+	nn3.addLayer(new GLayerConvolutional2DCuda(e, 3, 3, 1, 2, 2, 1));
+	nn3.addLayer(new GLayerClassicCuda(e, 4, 1));
+	nn3.beginIncrementalLearning(feat, lab);
+
+	cout << "Copying (so they will have identical weights)...\n";
+	((GLayerConvolutional2DCuda*)&nn2.layer(0))->upload(*(GLayerConvolutional2D*)&nn1.layer(0));
+	((GLayerClassicCuda*)&nn2.layer(1))->upload(*(GLayerClassic*)&nn1.layer(1));
+	((GLayerConvolutional2DCuda*)&nn3.layer(0))->upload(*(GLayerConvolutional2D*)&nn1.layer(0));
+	((GLayerClassicCuda*)&nn3.layer(1))->upload(*(GLayerClassic*)&nn1.layer(1));
+
+	cout << "Testing to make sure they make identical predictions (before training)...\n";
+	GVec pred(1);
+	cout << "  Input: [" << to_str(feat) << "]\n";
+	nn1.predict(feat[0], pred);
+	cout << "Classic: [" << to_str(pred) << "]\n";
+	nn2.predict(feat[0], pred);
+	cout << "  Cuda1: [" << to_str(pred) << "]\n";
+	nn3.predict(feat[0], pred);
+	cout << "  Cuda2: [" << to_str(pred) << "]\n";
+
+
+	cout << "Training the classic network...\n";
+	double timeBef1 = GTime::seconds();
+	for(size_t i = 0; i < epochs; i++)
+	{
+		nn1.trainIncremental(feat[i % 10], lab[i % 10]);
+	}
+	double timeAft1 = GTime::seconds();
+
+
+	cout << "Training the first parallel network...\n";
+	r.setSeed(0);
+	double timeBef2 = GTime::seconds();
+	for(size_t i = 0; i < epochs; i++)
+	{
+		nn2.trainIncremental(feat[i % 10], lab[i % 10]);
+	}
+	double timeAft2 = GTime::seconds();
+
+	cout << "Training the second parallel network without synchronization...\n";
+	e.setHogWild(true);
+	r.setSeed(0);
+	double timeBef3 = GTime::seconds();
+	for(size_t i = 0; i < epochs; i++)
+	{
+		nn3.trainIncremental(feat[i % 10], lab[i % 10]);
+	}
+	double timeAft3 = GTime::seconds();
+
+	cout << "Classic training time: " << to_str(timeAft1 - timeBef1) << " seconds\n";
+	cout << "  Cuda1 training time: " << to_str(timeAft2 - timeBef2) << " seconds\n";
+	cout << "  Cuda2 training time: " << to_str(timeAft3 - timeBef3) << " seconds\n";
+	cout << "Speedup1: " << to_str((timeAft1 - timeBef1) / (timeAft2 - timeBef2)) << "\n";
+	cout << "Speedup2: " << to_str((timeAft1 - timeBef1) / (timeAft3 - timeBef3)) << "\n";
+
+	cout << "Testing to make sure both networks still make the same predictions...\n";
+	cout << "  Input: [" << to_str(feat) << "]\n";
+	nn1.predict(feat[0], pred);
+	cout << "Classic: [" << to_str(pred) << "]\n";
+	nn2.predict(feat[0], pred);
+	cout << "  Cuda1: [" << to_str(pred) << "]\n";
+	nn3.predict(feat[0], pred);
+	cout << "  Cuda2: [" << to_str(pred) << "]\n";
+}
+
 void doit()
 {
 	GCudaEngine e;
 	test_GCudaMatrix(e);
 	test_GCudaLayer(e);
+	test_convolutional(e);
 }
 
 int main(int argc, char *argv[])

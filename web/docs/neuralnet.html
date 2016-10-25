@@ -212,7 +212,7 @@ activation function for the other 150 units:</p>
 	pMix->addComponent(new GLayerClassic(1000, 150, new GActivationSoftPlus()));
 	pMix->addComponent(new GLayerClassic(1000, 150, new GActivationSin()));
 	nn.addLayer(new GLayerClassic(300, 90, new GActivationSinc()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationBend()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationBentIdentity()));
 </pre>
 
 
@@ -582,9 +582,9 @@ int main(int argc, char *argv[])
 
 	// Make the network
 	GNeuralNet nn;
-	<font color="red">nn.addLayer(new GLayerConvolutional2D(28, 28, 1, 7, 20, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationBend()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 100, new GActivationBend()));</font>
+	<font color="red">nn.addLayer(new GLayerConvolutional2D(28, 28, 1, 7, 20, new GActivationBentIdentity()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationBentIdentity()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 100, new GActivationBentIdentity()));</font>
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	nn.setLearningRate(0.01);
 	GAutoFilter af(&amp;nn, false);

@@ -146,31 +146,31 @@ The "-blast" flag says to visualize this data from several different random poin
 
 <pre>
 	waffles_dimred pca sr.arff 2 > pca.arff
-	waffles_plot scatter pca.arff -aspect row 0 1 -thickness 0 > pca.svg
+	waffles_plot scatter -aspect row pca.arff 0 1 -thickness 0 > pca.svg
 </pre>
 <center><img src="pca.png"></center>
 
 <pre>
-	waffles_dimred isomap sr.arff kdtree 14 2 > isomap.arff
-	waffles_plot scatter isomap.arff -aspect row 0 1 -thickness 0 > isomap.svg
+	waffles_dimred isomap sr.arff 14 kdtree 2 > isomap.arff
+	waffles_plot scatter -aspect row isomap.arff 0 1 -thickness 0 > isomap.svg
 </pre>
 <center><img src="isomap.png"></center>
 
 <pre>
-	waffles_dimred lle sr.arff kdtree 14 2 > lle.arff
-	waffles_plot scatter lle.arff -aspect row 0 1 -thickness 0 > lle.svg
+	waffles_dimred lle sr.arff 14 kdtree 2 > lle.arff
+	waffles_plot scatter -aspect row lle.arff 0 1 -thickness 0 > lle.svg
 </pre>
 <center><img src="lle.png"></center>
 
 <pre>
-	waffles_dimred breadthfirstunfolding sr.arff kdtree 14 2 -reps 20 > bfu.arff
-	waffles_plot scatter bfu.arff -aspect row 0 1 -thickness 0 > bfu.svg
+	waffles_dimred breadthfirstunfolding sr.arff 14 kdtree 2 -reps 20 > bfu.arff
+	waffles_plot scatter -aspect row bfu.arff 0 1 -thickness 0 > bfu.svg
 </pre>
 <center><img src="bfu.png"></center>
 
 <pre>
-	waffles_dimred manifoldsculpting sr.arff kdtree 14 2 > ms.arff
-	waffles_plot scatter ms.arff -aspect row 0 1 -thickness 0 > ms.svg
+	waffles_dimred manifoldsculpting sr.arff 14 kdtree 2 > ms.arff
+	waffles_plot scatter -aspect row ms.arff 0 1 -thickness 0 > ms.svg
 </pre>
 <center><img src="ms.png"></center>
 

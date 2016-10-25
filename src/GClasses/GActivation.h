@@ -78,6 +78,9 @@ public:
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate) {}
 
+	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
+	virtual void applyAdaptive() {}
+
 	/// Regularizes the parameters of this activation function
 	virtual void regularize(double lambda) {}
 
@@ -268,7 +271,7 @@ public:
 /// like the identity function, its co-domain is the same as its domain. At
 /// very positive values, this is shaped like y=1.5*x. At very negative values,
 /// this is shaped like y=0.5*x. Around 0, it is shaped like y=x.
-class GActivationBend : public GActivationFunction
+class GActivationBentIdentity : public GActivationFunction
 {
 public:
 	/// Returns the name of this activation function
@@ -294,11 +297,11 @@ public:
 	}
 
 	/// See the comment for GActivationFunction::clone
-	virtual GActivationFunction* clone() { return new GActivationBend(); }
+	virtual GActivationFunction* clone() { return new GActivationBentIdentity(); }
 };
 
 
-
+// A parameterized version of the bent identity activation function
 class GActivationHinge : public GActivationFunction
 {
 protected:
@@ -306,6 +309,7 @@ protected:
 	GVec m_error;
 	GVec m_hinges;
 	GVec m_delta;
+	GVec m_rates;
 
 public:
 	/// General-purpose constructor
@@ -359,6 +363,9 @@ public:
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate);
 
+	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
+	virtual void applyAdaptive();
+
 	/// Regularizes the parameters of this activation function
 	virtual void regularize(double lambda);
 
@@ -380,21 +387,24 @@ public:
 
 
 
-
-class GActivationLogExp : public GActivationFunction
+// The SoftExponential activation function, as published in Luke B. Godfrey and Gashler, Michael S.
+// A Continuum among Logarithmic, Linear, and Exponential Functions, and Its Potential to Improve Generalization in Neural Networks.
+// In Proceedings of the 7th International Joint Conference on Knowledge Discovery, Knowledge Engineering and Knowledge Management: KDIR, pages 481-486. Lisbon, Portugal, November, 2015.
+class GActivationSoftExponential : public GActivationFunction
 {
 protected:
 	size_t m_units;
 	GVec m_error;
 	GVec m_alphas;
 	GVec m_delta;
+	GVec m_rates;
 
 public:
 	/// General-purpose constructor
-	GActivationLogExp();
+	GActivationSoftExponential();
 
 	/// Unmarshaling constructor
-	GActivationLogExp(GDomNode* pNode);
+	GActivationSoftExponential(GDomNode* pNode);
 
 #ifndef MIN_PREDICT
 	/// Performs unit testing. Throws an exception if any test fails.
@@ -402,7 +412,7 @@ public:
 #endif
 
 	/// Returns the name of this activation function
-	virtual const char* name() const { return "logexp"; }
+	virtual const char* name() const { return "softexp"; }
 
 	/// Returns the internal vector of parameter values
 	GVec& alphas() { return m_alphas; }
@@ -410,13 +420,13 @@ public:
 	/// Marshals this object to a JSON DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-	/// Returns the logexp function of x with the parameterized alpha value
+	/// Returns the softExponential function of x with the parameterized alpha value
 	virtual double squash(double x, size_t index)
 	{
-		return std::max(-500.0, std::min(500.0, GMath::logExp(m_alphas[index], x)));
+		return std::max(-500.0, std::min(500.0, GMath::softExponential(m_alphas[index], x)));
 	}
 
-	/// Returns the derivative of the logexp function
+	/// Returns the derivative of the softExponential function
 	virtual double derivative(double x, size_t index)
 	{
 		double a = m_alphas[index];
@@ -434,7 +444,7 @@ public:
 	virtual double inverse(double y, size_t index)
 	{
 		double a = m_alphas[index];
-		return GMath::logExp(-a, y);
+		return GMath::softExponential(-a, y);
 	}
 
 	/// Resizes the layer
@@ -448,6 +458,9 @@ public:
 
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate);
+
+	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
+	virtual void applyAdaptive();
 
 	/// Regularizes the parameters of this activation function
 	virtual void regularize(double lambda);
@@ -509,6 +522,45 @@ public:
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationBiDir(); }
 };
+
+
+/// This activation function forms a sigmoid shape by splicing an exponential and logarithmic function together.
+class GActivationSigExp : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "sigexp"; }
+
+	virtual double squash(double x, size_t index = 0) { return (x <= 0.0 ? exp(x) - 1.0 : log(x + 1.0)); }
+
+	virtual double derivative(double x, size_t index) { return (x <= 0.0 ? exp(x) : 1.0 / (x + 1.0)); }
+
+	virtual double inverse(double y, size_t index) { return(y <= 0.0 ? log(y + 1.0) : exp(y) - 1.0); }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationSigExp(); }
+};
+
+
+
+/// This activation function forms a sigmoid shape using square roots.
+class GActivationSigRoot : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "sigroot"; }
+
+	virtual double squash(double x, size_t index = 0) { return x < 0.0 ? -sqrt(-x + 0.25) + 0.5 : sqrt(x + 0.25) - 0.5; }
+
+	virtual double derivative(double x, size_t index) { return 1.0 / (2.0 * sqrt(std::abs(x) + 0.25)); }
+
+	virtual double inverse(double y, size_t index) { return (y <= 0.0 ? -(y - 0.5) * (y - 0.5) + 0.25 : (y + 0.5) * (y + 0.5) - 0.25); }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationSigRoot(); }
+};
+
+
 
 /// This is a simple Gaussian function.
 class GActivationGaussian : public GActivationFunction
@@ -628,6 +680,23 @@ public:
 
 	/// See the comment for GActivationFunction::clone
 	virtual GActivationFunction* clone() { return new GActivationRectifiedLinear(); }
+};
+
+/// The activation function for leaky rectified linear units (leaky ReLU).
+class GActivationLeakyRectifiedLinear : public GActivationFunction
+{
+public:
+	/// Returns the name of this activation function
+	virtual const char* name() const { return "leakyrelu"; }
+
+	virtual double squash(double x, size_t index = 0) { return x >= 0.0 ? x : 0.01 * x; }
+
+	virtual double derivative(double x, size_t index) { return x >= 0.0 ? 1.0 : 0.01; }
+
+	virtual double inverse(double y, size_t index) { return y; }
+
+	/// See the comment for GActivationFunction::clone
+	virtual GActivationFunction* clone() { return new GActivationLeakyRectifiedLinear(); }
 };
 
 

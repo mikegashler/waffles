@@ -22,6 +22,8 @@
 #include "GMatrix.h"
 #include "GRand.h"
 
+#include <memory>
+
 namespace GClasses {
 
 class GDom;
@@ -134,10 +136,11 @@ public:
 
 	/// Predicts a set of labels to correspond with features2, such that these
 	/// labels will be consistent with the patterns exhibited by features1 and labels1.
-	GMatrix* transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
+	std::unique_ptr<GMatrix> transduce(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// Trains and tests this learner. Returns the sum-squared-error.
-	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels);
+	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
+	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, double* pOutSAE = NULL);
 
 	/// Makes a confusion matrix for a transduction algorithm
 	void transductiveConfusionMatrix(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, std::vector<GMatrix*>& stats);
@@ -148,14 +151,16 @@ public:
 	/// nRep is just the rep number that will be passed to the callback.
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
-	double crossValidate(const GMatrix& features, const GMatrix& labels, size_t nFolds, RepValidateCallback pCB = NULL, size_t nRep = 0, void* pThis = NULL);
+	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
+	double crossValidate(const GMatrix& features, const GMatrix& labels, size_t nFolds, double* pOutSAE = NULL, RepValidateCallback pCB = NULL, size_t nRep = 0, void* pThis = NULL);
 
 	/// Perform cross validation "nReps" times and return the
 	/// average score. pCB is an optional callback method for reporting intermediate stats
 	/// It can be NULL if you don't want intermediate reporting.
 	/// pThis is just a pointer that will be passed to the callback for you
 	/// to use however you want. It doesn't affect this method.
-	double repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t nFolds, RepValidateCallback pCB = NULL, void* pThis = NULL);
+	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
+	double repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t nFolds, double* pOutSAE = NULL, RepValidateCallback pCB = NULL, void* pThis = NULL);
 #endif // MIN_PREDICT
 
 	/// Returns a reference to the random number generator associated with this object.
@@ -203,7 +208,7 @@ public:
 protected:
 #ifndef MIN_PREDICT
 	/// This is the algorithm's implementation of transduction. (It is called by the transduce method.)
-	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2) = 0;
+	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2) = 0;
 #endif // MIN_PREDICT
 };
 
@@ -222,7 +227,7 @@ public:
 	GSupervisedLearner();
 
 	/// Deserialization constructor
-	GSupervisedLearner(GDomNode* pNode);
+	GSupervisedLearner(const GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GSupervisedLearner();
@@ -286,7 +291,7 @@ public:
 
 	/// Computes the sum-squared-error for predicting the labels from the features.
 	/// For categorical labels, Hamming distance is used.
-	double sumSquaredError(const GMatrix& features, const GMatrix& labels);
+	double sumSquaredError(const GMatrix& features, const GMatrix& labels, double* pOutSAE = NULL);
 
 	/// label specifies which output to measure. (It should be 0 if there is only one label dimension.)
 	/// The measurement will be performed "nReps" times and results averaged together
@@ -297,7 +302,7 @@ public:
 	void precisionRecall(double* pOutPrecision, size_t nPrecisionSize, GMatrix& features, GMatrix& labels, size_t label, size_t nReps);
 
 	/// Trains and tests this learner. Returns sum-squared-error.
-	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels);
+	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, double* pOutSAE = NULL);
 #endif // MIN_PREDICT
 
 #ifndef MIN_PREDICT
@@ -317,7 +322,7 @@ protected:
 
 #ifndef MIN_PREDICT
 	/// See GTransducer::transduce
-	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
+	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 #endif // MIN_PREDICT
 
 	/// This method determines which data filters (normalize, discretize,
@@ -355,7 +360,7 @@ public:
 	}
 
 	/// Deserialization constructor
-	GIncrementalLearner(GDomNode* pNode)
+	GIncrementalLearner(const GDomNode* pNode)
 	: GSupervisedLearner(pNode)
 	{
 	}
@@ -428,14 +433,14 @@ public:
 	virtual ~GLearnerLoader() {}
 
 	/// Loads an incremental transform (or a two-way incremental transform) from a DOM.
-	virtual GIncrementalTransform* loadIncrementalTransform(GDomNode* pNode);
+	virtual GIncrementalTransform* loadIncrementalTransform(const GDomNode* pNode);
 
 	/// Loads a learning algorithm from a DOM.
-	virtual GSupervisedLearner* loadLearner(GDomNode* pNode);
+	virtual GSupervisedLearner* loadLearner(const GDomNode* pNode);
 
 #ifndef MIN_PREDICT
 	/// Loads a collaborative filtering algorithm from a DOM.
-	virtual GCollaborativeFilter* loadCollaborativeFilter(GDomNode* pNode);
+	virtual GCollaborativeFilter* loadCollaborativeFilter(const GDomNode* pNode);
 #endif // MIN_PREDICT
 };
 
@@ -453,7 +458,7 @@ protected:
 	GFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
 	/// Deserialization constructor
-	GFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GFilter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	virtual ~GFilter();
 
@@ -514,7 +519,7 @@ using GFilter::prefilterLabels;
 	GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner = true, bool ownTransform = true);
 
 	/// Deserialization constructor
-	GFeatureFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GFeatureFilter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GFeatureFilter();
@@ -563,7 +568,7 @@ using GFilter::prefilterLabels;
 	GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* pTransform, bool ownLearner = true, bool ownTransform = true);
 
 	/// Deserialization constructor
-	GLabelFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GLabelFilter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GLabelFilter();
@@ -613,7 +618,7 @@ using GFilter::prefilterLabels;
 	GAutoFilter(GSupervisedLearner* pLearner, bool ownLearner = true);
 
 	/// Deserialization constructor
-	GAutoFilter(GDomNode* pNode, GLearnerLoader& ll);
+	GAutoFilter(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GAutoFilter();
@@ -676,7 +681,7 @@ public:
 	GCalibrator(GSupervisedLearner* pLearner);
 
 	/// Deserialization constructor
-	GCalibrator(GDomNode* pNode, GLearnerLoader& ll);
+	GCalibrator(const GDomNode* pNode, GLearnerLoader& ll);
 
 	/// Deletes the supervised learner and the transform
 	virtual ~GCalibrator();
@@ -722,7 +727,7 @@ public:
 	GBaselineLearner();
 
 	/// Deserialization constructor
-	GBaselineLearner(GDomNode* pNode);
+	GBaselineLearner(const GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GBaselineLearner();
@@ -766,7 +771,7 @@ public:
 	GIdentityFunction();
 
 	/// Deserialization constructor
-	GIdentityFunction(GDomNode* pNode);
+	GIdentityFunction(const GDomNode* pNode);
 
 	/// Destructor
 	virtual ~GIdentityFunction();

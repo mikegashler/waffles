@@ -22,6 +22,7 @@
 #include "GKNN.h"
 #include "GRand.h"
 #include "GHolders.h"
+#include <string.h>
 
 namespace GClasses {
 
@@ -32,7 +33,7 @@ GQLearner::GQLearner(const GRelation& relation, int actionDims, double* pInitial
 	m_discountFactor = 0.98;
 	m_pSenses = new double[m_senseDims + m_actionDims];
 	m_pAction = m_pSenses + m_senseDims;
-	GVec::copy(m_pSenses, pInitialState, m_senseDims);
+	memcpy(m_pSenses, pInitialState, m_senseDims * sizeof(double));
 	m_actionCap = 50;
 }
 
@@ -83,9 +84,9 @@ void GQLearner::refinePolicyAndChooseNextAction(const double* pSenses, double* p
 	}
 
 	// Decide what to do next
-	GVec::copy(m_pSenses, pSenses, m_senseDims);
+	memcpy(m_pSenses, pSenses, m_senseDims * sizeof(double));
 	chooseAction(pSenses, pOutActions);
-	GVec::copy(m_pAction, pOutActions, m_actionDims);
+	memcpy(m_pAction, pOutActions, m_actionDims * sizeof(double));
 	m_teleported = false;
 }
 
@@ -113,8 +114,8 @@ GIncrementalLearnerQAgent::~GIncrementalLearnerQAgent()
 // virtual
 double GIncrementalLearnerQAgent::getQValue(const double* pState, const double* pAction)
 {
-	GVec::copy(m_buf.data(), pState, m_senseDims);
-	GVec::copy(m_buf.data() + m_senseDims, pAction, m_actionDims);
+	memcpy(m_buf.data(), pState, m_senseDims * sizeof(double));
+	memcpy(m_buf.data() + m_senseDims, pAction, m_actionDims * sizeof(double));
 	GVec out(1);
 	m_pQTable->predict(m_buf, out);
 	GAssert(out[0] > -1e200);
@@ -124,8 +125,8 @@ double GIncrementalLearnerQAgent::getQValue(const double* pState, const double* 
 // virtual
 void GIncrementalLearnerQAgent::setQValue(const double* pState, const double* pAction, double qValue)
 {
-	GVec::copy(m_buf.data(), pState, m_senseDims);
-	GVec::copy(m_buf.data() + m_senseDims, pAction, m_actionDims);
+	memcpy(m_buf.data(), pState, m_senseDims * sizeof(double));
+	memcpy(m_buf.data() + m_senseDims, pAction, m_actionDims * sizeof(double));
 	GVec tmp(1);
 	tmp[0] = qValue;
 	m_pQTable->trainIncremental(m_buf, tmp);
@@ -155,7 +156,7 @@ void GIncrementalLearnerQAgent::chooseAction(const double* pSenses, double* pAct
 			if(q > bestQ)
 			{
 				bestQ = q;
-				GVec::copy(pActions, pCand, m_actionDims);
+				memcpy(pActions, pCand, m_actionDims * sizeof(double));
 			}
 		}
 	}

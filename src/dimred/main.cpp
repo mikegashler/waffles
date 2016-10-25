@@ -326,7 +326,7 @@ void showInstantiateNeighborFinderError(const char* szMessage, GArgReader& args)
 	cerr.flush();
 }
 
-GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgReader& args)
+GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, size_t neighborCount, GRand* pRand, GArgReader& args)
 {
 	// Get the algorithm name
 	int argPos = args.get_pos();
@@ -337,13 +337,10 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 	{
 		// Parse the options
 		int cutCycleLen = 0;
-		bool normalize = false;
 		while(args.next_is_flag())
 		{
 			if(args.if_pop("-cyclecut"))
 				cutCycleLen = args.pop_uint();
-			else if(args.if_pop("-normalize"))
-				normalize = true;
 			else
 				throw Ex("Invalid neighbor finder option: ", args.peek());
 		}
@@ -351,40 +348,19 @@ GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgRea
 		// Parse required algorithms
 		if(_stricmp(alg, "bruteforce") == 0)
 		{
-			int neighbors = args.pop_uint();
-			pNF = new GBruteForceNeighborFinder(pData, neighbors, NULL, true);
+			pNF = new GBruteForceNeighborFinder(pData, NULL, true);
 		}
 		else if(_stricmp(alg, "kdtree") == 0)
 		{
-			int neighbors = args.pop_uint();
-			pNF = new GKdTree(pData, neighbors, NULL, true);
-		}
-		else if(_stricmp(alg, "temporal") == 0)
-		{
-			GMatrix* pControlData = loadData(args.pop_string());
-			Holder<GMatrix> hControlData(pControlData);
-			if(pControlData->rows() != pData->rows())
-				throw Ex("mismatching number of rows");
-			int neighbors = args.pop_uint();
-			pNF = new GTemporalNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
+			pNF = new GKdTree(pData, NULL, true);
 		}
 		else
 			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
 
-		// Normalize
-		if(normalize)
-		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
-			pNF2->normalizeDistances();
-			pNF = pNF2;
-		}
-
 		// Apply CycleCut
 		if(cutCycleLen > 0)
 		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
+			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true, neighborCount);
 			pNF2->cutShortcuts(cutCycleLen);
 			pNF = pNF2;
 		}
@@ -450,7 +426,8 @@ void blendEmbeddings(GArgReader& args)
 	Holder<GMatrix> hDataOrig(pDataOrig);
 	unsigned int seed = getpid() * (unsigned int)time(NULL);
 	GRand prng(seed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pDataOrig, &prng, args);
+	size_t neighborCount = args.pop_uint();
+	GNeighborFinder* pNF = instantiateNeighborFinder(pDataOrig, neighborCount, &prng, args);
 	Holder<GNeighborFinder> hNF(pNF);
 	GMatrix* pDataA = loadData(args.pop_string());
 	Holder<GMatrix> hDataA(pDataA);
@@ -473,19 +450,17 @@ void blendEmbeddings(GArgReader& args)
 	// Get a neighbor table
 	if(!pNF->isCached())
 	{
-		GNeighborGraph* pNF2 = new GNeighborGraph(hNF.release(), true);
+		GNeighborGraph* pNF2 = new GNeighborGraph(hNF.release(), true, neighborCount);
 		hNF.reset(pNF2);
 		pNF = pNF2;
 	}
-	((GNeighborGraph*)pNF)->fillCache();
-	size_t* pNeighborTable = ((GNeighborGraph*)pNF)->cache();
 
 	// Do the blending
 	size_t startPoint = (size_t)prng.next(pDataA->rows());
 	double* pRatios = new double[pDataA->rows()];
 	ArrayHolder<double> hRatios(pRatios);
 	GVec::setAll(pRatios, 0.5, pDataA->rows());
-	GMatrix* pDataC = GManifold::blendEmbeddings(pDataA, pRatios, pDataB, pNF->neighborCount(), pNeighborTable, startPoint);
+	GMatrix* pDataC = GManifold::blendEmbeddings(pDataA, pRatios, pDataB, neighborCount, (GNeighborGraph*)pNF, startPoint);
 	Holder<GMatrix> hDataC(pDataC);
 	pDataC->print(cout);
 }
@@ -497,7 +472,8 @@ void breadthFirstUnfolding(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	size_t nSeed = getpid() * (unsigned int)time(NULL);
 	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
+	size_t neighborCount = args.pop_uint();
+	GNeighborFinder* pNF = instantiateNeighborFinder(pData, neighborCount, &prng, args);
 	Holder<GNeighborFinder> hNF(pNF);
 	int targetDims = args.pop_uint();
 
@@ -515,7 +491,7 @@ void breadthFirstUnfolding(GArgReader& args)
 	}
 
 	// Transform the data
-	GBreadthFirstUnfolding transform(reps, pNF->neighborCount(), targetDims);
+	GBreadthFirstUnfolding transform(reps, neighborCount, targetDims);
 	transform.rand().setSeed(nSeed);
 	transform.setNeighborFinder(pNF);
 	GMatrix* pDataAfter = transform.reduce(*pData);
@@ -561,13 +537,13 @@ void curviness2(GArgReader& args)
 	np1.computeEigVals();
 	GMatrix* pResults1 = np1.reduce(*pDataNormalized);
 	Holder<GMatrix> hResults1(pResults1);
-	double* pEigVals1 = np1.eigVals();
+	GVec& eigVals1 = np1.eigVals();
 	for(size_t i = 0; i + 1 < targetDims; i++)
-		pEigVals1[i] = sqrt(pEigVals1[i]) - sqrt(pEigVals1[i + 1]);
-	size_t max1 = GVec::indexOfMax(pEigVals1, targetDims - 1, &rand);
+		eigVals1[i] = sqrt(eigVals1[i]) - sqrt(eigVals1[i + 1]);
+	size_t max1 = eigVals1.indexOfMax();
 	double v1 = (double)max1;
 	if(max1 > 0 && max1 + 2 < targetDims)
-		v1 += (pEigVals1[max1 - 1] - pEigVals1[max1 + 1]) / (2.0 * (pEigVals1[max1 - 1] + pEigVals1[max1 + 1] - 2.0 * pEigVals1[max1]));
+		v1 += (eigVals1[max1 - 1] - eigVals1[max1 + 1]) / (2.0 * (eigVals1[max1 - 1] + eigVals1[max1 + 1] - 2.0 * eigVals1[max1]));
 
 	// Do non-linear PCA
 	GNeuroPCA np2(targetDims, &rand);
@@ -575,13 +551,13 @@ void curviness2(GArgReader& args)
 	np2.computeEigVals();
 	GMatrix* pResults2 = np2.reduce(*pDataNormalized);
 	Holder<GMatrix> hResults2(pResults2);
-	double* pEigVals2 = np2.eigVals();
+	GVec& eigVals2 = np2.eigVals();
 	for(size_t i = 0; i + 1 < targetDims; i++)
-		pEigVals2[i] = sqrt(pEigVals2[i]) - sqrt(pEigVals2[i + 1]);
-	size_t max2 = GVec::indexOfMax(pEigVals2, targetDims - 1, &rand);
+		eigVals2[i] = sqrt(eigVals2[i]) - sqrt(eigVals2[i + 1]);
+	size_t max2 = eigVals2.indexOfMax();
 	double v2 = (double)max2;
 	if(max2 > 0 && max2 + 2 < targetDims)
-		v2 += (pEigVals2[max2 - 1] - pEigVals2[max2 + 1]) / (2.0 * (pEigVals2[max2 - 1] + pEigVals2[max2 + 1] - 2.0 * pEigVals2[max2]));
+		v2 += (eigVals2[max2 - 1] - eigVals2[max2 + 1]) / (2.0 * (eigVals2[max2 - 1] + eigVals2[max2 + 1] - 2.0 * eigVals2[max2]));
 
 	// Compute the difference in where the eigenvalues fall
 	cout.precision(14);
@@ -595,7 +571,8 @@ void isomap(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
 	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
+	size_t neighborCount = args.pop_uint();
+	GNeighborFinder* pNF = instantiateNeighborFinder(pData, neighborCount, &prng, args);
 	Holder<GNeighborFinder> hNF(pNF);
 	int targetDims = args.pop_uint();
 
@@ -612,7 +589,7 @@ void isomap(GArgReader& args)
 	}
 
 	// Transform the data
-	GIsomap transform(pNF->neighborCount(), targetDims, &prng);
+	GIsomap transform(neighborCount, targetDims, &prng);
 	transform.setNeighborFinder(pNF);
 	if(tolerant)
 		transform.dropDisconnectedPoints();
@@ -628,7 +605,8 @@ void lle(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
 	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
+	size_t neighborCount = args.pop_uint();
+	GNeighborFinder* pNF = instantiateNeighborFinder(pData, neighborCount, &prng, args);
 	Holder<GNeighborFinder> hNF(pNF);
 	int targetDims = args.pop_uint();
 
@@ -642,7 +620,7 @@ void lle(GArgReader& args)
 	}
 
 	// Transform the data
-	GLLE transform(pNF->neighborCount(), targetDims, &prng);
+	GLLE transform(neighborCount, targetDims, &prng);
 	transform.setNeighborFinder(pNF);
 	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
@@ -656,7 +634,8 @@ void ManifoldSculpting(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
 	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
+	size_t neighborCount = args.pop_uint();
+	GNeighborFinder* pNF = instantiateNeighborFinder(pData, neighborCount, &prng, args);
 	Holder<GNeighborFinder> hNF(pNF);
 	size_t targetDims = args.pop_uint();
 
@@ -689,101 +668,15 @@ void ManifoldSculpting(GArgReader& args)
 	}
 
 	// Transform the data
-	GManifoldSculpting transform(pNF->neighborCount(), targetDims, &prng);
+	GManifoldSculpting transform(neighborCount, targetDims, &prng);
 	transform.setSquishingRate(scaleRate);
 	if(pDataHint)
 		transform.setPreprocessedData(hDataHint.release());
-	transform.setNeighborFinder(pNF);
+	transform.setNeighborFinder((GNeighborFinderGeneralizing*)pNF);
 	GMatrix* pDataAfter = transform.reduce(*pData);
 	Holder<GMatrix> hDataAfter(pDataAfter);
 	pDataAfter->print(cout);
 }
-/*
-void manifoldSculptingForControl(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pDataObs = loadData(args.pop_string());
-	Holder<GMatrix> hDataObs(pDataObs);
-	GMatrix* pDataControl = loadData(args.pop_string());
-	Holder<GMatrix> hDataControl(pDataControl);
-	int neighbors = args.pop_uint();
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	const char* szPreprocessedData = NULL;
-	double scaleRate = 0.999;
-	double lambda = 0;
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			nSeed = args.pop_uint();
-		else if(args.if_pop("-continue"))
-			szPreprocessedData = args.pop_string();
-		else if(args.if_pop("-scalerate"))
-			scaleRate = args.pop_double();
-		else if(args.if_pop("-alignconsequences"))
-			lambda = args.pop_double();
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-
-	// Load the hint data
-	GMatrix* pDataHint = NULL;
-	Holder<GMatrix> hDataHint(NULL);
-	if(szPreprocessedData)
-	{
-		pDataHint = loadData(szPreprocessedData);
-		hDataHint.reset(pDataHint);
-		if(pDataHint->relation()->size() != targetDims)
-			throw Ex("Wrong number of dims in the hint data");
-		if(pDataHint->rows() != pDataObs->rows())
-			throw Ex("Wrong number of patterns in the hint data");
-	}
-
-	// Transform the data
-	GRand prng(nSeed);
-	GManifoldSculptingForControl transform(neighbors, targetDims, &prng, pDataControl, lambda);
-	transform.setSquishingRate(scaleRate);
-	if(pDataHint)
-		transform.setPreprocessedData(hDataHint.release());
-
-	GNeighborFinder* pNF = new GDynamicSystemNeighborFinder(pDataObs, pDataControl, false, neighbors, &prng);
-	Holder<GNeighborFinder> hNF(pNF);
-	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.reduce(pDataObs);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-
-void manifoldUnfolder(GArgReader& args)
-{
-	// Load the file and params
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	unsigned int nSeed = getpid() * (unsigned int)time(NULL);
-	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
-	Holder<GNeighborFinder> hNF(pNF);
-	int targetDims = args.pop_uint();
-
-	// Parse Options
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			prng.setSeed(args.pop_uint());
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GManifoldUnfolder transform(pNF->neighborCount(), targetDims, &prng);
-	transform.setNeighborFinder(pNF);
-	GMatrix* pDataAfter = transform.reduce(pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-	pDataAfter->print(cout);
-}
-*/
 
 void multiDimensionalScaling(GArgReader& args)
 {
@@ -852,9 +745,9 @@ void neuroPCA(GArgReader& args)
 		pRelation->addAttribute("eigenvalues", 0, NULL);
 		GMatrix dataEigenvalues(pRelation);
 		dataEigenvalues.newRows(nTargetDims);
-		double* pEigVals = transform.eigVals();
+		GVec& eigVals = transform.eigVals();
 		for(int i = 0; i < nTargetDims; i++)
-			dataEigenvalues[i][0] = pEigVals[i];
+			dataEigenvalues[i][0] = eigVals[i];
 		dataEigenvalues.saveArff(eigenvalues.c_str());
 	}
 
@@ -975,7 +868,8 @@ void scalingUnfolder(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 	size_t nSeed = getpid() * (unsigned int)time(NULL);
 	GRand prng(nSeed);
-	GNeighborFinder* pNF = instantiateNeighborFinder(pData, &prng, args);
+	size_t neighborCount = args.pop_uint();
+	GNeighborFinder* pNF = instantiateNeighborFinder(pData, neighborCount, &prng, args);
 	Holder<GNeighborFinder> hNF(pNF);
 	int targetDims = args.pop_uint();
 
@@ -991,7 +885,7 @@ void scalingUnfolder(GArgReader& args)
 	// Transform the data
 	GScalingUnfolder transform;
 	transform.rand().setSeed(nSeed);
-	transform.setNeighborCount(pNF->neighborCount());
+	transform.setNeighborCount(neighborCount);
 	transform.setTargetDims(targetDims);
 	//transform.setNeighborFinder(pNF);
 	GMatrix* pDataAfter = transform.reduce(*pData);

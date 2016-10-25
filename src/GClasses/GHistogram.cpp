@@ -33,7 +33,8 @@ GHistogram::GHistogram(double xMin, double xMax, size_t bins)
 	m_max = xMax;
 	m_binCount = bins;
 	m_bins = new double[bins];
-	GVec::setAll(m_bins, 0.0, bins);
+	for(size_t i = 0; i < bins; i++)
+		m_bins[i] = 0.0;
 	m_sum = 0.0;
 }
 
@@ -54,7 +55,8 @@ GHistogram::GHistogram(GMatrix& data, size_t col, double xMin, double xMax, size
 		m_max = xMax;
 	m_binCount = std::max((size_t)1, std::min(maxBuckets, (size_t)floor(sqrt((double)data.rows()))));
 	m_bins = new double[m_binCount];
-	GVec::setAll(m_bins, 0.0, m_binCount);
+	for(size_t i = 0; i < m_binCount; i++)
+		m_bins[i] = 0.0;
 	m_sum = 0.0;
 
 	for(size_t i = 0; i < data.rows(); i++)

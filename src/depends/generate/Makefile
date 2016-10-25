@@ -20,8 +20,8 @@ endif
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS = -Wshadow -std=c++11 -stdlib=libc++ -I/opt/local/include -I/usr/local/include -D_THREAD_SAFE -DDARWIN -I$(DARWIN_BASE)/include -no-cpp-precomp
-	DBG_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClassesDbg.a -lpthread
-	OPT_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -lpng -lz -framework AppKit ../../../lib/libGClasses.a -lpthread
+	DBG_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -L$(DARWIN_BASE)/lib -lpng -lz -framework AppKit ../../../lib/libGClassesDbg.a -lpthread
+	OPT_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -L$(DARWIN_BASE)/lib -lpng -lz -framework AppKit ../../../lib/libGClasses.a -lpthread
 else
 	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11
 	DBG_LFLAGS = ../../../lib/libGClassesDbg.a -lpng -lpthread
@@ -79,12 +79,12 @@ usage:
 # This rule makes the optimized binary by using g++ with the optimized ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_OPT) : partialcleanopt $(OBJECTS_OPT) ../../../lib/libGClasses.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
-	g++ -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
+	$(COMPILER) -O3 -o $(TARGET_PATH)/$(TARGET_NAME_OPT) $(OBJECTS_OPT) $(OPT_LFLAGS)
 
 # This rule makes the debug binary by using g++ with the debug ".o" files
 $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG) ../../../lib/libGClassesDbg.a
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
-	g++ -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
+	$(COMPILER) -g -o $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG) $(DBG_LFLAGS)
 
 # This includes all of the ".d" files. Each ".d" file contains a
 # generated rule that tells it how to make .o files. (The reason these are generated is so that

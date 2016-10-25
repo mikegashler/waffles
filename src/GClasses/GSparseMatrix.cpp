@@ -41,7 +41,7 @@ GSparseMatrix::GSparseMatrix(size_t rowCount, size_t colCount, double def_Value)
 	m_rows.resize(rowCount);
 }
 
-GSparseMatrix::GSparseMatrix(GDomNode* pNode)
+GSparseMatrix::GSparseMatrix(const GDomNode* pNode)
 {
 	m_defaultValue = pNode->field("def")->asDouble();
 	m_cols = (size_t)pNode->field("cols")->asInt();
@@ -818,7 +818,7 @@ void GSparseMatrix::principalComponentAboutOrigin(GVec& outVector, GRand* pRand)
 			for(Iter it = rowBegin(n); it != itEnd; it++)
 				pAccumulator[it->first] += dd * it->second;
 		}
-		outVector = pAccumulator;
+		outVector.copy(pAccumulator);
 		outVector.normalize();
 		d = pAccumulator.squaredMagnitude();
 		if(iters < 6 || d - mag > 1e-8)

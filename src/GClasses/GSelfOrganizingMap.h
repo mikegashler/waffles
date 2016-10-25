@@ -56,7 +56,7 @@ class GDistanceMetric;
       Node(){}
 
       /// Generate this node from the one serialized in the dom object
-      Node(GDomNode* domObject);
+      Node(const GDomNode* domObject);
     };
 
     ///Used for creating an array of nodes sorted by nearness to a
@@ -480,7 +480,7 @@ class GDistanceMetric;
       /// Create the correct type of training algorithm from the given dom node.
       /// Right now just returns a pointer to a DummyTrainingAlgorithm
       /// TODO: fix deserialize so training algorithms are really serialized
-      static TrainingAlgorithm* deserialize(GDomNode* pNode);
+      static TrainingAlgorithm* deserialize(const GDomNode* pNode);
 
       /// Train the map.  Subclassers see also
       /// TrainingAlgorithm::setPRelationBefore
@@ -520,9 +520,6 @@ class GDistanceMetric;
     class BatchTraining:public TrainingAlgorithm{
       /// The initial neighborhood size
       const double m_initialNeighborhoodSize;
-
-      /// The final neighborhood size
-      const double m_finalNeighborhoodSize;
 
       /// The factor in the exponential decay equation: curSize =
       /// initialNeighborhoodSize*exp(timeFactor*iterationNumber) --
@@ -782,7 +779,7 @@ public:
 
   /// Reconstruct this self-organizing map from its serialized form in
   /// a dom document
-  GSelfOrganizingMap(GDomNode* pNode);
+  GSelfOrganizingMap(const GDomNode* pNode);
 
   virtual ~GSelfOrganizingMap();
 
@@ -792,7 +789,7 @@ public:
 #endif
 
   /// Transforms pIn after training on it
-  virtual GMatrix* reduce(GMatrix& in);
+  virtual GMatrix* reduce(const GMatrix& in) override;
 
   /// Add this map to a dom document and return the pointer to the
   /// tree added.
@@ -802,10 +799,10 @@ public:
   /// GSelfOrganizingMap obtained from a dom file
   ///
   ///TODO: make all serialize's const
-  virtual GDomNode* serialize(GDom*) const;
+  virtual GDomNode* serialize(GDom*) const override;
 
   ///see comment on GIncrementalTransform::train(GMatrix&)
-  virtual GRelation* trainInner(const GMatrix& in){
+  virtual GRelation* trainInner(const GMatrix& in) override {
     if(m_pTrainer != NULL){
       m_pTrainer->train(*this, &in);
     }
@@ -813,7 +810,7 @@ public:
   }
 
   /// Throws an exception (because this transform cannot be trained without data)
-  virtual GRelation* trainInner(const GRelation& in){
+  virtual GRelation* trainInner(const GRelation& in) override {
     throw Ex("This transform cannot be trained without data");
 	return before().clone();
   }
@@ -823,7 +820,7 @@ public:
   ///coordinates by finding the best match among the nodes.
   ///
   ///see comment on GIncrementalTransform::(const GVec& pIn, GVec& pOut)
-  void transform(const GVec& pIn, GVec& pOut);
+  void transform(const GVec& pIn, GVec& pOut) override;
 
 
   ///Return the index of the node whose weight vector best matches in
@@ -877,20 +874,24 @@ public:
   /// Inspector for the distance metric used in input space, that is,
   /// between an input point and a weight for determining the winner.
   const GDistanceMetric* weightDistance() const {
-    return m_pWeightDistance; }
+    return m_pWeightDistance;
+  }
 
   /// Inspector for the distance metric used in output space, that is,
   /// between two nodes for their relative influence
   const GDistanceMetric* nodeDistance() const {
-    return m_pNodeDistance; }
+    return m_pNodeDistance;
+  }
 
-	/// Throws an exception (because this transform cannot be reversed).
-	virtual void untransform(const GVec& pIn, GVec& pOut)
-	{ throw Ex("This transformation cannot be reversed"); }
+  /// Throws an exception (because this transform cannot be reversed).
+  virtual void untransform(const GVec& pIn, GVec& pOut) override {
+    throw Ex("This transformation cannot be reversed");
+  }
 
-	/// Throws an exception (because this transform cannot be reversed).
-	virtual void untransformToDistribution(const GVec& pIn, GPrediction* pOut)
-	{ throw Ex("This transformation cannot be reversed"); }
+  /// Throws an exception (because this transform cannot be reversed).
+  virtual void untransformToDistribution(const GVec& pIn, GPrediction* pOut) override {
+    throw Ex("This transformation cannot be reversed");
+  }
 };
 
 inline GDistanceMetric&

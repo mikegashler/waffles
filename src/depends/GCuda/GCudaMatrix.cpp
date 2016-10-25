@@ -33,8 +33,16 @@ GCudaEngine::GCudaEngine()
 	if(g_haveEngine)
 		throw Ex("There should only be one GCudaEngine in existence at any time");
 	g_haveEngine = true;
-	if(cublasCreate((cublasHandle_t*)&m_handle) != CUBLAS_STATUS_SUCCESS)
-		throw Ex("cublasCreate failed");
+	cublasStatus_t status = cublasCreate((cublasHandle_t*)&m_handle);
+	if(status != CUBLAS_STATUS_SUCCESS)
+	{
+		if(status == CUBLAS_STATUS_NOT_INITIALIZED)
+			throw Ex("the CUDA™ Runtime initialization failed");
+		else if(status == CUBLAS_STATUS_ALLOC_FAILED)
+			throw Ex("the resources could not be allocated");
+		else
+			throw Ex("unrecognized error while calling cublasCreate");
+	}
 	m_blockSize = 64;
 	if(curandCreateGenerator((curandGenerator_t*)&m_prng, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS)
 		throw Ex("curandCreateGenerator failed");
@@ -86,17 +94,18 @@ void GCudaVector::resize(size_t size)
 	m_size = size;
 }
 
-void GCudaVector::upload(const double* pHostVector, size_t size)
+void GCudaVector::upload(const GVec& hostVector)
 {
-	if(m_size != size)
-		resize(size);
-	if(cublasSetVector(m_size, sizeof(double), pHostVector, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
+	if(m_size != hostVector.size())
+		resize(hostVector.size());
+	if(cublasSetVector(m_size, sizeof(double), hostVector.data(), 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasSetVector failed");
 }
 
-void GCudaVector::download(double* pOutHostVector)
+void GCudaVector::download(GVec& hostVector) const
 {
-	if(cublasGetVector(m_size, sizeof(double), d_vals, 1, pOutHostVector, 1) != CUBLAS_STATUS_SUCCESS)
+	hostVector.resize(m_size);
+	if(cublasGetVector(m_size, sizeof(double), d_vals, 1, hostVector.data(), 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasGetVector failed");
 }
 
@@ -169,23 +178,31 @@ void GCudaMatrix::upload(const GMatrix& m)
 	double* pVals = d_vals;
 	for(size_t i = 0; i < m_rows; i++)
 	{
-		if(cublasSetVector(m_cols, sizeof(double), m[i], 1, pVals, 1) != CUBLAS_STATUS_SUCCESS)
+		if(cublasSetVector(m_cols, sizeof(double), m[i].data(), 1, pVals, 1) != CUBLAS_STATUS_SUCCESS)
 			throw Ex("cublasSetVector failed");
 		pVals += m_cols;
 	}
 }
 
-void GCudaMatrix::download(GMatrix& m)
+void GCudaMatrix::download(GMatrix& m) const
 {
 	if(m.rows() != m_rows || m.cols() != m_cols)
 		m.resize(m_rows, m_cols);
 	double* pVals = d_vals;
 	for(size_t i = 0; i < m_rows; i++)
 	{
-		if(cublasGetVector(m_cols, sizeof(double), pVals, 1, m[i], 1) != CUBLAS_STATUS_SUCCESS)
+		if(cublasGetVector(m_cols, sizeof(double), pVals, 1, m[i].data(), 1) != CUBLAS_STATUS_SUCCESS)
 			throw Ex("cublasGetVector failed");
 		pVals += m_cols;
 	}
+}
+
+void GCudaMatrix::copy(GCudaEngine& engine, GCudaMatrix& that)
+{
+	if(that.rows() != m_rows || that.cols() != m_cols)
+		resize(that.rows(), that.cols());
+	if(cublasDcopy((cublasHandle_t)engine.m_handle, m_rows * m_cols, that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDcopy failed");
 }
 
 void GCudaMatrix::scale(GCudaEngine& engine, double scalar)
@@ -196,7 +213,7 @@ void GCudaMatrix::scale(GCudaEngine& engine, double scalar)
 
 void GCudaMatrix::add(GCudaEngine& engine, GCudaMatrix& that, double thatScalar)
 {
-	GAssert(m.rows() == m_rows && m.cols() == m_cols);
+	GAssert(that.rows() == m_rows && that.cols() == m_cols);
 	if(cublasDaxpy((cublasHandle_t)engine.m_handle, m_rows * m_cols, &thatScalar,
 		that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDaxpy failed");
@@ -303,6 +320,11 @@ void GCudaMatrix::scaleCol(GCudaEngine& engine, size_t col, double scalar)
 		throw Ex("cublasDscal failed");
 }
 
+void GCudaMatrix::fillNormal(GCudaEngine& engine, double mean, double dev)
+{
+	if(curandGenerateNormalDouble((curandGenerator_t)engine.m_prng, d_vals, m_rows * m_cols, mean, dev) != CURAND_STATUS_SUCCESS)
+		throw Ex("curandGenerateNormalDouble failed");
+}
 
 } // namespace GClasses
 

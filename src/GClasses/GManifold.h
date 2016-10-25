@@ -30,6 +30,7 @@ namespace GClasses {
 
 struct GManifoldSculptingNeighbor;
 class GNeighborFinder;
+class GNeighborFinderGeneralizing;
 class GNeuralNet;
 class GNeuralNetLayer;
 class GNeighborGraph;
@@ -46,13 +47,13 @@ public:
 	/// centered around the neighborhood mean. The first point will be
 	/// the index point, and the rest will be neighborhood points with
 	/// an index that is not INVALID_INDEX.
-	static GMatrix* blendNeighborhoods(size_t index, GMatrix* pA, double ratio, GMatrix* pB, size_t neighborCount, size_t* pHood);
+	static GMatrix* blendNeighborhoods(size_t index, GMatrix* pA, double ratio, GMatrix* pB, size_t neighborCount, GNeighborFinder* pNF);
 
 	/// Combines two embeddings to form an "average" embedding. pRatios is an array that specifies how much to weight the
 	/// neighborhoods around each point. If the ratio for a point is close to zero, pA will be emphasized more. If
 	/// the ratio for the point is close to 1, pB will be emphasized more. "seed" specifies a starting point. It will
 	/// blend outward in a breadth-first manner.
-	static GMatrix* blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, size_t neighborCount, size_t* pNeighborTable, size_t seed);
+	static GMatrix* blendEmbeddings(GMatrix* pA, double* pRatios, GMatrix* pB, size_t neighborCount, GNeighborGraph* pNeighborTable, size_t seed);
 
 	/// Performs classic MDS. pDistances must be a square matrix, but only the upper-triangle is used.
 	/// Each row in the results is one of the result points.
@@ -92,7 +93,7 @@ protected:
 	GRand* m_pRand;
 	GMatrix* m_pData;
 	unsigned char* m_pMetaData;
-	GNeighborFinder* m_pNF;
+	GNeighborFinderGeneralizing* m_pNF;
 
 public:
 	GManifoldSculpting(size_t nNeighbors, size_t targetDims, GRand* pRand);
@@ -149,7 +150,7 @@ public:
 	/// Specifies to use the neighborhoods determined by the specified neighbor-finder instead of the nearest
 	/// Euclidean-distance neighbors. If this method is called, pNF should have the same number of
 	/// neighbors and the same dataset as is passed into this class.
-	void setNeighborFinder(GNeighborFinder* pNF) { m_pNF = pNF; }
+	void setNeighborFinder(GNeighborFinderGeneralizing* pNF) { m_pNF = pNF; }
 
 protected:
 	inline struct GManifoldSculptingStuff* stuff(size_t n)
@@ -282,9 +283,9 @@ protected:
 	/// pPoint and pNeighbor.
 	static double refinePoint(double* pPoint, double* pNeighbor, size_t dims, double distance, double learningRate, GRand* pRand);
 
-	void refineNeighborhood(GMatrix* pLocal, size_t rootIndex, size_t* pNeighborTable, double* pDistanceTable);
-	GMatrix* reduceNeighborhood(const GMatrix* pIn, size_t index, size_t* pNeighborhoods, double* pSquaredDistances);
-	GMatrix* unfold(const GMatrix* pIn, size_t* pNeighborTable, double* pSquaredDistances, size_t seed, double* pOutWeights);
+	void refineNeighborhood(GMatrix* pLocal, size_t rootIndex, GNeighborGraph* pNeighborGraph);
+	GMatrix* reduceNeighborhood(const GMatrix* pIn, size_t index, GNeighborGraph* pNeighborGraph);
+	GMatrix* unfold(const GMatrix* pIn, GNeighborGraph* pNeighborGraph, size_t seed, double* pOutWeights);
 };
 
 
@@ -301,7 +302,7 @@ class GNeuroPCA : public GTransform
 protected:
 	size_t m_targetDims;
 	GMatrix* m_pWeights;
-	double* m_pEigVals;
+	GVec m_eigVals;
 	GRand* m_pRand;
 	GActivationFunction* m_pActivation;
 	bool m_updateBias;
@@ -319,7 +320,7 @@ public:
 	void computeEigVals();
 
 	/// Returns the eigenvalues. Returns NULL if computeEigVals was not called.
-	double* eigVals() { return m_pEigVals; }
+	GVec& eigVals() { return m_eigVals; }
 
 	/// Returns the number of principal components to find.
 	size_t targetDims() { return m_targetDims; }
@@ -337,39 +338,6 @@ protected:
 	void computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess);
 	double computeSumSquaredErr(const GMatrix* pIn, GMatrix* pOut, size_t cols);
 };
-
-
-/*
-/// This uses graph-cut to divide the data into two clusters.
-/// It then trains a linear regression model for each cluster
-/// to map from inputs to change-in-state. It then aligns
-/// the smaller cluster with the larger one such that the linear
-/// models are in agreement (as much as possible).
-class GDynamicSystemStateAligner : public GTransform
-{
-protected:
-	size_t m_neighbors;
-	size_t m_seedA, m_seedB;
-	size_t* m_pNeighbors;
-	double* m_pDistances;
-	GMatrix& m_inputs;
-	GRand& m_rand;
-
-public:
-	GDynamicSystemStateAligner(size_t neighbors, GMatrix& inputs, GRand& rand);
-	virtual ~GDynamicSystemStateAligner();
-
-	/// Perform the transformation
-	virtual GMatrix* reduce(const GMatrix& in);
-
-	/// Specify the source and sink points for dividing the data into two clusters
-	void setSeeds(size_t a, size_t b);
-
-#ifndef NO_TEST_CODE
-	static void test();
-#endif
-};
-*/
 
 
 
@@ -419,7 +387,7 @@ public:
 	void unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, GNeuralNet* pDecoder = NULL, const GMatrix* pVisible = NULL);
 
 	/// Perform a single pass over all the edges and attempt to restore local relationships
-	static void restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, GRand& rand);
+	static void restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, size_t neighborCount, GRand& rand);
 
 	/// A convenience method for iteratively unfolding the manifold sampled by a matrix.
 	/// (This method is not used within this class.) It finds the k-nearest neighbors within

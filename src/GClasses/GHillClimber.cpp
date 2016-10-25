@@ -28,21 +28,18 @@
 using namespace GClasses;
 
 GMomentumGreedySearch::GMomentumGreedySearch(GTargetFunction* pCritic)
-: GOptimizer(pCritic)
+: GOptimizer(pCritic), m_pStepSizes(pCritic->relation()->size()), m_pVector(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDimensions = pCritic->relation()->size();
 	m_nCurrentDim = 0;
-	m_pVector = new double[2 * m_nDimensions];
-	m_pStepSizes = m_pVector + m_nDimensions;
 	m_dChangeFactor = .87;
 	reset();
 }
 
 /*virtual*/ GMomentumGreedySearch::~GMomentumGreedySearch()
 {
-	delete[] m_pVector;
 }
 
 void GMomentumGreedySearch::reset()
@@ -57,10 +54,10 @@ void GMomentumGreedySearch::reset()
 
 void GMomentumGreedySearch::setAllStepSizes(double dStepSize)
 {
-	GVec::setAll(m_pStepSizes, dStepSize, m_nDimensions);
+	m_pStepSizes.fill(dStepSize);
 }
 
-double* GMomentumGreedySearch::stepSizes()
+GVec& GMomentumGreedySearch::stepSizes()
 {
 	return m_pStepSizes;
 }
@@ -112,22 +109,17 @@ void GMomentumGreedySearch::test()
 
 
 GHillClimber::GHillClimber(GTargetFunction* pCritic)
-: GOptimizer(pCritic)
+: GOptimizer(pCritic), m_dim(0), m_pStepSizes(pCritic->relation()->size()), m_pVector(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDims = pCritic->relation()->size();
-	m_pVector = new double[2 * m_nDims];
-	m_pStepSizes = m_pVector + m_nDims;
 	m_dChangeFactor = .83;
-	m_pAnnealCand = NULL;
 	reset();
 }
 
 /*virtual*/ GHillClimber::~GHillClimber()
 {
-	delete[] m_pVector;
-	delete[] m_pAnnealCand;
 }
 
 void GHillClimber::reset()
@@ -142,94 +134,92 @@ void GHillClimber::reset()
 
 void GHillClimber::setStepSizes(double size)
 {
-	GVec::setAll(m_pStepSizes, size, m_nDims);
+	m_pStepSizes.fill(size);
 }
 
-double* GHillClimber::stepSizes()
+GVec& GHillClimber::stepSizes()
 {
 	return m_pStepSizes;
 }
 
 /*virtual*/ double GHillClimber::iterate()
 {
-	double decel, accel, decScore, accScore;
-	for(size_t dim = 0; dim < m_nDims; dim++)
+	double decel = m_pStepSizes[m_dim] * m_dChangeFactor;
+	if(std::abs(decel) < 1e-16)
+		decel = 0.1;
+	double accel = m_pStepSizes[m_dim] / m_dChangeFactor;
+	if(std::abs(accel) > 1e14)
+		accel = 0.1;
+	if(!m_pCritic->isStable())
+		m_dError = m_pCritic->computeError(m_pVector); // Current spot
+	m_pVector[m_dim] += decel;
+	double decScore = m_pCritic->computeError(m_pVector); // Forward decelerated
+	m_pVector[m_dim] -= decel; // undo
+	m_pVector[m_dim] += accel;
+	double accScore = m_pCritic->computeError(m_pVector); // Forward accelerated
+	if(m_dError < decScore && m_dError < accScore)
 	{
-		decel = m_pStepSizes[dim] * m_dChangeFactor;
-		if(std::abs(decel) < 1e-16)
-			decel = 0.1;
-		accel = m_pStepSizes[dim] / m_dChangeFactor;
-		if(std::abs(accel) > 1e14)
-			accel = 0.1;
-		if(!m_pCritic->isStable())
-			m_dError = m_pCritic->computeError(m_pVector); // Current spot
-		m_pVector[dim] += decel;
-		decScore = m_pCritic->computeError(m_pVector); // Forward decelerated
-		m_pVector[dim] -= decel; // undo
-		m_pVector[dim] += accel;
-		accScore = m_pCritic->computeError(m_pVector); // Forward accelerated
+		m_pVector[m_dim] -= accel; // undo
+		m_pVector[m_dim] -= decel;
+		decScore = m_pCritic->computeError(m_pVector); // Reverse decelerated
+		m_pVector[m_dim] += decel; // undo
+		m_pVector[m_dim] -= accel;
+		accScore = m_pCritic->computeError(m_pVector); // Reverse accelerated
 		if(m_dError < decScore && m_dError < accScore)
 		{
-			m_pVector[dim] -= accel; // undo
-			m_pVector[dim] -= decel;
-			decScore = m_pCritic->computeError(m_pVector); // Reverse decelerated
-			m_pVector[dim] += decel; // undo
-			m_pVector[dim] -= accel;
-			accScore = m_pCritic->computeError(m_pVector); // Reverse accelerated
-			if(m_dError < decScore && m_dError < accScore)
-			{
-				// Stay put and decelerate
-				m_pVector[dim] += accel;
-				m_pStepSizes[dim] = decel;
-			}
-			else if(decScore < accScore)
-			{
-				// Reverse and decelerate
-				m_pVector[dim] += accel;
-				m_pVector[dim] -= decel;
-				m_dError = decScore;
-				m_pStepSizes[dim] = -decel;
-			}
-			else
-			{
-				// Reverse and accelerate
-				m_dError = accScore;
-				m_pStepSizes[dim] = -accel;
-			}
+			// Stay put and decelerate
+			m_pVector[m_dim] += accel;
+			m_pStepSizes[m_dim] = decel;
 		}
 		else if(decScore < accScore)
 		{
-			// Forward and decelerate
-			m_pVector[dim] -= accel;
-			m_pVector[dim] += decel;
+			// Reverse and decelerate
+			m_pVector[m_dim] += accel;
+			m_pVector[m_dim] -= decel;
 			m_dError = decScore;
-			m_pStepSizes[dim] = decel;
+			m_pStepSizes[m_dim] = -decel;
 		}
-		else if(decScore == accScore)
+		else
 		{
-			if(m_dError == decScore)
-			{
-				// Neither accelerate nor decelerate. If we're on a temporary plateau
-				// on the target function, slowing down would be bad because we might
-				// never get off the plateau. If we're at the max error, speeding up
-				// would be bad, because we'd just run off to infinity. We will, however
-				// move at the accelerated rate, just so we're going somewhere.
-			}
-			else
-			{
-				// Forward and accelerate
-				m_dError = accScore;
-				m_pStepSizes[dim] = accel;
-			}
+			// Reverse and accelerate
+			m_dError = accScore;
+			m_pStepSizes[m_dim] = -accel;
+		}
+	}
+	else if(decScore < accScore)
+	{
+		// Forward and decelerate
+		m_pVector[m_dim] -= accel;
+		m_pVector[m_dim] += decel;
+		m_dError = decScore;
+		m_pStepSizes[m_dim] = decel;
+	}
+	else if(decScore == accScore)
+	{
+		if(m_dError == decScore)
+		{
+			// Neither accelerate nor decelerate. If we're on a temporary plateau
+			// on the target function, slowing down would be bad because we might
+			// never get off the plateau. If we're at the max error, speeding up
+			// would be bad, because we'd just run off to infinity. We will, however
+			// move at the accelerated rate, just so we're going somewhere.
 		}
 		else
 		{
 			// Forward and accelerate
 			m_dError = accScore;
-			m_pStepSizes[dim] = accel;
+			m_pStepSizes[m_dim] = accel;
 		}
 	}
+	else
+	{
+		// Forward and accelerate
+		m_dError = accScore;
+		m_pStepSizes[m_dim] = accel;
+	}
 
+	if(++m_dim >= m_nDims)
+		m_dim = 0;
 	return m_dError;
 }
 
@@ -237,15 +227,14 @@ double GHillClimber::anneal(double dev, GRand* pRand)
 {
 	if(!m_pCritic->isStable())
 		m_dError = m_pCritic->computeError(m_pVector); // Current spot
-	if(!m_pAnnealCand)
-		m_pAnnealCand = new double[m_nDims];
+	m_pAnnealCand.resize(m_nDims);
 	for(size_t i = 0; i < m_nDims; i++)
 		m_pAnnealCand[i] = m_pVector[i] + pRand->normal() * dev;
 	double err = m_pCritic->computeError(m_pAnnealCand);
 	if(err < m_dError)
 	{
 		m_dError = err;
-		std::swap(m_pAnnealCand, m_pVector);
+		m_pAnnealCand.swapContents(m_pVector);
 	}
 	return m_dError;
 }
@@ -265,20 +254,16 @@ void GHillClimber::test()
 
 
 GAnnealing::GAnnealing(GTargetFunction* pTargetFunc, GRand* pRand)
-: GOptimizer(pTargetFunc), m_initialDeviation(1.0), m_pRand(pRand)
+: GOptimizer(pTargetFunc), m_initialDeviation(1.0), m_pVector(pTargetFunc->relation()->size()), m_pCandidate(pTargetFunc->relation()->size()), m_pRand(pRand)
 {
 	if(!pTargetFunc->relation()->areContinuous(0, pTargetFunc->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_dims = pTargetFunc->relation()->size();
-	m_pBuf = new double[m_dims * 2];
-	m_pVector = m_pBuf;
-	m_pCandidate = m_pVector + m_dims;
 	reset();
 }
 
 /*virtual*/ GAnnealing::~GAnnealing()
 {
-	delete[] m_pBuf;
 }
 
 void GAnnealing::reset()
@@ -300,7 +285,7 @@ void GAnnealing::reset()
 		double cand = m_pCritic->computeError(m_pCandidate);
 		if(cand < m_dError)
 		{
-			std::swap(m_pVector, m_pCandidate);
+			m_pVector.swapContents(m_pCandidate);
 			m_dError = cand;
 			m_deviation *= 1.5;
 		}
@@ -334,7 +319,7 @@ GRandomDirectionBinarySearch::GRandomDirectionBinarySearch(GTargetFunction* pTar
 	m_current.resize(m_dims);
 	m_direction.resize(m_dims);
 	m_current.fill(0.0);
-	m_err = m_pCritic->computeError(m_current.data());
+	m_err = m_pCritic->computeError(m_current);
 }
 
 // virtual
@@ -345,12 +330,12 @@ GRandomDirectionBinarySearch::~GRandomDirectionBinarySearch()
 // virtual
 double GRandomDirectionBinarySearch::iterate()
 {
-	m_pRand->spherical(m_direction.data(), m_dims);
+	m_direction.fillSphericalShell(*m_pRand);
 	double sum = 0.0;
 	for(size_t i = 0; i < 20; i++)
 	{
-		GVec::addScaled(m_current.data(), m_stepSize, m_direction.data(), m_dims);
-		double pos = m_pCritic->computeError(m_current.data());
+		m_current.addScaled(m_stepSize, m_direction);
+		double pos = m_pCritic->computeError(m_current);
 		if(pos < m_err)
 		{
 			sum += m_stepSize;
@@ -359,8 +344,8 @@ double GRandomDirectionBinarySearch::iterate()
 		}
 		else
 		{
-			GVec::addScaled(m_current.data(), -2.0 * m_stepSize, m_direction.data(), m_dims);
-			double neg = m_pCritic->computeError(m_current.data());
+			m_current.addScaled(-2.0 * m_stepSize, m_direction);
+			double neg = m_pCritic->computeError(m_current);
 			if(neg < m_err)
 			{
 				sum -= m_stepSize;
@@ -369,7 +354,7 @@ double GRandomDirectionBinarySearch::iterate()
 			}
 			else
 			{
-				GVec::addScaled(m_current.data(), m_stepSize, m_direction.data(), m_dims);
+				m_current.addScaled(m_stepSize, m_direction);
 				m_stepSize *= 0.5;
 				if(m_stepSize < 1e-16)
 					m_stepSize = 1.0; // No progress. Might as well try something new.
@@ -396,14 +381,11 @@ void GRandomDirectionBinarySearch::test()
 // --------------------------------------------------------------------------------
 
 GEmpiricalGradientDescent::GEmpiricalGradientDescent(GTargetFunction* pCritic, GRand* pRand)
-: GOptimizer(pCritic)
+: GOptimizer(pCritic), m_pVector(pCritic->relation()->size()), m_pGradient(pCritic->relation()->size()), m_pDelta(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDimensions = pCritic->relation()->size();
-	m_pVector = new double[m_nDimensions * 3];
-	m_pGradient = m_pVector + m_nDimensions;
-	m_pDelta = m_pGradient + m_nDimensions;
 	m_dFeelDistance = 0.03125;
 	m_dMomentum = 0.8;
 	m_dLearningRate = 0.1;
@@ -413,13 +395,12 @@ GEmpiricalGradientDescent::GEmpiricalGradientDescent(GTargetFunction* pCritic, G
 
 /*virtual*/ GEmpiricalGradientDescent::~GEmpiricalGradientDescent()
 {
-	delete[] m_pVector;
 }
 
 void GEmpiricalGradientDescent::reset()
 {
 	m_pCritic->initVector(m_pVector);
-	GVec::setAll(m_pDelta, 0.0, m_nDimensions);
+	m_pDelta.fill(0.0);
 }
 
 /*virtual*/ double GEmpiricalGradientDescent::iterate()
@@ -441,15 +422,11 @@ void GEmpiricalGradientDescent::reset()
 // --------------------------------------------------------------------------------
 
 GSampleClimber::GSampleClimber(GTargetFunction* pCritic, GRand* pRand)
-: GOptimizer(pCritic), m_pRand(pRand)
+: GOptimizer(pCritic), m_pRand(pRand), m_pVector(pCritic->relation()->size()), m_pDir(pCritic->relation()->size()), m_pCand(pCritic->relation()->size()), m_pGradient(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_dims = pCritic->relation()->size();
-	m_pVector = new double[m_dims * 4];
-	m_pDir = m_pVector + m_dims;
-	m_pCand = m_pDir + m_dims;
-	m_pGradient = m_pCand + m_dims;
 	m_dStepSize = 0.1;
 	m_alpha = 0.01;
 	reset();
@@ -458,7 +435,6 @@ GSampleClimber::GSampleClimber(GTargetFunction* pCritic, GRand* pRand)
 // virtual
 GSampleClimber::~GSampleClimber()
 {
-	delete[] m_pVector;
 }
 
 void GSampleClimber::reset()
@@ -472,10 +448,10 @@ void GSampleClimber::reset()
 double GSampleClimber::iterate()
 {
 	// Improve our moving gradient estimate with a new sample
-	m_pRand->spherical(m_pDir, m_dims);
-	GVec::copy(m_pCand, m_pVector, m_dims);
-	GVec::addScaled(m_pCand, m_dStepSize * 0.015625, m_pDir, m_dims);
-	GVec::add(m_pCand, m_pVector, m_dims);
+	m_pDir.fillSphericalShell(*m_pRand);
+	m_pCand.copy(m_pVector);
+	m_pCand.addScaled(m_dStepSize * 0.015625, m_pDir);
+	m_pCand += m_pVector;
 	double w;
 	double err = m_pCritic->computeError(m_pCand);
 	for(size_t i = 0; i < m_dims; i++)
@@ -484,16 +460,16 @@ double GSampleClimber::iterate()
 		m_pGradient[i] *= (1.0 - w);
 		m_pGradient[i] += w * (err - m_error) / m_pDir[i];
 	}
-	GVec::copy(m_pDir, m_pGradient, m_dims);
-	GVec::safeNormalize(m_pDir, m_dims, m_pRand);
+	m_pDir.copy(m_pGradient);
+	m_pDir.normalize();
 
 	// Step
-	GVec::addScaled(m_pVector, m_dStepSize, m_pDir, m_dims);
+	m_pVector.addScaled(m_dStepSize, m_pDir);
 	err = m_pCritic->computeError(m_pVector);
 	if(m_error < err)
 	{
 		// back up and slow down
-		GVec::addScaled(m_pVector, -m_dStepSize, m_pDir, m_dims);
+		m_pVector.addScaled(-m_dStepSize, m_pDir);
 		m_dStepSize *= 0.87;
 	}
 	else

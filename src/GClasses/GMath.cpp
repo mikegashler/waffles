@@ -24,7 +24,7 @@
 #include "GVec.h"
 #include <cmath>
 
-using namespace GClasses;
+namespace GClasses {
 
 /*static*/ double GMath::gamma(double x)
 {
@@ -443,7 +443,7 @@ double GMath::productLog(double x)
 }
 
 // static
-double GMath::logExp(double alpha, double x)
+double GMath::softExponential(double alpha, double x)
 {
 	if(alpha < -1e-12)
 		return -(log(std::max(1e-12, 1.0 - alpha * (x + alpha)))) / alpha;
@@ -553,3 +553,5 @@ void GMath::test()
 		throw "wrong answer";
 }
 #endif // !NO_TEST_CODE
+
+}

@@ -1527,8 +1527,7 @@ void GLearnerLib::Transduce(GArgReader& args)
 		throw Ex("Superfluous argument: ", args.peek());
 
 	// Transduce
-	GMatrix* pLabels3 = pSupLearner->transduce(*pFeatures1, *pLabels1, *pFeatures2);
-	std::unique_ptr<GMatrix> hLabels3(pLabels3);
+	auto pLabels3 = pSupLearner->transduce(*pFeatures1, *pLabels1, *pFeatures2);
 
 	// Print results
 	pLabels3->print(cout);
@@ -1732,20 +1731,25 @@ void GLearnerLib::CrossValidate(GArgReader& args)
 
 	// Test
 	cout.precision(8);
-	double sse = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, succinct ? NULL : CrossValidateCallback, pSupLearner);
-	if(!succinct)
+	double sae;
+	double sse = pSupLearner->repValidate(*pFeatures, *pLabels, reps, folds, &sae, succinct ? NULL : CrossValidateCallback, pSupLearner);
+	if(succinct)
+		cout << to_str(sse / pFeatures->rows());
+	else
 	{
 		if(pLabels->cols() == 1 && pLabels->relation().valueCount(0) > 0)
-			cout << "Misclassification rate: ";
+		{
+			cout << "Misclassification rate: " << to_str(sse / pFeatures->rows()) << "\n";
+			cout << "Predictive accuracy: " << to_str(1.0 - (sse / pFeatures->rows())) << "\n";
+		}
 		else
-			cout << "Mean squared error: ";
-	}
-	cout << to_str(sse / pFeatures->rows());
-	if(!succinct)
-	{
-		if(pLabels->cols() == 1 && pLabels->relation().valueCount(0) > 0)
-			cout << "\nPredictive accuracy: " << to_str(1.0 - (sse / pFeatures->rows()));
-		cout << "\n";
+		{
+			cout << "Sum absolute error: " << to_str(sae) << "\n";
+			cout << "Mean absolute error: " << to_str(sae / pFeatures->rows()) << "\n";
+			cout << "Sum squared error: " << to_str(sse) << "\n";
+			cout << "Mean squared error: " << to_str(sse / pFeatures->rows()) << "\n";
+			cout << "Root mean squared error: " << to_str(sqrt(sse / pFeatures->rows())) << "\n";
+		}
 	}
 }
 
@@ -1911,8 +1915,7 @@ void GLearnerLib::sterilize(GArgReader& args)
 		}
 
 		// Transduce
-		GMatrix* pPredictedLabels = pTransducer->transduce(trainFeatures, trainLabels, testFeatures);
-		std::unique_ptr<GMatrix> hPredictedLabels(pPredictedLabels);
+		auto pPredictedLabels = pTransducer->transduce(trainFeatures, trainLabels, testFeatures);
 
 		// Keep only the correct predictions
 		for(size_t j = 0; j < testLabels.rows(); j++)
@@ -2112,7 +2115,7 @@ void GLearnerLib::regress(GArgReader& args)
 	double err = hc.currentError();
 	cout << "SSE = " << to_str(err) << "\n";
 	cout << "Params:\n";
-	double* pVec = hc.currentVector();
+	const GVec& pVec = hc.currentVector();
 	for(size_t i = 0; i < (size_t)pFunc->m_expectedParams - pFeatures->cols(); i++)
 	{
 		if(i > 0)

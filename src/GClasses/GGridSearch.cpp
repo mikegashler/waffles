@@ -27,7 +27,7 @@ using std::vector;
 namespace GClasses {
 
 GGridSearch::GGridSearch(GTargetFunction* pCritic)
-: GOptimizer(pCritic)
+: GOptimizer(pCritic), m_pCandidate(pCritic->relation()->size()), m_pBestVector(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
@@ -36,36 +36,32 @@ GGridSearch::GGridSearch(GTargetFunction* pCritic)
 	for(size_t i = 0; i < (size_t)pCritic->relation()->size(); i++)
 		ranges[i] = 0x4000001;
 	m_pCvi = new GCoordVectorIterator(ranges);
-	m_pCandidate = new double[2 * pCritic->relation()->size()];
-	m_pBestVector = m_pCandidate + pCritic->relation()->size();
 }
 
 // virtual
 GGridSearch::~GGridSearch()
 {
 	delete(m_pCvi);
-	delete[] std::min(m_pCandidate, m_pBestVector);
 }
 
 // virtual
 double GGridSearch::iterate()
 {
 	size_t* pCur = m_pCvi->current();
-	double* pCand = m_pCandidate;
 	for(size_t i = 0; i < (size_t)m_pCritic->relation()->size(); i++)
-		*(pCand++) = (double)*(pCur++) / 0x4000001;
+		m_pCandidate[i] = (double)*(pCur++) / 0x4000001;
 	double err = m_pCritic->computeError(m_pCandidate);
 	if(err < m_bestError)
 	{
 		m_bestError = err;
-		std::swap(m_pCandidate, m_pBestVector);
+		m_pCandidate.swapContents(m_pBestVector);
 	}
 	m_pCvi->advanceSampling();
 	return m_bestError;
 }
 
 // virtual
-double* GGridSearch::currentVector()
+const GVec& GGridSearch::currentVector()
 {
 	return m_pBestVector;
 }
@@ -79,35 +75,32 @@ double* GGridSearch::currentVector()
 
 
 GRandomSearch::GRandomSearch(GTargetFunction* pCritic, GRand* pRand)
-: GOptimizer(pCritic), m_pRand(pRand)
+: GOptimizer(pCritic), m_pRand(pRand), m_pCandidate(pCritic->relation()->size()), m_pBestVector(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	m_pCandidate = new double[2 * pCritic->relation()->size()];
-	m_pBestVector = m_pCandidate + pCritic->relation()->size();
 }
 
 // virtual
 GRandomSearch::~GRandomSearch()
 {
-	delete[] std::min(m_pCandidate, m_pBestVector);
 }
 
 // virtual
 double GRandomSearch::iterate()
 {
-	m_pRand->cubical(m_pCandidate, m_pCritic->relation()->size());
+	m_pCandidate.fillUniform(*m_pRand);
 	double err = m_pCritic->computeError(m_pCandidate);
 	if(err < m_bestError)
 	{
 		m_bestError = err;
-		std::swap(m_pCandidate, m_pBestVector);
+		m_pCandidate.swapContents(m_pBestVector);
 	}
 	return m_bestError;
 }
 
 // virtual
-double* GRandomSearch::currentVector()
+const GVec& GRandomSearch::currentVector()
 {
 	return m_pBestVector;
 }
@@ -118,19 +111,17 @@ double* GRandomSearch::currentVector()
 
 
 GMinBinSearch::GMinBinSearch(GTargetFunction* pCritic)
-: GOptimizer(pCritic), m_curDim(0), m_stepSize(0.25)
+: GOptimizer(pCritic), m_curDim(0), m_stepSize(0.25), m_pCurrent(m_pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
-	m_pCurrent = new double[m_pCritic->relation()->size()];
-	GVec::setAll(m_pCurrent, 0.5, m_pCritic->relation()->size());
+	m_pCurrent.fill(0.5);
 	m_curErr = m_pCritic->computeError(m_pCurrent);
 }
 
 // virtual
 GMinBinSearch::~GMinBinSearch()
 {
-	delete[] m_pCurrent;
 }
 
 // virtual
@@ -164,23 +155,18 @@ double GMinBinSearch::iterate()
 
 
 GProbeSearch::GProbeSearch(GTargetFunction* pCritic)
-: GOptimizer(pCritic), m_rand(0)
+: GOptimizer(pCritic), m_rand(0), m_pMins(pCritic->relation()->size()), m_pMaxs(pCritic->relation()->size()), m_pVector(pCritic->relation()->size()), m_pBestYet(pCritic->relation()->size())
 {
 	if(!pCritic->relation()->areContinuous(0, pCritic->relation()->size()))
 		throw Ex("Discrete attributes are not supported");
 	m_nDimensions = pCritic->relation()->size();
 	m_nStabDepth = m_nDimensions * 30;
-	m_pMins = new double[m_nDimensions * 4];
-	m_pMaxs = m_pMins + m_nDimensions;
-	m_pVector = m_pMaxs + m_nDimensions;
-	m_pBestYet = m_pVector + m_nDimensions;
 	m_samples = 64;
 	reset();
 }
 
 /*virtual*/ GProbeSearch::~GProbeSearch()
 {
-	delete[] m_pMins;
 }
 
 void GProbeSearch::reset()
@@ -201,8 +187,8 @@ void GProbeSearch::resetStab()
 	m_nDepth = 0;
 
 	// Start at the global scope
-	GVec::setAll(m_pMins, 0.0, m_nDimensions);
-	GVec::setAll(m_pMaxs, 1.0, m_nDimensions);
+	m_pMins.fill(0.0);
+	m_pMaxs.fill(1.0);
 
 	// Increment the mask
 	size_t i = 0;
@@ -217,7 +203,7 @@ double GProbeSearch::sample(bool greater)
 	m_rand.setSeed(0);
 	for(size_t i = 0; i < m_samples; i++)
 	{
-		m_rand.cubical(m_pVector, m_nDimensions);
+		m_pVector.fillUniform(m_rand);
 		for(size_t j = 0; j < m_nDimensions; j++)
 		{
 			m_pVector[j] *= (m_pMaxs[j] - m_pMins[j]);
@@ -233,7 +219,7 @@ double GProbeSearch::sample(bool greater)
 		if(err < m_bestError)
 		{
 			m_bestError = err;
-			GVec::copy(m_pBestYet, m_pVector, m_nDimensions);
+			m_pBestYet.copy(m_pVector);
 		}
 	}
 	return bestLocal;
@@ -276,9 +262,9 @@ double GProbeSearch::sample(bool greater)
 class GProbeSearchTestCritic : public GTargetFunction
 {
 public:
-	double m_target[3];
+	GVec m_target;
 
-	GProbeSearchTestCritic() : GTargetFunction(3)
+	GProbeSearchTestCritic() : GTargetFunction(3), m_target(3)
 	{
 		m_target[0] = 0.7314;
 		m_target[1] = 0.1833;
@@ -293,18 +279,18 @@ public:
 	virtual bool isConstrained() { return false; }
 
 protected:
-	virtual void initVector(double* pVector)
+	virtual void initVector(GVec& pVector)
 	{
 	}
 
-	virtual double computeError(const double* pVector)
+	virtual double computeError(const GVec& pVector)
 	{
 		if(pVector[0] < 0.5)
 			return 0.001;
 		else if(pVector[1] >= 0.5)
 			return 0.002;
 		else
-			return GVec::squaredDistance(pVector, m_target, 3);
+			return pVector.squaredDistance(m_target);
 	}
 };
 
@@ -318,7 +304,7 @@ void GProbeSearch::test()
 	size_t i;
 	for(i = 0; i < stabdepth * 3 * 4; i++) // 3 = number of dims, 4 = number of stabs that should find it
 		search.iterate();
-	double err = GVec::squaredDistance(search.currentVector(), critic.m_target, 3);
+	double err = search.currentVector().squaredDistance(critic.m_target);
 	if(err >= 1e-3)
 		throw Ex("failed");
 }

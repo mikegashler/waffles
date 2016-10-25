@@ -160,6 +160,8 @@ GMatrix* loadData(const char* szFilename)
 	Holder<GMatrix> hData(pData);
 	if(_stricmp(szFilename + pd.extStart, ".arff") == 0)
 		pData->loadArff(szFilename);
+	else if(_stricmp(szFilename + pd.extStart, ".raw") == 0)
+		pData->loadRaw(szFilename);
 	else if(_stricmp(szFilename + pd.extStart, ".csv") == 0)
 	{
 		GCSVParser parser;
@@ -180,110 +182,6 @@ GMatrix* loadData(const char* szFilename)
 	else
 		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
 	return hData.release();
-}
-
-void showInstantiateNeighborFinderError(const char* szMessage, GArgReader& args)
-{
-	cerr << "_________________________________\n";
-	cerr << szMessage << "\n\n";
-	const char* szNFName = args.peek();
-	UsageNode* pNFTree = makeNeighborUsageTree();
-	Holder<UsageNode> hNFTree(pNFTree);
-	if(szNFName)
-	{
-		UsageNode* pUsageAlg = pNFTree->choice(szNFName);
-		if(pUsageAlg)
-		{
-			cerr << "Partial Usage Information:\n\n";
-			pUsageAlg->print(cerr, 0, 3, 76, 1000, true);
-		}
-		else
-		{
-			cerr << "\"" << szNFName << "\" is not a recognized neighbor-finding techniqie. Try one of these:\n\n";
-			pNFTree->print(cerr, 0, 3, 76, 1, false);
-		}
-	}
-	else
-	{
-		cerr << "Expected a neighbor-finding technique. Here are some choices:\n";
-		pNFTree->print(cerr, 0, 3, 76, 1, false);
-	}
-	cerr << "\nTo see full usage information, run:\n	waffles_transform usage\n\n";
-	cerr << "For a graphical tool that will help you to build a command, run:\n	waffles_wizard\n";
-	cerr.flush();
-}
-
-GNeighborFinder* instantiateNeighborFinder(GMatrix* pData, GRand* pRand, GArgReader& args)
-{
-	// Get the algorithm name
-	int argPos = args.get_pos();
-	GNeighborFinder* pNF = NULL;
-	const char* alg = args.pop_string();
-
-	try
-	{
-		// Parse the options
-		int cutCycleLen = 0;
-		bool normalize = false;
-		while(args.next_is_flag())
-		{
-			if(args.if_pop("-cyclecut"))
-				cutCycleLen = args.pop_uint();
-			else if(args.if_pop("-normalize"))
-				normalize = true;
-			else
-				throw Ex("Invalid neighbor finder option: ", args.peek());
-		}
-
-		// Parse required algorithms
-		if(_stricmp(alg, "bruteforce") == 0)
-		{
-			int neighbors = args.pop_uint();
-			pNF = new GBruteForceNeighborFinder(pData, neighbors, NULL, true);
-		}
-		else if(_stricmp(alg, "kdtree") == 0)
-		{
-			int neighbors = args.pop_uint();
-			pNF = new GKdTree(pData, neighbors, NULL, true);
-		}
-		else if(_stricmp(alg, "temporal") == 0)
-		{
-			GMatrix* pControlData = loadData(args.pop_string());
-			Holder<GMatrix> hControlData(pControlData);
-			if(pControlData->rows() != pData->rows())
-				throw Ex("mismatching number of rows");
-			int neighbors = args.pop_uint();
-			pNF = new GTemporalNeighborFinder(pData, hControlData.release(), true, neighbors, pRand);
-		}
-		else
-			throw Ex("Unrecognized neighbor finding algorithm: ", alg);
-
-		// Normalize
-		if(normalize)
-		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
-			pNF2->normalizeDistances();
-			pNF = pNF2;
-		}
-
-		// Apply CycleCut
-		if(cutCycleLen > 0)
-		{
-			GNeighborGraph* pNF2 = new GNeighborGraph(pNF, true);
-			pNF2->fillCache();
-			pNF2->cutShortcuts(cutCycleLen);
-			pNF = pNF2;
-		}
-	}
-	catch(const std::exception& e)
-	{
-		args.set_pos(argPos);
-		showInstantiateNeighborFinderError(e.what(), args);
-		throw Ex("nevermind"); // this means "don't display another error message"
-	}
-
-	return pNF;
 }
 
 void AddIndexAttribute(GArgReader& args)
@@ -506,13 +404,13 @@ void cumulativeColumns(GArgReader& args)
 	Holder<GMatrix> hA(pA);
 	vector<size_t> cols;
 	parseAttributeList(cols, args, pA->cols());
-	GVec& pPrevRow = pA->row(0);
+	GVec* pPrevRow = &pA->row(0);
 	for(size_t i = 1; i < pA->rows(); i++)
 	{
 		GVec& pRow = pA->row(i);
 		for(vector<size_t>::iterator it = cols.begin(); it != cols.end(); it++)
-			pRow[*it] += pPrevRow[*it];
-		pPrevRow = pRow;
+			pRow[*it] += (*pPrevRow)[*it];
+		pPrevRow = &pRow;
 	}
 	pA->print(cout);
 }
@@ -741,7 +639,7 @@ void dropIfTooClose(GArgReader& args)
 			if(pCand[col] - pLastKept[col] >= minGap)
 			{
 				keep.takeRow(&pCand);
-				pLastKept = pCand;
+				pLastKept.copy(pCand);
 			}
 		}
 		keep.print(cout);
@@ -813,24 +711,28 @@ void Export(GArgReader& args)
 	Holder<GMatrix> hData(pData);
 
 	// Parse options
-	const char* separator = ",";
+	char separator = ',';
 	const char* missing = "?";
 	bool colnames = false;
+	int precision = 14;
 	while(args.size() > 0)
 	{
 		if(args.if_pop("-tab"))
-			separator = "	";
+			separator = '\t';
 		else if(args.if_pop("-space"))
-			separator = " ";
+			separator = ' ';
 		else if(args.if_pop("-r"))
 			missing = "NA";
 		else if(args.if_pop("-columnnames"))
 			colnames = true;
+		else if(args.if_pop("-precision"))
+			precision = (int)args.pop_uint();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
 
 	// Print column names
+	cout.precision(precision);
 	if(colnames)
 	{
 		size_t c = pData->cols();
@@ -918,9 +820,9 @@ void Import(GArgReader& args)
 	data.print(cout);
 }
 
-void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, double* pResults)
+void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, GVec& results)
 {
-	GVec::setAll(pResults, 0.0, dims);
+	results.fill(0.0);
 	for(size_t i = 0; i < pData1->rows(); i++)
 	{
 		GVec& pPat1 = pData1->row(i);
@@ -930,11 +832,11 @@ void ComputeMeanSquaredError(GMatrix* pData1, GMatrix* pData2, size_t dims, doub
 			if(pPat1[j] != UNKNOWN_REAL_VALUE && pPat2[j] != UNKNOWN_REAL_VALUE)
 			{
 				double d = (pPat1[j] - pPat2[j]);
-				pResults[j] += (d * d);
+				results[j] += (d * d);
 			}
 		}
 	}
-	GVec::multiply(pResults, 1.0 / pData1->rows(), dims);
+	results *= (1.0 / pData1->rows());
 }
 
 class FitDataCritic : public GTargetFunction
@@ -945,65 +847,63 @@ protected:
 	size_t m_attrs;
 	GMatrix m_transformed;
 	GMatrix m_transform;
-	double* m_pResults;
+	GVec m_results;
 
 public:
 	FitDataCritic(GMatrix* pData1, GMatrix* pData2, size_t attrs)
 	: GTargetFunction(attrs + attrs * attrs), m_pData1(pData1), m_pData2(pData2), m_attrs(attrs), m_transformed(pData1->rows(), attrs), m_transform(attrs, attrs)
 	{
 		m_transform.makeIdentity();
-		m_pResults = new double[attrs];
+		m_results.resize(attrs);
 	}
 
 	virtual ~FitDataCritic()
 	{
-		delete[] m_pResults;
 	}
 
 	virtual bool isStable() { return true; }
 	virtual bool isConstrained() { return false; }
 
-	virtual void initVector(double* pVector)
+	virtual void initVector(GVec& pVector)
 	{
-		GVec::setAll(pVector, 0.0, m_attrs);
-		m_transform.toVector(pVector + m_attrs);
+		pVector.fill(0.0);
+		m_transform.toVector(pVector.data() + m_attrs);
 	}
 
-	void TransformData(const double* pVector)
+	void TransformData(const GVec& pVector)
 	{
-		m_transform.fromVector(pVector + m_attrs, m_attrs);
+		m_transform.fromVector(pVector.data() + m_attrs, m_attrs);
 		for(size_t i = 0; i < m_pData2->rows(); i++)
 		{
 			GVec& pPatIn = m_pData2->row(i);
 			GVec& pPatOut = m_transformed.row(i);
 			m_transform.multiply(pPatIn, pPatOut);
-			GVec::add(pPatOut.data(), pVector, m_attrs);
+			pPatOut += pVector;
 		}
 	}
 
-	virtual double computeError(const double* pVector)
+	virtual double computeError(const GVec& pVector)
 	{
 		TransformData(pVector);
-		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_pResults);
-		double sum = GVec::sumElements(m_pResults, m_attrs);
+		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_results);
+		double sum = m_results.sum();
 		return sum;
 	}
 
-	void ShowResults(const double* pVector, bool sumOverAttributes)
+	void ShowResults(const GVec& pVector, bool sumOverAttributes)
 	{
 		TransformData(pVector);
-		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_pResults);
+		ComputeMeanSquaredError(m_pData1, &m_transformed, m_attrs, m_results);
 		cout.precision(14);
 		if(sumOverAttributes)
-			cout << GVec::sumElements(m_pResults, m_attrs);
+			cout << m_results.sum();
 		else
 		{
-			GVecWrapper vw(m_pResults, m_attrs);
-			vw.vec().print(cout);
+			m_results.print(cout);
 		}
 	}
 
-	const double* GetResults() { return m_pResults; }
+	const GVec& GetResults() { return m_results; }
 };
 
 void MeasureMeanSquaredError(GArgReader& args)
@@ -1062,16 +962,13 @@ void MeasureMeanSquaredError(GArgReader& args)
 	else
 	{
 		// Compute mean squared error
-		GTEMPBUF(double, results, dims);
+		GQUICKVEC(results, dims);
 		ComputeMeanSquaredError(pData1, pData2, dims, results);
 		cout.precision(14);
 		if(sumOverAttributes)
-			cout << GVec::sumElements(results, dims);
+			cout << results.sum();
 		else
-		{
-			GVecWrapper vw(results, dims);
-			vw.vec().print(cout);
-		}
+			results.print(cout);
 	}
 	cout << "\n";
 }
@@ -1197,21 +1094,21 @@ void neighbors(GArgReader& args)
 	// Load the data
 	GMatrix* pData = loadData(args.pop_string());
 	Holder<GMatrix> hData(pData);
-	int neighborCount = args.pop_uint();
+	size_t neighborCount = args.pop_uint();
 
 	// Find the neighbors
-	GKdTree neighborFinder(pData, neighborCount, NULL, true);
-	GTEMPBUF(size_t, neighbors, neighborCount);
-	GTEMPBUF(double, distances, neighborCount);
+	GKdTree neighborFinder(pData, NULL, true);
 	double sumClosest = 0;
 	double sumAll = 0;
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
-		neighborFinder.neighbors(neighbors, distances, i);
-		neighborFinder.sortNeighbors(neighbors, distances);
-		sumClosest += sqrt(distances[0]);
-		for(int j = 0; j < neighborCount; j++)
-			sumAll += sqrt(distances[j]);
+		size_t nc = neighborFinder.findNearest(neighborCount, i);
+		if(nc != neighborCount)
+			throw Ex("Only found ", to_str(nc), " neighbors");
+		neighborFinder.sortNeighbors();
+		sumClosest += sqrt(neighborFinder.distance(0));
+		for(size_t j = 0; j < neighborCount; j++)
+			sumAll += sqrt(neighborFinder.distance(j));
 	}
 	cout.precision(14);
 	cout << "average closest neighbor distance = " << (sumClosest / pData->rows()) << "\n";
@@ -1776,11 +1673,11 @@ void splitFold(GArgReader& args)
 	size_t begin = pData->rows() * fold / folds;
 	size_t end = pData->rows() * (fold + 1) / folds;
 	for(size_t i = 0; i < begin; i++)
-		train.newRow() = pData->row(i);
+		train.newRow().copy(pData->row(i));
 	for(size_t i = begin; i < end; i++)
-		test.newRow() = pData->row(i);
+		test.newRow().copy(pData->row(i));
 	for(size_t i = end; i < pData->rows(); i++)
-		train.newRow() = pData->row(i);
+		train.newRow().copy(pData->row(i));
 	train.saveArff(filenameTrain.c_str());
 	test.saveArff(filenameTest.c_str());
 }
@@ -2307,11 +2204,14 @@ void transition(GArgReader& args)
 	for(size_t i = 0; i < pActions->rows() - 1; i++)
 	{
 		GVec& pOut = pTransition->row(i);
-		GVec::copy(pOut.data(), pActions->row(i).data(), actionDims);
-		GVec::copy(pOut.data() + actionDims, pState->row(i).data(), stateDims);
-		GVec::copy(pOut.data() + actionDims + stateDims, pState->row(i + 1).data(), stateDims);
+		memcpy(pOut.data(), pActions->row(i).data(), actionDims * sizeof(double));
+		memcpy(pOut.data() + actionDims, pState->row(i).data(), stateDims * sizeof(double));
+		memcpy(pOut.data() + actionDims + stateDims, pState->row(i + 1).data(), stateDims * sizeof(double));
 		if(delta)
-			GVec::subtract(pOut.data() + actionDims + stateDims, pState->row(i).data(), stateDims);
+		{
+			for(size_t j = 0; j < stateDims; j++)
+				pOut[actionDims + stateDims + j] -= pState->row(i)[j];
+		}
 	}
 	pTransition->print(cout);
 }
@@ -2323,12 +2223,54 @@ void uglify(GArgReader& args)
 	doc.writeJson(cout);
 }
 
+void unique(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	size_t col = args.pop_uint();
+
+	// Parse the options
+	bool last = false;
+	while(args.next_is_flag())
+	{
+		if(args.if_pop("-last"))
+			last = true;
+		else
+			throw Ex("Invalid option: ", args.peek());
+	}
+
+	map<double, GVec*> unique_rows;
+	for(size_t i = 0; i < pData->rows(); i++)
+	{
+		GVec& r = pData->row(i);
+		if(last)
+			unique_rows[r[col]] = &r; // The last row with a unique value in col will stick
+		else
+		{
+			if(unique_rows.find(r[col]) == unique_rows.end())
+				unique_rows[r[col]] = &r; // the first row with a unique value in col will stick
+		}
+	}
+	GMatrix uniqueData(pData->relation().clone());
+	GReleaseDataHolder hUniqueData(&uniqueData);
+	map<double, GVec*>::iterator it;
+	for(it = unique_rows.begin(); it != unique_rows.end(); it++)
+		uniqueData.takeRow(it->second);
+	uniqueData.print(cout);
+}
+
 void wilcoxon(GArgReader& args)
 {
 	size_t n = args.pop_uint();
 	double w = args.pop_double();
 	double p = GMath::wilcoxonPValue((int)n, w);
 	cout << p << "\n";
+}
+
+void toraw(GArgReader& args)
+{
+	GMatrix* pData = loadData(args.pop_string());
+	Holder<GMatrix> hData(pData);
+	pData->saveRaw(args.pop_string());
 }
 
 void ShowUsage(const char* appName)
@@ -2461,9 +2403,11 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("squaredDistance")) squaredDistance(args);
 		else if(args.if_pop("swapcolumns")) SwapAttributes(args);
 		else if(args.if_pop("threshold")) threshold(args);
+		else if(args.if_pop("toraw")) toraw(args);
 		else if(args.if_pop("transition")) transition(args);
 		else if(args.if_pop("transpose")) Transpose(args);
 		else if(args.if_pop("uglify")) uglify(args);
+		else if(args.if_pop("unique")) unique(args);
 		else if(args.if_pop("wilcoxon")) wilcoxon(args);
 		else if(args.if_pop("zeromean")) zeroMean(args);
 		else throw Ex("Unrecognized command: ", args.peek());

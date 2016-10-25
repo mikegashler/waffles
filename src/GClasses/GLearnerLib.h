@@ -297,12 +297,12 @@ public:
 	virtual bool isStable() { return true; }
 	virtual bool isConstrained() { return false; }
 
-	virtual void initVector(double* pVector)
+	virtual void initVector(GVec& pVector)
 	{
-		GVec::setAll(pVector, 0.1, relation()->size());
+		pVector.fill(0.1);
 	}
 
-	virtual double computeError(const double* pVector)
+	virtual double computeError(const GVec& pVector)
 	{
 		double sse = 0.0;
 		vector<double> params;

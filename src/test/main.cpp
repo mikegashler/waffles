@@ -66,6 +66,7 @@
 #include "../GClasses/GNeighborFinder.h"
 #include "../GClasses/GNeuralDecomposition.h"
 #include "../GClasses/GNeuralNet.h"
+#include "../GClasses/GParticleSwarm.h"
 #include "../GClasses/GPolynomial.h"
 #include "../GClasses/GPriorityQueue.h"
 #include "../GClasses/GRand.h"
@@ -886,7 +887,7 @@ public:
 	{
 		// Class tests
 		runTest("GActivationHinge", GActivationHinge::test);
-		runTest("GActivationLogExp", GActivationLogExp::test);
+		runTest("GActivationSoftExponential", GActivationSoftExponential::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAnnealing", GAnnealing::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);
@@ -906,6 +907,7 @@ public:
 		runTest("GBezier", GBezier::test);
 		runTest("GBits", GBits::test);
 		runTest("GBitTable", GBitTable::test);
+		runTest("GBouncyBalls", GBouncyBalls::test);
 		runTest("GReverseBits", reverseBitsTest);
 		runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);
 		runTest("GBucket", GBucket::test);
@@ -1051,4 +1053,3 @@ int main(int argc, char *argv[])
 
 	return nRet;
 }
-

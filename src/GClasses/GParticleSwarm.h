@@ -35,10 +35,10 @@ protected:
 	double m_dLearningRate;
 	size_t m_nDimensions;
 	size_t m_nPopulation;
-	double* m_pPositions;
-	double* m_pVelocities;
-	double* m_pBests;
-	double* m_pErrors;
+	GMatrix m_pPositions;
+	GMatrix m_pVelocities;
+	GMatrix m_pBests;
+	GVec m_pErrors;
 	size_t m_nGlobalBest;
 	GRand* m_pRand;
 
@@ -54,6 +54,31 @@ public:
 
 protected:
 	void reset();
+};
+
+
+// An optimization algorithm inspired by boucing balls
+class GBouncyBalls : public GOptimizer
+{
+public:
+	GMatrix m_positions;
+	GMatrix m_velocities;
+	GVec m_errors;
+	size_t m_bestIndex;
+	size_t m_ball;
+	GRand& m_rand;
+	double m_probTeleport;
+	double m_probSpurt;
+
+	GBouncyBalls(GTargetFunction* pCritic, size_t population, GRand& rand, double probTeleport = 0.01);
+	virtual ~GBouncyBalls();
+
+#ifndef MIN_PREDICT
+	static void test();
+#endif
+
+	virtual double iterate();
+	virtual const GVec& currentVector() { return m_positions[m_bestIndex]; }
 };
 
 

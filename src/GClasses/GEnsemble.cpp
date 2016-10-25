@@ -59,7 +59,7 @@ GEnsemble::GEnsemble()
 {
 }
 
-GEnsemble::GEnsemble(GDomNode* pNode, GLearnerLoader& ll)
+GEnsemble::GEnsemble(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode), m_pPredictMaster(NULL)
 {
 	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
@@ -275,7 +275,7 @@ GBag::GBag()
 {
 }
 
-GBag::GBag(GDomNode* pNode, GLearnerLoader& ll)
+GBag::GBag(const GDomNode* pNode, GLearnerLoader& ll)
 : GEnsemble(pNode, ll), m_pCB(NULL), m_pThis(NULL)
 {
 	m_trainSize = pNode->field("ts")->asDouble();
@@ -437,20 +437,21 @@ void GBag::test()
 
 
 
-GBomb::GBomb(GDomNode* pNode, GLearnerLoader& ll)
+GBomb::GBomb(const GDomNode* pNode, GLearnerLoader& ll)
 : GBag(pNode, ll)
 {
 	m_samples = (size_t)pNode->field("samps")->asInt();
 }
 
 // virtual
-void GBomb::determineWeights(GMatrix& features, GMatrix& labels)
+void GBomb::determineWeights(const GMatrix& features, const GMatrix& labels)
 {
 	// Try uniform weights first
 	double* pWeights = new double[m_models.size()];
 	std::unique_ptr<double[]> hWeights(pWeights);
 	double uniform = 1.0 / m_models.size();
-	GVec::setAll(pWeights, uniform, m_models.size());
+	for(size_t i = 0; i < m_models.size(); i++)
+		pWeights[i] = uniform;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
 		(*it)->m_weight = uniform;
 	double minErr = sumSquaredError(features, labels);
@@ -514,7 +515,7 @@ void GBomb::test()
 
 
 // virtual
-void GBayesianModelAveraging::determineWeights(GMatrix& features, GMatrix& labels)
+void GBayesianModelAveraging::determineWeights(const GMatrix& features, const GMatrix& labels)
 {
 	double m = -1e38;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
@@ -557,7 +558,7 @@ void GBayesianModelAveraging::test()
 		pTree->useRandomDivisions();
 		bma.addLearner(pTree);
 	}
-	bma.basicTest(0.755, 0.928, 0.01);
+	bma.basicTest(0.708, 0.816, 0.01);
 }
 #endif
 
@@ -567,18 +568,17 @@ void GBayesianModelAveraging::test()
 
 
 
-GBayesianModelCombination::GBayesianModelCombination(GDomNode* pNode, GLearnerLoader& ll)
+GBayesianModelCombination::GBayesianModelCombination(const GDomNode* pNode, GLearnerLoader& ll)
 : GBag(pNode, ll)
 {
 	m_samples = (size_t)pNode->field("samps")->asInt();
 }
 
 // virtual
-void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& labels)
+void GBayesianModelCombination::determineWeights(const GMatrix& features, const GMatrix& labels)
 {
-	double* pWeights = new double[m_models.size()];
-	std::unique_ptr<double[]> hWeights(pWeights);
-	GVec::setAll(pWeights, 0.0, m_models.size());
+	GQUICKVEC(weights, m_models.size());
+	weights.fill(0.0);
 	double sumWeight = 0.0;
 	double maxLogProb = -1e38;
 	for(size_t i = 0; i < m_samples; i++)
@@ -601,19 +601,19 @@ void GBayesianModelCombination::determineWeights(GMatrix& features, GMatrix& lab
 		// Update the weights
 		if(logProbEnsembleGivenData > maxLogProb)
 		{
-			GVec::multiply(pWeights, exp(maxLogProb - logProbEnsembleGivenData), m_models.size());
+			weights *= exp(maxLogProb - logProbEnsembleGivenData);
 			maxLogProb = logProbEnsembleGivenData;
 		}
 		double w = exp(logProbEnsembleGivenData - maxLogProb);
-		GVec::multiply(pWeights, sumWeight / (sumWeight + w), m_models.size());
-		double* pW = pWeights;
+		weights *= (sumWeight / (sumWeight + w));
+		size_t pos = 0;
 		for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-			*(pW++) += w * (*it)->m_weight;
+			weights[pos++] += (w * (*it)->m_weight);
 		sumWeight += w;
 	}
-	double* pW = pWeights;
+	size_t pos = 0;
 	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-		(*it)->m_weight = *(pW++);
+		(*it)->m_weight = weights[pos++];
 }
 
 // virtual
@@ -650,7 +650,7 @@ GResamplingAdaBoost::GResamplingAdaBoost(GSupervisedLearner* pLearner, bool ownL
 {
 }
 
-GResamplingAdaBoost::GResamplingAdaBoost(GDomNode* pNode, GLearnerLoader& ll)
+GResamplingAdaBoost::GResamplingAdaBoost(const GDomNode* pNode, GLearnerLoader& ll)
 : GEnsemble(pNode, ll), m_pLearner(NULL), m_ownLearner(false), m_pLoader(NULL)
 {
 	m_trainSize = pNode->field("ts")->asDouble();
@@ -788,7 +788,7 @@ GWag::GWag(size_t size)
 	m_pNN = new GNeuralNet();
 }
 
-GWag::GWag(GDomNode* pNode, GLearnerLoader& ll)
+GWag::GWag(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode)
 {
 	m_pNN = new GNeuralNet(pNode->field("nn"));
@@ -824,9 +824,8 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 	GNeuralNet* pTemp = NULL;
 	std::unique_ptr<GNeuralNet> hTemp;
 	size_t weights = 0;
-	double* pWeightBuf = NULL;
-	double* pWeightBuf2 = NULL;
-	std::unique_ptr<double[]> hWeightBuf;
+	GVec pWeightBuf;
+	GVec pWeightBuf2;
 	for(size_t i = 0; i < m_models; i++)
 	{
 		m_pNN->train(features, labels);
@@ -835,11 +834,11 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 			// Average m_pNN with pTemp
 			if(!m_noAlign)
 				m_pNN->align(*pTemp);
-			pTemp->weights(pWeightBuf);
-			m_pNN->weights(pWeightBuf2);
-			GVec::multiply(pWeightBuf, double(i) / (i + 1), weights);
-			GVec::addScaled(pWeightBuf, 1.0 / (i + 1), pWeightBuf2, weights);
-			pTemp->setWeights(pWeightBuf);
+			pTemp->weights(pWeightBuf.data());
+			m_pNN->weights(pWeightBuf2.data());
+			pWeightBuf *= (double(i) / (i + 1));
+			pWeightBuf.addScaled(1.0 / (i + 1), pWeightBuf2);
+			pTemp->setWeights(pWeightBuf.data());
 		}
 		else
 		{
@@ -850,13 +849,12 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 			pTemp = new GNeuralNet(pNode);
 			hTemp.reset(pTemp);
 			weights = pTemp->countWeights();
-			pWeightBuf = new double[2 * weights];
-			hWeightBuf.reset(pWeightBuf);
-			pWeightBuf2 = pWeightBuf + weights;
+			pWeightBuf.resize(weights);
+			pWeightBuf2.resize(weights);
 		}
 	}
-	pTemp->weights(pWeightBuf);
-	m_pNN->setWeights(pWeightBuf);
+	pTemp->weights(pWeightBuf.data());
+	m_pNN->setWeights(pWeightBuf.data());
 }
 
 // virtual
@@ -884,7 +882,7 @@ GBucket::GBucket()
 	m_nBestLearner = INVALID_INDEX;
 }
 
-GBucket::GBucket(GDomNode* pNode, GLearnerLoader& ll)
+GBucket::GBucket(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode)
 {
 	GDomNode* pModels = pNode->field("models");

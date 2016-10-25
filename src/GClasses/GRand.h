@@ -248,15 +248,6 @@ public:
 	/// the probability-density is s.
 	virtual double softImpulse(double s);
 
-	/// Returns a random point on the surface of a dims-dimensional unit sphere
-	virtual void spherical(double* pOutVec, std::size_t dims);
-
-	/// Returns a random point within the volume of a dims-dimensional unit sphere
-	virtual void spherical_volume(double* pOutVec, std::size_t dims);
-
-	/// Returns a random point uniformly distributed within a unit cube
-	virtual void cubical(double* pOutVec, std::size_t dims);
-
 	/// Returns a random value from Student's t-distribution
 	virtual double student(double t);
 

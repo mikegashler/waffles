@@ -292,7 +292,7 @@ public:
 	Account* newAccount(const char* szUsername, const char* szPasswordHash);
 	void deleteAccount(Account* pAccount);
 	GDomNode* serializeState(GDom* pDoc);
-	void deserializeState(GDomNode* pNode);
+	void deserializeState(const GDomNode* pNode);
 	void proposeTopic(Account* pAccount, const char* szDescr);
 	void newTopic(const char* szDescr);
 	Account* randomAccount() { return m_accountsVec[(size_t)prng()->next(m_accountsVec.size())]; }
@@ -2168,7 +2168,7 @@ GDomNode* Server::serializeState(GDom* pDoc)
 	return pNode;
 }
 
-void Server::deserializeState(GDomNode* pNode)
+void Server::deserializeState(const GDomNode* pNode)
 {
 	// Captcha salt
 	const char* daemon_Salt = pNode->fieldIfExists("daemonSalt")->asString();

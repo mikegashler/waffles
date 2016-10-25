@@ -850,7 +850,8 @@ void GBrandesBetweennessCentrality::compute()
 	// Initialize all the betweennesses to zero
 	delete[] m_pVertexBetweenness;
 	m_pVertexBetweenness = new double[m_nodeCount];
-	GVec::setAll(m_pVertexBetweenness, 0.0, m_nodeCount);
+	for(size_t i = 0; i < m_nodeCount; i++)
+		m_pVertexBetweenness[i] = 0.0;
 	delete[] m_pEdgeBetweenness;
 	m_pEdgeBetweenness = new vector<double>[m_nodeCount];
 	for(size_t i = 0; i < m_nodeCount; i++)
@@ -873,7 +874,8 @@ void GBrandesBetweennessCentrality::compute()
 		sigma[s] = 1.0;
 
 		// Initialize distances
-		GVec::setAll(d, -1.0, m_nodeCount);
+		for(size_t i = 0; i < m_nodeCount; i++)
+			d[i] = -1.0;
 		d[s] = 0.0;
 
 		// Find the shortest paths from s to all other vertices. (If this
@@ -1028,6 +1030,8 @@ void GAtomicCycleFinder::addEdge(size_t a, size_t b)
 
 void GAtomicCycleFinder::addEdgeIfNotDupe(size_t a, size_t b)
 {
+	if(b == INVALID_INDEX)
+		return;
 	if(m_pNeighbors[a].size() < m_pNeighbors[b].size())
 	{
 		for(vector<size_t>::iterator it = m_pNeighbors[a].begin(); it != m_pNeighbors[a].end(); it++)

@@ -106,9 +106,8 @@ public:
 	/// \brief Swaps two attributes
 	virtual void swapAttributes(size_t nAttr1, size_t nAttr2) = 0;
 
-	/// \brief Prints as an ARFF file to the specified stream. (pData
-	/// can be NULL if data is not available)
-	void print(std::ostream& stream, const GMatrix* pData, size_t precision) const;
+	/// \brief Prints this relation in ARFF format to the specified stream
+	void print(std::ostream& stream) const;
 
 	/// \brief Prints the specified attribute name to a stream
 	virtual void printAttrName(std::ostream& stream, size_t column) const;
@@ -130,32 +129,13 @@ public:
 	virtual bool isCompatible(const GRelation& that) const;
 
 	/// \brief Print a single row of data in ARFF format
-	void printRow(std::ostream& stream, const double* pRow, const char* separator, const char* missing = "?") const;
-
-	/// \brief Counts the size of the corresponding real-space vector
-	size_t countRealSpaceDims(size_t nFirstAttr, size_t nAttrCount) const;
-
-	/// \brief Converts a row (pIn) to a real-space vector (pOut) (pIn
-	/// should point to the nFirstAttr'th element, not the first
-	/// element)
-	void toRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount) const;
-
-	/// \brief Converts a real-space vector (pIn) to a row (pOut)
-	///
-	/// nFirstAttr and nAttrCount refer to the row indexes
-	void fromRealSpace(const double* pIn, double* pOut, size_t nFirstAttr, size_t nAttrCount, GRand* pRand) const;
-
-	/// \brief Converts a real-space vector (pIn) to an array of
-	/// predictions (pOut)
-	///
-	/// nFirstAttr and nAttrCount refer to the prediction indexes
-	void fromRealSpace(const double* pIn, GPrediction* pOut, size_t nFirstAttr, size_t nAttrCount) const;
+	void printRow(std::ostream& stream, const double* pRow, char separator = ',', const char* missing = "?") const;
 
 	/// \brief Load from a DOM.
-	static GRelation* deserialize(GDomNode* pNode);
+	static GRelation* deserialize(const GDomNode* pNode);
 
 	/// \brief Saves to a file
-	void save(const GMatrix* pData, const char* szFilename, size_t precision) const;
+	void save(const GMatrix* pData, const char* szFilename) const;
 
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception
@@ -181,7 +161,7 @@ public:
 	{
 	}
 
-	GUniformRelation(GDomNode* pNode);
+	GUniformRelation(const GDomNode* pNode);
 
 	virtual RelationType type() const { return UNIFORM; }
 
@@ -239,7 +219,7 @@ public:
 	GMixedRelation(std::vector<size_t>& attrValues);
 
 	/// \brief Loads from a DOM.
-	GMixedRelation(GDomNode* pNode);
+	GMixedRelation(const GDomNode* pNode);
 
 	/// \brief Makes a copy of pCopyMe
 	GMixedRelation(const GRelation* pCopyMe);
@@ -345,7 +325,7 @@ public:
 	GArffRelation();
 
 	/// Deserializing constructor
-	GArffRelation(GDomNode* pNode);
+	GArffRelation(const GDomNode* pNode);
 
 	virtual ~GArffRelation();
 
@@ -514,7 +494,7 @@ public:
 
 
 	/// \brief Load from a DOM.
-	GMatrix(GDomNode* pNode);
+	GMatrix(const GDomNode* pNode);
 
 	~GMatrix();
 
@@ -538,10 +518,6 @@ public:
 	/// replaces all element values with garbage.
 	void resize(size_t rows, size_t cols);
 
-	/// \brief Resizes this matrix, preserving the values of all elements that
-	/// exist in both instances, and initializing all others with garbage.
-	void resizePreserve(size_t rowCount, size_t colCount);
-
 	/// \brief Adds a new row to the matrix. (The values in the row are
 	/// not initialized.) Returns a reference to the new row.
 	GVec& newRow();
@@ -555,10 +531,10 @@ public:
 
 	/// \brief Matrix add
 	///
-	/// Adds the values in pThat to this. (If transpose is true, adds
-	/// the transpose of pThat to this.) Both datasets must have the
+	/// Adds scalar * pThat to this. (If transpose is true, adds
+	/// scalar * the transpose of pThat to this.) Both datasets must have the
 	/// same dimensions. Behavior is undefined for nominal columns.
-	void add(const GMatrix* pThat, bool transpose = false);
+	void add(const GMatrix* pThat, bool transpose = false, double scalar = 1.0);
 
 	/// \brief Copies the specified range of columns (including meta-data) from that matrix into this matrix,
 	/// replacing all data currently in this matrix.
@@ -603,7 +579,7 @@ public:
 	/// \brief Computes the eigenvector that corresponds to the
 	/// specified eigenvalue of this matrix. Note that this method
 	/// trashes this matrix, so make a copy first if you care.
-	void eigenVector(double eigenvalue, double* pOutVector);
+	void eigenVector(double eigenvalue, GVec& outVector);
 
 	/// \brief Computes y in the equation M*y=x (or y=M^(-1)x), where M
 	/// is this dataset, which must be a square matrix, and x is pVector
@@ -641,6 +617,12 @@ public:
 #ifndef MIN_PREDICT
 	/// \brief Loads an ARFF file and replaces the contents of this matrix with it.
 	void loadArff(const char* szFilename);
+	
+	/// \brief Loads a raw (binary) file and replaces the contents of this matrix with it.
+	void loadRaw(const char* szFilename);
+	
+	/// \brief Loads a file and automatically detects ARFF or raw (binary)
+	void load(const char* szFilename);
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
 	void parseArff(const char* szFile, size_t nLen);
@@ -733,6 +715,9 @@ public:
 #ifndef MIN_PREDICT
 	/// \brief Saves the dataset to a file in ARFF format
 	void saveArff(const char* szFilename);
+	
+	/// \brief Saves the dataset to a file in raw (binary) format
+	void saveRaw(const char* szFilename);
 #endif // MIN_PREDICT
 
 	/// \brief Performs SVD on A, where A is this m-by-n matrix.
@@ -817,15 +802,29 @@ public:
 	/// \brief Returns a const pointer to the specified row
 	inline const GVec& row(size_t index) const { return *m_rows[index]; }
 
+	/// \brief Returns a pointer to the first row
+	inline GVec& front() { return *m_rows[0]; }
+	inline const GVec& front() const { return *m_rows[0]; }
+	
+	/// \brief Returns a pointer to the last row
+	inline GVec& back() { return *m_rows[m_rows.size() - 1]; }
+	inline const GVec& back() const { return *m_rows[m_rows.size() - 1]; }
+
 	/// \brief Returns a pointer to the specified row
 	inline GVec& operator [](size_t index) { return *m_rows[index]; }
 
 	/// \brief Returns a const pointer to the specified row
 	inline const GVec& operator [](size_t index) const { return *m_rows[index]; }
 
-	/// \brief Sets all elements in the specified range of columns to the specified value.
+	/// \brief Fills all elements in the specified range of columns with the specified value.
 	/// If no column ranges are specified, the default is to set all of them.
 	void setAll(double val, size_t colStart = 0, size_t colCount = INVALID_INDEX);
+
+	/// \brief Fills all elements with random values from a uniform distribution.
+	void fillUniform(GRand& rand, double min = 0.0, double max = 1.0);
+
+	/// \brief Fills all elements with random values from a Normal distribution.
+	void fillNormal(GRand& rand, double deviation = 1.0);
 
 	/// \brief Copies pVector over the specified column
 	void setCol(size_t index, const double* pVector);
@@ -1084,7 +1083,8 @@ public:
 	/// \brief Computes the sum-squared distance between the specified
 	/// column of this and that. If the column is a nominal attribute,
 	/// then Hamming distance is used.
-	double columnSumSquaredDifference(const GMatrix& that, size_t col) const;
+	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
+	double columnSumSquaredDifference(const GMatrix& that, size_t col, double* pOutSAE = NULL) const;
 
 	/// \brief Computes the squared distance between this and that.
 	///
@@ -1126,8 +1126,8 @@ public:
 	/// be equal.
 	void wilcoxonSignedRanksTest(size_t attr1, size_t attr2, double tolerance, int* pNum, double* pWMinus, double* pWPlus) const;
 
-	/// \brief Prints the data to the specified stream
-	void print(std::ostream& stream) const;
+	/// \brief Prints this matrix in ARFF format to the specified stream
+	void print(std::ostream& stream = std::cout, char separator = ',') const;
 
 	/// \brief Returns the number of ocurrences of the specified value
 	/// in the specified attribute
@@ -1219,12 +1219,6 @@ public:
 	/// Counts the number of unique values in the specified column. If maxCount
 	/// unique values are found, it immediately returns maxCount.
 	size_t countUniqueValues(size_t col, size_t maxCount = (size_t)-1) const;
-
-	/// Traverse the points in a breadth-first manner, starting with row seed,
-	/// and ensure that every point is within maxDist units of the centroid of
-	/// its k-nearest neighbors among the points that have already been visited
-	/// by the traversal.
-	void unstretch(size_t seed, size_t neighbors, double maxDist, GRand& rand);
 
 #ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception

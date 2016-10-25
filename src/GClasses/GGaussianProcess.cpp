@@ -113,7 +113,7 @@ GGaussianProcess::GGaussianProcess()
 	m_pKernel = new GKernelIdentity();
 }
 
-GGaussianProcess::GGaussianProcess(GDomNode* pNode)
+GGaussianProcess::GGaussianProcess(const GDomNode* pNode)
 : GSupervisedLearner(pNode), m_pBuf(NULL)
 {
 	m_weightsPriorVar = pNode->field("wv")->asDouble();

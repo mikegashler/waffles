@@ -22,11 +22,12 @@
 
 #include "GHiddenMarkovModel.h"
 #include <algorithm>
+#include <math.h>
+#include <cmath>
 #include "GError.h"
 #include "GHolders.h"
 #include "GVec.h"
-#include <math.h>
-#include <cmath>
+#include <string.h>
 
 using namespace GClasses;
 using std::vector;
@@ -49,11 +50,13 @@ GHiddenMarkovModel::~GHiddenMarkovModel()
 double GHiddenMarkovModel::forwardAlgorithm(const int* pObservations, int len)
 {
 	// Compute probabilities of initial observation
-	GVec pCur(m_stateCount);
-	GVec pPrev(m_stateCount);
+	GVec cur(m_stateCount);
+	GVec prev(m_stateCount);
+	GVec* pCur = &cur;
+	GVec* pPrev = &prev;
 	double logProb = 0;
 	for(int j = 0; j < m_stateCount; j++)
-		pCur[j] = m_pInitialStateProbabilities[j] * m_pSymbolProbabilities[m_symbolCount * j + pObservations[0]];
+		(*pCur)[j] = m_pInitialStateProbabilities[j] * m_pSymbolProbabilities[m_symbolCount * j + pObservations[0]];
 
 	// Do the rest
 	for(int i = 1; i < len; i++)
@@ -62,20 +65,20 @@ double GHiddenMarkovModel::forwardAlgorithm(const int* pObservations, int len)
 		std::swap(pPrev, pCur);
 		for(int j = 0; j < m_stateCount; j++)
 		{
-			pCur[j] = 0;
+			(*pCur)[j] = 0;
 			for(int k = 0; k < m_stateCount; k++)
-				pCur[j] += pPrev[k] * m_pTransitionProbabilities[m_stateCount * j + k];
-			pCur[j] *= m_pSymbolProbabilities[m_symbolCount * j + pObservations[i]];
+				(*pCur)[j] += (*pPrev)[k] * m_pTransitionProbabilities[m_stateCount * j + k];
+			(*pCur)[j] *= m_pSymbolProbabilities[m_symbolCount * j + pObservations[i]];
 		}
 
 		// Normalize to preserve numerical stability
-		double sum = pCur.sum();
-		pCur *= (1.0 / sum);
+		double sum = (*pCur).sum();
+		(*pCur) *= (1.0 / sum);
 		logProb += log(sum);
 	}
 
 	// Sum to get final probabilities
-	logProb += log(pCur.sum());
+	logProb += log((*pCur).sum());
 	return logProb;
 }
 
@@ -83,11 +86,13 @@ double GHiddenMarkovModel::viterbi(int* pMostLikelyStates, const int* pObservati
 {
 	// Compute probabilities of initial observation
 	GTEMPBUF(int, backpointers, m_stateCount * (len - 1));
-	GVec pCur(m_stateCount);
-	GVec pPrev(m_stateCount);
+	GVec cur(m_stateCount);
+	GVec prev(m_stateCount);
+	GVec* pCur = &cur;
+	GVec* pPrev = &prev;
 	double logProb = 0;
 	for(int j = 0; j < m_stateCount; j++)
-		pCur[j] = m_pInitialStateProbabilities[j] * m_pSymbolProbabilities[m_symbolCount * j + pObservations[0]];
+		(*pCur)[j] = m_pInitialStateProbabilities[j] * m_pSymbolProbabilities[m_symbolCount * j + pObservations[0]];
 
 	// Do the rest
 	for(int i = 1; i < len; i++)
@@ -96,24 +101,24 @@ double GHiddenMarkovModel::viterbi(int* pMostLikelyStates, const int* pObservati
 		std::swap(pPrev, pCur);
 		for(int j = 0; j < m_stateCount; j++)
 		{
-			pCur[j] = 0;
+			(*pCur)[j] = 0;
 			int index = 0;
 			for(int k = 0; k < m_stateCount; k++)
 			{
-				double p = pPrev[k] * m_pTransitionProbabilities[m_stateCount * j + k];
-				if(p >= pCur[j])
+				double p = (*pPrev)[k] * m_pTransitionProbabilities[m_stateCount * j + k];
+				if(p >= (*pCur)[j])
 				{
-					pCur[j] = p;
+					(*pCur)[j] = p;
 					index = k;
 				}
 			}
-			pCur[j] *= m_pSymbolProbabilities[m_symbolCount * j + pObservations[i]];
+			(*pCur)[j] *= m_pSymbolProbabilities[m_symbolCount * j + pObservations[i]];
 			backpointers[m_stateCount * (i - 1) + j] = index;
 		}
 
 		// Normalize to preserve numerical stability
-		double sum = pCur.sum();
-		pCur *= (1.0 / sum);
+		double sum = (*pCur).sum();
+		(*pCur) *= (1.0 / sum);
 		logProb += log(sum);
 	}
 
@@ -121,7 +126,7 @@ double GHiddenMarkovModel::viterbi(int* pMostLikelyStates, const int* pObservati
 	int index = 0;
 	for(int j = 1; j < m_stateCount; j++)
 	{
-		if(pCur[j] > pCur[index])
+		if((*pCur)[j] > (*pCur)[index])
 			index = j;
 	}
 	pMostLikelyStates[m_stateCount - 1] = index;
@@ -130,7 +135,7 @@ double GHiddenMarkovModel::viterbi(int* pMostLikelyStates, const int* pObservati
 		pMostLikelyStates[i] = backpointers[m_stateCount * i + index];
 		index = pMostLikelyStates[i];
 	}
-	logProb += log(pCur[index]);
+	logProb += log((*pCur)[index]);
 	return logProb;
 }
 
@@ -151,15 +156,34 @@ void GHiddenMarkovModel::baumWelchBeginTraining(int maxLen)
 		];
 }
 
+void GHMM_setAll(double* pVector, double val, size_t size)
+{
+	for(size_t i = 0; i < size; i++)
+		pVector[i] = val;
+}
+
 void GHiddenMarkovModel::baumWelchBeginPass()
 {
 	// Reset the accumulators
 	double* pAccumInitProb = m_pTrainingBuffer;
 	double* pAccumTransProb = pAccumInitProb + m_stateCount;
 	double* pAccumSymbolProb = pAccumTransProb + m_stateCount * m_stateCount;
-	GVec::setAll(pAccumInitProb, 0.0, m_stateCount);
-	GVec::setAll(pAccumTransProb, 0.0, m_stateCount * m_stateCount);
-	GVec::setAll(pAccumSymbolProb, 0.0, m_stateCount * m_symbolCount);
+	GHMM_setAll(pAccumInitProb, 0.0, m_stateCount);
+	GHMM_setAll(pAccumTransProb, 0.0, m_stateCount * m_stateCount);
+	GHMM_setAll(pAccumSymbolProb, 0.0, m_stateCount * m_symbolCount);
+}
+
+void GHMM_sumToOne(double* pVector, size_t size)
+{
+	GConstVecWrapper vw(pVector, size);
+	double sum = vw.vec().sum();
+	if(sum == 0)
+		GHMM_setAll(pVector, 1.0 / size, size);
+	else
+	{
+		for(size_t i = 0; i < size; i++)
+			pVector[i] *= (1.0 / sum);
+	}
 }
 
 void GHiddenMarkovModel::backwardAlgorithm(const int* pObservations, int len)
@@ -188,7 +212,17 @@ void GHiddenMarkovModel::backwardAlgorithm(const int* pObservations, int len)
 
 		// Normalize to preserve numerical stability
 		pCur = pBeta + m_stateCount * i;
-		GVec::sumToOne(pCur, m_stateCount);
+		GHMM_sumToOne(pCur, m_stateCount);
+	}
+}
+
+void GVec_add(double* pDest, const double* pSource, size_t nDims)
+{
+	for(size_t i = 0; i < nDims; i++)
+	{
+		*pDest += *pSource;
+		pDest++;
+		pSource++;
 	}
 }
 
@@ -229,7 +263,7 @@ void GHiddenMarkovModel::baumWelchAddSequence(const int* pObservations, int len)
 		}
 
 		// Normalize to preserve numerical stability
-		GVec::sumToOne(pCur, m_stateCount);
+		GHMM_sumToOne(pCur, m_stateCount);
 
 		// Compute xi and gamma
 		for(int j = 0; j < m_stateCount; j++)
@@ -247,18 +281,32 @@ void GHiddenMarkovModel::baumWelchAddSequence(const int* pObservations, int len)
 				}
 			}
 		}
-		GVec::sumToOne(pGamma, m_stateCount);
+		GHMM_sumToOne(pGamma, m_stateCount);
 		if(i < len - 1)
-			GVec::sumToOne(pXi, m_stateCount * m_stateCount);
+			GHMM_sumToOne(pXi, m_stateCount * m_stateCount);
 
 		// Accumulate probabilities
 		if(i ==  0)
-			GVec::add (pAccumInitProb, pGamma, m_stateCount);
+			GVec_add(pAccumInitProb, pGamma, m_stateCount);
 		if(i < len - 1)
-			GVec::add(pAccumTransProb, pXi, m_stateCount * m_stateCount);
+			GVec_add(pAccumTransProb, pXi, m_stateCount * m_stateCount);
 		for(int j = 0; j < m_stateCount; j++)
 			pAccumSymbolProb[m_symbolCount * j + pObservations[i]] += pGamma[j];
 	}
+}
+
+double GHMM_sqDist(const double* pA, const double* pB, size_t nDims)
+{
+	double dist = 0;
+	double d;
+	for(size_t n = 0; n < nDims; n++)
+	{
+		d = (*pA) - (*pB);
+		dist += (d * d);
+		pA++;
+		pB++;
+	}
+	return dist;
 }
 
 double GHiddenMarkovModel::baumWelchEndPass()
@@ -267,23 +315,23 @@ double GHiddenMarkovModel::baumWelchEndPass()
 	double* pAccumInitProb = m_pTrainingBuffer;
 	double* pAccumTransProb = pAccumInitProb + m_stateCount;
 	double* pAccumSymbolProb = pAccumTransProb + m_stateCount * m_stateCount;
-	GVec::sumToOne(pAccumInitProb, m_stateCount);
+	GHMM_sumToOne(pAccumInitProb, m_stateCount);
 	for(int i = 0; i < m_stateCount; i++)
 	{
-		GVec::sumToOne(pAccumTransProb + m_stateCount * i, m_stateCount);
-		GVec::sumToOne(pAccumSymbolProb + m_symbolCount * i, m_symbolCount);
+		GHMM_sumToOne(pAccumTransProb + m_stateCount * i, m_stateCount);
+		GHMM_sumToOne(pAccumSymbolProb + m_symbolCount * i, m_symbolCount);
 	}
 
 	// Measure the change
 	double err = 0;
-	err += GVec::squaredDistance(m_pInitialStateProbabilities, pAccumInitProb, m_stateCount);
-	err += GVec::squaredDistance(m_pTransitionProbabilities, pAccumTransProb, m_stateCount * m_stateCount);
-	err += GVec::squaredDistance(m_pSymbolProbabilities, pAccumSymbolProb, m_stateCount * m_symbolCount);
+	err += GHMM_sqDist(m_pInitialStateProbabilities, pAccumInitProb, m_stateCount);
+	err += GHMM_sqDist(m_pTransitionProbabilities, pAccumTransProb, m_stateCount * m_stateCount);
+	err += GHMM_sqDist(m_pSymbolProbabilities, pAccumSymbolProb, m_stateCount * m_symbolCount);
 
 	// Copy over the old model
-	GVec::copy(m_pInitialStateProbabilities, pAccumInitProb, m_stateCount);
-	GVec::copy(m_pTransitionProbabilities, pAccumTransProb, m_stateCount * m_stateCount);
-	GVec::copy(m_pSymbolProbabilities, pAccumSymbolProb, m_stateCount * m_symbolCount);
+	memcpy(m_pInitialStateProbabilities, pAccumInitProb, sizeof(double) * m_stateCount);
+	memcpy(m_pTransitionProbabilities, pAccumTransProb, sizeof(double) * m_stateCount * m_stateCount);
+	memcpy(m_pSymbolProbabilities, pAccumSymbolProb, sizeof(double) * m_stateCount * m_symbolCount);
 
 	return err;
 }

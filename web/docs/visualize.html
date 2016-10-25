@@ -100,16 +100,17 @@ Here is gamma.svg:<br>
 
 <h3>Scatter plots</h3>
 
-<p>To make a scatter plot or line plot, first specify the filename of the data (mydata.arff) followed
-by a color (blue), followed by two attribute indexes (0 1). Example:</p>
+<p>To make a scatter plot or line plot, use "waffles_plot scatter". Then tell it what you want to plot.
+Each plot requires 4 things: a color, a dataset, an attribute index for the horizontal axis, and an attribute index for the vertical axis.
+Example:</p>
 <pre>
-	waffles_plot scatter mydata.arff blue 0 1 red 0 2 &gt; plot.svg
+	waffles_plot scatter blue mydata.arff 0 1 red mydata.arff 0 2 &gt; plot.svg
 </pre>
 <center><img src="plot.svg"></center></p>
 
 <p>If you don't want the lines connecting the dots, do:
 <pre>
-	waffles_plot scatter mydata.arff blue 0 1 <font color="red">-thickness 0</font> red 0 2 <font color="red">-thickness 0</font> &gt; plot.svg
+	waffles_plot scatter blue mydata.arff 0 1 <font color="red">-thickness 0</font> red 0 2 <font color="red">-thickness 0</font> &gt; plot.svg
 </pre><br>
 This tool can handle logarithmic scales, and a plethora of other useful options. To see all available options, take a look at the usage information.
 <pre>
@@ -129,7 +130,7 @@ and a naive Bayes classifier.</p>
 
 <p>Now, let's plot this data:
 <pre>
-	waffles_plot scatter nb.arff -size 800 800 blue 0 1 red 0 2 > pr.svg
+	waffles_plot scatter -size 800 800 blue nb.arff 0 1 red nb.arff 0 2 > pr.svg
 </pre>
 
 It looks like this:<br>

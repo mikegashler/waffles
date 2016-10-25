@@ -10,7 +10,7 @@
 #include "../../GClasses/GDirList.h"
 #include "../../GClasses/GThread.h"
 #include "../../GClasses/GApp.h"
-#include "../../GClasses/sha1.h"
+#include "../../GClasses/sha2.h"
 #include "../../GClasses/GFile.h"
 #include "../../GClasses/GError.h"
 #include "../../GClasses/GHolders.h"
@@ -175,9 +175,9 @@ void Satellite::OnServerDoneSendingFile(GBlobIncoming* pBlobIn)
 	chmod(m_filename.c_str(), S_IXUSR | S_IWUSR | S_IRUSR);
 #endif
 	m_pFile = NULL;
-	unsigned char hash[20];
-	Sha1DigestFile(hash, m_filename.c_str());
-	if(memcmp(hash, m_fileHash, 20) != 0)
+	unsigned char hash[64];
+	Sha512DigestFile(hash, m_filename.c_str());
+	if(memcmp(hash, m_fileHash, 64) != 0)
 		throw Ex("File hash for ", m_filename.c_str(), " does not match");
 }
 
@@ -190,7 +190,7 @@ void Satellite::OnServerWantsToDownloadFile(GBlobIncoming* pBlobIn)
 	string filename; pBlobIn->get(&filename);
 
 	// Hash the file
-	Sha1DigestFile(m_fileHash, filename.c_str());
+	Sha512DigestFile(m_fileHash, filename.c_str());
 
 	// Open the file
 	m_pFile = fopen(filename.c_str(), "rb");
@@ -205,7 +205,7 @@ void Satellite::OnServerWantsToDownloadFile(GBlobIncoming* pBlobIn)
 	m_blobOut.add(204); // client sends file info to server
 	m_blobOut.add((int)m_fileLen);
 	int i;
-	for(i = 0; i < 20; i++)
+	for(i = 0; i < 64; i++)
 		m_blobOut.add(m_fileHash[i]);
 	m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize());
 }
@@ -411,13 +411,13 @@ void Satellite::Go(const char* szAddr, int port, int connectInterval, int timeou
 }
 
 
-void Sha1DigestFile(unsigned char* pOut20ByteHash, const char* filename)
+void Sha512DigestFile(unsigned char* pOut64ByteHash, const char* filename)
 {
 	// Digest the file
 	unsigned char* buf = new unsigned char[8192];
 	std::unique_ptr<unsigned char[]> hBuf(buf);
-	SHA_CTX ctx;
-	SHA1_Init(&ctx);
+	sha512_ctx ctx;
+	sha512_begin(&ctx);
 	FILE* pFileIn = fopen(filename, "rb");
 	if(!pFileIn)
 		throw Ex("could not open the file \"%s\"", filename);
@@ -431,10 +431,10 @@ void Sha1DigestFile(unsigned char* pOut20ByteHash, const char* filename)
 			throw Ex("error reading from file \"%s\"", filename);
 		if(ferror(pFileIn) != 0)
 			throw Ex("error reading file \"%s\"", filename);
-		SHA1_Update(&ctx, buf, size);
+		sha512_hash(buf, size, &ctx);
 		fileSize -= size;
 	}
-	SHA1_Final(pOut20ByteHash, &ctx);
+	sha512_end(pOut64ByteHash, &ctx);
 }
 
 
@@ -459,7 +459,7 @@ protected:
 	unsigned char* m_pBuf;
 	vector<string> m_remoteFolders;
 	vector<string> m_remoteFiles;
-	unsigned char m_fileHash[20];
+	unsigned char m_fileHash[64];
 	int m_bytesReceived;
 	unsigned long long m_fileLen;
 	size_t m_filePos;
@@ -600,7 +600,7 @@ public:
 			throw Ex("Still transferring another file");
 
 		// Hash the file
-		Sha1DigestFile(m_fileHash, szFilename);
+		Sha512DigestFile(m_fileHash, szFilename);
 
 		// Open the file
 		m_pFile = fopen(szFilename, "rb");
@@ -617,7 +617,7 @@ public:
 		m_blobOut.add(szFilename);
 		m_blobOut.add((int)m_fileLen);
 		int i;
-		for(i = 0; i < 20; i++)
+		for(i = 0; i < 64; i++)
 			m_blobOut.add(m_fileHash[i]);
 		m_pSocket->send((const char*)m_blobOut.getBlob(), m_blobOut.getBlobSize(), m_pConn);
 	}
@@ -809,9 +809,9 @@ public:
 			throw Ex("Server is uploading");
 		fclose(m_pFile);
 		m_pFile = NULL;
-		unsigned char hash[20];
-		Sha1DigestFile(hash, m_filename.c_str());
-		if(memcmp(hash, m_fileHash, 20) != 0)
+		unsigned char hash[64];
+		Sha512DigestFile(hash, m_filename.c_str());
+		if(memcmp(hash, m_fileHash, 64) != 0)
 			throw Ex("File hash for %s does not match", m_filename.c_str());
 		onUpdateDownloadFileProgress(1.0f);
 	}

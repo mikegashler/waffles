@@ -85,6 +85,11 @@ public:
 	typ* var = (((sizeof(typ) * (cnt)) <= MAX_STACK_TEMP_BUFFER) ? (typ*)alloca(sizeof(typ) * (cnt)) : (typ*)var##__.m_pBuf);
 #endif
 
+/// A macro for allocating a temporary GVec. If the size is small, it will use alloca to put its contents on the stack.
+#	define GQUICKVEC(name, size)\
+	GTempBufHelper var##t1(sizeof(double) * (size));\
+	GVecWrapper name##t2((((sizeof(double) * (size)) <= MAX_STACK_TEMP_BUFFER) ? (double*)alloca(sizeof(double) * (size)) : (double*)var##t1.m_pBuf), size);\
+	GVec& name = name##t2.vec();
 
 void verboten();
 

@@ -149,7 +149,7 @@ public:
 protected:
 	/// See the comment for GTransducer::transduce.
 	/// Throws if labels1 has more than one column.
-	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
+	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
@@ -325,8 +325,6 @@ class GGraphCutTransducer : public GTransducer
 {
 protected:
 	size_t m_neighborCount;
-	size_t* m_pNeighbors;
-	double* m_pDistances;
 
 public:
 	GGraphCutTransducer();
@@ -345,7 +343,7 @@ public:
 protected:
 	/// See the comment for GTransducer::transduce.
 	/// Only supports one-dimensional labels.
-	virtual GMatrix* transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
+	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
 
 	/// See the comment for GTransducer::canImplicitlyHandleContinuousLabels
 	virtual bool canImplicitlyHandleContinuousLabels() { return false; }

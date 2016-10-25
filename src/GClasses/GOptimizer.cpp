@@ -38,15 +38,15 @@ GTargetFunction::~GTargetFunction()
 }
 
 // virtual
-void GTargetFunction::initVector(double* pVector)
+void GTargetFunction::initVector(GVec& pVector)
 {
-	GVec::setAll(pVector, 0.0, m_pRelation->size());
+	pVector.fill(0.0);
 }
 
 // -------------------------------------------------------
 
 // virtual
-double GOptimizerBasicTestTargetFunction::computeError(const double* pVector)
+double GOptimizerBasicTestTargetFunction::computeError(const GVec& pVector)
 {
 	double a = pVector[0] - 0.123456789;
 	double b = pVector[1] + 9.876543210;
@@ -91,7 +91,7 @@ double GOptimizer::searchUntil(size_t nBurnInIterations, size_t nIterations, dou
 #ifndef MIN_PREDICT
 void GOptimizer::basicTest(double minAccuracy, double warnRange)
 {
-	double d = searchUntil(5, 20, 0.001);
+	double d = searchUntil(5, 100, 0.001);
 	if(d > minAccuracy)
 		throw Ex("Optimizer accuracy has regressed. Expected ", to_str(minAccuracy), ". Got ", to_str(d));
 	if(d < minAccuracy - warnRange)

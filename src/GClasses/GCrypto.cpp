@@ -21,11 +21,11 @@
 #include "GError.h"
 #include "GHolders.h"
 #include "GRand.h"
-#include "sha1.h"
 #include "sha2.h"
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <string.h>
 
 using std::cout;
 

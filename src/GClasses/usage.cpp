@@ -29,6 +29,7 @@ using std::vector;
 
 UsageNode::UsageNode(const char* templ, const char* descrip)
 {
+	const char* origTempl = templ;
 #ifdef DEBUG_HELPERS
 	p0 = NULL; p1 = NULL; p2 = NULL; p3 = NULL;
 #endif
@@ -53,7 +54,7 @@ UsageNode::UsageNode(const char* templ, const char* descrip)
 		if(*templ == '=')
 		{
 			if(m_default_value.size() > 0)
-				throw Ex("Only one default value is permitted per node. You should probably expand with child nodes.");
+				throw Ex("Only one default value is permitted per node. You should probably expand with child nodes. In node: ", origTempl);
 
 			// Find the end of the default value
 			for(i = 1; templ[i] != ' ' && templ[i] != '\0'; i++)
@@ -626,34 +627,38 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-labeldims [n]=1", "Specify the number of dimensions in the label (output) vector. The default is 1. (Don't confuse this with the number of class labels. It only takes one dimension to specify a class label, even if there are k possible labels.)");
 	}
 	{
-		UsageNode* pBE = pRoot->add("blendembeddings [data-orig] [neighbor-finder] [data-a] [data-b] <options>", "Compute a blended \"average\" embedding from two reduced-dimensionality embeddings of some data.");
+		UsageNode* pBE = pRoot->add("blendembeddings [data-orig] [neighbor-count] [neighbor-finder] [data-a] [data-b] <options>", "Compute a blended \"average\" embedding from two reduced-dimensionality embeddings of some data.");
 		pBE->add("[data-orig]=orig.arff", "The filename of the original high-dimensional data.");
+		pBE->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pBE->add("[data-a]=a.arff", "The first reduced dimensional embedding of [data-orig]");
 		pBE->add("[data-b]=b.arff", "The second reduced dimensional embedding of [data-orig]");
 		UsageNode* pOpts = pBE->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 	}
 	{
-		UsageNode* pBFU = pRoot->add("breadthfirstunfolding [dataset] [neighbor-finder] [target_dims] <options>", "A manifold learning algorithm.");
+		UsageNode* pBFU = pRoot->add("breadthfirstunfolding [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "A manifold learning algorithm.");
 		UsageNode* pOpts = pBFU->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-reps [n]=10", "The number of times to compute the embedding and blend the results together. If not specified, the default is 1.");
 		pBFU->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pBFU->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pBFU->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
-		UsageNode* pIsomap = pRoot->add("isomap [dataset] [neighbor-finder] [target_dims] <options>", "Use the Isomap algorithm to reduce dimensionality.");
+		UsageNode* pIsomap = pRoot->add("isomap [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "Use the Isomap algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pIsomap->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-tolerant", "If there are points that are disconnected from the rest of the graph, just drop them from the data. (This may cause the results to contain fewer rows than the input.)");
 		pIsomap->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pIsomap->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pIsomap->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
-		UsageNode* SU = pRoot->add("scalingunfolder [dataset] [neighbor-finder] [target_dims] <options>", "Use the ScalingUnfolder algorithm to reduce dimensionality. (This algorithm was inspired by Maximum Variance Unfolding (MVU). It iteratively scales up the data, then restores distances in local neighborhoods. Unlike MVU, however, it does not use semidefinite programming.)");
+		UsageNode* SU = pRoot->add("scalingunfolder [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "Use the ScalingUnfolder algorithm to reduce dimensionality. (This algorithm was inspired by Maximum Variance Unfolding (MVU). It iteratively scales up the data, then restores distances in local neighborhoods. Unlike MVU, however, it does not use semidefinite programming.)");
 		UsageNode* pOpts = SU->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		SU->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		SU->add("[neighbor-count]=12", "The number of neighbors to use.");
 		SU->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	UsageNode* pSOM = pRoot->add
@@ -713,15 +718,17 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-maxiters [n]=100", "Specify the number of times to iterate before giving up. The default is 100, which should be sufficient for most problems.");
 	}
 	{
-		UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
+		UsageNode* pLLE = pRoot->add("lle [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "Use the LLE algorithm to reduce dimensionality.");
 		UsageNode* pOpts = pLLE->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pLLE->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pLLE->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pLLE->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 	}
 	{
-		UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513-520, MIT Press, Cambridge, MA, 2008.)");
+		UsageNode* pMS = pRoot->add("manifoldsculpting [dataset] [neighbor-count] [neighbor-finder] [target_dims] <options>", "Use the Manifold Sculpting algorithm to reduce dimensionality. (This algorithm is specified in Gashler, Michael S. and Ventura, Dan and Martinez, Tony. Iterative non-linear dimensionality reduction with manifold sculpting. In Advances in Neural Information Processing Systems 20, pages 513-520, MIT Press, Cambridge, MA, 2008.)");
 		pMS->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
+		pMS->add("[neighbor-count]=12", "The number of neighbors to use.");
 		pMS->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
 		UsageNode* pOpts = pMS->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
@@ -843,6 +850,18 @@ UsageNode* makeGenerateUsageTree()
 		UsageNode* pOpts = pITON->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
 		pOpts->add("-reduced", "Generate intrinsic values instead of extrinsic values. (This might be useful to empirically measure the accuracy of a manifold learner.)");
+	}
+	{
+		UsageNode* pManifold = pRoot->add("lorenz [count] <options>", "Generate count samples in the chaotic Lorenz ('63) series.");
+		pManifold->add("[count]=100", "The number of samples to generate.");
+		UsageNode* pOpts = pManifold->add("<options>");
+		pOpts->add("-x [value]=1.0", "Specify a value for x for t = 0.");
+		pOpts->add("-y [value]=1.0", "Specify a value for y for t = 0.");
+		pOpts->add("-z [value]=1.0", "Specify a value for z for t = 0.");
+		pOpts->add("-sigma [value]=10.0", "Specify a value for sigma.");
+		pOpts->add("-beta [value]=8.0/3.0", "Specify a value for beta.");
+		pOpts->add("-rho [value]=28.0", "Specify a value for rho.");
+		pOpts->add("-dt [value]=0.01", "Specify a value for timestep.");
 	}
 	{
 		UsageNode* pManifold = pRoot->add("mackeyglass [count] <options>", "Generate count samples in the chaotic Mackey-Glass series.");
@@ -1023,7 +1042,7 @@ UsageNode* makeLearnUsageTree()
 			"A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
-		UsageNode* pPredict = pRoot->add("predict <options> [model-file] [dataset] <data_opts>", "Predict labels for all of the patterns in [dataset]. Results are printed in the form of a \".arff\" file (including both features and predictions) to stdout.");
+		UsageNode* pPredict = pRoot->add("predict <options> [model-file] [dataset] <data_opts>", "Predict labels for all of the patterns in [dataset]. Results are printed in the form of a \".arff\" file (containing only predicted labels) to stdout.");
 		UsageNode* pOpts = pPredict->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pPredict->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
@@ -1183,7 +1202,6 @@ UsageNode* makeNeighborUsageTree()
 		UsageNode* pOpts = pBF->add("<options>");
 		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
 		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pOpts->add("-normalize", "Normalize distances in local neighborhoods so that all neighborhoood have a uniform amount of total distance.");
 		pBF->add("[k]=12", "The number of neighbors.");
 	}
 	{
@@ -1192,14 +1210,6 @@ UsageNode* makeNeighborUsageTree()
 		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
 		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
 		pKD->add("[k]=12", "The number of neighbors.");
-	}
-	{
-		UsageNode* pSys = pRoot->add("temporal <options> [action-data] [k]", "A neighbor-finder designed for use in modeling certain types of dynamical systems. It estimates the number of time-steps between observations. This algorithm was published in Gashler, Michael S. and Martinez, Tony. Temporal nonlinear dimensionality reduction. In Proceedings of the IEEE International Joint Conference on Neural Networks IJCNN’11, pages 1959–1966, IEEE Press, 2011.");
-		UsageNode* pOpts = pSys->add("<options>");
-		UsageNode* pCC = pOpts->add("-cyclecut [thresh]", "Use CycleCut to break shortcuts and cycles.");
-		pCC->add("[thresh]=10", "The threshold cycle-length for bad cycles.");
-		pSys->add("[action-data]=actions.arff", "The filename of an arff file for the sequence of actions given to the system.");
-		pSys->add("[k]=12", "The number of neighbors.");
 	}
 	return pRoot;
 }
@@ -1281,8 +1291,7 @@ UsageNode* makePlotUsageTree()
 		pDO->add("-ignore [attr_list]=0", "Specify attributes to ignore. [attr_list] is a comma-separated list of zero-indexed columns. A hypen may be used to specify a range of columns.  A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
-		UsageNode* pScat = pRoot->add("scatter [dataset] <globalopts> <color-x-y>", "Makes a scatter plot or line graph. Print the resulting SVG file to stdout.");
-		pScat->add("[dataset]=data.arff", "The filename of a dataset to be plotted. The first attribute specifies the values on the horizontal axis. All other attributes specify the values on the vertical axis for a certain color.");
+		UsageNode* pScat = pRoot->add("scatter <globalopts> <color-data-x-y>", "Makes a scatter plot or line graph. Print the resulting SVG file to stdout.");
 		UsageNode* pGO = pScat->add("<globalopts>");
 		pGO->add("-size [width] [height]", "Specify the size of the chart. (The default is 960 540.)");
 		pGO->add("-margin [size]=100", "Specify the size of the margin for the axis labels. (The default is 100.)");
@@ -1299,11 +1308,11 @@ UsageNode* makePlotUsageTree()
 		pGO->add("-hlabel [string]", "Specify a label for the horizontal axis. (The default is to determine it from the data.)");
 		pGO->add("-vlabel [string]", "Specify a label for the vertical axis. (The default is to determine it from the data.)");
 		pGO->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
-		pGO->add("-horizattr [n]=0", "Make a grid of charts, instead of just a single chart, and specify the attribute that differs along the horizontal axis of the grid of charts. An equal number of samples must exist for every value in this attribute.");
-		pGO->add("-vertattr [n]=1", "Make a grid of charts, instead of just a single chart, and specify the attribute that differs along the vertical axis of the grid of charts. An equal number of samples must exist for every value in this attribute.");
-		UsageNode* pAllLines = pScat->add("<color-x-y>");
-		UsageNode* pCXY = pAllLines->add("[color] [attr-x] [attr-y] <options>");
-		UsageNode* pColor = pCXY->add("[color]", "Specify the color to use for this pair of attributes.");
+		//pGO->add("-horizattr [n]=0", "Make a grid of charts, instead of just a single chart, and specify the attribute that differs along the horizontal axis of the grid of charts. An equal number of samples must exist for every value in this attribute.");
+		//pGO->add("-vertattr [n]=1", "Make a grid of charts, instead of just a single chart, and specify the attribute that differs along the vertical axis of the grid of charts. An equal number of samples must exist for every value in this attribute.");
+		UsageNode* pAllLines = pScat->add("<color-data-x-y>");
+		UsageNode* pCDXY = pAllLines->add("[color] [dataset] [attr-x] [attr-y] <options>");
+		UsageNode* pColor = pCDXY->add("[color]", "Specify the color to use for this pair of attributes.");
 		pColor->add("row", "Use a spectrum color according to the row-index in the data (starting with red, ending with purple)");
 		pColor->add("#800000", "Red.");
 		pColor->add("red", "The same as #800000.");
@@ -1319,13 +1328,10 @@ UsageNode* makePlotUsageTree()
 		pColor->add("magenta", "The same as #800080.");
 		pColor->add("black", "The same as #000000.");
 		pColor->add("gray", "The same as #808080.");
-		pColor->add("0", "Use the value in attribute 0 to determine the color.");
-		pColor->add("1", "Use the value in attribute 1 to determine the color.");
-		pColor->add("2", "Use the value in attribute 2 to determine the color.");
-		pColor->add("3", "Use the value in attribute 3 to determine the color. (And so forth.)");
-		pCXY->add("[attr-x]=0", "The zero-based index of the attribute to use to specify position on the horizontal axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the horizontal axis.)");
-		pCXY->add("[attr-y]=1", "The zero-based index of the attribute to use to specify position on the vertical axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the vertical axis.)");
-		UsageNode* pOpts = pCXY->add("<options>");
+		pCDXY->add("[dataset]=data.arff", "The filename of a dataset containing the data you want to plot. (Note that you will need to specify the dataset for each color, even if they all come from the same dataset.)");
+		pCDXY->add("[attr-x]=0", "The zero-based index of the attribute to use to specify position on the horizontal axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the horizontal axis.)");
+		pCDXY->add("[attr-y]=1", "The zero-based index of the attribute to use to specify position on the vertical axis. (Alternatively, the special value \"row\" may be used to use the row-index instead of an attribute for the vertical axis.)");
+		UsageNode* pOpts = pCDXY->add("<options>");
 		pOpts->add("-radius=1.0", "Specify the radius (in window units) to use for each point.");
 		pOpts->add("-thickness=1.0", "Specify the thickness (in window units) of the lines to use to connect the points. (Use 0 if you want a scatter plot with no connecting lines.)");
 	}
@@ -1633,6 +1639,7 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-space", "Separate with spaces instead of commas.");
 		pOpts->add("-r", "Use \"NA\" instead of \"?\" for missing values. (This is the format used by R.)");
 		pOpts->add("-columnnames", "Print column names on the first row. (The default is to not print column names.)");
+		pOpts->add("-precision [val]=14", "Specify how many digits of precision to use before truncating and resorting to scientific notation.");
 	}
 	{
 		UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");
@@ -1881,6 +1888,13 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		pRoot->add("uglify [json-file]=model.json", "Prints a JSON file with whitespace removed.");
+	}
+	{
+		UsageNode* pUnique = pRoot->add("unique [dataset] [col] <options>", "Discard rows with redundant values in [col].");
+		pUnique->add("[dataset]=data.arff", "The dataset on which to operate.");
+		pUnique->add("[col]=0", "The column in which to preserve only one of each unique value.");
+		UsageNode* pOpts = pUnique->add("<options>");
+		pOpts->add("-last", "Preserve the last row with a unique value in [col]. (The default is to preserve the first row with a unique value in [col].)");
 	}
 	{
 		pRoot->add("zeromean [dataset]=m.arff","Subtracts the mean from all values "

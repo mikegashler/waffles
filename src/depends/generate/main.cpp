@@ -515,8 +515,8 @@ void randomWalk(GArgReader& args)
 				}
 			}
 
-			actions[i] = cur;
-			prev = cur;
+			actions[i].copy(cur);
+			prev.copy(cur);
 		}
 	}
 
@@ -1198,7 +1198,7 @@ void cranePath(GArgReader& args)
 		double craneYaw = posx;
 		state[0] = (craneYaw + 0.75) * (horizFrames - 1) / 1.5;
 		state[1] = ballHeight * (vertFrames - 1) / 1.25;
-		stateData.newRow() = state;
+		stateData.newRow().copy(state);
 
 		// Generate the image vector
 		GImage* pImage = makeCraneImage(craneYaw, ballHeight, wid, hgt, ballRadius, front);
@@ -1314,7 +1314,7 @@ void threeCranePath(GArgReader& args)
 		state[1] = ballHeight[0] * (vertFrames - 1) / 1.25;
 		state[2] = (craneYaw[2] + 0.75) * (horizFrames - 1) / 1.5;
 		state[3] = ballHeight[2] * (vertFrames - 1) / 1.25;
-		stateData.newRow() = state;
+		stateData.newRow().copy(state);
 
 		// Generate the image vector
 		GImage* pImage = makeThreeCraneImage(craneYaw, ballHeight, wid, hgt, ballRadius);
@@ -1536,7 +1536,7 @@ void gridRandomWalk(GArgReader& args)
 		GVec& pRow = dataState.newRow();
 		pRow[0] = x;
 		pRow[1] = y;
-		dataObs.newRow() = pData->row(width * y + x);
+		dataObs.newRow().copy(pData->row(width * y + x));
 		int action = 0;
 		while(true)
 		{
@@ -1814,16 +1814,16 @@ void sceneRobotSimulationPath(GArgReader& args)
 		frame.blitStretchInterpolate(&dest, &scene, &src);
 
 		// Convert to an observation vector
-		pVec = obs.newRow();
+		GVec& pVec2 = obs.newRow();
         size_t pos = 0;
 		unsigned int* pix = frame.pixels();
 		for(unsigned int yyy = 0; yyy < frame.height(); yyy++)
 		{
 			for(unsigned int xxx = 0; xxx < frame.width(); xxx++)
 			{
-				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gRed(*pix));
-				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gGreen(*pix));
-				pVec[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gBlue(*pix));
+				pVec2[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gRed(*pix));
+				pVec2[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gGreen(*pix));
+				pVec2[pos++] = ClipChan((int)(observationNoise * 255 * prng.normal()) + gBlue(*pix));
 				pix++;
 			}
 		}
@@ -2944,6 +2944,74 @@ void mackeyGlass(GArgReader &args)
 	m.print(cout);
 }
 
+void lorenz63(GArgReader &args)
+{
+	double x = 1.0, y = 1.0, z = 1.0;
+	double sigma	= 10.0;
+	double beta		= 8.0 / 3.0;
+	double rho		= 28.0;
+	double dt		= 0.01;
+	
+	size_t count	= 100;
+	
+	if(args.next_is_uint())
+	{
+		count = args.pop_uint();
+	}
+	
+	while(args.size() > 1)
+	{
+		if(args.if_pop("-x"))
+		{
+			x = args.pop_double();
+		}
+		else if(args.if_pop("-y"))
+		{
+			y = args.pop_double();
+		}
+		else if(args.if_pop("-z"))
+		{
+			z = args.pop_double();
+		}
+		else if(args.if_pop("-sigma"))
+		{
+			sigma = args.pop_double();
+		}
+		else if(args.if_pop("-beta"))
+		{
+			beta = args.pop_double();
+		}
+		else if(args.if_pop("-rho"))
+		{
+			rho = args.pop_double();
+		}
+		else if(args.if_pop("-dt"))
+		{
+			dt = args.pop_double();
+		}
+		else
+		{
+			throw Ex("Unrecognized option: ", args.peek());
+		}
+	}
+
+	GMatrix m(count, 3);
+	
+	m[0][0] = x;
+	m[0][1] = y;
+	m[0][2] = z;
+	
+	for(size_t i = 1; i < count; i++)
+	{
+		GVec &row	= m[i - 1];
+		m[i][0]		= row[0] + dt * (sigma * (row[1] - row[0]));
+		m[i][1]		= row[1] + dt * (row[0] * (rho - row[2]) - row[1]);
+		m[i][2]		= row[2] + dt * (row[0] * row[1] - beta * row[2]);
+	}
+	
+	m.print(cout);
+}
+
 int main(int argc, char *argv[])
 {
 	PathData pd;
@@ -2966,6 +3034,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("gridrandomwalk")) gridRandomWalk(args);
 		else if(args.if_pop("imagestoarff")) imagesToArff(args);
 		else if(args.if_pop("imagetranslatedovernoise")) ImageTranslatedOverNoise(args);
+		else if(args.if_pop("lorenz") || args.if_pop("lorenz63")) lorenz63(args);
 		else if(args.if_pop("mackeyglass")) mackeyGlass(args);
 		else if(args.if_pop("manifold")) manifold(args);
 		else if(args.if_pop("map")) mapEquations(args);

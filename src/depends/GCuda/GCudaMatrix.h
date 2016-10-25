@@ -20,6 +20,7 @@
 #define __GCUDAMATRIX_H__
 
 #include <cstddef>
+#include "../../GClasses/GVec.h"
 
 namespace GClasses {
 
@@ -69,12 +70,15 @@ public:
 	/// Returns the size of this vector.
 	size_t size() const { return m_size; }
 
+	/// Fills the vector with the specified value
+	void fill(GCudaEngine& engine, double val);
+
 	/// Copies a vector from the host (CPU memory) to the device (GPU memory).
 	/// Resizes this vector if necessary.
-	void upload(const double* pHostVector, size_t size);
+	void upload(const GVec& hostVector);
 
 	/// Copies a vector from the device (GPU memory) to the host (CPU memory).
-	void download(double* pOutHostVector);
+	void download(GVec& hostVector) const;
 
 	/// Copies that into this. (Resizes this vector if necessary.)
 	void copy(GCudaEngine& engine, const GCudaVector& that);
@@ -138,10 +142,13 @@ public:
 
 	/// Copies from this device (GPU memory) into m on the host (CPU memory).
 	/// Resizes m if necessary.
-	void download(GMatrix& m);
+	void download(GMatrix& m) const;
 
 	/// Adds that multipled by thatScalar to this.
 	void add(GCudaEngine& engine, GCudaMatrix& that, double thatScalar);
+
+	/// Copies the contents of that matrix into this matrix. Resizes if necessary.
+	void copy(GCudaEngine& engine, GCudaMatrix& that);
 
 	/// Multiplies this matrix by scalar
 	void scale(GCudaEngine& engine, double scalar);
@@ -180,6 +187,12 @@ public:
 
 	/// Scales the values in the specified column.
 	void scaleCol(GCudaEngine& engine, size_t col, double scalar);
+
+	/// Fills the matrix with the specified value
+	void fill(GCudaEngine& engine, double val);
+
+	/// Fills this matrix with random values from a Normal distribution.
+	void fillNormal(GCudaEngine& engine, double mean, double dev);
 };
 
 

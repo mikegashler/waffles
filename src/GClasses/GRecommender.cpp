@@ -71,7 +71,7 @@ GCollaborativeFilter::GCollaborativeFilter()
 {
 }
 
-GCollaborativeFilter::GCollaborativeFilter(GDomNode* pNode, GLearnerLoader& ll)
+GCollaborativeFilter::GCollaborativeFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : m_rand(0)
 {
 }
@@ -373,7 +373,7 @@ GBaselineRecommender::GBaselineRecommender()
 {
 }
 
-GBaselineRecommender::GBaselineRecommender(GDomNode* pNode, GLearnerLoader& ll)
+GBaselineRecommender::GBaselineRecommender(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_ratings.deserialize(pNode->field("ratings"));
@@ -471,7 +471,7 @@ GInstanceRecommender::GInstanceRecommender(size_t neighbors)
 	m_pMetric = new GCosineSimilarity();
 }
 
-GInstanceRecommender::GInstanceRecommender(GDomNode* pNode, GLearnerLoader& ll)
+GInstanceRecommender::GInstanceRecommender(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_neighbors = (size_t)pNode->field("neighbors")->asInt();
@@ -925,7 +925,7 @@ GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims)
 {
 }
 
-GMatrixFactorization::GMatrixFactorization(GDomNode* pNode, GLearnerLoader& ll)
+GMatrixFactorization::GMatrixFactorization(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_regularizer = pNode->field("reg")->asDouble();
@@ -1090,6 +1090,16 @@ void GMatrixFactorization::clampQ(size_t i)
 	}
 }
 
+void GMatrixFactorization_absValues(double* pVec, size_t dims)
+{
+	while(true)
+	{
+		*pVec = std::abs(*pVec);
+		if(--dims == 0)
+			return;
+	}
+}
+
 // virtual
 void GMatrixFactorization::train(GMatrix& data)
 {
@@ -1105,7 +1115,7 @@ void GMatrixFactorization::train(GMatrix& data)
 		GVec& vec = m_pP->row(i);
 		vec.fillNormal(m_rand, 0.02);
 		if(m_nonNeg)
-			GVec::absValues(m_pP->row(i).data() + 1, m_intrinsicDims);
+			GMatrixFactorization_absValues(m_pP->row(i).data() + 1, m_intrinsicDims);
 	}
 	delete(m_pQ);
 	m_pQ = new GMatrix(items, 1 + m_intrinsicDims);
@@ -1114,7 +1124,7 @@ void GMatrixFactorization::train(GMatrix& data)
 		GVec& vec = m_pQ->row(i);
 		vec.fillNormal(m_rand, 0.02);
 		if(m_nonNeg)
-			GVec::absValues(m_pQ->row(i).data() + 1, m_intrinsicDims);
+			GMatrixFactorization_absValues(m_pQ->row(i).data() + 1, m_intrinsicDims);
 	}
 
 	// Make a shallow copy of the data (so we can shuffle it)
@@ -1617,7 +1627,7 @@ GNonlinearPCA::GNonlinearPCA(size_t intrinsicDims)
 	m_pUsers = NULL;
 }
 
-GNonlinearPCA::GNonlinearPCA(GDomNode* pNode, GLearnerLoader& ll)
+GNonlinearPCA::GNonlinearPCA(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_useInputBias = pNode->field("uib")->asBool();
@@ -1941,7 +1951,7 @@ GLogNet::GLogNet(size_t intrinsicDims)
 {
 }
 
-GLogNet::GLogNet(GDomNode* pNode, GLearnerLoader& ll)
+GLogNet::GLogNet(const GDomNode* pNode, GLearnerLoader& ll)
 {
 	throw Ex("Sorry, not implemented yet");
 }
@@ -1969,7 +1979,7 @@ void GLogNet::train(GMatrix& data)
 	m_pModel = new GNeuralNet();
 
 	// Add a layer that just takes the logarithm of the inputs
-	GActivationLogExp* pAct1 = new GActivationLogExp();
+	GActivationSoftExponential* pAct1 = new GActivationSoftExponential();
 	//GActivationHinge* pAct1 = new GActivationHinge();
 	size_t totalInputs = 2 * (m_intrinsicDims + 1);
 	GUniformRelation relIn(totalInputs);
@@ -1990,7 +2000,7 @@ void GLogNet::train(GMatrix& data)
 	b1[m_intrinsicDims + 1] = 0.0; // item bias
 
 	// Add a layer that computes the pair-wise products of the user and item profile elements
-	GActivationLogExp* pAct2 = new GActivationLogExp();
+	GActivationSoftExponential* pAct2 = new GActivationSoftExponential();
 	//GActivationHinge* pAct2 = new GActivationHinge();
 	size_t totalTerms = m_intrinsicDims + 2;
 	GLayerClassic* pLay2 = new GLayerClassic(totalInputs, totalTerms, pAct2);
@@ -2013,7 +2023,7 @@ void GLogNet::train(GMatrix& data)
 	b2.fill(0.0);
 
 	// Add a layer that sums the pair-wise products
-	GActivationLogExp* pAct3 = new GActivationLogExp();
+	GActivationSoftExponential* pAct3 = new GActivationSoftExponential();
 	//GActivationHinge* pAct3 = new GActivationHinge();
 	GLayerClassic* pLay3 = new GLayerClassic(totalTerms, 1, pAct3);
 	GVec& a3 = pAct3->alphas();
@@ -2159,7 +2169,7 @@ GBagOfRecommenders::GBagOfRecommenders()
 {
 }
 
-GBagOfRecommenders::GBagOfRecommenders(GDomNode* pNode, GLearnerLoader& ll)
+GBagOfRecommenders::GBagOfRecommenders(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
 	m_itemCount = (size_t)pNode->field("ic")->asInt();
@@ -2322,7 +2332,7 @@ void GContentBasedFilter::train(GMatrix& data)
 		GMatrix* labels = new GMatrix(relation);
 		for(multimap<size_t, size_t>::iterator ratings = ratedItems.first; ratings != ratedItems.second; ++ratings)
 		{
-			trainingData->newRow() = m_itemAttrs->row(m_itemMap[(*ratings).second]);
+			trainingData->newRow().copy(m_itemAttrs->row(m_itemMap[(*ratings).second]));
 
 			GVec& temp = labels->newRow();
 			temp[0] = data[(*ratings).second][2];

@@ -211,7 +211,7 @@ public:
 
 	/// If alpha=1, returns exp(x). If alpha = 0, returns x. If alpha = -1, returns log_e(x).
 	/// Alpha can be any continuous value from -1 to 1 to continuously interpolate among these functions.
-	static double logExp(double alpha, double x);
+	static double softExponential(double alpha, double x);
 
 	/// Given x(t), returns x(t + 1) in the Mackey-Glass series.
 	/// x is x(t), xt is x(t - TAO), and beta, gamma, and n are other Mackey-Glass parameters.

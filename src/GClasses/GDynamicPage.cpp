@@ -28,8 +28,8 @@
 #include "GString.h"
 #include "GSocket.h"
 #include "GTime.h"
+#include "sha2.h"
 #include "GRand.h"
-#include "sha1.h"
 #ifndef WINDOWS
 #	include <unistd.h>
 #	include <arpa/inet.h>
@@ -378,13 +378,13 @@ const char* GDynamicPageServer::passwordSalt()
 
 void GDynamicPageServer::computePasswordSalt()
 {
-	unsigned char digest[20];
-	SHA_CTX ctx;
-	memset(&ctx, '\0', sizeof(SHA_CTX));
-	SHA1_Init(&ctx);
-	SHA1_Update(&ctx, (unsigned char*)m_daemonSalt, (unsigned int)strlen(m_daemonSalt));
-	SHA1_Update(&ctx, (unsigned char*)"ajbiekistwgcdpcm", 16);
-	SHA1_Final(digest, &ctx);
+	unsigned char digest[SHA512_DIGEST_LENGTH];
+	sha512_ctx ctx;
+	memset(&ctx, '\0', sizeof(sha512_ctx));
+	sha512_begin(&ctx);
+	sha512_hash((unsigned char*)m_daemonSalt, (unsigned int)strlen(m_daemonSalt), &ctx);
+	sha512_hash((unsigned char*)"ajbiekistwgcdpcm", 16, &ctx);
+	sha512_end(digest, &ctx);
 	for(int i = 0; i < 14; i++)
 	{
 		char c = digest[i] % 52;

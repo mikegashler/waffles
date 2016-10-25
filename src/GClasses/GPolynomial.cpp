@@ -40,14 +40,14 @@ protected:
 	size_t m_featureDims;
 	size_t m_nControlPoints;
 	size_t m_nCoefficients;
-	double* m_pCoefficients;
+	GVec m_pCoefficients;
 
 public:
 	/// It will have the same number of control points in every dimension
 	GPolynomialSingleLabel(size_t nControlPoints);
 
 	/// Load from a DOM.
-	GPolynomialSingleLabel(GDomNode* pNode);
+	GPolynomialSingleLabel(const GDomNode* pNode);
 
 	virtual ~GPolynomialSingleLabel();
 
@@ -79,7 +79,7 @@ public:
 	double coefficient(size_t* pCoords);
 
 	/// Returns the full array of coefficients
-	double* coefficientArray() { return m_pCoefficients; }
+	GVec& coefficientArray() { return m_pCoefficients; }
 
 	/// Sets the coefficient at the specified coordinates. pCoords should
 	/// be an array of size m_nDimensions, and each value should be from 0 to m_nControlPoints - 1
@@ -93,7 +93,7 @@ public:
 	void clear();
 
 	/// Sets all the coefficients. pVector must be of size GetCoefficientCount()
-	void setCoefficients(const double* pVector);
+	void setCoefficients(const GVec& pVector);
 
 	/// Converts to a multi-dimensional Bezier curve
 	void toBezierCoefficients();
@@ -178,12 +178,13 @@ public:
 // ---------------------------------------------------------------------------
 
 GPolynomialSingleLabel::GPolynomialSingleLabel(size_t controlPoints)
-: m_featureDims(0), m_nControlPoints(controlPoints), m_nCoefficients(0), m_pCoefficients(NULL)
+: m_featureDims(0), m_nControlPoints(controlPoints), m_nCoefficients(0)
 {
 	GAssert(controlPoints > 0);
 }
 
-GPolynomialSingleLabel::GPolynomialSingleLabel(GDomNode* pNode)
+GPolynomialSingleLabel::GPolynomialSingleLabel(const GDomNode* pNode)
+: m_pCoefficients(pNode->field("coefficients"))
 {
 	m_nControlPoints = (int)pNode->field("controlPoints")->asInt();
 	m_nCoefficients = 1;
@@ -194,9 +195,6 @@ GPolynomialSingleLabel::GPolynomialSingleLabel(GDomNode* pNode)
 		m_nCoefficients *= m_nControlPoints;
 		i--;
 	}
-	m_pCoefficients = new double[m_nCoefficients];
-	GDomListIterator it(pNode->field("coefficients"));
-	GVec::deserialize(m_pCoefficients, it);
 }
 
 GPolynomialSingleLabel::~GPolynomialSingleLabel()
@@ -212,7 +210,7 @@ GDomNode* GPolynomialSingleLabel::serialize(GDom* pDoc) const
 	GDomNode* pNode = pDoc->newObj();
 	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
 	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_nControlPoints));
-	pNode->addField(pDoc, "coefficients", GVec::serialize(pDoc, m_pCoefficients, m_nCoefficients));
+	pNode->addField(pDoc, "coefficients", m_pCoefficients.serialize(pDoc));
 	return pNode;
 }
 
@@ -264,12 +262,12 @@ public:
 	virtual bool isConstrained() { return false; }
 
 protected:
-	virtual void initVector(double* pVector)
+	virtual void initVector(GVec& pVector)
 	{
-		GVec::setAll(pVector, 0.0, relation()->size());
+		pVector.fill(0.0);
 	}
 
-	virtual double computeError(const double* pVector)
+	virtual double computeError(const GVec& pVector)
 	{
 		m_pPolynomial->setCoefficients(pVector);
 		m_pPolynomial->fromBezierCoefficients();
@@ -286,17 +284,16 @@ protected:
 	}
 };
 
-void GPolynomialSingleLabel::setCoefficients(const double* pVector)
+void GPolynomialSingleLabel::setCoefficients(const GVec& pVector)
 {
 	if(m_featureDims == 0)
 		throw Ex("init has not been called");
-	GVec::copy(m_pCoefficients, pVector, m_nCoefficients);
+	m_pCoefficients.copy(pVector);
 }
 
 void GPolynomialSingleLabel::clear()
 {
-	delete[] m_pCoefficients;
-	m_pCoefficients = NULL;
+	m_pCoefficients.resize(0);
 }
 
 void GPolynomialSingleLabel::init(size_t feature_dims)
@@ -309,8 +306,8 @@ void GPolynomialSingleLabel::init(size_t feature_dims)
 		m_nCoefficients *= m_nControlPoints;
 		i--;
 	}
-	m_pCoefficients = new double[m_nCoefficients];
-	GVec::setAll(m_pCoefficients, 0.0, m_nCoefficients);
+	m_pCoefficients.resize(m_nCoefficients);
+	m_pCoefficients.fill(0.0);
 }
 
 void GPolynomialSingleLabel::train(const GMatrix& features, const GMatrix& labels)
@@ -522,7 +519,7 @@ void GPolynomialSingleLabel::copy(GPolynomialSingleLabel* pOther)
 	if(controlPointCount() >= pOther->controlPointCount())
 		throw Ex("this polynomial must have at least as many control points as pOther");
 	if(controlPointCount() > pOther->controlPointCount())
-		GVec::setAll(m_pCoefficients, 0.0, m_nCoefficients);
+		m_pCoefficients.fill(0.0);
 	GTEMPBUF(size_t, pCoords, m_featureDims);
 	GPolynomialLatticeIterator iter(pCoords, m_featureDims, pOther->m_nControlPoints, INVALID_INDEX);
 	while(true)
@@ -605,7 +602,7 @@ GPolynomial::GPolynomial()
 {
 }
 
-GPolynomial::GPolynomial(GDomNode* pNode)
+GPolynomial::GPolynomial(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_controlPoints = (size_t)pNode->field("controlPoints")->asInt();

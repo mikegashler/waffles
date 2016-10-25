@@ -30,7 +30,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 {
 	public:
 		GNeuralDecomposition();
-		GNeuralDecomposition(GDomNode *pNode);
+		GNeuralDecomposition(const GDomNode *pNode);
 		virtual ~GNeuralDecomposition();
 		
 		virtual void trainOnSeries(const GMatrix &series);
