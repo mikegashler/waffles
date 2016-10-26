@@ -83,8 +83,11 @@ private:
 class GFunctionOptimizer
 {
 public:
-	GFunctionOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
+	GFunctionOptimizer(GOptimizableFunction *function = NULL, GDifferentiableFunction *error = NULL);
 	virtual ~GFunctionOptimizer();
+	
+	virtual void setFunction(GOptimizableFunction *function);
+	virtual void setError(GDifferentiableFunction *error);
 	
 	virtual void beginOptimizing(size_t featSize, size_t labSize) = 0;
 	virtual void updateGradient(const GVec &feat, const GVec &lab) = 0;
@@ -110,7 +113,7 @@ protected:
 class GSGDOptimizer : public GFunctionOptimizer
 {
 public:
-	GSGDOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
+	GSGDOptimizer(GOptimizableFunction *function = NULL, GDifferentiableFunction *error = NULL);
 	virtual void beginOptimizing(size_t featSize, size_t labSize) override;
 	virtual void updateGradient(const GVec &feat, const GVec &lab) override;
 	virtual void scaleGradient(double scale) override;
@@ -130,7 +133,7 @@ private:
 class GRMSPropOptimizer : public GFunctionOptimizer
 {
 public:
-	GRMSPropOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
+	GRMSPropOptimizer(GOptimizableFunction *function = NULL, GDifferentiableFunction *error = NULL);
 	virtual void beginOptimizing(size_t featSize, size_t labSize) override;
 	virtual void updateGradient(const GVec &feat, const GVec &lab) override;
 	virtual void scaleGradient(double scale) override;

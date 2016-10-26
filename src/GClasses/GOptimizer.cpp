@@ -88,6 +88,18 @@ GFunctionOptimizer::~GFunctionOptimizer()
 	delete m_error;
 }
 
+void GFunctionOptimizer::setFunction(GOptimizableFunction *function)
+{
+	delete m_function;
+	m_function = function;
+}
+
+void GFunctionOptimizer::setError(GDifferentiableFunction *error)
+{
+	delete m_error;
+	m_error = error;
+}
+
 void GFunctionOptimizer::optimizeIncremental(const GVec &feat, const GVec &lab)
 {
 	updateGradient(feat, lab);
