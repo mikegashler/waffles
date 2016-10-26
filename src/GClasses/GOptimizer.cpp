@@ -2,6 +2,7 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
+    Luke B. Godfrey,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
