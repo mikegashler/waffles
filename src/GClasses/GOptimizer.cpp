@@ -37,7 +37,7 @@ void GSumSquaredErrorFunction::calculateOutput(const GVec &x, GVec &y)
 void GSumSquaredErrorFunction::updateGradient(const GVec &x, const GVec &err, GVec &gradient)
 {
 	for(size_t i = 0; i < x.size(); ++i)
-		gradient[i] += err[i];
+		gradient[i] += err[i]; ///< the actual gradient is 2 * err[i], but the 2 is absorbed as a constant to speed up the code
 }
 
 void GNeuralNetFunction::calculateOutput(const GVec &x, GVec &y)
