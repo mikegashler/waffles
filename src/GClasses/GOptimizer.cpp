@@ -163,7 +163,16 @@ void GSGDOptimizer::updateGradient(const GVec &feat, const GVec &lab)
 	GAssert(m_ready, "GFunctionOptimizer::beginOptimizing must be called before attempting to optimize!");
 	m_blame.fill(0.0);
 	m_function->calculateOutput(feat, m_pred);
-	m_error->updateGradient(m_pred, lab - m_pred, m_blame);
+	
+	for(size_t i = 0; i < m_pred.size(); ++i)
+	{
+		if(lab[i] == UNKNOWN_REAL_VALUE)
+			m_pred[i] = 0.0;
+		else
+			m_pred[i] = lab[i] - m_pred[i];
+	}
+	
+	m_error->updateGradient(m_pred, m_pred, m_blame);
 	m_function->updateGradient(feat, m_blame, m_gradient);
 }
 
