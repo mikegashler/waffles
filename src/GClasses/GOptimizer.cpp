@@ -48,21 +48,25 @@ void GNeuralNetFunction::updateGradient(const GVec &x, const GVec &err, GVec &dy
 	m_nn.outputLayer().error().put(0, err);
 	m_nn.backpropagateErrorAlreadySet();
 	const GVec *in = &x;
-	GVecWrapper out(dy.data(), dy.size());
+	GVecWrapper out(dy.data(), 0);
 	for(size_t i = 0; i < m_nn.layerCount(); ++i)
 	{
+		size_t count = m_nn.layer(i).countWeights();
+		out.setSize(count);
 		m_nn.layer(i).updateDeltas(*in, out.vec());
 		in = &m_nn.layer(i).activation();
-		out.setData(out.vec().data() + m_nn.layer(i).countWeights());
+		out.setData(out.vec().data() + count);
 	}
 }
 void GNeuralNetFunction::applyDeltas(const GVec &deltas)
 {
-	GConstVecWrapper delta(deltas.data(), deltas.size());
+	GConstVecWrapper delta(deltas.data(), 0);
 	for(size_t i = 0; i < m_nn.layerCount(); ++i)
 	{
+		size_t count = m_nn.layer(i).countWeights();
+		delta.setSize(count);
 		m_nn.layer(i).applyDeltas(delta.vec());
-		delta.setData(delta.vec().data() + m_nn.layer(i).countWeights());
+		delta.setData(delta.vec().data() + count);
 	}
 }
 
