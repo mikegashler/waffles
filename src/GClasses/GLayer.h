@@ -108,7 +108,6 @@ public:
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
 	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) { throw Ex("stub"); }
 
 	/// Updates the deltas for updating the weights by gradient descent.
@@ -239,7 +238,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas);
 	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
 
 	/// Updates the deltas for updating the weights by gradient descent.
@@ -422,14 +420,17 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -540,14 +541,17 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -657,14 +661,17 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -828,14 +835,17 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Calls scaleWeights for each component.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -941,14 +951,17 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -1117,14 +1130,17 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases);
@@ -1256,6 +1272,14 @@ public:
 	virtual void backPropError(GNeuralNetLayer *pUpStreamLayer);
 	virtual void updateDeltas(const GVec &upStreamActivation, double momentum);
 	virtual void applyDeltas(double learningRate);
+	
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas);
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(const GVec &deltas);
+	
 	virtual void scaleWeights(double factor, bool scaleBiases);
 	virtual void diminishWeights(double amount, bool regularizeBiases);
 	virtual size_t countWeights();
@@ -1372,10 +1396,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)

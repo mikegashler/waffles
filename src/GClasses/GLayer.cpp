@@ -309,27 +309,7 @@ void GLayerClassic::backPropErrorSingleOutput(size_t outputNode, GVec& upStreamE
 		upStreamError[i] = in * m_weights[i][outputNode];
 }
 
-void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GMatrix &deltas)
-{
-	GAssert(deltas.rows() == m_weights.rows() && deltas.cols() == m_weights.cols(), "Deltas must match the dimensions of weights!");
-	
-	GVec &err = error();
-	for(size_t i = 0; i < inputs(); ++i)
-	{
-		GVec &d = deltas[i];
-		double act = upStreamActivation[i];
-		for(size_t j = 0; j < outputs(); ++j)
-			d[j] += err[j] * act;
-	}
-	
-	GVec &d = deltas.back();
-	for(size_t j = 0; j < outputs(); ++j)
-		d[j] += err[j];
-	
-	// m_pActivationFunction->updateDeltas(net(), activation(), momentum);
-}
-
-void GLayerClassic::updateDeltas(const GVec& upStreamActivation, GVec &deltas)
+void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 {
 	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
 	GVec &err = error();
@@ -752,6 +732,16 @@ void GLayerProductPooling::applyDeltas(double learningRate)
 	// There are no weights to update
 }
 
+void GLayerProductPooling::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
+{
+	// There are no weights to update
+}
+
+void GLayerProductPooling::applyDeltas(const GVec &deltas)
+{
+	// There are no weights to update
+}
+
 void GLayerProductPooling::scaleWeights(double factor, bool scaleBiases)
 {
 	// There are no weights to scale
@@ -912,6 +902,16 @@ void GLayerAdditionPooling::updateDeltas(const GVec& upStreamActivation, double 
 
 // virtual
 void GLayerAdditionPooling::applyDeltas(double learningRate)
+{
+	// There are no weights to update
+}
+
+void GLayerAdditionPooling::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
+{
+	// There are no weights to update
+}
+
+void GLayerAdditionPooling::applyDeltas(const GVec &deltas)
 {
 	// There are no weights to update
 }
@@ -1140,6 +1140,32 @@ void GLayerMaxOut::applyDeltas(double learningRate)
 		bi[up] += learningRate * bd[up];
 		bd[up] = 0.0;
 		m_weights[up][down] += learningRate * m_delta[up][down];
+	}
+}
+
+void GLayerMaxOut::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
+{
+	GVec& err = error();
+	size_t outputCount = outputs();
+	double *delta = deltas.data();
+	for(size_t down = 0; down < outputCount; down++)
+	{
+		size_t up = m_winners[down];
+		*delta++ += err[down]; // bias
+		*delta++ += err[down] * upStreamActivation[up]; // weights
+	}
+}
+
+void GLayerMaxOut::applyDeltas(const GVec &deltas)
+{
+	size_t outputCount = outputs();
+	GVec& bi = bias();
+	const double *delta = deltas.data();
+	for(size_t down = 0; down < outputCount; down++)
+	{
+		size_t up = m_winners[down];
+		bi[up] += *delta++;
+		m_weights[up][down] += *delta++;
 	}
 }
 
@@ -1452,6 +1478,32 @@ void GLayerMixed::applyDeltas(double learningRate)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->applyDeltas(learningRate);
+}
+
+void GLayerMixed::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
+{
+	GAssert(deltas.size() == countWeights(), "There must be exactly one delta per weight!");
+	
+	GVecWrapper delta(deltas.data(), 0);
+	for(size_t i = 0; i < m_components.size(); ++i)
+	{
+		size_t count = m_components[i]->countWeights();
+		delta.setSize(count);
+		m_components[i]->updateDeltas(upStreamActivation, delta.vec());
+		delta.setData(delta.vec().data() + count);
+	}
+}
+
+void GLayerMixed::applyDeltas(const GVec &deltas)
+{
+	GConstVecWrapper delta(deltas.data(), 0);
+	for(size_t i = 0; i < m_components.size(); ++i)
+	{
+		size_t count = m_components[i]->countWeights();
+		delta.setSize(count);
+		m_components[i]->applyDeltas(delta.vec());
+		delta.setData(delta.vec().data() + count);
+	}
 }
 
 // virtual
@@ -1845,6 +1897,31 @@ void GLayerRestrictedBoltzmannMachine::applyDeltas(double learningRate)
 	bias().addScaled(learningRate, biasDelta());
 }
 
+void GLayerRestrictedBoltzmannMachine::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
+{
+	size_t outputCount = outputs();
+	GVec& err = error();
+	GVecWrapper delta(deltas.data(), m_weights.cols());
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		delta.vec().addScaled(err[i], upStreamActivation);
+		delta.setData(delta.vec().data() + m_weights.cols());
+	}
+	delta.vec() += err;
+}
+
+void GLayerRestrictedBoltzmannMachine::applyDeltas(const GVec &deltas)
+{
+	size_t outputCount = outputs();
+	GConstVecWrapper delta(deltas.data(), m_weights.cols());
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		m_weights[i] += delta.vec();
+		delta.setData(delta.vec().data() + m_weights.cols());
+	}
+	bias() += delta.vec();
+}
+
 void GLayerRestrictedBoltzmannMachine::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_weights.rows(); i++)
@@ -2178,6 +2255,57 @@ void GLayerConvolutional1D::applyDeltas(double learningRate)
 	for(size_t i = 0; i < n; i++)
 		m_kernels[i].addScaled(learningRate, m_delta[i]);
 	bias().addScaled(learningRate, biasDelta());
+}
+
+void GLayerConvolutional1D::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
+{
+	GVec& err = error();
+	size_t kernelSize = m_kernels.cols();
+	size_t errPos = 0;
+	size_t upPos = 0;
+	for(size_t i = 0; i < m_outputSamples; i++) // for each sample...
+	{
+		double *delta = deltas.data();
+		for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+		{
+			for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+			{
+				size_t upOfs = 0;
+				for(size_t l = 0; l < kernelSize; l++) // for each connection...
+				{
+					*delta++ += err[errPos] * upStreamActivation[upPos + upOfs];
+					upOfs += m_inputChannels;
+				}
+				*delta++ += err[errPos++];
+			}
+			upPos++;
+		}
+	}
+}
+
+void GLayerConvolutional1D::applyDeltas(const GVec &deltas)
+{
+	size_t kernelSize = m_kernels.cols();
+	size_t errPos = 0;
+	size_t upPos = 0;
+	size_t kern = 0;
+	const double *delta = deltas.data();
+	for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
+	{
+		for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
+		{
+			GVec& d = m_kernels[kern];
+			size_t upOfs = 0;
+			for(size_t l = 0; l < kernelSize; l++) // for each connection...
+			{
+				d[l] += *delta++;
+				upOfs += m_inputChannels;
+			}
+			bias()[kern++] += *delta++;
+			errPos++;
+		}
+		upPos++;
+	}
 }
 
 // virtual
@@ -2550,7 +2678,10 @@ void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, double 
 		for(in.dz = m_deltaImage.dz = 0; in.dz < in.channels; ++in.dz, ++m_deltaImage.dz)
 			for(in.dy = 0; in.dy < err.height; ++in.dy)
 				for(in.dx = 0; in.dx < err.width; ++in.dx)
+				{
 					addScaled(in, err.read(in.dx, in.dy), m_deltaImage);
+					m_biasDelta[err.dz] += err.read(in.dx, in.dy);
+				}
 		m_deltaImage.dz = 0;
 	}
 	in.dz = 0;
@@ -2561,6 +2692,43 @@ void GLayerConvolutional2D::applyDeltas(double learningRate)
 	m_bias.addScaled(learningRate, m_biasDelta);
 	for(size_t i = 0; i < m_deltas.rows(); i++)
 		m_kernels[i].addScaled(learningRate, m_deltas[i]);
+}
+
+void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
+{
+	Image &err = m_errImage;
+	Image &in = m_inputImage;
+	in.data = const_cast<GVec *>(&upStreamActivation);
+	size_t count = m_kernels.cols();
+	GVecWrapper delta(deltas.data(), count);
+	m_deltaImage.data = &delta.vec();
+	for(err.dz = 0; err.dz < err.channels; ++err.dz)
+	{
+		double *biasDelta = m_deltaImage.data->data() + count;
+		m_deltaImage.data->fill(0.0);
+		for(in.dz = m_deltaImage.dz = 0; in.dz < in.channels; ++in.dz, ++m_deltaImage.dz)
+			for(in.dy = 0; in.dy < err.height; ++in.dy)
+				for(in.dx = 0; in.dx < err.width; ++in.dx)
+				{
+					addScaled(in, err.read(in.dx, in.dy), m_deltaImage);
+					*biasDelta += err.read(in.dx, in.dy);
+				}
+		m_deltaImage.dz = 0;
+		delta.setData(delta.vec().data() + count + 1);
+	}
+	in.dz = 0;
+}
+
+void GLayerConvolutional2D::applyDeltas(const GVec &deltas)
+{
+	size_t count = m_kernels.cols();
+	GConstVecWrapper delta(deltas.data(), count);
+	for(size_t i = 0; i < m_kernels.rows(); i++)
+	{
+		m_kernels[i] += delta.vec();
+		m_bias[i] += *(delta.vec().data() + count);
+		delta.setData(delta.vec().data() + count + 1);
+	}
 }
 
 void GLayerConvolutional2D::scaleWeights(double factor, bool scaleBiases)

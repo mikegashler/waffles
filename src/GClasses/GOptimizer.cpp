@@ -42,10 +42,12 @@ void GSumSquaredErrorFunction::updateGradient(const GVec &x, const GVec &err, GV
 
 void GNeuralNetFunction::calculateOutput(const GVec &x, GVec &y)
 {
+	GAssert(y.size() == m_nn.outputLayer().outputs(), "Can't calculate output; not enough space in y!");
 	m_nn.predict(x, y);
 }
 void GNeuralNetFunction::updateGradient(const GVec &x, const GVec &err, GVec &dy)
 {
+	GAssert(dy.size() == countParameters(), "Can't update gradient; not enough space in dy!");
 	m_nn.outputLayer().error().put(0, err);
 	m_nn.backpropagateErrorAlreadySet();
 	const GVec *in = &x;

@@ -41,7 +41,6 @@
 #include "GHolders.h"
 #include "GBits.h"
 #include "GFourier.h"
-#include "GMatrixOptimizer.h"
 #include <memory>
 #include <string>
 #include <sstream>

@@ -54,20 +54,6 @@ public:
 	/// Load from a text-format
 	GNeuralNet(const GDomNode* pNode);
 
-	/// Construct a neural network with initial layers
-	template <typename ... Ts>
-	GNeuralNet(GNeuralNetLayer *l, Ts... layers)
-	{
-		addLayers(l, layers...);
-	}
-
-	/// Construct a neural network with initial layers
-	template <typename ... Ts>
-	GNeuralNet(size_t l, Ts... layers)
-	{
-		addLayers(l, layers...);
-	}
-
 	virtual ~GNeuralNet();
 
 #ifndef MIN_PREDICT

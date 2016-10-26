@@ -212,65 +212,70 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 		throw Ex("You must set the number of sinusoid units before calling beginIncrementalLearning!");
 	}
 	
-	m_nn->setLearningRate(m_learningRate);
-	m_nn->beginIncrementalLearning(featureRel, labelRel);
-	
 	// Layer 1: Sinusoids + g(t)
 	GLayerMixed *pMix = new GLayerMixed();
-	{
-		// sinusoids
-		GLayerClassic *pSine = new GLayerClassic(featureRel.size(), m_sinusoidUnits, new GActivationSin());
-		{
-			// initialize sinusoid nodes inspired by the DFT
-			GVec& bias = pSine->bias();
-			GMatrix& weights = pSine->weights();
-			for(size_t i = 0; i < pSine->outputs() / 2; i++)
-			{
-				for(size_t j = 0; j < pSine->inputs(); j++)
-				{
-					weights[j][2 * i] = 2.0 * M_PI * (i + 1);
-					weights[j][2 * i + 1] = 2.0 * M_PI * (i + 1);
-				}
-				bias[2 * i] = 0.5 * M_PI;
-				bias[2 * i + 1] = M_PI;
-			}
-		}
-		pMix->addComponent(pSine);
-		
-		// g(t)
-		
-		GLayerClassic *pLinear = new GLayerClassic(featureRel.size(), m_linearUnits, new GActivationIdentity());
-		{
-			// initialize g(t) weights near identity
-			pLinear->setWeightsToIdentity();
-		}
-		pMix->addComponent(pLinear);
-		
-		GLayerClassic *pSoftplus = new GLayerClassic(featureRel.size(), m_softplusUnits, new GActivationSoftPlus());
-		{
-			// initialize g(t) weights near identity
-			pSoftplus->setWeightsToIdentity();
-		}
-		pMix->addComponent(pSoftplus);
-		
-		GLayerClassic *pSigmoid = new GLayerClassic(featureRel.size(), m_sigmoidUnits, new GActivationTanH());
-		{
-			// initialize g(t) weights near identity
-			pSigmoid->setWeightsToIdentity();
-		}
-		pMix->addComponent(pSigmoid);
-	}
+	
+	// sinusoids
+	
+	GLayerClassic *pSine = new GLayerClassic(featureRel.size(), m_sinusoidUnits, new GActivationSin());
+	pMix->addComponent(pSine);
+	
+	// g(t)
+	
+	GLayerClassic *pLinear = new GLayerClassic(featureRel.size(), m_linearUnits, new GActivationIdentity());
+	pMix->addComponent(pLinear);
+	
+	GLayerClassic *pSoftplus = new GLayerClassic(featureRel.size(), m_softplusUnits, new GActivationSoftPlus());
+	pMix->addComponent(pSoftplus);
+	
+	GLayerClassic *pSigmoid = new GLayerClassic(featureRel.size(), m_sigmoidUnits, new GActivationTanH());
+	pMix->addComponent(pSigmoid);
+	
 	m_nn->addLayer(pMix);
 	
 	// Layer 2: Output
 	GLayerClassic *pOutput = new GLayerClassic(pMix->outputs(), labelRel.size(), new GActivationIdentity());
+	m_nn->addLayer(pOutput);
+	
+	// Prepare for learning
+	m_nn->setLearningRate(m_learningRate);
+	m_nn->beginIncrementalLearning(featureRel, labelRel);
+	
+	// Initialize weights
+	
+	// sinusoids
+	{
+		// initialize sinusoid nodes inspired by the DFT
+		GVec& bias = pSine->bias();
+		GMatrix& weights = pSine->weights();
+		for(size_t i = 0; i < pSine->outputs() / 2; i++)
+		{
+			for(size_t j = 0; j < pSine->inputs(); j++)
+			{
+				weights[j][2 * i] = 2.0 * M_PI * (i + 1);
+				weights[j][2 * i + 1] = 2.0 * M_PI * (i + 1);
+			}
+			bias[2 * i] = 0.5 * M_PI;
+			bias[2 * i + 1] = M_PI;
+		}
+	}
+	
+	// g(t)
+	{
+		// initialize g(t) weights near identity
+		
+		pLinear->setWeightsToIdentity();
+		pSoftplus->setWeightsToIdentity();
+		pSigmoid->setWeightsToIdentity();
+	}
+	
+	// output layer
 	{
 		// initialize output weights near zero
 		pOutput->bias().fill(0.0);
 		pOutput->weights().setAll(0.0);
 		pOutput->perturbWeights(m_nn->rand(), 0.001);
 	}
-	m_nn->addLayer(pOutput);
 }
 
 void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
