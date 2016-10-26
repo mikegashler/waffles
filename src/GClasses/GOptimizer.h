@@ -31,6 +31,7 @@ class GAction;
 class GRand;
 class GNeuralNet;
 
+/// A function that can be calculated and differentiated, such as SSE or a neural network.
 class GDifferentiableFunction
 {
 public:
@@ -44,15 +45,17 @@ public:
 	virtual void updateGradient(const GVec &x, const GVec &err, GVec &gradient) = 0;
 };
 
+/// A parametrized differentiable function that can be optimized by tuning the parameters.
 class GOptimizableFunction : public GDifferentiableFunction
 {
 public:
 	virtual ~GOptimizableFunction() {}
 	
-	/// Apply the deltas to the parameters of the function
+	/// Apply the deltas to the parameters of the function.
 	virtual void applyDeltas(const GVec &deltas) = 0;
 };
 
+/// SSE, the default loss function.
 class GSumSquaredErrorFunction : public GDifferentiableFunction
 {
 public:
@@ -60,6 +63,7 @@ public:
 	virtual void updateGradient(const GVec &x, const GVec &err, GVec &gradient) override;
 };
 
+/// Wrapper function for a GNeuralNet.
 class GNeuralNetFunction : public GOptimizableFunction
 {
 public:
@@ -71,10 +75,11 @@ private:
 	GNeuralNet &m_nn;
 };
 
+/// Optimizes the parameters of a function given a loss metric.
 class GFunctionOptimizer
 {
 public:
-	GFunctionOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL, GRand *rand = NULL);
+	GFunctionOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
 	virtual ~GFunctionOptimizer();
 	
 	virtual void beginOptimizing(size_t featSize, size_t labSize, size_t weightCount) = 0;
@@ -82,26 +87,20 @@ public:
 	virtual void scaleGradient(double scale) = 0;
 	virtual void applyGradient() = 0;
 	
+	/// Update and apply the gradient for a single training sample (on-line).
 	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
+	
+	/// Update and apply the gradient for a single batch in order.
 	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize = 1);
+	
+	/// Update and apply the gradient for a single batch in randomized order.
 	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii, size_t batchSize = 1);
 	
-	virtual void optimize(const GMatrix &features, const GMatrix &labels);
-	
-	void setBatchSize(size_t b)			{ m_batchSize = b; }
-	size_t batchSize() const			{ return m_batchSize; }
-	
-	void setBatchesPerEpoch(size_t b)	{ m_batchesPerEpoch = b; }
-	size_t batchesPerEpoch() const		{ return m_batchesPerEpoch; }
-	
-	void setEpochs(size_t e)			{ m_epochs = e; }
-	size_t epochs() const				{ return m_epochs; }
+	/// Perform a full training process given the training features and labels.
+	virtual void optimize(const GMatrix &features, const GMatrix &labels, size_t epochs = 100, size_t batchesPerEpoch = 10, size_t batchSize = 25, GRand *rand = NULL);
 protected:
 	GOptimizableFunction *m_function;
 	GDifferentiableFunction *m_error;
-	size_t m_batchSize, m_batchesPerEpoch, m_epochs;
-	GRand *m_rand;
-	bool m_ownsRand;
 };
 
 class GSGDOptimizer : public GFunctionOptimizer

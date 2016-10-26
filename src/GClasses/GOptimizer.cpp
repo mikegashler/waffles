@@ -66,24 +66,14 @@ void GNeuralNetFunction::applyDeltas(const GVec &deltas)
 	}
 }
 
-GFunctionOptimizer::GFunctionOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error, GRand *rand)
-: m_function(function), m_error(error != NULL ? error : new GSumSquaredErrorFunction()),
-  m_batchSize(25), m_batchesPerEpoch(4), m_epochs(100),
-  m_rand(rand), m_ownsRand(false)
-{
-	if(m_rand == NULL)
-	{
-		m_rand = new GRand(0);
-		m_ownsRand = true;
-	}
-}
+GFunctionOptimizer::GFunctionOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error)
+: m_function(function), m_error(error != NULL ? error : new GSumSquaredErrorFunction())
+{}
 
 GFunctionOptimizer::~GFunctionOptimizer()
 {
 	delete m_function;
 	delete m_error;
-	if(m_ownsRand)
-		delete m_rand;
 }
 
 void GFunctionOptimizer::optimizeIncremental(const GVec &feat, const GVec &lab)
@@ -112,12 +102,22 @@ void GFunctionOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &l
 	applyGradient();
 }
 
-void GFunctionOptimizer::optimize(const GMatrix &features, const GMatrix &labels)
+void GFunctionOptimizer::optimize(const GMatrix &features, const GMatrix &labels, size_t epochs, size_t batchesPerEpoch, size_t batchSize, GRand *rand)
 {
-	GRandomIndexIterator ii(features.rows(), *m_rand);
-	for(size_t i = 0; i < m_epochs; ++i)
-		for(size_t j = 0; j < m_batchesPerEpoch; ++j)
-			optimizeBatch(features, labels, ii, m_batchSize);
+	bool ownsRand = false;
+	if(rand == NULL)
+	{
+		rand = new GRand(time(NULL));
+		ownsRand = true;
+	}
+	
+	GRandomIndexIterator ii(features.rows(), *rand);
+	for(size_t i = 0; i < epochs; ++i)
+		for(size_t j = 0; j < batchesPerEpoch; ++j)
+			optimizeBatch(features, labels, ii, batchSize);
+	
+	if(ownsRand)
+		delete rand;
 }
 
 GSGDOptimizer::GSGDOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error)
