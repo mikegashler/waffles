@@ -73,10 +73,18 @@ public:
 	virtual void setError(const GVec& error) {}
 
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
+	/// (deprecated in favor of the separate optimizer version)
 	virtual void updateDeltas(const GVec& net, const GVec& activation, double momentum) {}
 
+	/// Updates the deltas
+	virtual void updateDeltas(const GVec &net, const GVec &activation, GVec &deltas) {}
+
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
+	/// (deprecated in favor of the separate optimizer version)
 	virtual void applyDeltas(double learningRate) {}
+
+	/// Applies the deltas
+	virtual void applyDeltas(const GVec &deltas) {}
 
 	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
 	virtual void applyAdaptive() {}
@@ -360,8 +368,14 @@ public:
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
 	virtual void updateDeltas(const GVec& net, const GVec& activation, double momentum);
 
+	/// Updates the deltas
+	virtual void updateDeltas(const GVec &net, const GVec &activation, GVec &deltas);
+
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate);
+
+	/// Applies the deltas
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
 	virtual void applyAdaptive();
@@ -456,8 +470,14 @@ public:
 	/// Computes the deltas necessary to refine the parameters of this activation function by gradient descent
 	virtual void updateDeltas(const GVec& net, const GVec& activation, double momentum);
 
+	/// Updates the deltas
+	virtual void updateDeltas(const GVec &net, const GVec &activation, GVec &deltas);
+
 	/// Applies the deltas to refine the parameters of this activation function by gradient descent
 	virtual void applyDeltas(double learningRate);
+
+	/// Applies the deltas
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
 	virtual void applyAdaptive();

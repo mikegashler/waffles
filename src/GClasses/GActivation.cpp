@@ -218,6 +218,12 @@ void GActivationHinge::updateDeltas(const GVec& net, const GVec& activation, dou
 	}
 }
 
+void GActivationHinge::updateDeltas(const GVec &net, const GVec &activation, GVec &deltas)
+{
+	for(size_t i = 0; i < m_units; ++i)
+		deltas[i] += m_error[i] * (sqrt(net[i] * net[i] + BEND_SIZE * BEND_SIZE) - BEND_SIZE);
+}
+
 // virtual
 void GActivationHinge::applyDeltas(double learningRate)
 {
@@ -236,6 +242,22 @@ void GActivationHinge::applyDeltas(double learningRate)
 			*pHinge = 1.0;
 			*pD = 0.0;
 		}
+		pHinge++;
+		pD++;
+	}
+}
+
+void GActivationHinge::applyDeltas(const GVec &deltas)
+{
+	const double* pD = deltas.data();
+	double* pHinge = m_hinges.data();
+	for(size_t i = 0; i < m_units; i++)
+	{
+		*pHinge = *pHinge + *pD;
+		if(*pHinge < -1.0)
+			*pHinge = -1.0;
+		if(*pHinge > 1.0)
+			*pHinge = 1.0;
 		pHinge++;
 		pD++;
 	}
@@ -482,6 +504,33 @@ void GActivationSoftExponential::updateDeltas(const GVec& net, const GVec& activ
 	}
 }
 
+void GActivationSoftExponential::updateDeltas(const GVec& net, const GVec& activation, GVec &deltas)
+{
+	double* pAlpha = m_alphas.data();
+	const double* pErr = m_error.data();
+	const double* pN = net.data();
+	const double* pAct = activation.data();
+	double* pD = deltas.data();
+	for(size_t i = 0; i < m_units; i++)
+	{
+		double t1 = (*pAlpha * *pAlpha);
+		double t2 = (*pAlpha * *pN);
+		double delta;
+		if(*pAlpha < 1e-8)
+			delta = (log(std::max(1e-12, 1.0 - (t1 + t2))) - (t1 + t1 + t2) / (t1 + t2 - 1.0)) / t1;
+		else if(*pAlpha > 1e-8)
+			delta = (t1 + (t2 - 1.0) * exp(std::min(300.0, t2)) + 1.0) / t1;
+		else
+			delta = 0.5 * (*pN) * (*pN) + 1.0;
+		*pD += *pErr * delta;
+		pN++;
+		pAct++;
+		pErr++;
+		pAlpha++;
+		pD++;
+	}
+}
+
 // virtual
 void GActivationSoftExponential::applyDeltas(double learningRate)
 {
@@ -500,6 +549,22 @@ void GActivationSoftExponential::applyDeltas(double learningRate)
 			*pAlpha = 1.0;
 			*pD = 0.0;
 		}
+		pAlpha++;
+		pD++;
+	}
+}
+
+void GActivationSoftExponential::applyDeltas(const GVec &deltas)
+{
+	const double* pD = deltas.data();
+	double* pAlpha = m_alphas.data();
+	for(size_t i = 0; i < m_units; i++)
+	{
+		*pAlpha = *pAlpha + *pD;
+		if(*pAlpha < -1.0)
+			*pAlpha = -1.0;
+		if(*pAlpha > 1.0)
+			*pAlpha = 1.0;
 		pAlpha++;
 		pD++;
 	}

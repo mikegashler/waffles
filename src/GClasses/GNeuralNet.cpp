@@ -53,8 +53,6 @@ namespace GClasses {
 
 GNeuralNet::GNeuralNet()
 : GIncrementalLearner(),
-m_learningRate(0.1),
-m_momentum(0.0),
 m_validationPortion(0.35),
 m_minImprovement(0.002),
 m_epochsPerValidationCheck(100),
@@ -62,6 +60,9 @@ m_ready(false),
 m_deltaMin(1e-6),
 m_deltaMax(5e1)
 {
+	m_optimizer = new GSGDOptimizer(new GNeuralNetFunction(*this));
+	m_optimizer->setLearningRate(0.1);
+	m_optimizer->setMomentum(0.0);
 }
 
 GNeuralNet::GNeuralNet(const GDomNode* pNode)
@@ -70,8 +71,9 @@ m_validationPortion(0.35),
 m_minImprovement(0.002),
 m_epochsPerValidationCheck(100)
 {
-	m_learningRate = pNode->field("learningRate")->asDouble();
-	m_momentum = pNode->field("momentum")->asDouble();
+	m_optimizer = new GSGDOptimizer(new GNeuralNetFunction(*this));
+	m_optimizer->setLearningRate(pNode->field("learningRate")->asDouble());
+	m_optimizer->setMomentum(pNode->field("momentum")->asDouble());
 
 	// Create the layers
 	GDomListIterator it1(pNode->field("layers"));
@@ -84,6 +86,7 @@ m_epochsPerValidationCheck(100)
 
 GNeuralNet::~GNeuralNet()
 {
+	delete m_optimizer;
 	for(size_t i = 0; i < m_layers.size(); i++)
 		delete(m_layers[i]);
 	m_layers.clear();
@@ -107,8 +110,8 @@ GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 
 	// Add other settings
 
-	pNode->addField(pDoc, "learningRate", pDoc->newDouble(m_learningRate));
-	pNode->addField(pDoc, "momentum", pDoc->newDouble(m_momentum));
+	pNode->addField(pDoc, "learningRate", pDoc->newDouble(learningRate()));
+	pNode->addField(pDoc, "momentum", pDoc->newDouble(momentum()));
 
 	return pNode;
 }
@@ -191,8 +194,8 @@ void GNeuralNet::copyStructure(const GNeuralNet* pOther)
 		GDomNode* pNode = pOther->m_layers[i]->serialize(&doc);
 		m_layers.push_back(GNeuralNetLayer::deserialize(pNode));
 	}
-	m_learningRate = pOther->m_learningRate;
-	m_momentum = pOther->m_momentum;
+	setLearningRate(pOther->learningRate());
+	setMomentum(pOther->momentum());
 	m_validationPortion = pOther->m_validationPortion;
 	m_minImprovement = pOther->m_minImprovement;
 	m_epochsPerValidationCheck = pOther->m_epochsPerValidationCheck;
@@ -530,9 +533,7 @@ void GNeuralNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
 		for(size_t i = 0; i < features.rows(); i++)
 		{
 			features.fullRow(pFullRow, indexes[i]);
-			forwardProp(pFullRow);
-			backpropagate(labels.row(indexes[i]));
-			descendGradient(pFullRow, m_learningRate, m_momentum);
+			trainIncremental(pFullRow, labels.row(indexes[i]));
 		}
 	}
 }
@@ -619,6 +620,8 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 	m_meanSquare.resize(countWeights());
 	m_meanSquare.fill(0.0);
 
+	m_optimizer->beginOptimizing(inputs, outputs);
+
 	m_ready = true;
 }
 
@@ -626,182 +629,39 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 void GNeuralNet::trainIncremental(const GVec& in, const GVec& out)
 {
 	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
-
-	forwardProp(in);
-	backpropagate(out);
-	descendGradient(in, m_learningRate, m_momentum);
+	m_optimizer->optimizeIncremental(in, out);
 }
 
 void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, size_t start, size_t count)
 {
-	GAssert(m_ready, "beginIncrementalLearning must be called before you can use trainIncrementalBatch");
 	if(count == INVALID_INDEX)
 		count = features.rows();
+	GAssert(m_ready, "beginIncrementalLearning must be called before you can use trainIncrementalBatch");
 	GAssert(start + count <= features.rows() && count > 0);
-	
-	const GVec& feat0 = features[start];
-	const GVec& targ0 = labels[start];
-	forwardProp(feat0);
-	backpropagate(targ0);
-	updateDeltas(feat0, 0.0);
-	for(size_t i = 1; i < count; ++i, ++start)
-	{
-		const GVec& feat = features[start];
-		const GVec& targ = labels[start];
-		forwardProp(feat);
-		backpropagate(targ);
-		updateDeltas(feat, 1.0);
-	}
-	applyDeltas(m_learningRate / features.rows());
+	m_optimizer->optimizeBatch(features, labels, start, count);
 }
 
 void GNeuralNet::trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count)
 {
-	GAssert(m_ready, "beginIncrementalLearning must be called before you can use trainIncrementalBatch");
 	if(count == INVALID_INDEX)
 	{
 		count = features.rows();
 		ii.reset();
 	}
-	GAssert(count <= features.rows() && count > 0);
-	
-	size_t j;
-	if(!ii.next(j)) ii.reset(), ii.next(j);
-	
-	const GVec& feat0 = features[j];
-	const GVec& targ0 = labels[j];
-	forwardProp(feat0);
-	backpropagate(targ0);
-	updateDeltas(feat0, 0.0);
-	for(size_t i = 1; i < count; ++i)
-	{
-		if(!ii.next(j)) ii.reset(), ii.next(j);
-		const GVec& feat = features[j];
-		const GVec& targ = labels[j];
-		forwardProp(feat);
-		backpropagate(targ);
-		updateDeltas(feat, 1.0);
-	}
-	applyDeltas(m_learningRate / features.rows());
-}
-
-void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, size_t start, size_t count)
-{
 	GAssert(m_ready, "beginIncrementalLearning must be called before you can use trainIncrementalBatch");
-	if(count == INVALID_INDEX)
-		count = features.rows();
-	GAssert(start + count <= features.rows() && count > 0);
-	
-#ifdef _DEBUG
-	// inside ifdef to avoid useless for loop in optimized mode
-	for(size_t i = 0; i < layerCount(); ++i)
-		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL || m_layers[i]->countWeights() == 0);
-#endif
-	
-	const GVec& feat0 = features[start];
-	const GVec& targ0 = labels[start];
-	forwardProp(feat0);
-	backpropagate(targ0);
-	updateDeltas(feat0, 0.0);
-	for(size_t i = 1; i < count; ++i, ++start)
-	{
-		const GVec& feat = features[start];
-		const GVec& targ = labels[start];
-		forwardProp(feat);
-		backpropagate(targ);
-		updateDeltas(feat, 1.0);
-	}
-	
-	double *meanSquare = m_meanSquare.data();
-	double factor = 1.0 / count;
-	for(size_t i = 0; i < layerCount(); ++i)
-	{
-		if(m_layers[i]->countWeights() > 0)
-		{
-			GLayerClassic &layer = *(dynamic_cast<GLayerClassic *>(m_layers[i]));
-			
-			// BEGIN RMSPROP
-			for(size_t j = 0; j < layer.deltas().rows(); ++j)
-				for(size_t k = 0; k < layer.deltas().cols(); ++k, ++meanSquare)
-					updateMeanSquareAndDelta(*meanSquare, layer.deltas()[j][k]);
-			// END RMSPROP
-			
-			layer.applyDeltas(m_learningRate * factor);
-		}
-	}
-}
-
-void GNeuralNet::trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count)
-{
-	GAssert(m_ready, "beginIncrementalLearning must be called before you can use trainIncrementalBatch");
-	if(count == INVALID_INDEX)
-	{
-		count = features.rows();
-		ii.reset();
-	}
 	GAssert(count <= features.rows() && count > 0);
-	
-#ifdef _DEBUG
-	// inside ifdef to avoid useless for loop in optimized mode
-	for(size_t i = 0; i < layerCount(); ++i)
-		GAssert(dynamic_cast<GLayerClassic *>(m_layers[i]) != NULL || m_layers[i]->countWeights() == 0);
-#endif
-	
-	size_t j;
-	if(!ii.next(j)) ii.reset(), ii.next(j);
-	
-	const GVec& feat0 = features[j];
-	const GVec& targ0 = labels[j];
-	forwardProp(feat0);
-	backpropagate(targ0);
-	updateDeltas(feat0, 0.0);
-	for(size_t i = 1; i < count; ++i)
-	{
-		if(!ii.next(j)) ii.reset(), ii.next(j);
-		const GVec& feat = features[j];
-		const GVec& targ = labels[j];
-		forwardProp(feat);
-		backpropagate(targ);
-		updateDeltas(feat, 1.0);
-	}
-	
-	double *meanSquare = m_meanSquare.data();
-	double factor = 1.0 / count;
-	for(size_t i = 0; i < layerCount(); ++i)
-	{
-		if(m_layers[i]->countWeights() > 0)
-		{
-			GLayerClassic &layer = *(dynamic_cast<GLayerClassic *>(m_layers[i]));
-			
-			// BEGIN RMSPROP
-			for(size_t jj = 0; jj < layer.deltas().rows(); ++jj)
-				for(size_t k = 0; k < layer.deltas().cols(); ++k, ++meanSquare)
-					updateMeanSquareAndDelta(*meanSquare, layer.deltas()[jj][k]);
-			// END RMSPROP
-			
-			layer.applyDeltas(m_learningRate * factor);
-		}
-	}
-}
-
-void GNeuralNet::updateMeanSquareAndDelta(double &meanSquare, double &delta)
-{
-	meanSquare *= 0.9;
-	meanSquare += 0.1 * delta * delta;
-	delta /= sqrt(meanSquare) + 1e-6;
-	if(delta > 0)
-		delta = std::min(std::max(delta, m_deltaMin), m_deltaMax);
-	else
-		delta = std::max(std::min(delta, -m_deltaMin), -m_deltaMax);
+	m_optimizer->optimizeBatch(features, labels, ii, count);
 }
 
 void GNeuralNet::trainIncrementalWithDropout(const GVec& in, const GVec& out, double probOfDrop)
 {
 	GAssert( m_ready, "beginIncrementalLearning must be called before you can use trainIncremental" );
 	
-	if(m_momentum != 0.0)
+	if(momentum() != 0.0)
 		throw Ex("Sorry, this implementation is not compatible with momentum");
-
+	
+	throw Ex("GNeuralNet::trainIncrementalWithDropout is not implemented yet");
+/*
 	// Forward prop with dropout
 	GNeuralNetLayer* pLay = m_layers[0];
 	pLay->feedForward(in);
@@ -820,6 +680,7 @@ void GNeuralNet::trainIncrementalWithDropout(const GVec& in, const GVec& out, do
 
 	backpropagate(out);
 	descendGradient(in, m_learningRate, 0.0);
+*/
 }
 
 void GNeuralNet::backpropagateErrorAlreadySet()

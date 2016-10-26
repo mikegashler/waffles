@@ -343,6 +343,8 @@ void GLayerClassic::updateDeltas(const GVec& upStreamActivation, GVec &deltas)
 	
 	for(size_t j = 0; j < outputs(); ++j)
 		*delta++ += err[j];
+	
+	m_pActivationFunction->updateDeltas(net(), activation(), GVecWrapper(delta, m_pActivationFunction->countWeights()).vec());
 }
 
 void GLayerClassic::updateDeltas(const GVec& upStreamActivation, double momentum)
@@ -452,6 +454,7 @@ void GLayerClassic::applyDeltas(const GVec &deltas)
 			m_weights[i][j] += *delta++;
 	for(size_t j = 0; j < outputs(); ++j)
 		bias()[j] += *delta++;
+	m_pActivationFunction->applyDeltas(GConstVecWrapper(delta, m_pActivationFunction->countWeights()).vec());
 }
 
 void GLayerClassic::applyDeltasAdam(double learningRate)

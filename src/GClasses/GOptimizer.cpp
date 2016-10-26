@@ -131,7 +131,7 @@ void GFunctionOptimizer::optimize(const GMatrix &features, const GMatrix &labels
 }
 
 GSGDOptimizer::GSGDOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error)
-: GFunctionOptimizer(function, error), m_learningRate(1e-3), m_momentum(0)
+: GFunctionOptimizer(function, error), m_learningRate(1e-3), m_momentum(0), m_ready(false)
 {}
 
 void GSGDOptimizer::beginOptimizing(size_t featSize, size_t labSize)
@@ -141,10 +141,12 @@ void GSGDOptimizer::beginOptimizing(size_t featSize, size_t labSize)
 	m_gradient.resize(m_function->countParameters());
 	m_deltas.resize(m_function->countParameters());
 	m_gradient.fill(0.0);
+	m_ready = true;
 }
 
 void GSGDOptimizer::updateGradient(const GVec &feat, const GVec &lab)
 {
+	GAssert(m_ready, "GFunctionOptimizer::beginOptimizing must be called before attempting to optimize!");
 	m_blame.fill(0.0);
 	m_function->calculateOutput(feat, m_pred);
 	m_error->updateGradient(m_pred, lab - m_pred, m_blame);
@@ -153,11 +155,13 @@ void GSGDOptimizer::updateGradient(const GVec &feat, const GVec &lab)
 
 void GSGDOptimizer::scaleGradient(double scale)
 {
+	GAssert(m_ready, "GFunctionOptimizer::beginOptimizing must be called before attempting to optimize!");
 	m_gradient *= scale;
 }
 
 void GSGDOptimizer::applyGradient()
 {
+	GAssert(m_ready, "GFunctionOptimizer::beginOptimizing must be called before attempting to optimize!");
 	m_deltas.fill(0.0);
 	m_deltas.addScaled(m_learningRate, m_gradient);
 	m_function->applyDeltas(m_deltas);
@@ -165,7 +169,7 @@ void GSGDOptimizer::applyGradient()
 }
 
 GRMSPropOptimizer::GRMSPropOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error)
-: GFunctionOptimizer(function, error), m_learningRate(1e-3), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
+: GFunctionOptimizer(function, error), m_learningRate(1e-3), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6), m_ready(false)
 {}
 
 void GRMSPropOptimizer::beginOptimizing(size_t featSize, size_t labSize)
@@ -177,10 +181,12 @@ void GRMSPropOptimizer::beginOptimizing(size_t featSize, size_t labSize)
 	m_meanSquare.resize(m_function->countParameters());
 	m_gradient.fill(0.0);
 	m_meanSquare.fill(0.0);
+	m_ready = true;
 }
 
 void GRMSPropOptimizer::updateGradient(const GVec &feat, const GVec &lab)
 {
+	GAssert(m_ready, "GFunctionOptimizer::beginOptimizing must be called before attempting to optimize!");
 	m_blame.fill(0.0);
 	m_function->calculateOutput(feat, m_pred);
 	m_error->updateGradient(m_pred, lab - m_pred, m_blame);
@@ -189,11 +195,13 @@ void GRMSPropOptimizer::updateGradient(const GVec &feat, const GVec &lab)
 
 void GRMSPropOptimizer::scaleGradient(double scale)
 {
+	GAssert(m_ready, "GFunctionOptimizer::beginOptimizing must be called before attempting to optimize!");
 	m_gradient *= scale;
 }
 
 void GRMSPropOptimizer::applyGradient()
 {
+	GAssert(m_ready, "GFunctionOptimizer::beginOptimizing must be called before attempting to optimize!");
 	for(size_t i = 0; i < m_meanSquare.size(); ++i)
 	{
 		m_meanSquare[i] *= m_gamma;

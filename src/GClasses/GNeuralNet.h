@@ -36,12 +36,13 @@ class GNeuralNet : public GIncrementalLearner
 {
 protected:
 	std::vector<GNeuralNetLayer*> m_layers;
-	double m_learningRate;
-	double m_momentum;
 	double m_validationPortion;
 	double m_minImprovement;
 	size_t m_epochsPerValidationCheck;
 	bool m_ready;
+	
+	/// for backwards compatibility, keep an optimizer in here for deprecated calls to train, setLearningRate, etc.
+	GSGDOptimizer *m_optimizer;
 	
 	/// variables required by RMSProp
 	GVec m_meanSquare;
@@ -138,17 +139,17 @@ public:
 	void contractWeights(double factor, bool contractBiases);
 
 	/// Returns the current learning rate
-	double learningRate() const { return m_learningRate; }
+	double learningRate() const { return m_optimizer->learningRate(); }
 
 	/// Set the learning rate
-	void setLearningRate(double d) { m_learningRate = d; }
+	void setLearningRate(double d) { m_optimizer->setLearningRate(d); }
 
 	/// Returns the current momentum value
-	double momentum() const { return m_momentum; }
+	double momentum() const { return m_optimizer->momentum(); }
 
 	/// Momentum has the effect of speeding convergence and helping
 	/// the gradient descent algorithm move past some local minimums
-	void setMomentum(double d) { m_momentum = d; }
+	void setMomentum(double d) { m_optimizer->setMomentum(d); }
 
 	/// Returns the threshold ratio for improvement.
 	double improvementThresh() { return m_minImprovement; }
@@ -283,6 +284,12 @@ public:
 	/// gradient of the error surface with respect to the weights.
 	void descendGradient(const GVec& features, double learningRate, double momentum);
 
+	/// Convenience method
+	void descendGradient(const GVec& features)
+	{
+		descendGradient(features, learningRate(), momentum());
+	}
+
 	/// Descends the gradient with ADAM. (Currently assumes that all layers are instances of GLayerClassic.)
 	/// See Diederik P. Kingma and Jimmy Lei Ba, "Adam: A Method for Stochastic Optimization", 2015.
 	void descendGradientAdam(const GVec& feat, double learning_rate = 0.001, double beta1 = 0.9, double beta2 = 0.999);
@@ -383,26 +390,20 @@ public:
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
 
-	/// Convenience method for descending the gradient without specifying a learning rate or momentum
-	inline void descendGradient(const GVec &inputs)
-	{
-		descendGradient(inputs, m_learningRate, m_momentum);
-	}
-
 	/// Convenience method for incremental learning with input training
 	void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder, double inputLearningRate)
 	{
 		forwardProp(inputs);
 		backpropagate(target);
 		gradientOfInputs(gradientHolder);
-		descendGradient(inputs);
+		descendGradient(inputs, learningRate(), momentum());
 		inputs.addScaled(-inputLearningRate, gradientHolder);
 	}
 
 	/// Convenience method for incremental learning and train the inputs as well
 	inline void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder)
 	{
-		trainIncrementalUpdateInputs(inputs, target, gradientHolder, m_learningRate);
+		trainIncrementalUpdateInputs(inputs, target, gradientHolder, learningRate());
 	}
 
 	/// Convenience method for adding a basic layer

@@ -124,6 +124,7 @@ public:
 private:
 	GVec m_pred, m_blame, m_gradient, m_deltas;
 	double m_learningRate, m_momentum;
+	bool m_ready;
 };
 
 class GRMSPropOptimizer : public GFunctionOptimizer
@@ -146,6 +147,7 @@ public:
 private:
 	GVec m_pred, m_blame, m_gradient, m_deltas, m_meanSquare;
 	double m_learningRate, m_momentum, m_gamma, m_epsilon;
+	bool m_ready;
 };
 
 
