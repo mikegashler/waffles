@@ -55,9 +55,7 @@ GNeuralNet::GNeuralNet()
 m_validationPortion(0.35),
 m_minImprovement(0.002),
 m_epochsPerValidationCheck(100),
-m_ready(false),
-m_deltaMin(1e-6),
-m_deltaMax(5e1)
+m_ready(false)
 {
 	m_optimizer = new GSGDOptimizer(new GNeuralNetFunction(*this));
 	m_optimizer->setLearningRate(0.1);
@@ -615,9 +613,6 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 	// Reset the weights
 	for(size_t i = 0; i < m_layers.size(); i++)
 		m_layers[i]->resetWeights(m_rand);
-
-	m_meanSquare.resize(countWeights());
-	m_meanSquare.fill(0.0);
 
 	m_optimizer->beginOptimizing(inputs, outputs);
 

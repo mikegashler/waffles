@@ -43,10 +43,6 @@ protected:
 	
 	/// for backwards compatibility, keep an optimizer in here for deprecated calls to train, setLearningRate, etc.
 	GSGDOptimizer *m_optimizer;
-	
-	/// variables required by RMSProp
-	GVec m_meanSquare;
-	double m_deltaMin, m_deltaMax;
 
 public:
 	GNeuralNet();
@@ -309,18 +305,6 @@ public:
 	/// Performs a single step of batch gradient descent.
 	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, size_t start = 0, size_t count = INVALID_INDEX);
 	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count = INVALID_INDEX);
-
-	/// Performs a single step of batch gradient descent using RMSProp instead of SGD.
-	/// Note: this assumes that all layers are GLayerClassic!
-	void trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, size_t start = 0, size_t count = INVALID_INDEX);
-	void trainIncrementalBatchRMSProp(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count = INVALID_INDEX);
-	void updateMeanSquareAndDelta(double &meanSquare, double &delta);
-
-	/// Getters and setters for RMSProp variables
-	void setDeltaMin(double d)	{ m_deltaMin = d; }
-	double deltaMin() const		{ return m_deltaMin; }
-	void setDeltaMax(double d)	{ m_deltaMax = d; }
-	double deltaMax() const		{ return m_deltaMax; }
 
 	/// Presents a pattern for training. Applies dropout to the activations of hidden layers.
 	/// Note that when training with dropout is complete, you should call
