@@ -329,6 +329,22 @@ void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GMatrix &deltas
 	// m_pActivationFunction->updateDeltas(net(), activation(), momentum);
 }
 
+void GLayerClassic::updateDeltas(const GVec& upStreamActivation, GVec &deltas)
+{
+	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
+	GVec &err = error();
+	double *delta = deltas.data();
+	for(size_t i = 0; i < inputs(); ++i)
+	{
+		double act = upStreamActivation[i];
+		for(size_t j = 0; j < outputs(); ++j)
+			*delta++ += err[j] * act;
+	}
+	
+	for(size_t j = 0; j < outputs(); ++j)
+		*delta++ += err[j];
+}
+
 void GLayerClassic::updateDeltas(const GVec& upStreamActivation, double momentum)
 {
 	GVec& err = error();
@@ -425,6 +441,17 @@ void GLayerClassic::applyDeltas(double learningRate)
 		m_weights[i].addScaled(learningRate, m_delta[i]);
 	bias().addScaled(learningRate, biasDelta());
 	m_pActivationFunction->applyDeltas(learningRate);
+}
+
+void GLayerClassic::applyDeltas(const GVec &deltas)
+{
+	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
+	const double *delta = deltas.data();
+	for(size_t i = 0; i < inputs(); ++i)
+		for(size_t j = 0; j < outputs(); ++j)
+			m_weights[i][j] += *delta++;
+	for(size_t j = 0; j < outputs(); ++j)
+		bias()[j] += *delta++;
 }
 
 void GLayerClassic::applyDeltasAdam(double learningRate)

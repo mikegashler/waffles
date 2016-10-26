@@ -41,8 +41,8 @@ class GActivationFunction;
 class GNeuralNetLayer
 {
 protected:
-	GMatrix m_weights; // All parameters for the layer (used for optimization); generally, each row is an upstream neuron and each column is a downstream neuron.
-	GMatrix m_delta; // Blame terms for each parameter in the network (can be used to implement momentum)
+	GMatrix m_weights;
+	GMatrix m_delta;
 public:
 	GNeuralNetLayer() {}
 	GNeuralNetLayer(GDomNode* pNode);
@@ -109,6 +109,7 @@ public:
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas) { throw Ex("stub"); }
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) { throw Ex("stub"); }
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -122,6 +123,7 @@ public:
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate) = 0;
+	virtual void applyDeltas(const GVec &deltas) { throw Ex("stub"); }
 
 	/// Multiplies all the weights by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) = 0;
@@ -238,6 +240,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec& upStreamActivation, GMatrix &deltas);
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -248,6 +251,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(double learningRate);
+	virtual void applyDeltas(const GVec &deltas);
 
 	/// Applies the deltas for ADAM training.
 	void applyDeltasAdam(double learningRate);

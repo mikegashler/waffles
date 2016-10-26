@@ -312,6 +312,16 @@ public:
 		m_v.m_size = 0;
 	}
 
+	void setData(const double* buf)
+	{
+		m_v.m_data = (double*)buf;
+	}
+
+	void setSize(size_t size)
+	{
+		m_v.m_size = size;
+	}
+
 	const GVec& vec()
 	{
 		return m_v;
@@ -338,6 +348,16 @@ public:
 	{
 		m_v.m_data = NULL;
 		m_v.m_size = 0;
+	}
+
+	void setData(double* buf)
+	{
+		m_v.m_data = buf;
+	}
+
+	void setSize(size_t size)
+	{
+		m_v.m_size = size;
 	}
 
 	GVec& vec()

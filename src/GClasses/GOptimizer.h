@@ -2,6 +2,7 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
+    Luke B. Godfrey,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -28,7 +29,136 @@ namespace GClasses {
 class GActionPath;
 class GAction;
 class GRand;
+class GNeuralNet;
 
+class GDifferentiableFunction
+{
+public:
+	virtual ~GDifferentiableFunction() {}
+	
+	/// Calulate the output y given the input x.
+	virtual void calculateOutput(const GVec &x, GVec &y) = 0;
+	
+	/// Calculate the derivative of the loss function with respect to this function's parameters given the input x and error err.
+	/// This method assumes that calculateOutput has already been called to determine err.
+	virtual void updateGradient(const GVec &x, const GVec &err, GVec &gradient) = 0;
+};
+
+class GOptimizableFunction : public GDifferentiableFunction
+{
+public:
+	virtual ~GOptimizableFunction() {}
+	
+	/// Apply the deltas to the parameters of the function
+	virtual void applyDeltas(const GVec &deltas) = 0;
+};
+
+class GSumSquaredErrorFunction : public GDifferentiableFunction
+{
+public:
+	virtual void calculateOutput(const GVec &x, GVec &y) override;
+	virtual void updateGradient(const GVec &x, const GVec &err, GVec &gradient) override;
+};
+
+class GNeuralNetFunction : public GOptimizableFunction
+{
+public:
+	GNeuralNetFunction(GNeuralNet &nn) : m_nn(nn) {}
+	virtual void calculateOutput(const GVec &x, GVec &y) override;
+	virtual void updateGradient(const GVec &x, const GVec &err, GVec &dy) override;
+	virtual void applyDeltas(const GVec &deltas) override;
+private:
+	GNeuralNet &m_nn;
+};
+
+class GFunctionOptimizer
+{
+public:
+	GFunctionOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL, GRand *rand = NULL);
+	virtual ~GFunctionOptimizer();
+	
+	virtual void beginOptimizing(size_t featSize, size_t labSize, size_t weightCount) = 0;
+	virtual void updateGradient(const GVec &feat, const GVec &lab) = 0;
+	virtual void scaleGradient(double scale) = 0;
+	virtual void applyGradient() = 0;
+	
+	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
+	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize = 1);
+	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii, size_t batchSize = 1);
+	
+	virtual void optimize(const GMatrix &features, const GMatrix &labels);
+	
+	void setBatchSize(size_t b)			{ m_batchSize = b; }
+	size_t batchSize() const			{ return m_batchSize; }
+	
+	void setBatchesPerEpoch(size_t b)	{ m_batchesPerEpoch = b; }
+	size_t batchesPerEpoch() const		{ return m_batchesPerEpoch; }
+	
+	void setEpochs(size_t e)			{ m_epochs = e; }
+	size_t epochs() const				{ return m_epochs; }
+protected:
+	GOptimizableFunction *m_function;
+	GDifferentiableFunction *m_error;
+	size_t m_batchSize, m_batchesPerEpoch, m_epochs;
+	GRand *m_rand;
+	bool m_ownsRand;
+};
+
+class GSGDOptimizer : public GFunctionOptimizer
+{
+public:
+	GSGDOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
+	virtual void beginOptimizing(size_t featSize, size_t labSize, size_t weightCount) override;
+	virtual void updateGradient(const GVec &feat, const GVec &lab) override;
+	virtual void scaleGradient(double scale) override;
+	virtual void applyGradient() override;
+	
+	void setLearningRate(double l)	{ m_learningRate = l; }
+	double learningRate() const		{ return m_learningRate; }
+	
+	void setMomentum(double m)		{ m_momentum = m; }
+	double momentum() const			{ return m_momentum; }
+private:
+	GVec m_pred, m_blame, m_gradient, m_deltas;
+	double m_learningRate, m_momentum;
+};
+
+class GRMSPropOptimizer : public GFunctionOptimizer
+{
+public:
+	GRMSPropOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
+	virtual void beginOptimizing(size_t featSize, size_t labSize, size_t weightCount) override;
+	virtual void updateGradient(const GVec &feat, const GVec &lab) override;
+	virtual void scaleGradient(double scale) override;
+	virtual void applyGradient() override;
+	
+	void setLearningRate(double l)	{ m_learningRate = l; }
+	double learningRate() const		{ return m_learningRate; }
+	
+	void setMomentum(double m)		{ m_momentum = m; }
+	double momentum() const			{ return m_momentum; }
+	
+	void setGamma(double g)			{ m_gamma = g; }
+	double gamma() const			{ return m_gamma; }
+private:
+	GVec m_pred, m_blame, m_gradient, m_deltas, m_meanSquare;
+	double m_learningRate, m_momentum, m_gamma, m_epsilon;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// MARK: Old GOptimizer.h below
 
 /// The optimizer seeks to find values that minimize this target function.
 class GTargetFunction
