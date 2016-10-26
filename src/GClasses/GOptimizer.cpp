@@ -70,6 +70,11 @@ void GNeuralNetFunction::applyDeltas(const GVec &deltas)
 	}
 }
 
+size_t GNeuralNetFunction::countParameters() const
+{
+	return m_nn.countWeights();
+}
+
 GFunctionOptimizer::GFunctionOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error)
 : m_function(function), m_error(error != NULL ? error : new GSumSquaredErrorFunction())
 {}
@@ -128,12 +133,12 @@ GSGDOptimizer::GSGDOptimizer(GOptimizableFunction *function, GDifferentiableFunc
 : GFunctionOptimizer(function, error), m_learningRate(1e-3), m_momentum(0)
 {}
 
-void GSGDOptimizer::beginOptimizing(size_t featSize, size_t labSize, size_t weightCount)
+void GSGDOptimizer::beginOptimizing(size_t featSize, size_t labSize)
 {
 	m_pred.resize(labSize);
 	m_blame.resize(labSize);
-	m_gradient.resize(weightCount);
-	m_deltas.resize(weightCount);
+	m_gradient.resize(m_function->countParameters());
+	m_deltas.resize(m_function->countParameters());
 	m_gradient.fill(0.0);
 }
 
@@ -162,13 +167,13 @@ GRMSPropOptimizer::GRMSPropOptimizer(GOptimizableFunction *function, GDifferenti
 : GFunctionOptimizer(function, error), m_learningRate(1e-3), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
 {}
 
-void GRMSPropOptimizer::beginOptimizing(size_t featSize, size_t labSize, size_t weightCount)
+void GRMSPropOptimizer::beginOptimizing(size_t featSize, size_t labSize)
 {
 	m_pred.resize(labSize);
 	m_blame.resize(labSize);
-	m_gradient.resize(weightCount);
-	m_deltas.resize(weightCount);
-	m_meanSquare.resize(weightCount);
+	m_gradient.resize(m_function->countParameters());
+	m_deltas.resize(m_function->countParameters());
+	m_meanSquare.resize(m_function->countParameters());
 	m_gradient.fill(0.0);
 	m_meanSquare.fill(0.0);
 }

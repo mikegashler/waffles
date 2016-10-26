@@ -53,6 +53,9 @@ public:
 	
 	/// Apply the deltas to the parameters of the function.
 	virtual void applyDeltas(const GVec &deltas) = 0;
+	
+	/// Count the parameters of this function.
+	virtual size_t countParameters() const = 0;
 };
 
 /// SSE, the default loss function.
@@ -71,6 +74,7 @@ public:
 	virtual void calculateOutput(const GVec &x, GVec &y) override;
 	virtual void updateGradient(const GVec &x, const GVec &err, GVec &dy) override;
 	virtual void applyDeltas(const GVec &deltas) override;
+	virtual size_t countParameters() const override;
 private:
 	GNeuralNet &m_nn;
 };
@@ -82,7 +86,7 @@ public:
 	GFunctionOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
 	virtual ~GFunctionOptimizer();
 	
-	virtual void beginOptimizing(size_t featSize, size_t labSize, size_t weightCount) = 0;
+	virtual void beginOptimizing(size_t featSize, size_t labSize) = 0;
 	virtual void updateGradient(const GVec &feat, const GVec &lab) = 0;
 	virtual void scaleGradient(double scale) = 0;
 	virtual void applyGradient() = 0;
@@ -107,7 +111,7 @@ class GSGDOptimizer : public GFunctionOptimizer
 {
 public:
 	GSGDOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
-	virtual void beginOptimizing(size_t featSize, size_t labSize, size_t weightCount) override;
+	virtual void beginOptimizing(size_t featSize, size_t labSize) override;
 	virtual void updateGradient(const GVec &feat, const GVec &lab) override;
 	virtual void scaleGradient(double scale) override;
 	virtual void applyGradient() override;
@@ -126,7 +130,7 @@ class GRMSPropOptimizer : public GFunctionOptimizer
 {
 public:
 	GRMSPropOptimizer(GOptimizableFunction *function, GDifferentiableFunction *error = NULL);
-	virtual void beginOptimizing(size_t featSize, size_t labSize, size_t weightCount) override;
+	virtual void beginOptimizing(size_t featSize, size_t labSize) override;
 	virtual void updateGradient(const GVec &feat, const GVec &lab) override;
 	virtual void scaleGradient(double scale) override;
 	virtual void applyGradient() override;
