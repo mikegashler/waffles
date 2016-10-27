@@ -369,7 +369,6 @@ void GActivationHinge::test()
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 	optimizer.setLearningRate(0.1);
 	optimizer.setMomentum(0.0);
-	optimizer.beginOptimizing(rel.size(), rel.size());
 	nn.beginIncrementalLearning(rel, rel);
 	
 	pLay1->perturbWeights(nn.rand(), 0.03);
@@ -681,7 +680,6 @@ void GActivationSoftExponential::test()
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 	optimizer.setLearningRate(0.1);
 	optimizer.setMomentum(0.0);
-	optimizer.beginOptimizing(rel.size(), rel.size());
 	nn.beginIncrementalLearning(rel, rel);
 	
 	nn.beginIncrementalLearning(rel, rel);

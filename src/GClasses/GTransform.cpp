@@ -715,7 +715,86 @@ GRelation* GAttributeSelector::setTargetFeatures(size_t n)
 // virtual
 GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 {
-	throw Ex("GAttributeSelector is broken due to changes in the way optimization is done.");
+	// Normalize all the data
+	if(m_labelDims > data.cols())
+		throw Ex("label dims is greater than the number of columns in the data");
+	GNormalize norm;
+	norm.train(data);
+	GMatrix* pNormData = norm.transformBatch(data);
+	std::unique_ptr<GMatrix> hNormData(pNormData);
+
+	// Divide into features and labels
+	size_t curDims = data.cols() - m_labelDims;
+	m_ranks.resize(curDims);
+	GMatrix* pFeatures = pNormData->cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
+	std::unique_ptr<GMatrix> hFeatures(pFeatures);
+	GMatrix* pLabels = pNormData->cloneSub(0, data.cols() - m_labelDims, data.rows(), m_labelDims);
+	std::unique_ptr<GMatrix> hLabels(pLabels);
+	vector<size_t> indexMap;
+	for(size_t i = 0; i < curDims; i++)
+		indexMap.push_back(i);
+
+	// Produce a ranked attributed ordering by deselecting the weakest attribute each time
+	while(curDims > 1)
+	{
+		// Convert nominal attributes to a categorical distribution
+		GNominalToCat ntc;
+		ntc.train(*pFeatures);
+		GMatrix* pFeatures2 = ntc.transformBatch(*pFeatures);
+		std::unique_ptr<GMatrix> hFeatures2(pFeatures2);
+		vector<size_t> rmap;
+		ntc.reverseAttrMap(rmap);
+		GNominalToCat ntc2;
+		ntc2.train(*pLabels);
+		GMatrix* pLabels2 = ntc2.transformBatch(*pLabels);
+		std::unique_ptr<GMatrix> hLabels2(pLabels2);
+
+		// Train a single-layer neural network with the normalized remaining data
+		GNeuralNet nn;
+		nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		nn.rand().setSeed(m_seed);
+		nn.beginIncrementalLearning(pFeatures2->relation(), pLabels2->relation());
+		m_seed += 77152487;
+		m_seed *= 37152487;
+		
+		GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+		optimizer.setWindowSize(30);
+		optimizer.setImprovementThresh(0.002);
+		optimizer.setBatchSize(1);
+		optimizer.setBatchesPerEpoch(pFeatures2->rows());
+		optimizer.setMaxEpochs(INVALID_INDEX);
+		optimizer.optimizeWithValidation(*pFeatures2, *pLabels2);
+
+		// Identify the weakest attribute
+		GLayerClassic& layer = *(GLayerClassic*)&nn.layer(nn.layerCount() - 1);
+		size_t pos = 0;
+		double weakest = 1e308;
+		size_t weakestIndex = 0;
+		for(size_t i = 0; i < curDims; i++)
+		{
+			double w = 0;
+			while(pos < nn.relFeatures().size() && rmap[pos] == i)
+			{
+				for(size_t neuron = 0; neuron < layer.outputs(); neuron++)
+					w = std::max(w, std::abs(layer.weights()[pos][neuron]));
+				pos++;
+			}
+			if(w < weakest)
+			{
+				weakest = w;
+				weakestIndex = i;
+			}
+		}
+
+		// Deselect the weakest attribute
+		m_ranks[curDims - 1] = indexMap[weakestIndex];
+		indexMap.erase(indexMap.begin() + weakestIndex);
+		pFeatures->deleteColumns(weakestIndex, 1);
+		curDims--;
+		GAssert(pFeatures->cols() == curDims);
+	}
+	m_ranks[0] = indexMap[0];
+	return setTargetFeatures(m_targetFeatures);
 }
 
 // virtual

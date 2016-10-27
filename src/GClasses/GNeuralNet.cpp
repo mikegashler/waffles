@@ -641,12 +641,12 @@ void GNeuralNet_testMath()
 	GNeuralNet nn;
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 3));
 	nn.addLayer(new GLayerClassic(3, FLEXIBLE_SIZE));
+	nn.beginIncrementalLearning(features.relation(), labels.relation());
 	
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 	optimizer.setLearningRate(0.175);
 	optimizer.setMomentum(0.9);
-	optimizer.beginOptimizing(features.relation().size(), labels.relation().size());
-	nn.beginIncrementalLearning(features.relation(), labels.relation());
+	
 	if(nn.countWeights() != 13)
 		throw Ex("Wrong number of weights");
 	GLayerClassic& layerOut = *(GLayerClassic*)&nn.layer(1);
@@ -770,11 +770,11 @@ void GNeuralNet_testHingeMath()
 	nn.addLayer(new GLayerClassic(2, 3, pAct1));
 	GActivationHinge* pAct2 = new GActivationHinge();
 	nn.addLayer(new GLayerClassic(3, 2, pAct2));
+	nn.beginIncrementalLearning(features.relation(), labels.relation());
 	
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 	optimizer.setLearningRate(0.1);
-	optimizer.beginOptimizing(features.relation().size(), labels.relation().size());
-	nn.beginIncrementalLearning(features.relation(), labels.relation());
+	
 	if(nn.countWeights() != 22)
 		throw Ex("Wrong number of weights");
 	GLayerClassic& layerHidden = *(GLayerClassic*)&nn.layer(0);
@@ -1149,7 +1149,6 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 	optimizer.setLearningRate(1e-2);
-	optimizer.beginOptimizing(1, layer.outputs());
 
 	for(size_t i = 0; i < 100; i++)
 		optimizer.optimizeIncremental(oneVec, label);

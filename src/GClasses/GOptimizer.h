@@ -22,6 +22,7 @@
 
 #include "GError.h"
 #include "GMatrix.h"
+#include "GRand.h"
 #include <vector>
 
 namespace GClasses {
@@ -47,6 +48,12 @@ public:
 	
 	/// Apply the deltas to the parameters of the function.
 	virtual void applyDeltas(const GVec &deltas) = 0;
+	
+	/// Count the inputs to this function.
+	virtual size_t inputs() const = 0;
+	
+	/// Count the outputs of this function.
+	virtual size_t outputs() const = 0;
 	
 	/// Count the parameters of this function.
 	virtual size_t countParameters() const = 0;
@@ -94,6 +101,12 @@ public:
 	/// This method resets the deltas (i.e. using momentum) after the deltas have been applied.
 	virtual void applyDeltas(const GVec &deltas) override;
 	
+	/// Count the inputs to this function.
+	virtual size_t inputs() const override;
+	
+	/// Count the outputs of this function.
+	virtual size_t outputs() const override;
+	
 	/// Count the parameters of this function.
 	virtual size_t countParameters() const override;
 private:
@@ -108,7 +121,7 @@ public:
 	virtual ~GDifferentiableOptimizer();
 	
 	/// Prepare for optimization (i.e. allocate delta vectors).
-	virtual void beginOptimizing(size_t featSize, size_t labSize) = 0;
+	virtual void prepareForOptimizing() = 0;
 	
 	/// Use feat and lab to add to the target function's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) = 0;
@@ -124,22 +137,54 @@ public:
 	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
 	
 	/// Update and apply the gradient for a single batch in order.
-	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize = 1);
+	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize);
+	void optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start);
 	
 	/// Update and apply the gradient for a single batch in randomized order.
-	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii, size_t batchSize = 1);
+	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii, size_t batchSize);
+	void optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii);
 	
-	/// Perform a full training process given the training features and labels.
-	virtual void optimize(const GMatrix &features, const GMatrix &labels, size_t epochs = 100, size_t batchesPerEpoch = 10, size_t batchSize = 25, GRand *rand = NULL);
+	// convenience training methods
 	
-	virtual GDifferentiable *target();
-	virtual void setTarget(GDifferentiable *target);
+	void optimize(const GMatrix &features, const GMatrix &labels);
+	void optimizeWithValidation(const GMatrix &features, const GMatrix &labels, const GMatrix &validationFeat, const GMatrix &validationLab);
+	void optimizeWithValidation(const GMatrix &features, const GMatrix &labels, double validationPortion = 0.35);
+	double sumLoss(const GMatrix &features, const GMatrix &labels);
 	
-	virtual GObjective *objective();
-	virtual void setObjective(GObjective *objective);
+	// getters/setters
+	
+	void setTarget(GDifferentiable *target)		{ delete m_target; m_target = target; prepareForOptimizing(); }
+	GDifferentiable *target()					{ return m_target; }
+	
+	void setObjective(GObjective *objective)	{ delete m_objective; m_objective = (objective != NULL ? objective : new GSquaredError()); }
+	GObjective *objective()						{ return m_objective; }
+	
+	void setRand(GRand *r)						{ if(m_ownsRand) { delete m_rand; m_ownsRand = false; }; m_rand = r; }
+	GRand *rand()								{ return m_rand; }
+	
+	void setBatchSize(size_t b)					{ m_batchSize = b; }
+	size_t batchSize() const					{ return m_batchSize; }
+	
+	void setBatchesPerEpoch(size_t b)			{ m_batchesPerEpoch = b; }
+	size_t batchesPerEpoch() const				{ return m_batchesPerEpoch; }
+	
+	void setMaxEpochs(size_t e)					{ m_maxEpochs = e; }
+	size_t maxEpochs() const					{ return m_maxEpochs; }
+	
+	void setWindowSize(size_t w)				{ m_windowSize = w; }
+	size_t windowSize() const					{ return m_windowSize; }
+	
+	void setImprovementThresh(double m)			{ m_minImprovement = m; }
+	double improvementThresh() const			{ return m_minImprovement; }
 protected:
 	GDifferentiable *m_target;
 	GObjective *m_objective;
+	
+	// variables for convenience training methods
+	GRand *m_rand;
+	bool m_ownsRand;
+	size_t m_batchSize, m_batchesPerEpoch, m_maxEpochs, m_windowSize;
+	double m_minImprovement;
 };
 
 class GSGDOptimizer : public GDifferentiableOptimizer
@@ -148,7 +193,7 @@ public:
 	GSGDOptimizer(GDifferentiable *function = NULL, GObjective *error = NULL);
 	
 	/// Prepare for optimization (i.e. allocate delta vectors).
-	virtual void beginOptimizing(size_t featSize, size_t labSize) override;
+	virtual void prepareForOptimizing() override;
 	
 	/// Use feat and lab to add to the target function's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
@@ -168,7 +213,6 @@ public:
 private:
 	GVec m_pred, m_blame, m_gradient, m_deltas;
 	double m_learningRate, m_momentum;
-	bool m_ready;
 };
 
 class GRMSPropOptimizer : public GDifferentiableOptimizer
@@ -177,7 +221,7 @@ public:
 	GRMSPropOptimizer(GDifferentiable *function = NULL, GObjective *error = NULL);
 	
 	/// Prepare for optimization (i.e. allocate delta vectors).
-	virtual void beginOptimizing(size_t featSize, size_t labSize) override;
+	virtual void prepareForOptimizing() override;
 	
 	/// Use feat and lab to add to the target function's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
@@ -200,10 +244,7 @@ public:
 private:
 	GVec m_pred, m_blame, m_gradient, m_deltas, m_meanSquare;
 	double m_learningRate, m_momentum, m_gamma, m_epsilon;
-	bool m_ready;
 };
-
-
 
 
 

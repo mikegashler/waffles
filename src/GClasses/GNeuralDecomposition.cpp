@@ -240,7 +240,6 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 	// Prepare for learning
 	m_optimizer.setTarget(new GNeuralNetFunction(*m_nn));
 	m_optimizer.setLearningRate(m_learningRate);
-	m_optimizer.beginOptimizing(featureRel.size(), labelRel.size());
 	m_nn->beginIncrementalLearning(featureRel, labelRel);
 	
 	// Initialize weights
