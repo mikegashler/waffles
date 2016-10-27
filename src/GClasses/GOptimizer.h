@@ -31,25 +31,19 @@ class GAction;
 class GRand;
 class GNeuralNet;
 
-/// A function that can be calculated and differentiated, such as SSE or a neural network.
-class GDifferentiableFunction
+/// A function that can be differentiated and optimized.
+class GDifferentiable
 {
 public:
-	virtual ~GDifferentiableFunction() {}
+	virtual ~GDifferentiable() {}
 	
 	/// Calulate the output y given the input x.
-	virtual void calculateOutput(const GVec &x, GVec &y) = 0;
+	virtual void evaluate(const GVec &x, GVec &y) = 0;
 	
-	/// Calculate the derivative of the loss function with respect to this function's parameters given the input x and error err.
-	/// This method assumes that calculateOutput has already been called to determine err.
-	virtual void updateGradient(const GVec &x, const GVec &err, GVec &gradient) = 0;
-};
-
-/// A parametrized differentiable function that can be optimized by tuning the parameters.
-class GOptimizableFunction : public GDifferentiableFunction
-{
-public:
-	virtual ~GOptimizableFunction() {}
+	/// Calculate the derivative of the output with respect to the parameters given the input x and blame.
+	/// This method assumes that evaluate has already been called to determine blame.
+	/// Updates the gradient (adds to it) instead of overwriting it (i.e. for batch processing).
+	virtual void updateDeltas(const GVec &x, const GVec &blame, GVec &deltas) = 0;
 	
 	/// Apply the deltas to the parameters of the function.
 	virtual void applyDeltas(const GVec &deltas) = 0;
@@ -58,41 +52,73 @@ public:
 	virtual size_t countParameters() const = 0;
 };
 
-/// SSE, the default loss function.
-class GSumSquaredErrorFunction : public GDifferentiableFunction
+/// A loss function used to train a differentiable function.
+class GObjective
 {
 public:
-	virtual void calculateOutput(const GVec &x, GVec &y) override;
-	virtual void updateGradient(const GVec &x, const GVec &err, GVec &gradient) override;
+	virtual ~GObjective() {}
+	
+	/// Calculate the error.
+	virtual void evaluate(const GVec &prediction, const GVec &label, GVec &loss) = 0;
+	
+	/// Calculate the partial derivative (blame) of the error with respect to the prediction.
+	virtual void calculateDerivative(const GVec &prediction, const GVec &label, GVec &blame) = 0;
 };
 
-/// Wrapper function for a GNeuralNet.
-class GNeuralNetFunction : public GOptimizableFunction
+/// The default loss function is squared error.
+class GSquaredError : public GObjective
 {
 public:
-	GNeuralNetFunction(GNeuralNet &nn) : m_nn(nn) {}
-	virtual void calculateOutput(const GVec &x, GVec &y) override;
-	virtual void updateGradient(const GVec &x, const GVec &err, GVec &dy) override;
+	/// Calculate the error.
+	virtual void evaluate(const GVec &prediction, const GVec &label, GVec &loss) override;
+	
+	/// Calculate the partial derivative (blame) of the error with respect to the prediction.
+	virtual void calculateDerivative(const GVec &prediction, const GVec &label, GVec &blame) override;
+};
+
+/// Convenience class for optimizing a neural network using various derivative-based optimization methods.
+class GNeuralNetFunction : public GDifferentiable
+{
+public:
+	GNeuralNetFunction(GNeuralNet &nn);
+	
+	/// Calulate the output y given the input x.
+	virtual void evaluate(const GVec &x, GVec &y) override;
+	
+	/// Calculate the derivative of the output with respect to the parameters given the input x and error err.
+	/// This method assumes that calculateOutput has already been called to determine err.
+	/// Updates the gradient (adds to it) instead of overwriting it (i.e. for batch processing).
+	virtual void updateDeltas(const GVec &x, const GVec &blame, GVec &deltas) override;
+	
+	/// Apply the deltas to the parameters of the function.
+	/// This method resets the deltas (i.e. using momentum) after the deltas have been applied.
 	virtual void applyDeltas(const GVec &deltas) override;
+	
+	/// Count the parameters of this function.
 	virtual size_t countParameters() const override;
 private:
 	GNeuralNet &m_nn;
 };
 
-/// Optimizes the parameters of a function given a loss metric.
-class GFunctionOptimizer
+/// Optimizes the parameters of a differentiable function using an objective function.
+class GDifferentiableOptimizer
 {
 public:
-	GFunctionOptimizer(GOptimizableFunction *function = NULL, GDifferentiableFunction *error = NULL);
-	virtual ~GFunctionOptimizer();
+	GDifferentiableOptimizer(GDifferentiable *target = NULL, GObjective *objective = NULL);
+	virtual ~GDifferentiableOptimizer();
 	
-	virtual void setFunction(GOptimizableFunction *function);
-	virtual void setError(GDifferentiableFunction *error);
-	
+	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void beginOptimizing(size_t featSize, size_t labSize) = 0;
-	virtual void updateGradient(const GVec &feat, const GVec &lab) = 0;
-	virtual void scaleGradient(double scale) = 0;
-	virtual void applyGradient() = 0;
+	
+	/// Use feat and lab to add to the target function's gradient.
+	virtual void updateDeltas(const GVec &feat, const GVec &lab) = 0;
+	
+	/// Scale the calculated gradient (i.e. for batch training).
+	virtual void scaleDeltas(double scale) = 0;
+	
+	/// Apply the calculated/scaled gradient to the target function's parameters.
+	/// This method resets the deltas (i.e. using momentum).
+	virtual void applyDeltas() = 0;
 	
 	/// Update and apply the gradient for a single training sample (on-line).
 	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
@@ -105,19 +131,34 @@ public:
 	
 	/// Perform a full training process given the training features and labels.
 	virtual void optimize(const GMatrix &features, const GMatrix &labels, size_t epochs = 100, size_t batchesPerEpoch = 10, size_t batchSize = 25, GRand *rand = NULL);
+	
+	virtual GDifferentiable *target();
+	virtual void setTarget(GDifferentiable *target);
+	
+	virtual GObjective *objective();
+	virtual void setObjective(GObjective *objective);
 protected:
-	GOptimizableFunction *m_function;
-	GDifferentiableFunction *m_error;
+	GDifferentiable *m_target;
+	GObjective *m_objective;
 };
 
-class GSGDOptimizer : public GFunctionOptimizer
+class GSGDOptimizer : public GDifferentiableOptimizer
 {
 public:
-	GSGDOptimizer(GOptimizableFunction *function = NULL, GDifferentiableFunction *error = NULL);
+	GSGDOptimizer(GDifferentiable *function = NULL, GObjective *error = NULL);
+	
+	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void beginOptimizing(size_t featSize, size_t labSize) override;
-	virtual void updateGradient(const GVec &feat, const GVec &lab) override;
-	virtual void scaleGradient(double scale) override;
-	virtual void applyGradient() override;
+	
+	/// Use feat and lab to add to the target function's gradient.
+	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	
+	/// Scale the calculated gradient (i.e. for batch training).
+	virtual void scaleDeltas(double scale) override;
+	
+	/// Apply the calculated/scaled gradient to the target function's parameters.
+	/// This method resets the deltas (i.e. using momentum).
+	virtual void applyDeltas() override;
 	
 	void setLearningRate(double l)	{ m_learningRate = l; }
 	double learningRate() const		{ return m_learningRate; }
@@ -130,14 +171,23 @@ private:
 	bool m_ready;
 };
 
-class GRMSPropOptimizer : public GFunctionOptimizer
+class GRMSPropOptimizer : public GDifferentiableOptimizer
 {
 public:
-	GRMSPropOptimizer(GOptimizableFunction *function = NULL, GDifferentiableFunction *error = NULL);
+	GRMSPropOptimizer(GDifferentiable *function = NULL, GObjective *error = NULL);
+	
+	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void beginOptimizing(size_t featSize, size_t labSize) override;
-	virtual void updateGradient(const GVec &feat, const GVec &lab) override;
-	virtual void scaleGradient(double scale) override;
-	virtual void applyGradient() override;
+	
+	/// Use feat and lab to add to the target function's gradient.
+	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	
+	/// Scale the calculated gradient (i.e. for batch training).
+	virtual void scaleDeltas(double scale) override;
+	
+	/// Apply the calculated/scaled gradient to the target function's parameters.
+	/// This method resets the deltas (i.e. using momentum).
+	virtual void applyDeltas() override;
 	
 	void setLearningRate(double l)	{ m_learningRate = l; }
 	double learningRate() const		{ return m_learningRate; }
