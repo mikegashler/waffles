@@ -726,7 +726,7 @@ void GActivationSoftExponential::test()
 	pAct2->alphas()[1] = beforeAlpha;
 
 	// Update the weights by gradient descent
-	nn.trainIncremental(in, out);
+	optimizer.optimizeIncremental(in, out);
 
 	// Check the result
 	double empiricalGradientWeight = (errWeight - errBase) / epsilon;
