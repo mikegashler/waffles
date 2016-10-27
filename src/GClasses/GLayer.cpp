@@ -49,9 +49,6 @@ using std::ostream;
 
 namespace GClasses {
 
-GNeuralNetLayer::GNeuralNetLayer(GDomNode* pNode) : m_weights(pNode->field("weights")), m_delta(m_weights.rows(), m_weights.cols())
-{}
-
 GDomNode* GNeuralNetLayer::baseDomNode(GDom* pDoc)
 {
 	GDomNode* pNode = pDoc->newObj();
@@ -107,19 +104,10 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
-: GNeuralNetLayer(pNode), m_out(5, m_weights.cols())
+: m_weights(pNode->field("weights")), m_out(5, m_weights.cols())
 {
-	// backwards compatibility for when bias was separate from weights
-	GDomNode *biasField = pNode->fieldIfExists("bias");
-	if(biasField != NULL)
-	{
-		m_weights.newRow();
-		m_delta.newRow();
-		bias().deserialize(biasField);
-	}
 	slack().deserialize(pNode->field("slack"));
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
-	m_delta.setAll(0.0);
 }
 
 GLayerClassic::~GLayerClassic()
@@ -154,13 +142,9 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount)
 
 	// Weights
 	m_weights.resize(inputCount + 1, outputCount);
-	m_delta.resize(inputCount + 1, outputCount);
-	m_delta2.resize(inputCount, outputCount);
-	m_delta.setAll(0.0);
 
 	// Bias
 	m_out.resize(5, outputCount);
-	biasDelta().fill(0.0);
 	slack().fill(0.0);
 
 	// Activation function
@@ -179,11 +163,6 @@ void GLayerClassic::resetWeights(GRand& rand)
 		for(size_t j = 0; j < outputCount; j++)
 			w[j] = rand.normal() * mag;
 	}
-	m_delta.setAll(0.0);
-	m_delta2.setAll(0.0);
-	biasDelta2().fill(0.0);
-	m_correct1 = 1.0;
-	m_correct2 = 1.0;
 }
 
 // virtual
@@ -235,41 +214,6 @@ void GLayerClassic::feedForwardToOneOutput(const GVec& in, size_t output)
 	// Apply the activation function
 	GVec& a = activation();
 	a[output] = m_pActivationFunction->squash(n[output], output);
-}
-
-void GLayerClassic::computeError(const GVec& target)
-{
-	size_t outputUnits = outputs();
-	GVec& a = activation();
-	GVec& s = slack();
-	GVec& err = error();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
-			err[i] = 0.0;
-		else
-		{
-			if(target[i] > a[i] + s[i])
-				err[i] = (target[i] - a[i] - s[i]);
-			else if(target[i] < a[i] - s[i])
-				err[i] = (target[i] - a[i] + s[i]);
-			else
-				err[i] = 0.0;
-		}
-	}
-}
-
-void GLayerClassic::computeErrorSingleOutput(double target, size_t output)
-{
-	double sla = slack()[output];
-	double* pErr = &error()[output];
-	double act = activation()[output];
-	if(target > act + sla)
-		*pErr = (target - act - sla);
-	else if(target < act - sla)
-		*pErr = (target - act + sla);
-	else
-		*pErr = 0.0;
 }
 
 void GLayerClassic::deactivateError()
@@ -327,63 +271,6 @@ void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 	m_pActivationFunction->updateDeltas(net(), activation(), GVecWrapper(delta, m_pActivationFunction->countWeights()).vec());
 }
 
-void GLayerClassic::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-	GVec& err = error();
-	size_t inputCount = inputs();
-	size_t outputCount = outputs();
-	for(size_t up = 0; up < inputCount; up++)
-	{
-		GVec& d = m_delta[up];
-		double act = upStreamActivation[up];
-		for(size_t down = 0; down < outputCount; down++)
-		{
-			d[down] *= momentum;
-			d[down] += (err[down] * act);
-		}
-	}
-	GVec& d = biasDelta();
-	for(size_t down = 0; down < outputCount; down++)
-	{
-		d[down] *= momentum;
-		d[down] += err[down];
-	}
-	m_pActivationFunction->updateDeltas(net(), activation(), momentum);
-}
-
-void GLayerClassic::updateDeltasAdam(const GVec& upStreamActivation, double beta1, double beta2)
-{
-	m_correct1 *= beta1;
-	m_correct2 *= beta2;
-	GVec& err = error();
-	size_t inputCount = inputs();
-	size_t outputCount = outputs();
-	for(size_t up = 0; up < inputCount; up++)
-	{
-		GVec& d = m_delta[up];
-		GVec& d2 = m_delta2[up];
-		double act = upStreamActivation[up];
-		for(size_t down = 0; down < outputCount; down++)
-		{
-			double g = err[down] * act;
-			d[down] *= beta1;
-			d[down] += (1.0 - beta1) * g;
-			d2[down] *= beta2;
-			d2[down] += (1.0 - beta1) * (g * g);
-		}
-	}
-	GVec& d = biasDelta();
-	GVec& d2 = biasDelta2();
-	for(size_t down = 0; down < outputCount; down++)
-	{
-		double g = err[down];
-		d[down] *= beta1;
-		d[down] += (1.0 - beta1) * g;
-		d2[down] *= beta2;
-		d2[down] += (1.0 - beta1) * (g * g);
-	}
-}
-
 void GLayerClassic::copySingleNeuronWeights(size_t source, size_t dest)
 {
 	for(size_t up = 0; up < inputs(); up++)
@@ -391,38 +278,6 @@ void GLayerClassic::copySingleNeuronWeights(size_t source, size_t dest)
 		m_weights[up][dest] = m_weights[up][source];
 	}
 	bias()[dest] = bias()[source];
-}
-
-void GLayerClassic::updateWeightsSingleNeuron(size_t outputNode, const GVec& upStreamActivation, double learningRate, double momentum)
-{
-	// Adjust the weights
-	double err = error()[outputNode];
-	for(size_t up = 0; up < inputs(); up++)
-	{
-		double* pD = &m_delta[up][outputNode];
-		double* pW = &m_weights[up][outputNode];
-		double act = upStreamActivation[up];
-		*pD *= momentum;
-		*pD += (err * learningRate * act);
-		*pW = std::max(-1e12, std::min(1e12, *pW + *pD));
-	}
-
-	// Adjust the bias
-	double* pD = &biasDelta()[outputNode];
-	double* pW = &bias()[outputNode];
-	*pD *= momentum;
-	*pD += (err * learningRate);
-	*pW = std::max(-1e12, std::min(1e12, *pW + *pD));
-}
-
-// virtual
-void GLayerClassic::applyDeltas(double learningRate)
-{
-	size_t inputCount = inputs();
-	for(size_t i = 0; i < inputCount; i++)
-		m_weights[i].addScaled(learningRate, m_delta[i]);
-	bias().addScaled(learningRate, biasDelta());
-	m_pActivationFunction->applyDeltas(learningRate);
 }
 
 void GLayerClassic::applyDeltas(const GVec &deltas)
@@ -435,27 +290,6 @@ void GLayerClassic::applyDeltas(const GVec &deltas)
 	for(size_t j = 0; j < outputs(); ++j)
 		bias()[j] += *delta++;
 	m_pActivationFunction->applyDeltas(GConstVecWrapper(delta, m_pActivationFunction->countWeights()).vec());
-}
-
-void GLayerClassic::applyDeltasAdam(double learningRate)
-{
-	double alpha1 = learningRate * 1.0 / (1.0 - m_correct1);
-	double alpha2 = 1.0 / (1.0 - m_correct2);
-	size_t inputCount = inputs();
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < inputCount; i++)
-	{
-		GVec& w = m_weights[i];
-		GVec& d = m_delta[i];
-		GVec& d2 = m_delta2[i];
-		for(size_t j = 0; j < outputCount; j++)
-			w[j] += alpha1 * d[j] / (std::sqrt(alpha2 * d2[j]) + 1e-8);
-	}
-	GVec& w = bias();
-	GVec& d = biasDelta();
-	GVec& d2 = biasDelta2();
-	for(size_t j = 0; j < outputCount; j++)
-		w[j] += alpha1 * d[j] / (std::sqrt(alpha2 * d2[j]) + 1e-8);
 }
 
 void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
@@ -690,20 +524,6 @@ void GLayerProductPooling::dropOut(GRand& rand, double probOfDrop)
 	// There are no weights in this layer to drop
 }
 
-void GLayerProductPooling::computeError(const GVec& target)
-{
-	size_t outputUnits = outputs();
-	GVec& a = activation();
-	GVec& err = error();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
-			err[i] = 0.0;
-		else
-			err[i] = target[i] - a[i];
-	}
-}
-
 void GLayerProductPooling::deactivateError()
 {
 }
@@ -719,17 +539,6 @@ void GLayerProductPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
 		upStreamError[2 * i] = err[i] * upStreamAct[2 * i + 1];
 		upStreamError[2 * i + 1] = err[i] * upStreamAct[2 * i];
 	}
-}
-
-void GLayerProductPooling::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-	// There are no weights to update
-}
-
-// virtual
-void GLayerProductPooling::applyDeltas(double learningRate)
-{
-	// There are no weights to update
 }
 
 void GLayerProductPooling::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
@@ -863,20 +672,6 @@ void GLayerAdditionPooling::dropOut(GRand& rand, double probOfDrop)
 	// There are no weights in this layer to drop
 }
 
-void GLayerAdditionPooling::computeError(const GVec& target)
-{
-	size_t outputUnits = outputs();
-	GVec& a = activation();
-	GVec& err = error();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
-			err[i] = 0.0;
-		else
-			err[i] = target[i] - a[i];
-	}
-}
-
 void GLayerAdditionPooling::deactivateError()
 {
 }
@@ -893,17 +688,6 @@ void GLayerAdditionPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
 		upStreamError[2 * i] = err[i] + upStreamAct[2 * i + 1];
 		upStreamError[2 * i + 1] = err[i] + upStreamAct[2 * i];
 	}
-}
-
-void GLayerAdditionPooling::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-	// There are no weights to update
-}
-
-// virtual
-void GLayerAdditionPooling::applyDeltas(double learningRate)
-{
-	// There are no weights to update
 }
 
 void GLayerAdditionPooling::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
@@ -1014,14 +798,11 @@ void GLayerMaxOut::resize(size_t inputCount, size_t outputCount)
 
 	// Weights
 	m_weights.resize(inputCount, outputCount);
-	m_delta.resize(inputCount, outputCount);
-	m_delta.setAll(0.0);
 	m_activation.resize(2, outputCount);
 	m_winners.resize(outputCount);
 
 	// Bias
 	m_bias.resize(2, inputCount);
-	biasDelta().fill(0.0);
 }
 
 // virtual
@@ -1036,11 +817,9 @@ void GLayerMaxOut::resetWeights(GRand& rand)
 		for(size_t j = 0; j < outputCount; j++)
 			w[j] = rand.normal() * mag;
 	}
-	m_delta.setAll(0.0);
 	GVec& b = bias();
 	for(size_t i = 0; i < inputCount; i++)
 		b[i] = rand.normal() * mag;
-	biasDelta().fill(0.0);
 }
 
 // virtual
@@ -1079,20 +858,6 @@ void GLayerMaxOut::dropOut(GRand& rand, double probOfDrop)
 	throw Ex("Sorry, not implemented");
 }
 
-void GLayerMaxOut::computeError(const GVec& target)
-{
-	size_t outputUnits = outputs();
-	GVec& a = activation();
-	GVec& err = error();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
-			err[i] = 0.0;
-		else
-			err[i] = target[i] - a[i];
-	}
-}
-
 void GLayerMaxOut::deactivateError()
 {
 }
@@ -1109,37 +874,6 @@ void GLayerMaxOut::backPropError(GNeuralNetLayer* pUpStreamLayer)
 		size_t up = m_winners[i];
 		GAssert(up < pUpStreamLayer->outputs());
 		upStreamError[up] += m_weights[up][i] * source[i];
-	}
-}
-
-void GLayerMaxOut::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-	GVec& err = error();
-	size_t outputCount = outputs();
-	GVec& bd = biasDelta();
-	for(size_t down = 0; down < outputCount; down++)
-	{
-		size_t up = m_winners[down];
-		GVec& d = m_delta[up];
-		bd[up] *= momentum;
-		bd[up] += (err[down] * d[down]);
-		d[down] *= momentum;
-		d[down] += (err[down] * upStreamActivation[up]);
-	}
-}
-
-// virtual
-void GLayerMaxOut::applyDeltas(double learningRate)
-{
-	size_t outputCount = outputs();
-	GVec& bd = biasDelta();
-	GVec& bi = bias();
-	for(size_t down = 0; down < outputCount; down++)
-	{
-		size_t up = m_winners[down];
-		bi[up] += learningRate * bd[up];
-		bd[up] = 0.0;
-		m_weights[up][down] += learningRate * m_delta[up][down];
 	}
 }
 
@@ -1424,23 +1158,6 @@ void GLayerMixed::dropOut(GRand& rand, double probOfDrop)
 }
 
 // virtual
-void GLayerMixed::computeError(const GVec& target)
-{
-	size_t outputUnits = outputs();
-	double* pAct = activation().data();
-	double* pErr = error().data();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
-			*pErr = 0.0;
-		else
-			*pErr = target[i] - *pAct;
-		pAct++;
-		pErr++;
-	}
-}
-
-// virtual
 void GLayerMixed::deactivateError()
 {
 	double* pErr = error().data();
@@ -1464,20 +1181,6 @@ void GLayerMixed::backPropError(GNeuralNetLayer* pUpStreamLayer)
 		m_inputError[0] += pUpStreamLayer->error();
 	}
 	memcpy(pUpStreamLayer->error().data(), pBuf, inps * sizeof(double));
-}
-
-// virtual
-void GLayerMixed::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->updateDeltas(upStreamActivation, momentum);
-}
-
-// virtual
-void GLayerMixed::applyDeltas(double learningRate)
-{
-	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->applyDeltas(learningRate);
 }
 
 void GLayerMixed::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
@@ -1653,12 +1356,9 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 
 	// Weights
 	m_weights.resize(outputCount, inputCount);
-	m_delta.resize(outputCount, inputCount);
-	m_delta.setAll(0.0);
 
 	// Bias
 	m_bias.resize(5, outputCount);
-	biasDelta().fill(0.0);
 
 	// BiasReverse
 	m_biasReverse.resize(5, inputCount);
@@ -1684,9 +1384,6 @@ void GLayerRestrictedBoltzmannMachine::resetWeights(GRand& rand)
 	pB = biasReverse().data();
 	for(size_t i = 0; i < inputCount; i++)
 		*(pB++) = rand.normal() * mag;
-	m_delta.setAll(0.0);
-	biasDelta().fill(0.0);
-	biasReverseDelta().fill(0.0);
 }
 
 // virtual
@@ -1840,22 +1537,6 @@ void GLayerRestrictedBoltzmannMachine::contrastiveDivergence(GRand& rand, const 
 	bias().addScaled(-learningRate, activation());
 }
 
-void GLayerRestrictedBoltzmannMachine::computeError(const GVec& target)
-{
-	size_t outputUnits = outputs();
-	double* pAct = activation().data();
-	double* pErr = error().data();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
-			*pErr = 0.0;
-		else
-			*pErr = target[i] - *pAct;
-		pAct++;
-		pErr++;
-	}
-}
-
 void GLayerRestrictedBoltzmannMachine::deactivateError()
 {
 	size_t outputUnits = outputs();
@@ -1872,29 +1553,6 @@ void GLayerRestrictedBoltzmannMachine::backPropError(GNeuralNetLayer* pUpStreamL
 	GVec& downStreamError = error();
 	GVec& upStreamError = pUpStreamLayer->error();
 	m_weights.multiply(downStreamError, upStreamError, true);
-}
-
-void GLayerRestrictedBoltzmannMachine::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-	size_t outputCount = outputs();
-	GVec& err = error();
-	GVec& bD = biasDelta();
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		m_delta[i] *= momentum;
-		m_delta[i].addScaled(err[i], upStreamActivation);
-		bD[i] *= momentum;
-		bD[i] += err[i];
-	}
-}
-
-// virtual
-void GLayerRestrictedBoltzmannMachine::applyDeltas(double learningRate)
-{
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < outputCount; i++)
-		m_weights[i].addScaled(learningRate, m_delta[i]);
-	bias().addScaled(learningRate, biasDelta());
 }
 
 void GLayerRestrictedBoltzmannMachine::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
@@ -2008,7 +1666,6 @@ m_inputChannels(inputChannels),
 m_outputSamples(inputSamples - kernelSize + 1),
 m_kernelsPerChannel(kernelsPerChannel),
 m_kernels(inputChannels * kernelsPerChannel, kernelSize),
-m_delta(inputChannels * kernelsPerChannel, kernelSize),
 m_bias(2, inputChannels * kernelsPerChannel)
 {
 	if(kernelSize > inputSamples)
@@ -2017,8 +1674,6 @@ m_bias(2, inputChannels * kernelsPerChannel)
 	if(!m_pActivationFunction)
 		m_pActivationFunction = new GActivationLogistic();
 	m_activation.resize(3, inputChannels * kernelsPerChannel * m_outputSamples);
-	m_delta.setAll(0.0);
-	biasDelta().fill(0.0);
 	m_pActivationFunction->resize(m_bias.cols());
 }
 
@@ -2028,7 +1683,6 @@ m_inputChannels((size_t)pNode->field("ichan")->asInt()),
 m_outputSamples((size_t)pNode->field("osam")->asInt()),
 m_kernelsPerChannel((size_t)pNode->field("kpc")->asInt()),
 m_kernels(pNode->field("kern")),
-m_delta(pNode->field("delt")),
 m_activation(pNode->field("act")),
 m_bias(pNode->field("bias")),
 m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
@@ -2049,7 +1703,6 @@ GDomNode* GLayerConvolutional1D::serialize(GDom* pDoc)
 	pNode->addField(pDoc, "osam", pDoc->newInt(m_outputSamples));
 	pNode->addField(pDoc, "kpc", pDoc->newInt(m_kernelsPerChannel));
 	pNode->addField(pDoc, "kern", m_kernels.serialize(pDoc));
-	pNode->addField(pDoc, "delt", m_delta.serialize(pDoc));
 	pNode->addField(pDoc, "act", m_activation.serialize(pDoc));
 	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
 	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
@@ -2082,9 +1735,7 @@ void GLayerConvolutional1D::resetWeights(GRand& rand)
 	double mag = std::max(0.03, 1.0 / kernelSize);
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		m_kernels[i].fillNormal(rand, mag);
-	m_delta.setAll(0.0);
 	bias().fillNormal(rand, mag);
-	biasDelta().fill(0.0);
 }
 
 // virtual
@@ -2150,21 +1801,6 @@ void GLayerConvolutional1D::dropConnect(GRand& rand, double probOfDrop)
 }
 
 // virtual
-void GLayerConvolutional1D::computeError(const GVec& target)
-{
-	size_t outputUnits = outputs();
-	GVec& a = activation();
-	GVec& err = error();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
-			err[i] = 0.0;
-		else
-			err[i] = target[i] - a[i];
-	}
-}
-
-// virtual
 void GLayerConvolutional1D::deactivateError()
 {
 	size_t outputUnits = outputs();
@@ -2205,56 +1841,6 @@ void GLayerConvolutional1D::backPropError(GNeuralNetLayer* pUpStreamLayer)
 			upPos++;
 		}
 	}
-}
-
-// virtual
-void GLayerConvolutional1D::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-	m_delta.multiply(momentum);
-	biasDelta() *= momentum;
-	GVec& err = error();
-	size_t kernelSize = m_kernels.cols();
-	size_t errPos = 0;
-	size_t upPos = 0;
-	for(size_t i = 0; i < m_outputSamples; i++) // for each sample...
-	{
-		size_t kern = 0;
-		for(size_t j = 0; j < m_inputChannels; j++) // for each input channel...
-		{
-			for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
-			{
-				GVec& d = m_delta[kern++];
-				size_t upOfs = 0;
-				for(size_t l = 0; l < kernelSize; l++) // for each connection...
-				{
-					d[l] += err[errPos] * upStreamActivation[upPos + upOfs];
-					upOfs += m_inputChannels;
-				}
-				errPos++;
-			}
-			upPos++;
-		}
-	}
-	errPos = 0;
-	for(size_t i = 0; i < m_outputSamples; i++)
-	{
-		GVec& d = biasDelta();
-		size_t bdPos = 0;
-		for(size_t j = 0; j < m_inputChannels; j++)
-		{
-			for(size_t k = 0; k < m_kernelsPerChannel; k++)
-				d[bdPos++] += err[errPos++];
-		}
-	}
-}
-
-// virtual
-void GLayerConvolutional1D::applyDeltas(double learningRate)
-{
-	size_t n = m_kernels.rows();
-	for(size_t i = 0; i < n; i++)
-		m_kernels[i].addScaled(learningRate, m_delta[i]);
-	bias().addScaled(learningRate, biasDelta());
 }
 
 void GLayerConvolutional1D::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
@@ -2455,8 +2041,8 @@ GLayerConvolutional2D::GLayerConvolutional2D(size_t width, size_t height, size_t
 : m_width(width), m_height(height), m_channels(channels),
   m_kWidth(kWidth), m_kHeight(kHeight),
   m_outputWidth(width - kWidth + 1), m_outputHeight(height - kHeight + 1),
-  m_bias(kCount), m_biasDelta(kCount),
-  m_kernels(kCount, kWidth * kHeight * channels), m_deltas(kCount, kWidth * kHeight * channels),
+  m_bias(kCount),
+  m_kernels(kCount, kWidth * kHeight * channels),
   m_activation(3, m_outputWidth * m_outputHeight * kCount),
   m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH()),
   m_kernelImage(NULL, kWidth, kHeight, channels), m_deltaImage(NULL, kWidth, kHeight, channels),
@@ -2468,8 +2054,8 @@ GLayerConvolutional2D::GLayerConvolutional2D(size_t kWidth, size_t kHeight, size
 : m_width(FLEXIBLE_SIZE), m_height(FLEXIBLE_SIZE), m_channels(FLEXIBLE_SIZE),
   m_kWidth(kWidth), m_kHeight(kHeight),
   m_outputWidth(0), m_outputHeight(0),
-  m_bias(kCount), m_biasDelta(kCount),
-  m_kernels(kCount, 0), m_deltas(kCount, 0),
+  m_bias(kCount),
+  m_kernels(kCount, 0),
   m_activation(3, 0),
   m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH()),
   m_kernelImage(NULL, kWidth, kHeight, 0), m_deltaImage(NULL, kWidth, kHeight, 0),
@@ -2481,8 +2067,8 @@ GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
 : m_width(pNode->field("width")->asInt()), m_height(pNode->field("height")->asInt()), m_channels(pNode->field("channels")->asInt()),
   m_kWidth(pNode->field("kWidth")->asInt()), m_kHeight(pNode->field("kHeight")->asInt()),
   m_outputWidth(pNode->field("outputWidth")->asInt()), m_outputHeight(pNode->field("outputHeight")->asInt()),
-  m_bias(pNode->field("bias")), m_biasDelta(m_bias.size()),
-  m_kernels(pNode->field("kernels")), m_deltas(m_kernels.rows(), m_kernels.cols()),
+  m_bias(pNode->field("bias")),
+  m_kernels(pNode->field("kernels")),
   m_activation(3, m_outputWidth * m_outputHeight * m_kernels.rows()),
   m_kernelImage(NULL, m_kWidth, m_kHeight, m_channels), m_deltaImage(NULL, m_kWidth, m_kHeight, m_channels),
   m_inputImage(NULL, m_width, m_height, m_channels), m_upStreamErrorImage(NULL, m_width, m_height, m_channels),
@@ -2558,7 +2144,6 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer)
 	m_channels		= upstream.outputChannels();
 
 	m_kernels.resize(m_kernels.rows(), m_kWidth * m_kHeight * m_channels);
-	m_deltas.resize(m_kernels.rows(), m_kWidth * m_kHeight * m_channels);
 
 	m_bias.fill(0.0);
 	m_kernels.setAll(0.0);
@@ -2611,20 +2196,6 @@ void GLayerConvolutional2D::dropConnect(GRand &rand, double probOfDrop)
 	throw Ex("dropConnect not implemented");
 }
 
-void GLayerConvolutional2D::computeError(const GVec &target)
-{
-	size_t outputUnits = outputs();
-	GVec &a = activation();
-	GVec &err = error();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE || target[i] == a[i])
-			err[i] = 0.0;
-		else
-			err[i] = target[i] - a[i];
-	}
-}
-
 void GLayerConvolutional2D::deactivateError()
 {
 	GVec &n = net();
@@ -2660,38 +2231,6 @@ void GLayerConvolutional2D::backPropError(GNeuralNetLayer *pUpStreamLayer)
 	err.dz = 0;
 	upErr.dz = 0;
 	upErr.px = upErr.py = 0;
-}
-
-void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, double momentum)
-{
-	m_biasDelta *= momentum;
-	m_deltas.multiply(momentum);
-
-	Image &err = m_errImage;
-	Image &in = m_inputImage;
-	in.data = const_cast<GVec *>(&upStreamActivation);
-
-	for(err.dz = 0; err.dz < err.channels; ++err.dz)
-	{
-		m_deltaImage.data = &m_deltas[err.dz];
-		m_deltaImage.data->fill(0.0);
-		for(in.dz = m_deltaImage.dz = 0; in.dz < in.channels; ++in.dz, ++m_deltaImage.dz)
-			for(in.dy = 0; in.dy < err.height; ++in.dy)
-				for(in.dx = 0; in.dx < err.width; ++in.dx)
-				{
-					addScaled(in, err.read(in.dx, in.dy), m_deltaImage);
-					m_biasDelta[err.dz] += err.read(in.dx, in.dy);
-				}
-		m_deltaImage.dz = 0;
-	}
-	in.dz = 0;
-}
-
-void GLayerConvolutional2D::applyDeltas(double learningRate)
-{
-	m_bias.addScaled(learningRate, m_biasDelta);
-	for(size_t i = 0; i < m_deltas.rows(); i++)
-		m_kernels[i].addScaled(learningRate, m_deltas[i]);
 }
 
 void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
@@ -2771,8 +2310,6 @@ void GLayerConvolutional2D::resetWeights(GRand &rand)
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 		m_kernels[i].fillNormal(rand, mag);
 	m_bias.fillNormal(rand, mag);
-	m_deltas.setAll(0.0);
-	m_biasDelta.fill(0.0);
 }
 
 void GLayerConvolutional2D::perturbWeights(GRand &rand, double deviation, size_t start, size_t count)
@@ -2837,13 +2374,11 @@ void GLayerConvolutional2D::setOutputInterlaced(bool interlaced)
 void GLayerConvolutional2D::addKernel()
 {
 	m_kernels.resize(m_kernels.rows() + 1, m_kernels.cols());
-	m_deltas.resize(m_kernels.rows(), m_kernels.cols());
 
 	GVec temp(m_bias);
 	m_bias.resize(m_kernels.rows() + 1);
 	m_bias.put(0, temp);
 
-	m_biasDelta.resize(m_kernels.rows());
 	m_netImage.channels = m_kernels.rows();
 	m_actImage.channels = m_kernels.rows();
 	m_errImage.channels = m_kernels.rows();
@@ -3022,21 +2557,6 @@ void GMaxPooling2D::dropConnect(GRand& rand, double probOfDrop)
 }
 
 // virtual
-void GMaxPooling2D::computeError(const GVec& target)
-{
-	size_t outputUnits = outputs();
-	GVec& a = activation();
-	GVec& err = error();
-	for(size_t i = 0; i < outputUnits; i++)
-	{
-		if(target[i] == UNKNOWN_REAL_VALUE)
-			err[i] = 0.0;
-		else
-			err[i] = target[i] - a[i];
-	}
-}
-
-// virtual
 void GMaxPooling2D::deactivateError()
 {
 }
@@ -3077,16 +2597,6 @@ void GMaxPooling2D::backPropError(GNeuralNetLayer* pUpStreamLayer)
 			}
 		}
 	}
-}
-
-// virtual
-void GMaxPooling2D::updateDeltas(const GVec& upStreamActivation, double momentum)
-{
-}
-
-// virtual
-void GMaxPooling2D::applyDeltas(double learningRate)
-{
 }
 
 // virtual

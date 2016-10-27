@@ -40,12 +40,8 @@ class GActivationFunction;
 /// Represents a layer of neurons in a neural network
 class GNeuralNetLayer
 {
-protected:
-	GMatrix m_weights;
-	GMatrix m_delta;
 public:
 	GNeuralNetLayer() {}
-	GNeuralNetLayer(GDomNode* pNode);
 	virtual ~GNeuralNetLayer() {}
 
 	/// Returns the type of this layer
@@ -85,7 +81,7 @@ public:
 	/// Returns a buffer where the error terms for each unit are stored.
 	virtual GVec& error() = 0;
 
-	/// Randomly sets the activation of some units to 0.
+	/// \deprecated Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop) = 0;
 
 	/// Feeds an input vector through this layer to compute the output of this layer.
@@ -97,9 +93,6 @@ public:
 		feedForward(pUpStreamLayer->activation());
 	}
 
-	/// Computes the error term of the activation.
-	virtual void computeError(const GVec& target) = 0;
-
 	/// Converts the error term to refer to the net input.
 	virtual void deactivateError() = 0;
 
@@ -108,21 +101,18 @@ public:
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) { throw Ex("stub"); }
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum) = 0;
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	virtual void updateDeltas(GNeuralNetLayer* pUpStreamLayer, double momentum)
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas)
 	{
-		updateDeltas(pUpStreamLayer->activation(), momentum);
+		// parameter-free layers do not have to implement this function
+		GAssert(countWeights() == 0, "updateDeltas must be implemented for parameterized layers!");
 	}
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate) = 0;
-	virtual void applyDeltas(const GVec &deltas) { throw Ex("stub"); }
+	virtual void applyDeltas(const GVec &deltas)
+	{
+		// parameter-free layers do not have to implement this function
+		GAssert(countWeights() == 0, "applyDeltas must be implemented for parameterized layers!");
+	}
 
 	/// Multiplies all the weights by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) = 0;
@@ -158,12 +148,6 @@ public:
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
 
-	/// Getters for weights and deltas
-	GMatrix &weights()				{ return m_weights; }
-	const GMatrix &weights() const	{ return m_weights; }
-	GMatrix &deltas()				{ return m_delta; }
-	const GMatrix &deltas() const	{ return m_delta; }
-
 protected:
 	GDomNode* baseDomNode(GDom* pDoc);
 };
@@ -173,9 +157,8 @@ class GLayerClassic : public GNeuralNetLayer
 {
 friend class GNeuralNet;
 protected:
-	GMatrix m_delta2; // Used with ADAM training
-	GMatrix m_out; // Row 0 is the net. Row 1 is the activation. Row 2 is the error. Row 3 is the slack. Row 4 is biasDelta2.
-	double m_correct1, m_correct2; // used with ADAM training
+	GMatrix m_weights;
+	GMatrix m_out; // Row 0 is the net. Row 1 is the activation. Row 2 is the error. Row 3 is the slack.
 	GActivationFunction* m_pActivationFunction;
 
 public:
@@ -191,104 +174,94 @@ using GNeuralNetLayer::updateDeltas;
 	~GLayerClassic();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "classic"; }
+	virtual const char* type() override { return "classic"; }
 
 	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) override;
 
 	/// Makes a string representation of this layer
-	virtual std::string to_str();
+	virtual std::string to_str() override;
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_weights.rows() - 1; }
+	virtual size_t inputs() const override { return m_weights.rows() - 1; }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const { return m_weights.cols(); }
+	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_out[1]; }
+	virtual GVec& activation() override { return m_out[1]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_out[2]; }
+	virtual GVec& error() override { return m_out[2]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const GVec& in);
+	virtual void feedForward(const GVec& in) override;
 
-	/// Randomly sets the activation of some units to 0.
-	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
+	/// \deprecated Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError();
+	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
-
-	/// Updates the deltas for ADAM training.
-	void updateDeltasAdam(const GVec& upStreamActivation, double beta1 = 0.9, double beta2 = 0.999);
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate);
-	virtual void applyDeltas(const GVec &deltas);
-
-	/// Applies the deltas for ADAM training.
-	void applyDeltasAdam(double learningRate);
+	virtual void applyDeltas(const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
 	void contractWeights(double factor, bool contractBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
+	virtual size_t countWeights() override;
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* pOutVector) override;
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* pVector) override;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
 
 	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
 	/// start specifies the first unit whose incoming weights are perturbed.
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
 	/// The default values for these parameters apply the perturbation to all units.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double min, double max);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void regularizeActivationFunction(double lambda) override;
+
+	/// Get the entire weights matrix
+	GMatrix &weights() { return m_weights; }
+	
+	/// Get the entire weights matrix
+	const GMatrix &weights() const { return m_weights; }
 
 	/// Returns the bias vector of this layer.
 	GVec& bias() { return m_weights.back(); }
@@ -299,9 +272,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
 	GVec& net() { return m_out[0]; }
-
-	/// Returns a buffer used to store delta values for each bias in this layer.
-	GVec& biasDelta() { return m_delta.back(); }
 
 	/// Returns a vector used to specify slack terms for each unit in this layer.
 	GVec& slack() { return m_out[3]; }
@@ -315,9 +285,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Feeds a vector forward through this layer to compute only the one specified output value.
 	void feedForwardToOneOutput(const GVec& in, size_t output);
 
-	/// This is the same as computeError, except that it only computes the error of a single unit.
-	void computeErrorSingleOutput(double target, size_t output);
-
 	/// Same as deactivateError, but only applies to a single unit in this layer.
 	void deactivateErrorSingleOutput(size_t output);
 
@@ -325,9 +292,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// (Assumes that the error in the output node has already been deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
 	void backPropErrorSingleOutput(size_t output, GVec& upStreamError);
-
-	/// Updates the weights and bias of a single neuron. (Assumes the error has already been computed and deactivated.)
-	void updateWeightsSingleNeuron(size_t outputNode, const GVec& upStreamActivation, double learningRate, double momentum);
 
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
 	/// start specifies the first unit whose incoming weights will be adjusted.
@@ -368,105 +332,93 @@ using GNeuralNetLayer::updateDeltas;
 	~GLayerProductPooling();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "productpooling"; }
+	virtual const char* type() override { return "productpooling"; }
 
 	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) override;
 
 	/// Makes a string representation of this layer
-	virtual std::string to_str();
+	virtual std::string to_str() override;
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_activation.cols() * 2; }
+	virtual size_t inputs() const override { return m_activation.cols() * 2; }
 
 	/// Returns the number of outputs that this layer produces.
-	virtual size_t outputs() const { return m_activation.cols(); }
+	virtual size_t outputs() const override { return m_activation.cols(); }
 
 	/// Resizes this layer. outputs must be 2*inputs.
-	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Resizes the inputs of this layer (as in the above function) given the upstream layer to calculate needed inputs.
-	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer)
+	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer) override
 	{
 		resize(pUpStreamLayer->outputs(), pUpStreamLayer->outputs() / 2);
 	}
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_activation[0]; }
+	virtual GVec& activation() override { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_activation[1]; }
+	virtual GVec& error() override { return m_activation[1]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const GVec& in);
+	virtual void feedForward(const GVec& in) override;
 
 	/// Randomly sets the activation of some units to 0.
-	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
+	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError();
+	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
-
-	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
 	void contractWeights(double factor, bool contractBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
+	virtual size_t countWeights() override;
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* pOutVector) override;
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* pVector) override;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
 
 	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
 	/// start specifies the first unit whose incoming weights are perturbed.
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
 	/// The default values for these parameters apply the perturbation to all units.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double min, double max);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void regularizeActivationFunction(double lambda) override;
 };
 
 
@@ -489,105 +441,93 @@ using GNeuralNetLayer::updateDeltas;
 	~GLayerAdditionPooling();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "additionpooling"; }
+	virtual const char* type() override { return "additionpooling"; }
 
 	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) override;
 
 	/// Makes a string representation of this layer
-	virtual std::string to_str();
+	virtual std::string to_str() override;
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_activation.cols() * 2; }
+	virtual size_t inputs() const override { return m_activation.cols() * 2; }
 
 	/// Returns the number of outputs that this layer produces.
-	virtual size_t outputs() const { return m_activation.cols(); }
+	virtual size_t outputs() const override { return m_activation.cols(); }
 
 	/// Resizes this layer. outputs must be 2*inputs.
-	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Resizes the inputs of this layer (as in the above function) given the upstream layer to calculate needed inputs.
-	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer)
+	virtual void resizeInputs(GNeuralNetLayer* pUpStreamLayer) override
 	{
 		resize(pUpStreamLayer->outputs(), pUpStreamLayer->outputs() / 2);
 	}
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_activation[0]; }
+	virtual GVec& activation() override { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_activation[1]; }
+	virtual GVec& error() override { return m_activation[1]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const GVec& in);
+	virtual void feedForward(const GVec& in) override;
 
-	/// Randomly sets the activation of some units to 0.
-	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
+	/// \deprecated Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError();
+	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
-
-	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
 	void contractWeights(double factor, bool contractBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
+	virtual size_t countWeights() override;
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* pOutVector) override;
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* pVector) override;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
 
 	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
 	/// start specifies the first unit whose incoming weights are perturbed.
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
 	/// The default values for these parameters apply the perturbation to all units.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double min, double max);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void regularizeActivationFunction(double lambda) override;
 };
 
 
@@ -597,7 +537,6 @@ friend class GNeuralNet;
 protected:
 	GMatrix m_weights; // Each row is an upstream neuron. Each column is a downstream neuron.
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the bias delta.
-	GMatrix m_delta; // Used to implement momentum
 	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
 	GIndexVec m_winners; // The indexes of the winning inputs.
 
@@ -614,115 +553,100 @@ using GNeuralNetLayer::updateDeltas;
 	~GLayerMaxOut();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "maxnet"; }
+	virtual const char* type() override { return "maxnet"; }
 
 	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) override;
 
 	/// Makes a string representation of this layer
-	virtual std::string to_str();
+	virtual std::string to_str() override;
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_weights.rows(); }
+	virtual size_t inputs() const override { return m_weights.rows(); }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const { return m_weights.cols(); }
+	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_activation[0]; }
+	virtual GVec& activation() override { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_activation[1]; }
+	virtual GVec& error() override { return m_activation[1]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const GVec& in);
+	virtual void feedForward(const GVec& in) override;
 
-	/// Randomly sets the activation of some units to 0.
-	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
+	/// \deprecated Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError();
+	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas);
-
-	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
 	void contractWeights(double factor, bool contractBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
+	virtual size_t countWeights() override;
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* pOutVector) override;
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* pVector) override;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
 
 	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
 	/// start specifies the first unit whose incoming weights are perturbed.
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
 	/// The default values for these parameters apply the perturbation to all units.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double min, double max);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void regularizeActivationFunction(double lambda) override;
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
+	
+	/// Returns a reference to the weights matrix of this layer
 	const GMatrix& weights() const { return m_weights; }
-
-	GMatrix& deltas() { return m_delta; }
 
 	/// Returns the bias vector of this layer.
 	GVec& bias() { return m_bias[0]; }
 
 	/// Returns the bias vector of this layer.
 	const GVec& bias() const { return m_bias[0]; }
-
-	/// Returns a buffer used to store delta values for each bias in this layer.
-	GVec& biasDelta() { return m_bias[1]; }
 
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
 	/// start specifies the first unit whose incoming weights will be adjusted.
@@ -749,14 +673,14 @@ public:
 	virtual ~GLayerSoftMax() {}
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "softmax"; }
+	virtual const char* type() override { return "softmax"; }
 
 	/// Applies the logistic activation function to the net vector to compute the activation vector,
 	/// and also adjusts the weights so that the activations sum to 1.
 	virtual void activate();
 
 	/// This method is a no-op, since cross-entropy training does not multiply by the derivative of the logistic function.
-	virtual void deactivateError() {}
+	virtual void deactivateError() override {}
 };
 
 
@@ -782,13 +706,13 @@ using GNeuralNetLayer::updateDeltas;
 	~GLayerMixed();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "mixed"; }
+	virtual const char* type() override { return "mixed"; }
 
 	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) override;
 
 	/// Makes a string representation of this layer
-	virtual std::string to_str();
+	virtual std::string to_str() override;
 
 	/// Adds another component of this layer. In other words, make this layer bigger by adding pComponent to it,
 	/// as a peer beside the other components in this layer.
@@ -798,84 +722,72 @@ using GNeuralNetLayer::updateDeltas;
 	GNeuralNetLayer& component(size_t i) { return *m_components[i]; }
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const;
+	virtual size_t inputs() const override;
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const;
+	virtual size_t outputs() const override;
 
 	/// Throws an exception if the specified dimensions would change anything. Also
 	/// throws an exception if pRand is not NULL.
-	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_activation[0]; }
+	virtual GVec& activation() override { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_activation[1]; }
+	virtual GVec& error() override { return m_activation[1]; }
 
 	/// Feeds the inputs through each component to compute an aggregated activation
-	virtual void feedForward(const GVec& in);
+	virtual void feedForward(const GVec& in) override;
 
-	/// Calls dropOut for each component.
-	virtual void dropOut(GRand& rand, double probOfDrop);
-
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
+	/// \deprecated Calls dropOut for each component.
+	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
 	/// Copies the error vector into the corresponding buffer for each component,
 	/// then calls deactivateError for each component.
-	virtual void deactivateError();
+	virtual void deactivateError() override;
 
 	/// Calls backPropError for each component, and adds them up into the upstreams error buffer.
 	/// (Note that the current implementation of this method may not be compatible with GPU-optimized layers.
 	/// This method still needs to be audited for compatibility with such layers.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas);
-
-	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(const GVec &deltas) override;
 
 	/// Calls scaleWeights for each component.
-	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Calls diminishWeights for each component.
-	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
+	virtual size_t countWeights() override;
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* pOutVector) override;
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* pVector) override;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
 
 	/// Calls resetWeights for each component.
-	virtual void resetWeights(GRand& rand);
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Calls perturbWeights for each component.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
 
 	/// Calls maxNorm for each component.
-	virtual void maxNorm(double min, double max);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void regularizeActivationFunction(double lambda) override;
 };
 
 
@@ -884,7 +796,6 @@ class GLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
 {
 protected:
 	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
-	GMatrix m_delta;
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the delta.
 	GMatrix m_biasReverse; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the delta.
 	GActivationFunction* m_pActivationFunction;
@@ -902,100 +813,88 @@ using GNeuralNetLayer::updateDeltas;
 	~GLayerRestrictedBoltzmannMachine();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "rbm"; }
+	virtual const char* type() override { return "rbm"; }
 
 	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) override;
 
 	/// Makes a string representation of this layer
-	virtual std::string to_str();
+	virtual std::string to_str() override;
 
 	/// Returns the number of visible units.
-	virtual size_t inputs() const { return m_weights.cols(); }
+	virtual size_t inputs() const override { return m_weights.cols(); }
 
 	/// Returns the number of hidden units.
-	virtual size_t outputs() const { return m_weights.rows(); }
+	virtual size_t outputs() const override { return m_weights.rows(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
-	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the activation values on the hidden end.
-	virtual GVec& activation() { return m_bias[2]; }
+	virtual GVec& activation() override { return m_bias[2]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_bias[3]; }
+	virtual GVec& error() override { return m_bias[3]; }
 
 	/// Feeds pIn forward through this layer.
-	virtual void feedForward(const GVec& in);
+	virtual void feedForward(const GVec& in) override;
 
-	/// Randomly sets the activation of some units to 0.
-	virtual void dropOut(GRand& rand, double probOfDrop);
+	/// \deprecated Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
 	/// Feed a vector from the hidden end to the visible end. The results are placed in activationReverse();
 	void feedBackward(const GVec& in);
 
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
-
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
-	virtual void deactivateError();
+	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas);
-
-	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
+	virtual size_t countWeights() override;
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* pOutVector) override;
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* pVector) override;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
 
 	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
 	/// Also perturbs the bias.
 	/// start specifies the first unit whose incoming weights are perturbed.
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
 	/// The default values for these parameters apply the perturbation to all units.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
-	virtual void maxNorm(double min, double max);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void regularizeActivationFunction(double lambda) override;
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
@@ -1057,7 +956,6 @@ protected:
 	size_t m_outputSamples;
 	size_t m_kernelsPerChannel;
 	GMatrix m_kernels;
-	GMatrix m_delta;
 	GMatrix m_activation; // Row 0 is the activation. Row 1 is the net. Row 2 is the error.
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the bias delta.
 	GActivationFunction* m_pActivationFunction;
@@ -1081,98 +979,86 @@ using GNeuralNetLayer::updateDeltas;
 	virtual ~GLayerConvolutional1D();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "conv1d"; }
+	virtual const char* type() override { return "conv1d"; }
 
 	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) override;
 
 	/// Makes a string representation of this layer
-	virtual std::string to_str();
+	virtual std::string to_str() override;
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_inputSamples * m_inputChannels; }
+	virtual size_t inputs() const override { return m_inputSamples * m_inputChannels; }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
+	virtual size_t outputs() const override { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
-	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_activation[0]; }
+	virtual GVec& activation() override { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_activation[2]; }
+	virtual GVec& error() override { return m_activation[2]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const GVec& in);
+	virtual void feedForward(const GVec& in) override;
 
-	/// Randomly sets the activation of some units to 0.
-	virtual void dropOut(GRand& rand, double probOfDrop);
+	/// \deprecated Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
 	/// Throws an exception, because convolutional layers do not support dropConnect.
 	virtual void dropConnect(GRand& rand, double probOfDrop);
 
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
-
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError();
+	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate);
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas);
-
-	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
+	virtual size_t countWeights() override;
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* pOutVector) override;
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* pVector) override;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
 
 	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
 	/// start specifies the first unit whose incoming weights are perturbed.
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count) override;
 
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
-	virtual void maxNorm(double min, double max);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void regularizeActivationFunction(double lambda) override;
 
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
@@ -1225,7 +1111,7 @@ protected:
 
 	/// Data
 	GVec m_bias, m_biasDelta;
-	GMatrix m_kernels, m_deltas;
+	GMatrix m_kernels;
 	GMatrix m_activation; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
 	GActivationFunction *m_pActivationFunction;
 
@@ -1254,42 +1140,41 @@ public:
 	GLayerConvolutional2D(GDomNode* pNode);
 	virtual ~GLayerConvolutional2D();
 
-	virtual const char *type() { return "conv2d"; }
-	virtual GDomNode *serialize(GDom *pDoc);
-	virtual std::string to_str();
-	virtual size_t inputs() const { return m_width * m_height * m_channels; }
-	virtual size_t outputs() const { return m_outputWidth * m_outputHeight * m_bias.size(); }
-	virtual void resize(size_t inputs, size_t outputs);
-	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer);
-	virtual GVec &activation() { return m_activation[1]; }
-	virtual GVec &error() { return m_activation[2]; }
+	virtual const char *type() override { return "conv2d"; }
+	virtual GDomNode *serialize(GDom *pDoc) override;
+	virtual std::string to_str() override;
+	virtual size_t inputs() const override { return m_width * m_height * m_channels; }
+	virtual size_t outputs() const override { return m_outputWidth * m_outputHeight * m_bias.size(); }
+	virtual void resize(size_t inputs, size_t outputs) override;
+	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer) override;
+	virtual GVec &activation() override { return m_activation[1]; }
+	virtual GVec &error() override { return m_activation[2]; }
 
-	virtual void feedForward(const GVec &in);
-	virtual void dropOut(GRand &rand, double probOfDrop);
+	virtual void feedForward(const GVec &in) override;
+	
+	/// \deprecated
+	virtual void dropOut(GRand &rand, double probOfDrop) override;
 	virtual void dropConnect(GRand &rand, double probOfDrop);
-	virtual void computeError(const GVec &target);
-	virtual void deactivateError();
-	virtual void backPropError(GNeuralNetLayer *pUpStreamLayer);
-	virtual void updateDeltas(const GVec &upStreamActivation, double momentum);
-	virtual void applyDeltas(double learningRate);
+	virtual void deactivateError() override;
+	virtual void backPropError(GNeuralNetLayer *pUpStreamLayer) override;
 	
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas);
+	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(const GVec &deltas) override;
 	
-	virtual void scaleWeights(double factor, bool scaleBiases);
-	virtual void diminishWeights(double amount, bool regularizeBiases);
-	virtual size_t countWeights();
-	virtual size_t weightsToVector(double *pOutVector);
-	virtual size_t vectorToWeights(const double *pVector);
-	virtual void copyWeights(const GNeuralNetLayer *pSource);
-	virtual void resetWeights(GRand &rand);
-	virtual void perturbWeights(GRand &rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX);
-	virtual void maxNorm(double min, double max);
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
+	virtual size_t countWeights() override;
+	virtual size_t weightsToVector(double *pOutVector) override;
+	virtual size_t vectorToWeights(const double *pVector) override;
+	virtual void copyWeights(const GNeuralNetLayer *pSource) override;
+	virtual void resetWeights(GRand &rand) override;
+	virtual void perturbWeights(GRand &rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
+	virtual void maxNorm(double min, double max) override;
+	virtual void regularizeActivationFunction(double lambda) override;
 
 	void setPadding(size_t px, size_t py = none);
 	void setStride(size_t sx, size_t sy = none);
@@ -1350,91 +1235,86 @@ using GNeuralNetLayer::updateDeltas;
 	virtual ~GMaxPooling2D();
 
 	/// Returns the type of this layer
-	virtual const char* type() { return "maxpool2"; }
+	virtual const char* type() override { return "maxpool2"; }
 
 	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc);
+	virtual GDomNode* serialize(GDom* pDoc) override;
 
 	/// Makes a string representation of this layer
-	virtual std::string to_str();
+	virtual std::string to_str() override;
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const { return m_inputRows * m_inputCols * m_inputChannels; }
+	virtual size_t inputs() const override { return m_inputRows * m_inputCols * m_inputChannels; }
 
 	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
+	virtual size_t outputs() const override { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
 
 	/// Resizes this layer. If pRand is non-NULL, an exception is thrown.
-	virtual void resize(size_t inputs, size_t outputs);
+	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() { return m_activation[0]; }
+	virtual GVec& activation() override { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() { return m_activation[1]; }
+	virtual GVec& error() override { return m_activation[1]; }
 
 	/// Feeds a the inputs through this layer.
-	virtual void feedForward(const GVec& in);
+	virtual void feedForward(const GVec& in) override;
 
-	/// Randomly sets the activation of some units to 0.
-	virtual void dropOut(GRand& rand, double probOfDrop);
+	/// \deprecated Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
 	/// Throws an exception, because convolutional layers do not support dropConnect.
 	virtual void dropConnect(GRand& rand, double probOfDrop);
 
-	/// Computes the error terms associated with the output of this layer, given a target vector.
-	/// (Note that this is the error of the output, not the error of the weights. To obtain the
-	/// error term for the weights, deactivateError must be called.)
-	virtual void computeError(const GVec& target);
-
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError();
+	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer);
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, double momentum);
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(double learningRate);
+	virtual void applyDeltas(const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
-	virtual void scaleWeights(double factor, bool scaleBiases);
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
-	virtual void diminishWeights(double amount, bool regularizeBiases);
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights();
+	virtual size_t countWeights() override;
 
 	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector);
+	virtual size_t weightsToVector(double* pOutVector) override;
 
 	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector);
+	virtual size_t vectorToWeights(const double* pVector) override;
 
 	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource);
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
 
 	/// Initialize the weights with small random values.
-	virtual void resetWeights(GRand& rand);
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Perturbs the weights that feed into the specifed units with Gaussian noise.
 	/// start specifies the first unit whose incoming weights are perturbed.
 	/// count specifies the maximum number of units whose incoming weights are perturbed.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count);
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start, size_t count) override;
 
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
-	virtual void maxNorm(double min, double max);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda);
+	virtual void regularizeActivationFunction(double lambda) override;
 };
 
 

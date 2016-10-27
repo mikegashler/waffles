@@ -68,8 +68,7 @@ void GNeuralNetFunction::evaluate(const GVec &x, GVec &y)
 void GNeuralNetFunction::updateDeltas(const GVec &x, const GVec &blame, GVec &deltas)
 {
 	GAssert(deltas.size() == countParameters(), "Can't update gradient; not enough space in deltas!");
-	m_nn.outputLayer().error().put(0, blame);
-	m_nn.backpropagateErrorAlreadySet();
+	m_nn.backpropagate(blame);
 	const GVec *in = &x;
 	GVecWrapper out(deltas.data(), 0);
 	for(size_t i = 0; i < m_nn.layerCount(); ++i)

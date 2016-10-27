@@ -363,10 +363,15 @@ void GActivationHinge::test()
 	nn.addLayer(pLay1);
 	nn.addLayer(pLay2);
 	nn.addLayer(pLay3);
-	nn.setLearningRate(0.1);
-	nn.setMomentum(0.0);
+	
 	GUniformRelation rel(2);
+	
+	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	optimizer.setLearningRate(0.1);
+	optimizer.setMomentum(0.0);
+	optimizer.beginOptimizing(rel.size(), rel.size());
 	nn.beginIncrementalLearning(rel, rel);
+	
 	pLay1->perturbWeights(nn.rand(), 0.03);
 	pLay2->perturbWeights(nn.rand(), 0.1);
 	pLay3->perturbWeights(nn.rand(), 0.3);
@@ -407,15 +412,15 @@ void GActivationHinge::test()
 	pAct2->alphas()[1] = beforeAlpha;
 
 	// Update the weights by gradient descent
-	nn.trainIncremental(in, out);
+	optimizer.optimizeIncremental(in, out);
 
 	// Check the result
 	double empiricalGradientWeight = (errWeight - errBase) / epsilon;
-	double computedGradientWeight = -2.0 * (pLay2->weights()[1][1] - beforeWeight) / nn.learningRate();
+	double computedGradientWeight = -2.0 * (pLay2->weights()[1][1] - beforeWeight) / optimizer.learningRate();
 	double empiricalGradientBias = (errBias - errBase) / epsilon;
-	double computedGradientBias = -2.0 * (pLay2->bias()[1] - beforeBias) / nn.learningRate();
+	double computedGradientBias = -2.0 * (pLay2->bias()[1] - beforeBias) / optimizer.learningRate();
 	double empiricalGradientAlpha = (errAlpha - errBase) / epsilon;
-	double computedGradientAlpha = -2.0 * (pAct2->alphas()[1] - beforeAlpha) / nn.learningRate();
+	double computedGradientAlpha = -2.0 * (pAct2->alphas()[1] - beforeAlpha) / optimizer.learningRate();
 	if(std::abs(empiricalGradientWeight - computedGradientWeight) > 1e-5)
 		throw Ex("failed");
 	if(std::abs(empiricalGradientBias - computedGradientBias) > 1e-5)
@@ -670,10 +675,17 @@ void GActivationSoftExponential::test()
 	nn.addLayer(pLay1);
 	nn.addLayer(pLay2);
 	nn.addLayer(pLay3);
-	nn.setLearningRate(0.1);
-	nn.setMomentum(0.0);
+	
 	GUniformRelation rel(2);
+	
+	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	optimizer.setLearningRate(0.1);
+	optimizer.setMomentum(0.0);
+	optimizer.beginOptimizing(rel.size(), rel.size());
 	nn.beginIncrementalLearning(rel, rel);
+	
+	nn.beginIncrementalLearning(rel, rel);
+	
 	pLay1->perturbWeights(nn.rand(), 0.03);
 	pLay2->perturbWeights(nn.rand(), 0.1);
 	pLay3->perturbWeights(nn.rand(), 0.3);
@@ -718,11 +730,11 @@ void GActivationSoftExponential::test()
 
 	// Check the result
 	double empiricalGradientWeight = (errWeight - errBase) / epsilon;
-	double computedGradientWeight = -2.0 * (pLay2->weights()[1][1] - beforeWeight) / nn.learningRate();
+	double computedGradientWeight = -2.0 * (pLay2->weights()[1][1] - beforeWeight) / optimizer.learningRate();
 	double empiricalGradientBias = (errBias - errBase) / epsilon;
-	double computedGradientBias = -2.0 * (pLay2->bias()[1] - beforeBias) / nn.learningRate();
+	double computedGradientBias = -2.0 * (pLay2->bias()[1] - beforeBias) / optimizer.learningRate();
 	double empiricalGradientAlpha = (errAlpha - errBase) / epsilon;
-	double computedGradientAlpha = -2.0 * (pAct2->alphas()[1] - beforeAlpha) / nn.learningRate();
+	double computedGradientAlpha = -2.0 * (pAct2->alphas()[1] - beforeAlpha) / optimizer.learningRate();
 	if(std::abs(empiricalGradientWeight - computedGradientWeight) > epsilon)
 		throw Ex("GActivation::test failed; weight gradient incorrect");
 	if(std::abs(empiricalGradientBias - computedGradientBias) > epsilon)

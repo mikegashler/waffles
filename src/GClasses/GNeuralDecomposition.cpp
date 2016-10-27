@@ -238,7 +238,9 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 	m_nn->addLayer(pOutput);
 	
 	// Prepare for learning
-	m_nn->setLearningRate(m_learningRate);
+	m_optimizer.setTarget(new GNeuralNetFunction(*m_nn));
+	m_optimizer.setLearningRate(m_learningRate);
+	m_optimizer.beginOptimizing(featureRel.size(), labelRel.size());
 	m_nn->beginIncrementalLearning(featureRel, labelRel);
 	
 	// Initialize weights
@@ -299,7 +301,7 @@ void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 	}
 	
 	// Backpropagation
-	m_nn->trainIncremental(in, out);
+	m_optimizer.optimizeIncremental(in, out);
 }
 
 void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)

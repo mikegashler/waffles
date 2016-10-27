@@ -40,17 +40,16 @@ protected:
 	double m_minImprovement;
 	size_t m_epochsPerValidationCheck;
 	bool m_ready;
-	
-	/// for backwards compatibility, keep an optimizer in here for deprecated calls to train, setLearningRate, etc.
-	GSGDOptimizer *m_optimizer;
 
 public:
 	GNeuralNet();
-
-	/// Load from a text-format
 	GNeuralNet(const GDomNode* pNode);
-
 	virtual ~GNeuralNet();
+
+	/// Unused supervised learner methods.
+	/// \todo These should probably be removed from supervised learner.
+	virtual void trainIncremental(const GVec &in, const GVec &out) { throw Ex("Use GDifferentiableOptimizer instead!"); }
+	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) { throw Ex("Use GDifferentiableOptimizer instead!"); }
 
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
@@ -120,59 +119,8 @@ public:
 	/// Contract all the weights in this network by the specified factor.
 	void contractWeights(double factor, bool contractBiases);
 
-	/// Returns the current learning rate
-	double learningRate() const { return m_optimizer->learningRate(); }
-
-	/// Set the learning rate
-	void setLearningRate(double d) { m_optimizer->setLearningRate(d); }
-
-	/// Returns the current momentum value
-	double momentum() const { return m_optimizer->momentum(); }
-
-	/// Momentum has the effect of speeding convergence and helping
-	/// the gradient descent algorithm move past some local minimums
-	void setMomentum(double d) { m_optimizer->setMomentum(d); }
-
-	/// Returns the threshold ratio for improvement.
-	double improvementThresh() { return m_minImprovement; }
-
-	/// Specifies the threshold ratio for improvement that must be
-	/// made since the last validation check for training to continue.
-	/// (For example, if the mean squared error at the previous validation check
-	/// was 50, and the mean squared error at the current validation check
-	/// is 49, then training will stop if d is > 0.02.)
-	void setImprovementThresh(double d) { m_minImprovement = d; }
-
-	/// Returns the number of epochs to perform before the validation data
-	/// is evaluated to see if training should stop.
-	size_t windowSize() { return m_epochsPerValidationCheck; }
-
-	/// Sets the number of epochs that will be performed before
-	/// each time the network is tested again with the validation set
-	/// to determine if we have a better best-set of weights, and
-	/// whether or not it's achieved the termination condition yet.
-	/// (An epochs is defined as a single pass through all rows in
-	/// the training set.)
-	void setWindowSize(size_t n) { m_epochsPerValidationCheck = n; }
-
-#ifndef MIN_PREDICT
-	/// See the comment for GIncrementalLearner::trainSparse
-	/// Assumes all attributes are continuous.
-	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
-#endif // MIN_PREDICT
-
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear();
-
-	/// Train the network until the termination condition is met.
-	/// Returns the number of epochs required to train it.
-	size_t trainWithValidation(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& validateFeatures, const GMatrix& validateLabels);
-
-	/// Gets the internal training data set
-	GMatrix* internalTraininGMatrix();
-
-	/// Gets the internal validation data set
-	GMatrix* internalValidationData();
 
 	/// Sets all the weights from an array of doubles. The number of
 	/// doubles in the array can be determined by calling countWeights().
@@ -187,9 +135,6 @@ public:
 	/// Makes this neural network into a deep copy of pOther, including layers, nodes, settings and weights.
 	void copyStructure(const GNeuralNet* pOther);
 
-	/// Copy the errors from pOther into this neural network.
-	void copyErrors(const GNeuralNet* pOther);
-
 	/// Serializes the network weights into an array of doubles. The
 	/// number of doubles in the array can be determined by calling
 	/// countWeights().
@@ -200,23 +145,8 @@ public:
 	/// The maxLayers parameter can limit how far into the network values are propagated.
 	void forwardProp(const GVec& inputs, size_t maxLayers = INVALID_INDEX);
 
-	/// This is the same as forwardProp, except it only propagates to a single output node.
-	/// It returns the value that this node outputs. If bypassInputWeights is true, then
-	/// pInputs is assumed to have the same size as the first layer, and it is fed into the
-	/// net of this layer, instead of the inputs.
-	double forwardPropSingleOutput(const GVec& inputs, size_t output);
-
 	/// This method assumes forwardProp has been called. It copies the predicted vector into pOut.
 	void copyPrediction(GVec& out);
-
-	/// This method assumes forwardProp has been called. It computes the sum squared prediction error
-	/// with the specified target vector.
-	double sumSquaredPredictionError(const GVec& target);
-
-	/// Uses cross-validation to find a set of parameters that works well with
-	/// the provided data. That is, this method will add a good number of hidden
-	/// layers, pick a good momentum value, etc.
-	void autoTune(GMatrix& features, GMatrix& labels);
 
 	/// Inverts the weights of the specified node, and adjusts the weights in
 	/// the next layer (if there is one) such that this will have no effect
@@ -242,75 +172,12 @@ public:
 	/// such that the network output remains the same. Returns the transformed feature matrix.
 	GMatrix* compressFeatures(GMatrix& features);
 
-	/// Backpropagates, assuming the error has already been computed for the output layer
-	void backpropagateErrorAlreadySet();
-
-	/// This method assumes that the error term is already set at every unit in the output layer. It uses back-propagation
-	/// to compute the error term at every hidden unit. (It does not update any weights.)
-	void backpropagate(const GVec& target, size_t startLayer = INVALID_INDEX);
-
-	/// Backpropagates, and adjusts weights to keep errors from diminishing or exploding
-	double backpropagateAndNormalizeErrors(const GVec& target, double alpha);
+	/// Backpropagates given the blame terms for the output layer.
+	/// (Blame is the partial derivative of the objective function with respect to the prediction).
+	void backpropagate(const GVec &blame);
 
 	/// Backpropagate from a downstream layer
 	void backpropagateFromLayer(GNeuralNetLayer* pDownstream);
-
-	/// Backpropagates from a layer, and adjusts weights to keep errors from diminishing or exploding
-	void backpropagateFromLayerAndNormalizeErrors(GNeuralNetLayer* pDownstream, double errMag, double alpha);
-
-	/// Backpropagates error from a single output node over all of the hidden layers. (Assumes the error term is already set on
-	/// the specified output node.)
-	void backpropagateSingleOutput(size_t outputNode, double target, size_t startLayer = INVALID_INDEX);
-
-	/// This method assumes that the error term is already set for every network unit (by a call to backpropagate). It adjusts weights to descend the
-	/// gradient of the error surface with respect to the weights.
-	void descendGradient(const GVec& features, double learningRate, double momentum);
-
-	/// Convenience method
-	void descendGradient(const GVec& features)
-	{
-		descendGradient(features, learningRate(), momentum());
-	}
-
-	/// Descends the gradient with ADAM. (Currently assumes that all layers are instances of GLayerClassic.)
-	/// See Diederik P. Kingma and Jimmy Lei Ba, "Adam: A Method for Stochastic Optimization", 2015.
-	void descendGradientAdam(const GVec& feat, double learning_rate = 0.001, double beta1 = 0.9, double beta2 = 0.999);
-
-	/// This method assumes that the error term has been set for a single output network unit, and all units that feed into
-	/// it transitively (by a call to backpropagateSingleOutput). It adjusts weights to descend the gradient of the error surface with respect to the weights.
-	void descendGradientSingleOutput(size_t outputNeuron, const GVec& features, double learningRate, double momentum);
-
-	/// Update the delta buffer in each layer with the gradient for a single pattern presentation.
-	void updateDeltas(const GVec& features, double momentum);
-
-	/// Tell each layer to apply its deltas. (That is, take a step in the direction specified in the delta buffer.)
-	void applyDeltas(double learningRate);
-
-	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
-	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
-	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradient.
-	/// Also, note that descendGradient depends on the input features, so be sure not to update them until after you call descendGradient.)
-	void gradientOfInputs(GVec& outGradient);
-
-	/// This method assumes that the error term is already set for every network unit. It calculates the gradient
-	/// with respect to the inputs. That is, it points in the direction of changing inputs that makes the error bigger.
-	/// This method assumes that error is computed for only one output neuron, which is specified.
-	/// (Note that this calculation depends on the weights, so be sure to call this method before you call descendGradientSingleOutput.)
-	/// Also, note that descendGradientSingleOutput depends on the input features, so be sure not to update them until after you call descendGradientSingleOutput.)
-	void gradientOfInputsSingleOutput(size_t outputNeuron, GVec& outGradient);
-
-	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const GVec& in, const GVec& out);
-
-	/// Performs a single step of batch gradient descent.
-	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, size_t start = 0, size_t count = INVALID_INDEX);
-	void trainIncrementalBatch(const GMatrix& features, const GMatrix& labels, GRandomIndexIterator &ii, size_t count = INVALID_INDEX);
-
-	/// Presents a pattern for training. Applies dropout to the activations of hidden layers.
-	/// Note that when training with dropout is complete, you should call
-	/// scaleWeights(1.0 - probOfDrop, false, 1) to compensate for the scaling effect
-	/// dropout has on the weights.
-	void trainIncrementalWithDropout(const GVec& in, const GVec& out, double probOfDrop);
 
 	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const GVec& in, GVec& out);
@@ -360,22 +227,6 @@ public:
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
 
-	/// Convenience method for incremental learning with input training
-	void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder, double inputLearningRate)
-	{
-		forwardProp(inputs);
-		backpropagate(target);
-		gradientOfInputs(gradientHolder);
-		descendGradient(inputs, learningRate(), momentum());
-		inputs.addScaled(-inputLearningRate, gradientHolder);
-	}
-
-	/// Convenience method for incremental learning and train the inputs as well
-	inline void trainIncrementalUpdateInputs(GVec &inputs, const GVec &target, GVec &gradientHolder)
-	{
-		trainIncrementalUpdateInputs(inputs, target, gradientHolder, learningRate());
-	}
-
 	/// Convenience method for adding a basic layer
 	void addLayer(size_t outputSize)
 	{
@@ -397,84 +248,10 @@ public:
 		addLayers(layers...);
 	}
 
-	/// Convenience method for forward propagating across multiple networks (base case)
-	static void forwardProp(const GVec &inputs, GNeuralNet &nn)
-	{
-		nn.forwardProp(inputs);
-	}
-
-	/// Convenience method for forward propagating across multiple networks
-	template <typename ... Ts>
-	static void forwardProp(const GVec &inputs, GNeuralNet &nn, Ts &... nns)
-	{
-		nn.forwardProp(inputs);
-		forwardProp(nn.outputLayer().activation(), nns...);
-	}
-
-	/// Convenience method for backpropagating across multiple networks (base case 1)
-	static void backpropagate(const GVec &target, GNeuralNet &nn)
-	{
-		nn.backpropagate(target);
-	}
-
-	/// Convenience method for backpropagating across multiple networks (base case 2)
-	static void backpropagate(GNeuralNet &a, GNeuralNet &b)
-	{
-		b.backpropagateFromLayer(&a.layer(0));
-	}
-
-	/// Convenience method for backpropagating across multiple networks
-	template <typename ... Ts>
-	static void backpropagate(const GVec &target, GNeuralNet &nn, Ts &... nns)
-	{
-		backpropagate(target, nn);
-		backpropagate(nn, nns...);
-	}
-
-	/// Convenience method for backpropagating across multiple networks (base case; reversed order of inputs)
-	static void backpropagateR(const GVec &target, GNeuralNet &nn)
-	{
-		nn.backpropagate(target);
-	}
-
-	/// Convenience method for backpropagating across multiple networks (reversed order of inputs)
-	template <typename ... Ts>
-	static void backpropagateR(const GVec &target, GNeuralNet &a, GNeuralNet &b, Ts &... nns)
-	{
-		backpropagateR(target, b, nns...);
-		a.backpropagateFromLayer(&b.layer(0));
-	}
-
-	/// Convenience method for descending the gradient across multiple networks (base case)
-	template <typename T>
-	static void descendGradient(const GVec &inputs, T &nn)
-	{
-		nn.descendGradient(inputs);
-	}
-
-	/// Convenience method for descending the gradient across multiple networks
-	template <typename T, typename ... Ts>
-	static void descendGradient(const GVec &inputs, T &nn, Ts &... nns)
-	{
-		nn.descendGradient(inputs);
-		descendGradient(nn.outputLayer().activation(), nns...);
-	}
-
-	/// Convenience method for incremental training across multiple networks
-	template <typename ... Ts>
-	static void trainIncremental(const GVec &inputs, const GVec &target, Ts &... nns)
-	{
-		forwardProp(inputs, nns...);
-		backpropagateR(target, nns...);
-		descendGradient(inputs, nns...);
-	}
-
 protected:
-	/// Measures the sum squared error against the specified dataset
-	double validationSquaredError(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
+	/// Unused supervised learner method.
+	/// \todo This should probably be removed from supervised learner.
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels) { throw Ex("Use GDifferentiableOptimizer instead!"); }
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
