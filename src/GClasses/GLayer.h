@@ -1277,13 +1277,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// The error this computes is with respect to the output of the upstream layer.)
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
 
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
-
-	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) override;
-
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
 

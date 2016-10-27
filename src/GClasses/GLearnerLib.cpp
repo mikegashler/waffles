@@ -910,26 +910,7 @@ void GLearnerLib::autoTuneKNN(GMatrix& features, GMatrix& labels)
 
 void GLearnerLib::autoTuneNeuralNet(GMatrix& features, GMatrix& labels)
 {
-	cout << "Warning: Because neural nets take a long time to train, it could take hours to train with enough parameter variations to determine with confidence which parameters are best. (If possible, I would strongly advise running this as a background process while you do something else, rather than sit around waiting for it to finish.)";
-	cout.flush();
-	GNeuralNet nn;
-	nn.autoTune(features, labels);
-//	const char* szCurrent = "logistic";
-	cout << "neuralnet";
-	for(size_t i = 0; i < nn.layerCount(); i++)
-	{
-/*		const char* szActivationName = nn.layer(i).m_pActivationFunction->name();
-		if(strcmp(szActivationName, szCurrent) != 0)
-		{
-			cout << " -activation " << szActivationName;
-			szCurrent = szActivationName;
-		}*/
-		if(i < nn.layerCount() - 1)
-			cout << " -addlayer " << nn.layer(i).outputs();
-	}
-	if(nn.momentum() > 0.0)
-		cout << " -momentum " << nn.momentum();
-	cout << "\n";
+	throw Ex("Cannot autotune neural net at this time. Recent changes to the way optimization works have broken this functionality.");
 }
 
 void GLearnerLib::autoTuneNaiveBayes(GMatrix& features, GMatrix& labels)

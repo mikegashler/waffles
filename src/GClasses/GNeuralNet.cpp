@@ -490,231 +490,6 @@ void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream)
 	}
 }
 
-void GNeuralNet::backpropagateFromLayerAndNormalizeErrors(GNeuralNetLayer* pDownstream, double errMag, double alpha)
-{
-	GNeuralNetLayer* pLay = pDownstream;
-	for(size_t i = m_layers.size(); i > 0; i--)
-	{
-		GNeuralNetLayer* pUpStream = m_layers[i - 1];
-		pLay->backPropError(pUpStream);
-		pUpStream->deactivateError();
-		double mag = std::sqrt(pUpStream->error().GVec::squaredMagnitude());
-		pLay->scaleWeights(1.0 - alpha + alpha * errMag / mag, true);
-		pLay = pUpStream;
-	}
-}
-
-void GNeuralNet::descendGradient(const GVec& feat, double learning_rate, double momentumTerm)
-{
-	m_optimizer->applyDeltas();
-}
-
-void GNeuralNet::updateDeltas(const GVec& feat, double momentumTerm)
-{
-	m_optimizer->updateDeltas();
-	
-	GNeuralNetLayer* pLay = m_layers[0];
-	pLay->updateDeltas(feat, momentumTerm);
-	GNeuralNetLayer* pUpStream = pLay;
-	for(size_t i = 1; i < m_layers.size(); i++)
-	{
-		pLay = m_layers[i];
-		pLay->updateDeltas(pUpStream, momentumTerm);
-		pUpStream = pLay;
-	}
-}
-
-void GNeuralNet::applyDeltas(double learning_rate)
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->applyDeltas(learning_rate);
-}
-
-void GNeuralNet::gradientOfInputs(GVec& outGradient)
-{
-	GMatrix& w = ((GLayerClassic*)m_layers[0])->m_weights;
-	GVec& err = ((GLayerClassic*)m_layers[0])->error();
-	for(size_t i = 0; i < m_layers[0]->inputs(); i++)
-		outGradient[i] = -w[i].dotProduct(err);
-}
-
-void GNeuralNet::gradientOfInputsSingleOutput(size_t outputNeuron, GVec& outGradient)
-{
-	if(m_layers.size() != 1)
-	{
-		gradientOfInputs(outGradient);
-		return;
-	}
-	GMatrix& w = ((GLayerClassic*)m_layers[0])->m_weights;
-	GAssert(outputNeuron < w.cols());
-
-	GVec& err = ((GLayerClassic*)m_layers[0])->error();
-	for(size_t i = 0; i < w.rows(); i++)
-		outGradient[i] = -err[outputNeuron] * w[i][outputNeuron];
-}
-
-#ifndef MIN_PREDICT
-void GNeuralNet::autoTune(GMatrix& features, GMatrix& labels)
-{
-	// Try a plain-old single-layer network
-	size_t hidden = std::max((size_t)4, (features.cols() + 3) / 4);
-	std::unique_ptr<GNeuralNet> hCand0(new GNeuralNet());
-	hCand0->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	std::unique_ptr<GNeuralNet> hCand1;
-	double scores[2];
-	scores[0] = hCand0.get()->crossValidate(features, labels, 2);
-	scores[1] = 1e308;
-
-	// Try increasing the number of hidden units until accuracy decreases twice
-	size_t failures = 0;
-	while(true)
-	{
-		GNeuralNet* cand = new GNeuralNet();
-		cand->addLayer(new GLayerClassic(FLEXIBLE_SIZE, hidden));
-		cand->addLayer(new GLayerClassic(hidden, FLEXIBLE_SIZE));
-		double d = cand->crossValidate(features, labels, 2);
-		if(d < scores[0])
-		{
-			hCand1.reset(hCand0.release());
-			scores[1] = scores[0];
-			hCand0.reset(cand);
-			scores[0] = d;
-		}
-		else
-		{
-			if(d < scores[1])
-			{
-				hCand1.reset(cand);
-				scores[1] = d;
-			}
-			else
-				delete(cand);
-			if(++failures >= 2)
-				break;
-		}
-		hidden *= 4;
-	}
-
-	// Try narrowing in on the best number of hidden units
-	while(true)
-	{
-		size_t a = hCand0.get()->layerCount() > 1 ? hCand0.get()->layer(0).outputs() : 0;
-		size_t b = hCand1.get()->layerCount() > 1 ? hCand1.get()->layer(0).outputs() : 0;
-		size_t dif = b < a ? a - b : b - a;
-		if(dif <= 1)
-			break;
-		size_t c = (a + b) / 2;
-		GNeuralNet* cand = new GNeuralNet();
-		cand->addLayer(new GLayerClassic(FLEXIBLE_SIZE, c));
-		cand->addLayer(new GLayerClassic(c, FLEXIBLE_SIZE));
-		double d = cand->crossValidate(features, labels, 2);
-		if(d < scores[0])
-		{
-			hCand1.reset(hCand0.release());
-			scores[1] = scores[0];
-			hCand0.reset(cand);
-			scores[0] = d;
-		}
-		else if(d < scores[1])
-		{
-			hCand1.reset(cand);
-			scores[1] = d;
-		}
-		else
-		{
-			delete(cand);
-			break;
-		}
-	}
-	hCand1.reset(NULL);
-
-	// Try two hidden layers
-	size_t hu1 = hCand0.get()->layerCount() > 1 ? hCand0.get()->layer(0).outputs() : 0;
-	size_t hu2 = 0;
-	if(hu1 > 12)
-	{
-		size_t c1 = 16;
-		size_t c2 = 16;
-		if(labels.cols() < features.cols())
-		{
-			double d = sqrt(double(features.cols()) / labels.cols());
-			c1 = std::max(size_t(9), size_t(double(features.cols()) / d));
-			c2 = size_t(labels.cols() * d);
-		}
-		else
-		{
-			double d = sqrt(double(labels.cols()) / features.cols());
-			c1 = size_t(features.cols() * d);
-			c2 = std::max(size_t(9), size_t(double(labels.cols()) / d));
-		}
-		if(c1 < 16 && c2 < 16)
-		{
-			c1 = 16;
-			c2 = 16;
-		}
-		GNeuralNet* cand = new GNeuralNet();
-		vector<size_t> topology;
-		cand->addLayer(new GLayerClassic(FLEXIBLE_SIZE, c1));
-		cand->addLayer(new GLayerClassic(c1, c2));
-		cand->addLayer(new GLayerClassic(c2, FLEXIBLE_SIZE));
-		double d = cand->crossValidate(features, labels, 2);
-		if(d < scores[0])
-		{
-			hCand0.reset(cand);
-			scores[0] = d;
-			hu1 = c1;
-			hu2 = c2;
-		}
-		else
-			delete(cand);
-	}
-
-	// Try with momentum
-	{
-		GNeuralNet* cand = new GNeuralNet();
-		vector<size_t> topology;
-		if(hu1 > 0) cand->addLayer(new GLayerClassic(FLEXIBLE_SIZE, hu1));
-		if(hu2 > 0) cand->addLayer(new GLayerClassic(hu1, hu2));
-		cand->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-		cand->setMomentum(0.8);
-		double d = cand->crossValidate(features, labels, 2);
-		if(d < scores[0])
-		{
-			hCand0.reset(cand);
-			scores[0] = d;
-		}
-		else
-			delete(cand);
-	}
-
-	copyStructure(hCand0.get());
-}
-#endif // MIN_PREDICT
-
-void GNeuralNet::pretrainWithAutoencoders(const GMatrix& features, size_t maxLayers)
-{
-	const GMatrix* pFeat = &features;
-	std::unique_ptr<GMatrix> hFeat;
-	maxLayers = std::min(layerCount(), maxLayers);
-	for(size_t i = 0; i < maxLayers; i++)
-	{
-		GNeuralNet tmp;
-		GNeuralNetLayer& encoder = layer(i);
-		tmp.addLayer(&encoder);
-		GLayerClassic* pDecoder = new GLayerClassic(encoder.outputs(), encoder.inputs());
-		tmp.addLayer(pDecoder);
-		tmp.setWindowSize(1);
-		tmp.setImprovementThresh(0.05);
-		tmp.train(*pFeat, *pFeat);
-		tmp.releaseLayer(0);
-		if(i + 1 < maxLayers)
-		{
-			pFeat = encoder.feedThrough(*pFeat);
-			hFeat.reset((GMatrix*)pFeat);
-		}
-	}
-}
-
 void GNeuralNet::printWeights(std::ostream& stream)
 {
 	stream.precision(6);
@@ -866,8 +641,11 @@ void GNeuralNet_testMath()
 	GNeuralNet nn;
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 3));
 	nn.addLayer(new GLayerClassic(3, FLEXIBLE_SIZE));
-	nn.setLearningRate(0.175);
-	nn.setMomentum(0.9);
+	
+	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	optimizer.setLearningRate(0.175);
+	optimizer.setMomentum(0.9);
+	optimizer.beginOptimizing(features.relation().size(), labels.relation().size());
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
 	if(nn.countWeights() != 13)
 		throw Ex("Wrong number of weights");
@@ -905,7 +683,7 @@ void GNeuralNet_testMath()
 	if(std::abs(pred[0] - 0.02034721575641) > tol) throw Ex("forward prop problem"); // tanh
 
 	// Test that the output error is computed properly
-	nn.trainIncremental(features[0], labels[0]);
+	optimizer.optimizeIncremental(features[0], labels[0]);
 	GNeuralNet* pBP = &nn;
 	// Here is the math (done by hand) for why these results are expected:
 	// e_0 = output*(1-output)*(target-output) = .51002053349535*(1-.51002053349535)*(1-.51002053349535) = 0.1224456672531
@@ -992,7 +770,10 @@ void GNeuralNet_testHingeMath()
 	nn.addLayer(new GLayerClassic(2, 3, pAct1));
 	GActivationHinge* pAct2 = new GActivationHinge();
 	nn.addLayer(new GLayerClassic(3, 2, pAct2));
-	nn.setLearningRate(0.1);
+	
+	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	optimizer.setLearningRate(0.1);
+	optimizer.beginOptimizing(features.relation().size(), labels.relation().size());
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
 	if(nn.countWeights() != 22)
 		throw Ex("Wrong number of weights");
@@ -1023,7 +804,7 @@ void GNeuralNet_testHingeMath()
 	GVec& hinge2 = pAct2->alphas();
 	hinge1.fill(0.0);
 	hinge2.fill(0.0);
-	nn.trainIncremental(features[0], labels[0]);
+	optimizer.optimizeIncremental(features[0], labels[0]);
 	if(std::abs(layerHidden.activation()[0] - 0.11) > 1e-9)
 		throw Ex("failed");
 	if(std::abs(layerHidden.activation()[1] - 0.1) > 1e-9)
@@ -1048,129 +829,6 @@ void GNeuralNet_testHingeMath()
 		throw Ex("failed");
 	if(std::abs(hinge2[1] - 4.2982897628915964E-4) > 1e-9)
 		throw Ex("failed");
-}
-
-void GNeuralNet_testConvolutionalLayerMath()
-{
-	GLayerConvolutional1D layer(4, 2, 3, 2, new GActivationIdentity());
-	layer.bias()[0] = 0.0;
-	layer.bias()[1] = -1.0;
-	layer.bias()[2] = 2.0;
-	layer.bias()[3] = 1.0;
-	GMatrix& k = layer.kernels();
-	k[0][0] = 0.0;	k[0][1] = 1.0;	k[0][2] = 2.0;
-	k[1][0] = 2.0;	k[1][1] = 1.0;	k[1][2] = 0.0;
-	k[2][0] = 0.0;	k[2][1] = 2.0;	k[2][2] = 1.0;
-	k[3][0] = 1.0;	k[3][1] = 1.0;	k[3][2] = 1.0;
-	GVec in(8);
-	in[0] = 0.0;
-	in[1] = 1.0;
-	in[2] = 0.0;
-	in[3] = 2.0;
-	in[4] = 1.0;
-	in[5] = 3.0;
-	in[6] = 2.0;
-	in[7] = 2.0;
-	double learning_rate = 2.0;
-	layer.feedForward(in);
-	GVec ex(8);
-	ex[0] = 2.0; ex[1] = -1.0; ex[2] = 9.0; ex[3] = 7.0; ex[4] = 5.0; ex[5] = 0.0; ex[6] = 10.0; ex[7] = 8.0;
-	if(layer.activation().squaredDistance(ex) > 1e-9)
-		throw Ex("incorrect activation");
-	GVec target(8);
-	target[0] = 2.0;
-	target[1] = 0.0;
-	target[2] = 11.0;
-	target[3] = 10.0;
-	target[4] = 9.0;
-	target[5] = 5.0;
-	target[6] = 16.0;
-	target[7] = 15.0;
-	layer.computeError(target);
-	ex[0] = 0.0; ex[1] = 1.0; ex[2] = 2.0; ex[3] = 3.0; ex[4] = 4.0; ex[5] = 5.0; ex[6] = 6.0; ex[7] = 7.0;
-	if(layer.error().squaredDistance(ex) > 1e-9)
-		throw Ex("incorrect error");
-	layer.deactivateError();
-	// Note that this test does not cover backPropError().
-	layer.updateDeltas(in, 0.0);
-	layer.applyDeltas(learning_rate);
-	ex.resize(3);
-	ex[0] = 0.0; ex[1] = 9.0; ex[2] = 18.0;
-	if(k[0].squaredDistance(ex) > 1e-9)
-		throw Ex("incorrect weights");
-	ex[0] = 2.0; ex[1] = 11.0; ex[2] = 22.0;
-	if(k[1].squaredDistance(ex) > 1e-9)
-		throw Ex("incorrect weights");
-	ex[0] = 28.0; ex[1] = 46.0; ex[2] = 37.0;
-	if(k[2].squaredDistance(ex) > 1e-9)
-		throw Ex("incorrect weights");
-	ex[0] = 35.0; ex[1] = 55.0; ex[2] = 47.0;
-	if(k[3].squaredDistance(ex) > 1e-9)
-		throw Ex("incorrect weights");
-	ex.resize(4);
-	ex[0] = 8.0; ex[1] = 11.0; ex[2] = 18.0; ex[3] = 21.0;
-	if(layer.bias().squaredDistance(ex) > 1e-9)
-		throw Ex("incorrect bias");
-}
-
-void GNeuralNet_testInputGradient(GRand* pRand)
-{
-	for(int i = 0; i < 20; i++)
-	{
-		// Make the neural net
-		GNeuralNet nn;
-		nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 5));
-		nn.addLayer(new GLayerClassic(5, 10));
-		nn.addLayer(new GLayerClassic(10, FLEXIBLE_SIZE));
-		GUniformRelation featureRel(5);
-		GUniformRelation labelRel(10);
-		nn.beginIncrementalLearning(featureRel, labelRel);
-
-		// Init with random weights
-		size_t weightCount = nn.countWeights();
-		GVec pWeights(weightCount);
-		GVec feat(5);
-		GVec target(10);
-		GVec pOutput(10);
-		GVec pFeatureGradient(5);
-		GVec pEmpiricalGradient(5);
-		for(size_t j = 0; j < weightCount; j++)
-			pWeights[j] = pRand->normal() * 0.8;
-		nn.setWeights(pWeights.data());
-
-		// Compute target output
-		feat.fill(0.0);
-		nn.predict(feat, target);
-
-		// Move away from the goal and compute baseline error
-		for(int j = 0; j < 5; j++)
-			feat[j] += pRand->normal() * 0.1;
-		nn.predict(feat, pOutput);
-		double sseBaseline = target.squaredDistance(pOutput);
-
-		// Compute the feature gradient
-		nn.forwardProp(feat);
-		nn.backpropagate(target);
-		nn.gradientOfInputs(pFeatureGradient);
-		pFeatureGradient *= 2.0;
-
-		// Empirically measure gradient
-		for(int j = 0; j < 5; j++)
-		{
-			feat[j] += 0.0001;
-			nn.predict(feat, pOutput);
-			double sse = target.squaredDistance(pOutput);
-			pEmpiricalGradient[j] = (sse - sseBaseline) / 0.0001;
-			feat[j] -= 0.0001;
-		}
-
-		// Check it
-		double corr = pFeatureGradient.correlation(pEmpiricalGradient);
-		if(corr > 1.0)
-			throw Ex("pathological results");
-		if(corr < 0.999)
-			throw Ex("GNeuralNet::gradientOfInputs failed; correlation expected 1.0, got " + to_str(corr));
-	}
 }
 
 void GNeuralNet_testBinaryClassification(GRand* pRand)
@@ -1485,21 +1143,16 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	GVec oneVec(1);
 	oneVec.fill(1.0);
 
+	GNeuralNet nn;
+	nn.addLayers(&upstream, &layer);
+	nn.beginIncrementalLearning(GUniformRelation(1), GUniformRelation(layer.outputs()));
+
+	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	optimizer.setLearningRate(1e-2);
+	optimizer.beginOptimizing(1, layer.outputs());
+
 	for(size_t i = 0; i < 100; i++)
-	{
-		upstream.feedForward(oneVec);
-		layer.feedForward(upstream.activation());
-		layer.computeError(label);
-		layer.backPropError(&upstream);
-		upstream.updateDeltas(oneVec, 0.0);
-		upstream.applyDeltas(0.01);
-
-		upstream.feedForward(oneVec);
-		layer.feedForward(upstream.activation());
-
-		upstream.feedForward(oneVec);
-		layer.feedForward(upstream.activation());
-	}
+		optimizer.optimizeIncremental(oneVec, label);
 
 	upstream.feedForward(oneVec);
 	layer.feedForward(upstream.activation());
@@ -1520,16 +1173,14 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	}
 
 	for(size_t i = 0; i < 100; i++)
-	{
-		layer.feedForward(feature);
-		layer.computeError(label);
-		layer.updateDeltas(feature, 0.0);
-		layer.applyDeltas(0.01);
-	}
+		optimizer.optimizeIncremental(feature, label);
 
 	layer.feedForward(feature);
 	if(layer.activation().squaredDistance(label) > 1e-2)
 		throw Ex("GLayerConvolutional2D backpropagation failed (2)");
+	
+	nn.releaseLayer(1);
+	nn.releaseLayer(0);
 }
 
 void GNeuralNet_testFourier()
@@ -1565,25 +1216,6 @@ void GNeuralNet_testFourier()
 	}
 }
 
-void GNeuralNet_testConvenience()
-{
-	// this method will not throw any exceptions; if it compiles, it works
-
-	GUniformRelation rel(1);
-	GVec vec(1);
-	vec[0] = 0.5;
-
-	GNeuralNet encoder;
-	encoder.addLayers(200, 100, new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationSin()), FLEXIBLE_SIZE);
-	encoder.beginIncrementalLearning(rel, rel);
-
-	GNeuralNet decoder;
-	decoder.addLayers(100, 200, FLEXIBLE_SIZE);
-	decoder.beginIncrementalLearning(rel, rel);
-
-	GNeuralNet::trainIncremental(vec, vec, encoder, decoder);
-}
-
 // static
 void GNeuralNet::test()
 {
@@ -1591,15 +1223,12 @@ void GNeuralNet::test()
 	GNeuralNet_testMath();
 	GNeuralNet_testHingeMath();
 	GNeuralNet_testBinaryClassification(&prng);
-	GNeuralNet_testInputGradient(&prng);
 	GNeuralNet_testInvertAndSwap(prng);
 	GNeuralNet_testNormalizeInput(prng);
 	GNeuralNet_testTransformWeights(prng);
 	GNeuralNet_testCompressFeatures(prng);
-	GNeuralNet_testConvolutionalLayerMath();
 	GNeuralNet_testConvolutionalLayer2D(prng);
 	GNeuralNet_testFourier();
-	GNeuralNet_testConvenience();
 
 	// Test with no hidden layers (logistic regression)
 	{
@@ -1630,82 +1259,7 @@ void GNeuralNet::test()
 
 
 
-GBackPropThroughTime::GBackPropThroughTime(GNeuralNet& transition, GNeuralNet& observation, size_t unfoldDepth)
-: m_transition(transition), m_observation(observation), m_unfoldDepth(unfoldDepth), m_errorNormalizationTerm(0.0)
-{
-	/// Check parameters
-	if(unfoldDepth < 1)
-		throw Ex("unfoldDepth must be > 0");
-	if(observation.layer(0).inputs() < transition.outputLayer().outputs())
-		throw Ex("The observation function must accept at least as many inputs as the transition function outputs");
-	m_obsParamCount = observation.layer(0).inputs() - transition.outputLayer().outputs();
 
-	/// Create the unfolded instances
-	for(size_t i = 0; i < m_unfoldDepth; i++)
-	{
-		GNeuralNet* pNN = new GNeuralNet();
-		m_parts.push_back(pNN);
-		pNN->copyStructure(&transition);
-	}
-
-	// Allocate a buffer
-	m_buf = new double[std::max(transition.layer(0).inputs(), observation.layer(0).inputs())];
-	m_unfoldReciprocal = 1.0 / m_unfoldDepth;
-}
-
-GBackPropThroughTime::~GBackPropThroughTime()
-{
-	for(size_t i = 0; i < m_parts.size(); i++)
-		delete(m_parts[i]);
-	delete[] m_buf;
-}
-
-void GBackPropThroughTime::trainIncremental(const GVec& initialState, const GMatrix& controls, const GVec& obsParams, const GVec& targetObs)
-{
-	size_t transInputs = m_transition.layer(0).inputs();
-	size_t transOutputs = m_transition.outputLayer().outputs();
-	size_t obsInputs = m_observation.layer(0).inputs();
-	GAssert(initialState.size() == transOutputs);
-	GAssert(initialState.size() + controls.cols() == transInputs);
-	GAssert(controls.rows() == m_unfoldDepth);
-	GAssert(obsParams.size() == m_obsParamCount);
-	GAssert(targetObs.size() == m_observation.outputLayer().outputs());
-	GConstVecWrapper vwTrans(m_buf, transInputs);
-	GConstVecWrapper vwObs(m_buf, obsInputs);
-
-	// Forward Prop
-	memcpy(m_buf, initialState.data(), sizeof(double) * transOutputs);
-	for(size_t i = 0; i < m_unfoldDepth; i++)
-	{
-		memcpy(m_buf + transOutputs, controls[i].data(), sizeof(double) * (transInputs - transOutputs));
-		m_parts[i]->forwardProp(vwTrans.vec());
-		memcpy(m_buf, m_parts[i]->outputLayer().activation().data(), sizeof(double) * transOutputs);
-	}
-	memcpy(m_buf + transOutputs, obsParams.data(), sizeof(double) * (obsInputs - transOutputs));
-	m_observation.forwardProp(vwObs.vec());
-
-	// Back Prop
-	double errMag = m_observation.backpropagateAndNormalizeErrors(targetObs, m_errorNormalizationTerm);
-	GNeuralNet* pDownStreamNet = &m_observation;
-	for(size_t i = m_unfoldDepth - 1; i < m_unfoldDepth; i--)
-	{
-		pDownStreamNet->layer(0).backPropError(&m_parts[i]->outputLayer());
-		m_parts[i]->backpropagateFromLayerAndNormalizeErrors(&pDownStreamNet->layer(0), errMag, m_errorNormalizationTerm);
-		pDownStreamNet = m_parts[i];
-	}
-
-	// Update weights
-	memcpy(m_buf, initialState.data(), sizeof(double) * transOutputs);
-	for(size_t i = 0; i < m_unfoldDepth; i++)
-	{
-		m_transition.copyErrors(m_parts[i]);
-		memcpy(m_buf + transOutputs, controls[i].data(), sizeof(double) * (transInputs - transOutputs));
-		m_transition.descendGradient(vwTrans.vec(), m_transition.learningRate() * m_unfoldReciprocal, m_transition.momentum());
-		memcpy(m_buf, m_parts[i]->outputLayer().activation().data(), sizeof(double) * transOutputs);
-	}
-	memcpy(m_buf + transOutputs, obsParams.data(), sizeof(double) * (obsInputs - transOutputs));
-	m_observation.descendGradient(vwObs.vec(), m_observation.learningRate(), m_observation.momentum());
-}
 
 
 

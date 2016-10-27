@@ -182,16 +182,6 @@ public:
 	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const GVec& in, GVec& out);
 
-	/// Pretrains the network using the method of stacked autoencoders.
-	/// This method performs the following steps: 1- Start with the first
-	/// layer. 2- Create an autoencoder using the current layer as the
-	/// encoder and a temporary layer as the decoder. 3- Train the
-	/// autoencoder with the features. 4- Discard the decoder. 5- Map the
-	/// features through the encoder to obtain a set of features for
-	/// training the next layer, and go to step 2 until all (or maxLayers)
-	/// layers have been pretrained in this manner.
-	void pretrainWithAutoencoders(const GMatrix& features, size_t maxLayers = INVALID_INDEX);
-
 	/// Finds the column in the intrinsic matrix with the largest deviation, then
 	/// centers the matrix at the origin and renormalizes so the largest deviation
 	/// is 1. Also renormalizes the input layer so these changes will have no effect.
@@ -291,42 +281,6 @@ public:
 	}
 };
 
-
-
-/// Trains an Elman-style recurrent neural network.
-class GBackPropThroughTime
-{
-protected:
-	GNeuralNet& m_transition;
-	GNeuralNet& m_observation;
-	size_t m_unfoldDepth;
-	double m_unfoldReciprocal;
-	size_t m_obsParamCount;
-	std::vector<GNeuralNet*> m_parts;
-	double* m_buf;
-	double m_errorNormalizationTerm;
-
-public:
-	/// The purpose of this class is to train "transition" and "observation".
-	/// transition provides the layers in the recurrent portion of the Elman-style network.
-	/// observation provides the layers that follow the recurrent portion of the Elman-style network.
-	/// k is the number of times the transition portion will occur in the unfolded network.
-	/// It is assumed that transition.beginIncrementalLearning and observation.beginIncrementalLearning
-	/// have already been called before they were passed to this class.
-	GBackPropThroughTime(GNeuralNet& transition, GNeuralNet& observation, size_t unfoldDepth);
-	~GBackPropThroughTime();
-
-	void setErrorNormalizationTerm(double d)
-	{
-		m_errorNormalizationTerm = d;
-	}
-
-	/// initialState is the initial values for the first part of the input into the transition function.
-	/// controls should provide a control vector (concatenated after the state) for each unfolding of the transition function.
-	/// obsParams provides any additional values fed into the observation function. In most cases, it will be NULL.
-	/// targetObs provides the target outputs, or labels.
-	void trainIncremental(const GVec& initialState, const GMatrix& controls, const GVec& obsParams, const GVec& targetObs);
-};
 
 
 
