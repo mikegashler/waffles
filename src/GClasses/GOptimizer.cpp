@@ -129,6 +129,7 @@ void GDifferentiableOptimizer::optimizeIncremental(const GVec &feat, const GVec 
 void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize)
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
+	GAssert(features.cols() == m_target->inputs() && labels.cols() == m_target->outputs(), "Features/labels size mismatch!");
 	for(size_t i = 0; i < batchSize; ++i)
 		updateDeltas(features[start + i], labels[start + i]);
 	scaleDeltas(1.0 / batchSize);
@@ -137,13 +138,13 @@ void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMat
 
 void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start)
 {
-	GAssert(m_target != NULL, "Target must be set before optimization!");
 	optimizeBatch(features, labels, start, m_batchSize);
 }
 
 void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii, size_t batchSize)
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
+	GAssert(features.cols() == m_target->inputs() && labels.cols() == m_target->outputs(), "Features/labels size mismatch!");
 	size_t j;
 	for(size_t i = 0; i < batchSize; ++i)
 	{
@@ -156,13 +157,13 @@ void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMat
 
 void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii)
 {
-	GAssert(m_target != NULL, "Target must be set before optimization!");
 	optimizeBatch(features, labels, ii, m_batchSize);
 }
 
 void GDifferentiableOptimizer::optimize(const GMatrix &features, const GMatrix &labels)
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
+	GAssert(features.cols() == m_target->inputs() && labels.cols() == m_target->outputs(), "Features/labels size mismatch!");
 	
 	size_t batchesPerEpoch = m_batchesPerEpoch;
 	if(m_batchesPerEpoch > features.rows())
