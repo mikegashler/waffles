@@ -139,9 +139,6 @@ public:
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
 	virtual void maxNorm(double min, double max) = 0;
 
-	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) = 0;
-
 	/// Feeds a matrix through this layer, one row at-a-time, and returns the resulting transformed matrix.
 	GMatrix* feedThrough(const GMatrix& data);
 
@@ -253,7 +250,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void maxNorm(double min, double max) override;
 
 	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) override;
+	void regularizeActivationFunction(double lambda);
 
 	/// Get the entire weights matrix
 	GMatrix &weights() { return m_weights; }
@@ -401,9 +398,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double min, double max) override;
-
-	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) override;
 };
 
 
@@ -505,9 +499,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double min, double max) override;
-
-	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) override;
 };
 
 
@@ -607,9 +598,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double min, double max) override;
-
-	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) override;
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
@@ -753,9 +741,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Calls maxNorm for each component.
 	virtual void maxNorm(double min, double max) override;
-
-	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) override;
 };
 
 
@@ -766,19 +751,16 @@ protected:
 	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the delta.
 	GMatrix m_biasReverse; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the delta.
-	GActivationFunction* m_pActivationFunction;
 
 public:
 using GNeuralNetLayer::feedForward;
 using GNeuralNetLayer::updateDeltas;
 
 	/// General-purpose constructor. Takes ownership of pActivationFunction.
-	GLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs, GActivationFunction* pActivationFunction = NULL);
+	GLayerRestrictedBoltzmannMachine(size_t inputs, size_t outputs);
 
 	/// Deserializing constructor
 	GLayerRestrictedBoltzmannMachine(GDomNode* pNode);
-
-	~GLayerRestrictedBoltzmannMachine();
 
 	/// Returns the type of this layer
 	virtual const char* type() override { return "rbm"; }
@@ -857,9 +839,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double min, double max) override;
 
-	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) override;
-
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
 
@@ -922,7 +901,6 @@ protected:
 	GMatrix m_kernels;
 	GMatrix m_activation; // Row 0 is the activation. Row 1 is the net. Row 2 is the error.
 	GMatrix m_bias; // Row 0 is the bias. Row 1 is the bias delta.
-	GActivationFunction* m_pActivationFunction;
 
 public:
 using GNeuralNetLayer::feedForward;
@@ -935,12 +913,10 @@ using GNeuralNetLayer::updateDeltas;
 	/// If kernelsPerChannel is 2, then there will be 6 (3*2=6) channels in the output, for a total of 90 (15*6=90)
 	/// output values. The first six channel values will appear first in the output vector, followed by the next six,
 	/// and so forth. (kernelSize must be <= inputSamples.)
-	GLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction = NULL);
+	GLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel);
 
 	/// Deserializing constructor
 	GLayerConvolutional1D(GDomNode* pNode);
-
-	virtual ~GLayerConvolutional1D();
 
 	/// Returns the type of this layer
 	virtual const char* type() override { return "conv1d"; }
@@ -1016,9 +992,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
 	virtual void maxNorm(double min, double max) override;
 
-	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) override;
-
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
 	GVec& net() { return m_activation[1]; }
@@ -1072,7 +1045,6 @@ protected:
 	GVec m_bias, m_biasDelta;
 	GMatrix m_kernels;
 	GMatrix m_activation; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
-	GActivationFunction *m_pActivationFunction;
 
 	/// Data as images
 	Image m_kernelImage, m_deltaImage;
@@ -1091,13 +1063,12 @@ public:
 	static size_t none;
 
 	/// General-purpose constructor.
-	GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount = 0, GActivationFunction *pActivationFunction = NULL);
+	GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount = 0);
 
 	/// Constructor that will automatically use the upstream convolutional layer when added to a neural network
-	GLayerConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount = 0, GActivationFunction *pActivationFunction = NULL);
+	GLayerConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount = 0);
 
 	GLayerConvolutional2D(GDomNode* pNode);
-	virtual ~GLayerConvolutional2D();
 
 	virtual const char *type() override { return "conv2d"; }
 	virtual GDomNode *serialize(GDom *pDoc) override;
@@ -1132,7 +1103,6 @@ public:
 	virtual void resetWeights(GRand &rand) override;
 	virtual void perturbWeights(GRand &rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
 	virtual void maxNorm(double min, double max) override;
-	virtual void regularizeActivationFunction(double lambda) override;
 
 	void setPadding(size_t px, size_t py = none);
 	void setStride(size_t sx, size_t sy = none);
@@ -1258,9 +1228,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
 	virtual void maxNorm(double min, double max) override;
-
-	/// Regularizes the activation function
-	virtual void regularizeActivationFunction(double lambda) override;
 };
 
 

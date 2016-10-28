@@ -561,12 +561,6 @@ void GLayerProductPooling::maxNorm(double min, double max)
 }
 
 // virtual
-void GLayerProductPooling::regularizeActivationFunction(double lambda)
-{
-	throw Ex("Not implemented");
-}
-
-// virtual
 size_t GLayerProductPooling::countWeights()
 {
 	return 0;
@@ -701,12 +695,6 @@ void GLayerAdditionPooling::contractWeights(double factor, bool contractBiases)
 
 // virtual
 void GLayerAdditionPooling::maxNorm(double min, double max)
-{
-	throw Ex("Not implemented");
-}
-
-// virtual
-void GLayerAdditionPooling::regularizeActivationFunction(double lambda)
 {
 	throw Ex("Not implemented");
 }
@@ -927,12 +915,6 @@ void GLayerMaxOut::setWeightsToIdentity(size_t start, size_t count)
 
 // virtual
 void GLayerMaxOut::maxNorm(double min, double max)
-{
-	throw Ex("Not implemented");
-}
-
-// virtual
-void GLayerMaxOut::regularizeActivationFunction(double lambda)
 {
 	throw Ex("Not implemented");
 }
@@ -1192,13 +1174,6 @@ void GLayerMixed::diminishWeights(double amount, bool diminishBiases)
 }
 
 // virtual
-void GLayerMixed::regularizeActivationFunction(double lambda)
-{
-	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->regularizeActivationFunction(lambda);
-}
-
-// virtual
 size_t GLayerMixed::countWeights()
 {
 	size_t sum = 0;
@@ -1273,11 +1248,8 @@ void GLayerMixed::maxNorm(double min, double max)
 
 
 
-GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(size_t inputSize, size_t outputSize, GActivationFunction* pActivationFunction)
+GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(size_t inputSize, size_t outputSize)
 {
-	m_pActivationFunction = pActivationFunction;
-	if(!m_pActivationFunction)
-		m_pActivationFunction = new GActivationLogistic();
 	resize(inputSize, outputSize);
 }
 
@@ -1286,12 +1258,6 @@ GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(GDomNode* pNo
 {
 	bias().deserialize(pNode->field("bias"));
 	biasReverse().deserialize(pNode->field("biasRev"));
-	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
-}
-
-GLayerRestrictedBoltzmannMachine::~GLayerRestrictedBoltzmannMachine()
-{
-	delete(m_pActivationFunction);
 }
 
 GDomNode* GLayerRestrictedBoltzmannMachine::serialize(GDom* pDoc)
@@ -1300,7 +1266,6 @@ GDomNode* GLayerRestrictedBoltzmannMachine::serialize(GDom* pDoc)
 	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
 	pNode->addField(pDoc, "bias", bias().serialize(pDoc));
 	pNode->addField(pDoc, "biasRev", biasReverse().serialize(pDoc));
-	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 
 	return pNode;
 }
@@ -1330,9 +1295,6 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 
 	// BiasReverse
 	m_biasReverse.resize(5, inputCount);
-
-	// Activation function
-	m_pActivationFunction->resize(outputCount);
 }
 
 // virtual
@@ -1376,7 +1338,7 @@ void GLayerRestrictedBoltzmannMachine::feedForward(const GVec& in)
 	double* pAct = activation().data();
 	pNet = net().data();
 	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = m_pActivationFunction->squash(*(pNet++), i);
+		*(pAct++) = *(pNet++);
 }
 
 // virtual
@@ -1391,21 +1353,7 @@ void GLayerRestrictedBoltzmannMachine::dropOut(GRand& rand, double probOfDrop)
 	}
 }
 
-/*
-void GLayerRestrictedBoltzmannMachine::feedForward(const double* in)
-{
-	// Feed through the weights
-	double* pNet = net();
-	m_weights.multiply(in, pNet);
-	size_t outputCount = outputs();
-	GVec::add(pNet, bias(), outputCount);
 
-	// Squash it
-	double* pAct = activation();
-	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = m_pActivationFunction->squash(*(pNet++));
-}
-*/
 void GLayerRestrictedBoltzmannMachine::feedBackward(const GVec& in)
 {
 	// Feed through the weights
@@ -1417,7 +1365,7 @@ void GLayerRestrictedBoltzmannMachine::feedBackward(const GVec& in)
 	// Squash it
 	GVec& a = activationReverse();
 	for(size_t i = 0; i < inputCount; i++)
-		a[i] = m_pActivationFunction->squash(n[i], i);
+		a[i] = n[i];
 }
 
 void GLayerRestrictedBoltzmannMachine::resampleHidden(GRand& rand)
@@ -1574,12 +1522,6 @@ void GLayerRestrictedBoltzmannMachine::maxNorm(double min, double max)
 }
 
 // virtual
-void GLayerRestrictedBoltzmannMachine::regularizeActivationFunction(double lambda)
-{
-	m_pActivationFunction->regularize(lambda);
-}
-
-// virtual
 size_t GLayerRestrictedBoltzmannMachine::countWeights()
 {
 	return (inputs() + 1) * outputs();
@@ -1591,9 +1533,7 @@ size_t GLayerRestrictedBoltzmannMachine::weightsToVector(double* pOutVector)
 	memcpy(pOutVector, bias().data(), outputs() * sizeof(double));
 	pOutVector += outputs();
 	m_weights.toVector(pOutVector);
-	pOutVector += (inputs() * outputs());
-	size_t activationWeights = m_pActivationFunction->weightsToVector(pOutVector);
-	return (inputs() + 1) * outputs() + activationWeights;
+	return (inputs() + 1) * outputs();
 }
 
 // virtual
@@ -1602,9 +1542,7 @@ size_t GLayerRestrictedBoltzmannMachine::vectorToWeights(const double* pVector)
 	memcpy(bias().data(), pVector, outputs() * sizeof(double));
 	pVector += outputs();
 	m_weights.fromVector(pVector, inputs());
-	pVector += (inputs() * outputs());
-	size_t activationWeights = m_pActivationFunction->vectorToWeights(pVector);
-	return (inputs() + 1) * outputs() + activationWeights;
+	return (inputs() + 1) * outputs();
 }
 
 // virtual
@@ -1613,11 +1551,10 @@ void GLayerRestrictedBoltzmannMachine::copyWeights(const GNeuralNetLayer* pSourc
 	GLayerRestrictedBoltzmannMachine* src = (GLayerRestrictedBoltzmannMachine*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	bias().copy(src->bias());
-	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
 
-GLayerConvolutional1D::GLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel, GActivationFunction* pActivationFunction)
+GLayerConvolutional1D::GLayerConvolutional1D(size_t inputSamples, size_t inputChannels, size_t kernelSize, size_t kernelsPerChannel)
 : m_inputSamples(inputSamples),
 m_inputChannels(inputChannels),
 m_outputSamples(inputSamples - kernelSize + 1),
@@ -1627,11 +1564,7 @@ m_bias(2, inputChannels * kernelsPerChannel)
 {
 	if(kernelSize > inputSamples)
 		throw Ex("kernelSize must be <= inputSamples");
-	m_pActivationFunction = pActivationFunction;
-	if(!m_pActivationFunction)
-		m_pActivationFunction = new GActivationLogistic();
 	m_activation.resize(3, inputChannels * kernelsPerChannel * m_outputSamples);
-	m_pActivationFunction->resize(m_bias.cols());
 }
 
 GLayerConvolutional1D::GLayerConvolutional1D(GDomNode* pNode)
@@ -1641,14 +1574,8 @@ m_outputSamples((size_t)pNode->field("osam")->asInt()),
 m_kernelsPerChannel((size_t)pNode->field("kpc")->asInt()),
 m_kernels(pNode->field("kern")),
 m_activation(pNode->field("act")),
-m_bias(pNode->field("bias")),
-m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
+m_bias(pNode->field("bias"))
 {
-}
-
-GLayerConvolutional1D::~GLayerConvolutional1D()
-{
-  delete m_pActivationFunction;
 }
 
 // virtual
@@ -1662,7 +1589,6 @@ GDomNode* GLayerConvolutional1D::serialize(GDom* pDoc)
 	pNode->addField(pDoc, "kern", m_kernels.serialize(pDoc));
 	pNode->addField(pDoc, "act", m_activation.serialize(pDoc));
 	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
-	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 	return pNode;
 }
 
@@ -1733,7 +1659,7 @@ void GLayerConvolutional1D::feedForward(const GVec& in)
 	{
 		for(size_t j = 0; j < kernelCount; j++)
 		{
-			a[pos] = m_pActivationFunction->squash(n[pos], j);
+			a[pos] = n[pos];
 			pos++;
 		}
 	}
@@ -1858,12 +1784,6 @@ void GLayerConvolutional1D::diminishWeights(double amount, bool diminishBiases)
 }
 
 // virtual
-void GLayerConvolutional1D::regularizeActivationFunction(double lambda)
-{
-	m_pActivationFunction->regularize(lambda);
-}
-
-// virtual
 size_t GLayerConvolutional1D::countWeights()
 {
 	return (m_kernels.rows() + 1) * m_kernels.cols();
@@ -1875,9 +1795,7 @@ size_t GLayerConvolutional1D::weightsToVector(double* pOutVector)
 	memcpy(pOutVector, bias().data(), m_kernels.rows() * sizeof(double));
 	pOutVector += m_kernels.rows();
 	m_kernels.toVector(pOutVector);
-	pOutVector += (m_kernels.rows() * m_kernels.cols());
-	size_t activationWeights = m_pActivationFunction->weightsToVector(pOutVector);
-	return (m_kernels.rows() + 1) * m_kernels.cols() + activationWeights;
+	return (m_kernels.rows() + 1) * m_kernels.cols();
 }
 
 // virtual
@@ -1886,9 +1804,7 @@ size_t GLayerConvolutional1D::vectorToWeights(const double* pVector)
 	memcpy(bias().data(), pVector, m_kernels.rows() * sizeof(double));
 	pVector += m_kernels.rows();
 	m_kernels.fromVector(pVector, m_kernels.rows());
-	pVector += (m_kernels.rows() * m_kernels.cols());
-	size_t activationWeights = m_pActivationFunction->vectorToWeights(pVector);
-	return (m_kernels.rows() + 1) * m_kernels.cols() + activationWeights;
+	return (m_kernels.rows() + 1) * m_kernels.cols();
 }
 
 // virtual
@@ -1897,7 +1813,6 @@ void GLayerConvolutional1D::copyWeights(const GNeuralNetLayer* pSource)
 	GLayerConvolutional1D* src = (GLayerConvolutional1D*)pSource;
 	m_kernels.copyBlock(src->m_kernels, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
 	bias().copy(src->bias());
-	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
 }
 
 // virtual
@@ -1982,27 +1897,25 @@ double &GLayerConvolutional2D::Image::at(size_t x, size_t y, size_t z)
 
 size_t GLayerConvolutional2D::none = (size_t) -1;
 
-GLayerConvolutional2D::GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount, GActivationFunction *pActivationFunction)
+GLayerConvolutional2D::GLayerConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount)
 : m_width(width), m_height(height), m_channels(channels),
   m_kWidth(kWidth), m_kHeight(kHeight),
   m_outputWidth(width - kWidth + 1), m_outputHeight(height - kHeight + 1),
   m_bias(kCount),
   m_kernels(kCount, kWidth * kHeight * channels),
   m_activation(3, m_outputWidth * m_outputHeight * kCount),
-  m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH()),
   m_kernelImage(NULL, kWidth, kHeight, channels), m_deltaImage(NULL, kWidth, kHeight, channels),
   m_inputImage(NULL, width, height, channels), m_upStreamErrorImage(NULL, width, height, channels),
   m_netImage(&m_activation[0], m_outputWidth, m_outputHeight, kCount), m_actImage(&m_activation[1], m_outputWidth, m_outputHeight, kCount), m_errImage(&m_activation[2], m_outputWidth, m_outputHeight, kCount)
 {}
 
-GLayerConvolutional2D::GLayerConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount, GActivationFunction *pActivationFunction)
+GLayerConvolutional2D::GLayerConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount)
 : m_width(FLEXIBLE_SIZE), m_height(FLEXIBLE_SIZE), m_channels(FLEXIBLE_SIZE),
   m_kWidth(kWidth), m_kHeight(kHeight),
   m_outputWidth(0), m_outputHeight(0),
   m_bias(kCount),
   m_kernels(kCount, 0),
   m_activation(3, 0),
-  m_pActivationFunction(pActivationFunction ? pActivationFunction : new GActivationTanH()),
   m_kernelImage(NULL, kWidth, kHeight, 0), m_deltaImage(NULL, kWidth, kHeight, 0),
   m_inputImage(NULL, 0, 0, 0), m_upStreamErrorImage(NULL, 0, 0, 0),
   m_netImage(&m_activation[0], 0, 0, 0), m_actImage(&m_activation[1], 0, 0, 0), m_errImage(&m_activation[2], 0, 0, 0)
@@ -2027,13 +1940,6 @@ GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
 	setInputInterlaced(pNode->field("inputInterlaced")->asBool());
 	setKernelsInterlaced(pNode->field("kernelsInterlaced")->asBool());
 	setOutputInterlaced(pNode->field("outputInterlaced")->asBool());
-
-	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
-}
-
-GLayerConvolutional2D::~GLayerConvolutional2D()
-{
-	delete m_pActivationFunction;
 }
 
 GDomNode *GLayerConvolutional2D::serialize(GDom *pDoc)
@@ -2055,7 +1961,6 @@ GDomNode *GLayerConvolutional2D::serialize(GDom *pDoc)
 	pNode->addField(pDoc, "outputInterlaced", pDoc->newBool(m_netImage.interlaced));
 	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
 	pNode->addField(pDoc, "kernels", m_kernels.serialize(pDoc));
-	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 	return pNode;
 
 }
@@ -2124,7 +2029,7 @@ void GLayerConvolutional2D::feedForward(const GVec &in)
 			for(size_t x = 0; x < n.width; ++x)
 			{
 				n.at(x, y) += m_bias[n.dz];
-				a.at(x, y, n.dz) = m_pActivationFunction->squash(n.at(x, y));
+				a.at(x, y, n.dz) = n.at(x, y);
 			}
 		}
 	}
@@ -2259,11 +2164,6 @@ void GLayerConvolutional2D::perturbWeights(GRand &rand, double deviation, size_t
 void GLayerConvolutional2D::maxNorm(double min, double max)
 {
 	throw Ex("maxNorm not implemented");
-}
-
-void GLayerConvolutional2D::regularizeActivationFunction(double lambda)
-{
-	throw Ex("regularizeActivationFunction not implemented");
 }
 
 void GLayerConvolutional2D::setPadding(size_t px, size_t py)
@@ -2536,11 +2436,6 @@ void GMaxPooling2D::scaleWeights(double factor, bool scaleBiases)
 
 // virtual
 void GMaxPooling2D::diminishWeights(double amount, bool diminishBiases)
-{
-}
-
-// virtual
-void GMaxPooling2D::regularizeActivationFunction(double lambda)
 {
 }
 

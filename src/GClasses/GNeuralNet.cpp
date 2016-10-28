@@ -366,8 +366,9 @@ void GNeuralNet::diminishWeights(double amount, bool diminishBiases, size_t star
 
 void GNeuralNet::regularizeActivationFunctions(double lambda)
 {
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->regularizeActivationFunction(lambda);
+	throw Ex("regularizeActivationFunctions is temporarily unavailable");
+	//for(size_t i = 0; i < m_layers.size(); i++)
+	//	m_layers[i]->regularizeActivationFunction(lambda);
 }
 
 void GNeuralNet::contractWeights(double factor, bool contractBiases)
@@ -1075,10 +1076,10 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 			ss >> label[i];
 	}
 	
-	GLayerConvolutional2D *pLayer = new GLayerConvolutional2D(5, 5, 3, 3, 3, 2, new GActivationIdentity());
+	GLayerConvolutional2D *pLayer = new GLayerConvolutional2D(5, 5, 3, 3, 3, 2);
 	GLayerConvolutional2D &layer = *pLayer;
 
-	GLayerClassic *pUpstream = new GLayerClassic(1, layer.inputs(), new GActivationIdentity());
+	GLayerClassic *pUpstream = new GLayerClassic(1, layer.inputs());
 	GLayerClassic &upstream = *pUpstream;
 
 	GNeuralNet nn;
