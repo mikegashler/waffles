@@ -285,14 +285,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Feeds a vector forward through this layer to compute only the one specified output value.
 	void feedForwardToOneOutput(const GVec& in, size_t output);
 
-	/// Same as deactivateError, but only applies to a single unit in this layer.
-	void deactivateErrorSingleOutput(size_t output);
-
-	/// Backpropagates the error from a single output node to a hidden layer.
-	/// (Assumes that the error in the output node has already been deactivated.
-	/// The error this computes is with respect to the output of the upstream layer.)
-	void backPropErrorSingleOutput(size_t output, GVec& upStreamError);
-
 	/// Sets the weights of this layer to make it weakly approximate the identity function.
 	/// start specifies the first unit whose incoming weights will be adjusted.
 	/// count specifies the maximum number of units whose incoming weights are adjusted.

@@ -227,14 +227,6 @@ void GLayerClassic::deactivateError()
 		err[i] *= m_pActivationFunction->derivativeOfNet(n[i], a[i], i);
 }
 
-void GLayerClassic::deactivateErrorSingleOutput(size_t output)
-{
-	double* pErr = &error()[output];
-	double netVal = net()[output];
-	double act = activation()[output];
-	(*pErr) *= m_pActivationFunction->derivativeOfNet(netVal, act, output);
-}
-
 void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	GVec& upStreamError = pUpStreamLayer->error();
@@ -243,14 +235,6 @@ void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer)
 	const GVec& source = error();
 	for(size_t i = 0; i < inputCount; i++)
 		upStreamError[i] = source.dotProduct(m_weights[i]);
-}
-
-void GLayerClassic::backPropErrorSingleOutput(size_t outputNode, GVec& upStreamError)
-{
-	GAssert(outputNode < outputs());
-	double in = error()[outputNode];
-	for(size_t i = 0; i < inputs(); i++)
-		upStreamError[i] = in * m_weights[i][outputNode];
 }
 
 void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
