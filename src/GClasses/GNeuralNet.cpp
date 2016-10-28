@@ -375,12 +375,10 @@ void GNeuralNet::contractWeights(double factor, bool contractBiases)
 	size_t i = m_layers.size() - 1;
 	GNeuralNetLayer* pLay = m_layers[i];
 	pLay->error().fill(1.0);
-	// pLay->deactivateError();
 	while(i > 0)
 	{
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
 		pLay->backPropError(pUpStream);
-		// pUpStream->deactivateError();
 		((GLayerClassic*)pLay)->contractWeights(factor, contractBiases);
 		pLay = pUpStream;
 		i--;
@@ -456,12 +454,10 @@ void GNeuralNet::backpropagate(const GVec &blame)
 	size_t i = m_layers.size() - 1;
 	GNeuralNetLayer* pLay = m_layers[i];
 	pLay->error().put(0, blame);
-	// pLay->deactivateError();
 	while(i > 0)
 	{
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
 		pLay->backPropError(pUpStream);
-		// pUpStream->deactivateError();
 		pLay = pUpStream;
 		i--;
 	}
@@ -474,7 +470,6 @@ void GNeuralNet::backpropagateFromLayer(GNeuralNetLayer* pDownstream)
 	{
 		GNeuralNetLayer* pUpStream = m_layers[i - 1];
 		pLay->backPropError(pUpStream);
-		// pUpStream->deactivateError();
 		pLay = pUpStream;
 	}
 }
