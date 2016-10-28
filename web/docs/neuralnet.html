@@ -81,8 +81,14 @@ Now, we are ready to train a layer of logistic units that takes 4 inputs and giv
 <pre class="code">
 	GNeuralNet nn;
 	nn.addLayer(new GLayerClassic(4, 3, new GActivationLogistic()));
-	nn.setLearningRate(0.05);
-	nn.train(trainingFeatures, trainingLabels);
+</pre>
+
+To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD):
+
+<pre class="code">
+	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	optimizer.setLearningRate(0.05);
+	optimizer.optimizeWithValidation(trainingFeatures, trainingLabels);
 </pre>
 
 <p>Let's test our model to see how well it performs:</p>
@@ -155,10 +161,12 @@ training.)</p>
 <p>To make a deeper neural network, you add more layers prior to training. For example:</p>
 
 <pre class="code">
-	nn.addLayer(new GLayerClassic(784, 1000));
-	nn.addLayer(new GLayerClassic(1000, 300));
-	nn.addLayer(new GLayerClassic(300, 90));
-	nn.addLayer(new GLayerClassic(90, 10));
+	nn.addLayers(
+		new GLayerClassic(784, 1000),
+		new GLayerClassic(1000, 300),
+		new GLayerClassic(300, 90),
+		new GLayerClassic(90, 10)
+	);
 </pre>
 
 <p>The layers are added in feed-forward order. The first layer added is the input layer. The last layer added is the output layer.
@@ -168,26 +176,35 @@ there is a conflict, the last one added to the neural network wins. Alternativel
 indicate that you want the adjacent layer to determine the size. For example, following code results in the very same topology:</p>
 
 <pre class="code">
-	nn.addLayer(new GLayerClassic(784, 1000));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 300));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 90));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 10));
+	nn.addLayers(
+		new GLayerClassic(784, 1000),
+		new GLayerClassic(FLEXIBLE_SIZE, 300),
+		new GLayerClassic(FLEXIBLE_SIZE, 90),
+		new GLayerClassic(FLEXIBLE_SIZE, 10)
+	);
 </pre>
 
 <p>When training begins, the number of inputs and outputs will also be resized to fit the training data. So, you can
 use FLEXIBLE_SIZE for those too:</p>
 
 <pre class="code">
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 300));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 90));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	nn.addLayers(
+		new GLayerClassic(FLEXIBLE_SIZE, 1000),
+		new GLayerClassic(FLEXIBLE_SIZE, 300),
+		new GLayerClassic(FLEXIBLE_SIZE, 90),
+		new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE)
+	);
 </pre>
 
-<p>That is as far as you can use FLEXIBLE_SIZE. If you use FLEXIBLE_SIZE anywhere else, then the size of one of the layers would be
-ambiguous, which would be problematic.</p>
+<p>That is as far as you can use FLEXIBLE_SIZE. If you use FLEXIBLE_SIZE anywhere else, then the size of one of the layers would be ambiguous, which would be problematic.</p>
 
+<p>If you are just GLayerClassic, you can make the code even more consise by giving a list of layer sizes:</p>
 
+<pre class="code">
+	nn.addLayers(1000, 300, 90, FLEXIBLE_SIZE);
+</pre>
+
+<p>This one-liner accomplishes the same thing. Each number it receives is used as the output size for a new layer with a FLEXIBLE_SIZE input. This method is nice and concise if you want to use GLayerClassic with the default activation function.</p>
 
 <br><br>
 <h3>Activation functions</h3>
@@ -196,10 +213,12 @@ ambiguous, which would be problematic.</p>
 GLayerClassic is GActivationTanH, which implements the tanh activation function. Many other activation functions are also available:</p>
 
 <pre class="code">
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000, new GActivationRectifiedLinear()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 300, new GActivationSoftPlus()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 90, new GActivationGaussian()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationIdentity()));
+	nn.addLayers(
+		new GLayerClassic(FLEXIBLE_SIZE, 1000, new GActivationRectifiedLinear()),
+		new GLayerClassic(FLEXIBLE_SIZE, 300, new GActivationSoftPlus()),
+		new GLayerClassic(FLEXIBLE_SIZE, 90, new GActivationGaussian()),
+		new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationIdentity())
+	);
 </pre>
 
 <p>You can use the GLayerMixed class to make layers that contain a mixture of activation functions. In the following example,
@@ -237,29 +256,41 @@ activation function for the other 150 units:</p>
 <br><br>
 <h3>Stopping criteria</h3>
 
-<p>The GNeuralNet::train method divides the training data into a training portion and a validation
+<p>The GDifferentiableOptimizer::optimizeWithValidation method divides the training data into a training portion and a validation
 portion. The default uses 65% for training and 35% for validation. Suppose you wanted to change this
 ratio to 60/40. This would be done as follows:</p>
 
 <pre class="code">
-	nn.setValidationPortion(0.4);
+	optimizer.optimizeWithValidation(features, labels, 0.4);
 </pre>
 
 <p>By default, training continues until validation accuracy does not improve by 0.2% over a window
-of 100 epochs. If you wanted to change this to 0.1% over a window of 10 epochs, then you could do:
+of 100 epochs. If you wanted to change this to 0.1% over a window of 10 epochs, then you could do this prior to calling optimizeWithValidation:
 
 <pre class="code">
-	nn.setImprovementThresh(0.001);
-	nn.setWindowSize(10);
+	optimizer.setImprovementThresh(0.001);
+	optimizer.setWindowSize(10);
 </pre>
 
+You can also train for a set number of epochs instead of using validation. For example, to optimize for 1000 epochs:
 
+<pre class="code">
+	optimizer.setEpochs(1000);
+	optimizer.optimize(features, labels);
+</pre>
+
+By default, optimize will run stochastically through the entire set of training samples each epoch. To use a mini-match instead, set the batch size and (optionally) the number of batches per epoch before calling optimize:
+
+<pre class="code">
+	optimizer.setBatchSize(25);
+	optimizer.setBatchesPerEpoch(4);
+</pre>
 
 
 <br><br>
 <h3>Training incrementally</h3>
 
-<p>Sometimes, it is preferable to train your neural network incrementally, instead of simply calling the "train" method.
+<p>Sometimes, it is preferable to train your neural network incrementally, instead of simply calling the "optimizeWithValidation" method.
 For example, you might want to use a custom stopping criteria, you might want to report validation accuracy before
 each training epoch, you might want to decay the learning rate in a particular manner, etc. The following example
 shows how such things can be implemented:
@@ -279,11 +310,11 @@ shows how such things can be implemented:
 		size_t index;
 		while(ii.next(index))
 		{
-			nn.trainIncremental(trainingFeatures[index], trainingLabels[index]);
+			optimizer.optimizeIncremental(trainingFeatures[index], trainingLabels[index]);
 		}
 	
 		// Decay the learning rate
-		nn.setLearningRate(nn.learningRate() * 0.98);
+		optimizer.setLearningRate(optimizer.learningRate() * 0.98);
 	}
 </pre>
 
@@ -386,10 +417,9 @@ int main(int argc, char *argv[])
 
 	// Make the network
 	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 80));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 30));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	nn.setLearningRate(0.01);
+	nn.addLayers(80, 30, FLEXIBLE_SIZE);
+	nn.defaultOptimizer().setLearningRate(0.01);
+	
 	GAutoFilter af(&amp;nn, false);
 	af.beginIncrementalLearning(s2.features1(), s2.labels1());
 
@@ -474,10 +504,8 @@ int main(int argc, char *argv[])
 
 	// Make the network
 	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 80));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 30));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	nn.setLearningRate(0.01);
+	nn.addLayers(80, 30, FLEXIBLE_SIZE);
+	nn.defaultOptimizer().setLearningRate(0.01);
 	GAutoFilter af(&amp;nn, false);
 	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
 
@@ -586,7 +614,7 @@ int main(int argc, char *argv[])
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationBentIdentity()));
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 100, new GActivationBentIdentity()));</font>
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	nn.setLearningRate(0.01);
+	nn.defaultOptimizer().setLearningRate(0.01);
 	GAutoFilter af(&amp;nn, false);
 	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
 
@@ -716,8 +744,8 @@ public:
 		double sse1 = 0.0;
 		double sse2 = 0.0;
 		size_t counter = 0;
-		nn1.setLearningRate(learningRate * 0.8);
-		nn2.setLearningRate(learningRate * 1.25);
+		nn1.defaultOptimizer().setLearningRate(learningRate * 0.8);
+		nn2.defaultOptimizer().setLearningRate(learningRate * 1.25);
 		while(ii.next(index))
 		{
 			const GVec&amp; in = af.prefilterFeatures(features[index]);

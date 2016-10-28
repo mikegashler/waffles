@@ -47,6 +47,8 @@ public:
 
 	virtual void trainIncremental(const GVec &in, const GVec &out) override;
 	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) override;
+	
+	GSGDOptimizer &defaultOptimizer() { return m_defaultOptimizer; }
 
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
