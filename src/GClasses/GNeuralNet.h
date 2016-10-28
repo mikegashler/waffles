@@ -138,6 +138,12 @@ public:
 	/// The maxLayers parameter can limit how far into the network values are propagated.
 	void forwardProp(const GVec& inputs, size_t maxLayers = INVALID_INDEX);
 
+	/// This is the same as forwardProp, except it only propagates to a single output node.
+	/// It returns the value that this node outputs. If bypassInputWeights is true, then
+	/// pInputs is assumed to have the same size as the first layer, and it is fed into the
+	/// net of this layer, instead of the inputs.
+	double forwardPropSingleOutput(const GVec& inputs, size_t output);
+
 	/// This method assumes forwardProp has been called. It copies the predicted vector into pOut.
 	void copyPrediction(GVec& out);
 

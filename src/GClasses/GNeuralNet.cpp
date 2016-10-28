@@ -421,6 +421,30 @@ void GNeuralNet::forwardProp(const GVec& row, size_t maxLayers)
 	}
 }
 
+double GNeuralNet::forwardPropSingleOutput(const GVec& row, size_t output)
+{
+	if(m_layers.size() == 1)
+	{
+		GLayerClassic& lay = *(GLayerClassic*)m_layers[0];
+		lay.feedForwardToOneOutput(row, output);
+		return lay.activation()[output];
+	}
+	else
+	{
+		GLayerClassic* pLay = (GLayerClassic*)m_layers[0];
+		pLay->feedForward(row);
+		for(size_t i = 1; i + 1 < m_layers.size(); i++)
+		{
+			GLayerClassic* pDS = (GLayerClassic*)m_layers[i];
+			pDS->feedForward(pLay->activation());
+			pLay = pDS;
+		}
+		GLayerClassic* pDS = (GLayerClassic*)m_layers[m_layers.size() - 1];
+		pDS->feedForwardToOneOutput(pLay->activation(), output);
+		return pDS->activation()[output];
+	}
+}
+
 #ifndef MIN_PREDICT
 // virtual
 void GNeuralNet::predictDistribution(const GVec& in, GPrediction* pOut)
