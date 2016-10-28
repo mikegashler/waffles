@@ -516,10 +516,6 @@ void GLayerProductPooling::dropOut(GRand& rand, double probOfDrop)
 	// There are no weights in this layer to drop
 }
 
-void GLayerProductPooling::deactivateError()
-{
-}
-
 void GLayerProductPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	GVec& upStreamAct = pUpStreamLayer->activation();
@@ -662,10 +658,6 @@ void GLayerAdditionPooling::feedForward(const GVec& in)
 void GLayerAdditionPooling::dropOut(GRand& rand, double probOfDrop)
 {
 	// There are no weights in this layer to drop
-}
-
-void GLayerAdditionPooling::deactivateError()
-{
 }
 
 void GLayerAdditionPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
@@ -848,10 +840,6 @@ void GLayerMaxOut::feedForward(const GVec& in)
 void GLayerMaxOut::dropOut(GRand& rand, double probOfDrop)
 {
 	throw Ex("Sorry, not implemented");
-}
-
-void GLayerMaxOut::deactivateError()
-{
 }
 
 void GLayerMaxOut::backPropError(GNeuralNetLayer* pUpStreamLayer)
@@ -1147,18 +1135,6 @@ void GLayerMixed::dropOut(GRand& rand, double probOfDrop)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->dropOut(rand, probOfDrop);
-}
-
-// virtual
-void GLayerMixed::deactivateError()
-{
-	double* pErr = error().data();
-	for(size_t i = 0; i < m_components.size(); i++)
-	{
-		memcpy(m_components[i]->error().data(), pErr, m_components[i]->outputs() * sizeof(double));
-		m_components[i]->deactivateError();
-		pErr += m_components[i]->outputs();
-	}
 }
 
 // virtual
@@ -1529,17 +1505,6 @@ void GLayerRestrictedBoltzmannMachine::contrastiveDivergence(GRand& rand, const 
 	bias().addScaled(-learningRate, activation());
 }
 
-void GLayerRestrictedBoltzmannMachine::deactivateError()
-{
-	size_t outputUnits = outputs();
-	GVec& err = error();
-	GVec& n = net();
-	GVec& a = activation();
-	m_pActivationFunction->setError(err);
-	for(size_t i = 0; i < outputUnits; i++)
-		err[i] *= m_pActivationFunction->derivativeOfNet(n[i], a[i], i);
-}
-
 void GLayerRestrictedBoltzmannMachine::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
 	GVec& downStreamError = error();
@@ -1790,18 +1755,6 @@ void GLayerConvolutional1D::dropOut(GRand& rand, double probOfDrop)
 void GLayerConvolutional1D::dropConnect(GRand& rand, double probOfDrop)
 {
 	throw Ex("Sorry, convolutional layers do not support dropConnect");
-}
-
-// virtual
-void GLayerConvolutional1D::deactivateError()
-{
-	size_t outputUnits = outputs();
-	GVec& err = error();
-	GVec& n = net();
-	GVec& a = activation();
-	m_pActivationFunction->setError(err);
-	for(size_t i = 0; i < outputUnits; i++)
-		err[i] *= m_pActivationFunction->derivativeOfNet(n[i], a[i], i);
 }
 
 // virtual
@@ -2188,16 +2141,6 @@ void GLayerConvolutional2D::dropConnect(GRand &rand, double probOfDrop)
 	throw Ex("dropConnect not implemented");
 }
 
-void GLayerConvolutional2D::deactivateError()
-{
-	GVec &n = net();
-	GVec &act = activation();
-	GVec &err = error();
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < outputCount; i++)
-		err[i] *= m_pActivationFunction->derivativeOfNet(n[i], act[i]);
-}
-
 void GLayerConvolutional2D::backPropError(GNeuralNetLayer *pUpStreamLayer)
 {
 	Image &err = m_errImage;
@@ -2545,11 +2488,6 @@ void GMaxPooling2D::dropOut(GRand& rand, double probOfDrop)
 
 // virtual
 void GMaxPooling2D::dropConnect(GRand& rand, double probOfDrop)
-{
-}
-
-// virtual
-void GMaxPooling2D::deactivateError()
 {
 }
 

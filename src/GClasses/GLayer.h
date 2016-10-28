@@ -93,9 +93,6 @@ public:
 		feedForward(pUpStreamLayer->activation());
 	}
 
-	/// Converts the error term to refer to the net input.
-	virtual void deactivateError() = 0;
-
 	/// Computes the activation error of the layer that feeds into this one.
 	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) = 0;
 
@@ -208,7 +205,7 @@ using GNeuralNetLayer::updateDeltas;
 	/// Multiplies each element in the error vector by the derivative of the activation function.
 	/// This results in the error having meaning with respect to the weights, instead of the output.
 	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError() override;
+	void deactivateError();
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
@@ -360,11 +357,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
-	/// Multiplies each element in the error vector by the derivative of the activation function.
-	/// This results in the error having meaning with respect to the weights, instead of the output.
-	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError() override;
-
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
@@ -469,11 +461,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// \deprecated Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
-	/// Multiplies each element in the error vector by the derivative of the activation function.
-	/// This results in the error having meaning with respect to the weights, instead of the output.
-	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError() override;
-
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
@@ -576,11 +563,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// \deprecated Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop) override;
 
-	/// Multiplies each element in the error vector by the derivative of the activation function.
-	/// This results in the error having meaning with respect to the weights, instead of the output.
-	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError() override;
-
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
@@ -671,9 +653,6 @@ public:
 	/// Applies the logistic activation function to the net vector to compute the activation vector,
 	/// and also adjusts the weights so that the activations sum to 1.
 	virtual void activate();
-
-	/// This method is a no-op, since cross-entropy training does not multiply by the derivative of the logistic function.
-	virtual void deactivateError() override {}
 };
 
 
@@ -735,10 +714,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// \deprecated Calls dropOut for each component.
 	virtual void dropOut(GRand& rand, double probOfDrop) override;
-
-	/// Copies the error vector into the corresponding buffer for each component,
-	/// then calls deactivateError for each component.
-	virtual void deactivateError() override;
 
 	/// Calls backPropError for each component, and adds them up into the upstreams error buffer.
 	/// (Note that the current implementation of this method may not be compatible with GPU-optimized layers.
@@ -838,10 +813,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Feed a vector from the hidden end to the visible end. The results are placed in activationReverse();
 	void feedBackward(const GVec& in);
-
-	/// Multiplies each element in the error vector by the derivative of the activation function.
-	/// This results in the error having meaning with respect to the weights, instead of the output.
-	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been deactivated.
@@ -1004,11 +975,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Throws an exception, because convolutional layers do not support dropConnect.
 	virtual void dropConnect(GRand& rand, double probOfDrop);
 
-	/// Multiplies each element in the error vector by the derivative of the activation function.
-	/// This results in the error having meaning with respect to the weights, instead of the output.
-	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError() override;
-
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
 	/// The error this computes is with respect to the output of the upstream layer.)
@@ -1148,7 +1114,6 @@ public:
 	/// \deprecated
 	virtual void dropOut(GRand &rand, double probOfDrop) override;
 	virtual void dropConnect(GRand &rand, double probOfDrop);
-	virtual void deactivateError() override;
 	virtual void backPropError(GNeuralNetLayer *pUpStreamLayer) override;
 	
 	/// Updates the deltas for updating the weights by gradient descent.
@@ -1259,11 +1224,6 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Throws an exception, because convolutional layers do not support dropConnect.
 	virtual void dropConnect(GRand& rand, double probOfDrop);
-
-	/// Multiplies each element in the error vector by the derivative of the activation function.
-	/// This results in the error having meaning with respect to the weights, instead of the output.
-	/// (Assumes the error for this layer has already been computed.)
-	virtual void deactivateError() override;
 
 	/// Backpropagates the error from this layer into the upstream layer's error vector.
 	/// (Assumes that the error in this layer has already been computed and deactivated.
