@@ -95,7 +95,7 @@ GMatrix* GNeuralNetLayer::feedThrough(const GMatrix& data)
 
 
 
-GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pActivationFunction)
+GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pActivationFunction) : m_deactivated(false)
 {
 	m_pActivationFunction = pActivationFunction;
 	if(!m_pActivationFunction)
@@ -104,7 +104,7 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 }
 
 GLayerClassic::GLayerClassic(GDomNode* pNode)
-: m_weights(pNode->field("weights")), m_out(5, m_weights.cols())
+: m_weights(pNode->field("weights")), m_out(5, m_weights.cols()), m_deactivated(false)
 {
 	slack().deserialize(pNode->field("slack"));
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
@@ -186,6 +186,8 @@ void GLayerClassic::feedForward(const GVec& in)
 		GAssert(n[i] < 1e100 && n[i] > -1e100);
 		a[i] = m_pActivationFunction->squash(n[i], i);
 	}
+	
+	m_deactivated = false;
 }
 
 // virtual
@@ -218,6 +220,7 @@ void GLayerClassic::feedForwardToOneOutput(const GVec& in, size_t output)
 
 void GLayerClassic::deactivateError()
 {
+	m_deactivated = true;
 	size_t outputUnits = outputs();
 	GVec& err = error();
 	GVec& n = net();
@@ -229,6 +232,7 @@ void GLayerClassic::deactivateError()
 
 void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
+	deactivateError();
 	GVec& upStreamError = pUpStreamLayer->error();
 	size_t inputCount = pUpStreamLayer->outputs();
 	GAssert(inputCount <= inputs());
@@ -239,6 +243,10 @@ void GLayerClassic::backPropError(GNeuralNetLayer* pUpStreamLayer)
 
 void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 {
+	// the first layer needs this check (just for the legacy layer here)
+	if(!m_deactivated)
+		deactivateError();
+	
 	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
 	GVec &err = error();
 	double *delta = deltas.data();

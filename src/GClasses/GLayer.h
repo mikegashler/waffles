@@ -160,6 +160,7 @@ protected:
 	GMatrix m_weights;
 	GMatrix m_out; // Row 0 is the net. Row 1 is the activation. Row 2 is the error. Row 3 is the slack.
 	GActivationFunction* m_pActivationFunction;
+	bool m_deactivated;
 
 public:
 using GNeuralNetLayer::feedForward;
