@@ -168,8 +168,8 @@ public:
 	void setBatchesPerEpoch(size_t b)			{ m_batchesPerEpoch = b; }
 	size_t batchesPerEpoch() const				{ return m_batchesPerEpoch; }
 	
-	void setMaxEpochs(size_t e)					{ m_maxEpochs = e; }
-	size_t maxEpochs() const					{ return m_maxEpochs; }
+	void setEpochs(size_t e)					{ m_epochs = e; }
+	size_t epochs() const						{ return m_epochs; }
 	
 	void setWindowSize(size_t w)				{ m_windowSize = w; }
 	size_t windowSize() const					{ return m_windowSize; }
@@ -183,7 +183,7 @@ protected:
 	// variables for convenience training methods
 	GRand *m_rand;
 	bool m_ownsRand;
-	size_t m_batchSize, m_batchesPerEpoch, m_maxEpochs, m_windowSize;
+	size_t m_batchSize, m_batchesPerEpoch, m_epochs, m_windowSize;
 	double m_minImprovement;
 };
 

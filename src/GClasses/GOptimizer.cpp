@@ -109,7 +109,7 @@ size_t GNeuralNetFunction::countParameters() const
 GDifferentiableOptimizer::GDifferentiableOptimizer(GDifferentiable *target, GObjective *objective)
 : m_target(target), m_objective(objective != NULL ? objective : new GSquaredError()),
   m_rand(new GRand(0)), m_ownsRand(true),
-  m_batchSize(25), m_batchesPerEpoch(10), m_maxEpochs(100), m_windowSize(100), m_minImprovement(0.002)
+  m_batchSize(1), m_batchesPerEpoch(INVALID_INDEX), m_epochs(100), m_windowSize(100), m_minImprovement(0.002)
 {}
 
 GDifferentiableOptimizer::~GDifferentiableOptimizer()
@@ -121,6 +121,7 @@ GDifferentiableOptimizer::~GDifferentiableOptimizer()
 void GDifferentiableOptimizer::optimizeIncremental(const GVec &feat, const GVec &lab)
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
+	GAssert(feat.size() == m_target->inputs() && lab.size() == m_target->outputs(), "Features/labels size mismatch!");
 	updateDeltas(feat, lab);
 	applyDeltas();
 }
@@ -162,21 +163,31 @@ void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMat
 void GDifferentiableOptimizer::optimize(const GMatrix &features, const GMatrix &labels)
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
+	
+	size_t batchesPerEpoch = m_batchesPerEpoch;
+	if(m_batchesPerEpoch > features.rows())
+		batchesPerEpoch = features.rows();
+	
 	GRandomIndexIterator ii(features.rows(), *m_rand);
-	for(size_t i = 0; i < m_maxEpochs; ++i)
-		for(size_t j = 0; j < m_batchesPerEpoch; ++j)
+	for(size_t i = 0; i < m_epochs; ++i)
+		for(size_t j = 0; j < batchesPerEpoch; ++j)
 			optimizeBatch(features, labels, ii, m_batchSize);
 }
 
 void GDifferentiableOptimizer::optimizeWithValidation(const GMatrix &features, const GMatrix &labels, const GMatrix &validationFeat, const GMatrix &validationLab)
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
+	
+	size_t batchesPerEpoch = m_batchesPerEpoch;
+	if(m_batchesPerEpoch > features.rows())
+		batchesPerEpoch = features.rows();
+	
 	double bestError = 1e308, currentError;
 	size_t k = 0;
 	GRandomIndexIterator ii(features.rows(), *m_rand);
-	for(size_t i = 0; i < m_maxEpochs; ++i, ++k)
+	for(size_t i = 0;; ++i, ++k)
 	{
-		for(size_t j = 0; j < m_batchesPerEpoch; ++j)
+		for(size_t j = 0; j < batchesPerEpoch; ++j)
 			optimizeBatch(features, labels, ii, m_batchSize);
 		if(k >= m_windowSize)
 		{
@@ -224,7 +235,7 @@ double GDifferentiableOptimizer::sumLoss(const GMatrix &features, const GMatrix 
 }
 
 GSGDOptimizer::GSGDOptimizer(GDifferentiable *target, GObjective *objective)
-: GDifferentiableOptimizer(target, objective), m_learningRate(1e-3), m_momentum(0)
+: GDifferentiableOptimizer(target, objective), m_learningRate(1e-1), m_momentum(0)
 {
 	if(target != NULL)
 		prepareForOptimizing();
@@ -262,7 +273,7 @@ void GSGDOptimizer::applyDeltas()
 }
 
 GRMSPropOptimizer::GRMSPropOptimizer(GDifferentiable *target, GObjective *objective)
-: GDifferentiableOptimizer(target, objective), m_learningRate(1e-3), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
+: GDifferentiableOptimizer(target, objective), m_learningRate(1e-1), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
 {
 	if(target != NULL)
 		prepareForOptimizing();

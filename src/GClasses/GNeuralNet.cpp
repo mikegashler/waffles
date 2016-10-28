@@ -50,19 +50,10 @@ using std::vector;
 namespace GClasses {
 
 
-GNeuralNet::GNeuralNet()
-: GIncrementalLearner(),
-m_validationPortion(0.35),
-m_minImprovement(0.002),
-m_epochsPerValidationCheck(100),
-m_ready(false)
+GNeuralNet::GNeuralNet() : GIncrementalLearner(), m_ready(false)
 {}
 
-GNeuralNet::GNeuralNet(const GDomNode* pNode)
-: GIncrementalLearner(pNode),
-m_validationPortion(0.35),
-m_minImprovement(0.002),
-m_epochsPerValidationCheck(100)
+GNeuralNet::GNeuralNet(const GDomNode* pNode) : GIncrementalLearner(pNode)
 {
 	// Create the layers
 	GDomListIterator it1(pNode->field("layers"));
@@ -78,6 +69,22 @@ GNeuralNet::~GNeuralNet()
 	for(size_t i = 0; i < m_layers.size(); i++)
 		delete(m_layers[i]);
 	m_layers.clear();
+}
+
+void GNeuralNet::trainIncremental(const GVec &in, const GVec &out)
+{
+	m_defaultOptimizer.optimizeIncremental(in, out);
+}
+
+void GNeuralNet::trainSparse(GSparseMatrix &features, GMatrix &labels)
+{
+	throw Ex("GNeuralNet::trainSparse is not implemented (need to use GDifferentiableOptimizer).");
+}
+
+void GNeuralNet::trainInner(const GMatrix& features, const GMatrix& labels)
+{
+	beginIncrementalLearningInner(features.relation(), labels.relation());
+	m_defaultOptimizer.optimizeWithValidation(features, labels);
 }
 
 void GNeuralNet::clear()
@@ -177,9 +184,6 @@ void GNeuralNet::copyStructure(const GNeuralNet* pOther)
 		GDomNode* pNode = pOther->m_layers[i]->serialize(&doc);
 		m_layers.push_back(GNeuralNetLayer::deserialize(pNode));
 	}
-	m_validationPortion = pOther->m_validationPortion;
-	m_minImprovement = pOther->m_minImprovement;
-	m_epochsPerValidationCheck = pOther->m_epochsPerValidationCheck;
 }
 
 void GNeuralNet::perturbAllWeights(double deviation)
@@ -458,6 +462,8 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 	// Reset the weights
 	for(size_t i = 0; i < m_layers.size(); i++)
 		m_layers[i]->resetWeights(m_rand);
+
+	m_defaultOptimizer.setTarget(new GNeuralNetFunction(*this));
 
 	m_ready = true;
 }
@@ -1090,8 +1096,21 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 		for(size_t i = 0; i < label.size(); i++)
 			ss >> label[i];
 	}
+	
+	GLayerConvolutional2D *pLayer = new GLayerConvolutional2D(5, 5, 3, 3, 3, 2, new GActivationIdentity());
+	GLayerConvolutional2D &layer = *pLayer;
 
-	GLayerConvolutional2D layer(5, 5, 3, 3, 3, 2, new GActivationIdentity());
+	GLayerClassic *pUpstream = new GLayerClassic(1, layer.inputs(), new GActivationIdentity());
+	GLayerClassic &upstream = *pUpstream;
+
+	GNeuralNet nn;
+	nn.addLayers(pUpstream, pLayer);
+	nn.beginIncrementalLearning(GUniformRelation(1), GUniformRelation(layer.outputs()));
+
+	for(size_t i = 0; i < layer.inputs(); i++)
+		upstream.weights()[0][i] = feature[i] + prng.normal();
+	upstream.bias().fill(0.0);
+
 	layer.setPadding(1);
 	layer.setStride(2);
 	{
@@ -1135,17 +1154,8 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	// test backpropagation (1)
 	// -- can we update weights in the previous layer?
 
-	GLayerClassic upstream(1, layer.inputs(), new GActivationIdentity());
-	for(size_t i = 0; i < layer.inputs(); i++)
-		upstream.weights()[0][i] = feature[i] + prng.normal();
-	upstream.bias().fill(0.0);
-
 	GVec oneVec(1);
 	oneVec.fill(1.0);
-
-	GNeuralNet nn;
-	nn.addLayers(&upstream, &layer);
-	nn.beginIncrementalLearning(GUniformRelation(1), GUniformRelation(layer.outputs()));
 
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 	optimizer.setLearningRate(1e-2);
@@ -1155,14 +1165,11 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 
 	upstream.feedForward(oneVec);
 	layer.feedForward(upstream.activation());
-	if(layer.activation().squaredDistance(label) > 1e-2)
+	if(layer.activation().squaredDistance(label) > 1e-6)
 		throw Ex("GLayerConvolutional2D backpropagation failed (1)");
 
 	// test backpropagation (2)
 	// -- can we update weights in the convolutional layer?
-
-	GVec zeroVec(label.size());
-	zeroVec.fill(0.0);
 
 	for(size_t c = 0; c < layer.kernels().rows(); c++)
 	{
@@ -1172,14 +1179,11 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	}
 
 	for(size_t i = 0; i < 100; i++)
-		optimizer.optimizeIncremental(feature, label);
+		optimizer.optimizeIncremental(oneVec, label);
 
-	layer.feedForward(feature);
-	if(layer.activation().squaredDistance(label) > 1e-2)
+	nn.forwardProp(oneVec);
+	if(layer.activation().squaredDistance(label) > 1e-6)
 		throw Ex("GLayerConvolutional2D backpropagation failed (2)");
-	
-	nn.releaseLayer(1);
-	nn.releaseLayer(0);
 }
 
 void GNeuralNet_testFourier()
@@ -1234,7 +1238,7 @@ void GNeuralNet::test()
 		GNeuralNet* pNN = new GNeuralNet();
 		pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		GAutoFilter af(pNN);
-		af.basicTest(0.75, 0.86);
+		af.basicTest(0.78, 0.92);
 	}
 
 	// Test NN with one hidden layer

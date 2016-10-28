@@ -36,27 +36,24 @@ class GNeuralNet : public GIncrementalLearner
 {
 protected:
 	std::vector<GNeuralNetLayer*> m_layers;
-	double m_validationPortion;
-	double m_minImprovement;
-	size_t m_epochsPerValidationCheck;
 	bool m_ready;
+	
+	GSGDOptimizer m_defaultOptimizer;
 
 public:
 	GNeuralNet();
 	GNeuralNet(const GDomNode* pNode);
 	virtual ~GNeuralNet();
 
-	/// Unused supervised learner methods.
-	/// \todo These should probably be removed from supervised learner.
-	virtual void trainIncremental(const GVec &in, const GVec &out) { throw Ex("Use GDifferentiableOptimizer instead!"); }
-	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) { throw Ex("Use GDifferentiableOptimizer instead!"); }
+	virtual void trainIncremental(const GVec &in, const GVec &out) override;
+	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) override;
 
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
 
 	/// Saves the model to a text file.
-	virtual GDomNode* serialize(GDom* pDoc) const;
+	virtual GDomNode* serialize(GDom* pDoc) const override;
 #endif // MIN_PREDICT
 
 	/// Returns the number of layers in this neural network. These include the hidden
@@ -84,10 +81,6 @@ public:
 	/// is responsible to repair any such issues before using the neural
 	/// network again.)
 	GNeuralNetLayer* releaseLayer(size_t index);
-
-	/// Set the portion of the data that will be used for validation. If the
-	/// value is 0, then all of the data is used for both training and validation.
-	void setValidationPortion(double d) { m_validationPortion = d; }
 
 	/// Counts the number of weights in the network. (This value is not cached, so
 	/// you should cache it rather than frequently call this method.)
@@ -120,7 +113,7 @@ public:
 	void contractWeights(double factor, bool contractBiases);
 
 	/// See the comment for GSupervisedLearner::clear
-	virtual void clear();
+	virtual void clear() override;
 
 	/// Sets all the weights from an array of doubles. The number of
 	/// doubles in the array can be determined by calling countWeights().
@@ -180,7 +173,7 @@ public:
 	void backpropagateFromLayer(GNeuralNetLayer* pDownstream);
 
 	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& in, GVec& out);
+	virtual void predict(const GVec& in, GVec& out) override;
 
 	/// Finds the column in the intrinsic matrix with the largest deviation, then
 	/// centers the matrix at the origin and renormalizes so the largest deviation
@@ -189,7 +182,7 @@ public:
 
 #ifndef MIN_PREDICT
 	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut) override;
 #endif // MIN_PREDICT
 
 	/// Generate a neural network that is initialized with the Fourier transform
@@ -203,19 +196,19 @@ public:
 	static GNeuralNet* fourier(GMatrix& series, double period = 1.0);
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
-	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
+	virtual bool canImplicitlyHandleNominalFeatures() override { return false; }
 
 	/// See the comment for GTransducer::supportedFeatureRange
-	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax);
+	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax) override;
 
 	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
-	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
+	virtual bool canImplicitlyHandleMissingFeatures() override { return false; }
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
-	virtual bool canImplicitlyHandleNominalLabels() { return false; }
+	virtual bool canImplicitlyHandleNominalLabels() override { return false; }
 
 	/// See the comment for GTransducer::supportedFeatureRange
-	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
+	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) override;
 
 	/// Convenience method for adding a basic layer
 	void addLayer(size_t outputSize)
@@ -239,12 +232,11 @@ public:
 	}
 
 protected:
-	/// Unused supervised learner method.
-	/// \todo This should probably be removed from supervised learner.
-	virtual void trainInner(const GMatrix& features, const GMatrix& labels) { throw Ex("Use GDifferentiableOptimizer instead!"); }
+	/// See the comment for GIncrementalLearner::trainInner
+	virtual void trainInner(const GMatrix& features, const GMatrix& labels) override;
 
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
-	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
+	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel) override;
 };
 
 

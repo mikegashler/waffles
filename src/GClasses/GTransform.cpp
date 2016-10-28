@@ -760,9 +760,6 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 		optimizer.setWindowSize(30);
 		optimizer.setImprovementThresh(0.002);
-		optimizer.setBatchSize(1);
-		optimizer.setBatchesPerEpoch(pFeatures2->rows());
-		optimizer.setMaxEpochs(INVALID_INDEX);
 		optimizer.optimizeWithValidation(*pFeatures2, *pLabels2);
 
 		// Identify the weakest attribute
