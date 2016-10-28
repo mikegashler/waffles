@@ -109,7 +109,7 @@ To train our model, we will create an optimizer. We wil use stochastic gradient 
 <p>Or, preferably:</p>
 
 <pre class="code">
-	Holder&lt;GMatrix&gt; hRealOutputs(pRealOutputs);
+	std::unique_ptr&lt;GMatrix&gt; hRealOutputs(pRealOutputs);
 </pre>
 
 
@@ -505,7 +505,6 @@ int main(int argc, char *argv[])
 	// Make the network
 	GNeuralNet nn;
 	nn.addLayers(80, 30, FLEXIBLE_SIZE);
-	nn.defaultOptimizer().setLearningRate(0.01);
 	GAutoFilter af(&amp;nn, false);
 	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
 
@@ -531,6 +530,8 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	cout &lt;&lt; "@DATA\n";
+	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	optimizer.setLearningRate(0.01);
 	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
@@ -547,7 +548,7 @@ int main(int argc, char *argv[])
 		ii.reset();
 		size_t index;
 		while(ii.next(index))
-			nn.trainIncremental(trainFeatures[index], trainLabels[index]);
+			optimizer.optimizeIncremental(trainFeatures[index], trainLabels[index]);
 	}
 	return 0;
 }
@@ -580,120 +581,7 @@ int main(int argc, char *argv[])
 <p>The right-most column shows that we get 332 misclassifications after about 2 minutes of training.
 You can get much better accuracy using bigger layers, but then training will take longer too.</p>
 
-</p>Now, let's throw some more tricks onto the pile. Let's add a convolutional input layer, and two types of regularization: Dropout and Max-Norm.
-Changes from the previous example are highlighted in red:</p>
 
-<pre class="code">
-#include &lt;iostream&gt;
-#include &lt;cmath&gt;
-#include &lt;GClasses/GApp.h&gt;
-#include &lt;GClasses/GError.h&gt;
-#include &lt;GClasses/GNeuralNet.h&gt;
-#include &lt;GClasses/GActivation.h&gt;
-#include &lt;GClasses/GTransform.h&gt;
-#include &lt;GClasses/GVec.h&gt;
-#include &lt;GClasses/GHolders.h&gt;
-
-using namespace GClasses;
-using std::cerr;
-using std::cout;
-
-int main(int argc, char *argv[])
-{
-	// Load the data
-	GMatrix train;
-	train.loadArff("/home/mike/data/mnist/train.arff");
-	GDataColSplitter sTrain(train, 1);
-	GMatrix test;
-	test.loadArff("/home/mike/data/mnist/test.arff");
-	GDataColSplitter sTest(test, 1);
-
-	// Make the network
-	GNeuralNet nn;
-	<font color="red">nn.addLayer(new GLayerConvolutional2D(28, 28, 1, 7, 20, new GActivationBentIdentity()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 50, new GActivationBentIdentity()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 100, new GActivationBentIdentity()));</font>
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	nn.defaultOptimizer().setLearningRate(0.01);
-	GAutoFilter af(&amp;nn, false);
-	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
-
-	// Prep the data
-	af.prefilterData(&amp;sTrain.features(), &amp;sTrain.labels(), &amp;sTest.features(), &amp;sTest.labels());
-	GMatrix&amp; trainFeatures = *af.data()[0];
-	GMatrix&amp; trainLabels = *af.data()[1];
-	GMatrix&amp; testFeatures = *af.data()[2];
-	GMatrix&amp; testLabels = *af.data()[3];
-
-	// Print some stats
-	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
-	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
-	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.layer(0).inputs());
-	for(size_t i = 0; i &lt; nn.layerCount(); i++)
-		cout &lt;&lt; " -&gt; " + to_str(nn.layer(i).outputs());
-	cout &lt;&lt; "\n";
-	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
-
-	// Train
-	cout &lt;&lt; "@RELATION neural_net_training\n";
-	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
-	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
-	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
-	cout &lt;&lt; "@DATA\n";
-	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
-	for(size_t epoch = 0; epoch &lt; 10; epoch++)
-	{
-		// Validate
-		<font color="red">nn.scaleWeights(1.0 - 0.35, false, 1);</font>
-		double sseTrain = nn.sumSquaredError(trainFeatures, trainLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
-		double sseTest = nn.sumSquaredError(testFeatures, testLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
-		double mis = af.sumSquaredError(sTest.features(), sTest.labels());
-		cout &lt;&lt; to_str((double)mis / sTest.features().rows()) &lt;&lt; "\n";
-		<font color="red">nn.scaleWeights(1.0 / (1.0 - 0.35), false, 1);</font>
-		cout.flush();
-
-		// Do an epoch of training
-		ii.reset();
-		size_t index;
-		while(ii.next(index))
-		<font color="red">{
-			nn.maxNorm(0.0, 5.0, true);
-			nn.trainIncrementalWithDropout(trainFeatures[index], trainLabels[index], 0.35);
-		}</font>
-	}
-	return 0;
-}
-</pre>
-
-<p>And here are some results. Notice they are not actually better. Is that because these tricks are no good? Is it
-because this network has more weights and I didn't train for long enough? (Notice the accuracy is still improving.)
-Is it because those tricks are really designed for larger networks, and this one is still so very small?
-Is it because I didn't tune my hyperparameters at all? I will leave answering such questions as an exercize for
-the reader--I'm just trying to show you how to use my code =).</p>
-
-<pre class="code">
-% Training patterns: 60000
-% Testing patterns: 10000
-% Topology: 784 -> 9680 -> 50 -> 100 -> 10
-% Total weights: 491160
-@RELATION neural_net_training
-@ATTRIBUTE internal_rmse_train real
-@ATTRIBUTE internal_rmse_test real
-@ATTRIBUTE misclassification_rate real
-@DATA
-0.98167269423025, 0.98121969211094, 0.8799
-0.50591353448385, 0.50227603143805, 0.0981
-0.44455724838725, 0.44296446989617, 0.0805
-0.43604353580815, 0.43670214066463, 0.0688
-0.43654247522833, 0.43737355561063, 0.0634
-0.44067857942438, 0.4451665813943, 0.0627
-0.37784822100542, 0.38467632207642, 0.0529
-0.47555594601116, 0.4806960384477, 0.0558
-0.43522020483841, 0.44392465357931, 0.0537
-0.34993765903977, 0.36091855594582, 0.0475
-</pre>
 
 
 
