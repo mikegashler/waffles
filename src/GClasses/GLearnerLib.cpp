@@ -716,20 +716,6 @@ GNeighborTransducer* GLearnerLib::InstantiateNeighborTransducer(GArgReader& args
 	return pTransducer;
 }
 
-GNeuralNet* GLearnerLib::InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
-{
-	GNeuralNet* pModel = new GNeuralNet();
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	return pModel;
-}
-
 GRandomForest* GLearnerLib::InstantiateRandomForest(GArgReader& args)
 {
 	size_t trees = args.pop_uint();
@@ -860,8 +846,6 @@ GTransducer* GLearnerLib::InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatu
 			pAlg = InstantiateNaiveInstance(args, pFeatures, pLabels);
 		else if(args.if_pop("neighbortransducer"))
 			pAlg = InstantiateNeighborTransducer(args, pFeatures, pLabels);
-		else if(args.if_pop("neuralnet"))
-			pAlg = InstantiateNeuralNet(args, pFeatures, pLabels);
 		else if(args.if_pop("randomforest"))
 			pAlg = InstantiateRandomForest(args);
 		else if(args.if_pop("reservoir"))

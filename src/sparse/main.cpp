@@ -156,20 +156,6 @@ GNaiveInstance* InstantiateNaiveInstance(GArgReader& args)
 	return pModel;
 }
 
-GNeuralNet* InstantiateNeuralNet(GArgReader& args)
-{
-	GNeuralNet* pModel = new GNeuralNet();
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
-		else
-			throw Ex("Invalid neuralnet option: ", args.peek());
-	}
-	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	return pModel;
-}
-
 void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 {
 	cerr << "_________________________________\n";
@@ -216,10 +202,6 @@ GTransducer* InstantiateAlgorithm(GArgReader& args)
 			return InstantiateLinearRegressor(args);
 		else if(args.if_pop("naivebayes"))
 			return InstantiateNaiveBayes(args);
-//		else if(args.if_pop("naiveinstance"))
-//			return InstantiateNaiveInstance(args);
-		else if(args.if_pop("neuralnet"))
-			return InstantiateNeuralNet(args);
 		throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)
