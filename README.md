@@ -5,12 +5,12 @@
 To install:
 
 1. Install g++ and make (if they are not already installed)
-	1. On Debian, Ubuntu, and derivatives:
-			sudo apt-get install g++ make
-	2. On Red Hat, Fedora, and derivatives:
-			sudo yum install g++ make
-	3. On OS X:
-			xcode-select --install
+    1. On Debian, Ubuntu, and derivatives:
+        sudo apt-get install g++ make
+    2. On Red Hat, Fedora, and derivatives:
+        sudo yum install g++ make
+    3. On OS X:
+        xcode-select --install
 2. cd src
 3. sudo make install
 
