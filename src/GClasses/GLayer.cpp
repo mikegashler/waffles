@@ -90,6 +90,187 @@ GMatrix* GNeuralNetLayer::feedThrough(const GMatrix& data)
 
 
 
+GLayerLinear::GLayerLinear(size_t out)
+{
+	resize(FLEXIBLE_SIZE, out);
+}
+
+GLayerLinear::GLayerLinear(size_t in, size_t out)
+{
+	resize(in, out);
+}
+
+GLayerLinear::GLayerLinear(GDomNode* pNode) : m_weights(pNode->field("weights")), m_activation(2, m_weights.cols())
+{}
+
+GDomNode* GLayerLinear::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
+	return pNode;
+}
+
+/// Makes a string representation of this layer
+std::string GLayerLinear::to_str()
+{
+	std::ostringstream oss;
+	oss << "[GLayerLinear:" << inputs() << "->" << outputs() << "]";
+	return oss.str();
+}
+
+void GLayerLinear::resize(size_t in, size_t out)
+{
+	if(in == inputs() && out == outputs())
+		return;
+	
+	m_weights.resize(in + 1, out);
+	m_activation.resize(2, out);
+}
+
+void GLayerLinear::feedForward(const GVec& in)
+{
+	GAssert(bias()[outputs() - 1] > -1e100 && bias()[outputs() - 1] < 1e100);
+	
+	GVec &a = activation();
+	a.copy(bias());
+	
+	for(size_t i = 0; i < inputs(); i++)
+		a.addScaled(in[i], m_weights.row(i));
+}
+
+void GLayerLinear::backPropError(GNeuralNetLayer* pUpStreamLayer)
+{
+	GVec &upStreamError = pUpStreamLayer->error();
+	size_t inputCount = pUpStreamLayer->outputs();
+	GAssert(inputCount <= inputs());
+	const GVec &source = error();
+	for(size_t i = 0; i < inputCount; i++)
+		upStreamError[i] = source.dotProduct(m_weights[i]);
+}
+
+void GLayerLinear::updateDeltas(const GVec& upStreamActivation, GVec &deltas)
+{
+	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
+	GVec &err = error();
+	double *delta = deltas.data();
+	for(size_t i = 0; i < inputs(); ++i)
+	{
+		double act = upStreamActivation[i];
+		for(size_t j = 0; j < outputs(); ++j)
+			*delta++ += err[j] * act;
+	}
+	for(size_t j = 0; j < outputs(); ++j)
+		*delta++ += err[j];
+}
+
+void GLayerLinear::applyDeltas(const GVec &deltas)
+{
+	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
+	const double *delta = deltas.data();
+	GVec &b = bias();
+	for(size_t i = 0; i < inputs(); ++i)
+		for(size_t j = 0; j < outputs(); ++j)
+			m_weights[i][j] += *delta++;
+	for(size_t j = 0; j < outputs(); ++j)
+		b[j] += *delta++;
+}
+
+void GLayerLinear::scaleWeights(double factor, bool scaleBiases)
+{
+	for(size_t i = 0; i < inputs(); i++)
+		m_weights[i] *= factor;
+	if(scaleBiases)
+		bias() *= factor;
+}
+
+void GLayerLinear::diminishWeights(double amount, bool regularizeBiases)
+{
+	for(size_t i = 0; i < inputs(); i++)
+		m_weights[i].regularize_L1(amount);
+	if(regularizeBiases)
+		bias().regularize_L1(amount);
+}
+
+size_t GLayerLinear::countWeights()
+{
+	return (inputs() + 1) * outputs();
+}
+
+size_t GLayerLinear::weightsToVector(double *pOutVector)
+{
+	m_weights.toVector(pOutVector);
+	return countWeights();
+}
+
+size_t GLayerLinear::vectorToWeights(const double *pVector)
+{
+	m_weights.fromVector(pVector, inputs() + 1);
+	return countWeights();
+}
+
+void GLayerLinear::copyWeights(const GNeuralNetLayer *pSource)
+{
+	GLayerLinear *src = (GLayerLinear *) pSource;
+	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+}
+
+void GLayerLinear::resetWeights(GRand& rand)
+{
+	size_t outputCount = outputs();
+	size_t inputCount = inputs();
+	double mag = std::max(0.03, 1.0 / inputCount);
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		GVec& w = m_weights[i];
+		for(size_t j = 0; j < outputCount; j++)
+			w[j] = rand.normal() * mag;
+	}
+}
+
+void GLayerLinear::perturbWeights(GRand &rand, double deviation, size_t start, size_t count)
+{
+	size_t n = std::min(outputs() - start, count);
+	for(size_t j = 0; j < m_weights.rows(); j++)
+		GVec::perturb(m_weights[j].data() + start, deviation, n, rand);
+}
+
+void GLayerLinear::maxNorm(double min, double max)
+{
+	size_t outputCount = outputs();
+	size_t inputCount = inputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double squaredMag = 0;
+		for(size_t j = 0; j < inputCount; j++)
+		{
+			double d = m_weights[j][i];
+			squaredMag += (d * d);
+		}
+		if(squaredMag > max * max)
+		{
+			double scal = max / sqrt(squaredMag);
+			for(size_t j = 0; j < inputCount; j++)
+				m_weights[j][i] *= scal;
+		}
+		else if(squaredMag < min * min)
+		{
+			if(squaredMag == 0.0)
+			{
+				for(size_t j = 0; j < inputCount; j++)
+					m_weights[j][i] = 1.0;
+				squaredMag = (double) inputCount;
+			}
+			double scal = min / sqrt(squaredMag);
+			for(size_t j = 0; j < inputCount; j++)
+				m_weights[j][i] *= scal;
+		}
+	}
+}
+
+
+
+
+
 
 
 
@@ -106,7 +287,6 @@ GLayerClassic::GLayerClassic(size_t inps, size_t outs, GActivationFunction* pAct
 GLayerClassic::GLayerClassic(GDomNode* pNode)
 : m_weights(pNode->field("weights")), m_out(5, m_weights.cols()), m_deactivated(false)
 {
-	slack().deserialize(pNode->field("slack"));
 	m_pActivationFunction = GActivationFunction::deserialize(pNode->field("act_func"));
 }
 
@@ -119,7 +299,6 @@ GDomNode* GLayerClassic::serialize(GDom* pDoc)
 {
 	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
-	pNode->addField(pDoc, "slack", slack().serialize(pDoc));
 	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
 	return pNode;
 }
@@ -144,8 +323,7 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount)
 	m_weights.resize(inputCount + 1, outputCount);
 
 	// Bias
-	m_out.resize(5, outputCount);
-	slack().fill(0.0);
+	m_out.resize(3, outputCount);
 
 	// Activation function
 	m_pActivationFunction->resize(outputCount);

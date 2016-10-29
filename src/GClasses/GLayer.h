@@ -147,12 +147,110 @@ protected:
 };
 
 
+
+
+
+/// Standard GNeuralNetLayer where outputs are linear combinations of inputs.
+/// Usually followed by a GLayerActivation.
+class GLayerLinear : public GNeuralNetLayer
+{
+protected:
+	GMatrix m_weights;
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
+public:
+	GLayerLinear(size_t outputs);
+	GLayerLinear(size_t inputs, size_t outputs);
+	GLayerLinear(GDomNode* pNode);
+
+	/// Returns the type of this layer
+	virtual const char* type() override { return "linear"; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) override;
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str() override;
+
+	/// Returns the number of values expected to be fed as input into this layer.
+	virtual size_t inputs() const override { return m_weights.rows() - 1; }
+
+	/// Returns the number of values that this layer outputs.
+	virtual size_t outputs() const override { return m_weights.cols(); }
+
+	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
+	/// and initializes any others to small random values.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns a buffer where the activation from the most-recent call to feedForward is stored.
+	virtual GVec& activation() override { return m_activation[0]; }
+
+	/// Returns a buffer where the error terms for each unit are stored.
+	virtual GVec& error() override { return m_activation[1]; }
+
+	/// \deprecated Randomly sets the activation of some units to 0.
+	virtual void dropOut(GRand& rand, double probOfDrop) override { throw Ex("GLayerLinear::dropOut is deprecated; use a drop out layer instead"); }
+
+	/// Feeds an input vector through this layer to compute the output of this layer.
+	virtual void feedForward(const GVec& in) override;
+
+	/// Computes the activation error of the layer that feeds into this one.
+	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
+
+	/// Updates the deltas for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
+
+	/// Add the weight and bias deltas to the weights.
+	virtual void applyDeltas(const GVec &deltas) override;
+
+	/// Multiplies all the weights by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
+
+	/// Moves all weights in the direction of zero by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	virtual size_t countWeights() override;
+
+	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector) override;
+
+	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector) override;
+
+	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand) override;
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise. The
+	/// default values apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
+
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	virtual void maxNorm(double min, double max) override;
+	
+	/// Returns the bias vector of this layer.
+	GVec& bias() { return m_weights.back(); }
+
+	/// Returns the bias vector of this layer.
+	const GVec& bias() const { return m_weights.back(); }
+};
+
+
+
+
+
+
+/// Legacy classic layer with built-in activation function.
+/// GLayerLinear is preferred.
 class GLayerClassic : public GNeuralNetLayer
 {
 friend class GNeuralNet;
 protected:
 	GMatrix m_weights;
-	GMatrix m_out; // Row 0 is the net. Row 1 is the activation. Row 2 is the error. Row 3 is the slack.
+	GMatrix m_out; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
 	GActivationFunction* m_pActivationFunction;
 	bool m_deactivated;
 
@@ -267,9 +365,6 @@ using GNeuralNetLayer::updateDeltas;
 	/// Returns the net vector (that is, the values computed before the activation function was applied)
 	/// from the most recent call to feedForward().
 	GVec& net() { return m_out[0]; }
-
-	/// Returns a vector used to specify slack terms for each unit in this layer.
-	GVec& slack() { return m_out[3]; }
 
 	/// Returns a vector used to store squared delta values for each bias in this layer.
 	GVec& biasDelta2() { return m_out[4]; }
