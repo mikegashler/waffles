@@ -272,11 +272,9 @@ void GLayerLinear::maxNorm(double min, double max)
 
 
 
-GLayerActivation::GLayerActivation(size_t out, GActivationFunction *pActivationFunction)
-: m_pActivationFunction(pActivationFunction != NULL ? pActivationFunction : new GActivationTanH())
-{
-	resize(out, out);
-}
+GLayerActivation::GLayerActivation(GActivationFunction *pActivationFunction)
+: m_size(FLEXIBLE_SIZE), m_activation(2, 0), m_pActivationFunction(pActivationFunction != NULL ? pActivationFunction : new GActivationTanH())
+{}
 
 GLayerActivation::GLayerActivation(GDomNode* pNode)
 : m_size(pNode->field("size")->asInt()), m_activation(2, m_size), m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))

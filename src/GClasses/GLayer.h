@@ -251,7 +251,7 @@ protected:
 	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
 	GActivationFunction *m_pActivationFunction;
 public:
-	GLayerActivation(size_t outputs = FLEXIBLE_SIZE, GActivationFunction *pActivationFunction = NULL);
+	GLayerActivation(GActivationFunction *pActivationFunction = NULL);
 	GLayerActivation(GDomNode *pDoc);
 
 	/// Returns the type of this layer
@@ -272,6 +272,12 @@ public:
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
 	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Resizes the inputs, which in this layer also resizes the outputs
+	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer) override
+	{
+		resize(pUpStreamLayer->outputs(), pUpStreamLayer->outputs());
+	}
 
 	/// Returns a buffer where the activation from the most-recent call to feedForward is stored.
 	virtual GVec& activation() override { return m_activation[0]; }
