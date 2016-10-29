@@ -1139,11 +1139,10 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 	optimizer.setLearningRate(1e-2);
 
-	for(size_t i = 0; i < 100; i++)
+	for(size_t i = 0; i < 200; i++)
 		optimizer.optimizeIncremental(oneVec, label);
 
-	upstream.feedForward(oneVec);
-	layer.feedForward(upstream.activation());
+	nn.forwardProp(oneVec);
 	if(layer.activation().squaredDistance(label) > 1e-6)
 		throw Ex("GLayerConvolutional2D backpropagation failed (1)");
 
@@ -1157,7 +1156,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 			layer.kernels()[c][i] += prng.normal();
 	}
 
-	for(size_t i = 0; i < 100; i++)
+	for(size_t i = 0; i < 200; i++)
 		optimizer.optimizeIncremental(oneVec, label);
 
 	nn.forwardProp(oneVec);
