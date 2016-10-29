@@ -406,11 +406,18 @@ int main(int argc, char *argv[])
 
 	// Make the network
 	GNeuralNet nn;
-	nn.addLayers(80, 30, FLEXIBLE_SIZE);
-	nn.defaultOptimizer().setLearningRate(0.01);
+	// Add the layers
+	nn.addLayers(
+		80, new GActivationTanH(),
+		30, new GActivationTanH(),
+		FLEXIBLE_SIZE
+	);
 	
 	GAutoFilter af(&amp;nn, false);
 	af.beginIncrementalLearning(s2.features1(), s2.labels1());
+
+	// Add the final activation layer
+	nn.addLayer(new GActivationTanH());
 
 	// Prep the data
 	af.prefilterData(&amp;s2.features1(), &amp;s2.labels1(), &amp;s2.features2(), &amp;s2.labels2());
@@ -434,6 +441,9 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	cout &lt;&lt; "@DATA\n";
+
+	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	optimizer.setLearningRate(0.01);
 	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
 	for(size_t epoch = 0; epoch &lt; 50000; epoch++)
 	{
@@ -450,7 +460,7 @@ int main(int argc, char *argv[])
 		ii.reset();
 		size_t index;
 		while(ii.next(index))
-			nn.trainIncremental(trainFeatures[index], trainLabels[index]);
+			optimizer.optimizeIncremental(trainFeatures[index], trainLabels[index]);
 	}
 	return 0;
 }
@@ -493,9 +503,17 @@ int main(int argc, char *argv[])
 
 	// Make the network
 	GNeuralNet nn;
-	nn.addLayers(80, 30, FLEXIBLE_SIZE);
+	nn.addLayers(
+		80, new GActivationTanH(),
+		30, new GActivationTanH(),
+		FLEXIBLE_SIZE
+	);
+
 	GAutoFilter af(&amp;nn, false);
 	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
+
+	// Add the final activation layer
+	nn.addLayer(new GActivationTanH());
 
 	// Prep the data
 	af.prefilterData(&amp;sTrain.features(), &amp;sTrain.labels(), &amp;sTest.features(), &amp;sTest.labels());
@@ -519,6 +537,7 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	cout &lt;&lt; "@DATA\n";
+
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
 	optimizer.setLearningRate(0.01);
 	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
