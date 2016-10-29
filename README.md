@@ -4,17 +4,15 @@
 
 To install:
 
-1.	Install g++ and make (if they are not already installed)
-
-	On Debian, Ubuntu, and derivatives:
+1. Install g++ and make (if they are not already installed)
+	1. On Debian, Ubuntu, and derivatives:
 		sudo apt-get install g++ make
-	On Red Hat, Fedora, and derivatives:
+	2. On Red Hat, Fedora, and derivatives:
 		sudo yum install g++ make
-	On OS X:
+	3. On OS X:
 		xcode-select --install
-
-2.	cd src
-3.	sudo make install
+2. cd src
+3. sudo make install
 
 To uninstall:
 
