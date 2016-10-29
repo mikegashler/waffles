@@ -2,7 +2,7 @@
 
 ## Linux and OS X
 
-To install:
+### To install
 
 1. Install g++ and make (if they are not already installed)
     1. On Debian, Ubuntu, and derivatives:
@@ -20,15 +20,15 @@ To install:
 2. cd src
 3. sudo make install
 
-To uninstall:
+### To uninstall
 
 	sudo make uninstall
 
-To build optimized binaries without installing them:
+### To build optimized binaries without installing them
 
 	make opt
 
-To build unoptimized binaries with debug symbols:
+### To build unoptimized binaries with debug symbols
 
 	make dbg
 
