@@ -76,14 +76,15 @@ Neural networks typically only support continuous values, but the labels in the 
 	const GMatrix&amp; testingLabels = rs.labels2();
 </pre>
 
-Now, we are ready to train a layer of logistic units that takes 4 inputs and gives 3 outputs. In this example, we will also specify the learning rate:</p>
+Now, we are ready to train a layer of logistic units that takes 4 inputs and gives 3 outputs. In this example, we will also specify the activation function as a separate layer:</p>
 
 <pre class="code">
 	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(4, 3, new GActivationLogistic()));
+	nn.addLayer(new GLayerLinear(4, 3));
+	nn.addLayer(new GLayerActivation(GActivationLogistic()));
 </pre>
 
-To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD):
+To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD). We also set the learning rate here:
 
 <pre class="code">
 	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
@@ -162,62 +163,49 @@ training.)</p>
 
 <pre class="code">
 	nn.addLayers(
-		new GLayerClassic(784, 1000),
-		new GLayerClassic(1000, 300),
-		new GLayerClassic(300, 90),
-		new GLayerClassic(90, 10)
+		new GLayerLinear(784, 1000), new GLayerActivation(new GActivationTanH()),
+		new GLayerLinear(1000, 300), new GLayerActivation(new GActivationTanH()),
+		new GLayerLinear(300, 90), new GLayerActivation(new GActivationTanH()),
+		new GLayerLinear(90, 10), new GLayerActivation(new GActivationTanH())
 	);
 </pre>
 
 <p>The layers are added in feed-forward order. The first layer added is the input layer. The last layer added is the output layer.
 Notice how the number of inputs into each layer should be the same as the number of outputs in the previous layer.
 If they do not line up, then the existing layer will be resized to fit with the newly added layer. In other words, if
-there is a conflict, the last one added to the neural network wins. Alternatively, you can also use the constant "FLEXIBLE_SIZE" to
-indicate that you want the adjacent layer to determine the size. For example, following code results in the very same topology:</p>
+there is a conflict, the last one added to the neural network wins. Alternatively, you can just specify the number of neurons per layer (the outputs) and the inputs will be inferred. For example, following code results in the very same topology:</p>
 
 <pre class="code">
 	nn.addLayers(
-		new GLayerClassic(784, 1000),
-		new GLayerClassic(FLEXIBLE_SIZE, 300),
-		new GLayerClassic(FLEXIBLE_SIZE, 90),
-		new GLayerClassic(FLEXIBLE_SIZE, 10)
+		new GLayerLinear(1000), new GLayerActivation(new GActivationTanH()),
+		new GLayerLinear(300), new GLayerActivation(new GActivationTanH()),
+		new GLayerLinear(90), new GLayerActivation(new GActivationTanH()),
+		new GLayerLinear(10), new GLayerActivation(new GActivationTanH())
 	);
 </pre>
 
-<p>When training begins, the number of inputs and outputs will also be resized to fit the training data. So, you can
-use FLEXIBLE_SIZE for those too:</p>
+<p>Since GLayerLinear is the default layer type and following one with a GLayerActivation is so common, addLayers can infer these pieces as well. We can omit some of the code to make it more concise, but still accomplish the same thing:</p>
 
 <pre class="code">
 	nn.addLayers(
-		new GLayerClassic(FLEXIBLE_SIZE, 1000),
-		new GLayerClassic(FLEXIBLE_SIZE, 300),
-		new GLayerClassic(FLEXIBLE_SIZE, 90),
-		new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE)
+		1000, new GActivationTanH(),
+		300, new GActivationTanH(),
+		90, new GActivationTanH(),
+		10, new GActivationTanH()
 	);
 </pre>
-
-<p>That is as far as you can use FLEXIBLE_SIZE. If you use FLEXIBLE_SIZE anywhere else, then the size of one of the layers would be ambiguous, which would be problematic.</p>
-
-<p>If you are just GLayerClassic, you can make the code even more consise by giving a list of layer sizes:</p>
-
-<pre class="code">
-	nn.addLayers(1000, 300, 90, FLEXIBLE_SIZE);
-</pre>
-
-<p>This one-liner accomplishes the same thing. Each number it receives is used as the output size for a new layer with a FLEXIBLE_SIZE input. This method is nice and concise if you want to use GLayerClassic with the default activation function.</p>
 
 <br><br>
 <h3>Activation functions</h3>
 
-<p>If no activation function is specified, then the layer uses a default activation function. The default activation function for
-GLayerClassic is GActivationTanH, which implements the tanh activation function. Many other activation functions are also available:</p>
+<p>A GLayerLinear just produces linear combinations of its inputs with no activation function. To use an activation function, add an activation layer after the linear layer. GActivationTanH, which implements the tanh activation function, is the preferred default activation function. Many other activation functions are also available:</p>
 
 <pre class="code">
 	nn.addLayers(
-		new GLayerClassic(FLEXIBLE_SIZE, 1000, new GActivationRectifiedLinear()),
-		new GLayerClassic(FLEXIBLE_SIZE, 300, new GActivationSoftPlus()),
-		new GLayerClassic(FLEXIBLE_SIZE, 90, new GActivationGaussian()),
-		new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE, new GActivationIdentity())
+		1000, new GActivationRectifiedLinear(),
+		300, new GActivationSoftPlus(),
+		90, new GActivationGaussian(),
+		10, new GActivationIdentity()
 	);
 </pre>
 
