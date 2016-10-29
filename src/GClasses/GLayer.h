@@ -243,7 +243,6 @@ public:
 
 
 /// One-to-one mapping via an activation function like tanh.
-/// May be derived from if the activation function is parametrized.
 class GLayerActivation : public GNeuralNetLayer
 {
 protected:
