@@ -63,6 +63,7 @@ public:
 class GObjective
 {
 public:
+	GObjective() : m_slack(0), m_useSlack(false) {}
 	virtual ~GObjective() {}
 	
 	/// Calculate the error.
@@ -70,6 +71,16 @@ public:
 	
 	/// Calculate the partial derivative (blame) of the error with respect to the prediction.
 	virtual void calculateDerivative(const GVec &prediction, const GVec &label, GVec &blame) = 0;
+	
+	/// Enable the use of slack (a margin-of-error).
+	virtual void setSlack(const GVec &slack)
+	{
+		m_slack.copy(slack);
+		m_useSlack = true;
+	}
+protected:
+	GVec m_slack;
+	bool m_useSlack;
 };
 
 /// The default loss function is squared error.
