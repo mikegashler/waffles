@@ -1,36 +1,36 @@
-Build Instructions
+# Build Instructions
 
-# Linux and OS X
+## Linux and OS X
 
-## To install:
+To install:
 
 1.	Install g++ and make (if they are not already installed)
+
 	On Debian, Ubuntu, and derivatives:
 		sudo apt-get install g++ make
 	On Red Hat, Fedora, and derivatives:
 		sudo yum install g++ make
 	On OS X:
 		xcode-select --install
+
 2.	cd src
 3.	sudo make install
 
-## To uninstall:
+To uninstall:
 
 	sudo make uninstall
 
-## To build optimized binaries without installing them:
+To build optimized binaries without installing them:
 
 	make opt
 
-## To build unoptimized binaries with debug symbols:
+To build unoptimized binaries with debug symbols:
 
 	make dbg
 
-## To build demo apps and additional tools:
+To build demo apps and additional tools, see web/docs/linux.html.
 
-See web/docs/linux.html.
-
-# Windows:
+## Windows
 
 1.	Install Microsoft Visual C++ 2013 Express Edition.
 2.	File->Open->Project/Solution
