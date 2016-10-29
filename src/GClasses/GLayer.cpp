@@ -272,6 +272,140 @@ void GLayerLinear::maxNorm(double min, double max)
 
 
 
+GLayerActivation::GLayerActivation(size_t out, GActivationFunction *pActivationFunction)
+: m_pActivationFunction(pActivationFunction != NULL ? pActivationFunction : new GActivationTanH())
+{
+	resize(out, out);
+}
+
+GLayerActivation::GLayerActivation(GDomNode* pNode)
+: m_size(pNode->field("size")->asInt()), m_activation(2, m_size), m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
+{}
+
+GDomNode* GLayerActivation::serialize(GDom* pDoc)
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "size", pDoc->newInt(m_size));
+	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
+	return pNode;
+}
+
+/// Makes a string representation of this layer
+std::string GLayerActivation::to_str()
+{
+	std::ostringstream oss;
+	oss << "[GLayerActivation:" << inputs() << "->" << m_pActivationFunction->name() << "]";
+	return oss.str();
+}
+
+void GLayerActivation::resize(size_t in, size_t out)
+{
+	if(in != out)
+		throw Ex("GLayerActivation must have the same number of inputs as outputs.");
+	m_size = out;
+	m_activation.resize(2, m_size);
+}
+
+void GLayerActivation::feedForward(const GVec& in)
+{
+	GVec &a = activation();
+	for(size_t i = 0; i < inputs(); i++)
+		a[i] = m_pActivationFunction->squash(in[i], i);
+}
+
+void GLayerActivation::backPropError(GNeuralNetLayer* pUpStreamLayer)
+{
+	GVec &upStreamError = pUpStreamLayer->error();
+	size_t inputCount = pUpStreamLayer->outputs();
+	GAssert(inputCount <= inputs());
+	const GVec &source = error();
+	GVec &n = pUpStreamLayer->activation();
+	GVec &a = activation();
+	for(size_t i = 0; i < inputCount; i++)
+		upStreamError[i] = source[i] * m_pActivationFunction->derivativeOfNet(n[i], a[i], i);
+}
+
+void GLayerActivation::updateDeltas(const GVec& upStreamActivation, GVec &deltas)
+{
+	m_pActivationFunction->updateDeltas(upStreamActivation, activation(), deltas);
+}
+
+void GLayerActivation::applyDeltas(const GVec &deltas)
+{
+	m_pActivationFunction->applyDeltas(deltas);
+}
+
+/// \todo make this more efficient
+void GLayerActivation::scaleWeights(double factor, bool scaleBiases)
+{
+	GVec vec(m_pActivationFunction->countWeights());
+	m_pActivationFunction->weightsToVector(vec.data());
+	for(size_t i = 0; i < vec.size(); ++i)
+		vec[i] *= factor;
+	m_pActivationFunction->vectorToWeights(vec.data());
+}
+
+/// \todo make this more efficient
+void GLayerActivation::diminishWeights(double amount, bool regularizeBiases)
+{
+	GVec vec(m_pActivationFunction->countWeights());
+	m_pActivationFunction->weightsToVector(vec.data());
+	vec.regularize_L1(amount);
+	m_pActivationFunction->vectorToWeights(vec.data());
+}
+
+size_t GLayerActivation::countWeights()
+{
+	return m_pActivationFunction->countWeights();
+}
+
+size_t GLayerActivation::weightsToVector(double *pOutVector)
+{
+	return m_pActivationFunction->weightsToVector(pOutVector);
+}
+
+size_t GLayerActivation::vectorToWeights(const double *pVector)
+{
+	return m_pActivationFunction->vectorToWeights(pVector);
+}
+
+void GLayerActivation::copyWeights(const GNeuralNetLayer *pSource)
+{
+	GLayerActivation *src = (GLayerActivation *) pSource;
+	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
+}
+
+/// \todo make this more efficient
+void GLayerActivation::resetWeights(GRand& rand)
+{
+	size_t inputCount = inputs();
+	double mag = std::max(0.03, 1.0 / inputCount);
+	
+	GVec vec(m_pActivationFunction->countWeights());
+	m_pActivationFunction->weightsToVector(vec.data());
+	for(size_t i = 0; i < vec.size(); ++i)
+		vec[i] = rand.normal() * mag;
+	m_pActivationFunction->vectorToWeights(vec.data());
+}
+
+void GLayerActivation::perturbWeights(GRand &rand, double deviation, size_t start, size_t count)
+{
+	GVec vec(m_pActivationFunction->countWeights());
+	m_pActivationFunction->weightsToVector(vec.data());
+	size_t n = std::min(outputs() - start, count);
+	GVec::perturb(vec.data() + start, deviation, n, rand);
+	m_pActivationFunction->vectorToWeights(vec.data());
+}
+
+void GLayerActivation::maxNorm(double min, double max)
+{
+	throw Ex("GLayerActivation::maxNorm is not supported!");
+}
+
+
+
+
+
 
 
 
