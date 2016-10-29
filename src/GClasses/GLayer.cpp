@@ -1254,7 +1254,7 @@ GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(size_t inputS
 }
 
 GLayerRestrictedBoltzmannMachine::GLayerRestrictedBoltzmannMachine(GDomNode* pNode)
-: m_weights(pNode->field("weights")), m_bias(4, m_weights.rows()), m_biasReverse(4, m_weights.cols())
+: m_weights(pNode->field("weights")), m_bias(3, m_weights.rows()), m_biasReverse(3, m_weights.cols())
 {
 	bias().deserialize(pNode->field("bias"));
 	biasReverse().deserialize(pNode->field("biasRev"));
@@ -1291,10 +1291,10 @@ void GLayerRestrictedBoltzmannMachine::resize(size_t inputCount, size_t outputCo
 	m_weights.resize(outputCount, inputCount);
 
 	// Bias
-	m_bias.resize(5, outputCount);
+	m_bias.resize(3, outputCount);
 
 	// BiasReverse
-	m_biasReverse.resize(5, inputCount);
+	m_biasReverse.resize(3, inputCount);
 }
 
 // virtual
@@ -1328,17 +1328,11 @@ void GLayerRestrictedBoltzmannMachine::perturbWeights(GRand& rand, double deviat
 // virtual
 void GLayerRestrictedBoltzmannMachine::feedForward(const GVec& in)
 {
-	net().copy(bias());
+	activation().copy(bias());
 	size_t outputCount = outputs();
-	double* pNet = net().data();
+	double* pNet = activation().data();
 	for(size_t i = 0; i < outputCount; i++)
 		*(pNet++) += in.dotProduct(m_weights[i]);
-
-	// Activate
-	double* pAct = activation().data();
-	pNet = net().data();
-	for(size_t i = 0; i < outputCount; i++)
-		*(pAct++) = *(pNet++);
 }
 
 // virtual
@@ -1357,15 +1351,9 @@ void GLayerRestrictedBoltzmannMachine::dropOut(GRand& rand, double probOfDrop)
 void GLayerRestrictedBoltzmannMachine::feedBackward(const GVec& in)
 {
 	// Feed through the weights
-	GVec& n = netReverse();
+	GVec& n = activationReverse();
 	m_weights.multiply(in, n, true);
-	size_t inputCount = inputs();
 	n += biasReverse();
-
-	// Squash it
-	GVec& a = activationReverse();
-	for(size_t i = 0; i < inputCount; i++)
-		a[i] = n[i];
 }
 
 void GLayerRestrictedBoltzmannMachine::resampleHidden(GRand& rand)
@@ -1560,11 +1548,11 @@ m_inputChannels(inputChannels),
 m_outputSamples(inputSamples - kernelSize + 1),
 m_kernelsPerChannel(kernelsPerChannel),
 m_kernels(inputChannels * kernelsPerChannel, kernelSize),
-m_bias(2, inputChannels * kernelsPerChannel)
+m_bias(inputChannels * kernelsPerChannel)
 {
 	if(kernelSize > inputSamples)
 		throw Ex("kernelSize must be <= inputSamples");
-	m_activation.resize(3, inputChannels * kernelsPerChannel * m_outputSamples);
+	m_activation.resize(2, inputChannels * kernelsPerChannel * m_outputSamples);
 }
 
 GLayerConvolutional1D::GLayerConvolutional1D(GDomNode* pNode)
@@ -1626,11 +1614,11 @@ void GLayerConvolutional1D::feedForward(const GVec& in)
 {
 	// Copy bias to net
 	for(size_t i = 0; i < m_outputSamples; i++)
-		net().put(bias().size() * i, bias());
+		activation().put(bias().size() * i, bias());
 
 	// Feed in through
 	size_t kernelSize = m_kernels.cols();
-	GVec& n = net();
+	GVec& n = activation();
 	size_t netPos = 0;
 	size_t inPos = 0;
 	for(size_t i = 0; i < m_outputSamples; i++) // for each output sample...
@@ -1647,20 +1635,6 @@ void GLayerConvolutional1D::feedForward(const GVec& in)
 				n[netPos++] += d;
 			}
 			inPos++;
-		}
-	}
-
-	// Activate
-	GVec& a = activation();
-	n.copy(net());
-	size_t kernelCount = m_bias.cols();
-	size_t pos = 0;
-	for(size_t i = 0; i < m_outputSamples; i++)
-	{
-		for(size_t j = 0; j < kernelCount; j++)
-		{
-			a[pos] = n[pos];
-			pos++;
 		}
 	}
 }
@@ -1903,10 +1877,10 @@ GLayerConvolutional2D::GLayerConvolutional2D(size_t width, size_t height, size_t
   m_outputWidth(width - kWidth + 1), m_outputHeight(height - kHeight + 1),
   m_bias(kCount),
   m_kernels(kCount, kWidth * kHeight * channels),
-  m_activation(3, m_outputWidth * m_outputHeight * kCount),
+  m_activation(2, m_outputWidth * m_outputHeight * kCount),
   m_kernelImage(NULL, kWidth, kHeight, channels), m_deltaImage(NULL, kWidth, kHeight, channels),
   m_inputImage(NULL, width, height, channels), m_upStreamErrorImage(NULL, width, height, channels),
-  m_netImage(&m_activation[0], m_outputWidth, m_outputHeight, kCount), m_actImage(&m_activation[1], m_outputWidth, m_outputHeight, kCount), m_errImage(&m_activation[2], m_outputWidth, m_outputHeight, kCount)
+  m_actImage(&m_activation[0], m_outputWidth, m_outputHeight, kCount), m_errImage(&m_activation[1], m_outputWidth, m_outputHeight, kCount)
 {}
 
 GLayerConvolutional2D::GLayerConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount)
@@ -1915,10 +1889,10 @@ GLayerConvolutional2D::GLayerConvolutional2D(size_t kWidth, size_t kHeight, size
   m_outputWidth(0), m_outputHeight(0),
   m_bias(kCount),
   m_kernels(kCount, 0),
-  m_activation(3, 0),
+  m_activation(2, 0),
   m_kernelImage(NULL, kWidth, kHeight, 0), m_deltaImage(NULL, kWidth, kHeight, 0),
   m_inputImage(NULL, 0, 0, 0), m_upStreamErrorImage(NULL, 0, 0, 0),
-  m_netImage(&m_activation[0], 0, 0, 0), m_actImage(&m_activation[1], 0, 0, 0), m_errImage(&m_activation[2], 0, 0, 0)
+  m_actImage(&m_activation[0], 0, 0, 0), m_errImage(&m_activation[1], 0, 0, 0)
 {}
 
 GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
@@ -1927,10 +1901,10 @@ GLayerConvolutional2D::GLayerConvolutional2D(GDomNode* pNode)
   m_outputWidth(pNode->field("outputWidth")->asInt()), m_outputHeight(pNode->field("outputHeight")->asInt()),
   m_bias(pNode->field("bias")),
   m_kernels(pNode->field("kernels")),
-  m_activation(3, m_outputWidth * m_outputHeight * m_kernels.rows()),
+  m_activation(2, m_outputWidth * m_outputHeight * m_kernels.rows()),
   m_kernelImage(NULL, m_kWidth, m_kHeight, m_channels), m_deltaImage(NULL, m_kWidth, m_kHeight, m_channels),
   m_inputImage(NULL, m_width, m_height, m_channels), m_upStreamErrorImage(NULL, m_width, m_height, m_channels),
-  m_netImage(&m_activation[0], m_outputWidth, m_outputHeight, m_kernels.rows()), m_actImage(&m_activation[1], m_outputWidth, m_outputHeight, m_kernels.rows()), m_errImage(&m_activation[2], m_outputWidth, m_outputHeight, m_kernels.rows())
+  m_actImage(&m_activation[0], m_outputWidth, m_outputHeight, m_kernels.rows()), m_errImage(&m_activation[1], m_outputWidth, m_outputHeight, m_kernels.rows())
 {
 	m_inputImage.sx	= pNode->field("strideX")->asInt();
 	m_inputImage.sy	= pNode->field("strideY")->asInt();
@@ -1958,7 +1932,7 @@ GDomNode *GLayerConvolutional2D::serialize(GDom *pDoc)
 	pNode->addField(pDoc, "outputHeight", pDoc->newInt(m_outputHeight));
 	pNode->addField(pDoc, "inputInterlaced", pDoc->newBool(m_inputImage.interlaced));
 	pNode->addField(pDoc, "kernelsInterlaced", pDoc->newBool(m_kernelImage.interlaced));
-	pNode->addField(pDoc, "outputInterlaced", pDoc->newBool(m_netImage.interlaced));
+	pNode->addField(pDoc, "outputInterlaced", pDoc->newBool(m_actImage.interlaced));
 	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
 	pNode->addField(pDoc, "kernels", m_kernels.serialize(pDoc));
 	return pNode;
@@ -2015,23 +1989,16 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer)
 void GLayerConvolutional2D::feedForward(const GVec &in)
 {
 	m_inputImage.data = const_cast<GVec *>(&in);
-
-	Image &n = m_netImage;
-	Image &a = m_actImage;
-
+	
+	Image &n = m_actImage;
 	n.data->fill(0.0);
 	for(n.dz = 0; n.dz < n.channels; ++n.dz)
 	{
 		m_kernelImage.data = &m_kernels[n.dz];
 		convolve(m_inputImage, m_kernelImage, n);
 		for(size_t y = 0; y < n.height; ++y)
-		{
 			for(size_t x = 0; x < n.width; ++x)
-			{
 				n.at(x, y) += m_bias[n.dz];
-				a.at(x, y, n.dz) = n.at(x, y);
-			}
-		}
 	}
 	n.dz = 0;
 }
@@ -2201,7 +2168,6 @@ void GLayerConvolutional2D::setKernelsInterlaced(bool interlaced)
 
 void GLayerConvolutional2D::setOutputInterlaced(bool interlaced)
 {
-	m_netImage.interlaced = interlaced;
 	m_actImage.interlaced = interlaced;
 	m_errImage.interlaced = interlaced;
 }
@@ -2214,7 +2180,6 @@ void GLayerConvolutional2D::addKernel()
 	m_bias.resize(m_kernels.rows() + 1);
 	m_bias.put(0, temp);
 
-	m_netImage.channels = m_kernels.rows();
 	m_actImage.channels = m_kernels.rows();
 	m_errImage.channels = m_kernels.rows();
 	updateOutputSize();
@@ -2266,17 +2231,13 @@ void GLayerConvolutional2D::updateOutputSize()
 {
 	m_outputWidth = (m_width - m_kWidth + 2 * m_inputImage.px) / m_inputImage.sx + 1;
 	m_outputHeight = (m_height - m_kHeight + 2 * m_inputImage.py) / m_inputImage.sy + 1;
-	m_activation.resize(3, m_outputWidth * m_outputHeight * m_kernels.rows());
+	m_activation.resize(2, m_outputWidth * m_outputHeight * m_kernels.rows());
 
-	m_netImage.data = &m_activation[0];
-	m_netImage.width = m_outputWidth;
-	m_netImage.height = m_outputHeight;
-
-	m_actImage.data = &m_activation[1];
+	m_actImage.data = &m_activation[0];
 	m_actImage.width = m_outputWidth;
 	m_actImage.height = m_outputHeight;
 
-	m_errImage.data = &m_activation[2];
+	m_errImage.data = &m_activation[1];
 	m_errImage.width = m_outputWidth;
 	m_errImage.height = m_outputHeight;
 }

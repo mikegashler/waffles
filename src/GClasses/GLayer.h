@@ -749,8 +749,8 @@ class GLayerRestrictedBoltzmannMachine : public GNeuralNetLayer
 {
 protected:
 	GMatrix m_weights; // Each column is an upstream neuron. Each row is a downstream neuron.
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the delta.
-	GMatrix m_biasReverse; // Row 0 is the bias. Row 1 is the net. Row 2 is the activation. Row 3 is the error. Row 4 is the delta.
+	GMatrix m_bias; // Row 0 is the bias. Row 1 is the activation. Row 2 is the error.
+	GMatrix m_biasReverse; // Row 0 is the bias. Row 1 is the activation. Row 2 is the error.
 
 public:
 using GNeuralNetLayer::feedForward;
@@ -782,10 +782,10 @@ using GNeuralNetLayer::updateDeltas;
 	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the activation values on the hidden end.
-	virtual GVec& activation() override { return m_bias[2]; }
+	virtual GVec& activation() override { return m_bias[1]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() override { return m_bias[3]; }
+	virtual GVec& error() override { return m_bias[2]; }
 
 	/// Feeds pIn forward through this layer.
 	virtual void feedForward(const GVec& in) override;
@@ -848,27 +848,14 @@ using GNeuralNetLayer::updateDeltas;
 	/// Returns the bias for the hidden end of this layer.
 	const GVec& bias() const { return m_bias[0]; }
 
-	/// Returns the net vector (that is, the values computed before the activation function was applied)
-	/// from the most recent call to feedForward().
-	GVec& net() { return m_bias[1]; }
-
-	/// Returns the delta vector for the bias.
-	GVec& biasDelta() { return m_bias[4]; }
-
 	/// Returns the bias for the visible end of this layer.
 	GVec& biasReverse() { return m_biasReverse[0]; }
 
-	/// Returns the delta vector for the reverse bias.
-	GVec& biasReverseDelta() { return m_biasReverse[4]; }
-
-	/// Returns the net for the visible end of this layer.
-	GVec& netReverse() { return m_biasReverse[1]; }
-
 	/// Returns the activation for the visible end of this layer.
-	GVec& activationReverse() { return m_biasReverse[2]; }
+	GVec& activationReverse() { return m_biasReverse[1]; }
 
 	/// Returns the error term for the visible end of this layer.
-	GVec& errorReverse() { return m_biasReverse[3]; }
+	GVec& errorReverse() { return m_biasReverse[2]; }
 
 	/// Performs binomial resampling of the activation values on the output end of this layer.
 	void resampleHidden(GRand& rand);
@@ -899,8 +886,8 @@ protected:
 	size_t m_outputSamples;
 	size_t m_kernelsPerChannel;
 	GMatrix m_kernels;
-	GMatrix m_activation; // Row 0 is the activation. Row 1 is the net. Row 2 is the error.
-	GMatrix m_bias; // Row 0 is the bias. Row 1 is the bias delta.
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
+	GVec m_bias;
 
 public:
 using GNeuralNetLayer::feedForward;
@@ -940,7 +927,7 @@ using GNeuralNetLayer::updateDeltas;
 	virtual GVec& activation() override { return m_activation[0]; }
 
 	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() override { return m_activation[2]; }
+	virtual GVec& error() override { return m_activation[1]; }
 
 	/// Feeds a the inputs through this layer.
 	virtual void feedForward(const GVec& in) override;
@@ -992,13 +979,8 @@ using GNeuralNetLayer::updateDeltas;
 	/// Clips each kernel weight (not including the bias) to fall between -max and max.
 	virtual void maxNorm(double min, double max) override;
 
-	/// Returns the net vector (that is, the values computed before the activation function was applied)
-	/// from the most recent call to feedForward().
-	GVec& net() { return m_activation[1]; }
-
-	const GVec& bias() const { return m_bias[0]; }
-	GVec& bias() { return m_bias[0]; }
-	GVec& biasDelta() { return m_bias[1]; }
+	const GVec& bias() const { return m_bias; }
+	GVec& bias() { return m_bias; }
 	const GMatrix& kernels() const { return m_kernels; }
 	GMatrix& kernels() { return m_kernels; }
 };
@@ -1044,12 +1026,12 @@ protected:
 	/// Data
 	GVec m_bias, m_biasDelta;
 	GMatrix m_kernels;
-	GMatrix m_activation; // Row 0 is the net. Row 1 is the activation. Row 2 is the error.
+	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
 
 	/// Data as images
 	Image m_kernelImage, m_deltaImage;
 	Image m_inputImage, m_upStreamErrorImage;
-	Image m_netImage, m_actImage, m_errImage;
+	Image m_actImage, m_errImage;
 
 private:
 	/// Helper functions for convolution
@@ -1077,8 +1059,8 @@ public:
 	virtual size_t outputs() const override { return m_outputWidth * m_outputHeight * m_bias.size(); }
 	virtual void resize(size_t inputs, size_t outputs) override;
 	virtual void resizeInputs(GNeuralNetLayer *pUpStreamLayer) override;
-	virtual GVec &activation() override { return m_activation[1]; }
-	virtual GVec &error() override { return m_activation[2]; }
+	virtual GVec &activation() override { return m_activation[0]; }
+	virtual GVec &error() override { return m_activation[1]; }
 
 	virtual void feedForward(const GVec &in) override;
 	
@@ -1126,7 +1108,6 @@ public:
 	size_t outputChannels() const { return m_bias.size(); }
 
 	size_t kernelCount() const { return m_kernels.rows(); }
-	GVec &net() { return m_activation[0]; }
 	const GMatrix &kernels() const { return m_kernels; }
 	GMatrix &kernels() { return m_kernels; }
 	const GVec &bias() const { return m_bias; }
