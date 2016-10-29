@@ -229,12 +229,13 @@ activation function for the other 150 units:</p>
 
 <p>There are several types of layers that you can use in your neural networks:
 <ul>
-	<li><b>GLayerClassic</b> - A traditional fully-connected feed-forward layer.</li>
+	<li><b>GLayerLinear</b> - A traditional fully-connected feed-forward layer.</li>
 	<li><b>GLayerMixed</b> - Allows you to combine multiple layers of different types into a single layer.</li>
 	<li><b>GLayerRestrictedBoltzmannMachine</b>: A restricted boltzmann machine layer.</li>
 	<li><b>GLayerConvolutional1D</b> - A 1-dimensional convolutional layer.</li>
 	<li><b>GLayerConvolutional2D</b> - A 2-dimensional convolutional layer.</li>
 	<li><b>GLayerSoftMax</b> - A soft-max layer, trained with cross-entropy.</li>
+	<li><b>GLayerClassic</b> - A traditional fully-connected feed-forward layer with a built-in activation function (this is legacy code that may be deprecated soon).</li>
 	<li><b>GLayerClassicCuda</b> - A GPU-optimized classic layer. Requires linking with the GCuda library.</li>
 	<li>(Other layer types are currently under development...)</li>
 </ul>
