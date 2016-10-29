@@ -46,12 +46,33 @@ void GSquaredError::evaluate(const GVec &prediction, const GVec &label, GVec &lo
 // the mathematically correct multiplication by 2 is omitted intentionally
 void GSquaredError::calculateDerivative(const GVec &prediction, const GVec &label, GVec &blame)
 {
-	for(size_t i = 0; i < prediction.size(); ++i)
+	if(m_useSlack)
 	{
-		if(label[i] == UNKNOWN_REAL_VALUE)
-			blame[i] = 0.0;
-		else
-			blame[i] = label[i] - prediction[i];
+		GAssert(m_slack.size() == prediction.size(), "Slack is not the correct size!");
+		for(size_t i = 0; i < prediction.size(); i++)
+		{
+			if(label[i] == UNKNOWN_REAL_VALUE)
+				blame[i] = 0.0;
+			else
+			{
+				if(label[i] > prediction[i] + m_slack[i])
+					blame[i] = (label[i] - prediction[i] - m_slack[i]);
+				else if(label[i] < prediction[i] - m_slack[i])
+					blame[i] = (label[i] - prediction[i] + m_slack[i]);
+				else
+					blame[i] = 0.0;
+			}
+		}
+	}
+	else
+	{
+		for(size_t i = 0; i < prediction.size(); ++i)
+		{
+			if(label[i] == UNKNOWN_REAL_VALUE)
+				blame[i] = 0.0;
+			else
+				blame[i] = label[i] - prediction[i];
+		}
 	}
 }
 
