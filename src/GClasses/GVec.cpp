@@ -607,6 +607,15 @@ void GVec::setAll(double* pVector, double value, size_t dims)
 	}
 }
 
+void GVec::fill(double* pVector, double value, size_t dims)
+{
+	for(size_t i = 0; i < dims; i++)
+	{
+		*pVector = value;
+		pVector++;
+	}
+}
+
 // static
 void GVec::perturb(double* pDest, double deviation, size_t dims, GRand& rand)
 {

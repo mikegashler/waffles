@@ -317,7 +317,7 @@ void GTransducer::transductiveConfusionMatrix(const GMatrix& trainFeatures, cons
 		if(vals > 0)
 		{
 			stats[j] = new GMatrix(vals, vals);
-			stats[j]->setAll(0.0);
+			stats[j]->fill(0.0);
 		}
 		else
 			stats[j] = NULL;
@@ -490,7 +490,7 @@ void GSupervisedLearner::confusion(GMatrix& features, GMatrix& labels, std::vect
 		if(vals > 0)
 		{
 			stats[j] = new GMatrix(vals, vals);
-			stats[j]->setAll(0.0);
+			stats[j]->fill(0.0);
 		}
 		else
 			stats[j] = NULL;

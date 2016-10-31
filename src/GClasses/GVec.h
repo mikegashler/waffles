@@ -275,6 +275,7 @@ public:
 
 	/// Sets all the elements to the specified value
 	static void setAll(double* pVector, double value, size_t dims);
+	static void fill(double* pVector, double value, size_t dims);
 
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
@@ -396,16 +397,16 @@ public:
 	}
 
 
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
 	/// Makes a vector of ints where each element contains its index (starting with zero, of course)
 	static void makeIndexVec(size_t* pVec, size_t size);
 

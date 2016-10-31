@@ -31,8 +31,8 @@ namespace GClasses {
 
 GRunningCovariance::GRunningCovariance(size_t dims) : m_counts(dims, dims), m_sums(dims + 1, dims)
 {
-	m_counts.setAll(0.0);
-	m_sums.setAll(0.0);
+	m_counts.fill(0.0);
+	m_sums.fill(0.0);
 }
 
 GRunningCovariance::~GRunningCovariance()

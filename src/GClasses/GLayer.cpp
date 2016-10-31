@@ -122,7 +122,7 @@ void GLayerLinear::resize(size_t in, size_t out)
 {
 	if(in == inputs() && out == outputs())
 		return;
-	
+
 	m_weights.resize(in + 1, out);
 	m_activation.resize(2, out);
 }
@@ -130,10 +130,10 @@ void GLayerLinear::resize(size_t in, size_t out)
 void GLayerLinear::feedForward(const GVec& in)
 {
 	GAssert(bias()[outputs() - 1] > -1e100 && bias()[outputs() - 1] < 1e100);
-	
+
 	GVec &a = activation();
 	a.copy(bias());
-	
+
 	for(size_t i = 0; i < inputs(); i++)
 		a.addScaled(in[i], m_weights.row(i));
 }
@@ -378,7 +378,7 @@ void GLayerActivation::resetWeights(GRand& rand)
 {
 	size_t inputCount = inputs();
 	double mag = std::max(0.03, 1.0 / inputCount);
-	
+
 	GVec vec(m_pActivationFunction->countWeights());
 	m_pActivationFunction->weightsToVector(vec.data());
 	for(size_t i = 0; i < vec.size(); ++i)
@@ -496,7 +496,7 @@ void GLayerClassic::feedForward(const GVec& in)
 		GAssert(n[i] < 1e100 && n[i] > -1e100);
 		a[i] = m_pActivationFunction->squash(n[i], i);
 	}
-	
+
 	m_deactivated = false;
 }
 
@@ -556,7 +556,7 @@ void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 	// the first layer needs this check (just for the legacy layer here)
 	if(!m_deactivated)
 		deactivateError();
-	
+
 	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
 	GVec &err = error();
 	double *delta = deltas.data();
@@ -566,10 +566,10 @@ void GLayerClassic::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 		for(size_t j = 0; j < outputs(); ++j)
 			*delta++ += err[j] * act;
 	}
-	
+
 	for(size_t j = 0; j < outputs(); ++j)
 		*delta++ += err[j];
-	
+
 	m_pActivationFunction->updateDeltas(net(), activation(), GVecWrapper(delta, m_pActivationFunction->countWeights()).vec());
 }
 
@@ -633,10 +633,10 @@ void GLayerClassic::transformWeights(GMatrix& transform, const GVec& offset)
 	if(transform.rows() != transform.cols())
 		throw Ex("Expected a square transformation matrix.");
 	size_t outputCount = outputs();
-	
+
 	GMatrix temp(inputs(), outputs());
 	temp.copyBlock(m_weights, 0, 0, inputs(), outputs());
-	
+
 	GMatrix* pNewWeights = GMatrix::multiply(transform, temp, true, false);
 	std::unique_ptr<GMatrix> hNewWeights(pNewWeights);
 	m_weights.copyBlock(*pNewWeights, 0, 0, pNewWeights->rows(), outputCount, 0, 0, false);
@@ -1446,7 +1446,7 @@ void GLayerMixed::backPropError(GNeuralNetLayer* pUpStreamLayer)
 void GLayerMixed::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 {
 	GAssert(deltas.size() == countWeights(), "There must be exactly one delta per weight!");
-	
+
 	GVecWrapper delta(deltas.data(), 0);
 	for(size_t i = 0; i < m_components.size(); ++i)
 	{
@@ -2280,7 +2280,7 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer)
 	m_kernels.resize(m_kernels.rows(), m_kWidth * m_kHeight * m_channels);
 
 	m_bias.fill(0.0);
-	m_kernels.setAll(0.0);
+	m_kernels.fill(0.0);
 
 	m_inputImage.width = m_width;
 	m_inputImage.height = m_height;
@@ -2299,7 +2299,7 @@ void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer)
 void GLayerConvolutional2D::feedForward(const GVec &in)
 {
 	m_inputImage.data = const_cast<GVec *>(&in);
-	
+
 	Image &n = m_actImage;
 	n.data->fill(0.0);
 	for(n.dz = 0; n.dz < n.channels; ++n.dz)

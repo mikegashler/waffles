@@ -113,7 +113,7 @@ void GAssociativeLayer::init(GRand& rand)
 	for(size_t i = 0; i < aft; i++)
 		m_back[i].fillNormal(rand);
 	clipWeightMagnitudes(0.8, 0.8);
-	m_bias.setAll(0.0);
+	m_bias.fill(0.0);
 	clamp().fill(UNKNOWN_REAL_VALUE);
 }
 
@@ -525,4 +525,3 @@ void GAssociative::test()
 #endif // MIN_PREDICT
 
 } // namespace GClasses
-

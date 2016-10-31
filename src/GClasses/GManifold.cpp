@@ -1687,7 +1687,7 @@ void GNeuroPCA::computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, 
 {
 	size_t dims = (size_t)pIn->cols();
 	if(col == 0)
-		pPreprocess->setAll(0.0);
+		pPreprocess->fill(0.0);
 	for(size_t i = 0; i < pOut->rows(); i++)
 	{
 		GVec& x = pOut->row(i);
@@ -1813,7 +1813,7 @@ GMatrix* GNeuroPCA::reduce(const GMatrix& in)
 	// Make a buffer for preprocessed info
 	GMatrix preprocess(in.relation().clone());
 	preprocess.newRows(in.rows());
-// 
+//
 	// Compute the principle components
 	double sse = 0;
 	if(m_eigVals.size() > 0)

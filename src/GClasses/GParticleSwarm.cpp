@@ -106,7 +106,7 @@ m_ball(0),
 m_rand(rand),
 m_probTeleport(probTeleport)
 {
-	m_positions.setAll(0.0);
+	m_positions.fill(0.0);
 	for(size_t i = 0; i < population; i++)
 		m_velocities[i].fillNormal(m_rand);
 	m_errors.fill(1e200);
@@ -163,4 +163,3 @@ void GBouncyBalls::test()
 
 
 } // namespace GClasses
-

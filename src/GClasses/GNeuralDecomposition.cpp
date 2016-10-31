@@ -63,7 +63,7 @@ void GNeuralDecomposition::trainOnSeries(const GMatrix &series)
 	{
 		features[i][0] = i / (double) (series.rows());
 	}
-	
+
 	// Train normally
 	train(features, series);
 }
@@ -71,14 +71,14 @@ void GNeuralDecomposition::trainOnSeries(const GMatrix &series)
 GMatrix *GNeuralDecomposition::extrapolate(double start, double length, double step, bool outputFeatures)
 {
 	// note: this method assumes the network was trained with single-column features
-	
+
 	size_t rows = (size_t) (length / step);
 	GVec x(1);
 	x[0] = start;
-	
+
 	GMatrix *output = new GMatrix(rows, m_nn->outputLayer().outputs() + (outputFeatures ? 1 : 0));
 	GVec tmp(output->cols());
-	
+
 	for(size_t i = 0; i < rows; i++)
 	{
 		GVec &out = output->row(i);
@@ -90,7 +90,7 @@ GMatrix *GNeuralDecomposition::extrapolate(double start, double length, double s
 		out.put(outputFeatures ? 1 : 0, tmp);
 		x[0] += step;
 	}
-	
+
 	return output;
 }
 
@@ -98,17 +98,17 @@ GMatrix *GNeuralDecomposition::extrapolate(const GMatrix &features)
 {
 	// note: this method assumes the network was trained with single-column features
 	// note: this method uses featureBias and featureScale to normalize features
-	
+
 	GMatrix *output = new GMatrix(features.rows(), m_nn->outputLayer().outputs());
 	GVec in(1);
-	
+
 	for(size_t i = 0; i < features.rows(); i++)
 	{
 		in[0] = (features[i][0] - m_featureBias) / m_featureScale;
 		GVec& out = output->row(i);
 		predict(in, out);
 	}
-	
+
 	return output;
 }
 
@@ -158,17 +158,17 @@ void GNeuralDecomposition::trainInner(const GMatrix &features, const GMatrix &la
 	{
 		throw Ex("Neural decomposition expects single-column input features.");
 	}
-	
+
 	if(features.rows() != labels.rows())
 	{
 		throw Ex("Features and labels must have the same number of rows.");
 	}
-	
+
 	if(m_sinusoidUnits == 0)
 	{
 		m_sinusoidUnits = features.rows();
 	}
-	
+
 	if(m_autoFilter)
 	{
 		m_featureScale	= features.columnMax(0) - features.columnMin(0);
@@ -176,18 +176,18 @@ void GNeuralDecomposition::trainInner(const GMatrix &features, const GMatrix &la
 		m_outputScale	= labels.columnMax(0) - labels.columnMin(0);
 		m_outputBias	= labels.columnMin(0);
 	}
-	
+
 	if(m_filterLogarithm)
 	{
 		m_outputScale	= log(m_outputScale) / log(10);
 		m_outputBias	= log(m_outputBias) / log(10);
 	}
-	
+
 	beginIncrementalLearning(features.relation(), labels.relation());
-	
+
 	GRandomIndexIterator ii(labels.rows(), m_nn->rand());
 	size_t i;
-	
+
 	for(size_t epoch = 0; epoch < m_epochs; epoch++)
 	{
 		ii.reset();
@@ -206,44 +206,44 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 	{
 		throw Ex("Neural decomposition expects single-column input features.");
 	}
-	
+
 	if(m_sinusoidUnits == 0)
 	{
 		throw Ex("You must set the number of sinusoid units before calling beginIncrementalLearning!");
 	}
-	
+
 	// Layer 1: Sinusoids + g(t)
 	GLayerMixed *pMix = new GLayerMixed();
-	
+
 	// sinusoids
-	
+
 	GLayerClassic *pSine = new GLayerClassic(featureRel.size(), m_sinusoidUnits, new GActivationSin());
 	pMix->addComponent(pSine);
-	
+
 	// g(t)
-	
+
 	GLayerClassic *pLinear = new GLayerClassic(featureRel.size(), m_linearUnits, new GActivationIdentity());
 	pMix->addComponent(pLinear);
-	
+
 	GLayerClassic *pSoftplus = new GLayerClassic(featureRel.size(), m_softplusUnits, new GActivationSoftPlus());
 	pMix->addComponent(pSoftplus);
-	
+
 	GLayerClassic *pSigmoid = new GLayerClassic(featureRel.size(), m_sigmoidUnits, new GActivationTanH());
 	pMix->addComponent(pSigmoid);
-	
+
 	m_nn->addLayer(pMix);
-	
+
 	// Layer 2: Output
 	GLayerClassic *pOutput = new GLayerClassic(pMix->outputs(), labelRel.size(), new GActivationIdentity());
 	m_nn->addLayer(pOutput);
-	
+
 	// Prepare for learning
 	m_optimizer.setTarget(new GNeuralNetFunction(*m_nn));
 	m_optimizer.setLearningRate(m_learningRate);
 	m_nn->beginIncrementalLearning(featureRel, labelRel);
-	
+
 	// Initialize weights
-	
+
 	// sinusoids
 	{
 		// initialize sinusoid nodes inspired by the DFT
@@ -260,21 +260,21 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 			bias[2 * i + 1] = M_PI;
 		}
 	}
-	
+
 	// g(t)
 	{
 		// initialize g(t) weights near identity
-		
+
 		pLinear->setWeightsToIdentity();
 		pSoftplus->setWeightsToIdentity();
 		pSigmoid->setWeightsToIdentity();
 	}
-	
+
 	// output layer
 	{
 		// initialize output weights near zero
 		pOutput->bias().fill(0.0);
-		pOutput->weights().setAll(0.0);
+		pOutput->weights().fill(0.0);
 		pOutput->perturbWeights(m_nn->rand(), 0.001);
 	}
 }
@@ -283,11 +283,11 @@ void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 {
 	// L1 regularization
 	m_nn->outputLayer().diminishWeights(m_learningRate * m_regularization, true);
-	
+
 	// Filter input
 	GVec in(1);
 	in[0] = (pIn[0] - m_featureBias) / m_featureScale;
-	
+
 	// Filter output
 	GVec out(1);
 	if(m_filterLogarithm)
@@ -298,7 +298,7 @@ void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 	{
 		out[0] = 10.0 * (pOut[0] - m_outputBias) / m_outputScale;
 	}
-	
+
 	// Backpropagation
 	m_optimizer.optimizeIncremental(in, out);
 }
@@ -315,26 +315,26 @@ void GNeuralDecomposition::test()
 {
 	double step = 0.02;
 	double threshold = 0.5;
-	
+
 	size_t testSize = (size_t)(1.0 / step);
-	
+
 	GMatrix series(testSize, 1), test(testSize, 1);
 	for(size_t i = 0; i < testSize * 2; i++)
 	{
 		double x = i / (double) testSize;
 		double y = sin(4.1 * M_PI * x) + x;
-		
+
 		if(i < testSize)
 			series[i][0] = y;
 		else
 			test[i - testSize][0] = y;
 	}
-	
+
 	GNeuralDecomposition nd;
 	nd.setEpochs(10000);
 	nd.trainOnSeries(series);
 	GMatrix *out = nd.extrapolate(1.0, 1.0, 1.0 / testSize);
-	
+
 	double rmse = 0.0;
 	for(size_t i = 0; i < testSize; i++)
 	{
@@ -342,9 +342,9 @@ void GNeuralDecomposition::test()
 		rmse += err * err;
 	}
 	rmse = sqrt(rmse / testSize);
-	
+
 	delete out;
-	
+
 	if(rmse > threshold)
 	{
 		throw Ex("Neural decomposition failed to extrapolate toy problem.");

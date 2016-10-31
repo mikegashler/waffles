@@ -740,7 +740,7 @@ void GSparseClusterRecommender::train(GMatrix& data)
 	// Gather the mean predictions in each cluster
 	delete(m_pPredictions);
 	m_pPredictions = new GMatrix(m_clusters, sm.cols());
-	m_pPredictions->setAll(0.0);
+	m_pPredictions->fill(0.0);
 	size_t* pCounts = new size_t[sm.cols() * m_clusters];
 	std::unique_ptr<size_t[]> hCounts(pCounts);
 	memset(pCounts, '\0', sizeof(size_t) * sm.cols() * m_clusters);
@@ -860,7 +860,7 @@ void GDenseClusterRecommender::train(GMatrix& data)
 	// Gather the mean predictions in each cluster
 	delete(m_pPredictions);
 	m_pPredictions = new GMatrix(m_clusters, items);
-	m_pPredictions->setAll(0.0);
+	m_pPredictions->fill(0.0);
 	size_t* pCounts = new size_t[items * m_clusters];
 	std::unique_ptr<size_t[]> hCounts(pCounts);
 	memset(pCounts, '\0', sizeof(size_t) * items * m_clusters);
@@ -999,7 +999,7 @@ void GMatrixFactorization::clampUserElement(size_t user, size_t attr, double val
 	{
 		m_pPMask = new GMatrix(0, m_intrinsicDims);
 		m_pPWeights = new GMatrix(2, m_intrinsicDims);
-		m_pPWeights->setAll(0.0);
+		m_pPWeights->fill(0.0);
 	}
 	while(m_pPMask->rows() <= user)
 		m_pPMask->newRow().fill(UNKNOWN_REAL_VALUE);
@@ -1014,7 +1014,7 @@ void GMatrixFactorization::clampItemElement(size_t item, size_t attr, double val
 	{
 		m_pQMask = new GMatrix(0, m_intrinsicDims);
 		m_pQWeights = new GMatrix(2, m_intrinsicDims);
-		m_pQWeights->setAll(0.0);
+		m_pQWeights->fill(0.0);
 	}
 	while(m_pQMask->rows() <= item)
 		m_pQMask->newRow().fill(UNKNOWN_REAL_VALUE);
@@ -2011,7 +2011,7 @@ void GLogNet::train(GMatrix& data)
 		a2[i] = 1.0;
 	m_pModel->addLayer(pLay2);
 	GMatrix& w2 = pLay2->weights();
-	w2.setAll(0.0);
+	w2.fill(0.0);
 	w2[0][0] = 1.0; // user bias
 	w2[m_intrinsicDims + 1][1] = 1.0; // item bias
 	for(size_t i = 0; i < m_intrinsicDims; i++)
@@ -2030,7 +2030,7 @@ void GLogNet::train(GMatrix& data)
 	a3[0] = 0.0;
 	m_pModel->addLayer(pLay3);
 	GMatrix& w3 = pLay3->weights();
-	w3.setAll(1.0);
+	w3.fill(1.0);
 	GVec& b3 = pLay3->bias();
 	b3[0] = 0.0;
 
@@ -2047,19 +2047,19 @@ void GLogNet::train(GMatrix& data)
 		size_t item = (size_t)row[1];
 		GVec::copy(m_input.v, m_pP->row(user), m_intrinsicDims + 1);
 		GVec::copy(m_input.v + m_intrinsicDims + 1, m_pQ->row(item), m_intrinsicDims + 1);
-		
+
 		// Regularize everything
 		m_pModel->regularizeActivationFunctions(learningRate * 0.0001);
 		m_pModel->scaleWeights(1.0 - learningRate * 0.0001);
 		GVec::multiply(m_input.v, 1.0 - learningRate * 0.0001, totalInputs);
-		
+
 		// Update everything
 		m_pModel->forwardProp(m_input.v);
 		m_pModel->backpropagate(&row[2], learningRate);
 		m_pModel->layer(0).backPropError(&inputLayer);
 		m_pModel->descendGradient(m_input.v, learningRate, 0.0);
 		GVec::addScaled(m_input.v, learningRate, inputLayer.error(), totalInputs);
-		
+
 		// Clip everything
 		GVec::floorValues(m_input.v, 0.0, totalInputs);
 		for(size_t i = 0; i < m_pModel->layerCount(); i++)
@@ -2070,7 +2070,7 @@ void GLogNet::train(GMatrix& data)
 				GVec::floorValues(w[j], 0.0, w.cols());
 			GVec::floorValues(pLay->bias(), 0.0, w.cols());
 		}
-		
+
 		// Store the updated profiles
 		GVec::copy(m_pP->row(user), m_input.v, m_intrinsicDims + 1);
 		GVec::copy(m_pQ->row(item), m_input.v + m_intrinsicDims + 1, m_intrinsicDims + 1);

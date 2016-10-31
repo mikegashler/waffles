@@ -1038,7 +1038,7 @@ void GLearnerLib::predict(GArgReader& args)
 		throw Ex("The model was trained with ", to_str(pModeler->relLabels().size()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
 	if(!pFeatures->relation().isCompatible(pModeler->relFeatures()) || !pLabels->relation().isCompatible(pModeler->relLabels()))
 		throw Ex("This data is not compatible with the data that was used to train the model. (The column meta-data is different.)");
-	pLabels->setAll(0.0); // Wipe out the existing labels, just to be absolutely certain that we don't somehow accidentally let them influence the predictions
+	pLabels->fill(0.0); // Wipe out the existing labels, just to be absolutely certain that we don't somehow accidentally let them influence the predictions
 
 	// Test
 	for(size_t i = 0; i < pFeatures->rows(); i++)

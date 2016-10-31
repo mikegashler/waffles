@@ -1074,7 +1074,7 @@ void singularValueDecomposition(GArgReader& args)
 	if(sigmafilename.length() > 0)
 	{
 		GMatrix sigma(pU->rows(), pV->rows());
-		sigma.setAll(0.0);
+		sigma.fill(0.0);
 		size_t m = std::min(sigma.rows(), (size_t)sigma.cols());
 		for(size_t i = 0; i < m; i++)
 			sigma.row(i)[i] = pDiag[i];
@@ -1350,4 +1350,3 @@ int main(int argc, char *argv[])
 
 	return ret;
 }
-

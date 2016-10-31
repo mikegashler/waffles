@@ -403,7 +403,7 @@ std::unique_ptr<GMatrix> GAgglomerativeTransducer::transduceInner(const GMatrix&
 	// Transduce
 	auto pOut = std::unique_ptr<GMatrix>(new GMatrix(labels1.relation().clone()));
 	pOut->newRows(features2.rows());
-	pOut->setAll(-1);
+	pOut->fill(-1);
 	size_t* pSiblings = new size_t[featuresAll.rows()]; // a cyclical linked list of each row in the cluster
 	std::unique_ptr<size_t[]> hSiblings(pSiblings);
 	for(size_t lab = 0; lab < labels1.cols(); lab++)
@@ -1247,7 +1247,7 @@ std::unique_ptr<GMatrix> GGraphCutTransducer::transduceInner(const GMatrix& feat
 	// Transduce
 	auto pOut = std::unique_ptr<GMatrix>(new GMatrix(labels1.relation().clone()));
 	pOut->newRows(features2.rows());
-	pOut->setAll(0);
+	pOut->fill(0);
 	for(size_t lab = 0; lab < labels1.cols(); lab++)
 	{
 		// Use max-flow/min-cut graph-cut to separate out each label value
@@ -1287,5 +1287,3 @@ std::unique_ptr<GMatrix> GGraphCutTransducer::transduceInner(const GMatrix& feat
 	}
 	return pOut;
 }
-
-
