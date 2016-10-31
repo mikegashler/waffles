@@ -210,7 +210,7 @@ public:
 	void addScaled(double scalar, const GVec& that);
 
 	/// Applies L1 regularization to this vector.
-	void regularize_L1(double amount);
+	void regularizeL1(double amount);
 
 	/// Puts a copy of that at the specified location in this.
 	/// Throws an exception if it does not fit there.

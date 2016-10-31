@@ -444,7 +444,7 @@ void GVec::addScaled(double scalar, const GVec& that)
 		(*this)[i] += (scalar * that[i]);
 }
 
-void GVec::regularize_L1(double amount)
+void GVec::regularizeL1(double amount)
 {
 	for(size_t i = 0; i < m_size; i++)
 	{

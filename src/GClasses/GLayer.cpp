@@ -186,9 +186,9 @@ void GLayerLinear::scaleWeights(double factor, bool scaleBiases)
 void GLayerLinear::diminishWeights(double amount, bool regularizeBiases)
 {
 	for(size_t i = 0; i < inputs(); i++)
-		m_weights[i].regularize_L1(amount);
+		m_weights[i].regularizeL1(amount);
 	if(regularizeBiases)
-		bias().regularize_L1(amount);
+		bias().regularizeL1(amount);
 }
 
 size_t GLayerLinear::countWeights()
@@ -348,7 +348,7 @@ void GLayerActivation::diminishWeights(double amount, bool regularizeBiases)
 {
 	GVec vec(m_pActivationFunction->countWeights());
 	m_pActivationFunction->weightsToVector(vec.data());
-	vec.regularize_L1(amount);
+	vec.regularizeL1(amount);
 	m_pActivationFunction->vectorToWeights(vec.data());
 }
 
@@ -605,9 +605,9 @@ void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
 void GLayerClassic::diminishWeights(double amount, bool regularizeBiases)
 {
 	for(size_t i = 0; i < inputs(); i++)
-		m_weights[i].regularize_L1(amount);
+		m_weights[i].regularizeL1(amount);
 	if(regularizeBiases)
-		bias().regularize_L1(amount);
+		bias().regularizeL1(amount);
 }
 
 void GLayerClassic::contractWeights(double factor, bool contractBiases)
@@ -1192,9 +1192,9 @@ void GLayerMaxOut::scaleWeights(double factor, bool scaleBiases)
 void GLayerMaxOut::diminishWeights(double amount, bool regularizeBiases)
 {
 	for(size_t i = 0; i < m_weights.rows(); i++)
-		m_weights[i].regularize_L1(amount);
+		m_weights[i].regularizeL1(amount);
 	if(regularizeBiases)
-		bias().regularize_L1(amount);
+		bias().regularizeL1(amount);
 }
 
 void GLayerMaxOut::contractWeights(double factor, bool contractBiases)
@@ -1794,9 +1794,9 @@ void GLayerRestrictedBoltzmannMachine::scaleWeights(double factor, bool scaleBia
 void GLayerRestrictedBoltzmannMachine::diminishWeights(double amount, bool diminishBiases)
 {
 	for(size_t i = 0; i < m_weights.rows(); i++)
-		m_weights[i].regularize_L1(amount);
+		m_weights[i].regularizeL1(amount);
 	if(diminishBiases)
-		bias().regularize_L1(amount);
+		bias().regularizeL1(amount);
 }
 
 // virtual
@@ -2062,9 +2062,9 @@ void GLayerConvolutional1D::scaleWeights(double factor, bool scaleBiases)
 void GLayerConvolutional1D::diminishWeights(double amount, bool diminishBiases)
 {
 	for(size_t i = 0; i < m_kernels.rows(); i++)
-		m_kernels[i].regularize_L1(amount);
+		m_kernels[i].regularizeL1(amount);
 	if(diminishBiases)
-		bias().regularize_L1(amount);
+		bias().regularizeL1(amount);
 }
 
 // virtual
