@@ -890,63 +890,63 @@ public:
 		runTest("GActivationSoftExponential", GActivationSoftExponential::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAnnealing", GAnnealing::test);
-		runTest("GAssignment - linearAssignment", testLinearAssignment);
-		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);
-		runTest("GAssociative", GAssociative::test);
-		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
-		runTest("GAttributeSelector", GAttributeSelector::test);
-		runTest("GAutoFilter", GAutoFilter::test);
-		runTest("GBag", GBag::test);
-		runTest("GBagOfRecommenders", GBagOfRecommenders::test);
-		runTest("GBallTree", GBallTree::test);
-		runTest("GBaselineLearner", GBaselineLearner::test);
-		runTest("GBaselineRecommender", GBaselineRecommender::test);
-		runTest("GBayesianModelAveraging", GBayesianModelAveraging::test);
-		runTest("GBayesianModelCombination", GBayesianModelCombination::test);
-		runTest("GBayesNet", GBayesNet::test);
-		runTest("GBezier", GBezier::test);
-		runTest("GBits", GBits::test);
-		runTest("GBitTable", GBitTable::test);
-		runTest("GBouncyBalls", GBouncyBalls::test);
-		runTest("GReverseBits", reverseBitsTest);
-		runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);
-		runTest("GBucket", GBucket::test);
-		runTest("GCategoricalSamplerBatch", GCategoricalSamplerBatch::test);
-		runTest("GCompressor", GCompressor::test);
-		runTest("GCoordVectorIterator", GCoordVectorIterator::test);
-		runTest("GCrypto", GCrypto::test);
-		runTest("GCycleCut", GCycleCut::test);
-		runTest("GDecisionTree", GDecisionTree::test);
-		runTest("GDiff", GDiff::test);
-		runTest("GDijkstra", GDijkstra::test);
-		runTest("GDistanceMetric", GDistanceMetric::test);
-		runTest("GDom", GDom::test);
-		runTest("GError.h - to_str", test_to_str);
-		runTest("GFloydWarshall", GFloydWarshall::test);
-		runTest("GFourier", GFourier::test);
-		runTest("GGaussianProcess", GGaussianProcess::test);
-		runTest("GGraphCut", GGraphCut::test);
-		runTest("GHashTable", GHashTable::test);
-		runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);
-		runTest("GHillClimber", GHillClimber::test);
-		runTest("GIncrementalTransform", GIncrementalTransform::test);
-		runTest("GInstanceRecommender", GInstanceRecommender::test);
-		runTest("GKdTree", GKdTree::test);
-		runTest("GKeyPair", GKeyPair::test);
-		runTest("GKNN", GKNN::test);
-		runTest("GLinearDistribution", GLinearDistribution::test);
-		runTest("GLinearProgramming", GLinearProgramming::test);
-		runTest("GLinearRegressor", GLinearRegressor::test);
-		runTest("GManifold", GManifold::test);
-		runTest("GMath", GMath::test);
-		runTest("GMatrix", GMatrix::test);
-		runTest("GMatrix::parseArff quoting", test_parsearff_quoting);
-		runTest("GMatrixFactorization", GMatrixFactorization::test);
-		runTest("GMeanMarginsTree", GMeanMarginsTree::test);
-		runTest("GMixtureOfGaussians", GMixtureOfGaussians::test);
-		runTest("GMomentumGreedySearch", GMomentumGreedySearch::test);
-		runTest("GNaiveBayes", GNaiveBayes::test);
-		runTest("GNaiveInstance", GNaiveInstance::test);
+		runTest("GAssignment - linearAssignment", testLinearAssignment);	// ?
+		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);	// ?
+		runTest("GAssociative", GAssociative::test);	// ?
+		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);	// ?
+		runTest("GAttributeSelector", GAttributeSelector::test);	// ?
+		runTest("GAutoFilter", GAutoFilter::test);	// ?
+		runTest("GBag", GBag::test);	// ?
+		runTest("GBagOfRecommenders", GBagOfRecommenders::test);	// ?
+		runTest("GBallTree", GBallTree::test);	// ?
+		runTest("GBaselineLearner", GBaselineLearner::test);	// ?
+		runTest("GBaselineRecommender", GBaselineRecommender::test);	// ?
+		runTest("GBayesianModelAveraging", GBayesianModelAveraging::test);	// ?
+		runTest("GBayesianModelCombination", GBayesianModelCombination::test);	// ?
+		runTest("GBayesNet", GBayesNet::test);	// ?
+		runTest("GBezier", GBezier::test);	// ?
+		runTest("GBits", GBits::test);	// ?
+		runTest("GBitTable", GBitTable::test);	// ?
+		runTest("GBouncyBalls", GBouncyBalls::test);	// ?
+		runTest("GReverseBits", reverseBitsTest);	// ?
+		runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);	// ?
+		runTest("GBucket", GBucket::test);	// ?
+		runTest("GCategoricalSamplerBatch", GCategoricalSamplerBatch::test);	// ?
+		runTest("GCompressor", GCompressor::test);	// fine
+		runTest("GCoordVectorIterator", GCoordVectorIterator::test);	// causes issue
+		runTest("GCrypto", GCrypto::test);	// fine
+		runTest("GCycleCut", GCycleCut::test);	// fine
+		runTest("GDecisionTree", GDecisionTree::test);	// causes problem
+		runTest("GDiff", GDiff::test);	// fine
+		runTest("GDijkstra", GDijkstra::test);	// fine
+		runTest("GDistanceMetric", GDistanceMetric::test);	// fine
+		runTest("GDom", GDom::test);	// fine
+		runTest("GError.h - to_str", test_to_str);	// fine
+		runTest("GFloydWarshall", GFloydWarshall::test);	// fine
+		runTest("GFourier", GFourier::test);	// fine
+		runTest("GGaussianProcess", GGaussianProcess::test);	// causes problem
+		runTest("GGraphCut", GGraphCut::test);	// fine
+		runTest("GHashTable", GHashTable::test);	// fine
+		runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);	// fine
+		runTest("GHillClimber", GHillClimber::test);	// fine
+		runTest("GIncrementalTransform", GIncrementalTransform::test);	// fine
+		runTest("GInstanceRecommender", GInstanceRecommender::test);	// fine
+		runTest("GKdTree", GKdTree::test);	// fine
+		runTest("GKeyPair", GKeyPair::test); // fine
+		runTest("GKNN", GKNN::test);	// caused issue
+		runTest("GLinearDistribution", GLinearDistribution::test);	// caused issues
+		runTest("GLinearProgramming", GLinearProgramming::test);	// fine
+		runTest("GLinearRegressor", GLinearRegressor::test);	// fine
+		runTest("GManifold", GManifold::test);	// fine
+		runTest("GMath", GMath::test);	// fine
+		runTest("GMatrix", GMatrix::test);	// fine
+		runTest("GMatrix::parseArff quoting", test_parsearff_quoting);	// fine
+		runTest("GMatrixFactorization", GMatrixFactorization::test); // fine
+		runTest("GMeanMarginsTree", GMeanMarginsTree::test);	// fine
+		runTest("GMixtureOfGaussians", GMixtureOfGaussians::test); // fine
+		runTest("GMomentumGreedySearch", GMomentumGreedySearch::test); // fine
+		runTest("GNaiveBayes", GNaiveBayes::test);	// caused issue
+		runTest("GNaiveInstance", GNaiveInstance::test);	// caused issue
 		runTest("GNeuralDecomposition", GNeuralDecomposition::test);
 		runTest("GNeuralNet", GNeuralNet::test);
 //		runTest("GNonlinearPCA", GNonlinearPCA::test);

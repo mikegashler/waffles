@@ -230,7 +230,7 @@ public:
 
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
 	virtual void maxNorm(double min, double max) override;
-	
+
 	/// Returns the bias vector of this layer.
 	GVec& bias() { return m_weights.back(); }
 
@@ -441,7 +441,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Get the entire weights matrix
 	GMatrix &weights() { return m_weights; }
-	
+
 	/// Get the entire weights matrix
 	const GMatrix &weights() const { return m_weights; }
 
@@ -785,7 +785,7 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Returns a reference to the weights matrix of this layer
 	GMatrix& weights() { return m_weights; }
-	
+
 	/// Returns a reference to the weights matrix of this layer
 	const GMatrix& weights() const { return m_weights; }
 
@@ -837,6 +837,7 @@ protected:
 	GMatrix m_inputError;
 	GMatrix m_activation;
 	std::vector<GNeuralNetLayer*> m_components;
+	bool m_deactivated;
 
 public:
 using GNeuralNetLayer::feedForward;
@@ -870,6 +871,10 @@ using GNeuralNetLayer::updateDeltas;
 
 	/// Returns the number of nodes or units in this layer.
 	virtual size_t outputs() const override;
+
+	// Exists to solve an issue with components of the mixed layer never getting
+	// their error buffers set.
+	void deactivateError();
 
 	/// Throws an exception if the specified dimensions would change anything. Also
 	/// throws an exception if pRand is not NULL.
@@ -1247,19 +1252,19 @@ public:
 	virtual GVec &error() override { return m_activation[1]; }
 
 	virtual void feedForward(const GVec &in) override;
-	
+
 	/// \deprecated
 	virtual void dropOut(GRand &rand, double probOfDrop) override;
 	virtual void dropConnect(GRand &rand, double probOfDrop);
 	virtual void backPropError(GNeuralNetLayer *pUpStreamLayer) override;
-	
+
 	/// Updates the deltas for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
 	virtual void applyDeltas(const GVec &deltas) override;
-	
+
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 	virtual size_t countWeights() override;

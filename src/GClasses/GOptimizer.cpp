@@ -143,6 +143,7 @@ void GDifferentiableOptimizer::optimizeIncremental(const GVec &feat, const GVec 
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
 	GAssert(feat.size() == m_target->inputs() && lab.size() == m_target->outputs(), "Features/labels size mismatch!");
+	GAssert(feat.size() != 0 && lab.size() != 0, "Features/labels are empty!")
 	updateDeltas(feat, lab);
 	applyDeltas();
 }
@@ -185,11 +186,11 @@ void GDifferentiableOptimizer::optimize(const GMatrix &features, const GMatrix &
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
 	GAssert(features.cols() == m_target->inputs() && labels.cols() == m_target->outputs(), "Features/labels size mismatch!");
-	
+
 	size_t batchesPerEpoch = m_batchesPerEpoch;
 	if(m_batchesPerEpoch > features.rows())
 		batchesPerEpoch = features.rows();
-	
+
 	GRandomIndexIterator ii(features.rows(), *m_rand);
 	for(size_t i = 0; i < m_epochs; ++i)
 		for(size_t j = 0; j < batchesPerEpoch; ++j)
@@ -199,11 +200,11 @@ void GDifferentiableOptimizer::optimize(const GMatrix &features, const GMatrix &
 void GDifferentiableOptimizer::optimizeWithValidation(const GMatrix &features, const GMatrix &labels, const GMatrix &validationFeat, const GMatrix &validationLab)
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
-	
+
 	size_t batchesPerEpoch = m_batchesPerEpoch;
 	if(m_batchesPerEpoch > features.rows())
 		batchesPerEpoch = features.rows();
-	
+
 	double bestError = 1e308, currentError;
 	size_t k = 0;
 	GRandomIndexIterator ii(features.rows(), *m_rand);
@@ -333,7 +334,7 @@ void GRMSPropOptimizer::applyDeltas()
 		m_meanSquare[i] += (1.0 - m_gamma) * m_gradient[i] * m_gradient[i];
 		m_gradient[i] /= sqrt(m_meanSquare[i]) + m_epsilon;
 	}
-	
+
 	m_deltas.fill(0.0);
 	m_deltas.addScaled(m_learningRate, m_gradient);
 	m_target->applyDeltas(m_deltas);
@@ -576,4 +577,3 @@ double GActionPath::critique()
 }
 
 } // namespace GClasses
-

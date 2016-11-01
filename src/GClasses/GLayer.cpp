@@ -470,7 +470,7 @@ void GLayerClassic::resetWeights(GRand& rand)
 	for(size_t i = 0; i < m_weights.rows(); i++)
 	{
 		GVec& w = m_weights[i];
-		for(size_t j = 0; j < outputCount; j++)
+		for(size_t j = 0; j < w.size(); j++)
 			w[j] = rand.normal() * mag;
 	}
 }
@@ -487,16 +487,18 @@ void GLayerClassic::feedForward(const GVec& in)
 	size_t outputCount = outputs();
 	GVec& n = net();
 	GVec& a = activation();
-	for(size_t i = 0; i < inputCount; i++)
+	for(size_t i = 0; i < inputCount; i++) {
+		GAssert(in[i] < 1e100 && in[i] > -1e100, "Inputs are too big in GLayerClassic feedForward.");
 		n.addScaled(in[i], m_weights.row(i));
+	}
 
 	// Activate
 	for(size_t i = 0; i < outputCount; i++)
 	{
-		GAssert(n[i] < 1e100 && n[i] > -1e100);
+		GAssert(n[i] < 1e100 && n[i] > -1e100, "Net values before squashing have gotten too big in GLayerClassic feedForward.");
+
 		a[i] = m_pActivationFunction->squash(n[i], i);
 	}
-
 	m_deactivated = false;
 }
 
@@ -1324,10 +1326,12 @@ void GLayerSoftMax::activate()
 
 
 GLayerMixed::GLayerMixed()
+: m_deactivated(false)
 {
 }
 
 GLayerMixed::GLayerMixed(GDomNode* pNode)
+: m_deactivated(false)
 {
 	GDomListIterator it(pNode->field("comps"));
 	while(it.remaining() > 0)
@@ -1370,10 +1374,12 @@ void GLayerMixed::addComponent(GNeuralNetLayer* pComponent)
 {
 	if(m_activation.cols() > 0)
 		throw Ex("Cannot add a component to GLayerMixed after it has been used");
+
 	if(m_inputError.cols() == 0)
 		m_inputError.resize(1, pComponent->inputs());
 	else if(m_inputError.cols() != pComponent->inputs())
 		throw Ex("This component expects ", GClasses::to_str(pComponent->inputs()), ", inputs, which conflicts with a previous component that expects ", GClasses::to_str(m_inputError.cols()), " inputs");
+
 	m_components.push_back(pComponent);
 }
 
@@ -1393,14 +1399,31 @@ size_t GLayerMixed::outputs() const
 			throw Ex("GLayerMixed requires at least 2 components to be added before it is used");
 		for(size_t i = 0; i < m_components.size(); i++)
 			outs += m_components[i]->outputs();
-		((GMatrix*)&m_activation)->resize(2, outs); // !!!HACK: this circumvents the "const" declaration on this function!
 	}
 	return outs;
+}
+
+// Copies the error frm GLayerMixed to each of the components.
+void GLayerMixed::deactivateError()
+{
+	m_deactivated = true;
+	GVec& err = error();
+	for(size_t i = 0; i < m_components.size(); i++)
+	{
+		size_t outSize = m_components[i]->outputs();
+
+		m_components[i]->error().put(0, err, i * outSize, outSize);
+	}
 }
 
 // virtual
 void GLayerMixed::resize(size_t inputSize, size_t outputSize)
 {
+	if ( m_activation.cols() == 0 ) {
+		m_activation.resize(2, outputs());
+		m_activation.fill(0.0);
+	}
+
 	if(outputSize != m_activation.cols())
 		throw Ex("Sorry, GLayerMixed does not support resizing the number of outputs");
 	for(size_t i = 0; i < m_components.size(); i++)
@@ -1413,13 +1436,19 @@ void GLayerMixed::resize(size_t inputSize, size_t outputSize)
 // virtual
 void GLayerMixed::feedForward(const GVec& in)
 {
-	double* pAct = m_activation[0].data();
+	// std::cerr << "m_activation.rows(): " << m_activation.rows() << std::endl;
+	// double* pAct = m_activation[0].data();
+	GVec &pAct = m_activation[0];
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
 		m_components[i]->feedForward(in);
-		memcpy(pAct, m_components[i]->activation().data(), m_components[i]->outputs() * sizeof(double));
+		// memcpy(pAct, m_components[i]->activation().data(), m_components[i]->outputs() * sizeof(double));
+
+		pAct.put(0, m_components[i]->activation(), 0, m_components[i]->outputs());
+
 		pAct += m_components[i]->outputs();
 	}
+	m_deactivated = false;
 }
 
 // virtual
@@ -1432,7 +1461,9 @@ void GLayerMixed::dropOut(GRand& rand, double probOfDrop)
 // virtual
 void GLayerMixed::backPropError(GNeuralNetLayer* pUpStreamLayer)
 {
-	double* pBuf = m_inputError[0].data();
+	deactivateError();
+	GVec &pBuf = m_inputError[0];
+	// double* pBuf = m_inputError[0].data();
 	size_t inps = pUpStreamLayer->outputs();
 	m_inputError[0].fill(0.0);
 	for(size_t i = 0; i < m_components.size(); i++)
@@ -1440,11 +1471,15 @@ void GLayerMixed::backPropError(GNeuralNetLayer* pUpStreamLayer)
 		m_components[i]->backPropError(pUpStreamLayer);
 		m_inputError[0] += pUpStreamLayer->error();
 	}
-	memcpy(pUpStreamLayer->error().data(), pBuf, inps * sizeof(double));
+	pUpStreamLayer->error().put(0, pBuf, 0, inps);
+	// memcpy(pUpStreamLayer->error().data(), pBuf, inps * sizeof(double));
 }
 
 void GLayerMixed::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 {
+	if (!m_deactivated)
+		deactivateError();
+
 	GAssert(deltas.size() == countWeights(), "There must be exactly one delta per weight!");
 
 	GVecWrapper delta(deltas.data(), 0);
@@ -1529,6 +1564,7 @@ void GLayerMixed::copyWeights(const GNeuralNetLayer* pSource)
 // virtual
 void GLayerMixed::resetWeights(GRand& rand)
 {
+	// m_activation.resize(2, outputs());
 	for(size_t i = 0; i < m_components.size(); i++)
 		m_components[i]->resetWeights(rand);
 }
