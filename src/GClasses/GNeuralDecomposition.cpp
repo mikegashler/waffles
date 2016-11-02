@@ -202,7 +202,8 @@ void GNeuralDecomposition::trainInner(const GMatrix &features, const GMatrix &la
 
 void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featureRel, const GRelation &labelRel)
 {
-	if(featureRel.size() != 1)
+	// ################################################# todo: I disabled this until we design a replacement for GLayerMixed.  -MSG
+/*	if(featureRel.size() != 1)
 	{
 		throw Ex("Neural decomposition expects single-column input features.");
 	}
@@ -276,7 +277,7 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 		pOutput->bias().fill(0.0);
 		pOutput->weights().fill(0.0);
 		pOutput->perturbWeights(m_nn->rand(), 0.001);
-	}
+	}*/
 }
 
 void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)

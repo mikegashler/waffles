@@ -947,7 +947,7 @@ public:
 		runTest("GMomentumGreedySearch", GMomentumGreedySearch::test); // fine
 		runTest("GNaiveBayes", GNaiveBayes::test);	// caused issue
 		runTest("GNaiveInstance", GNaiveInstance::test);	// caused issue
-		runTest("GNeuralDecomposition", GNeuralDecomposition::test);
+//		runTest("GNeuralDecomposition", GNeuralDecomposition::test);
 		runTest("GNeuralNet", GNeuralNet::test);
 //		runTest("GNonlinearPCA", GNonlinearPCA::test);
 		runTest("GPackageServer", GPackageServer::test);

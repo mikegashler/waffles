@@ -50,7 +50,6 @@ public:
 		layer_additionpooling,
 		layer_maxout,
 		layer_softmax,
-		layer_mixed,
 		layer_restrictedboltzmannmachine,
 		layer_convolutional1d,
 		layer_convolutional2d,
@@ -729,109 +728,6 @@ public:
 	virtual void activate();
 };
 
-
-
-
-/// Facilitates mixing multiple types of layers side-by-side into a single layer.
-class GLayerMixed : public GParameterizedLayer
-{
-protected:
-	GMatrix m_inputError;
-	GMatrix m_activation;
-	std::vector<GNeuralNetLayer*> m_components;
-	bool m_deactivated;
-
-public:
-using GNeuralNetLayer::feedForward;
-
-	/// General-purpose constructor. (You should call addComponent at least twice to mix some layers, after constructing this object.)
-	GLayerMixed();
-
-	/// Deserializing constructor
-	GLayerMixed(GDomNode* pNode);
-	~GLayerMixed();
-
-	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_mixed; }
-
-	/// Marshall this layer into a DOM.
-	virtual GDomNode* serialize(GDom* pDoc) override;
-
-	/// Makes a string representation of this layer
-	virtual std::string to_str() override;
-
-	/// Adds another component of this layer. In other words, make this layer bigger by adding pComponent to it,
-	/// as a peer beside the other components in this layer.
-	void addComponent(GNeuralNetLayer* pComponent);
-
-	/// Returns the specified component.
-	GNeuralNetLayer& component(size_t i) { return *m_components[i]; }
-
-	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const override;
-
-	/// Returns the number of nodes or units in this layer.
-	virtual size_t outputs() const override;
-
-	// Exists to solve an issue with components of the mixed layer never getting
-	// their error buffers set.
-	void deactivateError();
-
-	/// Throws an exception if the specified dimensions would change anything. Also
-	/// throws an exception if pRand is not NULL.
-	virtual void resize(size_t inputs, size_t outputs) override;
-
-	/// Returns the activation values from the most recent call to feedForward().
-	virtual GVec& activation() override { return m_activation[0]; }
-
-	/// Returns a buffer used to store error terms for each unit in this layer.
-	virtual GVec& error() override { return m_activation[1]; }
-
-	/// Feeds the inputs through each component to compute an aggregated activation
-	virtual void feedForward(const GVec& in) override;
-
-	/// \deprecated Calls dropOut for each component.
-	virtual void dropOut(GRand& rand, double probOfDrop) override;
-
-	/// Calls backPropError for each component, and adds them up into the upstreams error buffer.
-	/// (Note that the current implementation of this method may not be compatible with GPU-optimized layers.
-	/// This method still needs to be audited for compatibility with such layers.)
-	virtual void backPropError(GNeuralNetLayer* pUpStreamLayer) override;
-
-	/// Updates the deltas for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
-
-	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) override;
-
-	/// Calls scaleWeights for each component.
-	virtual void scaleWeights(double factor, bool scaleBiases) override;
-
-	/// Calls diminishWeights for each component.
-	virtual void diminishWeights(double amount, bool regularizeBiases) override;
-
-	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
-	virtual size_t countWeights() override;
-
-	/// Serialize the weights in this layer into a vector. Return the number of elements written.
-	virtual size_t weightsToVector(double* pOutVector) override;
-
-	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
-	virtual size_t vectorToWeights(const double* pVector) override;
-
-	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
-	virtual void copyWeights(const GNeuralNetLayer* pSource) override;
-
-	/// Calls resetWeights for each component.
-	virtual void resetWeights(GRand& rand) override;
-
-	/// Calls perturbWeights for each component.
-	virtual void perturbWeights(GRand& rand, double deviation, size_t start = 0, size_t count = INVALID_INDEX) override;
-
-	/// Calls maxNorm for each component.
-	virtual void maxNorm(double min, double max) override;
-};
 
 
 
