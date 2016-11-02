@@ -282,7 +282,7 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 {
 	// L1 regularization
-	m_nn->outputLayer().diminishWeights(m_learningRate * m_regularization, true);
+	(*(GParameterizedLayer*)&m_nn->outputLayer()).diminishWeights(m_learningRate * m_regularization, true);
 
 	// Filter input
 	GVec in(1);

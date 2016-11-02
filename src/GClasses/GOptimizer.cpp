@@ -95,11 +95,13 @@ void GNeuralNetFunction::updateDeltas(const GVec &x, const GVec &blame, GVec &de
 	{
 		size_t count = m_nn.layer(i).countWeights();
 		out.setSize(count);
-		m_nn.layer(i).updateDeltas(*in, out.vec());
+		if(count > 0)
+			((GParameterizedLayer*)&m_nn.layer(i))->updateDeltas(*in, out.vec());
 		in = &m_nn.layer(i).activation();
 		out.setData(out.vec().data() + count);
 	}
 }
+
 void GNeuralNetFunction::applyDeltas(const GVec &deltas)
 {
 	GConstVecWrapper delta(deltas.data(), 0);
@@ -107,7 +109,8 @@ void GNeuralNetFunction::applyDeltas(const GVec &deltas)
 	{
 		size_t count = m_nn.layer(i).countWeights();
 		delta.setSize(count);
-		m_nn.layer(i).applyDeltas(delta.vec());
+		if(count > 0)
+			((GParameterizedLayer*)&m_nn.layer(i))->applyDeltas(delta.vec());
 		delta.setData(delta.vec().data() + count);
 	}
 }
@@ -135,6 +138,8 @@ GDifferentiableOptimizer::GDifferentiableOptimizer(GDifferentiable *target, GObj
 
 GDifferentiableOptimizer::~GDifferentiableOptimizer()
 {
+	if(m_ownsRand)
+		delete(m_rand);
 	delete m_target;
 	delete m_objective;
 }
@@ -143,7 +148,7 @@ void GDifferentiableOptimizer::optimizeIncremental(const GVec &feat, const GVec 
 {
 	GAssert(m_target != NULL, "Target must be set before optimization!");
 	GAssert(feat.size() == m_target->inputs() && lab.size() == m_target->outputs(), "Features/labels size mismatch!");
-	GAssert(feat.size() != 0 && lab.size() != 0, "Features/labels are empty!")
+	GAssert(feat.size() != 0 && lab.size() != 0, "Features/labels are empty!");
 	updateDeltas(feat, lab);
 	applyDeltas();
 }

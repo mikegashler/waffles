@@ -142,30 +142,41 @@ size_t GNeuralNet::countWeights() const
 
 void GNeuralNet::weights(double* pOutWeights, size_t lay) const
 {
-	pOutWeights += m_layers[lay]->weightsToVector(pOutWeights);
+	if(m_layers[lay]->countWeights() > 0)
+		pOutWeights += ((GParameterizedLayer*)m_layers[lay])->weightsToVector(pOutWeights);
 }
 
 void GNeuralNet::weights(double* pOutWeights) const
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
-		pOutWeights += m_layers[i]->weightsToVector(pOutWeights);
+	{
+		if(m_layers[i]->countWeights() > 0)
+			pOutWeights += ((GParameterizedLayer*)m_layers[i])->weightsToVector(pOutWeights);
+	}
 }
 
 void GNeuralNet::setWeights(const double* pWeights, size_t lay)
 {
-	pWeights += m_layers[lay]->vectorToWeights(pWeights);
+	if(m_layers[lay]->countWeights() > 0)
+		pWeights += ((GParameterizedLayer*)m_layers[lay])->vectorToWeights(pWeights);
 }
 
 void GNeuralNet::setWeights(const double* pWeights)
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
-		pWeights += m_layers[i]->vectorToWeights(pWeights);
+	{
+		if(m_layers[i]->countWeights() > 0)
+			pWeights += ((GParameterizedLayer*)m_layers[i])->vectorToWeights(pWeights);
+	}
 }
 
 void GNeuralNet::copyWeights(const GNeuralNet* pOther)
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->copyWeights(pOther->m_layers[i]);
+	{
+		if(m_layers[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_layers[i])->copyWeights(pOther->m_layers[i]);
+	}
 }
 
 void GNeuralNet::copyStructure(const GNeuralNet* pOther)
@@ -189,7 +200,10 @@ void GNeuralNet::copyStructure(const GNeuralNet* pOther)
 void GNeuralNet::perturbAllWeights(double deviation)
 {
 	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->perturbWeights(m_rand, deviation);
+	{
+		if(m_layers[i]->countWeights() > 0)
+			((GLayerClassic*)m_layers[i])->perturbWeights(m_rand, deviation);
+	}
 }
 
 void GNeuralNet::maxNorm(double min, double max, bool output_layer)
@@ -198,28 +212,59 @@ void GNeuralNet::maxNorm(double min, double max, bool output_layer)
 	if(!output_layer)
 		layer_count--;
 	for(size_t i = 0; i < layer_count; i++)
-		m_layers[i]->maxNorm(min, max);
+	{
+		if(m_layers[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_layers[i])->maxNorm(min, max);
+	}
 }
 
 void GNeuralNet::invertNode(size_t lay, size_t node)
 {
-	GLayerClassic& layerUpStream = *(GLayerClassic*)m_layers[lay];
-	GMatrix& w = layerUpStream.m_weights;
-	for(size_t i = 0; i < w.rows(); i++)
-		w[i][node] = -w[i][node];
-	if(lay + 1 < m_layers.size())
+	GNeuralNetLayer& l = layer(lay);
+	if(l.type() == GNeuralNetLayer::layer_classic) // This block is ready to be deleted when we get rid of GLayerClassic
 	{
-		GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[lay + 1];
-		GActivationFunction* pActFunc = layerDownStream.m_pActivationFunction;
-		size_t downOuts = layerDownStream.outputs();
-		GVec& ww = layerDownStream.m_weights[node];
-		GVec& bb = layerDownStream.bias();
-		for(size_t i = 0; i < downOuts; i++)
+		GLayerClassic& layerUpStream = *(GLayerClassic*)&l;
+		GMatrix& w = layerUpStream.m_weights;
+		for(size_t i = 0; i < w.rows(); i++)
+			w[i][node] = -w[i][node];
+		if(lay + 1 < m_layers.size())
 		{
-			bb[i] += 2 * pActFunc->squash(0.0, i) * ww[i];
-			ww[i] = -ww[i];
+			if(m_layers[lay + 1]->type() != GNeuralNetLayer::layer_classic)
+				throw Ex("Expected the downstream layer to be a classic layer");
+			GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[lay + 1];
+			GActivationFunction* pActFunc = layerDownStream.m_pActivationFunction;
+			size_t downOuts = layerDownStream.outputs();
+			GVec& ww = layerDownStream.m_weights[node];
+			GVec& bb = layerDownStream.bias();
+			for(size_t i = 0; i < downOuts; i++)
+			{
+				bb[i] += 2 * pActFunc->squash(0.0, i) * ww[i];
+				ww[i] = -ww[i];
+			}
 		}
 	}
+	else if(l.type() == GNeuralNetLayer::layer_linear)
+	{
+		GLayerLinear& layerUpStream = *(GLayerLinear*)m_layers[lay];
+		GMatrix& w = layerUpStream.weights();
+		for(size_t i = 0; i < w.rows(); i++)
+			w[i][node] = -w[i][node];
+		size_t ds = lay + 1;
+		while(ds < m_layers.size() && m_layers[ds]->type() == GNeuralNetLayer::layer_activation)
+			ds++;
+		if(ds < m_layers.size())
+		{
+			if(m_layers[ds]->type() != GNeuralNetLayer::layer_linear)
+				throw Ex("Expected the downstream layer to be a linear layer");
+			GLayerLinear& layerDownStream = *(GLayerLinear*)m_layers[ds];
+			size_t downOuts = layerDownStream.outputs();
+			GVec& ww = layerDownStream.weights()[node];
+			for(size_t i = 0; i < downOuts; i++)
+				ww[i] = -ww[i];
+		}
+	}
+	else
+		throw Ex("I don't know how to invert nodes in this type of layer");
 }
 
 void GNeuralNet::swapNodes(size_t lay, size_t a, size_t b)
@@ -354,14 +399,20 @@ void GNeuralNet::scaleWeights(double factor, bool scaleBiases, size_t startLayer
 {
 	size_t end = std::min(startLayer + layer_count, m_layers.size());
 	for(size_t i = startLayer; i < end; i++)
-		m_layers[i]->scaleWeights(factor, scaleBiases);
+	{
+		if(m_layers[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_layers[i])->scaleWeights(factor, scaleBiases);
+	}
 }
 
 void GNeuralNet::diminishWeights(double amount, bool diminishBiases, size_t startLayer, size_t layer_count)
 {
 	size_t end = std::min(startLayer + layer_count, m_layers.size());
 	for(size_t i = startLayer; i < end; i++)
-		m_layers[i]->diminishWeights(amount, diminishBiases);
+	{
+		if(m_layers[i]->countWeights() > 0)
+		((GParameterizedLayer*)m_layers[i])->diminishWeights(amount, diminishBiases);
+	}
 }
 
 void GNeuralNet::regularizeActivationFunctions(double lambda)
@@ -443,7 +494,10 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 
 	// Reset the weights
 	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->resetWeights(m_rand);
+	{
+		if(m_layers[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_layers[i])->resetWeights(m_rand);
+	}
 
 	m_defaultOptimizer.setTarget(new GNeuralNetFunction(*this));
 
@@ -508,7 +562,7 @@ void GNeuralNet::containIntrinsics(GMatrix& intrinsics)
 	GNeuralNetLayer& llay = layer(0);
 	if(llay.inputs() != dims)
 		throw Ex("Mismatching number of columns and inputs");
-	if(strcmp(llay.type(), "classic") != 0)
+	if(llay.type() != GNeuralNetLayer::layer_classic)
 		throw Ex("This only works with classic input layers");
 	GLayerClassic& lay = *(GLayerClassic*)&llay;
 	GVec pCentroid(dims);

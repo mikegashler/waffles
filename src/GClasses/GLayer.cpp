@@ -52,27 +52,23 @@ namespace GClasses {
 GDomNode* GNeuralNetLayer::baseDomNode(GDom* pDoc)
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "type", pDoc->newString(type()));
+	pNode->addField(pDoc, "type", pDoc->newInt(type()));
 	return pNode;
 }
 
 GNeuralNetLayer* GNeuralNetLayer::deserialize(GDomNode* pNode)
 {
-	const char* szType = pNode->field("type")->asString();
-	if(strcmp(szType, "classic") == 0)
-		return new GLayerClassic(pNode);
-	else if(strcmp(szType, "mixed") == 0)
-		return new GLayerMixed(pNode);
-	else if(strcmp(szType, "rbm") == 0)
-		return new GLayerRestrictedBoltzmannMachine(pNode);
-	else if(strcmp(szType, "softmax") == 0)
-		return new GLayerSoftMax(pNode);
-	else if(strcmp(szType, "conv1d") == 0)
-		return new GLayerConvolutional1D(pNode);
-	else if(strcmp(szType, "conv2d") == 0)
-		return new GLayerConvolutional2D(pNode);
-	else
-		throw Ex("Unrecognized neural network layer type: ", szType);
+	LayerType e = (LayerType)pNode->field("type")->asInt();
+	switch(e)
+	{
+		case layer_classic: return new GLayerClassic(pNode);
+		case layer_mixed: return new GLayerMixed(pNode);
+		case layer_restrictedboltzmannmachine: return new GLayerRestrictedBoltzmannMachine(pNode);
+		case layer_softmax: return new GLayerSoftMax(pNode);
+		case layer_convolutional1d: return new GLayerConvolutional1D(pNode);
+		case layer_convolutional2d: return new GLayerConvolutional2D(pNode);
+		default: throw Ex("Unrecognized neural network layer type: ", GClasses::to_str((int)e));
+	}
 }
 
 GMatrix* GNeuralNetLayer::feedThrough(const GMatrix& data)
@@ -323,82 +319,11 @@ void GLayerActivation::backPropError(GNeuralNetLayer* pUpStreamLayer)
 		upStreamError[i] = source[i] * m_pActivationFunction->derivativeOfNet(n[i], a[i], i);
 }
 
-void GLayerActivation::updateDeltas(const GVec& upStreamActivation, GVec &deltas)
-{
-	m_pActivationFunction->updateDeltas(upStreamActivation, activation(), deltas);
-}
-
-void GLayerActivation::applyDeltas(const GVec &deltas)
-{
-	m_pActivationFunction->applyDeltas(deltas);
-}
-
-/// \todo make this more efficient
-void GLayerActivation::scaleWeights(double factor, bool scaleBiases)
-{
-	GVec vec(m_pActivationFunction->countWeights());
-	m_pActivationFunction->weightsToVector(vec.data());
-	for(size_t i = 0; i < vec.size(); ++i)
-		vec[i] *= factor;
-	m_pActivationFunction->vectorToWeights(vec.data());
-}
-
-/// \todo make this more efficient
-void GLayerActivation::diminishWeights(double amount, bool regularizeBiases)
-{
-	GVec vec(m_pActivationFunction->countWeights());
-	m_pActivationFunction->weightsToVector(vec.data());
-	vec.regularizeL1(amount);
-	m_pActivationFunction->vectorToWeights(vec.data());
-}
-
 size_t GLayerActivation::countWeights()
 {
-	return m_pActivationFunction->countWeights();
+	return 0;
 }
 
-size_t GLayerActivation::weightsToVector(double *pOutVector)
-{
-	return m_pActivationFunction->weightsToVector(pOutVector);
-}
-
-size_t GLayerActivation::vectorToWeights(const double *pVector)
-{
-	return m_pActivationFunction->vectorToWeights(pVector);
-}
-
-void GLayerActivation::copyWeights(const GNeuralNetLayer *pSource)
-{
-	GLayerActivation *src = (GLayerActivation *) pSource;
-	m_pActivationFunction->copyWeights(src->m_pActivationFunction);
-}
-
-/// \todo make this more efficient
-void GLayerActivation::resetWeights(GRand& rand)
-{
-	size_t inputCount = inputs();
-	double mag = std::max(0.03, 1.0 / inputCount);
-
-	GVec vec(m_pActivationFunction->countWeights());
-	m_pActivationFunction->weightsToVector(vec.data());
-	for(size_t i = 0; i < vec.size(); ++i)
-		vec[i] = rand.normal() * mag;
-	m_pActivationFunction->vectorToWeights(vec.data());
-}
-
-void GLayerActivation::perturbWeights(GRand &rand, double deviation, size_t start, size_t count)
-{
-	GVec vec(m_pActivationFunction->countWeights());
-	m_pActivationFunction->weightsToVector(vec.data());
-	size_t n = std::min(outputs() - start, count);
-	GVec::perturb(vec.data() + start, deviation, n, rand);
-	m_pActivationFunction->vectorToWeights(vec.data());
-}
-
-void GLayerActivation::maxNorm(double min, double max)
-{
-	throw Ex("GLayerActivation::maxNorm is not supported!");
-}
 
 
 
@@ -464,7 +389,7 @@ void GLayerClassic::resize(size_t inputCount, size_t outputCount)
 // virtual
 void GLayerClassic::resetWeights(GRand& rand)
 {
-	size_t outputCount = outputs();
+	//size_t outputCount = outputs();
 	size_t inputCount = inputs();
 	double mag = std::max(0.03, 1.0 / inputCount); // maxing with 0.03 helps to prevent the gradient from vanishing beyond the precision of doubles in deep networks
 	for(size_t i = 0; i < m_weights.rows(); i++)
@@ -807,12 +732,6 @@ void GLayerProductPooling::resize(size_t inputCount, size_t outputCount)
 }
 
 // virtual
-void GLayerProductPooling::resetWeights(GRand& rand)
-{
-	// There are no weights in this layer to reset
-}
-
-// virtual
 void GLayerProductPooling::feedForward(const GVec& in)
 {
 	if(in.size() != m_activation.cols() * 2)
@@ -820,12 +739,6 @@ void GLayerProductPooling::feedForward(const GVec& in)
 	GVec& a = activation();
 	for(size_t i = 0; i < m_activation.cols(); i++)
 		a[i] = in[2 * i] * in[2 * i + 1];
-}
-
-// virtual
-void GLayerProductPooling::dropOut(GRand& rand, double probOfDrop)
-{
-	// There are no weights in this layer to drop
 }
 
 void GLayerProductPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
@@ -841,66 +754,14 @@ void GLayerProductPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
 	}
 }
 
-void GLayerProductPooling::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
-{
-	// There are no weights to update
-}
-
-void GLayerProductPooling::applyDeltas(const GVec &deltas)
-{
-	// There are no weights to update
-}
-
-void GLayerProductPooling::scaleWeights(double factor, bool scaleBiases)
-{
-	// There are no weights to scale
-}
-
-void GLayerProductPooling::diminishWeights(double amount, bool regularizeBiases)
-{
-	// There are no weights to diminish
-}
-
-void GLayerProductPooling::contractWeights(double factor, bool contractBiases)
-{
-	// There are no weights to contract
-}
-
-// virtual
-void GLayerProductPooling::maxNorm(double min, double max)
-{
-	throw Ex("Not implemented");
-}
-
 // virtual
 size_t GLayerProductPooling::countWeights()
 {
 	return 0;
 }
 
-// virtual
-size_t GLayerProductPooling::weightsToVector(double* pOutVector)
-{
-	return 0;
-}
 
-// virtual
-size_t GLayerProductPooling::vectorToWeights(const double* pVector)
-{
-	return 0;
-}
 
-// virtual
-void GLayerProductPooling::copyWeights(const GNeuralNetLayer* pSource)
-{
-	// There are no weights to copy
-}
-
-// virtual
-void GLayerProductPooling::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
-{
-	// There are no weights to perturb
-}
 
 
 
@@ -945,12 +806,6 @@ void GLayerAdditionPooling::resize(size_t inputCount, size_t outputCount)
 	m_activation.resize(2, outputCount);
 }
 
-// virtual
-void GLayerAdditionPooling::resetWeights(GRand& rand)
-{
-	// There are no weights in this layer to reset
-}
-
 void GLayerAdditionPooling::feedForward(const GVec& in)
 {
 	if(in.size() != m_activation.cols() * 2)
@@ -958,12 +813,6 @@ void GLayerAdditionPooling::feedForward(const GVec& in)
 	GVec& a = activation();
 	for(size_t i = 0; i < m_activation.cols(); i++)
 		a[i] = in[2 * i] + in[2 * i + 1];
-}
-
-// virtual
-void GLayerAdditionPooling::dropOut(GRand& rand, double probOfDrop)
-{
-	// There are no weights in this layer to drop
 }
 
 void GLayerAdditionPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
@@ -980,66 +829,13 @@ void GLayerAdditionPooling::backPropError(GNeuralNetLayer* pUpStreamLayer)
 	}
 }
 
-void GLayerAdditionPooling::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
-{
-	// There are no weights to update
-}
-
-void GLayerAdditionPooling::applyDeltas(const GVec &deltas)
-{
-	// There are no weights to update
-}
-
-void GLayerAdditionPooling::scaleWeights(double factor, bool scaleBiases)
-{
-	// There are no weights to scale
-}
-
-void GLayerAdditionPooling::diminishWeights(double amount, bool regularizeBiases)
-{
-	// There are no weights to diminish
-}
-
-void GLayerAdditionPooling::contractWeights(double factor, bool contractBiases)
-{
-	// There are no weights to contract
-}
-
-// virtual
-void GLayerAdditionPooling::maxNorm(double min, double max)
-{
-	throw Ex("Not implemented");
-}
-
 // virtual
 size_t GLayerAdditionPooling::countWeights()
 {
 	return 0;
 }
 
-// virtual
-size_t GLayerAdditionPooling::weightsToVector(double* pOutVector)
-{
-	return 0;
-}
 
-// virtual
-size_t GLayerAdditionPooling::vectorToWeights(const double* pVector)
-{
-	return 0;
-}
-
-// virtual
-void GLayerAdditionPooling::copyWeights(const GNeuralNetLayer* pSource)
-{
-	// There are no weights to copy
-}
-
-// virtual
-void GLayerAdditionPooling::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
-{
-	// There are no weights to perturb
-}
 
 
 
@@ -1455,7 +1251,10 @@ void GLayerMixed::feedForward(const GVec& in)
 void GLayerMixed::dropOut(GRand& rand, double probOfDrop)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->dropOut(rand, probOfDrop);
+	{
+		if(m_components[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_components[i])->dropOut(rand, probOfDrop);
+	}
 }
 
 // virtual
@@ -1487,7 +1286,8 @@ void GLayerMixed::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 	{
 		size_t count = m_components[i]->countWeights();
 		delta.setSize(count);
-		m_components[i]->updateDeltas(upStreamActivation, delta.vec());
+		if(m_components[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_components[i])->updateDeltas(upStreamActivation, delta.vec());
 		delta.setData(delta.vec().data() + count);
 	}
 }
@@ -1499,7 +1299,8 @@ void GLayerMixed::applyDeltas(const GVec &deltas)
 	{
 		size_t count = m_components[i]->countWeights();
 		delta.setSize(count);
-		m_components[i]->applyDeltas(delta.vec());
+		if(m_components[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_components[i])->applyDeltas(delta.vec());
 		delta.setData(delta.vec().data() + count);
 	}
 }
@@ -1508,14 +1309,21 @@ void GLayerMixed::applyDeltas(const GVec &deltas)
 void GLayerMixed::scaleWeights(double factor, bool scaleBiases)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->scaleWeights(factor, scaleBiases);
+	{
+		if(m_components[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_components[i])->scaleWeights(factor, scaleBiases);
+	}
 }
 
 // virtual
 void GLayerMixed::diminishWeights(double amount, bool diminishBiases)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->diminishWeights(amount, diminishBiases);
+	{
+		if(m_components[i]->countWeights() > 0)
+		((GParameterizedLayer*)m_components[i])->diminishWeights(amount, diminishBiases);
+
+	}
 }
 
 // virtual
@@ -1533,7 +1341,9 @@ size_t GLayerMixed::weightsToVector(double* pOutVector)
 	size_t sum = 0;
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
-		size_t s = m_components[i]->weightsToVector(pOutVector);
+		size_t s = 0;
+		if(m_components[i]->countWeights() > 0)
+			s = ((GParameterizedLayer*)m_components[i])->weightsToVector(pOutVector);
 		sum += s;
 		pOutVector += s;
 	}
@@ -1546,7 +1356,9 @@ size_t GLayerMixed::vectorToWeights(const double* pVector)
 	size_t sum = 0;
 	for(size_t i = 0; i < m_components.size(); i++)
 	{
-		size_t s = m_components[i]->vectorToWeights(pVector);
+		size_t s = 0;
+		if(m_components[i]->countWeights() > 0)
+			s = ((GParameterizedLayer*)m_components[i])->vectorToWeights(pVector);
 		sum += s;
 		pVector += s;
 	}
@@ -1558,7 +1370,10 @@ void GLayerMixed::copyWeights(const GNeuralNetLayer* pSource)
 {
 	GLayerMixed* pThat = (GLayerMixed*)pSource;
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->copyWeights(pThat->m_components[i]);
+	{
+		if(m_components[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_components[i])->copyWeights(pThat->m_components[i]);
+	}
 }
 
 // virtual
@@ -1566,21 +1381,30 @@ void GLayerMixed::resetWeights(GRand& rand)
 {
 	// m_activation.resize(2, outputs());
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->resetWeights(rand);
+	{
+		if(m_components[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_components[i])->resetWeights(rand);
+	}
 }
 
 // virtual
 void GLayerMixed::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->perturbWeights(rand, deviation, start, count);
+	{
+		if(m_components[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_components[i])->perturbWeights(rand, deviation, start, count);
+	}
 }
 
 // virtual
 void GLayerMixed::maxNorm(double min, double max)
 {
 	for(size_t i = 0; i < m_components.size(); i++)
-		m_components[i]->maxNorm(min, max);
+	{
+		if(m_components[i]->countWeights() > 0)
+			((GParameterizedLayer*)m_components[i])->maxNorm(min, max);
+	}
 }
 
 
@@ -2304,7 +2128,7 @@ void GLayerConvolutional2D::resize(size_t inputSize, size_t outputSize)
 
 void GLayerConvolutional2D::resizeInputs(GNeuralNetLayer *pUpStreamLayer)
 {
-	if(strcmp(pUpStreamLayer->type(), "conv2d") != 0)
+	if(pUpStreamLayer->type() != layer_convolutional2d)
 		throw Ex("GLayerConvolutional2D can only be resized given an upstream convolutional layer!");
 
 	GLayerConvolutional2D &upstream = *((GLayerConvolutional2D *) pUpStreamLayer);
@@ -2656,11 +2480,6 @@ void GMaxPooling2D::resize(size_t inputSize, size_t outputSize)
 }
 
 // virtual
-void GMaxPooling2D::resetWeights(GRand& rand)
-{
-}
-
-// virtual
 void GMaxPooling2D::feedForward(const GVec& in)
 {
 	GVec& a = activation();
@@ -2686,16 +2505,6 @@ void GMaxPooling2D::feedForward(const GVec& in)
 			}
 		}
 	}
-}
-
-// virtual
-void GMaxPooling2D::dropOut(GRand& rand, double probOfDrop)
-{
-}
-
-// virtual
-void GMaxPooling2D::dropConnect(GRand& rand, double probOfDrop)
-{
 }
 
 // virtual
@@ -2737,47 +2546,11 @@ void GMaxPooling2D::backPropError(GNeuralNetLayer* pUpStreamLayer)
 }
 
 // virtual
-void GMaxPooling2D::scaleWeights(double factor, bool scaleBiases)
-{
-}
-
-// virtual
-void GMaxPooling2D::diminishWeights(double amount, bool diminishBiases)
-{
-}
-
-// virtual
 size_t GMaxPooling2D::countWeights()
 {
 	return 0;
 }
 
-// virtual
-size_t GMaxPooling2D::weightsToVector(double* pOutVector)
-{
-	return 0;
-}
-
-// virtual
-size_t GMaxPooling2D::vectorToWeights(const double* pVector)
-{
-	return 0;
-}
-
-// virtual
-void GMaxPooling2D::copyWeights(const GNeuralNetLayer* pSource)
-{
-}
-
-// virtual
-void GMaxPooling2D::perturbWeights(GRand& rand, double deviation, size_t start, size_t count)
-{
-}
-
-// virtual
-void GMaxPooling2D::maxNorm(double min, double max)
-{
-}
 
 
 

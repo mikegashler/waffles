@@ -806,9 +806,10 @@ public:
 	inline GVec& front() { return *m_rows[0]; }
 	inline const GVec& front() const { return *m_rows[0]; }
 
-	/// \brief Returns a pointer to the last row
-	inline GVec& back() { return *m_rows[m_rows.size() - 1]; }
-	inline const GVec& back() const { return *m_rows[m_rows.size() - 1]; }
+	/// \brief Returns a pointer to a row indexed from the back of the matrix.
+	/// index 0 (default) is the last row, index 1 is the second-to-last row, etc.
+	inline GVec& back(size_t reverse_index = 0) { return *m_rows[m_rows.size() - 1 - reverse_index]; }
+	inline const GVec& back(size_t reverse_index = 0) const { return *m_rows[m_rows.size() - 1 - reverse_index]; }
 
 	/// \brief Returns a pointer to the specified row
 	inline GVec& operator [](size_t index) { return *m_rows[index]; }
