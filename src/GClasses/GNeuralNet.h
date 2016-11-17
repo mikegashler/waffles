@@ -37,8 +37,6 @@ class GNeuralNet : public GIncrementalLearner
 protected:
 	std::vector<GNeuralNetLayer*> m_layers;
 	bool m_ready;
-	
-	GSGDOptimizer m_defaultOptimizer;
 
 public:
 	GNeuralNet();
@@ -48,8 +46,6 @@ public:
 	virtual void trainIncremental(const GVec &in, const GVec &out) override;
 	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) override;
 	
-	GSGDOptimizer &defaultOptimizer() { return m_defaultOptimizer; }
-
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
@@ -133,9 +129,8 @@ public:
 	void weights(double* pOutWeights) const;
 	void weights(double* pOutWeights, size_t layer) const;
 
-	/// Evaluates a feature vector. (The results will be in the nodes of the output layer.)
-	/// The maxLayers parameter can limit how far into the network values are propagated.
-	void forwardProp(const GVec& inputs, size_t maxLayers = INVALID_INDEX);
+	/// Computes the activation vector for all the layers in this network.
+	void forwardProp(const GVec& inputs);
 
 	/// This method assumes forwardProp has been called. It copies the predicted vector into pOut.
 	void copyPrediction(GVec& out);
@@ -235,6 +230,12 @@ public:
 		addLayers(layer);
 		addLayers(layers...);
 	}
+
+	/// Called by classes that extend GDifferentiableOptimizer
+	void updateGradient(const GVec &x, const GVec &blame, GVec &deltas);
+
+	/// Called by classes that extend GDifferentiableOptimizer
+	void step(const GVec &deltas);
 
 protected:
 	/// See the comment for GIncrementalLearner::trainInner

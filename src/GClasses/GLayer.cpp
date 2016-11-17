@@ -262,6 +262,42 @@ void GLayerLinear::maxNorm(double min, double max)
 	}
 }
 
+void GLayerLinear::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
+{
+	size_t outputCount = outputs();
+	GVec& w = m_weights[input];
+	GVec& b = bias();
+	double f = (oldMax - oldMin) / (newMax - newMin);
+	double g = (oldMin - newMin * f);
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		b[i] += (w[i] * g);
+		w[i] *= f;
+	}
+}
+
+void GLayerLinear::transformWeights(GMatrix& transform, const GVec& offset)
+{
+	if(transform.rows() != inputs())
+		throw Ex("Transformation matrix not suitable size for this layer");
+	if(transform.rows() != transform.cols())
+		throw Ex("Expected a square transformation matrix.");
+	size_t outputCount = outputs();
+
+	GMatrix temp(inputs(), outputs());
+	temp.copyBlock(m_weights, 0, 0, inputs(), outputs());
+
+	GMatrix* pNewWeights = GMatrix::multiply(transform, temp, true, false);
+	std::unique_ptr<GMatrix> hNewWeights(pNewWeights);
+	m_weights.copyBlock(*pNewWeights, 0, 0, pNewWeights->rows(), outputCount, 0, 0, false);
+	GVec n(outputs());
+	n.fill(0.0);
+	for(size_t i = 0; i < inputs(); i++)
+		n.addScaled(offset[i], m_weights.row(i));
+	bias() += n;
+}
+
+
 
 
 
@@ -668,7 +704,6 @@ void GLayerClassic::perturbWeights(GRand& rand, double deviation, size_t start, 
 		GVec::perturb(m_weights[j].data() + start, deviation, n, rand);
 }
 
-// virtual
 void GLayerClassic::renormalizeInput(size_t input, double oldMin, double oldMax, double newMin, double newMax)
 {
 	size_t outputCount = outputs();
@@ -992,11 +1027,6 @@ void GLayerMaxOut::diminishWeights(double amount, bool regularizeBiases)
 		m_weights[i].regularizeL1(amount);
 	if(regularizeBiases)
 		bias().regularizeL1(amount);
-}
-
-void GLayerMaxOut::contractWeights(double factor, bool contractBiases)
-{
-	throw Ex("Not implemented");
 }
 
 void GLayerMaxOut::transformWeights(GMatrix& transform, const GVec& offset)

@@ -757,7 +757,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		m_seed += 77152487;
 		m_seed *= 37152487;
 		
-		GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+		GSGDOptimizer optimizer(nn);
 		optimizer.setWindowSize(30);
 		optimizer.setImprovementThresh(0.002);
 		optimizer.optimizeWithValidation(*pFeatures2, *pLabels2);

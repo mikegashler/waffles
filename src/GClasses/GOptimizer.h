@@ -32,32 +32,6 @@ class GAction;
 class GRand;
 class GNeuralNet;
 
-/// A function that can be differentiated and optimized.
-class GDifferentiable
-{
-public:
-	virtual ~GDifferentiable() {}
-	
-	/// Calulate the output y given the input x.
-	virtual void evaluate(const GVec &x, GVec &y) = 0;
-	
-	/// Calculate the derivative of the output with respect to the parameters given the input x and blame.
-	/// This method assumes that evaluate has already been called to determine blame.
-	/// Updates the gradient (adds to it) instead of overwriting it (i.e. for batch processing).
-	virtual void updateDeltas(const GVec &x, const GVec &blame, GVec &deltas) = 0;
-	
-	/// Apply the deltas to the parameters of the function.
-	virtual void applyDeltas(const GVec &deltas) = 0;
-	
-	/// Count the inputs to this function.
-	virtual size_t inputs() const = 0;
-	
-	/// Count the outputs of this function.
-	virtual size_t outputs() const = 0;
-	
-	/// Count the parameters of this function.
-	virtual size_t countParameters() const = 0;
-};
 
 /// A loss function used to train a differentiable function.
 class GObjective
@@ -69,8 +43,8 @@ public:
 	/// Calculate the error.
 	virtual void evaluate(const GVec &prediction, const GVec &label, GVec &loss) = 0;
 	
-	/// Calculate the partial derivative (blame) of the error with respect to the prediction.
-	virtual void calculateDerivative(const GVec &prediction, const GVec &label, GVec &blame) = 0;
+	/// Calculate the error term (a.k.a. blame) associated with the activation of this layer
+	virtual void calculateOutputLayerBlame(const GVec &prediction, const GVec &label, GVec &blame) = 0;
 	
 	/// Enable the use of slack (a margin-of-error).
 	virtual void setSlack(const GVec &slack)
@@ -83,6 +57,8 @@ protected:
 	bool m_useSlack;
 };
 
+
+
 /// The default loss function is squared error.
 class GSquaredError : public GObjective
 {
@@ -90,57 +66,29 @@ public:
 	/// Calculate the error.
 	virtual void evaluate(const GVec &prediction, const GVec &label, GVec &loss) override;
 	
-	/// Calculate the partial derivative (blame) of the error with respect to the prediction.
-	virtual void calculateDerivative(const GVec &prediction, const GVec &label, GVec &blame) override;
+	/// Calculate the error term (a.k.a. blame) associated with the activation of this layer
+	virtual void calculateOutputLayerBlame(const GVec &prediction, const GVec &label, GVec &blame) override;
 };
 
-/// Convenience class for optimizing a neural network using various derivative-based optimization methods.
-class GNeuralNetFunction : public GDifferentiable
-{
-public:
-	GNeuralNetFunction(GNeuralNet &nn);
-	
-	/// Calulate the output y given the input x.
-	virtual void evaluate(const GVec &x, GVec &y) override;
-	
-	/// Calculate the derivative of the output with respect to the parameters given the input x and error err.
-	/// This method assumes that calculateOutput has already been called to determine err.
-	/// Updates the gradient (adds to it) instead of overwriting it (i.e. for batch processing).
-	virtual void updateDeltas(const GVec &x, const GVec &blame, GVec &deltas) override;
-	
-	/// Apply the deltas to the parameters of the function.
-	/// This method resets the deltas (i.e. using momentum) after the deltas have been applied.
-	virtual void applyDeltas(const GVec &deltas) override;
-	
-	/// Count the inputs to this function.
-	virtual size_t inputs() const override;
-	
-	/// Count the outputs of this function.
-	virtual size_t outputs() const override;
-	
-	/// Count the parameters of this function.
-	virtual size_t countParameters() const override;
-private:
-	GNeuralNet &m_nn;
-};
+
 
 /// Optimizes the parameters of a differentiable function using an objective function.
 class GDifferentiableOptimizer
 {
 public:
-	GDifferentiableOptimizer(GDifferentiable *target = NULL, GObjective *objective = NULL);
+	GDifferentiableOptimizer(GNeuralNet& model, GObjective* objective = NULL);
 	virtual ~GDifferentiableOptimizer();
 	
 	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void prepareForOptimizing() = 0;
 	
-	/// Use feat and lab to add to the target function's gradient.
+	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) = 0;
 	
-	/// Scale the calculated gradient (i.e. for batch training).
+	/// Scale the calculated gradient (i.e. for momentum).
 	virtual void scaleDeltas(double scale) = 0;
 	
-	/// Apply the calculated/scaled gradient to the target function's parameters.
+	/// Apply the calculated/scaled gradient to the model's parameters.
 	/// This method resets the deltas (i.e. using momentum).
 	virtual void applyDeltas() = 0;
 	
@@ -164,35 +112,34 @@ public:
 	
 	// getters/setters
 	
-	void setTarget(GDifferentiable *target)		{ delete m_target; m_target = target; prepareForOptimizing(); }
-	GDifferentiable *target()					{ return m_target; }
+	GNeuralNet& model() { return m_model; }
 	
-	void setObjective(GObjective *objective)	{ delete m_objective; m_objective = (objective != NULL ? objective : new GSquaredError()); }
-	GObjective *objective()						{ return m_objective; }
+	void setObjective(GObjective *objective) { delete m_objective; m_objective = (objective != NULL ? objective : new GSquaredError()); }
+	GObjective *objective() { return m_objective; }
 	
-	void setRand(GRand *r)						{ if(m_ownsRand) { delete m_rand; m_ownsRand = false; }; m_rand = r; }
-	GRand *rand()								{ return m_rand; }
+	void setRand(GRand *r) { if(m_ownsRand) { delete m_rand; m_ownsRand = false; }; m_rand = r; }
+	GRand *rand() { return m_rand; }
 	
-	void setBatchSize(size_t b)					{ m_batchSize = b; }
-	size_t batchSize() const					{ return m_batchSize; }
+	void setBatchSize(size_t b) { m_batchSize = b; }
+	size_t batchSize() const { return m_batchSize; }
 	
-	void setBatchesPerEpoch(size_t b)			{ m_batchesPerEpoch = b; }
-	size_t batchesPerEpoch() const				{ return m_batchesPerEpoch; }
+	void setBatchesPerEpoch(size_t b) { m_batchesPerEpoch = b; }
+	size_t batchesPerEpoch() const { return m_batchesPerEpoch; }
 	
-	void setEpochs(size_t e)					{ m_epochs = e; }
-	size_t epochs() const						{ return m_epochs; }
+	void setEpochs(size_t e) { m_epochs = e; }
+	size_t epochs() const { return m_epochs; }
 	
-	void setWindowSize(size_t w)				{ m_windowSize = w; }
-	size_t windowSize() const					{ return m_windowSize; }
+	void setWindowSize(size_t w) { m_windowSize = w; }
+	size_t windowSize() const { return m_windowSize; }
 	
-	void setImprovementThresh(double m)			{ m_minImprovement = m; }
-	double improvementThresh() const			{ return m_minImprovement; }
+	void setImprovementThresh(double m) { m_minImprovement = m; }
+	double improvementThresh() const { return m_minImprovement; }
 protected:
-	GDifferentiable *m_target;
-	GObjective *m_objective;
-	
+	GNeuralNet& m_model;
+	GObjective* m_objective;
+
 	// variables for convenience training methods
-	GRand *m_rand;
+	GRand* m_rand;
 	bool m_ownsRand;
 	size_t m_batchSize, m_batchesPerEpoch, m_epochs, m_windowSize;
 	double m_minImprovement;
@@ -201,18 +148,18 @@ protected:
 class GSGDOptimizer : public GDifferentiableOptimizer
 {
 public:
-	GSGDOptimizer(GDifferentiable *function = NULL, GObjective *error = NULL);
+	GSGDOptimizer(GNeuralNet& model, GObjective *error = NULL);
 	
 	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void prepareForOptimizing() override;
 	
-	/// Use feat and lab to add to the target function's gradient.
+	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
 	
-	/// Scale the calculated gradient (i.e. for batch training).
+	/// Scale the calculated gradient (i.e. for momentum).
 	virtual void scaleDeltas(double scale) override;
 	
-	/// Apply the calculated/scaled gradient to the target function's parameters.
+	/// Apply the calculated/scaled gradient to the model's parameters.
 	/// This method resets the deltas (i.e. using momentum).
 	virtual void applyDeltas() override;
 	
@@ -229,18 +176,18 @@ private:
 class GRMSPropOptimizer : public GDifferentiableOptimizer
 {
 public:
-	GRMSPropOptimizer(GDifferentiable *function = NULL, GObjective *error = NULL);
+	GRMSPropOptimizer(GNeuralNet& model, GObjective* error = NULL);
 	
 	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void prepareForOptimizing() override;
 	
-	/// Use feat and lab to add to the target function's gradient.
+	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
 	
-	/// Scale the calculated gradient (i.e. for batch training).
+	/// Scale the calculated gradient (i.e. for momentum).
 	virtual void scaleDeltas(double scale) override;
 	
-	/// Apply the calculated/scaled gradient to the target function's parameters.
+	/// Apply the calculated/scaled gradient to the model's parameters.
 	/// This method resets the deltas (i.e. using momentum).
 	virtual void applyDeltas() override;
 	

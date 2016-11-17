@@ -87,7 +87,7 @@ Now, we are ready to train a layer of logistic units that takes 4 inputs and giv
 To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD). We also set the learning rate here:
 
 <pre class="code">
-	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.05);
 	optimizer.optimizeWithValidation(trainingFeatures, trainingLabels);
 </pre>
@@ -442,7 +442,7 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	cout &lt;&lt; "@DATA\n";
 
-	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.01);
 	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
 	for(size_t epoch = 0; epoch &lt; 50000; epoch++)
@@ -538,7 +538,7 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	cout &lt;&lt; "@DATA\n";
 
-	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.01);
 	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)

@@ -282,7 +282,7 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 
 void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 {
-	// L1 regularization
+/*	// L1 regularization
 	(*(GParameterizedLayer*)&m_nn->outputLayer()).diminishWeights(m_learningRate * m_regularization, true);
 
 	// Filter input
@@ -301,7 +301,7 @@ void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 	}
 
 	// Backpropagation
-	m_optimizer.optimizeIncremental(in, out);
+	m_optimizer.optimizeIncremental(in, out);*/
 }
 
 void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)

@@ -60,7 +60,7 @@ public:
 	virtual ~GNeuralNetLayer() {}
 
 	/// Returns the type of this layer
-	virtual LayerType type() = 0;
+	virtual LayerType type() const = 0;
 
 	/// Returns true iff this layer does its computations in parallel on a GPU.
 	virtual bool usesGPU() { return false; }
@@ -177,7 +177,7 @@ public:
 	GLayerLinear(GDomNode* pNode);
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_linear; }
+	virtual LayerType type() const override { return layer_linear; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -256,6 +256,16 @@ public:
 
 	/// Get the entire weights matrix
 	const GMatrix &weights() const { return m_weights; }
+
+	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
+	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
+	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
+	/// that is added before the transform.
+	void transformWeights(GMatrix& transform, const GVec& offset);
+
+	/// Adjusts weights such that values in the new range will result in the
+	/// same behavior that previously resulted from values in the old range.
+	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
 };
 
 
@@ -274,7 +284,7 @@ public:
 	GLayerActivation(GDomNode *pDoc);
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_activation; }
+	virtual LayerType type() const override { return layer_activation; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -340,7 +350,7 @@ using GNeuralNetLayer::feedForward;
 	~GLayerClassic();
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_classic; }
+	virtual LayerType type() const override { return layer_classic; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -486,7 +496,7 @@ using GNeuralNetLayer::feedForward;
 	~GLayerProductPooling();
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_productpooling; }
+	virtual LayerType type() const override { return layer_productpooling; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -546,7 +556,7 @@ using GNeuralNetLayer::feedForward;
 	~GLayerAdditionPooling();
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_additionpooling; }
+	virtual LayerType type() const override { return layer_additionpooling; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -609,7 +619,7 @@ using GNeuralNetLayer::feedForward;
 	~GLayerMaxOut();
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_maxout; }
+	virtual LayerType type() const override { return layer_maxout; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -656,9 +666,6 @@ using GNeuralNetLayer::feedForward;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
-
-	/// Contracts all the weights. (Assumes contractive error terms have already been set.)
-	void contractWeights(double factor, bool contractBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights() override;
@@ -708,7 +715,6 @@ using GNeuralNetLayer::feedForward;
 	void transformWeights(GMatrix& transform, const GVec& offset);
 
 	void copySingleNeuronWeights(size_t source, size_t dest);
-	void printSummary(std::ostream& stream);
 };
 
 
@@ -721,7 +727,7 @@ public:
 	virtual ~GLayerSoftMax() {}
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_softmax; }
+	virtual LayerType type() const override { return layer_softmax; }
 
 	/// Applies the logistic activation function to the net vector to compute the activation vector,
 	/// and also adjusts the weights so that the activations sum to 1.
@@ -748,7 +754,7 @@ using GNeuralNetLayer::feedForward;
 	GLayerRestrictedBoltzmannMachine(GDomNode* pNode);
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_restrictedboltzmannmachine; }
+	virtual LayerType type() const override { return layer_restrictedboltzmannmachine; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -890,7 +896,7 @@ using GNeuralNetLayer::feedForward;
 	GLayerConvolutional1D(GDomNode* pNode);
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_convolutional1d; }
+	virtual LayerType type() const override { return layer_convolutional1d; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -1036,7 +1042,7 @@ public:
 
 	GLayerConvolutional2D(GDomNode* pNode);
 
-	virtual LayerType type() override { return layer_convolutional2d; }
+	virtual LayerType type() const override { return layer_convolutional2d; }
 	virtual GDomNode *serialize(GDom *pDoc) override;
 	virtual std::string to_str() override;
 	virtual size_t inputs() const override { return m_width * m_height * m_channels; }
@@ -1127,7 +1133,7 @@ using GNeuralNetLayer::feedForward;
 	virtual ~GMaxPooling2D();
 
 	/// Returns the type of this layer
-	virtual LayerType type() override { return layer_maxpooling; }
+	virtual LayerType type() const override { return layer_maxpooling; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;

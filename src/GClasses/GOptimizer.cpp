@@ -44,7 +44,7 @@ void GSquaredError::evaluate(const GVec &prediction, const GVec &label, GVec &lo
 }
 
 // the mathematically correct multiplication by 2 is omitted intentionally
-void GSquaredError::calculateDerivative(const GVec &prediction, const GVec &label, GVec &blame)
+void GSquaredError::calculateOutputLayerBlame(const GVec &prediction, const GVec &label, GVec &blame)
 {
 	if(m_useSlack)
 	{
@@ -76,62 +76,15 @@ void GSquaredError::calculateDerivative(const GVec &prediction, const GVec &labe
 	}
 }
 
-GNeuralNetFunction::GNeuralNetFunction(GNeuralNet &nn) : m_nn(nn)
-{}
 
-void GNeuralNetFunction::evaluate(const GVec &x, GVec &y)
-{
-	GAssert(y.size() == m_nn.outputLayer().outputs(), "Can't calculate output; not enough space in y!");
-	m_nn.predict(x, y);
-}
 
-void GNeuralNetFunction::updateDeltas(const GVec &x, const GVec &blame, GVec &deltas)
-{
-	GAssert(deltas.size() == countParameters(), "Can't update gradient; not enough space in deltas!");
-	m_nn.backpropagate(blame);
-	const GVec *in = &x;
-	GVecWrapper out(deltas.data(), 0);
-	for(size_t i = 0; i < m_nn.layerCount(); ++i)
-	{
-		size_t count = m_nn.layer(i).countWeights();
-		out.setSize(count);
-		if(count > 0)
-			((GParameterizedLayer*)&m_nn.layer(i))->updateDeltas(*in, out.vec());
-		in = &m_nn.layer(i).activation();
-		out.setData(out.vec().data() + count);
-	}
-}
 
-void GNeuralNetFunction::applyDeltas(const GVec &deltas)
-{
-	GConstVecWrapper delta(deltas.data(), 0);
-	for(size_t i = 0; i < m_nn.layerCount(); ++i)
-	{
-		size_t count = m_nn.layer(i).countWeights();
-		delta.setSize(count);
-		if(count > 0)
-			((GParameterizedLayer*)&m_nn.layer(i))->applyDeltas(delta.vec());
-		delta.setData(delta.vec().data() + count);
-	}
-}
 
-size_t GNeuralNetFunction::inputs() const
-{
-	return m_nn.layer(0).inputs();
-}
 
-size_t GNeuralNetFunction::outputs() const
-{
-	return m_nn.outputLayer().outputs();
-}
 
-size_t GNeuralNetFunction::countParameters() const
-{
-	return m_nn.countWeights();
-}
 
-GDifferentiableOptimizer::GDifferentiableOptimizer(GDifferentiable *target, GObjective *objective)
-: m_target(target), m_objective(objective != NULL ? objective : new GSquaredError()),
+GDifferentiableOptimizer::GDifferentiableOptimizer(GNeuralNet& model, GObjective *objective)
+: m_model(model), m_objective(objective != NULL ? objective : new GSquaredError()),
   m_rand(new GRand(0)), m_ownsRand(true),
   m_batchSize(1), m_batchesPerEpoch(INVALID_INDEX), m_epochs(100), m_windowSize(100), m_minImprovement(0.002)
 {}
@@ -140,14 +93,12 @@ GDifferentiableOptimizer::~GDifferentiableOptimizer()
 {
 	if(m_ownsRand)
 		delete(m_rand);
-	delete m_target;
 	delete m_objective;
 }
 
 void GDifferentiableOptimizer::optimizeIncremental(const GVec &feat, const GVec &lab)
 {
-	GAssert(m_target != NULL, "Target must be set before optimization!");
-	GAssert(feat.size() == m_target->inputs() && lab.size() == m_target->outputs(), "Features/labels size mismatch!");
+	GAssert(feat.size() == m_model.layer(0).inputs() && lab.size() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
 	GAssert(feat.size() != 0 && lab.size() != 0, "Features/labels are empty!");
 	updateDeltas(feat, lab);
 	applyDeltas();
@@ -155,8 +106,7 @@ void GDifferentiableOptimizer::optimizeIncremental(const GVec &feat, const GVec 
 
 void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize)
 {
-	GAssert(m_target != NULL, "Target must be set before optimization!");
-	GAssert(features.cols() == m_target->inputs() && labels.cols() == m_target->outputs(), "Features/labels size mismatch!");
+	GAssert(features.cols() == m_model.layer(0).inputs() && labels.cols() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
 	for(size_t i = 0; i < batchSize; ++i)
 		updateDeltas(features[start + i], labels[start + i]);
 	scaleDeltas(1.0 / batchSize);
@@ -170,8 +120,7 @@ void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMat
 
 void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii, size_t batchSize)
 {
-	GAssert(m_target != NULL, "Target must be set before optimization!");
-	GAssert(features.cols() == m_target->inputs() && labels.cols() == m_target->outputs(), "Features/labels size mismatch!");
+	GAssert(features.cols() == m_model.layer(0).inputs() && labels.cols() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
 	size_t j;
 	for(size_t i = 0; i < batchSize; ++i)
 	{
@@ -189,8 +138,7 @@ void GDifferentiableOptimizer::optimizeBatch(const GMatrix &features, const GMat
 
 void GDifferentiableOptimizer::optimize(const GMatrix &features, const GMatrix &labels)
 {
-	GAssert(m_target != NULL, "Target must be set before optimization!");
-	GAssert(features.cols() == m_target->inputs() && labels.cols() == m_target->outputs(), "Features/labels size mismatch!");
+	GAssert(features.cols() == m_model.layer(0).inputs() && labels.cols() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
 
 	size_t batchesPerEpoch = m_batchesPerEpoch;
 	if(m_batchesPerEpoch > features.rows())
@@ -204,8 +152,6 @@ void GDifferentiableOptimizer::optimize(const GMatrix &features, const GMatrix &
 
 void GDifferentiableOptimizer::optimizeWithValidation(const GMatrix &features, const GMatrix &labels, const GMatrix &validationFeat, const GMatrix &validationLab)
 {
-	GAssert(m_target != NULL, "Target must be set before optimization!");
-
 	size_t batchesPerEpoch = m_batchesPerEpoch;
 	if(m_batchesPerEpoch > features.rows())
 		batchesPerEpoch = features.rows();
@@ -255,36 +201,41 @@ double GDifferentiableOptimizer::sumLoss(const GMatrix &features, const GMatrix 
 	double sum = 0.0;
 	for(size_t i = 0; i < features.rows(); ++i)
 	{
-		m_target->evaluate(features[i], pred);
+		m_model.predict(features[i], pred);
 		m_objective->evaluate(pred, labels[i], loss);
 		sum += loss.sum();
 	}
 	return sum;
 }
 
-GSGDOptimizer::GSGDOptimizer(GDifferentiable *target, GObjective *objective)
-: GDifferentiableOptimizer(target, objective), m_learningRate(1e-1), m_momentum(0)
+
+
+
+
+
+
+
+
+GSGDOptimizer::GSGDOptimizer(GNeuralNet& model, GObjective *objective)
+: GDifferentiableOptimizer(model, objective), m_learningRate(1e-1), m_momentum(0)
 {
-	if(target != NULL)
-		prepareForOptimizing();
+	prepareForOptimizing();
 }
 
 void GSGDOptimizer::prepareForOptimizing()
 {
-	GAssert(m_target != NULL, "Target function must be set before preparing to optimize!");
-	m_pred.resize(m_target->outputs());
-	m_blame.resize(m_target->outputs());
-	m_gradient.resize(m_target->countParameters());
-	m_deltas.resize(m_target->countParameters());
+	m_pred.resize(m_model.outputLayer().outputs());
+	m_blame.resize(m_model.outputLayer().outputs());
+	m_gradient.resize(m_model.countWeights());
+	m_deltas.resize(m_model.countWeights());
 	m_gradient.fill(0.0);
 }
 
 void GSGDOptimizer::updateDeltas(const GVec &feat, const GVec &lab)
 {
-	m_blame.fill(0.0);
-	m_target->evaluate(feat, m_pred);
-	m_objective->calculateDerivative(m_pred, lab, m_blame);
-	m_target->updateDeltas(feat, m_blame, m_gradient);
+	m_model.predict(feat, m_pred);
+	m_objective->calculateOutputLayerBlame(m_pred, lab, m_blame);
+	m_model.updateGradient(feat, m_blame, m_gradient);
 }
 
 void GSGDOptimizer::scaleDeltas(double scale)
@@ -296,34 +247,42 @@ void GSGDOptimizer::applyDeltas()
 {
 	m_deltas.fill(0.0);
 	m_deltas.addScaled(m_learningRate, m_gradient);
-	m_target->applyDeltas(m_deltas);
-	m_gradient *= m_momentum;
+	m_model.step(m_deltas);
+	scaleDeltas(m_momentum);
 }
 
-GRMSPropOptimizer::GRMSPropOptimizer(GDifferentiable *target, GObjective *objective)
-: GDifferentiableOptimizer(target, objective), m_learningRate(1e-1), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
+
+
+
+
+
+
+
+
+
+
+GRMSPropOptimizer::GRMSPropOptimizer(GNeuralNet& model, GObjective *objective)
+: GDifferentiableOptimizer(model, objective), m_learningRate(1e-1), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
 {
-	if(target != NULL)
-		prepareForOptimizing();
+	prepareForOptimizing();
 }
 
 void GRMSPropOptimizer::prepareForOptimizing()
 {
-	m_pred.resize(m_target->outputs());
-	m_blame.resize(m_target->outputs());
-	m_gradient.resize(m_target->countParameters());
-	m_deltas.resize(m_target->countParameters());
-	m_meanSquare.resize(m_target->countParameters());
+	m_pred.resize(m_model.outputLayer().outputs());
+	m_blame.resize(m_model.outputLayer().outputs());
+	m_gradient.resize(m_model.countWeights());
+	m_deltas.resize(m_model.countWeights());
+	m_meanSquare.resize(m_model.countWeights());
 	m_gradient.fill(0.0);
 	m_meanSquare.fill(0.0);
 }
 
 void GRMSPropOptimizer::updateDeltas(const GVec &feat, const GVec &lab)
 {
-	m_blame.fill(0.0);
-	m_target->evaluate(feat, m_pred);
-	m_objective->calculateDerivative(m_pred, lab, m_blame);
-	m_target->updateDeltas(feat, m_blame, m_gradient);
+	m_model.predict(feat, m_pred);
+	m_objective->calculateOutputLayerBlame(m_pred, lab, m_blame);
+	m_model.updateGradient(feat, m_blame, m_gradient);
 }
 
 void GRMSPropOptimizer::scaleDeltas(double scale)
@@ -342,8 +301,8 @@ void GRMSPropOptimizer::applyDeltas()
 
 	m_deltas.fill(0.0);
 	m_deltas.addScaled(m_learningRate, m_gradient);
-	m_target->applyDeltas(m_deltas);
-	m_gradient *= m_momentum;
+	m_model.step(m_deltas);
+	scaleDeltas(m_momentum);
 }
 
 

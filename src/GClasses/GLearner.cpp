@@ -1682,36 +1682,6 @@ void GAutoFilter::trainIncremental(const GVec& in, const GVec& out)
 	m_pIncrementalLearner->trainIncremental(in, out);
 }
 
-#ifndef MIN_PREDICT
-void GAutoFilter::test()
-{
-	// This test trains a neural network (which only handles continuous values)
-	// in an incremental manner to implement a simple autoencoder for categorical values.
-	// This demonstrates that GAutoFilter picks the right filters, applies them, and
-	// works with incremental learning.
-	GNeuralNet* pNN = new GNeuralNet();
-	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	GAutoFilter af(pNN);
-	GUniformRelation rel(1, 3);
-	af.beginIncrementalLearning(rel, rel);
-	GRand rand(0);
-	GVec pat(1);
-	for(size_t i = 0; i < 500; i++)
-	{
-		pat[0] = (double)rand.next(3);
-		af.trainIncremental(pat, pat);
-	}
-	GVec pred(1);
-	for(size_t i = 0; i < 10; i++)
-	{
-		pat[0] = (double)rand.next(3);
-		af.predict(pat, pred);
-		if(std::abs(pred[0] - pat[0]) > 1e-12)
-			throw Ex("failed");
-	}
-}
-#endif // MIN_PREDICT
-
 
 
 // ---------------------------------------------------------------

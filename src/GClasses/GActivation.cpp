@@ -366,7 +366,7 @@ void GActivationHinge::test()
 	
 	GUniformRelation rel(2);
 	
-	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.1);
 	optimizer.setMomentum(0.0);
 	nn.beginIncrementalLearning(rel, rel);
@@ -677,7 +677,7 @@ void GActivationSoftExponential::test()
 	
 	GUniformRelation rel(2);
 	
-	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.1);
 	optimizer.setMomentum(0.0);
 	nn.beginIncrementalLearning(rel, rel);

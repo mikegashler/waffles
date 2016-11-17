@@ -81,7 +81,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 	
 	private:
 		GNeuralNet *m_nn;
-		GSGDOptimizer m_optimizer;
+		//GSGDOptimizer m_optimizer;
 		double m_regularization, m_learningRate, m_featureScale, m_featureBias, m_outputScale, m_outputBias;
 		size_t m_linearUnits, m_softplusUnits, m_sigmoidUnits, m_sinusoidUnits, m_epochs;
 		bool m_filterLogarithm, m_autoFilter;

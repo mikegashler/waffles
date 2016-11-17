@@ -73,7 +73,7 @@ GNeuralNet::~GNeuralNet()
 
 void GNeuralNet::trainIncremental(const GVec &in, const GVec &out)
 {
-	m_defaultOptimizer.optimizeIncremental(in, out);
+	throw Ex("GNeuralNet::trainIncremental is not implemented (need to use GDifferentiableOptimizer).");
 }
 
 void GNeuralNet::trainSparse(GSparseMatrix &features, GMatrix &labels)
@@ -84,7 +84,8 @@ void GNeuralNet::trainSparse(GSparseMatrix &features, GMatrix &labels)
 void GNeuralNet::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	beginIncrementalLearningInner(features.relation(), labels.relation());
-	m_defaultOptimizer.optimizeWithValidation(features, labels);
+	GSGDOptimizer optimizer(*this);
+	optimizer.optimizeWithValidation(features, labels);
 }
 
 void GNeuralNet::clear()
@@ -202,7 +203,7 @@ void GNeuralNet::perturbAllWeights(double deviation)
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
 		if(m_layers[i]->countWeights() > 0)
-			((GLayerClassic*)m_layers[i])->perturbWeights(m_rand, deviation);
+			((GParameterizedLayer*)m_layers[i])->perturbWeights(m_rand, deviation);
 	}
 }
 
@@ -269,13 +270,34 @@ void GNeuralNet::invertNode(size_t lay, size_t node)
 
 void GNeuralNet::swapNodes(size_t lay, size_t a, size_t b)
 {
-	GLayerClassic& layerUpStream = *(GLayerClassic*)m_layers[lay];
-	layerUpStream.m_weights.swapColumns(a, b);
-	if(lay + 1 < m_layers.size())
+	GNeuralNetLayer& l = layer(lay);
+	if(l.type() == GNeuralNetLayer::layer_classic) // This block is ready to be deleted when we get rid of GLayerClassic
 	{
-		GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[lay + 1];
-		layerDownStream.m_weights.swapRows(a, b);
+		GLayerClassic& layerUpStream = *(GLayerClassic*)&l;
+		layerUpStream.m_weights.swapColumns(a, b);
+		if(lay + 1 < m_layers.size())
+		{
+			GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[lay + 1];
+			layerDownStream.m_weights.swapRows(a, b);
+		}
 	}
+	else if(l.type() == GNeuralNetLayer::layer_linear)
+	{
+		GLayerLinear& layerUpStream = *(GLayerLinear*)&l;
+		layerUpStream.weights().swapColumns(a, b);
+		size_t ds = lay + 1;
+		while(ds < m_layers.size() && m_layers[ds]->type() == GNeuralNetLayer::layer_activation)
+			ds++;
+		if(ds < m_layers.size())
+		{
+			if(m_layers[ds]->type() != GNeuralNetLayer::layer_linear)
+				throw Ex("Expected the downstream layer to be a linear layer");
+			GLayerLinear& layerDownStream = *(GLayerLinear*)m_layers[ds];
+			layerDownStream.weights().swapRows(a, b);
+		}
+	}
+	else
+		throw Ex("I don't know how to swap nodes in this type of layer");
 }
 
 void GNeuralNet::addLayer(GNeuralNetLayer* pLayer, size_t position)
@@ -334,64 +356,131 @@ void GNeuralNet::align(const GNeuralNet& that)
 	for(size_t i = 0; i + 1 < m_layers.size(); i++)
 	{
 		// Copy weights into matrices
-		GLayerClassic& layerThisCur = *(GLayerClassic*)m_layers[i];
-
-		GLayerClassic& layerThatCur = *(GLayerClassic*)that.m_layers[i];
-		if(layerThisCur.outputs() != layerThatCur.outputs())
-			throw Ex("mismatching layer size");
-
-		GMatrix costs(layerThisCur.outputs(), layerThatCur.outputs());
-		for(size_t k = 0; k < layerThisCur.outputs(); k++)
+		GNeuralNetLayer& lThis = layer(i);
+		if(lThis.type() != that.m_layers[i]->type())
+			throw Ex("mismatching layer types");
+		if(lThis.type() == GNeuralNetLayer::layer_classic) // This block is ready to be deleted when we get rid of GLayerClassic
 		{
-			for(size_t j = 0; j < layerThatCur.outputs(); j++)
+			GLayerClassic& layerThisCur = *(GLayerClassic*)&lThis;
+			GLayerClassic& layerThatCur = *(GLayerClassic*)that.m_layers[i];
+			if(layerThisCur.outputs() != layerThatCur.outputs())
+				throw Ex("mismatching layer size");
+
+			GMatrix costs(layerThisCur.outputs(), layerThatCur.outputs());
+			for(size_t k = 0; k < layerThisCur.outputs(); k++)
 			{
-				double d = layerThisCur.bias()[k] - layerThatCur.bias()[j];
-				double pos = d * d;
-				d = layerThisCur.bias()[k] + layerThatCur.bias()[j];
-				double neg = d * d;
-				GMatrix& wThis = layerThisCur.m_weights;
-				const GMatrix& wThat = layerThatCur.m_weights;
-				for(size_t l = 0; l < layerThisCur.inputs(); l++)
+				for(size_t j = 0; j < layerThatCur.outputs(); j++)
 				{
-					d = wThis[l][k] - wThat[l][j];
-					pos += (d * d);
-					d = wThis[l][k] + wThat[l][j];
-					neg += (d * d);
+					double d = layerThisCur.bias()[k] - layerThatCur.bias()[j];
+					double pos = d * d;
+					d = layerThisCur.bias()[k] + layerThatCur.bias()[j];
+					double neg = d * d;
+					GMatrix& wThis = layerThisCur.m_weights;
+					const GMatrix& wThat = layerThatCur.m_weights;
+					for(size_t l = 0; l < layerThisCur.inputs(); l++)
+					{
+						d = wThis[l][k] - wThat[l][j];
+						pos += (d * d);
+						d = wThis[l][k] + wThat[l][j];
+						neg += (d * d);
+					}
+					costs[j][k] = std::min(pos, neg);
 				}
-				costs[j][k] = std::min(pos, neg);
+			}
+			GSimpleAssignment indexes = linearAssignment(costs);
+
+			// Align this layer with that layer
+			for(size_t j = 0; j < layerThisCur.outputs(); j++)
+			{
+				size_t k = (size_t)indexes((unsigned int)j);
+				if(k != j)
+				{
+					// Fix up the indexes
+					size_t m = j + 1;
+					for( ; m < layerThisCur.outputs(); m++)
+					{
+						if((size_t)indexes((unsigned int)m) == j)
+							break;
+					}
+					GAssert(m < layerThisCur.outputs());
+					indexes.assign((unsigned int)m, (unsigned int)k);
+
+					// Swap nodes j and k
+					swapNodes(i, j, k);
+				}
+
+				// Test whether not j needs to be inverted by computing the dot product of the two weight vectors
+				double dp = 0.0;
+				size_t inputs = layerThisCur.inputs();
+				for(size_t kk = 0; kk < inputs; kk++)
+					dp += layerThisCur.m_weights[kk][j] * layerThatCur.m_weights[kk][j];
+				dp += layerThisCur.bias()[j] * layerThatCur.bias()[j];
+				if(dp < 0)
+					invertNode(i, j); // invert it
 			}
 		}
-		GSimpleAssignment indexes = linearAssignment(costs);
-
-		// Align this layer with that layer
-		for(size_t j = 0; j < layerThisCur.outputs(); j++)
+		else if(lThis.type() == GNeuralNetLayer::layer_linear)
 		{
-			size_t k = (size_t)indexes((unsigned int)j);
-			if(k != j)
+			GLayerLinear& layerThisCur = *(GLayerLinear*)&lThis;
+			GLayerLinear& layerThatCur = *(GLayerLinear*)that.m_layers[i];
+			if(layerThisCur.outputs() != layerThatCur.outputs())
+				throw Ex("mismatching layer size");
+
+			GMatrix costs(layerThisCur.outputs(), layerThatCur.outputs());
+			for(size_t k = 0; k < layerThisCur.outputs(); k++)
 			{
-				// Fix up the indexes
-				size_t m = j + 1;
-				for( ; m < layerThisCur.outputs(); m++)
+				for(size_t j = 0; j < layerThatCur.outputs(); j++)
 				{
-					if((size_t)indexes((unsigned int)m) == j)
-						break;
+					double d = layerThisCur.bias()[k] - layerThatCur.bias()[j];
+					double pos = d * d;
+					d = layerThisCur.bias()[k] + layerThatCur.bias()[j];
+					double neg = d * d;
+					GMatrix& wThis = layerThisCur.weights();
+					const GMatrix& wThat = layerThatCur.weights();
+					for(size_t l = 0; l < layerThisCur.inputs(); l++)
+					{
+						d = wThis[l][k] - wThat[l][j];
+						pos += (d * d);
+						d = wThis[l][k] + wThat[l][j];
+						neg += (d * d);
+					}
+					costs[j][k] = std::min(pos, neg);
 				}
-				GAssert(m < layerThisCur.outputs());
-				indexes.assign((unsigned int)m, (unsigned int)k);
-
-				// Swap nodes j and k
-				swapNodes(i, j, k);
 			}
+			GSimpleAssignment indexes = linearAssignment(costs);
 
-			// Test whether not j needs to be inverted by computing the dot product of the two weight vectors
-			double dp = 0.0;
-			size_t inputs = layerThisCur.inputs();
-			for(size_t kk = 0; kk < inputs; kk++)
-				dp += layerThisCur.m_weights[kk][j] * layerThatCur.m_weights[kk][j];
-			dp += layerThisCur.bias()[j] * layerThatCur.bias()[j];
-			if(dp < 0)
-				invertNode(i, j); // invert it
+			// Align this layer with that layer
+			for(size_t j = 0; j < layerThisCur.outputs(); j++)
+			{
+				size_t k = (size_t)indexes((unsigned int)j);
+				if(k != j)
+				{
+					// Fix up the indexes
+					size_t m = j + 1;
+					for( ; m < layerThisCur.outputs(); m++)
+					{
+						if((size_t)indexes((unsigned int)m) == j)
+							break;
+					}
+					GAssert(m < layerThisCur.outputs());
+					indexes.assign((unsigned int)m, (unsigned int)k);
+
+					// Swap nodes j and k
+					swapNodes(i, j, k);
+				}
+
+				// Test whether not j needs to be inverted by computing the dot product of the two weight vectors
+				double dp = 0.0;
+				size_t inputs = layerThisCur.inputs();
+				for(size_t kk = 0; kk < inputs; kk++)
+					dp += layerThisCur.weights()[kk][j] * layerThatCur.weights()[kk][j];
+				dp += layerThisCur.bias()[j] * layerThatCur.bias()[j];
+				if(dp < 0)
+					invertNode(i, j); // invert it
+			}
 		}
+		else if(lThis.countWeights() > 0)
+			throw Ex("I don't know how to align this type of layer");
 	}
 }
 
@@ -439,14 +528,13 @@ void GNeuralNet::contractWeights(double factor, bool contractBiases)
 }
 #endif // MIN_PREDICT
 
-void GNeuralNet::forwardProp(const GVec& row, size_t maxLayers)
+void GNeuralNet::forwardProp(const GVec& row)
 {
 	GNeuralNetLayer* pLay = m_layers[0];
 	if(!pLay)
 		throw Ex("No layers have been added to this neural network");
 	pLay->feedForward(row);
-	maxLayers = std::min(m_layers.size(), maxLayers);
-	for(size_t i = 1; i < maxLayers; i++)
+	for(size_t i = 1; i < m_layers.size(); i++)
 	{
 		GNeuralNetLayer* pDS = m_layers[i];
 		pDS->feedForward(pLay);
@@ -499,8 +587,6 @@ void GNeuralNet::beginIncrementalLearningInner(const GRelation& featureRel, cons
 			((GParameterizedLayer*)m_layers[i])->resetWeights(m_rand);
 	}
 
-	m_defaultOptimizer.setTarget(new GNeuralNetFunction(*this));
-
 	m_ready = true;
 }
 
@@ -540,19 +626,42 @@ void GNeuralNet::printWeights(std::ostream& stream)
 		else
 			stream << "	Hidden Layer " << to_str(i) << ":\n";
 		GNeuralNetLayer& l = layer(i);
-		GLayerClassic& lay = *(GLayerClassic*)&l;
-		for(size_t j = 0; j < lay.outputs(); j++)
+		if(l.countWeights() == 0)
+			stream << "		weightless layer type: " << to_str((size_t)l.type());
+		else if(l.type() == GNeuralNetLayer::layer_classic)
 		{
-			stream << "		Unit " << to_str(j) << ":	";
-			stream << "(bias: " << to_str(lay.bias()[j]) << ")	";
-			for(size_t k = 0; k < lay.inputs(); k++)
+			GLayerClassic& lay = *(GLayerClassic*)&l;
+			for(size_t j = 0; j < lay.outputs(); j++)
 			{
-				if(k > 0)
-					stream << "	";
-				stream << to_str(lay.m_weights[k][j]);
+				stream << "		Unit " << to_str(j) << ":	";
+				stream << "(bias: " << to_str(lay.bias()[j]) << ")	";
+				for(size_t k = 0; k < lay.inputs(); k++)
+				{
+					if(k > 0)
+						stream << "	";
+					stream << to_str(lay.m_weights[k][j]);
+				}
+				stream << "\n";
 			}
-			stream << "\n";
 		}
+		else if(l.type() == GNeuralNetLayer::layer_linear)
+		{
+			GLayerLinear& lay = *(GLayerLinear*)&l;
+			for(size_t j = 0; j < lay.outputs(); j++)
+			{
+				stream << "		Unit " << to_str(j) << ":	";
+				stream << "(bias: " << to_str(lay.bias()[j]) << ")	";
+				for(size_t k = 0; k < lay.inputs(); k++)
+				{
+					if(k > 0)
+						stream << "	";
+					stream << to_str(lay.weights()[k][j]);
+				}
+				stream << "\n";
+			}
+		}
+		else
+			throw Ex("I don't know how to print the weights in layers of this type");
 	}
 }
 
@@ -562,34 +671,71 @@ void GNeuralNet::containIntrinsics(GMatrix& intrinsics)
 	GNeuralNetLayer& llay = layer(0);
 	if(llay.inputs() != dims)
 		throw Ex("Mismatching number of columns and inputs");
-	if(llay.type() != GNeuralNetLayer::layer_classic)
-		throw Ex("This only works with classic input layers");
-	GLayerClassic& lay = *(GLayerClassic*)&llay;
-	GVec pCentroid(dims);
-	intrinsics.centroid(pCentroid);
-	double maxDev = 0.0;
-	for(size_t i = 0; i < dims; i++)
+	if(llay.type() == GNeuralNetLayer::layer_classic)
 	{
-		double dev = sqrt(intrinsics.columnVariance(i, pCentroid[i]));
-		maxDev = std::max(maxDev, dev);
-		intrinsics.normalizeColumn(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
-		lay.renormalizeInput(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
+		GLayerClassic& lay = *(GLayerClassic*)&llay;
+		GVec pCentroid(dims);
+		intrinsics.centroid(pCentroid);
+		double maxDev = 0.0;
+		for(size_t i = 0; i < dims; i++)
+		{
+			double dev = sqrt(intrinsics.columnVariance(i, pCentroid[i]));
+			maxDev = std::max(maxDev, dev);
+			intrinsics.normalizeColumn(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
+			lay.renormalizeInput(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
+		}
 	}
+	else if(llay.type() == GNeuralNetLayer::layer_linear)
+	{
+		GLayerLinear& lay = *(GLayerLinear*)&llay;
+		GVec pCentroid(dims);
+		intrinsics.centroid(pCentroid);
+		double maxDev = 0.0;
+		for(size_t i = 0; i < dims; i++)
+		{
+			double dev = sqrt(intrinsics.columnVariance(i, pCentroid[i]));
+			maxDev = std::max(maxDev, dev);
+			intrinsics.normalizeColumn(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
+			lay.renormalizeInput(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
+		}
+	}
+	else
+		throw Ex("I don't know how to contain this type of layer");
 }
 
 GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 {
-	GLayerClassic& lay = *(GLayerClassic*)&layer(0);
-	if(lay.inputs() != features.cols())
-		throw Ex("mismatching number of data columns and layer units");
-	GPCA pca(lay.inputs());
-	pca.train(features);
-	GVec off(lay.inputs());
-	pca.basis()->multiply(pca.centroid(), off);
-	GMatrix* pInvTransform = pca.basis()->pseudoInverse();
-	std::unique_ptr<GMatrix> hInvTransform(pInvTransform);
-	lay.transformWeights(*pInvTransform, off);
-	return pca.transformBatch(features);
+	GNeuralNetLayer& llay = layer(0);
+	if(llay.type() == GNeuralNetLayer::layer_classic)
+	{
+		GLayerClassic& lay = *(GLayerClassic*)&llay;
+		if(lay.inputs() != features.cols())
+			throw Ex("mismatching number of data columns and layer units");
+		GPCA pca(lay.inputs());
+		pca.train(features);
+		GVec off(lay.inputs());
+		pca.basis()->multiply(pca.centroid(), off);
+		GMatrix* pInvTransform = pca.basis()->pseudoInverse();
+		std::unique_ptr<GMatrix> hInvTransform(pInvTransform);
+		lay.transformWeights(*pInvTransform, off);
+		return pca.transformBatch(features);
+	}
+	else if(llay.type() == GNeuralNetLayer::layer_linear)
+	{
+		GLayerLinear& lay = *(GLayerLinear*)&llay;
+		if(lay.inputs() != features.cols())
+			throw Ex("mismatching number of data columns and layer units");
+		GPCA pca(lay.inputs());
+		pca.train(features);
+		GVec off(lay.inputs());
+		pca.basis()->multiply(pca.centroid(), off);
+		GMatrix* pInvTransform = pca.basis()->pseudoInverse();
+		std::unique_ptr<GMatrix> hInvTransform(pInvTransform);
+		lay.transformWeights(*pInvTransform, off);
+		return pca.transformBatch(features);
+	}
+	else
+		throw Ex("I don't know how to contain this type of layer");
 }
 
 // static
@@ -665,6 +811,35 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 	return pNN;
 }
 
+void GNeuralNet::updateGradient(const GVec &x, const GVec &blame, GVec &deltas)
+{
+	GAssert(deltas.size() == countWeights(), "Can't update gradient; not enough space in deltas!");
+	backpropagate(blame);
+	const GVec *in = &x;
+	GVecWrapper out(deltas.data(), 0);
+	for(size_t i = 0; i < layerCount(); ++i)
+	{
+		size_t count = layer(i).countWeights();
+		out.setSize(count);
+		if(count > 0)
+			((GParameterizedLayer*)&layer(i))->updateDeltas(*in, out.vec());
+		in = &layer(i).activation();
+		out.setData(out.vec().data() + count);
+	}
+}
+
+void GNeuralNet::step(const GVec &deltas)
+{
+	GConstVecWrapper delta(deltas.data(), 0);
+	for(size_t i = 0; i < layerCount(); ++i)
+	{
+		size_t count = layer(i).countWeights();
+		delta.setSize(count);
+		if(count > 0)
+			((GParameterizedLayer*)&layer(i))->applyDeltas(delta.vec());
+		delta.setData(delta.vec().data() + count);
+	}
+}
 
 #ifndef MIN_PREDICT
 void GNeuralNet_testMath()
@@ -678,22 +853,29 @@ void GNeuralNet_testMath()
 
 	// Make the Neural Network
 	GNeuralNet nn;
+	GLayerLinear* lh = new GLayerLinear(2, 3);
+	GLayerActivation* lha = new GLayerActivation();
+	GLayerLinear* lo = new GLayerLinear(3, 1);
+	GLayerActivation* lho = new GLayerActivation();
+	nn.addLayers(lh, lha, lo, lho);
+	/*
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 3));
 	nn.addLayer(new GLayerClassic(3, FLEXIBLE_SIZE));
+	*/
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
 	
-	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.175);
 	optimizer.setMomentum(0.9);
 	
 	if(nn.countWeights() != 13)
 		throw Ex("Wrong number of weights");
-	GLayerClassic& layerOut = *(GLayerClassic*)&nn.layer(1);
+	GLayerLinear& layerOut = *lo;//*(GLayerClassic*)&nn.layer(1);
 	layerOut.bias()[0] = 0.02; // w_0
 	layerOut.weights()[0][0] = -0.01; // w_1
 	layerOut.weights()[1][0] = 0.03; // w_2
 	layerOut.weights()[2][0] = 0.02; // w_3
-	GLayerClassic& layerHidden = *(GLayerClassic*)&nn.layer(0);
+	GLayerLinear& layerHidden = *lh;//*(GLayerClassic*)&nn.layer(0);
 	layerHidden.bias()[0] = -0.01; // w_4
 	layerHidden.weights()[0][0] = -0.03; // w_5
 	layerHidden.weights()[1][0] = 0.03; // w_6
@@ -704,100 +886,39 @@ void GNeuralNet_testMath()
 	layerHidden.weights()[0][2] = 0.03; // w_11
 	layerHidden.weights()[1][2] = 0.02; // w_12
 
-	bool useCrossEntropy = false;
-
 	// Test forward prop
 	double tol = 1e-12;
 	GVec pat(2);
 	pat.copy(features[0]);
 	GVec pred(1);
 	nn.predict(pat, pred);
-	// Here is the math (done by hand) for why these results are expected:
-	// Row: {0, -0.7, 1}
-	// o_1 = squash(w_4*1+w_5*x+w_6*y) = 1/(1+exp(-(-.01*1-.03*0+.03*(-.7)))) = 0.4922506205862
-	// o_2 = squash(w_7*1+w_8*x+w_9*y) = 1/(1+exp(-(.01*1+.04*0-.02*(-.7)))) = 0.50599971201659
-	// o_3 = squash(w_10*1+w_11*x+w_12*y) = 1/(1+exp(-(-.02*1+.03*0+.02*(-.7)))) = 0.49150081873869
-	// o_0 = squash(w_0*1+w_1*o_1+w_2*o_2+w_3*o_3) = 1/(1+exp(-(.02*1-.01*.4922506205862+.03*.50599971201659+.02*.49150081873869))) = 0.51002053349535
-	//if(std::abs(pat[2] - 0.51002053349535) > tol) throw Ex("forward prop problem"); // logistic
 	if(std::abs(pred[0] - 0.02034721575641) > tol) throw Ex("forward prop problem"); // tanh
 
 	// Test that the output error is computed properly
 	optimizer.optimizeIncremental(features[0], labels[0]);
-	GNeuralNet* pBP = &nn;
-	// Here is the math (done by hand) for why these results are expected:
-	// e_0 = output*(1-output)*(target-output) = .51002053349535*(1-.51002053349535)*(1-.51002053349535) = 0.1224456672531
-	if(useCrossEntropy)
-	{
-		// Here is the math for why these results are expected:
-		// e_0 = target-output = 1-.51002053349535 = 0.4899794665046473
-		if(std::abs(((GLayerClassic*)&pBP->layer(1))->error()[0] - 0.4899794665046473) > tol) throw Ex("problem computing output error");
-	}
-	else
-	{
-		// Here is the math for why these results are expected:
-		// e_0 = output*(1-output)*(target-output) = .51002053349535*(1-.51002053349535)*(1-.51002053349535) = 0.1224456672531
-		//if(std::abs(pBP->layer(1).blame()[0] - 0.1224456672531) > tol) throw Ex("problem computing output error"); // logistic
-		if(std::abs(((GLayerClassic*)&pBP->layer(1))->error()[0] - 0.9792471989888) > tol) throw Ex("problem computing output error"); // tanh
-	}
+
+	// Here is the math for why these results are expected:
+	if(std::abs(lo->error()[0] - 0.9792471989888) > tol) throw Ex("problem computing output error"); // tanh
 
 	// Test Back Prop
-	if(useCrossEntropy)
-	{
-		if(std::abs(((GLayerClassic*)&pBP->layer(0))->error()[0] + 0.0012246544194742083) > tol) throw Ex("back prop problem");
-		// e_2 = o_2*(1-o_2)*(w_2*e_0) = 0.00091821027577176
-		if(std::abs(((GLayerClassic*)&pBP->layer(0))->error()[1] - 0.0036743168717579557) > tol) throw Ex("back prop problem");
-		// e_3 = o_3*(1-o_3)*(w_3*e_0) = 0.00061205143636003
-		if(std::abs(((GLayerClassic*)&pBP->layer(0))->error()[2] - 0.002449189448583718) > tol) throw Ex("back prop problem");
-	}
-	else
-	{
-		// e_1 = o_1*(1-o_1)*(w_1*e_0) = .4922506205862*(1-.4922506205862)*(-.01*.1224456672531) = -0.00030604063598154
-		//if(std::abs(pBP->layer(0).blame()[0] + 0.00030604063598154) > tol) throw Ex("back prop problem"); // logistic
-		if(std::abs(((GLayerClassic*)&pBP->layer(0))->error()[0] + 0.00978306745006032) > tol) throw Ex("back prop problem"); // tanh
-		// e_2 = o_2*(1-o_2)*(w_2*e_0) = 0.00091821027577176
-		//if(std::abs(pBP->layer(0).blame()[1] - 0.00091821027577176) > tol) throw Ex("back prop problem"); // logistic
-		if(std::abs(((GLayerClassic*)&pBP->layer(0))->error()[1] - 0.02936050107376107) > tol) throw Ex("back prop problem"); // tanh
-		// e_3 = o_3*(1-o_3)*(w_3*e_0) = 0.00061205143636003
-		//if(std::abs(pBP->layer(0).blame()[2] - 0.00061205143636003) > tol) throw Ex("back prop problem"); // logistic
-		if(std::abs(((GLayerClassic*)&pBP->layer(0))->error()[2] - 0.01956232122115741) > tol) throw Ex("back prop problem"); // tanh
-	}
+	if(std::abs(((GLayerClassic*)&nn.layer(0))->error()[0] + 0.00978306745006032) > tol) throw Ex("back prop problem"); // tanh
+	if(std::abs(((GLayerClassic*)&nn.layer(0))->error()[1] - 0.02936050107376107) > tol) throw Ex("back prop problem"); // tanh
+	if(std::abs(((GLayerClassic*)&nn.layer(0))->error()[2] - 0.01956232122115741) > tol) throw Ex("back prop problem"); // tanh
 
 	// Test weight update
-	if(useCrossEntropy)
-	{
-		if(std::abs(layerOut.weights()[0][0] - 0.10574640663831328) > tol) throw Ex("weight update problem");
-		if(std::abs(layerOut.weights()[1][0] - 0.032208721880745944) > tol) throw Ex("weight update problem");
-	}
-	else
-	{
-		// d_0 = (d_0*momentum)+(learning_rate*e_0*1) = 0*.9+.175*.1224456672531*1
-		// w_0 = w_0 + d_0 = .02+.0214279917693 = 0.041427991769293
-		//if(std::abs(layerOut.bias()[0] - 0.041427991769293) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerOut.bias()[0] - 0.191368259823049) > tol) throw Ex("weight update problem"); // tanh
-		// d_1 = (d_1*momentum)+(learning_rate*e_0*o_1) = 0*.9+.175*.1224456672531*.4922506205862
-		// w_1 = w_1 + d_1 = -.01+.0105479422563 = 0.00054794224635029
-		//if(std::abs(layerOut.weights()[0][0] - 0.00054794224635029) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerOut.weights()[0][0] + 0.015310714964467731) > tol) throw Ex("weight update problem"); // tanh
-		//if(std::abs(layerOut.weights()[1][0] - 0.040842557664356) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerOut.weights()[1][0] - 0.034112048752708297) > tol) throw Ex("weight update problem"); // tanh
-		//if(std::abs(layerOut.weights()[2][0] - 0.030531875498533) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerOut.weights()[2][0] - 0.014175723281037968) > tol) throw Ex("weight update problem"); // tanh
-		//if(std::abs(layerHidden.bias()[0] + 0.010053557111297) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerHidden.bias()[0] + 0.011712036803760557) > tol) throw Ex("weight update problem"); // tanh
-		if(std::abs(layerHidden.weights()[0][0] + 0.03) > tol) throw Ex("weight update problem"); // logistic & tanh
-		//if(std::abs(layerHidden.weights()[1][0] - 0.030037489977908) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerHidden.weights()[1][0] - 0.03119842576263239) > tol) throw Ex("weight update problem"); // tanh
-		//if(std::abs(layerHidden.bias()[1] - 0.01016068679826) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerHidden.bias()[1] - 0.015138087687908187) > tol) throw Ex("weight update problem"); // tanh
-		if(std::abs(layerHidden.weights()[0][1] - 0.04) > tol) throw Ex("weight update problem"); // logistic & tanh
-		//if(std::abs(layerHidden.weights()[1][1] + 0.020112480758782) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerHidden.weights()[1][1] + 0.023596661381535732) > tol) throw Ex("weight update problem"); // tanh
-		//if(std::abs(layerHidden.bias()[2] + 0.019892890998637) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerHidden.bias()[2] + 0.016576593786297455) > tol) throw Ex("weight update problem"); // tanh
-		if(std::abs(layerHidden.weights()[0][2] - 0.03) > tol) throw Ex("weight update problem"); // logistic & tanh
-		//if(std::abs(layerHidden.weights()[1][2] - 0.019925023699046) > tol) throw Ex("weight update problem"); // logistic
-		if(std::abs(layerHidden.weights()[1][2] - 0.01760361565040822) > tol) throw Ex("weight update problem"); // tanh
-	}
+	if(std::abs(layerOut.bias()[0] - 0.191368259823049) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerOut.weights()[0][0] + 0.015310714964467731) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerOut.weights()[1][0] - 0.034112048752708297) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerOut.weights()[2][0] - 0.014175723281037968) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerHidden.bias()[0] + 0.011712036803760557) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerHidden.weights()[0][0] + 0.03) > tol) throw Ex("weight update problem"); // logistic & tanh
+	if(std::abs(layerHidden.weights()[1][0] - 0.03119842576263239) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerHidden.bias()[1] - 0.015138087687908187) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerHidden.weights()[0][1] - 0.04) > tol) throw Ex("weight update problem"); // logistic & tanh
+	if(std::abs(layerHidden.weights()[1][1] + 0.023596661381535732) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerHidden.bias()[2] + 0.016576593786297455) > tol) throw Ex("weight update problem"); // tanh
+	if(std::abs(layerHidden.weights()[0][2] - 0.03) > tol) throw Ex("weight update problem"); // logistic & tanh
+	if(std::abs(layerHidden.weights()[1][2] - 0.01760361565040822) > tol) throw Ex("weight update problem"); // tanh
 }
 
 void GNeuralNet_testHingeMath()
@@ -811,7 +932,7 @@ void GNeuralNet_testHingeMath()
 	nn.addLayer(new GLayerClassic(3, 2, pAct2));
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
 	
-	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.1);
 	
 	if(nn.countWeights() != 22)
@@ -1190,7 +1311,7 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	GVec oneVec(1);
 	oneVec.fill(1.0);
 
-	GSGDOptimizer optimizer(new GNeuralNetFunction(nn));
+	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(1e-2);
 
 	for(size_t i = 0; i < 200; i++)
@@ -1270,7 +1391,7 @@ void GNeuralNet::test()
 		GNeuralNet* pNN = new GNeuralNet();
 		pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 		GAutoFilter af(pNN);
-		af.basicTest(0.78, 0.92);
+		af.basicTest(0.78, 0.895);
 	}
 
 	// Test NN with one hidden layer
