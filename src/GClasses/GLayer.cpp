@@ -3,7 +3,7 @@
 
     Michael S. Gashler,
     Michael R. Smith,
-		Stephen Ashmore,
+    Stephen Ashmore,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -159,16 +159,16 @@ void GLayerLinear::updateDeltas(const GVec& upStreamActivation, GVec &deltas)
 		*delta++ += err[j];
 }
 
-void GLayerLinear::applyDeltas(const GVec &deltas)
+void GLayerLinear::applyDeltas(double learningRate, const GVec &deltas)
 {
 	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
 	const double *delta = deltas.data();
 	GVec &b = bias();
 	for(size_t i = 0; i < inputs(); ++i)
 		for(size_t j = 0; j < outputs(); ++j)
-			m_weights[i][j] += *delta++;
+			m_weights[i][j] += learningRate * *delta++;
 	for(size_t j = 0; j < outputs(); ++j)
-		b[j] += *delta++;
+		b[j] += learningRate * *delta++;
 }
 
 void GLayerLinear::scaleWeights(double factor, bool scaleBiases)
@@ -185,6 +185,27 @@ void GLayerLinear::diminishWeights(double amount, bool regularizeBiases)
 		m_weights[i].regularizeL1(amount);
 	if(regularizeBiases)
 		bias().regularizeL1(amount);
+}
+
+void GLayerLinear::contractWeights(double factor, bool contractBiases)
+{
+	GVec& a = activation();
+	GVec& b = bias();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		// (Note that the official implementation of contractive regularization multiplies by the
+		// derivative of the activation function, but we separate activation functions into separate
+		// layers, and I don't think they should depend on each other, so this implementation
+		// assumes the tanh activation function for regularization purposes.)
+		double activ = tanh(a[i]);
+		double aprime = 1.0 - (activ * activ);
+		double f = 1.0 - factor * aprime;
+		for(size_t j = 0; j < inputs(); j++)
+			m_weights[j][i] *= f;
+		if(contractBiases)
+			b[i] *= f;
+	}
 }
 
 size_t GLayerLinear::countWeights()
@@ -545,16 +566,16 @@ void GLayerClassic::copySingleNeuronWeights(size_t source, size_t dest)
 	bias()[dest] = bias()[source];
 }
 
-void GLayerClassic::applyDeltas(const GVec &deltas)
+void GLayerClassic::applyDeltas(double learningRate, const GVec &deltas)
 {
 	GAssert(deltas.size() == countWeights(), "Deltas must match the dimensions of weights!");
 	const double *delta = deltas.data();
 	for(size_t i = 0; i < inputs(); ++i)
 		for(size_t j = 0; j < outputs(); ++j)
-			m_weights[i][j] += *delta++;
+			m_weights[i][j] += learningRate * *delta++;
 	for(size_t j = 0; j < outputs(); ++j)
-		bias()[j] += *delta++;
-	m_pActivationFunction->applyDeltas(GConstVecWrapper(delta, m_pActivationFunction->countWeights()).vec());
+		bias()[j] += learningRate * *delta++;
+	m_pActivationFunction->applyDeltas(learningRate, GConstVecWrapper(delta, m_pActivationFunction->countWeights()).vec());
 }
 
 void GLayerClassic::scaleWeights(double factor, bool scaleBiases)
@@ -1001,7 +1022,7 @@ void GLayerMaxOut::updateDeltas(const GVec &upStreamActivation, GVec &deltas)
 	}
 }
 
-void GLayerMaxOut::applyDeltas(const GVec &deltas)
+void GLayerMaxOut::applyDeltas(double learningRate, const GVec &deltas)
 {
 	size_t outputCount = outputs();
 	GVec& bi = bias();
@@ -1009,8 +1030,8 @@ void GLayerMaxOut::applyDeltas(const GVec &deltas)
 	for(size_t down = 0; down < outputCount; down++)
 	{
 		size_t up = m_winners[down];
-		bi[up] += *delta++;
-		m_weights[up][down] += *delta++;
+		bi[up] += learningRate * *delta++;
+		m_weights[up][down] += learningRate * *delta++;
 	}
 }
 
@@ -1322,16 +1343,16 @@ void GLayerRestrictedBoltzmannMachine::updateDeltas(const GVec &upStreamActivati
 	delta.vec() += err;
 }
 
-void GLayerRestrictedBoltzmannMachine::applyDeltas(const GVec &deltas)
+void GLayerRestrictedBoltzmannMachine::applyDeltas(double learningRate, const GVec &deltas)
 {
 	size_t outputCount = outputs();
 	GConstVecWrapper delta(deltas.data(), m_weights.cols());
 	for(size_t i = 0; i < outputCount; i++)
 	{
-		m_weights[i] += delta.vec();
+		m_weights[i].addScaled(learningRate, delta.vec());
 		delta.setData(delta.vec().data() + m_weights.cols());
 	}
-	bias() += delta.vec();
+	bias().addScaled(learningRate, delta.vec());
 }
 
 void GLayerRestrictedBoltzmannMachine::scaleWeights(double factor, bool scaleBiases)
@@ -1575,7 +1596,7 @@ void GLayerConvolutional1D::updateDeltas(const GVec &upStreamActivation, GVec &d
 	}
 }
 
-void GLayerConvolutional1D::applyDeltas(const GVec &deltas)
+void GLayerConvolutional1D::applyDeltas(double learningRate, const GVec &deltas)
 {
 	size_t kernelSize = m_kernels.cols();
 	size_t errPos = 0;
@@ -1590,10 +1611,10 @@ void GLayerConvolutional1D::applyDeltas(const GVec &deltas)
 			size_t upOfs = 0;
 			for(size_t l = 0; l < kernelSize; l++) // for each connection...
 			{
-				d[l] += *delta++;
+				d[l] += learningRate * *delta++;
 				upOfs += m_inputChannels;
 			}
-			bias()[kern++] += *delta++;
+			bias()[kern++] += learningRate * *delta++;
 			errPos++;
 		}
 		upPos++;
@@ -1926,14 +1947,14 @@ void GLayerConvolutional2D::updateDeltas(const GVec &upStreamActivation, GVec &d
 	in.dz = 0;
 }
 
-void GLayerConvolutional2D::applyDeltas(const GVec &deltas)
+void GLayerConvolutional2D::applyDeltas(double learningRate, const GVec &deltas)
 {
 	size_t count = m_kernels.cols();
 	GConstVecWrapper delta(deltas.data(), count);
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 	{
-		m_kernels[i] += delta.vec();
-		m_bias[i] += *(delta.vec().data() + count);
+		m_kernels[i].addScaled(learningRate, delta.vec());
+		m_bias[i] += learningRate * *(delta.vec().data() + count);
 		delta.setData(delta.vec().data() + count + 1);
 	}
 }

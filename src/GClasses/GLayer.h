@@ -165,7 +165,7 @@ public:
 	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) = 0;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) = 0;
+	virtual void applyDeltas(double learningRate, const GVec &deltas) = 0;
 };
 
 
@@ -221,13 +221,16 @@ public:
 	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) override;
+	virtual void applyDeltas(double learningRate, const GVec &deltas) override;
 
 	/// Multiplies all the weights by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Moves all weights in the direction of zero by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
+
+	/// Applies contractive regularization to the weights in this layer.
+	void contractWeights(double factor, bool contractBiases);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights() override;
@@ -401,7 +404,7 @@ using GNeuralNetLayer::feedForward;
 	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) override;
+	virtual void applyDeltas(double learningRate, const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
@@ -665,7 +668,7 @@ using GNeuralNetLayer::feedForward;
 	virtual void updateDeltas(const GVec& upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) override;
+	virtual void applyDeltas(double learningRate, const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
@@ -788,7 +791,7 @@ using GNeuralNetLayer::feedForward;
 	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) override;
+	virtual void applyDeltas(double learningRate, const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
@@ -929,7 +932,7 @@ using GNeuralNetLayer::feedForward;
 	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) override;
+	virtual void applyDeltas(double learningRate, const GVec &deltas) override;
 
 	/// Multiplies all the weights in this layer by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
@@ -1055,7 +1058,7 @@ public:
 	virtual void updateDeltas(const GVec &upStreamActivation, GVec &deltas) override;
 
 	/// Add the weight and bias deltas to the weights.
-	virtual void applyDeltas(const GVec &deltas) override;
+	virtual void applyDeltas(double learningRate, const GVec &deltas) override;
 
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;

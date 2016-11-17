@@ -575,8 +575,8 @@ GRelation* GReservoir::trainInner(const GRelation& relation)
 	delete(m_pNN);
 	GNeuralNet* pNN = new GNeuralNet();
 	for(size_t i = 0; i < m_hiddenLayers; i++)
-		pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, m_outputs));
-	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, m_outputs), new GLayerActivation());
+	pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerActivation());
 	GUniformRelation* pRel = new GUniformRelation(m_outputs);
 	m_pNN = pNN;
 	if(!relation.areContinuous())
@@ -751,7 +751,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn;
-		nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		nn.addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerActivation());
 		nn.rand().setSeed(m_seed);
 		nn.beginIncrementalLearning(pFeatures2->relation(), pLabels2->relation());
 		m_seed += 77152487;
@@ -763,7 +763,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		optimizer.optimizeWithValidation(*pFeatures2, *pLabels2);
 
 		// Identify the weakest attribute
-		GLayerClassic& layer = *(GLayerClassic*)&nn.layer(nn.layerCount() - 1);
+		GLayerLinear& layer = *(GLayerLinear*)&nn.layer(nn.layerCount() - 2);
 		size_t pos = 0;
 		double weakest = 1e308;
 		size_t weakestIndex = 0;

@@ -232,10 +232,10 @@ public:
 	}
 
 	/// Called by classes that extend GDifferentiableOptimizer
-	void updateGradient(const GVec &x, const GVec &blame, GVec &deltas);
+	void updateGradient(const GVec &x, GVec &gradient);
 
 	/// Called by classes that extend GDifferentiableOptimizer
-	void step(const GVec &deltas);
+	void step(double learningRate, const GVec &gradient);
 
 protected:
 	/// See the comment for GIncrementalLearner::trainInner

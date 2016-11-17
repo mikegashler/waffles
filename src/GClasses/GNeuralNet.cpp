@@ -822,12 +822,11 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 	return pNN;
 }
 
-void GNeuralNet::updateGradient(const GVec &x, const GVec &blame, GVec &deltas)
+void GNeuralNet::updateGradient(const GVec &x, GVec &gradient)
 {
-	GAssert(deltas.size() == countWeights(), "Can't update gradient; not enough space in deltas!");
-	backpropagate(blame);
-	const GVec *in = &x;
-	GVecWrapper out(deltas.data(), 0);
+	GAssert(gradient.size() == countWeights(), "gradient has unexpected size");
+	const GVec* in = &x;
+	GVecWrapper out(gradient.data(), 0);
 	for(size_t i = 0; i < layerCount(); ++i)
 	{
 		size_t count = layer(i).countWeights();
@@ -839,15 +838,15 @@ void GNeuralNet::updateGradient(const GVec &x, const GVec &blame, GVec &deltas)
 	}
 }
 
-void GNeuralNet::step(const GVec &deltas)
+void GNeuralNet::step(double learningRate, const GVec &gradient)
 {
-	GConstVecWrapper delta(deltas.data(), 0);
+	GConstVecWrapper delta(gradient.data(), 0);
 	for(size_t i = 0; i < layerCount(); ++i)
 	{
 		size_t count = layer(i).countWeights();
 		delta.setSize(count);
 		if(count > 0)
-			((GParameterizedLayer*)&layer(i))->applyDeltas(delta.vec());
+			((GParameterizedLayer*)&layer(i))->applyDeltas(learningRate, delta.vec());
 		delta.setData(delta.vec().data() + count);
 	}
 }
@@ -1155,7 +1154,7 @@ void GNeuralNet_testCompressFeatures(GRand& prng)
 
 	// Set up
 	GNeuralNet nn1;
-	nn1.addLayers(new GLayerClassic(FLEXIBLE_SIZE, NN_TEST_DIMS * 2));
+	nn1.addLayers(new GLayerLinear(FLEXIBLE_SIZE, NN_TEST_DIMS * 2), new GLayerActivation());
 	nn1.beginIncrementalLearning(feat.relation(), feat.relation());
 	nn1.perturbAllWeights(1.0);
 	GNeuralNet nn2;
@@ -1204,16 +1203,17 @@ void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
 	GLayerConvolutional2D *pLayer = new GLayerConvolutional2D(5, 5, 3, 3, 3, 2);
 	GLayerConvolutional2D &layer = *pLayer;
 
-	GLayerClassic *pUpstream = new GLayerClassic(1, layer.inputs());
-	GLayerClassic &upstream = *pUpstream;
+	GLayerLinear* pLay1 = new GLayerLinear(1, layer.inputs());
+	GLayerLinear &lay1 = *pLay1;
+	GLayerActivation* pLay2 = new GLayerActivation();
 
 	GNeuralNet nn;
-	nn.addLayers(pUpstream, pLayer);
+	nn.addLayers(pLay1, pLay2, pLayer);
 	nn.beginIncrementalLearning(GUniformRelation(1), GUniformRelation(layer.outputs()));
 
 	for(size_t i = 0; i < layer.inputs(); i++)
-		upstream.weights()[0][i] = feature[i] + prng.normal();
-	upstream.bias().fill(0.0);
+		lay1.weights()[0][i] = feature[i] + prng.normal();
+	lay1.bias().fill(0.0);
 
 	layer.setPadding(1);
 	layer.setStride(2);
@@ -1347,7 +1347,7 @@ void GNeuralNet::test()
 	{
 		GNeuralNet* pNN = new GNeuralNet();
 		pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, 3), new GLayerActivation(),
-			new GLayerClassic(3, FLEXIBLE_SIZE), new GLayerActivation());
+			new GLayerLinear(3, FLEXIBLE_SIZE), new GLayerActivation());
 		GAutoFilter af(pNN);
 		af.basicTest(0.76, 0.92);
 	}
@@ -1426,7 +1426,7 @@ void GReservoirNet::trainInner(const GMatrix& features, const GMatrix& labels)
 
 	delete(m_pModel);
 	GNeuralNet* pNN = new GNeuralNet();
-	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerActivation());
 	GReservoir* pRes = new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers);
 	GDataAugmenter* pAug = new GDataAugmenter(pRes);
 	m_pModel = new GFeatureFilter(pNN, pAug);
@@ -1450,7 +1450,7 @@ void GReservoirNet::beginIncrementalLearningInner(const GRelation& featureRel, c
 {
 	delete(m_pModel);
 	m_pNN = new GNeuralNet();
-	m_pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	m_pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerActivation());
 	GDataAugmenter* pAug = new GDataAugmenter(new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers));
 	m_pModel = new GFeatureFilter(m_pNN, pAug);
 	m_pModel->beginIncrementalLearning(featureRel, labelRel);
@@ -1488,7 +1488,7 @@ GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 void GReservoirNet::test()
 {
 	GAutoFilter af(new GReservoirNet());
-	af.basicTest(0.7, 0.74, 0.001, false, 0.9);
+	af.basicTest(0.69, 0.74, 0.001, false, 0.9);
 }
 #endif // MIN_PREDICT
 

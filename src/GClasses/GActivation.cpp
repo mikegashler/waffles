@@ -247,13 +247,13 @@ void GActivationHinge::applyDeltas(double learningRate)
 	}
 }
 
-void GActivationHinge::applyDeltas(const GVec &deltas)
+void GActivationHinge::applyDeltas(double learningRate, const GVec &deltas)
 {
 	const double* pD = deltas.data();
 	double* pHinge = m_hinges.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
-		*pHinge = *pHinge + *pD;
+		*pHinge = *pHinge + learningRate * *pD;
 		if(*pHinge < -1.0)
 			*pHinge = -1.0;
 		if(*pHinge > 1.0)
@@ -558,13 +558,13 @@ void GActivationSoftExponential::applyDeltas(double learningRate)
 	}
 }
 
-void GActivationSoftExponential::applyDeltas(const GVec &deltas)
+void GActivationSoftExponential::applyDeltas(double learningRate, const GVec &deltas)
 {
 	const double* pD = deltas.data();
 	double* pAlpha = m_alphas.data();
 	for(size_t i = 0; i < m_units; i++)
 	{
-		*pAlpha = *pAlpha + *pD;
+		*pAlpha = *pAlpha + learningRate * *pD;
 		if(*pAlpha < -1.0)
 			*pAlpha = -1.0;
 		if(*pAlpha > 1.0)

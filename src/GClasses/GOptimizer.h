@@ -86,12 +86,8 @@ public:
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) = 0;
 	
-	/// Scale the calculated gradient (i.e. for momentum).
-	virtual void scaleDeltas(double scale) = 0;
-	
-	/// Apply the calculated/scaled gradient to the model's parameters.
-	/// This method resets the deltas (i.e. using momentum).
-	virtual void applyDeltas() = 0;
+	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
+	virtual void applyDeltas(double learningRate) = 0;
 	
 	/// Update and apply the gradient for a single training sample (on-line).
 	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
@@ -136,6 +132,9 @@ public:
 	void setImprovementThresh(double m) { m_minImprovement = m; }
 	double improvementThresh() const { return m_minImprovement; }
 
+	void setLearningRate(double l) { m_learningRate = l; }
+	double learningRate() const { return m_learningRate; }
+	
 protected:
 	GNeuralNet& m_model;
 	GObjective* m_objective;
@@ -145,80 +144,93 @@ protected:
 	bool m_ownsRand;
 	size_t m_batchSize, m_batchesPerEpoch, m_epochs, m_windowSize;
 	double m_minImprovement;
+	double m_learningRate;
 };
 
+
+/// Trains a neural network by stochastic gradient descent.
 class GSGDOptimizer : public GDifferentiableOptimizer
 {
 public:
 	GSGDOptimizer(GNeuralNet& model, GObjective *error = NULL);
 	
-	/// Prepare for optimization (i.e. allocate delta vectors).
+	/// Prepare for optimization (i.e. allocate buffers).
 	virtual void prepareForOptimizing() override;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
 	
-	/// Scale the calculated gradient (i.e. for momentum).
-	virtual void scaleDeltas(double scale) override;
+	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
+	virtual void applyDeltas(double learningRate) override;
 	
-	/// Apply the calculated/scaled gradient to the model's parameters.
-	/// This method resets the deltas (i.e. using momentum).
-	virtual void applyDeltas() override;
-	
-	void setLearningRate(double l)	{ m_learningRate = l; }
-	double learningRate() const		{ return m_learningRate; }
-	
-	void setMomentum(double m)		{ m_momentum = m; }
-	double momentum() const			{ return m_momentum; }
+	void setMomentum(double m) { m_momentum = m; }
+	double momentum() const { return m_momentum; }
+
 private:
-	GVec m_pred, m_blame, m_gradient, m_deltas;
-	double m_learningRate, m_momentum;
+	GVec m_pred, m_blame, m_gradient;
+	double m_momentum;
 };
 
+
+
+/// Trains a neural network by ADAM.
+/// See Diederik P. Kingma and Jimmy Lei Ba, "Adam: A Method for Stochastic Optimization", 2015.
+class GAdamOptimizer : public GDifferentiableOptimizer
+{
+public:
+	GAdamOptimizer(GNeuralNet& model, GObjective *error = NULL);
+	
+	/// Prepare for optimization (i.e. allocate buffers).
+	virtual void prepareForOptimizing() override;
+	
+	/// Evaluate feat and lab, and update the model's gradient.
+	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	
+	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
+	virtual void applyDeltas(double learningRate) override;
+	
+	void setBeta1(double b) { m_beta1 = b; }
+	double beta1() const { return m_beta1; }
+	void setBeta2(double b) { m_beta2 = b; }
+	double beta2() const { return m_beta2; }
+	void setEpsilon(double e) { m_epsilon = e; }
+	double epsilon() const { return m_epsilon; }
+
+private:
+	GVec m_pred, m_blame, m_gradient, m_deltas, m_sqdeltas;
+	double m_correct1, m_correct2, m_beta1, m_beta2, m_epsilon;
+};
+
+
+
+/// Trains a neural network with RMS-prop.
 class GRMSPropOptimizer : public GDifferentiableOptimizer
 {
 public:
 	GRMSPropOptimizer(GNeuralNet& model, GObjective* error = NULL);
 	
-	/// Prepare for optimization (i.e. allocate delta vectors).
+	/// Prepare for optimization (i.e. allocate buffers).
 	virtual void prepareForOptimizing() override;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
 	
-	/// Scale the calculated gradient (i.e. for momentum).
-	virtual void scaleDeltas(double scale) override;
+	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
+	virtual void applyDeltas(double learningRate) override;
 	
-	/// Apply the calculated/scaled gradient to the model's parameters.
-	/// This method resets the deltas (i.e. using momentum).
-	virtual void applyDeltas() override;
-	
-	void setLearningRate(double l)	{ m_learningRate = l; }
-	double learningRate() const		{ return m_learningRate; }
-	
-	void setMomentum(double m)		{ m_momentum = m; }
-	double momentum() const			{ return m_momentum; }
-	
-	void setGamma(double g)			{ m_gamma = g; }
-	double gamma() const			{ return m_gamma; }
+	void setMomentum(double m) { m_momentum = m; }
+	double momentum() const { return m_momentum; }
+	void setGamma(double g) { m_gamma = g; }
+	double gamma() const { return m_gamma; }
 
 private:
-	GVec m_pred, m_blame, m_gradient, m_deltas, m_meanSquare;
-	double m_learningRate, m_momentum, m_gamma, m_epsilon;
+	GVec m_pred, m_blame, m_gradient, m_meanSquare;
+	double m_momentum, m_gamma, m_epsilon;
 };
 
 
 
 
-
-
-
-
-
-
-
-
-// MARK: Old GOptimizer.h below
 
 /// The optimizer seeks to find values that minimize this target function.
 class GTargetFunction

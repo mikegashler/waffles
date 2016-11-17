@@ -76,7 +76,7 @@ public:
 	virtual void updateDeltas(const GVec &net, const GVec &activation, GVec &deltas) {}
 
 	/// Applies the deltas
-	virtual void applyDeltas(const GVec &deltas) {}
+	virtual void applyDeltas(double learningRate, const GVec &deltas) {}
 
 	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
 	virtual void applyAdaptive() {}
@@ -367,7 +367,7 @@ public:
 	virtual void applyDeltas(double learningRate);
 
 	/// Applies the deltas
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(double learningRate, const GVec &deltas);
 
 	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
 	virtual void applyAdaptive();
@@ -469,7 +469,7 @@ public:
 	virtual void applyDeltas(double learningRate);
 
 	/// Applies the deltas
-	virtual void applyDeltas(const GVec &deltas);
+	virtual void applyDeltas(double learningRate, const GVec &deltas);
 
 	/// Adaptively updates per-weight learning rates, and updates the weights based on the signs of the gradient
 	virtual void applyAdaptive();
