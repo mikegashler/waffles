@@ -222,29 +222,7 @@ void GNeuralNet::maxNorm(double min, double max, bool output_layer)
 void GNeuralNet::invertNode(size_t lay, size_t node)
 {
 	GNeuralNetLayer& l = layer(lay);
-	if(l.type() == GNeuralNetLayer::layer_classic) // This block is ready to be deleted when we get rid of GLayerClassic
-	{
-		GLayerClassic& layerUpStream = *(GLayerClassic*)&l;
-		GMatrix& w = layerUpStream.m_weights;
-		for(size_t i = 0; i < w.rows(); i++)
-			w[i][node] = -w[i][node];
-		if(lay + 1 < m_layers.size())
-		{
-			if(m_layers[lay + 1]->type() != GNeuralNetLayer::layer_classic)
-				throw Ex("Expected the downstream layer to be a classic layer");
-			GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[lay + 1];
-			GActivationFunction* pActFunc = layerDownStream.m_pActivationFunction;
-			size_t downOuts = layerDownStream.outputs();
-			GVec& ww = layerDownStream.m_weights[node];
-			GVec& bb = layerDownStream.bias();
-			for(size_t i = 0; i < downOuts; i++)
-			{
-				bb[i] += 2 * pActFunc->squash(0.0, i) * ww[i];
-				ww[i] = -ww[i];
-			}
-		}
-	}
-	else if(l.type() == GNeuralNetLayer::layer_linear)
+	if(l.type() == GNeuralNetLayer::layer_linear)
 	{
 		GLayerLinear& layerUpStream = *(GLayerLinear*)m_layers[lay];
 		GMatrix& w = layerUpStream.weights();
@@ -271,17 +249,7 @@ void GNeuralNet::invertNode(size_t lay, size_t node)
 void GNeuralNet::swapNodes(size_t lay, size_t a, size_t b)
 {
 	GNeuralNetLayer& l = layer(lay);
-	if(l.type() == GNeuralNetLayer::layer_classic) // This block is ready to be deleted when we get rid of GLayerClassic
-	{
-		GLayerClassic& layerUpStream = *(GLayerClassic*)&l;
-		layerUpStream.m_weights.swapColumns(a, b);
-		if(lay + 1 < m_layers.size())
-		{
-			GLayerClassic& layerDownStream = *(GLayerClassic*)m_layers[lay + 1];
-			layerDownStream.m_weights.swapRows(a, b);
-		}
-	}
-	else if(l.type() == GNeuralNetLayer::layer_linear)
+	if(l.type() == GNeuralNetLayer::layer_linear)
 	{
 		GLayerLinear& layerUpStream = *(GLayerLinear*)&l;
 		layerUpStream.weights().swapColumns(a, b);
@@ -359,67 +327,7 @@ void GNeuralNet::align(const GNeuralNet& that)
 		GNeuralNetLayer& lThis = layer(i);
 		if(lThis.type() != that.m_layers[i]->type())
 			throw Ex("mismatching layer types");
-		if(lThis.type() == GNeuralNetLayer::layer_classic) // This block is ready to be deleted when we get rid of GLayerClassic
-		{
-			GLayerClassic& layerThisCur = *(GLayerClassic*)&lThis;
-			GLayerClassic& layerThatCur = *(GLayerClassic*)that.m_layers[i];
-			if(layerThisCur.outputs() != layerThatCur.outputs())
-				throw Ex("mismatching layer size");
-
-			GMatrix costs(layerThisCur.outputs(), layerThatCur.outputs());
-			for(size_t k = 0; k < layerThisCur.outputs(); k++)
-			{
-				for(size_t j = 0; j < layerThatCur.outputs(); j++)
-				{
-					double d = layerThisCur.bias()[k] - layerThatCur.bias()[j];
-					double pos = d * d;
-					d = layerThisCur.bias()[k] + layerThatCur.bias()[j];
-					double neg = d * d;
-					GMatrix& wThis = layerThisCur.m_weights;
-					const GMatrix& wThat = layerThatCur.m_weights;
-					for(size_t l = 0; l < layerThisCur.inputs(); l++)
-					{
-						d = wThis[l][k] - wThat[l][j];
-						pos += (d * d);
-						d = wThis[l][k] + wThat[l][j];
-						neg += (d * d);
-					}
-					costs[j][k] = std::min(pos, neg);
-				}
-			}
-			GSimpleAssignment indexes = linearAssignment(costs);
-
-			// Align this layer with that layer
-			for(size_t j = 0; j < layerThisCur.outputs(); j++)
-			{
-				size_t k = (size_t)indexes((unsigned int)j);
-				if(k != j)
-				{
-					// Fix up the indexes
-					size_t m = j + 1;
-					for( ; m < layerThisCur.outputs(); m++)
-					{
-						if((size_t)indexes((unsigned int)m) == j)
-							break;
-					}
-					GAssert(m < layerThisCur.outputs());
-					indexes.assign((unsigned int)m, (unsigned int)k);
-
-					// Swap nodes j and k
-					swapNodes(i, j, k);
-				}
-
-				// Test whether not j needs to be inverted by computing the dot product of the two weight vectors
-				double dp = 0.0;
-				size_t inputs = layerThisCur.inputs();
-				for(size_t kk = 0; kk < inputs; kk++)
-					dp += layerThisCur.m_weights[kk][j] * layerThatCur.m_weights[kk][j];
-				dp += layerThisCur.bias()[j] * layerThatCur.bias()[j];
-				if(dp < 0)
-					invertNode(i, j); // invert it
-			}
-		}
-		else if(lThis.type() == GNeuralNetLayer::layer_linear)
+		if(lThis.type() == GNeuralNetLayer::layer_linear)
 		{
 			GLayerLinear& layerThisCur = *(GLayerLinear*)&lThis;
 			GLayerLinear& layerThatCur = *(GLayerLinear*)that.m_layers[i];
@@ -511,21 +419,6 @@ void GNeuralNet::regularizeActivationFunctions(double lambda)
 	//	m_layers[i]->regularizeActivationFunction(lambda);
 }
 
-void GNeuralNet::contractWeights(double factor, bool contractBiases)
-{
-	size_t i = m_layers.size() - 1;
-	GNeuralNetLayer* pLay = m_layers[i];
-	pLay->error().fill(1.0);
-	while(i > 0)
-	{
-		GNeuralNetLayer* pUpStream = m_layers[i - 1];
-		pLay->backPropError(pUpStream);
-		((GLayerClassic*)pLay)->contractWeights(factor, contractBiases);
-		pLay = pUpStream;
-		i--;
-	}
-	((GLayerClassic*)pLay)->contractWeights(factor, contractBiases);
-}
 #endif // MIN_PREDICT
 
 void GNeuralNet::forwardProp(const GVec& row)
@@ -639,22 +532,6 @@ void GNeuralNet::printWeights(std::ostream& stream)
 		GNeuralNetLayer& l = layer(i);
 		if(!l.hasWeights())
 			stream << "		weightless layer type: " << to_str((size_t)l.type());
-		else if(l.type() == GNeuralNetLayer::layer_classic)
-		{
-			GLayerClassic& lay = *(GLayerClassic*)&l;
-			for(size_t j = 0; j < lay.outputs(); j++)
-			{
-				stream << "		Unit " << to_str(j) << ":	";
-				stream << "(bias: " << to_str(lay.bias()[j]) << ")	";
-				for(size_t k = 0; k < lay.inputs(); k++)
-				{
-					if(k > 0)
-						stream << "	";
-					stream << to_str(lay.m_weights[k][j]);
-				}
-				stream << "\n";
-			}
-		}
 		else if(l.type() == GNeuralNetLayer::layer_linear)
 		{
 			GLayerLinear& lay = *(GLayerLinear*)&l;
@@ -682,21 +559,7 @@ void GNeuralNet::containIntrinsics(GMatrix& intrinsics)
 	GNeuralNetLayer& llay = layer(0);
 	if(llay.inputs() != dims)
 		throw Ex("Mismatching number of columns and inputs");
-	if(llay.type() == GNeuralNetLayer::layer_classic)
-	{
-		GLayerClassic& lay = *(GLayerClassic*)&llay;
-		GVec pCentroid(dims);
-		intrinsics.centroid(pCentroid);
-		double maxDev = 0.0;
-		for(size_t i = 0; i < dims; i++)
-		{
-			double dev = sqrt(intrinsics.columnVariance(i, pCentroid[i]));
-			maxDev = std::max(maxDev, dev);
-			intrinsics.normalizeColumn(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
-			lay.renormalizeInput(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
-		}
-	}
-	else if(llay.type() == GNeuralNetLayer::layer_linear)
+	if(llay.type() == GNeuralNetLayer::layer_linear)
 	{
 		GLayerLinear& lay = *(GLayerLinear*)&llay;
 		GVec pCentroid(dims);
@@ -717,21 +580,7 @@ void GNeuralNet::containIntrinsics(GMatrix& intrinsics)
 GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 {
 	GNeuralNetLayer& llay = layer(0);
-	if(llay.type() == GNeuralNetLayer::layer_classic)
-	{
-		GLayerClassic& lay = *(GLayerClassic*)&llay;
-		if(lay.inputs() != features.cols())
-			throw Ex("mismatching number of data columns and layer units");
-		GPCA pca(lay.inputs());
-		pca.train(features);
-		GVec off(lay.inputs());
-		pca.basis()->multiply(pca.centroid(), off);
-		GMatrix* pInvTransform = pca.basis()->pseudoInverse();
-		std::unique_ptr<GMatrix> hInvTransform(pInvTransform);
-		lay.transformWeights(*pInvTransform, off);
-		return pca.transformBatch(features);
-	}
-	else if(llay.type() == GNeuralNetLayer::layer_linear)
+	if(llay.type() == GNeuralNetLayer::layer_linear)
 	{
 		GLayerLinear& lay = *(GLayerLinear*)&llay;
 		if(lay.inputs() != features.cols())

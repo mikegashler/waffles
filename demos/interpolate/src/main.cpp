@@ -41,6 +41,7 @@
 #include "GImagePng.h"
 #include <exception>
 #include <iostream>
+
 #ifdef WINDOWS
 #	include <direct.h>
 #endif
@@ -379,23 +380,21 @@ public:
 		else if(index == 12)
 		{
 			GNeuralNet* pModel = new GNeuralNet();
-			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+			pModel->addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerActivation());
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 13)
 		{
 			GNeuralNet* pNN = new GNeuralNet();
 
-			pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, 30));
-			pNN->addLayer(new GLayerClassic(30, 256));
-			pNN->addLayer(new GLayerClassic(256, FLEXIBLE_SIZE));
+			pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, 30),
+					new GLayerActivation(),
+					new GLayerLinear(30, 256),
+					new GLayerActivation(),
+					new GLayerLinear(256, FLEXIBLE_SIZE),
+					new GLayerActivation()
+      				);
 
-/*
-			pNN->setLearningRate(0.0001);
-			pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, 80, new GActivationSoftPlus()));
-			pNN->addLayer(new GLayerClassic(80, 80, new GActivationSoftPlus()));
-			pNN->addLayer(new GLayerClassic(80, FLEXIBLE_SIZE, new GActivationSoftPlus()));
-*/
 			doBackProp(pNN);
 		}
 		else if(index == 14)
@@ -414,6 +413,11 @@ public:
 	void workerThread()
 	{
 		GAssert(m_workerWorking);
+		GNeuralNet* pNN = (GNeuralNet*)m_pNNForTraining;
+		GSGDOptimizer* pOpt = NULL;
+		if(pNN)
+			pOpt = new GSGDOptimizer(*pNN);
+		std::unique_ptr<GSGDOptimizer> hOpt(pOpt);
 		while(m_workerMode > 0)
 		{
 			if(m_workerMode == 2) // yield
@@ -421,11 +425,10 @@ public:
 			else if(m_workerMode == 3) // train
 			{
 				GSpinLockHolder hLock(&m_weightsLock, "training the network");
-				GNeuralNet* pNN = (GNeuralNet*)m_pNNForTraining;
 				for(size_t i = 0; i < 100; i++)
 				{
 					size_t r = (size_t)m_pRand->next(m_pTrainingFeatures->rows());
-					pNN->trainIncremental(m_pTrainingFeatures->row(r), m_pTrainingLabels->row(r));
+					pOpt->optimizeIncremental(m_pTrainingFeatures->row(r), m_pTrainingLabels->row(r));
 				}
 			}
 			else

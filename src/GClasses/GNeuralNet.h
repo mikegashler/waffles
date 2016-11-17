@@ -104,9 +104,6 @@ public:
 	/// Regularizes all the activation functions
 	void regularizeActivationFunctions(double lambda);
 
-	/// Contract all the weights in this network by the specified factor.
-	void contractWeights(double factor, bool contractBiases);
-
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear() override;
 
