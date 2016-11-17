@@ -62,6 +62,9 @@ public:
 	/// Returns the type of this layer
 	virtual LayerType type() const = 0;
 
+	/// Returns true iff this layer has weights
+	virtual bool hasWeights() const { return false; }
+
 	/// Returns true iff this layer does its computations in parallel on a GPU.
 	virtual bool usesGPU() { return false; }
 
@@ -125,6 +128,9 @@ class GParameterizedLayer : public GNeuralNetLayer
 public:
 	GParameterizedLayer() {}
 	virtual ~GParameterizedLayer() {}
+
+	/// Returns true iff this layer has weights
+	virtual bool hasWeights() const { return true; }
 
 	/// \deprecated Randomly sets the activation of some units to 0.
 	virtual void dropOut(GRand& rand, double probOfDrop) = 0;
@@ -718,21 +724,6 @@ using GNeuralNetLayer::feedForward;
 };
 
 
-
-class GLayerSoftMax : public GLayerClassic
-{
-public:
-	GLayerSoftMax(size_t inputs, size_t outputs);
-	GLayerSoftMax(GDomNode* pNode);
-	virtual ~GLayerSoftMax() {}
-
-	/// Returns the type of this layer
-	virtual LayerType type() const override { return layer_softmax; }
-
-	/// Applies the logistic activation function to the net vector to compute the activation vector,
-	/// and also adjusts the weights so that the activations sum to 1.
-	virtual void activate();
-};
 
 
 

@@ -758,13 +758,17 @@ GWag* GLearnerLib::InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix*
 		if(args.if_pop("-noalign"))
 			pWag->noAlign();
 		else if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
+		{
+			pModel->addLayer(new GLayerLinear(FLEXIBLE_SIZE, args.pop_uint()));
+			pModel->addLayer(new GLayerActivation());
+		}
 		else if(args.if_pop("-models"))
 			modelCount = args.pop_uint();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	pModel->addLayer(new GLayerLinear(FLEXIBLE_SIZE, pLabels->cols()));
+	pModel->addLayer(new GLayerActivation());
 	pWag->setModelCount(modelCount);
 	return pWag;
 }

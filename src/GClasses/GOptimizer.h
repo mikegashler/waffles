@@ -52,6 +52,7 @@ public:
 		m_slack.copy(slack);
 		m_useSlack = true;
 	}
+
 protected:
 	GVec m_slack;
 	bool m_useSlack;
@@ -134,6 +135,7 @@ public:
 	
 	void setImprovementThresh(double m) { m_minImprovement = m; }
 	double improvementThresh() const { return m_minImprovement; }
+
 protected:
 	GNeuralNet& m_model;
 	GObjective* m_objective;
@@ -199,6 +201,7 @@ public:
 	
 	void setGamma(double g)			{ m_gamma = g; }
 	double gamma() const			{ return m_gamma; }
+
 private:
 	GVec m_pred, m_blame, m_gradient, m_deltas, m_meanSquare;
 	double m_learningRate, m_momentum, m_gamma, m_epsilon;

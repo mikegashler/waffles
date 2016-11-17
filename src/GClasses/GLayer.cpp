@@ -61,9 +61,10 @@ GNeuralNetLayer* GNeuralNetLayer::deserialize(GDomNode* pNode)
 	LayerType e = (LayerType)pNode->field("type")->asInt();
 	switch(e)
 	{
+		case layer_linear: return new GLayerLinear(pNode);
+		case layer_activation: return new GLayerActivation(pNode);
 		case layer_classic: return new GLayerClassic(pNode);
 		case layer_restrictedboltzmannmachine: return new GLayerRestrictedBoltzmannMachine(pNode);
-		case layer_softmax: return new GLayerSoftMax(pNode);
 		case layer_convolutional1d: return new GLayerConvolutional1D(pNode);
 		case layer_convolutional2d: return new GLayerConvolutional2D(pNode);
 		default: throw Ex("Unrecognized neural network layer type: ", GClasses::to_str((int)e));
@@ -1101,48 +1102,6 @@ void GLayerMaxOut::perturbWeights(GRand& rand, double deviation, size_t start, s
 
 
 
-
-
-
-
-
-
-GLayerSoftMax::GLayerSoftMax(size_t inputSize, size_t outputSize)
-: GLayerClassic(inputSize, outputSize, new GActivationLogistic())
-{
-}
-
-GLayerSoftMax::GLayerSoftMax(GDomNode* pNode)
-: GLayerClassic(pNode)
-{
-}
-
-// virtual
-void GLayerSoftMax::activate()
-{
-	double* pAct = activation().data();
-	size_t outputCount = outputs();
-	double* pNet = net().data();
-	double sum = 0;
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		double d = m_pActivationFunction->squash(*(pNet++), i);
-		sum += d;
-		*(pAct++) = d;
-	}
-	if(sum > 1e-12)
-	{
-		double fac = 1.0 / sum;
-		m_weights.multiply(fac);
-		bias() *= fac;
-		activation() *= fac;
-	}
-	else
-	{
-		for(size_t i = 0; i < outputCount; i++)
-			activation()[i] = 1.0 / outputCount;
-	}
-}
 
 
 
