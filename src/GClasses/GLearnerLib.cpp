@@ -760,7 +760,7 @@ GWag* GLearnerLib::InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix*
 		else if(args.if_pop("-addlayer"))
 		{
 			pModel->addLayer(new GLayerLinear(FLEXIBLE_SIZE, args.pop_uint()));
-			pModel->addLayer(new GLayerActivation());
+			pModel->addLayer(new GLayerTanh());
 		}
 		else if(args.if_pop("-models"))
 			modelCount = args.pop_uint();
@@ -768,7 +768,7 @@ GWag* GLearnerLib::InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix*
 			throw Ex("Invalid option: ", args.peek());
 	}
 	pModel->addLayer(new GLayerLinear(FLEXIBLE_SIZE, pLabels->cols()));
-	pModel->addLayer(new GLayerActivation());
+	pModel->addLayer(new GLayerTanh());
 	pWag->setModelCount(modelCount);
 	return pWag;
 }

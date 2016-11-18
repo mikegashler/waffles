@@ -43,6 +43,16 @@ class GNeuralNetLayer
 public:
 	enum LayerType
 	{
+		layer_tanh,
+		layer_logistic,
+		layer_bentidentity,
+		layer_softroot,
+		layer_sigexp,
+		layer_gaussian,
+		layer_sine,
+		layer_rectifier,
+		layer_leakyrectifier,
+		layer_softplus,
 		layer_linear,
 		layer_activation,
 		layer_productpooling,
@@ -63,6 +73,9 @@ public:
 
 	/// Returns true iff this layer has weights
 	virtual bool hasWeights() const { return false; }
+
+	/// Returns true iff this layer operates only on individual elements
+	virtual bool elementWise() const { return false; }
 
 	/// Returns true iff this layer does its computations in parallel on a GPU.
 	virtual bool usesGPU() { return false; }
@@ -279,20 +292,18 @@ public:
 
 
 
-
-/// Applies an activation function, such as tanh, in an element-wise manner.
+/// The base class of layers that apply an activation function, such as tanh, in an element-wise manner.
 class GLayerActivation : public GNeuralNetLayer
 {
 protected:
-	size_t m_size;
 	GMatrix m_activation; // Row 0 is the activation. Row 1 is the error.
-	GActivationFunction *m_pActivationFunction;
-public:
-	GLayerActivation(GActivationFunction *pActivationFunction = NULL);
-	GLayerActivation(GDomNode *pDoc);
 
-	/// Returns the type of this layer
-	virtual LayerType type() const override { return layer_activation; }
+public:
+	GLayerActivation();
+	GLayerActivation(GDomNode* pNode);
+
+	/// Returns true iff this layer operates only on individual elements
+	virtual bool elementWise() const { return true; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) override;
@@ -301,10 +312,10 @@ public:
 	virtual std::string to_str() override;
 
 	/// Returns the number of values expected to be fed as input into this layer.
-	virtual size_t inputs() const override { return m_size; }
+	virtual size_t inputs() const override { return m_activation.cols(); }
 
 	/// Returns the number of values that this layer outputs.
-	virtual size_t outputs() const override { return m_size; }
+	virtual size_t outputs() const override { return m_activation.cols(); }
 
 	/// Resizes this layer. If pRand is non-NULL, then it preserves existing weights when possible
 	/// and initializes any others to small random values.
@@ -330,8 +341,185 @@ public:
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
 	virtual size_t countWeights() override;
+
+	virtual double eval(double x) = 0;
+	virtual double derivative(double x, double f_x) = 0;
 };
 
+
+
+/// An element-wise nonlinearity layer
+// (Note, the following code is a bit faster:
+// 		if(std::abs(x) >= 700.0)
+// 			return (x >= 0 ? 1.0 : -1.0);
+// 		double a = exp(x);
+// 		double b = 1.0 / a;
+// 		return (a - b) / (a + b);
+// and here is a fast version of the derivative
+// 		if(std::abs(x) >= 700.0)
+// 			return (x >= 0 ? 1.0 : 0.0);
+// 		double a = exp(x);
+// 		double b = 1.0 / a;
+// 		double d = 2.0 / (a + b); // sech(x)
+// 		return d * d;
+class GLayerTanh : public GLayerActivation
+{
+public:
+	GLayerTanh() : GLayerActivation() {}
+	GLayerTanh(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_tanh; }
+	virtual double eval(double x) override { return std::tanh(x); }
+	virtual double derivative(double x, double f_x) override { return 1.0 - (f_x * f_x); }
+};
+
+
+
+/// An element-wise nonlinearity layer
+class GLayerLogistic : public GLayerActivation
+{
+public:
+	GLayerLogistic() : GLayerActivation() {}
+	GLayerLogistic(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_logistic; }
+	virtual double eval(double x) override
+	{
+		if(x >= 700.0) // Don't trigger a floating point exception
+			return 1.0;
+		else if(x < -700.0) // Don't trigger a floating point exception
+			return 0.0;
+		else return 1.0 / (std::exp(-x) + 1.0);
+		
+	}
+	virtual double derivative(double x, double f_x) override { return f_x * (1.0 - f_x); }
+};
+
+
+
+#define BEND_AMOUNT 0.5
+#define BEND_SIZE 0.5
+/// An element-wise nonlinearity layer
+class GLayerBentIdentity : public GLayerActivation
+{
+public:
+	GLayerBentIdentity() : GLayerActivation() {}
+	GLayerBentIdentity(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_bentidentity; }
+	virtual double eval(double x) override { return BEND_AMOUNT * (std::sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x; }
+	virtual double derivative(double x, double f_x) override { return BEND_AMOUNT * x / std::sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0; }
+};
+
+
+
+/// An element-wise nonlinearity layer
+/// This activation function forms a sigmoid shape by splicing exponential and logarithmic functions together.
+class GLayerSigExp : public GLayerActivation
+{
+public:
+	GLayerSigExp() : GLayerActivation() {}
+	GLayerSigExp(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_sigexp; }
+	virtual double eval(double x) override { return (x <= 0.0 ? exp(x) - 1.0 : std::log(x + 1.0)); }
+	virtual double derivative(double x, double f_x) override { return (x <= 0.0 ? std::exp(x) : 1.0 / (x + 1.0)); }
+};
+
+
+
+/// An element-wise nonlinearity layer
+class GLayerGaussian : public GLayerActivation
+{
+public:
+	GLayerGaussian() : GLayerActivation() {}
+	GLayerGaussian(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_gaussian; }
+	virtual double eval(double x) override { return std::exp(-(x * x)); }
+	virtual double derivative(double x, double f_x) override { return -2.0 * x * std::exp(-(x * x)); }
+};
+
+
+
+/// An element-wise nonlinearity layer
+class GLayerSine : public GLayerActivation
+{
+public:
+	GLayerSine() : GLayerActivation() {}
+	GLayerSine(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_sine; }
+	virtual double eval(double x) override { return std::sin(x); }
+	virtual double derivative(double x, double f_x) override { return std::cos(x); }
+};
+
+
+
+
+/// An element-wise nonlinearity layer
+class GLayerRectifier : public GLayerActivation
+{
+public:
+	GLayerRectifier() : GLayerActivation() {}
+	GLayerRectifier(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_rectifier; }
+	virtual double eval(double x) override { return std::max(0.0, x); }
+	virtual double derivative(double x, double f_x) override { return (x >= 0.0 ? 1.0 : 0.0); }
+};
+
+
+
+
+/// An element-wise nonlinearity layer
+class GLayerLeakyRectifier : public GLayerActivation
+{
+public:
+	GLayerLeakyRectifier() : GLayerActivation() {}
+	GLayerLeakyRectifier(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_leakyrectifier; }
+	virtual double eval(double x) override { return x >= 0.0 ? x : 0.01 * x; }
+	virtual double derivative(double x, double f_x) override { return x >= 0.0 ? 1.0 : 0.01; }
+};
+
+
+
+/// An element-wise nonlinearity layer
+// (Note: A similar, but less well-known function is the integral of the logistic function. I think it is slightly faster to compute.)
+class GLayerSoftPlus : public GLayerActivation
+{
+public:
+	GLayerSoftPlus() : GLayerActivation() {}
+	GLayerSoftPlus(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_softplus; }
+	virtual double eval(double x) override { return x > 500 ? x : log(1.0 + exp(x)); }
+	virtual double derivative(double x, double f_x) override { return 1.0 / (1.0 + exp(-x)); }
+};
+
+
+
+
+
+
+/// An element-wise nonlinearity layer.
+/// This function is shaped like a sigmoid, but with both a co-domain and domain
+/// that spans the continuous values. At very negative values,
+/// it is shaped like y=-sqrt(-2x). Near zero, it is shaped
+/// like y=x. At very positive values, it is shaped like y=sqrt(2x).
+class GLayerSoftRoot : public GLayerActivation
+{
+public:
+	GLayerSoftRoot() : GLayerActivation() {}
+	GLayerSoftRoot(GDomNode* pNode) : GLayerActivation(pNode) {}
+	virtual LayerType type() const override { return layer_softroot; }
+	virtual double eval(double x) override
+	{
+		double d = std::sqrt(x * x + 1.0);
+		return std::sqrt(d + x) - std::sqrt(d - x);
+	}
+	virtual double derivative(double x, double f_x) override
+	{
+		if(std::abs(x) > 1e7)
+			return 0.0;
+		double d = std::sqrt(x * x + 1.0);
+		double t = x / d;
+		return (t + 1.0) / (2.0 * std::sqrt(d + x)) - (t - 1.0) / (2.0 * std::sqrt(d - x));
+	}
+};
 
 
 

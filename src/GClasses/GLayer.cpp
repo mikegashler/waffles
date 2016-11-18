@@ -61,8 +61,18 @@ GNeuralNetLayer* GNeuralNetLayer::deserialize(GDomNode* pNode)
 	LayerType e = (LayerType)pNode->field("type")->asInt();
 	switch(e)
 	{
+		case layer_tanh: return new GLayerTanh(pNode);
+		case layer_logistic: return new GLayerLogistic(pNode);
+		case layer_bentidentity: return new GLayerBentIdentity(pNode);
+		case layer_softroot: return new GLayerSoftRoot(pNode);
+		case layer_sigexp: return new GLayerSigExp(pNode);
+		case layer_gaussian: return new GLayerGaussian(pNode);
+		case layer_sine: return new GLayerSine(pNode);
+		case layer_rectifier: return new GLayerRectifier(pNode);
+		case layer_leakyrectifier: return new GLayerLeakyRectifier(pNode);
+		case layer_softplus: return new GLayerSoftPlus(pNode);
 		case layer_linear: return new GLayerLinear(pNode);
-		case layer_activation: return new GLayerActivation(pNode);
+//		case layer_activation: return new GLayerActivation(pNode);
 		case layer_restrictedboltzmannmachine: return new GLayerRestrictedBoltzmannMachine(pNode);
 		case layer_convolutional1d: return new GLayerConvolutional1D(pNode);
 		case layer_convolutional2d: return new GLayerConvolutional2D(pNode);
@@ -323,20 +333,18 @@ void GLayerLinear::transformWeights(GMatrix& transform, const GVec& offset)
 
 
 
-
-GLayerActivation::GLayerActivation(GActivationFunction *pActivationFunction)
-: m_size(FLEXIBLE_SIZE), m_activation(2, 0), m_pActivationFunction(pActivationFunction != NULL ? pActivationFunction : new GActivationTanH())
+GLayerActivation::GLayerActivation()
+: m_activation(2, 0)
 {}
 
 GLayerActivation::GLayerActivation(GDomNode* pNode)
-: m_size(pNode->field("size")->asInt()), m_activation(2, m_size), m_pActivationFunction(GActivationFunction::deserialize(pNode->field("act_func")))
+: m_activation(2, pNode->field("size")->asInt())
 {}
 
 GDomNode* GLayerActivation::serialize(GDom* pDoc)
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "size", pDoc->newInt(m_size));
-	pNode->addField(pDoc, "act_func", m_pActivationFunction->serialize(pDoc));
+	pNode->addField(pDoc, "size", pDoc->newInt(m_activation.cols()));
 	return pNode;
 }
 
@@ -344,7 +352,7 @@ GDomNode* GLayerActivation::serialize(GDom* pDoc)
 std::string GLayerActivation::to_str()
 {
 	std::ostringstream oss;
-	oss << "[GLayerActivation:" << inputs() << "->" << m_pActivationFunction->name() << "]";
+	oss << "[GLayerActivation: type=" << (size_t)type() << ", size=" << inputs() << "]";
 	return oss.str();
 }
 
@@ -352,15 +360,14 @@ void GLayerActivation::resize(size_t in, size_t out)
 {
 	if(in != out)
 		throw Ex("GLayerActivation must have the same number of inputs as outputs.");
-	m_size = out;
-	m_activation.resize(2, m_size);
+	m_activation.resize(2, out);
 }
 
 void GLayerActivation::feedForward(const GVec& in)
 {
 	GVec &a = activation();
 	for(size_t i = 0; i < inputs(); i++)
-		a[i] = m_pActivationFunction->squash(in[i], i);
+		a[i] = eval(in[i]);
 }
 
 void GLayerActivation::backPropError(GNeuralNetLayer* pUpStreamLayer)
@@ -372,16 +379,13 @@ void GLayerActivation::backPropError(GNeuralNetLayer* pUpStreamLayer)
 	GVec &n = pUpStreamLayer->activation();
 	GVec &a = activation();
 	for(size_t i = 0; i < inputCount; i++)
-		upStreamError[i] = source[i] * m_pActivationFunction->derivativeOfNet(n[i], a[i], i);
+		upStreamError[i] = source[i] * derivative(n[i], a[i]);
 }
 
 size_t GLayerActivation::countWeights()
 {
 	return 0;
 }
-
-
-
 
 
 

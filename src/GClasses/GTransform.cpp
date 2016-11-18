@@ -575,8 +575,8 @@ GRelation* GReservoir::trainInner(const GRelation& relation)
 	delete(m_pNN);
 	GNeuralNet* pNN = new GNeuralNet();
 	for(size_t i = 0; i < m_hiddenLayers; i++)
-		pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, m_outputs), new GLayerActivation());
-	pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerActivation());
+		pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, m_outputs), new GLayerTanh());
+	pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerTanh());
 	GUniformRelation* pRel = new GUniformRelation(m_outputs);
 	m_pNN = pNN;
 	if(!relation.areContinuous())
@@ -751,7 +751,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNet nn;
-		nn.addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerActivation());
+		nn.addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerTanh());
 		nn.rand().setSeed(m_seed);
 		nn.beginIncrementalLearning(pFeatures2->relation(), pLabels2->relation());
 		m_seed += 77152487;

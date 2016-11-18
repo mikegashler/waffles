@@ -33,7 +33,6 @@
 #include "../GClasses/GActivation.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GAssignment.h"
-#include "../GClasses/GAssociative.h"
 #include "../GClasses/GBayesianNetwork.h"
 #include "../GClasses/GBezier.h"
 #include "../GClasses/GBits.h"
@@ -886,13 +885,10 @@ public:
 	void runAllTests()
 	{
 		// Class tests
-		runTest("GActivationHinge", GActivationHinge::test);
-		runTest("GActivationSoftExponential", GActivationSoftExponential::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAnnealing", GAnnealing::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);
 		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);
-		runTest("GAssociative", GAssociative::test);
 		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
 		runTest("GAttributeSelector", GAttributeSelector::test);
 		runTest("GBag", GBag::test);

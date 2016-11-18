@@ -207,12 +207,6 @@ public:
 		addLayer(new GLayerLinear(outputSize));
 	}
 
-	/// Convenience method for adding an activation layer
-	void addLayer(GActivationFunction *pActivationFunction)
-	{
-		addLayer(new GLayerActivation(pActivationFunction));
-	}
-
 	/// Convenience method for adding multiple layers (base case)
 	template <typename T>
 	void addLayers(T layer)

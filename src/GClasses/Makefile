@@ -53,7 +53,6 @@ CPP_FILES = \
 	GActivation.cpp\
 	GApp.cpp\
 	GAssignment.cpp\
-	GAssociative.cpp\
 	GBayesianNetwork.cpp\
 	GBezier.cpp\
 	GBigInt.cpp\

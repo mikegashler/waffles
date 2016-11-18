@@ -499,71 +499,6 @@ void breadthFirstUnfolding(GArgReader& args)
 	pDataAfter->print(cout);
 }
 
-void curviness1(GArgReader& args)
-{
-
-}
-
-void curviness2(GArgReader& args)
-{
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	GNormalize norm;
-	GMatrix* pDataNormalized = norm.reduce(*pData);
-	Holder<GMatrix> hDataNormalized(pDataNormalized);
-	hData.reset();
-	pData = NULL;
-
-	// Parse Options
-	size_t maxEigs = 10;
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	Holder<GMatrix> hControlData(NULL);
-	while(args.size() > 0)
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else if(args.if_pop("-maxeigs"))
-			maxEigs = args.pop_uint();
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-
-	GRand rand(seed);
-	size_t targetDims = std::min(maxEigs, pDataNormalized->cols());
-
-	// Do linear PCA
-	GNeuroPCA np1(targetDims, &rand);
-	np1.setActivation(new GActivationIdentity());
-	np1.computeEigVals();
-	GMatrix* pResults1 = np1.reduce(*pDataNormalized);
-	Holder<GMatrix> hResults1(pResults1);
-	GVec& eigVals1 = np1.eigVals();
-	for(size_t i = 0; i + 1 < targetDims; i++)
-		eigVals1[i] = sqrt(eigVals1[i]) - sqrt(eigVals1[i + 1]);
-	size_t max1 = eigVals1.indexOfMax();
-	double v1 = (double)max1;
-	if(max1 > 0 && max1 + 2 < targetDims)
-		v1 += (eigVals1[max1 - 1] - eigVals1[max1 + 1]) / (2.0 * (eigVals1[max1 - 1] + eigVals1[max1 + 1] - 2.0 * eigVals1[max1]));
-
-	// Do non-linear PCA
-	GNeuroPCA np2(targetDims, &rand);
-	np1.setActivation(new GActivationLogistic());
-	np2.computeEigVals();
-	GMatrix* pResults2 = np2.reduce(*pDataNormalized);
-	Holder<GMatrix> hResults2(pResults2);
-	GVec& eigVals2 = np2.eigVals();
-	for(size_t i = 0; i + 1 < targetDims; i++)
-		eigVals2[i] = sqrt(eigVals2[i]) - sqrt(eigVals2[i + 1]);
-	size_t max2 = eigVals2.indexOfMax();
-	double v2 = (double)max2;
-	if(max2 > 0 && max2 + 2 < targetDims)
-		v2 += (eigVals2[max2 - 1] - eigVals2[max2 + 1]) / (2.0 * (eigVals2[max2 - 1] + eigVals2[max2 + 1] - 2.0 * eigVals2[max2]));
-
-	// Compute the difference in where the eigenvalues fall
-	cout.precision(14);
-	cout << (v1 - v2) << "\n";
-}
-
 void isomap(GArgReader& args)
 {
 	// Load the file and params
@@ -697,74 +632,6 @@ void multiDimensionalScaling(GArgReader& args)
 	GMatrix* pResults = GManifold::multiDimensionalScaling(pDistances, targetDims, &prng, useSquaredDistances);
 	Holder<GMatrix> hResults(pResults);
 	pResults->print(cout);
-}
-
-void neuroPCA(GArgReader& args)
-{
-	// Load the file
-	GMatrix* pData = loadData(args.pop_string());
-	Holder<GMatrix> hData(pData);
-	int nTargetDims = args.pop_uint();
-
-	// Parse options
-	string roundTrip;
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	bool trainBias = true;
-	bool linear = false;
-	string eigenvalues = "";
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-seed"))
-			seed = args.pop_uint();
-		else if(args.if_pop("-clampbias"))
-			trainBias = false;
-		else if(args.if_pop("-linear"))
-			linear = true;
-		else if(args.if_pop("-eigenvalues"))
-			eigenvalues = args.pop_string();
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-
-	// Transform the data
-	GRand prng(seed);
-	GNeuroPCA transform(nTargetDims, &prng);
-	if(!trainBias)
-		transform.clampBias();
-	if(linear)
-		transform.setActivation(new GActivationIdentity());
-	if(eigenvalues.length() > 0)
-		transform.computeEigVals();
-	GMatrix* pDataAfter = transform.reduce(*pData);
-	Holder<GMatrix> hDataAfter(pDataAfter);
-
-	// Save the eigenvalues
-	if(eigenvalues.length() > 0)
-	{
-		GArffRelation* pRelation = new GArffRelation();
-		pRelation->addAttribute("eigenvalues", 0, NULL);
-		GMatrix dataEigenvalues(pRelation);
-		dataEigenvalues.newRows(nTargetDims);
-		GVec& eigVals = transform.eigVals();
-		for(int i = 0; i < nTargetDims; i++)
-			dataEigenvalues[i][0] = eigVals[i];
-		dataEigenvalues.saveArff(eigenvalues.c_str());
-	}
-
-	// In linear mode, people usually expect normalized eigenvectors, so let's normalize them now
-	if(linear)
-	{
-		GMatrix* pWeights = transform.weights();
-		GAssert(pWeights->cols() == pData->cols());
-		for(int i = 0; i < nTargetDims; i++)
-		{
-			double scal = sqrt(pWeights->row(i + 1).squaredMagnitude());
-			for(size_t j = 0; j < pDataAfter->rows(); j++)
-				pDataAfter->row(j)[i] *= scal;
-		}
-	}
-
-	pDataAfter->print(cout);
 }
 
 void principalComponentAnalysis(GArgReader& args)
@@ -1327,18 +1194,14 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("attributeselector")) attributeSelector(args);
 		else if(args.if_pop("blendembeddings")) blendEmbeddings(args);
 		else if(args.if_pop("breadthfirstunfolding")) breadthFirstUnfolding(args);
-		else if(args.if_pop("curviness2")) curviness2(args);
 		else if(args.if_pop("isomap")) isomap(args);
 		else if(args.if_pop("lle")) lle(args);
 		else if(args.if_pop("manifoldsculpting")) ManifoldSculpting(args);
 		else if(args.if_pop("multidimensionalscaling")) multiDimensionalScaling(args);
-		else if(args.if_pop("neuropca")) neuroPCA(args);
 		else if(args.if_pop("pca")) principalComponentAnalysis(args);
 		else if(args.if_pop("scalingunfolder")) scalingUnfolder(args);
 		else if(args.if_pop("svd")) singularValueDecomposition(args);
 		else if(args.if_pop("som")) selfOrganizingMap(args);
-//		else if(args.if_pop("unsupervisedbackprop")) unsupervisedBackProp(args);
-//		else if(args.if_pop("autoencoder")) autoencoder(args);
 		else throw Ex("Unrecognized command: ", args.peek());
 	}
 	catch(const std::exception& e)
