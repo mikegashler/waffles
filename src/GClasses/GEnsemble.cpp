@@ -785,13 +785,13 @@ void GResamplingAdaBoost::test()
 GWag::GWag(size_t size)
 : GSupervisedLearner(), m_noAlign(false)
 {
-	m_pNN = new GNeuralNet();
+	m_pNN = new GNeuralNetLearner();
 }
 
 GWag::GWag(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode)
 {
-	m_pNN = new GNeuralNet(pNode->field("nn"));
+	m_pNN = new GNeuralNetLearner(pNode->field("nn"));
 	m_models = (size_t)pNode->field("models")->asInt();
 	m_noAlign = pNode->field("na")->asBool();
 }
@@ -821,8 +821,8 @@ void GWag::clear()
 // virtual
 void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 {
-	GNeuralNet* pTemp = NULL;
-	std::unique_ptr<GNeuralNet> hTemp;
+	GNeuralNetLearner* pTemp = NULL;
+	std::unique_ptr<GNeuralNetLearner> hTemp;
 	size_t weights = 0;
 	GVec pWeightBuf;
 	GVec pWeightBuf2;
@@ -833,12 +833,12 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 		{
 			// Average m_pNN with pTemp
 			if(!m_noAlign)
-				m_pNN->align(*pTemp);
-			pTemp->weights(pWeightBuf.data());
-			m_pNN->weights(pWeightBuf2.data());
+				m_pNN->nn().align(pTemp->nn());
+			pTemp->nn().weightsToVector(pWeightBuf.data());
+			m_pNN->nn().weightsToVector(pWeightBuf2.data());
 			pWeightBuf *= (double(i) / (i + 1));
 			pWeightBuf.addScaled(1.0 / (i + 1), pWeightBuf2);
-			pTemp->setWeights(pWeightBuf.data());
+			pTemp->nn().vectorToWeights(pWeightBuf.data());
 		}
 		else
 		{
@@ -846,15 +846,15 @@ void GWag::trainInner(const GMatrix& features, const GMatrix& labels)
 			GDom doc;
 			GDomNode* pNode = m_pNN->serialize(&doc);
 			GLearnerLoader ll;
-			pTemp = new GNeuralNet(pNode);
+			pTemp = new GNeuralNetLearner(pNode);
 			hTemp.reset(pTemp);
-			weights = pTemp->countWeights();
+			weights = pTemp->nn().weightCount();
 			pWeightBuf.resize(weights);
 			pWeightBuf2.resize(weights);
 		}
 	}
-	pTemp->weights(pWeightBuf.data());
-	m_pNN->setWeights(pWeightBuf.data());
+	pTemp->nn().weightsToVector(pWeightBuf.data());
+	m_pNN->nn().vectorToWeights(pWeightBuf.data());
 }
 
 // virtual

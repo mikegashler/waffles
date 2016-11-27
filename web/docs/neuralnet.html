@@ -22,7 +22,25 @@
 
 
 <h2>Neural network examples</h2>
-<p>This document gives examples for writing code to use the neural network class in Waffles.</p>
+<p>This document gives examples for writing code to use the neural network class in Waffles. Let's begin with an overview of the most important classes:
+<br>
+<center><img src="nndiagram.svg" width=400></center><br>
+<ul>
+	<li>A <b>GNeuralNet</b> contains one or more GLayer objects.</li>
+	<li>Each <b>GLayer</b> contains one or more GBlock objects.
+	<li>Each <b>GBlock</b> represents a block of network units, or artificial neurons.
+		There are many types of blocks: GBlockLinear contains linear units. GBlockTanh contains tanh units. Etc.
+		GNeuralNet is also a type of GBlock, so you can nest entire neural networks inside of neural networks.</li>
+	<li><b>GNeuralNetOptimizer</b> is the base class for methods that train the weights of a GNeuralNet.
+		There are several types of GNeuralNetOptimizer. For example, GSGDOptimizer trains the neural net with stochastic gradient descent.</li>
+	<li><b>GNeuralNetContext</b> holds all of the context buffers that a thread needs to use (or train) a GNeuralNet in a thread-safe manner.
+		(For example, two threads may feed a vector through the neural net without stomping over the activations of the other one.)</li>
+	<li><b>GNeuralNetLearner</b> is a wrapper around GNeuralNet that implements GIncrementalLearner (which implements GSupervisedLearner).
+		This class enables using a GNeuralNet in place of any other learning algorithm in Waffles.</li>
+</ul>
+
+</p>
+
 
 
 <br><br>
@@ -76,13 +94,13 @@ Neural networks typically only support continuous values, but the labels in the 
 	const GMatrix&amp; testingLabels = rs.labels2();
 </pre>
 
-Now, we are ready to train a layer of logistic units that takes 4 inputs and gives 3 outputs. In this example, we will also specify the activation function as a separate layer:</p>
+Now, we are ready to train a layer of logistic units that takes 4 inputs and gives 3 outputs.
+The activation function is specified as a separate layer:</p>
 
 <pre class="code">
 	GNeuralNet nn;
-	GLayerLinear* pLay1 = new new GLayerLinear(4, 3);
-	GLayerActivation* pLay2 = new GLayerActivation(GActivationLogistic());
-	nn.addLayers(pLay1, pLay2);
+	nn.newLayer().add(new GBlockLinear(3));
+	nn.newLayer().add(new GBlockLogistic());
 </pre>
 
 To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD). We also set the learning rate here:
@@ -96,7 +114,7 @@ To train our model, we will create an optimizer. We wil use stochastic gradient 
 <p>Let's test our model to see how well it performs:</p>
 
 <pre class="code">
-	double sse = nn.sumSquaredError(testingFeatures, testingLabels);
+	double sse = nn.measureLoss(testingFeatures, testingLabels);
 	double mse = sse / testingLabels.rows();
 	double rmse = sqrt(mse);
 	std::cout &lt;&lt; "The root-mean-squared test error is " &lt;&lt; to_str(rmse) &lt;&lt; "\n";
@@ -120,15 +138,16 @@ To train our model, we will create an optimizer. We wil use stochastic gradient 
 <br><br>
 <h3>Classification</h3>
 
-<p>(This example builds on the previous one.)</p>
-
 <p>The previous example was not actually very useful because root-mean-squared only tells us how poorly the neural network fit to our
 continuous representation of the data. It does not really tell us how accurate the neural network is for classifying this data.
 So, instead of transforming the data to meet the model, we can transform the model to meet the data. Specifically,
 we can use the GAutoFilter class to turn the neural network into a classifier:</p>
 
 <pre class="code">
-	GAutoFilter af(&amp;nn, false); // false means the auto-filter does not need to "delete(&amp;nn)" when it is destroyed.
+	GNeuralNetLearner learner;
+	learner.nn().newLayer().add(new GBlockLinear(3));
+	learner.nn().newLayer().add(new GBlockLogistic());
+	GAutoFilter af(&amp;learner, false); // false means the auto-filter does not need to "delete(&amp;nn)" when it is destroyed.
 </pre>
 
 <p>Now, we can train the auto-filter using the original data (with nominal labels). We no longer need to explicitly train
@@ -160,67 +179,38 @@ training.)</p>
 <br><br>
 <h3>Adding layers</h3>
 
-<p>To make a deeper neural network, you add more layers prior to training. For example:</p>
+<p>Layers are added in feed-forward order. The first layer added is the input layer.
+The last layer added is the output layer.
+It is common to alternate between layers with blocks that have weights (such as GBlockLinear) and a layer with blocks that introduce non-linearity (such as GBlockTanh).
+Example:</p>
 
 <pre class="code">
-	nn.addLayers(
-		new GLayerLinear(784, 1000), new GLayerActivation(new GActivationTanH()),
-		new GLayerLinear(1000, 300), new GLayerActivation(new GActivationTanH()),
-		new GLayerLinear(300, 90), new GLayerActivation(new GActivationTanH()),
-		new GLayerLinear(90, 10), new GLayerActivation(new GActivationTanH())
-	);
+	nn.newLayer().add(new GBlockLinear(1000));
+	nn.newLayer().add(new GBlockTanh);
+	nn.newLayer().add(new GBlockLinear(300));
+	nn.newLayer().add(new GBlockTanh);
+	nn.newLayer().add(new GBlockLinear(90));
+	nn.newLayer().add(new GBlockTanh);
+	nn.newLayer().add(new GBlockLinear(10));
+	nn.newLayer().add(new GBlockTanh);
 </pre>
 
-<p>The layers are added in feed-forward order. The first layer added is the input layer. The last layer added is the output layer.
-Notice how the number of inputs into each layer should be the same as the number of outputs in the previous layer.
-If they do not line up, then the existing layer will be resized to fit with the newly added layer. In other words, if
-there is a conflict, the last one added to the neural network wins. Alternatively, you can just specify the number of neurons per layer (the outputs) and the inputs will be inferred. For example, following code results in the very same topology:</p>
+<p>The layers may be resized as needed when the enclosing neural network is resized to fit the training data.</p>
 
-<pre class="code">
-	nn.addLayers(
-		new GLayerLinear(1000), new GLayerActivation(new GActivationTanH()),
-		new GLayerLinear(300), new GLayerActivation(new GActivationTanH()),
-		new GLayerLinear(90), new GLayerActivation(new GActivationTanH()),
-		new GLayerLinear(10), new GLayerActivation(new GActivationTanH())
-	);
-</pre>
-
-<p>Since GLayerLinear is the default layer type and following one with a GLayerActivation is so common, addLayers can infer these pieces as well. We can omit some of the code to make it more concise, but still accomplish the same thing:</p>
-
-<pre class="code">
-	nn.addLayers(
-		1000, new GActivationTanH(),
-		300, new GActivationTanH(),
-		90, new GActivationTanH(),
-		10, new GActivationTanH()
-	);
-</pre>
-
-<br><br>
-<h3>Activation functions</h3>
-
-<p>A GLayerLinear just produces linear combinations of its inputs with no activation function. To use an activation function, add an activation layer after the linear layer. GActivationTanH, which implements the tanh activation function, is the preferred default activation function. Many other activation functions are also available:</p>
-
-<pre class="code">
-	nn.addLayers(
-		1000, new GActivationRectifiedLinear(),
-		300, new GActivationSoftPlus(),
-		90, new GActivationGaussian(),
-		10, new GActivationIdentity()
-	);
-</pre>
+<p>A GBlockLinear just produces linear combinations of its inputs with no activation function.
+To use an activation function, add a layer with some nonlinear block. Some examples include:
+GBlockRectifiedLinear, GBlockSoftPlus, GBlockGaussian, GBlockBentIdentity.</p>
 
 
 <br><br>
-<h3>Layer types</h3>
+<h3>Blocks with weights</h3>
 
-<p>There are several types of layers that you can use in your neural networks. These include:
+<p>There are several types of weighted blocks that you can use in your neural networks. These include:
 <ul>
-	<li><b>GLayerLinear</b> - A traditional fully-connected feed-forward layer.</li>
-	<li><b>GLayerRestrictedBoltzmannMachine</b>: A restricted boltzmann machine layer.</li>
-	<li><b>GLayerConvolutional1D</b> - A 1-dimensional convolutional layer.</li>
-	<li><b>GLayerConvolutional2D</b> - A 2-dimensional convolutional layer.</li>
-	<li><b>GLayerClassicCuda</b> - A GPU-optimized classic layer. Requires linking with the GCuda library.</li>
+	<li><b>GBlockLinear</b> - A traditional fully-connected feed-forward block of network units.</li>
+	<li><b>GBlockRestrictedBoltzmannMachine</b>: A restricted boltzmann machine block.</li>
+	<li><b>GBlockConvolutional1D</b> - A 1-dimensional block of convolutional units.</li>
+	<li><b>GBlockConvolutional2D</b> - A 2-dimensional block of convolutional units.</li>
 	<li>(Other layer types are currently under development...)</li>
 </ul>
 
@@ -316,140 +306,6 @@ GNeuralNet* pNN = (GNeuralNet*)ll.loadLearner(doc.root());
 </pre>
 
 
-<br><br>
-<h3>GPU Parallelization</h3>
-
-<p>Suppose you want to train your neural network in parallel on a GPU. For
-class neural network layers, this is done by simply replacing GLayerClassic with GLayerClassicCuda.</p>
-
-<p>For example, if you make your neural network like this,</p>
-
-<pre class="code">
-	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 2000));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 5000));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000));
-</pre>
-
-<p>then all you need to do to parallelize it is change these lines to:</p>
-
-<pre class="code">
-	GCudaEngine e;
-	GNeuralNet nn;
-	nn.addLayer(new GLayerClassicCuda(e, FLEXIBLE_SIZE, 2000));
-	nn.addLayer(new GLayerClassicCuda(e, FLEXIBLE_SIZE, 5000));
-	nn.addLayer(new GLayerClassicCuda(e, FLEXIBLE_SIZE, 1000));
-</pre>
-
-<p>The GLayerClassicCuda class is not in the GClasses library. It is in the
-GCuda library. To build this library, go into "src/depends/GCuda" and do
-"sudo make install". (Subfolders of "depends" are not built by default
-because they depend on things that some users may not have installed.)
-Of course, you also need to have an NVIDIA GPGPU, and you have to link to a few
-extra libraries: GCuda, curand, cublas, and cudart. The latter three
-can all be obtained by installing the Cuda SDK. To help you get started,
-there is a demo app in demos/cuda, which shows how this is done.</p>
-
-<p>Currently only classic layers have a GPU-counterpart, but I am working
-on parallelizig the other layer types too. I plan to have all functionality
-available on the GPU ...eventually. (If you would like to help with this
-effort, I would very much appreciate it.)</p>
-
-
-
-
-<br><br>
-<h3>General-purpose code</h3>
-
-<p>Here is some code for training a neural network on some arbitrary data.
-This code may be a good starting point for many problems involving neural networks:</p>
-
-<pre class="code">
-#include &lt;iostream&gt;
-#include &lt;cmath&gt;
-#include &lt;GClasses/GApp.h&gt;
-#include &lt;GClasses/GError.h&gt;
-#include &lt;GClasses/GNeuralNet.h&gt;
-#include &lt;GClasses/GActivation.h&gt;
-#include &lt;GClasses/GTransform.h&gt;
-#include &lt;GClasses/GVec.h&gt;
-#include &lt;GClasses/GHolders.h&gt;
-
-using namespace GClasses;
-using std::cerr;
-using std::cout;
-
-int main(int argc, char *argv[])
-{
-	// Load and prep the training data
-	GRand rand(0);
-	GMatrix raw;
-	raw.loadArff("/somepath/somedata.arff");
-	GDataColSplitter s1(raw, 1);
-	GDataRowSplitter s2(s1.features(), s1.labels(), rand, s1.labels().rows() / 2);
-
-	// Make the network
-	GNeuralNet nn;
-	// Add the layers
-	nn.addLayers(
-		80, new GActivationTanH(),
-		30, new GActivationTanH(),
-		FLEXIBLE_SIZE, new GActivationTanH()
-	);
-	
-	GAutoFilter af(&amp;nn, false);
-	af.beginIncrementalLearning(s2.features1(), s2.labels1());
-
-	// Prep the data
-	af.prefilterData(&amp;s2.features1(), &amp;s2.labels1(), &amp;s2.features2(), &amp;s2.labels2());
-	GMatrix&amp; trainFeatures = *af.data()[0];
-	GMatrix&amp; trainLabels = *af.data()[1];
-	GMatrix&amp; testFeatures = *af.data()[2];
-	GMatrix&amp; testLabels = *af.data()[3];
-
-	// Print some stats
-	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
-	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
-	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.layer(0).inputs());
-	for(size_t i = 0; i &lt; nn.layerCount(); i++)
-		cout &lt;&lt; " -&gt; " + to_str(nn.layer(i).outputs());
-	cout &lt;&lt; "\n";
-	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
-
-	// Train
-	cout &lt;&lt; "@RELATION neural_net_training\n";
-	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
-	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
-	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
-	cout &lt;&lt; "@DATA\n";
-
-	GSGDOptimizer optimizer(nn);
-	optimizer.setLearningRate(0.01);
-	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
-	for(size_t epoch = 0; epoch &lt; 50000; epoch++)
-	{
-		// Validate
-		double sseTrain = nn.sumSquaredError(trainFeatures, trainLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
-		double sseTest = nn.sumSquaredError(testFeatures, testLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
-		double mis = af.sumSquaredError(s2.features2(), s2.labels2());
-		cout &lt;&lt; to_str((double)mis / s2.features2().rows()) &lt;&lt; "\n";
-		cout.flush();
-
-		// Do an epoch of training
-		ii.reset();
-		size_t index;
-		while(ii.next(index))
-			optimizer.optimizeIncremental(trainFeatures[index], trainLabels[index]);
-	}
-	return 0;
-}
-</pre>
-
-
-
-
 
 <br><br>
 <h3>MNIST</h3>
@@ -467,6 +323,7 @@ So, let's do an example with it. Here is some code:</p>
 #include &lt;GClasses/GTransform.h&gt;
 #include &lt;GClasses/GVec.h&gt;
 #include &lt;GClasses/GHolders.h&gt;
+#include &lt;GClasses/GBlockWeightless.h&gt;
 
 using namespace GClasses;
 using std::cerr;
@@ -483,14 +340,16 @@ int main(int argc, char *argv[])
 	GDataColSplitter sTest(test, 1);
 
 	// Make the network
-	GNeuralNet nn;
-	nn.addLayers(
-		80, new GActivationTanH(),
-		30, new GActivationTanH(),
-		FLEXIBLE_SIZE, new GActivationTanH()
-	);
+	GNeuralNetLearner learner;
+	GNeuralNet&amp; nn = learner.nn();
+	nn.newLayer().add(new GBlockLinear(80));
+	nn.newLayer().add(new GBlockTanh());
+	nn.newLayer().add(new GBlockLinear(30));
+	nn.newLayer().add(new GBlockTanh());
+	nn.newLayer().add(new GBlockLinear(10));
+	nn.newLayer().add(new GBlockTanh());
 
-	GAutoFilter af(&amp;nn, false);
+	GAutoFilter af(&amp;learner, false);
 	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
 
 	// Prep the data
@@ -503,11 +362,11 @@ int main(int argc, char *argv[])
 	// Print some stats
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
-	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.layer(0).inputs());
+	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.inputs());
 	for(size_t i = 0; i &lt; nn.layerCount(); i++)
 		cout &lt;&lt; " -&gt; " + to_str(nn.layer(i).outputs());
 	cout &lt;&lt; "\n";
-	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.countWeights()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.weightCount()) &lt;&lt; "\n";
 
 	// Train
 	cout &lt;&lt; "@RELATION neural_net_training\n";
@@ -518,13 +377,13 @@ int main(int argc, char *argv[])
 
 	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.01);
-	GRandomIndexIterator ii(trainFeatures.rows(), nn.rand());
+	GRandomIndexIterator ii(trainFeatures.rows(), learner.rand());
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
 		// Validate
-		double sseTrain = nn.sumSquaredError(trainFeatures, trainLabels);
+		double sseTrain = nn.measureLoss(trainFeatures, trainLabels);
 		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
-		double sseTest = nn.sumSquaredError(testFeatures, testLabels);
+		double sseTest = nn.measureLoss(testFeatures, testLabels);
 		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
 		double mis = af.sumSquaredError(sTest.features(), sTest.labels());
 		cout &lt;&lt; to_str((double)mis / sTest.features().rows()) &lt;&lt; "\n";
@@ -571,84 +430,6 @@ You can get much better accuracy using bigger layers, but then training will tak
 
 
 
-
-
-<br><br>
-<h3>Adaptive learning rate</h3>
-
-<p>As an example, let's suppose you wanted to make a neural network with an adaptive learning rate.
-Here's an example of how you could do something like that. It trains two neural networks,
-one with a larger learning rate, and one with a smaller learning rate. At periodic intervals,
-the learning rate is updated from the one that is doing better:</p>
-
-<pre class="code">
-class AdaptiveLearner
-{
-public:
-	GNeuralNet nn1;
-	GNeuralNet nn2;
-	GAutoFilter af;
-	double learningRate;
-	const GMatrix&amp; features;
-	const GMatrix&amp; labels;
-	GRandomIndexIterator ii;
-
-
-	AdaptiveLearner(const GMatrix&amp; feat, const GMatrix&amp; lab)
-	: af(&amp;nn1, false), features(feat), labels(lab), ii(feat.rows(), nn1.rand())
-	{
-		learningRate = 1e-8;
-		nn1.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1500));
-		nn1.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 1000));
-		nn1.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 500));
-		nn1.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-		af.beginIncrementalLearning(feat.relation(), lab.relation());
-		nn2.copyStructure(&amp;nn1);
-	}
-
-	double validate(const GMatrix&amp; feat, const GMatrix&amp; lab)
-	{
-		return af.sumSquaredError(feat, lab) / lab.rows();
-	}
-
-	void trainEpoch()
-	{
-		ii.reset();
-		size_t index;
-		double sse1 = 0.0;
-		double sse2 = 0.0;
-		size_t counter = 0;
-		nn1.defaultOptimizer().setLearningRate(learningRate * 0.8);
-		nn2.defaultOptimizer().setLearningRate(learningRate * 1.25);
-		while(ii.next(index))
-		{
-			const GVec&amp; in = af.prefilterFeatures(features[index]);
-			const GVec&amp; targ = af.prefilterLabels(labels[index]);
-			nn1.trainIncremental(in, targ);
-			nn2.trainIncremental(in, targ);
-			sse1 += GVec::squaredDistance(nn1.outputLayer().activation(), targ, nn1.outputLayer().outputs());
-			sse2 += GVec::squaredDistance(nn2.outputLayer().activation(), targ, nn2.outputLayer().outputs());
-			if(++counter &gt;= 2000)
-			{
-				// Dynamically tune the learning rate
-				counter = 0;
-				if(sse1 &lt; sse2)
-				{
-					nn1.copyWeights(&amp;nn2);
-					learningRate = std::max(1e-8, learningRate * 0.8);
-				}
-				else if(sse2 &lt; sse1)
-				{
-					nn2.copyWeights(&amp;nn1);
-					learningRate = std::min(0.1, learningRate * 1.25);
-				}
-				sse1 = 0.0;
-				sse2 = 0.0;
-			}
-		}
-	}
-};
-</pre>
 
 
 

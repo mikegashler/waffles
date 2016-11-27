@@ -769,7 +769,7 @@ public:
 	/// \brief Copies all the data from this dataset into pVector.
 	///
 	/// pVector must be big enough to hold rows() * cols() doubles.
-	void toVector(double* pVector);
+	void toVector(double* pVector) const;
 
 #ifndef MIN_PREDICT
 	/// \brief Marshalls this object to a DOM, which may be saved to a variety of serial formats.

@@ -36,7 +36,7 @@ class GUnivariateDistribution;
 class GIncrementalTransform;
 class GSparseMatrix;
 class GCollaborativeFilter;
-class GNeuralNet;
+class GNeuralNetLearner;
 class GLearnerLoader;
 
 #ifndef MIN_PREDICT
@@ -670,7 +670,7 @@ protected:
 class GCalibrator : public GFilter
 {
 protected:
-	GNeuralNet** m_pCalibrations;
+	GNeuralNetLearner** m_pCalibrations;
 
 public:
 	/// This takes ownership of pLearner.

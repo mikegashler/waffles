@@ -31,6 +31,7 @@ class GActionPath;
 class GAction;
 class GRand;
 class GNeuralNet;
+class GNeuralNetContext;
 
 
 /// A loss function used to train a differentiable function.
@@ -74,12 +75,29 @@ public:
 
 
 /// Optimizes the parameters of a differentiable function using an objective function.
-class GDifferentiableOptimizer
+class GNeuralNetOptimizer
 {
+protected:
+	GObjective* m_objective;
+	GNeuralNet& m_model;
+	GNeuralNetContext* m_pContext;
+
+	// variables for convenience training methods
+	GRand* m_rand;
+	bool m_ownsRand;
+	size_t m_batchSize, m_batchesPerEpoch, m_epochs, m_windowSize;
+	double m_minImprovement;
+	double m_learningRate;
+
 public:
-	GDifferentiableOptimizer(GNeuralNet& model, GObjective* objective = NULL);
-	virtual ~GDifferentiableOptimizer();
-	
+	GNeuralNetOptimizer(GNeuralNet& model, GObjective* objective = NULL);
+	virtual ~GNeuralNetOptimizer();
+
+	/// Returns the default context for training the model.
+	/// (Note: It is allocated lazily. This should not be called before layers are added to the model.
+	/// For multi-threaded optimization, a separate context should be allocated for each thread.)
+	GNeuralNetContext& context();
+
 	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void prepareForOptimizing() = 0;
 	
@@ -134,22 +152,11 @@ public:
 
 	void setLearningRate(double l) { m_learningRate = l; }
 	double learningRate() const { return m_learningRate; }
-	
-protected:
-	GNeuralNet& m_model;
-	GObjective* m_objective;
-
-	// variables for convenience training methods
-	GRand* m_rand;
-	bool m_ownsRand;
-	size_t m_batchSize, m_batchesPerEpoch, m_epochs, m_windowSize;
-	double m_minImprovement;
-	double m_learningRate;
 };
 
 
 /// Trains a neural network by stochastic gradient descent.
-class GSGDOptimizer : public GDifferentiableOptimizer
+class GSGDOptimizer : public GNeuralNetOptimizer
 {
 public:
 	GSGDOptimizer(GNeuralNet& model, GObjective *error = NULL);
@@ -167,7 +174,7 @@ public:
 	double momentum() const { return m_momentum; }
 
 private:
-	GVec m_pred, m_blame, m_gradient;
+	GVec m_gradient;
 	double m_momentum;
 };
 
@@ -175,7 +182,7 @@ private:
 
 /// Trains a neural network by ADAM.
 /// See Diederik P. Kingma and Jimmy Lei Ba, "Adam: A Method for Stochastic Optimization", 2015.
-class GAdamOptimizer : public GDifferentiableOptimizer
+class GAdamOptimizer : public GNeuralNetOptimizer
 {
 public:
 	GAdamOptimizer(GNeuralNet& model, GObjective *error = NULL);
@@ -197,14 +204,14 @@ public:
 	double epsilon() const { return m_epsilon; }
 
 private:
-	GVec m_pred, m_blame, m_gradient, m_deltas, m_sqdeltas;
+	GVec m_gradient, m_deltas, m_sqdeltas;
 	double m_correct1, m_correct2, m_beta1, m_beta2, m_epsilon;
 };
 
 
 
 /// Trains a neural network with RMS-prop.
-class GRMSPropOptimizer : public GDifferentiableOptimizer
+class GRMSPropOptimizer : public GNeuralNetOptimizer
 {
 public:
 	GRMSPropOptimizer(GNeuralNet& model, GObjective* error = NULL);
@@ -224,7 +231,7 @@ public:
 	double gamma() const { return m_gamma; }
 
 private:
-	GVec m_pred, m_blame, m_gradient, m_meanSquare;
+	GVec m_gradient, m_meanSquare;
 	double m_momentum, m_gamma, m_epsilon;
 };
 

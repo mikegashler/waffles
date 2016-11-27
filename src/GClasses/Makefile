@@ -59,6 +59,8 @@ CPP_FILES = \
 	GBits.cpp\
 	GBitTable.cpp\
 	GBlob.cpp\
+	GBlock.cpp\
+	GBlockWeightless.cpp\
 	GCluster.cpp\
 	GCrypto.cpp\
 	GDecisionTree.cpp\
@@ -90,7 +92,6 @@ CPP_FILES = \
 	GKernelTrick.cpp\
 	GKeyPair.cpp\
 	GKNN.cpp\
-	GLayer.cpp\
 	GLearner.cpp\
 	GLearnerLib.cpp\
 	GLinear.cpp\

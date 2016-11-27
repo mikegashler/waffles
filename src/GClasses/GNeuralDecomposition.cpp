@@ -28,13 +28,13 @@ namespace GClasses {
 GNeuralDecomposition::GNeuralDecomposition()
 : GIncrementalLearner(), m_regularization(0.01), m_learningRate(0.001), m_featureScale(1.0), m_featureBias(0.0), m_outputScale(1.0), m_outputBias(0.0), m_linearUnits(10), m_softplusUnits(10), m_sigmoidUnits(10), m_sinusoidUnits(0), m_epochs(1000), m_filterLogarithm(false), m_autoFilter(true)
 {
-	m_nn = new GNeuralNet();
+	m_nn = new GNeuralNetLearner();
 }
 
 GNeuralDecomposition::GNeuralDecomposition(const GDomNode *pNode)
 : GIncrementalLearner(pNode)
 {
-	m_nn = new GNeuralNet(pNode->field("nn"));
+	m_nn = new GNeuralNetLearner(pNode->field("nn"));
 	m_regularization = pNode->field("regularization")->asDouble();
 	m_learningRate = pNode->field("learningRate")->asDouble();
 	m_featureScale = pNode->field("featureScale")->asDouble();
@@ -76,7 +76,7 @@ GMatrix *GNeuralDecomposition::extrapolate(double start, double length, double s
 	GVec x(1);
 	x[0] = start;
 
-	GMatrix *output = new GMatrix(rows, m_nn->outputLayer().outputs() + (outputFeatures ? 1 : 0));
+	GMatrix *output = new GMatrix(rows, m_nn->nn().outputLayer().outputs() + (outputFeatures ? 1 : 0));
 	GVec tmp(output->cols());
 
 	for(size_t i = 0; i < rows; i++)
@@ -99,7 +99,7 @@ GMatrix *GNeuralDecomposition::extrapolate(const GMatrix &features)
 	// note: this method assumes the network was trained with single-column features
 	// note: this method uses featureBias and featureScale to normalize features
 
-	GMatrix *output = new GMatrix(features.rows(), m_nn->outputLayer().outputs());
+	GMatrix *output = new GMatrix(features.rows(), m_nn->nn().outputLayer().outputs());
 	GVec in(1);
 
 	for(size_t i = 0; i < features.rows(); i++)

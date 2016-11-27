@@ -33,6 +33,8 @@
 #include <string>
 #include <vector>
 #include <set>
+#include "GBlock.h"
+#include "GBlockWeightless.h"
 
 using namespace GClasses;
 
@@ -545,7 +547,7 @@ GBayesianModelCombination* GLearnerLib::InstantiateHodgePodge(GArgReader& args, 
 	GNaiveInstance* pNI = new GNaiveInstance();
 	pEnsemble->addLearner(pNI);
 
-	GNeuralNet* pNN = new GNeuralNet();
+	GNeuralNetLearner* pNN = new GNeuralNetLearner();
 	pEnsemble->addLearner(pNN);
 
 	GBaselineLearner* pBL = new GBaselineLearner();
@@ -751,7 +753,7 @@ GReservoirNet* GLearnerLib::InstantiateReservoirNet(GArgReader& args, GMatrix* p
 GWag* GLearnerLib::InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GWag* pWag = new GWag(0);
-	GNeuralNet* pModel = pWag->model();
+	GNeuralNetLearner* pModel = pWag->model();
 	size_t modelCount = 10;
 	while(args.next_is_flag())
 	{
@@ -759,16 +761,16 @@ GWag* GLearnerLib::InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix*
 			pWag->noAlign();
 		else if(args.if_pop("-addlayer"))
 		{
-			pModel->addLayer(new GLayerLinear(FLEXIBLE_SIZE, args.pop_uint()));
-			pModel->addLayer(new GLayerTanh());
+			pModel->newLayer().add(new GBlockLinear(args.pop_uint()));
+			pModel->newLayer().add(new GBlockTanh());
 		}
 		else if(args.if_pop("-models"))
 			modelCount = args.pop_uint();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->addLayer(new GLayerLinear(FLEXIBLE_SIZE, pLabels->cols()));
-	pModel->addLayer(new GLayerTanh());
+	pModel->newLayer().add(new GBlockLinear(pLabels->cols()));
+	pModel->newLayer().add(new GBlockTanh());
 	pWag->setModelCount(modelCount);
 	return pWag;
 }

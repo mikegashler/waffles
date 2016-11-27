@@ -345,7 +345,6 @@ GNonlinearPCA* GRecommenderLib::InstantiateNonlinearPCA(GArgReader& args)
 	if(args.size() < 1)
 		throw Ex("The number of intrinsic dims must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
-	GActivationFunction* pAF = NULL;
 	GNonlinearPCA* pModel = new GNonlinearPCA(intrinsicDims);
 	while(args.next_is_flag())
 	{
@@ -399,7 +398,6 @@ GHybridNonlinearPCA* GRecommenderLib::InstantiateHybridNonlinearPCA(GArgReader& 
 		throw Ex("The number of input dims AND the location of the ARFF for the item attributes must be specified for this algorithm");
 	size_t intrinsicDims = args.pop_uint();
 	GMatrix data;
-	GActivationFunction* pAF = NULL;
 	loadData(data, args.pop_string());
 //	size_t inputDims = args.pop_uint();
 	GHybridNonlinearPCA* pModel = new GHybridNonlinearPCA(intrinsicDims);

@@ -301,7 +301,7 @@ protected:
 	GVec m_v;
 
 public:
-	GConstVecWrapper(const double* buf, size_t size)
+	GConstVecWrapper(const double* buf = nullptr, size_t size = 0)
 	{
 		m_v.m_data = (double*)buf;
 		m_v.m_size = size;
@@ -316,6 +316,12 @@ public:
 	void setData(const double* buf)
 	{
 		m_v.m_data = (double*)buf;
+	}
+
+	void setData(const double* buf, size_t size)
+	{
+		m_v.m_data = (double*)buf;
+		m_v.m_size = size;
 	}
 
 	void setSize(size_t size)
@@ -339,7 +345,7 @@ protected:
 	GVec m_v;
 
 public:
-	GVecWrapper(double* buf, size_t size)
+	GVecWrapper(double* buf = nullptr, size_t size = 0)
 	{
 		m_v.m_data = buf;
 		m_v.m_size = size;
@@ -356,15 +362,19 @@ public:
 		m_v.m_data = buf;
 	}
 
+	void setData(double* buf, size_t size)
+	{
+		m_v.m_data = buf;
+		m_v.m_size = size;
+	}
+
 	void setSize(size_t size)
 	{
 		m_v.m_size = size;
 	}
 
-	GVec& vec()
-	{
-		return m_v;
-	}
+	GVec& vec() { return m_v; }
+	const GVec& vec() const { return m_v; }
 };
 
 

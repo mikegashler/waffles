@@ -31,7 +31,7 @@ namespace GClasses {
 struct GManifoldSculptingNeighbor;
 class GNeighborFinder;
 class GNeighborFinderGeneralizing;
-class GNeuralNet;
+class GNeuralNetLearner;
 class GNeuralNetLayer;
 class GNeighborGraph;
 
@@ -333,7 +333,7 @@ public:
 
 	/// Unfolds the points in intrinsic, such that distances specified in nf are preserved.
 	/// If pVisible is non-NULL, then pEncoder will be incrementally trained to encode pVisible to intrinsic.
-	void unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, GNeuralNet* pDecoder = NULL, const GMatrix* pVisible = NULL);
+	void unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters = 0, GNeuralNetLearner* pEncoder = NULL, GNeuralNetLearner* pDecoder = NULL, const GMatrix* pVisible = NULL);
 
 	/// Perform a single pass over all the edges and attempt to restore local relationships
 	static void restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, size_t neighborCount, GRand& rand);

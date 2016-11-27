@@ -2569,7 +2569,7 @@ void GMatrix::fromVector(const double* pVec, size_t nRows)
 	}
 }
 
-void GMatrix::toVector(double* pVec)
+void GMatrix::toVector(double* pVec) const
 {
 	size_t nCols = cols();
 	for(size_t i = 0; i < rows(); i++)

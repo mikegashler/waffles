@@ -28,6 +28,8 @@ namespace GClasses {
 class GRelation;
 class GRand;
 class GMasterThread;
+class GNeuralNetLearner;
+
 
 typedef void (*EnsembleProgressCallback)(void* pThis, size_t i, size_t n);
 
@@ -366,7 +368,7 @@ class GWag : public GSupervisedLearner
 {
 protected:
 	size_t m_models;
-	GNeuralNet* m_pNN;
+	GNeuralNetLearner* m_pNN;
 	bool m_noAlign;
 
 public:
@@ -389,7 +391,7 @@ public:
 	/// layer to this model before training, and you should probably add at least two.
 	/// Wagging only works with classic layers. You may also use this method to obtain the average
 	/// neural network after training.)
-	GNeuralNet* model() { return m_pNN; }
+	GNeuralNetLearner* model() { return m_pNN; }
 
 	/// Specify the number of neural networks to average together
 	void setModelCount(size_t n) { m_models = n; }

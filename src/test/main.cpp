@@ -943,7 +943,7 @@ public:
 		runTest("GNaiveBayes", GNaiveBayes::test);
 		runTest("GNaiveInstance", GNaiveInstance::test);
 //		runTest("GNeuralDecomposition", GNeuralDecomposition::test);
-		runTest("GNeuralNet", GNeuralNet::test);
+		runTest("GNeuralNetLearner", GNeuralNetLearner::test);
 //		runTest("GNonlinearPCA", GNonlinearPCA::test);
 		runTest("GPackageServer", GPackageServer::test);
 		runTest("GPolynomial", GPolynomial::test);

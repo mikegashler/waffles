@@ -52,7 +52,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 		void setFilterLogarithm(bool filter_Logarithm) { m_filterLogarithm = filter_Logarithm; }
 		void setAutoFilter(bool auto_Filter) { m_autoFilter = auto_Filter; }
 		
-		GNeuralNet &nn() const { return *m_nn; }
+		GNeuralNetLearner &nn() const { return *m_nn; }
 		double regularization() const { return m_regularization; }
 		double learningRate() const { return m_learningRate; }
 		double featureScale() const { return m_featureScale; }
@@ -80,7 +80,7 @@ class GNeuralDecomposition: public GIncrementalLearner
 		virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
 	
 	private:
-		GNeuralNet *m_nn;
+		GNeuralNetLearner *m_nn;
 		//GSGDOptimizer m_optimizer;
 		double m_regularization, m_learningRate, m_featureScale, m_featureBias, m_outputScale, m_outputBias;
 		size_t m_linearUnits, m_softplusUnits, m_sigmoidUnits, m_sinusoidUnits, m_epochs;

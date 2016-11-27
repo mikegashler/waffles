@@ -19,115 +19,229 @@
 #ifndef __GNEURALNET_H__
 #define __GNEURALNET_H__
 
-#include "GLayer.h"
+#include "GBlock.h"
 #include "GLearner.h"
 #include "GOptimizer.h"
 #include "GVec.h"
 #include <vector>
+#include "GDom.h"
 
 namespace GClasses {
 
-class GNeuralNetLayer;
-class GActivationFunction;
+class GBlock;
+class GLayerContext;
+class GNeuralNetContext;
 
 
-/// A feed-forward artificial neural network, or multi-layer perceptron.
-class GNeuralNet : public GIncrementalLearner
+/// GNeuralNet contains GLayers stacked upon each other.
+/// GLayer contains GBlocks concatenated beside each other. (GNeuralNet is a type of GBlock.)
+/// Each GBlock is an array of differentiable network units (artificial neurons).
+/// The user must add at least one GBlock to each GLayer.
+class GLayer
 {
 protected:
-	std::vector<GNeuralNetLayer*> m_layers;
-	bool m_ready;
+	size_t m_inputs, m_outputs, m_weightCount;
+	std::vector<GBlock*> m_blocks;
+
+public:
+	GLayer();
+	GLayer(GDomNode* pNode);
+	virtual ~GLayer();
+
+	/// Marshal this object into a dom node.
+	GDomNode* serialize(GDom* pDoc) const;
+
+	/// Allocates a new GLayerContext object, which can be used to train or predict with this layer.
+	/// (Behavior is undefined if you add any blocks after you call newContext.)
+	GLayerContext* newContext() const;
+
+	/// Returns the number of blocks in this layer.
+	size_t blockCount() const { return m_blocks.size(); }
+
+	/// Returns a reference to the specified block.
+	GBlock& block(size_t i) { return *m_blocks[i]; }
+	const GBlock& block(size_t i) const { return *m_blocks[i]; }
+
+	/// Adds a block of network units (artificial neurons) to this layer.
+	/// inPos specifies the index of the first output from the previous layer that will feed into this block of units.
+	void add(GBlock* pBlock, size_t inPos = 0);
+
+	/// Recounts the number of inputs, outputs, and weights in this layer.
+	void recount();
+
+	/// Returns the number of inputs that this layer consumes.
+	size_t inputs() const;
+
+	/// Returns the number of outputs that this layer produces.
+	size_t outputs() const;
+
+	/// Resets the weights in all of the blocks in this layer
+	void resetWeights(GRand& rand);
+
+	/// Returns the total number of weights in this layer
+	size_t weightCount() const;
+
+	/// Marshals all the weights in this layer into a vector
+	size_t weightsToVector(double* pOutVector) const;
+
+	/// Unmarshals all the weights in this layer from a vector
+	size_t vectorToWeights(const double *pVector);
+
+	/// Copies the weights from pOther. (Assumes pOther has the same structure.)
+	void copyWeights(const GLayer* pOther);
+
+	/// Perturbs all the weights in this layer by adding Gaussian noise with the specified deviation.
+	void perturbWeights(GRand& rand, double deviation);
+
+	/// Clips the magnitude of the weight vector in each network unit to fall within the specified range.
+	void maxNorm(double min, double max);
+
+	/// Scales all the weights in this layer
+	void scaleWeights(double factor, bool scaleBiases);
+
+	/// Moves all weights by a constant amount toward 0
+	void diminishWeights(double amount, bool diminishBiases);
+
+	/// Take a step to descend the gradient by updating the weights.
+	void step(double learningRate, const GVec &gradient);
+};
+
+
+
+
+
+/// Contains the buffers that a thread needs to train or use a GLayer.
+/// Each thread should use a separate GLayerContext object.
+/// Call GLayer::newContext to obtain a new GLayerContext object.
+class GLayerContext
+{
+friend class GLayer;
+public:
+	const GLayer& m_layer;
+	GVec m_activation;
+	GVec m_blame;
+	std::vector<GNeuralNetContext*> m_components;
+
+protected:
+	GLayerContext(const GLayer& layer); // deliberately protected. Call GLayer::newContext to construct one.
+
+public:
+	~GLayerContext();
+
+	/// Feeds input forward through the layer that was used to construct this object.
+	void forwardProp(const GVec& input, GVec& output);
+
+	/// Backpropagates the blame through the layer that was used to construct this object.
+	void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame);
+
+	/// Updates the gradient for the layer that was used to construct this object.
+	void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const;
+
+};
+
+
+
+
+
+
+/// GNeuralNet contains GLayers stacked upon each other.
+/// GLayer contains GBlocks concatenated beside each other.
+/// (GNeuralNet is a type of GBlock, so you can nest.)
+/// Each GBlock is an array of differentiable network units (artificial neurons).
+/// The user must add at least one GBlock to each GLayer.
+class GNeuralNet : public GBlock
+{
+protected:
+	size_t m_weightCount;
+	std::vector<GLayer*> m_layers;
 
 public:
 	GNeuralNet();
-	GNeuralNet(const GDomNode* pNode);
+	GNeuralNet(GDomNode* pNode);
 	virtual ~GNeuralNet();
 
-	virtual void trainIncremental(const GVec &in, const GVec &out) override;
-	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) override;
-	
-#ifndef MIN_PREDICT
-	/// Performs unit tests for this class. Throws an exception if there is a failure.
-	static void test();
+	/// Returns the type of this layer
+	virtual BlockType type() const override { return block_neuralnet; }
 
-	/// Saves the model to a text file.
-	virtual GDomNode* serialize(GDom* pDoc) const override;
-#endif // MIN_PREDICT
+	/// Marshal this object into a dom node.
+	GDomNode* serialize(GDom* pDoc) const;
 
-	/// Returns the number of layers in this neural network. These include the hidden
-	/// layers and the output layer. (The input vector does not count as a layer.)
+	/// Allocates a new GNeuralNetContext object, which can be used to train or predict with this component.
+	/// (Behavior is undefined if you add or modify any layers after you call newContext.)
+	GNeuralNetContext* newContext() const;
+
+	/// Adds a new layer to this component, and returns a reference to it.
+	GLayer& newLayer();
+
+	/// Returns the number of layers in this component.
+	/// (If one or more layers contain components, which contain more layers, those are not included in the count.)
 	size_t layerCount() const { return m_layers.size(); }
 
-	/// Returns a reference to the specified layer.
-	GNeuralNetLayer& layer(size_t n) { return *m_layers[n]; }
+	/// Returns the specified layer in this component.
+	GLayer& layer(size_t i) { return *m_layers[i]; }
+	const GLayer& layer(size_t i) const { return *m_layers[i]; }
 
 	/// Returns a reference to the last layer.
-	GNeuralNetLayer& outputLayer() { return *m_layers[m_layers.size() - 1]; }
+	GLayer& outputLayer() { return *m_layers[m_layers.size() - 1]; }
+	const GLayer& outputLayer() const { return *m_layers[m_layers.size() - 1]; }
 
-	/// Adds pLayer to the network at the specified position.
-	/// (The default position is at the end in feed-forward order.)
-	/// Takes ownership of pLayer.
-	/// If the number of inputs and/or outputs do not align with the
-	/// previous and/or next layers, then any layers with FLEXIBLE_SIZE inputs or
-	/// FLEXIBLE_SIZE outputs will be resized to accomodate. If both layers have
-	/// fixed sizes that do not align, then an exception will be thrown.
-	void addLayer(GNeuralNetLayer* pLayer, size_t position = INVALID_INDEX);
+	/// Returns a string representation of this component
+	virtual std::string to_str() const override;
 
-	/// Drops the layer at the specified index. Returns a pointer to
-	/// the layer. You are then responsible to delete it. (This doesn't
-	/// resize the remaining layers to fit with each other, so the caller
-	/// is responsible to repair any such issues before using the neural
-	/// network again.)
-	GNeuralNetLayer* releaseLayer(size_t index);
+	/// Resizes this layer.
+	virtual void resize(size_t inputs, size_t outputs) override;
 
-	/// Counts the number of weights in the network. (This value is not cached, so
-	/// you should cache it rather than frequently call this method.)
-	size_t countWeights() const;
+	/// Returns the number of inputs this layer consumes
+	virtual size_t inputs() const override { return m_layers[0]->inputs(); }
+
+	/// Returns the number of outputs this layer produces
+	virtual size_t outputs() const override { return outputLayer().outputs(); }
+
+	/// Take a step to descend the gradient by updating the weights.
+	void step(double learningRate, const GVec &gradient);
+
+	/// Recounts the number of weights in this component.
+	void recount();
+
+	/// Returns the number of weights in this component.
+	virtual size_t weightCount() const override;
+
+	/// Serializes the network weights into an array of doubles. The
+	/// number of doubles in the array can be determined by calling
+	/// weightCount().
+	virtual size_t weightsToVector(double* pOutWeights) const override;
+
+	/// Sets all the weights from an array of doubles. The number of
+	/// doubles in the array can be determined by calling weightCount().
+	virtual size_t vectorToWeights(const double* pWeights) override;
+
+	/// Copy the weights from pOther. It is assumed (but not checked) that
+	/// pOther already is a GNeuralNet with the same structure as this component.
+	/// This method is faster than copyStructure.
+	virtual void copyWeights(const GBlock* pOther) override;
+
+	/// Makes this component into a deep copy of pOther, including layers, nodes, settings and weights.
+	void copyStructure(const GNeuralNet* pOther);
+
+	/// Initialize the weights, usually with small random values.
+	virtual void resetWeights(GRand& rand) override;
 
 	/// Perturbs all weights in the network by a random normal offset with the
 	/// specified deviation.
-	void perturbAllWeights(double deviation);
+	virtual void perturbWeights(GRand& rand, double deviation) override;
 
 	/// Scales weights if necessary such that the magnitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
-	virtual void maxNorm(double min, double max, bool outputLayer = false);
+	virtual void maxNorm(double min, double max) override;
 
 	/// Multiplies all weights in the network by the specified factor. This can be used
 	/// to implement L2 regularization, which prevents weight saturation.
 	/// The factor for L2 regularization should be less than 1.0, but most likely somewhat close to 1.
-	void scaleWeights(double factor, bool scaleBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
+	virtual void scaleWeights(double factor, bool scaleBiases = true) override;
 
 	/// Diminishes all weights in the network by the specified amount. This can be used
 	/// to implemnet L1 regularization, which promotes sparse representations. That is,
 	/// it makes many of the weights approach zero.
-	void diminishWeights(double amount, bool regularizeBiases = true, size_t startLayer = 0, size_t layerCount = INVALID_INDEX);
-
-	/// Regularizes all the activation functions
-	void regularizeActivationFunctions(double lambda);
-
-	/// See the comment for GSupervisedLearner::clear
-	virtual void clear() override;
-
-	/// Sets all the weights from an array of doubles. The number of
-	/// doubles in the array can be determined by calling countWeights().
-	void setWeights(const double* pWeights);
-	void setWeights(const double* pWeights, size_t layer);
-
-	/// Copy the weights from pOther. It is assumed (but not checked) that
-	/// pOther already has the same network structure as this neural network.
-	/// This method is faster than copyStructure.
-	void copyWeights(const GNeuralNet* pOther);
-
-	/// Makes this neural network into a deep copy of pOther, including layers, nodes, settings and weights.
-	void copyStructure(const GNeuralNet* pOther);
-
-	/// Serializes the network weights into an array of doubles. The
-	/// number of doubles in the array can be determined by calling
-	/// countWeights().
-	void weights(double* pOutWeights) const;
-	void weights(double* pOutWeights, size_t layer) const;
-
-	/// Computes the activation vector for all the layers in this network.
-	void forwardProp(const GVec& inputs);
+	virtual void diminishWeights(double amount, bool regularizeBiases = true) override;
 
 	/// This method assumes forwardProp has been called. It copies the predicted vector into pOut.
 	void copyPrediction(GVec& out);
@@ -151,30 +265,19 @@ public:
 	/// Prints weights in a human-readable format
 	void printWeights(std::ostream& stream);
 
+	/// Measures the loss with respect to some data.
+	/// Returns sum-squared error.
+	double measureLoss(const GMatrix& features, const GMatrix& labels, double* pOutSAE = nullptr);
+
 	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
 	/// variance of the data to the first few columns. Adjusts the weights on the input layer accordingly,
 	/// such that the network output remains the same. Returns the transformed feature matrix.
-	GMatrix* compressFeatures(GMatrix& features);
-
-	/// Backpropagates given the blame terms for the output layer.
-	/// (Blame is the partial derivative of the objective function with respect to the prediction).
-	void backpropagate(const GVec &blame);
-
-	/// Backpropagate from a downstream layer
-	void backpropagateFromLayer(GNeuralNetLayer* pDownstream);
-
-	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& in, GVec& out) override;
+//	GMatrix* compressFeatures(GMatrix& features);
 
 	/// Finds the column in the intrinsic matrix with the largest deviation, then
 	/// centers the matrix at the origin and renormalizes so the largest deviation
 	/// is 1. Also renormalizes the input layer so these changes will have no effect.
-	void containIntrinsics(GMatrix& intrinsics);
-
-#ifndef MIN_PREDICT
-	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& in, GPrediction* pOut) override;
-#endif // MIN_PREDICT
+//	void containIntrinsics(GMatrix& intrinsics);
 
 	/// Generate a neural network that is initialized with the Fourier transform
 	/// to reconstruct the given time-series data. The number of rows in the given
@@ -184,7 +287,109 @@ public:
 	/// of time in a repeating cycle. The duration of this period is specified as the
 	/// parameter, period. The returned network has already had
 	/// beginIncrementalLearning called.
-	static GNeuralNet* fourier(GMatrix& series, double period = 1.0);
+//	static GNeuralNet* fourier(GMatrix& series, double period = 1.0);
+
+protected:
+	/// Deliberately protected.
+	/// Throws an exception telling you to call GNeuralNetContext::forwardProp instead.
+	virtual void forwardProp(const GVec& input, GVec& output) const override;
+
+	/// Deliberately protected.
+	/// Throws an exception telling you to call GNeuralNetContext::backProp instead.
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame);
+
+	/// Deliberately protected.
+	/// Throws an exception telling you to call GNeuralNetContext::updateGradient instead.
+	void updateGradient(const GVec &x, const GVec& outBlame, GVec& inBlame) const;
+};
+
+
+
+
+
+/// Contains the buffers that a thread needs to train or use a GNeuralNet.
+/// Each thread should use a separate GNeuralNetContext object.
+/// Call GNeuralNet::newContext to obtain a new GNeuralNetContext object.
+class GNeuralNetContext
+{
+friend class GNeuralNet;
+protected:
+	const GNeuralNet& m_component;
+	std::vector<GLayerContext*> m_layers;
+	GLayerContext* m_pOutputLayer; // redundant pointer to the last layer for efficiency purposes
+
+	GNeuralNetContext(const GNeuralNet& component); // deliberately protected. Call GNeuralNet::newContext to construct one.
+
+public:
+	~GNeuralNetContext();
+
+	size_t layerCount() const { return m_layers.size(); }
+	GLayerContext& layer(size_t i) { return *m_layers[i]; }
+
+	/// Feeds input forward through the component that was used to construct this object.
+	void forwardProp(const GVec& input, GVec& output) const;
+
+	/// Backpropagates the blame across the component that was used to construct this object.
+	/// (If pInBlame is non-NULL, it will also compute the blame for the inputs.)
+	void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec* pInBlame);
+
+	/// Updates the gradient for the component that was used to construct this object.
+	void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const;
+
+	/// Returns the activation buffer for the output layer
+	GVec& predBuf() { return m_pOutputLayer->m_activation; }
+
+	/// Returns the blame buffer for the output layer
+	GVec& blameBuf() { return m_pOutputLayer->m_blame; }
+};
+
+
+
+
+
+/// A thin wrapper around a GNeuralNet that implements the GIncrementalLearner interface.
+class GNeuralNetLearner : public GIncrementalLearner
+{
+protected:
+	GNeuralNet m_nn;
+	GNeuralNetOptimizer* m_pOptimizer;
+	bool m_ready;
+
+public:
+	GNeuralNetLearner();
+	GNeuralNetLearner(const GDomNode* pNode);
+	virtual ~GNeuralNetLearner();
+
+	/// Returns a referene to the main component
+	GNeuralNet& nn() { return m_nn; }
+
+	/// Lazily creates an optimizer for the main component and returns a reference to it.
+	GNeuralNetOptimizer& optimizer();
+
+	/// Convenience method. Adds a layer and returns a reference to it.
+	GLayer& newLayer() { return m_nn.newLayer(); }
+
+	virtual void trainIncremental(const GVec &in, const GVec &out) override;
+	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) override;
+
+#ifndef MIN_PREDICT
+	/// Performs unit tests for this class. Throws an exception if there is a failure.
+	static void test();
+
+	/// Saves the model to a text file.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+#endif // MIN_PREDICT
+
+	/// See the comment for GSupervisedLearner::clear
+	virtual void clear() override;
+
+	/// See the comment for GSupervisedLearner::predict
+	virtual void predict(const GVec& in, GVec& out) override;
+
+#ifndef MIN_PREDICT
+	/// See the comment for GSupervisedLearner::predictDistribution
+	virtual void predictDistribution(const GVec& in, GPrediction* pOut) override;
+#endif // MIN_PREDICT
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() override { return false; }
@@ -201,33 +406,6 @@ public:
 	/// See the comment for GTransducer::supportedFeatureRange
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) override;
 
-	/// Convenience method for adding a linear layer
-	void addLayer(size_t outputSize)
-	{
-		addLayer(new GLayerLinear(outputSize));
-	}
-
-	/// Convenience method for adding multiple layers (base case)
-	template <typename T>
-	void addLayers(T layer)
-	{
-		addLayer(layer);
-	}
-
-	/// Convenience method for adding multiple layers
-	template <typename T, typename ... Ts>
-	void addLayers(T layer, Ts... layers)
-	{
-		addLayers(layer);
-		addLayers(layers...);
-	}
-
-	/// Called by classes that extend GDifferentiableOptimizer
-	void updateGradient(const GVec &x, GVec &gradient);
-
-	/// Called by classes that extend GDifferentiableOptimizer
-	void step(double learningRate, const GVec &gradient);
-
 protected:
 	/// See the comment for GIncrementalLearner::trainInner
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels) override;
@@ -235,6 +413,7 @@ protected:
 	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
 	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel) override;
 };
+
 
 
 
@@ -247,10 +426,9 @@ protected:
 	const GMatrix& m_labels;
 
 public:
-	/// You should call GNeuralNet::beginIncrementalLearning before passing your neural network to this constructor.
 	/// features and labels should be pre-filtered to contain only continuous values for the neural network.
 	GNeuralNetTargetFunction(GNeuralNet& nn, const GMatrix& features, const GMatrix& labels)
-	: GTargetFunction(nn.countWeights()), m_nn(nn), m_features(features), m_labels(labels)
+	: GTargetFunction(nn.weightCount()), m_nn(nn), m_features(features), m_labels(labels)
 	{
 	}
 
@@ -259,14 +437,14 @@ public:
 	/// Copies the neural network weights into the vector.
 	virtual void initVector(GVec& pVector)
 	{
-		m_nn.weights(pVector.data());
+		m_nn.weightsToVector(pVector.data());
 	}
 
 	/// Copies the vector into the neural network and measures sum-squared error.
 	virtual double computeError(const GVec& pVector)
 	{
-		m_nn.setWeights(pVector.data());
-		return m_nn.sumSquaredError(m_features, m_labels);
+		m_nn.vectorToWeights(pVector.data());
+		return m_nn.measureLoss(m_features, m_labels);
 	}
 };
 
@@ -281,7 +459,7 @@ class GReservoirNet : public GIncrementalLearner
 {
 protected:
 	GIncrementalLearner* m_pModel;
-	GNeuralNet* m_pNN;
+	GNeuralNetLearner* m_pNN;
 	double m_weightDeviation;
 	size_t m_augments;
 	size_t m_reservoirLayers;
