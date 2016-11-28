@@ -37,6 +37,7 @@ public:
 	enum BlockType
 	{
 		block_neuralnet,
+		block_identity,
 		block_tanh,
 		block_logistic,
 		block_bentidentity,

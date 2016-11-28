@@ -1333,6 +1333,8 @@ void complete_command(int nArgs, char* pArgs[])
 			pNode = makeAudioUsageTree();
 		else if(doesMatch(szApp, "sparse"))
 			pNode = makeSparseUsageTree();
+		else if(doesMatch(szApp, "ts"))
+			pNode = makeTimeSeriesUsageTree();
 		else
 			throw Ex("Unrecognized app: waffles_", szApp);
 		Holder<UsageNode> hNode(pNode);

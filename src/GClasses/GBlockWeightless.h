@@ -197,6 +197,20 @@ public:
 
 
 
+/// The identity function. Serves as a pass-through block of units in a neural network.
+class GBlockIdentity : public GBlockActivation
+{
+public:
+	GBlockIdentity(size_t size = 0) : GBlockActivation(size) {}
+	GBlockIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_identity; }
+	virtual double eval(double x) const override { return x; }
+	virtual double derivative(double x, double f_x) const override { return 1.0; }
+};
+
+
+
+
 /// An element-wise nonlinearity layer
 // (Note, the following code is a bit faster:
 // 		if(std::abs(x) >= 700.0)
